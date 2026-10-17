@@ -220,6 +220,7 @@ from __future__ import annotations
 
 import argparse
 import ast
+import collections
 import contextlib
 import copy
 import datetime as dt
@@ -542,6 +543,407 @@ def _utcnow() -> dt.datetime:
     return dt.datetime.now(dt.timezone.utc)
 
 
+# --- ОДИН разбор файла на прогон (CI #6, 17.10) -----------------------------
+#
+# Замер на замороженном дереве: один прогон :func:`measure` — 399 с и 69 457
+# вызовов ``ast.parse`` на 5 266 файлов. Две трети цены — не разбор, а ПОВТОР
+# одного и того же разбора: семейство шагов над :data:`OPEN_COUNTER_DIRS`
+# (G76…G88) разбирает те же ~600 файлов девятнадцать раз, и каждый шаг заново
+# зовёт всю воронку соседей (``_one_step_site_nodes`` — 8 955 зовов на 601
+# файл, ``_open_counter_sites`` — 11 234). Ниже — память ОДНОГО прогона:
+#
+# * :func:`_run_tree` отдаёт одно и то же дерево файла всем шагам прогона
+#   (и тот же отказ разбора — тем же исключением);
+# * :func:`_per_tree_memo` запоминает ответ функции файла по ТОЖДЕСТВУ дерева,
+#   и только дерева, выданного :func:`_run_tree`: оно живёт до конца прогона,
+#   поэтому ``id`` не переиспользуется. Чужое дерево (сцена контроля, сосед)
+#   считается как прежде — память его не видит.
+#
+# Ответ отдаётся КОПИЕЙ контейнеров (узлы дерева и скаляры — общие): до
+# памяти каждый зов получал свежие списки и словари, и правка одним читателем
+# до другого не доезжала. Вне прогона (зов шага напрямую без контекста) всё
+# работает как прежде: разбор на каждый зов, память не стоит.
+
+_RUN_CORPUS_STACK: List[dict] = []
+
+
+@contextlib.contextmanager
+def _run_corpus() -> Iterator[dict]:
+    """Память разборов на время ОДНОГО прогона; вложенный зов берёт внешнюю."""
+    if _RUN_CORPUS_STACK:
+        yield _RUN_CORPUS_STACK[-1]
+        return
+    ctx: dict = {"trees": {}, "tree_ids": set(), "memo": {}}
+    _RUN_CORPUS_STACK.append(ctx)
+    try:
+        yield ctx
+    finally:
+        _RUN_CORPUS_STACK.pop()
+        ctx.clear()
+
+
+def _with_run_corpus(fn: Callable) -> Callable:
+    """Ставит :func:`_run_corpus` вокруг зова — имени и тела не меняет."""
+
+    @functools.wraps(fn)
+    def run_with_corpus(*args, **kwargs):
+        with _run_corpus():
+            return fn(*args, **kwargs)
+
+    return run_with_corpus
+
+
+def _with_measure_corpus(fn: Callable) -> Callable:
+    """:func:`_with_run_corpus` для :func:`measure`: ещё и ОБЩИЙ разбор корпуса.
+
+    Корпус (``spa_core``/``scripts``/``tests``/``research``, ~5,2 тыс. файлов)
+    прежде разбирался целиком восемь раз за прогон: цикл сторон в
+    :func:`measure`, :func:`toplevel_definitions`, два запроса соседа,
+    поверхность ввоза, :func:`invisible_consumer_scale`, обход вреда G68 и
+    :func:`registry_ambiguity_scope` — по ~7 с каждый. Деревья держать нельзя
+    (~3 ГБ), поэтому общим делается не дерево, а РАЗБОР: при каждом разборе
+    файла (см. :func:`_corpus_parse`) с дерева снимаются все объявленные
+    в :data:`_CORPUS_KINDS` ответы, чьи входы к этому мигу известны, и дерево
+    отпускается. Обход, которому ответ нужен позже, берёт его готовым
+    (:func:`_corpus_fact`) — только если входы, с которыми он посчитан,
+    РАВНЫ его собственным; иначе считает сам, как прежде.
+
+    Разбор у соседа :data:`NEIGHBOUR_CENSUS` идёт через его ``_parse``; на
+    время прогона он подменяется той же функцией разбора (тот же ответ:
+    дерево или ``None`` при тех же трёх отказах) и возвращается безусловно.
+    """
+
+    @functools.wraps(fn)
+    def run_with_measure_corpus(*args, **kwargs):
+        root = args[0] if args else kwargs.get("root")
+        with _run_corpus() as ctx:
+            outer = "root" in ctx or root is None
+            if not outer:
+                ctx["root"] = Path(root)
+                ctx["corpus"] = {}
+                ctx["resolved"] = {}
+            restore = None
+            try:
+                neighbour = importlib.import_module(NEIGHBOUR_CENSUS)
+            except Exception:                       # noqa: BLE001 — отказ скажет сама ступень
+                neighbour = None
+            real_parse = getattr(neighbour, "_parse", None)
+            if not outer and callable(real_parse):
+                def shared_parse(path: Path) -> Optional[ast.Module]:
+                    try:
+                        return _corpus_parse(path)
+                    except (OSError, SyntaxError, UnicodeDecodeError):
+                        return None
+                neighbour._parse = shared_parse
+                restore = (neighbour, real_parse)
+            try:
+                return fn(*args, **kwargs)
+            finally:
+                if restore is not None:
+                    restore[0]._parse = restore[1]
+
+    return run_with_measure_corpus
+
+
+def _corpus_ctx() -> Optional[dict]:
+    """Контекст прогона с ОБЩИМ разбором корпуса — или ``None``."""
+    if _RUN_CORPUS_STACK and "corpus" in _RUN_CORPUS_STACK[-1]:
+        return _RUN_CORPUS_STACK[-1]
+    return None
+
+
+def _corpus_parse(path: Path, text: Optional[str] = None) -> ast.AST:
+    """``ast.parse(path.read_text(encoding="utf-8"))`` с общим разбором.
+
+    Вне прогона :func:`measure` — ровно прежний разбор. В прогоне исход
+    разбора файла запоминается (отказ поднимается тем же исключением у
+    каждого спросившего), а с дерева снимаются все ответы
+    :data:`_CORPUS_KINDS`, которые к этому мигу можно посчитать.
+    """
+    ctx = _corpus_ctx()
+    if ctx is None:
+        return ast.parse(path.read_text(encoding="utf-8")
+                         if text is None else text)
+    key = str(path)
+    entry = ctx["corpus"].get(key)
+    if entry is not None and entry["exc"] is not None:
+        raise entry["exc"].with_traceback(None)
+    try:
+        if text is None:
+            text = path.read_text(encoding="utf-8")
+        tree = ast.parse(text)
+    except Exception as exc:                        # noqa: BLE001 — поднимается дальше
+        ctx["corpus"][key] = {"exc": exc}
+        if text is not None:
+            ctx["corpus"][key].update(text_len=len(text), text_hash=hash(text))
+        raise
+    if entry is None:
+        entry = ctx["corpus"][key] = {"exc": None}
+    entry.update(text_len=len(text), text_hash=hash(text))
+    ctx["walk_last"] = [tree, None]        # список обхода — по первому спросу
+    _corpus_prefetch(ctx, path, entry, tree)
+    return tree
+
+
+def _corpus_args(ctx: dict, kind: str):
+    """Входы ответа ``kind`` к этому мигу прогона — или ``None`` (ещё не известны)."""
+    resolved = ctx["resolved"]
+    if kind in resolved:
+        return resolved[kind]
+    # Пока входы считаются, вид недоступен (разбор внутри расчёта входов
+    # не снимает этот же вид — и не уходит в рекурсию).
+    resolved[kind] = None
+    try:
+        args = _CORPUS_KINDS[kind][1](ctx)
+    except Exception:                               # noqa: BLE001 — вид просто не снимается
+        return None                                 # отказ входов запомнен: None
+    if args is None:
+        del resolved[kind]                          # ещё не известны — спросить позже
+    else:
+        resolved[kind] = args
+    return args
+
+
+def _corpus_prefetch(ctx: dict, path: Path, entry: dict,
+                     tree: ast.AST) -> None:
+    try:
+        rel = str(path.relative_to(ctx["root"]))
+    except ValueError:
+        return
+    for kind, (fn, _resolve) in _CORPUS_KINDS.items():
+        args = _corpus_args(ctx, kind)
+        if args is None:
+            continue
+        slot = (kind, rel, args[0])
+        if slot in entry:
+            continue
+        try:
+            entry[slot] = (fn(rel, tree, *args[1]), None)
+        except Exception as exc:                    # noqa: BLE001 — поднимется у спросившего
+            entry[slot] = (None, exc)
+
+
+def _corpus_fact(kind: str, rel: str, path: Path, key,
+                 args: tuple) -> Callable[[], object]:
+    """Ответ ``_CORPUS_KINDS[kind]`` для файла: готовый — или посчитанный сейчас.
+
+    Отдаёт ЗАДАТОК — функцию без аргументов, которая вернёт ответ (копией)
+    или поднимет исключение самой функции ответа. Отказ ЧТЕНИЯ/РАЗБОРА
+    поднимается сразу, как от ``ast.parse(path.read_text(...))``: обход
+    ловит его своим ``except`` ровно там же, где ловил прежде, а исключение
+    функции ответа летит из того же места, что и прежний зов после ``try``.
+
+    ``key`` — хешируемая форма ``args``; готовый ответ берётся ТОЛЬКО при
+    равенстве ключа (и пути) тому, с которым он посчитан.
+    """
+    fn = _CORPUS_KINDS[kind][0]
+    ctx = _corpus_ctx()
+    if ctx is None:
+        tree = ast.parse(path.read_text(encoding="utf-8"))
+        return lambda: fn(rel, tree, *args)
+    slot = (kind, rel, key)
+    entry = ctx["corpus"].get(str(path))
+    if entry is not None and entry["exc"] is not None:
+        raise entry["exc"].with_traceback(None)
+    if entry is None or slot not in entry:
+        tree = _corpus_parse(path)
+        entry = ctx["corpus"][str(path)]
+        if slot not in entry:
+            try:
+                entry[slot] = (fn(rel, tree, *args), None)
+            except Exception as exc:                # noqa: BLE001 — поднимется у задатка
+                entry[slot] = (None, exc)
+        del tree
+    value, exc = entry[slot]
+
+    def deposit():
+        if exc is not None:
+            raise exc.with_traceback(None)
+        return _fresh_containers(value)
+
+    return deposit
+
+
+def _corpus_parsed_ok(path: Path, text: str) -> None:
+    """``ast.parse(text)`` — без разбора, если исход этого файла уже известен.
+
+    Исход берётся у общего разбора только для ТОГО ЖЕ текста (файл прочитан
+    заново и сверен); иначе — разбор, как прежде.
+    """
+    ctx = _corpus_ctx()
+    if ctx is not None:
+        entry = ctx["corpus"].get(str(path))
+        if entry is not None and entry.get("text_len") == len(text) \
+                and entry.get("text_hash") == hash(text):
+            if entry["exc"] is not None:
+                raise entry["exc"].with_traceback(None)
+            return
+    ast.parse(text)
+
+
+def _run_tree(path: Path) -> ast.AST:
+    """``ast.parse(path.read_text(encoding="utf-8"))`` — один раз на прогон.
+
+    Отказ чтения/разбора запоминается тоже и поднимается тем же исключением
+    (тот же тип и текст) у каждого спросившего: «не прочитан» не превращается
+    в «прочитан» на втором шаге.
+    """
+    if not _RUN_CORPUS_STACK:
+        return ast.parse(path.read_text(encoding="utf-8"))
+    ctx = _RUN_CORPUS_STACK[-1]
+    key = str(path)
+    hit = ctx["trees"].get(key)
+    if hit is None:
+        try:
+            hit = (ast.parse(path.read_text(encoding="utf-8")), None)
+        except Exception as exc:                    # noqa: BLE001 — поднимается ниже
+            hit = (None, exc)
+        ctx["trees"][key] = hit
+        if hit[0] is not None:
+            ctx["tree_ids"].add(id(hit[0]))
+    if hit[1] is not None:
+        raise hit[1].with_traceback(None)
+    return hit[0]
+
+
+def _walked(tree: ast.AST) -> Iterator[ast.AST]:
+    """``ast.walk(tree)`` — тот же порядок узлов, из готового списка прогона.
+
+    Один файл обходится за прогон многими функциями подряд (поверхность
+    ввоза, места ввоза переписей, дороги читателя, импорты стороны, вся
+    воронка открытых счётчиков). Список обхода строится ОДИН раз: у дерева
+    прогона (:func:`_run_tree`) — на весь прогон, у дерева общего разбора
+    (:func:`_corpus_parse`) — до следующего разбора. Деревья никто не
+    правит, поэтому список и генератор дают одну и ту же последовательность.
+    """
+    if _RUN_CORPUS_STACK:
+        ctx = _RUN_CORPUS_STACK[-1]
+        last = ctx.get("walk_last")
+        if last is not None and last[0] is tree:
+            if last[1] is None:
+                last[1] = list(ast.walk(tree))
+            return iter(last[1])
+        if id(tree) in ctx["tree_ids"]:
+            walks = ctx.setdefault("walks", {})
+            hit = walks.get(id(tree))
+            if hit is None or hit[0] is not tree:
+                hit = walks[id(tree)] = (tree, list(ast.walk(tree)))
+            return iter(hit[1])
+    return ast.walk(tree)
+
+
+#: Узлы, под которыми только и бывают ОПЕРАТОРЫ: внутри выражения оператора
+#: нет (тело лямбды — выражение), поэтому ввоз ищется только под ними.
+_STATEMENT_HOLDERS = (ast.stmt, ast.excepthandler, ast.match_case, ast.mod)
+
+
+def _import_nodes(tree: ast.AST) -> Iterator[ast.AST]:
+    """Узлы ``Import``/``ImportFrom`` — РОВНО в порядке ``ast.walk(tree)``.
+
+    Обход в ширину, как у ``ast.walk``, но в очередь кладутся только
+    держатели операторов. Множество оставленных узлов замкнуто вверх (предки
+    оператора — операторы и их держатели), глубина узла в нём та же, что в
+    полном дереве, поэтому относительный порядок оставленных узлов совпадает
+    с полным обходом, а ввоз — оператор и выброшен не бывает. Цена — доля
+    узлов: выражения (их ~90 %) не перебираются вовсе.
+    """
+    todo = collections.deque([tree])
+    while todo:
+        node = todo.popleft()
+        todo.extend(child for child in ast.iter_child_nodes(node)
+                    if isinstance(child, _STATEMENT_HOLDERS))
+        if isinstance(node, (ast.Import, ast.ImportFrom)):
+            yield node
+
+
+def _fresh_containers(value):
+    """Копия списков/кортежей/словарей/множеств; узлы и скаляры — общие."""
+    if isinstance(value, list):
+        return [_fresh_containers(item) for item in value]
+    if isinstance(value, tuple):
+        return tuple(_fresh_containers(item) for item in value)
+    if isinstance(value, dict):
+        out = copy.copy(value)
+        for key, item in value.items():
+            out[key] = _fresh_containers(item)
+        return out
+    if isinstance(value, (set, frozenset)):
+        return copy.copy(value)
+    return value
+
+
+def _per_tree_memo(fn: Callable = None, *, shallow: bool = False,
+                   materialise: bool = False, any_node: bool = False
+                   ) -> Callable:
+    """Память ответа функции ФАЙЛА по тождеству дерева прогона.
+
+    Ключ — имя функции, ``id`` дерева (первый аргумент-узел) и прочие
+    аргументы по значению. Дерево, не выданное :func:`_run_tree` в этом
+    прогоне, памятью не обслуживается. ``shallow`` — ответ есть словарь
+    узлов, копируется один уровень; ``materialise`` — функция-генератор,
+    ответ хранится списком и отдаётся итератором по копии. ``any_node`` —
+    ключом служит ЛЮБОЙ узел (область функции, а не только дерево прогона):
+    запись памяти держит сам узел, поэтому его ``id`` не переиспользуется,
+    пока жива запись. Ставится только у функций, которые зовут шаги над
+    деревьями прогона (их узлы и так живут до конца прогона).
+    """
+    def decorate(func: Callable) -> Callable:
+        name = func.__qualname__
+
+        @functools.wraps(func)
+        def memoised(*args, **kwargs):
+            if not _RUN_CORPUS_STACK:
+                return func(*args, **kwargs)
+            ctx = _RUN_CORPUS_STACK[-1]
+            tree_ids = ctx["tree_ids"]
+            parts = []
+            pins = []
+            keyed = False
+            for arg in args:
+                if isinstance(arg, ast.AST):
+                    if id(arg) not in tree_ids and not any_node:
+                        return func(*args, **kwargs)
+                    parts.append(("tree", id(arg)))
+                    pins.append(arg)
+                    keyed = True
+                elif isinstance(arg, (str, int, float, bool, type(None))):
+                    parts.append(arg)
+                elif isinstance(arg, (set, frozenset)) and all(
+                        isinstance(x, (str, int)) for x in arg):
+                    parts.append(("set", frozenset(arg)))
+                else:
+                    return func(*args, **kwargs)
+            for key in sorted(kwargs):
+                value = kwargs[key]
+                if isinstance(value, (set, frozenset)):
+                    value = ("set", frozenset(value))
+                elif not isinstance(value, (str, int, float, bool,
+                                            type(None))):
+                    return func(*args, **kwargs)
+                parts.append((key, value))
+            if not keyed:
+                return func(*args, **kwargs)
+            memo = ctx["memo"]
+            mkey = (name, tuple(parts))
+            if mkey not in memo:
+                result = func(*args, **kwargs)
+                if materialise:
+                    result = list(result)
+                memo[mkey] = (result, pins)
+            result = memo[mkey][0]
+            if shallow:
+                return copy.copy(result)
+            if materialise:
+                return iter(_fresh_containers(result))
+            return _fresh_containers(result)
+
+        return memoised
+
+    if fn is not None:
+        return decorate(fn)
+    return decorate
+
+
 def const_value(node: ast.AST) -> Optional[str]:
     """Нормализованный исходник значения — или ``None``, если оно не константно.
 
@@ -601,7 +1003,7 @@ def imported_modules(tree: ast.Module) -> set:
     поэтому в набор кладутся оба прочтения.
     """
     out: set = set()
-    for node in ast.walk(tree):
+    for node in _import_nodes(tree):
         if isinstance(node, ast.Import):
             for alias in node.names:
                 out.add(alias.name)
@@ -700,7 +1102,7 @@ def risk_policy_thresholds(root: Path) -> Dict[str, List[str]]:
             f"пороги RiskPolicy не прочитаны ({RISK_POLICY_MODULE}): "
             f"{type(exc).__name__}: {exc}") from exc
     out: Dict[str, List[str]] = {}
-    for node in ast.walk(tree):
+    for node in _walked(tree):
         pairs: List[Tuple[str, ast.AST]] = []
         if isinstance(node, ast.AnnAssign) and isinstance(node.target, ast.Name) \
                 and node.value is not None:
@@ -762,7 +1164,7 @@ def artifact_literals(tree: ast.Module) -> set:
     не является и отбрасывается — иначе предметом стала бы буква.
     """
     out: set = set()
-    for node in ast.walk(tree):
+    for node in _walked(tree):
         if not (isinstance(node, ast.Constant) and isinstance(node.value, str)):
             continue
         value = node.value
@@ -787,7 +1189,7 @@ def key_literals(tree: ast.Module) -> set:
     он вырождается в правило имени, уже измеренное как негодное (ADR-417).
     """
     out: set = set()
-    for node in ast.walk(tree):
+    for node in _walked(tree):
         if isinstance(node, ast.Subscript) and isinstance(node.slice, ast.Constant) \
                 and isinstance(node.slice.value, str):
             out.add(node.slice.value)
@@ -854,7 +1256,7 @@ def constant_is_loaded(tree: ast.Module, name: str) -> bool:
     Имя, которое НЕ читается, правилом на стороне сторожа не является вовсе —
     и это единственный честный способ снять пару с учёта.
     """
-    for node in ast.walk(tree):
+    for node in _walked(tree):
         if isinstance(node, ast.Name) and node.id == name \
                 and isinstance(node.ctx, ast.Load):
             return True
@@ -1511,7 +1913,7 @@ def surface_numbers(root: Path, rel: str) -> Tuple[Optional[Dict[str, List[str]]
         tree = ast.parse(body)
     except Exception as exc:  # noqa: BLE001
         return None, SURFACE_UNREADABLE, f"{type(exc).__name__}: {exc}"
-    for node in ast.walk(tree):
+    for node in _walked(tree):
         pairs: List[Tuple[str, ast.AST]] = []
         if isinstance(node, ast.AnnAssign) and isinstance(node.target, ast.Name) \
                 and node.value is not None:
@@ -1798,30 +2200,36 @@ def toplevel_definitions(root: Path) -> Tuple[Dict[str, List[str]], int, List[di
                 continue
             seen.add(rel)
             try:
-                tree = ast.parse(path.read_text(encoding="utf-8"))
+                got = _corpus_fact("topdef", str(path.relative_to(root)),
+                                   path, (), ())
             except Exception as exc:  # noqa: BLE001
                 unreadable.append({"path": rel,
                                    "reason": f"{type(exc).__name__}: {exc}"})
                 continue
             read += 1
-            for node in tree.body:
-                names: List[str] = []
-                if isinstance(node, (ast.ClassDef, ast.FunctionDef,
-                                     ast.AsyncFunctionDef)):
-                    names.append(node.name)
-                elif isinstance(node, ast.Assign):
-                    names.extend(t.id for t in node.targets
-                                 if isinstance(t, ast.Name))
-                elif isinstance(node, ast.AnnAssign) and isinstance(node.target,
-                                                                   ast.Name):
-                    names.append(node.target.id)
-                for name in names:
-                    bucket = index.setdefault(name, [])
-                    if rel not in bucket:
-                        bucket.append(rel)
+            for name in got():
+                bucket = index.setdefault(name, [])
+                if rel not in bucket:
+                    bucket.append(rel)
     for bucket in index.values():
         bucket.sort()
     return index, read, unreadable
+
+
+def _toplevel_names(rel: str, tree: ast.AST) -> List[str]:
+    """Имена верхнего уровня ОДНОГО дерева — в порядке :func:`toplevel_definitions`."""
+    out: List[str] = []
+    for node in tree.body:
+        if isinstance(node, (ast.ClassDef, ast.FunctionDef,
+                             ast.AsyncFunctionDef)):
+            out.append(node.name)
+        elif isinstance(node, ast.Assign):
+            out.extend(t.id for t in node.targets
+                       if isinstance(t, ast.Name))
+        elif isinstance(node, ast.AnnAssign) and isinstance(node.target,
+                                                           ast.Name):
+            out.append(node.target.id)
+    return out
 
 
 def resolve_declared_name(raw: str,
@@ -3594,7 +4002,7 @@ def _module_constants(root: Path, rel: str,
     except Exception:  # noqa: BLE001
         cache[rel] = found
         return found
-    for node in ast.walk(tree):
+    for node in _walked(tree):
         pairs: List[Tuple[str, ast.AST]] = []
         if isinstance(node, ast.AnnAssign) and isinstance(node.target, ast.Name) \
                 and node.value is not None:
@@ -5417,7 +5825,7 @@ def _consumer_scope(tree: ast.AST, scope: Optional[Tuple[str, ...]]) -> List[ast
     """Узлы, внутри которых читатель разбирается."""
     if not scope:
         return [tree]
-    return [node for node in ast.walk(tree)
+    return [node for node in _walked(tree)
             if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef))
             and node.name in scope]
 
@@ -5532,7 +5940,7 @@ def _read_consumer(root: Path, spec: dict) -> dict:
 
     delegates = sorted({
         alias.asname or alias.name
-        for node in ast.walk(tree)
+        for node in _walked(tree)
         if isinstance(node, ast.ImportFrom) and node.module
         and node.module.split(".")[-1] == _PRODUCER_MODULE_NAME
         for alias in node.names if alias.name in _PRODUCER_RENDERERS})
@@ -5789,7 +6197,7 @@ def _enclosing_scope(tree: ast.AST, lineno: int) -> Optional[str]:
     населений было бы сведением по разным осям.
     """
     best: Optional[Tuple[int, str]] = None
-    for node in ast.walk(tree):
+    for node in _walked(tree):
         if not isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef)):
             continue
         end = getattr(node, "end_lineno", None)
@@ -5820,7 +6228,29 @@ def producer_import_surface(root: Path,
     мы и сводим. Объявить их здесь своей константой значило бы завести вторую
     копию определения населения — ровно тот класс, который перепись и ищет; и
     расхождение двух копий читалось бы как расхождение двух ПРИБОРОВ.
+
+    В пределах прогона :func:`measure` ответ запоминается по ``(корень,
+    каталоги)`` и отдаётся копией: координата G66 зовётся ступенью дважды
+    (сама и прогоном вреда G68), а поверхность ввоза от расширения
+    населения соседа не зависит.
     """
+    code_dirs = tuple(code_dirs)
+    memo_key = None
+    if _RUN_CORPUS_STACK:
+        memo_key = ("producer_import_surface", str(root), code_dirs)
+        memo = _RUN_CORPUS_STACK[-1]["memo"]
+        if memo_key in memo:
+            return _fresh_containers(memo[memo_key])
+    out = _producer_import_surface_walk(root, code_dirs)
+    if memo_key is not None:
+        _RUN_CORPUS_STACK[-1]["memo"][memo_key] = out
+        return _fresh_containers(out)
+    return out
+
+
+def _producer_import_surface_walk(root: Path,
+                                  code_dirs: Tuple[str, ...]) -> List[dict]:
+    """Обход :func:`producer_import_surface` — без памяти прогона."""
     out: List[dict] = []
     for sub in code_dirs:
         base = root / sub
@@ -5831,39 +6261,46 @@ def producer_import_surface(root: Path,
             if rel == PRODUCER:          # производитель себя не ввозит
                 continue
             try:
-                tree = ast.parse(path.read_text(encoding="utf-8"))
+                got = _corpus_fact("imports", rel, path, (), ())
             except (OSError, SyntaxError, UnicodeDecodeError) as exc:
                 out.append({"file": rel, "line": 0, "kind": None,
                             "names": [], "unreadable": str(exc)})
                 continue
-            for node in ast.walk(tree):
-                names: List[str] = []
-                kind: Optional[str] = None
-                aliases: List[str] = []
-                if isinstance(node, ast.ImportFrom) and node.module:
-                    tail = node.module.split(".")[-1]
-                    if tail == _PRODUCER_MODULE_NAME:
-                        names = [alias.name for alias in node.names]
-                        kind = (IMPORT_RENDERER
-                                if any(n in _PRODUCER_RENDERERS for n in names)
-                                else IMPORT_SYMBOLS)
-                    else:
-                        for alias in node.names:
-                            if alias.name == _PRODUCER_MODULE_NAME:
-                                names = [_PRODUCER_MODULE_NAME]
-                                kind = IMPORT_MODULE
-                                aliases.append(alias.asname or alias.name)
-                elif isinstance(node, ast.Import):
-                    for alias in node.names:
-                        if alias.name.split(".")[-1] == _PRODUCER_MODULE_NAME:
-                            names = [alias.name]
-                            kind = IMPORT_MODULE
-                            aliases.append(alias.asname or alias.name)
-                if kind is None:
-                    continue
-                out.append({"file": rel, "line": node.lineno, "kind": kind,
-                            "names": sorted(names), "aliases": sorted(aliases),
-                            "scope": _enclosing_scope(tree, node.lineno)})
+            out.extend(got())
+    return out
+
+
+def _producer_import_items(rel: str, tree: ast.AST) -> List[dict]:
+    """Места ввоза производителя в ОДНОМ дереве (тело обхода выше)."""
+    out: List[dict] = []
+    for node in _import_nodes(tree):
+        names: List[str] = []
+        kind: Optional[str] = None
+        aliases: List[str] = []
+        if isinstance(node, ast.ImportFrom) and node.module:
+            tail = node.module.split(".")[-1]
+            if tail == _PRODUCER_MODULE_NAME:
+                names = [alias.name for alias in node.names]
+                kind = (IMPORT_RENDERER
+                        if any(n in _PRODUCER_RENDERERS for n in names)
+                        else IMPORT_SYMBOLS)
+            else:
+                for alias in node.names:
+                    if alias.name == _PRODUCER_MODULE_NAME:
+                        names = [_PRODUCER_MODULE_NAME]
+                        kind = IMPORT_MODULE
+                        aliases.append(alias.asname or alias.name)
+        elif isinstance(node, ast.Import):
+            for alias in node.names:
+                if alias.name.split(".")[-1] == _PRODUCER_MODULE_NAME:
+                    names = [alias.name]
+                    kind = IMPORT_MODULE
+                    aliases.append(alias.asname or alias.name)
+        if kind is None:
+            continue
+        out.append({"file": rel, "line": node.lineno, "kind": kind,
+                    "names": sorted(names), "aliases": sorted(aliases),
+                    "scope": _enclosing_scope(tree, node.lineno)})
     return out
 
 
@@ -5976,7 +6413,7 @@ def consumer_registry_completeness(root: Path) -> dict:
         tree = _tree(item["file"])
         line = 0
         if tree is not None:
-            for node in ast.walk(tree):
+            for node in _walked(tree):
                 if (isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef))
                         and node.name == CLI_SCOPE):
                     line = node.lineno
@@ -6213,7 +6650,7 @@ def printed_by_producer(tree: ast.AST) -> List[str]:
     top = {node.name for node in getattr(tree, "body", [])
            if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef))}
     found: set = set()
-    for node in ast.walk(tree):
+    for node in _walked(tree):
         expressions: List[ast.AST] = []
         if (isinstance(node, ast.Call) and isinstance(node.func, ast.Name)
                 and node.func.id == "print"):
@@ -6250,7 +6687,7 @@ def _census_imports(tree: ast.AST,
     def slot(name: str) -> Dict[str, set]:
         return out.setdefault(name, {"aliases": set(), "symbols": set()})
 
-    for node in ast.walk(tree):
+    for node in _import_nodes(tree):
         if isinstance(node, ast.ImportFrom) and node.module:
             tail = node.module.split(".")[-1]
             if tail in callees:
@@ -6278,7 +6715,7 @@ def _calls_producer_run(tree: ast.AST, aliases: set, symbols: set) -> bool:
     первую значило бы повторить слепоту соседа на соседней оси.
     """
     direct = bool({"run", "measure"} & symbols)
-    for node in ast.walk(tree):
+    for node in _walked(tree):
         if not isinstance(node, ast.Call):
             continue
         func = node.func
@@ -6297,13 +6734,210 @@ def _renderer_touched(tree: ast.AST, aliases: set, symbols: set,
     """Какие отрисовщики переписи файл берёт в руки — обеими формами ввоза."""
     taken = set(symbols) & set(renderers)
     if aliases:
-        for node in ast.walk(tree):
+        for node in _walked(tree):
             if (isinstance(node, ast.Attribute)
                     and isinstance(node.value, ast.Name)
                     and node.value.id in aliases
                     and node.attr in renderers):
                 taken.add(node.attr)
     return sorted(taken)
+
+
+def _invisible_corpus_part(root: Path, code_dirs: Iterable[str],
+                           callees: Dict[str, str]) -> tuple:
+    """Часть :func:`invisible_consumer_scale`, которая читает ДЕРЕВО корпуса.
+
+    Отдаёт ``(unreadable, renderers, unresolved, sites, boundary_hits)`` —
+    ровно то, что прежде собиралось в теле координаты по словарю ВСЕХ деревьев
+    корпуса. Словарь этот стоил ~3 ГБ памяти и трёх полных разборов на прогон
+    (координату зовут сама ступень и дважды прогон вреда G68 с тем же
+    населением переписей). Теперь:
+
+    * деревья переписей (их отрисовщики нужны до обхода) разбираются первыми,
+      остальные — по одному, и от файла остаются только его места ввоза;
+    * ``_census_imports`` зовётся один раз на файл, а не дважды (он чист, и
+      оба прежних цикла читали его ответ, не правя);
+    * в пределах прогона ответ запоминается по ``(корень, каталоги, переписи)``
+      и отдаётся копией.
+
+    Порядок и состав ответа прежние: ``unreadable`` — в порядке обхода,
+    места и пограничные попадания — по отсортированному пути разобранных
+    файлов (как ``sorted(trees.items())``).
+    """
+    code_dirs = tuple(code_dirs)
+    memo_key = None
+    if _RUN_CORPUS_STACK:
+        memo_key = ("_invisible_corpus_part", str(root), code_dirs,
+                    tuple(sorted(callees.items())))
+        memo = _RUN_CORPUS_STACK[-1]["memo"]
+        if memo_key in memo:
+            return _fresh_containers(memo[memo_key])
+
+    walk, renderers, unresolved, boundary = _invisible_renderers(
+        root, code_dirs, callees)
+    facts_key = _invisible_facts_key(callees, renderers, boundary)
+
+    unreadable: List[dict] = []
+    per_file: Dict[str, Tuple[List[dict], List[dict]]] = {}
+    for rel, path in walk:
+        try:
+            got = _corpus_fact("invisible", rel, path, facts_key,
+                               (callees, renderers, boundary))
+        except (OSError, SyntaxError, UnicodeDecodeError) as exc:
+            unreadable.append({"file": rel, "unreadable": str(exc)})
+            continue
+        per_file[rel] = got()
+
+    sites: List[dict] = []
+    boundary_hits: List[dict] = []
+    for rel in sorted(per_file):
+        sites.extend(per_file[rel][0])
+        boundary_hits.extend(per_file[rel][1])
+
+    result = (unreadable, renderers, unresolved, sites, boundary_hits)
+    if memo_key is not None:
+        _RUN_CORPUS_STACK[-1]["memo"][memo_key] = result
+        return _fresh_containers(result)
+    return result
+
+
+def _invisible_renderers(root: Path, code_dirs: Tuple[str, ...],
+                         callees: Dict[str, str]) -> tuple:
+    """Обход корпуса и отрисовщики переписей для :func:`_invisible_corpus_part`.
+
+    Отдаёт ``(walk, renderers, unresolved, boundary)``; в прогоне ответ
+    запоминается по ``(корень, каталоги, переписи)`` и отдаётся копией.
+    Деревья переписей разбираются здесь НАПРЯМУЮ, мимо общего разбора: этот
+    ответ сам есть вход общего разбора (:func:`_corpus_args_invisible`).
+    """
+    memo_key = None
+    if _RUN_CORPUS_STACK:
+        memo_key = ("_invisible_renderers", str(root), code_dirs,
+                    tuple(sorted(callees.items())))
+        memo = _RUN_CORPUS_STACK[-1]["memo"]
+        if memo_key in memo:
+            return _fresh_containers(memo[memo_key])
+
+    walk: List[Tuple[str, Path]] = []
+    for sub in code_dirs:
+        base = root / sub
+        if not base.is_dir():
+            continue
+        for path in sorted(base.rglob("*.py")):
+            walk.append((str(path.relative_to(root)), path))
+
+    # Деревья переписей — те же, что дал бы обход: файл вне обхода или не
+    # разобранный есть ``None`` (прежнее ``trees.get(rel)``).
+    walked = {rel: path for rel, path in walk}
+    callee_trees: Dict[str, ast.AST] = {}
+    for _name, rel in sorted(callees.items()):
+        if rel in callee_trees or rel not in walked:
+            continue
+        try:
+            callee_trees[rel] = ast.parse(
+                walked[rel].read_text(encoding="utf-8"))
+        except (OSError, SyntaxError, UnicodeDecodeError):
+            pass
+
+    # 1. отрисовщики КАЖДОЙ переписи — замером, не словарём
+    renderers: Dict[str, List[str]] = {}
+    unresolved: List[dict] = []
+    for name, rel in sorted(callees.items()):
+        tree = callee_trees.get(rel)
+        if tree is None:
+            unresolved.append({"census": name, "path": rel,
+                               "reason": "файл переписи не прочитан"})
+            renderers[name] = []
+            continue
+        named = printed_by_producer(tree)
+        renderers[name] = named
+        if named:
+            continue
+        # Третий исход разделён на ДВА: «отдавать нечего» и «не смогли
+        # посмотреть». Первое — свойство модуля, второе — граница правила.
+        candidates = sorted({
+            node.name for node in getattr(tree, "body", [])
+            if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef))
+            and node.name not in _NOT_A_RENDERER
+            and node.returns is not None
+            and ast.unparse(node.returns) in _TEXT_RETURNS})
+        unresolved.append({
+            "census": name, "path": rel,
+            "kind": RENDERER_NOT_PRINTED if candidates else RENDERER_NONE_EXISTS,
+            "candidates": candidates,
+            "reason": (
+                ("модуль печатает свой документ ВСТРОЕННО, но текстовые "
+                 f"функции у него есть ({', '.join(candidates)}) — какая из "
+                 "них отрисовщик, печатью не решается: это ГРАНИЦА ПРАВИЛА, "
+                 "а не «невидимых потребителей нет»")
+                if candidates else
+                ("у модуля нет НИ ОДНОЙ текстовой функции верхнего уровня — "
+                 "отдать потребителю нечего, и класс сюда не применим ПО "
+                 "ПОСТРОЕНИЮ; это не «не измерено»"))})
+    del callee_trees
+
+    boundary = {item["census"]: item["candidates"] for item in unresolved
+                if item["kind"] == RENDERER_NOT_PRINTED and item["candidates"]}
+
+    result = (walk, renderers, unresolved, boundary)
+    if memo_key is not None:
+        _RUN_CORPUS_STACK[-1]["memo"][memo_key] = result
+        return _fresh_containers(result)
+    return result
+
+
+def _invisible_facts_key(callees: Dict[str, str],
+                         renderers: Dict[str, List[str]],
+                         boundary: Dict[str, List[str]]) -> tuple:
+    """Хешируемая форма входов :func:`_invisible_file_facts`."""
+    return (tuple(sorted(callees.items())),
+            tuple(sorted((k, tuple(v)) for k, v in renderers.items())),
+            tuple(sorted((k, tuple(v)) for k, v in boundary.items())))
+
+
+def _invisible_file_facts(rel: str, tree: ast.AST, callees: Dict[str, str],
+                          renderers: Dict[str, List[str]],
+                          boundary: Dict[str, List[str]]
+                          ) -> Tuple[List[dict], List[dict]]:
+    """Места ввоза ОДНОГО файла: ``(места, пограничные попадания)``.
+
+    Тело прежнего цикла :func:`invisible_consumer_scale` по одному дереву;
+    ``_census_imports`` зовётся один раз (он чист, и оба прежних цикла читали
+    его ответ, не правя).
+    """
+    imported = sorted(_census_imports(tree, callees).items())
+    # 2. места ввоза, не зовущие `run`
+    file_sites: List[dict] = []
+    for census, what in imported:
+        if callees[census] == rel:          # перепись сама себя не ввозит
+            continue
+        if not renderers.get(census):
+            continue
+        taken = _renderer_touched(tree, what["aliases"], what["symbols"],
+                                  renderers[census])
+        if not taken:
+            continue
+        if _calls_producer_run(tree, what["aliases"], what["symbols"]):
+            continue
+        file_sites.append({
+            "census": census,
+            "file": rel,
+            "channel": _channel_of(rel),
+            "renderers": taken,
+            "reaches_orchestrator": rel == ORCHESTRATOR_READER,
+        })
+    # ВЕРХНЯЯ граница того же числа (см. ``upper`` у координаты).
+    file_hits: List[dict] = []
+    for census, what in imported:
+        if census not in boundary or callees[census] == rel:
+            continue
+        taken = _renderer_touched(tree, what["aliases"], what["symbols"],
+                                  boundary[census])
+        if taken and not _calls_producer_run(tree, what["aliases"],
+                                             what["symbols"]):
+            file_hits.append({"census": census, "file": rel,
+                              "candidates": taken})
+    return file_sites, file_hits
 
 
 def invisible_consumer_scale(root: Path) -> dict:
@@ -6360,99 +6994,16 @@ def invisible_consumer_scale(root: Path) -> dict:
                 "reason": ("сосед не нашёл ни одной переписи — население "
                            "пусто, и это НЕ «невидимых потребителей нет»")}
 
-    trees: Dict[str, ast.AST] = {}
-    unreadable: List[dict] = []
-    for sub in neighbour._CODE_DIRS:
-        base = root / sub
-        if not base.is_dir():
-            continue
-        for path in sorted(base.rglob("*.py")):
-            rel = str(path.relative_to(root))
-            try:
-                trees[rel] = ast.parse(path.read_text(encoding="utf-8"))
-            except (OSError, SyntaxError, UnicodeDecodeError) as exc:
-                unreadable.append({"file": rel, "unreadable": str(exc)})
-
-    # 1. отрисовщики КАЖДОЙ переписи — замером, не словарём
-    renderers: Dict[str, List[str]] = {}
-    unresolved: List[dict] = []
-    for name, rel in sorted(callees.items()):
-        tree = trees.get(rel)
-        if tree is None:
-            unresolved.append({"census": name, "path": rel,
-                               "reason": "файл переписи не прочитан"})
-            renderers[name] = []
-            continue
-        named = printed_by_producer(tree)
-        renderers[name] = named
-        if named:
-            continue
-        # Третий исход разделён на ДВА: «отдавать нечего» и «не смогли
-        # посмотреть». Первое — свойство модуля, второе — граница правила.
-        candidates = sorted({
-            node.name for node in getattr(tree, "body", [])
-            if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef))
-            and node.name not in _NOT_A_RENDERER
-            and node.returns is not None
-            and ast.unparse(node.returns) in _TEXT_RETURNS})
-        unresolved.append({
-            "census": name, "path": rel,
-            "kind": RENDERER_NOT_PRINTED if candidates else RENDERER_NONE_EXISTS,
-            "candidates": candidates,
-            "reason": (
-                ("модуль печатает свой документ ВСТРОЕННО, но текстовые "
-                 f"функции у него есть ({', '.join(candidates)}) — какая из "
-                 "них отрисовщик, печатью не решается: это ГРАНИЦА ПРАВИЛА, "
-                 "а не «невидимых потребителей нет»")
-                if candidates else
-                ("у модуля нет НИ ОДНОЙ текстовой функции верхнего уровня — "
-                 "отдать потребителю нечего, и класс сюда не применим ПО "
-                 "ПОСТРОЕНИЮ; это не «не измерено»"))})
-
-    # 2. места ввоза, не зовущие `run`
-    sites: List[dict] = []
-    for rel, tree in sorted(trees.items()):
-        imported = _census_imports(tree, callees)
-        for census, what in sorted(imported.items()):
-            if callees[census] == rel:          # перепись сама себя не ввозит
-                continue
-            if not renderers.get(census):
-                continue
-            taken = _renderer_touched(tree, what["aliases"], what["symbols"],
-                                      renderers[census])
-            if not taken:
-                continue
-            if _calls_producer_run(tree, what["aliases"], what["symbols"]):
-                continue
-            sites.append({
-                "census": census,
-                "file": rel,
-                "channel": _channel_of(rel),
-                "renderers": taken,
-                "reaches_orchestrator": rel == ORCHESTRATOR_READER,
-            })
+    # Разбор дерева и всё, что от него зависит, — в :func:`_invisible_corpus_part`:
+    # он помнит ответ на время прогона (ступень зовёт эту координату трижды:
+    # сама и дважды прогоном вреда G68 — с тем же населением переписей), и
+    # деревьев всего корпуса разом в памяти не держит.
+    unreadable, renderers, unresolved, sites, boundary_hits = \
+        _invisible_corpus_part(root, neighbour._CODE_DIRS, callees)
 
     understated = sorted({site["census"] for site in sites})
     resolved = [name for name in sorted(callees) if renderers.get(name)]
 
-    # ВЕРХНЯЯ граница того же числа. `understated` опирается на отрисовщик,
-    # РАЗРЕШЁННЫЙ печатью; у 17 переписей печать его не решает, а текстовые
-    # функции есть. Сколько из них отдаёт текстовую функцию потребителю, не
-    # зовущему `run`, — это цена правила печати, и она обязана быть ЧИСЛОМ, а
-    # не оговоркой: иначе «43» читалось бы как точный ответ, а он интервал.
-    boundary = {item["census"]: item["candidates"] for item in unresolved
-                if item["kind"] == RENDERER_NOT_PRINTED and item["candidates"]}
-    boundary_hits: List[dict] = []
-    for rel, tree in sorted(trees.items()):
-        for census, what in sorted(_census_imports(tree, callees).items()):
-            if census not in boundary or callees[census] == rel:
-                continue
-            taken = _renderer_touched(tree, what["aliases"], what["symbols"],
-                                      boundary[census])
-            if taken and not _calls_producer_run(tree, what["aliases"],
-                                                 what["symbols"]):
-                boundary_hits.append({"census": census, "file": rel,
-                                      "candidates": taken})
     upper = sorted(set(understated) | {hit["census"] for hit in boundary_hits})
 
     # 3. ОБРАТНАЯ сторона: занижено ли население до НУЛЯ
@@ -6873,7 +7424,7 @@ def _import_line(tree: ast.AST, census: str) -> int:
     места строки нет, а область (`scope`) читателя разрешается именно по ней.
     Нулевая строка сама есть выбор, и выбор обязан быть проверяемым.
     """
-    for node in ast.walk(tree):
+    for node in _walked(tree):
         if isinstance(node, ast.ImportFrom) and node.module:
             if node.module.split(".")[-1] == census:
                 return node.lineno
@@ -6918,10 +7469,11 @@ def _widened_population(root: Path, sites: List[dict], *,
     return out
 
 
+@_per_tree_memo(shallow=True)
 def _parent_map(tree: ast.AST) -> Dict[int, ast.AST]:
     """Обратные ссылки дерева: без них «куда уехало значение» не спросить."""
     parents: Dict[int, ast.AST] = {}
-    for node in ast.walk(tree):
+    for node in _walked(tree):
         for child in ast.iter_child_nodes(node):
             parents[id(child)] = node
     return parents
@@ -6931,7 +7483,7 @@ def _name_loads(tree: ast.AST) -> Dict[str, List[ast.AST]]:
     """Где имя ЧИТАЕТСЯ. Цель присваивания — тоже узел ``Name``, и считать её
     чтением значило бы сделать ветку «читателя нет» недостижимой."""
     out: Dict[str, List[ast.AST]] = {}
-    for node in ast.walk(tree):
+    for node in _walked(tree):
         if isinstance(node, ast.Name) and isinstance(node.ctx, ast.Load):
             out.setdefault(node.id, []).append(node)
     return out
@@ -7032,7 +7584,7 @@ def _neighbour_names(tree: ast.AST, module: str,
     tail = module.split(".")[-1]
     out: dict = {"aliases": set(), "dynamic": set()}
     symbols: Dict[str, str] = {}
-    for node in ast.walk(tree):
+    for node in _walked(tree):
         if isinstance(node, ast.ImportFrom) and node.module:
             if node.module.split(".")[-1] == tail:
                 for alias in node.names:
@@ -7064,12 +7616,29 @@ def _neighbour_names(tree: ast.AST, module: str,
 
 def _reader_touches(rel: str, tree: ast.AST, module: str, artifact: str,
                     renderers: Tuple[str, ...]) -> dict:
-    """Дороги ОДНОГО читателя к населению соседа и форма каждого чтения."""
+    """Дороги ОДНОГО читателя к населению соседа и форма каждого чтения.
+
+    Карта родителей и места чтения имён строятся ЛЕНИВО — при первом узле,
+    которому они нужны. Читателю без единого ввоза соседа (подавляющее
+    большинство из ~5 тыс. файлов корпуса) они не нужны вовсе, а стоили по
+    полному обходу дерева каждая (CI #6, 17.10). Ответ от этого не меняется:
+    обе функции чисты.
+    """
     consts = _module_string_consts(tree)
     seen = _neighbour_names(tree, module, consts)
     symbols: Dict[str, str] = seen["symbols"]
-    parents = _parent_map(tree)
-    loads = _name_loads(tree)
+    built: Dict[str, dict] = {}
+
+    def _parents() -> Dict[int, ast.AST]:
+        if "parents" not in built:
+            built["parents"] = _parent_map(tree)
+        return built["parents"]
+
+    def _loads() -> Dict[str, List[ast.AST]]:
+        if "loads" not in built:
+            built["loads"] = _name_loads(tree)
+        return built["loads"]
+
     aliases: set = set(seen["aliases"])
     roads: set = set()
     touches: List[dict] = []
@@ -7080,7 +7649,7 @@ def _reader_touches(rel: str, tree: ast.AST, module: str, artifact: str,
         # Имя, которому присвоен результат `import_module`, есть такое же имя
         # модуля у читателя, как и ввезённое `import`: не связать их значило бы
         # найти дорогу и потерять все чтения по ней.
-        for node in ast.walk(tree):
+        for node in _walked(tree):
             if not isinstance(node, ast.Call):
                 continue
             func = node.func
@@ -7092,13 +7661,15 @@ def _reader_touches(rel: str, tree: ast.AST, module: str, artifact: str,
                 continue
             if _literal_key(node.args[0], consts) not in seen["dynamic"]:
                 continue
-            parent = parents.get(id(node))
+            parent = _parents().get(id(node))
             if isinstance(parent, ast.Assign):
                 for target in parent.targets:
                     if isinstance(target, ast.Name):
                         aliases.add(target.id)
 
-    for node in ast.walk(tree):
+    # Без единого имени соседа зов не сопоставится ни одному узлу: обе ветки
+    # ниже спрашивают членство в ``aliases``/``symbols``.
+    for node in (_walked(tree) if (aliases or symbols) else ()):
         if not isinstance(node, ast.Call):
             continue
         func = node.func
@@ -7114,7 +7685,7 @@ def _reader_touches(rel: str, tree: ast.AST, module: str, artifact: str,
             continue
         if called in ("run", "measure"):
             roads.add(ROAD_RUN)
-            parent = parents.get(id(node))
+            parent = _parents().get(id(node))
             if isinstance(parent, ast.Assign):
                 for target in parent.targets:
                     if isinstance(target, ast.Name):
@@ -7125,7 +7696,7 @@ def _reader_touches(rel: str, tree: ast.AST, module: str, artifact: str,
                             "field": _FINDER_FIELD[called],
                             "field_path": _FINDER_FIELD_PATH[called],
                             "field_path_outcome": PATH_DECLARED,
-                            "form": _decision_form(parents, node, loads)})
+                            "form": _decision_form(_parents(), node, _loads())})
         elif called in renderers:
             # Ввоз отрисовщика есть дорога сам по себе: зова `run` у такого
             # читателя нет ПО ПОСТРОЕНИЮ, и именно этим он невидим соседу.
@@ -7137,7 +7708,7 @@ def _reader_touches(rel: str, tree: ast.AST, module: str, artifact: str,
     if set(symbols.values()) & set(renderers):
         roads.add(ROAD_RENDERER)
     if artifact:
-        for node in ast.walk(tree):
+        for node in _walked(tree):
             if (isinstance(node, ast.Constant) and isinstance(node.value, str)
                     and node.value == artifact):
                 roads.add(ROAD_ARTIFACT)
@@ -7145,14 +7716,14 @@ def _reader_touches(rel: str, tree: ast.AST, module: str, artifact: str,
 
     if anchors:
         binding = {name: None for name in anchors}
-        for node in ast.walk(tree):
+        for node in _walked(tree):
             if not _is_doc_read(node):
                 continue
             # Внутреннее звено цепи `doc["counts"]["critical"]` отдельным
             # чтением НЕ является: координата значения — ПОСЛЕДНИЙ применённый
             # ключ, и считать `counts` вторым чтением значило бы приписать
             # читателю контейнер вместе с каждым его элементом.
-            outer = parents.get(id(node))
+            outer = _parents().get(id(node))
             if isinstance(outer, ast.Subscript) and outer.value is node:
                 continue
             if not _derives_from_census(node, anchors,
@@ -7171,7 +7742,7 @@ def _reader_touches(rel: str, tree: ast.AST, module: str, artifact: str,
                             "field": field,
                             "field_path": path,
                             "field_path_outcome": path_outcome,
-                            "form": _decision_form(parents, node, loads)})
+                            "form": _decision_form(_parents(), node, _loads())})
     return {"file": rel, "channel": _channel_of(rel),
             "roads": sorted(roads), "touches": touches}
 
@@ -7590,7 +8161,7 @@ def _static_reaches_step(root: Path, rel: str,
         examined.append(label)
         aliases: set[str] = set()
         imported_modules: List[str] = []
-        for node in ast.walk(tree):
+        for node in _walked(tree):
             if isinstance(node, ast.Import):
                 for alias in node.names:
                     if alias.name == CENSUS_MODULE:
@@ -7609,7 +8180,7 @@ def _static_reaches_step(root: Path, rel: str,
                         aliases.add(alias.asname or alias.name)
                     elif node.module.startswith(("spa_core", "scripts")):
                         imported_modules.append(full)
-        for node in ast.walk(tree):
+        for node in _walked(tree):
             if not isinstance(node, ast.Attribute):
                 continue
             if node.attr not in STEP_ENTRYPOINTS:
@@ -8649,7 +9220,7 @@ def _locate_test(tree: ast.AST, line: int) -> Optional[dict]:
         end = getattr(fn, "end_lineno", None) or fn.lineno
         return fn.lineno <= line <= end
 
-    for node in ast.walk(tree):
+    for node in _walked(tree):
         if not isinstance(node, ast.ClassDef):
             continue
         for fn in node.body:
@@ -8909,6 +9480,7 @@ def _counter_target_key(node: ast.AST) -> Optional[Tuple[ast.AST, ast.AST, str]]
     return target.value, target.slice, "form_get"
 
 
+@_per_tree_memo(any_node=True)
 def _scope_bindings(fn: ast.AST) -> Dict[str, List[ast.AST]]:
     """Все выражения, которыми в этой области связано каждое имя."""
     binds: Dict[str, List[ast.AST]] = {}
@@ -9136,6 +9708,7 @@ def _str_over_absence(expr: ast.AST, binds: Dict[str, List[ast.AST]],
     return False
 
 
+@_per_tree_memo(shallow=True)
 def _counter_owner_scopes(tree: ast.AST) -> Dict[int, ast.AST]:
     """Для каждого узла — БЛИЖАЙШАЯ объемлющая функция (или сам модуль).
 
@@ -9166,6 +9739,7 @@ def _counter_owner_scopes(tree: ast.AST) -> Dict[int, ast.AST]:
     return owner
 
 
+@_per_tree_memo
 def _open_counter_sites(rel: str, tree: ast.AST) -> List[dict]:
     """Все счётчики объявленных форм в одном разобранном файле."""
     module_binds = _scope_bindings(tree)
@@ -9191,7 +9765,7 @@ def _open_counter_sites(rel: str, tree: ast.AST) -> List[dict]:
         return made
 
     found: List[dict] = []
-    for node in ast.walk(tree):
+    for node in _walked(tree):
         shape = _counter_target_key(node)
         if shape is None:
             continue
@@ -9260,6 +9834,7 @@ def _open_counter_control() -> dict:
             "clean_false_positives": 0}
 
 
+@_with_run_corpus
 def open_class_counter_census(root: Path) -> dict:
     """Сколько счётчиков открыто классу, которого никто не объявлял (**заказ G76 п. 1**).
 
@@ -9322,7 +9897,7 @@ def open_class_counter_census(root: Path) -> dict:
                 continue
             scanned += 1
             try:
-                tree = ast.parse(path.read_text(encoding="utf-8"))
+                tree = _run_tree(path)
             except (OSError, SyntaxError, UnicodeDecodeError) as exc:
                 unreadable.append({"file": rel,
                                    "reason": f"{type(exc).__name__}: {exc}"})
@@ -9485,6 +10060,7 @@ def escaping(rows):
 '''
 
 
+@_per_tree_memo
 def _declared_constant_names(tree: ast.AST) -> Set[str]:
     """Имена модуля, связанные КОНСТАНТОЙ или перечнем литералов.
 
@@ -9525,6 +10101,7 @@ def _is_declared_class(node: Optional[ast.AST], declared: Set[str]) -> bool:
     return False
 
 
+@_per_tree_memo(any_node=True)
 def _counter_write_nodes(scope: ast.AST, target_dump: str) -> Set[int]:
     """Узлы, принадлежащие ЗАПИСЯМ в тот же счётчик.
 
@@ -9811,6 +10388,7 @@ def _reader_sites(rel: str, tree: ast.AST) -> List[dict]:
     return [site for site, _t, _k, _s in _reader_site_nodes(rel, tree)]
 
 
+@_per_tree_memo(materialise=True)
 def _reader_site_nodes(
         rel: str, tree: ast.AST
 ) -> Iterable[Tuple[dict, Optional[ast.AST], Optional[ast.AST],
@@ -9834,7 +10412,7 @@ def _reader_site_nodes(
     declared = _declared_constant_names(tree)
     owner_of = _counter_owner_scopes(tree)
     by_line: Dict[Tuple[int, str], Tuple[ast.AST, ast.AST, ast.AST]] = {}
-    for node in ast.walk(tree):
+    for node in _walked(tree):
         shape = _counter_target_key(node)
         if shape is None:
             continue
@@ -9915,6 +10493,7 @@ def _reader_harm_control() -> dict:
             "clean_sites": len(clean)}
 
 
+@_with_run_corpus
 def open_counter_reader_harm(root: Path,
                              opened: Optional[dict]) -> dict:
     """У скольких открытых счётчиков ЧИТАТЕЛЬ делит класс (**заказ G77 п. 1**).
@@ -9985,7 +10564,7 @@ def open_counter_reader_harm(root: Path,
                 continue
             scanned += 1
             try:
-                tree = ast.parse(path.read_text(encoding="utf-8"))
+                tree = _run_tree(path)
             except (OSError, SyntaxError, UnicodeDecodeError) as exc:
                 unreadable.append({"file": rel,
                                    "reason": f"{type(exc).__name__}: {exc}"})
@@ -10222,6 +10801,7 @@ def defaulted(rows):
 '''
 
 
+@_per_tree_memo
 def _module_function_defs(tree: ast.AST) -> Dict[str, List[ast.AST]]:
     """Функции файла по имени — СПИСКОМ, а не одной.
 
@@ -10230,12 +10810,13 @@ def _module_function_defs(tree: ast.AST) -> Dict[str, List[ast.AST]]:
     которого на этом пути может не быть вовсе.
     """
     out: Dict[str, List[ast.AST]] = {}
-    for node in ast.walk(tree):
+    for node in _walked(tree):
         if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef)):
             out.setdefault(node.name, []).append(node)
     return out
 
 
+@_per_tree_memo(any_node=True)
 def _escape_sites(scope: ast.AST, target: ast.AST) -> List[ast.AST]:
     """Узлы, которыми счётчик УБЕГАЕТ из своей области.
 
@@ -10314,6 +10895,7 @@ def _escape_route(node: ast.AST, parents: Dict[int, ast.AST],
     return {"route": ROUTE_UNKNOWN}
 
 
+@_per_tree_memo(any_node=True)
 def _one_step_reader(scope: ast.AST, target: ast.AST,
                      declared: Set[str]) -> dict:
     """Читатель счётчика в СЛЕДУЮЩЕЙ области — правило УЖЕ соседского.
@@ -10414,7 +10996,7 @@ def _callers_binding_the_result(tree: ast.AST, parents: Dict[int, ast.AST],
     """
     if not isinstance(scope, (ast.FunctionDef, ast.AsyncFunctionDef)):
         return {"gap": STEP_GAP_NO_CALLER, "sites": []}
-    callers = [node for node in ast.walk(tree)
+    callers = [node for node in _walked(tree)
                if isinstance(node, ast.Call)
                and isinstance(node.func, ast.Name)
                and node.func.id == scope.name]
@@ -10522,6 +11104,7 @@ def _resolve_escape(tree: ast.AST, parents: Dict[int, ast.AST],
             "callee": route.get("callee")}
 
 
+@_per_tree_memo(materialise=True)
 def _one_step_site_nodes(
         rel: str, tree: ast.AST
 ) -> Iterator[Tuple[dict, Optional[ast.AST], Optional[ast.AST]]]:
@@ -10571,6 +11154,7 @@ def _one_step_site_nodes(
                target, scope)
 
 
+@_per_tree_memo
 def _one_step_sites(rel: str, tree: ast.AST) -> List[dict]:
     """Плоский список строк одного файла — обёртка над генератором выше."""
     return [row for row, _target, _scope in _one_step_site_nodes(rel, tree)]
@@ -10629,6 +11213,7 @@ def _one_step_control() -> dict:
             "clean_refusal_names": gaps, "clean_benign": len(benign)}
 
 
+@_with_run_corpus
 def escaped_counter_one_step(root: Path, harm: Optional[dict]) -> dict:
     """Сколько убежавших счётчиков разрешает ОДИН шаг (**заказ G78 п. 1**).
 
@@ -10696,7 +11281,7 @@ def escaped_counter_one_step(root: Path, harm: Optional[dict]) -> dict:
                 continue
             scanned += 1
             try:
-                tree = ast.parse(path.read_text(encoding="utf-8"))
+                tree = _run_tree(path)
             except (OSError, SyntaxError, UnicodeDecodeError) as exc:
                 unreadable.append({"file": rel,
                                    "reason": f"{type(exc).__name__}: {exc}"})
@@ -11166,6 +11751,7 @@ def _field_step(tree: ast.AST, parents: Dict[int, ast.AST],
     return {**merged, "fields": carried, "forms": forms}
 
 
+@_per_tree_memo
 def _field_step_sites(rel: str, tree: ast.AST) -> List[dict]:
     """Счётчики ОДНОГО файла, уехавшие КОНТЕЙНЕРОМ, с исходом шага полем.
 
@@ -11248,6 +11834,7 @@ def _field_step_control() -> dict:
             "clean_refusal_names": gaps, "clean_benign": len(benign)}
 
 
+@_with_run_corpus
 def container_counter_field_step(root: Path, step: Optional[dict]) -> dict:
     """Сколько счётчиков-контейнеров разрешает перенос ПОЛЕМ (**заказ G79 п. 1**).
 
@@ -11316,7 +11903,7 @@ def container_counter_field_step(root: Path, step: Optional[dict]) -> dict:
                 continue
             scanned += 1
             try:
-                tree = ast.parse(path.read_text(encoding="utf-8"))
+                tree = _run_tree(path)
             except (OSError, SyntaxError, UnicodeDecodeError) as exc:
                 unreadable.append({"file": rel,
                                    "reason": f"{type(exc).__name__}: {exc}"})
@@ -11689,7 +12276,7 @@ def _field_write_scopes(tree: ast.AST, owner_of: Dict[int, ast.AST],
     двумя значило бы отказывать себе же.
     """
     seen: Dict[int, ast.AST] = {}
-    for node in ast.walk(tree):
+    for node in _walked(tree):
         hit = False
         if isinstance(node, ast.Dict):
             hit = any(isinstance(k, ast.Constant) and k.value == field
@@ -11727,7 +12314,7 @@ def _document_field_reads(tree: ast.AST, owner_of: Dict[int, ast.AST],
     """
     out: List[Tuple[ast.AST, ast.AST, str]] = []
     seen: Set[Tuple[int, str]] = set()
-    for node in ast.walk(tree):
+    for node in _walked(tree):
         form: Optional[str] = None
         if (isinstance(node, ast.Subscript)
                 and isinstance(node.slice, ast.Constant)
@@ -11807,6 +12394,7 @@ def _document_reader_step(tree: ast.AST, owner_of: Dict[int, ast.AST],
             "writers": len(writers), "readers": len(reads)}
 
 
+@_per_tree_memo
 def _document_reader_sites(rel: str, tree: ast.AST) -> List[dict]:
     """Счётчики ОДНОГО файла, уехавшие в ДОКУМЕНТ, с исходом разбора по полю.
 
@@ -11900,6 +12488,7 @@ def _document_reader_control() -> dict:
             "clean_refusal_names": gaps, "clean_benign": len(benign)}
 
 
+@_with_run_corpus
 def document_field_reader_in_file(root: Path, field_step: Optional[dict]
                                   ) -> dict:
     """Сколько счётчиков, уехавших в ДОКУМЕНТ, разрешает разбор ПО ИМЕНИ ПОЛЯ (**заказ G80 п. 1**).
@@ -11978,7 +12567,7 @@ def document_field_reader_in_file(root: Path, field_step: Optional[dict]
                 continue
             scanned += 1
             try:
-                tree = ast.parse(path.read_text(encoding="utf-8"))
+                tree = _run_tree(path)
             except (OSError, SyntaxError, UnicodeDecodeError) as exc:
                 unreadable.append({"file": rel,
                                    "reason": f"{type(exc).__name__}: {exc}"})
@@ -12397,6 +12986,7 @@ def _assigned_name(parent: Optional[ast.AST]) -> Optional[str]:
     return None
 
 
+@_per_tree_memo(any_node=True)
 def _binding_of_read(scope: ast.AST, read: ast.AST) -> dict:
     """Имя, которым СВЯЗАН результат чтения поля, — или почему шагать не по чему.
 
@@ -12474,6 +13064,7 @@ def _name_binding_sources(scope: ast.AST, name: str) -> int:
     return sources
 
 
+@_per_tree_memo(any_node=True)
 def _bound_name_site(scope: ast.AST, read: ast.AST, declared: Set[str]) -> dict:
     """ОДИН шаг по связанному имени для ОДНОГО чтения поля.
 
@@ -12537,6 +13128,7 @@ def _bound_name_step(tree: ast.AST, owner_of: Dict[int, ast.AST],
             "stepped": sum(1 for s in bound if s.get("sources") == 1)}
 
 
+@_per_tree_memo
 def _bound_name_sites(rel: str, tree: ast.AST) -> List[dict]:
     """Счётчики ОДНОГО файла, у которых читатель поля СВЯЗАЛ прочитанное именем.
 
@@ -12641,6 +13233,7 @@ def _bound_name_control() -> dict:
             "clean_bound_named": named, "clean_stepped": stepped}
 
 
+@_with_run_corpus
 def bound_name_read_in_this_scope(root: Path, doc_step: Optional[dict]
                                   ) -> dict:
     """Сколько счётчиков со СВЯЗАННЫМ именем разрешает шаг в ТОЙ ЖЕ области (**заказ G81 п. 1**).
@@ -12715,7 +13308,7 @@ def bound_name_read_in_this_scope(root: Path, doc_step: Optional[dict]
                 continue
             scanned += 1
             try:
-                tree = ast.parse(path.read_text(encoding="utf-8"))
+                tree = _run_tree(path)
             except (OSError, SyntaxError, UnicodeDecodeError) as exc:
                 unreadable.append({"file": rel,
                                    "reason": f"{type(exc).__name__}: {exc}"})
@@ -13279,6 +13872,7 @@ def _defensive_tail_reads(tree: ast.AST, owner_of: Dict[int, ast.AST],
                _defensive_tail_site(reader_scope, node, declared), True)
 
 
+@_per_tree_memo
 def _defensive_tail_sites(rel: str, tree: ast.AST) -> List[dict]:
     """Счётчики ОДНОГО файла, у которых шаг соседа отказал хвостом.
 
@@ -13391,6 +13985,7 @@ def _defensive_tail_control() -> dict:
             "benign": len(benign), "gaps": got, "read_forms": forms}
 
 
+@_with_run_corpus
 def defensive_tail_binding(root: Path, bound_step: Optional[dict]) -> dict:
     """Сколько счётчиков за ЗАЩИТНЫМ ХВОСТОМ разрешает шаг (**заказ G82 п. 1**).
 
@@ -13473,7 +14068,7 @@ def defensive_tail_binding(root: Path, bound_step: Optional[dict]) -> dict:
                 continue
             scanned += 1
             try:
-                tree = ast.parse(path.read_text(encoding="utf-8"))
+                tree = _run_tree(path)
             except (OSError, SyntaxError, UnicodeDecodeError) as exc:
                 unreadable.append({"file": rel,
                                    "reason": f"{type(exc).__name__}: {exc}"})
@@ -13779,6 +14374,7 @@ def _writer_kind_site(scope: ast.AST, node: ast.AST, target: ast.AST,
                 not _swallowed_by_a_broad_handler(scope, node)}
 
 
+@_per_tree_memo
 def _writer_kind_sites(rel: str, tree: ast.AST) -> List[dict]:
     """Форма вреда у писателя каждого ОТКРЫТОГО счётчика одного файла.
 
@@ -13809,7 +14405,7 @@ def _writer_kind_sites(rel: str, tree: ast.AST) -> List[dict]:
         return made
 
     found: List[dict] = []
-    for node in ast.walk(tree):
+    for node in _walked(tree):
         shape = _counter_target_key(node)
         if shape is None:
             continue
@@ -13897,6 +14493,7 @@ def _writer_kind_control() -> dict:
             "gaps": sorted(gaps)}
 
 
+@_with_run_corpus
 def writer_harm_form(root: Path, open_step: Optional[dict]) -> dict:
     """Что ПИСАТЕЛЬ делает с незнакомым классом (**заказ G84 п. 2**).
 
@@ -13983,7 +14580,7 @@ def writer_harm_form(root: Path, open_step: Optional[dict]) -> dict:
                 continue
             scanned += 1
             try:
-                tree = ast.parse(path.read_text(encoding="utf-8"))
+                tree = _run_tree(path)
             except (OSError, SyntaxError, UnicodeDecodeError) as exc:
                 unreadable.append({"file": rel,
                                    "reason": f"{type(exc).__name__}: {exc}"})
@@ -14239,6 +14836,7 @@ def _reach_site(split: dict, writer: Optional[dict]) -> dict:
                 writer.get("keyerror_reaches_the_caller")}
 
 
+@_per_tree_memo
 def _reach_sites(rel: str, tree: ast.AST) -> List[dict]:
     """Расколы ОДНОГО файла вместе с вердиктом их писателя.
 
@@ -14334,6 +14932,7 @@ def _reach_control() -> dict:
             "missing_writer_gap": missing["reach_gap"]}
 
 
+@_with_run_corpus
 def split_reachability_at_the_writer(root: Path, bound_step: Optional[dict],
                                      tail_step: Optional[dict],
                                      writer_step: Optional[dict]) -> dict:
@@ -14425,7 +15024,7 @@ def split_reachability_at_the_writer(root: Path, bound_step: Optional[dict],
                 continue
             scanned += 1
             try:
-                tree = ast.parse(path.read_text(encoding="utf-8"))
+                tree = _run_tree(path)
             except (OSError, SyntaxError, UnicodeDecodeError) as exc:
                 unreadable.append({"file": rel,
                                    "reason": f"{type(exc).__name__}: {exc}"})
@@ -14965,7 +15564,7 @@ def _caller_argument_kinds(name: str, scope: ast.AST,
     pos = next((i for i, a in enumerate(order) if a.arg == name), None)
     owner_of = _counter_owner_scopes(tree)
     found: List[dict] = []
-    for node in ast.walk(tree):
+    for node in _walked(tree):
         if not isinstance(node, ast.Call):
             continue
         fn = node.func
@@ -15128,6 +15727,7 @@ def _binding_kind_site(scope: ast.AST, tree: ast.AST, target: ast.AST,
     return _done(KIND_STILL_UNMEASURED, kind_gap=KIND_GAP_OPAQUE)
 
 
+@_per_tree_memo
 def _binding_kind_sites(rel: str, tree: ast.AST) -> List[dict]:
     """Род накопителя у связывания для каждого ОТКРЫТОГО счётчика файла.
 
@@ -15159,7 +15759,7 @@ def _binding_kind_sites(rel: str, tree: ast.AST) -> List[dict]:
         return made
 
     found: List[dict] = []
-    for node in ast.walk(tree):
+    for node in _walked(tree):
         shape = _counter_target_key(node)
         if shape is None:
             continue
@@ -15310,6 +15910,7 @@ def _binding_kind_control() -> dict:
             "second_link_gaps": sorted(second_link_gaps)}
 
 
+@_with_run_corpus
 def accumulator_kind_at_the_binding(root: Path,
                                     writer_step: Optional[dict]) -> dict:
     """Род накопителя, спрошенный у СВЯЗЫВАНИЯ (**заказ G85 п. 2**).
@@ -15398,7 +15999,7 @@ def accumulator_kind_at_the_binding(root: Path,
             if any(rel.startswith(skip) for skip in OPEN_COUNTER_SKIP):
                 continue
             try:
-                tree = ast.parse(path.read_text(encoding="utf-8"))
+                tree = _run_tree(path)
             except (OSError, SyntaxError, UnicodeDecodeError) as exc:
                 unreadable.append({"file": rel,
                                    "reason": f"{type(exc).__name__}: {exc}"})
@@ -16074,6 +16675,7 @@ def _loop_key_step(tree: ast.AST, owner_of: Dict[int, ast.AST],
             "reads_by_a_loop_key": len(touched)}
 
 
+@_per_tree_memo
 def _loop_key_sites(rel: str, tree: ast.AST) -> List[dict]:
     """Счётчики ОДНОГО файла, которым шаг за хвост отказал КЛЮЧОМ.
 
@@ -16130,6 +16732,7 @@ def _loop_key_sites(rel: str, tree: ast.AST) -> List[dict]:
     return rows
 
 
+@_per_tree_memo
 def _written_key_from_an_enumeration(rel: str, tree: ast.AST) -> dict:
     """ЛОЖНЫЕ члены населения ряда: ключ ПИСАТЕЛЯ из объявленного перечня.
 
@@ -16153,7 +16756,7 @@ def _written_key_from_an_enumeration(rel: str, tree: ast.AST) -> dict:
     declared = _declared_constant_names(tree)
     enums, _rebound = _module_declared_enumerations(tree, declared)
     by_line: Dict[Tuple[int, str], Tuple[ast.AST, ast.AST]] = {}
-    for node in ast.walk(tree):
+    for node in _walked(tree):
         shape = _counter_target_key(node)
         if shape is None:
             continue
@@ -16234,6 +16837,7 @@ def _loop_key_control() -> dict:
             "proof_forms": proofs, "gaps": got}
 
 
+@_with_run_corpus
 def loop_key_over_a_declared_list(root: Path,
                                   tail_step: Optional[dict]) -> dict:
     """Сколько чтений НЕРАЗРЕШИМЫМ ключом разрешает пробег по перечню
@@ -16319,7 +16923,7 @@ def loop_key_over_a_declared_list(root: Path,
                 continue
             scanned += 1
             try:
-                tree = ast.parse(path.read_text(encoding="utf-8"))
+                tree = _run_tree(path)
             except (OSError, SyntaxError, UnicodeDecodeError) as exc:
                 unreadable.append({"file": rel,
                                    "reason": f"{type(exc).__name__}: {exc}"})
@@ -16688,7 +17292,7 @@ def _field_class_universe(tree: ast.AST, field: str, declared: Set[str]) -> Tupl
     seen = False
     opaque = False
     values: List[ast.AST] = []
-    for node in ast.walk(tree):
+    for node in _walked(tree):
         candidates: List[ast.AST] = []
         if isinstance(node, ast.Assign) and len(node.targets) == 1 and isinstance(node.targets[0], ast.Subscript):
             key = node.targets[0].slice
@@ -16895,6 +17499,7 @@ def _class_named_in_scope(scope: ast.AST, token: Tuple[str, str], consts: Dict[s
     return False
 
 
+@_per_tree_memo
 def _verdict_sites(rel: str, tree: ast.AST) -> Tuple[List[dict], int]:
     """Вердикты ОДНОГО файла: ``(строки населения, исключено записью вне области)``.
 
@@ -16911,18 +17516,18 @@ def _verdict_sites(rel: str, tree: ast.AST) -> Tuple[List[dict], int]:
     consts = toplevel_constants(tree)
     enums, _rebound = _module_declared_enumerations(tree, declared)
     funcs: Dict[str, ast.AST] = {}
-    for node in ast.walk(tree):
+    for node in _walked(tree):
         if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef)):
             funcs.setdefault(node.name, node)
     in_file: Dict[str, int] = {}
-    for node in ast.walk(tree):
+    for node in _walked(tree):
         shape = _counter_target_key(node)
         if shape is not None and isinstance(shape[0], ast.Name):
             in_file[shape[0].id] = in_file.get(shape[0].id, 0) + 1
     if not in_file:
         return (rows, elsewhere)
     parents = _parent_map(tree)
-    for node in ast.walk(tree):
+    for node in _walked(tree):
         found = _verdict_outcomes(node, declared)
         if found is None:
             continue
@@ -17028,6 +17633,7 @@ def _verdict_control() -> dict:
     return {'passed': True, 'positive': len(source), 'negative': len(clean), 'producer_forms': forms, 'verdict_forms': shapes, 'outcomes': outcomes, 'gaps': got, 'incident_class': blind[0].get('named_nowhere')}
 
 
+@_with_run_corpus
 def _verdict_population(root: Path) -> dict:
     """Население шага вердиктов ОДНИМ обходом — читают его ДВА шага.
 
@@ -17060,7 +17666,7 @@ def _verdict_population(root: Path) -> dict:
                 continue
             scanned += 1
             try:
-                tree = ast.parse(path.read_text(encoding='utf-8'))
+                tree = _run_tree(path)
             except (OSError, SyntaxError, UnicodeDecodeError) as exc:
                 unreadable.append({'file': rel, 'reason': f'{type(exc).__name__}: {exc}'})
                 continue
@@ -17283,7 +17889,7 @@ def _outcome_family(tree: ast.AST, target: str, declared: Set[str], consts: Dict
         elif isinstance(value, ast.IfExp):
             _take(value.body)
             _take(value.orelse)
-    for node in ast.walk(tree):
+    for node in _walked(tree):
         if isinstance(node, ast.Assign) and len(node.targets) == 1 and target != RETURN_TARGET:
             if ast.unparse(node.targets[0]) == target:
                 _take(node.value)
@@ -17377,7 +17983,7 @@ def _declared_outcome_ordering(tree: ast.AST, family: Set[Tuple[str, str]], decl
     """
     admitted: List[dict] = []
     seen_bare = False
-    for node in ast.walk(tree):
+    for node in _walked(tree):
         bare = _bare_enumeration(node, family, declared, consts)
         if bare is not None:
             seen_bare = True
@@ -17658,7 +18264,7 @@ def _exit_code_reaches_the_os(tree: ast.AST) -> bool:
     градуировка исходов объявлена типом и значением, а точка входа — другое
     утверждение, и смешать их значило бы ответить одним числом на два вопроса.
     """
-    for node in ast.walk(tree):
+    for node in _walked(tree):
         if not (isinstance(node, ast.Call) and node.args):
             continue
         func = node.func
@@ -18071,6 +18677,7 @@ def _entry_of_the_tail(tail: Optional[ast.AST], *, accepted: Set[int],
     return (ENTRY_ABSENT, PROOF_BY_NODE_IDENTITY, None)
 
 
+@_per_tree_memo
 def _outside_sites(rel: str, tree: ast.AST, *, accepted: Set[int],
                    file_in_population: bool,
                    tree_is_the_neighbours: bool) -> Tuple[List[dict], int]:
@@ -18090,7 +18697,7 @@ def _outside_sites(rel: str, tree: ast.AST, *, accepted: Set[int],
         return (rows, elsewhere)
     consts = toplevel_constants(tree)
     in_file: Dict[str, int] = {}
-    for node in ast.walk(tree):
+    for node in _walked(tree):
         shape = _counter_target_key(node)
         if shape is not None and isinstance(shape[0], ast.Name):
             in_file[shape[0].id] = in_file.get(shape[0].id, 0) + 1
@@ -18124,7 +18731,7 @@ def _outside_sites(rel: str, tree: ast.AST, *, accepted: Set[int],
             **extra,
         })
 
-    for node in ast.walk(tree):
+    for node in _walked(tree):
         scope = _owner_function(parents, node)
         if scope is None:
             continue
@@ -18586,6 +19193,7 @@ def _outside_control() -> dict:
             "anchors": {owner: list(expected) for owner, expected in sorted(anchors.items())}}
 
 
+@_with_run_corpus
 def the_verdict_form_outside_the_closed_list(root: Path, *,
                                              population: Optional[dict] = None) -> dict:
     """Население вердиктов ВНЕ закрытого перечня форм
@@ -18678,7 +19286,7 @@ def the_verdict_form_outside_the_closed_list(root: Path, *,
                 own_tree = True
             else:
                 try:
-                    tree = ast.parse(path.read_text(encoding="utf-8"))
+                    tree = _run_tree(path)
                 except (OSError, SyntaxError, UnicodeDecodeError) as exc:
                     unreadable.append({"file": rel, "reason": f"{type(exc).__name__}: {exc}"})
                     continue
@@ -18764,6 +19372,50 @@ def the_verdict_form_outside_the_closed_list(root: Path, *,
             ]}
 
 
+class _ReparsedTrees:
+    """Словарь «путь → дерево» без деревьев: ключи — разобранные пути (в
+    порядке разбора), дерево разбирается заново из сохранённого текста при
+    обращении. Держит последние :data:`_REPARSED_KEEP` деревьев: одно и то
+    же дерево спрашивают подряд (читатель, затем достижимость его чтений)."""
+
+    def __init__(self, sources: Dict[str, str]) -> None:
+        self._sources = sources
+        self._keys: Dict[str, None] = {}
+        self._recent: Dict[str, ast.AST] = {}
+
+    def add(self, rel: str) -> None:
+        self._keys[rel] = None
+
+    def __contains__(self, rel: object) -> bool:
+        return rel in self._keys
+
+    def __iter__(self) -> Iterator[str]:
+        return iter(self._keys)
+
+    def __len__(self) -> int:
+        return len(self._keys)
+
+    def __getitem__(self, rel: str) -> ast.AST:
+        if rel not in self._keys:
+            raise KeyError(rel)
+        tree = self._recent.pop(rel, None)
+        if tree is None:
+            tree = ast.parse(self._sources[rel])
+        self._recent[rel] = tree
+        while len(self._recent) > _REPARSED_KEEP:
+            self._recent.pop(next(iter(self._recent)))
+        return tree
+
+    def get(self, rel: str, default=None):
+        if rel not in self._keys:
+            return default
+        return self[rel]
+
+
+#: Сколько последних деревьев держит :class:`_ReparsedTrees`.
+_REPARSED_KEEP = 8
+
+
 def registry_ambiguity_scope(root: Path, *,
                              data_dir: Optional[Path] = None) -> dict:
     """Доля многозначных хвостов у КАЖДОГО документа реестра (**заказ G73 п. 2**).
@@ -18843,8 +19495,11 @@ def registry_ambiguity_scope(root: Path, *,
                            f"«читателей нет»")}
 
     # --- дерево читателей разбирается ОДИН раз ---------------------------
+    # Деревья всего корпуса разом не держатся (~3 ГБ): набор разобранных
+    # путей тот же, а дерево по пути разбирается заново из того же текста —
+    # только у тех немногих файлов, о которых спрашивают ниже (CI #6).
     sources: Dict[str, str] = {}
-    trees: Dict[str, ast.AST] = {}
+    trees = _ReparsedTrees(sources)
     unreadable: List[dict] = []
     for sub in code_dirs:
         base = root / sub
@@ -18854,7 +19509,8 @@ def registry_ambiguity_scope(root: Path, *,
             rel = path.relative_to(root).as_posix()
             try:
                 text = path.read_text(encoding="utf-8")
-                trees[rel] = ast.parse(text)
+                _corpus_parsed_ok(path, text)
+                trees.add(rel)
                 sources[rel] = text
             except (OSError, SyntaxError, UnicodeDecodeError) as exc:
                 unreadable.append({"file": rel,
@@ -19196,13 +19852,14 @@ def neighbour_population_harm(root: Path, scale: Optional[dict],
             rel = str(path.relative_to(root))
             if rel == producer_rel:
                 continue
+            harm_args = (NEIGHBOUR_CENSUS, neighbour.OUTPUT_FILENAME,
+                         renderers)
             try:
-                tree = ast.parse(path.read_text(encoding="utf-8"))
+                got = _corpus_fact("harm", rel, path, harm_args, harm_args)
             except (OSError, SyntaxError, UnicodeDecodeError) as exc:
                 unreadable.append({"file": rel, "unreadable": str(exc)})
                 continue
-            item = _reader_touches(rel, tree, NEIGHBOUR_CENSUS,
-                                   neighbour.OUTPUT_FILENAME, renderers)
+            item = got()
             if not item["roads"]:
                 continue
             for touch in item["touches"]:
@@ -19800,6 +20457,7 @@ def _member_site(scope: ast.AST, tree: ast.AST, target: ast.AST, form: str,
             "kind_outcome": opened["kind_outcome"]}
 
 
+@_per_tree_memo
 def _member_sites(rel: str, tree: ast.AST) -> Tuple[List[dict], List[tuple]]:
     """Вердикт членства по каждому ОТКРЫТОМУ счётчику файла — и ВТОРАЯ дорога.
 
@@ -19831,7 +20489,7 @@ def _member_sites(rel: str, tree: ast.AST) -> Tuple[List[dict], List[tuple]]:
         return made
 
     found: List[dict] = []
-    for node in ast.walk(tree):
+    for node in _walked(tree):
         shape = _counter_target_key(node)
         if shape is None:
             continue
@@ -19938,6 +20596,7 @@ def _member_control() -> dict:
             "clean_outcomes": sorted({s["member"] for s in clean})}
 
 
+@_with_run_corpus
 def sequence_members_of_the_whole_population(
         root: Path, open_counters: Optional[dict]) -> dict:
     """Поправка к ЗНАМЕНАТЕЛЮ ряда G78…G98 (**заказ G99 п. 1**).
@@ -20010,7 +20669,7 @@ def sequence_members_of_the_whole_population(
                 continue
             scanned += 1
             try:
-                tree = ast.parse(path.read_text(encoding="utf-8"))
+                tree = _run_tree(path)
             except (OSError, SyntaxError, UnicodeDecodeError) as exc:
                 unreadable.append({"file": rel,
                                    "reason": f"{type(exc).__name__}: {exc}"})
@@ -20406,6 +21065,7 @@ def _subscript_container_kind(expr: ast.AST,
     return RELOC_CONTAINER_UNDECLARED
 
 
+@_per_tree_memo
 def _reloc_sites(rel: str, tree: ast.AST, *,
                  budget_nodes: int = RELOC_BUDGET_NODES
                  ) -> Tuple[List[dict], List[dict], List[tuple]]:
@@ -20440,7 +21100,7 @@ def _reloc_sites(rel: str, tree: ast.AST, *,
 
     open_rows: List[dict] = []
     shifts: List[dict] = []
-    for node in ast.walk(tree):
+    for node in _walked(tree):
         shape = _counter_target_key(node)
         if shape is None:
             continue
@@ -20721,6 +21381,7 @@ def _reloc_control() -> dict:
             "strict_witness_moved": len(strict_moved)}
 
 
+@_with_run_corpus
 def key_origin_before_the_short_circuit(
         root: Path, open_counters: Optional[dict]) -> dict:
     """ТЕЧЬ правила соседа о ключе, измеренная целиком (**заказ G100 п. 1**).
@@ -20802,7 +21463,7 @@ def key_origin_before_the_short_circuit(
                 continue
             scanned += 1
             try:
-                tree = ast.parse(path.read_text(encoding="utf-8"))
+                tree = _run_tree(path)
             except (OSError, SyntaxError, UnicodeDecodeError) as exc:
                 unreadable.append({"file": rel,
                                    "reason": f"{type(exc).__name__}: {exc}"})
@@ -21876,6 +22537,7 @@ def _handover_control() -> dict:
             "outcomes": list(seen)}
 
 
+@_with_run_corpus
 def splits_handed_to_the_reachability_judge(
         root: Path, steps: Optional[dict],
         reach_step: Optional[dict], *,
@@ -22033,7 +22695,7 @@ def splits_handed_to_the_reachability_judge(
                 continue
             scanned += 1
             try:
-                tree = ast.parse(path.read_text(encoding="utf-8"))
+                tree = _run_tree(path)
             except (OSError, SyntaxError, UnicodeDecodeError) as exc:
                 unreadable.append({"file": rel,
                                    "reason": f"{type(exc).__name__}: {exc}"})
@@ -22346,6 +23008,9 @@ def _neighbour_query_memo() -> Iterator[dict]:
         setattr(neighbour, name,
                 _memoised_neighbour_query(name, originals[name], cache, stats))
     witness["installed"] = True
+    # Общий разбор корпуса читает отсюда УЖЕ данные ответы (не задавая
+    # соседу вопросов): см. :func:`_corpus_known_callees`.
+    _NEIGHBOUR_ANSWERS_STACK.append(cache)
     try:
         yield witness
     finally:
@@ -22354,6 +23019,11 @@ def _neighbour_query_memo() -> Iterator[dict]:
         # прогон — то есть следующий читатель получил бы ответ о ЧУЖОМ дереве.
         for name, fn in originals.items():
             setattr(neighbour, name, fn)
+        _NEIGHBOUR_ANSWERS_STACK.pop()
+
+
+#: Память соседских запросов открытых прогонов (вершина — текущий).
+_NEIGHBOUR_ANSWERS_STACK: List[dict] = []
 
 
 def _with_neighbour_query_memo(fn: Callable) -> Callable:
@@ -22386,7 +23056,60 @@ def _with_neighbour_query_memo(fn: Callable) -> Callable:
     return run_with_memo
 
 
+def _corpus_known_callees(ctx: dict) -> Optional[Dict[str, str]]:
+    """Ответ соседа ``find_callees`` о корне прогона — если он уже посчитан.
+
+    Читается ПАМЯТЬ соседских запросов (:func:`_neighbour_query_memo`), а не
+    сам сосед: зов изменил бы счёт её исходов, который едет в документ, и
+    задал бы соседу вопрос, которого ступень в этот миг не задавала.
+    """
+    if not _NEIGHBOUR_ANSWERS_STACK:
+        return None
+    answers = _NEIGHBOUR_ANSWERS_STACK[-1]
+    key = _neighbour_query_key("find_callees", (ctx["root"],), {})
+    if key not in answers:
+        return None
+    return copy.deepcopy(answers[key])
+
+
+def _corpus_args_invisible(ctx: dict):
+    callees = _corpus_known_callees(ctx)
+    if callees is None:
+        return None
+    neighbour = importlib.import_module(NEIGHBOUR_CENSUS)
+    _walk, renderers, _unresolved, boundary = _invisible_renderers(
+        ctx["root"], tuple(neighbour._CODE_DIRS), callees)
+    return (_invisible_facts_key(callees, renderers, boundary),
+            (callees, renderers, boundary))
+
+
+def _corpus_args_harm(ctx: dict):
+    callees = _corpus_known_callees(ctx)
+    if callees is None:
+        return None
+    neighbour = importlib.import_module(NEIGHBOUR_CENSUS)
+    producer_rel = callees[NEIGHBOUR_CENSUS.split(".")[-1]]
+    renderers = tuple(printed_by_producer(ast.parse(
+        (ctx["root"] / producer_rel).read_text(encoding="utf-8"))))
+    args = (NEIGHBOUR_CENSUS, neighbour.OUTPUT_FILENAME, renderers)
+    return args, args
+
+
+#: Ответы, которые общий разбор корпуса снимает с каждого дерева прогона
+#: :func:`measure` (см. :func:`_with_measure_corpus`): ``вид -> (функция
+#: ответа (rel, tree, *входы), чьи входы к этому мигу)``. Вторая функция
+#: отдаёт ``(ключ, входы)`` или ``None`` — входы ещё не известны (ответ
+#: снимется с более позднего разбора или посчитается обходом сам).
+_CORPUS_KINDS: Dict[str, Tuple[Callable, Callable]] = {
+    "topdef": (_toplevel_names, lambda ctx: ((), ())),
+    "imports": (_producer_import_items, lambda ctx: ((), ())),
+    "invisible": (_invisible_file_facts, _corpus_args_invisible),
+    "harm": (_reader_touches, _corpus_args_harm),
+}
+
+
 @_with_neighbour_query_memo
+@_with_measure_corpus
 def measure(root: Path, *, now: Optional[dt.datetime] = None,
             probe_ledger: Optional[Path] = None,
             data_dir: Optional[Path] = None) -> dict:
@@ -22413,7 +23136,7 @@ def measure(root: Path, *, now: Optional[dt.datetime] = None,
     for path in executor_files:
         rel = path.relative_to(root).as_posix()
         try:
-            tree = ast.parse(path.read_text(encoding="utf-8"))
+            tree = _corpus_parse(path)
         except Exception as exc:  # noqa: BLE001
             unreadable.append({"file": rel, "side": "executor",
                                "reason": f"{type(exc).__name__}: {exc}"})
@@ -22446,7 +23169,7 @@ def measure(root: Path, *, now: Optional[dt.datetime] = None,
         rel = path.relative_to(root).as_posix()
         try:
             source = path.read_text(encoding="utf-8")
-            tree = ast.parse(source)
+            tree = _corpus_parse(path, source)
         except Exception as exc:  # noqa: BLE001
             unreadable.append({"file": rel, "side": "guard",
                                "reason": f"{type(exc).__name__}: {exc}"})
