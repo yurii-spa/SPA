@@ -844,7 +844,9 @@ class AbsentReachIsNotAnOutcome(unittest.TestCase):
 
     def test_every_declared_class_is_still_countable(self):
         # Без этого «отказ на всё» прошёл бы отрицательную половину целиком.
-        for cls in C._REACH_OUTCOMES:
+        # Перечень ДОСТИЖЕНИЯ ДОКУМЕНТА — после снятия затенения (CI #6, исправление 3) у него своё имя
+        # `_DOC_REACH_OUTCOMES`; прежнее `_REACH_OUTCOMES` здесь молча означало перечень достижимости раскола.
+        for cls in C._DOC_REACH_OUTCOMES:
             with self.subTest(reach=cls):
                 out = self._run(reach=cls)
                 self.assertEqual(out["status"], "MEASURED")
