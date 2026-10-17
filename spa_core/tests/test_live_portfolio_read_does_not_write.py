@@ -14,6 +14,7 @@ Every test here is a positive control: on origin a6329acbf each one goes red.
 from __future__ import annotations
 
 import hashlib
+import importlib
 import os
 import shutil
 import sqlite3
@@ -40,7 +41,7 @@ def _fingerprint(db: Path) -> dict:
 def _shared():
     # `server` puts spa_core/ on sys.path; `_shared` imports `database.init_db`
     # and `paper_trading.engine` as top-level packages through it.
-    from spa_core.api import server  # noqa: F401
+    importlib.import_module("spa_core.api.server")
     from spa_core.api import _shared
     return _shared
 
