@@ -505,8 +505,19 @@ def read_window(repo_root: str) -> tuple[dict | None, str | None]:
 
 def open_window(repo_root: str, spec: "Spec", targets: dict, originals: dict, *,
                 spec_path: str | None = None, now: str | None = None,
-                pid: int | None = None, label: str | None = None) -> dict:
+                pid: int | None = None, label: str | None = None,
+                tool: str = "scripts/delta_mutation_run.py") -> dict:
     """Объявить окно НА ДИСКЕ: слепок каждого тронутого файла ДО первой подмены.
+
+    `spec` здесь — КОНТРАКТ, а не класс: нужны ровно `.title` (как назвать прогон в
+    записи) и `.mutations` (у каждой `.name` и `.file`). Это объявлено намеренно —
+    окно есть свойство ДЕРЕВА, а не этого прибора, и второй мутирующий инструмент
+    обязан писать ТУ ЖЕ запись, а не завести свою. Второй такой инструмент —
+    `scripts/mutation_gate.py` (цикл #889, заказ G772 п. 2): он подменял на месте
+    четыре money-path модуля, держа исходный текст в локальной переменной, и после
+    `SIGKILL` дерево оставалось с отключённым APY-порогом RiskPolicy, о котором НЕ
+    говорил никто. `tool` называет, КТО открыл окно: без этого поля наследник читал бы
+    запись и искал спецификацию, которой у второго инструмента нет вовсе.
 
     Слепок кладётся файлом, а не только хешем, намеренно: хеш говорит «байты не те»,
     а вернуть байты по нему нельзя. Замер цикла #888: единственная копия исходных байтов
@@ -548,7 +559,7 @@ def open_window(repo_root: str, spec: "Spec", targets: dict, originals: dict, *,
     record = {
         "measured": True,
         "state": "open",
-        "tool": "scripts/delta_mutation_run.py",
+        "tool": tool,
         "opened_at": now or datetime.now(timezone.utc).isoformat(),
         "pid": pid if pid is not None else os.getpid(),
         "run_label": _run_label(pid, label),
@@ -666,15 +677,29 @@ def window_state(repo_root: str, *, files=None) -> dict:
         return base
 
     touching = sorted(set(window_files) & asked) if asked is not None else window_files
+    # ИНСТРУМЕНТ назван вместе со спецификацией: запись окна пишут ДВА прибора
+    # (`delta_mutation_run.py` и `mutation_gate.py`), и у второго спецификации-файла нет
+    # вовсе — без имени инструмента наследник искал бы `--spec`, которого не существует.
     who = (f"прогон {doc.get('run_label')} (pid {doc.get('pid')}, хост "
-           f"{doc.get('hostname')}), окно открыто {doc.get('opened_at')}, "
-           f"спецификация {doc.get('spec_path') or doc.get('spec_title')}")
+           f"{doc.get('hostname')}), окно открыто {doc.get('opened_at')}, инструмент "
+           f"{doc.get('tool') or 'НЕ НАЗВАН В ЗАПИСИ'}, спецификация "
+           f"{doc.get('spec_path') or doc.get('spec_title')}")
     if mutants:
         hit = [m for m in mutants if asked is None or m["file"] in asked]
+        # Мутации перечисляются ВСЕ и названы КАНДИДАТАМИ: читатель сверяет байты со
+        # слепком и по ним не знает, какая именно мутация лежит. Прежняя форма печатала
+        # `m['mutations'][0]`, то есть ОДНО имя из нескольких как установленный факт —
+        # у спецификации с одной мутацией на файл это совпадало, а у кураторского набора
+        # `mutation_gate.py` на `risk/policy.py` их ПЯТЬ (цикл #889), и названная первой
+        # была бы догадкой в утвердительной форме.
         detail = ("дерево ДЕРЖИТ МУТАНТА: "
                   + " · ".join(f"{m['file']} (ожидался {m['expected'][:12]}, лежит "
                                f"{m['found'][:12]}"
-                               + (f"; мутация: {m['mutations'][0]}" if m["mutations"] else "")
+                               + (("; мутация: " + m["mutations"][0])
+                                  if len(m["mutations"]) == 1 else
+                                  ("; одна из мутаций окна по этому файлу: "
+                                   + ", ".join(m["mutations"]))
+                                  if m["mutations"] else "")
                                + ")" for m in mutants)
                   + f"; {who}. Вернуть байты: `--window-restore --repo-root {root}`")
         if asked is not None and not hit:

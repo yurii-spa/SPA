@@ -1,0 +1,112 @@
+{
+  "title": "ADR-773 — дельта цикла #889: окно у ВТОРОГО мутирующего прибора (mutation_gate)",
+  "tests": [
+    "spa_core/tests/test_mutation_gate_window.py",
+    "spa_core/tests/test_delta_mutation_window.py",
+    "spa_core/tests/test_pusher_copy_guard.py"
+  ],
+  "mutations": [
+    {
+      "name": "окно не объявляется: слепок снова живёт только в памяти процесса",
+      "file": "scripts/mutation_gate.py",
+      "old": "        record = open_gate_window(dmr, root)",
+      "new": "        record = {}  # окно не объявляется"
+    },
+    {
+      "name": "окно не снимается после чистого прогона — «записи нет» перестаёт значить «чисто»",
+      "file": "scripts/mutation_gate.py",
+      "old": "            closed = close_gate_window(dmr, root)",
+      "new": "            closed = {\"restored\": [], \"already_clean\": [], \"closed\": True}"
+    },
+    {
+      "name": "несошедшиеся байты зачитываются за успех (fail-OPEN после прогона)",
+      "file": "scripts/mutation_gate.py",
+      "old": "    if out.get(\"failed\"):\n        raise WindowUnavailable(",
+      "new": "    if out.get(\"failed\") and False:\n        raise WindowUnavailable("
+    },
+    {
+      "name": "нечитаемая запись окна зачитывается за «чисто» (инв. #17 наизнанку)",
+      "file": "scripts/mutation_gate.py",
+      "old": "    if not out.get(\"measured\"):\n        raise WindowUnavailable(",
+      "new": "    if not out.get(\"measured\") and False:\n        raise WindowUnavailable("
+    },
+    {
+      "name": "третий исход зачитывается за PASS: грязное дерево уезжает под зелёной печатью",
+      "file": "scripts/mutation_gate.py",
+      "old": "        print(f\"🚫 НЕ ИЗМЕРЕНО — окно мутационного прибора: {close_error}\",\n              file=sys.stderr)\n        return RC_NOT_MEASURED",
+      "new": "        print(f\"🚫 НЕ ИЗМЕРЕНО — окно мутационного прибора: {close_error}\",\n              file=sys.stderr)\n        return RC_PASS"
+    },
+    {
+      "name": "отказ открыть окно не останавливает прогон — гейт мутирует без записи",
+      "file": "scripts/mutation_gate.py",
+      "old": "        print(f\"🚫 НЕ ИЗМЕРЕНО — окно мутационного прибора: {exc}\", file=sys.stderr)\n        return RC_NOT_MEASURED",
+      "new": "        print(f\"🚫 НЕ ИЗМЕРЕНО — окно мутационного прибора: {exc}\", file=sys.stderr)\n        record = {}"
+    },
+    {
+      "name": "устаревшая копия читателя используется молча (API не проверяется)",
+      "file": "scripts/mutation_gate.py",
+      "old": "        missing = [name for name in (\"open_window\", \"restore_window\", \"window_state\",\n                                     \"install_signal_guard\", \"OpenWindow\")\n                   if not hasattr(mod, name)]",
+      "new": "        missing = []"
+    },
+    {
+      "name": "читателя нет — возвращается None вместо отказа (fail-OPEN загрузки)",
+      "file": "scripts/mutation_gate.py",
+      "old": "    raise WindowUnavailable(\n        \"читателя окна нет ни по одному адресу (\" + \", \".join(candidates)",
+      "new": "    return None\n    raise WindowUnavailable(\n        \"читателя окна нет ни по одному адресу (\" + \", \".join(candidates)"
+    },
+    {
+      "name": "второе окно в том же дереве разрешено — слепок первого затирается",
+      "file": "scripts/mutation_gate.py",
+      "old": "    except dmr.OpenWindow as exc:\n        raise WindowUnavailable(str(exc)) from exc",
+      "new": "    except dmr.OpenWindow as exc:\n        return {\"files\": [], \"opened_at\": None}"
+    },
+    {
+      "name": "слепок снимается только с ПЕРВОЙ цели — остальные три без пути наверх",
+      "file": "scripts/mutation_gate.py",
+      "old": "    rels = sorted({m.file for m in MUTATIONS})",
+      "new": "    rels = sorted({m.file for m in MUTATIONS})[:1]"
+    },
+    {
+      "name": "нечитаемая цель молча пропускается — окно открывается неполным",
+      "file": "scripts/mutation_gate.py",
+      "old": "            raise WindowUnavailable(\n                f\"цель мутаций {rel} не прочитана в дереве {repo_root} ({exc}) — \"\n                f\"слепка нет, значит окно объявить НЕЧЕМ\") from exc",
+      "new": "            continue"
+    },
+    {
+      "name": "окно лжёт о своём авторе: записывается чужой инструмент",
+      "file": "scripts/mutation_gate.py",
+      "old": "                               now=now, pid=pid, label=label, tool=_WINDOW_TOOL)",
+      "new": "                               now=now, pid=pid, label=label,\n                               tool=\"scripts/delta_mutation_run.py\")"
+    },
+    {
+      "name": "--repo-root не доходит до подмены: мутируется СВОЁ дерево",
+      "file": "scripts/mutation_gate.py",
+      "old": "    path = Path(repo_root or _REPO_ROOT) / m.file",
+      "new": "    path = Path(_REPO_ROOT) / m.file"
+    },
+    {
+      "name": "--repo-root не доходит до pytest: прогон судит о ЧУЖОМ дереве",
+      "file": "scripts/mutation_gate.py",
+      "old": "        cmd, cwd=str(repo_root or _REPO_ROOT), capture_output=True, text=True,",
+      "new": "        cmd, cwd=str(_REPO_ROOT), capture_output=True, text=True,"
+    },
+    {
+      "name": "запись окна снова жёстко называет прибор дельты (поле tool игнорируется)",
+      "file": "scripts/delta_mutation_run.py",
+      "old": "        \"tool\": tool,",
+      "new": "        \"tool\": \"scripts/delta_mutation_run.py\","
+    },
+    {
+      "name": "одна из пяти мутаций снова печатается как установленный факт",
+      "file": "scripts/delta_mutation_run.py",
+      "old": "                               + ((\"; мутация: \" + m[\"mutations\"][0])\n                                  if len(m[\"mutations\"]) == 1 else\n                                  (\"; одна из мутаций окна по этому файлу: \"\n                                   + \", \".join(m[\"mutations\"]))\n                                  if m[\"mutations\"] else \"\")",
+      "new": "                               + ((\"; мутация: \" + m[\"mutations\"][0])\n                                  if m[\"mutations\"] else \"\")"
+    },
+    {
+      "name": "читатель окна снят из реестра инструмента доставки (заказ G772 п. 3 отменён)",
+      "file": "push_to_github.py",
+      "old": "    \"scripts/check_owner_gate.py\",\n    \"scripts/delta_mutation_run.py\",\n)",
+      "new": "    \"scripts/check_owner_gate.py\",\n)"
+    }
+  ]
+}

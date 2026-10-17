@@ -77,14 +77,20 @@ def _mktree(tmp_path: Path, name: str, toolchain: dict) -> Path:
 
 
 def _full(marker: str) -> dict:
-    """Полный комплект инструмента доставки с узнаваемым содержимым."""
-    return {
-        "push_to_github.py": f"# pusher {marker}\n",
-        "push_to_github_batch.py": f"# batch {marker}\n",
-        "scripts/push_to_github.py": f"# shim {marker}\n",
-        "scripts/safe_site_push.py": f"# safe site {marker}\n",
-        "scripts/check_owner_gate.py": f"# owner gate {marker}\n",
-    }
+    """Полный комплект инструмента доставки с узнаваемым содержимым.
+
+    Состав БЕРЁТСЯ ИЗ РЕЕСТРА, а не перечисляется здесь. Своя копия перечня жила тут
+    до цикла #889 и ровно тогда и подвела: реестр вырос шестым путём
+    (`scripts/delta_mutation_run.py`, заказ G772 п. 3), а сцены продолжали строить дерево
+    из пяти файлов — и три соседних теста покраснели на ВЕРНОМ состоянии, честно доложив
+    «нечего сравнивать: нет шестого файла». Причина была не в реестре и не в сверке, а в
+    дубле перечня внутри подмостков: сцена, перечисляющая то, что уже перечислено в
+    предмете, обязана разойтись с ним при первом же расширении. Правка НАМЕРЕННА
+    (инв. #16) и УСИЛЕНИЕ: ни один ассерт не снят, а сцена теперь полна по построению для
+    ЛЮБОГО состава реестра.
+    """
+    ptg = _load("_test_toolchain_registry_probe", "push_to_github.py")
+    return {rel: f"# {rel} {marker}\n" for rel in ptg.TOOLCHAIN_FILES}
 
 
 def _write_file(top: Path, rel: str = "docs/note.md") -> str:
@@ -98,11 +104,19 @@ def _write_file(top: Path, rel: str = "docs/note.md") -> str:
 # 1. Реестр инструмента доставки
 # ═════════════════════════════════════════════════════════════════════════════
 def test_toolchain_registry_covers_every_delivery_entry_point(ptg):
-    """Все ЧЕТЫРЕ входа доставки + owner-gate под сверкой.
+    """Все ЧЕТЫРЕ входа доставки + owner-gate + читатель окна прибора под сверкой.
 
     Пушер, batch-CLI и шим — три способа доставить одно и то же; owner-gate
     берётся РЯДОМ с запущенным пушером (`__file__/scripts/check_owner_gate.py`),
     поэтому устаревший инструмент — это ещё и устаревший гейт сайта.
+
+    ПРАВКА НАМЕРЕННА (инв. #16), и она УСИЛЕНИЕ, а не ослабление: множество только
+    РАСШИРЕНО шестым путём `scripts/delta_mutation_run.py`, ни один прежний не снят.
+    Причина измерена циклом #889 (заказ G772 п. 3): с ADR-772 пушер зовёт этот файл
+    подпроцессом как читателя окна мутационного прибора и ищет его копию в ТРЁХ
+    местах; копия из чужого дерева, отставшая от формата записи, заставила бы одну
+    дверь доставки отказать, а другую — пропустить мутанта. Запись в журнале:
+    `docs/journal/2026-W42.md`.
     """
     assert set(ptg.TOOLCHAIN_FILES) == {
         "push_to_github.py",
@@ -110,6 +124,7 @@ def test_toolchain_registry_covers_every_delivery_entry_point(ptg):
         "scripts/push_to_github.py",
         "scripts/safe_site_push.py",
         "scripts/check_owner_gate.py",
+        "scripts/delta_mutation_run.py",
     }
 
 

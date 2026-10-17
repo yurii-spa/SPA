@@ -34,23 +34,85 @@ CONTRACT
   * NEVER touches live data/ (the targeted tests are all hermetic / sandboxed).
   * Deterministic: same code → same survivor set. Exit 0 iff survivors ≤ threshold.
 
+ОКНО ПРИБОРА — ПОЧЕМУ `finally` НЕДОСТАТОЧНО (цикл #889, заказ G772 п. 2, ADR-773)
+----------------------------------------------------------------------------------
+Строка «restored in a finally (even on crash / Ctrl-C)» выше ВЕРНА и НЕПОЛНА, и
+разница измерена, а не рассуждена. `SIGKILL` не исполняет ни `finally`, ни
+`atexit`, ни обработчик сигнала — это свойство ОС. Значит единственная копия
+исходных байтов (локальная переменная `original`) умирает вместе с процессом, и
+дерево остаётся держать мутанта, о котором НЕ ГОВОРИТ НИКТО.
+
+Замер 2026-10-17 в одноразовом дереве `/private/tmp/spa_c889before`: прибор убит
+`SIGKILL` через 12 с после старта ⇒ `spa_core/risk/policy.py` остался с мутацией
+`risk_apy_max_bound_flip`, то есть **с отключённой верхней границей APY
+единственного hard-гейта системы** (инв. #1: пул с APY > 30 % прошёл бы
+RiskPolicy). При этом читатель окна отвечал «✅ ОКНА НЕТ, дерево чисто» (код 0), а
+`enforce_no_delivered_mutant` пушера — «ПРОПУСТИЛ БЫ»: мутант уехал бы на `main`
+молча, потому что гейт окна, доставленный ADR-772, спрашивает про ЗАПИСЬ, а этот
+прибор записи не вёл вовсе. Полезная нагрузка здесь тяжелее, чем у находки #888
+(там мутировалась перепись): мутируются `risk/policy.py`,
+`governance/kill_switch.py`, `execution/reconciliation.py`,
+`execution/gate_chain_audit.py` — ровно те файлы, которые читает дневной цикл.
+
+Поэтому прибор НЕ ЗАВОДИТ своего учёта, а пишет ТУ ЖЕ запись
+`.mutation_window/window.json`, что и `scripts/delta_mutation_run.py` (ADR-772):
+окно есть свойство ДЕРЕВА, а не инструмента, и читателей у него уже три — сам
+прибор (второе окно в том же дереве ОТКАЗЫВАЕТ), оба пушера (файл под открытым
+окном НЕ ДОСТАВЛЯЕТСЯ, код 10) и `--window-restore` (путь наверх для дерева,
+доставшегося в наследство). Вторая копия сверки разошлась бы с первой при первой
+же правке формата записи.
+
+Три исхода разведены (инв. #17): **0** — прогон измерен, выживших ≤ порога ·
+**1** — прогон измерен, выжившие есть · **3** — прогон НЕ СОСТОЯЛСЯ и причина
+названа (читателя окна нет на месте · в дереве уже открыто окно · байты после
+прогона не сошлись со слепком). Третий исход не выдаётся ни за «чисто», ни за
+«провал гейта»: отсутствие прибора есть самостоятельный ответ.
+
+`--repo-root` существует ради правила `.claude/rules/deployment.md` § «ОКНО
+МУТАЦИОННОГО ПРИБОРА»: мутационный прогон идёт в ОТДЕЛЬНОМ дереве, не в том, из
+которого идёт доставка. Без этого флага прибор мог мутировать ТОЛЬКО своё дерево,
+и в боевом дереве правило было неисполнимо по построению.
+
 CLI::
     python3 scripts/mutation_gate.py            # run the gate, print the scorecard
     python3 scripts/mutation_gate.py --json     # machine-readable verdict
     python3 scripts/mutation_gate.py --threshold 0
+    python3 scripts/mutation_gate.py --repo-root /tmp/spa_mut   # отдельное дерево
 """
 from __future__ import annotations
 
 import argparse
+import importlib.util
 import json
+import os
 import subprocess
 import sys
 import time
 from dataclasses import dataclass, field
 from pathlib import Path
+from types import SimpleNamespace
 
 _REPO_ROOT = Path(__file__).resolve().parents[1]
 _PYTHON = sys.executable
+
+# Запись окна пишет и читает ОДИН объект на оба прибора — читатель живёт здесь.
+_WINDOW_READER_REL = "scripts/delta_mutation_run.py"
+_WINDOW_TOOL = "scripts/mutation_gate.py"
+_WINDOW_TITLE = "mutation_gate (WS-6.3): кураторский набор мутантов money-path"
+
+# Третий исход — свой код возврата: прогон НЕ СОСТОЯЛСЯ, и это не «чисто» и не «провал».
+RC_PASS = 0
+RC_SURVIVORS = 1
+RC_NOT_MEASURED = 3
+
+
+class WindowUnavailable(RuntimeError):
+    """Окно прибора объявить или сверить нечем ⇒ прогон НЕ состоится (fail-CLOSED).
+
+    Отдельный класс, а не `RuntimeError` вообще: вызывающий обязан отличать «гейт
+    провалился» от «гейт не мерил» — иначе отсутствие прибора зачтётся за ответ
+    (`.claude/rules/deployment.md`, урок `pyflakes` цикла #465).
+    """
 
 
 @dataclass
@@ -224,6 +286,128 @@ MUTATIONS: list[Mutation] = [
 ]
 
 
+# ──────────────────────────────────────────────────────────────────────────────
+# ОКНО ПРИБОРА — одна запись на оба мутирующих инструмента (ADR-772 + ADR-773)
+# ──────────────────────────────────────────────────────────────────────────────
+def load_window_facility(repo_root: str | None = None,
+                         reader_path: str | None = None):
+    """Загрузить читателя/писателя окна. Не нашёлся ⇒ :class:`WindowUnavailable`.
+
+    Порядок поиска НАЗВАН и совпадает с порядком пушера (`mutation_window_verdict`):
+    рядом с ЭТИМ файлом · в дереве прогона. Своей копии правила здесь нет намеренно —
+    формат записи знает ровно один объект, и две копии разошлись бы при первой правке
+    формата (ровно так 26.08 проехал второй `ADR-145`).
+
+    `reader_path` — ВХОД: тест закрепляет и путь «читателя нет», не удаляя файл из
+    настоящего дерева.
+    """
+    candidates = []
+    if reader_path is not None:
+        candidates.append(str(reader_path))
+    else:
+        candidates.append(str(Path(__file__).resolve().parent / "delta_mutation_run.py"))
+        if repo_root is not None:
+            candidates.append(os.path.join(str(repo_root), *_WINDOW_READER_REL.split("/")))
+    for cand in candidates:
+        if not os.path.isfile(cand):
+            continue
+        spec = importlib.util.spec_from_file_location("_spa_mutation_window", cand)
+        if spec is None or spec.loader is None:
+            continue
+        mod = importlib.util.module_from_spec(spec)
+        # Модуль РЕГИСТРИРУЕТСЯ до исполнения намеренно: `@dataclass` внутри читателя
+        # ищет свой модуль в `sys.modules[cls.__module__]`, и без записи получает
+        # `None` ⇒ `AttributeError: 'NoneType' object has no attribute '__dict__'`.
+        # Это не теория: ровно так отказал первый прогон этой же правки (цикл #889),
+        # и отказал ВЕРНО — fail-CLOSED поймал мой собственный дефект загрузки раньше,
+        # чем прибор успел тронуть хоть один файл.
+        sys.modules[spec.name] = mod
+        try:
+            spec.loader.exec_module(mod)
+        except Exception as exc:  # noqa: BLE001 — причина НАЗЫВАЕТСЯ, а не глотается
+            sys.modules.pop(spec.name, None)
+            raise WindowUnavailable(
+                f"читатель окна {cand} есть, но не загружается: "
+                f"{type(exc).__name__}: {exc} — объявить окно НЕЧЕМ") from exc
+        missing = [name for name in ("open_window", "restore_window", "window_state",
+                                     "install_signal_guard", "OpenWindow")
+                   if not hasattr(mod, name)]
+        if missing:
+            raise WindowUnavailable(
+                f"читатель окна {cand} загрузился, но в нём нет {', '.join(missing)} — "
+                f"копия инструмента устарела, запись окна объявить НЕЧЕМ")
+        return mod
+    raise WindowUnavailable(
+        "читателя окна нет ни по одному адресу (" + ", ".join(candidates)
+        + f") — прогон НЕ состоится: без записи `{_WINDOW_READER_REL}` мутант "
+          f"переживёт SIGKILL молча")
+
+
+def gate_window_targets(repo_root: str) -> tuple[list[str], dict, dict]:
+    """Файлы, которые тронет гейт, их реальные пути и исходные байты.
+
+    Окно открывается на ВСЕ четыре файла разом, а не на тот, что мутируется сейчас:
+    смерть приходит в любой момент прогона, и слепок нужен до ПЕРВОЙ подмены.
+    """
+    rels = sorted({m.file for m in MUTATIONS})
+    targets: dict[str, str] = {}
+    originals: dict[str, str] = {}
+    for rel in rels:
+        real = os.path.join(str(repo_root), *rel.split("/"))
+        try:
+            with open(real, encoding="utf-8") as fh:
+                originals[rel] = fh.read()
+        except OSError as exc:
+            raise WindowUnavailable(
+                f"цель мутаций {rel} не прочитана в дереве {repo_root} ({exc}) — "
+                f"слепка нет, значит окно объявить НЕЧЕМ") from exc
+        targets[rel] = os.path.realpath(real)
+    return rels, targets, originals
+
+
+def open_gate_window(dmr, repo_root: str, *, now: str | None = None,
+                     pid: int | None = None, label: str | None = None) -> dict:
+    """Объявить окно ДО первой подмены. Уже открыто ⇒ :class:`WindowUnavailable`.
+
+    `spec` для записи — контракт из двух полей (`.title`, `.mutations`), а не класс
+    прибора дельты: у кураторского набора файла-спецификации нет вовсе, и выдумывать
+    его значило бы записать путь, которого не существует.
+    """
+    _rels, targets, originals = gate_window_targets(repo_root)
+    spec = SimpleNamespace(title=_WINDOW_TITLE, mutations=list(MUTATIONS))
+    try:
+        return dmr.open_window(repo_root, spec, targets, originals, spec_path=None,
+                               now=now, pid=pid, label=label, tool=_WINDOW_TOOL)
+    except dmr.OpenWindow as exc:
+        raise WindowUnavailable(str(exc)) from exc
+    except OSError as exc:
+        raise WindowUnavailable(
+            f"запись окна не легла на диск в дереве {repo_root}: "
+            f"{type(exc).__name__}: {exc}") from exc
+
+
+def close_gate_window(dmr, repo_root: str) -> dict:
+    """Сверить байты со слепком, вернуть разошедшиеся и снять запись.
+
+    Возврат идёт ЧЕРЕЗ `restore_window`, а не отдельной проверкой: сверка и возврат
+    суть одно действие, и вторая реализация сверки разошлась бы с первой. Возврат
+    неполон ⇒ запись НЕ снимается и прогон объявляется НЕ ИЗМЕРЕННЫМ: дерево с
+    мутантом не имеет права выглядеть чистым по мерке собственного сторожа.
+    """
+    out = dmr.restore_window(repo_root)
+    if not out.get("measured"):
+        raise WindowUnavailable(
+            f"после прогона запись окна не прочитана ({out.get('reason')}) — сошлись ли "
+            f"байты дерева {repo_root} со слепком, НЕ ИЗМЕРЕНО")
+    if out.get("failed"):
+        raise WindowUnavailable(
+            "после прогона байты НЕ сошлись со слепком и возврат НЕ ПОЛОН: "
+            + " · ".join(out["failed"])
+            + f". Запись окна ОСТАВЛЕНА — путь наверх: python3 {_WINDOW_READER_REL} "
+              f"--window-restore --repo-root {repo_root}")
+    return out
+
+
 @dataclass
 class MutantResult:
     name: str
@@ -234,13 +418,17 @@ class MutantResult:
     note: str = ""
 
 
-def _run_tests(test_files: list[str]) -> tuple[bool, str]:
+def _run_tests(test_files: list[str], repo_root: str | None = None) -> tuple[bool, str]:
     """Run pytest over the given files; return (all_passed, short_tail).
 
     all_passed True iff the subset is GREEN. We deselect the randomizer for
     determinism and stop at the first failure (``-x``) so a killed mutant returns
     fast. A pytest internal error (exit >= 2 other than 1) is treated as NOT
     passing (the mutant broke import/collection — that still counts as caught).
+
+    ``repo_root`` — ВХОД: прогон идёт в том же дереве, которое мутируется, иначе
+    pytest читал бы ОДИН код, а мутант лежал бы в ДРУГОМ, и вердикт «убит» был бы
+    утверждением про чужое дерево.
     """
     cmd = [
         _PYTHON, "-m", "pytest", *test_files,
@@ -248,20 +436,25 @@ def _run_tests(test_files: list[str]) -> tuple[bool, str]:
         "-o", "addopts=",  # ignore repo addopts (coverage etc.) for speed
     ]
     proc = subprocess.run(
-        cmd, cwd=str(_REPO_ROOT), capture_output=True, text=True, timeout=300
+        cmd, cwd=str(repo_root or _REPO_ROOT), capture_output=True, text=True,
+        timeout=300
     )
     tail = (proc.stdout or "")[-400:] + (proc.stderr or "")[-200:]
     return proc.returncode == 0, tail
 
 
-def _apply_mutant(m: Mutation) -> MutantResult:
+def _apply_mutant(m: Mutation, repo_root: str | None = None) -> MutantResult:
     """Apply ONE mutant, run its tests, restore the source. killed iff tests fail.
 
     A mutant is KILLED when the targeted test subset goes RED (returncode != 0)
     after the mutation. It SURVIVES when the tests still pass — a coverage hole.
     The original file text is ALWAYS restored in the finally.
+
+    `finally` здесь — БЫСТРЫЙ путь, а не защита: `SIGKILL` его не исполняет. Защита
+    лежит на диске — запись окна, открытая до первого вызова этой функции
+    (:func:`open_gate_window`); см. раздел «ОКНО ПРИБОРА» в шапке модуля.
     """
-    path = _REPO_ROOT / m.file
+    path = Path(repo_root or _REPO_ROOT) / m.file
     original = path.read_text(encoding="utf-8")
 
     # The swap target must appear EXACTLY ONCE (unambiguous mutation).
@@ -276,7 +469,7 @@ def _apply_mutant(m: Mutation) -> MutantResult:
     mutated = original.replace(m.old, m.new, 1)
     try:
         path.write_text(mutated, encoding="utf-8")
-        passed, tail = _run_tests(m.tests)
+        passed, tail = _run_tests(m.tests, repo_root=repo_root)
         killed = not passed  # tests RED on the mutant ⇒ caught
         return MutantResult(
             m.name, m.file, m.why, killed=killed,
@@ -288,7 +481,7 @@ def _apply_mutant(m: Mutation) -> MutantResult:
         path.write_text(original, encoding="utf-8")
 
 
-def run_gate(threshold: int = 0) -> dict:
+def run_gate(threshold: int = 0, repo_root: str | None = None) -> dict:
     """Run every curated mutant and assemble the scorecard.
 
     A baseline is NOT re-run per-mutant for speed; instead each anchor is verified
@@ -298,13 +491,14 @@ def run_gate(threshold: int = 0) -> dict:
     t0 = time.time()
     results: list[MutantResult] = []
     for m in MUTATIONS:
-        results.append(_apply_mutant(m))
+        results.append(_apply_mutant(m, repo_root=repo_root))
 
     survivors = [r for r in results if not r.killed]
     errors = [r for r in results if r.note.startswith("SKIP/ERROR")]
     return {
         "module": "mutation_gate",
         "version": "v1.0",
+        "repo_root": str(Path(repo_root or _REPO_ROOT).resolve()),
         "threshold": threshold,
         "n_mutants": len(results),
         "n_killed": sum(1 for r in results if r.killed),
@@ -338,6 +532,11 @@ def _print(report: dict) -> None:
     if report["survivors"]:
         print(f" SURVIVING MUTANTS (coverage holes): {', '.join(report['survivors'])}")
     print(f" elapsed: {report['elapsed_s']}s")
+    win = report.get("window")
+    if win:
+        print(f" ОКНО ПРИБОРА: снято={win['closed']} · файлов {len(win['files'])} · "
+              f"возвращено после прогона {len(win['restored_after_run'])} · "
+              f"и так целы {len(win['already_clean_after_run'])}")
     print(f" GATE: {'PASS' if report['pass'] else 'FAIL'}")
     print("=" * 74)
 
@@ -349,14 +548,53 @@ def main(argv: list[str] | None = None) -> int:
     p.add_argument("--threshold", type=int, default=0,
                    help="max surviving mutants allowed (default 0)")
     p.add_argument("--json", action="store_true", help="machine-readable output")
+    p.add_argument("--repo-root", default=None,
+                   help="дерево, в котором идёт мутационный прогон (по умолчанию — своё). "
+                        "Правило `.claude/rules/deployment.md`: прогон — в ОТДЕЛЬНОМ "
+                        "дереве, не в том, из которого идёт доставка")
     args = p.parse_args(argv)
 
-    report = run_gate(threshold=args.threshold)
+    root = str(Path(args.repo_root or _REPO_ROOT).resolve())
+
+    # Окно — ПЕРЕД первой подменой, и его недоступность есть ТРЕТИЙ ИСХОД, а не
+    # разрешение мутировать без записи: прогон без окна оставил бы после SIGKILL
+    # отключённый порог RiskPolicy, о котором не сказал бы никто (замер #889).
+    try:
+        dmr = load_window_facility(root)
+        dmr.install_signal_guard()
+        record = open_gate_window(dmr, root)
+    except WindowUnavailable as exc:
+        print(f"🚫 НЕ ИЗМЕРЕНО — окно мутационного прибора: {exc}", file=sys.stderr)
+        return RC_NOT_MEASURED
+
+    try:
+        report = run_gate(threshold=args.threshold, repo_root=root)
+    finally:
+        closed = None
+        close_error = None
+        try:
+            closed = close_gate_window(dmr, root)
+        except WindowUnavailable as exc:
+            close_error = str(exc)
+    if close_error is not None:
+        print(f"🚫 НЕ ИЗМЕРЕНО — окно мутационного прибора: {close_error}",
+              file=sys.stderr)
+        return RC_NOT_MEASURED
+
+    report["window"] = {
+        "tool": _WINDOW_TOOL,
+        "opened_at": record.get("opened_at"),
+        "run_label": record.get("run_label"),
+        "files": [item["file"] for item in record.get("files", [])],
+        "restored_after_run": list(closed.get("restored", [])),
+        "already_clean_after_run": list(closed.get("already_clean", [])),
+        "closed": bool(closed.get("closed")),
+    }
     if args.json:
         print(json.dumps(report, indent=2))
     else:
         _print(report)
-    return 0 if report["pass"] else 1
+    return RC_PASS if report["pass"] else RC_SURVIVORS
 
 
 if __name__ == "__main__":
