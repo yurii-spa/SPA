@@ -3379,7 +3379,9 @@ BILINGUAL_NOTHING_TO_ASK = "BILINGUAL_REACH_NOTHING_TO_ASK"
 BILINGUAL_UNMEASURED = "BILINGUAL_REACH_UNMEASURED"
 
 #: Имена свидетелей, у которых заказ спрашивает одноязычие.
-WITNESS_SUBJECT = "subject_witness"
+#: Своё имя (CI #6, 17.10): `WITNESS_SUBJECT` ниже переопределялся свидетелем W2 ("w2_subject_named"), и двуязычный
+#: свидетель писался и читался под ключом W2.
+WITNESS_BILINGUAL_SUBJECT = "subject_witness"
 WITNESS_NAME_CHANNEL = "declared_by_name"
 
 #: Кириллица в тексте. Нужна ровно для одного вопроса: не вырожден ли ноль ПО
@@ -8414,7 +8416,9 @@ REACH_LIVE = "reads_the_live_document"
 REACH_ISOLATED = "isolated_from_the_live_document_by_the_harness"
 REACH_NO_TEST = "deciding_line_outside_any_test"
 REACH_FILE_UNPARSED = "reader_file_unparsed"
-_REACH_OUTCOMES = (REACH_LIVE, REACH_ISOLATED, REACH_NO_TEST,
+#: Своё имя у этого перечня (CI #6, 17.10): ниже по файлу (стр. ~14111) то же имя `_REACH_OUTCOMES` переопределяется
+#: исходами достижимости РАСКОЛА и затирало этот — подсчёт многозначности шёл по чужому перечню (14 падений).
+_DOC_REACH_OUTCOMES = (REACH_LIVE, REACH_ISOLATED, REACH_NO_TEST,
                    REACH_FILE_UNPARSED)
 
 #: --- заказ G75 п. 4 ---------------------------------------------------
@@ -8740,7 +8744,7 @@ def tail_value_divergence(scope: Optional[dict]) -> dict:
                            "это НЕ «ни один документ не стоит читателю»")}
 
     values: Dict[str, int] = {cls: 0 for cls in _VALUE_OUTCOMES}
-    reaches: Dict[str, int] = {cls: 0 for cls in _REACH_OUTCOMES}
+    reaches: Dict[str, int] = {cls: 0 for cls in _DOC_REACH_OUTCOMES}
     diverging: List[dict] = []
     kinds_differ = 0
     measured_rows = 0
@@ -8777,7 +8781,7 @@ def tail_value_divergence(scope: Optional[dict]) -> dict:
             if reach is None:
                 reads_without_reach.append(_read_at(item))
                 continue
-            if reach not in _REACH_OUTCOMES:
+            if reach not in _DOC_REACH_OUTCOMES:
                 reads_with_alien_reach.append(f"{_read_at(item)}={reach}")
                 continue
             reaches[reach] += 1
@@ -19521,7 +19525,7 @@ def bilingual_reach(root: Path, rows: List[dict],
     subject = bilingual_subject_reach(root, rows, table)
     names = bilingual_name_reach(root, index, table)
     coverage = synonym_map_coverage(root, table)
-    witnesses = {WITNESS_SUBJECT: subject, WITNESS_NAME_CHANNEL: names}
+    witnesses = {WITNESS_BILINGUAL_SUBJECT: subject, WITNESS_NAME_CHANNEL: names}
     unmeasured = [who for who, what in witnesses.items()
                   if what.get("status") == BILINGUAL_UNMEASURED]
     if unmeasured:
@@ -19536,7 +19540,7 @@ def bilingual_reach(root: Path, rows: List[dict],
     if gained:
         verdict = BILINGUAL_SHIFT
         reason = (
-            f"двуязычие прибавляет свидетеля: у `{WITNESS_SUBJECT}` "
+            f"двуязычие прибавляет свидетеля: у `{WITNESS_BILINGUAL_SUBJECT}` "
             f"{subject['changed']} пар(ы) из {subject['pairs_read']}, у канала "
             f"имени {names['authority_corroborated']} пар(ы) с подтверждающей "
             f"величиной из {names['authority_raw']} названных — одноязычие "
@@ -19545,7 +19549,7 @@ def bilingual_reach(root: Path, rows: List[dict],
         verdict = BILINGUAL_INERT
         reason = (
             f"карта спрошена и не сдвинула ни одного вердикта: у "
-            f"`{WITNESS_SUBJECT}` карта применима к {subject['askable']} из "
+            f"`{WITNESS_BILINGUAL_SUBJECT}` карта применима к {subject['askable']} из "
             f"{subject['modules']} модулей населения, у канала имени "
             f"{names['candidates']} разрешимых имён — ноль ИЗМЕРЕН")
     return {
@@ -23615,7 +23619,7 @@ def report(doc: dict, *, max_rows: int = 20) -> List[str]:
     else:
         out.append(f"[ДВУЯЗЫЧИЕ] {reach.get('verdict')} · {reach.get('reason')}")
         witnesses = observed(reach, "witnesses", kind=dict) or {}
-        subject = observed(witnesses, WITNESS_SUBJECT, kind=dict)
+        subject = observed(witnesses, WITNESS_BILINGUAL_SUBJECT, kind=dict)
         if subject is None:
             out.append("[ДВУЯЗЫЧИЕ · ПРЕДМЕТ] НЕ ИЗМЕРЕНО — свидетель в "
                        "координате не назван")
