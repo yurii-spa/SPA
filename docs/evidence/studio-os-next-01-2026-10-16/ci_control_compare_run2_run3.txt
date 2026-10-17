@@ -1,0 +1,4 @@
+CI-CONTROL COMPARE d15bb8aeb48f9d9a067a50e7ca7334a5d0ed0d23 (INCOMPLETE) → 3695e5e8a9287669ea5148e4763525db8d9d3097 (INCOMPLETE): new 3 · pre-existing 122 · not obtained 0 · fixed 0
+  NEW spa_core/tests/test_ledger_day_unit_census.py::ProbeRefusesAnUnobservedSubject::test_an_unobserved_subject_is_not_a_pass
+  NEW spa_core/tests/test_publication_truth.py::BothPushersRunThePublicationGate::test_a_direct_push_of_an_unverified_shelf_is_blocked_by_either_pusher
+  NEW spa_core/tests/test_run_identity_key_price.py::BatteryHoleTests::test_the_instrument_excludes_itself_by_naming_the_reason

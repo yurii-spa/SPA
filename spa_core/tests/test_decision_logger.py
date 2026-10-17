@@ -33,6 +33,14 @@ sys.modules.setdefault("database.init_db", _mock_init_db)
 
 from spa_core.agents.decision_logger import DecisionLogger, POLICY_VERSION
 
+# Подделки нужны ТОЛЬКО на время импорта модуля под тестом (он связал get_connection у себя). Оставленные в общем
+# sys.modules, они ломали СБОР чужих файлов того же процесса (`from database.init_db import init_database` →
+# ImportError у test_message_bus / test_integration_e2e в контрольном прогоне CI 17.10, ADR-768): что сработает,
+# зависело от того, загрузил ли кто-то настоящий `database` раньше. Убираем ровно свои объекты.
+for _name, _mod in (("database.init_db", _mock_init_db), ("database", _mock_db)):
+    if sys.modules.get(_name) is _mod:
+        del sys.modules[_name]
+
 
 # ─── Context-manager mock connection factory ──────────────────────────────────
 
