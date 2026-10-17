@@ -24873,3 +24873,34 @@ T034 `fluid_usdc`→`fluid_fusdc`), новых НЕТ · `capital_observability_
   запрещает трогать money-path и risk-логику. RiskPolicy v1.0, пороги, стоп-кран,
   аллокатор, живой трек `data/equity_curve_daily.json` и `landing/**` НЕ тронуты; капитал
   не двигался; флот не трогался.
+
+### ДОСТАВКА НАБЛЮДЕНА — цикл #889
+
+Замер ПОСЛЕ пуша, а не обещание до него: `origin/main` = **`7ff63fcb`**, ОДИН коммит,
+**12 файлов**, база пинована явно (`--expected-base 3695e5e8a…`). Байты всех двенадцати
+сверены с эталоном дерева-доставки `/private/tmp/spa_c889` — **SAME у каждого**
+(`mutation_gate.py` `acb9d4a0…` · `delta_mutation_run.py` `7a670d0d…` ·
+`push_to_github.py` `cc29a67b…` · новая батарея `c02695ff…` · сосед `c3c6e3e9…` ·
+шаг CI `49e4cf03…` · спецификация мутаций `a159d8fa…` · ADR `28857400…`).
+
+Предупреждения пушера названы, и оба — намеренные правки этого цикла: карточка «теряет
+8 строк базы» у `test_pusher_copy_guard.py` — это замена своей копии реестра на обход
+`ptg.TOOLCHAIN_FILES`; «теряет 1 строку» у `docs/STATE.md` — строка решений #885…#888
+СЛИТА с записью #889, потому что храповик длины стоит на 150 и дописать строку рядом
+нельзя (сжимать, не дописывать).
+
+**Приёмочный прогон назван полностью, включая НЕ измеренное.** `tests/` +
+`scripts/tests/` + `spa_core/analytics/gross_of/` + `research/cards/` + `studio_shell/`:
+**5 failed · 15 135 passed · 41 skipped · 880 subtests** — и контроль на ЧИСТОМ
+`origin/main` `3695e5e8a` в том же окружении дал **те же числа и те же пять имён**
+(`test_no_bare_utcnow_in_runtime` · `test_20_zero_bare_exceptions_in_spa_core` ·
+`test_manifest_on_disk_is_byte_identical_to_a_reserialization` ·
+`RatchetOnTheRealTree` ×2 — последние две со своей карточкой
+`inbox-hrapovik-shell-git-cd-krasen-na-chistom`). Новых падений **0**, дельта
+`skipped` **0**. Каталог `spa_core/tests/` целиком этим циклом **НЕ ИЗМЕРЕН** (его
+гоняет CI шардами, локально это часы) — измерены затронутые батареи и храповики:
+**228 passed** (окно гейта 24 · окно прибора · прибор дельты · сосед-пушер · длина
+STATE · замороженные даты · инъекция часов · отсутствие наблюдения · предписанный
+прогон) и **503 passed, 1 skipped** в широкой выборке пушеров/мутаций/owner-gate.
+Единственный skip назван: `test_no_live_push_state.py:148 — no live push_state.json on
+this checkout` (свойство свежего чекаута, не мой вердикт).
