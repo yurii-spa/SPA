@@ -1,0 +1,2 @@
+CI-CONTROL COMPARE 994ae86f6680fdcb1aa7b3440dca12795017d7f5 (RED) → ec9071d6f59241cfbf2b3fac0832513e567995a2 (RED): new 1 · pre-existing 122 · not obtained 0 · fixed 8
+  NEW spa_core/tests/test_run_identity_key_price.py::BatteryHoleTests::test_the_instrument_excludes_itself_by_naming_the_reason
