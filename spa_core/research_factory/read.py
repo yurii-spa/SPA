@@ -27,6 +27,19 @@ from spa_core.research_factory import bundle as bundle_mod
 from spa_core.research_factory import decision as decision_mod
 from spa_core.research_factory import evidence_contract as ec
 from spa_core.research_factory._common import iso, ledger_for
+from spa_core.utils.hash_ledger import read_cache
+
+#: The read-only VIEW entry points of this module — the carriers of the stat-keyed
+#: read-cache scope (ADR-777). The scope belongs HERE, at the read model, and not at
+#: each caller: measured on the owner's Mac, ONE `latest()` parses
+#: `data/research_factory/ledger.jsonl` (52 108 460 B) 4 958 times, from a dozen
+#: helpers (`paper._latest_row` 1 960 . `registry.latest_snapshot` 704 .
+#: `lifecycle._current_state` 392 . ...). ADR-763 fixed exactly one CALLER
+#: (`mission_build.main()`), so the UI-contract test, the owner's Telegram
+#: `/capital` view, `investment_cio.research_universe` and `capital_shadow.readiness`
+#: all kept paying 1 613 s instead of 18.3 s — in silence. The list is CLOSED and its
+#: members are checked by OUTCOME (parses-per-call), never by reading this source.
+VIEW_ENTRY_POINTS = ("latest", "cio_view")
 
 
 def _run_rows(ledger) -> list:
@@ -62,12 +75,16 @@ def latest(data_dir: Path) -> dict:
     the module docstring. Only once that comes back OK may a cached ``status.json`` be served
     (and only when its recorded ``ledger_head_hash`` still matches the JUST-VERIFIED live head);
     a BROKEN verdict always falls through to :func:`_derive_latest`, which reports it honestly."""
-    ledger = ledger_for(data_dir)
-    verdict = ledger.verify()  # HashLedger.verify() itself never trusts the cache either (N3)
-    # N8 (second review): status.json is NEVER served back — its content is not bound to the ledger, so a
-    # hand-edited file reached Mission Control and the readiness reason. Every read derives from the
-    # verified ledger; status.json is a written artifact for humans only.
-    return _derive_latest(data_dir, verdict=verdict)
+    # ADR-777: the scope lives at the read model, so EVERY caller gets it (see
+    # VIEW_ENTRY_POINTS above). `verify()` below is deliberately INSIDE it and is
+    # unaffected — it never answers from the cache (N3, held by its own test).
+    with read_cache():
+        ledger = ledger_for(data_dir)
+        verdict = ledger.verify()  # HashLedger.verify() itself never trusts the cache either (N3)
+        # N8 (second review): status.json is NEVER served back — its content is not bound to the ledger, so a
+        # hand-edited file reached Mission Control and the readiness reason. Every read derives from the
+        # verified ledger; status.json is a written artifact for humans only.
+        return _derive_latest(data_dir, verdict=verdict)
 
 
 def _position_for(data_dir: Path, candidate_id: str) -> Optional[dict]:
@@ -320,44 +337,47 @@ def cio_view(data_dir: Path, now: datetime) -> dict:
     the ledger it is supposed to describe. ``status.json`` is consulted for exactly one thing:
     "has there been a run recently enough" — and even that now comes from the ledger's own
     ``run`` rows, not the file; ``status.json`` ends up display-only, read by nothing here."""
-    ledger = ledger_for(data_dir)
-    verdict = ledger.verify()
-    if not verdict["ok"]:
-        return {"state": "BROKEN", "reason": verdict.get("reason"), "observe_only": [], "paper_active": [],
-               "cio_eligible": [], "correlation_groups": {}, "ledger_head_hash": None}
+    # ADR-777: same scope, same reason as `latest()` above — the read model is the carrier,
+    # so a caller cannot forget it. `verify()` inside is unaffected (N3).
+    with read_cache():
+        ledger = ledger_for(data_dir)
+        verdict = ledger.verify()
+        if not verdict["ok"]:
+            return {"state": "BROKEN", "reason": verdict.get("reason"), "observe_only": [], "paper_active": [],
+                   "cio_eligible": [], "correlation_groups": {}, "ledger_head_hash": None}
 
-    live_head = ledger.head_hash()
-    last_run = _last_run_row(ledger)
-    if last_run is None:
-        return {"state": "NOT_MEASURED", "reason": "no run recorded in the ledger yet", "observe_only": [],
-               "paper_active": [], "cio_eligible": [], "correlation_groups": {}, "ledger_head_hash": live_head}
+        live_head = ledger.head_hash()
+        last_run = _last_run_row(ledger)
+        if last_run is None:
+            return {"state": "NOT_MEASURED", "reason": "no run recorded in the ledger yet", "observe_only": [],
+                   "paper_active": [], "cio_eligible": [], "correlation_groups": {}, "ledger_head_hash": live_head}
 
-    generated_at_str = (last_run.get("payload") or {}).get("generated_at") or last_run.get("at")
-    generated_at = contract.parse_ts(generated_at_str)
-    now_aware = now if now.tzinfo else now.replace(tzinfo=timezone.utc)
-    age_h = (now_aware - generated_at).total_seconds() / 3600.0 if generated_at else None
-    fresh_enough = age_h is not None and age_h <= contract.CIO_READ_MODEL_MAX_AGE_H
+        generated_at_str = (last_run.get("payload") or {}).get("generated_at") or last_run.get("at")
+        generated_at = contract.parse_ts(generated_at_str)
+        now_aware = now if now.tzinfo else now.replace(tzinfo=timezone.utc)
+        age_h = (now_aware - generated_at).total_seconds() / 3600.0 if generated_at else None
+        fresh_enough = age_h is not None and age_h <= contract.CIO_READ_MODEL_MAX_AGE_H
 
-    observe_only, paper_active, cio_eligible_all = [], [], []
-    all_candidates: dict = {}
-    for cid in registry.all_candidate_ids(ledger):
-        state = lifecycle.current_state(data_dir, cid)
-        if state == contract.OBSERVE_ONLY:
-            observe_only.append(cid)
-        elif state in (contract.PAPER_ACTIVE, contract.EVIDENCE_ACCUMULATING):
-            paper_active.append(cid)
-        elif state == contract.CIO_ELIGIBLE:
-            cio_eligible_all.append(cid)
-        all_candidates[cid] = registry.current_candidate(data_dir, cid) or {}
-    # the 26h recency gate (contract review #11/#14) applies ONLY to cio_eligible — a stale run
-    # must never let the CIO believe a candidate is allocatable off old evidence.
-    cio_eligible = cio_eligible_all if fresh_enough else []
+        observe_only, paper_active, cio_eligible_all = [], [], []
+        all_candidates: dict = {}
+        for cid in registry.all_candidate_ids(ledger):
+            state = lifecycle.current_state(data_dir, cid)
+            if state == contract.OBSERVE_ONLY:
+                observe_only.append(cid)
+            elif state in (contract.PAPER_ACTIVE, contract.EVIDENCE_ACCUMULATING):
+                paper_active.append(cid)
+            elif state == contract.CIO_ELIGIBLE:
+                cio_eligible_all.append(cid)
+            all_candidates[cid] = registry.current_candidate(data_dir, cid) or {}
+        # the 26h recency gate (contract review #11/#14) applies ONLY to cio_eligible — a stale run
+        # must never let the CIO believe a candidate is allocatable off old evidence.
+        cio_eligible = cio_eligible_all if fresh_enough else []
 
-    groups = dedup.correlation_groups(list(all_candidates.values()))
+        groups = dedup.correlation_groups(list(all_candidates.values()))
 
-    if fresh_enough:
-        reason, state = "ok", "OK"
-    else:
-        reason, state = "no run in the ledger within the last 26h", "STALE"
-    return {"state": state, "reason": reason, "observe_only": observe_only, "paper_active": paper_active,
-           "cio_eligible": cio_eligible, "correlation_groups": groups, "ledger_head_hash": live_head}
+        if fresh_enough:
+            reason, state = "ok", "OK"
+        else:
+            reason, state = "no run in the ledger within the last 26h", "STALE"
+        return {"state": state, "reason": reason, "observe_only": observe_only, "paper_active": paper_active,
+               "cio_eligible": cio_eligible, "correlation_groups": groups, "ledger_head_hash": live_head}

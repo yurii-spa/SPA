@@ -9909,6 +9909,112 @@ def _probe_cockpit_voice_loop(arg: str | None, *, now: "datetime | None" = None)
                        f"дублей нет, исходящие пусты (всего сообщений {len(sent)})")
 
 
+def _probe_read_only_view_parses_the_ledger_once(arg: str | None, *,
+                                                 scope_removed: bool = False) -> tuple[str, str]:
+    """Критерий: ЧИТАЮЩИЙ вид разбирает ленту ОДИН раз, и это свойство самого вида, а не
+    того, кто его позвал (ADR-777, карточка
+    `inbox-predpisannyi-priemochnyi-progon-vstaet-n`).
+
+    Зачем. Предписанный приёмочный прогон вставал на одном тесте **26 мин 54 с**, и предмет
+    был не в тесте: лекарство ADR-763 (stat-кэш чтения хеш-ленты) было вкручено ровно в
+    ОДНУ точку входа — `mission_build.main()`, — а 4 958 разборов
+    `data/research_factory/ledger.jsonl` (52 108 460 Б) делает ЧИТАЮЩАЯ МОДЕЛЬ
+    `research_factory.read.latest()`. Поэтому все прочие её потребители (этот тест, вид
+    `/capital` владельца в Телеграме, `investment_cio.research_universe`,
+    `capital_shadow.readiness`) платили полную цену молча: замер на Маке владельца —
+    **1 094.54 с / 2 281 разбор** против **7.95 с / 2 разбора**.
+
+    Меряется ИСХОД на НАСТОЯЩЕЙ ленте в одноразовом каталоге, а не текст модуля:
+    подстрокой эта проба не проходит по построению — она считает вызовы `HashLedger._parse`.
+
+      • зелено: КАЖДАЯ точка входа из объявленного `read.VIEW_ENTRY_POINTS` разбирает файл
+        ровно дважды (один свежий `verify()`, который кэш не обслуживает НИКОГДА — N3, плюс
+        один разбор, который делят все помощники) И не оставляет кэш включённым;
+      • красно, если: звено снято у любой точки входа · область не закрывается (кэш остался
+        включён на весь процесс — ровно поведение прежнего вечного флага) · в объявленном
+        населении появился вид, которого прибор не проверил.
+
+    `scope_removed=True` — отрицательный контроль самой пробы: сцена та же, область снята,
+    и проба ОБЯЗАНА сказать `not_satisfied`. Проба, никогда не видевшая поломки, украшение.
+    """
+    import contextlib
+    import shutil
+    import tempfile
+    from datetime import datetime, timezone
+
+    try:
+        from spa_core.utils import hash_ledger as hl
+        from spa_core.research_factory import read as rf_read
+        from spa_core.research_factory._common import ledger_for
+    except Exception as exc:  # noqa: BLE001
+        return UNMEASURED, f"звенья пути не ввезены ({type(exc).__name__}: {exc}) — НЕ ИЗМЕРЕНО"
+
+    if hasattr(hl, "enable_read_cache"):
+        return NOT_SATISFIED, ("вечный процессный выключатель кэша вернулся "
+                               "(`hash_ledger.enable_read_cache`) — у правила снова две копии")
+
+    allowed = 2
+    tmp = tempfile.mkdtemp(prefix="probe_rf_")
+    try:
+        data = _pathlib.Path(tmp) / "data"
+        led = ledger_for(data)
+        at = "2026-10-17T00:00:00Z"
+        led.append("run", ["r1"], {"generated_at": at}, at)
+        for i in range(3):
+            led.append("candidate", [f"c{i}"],
+                       {"candidate_id": f"c{i}", "domain": "d", "mechanism": "m"}, at)
+
+        now = datetime(2026, 10, 17, tzinfo=timezone.utc)
+        calls = {"latest": lambda: rf_read.latest(data),
+                 "cio_view": lambda: rf_read.cio_view(data, now)}
+        declared = set(getattr(rf_read, "VIEW_ENTRY_POINTS", ()))
+        if declared != set(calls):
+            return (UNMEASURED, f"объявленное население видов {sorted(declared)} не совпало с "
+                                f"проверяемым {sorted(calls)} — НЕ ИЗМЕРЕНО, а не «чисто»")
+
+        orig_parse = hl.HashLedger._parse
+        orig_scope = rf_read.read_cache
+        if scope_removed:
+            rf_read.read_cache = contextlib.nullcontext
+        bad = []
+        try:
+            for name, call in calls.items():
+                n = {"p": 0}
+
+                def counting(path, _o=orig_parse, _n=n):
+                    _n["p"] += 1
+                    return _o(path)
+                hl._READ_CACHE.clear()
+                hl.HashLedger._parse = staticmethod(counting)
+                try:
+                    call()
+                finally:
+                    hl.HashLedger._parse = staticmethod(orig_parse)
+                if n["p"] != allowed:
+                    bad.append(f"{name}: разборов {n['p']} при допустимых {allowed}")
+                if hl._READ_CACHE_ENABLED:
+                    bad.append(f"{name}: кэш остался включён на весь процесс")
+        finally:
+            hl.HashLedger._parse = staticmethod(orig_parse)
+            rf_read.read_cache = orig_scope
+            # Флаг тут НЕ трогаем намеренно: сбросить его руками значило бы завести ВТОРУЮ
+            # копию выключателя прямо в стороже, который за единственность и отвечает
+            # (сторож `test_the_switch_has_exactly_one_door` это и нашёл — у себя же).
+            # Область восстанавливает состояние сама; если не восстановила — это находка,
+            # и она обязана быть ВИДНА, а не затёрта уборкой пробы.
+            hl._READ_CACHE.clear()
+    except Exception as exc:  # noqa: BLE001
+        return UNMEASURED, f"сцена не построена ({type(exc).__name__}: {exc}) — НЕ ИЗМЕРЕНО"
+    finally:
+        shutil.rmtree(tmp, ignore_errors=True)
+
+    if bad:
+        return NOT_SATISFIED, "; ".join(bad)
+    return (SATISFIED, f"каждая из {len(calls)} объявленных точек входа читающей модели "
+                       f"разбирает ленту {allowed} раз(а) (свежий verify + один общий разбор) "
+                       f"и не оставляет кэш включённым")
+
+
 PROBES: dict[str, Callable[[str | None], "tuple[str, str]"]] = {
     "cockpit_voice_loop_closed": _probe_cockpit_voice_loop,
     "card_claim_measures_the_worker": _probe_card_claim_measures_the_worker,
@@ -10016,6 +10122,8 @@ PROBES: dict[str, Callable[[str | None], "tuple[str, str]"]] = {
     "tier_guard_judges_code_not_prose": _probe_tier_guard_judges_code_not_prose,
     "agent_health_reboot_false_alarm_closed": _probe_agent_health_reboot_false_alarm,
     "paused_agent_is_not_a_dead_agent": _probe_paused_agent_is_not_a_dead_agent,
+    "read_only_view_parses_the_ledger_once":
+        _probe_read_only_view_parses_the_ledger_once,
 }
 
 

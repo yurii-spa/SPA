@@ -257,10 +257,12 @@ def main(argv: Optional[list] = None) -> int:
     ap.add_argument("--root", default=str(DEFAULT_ROOT), help="bundle root (default: %(default)s)")
     ap.add_argument("--keep", type=int, default=DEFAULT_KEEP, help="bundles to keep (default: %(default)s)")
     a = ap.parse_args(argv)
-    # The builder only READS hash ledgers; a stat-keyed read cache turns 4 336 re-parses of the
-    # research ledger per build into one (ADR-763 package 2; see spa_core/utils/hash_ledger.py).
-    from spa_core.utils import hash_ledger as _hash_ledger
-    _hash_ledger.enable_read_cache()
+    # ADR-777 (cycle #893): the read-cache scope is NOT opened here any more. It lived here and
+    # ONLY here (ADR-763), while the 4 958 re-parses per build happen inside the READ MODEL
+    # (`research_factory.read.latest()`) — so every other caller of that same model paid 1 613 s
+    # instead of 18.3 s in silence, including the UI-contract test and the owner's `/capital`
+    # view. The scope now belongs to the read model itself; this builder inherits it, and there
+    # is one copy of the rule instead of one copy per entry point.
     try:
         result = build_bundle(Path(a.root), keep=a.keep)
     except BuildSkipped as exc:

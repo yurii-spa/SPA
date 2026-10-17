@@ -29,6 +29,7 @@ layers map to exit 75) rather than queuing behind the first.
 """
 from __future__ import annotations
 
+import contextlib
 import fcntl
 import hashlib
 import json
@@ -49,8 +50,14 @@ GENESIS = "0" * 64
 # hash ledger (the cockpit builder), so writer semantics are untouched. Callers get a fresh list; the
 # shared row objects are FROZEN (FrozenDict/FrozenList): an in-place change by any reader raises
 # instead of corrupting what the next reader gets (ARB 16.10). Writers must still never enable it.
+# ADR-777 (cycle #893): the ONE door is now the SCOPED `read_cache()` below, opened by the READ
+# MODEL (`research_factory.read.VIEW_ENTRY_POINTS`), not by each entry point. The permanent
+# `enable_read_cache()` is gone: it was flipped in exactly one caller, while the cost lives in
+# the read model, so eleven other readers of the same model never got the remedy at all.
 _READ_CACHE_ENABLED = False
 _READ_CACHE: dict = {}
+#: how many `read_cache()` scopes are open (nesting), so the outermost one owns the drop
+_READ_CACHE_DEPTH = 0
 
 
 def _refuse(*_a, **_k):
@@ -104,10 +111,56 @@ def _thaw(v):
     return v
 
 
-def enable_read_cache() -> None:
-    """Opt this READ-ONLY process into the stat-keyed read cache (see the note above)."""
-    global _READ_CACHE_ENABLED
+@contextlib.contextmanager
+def read_cache():
+    """The ONE door to the stat-keyed read cache above: open it around a READ-ONLY section.
+
+    Why a scope and not a process-wide flag (ADR-777, cycle #893). The remedy shipped by
+    ADR-763 was ``enable_read_cache()`` — a permanent, process-wide switch — and it was
+    flipped in exactly ONE place, ``mission_build.main()``. The expensive work, however,
+    lives in the READ MODEL, not in that entry point: measured on the owner's Mac,
+    ``research_factory.read.latest()`` parses ``data/research_factory/ledger.jsonl``
+    (52 108 460 B) **4 958 times** per call, from a dozen different helpers. Every OTHER
+    caller of that same read model — the UI-contract test, the owner's Telegram ``/capital``
+    view, ``investment_cio.research_universe``, ``capital_shadow.readiness`` — therefore kept
+    paying the full price in silence: the same build took **1 613 s** uncached against
+    **18.3 s** cached (x88). A remedy that reaches one of a dozen readers is the project's
+    standing class "one rule, one copy" — so the switch moves to the reader, and there is
+    exactly one way to touch it.
+
+    Two properties the permanent flag did not have:
+
+    * **it ends.** A process that reads a ledger now and writes one later is not poisoned
+      for its whole life; the M7 caution on :meth:`HashLedger.read_all` keeps its force
+      outside the scope, where writers live.
+    * **it is re-entrant and restoring.** Nested scopes (a read model calling another read
+      model) keep the cache for the OUTERMOST scope and drop it exactly once, so a caller
+      cannot be surprised by a sibling's bookkeeping.
+
+    Correctness is unchanged: the key is ``(dev, inode, size, mtime_ns)``, the file is
+    append-only, so any append is a miss; ``verify()`` and the trusted-writer path never
+    answer from the cache (both held by tests). Inside one scope the view also becomes
+    internally CONSISTENT — without it, 4 958 sequential reads could straddle a sibling's
+    append and mix two states of the ledger inside a single answer.
+    """
+    global _READ_CACHE_ENABLED, _READ_CACHE_DEPTH
+    was = _READ_CACHE_ENABLED
     _READ_CACHE_ENABLED = True
+    _READ_CACHE_DEPTH += 1
+    try:
+        yield
+    finally:
+        _READ_CACHE_DEPTH -= 1
+        if _READ_CACHE_DEPTH == 0:
+            _READ_CACHE_ENABLED = was
+            _READ_CACHE.clear()
+
+
+def read_cache_depth() -> int:
+    """How many :func:`read_cache` scopes are open — observable so a test can assert the
+    OUTCOME ("this reader opened the scope") instead of the structure ("the source mentions
+    the name"). Zero is a value, not an absence."""
+    return _READ_CACHE_DEPTH
 
 
 def _file_identity(path) -> Optional[tuple]:

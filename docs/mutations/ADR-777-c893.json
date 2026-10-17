@@ -1,0 +1,87 @@
+{
+  "title": "ADR-777 — дельта цикла #893: область кэша чтения у ЧИТАЮЩЕЙ МОДЕЛИ, а не у точки входа",
+  "tests": [
+    "spa_core/tests/test_hash_ledger_read_cache.py",
+    "spa_core/tests/test_read_only_view_probe.py"
+  ],
+  "mutations": [
+    {
+      "name": "область не восстанавливает состояние — вечный глобальный флаг возвращается (дословно дефект ADR-763)",
+      "file": "spa_core/utils/hash_ledger.py",
+      "old": "            _READ_CACHE_ENABLED = was\n            _READ_CACHE.clear()",
+      "new": "            pass  # состояние не восстанавливается"
+    },
+    {
+      "name": "область не чистит кэш на выходе — строки утекают несвязанному вызывающему",
+      "file": "spa_core/utils/hash_ledger.py",
+      "old": "            _READ_CACHE_ENABLED = was\n            _READ_CACHE.clear()",
+      "new": "            _READ_CACHE_ENABLED = was"
+    },
+    {
+      "name": "вложенность сломана: внутренняя область роняет кэш внешней",
+      "file": "spa_core/utils/hash_ledger.py",
+      "old": "        _READ_CACHE_DEPTH -= 1\n        if _READ_CACHE_DEPTH == 0:",
+      "new": "        _READ_CACHE_DEPTH -= 1\n        if True:"
+    },
+    {
+      "name": "область не закрывается при исключении читателя (try/finally снят)",
+      "file": "spa_core/utils/hash_ledger.py",
+      "old": "    try:\n        yield\n    finally:\n        _READ_CACHE_DEPTH -= 1",
+      "new": "    yield\n    if True:\n        _READ_CACHE_DEPTH -= 1"
+    },
+    {
+      "name": "область открывается, но кэш не включается — пустышка под верным именем",
+      "file": "spa_core/utils/hash_ledger.py",
+      "old": "    was = _READ_CACHE_ENABLED\n    _READ_CACHE_ENABLED = True",
+      "new": "    was = _READ_CACHE_ENABLED"
+    },
+    {
+      "name": "читающая модель `latest()` теряет область — ровно состояние ДО правки",
+      "file": "spa_core/research_factory/read.py",
+      "old": "    with read_cache():\n        ledger = ledger_for(data_dir)\n        verdict = ledger.verify()  # HashLedger.verify() itself never trusts the cache either (N3)",
+      "new": "    if True:\n        ledger = ledger_for(data_dir)\n        verdict = ledger.verify()  # HashLedger.verify() itself never trusts the cache either (N3)"
+    },
+    {
+      "name": "читающая модель `cio_view()` теряет область — вторая точка входа остаётся без лекарства",
+      "file": "spa_core/research_factory/read.py",
+      "old": "    with read_cache():\n        ledger = ledger_for(data_dir)\n        verdict = ledger.verify()\n",
+      "new": "    if True:\n        ledger = ledger_for(data_dir)\n        verdict = ledger.verify()\n"
+    },
+    {
+      "name": "объявленное население видов опустошено — перечень перестаёт быть замкнутым",
+      "file": "spa_core/research_factory/read.py",
+      "old": "VIEW_ENTRY_POINTS = (\"latest\", \"cio_view\")",
+      "new": "VIEW_ENTRY_POINTS = (\"latest\",)"
+    },
+    {
+      "name": "проба: потолок разборов поднят — восемь разборов зачитываются за один (fail-OPEN)",
+      "file": "spa_core/monitoring/card_acceptance.py",
+      "old": "    allowed = 2\n    tmp = tempfile.mkdtemp(prefix=\"probe_rf_\")",
+      "new": "    allowed = 99\n    tmp = tempfile.mkdtemp(prefix=\"probe_rf_\")"
+    },
+    {
+      "name": "проба: несовпавшее население зачитывается за «чисто» вместо НЕ ИЗМЕРЕНО (инв. #17 наизнанку)",
+      "file": "spa_core/monitoring/card_acceptance.py",
+      "old": "        if declared != set(calls):\n            return (UNMEASURED, f\"объявленное население видов {sorted(declared)} не совпало с \"\n                                f\"проверяемым {sorted(calls)} — НЕ ИЗМЕРЕНО, а не «чисто»\")",
+      "new": "        if False:\n            return (UNMEASURED, \"\")"
+    },
+    {
+      "name": "проба: возврат вечного выключателя больше не находка",
+      "file": "spa_core/monitoring/card_acceptance.py",
+      "old": "    if hasattr(hl, \"enable_read_cache\"):\n        return NOT_SATISFIED, (\"вечный процессный выключатель кэша вернулся \"",
+      "new": "    if False:\n        return NOT_SATISFIED, (\"вечный процессный выключатель кэша вернулся \""
+    },
+    {
+      "name": "проба: оставленный включённым кэш больше не считается провалом",
+      "file": "spa_core/monitoring/card_acceptance.py",
+      "old": "                if hl._READ_CACHE_ENABLED:\n                    bad.append(f\"{name}: кэш остался включён на весь процесс\")",
+      "new": "                if False:\n                    bad.append(f\"{name}: кэш остался включён на весь процесс\")"
+    },
+    {
+      "name": "проба: сцена не построилась — молчит вместо НЕ ИЗМЕРЕНО",
+      "file": "spa_core/monitoring/card_acceptance.py",
+      "old": "        return UNMEASURED, f\"сцена не построена ({type(exc).__name__}: {exc}) — НЕ ИЗМЕРЕНО\"",
+      "new": "        return SATISFIED, \"сцена не построена — считаем, что всё хорошо\""
+    }
+  ]
+}
