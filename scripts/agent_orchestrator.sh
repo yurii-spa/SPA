@@ -170,7 +170,10 @@ fi
 COCKPIT_PREFIX=""
 COCKPIT_CARD=""
 if [ -f "$COCKPIT_DISPATCH" ]; then
-    COCKPIT_CARD_FILE="$(mktemp -t spa_cockpit_card)"
+    # Шаблон с XXXXXX и полным путём — одна форма для BSD (Mac) и GNU (Linux) mktemp.
+    # `mktemp -t spa_cockpit_card` без X'ов на GNU — отказ «too few X's»: путь пуст, выбор
+    # падал с кодом 1 и запись НЕ бралась (контрольный прогон CI 39003158532, шард 11).
+    COCKPIT_CARD_FILE="$(mktemp "${TMPDIR:-/tmp}/spa_cockpit_card.XXXXXX")"
     COCKPIT_OUT="$("$PYTHON" -m spa_core.owner_queue.cockpit_dispatch dispatch \
                     --executor "$SPA_SESSION_ID" --card-out "$COCKPIT_CARD_FILE" \
                     --repo "$REPO_ROOT" --python "$PYTHON" 2>>"$LOG")"

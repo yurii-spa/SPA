@@ -276,13 +276,28 @@ def manage_reserve(disk: dict, policy: dict) -> dict:
     try:
         if state == CRITICAL:
             if path.exists():
-                before = shutil.disk_usage(d["volume"]).free
+                # The delta is a REPORT, the release is the ACT: an unreadable volume must not keep the
+                # reserve pinned at CRITICAL. Unmeasured ⇒ None with the reason, never 0 (inv. #17).
+                # (CI control run 39003158532: "/System/Volumes/Data" absent on Linux ⇒ OSError ⇒ the
+                # whole release reported "error" and the file stayed.)
+                try:
+                    before = shutil.disk_usage(d["volume"]).free
+                except OSError as exc:
+                    before, why = None, f"{d['volume']}: {exc}"
                 path.unlink()
-                freed = (shutil.disk_usage(d["volume"]).free - before) / GB
+                freed = None
+                if before is not None:
+                    try:
+                        freed = round((shutil.disk_usage(d["volume"]).free - before) / GB, 2)
+                    except OSError as exc:
+                        why = f"{d['volume']}: {exc}"
                 # An APFS local snapshot can pin the file's blocks: the measured delta is reported, not
                 # the nominal size (review 2026-10-03).
-                return {"action": "released", "path": str(path), "nominal_gb": d["reserve_gb"],
-                        "measured_freed_gb": round(freed, 2)}
+                out = {"action": "released", "path": str(path), "nominal_gb": d["reserve_gb"],
+                       "measured_freed_gb": freed}
+                if freed is None:
+                    out["freed_unmeasured"] = why
+                return out
             return {"action": "already_released", "path": str(path)}
         if state == OK and (not path.exists() or path.stat().st_size < size):
             path.parent.mkdir(parents=True, exist_ok=True)

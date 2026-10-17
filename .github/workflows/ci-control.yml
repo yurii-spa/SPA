@@ -151,16 +151,21 @@ jobs:
         run: |
           mkdir -p ctl-out
           echo "{\"shard\": ${{ matrix.shard }}}" > ctl-out/shard.json
-          FILES=$(cat ctl/shard-${{ matrix.shard }}.txt)
           set +e
-          python -m pytest $FILES -q --tb=short -p no:randomly \
+          # run-shard: при аварии pytest (INTERNALERROR / гибель процесса) тест аварии
+          # пишется ОШИБКОЙ, остаток шарда доигрывается новой сессией (≤ 3 раз) в ту же
+          # запись; сводка попыток и итоговый код — в ctl-out/exit.json (прогон 39003158532:
+          # шард 2 потерял 4320 тестов на одном INTERNALERROR).
+          python scripts/ci_control.py run-shard \
+            --files ctl/shard-${{ matrix.shard }}.txt \
+            --exit-file ctl-out/exit.json --junit ctl-out/junit.xml --max-resumes 3 -- \
+            -q --tb=short -p no:randomly \
             -p spa_core.ci.pytest_stream_record \
             -p spa_core.ci.pytest_collect_manifest \
             --continue-on-collection-errors \
-            --timeout=180 --timeout-method=signal \
-            --junitxml=ctl-out/junit.xml
+            --timeout=180 --timeout-method=signal
           code=$?
-          echo "{\"exit\": $code}" > ctl-out/exit.json
+          [ -f ctl-out/exit.json ] || echo "{\"exit\": $code}" > ctl-out/exit.json
           exit "$code"
         env:
           SPA_ENV: ci

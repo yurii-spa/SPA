@@ -28,6 +28,33 @@
     aggregate --manifest-dir D --shards-dir S [--needs-result R] --out-json J --out-md M
     compare   BASE.json HEAD.json [--out-json J]
     weights   [--stream F]... [--junit F]... [--root R] --out W
+    run-shard --files F --exit-file E [--max-resumes K] -- <аргументы pytest>
+
+**Сравнение с прошлым прогоном (как классифицировать упавшие).** Отчёты живут АРТЕФАКТАМИ
+(`ci-control-report`, 90 дней), в git не кладутся. Чтобы сказать про упавший тест «новый»
+или «старый», нужен отчёт ДРУГОЙ версии в ТОМ ЖЕ окружении (тот же воркфлоу, python
+major.minor, корни, SPA_ENV, PYTHONHASHSEED — иначе `compare` честно отвечает NOT
+COMPARABLE)::
+
+    # id артефактов двух прогонов: GET /repos/yurii-spa/SPA/actions/runs/<run>/artifacts
+    #   (имя ci-control-report); скачать: GET …/actions/artifacts/<id>/zip → report.json
+    python3 scripts/ci_control.py compare base/report.json head/report.json --out-json cmp.json
+
+Код возврата: 0 — новых нет и всё измерено; 1 — есть NEW; 2 — несравнимы ИЛИ часть упавших
+головы в базе НЕ ИЗМЕРЕНА (`not_obtained`), ИЛИ голова сама INCOMPLETE. Первый прогон
+(39003158532, f0f1ce803, INCOMPLETE) — база для следующего расписанного (каждые 6 ч);
+упавшие тесты базы, которых в голове нет среди упавших и которые там измерены, идут в
+`fixed`.
+
+**Доигрывание шарда (`run-shard`).** Внутренняя ошибка pytest (`INTERNALERROR`, код 3) или
+гибель процесса на одном тесте не имеет права стоить остатка шарда (прогон 39003158532:
+шард 2, 4320 тестов без исхода). `run-shard` гоняет pytest; при аварийном конце берёт
+собранное шардом (`collected.jsonl`) минус получившие исход в потоковой записи, тест,
+исполнявшийся в момент аварии, записывает в ту же запись как `error: pytest internal error`
+(названо, не выброшено и НЕ перезапускается), а остаток доигрывает новой сессией pytest на
+тех же файлах с `SPA_PYTEST_RESUME_ONLY` (сборка та же, исполняются только перечисленные),
+дописывая в ту же запись. Попыток доигрывания — не больше `--max-resumes` (3); кто так и не
+получил исхода — INCOMPLETE, как раньше. Порог на тест не меняется.
 
 Только stdlib (инв. #4). Источник записей шардов — `spa_core.ci.pytest_stream_record`
 (строка на событие, сброс после каждой) и `spa_core.ci.pytest_collect_manifest`.
@@ -37,6 +64,7 @@ from __future__ import annotations
 import argparse
 import json
 import os
+import subprocess
 import sys
 import time
 import xml.etree.ElementTree as ET
@@ -111,6 +139,7 @@ def load_stream(path: str) -> dict:
                 out["t1"] = t if out["t1"] is None else max(out["t1"], t)
             if kind == "session":
                 out["session"] = True
+                out["end"] = None      # конец обязан принадлежать ПОСЛЕДНЕЙ сессии (доигрывание)
             elif kind == "end":
                 out["end"] = ev
             elif kind == "start":
@@ -403,12 +432,21 @@ def aggregate(manifest: dict | None, shards_dir: Path, needs_result: str | None 
                     msgs[n] = rec["msgs"][n]
         exit_path = d / EXIT_FILE
         code = None
+        exit_doc: dict = {}
         if exit_path.exists():
             try:
-                code = json.loads(exit_path.read_text(encoding="utf-8")).get("exit")
+                exit_doc = json.loads(exit_path.read_text(encoding="utf-8"))
+                code = exit_doc.get("exit")
             except ValueError:
                 code = None
         row["exit"] = code
+        # Доигрывание (`run-shard`): сколько сессий понадобилось и на ком падал pytest.
+        row["attempts"] = len(exit_doc.get("attempts") or []) or None
+        row["crashed_on"] = [n for c in exit_doc.get("crashes") or [] for n in c.get("tests") or []]
+        for c in exit_doc.get("crashes") or []:
+            if not c.get("tests"):
+                problems.append(f"pytest прервался (exit {c.get('exit')}, попытка {c.get('attempt')}) "
+                                "между тестами — аварию некому приписать")
         if code is None:
             problems.append("кода возврата pytest нет (шаг снят до записи)")
         elif code not in (0, 1):
@@ -510,8 +548,10 @@ def render_md(report: dict, limit: int = 200) -> str:
         for r in report["shards"]:
             wall = "—" if r["wall_s"] is None else f"{r['wall_s'] / 60:.1f}"
             est = "—" if r.get("est_s") is None else f"{r['est_s'] / 60:.1f}"
+            exit_cell = f"{r['exit']}" + (f" ({r['attempts']} sessions)" if (r.get("attempts") or 0) > 1
+                                          else "")
             lines.append(f"| {r['shard']} | {r['files']} | {r['tests']} | {est} | {wall} | "
-                         f"{r['exit']} | {'; '.join(r['problems']) or '—'} |")
+                         f"{exit_cell} | {'; '.join(r['problems']) or '—'} |")
     return "\n".join(lines) + "\n"
 
 
@@ -629,6 +669,155 @@ def cmd_compare(args) -> int:
     return 0
 
 
+# ── шард с доигрыванием после аварии pytest ─────────────────────────────────
+
+STREAM_ENV = "SPA_PYTEST_STREAM"          # = spa_core.ci.pytest_stream_record.STREAM_ENV
+MANIFEST_ENV = "SPA_PYTEST_MANIFEST"      # = spa_core.ci.pytest_collect_manifest.MANIFEST_ENV
+RESUME_ENV = "SPA_PYTEST_RESUME_ONLY"     # = spa_core.ci.pytest_stream_record.RESUME_ENV
+INTERNAL_WHEN = "internal"                # `w` синтетической записи: не call ⇒ ERROR в своде
+INTERNAL_MSG = "pytest internal error"
+
+#: Коды, после которых сессию НЕ доигрывают: 0/1 — измерено; 4 — ошибка вызова (повтор
+#: даст то же); 5 — ничего не собрано. Всё остальное (3 INTERNALERROR, 2 прерван,
+#: отрицательный/>128 — процесс убит) — авария.
+_NO_RESUME_CODES = (0, 1, 4, 5)
+
+
+def _stream_tail(path: str, offset: int) -> list[dict]:
+    if not os.path.exists(path):
+        return []
+    out = []
+    with open(path, encoding="utf-8") as fh:
+        fh.seek(offset)
+        for raw in fh:
+            try:
+                out.append(json.loads(raw))
+            except ValueError:
+                continue
+    return out
+
+
+def _size(path: str) -> int:
+    return os.path.getsize(path) if os.path.exists(path) else 0
+
+
+def _append_events(path: str, events: list[dict]) -> None:
+    with open(path, "a", encoding="utf-8") as fh:
+        for ev in events:
+            ev.setdefault("t", round(time.time(), 3))
+            fh.write(json.dumps(ev, ensure_ascii=False, sort_keys=True) + "\n")
+
+
+def run_shard(files: list[str], pytest_args: list[str], stream: str, manifest: str,
+              junit: str | None, max_resumes: int = 3, pytest_cmd: list[str] | None = None,
+              env: dict | None = None, cwd: str | None = None) -> dict:
+    """Прогнать шард; после аварии pytest доиграть остаток. Вернуть сводку попыток.
+
+    Сводка: ``{"exit": итоговый код, "attempts": [...], "crashes": [...], "remaining": N}``.
+    Итоговый код: последняя сессия измерила остаток (0/1) ⇒ 1, если в записи есть хоть один
+    упавший/ошибка (тест аварии — ошибка всегда), иначе её код; остаток не доигран ⇒ код
+    аварийной сессии — свод назовёт это INCOMPLETE.
+    """
+    cmd = list(pytest_cmd or [sys.executable, "-m", "pytest"])
+    base_env = dict(os.environ if env is None else env)
+    base_env.pop(RESUME_ENV, None)
+    out_dir = os.path.dirname(os.path.abspath(manifest))
+    attempts: list[dict] = []
+    crashes: list[dict] = []
+    remaining: list[str] | None = None
+    code = None
+    for k in range(max_resumes + 1):
+        e = dict(base_env)
+        e[STREAM_ENV] = stream
+        args = list(files) + list(pytest_args)
+        if k == 0:
+            e[MANIFEST_ENV] = manifest
+            if junit:
+                args.append(f"--junitxml={junit}")
+        else:
+            keep = os.path.join(out_dir, f"resume-{k}.txt")
+            Path(keep).write_text("\n".join(remaining or []) + "\n", encoding="utf-8")
+            e[RESUME_ENV] = keep
+            e[MANIFEST_ENV] = os.path.join(out_dir, f"collected-resume-{k}.jsonl")
+            if junit:
+                root, ext = os.path.splitext(junit)
+                args.append(f"--junitxml={root}-resume-{k}{ext or '.xml'}")
+        offset = _size(stream)
+        code = subprocess.run(cmd + args, env=e, cwd=cwd).returncode
+        tail = _stream_tail(stream, offset)
+        ended = any(ev.get("e") == "end" for ev in tail)
+        attempt = {"attempt": k, "exit": code, "session_end": ended,
+                   "requested": None if k == 0 else len(remaining or [])}
+        attempts.append(attempt)
+        if code in _NO_RESUME_CODES and ended:
+            break
+        # Авария: тест, начатый в ЭТОЙ сессии и не получивший исхода, — тот, на котором упали.
+        started, finished = [], set()
+        for ev in tail:
+            if ev.get("e") == "start":
+                started.append(ev.get("n", ""))
+            elif ev.get("e") in ("ok", "skip", "fail"):
+                finished.add(ev.get("n", ""))
+        running = [n for n in started if n not in finished]
+        why = (f"{INTERNAL_MSG} (pytest exit {code}"
+               + ("" if ended else ", session end missing")
+               + ") while this test was running or being reported — not re-run")
+        _append_events(stream, [{"e": "fail", "n": n, "w": INTERNAL_WHEN, "d": 0.0,
+                                 "msg": why} for n in running])
+        crashes.append({"attempt": k, "exit": code, "session_end": ended,
+                        "tests": running})
+        got = read_manifest(manifest)
+        if got["collected"] is None:
+            attempt["resume"] = f"нечего доигрывать: перечня собранного нет ({got['why']})"
+            break
+        done = set(load_stream(stream)["outcomes"])
+        left = [n for n in got["collected"] if n not in done]
+        if remaining is not None and not running and len(left) >= len(remaining):
+            attempt["resume"] = "доигрывание не продвинулось — остановлено"
+            remaining = left
+            break
+        remaining = left
+        if not remaining:
+            break
+        if k == max_resumes:
+            attempt["resume"] = f"предел доигрываний ({max_resumes}) исчерпан"
+    final = code
+    if crashes:
+        last = attempts[-1]
+        unnamed = [c for c in crashes if not c["tests"]]
+        resolved = (last["exit"] in (0, 1) and last["session_end"]) or remaining == []
+        if unnamed:
+            final = unnamed[0]["exit"]   # авария, которую некому приписать, — не измерено
+        elif resolved:
+            outcomes = load_stream(stream)["outcomes"].values()
+            final = 1 if any(o in (FAILED, ERROR) for o in outcomes) else 0
+    return {"exit": final, "attempts": attempts, "crashes": crashes,
+            "resumed": len(attempts) > 1,
+            "remaining": None if remaining is None else len(remaining)}
+
+
+def cmd_run_shard(args) -> int:
+    files = [f for f in Path(args.files).read_text(encoding="utf-8").split() if f]
+    extra = list(args.pytest_args or [])
+    if extra and extra[0] == "--":
+        extra = extra[1:]
+    stream = os.environ.get(STREAM_ENV)
+    manifest = os.environ.get(MANIFEST_ENV)
+    if not stream or not manifest:
+        print(f"CI-CONTROL RUN-SHARD: отказ — нужны {STREAM_ENV} и {MANIFEST_ENV}: без них "
+              "запись и доигрывание невозможны")
+        return 2
+    res = run_shard(files, extra, stream, manifest, args.junit, args.max_resumes)
+    Path(args.exit_file).parent.mkdir(parents=True, exist_ok=True)
+    Path(args.exit_file).write_text(json.dumps(res, ensure_ascii=False), encoding="utf-8")
+    for c in res["crashes"]:
+        print(f"CI-CONTROL RUN-SHARD: авария pytest (exit {c['exit']}) в попытке {c['attempt']}; "
+              f"названы ошибкой: {c['tests'] or 'НИКТО (между тестами)'}")
+    print(f"CI-CONTROL RUN-SHARD: попыток {len(res['attempts'])} · итоговый код {res['exit']} · "
+          f"без исхода осталось {res['remaining']}")
+    return int(res["exit"]) if isinstance(res["exit"], int) and 0 <= res["exit"] < 256 else 3
+
+
 def cmd_weights(args) -> int:
     source = {"note": args.note or "", "streams": args.stream or [], "junits": args.junit or []}
     w = build_weights(args.stream or [], args.junit or [], Path(args.root), source)
@@ -666,9 +855,15 @@ def main(argv: list[str] | None = None) -> int:
     wt.add_argument("--root", default=".")
     wt.add_argument("--note")
     wt.add_argument("--out", required=True)
+    rs = sub.add_parser("run-shard")
+    rs.add_argument("--files", required=True, help="файл со списком тест-файлов шарда")
+    rs.add_argument("--exit-file", required=True)
+    rs.add_argument("--junit")
+    rs.add_argument("--max-resumes", type=int, default=3)
+    rs.add_argument("pytest_args", nargs=argparse.REMAINDER)
     args = p.parse_args(argv)
     return {"plan": cmd_plan, "aggregate": cmd_aggregate, "compare": cmd_compare,
-            "weights": cmd_weights}[args.cmd](args)
+            "weights": cmd_weights, "run-shard": cmd_run_shard}[args.cmd](args)
 
 
 if __name__ == "__main__":

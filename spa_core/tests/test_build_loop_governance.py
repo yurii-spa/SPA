@@ -371,6 +371,17 @@ class TestScenarioDPressure:
         assert not (tmp_path / "reserve.bin").exists()
         assert rg.manage_reserve({"state": rg.WARN}, pol)["action"] == "absent", "no flapping below OK"
 
+    def test_release_does_not_depend_on_measuring_the_freed_space(self, tmp_path):
+        """CI control run 39003158532 (Linux): the policy volume `/System/Volumes/Data` does not exist
+        there, `disk_usage` raised, and the release was reported as `error` with the reserve still on
+        disk. The delta is a report; at CRITICAL the file goes regardless, and the delta is None+reason."""
+        pol = _policy(tmp_path)
+        pol["disk"]["volume"] = str(tmp_path / "no-such-volume")
+        assert rg.manage_reserve({"state": rg.OK}, pol)["action"] == "created"
+        out = rg.manage_reserve({"state": rg.CRITICAL}, pol)
+        assert out["action"] == "released" and not (tmp_path / "reserve.bin").exists()
+        assert out["measured_freed_gb"] is None and "no-such-volume" in out["freed_unmeasured"]
+
     def test_critical_alerts_once_and_resolves(self, tmp_path):
         crit = {"overall": rg.CRITICAL, "disk": {"state": rg.CRITICAL, "free_gb": 5.0},
                 "memory": {"state": rg.OK, "pressure_level": 1, "swap": {"used_pct": 10.0}}}

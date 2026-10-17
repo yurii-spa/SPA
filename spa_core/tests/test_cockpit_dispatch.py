@@ -52,6 +52,18 @@ def _guard():
     return g
 
 
+@pytest.fixture(autouse=True)
+def _no_real_classifier(monkeypatch, tmp_path):
+    """Ни один тест файла не ходит к НАСТОЯЩЕМУ `claude` — ни на Mac, где бинарь есть, ни на CI.
+
+    Контрольный прогон 39003158532: тест приёма зелёный на Mac, потому что приём звал живой
+    классификатор (LLM), и красный на CI, где бинаря нет. Подмена делает исход одинаковым везде:
+    позвал классификатор ⇒ «недоступен» ⇒ карточка остаётся `new` ⇒ тест красный на ЛЮБОЙ машине.
+    """
+    from spa_core.telegram import ask_router
+    monkeypatch.setattr(ask_router, "_CLAUDE", str(tmp_path / "no-real-claude-in-tests"))
+
+
 @pytest.fixture
 def scene(tmp_path):
     tracker = tmp_path / "tracker"
@@ -263,7 +275,17 @@ sys.exit(0)
 '''
 
 
-def _wrapper_sandbox(tmp_path: Path, dispatch_rc: int):
+_GNU_MKTEMP = r"""#!/bin/bash
+# Поведение GNU coreutils mktemp (ubuntu-latest): шаблон без трёх X подряд — отказ.
+last="${@: -1}"
+if [ $# -eq 0 ] || [ "${last#-}" != "$last" ]; then exec /usr/bin/mktemp "$@"; fi
+case "$last" in *XXX*) exec /usr/bin/mktemp "$@" ;; esac
+echo "mktemp: too few X's in template '$last'" >&2
+exit 1
+"""
+
+
+def _wrapper_sandbox(tmp_path: Path, dispatch_rc: int, gnu_mktemp: bool = False):
     root = tmp_path / "repo"
     (root / "scripts" / "lib").mkdir(parents=True)
     shutil.copy2(_REPO / "scripts" / "lib" / "starvation_verdict.sh", root / "scripts" / "lib")
@@ -284,6 +306,14 @@ def _wrapper_sandbox(tmp_path: Path, dispatch_rc: int):
     src = re.sub(r'^REPO_ROOT=.*$', f'REPO_ROOT="{root}"', src, count=1, flags=re.M)
     src = re.sub(r'^PYTHON=.*$', f'PYTHON="{sys.executable}"', src, count=1, flags=re.M)
     src = re.sub(r'^CLAUDE_BIN=.*$', f'CLAUDE_BIN="{fake}"', src, count=1, flags=re.M)
+    if gnu_mktemp:
+        # обёртка сама ставит системные каталоги В НАЧАЛО PATH — подмена идёт в ту же строку
+        shim = tmp_path / "gnu_bin"
+        shim.mkdir()
+        (shim / "mktemp").write_text(_GNU_MKTEMP)
+        (shim / "mktemp").chmod(0o755)
+        src, n = re.subn(r'^export PATH="', f'export PATH="{shim}:', src, count=1, flags=re.M)
+        assert n == 1, "строка export PATH обёртки не найдена — подмена mktemp не встала"
     w = tmp_path / "wrapper.sh"
     w.write_text(src)
     env = dict(os.environ, SPA_ORCHESTRATOR_ARMED="1", SPA_ORCHESTRATOR_LOG_SUFFIX="_test_" + tmp_path.name)
@@ -308,6 +338,14 @@ def test_wrapper_puts_taken_record_first_and_settles_it_after_the_session(tmp_pa
     assert settle[settle.index("--executor") + 1] == executor       # тот же исполнитель
 
 
+def test_wrapper_takes_the_record_with_gnu_mktemp_too(tmp_path):
+    """CI (Linux, GNU mktemp) — та же обёртка, тот же исход, что на Mac (прогон 39003158532, шард 11)."""
+    proc, rows, prompt = _wrapper_sandbox(tmp_path, 3, gnu_mktemp=True)
+    assert prompt is not None, proc.stderr[-1500:]
+    assert prompt.startswith("ЗАПИСЬ ИЗ ПУЛЬТА ВЗЯТА"), prompt[:300]
+    assert [r[0] for r in rows] == ["rewake", "dispatch", "settle"]
+
+
 def test_wrapper_without_a_record_leaves_the_prompt_unchanged_and_settles_nothing(tmp_path):
     proc, rows, prompt = _wrapper_sandbox(tmp_path, 0)
     assert prompt is not None and prompt.startswith("Ты — оркестратор SPA"), (prompt or proc.stderr)[:300]
@@ -323,7 +361,9 @@ def test_wrapper_names_a_crashed_dispatcher_unmeasured_not_silence(tmp_path):
 
 def test_my_records_shows_a_record_without_probe_as_not_taken_with_reason():
     from spa_core.studio_os import owner_view as ov
-    r = {"status": "new", "intake_seen": "2026-10-16T19:00:00Z", "acceptance_verdict": "no_probe",
+    # отметка приёма — только «приём видел»; её значение не предмет теста, поэтому от NOW, а не
+    # литерал даты (литерал рядом со словом свежести красил храповик замороженных дат на CI)
+    r = {"status": "new", "intake_seen": NOW.strftime("%Y-%m-%dT%H:%M:%SZ"), "acceptance_verdict": "no_probe",
          "acceptance_reason": "в записи не объявлена проба", "acceptance_next": "добавьте строку «проба: <имя>»"}
     o = ov._record_outcome(r)
     assert o["kind"] == "not_accepted" and o["reason"] and o["next_step"]

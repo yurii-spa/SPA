@@ -485,6 +485,9 @@ def test_shard_step_records_where_the_aggregator_reads():
     assert step["env"]["SPA_PYTEST_STREAM"] == f"ctl-out/{cc.STREAM_FILE}"
     assert step["env"]["SPA_PYTEST_MANIFEST"] == f"ctl-out/{cc.COLLECTED_FILE}"
     assert f"ctl-out/{cc.EXIT_FILE}" in run and f"ctl-out/{cc.SHARD_FILE}" in run
+    # Доигрывание после аварии pytest — через run-shard, с пределом; порог на тест прежний.
+    assert "scripts/ci_control.py run-shard" in run and "--max-resumes 3" in run
+    assert "--timeout=180" in run
     upload = next(s for s in jobs["shards"]["steps"] if s.get("name") == "Upload shard records")
     assert upload["if"] == "${{ always() }}"
     assert upload["with"]["name"].startswith(cc.SHARD_DIR_PREFIX)
@@ -500,3 +503,191 @@ def test_aggregate_always_runs_and_cannot_be_skipped_by_a_missing_artifact():
     assert downloads and all(s.get("continue-on-error") is True for s in downloads)
     step = next(s for s in agg["steps"] if "aggregate" in str(s.get("run", "")))
     assert "needs.shards.result" in step["run"]
+
+
+# ── авария pytest на одном тесте не стоит остатка шарда (прогон 39003158532) ──
+#
+# Шард 2 умер INTERNALERROR (код 3): тест снят `--timeout=180`, а pytest, собирая отчёт о
+# снятии, упал на звене трассы с `tb_lineno is None` (`_pytest/_code/code.py:
+# self._rawentry.tb_lineno - 1 → TypeError`). 4320 тестов шарда остались без исхода.
+# Два слоя защиты, и у каждого контроль в обе стороны.
+
+def _lineless_tb():
+    """Настоящее звено трассы без номера строки — та же форма, что дал SIGALRM на CI."""
+    import types
+    tb = types.TracebackType(None, sys._getframe(), 10 ** 6, -1)
+    assert tb.tb_lineno is None, (
+        "предпосылка НЕ ОБЕСПЕЧЕНА: на этом интерпретаторе звено с tb_lasti вне кода "
+        f"даёт tb_lineno={tb.tb_lineno!r}, а не None — контроль санитара здесь не меряет")
+    return tb
+
+
+def test_sanitizer_drops_lineless_entries_and_keeps_the_failure():
+    from _pytest._code import ExceptionInfo
+    from spa_core.ci import pytest_stream_record as rec
+    try:
+        raise ValueError("named failure")
+    except ValueError as e:
+        good = e.__traceback__
+    good.tb_next = _lineless_tb()
+    exc = ValueError("named failure")
+    # Положительный контроль: без санитара pytest падает ровно так, как на CI.
+    raw = ExceptionInfo.from_exc_info((ValueError, exc, good))
+    try:
+        raw.getrepr(style="short")
+    except TypeError as err:
+        assert "NoneType" in str(err)
+    else:
+        raise AssertionError("контроль не воспроизвёл аварию: getrepr не упал на tb_lineno=None")
+    good.tb_next = _lineless_tb()
+    exc2 = ValueError("named failure")
+    info = ExceptionInfo.from_exc_info((ValueError, exc2, good))
+    assert rec.sanitize_excinfo(info) == 1
+    text = str(info.getrepr(style="short"))
+    assert "ValueError: named failure" in text          # провал остался провалом
+    assert info.type is ValueError and str(info.value) == "named failure"
+    assert rec.sanitize_excinfo(info) == 0               # повтор ничего не трогает
+
+
+def test_drop_lineless_relinks_in_order_and_empties_to_none():
+    from spa_core.ci.pytest_stream_record import drop_lineless
+
+    class Node:
+        def __init__(self, name, lineno, nxt=None):
+            self.name, self.tb_lineno, self.tb_next = name, lineno, nxt
+
+    chain = Node("a", 1, Node("x", None, Node("b", 2, Node("y", None))))
+    head = drop_lineless(chain)
+    names = []
+    while head is not None:
+        names.append(head.name)
+        head = head.tb_next
+    assert names == ["a", "b"]
+    assert drop_lineless(Node("x", None, Node("y", None))) is None
+
+
+def test_load_stream_end_must_belong_to_the_last_session(tmp_path):
+    p = tmp_path / "s.jsonl"
+    p.write_text("\n".join(json.dumps(x) for x in [
+        {"e": "session", "t": 1}, {"e": "end", "t": 2, "status": 3},
+        {"e": "session", "t": 3}, {"e": "start", "n": "t::x", "t": 4}]) + "\n")
+    assert cc.load_stream(str(p))["end"] is None
+
+
+def _crash_scene(tmp_path: Path) -> Path:
+    root = tmp_path / "scene"
+    (root / "tests").mkdir(parents=True)
+    (root / "pytest.ini").write_text("[pytest]\n", encoding="utf-8")
+    # Настоящий INTERNALERROR: хук отчёта падает на названном тесте (как repr на CI).
+    (root / "conftest.py").write_text(textwrap.dedent("""
+        import os, pytest
+        CRASH = set(filter(None, os.environ.get("CTL_CRASH_ON", "").split(",")))
+        @pytest.hookimpl(tryfirst=True)
+        def pytest_runtest_makereport(item, call):
+            if call.when == "call" and item.nodeid in CRASH:
+                raise RuntimeError("simulated pytest internal error")
+    """))
+    (root / "tests" / "test_one.py").write_text(
+        "def test_a(): assert True\n"
+        "def test_b(): assert True\n"
+        "def test_c(): assert True\n")
+    (root / "tests" / "test_two.py").write_text(
+        "def test_d(): assert True\n"
+        "def test_red(): assert False, 'named'\n")
+    return root
+
+
+def _run_crash_shard(tmp_path: Path, crash_on: list[str], max_resumes: int):
+    root = _crash_scene(tmp_path)
+    ctl = root / "ctl"
+    env = {**os.environ, "PYTHONPATH": str(_REPO_ROOT), "SPA_ENV": "ci", "PYTHONHASHSEED": "0",
+           "CTL_CRASH_ON": ",".join(crash_on)}
+    for name in ("SPA_PYTEST_STREAM", "SPA_PYTEST_MANIFEST", "SPA_PYTEST_RESUME_ONLY"):
+        env.pop(name, None)
+    base = [sys.executable, "-m", "pytest", "--rootdir", str(root), "-p", "no:cacheprovider"]
+    plugins = ["-q", "-p", "no:randomly", "-p", "spa_core.ci.pytest_stream_record",
+               "-p", "spa_core.ci.pytest_collect_manifest", "--continue-on-collection-errors"]
+    rc = subprocess.run(base + ["tests", "--collect-only", "-q", "-p",
+                                "spa_core.ci.pytest_collect_manifest"],
+                        cwd=str(root), env={**env, "SPA_PYTEST_MANIFEST":
+                                            str(ctl / "collected.jsonl")},
+                        capture_output=True, text=True, timeout=120).returncode
+    assert rc == 0, rc
+    w = tmp_path / "w.json"
+    w.write_text(json.dumps({"files": {}, "per_test_fallback_s": 1.0}))
+    assert cc.main(["plan", "--collected", str(ctl / "collected.jsonl"), "--weights", str(w),
+                    "--shards", "1", "--budget-min", "60", "--sha", "deadbeef",
+                    "--roots", "tests", "--out-dir", str(ctl)]) == 0
+    manifest = json.loads((ctl / "manifest.json").read_text())
+    out = root / "shards" / f"{cc.SHARD_DIR_PREFIX}0"
+    out.mkdir(parents=True)
+    (out / cc.SHARD_FILE).write_text(json.dumps({"shard": 0}))
+    files = (ctl / "shard-0.txt").read_text().split()
+    res = cc.run_shard(files, plugins, str(out / cc.STREAM_FILE), str(out / cc.COLLECTED_FILE),
+                       str(out / "junit.xml"), max_resumes=max_resumes, pytest_cmd=base,
+                       env=env, cwd=str(root))
+    (out / cc.EXIT_FILE).write_text(json.dumps(res))
+    return manifest, root / "shards", res
+
+
+def test_resume_finishes_the_rest_and_names_the_crashed_test_an_error(tmp_path):
+    crashed = "tests/test_one.py::test_b"
+    manifest, shards, res = _run_crash_shard(tmp_path, [crashed], max_resumes=3)
+    assert res["attempts"][0]["exit"] == 3, res          # настоящий INTERNALERROR
+    assert len(res["attempts"]) == 2 and res["attempts"][1]["exit"] == 1, res
+    assert res["crashes"][0]["tests"] == [crashed]
+    r = cc.aggregate(manifest, shards, "failure")
+    assert r["verdict"] == cc.RED, _reasons(r)          # измерено ВСЁ, упавшие названы
+    by = {f["nodeid"]: f for f in r["failures"]}
+    assert set(by) == {crashed, "tests/test_two.py::test_red"}
+    assert by[crashed]["outcome"] == cc.ERROR            # ошибка, а НЕ «прошёл»
+    assert cc.INTERNAL_MSG in by[crashed]["msg"]
+    assert r["non_passed"][crashed] == cc.ERROR
+    assert r["totals"]["passed"] == 3 and r["totals"]["not_obtained"] == 0
+    assert r["shards"][0]["crashed_on"] == [crashed] and r["shards"][0]["attempts"] == 2
+    # доиграны только недоигранные: test_a в доигрывании не исполнялся повторно
+    stream = (shards / f"{cc.SHARD_DIR_PREFIX}0" / cc.STREAM_FILE).read_text()
+    assert stream.count('"n": "tests/test_one.py::test_a"') == 2   # start + ok, один раз
+    assert stream.count('"e": "session"') == 2
+
+
+def test_resume_that_dies_again_past_the_cap_is_incomplete(tmp_path):
+    crash = ["tests/test_one.py::test_b", "tests/test_one.py::test_c"]
+    manifest, shards, res = _run_crash_shard(tmp_path, crash, max_resumes=1)
+    assert [a["exit"] for a in res["attempts"]] == [3, 3], res
+    assert res["exit"] == 3 and res["remaining"] == 2
+    r = cc.aggregate(manifest, shards, "failure")
+    assert r["verdict"] == cc.INCOMPLETE
+    assert set(r["not_obtained"]) == {"tests/test_two.py::test_d", "tests/test_two.py::test_red"}
+    assert "pytest вернул 3" in _reasons(r)
+    for n in crash:                                      # оба названы, ни один не «прошёл»
+        assert r["non_passed"][n] == cc.ERROR
+
+
+def test_sanitizer_turns_the_ci_internal_error_into_a_named_failure(tmp_path):
+    root = tmp_path / "scene"
+    (root / "tests").mkdir(parents=True)
+    (root / "pytest.ini").write_text("[pytest]\n", encoding="utf-8")
+    (root / "tests" / "test_l.py").write_text(textwrap.dedent("""
+        import sys, types
+        def test_lineless():
+            bad = types.TracebackType(None, sys._getframe(), 10 ** 6, -1)
+            assert bad.tb_lineno is None, "предпосылка не обеспечена"
+            raise ValueError("named failure").with_traceback(bad)
+        def test_after(): assert True
+    """))
+    stream = root / "s.jsonl"
+    base = ["tests", "-p", "spa_core.ci.pytest_stream_record", "--tb=short"]
+    # Положительный контроль: без плагина — ровно авария CI (код 3, INTERNALERROR).
+    env = {**os.environ, "PYTHONPATH": str(_REPO_ROOT)}
+    env.pop("SPA_PYTEST_STREAM", None)
+    bare = subprocess.run([sys.executable, "-m", "pytest", "tests", "-q", "-p", "no:randomly",
+                           "-p", "no:cacheprovider", "--rootdir", str(root)],
+                          cwd=str(root), env=env, capture_output=True, text=True, timeout=120)
+    assert bare.returncode == 3 and "tb_lineno" in bare.stdout + bare.stderr, bare.stdout[-800:]
+    code = _pytest(root, base, {"SPA_PYTEST_STREAM": str(stream)})
+    assert code == 1
+    rec = cc.load_stream(str(stream))
+    assert rec["outcomes"] == {"tests/test_l.py::test_lineless": cc.FAILED,
+                               "tests/test_l.py::test_after": cc.PASSED}
+    assert rec["end"]["status"] == 1

@@ -51,6 +51,18 @@ def _guard():
     return g
 
 
+@pytest.fixture(autouse=True)
+def _no_real_classifier(monkeypatch, tmp_path):
+    """Ни один тест файла не ходит к НАСТОЯЩЕМУ `claude` — ни на Mac, где бинарь есть, ни на CI.
+
+    Контрольный прогон 39003158532: тест приёма зелёный на Mac, потому что приём звал живой
+    классификатор (LLM), и красный на CI, где бинаря нет. Подмена делает исход одинаковым везде:
+    позвал классификатор ⇒ «недоступен» ⇒ карточка остаётся `new` ⇒ тест красный на ЛЮБОЙ машине.
+    """
+    from spa_core.telegram import ask_router
+    monkeypatch.setattr(ask_router, "_CLAUDE", str(tmp_path / "no-real-claude-in-tests"))
+
+
 @pytest.fixture
 def scene(tmp_path):
     tracker = tmp_path / "tracker"
@@ -80,12 +92,17 @@ def _submit(s, text="Проверить сводку по пакетам", sid="
     body = {"text": text, "kind": kind, "submission_id": sid}
     if source_voice:
         body["transcript"] = text
-    res = mi.submit(json.dumps(body).encode("utf-8"), actor="local", tracker_dir=s.tracker, now=NOW)
-    card = s.tracker / res["card"]
     # Провенанс (ARB 16.10): пометка записи — слово владельца только при `author: owner`. Сцена этого
-    # файла — записи владельца; без поля приём позвал бы настоящий классификатор (`claude`).
-    if "author" not in _fm(card):
-        cl._set_fields(card, {"author": "owner"})
+    # файла — записи владельца, и автора устанавливает СЕРВЕР (проверенная подпись Access), как в
+    # соседнем test_cockpit_dispatch.py. Прежняя форма дописывала `author: owner` только когда поля
+    # НЕТ, а `submit` с 241c9832d пишет его ВСЕГДА (`not-established`) — дописка не срабатывала, и
+    # приём звал НАСТОЯЩИЙ классификатор (`claude`): на Mac тест ходил к LLM, на CI (бинаря нет)
+    # краснел «new ≠ accepted» (контрольный прогон 39003158532, шард 4).
+    prov = mi.provenance_for("public", verified_email="owner@example.org", owner_emails=("owner@example.org",))
+    res = mi.submit(json.dumps(body).encode("utf-8"), actor="local", tracker_dir=s.tracker, now=NOW,
+                    provenance=prov)
+    card = s.tracker / res["card"]
+    assert _fm(card).get("author") == "owner"
     return card
 
 

@@ -44,7 +44,25 @@ ADR-474 научил шаг CI отличать «красно» от «НЕ И�
 ``n`` повторяется в строке исхода намеренно: пара «начал/кончил» тогда сходится по имени,
 а не по соседству строк, и запись остаётся читаемой, даже если события переплетутся.
 
-Только stdlib (инв. #4).
+**Две добавки контрольного прогона (ADR-768, довесок 17.10, прогон 39003158532).** Шард 2
+умер `INTERNALERROR` (код 3) на `test_list_identity_census.py::…::test_all_readers_unmeasured_is_unmeasured_not_clean`:
+тест снят `--timeout=180` (`signal`), и pytest, СОБИРАЯ отчёт об этом снятии, упал сам —
+`_pytest/_code/code.py: self._rawentry.tb_lineno - 1 → TypeError: NoneType - int`
+(Python 3.11.17, pytest 9.1.1). SIGALRM прервал кадр на инструкции без номера строки, у
+такого звена трассы ``tb_lineno is None``, а pytest этого не ждёт. Цена — 4320 тестов шарда
+без исхода. Отсюда:
+
+1. **Санитар трассы** (``pytest_runtest_makereport``, обёртка): звенья с
+   ``tb_lineno is None`` выбрасываются из трассы ДО того, как pytest начнёт её печатать —
+   у основного исключения и по цепочке ``__cause__``/``__context__``. САМ ПРОВАЛ остаётся
+   провалом: меняется только набор строк в его трассе, исход и сообщение — нет. Активен,
+   когда плагин загружен (`-p`), независимо от переменной записи.
+2. **Только перечисленные** (``SPA_PYTEST_RESUME_ONLY`` = путь к файлу, nodeid на строку):
+   сборка ТА ЖЕ, что у шарда (те же файлы), после неё оставляются только перечисленные —
+   остальные отдаются pytest как `deselected`. Так `scripts/ci_control.py run-shard`
+   доигрывает остаток шарда после аварии, не меняя того, ЧТО собирается.
+
+Только stdlib (инв. #4) — кроме самого pytest, хозяина плагина.
 """
 from __future__ import annotations
 
@@ -52,8 +70,12 @@ import json
 import os
 import time
 
+import pytest
+
 # Имя переменной — часть контракта: его читают воркфлоу и тесты.
 STREAM_ENV = "SPA_PYTEST_STREAM"
+#: Файл со списком nodeid, которые одни и надо прогнать (доигрывание шарда после аварии).
+RESUME_ENV = "SPA_PYTEST_RESUME_ONLY"
 
 # Первая строка сообщения об ошибке, обрезанная до этого предела. Сообщение здесь —
 # подсказка, а не улика: полный текст живёт в junit-записи, когда она есть.
@@ -157,6 +179,98 @@ def pytest_runtest_logreport(report) -> None:                # noqa: ANN001
             "d": round(float(report.duration or 0.0), 3),
         })
         _RECORDER.finished += 1
+
+
+# --- санитар трассы ----------------------------------------------------------
+
+def _has_line(tb) -> bool:                                   # noqa: ANN001
+    return getattr(tb, "tb_lineno", 0) is not None
+
+
+def drop_lineless(tb):                                       # noqa: ANN001, ANN201
+    """Перецепить сырую трассу, выбросив звенья с ``tb_lineno is None``; вернуть новую голову.
+
+    ``tb_next`` записываем с Python 3.7. Порядок оставшихся звеньев не меняется; если не
+    осталось ни одного — ``None`` (pytest это умеет: «All traceback entries are hidden»).
+    """
+    kept = []
+    node = tb
+    while node is not None:
+        if _has_line(node):
+            kept.append(node)
+        node = getattr(node, "tb_next", None)
+    for cur, nxt in zip(kept, kept[1:] + [None]):
+        if getattr(cur, "tb_next", None) is not nxt:
+            cur.tb_next = nxt
+    return kept[0] if kept else None
+
+
+def _length(tb) -> int:                                     # noqa: ANN001
+    n = 0
+    while tb is not None:
+        n += 1
+        tb = getattr(tb, "tb_next", None)
+    return n
+
+
+def sanitize_excinfo(excinfo) -> int:                        # noqa: ANN001
+    """Убрать безномерные звенья из трассы провала (и его цепочки). Вернуть, сколько убрано.
+
+    Провал при этом остаётся провалом: тип, значение и сообщение не трогаются.
+    """
+    dropped = 0
+    try:
+        entries = list(excinfo.traceback)
+    except Exception:                                        # pragma: no cover — нечего чистить
+        return 0
+    keep = [e for e in entries if _has_line(getattr(e, "_rawentry", None))]
+    if len(keep) != len(entries):
+        dropped += len(entries) - len(keep)
+        excinfo.traceback = type(excinfo.traceback)(keep)
+    seen: set[int] = set()
+    main = getattr(excinfo, "value", None)
+    exc = main
+    while isinstance(exc, BaseException) and id(exc) not in seen:
+        seen.add(id(exc))
+        raw = exc.__traceback__
+        if raw is not None:
+            before = _length(raw)
+            head = drop_lineless(raw)    # перецепляет на месте: длину мерить ДО
+            lost = before - _length(head)
+            if head is not raw:
+                exc.__traceback__ = head
+            if exc is not main:          # основное уже посчитано по excinfo.traceback
+                dropped += lost
+        exc = exc.__cause__ if exc.__cause__ is not None else (
+            None if exc.__suppress_context__ else exc.__context__)
+    return dropped
+
+
+@pytest.hookimpl(wrapper=True, tryfirst=True)
+def pytest_runtest_makereport(item, call):                   # noqa: ANN001, ARG001
+    excinfo = getattr(call, "excinfo", None)
+    if excinfo is not None:
+        try:
+            sanitize_excinfo(excinfo)
+        except Exception:                                    # pragma: no cover
+            pass        # санитар не имеет права сам стать причиной INTERNALERROR
+    return (yield)
+
+
+# --- доигрывание: только перечисленные ---------------------------------------
+
+@pytest.hookimpl(trylast=True)
+def pytest_collection_modifyitems(session, config, items):   # noqa: ANN001, ARG001
+    path = os.environ.get(RESUME_ENV)
+    if not path:
+        return
+    with open(path, encoding="utf-8") as fh:
+        wanted = {line.rstrip("\n") for line in fh if line.strip()}
+    selected = [it for it in items if it.nodeid in wanted]
+    deselected = [it for it in items if it.nodeid not in wanted]
+    if deselected:
+        config.hook.pytest_deselected(items=deselected)
+        items[:] = selected
 
 
 def pytest_sessionfinish(session, exitstatus) -> None:       # noqa: ANN001, ARG001
