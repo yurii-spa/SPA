@@ -2,11 +2,11 @@
 
 > Авто-генерится `scripts/build_tracker_board.py` из `nimbalyst-local/tracker/*.md`. НЕ править вручную — правь карточки. Источник правды — карточки, это индекс (bootstrap).
 >
-> Собрана: 2026-10-17T08:01:14Z · сверка с карточками: `python3 scripts/build_tracker_board.py --check` (сторож `spa_core/tests/test_tracker_board_matches_cards.py`).
+> Собрана: 2026-10-17T14:19:06Z · сверка с карточками: `python3 scripts/build_tracker_board.py --check` (сторож `spa_core/tests/test_tracker_board_matches_cards.py`).
 >
-> Сверено с `origin/main` (d15bb8aeb).
+> Сверено с `origin/main` (96a355a0c) · у **1** своя правка, кто новее — не измерено.
 >
-> Всего карточек: **1357** · ждёт владельца: **17** · занято сессиями: **14**.
+> Всего карточек: **1358** · ждёт владельца: **17** · занято сессиями: **14**.
 
 ## 🔴 ЖДЁТ ВЛАДЕЛЬЦА (needs-owner)
 
@@ -414,7 +414,7 @@
 ### · closed
 - Считать ли верный отказ по правилам допуска неисправностью флота  ·  `owner-decision-schitat-li-vernyi-otkaz-po-pravilam-dopu.md` · 2026-10-08
 
-## 📥 Inbox (задания: Telegram / заметки / голос)  (755)
+## 📥 Inbox (задания: Telegram / заметки / голос)  (756)
 
 ### · in-progress
 - а задача починить все-таки еще раз сообщение которым не пишет нужно твое решени…  ·  `inbox-a-zadacha-pochinit-vse-taki-esche-raz-so.md` · 2026-08-14 · 🔒 `pid43119`
@@ -1009,6 +1009,7 @@
 - Один артефакт — три правила чтения тира: монитор над потолками не знает T3 вовсе (целое 3 читается как T2), и флаг «не прочитан» никто не читает  ·  `inbox-odin-artefakt-tri-pravila-chteniya-tira.md` · 2026-10-13
 - Один порог «40 %» меряется ДВУМЯ знаменателями — DL-03 и RiskPolicy спорят о крупнейшей позиции книги  ·  `inbox-odin-porog-40-meryaetsya-dvumya-znamenat.md` · 2026-09-06
 - Один спор — два вопроса владельцу за 9.5 часов: обе карточки живы, обе с кнопками (ADR-084)  ·  `inbox-odin-spor-dva-voprosa-vladeltsu-za-9-5-c.md` · 2026-08-30
+- Один вопрос — два прибора: «ставит pytest» против «гоняет pytest» измеряется дважды, и утверждение одного о другом опровергнуто замером  ·  `inbox-odin-vopros-dva-pribora-stavit-pytest-pr.md` · 2026-10-17
 - Одиннадцать агентов обходят существующее поле governed_by: их ADR лежит в заметке, где его не читает никто  ·  `inbox-odinnadtsat-agentov-obhodyat-suschestvuy.md` · 2026-10-03
 - Охрана честности дашборда не переехала на каноническую /dashboard — 8 проверок (18 утверждений) не исполняются ни разу  ·  `inbox-ohrana-chestnosti-dashborda-ne-pereehala.md` · 2026-10-07
 - Окно до 6 часов: ответ владельца между нажатием кнопки и прогоном моста живёт в одном экземпляре  ·  `inbox-okno-do-6-chasov-otvet-vladeltsa-mezhdu.md` · 2026-08-15
