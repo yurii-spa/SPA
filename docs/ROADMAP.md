@@ -168,6 +168,9 @@
     executor — the integration works, AUTONOMY is NOT proven yet; provenance labelled the agent's record an owner note
     (wrong). In progress: sharded CI control run with per-test results; automatic executor selection; provenance
     (channel / established author / authority); recovery from a lost intake wake-up.
+    Update 2026-10-17 00:41Z: AUTONOMY PROVEN on one safe read-only task — an agent record was picked by the standard
+    hourly cycle (`cycle-9596`, cockpit_dispatch), verified by its declared probe and closed with one correctly
+    attributed notice; no manual executor assignment. Bounds: latency = cycle (~1 h), only tasks with a declared probe.
 18. **Later engines:** traditional markets, volatility / options (scope decided inside RM-EXPAND-01)
 
 ## Director OS backlog — the 34 items of 2026-10-15, reconciled 2026-10-16 (ADR-763)
