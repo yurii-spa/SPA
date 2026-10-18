@@ -691,3 +691,25 @@ def test_sanitizer_turns_the_ci_internal_error_into_a_named_failure(tmp_path):
     assert rec["outcomes"] == {"tests/test_l.py::test_lineless": cc.FAILED,
                                "tests/test_l.py::test_after": cc.PASSED}
     assert rec["end"]["status"] == 1
+
+
+def test_shard_files_reach_pytest_through_an_argfile_not_argv(tmp_path):
+    """Имена файлов шарда не попадают в `sys.argv` дочернего pytest.
+
+    Тест, читающий argv процесса (`cartographer/brief.py` пишет команду в
+    манифест), иначе видит тысячи имён — и краснеет на случайном слове в имени
+    файла, чего предписанный прогон каталогами не даёт (прогон №13).
+    """
+    seen = tmp_path / "argv.json"
+    probe = ("import json, sys; "
+             f"open({str(seen)!r}, 'w').write(json.dumps(sys.argv[1:]))")
+    files = ["tests/test_secret_token_name.py", "tests/test_b.py"]
+    out = tmp_path / "out"
+    out.mkdir()
+    cc.run_shard(files, ["-q"], str(out / cc.STREAM_FILE), str(out / cc.COLLECTED_FILE),
+                 None, max_resumes=0, pytest_cmd=[sys.executable, "-c", probe])
+    argv = json.loads(seen.read_text())
+    assert not any("token" in a for a in argv), argv
+    assert argv[0].startswith("@"), argv
+    listed = Path(argv[0][1:]).read_text(encoding="utf-8").split()
+    assert listed == files

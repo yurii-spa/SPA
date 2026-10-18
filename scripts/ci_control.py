@@ -726,10 +726,16 @@ def run_shard(files: list[str], pytest_args: list[str], stream: str, manifest: s
     crashes: list[dict] = []
     remaining: list[str] | None = None
     code = None
+    # Список файлов шарда — через файл аргументов pytest (`@путь`), а не в командной
+    # строке: тысячи имён в `sys.argv` видит каждый тест, читающий argv процесса
+    # (`cartographer/brief.py` пишет команду в манифест прогона и честно краснел на
+    # имени файла со словом «token», чего предписанный прогон каталогами не даёт).
+    listing = os.path.join(out_dir, "shard-files.txt")
+    Path(listing).write_text("\n".join(files) + "\n", encoding="utf-8")
     for k in range(max_resumes + 1):
         e = dict(base_env)
         e[STREAM_ENV] = stream
-        args = list(files) + list(pytest_args)
+        args = ([f"@{listing}"] if files else []) + list(pytest_args)
         if k == 0:
             e[MANIFEST_ENV] = manifest
             if junit:
