@@ -2,11 +2,11 @@
 
 > Авто-генерится `scripts/build_tracker_board.py` из `nimbalyst-local/tracker/*.md`. НЕ править вручную — правь карточки. Источник правды — карточки, это индекс (bootstrap).
 >
-> Собрана: 2026-10-18T07:40:30Z · сверка с карточками: `python3 scripts/build_tracker_board.py --check` (сторож `spa_core/tests/test_tracker_board_matches_cards.py`).
+> Собрана: 2026-10-18T08:38:25Z · сверка с карточками: `python3 scripts/build_tracker_board.py --check` (сторож `spa_core/tests/test_tracker_board_matches_cards.py`).
 >
-> Сверено с `origin/main` (4cdea501c).
+> Сверено с `origin/main` (bd8826337).
 >
-> Всего карточек: **1363** · ждёт владельца: **17** · занято сессиями: **16**.
+> Всего карточек: **1368** · ждёт владельца: **17** · занято сессиями: **16**.
 
 ## 🔴 ЖДЁТ ВЛАДЕЛЬЦА (needs-owner)
 
@@ -416,7 +416,7 @@
 ### · closed
 - Считать ли верный отказ по правилам допуска неисправностью флота  ·  `owner-decision-schitat-li-vernyi-otkaz-po-pravilam-dopu.md` · 2026-10-08
 
-## 📥 Inbox (задания: Telegram / заметки / голос)  (761)
+## 📥 Inbox (задания: Telegram / заметки / голос)  (766)
 
 ### · in-progress
 - а задача починить все-таки еще раз сообщение которым не пишет нужно твое решени…  ·  `inbox-a-zadacha-pochinit-vse-taki-esche-raz-so.md` · 2026-08-14 · 🔒 `pid43119`
@@ -1023,6 +1023,9 @@
 - Осиротевшая работа цикла #474 (ADR-222) НЕ доставлена: её сторож в настоящем вызове не срабатывает никогда — сверяет прод-дерево само с собой  ·  `inbox-osirotevshaya-rabota-tsikla-474-adr-222.md` · 2026-09-04 · 🔒 `cycle-17778`
 - Объявление владения называет ПРОД-пути, поэтому привязать прогон к его дереву нечем даже при абсолютных путях  ·  `inbox-osirotevshii-polnyi-progon-est-yadra-a-e.md` · 2026-09-18
 - Остатки инжеста 21.08: гейт доказанности APY в аварийной книге и якорь архива исходов — сначала ЗАМЕР  ·  `inbox-ostatki-inzhesta-21-08-geit-dokazannosti.md` · 2026-08-21
+- Остаток F: устаревшие храповики и ожидания тестов (26 падений, 19 групп)  ·  `inbox-ostatok-f-ustarevshie-hrapoviki-i-ozhida.md` · 2026-10-18
+- Остаток G: тесты зависят от хоста CI (11 падений)  ·  `inbox-ostatok-g-testy-zavisyat-ot-hosta-ci-11.md` · 2026-10-18
+- Остаток H: тесты зависят от сегодняшней даты (3 падения)  ·  `inbox-ostatok-h-testy-zavisyat-ot-segodnyashne.md` · 2026-10-18
 - Отбор лучших восьми протоколов не бережёт T1-якорь: два хороших кандидата вместе ухудшают книгу  ·  `inbox-otbor-luchshih-vosmi-protokolov-ne-berez.md` · 2026-08-29
 - Отчёт объявлен мерой критерия приёмки, которого владелец не писал  ·  `inbox-otchet-obyavlen-meroi-kriteriya-priemki.md` · 2026-09-29
 - ОТЛОЖЕНО · Looping Strategy «до +50%» — отдельный трек, вернуться после расчистки бэклога  ·  `inbox-otlozheno-looping-strategy-do-50-otdelny.md` · 2026-08-23
@@ -1087,6 +1090,7 @@
 - Рассыльщик открытых вопросов наследует ту же слепоту: закрытый на origin вопрос может уехать владельцу повторно  ·  `inbox-rassylschik-otkrytyh-voprosov-nasleduet.md` · 2026-09-03
 - Разобрать 52 карточки с ветки work-status-check, потом удалить ветку (решение владельца 20.08, вариант 1)  ·  `inbox-razobrat-52-kartochki-s-vetki-work-statu.md` · 2026-08-20
 - Реестр решений: дописать указатели на 78 ADR из других папок (решение владельца, вариант А)  ·  `inbox-reestr-reshenii-dopisat-ukazateli-na-78.md` · 2026-09-07
+- Реестр решений: строки ADR-777 и ADR-778 без имени файла — решения не находятся по ссылке  ·  `inbox-reestr-reshenii-stroki-adr-777-i-adr-778.md` · 2026-10-18
 - Реинвестировать начисленное: буфер и размещение от текущего equity, знаменатель потолков сделать ОБЩИМ  ·  `inbox-reinvestirovat-nachislennoe-bufer-i-razm.md` · 2026-09-09
 - Ремонт карточек-фантомов применяется наполовину: запрет на закрытие решения срабатывает после записи  ·  `inbox-remont-kartochek-fantomov-primenyaetsya.md` · 2026-10-18
 - РЕШЕНИЕ АГЕНТА (не вопрос владельцу): верный отказ по правилам допуска перестаёт быть неисправностью флота — исполнить  ·  `inbox-reshenie-politicheskii-otkaz-ne-neispravnost.md` · 2026-10-08
@@ -1150,6 +1154,7 @@
 - Свой signal.py затеняет стандартный: у 30 приборов каталога monitoring недостижим путь отказа по сроку  ·  `inbox-svoi-signal-py-zatenyaet-standartnyi-u-3.md` · 2026-09-19
 - T1-протокол sky_susds не может получить деньги ничем: ADR-065 поднял его в первый тир, а адаптера у него нет (G1)  ·  `inbox-t1-protokol-sky-susds-ne-mozhet-poluchit.md` · 2026-09-08
 - Табличка честности: дать ей дорогу на сайт (решение владельца 09.08)  ·  `inbox-tablichka-chestnosti-dat-ei-dorogu-na-sa.md` · 2026-08-08
+- Таймауты в CI: перепись G16 и инструмент git-ссылок не укладываются в 180 с  ·  `inbox-taimauty-v-ci-perepis-g16-i-instrument-g.md` · 2026-10-18
 - Такт двух главных производителей НЕ ИЗМЕРИМ: запись прогонов живёт в /tmp и стирается (106 артефактов)  ·  `inbox-takt-dvuh-glavnyh-proizvoditelei-ne-izme.md` · 2026-10-03
 - Тест доставки карточек красный в ЛЮБОМ свежем worktree: он судит mtime файлов дерева, а не поведение  ·  `inbox-test-dostavki-kartochek-krasnyi-v-lyubom.md` · 2026-09-08
 - Тест о реестре проб зелен на ПУСТОМ реестре — предмет взят из того, что мог опустеть  ·  `inbox-test-o-reestre-prob-zelen-na-pustom-rees.md` · 2026-10-03

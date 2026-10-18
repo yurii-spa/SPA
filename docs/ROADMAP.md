@@ -135,7 +135,7 @@
     the cockpit ADR was renumbered at release (number collision; `ADR-690` belongs to an unrelated ADR); ADR-762 stays
     **proposed** — its version-bound confirmation part (full decision object, `decision_version`, compare-and-swap, one
     answer per version) is not implemented and changes the confirmation mechanism, so it needs a separate owner decision.
-17. **STUDIO-OS-NEXT-01 · next stage of Studio OS under the ARB plan** — in progress (owner directive 2026-10-16, ADR-763).
+17. **STUDIO-OS-NEXT-01 · next stage of Studio OS under the ARB plan** — implemented; candidate handed to ARB 2026-10-18, NOT ARB-accepted (owner directive 2026-10-16, ADR-763).
     Packages in order: (1) this roadmap + the 34-item reconciliation below; (2) Mac resources and cockpit build speed
     (`findings_bridge` ~5 GB RSS and swap 92.9 % before the 2026-10-15 reboot, `mission_build` 17–22 min, stale
     `director_*` names in `architecture/resource_policy.json`, RAM/swap/disk told apart in alerts); (3) backup coverage
@@ -171,6 +171,14 @@
     Update 2026-10-17 00:41Z: AUTONOMY PROVEN on one safe read-only task — an agent record was picked by the standard
     hourly cycle (`cycle-9596`, cockpit_dispatch), verified by its declared probe and closed with one correctly
     attributed notice; no manual executor assignment. Bounds: latency = cycle (~1 h), only tasks with a declared probe.
+    Update 2026-10-18 (handover): candidate `b47b637a1`; full sharded CI verdict restored (ADR-768) — run #14 on the
+    candidate: population 134 982, 58 failed, 0 error, 0 not obtained, 0 new, 0 own regressions (fixed 11 vs #13). CI
+    restoration is DONE; suite repair is NOT (58 red, each with cause · impact · owner · verification and a card —
+    `docs/evidence/studio-os-next-01-2026-10-16/residual_run14.md`). Also: census `rule_second_copy_census` 405 s → 36 s
+    byte-identical; API portfolio read leaves the live DB byte-identical and reads a consistent SQLite+WAL snapshot
+    (live-verified). Owner items open: iPhone voice send (not verified), ADR-762 (OFF), `weekly_backup` (stays ON),
+    two-tier test idea (not promoted), restart of long-runners started before the candidate. Real capital $0.
+    Handover: `HANDOVER_FOR_ARB_FINAL.md`, `START_HERE.md` in the same folder.
 18. **Later engines:** traditional markets, volatility / options (scope decided inside RM-EXPAND-01)
 
 ## Director OS backlog — the 34 items of 2026-10-15, reconciled 2026-10-16 (ADR-763)
