@@ -57,12 +57,70 @@ research_factory — он был невидим недели и нашёлся �
 нулю». Пятая дверь (``os.open`` + ``os.read``) закрытой не объявляется — она объявляется
 НЕНАБЛЮДАЕМОЙ, и член, читающий через неё, попадёт в третий исход, а не в тишину.
 
+## Второй множитель: полная цена есть ПРОИЗВЕДЕНИЕ (заказ G778 п. 3, цикл #896)
+
+До цикла #896 этот прибор отвечал на вопрос «сколько стои́т ОДИН вызов вида» и честно
+печатал в своём же списке «НЕ ДОКЛАДЫВАЕТ»: *сколько РАЗ за сборку зовут сам вид*. Полная
+цена, однако, есть произведение двух множителей, и второй не мерил никто — при том, что
+на нём стояло ОБОСНОВАНИЕ бюджета ниже («вид зовут многократно внутри одной сборки»).
+Обоснование решения опиралось на величину, которой не было.
+
+Замер 2026-10-18 (живое ``data/`` хоста, три НАЗВАННЫХ прогона):
+
+===================  ==============  =================  ================
+вид                  ``mission_build``  ``telegram_sherlock``  ``telegram_oracle``
+===================  ==============  =================  ================
+research_factory                  2                  1                 0
+capital_shadow                    1                  0                 0
+investment_cio                    2                  0                 2
+sleeve_aggressive                 0                  0                 0
+===================  ==============  =================  ================
+
+**Множитель не равен единице, и там, где он двойка, он стои́т дороже всего.** У
+``research_factory`` запас ОДНОГО вызова — 2.3×, а сборка зовёт вид ДВАЖДЫ, то есть
+полная цена сборки вдвое выше той, которую прибор печатал, а запас вдвое ниже.
+
+**Второй вызов не виден из кода сборки.** Он приходит ИЗНУТРИ другой читающей модели:
+``capital_shadow.read.latest → readiness.evaluate → _market_neutral_basis_reason →
+research_factory.read.latest``. Это ровно класс ADR-777 («лекарство вкручено в точку
+входа, а цена живёт в читающей модели») на уровень выше: цену платит вложенный читатель,
+которого вызывающий не называет. У ``investment_cio`` вторая пара такая же:
+``read.capital_sources`` сама зовёт ``read.latest``.
+
+**Ноль — тоже ответ, но только когда прибор доказан.** ``sleeve_aggressive`` не зовётся НИ
+ОДНИМ из трёх названных прогонов; его запас 5907× поэтому верен и ни к одному измеренному
+прогону не относится — член уходит в третий исход
+(:data:`U_NO_WORKLOAD_REACHES`), а не в «цена ноль». Обратная сторона того же правила:
+прогон, у которого НУЛЬ вызовов у ВСЕХ членов, объявляется
+:data:`U_PROBE_NOT_PROVEN` — условие приёма прогона в население состоит в том, что он
+читает хотя бы одну ленту, поэтому сплошной ноль означает «счётчик не встал», а не
+«прогон лент не читает».
+
+**Население прогонов — РЕШЕНИЕ, а не замер, и оно так и названо.** Прибор не утверждает,
+что названных прогонов три, — он утверждает, что измерил эти три. Чтобы «прогонов больше»
+не было пустым словом, рядом печатается ЗАМЕР: сколько файлов не-тестового кода вообще
+упоминают путь вида (:func:`view_reference_files`). Член, у которого упоминания есть, а
+ни один объявленный прогон его не зовёт, виден по этим двум числам сразу.
+
+**Дверь счётчика одна, и у неё есть обратная сторона.** Вызовы считаются подменой
+АТРИБУТА МОДУЛЯ (``mod.attr``), потому что все сегодняшние потребители берут вид через
+пространство имён модуля в момент вызова. Потребитель, связавший имя на импорте
+(``from ...read import latest``), мимо такой подмены пройдёт молча — поэтому наличие таких
+связываний ИЗМЕРЯЕТСЯ обходом дерева (:func:`direct_name_bindings`), и появление первого
+есть находка, а не тишина.
+
 ## Бюджет и порог запаса — РЕШЕНИЯ, и названы как решения
 
 :data:`REPARSE_BUDGET_S` = 1.0 с на ОДИН вызов вида. Это решение, а не замер: вид зовут
 многократно внутри одной сборки и одного теста, и при секунде на вызов цена становится
 минутами предписанного прогона — ровно тем признаком, которым дефект research_factory и
-обнаружился.
+обнаружился. **Слово «многократно» в этом обосновании было догадкой до цикла #896**; теперь
+оно замер: 2 · 1 · 2 · 0 по трём названным прогонам (таблица выше).
+
+:data:`WORKLOAD_BUDGET_S` = 1.0 с на ОДИН НАЗВАННЫЙ ПРОГОН — сумма по всем вызовам вида
+внутри него. Отдельное решение рядом с первым, а не замена ему: прежний бюджет судит
+вызов, этот — прогон, и печатаются оба. Переопределять смысл уже стоящей константы молча
+значило бы сменить предмет сторожа, не сказав об этом (инв. #16).
 
 :data:`MIN_GROWTH_FACTOR` = 4.0. Тоже решение: менее чем четырёхкратный запас означает,
 что обычный рост append-only ленты съест его без единой правки кода.
@@ -89,13 +147,15 @@ from __future__ import annotations
 
 import argparse
 import builtins
+import contextlib
 import importlib
 import io
 import json
+import re
 import time
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Callable, List, Optional, Sequence, Tuple
+from typing import Callable, Dict, List, Optional, Sequence, Tuple
 
 _ROOT = Path(__file__).resolve().parents[2]
 
@@ -108,13 +168,26 @@ REPARSE_BUDGET_S = 1.0
 #: бюджет. Меньший запас обычный рост append-only ленты съедает без правок кода.
 MIN_GROWTH_FACTOR = 4.0
 
+#: РЕШЕНИЕ (не замер): сколько секунд ОДИН названный прогон (сборка, нажатие владельца)
+#: вправе потратить на повторный разбор своих лент СУММАРНО. Отдельно от
+#: :data:`REPARSE_BUDGET_S`, который судит один вызов: у двух разных предметов два числа.
+WORKLOAD_BUDGET_S = 1.0
+
 F_MARGIN_SHORT = "growth_margin_below_floor"
 F_OPENS_DRIFTED = "opens_per_view_drifted"
+F_CALLS_DRIFTED = "calls_per_workload_drifted"
+F_WORKLOAD_MARGIN_SHORT = "workload_growth_margin_below_floor"
+F_IMPORT_BOUND_VIEW = "view_name_bound_at_import"
 
 U_VIEW_RAISED = "view_raised"
 U_LEDGER_ABSENT = "ledger_absent"
 U_DOOR_NOT_WATCHED = "zero_opens_with_a_non_empty_answer"
 U_VIEW_UNRESOLVED = "view_unresolved"
+U_WORKLOAD_RAISED = "workload_raised"
+U_PROBE_NOT_PROVEN = "zero_calls_for_every_member_of_the_population"
+U_NO_WORKLOAD_REACHES = "no_declared_workload_calls_this_view"
+U_VIEW_NOT_PATCHABLE = "view_has_no_module_attribute_to_count_at"
+U_PRICE_UNKNOWN = "per_call_price_not_measured"
 
 
 @dataclass(frozen=True)
@@ -192,6 +265,345 @@ LEDGER_LITERAL = '"ledger.jsonl"'
 #: о литерале имени ленты, обязан нести этот литерал в себе — иначе он не мог бы спросить.
 #: Молчаливого списка исключений у этой переписи нет; это одно, и оно печатается в отчёте.
 SELF_REL = "spa_core/monitoring/ledger_parse_census.py"
+
+
+@dataclass(frozen=True)
+class Workload:
+    """Один НАЗВАННЫЙ прогон — сборка или нажатие владельца, — за который считают вызовы.
+
+    ``declared_calls`` — ЗАМЕР 2026-10-18 с названной причиной у каждого числа, не проект:
+    расхождение в любую сторону есть находка ровно так же, как у ``declared_opens``.
+    Условие приёма в население названо и самопроверяющееся: прогон обязан читать хотя бы
+    одну ленту, поэтому сплошной ноль по всем членам есть «счётчик не встал»
+    (:data:`U_PROBE_NOT_PROVEN`), а не «прогон лент не читает».
+    """
+
+    id: str
+    run: Callable[[Path], object]
+    reason: str
+    declared_calls: Dict[str, int]
+    calls_reason: Dict[str, str]
+
+
+def _run_mission_build(data_dir: Path) -> object:
+    """Сборка Mission Control — тот самый прогон, про который говорят ADR-763/777.
+
+    ``mission_control.build()`` строит читающую модель В ПАМЯТИ и на диск не пишет ничего
+    (пишет обёртка ``mission_build``, и она в прогон НЕ входит: предмет тут — чтение).
+    Каталог данных у сборки задаётся корнем репозитория, а прибор получает ``data/``,
+    поэтому корнем берётся родитель — связь названа, а не подразумевается.
+    """
+    from spa_core.studio_os import mission_control as mc
+    return mc.build(mc.MCInputs(repo=Path(data_dir).parent))
+
+
+@contextlib.contextmanager
+def _capital_reads_from(data_dir: Path):
+    """Телеграм-экраны берут каталог через ОБЪЯВЛЕННУЮ точку инъекции (``READERS``) — ту
+    же, которой пользуются их собственные тесты. Возврат в ``finally``: прибор не вправе
+    оставить после себя модуль, читающий чужой каталог."""
+    from spa_core.telegram.views import capital as cap
+    real = cap.READERS["data_dir"]
+    cap.READERS["data_dir"] = lambda: Path(data_dir)
+    try:
+        yield cap
+    finally:
+        cap.READERS["data_dir"] = real
+
+
+def _run_telegram_sherlock(data_dir: Path) -> object:
+    """Одно нажатие владельца на экран Sherlock — читатель, которого ADR-777 назвал
+    поимённо среди тех, кому лекарство ADR-763 не досталось."""
+    with _capital_reads_from(data_dir) as cap:
+        return cap.render_sherlock()
+
+
+def _run_telegram_oracle(data_dir: Path) -> object:
+    """Одно нажатие владельца на экран Oracle — второй названный там же читатель."""
+    with _capital_reads_from(data_dir) as cap:
+        return cap.render_oracle()
+
+
+#: Объявленное население ПРОГОНОВ. Это РЕШЕНИЕ, а не замер, и прибор не утверждает, что
+#: прогонов в системе ровно три — он утверждает, что измерил эти три. Насколько население
+#: полно, видно по соседнему ЗАМЕРУ :func:`view_reference_files`.
+WORKLOADS: Tuple[Workload, ...] = (
+    Workload(
+        id="mission_build",
+        run=_run_mission_build,
+        reason=("сборка Mission Control — прогон, на котором ADR-763/777 мерили цену "
+                "повторного разбора (1 613 с против 18.3 с)"),
+        declared_calls={"research_factory": 2, "capital_shadow": 1,
+                        "investment_cio": 2, "sleeve_aggressive": 0},
+        calls_reason={
+            "research_factory": ("два НАЗВАННЫХ вызова: build → _research_universe_section, "
+                                 "и ВЛОЖЕННЫЙ — capital_shadow.read.latest → readiness.evaluate "
+                                 "→ _market_neutral_basis_reason; второй из кода сборки не виден"),
+            "capital_shadow": "один вызов: build → _live_readiness_section",
+            "investment_cio": ("два НАЗВАННЫХ вызова: build → _investment_cio_section, и "
+                               "build → _capital_sources_section → read.capital_sources, "
+                               "которая сама зовёт read.latest"),
+            "sleeve_aggressive": "сборка рукавную ленту не читает вовсе — ноль тут ЗАМЕР",
+        },
+    ),
+    Workload(
+        id="telegram_sherlock",
+        run=_run_telegram_sherlock,
+        reason="одно нажатие владельца: экран Sherlock, назван читателем в ADR-777",
+        declared_calls={"research_factory": 1, "capital_shadow": 0,
+                        "investment_cio": 0, "sleeve_aggressive": 0},
+        calls_reason={
+            "research_factory": "один вызов: render_sherlock → READERS['research'] → read.latest",
+            "capital_shadow": "экран этой ленты не читает",
+            "investment_cio": "экран этой ленты не читает",
+            "sleeve_aggressive": "экран этой ленты не читает",
+        },
+    ),
+    Workload(
+        id="telegram_oracle",
+        run=_run_telegram_oracle,
+        reason="одно нажатие владельца: экран Oracle, назван читателем в ADR-777",
+        declared_calls={"research_factory": 0, "capital_shadow": 0,
+                        "investment_cio": 2, "sleeve_aggressive": 0},
+        calls_reason={
+            "research_factory": "экран этой ленты не читает",
+            "capital_shadow": "экран этой ленты не читает",
+            "investment_cio": ("два вызова на ОДНО нажатие: READERS['cio'] → read.latest и "
+                               "READERS['sources'] → read.capital_sources → read.latest"),
+            "sleeve_aggressive": "экран этой ленты не читает",
+        },
+    ),
+)
+
+#: Форма, которой подмена атрибута модуля НЕ видна: имя вида связано на импорте. Сегодня
+#: таких связываний в дереве нет (замер 2026-10-18) — и это проверяется, а не предполагается.
+_IMPORT_BINDING = re.compile(
+    r"^\s*from\s+[\w.]*\b(?P<mod>research_factory\.read|capital_shadow\.read|"
+    r"investment_cio\.read|sleeve\.composer)\s+import\s+(?P<names>[^\n#]+)", re.M)
+
+
+def direct_name_bindings(tree_root: Optional[Path] = None,
+                         members: Sequence["Member"] = ()) -> List[str]:
+    """Файлы, связавшие имя вида НА ИМПОРТЕ — то есть прошедшие бы мимо счётчика молча.
+
+    Счётчик подменяет атрибут модуля; потребитель, сделавший ``from ...read import latest``,
+    держит ссылку на НАСТОЯЩУЮ функцию и подмены не увидит. Поэтому «таких нет» обязано
+    быть замером, а не умолчанием: появление первого — находка.
+    """
+    wanted = {str(m.view).partition(":")[2] for m in members if not callable(m.view)}
+    root = Path(tree_root or _ROOT)
+    hits: List[str] = []
+    for base in ("spa_core", "scripts"):
+        base_dir = root / base
+        if not base_dir.is_dir():
+            continue
+        for path in sorted(base_dir.rglob("*.py")):
+            rel = path.relative_to(root).as_posix()
+            if "/tests/" in f"/{rel}" or rel == SELF_REL:
+                continue
+            try:
+                text = path.read_text(encoding="utf-8")
+            except OSError:
+                continue
+            for m in _IMPORT_BINDING.finditer(text):
+                names = {n.strip().split(" as ")[0].strip()
+                         for n in m.group("names").split(",")}
+                if names & wanted:
+                    hits.append(f"{rel}: from …{m.group('mod')} import {m.group('names').strip()}")
+    return hits
+
+
+def view_reference_files(member: "Member", tree_root: Optional[Path] = None) -> List[str]:
+    """ЗАМЕР рядом с решением: сколько файлов не-тестового кода вообще упоминают вид.
+
+    Отвечает не на «полно ли население прогонов» (это решение), а на «есть ли у вида
+    читатели за пределами измеренных» — числом, по которому неполноту видно сразу.
+    """
+    if callable(member.view):
+        return []
+    mod_name, _, attr = str(member.view).partition(":")
+    parts = mod_name.split(".")
+    pkg, mod = (parts[-2], parts[-1]) if len(parts) >= 2 else ("", parts[-1])
+    #: обе формы ссылки на модуль вида, и вторая важнее первой: ВЛОЖЕННЫЙ читатель
+    #: (capital_shadow.readiness → research_factory.read.latest) пишет именно её.
+    ref = re.compile(rf"\b{re.escape(pkg)}\s*(?:\.|\s+import\s+){re.escape(mod)}\b"
+                     if pkg else rf"\b{re.escape(mod)}\b")
+    #: файл, где вид ОПРЕДЕЛЁН, — тоже ссылка: внутримодульные зовы живут там же
+    #: (``composer.py`` зовёт свой ``load_ledger`` из ``run_sleeve_shadow``).
+    own = mod_name.replace(".", "/") + ".py"
+    root = Path(tree_root or _ROOT)
+    hits: List[str] = []
+    for base in ("spa_core", "scripts"):
+        base_dir = root / base
+        if not base_dir.is_dir():
+            continue
+        for path in sorted(base_dir.rglob("*.py")):
+            rel = path.relative_to(root).as_posix()
+            if "/tests/" in f"/{rel}" or rel == SELF_REL:
+                continue
+            try:
+                text = path.read_text(encoding="utf-8")
+            except OSError:
+                continue
+            if attr in text and (rel == own or ref.search(text)):
+                hits.append(rel)
+    return hits
+
+
+def resolve_view_site(member: "Member") -> Tuple[Optional[object], Optional[str], Optional[str]]:
+    """Место, где вид ЛЕЖИТ (модуль + имя атрибута) — чтобы было что подменить счётчиком.
+
+    Вид, переданный готовым вызываемым (стенды), места в модуле не имеет: считать его
+    вызовы нечем, и это третий исход с причиной, а не ноль.
+    """
+    if callable(member.view):
+        return None, None, f"{U_VIEW_NOT_PATCHABLE}: вид передан вызываемым, атрибута модуля нет"
+    mod_name, _, attr = str(member.view).partition(":")
+    if not attr:
+        return None, None, f"{U_VIEW_UNRESOLVED}: в «{member.view}» нет имени функции после ':'"
+    try:
+        mod = importlib.import_module(mod_name)
+    except Exception as exc:  # noqa: BLE001 — причина НАЗЫВАЕТСЯ, а не съедается
+        return None, None, f"{U_VIEW_UNRESOLVED}: {type(exc).__name__}: {exc}"
+    if not callable(getattr(mod, attr, None)):
+        return None, None, f"{U_VIEW_UNRESOLVED}: {member.view} не вызываемое"
+    return mod, attr, None
+
+
+def count_calls(members: Sequence["Member"], workload: Workload,
+                data_dir: Path) -> Tuple[Dict[str, int], Dict[str, str], object, Optional[str]]:
+    """Сколько раз ОДИН прогон зовёт КАЖДЫЙ вид — подменой атрибута модуля.
+
+    Возврат: счётчики · члены, у которых считать нечем (с причиной) · ответ прогона ·
+    причина отказа прогона (``None``, если прогон дошёл до конца).
+    """
+    counts: Dict[str, int] = {}
+    cannot: Dict[str, str] = {}
+    undo: List[Tuple[object, str, Callable]] = []
+    for m in members:
+        mod, attr, why = resolve_view_site(m)
+        if mod is None:
+            cannot[m.id] = why or U_VIEW_NOT_PATCHABLE
+            continue
+        real = getattr(mod, attr)
+        counts[m.id] = 0
+
+        def make(mid=m.id, real=real):
+            def hook(*a, **k):
+                counts[mid] += 1
+                return real(*a, **k)
+            hook.__wrapped__ = real
+            return hook
+
+        setattr(mod, attr, make())
+        undo.append((mod, attr, real))
+    try:
+        answer = workload.run(Path(data_dir))
+        err = None
+    except Exception as exc:  # noqa: BLE001 — прогон упал ⇒ третий исход с причиной
+        answer, err = None, f"{U_WORKLOAD_RAISED}: {type(exc).__name__}: {exc}"
+    finally:
+        for mod, attr, real in undo:
+            setattr(mod, attr, real)
+    return counts, cannot, answer, err
+
+
+def measure_workloads(data_dir: Path | str, *, members: Sequence["Member"] = LEDGERS,
+                      workloads: Sequence[Workload] = (),
+                      price_by_id: Optional[Dict[str, Optional[float]]] = None,
+                      budget_s: float = WORKLOAD_BUDGET_S,
+                      min_factor: float = MIN_GROWTH_FACTOR) -> dict:
+    """Второй множитель и полная цена прогона. Три исхода различимы у КАЖДОГО прогона."""
+    data = Path(data_dir)
+    price_by_id = price_by_id or {}
+    rows: List[dict] = []
+    reached: Dict[str, int] = {m.id: 0 for m in members}
+    seen_measured = False
+    for w in workloads:
+        row: dict = {"id": w.id, "reason": w.reason, "calls": None,
+                     "not_countable": None, "unmeasured": None,
+                     "price_s": None, "growth_factor": None, "findings": []}
+        counts, cannot, answer, err = count_calls(members, w, data)
+        if cannot:
+            row["not_countable"] = cannot
+        if err:
+            row["unmeasured"] = err
+            rows.append(row)
+            continue
+        if counts and not any(counts.values()):
+            row["unmeasured"] = (
+                f"{U_PROBE_NOT_PROVEN}: прогон дошёл до конца, но ни один из "
+                f"{len(counts)} видов не был вызван ни разу. Условие приёма прогона в "
+                f"население — что он читает хотя бы одну ленту, поэтому сплошной ноль "
+                f"означает, что счётчик не встал (имя вида связано на импорте либо "
+                f"прогон подменён), а НЕ что лент он не читает")
+            rows.append(row)
+            continue
+        if not counts:
+            row["unmeasured"] = (
+                f"{U_VIEW_NOT_PATCHABLE}: ни у одного члена нет атрибута модуля, "
+                f"у которого можно считать вызовы")
+            rows.append(row)
+            continue
+        seen_measured = True
+        row["calls"] = counts
+        for mid, n in counts.items():
+            reached[mid] = max(reached.get(mid, 0), n)
+        price = 0.0
+        price_known = True
+        for mid, n in counts.items():
+            per_call = price_by_id.get(mid)
+            if n and per_call is None:
+                price_known = False
+                continue
+            price += n * (per_call or 0.0)
+        row["price_s"] = price if price_known else None
+        if not price_known:
+            row["unmeasured"] = (
+                f"{U_PRICE_UNKNOWN}: вызовы сосчитаны, но цена одного вызова измерена не у "
+                f"всех вызванных видов — произведение без второго множителя не число")
+            rows.append(row)
+            continue
+        for mid, n in counts.items():
+            declared = w.declared_calls.get(mid)
+            if declared is None or n == declared:
+                continue
+            row["findings"].append({
+                "kind": F_CALLS_DRIFTED,
+                "text": (f"{mid}: вызовов за прогон {n} против объявленных {declared} — у "
+                         f"объявленного числа есть причина: "
+                         f"{w.calls_reason.get(mid, 'причина не названа')}"),
+            })
+        if price > 0:
+            row["growth_factor"] = budget_s / price
+            if row["growth_factor"] < min_factor:
+                row["findings"].append({
+                    "kind": F_WORKLOAD_MARGIN_SHORT,
+                    "text": (f"полная цена прогона {price:.3f} с — запас "
+                             f"{row['growth_factor']:.1f}× ниже порога {min_factor:.1f}× при "
+                             f"бюджете прогона {budget_s:.2f} с; цена ОДНОГО вызова этот "
+                             f"запас завышает ровно во столько раз, сколько вызовов"),
+                })
+        rows.append(row)
+
+    unreached: Dict[str, str] = {}
+    if seen_measured:
+        for m in members:
+            if reached.get(m.id, 0) == 0:
+                unreached[m.id] = (
+                    f"{U_NO_WORKLOAD_REACHES}: ни один из {len(workloads)} объявленных "
+                    f"прогонов этот вид не зовёт — запас одного вызова у него верен, но ни "
+                    f"к одному измеренному прогону не относится")
+    return {
+        "budget_s": budget_s,
+        "min_growth_factor": min_factor,
+        "declared": len(workloads),
+        "rows": rows,
+        "calls_by_member": reached if seen_measured else {},
+        "unreached": unreached,
+        "unmeasured": [r for r in rows if r["unmeasured"]],
+        "findings": [dict(f, id=r["id"]) for r in rows for f in r["findings"]],
+    }
 
 
 def ledger_code_files(tree_root: Optional[Path] = None) -> List[str]:
@@ -309,8 +721,15 @@ def measure(data_dir: Path | str, *, members: Sequence[Member] = LEDGERS,
             budget_s: float = REPARSE_BUDGET_S,
             min_factor: float = MIN_GROWTH_FACTOR,
             tree_root: Optional[Path] = None,
-            parse_rounds: int = 3) -> dict:
-    """Замер по населению. Три исхода у КАЖДОГО члена различимы (инв. #17)."""
+            parse_rounds: int = 3,
+            workloads: Sequence[Workload] = (),
+            workload_budget_s: float = WORKLOAD_BUDGET_S) -> dict:
+    """Замер по населению. Три исхода у КАЖДОГО члена различимы (инв. #17).
+
+    ``workloads`` пусто ПО УМОЛЧАНИЮ намеренно: названные прогоны поднимают настоящую
+    сборку и настоящие экраны, и подставлять их стенду, который мерит свой фальшивый вид,
+    значило бы мерить не то, о чём спрашивают. Боевое население передаёт CLI.
+    """
     data = Path(data_dir)
     rows: List[dict] = []
     for m in members:
@@ -382,6 +801,12 @@ def measure(data_dir: Path | str, *, members: Sequence[Member] = LEDGERS,
             row["growth_factor"] = None
         rows.append(row)
 
+    price_by_id = {r["id"]: r["cost_s"] for r in rows}
+    wl = measure_workloads(data, members=members, workloads=workloads,
+                           price_by_id=price_by_id, budget_s=workload_budget_s,
+                           min_factor=min_factor)
+    import_bound = direct_name_bindings(tree_root, members)
+    refs = {m.id: view_reference_files(m, tree_root) for m in members}
     declared_files = sorted(LEDGER_CODE_FILES)
     tree_files = sorted(ledger_code_files(tree_root))
     doc = {
@@ -398,8 +823,19 @@ def measure(data_dir: Path | str, *, members: Sequence[Member] = LEDGERS,
         },
         "measured": [r for r in rows if not r["unmeasured"]],
         "unmeasured": [r for r in rows if r["unmeasured"]],
+        "workloads": wl,
+        "import_bound_views": import_bound,
+        "view_reference_files": {k: sorted(v) for k, v in refs.items()},
     }
     doc["findings"] = [dict(f, id=r["id"]) for r in rows for f in r["findings"]]
+    doc["findings"].extend(wl["findings"])
+    if import_bound:
+        doc["findings"].append({
+            "kind": F_IMPORT_BOUND_VIEW,
+            "id": "counter",
+            "text": ("имя вида связано НА ИМПОРТЕ — такой потребитель проходит мимо "
+                     "счётчика вызовов молча: " + "; ".join(import_bound)),
+        })
     return doc
 
 
@@ -417,6 +853,36 @@ def format_report(doc: dict) -> List[str]:
         factor = "—" if r["growth_factor"] is None else f"{r['growth_factor']:.1f}×"
         out.append(f"   {r['id']}: {r['bytes']:,} Б · разбор {r['parse_s']:.4f} с · "
                    f"открытий {r['opens']} · цена {r['cost_s']:.3f} с · запас {factor} · {door}")
+    wl = doc.get("workloads") or {}
+    if wl.get("declared"):
+        out.append(f"   — второй множитель: сколько РАЗ прогон зовёт вид (заказ G778 п. 3) —")
+        out.append(f"     РЕШЕНИЕ (не замер): бюджет прогона {wl['budget_s']:.2f} с · "
+                   f"объявленных прогонов {wl['declared']} — прибор мерит эти, а не "
+                   f"утверждает, что других нет")
+        for r in wl["rows"]:
+            if r["unmeasured"]:
+                out.append(f"     [НЕ ИЗМЕРЕНО] {r['id']}: {r['unmeasured']}")
+                continue
+            calls = " · ".join(f"{k}×{v}" for k, v in sorted(r["calls"].items()) if v)
+            factor = "—" if r["growth_factor"] is None else f"{r['growth_factor']:.1f}×"
+            out.append(f"     {r['id']}: {calls or 'ни одного вызова'} · полная цена "
+                       f"{r['price_s']:.3f} с · запас {factor}")
+            if r["not_countable"]:
+                for mid, why in sorted(r["not_countable"].items()):
+                    out.append(f"       [НЕ ИЗМЕРЕНО] {mid}: {why}")
+        for mid, why in sorted(wl["unreached"].items()):
+            refs = (doc.get("view_reference_files") or {}).get(mid) or []
+            out.append(f"     [НЕ ИЗМЕРЕНО] {mid}: {why}; упоминаний вида в не-тестовом "
+                       f"коде: {len(refs)}")
+        refs_all = doc.get("view_reference_files") or {}
+        if refs_all:
+            out.append("     ЗАМЕР рядом с решением — упоминаний вида в не-тестовом коде: "
+                       + " · ".join(f"{k}:{len(v)}" for k, v in sorted(refs_all.items()))
+                       + f" (прогонов измерено {wl['declared']}; разница и есть мера "
+                         f"неполноты населения, а не доказательство полноты)")
+        if doc.get("import_bound_views") is not None and not doc["import_bound_views"]:
+            out.append("     счётчик подменяет АТРИБУТ МОДУЛЯ; связываний имени вида на "
+                       "импорте в дереве не найдено — это ЗАМЕР обходом, а не умолчание")
     findings = doc["findings"]
     if findings:
         out.append(f"   🔴 НАХОДОК {len(findings)}:")
@@ -435,8 +901,10 @@ def format_report(doc: dict) -> List[str]:
                    f"(единственное исключение обхода НАЗВАНО: {SELF_REL} — прибор несёт "
                    f"литерал по построению)")
     out.append("   НЕ ДОКЛАДЫВАЕТ: читает ли кто-то ленту через os.open (такой член уйдёт в "
-               "третий исход, а не в тишину) · сколько РАЗ за сборку зовут сам вид · "
-               "верна ли сама лента (это вопрос verify(), не этого прибора)")
+               "третий исход, а не в тишину) · ПОЛНО ли население прогонов (это решение; "
+               "замер рядом — число упоминаний вида в коде) · сколько раз за СУТКИ зовут "
+               "сам прогон (третий множитель, и он не измерен) · верна ли сама лента "
+               "(это вопрос verify(), не этого прибора)")
     out.append("   ADVISORY: прибор только ЧИТАЕТ (ничего не чинит, ни один гейт его не читает)")
     return out
 
@@ -450,7 +918,8 @@ def exit_code(doc: dict) -> int:
     нашли») было бы ровно подменой третьего исхода вторым (инв. #17).
     """
     pop = doc["population"]
-    if doc["unmeasured"]:
+    wl = doc.get("workloads") or {}
+    if doc["unmeasured"] or wl.get("unmeasured") or wl.get("unreached"):
         return 2
     if doc["findings"] or pop["code_files_undeclared"] or pop["code_files_missing"]:
         return 1
@@ -466,10 +935,15 @@ def main(argv: Optional[List[str]] = None) -> int:
     ap.add_argument("--budget-s", type=float, default=REPARSE_BUDGET_S)
     ap.add_argument("--min-factor", type=float, default=MIN_GROWTH_FACTOR)
     ap.add_argument("--parse-rounds", type=int, default=3)
+    ap.add_argument("--workload-budget-s", type=float, default=WORKLOAD_BUDGET_S)
+    ap.add_argument("--no-workloads", action="store_true",
+                    help="не поднимать названные прогоны (второй множитель останется НЕ ИЗМЕРЕН)")
     ap.add_argument("--json", action="store_true")
     args = ap.parse_args(argv)
     doc = measure(args.data_dir, budget_s=args.budget_s, min_factor=args.min_factor,
-                  tree_root=Path(args.tree_root), parse_rounds=args.parse_rounds)
+                  tree_root=Path(args.tree_root), parse_rounds=args.parse_rounds,
+                  workloads=() if args.no_workloads else WORKLOADS,
+                  workload_budget_s=args.workload_budget_s)
     if args.json:
         print(json.dumps(doc, ensure_ascii=False, indent=1, default=str))
     else:

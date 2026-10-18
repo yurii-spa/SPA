@@ -22,6 +22,7 @@ import pytest
 from spa_core.analytics import _apy_series as apy_series
 from spa_core.analytics import _module_registry as registry
 from spa_core.analytics.signal_aggregator import _ModuleAdapter
+from spa_core.tests._freshness import ts
 
 try:
     from spa_core.analytics._protocol_blindness import PROTOCOL_BLIND_MODULES
@@ -56,16 +57,45 @@ def _fresh_cache():
     apy_series.clear_cache()
 
 
+def _day(days_ago: int) -> str:
+    """Дата ``days_ago`` суток назад — ОТНОСИТЕЛЬНАЯ отметка, приём №2
+    `.claude/rules/deployment.md` («Время в тестах»).
+
+    Почему не литерал (замер цикла #897, 2026-10-18). Фикстура ниже держала
+    литеральные дни июня-июля 2026, собранные форматом (``"2026-06-%02d" % d``),
+    а `apy_tracker.analyze` судит ряд ОКНОМ В 90 ДНЕЙ от НАСТОЯЩИХ часов
+    (`get_trend(proto, days=90)`). Как только календарь ушёл за 2026-07-10 + 90
+    дн. ≈ 08.10, окно перестало накрывать фикстуру: `data_points` стало **0**,
+    `trend` — `UNKNOWN`, `analyze` вернул `None` (это ВЕРНЫЙ fail-closed), и
+    `test_falling_apy_riskier_than_rising[apy_tracker]` покраснел на ЧИСТОМ
+    `origin/main` — от хода календаря, а не от кода. Три его соседа
+    (`apy_forecaster`, `apy_momentum`, `yield_forecast_engine`) окна от часов не
+    имеют и поэтому были зелены — расхождение внутри одной параметризации и
+    было уликой.
+
+    Литеральная дата здесь предметом НЕ является: предмет — ПОЛЯРНОСТЬ
+    (падающий ряд рискованнее растущего), а не конкретные дни. Поэтому фикстура
+    привязана к ``_freshness.ts`` — к тому же единственному определению «сейчас»,
+    которым пользуется остальной набор, а не ко второй его копии.
+
+    Проверено ПОСЛЕ правки: `apy_tracker` даёт rising **25.5** · falling
+    **74.5** (полярность верна и сильнее, чем у соседей), файл 34 passed.
+    Тест не ослаблен и не сужен (инв. #16) — он ВЕРНУЛ себе предмет: до правки
+    падало утверждение «оба не None», то есть полярность не проверялась вовсе.
+    """
+    return ts(hours_ago=24 * days_ago)[:10]
+
+
 @pytest.fixture()
 def series_dir(tmp_path):
-    """Синтетический data_dir: aave_v3 РАСТЁТ, morpho_blue ПАДАЕТ (40 дней),
-    yearn_v3 — 2 точки (недобор для любого min_days≥3)."""
+    """Синтетический data_dir: aave_v3 РАСТЁТ, morpho_blue ПАДАЕТ (40 дней,
+    последняя точка — сегодня), yearn_v3 — 2 точки (недобор для любого
+    min_days≥3)."""
     hist = tmp_path / "historical_apy"
     hist.mkdir()
 
     def rows(start, step, n=40):
-        return [{"date": "2026-06-%02d" % (d + 1) if d < 30
-                 else "2026-07-%02d" % (d - 29),
+        return [{"date": _day(n - 1 - d),
                  "apy": round(start + step * d, 4)} for d in range(n)]
 
     (hist / "aave_v3_usdc.json").write_text(
@@ -73,8 +103,8 @@ def series_dir(tmp_path):
     (hist / "morpho_blue_usdc.json").write_text(
         json.dumps(rows(4.0, -0.05)), encoding="utf-8")
     (hist / "yearn_v3_usdc.json").write_text(json.dumps([
-        {"date": "2026-07-09", "apy": 3.0},
-        {"date": "2026-07-10", "apy": 3.1},
+        {"date": _day(1), "apy": 3.0},
+        {"date": _day(0), "apy": 3.1},
     ]), encoding="utf-8")
     return tmp_path
 

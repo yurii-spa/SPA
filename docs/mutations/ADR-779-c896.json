@@ -1,0 +1,98 @@
+{
+  "title": "#896 ADR-779 — дельта: второй множитель (сколько РАЗ прогон зовёт вид) в переписи повторного разбора лент",
+  "tests": [
+    "spa_core/tests/test_ledger_parse_census.py"
+  ],
+  "mutations": [
+    {
+      "name": "полная цена снова считается БЕЗ второго множителя (произведение выродилось в цену одного вызова)",
+      "file": "spa_core/monitoring/ledger_parse_census.py",
+      "old": "            price += n * (per_call or 0.0)\n",
+      "new": "            price += (per_call or 0.0)\n"
+    },
+    {
+      "name": "сплошной ноль вызовов выдан за ЗАМЕР (счётчик не встал — а прогон объявлен измеренным)",
+      "file": "spa_core/monitoring/ledger_parse_census.py",
+      "old": "        if counts and not any(counts.values()):\n",
+      "new": "        if False and counts and not any(counts.values()):\n"
+    },
+    {
+      "name": "вид, которого не зовёт ни один прогон, молча считается чистым (третий исход исчез)",
+      "file": "spa_core/monitoring/ledger_parse_census.py",
+      "old": "            if reached.get(m.id, 0) == 0:\n",
+      "new": "            if False:\n"
+    },
+    {
+      "name": "вердикт прогонов не доходит до кода возврата (НЕ ИЗМЕРЕНО перестало быть сильнее находки)",
+      "file": "spa_core/monitoring/ledger_parse_census.py",
+      "old": "    if doc[\"unmeasured\"] or wl.get(\"unmeasured\") or wl.get(\"unreached\"):\n",
+      "new": "    if doc[\"unmeasured\"]:\n"
+    },
+    {
+      "name": "счётчик не возвращает подменённый атрибут модуля (прибор портит дерево, которое мерит)",
+      "file": "spa_core/monitoring/ledger_parse_census.py",
+      "old": "        for mod, attr, real in undo:\n            setattr(mod, attr, real)\n    return counts, cannot, answer, err",
+      "new": "        pass\n    return counts, cannot, answer, err"
+    },
+    {
+      "name": "расхождение числа вызовов с объявленным не называется вовсе",
+      "file": "spa_core/monitoring/ledger_parse_census.py",
+      "old": "            if declared is None or n == declared:\n                continue\n",
+      "new": "            if True:\n                continue\n"
+    },
+    {
+      "name": "расхождение значимо только В ОДНУ сторону: исчезнувший названный зов зеленеет",
+      "file": "spa_core/monitoring/ledger_parse_census.py",
+      "old": "            if declared is None or n == declared:\n                continue\n",
+      "new": "            if declared is None or n <= declared:\n                continue\n"
+    },
+    {
+      "name": "неизмеренная цена вызова подставляется нулём (произведение без множителя выдано числом)",
+      "file": "spa_core/monitoring/ledger_parse_census.py",
+      "old": "            if n and per_call is None:\n                price_known = False\n                continue\n",
+      "new": "            if False:\n                price_known = False\n                continue\n"
+    },
+    {
+      "name": "несчитаемый член не называется поимённо (прогон выглядит измеренным целиком)",
+      "file": "spa_core/monitoring/ledger_parse_census.py",
+      "old": "        if cannot:\n            row[\"not_countable\"] = cannot\n",
+      "new": "        if False:\n            row[\"not_countable\"] = cannot\n"
+    },
+    {
+      "name": "порог запаса прогона никогда не срабатывает",
+      "file": "spa_core/monitoring/ledger_parse_census.py",
+      "old": "            if row[\"growth_factor\"] < min_factor:\n                row[\"findings\"].append({\n                    \"kind\": F_WORKLOAD_MARGIN_SHORT,",
+      "new": "            if False:\n                row[\"findings\"].append({\n                    \"kind\": F_WORKLOAD_MARGIN_SHORT,"
+    },
+    {
+      "name": "«дошёл ли прогон до вида» считается МИНИМУМОМ по прогонам (член с одним читателем объявлен слепым)",
+      "file": "spa_core/monitoring/ledger_parse_census.py",
+      "old": "            reached[mid] = max(reached.get(mid, 0), n)\n",
+      "new": "            reached[mid] = min(reached.get(mid, 0), n)\n"
+    },
+    {
+      "name": "перепись упоминаний теряет файл, где вид ОПРЕДЕЛЁН (внутримодульный зов не читатель)",
+      "file": "spa_core/monitoring/ledger_parse_census.py",
+      "old": "            if attr in text and (rel == own or ref.search(text)):\n",
+      "new": "            if attr in text and ref.search(text):\n"
+    },
+    {
+      "name": "перепись упоминаний ищет только форму «pkg.mod» — ВЛОЖЕННЫЙ читатель теряется",
+      "file": "spa_core/monitoring/ledger_parse_census.py",
+      "old": "    ref = re.compile(rf\"\\b{re.escape(pkg)}\\s*(?:\\.|\\s+import\\s+){re.escape(mod)}\\b\"\n",
+      "new": "    ref = re.compile(rf\"\\b{re.escape(pkg)}\\s*(?:\\.){re.escape(mod)}\\b\"\n"
+    },
+    {
+      "name": "обход связываний имени на импорте всегда отвечает «таких нет»",
+      "file": "spa_core/monitoring/ledger_parse_census.py",
+      "old": "                if names & wanted:\n                    hits.append(f\"{rel}: from …{m.group('mod')} import {m.group('names').strip()}\")\n",
+      "new": "                if False:\n                    hits.append(f\"{rel}: from …{m.group('mod')} import {m.group('names').strip()}\")\n"
+    },
+    {
+      "name": "упавший прогон отдаёт счётчики как замер (отказ стал числом)",
+      "file": "spa_core/monitoring/ledger_parse_census.py",
+      "old": "            row[\"not_countable\"] = cannot\n        if err:\n            row[\"unmeasured\"] = err\n",
+      "new": "            row[\"not_countable\"] = cannot\n        if False:\n            row[\"unmeasured\"] = err\n"
+    }
+  ]
+}

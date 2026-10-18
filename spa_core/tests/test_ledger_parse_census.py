@@ -20,6 +20,10 @@ from spa_core.monitoring import ledger_parse_census as lpc
 
 LEDGER_REL = "fake_book/ledger.jsonl"
 
+#: корень ДЕРЕВА, из которого идёт прогон — мера неполноты населения мерится по нему,
+#: а не по тому дереву, где прибор случайно установлен.
+_REPO = Path(__file__).resolve().parents[2]
+
 
 def _write_ledger(data_dir: Path, lines: int = 3) -> Path:
     path = data_dir / LEDGER_REL
@@ -385,3 +389,401 @@ class TestEveryDeclaredNumberHasAReason(unittest.TestCase):
 
 if __name__ == "__main__":  # pragma: no cover
     unittest.main()
+
+
+# ══════════════════════════════════════════════════════════════════════════════════════
+# Второй множитель: сколько РАЗ прогон зовёт вид (ADR-779, заказ G778 п. 3, цикл #896)
+#
+# Каждый тест ниже — порванное звено с названным звеном плюс обратная сторона. Стенд
+# держит вид в НАСТОЯЩЕМ модуле (``types.ModuleType`` в ``sys.modules``), а не отдаёт
+# готовое вызываемое: счётчик подменяет атрибут модуля, и стенд, обошедший эту дверь,
+# проверял бы не ту дверь, которой пользуется прибор.
+# ══════════════════════════════════════════════════════════════════════════════════════
+import sys
+import types
+
+
+def _stand_module(name: str, times: int = 1):
+    """Модуль со своим видом — ровно та форма, которую подменяет счётчик вызовов."""
+    mod = types.ModuleType(name)
+
+    def latest(data_dir):
+        rows = []
+        for _ in range(times):
+            rows = []
+            with open(Path(data_dir) / LEDGER_REL, "r", encoding="utf-8") as fh:
+                for line in fh:
+                    if line.strip():
+                        rows.append(json.loads(line))
+        return rows
+
+    mod.latest = latest
+    sys.modules[name] = mod
+    return mod
+
+
+def _drop_module(name: str):
+    sys.modules.pop(name, None)
+
+
+def _stand_member(name: str, *, declared_opens: int = 1) -> lpc.Member:
+    return lpc.Member(id="fake_book", ledger=LEDGER_REL, view=f"{name}:latest",
+                      declared_opens=declared_opens,
+                      opens_reason="стенд: столько разборов делает вид стенда",
+                      scoped_door=False, scoped_reason="стенд области кэша не открывает")
+
+
+def _stand_workload(runner, *, calls: int = 1, wid: str = "stand_run") -> lpc.Workload:
+    return lpc.Workload(id=wid, run=runner, reason="стенд: прогон читает ленту стенда",
+                        declared_calls={"fake_book": calls},
+                        calls_reason={"fake_book": "стенд: столько зовов делает прогон стенда"})
+
+
+def _calls_runner(mod_name: str, times: int):
+    """Прогон, зовущий вид ЧЕРЕЗ ПРОСТРАНСТВО ИМЁН МОДУЛЯ — так делают все сегодняшние
+    потребители (``rf_read.latest(...)``), и только так счётчик их видит."""
+    def run(data_dir):
+        mod = sys.modules[mod_name]
+        out = None
+        for _ in range(times):
+            out = mod.latest(data_dir)
+        return out
+    return run
+
+
+class TestTheSecondMultiplierIsMeasured(unittest.TestCase):
+    """Целый контур: вызовов столько, сколько объявлено ⇒ ни одной находки."""
+
+    def test_calls_per_workload_are_counted_and_priced(self):
+        name = "spa_stand_second_multiplier_green"
+        _stand_module(name)
+        self.addCleanup(_drop_module, name)
+        with TemporaryDirectory() as td:
+            data = Path(td)
+            _write_ledger(data)
+            doc = lpc.measure(data, members=[_stand_member(name)], tree_root=Path(td),
+                              parse_rounds=1,
+                              workloads=[_stand_workload(_calls_runner(name, 3), calls=3)])
+            wl = doc["workloads"]
+            self.assertEqual(wl["unmeasured"], [], wl["rows"])
+            self.assertEqual(wl["rows"][0]["calls"], {"fake_book": 3})
+            self.assertEqual(wl["unreached"], {})
+            # полная цена ЕСТЬ произведение, а не цена вызова
+            row, per_call = wl["rows"][0], doc["rows"][0]["cost_s"]
+            self.assertAlmostEqual(row["price_s"], 3 * per_call, places=9)
+
+    def test_the_product_is_what_the_margin_is_computed_from(self):
+        """Обратная сторона: при том же виде ДВА зова дают вдвое меньший запас, чем один.
+        Если бы прибор мерил только вызов, оба прогона были бы неотличимы."""
+        name = "spa_stand_second_multiplier_product"
+        _stand_module(name)
+        self.addCleanup(_drop_module, name)
+        with TemporaryDirectory() as td:
+            data = Path(td)
+            _write_ledger(data)
+            doc = lpc.measure(
+                data, members=[_stand_member(name)], tree_root=Path(td), parse_rounds=1,
+                workloads=[_stand_workload(_calls_runner(name, 1), calls=1, wid="one"),
+                           _stand_workload(_calls_runner(name, 2), calls=2, wid="two")])
+            by = {r["id"]: r for r in doc["workloads"]["rows"]}
+            self.assertEqual(by["one"]["calls"], {"fake_book": 1})
+            self.assertEqual(by["two"]["calls"], {"fake_book": 2})
+            self.assertAlmostEqual(by["one"]["growth_factor"],
+                                   2 * by["two"]["growth_factor"], places=6)
+
+
+class TestCallsDriftIsAFindingBothWays(unittest.TestCase):
+    def test_an_extra_call_appearing_is_named(self):
+        name = "spa_stand_calls_more"
+        _stand_module(name)
+        self.addCleanup(_drop_module, name)
+        with TemporaryDirectory() as td:
+            data = Path(td)
+            _write_ledger(data)
+            doc = lpc.measure(data, members=[_stand_member(name)], tree_root=Path(td),
+                              parse_rounds=1,
+                              workloads=[_stand_workload(_calls_runner(name, 3), calls=2)])
+            kinds = [f["kind"] for f in doc["findings"]]
+            self.assertIn(lpc.F_CALLS_DRIFTED, kinds, doc["findings"])
+
+    def test_a_declared_call_disappearing_is_named_too(self):
+        """Исчезновение названного зова значимо ровно так же: у объявленного числа есть
+        причина, и починка, тихо снявшая нужный зов, не вправе зеленеть."""
+        name = "spa_stand_calls_fewer"
+        _stand_module(name)
+        self.addCleanup(_drop_module, name)
+        with TemporaryDirectory() as td:
+            data = Path(td)
+            _write_ledger(data)
+            doc = lpc.measure(data, members=[_stand_member(name)], tree_root=Path(td),
+                              parse_rounds=1,
+                              workloads=[_stand_workload(_calls_runner(name, 1), calls=2)])
+            kinds = [f["kind"] for f in doc["findings"]]
+            self.assertIn(lpc.F_CALLS_DRIFTED, kinds, doc["findings"])
+
+
+class TestWorkloadMarginFloor(unittest.TestCase):
+    def test_a_workload_without_headroom_is_a_finding(self):
+        name = "spa_stand_wl_tight"
+        _stand_module(name)
+        self.addCleanup(_drop_module, name)
+        with TemporaryDirectory() as td:
+            data = Path(td)
+            _write_ledger(data)
+            doc = lpc.measure(data, members=[_stand_member(name)], tree_root=Path(td),
+                              parse_rounds=1, workload_budget_s=1e-9,
+                              workloads=[_stand_workload(_calls_runner(name, 1), calls=1)])
+            kinds = [f["kind"] for f in doc["findings"]]
+            self.assertIn(lpc.F_WORKLOAD_MARGIN_SHORT, kinds, doc["findings"])
+
+    def test_a_roomy_workload_is_not_a_finding(self):
+        name = "spa_stand_wl_roomy"
+        _stand_module(name)
+        self.addCleanup(_drop_module, name)
+        with TemporaryDirectory() as td:
+            data = Path(td)
+            _write_ledger(data)
+            doc = lpc.measure(data, members=[_stand_member(name)], tree_root=Path(td),
+                              parse_rounds=1, workload_budget_s=1e6,
+                              workloads=[_stand_workload(_calls_runner(name, 1), calls=1)])
+            kinds = [f["kind"] for f in doc["findings"]]
+            self.assertNotIn(lpc.F_WORKLOAD_MARGIN_SHORT, kinds, doc["findings"])
+
+
+class TestWorkloadThirdOutcomeIsNeverAZero(unittest.TestCase):
+    def test_a_raising_workload_names_the_exception(self):
+        name = "spa_stand_wl_raises"
+        _stand_module(name)
+        self.addCleanup(_drop_module, name)
+
+        def boom(_data_dir):
+            raise RuntimeError("сборка не поднялась")
+
+        with TemporaryDirectory() as td:
+            data = Path(td)
+            _write_ledger(data)
+            doc = lpc.measure(data, members=[_stand_member(name)], tree_root=Path(td),
+                              parse_rounds=1, workloads=[_stand_workload(boom, calls=1)])
+            row = doc["workloads"]["rows"][0]
+            self.assertIn(lpc.U_WORKLOAD_RAISED, row["unmeasured"] or "")
+            self.assertIsNone(row["calls"], "упавший прогон не вправе отдать число вызовов")
+            self.assertEqual(lpc.exit_code(doc), 2)
+
+    def test_zero_calls_for_everyone_is_the_probe_not_proven(self):
+        """Прогон дошёл до конца, но счётчик не встал: ноль у ВСЕХ членов — это НЕ
+        «прогон лент не читает». Условие приёма прогона в население названо в самом
+        прибое, и оно же делает это правило самопроверяющим."""
+        name = "spa_stand_wl_silent"
+        _stand_module(name)
+        self.addCleanup(_drop_module, name)
+        with TemporaryDirectory() as td:
+            data = Path(td)
+            _write_ledger(data)
+            doc = lpc.measure(data, members=[_stand_member(name)], tree_root=Path(td),
+                              parse_rounds=1,
+                              workloads=[_stand_workload(lambda _d: "ничего не звал", calls=0)])
+            row = doc["workloads"]["rows"][0]
+            self.assertIn(lpc.U_PROBE_NOT_PROVEN, row["unmeasured"] or "")
+            self.assertEqual(lpc.exit_code(doc), 2)
+
+    def test_a_view_bound_at_import_slips_past_the_counter_AND_is_measured_in_the_tree(self):
+        """Дверь счётчика одна, и у неё есть обратная сторона.
+
+        Потребитель, связавший имя на импорте, держит НАСТОЯЩУЮ функцию и подмены не
+        видит — прибор обязан не врать про это молча: ноль у всех членов уходит в
+        третий исход, а сама форма ищется обходом дерева, поэтому «таких нет» есть
+        ЗАМЕР, а не умолчание.
+        """
+        name = "spa_stand_wl_import_bound"
+        mod = _stand_module(name)
+        self.addCleanup(_drop_module, name)
+        bound = mod.latest           # связано на «импорте», мимо атрибута модуля
+        with TemporaryDirectory() as td:
+            data = Path(td)
+            _write_ledger(data)
+            doc = lpc.measure(data, members=[_stand_member(name)], tree_root=Path(td),
+                              parse_rounds=1,
+                              workloads=[_stand_workload(lambda d: bound(d), calls=1)])
+            row = doc["workloads"]["rows"][0]
+            self.assertIn(lpc.U_PROBE_NOT_PROVEN, row["unmeasured"] or "",
+                          "связанное на импорте имя прошло мимо счётчика и это выдали за ноль")
+
+    def test_the_import_binding_form_is_found_in_a_tree_that_has_one(self):
+        """Положительный контроль обхода: посаженное связывание обязано найтись, иначе
+        «связываний нет» на боевом дереве ничего не значит."""
+        with TemporaryDirectory() as td:
+            root = Path(td)
+            (root / "spa_core" / "planted").mkdir(parents=True)
+            (root / "spa_core" / "planted" / "caller.py").write_text(
+                "from spa_core.research_factory.read import latest\n", encoding="utf-8")
+            hits = lpc.direct_name_bindings(root, lpc.LEDGERS)
+            self.assertEqual(len(hits), 1, hits)
+            self.assertIn("planted/caller.py", hits[0])
+
+    def test_a_member_no_workload_reaches_is_unmeasured_not_free(self):
+        name = "spa_stand_wl_unreached"
+        _stand_module(name)
+        self.addCleanup(_drop_module, name)
+        other = "spa_stand_wl_unreached_other"
+        _stand_module(other)
+        self.addCleanup(_drop_module, other)
+        m_called = _stand_member(name)
+        m_idle = lpc.Member(id="idle_book", ledger=LEDGER_REL, view=f"{other}:latest",
+                            declared_opens=1, opens_reason="стенд",
+                            scoped_door=False, scoped_reason="стенд")
+        with TemporaryDirectory() as td:
+            data = Path(td)
+            _write_ledger(data)
+            wl = lpc.Workload(id="stand_run", run=_calls_runner(name, 1),
+                              reason="стенд", declared_calls={"fake_book": 1, "idle_book": 0},
+                              calls_reason={"fake_book": "стенд", "idle_book": "стенд"})
+            doc = lpc.measure(data, members=[m_called, m_idle], tree_root=Path(td),
+                              parse_rounds=1, workloads=[wl])
+            self.assertIn("idle_book", doc["workloads"]["unreached"])
+            self.assertIn(lpc.U_NO_WORKLOAD_REACHES,
+                          doc["workloads"]["unreached"]["idle_book"])
+            self.assertEqual(lpc.exit_code(doc), 2,
+                             "вид без единого измеренного читателя — третий исход, не чистота")
+
+    def test_a_callable_view_has_no_site_to_count_at_and_says_so(self):
+        """Вид, переданный готовым вызываемым, подменить негде. Прибор обязан НАЗВАТЬ
+        это по каждому такому члену, а не молча считать его нулём."""
+        with TemporaryDirectory() as td:
+            data = Path(td)
+            _write_ledger(data)
+            doc = lpc.measure(data, members=[_member(_view_builtin_open(1))],
+                              tree_root=Path(td), parse_rounds=1,
+                              workloads=[_stand_workload(lambda _d: None, calls=0)])
+            row = doc["workloads"]["rows"][0]
+            self.assertIn(lpc.U_VIEW_NOT_PATCHABLE, row["unmeasured"] or "")
+
+    def test_a_called_member_without_a_measured_price_refuses_the_product(self):
+        """Произведение без второго множителя не число: вызовы сосчитаны, цена одного
+        вызова не измерена ⇒ НЕ ИЗМЕРЕНО, а не цена «ноль»."""
+        name = "spa_stand_wl_no_price"
+        _stand_module(name)
+        self.addCleanup(_drop_module, name)
+        with TemporaryDirectory() as td:
+            data = Path(td)
+            _write_ledger(data)
+            wl = _stand_workload(_calls_runner(name, 1), calls=1)
+            out = lpc.measure_workloads(data, members=[_stand_member(name)], workloads=[wl],
+                                        price_by_id={"fake_book": None})
+            self.assertIn(lpc.U_PRICE_UNKNOWN, out["rows"][0]["unmeasured"] or "")
+
+
+class TestTheCounterPutsTheViewBack(unittest.TestCase):
+    """Прибор не вправе оставить дерево подменённым — ни после удачи, ни после отказа."""
+
+    def test_the_module_attribute_is_restored_after_a_clean_run(self):
+        name = "spa_stand_restore_ok"
+        mod = _stand_module(name)
+        self.addCleanup(_drop_module, name)
+        before = mod.latest
+        with TemporaryDirectory() as td:
+            data = Path(td)
+            _write_ledger(data)
+            lpc.count_calls([_stand_member(name)],
+                            _stand_workload(_calls_runner(name, 1)), data)
+        self.assertIs(mod.latest, before)
+
+    def test_the_module_attribute_is_restored_after_the_workload_raises(self):
+        name = "spa_stand_restore_boom"
+        mod = _stand_module(name)
+        self.addCleanup(_drop_module, name)
+        before = mod.latest
+
+        def boom(_d):
+            raise RuntimeError("упал посреди прогона")
+
+        with TemporaryDirectory() as td:
+            data = Path(td)
+            _write_ledger(data)
+            counts, cannot, answer, err = lpc.count_calls(
+                [_stand_member(name)], _stand_workload(boom), data)
+        self.assertIsNotNone(err)
+        self.assertIs(mod.latest, before, "упавший прогон оставил модуль подменённым")
+
+
+class TestViewReferenceCountIsAMeasurement(unittest.TestCase):
+    """Замер рядом с решением: неполноту населения прогонов видно числом."""
+
+    def test_the_defining_file_counts_as_a_reference(self):
+        """Внутримодульный зов (``composer.py`` зовёт свой ``load_ledger``) — читатель,
+        и наивный поиск по ``pkg.mod`` его теряет."""
+        sleeve = [m for m in lpc.LEDGERS if m.id == "sleeve_aggressive"][0]
+        refs = lpc.view_reference_files(sleeve, _REPO)
+        self.assertIn("spa_core/strategy_lab/sleeve/composer.py", refs)
+
+    def test_the_nested_import_form_is_found(self):
+        """Второй вызов ``research_factory.read.latest`` за сборку приходит из
+        ``capital_shadow/readiness.py``, и пишет он форму ``from … import read`` —
+        поиск подстроки ``research_factory.read`` его НЕ находит."""
+        rf = [m for m in lpc.LEDGERS if m.id == "research_factory"][0]
+        refs = lpc.view_reference_files(rf, _REPO)
+        self.assertIn("spa_core/capital_shadow/readiness.py", refs,
+                      "вложенный читатель потерян — значит мера неполноты занижена")
+
+
+class TestEveryDeclaredCallHasAReason(unittest.TestCase):
+    def test_no_workload_carries_a_bare_number(self):
+        for w in lpc.WORKLOADS:
+            self.assertTrue(w.reason.strip(), w.id)
+            for mid in w.declared_calls:
+                self.assertTrue((w.calls_reason.get(mid) or "").strip(),
+                                f"{w.id}/{mid}: число объявлено без причины")
+
+    def test_every_workload_declares_every_member(self):
+        ids = {m.id for m in lpc.LEDGERS}
+        for w in lpc.WORKLOADS:
+            self.assertEqual(set(w.declared_calls), ids,
+                             f"{w.id}: население объявленных вызовов разошлось с лентами")
+
+    def test_at_least_one_workload_declares_a_second_call(self):
+        """Предмет заказа G778 п. 3 — что множитель НЕ единица. Если это перестанет быть
+        правдой у всего населения, прибор обязан покраснеть, а не тихо потерять предмет."""
+        self.assertTrue(any(n > 1 for w in lpc.WORKLOADS for n in w.declared_calls.values()),
+                        "ни один объявленный прогон не зовёт вид дважды — предмет исчез")
+
+    def test_a_member_called_by_only_ONE_workload_is_not_unreached(self):
+        """«Дошёл ли до вида хоть один прогон» есть МАКСИМУМ по прогонам, а не минимум:
+        член, которого зовёт одна сборка и не зовёт нажатие, читателя ИМЕЕТ."""
+        name = "spa_stand_reach_max"
+        _stand_module(name)
+        self.addCleanup(_drop_module, name)
+        with TemporaryDirectory() as td:
+            data = Path(td)
+            _write_ledger(data)
+            doc = lpc.measure(
+                data, members=[_stand_member(name)], tree_root=Path(td), parse_rounds=1,
+                workloads=[_stand_workload(_calls_runner(name, 1), calls=1, wid="calls_it"),
+                           lpc.Workload(id="ignores_it", run=_calls_runner(name, 0),
+                                        reason="стенд: прогон эту ленту не читает",
+                                        declared_calls={"fake_book": 0},
+                                        calls_reason={"fake_book": "стенд"})])
+            self.assertEqual(doc["workloads"]["unreached"], {},
+                             "вид, которого зовёт один из прогонов, объявлен без читателя")
+            self.assertEqual(doc["workloads"]["calls_by_member"], {"fake_book": 1})
+
+    def test_the_uncountable_member_is_NAMED_beside_the_countable_one(self):
+        """Смешанное население: один член считается, другой — нет. Прибор обязан назвать
+        второго ПОИМЁННО, иначе прогон выглядит измеренным целиком."""
+        name = "spa_stand_mixed"
+        _stand_module(name)
+        self.addCleanup(_drop_module, name)
+        with TemporaryDirectory() as td:
+            data = Path(td)
+            _write_ledger(data)
+            m_opaque = lpc.Member(id="opaque_book", ledger=LEDGER_REL,
+                                  view=_view_builtin_open(1), declared_opens=1,
+                                  opens_reason="стенд", scoped_door=False,
+                                  scoped_reason="стенд")
+            wl = lpc.Workload(id="stand_run", run=_calls_runner(name, 1), reason="стенд",
+                              declared_calls={"fake_book": 1, "opaque_book": 0},
+                              calls_reason={"fake_book": "стенд", "opaque_book": "стенд"})
+            doc = lpc.measure(data, members=[_stand_member(name), m_opaque],
+                              tree_root=Path(td), parse_rounds=1, workloads=[wl])
+            row = doc["workloads"]["rows"][0]
+            self.assertIsNotNone(row["not_countable"], "несчитаемый член не назван вовсе")
+            self.assertIn("opaque_book", row["not_countable"])
+            self.assertIn(lpc.U_VIEW_NOT_PATCHABLE, row["not_countable"]["opaque_book"])
