@@ -109,6 +109,78 @@ research_factory.read.latest``. Это ровно класс ADR-777 («лека
 связываний ИЗМЕРЯЕТСЯ обходом дерева (:func:`direct_name_bindings`), и появление первого
 есть находка, а не тишина.
 
+## Цена считается у ФАЙЛА, а не у объявленного вида (цикл #898)
+
+До цикла #898 цена прогона считалась моделью: «открытий за ОДИН вызов вида × зовов вида».
+Замер у самого файла — то есть число РАЗБОРОВ ленты за весь прогон — показал, что модель
+неверна у ДВУХ прогонов из трёх, и оба раза в сторону занижения:
+
+===================  =============  ==========  ==================  ================
+прогон                  лента        по модели   ИЗМЕРЕНО у файла    цена прогона
+===================  =============  ==========  ==================  ================
+``mission_build``    research_factory         4   **8**              1.73 с (а не 0.93)
+``telegram_oracle``  research_factory         0   **4**              0.86 с (а не 0.02)
+``telegram_sherlock`` research_factory        2   2                  0.42 с (сошлось)
+===================  =============  ==========  ==================  ================
+
+**Причина одна: у ленты ВТОРОЙ вид, и население членов его не знает.** Член объявляет
+ровно один вид на ленту (``research_factory.read:latest``), а ту же ленту разбирает
+``research_factory.read.cio_view`` — его зовут через ДРУГУЮ читающую модель
+(``investment_cio.research_universe.build``). Четыре места сборки платят по два разбора
+каждое (``verify`` + ``read_all``), и два из этих четырёх идут во второй вид:
+
+```
+_research_universe_section  → read.latest    (verify + read_all)
+_live_readiness_section     → capital_shadow.readiness → read.latest
+_investment_cio_section     → research_universe.build  → read.cio_view
+_capital_sources_section    → read.capital_sources → … → read.cio_view
+```
+
+Экран Oracle при этом нёс объявленную причину «экран этой ленты не читает» — и читал её
+четыре раза за ОДНО нажатие владельца. Печатавшийся у него запас 61.9× оказался **1.2×**.
+
+Поэтому цена прогона берётся из ЗАМЕРА, а модель остаётся рядом вторым числом: их
+расхождение печатается находкой (:data:`F_MODEL_DISAGREES`), и НАПРАВЛЕНИЕ его называется
+замером, а не предполагается: модель НИЖЕ замера ⇒ ленту читает кто-то помимо объявленного
+вида (цена занижалась — сегодняшний случай); модель ВЫШЕ замера ⇒ объявленный вид разбирает
+реже, чем объявлено (сработал кэш либо чтение исчезло). Имя находки направления не
+утверждает — проверка симметрична, и имя обязано отвечать на тот же вопрос, что проверка.
+Сегодняшнее расхождение чинится объявлением второго вида в населении; пока он не объявлен,
+находка стои́т.
+
+## Третий множитель: сколько раз за СУТКИ зовут сам прогон (заказ G779, цикл #898)
+
+ADR-779 назвал этот множитель своим остатком: *«полная суточная цена есть произведение
+трёх, и у третьего сегодня нет прибора»*. Теперь есть, и частота мерится по ПРИРОДЕ
+прогона — двумя разными способами:
+
+* **расписание** (``StartInterval``/``StartCalendarInterval`` в plist) отвечает, сколько
+  прогонов ДОЛЖНО быть: сборку Mission Control зовёт launchd каждые 300 с ⇒ 288 в сутки;
+* **журнал агента** (``START agent=…``, пишет ``scripts/agent_template.sh``) отвечает,
+  сколько их БЫЛО: замер 18.10 — **272** запуска за сутки.
+
+Печатаются ОБА, и суточная цена считается по наблюдённому: платим за случившиеся прогоны,
+а не за назначенные. Наблюдённый ноль при непустом расписании — находка
+(:data:`F_SCHEDULE_NEVER_OBSERVED`), а не бесплатный прогон.
+
+**Окно наблюдения не вправе быть глубже самого журнала.** Тот же журнал 18.10: окно 24 ч
+дало 272 запуска = 272/сутки, окно 168 ч — 675 запусков = 96/сутки. Второе число не про
+частоту вовсе: журнал начинался 62 ч назад, и широкое окно поделило настоящие запуски на
+пустоту, которой в журнале нет. Это свойство ИЗМЕРИТЕЛЯ, выданное за свойство предмета —
+тот же класс, что календарь и номер процесса в ``.claude/rules/deployment.md``. Поэтому
+журнал мельче окна ⇒ :data:`U_LOG_SHALLOWER` с обоими числами, а не меньшее частное.
+
+**Нажатие владельца частоты не имеет вовсе, и это ЗАМЕР дерева.** Экраны Sherlock и Oracle
+достаются через ``telegram/router.py::render_view``, и ни один путь оттуда не оставляет
+записи об УДАЧНО отданном экране (в роутере только ``_log.warning`` на отказах). Поэтому
+их суточная цена — :data:`U_DAILY_PRICE_UNKNOWN`, третий исход с названной причиной:
+нажатий могло быть сто, и цена четырёх разборов 55-мегабайтной ленты на каждое не известна
+ни одному сторожу.
+
+Суточная цена сборки на 18.10: **1.73 с × 272 = 471 с/сутки** (0.55 % суток). Числу этому
+прибор вердикта НЕ даёт: суточного бюджета не принимал никто, и выдумывать порог он не
+вправе — сказано вслух в строке «НЕ ДОКЛАДЫВАЕТ».
+
 ## Бюджет и порог запаса — РЕШЕНИЯ, и названы как решения
 
 :data:`REPARSE_BUDGET_S` = 1.0 с на ОДИН вызов вида. Это решение, а не замер: вид зовут
@@ -148,9 +220,11 @@ from __future__ import annotations
 import argparse
 import builtins
 import contextlib
+import datetime as _dt
 import importlib
 import io
 import json
+import plistlib
 import re
 import time
 from dataclasses import dataclass, field
@@ -178,6 +252,10 @@ F_OPENS_DRIFTED = "opens_per_view_drifted"
 F_CALLS_DRIFTED = "calls_per_workload_drifted"
 F_WORKLOAD_MARGIN_SHORT = "workload_growth_margin_below_floor"
 F_IMPORT_BOUND_VIEW = "view_name_bound_at_import"
+F_WORKLOAD_OPENS_DRIFTED = "opens_per_workload_drifted"
+F_MODEL_DISAGREES = "per_view_model_disagrees_with_the_measured_parses"
+F_SCHEDULE_NEVER_OBSERVED = "schedule_declared_but_the_run_was_never_observed"
+F_PRICE_EXCEEDS_INTERVAL = "reparse_price_exceeds_the_run_own_interval"
 
 U_VIEW_RAISED = "view_raised"
 U_LEDGER_ABSENT = "ledger_absent"
@@ -188,6 +266,10 @@ U_PROBE_NOT_PROVEN = "zero_calls_for_every_member_of_the_population"
 U_NO_WORKLOAD_REACHES = "no_declared_workload_calls_this_view"
 U_VIEW_NOT_PATCHABLE = "view_has_no_module_attribute_to_count_at"
 U_PRICE_UNKNOWN = "per_call_price_not_measured"
+U_RATE_NOT_OBSERVABLE = "daily_rate_has_no_record_to_observe"
+U_LOG_SHALLOWER = "log_depth_shallower_than_the_window"
+U_SCHEDULE_UNREADABLE = "schedule_declared_but_not_readable"
+U_DAILY_PRICE_UNKNOWN = "daily_price_missing_a_factor"
 
 
 @dataclass(frozen=True)
@@ -268,6 +350,37 @@ SELF_REL = "spa_core/monitoring/ledger_parse_census.py"
 
 
 @dataclass(frozen=True)
+class Cadence:
+    """ТРЕТИЙ множитель: сколько раз за СУТКИ зовут сам прогон (заказ G779, цикл #898).
+
+    Множителя этого у прибора не было вовсе, и ADR-779 назвал его отсутствие своим
+    остатком: *«полная суточная цена есть произведение трёх, и у третьего сегодня нет
+    прибора»*. Частота бывает ровно двух природ, и они мерятся РАЗНЫМ:
+
+    * **расписание** — прогон зовёт launchd, и частота ОБЪЯВЛЕНА в plist
+      (``StartInterval``/``StartCalendarInterval``). Это решение, лежащее в файле;
+    * **нажатие владельца** — расписания нет, и частота есть НАБЛЮДЕНИЕ. Наблюдать её
+      можно только по записи, и если записи нет, то суточная частота **не ноль, а НЕ
+      ИЗМЕРЕНА** (:data:`U_RATE_NOT_OBSERVABLE`): нажатий могло быть сто.
+
+    Объявленная частота и наблюдённая — ДВА разных числа, и печатаются оба. Расписание
+    судит, сколько прогонов ДОЛЖНО быть; журнал агента — сколько их БЫЛО. Ноль
+    наблюдённых при непустом расписании есть находка (агент мёртв либо не загружен), а не
+    «прогон бесплатный».
+    """
+
+    #: путь в ДЕРЕВЕ, объявляющий расписание (plist), либо ``None`` — расписания нет
+    plist: Optional[str]
+    #: имя агента, которым подписаны строки его журнала (``START agent=<имя>``)
+    agent: Optional[str]
+    #: журнал агента, по которому частота НАБЛЮДАЕМА, либо ``None`` — наблюдать нечем
+    log: Optional[str]
+    #: ПОЧЕМУ именно так, и чем мерить, если мерить нечем. Без причины поле пусто, а
+    #: «не измерено» без названной причины неотличимо от забывчивости (инв. #17).
+    reason: str
+
+
+@dataclass(frozen=True)
 class Workload:
     """Один НАЗВАННЫЙ прогон — сборка или нажатие владельца, — за который считают вызовы.
 
@@ -276,6 +389,13 @@ class Workload:
     Условие приёма в население названо и самопроверяющееся: прогон обязан читать хотя бы
     одну ленту, поэтому сплошной ноль по всем членам есть «счётчик не встал»
     (:data:`U_PROBE_NOT_PROVEN`), а не «прогон лент не читает».
+
+    ``declared_opens`` — ЗАМЕР 2026-10-18 (цикл #898) у САМОГО ФАЙЛА за весь прогон, и это
+    ДРУГОЕ число, чем ``declared_calls``. Разница между ними и есть предмет: цена прогона
+    равна числу РАЗБОРОВ, а не числу зовов объявленного вида, и у сборки Mission Control
+    эти два числа разошлись вдвое (8 разборов против 4 предсказанных моделью) — ленту
+    читает ВТОРОЙ вид того же пакета (``research_factory.read.cio_view``), которого
+    население членов не объявляет.
     """
 
     id: str
@@ -283,6 +403,9 @@ class Workload:
     reason: str
     declared_calls: Dict[str, int]
     calls_reason: Dict[str, str]
+    declared_opens: Dict[str, int]
+    opens_reason: Dict[str, str]
+    cadence: Cadence
 
 
 def _run_mission_build(data_dir: Path) -> object:
@@ -324,6 +447,19 @@ def _run_telegram_oracle(data_dir: Path) -> object:
         return cap.render_oracle()
 
 
+#: Частота нажатия владельца. Расписания у неё нет по природе, а наблюдать её СЕГОДНЯ
+#: нечем, и это ЗАМЕР дерева, а не предположение: экраны достаются через
+#: ``telegram/router.py::render_view`` → ``views.get_builder``, и ни один путь оттуда не
+#: оставляет записи об УДАЧНОЙ отдаче экрана — в роутере есть только ``_log.warning`` на
+#: отказах. Поэтому суточное число нажатий здесь **не ноль, а НЕ ИЗМЕРЕНО**: нажатий могло
+#: быть сто, и суточная цена этих прогонов неизвестна ни одному сторожу.
+_OWNER_PRESS = Cadence(
+    plist=None, agent=None, log=None,
+    reason=("нажатие владельца: расписания нет по природе, а записи об отданном экране не "
+            "ведёт никто (spa_core/telegram/router.py журналит только отказы) — суточная "
+            "частота НЕ НАБЛЮДАЕМА, и нулём это не считается"),
+)
+
 #: Объявленное население ПРОГОНОВ. Это РЕШЕНИЕ, а не замер, и прибор не утверждает, что
 #: прогонов в системе ровно три — он утверждает, что измерил эти три. Насколько население
 #: полно, видно по соседнему ЗАМЕРУ :func:`view_reference_files`.
@@ -345,6 +481,30 @@ WORKLOADS: Tuple[Workload, ...] = (
                                "которая сама зовёт read.latest"),
             "sleeve_aggressive": "сборка рукавную ленту не читает вовсе — ноль тут ЗАМЕР",
         },
+        declared_opens={"research_factory": 8, "capital_shadow": 5,
+                        "investment_cio": 6, "sleeve_aggressive": 0},
+        opens_reason={
+            "research_factory": (
+                "ЧЕТЫРЕ места сборки разбирают эту ленту, и каждое платит ДВА разбора "
+                "(verify + read_all): _research_universe_section → read.latest · "
+                "_live_readiness_section → capital_shadow.readiness → read.latest · "
+                "_investment_cio_section → research_universe.build → read.cio_view · "
+                "_capital_sources_section → read.capital_sources → … → read.cio_view. "
+                "Модель «открытий за вызов × зовов вида» предсказывает 4: два последних "
+                "места зовут ВТОРОЙ вид (cio_view), которого население членов не знает"),
+            "capital_shadow": "один зов вида, пять разборов внутри него — своя реализация ленты",
+            "investment_cio": "два зова вида по три разбора каждый (latest · verify_chain · find_due)",
+            "sleeve_aggressive": "сборка рукавную ленту не открывает ни разу — ноль тут ЗАМЕР",
+        },
+        cadence=Cadence(
+            plist="launchd/com.spa.mission_control.plist",
+            agent="mission_control",
+            log="/tmp/spa_mission_control.log",
+            reason=("сборку зовёт launchd (агент com.spa.mission_control), поэтому частота "
+                    "ОБЪЯВЛЕНА расписанием и НАБЛЮДАЕМА журналом агента — печатаются оба "
+                    "числа: расписание говорит, сколько прогонов должно быть, журнал — "
+                    "сколько их было"),
+        ),
     ),
     Workload(
         id="telegram_sherlock",
@@ -358,6 +518,16 @@ WORKLOADS: Tuple[Workload, ...] = (
             "investment_cio": "экран этой ленты не читает",
             "sleeve_aggressive": "экран этой ленты не читает",
         },
+        declared_opens={"research_factory": 2, "capital_shadow": 0,
+                        "investment_cio": 0, "sleeve_aggressive": 0},
+        opens_reason={
+            "research_factory": ("один зов вида, два разбора внутри него (verify + read_all) "
+                                 "— здесь модель и замер СОШЛИСЬ, и это тоже результат"),
+            "capital_shadow": "экран этой ленты не открывает — ноль тут ЗАМЕР",
+            "investment_cio": "экран этой ленты не открывает — ноль тут ЗАМЕР",
+            "sleeve_aggressive": "экран этой ленты не открывает — ноль тут ЗАМЕР",
+        },
+        cadence=_OWNER_PRESS,
     ),
     Workload(
         id="telegram_oracle",
@@ -372,6 +542,21 @@ WORKLOADS: Tuple[Workload, ...] = (
                                "READERS['sources'] → read.capital_sources → read.latest"),
             "sleeve_aggressive": "экран этой ленты не читает",
         },
+        declared_opens={"research_factory": 4, "capital_shadow": 0,
+                        "investment_cio": 6, "sleeve_aggressive": 0},
+        opens_reason={
+            "research_factory": (
+                "ЧЕТЫРЕ разбора 55-мегабайтной ленты на ОДНО нажатие — при том, что "
+                "объявленных ЗОВОВ вида ноль и причина рядом гласит «экран этой ленты не "
+                "читает». Читает: оба зова investment_cio.read идут в "
+                "research_universe.build → research_factory.read.cio_view, по два разбора "
+                "каждый (verify + read_tail→read_all). Модель по объявленному виду "
+                "предсказывает ноль, замер даёт четыре"),
+            "capital_shadow": "экран этой ленты не открывает — ноль тут ЗАМЕР",
+            "investment_cio": "два зова вида по три разбора (latest · verify_chain · find_due)",
+            "sleeve_aggressive": "экран этой ленты не открывает — ноль тут ЗАМЕР",
+        },
+        cadence=_OWNER_PRESS,
     ),
 )
 
@@ -471,15 +656,29 @@ def resolve_view_site(member: "Member") -> Tuple[Optional[object], Optional[str]
 
 
 def count_calls(members: Sequence["Member"], workload: Workload,
-                data_dir: Path) -> Tuple[Dict[str, int], Dict[str, str], object, Optional[str]]:
-    """Сколько раз ОДИН прогон зовёт КАЖДЫЙ вид — подменой атрибута модуля.
+                data_dir: Path) -> Tuple[Dict[str, int], Dict[str, str], object,
+                                         Optional[str], Dict[str, int]]:
+    """Что ОДИН прогон делает с каждой лентой — ДВА числа, и они отвечают на разное.
 
-    Возврат: счётчики · члены, у которых считать нечем (с причиной) · ответ прогона ·
-    причина отказа прогона (``None``, если прогон дошёл до конца).
+    * **зовы** (``counts``) — сколько раз прогон позвал ОБЪЯВЛЕННЫЙ вид; мерятся подменой
+      атрибута модуля;
+    * **разборы** (``opens``) — сколько раз за прогон открылся САМ ФАЙЛ ленты; мерятся у
+      файла, по обеим дверям.
+
+    Второе число и есть то, на что умножается цена разбора, и равняться первому оно не
+    обязано: замер цикла #898 на живом ``data/`` — сборка Mission Control зовёт
+    объявленный вид ``research_factory.read.latest`` ДВА раза, а ленту разбирает **восемь**,
+    потому что два других её места идут во ВТОРОЙ вид того же пакета
+    (``read.cio_view``), которого население членов не объявляет. Считать цену по зовам
+    объявленного вида значило бы печатать половину правды с видом целого.
+
+    Возврат: зовы · члены, у которых считать нечем (с причиной) · ответ прогона ·
+    причина отказа прогона (``None``, если прогон дошёл до конца) · разборы.
     """
     counts: Dict[str, int] = {}
     cannot: Dict[str, str] = {}
     undo: List[Tuple[object, str, Callable]] = []
+    targets = {m.id: Path(data_dir) / m.ledger for m in members}
     for m in members:
         mod, attr, why = resolve_view_site(m)
         if mod is None:
@@ -498,32 +697,176 @@ def count_calls(members: Sequence["Member"], workload: Workload,
         setattr(mod, attr, make())
         undo.append((mod, attr, real))
     try:
-        answer = workload.run(Path(data_dir))
-        err = None
-    except Exception as exc:  # noqa: BLE001 — прогон упал ⇒ третий исход с причиной
-        answer, err = None, f"{U_WORKLOAD_RAISED}: {type(exc).__name__}: {exc}"
+        with _counting_opens(targets) as opens:
+            try:
+                answer = workload.run(Path(data_dir))
+                err = None
+            except Exception as exc:  # noqa: BLE001 — прогон упал ⇒ третий исход с причиной
+                answer, err = None, f"{U_WORKLOAD_RAISED}: {type(exc).__name__}: {exc}"
     finally:
         for mod, attr, real in undo:
             setattr(mod, attr, real)
-    return counts, cannot, answer, err
+    return counts, cannot, answer, err, dict(opens)
+
+
+#: формат строки запуска, которую пишет ``scripts/agent_template.sh`` каждому агенту флота
+_START_LINE = re.compile(r"^\[(?P<ts>\d{4}-\d\d-\d\dT\d\d:\d\d:\d\dZ)\]\s+START\s+agent=(?P<agent>\S+)")
+
+
+def declared_daily_rate(plist_path: Path | str) -> Tuple[Optional[float], Optional[float],
+                                                         Optional[str]]:
+    """ОБЪЯВЛЕННАЯ частота прогона: сколько раз в сутки его зовёт launchd.
+
+    Возврат: прогонов в сутки · интервал в секундах (если расписание интервальное) ·
+    причина, по которой ответа нет. Третий исход тут обязателен: plist, которого нет, и
+    plist без расписания — РАЗНЫЕ вещи, и ни одна из них не «ноль прогонов в сутки».
+
+    ``StartInterval`` даёт частоту делением суток; ``StartCalendarInterval`` — числом
+    объявленных моментов (их столько и наступает за сутки). Разбирается ``plistlib``
+    (stdlib), а не регуляркой: формат объявлен Apple, и своя копия разбора расходилась бы
+    с ним при первой же правке plist.
+    """
+    path = Path(plist_path)
+    if not path.is_file():
+        return None, None, f"{U_SCHEDULE_UNREADABLE}: plist {path} не найден"
+    try:
+        with open(path, "rb") as fh:
+            doc = plistlib.load(fh)
+    except Exception as exc:  # noqa: BLE001 — причина НАЗЫВАЕТСЯ
+        return None, None, f"{U_SCHEDULE_UNREADABLE}: {type(exc).__name__}: {exc}"
+    interval = doc.get("StartInterval")
+    if isinstance(interval, int) and interval > 0:
+        return 86400.0 / interval, float(interval), None
+    cal = doc.get("StartCalendarInterval")
+    if isinstance(cal, dict):
+        return 1.0, None, None
+    if isinstance(cal, list) and cal:
+        return float(len(cal)), None, None
+    return None, None, (f"{U_SCHEDULE_UNREADABLE}: в {path.name} нет ни StartInterval, ни "
+                        f"StartCalendarInterval — чем расписание задано, не измерено")
+
+
+def observed_daily_rate(log_path: Path | str, agent: str, *, now,
+                        window_h: float = 24.0) -> Tuple[Optional[float], Optional[int],
+                                                         Optional[str]]:
+    """НАБЛЮДЁННАЯ частота прогона: сколько раз агент реально стартовал за окно.
+
+    Возврат: прогонов в сутки · запусков в окне · причина, по которой ответа нет.
+
+    **Окно не вправе быть глубже самого журнала, и это не придирка — это замер цикла
+    #898.** Тот же журнал на окне 24 ч дал 272 запуска (272/сутки), а на окне 168 ч — 675
+    запусков, то есть 96/сутки. Второе число не про частоту вовсе: журнал начинался 62 ч
+    назад, и 168-часовое окно поделило реальные запуски на пустоту, которой в журнале нет.
+    Ровно тот класс, что `.claude/rules/deployment.md` ведёт по календарю и по номеру
+    процесса: свойство ИЗМЕРИТЕЛЯ, выданное за свойство предмета. Поэтому журнал мельче
+    окна ⇒ :data:`U_LOG_SHALLOWER` с ОБОИМИ числами, а не частное.
+
+    ``now`` — ВХОД, а не стенные часы (п. 1 порядка предпочтения того же правила): и окно,
+    и глубина журнала считаются от него, поэтому тест закрепляет обе стороны и не
+    стареет.
+    """
+    path = Path(log_path)
+    if not path.is_file():
+        return None, None, f"{U_RATE_NOT_OBSERVABLE}: журнал {path} не найден"
+    stamps: List[_dt.datetime] = []
+    try:
+        with open(path, "r", encoding="utf-8", errors="replace") as fh:
+            for line in fh:
+                m = _START_LINE.match(line)
+                if not m or m.group("agent") != agent:
+                    continue
+                try:
+                    stamps.append(_dt.datetime.strptime(
+                        m.group("ts"), "%Y-%m-%dT%H:%M:%SZ").replace(tzinfo=_dt.timezone.utc))
+                except ValueError:  # pragma: no cover — отметка не разобралась
+                    continue
+    except OSError as exc:
+        return None, None, f"{U_RATE_NOT_OBSERVABLE}: {type(exc).__name__}: {exc}"
+    if not stamps:
+        return None, None, (f"{U_RATE_NOT_OBSERVABLE}: в журнале {path.name} нет ни одной "
+                            f"строки START agent={agent} — глубину журнала мерить нечем, и "
+                            f"нулём частота тут не становится")
+    depth_h = (now - min(stamps)).total_seconds() / 3600.0
+    if depth_h < window_h:
+        return None, None, (
+            f"{U_LOG_SHALLOWER}: журнал глубиной {depth_h:.1f}ч при окне {window_h:.1f}ч — "
+            f"частное поделило бы {len(stamps)} настоящих запусков на пустоту, которой в "
+            f"журнале нет (замер #898: то же окно 168ч дало 96/сутки против 272/сутки на 24ч)")
+    cut = now - _dt.timedelta(hours=window_h)
+    in_window = sum(1 for s in stamps if s >= cut)
+    return in_window / (window_h / 24.0), in_window, None
+
+
+def measure_cadence(workload: Workload, *, tree_root: Optional[Path] = None, now=None,
+                    window_h: float = 24.0) -> dict:
+    """ТРЕТИЙ множитель одного прогона: объявленная частота рядом с наблюдённой.
+
+    Ни одно из двух чисел не заменяет другое. Расписание отвечает «сколько прогонов
+    ДОЛЖНО быть», журнал — «сколько их БЫЛО»; наблюдённый ноль при непустом расписании
+    есть НАХОДКА (агент мёртв или не загружен), а отсутствие и расписания, и журнала —
+    третий исход с причиной, а не бесплатный прогон.
+    """
+    now = now or _dt.datetime.now(_dt.timezone.utc)
+    cad = workload.cadence
+    out: dict = {"declared_per_day": None, "interval_s": None, "observed_per_day": None,
+                 "observed_count": None, "window_h": window_h, "reason": cad.reason,
+                 "unmeasured": None, "findings": []}
+    if cad.plist:
+        rate, interval, why = declared_daily_rate(Path(tree_root or _ROOT) / cad.plist)
+        out["declared_per_day"], out["interval_s"] = rate, interval
+        if why:
+            out["unmeasured"] = why
+    if cad.log and cad.agent:
+        rate, count, why = observed_daily_rate(cad.log, cad.agent, now=now, window_h=window_h)
+        out["observed_per_day"], out["observed_count"] = rate, count
+        if why and not out["unmeasured"]:
+            out["unmeasured"] = why
+    if not cad.plist and not cad.log:
+        out["unmeasured"] = f"{U_RATE_NOT_OBSERVABLE}: {cad.reason}"
+    if (out["declared_per_day"] or 0) > 0 and out["observed_count"] == 0:
+        out["findings"].append({
+            "kind": F_SCHEDULE_NEVER_OBSERVED,
+            "text": (f"расписание объявляет {out['declared_per_day']:.0f} прогонов в сутки, "
+                     f"а журнал агента за окно {window_h:.0f}ч не показал НИ ОДНОГО запуска "
+                     f"— прогон либо не загружен, либо падает до записи; суточная цена "
+                     f"такого прогона не ноль, а неизвестна"),
+        })
+    return out
 
 
 def measure_workloads(data_dir: Path | str, *, members: Sequence["Member"] = LEDGERS,
                       workloads: Sequence[Workload] = (),
                       price_by_id: Optional[Dict[str, Optional[float]]] = None,
+                      parse_by_id: Optional[Dict[str, Optional[float]]] = None,
                       budget_s: float = WORKLOAD_BUDGET_S,
-                      min_factor: float = MIN_GROWTH_FACTOR) -> dict:
-    """Второй множитель и полная цена прогона. Три исхода различимы у КАЖДОГО прогона."""
+                      min_factor: float = MIN_GROWTH_FACTOR,
+                      tree_root: Optional[Path] = None,
+                      now=None, window_h: float = 24.0) -> dict:
+    """Второй и ТРЕТИЙ множители, полная цена прогона и СУТОЧНАЯ цена.
+
+    Цена прогона считается по ИЗМЕРЕННЫМ разборам ленты, а не по зовам объявленного вида:
+    второе предсказывает первое только там, где у ленты ровно один вид, и у двух из трёх
+    прогонов это предсказание разошлось с замером (цикл #898). Расхождение печатается
+    находкой в ОБЕ стороны, а не сглаживается в пользу любого из чисел.
+
+    Суточная цена есть произведение ТРЁХ: цена разбора × разборов за прогон × прогонов за
+    сутки. Нет третьего множителя ⇒ суточной цены нет вовсе (:data:`U_DAILY_PRICE_UNKNOWN`),
+    а не ноль: прогон без наблюдаемой частоты не бесплатный, он неизмеренный.
+    """
     data = Path(data_dir)
     price_by_id = price_by_id or {}
+    parse_by_id = parse_by_id or {}
+    opens_per_call = {m.id: m.declared_opens for m in members}
     rows: List[dict] = []
     reached: Dict[str, int] = {m.id: 0 for m in members}
     seen_measured = False
     for w in workloads:
-        row: dict = {"id": w.id, "reason": w.reason, "calls": None,
-                     "not_countable": None, "unmeasured": None,
-                     "price_s": None, "growth_factor": None, "findings": []}
-        counts, cannot, answer, err = count_calls(members, w, data)
+        row: dict = {"id": w.id, "reason": w.reason, "calls": None, "opens": None,
+                     "opens_modelled": None, "not_countable": None, "unmeasured": None,
+                     "price_s": None, "growth_factor": None, "cadence": None,
+                     "price_day_s": None, "rate_per_day": None, "rate_source": None,
+                     "share_of_day": None, "daily_unmeasured": None, "findings": []}
+        counts, cannot, answer, err, opens = count_calls(members, w, data)
         if cannot:
             row["not_countable"] = cannot
         if err:
@@ -547,23 +890,28 @@ def measure_workloads(data_dir: Path | str, *, members: Sequence["Member"] = LED
             continue
         seen_measured = True
         row["calls"] = counts
+        row["opens"] = {mid: n for mid, n in opens.items() if mid in counts or n}
         for mid, n in counts.items():
             reached[mid] = max(reached.get(mid, 0), n)
+
+        # ── цена прогона = цена РАЗБОРА × ИЗМЕРЕННЫХ разборов (не зовов вида) ──────────
         price = 0.0
         price_known = True
-        for mid, n in counts.items():
-            per_call = price_by_id.get(mid)
-            if n and per_call is None:
+        for mid, n in row["opens"].items():
+            per_parse = parse_by_id.get(mid)
+            if n and per_parse is None:
                 price_known = False
                 continue
-            price += n * (per_call or 0.0)
+            price += n * (per_parse or 0.0)
         row["price_s"] = price if price_known else None
         if not price_known:
             row["unmeasured"] = (
-                f"{U_PRICE_UNKNOWN}: вызовы сосчитаны, но цена одного вызова измерена не у "
-                f"всех вызванных видов — произведение без второго множителя не число")
+                f"{U_PRICE_UNKNOWN}: разборы сосчитаны, но цена одного разбора измерена не у "
+                f"всех разобранных лент — произведение без множителя не число")
             rows.append(row)
             continue
+
+        # ── расхождения объявленного с измеренным: оба числа, в ОБЕ стороны ───────────
         for mid, n in counts.items():
             declared = w.declared_calls.get(mid)
             if declared is None or n == declared:
@@ -574,6 +922,39 @@ def measure_workloads(data_dir: Path | str, *, members: Sequence["Member"] = LED
                          f"объявленного числа есть причина: "
                          f"{w.calls_reason.get(mid, 'причина не названа')}"),
             })
+        for mid, n in row["opens"].items():
+            declared = w.declared_opens.get(mid)
+            if declared is None or n == declared:
+                continue
+            row["findings"].append({
+                "kind": F_WORKLOAD_OPENS_DRIFTED,
+                "text": (f"{mid}: РАЗБОРОВ ленты за прогон {n} против объявленных {declared} "
+                         f"— у объявленного числа есть причина: "
+                         f"{w.opens_reason.get(mid, 'причина не названа')}"),
+            })
+
+        # ── модель «открытий за вызов × зовов» против замера у файла ─────────────────
+        modelled = {mid: opens_per_call.get(mid, 0) * n for mid, n in counts.items()}
+        row["opens_modelled"] = modelled
+        for mid, n in row["opens"].items():
+            want = modelled.get(mid)
+            if want is None or n == want:
+                continue
+            #: НАПРАВЛЕНИЕ расхождения — замер, а не предположение, и оба значат разное:
+            #: модель НИЖЕ замера ⇒ ленту читает кто-то помимо объявленного вида (цена
+            #: занижалась); модель ВЫШЕ замера ⇒ объявленный вид разбирает реже, чем
+            #: объявлено (кэш сработал либо чтение исчезло). Имя находки направления не
+            #: утверждает — его называет текст.
+            side = ("модель НИЖЕ замера: ленту читает не только объявленный вид"
+                    if want < n else
+                    "модель ВЫШЕ замера: объявленный вид разобрал ленту реже, чем объявлено")
+            row["findings"].append({
+                "kind": F_MODEL_DISAGREES,
+                "text": (f"{mid}: модель «открытий за вызов × зовов вида» даёт {want}, а у "
+                         f"самого файла измерено {n} разбор(ов) — цена прогона считается по "
+                         f"ЗАМЕРУ; {side} ({w.opens_reason.get(mid, 'причина не названа')})"),
+            })
+
         if price > 0:
             row["growth_factor"] = budget_s / price
             if row["growth_factor"] < min_factor:
@@ -582,7 +963,36 @@ def measure_workloads(data_dir: Path | str, *, members: Sequence["Member"] = LED
                     "text": (f"полная цена прогона {price:.3f} с — запас "
                              f"{row['growth_factor']:.1f}× ниже порога {min_factor:.1f}× при "
                              f"бюджете прогона {budget_s:.2f} с; цена ОДНОГО вызова этот "
-                             f"запас завышает ровно во столько раз, сколько вызовов"),
+                             f"запас завышает ровно во столько раз, сколько разборов"),
+                })
+
+        # ── ТРЕТИЙ множитель и суточная цена ─────────────────────────────────────────
+        cad = measure_cadence(w, tree_root=tree_root, now=now, window_h=window_h)
+        row["cadence"] = cad
+        row["findings"].extend(cad["findings"])
+        rate = cad["observed_per_day"]
+        rate_from = "журнал агента (НАБЛЮДЕНИЕ)"
+        if rate is None:
+            rate, rate_from = cad["declared_per_day"], "расписание plist (ОБЪЯВЛЕНИЕ)"
+        if rate is None:
+            row["price_day_s"] = None
+            row["daily_unmeasured"] = (
+                f"{U_DAILY_PRICE_UNKNOWN}: цена прогона {price:.3f} с измерена, а сколько "
+                f"раз в сутки его зовут — нет ({cad['unmeasured'] or cad['reason']}); "
+                f"суточная цена поэтому НЕ ИЗМЕРЕНА, а не равна нулю")
+        else:
+            row["price_day_s"] = price * rate
+            row["rate_per_day"] = rate
+            row["rate_source"] = rate_from
+            row["share_of_day"] = (price * rate) / 86400.0
+            interval = cad["interval_s"]
+            if interval and price > interval:
+                row["findings"].append({
+                    "kind": F_PRICE_EXCEEDS_INTERVAL,
+                    "text": (f"повторный разбор стои́т прогону {price:.3f} с при его "
+                             f"СОБСТВЕННОМ интервале {interval:.0f} с — прогон не успевает "
+                             f"к своему же следующему запуску, и порог этот не придуман, "
+                             f"а взят из его расписания"),
                 })
         rows.append(row)
 
@@ -602,6 +1012,8 @@ def measure_workloads(data_dir: Path | str, *, members: Sequence["Member"] = LED
         "calls_by_member": reached if seen_measured else {},
         "unreached": unreached,
         "unmeasured": [r for r in rows if r["unmeasured"]],
+        "daily_unmeasured": [r for r in rows if r.get("daily_unmeasured")],
+        "window_h": window_h,
         "findings": [dict(f, id=r["id"]) for r in rows for f in r["findings"]],
     }
 
@@ -651,26 +1063,32 @@ def resolve_view(member: Member) -> Tuple[Optional[Callable], Optional[str]]:
         return None, f"{U_VIEW_UNRESOLVED}: {type(exc).__name__}: {exc}"
 
 
-def count_opens(target: Path, call: Callable[[], object]) -> Tuple[int, object, Optional[str]]:
-    """Сколько раз за ОДИН вызов ``call`` открывается файл ``target`` — по ОБЕИМ дверям.
+@contextlib.contextmanager
+def _counting_opens(targets: Dict[str, Path]):
+    """ОДНА реализация подмены обеих дверей ``open`` — для вызова вида и для всего прогона.
 
-    ``io.open is builtins.open`` истинно (один объект), но ``pathlib`` зовёт его через
-    пространство имён ``io``, поэтому подмена одной двери другую не видит. Замерено на
-    ``sleeve/composer.py::load_ledger``: только ``builtins.open`` даёт 0 открытий при 49
-    прочитанных строках.
+    Копий этой подмены не бывает двух: «одно правило — одна копия» здесь не стилистика, а
+    предмет самого прибора. Счётчик, написанный во второй раз, смотрел бы на другую
+    дверь — ровно тем промахом, из которого вырос третий исход
+    :data:`U_DOOR_NOT_WATCHED` (``io.open is builtins.open`` истинно, но ``pathlib`` зовёт
+    дверь через своё пространство имён, и подмена одной другую НЕ видит).
     """
-    try:
-        want = str(target.resolve())
-    except OSError:  # pragma: no cover — путь без доступа к родителю
-        want = str(target)
-    hits = {"n": 0}
+    want: Dict[str, str] = {}
+    for key, target in targets.items():
+        try:
+            want[key] = str(Path(target).resolve())
+        except OSError:  # pragma: no cover — путь без доступа к родителю
+            want[key] = str(target)
+    hits: Dict[str, int] = {key: 0 for key in targets}
     real_builtin, real_io = builtins.open, io.open
 
     def make(real):
         def hook(file, *a, **k):
             try:
-                if str(Path(file).resolve()) == want:
-                    hits["n"] += 1
+                resolved = str(Path(file).resolve())
+                for key, path in want.items():
+                    if resolved == path:
+                        hits[key] += 1
             except (OSError, TypeError, ValueError):
                 pass
             return real(file, *a, **k)
@@ -679,13 +1097,26 @@ def count_opens(target: Path, call: Callable[[], object]) -> Tuple[int, object, 
     builtins.open = make(real_builtin)
     io.open = make(real_io)
     try:
-        answer = call()
-        err = None
-    except Exception as exc:  # noqa: BLE001 — вид упал ⇒ третий исход с причиной
-        answer, err = None, f"{U_VIEW_RAISED}: {type(exc).__name__}: {exc}"
+        yield hits
     finally:
         builtins.open, io.open = real_builtin, real_io
-    return hits["n"], answer, err
+
+
+def count_opens(target: Path, call: Callable[[], object]) -> Tuple[int, object, Optional[str]]:
+    """Сколько раз за ОДИН вызов ``call`` открывается файл ``target`` — по ОБЕИМ дверям.
+
+    ``io.open is builtins.open`` истинно (один объект), но ``pathlib`` зовёт его через
+    пространство имён ``io``, поэтому подмена одной двери другую не видит. Замерено на
+    ``sleeve/composer.py::load_ledger``: только ``builtins.open`` даёт 0 открытий при 49
+    прочитанных строках.
+    """
+    with _counting_opens({"one": target}) as hits:
+        try:
+            answer = call()
+            err = None
+        except Exception as exc:  # noqa: BLE001 — вид упал ⇒ третий исход с причиной
+            answer, err = None, f"{U_VIEW_RAISED}: {type(exc).__name__}: {exc}"
+    return hits["one"], answer, err
 
 
 def parse_seconds(path: Path, *, rounds: int = 3) -> Optional[float]:
@@ -723,7 +1154,8 @@ def measure(data_dir: Path | str, *, members: Sequence[Member] = LEDGERS,
             tree_root: Optional[Path] = None,
             parse_rounds: int = 3,
             workloads: Sequence[Workload] = (),
-            workload_budget_s: float = WORKLOAD_BUDGET_S) -> dict:
+            workload_budget_s: float = WORKLOAD_BUDGET_S,
+            now=None, window_h: float = 24.0) -> dict:
     """Замер по населению. Три исхода у КАЖДОГО члена различимы (инв. #17).
 
     ``workloads`` пусто ПО УМОЛЧАНИЮ намеренно: названные прогоны поднимают настоящую
@@ -802,9 +1234,13 @@ def measure(data_dir: Path | str, *, members: Sequence[Member] = LEDGERS,
         rows.append(row)
 
     price_by_id = {r["id"]: r["cost_s"] for r in rows}
+    #: цена ОДНОГО разбора — именно она умножается на ИЗМЕРЕННОЕ число разборов прогона;
+    #: цена вызова (``cost_s``) остаётся рядом и отвечает на свой, прежний вопрос.
+    parse_by_id = {r["id"]: r["parse_s"] for r in rows}
     wl = measure_workloads(data, members=members, workloads=workloads,
-                           price_by_id=price_by_id, budget_s=workload_budget_s,
-                           min_factor=min_factor)
+                           price_by_id=price_by_id, parse_by_id=parse_by_id,
+                           budget_s=workload_budget_s, min_factor=min_factor,
+                           tree_root=tree_root, now=now, window_h=window_h)
     import_bound = direct_name_bindings(tree_root, members)
     refs = {m.id: view_reference_files(m, tree_root) for m in members}
     declared_files = sorted(LEDGER_CODE_FILES)
@@ -855,18 +1291,36 @@ def format_report(doc: dict) -> List[str]:
                    f"открытий {r['opens']} · цена {r['cost_s']:.3f} с · запас {factor} · {door}")
     wl = doc.get("workloads") or {}
     if wl.get("declared"):
-        out.append(f"   — второй множитель: сколько РАЗ прогон зовёт вид (заказ G778 п. 3) —")
+        out.append(f"   — второй и ТРЕТИЙ множители: разборы за прогон × прогоны за сутки "
+                   f"(заказы G778 п. 3, G779) —")
         out.append(f"     РЕШЕНИЕ (не замер): бюджет прогона {wl['budget_s']:.2f} с · "
                    f"объявленных прогонов {wl['declared']} — прибор мерит эти, а не "
-                   f"утверждает, что других нет")
+                   f"утверждает, что других нет; суточного бюджета НЕТ ни одного — такого "
+                   f"решения никто не принимал, и прибор его не выдумывает")
         for r in wl["rows"]:
             if r["unmeasured"]:
                 out.append(f"     [НЕ ИЗМЕРЕНО] {r['id']}: {r['unmeasured']}")
                 continue
             calls = " · ".join(f"{k}×{v}" for k, v in sorted(r["calls"].items()) if v)
+            parses = " · ".join(f"{k}×{v}" for k, v in sorted((r["opens"] or {}).items()) if v)
             factor = "—" if r["growth_factor"] is None else f"{r['growth_factor']:.1f}×"
-            out.append(f"     {r['id']}: {calls or 'ни одного вызова'} · полная цена "
-                       f"{r['price_s']:.3f} с · запас {factor}")
+            out.append(f"     {r['id']}: зовы вида {calls or 'ни одного'} · РАЗБОРОВ "
+                       f"{parses or 'ни одного'} · полная цена {r['price_s']:.3f} с · "
+                       f"запас {factor}")
+            cad = r.get("cadence") or {}
+            rate_parts = []
+            if cad.get("observed_per_day") is not None:
+                rate_parts.append(f"наблюдено {cad['observed_per_day']:.0f}/сутки "
+                                  f"({cad['observed_count']} зап. за окно {cad['window_h']:.0f}ч)")
+            if cad.get("declared_per_day") is not None:
+                rate_parts.append(f"объявлено расписанием {cad['declared_per_day']:.0f}/сутки")
+            if r.get("price_day_s") is not None:
+                out.append(f"       третий множитель: {' · '.join(rate_parts)} ⇒ СУТОЧНАЯ "
+                           f"цена {r['price_day_s']:.1f} с/сутки "
+                           f"({r['share_of_day'] * 100:.3f} % суток), источник частоты — "
+                           f"{r['rate_source']}")
+            if r.get("daily_unmeasured"):
+                out.append(f"       [НЕ ИЗМЕРЕНО] {r['daily_unmeasured']}")
             if r["not_countable"]:
                 for mid, why in sorted(r["not_countable"].items()):
                     out.append(f"       [НЕ ИЗМЕРЕНО] {mid}: {why}")
@@ -902,9 +1356,11 @@ def format_report(doc: dict) -> List[str]:
                    f"литерал по построению)")
     out.append("   НЕ ДОКЛАДЫВАЕТ: читает ли кто-то ленту через os.open (такой член уйдёт в "
                "третий исход, а не в тишину) · ПОЛНО ли население прогонов (это решение; "
-               "замер рядом — число упоминаний вида в коде) · сколько раз за СУТКИ зовут "
-               "сам прогон (третий множитель, и он не измерен) · верна ли сама лента "
-               "(это вопрос verify(), не этого прибора)")
+               "замер рядом — число упоминаний вида в коде) · МНОГО ли суточная цена (суточного "
+               "бюджета не принимал никто, поэтому вердикта у этого числа нет) · сколько раз "
+               "в сутки владелец открывает экран (записи об отданном экране не ведёт никто — "
+               "третий исход, не ноль) · верна ли сама лента (это вопрос verify(), не этого "
+               "прибора)")
     out.append("   ADVISORY: прибор только ЧИТАЕТ (ничего не чинит, ни один гейт его не читает)")
     return out
 
@@ -919,7 +1375,8 @@ def exit_code(doc: dict) -> int:
     """
     pop = doc["population"]
     wl = doc.get("workloads") or {}
-    if doc["unmeasured"] or wl.get("unmeasured") or wl.get("unreached"):
+    if (doc["unmeasured"] or wl.get("unmeasured") or wl.get("unreached")
+            or wl.get("daily_unmeasured")):
         return 2
     if doc["findings"] or pop["code_files_undeclared"] or pop["code_files_missing"]:
         return 1
@@ -936,6 +1393,10 @@ def main(argv: Optional[List[str]] = None) -> int:
     ap.add_argument("--min-factor", type=float, default=MIN_GROWTH_FACTOR)
     ap.add_argument("--parse-rounds", type=int, default=3)
     ap.add_argument("--workload-budget-s", type=float, default=WORKLOAD_BUDGET_S)
+    ap.add_argument("--window-h", type=float, default=24.0,
+                    help=("окно, на котором НАБЛЮДАЕТСЯ частота прогона. Глубже самого "
+                          "журнала агента окно быть не вправе — тогда это третий исход, "
+                          "а не меньшее число (см. observed_daily_rate)"))
     ap.add_argument("--no-workloads", action="store_true",
                     help="не поднимать названные прогоны (второй множитель останется НЕ ИЗМЕРЕН)")
     ap.add_argument("--json", action="store_true")
@@ -943,7 +1404,7 @@ def main(argv: Optional[List[str]] = None) -> int:
     doc = measure(args.data_dir, budget_s=args.budget_s, min_factor=args.min_factor,
                   tree_root=Path(args.tree_root), parse_rounds=args.parse_rounds,
                   workloads=() if args.no_workloads else WORKLOADS,
-                  workload_budget_s=args.workload_budget_s)
+                  workload_budget_s=args.workload_budget_s, window_h=args.window_h)
     if args.json:
         print(json.dumps(doc, ensure_ascii=False, indent=1, default=str))
     else:

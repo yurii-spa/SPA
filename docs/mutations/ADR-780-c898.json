@@ -1,0 +1,116 @@
+{
+  "title": "#898 ADR-780 — дельта: цена считается у ФАЙЛА (а не у объявленного вида) + ТРЕТИЙ множитель (прогонов за сутки) в переписи повторного разбора лент",
+  "tests": [
+    "spa_core/tests/test_ledger_parse_census.py"
+  ],
+  "mutations": [
+    {
+      "name": "цена прогона снова считается по МОДЕЛИ (зовы объявленного вида), а не по измеренным разборам — ровно слепота, снятая этим циклом",
+      "file": "spa_core/monitoring/ledger_parse_census.py",
+      "old": "        for mid, n in row[\"opens\"].items():\n            per_parse = parse_by_id.get(mid)\n",
+      "new": "        for mid, n in counts.items():\n            per_parse = parse_by_id.get(mid)\n"
+    },
+    {
+      "name": "неизмеренная цена разбора подставляется нулём (произведение без множителя выдано числом)",
+      "file": "spa_core/monitoring/ledger_parse_census.py",
+      "old": "            if n and per_parse is None:\n                price_known = False\n                continue\n",
+      "new": "            if False:\n                price_known = False\n                continue\n"
+    },
+    {
+      "name": "расхождение числа РАЗБОРОВ с объявленным не называется вовсе",
+      "file": "spa_core/monitoring/ledger_parse_census.py",
+      "old": "        for mid, n in row[\"opens\"].items():\n            declared = w.declared_opens.get(mid)\n            if declared is None or n == declared:\n                continue\n",
+      "new": "        for mid, n in row[\"opens\"].items():\n            declared = w.declared_opens.get(mid)\n            if True:\n                continue\n"
+    },
+    {
+      "name": "расхождение разборов значимо только В ОДНУ сторону: исчезнувший нужный разбор (снятый verify) зеленеет",
+      "file": "spa_core/monitoring/ledger_parse_census.py",
+      "old": "        for mid, n in row[\"opens\"].items():\n            declared = w.declared_opens.get(mid)\n            if declared is None or n == declared:\n                continue\n",
+      "new": "        for mid, n in row[\"opens\"].items():\n            declared = w.declared_opens.get(mid)\n            if declared is None or n <= declared:\n                continue\n"
+    },
+    {
+      "name": "модель, занижающая замер, молчит — второй вид ленты снова невидим",
+      "file": "spa_core/monitoring/ledger_parse_census.py",
+      "old": "        for mid, n in row[\"opens\"].items():\n            want = modelled.get(mid)\n            if want is None or n == want:\n                continue\n",
+      "new": "        for mid, n in row[\"opens\"].items():\n            want = modelled.get(mid)\n            if True:\n                continue\n"
+    },
+    {
+      "name": "ВТОРАЯ дверь (io.open) у счётчика разборов не подменена — читатель через pathlib даёт ноль разборов при непустом ответе",
+      "file": "spa_core/monitoring/ledger_parse_census.py",
+      "old": "    builtins.open = make(real_builtin)\n    io.open = make(real_io)\n    try:\n        yield hits\n",
+      "new": "    builtins.open = make(real_builtin)\n    try:\n        yield hits\n"
+    },
+    {
+      "name": "двери не возвращаются после прогона — прибор портит дерево, которое мерит",
+      "file": "spa_core/monitoring/ledger_parse_census.py",
+      "old": "    finally:\n        builtins.open, io.open = real_builtin, real_io\n\n\ndef count_opens(",
+      "new": "    finally:\n        pass\n\n\ndef count_opens("
+    },
+    {
+      "name": "журнал мельче окна отвечает ЧИСЛОМ: настоящие запуски делятся на пустоту, которой в журнале нет (замер #898: 96/сутки против 272/сутки)",
+      "file": "spa_core/monitoring/ledger_parse_census.py",
+      "old": "    if depth_h < window_h:\n",
+      "new": "    if False:\n"
+    },
+    {
+      "name": "проверка глубины журнала вывернута: отказ приходит там, где журнал ДОСТАТОЧНО глубок",
+      "file": "spa_core/monitoring/ledger_parse_census.py",
+      "old": "    if depth_h < window_h:\n",
+      "new": "    if depth_h > window_h:\n"
+    },
+    {
+      "name": "журнал без ни одной строки START выдан за НОЛЬ запусков вместо НЕ ИЗМЕРЕНО",
+      "file": "spa_core/monitoring/ledger_parse_census.py",
+      "old": "    if not stamps:\n        return None, None, (f\"{U_RATE_NOT_OBSERVABLE}: в журнале {path.name} нет ни одной \"\n",
+      "new": "    if not stamps:\n        return 0.0, 0, (f\"{U_RATE_NOT_OBSERVABLE}: в журнале {path.name} нет ни одной \"\n"
+    },
+    {
+      "name": "в частоту входят запуски ЧУЖОГО агента (общий журнал удваивает частоту обоим)",
+      "file": "spa_core/monitoring/ledger_parse_census.py",
+      "old": "                if not m or m.group(\"agent\") != agent:\n",
+      "new": "                if not m:\n"
+    },
+    {
+      "name": "plist без расписания получает ВЫДУМАННУЮ частоту «раз в сутки» вместо третьего исхода",
+      "file": "spa_core/monitoring/ledger_parse_census.py",
+      "old": "    return None, None, (f\"{U_SCHEDULE_UNREADABLE}: в {path.name} нет ни StartInterval, ни \"\n",
+      "new": "    return 1.0, None, (f\"{U_SCHEDULE_UNREADABLE}: в {path.name} нет ни StartInterval, ни \"\n"
+    },
+    {
+      "name": "календарное расписание не читается вовсе (два момента в сутки выданы как «не измерено»)",
+      "file": "spa_core/monitoring/ledger_parse_census.py",
+      "old": "    cal = doc.get(\"StartCalendarInterval\")\n",
+      "new": "    cal = None\n"
+    },
+    {
+      "name": "расписание есть, запусков нет — и это молчит (мёртвый агент выглядит бесплатным прогоном)",
+      "file": "spa_core/monitoring/ledger_parse_census.py",
+      "old": "    if (out[\"declared_per_day\"] or 0) > 0 and out[\"observed_count\"] == 0:\n",
+      "new": "    if False:\n"
+    },
+    {
+      "name": "суточная цена без третьего множителя подставляется нулём вместо третьего исхода",
+      "file": "spa_core/monitoring/ledger_parse_census.py",
+      "old": "            row[\"price_day_s\"] = None\n            row[\"daily_unmeasured\"] = (\n",
+      "new": "            row[\"price_day_s\"] = 0.0\n            row[\"daily_unmeasured\"] = (\n"
+    },
+    {
+      "name": "неизмеренная суточная цена не доходит до кода возврата (НЕ ИЗМЕРЕНО перестало быть сильнее находки)",
+      "file": "spa_core/monitoring/ledger_parse_census.py",
+      "old": "    if (doc[\"unmeasured\"] or wl.get(\"unmeasured\") or wl.get(\"unreached\")\n            or wl.get(\"daily_unmeasured\")):\n",
+      "new": "    if (doc[\"unmeasured\"] or wl.get(\"unmeasured\") or wl.get(\"unreached\")):\n"
+    },
+    {
+      "name": "суточная цена считается по ОБЪЯВЛЕННОЙ частоте, хотя наблюдённая есть — платим за назначенные прогоны вместо случившихся",
+      "file": "spa_core/monitoring/ledger_parse_census.py",
+      "old": "        rate = cad[\"observed_per_day\"]\n        rate_from = \"журнал агента (НАБЛЮДЕНИЕ)\"\n",
+      "new": "        rate = cad[\"declared_per_day\"]\n        rate_from = \"журнал агента (НАБЛЮДЕНИЕ)\"\n"
+    },
+    {
+      "name": "разбор дороже СОБСТВЕННОГО интервала прогона не называется (порог взят из расписания, а не придуман)",
+      "file": "spa_core/monitoring/ledger_parse_census.py",
+      "old": "            if interval and price > interval:\n",
+      "new": "            if False:\n"
+    }
+  ]
+}
