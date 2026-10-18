@@ -247,8 +247,16 @@ class GreenLineNeedsAnEmptyDebt(unittest.TestCase):
         self.assertIn("НЕ ИЗМЕРЕН", cd.render({"status": cd.IDLE, "attempted": []}))
 
     def test_render_stays_quiet_when_debt_is_measured_zero(self):
+        # Цикл #899: у квитанции появилась ВТОРАЯ ось «не измерено» — сироты
+        # (карточки, которых на origin нет вообще; ADR-781). Фикстура описывает
+        # ПОЛНОСТЬЮ измеренную квитанцию, иначе её требование тишины было бы
+        # требованием молчать о неизмеренной оси. Утверждение теста не
+        # ослаблено: обе оси по-прежнему обязаны молчать на измеренном нуле
+        # (обратный контроль — `test_card_delivery_orphans.py::
+        # test_green_line_demands_BOTH_axes_measured`).
         r = {"status": cd.DELIVERED, "attempted": [rel(STUCK[0])], "delivered": [rel(STUCK[0])],
-             "debt": {"count": 0, "oldest_hours": None, "stale": [], "stale_after": 5}}
+             "debt": {"count": 0, "oldest_hours": None, "stale": [], "stale_after": 5},
+             "orphans": {"status": cd.ORPHAN_MEASURED, "candidates": []}}
         self.assertNotIn("ДОЛГ", cd.render(r))
         self.assertNotIn("НЕ ИЗМЕРЕН", cd.render(r))
 

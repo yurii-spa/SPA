@@ -991,6 +991,194 @@ def enforce_debt_status(receipt: dict, debt: dict) -> dict:
     return receipt
 
 
+# ── сироты: карточки, которых на origin нет ВООБЩЕ ───────────────────────────
+#
+# Замер 2026-10-18 (цикл #899, шаг 0a): в прод-дереве лежали **31** карточка в
+# НЕтерминальном статусе, которых на `origin/main` не было ни одним байтом и
+# ни в одном коммите (`git log --all` по пути пуст у всех 31). Старейшей —
+# **291 ч (12.1 суток)**. Среди них **девять `needs-owner`**, то есть девять
+# вопросов владельцу, которых для очереди НЕ СУЩЕСТВУЕТ: `orchestrator_queue.py
+# list` сверяется с `origin/main`, а протокол велит читать очередь из worktree
+# на `origin/main` (§3.4, урок #193).
+#
+# Почему доставка их не видела. Вход доставки — список от ВЫЗЫВАЮЩЕГО, а
+# единственный живой вызывающий (`findings_bridge._deliver_touched`) кладёт в
+# него «что мост тронул за ЭТОТ прогон». Карточки других производителей в этот
+# список не попадают НИКОГДА:
+#
+#   * `problem_store` (Problem C6, ADR-580 §C6) — 16 карточек `agent-task-*`;
+#   * `owner_queue.intake` (ADR-377) — 9 `owner-decision-*` + 5 `inbox-*`;
+#   * внешняя сессия ARB — 1 `inbox-*`.
+#
+# Долг (ADR-081) этот класс тоже не ловит: он помнит только то, что доставка
+# УЖЕ пыталась везти. Карточка, которую не заказывал никто, в долг не попадает
+# ни разу — её «не доставили» не является провалом доставки, и именно поэтому
+# двенадцать суток молчания выглядели как тишина исправного контура.
+#
+# Поэтому заказ доставки перестаёт быть ТОЛЬКО списком вызывающего: доставка
+# сама спрашивает дерево, какие карточки на origin отсутствуют ВООБЩЕ. Это тот
+# же этаж и та же причина, что у долга (ADR-081): «починить одного вызывающего
+# из нескольких» означало бы, что следующий производитель карточек принесёт
+# этот класс заново.
+
+#: Ветка, относительно которой измеряется «на origin этого нет вообще».
+ORPHAN_REF = "origin/main"
+
+#: Статусы, после которых карточка закрыта и очереди не нужна. **Байтовая
+#: копия** `CARD_TERMINAL_STATUSES` шага 0a (`scripts/check_undelivered_work.py`)
+#: — того самого сторожа, который этот класс нашёл. Копия, а не импорт:
+#: `spa_core/` не читает `scripts/` (расслоение), а `scripts/` не пакет.
+#: Расхождение копий закреплено тестом против НАСТОЯЩЕГО определения
+#: (`test_card_delivery_orphans.py::test_terminal_set_matches_step_0a`), а не
+#: против литерала, переписанного сюда по памяти.
+ORPHAN_TERMINAL = ("done", "ingested", "owner-done", "rejected", "archived")
+
+#: Сколько сирот берём за один прогон. Потолок НАЗВАН и остаток печатается
+#: (`over_limit`): молчаливый «сколько получилось» в этом проекте всегда был
+#: формой тихой потери («no silent caps», тот же порядок, что у `validate`).
+ORPHAN_LIMIT = 25
+
+#: Своя граница времени у git: вопрос к дереву не смеет висеть столько же,
+#: сколько пуш (`PUSH_TIMEOUT` 300 с) — сторож, зависший на минуты, глохнет.
+ORPHAN_GIT_TIMEOUT = 60
+
+ORPHAN_MEASURED = "MEASURED"
+ORPHAN_UNMEASURED = "UNMEASURED"
+
+
+def _git(root: str, args: list, timeout: int = ORPHAN_GIT_TIMEOUT) -> tuple:
+    """``(код|None, вывод)``. ``None`` — git не ответил ВОВСЕ (это не «rc≠0»)."""
+    try:
+        p = subprocess.run(["git", "-C", root, *args], capture_output=True,
+                           text=True, timeout=timeout)
+        return p.returncode, ((p.stdout or "") + (p.stderr or "")).strip()
+    except Exception as e:  # noqa: BLE001 — нет git, таймаут, нет прав
+        return None, f"{type(e).__name__}: {e}"
+
+
+def _is_git_tree(root: str) -> bool:
+    """`.git` бывает КАТАЛОГОМ (обычное дерево) и ФАЙЛОМ (worktree)."""
+    g = os.path.join(root, ".git")
+    return os.path.isdir(g) or os.path.isfile(g)
+
+
+def _card_status(path: str):
+    """Значение ``status:`` карточки → str, либо ``None`` — строки нет/не карточка.
+
+    ``None`` НЕ означает «новая»: карточка без `status:` разобрана не до конца,
+    и такой файл считается отдельным исходом, а не молча нетерминальным.
+    """
+    try:
+        with open(path, "rb") as f:
+            parts = card_parts(f.read())
+    except Exception:  # noqa: BLE001 — нечитаемый файл это тоже «не измерено»
+        return None
+    if not parts:
+        return None
+    value = _status_value(parts[0])
+    if value is None:
+        return None
+    try:
+        return value.decode("utf-8").strip().lower()
+    except Exception:  # noqa: BLE001
+        return None
+
+
+def orphan_candidates(root: str = REPO_ROOT, *, ref: str = ORPHAN_REF,
+                      limit: int = ORPHAN_LIMIT, fetch: bool = True,
+                      git=_git) -> dict:
+    """Карточки дерева, которых на ``ref`` нет ВООБЩЕ и которые не закрыты.
+
+    Три исхода различимы (инвариант #17): измерено и пусто · измерено и есть
+    находки · **НЕ ИЗМЕРЕНО** с названной причиной. «Не измерено» НИКОГДА не
+    отдаёт кандидатов — слепая доставка хуже несделанной, — но и не молчит:
+    блок уезжает в квитанцию и печатается строкой (:func:`render`).
+
+    ``ref`` читается как КЭШ последнего `fetch` (ADR-361), поэтому его сперва
+    обновляют у сервера; не вышло — ``ref_fresh=False`` с причиной, и ответ
+    остаётся ответом КЭША. Ошибка такого ответа односторонняя: карточка,
+    уехавшая после последнего fetch, попадёт в кандидаты зря — и `plan_batch`
+    опознает её по ЖИВОМУ remote как `already_on_origin`/`covered_by_origin`,
+    то есть лишний кандидат стоит одного чтения origin, а пропущенный стоил
+    двенадцати суток.
+    """
+    out = {"status": ORPHAN_UNMEASURED, "ref": ref, "ref_fresh": None,
+           "scanned": None, "terminal": 0, "status_unreadable": [],
+           "candidates": [], "over_limit": [], "limit": limit, "reason": ""}
+    tracker = os.path.join(root, TRACKER_REL)
+    if not os.path.isdir(tracker):
+        out["reason"] = f"каталога {TRACKER_REL} в дереве нет — спрашивать нечего"
+        return out
+    if not _is_git_tree(root):
+        out["reason"] = "дерево не под git — «нет на origin» здесь неизмеримо"
+        return out
+
+    if fetch:
+        rc, note = git(root, ["fetch", "origin", "main", "--quiet"])
+        out["ref_fresh"] = rc == 0
+        if rc != 0:
+            out["reason"] = f"кэш {ref} не обновлён (ответ остаётся ответом кэша): {note[:200]}"
+    rc, listing = git(root, ["ls-tree", "-r", "--name-only", ref, "--", TRACKER_REL])
+    if rc != 0:
+        out["reason"] = (f"{ref} не прочитан, «нет на origin» НЕ ИЗМЕРЕНО: {listing[:200]}"
+                         + (f" | {out['reason']}" if out["reason"] else ""))
+        return out
+    on_ref = {os.path.basename(line.strip()) for line in listing.splitlines() if line.strip()}
+
+    local = sorted(n for n in os.listdir(tracker)
+                   if n.endswith(".md") and n not in NEVER_DELIVER)
+    out["scanned"] = len(local)
+    found = []
+    for name in local:
+        if name in on_ref:
+            continue
+        path = os.path.join(tracker, name)
+        status = _card_status(path)
+        if status is None:
+            out["status_unreadable"].append(os.path.join(TRACKER_REL, name))
+            continue
+        if status in ORPHAN_TERMINAL:
+            out["terminal"] += 1
+            continue
+        try:
+            age = os.path.getmtime(path)
+        except OSError:
+            age = 0.0
+        found.append((age, name))
+    # Старшие вперёд: сирота 12 суток не обязана ждать, пока уедут свежие.
+    found.sort()
+    picked = [os.path.join(TRACKER_REL, n) for _, n in found[:limit]]
+    rest = [os.path.join(TRACKER_REL, n) for _, n in found[limit:]]
+    out["status"] = ORPHAN_MEASURED
+    out["candidates"] = picked
+    out["over_limit"] = rest
+    if not out["reason"]:
+        out["reason"] = (f"сверено с {ref}: карточек в дереве {len(local)}, "
+                         f"нет на {ref} и не закрыто {len(found)}"
+                         + (f", взято {len(picked)} при потолке {limit}" if rest else ""))
+    return out
+
+
+def render_orphans(receipt: dict) -> str:
+    """Хвост строки про сирот. Пустой ТОЛЬКО когда измерено и сирот нет."""
+    o = receipt.get("orphans")
+    if o is None:
+        return " · сироты НЕ ИЗМЕРЕНЫ (квитанция старого образца)"
+    if o.get("status") != ORPHAN_MEASURED:
+        return f" · сироты НЕ ИЗМЕРЕНЫ: {o.get('reason') or 'причина не названа'}"
+    n = len(o.get("candidates") or [])
+    rest = len(o.get("over_limit") or [])
+    unread = len(o.get("status_unreadable") or [])
+    tail = ""
+    if n:
+        tail += f" · сирот взято {n}"
+        if rest:
+            tail += f" (ещё {rest} сверх потолка {o.get('limit')})"
+    if unread:
+        tail += f" · карточек без разбираемого status: {unread}"
+    return tail
+
+
 def build_message(root: str, paths: list) -> str:
     names = [os.path.basename(p) for p in paths]
     head = ", ".join(names[:3]) + (f" (+{len(names) - 3})" if len(names) > 3 else "")
@@ -1026,7 +1214,8 @@ def _tail(text: str, limit: int = 1200) -> str:
 def deliver(paths, root: str = REPO_ROOT, now: dt.datetime | None = None,
             pusher=_default_pusher, env=None, write_status: bool = True,
             message: str | None = None, reader=_default_remote_reader,
-            use_debt: bool = True) -> dict:
+            use_debt: bool = True, use_orphans: bool = True,
+            orphans=orphan_candidates) -> dict:
     """Довезти карточки до `origin/main`. Возвращает квитанцию (и пишет её на диск).
 
     Исключений НЕ бросает: доставка не смеет уронить сторожа, который её позвал.
@@ -1036,6 +1225,12 @@ def deliver(paths, root: str = REPO_ROOT, now: dt.datetime | None = None,
     повтор живёт здесь, а не у вызывающего, — иначе его пришлось бы завести
     каждому вызывающему по отдельности, и забывший остался бы с той же тихой
     потерей. ``use_debt=False`` — только для тестов, измеряющих один прогон.
+
+    Там же и по той же причине живут СИРОТЫ (:func:`orphan_candidates`, замер
+    #899): карточка, которой на origin нет ВООБЩЕ, не является провалом
+    доставки и в долг не попадает ни разу — её не заказывал никто. «Не
+    измерено» сирот кандидатов НЕ даёт и исхода пачки НЕ переписывает, но
+    уезжает в квитанцию отдельным блоком (инв. #17) и печатается строкой.
     """
     ts = _now(now)
     receipt = {"generated_at": ts.isoformat(), "adr": "ADR-066",
@@ -1057,6 +1252,21 @@ def deliver(paths, root: str = REPO_ROOT, now: dt.datetime | None = None,
             extra = [p for p in debt_abs if p not in asked]
             retried = [_rel(root, p) for p in extra]
             paths = list(paths or []) + extra
+        if use_orphans:
+            # Сироты добавляются ПОСЛЕ долга и ДО `validate`: отказ по пути
+            # должен называться тем же механизмом, что и у заказанных путей.
+            # Сбой САМОГО опроса не смеет уронить доставку заказанных карточек,
+            # но и не смеет выглядеть «сирот нет».
+            try:
+                found = orphans(root)
+            except Exception as e:  # noqa: BLE001
+                found = {"status": ORPHAN_UNMEASURED, "candidates": [],
+                         "reason": f"опрос сирот упал: {type(e).__name__}: {e}"}
+            receipt["orphans"] = found
+            asked = {os.path.realpath(os.path.join(root, str(p))) for p in (paths or []) if p}
+            extra = [os.path.join(root, p) for p in (found.get("candidates") or [])]
+            extra = [p for p in extra if os.path.realpath(p) not in asked]
+            paths = list(paths or []) + extra
         ok, bad = validate(paths, root)
         receipt["attempted"] = [_rel(root, p) for p in ok]
         receipt["refused"] = bad
@@ -1066,7 +1276,10 @@ def deliver(paths, root: str = REPO_ROOT, now: dt.datetime | None = None,
                                  + "; ".join(f"{b['path']}: {b['reason']}" for b in bad))
         elif not ok:
             receipt["status"] = IDLE
-            receipt["reason"] = "доставлять нечего — карточек за прогон не создано и не закрыто"
+            # «Сирот нет» и «сирот не измеряли» — разные утверждения, и
+            # схлопывание их в одно «доставлять нечего» и есть класс #899.
+            receipt["reason"] = ("доставлять нечего — карточек за прогон не создано "
+                                 "и не закрыто" + render_orphans(receipt))
         elif not is_enabled(env):
             receipt["status"] = DISABLED
             receipt["reason"] = (f"доставка выключена переменной {ENV_FLAG}; карточки остались "
@@ -1184,6 +1397,7 @@ def render(receipt: dict) -> str:
     n_reb = len(receipt.get("rebased") or [])
     tail = f" · перенесено на свежий origin: {n_reb}" if n_reb else ""
     tail += render_debt(receipt)
+    tail += render_orphans(receipt)
     if st == DELIVERED:
         return f"card_delivery: ✅ DELIVERED {n_try} карточк(и) → origin/main{tail}"
     if st == IDLE:
@@ -1196,6 +1410,9 @@ def main(argv=None) -> int:
     ap.add_argument("paths", nargs="*", help="карточки nimbalyst-local/tracker/*.md")
     ap.add_argument("--root", default=REPO_ROOT)
     ap.add_argument("--show", action="store_true", help="показать последнюю квитанцию")
+    ap.add_argument("--orphans", action="store_true",
+                    help=("заказ — САМ опрос сирот: карточки дерева, которых на "
+                          f"{ORPHAN_REF} нет вообще и которые не закрыты (замер #899)"))
     args = ap.parse_args(argv)
     if args.show:
         try:
@@ -1205,7 +1422,7 @@ def main(argv=None) -> int:
         except Exception as e:  # noqa: BLE001
             print(f"квитанции нет: {e}")
             return 2
-    if not args.paths:
+    if not args.paths and not args.orphans:
         ap.print_help()
         return 0
     r = deliver(args.paths, root=args.root)

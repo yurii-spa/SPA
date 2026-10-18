@@ -1,0 +1,106 @@
+{
+  "title": "ADR-781 — дельта цикла #899: сироты доставки карточек (карточка, которой на origin нет ВООБЩЕ, не является провалом доставки и в долг не попадает)",
+  "tests": [
+    "spa_core/tests/test_card_delivery_orphans.py",
+    "spa_core/tests/test_card_delivery_debt.py",
+    "spa_core/tests/test_card_delivery.py"
+  ],
+  "mutations": [
+    {
+      "name": "закрытая карточка снова едет в очередь (терминальный статус не отсеивается)",
+      "file": "spa_core/monitoring/card_delivery.py",
+      "old": "        if status in ORPHAN_TERMINAL:\n",
+      "new": "        if False:\n"
+    },
+    {
+      "name": "в кандидаты попадает ВСЯ очередь, включая карточки, которые на ref уже есть",
+      "file": "spa_core/monitoring/card_delivery.py",
+      "old": "        if name in on_ref:\n            continue\n",
+      "new": "        if False:\n            continue\n"
+    },
+    {
+      "name": "карточка без разбираемого status: молча считается нетерминальной (нет третьего исхода)",
+      "file": "spa_core/monitoring/card_delivery.py",
+      "old": "        if status is None:\n            out[\"status_unreadable\"].append(os.path.join(TRACKER_REL, name))\n            continue\n",
+      "new": "        if status is None:\n            status = \"new\"\n"
+    },
+    {
+      "name": "доска снова попадает в пачку (NEVER_DELIVER не исключается) — пушер уронил бы ВСЮ пачку",
+      "file": "spa_core/monitoring/card_delivery.py",
+      "old": "                   if n.endswith(\".md\") and n not in NEVER_DELIVER)\n",
+      "new": "                   if n.endswith(\".md\"))\n"
+    },
+    {
+      "name": "потолок молча съедает остаток (over_limit пуст — «сколько получилось»)",
+      "file": "spa_core/monitoring/card_delivery.py",
+      "old": "    out[\"over_limit\"] = rest\n",
+      "new": "    out[\"over_limit\"] = []\n"
+    },
+    {
+      "name": "порядок по возрасту потерян: старейшая сирота ждёт за свежими",
+      "file": "spa_core/monitoring/card_delivery.py",
+      "old": "    found.sort()\n",
+      "new": "    found.sort(reverse=True)\n"
+    },
+    {
+      "name": "непрочитанный ref объявляется измеренным нулём (fail-OPEN, инв. #17)",
+      "file": "spa_core/monitoring/card_delivery.py",
+      "old": "    rc, listing = git(root, [\"ls-tree\", \"-r\", \"--name-only\", ref, \"--\", TRACKER_REL])\n    if rc != 0:\n",
+      "new": "    rc, listing = git(root, [\"ls-tree\", \"-r\", \"--name-only\", ref, \"--\", TRACKER_REL])\n    if False:\n"
+    },
+    {
+      "name": "дерево без git отвечает как измеренное (нет отказа на неизмеримом вопросе)",
+      "file": "spa_core/monitoring/card_delivery.py",
+      "old": "    if not _is_git_tree(root):\n        out[\"reason\"] = \"дерево не под git — «нет на origin» здесь неизмеримо\"\n        return out\n",
+      "new": "    if not _is_git_tree(root):\n        out[\"status\"] = ORPHAN_MEASURED\n        return out\n"
+    },
+    {
+      "name": "ответ КЭША выдаётся за ответ сервера (ref_fresh всегда True, ADR-361)",
+      "file": "spa_core/monitoring/card_delivery.py",
+      "old": "        out[\"ref_fresh\"] = rc == 0\n",
+      "new": "        out[\"ref_fresh\"] = True\n"
+    },
+    {
+      "name": "опрос есть, а проводки нет: кандидаты не доходят до пушера (класс «находка без читателя»)",
+      "file": "spa_core/monitoring/card_delivery.py",
+      "old": "            extra = [p for p in extra if os.path.realpath(p) not in asked]\n            paths = list(paths or []) + extra\n",
+      "new": "            extra = [p for p in extra if os.path.realpath(p) not in asked]\n            paths = list(paths or [])\n"
+    },
+    {
+      "name": "блок сирот не попадает в квитанцию — «не измерено» становится невидимым",
+      "file": "spa_core/monitoring/card_delivery.py",
+      "old": "            receipt[\"orphans\"] = found\n",
+      "new": "            pass\n"
+    },
+    {
+      "name": "упавший опрос выглядит как «сирот нет» (fail-OPEN на сбое)",
+      "file": "spa_core/monitoring/card_delivery.py",
+      "old": "                found = {\"status\": ORPHAN_UNMEASURED, \"candidates\": [],\n                         \"reason\": f\"опрос сирот упал: {type(e).__name__}: {e}\"}\n",
+      "new": "                found = {\"status\": ORPHAN_MEASURED, \"candidates\": [],\n                         \"reason\": f\"опрос сирот упал: {type(e).__name__}: {e}\"}\n"
+    },
+    {
+      "name": "строка отчёта молчит о неизмеренном опросе",
+      "file": "spa_core/monitoring/card_delivery.py",
+      "old": "    if o.get(\"status\") != ORPHAN_MEASURED:\n        return f\" · сироты НЕ ИЗМЕРЕНЫ: {o.get('reason') or 'причина не названа'}\"\n",
+      "new": "    if o.get(\"status\") != ORPHAN_MEASURED:\n        return \"\"\n"
+    },
+    {
+      "name": "квитанция старого образца (без оси сирот) выдаётся за измеренную",
+      "file": "spa_core/monitoring/card_delivery.py",
+      "old": "    if o is None:\n        return \" · сироты НЕ ИЗМЕРЕНЫ (квитанция старого образца)\"\n",
+      "new": "    if o is None:\n        return \"\"\n"
+    },
+    {
+      "name": "множество терминальных статусов разошлось с определением шага 0a (копия по памяти)",
+      "file": "spa_core/monitoring/card_delivery.py",
+      "old": "ORPHAN_TERMINAL = (\"done\", \"ingested\", \"owner-done\", \"rejected\", \"archived\")\n",
+      "new": "ORPHAN_TERMINAL = (\"done\", \"ingested\", \"owner-done\")\n"
+    },
+    {
+      "name": "выключатель опроса перестаёт выключать (use_orphans игнорируется)",
+      "file": "spa_core/monitoring/card_delivery.py",
+      "old": "        if use_orphans:\n            # Сироты добавляются ПОСЛЕ долга и ДО `validate`: отказ по пути\n",
+      "new": "        if True:\n            # Сироты добавляются ПОСЛЕ долга и ДО `validate`: отказ по пути\n"
+    }
+  ]
+}
