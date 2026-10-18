@@ -59,7 +59,7 @@ import ast
 import os
 import re
 from pathlib import Path
-from typing import Dict, List, Optional
+from typing import Dict, Iterable, List, Optional
 
 OUTPUT_FILENAME = "census_consumer_census.json"
 
@@ -89,6 +89,58 @@ def _parse(path: Path) -> Optional[ast.Module]:
         return None
 
 
+def _run_view(tree: ast.Module, nodes: Optional[Iterable[ast.AST]] = None
+              ) -> dict:
+    """Всё, что переписи этого модуля спрашивают у дерева файла, — одним проходом.
+
+    ``runs`` — верхнеуровневые ``def run`` в порядке тела (имена параметров,
+    умолчание ``root``, есть ли ``**kwargs``); ``calls`` — места вида
+    ``X.run(...)`` с ``X`` — простым именем, РОВНО в порядке ``ast.walk``.
+    Фильтр «``X`` — перепись» сюда не входит: он зависит от населения
+    переписей, а вид — только от файла. ``nodes`` — готовый ``ast.walk(tree)``
+    (тот же порядок), если он у зовущего уже есть.
+    """
+    runs: List[dict] = []
+    for node in tree.body:
+        if (isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef))
+                and node.name == "run"):
+            runs.append({
+                "args": ([a.arg for a in node.args.args]
+                         + [a.arg for a in node.args.kwonlyargs]),
+                "root_default": _root_default(node),
+                "has_kwargs": node.args.kwarg is not None,
+            })
+    calls: List[dict] = []
+    for node in (ast.walk(tree) if nodes is None else nodes):
+        if not isinstance(node, ast.Call):
+            continue
+        func = node.func
+        if not isinstance(func, ast.Attribute) or func.attr != "run":
+            continue
+        value = func.value
+        if not isinstance(value, ast.Name):
+            continue
+        passed = None
+        for kw in node.keywords:
+            if kw.arg == "root":
+                passed = ast.unparse(kw.value)
+        calls.append({
+            "line": node.lineno,
+            "callee": value.id,
+            "root_argument": passed,
+            "positional_args": len(node.args),
+        })
+    return {"runs": runs, "calls": calls}
+
+
+def _file_view(path: Path) -> Optional[dict]:
+    """:func:`_run_view` файла; ``None`` — файл не прочитан или не разобран."""
+    tree = _parse(path)
+    if tree is None:
+        return None
+    return _run_view(tree)
+
+
 def find_callees(root: Path) -> Dict[str, str]:
     """Перепись = модуль с ВЕРХНЕУРОВНЕВЫМ ``run()``, принимающим ``root``.
 
@@ -102,17 +154,11 @@ def find_callees(root: Path) -> Dict[str, str]:
         if not base.is_dir():
             continue
         for path in sorted(base.rglob("*.py")):
-            tree = _parse(path)
-            if tree is None:
+            view = _file_view(path)
+            if view is None:
                 continue
-            for node in tree.body:
-                if not isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef)):
-                    continue
-                if node.name != "run":
-                    continue
-                args = ([a.arg for a in node.args.args]
-                        + [a.arg for a in node.args.kwonlyargs])
-                if "root" in args:
+            for run in view["runs"]:
+                if "root" in run["args"]:
                     out[path.stem] = str(path.relative_to(root))
     return out
 
@@ -142,29 +188,13 @@ def find_by_name_consumers(root: Path, callees: Dict[str, str]) -> List[dict]:
         if not base.is_dir():
             continue
         for path in sorted(base.rglob("*.py")):
-            tree = _parse(path)
-            if tree is None:
+            view = _file_view(path)
+            if view is None:
                 continue
-            for node in ast.walk(tree):
-                if not isinstance(node, ast.Call):
+            for call in view["calls"]:
+                if call["callee"] not in callees:
                     continue
-                func = node.func
-                if not isinstance(func, ast.Attribute) or func.attr != "run":
-                    continue
-                value = func.value
-                if not isinstance(value, ast.Name) or value.id not in callees:
-                    continue
-                passed = None
-                for kw in node.keywords:
-                    if kw.arg == "root":
-                        passed = ast.unparse(kw.value)
-                sites.append({
-                    "file": str(path.relative_to(root)),
-                    "line": node.lineno,
-                    "callee": value.id,
-                    "root_argument": passed,
-                    "positional_args": len(node.args),
-                })
+                sites.append({"file": str(path.relative_to(root)), **call})
     return sites
 
 
@@ -174,13 +204,11 @@ def find_cli_consumers(root: Path, callees: Dict[str, str]) -> List[dict]:
     for name, rel in sorted(callees.items()):
         path = root / rel
         source = path.read_text(encoding="utf-8")
-        tree = _parse(path)
+        view = _file_view(path)
         default = None
-        if tree is not None:
-            for node in tree.body:
-                if (isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef))
-                        and node.name == "run"):
-                    default = _root_default(node)
+        if view is not None:
+            for run in view["runs"]:
+                default = run["root_default"]
         out.append({
             "callee": name,
             "file": rel,
@@ -244,17 +272,12 @@ def find_unprobeable(root: Path, callees: Dict[str, str]) -> List[str]:
     """
     out: List[str] = []
     for name, rel in sorted(callees.items()):
-        tree = _parse(root / rel)
-        if tree is None:
+        view = _file_view(root / rel)
+        if view is None:
             continue
-        for node in tree.body:
-            if (isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef))
-                    and node.name == "run"):
-                args = ([a.arg for a in node.args.args]
-                        + [a.arg for a in node.args.kwonlyargs])
-                has_kwargs = node.args.kwarg is not None
-                if "write" not in args and not has_kwargs:
-                    out.append(name)
+        for run in view["runs"]:
+            if "write" not in run["args"] and not run["has_kwargs"]:
+                out.append(name)
     return out
 
 

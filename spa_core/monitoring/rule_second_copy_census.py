@@ -611,6 +611,12 @@ def _with_measure_corpus(fn: Callable) -> Callable:
     Разбор у соседа :data:`NEIGHBOUR_CENSUS` идёт через его ``_parse``; на
     время прогона он подменяется той же функцией разбора (тот же ответ:
     дерево или ``None`` при тех же трёх отказах) и возвращается безусловно.
+    Так же подменяется его ``_file_view`` — вид файла, из которого сосед
+    отвечает на четыре вопроса о переписях (два из них — обходом ВСЕГО
+    корпуса): вид снимается его же ``_run_view`` с дерева общего разбора
+    (вид ``neighbour_view`` в :data:`_CORPUS_KINDS`), и обход соседа файл
+    больше не разбирает. Ответ тот же: вид или ``None`` при тех же трёх
+    отказах чтения/разбора.
     """
 
     @functools.wraps(fn)
@@ -622,7 +628,7 @@ def _with_measure_corpus(fn: Callable) -> Callable:
                 ctx["root"] = Path(root)
                 ctx["corpus"] = {}
                 ctx["resolved"] = {}
-            restore = None
+            restore: List[Tuple[str, Callable]] = []
             try:
                 neighbour = importlib.import_module(NEIGHBOUR_CENSUS)
             except Exception:                       # noqa: BLE001 — отказ скажет сама ступень
@@ -634,13 +640,29 @@ def _with_measure_corpus(fn: Callable) -> Callable:
                         return _corpus_parse(path)
                     except (OSError, SyntaxError, UnicodeDecodeError):
                         return None
+                restore.append(("_parse", real_parse))
                 neighbour._parse = shared_parse
-                restore = (neighbour, real_parse)
+            real_view = getattr(neighbour, "_file_view", None)
+            if (not outer and callable(real_view)
+                    and callable(getattr(neighbour, "_run_view", None))):
+                def shared_view(path: Path) -> Optional[dict]:
+                    try:
+                        rel = str(Path(path).relative_to(ctx["root"]))
+                    except ValueError:
+                        return real_view(path)
+                    try:
+                        deposit = _corpus_fact("neighbour_view", rel,
+                                               Path(path), (), ())
+                    except (OSError, SyntaxError, UnicodeDecodeError):
+                        return None
+                    return deposit()
+                restore.append(("_file_view", real_view))
+                neighbour._file_view = shared_view
             try:
                 return fn(*args, **kwargs)
             finally:
-                if restore is not None:
-                    restore[0]._parse = restore[1]
+                for name, real in restore:
+                    setattr(neighbour, name, real)
 
     return run_with_measure_corpus
 
@@ -680,7 +702,7 @@ def _corpus_parse(path: Path, text: Optional[str] = None) -> ast.AST:
     if entry is None:
         entry = ctx["corpus"][key] = {"exc": None}
     entry.update(text_len=len(text), text_hash=hash(text))
-    ctx["walk_last"] = [tree, None]        # список обхода — по первому спросу
+    ctx["walk_last"] = [tree, None, None]  # обход и ввоз — по первому спросу
     _corpus_prefetch(ctx, path, entry, tree)
     return tree
 
@@ -821,15 +843,41 @@ def _walked(tree: ast.AST) -> Iterator[ast.AST]:
         last = ctx.get("walk_last")
         if last is not None and last[0] is tree:
             if last[1] is None:
-                last[1] = list(ast.walk(tree))
+                last[1] = _walk_list(tree)
             return iter(last[1])
         if id(tree) in ctx["tree_ids"]:
             walks = ctx.setdefault("walks", {})
             hit = walks.get(id(tree))
             if hit is None or hit[0] is not tree:
-                hit = walks[id(tree)] = (tree, list(ast.walk(tree)))
+                hit = walks[id(tree)] = (tree, _walk_list(tree))
             return iter(hit[1])
     return ast.walk(tree)
+
+
+def _walk_list(tree: ast.AST) -> List[ast.AST]:
+    """``list(ast.walk(tree))`` — тот же порядок, без генератора на каждый узел.
+
+    ``ast.walk`` — обход в ширину: узел выдаётся, когда снят с очереди, а
+    дети (``ast.iter_child_nodes``: поля из ``_fields``, отсутствующее поле
+    пропускается, у списка — его узлы по порядку) встают в конец очереди.
+    Здесь очередью служит сам список ответа: порядок снятия и есть порядок
+    постановки, поэтому последовательность та же узел в узел.
+    """
+    out = [tree]
+    node_type = ast.AST
+    for node in out:            # список растёт по ходу обхода — так и задумано
+        for name in node._fields:
+            try:
+                value = getattr(node, name)
+            except AttributeError:
+                continue
+            if isinstance(value, node_type):
+                out.append(value)
+            elif isinstance(value, list):
+                for item in value:
+                    if isinstance(item, node_type):
+                        out.append(item)
+    return out
 
 
 #: Узлы, под которыми только и бывают ОПЕРАТОРЫ: внутри выражения оператора
@@ -838,6 +886,22 @@ _STATEMENT_HOLDERS = (ast.stmt, ast.excepthandler, ast.match_case, ast.mod)
 
 
 def _import_nodes(tree: ast.AST) -> Iterator[ast.AST]:
+    """:func:`_import_nodes_of` — у дерева общего разбора один раз на разбор.
+
+    Ввоз одного файла спрашивают подряд три ответа одного разбора (стороны
+    :func:`measure`, поверхность ввоза, места ввоза переписей); список
+    держится рядом со списком обхода (:func:`_walked`) до следующего разбора.
+    """
+    if _RUN_CORPUS_STACK:
+        last = _RUN_CORPUS_STACK[-1].get("walk_last")
+        if last is not None and last[0] is tree:
+            if last[2] is None:
+                last[2] = list(_import_nodes_of(tree))
+            return iter(last[2])
+    return _import_nodes_of(tree)
+
+
+def _import_nodes_of(tree: ast.AST) -> Iterator[ast.AST]:
     """Узлы ``Import``/``ImportFrom`` — РОВНО в порядке ``ast.walk(tree)``.
 
     Обход в ширину, как у ``ast.walk``, но в очередь кладутся только
@@ -23057,19 +23121,80 @@ def _with_neighbour_query_memo(fn: Callable) -> Callable:
 
 
 def _corpus_known_callees(ctx: dict) -> Optional[Dict[str, str]]:
-    """Ответ соседа ``find_callees`` о корне прогона — если он уже посчитан.
+    """Ответ соседа ``find_callees`` о корне прогона — или его ОЦЕНКА.
 
     Читается ПАМЯТЬ соседских запросов (:func:`_neighbour_query_memo`), а не
     сам сосед: зов изменил бы счёт её исходов, который едет в документ, и
-    задал бы соседу вопрос, которого ступень в этот миг не задавала.
+    задал бы соседу вопрос, которого ступень в этот миг не задавала. Пока
+    ступень соседа не спрашивала, отдаётся оценка
+    (:func:`_corpus_callees_estimate`): по ней ответы снимаются уже с
+    ПЕРВОГО разбора корпуса, а не с прохода соседа. Ошибка оценки стоит
+    только времени — готовый ответ берётся при равенстве входов
+    (:func:`_corpus_fact`), иначе обход считает сам.
     """
     if not _NEIGHBOUR_ANSWERS_STACK:
         return None
     answers = _NEIGHBOUR_ANSWERS_STACK[-1]
     key = _neighbour_query_key("find_callees", (ctx["root"],), {})
     if key not in answers:
-        return None
+        return _corpus_callees_estimate(ctx)
     return copy.deepcopy(answers[key])
+
+
+#: Верхнеуровневый ``def run`` в ТЕКСТЕ — отбор файлов для оценки населения
+#: переписей: оператор верхнего уровня начинается с нулевой колонки.
+#: Совпадение в строке-литерале лишь добавляет файл к разбору.
+_TOPLEVEL_RUN_DEF = re.compile(r"^(?:async[ \t]+)?def[ \t]+run\b", re.M)
+
+
+def _corpus_callees_estimate(ctx: dict) -> Optional[Dict[str, str]]:
+    """Оценка ответа соседа ``find_callees`` — один раз на прогон.
+
+    Считает САМ сосед (его функция под памятью, ``__wrapped__``: счёт исходов
+    памяти не меняется), но его вид отдаётся только файлам, где текст
+    объявляет ``def run`` с нулевой колонки, — остальным ``None``, как
+    неразобранному файлу. Разбираются поэтому ~5 % корпуса, а не весь.
+    Пока оценка считается (и если не далась), её нет: ``None``.
+    """
+    if "callees_estimate" not in ctx:
+        ctx["callees_estimate"] = None
+        ctx["callees_estimate"] = _estimate_callees(ctx["root"])
+    estimate = ctx["callees_estimate"]
+    return None if estimate is None else copy.deepcopy(estimate)
+
+
+def _estimate_callees(root: Path) -> Optional[Dict[str, str]]:
+    try:
+        neighbour = importlib.import_module(NEIGHBOUR_CENSUS)
+        find = neighbour.find_callees.__wrapped__
+        view = neighbour._file_view
+        dirs = tuple(neighbour._CODE_DIRS)
+    except Exception:                               # noqa: BLE001 — оценки просто нет
+        return None
+    candidates = set()
+    for sub in dirs:
+        base = root / sub
+        if not base.is_dir():
+            continue
+        for path in base.rglob("*.py"):
+            try:
+                text = path.read_text(encoding="utf-8")
+            except (OSError, UnicodeDecodeError):
+                continue
+            if _TOPLEVEL_RUN_DEF.search(text):
+                candidates.add(str(path))
+
+    def candidate_view(path: Path) -> Optional[dict]:
+        return view(path) if str(path) in candidates else None
+
+    neighbour._file_view = candidate_view
+    try:
+        estimate = find(root)
+    except Exception:                               # noqa: BLE001 — оценки просто нет
+        return None
+    finally:
+        neighbour._file_view = view
+    return estimate if isinstance(estimate, dict) else None
 
 
 def _corpus_args_invisible(ctx: dict):
@@ -23095,6 +23220,25 @@ def _corpus_args_harm(ctx: dict):
     return args, args
 
 
+def _neighbour_view(rel: str, tree: ast.AST) -> dict:
+    """Вид файла у соседа :data:`NEIGHBOUR_CENSUS` — его же ``_run_view``.
+
+    Обход дерева отдаётся готовым (:func:`_walked`) — тем же списком, что
+    у остальных ответов этого разбора.
+    """
+    return importlib.import_module(NEIGHBOUR_CENSUS)._run_view(
+        tree, _walked(tree))
+
+
+def _corpus_args_neighbour_view(ctx: dict):
+    # Соседа нет или у него нет вида — отказ запоминается, вид не снимается
+    # (подмена ``_file_view`` в этом случае не ставится вовсе).
+    if not callable(getattr(importlib.import_module(NEIGHBOUR_CENSUS),
+                            "_run_view", None)):
+        raise LookupError(f"у {NEIGHBOUR_CENSUS} нет _run_view")
+    return (), ()
+
+
 #: Ответы, которые общий разбор корпуса снимает с каждого дерева прогона
 #: :func:`measure` (см. :func:`_with_measure_corpus`): ``вид -> (функция
 #: ответа (rel, tree, *входы), чьи входы к этому мигу)``. Вторая функция
@@ -23103,6 +23247,7 @@ def _corpus_args_harm(ctx: dict):
 _CORPUS_KINDS: Dict[str, Tuple[Callable, Callable]] = {
     "topdef": (_toplevel_names, lambda ctx: ((), ())),
     "imports": (_producer_import_items, lambda ctx: ((), ())),
+    "neighbour_view": (_neighbour_view, _corpus_args_neighbour_view),
     "invisible": (_invisible_file_facts, _corpus_args_invisible),
     "harm": (_reader_touches, _corpus_args_harm),
 }
