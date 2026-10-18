@@ -9451,9 +9451,16 @@ def _probe_agent_health_reboot_false_alarm(arg: str | None, *,
                 json.dump({"last_cycle_at": at.isoformat()}, fh)
 
         def touch(path, at):
-            with open(path, "a", encoding="utf-8"):
+            # Сцена пишет только внутри себя: путь вне `root` — отказ, а не
+            # запись в чужое дерево. Цель строится от `root`, поэтому и
+            # перепись писателей видит, ЧТО это за файл (ADR-707).
+            rel = os.path.relpath(path, root)
+            if rel == os.pardir or rel.startswith(os.pardir + os.sep):
+                raise ValueError(f"сцена пробы пишет только внутри себя: {path}")
+            target = os.path.join(root, rel)
+            with open(target, "a", encoding="utf-8"):
                 pass
-            os.utime(path, (at.timestamp(), at.timestamp()))
+            os.utime(target, (at.timestamp(), at.timestamp()))
 
         def clear_scene_logs():
             for name in os.listdir(root):

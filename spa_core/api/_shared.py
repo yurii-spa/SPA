@@ -30,6 +30,7 @@ import asyncio
 import json
 import logging
 import os
+import sqlite3
 from collections import deque
 from datetime import datetime, timezone
 from pathlib import Path
@@ -204,6 +205,61 @@ def _portfolio_db_source() -> Path:
     return Path(get_db_path())
 
 
+SNAPSHOT_ATTEMPTS = 5
+
+
+def _file_state(path: Path) -> tuple | None:
+    """(inode, size, mtime_ns) or None when the file is absent."""
+    try:
+        st = path.stat()
+    except FileNotFoundError:
+        return None
+    return (st.st_ino, st.st_size, st.st_mtime_ns)
+
+
+def _snapshot_sqlite(src: Path, dst: Path,
+                     attempts: int = SNAPSHOT_ATTEMPTS) -> str | None:
+    """Copy `src` and its WAL tail to `dst` as ONE consistent state.
+
+    The source is never opened by sqlite (a ``mode=ro`` connection creates
+    ``-shm``/``-wal`` next to it). Both files are stat-ed before and after the
+    copy; a writer that touched either in between (append to WAL, checkpoint
+    into the main file, WAL reset) changes inode/size/mtime_ns, and the copy is
+    retried. The copy then has to pass ``PRAGMA quick_check`` — opening it
+    replays the WAL into the COPY. Returns None on success, otherwise the reason
+    (no consistent snapshot ⇒ the caller answers "not observed").
+    """
+    import shutil
+    import time
+    wal = src.with_name(src.name + "-wal")
+    dst_wal = dst.with_name(dst.name + "-wal")
+    for attempt in range(attempts):
+        if attempt:
+            time.sleep(0.01 * attempt)
+        before = (_file_state(src), _file_state(wal))
+        if before[0] is None:
+            return f"no database at {src}"
+        try:
+            shutil.copyfile(src, dst)
+            if before[1] is not None:
+                shutil.copyfile(wal, dst_wal)
+            elif dst_wal.exists():
+                dst_wal.unlink()
+        except FileNotFoundError:
+            continue
+        if (_file_state(src), _file_state(wal)) != before:
+            continue
+        con = sqlite3.connect(str(dst))
+        try:
+            ok = con.execute("PRAGMA quick_check").fetchone()
+        finally:
+            con.close()
+        if ok and ok[0] == "ok":
+            return None
+        return f"snapshot of {src} failed quick_check: {ok!r}"
+    return f"no stable snapshot of {src} in {attempts} attempts (writer active)"
+
+
 def get_live_portfolio() -> dict | None:
     """Try to read live portfolio directly from PaperTrader; None if unavailable.
 
@@ -214,8 +270,12 @@ def get_live_portfolio() -> dict | None:
     а исходник (вместе с WAL-хвостом, если он есть) только копируется —
     sqlite его не открывает вовсе, даже ``mode=ro`` (тот создал бы -shm/-wal
     рядом с исходником). Исходника нет ⇒ ``None``: на чтение БД не создаётся.
+
+    Копия СОГЛАСОВАННАЯ (`_snapshot_sqlite`): основной файл и WAL-хвост
+    снимаются в два шага, и запись между ними дала бы снимок, которого в
+    базе не было ни в один момент. Неснятый снимок ⇒ ``None``, а не
+    последняя удачная копия и не рассогласованная.
     """
-    import shutil
     import tempfile
     try:
         src = _portfolio_db_source()
@@ -226,10 +286,10 @@ def get_live_portfolio() -> dict | None:
         from database.init_db import init_database
         with tempfile.TemporaryDirectory(prefix="spa_live_portfolio_") as tmp:
             db_path = Path(tmp) / "spa.db"
-            shutil.copyfile(src, db_path)
-            wal = src.with_name(src.name + "-wal")
-            if wal.is_file():
-                shutil.copyfile(wal, db_path.with_name(db_path.name + "-wal"))
+            why = _snapshot_sqlite(src, db_path)
+            if why:
+                log.debug(f"PaperTrader unavailable: {why}")
+                return None
             init_database(db_path)
             trader = PaperTrader(db_path=db_path)
             return trader.get_status()

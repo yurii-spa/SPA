@@ -261,17 +261,45 @@ class TestWiredIntoTheMandatoryStep(unittest.TestCase):
     """
 
     def _run_step(self, root: str) -> str:
+        """Голова вывода шага: всё до пустой строки, закрывающей первый блок.
+
+        Шаг печатает суждение о мандате ПЕРВЫМ блоком и закрывает его пустой
+        строкой, а затем ещё ~100 с (×2,3 на раннере CI) читает офис — этого
+        хвоста ни одна проверка здесь не касается, а лимит 180 с он съедал
+        целиком (контрольные прогоны CI №11–13). Поэтому вывод читается
+        потоком (``-u``: иначе вывод в трубу буферизован до выхода), и
+        процесс останавливается, как только первый блок закрыт. Шаг идёт с
+        ``--no-receipts`` — только чтение, остановить его безопасно.
+        Проверки не сужены: «режим цикла:» обязан стоять теперь в ПЕРВОМ
+        блоке, а не где угодно в выводе.
+        """
         import subprocess
         import sys
+        import threading
         # Артефактов офиса в worktree нет (они в .gitignore) — шаг вернёт 3
         # «офис НЕ ИЗМЕРЕН». Это ровно тот случай, ради которого строка о
         # мандате печатается ДО манифеста: ответ «как работать» не зависит от
         # того, читается ли офис.
-        p = subprocess.run(
-            [sys.executable, os.path.join(root, "scripts", "consume_office_reports.py"),
+        p = subprocess.Popen(
+            [sys.executable, "-u",
+             os.path.join(root, "scripts", "consume_office_reports.py"),
              "--no-receipts"],
-            capture_output=True, text=True, cwd=root, timeout=180)
-        return p.stdout
+            stdout=subprocess.PIPE, stderr=subprocess.DEVNULL, text=True,
+            cwd=root)
+        watchdog = threading.Timer(180, p.kill)
+        watchdog.start()
+        lines = []
+        try:
+            for line in p.stdout:
+                lines.append(line)
+                if not line.strip() and any(l.strip() for l in lines):
+                    break
+        finally:
+            watchdog.cancel()
+            p.kill()
+            p.wait(timeout=30)
+            p.stdout.close()
+        return "".join(lines)
 
     def test_office_step_prints_the_mandate_judgement(self):
         root = os.path.dirname(os.path.dirname(os.path.dirname(

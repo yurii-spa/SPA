@@ -110,6 +110,137 @@ class LivePortfolioReadIsReadOnly(unittest.TestCase):
         self.assertFalse(ghost.parent.exists())
 
 
+class SnapshotOfAnActiveWalDatabase(unittest.TestCase):
+    """The copy the reader opens is ONE committed state of the source.
+
+    All on a separate scratch database in WAL mode — never the real file.
+    """
+
+    def setUp(self):
+        self.tmp = Path(tempfile.mkdtemp(prefix="spa_n1_wal_"))
+        self.addCleanup(shutil.rmtree, self.tmp, ignore_errors=True)
+        self.src = self.tmp / "src" / "spa.db"
+        self.src.parent.mkdir()
+        con = sqlite3.connect(str(self.src))
+        con.execute("PRAGMA journal_mode=WAL")
+        con.execute("CREATE TABLE a (n INTEGER)")
+        con.execute("CREATE TABLE b (n INTEGER)")
+        con.execute("INSERT INTO a VALUES (0)")
+        con.execute("INSERT INTO b VALUES (0)")
+        con.commit()
+        con.close()
+
+    def _snap(self, name: str = "copy.db"):
+        dst = self.tmp / "dst" / name
+        dst.parent.mkdir(exist_ok=True)
+        return dst, _shared()._snapshot_sqlite(self.src, dst)
+
+    @staticmethod
+    def _pair(db: Path):
+        con = sqlite3.connect(str(db))
+        try:
+            return (con.execute("SELECT n FROM a").fetchone()[0],
+                    con.execute("SELECT n FROM b").fetchone()[0])
+        finally:
+            con.close()
+
+    def test_default_source_is_the_tracked_database_path(self):
+        """Without SPA_LIVE_ROOT the reader names spa_core/database/spa.db."""
+        shared = _shared()
+        with mock.patch.dict(os.environ):
+            os.environ.pop("SPA_LIVE_ROOT", None)
+            self.assertEqual(Path(shared._portfolio_db_source()).resolve(),
+                             REPO_DB.resolve())
+
+    def test_uncheckpointed_wal_commit_is_in_the_snapshot(self):
+        writer = sqlite3.connect(str(self.src))
+        self.addCleanup(writer.close)
+        writer.execute("PRAGMA wal_autocheckpoint=0")
+        writer.execute("UPDATE a SET n = 7")
+        writer.execute("UPDATE b SET n = 7")
+        writer.commit()
+        self.assertTrue(self.src.with_name("spa.db-wal").stat().st_size > 0)
+        dst, why = self._snap()
+        self.assertIsNone(why)
+        self.assertEqual(self._pair(dst), (7, 7))
+        # positive control: the main file alone does not carry that commit
+        main_only = self.tmp / "main_only.db"
+        shutil.copyfile(self.src, main_only)
+        self.assertEqual(self._pair(main_only), (0, 0))
+
+    def test_a_write_between_the_two_copies_is_not_served(self):
+        """Source changes after the first copy on EVERY attempt ⇒ a reason."""
+        shared = _shared()
+        real_copy = shutil.copyfile
+        writer = sqlite3.connect(str(self.src))
+        self.addCleanup(writer.close)
+        writer.execute("PRAGMA wal_autocheckpoint=0")
+        writer.execute("UPDATE a SET n = 1")
+        writer.execute("UPDATE b SET n = 1")
+        writer.commit()
+        bumps = []
+
+        def copy_then_write(a, b, *args, **kwargs):
+            out = real_copy(a, b, *args, **kwargs)
+            if str(a) == str(self.src):
+                writer.execute("UPDATE a SET n = n + 1")
+                writer.execute("UPDATE b SET n = n + 1")
+                writer.commit()
+                bumps.append(1)
+            return out
+
+        dst = self.tmp / "torn.db"
+        with mock.patch("shutil.copyfile", side_effect=copy_then_write):
+            why = shared._snapshot_sqlite(self.src, dst, attempts=3)
+        self.assertEqual(len(bumps), 3, "every attempt must be re-checked")
+        self.assertIsNotNone(why)
+        self.assertIn("no stable snapshot", why)
+
+    def test_concurrent_writer_never_yields_a_torn_state(self):
+        import threading
+        import time
+        stop = threading.Event()
+        errors = []
+
+        def write():
+            con = sqlite3.connect(str(self.src), timeout=5)
+            con.execute("PRAGMA wal_autocheckpoint=2")
+            try:
+                while not stop.is_set():
+                    con.execute("UPDATE a SET n = n + 1")
+                    con.execute("UPDATE b SET n = n + 1")
+                    con.commit()
+                    time.sleep(0.003)  # real writers pause between commits
+            except Exception as e:  # noqa: BLE001 — reported below
+                errors.append(e)
+            finally:
+                con.close()
+
+        t = threading.Thread(target=write)
+        t.start()
+        seen, refused, last = 0, 0, -1
+        try:
+            for i in range(150):
+                dst, why = self._snap(f"c{i}.db")
+                if why:
+                    self.assertIn("no stable snapshot", why)
+                    refused += 1
+                    continue
+                a, b = self._pair(dst)
+                self.assertEqual(a, b, "snapshot mixes two committed states")
+                self.assertGreaterEqual(a, last)
+                last = a
+                seen += 1
+        finally:
+            stop.set()
+            t.join()
+        self.assertFalse(errors, errors)
+        self.assertGreater(seen, 0, f"no snapshot taken ({refused} refused)")
+        extra = {p.name for p in self.src.parent.iterdir()} - {
+            "spa.db", "spa.db-wal", "spa.db-shm"}
+        self.assertFalse(extra, f"reader left files next to the source: {extra}")
+
+
 class SweepHttpBatchLeavesRepositoryDbAlone(unittest.TestCase):
     """The exact triggering path of the defect: the G16 sweep's HTTP batch."""
 
