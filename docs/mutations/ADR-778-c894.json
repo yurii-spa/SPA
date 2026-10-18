@@ -1,0 +1,86 @@
+{
+  "title": "ADR-778 — дельта цикла #894: перепись повторного разбора хеш-лент (заказ G777 п. 1)",
+  "tests": [
+    "spa_core/tests/test_ledger_parse_census.py"
+  ],
+  "mutations": [
+    {
+      "name": "ВТОРАЯ дверь снята: подменяется только builtins.open — pathlib-читатель даёт ноль",
+      "file": "spa_core/monitoring/ledger_parse_census.py",
+      "old": "    builtins.open = make(real_builtin)\n    io.open = make(real_io)",
+      "new": "    builtins.open = make(real_builtin)  # дверь io не подменяется"
+    },
+    {
+      "name": "третий исход гаснет: ноль открытий при непустом ответе зачитывается за ЗАМЕР (fail-OPEN)",
+      "file": "spa_core/monitoring/ledger_parse_census.py",
+      "old": "        if opens == 0 and not _answer_is_empty(answer):",
+      "new": "        if False:"
+    },
+    {
+      "name": "расхождение открытий ловится только в ОДНУ сторону: исчезновение разбора молчит",
+      "file": "spa_core/monitoring/ledger_parse_census.py",
+      "old": "        if opens != m.declared_opens:",
+      "new": "        if opens > m.declared_opens:"
+    },
+    {
+      "name": "лестница кодов перевёрнута: находка сильнее «НЕ ИЗМЕРЕНО» (подмена третьего исхода вторым)",
+      "file": "spa_core/monitoring/ledger_parse_census.py",
+      "old": "    pop = doc[\"population\"]\n    if doc[\"unmeasured\"]:\n        return 2\n    if doc[\"findings\"] or pop[\"code_files_undeclared\"] or pop[\"code_files_missing\"]:\n        return 1\n    return 0",
+      "new": "    pop = doc[\"population\"]\n    if doc[\"findings\"] or pop[\"code_files_undeclared\"] or pop[\"code_files_missing\"]:\n        return 1\n    if doc[\"unmeasured\"]:\n        return 2\n    return 0"
+    },
+    {
+      "name": "нулевая цена выдаётся за бесконечный запас — «не определено» становится числом",
+      "file": "spa_core/monitoring/ledger_parse_census.py",
+      "old": "            row[\"growth_factor\"] = None\n        rows.append(row)",
+      "new": "            row[\"growth_factor\"] = float(\"inf\")\n        rows.append(row)"
+    },
+    {
+      "name": "замкнутость населения снята: обход подменён объявленным перечнем — пятая лента невидима",
+      "file": "spa_core/monitoring/ledger_parse_census.py",
+      "old": "    root = Path(tree_root or _ROOT)\n    found: List[str] = []",
+      "new": "    root = Path(tree_root or _ROOT)\n    return list(LEDGER_CODE_FILES)\n    found: List[str] = []"
+    },
+    {
+      "name": "исключение из обхода расширено молча со ОДНОГО названного файла до всего каталога",
+      "file": "spa_core/monitoring/ledger_parse_census.py",
+      "old": "            if rel == SELF_REL:",
+      "new": "            if rel.startswith(\"spa_core/monitoring/\"):"
+    },
+    {
+      "name": "порог запаса сравнивается наоборот: тесный запас зеленеет, просторный краснеет",
+      "file": "spa_core/monitoring/ledger_parse_census.py",
+      "old": "            if row[\"growth_factor\"] < min_factor:",
+      "new": "            if row[\"growth_factor\"] > min_factor:"
+    },
+    {
+      "name": "тесты попадают в население кода: литерал в фикстуре читается как пятая лента",
+      "file": "spa_core/monitoring/ledger_parse_census.py",
+      "old": "            if \"/tests/\" in f\"/{rel}\":\n                continue",
+      "new": "            if False:\n                continue"
+    },
+    {
+      "name": "утверждение про область кэша теряется: research_factory объявлен без неё",
+      "file": "spa_core/monitoring/ledger_parse_census.py",
+      "old": "        scoped_door=True,\n        scoped_reason=\"читающая модель открывает область hash_ledger.read_cache (ADR-777)\",",
+      "new": "        scoped_door=False,\n        scoped_reason=\"читающая модель открывает область hash_ledger.read_cache (ADR-777)\","
+    },
+    {
+      "name": "упавший вид глотается молча: причина не называется, член уходит в тишину",
+      "file": "spa_core/monitoring/ledger_parse_census.py",
+      "old": "        answer, err = None, f\"{U_VIEW_RAISED}: {type(exc).__name__}: {exc}\"",
+      "new": "        answer, err = None, None"
+    },
+    {
+      "name": "неразрешимый вид зачитывается за пустой: третий исход становится нулём",
+      "file": "spa_core/monitoring/ledger_parse_census.py",
+      "old": "            return None, f\"{U_VIEW_UNRESOLVED}: {member.view} не вызываемое\"",
+      "new": "            return (lambda _d: []), None"
+    },
+    {
+      "name": "цена разбора берётся из ПЕРВОГО прогона, а не лучшего — шум машины становится тревогой",
+      "file": "spa_core/monitoring/ledger_parse_census.py",
+      "old": "        best = took if best is None else min(best, took)",
+      "new": "        best = took if best is None else max(best, took)"
+    }
+  ]
+}
