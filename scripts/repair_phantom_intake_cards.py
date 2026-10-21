@@ -44,12 +44,16 @@ fallback-текстом, настоящих вопросов ноль, — и 44
      и обратное событие, у нетронутой — ни одного прямого. Карточки и журнал сошлись — код 4
      (после прерывания — 6); карточки восстановлены, а целостность журнала доказать нельзя —
      код 7, вердикт записан в журнал операции; чужая правка или неподтверждённый откат — код 5.
-     Код 7 — БЛОКЕР: состояние `rolled_back_audit_unproven` не финальное, каждый следующий
-     запуск (и сухой прогон) снова отвечает 7 и ничего не пишет, пока человек не впишет в
-     `manifest.json` операции поле `audit_resolution` (`by`, `note`); скрипт его не пишет.
-     Событие журнала засчитывается операции только по ПРОЦЕССУ: pid писателя операции (записан
-     до первой записи) или pid откатывающего процесса (записан перед откатом); совпадение
-     пути, перехода и времени у другого процесса доказательством не является.
+     Код 7 — БЛОКЕР: состояние `rolled_back_audit_unproven` не финальное; каждый следующий
+     запуск отвечает 7 и ничего не пишет — СУХОЙ ПРОГОН тоже показывает этот нерешённый блокер
+     кодом 7. Свободная запись в `manifest.json` (`audit_resolution` с `by`/`note` и любые
+     другие поля) хранится как пояснение и блокер НЕ снимает: она не доказывает решения
+     человека. Механизма подтверждённого человеческого разрешения в скрипте нет — отдельная
+     задача; до неё снять блокер скриптом нельзя.
+     Событие журнала засчитывается операции, только если оно лежит ВНУТРИ байтовых границ
+     журнала, снятых этим процессом вокруг его записи (до вызова и после возврата), и несёт pid
+     этого процесса. Один совпавший pid (номер мог достаться другому процессу) доказательством
+     не является. Процесс убит внутри записи ⇒ граница не закрыта ⇒ событие не связать ⇒ код 7.
      Байты не в UTF-8 (наш писатель таких не производит) ⇒ запись не доказана нашей ⇒ код 5.
 
 `--apply` ЗАБЛОКИРОВАН (раунд 3 ARB, 21.10) — и останется заблокированным, пока система не даст
@@ -66,8 +70,15 @@ fallback-текстом, настоящих вопросов ноль, — и 44
 **Условие разблокировки:** общая блокировка трекера, которую берёт КАЖДЫЙ писатель карточек.
 Тогда её передают в `repair(..., coordination=…)` — вызываемое `coordination(tracker_dir)`,
 возвращающее контекст-менеджер, удерживаемый на ВСЮ операцию (восстановление, план, запись,
-откат). Из командной строки координацию не передать: `--apply` из CLI отвечает кодом 8 и не
-пишет ничего — ни карточек, ни журнала операции, ни журнала переходов. Сухой прогон работает.
+откат). Из командной строки координацию не передать: `--apply` из CLI (и `repair(apply=True)` без
+`coordination`) отвечает кодом 8 и не пишет ничего — ни карточек, ни каталогов, ни журнала
+операции, ни журнала переходов; незавершённые операции не восстанавливаются. Сухой прогон
+работает и называет блокеры (5 — нужен человек, 7 — журнал не доказан, 6 — незавершённая).
+
+Коды: 0 — норма · 2 — нет каталога трекера · 3 — отказ до записи (неоднозначность, полномочия,
+гейт, входы изменились) · 4 — откат подтверждён, журнал сходится · 5 — нужен человек ·
+6 — незавершённая операция (откатана или ждёт отката) · 7 — карточки восстановлены, журнал
+переходов не доказан, БЛОКЕР · 8 — `--apply` без общей блокировки, ничего не записано.
 
 Что эта операция НЕ гарантирует и под общей блокировкой (сказано вслух, см. также отчёт ARB 21.10).
   * Она НЕ атомарна как целое: заменяется по одному файлу. Читатель трекера между
@@ -151,21 +162,16 @@ RECOVERY_REL = Path("data") / "repair_phantom_recovery"
 
 _WRITER_SOURCE = "repair_phantom_intake_cards"
 _FINAL_STATES = ("committed", "rolled_back")
-#: Карточки восстановлены, но журнал переходов НЕ доказан. Не финальное состояние: такая
-#: операция остаётся БЛОКЕРОМ (код 7 на каждом следующем запуске, включая сухой прогон),
-#: пока человек не впишет в её `manifest.json` поле `audit_resolution` с непустыми `by` и
-#: `note` — кто разобрал и что решил. Сам скрипт это поле не пишет никогда.
+#: Карточки восстановлены, но журнал переходов НЕ доказан. Состояние НЕ финальное и само не
+#: снимается ничем: операция остаётся БЛОКЕРОМ (код 7 на каждом следующем запуске, включая
+#: сухой прогон). Свободная запись в `manifest.json` (например `audit_resolution` с `by`/`note`)
+#: хранится как ПОЯСНЕНИЕ и блокер НЕ снимает — такая запись не доказывает решения человека.
+#: Подключение подтверждённого человеческого разрешения — отдельная задача (ARB, 21.10).
 AUDIT_UNPROVEN_STATE = "rolled_back_audit_unproven"
 
 
 def _is_final(manifest: dict) -> bool:
-    if manifest.get("state") in _FINAL_STATES:
-        return True
-    if manifest.get("state") == AUDIT_UNPROVEN_STATE:
-        res = manifest.get("audit_resolution")
-        return isinstance(res, dict) and bool(str(res.get("by") or "").strip()) \
-            and bool(str(res.get("note") or "").strip())
-    return False
+    return manifest.get("state") in _FINAL_STATES
 
 
 def _read(path: Path) -> str:
@@ -443,29 +449,69 @@ def find_unfinished(recovery_root: Path) -> list[tuple[Path, dict | None]]:
     return out
 
 
+def _journal_path(tracker: Path) -> Path | None:
+    from spa_core.owner_queue.status_audit import AUDIT_REL, repo_root_for
+    root = repo_root_for(Path(tracker))
+    return None if root is None else root / AUDIT_REL
+
+
+def _journal_size(tracker: Path) -> int | None:
+    """Байтовая длина журнала переходов (0 — файла нет; None — дерево не опознано)."""
+    jp = _journal_path(tracker)
+    if jp is None:
+        return None
+    try:
+        return jp.stat().st_size
+    except FileNotFoundError:
+        return 0
+
+
+def _journal_entries_with_offsets(jp: Path) -> tuple[list[tuple[int, dict]], list[str]]:
+    data = jp.read_bytes() if jp.exists() else b""
+    out, broken, pos = [], [], 0
+    for raw in data.splitlines(keepends=True):
+        start, pos = pos, pos + len(raw)
+        if not raw.strip():
+            continue
+        try:
+            obj = json.loads(raw.decode("utf-8"))
+        except (UnicodeDecodeError, ValueError):
+            broken.append(f"байт {start}")
+            continue
+        if isinstance(obj, dict):
+            out.append((start, obj))
+        else:
+            broken.append(f"байт {start}")
+    return out, broken
+
+
 def audit_verdict(manifest: dict, restored: list[str]) -> dict:
     """Сходится ли журнал переходов с тем, что операция сделала с карточками.
 
-    Для каждой ВОССТАНОВЛЕННОЙ карточки обязаны быть прямое событие (`queue.set_status`)
-    и обратное (`repair_phantom_intake_cards/...`); у карточки, которую мы не меняли, —
-    ни одного прямого. Дерево не опознано или часть журнала не читается ⇒ «не измерено»,
-    а не «сошлось».
+    Событие засчитывается ОПЕРАЦИИ только при двух признаках сразу: (1) оно лежит в журнале
+    ВНУТРИ границ, снятых этим процессом вокруг его собственной записи (байтовое смещение
+    журнала до вызова и после возврата — `journal_span` / `undo_span` в журнале операции), и
+    (2) несёт pid процесса, снявшего эти границы. Пока процесс жив, его pid не может принадлежать
+    другому процессу — на этом и стоит доказательство. Один pid (без границ) доказательством НЕ
+    является: процесс мог умереть, а номер — достаться другому. Граница не закрыта (процесс убит
+    внутри записи) ⇒ событие с операцией не связать ⇒ «не доказано», а не «сошлось».
+
+    Нужное для ВОССТАНОВЛЕННОЙ карточки: связанное прямое (`queue.set_status`) и связанное
+    обратное (`repair_phantom_intake_cards/...`) событие; для нетронутой — ни одного связанного
+    прямого. Дерево не опознано или часть журнала не читается ⇒ «не измерено».
     """
-    from spa_core.owner_queue.status_audit import read_audit, repo_root_for
-    root = repo_root_for(Path(manifest["tracker"]))
-    if root is None:
+    jp = _journal_path(Path(manifest["tracker"]))
+    if jp is None:
         return {"verdict": "unmeasured",
                 "reason": "дерево трекера не опознано — журнал переходов не ведётся"}
-    entries, broken = read_audit(root)
-    if broken:
-        return {"verdict": "unmeasured", "reason": f"журнал переходов читается не весь: {broken[:3]}"}
-    since = manifest.get("created_at", "")
     writer_pid = manifest.get("writer_pid")
-    undo_pids = set(manifest.get("undo_pids") or [])
     if not isinstance(writer_pid, int):
         return {"verdict": "unmeasured",
                 "reason": "журнал операции не хранит pid писателя — чьи события в журнале "
                           "переходов, доказать нечем"}
+    entries, broken = _journal_entries_with_offsets(jp)
+    if broken:
+        return {"verdict": "unmeasured", "reason": f"журнал переходов читается не весь: {broken[:3]}"}
 
     def _abs(e: dict) -> str | None:
         raw = e.get("path")
@@ -479,29 +525,37 @@ def audit_verdict(manifest: dict, restored: list[str]) -> dict:
         except OSError:
             return None
 
+    def _bound(off: int, e: dict, span, pid) -> bool:
+        return (isinstance(span, list) and len(span) == 3 and span[1] is not None
+                and span[0] <= off < span[1] and e.get("pid") == pid == span[2])
+
     problems, foreign_events = [], []
     for f in manifest["files"]:
         target = str(Path(f["path"]).resolve())
-        mine = [e for e in entries if _abs(e) == target and str(e.get("ts", "")) >= since]
-        fwd_any = [e for e in mine if e.get("old") == f["old"] and e.get("new") == f["new"]
-                   and e.get("source") == "queue.set_status"]
-        # Причинность — по ПРОЦЕССУ, а не по пути и времени: в зачёт идёт только событие
-        # писателя этой операции; совпадающее событие другого процесса доказательством не является.
-        fwd = [e for e in fwd_any if e.get("pid") == writer_pid]
-        rev = [e for e in mine if e.get("old") == f["new"] and e.get("new") == f["old"]
-               and str(e.get("source", "")).startswith(_WRITER_SOURCE + "/")
-               and e.get("pid") in undo_pids]
-        foreign_events += [f"{Path(f['path']).name}: событие pid {e.get('pid')} не этой операции"
-                           for e in fwd_any if e.get("pid") != writer_pid]
         name = Path(f["path"]).name
+        mine = [(o, e) for o, e in entries if _abs(e) == target]
+        fwd_any = [(o, e) for o, e in mine if e.get("old") == f["old"] and e.get("new") == f["new"]
+                   and e.get("source") == "queue.set_status"]
+        rev_any = [(o, e) for o, e in mine if e.get("old") == f["new"] and e.get("new") == f["old"]
+                   and str(e.get("source", "")).startswith(_WRITER_SOURCE + "/")]
+        fwd = [(o, e) for o, e in fwd_any if _bound(o, e, f.get("journal_span"), writer_pid)]
+        rev = [(o, e) for o, e in rev_any if _bound(o, e, f.get("undo_span"), (f.get("undo_span") or [None, None, None])[2])]
+        foreign_events += [f"{name}: событие pid {e.get('pid')} @ байт {o} не связано с операцией"
+                           for o, e in fwd_any + rev_any if (o, e) not in fwd and (o, e) not in rev]
+        span = f.get("journal_span")
         if f["path"] in restored:
             if not fwd:
-                problems.append(f"{name}: нет прямого события — карточка была заменена, "
-                                f"а запись журнала не успела (прерывание внутри set_status)")
+                why = ("граница записи не закрыта — процесс умер внутри записи, событие с операцией "
+                       "не связать" if isinstance(span, list) and span[1] is None
+                       else "связанного прямого события нет")
+                problems.append(f"{name}: нет прямого события операции ({why})")
             if not rev:
-                problems.append(f"{name}: нет обратного события")
+                problems.append(f"{name}: нет связанного обратного события")
         elif fwd:
-            problems.append(f"{name}: прямое событие есть, а карточка не менялась")
+            problems.append(f"{name}: прямое событие операции есть, а карточка не менялась")
+        elif isinstance(span, list) and span[1] is None and fwd_any:
+            problems.append(f"{name}: граница записи не закрыта, а в журнале есть похожее событие — "
+                            f"чьё оно, не доказать")
     if problems:
         return {"verdict": "incomplete", "problems": problems, "foreign_events": foreign_events}
     return {"verdict": "consistent", "foreign_events": foreign_events}
@@ -549,7 +603,11 @@ def _undo(op_dir: Path, manifest: dict, restore, *, source: str) -> tuple[int, s
     for f, p, orig in plan:
         try:
             restore(p, orig)
-            record_status_write(p, old=f["new"], new=f["old"], source=f"{_WRITER_SOURCE}/{source}")
+            start = _journal_size(p)
+            try:
+                record_status_write(p, old=f["new"], new=f["old"], source=f"{_WRITER_SOURCE}/{source}")
+            finally:
+                f["undo_span"] = [start, _journal_size(p), os.getpid()]
         except Exception as exc:  # noqa: BLE001 — сверка ниже скажет, удалось ли
             errors.append(f"{p.name}: {exc}")
     bad = [f["path"] for f in manifest["files"]
@@ -609,7 +667,15 @@ def apply_plan(plan: dict, *, write=_default_write, restore=_restore,
             p = Path(f["path"])
             if _inputs(tracker) != expected:
                 raise RuntimeError("трекер изменён другим писателем во время операции")
-            write(p, f["new"])
+            f["journal_span"] = [_journal_size(p), None, os.getpid()]
+            _save_manifest(op_dir, manifest)
+            try:
+                write(p, f["new"])
+            finally:
+                # Процесс жив — граница закрывается и при исключении. При SIGKILL она остаётся
+                # открытой, и событие этой записи доказать будет нечем (код 7).
+                f["journal_span"][1] = _journal_size(p)
+                _save_manifest(op_dir, manifest)
             cur = p.read_bytes()
             orig = (op_dir / f"{f['index']:03d}.orig").read_bytes()
             if not is_our_write(orig, cur, f["old"], f["new"]):
@@ -648,8 +714,9 @@ def recover_unfinished(recovery_root: Path, *, apply: bool, restore=_restore) ->
                                or [(m.get("audit") or {}).get("reason", "")])
             return {"exit": EXIT_AUDIT_UNPROVEN, "unfinished": names,
                     "reason": (f"операция {d.name}: карточки восстановлены, журнал переходов НЕ "
-                               f"доказан ({detail}). Блокер до разбора человеком: вписать в "
-                               f"{d / 'manifest.json'} поле audit_resolution с by и note")}
+                               f"доказан ({detail}). БЛОКЕР: скрипт его не снимает, свободная "
+                               f"заметка в {d / 'manifest.json'} тоже; нужен подтверждённый "
+                               f"человеческий разбор — отдельный механизм, которого пока нет")}
     if not apply:
         return {"exit": EXIT_UNFINISHED, "unfinished": names,
                 "reason": "найдена незавершённая операция — её откатит запуск с --apply; "

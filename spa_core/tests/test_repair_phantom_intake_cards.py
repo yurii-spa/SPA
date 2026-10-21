@@ -623,16 +623,27 @@ def test_killed_process_is_detected_and_undone_before_new_cards(tmp_path, git_tr
     assert _tree(root) == snap, "сухой прогон ничего не меняет даже при незавершённой операции"
 
     rec = _apply_coordinated(tracker)
-    assert rec.returncode == R.EXIT_UNFINISHED, rec.stdout + rec.stderr
     assert all(p.read_bytes() == b for p, b in originals.items()), "откат до исходных байтов"
     assert _status(late) == "done", "новые карточки не обработаны до разбора старой операции"
-    assert json.loads((ops[0] / "manifest.json").read_text())["state"] == "rolled_back"
     reverse = [e for e in _audit(root) if e["source"].endswith("/recover_after_interrupt")]
     assert len(reverse) == len(changed)
-
-    again = _apply_coordinated(tracker)
-    assert again.returncode == R.EXIT_OK, again.stdout + again.stderr
-    assert all(_status(p) == "new" for p in [*srcs, late])
+    m = json.loads((ops[0] / "manifest.json").read_text())
+    if when == "after":
+        # Убит ВНУТРИ записи: граница журнала не закрыта ⇒ прямое событие с операцией не связать.
+        # Консервативно: код 7 и блокер — даже если похожее событие в журнале есть.
+        assert rec.returncode == R.EXIT_AUDIT_UNPROVEN, rec.stdout + rec.stderr
+        assert m["state"] == R.AUDIT_UNPROVEN_STATE
+        assert any("граница записи не закрыта" in pr for pr in m["audit"]["problems"])
+        snap2 = _tree(root)
+        again = _apply_coordinated(tracker)
+        assert again.returncode == R.EXIT_AUDIT_UNPROVEN, "блокер стоит"
+        assert _tree(root) == snap2 and _status(late) == "done"
+    else:
+        assert rec.returncode == R.EXIT_UNFINISHED, rec.stdout + rec.stderr
+        assert m["state"] == "rolled_back"
+        again = _apply_coordinated(tracker)
+        assert again.returncode == R.EXIT_OK, again.stdout + again.stderr
+        assert all(_status(p) == "new" for p in [*srcs, late])
 
 
 def test_foreign_change_after_interrupt_is_not_overwritten(tmp_path, git_tree):
@@ -1004,11 +1015,16 @@ def test_kill_inside_set_status_before_the_audit_line(tmp_path, git_tree, kill_a
     assert again.returncode == R.EXIT_AUDIT_UNPROVEN, again.stdout
     assert _tree(root) == snap, "повторный запуск ничего не записал"
     assert _cli(tracker).returncode == R.EXIT_AUDIT_UNPROVEN, "сухой прогон называет тот же блокер"
-    # Разбор человеком — поле audit_resolution (скрипт его не пишет); после него работа идёт.
-    m["audit_resolution"] = {"by": "человек-проверяющий", "note": "прямое событие потеряно при SIGKILL"}
+    # Свободная запись audit_resolution — ПОЯСНЕНИЕ, а не решение человека: блокер не снимается
+    # (воспроизведение ARB 21.10: {"by": "agent-local", "note": "closed automatically"}).
+    m["audit_resolution"] = {"by": "agent-local", "note": "closed automatically"}
     (op / "manifest.json").write_text(json.dumps(m, ensure_ascii=False), encoding="utf-8")
+    snap = _tree(root)
     after = _apply_coordinated(tracker)
-    assert after.returncode == R.EXIT_OK, after.stdout
+    assert after.returncode == R.EXIT_AUDIT_UNPROVEN, after.stdout
+    assert _cli(tracker).returncode == R.EXIT_AUDIT_UNPROVEN
+    assert _tree(root) == snap, "свободная заметка ничего не открыла"
+    assert R._is_final(m) is False
 
 def test_first_run_creates_the_recovery_tree_with_parent_fsyncs_before_any_write(git_tree, monkeypatch):
     root, tracker = git_tree
@@ -1201,3 +1217,102 @@ def test_own_events_still_prove_a_clean_rollback_next_to_a_foreign_one(git_tree,
     m = json.loads((next(rec_root.iterdir()) / "manifest.json").read_text())
     assert m["state"] == "rolled_back" and m["audit"]["verdict"] == "consistent"
     assert m["audit"]["foreign_events"], "чужое событие названо, но доказательством не служит"
+
+
+# ── совпавший / переиспользованный pid: событие не доказывает операцию одним номером ──
+
+def _forged(path: Path, pid: int) -> dict:
+    from datetime import datetime, timezone
+    return {"ts": datetime.now(timezone.utc).isoformat(), "card": path.name,
+            "path": str(path.resolve()), "old": "done", "new": "new",
+            "source": "queue.set_status", "pid": pid, "cwd": "/"}
+
+
+def test_same_pid_forged_event_after_sigkill_does_not_close_the_gap(tmp_path, git_tree):
+    """Воспроизведение ARB 21.10: SIGKILL внутри set_status, затем в журнале — событие с ТЕМ ЖЕ
+    pid писателя, путём и переходом. Раньше: consistent, foreign_events=[]. Теперь — код 7."""
+    import signal
+    root, tracker = git_tree
+    srcs = _three(tracker)
+    originals = {p: p.read_bytes() for p in srcs}
+    driver = tmp_path.parent / f"driver_sp_{tmp_path.name}.py"
+    driver.write_text(_DRIVER_IN_SET_STATUS, encoding="utf-8")
+    r = _run([str(driver), str(_ROOT / "scripts" / "repair_phantom_intake_cards.py"),
+              str(tracker), "0", str(_LOCK_FILE)], _ROOT)
+    assert r.returncode == -signal.SIGKILL
+    op = next((root / "data" / "repair_phantom_recovery").iterdir())
+    writer_pid = json.loads((op / "manifest.json").read_text())["writer_pid"]
+    replaced = next(p for p in srcs if p.read_bytes() != originals[p])
+    journal = root / "data" / "tracker_status_audit.jsonl"
+    journal.parent.mkdir(exist_ok=True)
+    with open(journal, "a", encoding="utf-8") as fh:            # номер достался другому процессу
+        fh.write(json.dumps(_forged(replaced, writer_pid), ensure_ascii=False) + "\n")
+
+    rec = _apply_coordinated(tracker)
+
+    assert rec.returncode == R.EXIT_AUDIT_UNPROVEN, rec.stdout
+    m = json.loads((op / "manifest.json").read_text())
+    assert m["audit"]["verdict"] == "incomplete"
+    assert any(f"pid {writer_pid}" in fe and "не связано" in fe for fe in m["audit"]["foreign_events"])
+    assert all(p.read_bytes() == b for p, b in originals.items())
+
+
+def test_coinciding_pid_event_outside_the_write_does_not_stand_in_for_a_lost_one(git_tree, rec_root,
+                                                                                    monkeypatch):
+    """В ТОМ ЖЕ процессе: событие с совпадающим pid лежит в журнале ДО операции, а настоящее
+    событие записи не дошло до журнала. Совпадение pid, пути и перехода его не заменяет — код 7."""
+    import os as _os
+    root, tracker = git_tree
+    srcs = _three(tracker)
+    first = sorted(srcs)[0]
+    journal = root / "data" / "tracker_status_audit.jsonl"
+    journal.parent.mkdir(exist_ok=True)
+    journal.write_text(json.dumps(_forged(first, _os.getpid()), ensure_ascii=False) + "\n", encoding="utf-8")
+    import spa_core.owner_queue.queue as q
+    monkeypatch.setattr(q, "record_status_write", lambda *a, **k: None)   # прямая строка не дошла
+    real = R._default_write
+
+    def fail_after_first(path, new_status):
+        real(path, new_status)
+        raise OSError("сбой после первой замены")
+
+    res = R.repair(tracker, apply=True, coordination=COORD, write=fail_after_first,
+                   recovery_root=str(rec_root))
+
+    assert res["exit"] == R.EXIT_AUDIT_UNPROVEN, res
+    m = json.loads((next(rec_root.iterdir()) / "manifest.json").read_text())
+    assert m["state"] == R.AUDIT_UNPROVEN_STATE
+    assert any("нет прямого события операции" in pr for pr in m["audit"]["problems"])
+    assert m["audit"]["foreign_events"], "совпавшее событие названо несвязанным"
+
+
+def test_own_bound_event_proves_the_rollback_next_to_a_coinciding_pid_one(git_tree, rec_root):
+    """Обратная сторона: своё событие ВНУТРИ границ записи доказывает откат, совпавшее — нет."""
+    import os as _os
+    root, tracker = git_tree
+    srcs = _three(tracker)
+    first = sorted(srcs)[0]
+    journal = root / "data" / "tracker_status_audit.jsonl"
+    journal.parent.mkdir(exist_ok=True)
+    journal.write_text(json.dumps(_forged(first, _os.getpid()), ensure_ascii=False) + "\n", encoding="utf-8")
+    real = R._default_write
+
+    def fail_after_first(path, new_status):
+        real(path, new_status)
+        raise OSError("сбой после первой замены")
+
+    res = R.repair(tracker, apply=True, coordination=COORD, write=fail_after_first,
+                   recovery_root=str(rec_root))
+
+    assert res["exit"] == R.EXIT_ROLLED_BACK, res
+    m = json.loads((next(rec_root.iterdir()) / "manifest.json").read_text())
+    assert m["audit"]["verdict"] == "consistent"
+    assert m["audit"]["foreign_events"]
+
+
+def test_a_free_form_resolution_note_never_makes_the_operation_final():
+    """Свободная запись — пояснение, не решение человека (воспроизведение ARB 21.10)."""
+    for res in ({"by": "agent-local", "note": "closed automatically"},
+                {"by": "Владелец", "note": "разобрал, всё верно"}):
+        assert R._is_final({"state": R.AUDIT_UNPROVEN_STATE, "audit_resolution": res}) is False
+    assert R._is_final({"state": "rolled_back"}) is True
