@@ -18,33 +18,44 @@ fallback-текстом, настоящих вопросов ноль, — и 44
 
 Что скрипт делает — и чего НЕ делает (ADR-551, инв. #14, указание владельца 18.10).
   * Фантом — карточка РЕШЕНИЯ ВЛАДЕЛЬЦА. Скрипт её не меняет, не закрывает и ничего в неё
-    не дописывает: закрыть вопрос владельца без его записанного ответа гейт ADR-551
-    запрещает, и это верно. Фантомы только НАЗЫВАЮТСЯ — убрать их может владелец.
+    не дописывает: фантомы только НАЗЫВАЮТСЯ — убрать их может владелец.
   * Исходное задание (inbox-карточка), закрытое `done` в ту же аварию, возвращается в
-    `new` — направление fail-CLOSED: заново открыть сделанное дёшево, оставить
-    незакрытым реальное задание дорого. Связь фантом → задание доказывается ДВУМЯ
-    признаками: единственное задание с точно тем же заголовком И цитата «Текст: «…»»
-    фантома дословно есть в теле задания.
+    `new`. Связь фантом → задание доказывается ДВУМЯ признаками: единственное задание с
+    точно тем же заголовком И цитата «Текст: «…»» фантома дословно есть в теле задания.
 
-Порядок (до первой записи — только чтение):
-  1. собрать полный план: фантомы, задания, переходы, причины отказа;
-  2. проверить ВСЁ: в наборе записи только inbox-карточки (по frontmatter И по имени),
-     связь однозначна, каждый переход разрешён тем же гейтом, что у `set_status`
-     (`queue.check_lifecycle`). Любой отказ ⇒ отказ ВСЕЙ операции, код 3, ни одного
-     нового, изменённого или удалённого файла и ни одной записи в журнал;
-  3. слепок исходных байтов и хешей во временный каталог ВНЕ дерева трекера;
-     повторная сверка хешей перед записью (карточку могли поменять между планом и записью);
-  4. запись через `queue.set_status` (каждый файл — tmp + os.replace);
-  5. сбой на любом шаге ⇒ откат всех уже изменённых файлов к исходным байтам и сверка
-     по хешам; откат подтверждён ⇒ код 4; не подтверждён ⇒ код 5, слепок СОХРАНЁН и путь
-     к нему напечатан — нужно ручное вмешательство.
+Порядок:
+  0. ПЕРЕД ВСЕМ — поиск незавершённой операции в журнале операций
+     (`<дерево>/data/repair_phantom_recovery/<id>/manifest.json`, не /tmp). Нашлась ⇒
+     новые карточки не обрабатываются: сухой прогон только называет её (код 6), `--apply`
+     откатывает СВОИ записи и сверяет по хешам (код 6 — «откатано, запусти снова»);
+     чужая правка поверх нашей ⇒ ничего не трогаем, код 5.
+  1. План — только чтение; запоминаются хеши ВСЕХ карточек трекера (входы, включая
+     карточки владельца).
+  2. Проверки — полномочия (в наборе записи только inbox по frontmatter И по имени),
+     однозначность связи, тот же гейт, что у `set_status` (`queue.check_lifecycle`),
+     хеши всех входов не менялись. Любой отказ ⇒ отказ ВСЕЙ операции, код 3: ни одного
+     нового, изменённого или удалённого файла в целевом дереве, ни строки в журналах.
+  3. Журнал операции (исходные байты + sha256 + план) — на диск с fsync ДО первой записи.
+  4. Перед КАЖДОЙ заменой — снова хеши всех входов; запись через `queue.set_status`
+     (файл заменяется через tmp + os.replace); хеш после записи — в журнал операции.
+  5. Сбой ⇒ откат только СВОИХ записей (хеш совпадает с записанным нами) и сверка по
+     хешам: подтверждено — код 4; чужая правка или неподтверждённый откат — код 5.
 
-Ограничение гарантии (сказано вслух). Каждый файл заменяется атомарно, но набор из
-НЕСКОЛЬКИХ файлов — нет: читатель трекера во время записи может увидеть часть заданий уже
-открытыми, а часть — ещё нет. Блокировки трекера в архитектуре нет, поэтому конкурентный
-писатель между сверкой хешей и записью не исключён (окно — миллисекунды на файл). Запись
-перехода в журнал `data/tracker_status_audit.jsonl` (её делает `set_status`) при откате не
-стирается — дописывается обратная запись отката.
+Что эта операция НЕ гарантирует (сказано вслух, см. также отчёт ARB 21.10).
+  * Она НЕ атомарна как целое: заменяется по одному файлу. Читатель трекера между
+    заменами видит часть заданий уже `new`, а часть ещё `done`. После прерывания
+    процесса (kill -9, отключение питания) это смешанное состояние остаётся до
+    следующего запуска скрипта, который его обнаружит и откатит.
+  * Координации с другими писателями трекера нет — в архитектуре нет блокировки
+    трекера (часовой цикл, мост находок, приём заданий, ответы владельца пишут карточки
+    без общей блокировки). Сверка хешей перед каждой заменой сужает окно, но не
+    закрывает его: между сверкой и `os.replace` внутри `set_status` чужая запись в ТОТ
+    ЖЕ файл может быть потеряна. Если до восстановления кто-то изменит карточку, которую
+    записали мы, откат её не тронет и потребует человека (код 5).
+  * Журнал переходов `data/tracker_status_audit.jsonl` — только дописывается. Откат
+    возвращает КАРТОЧКИ к исходным байтам, а в журнал ДОПИСЫВАЕТ обратный переход; прямой
+    переход в журнале остаётся. При прерывании между заменой файла и записью журнала
+    (её делает `set_status` ПОСЛЕ замены) прямой строки в журнале не будет, обратная — будет.
 
 По умолчанию — СУХОЙ ПРОГОН (ничего не пишет). Запись только с `--apply`.
 Только stdlib, без сети.
@@ -61,7 +72,8 @@ import json
 import os
 import re
 import sys
-import tempfile
+import uuid
+from datetime import datetime, timezone
 from pathlib import Path
 
 _REPO = Path(__file__).resolve().parents[1]
@@ -87,8 +99,13 @@ EXIT_USAGE = 2
 EXIT_REFUSED = 3
 EXIT_ROLLED_BACK = 4
 EXIT_MANUAL = 5
+EXIT_UNFINISHED = 6
+
+#: Журнал операций — в `data/` целевого дерева, рядом с журналом переходов; не в /tmp.
+RECOVERY_REL = Path("data") / "repair_phantom_recovery"
 
 _WRITER_SOURCE = "repair_phantom_intake_cards"
+_FINAL_STATES = ("committed", "rolled_back")
 
 
 def _read(path: Path) -> str:
@@ -140,6 +157,23 @@ def _quoted_message(text: str) -> str:
     return m.group(1) if m else ""
 
 
+def tree_root(tracker_dir: Path) -> Path:
+    """Корень целевого дерева: по `.git` вверх, иначе родитель каталога трекера."""
+    from spa_core.owner_queue.status_audit import repo_root_for
+    return repo_root_for(tracker_dir) or Path(tracker_dir).resolve().parent
+
+
+def recovery_root_for(tracker_dir: Path, override: str | os.PathLike | None = None) -> Path:
+    return Path(override) if override is not None else tree_root(tracker_dir) / RECOVERY_REL
+
+
+def _inputs(tracker_dir: Path) -> dict[str, str]:
+    """Хеши ВСЕХ карточек трекера — входы операции, включая карточки владельца."""
+    return {p.name: _sha(p.read_bytes()) for p in sorted(Path(tracker_dir).glob("*.md"))}
+
+
+# ── план: только чтение ─────────────────────────────────────────────────────
+
 def find_phantoms(tracker_dir: Path) -> list[dict]:
     """Карточки-фантомы в статусе `needs-owner`. Ничего не пишет."""
     found: list[dict] = []
@@ -166,6 +200,7 @@ def build_plan(tracker_dir: Path) -> dict:
     """Полный план операции и все причины отказа. Только чтение."""
     from spa_core.owner_queue.queue import LifecycleRefused, check_lifecycle
 
+    inputs = _inputs(tracker_dir)
     inbox_by_title: dict[str, list[Path]] = {}
     for p in sorted(tracker_dir.glob("*.md")):
         fm = _fm(_read(p))
@@ -223,24 +258,162 @@ def build_plan(tracker_dir: Path) -> dict:
         writes.append({"path": src, "old": old, "new": "new",
                        "sha256": _sha(raw), "phantom": name})
 
+    if _inputs(tracker_dir) != inputs:
+        refusals.append("трекер менялся во время планирования — план не о текущем состоянии")
+
     return {"phantoms": [i["phantom"].name for i in phantoms], "writes": writes,
             "refusals": refusals, "orphaned": orphaned,
-            "untouched_sources": untouched_sources}
+            "untouched_sources": untouched_sources, "inputs": inputs,
+            "tracker": str(Path(tracker_dir).resolve())}
 
 
-def _restore(path: Path, data: bytes) -> None:
-    """Вернуть байты: tmp в той же директории + os.replace (форма инв. #5 для байтов)."""
-    fd, tmp = tempfile.mkstemp(dir=str(path.parent), prefix=".repair_restore_")
+# ── «это записали мы»: строка статуса + один след, остальное байт в байт ──────
+
+def _strip_status_and_trail(text: str) -> tuple[list[str], str] | None:
+    from spa_core.owner_queue.status_audit import TRAIL_KEY, _frontmatter_bounds
+    lines = text.splitlines(keepends=True)
+    start, end = _frontmatter_bounds(lines)
+    if start is None or end is None:
+        return None
+    kept: list[str] = []
+    inside = False
+    for ln in lines[start + 1:end]:
+        if not ln[:1].isspace():
+            key = ln.split(":", 1)[0].strip() if ":" in ln else ""
+            inside = key == TRAIL_KEY
+            if inside or key == "status":
+                continue
+        elif inside:
+            continue
+        kept.append(ln)
+    return kept, "".join(lines[end + 1:])
+
+
+def is_our_write(orig: bytes, cur: bytes, old: str, new: str) -> bool:
+    """`cur` — это `orig`, переведённый `set_status` из `old` в `new`, и ничего больше."""
+    from spa_core.owner_queue.status_audit import read_trail, status_of_text
+    o_text, c_text = orig.decode("utf-8"), cur.decode("utf-8")
+    o, c = _strip_status_and_trail(o_text), _strip_status_and_trail(c_text)
+    if o is None or c is None or o != c or status_of_text(c_text) != new:
+        return False
+    t_o = [t["raw"] for t in read_trail(o_text)]
+    t_c = read_trail(c_text)
+    if not t_c:
+        return False
+    last = t_c[-1]
+    if last.get("old") != old or last.get("new") != new or \
+            not str(last.get("source", "")).startswith("queue.set_status"):
+        return False
+    prev = [t["raw"] for t in t_c[:-1]]
+    return prev == (t_o[len(t_o) - len(prev):] if prev else [])
+
+
+# ── журнал операции на диске ─────────────────────────────────────────────────
+
+def _fsync_dir(path: Path) -> None:
+    fd = os.open(str(path), os.O_RDONLY)
     try:
-        with os.fdopen(fd, "wb") as fh:
+        os.fsync(fd)
+    finally:
+        os.close(fd)
+
+
+def _write_durable(path: Path, data: bytes) -> None:
+    """tmp в той же директории + fsync + os.replace + fsync каталога."""
+    tmp = path.with_name(f".{path.name}.{uuid.uuid4().hex[:8]}.tmp")
+    try:
+        with open(tmp, "wb") as fh:
             fh.write(data)
             fh.flush()
             os.fsync(fh.fileno())
         os.replace(tmp, path)
     finally:
-        if os.path.exists(tmp):
-            os.unlink(tmp)
+        if tmp.exists():
+            tmp.unlink()
+    _fsync_dir(path.parent)
 
+
+def _save_manifest(op_dir: Path, manifest: dict) -> None:
+    _write_durable(op_dir / "manifest.json",
+                   json.dumps(manifest, ensure_ascii=False, indent=1).encode("utf-8"))
+
+
+def _restore(path: Path, data: bytes) -> None:
+    """Вернуть исходные байты карточки (форма инв. #5 для байтов)."""
+    _write_durable(path, data)
+
+
+def find_unfinished(recovery_root: Path) -> list[tuple[Path, dict | None]]:
+    """Операции, не дошедшие до `committed`/`rolled_back`. Нечитаемый журнал — тоже."""
+    out: list[tuple[Path, dict | None]] = []
+    if not recovery_root.is_dir():
+        return out
+    for d in sorted(p for p in recovery_root.iterdir() if p.is_dir()):
+        try:
+            m = json.loads((d / "manifest.json").read_text(encoding="utf-8"))
+        except (OSError, ValueError):
+            out.append((d, None))
+            continue
+        if m.get("state") not in _FINAL_STATES:
+            out.append((d, m))
+    return out
+
+
+def _undo(op_dir: Path, manifest: dict, restore, *, source: str) -> tuple[int, str]:
+    """Откатить СВОИ записи операции. Чужая правка ⇒ ничего не трогаем, код 5."""
+    from spa_core.owner_queue.status_audit import record_status_write
+    plan, foreign = [], []
+    for f in manifest["files"]:
+        p = Path(f["path"])
+        try:
+            orig = (op_dir / f"{f['index']:03d}.orig").read_bytes()
+        except OSError as exc:
+            foreign.append(f"{p.name}: исходные байты не прочитаны ({exc})")
+            continue
+        if _sha(orig) != f["orig_sha"]:
+            foreign.append(f"{p.name}: слепок повреждён (хеш не совпадает)")
+            continue
+        try:
+            cur = p.read_bytes()
+        except OSError as exc:
+            foreign.append(f"{p.name}: карточка не прочитана ({exc})")
+            continue
+        if _sha(cur) == f["orig_sha"]:
+            continue
+        ours = (f.get("post_sha") and _sha(cur) == f["post_sha"]) or \
+            is_our_write(orig, cur, f["old"], f["new"])
+        if not ours:
+            foreign.append(f"{p.name}: изменена не нами после нашей записи")
+            continue
+        plan.append((f, p, orig))
+    if foreign:
+        manifest["state"] = "needs_manual"
+        manifest["manual_reasons"] = foreign
+        _save_manifest(op_dir, manifest)
+        return EXIT_MANUAL, ("откат НЕ выполнен — " + "; ".join(foreign) +
+                             f"; исходные байты и хеши — {op_dir}, нужно ручное вмешательство")
+    errors = []
+    for f, p, orig in plan:
+        try:
+            restore(p, orig)
+            record_status_write(p, old=f["new"], new=f["old"], source=f"{_WRITER_SOURCE}/{source}")
+        except Exception as exc:  # noqa: BLE001 — сверка ниже скажет, удалось ли
+            errors.append(f"{p.name}: {exc}")
+    bad = [f["path"] for f in manifest["files"]
+           if not Path(f["path"]).exists() or _sha(Path(f["path"]).read_bytes()) != f["orig_sha"]]
+    if bad or errors:
+        manifest["state"] = "needs_manual"
+        manifest["manual_reasons"] = errors + [f"{Path(b).name}: хеш не исходный" for b in bad]
+        _save_manifest(op_dir, manifest)
+        return EXIT_MANUAL, (f"откат НЕ подтверждён ({', '.join(manifest['manual_reasons'])}) — "
+                             f"исходные байты и хеши — {op_dir}, нужно ручное вмешательство")
+    manifest["state"] = "rolled_back"
+    manifest["rolled_back_by"] = source
+    _save_manifest(op_dir, manifest)
+    return EXIT_ROLLED_BACK, "откат подтверждён по хешам — карточки как до запуска"
+
+
+# ── исполнение ───────────────────────────────────────────────────────────────
 
 def _default_write(path: Path, new_status: str) -> None:
     from spa_core.owner_queue.queue import set_status
@@ -248,107 +421,105 @@ def _default_write(path: Path, new_status: str) -> None:
 
 
 def apply_plan(plan: dict, *, write=_default_write, restore=_restore,
-               recovery_root: str | None = None) -> dict:
-    """Исполнить план, проверенный `build_plan`. Возвращает исход с кодом выхода.
-
-    `write`/`restore` — входы для тестов (внедрение сбоя на каждом шаге); по умолчанию
-    настоящие `set_status` и атомарная замена байтов.
-    """
+               recovery_root: Path) -> dict:
+    """Исполнить план, проверенный `build_plan`. `write`/`restore` — входы для тестов."""
+    tracker = Path(plan["tracker"])
     targets: list[dict] = plan["writes"]
-    recovery = Path(tempfile.mkdtemp(prefix="repair_phantom_recovery_", dir=recovery_root))
-    originals: dict[Path, bytes] = {}
-    manifest = []
+    if _inputs(tracker) != plan["inputs"]:
+        return {"exit": EXIT_REFUSED, "op": None,
+                "reason": "трекер изменился между планом и записью — ничего не записано"}
+
+    op_id = datetime.now(timezone.utc).strftime("%Y%m%dT%H%M%SZ") + "-" + uuid.uuid4().hex[:8]
+    op_dir = recovery_root / op_id
+    op_dir.mkdir(parents=True)
+    manifest = {"op_id": op_id, "tracker": str(tracker), "state": "prepared",
+                "created_at": datetime.now(timezone.utc).isoformat(), "files": []}
     for i, w in enumerate(targets):
         data = w["path"].read_bytes()
-        if _sha(data) != w["sha256"]:
-            return {"exit": EXIT_REFUSED, "recovery": None, "written": [],
-                    "reason": f"{w['path'].name} изменилась между планом и записью — ничего не записано",
-                    "_cleanup": recovery}
-        originals[w["path"]] = data
-        (recovery / f"{i:03d}.orig").write_bytes(data)
-        manifest.append({"index": i, "path": str(w["path"]), "sha256": w["sha256"]})
-    (recovery / "manifest.json").write_text(json.dumps(manifest, ensure_ascii=False, indent=1),
-                                            encoding="utf-8")
+        _write_durable(op_dir / f"{i:03d}.orig", data)
+        manifest["files"].append({"index": i, "path": str(w["path"]), "orig_sha": _sha(data),
+                                  "old": w["old"], "new": w["new"], "post_sha": None,
+                                  "state": "pending"})
+    _save_manifest(op_dir, manifest)
+    _fsync_dir(recovery_root)
 
-    written: list[Path] = []
+    expected = dict(plan["inputs"])
     try:
-        for w in targets:
-            write(w["path"], w["new"])
-            written.append(w["path"])
-            fm = _fm(_read(w["path"]))
-            if _fm_str(fm, "status") != w["new"]:
-                raise RuntimeError(f"{w['path'].name}: после записи статус "
-                                   f"{_fm_str(fm, 'status')!r}, ожидался {w['new']!r}")
+        for f in manifest["files"]:
+            p = Path(f["path"])
+            if _inputs(tracker) != expected:
+                raise RuntimeError("трекер изменён другим писателем во время операции")
+            write(p, f["new"])
+            cur = p.read_bytes()
+            orig = (op_dir / f"{f['index']:03d}.orig").read_bytes()
+            if not is_our_write(orig, cur, f["old"], f["new"]):
+                raise RuntimeError(f"{p.name}: после записи не тот результат")
+            f["post_sha"] = _sha(cur)
+            f["state"] = "written"
+            _save_manifest(op_dir, manifest)
+            expected[p.name] = f["post_sha"]
     except Exception as exc:  # noqa: BLE001 — любой сбой ведёт к откату, причина в отчёте
-        return _rollback(targets, originals, written, recovery, restore, exc)
+        code, why = _undo(op_dir, manifest, restore, source="rollback")
+        return {"exit": code, "op": str(op_dir),
+                "reason": f"сбой записи: {type(exc).__name__}: {exc}; {why}"}
 
-    return {"exit": EXIT_OK, "recovery": None, "written": [p.name for p in written],
-            "reason": "", "_cleanup": recovery}
+    manifest["state"] = "committed"
+    _save_manifest(op_dir, manifest)
+    return {"exit": EXIT_OK, "op": str(op_dir), "reason": "",
+            "written": [Path(f["path"]).name for f in manifest["files"]]}
 
 
-def _rollback(targets, originals, written, recovery, restore, exc) -> dict:
-    from spa_core.owner_queue.status_audit import record_status_write
-    errors = []
-    for w in targets:
-        p = w["path"]
-        try:
-            if p.read_bytes() != originals[p]:
-                restore(p, originals[p])
-                record_status_write(p, old=w["new"], new=w["old"],
-                                    source=f"{_WRITER_SOURCE}/rollback")
-        except Exception as rexc:  # noqa: BLE001
-            errors.append(f"{p.name}: {rexc}")
-    bad = []
-    for w in targets:
-        p = w["path"]
-        try:
-            if _sha(p.read_bytes()) != w["sha256"]:
-                bad.append(p.name)
-        except OSError as rexc:
-            bad.append(f"{p.name} ({rexc})")
-    reason = f"сбой записи: {type(exc).__name__}: {exc}"
-    if bad or errors:
-        return {"exit": EXIT_MANUAL, "recovery": str(recovery),
-                "written": [p.name for p in written],
-                "reason": (f"{reason}; откат НЕ подтверждён ({', '.join(bad + errors)}) — "
-                           f"исходные байты и хеши сохранены в {recovery}, нужно ручное вмешательство"),
-                "_cleanup": None}
-    return {"exit": EXIT_ROLLED_BACK, "recovery": None, "written": [],
-            "reason": f"{reason}; откат подтверждён по хешам — состояние как до запуска",
-            "_cleanup": recovery}
+def recover_unfinished(recovery_root: Path, *, apply: bool, restore=_restore) -> dict | None:
+    """Незавершённая операция ⇒ ответ вместо обработки новых карточек; иначе None."""
+    pending = find_unfinished(recovery_root)
+    if not pending:
+        return None
+    names = [d.name for d, _ in pending]
+    if not apply:
+        return {"exit": EXIT_UNFINISHED, "unfinished": names,
+                "reason": "найдена незавершённая операция — её откатит запуск с --apply; "
+                          "новые карточки не обрабатываются"}
+    for d, m in pending:
+        if m is None:
+            return {"exit": EXIT_MANUAL, "unfinished": names,
+                    "reason": f"журнал операции {d} не читается — нужно ручное вмешательство"}
+        if m.get("state") == "needs_manual":
+            return {"exit": EXIT_MANUAL, "unfinished": names,
+                    "reason": f"операция {d.name} ждёт человека: {'; '.join(m.get('manual_reasons', []))}"}
+        code, why = _undo(d, m, restore, source="recover_after_interrupt")
+        if code != EXIT_ROLLED_BACK:
+            return {"exit": code, "unfinished": names, "reason": why}
+    return {"exit": EXIT_UNFINISHED, "unfinished": names,
+            "reason": "незавершённая операция откатана и сверена по хешам; запусти снова"}
 
 
 def repair(tracker_dir: Path, *, apply: bool, write=_default_write, restore=_restore,
-           recovery_root: str | None = None) -> dict:
-    plan = build_plan(tracker_dir)
+           recovery_root: str | os.PathLike | None = None) -> dict:
+    tracker_dir = Path(tracker_dir)
+    rec_root = recovery_root_for(tracker_dir, recovery_root)
     res = {
-        "applied": False,
-        "phantoms_found": len(plan["phantoms"]),
-        "phantoms": plan["phantoms"],
-        "phantoms_closed": 0,
-        "sources_to_reopen": [w["path"].name for w in plan["writes"]],
-        "sources_reopened": 0,
-        "reopened": [],
-        "sources_not_found": len(plan["orphaned"]),
-        "orphaned": plan["orphaned"],
-        "untouched_sources": plan["untouched_sources"],
-        "refusals": plan["refusals"],
-        "exit": EXIT_OK,
-        "reason": "",
-        "recovery": None,
+        "applied": False, "phantoms_found": 0, "phantoms": [], "phantoms_closed": 0,
+        "sources_to_reopen": [], "sources_reopened": 0, "reopened": [],
+        "sources_not_found": 0, "orphaned": [], "untouched_sources": [], "refusals": [],
+        "unfinished": [], "exit": EXIT_OK, "reason": "", "op": None,
     }
+    rec = recover_unfinished(rec_root, apply=apply, restore=restore)
+    if rec is not None:
+        res.update(exit=rec["exit"], reason=rec["reason"], unfinished=rec["unfinished"])
+        return res
+
+    plan = build_plan(tracker_dir)
+    res.update(phantoms_found=len(plan["phantoms"]), phantoms=plan["phantoms"],
+               sources_to_reopen=[w["path"].name for w in plan["writes"]],
+               sources_not_found=len(plan["orphaned"]), orphaned=plan["orphaned"],
+               untouched_sources=plan["untouched_sources"], refusals=plan["refusals"])
     if plan["refusals"]:
-        res["exit"] = EXIT_REFUSED
-        res["reason"] = "операция отклонена до первой записи"
+        res.update(exit=EXIT_REFUSED, reason="операция отклонена до первой записи")
         return res
     if not apply or not plan["writes"]:
         return res
-    out = apply_plan(plan, write=write, restore=restore, recovery_root=recovery_root)
-    cleanup = out.pop("_cleanup", None)
-    if cleanup is not None:
-        import shutil
-        shutil.rmtree(cleanup, ignore_errors=True)
-    res.update(exit=out["exit"], reason=out["reason"], recovery=out["recovery"])
+    out = apply_plan(plan, write=write, restore=restore, recovery_root=rec_root)
+    res.update(exit=out["exit"], reason=out["reason"], op=out["op"])
     if out["exit"] == EXIT_OK:
         res.update(applied=True, reopened=out["written"], sources_reopened=len(out["written"]))
     return res
@@ -357,6 +528,8 @@ def repair(tracker_dir: Path, *, apply: bool, write=_default_write, restore=_res
 def main(argv: list[str] | None = None) -> int:
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument("--tracker-dir", default=str(_REPO / "nimbalyst-local" / "tracker"))
+    ap.add_argument("--recovery-dir", default=None,
+                    help=f"журнал операций (по умолчанию <дерево>/{RECOVERY_REL})")
     ap.add_argument("--apply", action="store_true", help="выполнить (по умолчанию — сухой прогон)")
     ap.add_argument("--json", action="store_true")
     args = ap.parse_args(argv)
@@ -366,33 +539,36 @@ def main(argv: list[str] | None = None) -> int:
         print(f"нет каталога трекера: {tracker}", file=sys.stderr)
         return EXIT_USAGE
 
-    res = repair(tracker, apply=args.apply)
+    res = repair(tracker, apply=args.apply, recovery_root=args.recovery_dir)
     if args.json:
         print(json.dumps(res, ensure_ascii=False, indent=2))
         return res["exit"]
 
     head = "ВЫПОЛНЕНО" if res["applied"] else "СУХОЙ ПРОГОН (ничего не записано)"
     if res["exit"] != EXIT_OK:
-        head = "ОТКАЗ" if res["exit"] == EXIT_REFUSED else "СБОЙ"
+        head = {EXIT_REFUSED: "ОТКАЗ", EXIT_UNFINISHED: "НЕЗАВЕРШЁННАЯ ОПЕРАЦИЯ"}.get(res["exit"], "СБОЙ")
     print(f"— задания, закрытые фантомами упавшего классификатора · {head} —")
-    print(f"карточек-фантомов (вопросы владельцу, скрипт их НЕ трогает): {res['phantoms_found']}")
-    for name in res["phantoms"]:
-        print(f"   · {name}")
-    if res["phantoms_found"]:
-        print("   закрыть фантом может только владелец (инв. #14, ADR-551)")
-    print(f"заданий к возврату в работу (done → new): {len(res['sources_to_reopen'])}")
-    if res["applied"]:
-        print(f"возвращено: {res['sources_reopened']}")
-    if res["orphaned"]:
-        print(f"исходников не найдено в трекере: {res['sources_not_found']}")
-        for t in res["orphaned"]:
-            print(f"   · {t}")
-    for r in res["refusals"]:
-        print(f"⛔ {r}")
+    if res["unfinished"]:
+        print(f"незавершённые операции: {', '.join(res['unfinished'])}")
+    else:
+        print(f"карточек-фантомов (вопросы владельцу, скрипт их НЕ трогает): {res['phantoms_found']}")
+        for name in res["phantoms"]:
+            print(f"   · {name}")
+        if res["phantoms_found"]:
+            print("   закрыть фантом может только владелец (инв. #14, ADR-551)")
+        print(f"заданий к возврату в работу (done → new): {len(res['sources_to_reopen'])}")
+        if res["applied"]:
+            print(f"возвращено: {res['sources_reopened']}")
+        if res["orphaned"]:
+            print(f"исходников не найдено в трекере: {res['sources_not_found']}")
+            for t in res["orphaned"]:
+                print(f"   · {t}")
+        for r in res["refusals"]:
+            print(f"⛔ {r}")
     if res["reason"]:
         print(res["reason"])
-    if res["recovery"]:
-        print(f"материалы восстановления: {res['recovery']}")
+    if res["op"]:
+        print(f"журнал операции: {res['op']}")
     if res["exit"] == EXIT_OK and not res["applied"] and res["sources_to_reopen"]:
         print("\nповторить с --apply, чтобы записать")
     return res["exit"]

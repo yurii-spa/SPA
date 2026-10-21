@@ -779,6 +779,18 @@ def test_phantom_cards_are_named_with_their_remedy(tree):
     assert doc["status"] == WARNING
 
 
+def test_the_remedy_does_not_promise_to_close_the_owner_card(tree):
+    """Скрипт возвращает в работу ЗАДАНИЯ; карточку-фантом убирает только владелец (ADR-551)."""
+    data, tracker = tree
+    _phantom(tracker, "owner-decision-utochnenie-po-zametke-0")
+
+    doc = check_pending_owner_decisions(now=NOW_1330, data_dir=data, tracker_dir=tracker)
+
+    joined = "\n".join(doc["issues"])
+    assert "лечится" not in joined, "монитор не обещает, что скрипт закроет карточку владельца"
+    assert "только владелец" in joined
+
+
 def test_a_real_question_next_to_phantoms_is_still_counted(tree):
     """Главный риск починки: заодно потерять НАСТОЯЩИЙ вопрос владельца."""
     data, tracker = tree
