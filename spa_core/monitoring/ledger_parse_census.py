@@ -98,9 +98,11 @@ research_factory.read.latest``. Это ровно класс ADR-777 («лека
 
 **Население прогонов — РЕШЕНИЕ, а не замер, и оно так и названо.** Прибор не утверждает,
 что названных прогонов три, — он утверждает, что измерил эти три. Чтобы «прогонов больше»
-не было пустым словом, рядом печатается ЗАМЕР: сколько файлов не-тестового кода вообще
-упоминают путь вида (:func:`view_reference_files`). Член, у которого упоминания есть, а
-ни один объявленный прогон его не зовёт, виден по этим двум числам сразу.
+не было пустым словом, рядом печатается ЗАМЕР — и с цикла #901 это замер ЗОВУЩИХ
+файлов (:func:`view_call_sites`), а не упоминающих: упоминание не есть зов, и мера
+упоминаний (:func:`view_reference_files`) врала в ОБЕ стороны сразу — см. раздел
+«Кто зовёт вид» ниже. Член, которого зовут, но не достигает ни один объявленный
+прогон, назван теперь ФАЙЛОМ, а не виден по разнице двух чисел.
 
 **Дверь счётчика одна, и у неё есть обратная сторона.** Вызовы считаются подменой
 АТРИБУТА МОДУЛЯ (``mod.attr``), потому что все сегодняшние потребители берут вид через
@@ -183,8 +185,41 @@ _capital_sources_section    → read.capital_sources → … → read.cio_view
 
 **Чего это не закрывает.** Полнота населения видов остаётся РЕШЕНИЕМ, как и полнота
 населения прогонов: прибор не утверждает, что у ленты ровно столько видов, — он
-утверждает, что сумма по объявленным сошлась с замером у файла. Замер рядом
-(:func:`view_reference_files` по каждому виду) и есть мера этой неполноты.
+утверждает, что сумма по объявленным сошлась с замером у файла. Мера этой неполноты —
+:func:`view_call_sites` по каждому виду (с цикла #901; до него — число упоминаний,
+которое мерило не предмет).
+
+## Кто ЗОВЁТ вид, а кто лишь упоминает (заказ G782 п. 1, цикл #901)
+
+Рядом с решением «население прогонов» стоял ЗАМЕР неполноты — число файлов не-тестового
+кода, упоминающих вид. Он отвечал на свой вопрос верно и не на нужный: **упоминание не
+есть зов**, а число рядом с решением обязано мерить то, о чём решение.
+
+Замер 21.10 (`origin/main` ``2a367e897``, ни одной правки):
+
+===========================  ======  =======
+ось                          мера    разбор
+                             упоми-  кода
+                             наний   (AST)
+===========================  ======  =======
+файлов в ответе                  22       15
+упоминают и НЕ зовут          н/д        10
+зовущих, которых мера НЕ ВИДИТ  —          3
+===========================  ======  =======
+
+**Мера врала в ОБЕ стороны.** Завышение — 10 файлов из 22 называют вид и не зовут
+(``utils/hash_ledger.py`` ленту ОБЪЯВЛЯЕТ, ``studio_os/mission_build.py``, сам модуль
+вида). Занижение — ``research_factory/{failure_matrix,failure_matrix_v2,run}.py`` зовут
+``read.latest()`` по-настоящему, а мера не называет ни одного: дверь многоимённого импорта
+``from spa_core.research_factory import contract, …, read, …``. Занижение опаснее: оно
+успокаивает.
+
+**И первый же замер этого цикла дал СЛЕПОЙ НОЛЬ** — 0 зовущих у всех пяти видов, потому
+что проба не разбирала дверь ``from <пакет> import <модуль> as <имя>``, ту самую, которой
+зовут живые читатели. Инвариант #17 случился у прибора, написанного ПРО этот класс;
+отсюда правило: у статического замера обязана быть обратная сторона, добытая ДРУГИМ
+способом — :func:`view_call_sites` против кадров, записанных :func:`count_calls`, и
+сверка их двух (:func:`cross_check_call_sites`) в ОБЕ стороны.
 
 ## Третий множитель: сколько раз за СУТКИ зовут сам прогон (заказ G779, цикл #898)
 
@@ -256,6 +291,7 @@ ADVISORY: прибор только ЧИТАЕТ. Ни RiskPolicy, ни стоп
 from __future__ import annotations
 
 import argparse
+import ast
 import builtins
 import contextlib
 import datetime as _dt
@@ -264,6 +300,7 @@ import io
 import json
 import plistlib
 import re
+import sys
 import time
 from dataclasses import dataclass, field
 from pathlib import Path
@@ -294,6 +331,7 @@ F_WORKLOAD_OPENS_DRIFTED = "opens_per_workload_drifted"
 F_MODEL_DISAGREES = "per_view_model_disagrees_with_the_measured_parses"
 F_SCHEDULE_NEVER_OBSERVED = "schedule_declared_but_the_run_was_never_observed"
 F_PRICE_EXCEEDS_INTERVAL = "reparse_price_exceeds_the_run_own_interval"
+F_CALLER_OUTSIDE_WORKLOADS = "view_is_called_from_a_file_no_declared_workload_reaches"
 
 U_VIEW_RAISED = "view_raised"
 U_LEDGER_ABSENT = "ledger_absent"
@@ -309,6 +347,9 @@ U_LOG_SHALLOWER = "log_depth_shallower_than_the_window"
 U_SCHEDULE_UNREADABLE = "schedule_declared_but_not_readable"
 U_DAILY_PRICE_UNKNOWN = "daily_price_missing_a_factor"
 U_LEDGER_ID_SPLIT = "one_ledger_declared_under_two_identities"
+U_CALL_SITE_UNPARSED = "call_sites_file_not_parsed"
+U_CALL_BASE_UNRESOLVED = "call_wears_the_view_name_but_its_base_is_not_static"
+U_CALL_SITES_BLIND = "a_caller_was_observed_at_runtime_that_the_static_sweep_does_not_see"
 
 
 @dataclass(frozen=True)
@@ -560,7 +601,9 @@ _OWNER_PRESS = Cadence(
 
 #: Объявленное население ПРОГОНОВ. Это РЕШЕНИЕ, а не замер, и прибор не утверждает, что
 #: прогонов в системе ровно три — он утверждает, что измерил эти три. Насколько население
-#: полно, видно по соседнему ЗАМЕРУ :func:`view_reference_files`.
+#: полно, видно по соседнему ЗАМЕРУ :func:`view_call_sites` — ЗОВУЩИЕ файлы, не
+#: упоминающие (цикл #901): до него мера завышала неполноту на 10 файлов из 22 и при
+#: этом теряла трёх настоящих зовущих.
 WORKLOADS: Tuple[Workload, ...] = (
     Workload(
         id="mission_build",
@@ -750,6 +793,199 @@ def view_reference_files(member: "Member", tree_root: Optional[Path] = None) -> 
     return hits
 
 
+@dataclass(frozen=True)
+class CallSites:
+    """Кто ЗОВЁТ вид — по разбору кода, а не по вхождению подстроки (заказ G782 п. 1).
+
+    Рядом с решением «население прогонов» прибор с цикла #896 печатал ЗАМЕР неполноты:
+    сколько файлов не-тестового кода упоминают вид (:func:`view_reference_files`). Замер
+    отвечал на свой вопрос честно, но не на нужный: **упоминание не есть зов.** Замер
+    21.10 на ``origin/main`` ``2a367e897``: упоминаний **22**, а зовущих файлов **12** —
+    десять файлов из двадцати двух вид только называют (докстрока соседа, объявление
+    ленты в ``hash_ledger``, собственный модуль вида). Мера неполноты, стоявшая рядом с
+    решением, завышала его почти вдвое.
+
+    Три исхода различимы у КАЖДОГО файла (инв. #17):
+
+    * ``calls`` — файл зовёт вид, и зовов столько;
+    * ``mentions_only`` — файл вид упоминает и ИЗМЕРЕННО не зовёт (это не дефект файла,
+      а снятие его из меры неполноты);
+    * ``unparsed`` / ``unresolved_base`` — про файл НЕ ИЗМЕРЕНО ничего, и названа причина.
+
+    **Четыре двери, и каждая названа.** Зов вида ``<модуль>:<имя>`` виден статически,
+    только если известно, под каким именем в файле лежит модуль или сам вид:
+
+    1. ``import <модуль> [as X]`` → ``X.<имя>(…)`` либо полный путь
+       ``spa_core.research_factory.read.latest(…)``;
+    2. ``from <пакет> import <модуль> [as X]`` → ``X.<имя>(…)``. Эта дверь — самая
+       населённая у живых читателей (``from spa_core.research_factory import read as
+       rf_read``), и ровно её пропустила ПЕРВАЯ проба этого цикла: она дала **ноль**
+       зовущих файлов при четырёх настоящих, то есть классический слепой ноль;
+    3. ``from <модуль> import <имя> [as Y]`` → ``Y(…)``. Такое связывание само по себе
+       есть находка счётчика зовов (:data:`F_IMPORT_BOUND_VIEW`), но зов через него
+       обязан быть ПОСЧИТАН: иначе прибор печатал бы ноль там, где зовущий есть;
+    4. внутри самого модуля вида → ``<имя>(…)`` без основания.
+
+    **Пятая дверь объявляется НЕНАБЛЮДАЕМОЙ, а не закрытой.** Зов через словарь или
+    ``getattr`` (``READERS["x"]()``, ``getattr(mod, "latest")()``) статикой не виден по
+    построению. Поэтому у этого замера есть обратная сторона — ДИНАМИЧЕСКАЯ атрибуция
+    зова к файлу (:func:`count_calls`), и расхождение двух замеров судится в ОБЕ стороны:
+    зовущий, увиденный на прогоне и не увиденный статикой, есть третий исход
+    :data:`U_CALL_SITES_BLIND`, а не тишина.
+    """
+
+    calls: Dict[str, int]
+    mentions_only: Tuple[str, ...]
+    unparsed: Dict[str, str]
+    unresolved_base: Dict[str, str]
+
+
+def _dotted(node: ast.AST) -> Optional[str]:
+    """``a.b.c`` → ``"a.b.c"``; основание, которое не есть цепочка имён → ``None``.
+
+    ``None`` тут не «нет основания», а «основание не статическое» (``f()[0].latest()``),
+    и наверху оно становится третьим исходом с названным файлом, а не нулём.
+    """
+    parts: List[str] = []
+    while isinstance(node, ast.Attribute):
+        parts.append(node.attr)
+        node = node.value
+    if isinstance(node, ast.Name):
+        parts.append(node.id)
+        return ".".join(reversed(parts))
+    return None
+
+
+def _module_package(rel: str) -> str:
+    """Пакет файла по его пути в дереве — чтобы разрешать ОТНОСИТЕЛЬНЫЙ импорт.
+
+    ``spa_core/investment_cio/read.py`` → ``spa_core.investment_cio``: именно от этого
+    имени считаются точки в ``from ..research_factory import read``.
+    """
+    return rel[:-3].replace("/", ".").rpartition(".")[0]
+
+
+def _resolve_from(node: ast.ImportFrom, pkg: str) -> Optional[str]:
+    """Полное имя модуля в ``from … import …``, включая относительную форму."""
+    if not node.level:
+        return node.module
+    parts = pkg.split(".") if pkg else []
+    base = parts[:len(parts) - (node.level - 1)] if node.level > 1 else parts
+    if node.level - 1 > len(parts):
+        return None
+    return ".".join([*base, node.module] if node.module else base) or None
+
+
+def _calls_in_file(tree: ast.AST, rel: str,
+                   wanted: Sequence[Tuple[str, str, str]]) -> Tuple[Dict[str, int],
+                                                                    Dict[str, str]]:
+    """Зовы каждого искомого вида в ОДНОМ разобранном файле.
+
+    ``wanted`` — тройки ``(ключ, модуль вида, имя вида)``. Возврат: зовы по ключам ·
+    ключи, у которых встретился зов с ИМЕНЕМ вида, но основание не статическое.
+    """
+    pkg = _module_package(rel)
+    #: имя в файле → полное имя модуля (двери 1 и 2)
+    mod_names: Dict[str, str] = {}
+    #: имя в файле → (модуль, имя вида) для двери 3
+    view_names: Dict[str, Tuple[str, str]] = {}
+    for node in ast.walk(tree):
+        if isinstance(node, ast.Import):
+            for alias in node.names:
+                if alias.asname:
+                    mod_names[alias.asname] = alias.name
+                else:
+                    #: ``import a.b.c`` связывает ``a``, а зов пишется полным путём —
+                    #: он и сверяется ниже как цепочка, поэтому кладём полное имя само на себя
+                    mod_names[alias.name] = alias.name
+        elif isinstance(node, ast.ImportFrom):
+            src = _resolve_from(node, pkg)
+            if not src:
+                continue
+            for alias in node.names:
+                mod_names[alias.asname or alias.name] = f"{src}.{alias.name}"
+                view_names[alias.asname or alias.name] = (src, alias.name)
+    calls: Dict[str, int] = {}
+    murky: Dict[str, str] = {}
+    for node in ast.walk(tree):
+        if not isinstance(node, ast.Call):
+            continue
+        func = node.func
+        if isinstance(func, ast.Attribute):
+            base = _dotted(func.value)
+            for key, mod_name, attr in wanted:
+                if func.attr != attr:
+                    continue
+                if base is None:
+                    murky[key] = (f"{U_CALL_BASE_UNRESOLVED}: {rel} зовёт «{attr}» у "
+                                  f"основания, которое не есть цепочка имён — статикой "
+                                  f"не разрешается, зов не отнесён ни к кому")
+                elif base == mod_name or mod_names.get(base) == mod_name:
+                    calls[key] = calls.get(key, 0) + 1
+        elif isinstance(func, ast.Name):
+            for key, mod_name, attr in wanted:
+                #: дверь 4 — внутри самого модуля вида; дверь 3 — имя, связанное на импорте
+                own = rel == mod_name.replace(".", "/") + ".py"
+                if func.id == attr and own:
+                    calls[key] = calls.get(key, 0) + 1
+                elif view_names.get(func.id) == (mod_name, attr):
+                    calls[key] = calls.get(key, 0) + 1
+    return calls, murky
+
+
+def view_call_sites(members: Sequence["Member"], tree_root: Optional[Path] = None,
+                    ) -> Dict[str, CallSites]:
+    """Обход дерева ОДИН раз: кто зовёт каждый объявленный вид (заказ G782 п. 1).
+
+    Население обхода — то же, что у :func:`view_reference_files` (не-тестовый код
+    ``spa_core/`` и ``scripts/``, без самого прибора), и сверять два замера между собой
+    имеет смысл только на одном населении. Файл разбирается РОВНО один раз на все виды:
+    пять отдельных обходов дали бы пять разборов каждого файла — цена, против которой
+    этот модуль и написан.
+    """
+    root = Path(tree_root or _ROOT)
+    wanted: List[Tuple[str, str, str]] = []
+    for m in members:
+        if callable(m.view):
+            continue
+        mod_name, _, attr = str(m.view).partition(":")
+        if mod_name and attr:
+            wanted.append((m.id, mod_name, attr))
+    calls: Dict[str, Dict[str, int]] = {key: {} for key, _, _ in wanted}
+    unparsed: Dict[str, str] = {}
+    murky: Dict[str, Dict[str, str]] = {key: {} for key, _, _ in wanted}
+    for base in ("spa_core", "scripts"):
+        base_dir = root / base
+        if not base_dir.is_dir():
+            continue
+        for path in sorted(base_dir.rglob("*.py")):
+            rel = path.relative_to(root).as_posix()
+            if "/tests/" in f"/{rel}" or rel == SELF_REL:
+                continue
+            try:
+                text = path.read_text(encoding="utf-8")
+                tree = ast.parse(text)
+            except (OSError, SyntaxError, ValueError) as exc:
+                #: про этот файл не измерено НИЧЕГО — ни зовов, ни их отсутствия
+                unparsed[rel] = f"{U_CALL_SITE_UNPARSED}: {type(exc).__name__}: {exc}"
+                continue
+            found, bad = _calls_in_file(tree, rel, wanted)
+            for key, n in found.items():
+                calls[key][rel] = n
+            for key, why in bad.items():
+                murky[key][rel] = why
+    out: Dict[str, CallSites] = {}
+    for key, mod_name, attr in wanted:
+        member = next(m for m in members if m.id == key)
+        refs = view_reference_files(member, root)
+        mentions_only = tuple(r for r in refs if r not in calls[key]
+                              and r not in murky[key] and r not in unparsed)
+        out[key] = CallSites(calls=dict(sorted(calls[key].items())),
+                             mentions_only=mentions_only,
+                             unparsed=dict(sorted(unparsed.items())),
+                             unresolved_base=dict(sorted(murky[key].items())))
+    return out
+
 def resolve_view_site(member: "Member") -> Tuple[Optional[object], Optional[str], Optional[str]]:
     """Место, где вид ЛЕЖИТ (модуль + имя атрибута) — чтобы было что подменить счётчиком.
 
@@ -806,9 +1042,25 @@ def ledger_id_split(members: Sequence["Member"]) -> Dict[str, str]:
     return bad
 
 
+def _calling_file(frame: object) -> str:
+    """Файл кадра — путём ОТНОСИТЕЛЬНО дерева, если он в дереве, и абсолютным, если нет.
+
+    Различие несущее: сверять динамический замер со статическим можно только на одном
+    населении, а статика обходит дерево. Кадр из ``site-packages`` или из ``exec``-строки
+    поэтому и обязан выглядеть иначе — иначе «его не видит статика» читалось бы как
+    слепота прибора, хотя статике там смотреть нечего.
+    """
+    name = getattr(getattr(frame, "f_code", None), "co_filename", "") or "<кадра нет>"
+    try:
+        return Path(name).resolve().relative_to(_ROOT).as_posix()
+    except (ValueError, OSError):
+        return name
+
+
 def count_calls(members: Sequence["Member"], workload: Workload,
                 data_dir: Path) -> Tuple[Dict[str, int], Dict[str, str], object,
-                                         Optional[str], Dict[str, int]]:
+                                         Optional[str], Dict[str, int],
+                                         Dict[str, Dict[str, int]]]:
     """Что ОДИН прогон делает с каждой лентой — ДВА числа, и они отвечают на разное.
 
     * **зовы** (``counts``) — сколько раз прогон позвал ОБЪЯВЛЕННЫЙ вид; мерятся подменой
@@ -828,10 +1080,26 @@ def count_calls(members: Sequence["Member"], workload: Workload,
     одной ленты свой счётчик разборов значило бы сложить цену этого файла столько раз,
     сколько у него видов, — прибор завысил бы ровно то, что мерит.
 
+    **Шестое число — ОТКУДА позвали** (заказ G782 п. 1, цикл #901). Счётчик зовов и так
+    стоит у двери вида, и спросить вызывающий кадр стои́т один ``sys._getframe``; зато
+    появляется обратная сторона у статического замера :func:`view_call_sites`. Два замера
+    отвечают на один вопрос РАЗНЫМИ способами, и расхождение судится в ОБЕ стороны:
+    зовущий, увиденный на прогоне, но не увиденный статикой, означает дверь, которую
+    статика не смотрит (:data:`U_CALL_SITES_BLIND`) — третий исход, а не тишина; зовущий,
+    увиденный статикой, но не достигнутый ни одним прогоном, и есть НАЗВАННАЯ неполнота
+    населения прогонов — то, что до этого цикла стояло рядом с решением числом упоминаний.
+
+    Кадр берётся ПЕРВЫЙ над обёрткой: он и есть тот, кто написал зов. Вложенный читатель
+    (``capital_shadow.readiness`` → ``research_factory.read.latest``) поэтому называет
+    себя сам, а не того, кто поднял прогон, — именно этого класса («цену платит вложенный
+    читатель, которого вызывающий не называет») и был дефект ADR-777.
+
     Возврат: зовы (по парам) · члены, у которых считать нечем (с причиной) · ответ прогона ·
-    причина отказа прогона (``None``, если прогон дошёл до конца) · разборы (по файлам).
+    причина отказа прогона (``None``, если прогон дошёл до конца) · разборы (по файлам) ·
+    зовущие файлы (по парам: ``{пара: {файл: зовов}}``).
     """
     counts: Dict[str, int] = {}
+    sites: Dict[str, Dict[str, int]] = {}
     cannot: Dict[str, str] = {}
     undo: List[Tuple[object, str, Callable]] = []
     #: ГЕЙТ стоит у той самой двери, которую охраняет: цели счётчика строятся здесь, и
@@ -839,7 +1107,7 @@ def count_calls(members: Sequence["Member"], workload: Workload,
     #: замеченным по странному числу потом.
     split = ledger_id_split(members)
     if split:
-        return {}, {}, None, "; ".join(split.values()), {}
+        return {}, {}, None, "; ".join(split.values()), {}, {}
     #: ОДИН счётчик на файл: ключ словаря сам сводит виды одной ленты к одной цели
     targets = {m.ledger_id: Path(data_dir) / m.ledger for m in members}
     for m in members:
@@ -849,10 +1117,13 @@ def count_calls(members: Sequence["Member"], workload: Workload,
             continue
         real = getattr(mod, attr)
         counts[m.id] = 0
+        sites[m.id] = {}
 
         def make(mid=m.id, real=real):
             def hook(*a, **k):
                 counts[mid] += 1
+                where = _calling_file(sys._getframe(1))
+                sites[mid][where] = sites[mid].get(where, 0) + 1
                 return real(*a, **k)
             hook.__wrapped__ = real
             return hook
@@ -869,7 +1140,7 @@ def count_calls(members: Sequence["Member"], workload: Workload,
     finally:
         for mod, attr, real in undo:
             setattr(mod, attr, real)
-    return counts, cannot, answer, err, dict(opens)
+    return counts, cannot, answer, err, dict(opens), sites
 
 
 #: формат строки запуска, которую пишет ``scripts/agent_template.sh`` каждому агенту флота
@@ -1036,14 +1307,18 @@ def measure_workloads(data_dir: Path | str, *, members: Sequence["Member"] = LED
         views_of.setdefault(m.ledger_id, []).append(m.id)
     rows: List[dict] = []
     reached: Dict[str, int] = {m.id: 0 for m in members}
+    #: ОТКУДА звали — по паре и по файлу, сложенное по всем прогонам. Обратная сторона
+    #: статического замера :func:`view_call_sites`; сверяются они в :func:`measure`.
+    observed_sites: Dict[str, Dict[str, int]] = {}
     seen_measured = False
     for w in workloads:
         row: dict = {"id": w.id, "reason": w.reason, "calls": None, "opens": None,
+                     "call_sites": None,
                      "opens_modelled": None, "not_countable": None, "unmeasured": None,
                      "price_s": None, "growth_factor": None, "cadence": None,
                      "price_day_s": None, "rate_per_day": None, "rate_source": None,
                      "share_of_day": None, "daily_unmeasured": None, "findings": []}
-        counts, cannot, answer, err, opens = count_calls(members, w, data)
+        counts, cannot, answer, err, opens, sites = count_calls(members, w, data)
         if cannot:
             row["not_countable"] = cannot
         if err:
@@ -1066,6 +1341,14 @@ def measure_workloads(data_dir: Path | str, *, members: Sequence["Member"] = LED
             rows.append(row)
             continue
         seen_measured = True
+        #: зовущие складываются только у ПРИНЯТОГО прогона: у отказавшего (третий исход
+        #: выше) замер неполон по построению, и выдать его за наблюдение значило бы
+        #: назвать статику слепой по вине упавшего прогона
+        for mid, by_file in sites.items():
+            for rel, n in by_file.items():
+                observed_sites.setdefault(mid, {})[rel] = \
+                    observed_sites.setdefault(mid, {}).get(rel, 0) + n
+        row["call_sites"] = {mid: dict(sorted(v.items())) for mid, v in sites.items() if v}
         row["calls"] = counts
         counted_ledgers = {ledger_of.get(mid, mid) for mid in counts}
         row["opens"] = {lid: n for lid, n in opens.items()
@@ -1194,6 +1477,8 @@ def measure_workloads(data_dir: Path | str, *, members: Sequence["Member"] = LED
         "declared": len(workloads),
         "rows": rows,
         "calls_by_member": reached if seen_measured else {},
+        "call_sites": {mid: dict(sorted(v.items())) for mid, v in sorted(observed_sites.items())},
+        "sites_measured": seen_measured,
         "unreached": unreached,
         "unmeasured": [r for r in rows if r["unmeasured"]],
         "daily_unmeasured": [r for r in rows if r.get("daily_unmeasured")],
@@ -1201,6 +1486,69 @@ def measure_workloads(data_dir: Path | str, *, members: Sequence["Member"] = LED
         "findings": [dict(f, id=r["id"]) for r in rows for f in r["findings"]],
     }
 
+
+def cross_check_call_sites(static: Dict[str, "CallSites"],
+                           observed: Dict[str, Dict[str, int]],
+                           *, sites_measured: bool) -> dict:
+    """Сверка ДВУХ замеров «кто зовёт вид» — статики и прогона, в ОБЕ стороны.
+
+    Замеры добыты разными способами, и именно поэтому их совпадение не тавтология:
+    статика читает код и не видит зов через словарь или ``getattr``; прогон видит
+    фактический кадр, но только там, куда он дошёл. Поэтому у расхождения ДВА разных
+    смысла, и смешать их значило бы потерять оба:
+
+    * **прогон видит, статика нет** ⇒ :data:`U_CALL_SITES_BLIND`: у статики есть
+      непросмотренная дверь. Это третий исход (прибор не измерил), а не находка о коде —
+      ровно тот дефект, который первая проба этого цикла дала на себе: дверь
+      ``from <пакет> import <модуль> as <имя>`` была не разобрана, и замер дал НОЛЬ
+      зовущих при четырёх настоящих;
+    * **статика видит, ни один прогон не достиг** ⇒ НАЗВАННАЯ неполнота населения
+      прогонов. Это не дефект и не третий исход: население прогонов есть РЕШЕНИЕ, и
+      прибор лишь перестаёт мерить его числом упоминаний.
+
+    **Сверить было нечем — отдельный исход.** Ни один прогон не принят (``--no-workloads``,
+    либо все отказали) ⇒ ``status="not_measured"``: пустые списки тут означают «не
+    сверялось», а не «сошлось», и выдать одно за другое запрещает инв. #17.
+    """
+    blind: Dict[str, Dict[str, str]] = {}
+    outside: Dict[str, List[str]] = {}
+    agreed: Dict[str, List[str]] = {}
+    out_of_tree: Dict[str, List[str]] = {}
+    if not sites_measured:
+        return {"status": "not_measured",
+                "reason": ("ни один объявленный прогон не принят в замер — динамической "
+                           "стороны нет, и сверять статику не с чем; пустота здесь "
+                           "означает «не сверялось», а не «сошлось»"),
+                "blind": {}, "outside_workloads": {}, "agreed": {}, "out_of_tree": {}}
+    for mid, sites in sorted(static.items()):
+        seen = observed.get(mid) or {}
+        for rel in sorted(seen):
+            #: кадр вне дерева статике не подсуден: она обходит дерево, и «не видит» там
+            #: не слепота, а отсутствие предмета
+            if rel.startswith("/") or rel.startswith("<"):
+                out_of_tree.setdefault(mid, []).append(rel)
+            elif rel == SELF_REL:
+                #: сам прибор поднимает прогоны, и его собственный кадр статика не читает
+                #: намеренно (SELF_REL исключён из обхода) — это объявлено, а не пропущено
+                continue
+            elif rel in sites.calls:
+                agreed.setdefault(mid, []).append(rel)
+            elif rel in sites.unparsed:
+                blind[mid] = dict(blind.get(mid) or {})
+                blind[mid][rel] = sites.unparsed[rel]
+            else:
+                blind[mid] = dict(blind.get(mid) or {})
+                blind[mid][rel] = (
+                    f"{U_CALL_SITES_BLIND}: прогон НАБЛЮДАЛ зов вида «{mid}» из {rel}, а "
+                    f"статический обход зова там не видит — значит у него есть дверь, "
+                    f"которую он не смотрит (зов через словарь, getattr или форма импорта, "
+                    f"которую разбор не знает). Про этот файл статика НЕ измерила ничего")
+        missed = [rel for rel in sites.calls if rel not in seen]
+        if missed:
+            outside[mid] = sorted(missed)
+    return {"status": "compared", "reason": None, "blind": blind,
+            "outside_workloads": outside, "agreed": {k: sorted(v) for k, v in agreed.items()},
+            "out_of_tree": {k: sorted(v) for k, v in out_of_tree.items()}}
 
 def ledger_code_files(tree_root: Optional[Path] = None) -> List[str]:
     """Файлы НЕ-тестового кода, несущие литерал имени ленты — замером по дереву.
@@ -1456,6 +1804,11 @@ def measure(data_dir: Path | str, *, members: Sequence[Member] = LEDGERS,
                            tree_root=tree_root, now=now, window_h=window_h)
     import_bound = direct_name_bindings(tree_root, members)
     refs = {m.id: view_reference_files(m, tree_root) for m in members}
+    #: КТО зовёт вид — замер вместо числа упоминаний (заказ G782 п. 1). Статика рядом с
+    #: решением, динамика — в прогонах выше; сверка их двух и есть ответ на заказ.
+    static_sites = view_call_sites(members, tree_root)
+    cross = cross_check_call_sites(static_sites, wl.get("call_sites") or {},
+                                   sites_measured=bool(wl.get("sites_measured")))
     declared_files = sorted(LEDGER_CODE_FILES)
     tree_files = sorted(ledger_code_files(tree_root))
     doc = {
@@ -1479,6 +1832,18 @@ def measure(data_dir: Path | str, *, members: Sequence[Member] = LEDGERS,
         "workloads": wl,
         "import_bound_views": import_bound,
         "view_reference_files": {k: sorted(v) for k, v in refs.items()},
+        "call_sites": {
+            "static": {k: {"calls": v.calls,
+                           "mentions_only": list(v.mentions_only),
+                           "unresolved_base": v.unresolved_base}
+                       for k, v in static_sites.items()},
+            #: файлы, которые не разобрались, — ОДИН список на обход: про них не измерено
+            #: ничего ни по одному виду, и повторять их у каждого вида значило бы выдать
+            #: одну непрочитанную страницу за пять разных
+            "unparsed": (next(iter(static_sites.values())).unparsed
+                         if static_sites else {}),
+            "cross": cross,
+        },
     }
     doc["findings"] = [dict(f, id=r["id"]) for r in rows for f in r["findings"]]
     doc["findings"].extend(wl["findings"])
@@ -1549,8 +1914,38 @@ def format_report(doc: dict) -> List[str]:
         if refs_all:
             out.append("     ЗАМЕР рядом с решением — упоминаний вида в не-тестовом коде: "
                        + " · ".join(f"{k}:{len(v)}" for k, v in sorted(refs_all.items()))
-                       + f" (прогонов измерено {wl['declared']}; разница и есть мера "
-                         f"неполноты населения, а не доказательство полноты)")
+                       + f" (прогонов измерено {wl['declared']}; упоминание, однако, не "
+                         f"есть зов — зовущие ниже)")
+        cs = doc.get("call_sites") or {}
+        static = cs.get("static") or {}
+        if static:
+            out.append("     КТО ЗОВЁТ вид (разбор кода, а не подстрока): "
+                       + " · ".join(f"{k}:{len(v.get('calls') or {})}"
+                                    for k, v in sorted(static.items())))
+            for mid, v in sorted(static.items()):
+                only = v.get("mentions_only") or []
+                if only:
+                    out.append(f"       {mid}: упоминают и НЕ зовут {len(only)} — "
+                               f"{', '.join(only)}")
+                for rel, why in sorted((v.get("unresolved_base") or {}).items()):
+                    out.append(f"       [НЕ ИЗМЕРЕНО] {rel}: {why}")
+        for rel, why in sorted((cs.get("unparsed") or {}).items()):
+            out.append(f"     [НЕ ИЗМЕРЕНО] {rel}: {why}")
+        cross = cs.get("cross") or {}
+        if cross.get("status") == "not_measured":
+            out.append(f"     [НЕ ИЗМЕРЕНО] сверка статики с прогонами: {cross['reason']}")
+        elif cross.get("status") == "compared":
+            for mid, bad in sorted((cross.get("blind") or {}).items()):
+                for rel, why in sorted(bad.items()):
+                    out.append(f"     [НЕ ИЗМЕРЕНО] {mid} ← {rel}: {why}")
+            outside = cross.get("outside_workloads") or {}
+            if outside:
+                out.append("     НЕПОЛНОТА НАСЕЛЕНИЯ ПРОГОНОВ — названная по файлам: "
+                           + " · ".join(f"{k}: {', '.join(v)}"
+                                        for k, v in sorted(outside.items())))
+            else:
+                out.append("     население прогонов достаёт КАЖДОГО статического зовущего "
+                           "(сверено в обе стороны, а не предположено)")
         if doc.get("import_bound_views") is not None and not doc["import_bound_views"]:
             out.append("     счётчик подменяет АТРИБУТ МОДУЛЯ; связываний имени вида на "
                        "импорте в дереве не найдено — это ЗАМЕР обходом, а не умолчание")
@@ -1574,7 +1969,8 @@ def format_report(doc: dict) -> List[str]:
                    f"литерал по построению)")
     out.append("   НЕ ДОКЛАДЫВАЕТ: читает ли кто-то ленту через os.open (такой член уйдёт в "
                "третий исход, а не в тишину) · ПОЛНО ли население прогонов (это решение; "
-               "замер рядом — число упоминаний вида в коде) · МНОГО ли суточная цена (суточного "
+               "замер рядом — ЗОВУЩИЕ файлы, не упоминания, и у них названа неполнота) · "
+               "МНОГО ли суточная цена (суточного "
                "бюджета не принимал никто, поэтому вердикта у этого числа нет) · сколько раз "
                "в сутки владелец открывает экран (записи об отданном экране не ведёт никто — "
                "третий исход, не ноль) · верна ли сама лента (это вопрос verify(), не этого "
@@ -1593,8 +1989,15 @@ def exit_code(doc: dict) -> int:
     """
     pop = doc["population"]
     wl = doc.get("workloads") or {}
+    cs = doc.get("call_sites") or {}
+    cross = cs.get("cross") or {}
+    #: про зовущих НЕ ИЗМЕРЕНО — это третий исход у ПРИБОРА, и он сильнее находки ровно
+    #: так же, как слепой член выше: слепая статика означает, что «зовущих столько»
+    #: сказать нельзя вовсе
     if (doc["unmeasured"] or wl.get("unmeasured") or wl.get("unreached")
-            or wl.get("daily_unmeasured")):
+            or wl.get("daily_unmeasured") or cross.get("blind") or cs.get("unparsed")
+            or any((v or {}).get("unresolved_base")
+                   for v in (cs.get("static") or {}).values())):
         return 2
     if doc["findings"] or pop["code_files_undeclared"] or pop["code_files_missing"]:
         return 1

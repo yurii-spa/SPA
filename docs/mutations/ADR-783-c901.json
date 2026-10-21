@@ -1,0 +1,128 @@
+{
+  "title": "ADR-783 — дельта цикла #901 (заказ G782 п. 1): кто ЗОВЁТ вид, а не кто его упоминает; статика и прогон сверяются в ОБЕ стороны",
+  "tests": [
+    "spa_core/tests/test_ledger_parse_census.py"
+  ],
+  "mutations": [
+    {
+      "name": "дверь 2 не разбирается (from пакет import модуль as имя) — ровно слепой ноль первой пробы цикла",
+      "file": "spa_core/monitoring/ledger_parse_census.py",
+      "old": "            for alias in node.names:\n                mod_names[alias.asname or alias.name] = f\"{src}.{alias.name}\"\n                view_names[alias.asname or alias.name] = (src, alias.name)\n",
+      "new": "            for alias in node.names:\n                view_names[alias.asname or alias.name] = (src, alias.name)\n"
+    },
+    {
+      "name": "дверь 3 не считается (имя вида, связанное на импорте, зовом не признаётся)",
+      "file": "spa_core/monitoring/ledger_parse_census.py",
+      "old": "                elif view_names.get(func.id) == (mod_name, attr):\n                    calls[key] = calls.get(key, 0) + 1\n",
+      "new": "                elif False:\n                    calls[key] = calls.get(key, 0) + 1\n"
+    },
+    {
+      "name": "дверь 4 ширится: бареное имя вида считается зовом и в ЧУЖОМ файле (замер завышается)",
+      "file": "spa_core/monitoring/ledger_parse_census.py",
+      "old": "                own = rel == mod_name.replace(\".\", \"/\") + \".py\"\n",
+      "new": "                own = True\n"
+    },
+    {
+      "name": "основание зова не сверяется с модулем вида — любой .latest() чужого объекта идёт в зовущие",
+      "file": "spa_core/monitoring/ledger_parse_census.py",
+      "old": "                elif base == mod_name or mod_names.get(base) == mod_name:\n                    calls[key] = calls.get(key, 0) + 1\n",
+      "new": "                elif True:\n                    calls[key] = calls.get(key, 0) + 1\n"
+    },
+    {
+      "name": "неразрешимое основание выдаётся за отсутствие зова (третий исход схлопнут в тишину)",
+      "file": "spa_core/monitoring/ledger_parse_census.py",
+      "old": "                if base is None:\n                    murky[key] = (f\"{U_CALL_BASE_UNRESOLVED}: {rel} зовёт «{attr}» у \"",
+      "new": "                if False:\n                    murky[key] = (f\"{U_CALL_BASE_UNRESOLVED}: {rel} зовёт «{attr}» у \""
+    },
+    {
+      "name": "неразобранный файл выдаётся за «зовов нет» (третий исход схлопнут в ноль)",
+      "file": "spa_core/monitoring/ledger_parse_census.py",
+      "old": "                unparsed[rel] = f\"{U_CALL_SITE_UNPARSED}: {type(exc).__name__}: {exc}\"\n                continue\n",
+      "new": "                continue\n"
+    },
+    {
+      "name": "обход перестаёт исключать тесты и сам прибор — население расходится с мерой упоминаний",
+      "file": "spa_core/monitoring/ledger_parse_census.py",
+      "old": "            if \"/tests/\" in f\"/{rel}\" or rel == SELF_REL:\n                continue\n            try:\n                text = path.read_text(encoding=\"utf-8\")\n                tree = ast.parse(text)\n",
+      "new": "            try:\n                text = path.read_text(encoding=\"utf-8\")\n                tree = ast.parse(text)\n"
+    },
+    {
+      "name": "относительный импорт не разрешается — внутрипакетный зовущий теряется молча",
+      "file": "spa_core/monitoring/ledger_parse_census.py",
+      "old": "            src = _resolve_from(node, pkg)\n            if not src:\n                continue\n",
+      "new": "            src = node.module\n            if not src:\n                continue\n"
+    },
+    {
+      "name": "упоминающие считаются и среди зовущих (mentions_only перестаёт вычитать зовы)",
+      "file": "spa_core/monitoring/ledger_parse_census.py",
+      "old": "        mentions_only = tuple(r for r in refs if r not in calls[key]\n                              and r not in murky[key] and r not in unparsed)\n",
+      "new": "        mentions_only = tuple(refs)\n"
+    },
+    {
+      "name": "вид, переданный вызываемым, попадает в замер как «зовущих ноль»",
+      "file": "spa_core/monitoring/ledger_parse_census.py",
+      "old": "        if callable(m.view):\n            continue\n        mod_name, _, attr = str(m.view).partition(\":\")\n        if mod_name and attr:\n            wanted.append((m.id, mod_name, attr))\n",
+      "new": "        mod_name, _, attr = str(m.view).partition(\":\")\n        wanted.append((m.id, mod_name, attr))\n"
+    },
+    {
+      "name": "динамический зовущий не записывается (атрибуции кадра нет — сверять нечем)",
+      "file": "spa_core/monitoring/ledger_parse_census.py",
+      "old": "                where = _calling_file(sys._getframe(1))\n                sites[mid][where] = sites[mid].get(where, 0) + 1\n",
+      "new": "                pass\n"
+    },
+    {
+      "name": "кадр называется НЕ тем, кто написал зов (берётся кадр выше — поднявший прогон)",
+      "file": "spa_core/monitoring/ledger_parse_census.py",
+      "old": "                where = _calling_file(sys._getframe(1))\n",
+      "new": "                where = _calling_file(sys._getframe(2))\n"
+    },
+    {
+      "name": "зовущие отказавшего прогона всё равно складываются (неполнота читалась бы как слепота статики)",
+      "file": "spa_core/monitoring/ledger_parse_census.py",
+      "old": "        for mid, by_file in sites.items():\n            for rel, n in by_file.items():\n                observed_sites.setdefault(mid, {})[rel] = \\\n                    observed_sites.setdefault(mid, {}).get(rel, 0) + n\n        row[\"call_sites\"]",
+      "new": "        row[\"call_sites\"]"
+    },
+    {
+      "name": "«сверять было нечем» выдаётся за «сошлось» (третий исход сверки схлопнут)",
+      "file": "spa_core/monitoring/ledger_parse_census.py",
+      "old": "    if not sites_measured:\n        return {\"status\": \"not_measured\",",
+      "new": "    if False:\n        return {\"status\": \"not_measured\","
+    },
+    {
+      "name": "слепота статики не называется (динамический зовущий без статического молча игнорируется)",
+      "file": "spa_core/monitoring/ledger_parse_census.py",
+      "old": "            else:\n                blind[mid] = dict(blind.get(mid) or {})\n                blind[mid][rel] = (\n                    f\"{U_CALL_SITES_BLIND}: прогон НАБЛЮДАЛ зов вида «{mid}» из {rel}, а \"",
+      "new": "            elif False:\n                blind[mid] = dict(blind.get(mid) or {})\n                blind[mid][rel] = (\n                    f\"{U_CALL_SITES_BLIND}: прогон НАБЛЮДАЛ зов вида «{mid}» из {rel}, а \""
+    },
+    {
+      "name": "кадр вне дерева объявляется слепотой статики (ложная тревога у каждого site-packages)",
+      "file": "spa_core/monitoring/ledger_parse_census.py",
+      "old": "            if rel.startswith(\"/\") or rel.startswith(\"<\"):\n                out_of_tree.setdefault(mid, []).append(rel)\n",
+      "new": "            if False:\n                out_of_tree.setdefault(mid, []).append(rel)\n"
+    },
+    {
+      "name": "неполнота населения прогонов не называется (статический зовущий без прогона молчит)",
+      "file": "spa_core/monitoring/ledger_parse_census.py",
+      "old": "        missed = [rel for rel in sites.calls if rel not in seen]\n",
+      "new": "        missed = []\n"
+    },
+    {
+      "name": "слепота статики не поднимает код возврата (третий исход печатается, но вердикта не меняет)",
+      "file": "spa_core/monitoring/ledger_parse_census.py",
+      "old": "            or wl.get(\"daily_unmeasured\") or cross.get(\"blind\") or cs.get(\"unparsed\")\n",
+      "new": "            or wl.get(\"daily_unmeasured\")\n"
+    },
+    {
+      "name": "неполнота населения поднимает код до находки (решение владельца объявлено поломкой)",
+      "file": "spa_core/monitoring/ledger_parse_census.py",
+      "old": "    if doc[\"findings\"] or pop[\"code_files_undeclared\"] or pop[\"code_files_missing\"]:\n        return 1\n",
+      "new": "    if (doc[\"findings\"] or pop[\"code_files_undeclared\"] or pop[\"code_files_missing\"]\n            or cross.get(\"outside_workloads\")):\n        return 1\n"
+    },
+    {
+      "name": "два вида одного модуля сливаются в один счётчик зовущих",
+      "file": "spa_core/monitoring/ledger_parse_census.py",
+      "old": "            for key, mod_name, attr in wanted:\n                if func.attr != attr:\n                    continue\n",
+      "new": "            for key, mod_name, attr in wanted:\n                if False:\n                    continue\n"
+    }
+  ]
+}

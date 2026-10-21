@@ -741,7 +741,7 @@ class TestTheCounterPutsTheViewBack(unittest.TestCase):
         with TemporaryDirectory() as td:
             data = Path(td)
             _write_ledger(data)
-            counts, cannot, answer, err, opens = lpc.count_calls(
+            counts, cannot, answer, err, opens, _sites = lpc.count_calls(
                 [_stand_member(name)], _stand_workload(boom), data)
         self.assertIsNotNone(err)
         self.assertIs(mod.latest, before, "упавший прогон оставил модуль подменённым")
@@ -1314,7 +1314,7 @@ class TestThePriceIsCountedAtTheFileNotAtTheDeclaredView(unittest.TestCase):
         with TemporaryDirectory() as td:
             data = Path(td)
             _write_ledger(data)
-            counts, _cannot, _answer, err, opens = lpc.count_calls(
+            counts, _cannot, _answer, err, opens, _sites = lpc.count_calls(
                 [_stand_member(name)], _stand_workload(run, calls=1, opens=2), data)
             self.assertIsNone(err)
             self.assertEqual(counts, {"fake_book": 1})
@@ -1335,7 +1335,7 @@ class TestThePriceIsCountedAtTheFileNotAtTheDeclaredView(unittest.TestCase):
         with TemporaryDirectory() as td:
             data = Path(td)
             _write_ledger(data)
-            _counts, _cannot, _answer, err, _opens = lpc.count_calls(
+            _counts, _cannot, _answer, err, _opens, _sites = lpc.count_calls(
                 [_stand_member(name)], _stand_workload(boom), data)
         self.assertIsNotNone(err)
         self.assertIs(builtins.open, before_b, "дверь builtins.open осталась подменённой")
@@ -1726,7 +1726,7 @@ class TestTheLedgerIdentityIsSelfChecking(unittest.TestCase):
         with TemporaryDirectory() as td:
             data = Path(td)
             _write_ledger(data)
-            counts, cannot, answer, err, opens = lpc.count_calls(
+            counts, cannot, answer, err, opens, _sites = lpc.count_calls(
                 self._members_split_by_id(), _stand_workload(_calls_runner(name, 1)), data)
             self.assertIsNotNone(err, "счётчик прогона принял расколотую личность молча")
             self.assertIn(lpc.U_LEDGER_ID_SPLIT, err)
@@ -1741,3 +1741,455 @@ class TestTheLedgerIdentityIsSelfChecking(unittest.TestCase):
 
 if __name__ == "__main__":  # pragma: no cover
     unittest.main()
+
+
+def _tree(root: Path, files: dict) -> Path:
+    """Одноразовое дерево: путь → текст. Статика ничего не импортирует, поэтому модули
+    стенда могут не существовать в ``sys.modules`` вовсе — это и отличает статический
+    замер от динамического."""
+    for rel, text in files.items():
+        path = root / rel
+        path.parent.mkdir(parents=True, exist_ok=True)
+        path.write_text(text, encoding="utf-8")
+    return root
+
+
+def _stand_view_member(mid: str = "stand", mod: str = "spa_core.stand.read",
+                       attr: str = "latest") -> lpc.Member:
+    return lpc.Member(id=mid, ledger_id=mid, ledger=LEDGER_REL, view=f"{mod}:{attr}",
+                      declared_opens=1, opens_reason="стенд",
+                      scoped_door=False, scoped_reason="стенд")
+
+
+_VIEW_FILE = "def latest(data_dir):\n    return []\n"
+
+
+class TestWhoCallsTheViewIsMeasuredNotGuessed(unittest.TestCase):
+    """Заказ G782 п. 1: упоминание вида НЕ ЕСТЬ зов, и у каждой двери свой контроль.
+
+    Замер 21.10 на ``origin/main`` ``2a367e897``, ради которого прибор написан: мера
+    неполноты населения прогонов стояла рядом с решением числом УПОМИНАНИЙ — 22, — и
+    ошибалась в ОБЕ стороны сразу: десять из двадцати двух файлов вид только называют, а
+    трёх настоящих зовущих мера не видела вовсе.
+    """
+
+    def setUp(self):
+        self._tmp = TemporaryDirectory()
+        self.root = Path(self._tmp.name)
+        self.addCleanup(self._tmp.cleanup)
+        _tree(self.root, {"spa_core/stand/__init__.py": "",
+                          "spa_core/stand/read.py": _VIEW_FILE})
+
+    def _sites(self, member=None):
+        member = member or _stand_view_member()
+        return lpc.view_call_sites([member], self.root)[member.id]
+
+    def test_door_one_plain_import_and_the_dotted_call(self):
+        """``import spa_core.stand.read`` + полный путь в зове."""
+        _tree(self.root, {"spa_core/a.py":
+                          "import spa_core.stand.read\n\n"
+                          "def go(d):\n    return spa_core.stand.read.latest(d)\n"})
+        self.assertEqual(self._sites().calls.get("spa_core/a.py"), 1)
+
+    def test_door_one_aliased_module_import(self):
+        """``import … as m`` → ``m.latest(d)``."""
+        _tree(self.root, {"spa_core/b.py":
+                          "import spa_core.stand.read as m\n\n"
+                          "def go(d):\n    return m.latest(d)\n"})
+        self.assertEqual(self._sites().calls.get("spa_core/b.py"), 1)
+
+    def test_door_two_is_the_one_the_first_probe_of_this_cycle_missed(self):
+        """``from <пакет> import <модуль> as <имя>`` — самая населённая дверь живых
+        читателей (``from spa_core.research_factory import read as rf_read``).
+
+        Первая проба цикла #901 эту дверь не разбирала и дала **ноль** зовущих при
+        четырёх настоящих. Ноль там означал не «никто не зовёт», а «дверь не смотрели» —
+        поэтому контроль именно на неё, и он же объясняет, зачем у статики есть
+        динамическая обратная сторона.
+        """
+        _tree(self.root, {"spa_core/c.py":
+                          "from spa_core.stand import read as rf_read\n\n"
+                          "def go(d):\n    return rf_read.latest(d)\n"})
+        self.assertEqual(self._sites().calls.get("spa_core/c.py"), 1,
+                         "дверь «from пакет import модуль as имя» не разобрана — "
+                         "замер даст слепой ноль")
+
+    def test_door_two_multi_name_import_is_the_measured_finding(self):
+        """``from pkg import a, b, read`` — дверь, которой мера УПОМИНАНИЙ не видит.
+
+        Это не гипотеза: так зовут вид ``research_factory.read.latest`` три настоящих
+        файла (``failure_matrix.py``, ``failure_matrix_v2.py``, ``run.py``), и ни одного
+        из них :func:`view_reference_files` не называет. Контроль сверяет оба замера на
+        одном файле, то есть воспроизводит расхождение, а не верит ему на слово.
+        """
+        _tree(self.root, {"spa_core/d.py":
+                          "from spa_core.stand import other, read, third\n\n"
+                          "def go(d):\n    return read.latest(d)\n"})
+        member = _stand_view_member()
+        self.assertEqual(self._sites(member).calls.get("spa_core/d.py"), 1)
+        self.assertNotIn("spa_core/d.py", lpc.view_reference_files(member, self.root),
+                         "мера упоминаний увидела эту дверь — тогда расхождение, ради "
+                         "которого прибор написан, воспроизвести нечем")
+
+    def test_door_three_name_bound_at_import_is_still_a_call(self):
+        """``from <модуль> import latest as v`` → ``v(d)``.
+
+        Такое связывание само есть находка СЧЁТЧИКА зовов (:data:`F_IMPORT_BOUND_VIEW`),
+        но зов через него обязан быть посчитан: иначе статика печатала бы ноль там, где
+        зовущий есть, и находка счётчика маскировала бы слепоту замера.
+        """
+        _tree(self.root, {"spa_core/e.py":
+                          "from spa_core.stand.read import latest as v\n\n"
+                          "def go(d):\n    return v(d)\n"})
+        self.assertEqual(self._sites().calls.get("spa_core/e.py"), 1)
+
+    def test_door_four_the_defining_module_calls_its_own_view(self):
+        """Внутримодульный зов — ``composer.py`` зовёт свой ``load_ledger`` без основания."""
+        _tree(self.root, {"spa_core/stand/read.py":
+                          _VIEW_FILE + "\n\ndef wrapper(d):\n    return latest(d)\n"})
+        self.assertEqual(self._sites().calls.get("spa_core/stand/read.py"), 1)
+
+    def test_a_bare_name_outside_the_defining_module_is_not_a_call(self):
+        """Обратная сторона двери 4: то же имя в ЧУЖОМ файле зовом вида не является.
+
+        Иначе любой локальный ``latest(...)`` соседа попадал бы в зовущие, и замер
+        завышал бы ровно то, ради чего написан.
+        """
+        _tree(self.root, {"spa_core/f.py":
+                          "def latest(d):\n    return []\n\n"
+                          "def go(d):\n    return latest(d)\n"})
+        self.assertNotIn("spa_core/f.py", self._sites().calls)
+
+    def test_the_same_attribute_name_on_a_foreign_object_is_not_a_call(self):
+        """Основание зова СВЕРЯЕТСЯ с модулем вида: `.latest()` чужого объекта не зов.
+
+        Дыру нашёл мутационный прибор, а не глаз автора: снятие сверки основания
+        оставляло батарею зелёной. Без этой проверки в зовущие попадал бы любой
+        `cursor.latest()` или `registry.latest()` соседа, и замер завышал бы ровно то,
+        ради чего написан, — повторив дефект меры упоминаний другим способом.
+        """
+        _tree(self.root, {"spa_core/k.py":
+                          "from spa_core.stand import read\n"
+                          "import spa_core.other as other\n\n"
+                          "def go(d, cursor):\n"
+                          "    cursor.latest(d)\n"
+                          "    return other.latest(d)\n",
+                          "spa_core/other.py": _VIEW_FILE})
+        self.assertNotIn("spa_core/k.py", self._sites().calls,
+                         "зов у ЧУЖОГО основания посчитан как зов вида")
+
+    def test_a_relative_import_resolves_to_the_same_module(self):
+        """``from . import read`` и ``from ..stand import read`` — тот же модуль вида.
+
+        Внутрипакетный зовущий иначе теряется МОЛЧА, то есть занижает замер; занижение
+        опаснее завышения, потому что успокаивает. Дыру нашёл мутационный прибор: живые
+        зовущие пользуются абсолютной формой, и на дереве эта дверь не проверялась ничем.
+        """
+        _tree(self.root, {"spa_core/stand/sibling.py":
+                          "from . import read\n\n"
+                          "def go(d):\n    return read.latest(d)\n",
+                          "spa_core/stand/deep/__init__.py": "",
+                          "spa_core/stand/deep/nephew.py":
+                          "from .. import read\n\n"
+                          "def go(d):\n    return read.latest(d)\n"})
+        calls = self._sites().calls
+        self.assertEqual(calls.get("spa_core/stand/sibling.py"), 1)
+        self.assertEqual(calls.get("spa_core/stand/deep/nephew.py"), 1)
+
+    def test_a_caller_is_never_also_listed_as_mention_only(self):
+        """Вычитание зовущих из упоминающих НЕСУЩЕЕ, а не косметическое.
+
+        Два списка читаются как ответы на разные вопросы; файл в обоих означал бы, что
+        отчёт говорит «упоминает и НЕ зовёт» про зовущего — то есть ровно ту ошибку, из
+        которой вырос заказ, только напечатанную рядом с её исправлением.
+        """
+        _tree(self.root, {"spa_core/m.py":
+                          "from spa_core.stand import read\n\n"
+                          "def go(d):\n    return read.latest(d)\n"})
+        sites = self._sites()
+        self.assertIn("spa_core/m.py", sites.calls)
+        self.assertNotIn("spa_core/m.py", sites.mentions_only)
+
+    def test_a_mention_in_a_string_is_not_a_call(self):
+        """Проба не проходит ПОДСТРОКОЙ (ADR-333): текст зова в докстроке — упоминание.
+
+        Ровно этим и завышала прежняя мера: ``hash_ledger.py`` и ``mission_build.py``
+        называют вид в тексте и не зовут его ни разу.
+        """
+        _tree(self.root, {"spa_core/g.py":
+                          '"""Сосед зовёт spa_core.stand.read.latest(d) — но не мы."""\n'
+                          "from spa_core.stand import read\n\n"
+                          "TEXT = 'read.latest(d)'\n"})
+        sites = self._sites()
+        self.assertNotIn("spa_core/g.py", sites.calls)
+        self.assertIn("spa_core/g.py", sites.mentions_only,
+                      "файл обязан остаться в упоминающих — его снимают из ЗОВУЩИХ, "
+                      "а не из населения вовсе")
+
+    def test_a_file_that_does_not_parse_is_the_third_outcome(self):
+        """Неразобранный файл — НЕ ИЗМЕРЕНО с названной причиной, а не «зовов нет»."""
+        _tree(self.root, {"spa_core/broken.py": "def go(:\n    pass\n"})
+        sites = self._sites()
+        self.assertIn("spa_core/broken.py", sites.unparsed)
+        self.assertIn(lpc.U_CALL_SITE_UNPARSED, sites.unparsed["spa_core/broken.py"])
+        self.assertNotIn("spa_core/broken.py", sites.calls)
+
+    def test_a_call_on_a_non_static_base_is_the_third_outcome(self):
+        """``factory()[0].latest(d)`` — имя вида есть, основание статикой не разрешается.
+
+        Выдать это за «не зовёт» значило бы молча потерять зовущего; выдать за зов —
+        приписать вызов тому, кого не измеряли. Поэтому третий исход.
+        """
+        _tree(self.root, {"spa_core/h.py":
+                          "from spa_core.stand import read\n\n"
+                          "def go(d, factory):\n    return factory()[0].latest(d)\n"})
+        sites = self._sites()
+        self.assertIn("spa_core/h.py", sites.unresolved_base)
+        self.assertIn(lpc.U_CALL_BASE_UNRESOLVED, sites.unresolved_base["spa_core/h.py"])
+
+    def test_the_sweep_skips_tests_and_the_instrument_itself(self):
+        """Население обхода — то же, что у меры упоминаний: иначе сверять их нельзя."""
+        _tree(self.root, {"spa_core/tests/test_x.py":
+                          "from spa_core.stand import read\n\n"
+                          "def t(d):\n    return read.latest(d)\n",
+                          lpc.SELF_REL:
+                          "from spa_core.stand import read\n\n"
+                          "def t(d):\n    return read.latest(d)\n"})
+        calls = self._sites().calls
+        self.assertNotIn("spa_core/tests/test_x.py", calls)
+        self.assertNotIn(lpc.SELF_REL, calls)
+
+    def test_a_second_view_of_the_same_module_is_counted_apart(self):
+        """Два вида одного модуля не сливаются: у ленты их бывает несколько (цикл #900)."""
+        _tree(self.root, {"spa_core/stand/read.py":
+                          _VIEW_FILE + "\n\ndef cio_view(d, now):\n    return []\n",
+                          "spa_core/i.py":
+                          "from spa_core.stand import read\n\n"
+                          "def go(d, now):\n"
+                          "    read.latest(d)\n"
+                          "    return read.cio_view(d, now)\n"})
+        both = lpc.view_call_sites(
+            [_stand_view_member(), _stand_view_member(mid="stand.cio", attr="cio_view")],
+            self.root)
+        self.assertEqual(both["stand"].calls.get("spa_core/i.py"), 1)
+        self.assertEqual(both["stand.cio"].calls.get("spa_core/i.py"), 1)
+
+    def test_several_calls_in_one_file_are_counted_not_flattened(self):
+        """Число зовов в файле — число, а не признак: два зова это два."""
+        _tree(self.root, {"spa_core/j.py":
+                          "from spa_core.stand import read\n\n"
+                          "def go(d):\n    read.latest(d)\n    return read.latest(d)\n"})
+        self.assertEqual(self._sites().calls.get("spa_core/j.py"), 2)
+
+    def test_a_callable_view_has_no_call_sites_and_says_so(self):
+        """Вид, переданный вызываемым (стенды), статике не адресуем — его в замере нет
+        вовсе, а не «зовущих ноль»."""
+        member = lpc.Member(id="callable", ledger_id="callable", ledger=LEDGER_REL,
+                            view=lambda d: [], declared_opens=1, opens_reason="стенд",
+                            scoped_door=False, scoped_reason="стенд")
+        self.assertEqual(lpc.view_call_sites([member], self.root), {})
+
+
+class TestTheTwoMeasurementsOfCallersAreComparedBothWays(unittest.TestCase):
+    """Статика и прогон отвечают на один вопрос разными способами — сверка в ОБЕ стороны."""
+
+    def _static(self, calls, *, mentions=(), unparsed=None, murky=None):
+        return {"stand": lpc.CallSites(calls=dict(calls), mentions_only=tuple(mentions),
+                                       unparsed=dict(unparsed or {}),
+                                       unresolved_base=dict(murky or {}))}
+
+    def test_a_runtime_caller_the_static_sweep_does_not_see_is_not_measured(self):
+        """Прогон видел зов, статика его не видит ⇒ у статики непросмотренная дверь.
+
+        Это третий исход (:data:`U_CALL_SITES_BLIND`), а не находка о коде: про такой
+        файл статика не измерила НИЧЕГО.
+        """
+        cross = lpc.cross_check_call_sites(
+            self._static({"spa_core/a.py": 1}),
+            {"stand": {"spa_core/zz.py": 3}}, sites_measured=True)
+        self.assertEqual(cross["status"], "compared")
+        self.assertIn("spa_core/zz.py", cross["blind"]["stand"])
+        self.assertIn(lpc.U_CALL_SITES_BLIND, cross["blind"]["stand"]["spa_core/zz.py"])
+
+    def test_a_static_caller_no_workload_reaches_is_named_incompleteness(self):
+        """Статика видит зовущего, прогоны его не достигают ⇒ НАЗВАННАЯ неполнота.
+
+        Население прогонов — РЕШЕНИЕ, поэтому это не дефект и не третий исход; ценность
+        в том, что неполнота названа ФАЙЛОМ, а не числом упоминаний.
+        """
+        cross = lpc.cross_check_call_sites(
+            self._static({"spa_core/a.py": 1, "spa_core/b.py": 2}),
+            {"stand": {"spa_core/a.py": 1}}, sites_measured=True)
+        self.assertEqual(cross["outside_workloads"], {"stand": ["spa_core/b.py"]})
+        self.assertEqual(cross["agreed"], {"stand": ["spa_core/a.py"]})
+        self.assertFalse(cross["blind"])
+
+    def test_nothing_to_compare_with_is_its_own_outcome(self):
+        """Ни один прогон не принят ⇒ «не сверялось», и это НЕ «сошлось» (инв. #17)."""
+        cross = lpc.cross_check_call_sites(self._static({"spa_core/a.py": 1}), {},
+                                           sites_measured=False)
+        self.assertEqual(cross["status"], "not_measured")
+        self.assertTrue((cross["reason"] or "").strip())
+        self.assertFalse(cross["blind"])
+        self.assertFalse(cross["outside_workloads"])
+
+    def test_a_frame_outside_the_tree_is_not_called_blindness(self):
+        """Кадр из чужого каталога статике не подсуден: она обходит ДЕРЕВО."""
+        cross = lpc.cross_check_call_sites(
+            self._static({"spa_core/a.py": 1}),
+            {"stand": {"/opt/other/x.py": 1, "<string>": 1, "spa_core/a.py": 1}},
+            sites_measured=True)
+        self.assertFalse(cross["blind"])
+        self.assertEqual(cross["out_of_tree"]["stand"], ["/opt/other/x.py", "<string>"])
+        self.assertEqual(cross["agreed"], {"stand": ["spa_core/a.py"]})
+
+    def test_the_instrument_own_frame_is_declared_not_blindness(self):
+        """Прибор сам поднимает прогоны, и его файл исключён из обхода ОБЪЯВЛЕННО."""
+        cross = lpc.cross_check_call_sites(
+            self._static({"spa_core/a.py": 1}),
+            {"stand": {lpc.SELF_REL: 2, "spa_core/a.py": 1}}, sites_measured=True)
+        self.assertFalse(cross["blind"])
+        self.assertNotIn(lpc.SELF_REL, cross["agreed"].get("stand", []))
+
+    def test_an_unparsed_file_seen_at_runtime_names_the_parse_reason(self):
+        """Файл, который статика не разобрала, а прогон из него звал: причина — РАЗБОР,
+        а не непросмотренная дверь. Два разных «не измерено» не сливаются."""
+        cross = lpc.cross_check_call_sites(
+            self._static({}, unparsed={"spa_core/broken.py": "call_sites_file_not_parsed: X"}),
+            {"stand": {"spa_core/broken.py": 1}}, sites_measured=True)
+        self.assertIn(lpc.U_CALL_SITE_UNPARSED, cross["blind"]["stand"]["spa_core/broken.py"])
+
+
+class TestTheRuntimeCallerNamesItself(unittest.TestCase):
+    """Динамическая атрибуция: зов называет ТОГО, КТО ЕГО НАПИСАЛ, а не поднявшего прогон.
+
+    Именно этого различия не хватало ADR-777: цену платил вложенный читатель
+    (``capital_shadow.readiness`` → ``research_factory.read.latest``), которого
+    вызывающий не называет.
+    """
+
+    def setUp(self):
+        self._tmp = TemporaryDirectory()
+        self.data = Path(self._tmp.name)
+        self.addCleanup(self._tmp.cleanup)
+        (self.data / LEDGER_REL).parent.mkdir(parents=True, exist_ok=True)
+        (self.data / LEDGER_REL).write_text('{"a":1}\n', encoding="utf-8")
+
+    def test_the_nested_caller_is_recorded_not_the_runner(self):
+        mod = _stand_module("stand_sites_mod")
+        self.addCleanup(_drop_module, "stand_sites_mod")
+        member = _stand_member("stand_sites_mod")
+        workload = _stand_workload(_calls_runner("stand_sites_mod", 1))
+        _counts, _cannot, _answer, err, _opens, sites = lpc.count_calls(
+            [member], workload, self.data)
+        self.assertIsNone(err)
+        #: зов написан в ЭТОМ тест-файле (``_calls_runner``), и он же назван
+        self.assertEqual(sum(sites["fake_book"].values()), 1)
+        where = next(iter(sites["fake_book"]))
+        self.assertTrue(where.endswith("test_ledger_parse_census.py"), where)
+        del mod
+
+    def test_the_attribution_reaches_the_report_not_just_the_counter(self):
+        """Проводка ИЗМЕРЯЕТСЯ: число в приборе, которого не видит отчёт, — класс ADR-412."""
+        _stand_module("stand_sites_mod2")
+        self.addCleanup(_drop_module, "stand_sites_mod2")
+        doc = lpc.measure_workloads(
+            self.data, members=[_stand_member("stand_sites_mod2")],
+            workloads=[_stand_workload(_calls_runner("stand_sites_mod2", 2))],
+            price_by_id={"fake_book": 0.001}, parse_by_id={"fake_book": 0.001})
+        self.assertTrue(doc["sites_measured"])
+        self.assertEqual(sum(doc["call_sites"]["fake_book"].values()), 2)
+
+    def test_a_refused_workload_contributes_no_attribution(self):
+        """Отказавший прогон замера зовущих не даёт: иначе его неполнота читалась бы как
+        слепота статики."""
+        _stand_module("stand_sites_mod3")
+        self.addCleanup(_drop_module, "stand_sites_mod3")
+
+        def boom(_data_dir):
+            raise RuntimeError("прогон стенда отказал нарочно")
+
+        doc = lpc.measure_workloads(
+            self.data, members=[_stand_member("stand_sites_mod3")],
+            workloads=[_stand_workload(boom)],
+            price_by_id={"fake_book": 0.001}, parse_by_id={"fake_book": 0.001})
+        self.assertFalse(doc["sites_measured"])
+        self.assertEqual(doc["call_sites"], {})
+
+
+class TestCallSiteOutcomesMapToExitCodes(unittest.TestCase):
+    """Три исхода прибора зовущих — три разных кода возврата, и порядок намеренный."""
+
+    def _doc(self, **call_sites) -> dict:
+        base = {
+            "unmeasured": [], "findings": [],
+            "population": {"code_files_undeclared": [], "code_files_missing": []},
+            "workloads": {"unmeasured": [], "unreached": {}, "daily_unmeasured": []},
+            "call_sites": {"static": {}, "unparsed": {},
+                           "cross": {"status": "compared", "blind": {},
+                                     "outside_workloads": {}, "agreed": {}}},
+        }
+        base["call_sites"].update(call_sites)
+        return base
+
+    def test_a_clean_sweep_is_zero(self):
+        self.assertEqual(lpc.exit_code(self._doc()), 0)
+
+    def test_blindness_is_the_third_outcome_not_a_finding(self):
+        doc = self._doc(cross={"status": "compared", "blind": {"stand": {"a.py": "x"}},
+                               "outside_workloads": {}, "agreed": {}})
+        self.assertEqual(lpc.exit_code(doc), 2)
+
+    def test_an_unparsed_file_is_the_third_outcome(self):
+        self.assertEqual(lpc.exit_code(self._doc(unparsed={"a.py": "x"})), 2)
+
+    def test_a_non_static_base_is_the_third_outcome(self):
+        doc = self._doc(static={"stand": {"calls": {}, "mentions_only": [],
+                                          "unresolved_base": {"a.py": "x"}}})
+        self.assertEqual(lpc.exit_code(doc), 2)
+
+    def test_named_incompleteness_alone_does_not_raise_the_code(self):
+        """Неполнота населения прогонов — ЗАМЕР рядом с решением, а не дефект прибора.
+
+        Поднять на ней код значило бы объявить решение владельца поломкой и сделать
+        строку несмолкающей — ровно то, что цикл #900 снимал у соседней находки.
+        """
+        doc = self._doc(cross={"status": "compared", "blind": {},
+                               "outside_workloads": {"stand": ["a.py"]}, "agreed": {}})
+        self.assertEqual(lpc.exit_code(doc), 0)
+
+
+class TestTheLiveTreeAnswersTheOrder(unittest.TestCase):
+    """Замер на ЖИВОМ дереве — тот, которым закрыт заказ G782 п. 1."""
+
+    def test_the_three_callers_the_mention_measure_never_saw(self):
+        """Три настоящих зовущих ``research_factory.read.latest``, которых мера упоминаний
+        не называет: дверь ``from pkg import a, b, read`` ей не видна."""
+        rf = [m for m in lpc.LEDGERS if m.id == "research_factory"][0]
+        sites = lpc.view_call_sites([rf], _REPO)["research_factory"]
+        refs = set(lpc.view_reference_files(rf, _REPO))
+        for rel in ("spa_core/research_factory/failure_matrix.py",
+                    "spa_core/research_factory/run.py"):
+            with self.subTest(rel=rel):
+                self.assertIn(rel, sites.calls, "зовущий потерян")
+                self.assertNotIn(rel, refs,
+                                 "мера упоминаний его видит — расхождение исчезло, "
+                                 "и замер заказа воспроизвести нечем")
+
+    def test_a_mention_only_file_of_the_live_tree_is_named(self):
+        """``hash_ledger.py`` ленту ОБЪЯВЛЯЕТ и вид не зовёт — он упоминающий, не зовущий."""
+        rf = [m for m in lpc.LEDGERS if m.id == "research_factory"][0]
+        sites = lpc.view_call_sites([rf], _REPO)["research_factory"]
+        self.assertIn("spa_core/utils/hash_ledger.py", sites.mentions_only)
+        self.assertNotIn("spa_core/utils/hash_ledger.py", sites.calls)
+
+    def test_every_declared_view_has_at_least_one_caller_in_the_tree(self):
+        """Объявленный вид без ОДНОГО зовущего в дереве — слепой ноль, а не население.
+
+        Вид, которого не зовёт никто, незачем мерить вовсе; поэтому ноль зовущих у
+        объявленного члена и есть признак непросмотренной двери.
+        """
+        sites = lpc.view_call_sites(lpc.LEDGERS, _REPO)
+        for mid, v in sites.items():
+            with self.subTest(mid=mid):
+                self.assertTrue(v.calls, f"{mid}: зовущих ноль — статика ослепла")
