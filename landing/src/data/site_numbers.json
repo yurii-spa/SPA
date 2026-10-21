@@ -5,18 +5,18 @@
     "замер": "landing/src/data/track_snapshot.json",
     "решение": "landing/src/lib/constitution.json"
   },
-  "measured_at": "2026-10-15",
-  "published_at": "2026-10-15",
+  "measured_at": "2026-10-21",
+  "published_at": "2026-10-22",
   "cadence": "weekly",
-  "next_publication": "2026-10-22",
+  "next_publication": "2026-10-29",
   "_provenance": {
     "schema_version": "site_numbers/3",
-    "generated_at": "2026-10-15T18:23:49Z",
-    "measurement_as_of": "2026-10-15",
+    "generated_at": "2026-10-21T06:01:08Z",
+    "measurement_as_of": "2026-10-21",
     "source_commit": null,
     "source_commit_reason": "not passed by the builder — bind by source_hashes",
     "source_hashes": {
-      "landing/src/data/track_snapshot.json": "05a9f58194baba2182f96c345d8c36cf9978feafa863800c9776077bf5f8f163",
+      "landing/src/data/track_snapshot.json": "14dfadbc1809f75bf2ef9318ba11779b5a3f04d87cab99c31e6dde888e221f69",
       "landing/src/lib/constitution.json": "ab4e2fe6b9719a91773a7a662eaae7e21ed509be17b7dea29456c688e5079ecd"
     },
     "cadence_rule": "spa_core/publication/cadence.py (weekly from the PUBLISHED shelf)",
@@ -45,7 +45,7 @@
       "experiment_id": "conservative-lending-v1@2026-06-22",
       "track_start": "2026-06-22",
       "evidenced_anchor": "2026-06-22",
-      "valid_periods": 114,
+      "valid_periods": 120,
       "reportable_after": 30,
       "maturity": "REPORTABLE",
       "result_metric_type": "REALIZED_PAPER_RETURN",
@@ -70,7 +70,7 @@
       "experiment_id": "balanced-fixed-carry-v1@2026-10-02",
       "track_start": "2026-10-02",
       "evidenced_anchor": null,
-      "valid_periods": 14,
+      "valid_periods": 20,
       "reportable_after": 30,
       "maturity": "ACCUMULATING",
       "result_metric_type": null,
@@ -95,7 +95,7 @@
       "experiment_id": "aggressive-susde-loop-v1@2026-10-02",
       "track_start": "2026-10-02",
       "evidenced_anchor": null,
-      "valid_periods": 14,
+      "valid_periods": 20,
       "reportable_after": 30,
       "maturity": "ACCUMULATING",
       "result_metric_type": null,
@@ -106,13 +106,13 @@
   "annualisation": "годовой ЭКВИВАЛЕНТ доходности за фактический период (сложный процент): (NAV_конца / NAV_начала) ^ (365 / дней) − 1, дни — ACT/365 по датам оценки (P1 Wave 2, 2026-10-08; требует одобрения владельца — основная метрика витрины — доходность за период, headline.period.return)",
   "headline": {
     "apy": {
-      "value": 4.8705,
+      "value": 4.8921,
       "unit": "%",
       "kind": "замер",
       "source": "landing/src/data/track_snapshot.json → paper_apy_pct (= track_period.annualised_equivalent_pct, spa_core/paper_trading/track_period_return.py)",
       "annualised": true,
       "annualisation": "годовой ЭКВИВАЛЕНТ доходности за фактический период (сложный процент): (NAV_конца / NAV_начала) ^ (365 / дней) − 1, дни — ACT/365 по датам оценки (P1 Wave 2, 2026-10-08; требует одобрения владельца — основная метрика витрины — доходность за период, headline.period.return)",
-      "window_days": 115.0,
+      "window_days": 121.0,
       "reportable": true,
       "reportable_after": 30.0,
       "metric_type": "REALIZED_PAPER_RETURN",
@@ -126,14 +126,14 @@
       "method": "NAV_RATIO",
       "period": {
         "start_date": "2026-06-22",
-        "end_date": "2026-10-15",
+        "end_date": "2026-10-21",
         "start_ts": null,
-        "end_ts": "2026-10-15T06:00:05.749013+00:00",
+        "end_ts": "2026-10-21T06:00:03.756957+00:00",
         "start_ts_reason": "the ledger records valuation dates, not run times",
-        "days_act": 115,
+        "days_act": 121,
         "convention": "ACT/365 Fixed on valuation dates",
-        "evidenced_bars": 114,
-        "accrual_bars": 113
+        "evidenced_bars": 120,
+        "accrual_bars": 119
       },
       "nav_start": {
         "value": 100150.66,
@@ -143,26 +143,26 @@
         "basis": "close of the first evidenced bar"
       },
       "nav_end": {
-        "value": 101662.57,
+        "value": 101749.0,
         "unit": "USD",
         "kind": "замер",
         "source": "landing/src/data/track_snapshot.json → track_period (spa_core/paper_trading/track_period_return.py)"
       },
       "return": {
-        "value": 1.509636,
+        "value": 1.595936,
         "unit": "%",
         "kind": "замер",
         "source": "landing/src/data/track_snapshot.json → track_period (spa_core/paper_trading/track_period_return.py)",
         "evidence": "paper"
       },
       "twr": {
-        "value": 1.509636,
+        "value": 1.595936,
         "unit": "%",
         "kind": "замер",
         "source": "landing/src/data/track_snapshot.json → track_period (spa_core/paper_trading/track_period_return.py)"
       },
       "mwr": {
-        "value": 1.509636,
+        "value": 1.595936,
         "unit": "%",
         "kind": "замер",
         "source": "landing/src/data/track_snapshot.json → track_period (spa_core/paper_trading/track_period_return.py)"
@@ -185,7 +185,7 @@
         "restored_from_cycle_log": 53,
         "cycle_unlabelled": 2,
         "fallback_rate": 10,
-        "live_rates": 49
+        "live_rates": 55
       },
       "continuity_repaired": [
         "2026-06-30"
@@ -211,13 +211,13 @@
       "basis": "PAPER"
     },
     "nav": {
-      "value": 101662.57,
+      "value": 101749.0,
       "unit": "USD",
       "kind": "замер",
       "source": "landing/src/data/track_snapshot.json"
     },
     "evidenced_days": {
-      "value": 114.0,
+      "value": 120.0,
       "unit": "дней",
       "kind": "замер",
       "source": "landing/src/data/track_snapshot.json"
@@ -229,9 +229,9 @@
       "kind": "замер",
       "source": "landing/src/data/track_snapshot.json → anchor_equity (NAV at the close of the anchor bar)"
     },
-    "track_end_date": "2026-10-15",
+    "track_end_date": "2026-10-21",
     "track_return": {
-      "value": 1.5096,
+      "value": 1.5959,
       "unit": "%",
       "kind": "замер",
       "source": "landing/src/data/track_snapshot.json → track_return_pct (NAV_end / NAV_anchor − 1, the rate's own window)"
@@ -250,21 +250,21 @@
       "source": "track_snapshot.json → days_needed (порог 30 дней, ADR-002; в снимок приходит из гейта)"
     },
     "end_equity": {
-      "value": 101662.57,
+      "value": 101749.0,
       "unit": "USD",
       "kind": "замер",
       "source": "track_snapshot.json → end_equity"
     },
     "go_live_target": null,
     "total_return_since_start": {
-      "value": 1.6626,
+      "value": 1.749,
       "unit": "%",
       "kind": "замер",
       "source": "landing/src/data/track_snapshot.json → total_return_pct (equity / $100,000 − 1)"
     },
     "paper_start_date": "2026-06-10",
     "degraded": false,
-    "snapshot_generated_at": "2026-10-15T18:23:49Z"
+    "snapshot_generated_at": "2026-10-21T06:01:08Z"
   },
   "packages": {
     "conservative": {
@@ -339,7 +339,7 @@
     "conservative": {
       "label": "Conservative",
       "status": "paper_test_running",
-      "days": 114.0,
+      "days": 120.0,
       "evidence_split": {
         "observed_days": null,
         "literal_days": null,
@@ -349,13 +349,13 @@
       "positions": null,
       "pre_fix_period": null,
       "apy": {
-        "value": 4.8705,
+        "value": 4.8921,
         "unit": "%",
         "kind": "замер",
         "source": "landing/src/data/track_snapshot.json → paper_tracks",
         "annualised": true,
         "annualisation": "годовой ЭКВИВАЛЕНТ доходности за фактический период (сложный процент): (NAV_конца / NAV_начала) ^ (365 / дней) − 1, дни — ACT/365 по датам оценки (P1 Wave 2, 2026-10-08; требует одобрения владельца — основная метрика витрины — доходность за период, headline.period.return)",
-        "window_days": 114.0,
+        "window_days": 120.0,
         "reportable": true,
         "reportable_after": 30.0,
         "metric_type": "REALIZED_PAPER_RETURN",
@@ -369,7 +369,7 @@
         "basis": "PAPER"
       },
       "nav": {
-        "value": 101662.57,
+        "value": 101749.0,
         "unit": "USD",
         "kind": "замер",
         "source": "landing/src/data/track_snapshot.json → paper_tracks"
@@ -378,9 +378,9 @@
     "balanced": {
       "label": "Balanced",
       "status": "paper_test_running",
-      "days": 14.0,
+      "days": 20.0,
       "evidence_split": {
-        "observed_days": 14,
+        "observed_days": 20,
         "literal_days": 0,
         "caveat": null,
         "observed_since": "2026-10-02"
@@ -399,7 +399,7 @@
         "source": "landing/src/data/track_snapshot.json → paper_tracks",
         "annualised": true,
         "annualisation": "годовой ЭКВИВАЛЕНТ доходности за фактический период (сложный процент): (NAV_конца / NAV_начала) ^ (365 / дней) − 1, дни — ACT/365 по датам оценки (P1 Wave 2, 2026-10-08; требует одобрения владельца — основная метрика витрины — доходность за период, headline.period.return)",
-        "window_days": 14.0,
+        "window_days": 20.0,
         "reportable": false,
         "reportable_after": 30.0,
         "metric_type": "OBSERVED_RETURN",
@@ -424,9 +424,9 @@
     "aggressive": {
       "label": "Aggressive",
       "status": "paper_test_running",
-      "days": 14.0,
+      "days": 20.0,
       "evidence_split": {
-        "observed_days": 14,
+        "observed_days": 20,
         "literal_days": 0,
         "caveat": null,
         "observed_since": "2026-10-02"
@@ -445,7 +445,7 @@
         "source": "landing/src/data/track_snapshot.json → paper_tracks",
         "annualised": true,
         "annualisation": "годовой ЭКВИВАЛЕНТ доходности за фактический период (сложный процент): (NAV_конца / NAV_начала) ^ (365 / дней) − 1, дни — ACT/365 по датам оценки (P1 Wave 2, 2026-10-08; требует одобрения владельца — основная метрика витрины — доходность за период, headline.period.return)",
-        "window_days": 14.0,
+        "window_days": 20.0,
         "reportable": false,
         "reportable_after": 30.0,
         "metric_type": "OBSERVED_RETURN",
@@ -470,7 +470,7 @@
   },
   "exposure": {
     "state": "MEASURED",
-    "as_of": "2026-10-15T06:00:05.749013+00:00",
+    "as_of": "2026-10-21T06:00:03.756957+00:00",
     "base": "allocated paper capital = positions + cash",
     "base_usd": {
       "value": 100000.0,
