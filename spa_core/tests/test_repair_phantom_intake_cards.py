@@ -31,6 +31,29 @@ _spec.loader.exec_module(R)
 
 _OUTAGE = "Не смог обработать сообщение. Переформулируй или пришли как /task <текст>."
 
+#: ТЕСТОВАЯ общая блокировка трекера (раунд 3 ARB). В проде такой нет — поэтому `--apply`
+#: из CLI отвечает кодом 8; здесь механика транзакции проверяется так, как она будет работать,
+#: когда систему снабдят блокировкой, которую берёт КАЖДЫЙ писатель. Файл-замок — вне
+#: проверяемых деревьев.
+import contextlib
+import fcntl
+import tempfile
+
+_LOCK_FILE = Path(tempfile.gettempdir()) / "repair_phantom_test_coordination.lock"
+
+
+@contextlib.contextmanager
+def _flock(_tracker=None, lock_file: Path = _LOCK_FILE):
+    with open(lock_file, "a") as fh:
+        fcntl.flock(fh.fileno(), fcntl.LOCK_EX)
+        try:
+            yield
+        finally:
+            fcntl.flock(fh.fileno(), fcntl.LOCK_UN)
+
+
+COORD = _flock
+
 
 def _phantom(tracker: Path, source_title: str, *, asked: str = _OUTAGE,
              status: str = "needs-owner", source: str = "intake",
@@ -107,7 +130,7 @@ def test_source_reopened_and_phantom_left_for_the_owner(tracker):
     ph = _phantom(tracker, "ADR-070.2: канон трека коммитится циклом")
     ph_bytes = ph.read_bytes()
 
-    res = R.repair(tracker, apply=True)
+    res = R.repair(tracker, apply=True, coordination=COORD)
 
     assert res["exit"] == R.EXIT_OK
     assert res["phantoms_found"] == 1
@@ -122,7 +145,7 @@ def test_phantom_gets_no_note_and_no_status(tracker):
     _inbox(tracker, "Задание", status="done")
     ph = _phantom(tracker, "Задание")
 
-    R.repair(tracker, apply=True)
+    R.repair(tracker, apply=True, coordination=COORD)
 
     body = ph.read_text(encoding="utf-8")
     assert "Закрыто автоматически" not in body
@@ -134,7 +157,7 @@ def test_empty_output_signature_also_recognised(tracker):
     _phantom(tracker, "Другое задание",
              asked="Пустой ответ. Переформулируй или пришли как /task <текст>.")
 
-    res = R.repair(tracker, apply=True)
+    res = R.repair(tracker, apply=True, coordination=COORD)
     assert res["phantoms_found"] == 1
     assert res["sources_reopened"] == 1
     assert _status(src) == "new"
@@ -146,7 +169,7 @@ def test_mass_case_all_of_them(tracker):
     phs = [_phantom(tracker, f"Задание {i}") for i in range(7)]
     before = {p: p.read_bytes() for p in phs}
 
-    res = R.repair(tracker, apply=True)
+    res = R.repair(tracker, apply=True, coordination=COORD)
 
     assert res["phantoms_found"] == 7
     assert res["sources_reopened"] == 7
@@ -160,7 +183,7 @@ def test_permitted_write_changes_only_the_status_and_keeps_history(tracker):
     _phantom(tracker, "Задание")
     before = src.read_text(encoding="utf-8")
 
-    R.repair(tracker, apply=True)
+    R.repair(tracker, apply=True, coordination=COORD)
 
     after = src.read_text(encoding="utf-8")
     from spa_core.owner_queue.status_audit import read_trail
@@ -179,7 +202,7 @@ def test_real_owner_question_is_never_touched(tracker):
                   asked="Это про сайт или про агентов? Уточни, пожалуйста.")
     b = ph.read_bytes()
 
-    res = R.repair(tracker, apply=True)
+    res = R.repair(tracker, apply=True, coordination=COORD)
 
     assert res["phantoms_found"] == 0
     assert ph.read_bytes() == b
@@ -190,7 +213,7 @@ def test_handwritten_owner_card_is_never_touched(tracker):
     src = _inbox(tracker, "Задание", status="done")
     ph = _phantom(tracker, "Задание", source="nimbalyst")
 
-    assert R.repair(tracker, apply=True)["phantoms_found"] == 0
+    assert R.repair(tracker, apply=True, coordination=COORD)["phantoms_found"] == 0
     assert _status(ph) == "needs-owner"
     assert _status(src) == "done", "без доказанного фантома задание не трогается"
 
@@ -198,7 +221,7 @@ def test_handwritten_owner_card_is_never_touched(tracker):
 def test_card_without_the_title_prefix_is_never_touched(tracker):
     ph = _phantom(tracker, "Задание", title="Живой вопрос про лимит цепочки")
 
-    assert R.repair(tracker, apply=True)["phantoms_found"] == 0
+    assert R.repair(tracker, apply=True, coordination=COORD)["phantoms_found"] == 0
     assert _status(ph) == "needs-owner"
 
 
@@ -207,7 +230,7 @@ def test_already_answered_card_is_never_touched(tracker):
     src = _inbox(tracker, "Задание", status="done")
     ph = _phantom(tracker, "Задание", status="owner-done")
 
-    assert R.repair(tracker, apply=True)["phantoms_found"] == 0
+    assert R.repair(tracker, apply=True, coordination=COORD)["phantoms_found"] == 0
     assert _status(ph) == "owner-done"
     assert _status(src) == "done"
 
@@ -217,7 +240,7 @@ def test_file_name_alone_does_not_make_a_phantom(tracker):
     src = _inbox(tracker, "Задание", status="done")
     _phantom(tracker, "Задание", card_type="inbox", name="owner-decision-fake.md")
 
-    res = R.repair(tracker, apply=True)
+    res = R.repair(tracker, apply=True, coordination=COORD)
     assert res["phantoms_found"] == 0
     assert _status(src) == "done"
 
@@ -228,7 +251,7 @@ def test_source_still_open_is_not_disturbed(tracker):
     _phantom(tracker, "Задание")
     b = src.read_bytes()
 
-    res = R.repair(tracker, apply=True)
+    res = R.repair(tracker, apply=True, coordination=COORD)
 
     assert res["exit"] == R.EXIT_OK
     assert res["sources_reopened"] == 0
@@ -239,7 +262,7 @@ def test_missing_source_is_reported_not_silently_dropped(tracker):
     """Исходника нет ⇒ это НАХОДКА в отчёте, а не тихий пропуск."""
     _phantom(tracker, "Задание без исходника")
 
-    res = R.repair(tracker, apply=True)
+    res = R.repair(tracker, apply=True, coordination=COORD)
 
     assert res["sources_not_found"] == 1
     assert "Задание без исходника" in res["orphaned"]
@@ -261,9 +284,9 @@ def test_rerun_is_idempotent(tmp_path, tracker):
     _inbox(tracker, "Задание", status="done")
     _phantom(tracker, "Задание")
 
-    R.repair(tracker, apply=True)
+    R.repair(tracker, apply=True, coordination=COORD)
     once = _tree(tmp_path)
-    second = R.repair(tracker, apply=True)
+    second = R.repair(tracker, apply=True, coordination=COORD)
 
     assert second["exit"] == R.EXIT_OK
     assert second["sources_reopened"] == 0, "открытое задание второй раз не трогается"
@@ -319,7 +342,7 @@ def test_refusal_on_apply_leaves_the_target_tree_byte_identical(tmp_path, tracke
     before = _tree(tmp_path)
     calls = _forbid_writes(monkeypatch)
 
-    rc = R.main(["--tracker-dir", str(tracker), "--apply", "--json"])
+    rc = R.repair(tracker, apply=True, coordination=COORD)["exit"]
 
     assert rc == R.EXIT_REFUSED
     assert calls == [], "до решения гейта не было ни одной попытки записи"
@@ -328,7 +351,7 @@ def test_refusal_on_apply_leaves_the_target_tree_byte_identical(tmp_path, tracke
 
 def test_refusal_names_every_reason_and_the_whole_operation(tracker):
     _refusal_case_ambiguous(tracker)
-    res = R.repair(tracker, apply=True)
+    res = R.repair(tracker, apply=True, coordination=COORD)
     assert res["exit"] == R.EXIT_REFUSED
     assert res["sources_reopened"] == 0
     assert any("неоднозначна" in r for r in res["refusals"])
@@ -347,7 +370,7 @@ def test_gate_refusal_from_the_lifecycle_table_stops_everything(tmp_path, tracke
     before = _tree(tmp_path)
     calls = _forbid_writes(monkeypatch)
 
-    res = R.repair(tracker, apply=True)
+    res = R.repair(tracker, apply=True, coordination=COORD)
 
     assert res["exit"] == R.EXIT_REFUSED and "table says no" in " ".join(res["refusals"])
     assert calls == [] and _tree(tmp_path) == before
@@ -392,7 +415,7 @@ def test_failure_at_each_step_rolls_back_to_the_exact_original(tmp_path, tracker
         if i == fail_at and after_replace:
             raise OSError(f"сбой ПОСЛЕ замены файла {i}")
 
-    res = R.repair(tracker, apply=True, write=flaky, recovery_root=str(rec_root))
+    res = R.repair(tracker, apply=True, coordination=COORD, write=flaky, recovery_root=str(rec_root))
 
     assert res["exit"] == R.EXIT_ROLLED_BACK, res
     assert res["applied"] is False and res["sources_reopened"] == 0
@@ -417,7 +440,7 @@ def test_unconfirmed_rollback_keeps_recovery_material_and_asks_for_a_human(tmp_p
     def broken_restore(_path, _data):
         raise OSError("диск отказал при откате")
 
-    res = R.repair(tracker, apply=True, write=flaky, restore=broken_restore,
+    res = R.repair(tracker, apply=True, coordination=COORD, write=flaky, restore=broken_restore,
                    recovery_root=str(rec_root))
 
     assert res["exit"] == R.EXIT_MANUAL
@@ -430,13 +453,13 @@ def test_unconfirmed_rollback_keeps_recovery_material_and_asks_for_a_human(tmp_p
         data = (rec / f"{m['index']:03d}.orig").read_bytes()
         assert hashlib.sha256(data).hexdigest() == m["orig_sha"]
         assert data == originals[Path(m["path"])]
-    again = R.repair(tracker, apply=True, recovery_root=str(rec_root))
+    again = R.repair(tracker, apply=True, coordination=COORD, recovery_root=str(rec_root))
     assert again["exit"] == R.EXIT_MANUAL, "пока человек не разобрался — новых записей нет"
 
 
 def test_success_is_the_full_expected_result(tmp_path, tracker, rec_root):
     srcs = _three(tracker)
-    res = R.repair(tracker, apply=True, recovery_root=str(rec_root))
+    res = R.repair(tracker, apply=True, coordination=COORD, recovery_root=str(rec_root))
     assert res["exit"] == R.EXIT_OK and res["sources_reopened"] == 3
     assert all(_status(s) == "new" for s in srcs)
     ops = list(rec_root.iterdir())
@@ -476,7 +499,7 @@ def test_rollback_restores_the_card_and_appends_the_reverse_to_the_audit(git_tre
         if n["i"] == 1:
             raise OSError("сбой после успешного set_status")
 
-    res = R.repair(tracker, apply=True, write=fail_after_first)
+    res = R.repair(tracker, apply=True, coordination=COORD, write=fail_after_first)
 
     assert res["exit"] == R.EXIT_ROLLED_BACK, res
     assert all(p.read_bytes() == b for p, b in originals.items()), "карточки — исходные байты"
@@ -497,7 +520,7 @@ def test_rollback_restores_the_card_and_appends_the_reverse_to_the_audit(git_tre
 _DRIVER = r'''
 import importlib.util, os, signal, sys
 from pathlib import Path
-script, tracker, kill_at, when = sys.argv[1], Path(sys.argv[2]), int(sys.argv[3]), sys.argv[4]
+script, tracker, kill_at, when, lock = sys.argv[1], Path(sys.argv[2]), int(sys.argv[3]), sys.argv[4], sys.argv[5]
 spec = importlib.util.spec_from_file_location("r", script)
 R = importlib.util.module_from_spec(spec); spec.loader.exec_module(R)
 real = R._default_write
@@ -509,7 +532,13 @@ def write(path, new_status):
     real(path, new_status)
     if i == kill_at and when == "after":       # файл заменён, журнал операции ещё не знает
         os.kill(os.getpid(), signal.SIGKILL)
-R.repair(tracker, apply=True, write=write)
+import contextlib, fcntl
+@contextlib.contextmanager
+def coord(_t):
+    with open(lock, "a") as fh:
+        fcntl.flock(fh.fileno(), fcntl.LOCK_EX)
+        yield
+R.repair(tracker, apply=True, write=write, coordination=coord)
 print("NOT KILLED")
 '''
 
@@ -518,6 +547,31 @@ def _run(args, cwd):
     import subprocess
     return subprocess.run([sys.executable, *args], cwd=str(cwd), capture_output=True, text=True,
                           timeout=120)
+
+
+_APPLY = r'''
+import contextlib, fcntl, importlib.util, json, sys
+from pathlib import Path
+script, tracker, lock = sys.argv[1], Path(sys.argv[2]), sys.argv[3]
+spec = importlib.util.spec_from_file_location("r", script)
+R = importlib.util.module_from_spec(spec); spec.loader.exec_module(R)
+@contextlib.contextmanager
+def coord(_t):
+    with open(lock, "a") as fh:
+        fcntl.flock(fh.fileno(), fcntl.LOCK_EX)
+        yield
+res = R.repair(tracker, apply=True, coordination=coord)
+print(json.dumps(res, ensure_ascii=False, default=str))
+sys.exit(res["exit"])
+'''
+
+
+def _apply_coordinated(tracker):
+    """`--apply` в ОТДЕЛЬНОМ процессе под тестовой общей блокировкой (CLI её передать не может)."""
+    drv = Path(tempfile.gettempdir()) / f"repair_apply_driver_{os.getpid()}.py"
+    drv.write_text(_APPLY, encoding="utf-8")
+    return _run([str(drv), str(_ROOT / "scripts" / "repair_phantom_intake_cards.py"),
+                 str(tracker), str(_LOCK_FILE)], _ROOT)
 
 
 def _cli(tracker, *extra):
@@ -536,7 +590,7 @@ def test_killed_process_is_detected_and_undone_before_new_cards(tmp_path, git_tr
     driver.write_text(_DRIVER, encoding="utf-8")
 
     r = _run([str(driver), str(_ROOT / "scripts" / "repair_phantom_intake_cards.py"),
-              str(tracker), str(kill_at), when], _ROOT)
+              str(tracker), str(kill_at), when, str(_LOCK_FILE)], _ROOT)
     assert r.returncode == -signal.SIGKILL, (r.returncode, r.stdout, r.stderr)
 
     changed = [p for p in srcs if p.read_bytes() != originals[p]]
@@ -554,7 +608,7 @@ def test_killed_process_is_detected_and_undone_before_new_cards(tmp_path, git_tr
     assert dry.returncode == R.EXIT_UNFINISHED
     assert _tree(root) == snap, "сухой прогон ничего не меняет даже при незавершённой операции"
 
-    rec = _cli(tracker, "--apply")
+    rec = _apply_coordinated(tracker)
     assert rec.returncode == R.EXIT_UNFINISHED, rec.stdout + rec.stderr
     assert all(p.read_bytes() == b for p, b in originals.items()), "откат до исходных байтов"
     assert _status(late) == "done", "новые карточки не обработаны до разбора старой операции"
@@ -562,7 +616,7 @@ def test_killed_process_is_detected_and_undone_before_new_cards(tmp_path, git_tr
     reverse = [e for e in _audit(root) if e["source"].endswith("/recover_after_interrupt")]
     assert len(reverse) == len(changed)
 
-    again = _cli(tracker, "--apply")
+    again = _apply_coordinated(tracker)
     assert again.returncode == R.EXIT_OK, again.stdout + again.stderr
     assert all(_status(p) == "new" for p in [*srcs, late])
 
@@ -574,7 +628,7 @@ def test_foreign_change_after_interrupt_is_not_overwritten(tmp_path, git_tree):
     driver = tmp_path.parent / f"driver_{tmp_path.name}.py"
     driver.write_text(_DRIVER, encoding="utf-8")
     r = _run([str(driver), str(_ROOT / "scripts" / "repair_phantom_intake_cards.py"),
-              str(tracker), "1", "after"], _ROOT)
+              str(tracker), "1", "after", str(_LOCK_FILE)], _ROOT)
     assert r.returncode == -signal.SIGKILL
     # цикл успел взять открытое задание в работу — это ЧУЖАЯ правка поверх нашей
     taken = srcs[0]
@@ -582,11 +636,11 @@ def test_foreign_change_after_interrupt_is_not_overwritten(tmp_path, git_tree):
                      encoding="utf-8")
     foreign = taken.read_bytes()
 
-    res = _cli(tracker, "--apply")
+    res = _apply_coordinated(tracker)
 
     assert res.returncode == R.EXIT_MANUAL, res.stdout
     assert taken.read_bytes() == foreign, "чужая правка не перезаписана откатом"
-    assert _cli(tracker, "--apply").returncode == R.EXIT_MANUAL, "до разбора человеком — ничего"
+    assert _apply_coordinated(tracker).returncode == R.EXIT_MANUAL, "до разбора человеком — ничего"
 
 
 # ── входы — ВСЕ карточки, включая карточки владельца ─────────────────────────
@@ -616,10 +670,232 @@ def test_owner_card_changed_during_operation_rolls_back_ours_only(tracker, rec_r
         if n["i"] == 1:
             owner.write_text(owner.read_text(encoding="utf-8") + "\nответ владельца\n", encoding="utf-8")
 
-    res = R.repair(tracker, apply=True, write=write_then_owner_answers, recovery_root=str(rec_root))
+    res = R.repair(tracker, apply=True, coordination=COORD, write=write_then_owner_answers, recovery_root=str(rec_root))
     answered = owner.read_bytes()
 
     assert res["exit"] == R.EXIT_ROLLED_BACK, res
     assert "другим писателем" in res["reason"]
     assert all(p.read_bytes() == b for p, b in originals.items())
     assert answered.endswith("ответ владельца\n".encode()), "правка владельца не тронута откатом"
+
+
+# ── раунд 3 ARB: без общей блокировки --apply не пишет НИЧЕГО ────────────────
+
+def test_cli_apply_is_blocked_before_any_write(tmp_path, git_tree):
+    """Из CLI общую блокировку не передать — код 8, дерево байт в байт, план назван."""
+    root, tracker = git_tree
+    _three(tracker)
+    before = _tree(root)
+
+    r = _cli(tracker, "--apply")
+
+    assert r.returncode == R.EXIT_NO_COORDINATION, r.stdout + r.stderr
+    doc = json.loads(r.stdout)
+    assert len(doc["sources_to_reopen"]) == 3, "план прочитан и назван"
+    assert doc["applied"] is False and doc["sources_reopened"] == 0
+    assert "общей блокировки" in doc["reason"]
+    assert _tree(root) == before, "ни карточек, ни data/, ни журнала операции, ни журнала переходов"
+
+
+def test_library_apply_without_coordination_never_tries_to_write(git_tree, monkeypatch):
+    root, tracker = git_tree
+    _three(tracker)
+    before = _tree(root)
+    calls = _forbid_writes(monkeypatch)
+
+    res = R.repair(tracker, apply=True)
+
+    assert res["exit"] == R.EXIT_NO_COORDINATION
+    assert calls == [], "до записи даже не дошло"
+    assert _tree(root) == before
+
+
+def test_unfinished_operation_is_not_recovered_without_coordination(tmp_path, git_tree):
+    """Восстановление тоже пишет — без общей блокировки оно заблокировано так же."""
+    import signal
+    root, tracker = git_tree
+    _three(tracker)
+    driver = tmp_path.parent / f"driver_unf_{tmp_path.name}.py"
+    driver.write_text(_DRIVER, encoding="utf-8")
+    r = _run([str(driver), str(_ROOT / "scripts" / "repair_phantom_intake_cards.py"),
+              str(tracker), "1", "after", str(_LOCK_FILE)], _ROOT)
+    assert r.returncode == -signal.SIGKILL
+    before = _tree(root)
+
+    cli = _cli(tracker, "--apply")
+
+    assert cli.returncode == R.EXIT_NO_COORDINATION
+    assert json.loads(cli.stdout)["unfinished"], "незавершённая операция названа"
+    assert _tree(root) == before, "незавершённая операция не тронута — ни откатом, ни записью"
+
+
+# ── окно ВНУТРИ set_status: между последней сверкой и заменой файла ──────────
+
+def _hook_inside_set_status(monkeypatch, on_first):
+    """Подмена `atomic_save_text` в очереди: точка после чтения карточки и до os.replace."""
+    import spa_core.owner_queue.queue as q
+    real = q.atomic_save_text
+    n = {"i": 0}
+
+    def hooked(text, path, *a, **k):
+        if n["i"] == 0:
+            on_first(Path(path))
+        n["i"] += 1
+        return real(text, path, *a, **k)
+
+    monkeypatch.setattr(q, "atomic_save_text", hooked)
+
+
+def test_without_an_honoured_lock_the_window_loses_a_foreign_change(git_tree, monkeypatch):
+    """ПОЛОЖИТЕЛЬНЫЙ КОНТРОЛЬ: окно настоящее. Замок, который чужой писатель не берёт, не
+    защищает — его правка в окне теряется молча, и сверка хешей этого не видит. Ровно поэтому
+    `--apply` без общей блокировки заблокирован."""
+    _root, tracker = git_tree
+    _three(tracker)
+    foreign = "\nправка другого писателя\n"
+    _hook_inside_set_status(monkeypatch, lambda p: p.write_text(
+        p.read_text(encoding="utf-8") + foreign, encoding="utf-8"))
+
+    res = R.repair(tracker, apply=True, coordination=lambda _t: contextlib.nullcontext())
+
+    assert res["exit"] == R.EXIT_OK
+    victim = sorted(tracker.glob("inbox-*.md"))
+    assert not any(foreign.strip() in p.read_text(encoding="utf-8") for p in victim), \
+        "правка другого писателя потеряна — окно реально"
+
+
+def test_an_honoured_shared_lock_keeps_the_foreign_change(git_tree, monkeypatch):
+    """Общая блокировка, которую берёт и другой писатель: его правка ждёт и ложится ПОВЕРХ."""
+    import threading
+    import time
+    _root, tracker = git_tree
+    srcs = _three(tracker)
+    owners = {p: p.read_bytes() for p in tracker.glob("owner-decision-*.md")}
+    foreign = "правка другого писателя под общей блокировкой"
+    state = {}
+
+    def writer(path):
+        state["trying"] = True
+        with _flock():
+            path.write_text(path.read_text(encoding="utf-8") + "\n" + foreign + "\n", encoding="utf-8")
+
+    def on_first(path):
+        t = threading.Thread(target=writer, args=(path,))
+        t.start()
+        state["t"], state["path"] = t, path
+        while not state.get("trying"):
+            time.sleep(0.01)
+        time.sleep(0.2)
+        assert foreign not in path.read_text(encoding="utf-8"), "другой писатель ждёт замок"
+
+    _hook_inside_set_status(monkeypatch, on_first)
+    res = R.repair(tracker, apply=True, coordination=COORD)
+    state["t"].join(10)
+
+    assert res["exit"] == R.EXIT_OK, res
+    text = state["path"].read_text(encoding="utf-8")
+    assert foreign in text, "правка другого писателя сохранена"
+    assert R._fm_str(R._fm(text), "status") == "new", "и наша запись тоже"
+    assert all(_status(p) == "new" for p in srcs)
+    assert all(p.read_bytes() == b for p, b in owners.items()), "карточки Owner байт в байт"
+
+
+_DRIVER_IN_WINDOW = r'''
+import contextlib, fcntl, importlib.util, os, signal, sys, time
+from pathlib import Path
+script, tracker, lock, marker, when = sys.argv[1], Path(sys.argv[2]), sys.argv[3], Path(sys.argv[4]), sys.argv[5]
+spec = importlib.util.spec_from_file_location("r", script)
+R = importlib.util.module_from_spec(spec); spec.loader.exec_module(R)
+import spa_core.owner_queue.queue as q
+real = q.atomic_save_text
+def hooked(text, path, *a, **k):
+    if when == "after":
+        real(text, path, *a, **k)
+    marker.write_text("in window")
+    time.sleep(0.5)                    # другой писатель успевает встать в очередь за замком
+    os.kill(os.getpid(), signal.SIGKILL)
+q.atomic_save_text = hooked
+@contextlib.contextmanager
+def coord(_t):
+    with open(lock, "a") as fh:
+        fcntl.flock(fh.fileno(), fcntl.LOCK_EX)
+        yield
+R.repair(tracker, apply=True, coordination=coord)
+print("NOT KILLED")
+'''
+
+
+@pytest.mark.parametrize("when", ["before", "after"])
+def test_kill_in_the_window_under_the_lock_then_recovery(tmp_path, git_tree, when):
+    """Процесс убит ровно в окне, держа общую блокировку. Ядро отпускает замок, другой писатель
+    дописывает ту же карточку; следующий запуск НЕ перезаписывает его правку (код 5), карточки
+    Owner — исходные байты, журнал операции хранит исходные байты с совпадающим sha256."""
+    import signal
+    import subprocess as sp
+    import threading
+    import time
+    root, tracker = git_tree
+    srcs = _three(tracker)
+    originals = {p: p.read_bytes() for p in srcs}
+    owners = {p: p.read_bytes() for p in tracker.glob("owner-decision-*.md")}
+    marker = tmp_path.parent / f"marker_{tmp_path.name}"
+    driver = tmp_path.parent / f"driver_win_{tmp_path.name}.py"
+    driver.write_text(_DRIVER_IN_WINDOW, encoding="utf-8")
+    proc = sp.Popen([sys.executable, str(driver), str(_ROOT / "scripts" / "repair_phantom_intake_cards.py"),
+                     str(tracker), str(_LOCK_FILE), str(marker), when], cwd=str(_ROOT),
+                    stdout=sp.PIPE, stderr=sp.PIPE, text=True)
+    deadline = time.time() + 60
+    while not marker.exists() and time.time() < deadline:
+        time.sleep(0.02)
+    assert marker.exists(), proc.communicate()
+    victim = {}
+
+    def writer():
+        with _flock():                                  # ждёт, пока убитый держатель не отпустит замок
+            p = sorted(tracker.glob("inbox-*.md"))[0]
+            p.write_text(p.read_text(encoding="utf-8") + "\nправка после смерти держателя\n", encoding="utf-8")
+            victim["p"], victim["bytes"] = p, p.read_bytes()
+
+    t = threading.Thread(target=writer)
+    t.start()
+    proc.wait(60)
+    t.join(30)
+    assert proc.returncode == -signal.SIGKILL
+    assert "p" in victim, "замок освобождён смертью держателя"
+
+    rec = _apply_coordinated(tracker)
+
+    assert rec.returncode == R.EXIT_MANUAL, rec.stdout
+    assert victim["p"].read_bytes() == victim["bytes"], "правка другого писателя не перезаписана"
+    assert all(p.read_bytes() == b for p, b in owners.items()), "карточки Owner байт в байт"
+    for p in srcs:
+        if p != victim["p"]:
+            assert p.read_bytes() == originals[p]
+    op = next((root / "data" / "repair_phantom_recovery").iterdir())
+    m = json.loads((op / "manifest.json").read_text())
+    assert m["state"] == "needs_manual"
+    for f in m["files"]:
+        data = (op / f"{f['index']:03d}.orig").read_bytes()
+        assert hashlib.sha256(data).hexdigest() == f["orig_sha"] == hashlib.sha256(originals[Path(f["path"])]).hexdigest()
+
+
+def test_recovery_refuses_a_corrupted_snapshot(tmp_path, git_tree):
+    """Восстановление сверяет исходные байты слепка с sha256 — порченый слепок не применяется."""
+    import signal
+    root, tracker = git_tree
+    _three(tracker)
+    driver = tmp_path.parent / f"driver_cor_{tmp_path.name}.py"
+    driver.write_text(_DRIVER, encoding="utf-8")
+    r = _run([str(driver), str(_ROOT / "scripts" / "repair_phantom_intake_cards.py"),
+              str(tracker), "1", "after", str(_LOCK_FILE)], _ROOT)
+    assert r.returncode == -signal.SIGKILL
+    op = next((root / "data" / "repair_phantom_recovery").iterdir())
+    orig0 = op / "000.orig"
+    orig0.write_bytes(orig0.read_bytes() + b"tampered")
+    cards_before = {p: p.read_bytes() for p in tracker.glob("*.md")}
+
+    rec = _apply_coordinated(tracker)
+
+    assert rec.returncode == R.EXIT_MANUAL
+    assert "слепок повреждён" in json.loads(rec.stdout)["reason"]
+    assert all(p.read_bytes() == b for p, b in cards_before.items()), "ни одна карточка не тронута"

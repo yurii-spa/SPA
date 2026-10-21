@@ -41,13 +41,30 @@ fallback-текстом, настоящих вопросов ноль, — и 44
   5. Сбой ⇒ откат только СВОИХ записей (хеш совпадает с записанным нами) и сверка по
      хешам: подтверждено — код 4; чужая правка или неподтверждённый откат — код 5.
 
-Что эта операция НЕ гарантирует (сказано вслух, см. также отчёт ARB 21.10).
+`--apply` ЗАБЛОКИРОВАН (раунд 3 ARB, 21.10) — и останется заблокированным, пока система не даст
+условие ниже. Сверка хешей перед заменой гонку НЕ закрывает: между последней сверкой и
+`os.replace` внутри `set_status` другой писатель может изменить ТОТ ЖЕ файл, и его правка будет
+потеряна. Закрыть это окно может только ОБЩАЯ блокировка трекера, которую соблюдают ВСЕ
+писатели; замер 21.10 — такой нет: `.claimlock` (`check_card_claim.py`) берёт только сам
+инструмент захвата и «ничто не мешает править карточку мимо инструмента»,
+`orchestrator_cycle_lock` защищает лишь цикл от второго цикла, а `set_status`, `create_card`,
+приём заданий, мост находок, ответы владельца, `alert_actions`, `card_acceptance` и другие
+пишут карточки без общей блокировки. Отсутствие активных писателей в момент запуска
+доказательством безопасности НЕ считается.
+
+**Условие разблокировки:** общая блокировка трекера, которую берёт КАЖДЫЙ писатель карточек.
+Тогда её передают в `repair(..., coordination=…)` — вызываемое `coordination(tracker_dir)`,
+возвращающее контекст-менеджер, удерживаемый на ВСЮ операцию (восстановление, план, запись,
+откат). Из командной строки координацию не передать: `--apply` из CLI отвечает кодом 8 и не
+пишет ничего — ни карточек, ни журнала операции, ни журнала переходов. Сухой прогон работает.
+
+Что эта операция НЕ гарантирует и под общей блокировкой (сказано вслух, см. также отчёт ARB 21.10).
   * Она НЕ атомарна как целое: заменяется по одному файлу. Читатель трекера между
     заменами видит часть заданий уже `new`, а часть ещё `done`. После прерывания
     процесса (kill -9, отключение питания) это смешанное состояние остаётся до
     следующего запуска скрипта, который его обнаружит и откатит.
-  * Координации с другими писателями трекера нет — в архитектуре нет блокировки
-    трекера (часовой цикл, мост находок, приём заданий, ответы владельца пишут карточки
+  * Без общей блокировки операция не исполняется вовсе (код 8). Ниже — почему: в архитектуре
+    нет блокировки трекера (часовой цикл, мост находок, приём заданий, ответы владельца пишут карточки
     без общей блокировки). Сверка хешей перед каждой заменой сужает окно, но не
     закрывает его: между сверкой и `os.replace` внутри `set_status` чужая запись в ТОТ
     ЖЕ файл может быть потеряна. Если до восстановления кто-то изменит карточку, которую
@@ -100,6 +117,15 @@ EXIT_REFUSED = 3
 EXIT_ROLLED_BACK = 4
 EXIT_MANUAL = 5
 EXIT_UNFINISHED = 6
+#: `--apply` без общей блокировки трекера: отказ ДО любых записей (раунд 3 ARB).
+EXIT_NO_COORDINATION = 8
+
+#: Почему `--apply` недоступен и что для него нужно — одной строкой для отчёта.
+NO_COORDINATION_REASON = (
+    "--apply заблокирован: нет общей блокировки трекера, которую соблюдают ВСЕ писатели "
+    "карточек; без неё запись другого писателя в ту же карточку между сверкой и заменой может "
+    "быть потеряна. Ничего не записано. Условие: общая блокировка трекера, переданная как "
+    "repair(..., coordination=…)")
 
 #: Журнал операций — в `data/` целевого дерева, рядом с журналом переходов; не в /tmp.
 RECOVERY_REL = Path("data") / "repair_phantom_recovery"
@@ -494,9 +520,28 @@ def recover_unfinished(recovery_root: Path, *, apply: bool, restore=_restore) ->
 
 
 def repair(tracker_dir: Path, *, apply: bool, write=_default_write, restore=_restore,
-           recovery_root: str | os.PathLike | None = None) -> dict:
+           recovery_root: str | os.PathLike | None = None, coordination=None) -> dict:
+    """Сухой прогон — всегда; `apply=True` — только под общей блокировкой `coordination`.
+
+    Без неё ответ — код 8 и ни одной записи: план и незавершённые операции только ЧИТАЮТСЯ
+    и называются в отчёте. С ней вся операция (восстановление, план, запись, откат) идёт
+    внутри `with coordination(tracker_dir):`.
+    """
     tracker_dir = Path(tracker_dir)
     rec_root = recovery_root_for(tracker_dir, recovery_root)
+    if apply and coordination is None:
+        res = _repair_body(tracker_dir, apply=False, write=write, restore=restore,
+                           rec_root=rec_root)
+        res.update(exit=EXIT_NO_COORDINATION, reason=NO_COORDINATION_REASON, applied=False)
+        return res
+    if apply:
+        with coordination(tracker_dir):
+            return _repair_body(tracker_dir, apply=True, write=write, restore=restore,
+                                rec_root=rec_root)
+    return _repair_body(tracker_dir, apply=False, write=write, restore=restore, rec_root=rec_root)
+
+
+def _repair_body(tracker_dir: Path, *, apply: bool, write, restore, rec_root: Path) -> dict:
     res = {
         "applied": False, "phantoms_found": 0, "phantoms": [], "phantoms_closed": 0,
         "sources_to_reopen": [], "sources_reopened": 0, "reopened": [],
@@ -546,7 +591,8 @@ def main(argv: list[str] | None = None) -> int:
 
     head = "ВЫПОЛНЕНО" if res["applied"] else "СУХОЙ ПРОГОН (ничего не записано)"
     if res["exit"] != EXIT_OK:
-        head = {EXIT_REFUSED: "ОТКАЗ", EXIT_UNFINISHED: "НЕЗАВЕРШЁННАЯ ОПЕРАЦИЯ"}.get(res["exit"], "СБОЙ")
+        head = {EXIT_REFUSED: "ОТКАЗ", EXIT_UNFINISHED: "НЕЗАВЕРШЁННАЯ ОПЕРАЦИЯ",
+                EXIT_NO_COORDINATION: "--apply ЗАБЛОКИРОВАН"}.get(res["exit"], "СБОЙ")
     print(f"— задания, закрытые фантомами упавшего классификатора · {head} —")
     if res["unfinished"]:
         print(f"незавершённые операции: {', '.join(res['unfinished'])}")
@@ -570,7 +616,7 @@ def main(argv: list[str] | None = None) -> int:
     if res["op"]:
         print(f"журнал операции: {res['op']}")
     if res["exit"] == EXIT_OK and not res["applied"] and res["sources_to_reopen"]:
-        print("\nповторить с --apply, чтобы записать")
+        print(f"\n--apply сейчас недоступен: {NO_COORDINATION_REASON}")
     return res["exit"]
 
 
