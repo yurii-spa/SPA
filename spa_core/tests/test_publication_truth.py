@@ -11,6 +11,7 @@ import copy
 import datetime
 import importlib.util
 import json
+import os
 import re
 import shutil
 import tempfile
@@ -515,6 +516,99 @@ if __name__ == "__main__":
 
 
 # ── 9. re-review: interlocks on both pushers, recorded inputs, the retry after owner-done ─────────
+class _RecordingProxy:
+    """Локальная контролируемая фикстура: «прокси» на 127.0.0.1, который никого никуда не пускает.
+
+    Принимает подключение, записывает первую строку запроса (`CONNECT host:443 …`), отвечает
+    403 и закрывает. Это ЗАПАСНАЯ защита: даже если сторож сети в дочернем процессе намеренно
+    сломан, HTTPS через urllib уходит сюда, а не во внешнюю сеть.
+    """
+
+    def __init__(self):
+        import socket
+        import threading
+        self.seen: list = []
+        self._srv = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        self._srv.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+        self._srv.bind(("127.0.0.1", 0))
+        self._srv.listen(16)
+        self._srv.settimeout(0.2)
+        self.url = f"http://127.0.0.1:{self._srv.getsockname()[1]}"
+        self._stop = threading.Event()
+        self._t = threading.Thread(target=self._loop, daemon=True)
+        self._t.start()
+
+    def _loop(self):
+        import socket
+        while not self._stop.is_set():
+            try:
+                conn, _ = self._srv.accept()
+            except socket.timeout:
+                continue
+            except OSError:
+                return
+            with conn:
+                conn.settimeout(2)
+                try:
+                    first = conn.recv(4096).split(b"\r\n", 1)[0].decode("latin-1")
+                except OSError:
+                    first = "<no request line>"
+                self.seen.append(first)
+                try:
+                    conn.sendall(b"HTTP/1.1 403 Forbidden\r\nContent-Length: 0\r\n\r\n")
+                except OSError:
+                    pass
+
+    def close(self):
+        self._stop.set()
+        self._srv.close()
+        self._t.join(2)
+
+
+#: `sitecustomize` дочерних процессов: ставит СУЩЕСТВУЮЩИЙ `spa_core.tests.network_guard`
+#: (urlopen + socket.connect, loopback разрешён) и при выходе пишет отчёт процесса.
+_SITECUSTOMIZE = r"""
+import atexit, json, os
+_dir = os.environ.get("SPA_NET_GUARD_REPORT_DIR")
+try:
+    from spa_core.tests import network_guard as _g
+    _g.install()
+    _ok, _err = True, None
+except Exception as _e:  # noqa: BLE001 — сторож не встал ⇒ это в отчёте, а не молча
+    _g, _ok, _err = None, False, repr(_e)
+
+def _dump():
+    if _dir:
+        with open(os.path.join(_dir, f"{os.getpid()}.json"), "w") as fh:
+            json.dump({"pid": os.getpid(), "installed": _ok, "error": _err,
+                       "attempts": _g.attempts() if _g else []}, fh)
+
+atexit.register(_dump)
+"""
+
+
+def _sealed_env(base: dict, scratch: Path, proxy_url: str) -> dict:
+    site = scratch / "net_site"
+    site.mkdir(exist_ok=True)
+    (site / "sitecustomize.py").write_text(_SITECUSTOMIZE, encoding="utf-8")
+    reports = scratch / "net_reports"
+    reports.mkdir(exist_ok=True)
+    env = dict(base)
+    env.update(PYTHONPATH=os.pathsep.join([str(site), str(ROOT)]),
+               SPA_NET_GUARD_REPORT_DIR=str(reports),
+               HTTPS_PROXY=proxy_url, HTTP_PROXY=proxy_url, https_proxy=proxy_url,
+               http_proxy=proxy_url, ALL_PROXY=proxy_url, all_proxy=proxy_url)
+    return env
+
+
+def _net_reports(scratch: Path) -> list:
+    out = []
+    for f in sorted((scratch / "net_reports").glob("*.json")):
+        out.append(json.loads(f.read_text(encoding="utf-8")))
+        f.unlink()       # отчёт прочитан — следующий шаг меряет только свои процессы
+    return out
+
+
 class BothPushersRunThePublicationGate(unittest.TestCase):
     """Re-review (A): a direct push of the shelf (not via safe_site_push) must meet the same gate."""
 
@@ -522,51 +616,63 @@ class BothPushersRunThePublicationGate(unittest.TestCase):
         """Сцена обязана ДОЙТИ до ворот публикации, пройдя более ранние двери честно.
 
         До 2026-10-21 сцена была каталогом без git: гейт окна мутационного прибора
-        (ADR-772) спрашивает у каждого файла его git-дерево, получал «дерево не
-        определяется» ⇒ «НЕ ИЗМЕРЕНО» ⇒ отказ с кодом 10 — и ворота публикации
-        тест не видел вовсе (контрольные прогоны №13–14). Сцена теперь — изолированное
-        git-дерево без окна прибора; ни один гейт не ослаблен и не обойдён флагом.
-        Сеть закрыта прокси на мёртвый порт, учётные данные фиктивные.
+        (ADR-772) отвечал «НЕ ИЗМЕРЕНО» ⇒ код 10, и ворота публикации тест не видел.
+        Сцена — изолированное git-дерево без окна прибора; ни один гейт не ослаблен.
+
+        Сеть (2026-10-22, ARB): изоляция доказывается ЗАПИСЬЮ сторожа, а не «каким-то
+        исключением» — ошибка DNS или любой Exception сам по себе ничего не доказывает.
+        Основная защита — существующий `network_guard` в КАЖДОМ дочернем процессе
+        (через `sitecustomize`); запасная — локальный записывающий прокси, который держит
+        запрет и тогда, когда сторож намеренно сломан. Настоящий api.github.com не
+        затрагивается ни в проверке, ни в её порчах: имя в самопроверке отклоняется
+        сторожем до разрешения имени, а при сломанном стороже упирается в локальный прокси.
         """
-        import os
         import subprocess
         import sys
         d = Path(tempfile.mkdtemp(prefix="spa_pt02_push_"))
+        proxy = _RecordingProxy()
         try:
             shelf = d / "landing" / "src" / "data" / "site_numbers.json"
             shelf.parent.mkdir(parents=True)
             shelf.write_text('{"published_at": "2026-10-07"}', encoding="utf-8")
             git_env = dict(os.environ, GIT_CONFIG_GLOBAL=os.devnull, GIT_CONFIG_NOSYSTEM="1")
             subprocess.run(["git", "init", "-q", "-b", "main", str(d)], check=True, env=git_env)
-            # Сеть запрещена НЕЗАВИСИМО от исхода гейта: любой HTTPS-выход пушера (urllib берёт
-            # прокси из окружения) упирается в мёртвый порт; исключения из прокси сняты.
-            env = {k: v for k, v in os.environ.items()
-                   if k not in ("SPA_SITE_PUSH_VERIFIED", "SPA_PUSH_ALLOW_OPEN_MUTATION_WINDOW",
-                                "NO_PROXY", "no_proxy", "GITHUB_TOKEN", "GH_TOKEN")}
-            dead = "http://127.0.0.1:9"     # любая попытка сети упала бы ИНАЧЕ, чем код 3 гейта
-            env.update(SPA_PUSH_ALLOW_CHANGE_EVIDENCE_UNMEASURED="1", SPA_PUBLISHED_SHELF=str(shelf),
-                       HTTPS_PROXY=dead, HTTP_PROXY=dead, https_proxy=dead, http_proxy=dead,
-                       GIT_TERMINAL_PROMPT="0")
-            # Сеть ЗАПЕЧАТАНА для этого окружения — проверяется до пушеров и не зависит от гейта:
-            # HTTPS-запрос к API GitHub из процесса с тем же окружением обязан не состояться.
+            base = {k: v for k, v in os.environ.items()
+                    if k not in ("SPA_SITE_PUSH_VERIFIED", "SPA_PUSH_ALLOW_OPEN_MUTATION_WINDOW",
+                                 "NO_PROXY", "no_proxy", "GITHUB_TOKEN", "GH_TOKEN")}
+            base.update(SPA_PUSH_ALLOW_CHANGE_EVIDENCE_UNMEASURED="1", SPA_PUBLISHED_SHELF=str(shelf),
+                        GIT_TERMINAL_PROMPT="0")
+            env = _sealed_env(base, d, proxy.url)
+
+            # (1) Изоляция доказана записью сторожа, до пушеров и независимо от гейта.
             seal = subprocess.run(
                 [sys.executable, "-c",
                  "import urllib.request,sys\n"
-                 "try:\n urllib.request.urlopen('https://api.github.com', timeout=5); sys.exit(0)\n"
-                 "except Exception as e:\n print(type(e).__name__, e); sys.exit(7)"],
+                 "try:\n urllib.request.urlopen('https://api.github.com/', timeout=5); sys.exit(0)\n"
+                 "except Exception as e:\n print(type(e).__name__); sys.exit(7)"],
                 capture_output=True, text=True, env=env, timeout=60)
+            reps = _net_reports(d)
             self.assertEqual(seal.returncode, 7, ("сеть не запечатана", seal.stdout, seal.stderr))
-            # Более ранняя дверь для ЭТОЙ сцены открыта честно: читатель окна отвечает «окна нет».
+            self.assertEqual(seal.stdout.strip(), "LiveNetworkAccessAttempted",
+                             "отказ обязан прийти от сторожа сети, а не от DNS/порта/чего угодно")
+            self.assertTrue(reps and all(r["installed"] for r in reps), ("сторож не встал", reps))
+            self.assertTrue(any("api.github.com" in a for r in reps for a in r["attempts"]), reps)
+            self.assertEqual(proxy.seen, [], "сторож остановил запрос раньше запасного прокси")
+
+            # (2) Более ранняя дверь для ЭТОЙ сцены открыта честно: читатель окна — «окна нет».
             wc = subprocess.run([sys.executable, str(ROOT / "scripts" / "delta_mutation_run.py"),
                                  "--window-check", "--repo-root", str(d)],
                                 capture_output=True, text=True, env=env, timeout=120)
             self.assertEqual(wc.returncode, 0, ("window-check", wc.stdout[-300:], wc.stderr[-300:]))
+            _net_reports(d)
+
+            # (3) Оба пушера: отказ именно ворот публикации; сеть не тронута ни одним процессом.
             for pusher in ("push_to_github.py", "push_to_github_batch.py"):
                 cp = subprocess.run([sys.executable, str(ROOT / pusher), "--files", str(shelf),
                                      "--message", "x", "--pat", "dummy"],
                                     capture_output=True, text=True, env=env, timeout=120)
+                reps = _net_reports(d)
                 self.assertEqual(cp.returncode, 3, (pusher, cp.stdout[-400:], cp.stderr[-400:]))
-                # Причина и код — от ворот публикации: строка отказа несёт код самих ворот.
                 gate = re.search(r"BLOCKED \(publication gate rc=(\d+)\)", cp.stderr)
                 self.assertIsNotNone(gate, (pusher, cp.stderr[-400:]))
                 self.assertNotEqual(gate.group(1), "0", pusher)
@@ -574,7 +680,12 @@ class BothPushersRunThePublicationGate(unittest.TestCase):
                 refusals = [ln for ln in cp.stderr.splitlines() if "ОТКАЗ" in ln]
                 self.assertEqual(refusals, [], f"{pusher}: отказ пришёл от более ранней двери, "
                                                "а не от ворот публикации")
+                self.assertTrue(reps and all(r["installed"] for r in reps), (pusher, reps))
+                self.assertEqual([a for r in reps for a in r["attempts"]], [],
+                                 f"{pusher}: попытка выйти в сеть")
+                self.assertEqual(proxy.seen, [], f"{pusher}: до запасного прокси дошёл запрос")
         finally:
+            proxy.close()
             shutil.rmtree(d, ignore_errors=True)
 
 

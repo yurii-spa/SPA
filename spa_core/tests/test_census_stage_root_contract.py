@@ -78,23 +78,52 @@ def _bridge_import_names(src: str) -> dict[str, str]:
     return names
 
 
-def stage_censuses() -> list[str]:
-    """Население ступени = ВСЕ, кого она зовёт `…run(root=args.root)`.
+#: Нет литерального значения у аргумента зова — воспроизвести зов потребителя нельзя.
+_NOT_LITERAL = object()
 
-    Выводится независимой формой (`_CALL_INDEPENDENT`), а не импорт-соседством:
-    замер #565 показал, что импорт-соседство теряет население ТРЕМЯ разными
-    способами разом — приёмник без ведущего подчёркивания (30 переписей),
-    зов БЕЗ присваивания вовсе (`house_view_gap`, `loop_health`) и зов через
-    13 строк после импорта (`loop_retro`). Полное население ступени — 45.
 
-    Имя перед `.run` разрешается в модуль по импортам САМОГО моста (псевдоним
-    `as _atc` — не модуль). Население от этого не растёт и не сужается: каждый зов
-    остаётся одним членом, меняется только то, КАКОЙ модуль за ним стоит. Имя без
-    импорта остаётся как есть — и, если это не модуль, громко падает на импорте.
+def stage_calls() -> dict[str, list[dict]]:
+    """Зовы ступени по РАЗБОРУ AST: модуль → список наборов дополнительных аргументов.
+
+    Зов ступени — любой `X.run(...)` с `root=args.root`. Регулярная форма
+    `X.run(root=args.root)` (прежний вывод) теряла зовы с дополнительными аргументами —
+    замер 2026-10-22: `artifact_stamp_clock_doors.run(root=args.root, if_due=True,
+    sandbox=True)` и `_ldu.run(root=args.root, if_due=True)` (ledger_day_unit_census)
+    вне проверки. `X` — переменная: разрешается по импортам самого моста.
     """
     src = _BRIDGE.read_text(encoding="utf-8")
     imported = _bridge_import_names(src)
-    return sorted({imported.get(n, n) for n in _CALL_INDEPENDENT.findall(src)})
+    out: dict[str, list[dict]] = {}
+    for node in ast.walk(ast.parse(src)):
+        if not (isinstance(node, ast.Call) and isinstance(node.func, ast.Attribute)
+                and node.func.attr == "run" and isinstance(node.func.value, ast.Name)):
+            continue
+        kws = {k.arg: k.value for k in node.keywords if k.arg}
+        if "root" not in kws or ast.unparse(kws["root"]) != "args.root" or node.args:
+            continue
+        extra = {}
+        for k, v in kws.items():
+            if k == "root":
+                continue
+            try:
+                extra[k] = ast.literal_eval(v)
+            except ValueError:
+                extra[k] = _NOT_LITERAL
+        name = imported.get(node.func.value.id, node.func.value.id)
+        if extra not in out.setdefault(name, []):
+            out[name].append(extra)
+    return out
+
+
+def stage_censuses() -> list[str]:
+    """Население ступени = ВСЕ, кого она зовёт `….run(root=args.root[, …])` — по AST.
+
+    Замер #565: импорт-соседство теряло население тремя способами; полное население
+    тогда — 45. Имя перед `.run` разрешается в модуль по импортам моста (псевдоним
+    `as _atc` — не модуль); имя без импорта остаётся как есть и, если это не модуль,
+    громко падает на импорте.
+    """
+    return sorted(stage_calls())
 
 
 def stage_censuses_by_import_adjacency() -> list[str]:
@@ -151,32 +180,41 @@ class CensusStageRootContract(unittest.TestCase):
         self.assertIn("_atc", aliases, "псевдоним _atc обязан быть найден и разрешён")
         self.assertEqual(aliases["_atc"], "acceptance_tree_capability")
         monitoring = _BRIDGE.parent
-        unresolved = sorted(n for n in stage_censuses() if not (monitoring / f"{n}.py").is_file())
+        population = set(stage_censuses())
+        unresolved = sorted(n for n in population if not (monitoring / f"{n}.py").is_file())
         self.assertEqual(unresolved, [], f"неизвестный импорт в населении ступени: {unresolved}")
-        self.assertEqual(len(stage_censuses()), len({imported.get(n, n) for n in raw}),
-                         "население не сужено: каждый зов — ровно один член")
+        regex_form = {imported.get(n, n) for n in raw}
+        self.assertEqual(regex_form - population, set(),
+                         "разбор AST обязан покрыть всё, что видит регулярная форма")
+        for extra_kw in ("artifact_stamp_clock_doors", "ledger_day_unit_census"):
+            self.assertIn(extra_kw, population, f"зов с доп. аргументами потерян: {extra_kw}")
+        non_literal = {n: c for n, cs in stage_calls().items() for c in cs
+                       if any(v is _NOT_LITERAL for v in c.values())}
+        self.assertEqual(non_literal, {}, f"зов потребителя не воспроизвести: {non_literal}")
 
     def test_every_stage_census_puts_its_artifact_under_root_data(self) -> None:
         """Артефакт обязан лечь в `<корень>/data`, а не в корень дерева."""
         misplaced: dict[str, list[str]] = {}
         unmeasured: dict[str, str] = {}
         measured = 0
-        for name in stage_censuses():
+        for name, calls in sorted(stage_calls().items()):
             module = importlib.import_module(f"spa_core.monitoring.{name}")
-            with TemporaryDirectory() as tmp:
-                tree = Path(tmp)
-                (tree / "data").mkdir()
-                before = {p.name for p in tree.iterdir()}
-                try:
-                    module.run(root=str(tree))
-                except Exception as exc:  # noqa: BLE001
-                    unmeasured[name] = f"{type(exc).__name__}: {exc}"
-                    continue
-                strays = sorted(p.name for p in tree.iterdir()
-                                if p.name not in before)
-                measured += 1
-                if strays:
-                    misplaced[name] = strays
+            for extra in calls:            # зов — так, как его делает потребитель (те же аргументы)
+                label = name if not extra else f"{name}{sorted(extra.items())}"
+                with TemporaryDirectory() as tmp:
+                    tree = Path(tmp)
+                    (tree / "data").mkdir()
+                    before = {p.name for p in tree.iterdir()}
+                    try:
+                        module.run(root=str(tree), **extra)
+                    except Exception as exc:  # noqa: BLE001
+                        unmeasured[label] = f"{type(exc).__name__}: {exc}"
+                        continue
+                    strays = sorted(p.name for p in tree.iterdir()
+                                    if p.name not in before)
+                    measured += 1
+                    if strays:
+                        misplaced[label] = strays
         self.assertEqual(misplaced, {}, (
             f"перепись положила артефакт в КОРЕНЬ дерева: {misplaced}. Шаг "
             "0-офис ищет его в `data/` и напечатает «❌ НЕ ПРОЧИТАН», а ступень "
