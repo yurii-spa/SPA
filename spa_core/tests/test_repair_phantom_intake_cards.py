@@ -400,9 +400,11 @@ def _three(tracker):
 
 @pytest.mark.parametrize("fail_at", [0, 1, 2])
 @pytest.mark.parametrize("after_replace", [False, True])
-def test_failure_at_each_step_rolls_back_to_the_exact_original(tmp_path, tracker, rec_root, fail_at, after_replace):
+def test_failure_at_each_step_rolls_back_to_the_exact_original(git_tree, rec_root, fail_at, after_replace):
+    """Опознанное дерево: и карточки, и журнал переходов обязаны сойтись (код 4)."""
+    root, tracker = git_tree
     _three(tracker)
-    before = _tree(tmp_path)
+    before = _tree_without_audit(root)
     real = R._default_write
     n = {"i": 0}
 
@@ -419,10 +421,13 @@ def test_failure_at_each_step_rolls_back_to_the_exact_original(tmp_path, tracker
 
     assert res["exit"] == R.EXIT_ROLLED_BACK, res
     assert res["applied"] is False and res["sources_reopened"] == 0
-    assert _tree(tmp_path) == before, "состояние до операции — байт в байт"
+    assert _tree_without_audit(root) == before, "карточки и дерево — байт в байт как до операции"
     ops = list(rec_root.iterdir())
     assert len(ops) == 1
-    assert json.loads((ops[0] / "manifest.json").read_text())["state"] == "rolled_back"
+    m = json.loads((ops[0] / "manifest.json").read_text())
+    assert m["state"] == "rolled_back" and m["audit"]["verdict"] == "consistent", m.get("audit")
+    changed = fail_at + (1 if after_replace else 0)
+    assert len(_audit(root)) == 2 * changed, "по прямому и обратному событию на каждую замену"
 
 
 def test_unconfirmed_rollback_keeps_recovery_material_and_asks_for_a_human(tmp_path, tracker, rec_root):
@@ -476,6 +481,15 @@ def git_tree(tmp_path):
     t = tmp_path / "nimbalyst-local" / "tracker"
     t.mkdir(parents=True)
     return tmp_path, t
+
+
+def _tree_without_audit(root: Path) -> dict:
+    """Дерево без журнала переходов: он только дописывается, и сверяется отдельно."""
+    t = _tree(root)
+    t.pop("data/tracker_status_audit.jsonl", None)
+    if t.get("data") == "dir" and not any(k.startswith("data/") for k in t):
+        t.pop("data")
+    return t
 
 
 def _audit(root: Path) -> list[dict]:
@@ -657,7 +671,8 @@ def test_owner_card_changed_between_plan_and_write_refuses(tracker, rec_root):
     assert list(rec_root.iterdir()) == []
 
 
-def test_owner_card_changed_during_operation_rolls_back_ours_only(tracker, rec_root):
+def test_owner_card_changed_during_operation_rolls_back_ours_only(git_tree, rec_root):
+    _root, tracker = git_tree
     srcs = _three(tracker)
     originals = {p: p.read_bytes() for p in srcs}
     owner = _phantom(tracker, "Посторонний вопрос", asked="Настоящий вопрос владельцу?")
@@ -899,3 +914,290 @@ def test_recovery_refuses_a_corrupted_snapshot(tmp_path, git_tree):
     assert rec.returncode == R.EXIT_MANUAL
     assert "слепок повреждён" in json.loads(rec.stdout)["reason"]
     assert all(p.read_bytes() == b for p, b in cards_before.items()), "ни одна карточка не тронута"
+
+
+# ── перенесено из bda950756: журнал переходов (код 7) и каталоги с fsync родителя ──
+
+def test_rollback_in_an_unrecognised_tree_is_not_a_clean_rollback(tracker, rec_root):
+    """Без опознанного дерева журнал переходов не ведётся — доказать его нечем: код 7."""
+    srcs = _three(tracker)
+    originals = {p: p.read_bytes() for p in srcs}
+    real = R._default_write
+
+    def fail_after_first(path, new_status):
+        real(path, new_status)
+        raise OSError("сбой после первой замены")
+
+    res = R.repair(tracker, apply=True, coordination=COORD, write=fail_after_first, recovery_root=str(rec_root))
+
+    assert res["exit"] == R.EXIT_AUDIT_UNPROVEN, res
+    assert all(p.read_bytes() == b for p, b in originals.items()), "карточки всё равно восстановлены"
+    m = json.loads((next(rec_root.iterdir()) / "manifest.json").read_text())
+    assert m["state"] == R.AUDIT_UNPROVEN_STATE and m["audit"]["verdict"] == "unmeasured"
+    # блокер: следующий запуск (и сухой прогон) — снова код 7, без записей
+    assert R.repair(tracker, apply=False, recovery_root=str(rec_root))["exit"] == R.EXIT_AUDIT_UNPROVEN
+
+_DRIVER_IN_SET_STATUS = r'''
+import importlib.util, os, signal, sys
+from pathlib import Path
+script, tracker, kill_at, lock = sys.argv[1], Path(sys.argv[2]), int(sys.argv[3]), sys.argv[4]
+spec = importlib.util.spec_from_file_location("r", script)
+R = importlib.util.module_from_spec(spec); spec.loader.exec_module(R)
+import spa_core.owner_queue.queue as q
+real_audit = q.record_status_write
+n = {"i": 0}
+def audit_then_maybe_die(*a, **k):
+    # Окно ВНУТРИ set_status: карточка уже заменена atomic_save_text, событие ещё не дописано.
+    if n["i"] == kill_at:
+        os.kill(os.getpid(), signal.SIGKILL)
+    n["i"] += 1
+    return real_audit(*a, **k)
+q.record_status_write = audit_then_maybe_die
+import contextlib, fcntl
+@contextlib.contextmanager
+def coord(_t):
+    with open(lock, "a") as fh:
+        fcntl.flock(fh.fileno(), fcntl.LOCK_EX)
+        yield
+R.repair(tracker, apply=True, coordination=coord)
+print("NOT KILLED")
+'''
+
+@pytest.mark.parametrize("kill_at", [0, 1, 2])
+def test_kill_inside_set_status_before_the_audit_line(tmp_path, git_tree, kill_at):
+    import signal
+    root, tracker = git_tree
+    srcs = _three(tracker)
+    owners = sorted(tracker.glob("owner-decision-*.md"))
+    originals = {p: p.read_bytes() for p in [*srcs, *owners]}
+    prior = {"card": "earlier.md", "old": "new", "new": "done", "source": "someone"}
+    (root / "data").mkdir()
+    (root / "data" / "tracker_status_audit.jsonl").write_text(json.dumps(prior) + "\n", encoding="utf-8")
+    driver = tmp_path.parent / f"driver_in_{tmp_path.name}.py"
+    driver.write_text(_DRIVER_IN_SET_STATUS, encoding="utf-8")
+
+    r = _run([str(driver), str(_ROOT / "scripts" / "repair_phantom_intake_cards.py"),
+              str(tracker), str(kill_at), str(_LOCK_FILE)], _ROOT)
+    assert r.returncode == -signal.SIGKILL, (r.returncode, r.stdout, r.stderr)
+
+    replaced = [p for p in srcs if p.read_bytes() != originals[p]]
+    assert len(replaced) == kill_at + 1, "карточка уже заменена, событие — нет"
+    log_before = (root / "data" / "tracker_status_audit.jsonl").read_bytes()
+    assert len(_audit(root)) == 1 + kill_at, "прямых событий на одно меньше, чем замен"
+
+    rec = _apply_coordinated(tracker)
+
+    assert rec.returncode == R.EXIT_AUDIT_UNPROVEN, rec.stdout + rec.stderr
+    assert all(p.read_bytes() == b for p, b in originals.items()), "карточки и байты Owner — исходные"
+    log_after = (root / "data" / "tracker_status_audit.jsonl").read_bytes()
+    assert log_after.startswith(log_before), "журнал не переписан и не очищен — только дописан"
+    op = next((root / "data" / "repair_phantom_recovery").iterdir())
+    m = json.loads((op / "manifest.json").read_text())
+    assert m["state"] == R.AUDIT_UNPROVEN_STATE, "недоказанный журнал — не финальное состояние"
+    assert m["audit"]["verdict"] == "incomplete"
+    assert any("нет прямого события" in pr for pr in m["audit"]["problems"])
+    assert "НЕ доказана" in json.loads(rec.stdout)["reason"]
+
+    # Повторный запуск код 7 НЕ обходит: блокер стоит, ничего не пишется.
+    snap = _tree(root)
+    again = _apply_coordinated(tracker)
+    assert again.returncode == R.EXIT_AUDIT_UNPROVEN, again.stdout
+    assert _tree(root) == snap, "повторный запуск ничего не записал"
+    assert _cli(tracker).returncode == R.EXIT_AUDIT_UNPROVEN, "сухой прогон называет тот же блокер"
+    # Разбор человеком — поле audit_resolution (скрипт его не пишет); после него работа идёт.
+    m["audit_resolution"] = {"by": "человек-проверяющий", "note": "прямое событие потеряно при SIGKILL"}
+    (op / "manifest.json").write_text(json.dumps(m, ensure_ascii=False), encoding="utf-8")
+    after = _apply_coordinated(tracker)
+    assert after.returncode == R.EXIT_OK, after.stdout
+
+def test_first_run_creates_the_recovery_tree_with_parent_fsyncs_before_any_write(git_tree, monkeypatch):
+    root, tracker = git_tree
+    _three(tracker)
+    assert not (root / "data").exists(), "первый запуск: data/ ещё нет"
+    events = []
+    real_mkdir, real_fsync_dir = R.os.mkdir, R._fsync_dir
+    def mkdir(p, *a, **k):
+        real_mkdir(p, *a, **k)            # FileExistsError (exist_ok=True у других) — не создание
+        events.append(("mkdir", Path(p)))
+
+    monkeypatch.setattr(R.os, "mkdir", mkdir)
+    monkeypatch.setattr(R, "_fsync_dir", lambda p: (events.append(("fsync_dir", Path(p))),
+                                                    real_fsync_dir(p))[1])
+    real_write = R._default_write
+    res = R.repair(tracker, apply=True, coordination=COORD,
+                   write=lambda p, s: (events.append(("card_write", Path(p))), real_write(p, s))[1])
+
+    assert res["exit"] == R.EXIT_OK, res
+    first_card = next(i for i, e in enumerate(events) if e[0] == "card_write")
+    made = [(i, e[1]) for i, e in enumerate(events) if e[0] == "mkdir"]
+    rec = root / "data" / "repair_phantom_recovery"
+    assert [d for _, d in made][:3] == [root / "data", rec, next(rec.iterdir())], made
+    for i, d in made:
+        nxt = events[i + 1]
+        assert nxt == ("fsync_dir", d.parent), f"после mkdir {d} — fsync его родителя"
+        assert i < first_card
+    manifest_dir_synced = [i for i, e in enumerate(events)
+                           if e == ("fsync_dir", next(rec.iterdir())) and i < first_card]
+    assert manifest_dir_synced, "каталог операции синхронизирован (журнал на диске) до первой записи"
+
+def test_first_recovery_dir_keeps_an_existing_transition_journal(git_tree, monkeypatch):
+    """`data/` и журнал переходов уже есть, каталога восстановления — нет (первый запуск).
+
+    Создание каталога восстановления не трогает журнал: его прежние байты — префикс
+    нового содержимого, и каждый вновь созданный каталог синхронизирован у родителя.
+    """
+    root, tracker = git_tree
+    _three(tracker)
+    journal = root / "data" / "tracker_status_audit.jsonl"
+    journal.parent.mkdir()
+    prior = (json.dumps({"card": "earlier.md", "old": "new", "new": "done", "source": "someone"})
+             + "\n").encode("utf-8")
+    journal.write_bytes(prior)
+    assert not (root / "data" / "repair_phantom_recovery").exists()
+    events = []
+    real_mkdir, real_fsync_dir = R.os.mkdir, R._fsync_dir
+
+    def mkdir(p, *a, **k):
+        real_mkdir(p, *a, **k)
+        events.append(("mkdir", Path(p)))
+
+    monkeypatch.setattr(R.os, "mkdir", mkdir)
+    monkeypatch.setattr(R, "_fsync_dir", lambda p: (events.append(("fsync_dir", Path(p))),
+                                                    real_fsync_dir(p))[1])
+
+    res = R.repair(tracker, apply=True, coordination=COORD)
+
+    assert res["exit"] == R.EXIT_OK, res
+    after = journal.read_bytes()
+    assert after.startswith(prior), "журнал не переписан и не очищен — только дописан"
+    added = [json.loads(ln) for ln in after[len(prior):].decode("utf-8").splitlines()]
+    assert [(e["old"], e["new"]) for e in added] == [("done", "new")] * 3
+    made = [(i, e[1]) for i, e in enumerate(events) if e[0] == "mkdir"]
+    rec = root / "data" / "repair_phantom_recovery"
+    assert [d for _, d in made][:2] == [rec, next(rec.iterdir())], made
+    for i, d in made:
+        assert events[i + 1] == ("fsync_dir", d.parent), f"после mkdir {d} — fsync его родителя"
+
+
+# ── чужие байты не в UTF-8 ⇒ код 5 / needs_manual, без необработанного исключения ──
+
+_NON_UTF8 = b"\xff\xfe foreign bytes, not utf-8\n"
+
+
+def test_non_utf8_foreign_bytes_in_process_are_manual_not_a_crash(git_tree, rec_root):
+    root, tracker = git_tree
+    _three(tracker)
+    owners = {p: p.read_bytes() for p in tracker.glob("owner-decision-*.md")}
+    prior = b'{"card": "earlier.md", "old": "new", "new": "done", "source": "someone"}\n'
+    (root / "data").mkdir()
+    journal = root / "data" / "tracker_status_audit.jsonl"
+    journal.write_bytes(prior)
+    real = R._default_write
+    hit = {}
+
+    def write_then_foreign(path, new_status):
+        real(path, new_status)
+        if not hit:
+            path.write_bytes(path.read_bytes() + _NON_UTF8)     # чужой писатель поверх нашей записи
+            hit["p"], hit["bytes"] = path, path.read_bytes()
+            raise OSError("сбой после первой замены")
+
+    res = R.repair(tracker, apply=True, coordination=COORD, write=write_then_foreign,
+                   recovery_root=str(rec_root))
+
+    assert res["exit"] == R.EXIT_MANUAL, res
+    assert hit["p"].read_bytes() == hit["bytes"], "чужие байты сохранены"
+    assert all(p.read_bytes() == b for p, b in owners.items())
+    op = next(rec_root.iterdir())
+    m = json.loads((op / "manifest.json").read_text())
+    assert m["state"] == "needs_manual"
+    for f in m["files"]:
+        assert hashlib.sha256((op / f"{f['index']:03d}.orig").read_bytes()).hexdigest() == f["orig_sha"]
+    assert journal.read_bytes().startswith(prior), "журнал переходов только дописан"
+    again = R.repair(tracker, apply=True, coordination=COORD, recovery_root=str(rec_root))
+    assert again["exit"] == R.EXIT_MANUAL, "блокер стоит, исключения нет"
+    assert hit["p"].read_bytes() == hit["bytes"]
+
+
+def test_non_utf8_foreign_bytes_after_sigkill_are_manual_not_a_crash(tmp_path, git_tree):
+    import signal
+    root, tracker = git_tree
+    _three(tracker)
+    owners = {p: p.read_bytes() for p in tracker.glob("owner-decision-*.md")}
+    driver = tmp_path.parent / f"driver_u8_{tmp_path.name}.py"
+    driver.write_text(_DRIVER, encoding="utf-8")
+    r = _run([str(driver), str(_ROOT / "scripts" / "repair_phantom_intake_cards.py"),
+              str(tracker), "1", "after", str(_LOCK_FILE)], _ROOT)
+    assert r.returncode == -signal.SIGKILL
+    victim = sorted(p for p in tracker.glob("inbox-*.md") if _status(p) == "new")[0]
+    victim.write_bytes(victim.read_bytes() + _NON_UTF8)
+    foreign = victim.read_bytes()
+    journal = root / "data" / "tracker_status_audit.jsonl"
+    log_before = journal.read_bytes()
+
+    rec = _apply_coordinated(tracker)
+
+    assert rec.returncode == R.EXIT_MANUAL, rec.stdout + rec.stderr
+    assert "Traceback" not in rec.stderr
+    assert victim.read_bytes() == foreign
+    assert all(p.read_bytes() == b for p, b in owners.items())
+    assert journal.read_bytes().startswith(log_before)
+
+
+# ── причинность: событие другого процесса — не доказательство этой операции ───
+
+def test_a_matching_foreign_event_does_not_prove_the_missing_forward(tmp_path, git_tree):
+    """SIGKILL внутри set_status: прямого события нет. В журнал попадает СОВПАДАЮЩЕЕ по пути,
+    переходу, источнику и времени событие ДРУГОГО процесса — прежняя сверка приняла бы его за
+    наше и выдала бы «сходится». Теперь — код 7, событие названо чужим."""
+    import signal
+    root, tracker = git_tree
+    srcs = _three(tracker)
+    originals = {p: p.read_bytes() for p in srcs}
+    driver = tmp_path.parent / f"driver_cz_{tmp_path.name}.py"
+    driver.write_text(_DRIVER_IN_SET_STATUS, encoding="utf-8")
+    r = _run([str(driver), str(_ROOT / "scripts" / "repair_phantom_intake_cards.py"),
+              str(tracker), "0", str(_LOCK_FILE)], _ROOT)
+    assert r.returncode == -signal.SIGKILL
+    replaced = next(p for p in srcs if p.read_bytes() != originals[p])
+    journal = root / "data" / "tracker_status_audit.jsonl"
+    journal.parent.mkdir(exist_ok=True)
+    from datetime import datetime, timezone
+    forged = {"ts": datetime.now(timezone.utc).isoformat(), "card": replaced.name,
+              "path": str(replaced.resolve()), "old": "done", "new": "new",
+              "source": "queue.set_status", "pid": 1, "cwd": "/"}
+    with open(journal, "a", encoding="utf-8") as fh:
+        fh.write(json.dumps(forged, ensure_ascii=False) + "\n")
+
+    rec = _apply_coordinated(tracker)
+
+    assert rec.returncode == R.EXIT_AUDIT_UNPROVEN, rec.stdout
+    assert all(p.read_bytes() == b for p, b in originals.items())
+    op = next((root / "data" / "repair_phantom_recovery").iterdir())
+    m = json.loads((op / "manifest.json").read_text())
+    assert m["audit"]["verdict"] == "incomplete"
+    assert any("нет прямого события" in pr for pr in m["audit"]["problems"])
+    assert any("pid 1" in fe for fe in m["audit"]["foreign_events"])
+
+
+def test_own_events_still_prove_a_clean_rollback_next_to_a_foreign_one(git_tree, rec_root):
+    root, tracker = git_tree
+    _three(tracker)
+    real = R._default_write
+    from datetime import datetime, timezone
+
+    def fail_after_first(path, new_status):
+        real(path, new_status)
+        with open(root / "data" / "tracker_status_audit.jsonl", "a", encoding="utf-8") as fh:
+            fh.write(json.dumps({"ts": datetime.now(timezone.utc).isoformat(), "path": str(path),
+                                 "old": "done", "new": "new", "source": "queue.set_status",
+                                 "pid": 1, "cwd": "/"}) + "\n")
+        raise OSError("сбой после первой замены")
+
+    res = R.repair(tracker, apply=True, coordination=COORD, write=fail_after_first,
+                   recovery_root=str(rec_root))
+
+    assert res["exit"] == R.EXIT_ROLLED_BACK, res
+    m = json.loads((next(rec_root.iterdir()) / "manifest.json").read_text())
+    assert m["state"] == "rolled_back" and m["audit"]["verdict"] == "consistent"
+    assert m["audit"]["foreign_events"], "чужое событие названо, но доказательством не служит"

@@ -791,6 +791,18 @@ def test_the_remedy_does_not_promise_to_close_the_owner_card(tree):
     assert "только владелец" in joined
 
 
+def test_the_remedy_is_named_prepared_and_blocked_not_working(tree):
+    """Пока у трекера нет общей блокировки, ремонт НЕ применяется — монитор так и говорит."""
+    data, tracker = tree
+    _phantom(tracker, "owner-decision-utochnenie-po-zametke-0")
+
+    doc = check_pending_owner_decisions(now=NOW_1330, data_dir=data, tracker_dir=tracker)
+
+    joined = "\n".join(doc["issues"])
+    assert "ЗАБЛОКИРОВАНО" in joined and "подготовлен" in joined
+    assert "возвращает в работу" not in joined, "не обещать, что задания сейчас возвращаются"
+
+
 def test_a_real_question_next_to_phantoms_is_still_counted(tree):
     """Главный риск починки: заодно потерять НАСТОЯЩИЙ вопрос владельца."""
     data, tracker = tree

@@ -35,11 +35,22 @@ fallback-текстом, настоящих вопросов ноль, — и 44
      однозначность связи, тот же гейт, что у `set_status` (`queue.check_lifecycle`),
      хеши всех входов не менялись. Любой отказ ⇒ отказ ВСЕЙ операции, код 3: ни одного
      нового, изменённого или удалённого файла в целевом дереве, ни строки в журналах.
-  3. Журнал операции (исходные байты + sha256 + план) — на диск с fsync ДО первой записи.
+  3. Журнал операции (исходные байты + sha256 + план) — на диск ДО первой записи: каждый
+     файл с fsync, каждый вновь созданный каталог — с fsync его родителя.
   4. Перед КАЖДОЙ заменой — снова хеши всех входов; запись через `queue.set_status`
      (файл заменяется через tmp + os.replace); хеш после записи — в журнал операции.
   5. Сбой ⇒ откат только СВОИХ записей (хеш совпадает с записанным нами) и сверка по
-     хешам: подтверждено — код 4; чужая правка или неподтверждённый откат — код 5.
+     хешам; затем сверка ЖУРНАЛА ПЕРЕХОДОВ: у каждой восстановленной карточки есть и прямое,
+     и обратное событие, у нетронутой — ни одного прямого. Карточки и журнал сошлись — код 4
+     (после прерывания — 6); карточки восстановлены, а целостность журнала доказать нельзя —
+     код 7, вердикт записан в журнал операции; чужая правка или неподтверждённый откат — код 5.
+     Код 7 — БЛОКЕР: состояние `rolled_back_audit_unproven` не финальное, каждый следующий
+     запуск (и сухой прогон) снова отвечает 7 и ничего не пишет, пока человек не впишет в
+     `manifest.json` операции поле `audit_resolution` (`by`, `note`); скрипт его не пишет.
+     Событие журнала засчитывается операции только по ПРОЦЕССУ: pid писателя операции (записан
+     до первой записи) или pid откатывающего процесса (записан перед откатом); совпадение
+     пути, перехода и времени у другого процесса доказательством не является.
+     Байты не в UTF-8 (наш писатель таких не производит) ⇒ запись не доказана нашей ⇒ код 5.
 
 `--apply` ЗАБЛОКИРОВАН (раунд 3 ARB, 21.10) — и останется заблокированным, пока система не даст
 условие ниже. Сверка хешей перед заменой гонку НЕ закрывает: между последней сверкой и
@@ -61,8 +72,13 @@ fallback-текстом, настоящих вопросов ноль, — и 44
 Что эта операция НЕ гарантирует и под общей блокировкой (сказано вслух, см. также отчёт ARB 21.10).
   * Она НЕ атомарна как целое: заменяется по одному файлу. Читатель трекера между
     заменами видит часть заданий уже `new`, а часть ещё `done`. После прерывания
-    процесса (kill -9, отключение питания) это смешанное состояние остаётся до
-    следующего запуска скрипта, который его обнаружит и откатит.
+    процесса это смешанное состояние остаётся до следующего запуска скрипта, который его
+    обнаружит и откатит.
+  * Проверенный уровень устойчивости — СМЕРТЬ ПРОЦЕССА (SIGKILL, исключение) в любой точке,
+    включая окно внутри `set_status` между заменой карточки и записью журнала переходов.
+    Потеря ПИТАНИЯ не проверена: fsync файлов и каталогов делается и порядок проверен
+    тестом, но на macOS `os.fsync` не сбрасывает кэш накопителя (`F_FULLFSYNC` не
+    используется), и такой сбой не воспроизводился.
   * Без общей блокировки операция не исполняется вовсе (код 8). Ниже — почему: в архитектуре
     нет блокировки трекера (часовой цикл, мост находок, приём заданий, ответы владельца пишут карточки
     без общей блокировки). Сверка хешей перед каждой заменой сужает окно, но не
@@ -72,7 +88,8 @@ fallback-текстом, настоящих вопросов ноль, — и 44
   * Журнал переходов `data/tracker_status_audit.jsonl` — только дописывается. Откат
     возвращает КАРТОЧКИ к исходным байтам, а в журнал ДОПИСЫВАЕТ обратный переход; прямой
     переход в журнале остаётся. При прерывании между заменой файла и записью журнала
-    (её делает `set_status` ПОСЛЕ замены) прямой строки в журнале не будет, обратная — будет.
+    (её делает `set_status` ПОСЛЕ замены) прямой строки в журнале НЕТ и не будет — журнал
+    общий и задним числом не дополняется; такой откат отдаёт код 7, а не «чистый» 4/6.
 
 По умолчанию — СУХОЙ ПРОГОН (ничего не пишет). Запись только с `--apply`.
 Только stdlib, без сети.
@@ -117,6 +134,8 @@ EXIT_REFUSED = 3
 EXIT_ROLLED_BACK = 4
 EXIT_MANUAL = 5
 EXIT_UNFINISHED = 6
+#: Карточки восстановлены и сверены по хешам, но целостность журнала переходов не доказана.
+EXIT_AUDIT_UNPROVEN = 7
 #: `--apply` без общей блокировки трекера: отказ ДО любых записей (раунд 3 ARB).
 EXIT_NO_COORDINATION = 8
 
@@ -132,6 +151,21 @@ RECOVERY_REL = Path("data") / "repair_phantom_recovery"
 
 _WRITER_SOURCE = "repair_phantom_intake_cards"
 _FINAL_STATES = ("committed", "rolled_back")
+#: Карточки восстановлены, но журнал переходов НЕ доказан. Не финальное состояние: такая
+#: операция остаётся БЛОКЕРОМ (код 7 на каждом следующем запуске, включая сухой прогон),
+#: пока человек не впишет в её `manifest.json` поле `audit_resolution` с непустыми `by` и
+#: `note` — кто разобрал и что решил. Сам скрипт это поле не пишет никогда.
+AUDIT_UNPROVEN_STATE = "rolled_back_audit_unproven"
+
+
+def _is_final(manifest: dict) -> bool:
+    if manifest.get("state") in _FINAL_STATES:
+        return True
+    if manifest.get("state") == AUDIT_UNPROVEN_STATE:
+        res = manifest.get("audit_resolution")
+        return isinstance(res, dict) and bool(str(res.get("by") or "").strip()) \
+            and bool(str(res.get("note") or "").strip())
+    return False
 
 
 def _read(path: Path) -> str:
@@ -318,7 +352,12 @@ def _strip_status_and_trail(text: str) -> tuple[list[str], str] | None:
 def is_our_write(orig: bytes, cur: bytes, old: str, new: str) -> bool:
     """`cur` — это `orig`, переведённый `set_status` из `old` в `new`, и ничего больше."""
     from spa_core.owner_queue.status_audit import read_trail, status_of_text
-    o_text, c_text = orig.decode("utf-8"), cur.decode("utf-8")
+    try:
+        o_text, c_text = orig.decode("utf-8"), cur.decode("utf-8")
+    except UnicodeDecodeError:
+        # Байты не в UTF-8 наш писатель (`set_status`) не производит: доказать, что это НАША
+        # запись, нельзя ⇒ «не наша» ⇒ откат её не трогает (код 5, needs_manual).
+        return False
     o, c = _strip_status_and_trail(o_text), _strip_status_and_trail(c_text)
     if o is None or c is None or o != c or status_of_text(c_text) != new:
         return False
@@ -342,6 +381,25 @@ def _fsync_dir(path: Path) -> None:
         os.fsync(fd)
     finally:
         os.close(fd)
+
+
+def _mkdir_durable(path: Path) -> list[Path]:
+    """Создать каталог и недостающих предков; после КАЖДОГО mkdir — fsync родителя.
+
+    Без fsync родителя новый каталог (а с ним и журнал операции) может не пережить сбой,
+    даже если файлы внутри записаны с fsync. Возвращает созданные каталоги сверху вниз.
+    """
+    missing: list[Path] = []
+    p = Path(path)
+    while not p.exists():
+        missing.append(p)
+        p = p.parent
+    created: list[Path] = []
+    for d in reversed(missing):
+        os.mkdir(d)
+        _fsync_dir(d.parent)
+        created.append(d)
+    return created
 
 
 def _write_durable(path: Path, data: bytes) -> None:
@@ -380,9 +438,73 @@ def find_unfinished(recovery_root: Path) -> list[tuple[Path, dict | None]]:
         except (OSError, ValueError):
             out.append((d, None))
             continue
-        if m.get("state") not in _FINAL_STATES:
+        if not _is_final(m):
             out.append((d, m))
     return out
+
+
+def audit_verdict(manifest: dict, restored: list[str]) -> dict:
+    """Сходится ли журнал переходов с тем, что операция сделала с карточками.
+
+    Для каждой ВОССТАНОВЛЕННОЙ карточки обязаны быть прямое событие (`queue.set_status`)
+    и обратное (`repair_phantom_intake_cards/...`); у карточки, которую мы не меняли, —
+    ни одного прямого. Дерево не опознано или часть журнала не читается ⇒ «не измерено»,
+    а не «сошлось».
+    """
+    from spa_core.owner_queue.status_audit import read_audit, repo_root_for
+    root = repo_root_for(Path(manifest["tracker"]))
+    if root is None:
+        return {"verdict": "unmeasured",
+                "reason": "дерево трекера не опознано — журнал переходов не ведётся"}
+    entries, broken = read_audit(root)
+    if broken:
+        return {"verdict": "unmeasured", "reason": f"журнал переходов читается не весь: {broken[:3]}"}
+    since = manifest.get("created_at", "")
+    writer_pid = manifest.get("writer_pid")
+    undo_pids = set(manifest.get("undo_pids") or [])
+    if not isinstance(writer_pid, int):
+        return {"verdict": "unmeasured",
+                "reason": "журнал операции не хранит pid писателя — чьи события в журнале "
+                          "переходов, доказать нечем"}
+
+    def _abs(e: dict) -> str | None:
+        raw = e.get("path")
+        if not raw:
+            return None
+        q = Path(str(raw))
+        if not q.is_absolute():
+            q = Path(str(e.get("cwd") or "")) / q
+        try:
+            return str(q.resolve())
+        except OSError:
+            return None
+
+    problems, foreign_events = [], []
+    for f in manifest["files"]:
+        target = str(Path(f["path"]).resolve())
+        mine = [e for e in entries if _abs(e) == target and str(e.get("ts", "")) >= since]
+        fwd_any = [e for e in mine if e.get("old") == f["old"] and e.get("new") == f["new"]
+                   and e.get("source") == "queue.set_status"]
+        # Причинность — по ПРОЦЕССУ, а не по пути и времени: в зачёт идёт только событие
+        # писателя этой операции; совпадающее событие другого процесса доказательством не является.
+        fwd = [e for e in fwd_any if e.get("pid") == writer_pid]
+        rev = [e for e in mine if e.get("old") == f["new"] and e.get("new") == f["old"]
+               and str(e.get("source", "")).startswith(_WRITER_SOURCE + "/")
+               and e.get("pid") in undo_pids]
+        foreign_events += [f"{Path(f['path']).name}: событие pid {e.get('pid')} не этой операции"
+                           for e in fwd_any if e.get("pid") != writer_pid]
+        name = Path(f["path"]).name
+        if f["path"] in restored:
+            if not fwd:
+                problems.append(f"{name}: нет прямого события — карточка была заменена, "
+                                f"а запись журнала не успела (прерывание внутри set_status)")
+            if not rev:
+                problems.append(f"{name}: нет обратного события")
+        elif fwd:
+            problems.append(f"{name}: прямое событие есть, а карточка не менялась")
+    if problems:
+        return {"verdict": "incomplete", "problems": problems, "foreign_events": foreign_events}
+    return {"verdict": "consistent", "foreign_events": foreign_events}
 
 
 def _undo(op_dir: Path, manifest: dict, restore, *, source: str) -> tuple[int, str]:
@@ -419,6 +541,11 @@ def _undo(op_dir: Path, manifest: dict, restore, *, source: str) -> tuple[int, s
         return EXIT_MANUAL, ("откат НЕ выполнен — " + "; ".join(foreign) +
                              f"; исходные байты и хеши — {op_dir}, нужно ручное вмешательство")
     errors = []
+    if plan:
+        manifest.setdefault("undo_pids", [])
+        if os.getpid() not in manifest["undo_pids"]:
+            manifest["undo_pids"].append(os.getpid())
+        _save_manifest(op_dir, manifest)
     for f, p, orig in plan:
         try:
             restore(p, orig)
@@ -433,10 +560,16 @@ def _undo(op_dir: Path, manifest: dict, restore, *, source: str) -> tuple[int, s
         _save_manifest(op_dir, manifest)
         return EXIT_MANUAL, (f"откат НЕ подтверждён ({', '.join(manifest['manual_reasons'])}) — "
                              f"исходные байты и хеши — {op_dir}, нужно ручное вмешательство")
-    manifest["state"] = "rolled_back"
     manifest["rolled_back_by"] = source
+    audit = audit_verdict(manifest, [f["path"] for f, _p, _o in plan])
+    manifest["audit"] = audit
+    manifest["state"] = "rolled_back" if audit["verdict"] == "consistent" else AUDIT_UNPROVEN_STATE
     _save_manifest(op_dir, manifest)
-    return EXIT_ROLLED_BACK, "откат подтверждён по хешам — карточки как до запуска"
+    if audit["verdict"] != "consistent":
+        detail = "; ".join(audit.get("problems") or [audit.get("reason", "")])
+        return EXIT_AUDIT_UNPROVEN, ("карточки восстановлены и сверены по хешам, но целостность "
+                                     f"журнала переходов НЕ доказана ({audit['verdict']}): {detail}")
+    return EXIT_ROLLED_BACK, "откат подтверждён по хешам; журнал переходов сходится"
 
 
 # ── исполнение ───────────────────────────────────────────────────────────────
@@ -457,17 +590,18 @@ def apply_plan(plan: dict, *, write=_default_write, restore=_restore,
 
     op_id = datetime.now(timezone.utc).strftime("%Y%m%dT%H%M%SZ") + "-" + uuid.uuid4().hex[:8]
     op_dir = recovery_root / op_id
-    op_dir.mkdir(parents=True)
+    _mkdir_durable(op_dir)
     manifest = {"op_id": op_id, "tracker": str(tracker), "state": "prepared",
+                "writer_pid": os.getpid(), "undo_pids": [],
                 "created_at": datetime.now(timezone.utc).isoformat(), "files": []}
     for i, w in enumerate(targets):
         data = w["path"].read_bytes()
         _write_durable(op_dir / f"{i:03d}.orig", data)
-        manifest["files"].append({"index": i, "path": str(w["path"]), "orig_sha": _sha(data),
+        manifest["files"].append({"index": i, "path": str(Path(w["path"]).resolve()),
+                                  "orig_sha": _sha(data),
                                   "old": w["old"], "new": w["new"], "post_sha": None,
                                   "state": "pending"})
     _save_manifest(op_dir, manifest)
-    _fsync_dir(recovery_root)
 
     expected = dict(plan["inputs"])
     try:
@@ -501,10 +635,7 @@ def recover_unfinished(recovery_root: Path, *, apply: bool, restore=_restore) ->
     if not pending:
         return None
     names = [d.name for d, _ in pending]
-    if not apply:
-        return {"exit": EXIT_UNFINISHED, "unfinished": names,
-                "reason": "найдена незавершённая операция — её откатит запуск с --apply; "
-                          "новые карточки не обрабатываются"}
+    # Блокеры, которые снимает только человек, — в ЛЮБОМ режиме и без записей.
     for d, m in pending:
         if m is None:
             return {"exit": EXIT_MANUAL, "unfinished": names,
@@ -512,11 +643,27 @@ def recover_unfinished(recovery_root: Path, *, apply: bool, restore=_restore) ->
         if m.get("state") == "needs_manual":
             return {"exit": EXIT_MANUAL, "unfinished": names,
                     "reason": f"операция {d.name} ждёт человека: {'; '.join(m.get('manual_reasons', []))}"}
+        if m.get("state") == AUDIT_UNPROVEN_STATE:
+            detail = "; ".join((m.get("audit") or {}).get("problems")
+                               or [(m.get("audit") or {}).get("reason", "")])
+            return {"exit": EXIT_AUDIT_UNPROVEN, "unfinished": names,
+                    "reason": (f"операция {d.name}: карточки восстановлены, журнал переходов НЕ "
+                               f"доказан ({detail}). Блокер до разбора человеком: вписать в "
+                               f"{d / 'manifest.json'} поле audit_resolution с by и note")}
+    if not apply:
+        return {"exit": EXIT_UNFINISHED, "unfinished": names,
+                "reason": "найдена незавершённая операция — её откатит запуск с --apply; "
+                          "новые карточки не обрабатываются"}
+    for d, m in pending:
         code, why = _undo(d, m, restore, source="recover_after_interrupt")
+        if code == EXIT_AUDIT_UNPROVEN:
+            return {"exit": code, "unfinished": names,
+                    "reason": f"незавершённая операция откатана: {why}; запусти снова"}
         if code != EXIT_ROLLED_BACK:
             return {"exit": code, "unfinished": names, "reason": why}
     return {"exit": EXIT_UNFINISHED, "unfinished": names,
-            "reason": "незавершённая операция откатана и сверена по хешам; запусти снова"}
+            "reason": "незавершённая операция откатана и сверена по хешам, журнал переходов "
+                      "сходится; запусти снова"}
 
 
 def repair(tracker_dir: Path, *, apply: bool, write=_default_write, restore=_restore,
@@ -592,7 +739,8 @@ def main(argv: list[str] | None = None) -> int:
     head = "ВЫПОЛНЕНО" if res["applied"] else "СУХОЙ ПРОГОН (ничего не записано)"
     if res["exit"] != EXIT_OK:
         head = {EXIT_REFUSED: "ОТКАЗ", EXIT_UNFINISHED: "НЕЗАВЕРШЁННАЯ ОПЕРАЦИЯ",
-                EXIT_NO_COORDINATION: "--apply ЗАБЛОКИРОВАН"}.get(res["exit"], "СБОЙ")
+                EXIT_NO_COORDINATION: "--apply ЗАБЛОКИРОВАН",
+                EXIT_AUDIT_UNPROVEN: "ОТКАТ БЕЗ ДОКАЗАННОГО ЖУРНАЛА"}.get(res["exit"], "СБОЙ")
     print(f"— задания, закрытые фантомами упавшего классификатора · {head} —")
     if res["unfinished"]:
         print(f"незавершённые операции: {', '.join(res['unfinished'])}")
