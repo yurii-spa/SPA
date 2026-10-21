@@ -23,6 +23,7 @@ Fail-OPEN тише красного, поэтому опаснее. Провер
 # LLM_FORBIDDEN
 from __future__ import annotations
 
+import ast
 import importlib
 import re
 import unittest
@@ -55,6 +56,28 @@ _CALL = re.compile(
 _CALL_INDEPENDENT = re.compile(r"\b(\w+)\.run\(root=args\.root\)")
 
 
+def _bridge_import_names(src: str) -> dict[str, str]:
+    """Локальное имя в мосте → имя модуля `spa_core.monitoring.*`, как его импортировали.
+
+    Нужна потому, что `X` в `X.run(root=args.root)` — это ИМЯ ПЕРЕМЕННОЙ, а не модуля:
+    мост пишет `from spa_core.monitoring import acceptance_tree_capability as _atc`, и
+    прежний вывод импортировал несуществующий `spa_core.monitoring._atc` — сторож падал
+    `ModuleNotFoundError` до первой проверки (контрольный прогон №13–14). Импорты
+    читаются по всему файлу, включая тела функций: мост импортирует переписи внутри
+    шагов.
+    """
+    names: dict[str, str] = {}
+    for node in ast.walk(ast.parse(src)):
+        if isinstance(node, ast.ImportFrom) and node.module == "spa_core.monitoring":
+            for a in node.names:
+                names[a.asname or a.name] = a.name
+        elif isinstance(node, ast.Import):
+            for a in node.names:
+                if a.asname and a.name.startswith("spa_core.monitoring."):
+                    names[a.asname] = a.name.rsplit(".", 1)[1]
+    return names
+
+
 def stage_censuses() -> list[str]:
     """Население ступени = ВСЕ, кого она зовёт `…run(root=args.root)`.
 
@@ -63,9 +86,15 @@ def stage_censuses() -> list[str]:
     способами разом — приёмник без ведущего подчёркивания (30 переписей),
     зов БЕЗ присваивания вовсе (`house_view_gap`, `loop_health`) и зов через
     13 строк после импорта (`loop_retro`). Полное население ступени — 45.
+
+    Имя перед `.run` разрешается в модуль по импортам САМОГО моста (псевдоним
+    `as _atc` — не модуль). Население от этого не растёт и не сужается: каждый зов
+    остаётся одним членом, меняется только то, КАКОЙ модуль за ним стоит. Имя без
+    импорта остаётся как есть — и, если это не модуль, громко падает на импорте.
     """
-    return sorted(set(_CALL_INDEPENDENT.findall(
-        _BRIDGE.read_text(encoding="utf-8"))))
+    src = _BRIDGE.read_text(encoding="utf-8")
+    imported = _bridge_import_names(src)
+    return sorted({imported.get(n, n) for n in _CALL_INDEPENDENT.findall(src)})
 
 
 def stage_censuses_by_import_adjacency() -> list[str]:
@@ -107,6 +136,25 @@ class CensusStageRootContract(unittest.TestCase):
             "импорт-соседство внезапно покрыло ВСЁ население — либо ступень "
             "переписана, либо сузилась независимая форма. Замер #565: 12 из 45, "
             "и на этой разнице стои́т смысл перекрёстной сверки"))
+
+    def test_every_member_resolves_to_an_existing_module(self) -> None:
+        """Полнота населения: ни одного неразрешённого имени — неизвестный импорт КРАСНЫЙ, а не пропуск.
+
+        Имя перед `.run(root=args.root)` — переменная. Псевдоним моста (`acceptance_tree_capability
+        as _atc` и соседи) обязан разрешиться в настоящий модуль; имя, не ставшее модулем,
+        есть неизвестный импорт, и проверка о нём говорит громко, а не сужает население.
+        """
+        src = _BRIDGE.read_text(encoding="utf-8")
+        raw = set(_CALL_INDEPENDENT.findall(src))
+        imported = _bridge_import_names(src)
+        aliases = {n: imported[n] for n in raw if n in imported and imported[n] != n}
+        self.assertIn("_atc", aliases, "псевдоним _atc обязан быть найден и разрешён")
+        self.assertEqual(aliases["_atc"], "acceptance_tree_capability")
+        monitoring = _BRIDGE.parent
+        unresolved = sorted(n for n in stage_censuses() if not (monitoring / f"{n}.py").is_file())
+        self.assertEqual(unresolved, [], f"неизвестный импорт в населении ступени: {unresolved}")
+        self.assertEqual(len(stage_censuses()), len({imported.get(n, n) for n in raw}),
+                         "население не сужено: каждый зов — ровно один член")
 
     def test_every_stage_census_puts_its_artifact_under_root_data(self) -> None:
         """Артефакт обязан лечь в `<корень>/data`, а не в корень дерева."""

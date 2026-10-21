@@ -11,6 +11,7 @@ import copy
 import datetime
 import importlib.util
 import json
+import re
 import shutil
 import tempfile
 import unittest
@@ -518,6 +519,15 @@ class BothPushersRunThePublicationGate(unittest.TestCase):
     """Re-review (A): a direct push of the shelf (not via safe_site_push) must meet the same gate."""
 
     def test_a_direct_push_of_an_unverified_shelf_is_blocked_by_either_pusher(self):
+        """Сцена обязана ДОЙТИ до ворот публикации, пройдя более ранние двери честно.
+
+        До 2026-10-21 сцена была каталогом без git: гейт окна мутационного прибора
+        (ADR-772) спрашивает у каждого файла его git-дерево, получал «дерево не
+        определяется» ⇒ «НЕ ИЗМЕРЕНО» ⇒ отказ с кодом 10 — и ворота публикации
+        тест не видел вовсе (контрольные прогоны №13–14). Сцена теперь — изолированное
+        git-дерево без окна прибора; ни один гейт не ослаблен и не обойдён флагом.
+        Сеть закрыта прокси на мёртвый порт, учётные данные фиктивные.
+        """
         import os
         import subprocess
         import sys
@@ -526,14 +536,44 @@ class BothPushersRunThePublicationGate(unittest.TestCase):
             shelf = d / "landing" / "src" / "data" / "site_numbers.json"
             shelf.parent.mkdir(parents=True)
             shelf.write_text('{"published_at": "2026-10-07"}', encoding="utf-8")
-            env = {k: v for k, v in os.environ.items() if k != "SPA_SITE_PUSH_VERIFIED"}
-            env.update(SPA_PUSH_ALLOW_CHANGE_EVIDENCE_UNMEASURED="1", SPA_PUBLISHED_SHELF=str(shelf))
+            git_env = dict(os.environ, GIT_CONFIG_GLOBAL=os.devnull, GIT_CONFIG_NOSYSTEM="1")
+            subprocess.run(["git", "init", "-q", "-b", "main", str(d)], check=True, env=git_env)
+            # Сеть запрещена НЕЗАВИСИМО от исхода гейта: любой HTTPS-выход пушера (urllib берёт
+            # прокси из окружения) упирается в мёртвый порт; исключения из прокси сняты.
+            env = {k: v for k, v in os.environ.items()
+                   if k not in ("SPA_SITE_PUSH_VERIFIED", "SPA_PUSH_ALLOW_OPEN_MUTATION_WINDOW",
+                                "NO_PROXY", "no_proxy", "GITHUB_TOKEN", "GH_TOKEN")}
+            dead = "http://127.0.0.1:9"     # любая попытка сети упала бы ИНАЧЕ, чем код 3 гейта
+            env.update(SPA_PUSH_ALLOW_CHANGE_EVIDENCE_UNMEASURED="1", SPA_PUBLISHED_SHELF=str(shelf),
+                       HTTPS_PROXY=dead, HTTP_PROXY=dead, https_proxy=dead, http_proxy=dead,
+                       GIT_TERMINAL_PROMPT="0")
+            # Сеть ЗАПЕЧАТАНА для этого окружения — проверяется до пушеров и не зависит от гейта:
+            # HTTPS-запрос к API GitHub из процесса с тем же окружением обязан не состояться.
+            seal = subprocess.run(
+                [sys.executable, "-c",
+                 "import urllib.request,sys\n"
+                 "try:\n urllib.request.urlopen('https://api.github.com', timeout=5); sys.exit(0)\n"
+                 "except Exception as e:\n print(type(e).__name__, e); sys.exit(7)"],
+                capture_output=True, text=True, env=env, timeout=60)
+            self.assertEqual(seal.returncode, 7, ("сеть не запечатана", seal.stdout, seal.stderr))
+            # Более ранняя дверь для ЭТОЙ сцены открыта честно: читатель окна отвечает «окна нет».
+            wc = subprocess.run([sys.executable, str(ROOT / "scripts" / "delta_mutation_run.py"),
+                                 "--window-check", "--repo-root", str(d)],
+                                capture_output=True, text=True, env=env, timeout=120)
+            self.assertEqual(wc.returncode, 0, ("window-check", wc.stdout[-300:], wc.stderr[-300:]))
             for pusher in ("push_to_github.py", "push_to_github_batch.py"):
                 cp = subprocess.run([sys.executable, str(ROOT / pusher), "--files", str(shelf),
                                      "--message", "x", "--pat", "dummy"],
                                     capture_output=True, text=True, env=env, timeout=120)
                 self.assertEqual(cp.returncode, 3, (pusher, cp.stdout[-400:], cp.stderr[-400:]))
-                self.assertIn("publication gate", cp.stderr)
+                # Причина и код — от ворот публикации: строка отказа несёт код самих ворот.
+                gate = re.search(r"BLOCKED \(publication gate rc=(\d+)\)", cp.stderr)
+                self.assertIsNotNone(gate, (pusher, cp.stderr[-400:]))
+                self.assertNotEqual(gate.group(1), "0", pusher)
+                self.assertIn("Not pushing", cp.stderr, pusher)
+                refusals = [ln for ln in cp.stderr.splitlines() if "ОТКАЗ" in ln]
+                self.assertEqual(refusals, [], f"{pusher}: отказ пришёл от более ранней двери, "
+                                               "а не от ворот публикации")
         finally:
             shutil.rmtree(d, ignore_errors=True)
 
