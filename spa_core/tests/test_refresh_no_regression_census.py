@@ -16,6 +16,7 @@ from __future__ import annotations
 
 import importlib.util
 import json
+import os
 import subprocess
 import unittest
 import unittest.mock
@@ -288,20 +289,45 @@ class ТактРешаетФайл(unittest.TestCase):
         self.addCleanup(self.tmp.cleanup)
         self.addCleanup(self.store.cleanup)
 
-    def _artifact(self, hours_old: float) -> None:
+    def _artifact(self, hours_old: float, repo_head: str | None = "head-A") -> None:
         made = ANCHOR - timedelta(hours=hours_old)
         (self.root / census.REPORT_REL).write_text(json.dumps({
-            "generated_at": made.isoformat().replace("+00:00", "Z"),
+            "generated_at": made.isoformat().replace("+00:00", "Z"), "repo_head": repo_head,
             "measured": True, "verdict": census.NO_REGRESSION}), encoding="utf-8")
 
     def test_свежий_артефакт_ничего_не_перезапускает(self):
-        self._artifact(10.0)
-        out = RNC.refresh(self.root, if_due=True, max_age_h=120.0, write=False, now=ANCHOR,
+        """Свеж И о том же коммите, что HEAD дерева, — только тогда не срок."""
+        self._artifact(10.0, repo_head="head-A")
+        with unittest.mock.patch.object(RNC, "_tree_head", return_value="head-A"):
+            out = RNC.refresh(self.root, if_due=True, max_age_h=120.0, write=False, now=ANCHOR,
                               records_root=Path(self.store.name))
         self.assertFalse(out["ran"], "внутри такта прогон не нужен")
         self.assertFalse(out["due"])
         self.assertEqual(out["report"]["verdict"], census.NO_REGRESSION)
         self.assertIn("прежний", out["source"], "источник вердикта назван вслух")
+
+    def _assert_due(self, head):
+        with unittest.mock.patch.object(RNC, "_tree_head", return_value=head), \
+             unittest.mock.patch.object(RNC, "run_population",
+                                        side_effect=RNC.NotMeasured("дошло до прогона")), \
+             unittest.mock.patch.object(RNC, "population_files", return_value=["m/test_a.py"]):
+            with self.assertRaises(RNC.NotMeasured) as ctx:
+                RNC.refresh(self.root, if_due=True, max_age_h=120.0, write=False, now=ANCHOR,
+                            records_root=Path(self.store.name))
+        self.assertIn("дошло до прогона", str(ctx.exception), "свежесть не выдана за проверку")
+
+    def test_свежий_отчёт_о_другом_коммите_это_срок(self):
+        """Раньше хватало возраста: отчёт о коммите A выдавался за проверку коммита B."""
+        self._artifact(10.0, repo_head="head-A")
+        self._assert_due("head-B")
+
+    def test_свежий_отчёт_без_отметки_коммита_это_срок(self):
+        self._artifact(10.0, repo_head=None)
+        self._assert_due("head-A")
+
+    def test_дерево_без_git_свежесть_не_доказывает(self):
+        self._artifact(10.0, repo_head="head-A")
+        self._assert_due(None)
 
     def test_протухший_артефакт_зовёт_прогон(self):
         self._artifact(200.0)
@@ -342,14 +368,12 @@ class ТактРешаетФайл(unittest.TestCase):
         self.assertEqual(m.call_args.kwargs["junit_paths"], [str(rec)])
         self.assertIn("входом", out["source"])
 
-    def test_возраст_измерен_а_отчёт_не_прочитан_это_НЕ_ИЗМЕРЕНО(self):
-        """Отчёт исчез между замером возраста и его чтением — третий исход, не падение."""
+    def test_возраст_измерен_а_отчёт_не_прочитан_это_срок_а_не_свежесть(self):
+        """Отчёт исчез между замером возраста и его чтением: его коммит не узнать ⇒ это СРОК —
+        замер идёт заново (раньше такой случай отказывал вовсе, блокируя свежий замер)."""
         with unittest.mock.patch.object(RNC, "artifact_age_hours",
                                         return_value=(1.0, "возраст 1.0ч")):
-            with self.assertRaises(RNC.NotMeasured) as ctx:
-                RNC.refresh(self.root, if_due=True, max_age_h=120.0, write=False, now=ANCHOR,
-                              records_root=Path(self.store.name))
-        self.assertIn("не прочитан", str(ctx.exception))
+            self._assert_due("head-A")
 
     def test_осознанный_обход_ВИДЕН_в_отчёте(self):
         """Молчаливый обход отказа превратил бы сам отказ в украшение."""
@@ -519,3 +543,170 @@ class КодВозвратаГоворитОКритерии(unittest.TestCase):
 
 if __name__ == "__main__":  # pragma: no cover
     unittest.main()
+
+
+def _git_repo(root: Path) -> str:
+    """Временный git-репозиторий с одним коммитом; конфиг хоста не читается."""
+    import os
+    env = dict(os.environ, GIT_CONFIG_GLOBAL=os.devnull, GIT_CONFIG_NOSYSTEM="1",
+               GIT_AUTHOR_NAME="t", GIT_AUTHOR_EMAIL="t@t", GIT_COMMITTER_NAME="t",
+               GIT_COMMITTER_EMAIL="t@t")
+    (root / "spa_core").mkdir(parents=True)
+    (root / "spa_core" / "marker.py").write_text("COMMITTED = True\n", encoding="utf-8")
+    for cmd in (["init", "-q", "-b", "main"], ["add", "-A"], ["commit", "-q", "-m", "c"]):
+        subprocess.run(["git", "-C", str(root), *cmd], check=True, env=env)
+    return subprocess.run(["git", "-C", str(root), "rev-parse", "HEAD"], check=True,
+                          capture_output=True, text=True, env=env).stdout.strip()
+
+
+def _tree_bytes(root: Path) -> dict:
+    return {str(p.relative_to(root)): p.read_bytes() for p in sorted(root.rglob("*"))
+            if p.is_file() and ".git" not in p.relative_to(root).parts}
+
+
+class РежимРасписания(unittest.TestCase):
+    """`--scheduled`: прогон в снимке коммита, отчёт — в живой `data/`; агент не включён."""
+
+    def setUp(self):
+        self._tmp = TemporaryDirectory(prefix="nrc_sched_")
+        self.root = Path(self._tmp.name)
+        self.live = self.root / "live"
+        self.live.mkdir()
+        self.sha = _git_repo(self.live)
+        self.work = self.root / "work"
+        self.work.mkdir()
+        self.calls = []
+
+    def tearDown(self):
+        self._tmp.cleanup()
+
+    def _fake_refresh(self, repo_root, **kw):
+        self.calls.append((Path(repo_root), kw))
+        snap = Path(repo_root) / "spa_core" / "marker.py"
+        self.seen = snap.read_text(encoding="utf-8") if snap.exists() else None
+        return {"ran": True, "run": {"record": "r.xml"},
+                "report": {"verdict": "NO_REGRESSION", "measured": True,
+                           "generated_at": ANCHOR.isoformat()}}
+
+    def _put_report(self, hours_old: float, sha: str | None = None):
+        p = self.live / "data" / "no_regression_census.json"
+        p.parent.mkdir(exist_ok=True)
+        doc = {"generated_at": (ANCHOR - timedelta(hours=hours_old)).isoformat(),
+               "verdict": "REGRESSION", "measured": True}
+        if sha:
+            doc["invoked_by"] = {"entry": "scheduled", "sha": sha}
+        p.write_text(json.dumps(doc), encoding="utf-8")
+
+    def test_свежий_отчёт_ничего_не_снимает_и_не_пишет(self):
+        """Свеж И о том же коммите, который велено проверить, — только тогда не срок."""
+        self._put_report(10, sha=self.sha)
+        before = _tree_bytes(self.live)
+        out = RNC.scheduled(self.live, ref="main", now=ANCHOR, refresh_fn=self._fake_refresh,
+                            workdir=self.work)
+        self.assertFalse(out["due"])
+        self.assertEqual(self.calls, [])
+        self.assertEqual(_tree_bytes(self.live), before)
+
+    def test_свежий_отчёт_о_другом_коммите_снимает_заново(self):
+        """Раньше хватало возраста: отчёт о другом коммите выдавался за проверку этого."""
+        self._put_report(10, sha="0" * 40)
+        out = RNC.scheduled(self.live, ref="main", now=ANCHOR, refresh_fn=self._fake_refresh,
+                            workdir=self.work)
+        self.assertTrue(out["due"])
+        self.assertIn("другом коммите", out["due_reason"])
+        self.assertEqual(len(self.calls), 1)
+
+    def test_свежий_отчёт_без_отметки_коммита_снимает_заново(self):
+        self._put_report(10)
+        out = RNC.scheduled(self.live, ref="main", now=ANCHOR, refresh_fn=self._fake_refresh,
+                            workdir=self.work)
+        self.assertTrue(out["due"])
+
+    def test_срок_прогон_в_снимке_коммита_отчёт_в_живое_data(self):
+        self._put_report(500)
+        # рабочая копия разошлась с коммитом — в снимок обязан попасть КОММИТ
+        (self.live / "spa_core" / "marker.py").write_text("COMMITTED = False\n", encoding="utf-8")
+        out = RNC.scheduled(self.live, ref="main", now=ANCHOR, refresh_fn=self._fake_refresh,
+                            workdir=self.work)
+        (snap_root, kw), = self.calls
+        self.assertNotEqual(snap_root.resolve(), self.live.resolve(), "прогон не в боевом дереве")
+        self.assertEqual(self.seen, "COMMITTED = True\n", "снимок — точный коммит, не рабочая копия")
+        self.assertEqual(kw["records_root"], self.live)
+        self.assertFalse(kw["write"], "снимок отчёт себе не пишет — пишет режим расписания")
+        doc = json.loads((self.live / "data" / "no_regression_census.json").read_text())
+        inv = doc["invoked_by"]
+        self.assertEqual({k: inv[k] for k in ("entry", "producer", "ref", "sha", "tree")},
+                         {"entry": "scheduled", "producer": RNC.SCHEDULED_PRODUCER,
+                          "ref": "main", "sha": self.sha, "tree": "git archive snapshot"})
+        env = inv["env"]
+        self.assertTrue(env["python"] and env["platform"], "окружение вердикта записано")
+        self.assertEqual(env["run_env"], RNC.RUN_ENV)
+        self.assertEqual(env["via"], "manual", "ручной запуск не выдаётся за работу агента")
+        self.assertEqual(out["sha"], self.sha)
+        self.assertEqual(list(self.work.iterdir()), [], "временный снимок удалён")
+        self.assertEqual((self.live / "spa_core" / "marker.py").read_text(), "COMMITTED = False\n",
+                         "рабочая копия боевого дерева не тронута")
+
+    def test_отказ_прогона_живой_отчёт_не_трогает(self):
+        self._put_report(500)
+        before = (self.live / "data" / "no_regression_census.json").read_bytes()
+
+        def boom(repo_root, **kw):
+            raise RNC.NotMeasured("pytest не запущен")
+
+        with self.assertRaises(RNC.NotMeasured):
+            RNC.scheduled(self.live, ref="main", now=ANCHOR, refresh_fn=boom, workdir=self.work)
+        self.assertEqual((self.live / "data" / "no_regression_census.json").read_bytes(), before)
+        self.assertEqual(list(self.work.iterdir()), [])
+        refusals = list((self.live / RNC.RECORDS_REL).glob("*.refusal.json"))
+        self.assertEqual(len(refusals), 1, "причина отказа сохранена рядом с записями")
+        rec = json.loads(refusals[0].read_text(encoding="utf-8"))
+        self.assertEqual(rec["sha"], self.sha)
+        self.assertIn("pytest не запущен", rec["reason"])
+        self.assertTrue(rec["live_report_untouched"])
+
+    def test_агентский_запуск_помечен_агентом(self):
+        """Только обёртка агента ставит SPA_NO_REGRESSION_VIA — признак production-запуска."""
+        self._put_report(500)
+        with unittest.mock.patch.dict(os.environ, {RNC.VIA_ENV: "launchd:" + RNC.SCHEDULED_PRODUCER}):
+            RNC.scheduled(self.live, ref="main", now=ANCHOR, refresh_fn=self._fake_refresh,
+                          workdir=self.work)
+        doc = json.loads((self.live / "data" / "no_regression_census.json").read_text())
+        self.assertEqual(doc["invoked_by"]["env"]["via"], "launchd:" + RNC.SCHEDULED_PRODUCER)
+
+    def test_неполная_запись_не_зеленеет(self):
+        """Запись, где у части населения нет исхода, — НЕ «нет регрессий» (перепись: UNMEASURED)."""
+        population = {"risk": ["spa_core/tests/test_a.py", "spa_core/tests/test_b.py"]}
+        record = {"files": {"spa_core/tests/test_a.py": {"passed": 3, "skipped": 0, "bad": []}}}
+        judged = census.judge(population, record)
+        self.assertEqual(judged["verdict"], census.UNMEASURED)
+        self.assertFalse(judged["complete"])
+        self.assertEqual([u["file"] for u in judged["unmeasured_members"]], ["spa_core/tests/test_b.py"])
+        # всё пропущено — тоже не «прошло»
+        skipped = {"files": {"spa_core/tests/test_a.py": {"passed": 0, "skipped": 2, "bad": []},
+                             "spa_core/tests/test_b.py": {"passed": 1, "skipped": 0, "bad": []}}}
+        self.assertEqual(census.judge(population, skipped)["verdict"], census.UNMEASURED)
+
+    def test_неизвестная_ссылка_это_НЕ_ИЗМЕРЕНО_до_снимка(self):
+        self._put_report(500)
+        with self.assertRaises(RNC.NotMeasured):
+            RNC.scheduled(self.live, ref="no-such-ref", now=ANCHOR, refresh_fn=self._fake_refresh,
+                          workdir=self.work)
+        self.assertEqual(self.calls, [])
+        self.assertEqual(list(self.work.iterdir()), [])
+
+    def test_обёртка_и_plist_подготовлены_и_зовут_режим_расписания(self):
+        import plistlib
+        plist = REPO_ROOT / "launchd" / f"{RNC.SCHEDULED_PRODUCER}.plist"
+        doc = plistlib.loads(plist.read_bytes())
+        self.assertEqual(doc["Label"], RNC.SCHEDULED_PRODUCER)
+        self.assertEqual(doc["ProgramArguments"][0], "/bin/bash")
+        wrapper = Path(doc["ProgramArguments"][1])
+        self.assertEqual(wrapper.name, "agent_no_regression_census.sh")
+        self.assertIs(doc["RunAtLoad"], False)
+        text = (REPO_ROOT / "scripts" / wrapper.name).read_text(encoding="utf-8")
+        self.assertIn("refresh_no_regression_census.py", text)
+        self.assertIn("--scheduled", text)
+        self.assertIn("agent_template.sh", text)
+        self.assertIn(f'{RNC.VIA_ENV}="launchd:{RNC.SCHEDULED_PRODUCER}"', text,
+                      "обёртка агента помечает запуск как агентский")

@@ -243,7 +243,17 @@ def refresh(repo_root: Path, *, if_due: bool = False, max_age_h: float = DEFAULT
                  # обход превращает отказ в украшение.
                  "allow_prod_tree": bool(allow_prod_tree)}
 
-    if if_due and age is not None and age <= max_age_h:
+    head = _tree_head(repo_root)
+    prior_sha = None
+    if age is not None:
+        try:
+            prior_sha = report_sha(json.loads((repo_root / census.REPORT_REL).read_text(encoding="utf-8")))
+        except (OSError, ValueError):
+            prior_sha = None
+    out["tree_head"], out["prior_sha"] = head, prior_sha
+    # «Не срок» — только когда прежний отчёт о ТЕКУЩЕМ коммите этого дерева; неизвестный коммит
+    # (дерево без git, отчёт без отметки) — это срок, а не свежесть.
+    if if_due and age is not None and age <= max_age_h and head is not None and prior_sha == head:
         # Не срок. Вердикт берётся у ДЕЙСТВУЮЩЕГО отчёта, и его возраст называется
         # вслух: иначе «0» читалось бы как «я только что померил».
         try:
@@ -275,6 +285,163 @@ def refresh(repo_root: Path, *, if_due: bool = False, max_age_h: float = DEFAULT
         from spa_core.utils.atomic import atomic_save
         atomic_save(report, str(repo_root / census.REPORT_REL))
         out["written"] = str(repo_root / census.REPORT_REL)
+    return out
+
+
+#: Метка, которой отчёт помечает запуск ПО РАСПИСАНИЮ (а не рукой). Агент launchd
+#: `com.spa.no_regression_census` ПОДГОТОВЛЕН (`launchd/…plist`, `scripts/agent_no_regression_census.sh`),
+#: но НЕ установлен: установщик ставит агентов явными строками, строки для этого нет, а
+#: в конституции у артефакта по-прежнему `producer: null` — включение есть отдельное
+#: действие через гейт деплоя (`.claude/rules/deployment.md`).
+SCHEDULED_PRODUCER = "com.spa.no_regression_census"
+
+#: Статус производителя — ПОДГОТОВЛЕН, не работает в production. Различие видно в самом отчёте:
+#: production-запуск несёт `invoked_by.env.via == "launchd:com.spa.no_regression_census"`
+#: (ставит только обёртка агента); любой другой — "manual".
+#:
+#: Подключение (отдельное действие через гейт деплоя, НЕ в этой ветке):
+#:   1. доставить код на origin и дождаться синхронизации прод-дерева;
+#:   2. `scripts/check_agent_before_deploy.sh no_regression_census` (агент НЕ долгожитель —
+#:      пробный прогон допустим), затем `launchctl bootstrap` plist из `launchd/`;
+#:   3. строка в `scripts/install_all_agents.sh` и `producer: com.spa.no_regression_census`
+#:      у `data/no_regression_census.json` в `architecture/manifest.json`.
+#: Приёмка: первый запуск агента дал отчёт с `invoked_by.env.via` = launchd и `sha` = текущий
+#:   origin/main; `deployment_acceptance` до и после — 0; проба `no_regression_tests_pass`
+#:   отвечает по ЭТОМУ отчёту; в `data/records/no_regression/` лежит junit-запись прогона.
+#: Откат: `launchctl bootout gui/$UID/com.spa.no_regression_census`, вернуть `producer: null`;
+#:   отчёт и записи НЕ удалять — они история измерений.
+
+
+def _git(live_root: Path, *args: str) -> str:
+    proc = subprocess.run(["git", "-C", str(live_root), *args], capture_output=True, text=True)
+    if proc.returncode != 0:
+        raise NotMeasured(f"git {' '.join(args)} в {live_root}: код {proc.returncode} — "
+                          f"{(proc.stderr or proc.stdout).strip()[:300]}")
+    return proc.stdout.strip()
+
+
+def snapshot_commit(live_root: Path, sha: str, dest: Path) -> int:
+    """Снимок ТОЧНОГО коммита (`git archive`) в `dest`. Метаданные репозитория не меняются.
+
+    Не worktree и не checkout: те пишут в `.git` боевого дерева. Возвращает число файлов.
+    """
+    import tarfile
+    proc = subprocess.Popen(["git", "-C", str(live_root), "archive", "--format=tar", sha],
+                            stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+    try:
+        with tarfile.open(fileobj=proc.stdout, mode="r|") as tar:
+            n = 0
+            for member in tar:
+                tar.extract(member, path=str(dest), filter="data")
+                n += member.isfile()
+    finally:
+        err = proc.stderr.read().decode("utf-8", "replace") if proc.stderr else ""
+        code = proc.wait()
+    if code != 0:
+        raise NotMeasured(f"git archive {sha}: код {code} — {err.strip()[:300]}")
+    if n == 0:
+        raise NotMeasured(f"снимок {sha} пуст — прогонять нечего")
+    return n
+
+
+#: Кто зовёт производителя. Только обёртка агента ставит это значение; ручной запуск
+#: `--scheduled` записывается как ручной — «подготовлен» и «работает в production» различимы
+#: по самому отчёту, а не по тому, что про него написано.
+VIA_ENV = "SPA_NO_REGRESSION_VIA"
+
+
+def run_environment() -> dict:
+    """Окружение, в котором получен вердикт: без него «тот же код» ничего не доказывает."""
+    import platform
+    try:
+        from importlib.metadata import version
+        pytest_version = version("pytest")
+    except Exception:  # noqa: BLE001 — неизвестная версия названа, а не выдумана
+        pytest_version = None
+    return {"python": platform.python_version(), "implementation": platform.python_implementation(),
+            "platform": platform.platform(), "pytest": pytest_version, "run_env": dict(RUN_ENV),
+            "via": os.environ.get(VIA_ENV) or "manual"}
+
+
+def report_sha(doc: dict) -> str | None:
+    """Какой коммит проверял отчёт: `invoked_by.sha` (снимок) либо `repo_head` переписи."""
+    inv = doc.get("invoked_by") if isinstance(doc.get("invoked_by"), dict) else {}
+    sha = inv.get("sha") or doc.get("repo_head")
+    return str(sha) if sha else None
+
+
+def _tree_head(repo_root: Path) -> str | None:
+    proc = subprocess.run(["git", "-C", str(repo_root), "rev-parse", "HEAD"],
+                          capture_output=True, text=True)
+    return proc.stdout.strip() if proc.returncode == 0 else None
+
+
+def _record_refusal(records_root: Path, payload: dict) -> Path:
+    """След отказа рядом с записями прогона: причина не исчезает вместе с процессом."""
+    from spa_core.utils.atomic import atomic_save
+    target = Path(records_root) / RECORDS_REL / f"{_stamp()}.refusal.json"
+    atomic_save(payload, str(target))
+    return target
+
+
+def scheduled(live_root: Path, *, ref: str = "origin/main", max_age_h: float = DEFAULT_MAX_AGE_H,
+              timeout_s: float | None = None, now: datetime | None = None,
+              refresh_fn=None, workdir: Path | None = None) -> dict:
+    """Запуск ПО РАСПИСАНИЮ: прогон в снимке коммита, отчёт — в живой `data/`.
+
+    Порядок: (1) возраст живого отчёта — не срок ⇒ ничего не делать; (2) `ref` →
+    точный SHA; (3) снимок этого SHA во временный каталог вне боевого дерева;
+    (4) `refresh` в снимке (`write=False`, запись прогона хранится в `live_root`);
+    (5) отчёт атомарно — в `live_root/data/`, с пометкой ``invoked_by`` (кто, какой SHA);
+    (6) временный каталог снимка — удалить (он создан здесь и больше никому не нужен).
+    Любой отказ — :class:`NotMeasured`, и живой отчёт при этом НЕ трогается.
+    """
+    import shutil
+    import tempfile
+    from spa_core.monitoring import no_regression_census as census
+    from spa_core.utils.atomic import atomic_save
+
+    live_root = Path(live_root)
+    sha = _git(live_root, "rev-parse", "--verify", f"{ref}^{{commit}}")
+    age, why_age = artifact_age_hours(live_root, now=now)
+    out: dict = {"mode": "scheduled", "live_root": str(live_root), "artifact_age_h": age,
+                 "age_reason": why_age, "max_age_h": max_age_h, "ran": False, "sha": sha}
+    prior = None
+    if age is not None:
+        prior = json.loads((live_root / census.REPORT_REL).read_text(encoding="utf-8"))
+    prior_sha = report_sha(prior) if isinstance(prior, dict) else None
+    out["prior_sha"] = prior_sha
+    # «Не срок» — только про ТОТ ЖЕ коммит: свежий отчёт о другом коде не проверка этого кода.
+    if age is not None and age <= max_age_h and prior_sha == sha:
+        out.update({"due": False, "source": f"прежний отчёт о том же коммите {sha[:12]}",
+                    "report": prior})
+        return out
+    out["due"] = True
+    out["due_reason"] = ("отчёта нет или он не читается" if age is None else
+                         f"отчёт старше {max_age_h:.0f}ч" if age > max_age_h else
+                         f"отчёт о другом коммите ({(prior_sha or 'неизвестно')[:12]} ≠ {sha[:12]})")
+    env = run_environment()
+    tmp = Path(tempfile.mkdtemp(prefix="spa_no_regression_", dir=str(workdir) if workdir else None))
+    try:
+        try:
+            out["snapshot_files"] = snapshot_commit(live_root, sha, tmp)
+            res = (refresh_fn or refresh)(tmp, if_due=False, write=False, timeout_s=timeout_s,
+                                          records_root=live_root, now=now)
+        except NotMeasured as exc:
+            out["refusal_record"] = str(_record_refusal(live_root, {
+                "stamp": _stamp(), "ref": ref, "sha": sha, "env": env, "reason": str(exc),
+                "live_report_untouched": True}))
+            raise
+        report = dict(res["report"])
+        report["invoked_by"] = {"entry": "scheduled", "producer": SCHEDULED_PRODUCER,
+                                "ref": ref, "sha": sha, "tree": "git archive snapshot",
+                                "env": env}
+        target = live_root / census.REPORT_REL
+        atomic_save(report, str(target))
+        out.update({"ran": res.get("ran", False), "run": res.get("run"), "report": report,
+                    "source": f"снимок {sha[:12]} ({ref})", "written": str(target), "sha": sha})
+    finally:
+        shutil.rmtree(tmp, ignore_errors=True)
     return out
 
 
@@ -340,14 +507,24 @@ def _main(argv: list[str] | None = None) -> int:
                     help="оставить N самых свежих записей, остальные снять (0 — не снимать)")
     ap.add_argument("--timeout-s", type=float, default=None,
                     help="предел на весь прогон населения; снятие по сроку = НЕ ИЗМЕРЕНО")
+    ap.add_argument("--scheduled", action="store_true",
+                    help="режим расписания: прогон в снимке `--ref` (git archive), отчёт — в "
+                         "`--live-root`/data; такт решает возраст живого отчёта")
+    ap.add_argument("--live-root", default=str(DEFAULT_RECORDS_ROOT),
+                    help="боевое дерево: откуда снимок и куда отчёт (только с --scheduled)")
+    ap.add_argument("--ref", default="origin/main", help="что снимать (только с --scheduled)")
     args = ap.parse_args(argv)
 
     repo_root = Path(args.repo_root).resolve()
     try:
-        out = refresh(repo_root, if_due=args.if_due, max_age_h=args.max_age_h,
-                      junit=args.junit, allow_prod_tree=args.allow_prod_tree,
-                      write=not args.no_write, timeout_s=args.timeout_s,
-                      records_root=Path(args.records_root) if args.records_root else None)
+        if args.scheduled:
+            out = scheduled(Path(args.live_root), ref=args.ref, max_age_h=args.max_age_h,
+                            timeout_s=args.timeout_s)
+        else:
+            out = refresh(repo_root, if_due=args.if_due, max_age_h=args.max_age_h,
+                          junit=args.junit, allow_prod_tree=args.allow_prod_tree,
+                          write=not args.no_write, timeout_s=args.timeout_s,
+                          records_root=Path(args.records_root) if args.records_root else None)
     except NotMeasured as exc:
         print(f"критерий §49 `No regression`: НЕ ИЗМЕРЕНО — {exc}")
         return 2
