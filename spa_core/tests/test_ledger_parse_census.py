@@ -35,8 +35,11 @@ def _write_ledger(data_dir: Path, lines: int = 3) -> Path:
     return path
 
 
-def _member(view, *, declared_opens: int = 1, ledger: str = LEDGER_REL) -> lpc.Member:
-    return lpc.Member(id="fake_book", ledger=ledger, view=view,
+def _member(view, *, declared_opens: int = 1, ledger: str = LEDGER_REL,
+            mid: str = "fake_book", ledger_id: str = "fake_book",
+            invoke=None) -> lpc.Member:
+    return lpc.Member(id=mid, ledger_id=ledger_id, ledger=ledger, view=view,
+                      invoke=invoke,
                       declared_opens=declared_opens,
                       opens_reason="стенд: столько разборов делает вид стенда",
                       scoped_door=False,
@@ -284,7 +287,10 @@ class TestExitCodesAreThreeDistinctAnswers(unittest.TestCase):
             data = Path(td)
             _write_ledger(data, lines=50)
             blind = _member(_view_os_open, declared_opens=1)
-            loud = lpc.Member(id="loud", ledger=LEDGER_REL, view=_view_builtin_open(9),
+            #: ВТОРОЙ вид той же ленты стенда: личность пары своя, личность ФАЙЛА общая —
+            #: ровно форма, ради которой заказ G780 п. 1 и делался
+            loud = lpc.Member(id="loud", ledger_id="fake_book", ledger=LEDGER_REL,
+                              view=_view_builtin_open(9),
                               declared_opens=1, opens_reason="стенд",
                               scoped_door=False, scoped_reason="стенд")
             doc = lpc.measure(data, members=[blind, loud], tree_root=Path(td),
@@ -383,9 +389,23 @@ class TestEveryDeclaredNumberHasAReason(unittest.TestCase):
     def test_exactly_one_member_claims_the_scoped_cache_door(self):
         """Ответ заказа G777 п. 1, закреплённый тестом: порядок ADR-777 живёт в ОДНОЙ
         реализации из четырёх. Переезд ещё одной ленты на область — правка этого числа
-        вместе с ADR, а не молчаливое расхождение."""
-        on_door = [m.id for m in lpc.LEDGERS if m.scoped_door]
+        вместе с ADR, а не молчаливое расхождение.
+
+        Утверждение это про ЛЕНТУ (реализацию), а не про пару «лента ↔ вид»: с цикла #900
+        у ``research_factory`` два вида, и оба живут в ОДНОМ модуле с одной областью кэша.
+        Считать тут пары значило бы сменить предмет теста, не сказав об этом, — поэтому
+        счёт идёт по ``ledger_id``, и рядом проверяется, что виды ОДНОЙ ленты объявляют
+        дверь ОДИНАКОВО: дверь есть свойство реализации, а не читателя.
+        """
+        on_door = sorted({m.ledger_id for m in lpc.LEDGERS if m.scoped_door})
         self.assertEqual(on_door, ["research_factory"])
+        by_ledger: dict = {}
+        for m in lpc.LEDGERS:
+            by_ledger.setdefault(m.ledger_id, set()).add(m.scoped_door)
+        for lid, doors in sorted(by_ledger.items()):
+            self.assertEqual(len(doors), 1,
+                             f"{lid}: виды одной ленты объявили РАЗНУЮ дверь кэша — "
+                             f"дверь есть свойство реализации, а не читателя")
 
 
 if __name__ == "__main__":  # pragma: no cover
@@ -427,8 +447,10 @@ def _drop_module(name: str):
     sys.modules.pop(name, None)
 
 
-def _stand_member(name: str, *, declared_opens: int = 1) -> lpc.Member:
-    return lpc.Member(id="fake_book", ledger=LEDGER_REL, view=f"{name}:latest",
+def _stand_member(name: str, *, declared_opens: int = 1, mid: str = "fake_book",
+                  ledger_id: str = "fake_book", attr: str = "latest") -> lpc.Member:
+    return lpc.Member(id=mid, ledger_id=ledger_id, ledger=LEDGER_REL,
+                      view=f"{name}:{attr}",
                       declared_opens=declared_opens,
                       opens_reason="стенд: столько разборов делает вид стенда",
                       scoped_door=False, scoped_reason="стенд области кэша не открывает")
@@ -644,7 +666,8 @@ class TestWorkloadThirdOutcomeIsNeverAZero(unittest.TestCase):
         _stand_module(other)
         self.addCleanup(_drop_module, other)
         m_called = _stand_member(name)
-        m_idle = lpc.Member(id="idle_book", ledger=LEDGER_REL, view=f"{other}:latest",
+        m_idle = lpc.Member(id="idle_book", ledger_id="fake_book", ledger=LEDGER_REL,
+                            view=f"{other}:latest",
                             declared_opens=1, opens_reason="стенд",
                             scoped_door=False, scoped_reason="стенд")
         with TemporaryDirectory() as td:
@@ -653,8 +676,8 @@ class TestWorkloadThirdOutcomeIsNeverAZero(unittest.TestCase):
             wl = lpc.Workload(id="stand_run", run=_calls_runner(name, 1),
                               reason="стенд", declared_calls={"fake_book": 1, "idle_book": 0},
                               calls_reason={"fake_book": "стенд", "idle_book": "стенд"},
-                              declared_opens={"fake_book": 1, "idle_book": 0},
-                              opens_reason={"fake_book": "стенд", "idle_book": "стенд"},
+                              declared_opens={"fake_book": 1},
+                              opens_reason={"fake_book": "стенд"},
                               cadence=_STAND_CADENCE)
             doc = lpc.measure(data, members=[m_called, m_idle], tree_root=Path(td),
                               parse_rounds=1, workloads=[wl])
@@ -796,15 +819,16 @@ class TestEveryDeclaredCallHasAReason(unittest.TestCase):
         with TemporaryDirectory() as td:
             data = Path(td)
             _write_ledger(data)
-            m_opaque = lpc.Member(id="opaque_book", ledger=LEDGER_REL,
+            m_opaque = lpc.Member(id="opaque_book", ledger_id="fake_book",
+                                  ledger=LEDGER_REL,
                                   view=_view_builtin_open(1), declared_opens=1,
                                   opens_reason="стенд", scoped_door=False,
                                   scoped_reason="стенд")
             wl = lpc.Workload(id="stand_run", run=_calls_runner(name, 1), reason="стенд",
                               declared_calls={"fake_book": 1, "opaque_book": 0},
                               calls_reason={"fake_book": "стенд", "opaque_book": "стенд"},
-                              declared_opens={"fake_book": 1, "opaque_book": 1},
-                              opens_reason={"fake_book": "стенд", "opaque_book": "стенд"},
+                              declared_opens={"fake_book": 1},
+                              opens_reason={"fake_book": "стенд"},
                               cadence=_STAND_CADENCE)
             doc = lpc.measure(data, members=[_stand_member(name), m_opaque],
                               tree_root=Path(td), parse_rounds=1, workloads=[wl])
@@ -1322,13 +1346,22 @@ class TestEveryDeclaredOpensAndCadenceHasAReason(unittest.TestCase):
     """Ни одного голого числа у настоящего населения прогонов."""
 
     def test_no_workload_carries_bare_opens(self):
-        ids = {m.id for m in lpc.LEDGERS}
+        """РАЗБОРЫ объявляются у ФАЙЛА, ЗОВЫ — у ПАРЫ «лента ↔ вид», и у каждого числа
+        своя причина. Ключи здесь РАЗНЫЕ намеренно (цикл #900): сведя их к одному, мы
+        вернули бы ту самую экономию, из-за которой второй вид объявить было нечем."""
+        ledger_ids = {m.ledger_id for m in lpc.LEDGERS}
+        pair_ids = {m.id for m in lpc.LEDGERS}
         for w in lpc.WORKLOADS:
-            self.assertEqual(set(w.declared_opens), ids,
-                             f"{w.id}: население объявленных РАЗБОРОВ разошлось с лентами")
-            for mid in w.declared_opens:
-                self.assertTrue((w.opens_reason.get(mid) or "").strip(),
-                                f"{w.id}/{mid}: число разборов объявлено без причины")
+            self.assertEqual(set(w.declared_opens), ledger_ids,
+                             f"{w.id}: население объявленных РАЗБОРОВ разошлось с ЛЕНТАМИ")
+            self.assertEqual(set(w.declared_calls), pair_ids,
+                             f"{w.id}: население объявленных ЗОВОВ разошлось с ПАРАМИ")
+            for lid in w.declared_opens:
+                self.assertTrue((w.opens_reason.get(lid) or "").strip(),
+                                f"{w.id}/{lid}: число разборов объявлено без причины")
+            for mid in w.declared_calls:
+                self.assertTrue((w.calls_reason.get(mid) or "").strip(),
+                                f"{w.id}/{mid}: число зовов объявлено без причины")
 
     def test_every_cadence_carries_a_reason(self):
         for w in lpc.WORKLOADS:
@@ -1347,12 +1380,364 @@ class TestEveryDeclaredOpensAndCadenceHasAReason(unittest.TestCase):
             self.assertIsNone(why, f"{w.id}: расписание не читается: {why}")
             self.assertGreater(rate, 0.0)
 
-    def test_at_least_one_workload_declares_parses_past_its_view(self):
-        """Предмет цикла #898: у какого-то прогона разборов БОЛЬШЕ, чем «открытий за вызов
-        × зовов». Если это перестанет быть правдой, прибор обязан потерять не предмет, а
-        находку — и тест скажет, что предмет исчез."""
+    def test_the_model_summed_over_views_MATCHES_the_declared_parses(self):
+        """ПРЕЕМНИК теста цикла #898, а не его снятие (инв. #16) — и замена объявлена.
+
+        Прежний тест требовал, чтобы у какого-то прогона разборов было БОЛЬШЕ, чем
+        «открытий за зов × зовов», и сам назвал условие своей замены: *«Если это
+        перестанет быть правдой, прибор обязан потерять не предмет, а находку — и тест
+        скажет, что предмет исчез»*. Цикл #900 ровно это и сделал: объявил ВТОРОЙ вид
+        ленты, и сумма по видам сошлась с замером у файла на всех трёх прогонах.
+
+        Оставить прежний тест значило бы держать зелёным утверждение о модели, которой у
+        прибора больше нет: арифметически «8 > 2×2» верно и сегодня, но прибор так уже не
+        считает — тест мерил бы снятую формулу. Поэтому предикат заменён на преемника:
+        **сумма по ОБЪЯВЛЕННЫМ видам обязана сходиться с объявленными разборами**, и
+        расхождение означает читателя, которого население не знает.
+        """
         opens_per_call = {m.id: m.declared_opens for m in lpc.LEDGERS}
-        self.assertTrue(
-            any(w.declared_opens[mid] > opens_per_call[mid] * w.declared_calls[mid]
-                for w in lpc.WORKLOADS for mid in w.declared_opens),
-            "ни один прогон не разбирает ленту мимо объявленного вида — предмет исчез")
+        ledger_of = {m.id: m.ledger_id for m in lpc.LEDGERS}
+        for w in lpc.WORKLOADS:
+            modelled: dict = {}
+            for mid, calls in w.declared_calls.items():
+                lid = ledger_of[mid]
+                modelled[lid] = modelled.get(lid, 0) + opens_per_call[mid] * calls
+            for lid, declared in sorted(w.declared_opens.items()):
+                self.assertEqual(
+                    modelled.get(lid, 0), declared,
+                    f"{w.id}/{lid}: сумма по объявленным видам {modelled.get(lid, 0)} не "
+                    f"сходится с объявленными разборами {declared} — либо у ленты есть "
+                    f"вид, которого население не знает, либо число объявлено наугад")
+
+    def test_the_form_itself_is_USED_or_the_subject_has_vanished(self):
+        """Вторая половина того же преемника: форма «лента ↔ НЕСКОЛЬКО видов» обязана
+        быть ЗАНЯТА. Если у каждой ленты снова ровно один вид, то дефект ADR-780
+        («второй вид объявить нечем») стал бы непредставимым молча — и тест скажет об
+        этом, а не промолчит зелёным."""
+        by_ledger: dict = {}
+        for m in lpc.LEDGERS:
+            by_ledger.setdefault(m.ledger_id, []).append(m.id)
+        multi = {lid: ids for lid, ids in by_ledger.items() if len(ids) > 1}
+        self.assertTrue(multi,
+                        "ни у одной ленты не объявлено двух видов — форма не занята, и "
+                        "предмет заказа G780 п. 1 исчез из населения")
+        self.assertIn("research_factory", multi,
+                      "второй вид research_factory (read.cio_view) исчез из населения")
+
+    def test_the_two_identities_of_a_ledger_agree_in_the_live_population(self):
+        """Ключ, по которому складывается произведение, сверяется сам с собой: один файл —
+        одна личность, одна личность — один файл. Без этой сверки член с новой личностью на
+        том же пути молча удвоил бы цену своего файла."""
+        self.assertEqual(lpc.ledger_id_split(lpc.LEDGERS), {},
+                         "два объявления личности ленты разошлись в боевом населении")
+
+
+# ══════════════════════════════════════════════════════════════════════════════════════
+# Лента ↔ НЕСКОЛЬКО видов (ADR-782, заказ G780 п. 1, цикл #900)
+#
+# ADR-780 нашёл расхождение модели с замером, назвал его верно — и снять не мог: член нёс
+# пару «лента ↔ вид», а личность пары и личность ФАЙЛА были одним полем. Находка стояла
+# постоянно. Тесты ниже проверяют ИСХОД двух вещей сразу, и обе обязательны:
+#   * на ПОЛНОМ населении видов находка МОЛЧИТ (иначе лечение не лечит);
+#   * на СПРЯТАННОМ третьем читателе она ВОЗВРАЩАЕТСЯ (иначе лечение ослепило сторожа).
+# ══════════════════════════════════════════════════════════════════════════════════════
+
+
+def _two_view_module(name: str, *, hidden: int = 0):
+    """Модуль с ДВУМЯ видами одной ленты и — по требованию — со СПРЯТАННЫМ третьим
+    читателем, которого население видов не объявляет.
+
+    ``hidden`` разборов делает ``shadow()``: это и есть тот читатель, ради которого
+    находка существует. Вид ``cio_view`` принимает ещё и ``now`` — так же, как настоящий
+    ``research_factory.read.cio_view``, ради которого в ``Member`` появился ``invoke``.
+    """
+    mod = types.ModuleType(name)
+
+    def _parse(data_dir, times):
+        rows = []
+        for _ in range(times):
+            rows = []
+            with open(Path(data_dir) / LEDGER_REL, "r", encoding="utf-8") as fh:
+                for line in fh:
+                    if line.strip():
+                        rows.append(json.loads(line))
+        return rows
+
+    def latest(data_dir):
+        return _parse(data_dir, 2)
+
+    def cio_view(data_dir, now):
+        #: момент приходит ВХОДОМ и запоминается — им проверяется, что часы не взяты
+        #: со стены внутри адаптера
+        mod.seen_now.append(now)
+        return _parse(data_dir, 2)
+
+    def shadow(data_dir):
+        return _parse(data_dir, hidden)
+
+    mod.seen_now = []
+    mod.latest, mod.cio_view, mod.shadow = latest, cio_view, shadow
+    sys.modules[name] = mod
+    return mod
+
+
+def _two_view_members(name: str):
+    """Пара членов: ДВА вида ОДНОЙ ленты — личность пары разная, личность файла одна."""
+    return [
+        _stand_member(name, declared_opens=2, mid="fake_book", ledger_id="fake_book"),
+        lpc.Member(id="fake_book.cio_view", ledger_id="fake_book", ledger=LEDGER_REL,
+                   view=f"{name}:cio_view", declared_opens=2,
+                   opens_reason="стенд: второй вид разбирает ленту дважды за зов",
+                   scoped_door=False, scoped_reason="стенд области кэша не открывает",
+                   invoke=lpc._invoke_with_now),
+    ]
+
+
+def _two_view_workload(name: str, *, latest_calls: int, cio_calls: int,
+                       shadow_calls: int = 0, opens: Optional[int] = None) -> lpc.Workload:
+    def run(data_dir):
+        mod = sys.modules[name]
+        out = None
+        for _ in range(latest_calls):
+            out = mod.latest(data_dir)
+        for _ in range(cio_calls):
+            out = mod.cio_view(data_dir, "МОМЕНТ")
+        for _ in range(shadow_calls):
+            out = mod.shadow(data_dir)
+        return out
+
+    modelled = 2 * latest_calls + 2 * cio_calls
+    return lpc.Workload(
+        id="stand_run", run=run, reason="стенд: прогон зовёт оба вида ленты",
+        declared_calls={"fake_book": latest_calls, "fake_book.cio_view": cio_calls},
+        calls_reason={"fake_book": "стенд", "fake_book.cio_view": "стенд"},
+        declared_opens={"fake_book": modelled if opens is None else opens},
+        opens_reason={"fake_book": "стенд: столько разборов делает прогон"},
+        cadence=_STAND_CADENCE)
+
+
+class TestOneLedgerCanCarrySeveralViews(unittest.TestCase):
+    """Предмет заказа G780 п. 1: форма, которой у прибора не было."""
+
+    def _run(self, *, hidden: int, latest_calls: int, cio_calls: int,
+             shadow_calls: int = 0, opens: Optional[int] = None):
+        name = f"spa_stand_two_views_{hidden}_{latest_calls}_{cio_calls}_{shadow_calls}"
+        _two_view_module(name, hidden=hidden)
+        self.addCleanup(_drop_module, name)
+        with TemporaryDirectory() as td:
+            data = Path(td)
+            _write_ledger(data, lines=20)
+            doc = lpc.measure(
+                data, members=_two_view_members(name), tree_root=Path(td), parse_rounds=1,
+                workloads=[_two_view_workload(name, latest_calls=latest_calls,
+                                              cio_calls=cio_calls,
+                                              shadow_calls=shadow_calls, opens=opens)])
+            return doc, doc["workloads"]["rows"][0], sys.modules[name]
+
+    def test_the_model_sums_over_BOTH_views_and_matches_the_file(self):
+        """Целый контур: лента с двумя видами, оба объявлены, читателей больше нет ⇒
+        модель сходится с замером у файла и находки нет НИ ОДНОЙ."""
+        doc, row, _mod = self._run(hidden=0, latest_calls=2, cio_calls=2)
+        self.assertIsNone(row["unmeasured"], row)
+        self.assertEqual(row["calls"], {"fake_book": 2, "fake_book.cio_view": 2})
+        self.assertEqual(row["opens"], {"fake_book": 8},
+                         "разборы обязаны считаться у ФАЙЛА одним числом, а не у каждого вида")
+        self.assertEqual(row["opens_modelled"], {"fake_book": 8},
+                         "модель обязана складываться по ВИДАМ ленты")
+        self.assertEqual([f for f in doc["findings"]
+                          if f["kind"] == lpc.F_MODEL_DISAGREES], [],
+                         "на полном населении видов расхождения быть не может")
+
+    def test_a_HIDDEN_third_reader_brings_the_finding_BACK(self):
+        """ПОРВАННОЕ ЗВЕНО — то самое, ради которого находка существует: ленту читает
+        кто-то помимо объявленных видов. Объявление второго вида не вправе ослепить
+        сторожа — иначе лечение стоило бы предмета."""
+        doc, row, _mod = self._run(hidden=3, latest_calls=1, cio_calls=1, shadow_calls=1,
+                                   opens=7)
+        self.assertEqual(row["opens"], {"fake_book": 7})
+        self.assertEqual(row["opens_modelled"], {"fake_book": 4})
+        found = [f for f in doc["findings"] if f["kind"] == lpc.F_MODEL_DISAGREES]
+        self.assertEqual(len(found), 1, doc["findings"])
+        self.assertIn("модель НИЖЕ замера", found[0]["text"])
+        self.assertIn("помимо объявленных видов", found[0]["text"])
+        self.assertIn("fake_book.cio_view", found[0]["text"],
+                      "находка обязана НАЗВАТЬ, какие виды уже объявлены — иначе она не "
+                      "говорит, чего именно не хватает")
+
+    def test_two_views_of_one_ledger_do_NOT_price_the_file_twice(self):
+        """Несущее звено новой формы. Два вида одной ленты получили бы по счётчику
+        разборов каждый, и цена ФАЙЛА сложилась бы дважды — прибор завысил бы ровно то,
+        что мерит. Проверяется ИСХОДОМ: цена прогона равна цене разбора × ИЗМЕРЕННЫЕ
+        разборы, а не вдвое большему."""
+        doc, row, _mod = self._run(hidden=0, latest_calls=2, cio_calls=2)
+        parse_s = doc["rows"][0]["parse_s"]
+        self.assertIsNotNone(parse_s)
+        self.assertAlmostEqual(row["price_s"], 8 * parse_s, places=9)
+        self.assertEqual(doc["rows"][0]["parse_s"], doc["rows"][1]["parse_s"],
+                         "цена разбора есть свойство ФАЙЛА — у двух его видов она одна")
+        self.assertEqual(doc["rows"][0]["ledger_id"], doc["rows"][1]["ledger_id"])
+
+    def test_the_view_that_needs_a_clock_is_still_COUNTED_at_the_module_attribute(self):
+        """``Member.invoke`` добавляет виду недостающий аргумент — и не вправе увести зов
+        мимо счётчика. Подменить вид готовым вызываемым значило бы ослепить счётчик
+        (U_VIEW_NOT_PATCHABLE), и тогда вся форма была бы бесполезна."""
+        _doc, row, _mod = self._run(hidden=0, latest_calls=0, cio_calls=3)
+        self.assertEqual(row["calls"]["fake_book.cio_view"], 3,
+                         "зовы вида с адаптером не досчитаны — адаптер увёл зов мимо "
+                         "атрибута модуля")
+
+    def test_the_clock_reaches_the_view_as_an_INPUT_not_from_the_wall(self):
+        """Часы у вида, которому они нужны, — ВХОД: ``measure(now=…)`` обязан дойти до
+        самого вида. Иначе прибор, мерящий ЧИСЛО РАЗБОРОВ, зависел бы ещё и от календаря
+        (`.claude/rules/deployment.md`, «Время в тестах»)."""
+        name = "spa_stand_two_views_clock"
+        _two_view_module(name)
+        self.addCleanup(_drop_module, name)
+        anchor = "ЯКОРЬ-МОМЕНТ"
+        with TemporaryDirectory() as td:
+            data = Path(td)
+            _write_ledger(data, lines=5)
+            lpc.measure(data, members=_two_view_members(name), tree_root=Path(td),
+                        parse_rounds=1, now=anchor)
+        self.assertIn(anchor, sys.modules[name].seen_now,
+                      "момент не дошёл до вида — адаптер взял часы со стены")
+
+
+class TestOneBlindViewDoesNotTakeTheFilePriceFromTheSeeingOne(unittest.TestCase):
+    """Дыру эту нашёл ПРИБОР мутаций, а не автор: первый прогон дал 12 убитых из 13, и
+    выживший мутант снимал ровно условие ``parse_s is not None`` у кэша цены разбора.
+
+    Цена разбора есть свойство ФАЙЛА, а не читателя: один вид ленты может быть слеп
+    (упал, читает мимо наблюдаемых дверей, не разрешился) — файл от этого цену не теряет.
+    Без условия последний по порядку член ленты ЗАТИРАЛ бы измеренную цену своим
+    ``None``, и цена прогона уходила бы в ``U_PRICE_UNKNOWN`` при измеренном файле:
+    третий исход, выданный на месте замера, — дефект того же класса, что и обратный.
+    """
+
+    @staticmethod
+    def _module_with_a_broken_second_view(name: str):
+        mod = types.ModuleType(name)
+
+        def latest(data_dir):
+            rows = []
+            with open(Path(data_dir) / LEDGER_REL, "r", encoding="utf-8") as fh:
+                for line in fh:
+                    if line.strip():
+                        rows.append(json.loads(line))
+            return rows
+
+        def broken(data_dir):
+            raise RuntimeError("второй вид той же ленты упал")
+
+        mod.latest, mod.broken = latest, broken
+        sys.modules[name] = mod
+        return mod
+
+    def test_the_price_of_the_file_survives_a_blind_second_view(self):
+        name = "spa_stand_blind_second_view"
+        self._module_with_a_broken_second_view(name)
+        self.addCleanup(_drop_module, name)
+        #: ПОРЯДОК НЕСУЩИЙ: слепой член идёт ВТОРЫМ, иначе затирание не воспроизводится
+        members = [
+            _stand_member(name, declared_opens=1, mid="fake_book", ledger_id="fake_book"),
+            lpc.Member(id="fake_book.broken", ledger_id="fake_book", ledger=LEDGER_REL,
+                       view=f"{name}:broken", declared_opens=1,
+                       opens_reason="стенд: вид падает, и это третий исход",
+                       scoped_door=False, scoped_reason="стенд"),
+        ]
+
+        def run(data_dir):
+            return sys.modules[name].latest(data_dir)
+
+        wl = lpc.Workload(
+            id="stand_run", run=run, reason="стенд: прогон зовёт только зрячий вид",
+            declared_calls={"fake_book": 1, "fake_book.broken": 0},
+            calls_reason={"fake_book": "стенд", "fake_book.broken": "стенд"},
+            declared_opens={"fake_book": 1}, opens_reason={"fake_book": "стенд"},
+            cadence=_STAND_CADENCE)
+        with TemporaryDirectory() as td:
+            data = Path(td)
+            _write_ledger(data, lines=10)
+            doc = lpc.measure(data, members=members, tree_root=Path(td),
+                              parse_rounds=1, workloads=[wl])
+        seeing = next(r for r in doc["rows"] if r["id"] == "fake_book")
+        blind = next(r for r in doc["rows"] if r["id"] == "fake_book.broken")
+        self.assertIsNotNone(seeing["parse_s"], "зрячий вид не измерил цену разбора")
+        self.assertIsNotNone(blind["unmeasured"], "упавший вид обязан быть третьим исходом")
+        self.assertIn(lpc.U_VIEW_RAISED, blind["unmeasured"])
+        self.assertIsNone(blind["parse_s"])
+
+        row = doc["workloads"]["rows"][0]
+        self.assertIsNone(row["unmeasured"],
+                          "слепой вид забрал у ФАЙЛА измеренную цену разбора: цена прогона "
+                          "ушла в третий исход при измеренном файле")
+        self.assertAlmostEqual(row["price_s"], 1 * seeing["parse_s"], places=9)
+
+
+class TestTheLedgerIdentityIsSelfChecking(unittest.TestCase):
+    """Ключ, по которому складывается произведение, сверяется сам с собой — в ОБЕ стороны.
+    Без этого член с новой личностью на том же пути молча удвоил бы цену своего файла."""
+
+    def _members_split_by_id(self):
+        return [
+            _member(_view_builtin_open(1), mid="a", ledger_id="a"),
+            _member(_view_builtin_open(1), mid="b", ledger_id="b"),  # тот же путь!
+        ]
+
+    def _members_split_by_path(self):
+        return [
+            _member(_view_builtin_open(1), mid="a", ledger_id="shared"),
+            _member(_view_builtin_open(1), mid="b", ledger_id="shared",
+                    ledger="other_book/ledger.jsonl"),  # та же личность, другой файл!
+        ]
+
+    def test_one_file_under_two_identities_is_the_THIRD_outcome(self):
+        bad = lpc.ledger_id_split(self._members_split_by_id())
+        self.assertTrue(bad)
+        self.assertIn(lpc.U_LEDGER_ID_SPLIT, " ".join(bad.values()))
+        self.assertIn("сложилась бы", " ".join(bad.values()),
+                      "причина обязана называть ПОСЛЕДСТВИЕ, а не только факт")
+
+    def test_one_identity_over_two_files_is_the_THIRD_outcome_too(self):
+        bad = lpc.ledger_id_split(self._members_split_by_path())
+        self.assertTrue(bad)
+        self.assertIn("в ОДИН счётчик", " ".join(bad.values()))
+
+    def test_a_split_identity_REFUSES_the_measurement_and_the_code_is_two(self):
+        """Отказ, а не число: прибор, продолживший мерить расколотую личность, напечатал
+        бы цену вдвое — и она выглядела бы как обычное число."""
+        with TemporaryDirectory() as td:
+            data = Path(td)
+            _write_ledger(data)
+            doc = lpc.measure(data, members=self._members_split_by_id(),
+                              tree_root=Path(td), parse_rounds=1)
+            self.assertEqual(len(doc["unmeasured"]), 2, doc["rows"])
+            for r in doc["rows"]:
+                self.assertIn(lpc.U_LEDGER_ID_SPLIT, r["unmeasured"])
+            self.assertEqual(lpc.exit_code(doc), 2,
+                             "расколотая личность обязана давать НЕ ИЗМЕРЕНО, а не находку")
+
+    def test_the_same_gate_stands_at_the_workload_counter_too(self):
+        """Гейт стоит у КАЖДОЙ двери, где строятся цели счётчика, и реализация у него
+        ОДНА: вторая копия правила разошлась бы с первой при первой же правке."""
+        name = "spa_stand_split_wl"
+        _stand_module(name)
+        self.addCleanup(_drop_module, name)
+        with TemporaryDirectory() as td:
+            data = Path(td)
+            _write_ledger(data)
+            counts, cannot, answer, err, opens = lpc.count_calls(
+                self._members_split_by_id(), _stand_workload(_calls_runner(name, 1)), data)
+            self.assertIsNotNone(err, "счётчик прогона принял расколотую личность молча")
+            self.assertIn(lpc.U_LEDGER_ID_SPLIT, err)
+            self.assertEqual((counts, cannot, opens), ({}, {}, {}),
+                             "отказ обязан быть ДО замера, а не после половины его")
+
+    def test_the_live_population_passes_the_same_gate(self):
+        """Обратная сторона: на боевом населении гейт МОЛЧИТ. Сторож, краснеющий на
+        верном состоянии, — тот же дефект, что и молчащий на неверном."""
+        self.assertEqual(lpc.ledger_id_split(lpc.LEDGERS), {})
+
+
+if __name__ == "__main__":  # pragma: no cover
+    unittest.main()

@@ -1,0 +1,86 @@
+{
+  "title": "#900 ADR-782 — дельта: форма «лента ↔ НЕСКОЛЬКО видов» в переписи повторного разбора лент (заказ G780 п. 1)",
+  "tests": [
+    "spa_core/tests/test_ledger_parse_census.py"
+  ],
+  "mutations": [
+    {
+      "name": "модель снова считается по ПАРЕ, а не складывается по видам ленты — ровно слепота, снятая этим циклом",
+      "file": "spa_core/monitoring/ledger_parse_census.py",
+      "old": "        modelled: Dict[str, int] = {}\n        for mid, n in counts.items():\n            lid = ledger_of.get(mid, mid)\n            modelled[lid] = modelled.get(lid, 0) + opens_per_call.get(mid, 0) * n\n",
+      "new": "        modelled: Dict[str, int] = {mid: opens_per_call.get(mid, 0) * n\n                                    for mid, n in counts.items()}\n"
+    },
+    {
+      "name": "модель складывает ТОЛЬКО первый вид ленты (остальные молча отбрасываются)",
+      "file": "spa_core/monitoring/ledger_parse_census.py",
+      "old": "            modelled[lid] = modelled.get(lid, 0) + opens_per_call.get(mid, 0) * n\n",
+      "new": "            modelled[lid] = opens_per_call.get(mid, 0) * n\n"
+    },
+    {
+      "name": "разборы считаются у ПАРЫ, а не у ФАЙЛА — цена ленты с двумя видами складывается дважды",
+      "file": "spa_core/monitoring/ledger_parse_census.py",
+      "old": "    targets = {m.ledger_id: Path(data_dir) / m.ledger for m in members}",
+      "new": "    targets = {m.id: Path(data_dir) / m.ledger for m in members}"
+    },
+    {
+      "name": "гейт расколотой личности снят у счётчика прогона — расколотое население мерится молча",
+      "file": "spa_core/monitoring/ledger_parse_census.py",
+      "old": "    split = ledger_id_split(members)\n    if split:\n        return {}, {}, None, \"; \".join(split.values()), {}\n",
+      "new": "    split = {}\n    if split:\n        return {}, {}, None, \"; \".join(split.values()), {}\n"
+    },
+    {
+      "name": "гейт расколотой личности снят у measure() — член меряется, и цена печатается вдвое как обычное число",
+      "file": "spa_core/monitoring/ledger_parse_census.py",
+      "old": "        if split:\n            row[\"unmeasured\"] = split.get(m.ledger) or split.get(m.ledger_id) or \\\n                \"; \".join(split.values())\n            rows.append(row)\n            continue\n",
+      "new": "        if False:\n            row[\"unmeasured\"] = split.get(m.ledger) or split.get(m.ledger_id) or \\\n                \"; \".join(split.values())\n            rows.append(row)\n            continue\n"
+    },
+    {
+      "name": "сверка личности односторонняя: один файл под двумя личностями больше не находка",
+      "file": "spa_core/monitoring/ledger_parse_census.py",
+      "old": "    for path, ids in sorted(by_path.items()):\n        if len(ids) > 1:\n",
+      "new": "    for path, ids in sorted(by_path.items()):\n        if False:\n"
+    },
+    {
+      "name": "сверка личности односторонняя в другую сторону: одна личность у двух файлов больше не находка",
+      "file": "spa_core/monitoring/ledger_parse_census.py",
+      "old": "    for lid, paths in sorted(by_id.items()):\n        if len(paths) > 1:\n",
+      "new": "    for lid, paths in sorted(by_id.items()):\n        if False:\n"
+    },
+    {
+      "name": "адаптер Member.invoke игнорируется — виду, которому нужен момент, его не передают",
+      "file": "spa_core/monitoring/ledger_parse_census.py",
+      "old": "        call = ((lambda fn=fn: m.invoke(fn, data, probe_now)) if m.invoke\n                else (lambda fn=fn: fn(data)))\n",
+      "new": "        call = (lambda fn=fn: fn(data))\n"
+    },
+    {
+      "name": "адаптер берёт часы СО СТЕНЫ вместо входа — прибор начинает зависеть от календаря",
+      "file": "spa_core/monitoring/ledger_parse_census.py",
+      "old": "    probe_now = now or _dt.datetime.now(_dt.timezone.utc)",
+      "new": "    probe_now = _dt.datetime.now(_dt.timezone.utc)"
+    },
+    {
+      "name": "находка не называет, какие виды УЖЕ объявлены — не говорит, чего именно не хватает",
+      "file": "spa_core/monitoring/ledger_parse_census.py",
+      "old": "            seen = \", \".join(sorted(views_of.get(lid, [])))",
+      "new": "            seen = \"\""
+    },
+    {
+      "name": "направление расхождения не называется: «ниже» печатается всегда",
+      "file": "spa_core/monitoring/ledger_parse_census.py",
+      "old": "            side = (\"модель НИЖЕ замера: ленту читает кто-то помимо объявленных видов\"\n                    if want < n else\n                    \"модель ВЫШЕ замера: объявленные виды разобрали ленту реже, чем объявлено\")",
+      "new": "            side = \"модель НИЖЕ замера: ленту читает кто-то помимо объявленных видов\""
+    },
+    {
+      "name": "ВТОРОЙ вид research_factory снят из населения — возврат ровно в состояние ADR-780",
+      "file": "spa_core/monitoring/ledger_parse_census.py",
+      "old": "        id=\"research_factory.cio_view\",\n        ledger_id=\"research_factory\",",
+      "new": "        id=\"research_factory.cio_view\",\n        ledger_id=\"research_factory_SNYAT\","
+    },
+    {
+      "name": "цена разбора мерится у ПАРЫ: лента с двумя видами теряет цену у одного из них",
+      "file": "spa_core/monitoring/ledger_parse_census.py",
+      "old": "        if r[\"parse_s\"] is not None or r[\"ledger_id\"] not in parse_by_id:\n            parse_by_id[r[\"ledger_id\"]] = r[\"parse_s\"]",
+      "new": "        parse_by_id[r[\"ledger_id\"]] = r[\"parse_s\"]"
+    }
+  ]
+}

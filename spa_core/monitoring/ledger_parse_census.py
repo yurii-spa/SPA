@@ -148,6 +148,44 @@ _capital_sources_section    → read.capital_sources → … → read.cio_view
 Сегодняшнее расхождение чинится объявлением второго вида в населении; пока он не объявлен,
 находка стои́т.
 
+## Лента ↔ НЕСКОЛЬКО видов: находка стояла, пока объявить второй вид было нечем (цикл #900)
+
+Раздел выше — замер цикла #898, и он же был его остатком: расхождение модели с замером
+нашлось, названо верно и **снять его было нечем**. Член несёт пару «лента ↔ вид», а
+личность пары и личность ФАЙЛА были одним и тем же полем ``id``; объявить второй вид той
+же ленты значило бы завести вторую ленту, которой не существует. Поэтому находка
+:data:`F_MODEL_DISAGREES` стояла постоянно — верная и неснимаемая, то есть ровно тот
+постоянный шум, которым сторожа глохнут (``.claude/rules/deployment.md``: «постоянные
+ложные строки и есть механизм, которым сторожа глохнут» — здесь строка не ложная, а
+несмолкаемая, и действует так же).
+
+**Личностей теперь две, и обе объявлены:** ``Member.id`` — пара, ``Member.ledger_id`` —
+файл. Зовы считаются у пары, разборы и цена разбора — у файла, а модель ленты есть СУММА
+по её видам. Разделение несущее: дать каждому виду свой счётчик разборов значило бы
+сложить цену одного файла столько раз, сколько у него читателей.
+
+Замер 2026-10-21 (живое ``data/`` хоста, лента **65 705 936 Б** — на 26 % больше, чем
+52 108 460 Б тремя сутками раньше; запас одного зова от этого сам упал 2.3× → 1.9×):
+
+===================  ==========  =============  ==========  ==================  ==========
+прогон                ``latest``  ``cio_view``   модель Σ    ИЗМЕРЕНО у файла    сошлось
+===================  ==========  =============  ==========  ==================  ==========
+``mission_build``             2              2           8                   8   да
+``telegram_sherlock``         1              0           2                   2   да
+``telegram_oracle``           0              2           4                   4   да
+===================  ==========  =============  ==========  ==================  ==========
+
+**Находка от этого не ослабла, и это проверяется с ДВУХ сторон.** Расхождение по-прежнему
+означает читателя помимо ОБЪЯВЛЕННЫХ видов — объявленных просто стало два; контроль
+(``test_ledger_parse_census.py``) добывает третьего, НЕ объявленного читателя той же ленты
+и требует, чтобы находка вернулась с названным направлением. Обратная сторона — что на
+полном населении видов она МОЛЧИТ — тоже тест, а не наблюдение в отчёте.
+
+**Чего это не закрывает.** Полнота населения видов остаётся РЕШЕНИЕМ, как и полнота
+населения прогонов: прибор не утверждает, что у ленты ровно столько видов, — он
+утверждает, что сумма по объявленным сошлась с замером у файла. Замер рядом
+(:func:`view_reference_files` по каждому виду) и есть мера этой неполноты.
+
 ## Третий множитель: сколько раз за СУТКИ зовут сам прогон (заказ G779, цикл #898)
 
 ADR-779 назвал этот множитель своим остатком: *«полная суточная цена есть произведение
@@ -270,27 +308,64 @@ U_RATE_NOT_OBSERVABLE = "daily_rate_has_no_record_to_observe"
 U_LOG_SHALLOWER = "log_depth_shallower_than_the_window"
 U_SCHEDULE_UNREADABLE = "schedule_declared_but_not_readable"
 U_DAILY_PRICE_UNKNOWN = "daily_price_missing_a_factor"
+U_LEDGER_ID_SPLIT = "one_ledger_declared_under_two_identities"
 
 
 @dataclass(frozen=True)
 class Member:
-    """Одна пара «лента ↔ читающий её вид»."""
+    """Одна пара «лента ↔ читающий её вид» — и у одной ленты таких пар бывает НЕСКОЛЬКО.
+
+    До цикла #900 поле ``id`` несло сразу ДВЕ личности: и пару, и сам ФАЙЛ. Пока у каждой
+    ленты был ровно один вид, различить их было нечем — а как только у ``research_factory``
+    нашёлся второй вид (``read.cio_view``, замер цикла #898), экономия стала дефектом:
+    объявить второй вид было невозможно, не заведя второй ФАЙЛ, которого не существует.
+    Поэтому личности теперь две, и обе объявлены:
+
+    * ``id`` — личность ПАРЫ «лента ↔ вид»; по ней считаются ЗОВЫ вида и цена ОДНОГО зова;
+    * ``ledger_id`` — личность ФАЙЛА; по ней считаются РАЗБОРЫ и цена разбора.
+
+    **Разделение несущее, а не косметическое.** Разборы мерятся у файла ОДНИМ счётчиком, и
+    два члена одной ленты, получив по счётчику каждый, сложили бы цену файла дважды —
+    прибор завысил бы ровно то, что мерит. Поэтому два объявления сверяются друг с другом
+    тестом: ``ledger_id`` обязан группировать РОВНО те члены, у которых совпал путь
+    ``ledger``. Ключ держит произведение, а ключ, выведенный молча, и есть класс, против
+    которого этот прибор написан.
+    """
 
     id: str
+    ledger_id: str
     ledger: str
     view: str | Callable
     declared_opens: int
     opens_reason: str
     scoped_door: bool
     scoped_reason: str
+    #: Как позвать вид, которому ОДНОГО каталога недостаточно (``cio_view(data_dir, now)``).
+    #: Вид при этом по-прежнему разрешается через АТРИБУТ МОДУЛЯ — адаптер лишь добавляет
+    #: недостающие аргументы; подменить вид вызываемым значило бы ослепить счётчик зовов
+    #: (:data:`U_VIEW_NOT_PATCHABLE`). Часы приходят ВХОДОМ, со стены их не берёт никто
+    #: (``.claude/rules/deployment.md``, «Время в тестах»).
+    invoke: Optional[Callable[[Callable, Path, object], object]] = None
 
 
-#: Объявленное население. `declared_opens` у каждого члена — ЗАМЕР 2026-10-18 с названной
-#: причиной; расхождение в ЛЮБУЮ сторону есть находка, потому что у каждого числа причина,
-#: и исчезновение необходимого разбора так же значимо, как появление лишнего.
+def _invoke_with_now(fn: Callable, data_dir: Path, now) -> object:
+    """Зов вида, которому нужен ещё и момент времени (``cio_view(data_dir, now)``).
+
+    Момент — ВХОД: он приходит из :func:`measure`, а внутри адаптера часов нет ни одних.
+    Иначе прибор, мерящий ЧИСЛО РАЗБОРОВ, зависел бы ещё и от того, какой сейчас день.
+    """
+    return fn(Path(data_dir), now)
+
+
+#: Объявленное население ПАР «лента ↔ вид». `declared_opens` у каждого члена — ЗАМЕР с
+#: названной причиной; расхождение в ЛЮБУЮ сторону есть находка, потому что у каждого числа
+#: причина, и исчезновение необходимого разбора так же значимо, как появление лишнего.
+#: Лент здесь ЧЕТЫРЕ, а членов ПЯТЬ: у ``research_factory`` два вида, и это замер, а не
+#: устройство (цикл #900, заказ G780 п. 1).
 LEDGERS: Tuple[Member, ...] = (
     Member(
         id="research_factory",
+        ledger_id="research_factory",
         ledger="research_factory/ledger.jsonl",
         view="spa_core.research_factory.read:latest",
         declared_opens=2,
@@ -300,7 +375,28 @@ LEDGERS: Tuple[Member, ...] = (
         scoped_reason="читающая модель открывает область hash_ledger.read_cache (ADR-777)",
     ),
     Member(
+        #: ВТОРОЙ вид той же ленты. До цикла #900 объявить его было нечем, и из-за этого
+        #: находка F_MODEL_DISAGREES стояла постоянно и верно (ADR-780): модель по одному
+        #: объявленному виду предсказывала сборке 4 разбора при измеренных 8, а экрану
+        #: Oracle — НОЛЬ при измеренных 4, и причина рядом гласила «экран этой ленты не
+        #: читает». Читает — через другую читающую модель.
+        id="research_factory.cio_view",
+        ledger_id="research_factory",
+        ledger="research_factory/ledger.jsonl",
+        view="spa_core.research_factory.read:cio_view",
+        declared_opens=2,
+        opens_reason=("ЗАМЕР 2026-10-21 на живом data/ (65 705 936 Б): два разбора за зов — "
+                      "столько же, сколько у latest, и по той же причине (свежий verify(), "
+                      "который кэш не обслуживает принципиально, плюс один разбор на "
+                      "помощников вида). Совпадение с latest тут ЗАМЕР, а не копия числа"),
+        scoped_door=True,
+        scoped_reason="тот же модуль, та же область hash_ledger.read_cache (ADR-777)",
+        #: cio_view(data_dir, now) — одного каталога ему недостаточно; см. Member.invoke
+        invoke=_invoke_with_now,
+    ),
+    Member(
         id="capital_shadow",
+        ledger_id="capital_shadow",
         ledger="capital_shadow/ledger.jsonl",
         view="spa_core.capital_shadow.read:latest",
         declared_opens=5,
@@ -311,6 +407,7 @@ LEDGERS: Tuple[Member, ...] = (
     ),
     Member(
         id="investment_cio",
+        ledger_id="investment_cio",
         ledger="investment_cio/ledger.jsonl",
         view="spa_core.investment_cio.read:latest",
         declared_opens=3,
@@ -321,6 +418,7 @@ LEDGERS: Tuple[Member, ...] = (
     ),
     Member(
         id="sleeve_aggressive",
+        ledger_id="sleeve_aggressive",
         ledger="sleeve_aggressive/ledger.jsonl",
         view="spa_core.strategy_lab.sleeve.composer:load_ledger",
         declared_opens=1,
@@ -469,12 +567,18 @@ WORKLOADS: Tuple[Workload, ...] = (
         run=_run_mission_build,
         reason=("сборка Mission Control — прогон, на котором ADR-763/777 мерили цену "
                 "повторного разбора (1 613 с против 18.3 с)"),
-        declared_calls={"research_factory": 2, "capital_shadow": 1,
+        declared_calls={"research_factory": 2, "research_factory.cio_view": 2,
+                        "capital_shadow": 1,
                         "investment_cio": 2, "sleeve_aggressive": 0},
         calls_reason={
             "research_factory": ("два НАЗВАННЫХ вызова: build → _research_universe_section, "
                                  "и ВЛОЖЕННЫЙ — capital_shadow.read.latest → readiness.evaluate "
                                  "→ _market_neutral_basis_reason; второй из кода сборки не виден"),
+            "research_factory.cio_view": (
+                "ЗАМЕР 2026-10-21: два вызова ВТОРОГО вида той же ленты, оба через другую "
+                "читающую модель — _investment_cio_section → research_universe.build → "
+                "read.cio_view и _capital_sources_section → read.capital_sources → … → "
+                "read.cio_view. Из кода сборки не виден ни один из двух"),
             "capital_shadow": "один вызов: build → _live_readiness_section",
             "investment_cio": ("два НАЗВАННЫХ вызова: build → _investment_cio_section, и "
                                "build → _capital_sources_section → read.capital_sources, "
@@ -490,8 +594,9 @@ WORKLOADS: Tuple[Workload, ...] = (
                 "_live_readiness_section → capital_shadow.readiness → read.latest · "
                 "_investment_cio_section → research_universe.build → read.cio_view · "
                 "_capital_sources_section → read.capital_sources → … → read.cio_view. "
-                "Модель «открытий за вызов × зовов вида» предсказывает 4: два последних "
-                "места зовут ВТОРОЙ вид (cio_view), которого население членов не знает"),
+                "С цикла #900 модель это число ПРЕДСКАЗЫВАЕТ: оба вида объявлены, и сумма "
+                "2×2 + 2×2 сходится с замером у файла. До того модель давала 4, и "
+                "расхождение стояло находкой — верной, но неснимаемой"),
             "capital_shadow": "один зов вида, пять разборов внутри него — своя реализация ленты",
             "investment_cio": "два зова вида по три разбора каждый (latest · verify_chain · find_due)",
             "sleeve_aggressive": "сборка рукавную ленту не открывает ни разу — ноль тут ЗАМЕР",
@@ -510,10 +615,14 @@ WORKLOADS: Tuple[Workload, ...] = (
         id="telegram_sherlock",
         run=_run_telegram_sherlock,
         reason="одно нажатие владельца: экран Sherlock, назван читателем в ADR-777",
-        declared_calls={"research_factory": 1, "capital_shadow": 0,
+        declared_calls={"research_factory": 1, "research_factory.cio_view": 0,
+                        "capital_shadow": 0,
                         "investment_cio": 0, "sleeve_aggressive": 0},
         calls_reason={
             "research_factory": "один вызов: render_sherlock → READERS['research'] → read.latest",
+            "research_factory.cio_view": ("ЗАМЕР 2026-10-21: ноль — экран Sherlock второго "
+                                          "вида не зовёт, и этот ноль измерен счётчиком, а "
+                                          "не выведен из того, что его не видно в коде"),
             "capital_shadow": "экран этой ленты не читает",
             "investment_cio": "экран этой ленты не читает",
             "sleeve_aggressive": "экран этой ленты не читает",
@@ -533,10 +642,16 @@ WORKLOADS: Tuple[Workload, ...] = (
         id="telegram_oracle",
         run=_run_telegram_oracle,
         reason="одно нажатие владельца: экран Oracle, назван читателем в ADR-777",
-        declared_calls={"research_factory": 0, "capital_shadow": 0,
+        declared_calls={"research_factory": 0, "research_factory.cio_view": 2,
+                        "capital_shadow": 0,
                         "investment_cio": 2, "sleeve_aggressive": 0},
         calls_reason={
-            "research_factory": "экран этой ленты не читает",
+            "research_factory": ("ноль зовов ПЕРВОГО вида — и прежняя причина «экран этой "
+                                 "ленты не читает» была неверна не про число, а про предмет: "
+                                 "ленту экран читает, но ВТОРЫМ видом (строка ниже)"),
+            "research_factory.cio_view": (
+                "ЗАМЕР 2026-10-21: два зова на ОДНО нажатие — оба зова investment_cio.read "
+                "идут в research_universe.build → research_factory.read.cio_view"),
             "capital_shadow": "экран этой ленты не читает",
             "investment_cio": ("два вызова на ОДНО нажатие: READERS['cio'] → read.latest и "
                                "READERS['sources'] → read.capital_sources → read.latest"),
@@ -546,12 +661,12 @@ WORKLOADS: Tuple[Workload, ...] = (
                         "investment_cio": 6, "sleeve_aggressive": 0},
         opens_reason={
             "research_factory": (
-                "ЧЕТЫРЕ разбора 55-мегабайтной ленты на ОДНО нажатие — при том, что "
-                "объявленных ЗОВОВ вида ноль и причина рядом гласит «экран этой ленты не "
-                "читает». Читает: оба зова investment_cio.read идут в "
-                "research_universe.build → research_factory.read.cio_view, по два разбора "
-                "каждый (verify + read_tail→read_all). Модель по объявленному виду "
-                "предсказывает ноль, замер даёт четыре"),
+                "ЧЕТЫРЕ разбора 65-мегабайтной ленты на ОДНО нажатие: оба зова "
+                "investment_cio.read идут в research_universe.build → "
+                "research_factory.read.cio_view, по два разбора каждый "
+                "(verify + read_tail→read_all). С цикла #900 модель это предсказывает "
+                "(0×2 + 2×2 = 4); до того она давала НОЛЬ при измеренных четырёх — ошибка "
+                "в безопасную сторону, и самая крупная в населении"),
             "capital_shadow": "экран этой ленты не открывает — ноль тут ЗАМЕР",
             "investment_cio": "два зова вида по три разбора (latest · verify_chain · find_due)",
             "sleeve_aggressive": "экран этой ленты не открывает — ноль тут ЗАМЕР",
@@ -655,6 +770,42 @@ def resolve_view_site(member: "Member") -> Tuple[Optional[object], Optional[str]
     return mod, attr, None
 
 
+def ledger_id_split(members: Sequence["Member"]) -> Dict[str, str]:
+    """Сверка ДВУХ объявлений личности файла друг с другом — в ОБЕ стороны.
+
+    ``ledger_id`` — ключ, по которому складывается произведение «цена разбора × разборов»,
+    и ошибиться в нём значит получить не меньшее число, а ДРУГОЕ:
+
+    * один файл под ДВУМЯ ``ledger_id`` ⇒ счётчиков разборов у него два, и цена этого
+      файла сложится дважды (прибор завысит ровно то, что мерит);
+    * один ``ledger_id`` на ДВА файла ⇒ в один счётчик попадут разборы двух разных лент,
+      и разделить их потом будет нечем.
+
+    Поэтому «одна личность — один путь» не соглашение, а проверяемое утверждение, и его
+    нарушение есть третий исход (:data:`U_LEDGER_ID_SPLIT`), а не число. Молча вывести
+    ``ledger_id`` из пути было бы той же экономией, из которой вырос заказ G780 п. 1.
+
+    Возврат: ``{личность или путь: причина}`` — пусто, если оба объявления сошлись.
+    """
+    by_path: Dict[str, set] = {}
+    by_id: Dict[str, set] = {}
+    for m in members:
+        by_path.setdefault(m.ledger, set()).add(m.ledger_id)
+        by_id.setdefault(m.ledger_id, set()).add(m.ledger)
+    bad: Dict[str, str] = {}
+    for path, ids in sorted(by_path.items()):
+        if len(ids) > 1:
+            bad[path] = (f"{U_LEDGER_ID_SPLIT}: один файл {path} объявлен под личностями "
+                         f"{sorted(ids)} — счётчик разборов у него был бы не один, и цена "
+                         f"этого файла сложилась бы {len(ids)} раз(а)")
+    for lid, paths in sorted(by_id.items()):
+        if len(paths) > 1:
+            bad[lid] = (f"{U_LEDGER_ID_SPLIT}: личность {lid} объявлена у разных файлов "
+                        f"{sorted(paths)} — их разборы попали бы в ОДИН счётчик, и "
+                        f"разделить их было бы нечем")
+    return bad
+
+
 def count_calls(members: Sequence["Member"], workload: Workload,
                 data_dir: Path) -> Tuple[Dict[str, int], Dict[str, str], object,
                                          Optional[str], Dict[str, int]]:
@@ -672,13 +823,25 @@ def count_calls(members: Sequence["Member"], workload: Workload,
     (``read.cio_view``), которого население членов не объявляет. Считать цену по зовам
     объявленного вида значило бы печатать половину правды с видом целого.
 
-    Возврат: зовы · члены, у которых считать нечем (с причиной) · ответ прогона ·
-    причина отказа прогона (``None``, если прогон дошёл до конца) · разборы.
+    **Ключи у двух чисел РАЗНЫЕ, и это несущее различие** (цикл #900): зовы считаются у
+    ПАРЫ (``Member.id``), разборы — у ФАЙЛА (``Member.ledger_id``). Дать каждому виду
+    одной ленты свой счётчик разборов значило бы сложить цену этого файла столько раз,
+    сколько у него видов, — прибор завысил бы ровно то, что мерит.
+
+    Возврат: зовы (по парам) · члены, у которых считать нечем (с причиной) · ответ прогона ·
+    причина отказа прогона (``None``, если прогон дошёл до конца) · разборы (по файлам).
     """
     counts: Dict[str, int] = {}
     cannot: Dict[str, str] = {}
     undo: List[Tuple[object, str, Callable]] = []
-    targets = {m.id: Path(data_dir) / m.ledger for m in members}
+    #: ГЕЙТ стоит у той самой двери, которую охраняет: цели счётчика строятся здесь, и
+    #: расхождение двух объявлений личности обязано остановить замер ДО него, а не быть
+    #: замеченным по странному числу потом.
+    split = ledger_id_split(members)
+    if split:
+        return {}, {}, None, "; ".join(split.values()), {}
+    #: ОДИН счётчик на файл: ключ словаря сам сводит виды одной ленты к одной цели
+    targets = {m.ledger_id: Path(data_dir) / m.ledger for m in members}
     for m in members:
         mod, attr, why = resolve_view_site(m)
         if mod is None:
@@ -845,9 +1008,16 @@ def measure_workloads(data_dir: Path | str, *, members: Sequence["Member"] = LED
     """Второй и ТРЕТИЙ множители, полная цена прогона и СУТОЧНАЯ цена.
 
     Цена прогона считается по ИЗМЕРЕННЫМ разборам ленты, а не по зовам объявленного вида:
-    второе предсказывает первое только там, где у ленты ровно один вид, и у двух из трёх
+    второе предсказывает первое только там, где население видов ПОЛНО, и у двух из трёх
     прогонов это предсказание разошлось с замером (цикл #898). Расхождение печатается
     находкой в ОБЕ стороны, а не сглаживается в пользу любого из чисел.
+
+    **Модель — СУММА по всем видам одной ленты** (цикл #900, заказ G780 п. 1): пока у
+    ленты объявлялся ровно один вид, модель отвечала на вопрос «сколько разборов даёт ЭТОТ
+    вид», а читалась как «сколько разборов даёт лента». Теперь она складывает «открытий за
+    зов × зовов» по каждому виду, и у ``research_factory`` эта сумма сошлась с замером у
+    файла на ВСЕХ трёх прогонах. Находка от этого не ослабла: расхождение по-прежнему
+    означает читателя помимо ОБЪЯВЛЕННЫХ видов — просто объявленных стало два.
 
     Суточная цена есть произведение ТРЁХ: цена разбора × разборов за прогон × прогонов за
     сутки. Нет третьего множителя ⇒ суточной цены нет вовсе (:data:`U_DAILY_PRICE_UNKNOWN`),
@@ -857,6 +1027,13 @@ def measure_workloads(data_dir: Path | str, *, members: Sequence["Member"] = LED
     price_by_id = price_by_id or {}
     parse_by_id = parse_by_id or {}
     opens_per_call = {m.id: m.declared_opens for m in members}
+    #: пара → файл: по этому отображению модель вида складывается в модель ЛЕНТЫ
+    ledger_of = {m.id: m.ledger_id for m in members}
+    #: файл → его виды, чтобы ленту, у которой ни один вид не считаем, не выдать за
+    #: «разборов ноль» (у неё разборы могут быть, а модели нет вовсе)
+    views_of: Dict[str, List[str]] = {}
+    for m in members:
+        views_of.setdefault(m.ledger_id, []).append(m.id)
     rows: List[dict] = []
     reached: Dict[str, int] = {m.id: 0 for m in members}
     seen_measured = False
@@ -890,7 +1067,9 @@ def measure_workloads(data_dir: Path | str, *, members: Sequence["Member"] = LED
             continue
         seen_measured = True
         row["calls"] = counts
-        row["opens"] = {mid: n for mid, n in opens.items() if mid in counts or n}
+        counted_ledgers = {ledger_of.get(mid, mid) for mid in counts}
+        row["opens"] = {lid: n for lid, n in opens.items()
+                        if lid in counted_ledgers or n}
         for mid, n in counts.items():
             reached[mid] = max(reached.get(mid, 0), n)
 
@@ -933,11 +1112,14 @@ def measure_workloads(data_dir: Path | str, *, members: Sequence["Member"] = LED
                          f"{w.opens_reason.get(mid, 'причина не названа')}"),
             })
 
-        # ── модель «открытий за вызов × зовов» против замера у файла ─────────────────
-        modelled = {mid: opens_per_call.get(mid, 0) * n for mid, n in counts.items()}
+        # ── модель «открытий за вызов × зовов», СУММОЙ по видам ленты, против замера ──
+        modelled: Dict[str, int] = {}
+        for mid, n in counts.items():
+            lid = ledger_of.get(mid, mid)
+            modelled[lid] = modelled.get(lid, 0) + opens_per_call.get(mid, 0) * n
         row["opens_modelled"] = modelled
-        for mid, n in row["opens"].items():
-            want = modelled.get(mid)
+        for lid, n in row["opens"].items():
+            want = modelled.get(lid)
             if want is None or n == want:
                 continue
             #: НАПРАВЛЕНИЕ расхождения — замер, а не предположение, и оба значат разное:
@@ -945,14 +1127,16 @@ def measure_workloads(data_dir: Path | str, *, members: Sequence["Member"] = LED
             #: занижалась); модель ВЫШЕ замера ⇒ объявленный вид разбирает реже, чем
             #: объявлено (кэш сработал либо чтение исчезло). Имя находки направления не
             #: утверждает — его называет текст.
-            side = ("модель НИЖЕ замера: ленту читает не только объявленный вид"
+            side = ("модель НИЖЕ замера: ленту читает кто-то помимо объявленных видов"
                     if want < n else
-                    "модель ВЫШЕ замера: объявленный вид разобрал ленту реже, чем объявлено")
+                    "модель ВЫШЕ замера: объявленные виды разобрали ленту реже, чем объявлено")
+            seen = ", ".join(sorted(views_of.get(lid, [])))
             row["findings"].append({
                 "kind": F_MODEL_DISAGREES,
-                "text": (f"{mid}: модель «открытий за вызов × зовов вида» даёт {want}, а у "
+                "text": (f"{lid}: модель «открытий за зов × зовов», сложенная по "
+                         f"объявленным видам ({seen or 'ни одного'}), даёт {want}, а у "
                          f"самого файла измерено {n} разбор(ов) — цена прогона считается по "
-                         f"ЗАМЕРУ; {side} ({w.opens_reason.get(mid, 'причина не названа')})"),
+                         f"ЗАМЕРУ; {side} ({w.opens_reason.get(lid, 'причина не названа')})"),
             })
 
         if price > 0:
@@ -1002,7 +1186,7 @@ def measure_workloads(data_dir: Path | str, *, members: Sequence["Member"] = LED
             if reached.get(m.id, 0) == 0:
                 unreached[m.id] = (
                     f"{U_NO_WORKLOAD_REACHES}: ни один из {len(workloads)} объявленных "
-                    f"прогонов этот вид не зовёт — запас одного вызова у него верен, но ни "
+                    f"прогонов ЭТОТ ВИД не зовёт — запас одного вызова у него верен, но ни "
                     f"к одному измеренному прогону не относится")
     return {
         "budget_s": budget_s,
@@ -1163,10 +1347,21 @@ def measure(data_dir: Path | str, *, members: Sequence[Member] = LEDGERS,
     значило бы мерить не то, о чём спрашивают. Боевое население передаёт CLI.
     """
     data = Path(data_dir)
+    probe_now = now or _dt.datetime.now(_dt.timezone.utc)
+    #: тот же гейт у СВОЕЙ двери: кэш цены разбора ключён по ledger_id, и разошедшиеся
+    #: объявления дали бы одному файлу цену другого. Копии правила тут нет — зовётся
+    #: ОДНА реализация (:func:`ledger_id_split`).
+    split = ledger_id_split(members)
     rows: List[dict] = []
+    #: Цена РАЗБОРА и размер — свойства ФАЙЛА, а не вида: мерить их по разу на каждый вид
+    #: значило бы отвечать на вопрос о файле столько раз, сколько у него читателей, и
+    #: получать разные ответы из-за шума машины. Поэтому замер один, на ledger_id.
+    parse_cache: Dict[str, Tuple[Optional[int], Optional[float]]] = {}
     for m in members:
         row: dict = {
             "id": m.id,
+            "ledger_id": m.ledger_id,
+            "view": m.view if isinstance(m.view, str) else getattr(m.view, "__name__", "<вызываемое>"),
             "ledger": m.ledger,
             "declared_opens": m.declared_opens,
             "opens_reason": m.opens_reason,
@@ -1180,6 +1375,11 @@ def measure(data_dir: Path | str, *, members: Sequence[Member] = LEDGERS,
             "unmeasured": None,
             "findings": [],
         }
+        if split:
+            row["unmeasured"] = split.get(m.ledger) or split.get(m.ledger_id) or \
+                "; ".join(split.values())
+            rows.append(row)
+            continue
         path = data / m.ledger
         fn, why = resolve_view(m)
         if fn is None:
@@ -1191,7 +1391,11 @@ def measure(data_dir: Path | str, *, members: Sequence[Member] = LEDGERS,
             rows.append(row)
             continue
         row["bytes"] = path.stat().st_size
-        opens, answer, err = count_opens(path, lambda fn=fn: fn(data))
+        #: вид зовётся через АТРИБУТ МОДУЛЯ; адаптер (``Member.invoke``) лишь добавляет
+        #: недостающие аргументы тем видам, которым каталога мало (``cio_view(dir, now)``)
+        call = ((lambda fn=fn: m.invoke(fn, data, probe_now)) if m.invoke
+                else (lambda fn=fn: fn(data)))
+        opens, answer, err = count_opens(path, call)
         if err:
             row["unmeasured"] = err
             rows.append(row)
@@ -1204,7 +1408,11 @@ def measure(data_dir: Path | str, *, members: Sequence[Member] = LEDGERS,
                 f"значит читает мимо них (например os.open), и ноль тут НЕ есть замер")
             rows.append(row)
             continue
-        parse_s = parse_seconds(path, rounds=parse_rounds)
+        if m.ledger_id in parse_cache:
+            _b, parse_s = parse_cache[m.ledger_id]
+        else:
+            parse_s = parse_seconds(path, rounds=parse_rounds)
+            parse_cache[m.ledger_id] = (row["bytes"], parse_s)
         if parse_s is None:
             row["unmeasured"] = f"{U_LEDGER_ABSENT}: цена разбора не измерена — {path} не прочитан"
             rows.append(row)
@@ -1235,8 +1443,13 @@ def measure(data_dir: Path | str, *, members: Sequence[Member] = LEDGERS,
 
     price_by_id = {r["id"]: r["cost_s"] for r in rows}
     #: цена ОДНОГО разбора — именно она умножается на ИЗМЕРЕННОЕ число разборов прогона;
-    #: цена вызова (``cost_s``) остаётся рядом и отвечает на свой, прежний вопрос.
-    parse_by_id = {r["id"]: r["parse_s"] for r in rows}
+    #: цена зова (``cost_s``) остаётся рядом и отвечает на свой, прежний вопрос.
+    #: Ключ здесь — ФАЙЛ (``ledger_id``), потому что разборы считаются у файла: взять
+    #: ключом пару значило бы оставить ленту с двумя видами без цены вовсе.
+    parse_by_id: Dict[str, Optional[float]] = {}
+    for r in rows:
+        if r["parse_s"] is not None or r["ledger_id"] not in parse_by_id:
+            parse_by_id[r["ledger_id"]] = r["parse_s"]
     wl = measure_workloads(data, members=members, workloads=workloads,
                            price_by_id=price_by_id, parse_by_id=parse_by_id,
                            budget_s=workload_budget_s, min_factor=min_factor,
@@ -1251,7 +1464,11 @@ def measure(data_dir: Path | str, *, members: Sequence[Member] = LEDGERS,
         "data_dir": str(data),
         "rows": rows,
         "population": {
+            #: ПАР «лента ↔ вид» объявлено столько; лент меньше — у одной их две
             "declared": len(members),
+            "ledgers_declared": len({m.ledger_id for m in members}),
+            "views_per_ledger": {lid: sorted(m.id for m in members if m.ledger_id == lid)
+                                 for lid in sorted({m.ledger_id for m in members})},
             "code_files_declared": declared_files,
             "code_files_in_tree": tree_files,
             "code_files_undeclared": [f for f in tree_files if f not in declared_files],
@@ -1350,7 +1567,8 @@ def format_report(doc: dict) -> List[str]:
                    f"не объявлено {pop['code_files_undeclared']} · "
                    f"объявлено и отсутствует {pop['code_files_missing']}")
     else:
-        out.append(f"   население замкнуто: лент {pop['declared']}, файлов кода "
+        out.append(f"   население замкнуто: лент {pop['ledgers_declared']}, пар "
+                   f"«лента ↔ вид» {pop['declared']}, файлов кода "
                    f"{len(pop['code_files_in_tree'])} — объявленное и найденное совпали "
                    f"(единственное исключение обхода НАЗВАНО: {SELF_REL} — прибор несёт "
                    f"литерал по построению)")
