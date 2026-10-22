@@ -1,0 +1,22 @@
+CI-CONTROL COMPARE 62fe88b48c772e4a657f605d4d3f174e086d85b6 (RED) → f4b098b7aea1f10b68684649240ec859fb1fc47f (INCOMPLETE): new 21 · pre-existing 37 · not obtained 0 · fixed 30
+  NEW spa_core/tests/test_card_acceptance.py::TestRegisteredProbesAreReal::test_every_registered_probe_returns_a_known_verdict
+  NEW spa_core/tests/test_census_consumer_census.py::TheRatchetCoverageFinding::test_the_live_tree_is_covered_after_the_fix
+  NEW spa_core/tests/test_investor_report.py::test_audit_trail_from_temp_db
+  NEW spa_core/tests/test_refresh_no_regression_census.py::ПрогонНаселения::test_pytest_не_запустился_это_НЕ_ИЗМЕРЕНО
+  NEW spa_core/tests/test_refresh_no_regression_census.py::ПрогонНаселения::test_битая_запись_это_НЕ_ИЗМЕРЕНО
+  NEW spa_core/tests/test_refresh_no_regression_census.py::ПрогонНаселения::test_записи_после_прогона_нет_это_НЕ_ИЗМЕРЕНО
+  NEW spa_core/tests/test_refresh_no_regression_census.py::ПрогонНаселения::test_команда_несёт_предписанное_окружение_и_своё_дерево
+  NEW spa_core/tests/test_refresh_no_regression_census.py::ПрогонНаселения::test_красный_прогон_это_ЗАМЕР_а_не_отказ
+  NEW spa_core/tests/test_refresh_no_regression_census.py::ПрогонНаселения::test_пустая_запись_это_НЕ_ИЗМЕРЕНО_а_не_ноль_поломок
+  NEW spa_core/tests/test_refresh_no_regression_census.py::ПрогонНаселения::test_снятие_по_сроку_это_НЕ_ИЗМЕРЕНО
+  NEW spa_core/tests/test_refresh_no_regression_census.py::ПрогонНаселения::test_целый_контур_отдаёт_наблюдения_прогона
+  NEW spa_core/tests/test_refresh_no_regression_census.py::ИзоляцияПрогонаОтБоевогоКорня::test_запись_в_боевой_корень_отказана_и_замер_НЕ_состоялся
+  NEW spa_core/tests/test_refresh_no_regression_census.py::ИзоляцияПрогонаОтБоевогоКорня::test_не_Python_потомок_назван_неохваченным
+  NEW spa_core/tests/test_refresh_no_regression_census.py::ИзоляцияПрогонаОтБоевогоКорня::test_нет_отчёта_сторожа_это_НЕ_ДОКАЗАНО
+  NEW spa_core/tests/test_refresh_no_regression_census.py::ИзоляцияПрогонаОтБоевогоКорня::test_обход_A_sqlite_не_создаёт_БД_в_корне
+  NEW spa_core/tests/test_refresh_no_regression_census.py::ИзоляцияПрогонаОтБоевогоКорня::test_обход_B_shell_потомок_не_меняет_файл_корня
+  NEW spa_core/tests/test_refresh_no_regression_census.py::ИзоляцияПрогонаОтБоевогоКорня::test_обход_C_dir_fd_не_меняет_файл_корня
+  NEW spa_core/tests/test_refresh_no_regression_census.py::ИзоляцияПрогонаОтБоевогоКорня::test_потомок_видит_песочницу_а_не_живое
+  NEW spa_core/tests/test_refresh_no_regression_census.py::ИзоляцияПрогонаОтБоевогоКорня::test_самопроверка_ловит_профиль_который_не_запрещает
+  NEW spa_core/tests/test_refresh_no_regression_census.py::ИзоляцияПрогонаОтБоевогоКорня::test_связка_ключей_хоста_закрыта_и_попытка_посчитана
+  NEW spa_core/tests/test_refresh_no_regression_census.py::ИзоляцияПрогонаОтБоевогоКорня::test_чтение_корня_разрешено_и_названо_числом

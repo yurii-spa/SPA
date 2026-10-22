@@ -1,0 +1,13 @@
+# Cloudflare Pages earn-defi — Settings (Production tab), прочитано 2026-10-22 ПОСЛЕ изменения (перечитано после перезагрузки страницы)
+Git repository: yurii-spa/SPA
+Build command: npm run build ; Build output: dist ; Root directory: landing ; Build comments: Enabled
+Build cache: Disabled
+Branch control: Production branch: main ; Automatic deployments: Enabled
+Build watch paths: Include paths: *
+Build system version: 3 ; Deploy Hooks: none
+Variables and secrets: (список пуст на странице)
+Runtime: Placement Default ; Compatibility date 2026-06-18 ; Fail open
+Preview access: previews public by default (Access не включён — «Restrict previews» не нажат)
+Branch control (форма Edit, прочитано ПОСЛЕ изменения (перечитано после перезагрузки страницы)): Production branch: main ; Enable automatic production branch deployments: ✔ ;
+  Preview branch: (•) Custom branches ; Include: * ; Exclude: integ/studio-os-next-01-stab
+Variables: Text NODE_VERSION = 20 (текстовая, не секрет; видна в форме)
