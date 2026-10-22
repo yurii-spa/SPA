@@ -488,10 +488,11 @@ class WiringTest(unittest.TestCase):
             and [ast.unparse(arg) for arg in node.value.args] == ["root"]
             for target in node.targets if isinstance(target, ast.Name)}
         self.assertTrue(bound, "measure() не зовёт invisible_consumer_scale(root)")
-        returned = next(node.value for node in ast.walk(measure_fn)
-                        if isinstance(node, ast.Return)
-                        and isinstance(node.value, ast.Dict))
+        from spa_core.tests._returned_document import returned_dicts
+        documents = returned_dicts(measure_fn)
+        self.assertTrue(documents, "measure() не отдаёт словарь-документ")
         carried = {ast.unparse(key): ast.unparse(value)
+                   for returned in documents
                    for key, value in zip(returned.keys, returned.values)
                    if key is not None}
         self.assertIn("'invisible_consumer_scale'", carried)

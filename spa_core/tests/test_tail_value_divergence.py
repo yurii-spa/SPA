@@ -13,6 +13,7 @@
 from __future__ import annotations
 
 import ast
+import re
 import os
 import tempfile
 import textwrap
@@ -479,11 +480,10 @@ class WiringTest(unittest.TestCase):
                     and isinstance(node.targets[0], ast.Name)):
                 bound = node.targets[0].id
         self.assertIsNotNone(bound, "шаг не позван из `measure`")
+        from spa_core.tests._returned_document import returned_dicts
         returned = False
-        for node in ast.walk(fn):
-            if not isinstance(node, ast.Return) or not isinstance(node.value, ast.Dict):
-                continue
-            for key, value in zip(node.value.keys, node.value.values):
+        for d in returned_dicts(fn):
+            for key, value in zip(d.keys, d.values):
                 if (isinstance(key, ast.Constant)
                         and key.value == "tail_value_divergence"
                         and isinstance(value, ast.Name) and value.id == bound):
@@ -722,8 +722,12 @@ class WholeContourTest(unittest.TestCase):
 
     def test_reach_is_measured_for_every_costed_read(self):
         _, row = self._row()
+        # Словарь достижимости ДОКУМЕНТА — `_DOC_REACH_OUTCOMES` (его же сверяет писатель, стр. ~9419).
+        # 65a3ef25e (CI #6) развёл два модульных `_REACH_OUTCOMES`, но этот тест остался на старом
+        # имени, которое теперь значит словарь ДОСТИЖИМОСТИ РАСКОЛА (reachable/unreachable/unresolved):
+        # законное `isolated_from_the_live_document_by_the_harness` в нём отсутствует ⇒ ложный красный.
         for item in row["costed_all"]:
-            self.assertIn(item["reach"], C._REACH_OUTCOMES)
+            self.assertIn(item["reach"], C._DOC_REACH_OUTCOMES)
 
     def test_the_aggregate_reads_this_contour_end_to_end(self):
         got, _ = self._row()
@@ -815,7 +819,9 @@ class AbsentReachIsNotAnOutcome(unittest.TestCase):
         src = Path(C.__file__).read_text(encoding="utf-8")
         code = "\n".join(l for l in src.splitlines()
                           if not l.lstrip().startswith("#"))
-        self.assertNotIn("reach_outcome", code)
+        # Ищется отставленное ИМЯ `reach_outcome`, а не подстрока: законный ключ
+        # `reach_outcomes` (множественное) содержит её и держал проверку красной.
+        self.assertIsNone(re.search(r"\breach_outcome\b", code), "отставленное имя вернулось")
 
     def test_a_reach_class_nobody_declared_refuses_too(self):
         # Та же дыра с другой стороны: незнакомый класс не есть REACH_LIVE и
