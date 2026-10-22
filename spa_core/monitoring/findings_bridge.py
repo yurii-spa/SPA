@@ -212,6 +212,12 @@ PRODUCES = (
     # (`ledger_day_unit_census.run` -> `measurement_due`), SLO 192ч — как у
     # соседних недельных приборов.
     "data/ledger_day_unit_census.json",
+    # Заказ G777 п. 1 / G778 п. 3 (ADR-777, циклы #894–#901). Перепись ПОВТОРНОГО
+    # разбора хеш-лент у читающих моделей: запас роста append-only ленты до
+    # бюджета вызова. Ступень ДОРОГАЯ (замер 22.10: 66.7 с — три настоящих прогона
+    # читающих моделей), поэтому у неё ТАКТ: срок решает ФАЙЛ
+    # (`ledger_parse_census.run` -> `measurement_due`), SLO 192ч — как у соседей.
+    "data/ledger_parse_census.json",
     # Заказ G92 п. 2 (ADR-543) — перепись тестов, зелёных ПО ПОСТРОЕНИЮ.
     # Ступень ДОРОГАЯ (сотни прогонов pytest), поэтому у неё ТАКТ: срок решает
     # ФАЙЛ (`green_by_construction_census.run` -> `measurement_due`), SLO 192ч,
@@ -509,6 +515,7 @@ CENSUS_STAGE: tuple[str, ...] = (
     "vacuous_guard_census",
     "vacuous_advice_census",
     "ledger_day_unit_census",
+    "ledger_parse_census",
     "green_by_construction_census",
     "acceptance_tree_capability",
     "s49_tally_tact",
@@ -784,6 +791,9 @@ CENSUS_PRODUCT: dict[str, dict[str, str]] = {
     "ledger_day_unit_census": {
         "module": "spa_core/monitoring/ledger_day_unit_census.py",
         "artifact": "data/ledger_day_unit_census.json"},
+    "ledger_parse_census": {
+        "module": "spa_core/monitoring/ledger_parse_census.py",
+        "artifact": "data/ledger_parse_census.json"},
     "green_by_construction_census": {
         "module": "spa_core/monitoring/green_by_construction_census.py",
         "artifact": "data/green_by_construction_census.json"},
@@ -2834,6 +2844,28 @@ def main(argv=None) -> int:
             print(f"ledger_day_unit_census: внутри такта — {_ldu_res.get('reason')}")
     except Exception as e:  # noqa: BLE001 — перепись не смеет валить мост
         census_skipped(_skipped, "ledger_day_unit_census", e)
+    # Перепись ПОВТОРНОГО РАЗБОРА хеш-лент (G777 п. 1, ADR-777; цикл #894): во
+    # сколько раз append-only лента вправе вырасти, прежде чем ОДИН вызов
+    # читающей модели или ОДИН названный прогон перестанет укладываться в бюджет.
+    # Ступень ДОРОГАЯ (≈1 мин), поэтому у неё ТАКТ и срок решает ФАЙЛ; «внутри
+    # такта» и «измерено» — РАЗНЫЕ исходы, и в первой ветке нет ни вердикта, ни нуля.
+    try:
+        from spa_core.monitoring import ledger_parse_census as _lpc
+        _lpc_res = _lpc.run(root=args.root)
+        if _lpc_res.get("measured"):
+            _lpdoc = _lpc_res["doc"]
+            # `... or []` здесь склеило бы «раздела нет» с «находок ноль» (инв. #17).
+            _lpfl = observed(_lpdoc, "findings", kind=list)
+            _lpul = observed(_lpdoc, "unmeasured", kind=list)
+            print(f"ledger_parse_census: {_lpdoc.get('status')} — находок "
+                  f"{'НЕ ИЗМЕРЕНО' if _lpfl is None else len(_lpfl)}, слепых членов "
+                  f"{'НЕ ИЗМЕРЕНО' if _lpul is None else len(_lpul)}")
+            for _lprow in (_lpfl or ())[:4]:
+                print(f"   🔴 [{_lprow.get('kind')}] {_lprow.get('id')}")
+        else:
+            print(f"ledger_parse_census: внутри такта — {_lpc_res.get('reason')}")
+    except Exception as e:  # noqa: BLE001 — перепись не смеет валить мост
+        census_skipped(_skipped, "ledger_parse_census", e)
     # Перепись «зелёный по построению» (G92 п. 2, ADR-543): тесты, чей зелёный
     # не зависит НИ ОТ ОДНОГО решения прибора, который они проверяют. Ступень
     # ПОВЕДЕНЧЕСКАЯ (настоящие прогоны pytest на одноразовых копиях), поэтому

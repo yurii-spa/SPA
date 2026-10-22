@@ -953,6 +953,12 @@ _READ_SCHEMA: dict[str, tuple[str, ...]] = {
                                     "findings", "needs_reading", "books",
                                     "unmeasured_causes",
                                     "what_it_does_not_prove"),
+    # Заказ G777 п. 1 / G778 п. 3 (ADR-777). `rows` (запас роста у КАЖДОЙ пары
+    # «лента ↔ вид») и `unmeasured` в схеме обязательны: «находок 0» без них
+    # прочлось бы как «запас велик у всех», тогда как слепой член — третий
+    # исход, а не запас. `workloads` — второй и третий множители цены.
+    "ledger_parse_census.json": ("status", "rows", "findings", "unmeasured",
+                                 "workloads", "population"),
     # Заказ G92 п. 2 (ADR-543). `stage_population` в схеме обязателен: без него
     # «зелёных по построению 1» прочлось бы как «во всём наборе один», тогда как
     # население СТУПЕНИ урезано до одного файла проб, а полный замер стои́т часа
@@ -1511,6 +1517,8 @@ _PRODUCER: dict[str, str] = {
         "spa_core/monitoring/vacuous_advice_census.py",
     "ledger_day_unit_census.json":
         "spa_core/monitoring/ledger_day_unit_census.py",
+    "ledger_parse_census.json":
+        "spa_core/monitoring/ledger_parse_census.py",
     "green_by_construction_census.json":
         "spa_core/monitoring/green_by_construction_census.py",
     "acceptance_tree_capability.json":
@@ -3968,6 +3976,12 @@ def _summarize_json(path: str, data, *, now: dt.datetime | None = None,
         # отрисовки делегируется ПРОИЗВОДИТЕЛЮ; ввоз ОДНОСТРОЧНЫЙ.
         from spa_core.monitoring.ledger_day_unit_census import format_report as _ldu_report
         out.extend(_ldu_report(data))
+    elif name == "ledger_parse_census.json":
+        # Заказ G777 п. 1 (ADR-777, цикл #894). Без этой ветки артефакт читается
+        # ВХОЛОСТУЮ: файл открыт, а запас роста ленты до бюджета вызова в контекст
+        # не попадает. Правило отрисовки делегируется ПРОИЗВОДИТЕЛЮ; ввоз ОДНОСТРОЧНЫЙ.
+        from spa_core.monitoring.ledger_parse_census import format_report as _lpc_report
+        out.extend(_lpc_report(data))
     elif name == "duplicate_subject_census.json":
         # Заказ G38 п. 3 (ADR-498). Без этой ветки артефакт читается ВХОЛОСТУЮ —
         # файл открыт, а в контекст не попадает ни одно число. Правило отрисовки

@@ -2004,6 +2004,57 @@ def exit_code(doc: dict) -> int:
     return 0
 
 
+#: Артефакт ступени моста (`findings_bridge`) — то, что читает шаг 0-офис.
+ARTIFACT = "ledger_parse_census.json"
+
+#: Такт ступени. Один полный замер стои́т МИНУТУ (замер 22.10 на копии живого `data/`:
+#: 66.7 с — три настоящих прогона читающих моделей + разбор 69 МБ ленты по три раунда),
+#: поэтому шестичасовой бегун не вправе звать его каждый раз. Срок решает ФАЙЛ, а не
+#: расписание (ADR-414, тот же гейт, что у `python_reader_clock_doors`). Предмет —
+#: РОСТ append-only ленты, а он за неделю не перескакивает порог незаметно: запас
+#: печатается числом, и его убывание видно от замера к замеру.
+MEASUREMENT_TACT_DAYS = 7
+
+STATUS_BY_EXIT = {0: "OK", 1: "FINDING", 2: "UNMEASURED"}
+
+
+def run(root: Optional[str] = None, *, data_dir: Optional[str] = None,
+        dest: Optional[str] = None, write: bool = True, if_due: bool = True,
+        now: Optional[_dt.datetime] = None, tact_days: int = MEASUREMENT_TACT_DAYS,
+        workloads: Optional[Sequence[Workload]] = None) -> dict:
+    """Один ТАКТ замера для ступени моста (`findings_bridge`), форма `run(root=args.root)`.
+
+    ``root`` — КОРЕНЬ дерева: ленты читаются из ``root/data``, зовущие ищутся в ``root``,
+    артефакт ложится в ``root/data`` (контракт `test_census_stage_root_contract`).
+    Прибор только ЧИТАЕТ: ни одна лента не правится, названные прогоны строят модель
+    в памяти (замер 22.10: ни одного нового файла ни в `data/`, ни в дереве).
+
+    «Внутри такта» и «измерено» — РАЗНЫЕ исходы (инв. #17): внутри такта возвращается
+    ``{"measured": False, "reason": …}`` и ни вердикта, ни нуля. Третий исход самого
+    прибора (слепой член, неразобранная статика) пишется в артефакт как
+    ``status="UNMEASURED"`` — отсутствие файла неотличимо от «ступень не звали».
+    """
+    tree = Path(root) if root else _ROOT
+    source = Path(data_dir) if data_dir is not None else tree / "data"
+    target = Path(dest) if dest is not None else source / ARTIFACT
+    if if_due:
+        from spa_core.monitoring.python_reader_clock_doors import measurement_due
+        due, why = measurement_due(target, now=now, tact_days=tact_days)
+        if not due:
+            return {"measured": False, "reason": why, "artifact": str(target)}
+    moment = now or _dt.datetime.now(_dt.timezone.utc)
+    doc = measure(source, tree_root=tree, now=moment,
+                  workloads=WORKLOADS if workloads is None else workloads)
+    doc = dict(doc)
+    doc["generated_at"] = moment.isoformat()
+    doc["status"] = STATUS_BY_EXIT[exit_code(doc)]
+    if write:
+        from spa_core.utils.atomic import atomic_save
+        target.parent.mkdir(parents=True, exist_ok=True)
+        atomic_save(doc, str(target))
+    return {"measured": True, "doc": doc, "artifact": str(target)}
+
+
 def main(argv: Optional[List[str]] = None) -> int:
     ap = argparse.ArgumentParser(
         description="перепись повторного разбора хеш-лент у читающих моделей (заказ G777 п. 1)")

@@ -2678,6 +2678,90 @@ def _write_orphaned_pytest(data_dir: Path, report: Optional[dict] = None) -> Non
                     type(exc).__name__)
 
 
+#: Артефакт переписи измеримости оси РАБОТНИКА (ADR-722, G721 п. 3).
+WORKER_AXIS_ARTIFACT = "worker_axis_census.json"
+
+#: Загруженный прибор по ПУТИ: один путь — один модуль и один класс `NotMeasured`.
+_WORKER_AXIS_MODULES: Dict[str, object] = {}
+
+
+def _load_worker_axis_census():
+    """Загрузить прибор `scripts/worker_axis_census.py` по ПУТИ — как его зовёт launchd.
+
+    Отдельной функцией, чтобы тест получал ТОТ ЖЕ модуль (и его `NotMeasured`), что и
+    side-car: исключение третьего исхода сравнивается по классу, а два загруженных
+    экземпляра одного файла — два разных класса.
+    """
+    import importlib.util as _ilu
+    import sys as _sys
+    path = _PROJECT_ROOT / "scripts" / "worker_axis_census.py"
+    cached = _WORKER_AXIS_MODULES.get(str(path))
+    if cached is not None:
+        return cached
+    spec = _ilu.spec_from_file_location("_spa_worker_axis_census", path)
+    mod = _ilu.module_from_spec(spec)
+    _sys.modules[spec.name] = mod
+    spec.loader.exec_module(mod)
+    _WORKER_AXIS_MODULES[str(path)] = mod
+    return mod
+
+
+def _write_worker_axis_census(data_dir: Path,
+                              census: Optional[Callable[[], dict]] = None) -> None:
+    """Side-car: перепись ИЗМЕРИМОСТИ оси РАБОТНИКА получает расписание (ADR-722, G721 п. 3).
+
+    Прибор написан циклом #866 и не звался НИЧЕМ (карточка
+    `inbox-perepis-osi-rabotnika-napisana-i-ne-pozv`): вопрос «не превратится ли третий
+    исход оси в постоянный `unchecked`» решает ЧАСТОТА, а частоту одного ручного замера
+    (14.10: 74 строки из 651) не узнать. Здесь он получает ежечасный такт пульса флота —
+    тот же шаблон и та же дверь к ОС (`ps`), что у `_write_orphaned_pytest`; цена одного
+    вызова — две таблицы `ps` (замер 22.10: 0.12 с). Новый агент не добавляется.
+
+    Прибор только ЧИТАЕТ и ничего не перезапускает; side-car только НАЗЫВАЕТ. Три исхода
+    различимы в артефакте (инв. #17): `clear` · `finding` · `unmeasured` с причиной —
+    «`ps` не ответил» записывается, а не выдаётся за «работник виден».
+
+    ``census`` — ВХОД (по умолчанию — настоящая перепись хоста): без инъекции тест судил
+    бы о том, какие запуски живы на ХОСТЕ сейчас, и один sha давал бы разный ответ.
+
+    Никогда не роняет монитор: пульс флота важнее переписи оси.
+    """
+    try:
+        mod = _load_worker_axis_census()
+        payload: dict = {"generated_at": datetime.now(timezone.utc).isoformat(),
+                         "adr": "ADR-722"}
+        try:
+            rep = census() if census is not None else mod.census()
+        except mod.NotMeasured as exc:
+            payload.update(status="unmeasured", reason=str(exc), findings=None)
+        else:
+            found = mod.findings(rep)
+            payload.update(
+                status="finding" if found else "clear",
+                reason=None,
+                rows_total=rep.get("rows_total"),
+                env_readable=rep.get("env_readable"),
+                env_blind=rep.get("env_blind"),
+                readable_share=rep.get("readable_share"),
+                axis_measurable=rep.get("axis_measurable"),
+                blind_by_class=rep.get("blind_by_class"),
+                runs=[{k: r.get(k) for k in ("label", "launcher_pids", "worker_pids",
+                                              "visible", "counts")}
+                      for r in (rep.get("runs") or [])],
+                findings=found,
+            )
+        payload["note"] = ("прибор только ЧИТАЕТ `ps`; находка «запускатель жив, "
+                           "работника не видно» НАЗЫВАЕТСЯ, ничего не перезапускается")
+        from spa_core.utils.atomic import atomic_save as _atomic_save
+        _atomic_save(payload, str(data_dir / WORKER_AXIS_ARTIFACT))
+        if payload["status"] != "clear":
+            log.warning("worker_axis_census: %s — %s", payload["status"],
+                        payload.get("reason") or payload.get("findings"))
+    except Exception as exc:  # noqa: BLE001 — перепись оси не важнее пульса флота
+        log.warning("worker_axis_census не записана (%s) — пульс флота не затронут",
+                    type(exc).__name__)
+
+
 def _write_problem_store(data_dir: Path) -> None:
     """Side-car (ADR-580 §C6 Problem-store, REVIEW_1 amendment): recurring ops
     failures get ONE record with a closing criterion + ONE agent-карточка instead
@@ -2735,6 +2819,7 @@ def main(argv: Optional[List[str]] = None) -> int:
     report = monitor.run(send=send)
     _write_fleet_economics(Path(args.data_dir))
     _write_orphaned_pytest(Path(args.data_dir))
+    _write_worker_axis_census(Path(args.data_dir))
     _write_problem_store(Path(args.data_dir))
     _print_summary(report)
     return 0  # always exit 0 (fail-safe daemon)
