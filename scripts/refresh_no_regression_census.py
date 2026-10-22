@@ -118,7 +118,7 @@ GUARD_SITECUSTOMIZE = r'''
 import atexit, json, os, sys
 _DIR = os.environ.get("SPA_NOREG_GUARD_REPORT_DIR")
 _ROOTS = [os.path.realpath(r) for r in os.environ.get("SPA_NOREG_GUARD_ROOTS", "").split(os.pathsep) if r]
-_refused, _reads, _children = [], [0], []
+_refused, _reads, _children, _secrets = [], [0], [], [0]
 _WRITE_FLAGS = os.O_WRONLY | os.O_RDWR | os.O_CREAT | os.O_APPEND | os.O_TRUNC
 
 def _real(path):
@@ -171,6 +171,11 @@ def _hook(event, args):
     elif event in ("subprocess.Popen", "os.system", "os.posix_spawn", "os.exec"):
         exe, argv = (list(args) + [None, None])[:2]
         name = os.path.basename(os.fsdecode(exe)) if isinstance(exe, (str, bytes)) else str(exe)[:80]
+        if name == "security":
+            # Связка ключей хоста — не вход прогона: тест, которому нужен секрет, обязан
+            # подать его сам. Запуск запрещается ДО чтения, попытка считается.
+            _secrets[0] += 1
+            raise PermissionError("no_regression isolation: связка ключей хоста закрыта для прогона")
         try:
             head = [os.fsdecode(a)[:40] for a in list(argv or [])[1:3]]
         except TypeError:
@@ -188,7 +193,7 @@ def _dump():
         json.dump({"pid": os.getpid(), "installed": bool(_ROOTS and _DIR), "roots": _ROOTS,
                    "argv0": os.path.basename(sys.argv[0]) if sys.argv else "",
                    "pytest": any("pytest" in a for a in sys.argv[:1]) or "pytest" in sys.modules,
-                   "refused": _refused, "live_reads": _reads[0],
+                   "refused": _refused, "live_reads": _reads[0], "keychain_refused": _secrets[0],
                    "children": sorted(set(_children))}, fh)
     os.replace(tmp, os.path.join(_DIR, f"{os.getpid()}.json"))
 
@@ -250,6 +255,7 @@ def judge_isolation(scratch: Path, roots: list[Path]) -> dict:
     out = {"protected_roots": want, "guard_processes": len(reports),
            "refused_writes": len(refused),
            "live_reads": sum(int(r.get("live_reads") or 0) for r in reports),
+           "keychain_refused": sum(int(r.get("keychain_refused") or 0) for r in reports),
            "unaudited_children": sorted({c for r in reports for c in r.get("children") or []})}
     if refused:
         raise NotMeasured(f"изоляция НАРУШЕНА: {len(refused)} попыт(ка/ок) записи в охраняемый "

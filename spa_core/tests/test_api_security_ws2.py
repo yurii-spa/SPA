@@ -139,8 +139,16 @@ class TestAuthWiring:
 
     def test_fail_closed_when_enforced_but_no_key(self):
         # Enforcement ON + no configured key → fail-CLOSED 401 (never silently open).
-        client, _ = _build_client(require_auth=True, with_key=False)
-        r = client.post("/api/chat", json={"question": "hi"})
+        # «Нет ключа» обязано быть ПРЕДПОСЫЛКОЙ сцены, а не свойством хоста: без подмены
+        # `_load_key` шёл в связку ключей машины и на хосте с SPA_API_KEY проверял не «нет
+        # ключа», а «ключ есть, заголовка нет» — и поднимал настоящий секрет в память теста
+        # (замер 22.10, сторож производителя §49).
+        from unittest.mock import patch
+        with patch("spa_core.utils.keychain.get_secret", return_value=None):
+            client, _ = _build_client(require_auth=True, with_key=False)
+            r = client.post("/api/chat", json={"question": "hi"})
+            import spa_core.api.auth as auth_mod
+            assert auth_mod.get_auth()._key is None, "предпосылка «ключа нет» не обеспечена"
         assert r.status_code == 401, r.text
 
     def test_flag_off_allows_unauth_write(self):

@@ -848,6 +848,17 @@ class ИзоляцияПрогонаОтБоевогоКорня(unittest.TestCa
         self.assertIn("echo x", got["isolation"]["unaudited_children"],
                       "неохваченный потомок назван командой и первыми аргументами")
 
+    def test_связка_ключей_хоста_закрыта_и_попытка_посчитана(self):
+        got = self._run(
+            "def test_k():\n"
+            "    try:\n"
+            "        subprocess.run(['security', 'find-generic-password', '-s', 'X', '-w'], capture_output=True)\n"
+            "    except PermissionError:\n"
+            "        return\n"
+            "    raise AssertionError('security запущен')\n")
+        self.assertEqual(got["returncode"], 0, got["tail"])
+        self.assertEqual(got["isolation"]["keychain_refused"], 1)
+
     def test_нет_отчёта_сторожа_это_НЕ_ДОКАЗАНО(self):
         def silent(cmd, **kw):
             target = Path([c for c in cmd if str(c).startswith("--junitxml=")][0].split("=", 1)[1])

@@ -167,9 +167,12 @@ class TestRateLimitStub:
 
 class TestSingleton:
     def test_get_auth_returns_instance(self):
+        # Свежий синглтон читает ключ; без подмены — из связки ключей ХОСТА (настоящий
+        # секрет в памяти теста, замер 22.10). Предмет теста — тип экземпляра, не ключ.
         import spa_core.api.auth as auth_module
         auth_module._auth_instance = None  # reset
-        a = get_auth()
+        with patch("spa_core.utils.keychain.get_secret", return_value=None):
+            a = get_auth()
         assert isinstance(a, APIAuth)
 
     def test_get_auth_same_instance(self):
