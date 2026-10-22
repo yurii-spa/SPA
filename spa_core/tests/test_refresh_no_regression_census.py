@@ -190,6 +190,50 @@ def _guard_report(env: dict, **extra) -> None:
     Path(d, "4242.json").write_text(json.dumps(doc), encoding="utf-8")
 
 
+class _DoubleBoundary:
+    """ТЕСТОВАЯ подмена границы записи для проверок ПРОТОКОЛА прогона (команда, junit, коды,
+    отказы) и Python-наблюдателя. Ничего не запрещает и изоляцию НЕ доказывает: её метка едет в
+    отчёт, и тест это проверяет. Настоящая граница проверяется отдельно (`_seatbelt_state`)."""
+
+    MECHANISM = "test-double: НЕ граница записи"
+
+    def __init__(self):
+        self.verified = 0
+
+    def verify(self):
+        self.verified += 1
+        return {"mechanism": self.MECHANISM, "proves_isolation": False}
+
+    def wrap(self, cmd, roots):
+        return list(cmd)
+
+
+_SEATBELT_CACHE: list = []
+
+
+def _seatbelt_state() -> tuple:
+    """(можно ли применить профиль Seatbelt здесь, причина). Linux — нет бинаря; вложенная
+    песочница (среда ARB 22.10) — `sandbox_apply: Operation not permitted`, код 71."""
+    if not _SEATBELT_CACHE:
+        exe = "/usr/bin/sandbox-exec"
+        if not os.path.exists(exe):
+            _SEATBELT_CACHE.append((False, f"нет {exe}"))
+        else:
+            # Тот же ВИД профиля, что у границы: под внешней песочницей «allow default» ещё
+            # применяется (код 0), а deny file-write* — уже нет (код 71, замер 22.10).
+            p = subprocess.run([exe, "-p", RNC.boundary_profile([Path("/nonexistent-noreg-probe")]),
+                                "/usr/bin/true"], capture_output=True, text=True)
+            _SEATBELT_CACHE.append((p.returncode == 0,
+                                    f"код {p.returncode}: {(p.stderr or '').strip()[:120]}"))
+    return _SEATBELT_CACHE[0]
+
+
+def _with_double_boundary(test):
+    patcher = unittest.mock.patch.object(RNC, "default_boundary", _DoubleBoundary)
+    patcher.start()
+    test.addCleanup(patcher.stop)
+
+
 class ПрогонНаселения(unittest.TestCase):
     """Запись — предмет прогона, и её отсутствие НЕ есть «все прошли»."""
 
@@ -198,6 +242,7 @@ class ПрогонНаселения(unittest.TestCase):
         self.root = Path(self.tmp.name)
         self.addCleanup(self.tmp.cleanup)
         self.record = self.root / RNC.RECORDS_REL / "run.xml"
+        _with_double_boundary(self)   # предмет здесь — протокол прогона, не граница
 
     def _stub(self, *, write: list | None, rc: int = 0, out: str = ""):
         def fake_run(cmd, **kw):
@@ -217,6 +262,9 @@ class ПрогонНаселения(unittest.TestCase):
         self.assertEqual(got["cases_in_record"], 1)
         self.assertEqual(got["returncode"], 0)
         self.assertEqual(got["files_requested"], 1)
+        # Подмена границы видна в отчёте и не выдаётся за изоляцию.
+        self.assertEqual(got["isolation"]["boundary"]["mechanism"], _DoubleBoundary.MECHANISM)
+        self.assertFalse(got["isolation"]["full_isolation_proven"])
 
     def test_команда_несёт_предписанное_окружение_и_своё_дерево(self):
         with unittest.mock.patch.object(RNC.subprocess, "run",
@@ -815,6 +863,8 @@ class ИзоляцияПрогонаОтБоевогоКорня(unittest.TestCa
         (self.live / "data" / "track.json").write_text("{}", encoding="utf-8")
         (self.root / "conftest.py").write_text(_SCENE_CONFTEST, encoding="utf-8")
         self.record = base / "store" / RNC.RECORDS_REL / "run.xml"
+        # Предмет большинства сцен — Python-НАБЛЮДАТЕЛЬ (переносим); граница — свои тесты ниже.
+        _with_double_boundary(self)
 
     def _run(self, body: str, **kw):
         (self.root / "m" / "test_scene.py").write_text(
@@ -875,16 +925,29 @@ class ИзоляцияПрогонаОтБоевогоКорня(unittest.TestCa
 
     # ── Обходы Python-наблюдателя, воспроизведённые ARB 22.10: держит ГРАНИЦА (Seatbelt) ──
     def _bypass(self, body: str):
-        got = self._run("import sqlite3\n" + body)
+        """Обход Python-наблюдателя против НАСТОЯЩЕЙ границы. Где Seatbelt применим — доказательство
+        (корень цел); где нет (Linux, вложенная песочница) — тот же вход обязан дать ОТКАЗ ДО теста.
+        Ни в одной ветке тест не пропускается."""
+        usable, why = _seatbelt_state()
+        if not usable:
+            with self.assertRaises(RNC.NotMeasured) as ctx:
+                self._run("import sqlite3\n" + body, write_boundary=RNC.SeatbeltBoundary())
+            self.assertIn("граница записи не обеспечена", str(ctx.exception), why)
+            self.assertFalse((self.root / "m" / ".pytest_cache").exists(), "тесты не запускались")
+            self.assertEqual((self.live / "data" / "track.json").read_text(encoding="utf-8"), "{}")
+            return None
+        got = self._run("import sqlite3\n" + body, write_boundary=RNC.SeatbeltBoundary())
         self.assertEqual((self.live / "data" / "track.json").read_text(encoding="utf-8"), "{}")
+        self.assertEqual(got["isolation"]["boundary"]["mechanism"], "seatbelt deny file-write*")
         return got
 
     def test_обход_A_sqlite_не_создаёт_БД_в_корне(self):
         got = self._bypass("def test_a():\n    c = sqlite3.connect(os.path.join(LIVE, 'data', 'probe.sqlite'))\n"
                            "    c.execute('CREATE TABLE t(x)'); c.commit()\n")
         self.assertFalse((self.live / "data" / "probe.sqlite").exists(), "sqlite обошёл границу")
-        self.assertEqual(got["returncode"], 1, "попытка записи видна как падение теста")
-        self.assertFalse(got["isolation"]["full_isolation_proven"])
+        if got is not None:
+            self.assertEqual(got["returncode"], 1, "попытка записи видна как падение теста")
+            self.assertFalse(got["isolation"]["full_isolation_proven"])
 
     def test_обход_B_shell_потомок_не_меняет_файл_корня(self):
         self._bypass("def test_b():\n    subprocess.run(['/bin/sh', '-c', 'printf changed > \"$1\"', 'probe',"
@@ -904,7 +967,8 @@ class ИзоляцияПрогонаОтБоевогоКорня(unittest.TestCa
              unittest.mock.patch.object(RNC, "verify_write_boundary",
                                         side_effect=RNC.NotMeasured("граница записи не обеспечена")):
             with self.assertRaises(RNC.NotMeasured):
-                RNC.run_population(self.root, ["m/test_a.py"], self.record, protected_roots=[self.live])
+                RNC.run_population(self.root, ["m/test_a.py"], self.record, protected_roots=[self.live],
+                                   write_boundary=RNC.SeatbeltBoundary())
         self.assertEqual(calls, [])
 
     def test_самопроверка_отказывает_без_sandbox_exec(self):
@@ -913,16 +977,60 @@ class ИзоляцияПрогонаОтБоевогоКорня(unittest.TestCa
         self.assertIn("граница записи не обеспечена", str(ctx.exception))
 
     def test_самопроверка_ловит_профиль_который_не_запрещает(self):
+        usable, why = _seatbelt_state()
         with unittest.mock.patch.object(RNC, "boundary_profile", return_value="(version 1)(allow default)"):
             with self.assertRaises(RNC.NotMeasured) as ctx:
                 RNC.verify_write_boundary()
-        self.assertIn("не держит", str(ctx.exception))
+        # Где граница применима — отказ ИМЕННО из-за непройденных зондов. Где нет: на Linux — из-за
+        # среды; под внешней песочницей профиль «allow default» ещё применяется, и отказ — снова
+        # «не держит». Любой ответ, кроме отказа, — дефект.
+        text = str(ctx.exception)
+        if usable:
+            self.assertIn("не держит", text)
+        else:
+            self.assertTrue("не держит" in text or "граница записи не обеспечена" in text, (why, text))
 
     def test_самопроверка_ловит_профиль_который_запрещает_всё(self):
+        usable, why = _seatbelt_state()
         with unittest.mock.patch.object(RNC, "boundary_profile",
                                         return_value="(version 1)(allow default)(deny file-write*)"):
-            with self.assertRaises(RNC.NotMeasured):
+            with self.assertRaises(RNC.NotMeasured) as ctx:
                 RNC.verify_write_boundary()
+        if usable:
+            self.assertIn("не держит", str(ctx.exception))
+
+    def test_настоящая_граница_на_этой_машине_держит_или_честно_отказывает(self):
+        usable, why = _seatbelt_state()
+        if usable:
+            got = RNC.SeatbeltBoundary().verify()
+            self.assertEqual(got["probes"], {"sqlite": "refused", "shell_child": "refused",
+                                             "dir_fd": "refused", "python_open": "refused",
+                                             "outside": "written"})
+            self.assertFalse(got["proves_isolation"])
+        else:
+            with self.assertRaises(RNC.NotMeasured):
+                RNC.SeatbeltBoundary().verify()
+
+    def test_среда_не_даёт_применить_профиль_код_71_это_отказ_до_тестов(self):
+        """Переносимо: поддельный sandbox-exec ведёт себя как в среде ARB 22.10."""
+        fake = self.root / "fake-sandbox-exec"
+        fake.write_text("#!/bin/sh\necho 'sandbox-exec: sandbox_apply: Operation not permitted' >&2\nexit 71\n",
+                        encoding="utf-8")
+        fake.chmod(0o755)
+        with self.assertRaises(RNC.NotMeasured) as ctx:
+            RNC.verify_write_boundary(sandbox_exec=str(fake))
+        self.assertIn("граница записи не обеспечена", str(ctx.exception))
+        self.assertIn("sandbox_apply", str(ctx.exception))
+        ran = []
+        with unittest.mock.patch.object(RNC.subprocess, "run", lambda *a, **k: ran.append(a)):
+            with self.assertRaises(RNC.NotMeasured):
+                RNC.run_population(self.root, ["m/test_a.py"], self.record, protected_roots=[self.live],
+                                   write_boundary=RNC.SeatbeltBoundary(str(fake)))
+        self.assertEqual(ran, [], "тестируемый прогон не начат")
+
+    def test_по_умолчанию_граница_настоящая(self):
+        unittest.mock.patch.stopall()
+        self.assertIsInstance(RNC.default_boundary(), RNC.SeatbeltBoundary)
 
     def test_нет_отчёта_сторожа_это_НЕ_ДОКАЗАНО(self):
         def silent(cmd, **kw):

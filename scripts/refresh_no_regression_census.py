@@ -344,10 +344,13 @@ def verify_write_boundary(*, sandbox_exec: str = "/usr/bin/sandbox-exec") -> dic
             with subprocess.Popen(
                     [sandbox_exec, "-p", boundary_profile([prot]), sys.executable, str(probe),
                      os.path.realpath(prot), str(outside)], stdout=subprocess.PIPE,
-                    stderr=subprocess.DEVNULL, text=True) as proc:
-                out, _ = proc.communicate(timeout=60)
+                    stderr=subprocess.PIPE, text=True) as proc:
+                out, err = proc.communicate(timeout=60)
             if proc.returncode != 0:
-                raise NotMeasured(f"зонд границы вышел с кодом {proc.returncode} — прогон не начат")
+                # Например `sandbox_apply: Operation not permitted` (код 71) — среда не даёт
+                # применить профиль (вложенная песочница). Граница не обеспечена ⇒ отказ.
+                raise NotMeasured(f"граница записи не обеспечена: зонд границы вышел с кодом "
+                                  f"{proc.returncode} ({(err or '').strip()[:200]}) — прогон не начат")
         except (OSError, subprocess.SubprocessError) as exc:
             raise NotMeasured(f"самопроверка границы записи не выполнена: "
                               f"{type(exc).__name__}: {exc} — прогон не начат") from exc
@@ -368,6 +371,26 @@ def verify_write_boundary(*, sandbox_exec: str = "/usr/bin/sandbox-exec") -> dic
 
 class NotMeasured(RuntimeError):
     """Замер не состоялся. Причина обязана быть названа."""
+
+
+class SeatbeltBoundary:
+    """НАСТОЯЩАЯ граница записи: самопроверка на сцене + обёртка команды профилем Seatbelt.
+    Нет sandbox-exec (Linux) или среда не даёт применить профиль ⇒ `verify` отказывает."""
+
+    def __init__(self, sandbox_exec: str = "/usr/bin/sandbox-exec") -> None:
+        self.sandbox_exec = sandbox_exec
+
+    def verify(self) -> dict:
+        return dict(verify_write_boundary(sandbox_exec=self.sandbox_exec), proves_isolation=False)
+
+    def wrap(self, cmd: list, roots: list) -> list:
+        return [self.sandbox_exec, "-p", boundary_profile(roots), *cmd]
+
+
+def default_boundary():
+    """Граница прогона по умолчанию — настоящая. Тест протокола вправе подать свою, но её
+    отметка `mechanism` попадает в отчёт, и подмена никогда не выдаётся за изоляцию."""
+    return SeatbeltBoundary()
 
 
 def _stamp() -> str:
@@ -460,7 +483,8 @@ def _refuse_if_prod_tree(repo_root: Path, *, allow: bool) -> None:
 
 def run_population(repo_root: Path, files: list[str], record: Path,
                    *, timeout_s: float | None = None,
-                   protected_roots: list[Path] | None = None) -> dict:
+                   protected_roots: list[Path] | None = None,
+                   write_boundary=None) -> dict:
     """Прогнать РОВНО население и оставить junit-запись на хосте.
 
     Возвращает словарь наблюдений о прогоне (код возврата, число случаев в
@@ -485,8 +509,9 @@ def run_population(repo_root: Path, files: list[str], record: Path,
         boundary = None
         if roots:
             # Граница ДО тестов: не держит на сцене ⇒ тесты не запускаются вовсе.
-            boundary = verify_write_boundary()
-            cmd = ["/usr/bin/sandbox-exec", "-p", boundary_profile(roots), *cmd]
+            gate = write_boundary if write_boundary is not None else default_boundary()
+            boundary = gate.verify()
+            cmd = gate.wrap(cmd, roots)
         try:
             proc = subprocess.run(cmd, cwd=str(repo_root), env=env, timeout=timeout_s,
                                   capture_output=True, text=True)
