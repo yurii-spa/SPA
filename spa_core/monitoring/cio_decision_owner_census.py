@@ -69,7 +69,6 @@ B     существует ли модуль, который   разбор де
 from __future__ import annotations
 
 import argparse
-import ast
 import json
 import os
 import pathlib
@@ -191,19 +190,18 @@ def _multi_book_modules(root: str, artifacts: set[str]) -> tuple[list[dict], str
     parse_failures: list[str] = []
     for rel, path in producers._iter_runtime_modules(root):
         try:
-            tree = ast.parse(path.read_text(encoding="utf-8"))
+            text = path.read_text(encoding="utf-8")
+            # Литералы и имена вызовов — из памяти по тексту (тот же разбор,
+            # см. `cio_target_producers.source_facts`); `SyntaxError` — сюда.
+            literals, called = producers.source_facts(text)
         except (OSError, SyntaxError, UnicodeDecodeError) as exc:
             parse_failures.append(f"{rel}: {type(exc).__name__}: {exc}")
             continue
-        literals = producers._string_constants(tree)
         seen_names = {pathlib.Path(s).name for s in literals
                       if pathlib.Path(s).name in names}
         if len(seen_names) < 2:
             continue
-        writes = producers._book_shaped_writes(rel, tree, literals)
-        called = {(n.func.attr if isinstance(n.func, ast.Attribute)
-                   else getattr(n.func, "id", ""))
-                  for n in ast.walk(tree) if isinstance(n, ast.Call)}
+        writes = producers.book_writes_of(rel, text, literals)
         decider_calls = sorted(called & set(producers._DECIDERS))
         if writes:
             provs = {w["provenance"] for w in writes}

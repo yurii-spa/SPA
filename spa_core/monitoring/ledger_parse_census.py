@@ -306,6 +306,8 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Callable, Dict, List, Optional, Sequence, Tuple
 
+from spa_core.utils.source_memo import SourceMemo
+
 _ROOT = Path(__file__).resolve().parents[2]
 
 #: РЕШЕНИЕ (не замер): сколько секунд ОДИН вызов вида вправе потратить на разбор своей
@@ -933,6 +935,15 @@ def _calls_in_file(tree: ast.AST, rel: str,
     return calls, murky
 
 
+#: Память «текст файла × путь × искомые виды → зовы» (spa_core.utils.source_memo).
+#: Замер 2026-10-22: перепись G16 зовёт этот прибор двадцать раз за прогон
+#: (4 зова × (1 + 4 вложенные переписи `heir_all_rows_price`)), и каждый зов
+#: заново разбирал и обходил ~5000 файлов — 32 из 48 с профиля двух зовов.
+#: ``_calls_in_file`` — чистая функция разобранного текста, пути (от него
+#: зависят относительный импорт и «дверь 4») и набора видов; все три в ключе.
+_CALLS_IN_FILE = SourceMemo("ledger_parse_census.calls_in_file")
+
+
 def view_call_sites(members: Sequence["Member"], tree_root: Optional[Path] = None,
                     ) -> Dict[str, CallSites]:
     """Обход дерева ОДИН раз: кто зовёт каждый объявленный вид (заказ G782 п. 1).
@@ -952,6 +963,7 @@ def view_call_sites(members: Sequence["Member"], tree_root: Optional[Path] = Non
         if mod_name and attr:
             wanted.append((m.id, mod_name, attr))
     calls: Dict[str, Dict[str, int]] = {key: {} for key, _, _ in wanted}
+    wanted_key = tuple(wanted)
     unparsed: Dict[str, str] = {}
     murky: Dict[str, Dict[str, str]] = {key: {} for key, _, _ in wanted}
     for base in ("spa_core", "scripts"):
@@ -964,12 +976,16 @@ def view_call_sites(members: Sequence["Member"], tree_root: Optional[Path] = Non
                 continue
             try:
                 text = path.read_text(encoding="utf-8")
-                tree = ast.parse(text)
+                hit, got = _CALLS_IN_FILE.lookup(text, (rel, wanted_key))
+                tree = None if hit else ast.parse(text)
             except (OSError, SyntaxError, ValueError) as exc:
                 #: про этот файл не измерено НИЧЕГО — ни зовов, ни их отсутствия
                 unparsed[rel] = f"{U_CALL_SITE_UNPARSED}: {type(exc).__name__}: {exc}"
                 continue
-            found, bad = _calls_in_file(tree, rel, wanted)
+            if not hit:
+                got = _CALLS_IN_FILE.store(text, (rel, wanted_key),
+                                           _calls_in_file(tree, rel, wanted))
+            found, bad = got
             for key, n in found.items():
                 calls[key][rel] = n
             for key, why in bad.items():

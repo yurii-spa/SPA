@@ -125,6 +125,7 @@ import re
 from typing import Any, Callable
 
 from spa_core.utils.observation import observed, observed_number
+from spa_core.utils.source_memo import SourceMemo, text_digest
 
 REPO_ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 REPORT_REL = "data/cio_target_producers.json"
@@ -251,18 +252,84 @@ def _import_graph(root: str) -> dict[str, set[str]]:
     graph: dict[str, set[str]] = {}
     for rel, path in _iter_runtime_modules(root):
         try:
-            tree = ast.parse(path.read_text(encoding="utf-8"))
+            text = path.read_text(encoding="utf-8")
+            hit, deps = _IMPORT_DEPS.lookup(text, None)
+            if not hit:
+                _tree_of(text)                 # разбор — под тем же except
         except (OSError, SyntaxError, UnicodeDecodeError):
             continue
-        deps: set[str] = set()
-        for n in ast.walk(tree):
-            if isinstance(n, ast.Import):
-                deps.update(a.name for a in n.names)
-            elif isinstance(n, ast.ImportFrom) and n.module:
-                deps.add(n.module)
-                deps.update(f"{n.module}.{a.name}" for a in n.names)
-        graph[_module_dotted(rel)] = deps
+        if not hit:
+            deps = _IMPORT_DEPS.store(text, None, _import_deps(text))
+        graph[_module_dotted(rel)] = set(deps)
     return graph
+
+
+# ── память чистых выводов из текста модуля (см. spa_core.utils.source_memo) ──
+#
+# Замер 2026-10-22: перепись G16 зовёт этот разбор через
+# `acceptance_tree_capability` двадцать раз за прогон (4 зова × (1 + 4 вложенные
+# переписи `heir_all_rows_price`)), и каждый раз все ~2500 файлов рантайма
+# разбирались и обходились заново — 61 из 104 с профиля одного зова. Каждый
+# вывод ниже — чистая функция ТЕКСТА файла (и пути — для сайтов записи, где
+# путь попадает в ответ), поэтому ответ из памяти тождествен разбору; текст
+# читается с диска на каждом зове, как и прежде.
+_IMPORT_DEPS = SourceMemo("cio_target_producers.import_deps", immutable=True)
+_SOURCE_FACTS = SourceMemo("cio_target_producers.source_facts", immutable=True)
+_BOOK_WRITES = SourceMemo("cio_target_producers.book_writes")
+#: Последнее разобранное дерево: промах по сайтам записи сразу за промахом по
+#: фактам того же текста не разбирает файл второй раз. Деревом не делятся
+#: наружу, и обходы его не правят.
+_LAST_TREE: list = [None, None]
+
+
+def _tree_of(text: str) -> ast.AST:
+    digest = text_digest(text)
+    if _LAST_TREE[0] != digest:
+        tree = ast.parse(text)              # SyntaxError — наружу, как прежде
+        _LAST_TREE[0], _LAST_TREE[1] = digest, tree
+    return _LAST_TREE[1]
+
+
+def _import_deps(text: str) -> frozenset:
+    deps: set[str] = set()
+    for n in ast.walk(_tree_of(text)):
+        if isinstance(n, ast.Import):
+            deps.update(a.name for a in n.names)
+        elif isinstance(n, ast.ImportFrom) and n.module:
+            deps.add(n.module)
+            deps.update(f"{n.module}.{a.name}" for a in n.names)
+    return frozenset(deps)
+
+
+def _compute_source_facts(text: str) -> tuple[frozenset, frozenset]:
+    tree = _tree_of(text)
+    called = frozenset(
+        (n.func.attr if isinstance(n.func, ast.Attribute)
+         else getattr(n.func, "id", ""))
+        for n in ast.walk(tree) if isinstance(n, ast.Call))
+    return frozenset(_string_constants(tree)), called
+
+
+def source_facts(text: str) -> tuple[frozenset, frozenset]:
+    """``(строковые литералы, имена вызовов)`` модуля. ``SyntaxError`` — наружу.
+
+    Имена вызовов — ровно то множество, которое прежде собиралось по месту:
+    ``attr`` у атрибута, ``id`` у имени, ``""`` у прочего.
+    """
+    return _SOURCE_FACTS.get(text, None, lambda: _compute_source_facts(text))
+
+
+def book_writes_of(rel: str, text: str, literals: frozenset | None = None) -> list[dict]:
+    """:func:`_book_shaped_writes` над текстом модуля — из памяти, копией.
+
+    Ключ несёт ``rel`` (он попадает в ответ) и объявленные списки решающих и
+    загружающих вызовов (от них зависит приговор о происхождении).
+    """
+    def compute() -> list[dict]:
+        tree = _tree_of(text)
+        lits = set(literals) if literals is not None else _string_constants(tree)
+        return _book_shaped_writes(rel, tree, lits)
+    return _BOOK_WRITES.get(text, (rel, tuple(_DECIDERS), tuple(_LOADERS)), compute)
 
 
 def _live_reachable(root: str) -> tuple[set[str] | None, str]:
@@ -471,12 +538,12 @@ def _enumerate_producers(root: str) -> dict:
     for rel, path in _iter_runtime_modules(root):
         try:
             src = path.read_text(encoding="utf-8")
-            tree = ast.parse(src)
+            literals, _called = source_facts(src)
         except (OSError, SyntaxError, UnicodeDecodeError) as exc:
             parse_failures.append({"module": rel, "error":
                                    f"{type(exc).__name__}: {exc}"})
             continue
-        writes = _book_shaped_writes(rel, tree, _string_constants(tree))
+        writes = book_writes_of(rel, src, literals)
         if not writes:
             continue
         seen_writes[rel] = writes

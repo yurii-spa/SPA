@@ -116,6 +116,7 @@ from pathlib import Path
 from typing import Any, Dict, List, Optional
 
 from spa_core.utils.observation import observed
+from spa_core.utils.source_memo import SourceMemo
 
 #: Артефакт прибора — его читает шаг 0-офис.
 ARTIFACT_NAME = "pre_trade_recheck_census.json"
@@ -360,18 +361,32 @@ def _imports_gate(path: Path) -> Optional[bool]:
         text = path.read_text(encoding="utf-8")
     except OSError:
         return None
+    # Вывод — чистая функция ТЕКСТА и имени модуля проверки, поэтому берётся из
+    # памяти по хэшу текста (spa_core.utils.source_memo): замер 2026-10-22 —
+    # перепись G16 гоняет эту ось двадцать раз за прогон по ~9700 файлам, и
+    # 51 из 104 с профиля одного зова `acceptance_tree_capability` были ровно
+    # этим повторным разбором. Текст читается с диска на каждом зове.
+    return _IMPORTS_GATE.get(text, GATE_MODULE_DOTTED,
+                             lambda: _imports_gate_text(text, GATE_MODULE_DOTTED))
+
+
+_IMPORTS_GATE = SourceMemo("pre_trade_recheck_census.imports_gate", immutable=True)
+
+
+def _imports_gate_text(text: str, gate_dotted: str) -> Optional[bool]:
+    """Разбор одного текста — тело прежнего `_imports_gate` без чтения файла."""
     try:
         tree = ast.parse(text)
     except SyntaxError:
         return None
-    parent, _, leaf = GATE_MODULE_DOTTED.rpartition(".")
+    parent, _, leaf = gate_dotted.rpartition(".")
     for node in ast.walk(tree):
         if isinstance(node, ast.Import):
             for alias in node.names:
-                if alias.name == GATE_MODULE_DOTTED:
+                if alias.name == gate_dotted:
                     return True
         elif isinstance(node, ast.ImportFrom):
-            if node.module == GATE_MODULE_DOTTED:
+            if node.module == gate_dotted:
                 return True
             if node.module == parent and any(
                     alias.name == leaf for alias in node.names):

@@ -718,13 +718,38 @@ class BatteryHoleTests(unittest.TestCase):
         self.assertEqual(g16._judge_horizon(), int(DEFAULT_HORIZON_DAYS))
 
     # ── заслон от рекурсии ──────────────────────────────────────────────────
+    #: ОДНА полная перепись на оба теста ниже (замер 2026-10-22: перепись по
+    #: настоящему дереву — минуты, а два теста гоняли её на ОДНИХ И ТЕХ ЖЕ
+    #: входах: тот же журнал из двух строк, пустые ходы, то же дерево —
+    #: умолчание ``measure`` и явный ``Path(g16.__file__).resolve().parents[2]``
+    #: суть одно выражение). Предмет не сужается: первый тест читает строку
+    #: прибора в отчёте ЭТОЙ переписи, второй — флаг заслона, снятый СРАЗУ после
+    #: её возврата (до любого другого теста), то есть ровно то, что он читал
+    #: прежде, плюс теперь требует, чтобы перепись действительно состоялась.
+    #: Первый же тест, которому она нужна, платит за неё; срок каждого теста не
+    #: тронут.
+    _FULL_SWEEP = None
+
+    @classmethod
+    def _full_sweep(cls):
+        if cls._FULL_SWEEP is None:
+            tmp = tempfile.TemporaryDirectory(prefix="g16_holes_sweep_")
+            try:
+                data = Path(tmp.name) / "data"
+                data.mkdir(parents=True)
+                _write_history(data, [_row(0, hours=1), _row(1, hours=20)])
+                _write_trades(data, [])
+                doc = g16.measure(data)   # tree_root по умолчанию — часть утверждения
+                cls._FULL_SWEEP = (doc, g16._SWEEPING)
+            finally:
+                tmp.cleanup()
+        return cls._FULL_SWEEP
+
     def test_the_instrument_excludes_itself_by_naming_the_reason(self):
         """Дефект, найденный ПЕРВЫМ прогоном на живых данных: прибор сам читает
         журнал, обе дороги находят его читателем, и он входил в перепись изнутри
         переписи. Выжившие мутации заслона этого не замечали."""
-        _write_history(self.data, [_row(0, hours=1), _row(1, hours=20)])
-        _write_trades(self.data, [])
-        doc = g16.measure(self.data)   # tree_root по умолчанию — часть утверждения
+        doc, _ = self._full_sweep()
         readers = doc["readers"]
         self.assertTrue(readers["measured"], readers.get("reason"))
         mine = [r for r in readers["modules"] if r["module"] == g16.__name__]
@@ -745,9 +770,9 @@ class BatteryHoleTests(unittest.TestCase):
         self.assertIn("Повторный вход", doc["readers"]["reason"].capitalize())
 
     def test_the_guard_is_lowered_again_after_a_sweep(self):
-        _write_history(self.data, [_row(0, hours=1), _row(1, hours=20)])
-        _write_trades(self.data, [])
-        g16.measure(self.data, tree_root=Path(g16.__file__).resolve().parents[2])
+        doc, sweeping_after = self._full_sweep()
+        self.assertTrue(doc["readers"]["measured"], doc["readers"].get("reason"))
+        self.assertFalse(sweeping_after)
         self.assertFalse(g16._SWEEPING)
 
     # ── драйвер: какие точки входа приводятся, а какие нет ──────────────────

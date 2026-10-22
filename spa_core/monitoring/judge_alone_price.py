@@ -129,6 +129,7 @@ from pathlib import Path
 from typing import Callable, Dict, List, Optional, Sequence, Tuple
 
 from spa_core.utils.disposable_stand import drop_stand, make_stand
+from spa_core.utils.source_memo import SourceMemo
 
 log = logging.getLogger("spa.monitoring.judge_alone_price")
 
@@ -602,6 +603,28 @@ def _base_name(node: ast.AST) -> Optional[str]:
     return None
 
 
+#: Память «текст файла → что о нём нужно классификации» (spa_core.utils.source_memo).
+#: Замер 2026-10-22: перепись G16 зовёт этот прибор до двадцати раз за прогон
+#: (4 зова × (1 + 4 вложенные переписи `heir_all_rows_price`)), и каждый зов на
+#: стенде с деревом разбирал и обходил те же ~2500 файлов. Вывод — чистая
+#: функция текста и имени модуля судьи (оба в ключе); текст читается с диска на
+#: каждом зове, отдаётся неизменяемым (кортежи и frozenset).
+_FILE_FACTS = SourceMemo("judge_alone_price.file_facts", immutable=True)
+
+
+def _file_facts(tree: ast.AST) -> Tuple[frozenset, bool, tuple]:
+    has_copy = False
+    refs: List[Tuple[bool, Optional[str]]] = []
+    for node in ast.walk(tree):
+        if isinstance(node, ast.ImportFrom) and node.module == JUDGE_MODULE \
+                and any(a.name == "load_history" for a in node.names):
+            has_copy = True
+        if isinstance(node, ast.Attribute) and node.attr == "load_history":
+            refs.append((isinstance(node.value, ast.Name) and node.value.id in ("self", "cls"),
+                         _base_name(node.value)))
+    return frozenset(_judge_aliases(tree)), has_copy, tuple(refs)
+
+
 def attribute_readers(tree_root: Path) -> dict:
     """Кто достаёт ``load_history`` АТРИБУТОМ модуля судьи (статика).
 
@@ -645,21 +668,17 @@ def attribute_readers(tree_root: Path) -> dict:
         if rel == judge_rel or path.name == Path(__file__).name:
             continue
         try:
-            tree = ast.parse(path.read_text(encoding="utf-8"))
+            text = path.read_text(encoding="utf-8")
+            hit, facts = _FILE_FACTS.lookup(text, JUDGE_MODULE)
+            tree = None if hit else ast.parse(text)
         except (OSError, SyntaxError) as exc:
             unparsed.append(f"{rel}: {type(exc).__name__}")
             continue
-        has_copy = False
-        refs: List[Tuple[bool, Optional[str]]] = []
-        for node in ast.walk(tree):
-            if isinstance(node, ast.ImportFrom) and node.module == JUDGE_MODULE \
-                    and any(a.name == "load_history" for a in node.names):
-                has_copy = True
-            if isinstance(node, ast.Attribute) and node.attr == "load_history":
-                refs.append((isinstance(node.value, ast.Name) and node.value.id in ("self", "cls"),
-                             _base_name(node.value)))
-        files.append((rel, _judge_aliases(tree), has_copy, refs))
-        del tree
+        if not hit:
+            facts = _FILE_FACTS.store(text, JUDGE_MODULE, _file_facts(tree))
+            del tree
+        aliases, has_copy, refs = facts
+        files.append((rel, set(aliases), has_copy, list(refs)))
 
     global_aliases: set = set()
     for _rel, file_aliases, _c, _r in files:
