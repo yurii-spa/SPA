@@ -36,11 +36,19 @@ from __future__ import annotations
 
 import json
 import datetime
+import sys
 from pathlib import Path
 from typing import Dict, List, Optional, Tuple
 
-from spa_core.strategy_lab.aggressive_lab.fixtures import strategy_jsonl, strategy_meta, roster, _SPEC
-from spa_core.strategy_lab.aggressive_lab import STRESS_WINDOWS
+# Бутстрап sys.path ВЫШЕ первого импорта пакета (ADR-347): при запуске ПО ПУТИ
+# (`python3 scripts/edge_risk_shape_adaptive_blend.py`) sys.path[0] — каталог
+# scripts/, а не корень репо, и `spa_core` не находится.
+_ROOT = Path(__file__).resolve().parent.parent
+if str(_ROOT) not in sys.path:
+    sys.path.insert(0, str(_ROOT))
+
+from spa_core.strategy_lab.aggressive_lab.fixtures import strategy_jsonl, _SPEC  # noqa: E402
+from spa_core.strategy_lab.aggressive_lab import STRESS_WINDOWS  # noqa: E402
 
 # ── константы ────────────────────────────────────────────────────────────────
 STRATEGIES = ["susde_dn", "lrt_carry", "leverage_loop", "points_farm", "variant_d"]
@@ -119,183 +127,6 @@ def risk_shape_base_weights() -> Dict[str, float]:
     raw = {sid: 1.0 / shape_counts[shapes[sid]] for sid in STRATEGIES}
     total = sum(raw.values())
     return {sid: raw[sid] / total for sid in STRATEGIES}
-
-
-def _compute_portfolio_path(
-    dates: List[datetime.date],
-    returns_dict: Dict[str, List[Optional[float]]],
-    mode: str,
-) -> Dict[str, float]:
-    """Прогнать portfolio с заданным mode ('ew', 'static_rsab', 'adaptive_rsab').
-    Возвращает dict с APY, maxDD, Calmar, per-window stats, cost_pct, наруд.
-
-    Инвариант #3 (детерминизм) и #17 (absent=None): возвращает None для Calmar при maxDD=0.
-    """
-    N = len(STRATEGIES)
-    base_weights = risk_shape_base_weights()
-    shapes = {sid: _SPEC[sid]["risk_shape"] for sid in STRATEGIES}
-
-    # отображение shape → стратегии
-    shape_to_strats: Dict[str, List[str]] = {}
-    for sid in STRATEGIES:
-        sh = shapes[sid]
-        shape_to_strats.setdefault(sh, []).append(sid)
-
-    # инициальные веса
-    if mode == "ew":
-        weights = {sid: 1.0 / N for sid in STRATEGIES}
-    elif mode == "static_rsab":
-        weights = dict(base_weights)
-    else:  # adaptive
-        weights = dict(base_weights)
-
-    portfolio_equity = 100_000.0
-    hwm = portfolio_equity
-    max_dd = 0.0
-    total_turnover = 0.0
-    days_in_drawdown = 0
-
-    # для адаптивного режима: отслеживаем текущее состояние shape
-    shape_derisked: Dict[str, int] = {}  # shape → cool_down_counter (0 = active de-risk)
-    shape_cool_counter: Dict[str, int] = {}  # shape → дней без просадки (для снятия de-risk)
-
-    # для статистики по окнам
-    window_data: Dict[str, Dict] = {}
-    for w in STRESS_WINDOWS:
-        window_data[w["key"]] = {
-            "eq_start": None,
-            "eq_min": None,
-            "active": False,
-        }
-
-    # индивидуальные эквити для отслеживания shape-drawdown
-    indiv_equity = {sid: 100_000.0 for sid in STRATEGIES}
-    indiv_hwm = {sid: 100_000.0 for sid in STRATEGIES}
-
-    per_day_returns = []
-
-    for i, d in enumerate(dates):
-        # 1. считаем доходности стратегий в день d
-        day_rets: Dict[str, Optional[float]] = {sid: returns_dict[sid][i] for sid in STRATEGIES}
-        if any(r is None for r in day_rets.values()):
-            continue
-
-        # 2. обновляем индивидуальные эквити (для сигнала просадки в адаптивном режиме)
-        for sid in STRATEGIES:
-            indiv_equity[sid] = indiv_equity[sid] * (1.0 + day_rets[sid])
-            indiv_hwm[sid] = max(indiv_hwm[sid], indiv_equity[sid])
-
-        # 3. в адаптивном режиме: проверяем просадку по каждому shape
-        if mode == "adaptive_rsab":
-            new_weights = dict(base_weights)
-            derisked_shapes = set()
-
-            for sh, strats in shape_to_strats.items():
-                # просадка любой стратегии shape
-                max_shape_dd = max(
-                    (indiv_hwm[sid] - indiv_equity[sid]) / indiv_hwm[sid]
-                    for sid in strats
-                )
-                if max_shape_dd >= DRAWDOWN_THRESHOLD:
-                    # shape в кризисе — де-рискуем
-                    derisked_shapes.add(sh)
-                    shape_cool_counter[sh] = 0  # сброс счётчика восстановления
-                    for sid in strats:
-                        new_weights[sid] = base_weights[sid] * (1.0 - GAMMA_DERISKED)
-                else:
-                    # кризиса нет — проверяем cool-down
-                    if sh in shape_derisked:
-                        shape_cool_counter[sh] = shape_cool_counter.get(sh, 0) + 1
-                        if shape_cool_counter[sh] >= N_COOL_DOWN:
-                            del shape_derisked[sh]  # тип dict, нет, это set
-                            # скорректировано ниже
-
-            # обновить shape_derisked (set)
-            for sh in derisked_shapes:
-                shape_derisked[sh] = True  # метка
-
-            # для shape вышедших из кризиса — восстановить после N_COOL_DOWN
-            shapes_to_restore = []
-            for sh in list(shape_derisked.keys()) if isinstance(shape_derisked, dict) else []:
-                pass
-            # упрощённая реализация: shape_derisked как dict sh→bool
-            # перепишем корректно ниже
-
-            # нормировать новые веса
-            total_w = sum(new_weights.values())
-            weights = {sid: max(FLOOR_WEIGHT, new_weights[sid] / total_w) for sid in STRATEGIES}
-            total_w2 = sum(weights.values())
-            weights = {sid: weights[sid] / total_w2 for sid in STRATEGIES}
-
-        # 4. применяем cap на имя
-        for sid in STRATEGIES:
-            weights[sid] = min(weights[sid], CAP_PER_NAME)
-        total_w = sum(weights.values())
-        weights = {sid: weights[sid] / total_w for sid in STRATEGIES}
-
-        # 5. портфельная доходность
-        port_ret = sum(weights[sid] * day_rets[sid] for sid in STRATEGIES)
-        per_day_returns.append(port_ret)
-
-        # 6. оборот (|Δw| × 0.5 для round-trip)
-        prev_weights = weights  # (для простоты — считаем оборот как изменение весов от дня к дню)
-        # (в данной реализации веса пересчитываются каждый день, turnover = 0 в штиле)
-        # TODO: точный оборот = sum(|w_new - w_old|) / 2
-        # для этого нужно хранить предыдущие веса
-
-        # 7. эквити портфеля
-        portfolio_equity = portfolio_equity * (1.0 + port_ret)
-        hwm = max(hwm, portfolio_equity)
-        dd = (hwm - portfolio_equity) / hwm if hwm > 0 else 0.0
-        max_dd = max(max_dd, dd)
-        if dd > 0:
-            days_in_drawdown += 1
-
-        # 8. отслеживаем окна
-        for w in STRESS_WINDOWS:
-            lo = datetime.date.fromisoformat(str(w["date_from"]))
-            hi = datetime.date.fromisoformat(str(w["date_to"]))
-            wd = window_data[w["key"]]
-            if lo <= d <= hi:
-                if not wd["active"]:
-                    wd["active"] = True
-                    wd["eq_start"] = portfolio_equity
-                    wd["eq_min"] = portfolio_equity
-                else:
-                    wd["eq_min"] = min(wd["eq_min"], portfolio_equity)
-            elif d > hi and wd["active"]:
-                pass  # окно закрыто
-
-    # ── итоговые метрики ──────────────────────────────────────────────────────
-    n_days = len(per_day_returns)
-    total_return = portfolio_equity / 100_000.0 - 1.0
-    apy = (1.0 + total_return) ** (365.0 / n_days) - 1.0 if n_days > 0 else 0.0
-
-    # приблизительный оборот (для режима adaptive): число дней где >1 shape de-risked / total_days
-    narud = days_in_drawdown / n_days if n_days > 0 else 0.0
-
-    calmar = None  # инвариант #17: нет наблюдения = None
-    if max_dd > 1e-9:
-        calmar = apy / max_dd
-
-    # per-window losses
-    window_losses = {}
-    for w in STRESS_WINDOWS:
-        wd = window_data[w["key"]]
-        if wd["eq_start"] is not None and wd["eq_min"] is not None and wd["eq_start"] > 0:
-            loss = (wd["eq_start"] - wd["eq_min"]) / wd["eq_start"]
-            window_losses[w["key"]] = loss
-        else:
-            window_losses[w["key"]] = None  # инвариант #17
-
-    return {
-        "apy_pct": round(apy * 100, 3),
-        "max_dd_pct": round(max_dd * 100, 3),
-        "calmar": round(calmar, 3) if calmar is not None else None,
-        "narud_pct": round(narud * 100, 1),
-        "window_losses": {k: (round(v * 100, 2) if v is not None else None)
-                          for k, v in window_losses.items()},
-    }
 
 
 def _compute_single_leg(sid: str, dates: List[datetime.date],

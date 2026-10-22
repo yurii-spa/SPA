@@ -83,11 +83,18 @@ LITERAL_MARK_ALLOWED = {
 # дословно с контрольным деревом того же sha). Тот же класс, что литеральная
 # дата и литеральный pid — `.claude/rules/deployment.md`: якорем берётся то, что
 # ЯВЛЯЕТСЯ предметом, а не то, что рядом с ним лежало.
+#
+# База уменьшилась 2 → 1 (22.10, без ослабления): прежняя вторая запись
+# `("_summarize_json", "—")` площадкой не была — это ХВОСТ той же f-строки,
+# перенесённой на вторую строку исходника. С PEP 701 (Python 3.12+) у куска
+# f-строки своя координата, и перепись считала его отдельной печатью; на CI
+# (3.11) куски несли координату всей строки, и запись была лишней — ратчет
+# краснел на Linux и зеленел на Mac на ОДНОМ и том же коде. Перепись теперь
+# отсеивает прямые куски `JoinedStr` по форме (`_finding_tick_census.census`),
+# и ответ одинаков на 3.9/3.12/3.13/3.14. Контроль — `FStringFragments` ниже.
 UNRESOLVED_GUARD_ALLOWED: dict[tuple[str, str], str] = {
     ("_summarize_json", "латентность : в отчёте нет —"):
         "ключ латентности приходит из цикла (`for key, label in (...)`) — литералом не разбирается",
-    ("_summarize_json", "—"):
-        "то же место, вторая строка пары",
 }
 
 
@@ -329,9 +336,8 @@ class CensusRatchet(unittest.TestCase):
     def test_the_exemption_covers_no_MORE_sites_than_it_names(self):
         """Обратный контроль к перевязке ключа (#534) — и он обязателен.
 
-        Личность площадки прочнее номера строки, но НЕ уникальна: вторая строка
-        пары — это «—», текст, который в этом файле ничего не стоит завести
-        повторно. Освобождение по (функция, текст) накрыло бы дубль МОЛЧА, и
+        Личность площадки прочнее номера строки, но НЕ уникальна: короткий
+        текст (вроде «—») в этом файле ничего не стоит завести повторно. Освобождение по (функция, текст) накрыло бы дубль МОЛЧА, и
         сторож замолчал бы ровно от той правки, ради которой написан, — то есть
         перевязка ключа без этой сцены была бы ослаблением, а не починкой.
         Поэтому население класса считается поимённо.
@@ -476,3 +482,39 @@ class CensusRatchet(unittest.TestCase):
 
 if __name__ == "__main__":   # pragma: no cover
     unittest.main()
+
+
+class FStringFragments(unittest.TestCase):
+    """Кусок f-строки — не печать; литерал в ПОДСТАНОВКЕ — значение со значком.
+
+    Положительный контроль к отсеву 22.10. Первая сцена — ровно форма площадки
+    `_summarize_json`: f-строка под сторожем «блока нет», перенесённая на две
+    строки исходника. До отсева на Python 3.12+ перепись видела ДВЕ площадки
+    (вторая — хвост «— {why}»), на 3.11 — одну; теперь одну везде. Вторая сцена
+    — обратная: отсев не имеет права проглотить вбитый значок, живущий внутри
+    подстановки, иначе ратчет литералов замолчал бы (fail-OPEN).
+    """
+
+    def _census_of(self, body: str):
+        tmp = Path(__import__("tempfile").mkdtemp(prefix="c22_frag_"))
+        self.addCleanup(shutil.rmtree, tmp, ignore_errors=True)
+        src = tmp / "subject.py"
+        src.write_text(body, encoding="utf-8")
+        return census.census(str(src))
+
+    def test_a_wrapped_fstring_is_ONE_site_on_every_interpreter(self):
+        rows = self._census_of(
+            "def f(name, data, out):\n"
+            "    for key in ('a', 'b'):\n"
+            "        blk = data.get(key)\n"
+            "        if not isinstance(blk, dict):\n"
+            "            mark, why = _absent_block(name, data, key)\n"
+            "            out.append(f'   {mark} нет блока {key} — '\n"
+            "                       f'{key} — {why}')\n")
+        self.assertEqual([(e.line, e.kind) for e in rows], [(6, census.GATED)], rows)
+
+    def test_a_mark_inside_a_substitution_is_still_a_LITERAL(self):
+        rows = self._census_of(
+            "def f(name, data, out, bad):\n"
+            "    out.append(f\"   {'⚠️' if bad else ''} что-то\")\n")
+        self.assertEqual([e.kind for e in rows], [census.LITERAL], rows)
