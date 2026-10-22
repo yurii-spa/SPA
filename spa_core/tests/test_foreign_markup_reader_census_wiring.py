@@ -34,6 +34,7 @@ from __future__ import annotations
 
 import ast
 import datetime as dt
+import pytest
 import functools
 import importlib.util
 import inspect
@@ -54,7 +55,17 @@ STAGE_KEY = "foreign_markup_reader_census"
 RUNNER = "com.spa.decision_loop"
 
 #: Часы сцены. Литеральной даты нет: отметка документа считается ОТ них.
-NOW = dt.datetime.now(dt.timezone.utc)
+#: «Сейчас» теста. Снимается В НАЧАЛЕ КАЖДОГО ТЕСТА (фикстура ниже), а не на импорте:
+#: часы, прочитанные при импорте, к концу долгого прогона устаревают на часы, и мера
+#: свежести живого дерева судила бы по ним (сторож test_no_import_time_clock_in_tests).
+NOW: dt.datetime = None  # type: ignore[assignment]
+
+
+@pytest.fixture(autouse=True)
+def _anchor_now():
+    global NOW
+    NOW = dt.datetime.now(dt.timezone.utc)
+    yield
 
 
 def _office():

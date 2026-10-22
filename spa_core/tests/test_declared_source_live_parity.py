@@ -26,6 +26,7 @@
 from __future__ import annotations
 
 import datetime as dt
+import pytest
 import importlib.util
 import json
 import unittest
@@ -38,7 +39,17 @@ CUSTODIAN = REPO / "scripts" / "site_freshness_monitor.py"
 
 #: Часы сцены. Литеральной даты нет: берётся «сейчас», и все отметки считаются
 #: ОТ НЕГО, поэтому ни один тест не может протухнуть от смены календаря.
-NOW = dt.datetime.now(dt.timezone.utc)
+#: «Сейчас» теста. Снимается В НАЧАЛЕ КАЖДОГО ТЕСТА (фикстура ниже), а не на импорте:
+#: часы, прочитанные при импорте, к концу долгого прогона устаревают на часы, и мера
+#: свежести живого дерева судила бы по ним (сторож test_no_import_time_clock_in_tests).
+NOW: dt.datetime = None  # type: ignore[assignment]
+
+
+@pytest.fixture(autouse=True)
+def _anchor_now():
+    global NOW
+    NOW = dt.datetime.now(dt.timezone.utc)
+    yield
 
 
 def _custodian():
