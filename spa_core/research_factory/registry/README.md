@@ -17,7 +17,7 @@ One entry per origin id (`evidence_contract.ORIGIN_RE`: `issuer:` / `venue:` / `
 | `appointed_by` | the origin that appoints this party, where known (e.g. a fund administrator appointed by the issuer it serves) — informational provenance; not yet read by any coded gate (`role_entry()`'s `DOCUMENTED` check currently compares `group` only). |
 | `note` | free-text citation of where this fact comes from. |
 
-Curated from the Phase-0 citation seed (2026-10-04, `scratchpad/ev/phase0_citations.md`) — every
+Curated from the Phase-0 citation seed (2026-10-04, `registry/phase0_citations.md`, restored from the authoring session) — every
 id is cited there or in `docs/decisions/ADR-564-research-evidence-and-paper-admission.md`'s
 Phase-0 gap map. Circle acquired Hashnote ⇒ `issuer:hashnote` / `issuer:circle` share one group.
 

@@ -67,7 +67,7 @@ ORACLE_NONE = None
 
 #: the four Phase-0 instruments — chain, address, decimals, expected on-chain identity, oracle
 #: reader + address, fund root. Everything here is cited in
-#: scratchpad/ev/phase0_citations.md (2026-10-04) — nothing invented.
+#: registry/phase0_citations.md (2026-10-04) — nothing invented.
 INSTRUMENTS: dict = {
     "BUIDL": {
         "chain_id": ETHEREUM_CHAIN_ID, "address": BUIDL_ADDRESS, "decimals": 6,

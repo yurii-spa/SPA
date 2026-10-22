@@ -1245,7 +1245,8 @@ def studio_memory(repo: Path, mirror: Path) -> dict:
     if not db.is_file():
         return unknown(canon, "OPERATIONAL", "Индекс памяти не прочитан")
     try:
-        con = sqlite3.connect(f"file:{db}?mode=ro", uri=True)
+        # allow-raw-sqlite-connect: read-only (mode=ro) open of a FOREIGN sqlite store — data/memory/index.db (disposable memory index), not the main DB.
+        con = sqlite3.connect(f"file:{db}?mode=ro", uri=True)  # allow-raw-sqlite-connect
         try:
             built_at = None
             try:

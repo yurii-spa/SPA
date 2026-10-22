@@ -65,6 +65,7 @@ import pathlib as _pathlib
 from datetime import datetime, timezone
 from typing import Callable
 
+from spa_core.utils.errors import SPAError
 from spa_core.utils.observation import observed
 
 SATISFIED = "satisfied"
@@ -6331,14 +6332,14 @@ def _probe_queue_reader_names_record_memory_loss(
                   ["config", "user.name", "probe"]):
             r = _git(rroot if a[0] != "init" else tmp, *a)
             if r.returncode != 0:
-                raise RuntimeError(f"git {' '.join(a)}: {r.stderr.strip()}")
+                raise SPAError(f"git {' '.join(a)}: {r.stderr.strip()}", code="PROBE_SCENE_GIT_FAILED")
         for name, text in cards_before.items():
             with open(os.path.join(tracker, f"{name}.md"), "w", encoding="utf-8") as fh:
                 fh.write(text)
         for a in (["add", "-A"], ["commit", "-q", "-m", "ref"]):
             r = _git(rroot, *a)
             if r.returncode != 0:
-                raise RuntimeError(f"git {' '.join(a)}: {r.stderr.strip()}")
+                raise SPAError(f"git {' '.join(a)}: {r.stderr.strip()}", code="PROBE_SCENE_GIT_FAILED")
         for name, text in cards_after.items():
             with open(os.path.join(tracker, f"{name}.md"), "w", encoding="utf-8") as fh:
                 fh.write(text)
@@ -6514,19 +6515,19 @@ def _probe_queue_reader_names_unmeasured_memory(
             os.makedirs(tracker)
             r = _git(tmp, "init", "-q", "-b", ref, rroot)
             if r.returncode != 0:
-                raise RuntimeError(f"git init: {r.stderr.strip()}")
+                raise SPAError(f"git init: {r.stderr.strip()}", code="PROBE_SCENE_GIT_FAILED")
             for a in (["config", "user.email", "probe@example.com"],
                       ["config", "user.name", "probe"]):
                 r = _git(rroot, *a)
                 if r.returncode != 0:
-                    raise RuntimeError(f"git {' '.join(a)}: {r.stderr.strip()}")
+                    raise SPAError(f"git {' '.join(a)}: {r.stderr.strip()}", code="PROBE_SCENE_GIT_FAILED")
             card = os.path.join(tracker, "inbox-order.md")
             with open(card, "w", encoding="utf-8") as fh:
                 fh.write(_notebook([716, 717, 718]))
             for a in (["add", "-A"], ["commit", "-q", "-m", "ref"]):
                 r = _git(rroot, *a)
                 if r.returncode != 0:
-                    raise RuntimeError(f"git {' '.join(a)}: {r.stderr.strip()}")
+                    raise SPAError(f"git {' '.join(a)}: {r.stderr.strip()}", code="PROBE_SCENE_GIT_FAILED")
             with open(card, "w", encoding="utf-8") as fh:
                 fh.write(_notebook([716]))          # дереву не хватает #717 и #718
             refused, refused_err = _ask(tracker, missing_ref)
@@ -6694,12 +6695,12 @@ def _probe_queue_reader_names_uncompared_order(
             os.makedirs(tracker)
             r = _git(tmp, "init", "-q", "-b", ref, rroot)
             if r.returncode != 0:
-                raise RuntimeError(f"git init: {r.stderr.strip()}")
+                raise SPAError(f"git init: {r.stderr.strip()}", code="PROBE_SCENE_GIT_FAILED")
             for a in (["config", "user.email", "probe@example.com"],
                       ["config", "user.name", "probe"]):
                 r = _git(rroot, *a)
                 if r.returncode != 0:
-                    raise RuntimeError(f"git {' '.join(a)}: {r.stderr.strip()}")
+                    raise SPAError(f"git {' '.join(a)}: {r.stderr.strip()}", code="PROBE_SCENE_GIT_FAILED")
             card = os.path.join(tracker, "inbox-order.md")
             with open(card, "w", encoding="utf-8") as fh:
                 fh.write(_card([716, 717, 718], "new",
@@ -6707,7 +6708,7 @@ def _probe_queue_reader_names_uncompared_order(
             for a in (["add", "-A"], ["commit", "-q", "-m", "ref"]):
                 r = _git(rroot, *a)
                 if r.returncode != 0:
-                    raise RuntimeError(f"git {' '.join(a)}: {r.stderr.strip()}")
+                    raise SPAError(f"git {' '.join(a)}: {r.stderr.strip()}", code="PROBE_SCENE_GIT_FAILED")
             with open(card, "w", encoding="utf-8") as fh:
                 fh.write(_card([716], "in-progress",
                                [f"{earlier} new -> new · queue.set_status · cycle-1",
@@ -6931,19 +6932,19 @@ def _queue_order_basis_outcome(_drift, reader, bases: set) -> tuple[str, str]:
                 os.makedirs(tracker)
                 r = _git(tmp, "init", "-q", "-b", ref, rroot)
                 if r.returncode != 0:
-                    raise RuntimeError(f"git init: {r.stderr.strip()}")
+                    raise SPAError(f"git init: {r.stderr.strip()}", code="PROBE_SCENE_GIT_FAILED")
                 for a in (["config", "user.email", "probe@example.com"],
                           ["config", "user.name", "probe"]):
                     r = _git(rroot, *a)
                     if r.returncode != 0:
-                        raise RuntimeError(f"git {' '.join(a)}: {r.stderr.strip()}")
+                        raise SPAError(f"git {' '.join(a)}: {r.stderr.strip()}", code="PROBE_SCENE_GIT_FAILED")
                 card_path = os.path.join(tracker, "inbox-order.md")
                 with open(card_path, "w", encoding="utf-8") as fh:
                     fh.write(origin_text)
                 for a in (["add", "-A"], ["commit", "-q", "-m", "ref"]):
                     r = _git(rroot, *a)
                     if r.returncode != 0:
-                        raise RuntimeError(f"git {' '.join(a)}: {r.stderr.strip()}")
+                        raise SPAError(f"git {' '.join(a)}: {r.stderr.strip()}", code="PROBE_SCENE_GIT_FAILED")
                 with open(card_path, "w", encoding="utf-8") as fh:
                     fh.write(tree_text)
                 got, err = _ask(tracker, ref)

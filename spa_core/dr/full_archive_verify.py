@@ -113,7 +113,8 @@ def _safe_extract(archive: Path, dest: str) -> List[str]:
 def _sqlite_ok(path: str) -> Optional[str]:
     con = None
     try:
-        con = sqlite3.connect(f"file:{path}?mode=ro", uri=True)
+        # allow-raw-sqlite-connect: read-only (mode=ro) open of a FOREIGN sqlite store — an extracted backup member; PRAGMA integrity_check is sqlite-native, no postgres equivalent.
+        con = sqlite3.connect(f"file:{path}?mode=ro", uri=True)  # allow-raw-sqlite-connect
         row = con.execute("PRAGMA integrity_check").fetchone()
         return None if row and row[0] == "ok" else f"integrity_check={row}"
     except sqlite3.DatabaseError as exc:

@@ -396,7 +396,8 @@ def manifest(path: Optional[Path] = None) -> Optional[Dict]:
     p = Path(path or default_path())
     if not p.exists():
         return None
-    c = sqlite3.connect(f"file:{p}?mode=ro", uri=True)
+    # allow-raw-sqlite-connect: read-only (mode=ro) open of a FOREIGN sqlite store — this module's own index.db, not the main DB.
+    c = sqlite3.connect(f"file:{p}?mode=ro", uri=True)  # allow-raw-sqlite-connect
     try:
         return {k: json.loads(v) for k, v in c.execute("SELECT key, value FROM manifest")}
     finally:
@@ -541,7 +542,8 @@ def search(query: str, *, k: int = 8, path: Optional[Path] = None, layers: Optio
     fq = _query(query)
     if not fq or not p.exists():
         return []
-    c = sqlite3.connect(f"file:{p}?mode=ro", uri=True)
+    # allow-raw-sqlite-connect: read-only (mode=ro) open of a FOREIGN sqlite store — this module's own index.db, not the main DB.
+    c = sqlite3.connect(f"file:{p}?mode=ro", uri=True)  # allow-raw-sqlite-connect
     try:
         rows = c.execute(
             "SELECT c.id, c.repo, c.path, c.layer, c.kind, c.authority, c.status, c.superseded_by, c.title, c.heading,"

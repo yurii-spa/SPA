@@ -20,6 +20,12 @@ from __future__ import annotations
 import subprocess
 from pathlib import Path
 
+
+class MaterialiseError(RuntimeError):
+    """Снимок релиза не материализован. Свой тип, а не SPAError: модуль stdlib-only по замыслу
+    (release_launcher вклеивает его до exec, без зависимости от spa_core). Ловится ниже
+    `except Exception` → MATERIALISE_FAILED — поведение то же, что у прежнего голого RuntimeError."""
+
 RELEASE_SHA_FILE = ".release_sha"   # written inside each materialised release dir = its own identity
 
 
@@ -64,10 +70,10 @@ def materialise_release(sha, releases_dir: Path, repo: Path):
         # git archive → tar → extract: an exact, read-only snapshot of the commit tree, no working-tree state
         ar = subprocess.run(["git", "archive", "--format=tar", sha], cwd=str(repo), capture_output=True)
         if ar.returncode != 0:
-            raise RuntimeError("git archive failed")
+            raise MaterialiseError("git archive failed")
         ex = subprocess.run(["tar", "-x", "-C", str(tmp)], input=ar.stdout, capture_output=True)
         if ex.returncode != 0:
-            raise RuntimeError("tar extract failed")
+            raise MaterialiseError("tar extract failed")
         (tmp / RELEASE_SHA_FILE).write_text(sha)
         # atomic publish: rename temp → releases/<sha> (dest must not pre-exist as a dir)
         if dest.exists():

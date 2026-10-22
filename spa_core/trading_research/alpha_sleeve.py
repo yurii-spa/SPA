@@ -112,7 +112,8 @@ def open_readonly(path: Path) -> sqlite3.Connection:
     p = Path(path)
     if not p.is_file():
         raise SleeveRefused("NOT_MEASURED", f"evidence.db not found at {p}")
-    return sqlite3.connect(f"file:{p.as_posix()}?mode=ro", uri=True)
+    # allow-raw-sqlite-connect: read-only (mode=ro) open of a FOREIGN sqlite store — trading_research/evidence.db, not the main DB; get_connection() has no ro mode and would create a missing file.
+    return sqlite3.connect(f"file:{p.as_posix()}?mode=ro", uri=True)  # allow-raw-sqlite-connect
 
 
 def _events(conn) -> List[Dict]:

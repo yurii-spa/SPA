@@ -346,7 +346,7 @@ def _c16_malformed_scanner(tmp):
 
         @staticmethod
         def scan(data_dir, now, rpc_client=None):
-            raise RuntimeError("malformed source payload")
+            raise RuntimeError("malformed source payload")  # drill: intentional fault injection — a FOREIGN (non-SPAError) scanner failure that run_once must survive
 
     import spa_core.research_factory.run as run_mod
     orig = run_mod._discover_scanners

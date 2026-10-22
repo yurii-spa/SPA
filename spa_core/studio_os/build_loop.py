@@ -85,7 +85,8 @@ def _memory_has(token: str) -> Optional[bool]:
     try:
         from spa_core.utils.live_paths import live_data_dir
         db = Path(live_data_dir()) / "memory" / "index.db"
-        con = sqlite3.connect(f"file:{db}?mode=ro", uri=True)
+        # allow-raw-sqlite-connect: read-only (mode=ro) open of a FOREIGN sqlite store — data/memory/index.db (disposable memory index), not the main DB.
+        con = sqlite3.connect(f"file:{db}?mode=ro", uri=True)  # allow-raw-sqlite-connect
         try:
             n = con.execute("SELECT COUNT(*) FROM chunks WHERE path LIKE ? OR body LIKE ?",
                             (f"%{token}%", f"%{token}%")).fetchone()[0]

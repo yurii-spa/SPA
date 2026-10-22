@@ -29,8 +29,14 @@ from spa_core.research_factory.scanners import basis, rwa
 
 NOW = datetime(2026, 10, 4, 12, 0, 0, tzinfo=timezone.utc)
 REGISTRY_DIR = Path(instruments.__file__).resolve().parent / "registry"
-SEED_PATH = Path("/private/tmp/claude-501/-Users-yuriikulieshov-Documents-SPA-Claude"
-                 "/77953ab2-8e9a-4d56-8ecb-16448ad02813/scratchpad/ev/phase0_citations.md")
+# The Phase-0 citation seed lives IN the repository, next to the registry it seeds. It used to be
+# read from the authoring session's scratchpad (an absolute /private/tmp/claude-501/... path): that
+# file is temporary by construction and never exists on Linux CI, so the test could only ever answer
+# FileNotFoundError ("not measured") instead of the question it asks. Bytes restored verbatim from
+# the authoring session's own Write call (transcript 77953ab2-…, tool_use toolu_01N9K3gZQLYjGc8xSoc5KU39,
+# 2026-10-04T15:35:34Z; md5 d3b7837f591f446fded85ca1db5c9a60), corroborated by the E3 subagent's
+# `cat` of the same file at 15:42:54Z.
+SEED_PATH = REGISTRY_DIR / "phase0_citations.md"
 
 
 def _load_facts() -> list:
@@ -732,6 +738,7 @@ def test_facts_jsonl_no_fact_lacks_a_citation_from_the_seed_file():
     Phase-0 citation seed this package was told to curate from — not invented. Checked by a loose
     but meaningful substring heuristic: a distinguishing token from the fact (an address fragment,
     a cited figure, or an entity name) must appear somewhere in the seed text."""
+    assert SEED_PATH.is_file(), f"Phase-0 citation seed missing from the repository: {SEED_PATH} — NOT MEASURED"
     seed_text = SEED_PATH.read_text(encoding="utf-8")
     facts = _load_facts()
     assert len(facts) > 0

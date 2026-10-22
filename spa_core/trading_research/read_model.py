@@ -80,7 +80,8 @@ def _ro_connect(path: Path):
     if not p.exists():
         return None, f"evidence.db не найден по пути {p}"
     try:
-        return sqlite3.connect(f"file:{p.as_posix()}?mode=ro", uri=True), None
+        # allow-raw-sqlite-connect: read-only (mode=ro) open of a FOREIGN sqlite store — trading_research/evidence.db, not the main DB; get_connection() has no ro mode and would create a missing file.
+        return sqlite3.connect(f"file:{p.as_posix()}?mode=ro", uri=True), None  # allow-raw-sqlite-connect
     except sqlite3.Error as e:
         return None, f"evidence.db не открывается в режиме mode=ro ({type(e).__name__}: {e})"
 
