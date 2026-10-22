@@ -849,3 +849,32 @@ class RegistryReactsToTheCensus(unittest.TestCase):
         """Контроль: обе сцены выше меняют вердикт, а не воспроизводят общий фон."""
         rc, _ = self._run_with()
         self.assertEqual(0, rc)
+
+
+class CensusMemoIsKeyedByTheBytes(unittest.TestCase):
+    """Память переписи (22.10): ключ — байты дерева + отбор + прибор. Устаревший ответ из памяти
+    был бы тем же дефектом, что чтение устаревшей ссылки, — поэтому контроль в обе стороны."""
+
+    def setUp(self):
+        import python_git_ref_provenance as P
+        self.P = P
+        self.tmp = Path(tempfile.mkdtemp(prefix="prov-memo-"))
+        self.addCleanup(shutil.rmtree, self.tmp, True)
+        (self.tmp / "a.py").write_text("import subprocess\ndef f():\n    return 1\n", encoding="utf-8")
+
+    def test_a_changed_file_is_measured_again(self):
+        first = self.P.census(self.tmp)
+        self.assertEqual(first["rows"], [])
+        (self.tmp / "a.py").write_text(
+            "import subprocess\ndef f():\n    return subprocess.run(['git', 'show', 'origin/main:x'])\n",
+            encoding="utf-8")
+        second = self.P.census(self.tmp)
+        self.assertTrue(second["rows"], "память отдала ответ о прежних байтах")
+
+    def test_the_answer_is_a_copy(self):
+        a = self.P.census(self.tmp)
+        a["rows"].append({"poisoned": True})
+        a["modules"] = -1
+        b = self.P.census(self.tmp)
+        self.assertNotIn({"poisoned": True}, b["rows"])
+        self.assertNotEqual(b["modules"], -1)

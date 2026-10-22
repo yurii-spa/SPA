@@ -233,6 +233,7 @@ class Resolver:
                                                  "parse_known_args"):
                 self.namespaces.add(node.targets[0].id)
         self.local = {}
+        self._assigns = {}
 
     @staticmethod
     def _literal(node):
@@ -265,12 +266,21 @@ class Resolver:
                 self.local[name.arg] = got
         for name, val in (inherited or {}).items():
             self.local.setdefault(name, val)
-        for node in ast.walk(fn):
-            if isinstance(node, ast.Assign) and len(node.targets) == 1 \
-                    and isinstance(node.targets[0], ast.Name):
-                got = self.resolve(node.value)
-                if got is not None:
-                    self.local.setdefault(node.targets[0].id, got)
+        # Список присваиваний функции неизменен — обход AST делается ОДИН раз на функцию
+        # (замер 22.10: enter звался 183 814 раз, каждый раз ast.walk — ~95 % цены переписи).
+        # Значения по-прежнему разрешаются на КАЖДОМ входе: они зависят от состояния self.local.
+        assigns = self._assigns.get(id(fn))
+        if assigns is None:
+            assigns = [(node.targets[0].id, node.value) for node in ast.walk(fn)
+                       if isinstance(node, ast.Assign) and len(node.targets) == 1
+                       and isinstance(node.targets[0], ast.Name)]
+            self._assigns[id(fn)] = (fn, assigns)   # fn в значении держит id живым
+        else:
+            assigns = assigns[1]
+        for target, value in assigns:
+            got = self.resolve(value)
+            if got is not None:
+                self.local.setdefault(target, got)
         return [p.arg for p in params]
 
     def resolve(self, node):
@@ -1280,18 +1290,55 @@ def _writes_this_ref(updater, reader, remotes) -> bool:
 PRESCREEN = ("git", "origin", "refs/remotes")
 
 
+#: Память переписи на процесс. Перепись — чистая функция БАЙТОВ дерева (+ отбора и самого
+#: прибора): тесты храповика гоняли её заново ≈10 раз на одном дереве — ~100 с на Mac и >180 с на
+#: CI, где срок, сработавший внутри ast.walk, ронял pytest (INTERNALERROR, tb_lineno=None в 3.11) и
+#: весь шард (прогон ci-control 39825423993, 22.10). Ключ — sha256 всех прочитанных текстов с
+#: путями, отбора и исходника прибора; ответ отдаётся глубокой КОПИЕЙ. Тот же приём, что
+#: g16._IMPORT_DEPS_MEMO / source_memo: тексты читаются с диска каждый раз.
+_CENSUS_MEMO: dict = {}
+
+
+def _census_key(root, texts) -> str:
+    import hashlib
+    h = hashlib.sha256()
+    h.update(str(root).encode("utf-8", "surrogatepass") + b"\0")   # корень печатается в отчёте
+    h.update(repr(PRESCREEN).encode())
+    h.update(Path(__file__).read_bytes())
+    for _path, rel, src in texts:
+        h.update(rel.encode("utf-8", "surrogatepass") + b"\0")
+        h.update(src.encode("utf-8", "surrogatepass") if src is not None else b"\1unread")
+        h.update(b"\0")
+    return h.hexdigest()
+
+
 def census(root: Path) -> dict:
+    import copy
     files = python_files(root)
     if not files:
         return {"unmeasured_fatal": f"в {root} не найдено ни одного .py — "
                                     "мерить нечего; это НЕ «чисто»"}
-    mods, unread, screened = [], [], 0
-    screened_src = []        # текст отброшенных отбором: вызывающий не перестаёт им быть
+    texts, unread_read = [], {}
     for path, rel in files:
         try:
-            src = path.read_text(encoding="utf-8", errors="replace")
+            texts.append((path, rel, path.read_text(encoding="utf-8", errors="replace")))
         except Exception as exc:                          # noqa: BLE001
-            unread.append(f"{rel}: {type(exc).__name__}: {exc}")
+            texts.append((path, rel, None))
+            unread_read[rel] = f"{rel}: {type(exc).__name__}: {exc}"
+    key = _census_key(root, texts)
+    if key in _CENSUS_MEMO:
+        return copy.deepcopy(_CENSUS_MEMO[key])
+    rep = _census_uncached(root, files, texts, unread_read)
+    _CENSUS_MEMO[key] = copy.deepcopy(rep)
+    return rep
+
+
+def _census_uncached(root, files, texts, unread_read) -> dict:
+    mods, unread, screened = [], [], 0
+    screened_src = []        # текст отброшенных отбором: вызывающий не перестаёт им быть
+    for path, rel, src in texts:
+        if src is None:
+            unread.append(unread_read[rel])
             continue
         if not any(w in src for w in PRESCREEN):
             screened += 1
