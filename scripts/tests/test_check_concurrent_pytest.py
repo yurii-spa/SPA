@@ -710,7 +710,7 @@ class TestOpenFilesParsesRealLsof(unittest.TestCase):
             recs = ccp._open_files(os.getpid())
             self.assertIsNotNone(recs, "lsof не прочитан — разбор не измерен")
             gone = [r for r in recs
-                    if r.get("path", "").endswith(".gone") and r["mode"] in ("w", "u", "W")]
+                    if (r.get("path") or "").endswith(".gone") and r["mode"] in ("w", "u", "W")]
             self.assertTrue(gone, "разбор не увидел отвязанный файл, открытый на запись")
             self.assertFalse(ccp._alive_on_disk(gone[0]),
                              "отвязанный файл прочитан как достижимый по своему пути")
