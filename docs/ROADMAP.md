@@ -188,6 +188,9 @@
     PARTIAL, not proven (ARB reproduced sqlite/shell/dir_fd bypasses of the Python hook); now a Seatbelt write
     boundary with a pre-run self-check, production run BLOCKED in code; producer not installed; G16 deadline
     loss found and closed; residual on Mac 13 red of 56, 0 new. Full Linux verdict INCOMPLETE. Journal 2026-W43.
+    Update 2026-10-22 (stage 3, still NOT pushed): Cloudflare unchanged — exclusion authorised but no dashboard
+    session/API access (owner sign-in needed); git provenance 26→8 keys, side-store door, office tells designed from
+    active, two orphans wired, G16 sweep 1320→497 s. Full Linux verdict INCOMPLETE. Journal 2026-W43.
     Handover: `HANDOVER_FOR_ARB_FINAL.md`, `START_HERE.md` in the same folder.
 18. **Later engines:** traditional markets, volatility / options (scope decided inside RM-EXPAND-01)
 
