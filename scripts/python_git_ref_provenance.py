@@ -314,6 +314,16 @@ class Resolver:
     def tokens(self, node):
         """Все строки, втекающие в выражение (список argv разворачивается)."""
         out = []
+        if isinstance(node, ast.BinOp) and isinstance(node.op, ast.Add) and (
+                isinstance(node.left, (ast.List, ast.Tuple))
+                or isinstance(node.right, (ast.List, ast.Tuple))):
+            # `["git", "-C", root] + args` — СКЛЕЙКА списков argv, а не строк.
+            # Прежде выражение уходило в `resolve()` как строковое сложение, давало
+            # None, и argv становился одним `DYN` — дверь `_git(args, *, repo_root)`
+            # этой формы прибор не видел вовсе (замер 2026-10-22: модульная `_git`
+            # `card_acceptance.py`; её зовы находились лишь через одноимённую
+            # вложенную дверь чужой сигнатуры).
+            return self.tokens(node.left) + self.tokens(node.right)
         if isinstance(node, (ast.List, ast.Tuple)):
             for elt in node.elts:
                 if isinstance(elt, ast.Starred):
@@ -404,8 +414,35 @@ def module_index(mods) -> dict:
     return idx
 
 
+def door_key(m, fn):
+    """Ключ двери: ``(файл, имя)`` для функции модуля, ``(файл, внешняя.внутренняя)``
+    для ВЛОЖЕННОЙ.
+
+    Почему не просто имя (замер 2026-10-22). В `card_acceptance.py` четыре пробы
+    объявляют СВОЮ вложенную ``def _git(cwd, *args)`` для сцены во временном
+    репозитории, и у модуля есть своя ``_git(args, *, repo_root)``. Ключ по одному
+    имени склеивал пять разных функций в одну дверь: зовы модульной ``_git``
+    разбирались по сигнатуре вложенной (первый аргумент — «cwd»), а зовы сцены —
+    по сигнатуре той, что попалась обходу первой. Ответ при этом совпадал случайно.
+    """
+    parent = m.owner.get(fn)
+    if parent is None:
+        return (m.rel, fn.name)
+    return (m.rel, f"{door_key(m, parent)[1]}.{fn.name}")
+
+
 def resolve_door(m, name, doors, mod_index, fn=None):
-    """Дверь, стоящая за именем: своя · внедрённая параметром · импортированная."""
+    """Дверь, стоящая за именем: вложенная в объемлющей области · своя · внедрённая
+    параметром · импортированная.
+
+    Вложенная ``def`` с тем же именем ЗАТЕНЯЕТ модульную, как и в самом python:
+    если она не дверь, зов не уходит к модульной двери того же имени."""
+    scope = fn
+    while scope is not None:
+        child = m.nested.get(scope, {}).get(name)
+        if child is not None:
+            return doors.get(door_key(m, child))
+        scope = m.owner.get(scope)
     if (m.rel, name) in doors:
         return doors[(m.rel, name)]
     if fn is not None:
@@ -532,6 +569,18 @@ class ModuleScan:
             self._calls = [n for n in ast.walk(self.tree)
                            if isinstance(n, ast.Call)]
         return self._calls
+
+    @property
+    def nested(self):
+        """функция → {имя: вложенная def} — прямые вложенные определения."""
+        if not hasattr(self, "_nested"):
+            self._nested = {}
+            for node in ast.walk(self.tree):
+                if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef)):
+                    parent = self.owner.get(node)
+                    if parent is not None:
+                        self._nested.setdefault(parent, {})[node.name] = node
+        return self._nested
 
     @property
     def funcs(self):
@@ -706,7 +755,7 @@ def collect(mods, inherit):
             if fn is not None:
                 flowing = _names_in(argv) & _param_names(fn)
                 if flowing:
-                    key = (m.rel, fn.name)
+                    key = door_key(m, fn)
                     doors.setdefault(key, {"params": set(), "mod": m, "fn": fn,
                                            "sub": rec["sub"], "tokens": tokens,
                                            "level": 0})
@@ -733,7 +782,7 @@ def collect(mods, inherit):
                     flowing |= (_names_in(arg) & own)
                 if not flowing:
                     continue
-                key = (m.rel, fn.name)
+                key = door_key(m, fn)
                 before = set(doors.get(key, {}).get("params", ()))
                 doors.setdefault(key, {"params": set(), "mod": m, "fn": fn,
                                        "sub": target["sub"],
@@ -764,6 +813,14 @@ def _param_map(fn, node: ast.Call):
     out = {}
     for i, arg in enumerate(node.args):
         if isinstance(arg, ast.Starred):
+            # Распаковка ПОСЛЕДНИМ позиционным, ровно после именованных позиций и
+            # в `*args` двери — соответствие установлено: всё, что она несёт, едет
+            # в `*args`. Иначе (до неё есть незаполненные позиции, после неё ещё
+            # аргументы, у двери нет `*args`) — не установлено, как и прежде.
+            if (fn.args.vararg and i == len(node.args) - 1
+                    and i >= len(names)):
+                out[id(arg)] = fn.args.vararg.arg
+                continue
             return None
         if i < len(names):
             out[id(arg)] = names[i]
@@ -776,6 +833,74 @@ def _param_map(fn, node: ast.Call):
             return None
         out[id(kw.value)] = kw.arg
     return out
+
+
+_SCOPE_BREAK = (ast.FunctionDef, ast.AsyncFunctionDef, ast.Lambda, ast.ClassDef)
+
+
+def _own_nodes(fn):
+    """Узлы тела функции БЕЗ вложенных областей (вложенная def — своя область имён)."""
+    stack = list(ast.iter_child_nodes(fn))
+    while stack:
+        node = stack.pop()
+        yield node
+        if not isinstance(node, _SCOPE_BREAK):
+            stack.extend(ast.iter_child_nodes(node))
+
+
+def loop_alternatives(fn, value, res, at=None):
+    """Значения ``*name`` в зове — список вариантов argv, либо ``None`` (не выведено).
+
+    Выводится ровно одна форма, и она частая в сценах-пробах этого дерева:
+
+        for a in (["config", "user.email", "x"], ["config", "user.name", "p"]):
+            r = _git(rroot, *a)
+
+    Условие строгое, и в сторону ОТКАЗА: имя связано в этой функции ТОЛЬКО
+    заголовками ``for`` по ЛИТЕРАЛЬНОМУ кортежу/списку литеральных списков; не
+    параметр, не присвоено иначе, не объявлено ``global``/``nonlocal``. Элемент
+    варианта, не разрешённый в строку, становится ``DYN`` — тем же порядком, что
+    у обычного списка argv (:meth:`Resolver.tokens`), а не пропуском.
+
+    Зов ВНУТРИ тела такого ``for`` получает варианты именно этого цикла; зов вне
+    тела — объединение всех (значение могло остаться от любого)."""
+    if fn is None or not isinstance(value, ast.Name):
+        return None
+    name = value.id
+    if name in _param_names(fn):
+        return None
+    alts, bound_elsewhere = [], False
+    enclosing = None
+    for node in _own_nodes(fn):
+        if isinstance(node, (ast.For, ast.AsyncFor)) and isinstance(node.target, ast.Name) \
+                and node.target.id == name:
+            if not isinstance(node.iter, (ast.Tuple, ast.List)) or not node.iter.elts:
+                return None
+            mine = []
+            for elt in node.iter.elts:
+                if not isinstance(elt, (ast.List, ast.Tuple)):
+                    return None
+                mine.append(res.tokens(elt))
+            alts.extend(mine)
+            if at is not None and any(at is n for stmt in node.body
+                                      for n in ast.walk(stmt)):
+                enclosing = mine
+            continue
+        if isinstance(node, (ast.Global, ast.Nonlocal)) and name in node.names:
+            return None
+        if isinstance(node, ast.Name) and node.id == name \
+                and isinstance(node.ctx, (ast.Store, ast.Del)):
+            bound_elsewhere = True
+    # Цель `for` — тоже Name(Store); посчитать её «иным связыванием» нельзя.
+    stores = sum(1 for node in _own_nodes(fn)
+                 if isinstance(node, ast.Name) and node.id == name
+                 and isinstance(node.ctx, (ast.Store, ast.Del)))
+    loops = sum(1 for node in _own_nodes(fn)
+                if isinstance(node, (ast.For, ast.AsyncFor))
+                and isinstance(node.target, ast.Name) and node.target.id == name)
+    if bound_elsewhere and stores != loops:
+        return None
+    return (enclosing or alts) or None
 
 
 def find_readers(mods, doors, remotes, mod_index, inherit):
@@ -826,12 +951,34 @@ def find_readers(mods, doors, remotes, mod_index, inherit):
                                             f"параметрам не установлено (*args "
                                             f"или **kwargs)")})
                     continue
+                starred_open = None
                 for arg in list(node.args) + [k.value for k in node.keywords]:
                     pname = pmap.get(id(arg))
                     if pname is None or pname not in door["params"]:
                         continue
+                    if isinstance(arg, ast.Starred):
+                        alts = loop_alternatives(fn, arg.value, m.res, at=node)
+                        if alts is None:
+                            starred_open = arg
+                            continue
+                        hit = next((a for a in alts
+                                    if any(ref_in(t, remotes)[0] for t in a)), None)
+                        tokens.extend(hit if hit is not None
+                                      else [t for a in alts for t in a])
+                        continue
                     for tok in m.res.tokens(arg):
                         tokens.append(tok)
+                if starred_open is not None:
+                    readers.append({"file": m.rel, "line": node.lineno,
+                                    "func": fn.name if fn else None,
+                                    "ref": None, "basis": "by_var",
+                                    "verdict": "unmeasured", "mutating": False,
+                                    "sub": None, "mod": m, "node": node,
+                                    "stmt": stmt_of.get(node), "fnode": fn,
+                                    "why": (f"зов двери {name}() разобран не до "
+                                            f"конца: значения распаковки *-аргумента "
+                                            f"не выведены (*args или **kwargs)")})
+                    continue
                 if not tokens:
                     continue
                 via, door_sub = name, door["sub"]

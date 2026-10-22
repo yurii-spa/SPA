@@ -65,6 +65,7 @@ import sys
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
+from spa_core.utils.server_ref import pin_server_ref  # noqa: E402
 from spa_core.monitoring.card_acceptance import (  # noqa: E402
     NOT_SATISFIED,
     SATISFIED,
@@ -176,9 +177,10 @@ def parse_s49_criteria(text: str) -> list[str]:
     return names
 
 
-def _git_show(repo_root: str, ref: str, rel: str) -> str | None:
+def _git_show(repo_root: str, sha: str, rel: str) -> str | None:
+    """Блоб по ЗАКРЕПЛЁННОМУ sha (см. `pin_server_ref`), а не по имени ссылки."""
     try:
-        out = subprocess.run(["git", "show", f"{ref}:{rel}"], cwd=repo_root,
+        out = subprocess.run(["git", "show", f"{sha}:{rel}"], cwd=repo_root,
                              capture_output=True, timeout=30)
     except (OSError, subprocess.SubprocessError):
         return None
@@ -190,15 +192,6 @@ def _git_show(repo_root: str, ref: str, rel: str) -> str | None:
 def _head_sha(repo_root: str) -> str | None:
     try:
         out = subprocess.run(["git", "rev-parse", "HEAD"], cwd=repo_root,
-                             capture_output=True, timeout=20)
-    except (OSError, subprocess.SubprocessError):
-        return None
-    return out.stdout.decode().strip() if out.returncode == 0 else None
-
-
-def _ref_sha(repo_root: str, ref: str) -> str | None:
-    try:
-        out = subprocess.run(["git", "rev-parse", ref], cwd=repo_root,
                              capture_output=True, timeout=20)
     except (OSError, subprocess.SubprocessError):
         return None
@@ -252,11 +245,21 @@ def read_population(repo_root: str, *, ref: str = ORIGIN_REF,
     else:
         problems.append(f"в дереве {repo_root} файла карточки нет")
 
-    head, refsha = _head_sha(repo_root), _ref_sha(repo_root, ref)
-    blob = _git_show(repo_root, ref, card_rel)
-    if blob is None:
-        problems.append(f"копия на `{ref}` не прочитана (нет git, нет ref или "
-                        f"чтение прервалось)")
+    # Вторая копия читается по ЗАКРЕПЛЁННОМУ sha (ADR-361/362): `origin/main` — кэш
+    # последнего чужого fetch, и сверка §49 с ним сравнивала бы дерево с прошлым
+    # сервера, выдавая это за сервер сейчас. Значение спрашивается у сервера
+    # (`ls-remote`), объект добирается `fetch`, оба чтения идут по одному sha; не
+    # вышло — копия НЕ ИЗМЕРЕНА с названной причиной, а не прочитана из кэша.
+    head = _head_sha(repo_root)
+    pin = pin_server_ref(repo_root, ref)
+    refsha = pin.sha
+    blob = _git_show(repo_root, refsha, card_rel) if refsha else None
+    if not pin.ok:
+        problems.append(f"копия на `{ref}` не прочитана: значение не закреплено "
+                        f"у сервера — {pin.describe()}")
+    elif blob is None:
+        problems.append(f"копия на `{ref}` ({refsha[:12]}) не прочитана (нет файла "
+                        f"или чтение прервалось)")
     else:
         try:
             read.append((ref, parse_s49_criteria(blob)))
@@ -294,7 +297,10 @@ def read_population(repo_root: str, *, ref: str = ORIGIN_REF,
                       + ", население совпало")
 
     return {"criteria": names, "sources": [w for w, _ in read],
-            "comparison": comparison, "problems": problems}
+            "comparison": comparison, "problems": problems,
+            # Закреплённый sha второй копии (None — не установлен). Им же читает
+            # очередь адресата ниже: одно значение `ref` на всю сводку.
+            "ref_sha": refsha, "ref_pin": pin.describe()}
 
 
 def measure(repo_root: str, *, ref: str = ORIGIN_REF, card_rel: str = CARD_REL,
@@ -433,8 +439,14 @@ def measure(repo_root: str, *, ref: str = ORIGIN_REF, card_rel: str = CARD_REL,
     addressee_problem = None
     addressee = None
     try:
+        if not population.get("ref_sha"):
+            # Очередь читается по ТОМУ ЖЕ закреплённому sha, что и §49: не закреплён —
+            # столбец адресата НЕ ИЗМЕРЕН, а не прочитан из кэша `ref`.
+            raise addressee_meter.Unmeasured(
+                f"значение `{ref}` не закреплено: {population.get('ref_pin')}")
         addressee = addressee_meter.measure(
-            names, tracker_dir=os.path.join(repo_root, TRACKER_REL), ref=ref)
+            names, tracker_dir=os.path.join(repo_root, TRACKER_REL),
+            ref=population["ref_sha"])
     except addressee_meter.Unmeasured as exc:
         # Непрочитанная очередь гасит СТОЛБЕЦ, а не сводку — тот же порядок, что
         # у цены выше: вердикты уже сняты и остаются верны, но «адресата нет»
@@ -462,7 +474,7 @@ def measure(repo_root: str, *, ref: str = ORIGIN_REF, card_rel: str = CARD_REL,
             "measure_tree": measure_tree, "data_dir": data_dir,
             "split_tree": split,
             "addressee_counts": (addressee or {}).get("counts"),
-            "addressee_ref": (addressee or {}).get("ref"),
+            "addressee_ref": ref if addressee is not None else None,
             "addressee_ref_sha": (addressee or {}).get("ref_sha"),
             "addressee_cards_on_ref": (addressee or {}).get(
                 "cards_declaring_on_ref"),

@@ -67,6 +67,7 @@ from typing import Callable
 
 from spa_core.utils.errors import SPAError
 from spa_core.utils.observation import observed
+from spa_core.utils.server_ref import pin_server_ref
 
 SATISFIED = "satisfied"
 NOT_SATISFIED = "not_satisfied"
@@ -4920,9 +4921,17 @@ def _probe_no_single_criterion_probe_on_a_multi_criterion_order(
 
     ref_unmeasured = ""
     if _is_git_repo(root):
-        blob = _git(["show", f"{ref}:{TRACKER_REL}/{name}"], repo_root=root)
-        if blob is None:
-            ref_unmeasured = f"копия на `{ref}` не прочитана"
+        # Копия на `ref` читается по sha, закреплённому У СЕРВЕРА (ADR-361/362):
+        # кэш `origin/main` после чужого fetch объявил бы чистой копию, на которую
+        # проба уже доставлена (или наоборот). Не закреплён ⇒ третий исход.
+        pin = pin_server_ref(root, ref)
+        blob = (_git(["show", f"{pin.sha}:{TRACKER_REL}/{name}"], repo_root=root)
+                if pin.ok else None)
+        if not pin.ok:
+            ref_unmeasured = (f"копия на `{ref}` не прочитана: значение не закреплено "
+                              f"у сервера — {pin.describe()}")
+        elif blob is None:
+            ref_unmeasured = f"копия на `{ref}` ({pin.sha[:12]}) не прочитана"
         else:
             copies.append((ref, blob))
 
@@ -10389,7 +10398,8 @@ def _tracker_comparison_tautological(root: str, card_path: str,
                   f"предмете")
 
 
-def cards_declaring_a_probe_on_ref(*, repo_root: str, ref: str = ORIGIN_REF):
+def cards_declaring_a_probe_on_ref(*, repo_root: str, ref: str = ORIGIN_REF,
+                                   note: list | None = None):
     """`{имя карточки: текст}` для карточек, объявивших пробу на `ref`. `None` ⇒ не измерено.
 
     ЗАЧЕМ ЭТО ЕСТЬ. `audit()` читал ТОЛЬКО каталог того дерева, в котором запущен, —
@@ -10407,18 +10417,30 @@ def cards_declaring_a_probe_on_ref(*, repo_root: str, ref: str = ORIGIN_REF):
 
     `None` — «не измерено» (нет git, нет ref, сеть/индекс недоступны), и вызывающий
     ОБЯЗАН сказать это вслух: молчание здесь неотличимо от «все на месте».
+
+    **Значение `ref` спрашивается у СЕРВЕРА и закрепляется sha** (ADR-361/362):
+    `origin/main` — кэш последнего чужого fetch, и на нём популяция молча
+    недосчитывала карточки, объявившие пробу после того fetch. Все чтения идут по
+    одному sha; не закреплён ⇒ `None`, а причина дописывается в ``note`` (если
+    передан) — тем же порядком, что и у прочих «не измерено».
     """
-    listing = _git(["grep", "-l", "^acceptance_probe:", ref, "--", TRACKER_REL + "/"],
+    pin = pin_server_ref(repo_root, ref)
+    if note is not None:
+        note.append(pin.describe())
+    if not pin.ok:
+        return None
+    sha = pin.sha
+    listing = _git(["grep", "-l", "^acceptance_probe:", sha, "--", TRACKER_REL + "/"],
                    repo_root=repo_root)
     if listing is None:
         return None
     out: dict = {}
     for line in listing.splitlines():
-        # формат строки: `<ref>:<путь>`
+        # формат строки: `<sha>:<путь>`
         _, _, path = line.partition(":")
         if not path.endswith(".md") or os.path.basename(path).startswith("_"):
             continue
-        blob = _git(["show", f"{ref}:{path}"], repo_root=repo_root)
+        blob = _git(["show", f"{sha}:{path}"], repo_root=repo_root)
         if blob is None:
             return None              # частично прочитанная популяция — не популяция
         out[os.path.basename(path)] = blob
@@ -10476,17 +10498,21 @@ def audit(tracker_dir: str | None = None, *, origin_readthrough: bool = True,
                   "reason": f"{repo_root} — не git-репозиторий: ветки `{ref}` "
                             f"здесь нет по построению, дочитывать не с чего"}
     elif origin_readthrough:
-        remote = cards_declaring_a_probe_on_ref(repo_root=repo_root, ref=ref)
+        pin_note: list = []
+        remote = cards_declaring_a_probe_on_ref(repo_root=repo_root, ref=ref,
+                                                note=pin_note)
         if remote is None:
             origin = {"state": "unmeasured", "read": 0, "ref": ref,
                       "reason": f"популяцию с `{ref}` дочитать не удалось (нет git, "
-                                f"нет ref или чтение прервалось) — сколько карточек "
-                                f"этому дереву невидимо, НЕ ИЗМЕРЕНО"}
+                                f"значение ref не закреплено у сервера или чтение "
+                                f"прервалось: {'; '.join(pin_note) or '?'}) — сколько "
+                                f"карточек этому дереву невидимо, НЕ ИЗМЕРЕНО"}
         else:
             added = [(n, t) for n, t in sorted(remote.items()) if n not in local_names]
             sources.extend((n, t, True) for n, t in added)
             origin = {"state": "read", "read": len(added), "ref": ref,
-                      "declared_on_ref": len(remote)}
+                      "declared_on_ref": len(remote),
+                      "pinned": "; ".join(pin_note)}
 
     for name, text, from_origin in sources:
             fm = parse_frontmatter(text)

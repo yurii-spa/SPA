@@ -23,6 +23,8 @@ import subprocess
 from pathlib import Path
 from typing import Optional
 
+from spa_core.utils.server_ref import pin_server_ref
+
 REPO = Path(__file__).resolve().parents[2]
 REGISTRY = REPO / "architecture" / "provenance.json"
 MANIFEST = REPO / "architecture" / "manifest.json"
@@ -156,7 +158,12 @@ def release_of(sha: Optional[str], *, root: Optional[Path] = None, data_dir: Opt
     if not sha:
         return {"state": UNKNOWN, "reason": "no commit"}
     root = root or git_root()
-    on_main = _is_ancestor(sha, "origin/main", root)
+    # «На main» судится против sha, закреплённого У СЕРВЕРА (ADR-361/362), а не против
+    # локального `origin/main` — кэша последнего чужого fetch: на нём коммит, уехавший
+    # после того fetch, выглядел бы NOT_ON_MAIN, и это «не измерено», выданное за
+    # измерение (инв. #17). Не закреплён ⇒ UNKNOWN с причиной.
+    pin = pin_server_ref(str(root), "origin/main")
+    on_main = _is_ancestor(sha, pin.sha, root) if pin.ok else None
     deployed = None
     try:
         if data_dir is None:
@@ -181,7 +188,8 @@ def release_of(sha: Optional[str], *, root: Optional[Path] = None, data_dir: Opt
         state = "ON_MAIN_PRODUCTION_UNKNOWN"
     else:
         state = "RELEASED" if deployed["contains"] else "ON_MAIN_NOT_SYNCED"
-    return {"state": state, "on_origin_main": on_main, "production": deployed or UNKNOWN}
+    return {"state": state, "on_origin_main": on_main, "production": deployed or UNKNOWN,
+            "origin_main": pin.describe()}
 
 
 def removal_verdict(rec: dict) -> dict:

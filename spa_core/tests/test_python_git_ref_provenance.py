@@ -359,6 +359,123 @@ def look(root, **kw):
         self.assertEqual(["unmeasured"], [r["verdict"] for r in rows])
 
 
+class TestNestedScopesAndStarredLoops(Tree):
+    """Две формы, на которых прибор отвечал ВЕРНО ТОЛЬКО СЛУЧАЙНО (замер 2026-10-22).
+
+    1. Двери ключевались по ``(файл, имя)`` без вложенности: вложенная
+       ``def _git(cwd, *args)`` сцены и модульная ``def _git(args, *, repo_root)``
+       склеивались в одну дверь, и зов разбирался по сигнатуре той, что попалась
+       обходу первой.
+    2. ``*a`` из ``for a in ([...], [...])`` объявлялся «соответствие не
+       установлено», хотя варианты argv — литералы в той же функции.
+
+    Контроль в обе стороны: точность не имеет права стать слепотой — ссылка внутри
+    литерального варианта обязана найтись, а неразрешимая распаковка — остаться
+    третьим исходом.
+    """
+
+    TWO_DOORS = HEAD + """
+def _git(args, *, repo_root):
+    return subprocess.run(["git", "-C", repo_root, *args], capture_output=True)
+
+
+def module_reader(r):
+    return _git(["show", "origin/main:x"], repo_root=r)
+
+
+def scene(tmp):
+    def _git(cwd, *args):
+        return subprocess.run(["git", "-C", str(cwd), *args], capture_output=True)
+    return _git(tmp, "show", "origin/main:y")
+"""
+
+    def test_a_nested_door_is_resolved_in_its_own_scope(self):
+        rows = {r["func"]: r for r in self.rows(m=self.TWO_DOORS)}
+        self.assertEqual({"module_reader", "scene"}, set(rows))
+        self.assertEqual(("show", "origin/main"),
+                         (rows["scene"]["sub"], rows["scene"]["ref"]),
+                         "зов сцены разобран по сигнатуре ЧУЖОЙ двери")
+        self.assertEqual(("show", "origin/main"),
+                         (rows["module_reader"]["sub"], rows["module_reader"]["ref"]))
+
+    def test_a_list_concatenation_argv_is_a_door(self):
+        """`["git", "-C", root] + args` — склейка списков. Прежде argv этой формы
+        разрешался как СТРОКОВОЕ сложение, давал `None`, и дверь была невидима."""
+        rows = self.rows(m=HEAD + """
+def _git(args, *, repo_root):
+    return subprocess.run(["git", "-C", repo_root] + args, capture_output=True)
+
+
+def look(r):
+    return _git(["show", "origin/main:x"], repo_root=r)
+""")
+        self.assertEqual([("look", "show", "origin/main")],
+                         [(r["func"], r["sub"], r["ref"]) for r in rows])
+
+    def test_a_nested_non_door_shadows_the_module_door(self):
+        rows = self.rows(m=HEAD + """
+def _git(cwd, *args):
+    return subprocess.run(["git", "-C", str(cwd), *args], capture_output=True)
+
+
+def scene(tmp):
+    def _git(*a):
+        return a
+    return _git(tmp, "show", "origin/main:y")
+
+
+def real(root):
+    return _git(root, "show", "origin/main:z")
+""")
+        self.assertEqual(["real"], [r["func"] for r in rows],
+                         "вложенная не-дверь затеняет модульную, как в python")
+
+    LOOP = HEAD + """
+def scene(tmp):
+    def _git(cwd, *args):
+        return subprocess.run(["git", "-C", str(cwd), *args], capture_output=True)
+    for a in (["init", "-q", "-b", "main", tmp], ["config", "user.name", "p"]):
+        _git(tmp, *a)
+    for a in (["add", "-A"], ["commit", "-q", "-m", "ref"]):
+        _git(tmp, *a)
+"""
+
+    def test_literal_loop_alternatives_are_resolved_not_unmeasured(self):
+        self.assertEqual([], self.rows(m=self.LOOP),
+                         "литеральные варианты argv без ссылки — не чтение и не «не измерено»")
+
+    def test_a_ref_inside_a_literal_alternative_is_found(self):
+        rows = self.rows(m=self.LOOP.replace('["add", "-A"]', '["show", "origin/main:x"]'))
+        self.assertEqual([("show", "origin/main", "cache_only")],
+                         [(r["sub"], r["ref"], r["verdict"]) for r in rows])
+
+    def test_a_loop_over_a_non_literal_stays_unmeasured(self):
+        rows = self.rows(m=self.LOOP.replace(
+            'for a in (["add", "-A"], ["commit", "-q", "-m", "ref"]):',
+            'for a in cmds(tmp):'))
+        # Оба зова: связывание имени уже не только литеральное, и вывод вариантов
+        # отказывает для ВСЕЙ функции — в сторону «не измерено», а не «чисто».
+        self.assertEqual(["unmeasured", "unmeasured"], [r["verdict"] for r in rows])
+
+    def test_a_star_that_fills_named_positions_stays_unmeasured(self):
+        """`_git(*a)` у двери `_git(cwd, *args)`: распаковка заполняет и `cwd`, и
+        `*args`, и какой токен куда лёг, не установлено — третий исход."""
+        rows = self.rows(m=HEAD + """
+def scene(tmp):
+    def _git(cwd, *args):
+        return subprocess.run(["git", "-C", str(cwd), *args], capture_output=True)
+    for a in ([tmp, "show", "origin/main:x"],):
+        _git(*a)
+""")
+        self.assertEqual(["unmeasured"], [r["verdict"] for r in rows])
+
+    def test_a_name_also_bound_otherwise_stays_unmeasured(self):
+        rows = self.rows(m=self.LOOP.replace(
+            '    for a in (["add", "-A"]', '    a = cmds(tmp)\n    _git(tmp, *a)\n'
+                                           '    for a in (["add", "-A"]'))
+        self.assertTrue(rows and all(r["verdict"] == "unmeasured" for r in rows), rows)
+
+
 class TestRefShapes(Tree):
     """Что считается remote-tracking ссылкой, а что нет."""
 

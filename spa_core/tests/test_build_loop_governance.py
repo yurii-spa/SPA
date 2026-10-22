@@ -135,6 +135,21 @@ def _git(repo: Path, *args, env=None):
                         "GIT_COMMITTER_NAME": "t", "GIT_COMMITTER_EMAIL": "t@t", **(env or {})})
 
 
+def _publish(repo: Path) -> Path:
+    """Опубликовать HEAD сцены на НАСТОЯЩИЙ удалённый (локальный bare-репо) как `main`.
+
+    Прежде сцена ставила `refs/remotes/origin/main` руками (`update-ref`), то есть
+    рисовала КЭШ без сервера. `release_of` теперь спрашивает значение `origin/main`
+    у сервера (ADR-361/362) — нарисованный кэш ответом сервера не является, и
+    предпосылка сцены обязана быть настоящей: удалённый есть и знает ветку."""
+    bare = repo.parent / f"{repo.name}-origin.git"
+    subprocess.run(["git", "init", "-q", "--bare", str(bare)], check=True, capture_output=True)
+    _git(repo, "remote", "add", "origin", str(bare))
+    _git(repo, "push", "-q", "origin", "HEAD:refs/heads/main")
+    _git(repo, "fetch", "-q", "origin")
+    return bare
+
+
 def _scene_repo(tmp_path: Path, main: str = "main") -> Path:
     repo = tmp_path / "repo"
     repo.mkdir()
@@ -144,7 +159,7 @@ def _scene_repo(tmp_path: Path, main: str = "main") -> Path:
     _git(repo, "commit", "-m", "M3: yield calculator\n\nCo-Authored-By: Claude Test <noreply@example.com>")
     (repo / "page.astro").write_text("<div id=\"calc-slider\"></div>\n<p>scenario</p>\n", encoding="utf-8")
     _git(repo, "commit", "-am", "ADR-900: scenario block (cycle #42)")
-    _git(repo, "update-ref", "refs/remotes/origin/main", "HEAD")
+    _publish(repo)
     return repo
 
 
@@ -688,7 +703,7 @@ class TestScenarioGLineage:
         (repo / "x.txt").write_text("x", encoding="utf-8")
         _git(repo, "add", ".")
         _git(repo, "commit", "-m", f"fix: {card.stem} (ADR-900) — reverse control red without the fix")
-        _git(repo, "update-ref", "refs/remotes/origin/main", "HEAD")
+        _publish(repo)
         head = subprocess.run(["git", "-C", str(repo), "rev-parse", "HEAD"], capture_output=True, text=True).stdout.strip()
         dd = tmp_path / "data"
         dd.mkdir()

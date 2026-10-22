@@ -68,6 +68,11 @@ import sys
 from pathlib import Path
 from typing import Dict, Iterable, List, Optional, Tuple
 
+# The pusher runs this guard by PATH (`sys.path[0]` is `scripts/`), so the tree root is added
+# explicitly: the pinned-base reader lives in `spa_core/utils/server_ref.py`, one copy for every reader.
+sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
+from spa_core.utils.server_ref import pin_server_ref  # noqa: E402
+
 SCOPED_PY = ("spa_core/paper_trading/", "spa_core/defi_engine/", "spa_core/risk/", "spa_core/governance/",
              "spa_core/api/", "spa_core/studio_os/memory/", "scripts/generate_track_snapshot.py",
              "scripts/build_site_numbers.py", "scripts/build_site_constitution.py", "scripts/check_owner_gate.py",
@@ -232,14 +237,23 @@ def run(files: List[str], message: str, base: str = "origin/main", staged: bool 
             return 2, "NOT MEASURED: staged diff unreadable"
         rels = [n for n in names.splitlines() if n]
         pairs = [(r, _git(["show", f"HEAD:{r}"], repo), _git(["show", f":{r}"], repo)) for r in rels]
+        base_sha = None   # staged: compared with HEAD; the base is pinned lazily, only if a record needs it
     else:
         if not files:
             return 0, "nothing to check"
         repo = _top(Path(files[0]).resolve())
         if repo is None:
             return 2, "NOT MEASURED: the files are not in a git tree"
-        if _git(["rev-parse", "--verify", f"{base}^{{commit}}"], repo) is None:
-            return 2, f"NOT MEASURED: base {base} unknown in {repo}"
+        # The base is PINNED before anything is compared (ADR-361/362): a remote-tracking name
+        # (`origin/main`) is a cache of somebody else's last fetch, and comparing against it hides a
+        # removal that already reached the server — or refuses one that was already recorded there.
+        # So its value is asked of the SERVER (`ls-remote`), the commit is fetched if absent, and every
+        # read below goes by that sha. Not established ⇒ NOT MEASURED (rc 2): both pushers refuse it
+        # fail-CLOSED, and the only bypass is their existing `--allow-change-evidence-unmeasured`.
+        pin = pin_server_ref(str(repo), base)
+        if not pin.ok:
+            return 2, f"NOT MEASURED: base {pin.describe()} in {repo}"
+        base_sha = pin.sha
         pairs = []
         for f in files:
             p = Path(f).resolve()
@@ -247,7 +261,7 @@ def run(files: List[str], message: str, base: str = "origin/main", staged: bool 
                 rel = str(p.relative_to(repo))
             except ValueError:
                 return 2, f"NOT MEASURED: {f} is outside {repo}"
-            old = _git(["show", f"{base}:{rel}"], repo)
+            old = _git(["show", f"{base_sha}:{rel}"], repo)
             new = p.read_text(encoding="utf-8", errors="replace") if p.exists() else None
             pairs.append((rel, old, new))
     units, problems = removals(pairs)
@@ -261,7 +275,12 @@ def run(files: List[str], message: str, base: str = "origin/main", staged: bool 
         fp = repo / rel
         if fp.is_file():
             return fp.read_text(encoding="utf-8", errors="replace")
-        return _git(["show", f"{base}:{rel}"], repo)
+        sha = base_sha
+        if sha is None:
+            # staged mode: a record reachable only on the base — pin the base now, same rule as above
+            pin = pin_server_ref(str(repo), base)
+            sha = pin.sha
+        return _git(["show", f"{sha}:{rel}"], repo) if sha else None
 
     bad = validate(units, message, read, repo)
     if bad:
