@@ -953,6 +953,18 @@ _READ_SCHEMA: dict[str, tuple[str, ...]] = {
                                     "findings", "needs_reading", "books",
                                     "unmeasured_causes",
                                     "what_it_does_not_prove"),
+    # Карточка inbox-u-pribora-perepisi-razborov-lenty-net-ch (ADR-785). `conditions`
+    # в схеме ОБЯЗАТЕЛЕН, и это не формальность: `parse_s` есть ВРЕМЯ, и ADR-784
+    # измерил цену — 15 суток запаса на спокойной машине против 0 под нагрузкой при
+    # темпе, не изменившемся на 0,3 %. Артефакт без условий замера прочёлся бы как
+    # утверждение о ЛЕНТЕ там, где это утверждение о МОМЕНТЕ ЗАМЕРА. `rows` — потому
+    # что главное число прибора (СРОК до пробоя бюджета) живёт у члена, а не в сводке:
+    # «находок 0» без строк не отличить от «ленты не смотрели». `unmeasured` рядом с
+    # `findings` — третий исход обязан доехать до читателя отдельным значением
+    # (инв. #17), иначе слепой член сольётся с чистым.
+    "ledger_parse_census.json": ("status", "generated_at", "conditions", "rows",
+                                 "findings", "population", "unmeasured",
+                                 "advisory"),
     # Заказ G92 п. 2 (ADR-543). `stage_population` в схеме обязателен: без него
     # «зелёных по построению 1» прочлось бы как «во всём наборе один», тогда как
     # население СТУПЕНИ урезано до одного файла проб, а полный замер стои́т часа
@@ -1511,6 +1523,8 @@ _PRODUCER: dict[str, str] = {
         "spa_core/monitoring/vacuous_advice_census.py",
     "ledger_day_unit_census.json":
         "spa_core/monitoring/ledger_day_unit_census.py",
+    "ledger_parse_census.json":
+        "spa_core/monitoring/ledger_parse_census.py",
     "green_by_construction_census.json":
         "spa_core/monitoring/green_by_construction_census.py",
     "acceptance_tree_capability.json":
@@ -3947,6 +3961,14 @@ def _summarize_json(path: str, data, *, now: dt.datetime | None = None,
         # ПРОИЗВОДИТЕЛЮ; ввоз ОДНОСТРОЧНЫЙ.
         from spa_core.monitoring.vacuous_advice_census import format_report as _vac_report
         out.extend(_vac_report(data))
+    elif name == "ledger_parse_census.json":
+        # Карточка inbox-u-pribora-perepisi-razborov-lenty-net-ch (ADR-785). Без этой
+        # ветки артефакт читался бы ВХОЛОСТУЮ: файл открыт, а в контекст не попадает
+        # ни одно число — ровно тот класс «прибор без читателя», которым этот прибор
+        # и болел пять ADR подряд. Правило отрисовки делегируется ПРОИЗВОДИТЕЛЮ
+        # (вторая копия разошлась бы с первой молча); ввоз ОДНОСТРОЧНЫЙ.
+        from spa_core.monitoring.ledger_parse_census import format_report as _lpc_report
+        out.extend(_lpc_report(data))
     elif name == "ledger_day_unit_census.json":
         # Заказ G765 п. 3 (ADR-766). Без этой ветки артефакт читается ВХОЛОСТУЮ:
         # файл открыт, а в контекст не попадает ни одно число — ровно тот класс

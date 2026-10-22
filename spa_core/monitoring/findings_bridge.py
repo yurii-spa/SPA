@@ -158,6 +158,15 @@ PRODUCES = (
     # закончен, ответ получен — плечо проводится. Такт недельный и решает его
     # ФАЙЛ (`python_reader_clock_doors.run` → `measurement_due`), SLO 192ч.
     "data/python_reader_clock_doors.json",
+    # Карточка inbox-u-pribora-perepisi-razborov-lenty-net-ch (ADR-785). ПЯТЬ ADR
+    # (777, 779, 782, 783, 784) и четыре цикла работы прожили БЕЗ читателя, и это
+    # замер: прибор не писал ничего вовсе — печатал отчёт в терминал. ADR-784 назвал
+    # главным числом СРОК (15 суток на спокойной машине, 0 под нагрузкой), а узнавал
+    # его только тот, кто наберёт команду руками. Такт недельный и решает его ФАЙЛ
+    # (`ledger_parse_census.run` → `measurement_due`), SLO 192ч — тот же довод, что у
+    # трёх соседей выше: равнять SLO такту значило бы объявить протухшим артефакт,
+    # которому только предстоит перемериться.
+    "data/ledger_parse_census.json",
     # Заказ G97 п. 3 (ADR-562). ТРЕТЬЕ плечо того же семейства «часы как вход»:
     # сосед выше спрашивает, закрывается ли дверь читателя пином, а этот — ПРАВДА
     # ЛИ ВОЗРАСТ артефакта, то есть доходит ли инъектированный `now` до САМОЙ
@@ -503,6 +512,7 @@ CENSUS_STAGE: tuple[str, ...] = (
     "haystack_origin_census",
     "list_identity_census",
     "python_reader_clock_doors",
+    "ledger_parse_census",
     "artifact_stamp_clock_doors",
     "tact_gate_census",
     "rule_second_copy_census",
@@ -766,6 +776,9 @@ CENSUS_PRODUCT: dict[str, dict[str, str]] = {
     "python_reader_clock_doors": {
         "module": "spa_core/monitoring/python_reader_clock_doors.py",
         "artifact": "data/python_reader_clock_doors.json"},
+    "ledger_parse_census": {
+        "module": "spa_core/monitoring/ledger_parse_census.py",
+        "artifact": "data/ledger_parse_census.json"},
     "artifact_stamp_clock_doors": {
         "module": "spa_core/monitoring/artifact_stamp_clock_doors.py",
         "artifact": "data/artifact_stamp_clock_doors.json"},
@@ -2834,6 +2847,44 @@ def main(argv=None) -> int:
             print(f"ledger_day_unit_census: внутри такта — {_ldu_res.get('reason')}")
     except Exception as e:  # noqa: BLE001 — перепись не смеет валить мост
         census_skipped(_skipped, "ledger_day_unit_census", e)
+    # Перепись повторного разбора хеш-лент (заказ G777; ADR-777/779/782/783/784,
+    # проведена ADR-785). Пять решений и четыре цикла прожили БЕЗ читателя: прибор
+    # ПЕЧАТАЛ отчёт и не писал ничего, поэтому главное его число — СРОК до пробоя
+    # бюджета одного вызова вида — существовало ровно столько, сколько жил терминал
+    # набравшего команду. Ступень ДОРОГАЯ (поднимает настоящие прогоны и разбирает
+    # ленты по нескольку раундов), поэтому у неё ТАКТ, и срок решает ФАЙЛ, а не
+    # расписание бегуна. «Внутри такта» и «измерено» — РАЗНЫЕ исходы: в первой ветке
+    # не печатается ни вердикта, ни нуля, и артефакт НЕ переписывается.
+    try:
+        from spa_core.monitoring import ledger_parse_census as _lpc
+        _lpc_res = _lpc.run(root=args.root, if_due=True, workloads=_lpc.WORKLOADS)
+        if _lpc_res.get("measured"):
+            _pdoc = _lpc_res["doc"]
+            #: Срок печатается БЛИЖАЙШИЙ по населению, а не средний: вопрос «когда
+            #: пробьёт бюджет» решается первой лентой, которая его пробьёт.
+            _soon = [(r.get("days_to_budget"), r.get("ledger_id") or r.get("id"))
+                     for r in (_pdoc.get("rows") or ())
+                     if r.get("days_to_budget") is not None]
+            _cond = _pdoc.get("conditions") or {}
+            if _soon:
+                _d, _who = min(_soon)
+                _srok = f"ближайший срок {_d:.0f} сут у {_who}"
+            else:
+                #: Третий исход, а не ноль: «ни у одной ленты срок не измерен» и
+                #: «срок равен нулю» — разные наблюдения (инв. #17).
+                _srok = "срок НЕ ИЗМЕРЕН ни у одной ленты"
+            print(f"ledger_parse_census: {_pdoc.get('status')} — находок "
+                  f"{len(_pdoc.get('findings') or [])}, {_srok}; условия замера: "
+                  f"загрузка {_lpc._load_label(_cond)}, "
+                  f"{_cond.get('elapsed_s')} с "
+                  f"(запас и срок наследуют загрузку, темп — нет: ADR-784)")
+            for _prow in (_pdoc.get("findings") or [])[:4]:
+                print(f"   🔴 [{_prow.get('kind')}] {_prow.get('id')}: "
+                      f"{str(_prow.get('text'))[:120]}")
+        else:
+            print(f"ledger_parse_census: внутри такта — {_lpc_res.get('reason')}")
+    except Exception as e:  # noqa: BLE001 — перепись не смеет валить мост
+        census_skipped(_skipped, "ledger_parse_census", e)
     # Перепись «зелёный по построению» (G92 п. 2, ADR-543): тесты, чей зелёный
     # не зависит НИ ОТ ОДНОГО решения прибора, который они проверяют. Ступень
     # ПОВЕДЕНЧЕСКАЯ (настоящие прогоны pytest на одноразовых копиях), поэтому

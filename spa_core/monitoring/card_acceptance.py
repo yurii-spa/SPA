@@ -3205,6 +3205,217 @@ def _probe_absent_observation_class_closed(arg: str | None) -> tuple[str, str]:
     return SATISFIED, f"новых мест класса нет и база не выросла ({counts})"
 
 
+#: Якоря трёх реестров шага 0-офис. Объявлены ОДНИМ местом и читаются и пробой, и её
+#: батареей: вторая копия якоря разошлась бы с первой молча, а предмет здесь ровно
+#: «объявлено ли», поэтому расхождение копий означало бы зелёный ответ на свой вопрос.
+_LPC_ARTIFACT = "data/ledger_parse_census.json"
+_LPC_OFFICE_ANCHORS = {
+    "звено 2а": ('"ledger_parse_census.json": ("status"',
+                 "артефакт не объявлен в реестре ФОРМЫ — схему не проверит никто"),
+    "звено 2б": ('"ledger_parse_census.json":\n'
+                 '        "spa_core/monitoring/ledger_parse_census.py"',
+                 "артефакт не объявлен в реестре ПРОИЗВОДИТЕЛЯ — «кто обязан был его "
+                 "написать» не назовёт никто"),
+    "звено 2в": ('elif name == "ledger_parse_census.json":',
+                 "у артефакта нет ветки ОТРИСОВКИ — файл будет читаться ВХОЛОСТУЮ: "
+                 "открыт, а в контекст не попадёт ни одно число"),
+}
+
+
+def ledger_census_reader_links(root=None, *, bridge=None, census=None,
+                               stand_rows: int = 400) -> list[str]:
+    """Перечень ПОРВАННЫХ звеньев проводки прибора переписи разборов ленты (ADR-785).
+
+    Вынесено из пробы отдельной функцией, потому что иначе звенья нечем порвать:
+    корень дерева и оба модуля приходят ВХОДОМ (по умолчанию — настоящие), и батарея
+    пробы подаёт одноразовое дерево и заглушки. Это тот же порядок, что правило
+    ``.claude/rules/deployment.md`` предписывает часам и номерам процессов: свойство
+    окружения, от которого зависит вердикт, обязано быть параметром, иначе
+    положительного контроля у проверки не существует, и она остаётся украшением.
+
+    Пустой список означает «все звенья целы». Каждая строка НАЗЫВАЕТ звено — вердикт
+    «что-то не так» без имени звена не чинится.
+    """
+    import json as _json
+    import tempfile
+    import datetime as _dt
+
+    root = _pathlib.Path(root) if root is not None else \
+        _pathlib.Path(__file__).resolve().parents[2]
+    if bridge is None:
+        from spa_core.monitoring import findings_bridge as bridge  # noqa: PLC0415
+    if census is None:
+        from spa_core.monitoring import ledger_parse_census as census  # noqa: PLC0415
+
+    broken: list[str] = []
+
+    # --- звено 1: срок годности объявлен в конституции ---
+    man = _json.loads((root / "architecture" / "manifest.json").read_text(encoding="utf-8"))
+    decl = [a for a in (man.get("artifacts") or []) if a.get("path") == _LPC_ARTIFACT]
+    if not decl:
+        broken.append("звено 1: артефакта нет в architecture/manifest.json — срок "
+                      "годности не объявлен, и возраст не измерит никто")
+    elif not decl[0].get("slo_hours"):
+        broken.append("звено 1: запись в конституции есть, а slo_hours нет — "
+                      "объявление без срока сроком не является")
+
+    # --- звено 2: три реестра шага 0-офис ---
+    office = (root / "scripts" / "consume_office_reports.py").read_text(encoding="utf-8")
+    for link, (anchor, why) in sorted(_LPC_OFFICE_ANCHORS.items()):
+        if anchor not in office:
+            broken.append(f"{link}: {why}")
+
+    # --- звено 3: ступень моста ---
+    if "ledger_parse_census" not in getattr(bridge, "CENSUS_STAGE", ()):
+        broken.append("звено 3: имени нет в findings_bridge.CENSUS_STAGE — ступени, "
+                      "которая бы прибор позвала, не существует")
+
+    # --- звенья 4 и 5: НАСТОЯЩИЙ вызов на одноразовом стенде ---
+    #: Путь ленты берётся из ОБЪЯВЛЕНИЯ прибора, а не печатается здесь литералом, и
+    #: причина не в красоте. Прибор ищет читающие ленту файлы по литералу
+    #: её имени (``LEDGER_LITERAL``); вторая копия этого литерала здесь сделала бы
+    #: ``card_acceptance`` «читателем ленты» в собственной переписи прибора — то есть
+    #: проба испортила бы то население, которое проверяет (храповик
+    #: ``test_the_declared_code_population_matches_the_real_tree`` это и поймал).
+    #: Одно имя — один объект: ровно правило, которое держит сам прибор (ADR-782).
+    rel = next((m.ledger for m in getattr(census, "LEDGERS", ())
+                if getattr(m, "ledger_id", None) == "research_factory"), None)
+    if rel is None:
+        return broken + ["стенд: в объявлении прибора нет ленты research_factory — "
+                         "строить стенд по догадке проба не станет"]
+
+    with tempfile.TemporaryDirectory(prefix="spa_adr785_links_") as tmp:
+        stand = _pathlib.Path(tmp) / "data"
+        ledger = stand / rel
+        ledger.parent.mkdir(parents=True)
+        base = _dt.datetime(2026, 10, 1, tzinfo=_dt.timezone.utc)
+        #: Лента синтетическая и ОДНА: предмет — проводка читателя, а не боевое
+        #: население; живой ``data/`` сюда не копируется и не открывается.
+        rows = [_json.dumps({"at": (base + _dt.timedelta(hours=i)).isoformat(),
+                             "kind": "probe", "payload": {"v": i, "pad": "y" * 200}})
+                for i in range(stand_rows)]
+        ledger.write_text("\n".join(rows) + "\n", encoding="utf-8")
+
+        kinds: dict[str, set] = {}
+        for tag, budget in (("щедрый", 1000.0), ("пройденный", 1e-9)):
+            res = census.run(root=root, data_dir=stand, if_due=False,
+                             budget_s=budget, dest=stand / (tag + ".json"))
+            target = _pathlib.Path(res["artifact"])
+            if not target.is_file():
+                broken.append(f"звено 4: зов run() на стенде ({tag} бюджет) НЕ "
+                              f"НАПИСАЛ артефакт — писателя у числа нет")
+                kinds[tag] = set()
+                continue
+            doc = _json.loads(target.read_text(encoding="utf-8"))
+            kinds[tag] = {f.get("kind") for f in (doc.get("findings") or ())}
+            if not doc.get("generated_at"):
+                broken.append(f"звено 4: артефакт ({tag}) без generated_at — возраст "
+                              f"наблюдения прочитать нечем")
+            if not (doc.get("conditions") or {}).get("elapsed_s"):
+                broken.append(f"звено 4: артефакт ({tag}) без условий замера — запас и "
+                              f"срок наследуют загрузку машины (ADR-784), и без неё "
+                              f"число читается как свойство ленты")
+
+        margin = getattr(census, "F_MARGIN_SHORT", "growth_margin_below_floor")
+        if margin in kinds.get("щедрый", set()):
+            broken.append("звено 5: находка о пройденном бюджете стои́т и при ЩЕДРОМ "
+                          "бюджете — это несмолкаемость, а не чувствительность (ровно "
+                          "класс, который ADR-782 чинил у этого же прибора)")
+        if margin not in kinds.get("пройденный", set()):
+            broken.append(f"звено 5: искусственно пройденный бюджет НЕ родил находку "
+                          f"{margin} — срок остался известен только тому, кто наберёт "
+                          f"команду руками")
+
+        # --- такт не подделывает свежесть ---
+        dest = stand / "tact.json"
+
+        def _stamp() -> object:
+            """Отметка артефакта — и ОТСУТСТВИЕ файла есть СВОЙ исход, а не исключение.
+
+            Порванное звено 4 (писатель ничего не пишет) здесь выглядело бы как
+            ``FileNotFoundError``, то есть проба вернула бы «проводку не измерили»
+            вместо «писателя нет» — ровно подмена находки третьим исходом, против
+            которой написан инв. #17. Поэтому читается мягко, а вердикт о писателе
+            остаётся за звеном 4, которое его и назвало.
+            """
+            try:
+                return _json.loads(dest.read_text(encoding="utf-8")).get("generated_at")
+            except (OSError, ValueError):
+                return "<артефакта нет>"
+
+        first = census.run(root=root, data_dir=stand, if_due=True, dest=dest)
+        stamp1 = _stamp()
+        second = census.run(root=root, data_dir=stand, if_due=True, dest=dest)
+        stamp2 = _stamp()
+        if not first.get("measured"):
+            broken.append("такт: ПЕРВЫЙ зов не мерил при отсутствующем артефакте — "
+                          "первый замер обязан состояться")
+        if second.get("measured"):
+            broken.append("такт: второй зов внутри такта МЕРИЛ — срок решает не файл, "
+                          "и ступень платила бы полную цену каждый раз")
+        if stamp1 != stamp2:
+            broken.append("такт: отметка generated_at обновилась БЕЗ замера — возраст "
+                          "терминала выдан за возраст наблюдения, и сторож свежести, "
+                          "ради которого артефакт заведён, сломан первым (инв. #17)")
+
+    return broken
+
+
+def _probe_ledger_census_artifact_reaches_the_cycle(arg: str | None) -> tuple[str, str]:
+    """У прибора переписи разборов ленты ЕСТЬ читатель — мерено ИСХОДОМ (карточка
+    ``inbox-u-pribora-perepisi-razborov-lenty-net-ch``, ADR-785).
+
+    Критерий карточки дословно: *«Есть артефакт прибора с объявленным сроком годности,
+    его возраст виден шагу цикла, и положительный контроль: искусственно пройденный
+    бюджет рождает находку БЕЗ участия человека. „Прибор есть и тесты зелёные“
+    критерием не является»*.
+
+    Поэтому проба не читает вчерашний артефакт и не ищет имя подстрокой: артефакт мог
+    быть написан рукой цикла (ровно это измерено у соседа ADR-412 — строка в промпте не
+    есть вызов), а имя в файле не есть чтение. Звенья считает
+    :func:`ledger_census_reader_links`, и каждое рвётся отдельно:
+
+    1. **Срок годности ОБЪЯВЛЕН** в ``architecture/manifest.json`` (``slo_hours``). Без
+       объявления возраст артефакта не измерит никто, и «свежий» станет неотличим от
+       «забытый».
+    2. **Шаг цикла знает артефакт ВСЕМИ ТРЕМЯ реестрами** (форма · производитель ·
+       отрисовка). Три, а не один: без формы не проверить схему, без производителя не
+       назвать, кто обязан был написать, без отрисовки файл читается ВХОЛОСТУЮ —
+       открыт, а в контекст не попало ни одного числа. Это тот самый класс, которым
+       прибор болел пять ADR подряд.
+    3. **Ступень моста несёт имя** — иначе ступени, которая бы прибор позвала, нет.
+    4. **Производящий зов СУЩЕСТВУЕТ и ПИШЕТ** — настоящий вызов ``run`` на одноразовом
+       стенде, а не ``grep``. До ADR-785 ответом было «нет»: поиск вне тестов находил
+       один файл — сам прибор.
+    5. **Пройденный бюджет рождает находку БЕЗ человека, и контроль ДИФФЕРЕНЦИАЛЬНЫЙ** —
+       два плеча на одном стенде, и ``growth_margin_below_floor`` обязан появиться во
+       втором и МОЛЧАТЬ в первом. Одного плеча не хватило бы: находка, стоящая на любом
+       входе, доказывает не чувствительность, а несмолкаемость.
+
+    Плюс такт: второй зов внутри такта обязан оставить ``generated_at`` прежним — иначе
+    возраст терминала выдаётся за возраст наблюдения (инв. #17).
+
+    Живой ``data/`` не открывается: лента стенда синтетическая, её строит сама проба.
+    """
+    if arg:
+        return UNMEASURED, (f"проба не принимает аргумента (дано {arg!r}): критерий "
+                            "карточки про ОДИН артефакт и назван целиком")
+    try:
+        broken = ledger_census_reader_links()
+    except Exception as exc:  # noqa: BLE001 — предпосылка не обеспечена ⇒ третий исход
+        return UNMEASURED, (f"проводку не измерили ({type(exc).__name__}: {exc}) — "
+                            "вердикта это не даёт")
+    if broken:
+        return NOT_SATISFIED, "; ".join(broken)
+    return SATISFIED, ("читатель есть и измерен ИСХОДОМ: срок годности объявлен в "
+                       "конституции, шаг 0-офис знает артефакт всеми тремя реестрами, "
+                       "ступень моста его несёт, настоящий зов run() на стенде ПИШЕТ "
+                       "файл с отметкой и условиями замера, пройденный бюджет рождает "
+                       "growth_margin_below_floor без участия человека (и при щедром "
+                       "бюджете эта находка МОЛЧИТ), а внутри такта отметка не "
+                       "обновляется")
+
+
 def _probe_journal_reader_census_reaches_http_routes(arg: str | None) -> tuple[str, str]:
     """Перепись читателей журнала ДОХОДИТ до обработчиков HTTP-маршрутов (заказ G27).
 
@@ -10074,6 +10285,8 @@ PROBES: dict[str, Callable[[str | None], "tuple[str, str]"]] = {
     "trade_is_rechecked_immediately_before_execution":
         _probe_trade_is_rechecked_immediately_before_execution,
     "earn_defi_own_realized_price_reconciles": _probe_earn_defi_own_realized_price,
+    "ledger_census_artifact_reaches_the_cycle":
+        _probe_ledger_census_artifact_reaches_the_cycle,
     "journal_reader_census_reaches_http_routes":
         _probe_journal_reader_census_reaches_http_routes,
     "journal_reader_census_verdict_under_injected_clock":

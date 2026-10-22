@@ -2,9 +2,9 @@
 
 > Авто-генерится `scripts/build_tracker_board.py` из `nimbalyst-local/tracker/*.md`. НЕ править вручную — правь карточки. Источник правды — карточки, это индекс (bootstrap).
 >
-> Собрана: 2026-10-22T09:43:05Z · сверка с карточками: `python3 scripts/build_tracker_board.py --check` (сторож `spa_core/tests/test_tracker_board_matches_cards.py`).
+> Собрана: 2026-10-22T15:03:19Z · сверка с карточками: `python3 scripts/build_tracker_board.py --check` (сторож `spa_core/tests/test_tracker_board_matches_cards.py`).
 >
-> Сверено с `origin/main` (6f0a0d95e) · у **1** своя правка, кто новее — не измерено.
+> Сверено с `origin/main` (75838280e) · у **2** своя правка, кто новее — не измерено.
 >
 > Всего карточек: **1429** · ждёт владельца: **26** · занято сессиями: **16**.
 
@@ -830,6 +830,7 @@
 - У outcomes.jsonl спрашивают возраст файла, а честный вопрос — полнота по закрытым дням  ·  `inbox-u-outcomes-jsonl-sprashivayut-vozrast-fa.md` · 2026-08-16
 - У own-34 остался ЖИВОЙ вопрос владельцу, и он не доехал: измерить остаток и отправить по §2.4  ·  `inbox-u-own-34-ostalsya-zhivoi-vopros-vladelts.md` · 2026-08-10
 - У ПЕРВОЙ доставки вопроса владельцу нет маршрута: карточка, рождённая на ветке, не доезжает до него ничем  ·  `inbox-u-pervoi-dostavki-voprosa-vladeltsu-net.md` · 2026-08-22
+- У прибора переписи разборов ленты нет читателя — срок пробоя бюджета узнаёт только тот, кто наберёт команду руками  ·  `inbox-u-pribora-perepisi-razborov-lenty-net-ch.md` · 2026-10-22
 - Уборщик деревьев судит «доставлено?» по БАЗЕ дерева, а не по origin — и отказывает на верно доставленном  ·  `inbox-uborschik-derevev-sudit-dostavleno-po-ba.md` · 2026-08-17
 - Уборщик мёртвых деревьев не запускается из worktree — а по протоколу сессии работают только там  ·  `inbox-uborschik-mertvyh-derevev-ne-zapuskaetsy.md` · 2026-08-14
 - У уборщика нет слова «намеренно НЕ доставлено»: путь, который решено не везти на origin, делает дерево неснимаемым НАВСЕГДА и кормит шаг 0a вечной ложной находкой  ·  `inbox-uborschik-ne-znaet-slova-namerenno-ne-dostavleno.md` · 2026-08-23
@@ -1201,7 +1202,6 @@
 - Цикл заканчивается раньше своего прогона — вердикт теряется, а работа лежит недоставленной  ·  `inbox-tsikl-zakanchivaetsya-ranshe-svoego-prog.md` · 2026-10-06
 - Тяжёлый прогон из необъявленного дерева занимает слот допуска, и заказчика назвать нечем  ·  `inbox-tyazhelyi-progon-iz-neobyavlennogo-derev.md` · 2026-10-07
 - У AST-сторожа инварианта №3 нет своей ступени: артефакт есть, наблюдения за ним нет  ·  `inbox-u-ast-storozha-invarianta-3-net-svoei-st.md` · 2026-10-07
-- У прибора переписи разборов ленты нет читателя — срок пробоя бюджета узнаёт только тот, кто наберёт команду руками  ·  `inbox-u-pribora-perepisi-razborov-lenty-net-ch.md` · 2026-10-22
 - У шага 0-офис нет памяти: число CRITICAL выросло с 85 до 87, и какие две — не измерено  ·  `inbox-u-shaga-0-ofis-net-pamyati-chislo-critic.md` · 2026-10-15
 - У журналов агентов в /tmp нет предела размера — один снова вырос до 2,3 ГБ  ·  `inbox-u-zhurnalov-agentov-v-tmp-net-predela-ra.md` · 2026-10-08
 - Убитый прогон переписи оставляет МУТАНТ чужого модуля в рабочем дереве: форсированный исходник пишется сквозь символическую ссылку  ·  `inbox-ubityi-progon-perepisi-ostavlyaet-mutant.md` · 2026-10-09

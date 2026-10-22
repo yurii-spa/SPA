@@ -1,0 +1,164 @@
+{
+  "title": "ADR-785 — дельта цикла #906 (карточка inbox-u-pribora-perepisi-razborov-lenty-net-ch): у прибора переписи разборов ленты появляется ЧИТАТЕЛЬ — артефакт с объявленным сроком, ступень моста, поимённая ветка шага 0-офис и проба приёмки с дифференциальным контролем",
+  "tests": [
+    "spa_core/tests/test_ledger_census_reader.py"
+  ],
+  "mutations": [
+    {
+      "name": "артефакта нет ⇒ НЕ пора мерить — первый замер не состоится никогда, и прибор останется без файла ровно как до ADR-785",
+      "file": "spa_core/monitoring/ledger_parse_census.py",
+      "old": "    if not target.is_file():\n        return True, \"артефакта нет — первый замер\"\n",
+      "new": "    if not target.is_file():\n        return False, \"артефакта нет — первый замер\"\n"
+    },
+    {
+      "name": "нечитаемая отметка выдаётся за «мерили недавно» — молчание подставлено на место наблюдения",
+      "file": "spa_core/monitoring/ledger_parse_census.py",
+      "old": "        return True, f\"отметка прошлого замера не прочитана ({type(exc).__name__}) — мерим\"\n",
+      "new": "        return False, f\"отметка прошлого замера не прочитана ({type(exc).__name__}) — мерим\"\n"
+    },
+    {
+      "name": "отметка без пояса принимается — возраст судится по часам неизвестного места",
+      "file": "spa_core/monitoring/ledger_parse_census.py",
+      "old": "    if last.tzinfo is None:\n        return True, \"отметка прошлого замера без пояса — мерим\"\n",
+      "new": "    if last.tzinfo is None:\n        return False, \"отметка прошлого замера без пояса — мерим\"\n"
+    },
+    {
+      "name": "граница такта строгая — ровно на сроке замер не делается",
+      "file": "spa_core/monitoring/ledger_parse_census.py",
+      "old": "    if age_days >= tact_days:\n",
+      "new": "    if age_days > tact_days:\n"
+    },
+    {
+      "name": "внутри такта артефакт ВСЁ РАВНО переписывается — возраст терминала выдан за возраст наблюдения",
+      "file": "spa_core/monitoring/ledger_parse_census.py",
+      "old": "        if not due:\n            return {\"measured\": False, \"reason\": why, \"artifact\": str(target)}\n",
+      "new": "        if False:\n            return {\"measured\": False, \"reason\": why, \"artifact\": str(target)}\n"
+    },
+    {
+      "name": "прибор снова НЕ ПИШЕТ — ровно состояние, в котором он прожил пять ADR",
+      "file": "spa_core/monitoring/ledger_parse_census.py",
+      "old": "    if write:\n        atomic_save(doc, str(target))\n",
+      "new": "    if False:\n        atomic_save(doc, str(target))\n"
+    },
+    {
+      "name": "артефакт без отметки generated_at — возраст наблюдения прочитать нечем",
+      "file": "spa_core/monitoring/ledger_parse_census.py",
+      "old": "    doc[\"generated_at\"] = stamp.isoformat()\n",
+      "new": "    doc.pop(\"generated_at\", None)\n"
+    },
+    {
+      "name": "часы-вход снова схлопываются `or` — любой falsy момент уедет в стенные часы",
+      "file": "spa_core/monitoring/ledger_parse_census.py",
+      "old": "    stamp = _dt.datetime.now(_dt.timezone.utc) if now is None else now\n",
+      "new": "    stamp = now or _dt.datetime.now(_dt.timezone.utc)\n"
+    },
+    {
+      "name": "артефакт без условий замера — запас и срок читаются как свойство ленты, а не момента (ADR-784)",
+      "file": "spa_core/monitoring/ledger_parse_census.py",
+      "old": "    doc[\"conditions\"] = measurement_conditions()\n",
+      "new": "    doc[\"conditions\"] = {}\n"
+    },
+    {
+      "name": "ярлык вердикта перестаёт быть производным от exit_code — вторая копия правила",
+      "file": "spa_core/monitoring/ledger_parse_census.py",
+      "old": "    return _STATUS_BY_CODE[exit_code(doc)]\n",
+      "new": "    return STATUS_FINDINGS if doc.get('findings') else STATUS_CLEAN\n"
+    },
+    {
+      "name": "НЕ ИЗМЕРЕНО схлопнуто в находку — третий исход потерян (инв. #17)",
+      "file": "spa_core/monitoring/ledger_parse_census.py",
+      "old": "_STATUS_BY_CODE = {0: STATUS_CLEAN, 1: STATUS_FINDINGS, 2: STATUS_UNMEASURED}\n",
+      "new": "_STATUS_BY_CODE = {0: STATUS_CLEAN, 1: STATUS_FINDINGS, 2: STATUS_FINDINGS}\n"
+    },
+    {
+      "name": "нечитаемая загрузка выдаётся за НОЛЬ — «не измерено» становится «машина простаивала»",
+      "file": "spa_core/monitoring/ledger_parse_census.py",
+      "old": "    load = (conditions or {}).get(\"load_average\")\n    if load is None:\n",
+      "new": "    load = (conditions or {}).get(\"load_average\") or [0.0, 0.0, 0.0]\n    if False:\n"
+    },
+    {
+      "name": "третий исход загрузки теряет ПРИЧИНУ — «не измерено» без причины неотличимо от забывчивости",
+      "file": "spa_core/monitoring/ledger_parse_census.py",
+      "old": "        return f\"НЕ ИЗМЕРЕНА ({why})\" if why else \"НЕ ИЗМЕРЕНА\"\n",
+      "new": "        return \"НЕ ИЗМЕРЕНА\"\n"
+    },
+    {
+      "name": "минимум ряда снова подставляется константой модуля — решение, которого замер не делал, печатается как его часть",
+      "file": "spa_core/monitoring/ledger_parse_census.py",
+      "old": "    rate = observed(doc, \"rate\", kind=dict)\n    if rate is None:\n        return \"НЕ ОБЪЯВЛЕН (блока ряда в этом замере нет) —\"\n",
+      "new": "    rate = observed(doc, \"rate\", kind=dict) or {}\n    if False:\n        return \"НЕ ОБЪЯВЛЕН (блока ряда в этом замере нет) —\"\n"
+    },
+    {
+      "name": "умолчание модуля перестаёт быть помеченным — неизмеренное поле читается как замер",
+      "file": "spa_core/monitoring/ledger_parse_census.py",
+      "old": "    return str(got) if got is not None else f\"{MIN_RATE_DAYS} (по умолчанию модуля)\"\n",
+      "new": "    return str(got if got is not None else MIN_RATE_DAYS)\n"
+    },
+    {
+      "name": "отсутствие ряда в отчёте снова молчит — погрешность модели исчезает вместо того, чтобы быть названной",
+      "file": "spa_core/monitoring/ledger_parse_census.py",
+      "old": "    if rate is None:\n        out.append(\"   [НЕ ИЗМЕРЕНО] ряда суток в отчёте нет вовсе — погрешность модели \"\n",
+      "new": "    if False:\n        out.append(\"   [НЕ ИЗМЕРЕНО] ряда суток в отчёте нет вовсе — погрешность модели \"\n"
+    },
+    {
+      "name": "звено 1 снято: срок годности в конституции не проверяется",
+      "file": "spa_core/monitoring/card_acceptance.py",
+      "old": "    if not decl:\n        broken.append(\"звено 1: артефакта нет в architecture/manifest.json — срок \"\n",
+      "new": "    if False:\n        broken.append(\"звено 1: артефакта нет в architecture/manifest.json — срок \"\n"
+    },
+    {
+      "name": "звено 1 ослаблено: объявление БЕЗ slo_hours сходит за объявление срока",
+      "file": "spa_core/monitoring/card_acceptance.py",
+      "old": "    elif not decl[0].get(\"slo_hours\"):\n",
+      "new": "    elif False:\n"
+    },
+    {
+      "name": "звено 2 снято: три реестра шага 0-офис не проверяются — файл читался бы ВХОЛОСТУЮ",
+      "file": "spa_core/monitoring/card_acceptance.py",
+      "old": "        if anchor not in office:\n            broken.append(f\"{link}: {why}\")\n",
+      "new": "        if False:\n            broken.append(f\"{link}: {why}\")\n"
+    },
+    {
+      "name": "звено 3 снято: ступень моста не проверяется — звать прибор было бы некому",
+      "file": "spa_core/monitoring/card_acceptance.py",
+      "old": "    if \"ledger_parse_census\" not in getattr(bridge, \"CENSUS_STAGE\", ()):\n",
+      "new": "    if False:\n"
+    },
+    {
+      "name": "звено 4 снято: писатель не проверяется — «считает и не пишет» прошло бы приёмку",
+      "file": "spa_core/monitoring/card_acceptance.py",
+      "old": "            if not target.is_file():\n                broken.append(f\"звено 4: зов run() на стенде ({tag} бюджет) НЕ \"\n",
+      "new": "            if False:\n                broken.append(f\"звено 4: зов run() на стенде ({tag} бюджет) НЕ \"\n"
+    },
+    {
+      "name": "звено 5 теряет ОБРАТНОЕ направление: несмолкаемая находка сходит за чувствительность (класс ADR-782)",
+      "file": "spa_core/monitoring/card_acceptance.py",
+      "old": "        if margin in kinds.get(\"щедрый\", set()):\n",
+      "new": "        if False:\n"
+    },
+    {
+      "name": "звено 5 теряет ПРЯМОЕ направление: пройденный бюджет может не родить находки",
+      "file": "spa_core/monitoring/card_acceptance.py",
+      "old": "        if margin not in kinds.get(\"пройденный\", set()):\n",
+      "new": "        if False:\n"
+    },
+    {
+      "name": "контроль подделки свежести снят: отметка вправе меняться без замера",
+      "file": "spa_core/monitoring/card_acceptance.py",
+      "old": "        if stamp1 != stamp2:\n",
+      "new": "        if False:\n"
+    },
+    {
+      "name": "отсутствие артефакта у такта снова роняет пробу исключением — находка подменяется третьим исходом",
+      "file": "spa_core/monitoring/card_acceptance.py",
+      "old": "            except (OSError, ValueError):\n                return \"<артефакта нет>\"\n",
+      "new": "            except (OSError, ValueError):\n                raise\n"
+    },
+    {
+      "name": "путь ленты снова берётся догадкой, а не объявлением прибора — проба портит население, которое проверяет",
+      "file": "spa_core/monitoring/card_acceptance.py",
+      "old": "    if rel is None:\n        return broken + [\"стенд: в объявлении прибора нет ленты research_factory — \"\n",
+      "new": "    rel = rel or \"research_factory/x.jsonl\"\n    if False:\n        return broken + [\"стенд: в объявлении прибора нет ленты research_factory — \"\n"
+    }
+  ]
+}

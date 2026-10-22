@@ -380,6 +380,9 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Callable, Dict, List, Optional, Sequence, Tuple
 
+from spa_core.utils.atomic import atomic_save
+from spa_core.utils.observation import observed
+
 _ROOT = Path(__file__).resolve().parents[2]
 
 #: РЕШЕНИЕ (не замер): сколько секунд ОДИН вызов вида вправе потратить на разбор своей
@@ -2316,7 +2319,7 @@ def format_report(doc: dict) -> List[str]:
            f"   каталог: {doc['data_dir']}",
            f"   РЕШЕНИЯ (не замеры): бюджет {doc['budget_s']:.2f} с на вызов вида · "
            f"порог запаса {doc['min_growth_factor']:.1f}× · минимум ряда "
-           f"{(doc.get('rate') or {}).get('min_rate_days', MIN_RATE_DAYS)} полных суток "
+           f"{_min_rate_days_label(doc)} полных суток "
            f"(двух точек не хватает по построению: один интервал не отличает ступень "
            f"от тренда)"]
     for r in sorted(doc["rows"], key=lambda x: (x["growth_factor"] is None,
@@ -2353,7 +2356,11 @@ def format_report(doc: dict) -> List[str]:
                     f"∝ байты»")
             if r.get("rate_zero_reason"):
                 out.append(f"      {r['rate_zero_reason']}")
-    rate = doc.get("rate") or {}
+    #: `or {}` здесь было бы подстановкой: «ряд не мерили» превратилось бы в «ряд
+    #: пуст», и погрешность модели молча исчезла бы из отчёта вместо того, чтобы быть
+    #: НАЗВАННОЙ (инв. #17). Прибор стал писателем артефакта (ADR-785), и его читатель
+    #: теперь не человек у терминала, а ступень моста — различие обязано доехать.
+    rate = observed(doc, "rate", kind=dict)
     #: по ФАЙЛУ, а не по паре: срок есть свойство ленты, и лента с двумя видами стояла
     #: бы в списке дважды — читатель принял бы это за два разных предмета
     seen: set = set()
@@ -2373,7 +2380,10 @@ def format_report(doc: dict) -> List[str]:
                    "РАЗОШЛИСЬ — безразмерный запас больше не упорядочивает по срокам")
         out.append(f"   порядок по запасу {by_margin} против порядка по срокам "
                    f"{by_days}: {verdict}")
-    if rate.get("per_byte_ns"):
+    if rate is None:
+        out.append("   [НЕ ИЗМЕРЕНО] ряда суток в отчёте нет вовсе — погрешность модели "
+                   "«цена ∝ байты» назвать нечем (это НЕ «погрешности нет»)")
+    elif rate.get("per_byte_ns"):
         ns = rate["per_byte_ns"]
         out.append(f"   погрешность САМОЙ модели «цена ∝ байты» (замер, не оговорка): "
                    f"цена байта {min(ns.values()):.1f}…{max(ns.values()):.1f} нс у лент "
@@ -2521,6 +2531,184 @@ def exit_code(doc: dict) -> int:
     return 0
 
 
+#: Имя артефакта. До ADR-785 его не было вовсе: прибор ПЕЧАТАЛ отчёт и больше ничего,
+#: поэтому его вывод жил ровно столько, сколько терминал цикла, набравшего команду
+#: руками. Пять ADR (777, 779, 782, 783, 784) и четыре цикла работы читал один человек —
+#: тот, кто эту команду набрал. Срок, у которого нет читателя, не отличим от срока,
+#: которого нет.
+ARTIFACT = "ledger_parse_census.json"
+
+#: РЕШЕНИЕ (не замер): такт переизмерения в сутках. Семь, а не сутки, потому что зов
+#: поднимает НАСТОЯЩИЕ прогоны (сборку, экраны) и разбирает ленты по нескольку раундов —
+#: цена названа замерами ADR-784 (десятки секунд … минуты, и она растёт вместе с лентой,
+#: что и есть предмет прибора). Срок решает ФАЙЛ (:func:`measurement_due`), а не
+#: расписание бегуна: иначе «раз в неделю» держалось бы на том, что никто не трогал cron.
+MEASUREMENT_TACT_DAYS = 7
+
+STATUS_CLEAN = "CLEAN"
+STATUS_FINDINGS = "FINDINGS"
+STATUS_UNMEASURED = "UNMEASURED"
+
+#: Отображение «код возврата → ярлык» объявлено ОДНОЙ таблицей и ключено кодом, а не
+#: переписано условиями: вердикт у прибора один (:func:`exit_code`), и вторая его копия
+#: разошлась бы с первой молча — ровно тот класс, который сам прибор ловит у других
+#: (ADR-782: одно имя — один объект).
+_STATUS_BY_CODE = {0: STATUS_CLEAN, 1: STATUS_FINDINGS, 2: STATUS_UNMEASURED}
+
+
+def status(doc: dict) -> str:
+    """Ярлык вердикта — ПРОИЗВОДНОЕ от :func:`exit_code`, а не второе суждение.
+
+    Инв. #17 держится тем же порядком, что и в :func:`exit_code`: НЕ ИЗМЕРЕНО сильнее
+    находки, потому что слепой член означает незнание о части населения, а не чистоту.
+    """
+    return _STATUS_BY_CODE[exit_code(doc)]
+
+
+def measurement_conditions() -> dict:
+    """Условия, при которых снят замер. **Обязательная часть артефакта, а не украшение.**
+
+    ``parse_s`` есть ВРЕМЯ, и ADR-784 измерил цену этого прямо: у ленты
+    ``research_factory`` на спокойной машине запас 1.8× и срок **15 суток**, а под
+    нагрузкой (предписанный прогон рядом) — 0.9…1.0× и **0 суток**, при темпе,
+    не изменившемся на 0,3 %. Темп считается в БАЙТАХ и от загрузки свободен; запас и
+    срок — нет.
+
+    Поэтому артефакт обязан нести, НА КАКОЙ машине снят замер. Без этого ступень моста
+    рождала бы находку от чужого прогона, идущего рядом, и «бюджет пройден» означало бы
+    «в ту минуту кто-то собирал пакет» — свойство МОМЕНТА ЗАМЕРА, выданное за свойство
+    ленты.
+
+    Три исхода различимы и здесь (инв. #17): загрузка не читается на этой платформе ⇒
+    ``load_average`` равен ``None`` с названной причиной, а не нулю. Ноль означал бы
+    «машина простаивала», то есть ровно то наблюдение, которого у нас нет.
+    """
+    import os as _os
+
+    cond: dict = {"load_average": None, "load_unmeasured": None,
+                  "cpu_count": _os.cpu_count()}
+    try:
+        cond["load_average"] = [round(x, 2) for x in _os.getloadavg()]
+    except (OSError, AttributeError) as exc:  # pragma: no cover — платформа без getloadavg
+        cond["load_unmeasured"] = (f"загрузка машины не прочитана "
+                                   f"({type(exc).__name__}) — запас и срок наследуют "
+                                   f"условие, которого мы не видели")
+    return cond
+
+
+def _min_rate_days_label(doc: dict) -> str:
+    """Объявленный минимум ряда — и его ОТСУТСТВИЕ отдельным словом.
+
+    Раньше читалось как ``(doc.get('rate') or {}).get('min_rate_days', MIN_RATE_DAYS)``:
+    если блока ряда в замере нет, печаталась КОНСТАНТА МОДУЛЯ — то есть решение,
+    которого этот замер не делал, выглядело как его часть. Пока отчёт читал человек у
+    терминала, цена была невелика; с ADR-785 его читает ступень моста и артефакт, и
+    подстановка стала бы числом в записи (инв. #17).
+    """
+    rate = observed(doc, "rate", kind=dict)
+    if rate is None:
+        return "НЕ ОБЪЯВЛЕН (блока ряда в этом замере нет) —"
+    got = rate.get("min_rate_days")
+    return str(got) if got is not None else f"{MIN_RATE_DAYS} (по умолчанию модуля)"
+
+
+def _load_label(conditions: dict) -> str:
+    """Загрузка машины для печати — и «не измерена» ОТДЕЛЬНЫМ значением, а не ложностью.
+
+    ``or`` здесь был бы дефектом, а не сокращением: список ``[0.0, 0.0, 0.0]`` — это
+    ЗАМЕР простаивающей машины, и falsy-проверка не отличила бы его от отсутствия
+    наблюдения (инв. #17). Три исхода у печати те же, что у замера: число · ноль ·
+    не измерено с причиной.
+    """
+    load = (conditions or {}).get("load_average")
+    if load is None:
+        why = (conditions or {}).get("load_unmeasured")
+        return f"НЕ ИЗМЕРЕНА ({why})" if why else "НЕ ИЗМЕРЕНА"
+    return str(load)
+
+
+def measurement_due(out: Path, *, now: Optional[_dt.datetime] = None,
+                    tact_days: int = MEASUREMENT_TACT_DAYS) -> Tuple[bool, str]:
+    """Пора ли переизмерять — решает ФАЙЛ, а не расписание запуска.
+
+    Три исхода, и они различимы (инв. #17): артефакта нет ⇒ **пора** (первый замер —
+    ровно то состояние, в котором прибор прожил пять ADR); отметка не разобрана ⇒ тоже
+    **пора**, потому что «не смогли прочитать, когда мерили» не имеет права означать
+    «мерили недавно» — это подстановка молчания на место наблюдения; отметка свежее
+    такта ⇒ **не пора**, и это ЗАМЕР с числом, а не отказ.
+    """
+    moment = now if now is not None else _dt.datetime.now(_dt.timezone.utc)
+    target = Path(out)
+    if not target.is_file():
+        return True, "артефакта нет — первый замер"
+    try:
+        raw = json.loads(target.read_text(encoding="utf-8")).get("generated_at")
+        last = _dt.datetime.fromisoformat(str(raw))
+    except (OSError, ValueError, TypeError) as exc:
+        return True, f"отметка прошлого замера не прочитана ({type(exc).__name__}) — мерим"
+    if last.tzinfo is None:
+        return True, "отметка прошлого замера без пояса — мерим"
+    age_days = (moment - last).total_seconds() / 86400.0
+    if age_days >= tact_days:
+        return True, (f"со дня замера {last.isoformat()} прошло "
+                      f"{age_days:.1f} дн (такт {tact_days})")
+    return False, (f"со дня замера {last.isoformat()} прошло {age_days:.1f} дн "
+                   f"из {tact_days}")
+
+
+def run(root: str | Path = _ROOT, *, data_dir: Optional[Path] = None,
+        dest: Optional[Path] = None, write: bool = True, if_due: bool = True,
+        now: Optional[_dt.datetime] = None,
+        tact_days: int = MEASUREMENT_TACT_DAYS,
+        workloads: Sequence[Workload] = (),
+        **kw) -> dict:
+    """Один ТАКТ замера для ступени моста: мерить, только если срок пришёл, и ЗАПИСАТЬ.
+
+    Карточка ``inbox-u-pribora-perepisi-razborov-lenty-net-ch``, ADR-785. Обёртка нужна
+    не для красоты: у ступени переписей (``findings_bridge.CENSUS_STAGE``) объявленная
+    форма вызова — ``<модуль>.run(root=…)``, и именно по ней сторожа отвечают на вопрос
+    «существует ли на свете вызов, который этот артефакт пишет». До ADR-785 ответ был
+    «не существует», и это измерено: ``grep`` по ``spa_core`` и ``scripts`` вне тестов
+    находил ровно один файл — сам прибор.
+
+    **«Не мерили» и «измерено» — РАЗНЫЕ исходы** (инв. #17): внутри такта возвращается
+    ``{"measured": False, "reason": …}`` и артефакт НЕ ПЕРЕПИСЫВАЕТСЯ. Писать в этой
+    ветке ``CLEAN`` значило бы утверждать о населении, которого никто не смотрел, а
+    обновлять отметку ``generated_at`` без замера — выдавать возраст терминала за
+    возраст наблюдения, то есть ломать того самого сторожа свежести, ради которого
+    артефакт и заводится.
+
+    ``workloads`` пусто по умолчанию ровно по доводу :func:`measure`: боевое население
+    прогонов передаёт зовущий (CLI — ``WORKLOADS``), а стенд обязан уметь объявить своё.
+    """
+    root = Path(root)
+    source = Path(data_dir) if data_dir is not None else root / "data"
+    target = Path(dest) if dest is not None else source / ARTIFACT
+    if if_due:
+        due, why = measurement_due(target, now=now, tact_days=tact_days)
+        if not due:
+            return {"measured": False, "reason": why, "artifact": str(target)}
+    started = time.monotonic()
+    doc = measure(source, tree_root=root, now=now, workloads=workloads, **kw)
+    #: Часы — ВХОД, и проверяется их ОТСУТСТВИЕ, а не ложность: `or` схлопнул бы
+    #: любой falsy-момент в стенные часы, то есть подставил бы наблюдение вместо
+    #: его отсутствия (инв. #17, храповик test_absent_observation_ratchet).
+    stamp = _dt.datetime.now(_dt.timezone.utc) if now is None else now
+    doc["generated_at"] = stamp.isoformat()
+    doc["status"] = status(doc)
+    doc["exit_code"] = exit_code(doc)
+    doc["conditions"] = measurement_conditions()
+    doc["conditions"]["elapsed_s"] = round(time.monotonic() - started, 3)
+    #: Объявление вслух, а не вежливость: ни один гейт этот артефакт не читает и читать
+    #: не вправе. Порога «мало ли пятнадцать суток» никто не принимал, поэтому находка
+    #: прибора остаётся БЕЗВЕРДИКТНОЙ — она называет срок, а решение о сроке остаётся
+    #: решением (карточка, п. 3).
+    doc["advisory"] = True
+    if write:
+        atomic_save(doc, str(target))
+    return {"measured": True, "doc": doc, "artifact": str(target)}
+
+
 def main(argv: Optional[List[str]] = None) -> int:
     ap = argparse.ArgumentParser(
         description="перепись повторного разбора хеш-лент у читающих моделей (заказ G777 п. 1)")
@@ -2538,15 +2726,39 @@ def main(argv: Optional[List[str]] = None) -> int:
     ap.add_argument("--no-workloads", action="store_true",
                     help="не поднимать названные прогоны (второй множитель останется НЕ ИЗМЕРЕН)")
     ap.add_argument("--json", action="store_true")
+    ap.add_argument("--out", default=None,
+                    help="куда положить артефакт (по умолчанию <data-dir>/"
+                         + ARTIFACT + ")")
+    ap.add_argument("--no-write", action="store_true",
+                    help="не писать артефакт — только напечатать отчёт (так прибор "
+                         "жил до ADR-785, и ровно поэтому его никто не читал)")
+    ap.add_argument("--if-due", action="store_true",
+                    help=f"мерить, только если со дня прошлого замера прошло "
+                         f"{MEASUREMENT_TACT_DAYS} дн (срок решает ФАЙЛ, не расписание)")
     args = ap.parse_args(argv)
-    doc = measure(args.data_dir, budget_s=args.budget_s, min_factor=args.min_factor,
-                  tree_root=Path(args.tree_root), parse_rounds=args.parse_rounds,
-                  workloads=() if args.no_workloads else WORKLOADS,
-                  workload_budget_s=args.workload_budget_s, window_h=args.window_h)
+    res = run(root=Path(args.tree_root), data_dir=Path(args.data_dir),
+              dest=Path(args.out) if args.out else None,
+              write=not args.no_write, if_due=args.if_due,
+              workloads=() if args.no_workloads else WORKLOADS,
+              budget_s=args.budget_s, min_factor=args.min_factor,
+              parse_rounds=args.parse_rounds,
+              workload_budget_s=args.workload_budget_s, window_h=args.window_h)
+    #: Внутри такта кода вердикта НЕТ — его там взять негде. Печатать 0 («чисто»)
+    #: значило бы выдать «не мерили» за «измерено и пусто» (инв. #17); 3 занят не
+    #: вердиктом прибора, а отказом «не мерили», и это РАЗНЫЕ сообщения.
+    if not res["measured"]:
+        print(f"⏳ НЕ МЕРИЛИ (внутри такта): {res['reason']}")
+        return 3
+    doc = res["doc"]
     if args.json:
         print(json.dumps(doc, ensure_ascii=False, indent=1, default=str))
     else:
         print("\n".join(format_report(doc)))
+        if not args.no_write:
+            print(f"   артефакт: {res['artifact']} · статус {doc['status']} · "
+                  f"условия замера: загрузка "
+                  f"{_load_label(doc['conditions'])}, "
+                  f"{doc['conditions']['elapsed_s']} с")
     return exit_code(doc)
 
 
