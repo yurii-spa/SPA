@@ -4305,6 +4305,11 @@ def _probe_portfolio_decision_owner_covers_capital(
             _pathlib.Path(data_dir or os.path.join(root, "data")),
             repo_root=_pathlib.Path(root), now=now)
     except BaseException as exc:  # noqa: BLE001
+        # Срок прогона — не отказ переписи: проглоченный здесь вердикт pytest-timeout
+        # оставлял обходчика G16 без срока (≈1230 с при лимите 180, замер 22.10).
+        from spa_core.monitoring.timeout_door_census import is_foreign_failure
+        if not is_foreign_failure(exc):
+            raise
         return UNMEASURED, f"перепись упала: {type(exc).__name__}: {exc}"
 
     if not report.get("measured"):

@@ -151,6 +151,7 @@ from typing import (Callable, Dict, List, Optional, Sequence, Set, Tuple,
                     Union)
 
 from spa_core.monitoring._http_reader_probe import UNREAD_RESPONSE
+from spa_core.monitoring.deadline_guard import keep_deadline
 from spa_core.monitoring.timeout_door_census import is_foreign_failure
 from spa_core.utils import live_paths
 from spa_core.utils.observation import observed
@@ -1402,7 +1403,8 @@ def classify_reader(module_name: str, stands: dict, *,
         row.update(outcome=READER_UNMEASURED, cause=CAUSE_WOULD_ACT, reason=never)
         return row
     try:
-        mod = importlib.import_module(module_name)
+        with keep_deadline():   # срок прогона переживает и СВОЙ except модуля
+            mod = importlib.import_module(module_name)
     except BaseException as exc:  # noqa: BLE001 — любой отказ = «не измерено»
         if not is_foreign_failure(exc):
             raise                  # СРОК прогона, а не отказ модуля (ADR-676)
@@ -1424,16 +1426,17 @@ def classify_reader(module_name: str, stands: dict, *,
         row["clock_reason"] = (CLOCK_NOT_ACCEPTED if now is not None
                                else "часы прогона прибору не переданы")
     try:
-        raw1 = call(stands["s1"])
-        # Пауза НУЖНА, а третья проба — нет. Поле, бегущее на каждом зове,
-        # расходится при любом зазоре, поэтому пара «без паузы» есть
-        # ПОДМНОЖЕСТВО пары «с паузой», и объединять их было незачем. Замер
-        # 16.09: третья проба стоила лишний зов КАЖДОГО из 108 читателей и
-        # увела перепись на 879 с; пауза стоит 27 с и ловит то же.
-        time.sleep(_STABILITY_PROBE_DELAY_S)
-        raw1_again = call(stands["s1"])
-        raw2 = call(stands["s2"])
-        raw3 = call(stands["s3"])
+        with keep_deadline():   # см. deadline_guard.keep_deadline
+            raw1 = call(stands["s1"])
+            # Пауза НУЖНА, а третья проба — нет. Поле, бегущее на каждом зове,
+            # расходится при любом зазоре, поэтому пара «без паузы» есть
+            # ПОДМНОЖЕСТВО пары «с паузой», и объединять их было незачем. Замер
+            # 16.09: третья проба стоила лишний зов КАЖДОГО из 108 читателей и
+            # увела перепись на 879 с; пауза стоит 27 с и ловит то же.
+            time.sleep(_STABILITY_PROBE_DELAY_S)
+            raw1_again = call(stands["s1"])
+            raw2 = call(stands["s2"])
+            raw3 = call(stands["s3"])
     except BaseException as exc:  # noqa: BLE001
         if not is_foreign_failure(exc):
             raise                  # СРОК прогона, а не отказ модуля (ADR-676)
@@ -1557,7 +1560,8 @@ def http_modules(names: Sequence[str]) -> List[str]:
         if name in _NEVER_CALL:
             continue
         try:
-            mod = importlib.import_module(name)
+            with keep_deadline():
+                mod = importlib.import_module(name)
         except BaseException as exc:                           # noqa: BLE001
             if not is_foreign_failure(exc):
                 raise              # СРОК прогона, а не отказ модуля (ADR-676)
