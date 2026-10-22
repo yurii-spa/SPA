@@ -1161,6 +1161,93 @@ def shared_log(start=ROOT, git=_git):
     return root / "data" / "session_changes.jsonl", None
 
 
+# ── ОБЪЯВЛЕННЫЕ КЛОНЫ: у каждого клона репозитория СВОЙ журнал объявлений ─────
+
+HISTORY_ROOTS_REL = Path("architecture") / "history_roots.json"
+
+SIBLING_MEASURED = "measured"
+SIBLING_ABSENT = "absent"
+SIBLING_SAME = "same_clone"
+SIBLING_UNMEASURED = "unmeasured"
+# Потолок печати чужого «не измерено» — см. render(). Находки потолка не имеют.
+SIBLING_UNMEASURED_SHOWN = 5
+
+
+def declared_clone_roots(root, git=_git):
+    """(список состояний по ОБЪЯВЛЕННЫМ клонам этого репозитория, причина-если-не-измерено).
+
+    **Зачем (замер 22.10, цикл #907).** `shared_log` разрешает «общий» журнал объявлений в
+    ГЛАВНОЕ рабочее дерево — и это верно ровно внутри ОДНОГО клона. На боевом Маке клонов
+    ДВА: прод-дерево `~/Documents/SPA_Claude` и зеркало `~/Documents/SPA_mirror` (объявлено
+    ADR-152 и `architecture/history_roots.json`). Цикл #906 построил свой worktree от
+    ЗЕРКАЛА — и его объявления легли в журнал зеркала. Шаг 0a обёртка зовёт из прод-дерева;
+    тем же кодом, в ту же минуту, на том же хосте:
+
+    | откуда запущен шаг 0a | строк про осиротевшую работу #906 |
+    |---|---|
+    | `~/Documents/SPA_Claude` (прод — так его и зовёт обёртка) | **0**, код 1 о ЧУЖОЙ находке |
+    | `~/Documents/SPA_mirror` (зеркало) | **18**, код 2 |
+
+    Четырнадцать файлов, ADR-785, зелёные батареи — и ни одной строки у сторожа доставки:
+    «не измерено» было выдано за «всё доставлено». Это нарушение инв. #17 в самом
+    инструменте, который его охраняет, и нашлось оно ГЛАЗАМИ (имя `/tmp/spa_c906` оказалось
+    занято, когда #907 создавал своё дерево), а не проверкой.
+
+    **Список клонов не угадывается обходом диска — он ОБЪЯВЛЕН данными**
+    (`architecture/history_roots.json`, ADR-688): у объявления есть автор, причина и сторож.
+    Клона нет на этой машине (в CI так и будет) ⇒ состояние `absent`: объявление САМО
+    называет путь host-specific, поэтому отсутствие не находка и кода не меняет. Нечитаемое
+    объявление, неотвечающий git, объявление без `path` ⇒ `unmeasured` (fail-CLOSED): про
+    чужие объявления тогда не известно ничего, и молчание было бы тем же дефектом.
+    """
+    root = Path(root)
+    decl = root / HISTORY_ROOTS_REL
+    try:
+        doc = json.loads(decl.read_text(encoding="utf-8"))
+    except FileNotFoundError:
+        # Объявления клонов нет ⇒ клонов не объявлено. Это НЕ «не измерено»: вопрос
+        # «какие клоны объявлены» получил полный ответ — ни одного.
+        return [], None
+    except (OSError, ValueError) as exc:
+        return [], (f"объявление клонов {decl} не прочитано ({exc}) — журналы объявлений "
+                    "других клонов НЕ ИЗМЕРЕНЫ")
+    roots = doc.get("roots")
+    if not isinstance(roots, list):
+        return [], (f"в {decl} нет списка `roots` — объявленные клоны НЕ ИЗМЕРЕНЫ")
+    mine = _git_common_dir(root, git=git)
+    out = []
+    for item in roots:
+        raw = item.get("path") if isinstance(item, dict) else None
+        if not raw:
+            out.append({"path": None, "state": SIBLING_UNMEASURED,
+                        "reason": f"запись объявления клона без поля `path`: {item!r}"})
+            continue
+        p = Path(str(raw)).expanduser()
+        if not p.is_dir():
+            out.append({"path": str(p), "state": SIBLING_ABSENT,
+                        "reason": "объявленного клона нет на этой машине (путь host-specific "
+                                  "по самому объявлению) — измерять нечего"})
+            continue
+        theirs = _git_common_dir(p, git=git)
+        if theirs is None:
+            out.append({"path": str(p), "state": SIBLING_UNMEASURED,
+                        "reason": "git не назвал общий каталог этого клона — репозиторий ли "
+                                  "это и тот ли, НЕ ИЗМЕРЕНО"})
+            continue
+        if mine is None:
+            out.append({"path": str(p), "state": SIBLING_UNMEASURED,
+                        "reason": "git не назвал общий каталог ИЗМЕРЯЕМОГО дерева — отличить "
+                                  "другой клон от своего нечем"})
+            continue
+        if theirs == mine:
+            out.append({"path": str(p), "state": SIBLING_SAME,
+                        "reason": "тот же клон, что измеряемый — журнал объявлений у них один "
+                                  "и он уже прочитан"})
+            continue
+        out.append({"path": str(p), "state": SIBLING_MEASURED, "reason": None})
+    return out, None
+
+
 # Одно определение текста — и признак, и сообщение. Строка используется как КЛЮЧ класса
 # (`resolve_rel` её ставит, отчёт по ней группирует), поэтому копии заводить нельзя: разойдутся
 # — и группировка молча перестанет срабатывать, а раздел выродится обратно в N строк на путь.
@@ -3295,6 +3382,84 @@ def build_report(entries, root, base_ref, self_session, ps=_ps_lstart, git=_git,
     return report
 
 
+def sibling_clone_reports(root, base_ref, self_session, last=DEFAULT_LAST, now=None,
+                          grace_hours=DEFAULT_GRACE_HOURS, ps=_ps_lstart, git=_git,
+                          cmd_probe=_ps_command, self_session_trusted=True):
+    """«Объявил в ДРУГОМ клоне → доставил?» — по строке на каждый объявленный клон.
+
+    Раздел отвечает на ОДИН вопрос и не притворяется, что на другие: везёт только находки по
+    ОБЪЯВЛЕНИЯМ чужого клона и его «не измерено». Расхождения рабочих деревьев того клона БЕЗ
+    объявления (`unannounced`), мёртвые регистрации и недоставленные карточки сюда не едут
+    НАМЕРЕННО: у них свой адресат — заход своей сессии в том клоне, — а здесь они стали бы
+    десятками строк, которыми сторожа и глохнут (урок #367: постоянная ложная строка и есть
+    механизм глухоты).
+
+    **Код возврата — две разные оси.** Находка в чужом клоне есть находка (код 1): работа
+    существует, лежит недоставленной, и поднять её можно отсюда. А «внутри чужого клона
+    что-то не измерено» кода 2 НЕ ставит — это измерение ТОГО клона о СВОИХ деревьях, оно уже
+    названо там, и вечная двойка прод-дерева из него была бы шумом, а не сигналом. Код 2
+    ставит только НЕИЗМЕРЕННЫЙ КЛОН (нечитаемое объявление, нет журнала, git отказал): тогда
+    про чужие объявления не известно НИЧЕГО, и это ровно тот случай, который #906 прошёл
+    молча.
+    """
+    clones, decl_error = declared_clone_roots(root, git=git)
+    out = []
+    if decl_error:
+        out.append({"root": None, "log": None, "state": SIBLING_UNMEASURED,
+                    "reason": decl_error, "entries_checked": 0,
+                    "findings": [], "unmeasured": []})
+    for clone in clones:
+        row = {"root": clone["path"], "log": None, "state": clone["state"],
+               "reason": clone["reason"], "entries_checked": 0,
+               "findings": [], "unmeasured": []}
+        if clone["state"] != SIBLING_MEASURED:
+            out.append(row)
+            continue
+        clone_root, err = main_worktree(clone["path"], git=git)
+        if clone_root is None:
+            row.update(state=SIBLING_UNMEASURED,
+                       reason=f"{err} — журнал объявлений этого клона НЕ прочитан")
+            out.append(row)
+            continue
+        log_path = clone_root / "data" / "session_changes.jsonl"
+        row["log"] = str(log_path)
+        if not log_path.exists():
+            row.update(state=SIBLING_UNMEASURED,
+                       reason="журнала объявлений в этом клоне нет — чем он объявлял, НЕ "
+                              "ИЗМЕРЕНО (молчание здесь читалось бы как «ничего не объявлял»)")
+            out.append(row)
+            continue
+        try:
+            entries, malformed = read_entries(log_path, last)
+        except OSError as exc:
+            row.update(state=SIBLING_UNMEASURED,
+                       reason=f"журнал объявлений {log_path} не прочитан ({exc})")
+            out.append(row)
+            continue
+        rep = build_report(entries=entries, root=clone_root, base_ref=base_ref,
+                           self_session=self_session, ps=ps, git=git,
+                           malformed_lines=malformed, log_path=log_path, now=now,
+                           grace_hours=grace_hours,
+                           self_session_trusted=self_session_trusted,
+                           shared_trees=(str(clone_root),), cmd_probe=cmd_probe)
+        row.update(entries_checked=rep["entries_checked"], findings=rep["findings"],
+                   unmeasured=rep["unmeasured"], base_sha=rep.get("base_sha"))
+        out.append(row)
+    return out
+
+
+def sibling_exit_code(current, siblings):
+    """Код возврата с учётом чужих клонов. Ось «не измерен КЛОН» сильнее оси «есть находка»,
+    и ни одна из них не понижает уже поставленную двойку своего отчёта."""
+    rc = current
+    for s in siblings or ():
+        if s["state"] == SIBLING_UNMEASURED:
+            return 2
+        if s["state"] == SIBLING_MEASURED and s["findings"]:
+            rc = max(rc, 1)
+    return rc
+
+
 # ── печать ───────────────────────────────────────────────────────────────────
 
 def _stamp(iso):
@@ -3328,6 +3493,37 @@ def render(report) -> str:
                 out.append(f"      тот же файл объявляли ещё: {', '.join(f['also_declared_by'])}")
             if f["summary"]:
                 out.append(f"      объявляла: {f['summary']}")
+
+    # Чужие клоны — выше своих находок НАМЕРЕННО: именно эта строка отсутствовала, когда
+    # осиротевшая доставка целого цикла была невидима (#906), и раздел, спрятанный в хвост,
+    # повторил бы дефект тише.
+    siblings = report.get("sibling_clones") or []
+    if siblings:
+        out.append("")
+        out.append(f"🪞 ОБЪЯВЛЕНИЯ ИЗ ДРУГИХ ОБЪЯВЛЕННЫХ КЛОНОВ ({len(siblings)}) — журнал "
+                   "объявлений у каждого клона репозитория СВОЙ, поэтому работа цикла, "
+                   "построившего дерево от другого клона, этому шагу не видна ничем (замер "
+                   "#907 об одной и той же осиротевшей доставке: 0 строк из прод-дерева "
+                   "против 18 из зеркала):")
+        for s in siblings:
+            out.append(f"  [{s['state']}] {s['root'] or '—'}")
+            if s.get("reason"):
+                out.append(f"      {s['reason']}")
+            if s["state"] == SIBLING_MEASURED:
+                out.append(f"      журнал: {s.get('log')} · записей проверено: "
+                           f"{s['entries_checked']} · находок: {len(s['findings'])} · "
+                           f"не измерено: {len(s['unmeasured'])}")
+                _findings_block(s["findings"])
+                # Находки чужого клона печатаются ВСЕ: это и есть работа, которую надо
+                # поднять. «Не измерено» ТОГО клона — срез с потолком: оно адресовано заходу
+                # своей сессии там, а здесь восемьдесят три строки (замер #907 на живом
+                # зеркале) ровно тем и кончаются, что раздел перестают читать.
+                for u in s["unmeasured"][:SIBLING_UNMEASURED_SHOWN]:
+                    out.append(f"      [не измерено] {u.get('path') or '—'}: {u.get('reason')}")
+                hidden = len(s["unmeasured"]) - SIBLING_UNMEASURED_SHOWN
+                if hidden > 0:
+                    out.append(f"      … и ещё {hidden} «не измерено» этого клона "
+                               "(полный список — `--json`, ключ `sibling_clones`)")
 
     # Сироты в окне — первыми: работа свежая, дерево ещё на диске, поднять её дешевле всего.
     # «Только чужие деревья» выведено из обоих разделов в свой: это НЕ потерянная работа
@@ -3734,6 +3930,13 @@ def main(argv=None) -> int:
                           # и тогда исключилось бы не то дерево. Не измерено ⇒ None ⇒ родство
                           # по дереву выключено целиком (fail-CLOSED).
                           shared_trees=(str(shared_root),) if shared_root else None)
+    # Чужие ОБЪЯВЛЕННЫЕ клоны — отдельным проходом: внутри `build_report` им места нет, он
+    # по построению судит ОДНО дерево и его worktree.
+    report["sibling_clones"] = sibling_clone_reports(
+        root=root, base_ref=args.base, self_session=self_session,
+        last=None if args.all else args.last, grace_hours=args.grace_hours,
+        self_session_trusted=bool(env_session))
+    report["exit_code"] = sibling_exit_code(report["exit_code"], report["sibling_clones"])
     print(json.dumps(report, ensure_ascii=False, indent=2) if args.json else render(report))
     return int(report["exit_code"])
 

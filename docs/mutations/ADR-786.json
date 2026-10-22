@@ -1,0 +1,80 @@
+{
+  "title": "ADR-786 — дельта цикла #907: шаг 0a мерит ОБЪЯВЛЕННЫЕ клоны репозитория. Каждая мутация ниже возвращает один из исходов в то состояние, в котором 22.10 осиротевшая доставка целого цикла была невидима",
+  "tests": [
+    "spa_core/tests/test_sibling_clone_announcements.py"
+  ],
+  "mutations": [
+    {
+      "name": "нечитаемое объявление клонов выдаётся за «клонов не объявлено» — молчание на месте «не измерено» (инв. #17 наизнанку)",
+      "file": "scripts/check_undelivered_work.py",
+      "old": "    except (OSError, ValueError) as exc:\n        return [], (f\"объявление клонов {decl} не прочитано ({exc}) — журналы объявлений \"\n                    \"других клонов НЕ ИЗМЕРЕНЫ\")\n",
+      "new": "    except (OSError, ValueError) as exc:\n        return [], None\n"
+    },
+    {
+      "name": "переименованный `roots` читается как «клонов ноль» — форма объявления сменится молча",
+      "file": "scripts/check_undelivered_work.py",
+      "old": "    if not isinstance(roots, list):\n        return [], (f\"в {decl} нет списка `roots` — объявленные клоны НЕ ИЗМЕРЕНЫ\")\n",
+      "new": "    if not isinstance(roots, list):\n        return [], None\n"
+    },
+    {
+      "name": "клон без журнала объявлений объявляется ИЗМЕРЕННЫМ без находок — ровно та тишина, которой #906 и прошёл",
+      "file": "scripts/check_undelivered_work.py",
+      "old": "        if not log_path.exists():\n            row.update(state=SIBLING_UNMEASURED,\n                       reason=\"журнала объявлений в этом клоне нет — чем он объявлял, НЕ \"\n                              \"ИЗМЕРЕНО (молчание здесь читалось бы как «ничего не объявлял»)\")\n            out.append(row)\n            continue\n",
+      "new": "        if not log_path.exists():\n            out.append(row)\n            continue\n"
+    },
+    {
+      "name": "свой же клон считается ЧУЖИМ — журнал читается дважды, и находки своего отчёта удваиваются",
+      "file": "scripts/check_undelivered_work.py",
+      "old": "        if theirs == mine:\n            out.append({\"path\": str(p), \"state\": SIBLING_SAME,\n",
+      "new": "        if theirs != mine:\n            out.append({\"path\": str(p), \"state\": SIBLING_SAME,\n"
+    },
+    {
+      "name": "каталог без репозитория объявляется ТЕМ ЖЕ клоном — «не измерено» подменено успокоительным вердиктом",
+      "file": "scripts/check_undelivered_work.py",
+      "old": "        theirs = _git_common_dir(p, git=git)\n        if theirs is None:\n            out.append({\"path\": str(p), \"state\": SIBLING_UNMEASURED,\n                        \"reason\": \"git не назвал общий каталог этого клона — репозиторий ли \"\n                                  \"это и тот ли, НЕ ИЗМЕРЕНО\"})\n            continue\n",
+      "new": "        theirs = _git_common_dir(p, git=git)\n        if theirs is None:\n            out.append({\"path\": str(p), \"state\": SIBLING_SAME,\n                        \"reason\": \"git не назвал общий каталог этого клона — репозиторий ли \"\n                                  \"это и тот ли, НЕ ИЗМЕРЕНО\"})\n            continue\n"
+    },
+    {
+      "name": "объявленного на этой машине клона нет ⇒ «не измерено»: в CI зеркала нет никогда, и код 2 стал бы постоянным — тот шум, которым сторожа глохнут",
+      "file": "scripts/check_undelivered_work.py",
+      "old": "        if not p.is_dir():\n            out.append({\"path\": str(p), \"state\": SIBLING_ABSENT,\n",
+      "new": "        if not p.is_dir():\n            out.append({\"path\": str(p), \"state\": SIBLING_UNMEASURED,\n"
+    },
+    {
+      "name": "находка в чужом клоне не поднимает код возврата — отчёт печатает её и выходит нулём",
+      "file": "scripts/check_undelivered_work.py",
+      "old": "        if s[\"state\"] == SIBLING_MEASURED and s[\"findings\"]:\n            rc = max(rc, 1)\n",
+      "new": "        if s[\"state\"] == SIBLING_MEASURED and s[\"findings\"]:\n            rc = max(rc, 0)\n"
+    },
+    {
+      "name": "неизмеренный клон даёт код 1 вместо 2 — «про чужие объявления не известно ничего» перестаёт быть третьим исходом",
+      "file": "scripts/check_undelivered_work.py",
+      "old": "        if s[\"state\"] == SIBLING_UNMEASURED:\n            return 2\n",
+      "new": "        if s[\"state\"] == SIBLING_UNMEASURED:\n            return 1\n"
+    },
+    {
+      "name": "проход по чужим клонам из main() не зовётся вовсе — проводки нет, и параметр остаётся украшением (урок #453)",
+      "file": "scripts/check_undelivered_work.py",
+      "old": "    report[\"sibling_clones\"] = sibling_clone_reports(\n        root=root, base_ref=args.base, self_session=self_session,\n        last=None if args.all else args.last, grace_hours=args.grace_hours,\n        self_session_trusted=bool(env_session))\n",
+      "new": "    report[\"sibling_clones\"] = []\n"
+    },
+    {
+      "name": "код возврата чужих клонов не доезжает до CLI — находка печатается, а вердикт прежний",
+      "file": "scripts/check_undelivered_work.py",
+      "old": "    report[\"exit_code\"] = sibling_exit_code(report[\"exit_code\"], report[\"sibling_clones\"])\n",
+      "new": "    pass\n"
+    },
+    {
+      "name": "раздел не печатается — находка существует только в JSON, то есть снова невидима",
+      "file": "scripts/check_undelivered_work.py",
+      "old": "    siblings = report.get(\"sibling_clones\") or []\n    if siblings:\n",
+      "new": "    siblings = report.get(\"sibling_clones\") or []\n    if False:\n"
+    },
+    {
+      "name": "потолок печати чужого «не измерено» снят — 83 строки замера #907 возвращаются в отчёт",
+      "file": "scripts/check_undelivered_work.py",
+      "old": "                for u in s[\"unmeasured\"][:SIBLING_UNMEASURED_SHOWN]:\n",
+      "new": "                for u in s[\"unmeasured\"]:\n"
+    }
+  ]
+}
