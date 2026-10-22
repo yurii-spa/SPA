@@ -19,8 +19,27 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parent.parent
 SCAN_DIRS = ("spa_core", "scripts")
 
-# Matches both `datetime.utcnow(` and `datetime.datetime.utcnow(`.
+# Matches both `datetime.utcnow(` and `datetime.datetime.utcnow(` — as CALLS, by AST.
+# A text grep (the first form of this guard) also matched docstrings and comments that only
+# NAME the deprecated call (e.g. `identity_field_kind.py`, which documents what it detects)
+# and kept the guard red on code that has no such call (CI control run #14).
 _UTCNOW = re.compile(r"\bdatetime\.utcnow\(")
+
+
+def utcnow_calls(source: str) -> list[int]:
+    """Line numbers of real `datetime.utcnow()` / `datetime.datetime.utcnow()` calls."""
+    import ast
+    out = []
+    for node in ast.walk(ast.parse(source)):
+        if not (isinstance(node, ast.Call) and isinstance(node.func, ast.Attribute)
+                and node.func.attr == "utcnow"):
+            continue
+        base = node.func.value
+        if (isinstance(base, ast.Name) and base.id == "datetime") or \
+                (isinstance(base, ast.Attribute) and base.attr == "datetime"):
+            out.append(node.lineno)
+    return out
+
 
 # Files/dirs that are allowed to mention utcnow (helper + the test tree itself).
 _ALLOWLIST = {"clock.py"}
@@ -45,11 +64,31 @@ def test_no_bare_utcnow_in_runtime() -> None:
             if _is_excluded(py):
                 continue
             text = py.read_text(encoding="utf-8")
-            for i, line in enumerate(text.splitlines(), 1):
-                if _UTCNOW.search(line):
-                    offenders.append(f"{py.relative_to(ROOT)}:{i}: {line.strip()}")
+            if not _UTCNOW.search(text):
+                continue                     # cheap prefilter; the verdict is the AST below
+            try:
+                lines = utcnow_calls(text)
+            except SyntaxError as exc:       # unparsable file = loud finding, not a pass
+                offenders.append(f"{py.relative_to(ROOT)}: NOT MEASURED (syntax error: {exc})")
+                continue
+            src_lines = text.splitlines()
+            for i in lines:
+                offenders.append(f"{py.relative_to(ROOT)}:{i}: {src_lines[i - 1].strip()}")
 
     assert not offenders, (
         "Bare datetime.utcnow() found — use spa_core.utils.clock.utcnow() "
         "(naive-preserving, deprecation-free):\n" + "\n".join(offenders)
     )
+
+
+def test_the_scanner_sees_a_call_and_ignores_a_mention() -> None:
+    """Both directions: a real call is found; a docstring or comment naming it is not."""
+    src = (
+        '"""Detects datetime.utcnow() usage."""\n'
+        "# datetime.utcnow() is deprecated\n"
+        "import datetime\n"
+        "a = datetime.utcnow()\n"
+        "b = datetime.datetime.utcnow()\n"
+        "c = clock.utcnow()\n"
+    )
+    assert utcnow_calls(src) == [4, 5]
