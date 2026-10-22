@@ -568,21 +568,21 @@ class ExitCodesSeparateThreeOutcomes(_StandCase):
     def test_everything_keepable_exits_zero(self):
         self.stand.agent("com.spa.loop", [("data/a.json", 26)])
         self.stand.runs("loop", list(range(0, 40)))
-        self.assertEqual(sk.main(self._argv()), 0)
+        self.assertEqual(sk.main(self._argv(), now=_ANCHOR), 0)
 
     def test_a_finding_exits_one(self):
         self.stand.agent("com.spa.loop", [("data/a.json", 5)])
         self.stand.runs("loop", [0, 9, 18, 27])
-        self.assertEqual(sk.main(self._argv()), 1)
+        self.assertEqual(sk.main(self._argv(), now=_ANCHOR), 1)
 
     def test_ONLY_unmeasured_still_exits_one_never_zero(self):
         """fail-OPEN тише красного, поэтому опаснее: «не измерено» не есть «чисто»."""
         self.stand.agent("com.spa.loop", [("data/a.json", 7)])
-        self.assertEqual(sk.main(self._argv()), 1)
+        self.assertEqual(sk.main(self._argv(), now=_ANCHOR), 1)
 
     def test_no_measurement_at_all_exits_two(self):
         self.stand.agent("com.spa.loop", [("data/a.json", None)])
-        self.assertEqual(sk.main(self._argv()), 2)
+        self.assertEqual(sk.main(self._argv(), now=_ANCHOR), 2)
 
     def test_the_three_codes_are_DISTINCT(self):
         self.assertEqual(len({0, 1, 2}), 3)

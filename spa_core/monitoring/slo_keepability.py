@@ -699,7 +699,9 @@ def format_report(doc: dict, max_rows: int = 8) -> list:
     return ["   " + line for line in report(doc, max_rows=max_rows)]
 
 
-def main(argv: Optional[list] = None) -> int:
+def main(argv: Optional[list] = None, *, now: Optional[datetime] = None) -> int:
+    """CLI. `now` — вход (по умолчанию стенные часы): без него тест кода выхода судил бы о
+    прогонах фикстуры по сегодняшней дате и краснел бы от календаря, а не от кода."""
     parser = argparse.ArgumentParser(description=__doc__.splitlines()[0])
     parser.add_argument("--manifest", default=None, help="путь к architecture/manifest.json")
     parser.add_argument("--log-dir", default="/tmp", help="каталог записей прогонов")
@@ -712,7 +714,7 @@ def main(argv: Optional[list] = None) -> int:
         doc = measure(Path(args.manifest) if args.manifest else None,
                       log_dir=Path(args.log_dir),
                       scripts_dir=Path(args.scripts_dir) if args.scripts_dir else None,
-                      window_hours=args.window_hours)
+                      window_hours=args.window_hours, now=now)
     except Unmeasured as exc:
         print(f"НЕ ИЗМЕРЕНО: {exc}")
         print("  про объявленные сроки НЕ СКАЗАНО НИЧЕГО")
