@@ -184,8 +184,9 @@
     stage population by AST (110); §49 producer PREPARED, not installed, not running; residual on Mac 33 → 24 red of 56,
     0 new. Full verdict INCOMPLETE (ci-control needs the SHA on GitHub; push not permitted). Journal 2026-W43.
     Update 2026-10-22 (stage 2, same branch, still NOT pushed, NOT ARB-accepted): push BLOCKED — Cloudflare Pages
-    builds and publishes a preview of every pushed branch (owner setting); §49 producer run isolation PROVEN by a
-    measured run (0 writes/reads under the live root, hashes unchanged), producer still not installed; G16 deadline
+    builds and publishes a preview of every pushed branch (owner setting); §49 producer run isolation — CORRECTED:
+    PARTIAL, not proven (ARB reproduced sqlite/shell/dir_fd bypasses of the Python hook); now a Seatbelt write
+    boundary with a pre-run self-check, production run BLOCKED in code; producer not installed; G16 deadline
     loss found and closed; residual on Mac 13 red of 56, 0 new. Full Linux verdict INCOMPLETE. Journal 2026-W43.
     Handover: `HANDOVER_FOR_ARB_FINAL.md`, `START_HERE.md` in the same folder.
 18. **Later engines:** traditional markets, volatility / options (scope decided inside RM-EXPAND-01)
