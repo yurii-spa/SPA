@@ -100,13 +100,23 @@ NOT_MEASURED = "unmeasured"
 
 #: Снимок кода (клон коммита) НЕ изолирует прогон от боевых путей: `live_paths` без
 #: `SPA_DATA_DIR`/`SPA_LIVE_ROOT` разрешает живое состояние в `~/Documents/SPA_Claude`, а
-#: код с `Path.home()`/абсолютным путём пишет туда независимо от дерева прогона (замер
-#: 22.10, STUDIO-OS-NEXT-01). Поэтому у прогона ДВЕ линии изоляции, и вторая держит запрет,
-#: даже если первая сломана: (1) окружение уводит живое состояние в дерево прогона —
-#: тот же приём, что у `scripts/check_agent_before_deploy.sh` (песочница `SPA_DATA_DIR`,
-#: `SPA_ALLOW_LIVE_WRITE` снят); (2) сторож записи в КАЖДОМ Python-потомке (audit-хук через
-#: `sitecustomize`) отказывает в записи под охраняемым корнем и пишет отчёт процесса.
-#: Нет отчёта процесса pytest ⇒ изоляция НЕ ДОКАЗАНА ⇒ замер не состоялся.
+#: код с `Path.home()`/абсолютным путём пишет туда независимо от дерева прогона (замер 22.10).
+#:
+#: ЧТО ЕСТЬ ГРАНИЦА, А ЧТО НАБЛЮДАТЕЛЬ (поправка 22.10 по воспроизведению ARB):
+#:   * ГРАНИЦА записи — профиль Seatbelt (`sandbox-exec`, `deny file-write*` на охраняемые
+#:     корни), наследуемый ВСЕМ деревом потомков: ядро отказывает и sqlite, и shell-потомку,
+#:     и `os.open(..., dir_fd=)`. Перед КАЖДЫМ прогоном граница проверяется на временной
+#:     сцене (`verify_write_boundary`); нет `sandbox-exec` или хоть один зонд прошёл ⇒ отказ
+#:     ДО тестов.
+#:   * Окружение (`SPA_DATA_DIR`/`SPA_LIVE_ROOT`, снят `SPA_ALLOW_LIVE_WRITE`) — уводит живое
+#:     состояние, но ничего не ЗАПРЕЩАЕТ.
+#:   * Python audit-хук (`GUARD_SITECUSTOMIZE`) — НАБЛЮДАТЕЛЬ, не граница: sqlite3 (C-код),
+#:     shell-потомок и `dir_fd` проходят мимо него (воспроизведено ARB 22.10). Его отчёт
+#:     называет то, что видно Python, и не более.
+#:   * Хеш канонического трека — сверка ОДНОГО файла после прогона, не запрет.
+#: Чего граница НЕ закрывает: записи, которые по IPC делает за процесс системный демон
+#: (launchd, cfprefsd и т. п.), и сеть. Поэтому полная изоляция НЕ доказана, и рабочий запуск
+#: против боевого дерева ЗАБЛОКИРОВАН (`PRODUCTION_RUN_BLOCKED`).
 GUARD_REPORT_ENV = "SPA_NOREG_GUARD_REPORT_DIR"
 GUARD_ROOTS_ENV = "SPA_NOREG_GUARD_ROOTS"
 ISOLATION_ENV_DROP = ("SPA_ALLOW_LIVE_WRITE",)
@@ -237,20 +247,24 @@ def isolated_env(base: dict, repo_root: Path, roots: list[Path], scratch: Path) 
 
 
 def judge_isolation(scratch: Path, roots: list[Path]) -> dict:
-    """Отчёты сторожа → вердикт изоляции. Отказ записи или нет отчёта pytest ⇒ NotMeasured."""
+    """Отчёты НАБЛЮДАТЕЛЯ Python → его вердикт. Отказ записи или нет отчёта pytest ⇒ NotMeasured.
+
+    Это не доказательство изоляции: наблюдатель не видит sqlite, не-Python потомков и `dir_fd`,
+    и наличие отчёта КАЖДОГО Python-потомка не проверяется (требуется только процесс pytest).
+    Запрет записи держит граница Seatbelt (`verify_write_boundary`)."""
     reports = []
     for f in sorted((scratch / "guard_reports").glob("*.json")):
         try:
             reports.append(json.loads(f.read_text(encoding="utf-8")))
         except (OSError, ValueError) as exc:
             raise NotMeasured(f"отчёт сторожа записи {f.name} не прочитан: "
-                              f"{type(exc).__name__}: {exc} — изоляция НЕ доказана") from exc
+                              f"{type(exc).__name__}: {exc} — наблюдение записи не состоялось") from exc
     want = sorted(str(Path(r).resolve()) for r in roots)
     main = [r for r in reports if r.get("pytest") and r.get("installed")
             and sorted(r.get("roots") or []) == want]
     if not main:
         raise NotMeasured(f"сторож записи не отчитался из процесса pytest ({len(reports)} "
-                          f"отчёт(ов) всего) — изоляция от {want} НЕ ДОКАЗАНА, вердикт не выносится")
+                          f"отчёт(ов) всего) — наблюдение записи под {want} не состоялось, вердикт не выносится")
     refused = [dict(x, pid=r["pid"]) for r in reports for x in r.get("refused") or []]
     out = {"protected_roots": want, "guard_processes": len(reports),
            "refused_writes": len(refused),
@@ -258,10 +272,98 @@ def judge_isolation(scratch: Path, roots: list[Path]) -> dict:
            "keychain_refused": sum(int(r.get("keychain_refused") or 0) for r in reports),
            "unaudited_children": sorted({c for r in reports for c in r.get("children") or []})}
     if refused:
-        raise NotMeasured(f"изоляция НАРУШЕНА: {len(refused)} попыт(ка/ок) записи в охраняемый "
-                          f"корень отказано сторожем, первые: {refused[:3]} — прогон не есть "
+        raise NotMeasured(f"попытка записи в охраняемый корень: {len(refused)} попыт(ка/ок) "
+                          f"отказано, первые: {refused[:3]} — прогон не есть "
                           f"проверка кандидата, живой отчёт не трогается")
     return out
+
+
+#: Рабочий запуск (живой корень = боевое дерево) заблокирован: граница Seatbelt закрывает
+#: прямую запись дерева процессов, но не запись, делегированную системному демону по IPC.
+#: Условие снятия — решение ARB/владельца о достаточности границы (или прогон под отдельным
+#: пользователем ОС без права записи в боевое дерево) и ADR; снимается правкой кода, а не флагом.
+PRODUCTION_RUN_BLOCKED = (
+    "рабочий запуск против боевого дерева ЗАБЛОКИРОВАН: граница записи — Seatbelt "
+    "(прямая запись дерева процессов), запись через системные демоны по IPC не закрыта, "
+    "полная изоляция не доказана; условие — решение ARB/владельца + ADR")
+
+_BOUNDARY_PROBE = r'''
+import os, sqlite3, subprocess, sys
+P = sys.argv[1]
+def t(fn):
+    try:
+        fn(); return "written"
+    except Exception:
+        return "refused"
+def a():
+    c = sqlite3.connect(os.path.join(P, "probe.sqlite")); c.execute("CREATE TABLE t(x)"); c.commit()
+def b():
+    subprocess.run(["/bin/sh", "-c", 'printf changed > "$1"', "probe", os.path.join(P, "sentinel")], check=True)
+def c():
+    fd = os.open(P, os.O_RDONLY)
+    f = os.open("sentinel", os.O_WRONLY | os.O_TRUNC, dir_fd=fd); os.write(f, b"changed")
+def d():
+    open(os.path.join(P, "py.txt"), "w").write("x")
+def outside():
+    open(sys.argv[2], "w").write("x")
+print("|".join([t(a), t(b), t(c), t(d), t(outside)]))
+'''
+
+
+def boundary_profile(roots: list[Path]) -> str:
+    """Профиль Seatbelt: всё разрешено, кроме записи под охраняемыми корнями (realpath)."""
+    rules = []
+    for r in roots:
+        real = os.path.realpath(str(r))
+        if any(ch in real for ch in '"\\\n'):
+            raise NotMeasured(f"путь охраняемого корня непригоден для профиля: {real!r}")
+        rules.append(f'(deny file-write* (subpath "{real}"))')
+    return "(version 1)(allow default)" + "".join(rules)
+
+
+def verify_write_boundary(*, sandbox_exec: str = "/usr/bin/sandbox-exec") -> dict:
+    """Самопроверка ГРАНИЦЫ на временной сцене ДО прогона — теми же классами, что прошли
+    мимо Python-наблюдателя (sqlite, shell-потомок, dir_fd) + обычная запись Python, и
+    положительный контроль: запись ВНЕ корня обязана пройти (иначе профиль запрещает всё и
+    прогон ничего не мерит). Любое отклонение ⇒ NotMeasured, тесты не запускаются."""
+    import shutil
+    import tempfile
+    if not os.path.exists(sandbox_exec):
+        raise NotMeasured(f"граница записи не обеспечена: нет {sandbox_exec} — прогон не начат")
+    scene = Path(tempfile.mkdtemp(prefix="noreg_boundary_"))
+    try:
+        prot = scene / "protected"
+        prot.mkdir()
+        (prot / "sentinel").write_text("orig", encoding="utf-8")
+        outside = scene / "outside.txt"
+        probe = scene / "probe.py"
+        probe.write_text(_BOUNDARY_PROBE, encoding="utf-8")
+        try:
+            # Popen, а не run/check_output: зов прогона населения и зов самопроверки — разные
+            # двери, и подмена одной (тестом) не должна молча подменять другую.
+            with subprocess.Popen(
+                    [sandbox_exec, "-p", boundary_profile([prot]), sys.executable, str(probe),
+                     os.path.realpath(prot), str(outside)], stdout=subprocess.PIPE,
+                    stderr=subprocess.DEVNULL, text=True) as proc:
+                out, _ = proc.communicate(timeout=60)
+            if proc.returncode != 0:
+                raise NotMeasured(f"зонд границы вышел с кодом {proc.returncode} — прогон не начат")
+        except (OSError, subprocess.SubprocessError) as exc:
+            raise NotMeasured(f"самопроверка границы записи не выполнена: "
+                              f"{type(exc).__name__}: {exc} — прогон не начат") from exc
+        got = dict(zip(("sqlite", "shell_child", "dir_fd", "python_open", "outside"),
+                       out.strip().split("|")))
+        intact = (prot / "sentinel").read_text(encoding="utf-8") == "orig" and \
+            not (prot / "probe.sqlite").exists() and not (prot / "py.txt").exists()
+        ok = intact and got.get("outside") == "written" and all(
+            got.get(k) == "refused" for k in ("sqlite", "shell_child", "dir_fd", "python_open"))
+        if not ok:
+            raise NotMeasured(f"граница записи не держит на сцене: {got}, корень цел={intact} "
+                              f"— прогон не начат")
+        return {"mechanism": "seatbelt deny file-write*", "probes": got,
+                "not_covered": ["запись через системные демоны по IPC", "сеть"]}
+    finally:
+        shutil.rmtree(scene, ignore_errors=True)
 
 
 class NotMeasured(RuntimeError):
@@ -380,6 +482,11 @@ def run_population(repo_root: Path, files: list[str], record: Path,
     env = isolated_env(dict(os.environ), repo_root, roots, scratch) if roots else \
         {**os.environ, **RUN_ENV}
     try:
+        boundary = None
+        if roots:
+            # Граница ДО тестов: не держит на сцене ⇒ тесты не запускаются вовсе.
+            boundary = verify_write_boundary()
+            cmd = ["/usr/bin/sandbox-exec", "-p", boundary_profile(roots), *cmd]
         try:
             proc = subprocess.run(cmd, cwd=str(repo_root), env=env, timeout=timeout_s,
                                   capture_output=True, text=True)
@@ -401,7 +508,8 @@ def run_population(repo_root: Path, files: list[str], record: Path,
         if cases == 0:
             raise NotMeasured(f"в junit-записи {staged} ноль случаев — прогон не дал исхода "
                               f"ни одному члену населения (код pytest {proc.returncode})")
-        isolation = (judge_isolation(scratch, roots) if roots else
+        isolation = (dict(judge_isolation(scratch, roots), boundary=boundary,
+                          full_isolation_proven=False) if roots else
                      {"protected_roots": [], "reason": "прогон в самом охраняемом корне "
                       "(осознанный обход --allow-prod-tree) — изоляции нет и она не заявляется"})
         record.parent.mkdir(parents=True, exist_ok=True)
@@ -622,6 +730,9 @@ def scheduled(live_root: Path, *, ref: str = "origin/main", max_age_h: float = D
     out["due_reason"] = ("отчёта нет или он не читается" if age is None else
                          f"отчёт старше {max_age_h:.0f}ч" if age > max_age_h else
                          f"отчёт о другом коммите ({(prior_sha or 'неизвестно')[:12]} ≠ {sha[:12]})")
+    from spa_core.utils.live_paths import DEFAULT_LIVE_ROOT
+    if live_root.resolve() == Path(DEFAULT_LIVE_ROOT).resolve():
+        raise NotMeasured(PRODUCTION_RUN_BLOCKED)
     env = run_environment()
     tmp = Path(tempfile.mkdtemp(prefix="spa_no_regression_", dir=str(workdir) if workdir else None))
     try:
@@ -638,11 +749,10 @@ def scheduled(live_root: Path, *, ref: str = "origin/main", max_age_h: float = D
                                           protected_roots=roots)
             track_after = track_fingerprint(live_root)
             if track_before != track_after:
-                # Третья линия (как у check_agent_before_deploy.sh): канонический трек
-                # боевого дерева не вправе измениться за время прогона. Сдвинулся — прогон
-                # не доказал изоляцию, даже если сторож записи молчал (не-Python потомок).
+                # Сверка ОДНОГО файла (как у check_agent_before_deploy.sh): сдвиг трека за
+                # время прогона — отказ. Это не запрет и не охват прочих файлов.
                 raise NotMeasured(f"канонический трек {TRACK_REL} изменился за время прогона "
-                                  f"({track_before} → {track_after}) — изоляция НЕ доказана")
+                                  f"({track_before} → {track_after}) — замер не принят")
         except NotMeasured as exc:
             out["refusal_record"] = str(_record_refusal(live_root, {
                 "stamp": _stamp(), "ref": ref, "sha": sha, "env": env, "reason": str(exc),

@@ -651,6 +651,20 @@ class РежимРасписания(unittest.TestCase):
         with self.assertRaises(RNC.NotMeasured):
             RNC.snapshot_commit(self.live, "0" * 40, self.work / "snap2")
 
+    def test_рабочий_запуск_против_боевого_дерева_заблокирован(self):
+        from spa_core.utils.live_paths import DEFAULT_LIVE_ROOT
+        with unittest.mock.patch.object(RNC, "_git", return_value="f" * 40), \
+             unittest.mock.patch.object(RNC, "artifact_age_hours", return_value=(None, "нет")), \
+             unittest.mock.patch.object(RNC, "snapshot_commit",
+                                        side_effect=AssertionError("снимок не должен сниматься")), \
+             unittest.mock.patch.object(RNC, "_record_refusal",
+                                        side_effect=AssertionError("в боевое дерево не пишем")):
+            with self.assertRaises(RNC.NotMeasured) as ctx:
+                RNC.scheduled(Path(DEFAULT_LIVE_ROOT), ref="main", now=ANCHOR,
+                              refresh_fn=self._fake_refresh, workdir=self.work)
+        self.assertIn("ЗАБЛОКИРОВАН", str(ctx.exception))
+        self.assertEqual(self.calls, [])
+
     def test_охраняется_и_корень_отчёта(self):
         out = RNC.scheduled(self.live, ref="main", now=ANCHOR, refresh_fn=self._fake_refresh,
                             workdir=self.work)
@@ -811,7 +825,7 @@ class ИзоляцияПрогонаОтБоевогоКорня(unittest.TestCa
     def test_запись_в_боевой_корень_отказана_и_замер_НЕ_состоялся(self):
         with self.assertRaises(RNC.NotMeasured) as ctx:
             self._run("def test_w():\n    open(os.path.join(LIVE, 'data', 'leak.json'), 'w').write('x')\n")
-        self.assertIn("изоляция НАРУШЕНА", str(ctx.exception))
+        self.assertIn("попытка записи в охраняемый корень", str(ctx.exception))
         self.assertFalse((self.live / "data" / "leak.json").exists(), "запись дошла до корня")
         self.assertFalse(self.record.exists(), "запись прогона с нарушенной изоляцией не хранится")
 
@@ -859,6 +873,57 @@ class ИзоляцияПрогонаОтБоевогоКорня(unittest.TestCa
         self.assertEqual(got["returncode"], 0, got["tail"])
         self.assertEqual(got["isolation"]["keychain_refused"], 1)
 
+    # ── Обходы Python-наблюдателя, воспроизведённые ARB 22.10: держит ГРАНИЦА (Seatbelt) ──
+    def _bypass(self, body: str):
+        got = self._run("import sqlite3\n" + body)
+        self.assertEqual((self.live / "data" / "track.json").read_text(encoding="utf-8"), "{}")
+        return got
+
+    def test_обход_A_sqlite_не_создаёт_БД_в_корне(self):
+        got = self._bypass("def test_a():\n    c = sqlite3.connect(os.path.join(LIVE, 'data', 'probe.sqlite'))\n"
+                           "    c.execute('CREATE TABLE t(x)'); c.commit()\n")
+        self.assertFalse((self.live / "data" / "probe.sqlite").exists(), "sqlite обошёл границу")
+        self.assertEqual(got["returncode"], 1, "попытка записи видна как падение теста")
+        self.assertFalse(got["isolation"]["full_isolation_proven"])
+
+    def test_обход_B_shell_потомок_не_меняет_файл_корня(self):
+        self._bypass("def test_b():\n    subprocess.run(['/bin/sh', '-c', 'printf changed > \"$1\"', 'probe',"
+                     " os.path.join(LIVE, 'data', 'track.json')], check=True)\n")
+
+    def test_обход_C_dir_fd_не_меняет_файл_корня(self):
+        self._bypass("def test_c():\n    fd = os.open(os.path.join(LIVE, 'data'), os.O_RDONLY)\n"
+                     "    f = os.open('track.json', os.O_WRONLY | os.O_TRUNC, dir_fd=fd)\n"
+                     "    os.write(f, b'changed')\n")
+
+    def test_нет_границы_отказ_ДО_тестов(self):
+        calls = []
+        def never(cmd, **kw):
+            calls.append(cmd)
+            raise AssertionError("тесты не должны были запуститься")
+        with unittest.mock.patch.object(RNC.subprocess, "run", never), \
+             unittest.mock.patch.object(RNC, "verify_write_boundary",
+                                        side_effect=RNC.NotMeasured("граница записи не обеспечена")):
+            with self.assertRaises(RNC.NotMeasured):
+                RNC.run_population(self.root, ["m/test_a.py"], self.record, protected_roots=[self.live])
+        self.assertEqual(calls, [])
+
+    def test_самопроверка_отказывает_без_sandbox_exec(self):
+        with self.assertRaises(RNC.NotMeasured) as ctx:
+            RNC.verify_write_boundary(sandbox_exec="/nonexistent/sandbox-exec")
+        self.assertIn("граница записи не обеспечена", str(ctx.exception))
+
+    def test_самопроверка_ловит_профиль_который_не_запрещает(self):
+        with unittest.mock.patch.object(RNC, "boundary_profile", return_value="(version 1)(allow default)"):
+            with self.assertRaises(RNC.NotMeasured) as ctx:
+                RNC.verify_write_boundary()
+        self.assertIn("не держит", str(ctx.exception))
+
+    def test_самопроверка_ловит_профиль_который_запрещает_всё(self):
+        with unittest.mock.patch.object(RNC, "boundary_profile",
+                                        return_value="(version 1)(allow default)(deny file-write*)"):
+            with self.assertRaises(RNC.NotMeasured):
+                RNC.verify_write_boundary()
+
     def test_нет_отчёта_сторожа_это_НЕ_ДОКАЗАНО(self):
         def silent(cmd, **kw):
             target = Path([c for c in cmd if str(c).startswith("--junitxml=")][0].split("=", 1)[1])
@@ -868,7 +933,8 @@ class ИзоляцияПрогонаОтБоевогоКорня(unittest.TestCa
             with self.assertRaises(RNC.NotMeasured) as ctx:
                 RNC.run_population(self.root, ["m/test_a.py"], self.record,
                                    protected_roots=[self.live])
-        self.assertIn("НЕ ДОКАЗАНА", str(ctx.exception))
+        self.assertIn("наблюдение записи", str(ctx.exception))
+        self.assertIn("не состоялось", str(ctx.exception))
 
     def test_отчёт_о_другом_корне_не_засчитывается(self):
         def wrong(cmd, **kw):
