@@ -2,10 +2,12 @@
 trackerStatus:
   type: inbox
 title: "Находка петли: data/investment_os/market_structure.json: последний ресит старше бюдже"
-status: new
+status: done
 source: nimbalyst
 created: 2026-10-20
 finding_key: "B3:consumption_stale:data/investment_os/market_structure.json"
+status_trail:
+  - "2026-10-22T03:59:16.842587+00:00 new -> done · queue.set_status/closed_by:findings_bridge/evidence:finding B3:consumption_stale:data/investment_os/market_structure.json absent in the fresh report (ADR-066 C2)"
 ---
 
 Находка петли ADR-066 (architecture_conformance, WARN, подтверждена 2 прогонами подряд):
