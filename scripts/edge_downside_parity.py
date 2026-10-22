@@ -107,6 +107,14 @@ def stdev(window: Sequence[float]) -> float:
     n = len(window)
     if n < 2:
         return 0.0
+    # Константный ряд — нулевая волатильность ТОЧНО, а не «около нуля». Решается
+    # сравнением значений, а не арифметикой: до Python 3.12 встроенный sum складывал
+    # float наивно, sum([0.0002]*10) = 0.0020000000000000005, среднее уезжало на ulp
+    # и stdev давал 2.857e-20 (CI ubuntu, Python 3.11, прогон 39848159954). Счётчик
+    # `stdev(win) == 0.0` в контроле C3 тогда молча терял нулевые окна.
+    first = window[0]
+    if all(x == first for x in window):
+        return 0.0
     mean = sum(window) / n
     return math.sqrt(sum((x - mean) ** 2 for x in window) / (n - 1))
 

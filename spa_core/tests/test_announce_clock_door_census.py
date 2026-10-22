@@ -1214,8 +1214,26 @@ class TestSynthForm(unittest.TestCase):
         сборки строки, — и утверждать обратное было бы выдумкой о платформе.
         """
         value = M.synth_form("strftime", "%Q", self.forms, NOW)
-        self.assertEqual(value, "Q")
+        # Прежняя форма `assertEqual(value, "Q")` утверждала ПЛАТФОРМУ, а не
+        # прибор: «Q» отдаёт libc macOS, glibc (ubuntu, CI) отдаёт директиву
+        # как есть — «%Q» (прогон 39848159954). Прибор обязан вернуть ровно то,
+        # что запишет производитель НА ЭТОЙ машине, поэтому эталон — сама
+        # библиотека; множество двух измеренных форм названо явно, и третья
+        # (неизвестная платформа) красит тест громко, а не проходит.
+        self.assertIsInstance(value, str)
+        self.assertEqual(value, NOW.strftime("%Q"))
+        self.assertIn(value, ("Q", "%Q"))
         self.assertIsNone(strict(value), "дверь обязана отказать такой строке")
+        # Отказ двери — свойство ОБЕИХ форм, а не той, что выпала этому хосту.
+        for platform_form in ("Q", "%Q"):
+            self.assertIsNone(strict(platform_form), platform_form)
+        # Сборка строки действительно ИДЁТ (а не формат возвращается как есть):
+        # на «%Q» glibc эти исходы неразличимы, поэтому — известная директива
+        # рядом; мутант «вернуть detail» краснеет на любой платформе.
+        mixed = M.synth_form("strftime", "%Y%Q", self.forms, NOW)
+        self.assertEqual(mixed, NOW.strftime("%Y%Q"))
+        self.assertTrue(mixed.startswith("2026"), mixed)
+        self.assertIsNone(strict(mixed))
 
     def test_a_format_that_is_not_a_string_is_a_third_outcome(self):
         """Ветвь отказа сборки: формат не строка ⇒ None, а не падение прибора."""

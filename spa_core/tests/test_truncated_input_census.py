@@ -730,10 +730,16 @@ class TheJanitorSeesEveryWorktree(unittest.TestCase):
             _git(repo, "commit", "-qm", "init")
             # Пути намеренно ДЛИННЫЕ: так перечень перерастает бюджет на трёх
             # деревьях вместо пятидесяти, и опыт стоит секунды, а не минуты.
+            # Длина набирается СВОИМИ уровнями, а не префиксом tmp: на двух
+            # уровнях перечень был 2040+ знаков под macOS (/var/folders/…/T,
+            # ~50 знаков на путь) и 1955 под ubuntu (/tmp/tmpXXXXXXXX) — то
+            # есть перерастал бюджет только благодаря длине TMPDIR хоста.
+            # Три уровня дают > 2600 знаков даже при пустом префиксе.
             long = "d" * 180
             made = []
             for i in range(4):
-                path = Path(tmp) / f"{long}_{i}" / f"{long}" / f"spa_copy_probe_{i}"
+                path = (Path(tmp) / f"{long}_{i}" / f"{long}" / f"{long}"
+                        / f"spa_copy_probe_{i}")
                 _git(repo, "worktree", "add", "--detach", "-q", str(path))
                 made.append(str(path))
 

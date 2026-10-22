@@ -76,6 +76,7 @@ import argparse
 import importlib.util
 import json
 import os
+import stat
 import subprocess
 import sys
 from dataclasses import dataclass, field
@@ -216,6 +217,8 @@ def _open_files(pid: int) -> list[dict] | None:
     замером на pytest, пишущем в FIFO. Отсюда же и требование ниже: у разбора
     обязан быть тест БЕЗ подмены, на настоящем `lsof` и настоящем процессе.
     """
+    if os.path.isdir(os.path.join(_PROC_ROOT, "self", "fd")):
+        return _open_files_procfs(pid)
     raw = _run(["lsof", "-a", "-p", str(pid), "-d", "0-255", "-Ftnia"])
     if raw is None:
         return None
@@ -243,6 +246,93 @@ def _open_files(pid: int) -> list[dict] | None:
                 cur["inode"] = None
     if cur is not None:
         out.append(cur)
+    return out
+
+
+#: Корень procfs. Есть ``<корень>/self/fd`` ⇒ дескрипторы читаются ИЗ ЯДРА, а не
+#: разбором чужого текстового вывода (вынесено в имя ради сцены теста).
+_PROC_ROOT = "/proc"
+
+#: Суффикс, которым ядро Linux помечает цель дескриптора, чьё имя отвязано.
+_PROCFS_DELETED = " (deleted)"
+
+
+def _procfs_type(mode: int) -> str | None:
+    if stat.S_ISREG(mode):
+        return "REG"
+    if stat.S_ISFIFO(mode):
+        return "FIFO"
+    if stat.S_ISCHR(mode):
+        return "CHR"
+    if stat.S_ISSOCK(mode):
+        return "SOCK"
+    if stat.S_ISDIR(mode):
+        return "DIR"
+    if stat.S_ISBLK(mode):
+        return "BLK"
+    return None
+
+
+def _same_inode(path: str, inode: int | None) -> bool:
+    """Имя, буквально оканчивающееся на « (deleted)», — живой файл, а не метка ядра."""
+    try:
+        return inode is not None and os.stat(path).st_ino == inode
+    except OSError:
+        return False
+
+
+def _open_files_procfs(pid: int, *, proc_root: str | None = None,
+                       link_stat=os.stat) -> list[dict] | None:
+    """Те же записи, что у разбора `lsof`, но прочитанные из procfs (Linux).
+
+    **Почему не `lsof` на Linux.** Полный CI на ubuntu (прогоны ci-control
+    39003158532 … 39848159954) давал на СВОЁМ процессе записи без типа, пути и
+    inode («только ?»): ось вырождалась в «не измерено» ровно тем же образом, что
+    первая редакция без поля `a`, — только на другой платформе. Вывод `lsof`
+    платформенен, а procfs и есть первоисточник, который `lsof` на Linux читает
+    сам: путь — `readlink fd/N` (отвязанный помечен ` (deleted)`), тип и inode —
+    `stat fd/N` (магическая ссылка ведёт на ОТКРЫТЫЙ файл и для отвязанного),
+    режим — младшие биты `flags:` в `fdinfo/N` (O_RDONLY/O_WRONLY/O_RDWR).
+    Каталог дескрипторов не прочитан (нет процесса, чужой пользователь) ⇒ None —
+    «не измерено», а не пустой список. Те же дескрипторы 0–255, что у `lsof -d`.
+    ``link_stat`` — шов сцены: на хосте без procfs магическую ссылку на
+    отвязанный файл воспроизвести нечем, и тест подставляет её `stat`.
+    """
+    base = os.path.join(proc_root or _PROC_ROOT, str(pid))
+    try:
+        names = os.listdir(os.path.join(base, "fd"))
+    except OSError:
+        return None
+    out: list[dict] = []
+    for name in sorted((n for n in names if n.isdigit()), key=int):
+        if int(name) > 255:
+            continue
+        link = os.path.join(base, "fd", name)
+        try:
+            target = os.readlink(link)
+        except OSError:
+            continue                      # дескриптор закрыт между листингом и чтением
+        rec = {"fd": name, "mode": "", "type": None, "path": None, "inode": None}
+        try:
+            st = link_stat(link)
+            rec["type"] = _procfs_type(st.st_mode)
+            rec["inode"] = st.st_ino
+        except OSError:
+            pass
+        if target.startswith("/"):
+            if target.endswith(_PROCFS_DELETED) and not _same_inode(target, rec["inode"]):
+                target = target[: -len(_PROCFS_DELETED)]
+            rec["path"] = target
+        try:
+            with open(os.path.join(base, "fdinfo", name), encoding="ascii") as fh:
+                for line in fh:
+                    if line.startswith("flags:"):
+                        acc = int(line.split(":", 1)[1].strip(), 8) & 0o3
+                        rec["mode"] = {0: "r", 1: "w", 2: "u"}.get(acc, "")
+                        break
+        except (OSError, ValueError):
+            pass
+        out.append(rec)
     return out
 
 

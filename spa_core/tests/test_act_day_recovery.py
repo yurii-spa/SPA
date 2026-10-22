@@ -606,6 +606,40 @@ class TestTheHonestBatteryHoles(_StandCase):
         doc = adr.measure(stand.write(), now=ANCHOR + timedelta(days=3))
         self.assertEqual(doc["days"][0]["executed_move"]["turnover_usd"], 20000.01)
 
+    def test_fractional_turnover_keeps_its_cents_under_the_pre_312_naive_sum(self):
+        """Платформенный контроль: до Python 3.12 встроенный sum складывал float НАИВНО.
+
+        На CI (ubuntu, Python 3.11) тест выше давал 20000.0: 20000+14736.84+5263.17
+        в большинстве порядков ног = 40000.009999… → 20000.004999… → 20000.0. Здесь
+        поведение 3.11 подставлено на ЛЮБОМ хосте (левая свёртка вместо sum модуля),
+        и ноги перебираются во всех порядках — от порядка обхода множества в
+        `_move_deltas` ответ зависеть не вправе.
+        """
+        import functools
+        import itertools
+        import operator
+
+        def naive_sum(iterable, start=0):
+            return functools.reduce(operator.add, iterable, start)
+
+        legs = {"maple": 14736.84, "morpho_blue_base": 5263.17}
+        seen = set()
+        real_deltas = adr._move_deltas
+        adr.sum = naive_sum
+        try:
+            for order in itertools.permutations(["pendle", "maple", "morpho_blue_base"]):
+                full = {"pendle": -20000.0, **legs}
+                adr._move_deltas = lambda trade, o=order, f=full: {k: f[k] for k in o}
+                stand, _ = self.stand()
+                stand.trade(ts=ANCHOR, frm={"pendle": 20000.0}, to=dict(legs))
+                stand.record("2026-09-11", generated_at=_iso(ANCHOR + timedelta(hours=2)))
+                doc = adr.measure(stand.write(), now=ANCHOR + timedelta(days=3))
+                seen.add(doc["days"][0]["executed_move"]["turnover_usd"])
+        finally:
+            adr._move_deltas = real_deltas
+            del adr.sum
+        self.assertEqual(seen, {20000.01})
+
     def test_any_material_is_TRUE_when_one_leg_has_material(self):
         """Обратная сторона: `any_material` обязан уметь быть истинным."""
         data = self.full_day(line_at=ANCHOR + timedelta(hours=2),

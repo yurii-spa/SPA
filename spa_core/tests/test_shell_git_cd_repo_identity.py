@@ -18,9 +18,12 @@ import subprocess
 import contextlib
 import tempfile
 from pathlib import Path
+from unittest import mock
 
 REPO = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(REPO / "scripts"))
+
+import shell_git_cd_repo_identity as _identity_mod   # noqa: E402
 
 from shell_git_cd_repo_identity import (           # noqa: E402
     repo_facts, histories_intersect, identity_of, subject_keys, main,
@@ -306,6 +309,32 @@ class AForeignHostMustRefuseNotGreen(unittest.TestCase):
         self.assertNotIn("предмет пуст", text)
 
 
+#: Прод-дерево, которое скрипты храповика приколачивают литералом (замер
+#: 2026-10-22: ВСЕ 23 `by_host`-зова базы ведут сюда).
+PROD_TREE = "/Users/yuriikulieshov/Documents/SPA_Claude"
+
+
+def prod_host_facts(real_repo_facts):
+    """`repo_facts`, видящий ПРОД-ХОСТ: по литералу прод-дерева лежит наш репозиторий.
+
+    Предпосылка храповика — машина, где приколоченный путь существует (прибор
+    честно отказывает кодом 2 там, где его нет). На ubuntu CI каталога
+    `/Users/...` нет и создать его нельзя, поэтому оба теста стража были
+    красными только там (прогон 39848159954: `2 != 3`, `2 not found in (0,)`) —
+    кодом «НЕ ИЗМЕРЕНО», а не находкой. Сцена ОБЕСПЕЧИВАЕТ предпосылку: литерал
+    прод-дерева, которого на хосте нет, разрешается в проверяемое дерево — ровно
+    то состояние, что на прод-хосте (там литерал и есть этот репозиторий).
+    Где каталог есть (прод-Мак), подмены нет вовсе и меряется настоящий хост;
+    любой ДРУГОЙ отсутствующий литерал по-прежнему даёт код 2 — новая
+    приколоченная цель не спрячется за сценой.
+    """
+    def facts(path):
+        if str(path) == PROD_TREE and not Path(PROD_TREE).is_dir():
+            return real_repo_facts(str(REPO))
+        return real_repo_facts(path)
+    return facts
+
+
 class GuardOnTheGuard(unittest.TestCase):
     """Зелёный храповик не значит ничего, пока не показано, что он умеет
     краснеть ПОИМЁННО на настоящем дереве."""
@@ -313,6 +342,10 @@ class GuardOnTheGuard(unittest.TestCase):
     def setUp(self):
         self.tmp = Path(tempfile.mkdtemp(prefix="guard-"))
         self.addCleanup(shutil.rmtree, self.tmp, ignore_errors=True)
+        patcher = mock.patch.object(
+            _identity_mod, "repo_facts", prod_host_facts(_identity_mod.repo_facts))
+        patcher.start()
+        self.addCleanup(patcher.stop)
 
     def test_empty_baseline_makes_the_real_tree_run_red_by_name(self):
         empty = self.tmp / "empty.json"

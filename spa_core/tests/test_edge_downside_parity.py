@@ -106,6 +106,31 @@ def test_downside_denominator_is_exactly_zero_where_volatility_is_not():
     )
 
 
+def test_a_constant_series_is_zero_vol_under_the_pre_312_naive_sum():
+    """Platform control: Python < 3.12 adds floats NAIVELY in the builtin sum.
+
+    Under that sum, sum([0.0002]*10) is 0.0020000000000000005, the mean is one ulp off,
+    and the arithmetic stdev is 2.857e-20 — exactly the CI failure on ubuntu/Python 3.11.
+    This test substitutes the 3.11 behaviour (a left fold) on ANY host, so the exact-zero
+    claim of the test above is checked for both summation semantics, not only for the one
+    the host happens to ship.
+    """
+    import functools
+    import operator
+    import scripts.edge_downside_parity as edp
+
+    def naive_sum(iterable, start=0):
+        return functools.reduce(operator.add, iterable, start)
+
+    assert naive_sum([0.0002] * 10) != 0.002, "the scene must reproduce the 3.11 drift"
+    edp.sum = naive_sum
+    try:
+        assert stdev([0.0002] * 10) == 0.0
+        assert stdev(_panel()["drifter"]) > 0.0
+    finally:
+        del edp.sum
+
+
 def test_zero_downside_book_would_be_handed_the_portfolio_by_the_floor():
     books, marked = _marked_books()
     all_books = marked + ["drifter"]

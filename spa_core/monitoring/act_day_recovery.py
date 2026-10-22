@@ -68,6 +68,7 @@ from __future__ import annotations
 
 import json
 import logging
+import math
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Dict, List, Optional, Sequence, Set, Tuple
@@ -364,7 +365,12 @@ def measure(data_dir: Path, *, now: Optional[datetime] = None,
         state, detail = classify_day(trade, record)
 
         deltas = _move_deltas(trade)
-        turnover = sum(abs(v) for v in deltas.values()) / 2.0
+        # math.fsum, а не sum: до Python 3.12 встроенный sum складывал float
+        # наивно, и результат зависел от ПОРЯДКА ног (а порядок — от обхода
+        # множества в _move_deltas). На 3.11 ход 20000 → 14736.84+5263.17
+        # давал 20000.004999… → 20000.0 в четырёх порядках из шести, на 3.13
+        # (компенсированный sum) — 20000.01. fsum точен и от порядка не зависит.
+        turnover = math.fsum(abs(v) for v in deltas.values()) / 2.0
         forward = [by_date[d] for d in sorted(by_date) if date and d > date]
         if withhold_forward:
             trimmed = []

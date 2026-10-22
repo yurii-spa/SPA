@@ -139,6 +139,29 @@ class TestDryRunZeroMutation(unittest.TestCase):
             self.assertEqual(before, after, f"dry-run mutated toolchains: {before} -> {after}")
             self.assertFalse(any(n.startswith(".recover") or n.startswith(".quarantine") for n in after))
 
+    def test_dry_run_survives_a_dscl_that_does_not_answer(self):
+        """Платформенный контроль: `dscl` нет (Linux CI) или он не знает пользователя.
+
+        Скрипт объявляет откат `~user`, но под `set -e`+`pipefail` упавший конвейер
+        убивал его кодом 127 ДО отката — ровно падение CI ubuntu (прогон 39848159954).
+        Здесь отсутствие `dscl` воспроизводится на ЛЮБОМ хосте: впереди PATH стоит
+        `dscl`, отвечающий 127, как отвечает оболочка на отсутствующую команду.
+        """
+        with tempfile.TemporaryDirectory() as td:
+            root = Path(td) / "root"
+            root.mkdir()
+            _stage_sandbox(root)
+            stub = Path(td) / "bin"
+            stub.mkdir()
+            (stub / "dscl").write_text("#!/bin/sh\nexit 127\n", encoding="utf-8")
+            (stub / "dscl").chmod(0o755)
+            r = _run(["--dry-run", "--runtime", "/x", "--runtime-digest", SANDBOX_DIGEST],
+                     env_extra={"STUDIO_TRUSTED_ROOT": str(root),
+                                "PATH": f"{stub}{os.pathsep}{os.environ.get('PATH', '')}"})
+            self.assertEqual(r.returncode, 0, f"dry-run failed:\n{r.stdout}\n{r.stderr}")
+            self.assertIn("confirmed: broken runtime present", r.stdout)
+            self.assertIn("no mutation performed", r.stdout)
+
 
 class TestGuardPredicate(unittest.TestCase):
     """The exact refusal predicate the script uses: `[ -e X ] || [ -L X ]`."""

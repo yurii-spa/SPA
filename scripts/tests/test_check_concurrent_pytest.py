@@ -546,6 +546,94 @@ class TestVerdictAxisIsActuallyWiredIntoCheck(unittest.TestCase):
         self.assertNotEqual(report["other_cwd"][0]["orphan"], ccp.ORPHAN)
 
 
+class TestOpenFilesReadsProcfsInTheKernelForm(unittest.TestCase):
+    """Linux-дверь `_open_files_procfs` — на сцене В ФОРМЕ ЯДРА, на любом хосте.
+
+    На ubuntu (CI) разбор `lsof -Ftnia` не видел у своего процесса ни типа, ни
+    пути («только ?»), и три теста класса ниже были красны только там. Прибор
+    теперь читает на Linux procfs; эта сцена воспроизводит то, что отдаёт ядро
+    (`fd/N` — ссылка, отвязанная цель помечена « (deleted)», `fdinfo/N` —
+    восьмеричные `flags:`), чтобы разбор procfs был измерен и на Маке, где procfs
+    нет. Живой Linux-путь меряет класс ниже — без подмен.
+    """
+
+    def setUp(self):
+        self._tmp = tempfile.TemporaryDirectory()
+        self.root = Path(self._tmp.name)
+        self.pid = 4242
+        (self.root / str(self.pid) / "fd").mkdir(parents=True)
+        (self.root / str(self.pid) / "fdinfo").mkdir()
+        self.files = self.root / "files"
+        self.files.mkdir()
+        self.stats = {}
+
+    def tearDown(self):
+        self._tmp.cleanup()
+
+    def _fd(self, n, target, flags, st=None):
+        os.symlink(target, self.root / str(self.pid) / "fd" / str(n))
+        (self.root / str(self.pid) / "fdinfo" / str(n)).write_text(
+            f"pos:\t0\nflags:\t{flags}\nmnt_id:\t25\n", encoding="ascii")
+        if st is not None:
+            self.stats[str(self.root / str(self.pid) / "fd" / str(n))] = st
+
+    def _stat(self, path):
+        return self.stats[path] if path in self.stats else os.stat(path)
+
+    def _read(self):
+        return ccp._open_files_procfs(self.pid, proc_root=str(self.root),
+                                      link_stat=self._stat)
+
+    def test_mode_type_inode_and_path_come_from_the_kernel_form(self):
+        live = self.files / "live.log"
+        live.write_text("x")
+        self._fd(0, os.devnull, "0100000")                 # O_RDONLY
+        self._fd(1, str(live), "0100001")                  # O_WRONLY
+        self._fd(2, str(live), "02100002")                 # O_RDWR|O_CLOEXEC
+        self._fd(5, "pipe:[77]", "01")                     # не путь
+        recs = {r["fd"]: r for r in self._read()}
+        self.assertEqual(set(recs), {"0", "1", "2", "5"})
+        self.assertEqual((recs["0"]["mode"], recs["0"]["type"]), ("r", "CHR"))
+        self.assertEqual(recs["1"]["mode"], "w")
+        self.assertEqual(recs["2"]["mode"], "u")
+        self.assertEqual(recs["1"]["type"], "REG")
+        self.assertEqual(recs["1"]["inode"], os.stat(live).st_ino)
+        self.assertEqual(recs["1"]["path"], str(live))
+        self.assertIsNone(recs["5"]["path"])
+
+    def test_an_unlinked_write_target_reads_UNREADABLE(self):
+        doomed = self.files / "doomed.gone"
+        doomed.write_text("x")
+        st = os.stat(doomed)
+        doomed.unlink()
+        # Ядро: readlink = «<путь> (deleted)», stat ссылки = ОТКРЫТЫЙ файл.
+        self._fd(3, f"{doomed} (deleted)", "0100001", st=st)
+        recs = self._read()
+        self.assertEqual(recs[0]["path"], str(doomed), "метка ядра не снята")
+        self.assertEqual(recs[0]["inode"], st.st_ino)
+        verdict, why = ccp.verdict_readable(self.pid, probe=lambda _p: self._read())
+        self.assertEqual(verdict, ccp.UNREADABLE, why)
+
+    def test_a_live_file_literally_named_deleted_is_not_unlinked(self):
+        """Обратная сторона: снять суффикс у ЖИВОГО файла с таким именем — ложный отказ."""
+        odd = self.files / "odd (deleted)"
+        odd.write_text("x")
+        self._fd(3, str(odd), "0100001")
+        verdict, why = ccp.verdict_readable(self.pid, probe=lambda _p: self._read())
+        self.assertEqual(verdict, ccp.READABLE, why)
+
+    def test_an_unreadable_fd_directory_is_unmeasured_not_empty(self):
+        self.assertIsNone(ccp._open_files_procfs(9999, proc_root=str(self.root)))
+
+    def test_open_files_takes_the_procfs_door_where_procfs_exists(self):
+        (self.root / "self" / "fd").mkdir(parents=True)
+        self._fd(1, os.devnull, "0100001")
+        with mock.patch.object(ccp, "_PROC_ROOT", str(self.root)), \
+                mock.patch.object(ccp, "_run", side_effect=AssertionError("lsof позван")):
+            recs = ccp._open_files(self.pid)
+        self.assertEqual([r["fd"] for r in recs], ["1"])
+
+
 class TestOpenFilesParsesRealLsof(unittest.TestCase):
     """Разбор `lsof` меряется БЕЗ подмены — на настоящем процессе и настоящем `lsof`.
 
@@ -564,6 +652,11 @@ class TestOpenFilesParsesRealLsof(unittest.TestCase):
     """
 
     def setUp(self):
+        # Дверь та, которой ходит сам прибор: procfs там, где он есть (Linux),
+        # иначе `lsof`. Прежде здесь спрашивали только `lsof` — на Linux это
+        # проверяло инструмент, которым разбор больше не пользуется.
+        if os.path.isdir(os.path.join(ccp._PROC_ROOT, "self", "fd")):
+            return
         if ccp._run(["lsof", "-a", "-p", str(os.getpid()), "-d", "0-3", "-Ftnia"]) is None:
             # Инструмента нет ⇒ ТРЕТИЙ ИСХОД, а не тихий зелёный: «не измерено»
             # обязано быть отличимо от «прошло» (инв. #17).

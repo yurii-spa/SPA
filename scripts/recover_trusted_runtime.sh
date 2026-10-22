@@ -100,7 +100,10 @@ fi
 #   fleet user's GUI domain, and under sudo $HOME is root's home — so we resolve the fleet user's uid + home
 #   deterministically and probe gui/<uid>/<label> (LaunchAgents) and system/<label> (LaunchDaemons) by exit status.
 FLEET_UID=$(id -u "$USER_NAME" 2>/dev/null) || die "cannot resolve uid for fleet user $USER_NAME"
-FLEET_HOME=$(dscl . -read "/Users/$USER_NAME" NFSHomeDirectory 2>/dev/null | awk '{print $2}')
+# dscl не ответил (нет записи / нет самой утилиты) ⇒ пусто и объявленный откат ниже. Без `|| FLEET_HOME=""`
+# под `set -e` + `pipefail` ненулевой код конвейера убивал скрипт ДО отката (код 127 без dscl — CI ubuntu,
+# прогон 39848159954): откат был мёртвым кодом. Неразрешённый дом по-прежнему отказ — проверка `-d` ниже.
+FLEET_HOME=$(dscl . -read "/Users/$USER_NAME" NFSHomeDirectory 2>/dev/null | awk '{print $2}') || FLEET_HOME=""
 [ -n "$FLEET_HOME" ] || FLEET_HOME=$(eval echo "~$USER_NAME")
 [ -d "$FLEET_HOME" ] || die "fleet user home not resolvable ($USER_NAME → '$FLEET_HOME') — cannot prove launchd visibility"
 say "launchd domains checked: gui/$FLEET_UID (user LaunchAgents under $FLEET_HOME/Library/LaunchAgents) + system (LaunchDaemons)"
