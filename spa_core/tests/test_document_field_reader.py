@@ -501,7 +501,14 @@ def test_gap_names_are_distinct():
 #: (KeyError на полях MEASURED-документа). Чтобы фикстура не могла отстать
 #: от соседа МОЛЧА ещё раз, её сверяет с живой цепочкой
 #: ``test_the_frozen_neighbour_is_the_live_neighbour``.
-_LIVE_NEIGHBOUR = (23, 18)
+#: 22.10, (23, 18) → (23, 19): +1 «returned_value_is_not_bound_to_a_name» — состав поимённо:
+#: `scripts/cio_acceptance_rollup.py::measure` (d37eb3a87, «одна сводка — один sha у сервера»)
+#: теперь отдаёт документ сводки §49 через новый слой `_measure_in_one_pin` под
+#: `with one_pin_per_report()`. Найдено бисекцией по коммитам f4b098b7a..d12e1ebca и
+#: возвратом каждого файла коммита к прежней версии (только этот файл даёт 18). Связать
+#: результат с именем — значит лишь перенести член в «next_scope_never_reads_that_field»
+#: (24); население растёт на один при любой форме, и фикстура следует ЖИВОМУ дереву.
+_LIVE_NEIGHBOUR = (23, 19)
 
 
 def test_the_frozen_neighbour_is_the_live_neighbour():
@@ -555,9 +562,11 @@ def test_live_measurement_reports_both_liveness_numbers():
     root = Path(__file__).resolve().parents[2]
     out = document_field_reader_in_file(root, _neighbour(*_LIVE_NEIGHBOUR))
     assert out["status"] == "MEASURED", out.get("reason")
-    assert out["population"] == 41
-    assert out["field_name_unique_in_file"] == 38
-    assert out["reader_of_that_field_found"] == 27
+    # 22.10 +1 к каждому из трёх — ОДИН названный член (см. _LIVE_NEIGHBOUR):
+    # cio_acceptance_rollup.measure → _measure_in_one_pin (d37eb3a87).
+    assert out["population"] == 42
+    assert out["field_name_unique_in_file"] == 39
+    assert out["reader_of_that_field_found"] == 28
 
 
 def test_live_measurement_answers_with_a_pair_of_numbers():
@@ -565,9 +574,11 @@ def test_live_measurement_answers_with_a_pair_of_numbers():
     ``claim_guard_receipt_readers``) = 4; третьим исходом 23 − 1 + 15 = 37."""
     root = Path(__file__).resolve().parents[2]
     out = document_field_reader_in_file(root, _neighbour(*_LIVE_NEIGHBOUR))
-    assert out["doc_step_outcomes"][ONE_STEP_SPLITS] == 3
+    # 22.10: расколотых 3 → 4 — тот же один член (cio_acceptance_rollup.measure →
+    # _measure_in_one_pin, d37eb3a87): его читатель раскалывает класс; «не измерено» не изменилось.
+    assert out["doc_step_outcomes"][ONE_STEP_SPLITS] == 4
     assert out["doc_step_outcomes"][ONE_STEP_WHOLESALE] == 1
-    assert out["resolved_by_document_step"] == 4
+    assert out["resolved_by_document_step"] == 5
     assert out["still_unmeasured"] == 37
     assert (out["resolved_by_document_step"] + out["still_unmeasured"]
             == out["population"])
