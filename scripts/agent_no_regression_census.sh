@@ -3,7 +3,7 @@
 # Generated from scripts/agent_template.sh (canonical bash-wrapper pattern).
 # §49 «No regression» (заказ G673 п. 1, ADR-770): производитель отчёта
 # data/no_regression_census.json. Прогон населения идёт в СНИМКЕ коммита origin/main
-# (git archive во временный каталог), не в боевом дереве; в боевое попадает только отчёт.
+# (git clone --shared во временный каталог, со сторожем записи), не в боевом дереве; в боевое — только отчёт.
 # Такт решает возраст отчёта (--max-age-h 120 < предела пробы 192 ч), а не расписание.
 #
 # ПОДГОТОВЛЕН, НЕ ВКЛЮЧЁН (21.10): строки в scripts/install_all_agents.sh нет, в

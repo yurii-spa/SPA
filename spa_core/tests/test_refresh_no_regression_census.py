@@ -630,6 +630,27 @@ class РежимРасписания(unittest.TestCase):
         self.assertEqual((self.live / "data" / "no_regression_census.json").read_bytes(), report_before)
         self.assertTrue(list((self.live / RNC.RECORDS_REL).glob("*.refusal.json")))
 
+    def test_снимок_с_git_о_заказанном_коммите_а_источник_не_тронут(self):
+        """`git archive` давал дерево без `.git` — тесты о git-дереве падали ложно."""
+        git_before = {str(p.relative_to(self.live)): p.read_bytes()
+                      for p in sorted((self.live / ".git").rglob("*")) if p.is_file()}
+        dest = self.work / "snap"
+        n = RNC.snapshot_commit(self.live, self.sha, dest)
+        self.assertEqual(n, 1)
+        ls = subprocess.run(["git", "-C", str(dest), "ls-files"], capture_output=True, text=True)
+        self.assertEqual(ls.returncode, 0, ls.stderr)
+        self.assertEqual(ls.stdout.split(), ["spa_core/marker.py"])
+        head = subprocess.run(["git", "-C", str(dest), "rev-parse", "HEAD"], capture_output=True,
+                              text=True).stdout.strip()
+        self.assertEqual(head, self.sha)
+        git_after = {str(p.relative_to(self.live)): p.read_bytes()
+                     for p in sorted((self.live / ".git").rglob("*")) if p.is_file()}
+        self.assertEqual(git_before, git_after, "снимок не вправе писать в .git источника")
+
+    def test_неизвестный_коммит_это_НЕ_ИЗМЕРЕНО(self):
+        with self.assertRaises(RNC.NotMeasured):
+            RNC.snapshot_commit(self.live, "0" * 40, self.work / "snap2")
+
     def test_охраняется_и_корень_отчёта(self):
         out = RNC.scheduled(self.live, ref="main", now=ANCHOR, refresh_fn=self._fake_refresh,
                             workdir=self.work)
@@ -685,7 +706,7 @@ class РежимРасписания(unittest.TestCase):
         inv = doc["invoked_by"]
         self.assertEqual({k: inv[k] for k in ("entry", "producer", "ref", "sha", "tree")},
                          {"entry": "scheduled", "producer": RNC.SCHEDULED_PRODUCER,
-                          "ref": "main", "sha": self.sha, "tree": "git archive snapshot"})
+                          "ref": "main", "sha": self.sha, "tree": "git clone --shared snapshot"})
         env = inv["env"]
         self.assertTrue(env["python"] and env["platform"], "окружение вердикта записано")
         self.assertEqual(env["run_env"], RNC.RUN_ENV)
@@ -824,7 +845,8 @@ class ИзоляцияПрогонаОтБоевогоКорня(unittest.TestCa
 
     def test_не_Python_потомок_назван_неохваченным(self):
         got = self._run("def test_c():\n    subprocess.run(['/bin/echo', 'x'], check=True, capture_output=True)\n")
-        self.assertIn("echo", got["isolation"]["unaudited_children"])
+        self.assertIn("echo x", got["isolation"]["unaudited_children"],
+                      "неохваченный потомок назван командой и первыми аргументами")
 
     def test_нет_отчёта_сторожа_это_НЕ_ДОКАЗАНО(self):
         def silent(cmd, **kw):

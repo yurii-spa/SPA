@@ -98,7 +98,7 @@ RUN_ENV = {"SPA_ENV": "ci", "PYTHONHASHSEED": "0"}
 
 NOT_MEASURED = "unmeasured"
 
-#: Снимок кода (`git archive`) НЕ изолирует прогон от боевых путей: `live_paths` без
+#: Снимок кода (клон коммита) НЕ изолирует прогон от боевых путей: `live_paths` без
 #: `SPA_DATA_DIR`/`SPA_LIVE_ROOT` разрешает живое состояние в `~/Documents/SPA_Claude`, а
 #: код с `Path.home()`/абсолютным путём пишет туда независимо от дерева прогона (замер
 #: 22.10, STUDIO-OS-NEXT-01). Поэтому у прогона ДВЕ линии изоляции, и вторая держит запрет,
@@ -169,8 +169,13 @@ def _hook(event, args):
         if real:
             _refuse(event, real)
     elif event in ("subprocess.Popen", "os.system", "os.posix_spawn", "os.exec"):
-        exe = args[0] if args else None
-        _children.append(os.path.basename(os.fsdecode(exe)) if isinstance(exe, (str, bytes)) else str(exe)[:80])
+        exe, argv = (list(args) + [None, None])[:2]
+        name = os.path.basename(os.fsdecode(exe)) if isinstance(exe, (str, bytes)) else str(exe)[:80]
+        try:
+            head = [os.fsdecode(a)[:40] for a in list(argv or [])[1:3]]
+        except TypeError:
+            head = []
+        _children.append(" ".join([name] + head))
 
 if _ROOTS and _DIR:
     sys.addaudithook(_hook)
@@ -497,24 +502,26 @@ def _git(live_root: Path, *args: str) -> str:
 
 
 def snapshot_commit(live_root: Path, sha: str, dest: Path) -> int:
-    """Снимок ТОЧНОГО коммита (`git archive`) в `dest`. Метаданные репозитория не меняются.
+    """Снимок ТОЧНОГО коммита в `dest` — клоном, у которого есть `.git`. Возвращает число файлов.
 
-    Не worktree и не checkout: те пишут в `.git` боевого дерева. Возвращает число файлов.
+    Прежде снимок делался `git archive`: в нём нет `.git`, и тесты, спрашивающие git о
+    своём дереве (`git ls-files`), падали «not a git repository» — ложная поломка, которой
+    в CI нет (там checkout с `.git`; замер 22.10, `test_halt_state_survives_tree_restore`).
+    Не worktree и не checkout в боевом дереве: те пишут в его `.git`. `clone --shared`
+    читает объекты источника через alternates и пишет ТОЛЬКО в `dest`.
     """
-    import tarfile
-    proc = subprocess.Popen(["git", "-C", str(live_root), "archive", "--format=tar", sha],
-                            stdout=subprocess.PIPE, stderr=subprocess.PIPE)
-    try:
-        with tarfile.open(fileobj=proc.stdout, mode="r|") as tar:
-            n = 0
-            for member in tar:
-                tar.extract(member, path=str(dest), filter="data")
-                n += member.isfile()
-    finally:
-        err = proc.stderr.read().decode("utf-8", "replace") if proc.stderr else ""
-        code = proc.wait()
-    if code != 0:
-        raise NotMeasured(f"git archive {sha}: код {code} — {err.strip()[:300]}")
+    def git(*args, cwd=None):
+        proc = subprocess.run(["git", *args], cwd=cwd, capture_output=True, text=True)
+        if proc.returncode != 0:
+            raise NotMeasured(f"git {' '.join(args[:3])}: код {proc.returncode} — "
+                              f"{(proc.stderr or '').strip()[:300]}")
+        return proc.stdout
+    git("clone", "--quiet", "--shared", "--no-checkout", str(live_root), str(dest))
+    git("-C", str(dest), "-c", "advice.detachedHead=false", "checkout", "--quiet", "--detach", sha)
+    head = git("-C", str(dest), "rev-parse", "HEAD").strip()
+    if head != sha:
+        raise NotMeasured(f"снимок указывает на {head[:12]}, а заказан {sha[:12]}")
+    n = len([f for f in git("-C", str(dest), "ls-files", "-z").split("\0") if f])
     if n == 0:
         raise NotMeasured(f"снимок {sha} пуст — прогонять нечего")
     return n
@@ -637,7 +644,7 @@ def scheduled(live_root: Path, *, ref: str = "origin/main", max_age_h: float = D
             raise
         report = dict(res["report"])
         report["invoked_by"] = {"entry": "scheduled", "producer": SCHEDULED_PRODUCER,
-                                "ref": ref, "sha": sha, "tree": "git archive snapshot",
+                                "ref": ref, "sha": sha, "tree": "git clone --shared snapshot",
                                 "env": env,
                                 "isolation": (res.get("run") or {}).get("isolation")}
         target = live_root / census.REPORT_REL
@@ -712,7 +719,7 @@ def _main(argv: list[str] | None = None) -> int:
     ap.add_argument("--timeout-s", type=float, default=None,
                     help="предел на весь прогон населения; снятие по сроку = НЕ ИЗМЕРЕНО")
     ap.add_argument("--scheduled", action="store_true",
-                    help="режим расписания: прогон в снимке `--ref` (git archive), отчёт — в "
+                    help="режим расписания: прогон в снимке `--ref` (git clone --shared), отчёт — в "
                          "`--live-root`/data; такт решает возраст живого отчёта")
     ap.add_argument("--live-root", default=str(DEFAULT_RECORDS_ROOT),
                     help="боевое дерево: откуда снимок и куда отчёт (только с --scheduled)")
