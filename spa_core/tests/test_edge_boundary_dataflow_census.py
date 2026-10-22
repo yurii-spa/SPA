@@ -241,6 +241,22 @@ class TestTheObserverIsNotPartOfItsOwnPopulation(unittest.TestCase):
         What this test must NEVER become is a number nudged to match whatever the corpus happens
         to hold: a new module that screens into RE-RUNS is a new ADDRESS for the #103 order, and
         re-deriving here without saying so would retire that address silently.
+
+        RE-DERIVED 2026-10-22 (diagnostic of 1c491c740), 35 -> 39, said out loud and journaled in
+        `docs/journal/2026-W43.md` (invariant #16). Four modules were ADDED to `scripts/`, and the
+        census was RUN over the d2d51ba9a corpus and over today's: no module of the 35 changed
+        bucket, the difference is exactly these four, each pinned by name below —
+          * remainder 21 -> 23: `edge_xdsr_real_panel.py` (2195af5a8, #109, 18.09) and
+            `edge_biss_real_panel.py` (031e645cf, #111/#112, 22.09). These ARE the case the
+            paragraph above warns about: a 22nd and a 23rd member of the remainder are two NEW
+            ADDRESSES of the #103 order, not resolved by #103's published verdict (which stays a
+            verdict about its 21). They are named here so the address is kept, not retired;
+          * output-split 2 -> 4: `edge_carry_momentum_switch.py` (d34823f63, #113, 22.09) and
+            `edge_rkaw_running_calmar_weighting.py` (fb0fc00e3, #138, 16.10) — CARRY by
+            construction, nothing for #103 to resolve;
+          * RE-RUNS 6 and boundary-blind 6 — unchanged, now asserted for both.
+        The buckets are pinned by NAME, not only by size: a module that quietly changed bucket
+        while a newcomer kept the totals equal would otherwise pass.
         """
         import contextlib
         import io
@@ -250,10 +266,45 @@ class TestTheObserverIsNotPartOfItsOwnPopulation(unittest.TestCase):
         with bdc.corpus_without_self(SCRIPTS) as mirror:
             with contextlib.redirect_stdout(io.StringIO()):
                 census = spd.section1_census(Path(mirror))
-        self.assertEqual(census["population"], 35)
+        self.assertEqual(census["population"], 39)
         buckets = {k: len(v) for k, v in census["buckets"].items()}
-        self.assertEqual(buckets["BOUNDARY USED, BUT NEVER AS A SLICE INDEX"], 21)
+        self.assertEqual(buckets["BOUNDARY USED, BUT NEVER AS A SLICE INDEX"], 23)
         self.assertEqual(buckets["RE-RUNS ON THE SLICE"], 6)
+        self.assertEqual(buckets["OUTPUT-SPLIT (CARRY by construction)"], 4)
+        self.assertEqual(buckets["NO BOUNDARY-AWARE FUNCTION"], 6)
+        names = {k: {Path(m).name for m in v} for k, v in census["buckets"].items()}
+        # The four buckets pinned by NAME (the full 39), measured 2026-10-22. The names marked
+        # NEW are the four modules added after #105; every other name was in the same bucket on
+        # the d2d51ba9a corpus. A move between buckets now reddens even when sizes still add up.
+        self.assertEqual(names["BOUNDARY USED, BUT NEVER AS A SLICE INDEX"], {
+            "edge_aggregation_cost_law.py", "edge_aum_scaled_toll.py",
+            "edge_biss_real_panel.py",                       # NEW: 031e645cf, #111/#112
+            "edge_calm_fp_tax.py", "edge_capital_recycling.py", "edge_carry_quality_ratio.py",
+            "edge_causal_liveness_selector.py", "edge_cost_convention_decomposition.py",
+            "edge_decision_hold.py", "edge_dispersion_gated_demotion.py",
+            "edge_displacement_budget.py", "edge_drift_gated_overlay.py",
+            "edge_drift_portfolio.py", "edge_event_time_scoring.py", "edge_gross_to_net_toll.py",
+            "edge_multi_horizon_ensemble.py", "edge_pde_real_panel.py",
+            "edge_rebalance_drift_tax.py", "edge_relative_drawdown_weighting.py",
+            "edge_score_proportional.py", "edge_single_book_turnover_cap.py",
+            "edge_static_tilt_transfer.py",
+            "edge_xdsr_real_panel.py",                       # NEW: 2195af5a8, #109
+        }, "the remainder is the ADDRESS LIST of the #103 order: a newcomer here must be named")
+        self.assertEqual(names["OUTPUT-SPLIT (CARRY by construction)"], {
+            "edge_carry_momentum_switch.py",                 # NEW: d34823f63, #113
+            "edge_cost_internalised_timing.py", "edge_mhfc_backtest.py",
+            "edge_rkaw_running_calmar_weighting.py",         # NEW: fb0fc00e3, #138
+        })
+        self.assertEqual(names["RE-RUNS ON THE SLICE"], {
+            "edge_cost_quote_divergence.py", "edge_downside_parity.py",
+            "edge_leg_aware_timing.py", "edge_overlay_domain_admissibility.py",
+            "edge_real_panel_ensemble.py", "edge_trim_proceeds_destination.py",
+        })
+        self.assertEqual(names["NO BOUNDARY-AWARE FUNCTION"], {
+            "edge_criterion_choice.py", "edge_criterion_consensus.py",
+            "edge_cross_sectional_demotion.py", "edge_exposure_depth.py",
+            "edge_redundancy_demotion.py", "edge_signal_latency.py",
+        })
         self.assertIn("edge_downside_parity.py",
                       [Path(m).name for m in census["buckets"]["RE-RUNS ON THE SLICE"]],
                       "the 35th module must be the one that was ADDED, not some other module "

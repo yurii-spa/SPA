@@ -492,22 +492,83 @@ def test_gap_names_are_distinct():
 
 # --- живой замер ------------------------------------------------------------
 
+#: Числа СОСЕДА (шаг переноса полем, ``container_counter_field_step``) на живом
+#: дереве: «зовущий не читает ЭТО поле» · «результат никуда не связан».
+#: ADR-463 (23.09) намерил 16 · 10 = 26. Перемер 22.10 на 1c491c740 — 23 · 18 =
+#: 41, и это ЗАМЕР настоящей цепочки соседей, а не подгонка: прежняя фикстура
+#: (16, 10) стала ВТОРОЙ дорогой из ДРУГОГО момента, шаг честно отказывал
+#: «свой обход 41, сосед 26», и четыре живых теста падали не о своём предмете
+#: (KeyError на полях MEASURED-документа). Чтобы фикстура не могла отстать
+#: от соседа МОЛЧА ещё раз, её сверяет с живой цепочкой
+#: ``test_the_frozen_neighbour_is_the_live_neighbour``.
+_LIVE_NEIGHBOUR = (23, 18)
+
+
+def test_the_frozen_neighbour_is_the_live_neighbour():
+    """Фикстура соседа обязана быть ЗАМЕРОМ соседа на том же дереве.
+
+    Без этой сверки живые тесты ниже сравнивали бы свой обход с числом,
+    снятым в другой день, — две дороги по РАЗНЫМ населениям, ровно то, от
+    чего шаг сам отказывает. Здесь цепочка соседей гонится НАСТОЯЩАЯ, и шаг
+    обязан дать MEASURED на её выходе, а не на фикстуре.
+    """
+    root = Path(__file__).resolve().parents[2]
+    open_counters = census.open_class_counter_census(root)
+    reader_harm = census.open_counter_reader_harm(root, open_counters)
+    one_step = census.escaped_counter_one_step(root, reader_harm)
+    field_step = census.container_counter_field_step(root, one_step)
+    assert field_step.get("status") == "MEASURED", field_step.get("reason")
+    reasons = field_step["unresolved_reasons"]
+    assert (reasons[FIELD_GAP_FIELD_NEVER_READ],
+            reasons[STEP_GAP_RESULT_UNBOUND]) == _LIVE_NEIGHBOUR
+    out = document_field_reader_in_file(root, field_step)
+    assert out["status"] == "MEASURED", out.get("reason")
+    assert out["population"] == sum(_LIVE_NEIGHBOUR)
+
 
 def test_live_measurement_reports_both_liveness_numbers():
-    """Ноль от живой проводки и ноль от непроведённого шага выглядят одинаково."""
+    """Ноль от живой проводки и ноль от непроведённого шага выглядят одинаково.
+
+    Перемер 22.10 (1c491c740), состав ПОИМЁННО против дерева ADR-465
+    (c002887b1, где тот же прибор даёт 26 · 26 · 20 — правило не менялось,
+    менялось дерево): 26 − 1 + 16 = 41.
+
+    УШЁЛ (1): ``list_identity_census.tally`` ``candidate_fields`` →
+    ``candidate_fields_outside`` — с 758211e3c (02.10) счётчик отдаётся в
+    вызовы (``threshold_grid``, позже ``cand_denom.tally``, ``kind_axis``) ДО
+    документа и в население «уехал только в документ» больше не входит.
+
+    ПРИШЛИ (16), файл · область · счётчик → поле · исход:
+      * ``acceptance_tree_capability.measure`` counts → counts · убежал снова (27b789bde, ADR-545);
+      * ``claim_guard_receipt_readers.measure_verdict_readers`` counts → by_class · ТОЛЬКО безвредные читатели (a01359946);
+      * ``judged_state_identity_census.measure`` road_counts / tense_counts / asks_counts · убежали снова, ×3 (a384e96f1, ADR-561);
+      * ``list_identity_census.kind_axis`` by_arith → by_arithmetic_verdict · читателя нет; causes → clock_unmeasured_causes · убежал снова (06680aa0a, ADR-693);
+      * ``membership_reach_census.build_graph`` unresolved_names · ключ чтения не разрешается (45651a439, ADR-529);
+      * ``mutation_application_census.summarise`` anchor / speech / kind · ключ пишут две области, ×3; forms · читателя нет (49fa80b6c, ADR-558);
+      * ``resource_guard.reap_worktrees`` counts · читателя нет (15d4998bc, ADR-551);
+      * ``slo_keepability.measure`` excluded → excluded_by_intent · читателя нет; causes → unmeasured_causes · убежал снова (f93ec36bd, ADR-549);
+      * ``scripts/ci_control.make_plan`` counts → tests_per_file · читателя нет (65f080aad, ADR-768).
+
+    Отсюда: однозначных 26 − 1 + (16 − 3 «пишут две области») = 38; с
+    найденным читателем 20 − 1 + 8 = 27.
+    """
     root = Path(__file__).resolve().parents[2]
-    out = document_field_reader_in_file(root, _neighbour(16, 10))
+    out = document_field_reader_in_file(root, _neighbour(*_LIVE_NEIGHBOUR))
     assert out["status"] == "MEASURED", out.get("reason")
-    assert out["population"] == 26
-    assert out["field_name_unique_in_file"] == 26
-    assert out["reader_of_that_field_found"] == 20
+    assert out["population"] == 41
+    assert out["field_name_unique_in_file"] == 38
+    assert out["reader_of_that_field_found"] == 27
 
 
 def test_live_measurement_answers_with_a_pair_of_numbers():
+    """3 расколотых (те же, что у ADR-465) + 1 безвредный (новый:
+    ``claim_guard_receipt_readers``) = 4; третьим исходом 23 − 1 + 15 = 37."""
     root = Path(__file__).resolve().parents[2]
-    out = document_field_reader_in_file(root, _neighbour(16, 10))
-    assert out["resolved_by_document_step"] == 3
-    assert out["still_unmeasured"] == 23
+    out = document_field_reader_in_file(root, _neighbour(*_LIVE_NEIGHBOUR))
+    assert out["doc_step_outcomes"][ONE_STEP_SPLITS] == 3
+    assert out["doc_step_outcomes"][ONE_STEP_WHOLESALE] == 1
+    assert out["resolved_by_document_step"] == 4
+    assert out["still_unmeasured"] == 37
     assert (out["resolved_by_document_step"] + out["still_unmeasured"]
             == out["population"])
 
@@ -533,20 +594,20 @@ def test_the_named_case_of_adr_463_is_read_in_its_own_module():
 
 def test_the_step_is_advisory():
     root = Path(__file__).resolve().parents[2]
-    out = document_field_reader_in_file(root, _neighbour(16, 10))
+    out = document_field_reader_in_file(root, _neighbour(*_LIVE_NEIGHBOUR))
     assert out["applied"] is False
 
 
 def test_blind_spots_name_the_one_sidedness_aloud():
     root = Path(__file__).resolve().parents[2]
-    out = document_field_reader_in_file(root, _neighbour(16, 10))
+    out = document_field_reader_in_file(root, _neighbour(*_LIVE_NEIGHBOUR))
     assert any(DOC_GAP_FIELD_WRITTEN_TWICE in b for b in out["blind"])
     assert any(DOC_GAP_NO_READER_IN_FILE in b for b in out["blind"])
 
 
 def test_report_prints_the_pair_and_the_refusal_names():
     root = Path(__file__).resolve().parents[2]
-    out = document_field_reader_in_file(root, _neighbour(16, 10))
+    out = document_field_reader_in_file(root, _neighbour(*_LIVE_NEIGHBOUR))
     lines = census.report({"document_field_reader_in_file": out})
     body = "\n".join(lines)
     assert "[ПО ИМЕНИ ПОЛЯ]" in body
