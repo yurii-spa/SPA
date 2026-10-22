@@ -225,7 +225,27 @@ def check_unfinished_cycles(
     return out
 
 
-def check_gaps() -> dict:
+def _paths(data_dir=None) -> dict:
+    """Файлы монитора для каталога состояния ``data_dir``.
+
+    ``None`` ⇒ константы модуля, прочитанные В МОМЕНТ ВЫЗОВА (CLI/агент и
+    тесты, подменяющие константы, — поведение прежнее). Явный ``data_dir`` ⇒
+    всё — и вход (equity curve, audit trail), и выход (gap_monitor.json,
+    risk_alerts.json) — внутри него: тот же контракт «вызывающий сказал —
+    вызывающий прав», что у остальных шагов ``run_cycle(data_dir=...)``.
+    Раньше цикл, запущенный в песочнице, судил и переписывал data/ своего
+    дерева кода (замер 2026-10-22: 23 тест-файла, каждый прогон run_cycle).
+    """
+    if data_dir is None:
+        return {"equity": EQUITY_FILE, "status": GAP_STATUS_FILE,
+                "alerts": RISK_ALERTS_FILE, "audit": AUDIT_TRAIL_FILE}
+    d = Path(data_dir)
+    return {"equity": d / "equity_curve_daily.json", "status": d / "gap_monitor.json",
+            "alerts": d / "risk_alerts.json", "audit": d / "audit_trail.jsonl"}
+
+
+def check_gaps(data_dir=None) -> dict:
+    paths = _paths(data_dir)
     now = datetime.now(timezone.utc)
     result = {
         "checked_at": now.isoformat(),
@@ -244,21 +264,21 @@ def check_gaps() -> dict:
         "unfinished_checked": False,
     }
 
-    _unfin = check_unfinished_cycles(now=now)
+    _unfin = check_unfinished_cycles(audit_path=paths["audit"], now=now)
     result["unfinished_checked"] = bool(_unfin.get("checked"))
     result["unfinished_cycles"] = list(_unfin.get("unfinished") or [])
 
-    if not EQUITY_FILE.exists():
+    if not paths["equity"].exists():
         result.update({"gap_detected": True, "status": "no_data",
                         "message": "equity_curve_daily.json не найден"})
-        return _finalize(result)
+        return _finalize(result, paths)
 
     try:
-        doc = json.loads(EQUITY_FILE.read_text())
+        doc = json.loads(paths["equity"].read_text())
     except Exception as e:
         result.update({"gap_detected": True, "status": "parse_error",
                         "message": str(e)})
-        return _finalize(result)
+        return _finalize(result, paths)
 
     # Поддержка двух форматов: документ cycle_runner {"is_demo":..., "daily":[...]}
     # (is_demo на уровне документа) и плоский список записей.
@@ -278,7 +298,7 @@ def check_gaps() -> dict:
     if not real:
         result.update({"gap_detected": True, "status": "no_real_entries",
                         "message": "Нет evidenced (real daily_cycle) записей"})
-        return _finalize(result)
+        return _finalize(result, paths)
 
     # --- S0.1: детекция пропущенных дней в истории трека ---
     day_gap_info = check_day_gaps(real)
@@ -299,7 +319,7 @@ def check_gaps() -> dict:
     if last_dt is None:
         result.update({"gap_detected": True, "status": "no_timestamp",
                         "message": "Нет разбираемого timestamp"})
-        return _finalize(result)
+        return _finalize(result, paths)
 
     if last_dt.tzinfo is None:
         last_dt = last_dt.replace(tzinfo=timezone.utc)
@@ -325,18 +345,19 @@ def check_gaps() -> dict:
     else:
         result.update({"status": "ok", "message": f"Последний бар {hours_ago:.1f}ч назад — норма"})
 
-    return _finalize(result)
+    return _finalize(result, paths)
 
-def _write(data: dict):
+def _write(data: dict, path: Path = None):
     # LLM FORBIDDEN — deterministic atomic write
-    atomic_save(data, str(GAP_STATUS_FILE))
+    atomic_save(data, str(path if path is not None else GAP_STATUS_FILE))
 
-def _finalize(result: dict) -> dict:
+def _finalize(result: dict, paths: dict = None) -> dict:
     """MP-101: сохранить результат детекции, перенеся recovery-историю из
     предыдущего снапшота (check_gaps перезаписывает файл целиком), и при
     gap_detected — синхронизировать CRITICAL-алерт. Никогда не бросает из-за
     алерта: детекция важнее побочного канала."""
-    prev = _read_status()
+    paths = paths or _paths()
+    prev = _read_status(paths["status"])
     gap_now = bool(result.get("gap_detected") or result.get("has_gaps"))
     for k in ("recovery", "recovery_skip"):
         if k in prev and k not in result:
@@ -355,26 +376,26 @@ def _finalize(result: dict) -> dict:
             archived["resolved_at"] = datetime.now(timezone.utc).isoformat()
             result["last_recovery"] = archived
         result.pop("recovery_skip", None)
-    _write(result)
+    _write(result, paths["status"])
     if result.get("gap_detected"):
         try:
-            _upsert_gap_alert(result)
+            _upsert_gap_alert(result, paths["alerts"])
         except Exception:
             pass  # fail-open: алерт-канал не должен ломать детекцию
     else:
         # gap resolved → убрать stale cycle_gap алерты из risk_alerts.json
         try:
-            _clear_gap_alerts()
+            _clear_gap_alerts(paths["alerts"])
         except Exception:
             pass  # fail-open
     return result
 
 # ─── MP-101: CRITICAL-алерт в data/risk_alerts.json ─────────────────────────
 
-def _read_status() -> dict:
+def _read_status(path: Path = None) -> dict:
     """Текущий gap_monitor.json (defensive: отсутствует/бит → {})."""
     try:
-        doc = json.loads(GAP_STATUS_FILE.read_text())
+        doc = json.loads((path if path is not None else GAP_STATUS_FILE).read_text())
         return doc if isinstance(doc, dict) else {}
     except Exception:
         return {}
@@ -383,10 +404,10 @@ def _atomic_write_json(path: Path, obj) -> None:
     # LLM FORBIDDEN — delegate to canonical atomic_save
     atomic_save(obj, str(path))
 
-def _load_alerts_doc() -> dict:
+def _load_alerts_doc(path: Path = None) -> dict:
     """risk_alerts.json defensively; чужие алерты (export_data и др.) сохраняем."""
     try:
-        doc = json.loads(RISK_ALERTS_FILE.read_text())
+        doc = json.loads((path if path is not None else RISK_ALERTS_FILE).read_text())
     except Exception:
         doc = {}
     if not isinstance(doc, dict):
@@ -395,10 +416,10 @@ def _load_alerts_doc() -> dict:
     doc["alerts"] = [a for a in alerts if isinstance(a, dict)] if isinstance(alerts, list) else []
     return doc
 
-def _save_alerts_doc(alerts: list) -> None:
+def _save_alerts_doc(alerts: list, path: Path = None) -> None:
     """Пересборка документа в схеме export_data.py: generated_at/count/status/alerts."""
     alerts = alerts[-MAX_ALERTS:]
-    _atomic_write_json(RISK_ALERTS_FILE, {
+    _atomic_write_json(path if path is not None else RISK_ALERTS_FILE, {
         "generated_at": datetime.now(timezone.utc).isoformat(),
         "count": len(alerts),
         "status": "critical" if any(a.get("severity") == "critical" for a in alerts)
@@ -406,7 +427,7 @@ def _save_alerts_doc(alerts: list) -> None:
         "alerts": alerts,
     })
 
-def _upsert_gap_alert(result: dict) -> None:
+def _upsert_gap_alert(result: dict, path: Path = None) -> None:
     """Дописать/обновить CRITICAL-алерт о gap за сегодняшний день.
 
     Дедупликация: на один UTC-день — ровно один алерт source=gap_monitor
@@ -415,7 +436,7 @@ def _upsert_gap_alert(result: dict) -> None:
     export_data.py, по ней же считается status документа).
     """
     day = (result.get("checked_at") or datetime.now(timezone.utc).isoformat())[:10]
-    doc = _load_alerts_doc()
+    doc = _load_alerts_doc(path)
     alerts = doc["alerts"]
     payload = {
         "severity": "critical",
@@ -438,7 +459,7 @@ def _upsert_gap_alert(result: dict) -> None:
             break
     else:
         alerts.append(payload)
-    _save_alerts_doc(alerts)
+    _save_alerts_doc(alerts, path)
 
 def _attach_recovery_to_alert(day: str, recovery: dict) -> None:
     """Прикрепить результат recovery к сегодняшнему gap-алерту (если он есть).
@@ -454,15 +475,15 @@ def _attach_recovery_to_alert(day: str, recovery: dict) -> None:
     if changed:
         _save_alerts_doc(alerts)
 
-def _clear_gap_alerts() -> None:
+def _clear_gap_alerts(path: Path = None) -> None:
     """Удалить все cycle_gap алерты из risk_alerts.json когда gap resolved.
     Вызывается из _finalize при status=ok (gap_detected=False).
     Fail-safe: если файл недоступен — no-op."""
-    doc = _load_alerts_doc()
+    doc = _load_alerts_doc(path)
     alerts = doc["alerts"]
     filtered = [a for a in alerts if a.get("type") != ALERT_TYPE]
     if len(filtered) < len(alerts):
-        _save_alerts_doc(filtered)
+        _save_alerts_doc(filtered, path)
 
 # ─── MP-101: auto-recovery (детерминированная, идемпотентная) ────────────────
 

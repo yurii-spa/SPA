@@ -1100,8 +1100,24 @@ def run_cycle(
             from spa_core.monitoring.adapter_status_generator import (
                 run_and_write as _asg_run,
             )
-            _asg_run()
-            log.info("MP-1195 adapter_status_generator: adapter_status.json refreshed")
+            # Каталог ЭТОГО цикла, вход и выход: без аргументов генератор
+            # писал data/ дерева кода — мимо песочницы и write-interlock.
+            # Реестра в каталоге нет (песочница, тест) ⇒ генерировать не из
+            # чего: генератор записал бы статус без единого адаптера поверх
+            # существующего файла. Тогда — тот же исход, что у любой ошибки
+            # шага: цикл продолжает с файлом на диске.
+            _asg_registry = ddir / "adapter_registry.json"
+            if _asg_registry.is_file():
+                _asg_run(
+                    registry_path=_asg_registry,
+                    output_path=ddir / "adapter_status.json",
+                )
+                log.info("MP-1195 adapter_status_generator: adapter_status.json refreshed")
+            else:
+                log.warning(
+                    "MP-1195 adapter_status_generator skipped: нет %s — "
+                    "цикл продолжает с adapter_status.json на диске", _asg_registry,
+                )
         except Exception as _asg_exc:  # never crash the cycle
             log.warning(
                 "MP-1195 adapter_status_generator skipped (%s) — cycle continues",

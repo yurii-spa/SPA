@@ -454,6 +454,10 @@ def test_legacy_synthetic_marks_are_dropped_at_the_model_boundary(tmp_path, monk
     monkeypatch.setattr(hy_cycle, "_HY_DATA_PATH", tmp_path / "hy_paper_trading.json")
     monkeypatch.setattr(sb, "_APY_RANKING", tmp_path / "apy_ranking.json")
     monkeypatch.setattr(sb, "_PEG_HISTORY", tmp_path / "peg_history.json")
+    # Журнал режима Engine B: run_hy_cycle зовёт НАСТОЯЩИЙ refresh_hy_regime, и без этой
+    # строки журнал писался в отслеживаемый data/ дерева кода (замер 22.10, audit-хук).
+    # Подменяется только МЕСТО — шаг режима исполняется целиком (как у соседей, tests/test_hy_cycle.py).
+    monkeypatch.setattr(hy_cycle, "_HY_REGIME_LOG_PATH", tmp_path / "hy_regime_log.json")
     _w(tmp_path, "apy_ranking.json", {"by_apy": [{"protocol": "maple", "apy_pct": 5.0, "apy_source": "live",
                                                    "tvl_source": "live", "tvl_usd": 1e9, "network": "ethereum"}]})
     _w(tmp_path, "hy_paper_trading.json", {"equity": 100_000.0, "peak_equity": 100_000.0, "seed_equity": 100_000.0,

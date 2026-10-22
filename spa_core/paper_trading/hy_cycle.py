@@ -144,7 +144,11 @@ def refresh_hy_regime(current_state: str, drawdown_pct: float = 0.0) -> str:
             current_drawdown_pct=drawdown_pct,
             current_state=current_state if current_state in ("ENTER", "EXIT") else None,
         )
-        log_regime_change(result, previous_state=current_state)
+        # Пишем туда же, откуда get_hy_regime() читает: прежде запись шла в
+        # `<дерево кода>/data/` regime_gate мимо _HY_REGIME_LOG_PATH, и тест,
+        # подменивший путь чтения, переписывал отслеживаемый data/ (замер 22.10).
+        log_regime_change(result, previous_state=current_state,
+                          log_path=_HY_REGIME_LOG_PATH)
         new_state = str(result.get("state", "EXIT"))
         return new_state if new_state in ("ENTER", "EXIT", "WATCH") else "EXIT"
     except Exception:

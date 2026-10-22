@@ -159,6 +159,7 @@ def evaluate_regime(
 def log_regime_change(
     regime_result: dict,
     previous_state: Optional[str] = None,
+    log_path: Optional[Path] = None,
 ) -> None:
     """
     Атомарно записывает изменение/подтверждение режима в hy_regime_log.json.
@@ -166,7 +167,9 @@ def log_regime_change(
     Использует tmp + os.replace для атомарности (идиома проекта).
     Если файл повреждён — пересоздаёт с нуля (fail-safe).
     """
-    log_path = _PROJECT_ROOT / "data" / "hy_regime_log.json"
+    # Явный путь — у вызывающего (hy_cycle читает режим из СВОЕГО
+    # _HY_REGIME_LOG_PATH и обязан писать туда же). Без него — прежнее умолчание.
+    log_path = Path(log_path) if log_path is not None else _PROJECT_ROOT / "data" / "hy_regime_log.json"
 
     # Читаем существующий лог (или начинаем с нуля)
     try:

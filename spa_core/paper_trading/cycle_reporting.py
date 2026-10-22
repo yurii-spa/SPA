@@ -542,7 +542,7 @@ def _record_paper_evidence(
         )
 
 
-def _record_apy_milestone(*, result: "CycleResult", today) -> None:
+def _record_apy_milestone(*, result: "CycleResult", today, ddir: "Path | None" = None) -> None:
     """Record the day's APY against the milestone ladder (fail-safe, advisory).
 
     Writes ``data/apy_milestone_log.json``, which feeds the owner's weekly
@@ -566,7 +566,10 @@ def _record_apy_milestone(*, result: "CycleResult", today) -> None:
             )
             return
         _strategy_for_milestone = getattr(result, "best_strategy_id", None) or "s7_pendle_yt"
-        _AMTracker().record_day(today, _apy_for_milestone, _strategy_for_milestone)
+        # ddir = каталог состояния ЭТОГО цикла: без него трекер писал в data/
+        # своего дерева кода, мимо песочницы run_cycle(data_dir=...) и мимо
+        # write-interlock (замер 2026-10-22).
+        _AMTracker(data_dir=ddir).record_day(today, _apy_for_milestone, _strategy_for_milestone)
         log.info(
             "MP-512 milestone recorded: date=%s apy=%.4f%% strategy=%s",
             today,
@@ -747,7 +750,9 @@ def run_post_cycle_advisory(
 
     from spa_core.paper_trading.gap_monitor import check_gaps as _check_gaps
     try:
-        _check_gaps()
+        # Каталог ЭТОГО цикла: MP-111 ниже читает ddir/gap_monitor.json, а
+        # без аргумента монитор судил и переписывал data/ дерева кода.
+        _check_gaps(data_dir=ddir)
     except Exception:
         pass  # fail-open
 
@@ -925,7 +930,7 @@ def run_post_cycle_advisory(
     _record_paper_evidence(ddir=ddir, result=result, now_dt=now_dt, today=today)
 
     # ── MP-512: APY Milestone Tracker ────────────────────────────────
-    _record_apy_milestone(result=result, today=today)
+    _record_apy_milestone(result=result, today=today, ddir=ddir)
 
     # ── ADR-140: тридцатидневный отчёт о доказательной базе ───────────
     _generate_evidence_report_30d(ddir=ddir, now_dt=now_dt)
