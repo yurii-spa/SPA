@@ -178,6 +178,11 @@
     byte-identical; API portfolio read leaves the live DB byte-identical and reads a consistent SQLite+WAL snapshot
     (live-verified). Owner items open: iPhone voice send (not verified), ADR-762 (OFF), `weekly_backup` (stays ON),
     two-tier test idea (not promoted), restart of long-runners started before the candidate. Real capital $0.
+    Update 2026-10-22 (stabilisation candidate, local branch `integ/studio-os-next-01-stab` on `62fe88b48`, NOT pushed,
+    NOT ARB-accepted): phantom repair consolidated, `--apply` still REFUSED until one shared tracker lock exists;
+    publication gate proven offline (existing network_guard in every child + loopback recording proxy); root/data
+    stage population by AST (110); §49 producer PREPARED, not installed, not running; residual on Mac 33 → 24 red of 56,
+    0 new. Full verdict INCOMPLETE (ci-control needs the SHA on GitHub; push not permitted). Journal 2026-W43.
     Handover: `HANDOVER_FOR_ARB_FINAL.md`, `START_HERE.md` in the same folder.
 18. **Later engines:** traditional markets, volatility / options (scope decided inside RM-EXPAND-01)
 
