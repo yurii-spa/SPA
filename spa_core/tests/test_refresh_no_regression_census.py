@@ -178,6 +178,18 @@ class ОтказВБоевомДереве(unittest.TestCase):
         self.assertTrue(hasattr(lp, "DEFAULT_LIVE_ROOT"), "подмена не должна переживать тест")
 
 
+def _guard_report(env: dict, **extra) -> None:
+    """Заглушка играет потомка pytest — значит, и его сторожа записи: отчёт установленного
+    сторожа в каталог, который назначил прогон (без него прогон честно НЕ ИЗМЕРЕН)."""
+    d = env.get(RNC.GUARD_REPORT_ENV)
+    if not d:
+        return
+    roots = [os.path.realpath(r) for r in env.get(RNC.GUARD_ROOTS_ENV, "").split(os.pathsep) if r]
+    doc = {"pid": 4242, "installed": True, "roots": roots, "argv0": "__main__.py",
+           "pytest": True, "refused": [], "live_reads": 0, "children": [], **extra}
+    Path(d, "4242.json").write_text(json.dumps(doc), encoding="utf-8")
+
+
 class ПрогонНаселения(unittest.TestCase):
     """Запись — предмет прогона, и её отсутствие НЕ есть «все прошли»."""
 
@@ -194,6 +206,7 @@ class ПрогонНаселения(unittest.TestCase):
                 target = Path([c for c in cmd if str(c).startswith("--junitxml=")][0]
                               .split("=", 1)[1])
                 _junit(target, write)
+            _guard_report(kw.get("env") or {})
             return subprocess.CompletedProcess(cmd, rc, stdout=out, stderr="")
         return fake_run
 
@@ -220,6 +233,9 @@ class ПрогонНаселения(unittest.TestCase):
                              f"переменная {key} — часть команды, а не фон (цикл #421)")
         self.assertFalse([c for c in cmd if str(c).startswith("--timeout")],
                          "порог --timeout этот прибор не задаёт (инв. #16)")
+        self.assertEqual(kw["env"]["SPA_DATA_DIR"], str(self.root / "data"),
+                         "живое состояние потомка — в дереве прогона, а не в боевом")
+        self.assertEqual(kw["env"]["SPA_LIVE_ROOT"], str(self.root))
 
     def test_записи_после_прогона_нет_это_НЕ_ИЗМЕРЕНО(self):
         with unittest.mock.patch.object(RNC.subprocess, "run", self._stub(write=None, rc=1)):
@@ -597,6 +613,38 @@ class РежимРасписания(unittest.TestCase):
             doc["invoked_by"] = {"entry": "scheduled", "sha": sha}
         p.write_text(json.dumps(doc), encoding="utf-8")
 
+    def test_трек_изменился_за_прогон_это_отказ_и_живой_отчёт_цел(self):
+        """Третья линия изоляции: не-Python потомок сторожу записи не виден, хеш трека — виден."""
+        track = self.live / RNC.TRACK_REL
+        track.parent.mkdir(exist_ok=True)
+        track.write_text("[1]", encoding="utf-8")
+        self._put_report(500, sha="old")
+        report_before = (self.live / "data" / "no_regression_census.json").read_bytes()
+
+        def leaking(repo_root, **kw):
+            track.write_text("[1, 2]", encoding="utf-8")
+            return self._fake_refresh(repo_root, **kw)
+        with self.assertRaises(RNC.NotMeasured) as ctx:
+            RNC.scheduled(self.live, ref="main", now=ANCHOR, refresh_fn=leaking, workdir=self.work)
+        self.assertIn("изменился за время прогона", str(ctx.exception))
+        self.assertEqual((self.live / "data" / "no_regression_census.json").read_bytes(), report_before)
+        self.assertTrue(list((self.live / RNC.RECORDS_REL).glob("*.refusal.json")))
+
+    def test_охраняется_и_корень_отчёта(self):
+        out = RNC.scheduled(self.live, ref="main", now=ANCHOR, refresh_fn=self._fake_refresh,
+                            workdir=self.work)
+        self.assertTrue(out["due"])
+        roots = self.calls[-1][1]["protected_roots"]
+        self.assertIn(self.live.resolve(), roots)
+
+    def test_вердикт_изоляции_едет_в_отметку_отчёта(self):
+        def iso(repo_root, **kw):
+            out = self._fake_refresh(repo_root, **kw)
+            out["run"]["isolation"] = {"refused_writes": 0, "protected_roots": ["/x"]}
+            return out
+        out = RNC.scheduled(self.live, ref="main", now=ANCHOR, refresh_fn=iso, workdir=self.work)
+        self.assertEqual(out["report"]["invoked_by"]["isolation"]["refused_writes"], 0)
+
     def test_свежий_отчёт_ничего_не_снимает_и_не_пишет(self):
         """Свеж И о том же коммите, который велено проверить, — только тогда не срок."""
         self._put_report(10, sha=self.sha)
@@ -710,3 +758,97 @@ class РежимРасписания(unittest.TestCase):
         self.assertIn("agent_template.sh", text)
         self.assertIn(f'{RNC.VIA_ENV}="launchd:{RNC.SCHEDULED_PRODUCER}"', text,
                       "обёртка агента помечает запуск как агентский")
+
+
+_SCENE_CONFTEST = "import sys, os\nsys.dont_write_bytecode = True\n"
+
+
+class ИзоляцияПрогонаОтБоевогоКорня(unittest.TestCase):
+    """Снимок кода — не изоляция: потомок pytest не вправе писать под охраняемым корнем.
+
+    Сцены гоняют НАСТОЯЩИЙ pytest-потомок; охраняемый корень — временный каталог,
+    изображающий боевое дерево (настоящее боевое дерево не трогается и не читается)."""
+
+    def setUp(self):
+        self.tmp = TemporaryDirectory()
+        base = Path(self.tmp.name)
+        self.addCleanup(self.tmp.cleanup)
+        self.root = base / "run"
+        self.live = base / "live"
+        (self.root / "m").mkdir(parents=True)
+        (self.live / "data").mkdir(parents=True)
+        (self.live / "data" / "track.json").write_text("{}", encoding="utf-8")
+        (self.root / "conftest.py").write_text(_SCENE_CONFTEST, encoding="utf-8")
+        self.record = base / "store" / RNC.RECORDS_REL / "run.xml"
+
+    def _run(self, body: str, **kw):
+        (self.root / "m" / "test_scene.py").write_text(
+            "import os, subprocess\nLIVE = %r\n\n" % str(self.live) + body, encoding="utf-8")
+        return RNC.run_population(self.root, ["m/test_scene.py"], self.record,
+                                  protected_roots=[self.live], timeout_s=120, **kw)
+
+    def test_запись_в_боевой_корень_отказана_и_замер_НЕ_состоялся(self):
+        with self.assertRaises(RNC.NotMeasured) as ctx:
+            self._run("def test_w():\n    open(os.path.join(LIVE, 'data', 'leak.json'), 'w').write('x')\n")
+        self.assertIn("изоляция НАРУШЕНА", str(ctx.exception))
+        self.assertFalse((self.live / "data" / "leak.json").exists(), "запись дошла до корня")
+        self.assertFalse(self.record.exists(), "запись прогона с нарушенной изоляцией не хранится")
+
+    def test_переименование_и_удаление_в_корне_тоже_отказаны(self):
+        with self.assertRaises(RNC.NotMeasured):
+            self._run("def test_r():\n    os.remove(os.path.join(LIVE, 'data', 'track.json'))\n")
+        self.assertTrue((self.live / "data" / "track.json").exists())
+        with self.assertRaises(RNC.NotMeasured):
+            self._run("def test_r():\n    p = os.path.join(LIVE, 'data', 'track.json')\n"
+                      "    os.replace(p, p + '.x')\n")
+        self.assertTrue((self.live / "data" / "track.json").exists())
+
+    def test_чтение_корня_разрешено_и_названо_числом(self):
+        got = self._run("def test_r():\n    assert open(os.path.join(LIVE, 'data', 'track.json')).read() == '{}'\n")
+        self.assertEqual(got["returncode"], 0)
+        iso = got["isolation"]
+        self.assertEqual(iso["refused_writes"], 0)
+        self.assertGreaterEqual(iso["live_reads"], 1)
+        self.assertEqual(iso["protected_roots"], [os.path.realpath(self.live)])
+        self.assertTrue(self.record.exists(), "запись перенесена в хранилище родителем")
+
+    def test_потомок_видит_песочницу_а_не_живое(self):
+        with unittest.mock.patch.dict(os.environ, {"SPA_ALLOW_LIVE_WRITE": "1"}):
+            got = self._run(
+                "def test_e():\n"
+                "    r = os.path.realpath\n"
+                "    assert r(os.environ['SPA_DATA_DIR']) == r(os.path.join(os.getcwd(), 'data'))\n"
+                "    assert r(os.environ['SPA_LIVE_ROOT']) == r(os.getcwd())\n"
+                "    assert 'SPA_ALLOW_LIVE_WRITE' not in os.environ\n")
+        self.assertEqual(got["returncode"], 0, got["tail"])
+
+    def test_не_Python_потомок_назван_неохваченным(self):
+        got = self._run("def test_c():\n    subprocess.run(['/bin/echo', 'x'], check=True, capture_output=True)\n")
+        self.assertIn("echo", got["isolation"]["unaudited_children"])
+
+    def test_нет_отчёта_сторожа_это_НЕ_ДОКАЗАНО(self):
+        def silent(cmd, **kw):
+            target = Path([c for c in cmd if str(c).startswith("--junitxml=")][0].split("=", 1)[1])
+            _junit(target, [("m.test_a", "t1", False)])
+            return subprocess.CompletedProcess(cmd, 0, stdout="", stderr="")
+        with unittest.mock.patch.object(RNC.subprocess, "run", silent):
+            with self.assertRaises(RNC.NotMeasured) as ctx:
+                RNC.run_population(self.root, ["m/test_a.py"], self.record,
+                                   protected_roots=[self.live])
+        self.assertIn("НЕ ДОКАЗАНА", str(ctx.exception))
+
+    def test_отчёт_о_другом_корне_не_засчитывается(self):
+        def wrong(cmd, **kw):
+            target = Path([c for c in cmd if str(c).startswith("--junitxml=")][0].split("=", 1)[1])
+            _junit(target, [("m.test_a", "t1", False)])
+            _guard_report({**kw["env"], RNC.GUARD_ROOTS_ENV: "/elsewhere"})
+            return subprocess.CompletedProcess(cmd, 0, stdout="", stderr="")
+        with unittest.mock.patch.object(RNC.subprocess, "run", wrong):
+            with self.assertRaises(RNC.NotMeasured):
+                RNC.run_population(self.root, ["m/test_a.py"], self.record,
+                                   protected_roots=[self.live])
+
+    def test_охраняемый_по_умолчанию_корень_есть_боевой(self):
+        from spa_core.utils.live_paths import DEFAULT_LIVE_ROOT
+        self.assertEqual(RNC.default_protected_roots(self.root), [Path(DEFAULT_LIVE_ROOT).resolve()])
+        self.assertEqual(RNC.default_protected_roots(Path(DEFAULT_LIVE_ROOT)), [])

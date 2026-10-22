@@ -98,6 +98,160 @@ RUN_ENV = {"SPA_ENV": "ci", "PYTHONHASHSEED": "0"}
 
 NOT_MEASURED = "unmeasured"
 
+#: Снимок кода (`git archive`) НЕ изолирует прогон от боевых путей: `live_paths` без
+#: `SPA_DATA_DIR`/`SPA_LIVE_ROOT` разрешает живое состояние в `~/Documents/SPA_Claude`, а
+#: код с `Path.home()`/абсолютным путём пишет туда независимо от дерева прогона (замер
+#: 22.10, STUDIO-OS-NEXT-01). Поэтому у прогона ДВЕ линии изоляции, и вторая держит запрет,
+#: даже если первая сломана: (1) окружение уводит живое состояние в дерево прогона —
+#: тот же приём, что у `scripts/check_agent_before_deploy.sh` (песочница `SPA_DATA_DIR`,
+#: `SPA_ALLOW_LIVE_WRITE` снят); (2) сторож записи в КАЖДОМ Python-потомке (audit-хук через
+#: `sitecustomize`) отказывает в записи под охраняемым корнем и пишет отчёт процесса.
+#: Нет отчёта процесса pytest ⇒ изоляция НЕ ДОКАЗАНА ⇒ замер не состоялся.
+GUARD_REPORT_ENV = "SPA_NOREG_GUARD_REPORT_DIR"
+GUARD_ROOTS_ENV = "SPA_NOREG_GUARD_ROOTS"
+ISOLATION_ENV_DROP = ("SPA_ALLOW_LIVE_WRITE",)
+
+#: Самодостаточный текст: репозиторий прогона не импортируется — сломанный код в снимке
+#: не может отключить сторожа. После установки зовётся исходный `sitecustomize` (у conda
+#: он добавляет каталоги пакетов), иначе подмена меняла бы окружение прогона.
+GUARD_SITECUSTOMIZE = r'''
+import atexit, json, os, sys
+_DIR = os.environ.get("SPA_NOREG_GUARD_REPORT_DIR")
+_ROOTS = [os.path.realpath(r) for r in os.environ.get("SPA_NOREG_GUARD_ROOTS", "").split(os.pathsep) if r]
+_refused, _reads, _children = [], [0], []
+_WRITE_FLAGS = os.O_WRONLY | os.O_RDWR | os.O_CREAT | os.O_APPEND | os.O_TRUNC
+
+def _real(path):
+    if isinstance(path, int) or path is None:
+        return None
+    try:
+        path = os.fsdecode(path)
+    except TypeError:
+        return None
+    path = os.path.abspath(path)
+    head, tail = path, []
+    while head and not os.path.exists(head):
+        head, t = os.path.split(head)
+        if not t:
+            break
+        tail.append(t)
+    return os.path.join(os.path.realpath(head), *reversed(tail))
+
+def _guarded(path):
+    real = _real(path)
+    return real if real and any(real == r or real.startswith(r + os.sep) for r in _ROOTS) else None
+
+def _refuse(event, real):
+    _refused.append({"event": event, "path": real})
+    raise PermissionError(f"no_regression isolation: запись в охраняемый корень запрещена ({event}: {real})")
+
+_PATH_EVENTS = {"os.remove": 1, "os.rmdir": 1, "os.mkdir": 1, "os.chmod": 1, "os.chown": 1,
+                "os.truncate": 1, "os.utime": 1, "shutil.rmtree": 1, "os.symlink": 2, "os.link": 2}
+
+def _hook(event, args):
+    if event == "open":
+        path, mode, flags = (list(args) + [None, None, None])[:3]
+        real = _guarded(path)
+        if real is None:
+            return
+        writing = (isinstance(mode, str) and any(c in mode for c in "wax+")) or \
+                  (isinstance(flags, int) and flags & _WRITE_FLAGS)
+        if writing:
+            _refuse(event, real)
+        _reads[0] += 1
+    elif event == "os.rename":
+        for p in args[:2]:
+            real = _guarded(p)
+            if real:
+                _refuse(event, real)
+    elif event in _PATH_EVENTS:
+        real = _guarded(args[_PATH_EVENTS[event] - 1])
+        if real:
+            _refuse(event, real)
+    elif event in ("subprocess.Popen", "os.system", "os.posix_spawn", "os.exec"):
+        exe = args[0] if args else None
+        _children.append(os.path.basename(os.fsdecode(exe)) if isinstance(exe, (str, bytes)) else str(exe)[:80])
+
+if _ROOTS and _DIR:
+    sys.addaudithook(_hook)
+
+def _dump():
+    if not _DIR:
+        return
+    tmp = os.path.join(_DIR, f".{os.getpid()}.json.tmp")
+    with open(tmp, "w", encoding="utf-8") as fh:
+        json.dump({"pid": os.getpid(), "installed": bool(_ROOTS and _DIR), "roots": _ROOTS,
+                   "argv0": os.path.basename(sys.argv[0]) if sys.argv else "",
+                   "pytest": any("pytest" in a for a in sys.argv[:1]) or "pytest" in sys.modules,
+                   "refused": _refused, "live_reads": _reads[0],
+                   "children": sorted(set(_children))}, fh)
+    os.replace(tmp, os.path.join(_DIR, f"{os.getpid()}.json"))
+
+atexit.register(_dump)
+
+_here = os.path.dirname(os.path.abspath(__file__))
+for _p in sys.path:
+    if _p and os.path.abspath(_p) != _here and os.path.exists(os.path.join(_p, "sitecustomize.py")):
+        exec(compile(open(os.path.join(_p, "sitecustomize.py"), encoding="utf-8").read(),
+                     os.path.join(_p, "sitecustomize.py"), "exec"))
+        break
+'''
+
+
+def default_protected_roots(repo_root: Path) -> list[Path]:
+    """Боевой корень — охраняемый, если прогон идёт НЕ в нём (в нём прогон отказан раньше)."""
+    from spa_core.utils.live_paths import DEFAULT_LIVE_ROOT
+    live = Path(DEFAULT_LIVE_ROOT).resolve()
+    run = Path(repo_root).resolve()
+    if run == live or live in run.parents:
+        return []
+    return [live]
+
+
+def isolated_env(base: dict, repo_root: Path, roots: list[Path], scratch: Path) -> dict:
+    """Окружение потомка: живое состояние — в дереве прогона, сторож записи — в каждом Python."""
+    site = scratch / "guard_site"
+    reports = scratch / "guard_reports"
+    site.mkdir(parents=True, exist_ok=True)
+    reports.mkdir(parents=True, exist_ok=True)
+    (site / "sitecustomize.py").write_text(GUARD_SITECUSTOMIZE, encoding="utf-8")
+    env = {k: v for k, v in base.items() if k not in ISOLATION_ENV_DROP}
+    prior = env.get("PYTHONPATH")
+    env.update(RUN_ENV)
+    env.update({"PYTHONPATH": os.pathsep.join([str(site)] + ([prior] if prior else [])),
+                "SPA_DATA_DIR": str(Path(repo_root) / "data"),
+                "SPA_LIVE_ROOT": str(repo_root),
+                GUARD_REPORT_ENV: str(reports),
+                GUARD_ROOTS_ENV: os.pathsep.join(str(r) for r in roots)})
+    return env
+
+
+def judge_isolation(scratch: Path, roots: list[Path]) -> dict:
+    """Отчёты сторожа → вердикт изоляции. Отказ записи или нет отчёта pytest ⇒ NotMeasured."""
+    reports = []
+    for f in sorted((scratch / "guard_reports").glob("*.json")):
+        try:
+            reports.append(json.loads(f.read_text(encoding="utf-8")))
+        except (OSError, ValueError) as exc:
+            raise NotMeasured(f"отчёт сторожа записи {f.name} не прочитан: "
+                              f"{type(exc).__name__}: {exc} — изоляция НЕ доказана") from exc
+    want = sorted(str(Path(r).resolve()) for r in roots)
+    main = [r for r in reports if r.get("pytest") and r.get("installed")
+            and sorted(r.get("roots") or []) == want]
+    if not main:
+        raise NotMeasured(f"сторож записи не отчитался из процесса pytest ({len(reports)} "
+                          f"отчёт(ов) всего) — изоляция от {want} НЕ ДОКАЗАНА, вердикт не выносится")
+    refused = [dict(x, pid=r["pid"]) for r in reports for x in r.get("refused") or []]
+    out = {"protected_roots": want, "guard_processes": len(reports),
+           "refused_writes": len(refused),
+           "live_reads": sum(int(r.get("live_reads") or 0) for r in reports),
+           "unaudited_children": sorted({c for r in reports for c in r.get("children") or []})}
+    if refused:
+        raise NotMeasured(f"изоляция НАРУШЕНА: {len(refused)} попыт(ка/ок) записи в охраняемый "
+                          f"корень отказано сторожем, первые: {refused[:3]} — прогон не есть "
+                          f"проверка кандидата, живой отчёт не трогается")
+    return out
+
 
 class NotMeasured(RuntimeError):
     """Замер не состоялся. Причина обязана быть названа."""
@@ -192,47 +346,68 @@ def _refuse_if_prod_tree(repo_root: Path, *, allow: bool) -> None:
 
 
 def run_population(repo_root: Path, files: list[str], record: Path,
-                   *, timeout_s: float | None = None) -> dict:
+                   *, timeout_s: float | None = None,
+                   protected_roots: list[Path] | None = None) -> dict:
     """Прогнать РОВНО население и оставить junit-запись на хосте.
 
     Возвращает словарь наблюдений о прогоне (код возврата, число случаев в
-    записи, хвост вывода). Запись-пустышка и отсутствие записи — третий исход:
-    :class:`NotMeasured`, а не «ноль поломок».
+    записи, хвост вывода, вердикт изоляции). Запись-пустышка и отсутствие записи —
+    третий исход: :class:`NotMeasured`, а не «ноль поломок». Так же — нарушенная или
+    недоказанная изоляция от охраняемого корня (`judge_isolation`).
+
+    junit пишет ПОТОМОК в каталог прогона (охраняемый корень ему закрыт), в хранилище
+    запись переносит этот процесс — уже после вердикта изоляции.
     """
-    record.parent.mkdir(parents=True, exist_ok=True)
+    import shutil
+    import tempfile
+    roots = (default_protected_roots(repo_root) if protected_roots is None
+             else [Path(r) for r in protected_roots])
+    scratch = Path(tempfile.mkdtemp(prefix=".noreg_isolation_", dir=str(repo_root)))
+    staged = scratch / record.name
     cmd = [sys.executable, "-m", "pytest", *files,
-           "-q", "--tb=no", "-p", "no:randomly", f"--junitxml={record}"]
-    env = {**os.environ, **RUN_ENV}
+           "-q", "--tb=no", "-p", "no:randomly", f"--junitxml={staged}"]
+    env = isolated_env(dict(os.environ), repo_root, roots, scratch) if roots else \
+        {**os.environ, **RUN_ENV}
     try:
-        proc = subprocess.run(cmd, cwd=str(repo_root), env=env, timeout=timeout_s,
-                              capture_output=True, text=True)
-    except FileNotFoundError as exc:
-        raise NotMeasured(f"pytest не запущен: {type(exc).__name__}: {exc}") from exc
-    except subprocess.TimeoutExpired as exc:
-        raise NotMeasured(f"прогон населения снят по сроку {timeout_s}с — вердикта нет "
-                          f"ни у одного члена: {exc}") from exc
-    tail = "\n".join((proc.stdout or "").strip().splitlines()[-6:])
-    if not record.exists():
-        raise NotMeasured(
-            f"pytest вышел с кодом {proc.returncode}, а junit-записи нет: {record}. "
-            f"Так выглядит снятая сессия (ADR-474: --timeout-method=thread зовёт "
-            f"os._exit(1)), и это НЕ «все прошли». Хвост вывода: {tail!r}")
-    try:
-        cases = len(list(ET.parse(record).getroot().iter("testcase")))
-    except (OSError, ET.ParseError) as exc:
-        raise NotMeasured(f"junit-запись не разобрана: {type(exc).__name__}: {exc}") from exc
-    if cases == 0:
-        raise NotMeasured(f"в junit-записи {record} ноль случаев — прогон не дал исхода "
-                          f"ни одному члену населения (код pytest {proc.returncode})")
+        try:
+            proc = subprocess.run(cmd, cwd=str(repo_root), env=env, timeout=timeout_s,
+                                  capture_output=True, text=True)
+        except FileNotFoundError as exc:
+            raise NotMeasured(f"pytest не запущен: {type(exc).__name__}: {exc}") from exc
+        except subprocess.TimeoutExpired as exc:
+            raise NotMeasured(f"прогон населения снят по сроку {timeout_s}с — вердикта нет "
+                              f"ни у одного члена: {exc}") from exc
+        tail = "\n".join((proc.stdout or "").strip().splitlines()[-6:])
+        if not staged.exists():
+            raise NotMeasured(
+                f"pytest вышел с кодом {proc.returncode}, а junit-записи нет: {staged}. "
+                f"Так выглядит снятая сессия (ADR-474: --timeout-method=thread зовёт "
+                f"os._exit(1)), и это НЕ «все прошли». Хвост вывода: {tail!r}")
+        try:
+            cases = len(list(ET.parse(staged).getroot().iter("testcase")))
+        except (OSError, ET.ParseError) as exc:
+            raise NotMeasured(f"junit-запись не разобрана: {type(exc).__name__}: {exc}") from exc
+        if cases == 0:
+            raise NotMeasured(f"в junit-записи {staged} ноль случаев — прогон не дал исхода "
+                              f"ни одному члену населения (код pytest {proc.returncode})")
+        isolation = (judge_isolation(scratch, roots) if roots else
+                     {"protected_roots": [], "reason": "прогон в самом охраняемом корне "
+                      "(осознанный обход --allow-prod-tree) — изоляции нет и она не заявляется"})
+        record.parent.mkdir(parents=True, exist_ok=True)
+        shutil.copy2(staged, record)
+    finally:
+        shutil.rmtree(scratch, ignore_errors=True)
     return {"returncode": proc.returncode, "cases_in_record": cases,
-            "record": str(record), "tail": tail, "files_requested": len(files)}
+            "record": str(record), "tail": tail, "files_requested": len(files),
+            "isolation": isolation}
 
 
 def refresh(repo_root: Path, *, if_due: bool = False, max_age_h: float = DEFAULT_MAX_AGE_H,
             junit: list[str] | None = None, allow_prod_tree: bool = False,
             write: bool = True, timeout_s: float | None = None,
             records_root: Path | None = None,
-            now: datetime | None = None) -> dict:
+            now: datetime | None = None,
+            protected_roots: list[Path] | None = None) -> dict:
     """Обновить отчёт переписи, произведя запись прогона, и вернуть наблюдения."""
     from spa_core.monitoring import no_regression_census as census
 
@@ -274,7 +449,8 @@ def refresh(repo_root: Path, *, if_due: bool = False, max_age_h: float = DEFAULT
         keep_in = Path(records_root) if records_root is not None else DEFAULT_RECORDS_ROOT
         record = keep_in / RECORDS_REL / f"{_stamp()}.xml"
         out["records_root"] = str(keep_in)
-        out["run"] = run_population(repo_root, files, record, timeout_s=timeout_s)
+        out["run"] = run_population(repo_root, files, record, timeout_s=timeout_s,
+                                    protected_roots=protected_roots)
         out["ran"] = True
         out["source"] = f"прогон населения ({len(files)} файл(ов)) на этом хосте"
         paths = [str(record)]
@@ -376,6 +552,19 @@ def _tree_head(repo_root: Path) -> str | None:
     return proc.stdout.strip() if proc.returncode == 0 else None
 
 
+#: Канонический трек — тот же файл, чей хеш сверяет пред-деплойный гейт.
+TRACK_REL = Path("data") / "equity_curve_daily.json"
+
+
+def track_fingerprint(live_root: Path) -> str:
+    """sha256 канонического трека; файла нет — так и названо (а не пустая строка)."""
+    import hashlib
+    try:
+        return hashlib.sha256((Path(live_root) / TRACK_REL).read_bytes()).hexdigest()
+    except FileNotFoundError:
+        return "absent"
+
+
 def _record_refusal(records_root: Path, payload: dict) -> Path:
     """След отказа рядом с записями прогона: причина не исчезает вместе с процессом."""
     from spa_core.utils.atomic import atomic_save
@@ -425,8 +614,22 @@ def scheduled(live_root: Path, *, ref: str = "origin/main", max_age_h: float = D
     try:
         try:
             out["snapshot_files"] = snapshot_commit(live_root, sha, tmp)
+            track_before = track_fingerprint(live_root)
+            # Охраняется и боевой корень по умолчанию, и тот, куда ляжет отчёт: снимку
+            # писать нельзя ни туда, ни туда — отчёт и запись кладёт этот процесс.
+            roots = default_protected_roots(tmp)
+            if live_root.resolve() not in roots:
+                roots.append(live_root.resolve())
             res = (refresh_fn or refresh)(tmp, if_due=False, write=False, timeout_s=timeout_s,
-                                          records_root=live_root, now=now)
+                                          records_root=live_root, now=now,
+                                          protected_roots=roots)
+            track_after = track_fingerprint(live_root)
+            if track_before != track_after:
+                # Третья линия (как у check_agent_before_deploy.sh): канонический трек
+                # боевого дерева не вправе измениться за время прогона. Сдвинулся — прогон
+                # не доказал изоляцию, даже если сторож записи молчал (не-Python потомок).
+                raise NotMeasured(f"канонический трек {TRACK_REL} изменился за время прогона "
+                                  f"({track_before} → {track_after}) — изоляция НЕ доказана")
         except NotMeasured as exc:
             out["refusal_record"] = str(_record_refusal(live_root, {
                 "stamp": _stamp(), "ref": ref, "sha": sha, "env": env, "reason": str(exc),
@@ -435,7 +638,8 @@ def scheduled(live_root: Path, *, ref: str = "origin/main", max_age_h: float = D
         report = dict(res["report"])
         report["invoked_by"] = {"entry": "scheduled", "producer": SCHEDULED_PRODUCER,
                                 "ref": ref, "sha": sha, "tree": "git archive snapshot",
-                                "env": env}
+                                "env": env,
+                                "isolation": (res.get("run") or {}).get("isolation")}
         target = live_root / census.REPORT_REL
         atomic_save(report, str(target))
         out.update({"ran": res.get("ran", False), "run": res.get("run"), "report": report,
