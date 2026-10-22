@@ -323,6 +323,57 @@ class ReaderDirection(unittest.TestCase):
         self.assertIn("нет входа", row["note"])
 
 
+class KeepDominanceProbe(unittest.TestCase):
+    """Проба `run_census` (22.10): перепись доминирования KEEP под замером прибора.
+
+    Три свойства, каждое с причиной: (1) ответ без часов — иначе два прогона на
+    ОДНОМ журнале давали бы «ответ изменился»; (2) счётчика покрытия нет
+    (``None``), а не ноль — нечувствительный счётчик печатал бы ложную регрессию;
+    (3) ответ ЧУВСТВИТЕЛЕН к ставкам книги — иначе вписать потребителя значило бы
+    изготовить `insensitive` из населения, которому он не подчинён (класс #540).
+    """
+
+    SPEC = {"module": "spa_core.monitoring.keep_dominance_census", "probe": "run_census"}
+
+    def setUp(self):
+        self.root = Path(tempfile.mkdtemp(prefix="spa_djc_kdc_"))
+        self.addCleanup(shutil.rmtree, self.root, ignore_errors=True)
+        (self.root / "data").mkdir()
+
+    def _journal(self, evidenced):
+        rows = [_rec(i, current={"a": 50_000.0}, target={"a": 40_000.0, "b": 10_000.0},
+                     evidenced=evidenced) for i in (1, 2)]
+        djc._write_journal(rows, self.root / "data" / djc.HISTORY_FILENAME)
+
+    def test_the_census_is_in_the_population(self):
+        self.assertIn(self.SPEC, list(djc.READERS))
+
+    def test_two_runs_on_one_journal_give_one_answer_and_no_counter(self):
+        self._journal({"a": 3.0, "b": 5.0})
+        cov1, snap1 = djc._reader_probe(self.SPEC, self.root)
+        cov2, snap2 = djc._reader_probe(self.SPEC, self.root)
+        self.assertTrue(snap1.get("measured"), snap1)
+        self.assertNotIn("generated_at", snap1)
+        self.assertEqual(json.dumps(snap1, sort_keys=True, default=str),
+                         json.dumps(snap2, sort_keys=True, default=str))
+        self.assertIsNone(cov1)
+        self.assertIsNone(cov2)
+
+    def test_the_answer_moves_with_the_book_rates(self):
+        """Положительный контроль чувствительности: другая ставка ноги — другой ответ."""
+        self._journal({"a": 3.0, "b": 5.0})
+        _, base = djc._reader_probe(self.SPEC, self.root)
+        self._journal({"a": 3.0, "b": 1.0})
+        _, moved = djc._reader_probe(self.SPEC, self.root)
+        self.assertNotEqual(json.dumps(base, sort_keys=True, default=str),
+                            json.dumps(moved, sort_keys=True, default=str))
+
+    def test_the_probe_writes_no_artifact(self):
+        self._journal({"a": 3.0, "b": 5.0})
+        djc._reader_probe(self.SPEC, self.root)
+        self.assertFalse((self.root / "data" / "keep_dominance_census.json").exists())
+
+
 class OwnCoverage(unittest.TestCase):
     def test_named_counters_are_read_from_the_reader_itself(self):
         self.assertEqual(djc._own_coverage({"population": {"scoreable": 12}}), 12)

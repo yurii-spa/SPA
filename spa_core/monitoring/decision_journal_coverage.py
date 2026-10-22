@@ -231,6 +231,16 @@ READERS: Tuple[dict, ...] = (
     {"module": "spa_core.monitoring.move_cost_composition_price", "probe": "run"},
     {"module": "spa_core.monitoring.silent_leg_day_price", "probe": "run"},
     {"module": "spa_core.monitoring.unobserved_leg_remedy_class", "probe": "run"},
+    # Перепись доминирования KEEP (§49 `Economics`, ADR-484, доставлена 27.09
+    # коммитом 8b54a5a31) читает `apy_evidenced_pct` как ДАННЫЕ: доходность книги и
+    # цели она ВЫЧИСЛЯЕТ из этого ключа и сверяет с записанными. В население не была
+    # вписана — храповик `ReaderPopulationRatchet` краснел на этом имени (замер
+    # 22.10, STUDIO-OS-NEXT-01). Своя проба `run_census`, а не общая `run`: у её
+    # `run()` нет `write=False` (оно ВСЕГДА пишет артефакт) и отчёт лежит внутри
+    # обёртки `{"measured", "doc"}` с часами внутри — общая проба получила бы
+    # TypeError либо сравнивала бы метку времени и печатала «ответ изменился».
+    # Счётчика покрытия нет (причина — в ветке пробы), исход сдвига — `unmeasured`.
+    {"module": "spa_core.monitoring.keep_dominance_census", "probe": "run_census"},
 )
 
 #: НЕ читатели, хотя строка ключа в их тексте есть. Предикат храповика ищет ключ
@@ -669,6 +679,25 @@ def _reader_probe(spec: dict, root: Path) -> Tuple[Optional[int], object]:
                            details={"probe": name, "module": spec["module"],
                                     "returned": type(doc).__name__})
         cov = _own_coverage(doc)
+        return cov, {k: v for k, v in sorted(doc.items())
+                     if k not in ("generated_at", "as_of", "now", "root")}
+    if name == "run_census":
+        # Только замер, БЕЗ записи артефакта: `run_census` — чистая функция над
+        # каталогом данных песочницы (артефакт пишет `run()`, а он здесь не зовётся).
+        doc = mod.run_census(ddir)
+        if not isinstance(doc, dict):
+            raise SPAError(f"потребитель вернул {type(doc).__name__}, не отчёт",
+                           code="PROBE_CONSUMER_NOT_A_REPORT",
+                           details={"probe": name, "module": spec["module"],
+                                    "returned": type(doc).__name__})
+        # Счётчика покрытия НЕТ, и это решение, а не недосмотр (тот же класс, что у
+        # `capital_observability_history` выше). Единственный кандидат —
+        # `books[].records_measured` — к ширине карты НЕЧУВСТВИТЕЛЕН: запись
+        # оценивается, если `apy_evidenced_pct` вообще словарь, а расширение карты
+        # меняет ЗНАЧЕНИЯ внутри записи, не число записей. Выдать его за ось значило
+        # бы печатать `moved_without_coverage` (обвинение в регрессии) там, где ответ
+        # честно сдвинулся. Поэтому None ⇒ сдвиг — третий исход `unmeasured`.
+        cov = None
         return cov, {k: v for k, v in sorted(doc.items())
                      if k not in ("generated_at", "as_of", "now", "root")}
     raise SPAError(f"проба `{name}` не описана", code="PROBE_UNKNOWN",
