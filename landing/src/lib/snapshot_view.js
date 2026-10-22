@@ -68,6 +68,10 @@ export default {
       days_with_positions: (typeof b.days === 'number') ? b.days : null,
       positions_count: (typeof b.positions === 'number') ? b.positions : null,
       apy_pct: v(b.apy),
+      // ADR-580 C2: зрелость ставки — флаг ТОЙ ЖЕ фигуры витрины, что дала apy_pct (гейт один;
+      // незрелая ставка уже null). Не второй гейт, а его проекция; нет флага — null, не «зрело».
+      reportable: (b.apy && typeof b.apy.reportable === 'boolean') ? b.apy.reportable : null,
+      reportable_after: (b.apy && typeof b.apy.reportable_after === 'number') ? b.apy.reportable_after : null,
       dd_pct: v(b.drawdown),
       nav_usd: v(b.nav),
       evidence: 'paper',
