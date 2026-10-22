@@ -322,3 +322,26 @@ class TheAdvisoryContract(unittest.TestCase):
 
 if __name__ == "__main__":  # pragma: no cover
     unittest.main()
+
+
+class TheSharedRuleMustBeApplied(unittest.TestCase):
+    """Форма храповика с 22.10: население — у `census_stage_population`. Импорт правила без его
+    ПРИМЕНЕНИЯ в функции населения охраняет ноль и обязан читаться «не измерено»."""
+
+    def _scene(self, tree: Path, body: str) -> None:
+        _skeleton(tree, population_form=_POST_FIX_FORM)
+        (tree / _RATCHET_REL).write_text(
+            "from spa_core.monitoring import census_stage_population as _csp\n"
+            "def stage_censuses():\n" + body, encoding="utf-8")
+
+    def test_applied_shared_rule_is_measured(self) -> None:
+        with TemporaryDirectory() as tmp:
+            tree = Path(tmp)
+            self._scene(tree, "    return _csp.stage_censuses(BRIDGE)\n")
+            self.assertIsNotNone(ccc.stage_population_under_ratchet(tree))
+
+    def test_imported_but_unapplied_rule_is_unmeasured(self) -> None:
+        with TemporaryDirectory() as tmp:
+            tree = Path(tmp)
+            self._scene(tree, "    return ['acceptance_tree_capability']\n")
+            self.assertIsNone(ccc.stage_population_under_ratchet(tree))

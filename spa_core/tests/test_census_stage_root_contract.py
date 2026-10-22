@@ -23,7 +23,6 @@ Fail-OPEN тише красного, поэтому опаснее. Провер
 # LLM_FORBIDDEN
 from __future__ import annotations
 
-import ast
 import importlib
 import re
 import unittest
@@ -56,34 +55,15 @@ _CALL = re.compile(
 _CALL_INDEPENDENT = re.compile(r"\b(\w+)\.run\(root=args\.root\)")
 
 
-def _bridge_import_names(src: str) -> dict[str, str]:
-    """Локальное имя в мосте → имя модуля `spa_core.monitoring.*`, как его импортировали.
-
-    Нужна потому, что `X` в `X.run(root=args.root)` — это ИМЯ ПЕРЕМЕННОЙ, а не модуля:
-    мост пишет `from spa_core.monitoring import acceptance_tree_capability as _atc`, и
-    прежний вывод импортировал несуществующий `spa_core.monitoring._atc` — сторож падал
-    `ModuleNotFoundError` до первой проверки (контрольный прогон №13–14). Импорты
-    читаются по всему файлу, включая тела функций: мост импортирует переписи внутри
-    шагов.
-    """
-    names: dict[str, str] = {}
-    for node in ast.walk(ast.parse(src)):
-        if isinstance(node, ast.ImportFrom) and node.module == "spa_core.monitoring":
-            for a in node.names:
-                names[a.asname or a.name] = a.name
-        elif isinstance(node, ast.Import):
-            for a in node.names:
-                if a.asname and a.name.startswith("spa_core.monitoring."):
-                    names[a.asname] = a.name.rsplit(".", 1)[1]
-    return names
-
+from spa_core.monitoring import census_stage_population as _csp  # noqa: E402 — одна копия правила
 
 #: Нет литерального значения у аргумента зова — воспроизвести зов потребителя нельзя.
-_NOT_LITERAL = object()
+_NOT_LITERAL = _csp.NOT_LITERAL
+_bridge_import_names = _csp.bridge_import_names
 
 
 def stage_calls() -> dict[str, list[dict]]:
-    """Зовы ступени по РАЗБОРУ AST: модуль → список наборов дополнительных аргументов.
+    """Зовы ступени по РАЗБОРУ AST (правило — `census_stage_population.stage_calls`).
 
     Зов ступени — любой `X.run(...)` с `root=args.root`. Регулярная форма
     `X.run(root=args.root)` (прежний вывод) теряла зовы с дополнительными аргументами —
@@ -91,39 +71,16 @@ def stage_calls() -> dict[str, list[dict]]:
     sandbox=True)` и `_ldu.run(root=args.root, if_due=True)` (ledger_day_unit_census)
     вне проверки. `X` — переменная: разрешается по импортам самого моста.
     """
-    src = _BRIDGE.read_text(encoding="utf-8")
-    imported = _bridge_import_names(src)
-    out: dict[str, list[dict]] = {}
-    for node in ast.walk(ast.parse(src)):
-        if not (isinstance(node, ast.Call) and isinstance(node.func, ast.Attribute)
-                and node.func.attr == "run" and isinstance(node.func.value, ast.Name)):
-            continue
-        kws = {k.arg: k.value for k in node.keywords if k.arg}
-        if "root" not in kws or ast.unparse(kws["root"]) != "args.root" or node.args:
-            continue
-        extra = {}
-        for k, v in kws.items():
-            if k == "root":
-                continue
-            try:
-                extra[k] = ast.literal_eval(v)
-            except ValueError:
-                extra[k] = _NOT_LITERAL
-        name = imported.get(node.func.value.id, node.func.value.id)
-        if extra not in out.setdefault(name, []):
-            out[name].append(extra)
-    return out
+    return _csp.stage_calls(_BRIDGE)
 
 
 def stage_censuses() -> list[str]:
     """Население ступени = ВСЕ, кого она зовёт `….run(root=args.root[, …])` — по AST.
 
-    Замер #565: импорт-соседство теряло население тремя способами; полное население
-    тогда — 45. Имя перед `.run` разрешается в модуль по импортам моста (псевдоним
-    `as _atc` — не модуль); имя без импорта остаётся как есть и, если это не модуль,
-    громко падает на импорте.
+    Правило живёт ОДНОЙ копией в `census_stage_population`: его же читает потребитель
+    `census_consumer_census` (иначе две копии разошлись бы молча — CI 39825423993).
     """
-    return sorted(stage_calls())
+    return _csp.stage_censuses(_BRIDGE)
 
 
 def stage_censuses_by_import_adjacency() -> list[str]:

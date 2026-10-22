@@ -339,7 +339,13 @@ class TheProbeIsDeclaredOnARealOpenCard(unittest.TestCase):
         tracker = os.path.join(_REPO, "nimbalyst-local", "tracker")
         if not os.path.isdir(tracker):
             self.skipTest("трекера нет в этом дереве")
-        res = ca.audit(tracker)
+        # Предмет — карточки В САМОМ РЕПОЗИТОРИИ (докстринг класса). Дочитывание с сервера
+        # (origin_readthrough) судило бы код кандидата карточками БОЛЕЕ НОВОГО main и ходило в
+        # сеть из модульного теста: CI 39825423993 (22.10) краснел на карточке ADR-785, чья проба
+        # зарегистрирована на main, а не в этом дереве.
+        res = ca.audit(tracker, origin_readthrough=False)
+        self.assertEqual(res["origin"].get("state", "off") if isinstance(res.get("origin"), dict) else "off",
+                         "off", "дочитывание с сервера не просили — блок обязан сказать off")
         self.assertGreaterEqual(
             res["counts"]["declared_open"], 1,
             "ни одна открытая карточка не объявляет пробу — сторож ADR-208 снова без предмета")

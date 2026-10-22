@@ -315,26 +315,56 @@ _RATCHET_POPULATION_FN = "stage_censuses"
 
 
 def stage_population_under_ratchet(root: Path) -> Optional[List[str]]:
-    """Что видит храповик — формой зова, которую он ДЕЙСТВИТЕЛЬНО применяет.
+    """Что видит храповик — тем правилом, которое он ДЕЙСТВИТЕЛЬНО применяет.
 
-    Спрашивать надо не «какие регулярки лежат в файле», а «какая из них питает
-    население». Регулярка, объявленная и не использованная, охраняет ноль, и
-    сложить её с работающей значило бы изготовить покрытие. Поэтому имя формы
-    берётся из тела ``stage_censuses`` разбором AST, а не текстовым поиском.
+    Спрашивать надо не «что лежит в файле», а «чем питается население». С 22.10 храповик
+    берёт население у ОДНОЙ копии правила — `census_stage_population` (AST моста), и
+    потребитель читает ту же копию; но прежде РАЗБОРОМ проверяет, что функция населения
+    храповика (`stage_censuses`) действительно зовёт её. Правило, объявленное и не
+    применённое, охраняет ноль — сложить его с работающим значило бы изготовить покрытие.
 
-    Возврат ``None`` — третий исход «не измерено» (файла нет, разбор не дался,
-    форма связана не с литералом). Пустой список означал бы «храповик не видит
-    ничего», а это совсем другое утверждение.
+    Возврат ``None`` — третий исход «не измерено» (файла нет, разбор не дался, функция
+    населения храповика зовёт не общее правило). Пустой список — другое утверждение.
     """
     path = root.joinpath(*_RATCHET)
     bridge = root / "spa_core" / "monitoring" / "findings_bridge.py"
     if not path.is_file() or not bridge.is_file():
         return None
-    text = path.read_text(encoding="utf-8")
     tree = _parse(path)
     if tree is None:
         return None
+    # имена, под которыми храповик импортировал общее правило
+    aliases = set()
+    for node in tree.body:
+        if isinstance(node, ast.ImportFrom) and node.module == "spa_core.monitoring":
+            for a in node.names:
+                if a.name == "census_stage_population":
+                    aliases.add(a.asname or a.name)
+    if not aliases:
+        return _population_by_regex_form(tree, bridge)
+    applied = False
+    for node in tree.body:
+        if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef)) \
+                and node.name == _RATCHET_POPULATION_FN:
+            for inner in ast.walk(node):
+                if (isinstance(inner, ast.Call) and isinstance(inner.func, ast.Attribute)
+                        and isinstance(inner.func.value, ast.Name)
+                        and inner.func.value.id in aliases
+                        and inner.func.attr in ("stage_censuses", "stage_calls")):
+                    applied = True
+    if not applied:
+        return None
+    try:
+        from spa_core.monitoring import census_stage_population as csp
+        return sorted(set(csp.stage_censuses(bridge)))
+    except (OSError, SyntaxError, ValueError):
+        return None
 
+
+def _population_by_regex_form(tree: ast.Module, bridge: Path) -> Optional[List[str]]:
+    """Прежняя форма храповика (до 22.10): население — `<регулярка>.findall` в функции
+    населения. Сохранена: храповик в этой форме по-прежнему мерится, а не объявляется
+    «не измеренным» (сцены суженной и объявленной-но-неиспользуемой формы)."""
     # 1. какое ИМЯ формы возвращает функция населения
     used: Optional[str] = None
     for node in tree.body:
@@ -372,16 +402,31 @@ def stage_population_under_ratchet(root: Path) -> Optional[List[str]]:
     found = pattern.findall(bridge.read_text(encoding="utf-8"))
     # Форма с группой отдаёт строки; с несколькими — кортежи. Берём первую группу.
     names = [f if isinstance(f, str) else f[0] for f in found]
-    del text
-    return sorted(set(names))
+    # Имя перед `.run` — переменная; та же карта импортов моста, что у формы зова: сравнение
+    # двух дорог идёт в именах МОДУЛЕЙ с обеих сторон.
+    try:
+        from spa_core.monitoring import census_stage_population as csp
+        imported = csp.bridge_import_names(bridge.read_text(encoding="utf-8"))
+    except SyntaxError:
+        imported = {}
+    return sorted({imported.get(n, n) for n in names})
+
 
 
 def stage_population_by_call_form(root: Path) -> List[str]:
-    """Что ступень зовёт на самом деле — тем же зовом, без оглядки на имя переменной."""
+    """Что ступень зовёт на самом деле — НЕЗАВИСИМОЙ дорогой (регулярка формы зова), без
+    оглядки на AST храповика. Имя перед `.run` — переменная; псевдоним (`_atc`) разрешается
+    в модуль по импортам моста, иначе он сравнивался бы с модулем как чужое имя."""
     bridge = root / "spa_core" / "monitoring" / "findings_bridge.py"
     if not bridge.is_file():
         return []
-    return sorted(set(_STAGE_CALL.findall(bridge.read_text(encoding="utf-8"))))
+    src = bridge.read_text(encoding="utf-8")
+    try:
+        from spa_core.monitoring import census_stage_population as csp
+        imported = csp.bridge_import_names(src)
+    except SyntaxError:
+        imported = {}
+    return sorted({imported.get(n, n) for n in _STAGE_CALL.findall(src)})
 
 
 def measure(root: Path, *, now=None) -> dict:
