@@ -495,3 +495,95 @@ def test_office_targets_is_the_only_rule_of_what_the_office_reads(tmp_path):
     ]}
     assert MOD.office_targets(manifest) == ["data/a.json"]
     assert MOD.office_targets(manifest, "someone") == ["data/c.json"]
+
+
+# ── 10. СПРОЕКТИРОВАННЫЙ производитель такта НЕ ДАЁТ ────────────────────────
+#
+# ADR-770: у `data/no_regression_census.json` производитель подготовлен
+# (`com.spa.no_regression_census`, `calendar:04:50`, intent=designed), но НЕ
+# установлен. До этой правки решатель читал у агента только `schedule`, и
+# вписать ярлык спроектированного агента в `artifacts[].producer` значило
+# получить «такт 24.0ч измерен» — спроектированный выдавался за работающего.
+# Три исхода обязаны быть различимы: работает · спроектирован, не работает ·
+# производителя нет вовсе.
+
+_DESIGNED_LABEL = "com.spa.no_regression_census"
+_DESIGNED_NAME = "no_regression_census.json"
+
+
+def _producer_scene(root: Path, *, producer, intent):
+    agent = {"label": _DESIGNED_LABEL, "schedule": "calendar:04:50"}
+    if intent is not None:
+        agent["intent"] = intent
+    return _tree(root, body={
+        "agents": [agent],
+        "artifacts": [{"path": f"data/{_DESIGNED_NAME}", "producer": producer,
+                       "status": "active",
+                       "consumers": ["orchestrator_protocol"]}]})
+
+
+def test_a_designed_producer_gives_no_tick(tmp_path):
+    """Положительный контроль: на коде до правки здесь `tick == 24.0`."""
+    _producer_scene(tmp_path, producer=_DESIGNED_LABEL, intent="designed")
+    tick, why = MOD._producer_tick_hours(_DESIGNED_NAME, str(tmp_path))
+    assert tick is None, (tick, why)
+    assert "intent=designed" in why and _DESIGNED_LABEL in why, why
+    # Своя причина, не чужая: ни «не объявлен», ни «нет в agents[]».
+    assert "не объявлен производитель" not in why, why
+    assert "нет в `agents[]`" not in why, why
+
+
+def test_paused_and_retired_producers_give_no_tick_either(tmp_path):
+    for intent in ("paused", "retired", "unresolved"):
+        _producer_scene(tmp_path, producer=_DESIGNED_LABEL, intent=intent)
+        tick, why = MOD._producer_tick_hours(_DESIGNED_NAME, str(tmp_path))
+        assert tick is None, (intent, tick, why)
+        assert f"intent={intent}" in why, (intent, why)
+
+
+def test_the_same_producer_once_active_gives_its_tick(tmp_path):
+    """Обратная сторона: установленный (active) производитель — такт ИЗМЕРЕН."""
+    _producer_scene(tmp_path, producer=_DESIGNED_LABEL, intent="active")
+    tick, why = MOD._producer_tick_hours(_DESIGNED_NAME, str(tmp_path))
+    assert tick == 24.0, (tick, why)
+    assert "calendar:04:50" in why, why
+
+
+def test_no_producer_at_all_keeps_its_own_reason(tmp_path):
+    """Третий исход «производителя нет вовсе» не сливается с «спроектирован»."""
+    _producer_scene(tmp_path, producer=None, intent="designed")
+    tick, why = MOD._producer_tick_hours(_DESIGNED_NAME, str(tmp_path))
+    assert tick is None
+    assert "не объявлен производитель" in why, why
+    assert "intent=" not in why, why
+
+
+def test_a_designed_producer_makes_subject_drift_a_finding(tmp_path):
+    """Следствие у шага: такта нет ⇒ смена предмета — находка (fail-CLOSED)."""
+    _producer_scene(tmp_path, producer=_DESIGNED_LABEL, intent="designed")
+    is_finding, why = MOD._drift_is_a_finding(
+        _DESIGNED_NAME, root=str(tmp_path),
+        art_ts=dt.datetime.fromisoformat(VERDICT_AT), now=NOW)
+    assert is_finding is True, why
+    assert "intent=designed" in why, why
+
+
+def test_declaring_the_designed_agent_on_the_live_artifact_does_not_green():
+    """Нечестная «починка» живого красного (вписать ярлык designed-агента) —
+    по-прежнему НЕ ИЗМЕРИМО. Меряется на копии живой конституции в памяти."""
+    import tempfile
+    manifest = json.loads((_REPO / "architecture" / "manifest.json").read_text())
+    agents = {a["label"]: a for a in manifest["agents"]}
+    assert agents[_DESIGNED_LABEL].get("intent") == "designed", (
+        "предпосылка сцены сменилась: агент больше не designed — пересмотреть сцену")
+    for art in manifest["artifacts"]:
+        if art["path"] == f"data/{_DESIGNED_NAME}":
+            art["producer"] = _DESIGNED_LABEL
+            break
+    else:
+        raise AssertionError(f"data/{_DESIGNED_NAME} не объявлен — предпосылка НЕ ОБЕСПЕЧЕНА")
+    with tempfile.TemporaryDirectory() as tmp:
+        _tree(Path(tmp), body=manifest)
+        tick, why = MOD._producer_tick_hours(_DESIGNED_NAME, tmp)
+    assert tick is None, (tick, why)
+    assert "intent=designed" in why, why
