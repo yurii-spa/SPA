@@ -9,6 +9,8 @@ from __future__ import annotations
 import os
 import unittest
 
+import pytest
+
 from spa_core.monitoring import card_acceptance as ca
 
 
@@ -179,18 +181,30 @@ class TestWiredIntoTheOfficeStep(unittest.TestCase):
         self.assertIn("card_acceptance.report_lines", calls)
 
 
-class TestRegisteredProbesAreReal(unittest.TestCase):
+#: Население — ВЕСЬ реестр проб. Каждая проба — отдельный случай: прежде 69 проб шли одним
+#: тестом, и их сумма на CI легла вплотную к сроку 180 с (CI 39848159954: 182,9 с; на базе
+#: 62fe88b48 тот же тест «проходил» за 182,5 с только потому, что срок глотал
+#: `except BaseException` в card_acceptance — закрыто 22.10). Срок не поднимался, население
+#: не сужалось: те же пробы, то же утверждение; полноту держит отдельная сверка ниже.
+_REGISTERED_PROBES = sorted(ca.PROBES)
+
+
+@pytest.mark.parametrize("name", _REGISTERED_PROBES)
+def test_every_registered_probe_returns_a_known_verdict(name):
     """Проба, чей производитель переименовали, обязана падать в «не измерено»,
     а не молча исчезать из реестра."""
+    arg = "com.spa.daily_cycle" if name == "artifact_contract_confirmed" else None
+    spec = f"{name}:{arg}" if arg else name
+    verdict, detail = ca.run_probe(spec)
+    assert verdict in (ca.SATISFIED, ca.NOT_SATISFIED, ca.UNMEASURED), (name, verdict)
+    assert detail, f"проба {name} обязана объяснить свой вердикт"
 
-    def test_every_registered_probe_returns_a_known_verdict(self):
-        for name in list(ca.PROBES):
-            with self.subTest(probe=name):
-                arg = "com.spa.daily_cycle" if name == "artifact_contract_confirmed" else None
-                spec = f"{name}:{arg}" if arg else name
-                verdict, detail = ca.run_probe(spec)
-                self.assertIn(verdict, (ca.SATISFIED, ca.NOT_SATISFIED, ca.UNMEASURED))
-                self.assertTrue(detail, f"проба {name} обязана объяснить свой вердикт")
+
+def test_the_parametrized_population_is_the_whole_registry():
+    """Случаи выше собраны при импорте; реестр на момент прогона обязан совпасть с ними —
+    иначе проба, добавленная позже сборки, выпала бы из проверки молча."""
+    assert sorted(ca.PROBES) == _REGISTERED_PROBES
+    assert len(_REGISTERED_PROBES) >= 60, len(_REGISTERED_PROBES)
 
 
 if __name__ == "__main__":
