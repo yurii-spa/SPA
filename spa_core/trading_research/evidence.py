@@ -20,6 +20,8 @@ import sqlite3
 from pathlib import Path
 from typing import Dict, List, Optional
 
+from spa_core.database.side_store import open_side_store
+
 GENESIS = "0" * 64
 
 SCHEMA = """
@@ -56,7 +58,8 @@ _IMMUTABLE = ("candidates", "observations", "lifecycle_events", "ticks")
 
 def connect(path: Path) -> sqlite3.Connection:
     Path(path).parent.mkdir(parents=True, exist_ok=True)
-    conn = sqlite3.connect(str(path), timeout=30)
+    # Self-contained append-only store (evidence.db), not the main DB: side-store door, same timeout.
+    conn = open_side_store(path, timeout=30)
     conn.executescript(SCHEMA)
     for t in _IMMUTABLE:
         conn.executescript(

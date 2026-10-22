@@ -20,6 +20,8 @@ import uuid
 from pathlib import Path
 from typing import Dict, Iterable, List, Optional
 
+from spa_core.database.side_store import open_side_store
+
 from . import sources as src
 from . import truth as tr
 
@@ -319,7 +321,9 @@ def build(path: Optional[Path] = None) -> Dict:
                 stale.unlink()
         except OSError:
             pass
-    conn = sqlite3.connect(str(tmp))
+    # Own disposable index (tmp file → os.replace), not the main DB: side-store door,
+    # stdlib-default timeout and isolation exactly as the previous raw connect.
+    conn = open_side_store(tmp)
     try:
         man = _build_into(conn)
     except Exception:

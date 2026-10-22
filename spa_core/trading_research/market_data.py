@@ -22,6 +22,8 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Callable, Dict, Iterable, List, Optional
 
+from spa_core.database.side_store import open_side_store
+
 HOUR_MS = 3_600_000
 TF_MS = {"1h": HOUR_MS, "2h": 2 * HOUR_MS, "4h": 4 * HOUR_MS, "8h": 8 * HOUR_MS, "12h": 12 * HOUR_MS,
          "1D": 24 * HOUR_MS, "1W": 7 * 24 * HOUR_MS}
@@ -71,7 +73,8 @@ CREATE TABLE IF NOT EXISTS data_conflicts (
 
 def connect(path: Path) -> sqlite3.Connection:
     Path(path).parent.mkdir(parents=True, exist_ok=True)
-    conn = sqlite3.connect(str(path), timeout=30)
+    # Self-contained store (market.db), not the main DB: side-store door, same timeout.
+    conn = open_side_store(path, timeout=30)
     conn.executescript(SCHEMA)
     return conn
 

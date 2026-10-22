@@ -30,7 +30,6 @@ import asyncio
 import json
 import logging
 import os
-import sqlite3
 from collections import deque
 from datetime import datetime, timezone
 from pathlib import Path
@@ -249,7 +248,10 @@ def _snapshot_sqlite(src: Path, dst: Path,
             continue
         if (_file_state(src), _file_state(wal)) != before:
             continue
-        con = sqlite3.connect(str(dst))
+        # A throw-away COPY in a temp dir (never the live file): side-store door, which
+        # also REFUSES the main DB path — the quick_check can never land on the source.
+        from spa_core.database.side_store import open_side_store
+        con = open_side_store(dst)
         try:
             ok = con.execute("PRAGMA quick_check").fetchone()
         finally:

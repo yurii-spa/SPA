@@ -16,7 +16,8 @@ Exit codes:
     1 — raw connects remain (migration incomplete)
 
 Excluded from scan (intentionally keep raw sqlite3):
-    * ``spa_core/database/connection.py`` — the abstraction itself
+    * ``spa_core/database/connection.py`` — the abstraction itself (MAIN database)
+    * ``spa_core/database/side_store.py`` — the door for self-contained stores; refuses the main DB
     * ``spa_core/persistence/pg_migration.py`` — migration utility, both backends
     * ``spa_core/persistence/track_store.py`` — scratch DBs, intentionally raw
     * Any file under ``spa_core/tests/`` — test helpers may use raw sqlite3
@@ -39,6 +40,11 @@ _SPA_CORE_ROOT = Path(__file__).resolve().parent.parent  # → spa_core/
 _EXCLUDED_FILES: frozenset[str] = frozenset(
     {
         "spa_core/database/connection.py",
+        # side_store.py is the second (and last) door: SELF-CONTAINED sqlite stores that are not
+        # the main DB (market.db, evidence.db, the memory index, a throw-away copy). It REFUSES the
+        # main-DB path, so excluding it does not reopen Phase 2 — the main DB still goes only
+        # through connection.get_connection(); see test_side_store.py.
+        "spa_core/database/side_store.py",
         "spa_core/database/sqlite_manager.py",  # abstraction layer — uses sqlite3 directly by design
         "spa_core/persistence/pg_migration.py",
         "spa_core/persistence/track_store.py",
@@ -91,18 +97,35 @@ def _sqlite_connect_linenos(source: str) -> List[int]:
             return _ALLOW_MARKER in src_lines[lineno - 1]
         return False
 
+    # Names bound to the sqlite3 module (``import sqlite3 [as x]``) and names bound to its
+    # ``connect`` (``from sqlite3 import connect [as c]``). Matching only the literal spelling
+    # ``sqlite3.connect`` let an alias walk past the scan; the scan now follows the binding.
+    module_names = {"sqlite3"}
+    connect_names: set = set()
+    for node in ast.walk(tree):
+        if isinstance(node, ast.Import):
+            for al in node.names:
+                if al.name in ("sqlite3", "sqlite3.dbapi2") and al.asname:
+                    module_names.add(al.asname)
+        elif isinstance(node, ast.ImportFrom) and node.module in ("sqlite3", "sqlite3.dbapi2"):
+            for al in node.names:
+                if al.name == "connect":
+                    connect_names.add(al.asname or al.name)
+                elif al.name == "dbapi2":  # ``from sqlite3 import dbapi2 [as d]`` → d.connect
+                    module_names.add(al.asname or al.name)
+
     hits: List[int] = []
     for node in ast.walk(tree):
         if not isinstance(node, ast.Call):
             continue
         func = node.func
-        if (
+        is_connect = (
             isinstance(func, ast.Attribute)
             and func.attr == "connect"
             and isinstance(func.value, ast.Name)
-            and func.value.id == "sqlite3"
-            and not _is_allowed(node.lineno)
-        ):
+            and func.value.id in module_names
+        ) or (isinstance(func, ast.Name) and func.id in connect_names)
+        if is_connect and not _is_allowed(node.lineno):
             hits.append(node.lineno)
     return hits
 
