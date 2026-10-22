@@ -1591,7 +1591,22 @@ def _git_full(cwd, args: list, timeout: int = 30):
     return r.returncode, r.stdout, r.stderr
 
 
-def _origin_shelf_json(root: Path, rel: Path, *, timeout: int = 30):
+def pin_origin_main(root: Path, *, timeout: int = 60):
+    """ОДНО значение ``origin/main`` на прогон монитора — у СЕРВЕРА (ADR-361/362).
+
+    Обе витрины (``site_numbers.json`` и опубликованный снимок) судятся одним sha: два
+    отдельных fetch давали два вопроса к серверу и могли прочитать витрины из РАЗНЫХ
+    состояний origin. Не бросает: отказ импорта — тоже «не установлено» с причиной.
+    """
+    try:
+        from spa_core.utils.server_ref import pin_server_ref
+    except Exception as exc:  # noqa: BLE001 — без закрепителя нечем спросить сервер
+        return None, f"server_ref не загружен: {type(exc).__name__}: {exc}"
+    pin = pin_server_ref(str(root), "origin/main", timeout=timeout)
+    return pin, pin.describe()
+
+
+def _origin_shelf_json(root: Path, rel: Path, *, timeout: int = 30, pinned=None):
     """``origin/main:<rel>`` как dict, или ``(None, leg)`` с НАЗВАННОЙ причиной (C12,
     ADR-580 — третий исход, инв. #17).
 
@@ -1602,8 +1617,10 @@ def _origin_shelf_json(root: Path, rel: Path, *, timeout: int = 30):
       * ``"unmeasured:git_unavailable:…"`` — git/сеть недоступны (НЕ «не доставлена»,
         просто не измерено сейчас);
       * ``"unmeasured:unparseable"``   — файл есть, но не разбирается как JSON;
-      * ``"unmeasured:fetch_failed:…"`` — ``fetch`` НЕ дошёл до origin, а ``git show``
-        всё равно отвечает — но по ЛОКАЛЬНОМУ, возможно устаревшему ``origin/main``.
+      * ``"unmeasured:fetch_failed:…"`` — значение ``origin/main`` НЕ закреплено у
+        сервера (``ls-remote``/добор объекта не дошли). С 22.10 чтение идёт ТОЛЬКО по
+        закреплённому sha (``server_ref.pin_server_ref``), поэтому локальный, возможно
+        устаревший ``origin/main`` не читается вовсе — ни «на всякий случай», ни молча.
     Успех → ``(dict, "measured")``.
 
     ``fetch`` раньше читался как чисто best-effort (как в `make_fresh_checkout`):
@@ -1618,10 +1635,19 @@ def _origin_shelf_json(root: Path, rel: Path, *, timeout: int = 30):
     `"unmeasured:fetch_failed:…"`, даже когда локальный `git show` формально успешен —
     «измерено против возможно устаревшего ref» это НЕ «измерено».
     """
-    fetch_rc, _fetch_out, fetch_err = _git_full(
-        root, ["fetch", "-q", "origin", "main"], timeout=max(timeout, 60))
-    fetch_ok = fetch_rc == 0
-    rc, out, err = _git_full(root, ["show", f"origin/main:{rel}"], timeout=timeout)
+    # Значение `origin/main` СПРАШИВАЕТСЯ У СЕРВЕРА и закрепляется sha (ADR-361/362):
+    # чтение по имени ссылки после неудачного fetch отвечало бы кэшем. `pinned` —
+    # закреплённое вызывающим на весь прогон (одна витрина и другая — один sha);
+    # без него закрепляется здесь же. Не закреплено ⇒ `unmeasured:fetch_failed:…`
+    # (класс исхода прежний: сервер не подтвердил значение в этом прогоне).
+    if pinned is None:
+        pinned, _why = pin_origin_main(root, timeout=max(timeout, 60))
+        if pinned is None:
+            return None, f"unmeasured:fetch_failed:{_why[:160]}"
+    if not pinned.ok:
+        return None, (f"unmeasured:fetch_failed:{pinned.reason[:200]} "
+                      "— origin/main не закреплён у сервера; локальный кэш ответом не является")
+    rc, out, err = _git_full(root, ["show", f"{pinned.sha}:{rel}"], timeout=timeout)
     if rc is None:
         return None, f"unmeasured:git_unavailable:{(err or 'no_subprocess')[:160]}"
     if rc != 0:
@@ -1629,12 +1655,6 @@ def _origin_shelf_json(root: Path, rel: Path, *, timeout: int = 30):
         if "does not exist" in e or "exists on disk, but not in" in e or "invalid object name" in e:
             return None, "not_on_origin"
         return None, f"unmeasured:git_unavailable:{(err or '').strip()[:160] or 'nonzero_exit'}"
-    if not fetch_ok:
-        # git show succeeded, but ONLY against whatever origin/main the LAST
-        # successful fetch left behind — this run's fetch did not confirm it.
-        return None, (
-            f"unmeasured:fetch_failed:{(fetch_err or '').strip()[:160] or 'nonzero_exit'} "
-            "— git show answered from a possibly-stale local origin/main ref")
     try:
         doc = json.loads(out)
     except ValueError:
@@ -1867,8 +1887,15 @@ def run():
     # посетителя с диском, называл вставшим публикатора, которому просто нечего было
     # доставлять). Третий исход назван явно — `shelf_fetch_leg` — а не растворён в
     # пустом ``site_numbers``.
-    site_numbers, shelf_fetch_leg = _origin_shelf_json(_ROOT, _SHELF_REL)
-    published_snapshot, published_snapshot_leg = _origin_shelf_json(_ROOT, _SNAP_REL)
+    # ОДИН вопрос к серверу на прогон: обе витрины читаются одним закреплённым sha.
+    origin_pin, origin_pin_note = pin_origin_main(_ROOT)
+    if origin_pin is None:
+        site_numbers, shelf_fetch_leg = None, f"unmeasured:fetch_failed:{origin_pin_note[:160]}"
+        published_snapshot, published_snapshot_leg = None, shelf_fetch_leg
+    else:
+        site_numbers, shelf_fetch_leg = _origin_shelf_json(_ROOT, _SHELF_REL, pinned=origin_pin)
+        published_snapshot, published_snapshot_leg = _origin_shelf_json(
+            _ROOT, _SNAP_REL, pinned=origin_pin)
     from spa_core.publication import cadence as _cadence
     published_shelf, published_shelf_leg = _cadence.read_published()
     if site_numbers is None:

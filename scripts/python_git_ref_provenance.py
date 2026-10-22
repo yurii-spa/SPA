@@ -813,12 +813,14 @@ def _param_map(fn, node: ast.Call):
     out = {}
     for i, arg in enumerate(node.args):
         if isinstance(arg, ast.Starred):
-            # Распаковка ПОСЛЕДНИМ позиционным, ровно после именованных позиций и
-            # в `*args` двери — соответствие установлено: всё, что она несёт, едет
-            # в `*args`. Иначе (до неё есть незаполненные позиции, после неё ещё
-            # аргументы, у двери нет `*args`) — не установлено, как и прежде.
-            if (fn.args.vararg and i == len(node.args) - 1
-                    and i >= len(names)):
+            # Распаковка ХВОСТОМ позиционных (одна или несколько подряд, и после неё
+            # нет иных позиционных), ровно после именованных позиций и в `*args`
+            # двери — соответствие установлено: всё, что они несут, едет в `*args`
+            # (`_git(repo, "rev-parse", *refs, *extra)`). Иначе (до неё есть
+            # незаполненные позиции, после неё обычный аргумент, у двери нет
+            # `*args`) — не установлено, как и прежде.
+            if (fn.args.vararg and i >= len(names)
+                    and all(isinstance(a, ast.Starred) for a in node.args[i:])):
                 out[id(arg)] = fn.args.vararg.arg
                 continue
             return None
@@ -903,7 +905,111 @@ def loop_alternatives(fn, value, res, at=None):
     return (enclosing or alts) or None
 
 
-def find_readers(mods, doors, remotes, mod_index, inherit):
+def param_alternatives(mods, m, fn, value, inherit, screened=()):
+    """Значения ``*name``, где ``name`` — ПАРАМЕТР функции, — список вариантов argv, либо ``None``.
+
+    Форма частая у обёрток, которые сами собирают argv из кортежей вызывающего:
+
+        def pack(name, repo, *, refs=("--all",), extra=()):
+            _git(repo, "rev-parse", *refs, *extra)
+        ...
+        pack("x", repo, refs=(BRANCH,), extra=("--not", "origin/main"))
+
+    (Пример назван условным именем НАМЕРЕННО: правило ниже запрещает вывод, если имя
+    функции встречается в тексте ДРУГОГО модуля, — и сам этот прибор, назвав здесь
+    настоящую обёртку, ослепил бы себя на ней. Так и случилось при первой правке.)
+
+    Варианты — умолчание параметра плюс аргумент КАЖДОГО зова функции, и условие
+    строгое, в сторону ОТКАЗА (тот же порядок, что у :func:`loop_alternatives`):
+
+    * имя — обычный параметр (не ``*args``/``**kwargs``), в теле НЕ переприсвоено и
+      не объявлено ``global``/``nonlocal``;
+    * умолчание, если есть, — ЛИТЕРАЛЬНЫЙ кортеж/список; аргумент каждого зова —
+      тоже литеральный кортеж/список (иначе вариант не выведен ⇒ ``None``);
+    * функция зовётся только ИМЕНЕМ в своём модуле и нигде больше не упомянута
+      (передача как значения, зов того же имени из другого модуля, зов с ``*``/``**``
+      ⇒ ``None``: вызывающий, которого прибор не видит, мог передать что угодно).
+
+    Элемент варианта, не разрешённый в строку (``("--not", pin.sha)``), становится
+    ``DYN`` — тем же порядком, что у обычного списка argv (:meth:`Resolver.tokens`),
+    а не пропуском: ссылка из такого элемента не выводится, и чтение по sha,
+    закреплённому у сервера, не считается чтением ссылки — ровно как у прямого argv.
+    """
+    if fn is None or not isinstance(value, ast.Name):
+        return None
+    name = value.id
+    args = fn.args
+    positional = list(args.posonlyargs) + list(args.args)
+    params = positional + list(args.kwonlyargs)
+    if name not in {a.arg for a in params}:
+        return None
+    for node in _own_nodes(fn):
+        if isinstance(node, (ast.Global, ast.Nonlocal)) and name in node.names:
+            return None
+        if isinstance(node, ast.Name) and node.id == name \
+                and isinstance(node.ctx, (ast.Store, ast.Del)):
+            return None
+    default = None
+    for a, d in zip(positional[len(positional) - len(args.defaults):], args.defaults):
+        if a.arg == name:
+            default = d
+    for a, d in zip(args.kwonlyargs, args.kw_defaults):
+        if a.arg == name and d is not None:
+            default = d
+    if default is not None and not isinstance(default, (ast.Tuple, ast.List)):
+        return None
+    # Любое упоминание имени функции вне её модуля (по ТЕКСТУ — это ловит и
+    # `import … as`, и модули, отброшенные отбором `PRESCREEN` ради времени), и любое
+    # упоминание внутри, не являющееся прямым зовом, — вызывающий, которого прибор
+    # не видит.
+    word = re.compile(r"\b" + re.escape(fn.name) + r"\b")
+    for other in mods:
+        if other.rel != m.rel and word.search(other.src):
+            return None
+    for _rel, text in screened:
+        if word.search(text):
+            return None
+    called = {id(n.func) for n in m.calls if isinstance(n.func, ast.Name)
+              and n.func.id == fn.name}
+    for node in ast.walk(m.tree):
+        if isinstance(node, ast.Name) and node.id == fn.name and id(node) not in called:
+            return None
+        if isinstance(node, ast.Attribute) and node.attr == fn.name:
+            return None
+    saved = dict(m.res.local)
+    alts = []
+    try:
+        if default is not None:
+            m.res.local = {}
+            alts.append(m.res.tokens(default))
+        idx = next((i for i, a in enumerate(positional) if a.arg == name), None)
+        for node in m.calls:
+            if not (isinstance(node.func, ast.Name) and node.func.id == fn.name):
+                continue
+            if any(isinstance(a, ast.Starred) for a in node.args) \
+                    or any(k.arg is None for k in node.keywords):
+                return None
+            passed = next((k.value for k in node.keywords if k.arg == name), None)
+            if passed is None and idx is not None and idx < len(node.args):
+                passed = node.args[idx]
+            if passed is None:
+                if default is None:
+                    return None
+                continue                       # умолчание уже среди вариантов
+            if not isinstance(passed, (ast.Tuple, ast.List)):
+                return None
+            caller = m.owner.get(node)
+            if caller is not None:
+                m.res.enter(caller, inherit.get((m.rel, caller.name)))
+            else:
+                m.res.local = {}
+            alts.append(m.res.tokens(passed))
+    finally:
+        m.res.local = saved
+    return alts or None
+
+
+def find_readers(mods, doors, remotes, mod_index, inherit, screened=()):
     """Зовы, ЧИТАЮЩИЕ remote-tracking ссылку: прямые и через двери."""
     readers, outer = [], []
     for m in mods:
@@ -958,6 +1064,9 @@ def find_readers(mods, doors, remotes, mod_index, inherit):
                         continue
                     if isinstance(arg, ast.Starred):
                         alts = loop_alternatives(fn, arg.value, m.res, at=node)
+                        if alts is None:
+                            alts = param_alternatives(mods, m, fn, arg.value, inherit,
+                                                      screened)
                         if alts is None:
                             starred_open = arg
                             continue
@@ -1177,6 +1286,7 @@ def census(root: Path) -> dict:
         return {"unmeasured_fatal": f"в {root} не найдено ни одного .py — "
                                     "мерить нечего; это НЕ «чисто»"}
     mods, unread, screened = [], [], 0
+    screened_src = []        # текст отброшенных отбором: вызывающий не перестаёт им быть
     for path, rel in files:
         try:
             src = path.read_text(encoding="utf-8", errors="replace")
@@ -1185,6 +1295,7 @@ def census(root: Path) -> dict:
             continue
         if not any(w in src for w in PRESCREEN):
             screened += 1
+            screened_src.append((rel, src))
             continue
         try:
             mods.append(ModuleScan(path, rel, ast.parse(src), src))
@@ -1195,7 +1306,7 @@ def census(root: Path) -> dict:
     remotes = known_remotes(invocations)
     updaters = [i for i in invocations if i["sub"] in UPDATERS]
     readers, outer = find_readers(mods, doors, remotes, module_index(mods),
-                                  inherit)
+                                  inherit, screened_src)
 
     rows = []
     for r in readers:

@@ -95,6 +95,7 @@ if __package__ in (None, ""):  # pragma: no cover — прямой запуск 
 from spa_core.monitoring import duplicate_subject_census as census
 from spa_core.utils.atomic import atomic_save
 from spa_core.utils.observation import observed
+from spa_core.utils.server_ref import one_pin_per_call
 
 ARTIFACT_NAME = "history_door_price.json"
 ORDER = ("G112 п. 1 (ADR-538) — откуда ступень моста берёт историю: объявление · "
@@ -427,6 +428,7 @@ def _checkable_by(door: str, env_var: str) -> str:
     return "git rev-parse --is-shallow-repository + data/" + ARTIFACT_NAME
 
 
+@one_pin_per_call   # один отчёт — один sha базы (ARB 22.10)
 def build_report(repo_root: Path, *, data_dir: Optional[Path] = None,
                  base_ref: str = census.DEFAULT_BASE_REF,
                  now: Optional[datetime] = None,

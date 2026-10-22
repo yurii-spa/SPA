@@ -33,6 +33,7 @@ from pathlib import Path
 from typing import Optional
 
 from spa_core.studio_os import provenance as prov
+from spa_core.utils.server_ref import PinnedRef, pin_server_ref
 
 STAGES = ("IDEA", "TASK", "ASSIGNED", "RUN", "ARTIFACT", "REVIEW", "DECISION", "RELEASE", "OUTCOME", "MEMORY")
 CLOSED = {"done", "owner-done", "ingested"}
@@ -98,7 +99,13 @@ def _memory_has(token: str) -> Optional[bool]:
 
 
 def lineage(query: str, *, tdir: Optional[Path] = None, root: Optional[Path] = None,
-            data_dir: Optional[Path] = None, memory: bool = True) -> dict:
+            data_dir: Optional[Path] = None, memory: bool = True,
+            base: Optional[PinnedRef] = None) -> dict:
+    """Stages of one card. ``base`` — the value of origin/main fixed for the WHOLE report by the caller
+    (a Director OS build passes the mirror's FETCH_HEAD snapshot once for every card it shows); without
+    it the value is pinned at the server here, ONCE, and every read of this lineage — the commits that
+    name the card and the release verdict — goes by that one sha, never by the name of a cache ref.
+    Not fixed ⇒ ARTIFACT/RELEASE are UNKNOWN with the reason, not MISSING (inv. #17)."""
     card = find_card(query, tdir)
     if card is None:
         return {"query": query, "state": "NOT_FOUND",
@@ -108,14 +115,20 @@ def lineage(query: str, *, tdir: Optional[Path] = None, root: Optional[Path] = N
     slug = card.stem
     status = fm.get("status", "")
     root = root or prov.git_root()
+    if base is None:
+        base = pin_server_ref(str(root), "origin/main")
     # The slug must be named as a whole token: «inbox-x» must not match «inbox-x-2» (review 2026-10-03).
     _tok = re.compile(r"(?<![\w-])" + re.escape(slug) + r"(?![\w-])")
     _shas = set()
-    _full = prov._git(["log", "origin/main", f"--grep={slug}", "--fixed-strings", "--format=%H%x1f%B%x1e"], root) or ""
+    _full = ""
+    if base.ok:
+        _full = prov._git(["log", base.sha, f"--grep={slug}", "--fixed-strings", "--format=%H%x1f%B%x1e"],
+                          root) or ""
     for rec in _full.split("\x1e"):
         if "\x1f" in rec and _tok.search(rec.split("\x1f", 1)[1]):
             _shas.add(rec.split("\x1f", 1)[0].strip()[:9])
-    commits = [c for c in prov._log(root, ["origin/main", f"--grep={slug}", "--fixed-strings"]) if c["sha"] in _shas]
+    commits = ([c for c in prov._log(root, [base.sha, f"--grep={slug}", "--fixed-strings"]) if c["sha"] in _shas]
+               if base.ok else [])
     adrs = sorted(set(re.findall(r"\bADR-\d{3}\b", " ".join([fm.get("adr", ""), body] + [c["subject"] for c in commits]))))
     st: dict[str, dict] = {}
 
@@ -136,9 +149,12 @@ def lineage(query: str, *, tdir: Optional[Path] = None, root: Optional[Path] = N
         else "MISSING", fm.get("claimed_by") or f"status {status}")
     put("RUN", "DONE" if ({"in-progress"} & seen or status in CLOSED | {"in-progress", "blocked"}) else "MISSING",
         f"trail: {', '.join(trail[-3:]) or '—'}")
-    put("ARTIFACT", "DONE" if commits else "MISSING",
-        [f"{c['sha']} {c['date'][:10]} {c['subject'][:80]}" for c in commits[:6]] or
-        "no commit on origin/main names this card")
+    if not base.ok:
+        put("ARTIFACT", "UNKNOWN", f"origin/main not fixed — {base.describe()}")
+    else:
+        put("ARTIFACT", "DONE" if commits else "MISSING",
+            [f"{c['sha']} {c['date'][:10]} {c['subject'][:80]}" for c in commits[:6]] or
+            f"no commit on origin/main names this card ({base.describe()})")
     full = " ".join(rec.split("\x1f", 1)[1] for rec in _full.split("\x1e")
                     if "\x1f" in rec and rec.split("\x1f", 1)[0].strip()[:9] in _shas)
     reviewed = bool(_REVIEW.search(full)) or "evidence:" in " ".join(trail)
@@ -148,9 +164,11 @@ def lineage(query: str, *, tdir: Optional[Path] = None, root: Optional[Path] = N
     put("DECISION", "DONE" if (adrs or owner_ans) else "UNKNOWN",
         {"adrs": adrs, "owner_answer": owner_ans} if (adrs or owner_ans) else "no ADR and no owner answer linked")
     if commits:
-        rel = prov.release_of(commits[0]["sha"], root=root, data_dir=data_dir)
+        rel = prov.release_of(commits[0]["sha"], root=root, data_dir=data_dir, base=base)
         put("RELEASE", "DONE" if rel["state"] == "RELEASED" else
             "UNKNOWN" if rel["state"] in ("UNKNOWN", "ON_MAIN_PRODUCTION_UNKNOWN") else "MISSING", rel)
+    elif not base.ok:
+        put("RELEASE", "UNKNOWN", f"origin/main not fixed — {base.describe()}")
     else:
         put("RELEASE", "MISSING", "nothing to release")
     closing = [t for t in trail if "closed_by:" in t or "evidence:" in t]

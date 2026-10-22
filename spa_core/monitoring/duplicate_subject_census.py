@@ -114,6 +114,7 @@ from pathlib import Path
 from typing import Any, Dict, Iterable, List, Optional, Sequence, Tuple
 
 from spa_core.utils.atomic import atomic_save
+from spa_core.utils.server_ref import one_pin_per_call, pin_server_ref
 from spa_core.utils.observation import observed
 
 ARTIFACT_NAME = "duplicate_subject_census.json"
@@ -223,20 +224,34 @@ def anchor_of(record: Any) -> Optional[Tuple[int, str]]:
 # ────────────────────────── дерево базового ref ───────────────────────────
 
 def read_base_tree(repo_root: Path, ref: str = DEFAULT_BASE_REF) -> Dict[str, Any]:
-    """Состав дерева базового ref + его sha и дата. Сети НЕ трогает."""
+    """Состав дерева базового ref + его sha и дата.
+
+    Предмет — «доехала ли координата», то есть ТЕКУЩЕЕ состояние сервера. Поэтому
+    значение remote-tracking ``ref`` спрашивается у СЕРВЕРА и закрепляется sha
+    (ADR-361/362, ``server_ref.pin_server_ref``: один ``ls-remote`` на отчёт, добор
+    объекта при надобности); все три чтения идут по этому sha. Кэш последнего чужого
+    fetch объявил бы «потерянной» работу, доехавшую после него, — и цена класса
+    росла бы от возраста кэша, а не от потерь. Не закреплено ⇒ ``measured=False`` с
+    причиной (третий исход), а не ответ кэша. Локальная ссылка (``main``, sha)
+    разрешается локально и сети не трогает.
+    """
+    pin = pin_server_ref(str(repo_root), ref)
+    if not pin.ok:
+        return {"measured": False, "reason": f"ref {ref} не прочитан: {pin.describe()}"}
+    sha = pin.sha
+
     def _git(*args: str) -> subprocess.CompletedProcess:
         return subprocess.run(["git", *args], cwd=str(repo_root),
                               capture_output=True, text=True, timeout=120)
 
     try:
-        head = _git("rev-parse", ref)
-        listing = _git("ls-tree", "-r", "--name-only", ref)
-        stamp = _git("log", "-1", "--format=%cI", ref)
+        listing = _git("ls-tree", "-r", "--name-only", sha)
+        stamp = _git("log", "-1", "--format=%cI", sha)
     except (OSError, subprocess.SubprocessError) as exc:
         return {"measured": False, "reason": f"git не отработал: {exc}"}
-    if head.returncode != 0 or listing.returncode != 0:
+    if listing.returncode != 0:
         return {"measured": False,
-                "reason": f"ref {ref} не прочитан: {(head.stderr or listing.stderr).strip()[:200]}"}
+                "reason": f"ref {ref} ({sha[:12]}) не прочитан: {listing.stderr.strip()[:200]}"}
     paths = {line.strip() for line in listing.stdout.splitlines() if line.strip()}
     if not paths:
         # Положительный контроль самого прохода: дерево репозитория пустым не
@@ -244,7 +259,8 @@ def read_base_tree(repo_root: Path, ref: str = DEFAULT_BASE_REF) -> Dict[str, An
         # доехало». Иначе слепой проход объявил бы потерянным ВСЁ.
         return {"measured": False, "reason": f"дерево ref {ref} пусто — чтение не состоялось"}
     return {"measured": True, "reason": None, "ref": ref,
-            "sha": head.stdout.strip(), "committed_at": stamp.stdout.strip() or None,
+            "sha": sha, "ref_source": pin.source, "pinned": pin.describe(),
+            "committed_at": stamp.stdout.strip() or None,
             "paths": paths,
             "top_level": {p.split("/")[0] for p in paths}}
 
@@ -1145,6 +1161,7 @@ def measure_guard_wiring(repo_root: Path) -> Dict[str, Any]:
 
 # ─────────────────────────────── сборка ──────────────────────────────────
 
+@one_pin_per_call   # один отчёт — один sha базы (ARB 22.10)
 def run_census(data_dir: Path, *, repo_root: Path,
                base_ref: str = DEFAULT_BASE_REF,
                now: Optional[datetime] = None,
@@ -1188,6 +1205,7 @@ def run_census(data_dir: Path, *, repo_root: Path,
         report["base_ref"] = {"ref": base_ref, "measured": False}
         return report
     report["base_ref"] = {"ref": base["ref"], "sha": base["sha"],
+                          "source": base.get("ref_source"), "pinned": base.get("pinned"),
                           "committed_at": base["committed_at"],
                           "files": len(base["paths"]), "measured": True}
 

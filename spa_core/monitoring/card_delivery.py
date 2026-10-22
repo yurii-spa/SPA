@@ -107,6 +107,7 @@ import subprocess
 import sys
 
 from spa_core.monitoring.architecture_conformance import REPO_ROOT
+from spa_core.utils.server_ref import cached_ref, pin_server_ref
 
 STATUS_REL = os.path.join("data", "card_delivery_status.json")
 #: Долг доставки: пути, которые доставку НЕ прошли и обязаны поехать снова.
@@ -1094,15 +1095,21 @@ def orphan_candidates(root: str = REPO_ROOT, *, ref: str = ORPHAN_REF,
     отдаёт кандидатов — слепая доставка хуже несделанной, — но и не молчит:
     блок уезжает в квитанцию и печатается строкой (:func:`render`).
 
-    ``ref`` читается как КЭШ последнего `fetch` (ADR-361), поэтому его сперва
-    обновляют у сервера; не вышло — ``ref_fresh=False`` с причиной, и ответ
-    остаётся ответом КЭША. Ошибка такого ответа односторонняя: карточка,
-    уехавшая после последнего fetch, попадёт в кандидаты зря — и `plan_batch`
-    опознает её по ЖИВОМУ remote как `already_on_origin`/`covered_by_origin`,
-    то есть лишний кандидат стоит одного чтения origin, а пропущенный стоил
-    двенадцати суток.
+    Значение ``ref`` СПРАШИВАЕТСЯ У СЕРВЕРА и закрепляется sha (ADR-361/362,
+    ``server_ref.pin_server_ref``); все чтения идут по этому sha
+    (``ref_source="server"``, ``ref_fresh=True``). Не вышло — работа продолжается
+    по КЭШУ ПО ЗАМЫСЛУ (ADR-781), но кэш читается ЯВНО как снимок
+    (``server_ref.cached_ref``: ``ref_source="cache"``, его sha и возраст в
+    ``ref_pin``), ``ref_fresh=False`` и причина названа. Ошибка такого ответа
+    односторонняя: карточка, уехавшая после последнего fetch, попадёт в кандидаты
+    зря — и `plan_batch` опознает её по ЖИВОМУ remote как
+    `already_on_origin`/`covered_by_origin`, то есть лишний кандидат стоит одного
+    чтения origin, а пропущенный стоил двенадцати суток. ``fetch=False`` — сервер
+    не спрашивается вовсе: remote-tracking ссылка читается кэшем (``ref_fresh``
+    остаётся ``None`` — «не спрашивали», а не «свежо»).
     """
     out = {"status": ORPHAN_UNMEASURED, "ref": ref, "ref_fresh": None,
+           "ref_sha": None, "ref_source": None, "ref_pin": None,
            "scanned": None, "terminal": 0, "status_unreadable": [],
            "candidates": [], "over_limit": [], "limit": limit, "reason": ""}
     tracker = os.path.join(root, TRACKER_REL)
@@ -1113,14 +1120,25 @@ def orphan_candidates(root: str = REPO_ROOT, *, ref: str = ORPHAN_REF,
         out["reason"] = "дерево не под git — «нет на origin» здесь неизмеримо"
         return out
 
-    if fetch:
-        rc, note = git(root, ["fetch", "origin", "main", "--quiet"])
-        out["ref_fresh"] = rc == 0
-        if rc != 0:
-            out["reason"] = f"кэш {ref} не обновлён (ответ остаётся ответом кэша): {note[:200]}"
-    rc, listing = git(root, ["ls-tree", "-r", "--name-only", ref, "--", TRACKER_REL])
+    base = pin_server_ref(root, ref) if fetch else None
+    if base is not None and base.ok:
+        out["ref_fresh"] = True if base.source == "server" else None
+    else:
+        refused = base
+        base = cached_ref(root, ref)
+        if refused is not None:
+            out["ref_fresh"] = False
+            out["reason"] = (f"значение {ref} не закреплено у сервера — ответ остаётся "
+                             f"ответом кэша ({base.describe()}): {refused.reason[:200]}")
+    out["ref_sha"], out["ref_source"], out["ref_pin"] = base.sha, base.source, base.describe()
+    if not base.ok:
+        out["reason"] = (f"{ref} не прочитан, «нет на origin» НЕ ИЗМЕРЕНО: {base.reason[:200]}"
+                         + (f" | {out['reason']}" if out["reason"] else ""))
+        return out
+    rc, listing = git(root, ["ls-tree", "-r", "--name-only", base.sha, "--", TRACKER_REL])
     if rc != 0:
-        out["reason"] = (f"{ref} не прочитан, «нет на origin» НЕ ИЗМЕРЕНО: {listing[:200]}"
+        out["reason"] = (f"{ref} ({base.sha[:12]}) не прочитан, «нет на origin» НЕ "
+                         f"ИЗМЕРЕНО: {listing[:200]}"
                          + (f" | {out['reason']}" if out["reason"] else ""))
         return out
     on_ref = {os.path.basename(line.strip()) for line in listing.splitlines() if line.strip()}
@@ -1153,7 +1171,7 @@ def orphan_candidates(root: str = REPO_ROOT, *, ref: str = ORPHAN_REF,
     out["candidates"] = picked
     out["over_limit"] = rest
     if not out["reason"]:
-        out["reason"] = (f"сверено с {ref}: карточек в дереве {len(local)}, "
+        out["reason"] = (f"сверено с {ref} ({base.describe()}): карточек в дереве {len(local)}, "
                          f"нет на {ref} и не закрыто {len(found)}"
                          + (f", взято {len(picked)} при потолке {limit}" if rest else ""))
     return out

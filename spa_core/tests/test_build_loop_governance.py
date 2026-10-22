@@ -730,7 +730,11 @@ class TestScenarioGLineage:
         (repo / "x.txt").write_text("x", encoding="utf-8")
         _git(repo, "add", ".")
         _git(repo, "commit", "-m", f"work on {card.stem}-2 (another card)")
-        _git(repo, "update-ref", "refs/remotes/origin/main", "HEAD")
+        # Сцена: НАСТОЯЩИЙ удалённый, а не нарисованный кэш (22.10, инв. #16 — утверждение
+        # не тронуто): lineage читает коммиты по sha, закреплённому у сервера, и кэш без
+        # сервера даёт честное UNKNOWN, а не MISSING — предпосылка «коммит на main есть,
+        # но называет ДРУГУЮ карточку» обязана быть настоящей. Тот же переход, что `_publish`.
+        _publish(repo)
         x = bl.lineage(card.stem, tdir=tdir, root=repo, data_dir=tmp_path, memory=False)
         assert x["stages"]["ARTIFACT"]["state"] == "MISSING"
 

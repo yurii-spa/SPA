@@ -23,7 +23,7 @@ import subprocess
 from pathlib import Path
 from typing import Optional
 
-from spa_core.utils.server_ref import pin_server_ref
+from spa_core.utils.server_ref import PinnedRef, pin_server_ref
 
 REPO = Path(__file__).resolve().parents[2]
 REGISTRY = REPO / "architecture" / "provenance.json"
@@ -151,10 +151,16 @@ def _is_ancestor(sha: str, of: str, root: Path) -> Optional[bool]:
     return True if r.returncode == 0 else False if r.returncode == 1 else None
 
 
-def release_of(sha: Optional[str], *, root: Optional[Path] = None, data_dir: Optional[Path] = None) -> dict:
+def release_of(sha: Optional[str], *, root: Optional[Path] = None, data_dir: Optional[Path] = None,
+               base: Optional[PinnedRef] = None) -> dict:
     """RELEASED needs BOTH proofs: the commit is on origin/main (the site builds every push to main) AND
     it is contained in the origin commit code-sync last delivered to production. A proof that cannot be
-    read makes the answer UNKNOWN-flavoured, never RELEASED (inv. #17)."""
+    read makes the answer UNKNOWN-flavoured, never RELEASED (inv. #17).
+
+    ``base`` — the value of origin/main the CALLER already fixed for its whole report (one report, one
+    sha: a lineage or a Director OS build judges every card by the same value, and asks the server at
+    most once). Its kind travels into ``origin_main`` (``describe()``): a mirror SNAPSHOT is printed as
+    a snapshot with its age, never as the server's answer."""
     if not sha:
         return {"state": UNKNOWN, "reason": "no commit"}
     root = root or git_root()
@@ -162,7 +168,7 @@ def release_of(sha: Optional[str], *, root: Optional[Path] = None, data_dir: Opt
     # локального `origin/main` — кэша последнего чужого fetch: на нём коммит, уехавший
     # после того fetch, выглядел бы NOT_ON_MAIN, и это «не измерено», выданное за
     # измерение (инв. #17). Не закреплён ⇒ UNKNOWN с причиной.
-    pin = pin_server_ref(str(root), "origin/main")
+    pin = base if base is not None else pin_server_ref(str(root), "origin/main")
     on_main = _is_ancestor(sha, pin.sha, root) if pin.ok else None
     deployed = None
     try:

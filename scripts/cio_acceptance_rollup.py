@@ -65,7 +65,7 @@ import sys
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-from spa_core.utils.server_ref import pin_server_ref  # noqa: E402
+from spa_core.utils.server_ref import one_pin_per_report, pin_server_ref  # noqa: E402
 from spa_core.monitoring.card_acceptance import (  # noqa: E402
     NOT_SATISFIED,
     SATISFIED,
@@ -306,6 +306,18 @@ def read_population(repo_root: str, *, ref: str = ORIGIN_REF,
 def measure(repo_root: str, *, ref: str = ORIGIN_REF, card_rel: str = CARD_REL,
             measure_tree: str | None = None, data_dir: str | None = None,
             probe_runner=None, now=None) -> dict:
+    # Одна сводка — ОДНО значение `ref` у сервера (`one_pin_per_report`): население §49
+    # и каждая проба критерия, закрепляющая ту же ссылку, судятся одним sha и
+    # спрашивают сервер один раз на сводку, а не на критерий.
+    with one_pin_per_report():
+        return _measure_in_one_pin(repo_root, ref=ref, card_rel=card_rel,
+                                   measure_tree=measure_tree, data_dir=data_dir,
+                                   probe_runner=probe_runner, now=now)
+
+
+def _measure_in_one_pin(repo_root: str, *, ref: str = ORIGIN_REF, card_rel: str = CARD_REL,
+                        measure_tree: str | None = None, data_dir: str | None = None,
+                        probe_runner=None, now=None) -> dict:
     """Свести §49: у каждого критерия — вердикт либо названная причина его отсутствия.
 
     `measure_tree` — дерево, О КОТОРОМ выносится вердикт (умолчание — дерево
@@ -493,6 +505,9 @@ def measure(repo_root: str, *, ref: str = ORIGIN_REF, card_rel: str = CARD_REL,
             "orphan_declarations": orphan, "sources": population["sources"],
             "comparison": population["comparison"],
             "population_problems": population["problems"]}
+
+
+measure.__doc__ = _measure_in_one_pin.__doc__
 
 
 def _authorship_row(report: dict | None, problem: str | None,

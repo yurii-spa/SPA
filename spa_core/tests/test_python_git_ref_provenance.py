@@ -476,6 +476,81 @@ def scene(tmp):
         self.assertTrue(rows and all(r["verdict"] == "unmeasured" for r in rows), rows)
 
 
+class TestParameterAlternatives(Tree):
+    """``*refs, *extra`` — кортежи ВЫЗЫВАЮЩЕГО, распакованные в argv обёртки (ARB 22.10).
+
+    Форма `memory_backup.bundle_repo`: прежде прибор давал на ней «не измерено»
+    (два `*`-аргумента подряд, параметр без цикла), и под этим словом жило настоящее
+    чтение кэша `--not origin/main`. Вывод вариантов идёт в сторону ОТКАЗА: любой
+    вызывающий, которого прибор не видит или чей аргумент не литерален, оставляет
+    зов неразобранным."""
+
+    BUNDLE = HEAD + """
+def _git(repo, *a, timeout=300):
+    return subprocess.run(["git", "-C", str(repo), *a], capture_output=True)
+
+
+def bundle_repo(name, repo, *, refs=("--all",), extra=()):
+    _git(repo, "rev-parse", *refs, *extra)
+
+
+def run(repo, sha):
+    bundle_repo("a", repo)
+    bundle_repo("b", repo, refs=("--branches",), extra=("--not", "--remotes=origin"))
+    bundle_repo("c", repo, refs=("feature/x",), extra=EXTRA)
+"""
+
+    def _with(self, extra):
+        return self.rows(m=self.BUNDLE.replace("EXTRA", extra))
+
+    def test_literal_tuples_without_a_ref_are_resolved_not_unmeasured(self):
+        self.assertEqual([], self._with('("--not", "--branches")'))
+
+    def test_a_cache_ref_in_a_callers_tuple_is_found(self):
+        rows = self._with('("--not", "origin/main")')
+        self.assertEqual([("bundle_repo", "rev-parse", "origin/main", "cache_only")],
+                         [(r["func"], r["sub"], r["ref"], r["verdict"]) for r in rows])
+
+    def test_a_pinned_sha_in_a_callers_tuple_is_not_a_ref_read(self):
+        self.assertEqual([], self._with('("--not", sha)'),
+                         "чтение по sha — не чтение ссылки, тем же порядком, что у прямого argv")
+
+    def test_a_non_literal_argument_stays_unmeasured(self):
+        rows = self._with('tuple(sha.split())')
+        self.assertTrue(rows and {r["verdict"] for r in rows} == {"unmeasured"}, rows)
+
+    def test_a_caller_in_another_module_keeps_it_unmeasured(self):
+        """Чужой модуль без слов `git`/`origin` отбором НЕ читается (`PRESCREEN`) — и
+        всё равно обязан запрещать вывод: вызывающий, отброшенный ради времени, не
+        перестаёт быть вызывающим."""
+        rows = self.rows(m=self.BUNDLE.replace("EXTRA", '("--not", "--branches")'),
+                         other=HEAD + "from m import bundle_repo\n\n\n"
+                                      "def go(r):\n    bundle_repo('z', r, extra=X)\n")
+        self.assertTrue(rows and {r["verdict"] for r in rows} == {"unmeasured"}, rows)
+
+    def test_the_function_passed_as_a_value_keeps_it_unmeasured(self):
+        rows = self.rows(m=self.BUNDLE.replace("EXTRA", '("--not", "--branches")')
+                         + "\n\nHOOKS = [bundle_repo]\n")
+        self.assertTrue(rows and {r["verdict"] for r in rows} == {"unmeasured"}, rows)
+
+    def test_a_rebound_parameter_keeps_it_unmeasured(self):
+        rows = self.rows(m=self.BUNDLE.replace("EXTRA", '("--not", "--branches")').replace(
+            '    _git(repo, "rev-parse", *refs, *extra)',
+            '    extra = load(name)\n    _git(repo, "rev-parse", *refs, *extra)'))
+        self.assertTrue(rows and {r["verdict"] for r in rows} == {"unmeasured"}, rows)
+
+    def test_an_aliased_import_in_another_module_keeps_it_unmeasured(self):
+        rows = self.rows(m=self.BUNDLE.replace("EXTRA", '("--not", "--branches")'),
+                         other=HEAD + "from m import bundle_repo as br  # git\n\n\n"
+                                      "def go(r):\n    br('z', r, extra=X)\n")
+        self.assertTrue(rows and {r["verdict"] for r in rows} == {"unmeasured"}, rows)
+
+    def test_a_star_followed_by_a_plain_argument_stays_unmapped(self):
+        rows = self.rows(m=self.BUNDLE.replace("EXTRA", '("--not", "--branches")').replace(
+            '*refs, *extra)', '*refs, "--", *extra)'))
+        self.assertTrue(rows and {r["verdict"] for r in rows} == {"unmeasured"}, rows)
+
+
 class TestRefShapes(Tree):
     """Что считается remote-tracking ссылкой, а что нет."""
 

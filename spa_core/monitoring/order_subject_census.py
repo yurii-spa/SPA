@@ -157,6 +157,7 @@ from typing import Any, Callable, Dict, Iterable, List, Optional, Sequence, Tupl
 from spa_core.monitoring import duplicate_subject_census as dsc
 from spa_core.utils.atomic import atomic_save
 from spa_core.utils.observation import observed
+from spa_core.utils.server_ref import one_pin_per_call
 
 ARTIFACT_NAME = "order_subject_census.json"
 JOURNAL_NAME = dsc.JOURNAL_NAME
@@ -708,6 +709,7 @@ def measure_door(repo_root: Path, *, door=None, now: Optional[datetime] = None,
 
 # ─────────────────────────────── сборка ──────────────────────────────────
 
+@one_pin_per_call   # один отчёт — один sha базы (ARB 22.10)
 def run_census(data_dir: Path, *, repo_root: Path,
                base_ref: str = dsc.DEFAULT_BASE_REF,
                now: Optional[datetime] = None,

@@ -67,7 +67,7 @@ from typing import Callable
 
 from spa_core.utils.errors import SPAError
 from spa_core.utils.observation import observed
-from spa_core.utils.server_ref import pin_server_ref
+from spa_core.utils.server_ref import one_pin_per_report, pin_server_ref
 
 SATISFIED = "satisfied"
 NOT_SATISFIED = "not_satisfied"
@@ -10449,7 +10449,21 @@ def cards_declaring_a_probe_on_ref(*, repo_root: str, ref: str = ORIGIN_REF,
 
 def audit(tracker_dir: str | None = None, *, origin_readthrough: bool = True,
           ref: str = ORIGIN_REF, repo_root: str | None = None) -> dict:
+    with one_pin_per_report():
+        return _audit_in_one_pin(tracker_dir, origin_readthrough=origin_readthrough,
+                                 ref=ref, repo_root=repo_root)
+
+
+def _audit_in_one_pin(tracker_dir: str | None = None, *, origin_readthrough: bool = True,
+                      ref: str = ORIGIN_REF, repo_root: str | None = None) -> dict:
     """Пройти карточки трекера и вынести вердикт по объявленным критериям.
+
+    ОДИН ПРОХОД — ОДИН sha (``server_ref.one_pin_per_report``): дочитывание популяции
+    и каждая проба, закрепляющая ``ref`` у сервера, внутри прохода получают ОДНО
+    значение. Прежде проба многокритериального приказа спрашивала сервер на каждую
+    карточку: ``ls-remote`` на элемент (при отрезанной сети — таймаут на элемент), и
+    сервер, сдвинувшийся посреди прохода, судил первую карточку старым sha, вторую —
+    новым.
 
     Возврат: `{"tracker_dir", "scanned", "counts", "rows", "origin"}`. `rows` — только
     те карточки, у которых проба ОБЪЯВЛЕНА (остальные тут не предмет: у них критерия
@@ -10564,6 +10578,9 @@ def audit(tracker_dir: str | None = None, *, origin_readthrough: bool = True,
     counts["from_origin"] = sum(1 for r in rows if r.get("from_origin"))
     return {"tracker_dir": tracker_dir, "scanned": scanned, "counts": counts,
             "rows": rows, "origin": origin}
+
+
+audit.__doc__ = _audit_in_one_pin.__doc__
 
 
 def report_lines(result: dict) -> list[str]:

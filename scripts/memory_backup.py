@@ -111,6 +111,36 @@ def bundle_repo(name: str, repo: Path, store: Path, *, refs=("--all",), extra=()
             "sha256": _sha(dst)}
 
 
+def _known_on_origin(repo: Path):
+    """What THIS clone knows as origin/main — read EXPLICITLY as a snapshot of its last fetch, never as the
+    server's answer (server_ref.cached_ref: source="cache", the ref's own reflog time as its age).
+
+    Why a snapshot and not a server pin (ARB 22.10): the backup is read-only towards every source and must
+    work offline — a pin may fetch INTO the production .git and waits on the network. A stale snapshot is
+    safe here by construction: it excludes LESS, so the bundle only grows (commits already on the server
+    ride along); it never drops a local-only commit. The snapshot and its age go into the MANIFEST."""
+    try:
+        if str(Path(__file__).resolve().parents[1]) not in sys.path:
+            sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
+        from spa_core.utils.server_ref import cached_ref
+    except Exception as exc:  # noqa: BLE001 — without the reader there is no named exclusion base
+        return None, f"server_ref not loaded: {type(exc).__name__}: {exc}"
+    snap = cached_ref(str(repo), "origin/main")
+    return snap, snap.describe()
+
+
+def bundle_shadow_branch(repo: Path, store: Path, *, name: str = "spa_shadow_branch") -> dict:
+    """Commits of the shadow branch that are not in this clone's snapshot of origin/main — bundled with
+    `--not <snapshot sha>`, the snapshot named in the result (`exclusion_base`)."""
+    snap, note = _known_on_origin(repo)
+    if snap is None or not snap.ok:
+        return {"name": name, "ok": False, "exclusion_base": note,
+                "error": f"exclusion base (this clone's origin/main snapshot) not resolved: {note}"}
+    res = bundle_repo(name, repo, store, refs=(SHADOW_BRANCH,), extra=("--not", snap.sha))
+    res["exclusion_base"] = note
+    return res
+
+
 def _bundle_header(path: Path) -> tuple[list, list]:
     """(prerequisites, heads) read from the bundle's own header — the bundle describes itself."""
     pre, heads = [], []
@@ -421,7 +451,7 @@ def run(dest: Path, *, retention: int = 14, today: str | None = None, keep_bundl
         res["bundles"].append(bundle_repo(name, repo, store))
     # commits that live only in the shadow worktree's branch (not on origin)
     if _git(SPA, "rev-parse", "--verify", SHADOW_BRANCH).returncode == 0:
-        res["bundles"].append(bundle_repo("spa_shadow_branch", SPA, store, refs=(SHADOW_BRANCH,), extra=("--not", "origin/main")))
+        res["bundles"].append(bundle_shadow_branch(SPA, store))
     # every local SPA branch, EVERY stash entry (not just refs/stash = the newest) and every worktree HEAD whose
     # commits are not on origin (audit 2026-10-16: 64 branch tips and 11 stash entries existed only in this Mac's
     # .git). Built in a throwaway repo over the prod object store — the prod .git is never written.

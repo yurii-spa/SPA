@@ -661,13 +661,31 @@ def _roadmap(mirror: Path) -> dict:
     return {"items": items, "current": cur, "confirmed": m.group(1) if m else None}
 
 
-def _git_feed(inp: MCInputs, hours: int = 48, limit: int = 25) -> Optional[list]:
+def _mirror_base(inp: MCInputs):
+    """ONE value of origin/main for a whole Director OS build — the MIRROR's own snapshot.
+
+    The subject of these sections is «what the origin mirror shows» (its age is already the section's
+    staleness clock, ``_mirror_synced_at`` = FETCH_HEAD mtime), not «what the server holds this second».
+    So the value is read from the mirror's FETCH_HEAD — what the server named at the mirror's last fetch,
+    with that fetch's time — and NOT pinned at the server: a build must not wait on the network per card
+    (before 22.10 every lineage row asked the server: up to 16 ``ls-remote`` per build, each up to 60 s
+    when the network is down) and must not write into the mirror (a pin fetch would). Reads go by this
+    sha, never by the name ``origin/main`` (the cache ref the mirror's own fetch may or may not have moved).
+    """
+    from spa_core.utils.server_ref import fetch_head_snapshot
+    return fetch_head_snapshot(str(inp.mirror), "main")
+
+
+def _git_feed(inp: MCInputs, hours: int = 48, limit: int = 25, base=None) -> Optional[list]:
     if inp.git_log is not None:
         return inp.git_log(hours)
     if not inp.measure_host:
         return None
+    base = base if base is not None else _mirror_base(inp)
+    if not base.ok:
+        return None
     try:
-        r = subprocess.run(["git", "-C", str(inp.mirror), "log", "origin/main", f"--since={hours} hours ago",
+        r = subprocess.run(["git", "-C", str(inp.mirror), "log", base.sha, f"--since={hours} hours ago",
                             "-n", str(limit), "--name-only",
                             "--format=%x1e%H%x1f%cI%x1f%s%x1f%(trailers:key=Co-Authored-By,valueonly,separator=;)%x1f"],
                            capture_output=True, text=True, timeout=30)
@@ -708,13 +726,16 @@ def _kind(subject: str) -> str:
     return "change"
 
 
-def release_feed(inp: MCInputs, now: datetime, cs: Optional[dict]) -> dict:
+def release_feed(inp: MCInputs, now: datetime, cs: Optional[dict], base=None) -> dict:
     """«IN_PROD_TREE» = the commit is in the production working tree AND touches paths code-sync delivers.
     It is not «running»: a long-lived service runs new code only after a restart (agent_code_freshness).
     docs/, landing/ (Cloudflare Pages) and tracker commits are NOT_APPLICABLE to code-sync (WP-A05 #6)."""
-    feed = _git_feed(inp)
+    if inp.git_log is None and inp.measure_host and base is None:
+        base = _mirror_base(inp)
+    feed = _git_feed(inp, base=base)
     if feed is None:
-        return _nm(["git origin/main (mirror)"], now, "git history not readable")
+        return _nm(["git origin/main (mirror)"], now, "git history not readable"
+                   + (f" — {base.describe()}" if base is not None and not base.ok else ""))
     prod = (cs or {}).get("origin_main") if str((cs or {}).get("result", "")).upper() in ("IN_SYNC", "SYNCED") else None
     items = []
     for c in feed:
@@ -741,6 +762,7 @@ def release_feed(inp: MCInputs, now: datetime, cs: Optional[dict]) -> dict:
     return {"_meta": _meta("HEALTHY", ["git origin/main (mirror)", "data/code_sync_status.json"], _mirror_synced_at(inp), now,
                            MIRROR_STALE_MIN),
             "production_commit": prod[:9] if prod else None, "items": items,
+            "origin_main": base.describe() if base is not None else None,
             "release_note": ("IN_PROD_TREE: in the production tree via code-sync; long-lived services run it after a restart. "
                              "NOT_APPLICABLE: docs/site/tracker commits are not delivered by code-sync.")}
 
@@ -1377,6 +1399,9 @@ def build(inp: Optional[MCInputs] = None) -> dict:
     from spa_core.studio_os import build_loop as bl
     tdir = Path(inp.mirror) / "nimbalyst-local" / "tracker"
     msync = _mirror_synced_at(inp)
+    # ONE value of origin/main for this build (mirror snapshot, no network) — every lineage row and the
+    # release feed are judged by the same sha.
+    mirror_base = _mirror_base(inp)
     cards = _cards(tdir)
     prod_cards = _cards(Path(inp.repo) / "nimbalyst-local" / "tracker") if Path(inp.repo) != Path(inp.mirror) else None
     roadmap = _roadmap(Path(inp.mirror))
@@ -1407,7 +1432,8 @@ def build(inp: Optional[MCInputs] = None) -> dict:
             lineage = {}
             for r in (b["recently_closed"][:8] + b["active"][:8]):
                 try:
-                    x = bl.lineage(r["card"], tdir=tdir, root=Path(inp.mirror), data_dir=data, memory=inp.measure_host)
+                    x = bl.lineage(r["card"], tdir=tdir, root=Path(inp.mirror), data_dir=data, memory=inp.measure_host,
+                                   base=mirror_base)
                 except Exception:  # noqa: BLE001
                     continue
                 if x.get("state") == "NOT_FOUND":
@@ -1453,7 +1479,7 @@ def build(inp: Optional[MCInputs] = None) -> dict:
                                 "answered_awaiting_delivery": sum(1 for d in items if d["state"] == "ANSWERED")},
                      "how_to_answer": "Telegram (SPA bot): the same canonical path as every other answer — this UI is read-only"}
 
-    feed = release_feed(inp, now, cs)
+    feed = release_feed(inp, now, cs, base=mirror_base)
 
     # ── OVERVIEW (composition only — no new numbers) ───────────────────────────────────────────
     bcounts = observed(board, "counts", kind=dict)
@@ -1542,7 +1568,8 @@ def build(inp: Optional[MCInputs] = None) -> dict:
                 log_bad += 1
 
     def _lineage_fn(query: str):
-        return bl.lineage(query, tdir=tdir, root=Path(inp.mirror), data_dir=data, memory=inp.measure_host)
+        return bl.lineage(query, tdir=tdir, root=Path(inp.mirror), data_dir=data, memory=inp.measure_host,
+                          base=mirror_base)
 
     try:
         # ADR-612: the scopes are judged at the moment they are READ, not at the start of a build

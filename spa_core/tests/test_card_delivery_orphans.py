@@ -203,25 +203,69 @@ class UnmeasuredIsNotEmpty(unittest.TestCase):
             self.assertIn(cd.TRACKER_REL, r["reason"])
 
     def test_stale_cache_is_named_when_fetch_fails(self):
-        """Ответ КЭША обязан быть помечен кэшем (ADR-361), а не выдан за ответ сервера."""
+        """Ответ КЭША обязан быть помечен кэшем (ADR-361), а не выдан за ответ сервера.
+
+        Сцена переписана 22.10 (инв. #16 — названо, исход-утверждения сохранены):
+        вопрос к серверу теперь задаёт ``server_ref.pin_server_ref`` (``ls-remote``), а
+        не впрыснутая дверь ``git(…, ["fetch", …])``, поэтому «сеть отрезана»
+        изображается НАСТОЯЩИМ удалённым с недоступным адресом, а не подменой одной
+        подкоманды. Утверждение «сервер спрашивали» (прежде — ``"fetch" in calls``)
+        заменено равносильным по силе: отказ сервера НАЗВАН в причине, а чтение
+        дерева шло по sha КЭША (``ref_source == "cache"``), не по имени ссылки.
+        """
         with tempfile.TemporaryDirectory() as td:
-            root = scene(td, on_ref={"inbox-baza.md": card("new")},
+            root = scene(os.path.join(td, "w"), on_ref={"inbox-baza.md": card("new")},
                          only_local={"inbox-sirota.md": card("new")})
+            bare = os.path.join(td, "server.git")
+            _git(td, "init", "--bare", "-q", "-b", "main", bare)
+            _git(root, "remote", "add", "origin", bare)
+            _git(root, "push", "-q", "origin", "main")
+            _git(root, "fetch", "-q", "origin")
+            _git(root, "remote", "set-url", "origin", bare + "-gone")     # сеть отрезана
             calls = []
 
             def git(r, args, timeout=cd.ORPHAN_GIT_TIMEOUT):
-                calls.append(args[0])
-                if args[0] == "fetch":
-                    return 128, "fatal: 'origin' does not appear to be a git repository"
+                calls.append(list(args))
                 return cd._git(r, args, timeout)
 
-            r = cd.orphan_candidates(root, ref="main", fetch=True, git=git)
-            self.assertIn("fetch", calls)
+            r = cd.orphan_candidates(root, ref="origin/main", fetch=True, git=git)
             self.assertFalse(r["ref_fresh"])
             self.assertEqual(r["status"], cd.ORPHAN_MEASURED)
             self.assertIn("кэш", r["reason"])
+            self.assertIn("не ответил", r["reason"], "отказ сервера не назван")
+            self.assertEqual(r["ref_source"], "cache")
+            self.assertEqual([a[3] for a in calls if a[0] == "ls-tree"], [r["ref_sha"]],
+                             "дерево читалось не по sha кэша")
             self.assertEqual(r["candidates"],
                              [os.path.join(cd.TRACKER_REL, "inbox-sirota.md")])
+
+    def test_server_value_is_read_not_the_stale_cache(self):
+        """Сервер ушёл вперёд (карточка доставлена после последнего fetch): кандидатом
+        она НЕ становится — читается закреплённое значение, кэш стоит на прошлом."""
+        with tempfile.TemporaryDirectory() as td:
+            root = scene(os.path.join(td, "w"), on_ref={"inbox-baza.md": card("new")},
+                         only_local={"inbox-sirota.md": card("new")})
+            bare = os.path.join(td, "server.git")
+            _git(td, "init", "--bare", "-q", "-b", "main", bare)
+            _git(root, "remote", "add", "origin", bare)
+            _git(root, "push", "-q", "origin", "main")
+            _git(root, "fetch", "-q", "origin")
+            other = os.path.join(td, "other")
+            _git(td, "clone", "-q", "-b", "main", bare, other)
+            _git(other, "config", "user.email", "t@example.com")
+            _git(other, "config", "user.name", "t")
+            with open(os.path.join(other, cd.TRACKER_REL, "inbox-sirota.md"), "w",
+                      encoding="utf-8") as f:
+                f.write(card("new"))
+            _git(other, "add", "-A")
+            _git(other, "commit", "-q", "-m", "сирота доехала")
+            _git(other, "push", "-q", "origin", "main")
+            stale = _git(root, "rev-parse", "refs/remotes/origin/main").strip()
+            r = cd.orphan_candidates(root, ref="origin/main", fetch=True)
+            self.assertTrue(r["ref_fresh"], r["reason"])
+            self.assertEqual(r["ref_source"], "server")
+            self.assertNotEqual(r["ref_sha"], stale, "предпосылка: кэш отстал")
+            self.assertEqual(r["candidates"], [])
 
     def test_green_line_demands_BOTH_axes_measured(self):
         """Зелёная строка молчит только когда измерены ОБЕ оси — долг И сироты.

@@ -79,12 +79,26 @@ class _OriginShelfFixture(unittest.TestCase):
         _git(self.local, "fetch", "origin", "main")
 
     def _call_with_fetch_failing(self):
-        """``_origin_shelf_json`` with ONLY its ``fetch`` subprocess call forced
-        to fail — ``git show`` still runs for REAL against the local ref."""
+        """``_origin_shelf_json`` with every git call that TALKS TO THE SERVER forced
+        to fail — ``git show`` still runs for REAL against the local ref.
+
+        Изменение сцены 22.10 (инв. #16 — названо, утверждения НЕ тронуты): с
+        закреплением sha (ADR-361/362) вопрос к серверу задаёт ``ls-remote`` (через
+        ``git -C <repo> …``), а не только ``fetch``. Прежняя подмена роняла лишь
+        ``cmd[1] == "fetch"`` и при новой двери изображала бы НЕ «сеть отрезана», а
+        «сервер ответил, добор не нужен» — то есть другую сцену. Отказ теперь
+        ставится на ОБЕ двери к серверу, где бы ни стояла подкоманда после ``-C``.
+        """
         real_run = subprocess.run
 
+        def _sub(cmd):
+            rest = list(cmd[1:])
+            while rest and rest[0] in ("-C", "-c"):
+                rest = rest[2:]
+            return rest[0] if rest else None
+
         def _run(cmd, *a, **k):
-            if len(cmd) >= 2 and cmd[0] == "git" and cmd[1] == "fetch":
+            if len(cmd) >= 2 and cmd[0] == "git" and _sub(cmd) in ("fetch", "ls-remote"):
                 return mock.Mock(returncode=128, stdout="",
                                   stderr="fatal: unable to access origin (simulated)")
             return real_run(cmd, *a, **k)
@@ -110,3 +124,61 @@ class TestFetchFailureIsNamedNotMeasured(_OriginShelfFixture):
         doc, leg = self.mod._origin_shelf_json(self.local, Path(SHELF_REL))
         self.assertEqual(leg, "measured")
         self.assertEqual(doc, self.SHELF_DOC)
+
+
+class TestOneServerValuePerRun(_OriginShelfFixture):
+    """Сервер ушёл вперёд, кэш стоит на прошлом: читается ЗАКРЕПЛЁННОЕ значение, и обе
+    витрины прогона судятся ОДНИМ sha, даже если сервер сдвинулся между ними."""
+
+    def _advance(self, doc):
+        other = Path(self._tmp.name) / "other"
+        if not other.exists():
+            _git(Path(self._tmp.name), "clone", str(Path(self._tmp.name) / "origin.git"), str(other))
+            _git(other, "config", "user.email", "t@example.com")
+            _git(other, "config", "user.name", "t")
+        else:
+            _git(other, "pull", "-q", "origin", "main")
+        (other / SHELF_REL).write_text(json.dumps(doc), encoding="utf-8")
+        _git(other, "commit", "-qam", "advance")
+        _git(other, "push", "-q", "origin", "main")
+
+    def test_a_stale_cache_is_not_read_the_server_value_is(self):
+        newer = {"measured_at": "2026-10-02T00:00:00Z", "headline": {"v": 2}}
+        self._advance(newer)
+        # предпосылка: кэш стоит на прошлом и сам по себе ответил бы старым
+        cached = _git(self.local, "show", f"origin/main:{SHELF_REL}").stdout
+        self.assertEqual(json.loads(cached), self.SHELF_DOC)
+        doc, leg = self.mod._origin_shelf_json(self.local, Path(SHELF_REL))
+        self.assertEqual(leg, "measured")
+        self.assertEqual(doc, newer)
+
+    def test_both_shelves_of_one_run_are_read_by_one_sha(self):
+        pin, note = self.mod.pin_origin_main(self.local)
+        self.assertTrue(pin is not None and pin.ok, note)
+        self._advance({"measured_at": "2026-10-03T00:00:00Z", "headline": {"v": 3}})
+        doc, leg = self.mod._origin_shelf_json(self.local, Path(SHELF_REL), pinned=pin)
+        self.assertEqual((leg, doc), ("measured", self.SHELF_DOC),
+                         "сервер сдвинулся посреди прогона — читается названный sha")
+
+    def test_an_unpinned_value_is_unmeasured_even_with_a_cache_on_disk(self):
+        _git(self.local, "remote", "set-url", "origin", str(Path(self._tmp.name) / "gone.git"))
+        self.assertEqual(json.loads(_git(self.local, "show", f"origin/main:{SHELF_REL}").stdout),
+                         self.SHELF_DOC, "предпосылка: кэш лежит и читается")
+        doc, leg = self.mod._origin_shelf_json(self.local, Path(SHELF_REL))
+        self.assertIsNone(doc)
+        self.assertTrue(leg.startswith("unmeasured:fetch_failed"), leg)
+
+
+class TestThePinnedShaIsReadNotTheRefName(TestOneServerValuePerRun):
+    """Кэш сдвинут ПОСЛЕ закрепления (чужой процесс, ADR-361): читается закреплённый sha,
+    а не то, на что сейчас указывает имя `origin/main`."""
+
+    def test_a_cache_moved_after_the_pin_is_not_read(self):
+        old = _git(self.local, "rev-parse", "refs/remotes/origin/main").stdout.strip()
+        newer = {"measured_at": "2026-10-04T00:00:00Z", "headline": {"v": 4}}
+        self._advance(newer)
+        pin, note = self.mod.pin_origin_main(self.local)
+        self.assertTrue(pin is not None and pin.ok, note)
+        _git(self.local, "update-ref", "refs/remotes/origin/main", old)
+        doc, leg = self.mod._origin_shelf_json(self.local, Path(SHELF_REL), pinned=pin)
+        self.assertEqual((leg, doc), ("measured", newer))
