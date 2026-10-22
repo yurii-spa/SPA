@@ -11,6 +11,8 @@ Verifies that:
 No external dependencies — pure stdlib.
 """
 
+import os
+import shutil
 import subprocess
 import tempfile
 import unittest
@@ -175,6 +177,97 @@ class TestInstallHookContent(unittest.TestCase):
 
     def test_install_has_success_echo(self):
         self.assertIn("✅", self.content)
+
+
+class TestInstalledHookRunsTheCommittedTreesGates(unittest.TestCase):
+    """Хук, поставленный НАСТОЯЩИМ установщиком, гоняет гейты ТОГО дерева,
+    которое коммитят, — и из главного дерева, и из worktree.
+
+    Неверный результат, который это ловит: установщик клал в общий каталог
+    хуков КОПИЮ `pre_commit_check.sh`. Пока корень брался у
+    `git rev-parse --show-toplevel` (каталог запуска + `GIT_DIR` — окружение,
+    прибор `shell_git_cd_target_census.py` честно отвечал «НЕ ИЗМЕРЕНО»), копия
+    работала; при корне от места скрипта копия у `<main>/.git/hooks/` мерила бы
+    каталог git ГЛАВНОГО дерева при коммите из любого worktree. Сцена гоняет
+    настоящий префикс `pre_commit_check.sh` (вывод корня), а не его пересказ.
+    """
+
+    def setUp(self):
+        self.td = tempfile.TemporaryDirectory(prefix="pchook-")
+        self.addCleanup(self.td.cleanup)
+        base = Path(self.td.name)
+        self.env = {k: v for k, v in os.environ.items() if not k.startswith("GIT_")}
+        self.env.update({
+            "HOME": str(base), "GIT_CONFIG_GLOBAL": os.devnull,
+            "GIT_CONFIG_NOSYSTEM": "1",
+            "GIT_AUTHOR_NAME": "t", "GIT_AUTHOR_EMAIL": "t@t",
+            "GIT_COMMITTER_NAME": "t", "GIT_COMMITTER_EMAIL": "t@t",
+        })
+        self.main = base / "main"
+        (self.main / "scripts").mkdir(parents=True)
+        for name in ("install_git_hooks.sh", "pre_commit_hook.sh", "pre_push_check.sh"):
+            shutil.copy(REPO_ROOT / "scripts" / name, self.main / "scripts" / name)
+        src = _read(PRE_COMMIT)
+        cut = src.index('\ncd "$REPO_DIR"\n') + len('\ncd "$REPO_DIR"\n')
+        (self.main / "scripts" / "pre_commit_check.sh").write_text(
+            src[:cut] + 'echo "GATES_ROOT=$(pwd -P)"\nexit 0\n', encoding="utf-8")
+        self.git(["init", "-q", "-b", "main"], self.main)
+        self.git(["add", "-A"], self.main)
+        self.git(["commit", "-q", "--no-verify", "-m", "init"], self.main)
+        r = subprocess.run(["bash", "scripts/install_git_hooks.sh"], cwd=self.main,
+                           env=self.env, capture_output=True, text=True)
+        self.assertEqual(r.returncode, 0, r.stdout + r.stderr)
+
+    def git(self, args, cwd, check=True):
+        r = subprocess.run(["git"] + args, cwd=cwd, env=self.env,
+                           capture_output=True, text=True)
+        if check:
+            self.assertEqual(r.returncode, 0, r.stdout + r.stderr)
+        return r
+
+    def commit_from(self, tree: Path):
+        sub = tree / "sub"
+        sub.mkdir(exist_ok=True)
+        (sub / "f").write_text(str(tree), encoding="utf-8")
+        self.git(["add", "sub/f"], tree)
+        # из ПОДКАТАЛОГА: каталог, откуда позвали git, решать не смеет.
+        # Вывод хука git отдаёт в stderr — судим по обоим потокам.
+        r = self.git(["commit", "-q", "-m", "x"], sub, check=False)
+        return r.returncode, r.stdout + r.stderr
+
+    def test_commit_from_main_tree_runs_main_trees_gates(self):
+        code, out = self.commit_from(self.main)
+        self.assertEqual(code, 0, out)
+        self.assertIn(f"GATES_ROOT={self.main.resolve()}", out)
+
+    def test_commit_from_worktree_runs_the_worktrees_gates(self):
+        wt = Path(self.td.name) / "wt"
+        self.git(["worktree", "add", "-q", "-b", "side", str(wt)], self.main)
+        code, out = self.commit_from(wt)
+        self.assertEqual(code, 0, out)
+        self.assertIn(f"GATES_ROOT={wt.resolve()}", out)
+
+    def test_a_copied_gate_script_refuses_instead_of_measuring_the_git_dir(self):
+        """КОНТРОЛЬ: старый способ установки (копия скрипта в хуки) обязан
+        отказать громко, а не прогнать гейты по каталогу git."""
+        hooks = Path(self.git(["rev-parse", "--git-common-dir"], self.main)
+                     .stdout.strip())
+        hooks = (hooks if hooks.is_absolute() else self.main / hooks) / "hooks"
+        shutil.copy(self.main / "scripts" / "pre_commit_check.sh", hooks / "pre-commit")
+        (hooks / "pre-commit").chmod(0o755)
+        code, out = self.commit_from(self.main)
+        self.assertNotEqual(code, 0, out)
+        self.assertNotIn("GATES_ROOT=", out)
+        self.assertIn("не из рабочей копии", out)
+
+    def test_worktree_without_the_gates_is_refused_not_passed(self):
+        """Третий исход: гейтов в дереве нет ⇒ «не измерено», коммит не идёт."""
+        wt = Path(self.td.name) / "wt"
+        self.git(["worktree", "add", "-q", "-b", "side", str(wt)], self.main)
+        (wt / "scripts" / "pre_commit_check.sh").unlink()
+        code, out = self.commit_from(wt)
+        self.assertNotEqual(code, 0, out)
+        self.assertIn("гейты не измерены", out)
 
 
 class TestBareExceptionGateBehavior(unittest.TestCase):

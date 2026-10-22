@@ -26,7 +26,8 @@ ADR-355 доказал, что `cd` **исполняется**: из 58 зово
 двумя дифференциалами:
 
 1. **дифференциал по ОКРУЖЕНИЮ** — то же выражение считается дважды, в двух
-   окружениях, различающихся во всех внешних именах, которые оно поминает.
+   окружениях, различающихся во всех внешних именах, которые оно поминает,
+   И в каталоге запуска (его выбирает позвавший: `$(pwd)`, `$PWD`, `.`).
    Ответ изменился ⇒ значение задаёт окружение ⇒ **НЕ ОПРЕДЕЛЕНО**;
 2. **дифференциал по МЕСТУ КОПИИ** — то же выражение считается дважды, из двух
    разных деревьев, куда положена копия скрипта на его настоящем относительном
@@ -326,13 +327,26 @@ def bash_version():
 def observe(call, cd_arg, chain, ambient, shell_set, workdir: Path):
     """Два дифференциала и проверка корня. Возвращает (исход, подробности)."""
     script_rel = call["file"]
-    body = "#!/bin/bash\n" + "".join(f"{n}={rhs}\n" for n, rhs, _ in chain) \
-           + f"printf '%s' {cd_arg}\n"
+    # Проба печатает не СЛОВО, а КАТАЛОГ, в который `cd` приведёт: относительный
+    # аргумент (`cd .`, `cd scripts`) разрешается от каталога ЗАПУСКА — так же,
+    # как его разрешит сам `cd`. Печатать слово значило бы назвать «scripts»
+    # приколоченным путём, хотя он означает разное из разных каталогов.
+    body = ("#!/bin/bash\n" + "".join(f"{n}={rhs}\n" for n, rhs, _ in chain)
+            + f"__cdt_v={cd_arg}\n"
+            + 'case "$__cdt_v" in ""|/*) ;; *) __cdt_v="$PWD/$__cdt_v" ;; esac\n'
+            + "printf '%s' \"$__cdt_v\"\n")
 
     treeA = workdir / "A" / "tree"
     treeB = workdir / "B" / "another" / "deeper" / "tree"
+    # Каталог ЗАПУСКА — тоже окружение: его выбирает позвавший, а не файл.
+    # `$(pwd)`, `$PWD`, `.` зависят от него, и пока обе пробы окружения шли из
+    # ОДНОГО каталога, такое значение выглядело ПРИКОЛОЧЕННЫМ к нему (слепое
+    # пятно, найденное на `pre_commit_check.sh`: `$(pwd)` давал путь сцены).
+    # Поэтому вторая проба окружения меняет и каталог запуска.
     scratch = workdir / "scratch"
+    scratch2 = workdir / "launch" / "elsewhere"
     scratch.mkdir(parents=True, exist_ok=True)
+    scratch2.mkdir(parents=True, exist_ok=True)
     probeA = make_tree(treeA, script_rel, body)
     probeB = make_tree(treeB, script_rel, body)
 
@@ -345,7 +359,7 @@ def observe(call, cd_arg, chain, ambient, shell_set, workdir: Path):
     if err:
         return "unmeasured", {"why": f"{script_rel}: {err}"}
     v_env2, err = probe_value(probeA, _env(homeB, ambient, str(workdir / "ext")),
-                              scratch)
+                              scratch2)
     if err:
         return "unmeasured", {"why": f"{script_rel}: {err}"}
     if v_env1 != v_env2:

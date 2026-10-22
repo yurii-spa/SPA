@@ -22,6 +22,10 @@ esac
 HOOKS_DIR="$GIT_COMMON_DIR/hooks"
 mkdir -p "$HOOKS_DIR"
 PRE_COMMIT_SRC="$REPO_DIR/scripts/pre_commit_check.sh"
+# В каталог хуков ставится ОБЁРТКА, а не сами гейты: общий каталог хуков один на
+# все worktree, и копия pre_commit_check.sh там не знала бы, какое дерево
+# коммитят (см. шапку scripts/pre_commit_hook.sh).
+PRE_COMMIT_WRAPPER="$REPO_DIR/scripts/pre_commit_hook.sh"
 PRE_COMMIT_DST="$HOOKS_DIR/pre-commit"
 PRE_PUSH_SRC="$REPO_DIR/scripts/pre_push_check.sh"
 PRE_PUSH_DST="$HOOKS_DIR/pre-push"
@@ -32,11 +36,13 @@ echo "Hooks : $HOOKS_DIR"
 echo ""
 
 # Verify source exists
-if [ ! -f "$PRE_COMMIT_SRC" ]; then
-  echo "❌ Source not found: $PRE_COMMIT_SRC"
-  echo "   Run from the repo root or check scripts/ directory."
-  exit 1
-fi
+for _src in "$PRE_COMMIT_SRC" "$PRE_COMMIT_WRAPPER"; do
+  if [ ! -f "$_src" ]; then
+    echo "❌ Source not found: $_src"
+    echo "   Run from the repo root or check scripts/ directory."
+    exit 1
+  fi
+done
 
 # Verify .git directory exists (must be run inside a git repo)
 if [ ! -d "$HOOKS_DIR" ]; then
@@ -52,7 +58,7 @@ if [ -f "$PRE_COMMIT_DST" ]; then
 fi
 
 # Install
-cp "$PRE_COMMIT_SRC" "$PRE_COMMIT_DST"
+cp "$PRE_COMMIT_WRAPPER" "$PRE_COMMIT_DST"
 chmod +x "$PRE_COMMIT_DST"
 
 echo "✅ Pre-commit hook installed: $PRE_COMMIT_DST"

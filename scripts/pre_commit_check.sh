@@ -3,8 +3,10 @@
 # SPA Pre-commit quality gates
 # MP-1522 (v11.38) — updated with security + code-quality gates
 #
-# Install: bash scripts/install_pre_commit.sh
-#     OR:  cp scripts/pre_commit_check.sh .git/hooks/pre-commit && chmod +x .git/hooks/pre-commit
+# Install: bash scripts/install_git_hooks.sh   (или scripts/install_pre_commit.sh)
+#   Хук — ТОНКАЯ ОБЁРТКА, которая зовёт ЭТОТ файл из рабочей копии; копировать
+#   сам файл в каталог хуков НЕЛЬЗЯ: корень выводится из места скрипта (ниже),
+#   а у копии в `<common>/.git/hooks/` это место — каталог git, не рабочая копия.
 #
 # Gates (run in order — fail fast):
 #   [1/7] No bare exceptions (raise Exception / raise RuntimeError)
@@ -16,7 +18,20 @@
 
 set -euo pipefail
 
-REPO_DIR="$(git rev-parse --show-toplevel)"
+# Корень — от МЕСТА самого скрипта (форма `scripts/git_push.sh`), а не от того,
+# что скажет git из каталога запуска: `git rev-parse --show-toplevel` отвечает
+# про каталог ЗАПУСКА и `GIT_DIR`, то есть про окружение, и прибор
+# `shell_git_cd_target_census.py` честно не может его измерить. Обёртка-хук
+# зовёт этот файл по его пути в рабочей копии, поэтому место скрипта и есть
+# корень той копии, которую коммитят (git запускает хук из её корня).
+REPO_DIR="$(cd "$(dirname "$0")/.." && pwd)"
+if [ ! -f "$REPO_DIR/scripts/pre_commit_check.sh" ]; then
+  # Копия этого файла в каталоге хуков: `dirname "$0"/..` — каталог git, и все
+  # гейты ниже мерили бы НЕ ТО дерево. Отказ, а не молчаливый прогон мимо.
+  echo "❌ FAIL: pre_commit_check.sh запущен не из рабочей копии ($0)"
+  echo "   хук установлен копией — переустановите: bash scripts/install_git_hooks.sh"
+  exit 1
+fi
 cd "$REPO_DIR"
 
 echo "=== SPA Pre-commit Quality Gates ==="

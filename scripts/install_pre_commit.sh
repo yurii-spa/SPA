@@ -18,6 +18,9 @@ REPO_DIR="$(git rev-parse --show-toplevel 2>/dev/null)" || {
 cd "$REPO_DIR"
 
 SRC="$REPO_DIR/scripts/pre_commit_check.sh"
+# Ставится ОБЁРТКА, зовущая $SRC из рабочей копии, а не копия $SRC
+# (см. шапку scripts/pre_commit_hook.sh).
+WRAPPER="$REPO_DIR/scripts/pre_commit_hook.sh"
 HOOKS_DIR="$REPO_DIR/.git/hooks"
 DST="$HOOKS_DIR/pre-commit"
 DRY_RUN=0
@@ -63,6 +66,10 @@ if [ ! -f "$SRC" ]; then
   echo "❌ Source script not found: $SRC"
   exit 1
 fi
+if [ ! -f "$WRAPPER" ]; then
+  echo "❌ Hook wrapper not found: $WRAPPER"
+  exit 1
+fi
 
 if [ ! -d "$HOOKS_DIR" ]; then
   echo "❌ .git/hooks directory not found — is this a git repo?"
@@ -94,12 +101,12 @@ fi
 
 # ── Install ───────────────────────────────────────────────────────────────────
 if [ "$DRY_RUN" -eq 1 ]; then
-  echo "[dry-run] Would install: $SRC → $DST (chmod +x)"
+  echo "[dry-run] Would install: $WRAPPER → $DST (chmod +x; calls $SRC)"
   echo ""
   echo "Gates that would be active:"
   grep -E "^\s*#\s*\[" "$SRC" | head -10 || true
 else
-  cp "$SRC" "$DST"
+  cp "$WRAPPER" "$DST"
   chmod +x "$DST"
   echo "✅ Installed: $DST"
 fi

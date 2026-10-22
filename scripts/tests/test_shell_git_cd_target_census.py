@@ -95,6 +95,42 @@ class ThreeOutcomes(unittest.TestCase):
         self.assertEqual(verdicts(self.root)["scripts/home_probe.sh:4"],
                          "undetermined")
 
+    def test_launch_directory_is_environment_not_a_pinned_path(self):
+        """ПОЛОЖИТЕЛЬНЫЙ КОНТРОЛЬ слепого пятна, найденного на `pre_commit_check.sh`.
+
+        `$(pwd)`, `$PWD`, `$(pwd -P)` и относительный аргумент зависят от
+        каталога ЗАПУСКА, а его выбирает позвавший — это окружение. Прежде обе
+        пробы окружения шли из ОДНОГО каталога сцены, и прибор называл такое
+        значение ПРИКОЛОЧЕННЫМ к этому каталогу (`other_tree`), а прибор
+        личности (ADR-360) — `other_identity` по пути сцены. Неверный ответ,
+        который это допускало: «каталог известен» там, где его решает позвавший.
+        Уронивший смену каталога запуска во второй пробе код краснеет здесь."""
+        forms = {
+            "pwd_subst": 'cd "$(pwd)"\n',
+            "pwd_var": 'cd "$PWD"\n',
+            "pwd_physical": 'cd "$(pwd -P)"\n',
+            "assigned": 'R="$(pwd)"\ncd "$R"\n',
+            "dot": 'cd .\n',
+            "relative": 'cd scripts\n',
+        }
+        make_repo(self.root, {f"scripts/{k}_probe.sh": "#!/bin/bash\n" + v + CALL
+                              for k, v in forms.items()})
+        got = verdicts(self.root)
+        for k, v in forms.items():
+            line = 2 + v.count("\n")
+            with self.subTest(form=k):
+                self.assertEqual(got[f"scripts/{k}_probe.sh:{line}"], "undetermined")
+
+    def test_script_location_root_is_not_confused_with_launch_directory(self):
+        """ОБРАТНЫЙ КОНТРОЛЬ: смена каталога запуска не смеет утопить форму,
+        которая от него НЕ зависит. `pwd` внутри `$(cd "$(dirname "$0")/.." &&
+        pwd)` меряет каталог, куда перешёл сам `cd`, — это место копии."""
+        make_repo(self.root, {"scripts/own_probe.sh":
+                              '#!/bin/bash\ncd "$(cd "$(dirname "$0")/.." && pwd)"\n'
+                              + CALL})
+        self.assertEqual(verdicts(self.root)["scripts/own_probe.sh:3"],
+                         "proven_root")
+
     def test_undetermined_is_named_by_file_and_line_and_exits_3(self):
         make_repo(self.root, {"scripts/home_probe.sh":
                               '#!/bin/bash\nCD="$HOME/x"\ncd "$CD"\n' + CALL})
