@@ -1,0 +1,122 @@
+{
+  "title": "ADR-784 — дельта цикла #903 (заказ G782 п. 2): ТЕМП роста ленты читается из её СОБСТВЕННОГО содержимого; запас в «разах» переводится в СУТКИ",
+  "tests": [
+    "spa_core/tests/test_ledger_parse_census.py"
+  ],
+  "mutations": [
+    {
+      "name": "последние (идущие) сутки НЕ обрезаны — свойство момента замера уезжает в темп",
+      "file": "spa_core/monitoring/ledger_parse_census.py",
+      "old": "    while cursor < day_now:\n",
+      "new": "    while cursor <= day_now:\n"
+    },
+    {
+      "name": "первые сутки НЕ обрезаны — первичный залив уезжает в темп",
+      "file": "spa_core/monitoring/ledger_parse_census.py",
+      "old": "    cursor = day0 + _dt.timedelta(days=1)\n",
+      "new": "    cursor = day0\n"
+    },
+    {
+      "name": "знаменатель — сутки С ЗАПИСЯМИ, молчащие выпадают (темп завышается)",
+      "file": "spa_core/monitoring/ledger_parse_census.py",
+      "old": "        series.append((key, per_day.get(key, 0)))\n",
+      "new": "        if key in per_day:\n            series.append((key, per_day[key]))\n"
+    },
+    {
+      "name": "минимум ряда не проверяется — два дня объявляются темпом (дословный отказ заказа)",
+      "file": "spa_core/monitoring/ledger_parse_census.py",
+      "old": "    if len(series) < min_days:\n",
+      "new": "    if False:\n"
+    },
+    {
+      "name": "ни одного отнесённого байта выдаётся за темп НОЛЬ (третий исход схлопнут)",
+      "file": "spa_core/monitoring/ledger_parse_census.py",
+      "old": "    if not per_day:\n        doc[\"unmeasured\"] = (",
+      "new": "    if not per_day:\n        doc[\"rate_b_day\"] = 0.0\n        return doc\n        doc[\"unmeasured\"] = ("
+    },
+    {
+      "name": "монотонность объявленного поля не проверяется — ряд из перемешанных дат идёт за темп",
+      "file": "spa_core/monitoring/ledger_parse_census.py",
+      "old": "        if previous is not None and stamp < previous:\n",
+      "new": "        if False:\n"
+    },
+    {
+      "name": "доля неотнесённых байтов не называется — занижение выглядит полным ответом",
+      "file": "spa_core/monitoring/ledger_parse_census.py",
+      "old": "        doc[\"unattributed_share\"] = doc[\"unattributed_bytes\"] / doc[\"bytes\"]\n",
+      "new": "        doc[\"unattributed_share\"] = 0.0\n"
+    },
+    {
+      "name": "запас НИЖЕ цели даёт отрицательный срок вместо нуля («осталось минус пять суток»)",
+      "file": "spa_core/monitoring/ledger_parse_census.py",
+      "old": "    if growth_factor <= target_factor:\n        return 0.0\n",
+      "new": "    if False:\n        return 0.0\n"
+    },
+    {
+      "name": "нулевой темп даёт ЧИСЛО суток вместо «срок НЕ ОПРЕДЕЛЁН»",
+      "file": "spa_core/monitoring/ledger_parse_census.py",
+      "old": "    if bytes_now is None or not rate_b_day or growth_factor is None:\n        return None\n",
+      "new": "    if bytes_now is None or growth_factor is None:\n        return None\n    rate_b_day = rate_b_day or 1.0\n"
+    },
+    {
+      "name": "лента с двумя видами названа в ОТЧЁТНОЙ строке порядка дважды (читатель принял бы её за два предмета)",
+      "file": "spa_core/monitoring/ledger_parse_census.py",
+      "old": "        if r[\"ledger_id\"] in seen:\n            continue\n        seen.add(r[\"ledger_id\"])\n        ranked.append(r)\n    if ranked:",
+      "new": "        ranked.append(r)\n    if ranked:"
+    },
+    {
+      "name": "инверсия порядков не становится находкой — расхождение молчит",
+      "file": "spa_core/monitoring/ledger_parse_census.py",
+      "old": "    for left, right in margin_order_inversions(rows):\n",
+      "new": "    for left, right in []:\n"
+    },
+    {
+      "name": "НЕ ИЗМЕРЕННЫЙ темп не поднимает код возврата (третий исход выдан за чистый ответ)",
+      "file": "spa_core/monitoring/ledger_parse_census.py",
+      "old": "            or any(r.get(\"rate_unmeasured\") for r in (doc.get(\"rows\") or ()))\n",
+      "new": "            or False\n"
+    },
+    {
+      "name": "объявления даты, переданные ВХОДОМ, игнорируются — стенд судится боевым населением",
+      "file": "spa_core/monitoring/ledger_parse_census.py",
+      "old": "    date_fields = LEDGER_DATE_FIELDS if ledger_date_fields is None else ledger_date_fields\n",
+      "new": "    date_fields = LEDGER_DATE_FIELDS\n"
+    },
+    {
+      "name": "темп не доезжает до строки члена",
+      "file": "spa_core/monitoring/ledger_parse_census.py",
+      "old": "        row[\"rate_b_day\"] = growth[\"rate_b_day\"]\n",
+      "new": "        row[\"rate_b_day\"] = None\n"
+    },
+    {
+      "name": "окно ряда названо концами ФАЙЛА, а не теми сутками, по которым считался темп",
+      "file": "spa_core/monitoring/ledger_parse_census.py",
+      "old": "        doc[\"window_from\"], doc[\"window_to\"] = series[0][0], series[-1][0]\n",
+      "new": "        doc[\"window_from\"], doc[\"window_to\"] = first, last\n"
+    },
+    {
+      "name": "темп берётся МЕДИАНОЙ вместо среднего — пробой накопительный, оценка перестаёт быть",
+      "file": "spa_core/monitoring/ledger_parse_census.py",
+      "old": "    doc[\"rate_b_day\"] = doc[\"mean_b_day\"]\n",
+      "new": "    doc[\"rate_b_day\"] = doc[\"median_b_day\"]\n"
+    },
+    {
+      "name": "свежее окно берёт ВСЁ, а не последние MIN_RATE_DAYS суток — режим не проверяется ничем",
+      "file": "spa_core/monitoring/ledger_parse_census.py",
+      "old": "    recent = values[-min_days:]\n",
+      "new": "    recent = values[:]\n"
+    },
+    {
+      "name": "срок до ПОРОГА запаса не считается вовсе",
+      "file": "spa_core/monitoring/ledger_parse_census.py",
+      "old": "        row[\"days_to_floor\"] = days_to_reach_factor(\n            row[\"bytes\"], growth[\"rate_b_day\"], row[\"growth_factor\"], min_factor)\n",
+      "new": "        row[\"days_to_floor\"] = None\n"
+    },
+    {
+      "name": "лента с двумя видами идёт в САМУ меру инверсий дважды (пара «лента с собой» и удвоение находки)",
+      "file": "spa_core/monitoring/ledger_parse_census.py",
+      "old": "        seen.add(r[\"ledger_id\"])\n        ranked.append(r)\n    for i, left in enumerate(ranked):\n",
+      "new": "        ranked.append(r)\n    for i, left in enumerate(ranked):\n"
+    }
+  ]
+}

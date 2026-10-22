@@ -5,8 +5,12 @@
 (`.claude/rules/acceptance.md`, п. 3). Предмет мерится ИСХОДОМ — числом открытий файла и
 вердиктом, — а не присутствием подстроки в источнике.
 
-Ни одной литеральной даты здесь нет и быть не может: предмет переписи — байты, открытия и
-секунды, а не календарь. Часы в предмет не входят вовсе, поэтому инъектировать нечего.
+Про КАЛЕНДАРЬ. Календарь вошёл в предмет файла ещё в цикле #898 (третий множитель —
+прогонов за сутки) и уже закреплён якорем :data:`_NOW` с пометкой ниже. Цикл #903 (заказ
+G782 п. 2) добавил ТЕМП роста — ряд суток, читаемый из самих записей ленты, — и взял ТОТ
+ЖЕ якорь: двум якорям в одном файле нечего доказывать друг другу, а разъехаться они
+вправе. Обе стороны закреплены по приёму №1 ``.claude/rules/deployment.md``: и отметки
+стендовых записей, и момент замера происходят от ``_NOW`` и приходят ВХОДОМ (``now=``).
 """
 from __future__ import annotations
 
@@ -2193,3 +2197,381 @@ class TestTheLiveTreeAnswersTheOrder(unittest.TestCase):
         for mid, v in sites.items():
             with self.subTest(mid=mid):
                 self.assertTrue(v.calls, f"{mid}: зовущих ноль — статика ослепла")
+
+
+# ── ТЕМП роста: ряд лежит ВНУТРИ ленты (заказ G782 п. 2, цикл #903) ──────────
+
+# FROZEN-DATE-OK: injected-clock — отметки стендовых лент и момент замера происходят от
+# того же якоря `_NOW`, что у раздела #898, и передаются ledger_growth/measure аргументом
+# now=; стенных часов в этом разделе нет ни одних
+#: сутки якоря — ТОТ ЖЕ `_NOW`, что у третьего множителя выше. Второй якорь в файле был
+#: бы вторым источником правды о времени: разъехавшись, они дали бы два разных «сегодня».
+_ANCHOR_DAY = _NOW.date()
+
+
+def _day(offset: int) -> str:
+    """Сутки, отстоящие от якоря на ``offset`` — производная ЯКОРЯ, не стенных часов."""
+    return (_ANCHOR_DAY + _dt.timedelta(days=offset)).isoformat()
+
+
+def _now(offset: int):
+    """Момент замера — тоже от якоря (``_NOW`` стои́т в полдень); приходит прибору ВХОДОМ."""
+    return _NOW + _dt.timedelta(days=offset)
+
+
+def _dated_ledger(data_dir: Path, plan, *, field: str = "at", pad: int = 100) -> Path:
+    """Лента со СВОИМИ отметками: ``plan`` — последовательность (сутки, число записей).
+
+    Запись несёт ровно одно поле времени и подушку заданной длины, поэтому байты суток
+    считаются из плана арифметикой, а не угадываются из вывода прибора.
+
+    Отметки ВНУТРИ суток идут строго вперёд (``i`` раскладывается в минуты и секунды):
+    первая редакция этой фикстуры крутила секунды по кругу ``i % 10`` и сама рождала
+    возврат даты назад — то есть стенд порвал бы звено, о котором тест не спрашивал, и
+    три замера показали бы третий исход вместо ряда.
+    """
+    path = data_dir / LEDGER_REL
+    path.parent.mkdir(parents=True, exist_ok=True)
+    lines = []
+    for offset, count in plan:
+        for i in range(count):
+            rec = {"seq": i, "payload": "x" * pad}
+            if field:
+                rec[field] = f"{_day(offset)}T06:{i // 60:02d}:{i % 60:02d}Z"
+            lines.append(json.dumps(rec, sort_keys=True) + "\n")
+    path.write_text("".join(lines), encoding="utf-8")
+    return path
+
+
+def _bytes_of_day(data_dir: Path, offset: int) -> int:
+    """Сколько байт в ленте отнесено к этим суткам — замером файла, не моделью."""
+    path = data_dir / LEDGER_REL
+    total = 0
+    for raw in path.read_bytes().splitlines(keepends=True):
+        if f'"at": "{_day(offset)}' in raw.decode("utf-8"):
+            total += len(raw)
+    return total
+
+
+_AT = lpc.DateField(path=("at",), reason="стенд: отметку пишет сама лента при дописывании")
+
+
+class TestTheGrowthSeriesComesFromInsideTheLedger(unittest.TestCase):
+    """Заказ G782 п. 2 отказывал темпу, потому что ряд собирали СНАРУЖИ.
+
+    Две точки размера файла между циклами — один интервал, и он не отличает ступень от
+    тренда. Лента append-only несёт дату в каждой записи, то есть ряд лежит внутри файла;
+    каждый тест ниже — порванное звено этого чтения с названным звеном.
+    """
+
+    def test_the_series_is_read_from_the_records_not_from_two_snapshots(self):
+        with TemporaryDirectory() as tmp:
+            data = Path(tmp)
+            #: сутки НЕРОВНЫЕ намеренно: при ровных среднее совпало бы с медианой, и
+            #: подмена одной оценки другой прошла бы мимо любого контроля
+            path = _dated_ledger(data, [(0, 5), (1, 3), (2, 9), (3, 3), (4, 3)])
+            g = lpc.ledger_growth(path, date_field=_AT, now=_now(5))
+            self.assertIsNone(g["unmeasured"], g["unmeasured"])
+            #: полных суток ровно четыре: первые (0) неполны по построению, пятые (5) ещё идут
+            self.assertEqual(g["complete_days"], 4)
+            self.assertEqual((g["window_from"], g["window_to"]), (_day(1), _day(4)))
+            expected = sum(_bytes_of_day(data, d) for d in (1, 2, 3, 4)) / 4.0
+            self.assertAlmostEqual(g["rate_b_day"], expected, places=6)
+            self.assertNotAlmostEqual(g["median_b_day"], expected, places=3,
+                                      msg="стенд ровный — подмена среднего медианой "
+                                          "прошла бы мимо контроля")
+            #: СВЕЖЕЕ окно — последние MIN_RATE_DAYS полных суток, и ни сутками больше:
+            #: дыру нашёл мутационный прибор (окно, взявшее ВСЁ, пережило батарею), и
+            #: без этого утверждения «не сменился ли режим» не спрашивал никто
+            self.assertEqual(g["recent_days"], lpc.MIN_RATE_DAYS)
+            recent = sum(_bytes_of_day(data, d)
+                         for d in (2, 3, 4)) / float(lpc.MIN_RATE_DAYS)
+            self.assertAlmostEqual(g["recent_b_day"], recent, places=6)
+            self.assertNotAlmostEqual(g["recent_b_day"], expected, places=3,
+                                      msg="свежее окно совпало со средним — стенд не "
+                                          "отличает одно от другого")
+
+    def test_the_running_day_is_excluded_or_the_rate_would_be_the_clocks_property(self):
+        """Сутки замера неполны: лента пишется пакетом, и «сегодня» до пакета есть ноль.
+
+        Порванное звено — включить их: тогда делитель растёт на целые сутки, а числитель
+        на часть, и прибор доложил бы о СЕБЕ, а не о ленте.
+        """
+        with TemporaryDirectory() as tmp:
+            data = Path(tmp)
+            path = _dated_ledger(data, [(0, 2), (1, 3), (2, 3), (3, 3), (4, 90)])
+            g = lpc.ledger_growth(path, date_field=_AT, now=_now(4))
+            naive = (g["attributed_bytes"] - _bytes_of_day(data, 0)) / 4.0
+            self.assertEqual(g["complete_days"], 3)
+            self.assertNotAlmostEqual(g["rate_b_day"], naive, places=3)
+            self.assertLess(g["rate_b_day"], naive,
+                            "взрыв незаконченных суток попал в темп — окно обрезано не было")
+
+    def test_the_opening_day_is_excluded_because_the_file_began_mid_day(self):
+        with TemporaryDirectory() as tmp:
+            data = Path(tmp)
+            path = _dated_ledger(data, [(0, 200), (1, 3), (2, 3), (3, 3)])
+            g = lpc.ledger_growth(path, date_field=_AT, now=_now(4))
+            with_opening = g["attributed_bytes"] / 4.0
+            self.assertEqual(g["complete_days"], 3)
+            self.assertLess(g["rate_b_day"], with_opening,
+                            "первичный залив попал в темп — первые сутки не обрезаны")
+
+    def test_a_silent_day_stays_a_zero_in_the_denominator(self):
+        """Знаменатель — ПРОШЕДШИЕ сутки, а не сутки с записями.
+
+        Порванное звено — делить на число суток С ЗАПИСЯМИ: лента, которую пишут раз в
+        неделю, доложила бы недельный пакет как суточный рост.
+        """
+        with TemporaryDirectory() as tmp:
+            data = Path(tmp)
+            path = _dated_ledger(data, [(0, 2), (1, 30), (5, 30)])
+            g = lpc.ledger_growth(path, date_field=_AT, now=_now(7))
+            self.assertEqual(g["complete_days"], 6)
+            self.assertEqual(g["silent_days"], 4)
+            per_written_day = (_bytes_of_day(data, 1) + _bytes_of_day(data, 5)) / 2.0
+            self.assertLess(g["rate_b_day"], per_written_day,
+                            "молчащие сутки выпали из знаменателя — темп завышен")
+
+    def test_two_complete_days_are_refused_and_three_are_accepted(self):
+        """Дословный отказ заказа, закреплённый с ДВУХ сторон."""
+        with TemporaryDirectory() as tmp:
+            data = Path(tmp)
+            path = _dated_ledger(data, [(0, 2), (1, 2), (2, 2), (3, 2)])
+            short = lpc.ledger_growth(path, date_field=_AT, now=_now(3))
+            self.assertIsNotNone(short["unmeasured"])
+            self.assertIn(lpc.U_RATE_SERIES_TOO_SHORT, short["unmeasured"])
+            self.assertIn("3", short["unmeasured"], "минимум в причине не назван")
+            self.assertIsNone(short["rate_b_day"], "отказ выдал число")
+            enough = lpc.ledger_growth(path, date_field=_AT, now=_now(4))
+            self.assertIsNone(enough["unmeasured"], enough["unmeasured"])
+            self.assertEqual(enough["complete_days"], 3)
+
+    def test_a_ledger_without_the_declared_field_is_not_a_rate_of_zero(self):
+        with TemporaryDirectory() as tmp:
+            data = Path(tmp)
+            path = _dated_ledger(data, [(0, 3), (1, 3), (2, 3), (3, 3)], field="")
+            g = lpc.ledger_growth(path, date_field=_AT, now=_now(5))
+            self.assertIn(lpc.U_RATE_NOTHING_ATTRIBUTED, g["unmeasured"] or "")
+            self.assertIsNone(g["rate_b_day"], "ноль выдан за замер")
+
+    def test_a_ledger_with_no_field_declared_at_all_has_its_own_outcome(self):
+        """«Поля не объявили» и «поля у записи нет» — РАЗНЫЕ отказы: чинятся разным."""
+        with TemporaryDirectory() as tmp:
+            path = _dated_ledger(Path(tmp), [(0, 2), (1, 2), (2, 2), (3, 2)])
+            absent = lpc.ledger_growth(path, date_field=None, now=_now(5))
+            self.assertIn(lpc.U_RATE_FIELD_NOT_DECLARED, absent["unmeasured"] or "")
+            empty = lpc.ledger_growth(
+                path, date_field=lpc.DateField(path=(), reason="стенд: даты дописывания нет"),
+                now=_now(5))
+            self.assertIn(lpc.U_RATE_NO_APPEND_DATE, empty["unmeasured"] or "")
+            self.assertIn("стенд: даты дописывания нет", empty["unmeasured"])
+            self.assertNotEqual(absent["unmeasured"], empty["unmeasured"])
+
+    def test_dates_running_backwards_refuse_the_series_and_the_sorted_one_passes(self):
+        with TemporaryDirectory() as tmp:
+            data = Path(tmp)
+            _dated_ledger(data, [(0, 2), (1, 2), (4, 2), (2, 2), (3, 2)])
+            path = data / LEDGER_REL
+            broken = lpc.ledger_growth(path, date_field=_AT, now=_now(6))
+            self.assertIn(lpc.U_RATE_DATES_NOT_MONOTONIC, broken["unmeasured"] or "")
+            self.assertEqual(broken["inversions"], 1)
+            self.assertIsNone(broken["rate_b_day"])
+            lines = sorted(path.read_text(encoding="utf-8").splitlines(keepends=True))
+            path.write_text("".join(lines), encoding="utf-8")
+            fixed = lpc.ledger_growth(path, date_field=_AT, now=_now(6))
+            self.assertIsNone(fixed["unmeasured"], fixed["unmeasured"])
+            self.assertEqual(fixed["inversions"], 0)
+
+    def test_bytes_no_day_claims_are_named_and_the_rate_stays_a_minimum(self):
+        """Часть записей без отметки ⇒ темп считается по отнесённым, а доля НАЗВАНА.
+
+        Это доказанный МИНИМУМ, и порванное звено тут — промолчать о доле: тогда
+        занижение выглядело бы полным ответом.
+        """
+        with TemporaryDirectory() as tmp:
+            data = Path(tmp)
+            path = _dated_ledger(data, [(0, 2), (1, 10), (2, 10), (3, 10)])
+            full = lpc.ledger_growth(path, date_field=_AT, now=_now(4))
+            with path.open("a", encoding="utf-8") as fh:
+                for _ in range(10):
+                    fh.write(json.dumps({"seq": 0, "payload": "y" * 100}) + "\n")
+            mixed = lpc.ledger_growth(path, date_field=_AT, now=_now(4))
+            self.assertIsNone(mixed["unmeasured"], mixed["unmeasured"])
+            self.assertGreater(mixed["unattributed_share"], 0.0)
+            self.assertAlmostEqual(mixed["rate_b_day"], full["rate_b_day"], places=6)
+            self.assertLess(mixed["rate_b_day"], mixed["bytes"] / mixed["complete_days"],
+                            "неотнесённые байты попали в темп")
+
+    def test_a_rate_of_zero_is_measured_and_distinct_from_unmeasured(self):
+        """Третий исход и ЗАМЕР, равный нулю, — два разных состояния (инв. #17)."""
+        with TemporaryDirectory() as tmp:
+            path = _dated_ledger(Path(tmp), [(0, 5), (6, 5)])
+            g = lpc.ledger_growth(path, date_field=_AT, now=_now(6))
+            self.assertIsNone(g["unmeasured"], g["unmeasured"])
+            self.assertEqual(g["rate_b_day"], 0.0)
+            self.assertIn(lpc.U_RATE_ZERO, g["zero_reason"] or "")
+            self.assertIsNone(lpc.days_to_reach_factor(1000, g["rate_b_day"], 2.0, 1.0),
+                              "срок посчитан от нулевого темпа")
+
+
+class TestDaysLeftIsADeclaredModelNotAMeasurement(unittest.TestCase):
+    """Перевод «разов» в «сутки» и его границы."""
+
+    def test_the_days_fall_as_the_ledger_grows_at_the_same_rate(self):
+        self.assertAlmostEqual(lpc.days_to_reach_factor(1000, 10.0, 2.0, 1.0), 100.0)
+        self.assertAlmostEqual(lpc.days_to_reach_factor(2000, 10.0, 2.0, 1.0), 200.0)
+
+    def test_a_margin_already_below_the_target_is_zero_days_not_a_negative(self):
+        self.assertEqual(lpc.days_to_reach_factor(1000, 10.0, 1.5, 4.0), 0.0)
+        self.assertEqual(lpc.days_to_reach_factor(1000, 10.0, 4.0, 4.0), 0.0)
+
+    def test_without_a_rate_or_a_margin_the_term_is_undefined_not_zero(self):
+        for args in ((None, 10.0, 2.0), (1000, None, 2.0), (1000, 0.0, 2.0),
+                     (1000, 10.0, None)):
+            with self.subTest(args=args):
+                self.assertIsNone(lpc.days_to_reach_factor(*args, 1.0))
+
+
+class TestTheMarginOrderIsComparedWithTheDaysOrder(unittest.TestCase):
+    """Безразмерный запас упорядочивает население верно НЕ всегда — это замер."""
+
+    @staticmethod
+    def _row(lid, factor, days):
+        return {"id": lid, "ledger_id": lid, "growth_factor": factor,
+                "days_to_budget": days}
+
+    def test_agreeing_orders_report_no_inversion(self):
+        rows = [self._row("a", 2.0, 10.0), self._row("b", 40.0, 700.0)]
+        self.assertEqual(lpc.margin_order_inversions(rows), [])
+
+    def test_a_disagreeing_pair_is_named(self):
+        """У «b» запас больше, а срок КОРОЧЕ — порядок по запасу врёт о сроках."""
+        rows = [self._row("a", 2.0, 700.0), self._row("b", 40.0, 10.0)]
+        self.assertEqual(lpc.margin_order_inversions(rows), [("a", "b")])
+
+    def test_one_ledger_under_two_views_is_counted_once_not_twice(self):
+        """Лента с ДВУМЯ видами несёт один срок — назвать её инверсию дважды значило бы
+        удвоить находку об одном предмете."""
+        rows = [self._row("a", 2.0, 700.0), self._row("a", 2.0, 700.0),
+                self._row("b", 40.0, 10.0)]
+        self.assertEqual(lpc.margin_order_inversions(rows), [("a", "b")])
+
+    def test_the_inversion_becomes_a_finding_with_both_names(self):
+        rows = [self._row("a", 2.0, 700.0), self._row("b", 40.0, 10.0)]
+        found = lpc.rate_findings(rows)
+        self.assertEqual([f["kind"] for f in found], [lpc.F_MARGIN_ORDER_INVERTS_TIME])
+        self.assertIn("a", found[0]["text"])
+        self.assertIn("b", found[0]["text"])
+        self.assertEqual(lpc.rate_findings(
+            [self._row("a", 2.0, 10.0), self._row("b", 40.0, 700.0)]), [],
+            "согласные порядки родили находку — строка стала бы несмолкаемой")
+
+    def test_an_unmeasured_term_is_not_an_inversion(self):
+        rows = [self._row("a", 2.0, None), self._row("b", 40.0, 10.0)]
+        self.assertEqual(lpc.margin_order_inversions(rows), [],
+                         "неизмеренный срок выдан за инверсию")
+
+
+class TestTheRateTravelsIntoTheCensusAndItsVerdict(unittest.TestCase):
+    """Проводка: замер темпа обязан доехать до строки члена и до кода возврата."""
+
+    def test_measure_carries_the_rate_and_the_term_on_the_row(self):
+        with TemporaryDirectory() as tmp:
+            data = Path(tmp)
+            _dated_ledger(data, [(0, 5), (1, 5), (2, 5), (3, 5), (4, 5)])
+            doc = lpc.measure(
+                data, members=[_member(_view_builtin_open(1))],
+                tree_root=Path(tmp), parse_rounds=1, now=_now(5),
+                ledger_date_fields={"fake_book": _AT})
+            row = doc["rows"][0]
+            self.assertIsNone(row["rate_unmeasured"], row["rate_unmeasured"])
+            self.assertGreater(row["rate_b_day"], 0.0)
+            self.assertIsNotNone(row["days_to_budget"])
+            self.assertEqual(row["days_span"], 4)
+            self.assertIn("темп", "\n".join(lpc.format_report(doc)))
+
+    def test_a_ledger_with_no_declared_field_raises_the_code_to_the_third_outcome(self):
+        """Срок НЕ ИЗМЕРЕН — это третий исход прибора, а не находка и не тишина."""
+        with TemporaryDirectory() as tmp:
+            data = Path(tmp)
+            _dated_ledger(data, [(0, 5), (1, 5), (2, 5), (3, 5), (4, 5)], field="")
+            doc = lpc.measure(
+                data, members=[_member(_view_builtin_open(1))],
+                tree_root=Path(tmp), parse_rounds=1, now=_now(5),
+                ledger_date_fields={"fake_book": _AT})
+            self.assertIn(lpc.U_RATE_NOTHING_ATTRIBUTED, doc["rows"][0]["rate_unmeasured"])
+            self.assertEqual(lpc.exit_code(doc), 2)
+            self.assertIn("[НЕ ИЗМЕРЕНО] темп роста", "\n".join(lpc.format_report(doc)))
+
+
+class TestTheReportNamesALedgerOnceNotPerView(unittest.TestCase):
+    """Срок есть свойство ФАЙЛА: лента с двумя видами обязана стоять в порядке ОДИН раз.
+
+    Дыру нашёл мутационный прибор: снятие сверки по ``ledger_id`` в самом ОТЧЁТЕ пережило
+    батарею, хотя именно эта строка и читается человеком. Читатель, увидев ленту дважды,
+    принял бы её за два разных предмета.
+    """
+
+    def test_two_views_of_one_ledger_appear_once_in_the_order(self):
+        with TemporaryDirectory() as tmp:
+            data = Path(tmp)
+            _dated_ledger(data, [(0, 5), (1, 3), (2, 9), (3, 3), (4, 3)])
+            members = [_member(_view_builtin_open(1)),
+                       _member(_view_builtin_open(1), mid="fake_book.second")]
+            doc = lpc.measure(data, members=members, tree_root=Path(tmp),
+                              parse_rounds=1, now=_now(5),
+                              ledger_date_fields={"fake_book": _AT})
+            order = [l for l in lpc.format_report(doc) if "порядок по запасу" in l]
+            self.assertEqual(len(order), 1, "строки порядка нет вовсе")
+            self.assertEqual(order[0].count("'fake_book'"), 2,
+                             "лента названа не по разу в каждом из ДВУХ порядков — "
+                             f"строка: {order[0]}")
+
+
+class TestThePopulationOfDateFieldsIsClosed(unittest.TestCase):
+    def test_every_declared_ledger_declares_where_its_date_lives(self):
+        """Пятая лента не вправе появиться без объявленного поля даты — иначе её темп
+        уйдёт в третий исход молча, а население будет выглядеть измеренным."""
+        for mid in sorted({m.ledger_id for m in lpc.LEDGERS}):
+            with self.subTest(ledger_id=mid):
+                self.assertIn(mid, lpc.LEDGER_DATE_FIELDS)
+                self.assertTrue(lpc.LEDGER_DATE_FIELDS[mid].reason.strip(),
+                                "причина пуста — «не измерено» без причины неотличимо "
+                                "от забывчивости")
+
+
+class TestTheSleeveLedgerIsNotAppendOnly(unittest.TestCase):
+    """«Лента не усыхает никогда» верно для трёх из четырёх — ЗАМЕРОМ, не разбором.
+
+    Предмет мерится ИСХОДОМ: тот же день дописывается дважды, и файл не растёт.
+    """
+
+    def test_the_same_day_appended_twice_does_not_grow_the_file(self):
+        from spa_core.strategy_lab.sleeve import composer
+        with TemporaryDirectory() as tmp:
+            data = Path(tmp)
+            composer.append_ledger({"date": _day(0), "equity": 1.0, "payload": "x" * 50},
+                                   data)
+            first = (data / "sleeve_aggressive" / "ledger.jsonl").stat().st_size
+            composer.append_ledger({"date": _day(0), "equity": 2.0, "payload": "x" * 50},
+                                   data)
+            same_day = (data / "sleeve_aggressive" / "ledger.jsonl").stat().st_size
+            composer.append_ledger({"date": _day(1), "equity": 3.0, "payload": "x" * 50},
+                                   data)
+            next_day = (data / "sleeve_aggressive" / "ledger.jsonl").stat().st_size
+            self.assertEqual(first, same_day,
+                             "строка того же дня НЕ заменена — лента оказалась append-only, "
+                             "и объявленная причина третьего исхода неверна")
+            self.assertGreater(next_day, same_day, "новый день не дописался вовсе")
+
+    def test_a_shorter_record_for_the_same_day_shrinks_the_file(self):
+        """Файл вправе УСОХНУТЬ — ровно то, чего append-only лента сделать не может."""
+        from spa_core.strategy_lab.sleeve import composer
+        with TemporaryDirectory() as tmp:
+            data = Path(tmp)
+            composer.append_ledger({"date": _day(0), "payload": "x" * 400}, data)
+            big = (data / "sleeve_aggressive" / "ledger.jsonl").stat().st_size
+            composer.append_ledger({"date": _day(0), "payload": "x"}, data)
+            small = (data / "sleeve_aggressive" / "ledger.jsonl").stat().st_size
+            self.assertLess(small, big, "лента не усохла — утверждение прибора неверно")

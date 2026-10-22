@@ -254,6 +254,80 @@ ADR-779 назвал этот множитель своим остатком: *�
 прибор вердикта НЕ даёт: суточного бюджета не принимал никто, и выдумывать порог он не
 вправе — сказано вслух в строке «НЕ ДОКЛАДЫВАЕТ».
 
+## ТЕМП роста: ряд лежал ВНУТРИ файла, а искали его снаружи (заказ G782 п. 2, цикл #903)
+
+Заказ был отказан дословно так: *«у скорости роста ленты прибора по-прежнему нет —
+измерены две точки (18.10 и 21.10), а ряд из двух не есть темп»*. Отказ верен. Неверен
+был способ: ряд собирали СНАРУЖИ, сравнивая размер файла между циклами, и каждая новая
+точка стоила суток ожидания. Лента же append-only, и **каждая её запись несёт свою
+дату** — значит ряд лежит ВНУТРИ файла и читается весь сразу. Замер 2026-10-21 дал по
+**16 полных суток** на каждой из трёх измеримых лент вместо двух точек, и ждать для этого
+не пришлось ни часа.
+
+**Запас в «разах» и был той самой величиной, которой нельзя пользоваться.** `1.8×` не
+говорит ни читателю, ни владельцу НИЧЕГО о сроке, пока не известен темп. Теперь известен:
+
+=================  ===========  ==============  =============  ==============
+лента               запас        темп, МБ/сутки   до бюджета     до порога 4×
+=================  ===========  ==============  =============  ==============
+research_factory        1.8×            3.609      **15 сут**     0 сут (прошёл)
+capital_shadow         39.6×            0.095         748 сут        172 сут
+investment_cio        102.1×            0.068        1777 сут        431 сут
+sleeve_aggressive    5514.7×        НЕ ИЗМЕРЕН      НЕ ОПРЕДЕЛЁН   НЕ ОПРЕДЕЛЁН
+=================  ===========  ==============  =============  ==============
+
+**Главное число цикла: пятнадцать суток.** Находка `growth_margin_below_floor` стои́т у
+``research_factory`` с цикла #893 и читалась как «запас маловат»; на самом деле бюджет
+одного зова вида будет пройден около **2026-11-05**, а порог запаса 4× прошёл уже. Прибор
+при этом вердикта сроку не даёт: решения «пятнадцать суток — мало» никто не принимал, и
+выдумывать его прибор не вправе (строка «НЕ ДОКЛАДЫВАЕТ»).
+
+**Оба конца ряда обрезаны, и это не косметика.** Последние сутки неполны — они ещё идут:
+``research_factory`` пишет весь дневной пакет в 07:00Z, и до пакета «сегодня» у неё ровно
+ноль байт. Включить такой ноль значило бы объявить свойство ВРЕМЕНИ ЗАМЕРА свойством
+ленты — тот же класс, что окно наблюдения глубже журнала (:func:`observed_daily_rate`).
+Первые сутки неполны тоже: файл начался посреди них и вдобавок несёт первичный залив
+(4,5 МБ против 3,4 МБ медианы).
+
+**Знаменатель — ПРОШЕДШИЕ сутки, а не сутки с записями.** Молчащие сутки остаются в ряде
+нулями: иначе лента, которую пишут раз в неделю, доложила бы недельный пакет как
+суточный рост и завысила бы себя семикратно. Пробой наступает по календарю, а не по числу
+событий записи.
+
+**Минимум ряда — три полных суток, и число это взято из самого отказа.** Две точки дают
+один интервал, а один интервал не отличает СТУПЕНЬ от ТРЕНДА. Ступень в населении есть на
+самом деле: ``investment_cio`` 27,7 КБ/сутки до 08.10 и 77,9 КБ/сутки после — внешний
+двухточечный замер через эту ступень дал бы число, которого не было ни до, ни после.
+
+**Дата записи ОБЪЯВЛЕНА у каждой ленты, а не угадана** (:class:`DateField`). Поиск «чего-
+нибудь похожего на дату» был бы здесь прямым дефектом: внутри ``payload`` живут чужие даты
+рыночных данных (``as_of`` кандидата бывает месячной давности), и обход по первой же
+строке вида ГГГГ-ММ-ДД отнёс бы октябрьские байты к августу. Оправдание объявленного пути
+ИЗМЕРЯЕТСЯ монотонностью по файлу (0 возвратов назад на всех трёх), а не предполагается;
+граница этого доказательства сказана вслух: монотонность доказывает непротиворечивость
+отнесения байтов к суткам, а не равенство поля моменту записи.
+
+**«Не усыхает никогда» верно для трёх лент из четырёх.** У ``sleeve_aggressive`` темп —
+третий исход, и причин у него ДВЕ, обе названные: поле ``date`` есть день РУКАВА (первая
+запись 2026-08-31), а не момент дописывания; и писатель
+``strategy_lab/sleeve/composer.append_ledger`` **перечитывает и перезаписывает файл
+целиком**, заменяя строку того же дня, — то есть лента эта не append-only и вправе
+усохнуть. Общее утверждение прибора о природе лент оказалось верным не для всех его
+членов, и правится это замером, а не редактурой фразы.
+
+**Порядок по запасу сверяется с порядком по срокам.** Безразмерный запас упорядочивает
+население верно лишь тогда, когда все ленты растут одинаково быстро ОТНОСИТЕЛЬНО своего
+размера. Сегодня почти так и есть (5,5 % · 5,1 % · 5,7 % в сутки), поэтому порядки
+совпали — и это ЗАМЕР, а не свойство: расхождение печатается находкой
+(:data:`F_MARGIN_ORDER_INVERTS_TIME`), потому что с него «худший запас» перестаёт
+означать «ближайший пробой».
+
+**Погрешность перевода напечатана замером, а не оговоркой.** «Разы» переводятся в «сутки»
+по ОБЪЯВЛЕННОЙ модели «цена разбора пропорциональна байтам»; её собственный разброс —
+цена байта **2,7…6,3 нс** у лент, различающихся по размеру в 2000 раз. Поэтому срок знает
+свой порядок величины, а не цифру, и рядом печатается разброс прогноза по трём оценкам
+темпа (среднее · медиана · свежее окно).
+
 ## Бюджет и порог запаса — РЕШЕНИЯ, и названы как решения
 
 :data:`REPARSE_BUDGET_S` = 1.0 с на ОДИН вызов вида. Это решение, а не замер: вид зовут
@@ -322,6 +396,15 @@ MIN_GROWTH_FACTOR = 4.0
 #: :data:`REPARSE_BUDGET_S`, который судит один вызов: у двух разных предметов два числа.
 WORKLOAD_BUDGET_S = 1.0
 
+#: РЕШЕНИЕ (не замер): сколько ПОЛНЫХ суток обязан содержать ряд, чтобы его вообще можно
+#: было назвать темпом. Причина — дословный отказ заказа G782 п. 2: «измерены две точки
+#: (18.10 и 21.10), а ряд из двух не есть темп». Две точки дают ОДИН интервал, а один
+#: интервал не отличает СТУПЕНЬ от ТРЕНДА — и ступень в населении есть на самом деле
+#: (``investment_cio``: 27,7 КБ/сутки до 08.10 и 77,9 КБ/сутки после, замер ниже).
+#: Поэтому минимум — три суток, то есть ДВА интервала. Этим же числом берётся «свежее»
+#: окно ряда: короче того, что прибор принимает за темп, свежего окна быть не может.
+MIN_RATE_DAYS = 3
+
 F_MARGIN_SHORT = "growth_margin_below_floor"
 F_OPENS_DRIFTED = "opens_per_view_drifted"
 F_CALLS_DRIFTED = "calls_per_workload_drifted"
@@ -332,6 +415,7 @@ F_MODEL_DISAGREES = "per_view_model_disagrees_with_the_measured_parses"
 F_SCHEDULE_NEVER_OBSERVED = "schedule_declared_but_the_run_was_never_observed"
 F_PRICE_EXCEEDS_INTERVAL = "reparse_price_exceeds_the_run_own_interval"
 F_CALLER_OUTSIDE_WORKLOADS = "view_is_called_from_a_file_no_declared_workload_reaches"
+F_MARGIN_ORDER_INVERTS_TIME = "ranking_by_margin_disagrees_with_ranking_by_days_left"
 
 U_VIEW_RAISED = "view_raised"
 U_LEDGER_ABSENT = "ledger_absent"
@@ -350,6 +434,13 @@ U_LEDGER_ID_SPLIT = "one_ledger_declared_under_two_identities"
 U_CALL_SITE_UNPARSED = "call_sites_file_not_parsed"
 U_CALL_BASE_UNRESOLVED = "call_wears_the_view_name_but_its_base_is_not_static"
 U_CALL_SITES_BLIND = "a_caller_was_observed_at_runtime_that_the_static_sweep_does_not_see"
+U_RATE_FIELD_NOT_DECLARED = "no_date_field_declared_for_this_ledger"
+U_RATE_NO_APPEND_DATE = "records_carry_no_date_of_their_own_appending"
+U_RATE_SERIES_TOO_SHORT = "complete_day_series_shorter_than_the_declared_minimum"
+U_RATE_DATES_NOT_MONOTONIC = "declared_date_field_does_not_run_forward_along_the_file"
+U_RATE_NOTHING_ATTRIBUTED = "not_one_byte_could_be_attributed_to_a_day"
+U_RATE_UNREADABLE = "ledger_not_read_for_the_day_series"
+U_RATE_ZERO = "rate_measured_and_equal_to_zero"
 
 
 @dataclass(frozen=True)
@@ -486,6 +577,70 @@ LEDGER_LITERAL = '"ledger.jsonl"'
 #: о литерале имени ленты, обязан нести этот литерал в себе — иначе он не мог бы спросить.
 #: Молчаливого списка исключений у этой переписи нет; это одно, и оно печатается в отчёте.
 SELF_REL = "spa_core/monitoring/ledger_parse_census.py"
+
+
+@dataclass(frozen=True)
+class DateField:
+    """Где у записи лежит ДАТА ЕЁ ДОПИСЫВАНИЯ — объявленная, а не угаданная.
+
+    Соблазн тут один и он губителен: искать в записи «что-нибудь похожее на дату».
+    Запись ``research_factory`` несёт внутри ``payload`` чужие даты рыночных данных
+    (``as_of`` кандидата бывает месячной давности), и обход «первая строка вида
+    ГГГГ-ММ-ДД» отнёс бы октябрьские байты к августу. Поэтому путь к дате ОБЪЯВЛЕН у
+    каждой ленты, причина названа, а отсутствие такого поля есть третий исход
+    (:data:`U_RATE_NO_APPEND_DATE`), а не ноль и не догадка.
+
+    Оправдание объявленного пути ИЗМЕРЯЕТСЯ, а не предполагается: лента append-only, и
+    если объявленное поле идёт по файлу ВПЕРЁД (:data:`U_RATE_DATES_NOT_MONOTONIC` не
+    сработал), то оно упорядочивает записи ровно так, как их дописывали. Монотонность не
+    доказывает, что поле и есть момент дописывания, — она доказывает, что отнесение
+    байтов к суткам по нему непротиворечиво; этого для ТЕМПА достаточно, и граница
+    сказана вслух.
+    """
+
+    #: путь внутри записи (``("at",)`` или ``("recommendation", "generated_at")``);
+    #: пустой кортеж означает «такого поля у записи НЕТ» — и тогда темп НЕ ИЗМЕРЕН
+    path: Tuple[str, ...]
+    #: ПОЧЕМУ именно это поле (или почему его нет). Без причины «не измерено»
+    #: неотличимо от забывчивости (инв. #17)
+    reason: str
+
+
+#: Третье объявление населения — на этот раз по ФАЙЛУ (``ledger_id``), а не по паре
+#: «лента ↔ вид»: дата записи есть свойство файла, и спрашивать её у каждого вида значило
+#: бы получить два ответа об одном файле (тот же довод, что у ``parse_s`` в #900).
+#: Замкнутость сверяется: ``ledger_id``, которого тут нет, уходит в
+#: :data:`U_RATE_FIELD_NOT_DECLARED`, а не мерится молча.
+LEDGER_DATE_FIELDS: Dict[str, DateField] = {
+    "research_factory": DateField(
+        path=("at",),
+        reason=("``at`` пишет сама лента при дописывании (``hash_ledger.append``, "
+                "``os.O_APPEND``) — это момент записи, а не дата её предмета; внутренние "
+                "``as_of``/``generated_at`` payload'а к файлу отношения не имеют"),
+    ),
+    "capital_shadow": DateField(
+        path=("at",),
+        reason=("``at`` пишет сама лента при дописывании (``ledger._append_entry_locked``, "
+                "``os.O_APPEND``)"),
+    ),
+    "investment_cio": DateField(
+        path=("recommendation", "generated_at"),
+        reason=("верхнего уровня у записи даты НЕТ вовсе (ключи: code_identity, entry_hash, "
+                "prev_hash, recommendation, seq, snapshot_digest) — берётся "
+                "``recommendation.generated_at``, момент рождения самого предмета записи; "
+                "что он упорядочивает файл так же, как дописывание, ИЗМЕРЯЕТСЯ "
+                "монотонностью, а не предполагается"),
+    ),
+    "sleeve_aggressive": DateField(
+        path=(),
+        reason=("даты дописывания у записи НЕТ: поле ``date`` — день РУКАВА (первая запись "
+                "2026-08-31), и ряд по нему был бы рядом дней предмета, а не ростом файла. "
+                "Хуже того, эта лента и не append-only: ``sleeve/composer.append_ledger`` "
+                "ПЕРЕПИСЫВАЕТ файл целиком и строку того же дня ЗАМЕНЯЕТ — значит файл "
+                "вправе и усохнуть, то есть общее утверждение «лента не усыхает никогда» "
+                "верно для трёх лент из четырёх, а не для всех"),
+    ),
+}
 
 
 @dataclass(frozen=True)
@@ -1680,6 +1835,264 @@ def _answer_is_empty(answer: object) -> bool:
     return False
 
 
+_DAY_RE = re.compile(r"^(\d{4})-(\d{2})-(\d{2})")
+
+
+def record_date(rec: object, path: Sequence[str]) -> Optional[str]:
+    """Дата записи по ОБЪЯВЛЕННОМУ пути — или ``None``, если по этому пути её нет.
+
+    Ходит ровно по объявленному пути и ничего не ищет рядом: «похожая на дату строка
+    где-то в записи» — это чужая дата предмета, а не момент дописывания (см.
+    :class:`DateField`).
+    """
+    cur = rec
+    for key in path:
+        if not isinstance(cur, dict):
+            return None
+        cur = cur.get(key)
+    if not isinstance(cur, str):
+        return None
+    return cur if _DAY_RE.match(cur) else None
+
+
+def _median(values: Sequence[float]) -> Optional[float]:
+    if not values:
+        return None
+    ordered = sorted(values)
+    mid = len(ordered) // 2
+    if len(ordered) % 2:
+        return float(ordered[mid])
+    return (ordered[mid - 1] + ordered[mid]) / 2.0
+
+
+def ledger_growth(path: Path | str, *, date_field: Optional[DateField], now,
+                  min_days: int = MIN_RATE_DAYS) -> dict:
+    """ТЕМП роста ленты — по её СОБСТВЕННОМУ содержимому, а не по двум внешним снимкам.
+
+    Заказ G782 п. 2 был отказан так: *«у скорости роста ленты прибора по-прежнему нет —
+    измерены две точки (18.10 и 21.10), а ряд из двух не есть темп»*. Отказ верен, а
+    способ замера был не тот: ряд искали СНАРУЖИ, сравнивая размеры файла между циклами,
+    и каждая новая точка стоила суток ожидания. Лента же append-only, и **каждая запись
+    несёт свою дату** — значит ряд лежит ВНУТРИ файла и доступен весь сразу: замер
+    2026-10-21 дал по 18 суток на каждой из трёх лент, а не две точки.
+
+    **Оба конца ряда обрезаны, и у каждого своя причина.**
+
+    * **Последние сутки неполны по построению** — они ещё идут. Включить их значило бы
+      поделить часть суток на целые сутки и занизить темп; у ленты, которую пишут одним
+      дневным пакетом (``research_factory`` пишет весь свой пакет в 07:00Z), «сегодня»
+      до пакета есть ровно ноль байт, и ноль этот про время замера, а не про ленту.
+      Это та же подмена свойства ПРИБОРА свойством ПРЕДМЕТА, что у окна наблюдения в
+      :func:`observed_daily_rate` (``.claude/rules/deployment.md``).
+    * **Первые сутки неполны тоже** — файл начался посреди них, и у трёх живых лент этот
+      день вдобавок несёт первичный залив (``research_factory``: 4,5 МБ против 3,4 МБ
+      медианы).
+
+    **Молчащие сутки в ряде ОСТАЮТСЯ нулями, и это не придирка.** Знаменатель темпа —
+    ПРОШЕДШИЕ сутки, а не сутки с записями: иначе лента, которую пишут раз в неделю,
+    доложила бы недельный пакет как суточный рост и завысила бы себя семикратно. Пробой
+    бюджета наступает по календарю, а не по числу событий записи.
+
+    **Темп берётся средним (накопленные байты / прошедшие сутки), а медиана и свежее
+    окно печатаются рядом** — и это не вкусовщина: пробой есть событие НАКОПИТЕЛЬНОЕ,
+    поэтому и оценка обязана быть накопительной. Медиана отвечает на вопрос «не тянет ли
+    ряд одиночный выброс», свежее окно (последние :data:`MIN_RATE_DAYS` полных суток) — «не
+    сменился ли режим»; расхождение трёх оценок печатается РАЗБРОСОМ прогноза, а не
+    гасится выбором одной.
+
+    Третьи исходы различимы (инв. #17): поля у ленты не объявлено ·
+    даты дописывания у записи нет · ряд короче минимума · даты идут не вперёд · ни один
+    байт не отнесён к суткам · файл не прочитан. Темп, равный нулю, — ЧЕТВЁРТОЕ
+    состояние и к ним не относится: он ИЗМЕРЕН (:data:`U_RATE_ZERO`).
+    """
+    target = Path(path)
+    doc: dict = {
+        "unmeasured": None, "zero_reason": None,
+        "bytes": None, "records": 0, "bad_json": 0,
+        "attributed_bytes": 0, "unattributed_bytes": 0, "unattributed_share": None,
+        "inversions": 0, "first_day": None, "last_day": None,
+        "today": None, "complete_days": 0, "silent_days": 0, "span_days": None,
+        #: ОКНО ряда — не первая и не последняя дата файла, а именно те сутки, по которым
+        #: считался темп: печатать «04.10…21.10» там, где мерились 05.10…20.10, значило бы
+        #: назвать читателю чужое окно
+        "window_from": None, "window_to": None,
+        "rate_b_day": None, "mean_b_day": None, "median_b_day": None,
+        "recent_b_day": None, "recent_days": 0,
+        "date_path": list(date_field.path) if date_field else None,
+        "date_reason": date_field.reason if date_field else None,
+    }
+    if date_field is None:
+        doc["unmeasured"] = (f"{U_RATE_FIELD_NOT_DECLARED}: у этой ленты не объявлено, где "
+                             f"лежит дата записи — темп не мерится молча")
+        return doc
+    if not date_field.path:
+        doc["unmeasured"] = f"{U_RATE_NO_APPEND_DATE}: {date_field.reason}"
+        return doc
+    try:
+        raw_lines = target.read_bytes().splitlines(keepends=True)
+    except OSError as exc:
+        doc["unmeasured"] = f"{U_RATE_UNREADABLE}: {target} — {exc}"
+        return doc
+    doc["bytes"] = sum(len(r) for r in raw_lines)
+    per_day: Dict[str, int] = {}
+    previous: Optional[str] = None
+    for raw in raw_lines:
+        if not raw.strip():
+            continue
+        doc["records"] += 1
+        try:
+            rec = json.loads(raw)
+        except ValueError:
+            doc["bad_json"] += 1
+            doc["unattributed_bytes"] += len(raw)
+            continue
+        stamp = record_date(rec, date_field.path)
+        if stamp is None:
+            doc["unattributed_bytes"] += len(raw)
+            continue
+        per_day[stamp[:10]] = per_day.get(stamp[:10], 0) + len(raw)
+        doc["attributed_bytes"] += len(raw)
+        if previous is not None and stamp < previous:
+            doc["inversions"] += 1
+        previous = stamp
+    if doc["bytes"]:
+        doc["unattributed_share"] = doc["unattributed_bytes"] / doc["bytes"]
+    if not per_day:
+        doc["unmeasured"] = (
+            f"{U_RATE_NOTHING_ATTRIBUTED}: записей {doc['records']}, из них нечитаемых "
+            f"{doc['bad_json']}; по объявленному пути {'.'.join(date_field.path)} даты нет "
+            f"ни у одной — ноль байт в сутки тут означал бы «не растёт», а правда «не "
+            f"измеряли»")
+        return doc
+    if doc["inversions"]:
+        doc["unmeasured"] = (
+            f"{U_RATE_DATES_NOT_MONOTONIC}: объявленное поле "
+            f"{'.'.join(date_field.path)} идёт назад {doc['inversions']} раз(а) по файлу — "
+            f"отнесение байтов к суткам по нему непротиворечивым не является, и ряд из "
+            f"него не темп")
+        return doc
+    first = min(per_day)
+    last = max(per_day)
+    today = (now.date() if hasattr(now, "date") else now).isoformat()
+    doc.update({"first_day": first, "last_day": last, "today": today})
+    #: ПОЛНЫЕ сутки — строго между первыми (файл начался посреди них) и сегодняшними (они
+    #: ещё идут). Молчащие сутки внутри ряда остаются нулями: знаменатель — календарь.
+    day0 = _dt.date.fromisoformat(first)
+    day_now = _dt.date.fromisoformat(today)
+    series: List[Tuple[str, int]] = []
+    cursor = day0 + _dt.timedelta(days=1)
+    while cursor < day_now:
+        key = cursor.isoformat()
+        series.append((key, per_day.get(key, 0)))
+        cursor += _dt.timedelta(days=1)
+    doc["complete_days"] = len(series)
+    if series:
+        doc["window_from"], doc["window_to"] = series[0][0], series[-1][0]
+    doc["silent_days"] = sum(1 for _, v in series if v == 0)
+    doc["span_days"] = (_dt.date.fromisoformat(last) - day0).days + 1
+    if len(series) < min_days:
+        doc["unmeasured"] = (
+            f"{U_RATE_SERIES_TOO_SHORT}: полных суток {len(series)} при минимуме "
+            f"{min_days} (первые сутки {first} неполны — файл начался посреди них; "
+            f"сегодняшние {today} неполны — они ещё идут). Два числа тут напечатаны оба "
+            f"НАМЕРЕННО: меньшее частное выдало бы свойство окна за свойство ленты")
+        return doc
+    values = [float(v) for _, v in series]
+    doc["mean_b_day"] = sum(values) / len(values)
+    doc["median_b_day"] = _median(values)
+    recent = values[-min_days:]
+    doc["recent_days"] = len(recent)
+    doc["recent_b_day"] = sum(recent) / len(recent)
+    doc["rate_b_day"] = doc["mean_b_day"]
+    if doc["rate_b_day"] == 0.0:
+        doc["zero_reason"] = (
+            f"{U_RATE_ZERO}: за все {len(series)} полных суток ленте не добавили ни "
+            f"байта — это ЗАМЕР, равный нулю, а не отсутствие замера: на таком темпе "
+            f"бюджет не будет пройден никогда")
+    return doc
+
+
+def days_to_reach_factor(bytes_now: Optional[int], rate_b_day: Optional[float],
+                         growth_factor: Optional[float],
+                         target_factor: float) -> Optional[float]:
+    """Сколько СУТОК осталось до того, как запас упадёт до ``target_factor``.
+
+    Перевод «разов» в «сутки» идёт по ОБЪЯВЛЕННОЙ модели: цена разбора пропорциональна
+    байтам ленты. Модель это, а не замер, и её собственная погрешность печатается рядом
+    разбросом цены байта по населению (``ns/Б`` у четырёх лент разного размера). Без
+    такой оговорки число суток выглядело бы точнее, чем оно есть.
+
+    Запас уже ниже цели ⇒ **ноль суток**, а не отрицательное число: «осталось минус пять
+    суток» читается как ошибка, тогда как предмет — «срок уже прошёл». Темп не измерен
+    или равен нулю ⇒ ``None``: срок НЕ ОПРЕДЕЛЁН, и выдавать его числом нельзя.
+    """
+    if bytes_now is None or not rate_b_day or growth_factor is None:
+        return None
+    if target_factor <= 0:
+        return None
+    if growth_factor <= target_factor:
+        return 0.0
+    return bytes_now * (growth_factor / target_factor - 1.0) / rate_b_day
+
+
+def rate_findings(rows: Sequence[dict]) -> List[dict]:
+    """Находки, вытекающие из ТЕМПА — отдельной функцией, чтобы контроль мерил их прямо.
+
+    Сборка находок внутри :func:`measure` проверялась бы только через настоящее
+    население и настоящие ленты, то есть не проверялась бы вовсе: стенд, у которого
+    инверсию надо ещё и ПОСТРОИТЬ, мерит сборку, а не правило.
+    """
+    out: List[dict] = []
+    for left, right in margin_order_inversions(rows):
+        out.append({
+            "kind": F_MARGIN_ORDER_INVERTS_TIME,
+            "id": f"{left}|{right}",
+            "text": ("порядок по безразмерному запасу спорит с порядком по оставшимся "
+                     f"суткам: {left} и {right} стоят в этих двух списках в разном "
+                     "порядке, значит «худший запас» перестал означать «ближайший "
+                     "пробой» — упорядочивать население по запасу больше нельзя"),
+        })
+    return out
+
+
+def margin_order_inversions(rows: Sequence[dict]) -> List[Tuple[str, str]]:
+    """Пары членов, у которых порядок по ЗАПАСУ (×) спорит с порядком по СУТКАМ.
+
+    Запас безразмерен, и упорядочивать население по нему — значит молча считать, что все
+    ленты растут одинаково БЫСТРО в относительных долях. Замер 2026-10-21 говорит, что
+    сегодня это почти так (5,2 % · 5,2 % · 6,5 % в сутки у трёх измеримых лент), поэтому
+    порядки и совпадают. Совпадение это ЗАМЕР, а не свойство: лента, растущая
+    относительно вдвое быстрее соседа, обгонит его по срокам, оставшись позади по запасу,
+    и тогда «худший запас» перестанет означать «ближайший пробой».
+
+    Сравниваются только члены, у которых ИЗМЕРЕНЫ оба числа: пара, где одно из них —
+    третий исход, не инверсия, а неизмеренность, и складывать их значило бы отвечать
+    находкой на «не знаю».
+    """
+    pairs: List[Tuple[str, str]] = []
+    #: по ФАЙЛУ: два вида одной ленты несут один и тот же срок, и пара «лента с собой»
+    #: инверсией быть не может по построению — пропускать её молча значило бы оставить
+    #: в ответе предмет, которого нет
+    seen: set = set()
+    ranked = []
+    for r in rows:
+        if r.get("growth_factor") is None or r.get("days_to_budget") is None:
+            continue
+        if r["ledger_id"] in seen:
+            continue
+        seen.add(r["ledger_id"])
+        ranked.append(r)
+    for i, left in enumerate(ranked):
+        for right in ranked[i + 1:]:
+            by_margin = left["growth_factor"] - right["growth_factor"]
+            by_days = left["days_to_budget"] - right["days_to_budget"]
+            if by_margin == 0 or by_days == 0:
+                continue
+            if (by_margin > 0) != (by_days > 0):
+                pairs.append((left["ledger_id"], right["ledger_id"]))
+    return pairs
+
+
 def measure(data_dir: Path | str, *, members: Sequence[Member] = LEDGERS,
             budget_s: float = REPARSE_BUDGET_S,
             min_factor: float = MIN_GROWTH_FACTOR,
@@ -1687,6 +2100,7 @@ def measure(data_dir: Path | str, *, members: Sequence[Member] = LEDGERS,
             parse_rounds: int = 3,
             workloads: Sequence[Workload] = (),
             workload_budget_s: float = WORKLOAD_BUDGET_S,
+            ledger_date_fields: Optional[Dict[str, DateField]] = None,
             now=None, window_h: float = 24.0) -> dict:
     """Замер по населению. Три исхода у КАЖДОГО члена различимы (инв. #17).
 
@@ -1696,6 +2110,10 @@ def measure(data_dir: Path | str, *, members: Sequence[Member] = LEDGERS,
     """
     data = Path(data_dir)
     probe_now = now or _dt.datetime.now(_dt.timezone.utc)
+    #: население объявлений даты — ВХОД, а не умолчание модуля: стенд обязан уметь
+    #: объявить своё, иначе его лента судилась бы по боевым объявлениям, которых о ней
+    #: никто не делал, и третий исход стенда был бы неотличим от боевого
+    date_fields = LEDGER_DATE_FIELDS if ledger_date_fields is None else ledger_date_fields
     #: тот же гейт у СВОЕЙ двери: кэш цены разбора ключён по ledger_id, и разошедшиеся
     #: объявления дали бы одному файлу цену другого. Копии правила тут нет — зовётся
     #: ОДНА реализация (:func:`ledger_id_split`).
@@ -1705,6 +2123,9 @@ def measure(data_dir: Path | str, *, members: Sequence[Member] = LEDGERS,
     #: значило бы отвечать на вопрос о файле столько раз, сколько у него читателей, и
     #: получать разные ответы из-за шума машины. Поэтому замер один, на ledger_id.
     parse_cache: Dict[str, Tuple[Optional[int], Optional[float]]] = {}
+    #: тот же довод, что у ``parse_cache``: ряд суток есть свойство ФАЙЛА. Мерить его по
+    #: разу на каждый вид значило бы прочитать 65 МБ дважды и получить один ответ дважды.
+    growth_cache: Dict[str, dict] = {}
     for m in members:
         row: dict = {
             "id": m.id,
@@ -1720,6 +2141,15 @@ def measure(data_dir: Path | str, *, members: Sequence[Member] = LEDGERS,
             "parse_s": None,
             "cost_s": None,
             "growth_factor": None,
+            #: ТЕМП и срок (заказ G782 п. 2) — свойства ФАЙЛА, поэтому мерятся по
+            #: ledger_id и кладутся в оба члена одной ленты одинаковыми
+            "rate_b_day": None,
+            "rate_unmeasured": None,
+            "rate_zero_reason": None,
+            "days_to_budget": None,
+            "days_to_floor": None,
+            "days_span": None,
+            "growth": None,
             "unmeasured": None,
             "findings": [],
         }
@@ -1787,6 +2217,19 @@ def measure(data_dir: Path | str, *, members: Sequence[Member] = LEDGERS,
             # Цена строго нулевая бывает только при нуле открытий у пустого ответа:
             # запас тогда не «бесконечен», а НЕ ОПРЕДЕЛЁН, и выдавать его числом нельзя.
             row["growth_factor"] = None
+        if m.ledger_id not in growth_cache:
+            growth_cache[m.ledger_id] = ledger_growth(
+                path, date_field=date_fields.get(m.ledger_id), now=probe_now)
+        growth = growth_cache[m.ledger_id]
+        row["growth"] = growth
+        row["rate_b_day"] = growth["rate_b_day"]
+        row["rate_unmeasured"] = growth["unmeasured"]
+        row["rate_zero_reason"] = growth["zero_reason"]
+        row["days_span"] = growth["complete_days"]
+        row["days_to_budget"] = days_to_reach_factor(
+            row["bytes"], growth["rate_b_day"], row["growth_factor"], 1.0)
+        row["days_to_floor"] = days_to_reach_factor(
+            row["bytes"], growth["rate_b_day"], row["growth_factor"], min_factor)
         rows.append(row)
 
     price_by_id = {r["id"]: r["cost_s"] for r in rows}
@@ -1827,6 +2270,16 @@ def measure(data_dir: Path | str, *, members: Sequence[Member] = LEDGERS,
             "code_files_undeclared": [f for f in tree_files if f not in declared_files],
             "code_files_missing": [f for f in declared_files if f not in tree_files],
         },
+        #: ТЕМП и срок (заказ G782 п. 2). Погрешность ОБЪЯВЛЕННОЙ модели «цена ∝ байты»
+        #: печатается тут же ценой байта у лент разного размера: это её собственный
+        #: разброс, добытый замером, а не оговорка словами.
+        "rate": {
+            "min_rate_days": MIN_RATE_DAYS,
+            "per_byte_ns": {r["ledger_id"]: (r["parse_s"] / r["bytes"] * 1e9)
+                            for r in rows
+                            if r["parse_s"] is not None and (r["bytes"] or 0) > 0},
+            "order_inversions": margin_order_inversions(rows),
+        },
         "measured": [r for r in rows if not r["unmeasured"]],
         "unmeasured": [r for r in rows if r["unmeasured"]],
         "workloads": wl,
@@ -1846,6 +2299,7 @@ def measure(data_dir: Path | str, *, members: Sequence[Member] = LEDGERS,
         },
     }
     doc["findings"] = [dict(f, id=r["id"]) for r in rows for f in r["findings"]]
+    doc["findings"].extend(rate_findings(rows))
     doc["findings"].extend(wl["findings"])
     if import_bound:
         doc["findings"].append({
@@ -1861,7 +2315,10 @@ def format_report(doc: dict) -> List[str]:
     out = [f"— повторный разбор хеш-лент у читающих моделей (заказ G777 п. 1) —",
            f"   каталог: {doc['data_dir']}",
            f"   РЕШЕНИЯ (не замеры): бюджет {doc['budget_s']:.2f} с на вызов вида · "
-           f"порог запаса {doc['min_growth_factor']:.1f}×"]
+           f"порог запаса {doc['min_growth_factor']:.1f}× · минимум ряда "
+           f"{(doc.get('rate') or {}).get('min_rate_days', MIN_RATE_DAYS)} полных суток "
+           f"(двух точек не хватает по построению: один интервал не отличает ступень "
+           f"от тренда)"]
     for r in sorted(doc["rows"], key=lambda x: (x["growth_factor"] is None,
                                                 x["growth_factor"] or 0.0)):
         if r["unmeasured"]:
@@ -1871,6 +2328,56 @@ def format_report(doc: dict) -> List[str]:
         factor = "—" if r["growth_factor"] is None else f"{r['growth_factor']:.1f}×"
         out.append(f"   {r['id']}: {r['bytes']:,} Б · разбор {r['parse_s']:.4f} с · "
                    f"открытий {r['opens']} · цена {r['cost_s']:.3f} с · запас {factor} · {door}")
+        if r.get("rate_unmeasured"):
+            out.append(f"      [НЕ ИЗМЕРЕНО] темп роста: {r['rate_unmeasured']}")
+        elif r.get("rate_b_day") is not None:
+            g = r.get("growth") or {}
+            est = [v for v in (g.get("mean_b_day"), g.get("median_b_day"),
+                               g.get("recent_b_day")) if v]
+            span = [days_to_reach_factor(r["bytes"], v, r["growth_factor"], 1.0)
+                    for v in est]
+            span = [d for d in span if d is not None]
+            out.append(
+                f"      темп {r['rate_b_day'] / 1e6:.3f} МБ/сутки по ряду из "
+                f"{g.get('complete_days')} полных суток ({g.get('window_from')}…"
+                f"{g.get('window_to')}, молчащих {g.get('silent_days')}): средн "
+                f"{(g.get('mean_b_day') or 0) / 1e6:.3f} · медиана "
+                f"{(g.get('median_b_day') or 0) / 1e6:.3f} · свежие "
+                f"{g.get('recent_days')} сут {(g.get('recent_b_day') or 0) / 1e6:.3f}")
+            if r.get("days_to_budget") is not None:
+                out.append(
+                    f"      СРОК: до бюджета {r['days_to_budget']:.0f} сут "
+                    f"(разброс по трём оценкам {min(span):.0f}…{max(span):.0f}) · до "
+                    f"порога запаса {doc['min_growth_factor']:.1f}× "
+                    f"{r['days_to_floor']:.0f} сут — по ОБЪЯВЛЕННОЙ модели «цена разбора "
+                    f"∝ байты»")
+            if r.get("rate_zero_reason"):
+                out.append(f"      {r['rate_zero_reason']}")
+    rate = doc.get("rate") or {}
+    #: по ФАЙЛУ, а не по паре: срок есть свойство ленты, и лента с двумя видами стояла
+    #: бы в списке дважды — читатель принял бы это за два разных предмета
+    seen: set = set()
+    ranked = []
+    for r in doc["rows"]:
+        if r.get("growth_factor") is None or r.get("days_to_budget") is None:
+            continue
+        if r["ledger_id"] in seen:
+            continue
+        seen.add(r["ledger_id"])
+        ranked.append(r)
+    if ranked:
+        by_margin = [r["ledger_id"] for r in sorted(ranked, key=lambda x: x["growth_factor"])]
+        by_days = [r["ledger_id"] for r in sorted(ranked, key=lambda x: x["days_to_budget"])]
+        verdict = ("СОВПАЛИ — и это ЗАМЕР, а не свойство: относительные темпы населения "
+                   "сегодня близки" if by_margin == by_days else
+                   "РАЗОШЛИСЬ — безразмерный запас больше не упорядочивает по срокам")
+        out.append(f"   порядок по запасу {by_margin} против порядка по срокам "
+                   f"{by_days}: {verdict}")
+    if rate.get("per_byte_ns"):
+        ns = rate["per_byte_ns"]
+        out.append(f"   погрешность САМОЙ модели «цена ∝ байты» (замер, не оговорка): "
+                   f"цена байта {min(ns.values()):.1f}…{max(ns.values()):.1f} нс у лент "
+                   f"разного размера ⇒ срок знает свой порядок величины, а не цифру")
     wl = doc.get("workloads") or {}
     if wl.get("declared"):
         out.append(f"   — второй и ТРЕТИЙ множители: разборы за прогон × прогоны за сутки "
@@ -1974,7 +2481,13 @@ def format_report(doc: dict) -> List[str]:
                "бюджета не принимал никто, поэтому вердикта у этого числа нет) · сколько раз "
                "в сутки владелец открывает экран (записи об отданном экране не ведёт никто — "
                "третий исход, не ноль) · верна ли сама лента (это вопрос verify(), не этого "
-               "прибора)")
+               "прибора) · СОХРАНИТСЯ ли измеренный темп (ряд говорит о прошедших сутках, "
+               "и будущее из него не следует — ступень в населении уже случилась: "
+               "investment_cio 27,7 → 77,9 КБ/сутки 08.10) · момент дописывания записи "
+               "(объявленное поле ИЗМЕРЕНО монотонным по файлу, и этого достаточно для "
+               "отнесения байтов к суткам, но равенство его моменту записи не доказано) · "
+               "цена ПИСАТЕЛЯ (sleeve/composer.append_ledger перечитывает и перезаписывает "
+               "файл целиком на каждое дописывание — это другой предмет и другой прибор)")
     out.append("   ADVISORY: прибор только ЧИТАЕТ (ничего не чинит, ни один гейт его не читает)")
     return out
 
@@ -1994,8 +2507,12 @@ def exit_code(doc: dict) -> int:
     #: про зовущих НЕ ИЗМЕРЕНО — это третий исход у ПРИБОРА, и он сильнее находки ровно
     #: так же, как слепой член выше: слепая статика означает, что «зовущих столько»
     #: сказать нельзя вовсе
+    #: ТЕМП не измерен — тоже третий исход, и он СВОЙ: член при этом измерен (цена,
+    #: запас), а неизвестно ровно одно — КОГДА бюджет будет пройден. Сложить его с
+    #: ``doc["unmeasured"]`` («члена не мерили вовсе») значило бы потерять различие.
     if (doc["unmeasured"] or wl.get("unmeasured") or wl.get("unreached")
             or wl.get("daily_unmeasured") or cross.get("blind") or cs.get("unparsed")
+            or any(r.get("rate_unmeasured") for r in (doc.get("rows") or ()))
             or any((v or {}).get("unresolved_base")
                    for v in (cs.get("static") or {}).values())):
         return 2
