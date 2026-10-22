@@ -99,6 +99,22 @@ def _code_only(text: str) -> str:
     return "\n".join(kept)
 
 
+#: Путь к ТЕСТОВОМУ файлу (`spa_core/tests/test_x.py`) — не вызов модуля `x`.
+_TEST_PATH = re.compile(r"[\w./-]*\btests/[\w./-]*")
+
+
+def _drop_test_paths(body: str) -> str:
+    """Вырезать упоминания путей к тестам: имя модуля внутри `test_<имя>.py` вызовом не является.
+
+    Замер 22.10 (STUDIO-OS-NEXT-01): `scripts/ci_control_weights.json` (веса шардов
+    ADR-768) перечисляет тест-файлы поимённо, и четыре сироты — `adaptive_monitor`,
+    `cpa_governance_watcher`, `data_freshness_monitor`, `unified_gas_monitor` — стали
+    выглядеть «подключёнными» лишь потому, что у них есть тест. Ошибка идёт в сторону
+    «меньше упоминаний» ⇒ больше сирот — fail-CLOSED.
+    """
+    return _TEST_PATH.sub("", body)
+
+
 def _tree_texts() -> dict:
     """{путь: текст} по всему дереву, где мог бы стоять вызов — ОДИН проход.
 
@@ -124,7 +140,7 @@ def _tree_texts() -> dict:
                 body = f.read_text(encoding="utf-8", errors="replace")
             except OSError:
                 continue
-            out[rel] = _code_only(body) if f.suffix == ".py" else body
+            out[rel] = _drop_test_paths(_code_only(body) if f.suffix == ".py" else body)
     return out
 
 
@@ -211,3 +227,12 @@ def test_a_real_call_survives_the_prose_strip():
     """Обратный контроль: настоящий импорт вырезать нельзя."""
     src = '"""Докстрока про zzz_orphan_module."""\nfrom spa_core.x import zzz_orphan_module\n'
     assert "zzz_orphan_module" in _code_only(src)
+
+
+def test_a_test_path_does_not_wire_a_module():
+    """Положительный контроль: список тест-файлов (веса CI) не делает сироту подключённой,
+    а настоящий зов той же строкой — делает."""
+    weights = '{"files": {"spa_core/tests/test_adaptive_monitor.py": 1.5}}'
+    assert "adaptive_monitor" not in _drop_test_paths(weights)
+    wrapper = 'python3 -m spa_core.alerts.adaptive_monitor --once'
+    assert "adaptive_monitor" in _drop_test_paths(wrapper)
