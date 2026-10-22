@@ -10,9 +10,12 @@ from __future__ import annotations
 
 import importlib
 import json
+import os
+import signal
 import sys
 import tempfile
 import unittest
+from unittest import mock
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
@@ -48,6 +51,80 @@ def _write_history(data_dir: Path, rows) -> None:
 def _write_trades(data_dir: Path, trades) -> None:
     data_dir.mkdir(parents=True, exist_ok=True)
     (data_dir / g16.TRADES_FILENAME).write_text(json.dumps(trades), encoding="utf-8")
+
+
+#: `sitecustomize` ДОЧЕРНИХ процессов полной переписи (зонды HTTP-маршрутов и
+#: любой другой питоний потомок). Шаблон — `test_publication_truth._SITECUSTOMIZE`:
+#: ставит СУЩЕСТВУЮЩИЙ `spa_core.tests.network_guard` (urlopen + socket.connect,
+#: loopback разрешён) и при выходе пишет отчёт процесса. Поверх сторожа — подмена
+#: НА ГРАНИЦЕ ТРАНСПОРТА: запрос `yields.llama.fi/pools` получает конверт DeFiLlama
+#: (`{"status": "success", "data": …}`) с СУЩЕСТВУЮЩИМ воспроизводимым снимком
+#: `test_pool_identity_wiring.AAVE_POOLS`; маршрут, адаптер и разбор ответа
+#: исполняются как есть. Остальные внешние адреса сторож отказывает и ЗАПИСЫВАЕТ.
+_CHILD_SITECUSTOMIZE = r"""
+import atexit, io, json, os, urllib.parse, urllib.request, urllib.response, email.message
+_dir = os.environ.get("SPA_NET_GUARD_REPORT_DIR")
+_fixture = os.environ.get("SPA_G16_DEFILLAMA_FIXTURE")
+_served = []
+try:
+    from spa_core.tests import network_guard as _g
+    _g.install()
+    _ok, _err = True, None
+except Exception as _e:  # noqa: BLE001 — сторож не встал ⇒ это в отчёте, а не молча
+    _g, _ok, _err = None, False, repr(_e)
+
+if _ok and _fixture:
+    _guarded = urllib.request.urlopen
+    with open(_fixture, "rb") as _fh:
+        _body = _fh.read()
+
+    def _fixture_urlopen(url, *args, **kwargs):
+        full = getattr(url, "full_url", url)
+        parts = urllib.parse.urlsplit(str(full))
+        if parts.hostname == "yields.llama.fi" and parts.path.rstrip("/") == "/pools":
+            _served.append(str(full))
+            hdrs = email.message.Message()
+            hdrs["Content-Type"] = "application/json"
+            return urllib.response.addinfourl(io.BytesIO(_body), hdrs, str(full), 200)
+        return _guarded(url, *args, **kwargs)
+
+    _fixture_urlopen.__wrapped__ = _guarded
+    urllib.request.urlopen = _fixture_urlopen
+
+def _dump():
+    if _dir:
+        with open(os.path.join(_dir, f"{os.getpid()}.json"), "w") as fh:
+            json.dump({"pid": os.getpid(), "installed": _ok, "error": _err,
+                       "fixture": bool(_fixture), "served": list(_served),
+                       "attempts": _g.attempts() if _g else []}, fh)
+
+atexit.register(_dump)
+"""
+
+
+def _sealed_children(scratch: Path) -> dict:
+    """Окружение, под которым КАЖДЫЙ питоний потомок переписи несёт сторожа сети
+    и подмену DeFiLlama. Доезжает через `PYTHONPATH`: `_run_http_probe` копирует
+    окружение родителя и дописывает к нему корень дерева, не теряя нашего."""
+    from spa_core.tests.test_pool_identity_wiring import AAVE_POOLS
+    site = scratch / "net_site"
+    site.mkdir(exist_ok=True)
+    (site / "sitecustomize.py").write_text(_CHILD_SITECUSTOMIZE, encoding="utf-8")
+    fixture = scratch / "defillama_pools.json"
+    fixture.write_text(json.dumps({"status": "success", "data": AAVE_POOLS}),
+                       encoding="utf-8")
+    reports = scratch / "net_reports"
+    reports.mkdir(exist_ok=True)
+    root = Path(g16.__file__).resolve().parents[2]
+    prior = os.environ.get("PYTHONPATH")
+    return {"PYTHONPATH": os.pathsep.join([str(site), str(root)] + ([prior] if prior else [])),
+            "SPA_NET_GUARD_REPORT_DIR": str(reports),
+            "SPA_G16_DEFILLAMA_FIXTURE": str(fixture)}
+
+
+def _child_reports(scratch: Path) -> list:
+    return [json.loads(f.read_text(encoding="utf-8"))
+            for f in sorted((scratch / "net_reports").glob("*.json"))]
 
 
 def _write_audit(data_dir: Path, per_day) -> None:
@@ -728,6 +805,13 @@ class BatteryHoleTests(unittest.TestCase):
     #: прежде, плюс теперь требует, чтобы перепись действительно состоялась.
     #: Первый же тест, которому она нужна, платит за неё; срок каждого теста не
     #: тронут.
+    #:
+    #: Сеть (2026-10-22, ARB): дочерние процессы HTTP-партии ходили в ЖИВУЮ
+    #: DeFiLlama (`/api/v1/adapters` строит ростер с живым APY), и это была вторая
+    #: статья стоимости переписи после повторного входа `heir_all_rows_price`.
+    #: Перепись идёт под `_sealed_children`: сторож сети в КАЖДОМ потомке плюс
+    #: снимок DeFiLlama на границе транспорта; отчёты потомков сохраняются рядом с
+    #: документом и проверяются отдельным тестом.
     _FULL_SWEEP = None
 
     @classmethod
@@ -735,12 +819,15 @@ class BatteryHoleTests(unittest.TestCase):
         if cls._FULL_SWEEP is None:
             tmp = tempfile.TemporaryDirectory(prefix="g16_holes_sweep_")
             try:
-                data = Path(tmp.name) / "data"
+                scratch = Path(tmp.name)
+                data = scratch / "data"
                 data.mkdir(parents=True)
                 _write_history(data, [_row(0, hours=1), _row(1, hours=20)])
                 _write_trades(data, [])
-                doc = g16.measure(data)   # tree_root по умолчанию — часть утверждения
+                with mock.patch.dict(os.environ, _sealed_children(scratch)):
+                    doc = g16.measure(data)   # tree_root по умолчанию — часть утверждения
                 cls._FULL_SWEEP = (doc, g16._SWEEPING)
+                cls._CHILD_REPORTS = _child_reports(scratch)
             finally:
                 tmp.cleanup()
         return cls._FULL_SWEEP
@@ -774,6 +861,110 @@ class BatteryHoleTests(unittest.TestCase):
         self.assertTrue(doc["readers"]["measured"], doc["readers"].get("reason"))
         self.assertFalse(sweeping_after)
         self.assertFalse(g16._SWEEPING)
+
+    def test_a_reader_that_reenters_the_sweep_is_unmeasured_not_a_verdict(self):
+        """`heir_all_rows_price` сам гонит перепись читателей. До 22.10 он
+        входил в неё изнутри неё же на каждом из четырёх зовов (≈196 с из ≈505 с),
+        и его разошедшийся ответ стоял в отчёте как `sees_both` — вердикт о
+        читателе журнала, которого никто не мерил. Читатель остаётся в населении,
+        но с ЯВНЫМ «не измерено» и своей причиной."""
+        doc, _ = self._full_sweep()
+        heir = [r for r in doc["readers"]["modules"]
+                if r["module"] == "spa_core.monitoring.heir_all_rows_price"]
+        self.assertEqual(len(heir), 1, "читатель выпал из населения")
+        self.assertEqual(heir[0]["outcome"], g16.READER_UNMEASURED, heir[0])
+        self.assertEqual(heir[0]["cause"], g16.CAUSE_REENTRY, heir[0])
+        self.assertIn("перепись", heir[0]["reason"])
+        self.assertEqual(doc["readers"]["unmeasured_causes"].get(g16.CAUSE_REENTRY), 1)
+
+    def test_no_child_of_the_full_sweep_reaches_the_external_network(self):
+        """Каждый питоний потомок переписи несёт сторожа сети (отчёт есть и
+        `installed`), DeFiLlama отдаётся снимком на границе транспорта (`served`),
+        и обращений к ней во внешнюю сеть НОЛЬ. Без подмены отчётов нет вовсе —
+        «не измерено» здесь не выдаётся за «чисто»."""
+        doc, _ = self._full_sweep()
+        reps = self._CHILD_REPORTS
+        batch = doc["readers"]["http_batch"]
+        self.assertEqual(batch.get("probes_done"), 5, batch)
+        self.assertGreaterEqual(len(reps), batch["probes_done"],
+                                "отчётов потомков меньше, чем зондов: сторож не доехал")
+        self.assertTrue(all(r["installed"] and r["fixture"] for r in reps), reps)
+        self.assertTrue(any(r["served"] for r in reps),
+                        "снимок DeFiLlama не отдан ни разу: путь адаптера не исполнен")
+        llama = [a for r in reps for a in r["attempts"] if "llama.fi" in a]
+        self.assertEqual(llama, [], "обращение к DeFiLlama во внешнюю сеть")
+
+    # ── заслон: флаг переписи возвращается на ЛЮБОМ выходе ──────────────────
+    def _tiny_sweep(self, src: str):
+        """Перепись над ОДНИМ подложным читателем — без дерева и без HTTP."""
+        mod = self._stub("g16reent_reader", src)
+        _write_history(self.data, [_row(0, hours=1), _row(1, hours=20)])
+        _write_trades(self.data, [])
+        roads = {mod.__name__: {"import"}}
+        patches = [mock.patch.object(g16, "reader_population",
+                                     lambda *a, **k: (roads, {"population": 1})),
+                   mock.patch.object(g16, "http_modules", lambda names: [])]
+        for p in patches:
+            p.start()
+            self.addCleanup(p.stop)
+        return mod
+
+    def test_the_flag_is_restored_after_a_normal_sweep(self):
+        self._tiny_sweep("def measure(data_dir):\n    return {'n': 1}\n")
+        self.assertFalse(g16.census_in_progress())
+        doc = g16.measure(self.data, tree_root=self.root)
+        self.assertTrue(doc["readers"]["measured"], doc["readers"])
+        self.assertFalse(g16._SWEEPING)
+
+    def test_the_flag_is_restored_after_an_exception_inside_the_sweep(self):
+        self._tiny_sweep("def measure(data_dir):\n    return {'n': 1}\n")
+        with mock.patch.object(g16, "build_stands",
+                               side_effect=RuntimeError("стенд упал")):
+            with self.assertRaises(RuntimeError):
+                g16.measure(self.data, tree_root=self.root)
+        self.assertFalse(g16._SWEEPING, "флаг остался поднятым — следующий замер немой")
+
+    def test_the_flag_is_restored_when_the_run_deadline_fires_inside_a_reader(self):
+        """Срок прогона (`Failed` pytest-timeout) прилетает ВНУТРИ читателя, под
+        `keep_deadline`, через настоящий SIGALRM. Таймер внешнего срока
+        сохраняется и возвращается."""
+        from _pytest.outcomes import Failed
+        self._tiny_sweep("import time\n"
+                         "def measure(data_dir):\n"
+                         "    time.sleep(5)\n"
+                         "    return {}\n")
+
+        def deadline(signum, frame):
+            raise Failed("Timeout >0.2s", pytrace=False)
+
+        prev_handler = signal.getsignal(signal.SIGALRM)
+        prev_left, _ = signal.getitimer(signal.ITIMER_REAL)
+        signal.signal(signal.SIGALRM, deadline)
+        try:
+            signal.setitimer(signal.ITIMER_REAL, 0.2)
+            with self.assertRaises(Failed):
+                g16.measure(self.data, tree_root=self.root)
+        finally:
+            signal.setitimer(signal.ITIMER_REAL, 0)
+            signal.signal(signal.SIGALRM, prev_handler)
+            if prev_left > 0:
+                signal.setitimer(signal.ITIMER_REAL, prev_left)
+        self.assertFalse(g16._SWEEPING, "срок сработал, а флаг остался поднятым")
+
+    def test_a_refusing_reader_is_unmeasured_with_the_reentry_cause(self):
+        """Порча-контроль самой проводки: читатель, отвечающий отказом, не
+        получает вердикта по ответу (четыре одинаковых отказа дали бы
+        `insensitive_stand`)."""
+        self._tiny_sweep(
+            "from spa_core.monitoring import run_identity_key_price as g16\n"
+            "def measure(data_dir):\n"
+            "    if g16.census_in_progress():\n"
+            "        return {g16.REENTRY_REFUSAL_FIELD: 'перепись уже идёт'}\n"
+            "    return {'n': 1}\n")
+        doc = g16.measure(self.data, tree_root=self.root)
+        row = doc["readers"]["modules"][0]
+        self.assertEqual(row["outcome"], g16.READER_UNMEASURED, row)
+        self.assertEqual(row["cause"], g16.CAUSE_REENTRY, row)
 
     # ── драйвер: какие точки входа приводятся, а какие нет ──────────────────
     def _stub(self, name, src):

@@ -591,6 +591,49 @@ class MeasureRefusesLoudly(unittest.TestCase):
         self.assertEqual(doc["status"], H.STATUS_UNMEASURED)
         self.assertIn("сам прибор", doc["unmeasured_reason"])
 
+    def test_inside_a_running_G16_census_it_refuses_explicitly(self):
+        """Позван переписью G16 как читатель журнала ⇒ полная перепись заново
+        НЕ гонится (было ≈196 с на четырёх зовах), а отказ ЯВНЫЙ: UNMEASURED,
+        причина словами и поле отказа, по которому G16 ставит свою причину."""
+        import spa_core.monitoring.run_identity_key_price as g16
+        real = g16.reader_population
+        g16.reader_population = lambda *a, **k: (_ for _ in ()).throw(
+            AssertionError("повторный вход в перепись"))
+        try:
+            with TemporaryDirectory() as tmp:
+                src = _stand_material(Path(tmp))
+                with g16._census_running():
+                    doc = H.measure(src, now=NOW, tree_root=Path(tmp),
+                                    stand_root=Path(tmp) / "s")
+        finally:
+            g16.reader_population = real
+        self.assertEqual(doc["status"], H.STATUS_UNMEASURED)
+        self.assertIn("перепись читателей G16 уже идёт", doc["unmeasured_reason"])
+        self.assertEqual(g16.reentry_refusal(doc), doc["unmeasured_reason"])
+        self.assertFalse(g16.census_in_progress())
+
+    def test_outside_a_census_the_top_level_run_does_the_full_work(self):
+        """Самостоятельный запуск НЕ отказывается: перепись реально позвана."""
+        import spa_core.monitoring.run_identity_key_price as g16
+        self.assertFalse(g16.census_in_progress())
+        called = []
+        real = g16.reader_population
+
+        def spy(*a, **k):
+            called.append(1)
+            return {}, {"population": 0}
+        g16.reader_population = spy
+        try:
+            with TemporaryDirectory() as tmp:
+                src = _stand_material(Path(tmp))
+                doc = H.measure(src, now=NOW, tree_root=Path(tmp),
+                                stand_root=Path(tmp) / "s", sweep_entries=False)
+        finally:
+            g16.reader_population = real
+        self.assertEqual(called, [1])
+        self.assertIsNone(g16.reentry_refusal(doc))
+        self.assertIn("heirs_population", doc)
+
     def test_the_sweeping_flag_is_lowered_even_when_the_sweep_raises(self):
         with TemporaryDirectory() as tmp:
             src = _stand_material(Path(tmp))

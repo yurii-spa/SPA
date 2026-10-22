@@ -196,6 +196,18 @@ CAUSE_RESTS_ON_UNSTABLE = "verdict_rests_on_unstable_coords"
 #: Ответ-объект без читаемого тела (потоковый) — заказ G29, ADR-404.
 CAUSE_RESPONSE_UNREAD = "response_body_unread"
 CAUSE_SELF = "the_instrument_itself"
+#: Читатель сам входит в перепись (зовёт ``reader_population``/``classify_reader``
+#: по всему дереву), а перепись УЖЕ идёт в этом процессе. Своя причина, а не
+#: вердикт по ответу: замер 22.10 — ``heir_all_rows_price`` на каждом из своих
+#: четырёх зовов гнал всю перепись заново мимо заслона (≈196 с из ≈505 с), и его
+#: ответ, разошедшийся между стендами, читался как ``sees_both``, то есть как
+#: ИЗМЕРЕННОЕ свойство читателя журнала. Отказ отличим и от нуля, и от вердикта
+#: (инв. #17): читатель возвращает ответ с полем :data:`REENTRY_REFUSAL_FIELD`.
+CAUSE_REENTRY = "census_reentry_refused"
+#: Поле ответа читателя: «я отказался, потому что перепись уже идёт». Значение —
+#: причина словами. Перепись видит его у ЛЮБОЙ из проб и ставит
+#: :data:`CAUSE_REENTRY` вместо вердикта по ответу.
+REENTRY_REFUSAL_FIELD = "census_reentry_refused"
 #: Часы прогона до читателя НЕ ДОШЛИ, потому что его точка входа их не берёт.
 #: Своя причина, а не общее ведро: «часы провести некуда» и «часы проведены, а
 #: вердикта всё равно нет» — разные утверждения, и лечатся они в разных местах
@@ -303,6 +315,38 @@ _DATA_DIR_PARAMS = ("data_dir", "base", "path")
 #: перепись заново изнутри неё же. Самоисключение НАЗВАНО третьим исходом, а не
 #: сделано молча: про себя прибор честно отвечает «не измерено».
 _SWEEPING = False
+
+
+def census_in_progress() -> bool:
+    """Идёт ли перепись G16 в ЭТОМ процессе. Флаг один — :data:`_SWEEPING`;
+    читатели, способные войти в перепись сами, спрашивают его здесь, а не
+    заводят своё состояние."""
+    return bool(_SWEEPING)
+
+
+class _census_running:
+    """Поднимает :data:`_SWEEPING` на время переписи и ВОЗВРАЩАЕТ прежнее значение
+    на любом выходе — обычном, по исключению и по сроку (``Failed`` pytest-timeout
+    и любой другой ``BaseException`` проходят через ``__exit__``). Флаг, оставшийся
+    поднятым, сделал бы немым каждый следующий замер в процессе."""
+
+    def __enter__(self):
+        global _SWEEPING
+        self._prev = _SWEEPING
+        _SWEEPING = True
+        return self
+
+    def __exit__(self, exc_type, exc, tb) -> bool:
+        global _SWEEPING
+        _SWEEPING = self._prev
+        return False
+
+
+def reentry_refusal(answer) -> Optional[str]:
+    """Причина отказа читателя войти в идущую перепись — или ``None``."""
+    if isinstance(answer, dict) and answer.get(REENTRY_REFUSAL_FIELD):
+        return str(answer[REENTRY_REFUSAL_FIELD])
+    return None
 
 _ADVISORY = (
     "ADVISORY: hit_rate, MIN_HIT_RATE, TriggerParams, писатель журнала и его правило "
@@ -1443,6 +1487,14 @@ def classify_reader(module_name: str, stands: dict, *,
         row.update(outcome=READER_UNMEASURED, cause=CAUSE_ENTRY_RAISED,
                    reason=f"{entry}() упал: {type(exc).__name__}")
         return row
+    for raw in (raw1, raw1_again, raw2, raw3):
+        refused = reentry_refusal(raw)
+        if refused is not None:
+            # Ответ-отказ сравнивать НЕЛЬЗЯ: равные отказы дали бы
+            # «нечувствителен», разные — выдуманный вердикт о журнале.
+            row.update(outcome=READER_UNMEASURED, cause=CAUSE_REENTRY,
+                       reason=f"{entry}() отказался входить в идущую перепись: {refused}")
+            return row
     return verdict_from_probes(row, raw1, raw1_again, raw2, raw3)
 
 
@@ -1985,7 +2037,6 @@ def measure(data_dir: Path, *, now: Optional[datetime] = None,
                           "reason": "прогон читателей отключён вызовом (sweep_readers=False)"}
         return _verdict(doc)
 
-    global _SWEEPING
     if _SWEEPING:
         doc["readers"] = {"measured": False,
                           "reason": ("повторный вход в перепись читателей — прибор "
@@ -1999,61 +2050,60 @@ def measure(data_dir: Path, *, now: Optional[datetime] = None,
     if tmp_parent is None:
         holder = tempfile.TemporaryDirectory(prefix="spa_g16_stands_")
         tmp_parent = Path(holder.name)
-    _SWEEPING = True
     try:
-        stands, stand_why = build_stands(data_dir, tmp_parent, day=day)
-        if stands is None:
-            readers.update(measured=False, reason=f"стенды не построены: {stand_why}")
-            doc["readers"] = readers
-            return _verdict(doc)
-        readers["stand"] = {"day": stands["day"], "donor_day": stands["donor_day"],
-                            "rewritten_fields": stands["rewritten_fields"],
-                            "day_rule": stands.get("day_rule"),
-                            "excluded_from_copy": list(STAND_EXCLUDE)}
-        readers["what_the_counts_are"] = (
-            "число схлопывающих есть НИЖНЯЯ ГРАНИЦА, а не перепись: вердикт читателю "
-            "выносится на ОДНОМ дне стенда, и оконный читатель, которого этот день не "
-            "задел, честно уходит в insensitive_stand, а не в «не схлопывает». "
-            "Вторая причина той же односторонности: нестабильные координаты СНИМАЮТСЯ, "
-            "и если разница между стендами легла ТОЛЬКО в снятую координату, читатель "
-            "прочтётся как insensitive_stand. Граница смещена в сторону НЕДОоценки — "
-            "прибор скорее промолчит о схлопывании, чем выдумает его")
-        # Обработчики HTTP-маршрутов зовутся ПАРТИЕЙ и отдельными процессами
-        # (см. `http_probe_batch`): каталог стенда доходит до них переменной
-        # `SPA_DATA_DIR`, выставленной ДО импорта. До заказа G27 они все стояли
-        # под причиной `http_route_handler` — самой многочисленной группой не
-        # измеренных, и ровно той, чей ответ владелец видит на дашборде.
-        http_names = http_modules(sorted(roads))
-        http_probes, http_meta = http_probe_batch(stands, http_names, Path(tree_root),
-                                                  now=now)
-        readers["http_batch"] = http_meta
-        rowsout: List[dict] = []
-        for name in sorted(roads):
-            if name == __name__ or name.endswith(".run_identity_key_price"):
-                row = {"module": name, "outcome": READER_UNMEASURED,
-                       "cause": CAUSE_SELF,
-                       "reason": ("это сам прибор: он ГОНИТ перепись, и гнать его "
-                                  "внутри неё значило бы войти в неё заново")}
-            elif name in http_probes:
-                row = classify_http_reader(
-                    name, http_probes[name],
-                    clock_pinned=bool(http_meta.get("clock_pinned")))
-            else:
-                row = classify_reader(name, stands, now=now)
-            row["roads"] = sorted(roads[name])
-            rowsout.append(row)
-        readers["measured"] = True
-        readers["modules"] = rowsout
-        readers["outcomes"] = dict(collections.Counter(str(r["outcome"]) for r in rowsout))
-        # Инв. #17: «не измерено» обязано быть представлено РАЗЛИЧИМЫМИ
-        # значениями. Пока причина была одна на всех, число 64 отвечало на
-        # вопрос «сколько прибор не умеет спросить», а читалось как «сколько
-        # читателей ни при чём».
-        readers["unmeasured_causes"] = dict(collections.Counter(
-            str(r.get("cause") or "cause_not_recorded")
-            for r in rowsout if r.get("outcome") == READER_UNMEASURED))
+        with _census_running():
+            stands, stand_why = build_stands(data_dir, tmp_parent, day=day)
+            if stands is None:
+                readers.update(measured=False, reason=f"стенды не построены: {stand_why}")
+                doc["readers"] = readers
+                return _verdict(doc)
+            readers["stand"] = {"day": stands["day"], "donor_day": stands["donor_day"],
+                                "rewritten_fields": stands["rewritten_fields"],
+                                "day_rule": stands.get("day_rule"),
+                                "excluded_from_copy": list(STAND_EXCLUDE)}
+            readers["what_the_counts_are"] = (
+                "число схлопывающих есть НИЖНЯЯ ГРАНИЦА, а не перепись: вердикт читателю "
+                "выносится на ОДНОМ дне стенда, и оконный читатель, которого этот день не "
+                "задел, честно уходит в insensitive_stand, а не в «не схлопывает». "
+                "Вторая причина той же односторонности: нестабильные координаты СНИМАЮТСЯ, "
+                "и если разница между стендами легла ТОЛЬКО в снятую координату, читатель "
+                "прочтётся как insensitive_stand. Граница смещена в сторону НЕДОоценки — "
+                "прибор скорее промолчит о схлопывании, чем выдумает его")
+            # Обработчики HTTP-маршрутов зовутся ПАРТИЕЙ и отдельными процессами
+            # (см. `http_probe_batch`): каталог стенда доходит до них переменной
+            # `SPA_DATA_DIR`, выставленной ДО импорта. До заказа G27 они все стояли
+            # под причиной `http_route_handler` — самой многочисленной группой не
+            # измеренных, и ровно той, чей ответ владелец видит на дашборде.
+            http_names = http_modules(sorted(roads))
+            http_probes, http_meta = http_probe_batch(stands, http_names, Path(tree_root),
+                                                      now=now)
+            readers["http_batch"] = http_meta
+            rowsout: List[dict] = []
+            for name in sorted(roads):
+                if name == __name__ or name.endswith(".run_identity_key_price"):
+                    row = {"module": name, "outcome": READER_UNMEASURED,
+                           "cause": CAUSE_SELF,
+                           "reason": ("это сам прибор: он ГОНИТ перепись, и гнать его "
+                                      "внутри неё значило бы войти в неё заново")}
+                elif name in http_probes:
+                    row = classify_http_reader(
+                        name, http_probes[name],
+                        clock_pinned=bool(http_meta.get("clock_pinned")))
+                else:
+                    row = classify_reader(name, stands, now=now)
+                row["roads"] = sorted(roads[name])
+                rowsout.append(row)
+            readers["measured"] = True
+            readers["modules"] = rowsout
+            readers["outcomes"] = dict(collections.Counter(str(r["outcome"]) for r in rowsout))
+            # Инв. #17: «не измерено» обязано быть представлено РАЗЛИЧИМЫМИ
+            # значениями. Пока причина была одна на всех, число 64 отвечало на
+            # вопрос «сколько прибор не умеет спросить», а читалось как «сколько
+            # читателей ни при чём».
+            readers["unmeasured_causes"] = dict(collections.Counter(
+                str(r.get("cause") or "cause_not_recorded")
+                for r in rowsout if r.get("outcome") == READER_UNMEASURED))
     finally:
-        _SWEEPING = False
         if holder is not None:
             holder.cleanup()
     doc["readers"] = readers

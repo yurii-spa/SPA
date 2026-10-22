@@ -916,6 +916,21 @@ def measure(data_dir: Path, *, now: Optional[datetime] = None,
             "это сам прибор: он уже ГОНИТ замер, и повторный вход в него был бы "
             "входом в перепись изнутри переписи")
         return doc
+    # Перепись G16 УЖЕ идёт в этом процессе, и этот прибор позван ею как один из
+    # читателей журнала. Полный замер здесь — это та же перепись заново, изнутри
+    # неё же, на КАЖДОМ из четырёх зовов (замер 22.10: ≈196 с из ≈505 с), а его
+    # ответ, разошедшийся между стендами, G16 читала как `sees_both` — свойство
+    # читателя журнала, которого никто не измерял. Отказ ЯВНЫЙ: статус
+    # UNMEASURED и поле отказа, по которому G16 ставит свою причину, а не
+    # вердикт. Флаг один — у G16; своего состояния здесь не заводится.
+    from spa_core.monitoring import run_identity_key_price as g16
+    if g16.census_in_progress():
+        reason = ("перепись читателей G16 уже идёт в этом процессе: повторный вход "
+                  "в неё изнутри неё самой не выполняется")
+        doc["status"] = STATUS_UNMEASURED
+        doc["unmeasured_reason"] = reason
+        doc[g16.REENTRY_REFUSAL_FIELD] = reason
+        return doc
 
     tree = Path(tree_root) if tree_root else Path(__file__).resolve().parents[2]
     tmp, stand_owned = make_stand("g17_", stand_root)
@@ -939,8 +954,6 @@ def measure(data_dir: Path, *, now: Optional[datetime] = None,
 
         _SWEEPING = True
         try:
-            from spa_core.monitoring import run_identity_key_price as g16
-
             roads, pop_stats = g16.reader_population(tree)
             census: List[dict] = []
             for name in sorted(roads):
