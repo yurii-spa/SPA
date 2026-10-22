@@ -384,6 +384,27 @@ class SandboxBuildError(RuntimeError):
     """
 
 
+def _escaping_links(box: Path) -> List[str]:
+    """Символические ссылки в копии, разрешающиеся ЗА её пределы.
+
+    `copytree(symlinks=True)` переносит ссылку как ссылку; запись в копии по
+    такому пути уходит в исходное дерево (дефект 22.10, перепись «зелёный по
+    построению»: стенд со ссылкой на `spa_core/monitoring` отдал инструментовку
+    настоящему прибору). Проверка идёт ДО первой записи в копию.
+    """
+    real_box = os.path.realpath(box)
+    out: List[str] = []
+    for dirpath, dirnames, filenames in os.walk(box):
+        for name in list(dirnames) + filenames:
+            p = os.path.join(dirpath, name)
+            if not os.path.islink(p):
+                continue
+            real = os.path.realpath(p)
+            if real != real_box and not real.startswith(real_box.rstrip(os.sep) + os.sep):
+                out.append(f"{os.path.relpath(p, box)} -> {real}")
+    return sorted(out)
+
+
 def make_sandbox(source: Path, box: Path) -> Path:
     """Скопировать в песочницу ровно то, что нужно замеру, и пометить её.
 
@@ -403,6 +424,11 @@ def make_sandbox(source: Path, box: Path) -> Path:
         origin = src / rel
         if origin.is_dir():
             shutil.copytree(origin, dst / rel, ignore=COPY_IGNORE, symlinks=True)
+    escaping = _escaping_links(dst)
+    if escaping:
+        raise SandboxBuildError(
+            "песочница не изолирует: ссылки ведут за её пределы, запись по ним "
+            "ушла бы в источник — " + "; ".join(escaping[:5]))
     (dst / "data").mkdir(parents=True, exist_ok=True)
     (dst / SANDBOX_MARKER).write_text(
         f"песочница прибора {PRODUCER}; источник {src}\n", encoding="utf-8")

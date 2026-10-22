@@ -394,6 +394,58 @@ def _make_copy(src: Path, dst: Path) -> None:
         shutil.copytree(src, dst, symlinks=True, dirs_exist_ok=True)
 
 
+class CopyNotIsolated(RuntimeError):
+    """Путь под запись в копии уходит ЗА её пределы (символическая ссылка).
+
+    Дефект 22.10: стенд G16 (`run_identity_key_price.ensure_faithful_stand`)
+    подключает `spa_core/monitoring` ССЫЛКОЙ, `cp -Rc` копирует ссылку как
+    ссылку, и запись инструментовки уходила в НАСТОЯЩИЙ прибор исходного дерева
+    — во время прогона любой читатель видел мутанта, а срок, сработавший внутри
+    прогона, оставлял мутанта в дереве насовсем.
+    """
+
+
+def _inside(path: Path, base: Path) -> bool:
+    real = os.path.realpath(path)
+    real_base = os.path.realpath(base)
+    return real == real_base or real.startswith(real_base.rstrip(os.sep) + os.sep)
+
+
+def _isolate_write_path(copy: Path, rel: str) -> List[str]:
+    """Сделать путь ``rel`` в ``copy`` НАСТОЯЩЕЙ копией, ДО первой записи.
+
+    Каждая символическая ссылка на пути к файлу под запись разыменовывается:
+    ссылка заменяется копией того, на что она указывает (каталог — копией с
+    сохранением вложенных ссылок, которые разбираются следующим шагом пути).
+    После этого realpath файла обязан лежать внутри realpath копии; иначе —
+    :class:`CopyNotIsolated`, и записи не было. Возвращает разыменованные пути.
+    """
+    copy = Path(copy)
+    rel_path = Path(rel)
+    if rel_path.is_absolute() or ".." in rel_path.parts:
+        raise CopyNotIsolated(f"путь прибора не относителен копии: {rel}")
+    done: List[str] = []
+    cur = copy
+    for part in rel_path.parts:
+        cur = cur / part
+        if not cur.is_symlink():
+            continue
+        target = Path(os.path.realpath(cur))
+        if not target.exists():
+            raise CopyNotIsolated(f"ссылка в копии ведёт в никуда: {cur} -> {target}")
+        cur.unlink()
+        if target.is_dir():
+            shutil.copytree(target, cur, symlinks=True)
+        else:
+            shutil.copy2(target, cur)
+        done.append(str(cur.relative_to(copy)))
+    if not _inside(copy / rel_path, copy):
+        raise CopyNotIsolated(
+            f"файл под запись в копии разрешается за её пределы: "
+            f"{copy / rel_path} -> {os.path.realpath(copy / rel_path)}")
+    return done
+
+
 def discover_test_files(root: Path, module: str, test_dir: str) -> List[str]:
     """Тесты, НАЗЫВАЮЩИЕ прибор. Адресация — по имени модуля в тексте файла:
     тест, не упомянувший прибор, не может быть о нём, а тест, упомянувший его,
@@ -465,10 +517,28 @@ def run_differential(root: Path, *, instrument: str = DEFAULT_INSTRUMENT,
     (plugin_dir / "gbc_plugin.py").write_text(_PLUGIN_SRC, encoding="utf-8")
 
     copies = [holder / f"w{i}" for i in range(max(1, workers))]
-    for copy in copies:
-        _make_copy(root, copy)
+    dereferenced: List[str] = []
+    try:
+        for copy in copies:
+            _make_copy(root, copy)
+            dereferenced = _isolate_write_path(copy, instrument)
+    except (CopyNotIsolated, OSError) as exc:
+        # Отказ ДО первой записи: копия, чья запись уходит в исходное дерево,
+        # не копия, и замер на ней — правка живого прибора (инв. #17: третий
+        # исход с причиной, а не «пусто»).
+        doc.update(status="UNMEASURED",
+                   reason=f"копия не изолирована, запись не начиналась: {exc}")
+        if workdir is None:
+            shutil.rmtree(holder, ignore_errors=True)
+        return doc
+    doc["copy_dereferenced"] = dereferenced
 
     def _write(copy: Path, text: str) -> None:
+        # Вторая дверь той же проверки — на КАЖДУЮ запись: что-то, подменившее
+        # путь после изоляции, не должно молча увести байты в исходник.
+        if not _inside(copy / instrument, copy):
+            raise CopyNotIsolated(
+                f"запись ушла бы за пределы копии: {os.path.realpath(copy / instrument)}")
         (copy / instrument).write_text(text, encoding="utf-8")
 
     # 1. чистый базовый прогон

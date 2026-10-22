@@ -146,6 +146,27 @@ def check_sandbox_target(source: Path, sandbox: Path, *, reuse: bool = False) ->
         raise AuditStepError(f"в судимом дереве нет {AUDIT_REL}: {src}")
 
 
+def _escaping_links(box: Path) -> List[str]:
+    """Символические ссылки в копии, разрешающиеся ЗА её пределы.
+
+    `copytree(symlinks=True)` переносит ссылку как ссылку; запись в копии по
+    такому пути уходит в исходное дерево (дефект 22.10, перепись «зелёный по
+    построению»: стенд со ссылкой на `spa_core/monitoring` отдал инструментовку
+    настоящему прибору). Проверка идёт ДО первой записи в копию.
+    """
+    real_box = os.path.realpath(box)
+    out: List[str] = []
+    for dirpath, dirnames, filenames in os.walk(box):
+        for name in list(dirnames) + filenames:
+            p = os.path.join(dirpath, name)
+            if not os.path.islink(p):
+                continue
+            real = os.path.realpath(p)
+            if real != real_box and not real.startswith(real_box.rstrip(os.sep) + os.sep):
+                out.append(f"{os.path.relpath(p, box)} -> {real}")
+    return sorted(out)
+
+
 def make_sandbox(source: Path, sandbox: Path, *, dirs=SANDBOX_DIRS,
                  reuse: bool = False) -> Path:
     """Скопировать в песочницу ровно то, что нужно аудиту. → путь песочницы."""
@@ -163,6 +184,11 @@ def make_sandbox(source: Path, sandbox: Path, *, dirs=SANDBOX_DIRS,
         if target.exists():
             shutil.rmtree(target)
         shutil.copytree(origin, target, ignore=COPY_IGNORE, symlinks=True)
+    escaping = _escaping_links(box)
+    if escaping:
+        raise AuditStepError(
+            "песочница не изолирует: ссылки ведут за её пределы, запись аудита "
+            "по ним ушла бы в судимое дерево — " + "; ".join(escaping[:5]))
     return box
 
 

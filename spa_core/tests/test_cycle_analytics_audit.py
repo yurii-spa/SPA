@@ -356,6 +356,24 @@ def test_nonempty_sandbox_is_refused(tmp_path, env_stamp):
     assert "непуста" in report["error"]
 
 
+def test_a_link_out_of_the_sandbox_is_refused_before_the_audit_writes(
+        tmp_path, env_stamp):
+    """Дефект 22.10 (перепись «зелёный по построению»): `copytree(symlinks=True)`
+    переносит ссылку как ссылку, и разметка, которую аудит кладёт в
+    `spa_core/analytics/` песочницы, уехала бы по ней в судимое дерево. Отказ —
+    до прогона аудита, файл за ссылкой побайтно тот же."""
+    src = _make_tree(tmp_path / "src", markup_age_h=99.0)
+    real = tmp_path / "real_analytics"
+    (src / "spa_core" / "analytics").rename(real)
+    (src / "spa_core" / "analytics").symlink_to(real, target_is_directory=True)
+    before = (real / "_protocol_blindness.py").read_bytes()
+    report = step.run_step(src, src, sandbox=tmp_path / "box")
+    assert report["exit_code"] == step.REFUSED
+    assert report["ran_audit"] is False
+    assert "spa_core/analytics" in report["error"], report["error"]
+    assert (real / "_protocol_blindness.py").read_bytes() == before
+
+
 def test_reuse_sandbox_is_an_explicit_decision(tmp_path, env_stamp):
     """`--reuse-sandbox` снимает ровно этот отказ и ничего больше."""
     src = _make_tree(tmp_path / "src", markup_age_h=99.0)

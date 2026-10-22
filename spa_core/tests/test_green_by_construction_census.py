@@ -16,6 +16,7 @@ from __future__ import annotations
 import sys
 import textwrap
 from pathlib import Path
+from typing import Tuple
 
 import pytest
 
@@ -328,6 +329,114 @@ def test_broken_link_noise__an_instrumentation_that_changes_behaviour_is_caught(
     assert got["test_sensitive_reads_the_verdict"] == gbc.VERDICT_UNMEASURED, got
     assert "test_sensitive_reads_the_verdict" in \
         " ".join(doc["noise_control"]["diverged"]), doc["noise_control"]
+
+
+# ── 4. копия обязана быть копией: стенд со ССЫЛКОЙ на каталог прибора ──────
+# Дефект 22.10: стенд G16 (`ensure_faithful_stand`) подключает `spa_core/monitoring`
+# символической ссылкой, `cp -Rc` копирует ссылку как ссылку, и инструментовка
+# `_GBC_REC` писалась в НАСТОЯЩИЙ прибор исходного дерева. Сцена ниже — та же
+# форма в миниатюре: прибор живёт ВНЕ корня замера, корень видит его по ссылке.
+
+def _sha(path: Path) -> str:
+    import hashlib
+    return hashlib.sha256(path.read_bytes()).hexdigest()
+
+
+def _linked_stand(tmp_path: Path, *, link_file: bool = False) -> Tuple[Path, Path]:
+    real_pkg = tmp_path / "real_tree" / "pkg"
+    real_pkg.mkdir(parents=True)
+    (real_pkg / "__init__.py").write_text("", encoding="utf-8")
+    (real_pkg / "instr.py").write_text(_MINI_INSTRUMENT, encoding="utf-8")
+    stand = tmp_path / "stand"
+    stand.mkdir()
+    if link_file:
+        (stand / "pkg").mkdir()
+        (stand / "pkg" / "__init__.py").write_text("", encoding="utf-8")
+        (stand / "pkg" / "instr.py").symlink_to(real_pkg / "instr.py")
+    else:
+        (stand / "pkg").symlink_to(real_pkg, target_is_directory=True)
+    (stand / "test_mini.py").write_text(
+        _MINI_TESTS.replace("import instr\n", "from pkg import instr\n", 1),
+        encoding="utf-8")
+    return stand, real_pkg / "instr.py"
+
+
+def _linked_contour(stand: Path, workdir: Path) -> dict:
+    return gbc.run_differential(stand, instrument="pkg/instr.py", module="pkg.instr",
+                                func_prefix="_probe_",
+                                test_files=["test_mini.py"], workers=1,
+                                timeout=300, workdir=workdir)
+
+
+def _spy_source_during_runs(monkeypatch, real_file: Path, sha_before: str) -> list:
+    """Исходник сверяется на КАЖДОМ прогоне, а не только после: восстановление
+    в `finally` прятало бы окно, в котором читатель видит мутанта."""
+    seen: list = []
+    orig = gbc._run_pytest
+
+    def _spy(root, files, **kw):
+        seen.append(_sha(real_file) == sha_before)
+        return orig(root, files, **kw)
+    monkeypatch.setattr(gbc, "_run_pytest", _spy)
+    return seen
+
+
+@pytest.mark.parametrize("link_file", [False, True], ids=["dir_link", "file_link"])
+def test_a_linked_stand_never_writes_through_the_link_into_the_source(
+        tmp_path, monkeypatch, link_file):
+    stand, real_file = _linked_stand(tmp_path, link_file=link_file)
+    before = _sha(real_file)
+    seen = _spy_source_during_runs(monkeypatch, real_file, before)
+    doc = _linked_contour(stand, tmp_path / "work")
+    assert _sha(real_file) == before
+    assert seen and all(seen), f"исходник изменён во время прогона: {seen}"
+    # Предмет переписи сохранён: тот же дифференциальный прогон, те же вердикты.
+    assert doc["status"] == "OK", doc.get("reason")
+    assert doc["copy_dereferenced"] == (["pkg/instr.py"] if link_file else ["pkg"])
+    got = _verdicts(doc)
+    assert got["test_sensitive_reads_the_verdict"] == gbc.VERDICT_SENSITIVE, got
+    assert got["test_green_by_construction_asserts_nothing_the_decisions_can_move"] \
+        == gbc.VERDICT_GREEN_BY_CONSTRUCTION, got
+    # Инструментовка ушла в КОПИЮ: копия — настоящий файл внутри рабочего каталога.
+    copy_file = tmp_path / "work" / "w0" / "pkg" / "instr.py"
+    assert not copy_file.is_symlink() and not (copy_file.parent.is_symlink())
+
+
+def test_a_plain_copy_is_measured_without_dereferencing(contour):
+    """Положительный контроль: обычное дерево без ссылок меряется как раньше,
+    и разыменовывать в нём нечего."""
+    assert contour["status"] == "OK", contour.get("reason")
+    assert contour["copy_dereferenced"] == []
+
+
+def test_a_link_that_cannot_be_dereferenced_refuses_BEFORE_any_write(
+        tmp_path, monkeypatch):
+    stand, real_file = _linked_stand(tmp_path)
+    calls: list = []
+    monkeypatch.setattr(gbc, "_run_pytest", lambda *a, **k: calls.append(a) or {})
+    # Исходник прибор читает со стенда; в КОПИИ же ссылка ведёт в никуда —
+    # разыменовать нечего, значит, и писать некуда.
+    monkeypatch.setattr(gbc, "_make_copy", lambda src, dst: (
+        dst.mkdir(parents=True, exist_ok=True),
+        (dst / "pkg").symlink_to(tmp_path / "нет-такого", target_is_directory=True)))
+    before = _sha(real_file)
+    doc = _linked_contour(stand, tmp_path / "work")
+    assert doc["status"] == "UNMEASURED", doc
+    assert "копия не изолирована" in doc["reason"], doc
+    assert calls == [], "прогон начат на неизолированной копии"
+    assert _sha(real_file) == before
+
+
+def test_broken_link_isolation__the_write_door_refuses_a_path_leaving_the_copy(
+        tmp_path, monkeypatch):
+    """Порванное звено 4: изоляция снята. Вторая дверь (`_write`) обязана
+    отказать ДО записи, а исходник — остаться побайтно тем же."""
+    stand, real_file = _linked_stand(tmp_path)
+    before = _sha(real_file)
+    monkeypatch.setattr(gbc, "_isolate_write_path", lambda copy, rel: [])
+    with pytest.raises(gbc.CopyNotIsolated):
+        _linked_contour(stand, tmp_path / "work")
+    assert _sha(real_file) == before
 
 
 def test_an_absent_instrument_is_unmeasured_not_an_empty_clean_run(tmp_path):

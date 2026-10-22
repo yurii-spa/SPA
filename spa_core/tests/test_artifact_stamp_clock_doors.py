@@ -776,6 +776,33 @@ def test_make_sandbox_refuses_a_box_that_already_has_foreign_bytes(tmp_path):
     assert "непуста" in str(exc.value)
 
 
+def test_make_sandbox_refuses_a_link_leading_out_of_the_box_before_any_write(tmp_path):
+    """Дефект 22.10 (перепись «зелёный по построению»): ссылка, перенесённая
+    копией как ссылка, уводит запись в источник. Отказ — ДО метки и ДО `data/`,
+    источник побайтно тот же."""
+    real = tmp_path / "real_monitoring"
+    real.mkdir()
+    (real / "card.py").write_text("исходник", encoding="utf-8")
+    src = tmp_path / "src"
+    (src / "spa_core").mkdir(parents=True)
+    (src / "spa_core" / "monitoring").symlink_to(real, target_is_directory=True)
+    box = tmp_path / "box"
+    with pytest.raises(doors.SandboxBuildError) as exc:
+        doors.make_sandbox(src, box)
+    assert "spa_core/monitoring" in str(exc.value)
+    assert not (box / doors.SANDBOX_MARKER).exists()
+    assert (real / "card.py").read_text(encoding="utf-8") == "исходник"
+
+
+def test_make_sandbox_accepts_a_link_that_stays_inside_the_box(tmp_path):
+    """Положительный контроль: ссылка внутри копии изоляции не рвёт."""
+    src = tmp_path / "src"
+    (src / "spa_core" / "pkg").mkdir(parents=True)
+    (src / "spa_core" / "alias").symlink_to("pkg", target_is_directory=True)
+    box = doors.make_sandbox(src, tmp_path / "box")
+    assert (box / "spa_core" / "alias").is_symlink()
+
+
 def test_an_own_sandbox_is_accepted_though_it_has_no_git_at_all(tmp_path):
     """Признак «пристёгнутое дерево git» у временной копии не выполняется вовсе,
     и один он отказал бы безопасной копии."""
