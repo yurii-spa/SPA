@@ -8390,6 +8390,168 @@ def _probe_card_claim_carries_the_launcher_anchor(
         f"запускателя — вход сцены")
 
 
+def _probe_mutation_window_restore_refuses_a_live_owner(
+    arg: str | None, *, repo_root: str | None = None,
+) -> tuple[str, str]:
+    """Критерий: возврат байтов ОТКАЗЫВАЕТ, пока владелец окна РАБОТАЕТ (ADR-791).
+
+    Предмет — карточка `inbox-zhivost-mutacionnogo-progona-sprasivali`. Цикл #906
+    спросил живость мутационного прогона так — `ps -eo pid,etime | grep -q " 62944"`, —
+    то есть совпадением по ВЕДУЩЕМУ ПРОБЕЛУ выровненной колонки. Ответ «процесса нет»
+    был неверен в ОПАСНУЮ сторону: живой прогон объявлен мёртвым, и под ним выполнили
+    `--window-restore`. Вернулся мутант, который прибор держал в тот миг, запись окна
+    снялась, и остальные вердикты прогона стали недостоверны — откаченная под прибором
+    мутация читается как «выжила», то есть как дыра покрытия, которой нет.
+
+    **Проба меряет ИСХОД, а не наличие кода.** Она поднимает НАСТОЯЩИЙ прибор командой
+    на одноразовом дереве, ждёт, пока мутант реально ляжет в файл, и задаёт возврат
+    ДВАЖДЫ — в двух сценах, у которых правильные ответы ПРОТИВОПОЛОЖНЫЕ:
+
+    * прибор РАБОТАЕТ ⇒ возврат обязан отказать, байты дерева остаться НЕТРОНУТЫМИ, а
+      запись окна — лежать на месте (иначе вернуть мутанта станет нечем);
+    * прибор УБИТ ⇒ тот же зов обязан вернуть байты и снять запись: путь наверх для
+      дерева, доставшегося в наследство, закрывать нельзя, иначе обход станет привычкой.
+
+    **Подстрокой проба не проходит (ADR-333):** исходник прибора она не читает вовсе, а
+    судит по РАЗЛИЧИЮ кодов возврата двух сцен и по БАЙТАМ файла. Ярлык можно
+    переименовать, различие кодов и слепок файла — нет.
+
+    ТРИ ИСХОДА РАЗЛИЧИМЫ: прибора нет ⇒ `not_satisfied` (это и есть предмет карточки);
+    сцену не поднять (прибор не дожил до окна, `ps` не ответил) ⇒ `unmeasured` с
+    названной причиной; и никогда `satisfied` без ОБЕИХ сцен.
+    """
+    import hashlib as _hl
+    import json as _json
+    import signal as _sig
+    import subprocess as _sp
+    import tempfile as _tf
+    import time as _t
+
+    root = repo_root or REPO_ROOT
+    tool = os.path.join(root, "scripts", "delta_mutation_run.py")
+    if not os.path.exists(tool):
+        return NOT_SATISFIED, (
+            "прибора мутационного замера нет в дереве (scripts/delta_mutation_run.py) — "
+            "спрашивать «отказывает ли возврат при живом владельце окна» не у чего")
+
+    rel = "pkg/mod.py"
+    pristine = "VALUE = 1\n\n\ndef answer():\n    return VALUE\n"
+    sleep_s = 6.0
+
+    def _digest(path: str) -> str:
+        return _hl.sha256(open(path, "rb").read()).hexdigest()
+
+    def _restore(tree: str) -> tuple[int, str]:
+        proc = _sp.run([sys.executable, tool, "--window-restore", "--repo-root", tree,
+                        "--json"], capture_output=True, text=True, timeout=600)
+        return proc.returncode, (proc.stdout + proc.stderr)
+
+    proc = None
+    try:
+        with _tf.TemporaryDirectory(prefix="probe_c913_") as tmp:
+            tree = os.path.join(tmp, "live")
+            os.makedirs(os.path.join(tree, "pkg"))
+            os.makedirs(os.path.join(tree, "t"))
+            target = os.path.join(tree, "pkg", "mod.py")
+            with open(target, "w", encoding="utf-8") as fh:
+                fh.write(pristine)
+            with open(os.path.join(tree, "t", "test_x.py"), "w", encoding="utf-8") as fh:
+                fh.write("import os, sys, time\n"
+                         "sys.path.insert(0, os.path.dirname(os.path.dirname("
+                         "os.path.abspath(__file__))))\n"
+                         "from pkg.mod import answer\n\n\n"
+                         f"def test_answer():\n    time.sleep({sleep_s})\n"
+                         "    assert answer() == 1\n")
+            spec = os.path.join(tree, "spec.json")
+            with open(spec, "w", encoding="utf-8") as fh:
+                _json.dump({"title": "проба окна: живой владелец",
+                            "tests": ["t/test_x.py"],
+                            "mutations": [
+                                {"name": f"ответ подменён {i}", "file": rel,
+                                 "old": "VALUE = 1", "new": f"VALUE = {i + 2}"}
+                                for i in range(2)]}, fh, ensure_ascii=False)
+            record = os.path.join(tree, ".mutation_window", "window.json")
+            pristine_digest = _digest(target)
+
+            proc = _sp.Popen([sys.executable, tool, "--spec", spec,
+                              "--repo-root", tree],
+                             stdout=_sp.PIPE, stderr=_sp.PIPE, text=True)
+            # Ждём не «окно открылось», а «мутант РЕАЛЬНО в файле»: иначе сцена могла
+            # бы застать файл чистым, и ошибочный возврат остался бы невидимым —
+            # байты не изменились бы ни при верном поведении, ни при неверном.
+            deadline = _t.time() + 300.0
+            while _t.time() < deadline:
+                if os.path.exists(record) and _digest(target) != pristine_digest:
+                    break
+                if proc.poll() is not None:
+                    return UNMEASURED, (
+                        f"прибор завершился (код {proc.returncode}) ДО того, как мутант "
+                        f"лёг в дерево — сцена НЕ ПОДНЯТА, судить об отказе нечем")
+                _t.sleep(0.05)
+            else:
+                return UNMEASURED, ("за 300 с мутант не появился в одноразовом дереве — "
+                                    "сцена НЕ ПОДНЯТА")
+
+            during = _digest(target)
+            rc_live, out_live = _restore(tree)
+            after_live = _digest(target)
+            record_kept = os.path.exists(record)
+
+            proc.send_signal(_sig.SIGKILL)
+            proc.wait(timeout=300)
+            rc_dead, out_dead = _restore(tree)
+            final = _digest(target)
+            record_gone = not os.path.exists(record)
+    except _sp.TimeoutExpired as exc:
+        return UNMEASURED, f"сцена не ответила за отведённое время ({exc}) — НЕ ИЗМЕРЕНО"
+    except Exception as exc:                                        # noqa: BLE001
+        return UNMEASURED, (f"сцену прибора не поднять ({type(exc).__name__}: {exc}) — "
+                            f"НЕ ИЗМЕРЕНО")
+    finally:
+        if proc is not None and proc.poll() is None:
+            proc.kill()
+
+    if rc_live == 0:
+        return NOT_SATISFIED, (
+            "возврат байтов из-под РАБОТАЮЩЕГО прибора прошёл успешно (код 0) — ровно "
+            f"авария цикла #906: {out_live.strip()[-200:]}")
+    if after_live != during:
+        return NOT_SATISFIED, (
+            "байты файла изменились, пока прибор РАБОТАЛ: возврат отнял у прогона "
+            "мутанта, и остальные его вердикты недостоверны "
+            f"({during[:12]} → {after_live[:12]})")
+    if not record_kept:
+        return NOT_SATISFIED, (
+            "отказ снял запись окна — вернуть мутанта работающего прибора стало нечем; "
+            "отказ, уносящий слепок, хуже отсутствия отказа")
+    if "--allow-live-owner" not in out_live:
+        return NOT_SATISFIED, (
+            "отказ не называет осознанного обхода — сторож без пути наверх учит себя "
+            f"обходить руками: {out_live.strip()[-200:]}")
+    if rc_dead != 0:
+        return NOT_SATISFIED, (
+            f"владелец окна УБИТ, а возврат всё равно отказал (код {rc_dead}) — путь "
+            f"наверх для дерева, доставшегося в наследство, закрыт: "
+            f"{out_dead.strip()[-200:]}")
+    if rc_dead == rc_live:
+        return NOT_SATISFIED, (
+            f"живой и мёртвый владелец дают ОДИН код {rc_live} — различия, ради которого "
+            f"проба написана, нет")
+    if final != pristine_digest:
+        return NOT_SATISFIED, (
+            f"после возврата при мёртвом владельце байты НЕ исходные "
+            f"({final[:12]} ≠ {pristine_digest[:12]}) — мутант остался в дереве")
+    if not record_gone:
+        return NOT_SATISFIED, (
+            "возврат при мёртвом владельце не снял запись окна — дерево навсегда "
+            "останется «под окном», и пушер не отдаст из него ни одного файла")
+    return SATISFIED, (
+        f"две сцены дали ПРОТИВОПОЛОЖНЫЕ ответы на один зов `--window-restore`: прибор "
+        f"работает ⇒ код {rc_live}, байты дерева не тронуты ({during[:12]}), запись окна "
+        f"на месте, обход назван; прибор убит ⇒ код {rc_dead}, байты исходные "
+        f"({pristine_digest[:12]}), запись снята")
+
+
 def _probe_delta_mutation_instrument_is_re_measurable(
     arg: str | None, *, repo_root: str | None = None,
 ) -> tuple[str, str]:
@@ -10730,6 +10892,8 @@ PROBES: dict[str, Callable[[str | None], "tuple[str, str]"]] = {
         _probe_office_hollow_counter_means_harm,
     "delta_mutation_instrument_is_re_measurable":
         _probe_delta_mutation_instrument_is_re_measurable,
+    "mutation_window_restore_refuses_a_live_owner":
+        _probe_mutation_window_restore_refuses_a_live_owner,
     "tier_guard_judges_code_not_prose": _probe_tier_guard_judges_code_not_prose,
     "agent_health_reboot_false_alarm_closed": _probe_agent_health_reboot_false_alarm,
     "paused_agent_is_not_a_dead_agent": _probe_paused_agent_is_not_a_dead_agent,

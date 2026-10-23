@@ -103,7 +103,10 @@
   * пушер (`push_to_github.py`, `push_to_github_batch.py`) — файл под открытым окном
     НЕ ДОСТАВЛЯЕТСЯ: ровно эта доставка едва не случилась в цикле #887;
   * `--window-restore` — возврат по записи, с проверкой слепка; это и есть путь наверх
-    для дерева, доставшегося в наследство.
+    для дерева, доставшегося в наследство. С ADR-791 он СПРАШИВАЕТ, жив ли владелец
+    окна, и при живом (или не измеренном) владельце ОТКАЗЫВАЕТ: дерево, доставшееся в
+    наследство, и дерево, в котором ИДЁТ прогон, выглядят одинаково, а правильные
+    действия у них противоположные.
 
 КОНТРАКТ
 --------
@@ -122,12 +125,18 @@ CLI::
     python3 scripts/delta_mutation_run.py --spec <файл> --json
     python3 scripts/delta_mutation_run.py --window-check [--repo-root R] [--files ...]
     python3 scripts/delta_mutation_run.py --window-restore [--repo-root R]
+    python3 scripts/delta_mutation_run.py --window-restore --allow-live-owner
 
 КОДЫ ВОЗВРАТА ЧИТАТЕЛЯ ОКНА (`--window-check`, `--window-restore`)
 ------------------------------------------------------------------
   0 — ИЗМЕРЕНО: записи окна нет (дерево чисто) либо окно не задевает названный набор;
   1 — НАХОДКА: дерево держит мутанта либо набор доставки лежит под ОТКРЫТЫМ окном;
-  2 — НЕ ИЗМЕРЕНО: запись есть, но прочитать её или слепок нечем (fail-CLOSED).
+  2 — НЕ ИЗМЕРЕНО: запись есть, но прочитать её или слепок нечем (fail-CLOSED); сюда же
+      относится «живость ВЛАДЕЛЬЦА окна не измерена» у `--window-restore`;
+  4 — ОТКАЗ `--window-restore`: владелец окна ЖИВ (ADR-791). Дерево измерено, запись
+      прочитана, возврат НЕ СДЕЛАН намеренно — возврат из-под работающего прибора
+      вернул бы мутанта, которого тот держит сейчас (авария цикла #906). Осознанный
+      обход — `--allow-live-owner`, и он печатается.
 
 Формат спецификации (JSON)::
 
@@ -193,6 +202,34 @@ WINDOW_STATES = (WINDOW_NONE, WINDOW_HOLDS_MUTANT, WINDOW_OPEN_PRISTINE,
 #: другой, а РОД ответа тот же, и у вызывающего одна ветка на оба.
 RC_WINDOW_CLEAN = 0
 RC_WINDOW_FINDING = 1
+
+#: Отдельный код у ОТКАЗА «владелец окна ЖИВ» (ADR-791). Своим он обязан быть потому,
+#: что это не находка о дереве и не отсутствие сведений: дерево измерено, запись
+#: прочитана, и возврат НЕ СДЕЛАН намеренно. Слить его с 1 значило бы сказать «в дереве
+#: мутант» о дереве, в котором идёт исправный прогон; слить с 2 — назвать «не измерено»
+#: ровно то, что измерено лучше всего.
+RC_WINDOW_OWNER_ALIVE = 4
+
+#: Вердикты о ВЛАДЕЛЬЦЕ окна. Перечень ЗАКРЫТ, и третий исход ПЕРВОКЛАССНЫЙ (инв. #17):
+#: «номер занят живым процессом, но владелец это или сосед по номеру — НЕ ИЗМЕРЕНО» не
+#: есть ни «жив», ни «мёртв», и подстановка любого из двух делает одну из аварий.
+OWNER_DEAD = "dead"
+OWNER_SELF = "self"
+OWNER_ALIVE = "alive"
+OWNER_UNMEASURED = "unmeasured"
+OWNER_VERDICTS = (OWNER_DEAD, OWNER_SELF, OWNER_ALIVE, OWNER_UNMEASURED)
+
+#: Вердикты, при которых возврат байтов РАЗРЕШЁН без обхода. `OWNER_SELF` здесь не
+#: послабление, а сам предмет: вопрос сторожа — «держит ли это окно живым КТО-ТО ДРУГОЙ»,
+#: и владелец, закрывающий СВОЁ окно после прогона (`mutation_gate.close_gate_window`,
+#: `run()` на выходе), есть штатный путь, а не авария. Склей эти два случая — и либо
+#: сторож запретит каждому прогону закрываться за собой, либо он замолчит о чужом
+#: работающем приборе; смешаны они были бы по ОДНОМУ свойству «процесс жив», а
+#: правильные действия у них противоположные.
+OWNER_MAY_RESTORE = (OWNER_DEAD, OWNER_SELF)
+
+#: Чем узнаётся НАШ прибор в командной строке живого процесса. Одна копия имени.
+_TOOL_IN_COMMAND = re.compile(r"delta_mutation_run")
 
 #: Окружение прогона закреплено ЗДЕСЬ, одной копией: вторая копия в тесте разъехалась
 #: бы молча, и «тот же мутант» мерился бы в другом окружении.
@@ -471,6 +508,202 @@ def _run_label(pid: int | None = None, label: str | None = None) -> str:
     return f"delta-mutation-{pid or os.getpid()}"
 
 
+def _progress(text: str) -> None:
+    """Одна строка о продвижении — в stderr и БЕЗ буфера.
+
+    Молчание есть ВТОРОЕ условие аварии цикла #906 (карточка
+    `inbox-zhivost-mutacionnogo-progona-sprasivali`): лог прибора оставался 0 байт
+    двадцать с лишним минут, и «работает» с «умер» выглядели ОДИНАКОВО — именно эта
+    НЕРАЗЛИЧИМОСТЬ пригласила неверное действие (`--window-restore` под работающим
+    прибором). Поэтому продвижение печатается, а не логируется по желанию.
+
+    stdout не трогаем: там живёт машинный вердикт (`--json`), и строка прогресса в нём
+    сломала бы разбор у каждого читателя.
+    """
+    print(text, file=sys.stderr, flush=True)
+
+
+def _parse_ps_line(line: str) -> tuple[datetime | None, str | None]:
+    """Разобрать строку `ps -o lstart=,command=`: ``(дата старта | None, команда | None)``.
+
+    `lstart` — РОВНО пять полей по пробелам (`Fri Oct 23 15:12:53 2026`), и день месяца
+    выравнивается паддингом, поэтому разбор идёт по ТОКЕНАМ, а не по срезу строки.
+    Дата наивная и местная — `astimezone()` без аргумента именно так её и трактует.
+    Не разобралась ⇒ ``None``, то есть «не измерено», а не «давно».
+    """
+    parts = line.split()
+    if len(parts) < 5:
+        return None, (line.strip() or None)
+    stamp = " ".join(parts[:5])
+    command = " ".join(parts[5:]) or None
+    try:
+        naive = datetime.strptime(stamp, "%a %b %d %H:%M:%S %Y")
+    except ValueError:
+        return None, command
+    return naive.astimezone(), command
+
+
+def _parse_stamp(value) -> datetime | None:
+    """Отметка записи окна в `datetime`. Наивную трактуем как UTC — её пишет сам прибор
+    (`datetime.now(timezone.utc)`), а стенд вправе подставить что угодно, и тогда ответ
+    обязан быть ``None`` («сравнивать нечем»), а не сегодняшняя дата."""
+    if not isinstance(value, str) or not value.strip():
+        return None
+    text = value.strip()
+    if text.endswith("Z"):
+        text = text[:-1] + "+00:00"
+    try:
+        stamp = datetime.fromisoformat(text)
+    except ValueError:
+        return None
+    return stamp if stamp.tzinfo is not None else stamp.replace(tzinfo=timezone.utc)
+
+
+def _process_probe(pid: int) -> dict:
+    """ЕДИНСТВЕННАЯ дверь к ОС про номер процесса. Инъектируется ЦЕЛИКОМ.
+
+    Возврат: ``{"exists": bool | None, "started_at": datetime | None,
+    "command": str | None, "why": str | None}``; ``exists=None`` — НЕ ИЗМЕРЕНО.
+
+    **Почему дверь именно эта.** Авария цикла #906: живость прогона спросили так —
+    ``ps -eo pid,etime | grep -q " 62944"`` — то есть совпадением по ВЕДУЩЕМУ ПРОБЕЛУ.
+    Колонка `pid` выравнивается паддингом, и ведущий пробел не гарантирован; вопрос,
+    на который отвечает такой `grep`, — «как сегодня выглядит вывод `ps`», а не «жив ли
+    процесс». Ответ «процесса нет» вышел неверным в ОПАСНУЮ сторону: живой прогон
+    объявлен мёртвым, и под ним выполнили возврат байтов. Дверь к живости — ``os.kill``
+    с сигналом 0 (или ``ps -p <pid>`` с ПУСТЫМ форматом), и только она.
+
+    **Почему обе пробы внутри ОДНОЙ функции.** `.claude/rules/deployment.md`
+    § «ЛИЧНОСТЬ ПРОЦЕССА», поправка #453: «половина инъекции» есть та же бомба —
+    у писателя `durable_process` инъектировалась одна проба из двух, и тест судил о том,
+    кто сегодня занял номер 42391. Здесь `os.kill` и `ps` живут за одной дверью, и
+    инъекция закрывает их обе сразу.
+    """
+    try:
+        os.kill(pid, 0)
+        exists = True
+    except ProcessLookupError:
+        return {"exists": False, "started_at": None, "command": None, "why": None}
+    except PermissionError:
+        exists = True          # номер занят ЧУЖИМ процессом — он СУЩЕСТВУЕТ
+    except OSError as exc:
+        return {"exists": None, "started_at": None, "command": None,
+                "why": f"os.kill({pid}, 0) отказал: {exc}"}
+    try:
+        proc = subprocess.run(["ps", "-p", str(pid), "-o", "lstart=,command="],
+                              capture_output=True, text=True, timeout=30,
+                              env=dict(os.environ, LC_ALL="C"))
+    except (OSError, subprocess.SubprocessError) as exc:
+        return {"exists": exists, "started_at": None, "command": None,
+                "why": (f"`ps -p {pid}` не ответил ({type(exc).__name__}: {exc}) — "
+                        f"дата старта и команда НЕ ИЗМЕРЕНЫ")}
+    line = (proc.stdout or "").strip()
+    if proc.returncode != 0 or not line:
+        return {"exists": exists, "started_at": None, "command": None,
+                "why": (f"`ps -p {pid}` не вернул строки (код {proc.returncode}) при "
+                        f"том, что `os.kill` номер нашёл — личность НЕ ИЗМЕРЕНА")}
+    started, command = _parse_ps_line(line)
+    return {"exists": exists, "started_at": started, "command": command, "why": None}
+
+
+def owner_liveness(record: dict | None, *, probe: Callable[[int], dict] | None = None,
+                   hostname: str | None = None, caller_pid: int | None = None) -> dict:
+    """Жив ли ВЛАДЕЛЕЦ окна. Возврат — ``{"verdict", "pid", "run_label", "hostname",
+    "command", "detail"}``; ``verdict`` — из :data:`OWNER_VERDICTS`.
+
+    Запись окна несёт `pid`, `run_label`, `hostname` и `opened_at` именно для этого
+    вопроса, и до ADR-791 его не задавал никто: `--window-restore` возвращал байты
+    МОЛЧА, в том числе из-под работающего прибора.
+
+    Номер процесса сам по себе личностью НЕ является — ОС доходит до него по кругу
+    (`.claude/rules/deployment.md` § «ЛИЧНОСТЬ ПРОЦЕССА», урок #343). Поэтому номер,
+    занятый процессом, СТАРТОВАВШИМ позже открытия окна, доказывает обратное:
+    владельцем он быть не может, и вердикт — ``dead``. Это не придирка, а единственный
+    способ оставить путь наверх открытым для дерева, доставшегося в наследство: без
+    него вчерашняя запись с переработанным номером запирала бы возврат навсегда, и
+    обход `--allow-live-owner` стал бы привычкой, то есть сторож научил бы себя обходить.
+    """
+    use = probe or _process_probe
+    here = hostname if hostname is not None else socket.gethostname()
+    me = caller_pid if caller_pid is not None else os.getpid()
+    base = {"verdict": OWNER_UNMEASURED, "pid": None, "run_label": None,
+            "hostname": None, "command": None, "detail": ""}
+    if not isinstance(record, dict):
+        base["detail"] = "записи окна нет — о владельце спрашивать не у чего"
+        return base
+    base["run_label"] = record.get("run_label")
+    base["hostname"] = record.get("hostname")
+    pid = record.get("pid")
+    # Порог `≤ 1` закрывает и логический тип, и это ИЗМЕРЕНО, а не предположено: первая
+    # редакция несла рядом отдельную проверку `isinstance(pid, bool)`, и мутационный
+    # прибор объявил её ВЫЖИВШЕЙ — `True == 1` и `False == 0`, то есть оба уже отвергнуты
+    # порогом, а ветка, которая не может сработать, есть украшение и вечный шум в замере
+    # дельты. Отдельную проверку сюда НЕ возвращать; если порог когда-нибудь ослабят до
+    # `≤ 0`, падёт `test_an_unusable_number_is_unmeasured_and_never_signalled[True]`.
+    if not isinstance(pid, int) or pid <= 1:
+        base["detail"] = (f"в записи окна нет пригодного номера процесса (pid={pid!r}) — "
+                          f"живость владельца НЕ ИЗМЕРЕНА; сигналить номеру ≤ 1 нельзя: "
+                          f"0 означает ГРУППУ процессов, а 1 — init")
+        return base
+    base["pid"] = pid
+    if pid == me:
+        # СВОЁ окно. Живость тут спрашивать не у кого — спрашивающий и есть владелец,
+        # и ответ «жив» был бы верен и бесполезен: запрет закрывать своё окно остановил
+        # бы КАЖДЫЙ исправный прогон на выходе.
+        base.update(verdict=OWNER_SELF, detail=(
+            f"окно открыто ЭТИМ ЖЕ процессом (pid {pid}, прогон "
+            f"{base['run_label']!r}) — владелец закрывает своё окно"))
+        return base
+    host = record.get("hostname")
+    if isinstance(host, str) and host and host != here:
+        base["detail"] = (f"запись окна снята на хосте {host!r}, а спрашиваем на {here!r} "
+                          f"— номер {pid} здесь ЧУЖОЙ, и живость владельца НЕ ИЗМЕРЕНА")
+        return base
+    try:
+        seen = use(pid)
+    except Exception as exc:                                        # noqa: BLE001
+        base["detail"] = (f"проба процесса отказала ({type(exc).__name__}: {exc}) — "
+                          f"живость владельца НЕ ИЗМЕРЕНА")
+        return base
+    if not isinstance(seen, dict):
+        base["detail"] = (f"проба процесса вернула не словарь ({type(seen).__name__}) — "
+                          f"живость владельца НЕ ИЗМЕРЕНА")
+        return base
+    base["command"] = seen.get("command")
+    exists = seen.get("exists")
+    if exists is None:
+        base["detail"] = ((seen.get("why") or "проба не сказала, занят ли номер")
+                          + " ⇒ живость владельца НЕ ИЗМЕРЕНА")
+        return base
+    if not exists:
+        base.update(verdict=OWNER_DEAD, detail=(
+            f"номер {pid} (прогон {base['run_label']!r}) свободен — владелец окна МЁРТВ, "
+            f"возвращать байты можно"))
+        return base
+    started = seen.get("started_at")
+    opened = _parse_stamp(record.get("opened_at"))
+    command = base["command"]
+    if (isinstance(started, datetime) and opened is not None and started > opened):
+        base.update(verdict=OWNER_DEAD, detail=(
+            f"номер {pid} занят процессом, СТАРТОВАВШИМ позже открытия окна "
+            f"({started.isoformat()} > {opened.isoformat()}) — владельцем он быть не "
+            f"может, номер переработан ОС; владелец окна МЁРТВ"
+            + (f"; номер держит: {command}" if command else "")))
+        return base
+    if command and _TOOL_IN_COMMAND.search(command):
+        base.update(verdict=OWNER_ALIVE, detail=(
+            f"номер {pid} держит ЖИВОЙ прибор ({command}) — владелец окна ЖИВ"))
+        return base
+    base["detail"] = (
+        f"номер {pid} занят живым процессом"
+        + (f" ({command})" if command else "")
+        + ", и наш прибор в его команде не назван; дата старта "
+        + (f"{started.isoformat()} не позже открытия окна" if isinstance(started, datetime)
+           else "НЕ ИЗМЕРЕНА")
+        + " ⇒ владелец это или сосед по номеру, сказать НЕЧЕМ")
+    return base
+
+
 def read_window(repo_root: str) -> tuple[dict | None, str | None]:
     """Прочитать запись окна. Возврат — ``(запись | None, причина-НЕ-ИЗМЕРЕНО | None)``.
 
@@ -726,22 +959,53 @@ def window_state(repo_root: str, *, files=None) -> dict:
     return base
 
 
-def restore_window(repo_root: str) -> dict:
+def restore_window(repo_root: str, *, owner_probe: Callable[[int], dict] | None = None,
+                   allow_live_owner: bool = False,
+                   caller_pid: int | None = None) -> dict:
     """Вернуть байты ПО ЗАПИСИ окна и снять её. Ничего не угадывает.
 
-    Возврат — отчёт: ``measured``, ``restored``, ``already_clean``, ``failed``,
-    ``closed``, ``reason``. Невосстановленный файл записи НЕ снимает: иначе дерево с
-    мутантом стало бы «чистым» по мерке самого сторожа.
+    Возврат — отчёт: ``measured``, ``refused``, ``owner``, ``restored``,
+    ``already_clean``, ``failed``, ``closed``, ``reason``. Невосстановленный файл записи
+    НЕ снимает: иначе дерево с мутантом стало бы «чистым» по мерке самого сторожа.
+
+    **Отказ при ЖИВОМ владельце окна (ADR-791).** До сегодня возврат шёл молча, и это
+    ровно тот вред, который случился в цикле #906: прибор РАБОТАЛ, его живость спросили
+    грепом по паддингу колонок `ps`, получили «мёртв» — и возврат вернул мутанта,
+    которого прибор держал в тот миг, и снял запись окна. Остальные вердикты того
+    прогона стали недостоверны: откаченная под прибором мутация читается как «выжила»,
+    то есть как дыра покрытия, которой нет. Прогон признан недействительным и
+    перемерен заново.
+
+    Поэтому живость владельца — ВХОД (`owner_probe`, по умолчанию настоящая дверь к ОС),
+    а не окружение, и её исходы различимы (инв. #17): мёртв ⇒ возврат идёт · СВОЁ окно
+    (владелец закрывает за собой) ⇒ возврат идёт · жив ЧУЖОЙ ⇒ ОТКАЗ, код
+    :data:`RC_WINDOW_OWNER_ALIVE` · НЕ ИЗМЕРЕНО ⇒ тоже отказ, но со своей причиной и
+    кодом :data:`RC_UNMEASURED`.
+    Осознанный обход — ``allow_live_owner=True`` (в CLI `--allow-live-owner`), и он
+    ПЕЧАТАЕТСЯ: обход, о котором молчат, есть просто отсутствие сторожа.
     """
     root = os.path.realpath(repo_root)
     doc, why = read_window(root)
     if why is not None:
         return {"measured": False, "reason": why, "restored": [], "already_clean": [],
-                "failed": [], "closed": False, "repo_root": root}
+                "failed": [], "closed": False, "repo_root": root,
+                "refused": False, "owner": None}
     if doc is None:
         return {"measured": True, "reason": "записи окна нет — возвращать нечего",
                 "restored": [], "already_clean": [], "failed": [], "closed": False,
-                "repo_root": root}
+                "repo_root": root, "refused": False, "owner": None}
+    owner = owner_liveness(doc, probe=owner_probe, caller_pid=caller_pid)
+    if owner["verdict"] not in OWNER_MAY_RESTORE and not allow_live_owner:
+        return {
+            "measured": True, "refused": True, "owner": owner,
+            "reason": (f"ВЛАДЕЛЕЦ ОКНА не признан мёртвым ({owner['verdict']}): "
+                       f"{owner['detail']}. Возврат байтов из-под работающего прибора "
+                       f"вернул бы мутанта, которого прибор держит СЕЙЧАС, и снял бы "
+                       f"запись окна — остальные вердикты того прогона стали бы "
+                       f"недостоверны (авария цикла #906). Осознанный обход: "
+                       f"--allow-live-owner"),
+            "restored": [], "already_clean": [], "failed": [], "closed": False,
+            "repo_root": root, "record": doc}
     restored: list[str] = []
     already: list[str] = []
     failed: list[str] = []
@@ -794,7 +1058,7 @@ def restore_window(repo_root: str) -> dict:
         closed = True
     return {"measured": True, "reason": None, "restored": restored,
             "already_clean": already, "failed": failed, "closed": closed,
-            "repo_root": root, "record": doc}
+            "repo_root": root, "record": doc, "refused": False, "owner": owner}
 
 
 def render_window(state: dict) -> str:
@@ -842,6 +1106,9 @@ def run(spec: Spec, *, repo_root: str | None = None,
     before = {rel: _digest(real) for rel, real in targets.items()}
     originals = {rel: open(real, encoding="utf-8").read() for rel, real in targets.items()}
 
+    total = len(spec.mutations)
+    _progress(f"[прибор] {spec.title}: контроль шума, батарея "
+              f"{' '.join(spec.tests) or '—'}, мутаций впереди {total}")
     rc, out = do_run(spec.tests)
     if rc == _PYTEST_USAGE_ERROR:
         return Report(spec, (), [], unmeasured_reason=(
@@ -852,22 +1119,37 @@ def run(spec: Spec, *, repo_root: str | None = None,
             f"КОНТРОЛЬ ШУМА не собрался (код pytest {rc}): ни одно утверждение не "
             f"судило ещё ДО мутаций — «выживших нет» здесь было бы подделкой"))
     baseline = parse_failures(out)
+    _progress(f"[прибор] контроль шума: код pytest {rc}, уже красных имён "
+              f"{len(baseline)}")
     report = Report(spec, baseline)
 
     # ОКНО объявляется ЗДЕСЬ: после контроля шума (отказ по батарее не должен оставлять
     # записи) и ДО первой подмены (запись, сделанная после, не описывает тот миг, когда
     # мутант уже в дереве). Отказ открыть окно — громкий: он означает, что в дереве уже
     # лежит чужой слепок, и затирать его нельзя.
-    open_window(root, spec, targets, originals, spec_path=spec_path, now=now,
-                pid=pid, label=label)
+    record = open_window(root, spec, targets, originals, spec_path=spec_path, now=now,
+                         pid=pid, label=label)
+    _progress(f"[прибор] окно открыто ({WINDOW_RECORD_REL}): файлов {len(targets)}, "
+              f"владелец pid {record['pid']} / {record['run_label']}")
+
+    def _land(result: MutationResult) -> None:
+        """Приземлить исход И СКАЗАТЬ О НЁМ. Одна дверь на оба действия: вторая копия
+        «append рядом с print» разъехалась бы, и прогресс замолчал бы на той ветке,
+        которую забыли, — то есть ровно тогда, когда он нужнее всего."""
+        report.results.append(result)
+        _progress(f"[прибор] {len(report.results)}/{total} "
+                  f"{_MARK.get(result.outcome, result.outcome).strip()} "
+                  f"«{result.mutation.name}» ({result.mutation.file})")
 
     try:
-        for mut in spec.mutations:
+        for n, mut in enumerate(spec.mutations, 1):
+            _progress(f"[прибор] мутация {n}/{total} «{mut.name}» ({mut.file}) — "
+                      f"прогон батареи…")
             real = targets[mut.file]
             source = originals[mut.file]
             found = source.count(mut.old)
             if found != 1:
-                report.results.append(MutationResult(
+                _land(MutationResult(
                     mut, NOT_APPLIED,
                     detail=(f"якорь встречается {found} раз(а), а не однажды — мутация "
                             f"НЕ ПРИМЕНЕНА и не измерила ничего")))
@@ -880,26 +1162,26 @@ def run(spec: Spec, *, repo_root: str | None = None,
                 _write_atomically(real, source)
                 _invalidate_bytecode(real)
             if m_rc == _PYTEST_USAGE_ERROR:
-                report.results.append(MutationResult(
+                _land(MutationResult(
                     mut, BROKE_COLLECTION,
                     detail=f"pytest отказал по употреблению (код {m_rc})"))
                 continue
             if m_rc in _PYTEST_NOTHING_JUDGED:
-                report.results.append(MutationResult(
+                _land(MutationResult(
                     mut, BROKE_COLLECTION,
                     detail=(f"прогон не собрался (код pytest {m_rc}) — ни одно "
                             f"утверждение не судило, «убит» сказать НЕ О ЧЕМ")))
                 continue
             fresh = tuple(n for n in parse_failures(m_out) if n not in baseline)
             if fresh:
-                report.results.append(MutationResult(mut, KILLED, new_failures=fresh))
+                _land(MutationResult(mut, KILLED, new_failures=fresh))
             else:
                 gone = [n for n in baseline if n not in parse_failures(m_out)]
                 detail = ("набор упавших имён не изменился — дыра покрытия"
                           if not gone else
                           f"новых падений нет, но ИСЧЕЗЛИ прежние: {', '.join(gone)} — "
                           f"мутант погасил чужое красное, разобрать отдельно")
-                report.results.append(MutationResult(mut, SURVIVED, detail=detail))
+                _land(MutationResult(mut, SURVIVED, detail=detail))
     finally:
         after = {}
         for rel, real in targets.items():
@@ -921,6 +1203,7 @@ def run(spec: Spec, *, repo_root: str | None = None,
         # Байты сверены и совпали — только теперь окно закрывается. «Записи нет»
         # после этого есть ИЗМЕРЕННОЕ «дерево чисто», а не отсутствие сведений.
         close_window(root)
+        _progress("[прибор] окно снято: дерево сверено ПОБАЙТОВО со снимком ДО")
 
     # Перечень исходов ЗАКРЫТ, и это проверяется, а не обещается.
     assert len(report.results) == len(spec.mutations), (
@@ -1000,6 +1283,9 @@ def main(argv: list[str] | None = None) -> int:
                     help="набор доставки: с ним находкой считается только пересечение "
                          "с окном (для пушера)")
     ap.add_argument("--repo-root", default=None, help="корень дерева (по умолчанию — своё)")
+    ap.add_argument("--allow-live-owner", action="store_true",
+                    help="осознанный обход: вернуть байты, даже если владелец окна ЖИВ "
+                         "или его живость НЕ ИЗМЕРЕНА (печатается)")
     ap.add_argument("--json", action="store_true", help="машинный вердикт")
     args = ap.parse_args(argv)
 
@@ -1007,6 +1293,13 @@ def main(argv: list[str] | None = None) -> int:
     if sum(modes) != 1:
         print("🚫 НЕ ИЗМЕРЕНО — назови РОВНО один режим: --spec <файл> либо "
               "--window-check либо --window-restore", file=sys.stderr)
+        return RC_UNMEASURED
+    if args.allow_live_owner and not args.window_restore:
+        # Молча проглоченный обход был бы хуже отсутствия флага: зовущий ушёл бы с
+        # уверенностью, что что-то разрешил, а разрешения не случилось нигде.
+        print("🚫 НЕ ИЗМЕРЕНО — `--allow-live-owner` относится ТОЛЬКО к "
+              "`--window-restore`: в другом режиме он ничего не разрешает",
+              file=sys.stderr)
         return RC_UNMEASURED
 
     if args.window_check:
@@ -1017,12 +1310,19 @@ def main(argv: list[str] | None = None) -> int:
         return int(state["rc"])
 
     if args.window_restore:
-        out = restore_window(args.repo_root or REPO_ROOT)
+        if args.allow_live_owner:
+            print("⚠️  ОБХОД ОБЪЯВЛЕН: --allow-live-owner — живость владельца окна НЕ "
+                  "ТРЕБУЕТСЯ; если прибор работает, его слепок снимается СЕЙЧАС",
+                  file=sys.stderr)
+        out = restore_window(args.repo_root or REPO_ROOT,
+                             allow_live_owner=args.allow_live_owner)
         if args.json:
             print(json.dumps({k: v for k, v in out.items() if k != "record"},
                              ensure_ascii=False, indent=2))
         elif not out["measured"]:
             print(f"🚫 НЕ ИЗМЕРЕНО — {out['reason']}", file=sys.stderr)
+        elif out.get("refused"):
+            print(f"🚫 ОТКАЗ — {out['reason']}", file=sys.stderr)
         elif out["failed"]:
             print("🚫 возврат НЕ ПОЛОН, запись окна оставлена: "
                   + " · ".join(out["failed"]), file=sys.stderr)
@@ -1033,6 +1333,10 @@ def main(argv: list[str] | None = None) -> int:
                   + (f" · {out['reason']}" if out["reason"] else ""))
         if not out["measured"]:
             return RC_UNMEASURED
+        if out.get("refused"):
+            # Старшинство названо явно: «жив» — свой код (4), «не измерено» — общий (2).
+            return (RC_WINDOW_OWNER_ALIVE
+                    if out["owner"]["verdict"] == OWNER_ALIVE else RC_UNMEASURED)
         return RC_WINDOW_FINDING if out["failed"] else RC_WINDOW_CLEAN
 
     install_signal_guard()

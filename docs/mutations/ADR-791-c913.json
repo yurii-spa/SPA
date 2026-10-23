@@ -1,0 +1,153 @@
+{
+  "title": "ADR-791 — дельта цикла #913 (отказ возврата при живом владельце окна)",
+  "tests": [
+    "spa_core/tests/test_mutation_window_owner_liveness.py",
+    "spa_core/tests/test_mutation_window_owner_probe.py"
+  ],
+  "mutations": [
+    {
+      "name": "отказ при живом владельце СНЯТ — авария #906 целиком",
+      "file": "scripts/delta_mutation_run.py",
+      "old": "    if owner[\"verdict\"] not in OWNER_MAY_RESTORE and not allow_live_owner:",
+      "new": "    if False and owner[\"verdict\"] not in OWNER_MAY_RESTORE:"
+    },
+    {
+      "name": "живой владелец попал в разрешённые — отказа нет никогда",
+      "file": "scripts/delta_mutation_run.py",
+      "old": "OWNER_MAY_RESTORE = (OWNER_DEAD, OWNER_SELF)",
+      "new": "OWNER_MAY_RESTORE = (OWNER_DEAD, OWNER_SELF, OWNER_ALIVE, OWNER_UNMEASURED)"
+    },
+    {
+      "name": "мёртвый владелец выпал из разрешённых — путь наверх закрыт",
+      "file": "scripts/delta_mutation_run.py",
+      "old": "OWNER_MAY_RESTORE = (OWNER_DEAD, OWNER_SELF)\n",
+      "new": "OWNER_MAY_RESTORE = (OWNER_SELF,)\n"
+    },
+    {
+      "name": "СВОЁ окно больше не узнаётся — исправный прогон не закроется за собой",
+      "file": "scripts/delta_mutation_run.py",
+      "old": "    if pid == me:",
+      "new": "    if False:"
+    },
+    {
+      "name": "отрицательный номер уходит к ОС",
+      "file": "scripts/delta_mutation_run.py",
+      "old": "    if not isinstance(pid, int) or pid <= 1:",
+      "new": "    if not isinstance(pid, int) or pid < 0:"
+    },
+    {
+      "name": "порог номера ослаблен до нуля — единица и `True` уходят к ОС",
+      "file": "scripts/delta_mutation_run.py",
+      "old": "    if not isinstance(pid, int) or pid <= 1:\n",
+      "new": "    if not isinstance(pid, int) or pid <= 0:\n"
+    },
+    {
+      "name": "сравнение дат перевёрнуто — переработанный номер объявлен владельцем",
+      "file": "scripts/delta_mutation_run.py",
+      "old": "    if (isinstance(started, datetime) and opened is not None and started > opened):",
+      "new": "    if (isinstance(started, datetime) and opened is not None and started < opened):"
+    },
+    {
+      "name": "запись с ЧУЖОГО хоста судится как своя",
+      "file": "scripts/delta_mutation_run.py",
+      "old": "    if isinstance(host, str) and host and host != here:",
+      "new": "    if False:"
+    },
+    {
+      "name": "сломанная проба читается как «мёртв»",
+      "file": "scripts/delta_mutation_run.py",
+      "old": "    except Exception as exc:                                        # noqa: BLE001\n        base[\"detail\"] = (f\"проба процесса отказала",
+      "new": "    except Exception as exc:                                        # noqa: BLE001\n        base.update(verdict=OWNER_DEAD)\n        base[\"detail\"] = (f\"проба процесса отказала"
+    },
+    {
+      "name": "мусор вместо словаря принимается",
+      "file": "scripts/delta_mutation_run.py",
+      "old": "    if not isinstance(seen, dict):",
+      "new": "    if False:"
+    },
+    {
+      "name": "«не знаю» от пробы читается как «мёртв»",
+      "file": "scripts/delta_mutation_run.py",
+      "old": "    if exists is None:\n        base[\"detail\"] = ((seen.get(\"why\")",
+      "new": "    if exists is None:\n        base.update(verdict=OWNER_DEAD)\n        base[\"detail\"] = ((seen.get(\"why\")"
+    },
+    {
+      "name": "мёртвый номер ОС читается живым",
+      "file": "scripts/delta_mutation_run.py",
+      "old": "    except ProcessLookupError:\n        return {\"exists\": False,",
+      "new": "    except ProcessLookupError:\n        return {\"exists\": True,"
+    },
+    {
+      "name": "разбор `ps` берёт четыре поля вместо пяти — дата старта пропадает",
+      "file": "scripts/delta_mutation_run.py",
+      "old": "    stamp = \" \".join(parts[:5])",
+      "new": "    stamp = \" \".join(parts[:4])"
+    },
+    {
+      "name": "наивная отметка окна остаётся без часового пояса",
+      "file": "scripts/delta_mutation_run.py",
+      "old": "    return stamp if stamp.tzinfo is not None else stamp.replace(tzinfo=timezone.utc)",
+      "new": "    return stamp"
+    },
+    {
+      "name": "отказ «владелец жив» отдаёт код находки, а не свой",
+      "file": "scripts/delta_mutation_run.py",
+      "old": "            return (RC_WINDOW_OWNER_ALIVE\n                    if out[\"owner\"][\"verdict\"] == OWNER_ALIVE else RC_UNMEASURED)",
+      "new": "            return (RC_WINDOW_FINDING\n                    if out[\"owner\"][\"verdict\"] == OWNER_ALIVE else RC_UNMEASURED)"
+    },
+    {
+      "name": "«живость не измерена» отдаёт код «владелец жив»",
+      "file": "scripts/delta_mutation_run.py",
+      "old": "                    if out[\"owner\"][\"verdict\"] == OWNER_ALIVE else RC_UNMEASURED)",
+      "new": "                    if out[\"owner\"][\"verdict\"] == OWNER_ALIVE else RC_WINDOW_OWNER_ALIVE)"
+    },
+    {
+      "name": "обход перестал печататься",
+      "file": "scripts/delta_mutation_run.py",
+      "old": "        if args.allow_live_owner:\n            print(\"⚠️  ОБХОД ОБЪЯВЛЕН",
+      "new": "        if False:\n            print(\"⚠️  ОБХОД ОБЪЯВЛЕН"
+    },
+    {
+      "name": "обход вне возврата молча проглатывается",
+      "file": "scripts/delta_mutation_run.py",
+      "old": "    if args.allow_live_owner and not args.window_restore:",
+      "new": "    if False:"
+    },
+    {
+      "name": "прогресс замолчал об исходах мутаций",
+      "file": "scripts/delta_mutation_run.py",
+      "old": "        report.results.append(result)\n        _progress(f\"[прибор] {len(report.results)}/{total} \"",
+      "new": "        report.results.append(result)\n        _noop = (f\"[прибор] {len(report.results)}/{total} \""
+    },
+    {
+      "name": "прогресс уехал в stdout и ломает машинный вердикт",
+      "file": "scripts/delta_mutation_run.py",
+      "old": "    print(text, file=sys.stderr, flush=True)",
+      "new": "    print(text, flush=True)"
+    },
+    {
+      "name": "проба перестала требовать отказа при работающем приборе",
+      "file": "spa_core/monitoring/card_acceptance.py",
+      "old": "    if rc_live == 0:\n        return NOT_SATISFIED, (",
+      "new": "    if False:\n        return NOT_SATISFIED, ("
+    },
+    {
+      "name": "проба перестала сверять байты под работающим прибором",
+      "file": "spa_core/monitoring/card_acceptance.py",
+      "old": "    if after_live != during:",
+      "new": "    if False:"
+    },
+    {
+      "name": "проба перестала требовать, чтобы запись окна осталась",
+      "file": "spa_core/monitoring/card_acceptance.py",
+      "old": "    if not record_kept:",
+      "new": "    if False:"
+    },
+    {
+      "name": "проба перестала требовать открытого пути наверх",
+      "file": "spa_core/monitoring/card_acceptance.py",
+      "old": "    if rc_dead != 0:\n        return NOT_SATISFIED, (",
+      "new": "    if False:\n        return NOT_SATISFIED, ("
+    }
+  ]
+}
