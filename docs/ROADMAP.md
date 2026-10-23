@@ -201,6 +201,9 @@
     step_time_drift wired into ci_control compare; live_registry_scene_census needs an isolated CI (ARB package).
     Stage 6 measured 2026-10-23: 0026e0fe9 full CI (run 39889880442) RED complete 12/12 — 3 failed, 0 new vs base,
     66 fixed; left: §49 producer tick ×2 (install = ARB/owner) and live_registry_scene_census (isolated CI). NOT ARB-accepted.
+    Stage 7 measured 2026-10-23: code 3f2482d22 full CI (run 39913698521) RED complete 12/12 — 135 588 cases, 3 failed,
+    0 new vs base; §49 record checked case by case + bound to the named revision; G16 green refusal = budget, not
+    re-entry; census workflow on the integ branch. Handover: `HANDOVER_2026-10-23_STAGE7.md`. NOT ARB-accepted.
     Handover: `HANDOVER_FOR_ARB_FINAL.md`, `START_HERE.md` in the same folder.
 18. **Later engines:** traditional markets, volatility / options (scope decided inside RM-EXPAND-01)
 

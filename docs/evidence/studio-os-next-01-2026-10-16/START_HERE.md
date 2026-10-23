@@ -1,3 +1,5 @@
+> **23.10: актуальная точка входа — [`HANDOVER_2026-10-23_STAGE7.md`](HANDOVER_2026-10-23_STAGE7.md).** Ниже — история 18.10.
+
 # START HERE — новая сессия после STUDIO-OS-NEXT-01 (2026-10-18)
 
 1. **Прочитать:** [`HANDOVER_FOR_ARB_FINAL.md`](HANDOVER_FOR_ARB_FINAL.md) (что работает, граница автономности, решения
