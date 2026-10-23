@@ -199,6 +199,8 @@
     Stage 5 (ARB 23.10): §49 read from completed CI records (code ready, NOT delivered; producer unassigned),
     snapshot→shelf→page projection, R&D carve-out by class on a restored 13.08 cohort, board rebuilt from tree,
     step_time_drift wired into ci_control compare; live_registry_scene_census needs an isolated CI (ARB package).
+    Stage 6 measured 2026-10-23: 0026e0fe9 full CI (run 39889880442) RED complete 12/12 — 3 failed, 0 new vs base,
+    66 fixed; left: §49 producer tick ×2 (install = ARB/owner) and live_registry_scene_census (isolated CI). NOT ARB-accepted.
     Handover: `HANDOVER_FOR_ARB_FINAL.md`, `START_HERE.md` in the same folder.
 18. **Later engines:** traditional markets, volatility / options (scope decided inside RM-EXPAND-01)
 
