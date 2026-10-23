@@ -167,6 +167,14 @@ PRODUCES = (
     # трёх соседей выше: равнять SLO такту значило бы объявить протухшим артефакт,
     # которому только предстоит перемериться.
     "data/ledger_parse_census.json",
+    # Заказ G787 п. 1 (он же п. 2 заказа G784), ADR-793. ВТОРОЕ плечо того же
+    # предмета: сосед выше называет СРОК до пробоя бюджета и называет лекарство
+    # («усечь ленту до N суток»), а цена лекарства не измерялась ни разу —
+    # цикл #908 записал это дословно. Прибор мерит цену: какая доля ответа
+    # читающей модели зависит от записей старше окна. Такт недельный и решает его
+    # ФАЙЛ (`ledger_window_dependency_census.run` → `measurement_due`), SLO 192ч —
+    # тот же довод, что у соседей.
+    "data/ledger_window_dependency.json",
     # Заказ G97 п. 3 (ADR-562). ТРЕТЬЕ плечо того же семейства «часы как вход»:
     # сосед выше спрашивает, закрывается ли дверь читателя пином, а этот — ПРАВДА
     # ЛИ ВОЗРАСТ артефакта, то есть доходит ли инъектированный `now` до САМОЙ
@@ -513,6 +521,7 @@ CENSUS_STAGE: tuple[str, ...] = (
     "list_identity_census",
     "python_reader_clock_doors",
     "ledger_parse_census",
+    "ledger_window_dependency_census",
     "artifact_stamp_clock_doors",
     "tact_gate_census",
     "rule_second_copy_census",
@@ -779,6 +788,9 @@ CENSUS_PRODUCT: dict[str, dict[str, str]] = {
     "ledger_parse_census": {
         "module": "spa_core/monitoring/ledger_parse_census.py",
         "artifact": "data/ledger_parse_census.json"},
+    "ledger_window_dependency_census": {
+        "module": "spa_core/monitoring/ledger_window_dependency_census.py",
+        "artifact": "data/ledger_window_dependency.json"},
     "artifact_stamp_clock_doors": {
         "module": "spa_core/monitoring/artifact_stamp_clock_doors.py",
         "artifact": "data/artifact_stamp_clock_doors.json"},
@@ -2981,6 +2993,55 @@ def main(argv=None) -> int:
             print(f"ledger_parse_census: внутри такта — {_lpc_res.get('reason')}")
     except Exception as e:  # noqa: BLE001 — перепись не смеет валить мост
         census_skipped(_skipped, "ledger_parse_census", e)
+    # Перепись ЦЕНЫ усечения той же ленты по возрасту (заказ G787 п. 1 = G784 п. 2,
+    # ADR-793). Ступень соседа выше называет СРОК до пробоя бюджета и называет
+    # лекарство — «усечь ленту до N суток»; эта называет ЦЕНУ лекарства, которой
+    # пять циклов подряд не было: какая доля ответа читающей модели зависит от
+    # записей старше окна. Ступень ДОРОГАЯ (поднимает настоящую читающую модель на
+    # каждом окне лестницы), поэтому у неё ТАКТ, и срок решает ФАЙЛ. «Внутри такта»
+    # и «измерено» — РАЗНЫЕ исходы: в первой ветке не печатается ни вердикта, ни
+    # нуля, и артефакт НЕ переписывается.
+    try:
+        from spa_core.monitoring import ledger_window_dependency_census as _lwd
+        _lwd_res = _lwd.run(root=args.root, if_due=True)
+        if _lwd_res.get("measured"):
+            _wdoc = _lwd_res["doc"]
+            if not _wdoc.get("measured"):
+                #: Третий исход доезжает СВОИМ значением: «прибор не знает» не
+                #: имеет права выглядеть как «зависимости нет» (инв. #17).
+                print("ledger_window_dependency_census: НЕ ИЗМЕРЕНО — "
+                      f"{_wdoc.get('reason')}")
+            else:
+                #: У ОБОИХ чисел по ТРИ исхода, и `observed()` их здесь схлопнул бы:
+                #: у доли `None` значит «окна в сутки в лестнице не было», у
+                #: безопасного окна `None` значит «безопасного НЕТ НИ ОДНОГО» — это
+                #: ИЗМЕРЕННОЕ утверждение, а не отсутствие наблюдения. Отсутствие
+                #: самого ключа — третий, отдельный исход (инв. #17).
+                if "one_day_dependent_share_pct" not in _wdoc:
+                    _share_text = "НЕ ИЗМЕРЕНО — прибор не назвал долю вовсе"
+                elif _wdoc["one_day_dependent_share_pct"] is None:
+                    _share_text = "НЕ ИЗМЕРЕНА — окна в сутки в лестнице не было"
+                else:
+                    _share_text = f"{_wdoc['one_day_dependent_share_pct']} %"
+                if "safe_window_days" not in _wdoc:
+                    _safe_text = "НЕ ИЗМЕРЕНО — прибор не назвал окна вовсе"
+                elif _wdoc["safe_window_days"] is None:
+                    _safe_text = "НЕТ НИ ОДНОГО в лестнице"
+                else:
+                    _safe_text = f"{int(_wdoc['safe_window_days'])} сут"
+                _wled = _wdoc.get("ledger") or {}
+                print(f"ledger_window_dependency_census: {_wdoc.get('status')} — "
+                      f"от записей СТАРШЕ СУТОК зависит {_share_text} ответа "
+                      f"читающей модели; наименьшее безопасное окно {_safe_text} "
+                      f"(лента {_wled.get('entries')} зап., охват "
+                      f"{_wled.get('span_days')} сут)")
+                for _wrow in (_wdoc.get("findings") or [])[:2]:
+                    print(f"   🔴 [{_wrow.get('kind')}] {str(_wrow.get('text'))[:160]}")
+        else:
+            print(f"ledger_window_dependency_census: внутри такта — "
+                  f"{_lwd_res.get('reason')}")
+    except Exception as e:  # noqa: BLE001 — перепись не смеет валить мост
+        census_skipped(_skipped, "ledger_window_dependency_census", e)
     # Перепись «зелёный по построению» (G92 п. 2, ADR-543): тесты, чей зелёный
     # не зависит НИ ОТ ОДНОГО решения прибора, который они проверяют. Ступень
     # ПОВЕДЕНЧЕСКАЯ (настоящие прогоны pytest на одноразовых копиях), поэтому

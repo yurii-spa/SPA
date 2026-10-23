@@ -1,0 +1,104 @@
+{
+  "title": "ADR-793 — дельта цикла #915: прибор мерит ЦЕНУ усечения ленты по возрасту. Каждая мутация возвращает одно из состояний, в которых доля зависимости снова была бы выдумана, завышена или подменена молчанием",
+  "tests": [
+    "spa_core/tests/test_ledger_window_dependency_census.py"
+  ],
+  "mutations": [
+    {
+      "name": "адресация списков ПО МЕСТУ — исчезновение одного кандидата сдвигает всех (ошибка прототипа, 71 % вместо 33 %)",
+      "file": "spa_core/monitoring/ledger_window_dependency_census.py",
+      "old": "def _item_key(value, index: int) -> str:\n    if isinstance(value, dict):\n        for key in ID_KEYS:\n            if isinstance(value.get(key), (str, int)) and not isinstance(value.get(key), bool):\n                return f\"{key}={value[key]}\"\n    if isinstance(value, str):\n        return f\"={value}\"\n    return f\"#{index}\"\n",
+      "new": "def _item_key(value, index: int) -> str:\n    return f\"#{index}\"\n"
+    },
+    {
+      "name": "булево сходит за личность — два элемента с id=True получают ОДИН адрес",
+      "file": "spa_core/monitoring/ledger_window_dependency_census.py",
+      "old": "            if isinstance(value.get(key), (str, int)) and not isinstance(value.get(key), bool):",
+      "new": "            if isinstance(value.get(key), (str, int)):"
+    },
+    {
+      "name": "вычет листьев цепи не проверяется — исключение несуществующего пути снова выглядит защитой",
+      "file": "spa_core/monitoring/ledger_window_dependency_census.py",
+      "old": "        absent = [leaf for leaf in CHAIN_IDENTITY_LEAVES if leaf not in base_answer]\n        if absent:",
+      "new": "        absent = []\n        if absent:"
+    },
+    {
+      "name": "вычет листьев цепи снят — безопасное окно перестаёт существовать даже там, где усечение бесплатно",
+      "file": "spa_core/monitoring/ledger_window_dependency_census.py",
+      "old": "            dependent = changed - set(CHAIN_IDENTITY_LEAVES)",
+      "new": "            dependent = set(changed)"
+    },
+    {
+      "name": "спор двух маршрутов перестаёт быть отказом — прибор докладывает число, которого не знает",
+      "file": "spa_core/monitoring/ledger_window_dependency_census.py",
+      "old": "        disagreed = [r for r in rows if r.get(\"measured\") and not r[\"routes_agree\"]]",
+      "new": "        disagreed = []"
+    },
+    {
+      "name": "положительный контроль сцены снят — числа чужой ленты выдаются за измеренные",
+      "file": "spa_core/monitoring/ledger_window_dependency_census.py",
+      "old": "        if head != live_head:",
+      "new": "        if False:"
+    },
+    {
+      "name": "структурный маршрут берёт ПЕРВЫЙ снимок вместо свежайшего — второй маршрут перестаёт быть вторым",
+      "file": "spa_core/monitoring/ledger_window_dependency_census.py",
+      "old": "        known = newest.get(key[1])\n        if known is None or moment > known:\n            newest[key[1]] = moment",
+      "new": "        if key[1] not in newest:\n            newest[key[1]] = moment"
+    },
+    {
+      "name": "ТРЕТИЙ ИСХОД схлопнут: «безопасного окна НЕТ» превращается в ноль суток (инв. #17)",
+      "file": "spa_core/monitoring/ledger_window_dependency_census.py",
+      "old": "            \"safe_window_days\": min(safe) if safe else None,",
+      "new": "            \"safe_window_days\": min(safe) if safe else 0,"
+    },
+    {
+      "name": "лента короче наименьшего окна больше не отказ — «усекать нечего» читается как «усечение бесплатно»",
+      "file": "spa_core/monitoring/ledger_window_dependency_census.py",
+      "old": "    if not ladder:\n        return _unmeasured(",
+      "new": "    if False:\n        return _unmeasured("
+    },
+    {
+      "name": "лента из одной записи мерится как полноценная",
+      "file": "spa_core/monitoring/ledger_window_dependency_census.py",
+      "old": "    if len(entries) < 2:",
+      "new": "    if len(entries) < 0:"
+    },
+    {
+      "name": "нечитаемая отметка такта значит «мерили недавно» — fail-OPEN у гейта такта",
+      "file": "spa_core/monitoring/ledger_window_dependency_census.py",
+      "old": "    except (OSError, ValueError, TypeError) as exc:\n        return True, f\"отметка прошлого замера не прочитана ({type(exc).__name__}) — мерим\"",
+      "new": "    except (OSError, ValueError, TypeError) as exc:\n        return False, f\"отметка прошлого замера не прочитана ({type(exc).__name__}) — не мерим\""
+    },
+    {
+      "name": "находка не доезжает до КОДА ВОЗВРАТА — вердикт остаётся в словаре",
+      "file": "spa_core/monitoring/ledger_window_dependency_census.py",
+      "old": "    return 1 if doc.get(\"findings\") else 0",
+      "new": "    return 0"
+    },
+    {
+      "name": "сцены окон остаются на диске — прогон по живой ленте уносит гигабайты молча",
+      "file": "spa_core/monitoring/ledger_window_dependency_census.py",
+      "old": "            shutil.rmtree(scene.parent, ignore_errors=True)\n            union = set(base_answer) | set(window_answer)",
+      "new": "            union = set(base_answer) | set(window_answer)"
+    },
+    {
+      "name": "второй публичный вход читающей модели выпал из ответа",
+      "file": "spa_core/monitoring/ledger_window_dependency_census.py",
+      "old": "    return leaves({\"latest\": rf_read.latest(Path(data_dir)),\n                   \"cio_view\": rf_read.cio_view(Path(data_dir), now)})",
+      "new": "    return leaves({\"latest\": rf_read.latest(Path(data_dir))})"
+    },
+    {
+      "name": "окно отмеряется от СТЕННЫХ ЧАСОВ, а не от самой свежей записи ленты",
+      "file": "spa_core/monitoring/ledger_window_dependency_census.py",
+      "old": "    horizon = last_at",
+      "new": "    horizon = moment"
+    },
+    {
+      "name": "неразобранная отметка подставляется соседней датой — «не наблюдали» равно наблюдению (инв. #17)",
+      "file": "spa_core/monitoring/ledger_window_dependency_census.py",
+      "old": "    if unparsed:\n        return _unmeasured(",
+      "new": "    if False:\n        return _unmeasured("
+    }
+  ]
+}

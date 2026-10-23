@@ -965,6 +965,16 @@ _READ_SCHEMA: dict[str, tuple[str, ...]] = {
     "ledger_parse_census.json": ("status", "generated_at", "conditions", "rows",
                                  "findings", "population", "unmeasured",
                                  "advisory"),
+    # Заказ G787 п. 1 (ADR-793). `rows` обязателен: главное число прибора (доля
+    # ответа, зависящая от записей старше окна) живёт у члена лестницы, и «находок
+    # 0» без строк не отличить от «окон не мерили». `one_day_dependent_share_pct` и
+    # `safe_window_days` — ровно те два значения, ради которых прибор написан, и
+    # второе обязано доехать СВОИМ значением: `null` значит «безопасного окна НЕТ
+    # НИ ОДНОГО», а не «ноль суток» (инв. #17). `baseline` — потому что доля без
+    # знаменателя есть доля неизвестно чего.
+    "ledger_window_dependency.json": ("status", "generated_at", "ledger", "baseline",
+                                      "rows", "one_day_dependent_share_pct",
+                                      "safe_window_days", "findings", "advisory"),
     # Заказ G92 п. 2 (ADR-543). `stage_population` в схеме обязателен: без него
     # «зелёных по построению 1» прочлось бы как «во всём наборе один», тогда как
     # население СТУПЕНИ урезано до одного файла проб, а полный замер стои́т часа
@@ -1525,6 +1535,8 @@ _PRODUCER: dict[str, str] = {
         "spa_core/monitoring/ledger_day_unit_census.py",
     "ledger_parse_census.json":
         "spa_core/monitoring/ledger_parse_census.py",
+    "ledger_window_dependency.json":
+        "spa_core/monitoring/ledger_window_dependency_census.py",
     "green_by_construction_census.json":
         "spa_core/monitoring/green_by_construction_census.py",
     "acceptance_tree_capability.json":
@@ -3969,6 +3981,14 @@ def _summarize_json(path: str, data, *, now: dt.datetime | None = None,
         # (вторая копия разошлась бы с первой молча); ввоз ОДНОСТРОЧНЫЙ.
         from spa_core.monitoring.ledger_parse_census import format_report as _lpc_report
         out.extend(_lpc_report(data))
+    elif name == "ledger_window_dependency.json":
+        # Заказ G787 п. 1 (ADR-793). Без этой ветки артефакт читался бы ВХОЛОСТУЮ:
+        # файл открыт, а в контекст не попадает ни доля, ни вердикт «безопасного
+        # окна нет». Прибор написан ровно потому, что соседний прожил пять ADR без
+        # читателя, — повторить это им же было бы комично. Правило отрисовки
+        # делегируется ПРОИЗВОДИТЕЛЮ; ввоз ОДНОСТРОЧНЫЙ.
+        from spa_core.monitoring.ledger_window_dependency_census import format_report as _lwd_report
+        out.extend(_lwd_report(data))
     elif name == "ledger_day_unit_census.json":
         # Заказ G765 п. 3 (ADR-766). Без этой ветки артефакт читается ВХОЛОСТУЮ:
         # файл открыт, а в контекст не попадает ни одно число — ровно тот класс
