@@ -41,6 +41,24 @@ for _name, _mod in (("database.init_db", _mock_init_db), ("database", _mock_db))
     if sys.modules.get(_name) is _mod:
         del sys.modules[_name]
 
+# Тот же урок для САМОГО модуля под тестом (B-9, этап 8 STUDIO-OS-NEXT-01): если он импортирован
+# здесь впервые, его глобальные `get_connection`/`get_db_path` остались подделками — и любой ПОЗЖЕ в
+# том же процессе (`investor_report.build_audit_trail` в CI 39935715615, шард 2) получал MagicMock-
+# соединение и пустой ответ без единой ошибки. Зависело от того, загрузил ли кто-то настоящий слой БД
+# раньше (на Mac — пробы `conftest`, в CI — никто). Тестам подделка на импорте не нужна: каждый
+# подменяет `get_connection` сам (`patch(f"{_DL_MOD}.get_connection")`). Возвращаем настоящие привязки;
+# нет настоящего слоя — подделку оставляем (подменить её некем, и никто другой БД не получит).
+import spa_core.agents.decision_logger as _dl_module  # noqa: E402
+if _dl_module.get_connection is _mock_init_db.get_connection:
+    try:
+        from database.init_db import get_connection as _real_get_connection  # noqa: E402
+        from database.init_db import get_db_path as _real_get_db_path  # noqa: E402
+    except ImportError:
+        pass
+    else:
+        _dl_module.get_connection = _real_get_connection
+        _dl_module.get_db_path = _real_get_db_path
+
 
 # ─── Context-manager mock connection factory ──────────────────────────────────
 
@@ -284,3 +302,24 @@ class TestDecisionLoggerQueries(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class TestTheModuleIsNotLeftBoundToTheFake(unittest.TestCase):
+    """Положительный контроль B-9: импорт этого файла не оставляет модуль под тестом с подделкой БД.
+
+    Чистый подпроцесс — порядок и чужие импорты этого процесса ответа не меняют (в CI никто не
+    загружает настоящий слой БД раньше; на Mac — пробы `conftest`, и дефект там не виден)."""
+
+    def test_a_fresh_process_sees_the_real_connection_after_importing_this_file(self):
+        import subprocess
+        code = ("import sys; sys.path.insert(0, %r)\n"
+                "import spa_core.tests.test_decision_logger\n"
+                "import spa_core.agents.decision_logger as d\n"
+                "from unittest.mock import MagicMock\n"
+                "print(type(d.get_connection).__name__, type(d.get_db_path).__name__)\n"
+                "sys.exit(1 if isinstance(d.get_connection, MagicMock) else 0)\n"
+                % str(Path(__file__).resolve().parents[2]))
+        proc = subprocess.run([sys.executable, "-c", code], capture_output=True, text=True,
+                              timeout=120)
+        self.assertEqual(proc.returncode, 0, proc.stdout + proc.stderr)
+        self.assertIn("function", proc.stdout)
