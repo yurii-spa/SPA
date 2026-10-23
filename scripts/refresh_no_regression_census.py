@@ -17,6 +17,20 @@ junit-записью прогона, а записи прогона на хос�
 | гоняет pytest РОВНО по этим файлам с `--junitxml` | не гоняет предписанный прогон четырёх каталогов и не выдаёт себя за него |
 | ХРАНИТ запись в дереве, которое ПЕРЕЖИВЁТ прогон (`--records-root`, умолчание — боевое дерево) | ничего не удаляет без явного `--keep N` |
 | отдаёт запись переписи и пишет её отчёт | не считает вердикт сам — мерка одна, и она у переписи |
+| с `--make-tree` собирает ОДНОРАЗОВОЕ дерево прогона сам и снимает его (ADR-790) | не трогает флот, не ставит и не снимает агентов |
+
+## Проводка (ADR-790): почему её не было ПО ПОСТРОЕНИЮ, а не по забывчивости
+
+Отчёт обязан жить в БОЕВОМ дереве — иначе его не прочитает ни проба
+`no_regression_tests_pass`, ни шаг 0-офис. Прогон в боевом дереве ЗАПРЕЩЁН — тесты
+населения пишут в живое `data/`. До `--make-tree` эти два адреса были одним входом
+(`--repo-root`), и единственным возможным писателем оставалась рука цикла. Поэтому
+`producer` этого артефакта в конституции стоял `null` — и это был ЗАМЕР, а не
+недосмотр курации (ADR-770). Третий вход (`run_tree`) разводит адреса, и тогда
+проводка становится возможной: ступень `findings_bridge` (агент
+`com.spa.decision_loop`, такт 6 ч) зовёт производителя с `--if-due --make-tree`;
+СРОК решает ФАЙЛ, а не расписание зова — в подавляющем большинстве прогонов ступень
+стоит одного чтения отметки (образец и цена названы в ADR-414).
 
 **Вердикт этого прогона отвечает на вопрос владельца и только на него:**
 «проходят ли существующие risk/security/architecture-тесты». Он НЕ утверждает,
@@ -90,6 +104,20 @@ DEFAULT_RECORDS_ROOT = Path.home() / "Documents" / "SPA_Claude"
 #: (`card_acceptance._NO_REGRESSION_MAX_AGE_H` = 192 ч) НАМЕРЕННО: равные пороги
 #: означали бы, что критерий протухает ровно в тот момент, когда наступает срок.
 DEFAULT_MAX_AGE_H = 120.0
+
+#: Путь ОДНОРАЗОВОГО дерева прогона при `--make-tree` (ADR-790). Имя ПОСТОЯННОЕ и
+#: узнаваемое намеренно: дерево, утёкшее от убитого прогона, обязано быть видно
+#: глазом и сниматься следующим же прогоном, а не копиться под случайными именами.
+#: Тот же порядок у соседа, который давно делает одноразовые деревья из развёрнутого
+#: агента (`scripts/site_freshness_monitor.py`): снять прошлую копию → `prune` →
+#: `add`, и снять снова в `finally`.
+RUN_TREE_DEFAULT = Path("/private/tmp/spa_no_regression_run")
+
+#: Вершина, НА КОТОРОЙ меряется критерий. Вопрос владельца — «проходят ли
+#: существующие risk/security/architecture-тесты», то есть тесты ДОСТАВЛЕННОГО кода;
+#: поэтому дерево прогона собирается от `origin/main`, а не от вершины прод-дерева
+#: (та дрейфует от origin по построению, `CLAUDE.md` §1).
+RUN_TREE_REF = "origin/main"
 
 #: Окружение предписанного прогона. Переменные — часть команды, а не фон:
 #: `PYTHONHASHSEED` фиксирует порядок обхода множеств, `SPA_ENV=ci` включает
@@ -191,6 +219,53 @@ def _refuse_if_prod_tree(repo_root: Path, *, allow: bool) -> None:
             f"worktree; осознанный обход — --allow-prod-tree")
 
 
+def _git(clone: Path, args: list[str], *, timeout: float = 300.0) -> tuple[int, str]:
+    """Один зов git в указанном клоне. Возвращает (код, хвост вывода).
+
+    Непойманный `FileNotFoundError` здесь означал бы «git не установлен» и ронял бы
+    ступень моста; это третий исход, а не поломка проводки.
+    """
+    try:
+        cp = subprocess.run(["git", "-C", str(clone), *args], capture_output=True,
+                            text=True, timeout=timeout)
+    except FileNotFoundError as exc:
+        raise NotMeasured(f"git не запущен: {type(exc).__name__}: {exc}") from exc
+    except subprocess.TimeoutExpired as exc:
+        raise NotMeasured(f"git {' '.join(args[:2])} снят по сроку {timeout}с: {exc}") from exc
+    return cp.returncode, ((cp.stderr or "") + (cp.stdout or "")).strip()[-400:]
+
+
+def make_run_tree(clone: Path, dest: Path, *, ref: str = RUN_TREE_REF) -> dict:
+    """Собрать ОДНОРАЗОВОЕ дерево прогона на `ref` и вернуть наблюдения о сборке.
+
+    Снятие прошлой копии ДО сборки — не вежливость: дерево, утёкшее от убитого
+    прогона (`SIGKILL` не исполняет `finally`), иначе навсегда занимает это имя, и
+    `worktree add` отказывал бы каждый следующий раз. Тот же порядок у
+    `scripts/site_freshness_monitor.py`.
+
+    Отказ сборки — :class:`NotMeasured` с кодом и хвостом git: «дерева нет» не есть
+    «регрессий нет».
+    """
+    _git(clone, ["worktree", "remove", "--force", str(dest)])
+    _git(clone, ["worktree", "prune"])
+    code, tail = _git(clone, ["worktree", "add", "--detach", str(dest), ref])
+    if code != 0 or not (dest / "spa_core").is_dir():
+        raise NotMeasured(f"одноразовое дерево прогона не собралось: "
+                          f"git worktree add {dest} {ref} → код {code}: {tail!r}")
+    head_code, head = _git(clone, ["rev-parse", ref])
+    return {"clone": str(clone), "dest": str(dest), "ref": ref,
+            "head": head if head_code == 0 else None,
+            "head_reason": None if head_code == 0 else f"rev-parse {ref} → {head_code}: {head!r}"}
+
+
+def drop_run_tree(clone: Path, dest: Path) -> dict:
+    """Снять дерево прогона и СКАЗАТЬ, снялось ли. Молчание тут неотличимо от утечки."""
+    code, tail = _git(clone, ["worktree", "remove", "--force", str(dest)])
+    _git(clone, ["worktree", "prune"])
+    return {"dropped": code == 0 and not dest.exists(), "code": code, "tail": tail,
+            "still_on_disk": dest.exists()}
+
+
 def run_population(repo_root: Path, files: list[str], record: Path,
                    *, timeout_s: float | None = None) -> dict:
     """Прогнать РОВНО население и оставить junit-запись на хосте.
@@ -231,9 +306,28 @@ def run_population(repo_root: Path, files: list[str], record: Path,
 def refresh(repo_root: Path, *, if_due: bool = False, max_age_h: float = DEFAULT_MAX_AGE_H,
             junit: list[str] | None = None, allow_prod_tree: bool = False,
             write: bool = True, timeout_s: float | None = None,
-            records_root: Path | None = None,
+            records_root: Path | None = None, run_tree: Path | None = None,
             now: datetime | None = None) -> dict:
-    """Обновить отчёт переписи, произведя запись прогона, и вернуть наблюдения."""
+    """Обновить отчёт переписи, произведя запись прогона, и вернуть наблюдения.
+
+    ``run_tree`` — ТРЕТИЙ вход того же разделения, которое модуль объявил с рождения
+    («где гнать» и «где хранить» — два разных входа). Теперь их три, и каждый отвечает
+    на свой вопрос:
+
+    =============== ==========================================================
+    вход            вопрос
+    =============== ==========================================================
+    ``repo_root``   где ЖИВЁТ отчёт и чей возраст решает срок (`--if-due`)
+    ``run_tree``    где ГОНЯЕТСЯ население (одноразовое дерево; отказ «дерево
+                    боевое» спрашивается ИМЕННО у него)
+    ``records_root`` где ХРАНИТСЯ junit-запись (переживает дерево прогона)
+    =============== ==========================================================
+
+    Без этого входа проводки у производителя быть не могло ПО ПОСТРОЕНИЮ: отчёт
+    обязан жить в боевом дереве (иначе его не прочитает ни проба, ни шаг 0-офис), а
+    прогон в боевом дереве запрещён (`_refuse_if_prod_tree`). До ADR-790 оба адреса
+    были одним, и единственным выходом оставалась рука цикла.
+    """
     from spa_core.monitoring import no_regression_census as census
 
     age, why_age = artifact_age_hours(repo_root, now=now)
@@ -259,14 +353,21 @@ def refresh(repo_root: Path, *, if_due: bool = False, max_age_h: float = DEFAULT
         out["source"] = "запись подана входом"
         paths = list(junit)
     else:
-        _refuse_if_prod_tree(repo_root, allow=allow_prod_tree)
-        files = population_files(repo_root)
+        # Отказ «дерево боевое» спрашивается у дерева ПРОГОНА, а не у дерева отчёта:
+        # пишут в `data/` тесты, и пишут они там, откуда запущены.
+        run_root = Path(run_tree).resolve() if run_tree is not None else repo_root
+        _refuse_if_prod_tree(run_root, allow=allow_prod_tree)
+        # Население считается ТАМ ЖЕ, где гоняется. Взять его из дерева отчёта значило
+        # бы просить pytest о файлах, которых в дереве прогона может не быть вовсе.
+        files = population_files(run_root)
         keep_in = Path(records_root) if records_root is not None else DEFAULT_RECORDS_ROOT
         record = keep_in / RECORDS_REL / f"{_stamp()}.xml"
         out["records_root"] = str(keep_in)
-        out["run"] = run_population(repo_root, files, record, timeout_s=timeout_s)
+        out["run_tree"] = str(run_root)
+        out["run"] = run_population(run_root, files, record, timeout_s=timeout_s)
         out["ran"] = True
-        out["source"] = f"прогон населения ({len(files)} файл(ов)) на этом хосте"
+        out["source"] = (f"прогон населения ({len(files)} файл(ов)) на этом хосте"
+                         + (f", дерево прогона {run_root}" if run_tree is not None else ""))
         paths = [str(record)]
 
     report = census.measure(str(repo_root), junit_paths=paths)
@@ -306,6 +407,9 @@ def _lines(out: dict) -> list[str]:
         lines.append(f"не срок: {out['age_reason']} при пределе {out['max_age_h']:.0f}ч — "
                      f"ничего не перезапускалось")
     run = out.get("run")
+    if out.get("run_tree"):
+        lines.append(f"[ДЕРЕВО ПРОГОНА] {out['run_tree']} — отчёт живёт в "
+                     f"{out['repo_root']}; это РАЗНЫЕ адреса (ADR-790)")
     if run:
         lines.append(f"[ПРОГОН] населения {run['files_requested']} файл(ов) → "
                      f"{run['cases_in_record']} случа(й/ев) в записи, код pytest "
@@ -340,17 +444,53 @@ def _main(argv: list[str] | None = None) -> int:
                     help="оставить N самых свежих записей, остальные снять (0 — не снимать)")
     ap.add_argument("--timeout-s", type=float, default=None,
                     help="предел на весь прогон населения; снятие по сроку = НЕ ИЗМЕРЕНО")
+    ap.add_argument("--make-tree", action="store_true",
+                    help=f"собрать ОДНОРАЗОВОЕ дерево прогона на {RUN_TREE_REF} самому "
+                         f"и снять его после (ADR-790) — это и есть проводка: отчёт "
+                         f"обязан жить в боевом дереве, а прогон в нём запрещён")
+    ap.add_argument("--run-tree", default=None,
+                    help=f"путь дерева прогона (умолчание {RUN_TREE_DEFAULT}); без "
+                         f"--make-tree дерево НЕ собирается и НЕ снимается — берётся как есть")
     args = ap.parse_args(argv)
 
     repo_root = Path(args.repo_root).resolve()
+    run_tree = Path(args.run_tree).resolve() if args.run_tree else (
+        RUN_TREE_DEFAULT if args.make_tree else None)
+    #: Дерево, которое собрал ЭТОТ прогон, — и только оно подлежит снятию. Дерево,
+    #: поданное входом без `--make-tree`, не наше: снять его было бы чужой уборкой.
+    made: Path | None = run_tree if args.make_tree else None
+    built: dict | None = None
     try:
+        if made is not None:
+            # Срок решает ФАЙЛ, и спрашивается он ДО сборки дерева: собрать дерево,
+            # чтобы тут же узнать «не срок», значило бы платить за ответ, который
+            # лежал на диске (цена зова названа у соседа — ADR-414).
+            age, why = artifact_age_hours(repo_root)
+            if args.if_due and age is not None and age <= args.max_age_h:
+                print(f"не срок: {why} при пределе {args.max_age_h:.0f}ч — "
+                      f"одноразовое дерево НЕ собиралось")
+                return 0
+            built = make_run_tree(repo_root, made)
+            print(f"[ДЕРЕВО ПРОГОНА] {built['dest']} на {built['ref']} "
+                  f"({built['head'] or built['head_reason']})")
         out = refresh(repo_root, if_due=args.if_due, max_age_h=args.max_age_h,
                       junit=args.junit, allow_prod_tree=args.allow_prod_tree,
                       write=not args.no_write, timeout_s=args.timeout_s,
-                      records_root=Path(args.records_root) if args.records_root else None)
+                      records_root=Path(args.records_root) if args.records_root else None,
+                      run_tree=run_tree)
     except NotMeasured as exc:
         print(f"критерий §49 `No regression`: НЕ ИЗМЕРЕНО — {exc}")
         return 2
+    finally:
+        # `finally` закрывает исключение и НЕ закрывает `SIGKILL` — поэтому несущая
+        # половина порядка не здесь, а в постоянном имени дерева и снятии прошлой
+        # копии ПЕРЕД сборкой (`make_run_tree`). То же различение — у окна
+        # мутационного прибора (`.claude/rules/deployment.md`).
+        if built is not None and made is not None:
+            gone = drop_run_tree(repo_root, made)
+            print(f"[ДЕРЕВО ПРОГОНА СНЯТО] {made}" if gone["dropped"] else
+                  f"[ДЕРЕВО ПРОГОНА НЕ СНЯТО] {made} — код {gone['code']}: "
+                  f"{gone['tail']!r}; на диске: {gone['still_on_disk']}")
 
     for line in _lines(out):
         print(line)

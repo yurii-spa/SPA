@@ -1,0 +1,94 @@
+{
+ "title": "ADR-790 — дельта цикла #912: ПРОВОДКА производителя записи §49 `No regression`. Каждая мутация ниже возвращает одно из состояний, в котором критерий владельца снова переставал бы отвечать МОЛЧА — ровно то, что случилось дважды: 17.10 (запись 448.9ч при пределе 192ч) и 23.10 (152.1ч, то есть 39.9ч до тишины). ВТОРОЙ ПРОГОН на финальных байтах: первый (14 мутаций) оставил выжившей РОВНО ОДНУ — «ЗОВ снят из моста», и причина измерена: храповик сирот считает проводкой ЛЮБОЕ упоминание имени скрипта в неtest-файле, а в мосте имя живёт ещё и строковой константой NO_REGRESSION_PRODUCER ⇒ снятие зова имя не убирает; плюс его главная проверка КРАСНА на чистой вершине по ТРЁМ ЧУЖИМ именам, то есть убить мутанта не способна по построению. Зов теперь меряется AST (узел Call внутри main), а сам храповик из батареи УБРАН с названной причиной: он не может убить ни одного мутанта и стоил 161 с на каждом раунде",
+ "tests": [
+  "spa_core/tests/test_no_regression_producer_wiring.py",
+  "spa_core/tests/test_office_subject_drift_producer_tick.py"
+ ],
+ "mutations": [
+  {
+   "name": "ЗОВ снят из моста — ровно состояние до ADR-790: функция существует, вызывающего нет ни одного, и храповик сирот снова называет производителя",
+   "file": "spa_core/monitoring/findings_bridge.py",
+   "old": "        print(no_regression_line(no_regression_step(args.root)))",
+   "new": "        pass  # зов снят"
+  },
+  {
+   "name": "`--if-due` снят из зова: такт перестаёт решать ФАЙЛ и начинает решать расписание агента — население гонялось бы каждые 6 ч вместо 120",
+   "file": "spa_core/monitoring/findings_bridge.py",
+   "old": "    cmd = [sys.executable, producer, \"--if-due\", \"--make-tree\",",
+   "new": "    cmd = [sys.executable, producer, \"--make-tree\","
+  },
+  {
+   "name": "`--make-tree` снят: производитель пошёл бы прогонять население в БОЕВОМ дереве и честно отказал бы — то есть проводка есть, а записи нет никогда",
+   "file": "spa_core/monitoring/findings_bridge.py",
+   "old": "    cmd = [sys.executable, producer, \"--if-due\", \"--make-tree\",",
+   "new": "    cmd = [sys.executable, producer, \"--if-due\","
+  },
+  {
+   "name": "третий исход ступени схлопнут в «ok»: код 2 («НЕ ИЗМЕРЕНО») стал бы неотличим от «регрессий нет» — инв. #17 наизнанку, fail-OPEN тише красного",
+   "file": "spa_core/monitoring/findings_bridge.py",
+   "old": "    status = {0: \"ok\", 1: \"regression\"}.get(code, \"unmeasured\") \\\n        if isinstance(code, int) else \"unmeasured\"",
+   "new": "    status = \"ok\""
+  },
+  {
+   "name": "«производителя нет на диске» перестаёт быть третьим исходом — зов пошёл бы в пустоту",
+   "file": "spa_core/monitoring/findings_bridge.py",
+   "old": "    if not os.path.isfile(producer):",
+   "new": "    if False:  # проверка наличия производителя снята"
+  },
+  {
+   "name": "снятие прогона по сроку проглочено: ступень доложила бы вердикт о прогоне, которого не было",
+   "file": "spa_core/monitoring/findings_bridge.py",
+   "old": "    except subprocess.TimeoutExpired as exc:\n        return {\"status\": \"unmeasured\", \"code\": None, \"ran\": False,\n                \"reason\": f\"производитель снят по сроку {timeout_s:.0f}с: {exc}\"}",
+   "new": "    except subprocess.TimeoutExpired as exc:\n        return {\"status\": \"ok\", \"code\": 0, \"ran\": False, \"reason\": str(exc)}"
+  },
+  {
+   "name": "строка ступени одевает «не измерено» в вердикт — читатель лога агента не отличит",
+   "file": "spa_core/monitoring/findings_bridge.py",
+   "old": "    if out.get(\"status\") == \"unmeasured\":\n        return f\"no_regression: НЕ ИЗМЕРЕНО — {out.get('reason')}\"",
+   "new": "    if False:\n        return f\"no_regression: НЕ ИЗМЕРЕНО — {out.get('reason')}\""
+  },
+  {
+   "name": "условие такта перевёрнуто: внутри такта производитель гонял бы население, а на сроке молчал — цена зова выросла бы в 20 раз, а запись не обновлялась",
+   "file": "scripts/refresh_no_regression_census.py",
+   "old": "            if args.if_due and age is not None and age <= args.max_age_h:",
+   "new": "            if args.if_due and age is not None and age >= args.max_age_h:"
+  },
+  {
+   "name": "НЕИЗМЕРЕННЫЙ возраст читается как «внутри такта»: отчёта нет ⇒ ничего не производим ⇒ критерий не отвечает НИКОГДА, и об этом никто не скажет",
+   "file": "scripts/refresh_no_regression_census.py",
+   "old": "            if args.if_due and age is not None and age <= args.max_age_h:",
+   "new": "            if args.if_due and (age is None or age <= args.max_age_h):"
+  },
+  {
+   "name": "дерево прогона собирается ДО вопроса о сроке: ступень платит за ответ, который лежал на диске (цена зова — предмет ADR-414)",
+   "file": "scripts/refresh_no_regression_census.py",
+   "old": "            age, why = artifact_age_hours(repo_root)\n            if args.if_due and age is not None and age <= args.max_age_h:",
+   "new": "            age, why = artifact_age_hours(repo_root)\n            built = make_run_tree(repo_root, made)\n            if args.if_due and age is not None and age <= args.max_age_h:"
+  },
+  {
+   "name": "отказ «дерево боевое» спрашивают у дерева ОТЧЁТА, а не ПРОГОНА — прогон в боевом дереве прошёл бы молча (авария 2026-08-24, 116 файлов `data/`)",
+   "file": "scripts/refresh_no_regression_census.py",
+   "old": "        _refuse_if_prod_tree(run_root, allow=allow_prod_tree)",
+   "new": "        _refuse_if_prod_tree(repo_root, allow=allow_prod_tree)"
+  },
+  {
+   "name": "отказ сборки одноразового дерева проглочен: «дерева нет» стало бы «регрессий нет»",
+   "file": "scripts/refresh_no_regression_census.py",
+   "old": "    if code != 0 or not (dest / \"spa_core\").is_dir():",
+   "new": "    if False:  # отказ сборки снят"
+  },
+  {
+   "name": "проба зачитывает `producer: null` за объявленного производителя — ровно состояние, на котором краснел сторож такта офиса",
+   "file": "spa_core/monitoring/card_acceptance.py",
+   "old": "    if not entry.get(\"producer\"):",
+   "new": "    if False:  # проверка объявления снята"
+  },
+  {
+   "name": "проба перестаёт сравнивать живой артефакт с его SLO: «производитель объявлен» зачлось бы за «запись есть»",
+   "file": "spa_core/monitoring/card_acceptance.py",
+   "old": "    if age > float(slo):\n        return NOT_SATISFIED, (f\"живой артефакт старше своего SLO: {age:.1f}ч при \"",
+   "new": "    if age < 0:\n        return NOT_SATISFIED, (f\"живой артефакт старше своего SLO: {age:.1f}ч при \""
+  }
+ ],
+ "battery_note": "spa_core/tests/test_unwired_scripts_ratchet.py убран из батареи ОСОЗНАННО: его проверка test_no_NEW_unwired_script_appears красна на чистом origin/main 2530cb1ec тремя ЧУЖИМИ именами (edge_risk_shape_adaptive_blend, edge_rkaw_running_calmar_weighting, worker_axis_census), и прибор судит мутанта по РАЗНОСТИ наборов упавших имён — уже красное имя разности не даёт никогда. Его роль в батарее заняла нога AST в test_the_step_is_wired_from_the_bridge_main_not_only_defined. Проверка НЕ ослаблена и НЕ отключена: она по-прежнему живёт в наборе и по-прежнему красна (инв. #16), в её базу не дописано ни одного имени"
+}

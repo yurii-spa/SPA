@@ -1350,6 +1350,82 @@ def census_skipped(record: dict, name: str, exc: BaseException) -> None:
     print(f"{name}: пропущено ({exc})")
 
 
+#: Производитель ЗАПИСИ критерия §49 `No regression` (ADR-770). Эта строка — ЗОВ, и
+#: ровно этого зова у производителя не было ни одного: написанный 17.10, он до ADR-790
+#: не вызывался ниоткуда (храповик сирот `test_unwired_scripts_ratchet` держал его
+#: имя красным на чистой вершине), а артефакт `data/no_regression_census.json` жил
+#: 152.1 ч при пределе пробы 192 ч — то есть критерию владельца оставалось 39.9 ч до
+#: молчаливого `unmeasured`.
+NO_REGRESSION_PRODUCER = os.path.join("scripts", "refresh_no_regression_census.py")
+
+#: Предел на ВЕСЬ зов производителя. Выше наблюдённой цены прогона населения с
+#: запасом; снятие по сроку — НЕ ИЗМЕРЕНО с названной причиной, а не «регрессий нет».
+NO_REGRESSION_TIMEOUT_S = 7200.0
+
+
+def no_regression_step(root: str = REPO_ROOT, *, runner=None,
+                       timeout_s: float = NO_REGRESSION_TIMEOUT_S) -> dict:
+    """Позвать производителя записи §49 `No regression`; срок решает ФАЙЛ (ADR-790).
+
+    Ступень ничего не измеряет сама и ничего не решает о населении — она ЗОВЁТ.
+    Производитель сам смотрит возраст отчёта в боевом дереве и при `--if-due` внутри
+    такта не собирает даже дерева прогона: в подавляющем большинстве зовов ступень
+    стоит одного чтения отметки (образец и цена названы в ADR-414, сосед
+    `python_reader_clock_doors`).
+
+    Почему зов именно подпроцессом, а не импортом: производитель поднимает `pytest`
+    по населению, и держать этот прогон в процессе моста значило бы ронять мост всем,
+    что упадёт внутри прогона. Мост не смеет падать от переписи (#524).
+
+    ``runner`` — ДВЕРЬ к подпроцессу ВХОДОМ, а не окружением. Без этого входа каждый
+    тест ступени гонял бы настоящее население (минуты) и отвечал бы на вопрос о
+    ХОСТЕ, а не о проводке (`.claude/rules/deployment.md`, § про инъекцию: «проверять
+    надо не „есть ли параметр“, а все ли двери к ОС закрыты для пути, который идёт
+    тест»).
+
+    Три исхода РАЗЛИЧИМЫ (инв. #17) и ни один не выдаётся за другой:
+
+    * ``ok`` — производитель ответил вердиктом, регрессий нет (код 0);
+    * ``regression`` — производитель ответил вердиктом, и он `REGRESSION` (код 1);
+    * ``unmeasured`` — замера НЕ БЫЛО (производителя нет на диске · не запустился ·
+      снят по сроку · сам ответил «НЕ ИЗМЕРЕНО», код 2). Это НЕ «регрессий нет».
+    """
+    producer = os.path.join(root, NO_REGRESSION_PRODUCER)
+    if not os.path.isfile(producer):
+        return {"status": "unmeasured", "code": None, "ran": False,
+                "reason": f"производителя нет на диске: {producer} — замера НЕ БЫЛО, "
+                          f"и это не «регрессий нет»"}
+    cmd = [sys.executable, producer, "--if-due", "--make-tree",
+           "--repo-root", str(root), "--records-root", str(root), "--keep", "4"]
+    run = runner if runner is not None else subprocess.run
+    try:
+        cp = run(cmd, capture_output=True, text=True, timeout=timeout_s)
+    except subprocess.TimeoutExpired as exc:
+        return {"status": "unmeasured", "code": None, "ran": False,
+                "reason": f"производитель снят по сроку {timeout_s:.0f}с: {exc}"}
+    except OSError as exc:
+        return {"status": "unmeasured", "code": None, "ran": False,
+                "reason": f"производитель не запущен: {type(exc).__name__}: {exc}"}
+    out = (getattr(cp, "stdout", "") or "") + (getattr(cp, "stderr", "") or "")
+    tail = "\n".join(out.strip().splitlines()[-4:])
+    code = getattr(cp, "returncode", None)
+    # Код, которого нет, — тот же третий исход, что и код 2: «не измерено».
+    status = {0: "ok", 1: "regression"}.get(code, "unmeasured") \
+        if isinstance(code, int) else "unmeasured"
+    return {"status": status, "code": code, "ran": "[ПРОГОН]" in out, "reason": tail}
+
+
+def no_regression_line(out: dict) -> str:
+    """Строка ступени для читателя лога. Отдельной функцией — чтобы её мерил тест.
+
+    «Не измерено» не смеет выглядеть как вердикт: у него своя форма и своё слово.
+    """
+    if out.get("status") == "unmeasured":
+        return f"no_regression: НЕ ИЗМЕРЕНО — {out.get('reason')}"
+    return (f"no_regression: {out.get('status')} (код {out.get('code')}), "
+            f"население гонялось: {out.get('ran')} — {out.get('reason')}")
+
+
 def run_bridge(root: str = REPO_ROOT, now: dt.datetime | None = None,
                create=create_card, close=close_card, notify=notify_card,
                deliver=None, retract=retract_card, deliver_answers=None,
@@ -2684,6 +2760,26 @@ def main(argv=None) -> int:
                   f"{_prcd.get('reason')}")
     except Exception as e:  # noqa: BLE001 — перепись не смеет валить мост
         census_skipped(_skipped, "python_reader_clock_doors", e)
+    # (ADR-790, карточка `inbox-artefakt-no-regression-nikto-ne-perepisyv`) ПРОВОДКА
+    # производителя записи критерия §49 `No regression`. Сосед выше был опытом «строка
+    # в промпте против ступени»; здесь зова не было НИ ОДНОГО ни в той, ни в другой
+    # форме: производитель написан 17.10 (ADR-770) и не вызывался ниоткуда, а
+    # `producer` артефакта в конституции стоял `null` — ЗАМЕРОМ, не недосмотром.
+    #
+    # Почему проводки не было ПО ПОСТРОЕНИЮ: отчёт обязан жить в БОЕВОМ дереве (иначе
+    # его не прочитает ни проба, ни шаг 0-офис), а прогон населения в боевом дереве
+    # запрещён (тесты пишут в живое `data/`). Два адреса были одним входом, и
+    # единственным писателем оставалась рука цикла. ADR-790 развёл их третьим входом
+    # (`--make-tree`: дерево прогона одноразовое, собирается и снимается самим
+    # производителем).
+    #
+    # ЦЕНА НАЗВАНА, а не умолчана: такт производителя 120 ч и решает его ФАЙЛ, поэтому
+    # в подавляющем большинстве зовов ступень стоит одного чтения отметки; дорогим
+    # оказывается один зов в пять суток.
+    try:
+        print(no_regression_line(no_regression_step(args.root)))
+    except Exception as e:  # noqa: BLE001 — перепись не смеет валить мост
+        census_skipped(_skipped, "no_regression_producer", e)
     # (G97 п. 3, ADR-562) ТРЕТЬЕ плечо семейства «часы как вход». Сосед выше
     # спрашивает, закрывается ли дверь ЧИТАТЕЛЯ пином класса; этот — доходит ли
     # инъектированный `now` до САМОЙ отметки `generated_at` у ПРОИЗВОДИТЕЛЯ.

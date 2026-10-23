@@ -10420,6 +10420,210 @@ def _probe_publication_gate_refuses_an_unsigned_shelf_by_its_own_code(
                        f"объявлена входом); сторож предмета `{node}` зелёный")
 
 
+#: Артефакт, у которого ЕСТЬ производитель, но нет ЗОВА, — и есть предмет ADR-790.
+_NO_REGRESSION_ARTIFACT = "data/no_regression_census.json"
+
+
+def _probe_no_regression_record_is_produced_without_a_hand(
+        arg: str | None, *, now: "datetime | None" = None,
+        repo_root: str | None = None,
+        producer_rel: str | None = None,
+        manifest: dict | None = None,
+        live_report: dict | None = None,
+        scene_fresh_hours: float = 1.0,
+        scene_stale_hours: float = 500.0) -> tuple[str, str]:
+    """Критерий: запись критерия §49 `No regression` производится БЕЗ РУКИ ЦИКЛА.
+
+    Предмет — карточка `inbox-artefakt-no-regression-nikto-ne-perepisyv` и её
+    собственная мерка: «`data/no_regression_census.json` моложе своего SLO без
+    участия человека, и шаг 0-офис называет его возраст».
+
+    Зачем. Производитель записи (`scripts/refresh_no_regression_census.py`,
+    ADR-770) был написан 17.10 и до ADR-790 **не вызывался ниоткуда**: храповик
+    сирот держал его имя красным на чистой вершине, `producer` артефакта в
+    конституции стоял `null`, а сам отчёт 23.10 имел возраст 152.1 ч при пределе
+    пробы 192 ч — критерию владельца оставалось 39.9 ч до молчаливого
+    `unmeasured`. Проводки не было ПО ПОСТРОЕНИЮ: отчёт обязан жить в боевом
+    дереве, а прогон населения в боевом дереве запрещён, и оба адреса были одним
+    входом.
+
+    **Меряется ИСХОД четырёх НАСТОЯЩИХ запусков и двух чтений, а не текст кода** —
+    подстрокой проба не проходит по построению:
+
+      • срок решает ФАЙЛ: на СВОЕЙ сцене со СВЕЖИМ отчётом производитель с
+        `--if-due --make-tree` выходит **0**, говорит «не срок» и дерева прогона
+        НЕ собирает (ни одного каталога на диске);
+      • на той же сцене с ПРОТУХШИМ отчётом он за деревом идёт — и, не найдя
+        `origin/main` в клоне сцены, отвечает **2** «НЕ ИЗМЕРЕНО». Это и есть
+        доказательство, что ветка срока ведёт к прогону, а третий исход не
+        подменяется «регрессий нет»;
+      • ступень моста (`findings_bridge.no_regression_step`) ЗОВЁТ именно этого
+        производителя: зов берётся у самой ступени через ВХОД-дверь `runner`, и
+        проверяется, что в команде есть путь производителя, `--if-due`,
+        `--make-tree` и корень дерева отчёта;
+      • три исхода ступени различимы: код 0 → `ok`, 1 → `regression`, 2 →
+        `unmeasured` (инв. #17);
+      • конституция НАЗЫВАЕТ производителя (иначе такт артефакта не способен
+        измерить никто — ровно то, на чём краснел
+        `test_office_subject_drift_producer_tick`);
+      • живой артефакт МОЛОЖЕ своего SLO.
+
+    ``producer_rel`` — путь производителя ВХОДОМ: производителя, которого нет на
+    диске, проба обязана назвать `unmeasured`, а не «совпало».
+    ``manifest`` — конституция ВХОДОМ: отрицательный контроль подаёт её с
+    `producer: null` и проба обязана сказать `not_satisfied`.
+    ``live_report`` — сам артефакт ВХОДОМ. Он лежит в `.gitignore` (состояние
+    хоста), поэтому в CI его нет вовсе: без этого входа нога про возраст отвечала
+    бы про МАШИНУ, а не про проводку, и закрепить обе стороны сравнения было бы
+    нечем.
+    ``scene_fresh_hours`` / ``scene_stale_hours`` — обе стороны сравнения срока
+    закреплены ВХОДОМ, часы инъектируются: иначе проба отвечала бы про календарь
+    (`.claude/rules/deployment.md`, § «Время в тестах»).
+    """
+    import subprocess
+    import tempfile
+    from datetime import timedelta as _timedelta
+
+    if (arg or "").strip():
+        return UNMEASURED, (f"проба не принимает аргумента (дано {arg!r}): предмет — "
+                            f"проводка ОДНОГО производителя, пофайловой формы у него нет")
+
+    root = repo_root or REPO_ROOT
+    rel = producer_rel if producer_rel is not None \
+        else os.path.join("scripts", "refresh_no_regression_census.py")
+    producer = os.path.join(root, rel)
+    if not os.path.isfile(producer):
+        return UNMEASURED, (f"производителя нет на диске ({producer}) — отказал бы он "
+                            f"или сработал, НЕ ИЗМЕРЕНО")
+
+    # --- 1. конституция называет производителя (иначе такт не измерит никто) ---
+    doc = manifest
+    if doc is None:
+        try:
+            with open(os.path.join(root, "architecture", "manifest.json"),
+                      encoding="utf-8") as fh:
+                doc = json.load(fh)
+        except BaseException as exc:  # noqa: BLE001
+            return UNMEASURED, (f"конституция не прочитана: {type(exc).__name__}: {exc} — "
+                                f"объявлен производитель или нет, НЕ ИЗМЕРЕНО")
+    entry = next((a for a in (doc.get("artifacts") or [])
+                  if isinstance(a, dict) and a.get("path") == _NO_REGRESSION_ARTIFACT), None)
+    if entry is None:
+        return UNMEASURED, (f"{_NO_REGRESSION_ARTIFACT} в конституции не объявлен вовсе — "
+                            f"ни SLO, ни производителя спросить не у кого")
+    if not entry.get("producer"):
+        return NOT_SATISFIED, (f"{_NO_REGRESSION_ARTIFACT}: `producer` в конституции "
+                               f"{entry.get('producer')!r} — такт артефакта не способен "
+                               f"проверить ни один сторож, и молчание производителя "
+                               f"неотличимо от «сегодня зелено»")
+
+    # --- 2. ступень моста зовёт ИМЕННО этого производителя, и исходы различимы ---
+    try:
+        from spa_core.monitoring import findings_bridge as _fb
+    except BaseException as exc:  # noqa: BLE001
+        return UNMEASURED, f"мост не импортируется: {type(exc).__name__}: {exc}"
+    seen: list = []
+
+    class _CP:
+        def __init__(self, code):
+            self.returncode, self.stdout, self.stderr = code, "", ""
+
+    def _spy(code):
+        def run(cmd, **kw):
+            seen.append(list(cmd))
+            return _CP(code)
+        return run
+
+    statuses = {code: _fb.no_regression_step(root, runner=_spy(code)).get("status")
+                for code in (0, 1, 2)}
+    if statuses != {0: "ok", 1: "regression", 2: "unmeasured"}:
+        return NOT_SATISFIED, (f"исходы ступени НЕ различимы (инв. #17): {statuses} — "
+                               f"ожидалось 0→ok, 1→regression, 2→unmeasured")
+    if not seen:
+        return NOT_SATISFIED, ("ступень моста не позвала производителя ни одного раза — "
+                               "проводки нет, а артефакт объявил её конституцией")
+    cmd = " ".join(seen[0])
+    missing = [t for t in (rel, "--if-due", "--make-tree", root) if t not in cmd]
+    if missing:
+        return NOT_SATISFIED, (f"зов ступени не несёт: {', '.join(missing)} — "
+                               f"команда была {cmd!r}")
+
+    # --- 3. срок решает ФАЙЛ: две СВОИ сцены, два настоящих запуска ---
+    moment = now or datetime.now(timezone.utc)
+    scene = _pathlib.Path(tempfile.mkdtemp(prefix="probe_no_regression_"))
+    try:
+        #: Имя ветки сцены — ВХОД, а не умолчание хоста (`git init` без `-b` даёт
+        #: `main` на Маке и `master` на `ubuntu-latest`).
+        init = subprocess.run(["git", "init", "-b", "main", str(scene)],
+                              capture_output=True, text=True)
+        if init.returncode != 0:
+            return UNMEASURED, (f"сцену не удалось сделать рабочим деревом: git init → "
+                                f"{init.returncode}: "
+                                f"{(init.stderr or init.stdout).strip()[:200]}")
+        (scene / "data").mkdir(parents=True, exist_ok=True)
+        report_path = scene / _NO_REGRESSION_ARTIFACT
+        tree = scene / "run_tree"
+
+        def _say(age_h: float):
+            stamp = moment - _timedelta(hours=age_h)
+            report_path.write_text(json.dumps(
+                {"generated_at": stamp.isoformat(), "measured": True, "verdict": "OK"}),
+                encoding="utf-8")
+
+        def _producer():
+            return subprocess.run(
+                [sys.executable, producer, "--if-due", "--make-tree",
+                 "--repo-root", str(scene), "--run-tree", str(tree),
+                 "--records-root", str(scene)],
+                capture_output=True, text=True, timeout=300)
+
+        _say(scene_fresh_hours)
+        fresh = _producer()
+        if fresh.returncode != 0 or "не срок" not in (fresh.stdout or ""):
+            return NOT_SATISFIED, (f"внутри такта производитель ответил не «не срок»: код "
+                                   f"{fresh.returncode}, вывод "
+                                   f"{(fresh.stdout + fresh.stderr).strip()[-300:]!r}")
+        if tree.exists():
+            return NOT_SATISFIED, (f"внутри такта дерево прогона всё равно собрано "
+                                   f"({tree}) — срок решает не ФАЙЛ, а зов")
+
+        _say(scene_stale_hours)
+        stale = _producer()
+        if stale.returncode != 2 or "НЕ ИЗМЕРЕНО" not in (stale.stdout or ""):
+            return NOT_SATISFIED, (f"на сроке производитель не пошёл за деревом или выдал "
+                                   f"не третий исход: код {stale.returncode}, вывод "
+                                   f"{(stale.stdout + stale.stderr).strip()[-300:]!r}")
+    finally:
+        import shutil
+        shutil.rmtree(scene, ignore_errors=True)
+
+    # --- 4. живой артефакт моложе своего SLO ---
+    slo = entry.get("slo_hours")
+    try:
+        live = live_report
+        if live is None:
+            with open(os.path.join(root, _NO_REGRESSION_ARTIFACT), encoding="utf-8") as fh:
+                live = json.load(fh)
+        made = datetime.fromisoformat(str(live.get("generated_at")).replace("Z", "+00:00"))
+    except BaseException as exc:  # noqa: BLE001
+        return UNMEASURED, (f"возраст живого артефакта НЕ ИЗМЕРЕН: "
+                            f"{type(exc).__name__}: {exc}")
+    if made.tzinfo is None:
+        made = made.replace(tzinfo=timezone.utc)
+    age = (moment - made).total_seconds() / 3600.0
+    if not isinstance(slo, (int, float)):
+        return UNMEASURED, f"SLO артефакта не объявлен числом ({slo!r}) — сравнивать нечем"
+    if age > float(slo):
+        return NOT_SATISFIED, (f"живой артефакт старше своего SLO: {age:.1f}ч при "
+                               f"{float(slo):.0f}ч — производитель объявлен, а записи нет")
+    return SATISFIED, (f"производитель `{rel}` объявлен конституцией "
+                       f"(`{entry['producer']}`) и ПОЗВАН ступенью моста; срок решает "
+                       f"ФАЙЛ (внутри такта — код 0 «не срок», дерево не собрано; на "
+                       f"сроке — код 2 НЕ ИЗМЕРЕНО, то есть за деревом пошёл); три исхода "
+                       f"ступени различимы; живой артефакт {age:.1f}ч при SLO "
+                       f"{float(slo):.0f}ч")
+
+
 PROBES: dict[str, Callable[[str | None], "tuple[str, str]"]] = {
     "cockpit_voice_loop_closed": _probe_cockpit_voice_loop,
     "card_claim_measures_the_worker": _probe_card_claim_measures_the_worker,
@@ -10533,6 +10737,8 @@ PROBES: dict[str, Callable[[str | None], "tuple[str, str]"]] = {
         _probe_read_only_view_parses_the_ledger_once,
     "publication_gate_refuses_an_unsigned_shelf_by_its_own_code":
         _probe_publication_gate_refuses_an_unsigned_shelf_by_its_own_code,
+    "no_regression_record_is_produced_without_a_hand":
+        _probe_no_regression_record_is_produced_without_a_hand,
 }
 
 
