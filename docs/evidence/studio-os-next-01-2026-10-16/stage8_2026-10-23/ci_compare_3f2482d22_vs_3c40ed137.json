@@ -1,0 +1,206 @@
+{
+ "comparable": true,
+ "why_not": [],
+ "base_sha": "3f2482d2207d7aeea3a309604302a09c21f1b06d",
+ "head_sha": "3c40ed1377bc535ea88f2ec17b0a2f41485a99c6",
+ "base_verdict": "RED",
+ "head_verdict": "RED",
+ "new": [
+  "spa_core/tests/test_investor_report.py::test_audit_trail_from_temp_db"
+ ],
+ "pre_existing": [
+  "spa_core/tests/test_office_declaration_doors.py::TheLiveAnswerOfTheOrder::test_every_office_artifact_has_a_measurable_producer_tick",
+  "spa_core/tests/test_office_subject_drift_producer_tick.py::test_the_live_office_can_measure_the_tick_of_every_artifact_it_reads"
+ ],
+ "not_obtained": [],
+ "fixed": [
+  "spa_core/tests/test_unwired_guard_modules_ratchet.py::test_no_new_guard_module_is_left_unwired"
+ ],
+ "head_not_obtained": 0,
+ "step_time_drift": {
+  "verdict": "measured",
+  "comparable_files": 752,
+  "median_ratio": 0.9344145650390194,
+  "q1_ratio": 0.6920374473521369,
+  "q3_ratio": 1.0261792596192196,
+  "iqr": 0.3341418122670827,
+  "share_slower": 0.2912234042553192,
+  "cases_base": 135588,
+  "cases_later": 135651,
+  "case_growth": 0.0004646428887512169,
+  "span_base_s": 1571.2290000915527,
+  "span_later_s": 1344.9519999027252,
+  "base_ended": true,
+  "later_ended": true,
+  "fastest": [
+   [
+    0.15501801705376575,
+    "spa_core/tests/test_agent_health_stale_consumers.py"
+   ],
+   [
+    0.16512501678103578,
+    "scripts/tests/test_ci_verdict.py"
+   ],
+   [
+    0.18144494767466043,
+    "spa_core/tests/test_package_card_rule.py"
+   ]
+  ],
+  "slowest": [
+   [
+    1.9820537727778285,
+    "tests/test_portfolio_optimizer.py"
+   ],
+   [
+    1.921739004239704,
+    "spa_core/tests/test_scalar_identity_price.py"
+   ],
+   [
+    1.7678931961232978,
+    "spa_core/tests/test_tournament_evaluator.py"
+   ]
+  ],
+  "shards": {
+   "base": {
+    "used": [
+     0,
+     1,
+     2,
+     3,
+     4,
+     5,
+     6,
+     7,
+     8,
+     9,
+     10,
+     11
+    ],
+    "excluded": []
+   },
+   "later": {
+    "used": [
+     0,
+     1,
+     2,
+     3,
+     4,
+     5,
+     6,
+     7,
+     8,
+     9,
+     10,
+     11
+    ],
+    "excluded": []
+   }
+  },
+  "shard_pairs": [
+   {
+    "base_shard": 11,
+    "later_shard": 11,
+    "files": 59,
+    "median_ratio": 0.5980105372913698
+   },
+   {
+    "base_shard": 6,
+    "later_shard": 10,
+    "files": 5,
+    "median_ratio": 0.6448664554096877
+   },
+   {
+    "base_shard": 10,
+    "later_shard": 10,
+    "files": 55,
+    "median_ratio": 0.6457811066525754
+   },
+   {
+    "base_shard": 6,
+    "later_shard": 6,
+    "files": 54,
+    "median_ratio": 0.6618604268503024
+   },
+   {
+    "base_shard": 2,
+    "later_shard": 2,
+    "files": 51,
+    "median_ratio": 0.7071428074723218
+   },
+   {
+    "base_shard": 7,
+    "later_shard": 7,
+    "files": 56,
+    "median_ratio": 0.7573681000167594
+   },
+   {
+    "base_shard": 3,
+    "later_shard": 3,
+    "files": 56,
+    "median_ratio": 0.950593244153022
+   },
+   {
+    "base_shard": 8,
+    "later_shard": 8,
+    "files": 54,
+    "median_ratio": 0.9725289600038594
+   },
+   {
+    "base_shard": 0,
+    "later_shard": 3,
+    "files": 5,
+    "median_ratio": 0.9741987811011398
+   },
+   {
+    "base_shard": 1,
+    "later_shard": 1,
+    "files": 48,
+    "median_ratio": 0.9788868700851623
+   },
+   {
+    "base_shard": 11,
+    "later_shard": 4,
+    "files": 5,
+    "median_ratio": 1.016725400332317
+   },
+   {
+    "base_shard": 1,
+    "later_shard": 8,
+    "files": 5,
+    "median_ratio": 1.027168257494054
+   },
+   {
+    "base_shard": 10,
+    "later_shard": 0,
+    "files": 6,
+    "median_ratio": 1.0384897228348633
+   },
+   {
+    "base_shard": 9,
+    "later_shard": 9,
+    "files": 36,
+    "median_ratio": 1.2989627589375976
+   },
+   {
+    "base_shard": 0,
+    "later_shard": 0,
+    "files": 30,
+    "median_ratio": 1.3097960461869662
+   },
+   {
+    "base_shard": 5,
+    "later_shard": 5,
+    "files": 23,
+    "median_ratio": 1.5439077511161312
+   },
+   {
+    "base_shard": 4,
+    "later_shard": 4,
+    "files": 28,
+    "median_ratio": 1.60361490053179
+   }
+  ],
+  "kind": "unmeasured:no_same_commit_control",
+  "kind_reason": "нет контроля «тот же коммит на других машинах»: у каждого шарда своя машина GitHub, и отношение файла смешивает работу с машиной его шарда; контролем был бы второй прогон ci-control ТОГО ЖЕ SHA, а его не передали"
+ }
+}

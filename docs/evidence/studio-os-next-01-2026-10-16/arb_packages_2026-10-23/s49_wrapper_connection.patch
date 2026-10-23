@@ -1,0 +1,61 @@
+diff -ru a/scripts/agent_no_regression_census.sh b/scripts/agent_no_regression_census.sh
+--- a/scripts/agent_no_regression_census.sh	2026-10-23 11:43:22
++++ b/scripts/agent_no_regression_census.sh	2026-10-23 11:43:22
+@@ -1,13 +1,17 @@
+ #!/bin/bash
+ # scripts/agent_no_regression_census.sh — launchd wrapper for com.spa.no_regression_census
+ # Generated from scripts/agent_template.sh (canonical bash-wrapper pattern).
+-# §49 «No regression» (заказ G673 п. 1, ADR-770): производитель отчёта
+-# data/no_regression_census.json. Прогон населения идёт в СНИМКЕ коммита origin/main
+-# (git clone --shared во временный каталог; граница записи — Seatbelt, частичная), не в боевом дереве.
+-# РАБОЧИЙ ЗАПУСК ЗАБЛОКИРОВАН В КОДЕ (PRODUCTION_RUN_BLOCKED): полная изоляция не доказана.
+-# Такт решает возраст отчёта (--max-age-h 120 < предела пробы 192 ч), а не расписание.
++# §49 «No regression» (ADR-770; решения ARB 23.10, этапы 5 и 8): производитель отчёта
++# data/no_regression_census.json ИЗ ЗАПИСЕЙ ЗАВЕРШЁННОГО ci-control.yml. pytest на этом
++# хосте НЕ запускается (PRODUCTION_RUN_BLOCKED относится к --scheduled и остаётся).
++# Ревизия S — вершина main У СЕРВЕРА, закреплённая во ВРЕМЕННОМ bare-клоне (зеркало только
++# читается, fetch в него не идёт); прогон — последний РАСПИСАННЫЙ о S; нет прогона — НЕ
++# ИЗМЕРЕНО (код 2), прежний отчёт цел, след *.refusal.json. --if-due: прежний отчёт
++# засчитывается только о том же прогоне, той же S и свежей записи.
++# --decide: решение §49 выносится о чистом снимке S (вариант А) — утверждение о S, не о
++# боевом дереве; печатается в лог, файла не пишет.
+ #
+-# ПОДГОТОВЛЕН, НЕ ВКЛЮЧЁН (21.10): строки в scripts/install_all_agents.sh нет, в
++# ПОДГОТОВЛЕН, НЕ ВКЛЮЧЁН: строки в scripts/install_all_agents.sh нет, в
+ # architecture/manifest.json у артефакта producer: null. Включение — отдельное действие:
+ # scripts/check_agent_before_deploy.sh + launchctl bootstrap + producer в конституции.
+ # Log: /tmp/spa_no_regression_census.log
+@@ -15,5 +19,5 @@
+ # Признак запуска АГЕНТОМ: без него отчёт помечается как ручной (invoked_by.env.via).
+ export SPA_NO_REGRESSION_VIA="launchd:com.spa.no_regression_census"
+ export RUN_SCRIPT="/Users/yuriikulieshov/Documents/SPA_Claude/scripts/refresh_no_regression_census.py"
+-export MODULE_ARGS="--scheduled --live-root /Users/yuriikulieshov/Documents/SPA_Claude --ref origin/main --max-age-h 120 --timeout-s 3600"
++export MODULE_ARGS="--from-ci --if-due --decide --live-root /Users/yuriikulieshov/Documents/SPA_mirror --ref origin/main --out-root /Users/yuriikulieshov/Documents/SPA_Claude"
+ /bin/bash /Users/yuriikulieshov/Documents/SPA_Claude/scripts/agent_template.sh
+diff -ru a/spa_core/tests/test_refresh_no_regression_census.py b/spa_core/tests/test_refresh_no_regression_census.py
+--- a/spa_core/tests/test_refresh_no_regression_census.py	2026-10-23 11:43:22
++++ b/spa_core/tests/test_refresh_no_regression_census.py	2026-10-23 11:43:22
+@@ -826,7 +826,7 @@
+         self.assertEqual(self.calls, [])
+         self.assertEqual(list(self.work.iterdir()), [])
+ 
+-    def test_обёртка_и_plist_подготовлены_и_зовут_режим_расписания(self):
++    def test_обёртка_и_plist_подготовлены_и_зовут_режим_из_CI(self):
+         import plistlib
+         plist = REPO_ROOT / "launchd" / f"{RNC.SCHEDULED_PRODUCER}.plist"
+         doc = plistlib.loads(plist.read_bytes())
+@@ -837,7 +837,13 @@
+         self.assertIs(doc["RunAtLoad"], False)
+         text = (REPO_ROOT / "scripts" / wrapper.name).read_text(encoding="utf-8")
+         self.assertIn("refresh_no_regression_census.py", text)
+-        self.assertIn("--scheduled", text)
++        # Решение ARB 23.10 (этапы 5 и 8; инв. #16 — ожидание изменено вместе с обёрткой):
++        # производитель — запись CI, pytest на хосте не запускается.
++        args = next(line for line in text.splitlines() if line.startswith("export MODULE_ARGS="))
++        self.assertNotIn("--scheduled", args)
++        for flag in ("--from-ci", "--if-due", "--decide", "--out-root", "--ref origin/main"):
++            self.assertIn(flag, args)
++        self.assertIn("--live-root /Users/yuriikulieshov/Documents/SPA_mirror", args)
+         self.assertIn("agent_template.sh", text)
+         self.assertIn(f'{RNC.VIA_ENV}="launchd:{RNC.SCHEDULED_PRODUCER}"', text,
+                       "обёртка агента помечает запуск как агентский")

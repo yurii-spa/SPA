@@ -1,0 +1,15 @@
+предпосылка сцены из ЖИВОГО реестра проб (заказ G95 п. 2 (хвост ADR-507)): тестов записано 2824 · дошли до реестра 847 · НАХОДОК 22
+  сети населения: текстовая 97 · по форме 78 · союз 99 (расхождение ПЕЧАТАЕТСЯ: сеть, нашедшая меньше, и есть «не та форма»)
+  not_reached 1899 · breaks_on_substitution 771 · disappears_on_substitution 0 · vacuous_over_members 22 · claim_independent_of_members 54 · unmeasured 78
+  нашла только текстовая: 21 · только форма: 2
+  [vacuous_over_members] spa_core/tests/test_acceptance_probe_writer.py::ProbeRegistryHasExactlyOneCopy::test_unregistered_name_is_refused_and_names_the_alternatives — кадр ТЕСТА перечисляет реестр (iter) и на ПУСТОМ реестре вердикт не меняется — утверждения прошли над пустым множеством
+  [vacuous_over_members] spa_core/tests/test_acceptance_probe_writer.py::ProbeRegistryHasExactlyOneCopy::test_validator_accepts_exactly_the_registered_names — кадр ТЕСТА перечисляет реестр (iter, len) и на ПУСТОМ реестре вердикт не меняется — утверждения прошли над пустым множеством
+  [vacuous_over_members] spa_core/tests/test_card_acceptance.py::TestAudit::test_card_without_a_probe_is_scanned_but_not_judged — кадр ТЕСТА перечисляет реестр (iter, len) и на ПУСТОМ реестре вердикт не меняется — утверждения прошли над пустым множеством
+  [vacuous_over_members] spa_core/tests/test_card_acceptance.py::TestAudit::test_closed_card_with_satisfied_criterion_is_not_a_finding — кадр ТЕСТА перечисляет реестр (iter, len) и на ПУСТОМ реестре вердикт не меняется — утверждения прошли над пустым множеством
+  [vacuous_over_members] spa_core/tests/test_card_acceptance.py::TestAudit::test_exit_codes_are_fail_closed — кадр ТЕСТА перечисляет реестр (iter, len) и на ПУСТОМ реестре вердикт не меняется — утверждения прошли над пустым множеством
+  [vacuous_over_members] spa_core/tests/test_card_acceptance.py::TestAudit::test_index_files_are_skipped — кадр ТЕСТА перечисляет реестр (iter, len) и на ПУСТОМ реестре вердикт не меняется — утверждения прошли над пустым множеством
+  [vacuous_over_members] spa_core/tests/test_card_acceptance.py::TestAudit::test_missing_tracker_dir_is_zero_not_a_crash — кадр ТЕСТА перечисляет реестр (iter, len) и на ПУСТОМ реестре вердикт не меняется — утверждения прошли над пустым множеством
+  [vacuous_over_members] spa_core/tests/test_card_acceptance.py::TestAudit::test_open_card_whose_criterion_is_not_met_stays_quiet — кадр ТЕСТА перечисляет реестр (iter, len) и на ПУСТОМ реестре вердикт не меняется — утверждения прошли над пустым множеством
+  … ещё 14 находок(и) того же вида
+  НЕ ДОКЛАДЫВАЕТ: ТРОГАЕТ ли тест предмет пробы на самом деле (чтение реестра есть достижимость, а не исполнение предмета) · чтение держателем ПРЕЖНЕЙ ссылки (`from ... import PROBES` до подключения плагина): содержимое ему подменено, но его чтения не записываются · реестр, собранный в рантайме по имени из строки · правдоподобность ИМЕННО опорожнения как дрейфа (это назван ВЫБОР предела) · тесты вне четырёх предписанных каталогов · чтение, сделанное из кадра third-party (`other`): кадр записан, но судить о его намерении прибор не берётся
+  ADVISORY: прибор только ЧИТАЕТ (applied=False) и тесты не правит

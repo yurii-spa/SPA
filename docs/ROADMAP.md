@@ -204,6 +204,10 @@
     Stage 7 measured 2026-10-23: code 3f2482d22 full CI (run 39913698521) RED complete 12/12 — 135 588 cases, 3 failed,
     0 new vs base; §49 record checked case by case + bound to the named revision; G16 green refusal = budget, not
     re-entry; census workflow on the integ branch. Handover: `HANDOVER_2026-10-23_STAGE7.md`. NOT ARB-accepted.
+    Stage 8 measured 2026-10-23: code 3c40ed137 full CI (run 39935715615) RED complete 12/12 — 135 651 cases, 3 failed,
+    1 new vs base (test_investor_report, cause not established, backlog B-9); workflow step = wiring for the orphan ratchet;
+    census skips bookkeeping docs; §49 variant A (report_dir) + server revision pinned in a temp clone; connection package
+    ready, NOT installed. Handover: `HANDOVER_2026-10-23_STAGE8.md`. NOT ARB-accepted.
     Handover: `HANDOVER_FOR_ARB_FINAL.md`, `START_HERE.md` in the same folder.
 18. **Later engines:** traditional markets, volatility / options (scope decided inside RM-EXPAND-01)
 
