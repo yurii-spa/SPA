@@ -147,6 +147,98 @@ class TestTheWiring(unittest.TestCase):
 
 
 # ---------------------------------------------------------------------------
+# 2b. Операнд такта витрины — ВХОД ХАРНЕССА (ADR-788)
+#
+# Положительный контроль у этих четырёх тестов — настоящая авария, а не выдумка.
+# Замер цикла #910 (Actions API, 11 разобранных артефактов): job `site-freshness`
+# красен 68 прогонов ПОДРЯД (последний зелёный 2026-10-03T05:12Z), и с 07.10
+# `SHELF_OVERDUE` — ЕДИНСТВЕННАЯ причина в 9 прогонах из 9. Причина не в сайте:
+# `cadence.read_published()` (ADR-630) ищет опубликованную витрину по МЕСТУ —
+# явный путь → `$SPA_PUBLISHED_SHELF` → зеркало `~/Documents/SPA_mirror`
+# (ADR-152), — а в облаке зеркала нет и быть не может. Отказ был ВЕРНЫЙ
+# (инв. #17: «не измерено» не выдаётся за «в такте»), но отвечал на вопрос
+# ОКРУЖЕНИЯ, и владельцу ушло 68 тревог об окружении.
+#
+# Цена не в шуме. `OVERSTATED_METRIC` — публичное число ВЫШЕ живого API, то, ради
+# чего сторож и написан, — сделал бы job ровно таким же красным, и 69-я тревога
+# была бы неотличима от предыдущих 68.
+#
+# Поведенческая половина класса уже закреплена соседями и здесь НЕ дублируется:
+# `test_site_shelf_is_the_operand.py` держит «неизмеренный такт ⇒ SHELF_OVERDUE»,
+# `test_publication_truth.py::test_no_mirror_means_not_measured_never_the_local_copy`
+# — «без зеркала операнда нет». Непроверенной оставалась ПРОВОДКА: что облачная
+# джоба предпосылку ОБЪЯВЛЯЕТ. Ровно тот же порядок, что у `fetch-depth: 0` в
+# `.claude/rules/deployment.md`: лечит не понижение проверки, а объявление входа.
+# ---------------------------------------------------------------------------
+class TestTheCloudJobDeclaresThePublishedShelf(unittest.TestCase):
+
+    def setUp(self):
+        self.code = "\n".join(_uncommented(_WORKFLOW.read_text(encoding="utf-8")))
+
+    def test_the_job_declares_the_published_shelf_operand(self):
+        """Авария 07–23.10 дословно: переменной не объявлял никто, и такт был
+        «НЕ ИЗМЕРЕН» на каждом облачном прогоне. Снять объявление ⇒ этот тест красный."""
+        self.assertIn("SPA_PUBLISHED_SHELF", self.code,
+                      "облачная джоба не объявляет операнд такта витрины — такт станет "
+                      "«НЕ ИЗМЕРЕН» на КАЖДОМ прогоне (авария 07–23.10, 68 красных подряд)")
+        self.assertIn("GITHUB_ENV", self.code,
+                      "объявление обязано дойти до шага монитора — через $GITHUB_ENV, "
+                      "а не остаться в своём шаге")
+
+    def test_the_operand_is_origin_not_the_checked_out_tree(self):
+        """`cadence.py` запрещает подменять опубликованную копию своей: на другой ветке
+        (`workflow_dispatch`) рабочее дерево НЕ опубликовано. Поэтому операнд берётся
+        из `origin/main` под СВОИМ однозначным именем ref'а."""
+        resolve = [ln for ln in self.code.splitlines() if "SPA_PUBLISHED_SHELF=" in ln]
+        self.assertTrue(resolve, "строка, выставляющая операнд, не найдена")
+        self.assertIn("refs/spa/published", self.code,
+                      "операнд обязан читаться из ОТДЕЛЬНО названного ref'а origin/main: "
+                      "FETCH_HEAD зависит от соседнего шага, а refs/remotes/origin/main "
+                      "уже выставлен checkout'ом для ТЕКУЩЕЙ ветки")
+        self.assertIn("git fetch --depth=1 origin +refs/heads/main:refs/spa/published", self.code,
+                      "ref операнда обязан приходить из origin/main — иначе «опубликованная "
+                      "витрина» снова станет тем, что оказалось под рукой")
+        # Прямое чтение файла дерева в операнд — ровно запрещённая подмена.
+        for ln in resolve:
+            self.assertNotIn("$GITHUB_WORKSPACE/landing", ln)
+            self.assertNotIn("./landing", ln)
+
+    def test_the_declaration_comes_before_the_monitor_runs(self):
+        """Шаг, объявленный ПОСЛЕ монитора, не объявляет ничего: `$GITHUB_ENV` действует
+        на СЛЕДУЮЩИЕ шаги. Порядок здесь и есть предмет проверки, а не оформление."""
+        decl = self.code.find("SPA_PUBLISHED_SHELF=")
+        run = self.code.find("python scripts/site_freshness_monitor.py")
+        self.assertNotEqual(decl, -1)
+        self.assertNotEqual(run, -1)
+        self.assertLess(decl, run,
+                        "операнд объявлен ПОСЛЕ прогона монитора — $GITHUB_ENV до него не дойдёт")
+
+    def test_a_failure_to_resolve_does_not_gag_the_critical_checks(self):
+        """Жёсткий выход шага-резолвера снял бы с прогона `OVERSTATED_METRIC` — публичное
+        число выше живого API, самую критичную проверку сторожа — из-за недоступности git.
+        Поэтому отказ fail-soft и НАЗВАННЫЙ: причина печатается, переменная не выставляется,
+        монитор сам скажет «НЕ ИЗМЕРЕНО» (инв. #17).
+
+        ⚠️ Притязание мерится ВНУТРИ своего блока, а не по всему файлу. Первая редакция
+        этого теста спрашивала `"::warning::" in self.code` — и мутация, снявшая обе
+        названные причины у резолвера, ВЫЖИЛА: утверждение удовлетворял `::warning::`
+        СОСЕДНЕГО шага (`funnel_link_check`). Дыру нашёл прибор мутаций по дельте, а не
+        глаз автора; это тот же класс, что «строки контракта сверяются сами с собой»."""
+        block = self.code[self.code.find("refs/spa/published"):self.code.find("python scripts/site_freshness_monitor.py")]
+        self.assertTrue(block, "блок резолвера операнда не найден")
+        self.assertIn("::warning::", block,
+                      "недостача операнда обязана быть НАЗВАНА в логе СВОИМ шагом, "
+                      "а не промолчать под чужим предупреждением")
+        self.assertIn("SPA_PUBLISHED_SHELF", block.split("::warning::", 1)[1],
+                      "причина обязана называть, ЧЕГО не хватает — иначе «операнд не "
+                      "достали» неотличимо от любого другого предупреждения джобы")
+        self.assertNotIn("exit 1", block,
+                         "резолвер операнда не вправе снимать с прогона OVERSTATED_METRIC")
+        self.assertIn("exit 0", block,
+                      "ветка «операнд не достали» обязана БЫТЬ и обязана пускать монитор дальше")
+
+
+# ---------------------------------------------------------------------------
 # 3. Код возврата — последний канал недоставки. Гасить его запрещено
 # ---------------------------------------------------------------------------
 class TestTheExitCodeIsNotGagged(unittest.TestCase):

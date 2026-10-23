@@ -25,6 +25,48 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: "3.11"
+      # ОПУБЛИКОВАННАЯ ВИТРИНА — ВХОД ХАРНЕССА, а не догадка сторожа (ADR-788).
+      #
+      # `cadence.read_published()` (ADR-630) ищет опубликованную витрину по МЕСТУ:
+      # явный путь → `$SPA_PUBLISHED_SHELF` → зеркало origin `~/Documents/SPA_mirror`
+      # (ADR-152). В облаке зеркала нет и быть не может, поэтому такт честно отвечал
+      # «НЕ ИЗМЕРЕНО» — и это верный отказ (инв. #17), но отвечал он на вопрос
+      # окружения, а не сайта. Замер цикла #910: с 07.10 `SHELF_OVERDUE` —
+      # ЕДИНСТВЕННАЯ причина красного в 9 разобранных прогонах из 9, job красен 68
+      # прогонов подряд (последний зелёный 2026-10-03T05:12Z), и владельцу ушло 68
+      # тревог об окружении. Цена не в шуме: `OVERSTATED_METRIC` сделал бы job ровно
+      # таким же красным, и 69-я тревога была бы неотличима от предыдущих 68.
+      #
+      # Лечить это понижением проверки нельзя (инв. #16) и не нужно: тот же порядок,
+      # что у `fetch-depth: 0` в `.claude/rules/deployment.md` — предпосылку объявляет
+      # ДЖОБА. Операнд берётся не из рабочего дерева (на другой ветке `workflow_dispatch`
+      # оно НЕ опубликовано — ровно та подмена, которую запрещает `cadence.py`), а
+      # из `origin/main`: это и есть копия, которую строит Cloudflare Pages.
+      #
+      # Отказ fail-soft НАМЕРЕННО: не достав операнд, шаг печатает причину и НЕ
+      # выставляет переменную — монитор отработает и скажет «НЕ ИЗМЕРЕНО» сам. Жёсткий
+      # выход снял бы с прогона `OVERSTATED_METRIC`, то есть самую критичную проверку,
+      # из-за недоступности git — цена больше находки.
+      - name: Resolve the PUBLISHED shelf (origin/main) — harness input, ADR-788
+        run: |
+          # Имя ref'а СВОЁ (`refs/spa/published`), а не FETCH_HEAD и не
+          # `refs/remotes/origin/main`: первый зависит от того, что подтянул соседний
+          # шаг, второй уже выставлен `actions/checkout` для ТЕКУЩЕЙ ветки. Операнд
+          # обязан называться однозначно, иначе «опубликованная витрина» снова станет
+          # тем, что окажется под рукой.
+          set +e
+          git fetch --depth=1 origin +refs/heads/main:refs/spa/published 2>/tmp/shelf.err
+          mkdir -p "$RUNNER_TEMP/published"
+          git show refs/spa/published:landing/src/data/site_numbers.json > "$RUNNER_TEMP/published/site_numbers.json" 2>>/tmp/shelf.err
+          code=$?
+          set -e
+          if [ "$code" != "0" ] || [ ! -s "$RUNNER_TEMP/published/site_numbers.json" ]; then
+            echo "::warning::published shelf NOT resolved from origin/main (git exit=$code): $(cat /tmp/shelf.err 2>/dev/null | head -2)"
+            echo "::warning::\$SPA_PUBLISHED_SHELF остаётся НЕ объявленной — монитор назовёт такт 'НЕ ИЗМЕРЕНО' сам (инв. #17)"
+            exit 0
+          fi
+          echo "SPA_PUBLISHED_SHELF=$RUNNER_TEMP/published/site_numbers.json" >> "$GITHUB_ENV"
+          python -c "import json,sys; d=json.load(open(sys.argv[1])); print('published shelf resolved: measured_at=%s published_at=%s next_publication=%s' % (d.get('measured_at'), d.get('published_at'), d.get('next_publication')))" "$RUNNER_TEMP/published/site_numbers.json"
       - name: Run Site Custodian freshness monitor
         env:
           TELEGRAM_BOT_TOKEN_SPA: ${{ secrets.TELEGRAM_BOT_TOKEN_SPA }}

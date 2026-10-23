@@ -1,0 +1,52 @@
+{
+  "title": "ADR-788 — дельта цикла #910: облачная джоба ОБЪЯВЛЯЕТ операнд такта витрины. Каждая мутация ниже возвращает джобу в одно из состояний, в котором сторож публичных чисел снова отвечал бы на вопрос СВОЕГО ОКРУЖЕНИЯ вместо вопроса о сайте — ровно авария 07–23.10 (68 красных прогонов подряд, из них 9 разобранных с единственной причиной SHELF_OVERDUE)",
+  "tests": [
+    "spa_core/tests/test_site_freshness_agent.py",
+    "spa_core/tests/test_site_shelf_is_the_operand.py",
+    "spa_core/tests/test_publication_truth.py"
+  ],
+  "mutations": [
+    {
+      "name": "объявления нет вовсе — ДОСЛОВНАЯ авария 07–23.10: такт «НЕ ИЗМЕРЕН» на каждом облачном прогоне, и 69-я тревога про окружение неотличима от настоящего OVERSTATED_METRIC",
+      "file": ".github/workflows/site_freshness.yml",
+      "old": "          echo \"SPA_PUBLISHED_SHELF=$RUNNER_TEMP/published/site_numbers.json\" >> \"$GITHUB_ENV\"\n",
+      "new": "          : # объявления операнда нет — состояние до ADR-788\n"
+    },
+    {
+      "name": "объявление не доходит до шага монитора — переменная печатается, а не уезжает в $GITHUB_ENV: «объявил» становится неотличимо от «объявил кому-то другому»",
+      "file": ".github/workflows/site_freshness.yml",
+      "old": "          echo \"SPA_PUBLISHED_SHELF=$RUNNER_TEMP/published/site_numbers.json\" >> \"$GITHUB_ENV\"\n",
+      "new": "          echo \"SPA_PUBLISHED_SHELF=$RUNNER_TEMP/published/site_numbers.json\"\n"
+    },
+    {
+      "name": "операнд подменён РАБОЧИМ ДЕРЕВОМ — ровно та подмена, которую cadence.py запрещает дословно: на другой ветке workflow_dispatch дерево НЕ опубликовано, и «такт в порядке» стало бы утверждением о неотправленной сборке",
+      "file": ".github/workflows/site_freshness.yml",
+      "old": "          echo \"SPA_PUBLISHED_SHELF=$RUNNER_TEMP/published/site_numbers.json\" >> \"$GITHUB_ENV\"\n",
+      "new": "          echo \"SPA_PUBLISHED_SHELF=$GITHUB_WORKSPACE/landing/src/data/site_numbers.json\" >> \"$GITHUB_ENV\"\n"
+    },
+    {
+      "name": "ref операнда обезличен — FETCH_HEAD вместо своего имени: что именно сочтётся «опубликованной витриной», решает соседний шаг, а не это объявление",
+      "file": ".github/workflows/site_freshness.yml",
+      "old": "          git fetch --depth=1 origin +refs/heads/main:refs/spa/published 2>/tmp/shelf.err\n",
+      "new": "          git fetch --depth=1 origin main 2>/tmp/shelf.err\n"
+    },
+    {
+      "name": "ref операнда больше не из origin/main — чтение идёт по имени, которое никто в этой джобе не создавал",
+      "file": ".github/workflows/site_freshness.yml",
+      "old": "          git fetch --depth=1 origin +refs/heads/main:refs/spa/published 2>/tmp/shelf.err\n          mkdir -p \"$RUNNER_TEMP/published\"\n",
+      "new": "          mkdir -p \"$RUNNER_TEMP/published\"\n"
+    },
+    {
+      "name": "отказ резолвера стал ЖЁСТКИМ — недоступность git снимает с прогона OVERSTATED_METRIC, то есть самую критичную проверку сторожа: цена больше находки",
+      "file": ".github/workflows/site_freshness.yml",
+      "old": "            exit 0\n          fi\n",
+      "new": "            exit 1\n          fi\n"
+    },
+    {
+      "name": "недостача операнда больше НЕ НАЗВАНА — шаг молчит, и «операнд не достали» становится неотличимо от «достали» в логе джобы (инв. #17)",
+      "file": ".github/workflows/site_freshness.yml",
+      "old": "            echo \"::warning::published shelf NOT resolved from origin/main (git exit=$code): $(cat /tmp/shelf.err 2>/dev/null | head -2)\"\n            echo \"::warning::\\$SPA_PUBLISHED_SHELF остаётся НЕ объявленной — монитор назовёт такт 'НЕ ИЗМЕРЕНО' сам (инв. #17)\"\n",
+      "new": "            : # причина не названа\n"
+    }
+  ]
+}
