@@ -4,7 +4,9 @@
 > `architecture/memory_truth.json` (ADR-527). Changing the order or adding a top-level item needs the
 > owner's directive and a line in `docs/decisions/` — the roadmap is not edited from chat.
 > Last confirmed by the owner: **2026-10-01** (directive «THREE DEFI PAPER PORTFOLIOS — STRATEGY MECHANICS, OPERATIONS AND WEBSITE»).
-> Latest owner directive: **2026-10-16** «STUDIO-OS-NEXT-01 — next stage of Earn DeFi Studio OS under the ARB plan»
+> Latest owner directive: **2026-10-23** — model-independent workers and architect, P1; bounded verification
+> ([owner decision](decisions/ADR-OWN-2026-10-23-model-independent-studio.md)).
+> Continuing owner directive: **2026-10-16** «STUDIO-OS-NEXT-01 — next stage of Earn DeFi Studio OS under the ARB plan»
 > (ADR-763, item 17). Status words used below are kept apart: **implemented** (code on `origin/main`) · **published**
 > (live for the owner or the public) · **owner-verified** (the owner checked the result himself) · **ARB-accepted**.
 > An unfinished acceptance is never closed by an agent.
@@ -19,6 +21,28 @@
 | Capital Architecture v1 · Trading Research Engine v0 (keeps running, forward paper) | ADR-525, `docs/CAPITAL_ARCHITECTURE.md`, `docs/TRADING_RESEARCH_ENGINE.md` |
 | Memory & Context Architecture v1 (MemPalace evaluated: borrow ideas, not a dependency) | ADR-527, `docs/MEMORY_ARCHITECTURE.md` |
 | DeFi Architecture Gap Audit | ADR-530, `docs/DEFI_ARCHITECTURE_GAP_AUDIT.md` |
+
+## Owner priority update — 2026-10-23
+
+**P1 · STUDIO-OS-MODELS-01 · Model-independent workers and architect.** Owner directive:
+[ADR-OWN-2026-10-23](decisions/ADR-OWN-2026-10-23-model-independent-studio.md).
+This is the **next bounded Studio OS macro after the current item-17 stage-8 checkpoint**, without waiting for
+all technical debt to close. Earlier roadmap entries retain their acceptance status and owner gates.
+
+Scope: portable architect/reviewer context over the existing memory and continuity system; stable roles independent
+of vendor/model; one provider contract and explicit per-role routing to qualified cloud/local adapters; bounded
+resource use and honest accounting. ChatGPT and Claude Code are current participants, not permanent role definitions.
+Start with the existing Claude subscription seam and a fixture-backed second adapter; production/local-model
+activation is not approved by this priority change. ADR-423's design deferral is reopened; paid fallback,
+hardware purchases and resource limits remain gated. No LLM enters risk/execution/monitoring/kill.
+
+**Status:** owner-prioritized; not implemented or ARB-accepted. First acceptance: one safe task can recover its
+context in a fresh architect session and use the same role/provider contract, with explicit evidence and refusals.
+
+**Verification efficiency:** bound work to the actual change, reuse traceable evidence, and batch the required
+full CI on a stable candidate. No repeated whole-system/AI audit by default; no removal of mandatory checks and
+no introduction of the unapproved two-tier test scheme. Read results from already running jobs rather than
+starting duplicates. Full rationale, increments, acceptance and constraints are in the owner directive above.
 
 ## Order of the next epics
 
