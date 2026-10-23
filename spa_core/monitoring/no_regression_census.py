@@ -1441,12 +1441,18 @@ class GitHubReader:
 
 
 def find_ci_run(http, *, head_sha: str, repo: str = CI_REPO,
-                workflow_file: str = CI_WORKFLOW_FILE) -> int:
+                workflow_file: str = CI_WORKFLOW_FILE,
+                scheduled_only: bool = False) -> int:
     """Номер последнего ЗАВЕРШЁННОГО прогона воркфлоу, чей план мог быть о ``head_sha``.
 
     Ищется по ``head_sha`` прогона: для расписанного прогона он и есть
     проверяемый коммит. Прогон, закрепивший чужой коммит через
     ``workflow_dispatch``, этим поиском не находится — его номер называют явно.
+
+    ``scheduled_only`` (производитель §49, решение ARB 23.10): автоматический
+    выбор берёт ТОЛЬКО расписанный прогон — у ручного ``head_sha`` есть версия
+    воркфлоу, а не проверяемый код. Нет расписанного о ``head_sha`` — отказ
+    ``record_unavailable`` (НЕ ИЗМЕРЕНО), подстановки ручного или предка нет.
     """
     try:
         doc = http.get_json(f"/repos/{repo}/actions/workflows/{workflow_file}/runs"
@@ -1463,6 +1469,11 @@ def find_ci_run(http, *, head_sha: str, repo: str = CI_REPO,
     # Расписанный прогон гоняет ИМЕННО head_sha; ручной (dispatch) мог закрепить
     # другой коммит входом — тогда сверка плана откажет. Поэтому расписанный — первым.
     scheduled = [r for r in runs if r.get("event") == "schedule"]
+    if scheduled_only and not scheduled:
+        raise CIRecordRefused(CI_RECORD_UNAVAILABLE,
+                              f"у коммита {head_sha[:12]} нет завершённого РАСПИСАННОГО прогона "
+                              f"{workflow_file} (есть: {sorted({str(r.get('event')) for r in runs})}) — "
+                              f"ручной прогон засчитывается только явным номером")
     return max(scheduled or runs, key=lambda r: str(r.get("created_at")))["id"]
 
 

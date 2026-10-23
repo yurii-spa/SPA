@@ -11,6 +11,15 @@ name: SPA live-registry scene census (isolated, advisory)
 # этот файл не попадает без решения ARB/владельца; после слияния триггер ветки
 # снимается и остаётся workflow_dispatch.
 #
+# Такт (решение ARB 23.10, этап 8): docs-only push сохранения evidence/хендовера
+# прибор НЕ перезапускает (~55-66 мин; замер: run 39919735880 о docs-SHA ffafdf1a5
+# поштучно совпал с run 39913695961 о коде 3f2482d22 — 2761/2761 строк, 22/22
+# находки). paths-ignore — ТОЛЬКО учётные документы; любая иная правка (код, тесты,
+# scripts, architecture, data, прочие docs/, сам workflow) запускает замер. Пропуск —
+# это «о том SHA census НЕ ИЗМЕРЕН», а не перенос результата родителя: результат
+# census относится только к своему точному SHA. Контрольный запуск — вручную
+# workflow_dispatch с ref = эта ветка (вход sha — по желанию).
+#
 # Безопасность (проверено 23.10): permissions contents: read; секретов нет;
 # прибор пишет только в --out (lrs-out/) и во временный каталог --workdir
 # (lrs-work/) одноразового checkout; ci-control.yml и обязательный полный набор
@@ -19,6 +28,11 @@ name: SPA live-registry scene census (isolated, advisory)
 on:
   push:
     branches: ["integ/studio-os-next-01-stab"]
+    paths-ignore:
+      - "docs/evidence/**"
+      - "docs/journal/**"
+      - "docs/STATE.md"
+      - "docs/ROADMAP.md"
   workflow_dispatch:
     inputs:
       sha:

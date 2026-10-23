@@ -519,7 +519,9 @@ def test_run_probe_passes_a_tree_only_to_probes_that_declared_it(monkeypatch):
 def test_probe_tree_inputs_reports_the_truth_for_the_real_registry():
     assert probe_tree_inputs("portfolio_decision_owner_covers_capital") == (
         "repo_root", "data_dir")
-    assert probe_tree_inputs("no_regression_tests_pass") == ("repo_root",)
+    # Решение ARB 23.10 (этап 8, вариант А): каталог отчёта §49 — отдельный вход
+    # (инв. #16: ожидание изменено намеренно, сравнение по-прежнему точное).
+    assert probe_tree_inputs("no_regression_tests_pass") == ("repo_root", "report_dir")
     assert probe_tree_inputs("нет такой пробы") == ()
 
 

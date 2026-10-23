@@ -816,6 +816,103 @@ def scheduled(live_root: Path, *, ref: str = "origin/main", max_age_h: float = D
 CI_ENTRY = "ci_record"
 
 
+class RevisionUnpinned(NotMeasured):
+    """Ревизия S у сервера НЕ закреплена — НЕ ИЗМЕРЕНО; подстановки кэша или предка нет."""
+
+    code = "revision_unpinned"
+
+
+def pin_revision(live_root: Path, ref: str, work: Path) -> tuple[dict, Path]:
+    """Закрепить S = вершину ``ref`` У СЕРВЕРА, не записав НИЧЕГО в ``live_root``.
+
+    Решение ARB 23.10 (этап 8, п. 4). ``server_ref.pin_server_ref`` при нехватке
+    объекта делает ``git fetch`` в ПЕРЕДАННЫЙ репозиторий — то есть пишет в его
+    ``.git`` (объекты, ``FETCH_HEAD``, remote-tracking ссылку). Боевое дерево и
+    зеркало под видом «только чтения» так трогать нельзя. Поэтому механизм
+    закрепления зовётся у ВРЕМЕННОГО bare-клона ``work/pin.git``:
+    ``git clone --bare --shared`` читает объекты источника через alternates и
+    пишет только в ``work``; адрес удалённого берётся у источника
+    (``remote get-url`` — чтение), недостающий объект добирается fetch'ем во
+    временный клон. Из ``live_root`` читаются только конфиг и объекты.
+
+    Возврат — (описание ревизии, путь клона, из которого снимается снимок S).
+    Отказ — :class:`RevisionUnpinned` с причиной (сеть, нет удалённого, ref не
+    remote-tracking, объект не добирается).
+    """
+    from spa_core.utils import server_ref
+
+    split = server_ref.split_remote_ref(str(live_root), ref)
+    if isinstance(split, tuple) and split[0] is None:
+        raise RevisionUnpinned(f"ref {ref!r} не классифицирован: {split[1]}")
+    if split is None:
+        raise RevisionUnpinned(f"ref {ref!r} — не ветка удалённого: S выбирает СЕРВЕР; "
+                               f"локальная ссылка или sha — только явным --sha")
+    remote, branch = split
+    try:
+        url = _git(live_root, "remote", "get-url", remote)
+    except NotMeasured as exc:
+        raise RevisionUnpinned(f"адрес удалённого {remote!r} не прочитан: {exc}") from exc
+    pin = Path(work) / "pin.git"
+    for args in (["clone", "--quiet", "--bare", "--shared", str(live_root), str(pin)],
+                 ["-C", str(pin), "remote", "remove", "origin"],
+                 ["-C", str(pin), "remote", "add", remote, url]):
+        proc = subprocess.run(["git", *args], capture_output=True, text=True)
+        if proc.returncode != 0 and not (args[3:4] == ["remove"]):
+            raise RevisionUnpinned(f"временный клон закрепления: git {' '.join(args[:3])}: "
+                                   f"код {proc.returncode} — {(proc.stderr or '').strip()[:300]}")
+    pinned = server_ref.pin_server_ref(str(pin), f"{remote}/{branch}")
+    if not pinned.sha or pinned.source != "server":
+        raise RevisionUnpinned(f"вершина {remote}/{branch} у сервера не закреплена: "
+                               f"{pinned.reason}")
+    return ({"source": "server", "ref": ref, "remote": remote, "branch": branch,
+             "url": url, "sha": pinned.sha, "observed_at": pinned.observed_at,
+             "pinned_in": "временный bare-клон (--shared); источник только читается"}, pin)
+
+
+def instrument_revision() -> dict:
+    """Версия ПРИБОРА — дерево, из которого собран отчёт (не код под проверкой)."""
+    from spa_core.monitoring import no_regression_census as census
+    rev = census.tree_revision(str(ROOT))
+    return {"path": str(ROOT), "sha": rev.get("sha"), "clean": rev.get("clean"),
+            "reason": rev.get("reason") or ""}
+
+
+def _reusable_prior(prior: dict | None, *, run_id, expected: str, now: datetime | None,
+                    max_age_h: float | None) -> tuple[bool, str]:
+    """Можно ли ответить прежним отчётом (``--if-due``) — и почему.
+
+    Повторное использование НЕ обходит ни проверку ревизии, ни свежесть: отчёт
+    засчитывается, только если он о ТОМ ЖЕ прогоне, ТОЙ ЖЕ ревизии S (источник,
+    ``invoked_by``, ревизия дерева населения) и его запись ещё не старше предела
+    — по времени наблюдения (``generated_at`` = начало прогона CI), а не по
+    времени файла. Отчёт не переписывается, его отметка не трогается.
+    """
+    from spa_core.monitoring import no_regression_census as census
+    if not prior:
+        return False, "прежнего измеренного отчёта нет"
+    src = prior.get("source") if isinstance(prior.get("source"), dict) else {}
+    inv = prior.get("invoked_by") if isinstance(prior.get("invoked_by"), dict) else {}
+    said = census.report_revision(prior)
+    if str(src.get("run_id")) != str(run_id):
+        return False, f"прежний отчёт о прогоне {src.get('run_id')}, выбран {run_id}"
+    if not (src.get("sha") == expected == inv.get("sha") == said.get("sha")):
+        return False, f"прежний отчёт не о ревизии {expected[:12]}"
+    if said.get("clean") is not True:
+        return False, f"прежний отчёт не подтверждает чистое дерево: {said.get('reason')}"
+    limit = census.ci_max_age_h() if max_age_h is None else float(max_age_h)
+    try:
+        made = datetime.fromisoformat(str(prior.get("generated_at")).replace("Z", "+00:00"))
+    except (TypeError, ValueError):
+        return False, "у прежнего отчёта нет читаемой отметки наблюдения"
+    if made.tzinfo is None:
+        made = made.replace(tzinfo=timezone.utc)
+    age = ((now or datetime.now(timezone.utc)) - made).total_seconds() / 3600.0
+    if age > limit:
+        return False, f"запись прежнего отчёта старше предела ({age:.1f}ч > {limit:.0f}ч)"
+    return True, (f"прежний отчёт о прогоне {run_id} и ревизии {expected[:12]}, "
+                  f"возраст записи {age:.1f}ч")
+
+
 def _ci_env() -> dict:
     """Окружение СБОРКИ отчёта (не прогона тестов — тесты шли в CI)."""
     import platform
@@ -827,13 +924,20 @@ def from_ci(live_root: Path, *, out_root: Path, ref: str = "origin/main",
             sha: str | None = None, run_id: int | str | None = None,
             record_dir: Path | None = None, if_due: bool = False,
             now: datetime | None = None, http=None, workdir: Path | None = None,
-            max_age_h: float | None = None) -> dict:
+            max_age_h: float | None = None, decide: bool = False) -> dict:
     """§49 по записи CI → отчёт в ``out_root/data`` (только при успехе).
 
     ``live_root`` — git-дерево, ИЗ которого снимается коммит (только чтение);
     ``out_root`` — куда ляжет отчёт и след отказа. Они разведены намеренно:
     сборка во временный каталог не обязана трогать боевое дерево вовсе.
     Любой отказ — :class:`NotMeasured` с кодом причины; отчёт ``out_root`` цел.
+
+    ``decide`` (вариант А §49, решение ARB 23.10): после записи отчёта решение
+    выносится настоящим ``card_acceptance.run_probe`` о ТОМ ЖЕ чистом снимке S, на
+    котором считалось население, с отчётом из ``out_root/data`` (вход
+    ``report_dir``). Это утверждение о S — не о ``live_root``, не о
+    ``out_root`` и не о текущем main, если их ревизия иная; ``out["decision"]``
+    называет все четыре факта раздельно. Файла решение не пишет.
     """
     import shutil
     import tempfile
@@ -848,18 +952,30 @@ def from_ci(live_root: Path, *, out_root: Path, ref: str = "origin/main",
     tmp = Path(tempfile.mkdtemp(prefix="spa_s49_ci_", dir=str(workdir) if workdir else None))
     try:
         try:
-            expected = sha or _git(live_root, "rev-parse", "--verify", f"{ref}^{{commit}}")
+            snapshot_source = live_root
+            if sha:
+                out["revision"] = {"source": "explicit", "sha": sha, "ref": None}
+                expected = sha
+            else:
+                # S — вершина у СЕРВЕРА, закреплённая во временном клоне (п. 4 ARB):
+                # ни rev-parse кэша, ни fetch в боевое дерево/зеркало.
+                out["revision"], snapshot_source = pin_revision(live_root, ref, tmp)
+                expected = out["revision"]["sha"]
             out["sha"] = expected
             if record_dir is None:
                 if run_id is None:
-                    run_id = census.find_ci_run(http or census.GitHubReader(), head_sha=expected)
+                    run_id = census.find_ci_run(http or census.GitHubReader(), head_sha=expected,
+                                                scheduled_only=True)
                 out["run_id"] = run_id
                 if if_due:
-                    prior = _prior_ci_report(target)
-                    src = (prior or {}).get("source") or {}
-                    if (prior and str(src.get("run_id")) == str(run_id)
-                            and src.get("sha") == expected):
-                        out.update({"due": False, "report": prior,
+                    ok, why = _reusable_prior(_prior_ci_report(target), run_id=run_id,
+                                              expected=expected, now=now, max_age_h=max_age_h)
+                    out["reuse"] = why
+                    if ok:
+                        out.update({"due": False, "report": _prior_ci_report(target),
+                                    "age_reason": why,
+                                    "max_age_h": (census.ci_max_age_h() if max_age_h is None
+                                                  else float(max_age_h)),
                                     "source": f"прежний отчёт о том же прогоне {run_id}"})
                         return out
                 record = census.fetch_ci_record(str(tmp / "record"), run_id=run_id,
@@ -868,7 +984,7 @@ def from_ci(live_root: Path, *, out_root: Path, ref: str = "origin/main",
                 record = Path(record_dir)
             out["due"] = True
             tree = tmp / "tree"
-            out["snapshot_files"] = snapshot_commit(live_root, expected, tree)
+            out["snapshot_files"] = snapshot_commit(snapshot_source, expected, tree)
             report = census.measure_from_ci_record(str(record), expected_sha=expected,
                                                    repo_root=str(tree), now=now,
                                                    max_age_h=max_age_h,
@@ -882,15 +998,35 @@ def from_ci(live_root: Path, *, out_root: Path, ref: str = "origin/main",
             raise NotMeasured(str(exc)) from exc
         report["invoked_by"] = {"entry": CI_ENTRY, "producer": SCHEDULED_PRODUCER,
                                 "ref": ref, "sha": expected,
+                                "revision": out["revision"],
+                                "instrument": instrument_revision(),
                                 "tree": "git clone --shared snapshot (только население)",
                                 "tests_ran_on": "github-actions (ci-control.yml)",
                                 "source": report["source"], "env": env}
         atomic_save(report, str(target))
         out.update({"report": report, "written": str(target),
                     "source": f"CI-прогон {report['source']['run_id']} о {expected[:12]}"})
+        if decide:
+            out["decision"] = decide_in_snapshot(tree, target.parent)
     finally:
         shutil.rmtree(tmp, ignore_errors=True)
     return out
+
+
+def decide_in_snapshot(tree: Path, report_dir: Path) -> dict:
+    """Решение §49 о чистом снимке S — через НАСТОЯЩИЙ ``run_probe``, а не прямой вызов."""
+    from spa_core.monitoring import card_acceptance as ca
+    from spa_core.monitoring import no_regression_census as census
+    verdict, detail = ca.run_probe("no_regression_tests_pass", repo_root=str(tree),
+                                   report_dir=str(report_dir))
+    return {"verdict": verdict, "detail": detail,
+            "decision_tree": {"kind": "clone --shared snapshot of S (удаляется после)",
+                              "path": str(tree), **census.tree_revision(str(tree))},
+            "report_dir": str(report_dir),
+            "reached": [k for k in ca.probe_tree_inputs("no_regression_tests_pass")
+                        if k in ("repo_root", "report_dir")],
+            "scope": "утверждение о ревизии снимка; о боевом дереве, другом checkout и "
+                     "текущем main не говорит ничего, если их ревизия иная"}
 
 
 def _prior_ci_report(path: Path) -> dict | None:
@@ -941,6 +1077,13 @@ def _lines(out: dict) -> list[str]:
                      "тесты населения писали в `data/` этого дерева")
     if out.get("written"):
         lines.append(f"[ЗАПИСАНО] {out['written']}")
+    dec = out.get("decision")
+    if dec:
+        tree = dec["decision_tree"]
+        lines.append(f"[РЕШЕНИЕ §49 О СНИМКЕ] {dec['verdict']} — дерево {tree['path']} "
+                     f"({(tree.get('sha') or '?')[:12]}, чистое={tree.get('clean')}), отчёт "
+                     f"{dec['report_dir']}: {dec['detail']}")
+        lines.append(f"  {dec['scope']}")
     return lines
 
 
@@ -978,6 +1121,9 @@ def _main(argv: list[str] | None = None) -> int:
     ap.add_argument("--sha", default=None, help="проверяемый коммит (умолчание — --ref)")
     ap.add_argument("--ci-run", default=None, help="номер прогона ci-control.yml (умолчание — "
                                                     "последний завершённый о --sha)")
+    ap.add_argument("--decide", action="store_true",
+                    help="(--from-ci) вынести решение §49 о чистом снимке S той же пробой, "
+                         "что и сводка (run_probe, вход report_dir); файла не пишет")
     ap.add_argument("--ci-record-dir", default=None,
                     help="уже скачанная запись прогона (run.json, artifacts.json, артефакты)")
     args = ap.parse_args(argv)
@@ -991,7 +1137,8 @@ def _main(argv: list[str] | None = None) -> int:
                 return 2
             out = from_ci(Path(args.live_root), out_root=Path(args.out_root), ref=args.ref,
                           sha=args.sha, run_id=args.ci_run, if_due=args.if_due,
-                          record_dir=Path(args.ci_record_dir) if args.ci_record_dir else None)
+                          record_dir=Path(args.ci_record_dir) if args.ci_record_dir else None,
+                          decide=args.decide)
         elif args.scheduled:
             out = scheduled(Path(args.live_root), ref=args.ref, max_age_h=args.max_age_h,
                             timeout_s=args.timeout_s)

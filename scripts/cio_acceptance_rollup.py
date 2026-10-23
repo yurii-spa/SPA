@@ -305,6 +305,7 @@ def read_population(repo_root: str, *, ref: str = ORIGIN_REF,
 
 def measure(repo_root: str, *, ref: str = ORIGIN_REF, card_rel: str = CARD_REL,
             measure_tree: str | None = None, data_dir: str | None = None,
+            report_dir: str | None = None,
             probe_runner=None, now=None) -> dict:
     # Одна сводка — ОДНО значение `ref` у сервера (`one_pin_per_report`): население §49
     # и каждая проба критерия, закрепляющая ту же ссылку, судятся одним sha и
@@ -312,11 +313,13 @@ def measure(repo_root: str, *, ref: str = ORIGIN_REF, card_rel: str = CARD_REL,
     with one_pin_per_report():
         return _measure_in_one_pin(repo_root, ref=ref, card_rel=card_rel,
                                    measure_tree=measure_tree, data_dir=data_dir,
+                                   report_dir=report_dir,
                                    probe_runner=probe_runner, now=now)
 
 
 def _measure_in_one_pin(repo_root: str, *, ref: str = ORIGIN_REF, card_rel: str = CARD_REL,
                         measure_tree: str | None = None, data_dir: str | None = None,
+                        report_dir: str | None = None,
                         probe_runner=None, now=None) -> dict:
     """Свести §49: у каждого критерия — вердикт либо названная причина его отсутствия.
 
@@ -334,6 +337,13 @@ def _measure_in_one_pin(repo_root: str, *, ref: str = ORIGIN_REF, card_rel: str 
     живым `data/`, и `landing/` в прод-дерево не синхронизируется (ADR-152). Сводка,
     собранная из двух деревьев, есть вердикт НИ ОБ ОДНОМ существующем дереве, и
     прибор говорит это вслух (`split_tree`), а не подмешивает молча.
+
+    `report_dir` (решение ARB 23.10, вариант А §49) — каталог ОТЧЁТА, отдельный
+    вход только для пробы, объявившей его (`no_regression_tests_pass`). Остальным
+    критериям он не предлагается вовсе и предмета их не меняет; `split_tree` от
+    него не зависит и не скрывается. Решение §49 при этом выносится о
+    `measure_tree` (чистый снимок ревизии S), а отчёт берётся из `report_dir` —
+    это утверждение о S, и сводка печатает оба пути раздельно.
     """
     # Мерка разрешается В МОМЕНТ ЗОВА, а не умолчанием в сигнатуре: умолчание
     # связывается при ОПРЕДЕЛЕНИИ функции, поэтому подмена `run_probe` в модуле
@@ -391,7 +401,7 @@ def _measure_in_one_pin(repo_root: str, *, ref: str = ORIGIN_REF, card_rel: str 
                          "tree_inputs_reached": None})
             continue
         accepted = probe_tree_inputs(probes[0])
-        if measure_tree or data_dir:
+        if measure_tree or data_dir or (report_dir and "report_dir" in accepted):
             # ОДНА копия правила: что предложено, то и напечатано дошедшим.
             # Прежде предложение и отчёт о нём считались ДВУМЯ выражениями, и
             # второе знало ровно два имени входа («`repo_root` — дерево, иначе —
@@ -407,6 +417,10 @@ def _measure_in_one_pin(repo_root: str, *, ref: str = ORIGIN_REF, card_rel: str 
                                          if measure_tree else None),
                 "tracker_dir": (os.path.join(measure_tree, TRACKER_REL)
                                 if measure_tree else None),
+                # Без производной от measure_tree: отчёт не обязан лежать в
+                # дереве решения, и угадывать его место значило бы читать
+                # отчёт ДРУГОГО дерева под видом своего.
+                "report_dir": report_dir,
             }
             kw = {k: offered.get(k) for k in accepted}
             verdict, detail = probe_runner(probes[0], **kw)
@@ -484,6 +498,7 @@ def _measure_in_one_pin(repo_root: str, *, ref: str = ORIGIN_REF, card_rel: str 
                      os.path.join(measure_tree, "data")))
     return {"population": len(names), "rows": rows, "counts": counts,
             "measure_tree": measure_tree, "data_dir": data_dir,
+            "report_dir": report_dir,
             "split_tree": split,
             "addressee_counts": (addressee or {}).get("counts"),
             "addressee_ref": ref if addressee is not None else None,
@@ -555,12 +570,18 @@ def main(argv: list[str] | None = None) -> int:
                     help="дерево, О КОТОРОМ выносится вердикт (умолчание — дерево "
                          "прибора). Доходит до пробы теми входами, которые она "
                          "объявила; что дошло, печатается у каждой строки")
+    ap.add_argument("--report-dir", default=None,
+                    help="каталог отчёта §49 (no_regression_census.json) ОТДЕЛЬНО от "
+                         "--measure-tree: решение выносится о снимке ревизии, отчёт "
+                         "о той же ревизии берётся отсюда. Доходит только до пробы "
+                         "§49; остальные критерии его не получают")
     ap.add_argument("--json", action="store_true", help="печатать замер как JSON")
     args = ap.parse_args(argv)
 
     try:
         report = measure(args.repo_root, ref=args.ref,
-                         measure_tree=args.measure_tree, data_dir=args.data_dir)
+                         measure_tree=args.measure_tree, data_dir=args.data_dir,
+                         report_dir=args.report_dir)
     except Unmeasured as exc:
         if args.json:
             print(json.dumps({"state": "unmeasured", "reason": str(exc)},
@@ -579,6 +600,9 @@ def main(argv: list[str] | None = None) -> int:
               f"{', '.join(report['sources'])})")
         print(f"  вердикт выносится о дереве: "
               f"{report['measure_tree'] or 'дерево прибора (' + args.repo_root + ')'}")
+        if report.get("report_dir"):
+            print(f"  отчёт §49 взят из {report['report_dir']} — решение §49 о "
+                  f"{report['measure_tree'] or args.repo_root}, утверждение о его ревизии")
         if report["split_tree"]:
             print(f"  ⚠️  СБОРНЫЙ ЗАМЕР: поверхности из {report['measure_tree']}, "
                   f"артефакты из {report['data_dir']} — такого дерева НЕ "

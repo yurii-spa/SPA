@@ -4730,9 +4730,34 @@ def _probe_census_probe_refuses_unobserved_subject(
 _NO_REGRESSION_MAX_AGE_H = 192.0
 
 
+def _no_regression_subject(said: dict, live_rev: dict, root: str, report: dict,
+                           report_path: str | None) -> str:
+    """Четыре раздельных факта предмета §49 (решение ARB 23.10, вариант А).
+
+    Не одно «о чём отчёт», а четыре, и подменять одно другим нельзя: ревизия
+    проверяемого кода · версия воркфлоу и прибора · источник отчёта · дерево,
+    о котором вынесено решение. Неизвестное названо словом «не назван(о)».
+    """
+    src = report.get("source") if isinstance(report.get("source"), dict) else {}
+    inv = report.get("invoked_by") if isinstance(report.get("invoked_by"), dict) else {}
+    instr = inv.get("instrument") if isinstance(inv.get("instrument"), dict) else {}
+    wf = said.get("workflow_sha")
+    instrument = (f"{(instr.get('sha') or '?')[:12]}"
+                  + ("" if instr.get("clean") is True else " (дерево прибора изменено или не измерено)")
+                  if instr else "не назван")
+    run = (f"прогон {src.get('run_id')} ({src.get('event') or '?'})"
+           if src.get("run_id") is not None else "локальная запись")
+    return (f"ПРЕДМЕТ: код {said['sha'][:12]} · воркфлоу "
+            f"{wf[:12] if isinstance(wf, str) and wf else 'не назван'} · прибор {instrument} · "
+            f"отчёт {report_path or 'передан вызывающим'} ({run}) · "
+            f"решение о дереве {root} ({live_rev['sha'][:12]}, чистое) — "
+            f"утверждение о {said['sha'][:12]}, не о другом дереве или текущем main")
+
+
 def _probe_no_regression_tests_pass(
         arg: str | None, *, now: "datetime | None" = None,
         repo_root: str | None = None,
+        report_dir: str | None = None,
         report: dict | None = None) -> tuple[str, str]:
     """Критерий §49 `No regression`: проходят ли существующие risk/security/architecture-тесты.
 
@@ -4765,6 +4790,14 @@ def _probe_no_regression_tests_pass(
     Часы, корень дерева и сам отчёт — ВХОДЫ, не окружение: иначе вердикт решала
     бы переменная среды, а положительный контроль не мог бы закрепить обе
     стороны сравнения (`.claude/rules/deployment.md`).
+
+    **Предмет вердикта — дерево `repo_root`, и только оно** (вариант А, решение ARB
+    23.10). `report_dir` — каталог, где лежит отчёт (`no_regression_census.json`),
+    отдельно от дерева решения: так решение выносится о чистом снимке ревизии S
+    по отчёту о той же S. Вердикт — утверждение о S; о боевом дереве, другом
+    checkout или текущем main он ничего не говорит, если их ревизия иная. Поэтому
+    пояснение называет РАЗДЕЛЬНО: ревизию проверяемого кода, версию воркфлоу и
+    прибора, источник отчёта и дерево, о котором вынесено решение.
     """
     if (arg or "").strip():
         return UNMEASURED, (f"проба не принимает аргумента (дано {arg!r}): "
@@ -4776,14 +4809,16 @@ def _probe_no_regression_tests_pass(
         return UNMEASURED, f"перепись не импортируется: {type(exc).__name__}: {exc}"
 
     root = repo_root or REPO_ROOT
+    report_path = None
     if report is None:
-        path = os.path.join(root, census.REPORT_REL)
+        report_path = (os.path.join(report_dir, os.path.basename(census.REPORT_REL))
+                       if report_dir else os.path.join(root, census.REPORT_REL))
         try:
-            with open(path, encoding="utf-8") as fh:
+            with open(report_path, encoding="utf-8") as fh:
                 report = json.load(fh)
         except BaseException as exc:  # noqa: BLE001
             return UNMEASURED, (f"отчёта переписи нет или он не прочитан "
-                                f"({census.REPORT_REL}): {type(exc).__name__}: {exc} — "
+                                f"({report_path}): {type(exc).__name__}: {exc} — "
                                 f"исход тестов не наблюдён")
     if not isinstance(report, dict) or not report.get("measured"):
         reason = (report or {}).get("reason") if isinstance(report, dict) else "не словарь"
@@ -4886,7 +4921,8 @@ def _probe_no_regression_tests_pass(
         f"{m.get('hostname') or 'хост не назван'} {m.get('timestamp') or ''}".strip()
         for m in (report.get("records_meta") or [])) or "происхождение записи не названо"
     tail = (f"население {total} тест-файл(ов), запись о {head}, снята на {where}, "
-            f"возраст {age:.1f}ч")
+            f"возраст {age:.1f}ч; " + _no_regression_subject(
+                said, live_rev, root, report, report_path))
 
     if failed:
         return NOT_SATISFIED, (
@@ -10275,7 +10311,15 @@ def parse_frontmatter(text: str) -> dict:
 #: `orchestrator_queue.py probe` писал пробу в карточку одного дерева и в
 #: следующей строке печатал вердикт о другом — «карточки нет ни в дереве», о
 #: карточке, которую сам только что создал.
-PROBE_TREE_INPUTS = ("repo_root", "data_dir", "tracker_dir")
+#:
+#: `report_dir` добавлен решением ARB 23.10 (STUDIO-OS-NEXT-01, этап 8, вариант А §49):
+#: каталог ОТЧЁТА — отдельный вход, а не производная от `repo_root`. Решение §49
+#: выносится о чистом снимке ревизии S (`repo_root`), а отчёт о той же S лежит там,
+#: куда его положил производитель (`--out-root`/data). Без отдельного входа отчёт
+#: пришлось бы класть внутрь снимка (снимок перестал бы быть чистым) или читать
+#: из боевого дерева (решение о другом дереве). Принимает его только проба,
+#: объявившая параметр, — остальные критерии CIO своего предмета не меняют.
+PROBE_TREE_INPUTS = ("repo_root", "data_dir", "tracker_dir", "report_dir")
 
 
 def probe_tree_inputs(name: str) -> tuple:
@@ -10302,7 +10346,8 @@ def probe_tree_inputs(name: str) -> tuple:
 
 def run_probe(spec: str, *, repo_root: str | None = None,
               data_dir: str | None = None,
-              tracker_dir: str | None = None) -> tuple[str, str]:
+              tracker_dir: str | None = None,
+              report_dir: str | None = None) -> tuple[str, str]:
     """Исполнить пробу по её ОБЪЯВЛЕНИЮ. Возврат — (вердикт, пояснение).
 
     Fail-CLOSED в обе стороны: незнакомое имя, кривой аргумент и любое исключение
@@ -10332,7 +10377,7 @@ def run_probe(spec: str, *, repo_root: str | None = None,
     if fn is None:
         return UNMEASURED, f"проба {name!r} не зарегистрирована — измерять нечем"
     offered = {"repo_root": repo_root, "data_dir": data_dir,
-               "tracker_dir": tracker_dir}
+               "tracker_dir": tracker_dir, "report_dir": report_dir}
     accepted = probe_tree_inputs(name)
     kw = {k: v for k, v in offered.items() if v and k in accepted}
     try:

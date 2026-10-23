@@ -26,6 +26,8 @@ from pathlib import Path
 
 import pytest
 
+from spa_core.tests import _workflow_calls
+
 _ROOT = Path(__file__).resolve().parents[2]
 _DIRS = ("spa_core/alerts", "spa_core/monitoring", "spa_core/governance")
 
@@ -144,7 +146,21 @@ def _tree_texts() -> dict:
     return out
 
 
-def _census() -> set:
+def _entrypoint_modules(root: Path = _ROOT) -> list:
+    out = []
+    for sub in _DIRS:
+        d = root / sub
+        if not d.exists():
+            continue
+        for f in sorted(d.glob("*.py")):
+            if f.name.startswith("_"):
+                continue
+            if has_entrypoint(f.read_text(encoding="utf-8", errors="replace")):
+                out.append(f)
+    return out
+
+
+def _census_by_name() -> set:
     """Модули с точкой входа, чьё ИМЯ не встречается НИ В ОДНОМ другом файле.
 
     Ищем имя модуля, как ищет человек: обёртка `agent_x.sh`, plist и манифест
@@ -155,33 +171,41 @@ def _census() -> set:
     """
     texts = _tree_texts()
     found = set()
-    for sub in _DIRS:
-        d = _ROOT / sub
-        if not d.exists():
-            continue
-        for f in sorted(d.glob("*.py")):
-            if f.name.startswith("_"):
-                continue
-            if not has_entrypoint(f.read_text(encoding="utf-8", errors="replace")):
-                continue
-            rel = str(f.relative_to(_ROOT))
-            if not any(f.stem in body for path, body in texts.items() if path != rel):
-                found.add(rel)
+    for f in _entrypoint_modules():
+        rel = str(f.relative_to(_ROOT))
+        if not any(f.stem in body for path, body in texts.items() if path != rel):
+            found.add(rel)
     return found
+
+
+def _census() -> set:
+    """Сироты по имени МИНУС модули, которые зовёт исполняемый шаг GitHub Actions.
+
+    Решение ARB 23.10 (STUDIO-OS-NEXT-01, этап 8; инв. #16 — смысл детектора
+    изменён намеренно, журнал W43): исполняемый вызов в workflow — проводка.
+    `.github/` в поиск ПО ИМЕНИ не добавлен: упоминание в YAML (комментарий,
+    `name:`, `echo`, путь к тесту) вызовом не является. Засчитывается только
+    вызов `python -m <точный.путь>` / `python <точный/путь.py>` в `run:` не
+    отключённого шага (`_workflow_calls`); неясное — не засчитывается.
+    """
+    by_name = _census_by_name()
+    return by_name - set(_workflow_calls.invoked_modules(_ROOT, by_name))
 
 
 def test_census_is_not_vacuous():
     """Без этого «сирот нет» значило бы «сканер ничего не нашёл»."""
-    total = sum(1 for sub in _DIRS for f in (_ROOT / sub).glob("*.py")
-                if not f.name.startswith("_")
-                and has_entrypoint(f.read_text(encoding="utf-8", errors="replace")))
+    total = len(_entrypoint_modules())
     assert total >= 50, f"модулей с точкой входа всего {total} — скан сузился"
 
 
 def test_no_new_guard_module_is_left_unwired():
     new = sorted(_census() - KNOWN_UNWIRED)
+    unclear = {rel: _workflow_calls.unclear_mentions(_ROOT, Path(rel).stem) for rel in new}
+    unclear = {rel: [f"{u.workflow}:{u.job}:{u.step} — {u.reason}" for u in us]
+               for rel, us in unclear.items() if us}
     assert not new, (
         f"новый сторож с точкой входа, которого никто не зовёт: {new}. "
+        f"Неясные конструкции workflow с его именем (НЕ засчитаны вызовом): {unclear}. "
         "Написать проверку и не позвать её — то же, что не написать: "
         "apy_spike_monitor так пропустил всплеск 9.2 % при пороге 8 %. "
         "В KNOWN_UNWIRED НЕ добавлять — подключить или вывести карточкой. "
