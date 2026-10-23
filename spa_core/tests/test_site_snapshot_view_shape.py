@@ -20,6 +20,12 @@ ADR-373. Двадцать четыре страницы перестали чи�
 **поведенческая**: переходник загружается по-настоящему, и его форма сверяется с формой
 снимка.
 
+**С 2026-10-23 — классификация по замеру, а не по списку** (решение ARB). Путь снимка вне
+переходника допустим, только если замер доводит его до страницы через витрину (подмена значения
+всплывает в витрине настоящим сборщиком И этот путь витрины кто-то читает — сам переходник не в
+счёт), либо он объявлен С ДОКАЗАТЕЛЬСТВОМ (таблицы ниже; ложное и лишнее объявление — красные).
+Чтения самих страниц проверяет `test_site_projection_chain.py`.
+
 **Третий исход (инв. #17).** Нет `node` — «НЕ ИЗМЕРЕНО» с названной причиной, а не
 молчаливый зелёный: отсутствие инструмента не есть отсутствие дефекта.
 """
@@ -53,13 +59,9 @@ NOT_IN_VIEW = {
     "/note": "текст для человека, не число",
     "/generator": "имя генератора снимка — провенанс, не показатель",
     "/generated_from": "перечень источников снимка — провенанс, не показатель",
-    "/total_return_pct": "ни одна страница не читает его из снимка; кокпит-компоненты "
-                         "берут это поле из API в рантайме (замер 13.09)",
     "/paper_tracks/conservative/days_funded": "не читает ни одна страница (замер 13.09)",
     "/paper_tracks/balanced/days_funded": "не читает ни одна страница (замер 13.09)",
     "/paper_tracks/aggressive/days_funded": "не читает ни одна страница (замер 13.09)",
-    "/paper_tracks/balanced/observed_accrual_since": "заменено на evidence_split.observed_since",
-    "/paper_tracks/aggressive/observed_accrual_since": "заменено на evidence_split.observed_since",
     "/paper_tracks/balanced/economics_model": R_MODEL,
     "/paper_tracks/balanced/economics_model_boundary": R_MODEL,
     "/paper_tracks/balanced/post_fix": R_POST,
@@ -84,6 +86,65 @@ for _b in ("balanced", "aggressive"):
     for _f in ("adr", "defect", "defect_found_at", "first_v2_date", "v1_classification", "v1_last_date",
                "v1_model", "v1_rows", "v2_activated_at", "v2_model"):
         NOT_IN_VIEW[f"/paper_tracks/{_b}/economics_model_boundary/{_f}"] = R_MODEL
+
+# ── С 2026-10-23 база NOT_IN_VIEW не текст, а утверждение, которое МЕРЯЕТСЯ ────────────────────
+# (`_site_projection.classify_snapshot_paths`). Каждая запись этой и трёх таблиц ниже принимается
+# только с доказательством, а запись, которую замер делает лишней, — сама находка:
+#   NOT_IN_VIEW / UNPUBLISHED — подмена значения пути не меняет НИЧЕГО в витрине, и снимок по этому
+#                               пути напрямую не читает ни один модуль сайта;
+#   NOT_IN_VIEW / SHELF_ONLY  — подмена всплывает в витрине, но ни одна страница и ни один модуль,
+#                               кроме самого переходника, этот путь витрины не читают;
+#   DUPLICATE_OF              — значение равно (с названным округлением) пути, который до страницы
+#                               ДОХОДИТ, а сам путь не читает никто.
+# Пути, которые доходят до страницы через витрину (подмена всплывает в витрине И этот путь витрины
+# читают), классифицируются замером и записи не требуют — так ушли из базы `/total_return_pct` и
+# оба `observed_accrual_since` (их читают `realized_rate.totalReturnSinceStart` и /packages).
+
+R_PERIOD_AUDIT = ("доказательство периода для аудита (track_period_return.py, P1 Wave 2): витрина несёт "
+                  "его рядом с доходностью за период, страница печатает саму доходность, NAV, даты, дни "
+                  "и потоки — `realized_rate.periodReturn`")
+
+SHELF_ONLY = {
+    "/track_period/annualised_formula": R_PERIOD_AUDIT,
+    "/track_period/continuity_repaired": R_PERIOD_AUDIT,
+    "/track_period/costs_basis": R_PERIOD_AUDIT,
+    "/track_period/nav_start_basis": R_PERIOD_AUDIT,
+    "/track_period/flows/basis": R_PERIOD_AUDIT,
+    "/track_period/flows/items": R_PERIOD_AUDIT + "; при нуле потоков страница печатает «внешних потоков нет» по flows.count",
+    "/track_period/flows/unchecked_bars": R_PERIOD_AUDIT,
+    "/track_period/gaps": R_PERIOD_AUDIT + "; пропуски дней страница выводит из самих баров (track-record)",
+    "/track_period/provenance": R_PERIOD_AUDIT + "; происхождение ставок по барам",
+    "/track_period/period/accrual_bars": R_PERIOD_AUDIT,
+    "/track_period/period/start_ts": R_PERIOD_AUDIT + "; время начальной оценки не записано — страница говорит это словами",
+    "/track_period/period/start_ts_reason": R_PERIOD_AUDIT,
+    "/track_period/period/end_ts": R_PERIOD_AUDIT,
+    "/track_period/twr_pct": "сверка метода: при нуле внешних потоков TWR = MWR = доходности за период; "
+                             "страница печатает headline.period.return",
+    "/track_period/mwr_pct": "сверка метода: при нуле внешних потоков TWR = MWR = доходности за период; "
+                             "страница печатает headline.period.return",
+    "/book_exposure/base": "словесное определение базы долей; страница печатает саму базу в USD (base_usd)",
+}
+
+UNPUBLISHED = {
+    "/book_exposure/source": "провенанс снимка (имена входов), не показатель; у каждого числа витрины свой source",
+    "/track_period/annualised_approval_required": "витрина объявляет approval_required сама "
+                                                  "(ANNUALISED_DISPLAY в build_site_numbers.py), снимок — для аудита",
+}
+
+#: путь → (путь, который доходит до страницы; знаков округления или None — точное равенство)
+DUPLICATE_OF = {
+    "/anchor_equity": ("/track_period/nav_start", None),
+    "/track_end_date": ("/track_period/period/end_date", None),
+    "/track_return_pct": ("/track_period/period_return_pct", 4),
+    "/track_period/annualised_equivalent_pct": ("/paper_apy_pct", 4),
+    "/paper_tracks/balanced/post_fix/reportable": ("/paper_tracks/balanced/reportable", None),
+    "/paper_tracks/balanced/post_fix/reportable_after": ("/paper_tracks/balanced/reportable_after", None),
+    "/paper_tracks/aggressive/post_fix/reportable": ("/paper_tracks/aggressive/reportable", None),
+    "/paper_tracks/aggressive/post_fix/reportable_after": ("/paper_tracks/aggressive/reportable_after", None),
+}
+
+DECLARATIONS = (("NOT_IN_VIEW", NOT_IN_VIEW), ("SHELF_ONLY", SHELF_ONLY), ("UNPUBLISHED", UNPUBLISHED),
+                ("DUPLICATE_OF", DUPLICATE_OF))
 
 _DUMP = """
 import { readFileSync } from 'node:fs';
@@ -133,47 +194,96 @@ def paths(obj, prefix: str = "") -> set:
     return out
 
 
+def _classify(view=None, decl=None):
+    """Classification of every snapshot path against the MEASURED chain (``_site_projection``)."""
+    from spa_core.tests import _site_projection as sp
+    m = sp.measure()
+    tables = dict(DECLARATIONS if decl is None else decl)
+    return sp.classify_snapshot_paths(
+        m.today_snap, m.scenes[0].out["view"] if view is None else view, m.pmap, m.reads,
+        tables["NOT_IN_VIEW"], tables["SHELF_ONLY"], tables["UNPUBLISHED"], tables["DUPLICATE_OF"])
+
+
 class TheViewCoversTheSnapshotShape(unittest.TestCase):
     def setUp(self):
         if not VIEW.is_file() or not SNAPSHOT.is_file() or not SHELF.is_file():
             self.skipTest("сайт не развёрнут в этом дереве")
         try:
             self.view = load_view()
-        except NotMeasured as exc:
+            from spa_core.tests import _site_projection as sp
+            self.m = sp.measure()
+        except (NotMeasured, RuntimeError) as exc:
             self.fail(f"НЕ ИЗМЕРЕНО — {exc}")
 
+    def test_the_harness_view_is_the_view(self):
+        """The chain is measured on the view the harness built under recording proxies; it must be
+        the same object the plain loader gives — otherwise the classification measures something else."""
+        self.assertEqual(self.m.scenes[0].out["view"], self.view)
+
     def test_every_snapshot_field_is_covered_or_declared(self):
-        snap = json.loads(SNAPSHOT.read_text(encoding="utf-8"))
-        missing = sorted(paths(snap) - paths(self.view) - set(NOT_IN_VIEW))
-        self.assertEqual(missing, [], (
-            f"переходник не отдаёт поля снимка: {missing}. В JavaScript это не ошибка, "
-            "а `undefined` — страница напечатает слово «undefined» молча. Либо добавить "
-            "поле в переходник, либо объявить его в NOT_IN_VIEW С ПРИЧИНОЙ."))
+        """Каждый путь снимка: в переходнике · витрина + её читатель · объявлен С ДОКАЗАТЕЛЬСТВОМ."""
+        cls, problems = _classify()
+        self.assertEqual(problems, [], (
+            "пути снимка без машинной классификации: " + "\n".join(problems) + "\nВ JavaScript отсутствие "
+            "поля — не ошибка, а `undefined`. Либо вернуть поле в переходник, либо объявить его в одной из "
+            "таблиц — и объявление будет ПРОВЕРЕНО (подменой значения и перечнем чтений), а не принято на слово."))
+        self.assertTrue(all(c is not None for c in cls.values()))
 
     def test_the_declared_exclusions_are_real(self):
         """База может только уменьшаться: путь, которого в снимке уже нет, — мусор."""
         snap_paths = paths(json.loads(SNAPSHOT.read_text(encoding="utf-8")))
-        stale = sorted(p for p in NOT_IN_VIEW if p not in snap_paths)
-        self.assertEqual(stale, [], f"в базе исключений пути, которых нет в снимке: {stale}")
+        for name, table in DECLARATIONS:
+            stale = sorted(p for p in table if p not in snap_paths)
+            self.assertEqual(stale, [], f"в {name} пути, которых нет в снимке: {stale}")
 
     def test_every_exclusion_carries_a_reason(self):
-        empty = sorted(k for k, v in NOT_IN_VIEW.items() if not str(v).strip())
-        self.assertEqual(empty, [], f"исключение без причины: {empty}")
+        for name, table in DECLARATIONS:
+            empty = sorted(k for k, v in table.items() if not str(v[0] if isinstance(v, tuple) else v).strip())
+            self.assertEqual(empty, [], f"{name}: исключение без причины: {empty}")
 
     def test_the_guard_reddens_when_a_nested_field_disappears(self):
         """Положительный контроль ФОРМОЙ НАСТОЯЩЕЙ АВАРИИ, а не выдуманным именем.
 
         Первая редакция проверки брала несуществующее имя и проходила всегда — то есть
         была украшением. Здесь снимается тот самый вложенный ключ, который и пропал.
+        Витрина его по-прежнему несёт (``books.*.positions``) — и это НЕ спасает: сам переходник
+        не считается читателем, а другого читателя у этого числа нет.
         """
         crippled = json.loads(json.dumps(self.view))
         for book in (crippled.get("paper_tracks") or {}).values():
             book.pop("positions_count", None)
-        snap = json.loads(SNAPSHOT.read_text(encoding="utf-8"))
-        missing = sorted(paths(snap) - paths(crippled) - set(NOT_IN_VIEW))
-        self.assertTrue(any("positions_count" in m for m in missing),
-                        "снятие вложенного поля не замечено — сторож слеп на аварию, "
-                        "ради которой написан")
+        _, problems = _classify(view=crippled)
+        self.assertTrue(any("positions_count" in p for p in problems),
+                        "снятие вложенного поля не замечено — сторож слеп на аварию, ради которой написан")
+
+    def test_the_guard_reddens_when_the_view_source_drops_positions_count(self):
+        """Тот же контроль на ИСХОДНИКЕ переходника: строка `positions_count` убрана из
+        snapshot_view.js, модуль исполнен заново — классификация краснеет."""
+        from spa_core.tests import _site_projection as sp
+        src = VIEW.read_text(encoding="utf-8")
+        line = [ln for ln in src.splitlines(True) if ln.strip().startswith("positions_count:")]
+        self.assertEqual(len(line), 1, "предпосылка контроля: в переходнике ровно одна строка positions_count")
+        out = sp.run_harness(self.m.shelf, self.m.today_snap, [], [], overrides={
+            str(VIEW.resolve()): src.replace(line[0], "")})
+        _, problems = _classify(view=out["view"])
+        self.assertTrue(any(p.startswith("/paper_tracks/balanced/positions_count") for p in problems), problems)
+
+    def test_a_false_declaration_is_red(self):
+        """Объявление проверяется, а не принимается: путь, который доходит до страницы, нельзя
+        объявить «не публикуется»; неверный дубль — красный; лишняя запись — красная."""
+        decl = {k: dict(v) for k, v in DECLARATIONS}
+        decl["UNPUBLISHED"]["/track_period/period/start_date"] = "ложь: страница его печатает"
+        decl["DUPLICATE_OF"]["/track_period/nav_end"] = ("/track_period/nav_start", None)
+        decl["SHELF_ONLY"]["/track_period/flows/count"] = "ложь: его читает realized_rate"
+        decl["NOT_IN_VIEW"]["/total_return_pct"] = "лишнее: замер доводит его до страницы"
+        _, problems = _classify(decl=tuple(decl.items()))
+        for needle in ("/track_period/period/start_date", "/track_period/nav_end",
+                       "/track_period/flows/count", "/total_return_pct"):
+            self.assertTrue(any(p.startswith(needle) for p in problems), f"{needle}: {problems}")
+        decl = {k: dict(v) for k, v in DECLARATIONS}
+        decl["SHELF_ONLY"].pop("/track_period/twr_pct")
+        _, problems = _classify(decl=tuple(decl.items()))
+        self.assertTrue(any(p.startswith("/track_period/twr_pct") for p in problems), problems)
 
 
 if __name__ == "__main__":
