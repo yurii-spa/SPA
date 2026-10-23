@@ -101,6 +101,83 @@ def test_force_source_refuses_an_edit_that_does_not_parse():
     assert gbc.force_source(src, broken, True) is None
 
 
+# ── 1б. ВЛОЖЕННЫЕ пролёты: условие с генератором и собственным фильтром ─────
+# Дефект 22.10: на настоящем `card_acceptance.py` вставка давала `SyntaxError`
+# («unterminated string literal», строка ~8312) — внешний `if` и фильтр
+# генератора внутри него правились как НЕЗАВИСИМЫЕ пролёты, и внешний резался по
+# координатам, которые уже съехали от внутренней вставки.
+
+_NESTED_SRC = textwrap.dedent('''\
+    def _probe_nested(counts):
+        """Форма строки 8311 настоящего прибора: многострочное условие,
+        внутри — генератор с фильтром, рядом — f-строка."""
+        if not isinstance(counts, dict) or sum(
+                v for v in counts.values() if isinstance(v, int)) != 1:
+            return "not_satisfied", f"сумма {counts!r} — «не одна»"
+        return "satisfied", "ок"
+    ''')
+
+_REAL_INSTRUMENT = Path(__file__).resolve().parents[1] / "monitoring" / "card_acceptance.py"
+
+
+def _naive_splice(source, decisions):
+    """Прежняя вставка (до 22.10): пролёты как независимые правки «с конца»."""
+    starts = gbc._line_starts(source.encode("utf-8"))
+    blob = source.encode("utf-8")
+    edits = []
+    for dec in decisions:
+        start, end = gbc._span(starts, dec)
+        edits.append((start, end, b"_GBC_REC(" + repr(dec["id"]).encode() + b", ("
+                      + blob[start:end] + b"))"))
+    return gbc._splice(source, edits)
+
+
+def test_nested_spans_scene_really_is_nested_and_breaks_the_old_splice():
+    """Контроль самой сцены: оба решения найдены, одно ВНУТРИ другого, и
+    прежняя вставка на ней не разбирается. Без этого «новая разбирается»
+    ничего бы не доказывало."""
+    found = gbc.decision_points(_NESTED_SRC, "_probe_")
+    assert [d["kind"] for d in found] == ["if", "comprehension"], found
+    with pytest.raises(SyntaxError):
+        compile(_naive_splice(_NESTED_SRC, found), "<old>", "exec")
+
+
+def test_nested_spans_are_wrapped_inside_out_and_behaviour_is_kept():
+    found = gbc.decision_points(_NESTED_SRC, "_probe_")
+    out = gbc.instrument_source(_NESTED_SRC, found)
+    ns: dict = {}
+    exec(compile(out, "<inst>", "exec"), ns)
+    assert ns["_probe_nested"]({"a": 1, "b": "x"}) == ("satisfied", "ок")
+    assert ns["_GBC_SEEN"] == {d["id"] for d in found}, ns["_GBC_SEEN"]
+    ns["_GBC_SEEN"].clear()
+    assert ns["_probe_nested"]([])[0] == "not_satisfied"
+    # короткое замыкание сохранено: генератор не вычислялся вовсе
+    assert ns["_GBC_SEEN"] == {found[0]["id"]}, ns["_GBC_SEEN"]
+    assert out.count("\n") == _NESTED_SRC.count("\n") + gbc._RECORDER_SRC.count("\n")
+
+
+def test_the_REAL_instrument_instruments_into_parseable_code():
+    """Предмет дефекта — настоящий прибор, а не миниатюра."""
+    src = _REAL_INSTRUMENT.read_text(encoding="utf-8")
+    found = gbc.decision_points(src)
+    assert len(found) > 100, len(found)
+    out = gbc.instrument_source(src, found)   # сам вызывает ast.parse
+    compile(out, str(_REAL_INSTRUMENT), "exec")
+    assert out.count("_GBC_REC(") == len(found) + 1
+    # строки не сдвинуты: трейсбек и координаты решений указывают туда же
+    assert out.count("\n") == src.count("\n") + gbc._RECORDER_SRC.count("\n")
+
+
+def test_unparseable_instrumentation_is_UNMEASURED_before_any_run(tmp_path, monkeypatch):
+    calls: list = []
+    monkeypatch.setattr(gbc, "_run_pytest", lambda *a, **k: calls.append(a) or {})
+    monkeypatch.setattr(gbc, "_wrap", lambda blob, s, e, did, inner: b"_GBC_REC((")
+    doc = _contour(_mini_repo(tmp_path), tmp_path / "work")
+    assert doc["status"] == "UNMEASURED", doc
+    assert "инструментовка не собрана" in doc["reason"], doc
+    assert calls == [], "прогон начат на неразбирающемся тексте"
+
+
 # ── 2. классификация (чистая функция) ────────────────────────────────────────
 
 def test_a_test_absent_from_the_baseline_record_is_unmeasured():
@@ -547,3 +624,86 @@ def test_discover_names_only_files_that_mention_the_instrument(tmp_path):
     (root / "spa_core" / "tests" / "test_b.py").write_text("x = 1\n", encoding="utf-8")
     got = gbc.discover_test_files(root, gbc.DEFAULT_MODULE, "spa_core/tests")
     assert got == ["spa_core/tests/test_a.py"], got
+
+
+
+# ── 5. потомок обязан импортировать ИНСТРУМЕНТОВАННУЮ копию ─────────────────
+# Дефект 22.10: в стенде G16 родитель несёт `PYTHONPATH=<site>:<настоящее
+# дерево>`, `sitecustomize` из <site> (сторож сети потомков) импортирует пакет
+# ДО того, как `python -m` поставит копию в `sys.path[0]`, — и потомок исполнял
+# настоящий прибор: «0 решений достигнуто», все тесты `not_reached`.
+
+def _g16_shaped(tmp_path: Path, *, hostile: bool = False) -> Tuple[Path, dict]:
+    """Стенд с пакетом прибора + «настоящее дерево» с тем же пакетом + site с
+    `sitecustomize`, импортирующим пакет. ``hostile`` — sitecustomize сам ставит
+    настоящее дерево ПЕРВЫМ: ни один порядок PYTHONPATH этого не исправит, и
+    перепись обязана сказать «не измерено», а не «не достигнуто»."""
+    real = tmp_path / "real_tree"
+    (real / "pkg").mkdir(parents=True)
+    (real / "pkg" / "__init__.py").write_text("", encoding="utf-8")
+    (real / "pkg" / "instr.py").write_text(_MINI_INSTRUMENT, encoding="utf-8")
+    stand = tmp_path / "stand"
+    (stand / "pkg").mkdir(parents=True)
+    (stand / "pkg" / "__init__.py").write_text("", encoding="utf-8")
+    (stand / "pkg" / "instr.py").write_text(_MINI_INSTRUMENT, encoding="utf-8")
+    (stand / "test_mini.py").write_text(
+        _MINI_TESTS.replace("import instr\n", "from pkg import instr\n", 1),
+        encoding="utf-8")
+    site = tmp_path / "site"
+    site.mkdir()
+    pre = f"import sys; sys.path.insert(0, {str(real)!r})\n" if hostile else ""
+    (site / "sitecustomize.py").write_text(pre + "import pkg.instr\n", encoding="utf-8")
+    return stand, {"PYTHONPATH": f"{site}{__import__('os').pathsep}{real}"}
+
+
+def test_child_under_a_G16_PYTHONPATH_imports_the_instrumented_COPY(tmp_path, monkeypatch):
+    stand, env = _g16_shaped(tmp_path)
+    for k, v in env.items():
+        monkeypatch.setenv(k, v)
+    doc = _linked_contour(stand, tmp_path / "work")
+    assert doc["status"] == "OK", doc.get("reason")
+    copy = (tmp_path / "work" / "w0").resolve()
+    assert doc["module_files"], doc
+    assert all(Path(p).resolve().is_relative_to(copy) for p in doc["module_files"]), \
+        doc["module_files"]
+    assert doc["decisions_reached"] > 0, doc
+    got = _verdicts(doc)
+    assert got["test_sensitive_reads_the_verdict"] == gbc.VERDICT_SENSITIVE, got
+
+
+def test_a_child_that_imports_the_WRONG_module_is_UNMEASURED_not_unreached(
+        tmp_path, monkeypatch):
+    stand, env = _g16_shaped(tmp_path, hostile=True)
+    for k, v in env.items():
+        monkeypatch.setenv(k, v)
+    doc = _linked_contour(stand, tmp_path / "work")
+    assert doc["status"] == "UNMEASURED", doc
+    assert "импортирован не тот модуль" in doc["reason"], doc
+    assert str((tmp_path / "real_tree" / "pkg" / "instr.py")) in doc["reason"], doc
+    assert "rows" not in doc and "counts" not in doc, doc
+
+
+def test_foreign_module_file_names_the_first_path_outside_the_copy(tmp_path):
+    copy = tmp_path / "w0"
+    copy.mkdir()
+    inside = str(copy / "pkg" / "instr.py")
+    outside = str(tmp_path / "real" / "pkg" / "instr.py")
+    recs = {"a": {"module_file": inside}, "b": {"module_file": None}}
+    assert gbc.foreign_module_file(recs, copy) is None
+    recs["c"] = {"module_file": outside}
+    assert gbc.foreign_module_file(recs, copy) == outside
+
+
+def test_inside_a_running_G16_census_the_run_refuses_explicitly(tmp_path):
+    """Внутри переписи G16 — явный отказ (не «0 достигнуто» как замер); вне её — прогон идёт."""
+    from unittest import mock
+    from spa_core.monitoring import green_by_construction_census as gbc
+    from spa_core.monitoring import run_identity_key_price as g16
+    called = []
+    with mock.patch.object(gbc, "run_differential", lambda *a, **k: called.append(1) or {"status": "OK"}):
+        with g16._census_running():
+            got = gbc.run(root=tmp_path, write=False, if_due=False)
+        assert got["measured"] is False and got.get(g16.REENTRY_REFUSAL_FIELD)
+        assert called == []
+        got2 = gbc.run(root=tmp_path, write=False, if_due=False)
+        assert got2["measured"] is True and called == [1]

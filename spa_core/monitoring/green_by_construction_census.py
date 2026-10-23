@@ -159,11 +159,20 @@ def pytest_runtest_logreport(report):
         _state["outcome"] = "skipped"
 
 
+def _module_file():
+    mod = sys.modules.get(_MOD)
+    path = getattr(mod, "__file__", None) if mod is not None else None
+    return os.path.abspath(path) if path else None
+
+
 def pytest_runtest_logfinish(nodeid, location):
     seen = _seen()
     rec = {"nodeid": nodeid,
            "outcome": _state.get("outcome", "passed"),
-           "seen": sorted(seen) if seen is not None else []}
+           "seen": sorted(seen) if seen is not None else [],
+           # ОТКУДА импортирован прибор в этом потомке: «0 решений достигнуто»
+           # на НЕ ТОМ модуле — не замер, а слепота (дефект 22.10, стенд G16).
+           "module_file": _module_file()}
     with open(_OUT, "a", encoding="utf-8") as fh:
         fh.write(json.dumps(rec, ensure_ascii=False) + "\\n")
     _state.clear()
@@ -250,21 +259,79 @@ def _splice(source: str, edits: Iterable[Tuple[int, int, bytes]]) -> str:
     return blob.decode("utf-8")
 
 
+class InstrumentationBroken(ValueError):
+    """Инструментованный текст не разбирается — прогон на нём не о приборе.
+
+    Дефект 22.10: на настоящем `card_acceptance.py` (738 решений) вставка давала
+    `SyntaxError` («unterminated string literal», строка ~8312). Причина —
+    ВЛОЖЕННЫЕ пролёты: условие ``if`` содержит генератор с собственным фильтром
+    (``sum(v for v in … if isinstance(v, int))``). Правки применялись «с конца»
+    как НЕЗАВИСИМЫЕ: внутренний пролёт заменялся первым, после чего внешний
+    резался по СТАРЫМ координатам и откусывал середину уже вставленной обёртки.
+    """
+
+
+def _wrap(blob: bytes, start: int, end: int, did: str,
+          inner: Sequence[Tuple[int, int, str, list]]) -> bytes:
+    """Обёртка одного пролёта; вложенные пролёты оборачиваются ВНУТРИ его
+    исходного текста, по координатам относительно этого же исходного текста."""
+    parts: List[bytes] = []
+    cur = start
+    for i_start, i_end, i_did, i_inner in inner:
+        parts.append(blob[cur:i_start])
+        parts.append(_wrap(blob, i_start, i_end, i_did, i_inner))
+        cur = i_end
+    parts.append(blob[cur:end])
+    return (b"_GBC_REC(" + json.dumps(did).encode("utf-8") + b", ("
+            + b"".join(parts) + b"))")
+
+
 def instrument_source(source: str, decisions: Sequence[dict]) -> str:
     """Обернуть каждое решение записью достижимости. Поведение не меняется:
     ``_GBC_REC`` возвращает ровно то, что получил, и вычисление условия остаётся
     на своём месте (короткое замыкание внутри условия сохранено — оборачивается
-    условие ЦЕЛИКОМ, а не его части)."""
-    starts = _line_starts(source.encode("utf-8"))
+    условие ЦЕЛИКОМ, а не его части).
+
+    Пролёты AST либо не пересекаются, либо ВЛОЖЕНЫ (частичного перекрытия у
+    узлов дерева не бывает); вложенные собираются деревом и оборачиваются
+    изнутри наружу по исходным координатам (:func:`_wrap`). Частичное
+    перекрытие — отказ, а не тихая порча. Результат обязан разбираться
+    (``ast.parse``) — иначе :class:`InstrumentationBroken` ДО любой записи.
+    """
     blob = source.encode("utf-8")
-    edits = []
-    for dec in decisions:
-        start, end = _span(starts, dec)
-        original = blob[start:end]
-        repl = b"_GBC_REC(" + json.dumps(dec["id"]).encode("utf-8") + b", (" \
-            + original + b"))"
-        edits.append((start, end, repl))
-    return _splice(source, edits) + _RECORDER_SRC
+    starts = _line_starts(blob)
+    spans = sorted(((*_span(starts, dec), dec["id"]) for dec in decisions),
+                   key=lambda s: (s[0], -s[1]))
+    roots: list = []
+    stack: list = []  # [(start, end, id, children)]
+    for start, end, did in spans:
+        node = (start, end, did, [])
+        while stack and start >= stack[-1][1]:
+            stack.pop()
+        if stack:
+            parent = stack[-1]
+            if end > parent[1]:
+                raise InstrumentationBroken(
+                    f"пролёты решений пересекаются частично: {parent[2]} и {did}")
+            parent[3].append(node)
+        else:
+            roots.append(node)
+        stack.append(node)
+    out: List[bytes] = []
+    cur = 0
+    for start, end, did, inner in roots:
+        out.append(blob[cur:start])
+        out.append(_wrap(blob, start, end, did, inner))
+        cur = end
+    out.append(blob[cur:])
+    text = b"".join(out).decode("utf-8") + _RECORDER_SRC
+    try:
+        ast.parse(text)
+    except SyntaxError as exc:
+        raise InstrumentationBroken(
+            f"инструментованный текст не разбирается: {exc.msg} "
+            f"(строка {exc.lineno})") from exc
+    return text
 
 
 def force_source(source: str, decision: dict, value: bool) -> Optional[str]:
@@ -363,8 +430,17 @@ def _run_pytest(root: Path, files: Sequence[str], *, module: str,
     env[live_paths.SANDBOX_ENV] = "1"
     env[live_paths.LIVE_ROOT_ENV] = str(root)
     env[live_paths.DATA_DIR_ENV] = str(Path(root) / "data")
+    # Копия — ПЕРВОЙ после плагина, раньше любого унаследованного пути.
+    # Дефект 22.10: в стенде G16 родитель несёт `PYTHONPATH=<site>:<настоящее
+    # дерево>`, а `sitecustomize` из <site> импортирует `spa_core` ещё ДО того,
+    # как `python -m` поставит cwd (копию) в `sys.path[0]`. Пакет кешировался из
+    # настоящего дерева, потомок исполнял НЕинструментованный прибор, и перепись
+    # докладывала «0 решений достигнуто» о модуле, которого не мерила.
+    # Унаследованные пути сохраняются (сторож сети потомков живёт в них), но
+    # ничего, что лежит и в копии, они больше не перекрывают.
     env["PYTHONPATH"] = os.pathsep.join(
-        [str(plugin_dir)] + ([env["PYTHONPATH"]] if env.get("PYTHONPATH") else []))
+        [str(plugin_dir), str(root)]
+        + ([env["PYTHONPATH"]] if env.get("PYTHONPATH") else []))
     # `--basetemp` обязателен, а не украшение: замер прогоняет pytest СОТНИ раз,
     # и временные каталоги фикстур копятся в общем корне быстрее, чем pytest
     # успевает их подчищать. Цикл #756 узнал это, посадив машину на 100 % диска
@@ -381,6 +457,26 @@ def _run_pytest(root: Path, files: Sequence[str], *, module: str,
     records = _read_records(out_path)
     shutil.rmtree(scratch, ignore_errors=True)
     return {"rc": rc, "records": records, "tail": tail}
+
+
+def imported_module_files(records: Dict[str, dict]) -> List[str]:
+    """Различные пути, откуда потомок импортировал прибор (по записям тестов)."""
+    return sorted({rec["module_file"] for rec in records.values()
+                   if rec.get("module_file")})
+
+
+def foreign_module_file(records: Dict[str, dict], copy: Path) -> Optional[str]:
+    """Первый путь прибора, импортированного НЕ из копии, — или ``None``.
+
+    Сверяется ``realpath``: копия стенда G16 держит часть дерева ссылками, но
+    файл прибора в ней разыменован (`_isolate_write_path`), и его настоящий путь
+    обязан лежать внутри копии. Тест, до импорта прибора не дошедший
+    (``module_file`` пуст), ни за, ни против не свидетельствует.
+    """
+    for path in imported_module_files(records):
+        if not _inside(Path(path), Path(copy)):
+            return path
+    return None
 
 
 def _make_copy(src: Path, dst: Path) -> None:
@@ -541,15 +637,40 @@ def run_differential(root: Path, *, instrument: str = DEFAULT_INSTRUMENT,
                 f"запись ушла бы за пределы копии: {os.path.realpath(copy / instrument)}")
         (copy / instrument).write_text(text, encoding="utf-8")
 
+    # 0. инструментовка разбирается ДО первого прогона: текст, который не
+    # компилируется, дал бы в потомке ошибку импорта и «шум у всех» — или,
+    # хуже, невидимую слепоту, если импорт пошёл мимо копии.
+    try:
+        instrumented = instrument_source(source, decisions)
+    except InstrumentationBroken as exc:
+        doc.update(status="UNMEASURED", reason=f"инструментовка не собрана: {exc}")
+        if workdir is None:
+            shutil.rmtree(holder, ignore_errors=True)
+        return doc
+
+    def _foreign(run: dict, copy: Path) -> Optional[str]:
+        return foreign_module_file(run["records"], copy)
+
     # 1. чистый базовый прогон
     _write(copies[0], source)
     base = _run_pytest(copies[0], files, module=module,
                        plugin_dir=plugin_dir, timeout=timeout)
     # 2. прогон с записью достижимости
-    _write(copies[0], instrument_source(source, decisions))
+    _write(copies[0], instrumented)
     traced = _run_pytest(copies[0], files, module=module,
                          plugin_dir=plugin_dir, timeout=timeout)
     _write(copies[0], source)
+    for label, run_ in (("базовый", base), ("с записью достижимости", traced)):
+        alien = _foreign(run_, copies[0])
+        if alien is not None:
+            doc.update(status="UNMEASURED",
+                       reason=(f"импортирован не тот модуль: {alien} "
+                               f"(прогон {label}; копия {copies[0]})"),
+                       module_files=imported_module_files(run_["records"]))
+            if workdir is None:
+                shutil.rmtree(holder, ignore_errors=True)
+            return doc
+    doc["module_files"] = imported_module_files(traced["records"])
 
     noisy = sorted(n for n, rec in traced["records"].items()
                    if n in base["records"]
@@ -606,7 +727,8 @@ def run_differential(root: Path, *, instrument: str = DEFAULT_INSTRUMENT,
         finally:
             _write(copy, source)
         return {"decision": dec["id"], "value": value, "rc": out["rc"],
-                "records": out["records"], "files": job_files}
+                "records": out["records"], "files": job_files,
+                "foreign": foreign_module_file(out["records"], copy)}
 
     # Каждый работник пишет в СВОЮ копию: правка исходника не переносима между
     # потоками, и общая копия дала бы прогон под чужой мутацией молча.
@@ -622,6 +744,15 @@ def run_differential(root: Path, *, instrument: str = DEFAULT_INSTRUMENT,
                 forced_runs.extend(part)
     else:
         forced_runs = [_one(item) for item in slots]
+
+    aliens = sorted({r["foreign"] for r in forced_runs if r.get("foreign")})
+    if aliens:
+        doc.update(status="UNMEASURED",
+                   reason=f"импортирован не тот модуль: {aliens[0]} (прогон принуждения)",
+                   forced_runs=len(forced_runs))
+        if workdir is None:
+            shutil.rmtree(holder, ignore_errors=True)
+        return doc
 
     for run in forced_runs:
         did = run["decision"]
@@ -696,6 +827,18 @@ def run(root: str | Path = _REPO_ROOT, *, data_dir: Optional[Path] = None,
         due, why = measurement_due(target, now=now, tact_days=tact_days)
         if not due:
             return {"measured": False, "reason": why, "artifact": str(target)}
+    # Внутри идущей переписи читателей G16 дифференциальный прогон НЕ выполняется — отказ ЯВНЫЙ,
+    # как у heir_all_rows_price. До 23.10 он здесь «выполнялся» на настоящем, а не
+    # инструментированном модуле (PYTHONPATH стенда) и отдавал «0 решений достигнуто» как замер;
+    # честный прогон (22 прогона принуждения на зов) поднял бы перепись G16 примерно вчетверо
+    # (замер 23.10, ~870 с на нагруженном Mac). G16 ставит этой строке «не измерено» с причиной.
+    from spa_core.monitoring import run_identity_key_price as g16
+    if g16.census_in_progress():
+        reason = ("внутри идущей переписи читателей G16 дифференциальный прогон pytest не "
+                  "выполняется: это вложенные сессии pytest на каждом зове, ответ не был бы "
+                  "свойством читателя, а цена — вчетверо выше всей переписи")
+        return {"measured": False, "reason": reason, "artifact": str(target),
+                g16.REENTRY_REFUSAL_FIELD: reason}
     doc = run_differential(root, test_files=list(test_files or STAGE_TEST_FILES),
                            workers=workers)
     if write:
