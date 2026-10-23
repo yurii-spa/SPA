@@ -10241,6 +10241,185 @@ def _probe_read_only_view_parses_the_ledger_once(arg: str | None, *,
                        f"областному кэшу, ADR-787) и не оставляет кэш включённым")
 
 
+def _probe_publication_gate_refuses_an_unsigned_shelf_by_its_own_code(
+        arg: str | None, *, scene_outside_a_tree: bool = False,
+        pushers: "tuple[str, ...] | None" = None,
+        guard_test: str | None = None,
+        window_bypass: bool = False) -> tuple[str, str]:
+    """Критерий: НЕПОДПИСАННАЯ витрина публичных чисел не уезжает ни одним пушером,
+    и отказывают ей ВОРОТА ПУБЛИКАЦИИ — своим кодом, а не чужим (ADR-789, карточка
+    `inbox-dva-otkaza-pushera-sporyat-za-odin-kod-v`).
+
+    Зачем. Предмет — №2 границы владельца (публичные числа доходности). Его сторожем
+    числился `test_publication_truth.py::BothPushersRunThePublicationGate`, а с
+    2026-10-17 (ADR-772) он перестал мерить свой предмет: сцена доставки создавалась
+    `tempfile.mkdtemp()`, то есть ВНЕ любого рабочего дерева, и читатель окна
+    мутационного прибора честно отвечал «дерево файла не определяется» ⇒ пушер
+    отказывал раньше воротами окна (код **10**), а не воротами публикации (код **3**).
+    Шесть суток на `main` красный означал не то, что написано на нём.
+
+    Меряется ИСХОД двух НАСТОЯЩИХ запусков пушера на СВОЕЙ сцене, а не текст теста и
+    не текст пушера — подстрокой эта проба не проходит по построению:
+
+      • зелено: в дереве БЕЗ окна прибора каждый пушер отвечает ровно **3** и называет
+        причину словами `publication gate`; в том же дереве с ОТКРЫТЫМ окном прибора,
+        тронувшим эту же витрину, — ровно **10**. Два отказа различимы ЗАМЕРОМ, а не
+        удачей порядка;
+      • красно, если: любой пушер пропустил неподписанную витрину · ответил кодом
+        другого отказа · причина не названа · окно прибора перестало отвечать своим
+        кодом (тогда порядок отказов снова держится ни на чём).
+
+    Порядок отказов — РЕШЕНИЕ с названной причиной, и проба его закрепляет: окно
+    прибора стоит ВЫШЕ ворот публикации, потому что отвечает на вопрос «те ли это
+    байты, которые автор собрал» — мутанта нельзя одобрить, одобрение его не чинит.
+
+    ``scene_outside_a_tree=True`` — ОТРИЦАТЕЛЬНЫЙ контроль самой пробы: сцена
+    собирается ровно так, как её собирал тест до ADR-789 (каталог без `git init`), и
+    проба ОБЯЗАНА сказать `not_satisfied`. Проба, никогда не видевшая настоящей
+    поломки, — украшение.
+    ``pushers`` — население дверей доставки (ВХОД): дверь, которой нет на диске, даёт
+    `unmeasured`, а не тихое «совпало».
+    ``window_bypass=True`` — вторая сцена проходится с ОСОЗНАННЫМ обходом окна
+    (`SPA_PUSH_ALLOW_OPEN_MUTATION_WINDOW=1`): дверь тогда идёт дальше и отвечает кодом
+    ворот публикации, а проба ОБЯЗАНА сказать `not_satisfied`. Без этого входа нога про
+    окно была бы незаметна для мутаций: итоговая строка вердикта называет «код 10» сама
+    по себе, и снятая нога сверялась бы СО СВОЕЙ ЖЕ строкой.
+    ``guard_test`` — узел pytest того сторожа, которому этот предмет поручен (ВХОД).
+    Нога нужна потому, что предмет и его СТОРОЖ — два разных утверждения: 17.10–23.10
+    предмет держался (пушер отказывал верно), а сторож его не мерил, и красный на
+    `main` говорил не о том, что на нём написано. Проба зелена, только когда ВЕРНЫ ОБА.
+    """
+    import shutil
+    import subprocess
+    import tempfile
+
+    root = _pathlib.Path(__file__).resolve().parents[2]
+    doors = tuple(pushers) if pushers is not None \
+        else ("push_to_github.py", "push_to_github_batch.py")
+    if not doors:
+        return UNMEASURED, "население дверей доставки пусто — НЕ ИЗМЕРЕНО, а не «чисто»"
+    missing = [d for d in doors if not (root / d).is_file()]
+    if missing:
+        return UNMEASURED, (f"двери доставки нет на диске: {', '.join(missing)} — "
+                            f"отказала бы она или нет, НЕ ИЗМЕРЕНО")
+
+    reader = root / "scripts" / "delta_mutation_run.py"
+    if not reader.is_file():
+        return UNMEASURED, (f"читателя окна прибора нет ({reader}) — вторую половину "
+                            f"замера сделать нечем")
+
+    #: Имя ветки сцены — ВХОД, а не умолчание хоста (`.claude/rules/deployment.md`,
+    #: § «GIT-ОКРУЖЕНИЕ в тестах»): `git init` без `-b` даёт `main` на Маке и `master`
+    #: на `ubuntu-latest`, и проба отвечала бы про хост, а не про пушер.
+    branch = "main"
+    d = _pathlib.Path(tempfile.mkdtemp(prefix="probe_pubgate_"))
+    try:
+        if not scene_outside_a_tree:
+            init = subprocess.run(["git", "init", "-b", branch, str(d)],
+                                  capture_output=True, text=True)
+            if init.returncode != 0:
+                return UNMEASURED, (f"сцену не удалось сделать рабочим деревом: "
+                                    f"git init → {init.returncode}: "
+                                    f"{(init.stderr or init.stdout).strip()[:200]}")
+        shelf = d / "landing" / "src" / "data" / "site_numbers.json"
+        shelf.parent.mkdir(parents=True)
+        shelf.write_text('{"published_at": "2026-10-07"}', encoding="utf-8")
+
+        env = {k: v for k, v in os.environ.items() if k != "SPA_SITE_PUSH_VERIFIED"}
+        env.update(SPA_PUSH_ALLOW_CHANGE_EVIDENCE_UNMEASURED="1",
+                   SPA_PUBLISHED_SHELF=str(shelf))
+
+        def push(door: str):
+            return subprocess.run([sys.executable, str(root / door), "--files", str(shelf),
+                                   "--message", "проба приёмки", "--pat", "dummy"],
+                                  capture_output=True, text=True, env=env, timeout=180)
+
+        bad: list[str] = []
+        for door in doors:
+            cp = push(door)
+            if cp.returncode != 3:
+                bad.append(f"{door}: без окна прибора ответил {cp.returncode}, а не 3 "
+                           f"(ворота публикации); причина: "
+                           f"{(cp.stderr or cp.stdout).strip()[-200:]}")
+            elif "publication gate" not in cp.stderr:
+                bad.append(f"{door}: код 3 есть, а причина не названа словами "
+                           f"`publication gate`")
+        if bad:
+            return NOT_SATISFIED, " · ".join(bad)
+
+        # ── вторая половина: тот же набор под ОТКРЫТЫМ окном прибора ──────────────
+        # Запись окна пишет САМ прибор (`open_window`) — своей копии формата записи
+        # здесь нет намеренно: вторая копия разошлась бы с прибором при первой же
+        # правке, и проба зеленела бы на записи, которой читатель уже не верит.
+        import importlib.util as _ilu
+        spec = _ilu.spec_from_file_location("_dmr_probe_pubgate", reader)
+        dmr = _ilu.module_from_spec(spec)
+        # Регистрация в `sys.modules` ДО исполнения обязательна, а не косметика:
+        # прибор объявляет `@dataclass`, а тот ищет собственный модуль по имени —
+        # без записи загрузка падает `AttributeError` на пустом `sys.modules.get`.
+        sys.modules[spec.name] = dmr
+        try:
+            spec.loader.exec_module(dmr)
+        except Exception as exc:  # noqa: BLE001
+            return UNMEASURED, (f"читатель окна прибора не ввезён "
+                                f"({type(exc).__name__}: {exc}) — вторая нога замера "
+                                f"НЕ ИЗМЕРЕНА")
+        finally:
+            sys.modules.pop(spec.name, None)
+        rel = "landing/src/data/site_numbers.json"
+        pristine = shelf.read_text(encoding="utf-8")
+
+        class _M:
+            name, file = "проба: витрина подменена", rel
+
+        class _S:
+            title, mutations = "проба приёмки ADR-789", (_M(),)
+
+        dmr.open_window(str(d), _S(), {rel: str(shelf)}, {rel: pristine},
+                        spec_path=None, now="2026-10-23T00:00:00+00:00",
+                        pid=0, label="probe-adr-789")
+        shelf.write_text('{"published_at": "2026-10-07", "мутант": true}',
+                         encoding="utf-8")
+        if window_bypass:
+            env["SPA_PUSH_ALLOW_OPEN_MUTATION_WINDOW"] = "1"
+        for door in doors:
+            cp = push(door)
+            if cp.returncode != 10:
+                bad.append(f"{door}: под ОТКРЫТЫМ окном прибора ответил "
+                           f"{cp.returncode}, а не 10 — два отказа снова неразличимы; "
+                           f"причина: {(cp.stderr or cp.stdout).strip()[-200:]}")
+        if bad:
+            return NOT_SATISFIED, " · ".join(bad)
+
+        # ── третья нога: МЕРИТ ЛИ предмет его собственный сторож ──────────────────
+        # Предмет и сторож — два разных утверждения, и именно их расхождение есть
+        # предмет ADR-789: пушер отказывал верно, а объявленный сторож этого не
+        # измерял шесть суток. Вердикт даёт pytest, а не чтение файла глазами.
+        node = guard_test or (
+            "spa_core/tests/test_publication_truth.py::BothPushersRunThePublicationGate")
+        genv = {k: v for k, v in os.environ.items()}
+        genv.update(SPA_ENV="ci", PYTHONHASHSEED="0")
+        guard = subprocess.run(
+            [sys.executable, "-m", "pytest", "-q", "-p", "no:randomly", "--tb=line", node],
+            cwd=str(root), capture_output=True, text=True, env=genv, timeout=900)
+        if guard.returncode == 5 or "no tests ran" in (guard.stdout or ""):
+            return UNMEASURED, (f"сторож предмета не найден по узлу `{node}` — мерит он "
+                                f"предмет или нет, НЕ ИЗМЕРЕНО, а не «чисто»")
+        if guard.returncode != 0:
+            return NOT_SATISFIED, (f"предмет держится, а его сторож `{node}` КРАСЕН "
+                                   f"(pytest → {guard.returncode}): "
+                                   f"{(guard.stdout or guard.stderr).strip()[-300:]}")
+    except subprocess.TimeoutExpired as exc:
+        return UNMEASURED, f"дверь доставки не ответила за отведённое время: {exc}"
+    finally:
+        shutil.rmtree(d, ignore_errors=True)
+
+    return SATISFIED, (f"двери {', '.join(doors)}: неподписанная витрина — код 3 "
+                       f"(`publication gate`), та же витрина под открытым окном "
+                       f"прибора — код 10; сцена есть рабочее дерево (ветка `{branch}` "
+                       f"объявлена входом); сторож предмета `{node}` зелёный")
+
+
 PROBES: dict[str, Callable[[str | None], "tuple[str, str]"]] = {
     "cockpit_voice_loop_closed": _probe_cockpit_voice_loop,
     "card_claim_measures_the_worker": _probe_card_claim_measures_the_worker,
@@ -10352,6 +10531,8 @@ PROBES: dict[str, Callable[[str | None], "tuple[str, str]"]] = {
     "paused_agent_is_not_a_dead_agent": _probe_paused_agent_is_not_a_dead_agent,
     "read_only_view_parses_the_ledger_once":
         _probe_read_only_view_parses_the_ledger_once,
+    "publication_gate_refuses_an_unsigned_shelf_by_its_own_code":
+        _probe_publication_gate_refuses_an_unsigned_shelf_by_its_own_code,
 }
 
 

@@ -1,0 +1,57 @@
+{
+  "title": "ADR-789 — дельта цикла #911: сцена доставки есть ЧАСТЬ предмета, и у пробы приёмки три ноги (ворота публикации · окно прибора · сам сторож). Каждая мутация ниже возвращает одно из состояний, в котором «неподписанная витрина не уедет» снова числилось бы измеренным, не будучи измеренным — ровно авария 17.10–23.10 (сторож предмета шесть суток падал по ЧУЖОЙ причине, и красный на main говорил не о том, что на нём написано)",
+  "tests": [
+    "spa_core/tests/test_publication_gate_probe.py",
+    "spa_core/tests/test_publication_truth.py"
+  ],
+  "mutations": [
+    {
+      "name": "нога СТОРОЖА снята — предмет зачтён за его сторожа: ровно то смешение двух утверждений, которым жила авария (пушер отказывал верно, сторож этого не мерил)",
+      "file": "spa_core/monitoring/card_acceptance.py",
+      "old": "        guard = subprocess.run(\n            [sys.executable, \"-m\", \"pytest\", \"-q\", \"-p\", \"no:randomly\", \"--tb=line\", node],\n            cwd=str(root), capture_output=True, text=True, env=genv, timeout=900)\n        if guard.returncode == 5 or \"no tests ran\" in (guard.stdout or \"\"):\n            return UNMEASURED, (f\"сторож предмета не найден по узлу `{node}` — мерит он \"\n                                f\"предмет или нет, НЕ ИЗМЕРЕНО, а не «чисто»\")\n        if guard.returncode != 0:\n            return NOT_SATISFIED, (f\"предмет держится, а его сторож `{node}` КРАСЕН \"\n                                   f\"(pytest → {guard.returncode}): \"\n                                   f\"{(guard.stdout or guard.stderr).strip()[-300:]}\")\n",
+      "new": "        guard = None  # нога сторожа снята\n"
+    },
+    {
+      "name": "КРАСНЫЙ сторож зачтён за зелёного — условие никогда не истинно: вердикт pytest читается и выбрасывается",
+      "file": "spa_core/monitoring/card_acceptance.py",
+      "old": "        if guard.returncode != 0:\n            return NOT_SATISFIED, (f\"предмет держится, а его сторож `{node}` КРАСЕН \"",
+      "new": "        if guard.returncode < 0:\n            return NOT_SATISFIED, (f\"предмет держится, а его сторож `{node}` КРАСЕН \""
+    },
+    {
+      "name": "«сторожа не нашли» перестаёт быть ТРЕТЬИМ исходом — ноль собранных тестов пойдёт по ветке красного, и «не измерено» станет неотличимо от находки (инв. #17, урок pyflakes-храповика #465)",
+      "file": "spa_core/monitoring/card_acceptance.py",
+      "old": "        if guard.returncode == 5 or \"no tests ran\" in (guard.stdout or \"\"):",
+      "new": "        if False:  # третий исход снят"
+    },
+    {
+      "name": "отсутствующая дверь доставки МОЛЧА выбрасывается из населения — «не измерено» становится «измерено по остатку», и проба отвечает о меньшем наборе дверей, чем её спросили",
+      "file": "spa_core/monitoring/card_acceptance.py",
+      "old": "    if missing:\n        return UNMEASURED, (f\"двери доставки нет на диске: {', '.join(missing)} — \"\n                            f\"отказала бы она или нет, НЕ ИЗМЕРЕНО\")",
+      "new": "    doors = tuple(d for d in doors if d not in set(missing))"
+    },
+    {
+      "name": "ПУСТОЕ население дверей зачтено за успех — «ослаблений ноль» на НУЛЕ сравнений есть подделка доказательства (ADR-468)",
+      "file": "spa_core/monitoring/card_acceptance.py",
+      "old": "    if not doors:\n        return UNMEASURED, \"население дверей доставки пусто — НЕ ИЗМЕРЕНО, а не «чисто»\"",
+      "new": "    if not doors:\n        return SATISFIED, \"дверей нет — сравнивать нечего\""
+    },
+    {
+      "name": "нога ОКНА ПРИБОРА снята — два отказа снова неразличимы, и порядок гейтов держится ни на чём; итоговая строка вердикта по-прежнему называет «код 10», то есть сверялась бы САМА С СОБОЙ",
+      "file": "spa_core/monitoring/card_acceptance.py",
+      "old": "        for door in doors:\n            cp = push(door)\n            if cp.returncode != 10:\n                bad.append(f\"{door}: под ОТКРЫТЫМ окном прибора ответил \"\n                           f\"{cp.returncode}, а не 10 — два отказа снова неразличимы; \"\n                           f\"причина: {(cp.stderr or cp.stdout).strip()[-200:]}\")\n        if bad:\n            return NOT_SATISFIED, \" · \".join(bad)\n",
+      "new": "        pass  # нога окна снята\n"
+    },
+    {
+      "name": "сцена сторожа снова НЕ рабочее дерево — дословная авария 17.10: читатель окна отвечает «дерево файла не определяется», и ворота публикации не достигаются никогда",
+      "file": "spa_core/tests/test_publication_truth.py",
+      "old": "        if a_working_tree:\n            init = subprocess.run([\"git\", \"init\", \"-b\", self.SCENE_BRANCH, str(d)],",
+      "new": "        if False:\n            init = subprocess.run([\"git\", \"init\", \"-b\", self.SCENE_BRANCH, str(d)],"
+    },
+    {
+      "name": "загрузчик модулей сторожа больше не регистрирует модуль в sys.modules — прибор с @dataclass не ввозится, и вторая сцена теста (окно прибора) становится недостижима",
+      "file": "spa_core/tests/test_publication_truth.py",
+      "old": "    sys.modules[name] = mod\n    try:\n        spec.loader.exec_module(mod)\n    finally:\n        sys.modules.pop(name, None)",
+      "new": "    spec.loader.exec_module(mod)"
+    }
+  ]
+}

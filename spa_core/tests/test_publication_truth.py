@@ -12,6 +12,7 @@ import datetime
 import importlib.util
 import json
 import shutil
+import sys
 import tempfile
 import unittest
 from pathlib import Path
@@ -24,7 +25,15 @@ ROOT = Path(__file__).resolve().parents[2]
 def _load(name, rel):
     spec = importlib.util.spec_from_file_location(name, ROOT / rel)
     mod = importlib.util.module_from_spec(spec)
-    spec.loader.exec_module(mod)
+    # Registering in `sys.modules` BEFORE exec is load-bearing, not tidiness: a module that
+    # declares a `@dataclass` makes dataclasses look its own module up by name, and without
+    # the entry the load dies with `AttributeError` on an empty `sys.modules.get`. Found by
+    # ADR-789, loading `scripts/delta_mutation_run.py` (which does declare one).
+    sys.modules[name] = mod
+    try:
+        spec.loader.exec_module(mod)
+    finally:
+        sys.modules.pop(name, None)
     return mod
 
 
@@ -515,27 +524,106 @@ if __name__ == "__main__":
 
 # ── 9. re-review: interlocks on both pushers, recorded inputs, the retry after owner-done ─────────
 class BothPushersRunThePublicationGate(unittest.TestCase):
-    """Re-review (A): a direct push of the shelf (not via safe_site_push) must meet the same gate."""
+    """Re-review (A): a direct push of the shelf (not via safe_site_push) must meet the same gate.
 
-    def test_a_direct_push_of_an_unverified_shelf_is_blocked_by_either_pusher(self):
+    ADR-789 — the scene is part of the subject. Until 2026-10-23 the scene was a bare
+    `tempfile.mkdtemp()`, i.e. a directory inside no working tree at all. That was harmless
+    until ADR-772 (2026-10-17) put the mutation-window reader in front of the publication gate:
+    for a path outside any tree `_tree_top()` honestly answers "tree undetermined", the window
+    verdict is UNMEASURED, and the pusher refuses fail-CLOSED with code 10 — so for six days
+    this class measured the window gate while claiming to measure the publication gate, and the
+    red on `main` said something other than what was written on it.
+
+    The guard was NOT relaxed to fix this, and the reason is measured, not assumed: the window
+    reader is filesystem-based (`.mutation_window/window.json` under `--repo-root`, no git
+    needed), so a non-repo directory CAN hold a window record and "tree undetermined" is a
+    genuine third outcome, not over-strictness. What was missing was the test's own premise.
+
+    Two scenes, two codes, so the refusals are told apart BY MEASUREMENT and not by the luck of
+    ordering: a working tree with no window answers with the publication gate's code, and the
+    same tree under an open window answers with the window's code. The order itself is a
+    decision with a named reason — the window gate asks "are these the bytes the author built
+    and tested", and an owner approval of a mutant would not make it code.
+    """
+
+    #: The scene's branch is an INPUT, never the host's `init.defaultBranch`
+    #: (`.claude/rules/deployment.md`, § "GIT-ОКРУЖЕНИЕ в тестах"): a bare `git init` gives
+    #: `main` on this Mac and `master` on `ubuntu-latest`, and the test would be answering a
+    #: question about the host.
+    SCENE_BRANCH = "main"
+    PUSHERS = ("push_to_github.py", "push_to_github_batch.py")
+
+    def _scene(self, *, a_working_tree: bool = True):
+        """A delivery scene: a temp dir that IS a working tree, holding an unsigned shelf."""
+        import subprocess
+        d = Path(tempfile.mkdtemp(prefix="spa_pt02_push_"))
+        self.addCleanup(shutil.rmtree, d, ignore_errors=True)
+        if a_working_tree:
+            init = subprocess.run(["git", "init", "-b", self.SCENE_BRANCH, str(d)],
+                                  capture_output=True, text=True)
+            self.assertEqual(init.returncode, 0,
+                             f"the scene could not be made a working tree: "
+                             f"{(init.stderr or init.stdout).strip()}")
+        shelf = d / "landing" / "src" / "data" / "site_numbers.json"
+        shelf.parent.mkdir(parents=True)
+        shelf.write_text('{"published_at": "2026-10-07"}', encoding="utf-8")
+        return d, shelf
+
+    def _push(self, pusher, shelf):
         import os
         import subprocess
         import sys
-        d = Path(tempfile.mkdtemp(prefix="spa_pt02_push_"))
-        try:
-            shelf = d / "landing" / "src" / "data" / "site_numbers.json"
-            shelf.parent.mkdir(parents=True)
-            shelf.write_text('{"published_at": "2026-10-07"}', encoding="utf-8")
-            env = {k: v for k, v in os.environ.items() if k != "SPA_SITE_PUSH_VERIFIED"}
-            env.update(SPA_PUSH_ALLOW_CHANGE_EVIDENCE_UNMEASURED="1", SPA_PUBLISHED_SHELF=str(shelf))
-            for pusher in ("push_to_github.py", "push_to_github_batch.py"):
-                cp = subprocess.run([sys.executable, str(ROOT / pusher), "--files", str(shelf),
-                                     "--message", "x", "--pat", "dummy"],
-                                    capture_output=True, text=True, env=env, timeout=120)
-                self.assertEqual(cp.returncode, 3, (pusher, cp.stdout[-400:], cp.stderr[-400:]))
-                self.assertIn("publication gate", cp.stderr)
-        finally:
-            shutil.rmtree(d, ignore_errors=True)
+        env = {k: v for k, v in os.environ.items() if k != "SPA_SITE_PUSH_VERIFIED"}
+        env.update(SPA_PUSH_ALLOW_CHANGE_EVIDENCE_UNMEASURED="1", SPA_PUBLISHED_SHELF=str(shelf))
+        return subprocess.run([sys.executable, str(ROOT / pusher), "--files", str(shelf),
+                               "--message", "x", "--pat", "dummy"],
+                              capture_output=True, text=True, env=env, timeout=120)
+
+    def test_a_direct_push_of_an_unverified_shelf_is_blocked_by_either_pusher(self):
+        _d, shelf = self._scene()
+        for pusher in self.PUSHERS:
+            cp = self._push(pusher, shelf)
+            self.assertEqual(cp.returncode, 3, (pusher, cp.stdout[-400:], cp.stderr[-400:]))
+            self.assertIn("publication gate", cp.stderr)
+
+    def test_the_window_gate_answers_with_its_own_code_on_its_own_scene(self):
+        """Positive control for the OTHER refusal: the same unsigned shelf, but the tree is
+        under an open mutation window that touched it. Then the answer must be the window's
+        code (10) and not the publication gate's (3) — which is also the measurement of the
+        declared order. Written together with the fix above so that neither refusal can ever
+        again stand in for the other silently."""
+        dmr = _load("_dmr_pt02", "scripts/delta_mutation_run.py")
+        d, shelf = self._scene()
+        rel = "landing/src/data/site_numbers.json"
+
+        class _M:
+            name, file = "pt02: the shelf was swapped", rel
+
+        class _S:
+            title, mutations = "ADR-789 control", (_M(),)
+
+        # The record is written by the INSTRUMENT's own writer — a second copy of the record
+        # format here would drift from the reader at the first edit and the control would go
+        # green on a record the reader no longer believes.
+        dmr.open_window(str(d), _S(), {rel: str(shelf)},
+                        {rel: shelf.read_text(encoding="utf-8")},
+                        spec_path=None, now="2026-10-23T00:00:00+00:00",
+                        pid=0, label="pt02-adr-789")
+        shelf.write_text('{"published_at": "2026-10-07", "mutant": true}', encoding="utf-8")
+        for pusher in self.PUSHERS:
+            cp = self._push(pusher, shelf)
+            self.assertEqual(cp.returncode, 10, (pusher, cp.stdout[-400:], cp.stderr[-400:]))
+            self.assertIn("окно мутационного прибора", cp.stderr)
+
+    def test_a_scene_outside_any_working_tree_is_the_2026_10_17_regression(self):
+        """The regression itself, kept as a measurement: outside a working tree the window
+        reader cannot answer, the refusal is the window's, and the publication gate is never
+        reached. This is why the fix is the scene and not the guard — and if some later change
+        made a non-tree path answer "clean", this test goes red and says so."""
+        _d, shelf = self._scene(a_working_tree=False)
+        cp = self._push(self.PUSHERS[0], shelf)
+        self.assertEqual(cp.returncode, 10, (cp.stdout[-400:], cp.stderr[-400:]))
+        self.assertIn("дерево файла не определяется", cp.stderr)
 
 
 class TheApprovedShelfVerifiesAgainstItsOwnInputs(_Scene):
