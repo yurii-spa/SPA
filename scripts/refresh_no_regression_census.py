@@ -797,6 +797,110 @@ def scheduled(live_root: Path, *, ref: str = "origin/main", max_age_h: float = D
     return out
 
 
+#: Вход «из CI» (решение ARB 23.10): вердикт §49 берётся у junit-записей УЖЕ
+#: выполненного контрольного прогона `ci-control.yml`, pytest на этом хосте НЕ
+#: запускается вовсе. Поэтому `PRODUCTION_RUN_BLOCKED` к этому входу не относится:
+#: он запрещает гнать тесты против боевого дерева, а здесь тестов нет. Что вход
+#: делает с хостом: (1) `git clone --shared` точного коммита во временный каталог
+#: (читает объекты источника, пишет только во временный каталог) — дерево нужно
+#: переписи, чтобы посчитать население и разрешить `classname` записи в файлы;
+#: (2) скачивает артефакты прогона во временный каталог; (3) пишет отчёт АТОМАРНО
+#: в `--out-root`/data ТОЛЬКО при успехе, а отказ — отдельным файлом рядом с
+#: записями (`*.refusal.json`), и прежний отчёт при отказе цел.
+#:
+#: «Подготовлен» и «работает в production» различимы по самому отчёту:
+#: `invoked_by.entry == "ci_record"` и `invoked_by.env.via` — "manual" у ручного
+#: запуска и метка агента у запуска обёрткой (`SPA_NO_REGRESSION_VIA`). На
+#: 23.10 вызывающего в production НЕТ: агент `com.spa.no_regression_census` не
+#: установлен, и его обёртка зовёт `--scheduled`, а не `--from-ci`.
+CI_ENTRY = "ci_record"
+
+
+def _ci_env() -> dict:
+    """Окружение СБОРКИ отчёта (не прогона тестов — тесты шли в CI)."""
+    import platform
+    return {"python": platform.python_version(), "platform": platform.platform(),
+            "via": os.environ.get(VIA_ENV) or "manual"}
+
+
+def from_ci(live_root: Path, *, out_root: Path, ref: str = "origin/main",
+            sha: str | None = None, run_id: int | str | None = None,
+            record_dir: Path | None = None, if_due: bool = False,
+            now: datetime | None = None, http=None, workdir: Path | None = None,
+            max_age_h: float | None = None) -> dict:
+    """§49 по записи CI → отчёт в ``out_root/data`` (только при успехе).
+
+    ``live_root`` — git-дерево, ИЗ которого снимается коммит (только чтение);
+    ``out_root`` — куда ляжет отчёт и след отказа. Они разведены намеренно:
+    сборка во временный каталог не обязана трогать боевое дерево вовсе.
+    Любой отказ — :class:`NotMeasured` с кодом причины; отчёт ``out_root`` цел.
+    """
+    import shutil
+    import tempfile
+    from spa_core.monitoring import no_regression_census as census
+    from spa_core.utils.atomic import atomic_save
+
+    live_root, out_root = Path(live_root), Path(out_root)
+    target = out_root / census.REPORT_REL
+    out: dict = {"mode": "from_ci", "live_root": str(live_root), "out_root": str(out_root),
+                 "ran": False, "ref": ref}
+    env = _ci_env()
+    tmp = Path(tempfile.mkdtemp(prefix="spa_s49_ci_", dir=str(workdir) if workdir else None))
+    try:
+        try:
+            expected = sha or _git(live_root, "rev-parse", "--verify", f"{ref}^{{commit}}")
+            out["sha"] = expected
+            if record_dir is None:
+                if run_id is None:
+                    run_id = census.find_ci_run(http or census.GitHubReader(), head_sha=expected)
+                out["run_id"] = run_id
+                if if_due:
+                    prior = _prior_ci_report(target)
+                    src = (prior or {}).get("source") or {}
+                    if (prior and str(src.get("run_id")) == str(run_id)
+                            and src.get("sha") == expected):
+                        out.update({"due": False, "report": prior,
+                                    "source": f"прежний отчёт о том же прогоне {run_id}"})
+                        return out
+                record = census.fetch_ci_record(str(tmp / "record"), run_id=run_id,
+                                                http=http, now=now)
+            else:
+                record = Path(record_dir)
+            out["due"] = True
+            tree = tmp / "tree"
+            out["snapshot_files"] = snapshot_commit(live_root, expected, tree)
+            report = census.measure_from_ci_record(str(record), expected_sha=expected,
+                                                   repo_root=str(tree), now=now,
+                                                   max_age_h=max_age_h,
+                                                   expected_run_id=run_id)
+        except (census.CIRecordRefused, NotMeasured) as exc:
+            code = getattr(exc, "code", "not_measured")
+            out["refusal_record"] = str(_record_refusal(out_root, {
+                "stamp": _stamp(), "entry": CI_ENTRY, "ref": ref, "sha": out.get("sha"),
+                "run_id": out.get("run_id", run_id), "code": code, "reason": str(exc),
+                "env": env, "live_report_untouched": True}))
+            raise NotMeasured(str(exc)) from exc
+        report["invoked_by"] = {"entry": CI_ENTRY, "producer": SCHEDULED_PRODUCER,
+                                "ref": ref, "sha": expected,
+                                "tree": "git clone --shared snapshot (только население)",
+                                "tests_ran_on": "github-actions (ci-control.yml)",
+                                "source": report["source"], "env": env}
+        atomic_save(report, str(target))
+        out.update({"report": report, "written": str(target),
+                    "source": f"CI-прогон {report['source']['run_id']} о {expected[:12]}"})
+    finally:
+        shutil.rmtree(tmp, ignore_errors=True)
+    return out
+
+
+def _prior_ci_report(path: Path) -> dict | None:
+    try:
+        doc = json.loads(path.read_text(encoding="utf-8"))
+    except (OSError, ValueError):
+        return None
+    return doc if isinstance(doc, dict) and doc.get("measured") else None
+
+
 def prune_records(records_root: Path, keep: int) -> list[str]:
     """Снять все записи, кроме ``keep`` самых свежих. ``keep<=0`` — не снимать ничего.
 
@@ -864,12 +968,31 @@ def _main(argv: list[str] | None = None) -> int:
                          "`--live-root`/data; такт решает возраст живого отчёта")
     ap.add_argument("--live-root", default=str(DEFAULT_RECORDS_ROOT),
                     help="боевое дерево: откуда снимок и куда отчёт (только с --scheduled)")
-    ap.add_argument("--ref", default="origin/main", help="что снимать (только с --scheduled)")
+    ap.add_argument("--ref", default="origin/main", help="что снимать (--scheduled / --from-ci)")
+    ap.add_argument("--from-ci", action="store_true",
+                    help="вердикт из junit-записей УЖЕ выполненного ci-control.yml; pytest здесь "
+                         "не запускается. Снимок коммита берётся из --live-root, отчёт — в --out-root")
+    ap.add_argument("--out-root", default=None,
+                    help="куда писать отчёт и след отказа (с --from-ci ОБЯЗАТЕЛЕН: умолчания "
+                         "на боевое дерево нет намеренно)")
+    ap.add_argument("--sha", default=None, help="проверяемый коммит (умолчание — --ref)")
+    ap.add_argument("--ci-run", default=None, help="номер прогона ci-control.yml (умолчание — "
+                                                    "последний завершённый о --sha)")
+    ap.add_argument("--ci-record-dir", default=None,
+                    help="уже скачанная запись прогона (run.json, artifacts.json, артефакты)")
     args = ap.parse_args(argv)
 
     repo_root = Path(args.repo_root).resolve()
     try:
-        if args.scheduled:
+        if args.from_ci:
+            if not args.out_root:
+                print("критерий §49 `No regression`: НЕ ИЗМЕРЕНО — --from-ci без --out-root: "
+                      "куда писать, называет вызывающий")
+                return 2
+            out = from_ci(Path(args.live_root), out_root=Path(args.out_root), ref=args.ref,
+                          sha=args.sha, run_id=args.ci_run, if_due=args.if_due,
+                          record_dir=Path(args.ci_record_dir) if args.ci_record_dir else None)
+        elif args.scheduled:
             out = scheduled(Path(args.live_root), ref=args.ref, max_age_h=args.max_age_h,
                             timeout_s=args.timeout_s)
         else:

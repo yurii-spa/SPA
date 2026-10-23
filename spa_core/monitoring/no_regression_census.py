@@ -586,6 +586,617 @@ def measure(repo_root: str = REPO_ROOT, junit_paths: list[str] | None = None) ->
     }
 
 
+# ───────────────────── запись УЖЕ выполненного CI как вход вердикта ────────────
+#
+# Решение ARB (23.10): §49 берётся из junit-записей контрольного прогона
+# `ci-control.yml` (12 шардов, полный предписанный набор), а не из pytest на
+# Маке. Вердикт по-прежнему выносит ОДНА мерка — :func:`measure` по junit; всё,
+# что ниже, отвечает на вопрос, который мерка задавать не обязана: «ЭТА ли
+# запись, о ТОМ ли коде, ЦЕЛА ли она и СВЕЖА ли». Каждый отказ — НЕ ИЗМЕРЕНО со
+# своим кодом причины (инв. #17); «нет новых падений против базы» в вердикт НЕ
+# превращается никогда — сравнение с базой здесь не делается вовсе.
+#
+# Форма каталога записи — ровно то, что отдаёт GitHub, без перекладки:
+#
+#   <dir>/run.json          ответ GET /repos/{repo}/actions/runs/{id}
+#   <dir>/artifacts.json    ответ GET …/runs/{id}/artifacts
+#   <dir>/ci-control-report/report.json   свод `ci_control.py aggregate`
+#   <dir>/ctl-manifest/manifest.json      план `ci_control.py plan`
+#   <dir>/ctl-shard-<i>/{shard.json,junit*.xml,…}   запись шарда i
+#
+# **Две привязки SHA, и они РАЗНЫЕ (замер 23.10, прогон 39871542027).**
+# `run.head_sha` — коммит, с которого GitHub взял ВОРКФЛОУ (3363bb7df), а
+# проверялся вход `inputs.sha`, закреплённый джобой `manifest` (5bc06f5db).
+# Проверяемый код называет `manifest.sha` (`git rev-parse HEAD` закреплённого
+# checkout) и повторяет `report.sha`; `run.head_sha` записывается рядом как
+# версия воркфлоу. `shard.json` SHA НЕ несёт (`{"shard": N}`): принадлежность
+# шарда коммиту держится на `artifacts[].workflow_run.id` == run и на том, что
+# джоба шарда берёт `needs.manifest.outputs.sha`. Если `shard.json` однажды
+# понесёт `sha`, он сверяется.
+
+CI_REPO = "yurii-spa/SPA"
+CI_WORKFLOW_PATH = ".github/workflows/ci-control.yml"
+CI_WORKFLOW_FILE = "ci-control.yml"
+CI_REPORT_SCHEMA = "spa-ci-control-report/1"      # = scripts/ci_control.REPORT_SCHEMA
+CI_MANIFEST_SCHEMA = "spa-ci-control-manifest/1"  # = scripts/ci_control.MANIFEST_SCHEMA
+CI_REPORT_ARTIFACT = "ci-control-report"
+CI_MANIFEST_ARTIFACT = "ctl-manifest"
+CI_SHARD_PREFIX = "ctl-shard-"
+CI_RUN_FILE = "run.json"
+CI_ARTIFACTS_FILE = "artifacts.json"
+#: Исходы свода, у которых ВСЁ измерено (`ci_control.GREEN`/`RED`).
+_CI_MEASURED_VERDICTS = ("GREEN", "RED")
+#: Заключения прогона, при которых он дошёл до конца. `failure` — это RED свода
+#: (упавшие тесты), а не отсутствие ответа; `cancelled`/`timed_out`/… — ответа нет.
+_CI_FINISHED_CONCLUSIONS = ("success", "failure")
+
+#: Закрытый перечень причин отказа: у каждой проверки свой код, склеивать их
+#: значило бы снова читать разные дефекты одной прозой.
+CI_RECORD_UNAVAILABLE = "record_unavailable"
+CI_RECORD_BROKEN = "record_broken"
+CI_WRONG_REPOSITORY = "wrong_repository"
+CI_WRONG_WORKFLOW = "wrong_workflow"
+CI_WRONG_RUN = "wrong_run"
+CI_RUN_NOT_FINISHED = "run_not_finished"
+CI_SHA_MISMATCH = "sha_mismatch"
+CI_TREE_MISMATCH = "tree_mismatch"
+CI_RECORD_INCONSISTENT = "record_inconsistent"
+CI_RECORD_INCOMPLETE = "record_incomplete"
+CI_RECORD_STALE = "record_stale"
+CI_RECORD_TIME_UNREADABLE = "record_time_unreadable"
+CI_CENSUS_UNMEASURED = "census_unmeasured"
+CI_REFUSAL_CODES = (
+    CI_RECORD_UNAVAILABLE, CI_RECORD_BROKEN, CI_WRONG_REPOSITORY, CI_WRONG_WORKFLOW,
+    CI_WRONG_RUN, CI_RUN_NOT_FINISHED, CI_SHA_MISMATCH, CI_TREE_MISMATCH,
+    CI_RECORD_INCONSISTENT, CI_RECORD_INCOMPLETE, CI_RECORD_STALE,
+    CI_RECORD_TIME_UNREADABLE, CI_CENSUS_UNMEASURED,
+)
+
+
+class CIRecordRefused(RuntimeError):
+    """Запись CI не принята: вердикт НЕ ИЗМЕРЕН, причина названа кодом и словами."""
+
+    def __init__(self, code: str, reason: str) -> None:
+        assert code in CI_REFUSAL_CODES, code
+        super().__init__(f"[{code}] {reason}")
+        self.code = code
+        self.reason = reason
+
+
+def ci_max_age_h() -> float:
+    """Предел свежести записи — ОДНА копия, у пробы §49.
+
+    Читается у ``card_acceptance._NO_REGRESSION_MAX_AGE_H``, а не перепечатывается:
+    второй предел разошёлся бы с пробой, и запись, принятая здесь, протухала бы
+    там (или наоборот).
+    """
+    from spa_core.monitoring import card_acceptance
+    return float(card_acceptance._NO_REGRESSION_MAX_AGE_H)
+
+
+def _ci_json(path: pathlib.Path, what: str) -> dict:
+    import json
+    try:
+        text = path.read_text(encoding="utf-8")
+    except OSError as exc:
+        raise CIRecordRefused(CI_RECORD_UNAVAILABLE,
+                              f"{what} нет: {path} — {type(exc).__name__}: {exc}") from exc
+    try:
+        doc = json.loads(text)
+    except ValueError as exc:
+        raise CIRecordRefused(CI_RECORD_BROKEN,
+                              f"{what} не разобран: {path} — {type(exc).__name__}: {exc}") from exc
+    if not isinstance(doc, dict):
+        raise CIRecordRefused(CI_RECORD_BROKEN, f"{what} не словарь: {path}")
+    return doc
+
+
+def _ci_time(value: object, what: str) -> datetime:
+    try:
+        made = datetime.fromisoformat(str(value).replace("Z", "+00:00"))
+    except (TypeError, ValueError) as exc:
+        raise CIRecordRefused(CI_RECORD_TIME_UNREADABLE,
+                              f"{what} не читается ({value!r}) — возраст записи НЕ ИЗМЕРЕН") from exc
+    return made if made.tzinfo else made.replace(tzinfo=timezone.utc)
+
+
+def _shard_ids(rows: object, what: str) -> list[int]:
+    if not isinstance(rows, list):
+        raise _inconsistent(f"{what}: перечня шардов нет")
+    ids: list[int] = []
+    for row in rows:
+        if not isinstance(row, dict) or not isinstance(row.get("shard"), int):
+            raise _inconsistent(f"{what}: строка шарда без номера: {row!r}"[:300])
+        ids.append(row["shard"])
+    if len(set(ids)) != len(ids):
+        raise _inconsistent(f"{what}: номер шарда повторён: {sorted(ids)}")
+    return sorted(ids)
+
+
+def _inconsistent(reason: str) -> CIRecordRefused:
+    return CIRecordRefused(CI_RECORD_INCONSISTENT, reason)
+
+
+def _tree_state(repo_root: str) -> tuple[str | None, list[str] | None]:
+    """HEAD дерева и его изменения в корнях населения. ``None`` = не измерено."""
+    head = _git_head(repo_root)
+    try:
+        out = subprocess.run(
+            ["git", "-C", repo_root, "status", "--porcelain", "--untracked-files=all",
+             "--", *TEST_ROOTS], capture_output=True, text=True, timeout=120)
+    except (OSError, subprocess.SubprocessError):
+        return head, None
+    if out.returncode != 0:
+        return head, None
+    return head, [line for line in out.stdout.splitlines() if line.strip()]
+
+
+def verify_ci_record(record_dir: str, *, expected_sha: str, repo_root: str,
+                     now: datetime | None = None, max_age_h: float | None = None,
+                     expected_run_id: int | str | None = None,
+                     repo: str = CI_REPO, workflow_path: str = CI_WORKFLOW_PATH) -> dict:
+    """Принять запись CI или ОТКАЗАТЬ с кодом причины (:class:`CIRecordRefused`).
+
+    Возврат — junit-пути (по шарду, в порядке номеров) и происхождение записи.
+    Часы и предел — ВХОДЫ (`.claude/rules/deployment.md`): тест закрепляет обе
+    стороны сравнения.
+    """
+    root = pathlib.Path(record_dir)
+    if not root.is_dir():
+        raise CIRecordRefused(CI_RECORD_UNAVAILABLE, f"каталога записи нет: {record_dir}")
+    if not expected_sha or len(expected_sha) != 40:
+        raise CIRecordRefused(CI_SHA_MISMATCH,
+                              f"ожидаемый SHA не назван полностью ({expected_sha!r}) — "
+                              f"сверять запись не с чем")
+    limit = ci_max_age_h() if max_age_h is None else float(max_age_h)
+    clock = now or datetime.now(timezone.utc)
+
+    # 1. Чья это запись: репозиторий, воркфлоу, прогон.
+    run = _ci_json(root / CI_RUN_FILE, "метаданные прогона (run.json)")
+    full_name = (run.get("repository") or {}).get("full_name") \
+        if isinstance(run.get("repository"), dict) else None
+    if full_name != repo:
+        raise CIRecordRefused(CI_WRONG_REPOSITORY,
+                              f"прогон принадлежит {full_name!r}, ожидался {repo!r}")
+    if run.get("path") != workflow_path:
+        raise CIRecordRefused(CI_WRONG_WORKFLOW,
+                              f"воркфлоу прогона {run.get('path')!r}, ожидался {workflow_path!r}")
+    run_id = run.get("id")
+    if not isinstance(run_id, int):
+        raise CIRecordRefused(CI_WRONG_RUN, f"у прогона нет номера (id={run_id!r})")
+    if expected_run_id is not None and str(run_id) != str(expected_run_id):
+        raise CIRecordRefused(CI_WRONG_RUN,
+                              f"запись о прогоне {run_id}, ожидался {expected_run_id}")
+    if run.get("status") != "completed" or run.get("conclusion") not in _CI_FINISHED_CONCLUSIONS:
+        raise CIRecordRefused(CI_RUN_NOT_FINISHED,
+                              f"прогон {run_id}: status={run.get('status')!r}, "
+                              f"conclusion={run.get('conclusion')!r} — до вердикта не дошёл")
+
+    # 2. Артефакты прогона — список у GitHub, а не у каталога.
+    listing = _ci_json(root / CI_ARTIFACTS_FILE, "перечень артефактов (artifacts.json)")
+    arts = listing.get("artifacts")
+    if not isinstance(arts, list) or listing.get("total_count") != len(arts):
+        raise _inconsistent(
+            f"перечень артефактов неполон: total_count={listing.get('total_count')!r}, "
+            f"строк {len(arts) if isinstance(arts, list) else None}")
+    by_name: dict[str, dict] = {}
+    for a in arts:
+        if not isinstance(a, dict) or not isinstance(a.get("name"), str):
+            raise _inconsistent(f"строка артефакта без имени: {a!r}"[:300])
+        if a["name"] in by_name:
+            raise _inconsistent(f"артефакт {a['name']} назван дважды")
+        by_name[a["name"]] = a
+        wr = a.get("workflow_run") if isinstance(a.get("workflow_run"), dict) else {}
+        if wr.get("id") != run_id:
+            raise CIRecordRefused(CI_WRONG_RUN,
+                                  f"артефакт {a['name']} принадлежит прогону {wr.get('id')!r}, "
+                                  f"а запись — о прогоне {run_id}")
+        if wr.get("head_sha") != run.get("head_sha"):
+            raise _inconsistent(f"артефакт {a['name']}: head_sha {wr.get('head_sha')!r} "
+                                       f"≠ прогона {run.get('head_sha')!r}")
+        if a.get("expired") is not False:
+            raise CIRecordRefused(CI_RECORD_UNAVAILABLE,
+                                  f"артефакт {a['name']}: expired={a.get('expired')!r}")
+
+    # 3. Свод и план — о каком коде.
+    manifest = _ci_json(root / CI_MANIFEST_ARTIFACT / "manifest.json", "план шардов (manifest.json)")
+    report = _ci_json(root / CI_REPORT_ARTIFACT / "report.json", "свод (report.json)")
+    if manifest.get("schema") != CI_MANIFEST_SCHEMA:
+        raise CIRecordRefused(CI_RECORD_BROKEN, f"план не того вида: {manifest.get('schema')!r}")
+    if report.get("schema") != CI_REPORT_SCHEMA:
+        raise CIRecordRefused(CI_RECORD_BROKEN, f"свод не того вида: {report.get('schema')!r}")
+    if manifest.get("sha") != expected_sha:
+        raise CIRecordRefused(CI_SHA_MISMATCH,
+                              f"план прогона о коммите {manifest.get('sha')!r}, "
+                              f"ожидался {expected_sha}")
+    if report.get("sha") != manifest.get("sha"):
+        raise _inconsistent(f"свод о коммите {report.get('sha')!r}, план — "
+                                   f"{manifest.get('sha')!r}")
+    if run.get("head_sha") == expected_sha:
+        sha_binding = "run_head_sha"
+    elif run.get("event") == "workflow_dispatch":
+        # Вход `inputs.sha` закреплён джобой manifest; воркфлоу — из run.head_sha.
+        sha_binding = "dispatch_input_pinned_by_manifest"
+    else:
+        raise CIRecordRefused(CI_SHA_MISMATCH,
+                              f"прогон {run_id} ({run.get('event')}) шёл на "
+                              f"{run.get('head_sha')!r}, а план называет {expected_sha}: "
+                              f"закрепить чужой коммит может только workflow_dispatch")
+    rrun = report.get("run") if isinstance(report.get("run"), dict) else {}
+    if str(rrun.get("id")) != str(run_id):
+        raise CIRecordRefused(CI_WRONG_RUN,
+                              f"свод написан прогоном {rrun.get('id')!r}, запись — о {run_id}")
+    want_url = f"https://github.com/{repo}/actions/runs/{run_id}"
+    if rrun.get("url") != want_url or run.get("html_url") != want_url:
+        raise CIRecordRefused(CI_WRONG_REPOSITORY,
+                              f"адрес прогона в своде {rrun.get('url')!r} / в run.json "
+                              f"{run.get('html_url')!r}, ожидался {want_url}")
+    for what, env in (("план", manifest.get("env")), ("свод", report.get("env"))):
+        named = env.get("workflow") if isinstance(env, dict) else None
+        if named != run.get("name"):
+            raise CIRecordRefused(CI_WRONG_WORKFLOW, f"{what} снят воркфлоу {named!r}, "
+                                                     f"прогон называется {run.get('name')!r}")
+    if manifest.get("env") != report.get("env"):
+        raise _inconsistent("окружение плана и свода различаются")
+
+    # 4. Согласованность шардов: план · свод · артефакты · каталоги.
+    plan_ids = _shard_ids(manifest.get("shards"), "план")
+    report_ids = _shard_ids(report.get("shards"), "свод")
+    art_ids = sorted(int(n[len(CI_SHARD_PREFIX):]) for n in by_name
+                     if n.startswith(CI_SHARD_PREFIX) and n[len(CI_SHARD_PREFIX):].isdigit())
+    dir_ids = sorted(int(p.name[len(CI_SHARD_PREFIX):]) for p in root.iterdir()
+                     if p.is_dir() and p.name.startswith(CI_SHARD_PREFIX)
+                     and p.name[len(CI_SHARD_PREFIX):].isdigit())
+    totals = report.get("totals") if isinstance(report.get("totals"), dict) else None
+    if totals is None:
+        raise CIRecordRefused(CI_RECORD_INCOMPLETE, "у свода нет итогов (totals) — свод не дошёл")
+    if not plan_ids:
+        raise CIRecordRefused(CI_RECORD_INCOMPLETE, "в плане ноль шардов — получено ноль")
+    for what, ids in (("свод", report_ids), ("артефакты прогона", art_ids),
+                      ("каталоги записи", dir_ids)):
+        if ids != plan_ids:
+            missing = sorted(set(plan_ids) - set(ids))
+            extra = sorted(set(ids) - set(plan_ids))
+            code = CI_RECORD_INCOMPLETE if missing and not extra else CI_RECORD_INCONSISTENT
+            raise CIRecordRefused(code, f"шарды плана {plan_ids} ≠ {what} {ids}: "
+                                        f"недостаёт {missing}, лишние {extra}")
+    if totals.get("shards_planned") != len(plan_ids):
+        raise _inconsistent(f"свод считает {totals.get('shards_planned')!r} шардов, "
+                                   f"в плане {len(plan_ids)}")
+    for name in (CI_REPORT_ARTIFACT, CI_MANIFEST_ARTIFACT):
+        if name not in by_name:
+            raise CIRecordRefused(CI_RECORD_INCOMPLETE, f"артефакта {name} в прогоне нет")
+
+    # 5. Полнота: свод обязан быть ИЗМЕРЕННЫМ, а не INCOMPLETE.
+    if report.get("verdict") not in _CI_MEASURED_VERDICTS or report.get("incomplete"):
+        raise CIRecordRefused(CI_RECORD_INCOMPLETE,
+                              f"свод {report.get('verdict')!r}, причины неполноты: "
+                              f"{str(report.get('incomplete'))[:300]}")
+    if totals.get("not_obtained") != 0 or totals.get("shards_complete") != len(plan_ids):
+        raise CIRecordRefused(CI_RECORD_INCOMPLETE,
+                              f"не получено {totals.get('not_obtained')!r}, шардов завершено "
+                              f"{totals.get('shards_complete')!r} из {len(plan_ids)}")
+    collected = manifest.get("collected")
+    if not isinstance(collected, list) or not collected:
+        raise CIRecordRefused(CI_RECORD_INCOMPLETE, "население плана пусто — получено ноль")
+    if totals.get("population") != len(collected) or manifest.get("population") != len(collected):
+        raise _inconsistent(f"население: свод {totals.get('population')!r}, план "
+                                   f"{manifest.get('population')!r}, перечень {len(collected)}")
+    for row in report.get("shards") or []:
+        if row.get("problems"):
+            raise CIRecordRefused(CI_RECORD_INCOMPLETE,
+                                  f"шард {row['shard']}: {row['problems'][0]}")
+
+    # 6. Свежесть: время ИСХОДА — начало прогона, а не время сборки отчёта.
+    started = _ci_time(run.get("run_started_at") or run.get("created_at"), "начало прогона")
+    finished = _ci_time(run.get("updated_at"), "конец прогона")
+    planned_at = _ci_time(manifest.get("created_at"), "время плана")
+    if not (started <= planned_at <= finished):
+        raise _inconsistent(f"план снят {planned_at.isoformat()} вне окна прогона "
+                                   f"{started.isoformat()} … {finished.isoformat()}")
+    age = (clock - started).total_seconds() / 3600.0
+    if age < 0:
+        raise CIRecordRefused(CI_RECORD_TIME_UNREADABLE,
+                              f"прогон начат {started.isoformat()} позже часов {clock.isoformat()}")
+    if age > limit:
+        raise CIRecordRefused(CI_RECORD_STALE,
+                              f"запись прогона {run_id} старше предела: {age:.1f}ч при "
+                              f"пределе {limit:.0f}ч")
+
+    # 7. Записи шардов: имя, SHA (если назван), junit цел, исход у КАЖДОГО теста.
+    shard_plan = {sh["shard"]: sh for sh in manifest["shards"]}
+    shard_fail = {}
+    for f in report.get("failures") or []:
+        shard_fail[f.get("shard")] = shard_fail.get(f.get("shard"), 0) + 1
+    junits: list[str] = []
+    per_file_cases: dict[str, int] = {}
+    cache: dict[str, str | None] = {}
+    tree_root = pathlib.Path(repo_root)
+    for i in plan_ids:
+        d = root / f"{CI_SHARD_PREFIX}{i}"
+        meta = _ci_json(d / "shard.json", f"паспорт шарда {i} (shard.json)")
+        if meta.get("shard") != i:
+            raise _inconsistent(f"каталог шарда {i} называет себя {meta.get('shard')!r}")
+        if "sha" in meta and meta["sha"] != expected_sha:
+            raise CIRecordRefused(CI_SHA_MISMATCH,
+                                  f"шард {i} о коммите {meta['sha']!r}, ожидался {expected_sha}")
+        files = sorted(d.glob("junit*.xml"))
+        if not files:
+            raise CIRecordRefused(CI_RECORD_UNAVAILABLE, f"у шарда {i} нет junit-записи")
+        cases = bad = 0
+        for p in files:
+            try:
+                tree = ET.parse(p)
+            except (OSError, ET.ParseError) as exc:
+                raise CIRecordRefused(CI_RECORD_BROKEN,
+                                      f"junit шарда {i} не разобран: {p.name} — "
+                                      f"{type(exc).__name__}: {exc}") from exc
+            # Шард, подложенный из ДРУГОГО прогона с тем же планом, по числам
+            # неотличим (шард 3 у ab17e71 и 5bc06f5: 10979 = 10979). Отличает его
+            # время: pytest пишет `timestamp` у <testsuite>, и оно обязано лежать
+            # в окне ЭТОГО прогона.
+            for suite in tree.getroot().iter("testsuite"):
+                when = _ci_time(suite.get("timestamp"), f"время junit шарда {i} ({p.name})")
+                if not (started <= when <= finished):
+                    raise _inconsistent(f"junit шарда {i} ({p.name}) снят {when.isoformat()} вне "
+                                        f"окна прогона {run_id} {started.isoformat()} … "
+                                        f"{finished.isoformat()} — запись чужого прогона")
+            for case in tree.getroot().iter("testcase"):
+                cases += 1
+                if any(c.tag in ("failure", "error") for c in case):
+                    bad += 1
+                rel = _file_of_case(case, tree_root, cache)
+                if rel:
+                    per_file_cases[rel] = per_file_cases.get(rel, 0) + 1
+            junits.append(str(p))
+        if cases != shard_plan[i].get("tests"):
+            raise CIRecordRefused(CI_RECORD_INCOMPLETE,
+                                  f"junit шарда {i} несёт {cases} исход(ов), план — "
+                                  f"{shard_plan[i].get('tests')!r}: исход есть не у каждого теста")
+        if bad != shard_fail.get(i, 0):
+            raise _inconsistent(f"junit шарда {i} называет {bad} упавших, свод — "
+                                       f"{shard_fail.get(i, 0)}")
+
+    # 8. Код, о котором вердикт: дерево == ожидаемый SHA и чисто в корнях населения.
+    head, dirty = _tree_state(repo_root)
+    if head != expected_sha:
+        raise CIRecordRefused(CI_TREE_MISMATCH,
+                              f"дерево населения {repo_root} на {head!r}, запись — о {expected_sha}")
+    if dirty is None:
+        raise CIRecordRefused(CI_TREE_MISMATCH, f"состояние дерева {repo_root} не измерено (git status)")
+    if dirty:
+        raise CIRecordRefused(CI_TREE_MISMATCH,
+                              f"дерево населения изменено в корнях прогона ({len(dirty)}): "
+                              f"{dirty[:3]} — население не о {expected_sha[:12]}")
+
+    tests_per_file = manifest.get("tests_per_file")
+    if not isinstance(tests_per_file, dict):
+        raise CIRecordRefused(CI_RECORD_BROKEN, "в плане нет числа тестов по файлам")
+    return {
+        "junit_paths": junits,
+        "per_file_cases": per_file_cases,
+        "tests_per_file": tests_per_file,
+        "observed_at": started.isoformat(),
+        "age_h": round(age, 3),
+        "max_age_h": limit,
+        "source": {
+            "kind": "ci_record",
+            "repo": full_name,
+            "workflow": run.get("path"),
+            "workflow_name": run.get("name"),
+            "run_id": run_id,
+            "run_attempt": run.get("run_attempt"),
+            "run_url": want_url,
+            "event": run.get("event"),
+            "conclusion": run.get("conclusion"),
+            "sha": expected_sha,
+            "workflow_head_sha": run.get("head_sha"),
+            "sha_binding": sha_binding,
+            "run_started_at": run.get("run_started_at"),
+            "run_updated_at": run.get("updated_at"),
+            "ci_verdict": report.get("verdict"),
+            "ci_totals": totals,
+            "shards": plan_ids,
+            "artifacts": [{"name": n, "id": by_name[n].get("id"),
+                           "digest": by_name[n].get("digest"),
+                           "size_in_bytes": by_name[n].get("size_in_bytes")}
+                          for n in sorted(by_name)],
+            "record_dir": str(root),
+            "fetched_at": listing.get("_fetched_at"),
+            "age_h_at_assembly": round(age, 3),
+        },
+    }
+
+
+def measure_from_ci_record(record_dir: str, *, expected_sha: str, repo_root: str,
+                           now: datetime | None = None, max_age_h: float | None = None,
+                           expected_run_id: int | str | None = None) -> dict:
+    """§49 по записи УЖЕ выполненного CI: проверки → :func:`measure` → происхождение.
+
+    Вердикт выносит :func:`measure` по junit-записям шардов — ни строчки сравнения
+    с базой. Отказ — :class:`CIRecordRefused`; запись отчёта — дело вызывающего
+    (и только при успехе).
+
+    ``generated_at`` отчёта — время НАБЛЮДЕНИЯ исхода (начало прогона CI), а не
+    время сборки: проба §49 судит по нему о возрасте записи, и время сборки
+    сделало бы недельную запись свежей ещё на неделю. Время сборки — ``assembled_at``.
+    """
+    got = verify_ci_record(record_dir, expected_sha=expected_sha, repo_root=repo_root,
+                           now=now, max_age_h=max_age_h, expected_run_id=expected_run_id)
+    report = measure(repo_root, junit_paths=got["junit_paths"])
+    if not report.get("measured"):
+        raise CIRecordRefused(CI_CENSUS_UNMEASURED, f"перепись не измерила: {report.get('reason')}")
+    if report.get("records_unread") or len(report.get("records_read") or []) != len(got["junit_paths"]):
+        raise CIRecordRefused(CI_RECORD_BROKEN,
+                              f"перепись прочитала {len(report.get('records_read') or [])} из "
+                              f"{len(got['junit_paths'])} записей: {report.get('records_unread')}")
+    # Исход у КАЖДОГО теста члена населения: число случаев файла в junit == план.
+    short = []
+    for name, s in report["surfaces"].items():
+        members = list(s["files_passed"]) + [f["file"] for f in s["files_failed"]]
+        for rel in members:
+            planned = got["tests_per_file"].get(rel)
+            seen = got["per_file_cases"].get(rel)
+            if planned is not None and seen != planned:
+                short.append(f"{name}:{rel} ({seen}/{planned})")
+    if short:
+        raise CIRecordRefused(CI_RECORD_INCOMPLETE,
+                              f"у членов населения исход есть не у каждого теста: {short[:5]}")
+    report["assembled_at"] = report["generated_at"]
+    report["generated_at"] = got["observed_at"]
+    report["source"] = got["source"]
+    report["ci_record_age_h"] = got["age_h"]
+    report["ci_record_max_age_h"] = got["max_age_h"]
+    return report
+
+
+# ── сеть: скачать запись прогона (вход, а не окружение) ──────────────────────
+
+class GitHubReader:
+    """Чтение API GitHub. Токен — из окружения или Keychain, никогда не печатается.
+
+    ``get_json(path)`` и ``get_bytes(url)`` — ВСЯ поверхность; тест подаёт свою
+    пару, и «сеть отрезана» проверяется без сети.
+    """
+
+    API = "https://api.github.com"
+
+    def __init__(self, token: str | None = None) -> None:
+        self._token = token or os.environ.get("GITHUB_TOKEN") or os.environ.get("GITHUB_PAT_SPA")
+        if not self._token:
+            try:
+                proc = subprocess.run(["security", "find-generic-password", "-s",
+                                       "GITHUB_PAT_SPA", "-w"],
+                                      capture_output=True, text=True, timeout=30)
+                self._token = proc.stdout.strip() if proc.returncode == 0 else None
+            except (OSError, subprocess.SubprocessError):
+                self._token = None
+
+    def _headers(self) -> dict:
+        h = {"Accept": "application/vnd.github+json", "User-Agent": "spa-no-regression-census"}
+        if self._token:
+            h["Authorization"] = f"Bearer {self._token}"
+        return h
+
+    def get_json(self, path: str) -> dict:
+        import json
+        import urllib.request
+        req = urllib.request.Request(self.API + path, headers=self._headers())
+        with urllib.request.urlopen(req, timeout=120) as resp:
+            return json.load(resp)
+
+    def get_bytes(self, url: str) -> bytes:
+        import urllib.error
+        import urllib.request
+
+        class _NoRedirect(urllib.request.HTTPRedirectHandler):
+            def redirect_request(self, *a, **k):  # noqa: ANN001 — сигнатура stdlib
+                return None
+
+        if not self._token:
+            raise PermissionError("токена нет: архив артефакта без авторизации не отдаётся")
+        opener = urllib.request.build_opener(_NoRedirect)
+        try:
+            with opener.open(urllib.request.Request(url, headers=self._headers()),
+                             timeout=120) as resp:
+                return resp.read()
+        except urllib.error.HTTPError as exc:
+            location = exc.headers.get("Location") if exc.code in (301, 302, 303, 307, 308) else None
+            if not location:
+                raise
+        # Подписанный адрес хранилища: заголовок авторизации туда НЕ уходит.
+        with urllib.request.urlopen(location, timeout=600) as resp:
+            return resp.read()
+
+
+def find_ci_run(http, *, head_sha: str, repo: str = CI_REPO,
+                workflow_file: str = CI_WORKFLOW_FILE) -> int:
+    """Номер последнего ЗАВЕРШЁННОГО прогона воркфлоу, чей план мог быть о ``head_sha``.
+
+    Ищется по ``head_sha`` прогона: для расписанного прогона он и есть
+    проверяемый коммит. Прогон, закрепивший чужой коммит через
+    ``workflow_dispatch``, этим поиском не находится — его номер называют явно.
+    """
+    try:
+        doc = http.get_json(f"/repos/{repo}/actions/workflows/{workflow_file}/runs"
+                            f"?head_sha={head_sha}&status=completed&per_page=20")
+    except Exception as exc:  # noqa: BLE001 — недоступность названа, а не проглочена
+        raise CIRecordRefused(CI_RECORD_UNAVAILABLE,
+                              f"перечень прогонов не получен: {type(exc).__name__}: {exc}") from exc
+    runs = [r for r in (doc.get("workflow_runs") or []) if isinstance(r, dict)
+            and r.get("head_sha") == head_sha
+            and r.get("conclusion") in _CI_FINISHED_CONCLUSIONS]
+    if not runs:
+        raise CIRecordRefused(CI_RECORD_UNAVAILABLE,
+                              f"у коммита {head_sha[:12]} нет завершённого прогона {workflow_file}")
+    # Расписанный прогон гоняет ИМЕННО head_sha; ручной (dispatch) мог закрепить
+    # другой коммит входом — тогда сверка плана откажет. Поэтому расписанный — первым.
+    scheduled = [r for r in runs if r.get("event") == "schedule"]
+    return max(scheduled or runs, key=lambda r: str(r.get("created_at")))["id"]
+
+
+def _safe_extract(blob: bytes, dest: pathlib.Path, name: str) -> None:
+    import io
+    import zipfile
+    try:
+        zf = zipfile.ZipFile(io.BytesIO(blob))
+        bad = zf.testzip()
+    except (zipfile.BadZipFile, OSError, ValueError) as exc:
+        raise CIRecordRefused(CI_RECORD_BROKEN,
+                              f"архив {name} не разобран: {type(exc).__name__}: {exc}") from exc
+    if bad is not None:
+        raise CIRecordRefused(CI_RECORD_BROKEN, f"архив {name}: битый член {bad}")
+    target = dest.resolve()
+    for member in zf.namelist():
+        out = (dest / member).resolve()
+        if target != out and target not in out.parents:
+            raise CIRecordRefused(CI_RECORD_BROKEN, f"архив {name}: путь вне каталога: {member!r}")
+    zf.extractall(dest)
+
+
+def fetch_ci_record(dest: str, *, run_id: int | str, http=None, repo: str = CI_REPO,
+                    now: datetime | None = None) -> pathlib.Path:
+    """Скачать запись прогона в ``dest`` в той форме, которую читает :func:`verify_ci_record`.
+
+    Скачивается только СВОЁ: свод, план и шарды. Дайджест архива, если GitHub
+    его назвал, сверяется с байтами (`sha256:`), расхождение — отказ.
+    """
+    import hashlib
+    reader = http or GitHubReader()
+    root = pathlib.Path(dest)
+    root.mkdir(parents=True, exist_ok=True)
+    try:
+        run = reader.get_json(f"/repos/{repo}/actions/runs/{run_id}")
+        listing = reader.get_json(f"/repos/{repo}/actions/runs/{run_id}/artifacts?per_page=100")
+    except Exception as exc:  # noqa: BLE001
+        raise CIRecordRefused(CI_RECORD_UNAVAILABLE,
+                              f"прогон {run_id} не получен: {type(exc).__name__}: {exc}") from exc
+    if not isinstance(run, dict) or not isinstance(listing, dict):
+        raise CIRecordRefused(CI_RECORD_BROKEN, f"ответ API о прогоне {run_id} не словарь")
+    listing["_fetched_at"] = (now or datetime.now(timezone.utc)).isoformat()
+    from spa_core.utils.atomic import atomic_save
+    atomic_save(run, str(root / CI_RUN_FILE))
+    atomic_save(listing, str(root / CI_ARTIFACTS_FILE))
+    for a in listing.get("artifacts") or []:
+        name = a.get("name") if isinstance(a, dict) else None
+        if not (name in (CI_REPORT_ARTIFACT, CI_MANIFEST_ARTIFACT)
+                or (isinstance(name, str) and name.startswith(CI_SHARD_PREFIX))):
+            continue
+        try:
+            blob = reader.get_bytes(a["archive_download_url"])
+        except Exception as exc:  # noqa: BLE001
+            raise CIRecordRefused(CI_RECORD_UNAVAILABLE,
+                                  f"архив {name} не получен: {type(exc).__name__}: {exc}") from exc
+        digest = a.get("digest")
+        if isinstance(digest, str) and digest.startswith("sha256:"):
+            got = "sha256:" + hashlib.sha256(blob).hexdigest()
+            if got != digest:
+                raise CIRecordRefused(CI_RECORD_BROKEN,
+                                      f"архив {name}: дайджест {got} ≠ объявленного {digest}")
+        _safe_extract(blob, root / name, name)
+    return root
+
+
 # ─────────────────────────────────── печать ───────────────────────────────────
 
 def _lines(report: dict) -> list[str]:
