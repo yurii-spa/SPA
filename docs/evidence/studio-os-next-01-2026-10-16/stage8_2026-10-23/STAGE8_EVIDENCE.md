@@ -45,7 +45,7 @@
 ## 2. Такт census (п. 2)
 
 - Прогон [39919735880](https://github.com/yurii-spa/SPA/actions/runs/39919735880) о docs-SHA `ffafdf1a5`
-  прочитан по артефакту (`census_run39919735880/`): `run.json` sha `ffafdf1a5…`, `exit.json` **1**, шаг прибора
+  прочитан по артефакту (`census_run39919735880/`, копии под именами `run.excerpt.json`/`exit.excerpt.json`): `run.json` sha `ffafdf1a5…`, `exit.json` **1**, шаг прибора
   07:44:42Z → 08:50:56Z (**66,2 мин**). Сверка с 39913695961 (`3f2482d22`) по полям `tests_recorded`,
   `reached_registry`, `counts`, `returncodes`, `collect_errors`, `not_reported`, `registry`: всё совпало;
   `rows` 2 761/2 761 — вердикт каждой строки тот же; `findings` 22/22 те же. Разница файлов — только

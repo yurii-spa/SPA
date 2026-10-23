@@ -115,11 +115,34 @@ def test_the_beacon_and_the_journal_agree_on_one_tree():
     Разойдись они — кнопка нашлась бы (маячок виден), а записи о ней нет, и нажатие
     владельца получило бы «не нашёл эту карточку». Хуже отсутствия кнопки.
     """
-    from spa_core.telegram import alert_actions as aa
-    from spa_core.telegram import owner_decisions as od
+    # Пути вычисляются на ИМПОРТЕ, а `SPA_DATA_DIR` песочница меняет на каждый тест: в общем
+    # процессе набора модуль, впервые импортированный ВНУТРИ чужого теста, связывает изолированный
+    # каталог того теста, а импортированный при сборке — другой. Так падало в CI 40026699075
+    # (шард 0: первым `owner_decisions` импортировал `test_buttonless_reason`, сосед, которого план
+    # шардов поставил раньше) — о порядке набора, а не о коде (B-10, этап 8). Утверждение — про
+    # код: в процессе, где оба модуля связаны при ОДНОМ окружении (так работает прод), каталог
+    # один. Поэтому замер — в чистом подпроцессе с заданным каталогом; совпасть обязаны оба пути
+    # И с заданным каталогом (сильнее прежнего: прежний не проверял, КАКОЙ каталог общий).
+    import json
+    import os
+    import subprocess
+    import sys
+    import tempfile
 
-    assert aa.BEACON_PATH.parent == od.STATE_PATH.parent
-    assert aa.STATE_PATH.parent == od.STATE_PATH.parent
+    with tempfile.TemporaryDirectory() as data_dir:
+        code = ("import json\n"
+                "from spa_core.telegram import alert_actions as aa\n"
+                "from spa_core.telegram import owner_decisions as od\n"
+                "print(json.dumps([str(aa.BEACON_PATH.parent), str(aa.STATE_PATH.parent),"
+                " str(od.STATE_PATH.parent)]))\n")
+        env = dict(os.environ, SPA_DATA_DIR=data_dir)
+        proc = subprocess.run([sys.executable, "-c", code], capture_output=True, text=True,
+                              cwd=str(LP.OWN_TREE), env=env, timeout=120)
+        assert proc.returncode == 0, proc.stderr[-2000:]
+        beacon, alert_state, journal = json.loads(proc.stdout.strip().splitlines()[-1])
+        assert beacon == journal == alert_state
+        assert os.path.realpath(journal) == os.path.realpath(data_dir), (
+            "оба пути совпали, но не с заданным каталогом — окружение до модулей не дошло")
 
 
 def test_module_creates_no_directories(monkeypatch, tmp_path):

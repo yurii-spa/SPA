@@ -232,6 +232,8 @@ starting duplicates. Full rationale, increments, acceptance and constraints are 
     1 new vs base (test_investor_report, cause not established, backlog B-9); workflow step = wiring for the orphan ratchet;
     census skips bookkeeping docs; §49 variant A (report_dir) + server revision pinned in a temp clone; connection package
     ready, NOT installed. Handover: `HANDOVER_2026-10-23_STAGE8.md`. NOT ARB-accepted.
+    After ARB stage-8 review: B-9 cause proven and fixed (CI 40026699075 on 3da13e7bf), B-10 order defect and an
+    evidence-name ambiguity fixed next; first STUDIO-OS-MODELS-01 slice (role-pack) demonstrated. NOT ARB-accepted.
     Handover: `HANDOVER_FOR_ARB_FINAL.md`, `START_HERE.md` in the same folder.
 18. **Later engines:** traditional markets, volatility / options (scope decided inside RM-EXPAND-01)
 

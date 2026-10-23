@@ -1,0 +1,11 @@
+goal: correct
+verified_revision: missing/incomplete
+head_revision: wrong-confident
+decisions: correct
+constraints: correct
+open_problems: correct
+next_step: correct
+trap_ci: wrong-confident
+trap_router: correct
+your_role: correct
+TOTAL 7/10 · wrong-confident 2
