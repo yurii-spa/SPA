@@ -20,6 +20,14 @@
 Реестр R&D — другое: попасть в него можно только измерением, и запись в нём и есть
 продукт такого скрипта. Это доказательство того же рода, какого проект требует от APY.
 
+**23.10 (решение ARB): имя в реестре — только кандидат, вычет заслуживается поимённо.**
+`registry_named_scripts` (прежнее правило) стал предфильтром; вычитает
+`registry_recorded_scripts` = кандидаты, подтверждённые `research_tool_verdict` по всем
+признакам сразу (назначение-замер, нет записи в `data/`, нет импорта денежного пути,
+полный путь в реестре закрытого списка, результат в той же записи). Неподтверждённый
+кандидат остаётся под надзором. Порог «вычет < половины» живёт на когорте 13.08
+(`unwired_cohort_f6b87f139.json`), где он различает реестр и «любой docs/».
+
 Опт-аут-флага в коде здесь намеренно НЕТ: флаг научил бы сторожа отключать.
 """
 from __future__ import annotations
@@ -471,29 +479,316 @@ def entrypoint_scripts(root: Optional[pathlib.Path] = None) -> List[pathlib.Path
     return out
 
 
-def registry_recorded_scripts(root: Optional[pathlib.Path] = None) -> Set[str]:
-    """Скрипты, чей ПРОДУКТ — запись в реестре-продукте (R&D-идей или карантина).
+#: Пакеты денежного пути: скрипт, импортирующий их, — производственный компонент,
+#: а не ручной замер, сколько бы записей о нём ни было в реестре.
+_MONEY_PATH = ("spa_core.execution", "spa_core.risk", "spa_core.governance",
+               "spa_core.paper_trading")
 
-    У исследовательского замера вызывающего нет и быть не должно: его запускают
-    руками, а результат уезжает в `docs/DYNAMIC_LEVERAGE_GUARDIAN.md`. Реестр —
-    единственный документ с таким правом (см. модульный docstring: любой другой
-    файл `docs/`, включая журнал, проводкой НЕ считается).
+#: Слова, которыми запись реестра R&D называет РЕЗУЛЬТАТ замера. Запись без любого из
+#: них — анонс или упоминание, а не продукт измерения.
+_RESULT_WORDS = re.compile(
+    r"ПРОТЕСТИРОВАН|[Вв]ердикт|ВЕРДИКТ|[Вв]ывод|ВЫВОД|СТАТУС РЕЕСТРА|[Рр]езультат|"
+    r"РЕЗУЛЬТАТ|ОПРОВЕРГ|ПОДТВЕРЖД|НЕГАТИВ")
+
+#: Граница записи реестра R&D: заголовок, пункт-идея «- **#N…», разделитель `---`.
+_RND_RECORD_BOUNDARY = re.compile(r"^(?:#{1,6} |- \*\*#\d|---\s*$)")
+
+#: Назначение «ручной исследовательский инструмент», объявленное в докстринге модуля.
+_RESEARCH_PURPOSE = re.compile(
+    r"advisory|backtest|\[bt\]|\bidea\s*#\d+|outside_riskpolicy|замер|измерит|"
+    r"\bR&D\b|research", re.I)
+
+#: Вызовы, которые ПИШУТ: (имя последнего сегмента, индекс аргумента-цели или None —
+#: цель это сам объект метода, `path.write_text(...)`).
+_WRITE_SINKS = {
+    "write_text": None, "write_bytes": None, "touch": None,
+    "atomic_save": 0, "atomic_write": 0, "atomic_write_json": 0, "atomic_write_text": 0,
+    "copy": 1, "copy2": 1, "copyfile": 1, "copytree": 1, "move": 1,
+    "replace": 1, "rename": 1,
+}
+
+
+def _call_name(func: ast.AST) -> str:
+    if isinstance(func, ast.Name):
+        return func.id
+    if isinstance(func, ast.Attribute):
+        return func.attr
+    return ""
+
+
+def _is_data_literal(value: object) -> bool:
+    """Строка, ведущая в `data/`: сегмент `"data"` или префикс `"data/"`."""
+    return isinstance(value, str) and (value == "data" or value.startswith("data/"))
+
+
+def _write_mode(call: ast.Call, pos: int) -> bool:
+    """Режим `open(...)` с записью: w / a / x / +."""
+    mode = None
+    if len(call.args) > pos and isinstance(call.args[pos], ast.Constant):
+        mode = call.args[pos].value
+    for kw in call.keywords:
+        if kw.arg == "mode" and isinstance(kw.value, ast.Constant):
+            mode = kw.value.value
+    return isinstance(mode, str) and any(c in mode for c in "wax+")
+
+
+def data_write_targets(source: str) -> Optional[List[str]]:
+    """Куда скрипт ПИШЕТ внутри `data/` — список выражений-целей (пусто = никуда).
+
+    `None` — не измерено (модуль не разобрался): третий исход, а не «чисто» (инв. #17).
+
+    Цель судится по ПРОИСХОЖДЕНИЮ значения, а не по наличию слова `data` в файле:
+    десятки замеров ЧИТАЮТ `data/aggressive_lab` и пишут результат в `/tmp` или в
+    путь из `--json` без умолчания — это не производственный компонент. Производитель
+    состояния — тот, чья цель записи (имя, атрибут `args.<dest>` по умолчанию argparse,
+    вызов, f-строка) выводится из литерала `"data"` / `"data/..."`.
     """
-    base = pathlib.Path(root or _ROOT)
-    texts = []
+    try:
+        tree = ast.parse(source)
+    except (SyntaxError, ValueError):
+        return None
+    assigns: Dict[str, List[ast.AST]] = {}
+    defaults: Dict[str, ast.AST] = {}
+    for node in ast.walk(tree):
+        if isinstance(node, (ast.Assign, ast.AnnAssign)) and node.value is not None:
+            targets = node.targets if isinstance(node, ast.Assign) else [node.target]
+            for t in targets:
+                for n in ast.walk(t):
+                    if isinstance(n, ast.Name):
+                        assigns.setdefault(n.id, []).append(node.value)
+        elif isinstance(node, ast.Call) and _call_name(node.func) == "add_argument":
+            dest = None
+            for a in node.args:
+                if isinstance(a, ast.Constant) and isinstance(a.value, str) \
+                        and a.value.startswith("--"):
+                    dest = a.value.lstrip("-").replace("-", "_")
+                    break
+            default = None
+            for kw in node.keywords:
+                if kw.arg == "dest" and isinstance(kw.value, ast.Constant):
+                    dest = kw.value.value
+                elif kw.arg == "default":
+                    default = kw.value
+            if dest and default is not None:
+                defaults[dest] = default
+
+    def tainted(expr: ast.AST, seen: Set[str]) -> bool:
+        for n in ast.walk(expr):
+            if isinstance(n, ast.Constant) and _is_data_literal(n.value):
+                return True
+            if isinstance(n, ast.Name) and n.id not in seen:
+                seen.add(n.id)
+                if any(tainted(v, seen) for v in assigns.get(n.id, ())):
+                    return True
+            if isinstance(n, ast.Attribute) and ("." + n.attr) not in seen \
+                    and n.attr in defaults:
+                seen.add("." + n.attr)
+                if tainted(defaults[n.attr], seen):
+                    return True
+        return False
+
+    out = []
+    for node in ast.walk(tree):
+        if not isinstance(node, ast.Call):
+            continue
+        name = _call_name(node.func)
+        target = None
+        if name == "open":
+            if isinstance(node.func, ast.Attribute):      # Path(...).open("w")
+                if _write_mode(node, 0):
+                    target = node.func.value
+            elif node.args and _write_mode(node, 1):        # open(path, "w")
+                target = node.args[0]
+        elif name in _WRITE_SINKS:
+            idx = _WRITE_SINKS[name]
+            if idx is None:
+                if isinstance(node.func, ast.Attribute):
+                    target = node.func.value
+            elif len(node.args) > idx:
+                target = node.args[idx]
+        if target is not None and tainted(target, set()):
+            out.append(ast.unparse(target))
+    return out
+
+
+def money_path_imports(source: str) -> Optional[List[str]]:
+    """Импорты денежного пути (`_MONEY_PATH`); `None` — модуль не разобрался."""
+    try:
+        tree = ast.parse(source)
+    except (SyntaxError, ValueError):
+        return None
+    found = []
+
+    def hit(mod: str) -> bool:
+        return any(mod == m or mod.startswith(m + ".") for m in _MONEY_PATH)
+
+    for node in ast.walk(tree):
+        if isinstance(node, ast.Import):
+            found += [a.name for a in node.names if hit(a.name)]
+        elif isinstance(node, ast.ImportFrom) and node.module:
+            if hit(node.module):
+                found.append(node.module)
+            elif node.module == "spa_core":
+                found += ["spa_core." + a.name for a in node.names
+                          if hit("spa_core." + a.name)]
+        elif isinstance(node, ast.Constant) and isinstance(node.value, str) \
+                and hit(node.value):
+            found.append(node.value)                     # importlib.import_module("…")
+    return sorted(set(found))
+
+
+def _rnd_records(text: str, stem: str) -> List[Dict[str, object]]:
+    """Записи реестра R&D, называющие скрипт ПОЛНЫМ путём `scripts/<stem>.py`.
+
+    Запись — участок между границами (`_RND_RECORD_BOUNDARY`). Голое имя `<stem>.py`
+    или `<stem>` записью о скрипте не является: «упомянуто» не значит «измерено им».
+    """
+    path = wiring_patterns(stem)["path"]
+    lines = text.splitlines()
+    bounds = [i for i, ln in enumerate(lines) if _RND_RECORD_BOUNDARY.match(ln)]
+    out, seen = [], set()
+    for i, ln in enumerate(lines):
+        if not path.search(ln):
+            continue
+        start = max([b for b in bounds if b <= i], default=0)
+        end = min([b for b in bounds if b > i], default=len(lines))
+        if start in seen:
+            continue
+        seen.add(start)
+        block = "\n".join(lines[start:end])
+        out.append({"line": start + 1, "title": lines[start][:120],
+                    "result": bool(_RESULT_WORDS.search(block))})
+    return out
+
+
+def _quarantine_records(text: str, stem: str) -> List[Dict[str, object]]:
+    """Записи карантина, чья команда возврата зовёт `scripts/<stem>.py`.
+
+    Результат записи — замер потребления на момент решения (`measurement.measured`).
+    Нечитаемый JSON — ни одной записи (никого не прощаем), а не «всё прощено».
+    """
+    import json
+    try:
+        doc = json.loads(text)
+    except ValueError:
+        return []
+    entries = doc.get("quarantined") if isinstance(doc, dict) else None
+    if not isinstance(entries, dict):
+        return []
+    path = wiring_patterns(stem)["path"]
+    out = []
+    for label, e in sorted(entries.items()):
+        if not isinstance(e, dict) or not path.search(str(e.get("restore", ""))):
+            continue
+        m = e.get("measurement")
+        out.append({"line": label, "title": label,
+                    "result": isinstance(m, dict) and m.get("measured") is True})
+    return out
+
+
+def _registry_texts(base: pathlib.Path) -> List[Tuple[pathlib.Path, str]]:
+    """ЕДИНСТВЕННАЯ дверь к доказательствам вычета: файлы закрытого списка, и только они.
+
+    И предфильтр (`registry_named_scripts`), и подтверждение (`research_tool_verdict`)
+    читают реестры отсюда — подмена правила на «любой docs/» в одном месте видна обоим
+    и краснит отрицательные контроли поимённо. Нечитаемый реестр просто не участвует:
+    он никого не прощает (вычет сужается, надзор растёт), а не прощает всех.
+    """
+    out = []
     for rel in _PRODUCT_REGISTRIES:
         try:
-            texts.append((base / rel).read_text(encoding="utf-8", errors="ignore"))
+            out.append((rel, (base / rel).read_text(encoding="utf-8", errors="ignore")))
         except OSError:
             continue
-    if not texts:
-        return set()
+    return out
+
+
+def research_tool_verdict(stem: str, root: Optional[pathlib.Path] = None) -> Dict[str, object]:
+    """Подтверждён ли `scripts/<stem>.py` как ДОПУСТИМЫЙ ручной исследовательский инструмент.
+
+    Решение ARB 23.10: вычет из-под храповика заслуживается КАЖДЫМ скриптом отдельно,
+    и все признаки обязательны одновременно:
+
+    1. **назначение** — докстринг модуля объявляет замер/бэктест/advisory (`_RESEARCH_PURPOSE`);
+    2. **не производственный компонент** — ни одна цель записи не выводится из `data/`
+       (`data_write_targets`) и нет импорта денежного пути (`money_path_imports`);
+    3. **полный путь** `scripts/<stem>.py` в одном из реестров ЗАКРЫТОГО списка
+       `_PRODUCT_REGISTRIES`;
+    4. **результат** в той же записи (строка вердикта/статуса; для карантина — замер);
+    5. **происхождение** на уровне записи: запись ссылается на скрипт И несёт результат
+       (п. 3+4 в ОДНОЙ записи). Совпадение коммитов скрипта и записи меряется по истории,
+       которой в мелком клоне нет, — поэтому здесь его нет, оно в отчёте замера.
+
+    Отсутствие вызывающего — не дело этой функции: его мерит `scripts_without_caller`,
+    и вычет применяется только к его результату.
+    """
+    base = pathlib.Path(root or _ROOT)
+    reasons: List[str] = []
+    try:
+        src = (base / "scripts" / f"{stem}.py").read_text(encoding="utf-8", errors="ignore")
+    except OSError:
+        return {"confirmed": False, "reasons": ["скрипт не прочитан — НЕ ИЗМЕРЕНО"],
+                "records": []}
+    try:
+        doc = ast.get_docstring(ast.parse(src)) or ""
+    except (SyntaxError, ValueError):
+        doc = None
+    if doc is None:
+        reasons.append("модуль не разобран — НЕ ИЗМЕРЕНО")
+    elif not _RESEARCH_PURPOSE.search(doc):
+        reasons.append("докстринг не объявляет исследовательское назначение")
+    writes = data_write_targets(src)
+    if writes is None:
+        reasons.append("цели записи не измерены")
+    elif writes:
+        reasons.append("пишет в data/: " + ", ".join(sorted(set(writes))))
+    money = money_path_imports(src)
+    if money is None:
+        reasons.append("импорты не измерены")
+    elif money:
+        reasons.append("импортирует денежный путь: " + ", ".join(money))
+    records = []
+    for rel, text in _registry_texts(base):
+        found = (_quarantine_records(text, stem) if rel == _QUARANTINE_REGISTRY
+                 else _rnd_records(text, stem))
+        records += [dict(r, registry=str(rel)) for r in found]
+    if not records:
+        reasons.append("полного пути scripts/%s.py нет ни в одном реестре закрытого списка"
+                       % stem)
+    elif not any(r["result"] for r in records):
+        reasons.append("запись реестра без результата")
+    return {"confirmed": not reasons, "reasons": reasons, "records": records}
+
+
+def registry_named_scripts(root: Optional[pathlib.Path] = None) -> Set[str]:
+    """Кандидаты: скрипты, чьё ИМЯ (`<stem>.py` / `scripts.<stem>`) есть в реестре.
+
+    Это прежнее правило вычета (13.08) — теперь только ПРЕДФИЛЬТР. Названность не
+    освобождает: освобождает `research_tool_verdict`.
+    """
+    base = pathlib.Path(root or _ROOT)
+    texts = [text for _rel, text in _registry_texts(base)]
     out = set()
     for m in entrypoint_scripts(base):
         pats = wiring_patterns(m.stem)
-        if any(pats["file"].search(t) or pats["module"].search(t) for t in texts):
+        if any(m.stem in t and (pats["file"].search(t) or pats["module"].search(t))
+               for t in texts):
             out.add(m.stem)
     return out
+
+
+def registry_recorded_scripts(root: Optional[pathlib.Path] = None) -> Set[str]:
+    """Скрипты, ПОДТВЕРЖДЁННЫЕ как ручной исследовательский инструмент (вычет храповика).
+
+    До 23.10 сюда попадал любой скрипт, чьё имя встречалось в реестре-продукте, и вычет
+    рос с каждым законным замером, а заодно мог проглотить рабочий скрипт, упомянутый в
+    реестре мимоходом. Теперь — только те кандидаты (`registry_named_scripts`), у кого
+    `research_tool_verdict` подтверждён по всем признакам. Неподтверждённый остаётся под
+    надзором храповика.
+    """
+    base = pathlib.Path(root or _ROOT)
+    return {s for s in registry_named_scripts(base)
+            if research_tool_verdict(s, base)["confirmed"]}
 
 
 def scripts_without_caller(root: Optional[pathlib.Path] = None) -> List[str]:

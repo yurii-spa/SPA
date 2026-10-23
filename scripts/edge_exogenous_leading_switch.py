@@ -378,7 +378,10 @@ def build_axis(panel_dir: Path = B111.PANEL_DIR, feed_dir: Path = FEED_DIR):
 
 def main(argv: Optional[Sequence[str]] = None) -> int:
     ap = argparse.ArgumentParser()
-    ap.add_argument("--json", type=Path, default=ROOT / "data" / "edge_xls_results.json")
+    # Результат R&D-замера пишется ТОЛЬКО в явно заданный путь: у data/edge_xls_results.json не
+    # было читателя, а запись в data/ по умолчанию — признак производственного компонента
+    # (правило подтверждения ручного R&D, решение ARB 23.10). --no-write сохранён для совместимости.
+    ap.add_argument("--json", type=Path, default=None)
     ap.add_argument("--asset", default="eth")
     ap.add_argument("--no-write", action="store_true")
     args = ap.parse_args(argv)
@@ -571,7 +574,7 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
         "rows": results,
         "lead": {k: v for k, v in lead_rows.items()},
     }
-    if not args.no_write:
+    if args.json is not None and not args.no_write:
         args.json.parent.mkdir(parents=True, exist_ok=True)
         args.json.write_text(json.dumps(out, indent=2, sort_keys=True, default=str))
         print(f"written {args.json} [bt] advisory")

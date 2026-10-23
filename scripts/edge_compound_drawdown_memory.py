@@ -236,7 +236,13 @@ def _build_equity_map(records) -> Dict[str, float]:  # noqa: F811
 
 # ── main ──────────────────────────────────────────────────────────────────────────────────────────
 
-def main() -> None:
+def main(argv=None) -> None:
+    import argparse
+    ap = argparse.ArgumentParser()
+    # Результат пишется ТОЛЬКО в явно заданный путь: у data/edge_idea_107_cdms.json не было читателя,
+    # а безусловная запись в data/ — признак производственного компонента (решение ARB 23.10).
+    ap.add_argument("--json", type=Path, default=None)
+    args = ap.parse_args(argv)
     print("=" * 72)
     print("Idea #107 — Compound Drawdown Memory Signal (CDMS)")
     print("Evidence: BACKTEST on deterministic fixture (L1 — no real fills)")
@@ -311,10 +317,12 @@ def main() -> None:
         "best_max_dd_pct": best["max_dd_pct"],
         "all_results": results,
     }
-    out_path = Path(__file__).parent.parent / "data" / "edge_idea_107_cdms.json"
-    out_path.parent.mkdir(parents=True, exist_ok=True)
-    out_path.write_text(json.dumps(summary, indent=2))
-    print(f"\nJSON summary → {out_path}")
+    if args.json is not None:
+        args.json.parent.mkdir(parents=True, exist_ok=True)
+        args.json.write_text(json.dumps(summary, indent=2))
+        print(f"\nJSON summary → {args.json}")
+    else:
+        print(json.dumps(summary, indent=2))
 
 
 if __name__ == "__main__":
