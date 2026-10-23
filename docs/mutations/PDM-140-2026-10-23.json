@@ -1,0 +1,164 @@
+{
+  "title": "#140 PDM + #141 TUB — дельта итерации novel-edge-rnd 2026-10-23 (заказ #137: матрица пар; знаменатель, наказывающий незнание)",
+  "tests": [
+    "spa_core/tests/test_edge_pair_denominator_matrix.py"
+  ],
+  "mutations": [
+    {
+      "name": "ВТОРОЙ ГЕЙТ снят: вырожденный знаменатель (maxDD ниже пошлины) считается измеренным — ровно дефект #129/#132",
+      "file": "scripts/edge_pair_denominator_matrix.py",
+      "old": "        ok = v[\"status\"] == \"measured\" and degen is None\n",
+      "new": "        ok = v[\"status\"] == \"measured\"\n"
+    },
+    {
+      "name": "ПЕРВЫЙ ГЕЙТ снят: монотонная книга проходит как измеренная (ноль подставлен вместо наблюдения, инв. #17)",
+      "file": "scripts/edge_pair_denominator_matrix.py",
+      "old": "        ok = v[\"status\"] == \"measured\" and degen is None\n",
+      "new": "        ok = degen is None\n"
+    },
+    {
+      "name": "клетка перестаёт различать отказ НОГИ и отказ САМОЙ ПАРЫ (два разных факта сливаются в один)",
+      "file": "scripts/edge_pair_denominator_matrix.py",
+      "old": "        return {\"verdict\": CELL_LEGS, \"blocked_by\": bad,\n",
+      "new": "        return {\"verdict\": CELL_PAIR, \"blocked_by\": bad,\n"
+    },
+    {
+      "name": "клетка не называет, КАКАЯ нога отказала",
+      "file": "scripts/edge_pair_denominator_matrix.py",
+      "old": "        bad = [n for n in (a, b) if not legs[\"rows\"][n][\"survives_both\"]]\n",
+      "new": "        bad = []\n"
+    },
+    {
+      "name": "пустая матрица выдаётся за чистый проход: ноль пар БЕЗ названной причины (критерий приёмки #137 подделан)",
+      "file": "scripts/edge_pair_denominator_matrix.py",
+      "old": "            \"refusal_reason\": (None if pairs else\n                               \"no pair on this axis has both legs judgeable in both halves\")}\n",
+      "new": "            \"refusal_reason\": None}\n"
+    },
+    {
+      "name": "пара судится только по TRAIN — вопрос заказа #137 («в ОБЕИХ половинах») подменяется половинным",
+      "file": "scripts/edge_pair_denominator_matrix.py",
+      "old": "        ok = ok and good\n        per[half] = {\"status\": r[\"dd_status\"], \"maxdd\": r[\"maxdd\"], \"calmar\": r[\"calmar\"],\n",
+      "new": "        ok = good\n        per[half] = {\"status\": r[\"dd_status\"], \"maxdd\": r[\"maxdd\"], \"calmar\": r[\"calmar\"],\n"
+    },
+    {
+      "name": "spearman считается НАД ДЫРОЙ: отказанная клетка подставляется нулём вместо отказа переносу (#465)",
+      "file": "scripts/edge_pair_denominator_matrix.py",
+      "old": "        vals = [c[\"calmar\"] if c[\"degenerate\"] is None else None for c in rows[half]]\n",
+      "new": "        vals = [c[\"calmar\"] if c[\"degenerate\"] is None else 0.0 for c in rows[half]]\n"
+    },
+    {
+      "name": "бленд перестаёт докладывать нарушение потолка (таблица измеримости начинает читаться как развёртка деплоя)",
+      "file": "scripts/edge_pair_denominator_matrix.py",
+      "old": "                        \"cap_violation\": r[\"cap_violation\"]})\n",
+      "new": "                        \"cap_violation\": False})\n"
+    },
+    {
+      "name": "внутренний оптимум объявляется по ЛЮБОМУ превосходству над одной ногой, а не над обеими",
+      "file": "scripts/edge_pair_denominator_matrix.py",
+      "old": "                    if te[i] > max(te[0], te[-1]) + 1e-12]\n",
+      "new": "                    if te[i] > min(te[0], te[-1]) + 1e-12]\n"
+    },
+    {
+      "name": "правило трёх подменено приближением 3/n (точная закрытая форма — единственный случай, на котором держится вся идея #141)",
+      "file": "scripts/edge_pair_denominator_matrix.py",
+      "old": "    if d == 0:\n        return 1.0 - alpha ** (1.0 / n)\n",
+      "new": "    if d == 0:\n        return 3.0 / n\n"
+    },
+    {
+      "name": "граница по Клоппер-Пирсону перестаёт удовлетворять своему определению (бисекция идёт в другую сторону)",
+      "file": "scripts/edge_pair_denominator_matrix.py",
+      "old": "        if binom_tail_le(n, d, mid) > alpha:\n            lo = mid\n        else:\n            hi = mid\n",
+      "new": "        if binom_tail_le(n, d, mid) > alpha:\n            hi = mid\n        else:\n            lo = mid\n"
+    },
+    {
+      "name": "биномиальный хвост считается НАИВНО: math.comb * p**k — переполнение float на окне 482 дней",
+      "file": "scripts/edge_pair_denominator_matrix.py",
+      "old": "        lc = math.lgamma(n + 1) - math.lgamma(k + 1) - math.lgamma(n - k + 1)\n        total += math.exp(lc + k * lp + (n - k) * lq)\n",
+      "new": "        total += math.comb(n, k) * (p ** k) * ((1.0 - p) ** (n - k))\n"
+    },
+    {
+      "name": "граница над ПУСТЫМ окном отдаёт число вместо НЕ ИЗМЕРЕНО — сайзер взвесит книгу, которую не видел (инв. #17)",
+      "file": "scripts/edge_pair_denominator_matrix.py",
+      "old": "    if n <= 0:\n        return None\n",
+      "new": "    if n <= 0:\n        return 1.0\n"
+    },
+    {
+      "name": "окно ВКЛЮЧАЕТ судимый день — look-ahead в сайзере",
+      "file": "scripts/edge_pair_denominator_matrix.py",
+      "old": "    win = {b: list(rets[b][lo:end]) for b in books}\n",
+      "new": "    win = {b: list(rets[b][lo:end + 1]) for b in books}\n"
+    },
+    {
+      "name": "заимствованный у панели размер падения объявляется ИЗМЕРЕННЫМ (самый слабый сустав #141 выдаётся за наблюдение)",
+      "file": "scripts/edge_pair_denominator_matrix.py",
+      "old": "            out[b] = {\"bound\": p_hi * panel_m, \"kind\": \"modelled_magnitude\", \"p_hi\": p_hi,\n",
+      "new": "            out[b] = {\"bound\": p_hi * panel_m, \"kind\": \"measured_magnitude\", \"p_hi\": p_hi,\n"
+    },
+    {
+      "name": "нет размера падения нигде на панели ⇒ подставляется константа вместо отказа дню",
+      "file": "scripts/edge_pair_denominator_matrix.py",
+      "old": "            out[b] = {\"bound\": None, \"kind\": \"unmeasured_no_panel_magnitude\", \"p_hi\": p_hi,\n                      \"m\": None, \"n\": n, \"down\": d}\n",
+      "new": "            out[b] = {\"bound\": 1e-6, \"kind\": \"unmeasured_no_panel_magnitude\", \"p_hi\": p_hi,\n                      \"m\": None, \"n\": n, \"down\": d}\n"
+    },
+    {
+      "name": "день без допущенных имён молча становится равновесным вместо отказа (fail-OPEN)",
+      "file": "scripts/edge_pair_denominator_matrix.py",
+      "old": "        if not admitted:\n            refused_days += 1\n            w = {b: 0.0 for b in books}\n            dep = 0.0\n",
+      "new": "        if not admitted:\n            refused_days += 1\n            w = {b: 1.0 / len(books) for b in books}\n            dep = 1.0\n"
+    },
+    {
+      "name": "потолок концентрации снят у сайзера (течь #122/#131 в чистом виде)",
+      "file": "scripts/edge_pair_denominator_matrix.py",
+      "old": "            out = S.cap_waterfill(shares, cap=cap)\n",
+      "new": "            out = S.cap_waterfill(shares, cap=1.0)\n"
+    },
+    {
+      "name": "пошлина НЕ берётся с оборота — сайзер начинает ездить бесплатно (дефект, стоивший #132 7.0 и 9.6 пп)",
+      "file": "scripts/edge_pair_denominator_matrix.py",
+      "old": "        series.append(gross - roundtrip * turn)\n",
+      "new": "        series.append(gross)\n"
+    },
+    {
+      "name": "предикция P1 объявляется подтверждённой при ЛЮБОМ исходе (регистрация предикции обессмысливается)",
+      "file": "scripts/edge_pair_denominator_matrix.py",
+      "old": "                              \"p1_holds\": mt < ms,\n",
+      "new": "                              \"p1_holds\": True,\n"
+    },
+    {
+      "name": "граница безразличия печатает α и там, где нужный p_hi > 1 (НЕДОСТИЖИМА выдаётся числом)",
+      "file": "scripts/edge_pair_denominator_matrix.py",
+      "old": "                   \"alpha\": ((1.0 - need) ** n_obs) if 0.0 < need < 1.0 else None,\n                   \"status\": \"measured\" if 0.0 < need < 1.0 else \"unreachable\"}\n",
+      "new": "                   \"alpha\": (1.0 - need) ** n_obs,\n                   \"status\": \"measured\"}\n"
+    },
+    {
+      "name": "граница безразличия на панели без падений отдаёт ноль вместо НЕ ИЗМЕРЕНО",
+      "file": "scripts/edge_pair_denominator_matrix.py",
+      "old": "        return {\"status\": \"unmeasured\", \"panel_magnitude\": None, \"rows\": {},\n",
+      "new": "        return {\"status\": \"measured\", \"panel_magnitude\": 0.0, \"rows\": {},\n"
+    },
+    {
+      "name": "отсутствующая панель перестаёт быть третьим исходом: отчёт идёт дальше вместо громкого отказа",
+      "file": "scripts/edge_pair_denominator_matrix.py",
+      "old": "    if not pdir.is_dir():\n",
+      "new": "    if False:\n"
+    },
+    {
+      "name": "шов, не делящий ось, принимается молча — вопрос о переносе задаётся там, где второй половины нет",
+      "file": "scripts/edge_pair_denominator_matrix.py",
+      "old": "    if not before or len(before) == len(axis):\n",
+      "new": "    if False:\n"
+    },
+    {
+      "name": "неизвестный знаменатель не отказывается, а молча становится равновесным",
+      "file": "scripts/edge_pair_denominator_matrix.py",
+      "old": "        else:\n            raise ValueError(f\"unknown denominator {kind!r}\")\n",
+      "new": "        else:\n            admitted = list(pool)\n            raw = {b: 1.0 for b in admitted}\n"
+    },
+    {
+      "name": "старт внутри первого окна принимается — первые дни сайзятся по укороченному окну молча",
+      "file": "scripts/edge_pair_denominator_matrix.py",
+      "old": "    if lo < lookback:\n        raise ValueError(f\"start index {lo} is inside the first {lookback}-day window\")\n",
+      "new": "    pass\n"
+    }
+  ]
+}
