@@ -26,6 +26,7 @@
 from __future__ import annotations
 
 import json
+import subprocess
 import pathlib
 from datetime import datetime, timedelta, timezone
 
@@ -396,9 +397,38 @@ def test_several_records_are_read_together(tmp_path):
 
 # ──────────────────────────────────── проба ───────────────────────────────────
 
+def _git(root: pathlib.Path, *args: str) -> str:
+    return subprocess.run(["git", "-C", str(root), "-c", "user.name=t", "-c", "user.email=t@t",
+                           *args], capture_output=True, text=True, check=True).stdout.strip()
+
+
+def _commit(root: pathlib.Path, message: str = "scene") -> str:
+    """Сцена — git-дерево: проба засчитывает отчёт только за названную ревизию.
+
+    ``data/`` игнорируется, как в репозитории (`.gitignore`: ``data/**/*.json``):
+    отчёт переписи лежит там и чистоту дерева не меняет.
+    """
+    if not (root / ".git").exists():
+        subprocess.run(["git", "init", "-q", "-b", "main", str(root)], check=True)
+        (root / ".gitignore").write_text("data/\n*.xml\n", encoding="utf-8")
+    _git(root, "add", "-A")
+    _git(root, "commit", "-qm", message, "--allow-empty")
+    return _git(root, "rev-parse", "HEAD")
+
+
+def _restamp(path: pathlib.Path, sha: str) -> None:
+    """Отчёт, названный о ``sha`` при прежнем населении — подделка согласованности:
+    так проверяется, что покрытие сверяется и тогда, когда ревизия сошлась."""
+    doc = json.loads(path.read_text(encoding="utf-8"))
+    doc["repo_head"] = sha
+    doc["tree_revision"] = {"sha": sha, "clean": True, "dirty": [], "reason": ""}
+    path.write_text(json.dumps(doc, ensure_ascii=False), encoding="utf-8")
+
+
 def _report(tmp_path: pathlib.Path, root: pathlib.Path, cases: list[dict],
             *, age_h: float = 1.0) -> pathlib.Path:
     """Отчёт переписи на диске сцены — ровно там, где его ищет проба."""
+    _commit(root)
     record = _junit(tmp_path / "r.xml", cases)
     report = nrc.measure(str(root), junit_paths=[record])
     report["generated_at"] = (_NOW - timedelta(hours=age_h)).isoformat()
@@ -464,8 +494,10 @@ def test_a_member_added_after_the_measurement_is_not_counted_green(tmp_path):
     """Покрытие проверяется ЗАНОВО: иначе проба стала бы fail-OPEN на новом тесте."""
     root = _tree(tmp_path, _MINIMAL)
     _report(tmp_path, root, _MINIMAL_GREEN)
+    path = root / nrc.REPORT_REL
     (root / "spa_core/tests/test_brand_new_risk.py").write_text(
         _RISK_SHORT, encoding="utf-8")
+    _restamp(path, _commit(root, "new member"))
     verdict, detail = _probe(root)
     assert verdict == ca.UNMEASURED
     assert "test_brand_new_risk.py" in detail
@@ -499,6 +531,7 @@ def test_the_probe_refuses_when_a_live_surface_has_no_population(tmp_path):
     root = _tree(tmp_path, _MINIMAL)
     _report(tmp_path, root, _MINIMAL_GREEN)
     (root / "spa_core/tests/test_architecture_conformance.py").unlink()
+    _restamp(root / nrc.REPORT_REL, _commit(root, "population gone"))
     verdict, detail = _probe(root)
     assert verdict == ca.UNMEASURED
     assert "ПУСТО" in detail and "architecture" in detail

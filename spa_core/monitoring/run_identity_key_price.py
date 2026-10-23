@@ -208,6 +208,17 @@ CAUSE_REENTRY = "census_reentry_refused"
 #: причина словами. Перепись видит его у ЛЮБОЙ из проб и ставит
 #: :data:`CAUSE_REENTRY` вместо вердикта по ответу.
 REENTRY_REFUSAL_FIELD = "census_reentry_refused"
+#: Читатель ОТКАЗАЛСЯ мерить внутри идущей переписи по ЦЕНЕ, а не потому, что вошёл
+#: бы в неё. Своя причина, а не :data:`CAUSE_REENTRY`: замер 23.10 (стенд 0026e0fe9,
+#: отказ снят) — ``green_by_construction_census`` на четырёх зовах дал 96 дочерних
+#: сессий pytest, ни одного входа в ``measure``/``classify_reader``/
+#: ``reader_population`` и ни одного в собственный ``run`` — рекурсии НЕТ; цена ≈640 с
+#: при отличии ответов стендов только путями и временем. Назвать это «повторным
+#: входом» значило бы выдать ограничение бюджета за защиту от рекурсии. Строка
+#: остаётся «не измерено» с этой причиной: потерянное покрытие названо, не скрыто.
+CAUSE_BUDGET = "census_budget_refused"
+#: Поле ответа читателя: «я отказался по цене внутри идущей переписи».
+BUDGET_REFUSAL_FIELD = "census_budget_refused"
 #: Часы прогона до читателя НЕ ДОШЛИ, потому что его точка входа их не берёт.
 #: Своя причина, а не общее ведро: «часы провести некуда» и «часы проведены, а
 #: вердикта всё равно нет» — разные утверждения, и лечатся они в разных местах
@@ -346,6 +357,20 @@ def reentry_refusal(answer) -> Optional[str]:
     """Причина отказа читателя войти в идущую перепись — или ``None``."""
     if isinstance(answer, dict) and answer.get(REENTRY_REFUSAL_FIELD):
         return str(answer[REENTRY_REFUSAL_FIELD])
+    return None
+
+
+def reader_refusal(answer) -> Optional[tuple]:
+    """``(причина, слова)`` явного отказа читателя внутри переписи — или ``None``.
+
+    Два отказа и у каждого своя причина: повторный вход (:data:`CAUSE_REENTRY`)
+    и цена (:data:`CAUSE_BUDGET`). Склеить их значило бы снова читать разные
+    факты одной прозой.
+    """
+    for field, cause in ((REENTRY_REFUSAL_FIELD, CAUSE_REENTRY),
+                         (BUDGET_REFUSAL_FIELD, CAUSE_BUDGET)):
+        if isinstance(answer, dict) and answer.get(field):
+            return cause, str(answer[field])
     return None
 
 _ADVISORY = (
@@ -1488,12 +1513,15 @@ def classify_reader(module_name: str, stands: dict, *,
                    reason=f"{entry}() упал: {type(exc).__name__}")
         return row
     for raw in (raw1, raw1_again, raw2, raw3):
-        refused = reentry_refusal(raw)
+        refused = reader_refusal(raw)
         if refused is not None:
             # Ответ-отказ сравнивать НЕЛЬЗЯ: равные отказы дали бы
             # «нечувствителен», разные — выдуманный вердикт о журнале.
-            row.update(outcome=READER_UNMEASURED, cause=CAUSE_REENTRY,
-                       reason=f"{entry}() отказался входить в идущую перепись: {refused}")
+            cause, words = refused
+            what = ("отказался входить в идущую перепись" if cause == CAUSE_REENTRY
+                    else "отказался мерить внутри переписи по цене")
+            row.update(outcome=READER_UNMEASURED, cause=cause,
+                       reason=f"{entry}() {what}: {words}")
             return row
     return verdict_from_probes(row, raw1, raw1_again, raw2, raw3)
 

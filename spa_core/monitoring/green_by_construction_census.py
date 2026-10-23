@@ -836,23 +836,28 @@ def run(root: str | Path = _REPO_ROOT, *, data_dir: Optional[Path] = None,
     root = Path(root)
     source = Path(data_dir) if data_dir is not None else root / "data"
     target = Path(dest) if dest is not None else source / ARTIFACT
+    # Внутри идущей переписи читателей G16 дифференциальный прогон НЕ выполняется — отказ
+    # ЯВНЫЙ и по ЦЕНЕ, а не «повторный вход»: рекурсии здесь нет (замер 23.10, стенд
+    # 0026e0fe9, отказ снят: четыре зова → 96 дочерних сессий pytest, ни одного входа
+    # обратно в перепись G16 и ни одного в этот `run`; ≈640 с, ответы стендов отличались
+    # только путями и временем). Проверка стоит ДО «не срок»: стенд несёт копию живого
+    # `data/`, и при свежем артефакте ответ «не срок» уходил в G16 как ответ читателя —
+    # сравнение четырёх таких ответов давало непромеренный вердикт (`sees_both`).
+    # Потерянное покрытие: одна строка переписи G16 — «не измерено» с причиной
+    # `census_budget_refused`; сам замер green в своём такте (мост находок) не тронут.
+    from spa_core.monitoring import run_identity_key_price as g16
+    if g16.census_in_progress():
+        reason = ("внутри идущей переписи читателей G16 дифференциальный прогон pytest не "
+                  "выполняется по цене: 24 дочерние сессии pytest на зов, 4 зова ≈ 640 с "
+                  "(замер 23.10), а ответ стендов — не свойство читателя журнала; "
+                  "рекурсии нет, это бюджет, а не повторный вход")
+        return {"measured": False, "reason": reason, "artifact": str(target),
+                g16.BUDGET_REFUSAL_FIELD: reason}
     if if_due:
         from spa_core.monitoring.python_reader_clock_doors import measurement_due
         due, why = measurement_due(target, now=now, tact_days=tact_days)
         if not due:
             return {"measured": False, "reason": why, "artifact": str(target)}
-    # Внутри идущей переписи читателей G16 дифференциальный прогон НЕ выполняется — отказ ЯВНЫЙ,
-    # как у heir_all_rows_price. До 23.10 он здесь «выполнялся» на настоящем, а не
-    # инструментированном модуле (PYTHONPATH стенда) и отдавал «0 решений достигнуто» как замер;
-    # честный прогон (22 прогона принуждения на зов) поднял бы перепись G16 примерно вчетверо
-    # (замер 23.10, ~870 с на нагруженном Mac). G16 ставит этой строке «не измерено» с причиной.
-    from spa_core.monitoring import run_identity_key_price as g16
-    if g16.census_in_progress():
-        reason = ("внутри идущей переписи читателей G16 дифференциальный прогон pytest не "
-                  "выполняется: это вложенные сессии pytest на каждом зове, ответ не был бы "
-                  "свойством читателя, а цена — вчетверо выше всей переписи")
-        return {"measured": False, "reason": reason, "artifact": str(target),
-                g16.REENTRY_REFUSAL_FIELD: reason}
     doc = run_differential(root, test_files=list(test_files or STAGE_TEST_FILES),
                            workers=workers)
     if write:

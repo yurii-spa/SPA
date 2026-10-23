@@ -4789,6 +4789,33 @@ def _probe_no_regression_tests_pass(
         reason = (report or {}).get("reason") if isinstance(report, dict) else "не словарь"
         return UNMEASURED, f"перепись не измерила: {reason}"
 
+    # Отчёт отвечает только о ЯВНО названной ревизии (решение ARB 23.10). Та же
+    # ли это ревизия, что держит судимое дерево, и цело ли дерево, — спрашивается
+    # у git, а не выводится из совпадения имён файлов или свежести отчёта.
+    try:
+        said = census.report_revision(report)
+        live_rev = census.tree_revision(root)
+    except BaseException as exc:  # noqa: BLE001
+        return UNMEASURED, f"ревизия не сверена: {type(exc).__name__}: {exc}"
+    if not said["sha"]:
+        return UNMEASURED, f"отчёт не называет проверяемую ревизию: {said['reason']}"
+    if said["clean"] is not True:
+        return UNMEASURED, (f"отчёт о {said['sha'][:12]} снят не на целом дереве этой "
+                            f"ревизии: {said['reason'] or 'дерево замера было изменено'}")
+    if not live_rev["sha"]:
+        return UNMEASURED, f"ревизия судимого дерева не измерена: {live_rev['reason']}"
+    if live_rev["sha"] != said["sha"]:
+        return UNMEASURED, (f"отчёт о ревизии {said['sha'][:12]}, судимое дерево на "
+                            f"{live_rev['sha'][:12]} — за другую ревизию он не "
+                            f"засчитывается (историческое свидетельство о "
+                            f"{said['sha'][:12]}, не о текущем коде)")
+    if live_rev["clean"] is not True:
+        dirty = live_rev["dirty"]
+        return UNMEASURED, ("судимое дерево изменено после коммита "
+                            + (f"({len(dirty)}): {dirty[:3]}" if dirty else
+                               f"(не измерено: {live_rev['reason']})")
+                            + f" — отчёт о {said['sha'][:12]} не о нём")
+
     stamp = report.get("generated_at")
     try:
         made = datetime.fromisoformat(str(stamp).replace("Z", "+00:00"))
@@ -4852,7 +4879,9 @@ def _probe_no_regression_tests_pass(
                 missing.append(f"{name}:{rel} (в отчёте отсутствует — появился "
                                f"после замера)")
 
-    head = (report.get("repo_head") or "дерево не названо")[:9]
+    head = said["sha"][:12] + (f" (воркфлоу {said['workflow_sha'][:12]})"
+                               if said.get("workflow_sha") and said["workflow_sha"] != said["sha"]
+                               else "")
     where = " · ".join(
         f"{m.get('hostname') or 'хост не назван'} {m.get('timestamp') or ''}".strip()
         for m in (report.get("records_meta") or [])) or "происхождение записи не названо"

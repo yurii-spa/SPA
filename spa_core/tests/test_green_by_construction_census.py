@@ -695,7 +695,8 @@ def test_foreign_module_file_names_the_first_path_outside_the_copy(tmp_path):
 
 
 def test_inside_a_running_G16_census_the_run_refuses_explicitly(tmp_path):
-    """Внутри переписи G16 — явный отказ (не «0 достигнуто» как замер); вне её — прогон идёт."""
+    """Внутри переписи G16 — явный отказ ПО ЦЕНЕ (не «0 достигнуто» как замер и не «повторный
+    вход»: рекурсии нет); вне её — прогон идёт."""
     from unittest import mock
     from spa_core.monitoring import green_by_construction_census as gbc
     from spa_core.monitoring import run_identity_key_price as g16
@@ -703,10 +704,32 @@ def test_inside_a_running_G16_census_the_run_refuses_explicitly(tmp_path):
     with mock.patch.object(gbc, "run_differential", lambda *a, **k: called.append(1) or {"status": "OK"}):
         with g16._census_running():
             got = gbc.run(root=tmp_path, write=False, if_due=False)
-        assert got["measured"] is False and got.get(g16.REENTRY_REFUSAL_FIELD)
+        assert got["measured"] is False and got.get(g16.BUDGET_REFUSAL_FIELD)
+        assert not got.get(g16.REENTRY_REFUSAL_FIELD), "цена не есть повторный вход"
         assert called == []
         got2 = gbc.run(root=tmp_path, write=False, if_due=False)
         assert got2["measured"] is True and called == [1]
+
+
+def test_a_fresh_artifact_does_not_hide_the_refusal_inside_G16(tmp_path):
+    """Дыра, найденная 23.10: проверка стояла ПОСЛЕ «не срок», а стенд несёт копию живого
+    `data/` со свежим артефактом — ответ «не срок» уходил в G16 как ответ читателя, и четыре
+    таких ответа давали непромеренный вердикт. Положительный контроль: со свежим артефактом и
+    `if_due=True` внутри переписи — всё равно отказ по цене; вне переписи — «не срок»."""
+    import json as _json
+    from datetime import datetime, timezone
+    from spa_core.monitoring import green_by_construction_census as gbc
+    from spa_core.monitoring import run_identity_key_price as g16
+    now = datetime.now(timezone.utc)
+    data = tmp_path / "data"
+    data.mkdir()
+    (data / gbc.ARTIFACT).write_text(_json.dumps({"status": "OK", "generated_at": now.isoformat()}),
+                                     encoding="utf-8")
+    outside = gbc.run(root=tmp_path, data_dir=data, write=False, if_due=True, now=now)
+    assert outside["measured"] is False and not outside.get(g16.BUDGET_REFUSAL_FIELD), outside
+    with g16._census_running():
+        inside = gbc.run(root=tmp_path, data_dir=data, write=False, if_due=True, now=now)
+    assert inside.get(g16.BUDGET_REFUSAL_FIELD), inside
 
 
 def test_inserted_calls_carry_no_quotes_so_old_pythons_parse_them():

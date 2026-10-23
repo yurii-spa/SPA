@@ -878,11 +878,19 @@ class BatteryHoleTests(unittest.TestCase):
         # 23.10: явный отказ внутри переписи даёт и green_by_construction_census — прежде он здесь
         # «мерил» настоящий, а не инструментированный модуль («0 решений достигнуто» как замер).
         # Набор ИМЁН, а не число: лишний или пропавший отказ одинаково краснеют.
+        # 23.10: повторный вход — ТОЛЬКО heir (цепочка `classify_reader → heir.measure →
+        # classify_reader`, замер: 717 вложенных проверок). green_by_construction_census
+        # отказывается по ЦЕНЕ (рекурсии нет: 96 дочерних сессий pytest, ни одного входа
+        # обратно) — своя причина. Наборы ИМЁН, а не числа: лишний или пропавший отказ
+        # одинаково краснеют.
         refused = sorted(r["module"] for r in doc["readers"]["modules"]
                          if r.get("cause") == g16.CAUSE_REENTRY)
-        self.assertEqual(refused, ["spa_core.monitoring.green_by_construction_census",
-                                   "spa_core.monitoring.heir_all_rows_price"], refused)
-        self.assertEqual(doc["readers"]["unmeasured_causes"].get(g16.CAUSE_REENTRY), 2)
+        self.assertEqual(refused, ["spa_core.monitoring.heir_all_rows_price"], refused)
+        budget = sorted(r["module"] for r in doc["readers"]["modules"]
+                        if r.get("cause") == g16.CAUSE_BUDGET)
+        self.assertEqual(budget, ["spa_core.monitoring.green_by_construction_census"], budget)
+        self.assertEqual(doc["readers"]["unmeasured_causes"].get(g16.CAUSE_REENTRY), 1)
+        self.assertEqual(doc["readers"]["unmeasured_causes"].get(g16.CAUSE_BUDGET), 1)
 
     def test_no_child_of_the_full_sweep_reaches_the_external_network(self):
         """Каждый питоний потомок переписи несёт сторожа сети (отчёт есть и
@@ -972,6 +980,20 @@ class BatteryHoleTests(unittest.TestCase):
         row = doc["readers"]["modules"][0]
         self.assertEqual(row["outcome"], g16.READER_UNMEASURED, row)
         self.assertEqual(row["cause"], g16.CAUSE_REENTRY, row)
+
+    def test_a_reader_refusing_by_cost_is_unmeasured_with_the_budget_cause(self):
+        """Отказ по цене — «не измерено» со СВОЕЙ причиной, не повторный вход."""
+        self._tiny_sweep(
+            "from spa_core.monitoring import run_identity_key_price as g16\n"
+            "def measure(data_dir):\n"
+            "    if g16.census_in_progress():\n"
+            "        return {g16.BUDGET_REFUSAL_FIELD: 'дорого'}\n"
+            "    return {'n': 1}\n")
+        doc = g16.measure(self.data, tree_root=self.root)
+        row = doc["readers"]["modules"][0]
+        self.assertEqual(row["outcome"], g16.READER_UNMEASURED, row)
+        self.assertEqual(row["cause"], g16.CAUSE_BUDGET, row)
+        self.assertIn("по цене", row["reason"])
 
     # ── драйвер: какие точки входа приводятся, а какие нет ──────────────────
     def _stub(self, name, src):

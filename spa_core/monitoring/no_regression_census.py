@@ -181,6 +181,85 @@ def _git_head(repo_root: str) -> str | None:
     return sha if out.returncode == 0 and sha else None
 
 
+def tree_revision(repo_root: str) -> dict:
+    """КАКУЮ ревизию кода держит дерево — и держит ли оно её целиком.
+
+    Решение ARB 23.10: отчёт отвечает только о явно названной проверяемой
+    ревизии. Совпадение имён файлов и свежесть отчёта совпадения кода не
+    доказывают, поэтому у дерева спрашиваются ДВА факта: вершина (``sha``) и
+    чистота ВСЕГО дерева (``git status`` с неотслеживаемыми, `.gitignore`
+    уважается — отчёт переписи лежит в игнорируемом ``data/``). Правка
+    исходника без коммита, новый неотслеживаемый файл — ``clean=False`` с
+    перечнем. Каталог, который сам git-деревом не является (а лишь лежит
+    внутри чужого), — НЕ ИЗМЕРЕНО: ``git -C`` поднялся бы к родителю и назвал
+    бы ЕГО вершину.
+
+    Возврат: ``{"sha", "clean", "dirty", "reason"}``; ``sha=None`` или
+    ``clean=None`` — наблюдения нет (инв. #17), причина в ``reason``.
+    """
+    out: dict = {"sha": None, "clean": None, "dirty": None, "reason": ""}
+
+    def git(*args: str) -> subprocess.CompletedProcess | None:
+        try:
+            return subprocess.run(["git", "-C", repo_root, *args],
+                                  capture_output=True, text=True, timeout=300)
+        except (OSError, subprocess.SubprocessError):
+            return None
+
+    top = git("rev-parse", "--show-toplevel")
+    if top is None or top.returncode != 0 or not top.stdout.strip():
+        out["reason"] = f"{repo_root} — не git-дерево: ревизию назвать нечем"
+        return out
+    if os.path.realpath(top.stdout.strip()) != os.path.realpath(repo_root):
+        out["reason"] = (f"{repo_root} лежит внутри git-дерева {top.stdout.strip()}, но сам им "
+                         f"не является — вершина родителя не есть ревизия этого каталога")
+        return out
+    out["sha"] = _git_head(repo_root)
+    if not out["sha"]:
+        out["reason"] = "вершина дерева не прочитана (git rev-parse HEAD)"
+        return out
+    st = git("status", "--porcelain", "--untracked-files=all")
+    if st is None or st.returncode != 0:
+        out["reason"] = "состояние дерева не измерено (git status)"
+        return out
+    dirty = [line for line in st.stdout.splitlines() if line.strip()]
+    out["dirty"] = dirty
+    out["clean"] = not dirty
+    return out
+
+
+def report_revision(report: dict) -> dict:
+    """О КАКОЙ ревизии кода говорит отчёт и был ли код при замере целым.
+
+    Две SHA и они РАЗНЫЕ: отчёт из CI называет проверяемый код
+    (``source.sha`` = ``manifest.sha``) и, отдельно, версию воркфлоу
+    (``source.workflow_head_sha``). Засчитывается только первая. Локальный
+    замер называет ``tree_revision`` дерева в момент замера. Возврат
+    ``{"sha", "clean", "workflow_sha", "kind", "reason"}``; ``sha=None`` —
+    отчёт ревизию не назвал, и засчитать его не за что (инв. #17).
+    """
+    src = report.get("source") if isinstance(report.get("source"), dict) else None
+    if src and src.get("kind") == "ci_record":
+        sha = src.get("sha")
+        rev = report.get("tree_revision") if isinstance(report.get("tree_revision"), dict) else {}
+        ok = (isinstance(sha, str) and len(sha) == 40 and src.get("tree_clean") is True
+              and rev.get("sha") == sha and rev.get("clean") is True)
+        return {"sha": sha if isinstance(sha, str) and len(sha) == 40 else None,
+                "clean": True if ok else None, "workflow_sha": src.get("workflow_head_sha"),
+                "kind": "ci_record",
+                "reason": "" if ok else ("отчёт из CI не подтверждает, что население "
+                                         "считалось на чистом дереве той же ревизии")}
+    rev = report.get("tree_revision") if isinstance(report.get("tree_revision"), dict) else None
+    if not rev:
+        return {"sha": None, "clean": None, "workflow_sha": None, "kind": "local",
+                "reason": "отчёт не несёт ревизии дерева замера (tree_revision) — "
+                          "о каком коде он, не названо"}
+    sha = rev.get("sha")
+    return {"sha": sha if isinstance(sha, str) and len(sha) == 40 else None,
+            "clean": rev.get("clean"), "workflow_sha": None, "kind": "local",
+            "reason": rev.get("reason") or ""}
+
+
 # ───────────────────────── население: разбор тест-файлов ──────────────────────
 
 def _imported_modules(tree: ast.AST) -> set[str]:
@@ -492,20 +571,29 @@ def judge(population_by_surface: dict[str, list[str]], record: dict) -> dict:
     }
 
 
-def measure(repo_root: str = REPO_ROOT, junit_paths: list[str] | None = None) -> dict:
+def measure(repo_root: str = REPO_ROOT, junit_paths: list[str] | None = None,
+            record: dict | None = None) -> dict:
     """Вердикт критерия §49 ``No regression``.
 
     ``satisfied`` выдаётся РОВНО ТОГДА, когда у каждого члена каждой поверхности
     есть вердикт и все вердикты зелёные. Любая дыра — не «почти да», а третий
     исход с именем.
+
+    ``record`` — уже собранная запись формы :func:`read_record` (так её подаёт
+    :func:`measure_from_ci_record`, сверив каждый случай поимённо); без него
+    запись читается из ``junit_paths``.
     """
     stamp = _stamp()
     pop = population(repo_root)
+    revision = tree_revision(repo_root)
     base = {
         "generated_at": stamp,
         "criterion": "§49 No regression — Existing risk/security/architecture tests проходят",
         "repo_root": repo_root,
-        "repo_head": _git_head(repo_root),
+        "repo_head": revision["sha"] or _git_head(repo_root),
+        # Ревизия и чистота дерева В МОМЕНТ замера: проба засчитывает отчёт только
+        # за эту ревизию и только если дерево было целым (решение ARB 23.10).
+        "tree_revision": revision,
         "declared_surfaces": {k: v["why"] for k, v in DECLARED_SURFACES.items()},
         "files_scanned": pop["files_scanned"],
         "unparsed": pop["unparsed"],
@@ -537,7 +625,8 @@ def measure(repo_root: str = REPO_ROOT, junit_paths: list[str] | None = None) ->
                           + " — сторож без населения зелен по построению, и эта "
                             "зелень ничего не значит"}
 
-    record = read_record(list(junit_paths or []), repo_root=repo_root)
+    if record is None:
+        record = read_record(list(junit_paths or []), repo_root=repo_root)
     base["records_read"] = record["records_read"]
     base["records_unread"] = record["records_unread"]
     base["records_meta"] = record["records_meta"]
@@ -731,6 +820,214 @@ def _tree_state(repo_root: str) -> tuple[str | None, list[str] | None]:
     return head, [line for line in out.stdout.splitlines() if line.strip()]
 
 
+def _ci_control():
+    """Действующий агрегатор CI (`scripts/ci_control.py`) — по ПУТИ своего же дерева.
+
+    Одна трактовка записи шардов на весь репозиторий: сверка здесь не пишет второй
+    читатель потока/манифеста, а зовёт тот, что строит свод в CI.
+    """
+    import importlib.util
+    import sys
+    name = "_s49_ci_control"
+    if name in sys.modules:
+        return sys.modules[name]
+    path = pathlib.Path(REPO_ROOT) / "scripts" / "ci_control.py"
+    spec = importlib.util.spec_from_file_location(name, path)
+    if spec is None or spec.loader is None:
+        raise CIRecordRefused(CI_RECORD_UNAVAILABLE, f"агрегатор CI не найден: {path}")
+    module = importlib.util.module_from_spec(spec)
+    sys.modules[name] = module
+    spec.loader.exec_module(module)
+    return module
+
+
+def junit_key(nodeid: str) -> tuple[str, str]:
+    """``(classname, name)``, которые pytest пишет в JUnit для ``nodeid``.
+
+    Повторяет ``_pytest.junitxml.mangle_test_address`` (pytest в рантайм не
+    тянется — инв. #4): параметры ``[...]`` не режутся, путь ``a/b.py`` →
+    ``a.b``, ``::`` разделяет классы. Сверено на записи 0026e0fe9 (прогон
+    39889880442): 135 562 случая, расхождений 0.
+    """
+    path, bracket, params = nodeid.partition("[")
+    names = path.split("::")
+    head = names[0].replace("/", ".")
+    names[0] = head[:-3] if head.endswith(".py") else head
+    names[-1] += bracket + params
+    return ".".join(names[:-1]), names[-1]
+
+
+def _junit_outcome(case: ET.Element) -> str:
+    tags = {c.tag for c in case}
+    if "failure" in tags:
+        return "failed"
+    if "error" in tags:
+        return "error"
+    if "skipped" in tags:
+        return "skipped"
+    return "passed"
+
+
+def _stream_sessions(path: pathlib.Path) -> list[set[str]] | None:
+    """Имена, получившие исход, по СЕССИЯМ потока (сессия = попытка `run-shard`).
+
+    Синтетический исход аварии (`w="internal"`) дописывается после сессии и
+    принадлежит ей. ``None`` — потока нет или событие до первой сессии.
+    """
+    import json
+    if not path.is_file():
+        return None
+    sessions: list[set[str]] = []
+    with open(path, encoding="utf-8") as fh:
+        for raw in fh:
+            raw = raw.strip()
+            if not raw:
+                continue
+            try:
+                ev = json.loads(raw)
+            except ValueError:
+                continue                       # та же терпимость, что у ci_control.load_stream
+            kind = ev.get("e")
+            if kind == "session":
+                sessions.append(set())
+            elif kind in ("ok", "skip", "fail"):
+                if not sessions:
+                    return None
+                sessions[-1].add(ev.get("n", ""))
+    return sessions
+
+
+def _junit_meta(paths: list[str]) -> list[dict]:
+    meta = []
+    for raw in paths:
+        try:
+            tree = ET.parse(raw)
+        except (OSError, ET.ParseError):
+            continue
+        for suite in tree.getroot().iter("testsuite"):
+            meta.append({"record": raw, "hostname": suite.get("hostname"),
+                         "timestamp": suite.get("timestamp"), "tests": suite.get("tests")})
+    return meta
+
+
+def _verify_shard_cases(i: int, d: pathlib.Path, keys: dict[tuple[str, str], str],
+                        owner_of_key: dict[tuple[str, str], int], outcome_of: dict[str, str],
+                        *, started: datetime, finished: datetime, run_id: object) -> dict:
+    """Поимённая сверка JUnit шарда с планом и потоком, с учётом доигрывания.
+
+    Попытка ``k`` пишет ``junit.xml`` (k=0) или ``junit-resume-k.xml``. Попытка,
+    закончившаяся аварией (код не 0/1 или сессия без конца), может не оставить
+    JUnit вовсе (процесс убит) — тогда исход её тестов есть только в потоке, и
+    это СЧИТАЕТСЯ (``stream_only_after_crash``), а не прячется. В JUnit аварийной
+    попытки допустимы ровно два служебных случая pytest — безымянный и
+    ``pytest::internal`` (замер f4b098, шард 10); тест аварии в нём отсутствует,
+    его исход — синтетическая ошибка потока. У попытки без аварии JUnit обязан
+    быть и обязан совпасть с потоком поимённо.
+    """
+    import json
+    exit_path = d / "exit.json"
+    try:
+        exit_doc = json.loads(exit_path.read_text(encoding="utf-8"))
+    except (OSError, ValueError) as exc:
+        raise CIRecordRefused(CI_RECORD_UNAVAILABLE,
+                              f"шард {i}: код возврата (exit.json) не прочитан — "
+                              f"{type(exc).__name__}: {exc}") from exc
+    attempts = exit_doc.get("attempts") or []
+    if not isinstance(attempts, list) or not attempts:
+        raise _inconsistent(f"шард {i}: в exit.json нет перечня попыток")
+    crashed: dict[int, set[str]] = {}
+    for c in exit_doc.get("crashes") or []:
+        crashed.setdefault(c.get("attempt"), set()).update(c.get("tests") or [])
+    sessions = _stream_sessions(d / "stream.jsonl")
+    if sessions is None or len(sessions) != len(attempts):
+        raise _inconsistent(f"шард {i}: сессий в потоке {None if sessions is None else len(sessions)}, "
+                            f"попыток в exit.json {len(attempts)}")
+    expected_names = {"junit.xml"} | {f"junit-resume-{k}.xml" for k in range(1, len(attempts))}
+    present = {p.name for p in d.glob("junit*.xml")}
+    if present - expected_names:
+        raise _inconsistent(f"шард {i}: JUnit вне попыток: {sorted(present - expected_names)}")
+    seen: dict[tuple[str, str], str] = {}
+    out = {"junits": [], "confirmed_by_junit": 0, "stream_only_after_crash": 0,
+           "crash_markers": 0}
+    for k, att in enumerate(attempts):
+        is_crash = att.get("exit") not in (0, 1) or not att.get("session_end")
+        name = "junit.xml" if k == 0 else f"junit-resume-{k}.xml"
+        p = d / name
+        finished_k = sessions[k]
+        if not p.is_file():
+            if not is_crash:
+                raise CIRecordRefused(CI_RECORD_UNAVAILABLE,
+                                      f"шард {i}, попытка {k}: pytest измерил (код "
+                                      f"{att.get('exit')!r}), а JUnit {name} нет")
+            out["stream_only_after_crash"] += len(finished_k & set(keys.values()))
+            continue
+        try:
+            tree = ET.parse(p)
+        except (OSError, ET.ParseError) as exc:
+            raise CIRecordRefused(CI_RECORD_BROKEN,
+                                  f"junit шарда {i} не разобран: {name} — "
+                                  f"{type(exc).__name__}: {exc}") from exc
+        # Шард, подложенный из ДРУГОГО прогона с тем же планом, по числам
+        # неотличим (шард 3 у ab17e71 и 5bc06f5: 10979 = 10979). Отличает его
+        # время: pytest пишет `timestamp` у <testsuite>, и оно обязано лежать
+        # в окне ЭТОГО прогона.
+        for suite in tree.getroot().iter("testsuite"):
+            when = _ci_time(suite.get("timestamp"), f"время junit шарда {i} ({name})")
+            if not (started <= when <= finished):
+                raise _inconsistent(f"junit шарда {i} ({name}) снят {when.isoformat()} вне "
+                                    f"окна прогона {run_id} {started.isoformat()} … "
+                                    f"{finished.isoformat()} — запись чужого прогона")
+        markers = 0
+        mapped: set[str] = set()
+        for case in tree.getroot().iter("testcase"):
+            cls, nm = case.get("classname"), case.get("name")
+            if is_crash and ((not cls and not nm and len(case) == 0)
+                             or (cls == "pytest" and nm == "internal")):
+                markers += 1
+                continue
+            k_ = (cls or "", nm or "")
+            nodeid = keys.get(k_)
+            if nodeid is None:
+                other = owner_of_key.get(k_)
+                raise _inconsistent(
+                    f"шард {i} ({name}): случай {k_[0]}::{k_[1]} "
+                    + (f"принадлежит плану шарда {other}" if other is not None
+                       else "в плане прогона отсутствует"))
+            if k_ in seen:
+                raise _inconsistent(f"шард {i}: случай {nodeid} записан дважды "
+                                    f"({seen[k_]} и {name})")
+            seen[k_] = name
+            got, want = _junit_outcome(case), outcome_of.get(nodeid)
+            if got != want:
+                raise _inconsistent(f"шард {i} ({name}): исход {nodeid} в JUnit {got!r}, "
+                                    f"в потоке — {want!r}")
+            mapped.add(nodeid)
+        if markers > 2:
+            raise _inconsistent(f"шард {i} ({name}): служебных случаев аварии {markers} (> 2)")
+        expected = finished_k - crashed.get(k, set())
+        lost = expected - mapped
+        if lost:
+            raise CIRecordRefused(CI_RECORD_INCOMPLETE,
+                                  f"junit шарда {i} ({name}): у {len(lost)} тест(ов) с исходом в потоке "
+                                  f"нет случая в JUnit — исход есть не у каждого теста: "
+                                  f"{sorted(lost)[:3]}")
+        stray = mapped - finished_k
+        if stray:
+            raise _inconsistent(f"шард {i} ({name}): JUnit называет тесты, которых поток этой "
+                                f"попытки не завершал: {sorted(stray)[:3]}")
+        out["confirmed_by_junit"] += len(mapped)
+        out["crash_markers"] += markers
+        out["junits"].append(str(p))
+    covered = {seen_k for seen_k in seen}
+    absent = [n for k_, n in keys.items() if k_ not in covered
+              and not any(n in s for s in sessions)]
+    if absent:
+        raise CIRecordRefused(CI_RECORD_INCOMPLETE,
+                              f"шард {i}: {len(absent)} тест(ов) плана без исхода ни в JUnit, "
+                              f"ни в потоке: {absent[:3]}")
+    return out
+
+
 def verify_ci_record(record_dir: str, *, expected_sha: str, repo_root: str,
                      now: datetime | None = None, max_age_h: float | None = None,
                      expected_run_id: int | str | None = None,
@@ -903,15 +1200,7 @@ def verify_ci_record(record_dir: str, *, expected_sha: str, repo_root: str,
                               f"запись прогона {run_id} старше предела: {age:.1f}ч при "
                               f"пределе {limit:.0f}ч")
 
-    # 7. Записи шардов: имя, SHA (если назван), junit цел, исход у КАЖДОГО теста.
-    shard_plan = {sh["shard"]: sh for sh in manifest["shards"]}
-    shard_fail = {}
-    for f in report.get("failures") or []:
-        shard_fail[f.get("shard")] = shard_fail.get(f.get("shard"), 0) + 1
-    junits: list[str] = []
-    per_file_cases: dict[str, int] = {}
-    cache: dict[str, str | None] = {}
-    tree_root = pathlib.Path(repo_root)
+    # 7. Записи шардов: имя, SHA (если назван), junit цел и СНЯТ ЭТИМ прогоном.
     for i in plan_ids:
         d = root / f"{CI_SHARD_PREFIX}{i}"
         meta = _ci_json(d / "shard.json", f"паспорт шарда {i} (shard.json)")
@@ -920,42 +1209,84 @@ def verify_ci_record(record_dir: str, *, expected_sha: str, repo_root: str,
         if "sha" in meta and meta["sha"] != expected_sha:
             raise CIRecordRefused(CI_SHA_MISMATCH,
                                   f"шард {i} о коммите {meta['sha']!r}, ожидался {expected_sha}")
-        files = sorted(d.glob("junit*.xml"))
-        if not files:
-            raise CIRecordRefused(CI_RECORD_UNAVAILABLE, f"у шарда {i} нет junit-записи")
-        cases = bad = 0
-        for p in files:
-            try:
-                tree = ET.parse(p)
-            except (OSError, ET.ParseError) as exc:
-                raise CIRecordRefused(CI_RECORD_BROKEN,
-                                      f"junit шарда {i} не разобран: {p.name} — "
-                                      f"{type(exc).__name__}: {exc}") from exc
-            # Шард, подложенный из ДРУГОГО прогона с тем же планом, по числам
-            # неотличим (шард 3 у ab17e71 и 5bc06f5: 10979 = 10979). Отличает его
-            # время: pytest пишет `timestamp` у <testsuite>, и оно обязано лежать
-            # в окне ЭТОГО прогона.
-            for suite in tree.getroot().iter("testsuite"):
-                when = _ci_time(suite.get("timestamp"), f"время junit шарда {i} ({p.name})")
-                if not (started <= when <= finished):
-                    raise _inconsistent(f"junit шарда {i} ({p.name}) снят {when.isoformat()} вне "
-                                        f"окна прогона {run_id} {started.isoformat()} … "
-                                        f"{finished.isoformat()} — запись чужого прогона")
-            for case in tree.getroot().iter("testcase"):
-                cases += 1
-                if any(c.tag in ("failure", "error") for c in case):
-                    bad += 1
-                rel = _file_of_case(case, tree_root, cache)
-                if rel:
-                    per_file_cases[rel] = per_file_cases.get(rel, 0) + 1
-            junits.append(str(p))
-        if cases != shard_plan[i].get("tests"):
-            raise CIRecordRefused(CI_RECORD_INCOMPLETE,
-                                  f"junit шарда {i} несёт {cases} исход(ов), план — "
-                                  f"{shard_plan[i].get('tests')!r}: исход есть не у каждого теста")
-        if bad != shard_fail.get(i, 0):
-            raise _inconsistent(f"junit шарда {i} называет {bad} упавших, свод — "
-                                       f"{shard_fail.get(i, 0)}")
+
+    # 7a. Свод ВОСПРОИЗВОДИТСЯ из записей шардов действующим агрегатором CI
+    # (`ci_control.aggregate` — та же трактовка манифеста, перечня собранного,
+    # потока, кода возврата и доигрывания, что и у джобы `aggregate`), а не
+    # второй трактовкой здесь. Свод, который из своих же записей не получается,
+    # о них не говорит.
+    ctl = _ci_control()
+    again = ctl.aggregate(manifest, root, run=report.get("run"))
+    for field in ("verdict", "totals", "not_obtained", "non_passed"):
+        if again.get(field) != report.get(field):
+            raise _inconsistent(f"свод не воспроизводится из записей шардов: поле {field!r} "
+                                f"записано {str(report.get(field))[:160]!r}, из шардов — "
+                                f"{str(again.get(field))[:160]!r}")
+    key = lambda rows: sorted((r.get("nodeid"), r.get("outcome"), r.get("shard"))  # noqa: E731
+                              for r in rows or [])
+    if key(again.get("failures")) != key(report.get("failures")):
+        raise _inconsistent("свод не воспроизводится из записей шардов: перечень упавших "
+                            "(имя · исход · шард) различается")
+    if again.get("verdict") not in _CI_MEASURED_VERDICTS:
+        raise CIRecordRefused(CI_RECORD_INCOMPLETE,
+                              f"записи шардов дают свод {again.get('verdict')!r}: "
+                              f"{str(again.get('incomplete'))[:300]}")
+
+    # 7b. Поимённо: каждый случай JUnit — тот самый тест плана ЭТОГО шарда, ровно
+    # один раз, с тем же исходом, что у потока; ни дублей, ни лишних, ни пропусков.
+    # Порча, сохраняющая числа (обмен `name`/`classname` двух случаев; второй
+    # экземпляр одного теста вместо другого), видна только здесь.
+    outcome_of = {n: again["non_passed"].get(n, "passed") for n in again["population"]}
+    by_file: dict[str, list[str]] = {}
+    for n in manifest["collected"]:
+        by_file.setdefault(n.split("::", 1)[0], []).append(n)
+    owner_of_key: dict[tuple[str, str], int] = {}
+    shard_keys: dict[int, dict[tuple[str, str], str]] = {}
+    for sh in manifest["shards"]:
+        keys: dict[tuple[str, str], str] = {}
+        for f in sh.get("files") or []:
+            for n in by_file.get(f, []):
+                k = junit_key(n)
+                if k in keys or k in owner_of_key:
+                    raise CIRecordRefused(CI_RECORD_UNAVAILABLE,
+                                          f"два теста плана дают одно имя JUnit {k!r} — "
+                                          f"поимённая сверка невозможна")
+                keys[k] = n
+                owner_of_key[k] = sh["shard"]
+        shard_keys[sh["shard"]] = keys
+    junits: list[str] = []
+    integrity = {"cases": 0, "confirmed_by_junit": 0, "stream_only_after_crash": 0,
+                 "crash_markers": 0}
+    for i in plan_ids:
+        d = root / f"{CI_SHARD_PREFIX}{i}"
+        got = _verify_shard_cases(i, d, shard_keys[i], owner_of_key, outcome_of,
+                                  started=started, finished=finished, run_id=run_id)
+        junits += got["junits"]
+        for k in ("confirmed_by_junit", "stream_only_after_crash", "crash_markers"):
+            integrity[k] += got[k]
+        integrity["cases"] += len(shard_keys[i])
+
+    # 7c. Запись для мерки — из поимённо сверенных исходов, по ФАЙЛУ плана.
+    msgs = {r.get("nodeid"): r.get("msg") or "" for r in again.get("failures") or []}
+    files_rec: dict[str, dict] = {}
+    for n in again["population"]:
+        rel = n.split("::", 1)[0]
+        row = files_rec.setdefault(rel, {"passed": 0, "skipped": 0, "bad": [], "records": []})
+        o = outcome_of[n]
+        if o in ("failed", "error"):
+            row["bad"].append({"case": n, "kind": "failure" if o == "failed" else "error",
+                               "message": str(msgs.get(n, ""))[:300]})
+        elif o == "skipped":
+            row["skipped"] += 1
+        else:
+            row["passed"] += 1
+    shard_of_file = {f: sh["shard"] for sh in manifest["shards"] for f in sh.get("files") or []}
+    for rel, row in files_rec.items():
+        row["records"] = [str(root / f"{CI_SHARD_PREFIX}{shard_of_file.get(rel)}")]
+    per_file_cases = {rel: r["passed"] + r["skipped"] + len(r["bad"])
+                      for rel, r in files_rec.items()}
+    record = {"files": files_rec, "records_read": junits, "records_unread": [],
+              "records_meta": _junit_meta(junits), "cases_without_file": 0}
 
     # 8. Код, о котором вердикт: дерево == ожидаемый SHA и чисто в корнях населения.
     head, dirty = _tree_state(repo_root)
@@ -974,6 +1305,7 @@ def verify_ci_record(record_dir: str, *, expected_sha: str, repo_root: str,
         raise CIRecordRefused(CI_RECORD_BROKEN, "в плане нет числа тестов по файлам")
     return {
         "junit_paths": junits,
+        "record": record,
         "per_file_cases": per_file_cases,
         "tests_per_file": tests_per_file,
         "observed_at": started.isoformat(),
@@ -995,6 +1327,9 @@ def verify_ci_record(record_dir: str, *, expected_sha: str, repo_root: str,
             "run_started_at": run.get("run_started_at"),
             "run_updated_at": run.get("updated_at"),
             "ci_verdict": report.get("verdict"),
+            "ci_failures": [r.get("nodeid") for r in report.get("failures") or []],
+            "record_integrity": integrity,
+            "tree_clean": True,
             "ci_totals": totals,
             "shards": plan_ids,
             "artifacts": [{"name": n, "id": by_name[n].get("id"),
@@ -1023,13 +1358,9 @@ def measure_from_ci_record(record_dir: str, *, expected_sha: str, repo_root: str
     """
     got = verify_ci_record(record_dir, expected_sha=expected_sha, repo_root=repo_root,
                            now=now, max_age_h=max_age_h, expected_run_id=expected_run_id)
-    report = measure(repo_root, junit_paths=got["junit_paths"])
+    report = measure(repo_root, junit_paths=got["junit_paths"], record=got["record"])
     if not report.get("measured"):
         raise CIRecordRefused(CI_CENSUS_UNMEASURED, f"перепись не измерила: {report.get('reason')}")
-    if report.get("records_unread") or len(report.get("records_read") or []) != len(got["junit_paths"]):
-        raise CIRecordRefused(CI_RECORD_BROKEN,
-                              f"перепись прочитала {len(report.get('records_read') or [])} из "
-                              f"{len(got['junit_paths'])} записей: {report.get('records_unread')}")
     # Исход у КАЖДОГО теста члена населения: число случаев файла в junit == план.
     short = []
     for name, s in report["surfaces"].items():

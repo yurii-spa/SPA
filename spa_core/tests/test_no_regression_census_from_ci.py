@@ -109,7 +109,30 @@ def _junit(cases: list[tuple[str, str]], when: datetime) -> str:
             + "</testsuite></testsuites>")
 
 
+def _stream(cases: list[tuple[str, str]], when: datetime) -> str:
+    """Потоковая запись шарда в форме `spa_core.ci.pytest_stream_record`."""
+    t = when.timestamp()
+    ev = [{"e": "session", "t": t}]
+    for k, (nodeid, outcome) in enumerate(cases):
+        ev.append({"e": "start", "n": nodeid, "t": t + k + 0.1})
+        kind = {"failed": "fail", "skipped": "skip"}.get(outcome, "ok")
+        row = {"e": kind, "n": nodeid, "d": 0.01, "t": t + k + 0.2}
+        if kind == "fail":
+            row.update(w="call", msg="boom")
+        ev.append(row)
+    ev.append({"e": "end", "status": 1 if any(o == "failed" for _, o in cases) else 0,
+               "t": t + len(cases) + 1})
+    return "".join(json.dumps(e) + "\n" for e in ev)
+
+
 def _record(tmp: Path, sha: str, *, outcomes: dict[str, str] | None = None) -> Path:
+    """Запись CI в форме, которую отдаёт GitHub; свод строит ДЕЙСТВУЮЩИЙ агрегатор.
+
+    Каждый шард несёт то же, что настоящий (`ci-control.yml`, шаг run-shard):
+    `shard.json`, `collected.jsonl`, `stream.jsonl`, `exit.json`, `junit.xml`; свод
+    `report.json` собирает `ci_control.aggregate` — не рукописная копия, иначе сцена
+    проверяла бы сверку со своей трактовкой, а не с контрактом CI.
+    """
     outcomes = outcomes or {}
     rec = tmp / "record"
     rec.mkdir(parents=True, exist_ok=True)
@@ -124,22 +147,11 @@ def _record(tmp: Path, sha: str, *, outcomes: dict[str, str] | None = None) -> P
                        "tests": sum(1 for _, s in _CASES if s == i), "est_s": 1.0})
     manifest = {"schema": census.CI_MANIFEST_SCHEMA, "sha": sha, "created_at": _iso(PLANNED),
                 "env": env, "population": len(population), "collected": population,
-                "files": files, "tests_per_file": tests_per_file, "shards": shards}
-    failures = [{"nodeid": n, "outcome": "failed", "shard": s, "msg": "boom"}
-                for n, s in _CASES if outcomes.get(n) == "failed"]
-    report = {"schema": census.CI_REPORT_SCHEMA,
-              "verdict": "RED" if failures else "GREEN",
-              "run": {"id": str(RUN_ID), "attempt": "1", "event": "schedule",
-                      "url": f"https://github.com/{REPO}/actions/runs/{RUN_ID}"},
-              "sha": sha, "env": env, "incomplete": [],
-              "totals": {"population": len(population), "files": len(files),
-                         "not_obtained": 0, "collect_errors": 0, "shards_planned": 2,
-                         "shards_complete": 2},
-              "failures": failures,
-              "shards": [{"shard": i, "problems": []} for i in (0, 1)]}
+                "files": files, "tests_per_file": tests_per_file, "shards": shards,
+                "collect_errors": []}
     run = {"id": RUN_ID, "name": WF_NAME, "path": census.CI_WORKFLOW_PATH, "head_sha": sha,
            "event": "schedule", "status": "completed",
-           "conclusion": "failure" if failures else "success",
+           "conclusion": "failure" if any(o == "failed" for o in outcomes.values()) else "success",
            "created_at": _iso(STARTED), "run_started_at": _iso(STARTED),
            "updated_at": _iso(FINISHED), "run_attempt": 1,
            "html_url": f"https://github.com/{REPO}/actions/runs/{RUN_ID}",
@@ -152,13 +164,24 @@ def _record(tmp: Path, sha: str, *, outcomes: dict[str, str] | None = None) -> P
     _write(rec / census.CI_RUN_FILE, run)
     _write(rec / census.CI_ARTIFACTS_FILE, arts)
     _write(rec / census.CI_MANIFEST_ARTIFACT / "manifest.json", manifest)
-    _write(rec / census.CI_REPORT_ARTIFACT / "report.json", report)
     for i in (0, 1):
         d = rec / f"ctl-shard-{i}"
         _write(d / "shard.json", {"shard": i})
         cases = [(n, outcomes.get(n, "passed")) for n, s in _CASES if s == i]
-        (d / "junit.xml").write_text(_junit(cases, PLANNED + timedelta(minutes=1)),
-                                     encoding="utf-8")
+        when = PLANNED + timedelta(minutes=1)
+        (d / "collected.jsonl").write_text(
+            json.dumps({"e": "collected", "count": len(cases),
+                        "nodeids": [n for n, _ in cases]}) + "\n", encoding="utf-8")
+        (d / "stream.jsonl").write_text(_stream(cases, when), encoding="utf-8")
+        code = 1 if any(o == "failed" for _, o in cases) else 0
+        _write(d / "exit.json", {"exit": code, "attempts": [
+            {"attempt": 0, "exit": code, "session_end": True, "requested": None}],
+            "crashes": [], "resumed": False, "remaining": None})
+        (d / "junit.xml").write_text(_junit(cases, when), encoding="utf-8")
+    report = census._ci_control().aggregate(
+        manifest, rec, run={"id": str(RUN_ID), "attempt": "1", "event": "schedule",
+                            "url": f"https://github.com/{REPO}/actions/runs/{RUN_ID}"})
+    _write(rec / census.CI_REPORT_ARTIFACT / "report.json", report)
     return rec
 
 
@@ -670,3 +693,370 @@ def test_lookup_prefers_the_scheduled_run_of_that_head():
              "created_at": _iso(NOW - timedelta(days=1))}]
     assert census.find_ci_run(_Runs(runs), head_sha=head) == 1
     assert census.find_ci_run(_Runs(runs[1:]), head_sha=head) == 2
+
+
+# ──────────── поимённая целостность записи (воспроизведения ARB 23.10) ───────────
+#
+# Обе порчи сохраняют манифест, свод, времена, число случаев и число падений —
+# по числам запись неотличима от целой. До поимённой сверки обе давали
+# NO_REGRESSION: первая — при `source.ci_verdict == "RED"`, вторая — принимала
+# запись как полную.
+
+_ARB_C = 'classname="spa_core.tests.test_scene_arch" name="test_c"'
+_ARB_D = 'classname="spa_core.tests.test_scene_other" name="test_d"'
+
+
+def _swap_identities(rec: Path) -> None:
+    """Поменять местами ТОЛЬКО атрибуты name/classname двух случаев шарда 1."""
+    p = rec / "ctl-shard-1" / "junit.xml"
+    text = p.read_text(encoding="utf-8")
+    assert _ARB_C in text and _ARB_D in text
+    p.write_text(text.replace(_ARB_C, "\0").replace(_ARB_D, _ARB_C).replace("\0", _ARB_D),
+                 encoding="utf-8")
+
+
+def _second_copy_of_test_a(rec: Path) -> None:
+    """В шарде 0 заменить идентичность test_b вторым экземпляром test_a."""
+    p = rec / "ctl-shard-0" / "junit.xml"
+    text = p.read_text(encoding="utf-8")
+    b = 'classname="spa_core.tests.test_scene_risk" name="test_b"'
+    assert b in text
+    p.write_text(text.replace(b, 'classname="spa_core.tests.test_scene_risk" name="test_a"'),
+                 encoding="utf-8")
+
+
+def test_arb_repro_swapped_identities_are_refused_not_green(tmp_path):
+    root, sha = _tree(tmp_path)
+    rec = _record(tmp_path, sha, outcomes={"spa_core/tests/test_scene_arch.py::test_c": "failed"})
+    assert _measure(root, sha, rec)["verdict"] == census.REGRESSION      # положительный контроль
+    _swap_identities(rec)
+    err = _refused(census.CI_RECORD_INCONSISTENT, root, sha, rec)
+    assert "test_scene_arch.py::test_c" in err.reason or "test_scene_other.py::test_d" in err.reason
+
+
+def test_arb_repro_second_copy_of_a_test_is_refused_not_complete(scene):
+    root, sha, rec, _ = scene
+    _second_copy_of_test_a(rec)
+    err = _refused(census.CI_RECORD_INCONSISTENT, root, sha, rec)
+    assert "test_scene_risk.py::test_a" in err.reason and "дважды" in err.reason
+
+
+def test_swap_of_two_cases_with_the_same_outcome_is_harmless_and_accepted(scene):
+    """Обмен имён двух ЗЕЛЁНЫХ случаев одного шарда исходов не меняет — сверка
+    не выдумывает порчу там, где каждый случай по-прежнему назван со своим исходом."""
+    root, sha, rec, _ = scene
+    _swap_identities(rec)
+    assert _measure(root, sha, rec)["verdict"] == census.NO_REGRESSION
+
+
+def test_a_case_of_another_shard_is_refused(scene):
+    root, sha, rec, _ = scene
+    p0, p1 = rec / "ctl-shard-0" / "junit.xml", rec / "ctl-shard-1" / "junit.xml"
+    t0, t1 = p0.read_text(encoding="utf-8"), p1.read_text(encoding="utf-8")
+    row = t1[t1.index("<testcase " + _ARB_D):]
+    row = row[: row.index("</testcase>") + len("</testcase>")]
+    p1.write_text(t1.replace(row, ""), encoding="utf-8")
+    p0.write_text(t0.replace("</testsuite>", row + "</testsuite>"), encoding="utf-8")
+    err = _refused(census.CI_RECORD_INCONSISTENT, root, sha, rec)
+    assert "принадлежит плану шарда 1" in err.reason
+
+
+def test_a_case_outside_the_plan_is_refused(scene):
+    root, sha, rec, _ = scene
+    p = rec / "ctl-shard-0" / "junit.xml"
+    p.write_text(p.read_text(encoding="utf-8").replace(
+        "</testsuite>", '<testcase classname="spa_core.tests.test_ghost" name="test_x" '
+                        'time="0.01"></testcase></testsuite>'), encoding="utf-8")
+    err = _refused(census.CI_RECORD_INCONSISTENT, root, sha, rec)
+    assert "в плане прогона отсутствует" in err.reason
+
+
+def test_crash_markers_in_a_measured_attempt_are_not_tolerated(scene):
+    """`pytest::internal` допустим только у аварийной попытки."""
+    root, sha, rec, _ = scene
+    p = rec / "ctl-shard-0" / "junit.xml"
+    p.write_text(p.read_text(encoding="utf-8").replace(
+        "</testsuite>", '<testcase classname="pytest" name="internal" time="0.0">'
+                        '<error message="internal error"/></testcase></testsuite>'),
+        encoding="utf-8")
+    _refused(census.CI_RECORD_INCONSISTENT, root, sha, rec)
+
+
+def test_report_not_reproducible_from_the_shard_records_is_refused(scene):
+    """Поток говорит «упал», свод записан зелёным: свод о своих записях не говорит."""
+    root, sha, rec, _ = scene
+    p = rec / "ctl-shard-1" / "stream.jsonl"
+    rows = [json.loads(x) for x in p.read_text(encoding="utf-8").splitlines()]
+    for r in rows:
+        if r.get("n", "").endswith("test_d") and r["e"] == "ok":
+            r.update(e="fail", w="call", msg="boom")
+    p.write_text("".join(json.dumps(r) + "\n" for r in rows), encoding="utf-8")
+    err = _refused(census.CI_RECORD_INCONSISTENT, root, sha, rec)
+    assert "не воспроизводится" in err.reason
+
+
+def test_report_naming_a_failure_its_shards_do_not_have_is_refused(scene):
+    """Записи шардов целы и согласны друг с другом, неверен ТОЛЬКО свод: он называет
+    упавшим тест вне населения. Поимённая сверка JUnit↔поток этого не видит — свод из
+    записей не воспроизводится, и это отказ, а не «вне населения, значит неважно»."""
+    root, sha, rec, _ = scene
+    d = "spa_core/tests/test_scene_other.py::test_d"
+
+    def lie(doc):
+        doc["verdict"] = "RED"
+        doc["failures"].append({"nodeid": d, "outcome": "failed", "shard": 1, "msg": "boom"})
+        doc["non_passed"][d] = "failed"
+        doc["totals"]["failed"] += 1
+        doc["totals"]["passed"] -= 1
+    _edit(rec / "ci-control-report" / "report.json", lie)
+    err = _refused(census.CI_RECORD_INCONSISTENT, root, sha, rec)
+    assert "не воспроизводится" in err.reason
+
+
+def test_report_calling_a_passed_test_skipped_is_refused(scene):
+    """Свод врёт без единого упавшего: зелёный тест записан пропущенным."""
+    root, sha, rec, _ = scene
+    d = "spa_core/tests/test_scene_other.py::test_d"
+
+    def lie(doc):
+        doc["non_passed"][d] = "skipped"
+        doc["totals"]["skipped"] += 1
+        doc["totals"]["passed"] -= 1
+    _edit(rec / "ci-control-report" / "report.json", lie)
+    err = _refused(census.CI_RECORD_INCONSISTENT, root, sha, rec)
+    assert "не воспроизводится" in err.reason
+
+
+def test_report_attributing_a_failure_to_another_shard_is_refused(tmp_path):
+    """Имя и исход верны, а шард — чужой: принадлежность шарду тоже часть записи."""
+    root, sha = _tree(tmp_path)
+    rec = _record(tmp_path, sha, outcomes={"spa_core/tests/test_scene_arch.py::test_c": "failed"})
+    _edit(rec / "ci-control-report" / "report.json", lambda d: d["failures"][0].update(shard=0))
+    err = _refused(census.CI_RECORD_INCONSISTENT, root, sha, rec)
+    assert "перечень упавших" in err.reason
+
+
+def _resumed_shard_0(rec: Path, *, junit_of_crash: bool) -> None:
+    """Шард 0 с аварией pytest на test_a и штатным доигрыванием (`run-shard`).
+
+    Попытка 0: test_secrets, test_bind — исход; на test_a pytest умер (код 3);
+    `run-shard` дописал синтетическую ошибку `w="internal"`. Попытка 1 доиграла
+    test_b. JUnit аварийной попытки — с двумя служебными случаями (замер f4b098,
+    шард 10) или вовсе без файла (процесс убит).
+    """
+    d = rec / "ctl-shard-0"
+    when = PLANNED + timedelta(minutes=1)
+    t = when.timestamp()
+    a = "spa_core/tests/test_scene_risk.py::test_a"
+    b = "spa_core/tests/test_scene_risk.py::test_b"
+    first = [("tests/test_security_audit.py::test_secrets", "passed"),
+             ("spa_core/tests/test_agent_servers_bind_loopback.py::test_bind", "passed")]
+    ev = [{"e": "session", "t": t}]
+    for k, (n, _o) in enumerate(first):
+        ev += [{"e": "start", "n": n, "t": t + k}, {"e": "ok", "n": n, "d": 0.0, "t": t + k + .1}]
+    ev += [{"e": "start", "n": a, "t": t + 5},
+           {"e": "fail", "n": a, "w": "internal", "d": 0.0, "t": t + 6, "msg": "pytest internal error"},
+           {"e": "session", "t": t + 7},
+           {"e": "start", "n": b, "t": t + 8}, {"e": "ok", "n": b, "d": 0.0, "t": t + 9},
+           {"e": "end", "status": 0, "t": t + 10}]
+    (d / "stream.jsonl").write_text("".join(json.dumps(e) + "\n" for e in ev), encoding="utf-8")
+    _write(d / "exit.json", {"exit": 1, "attempts": [
+        {"attempt": 0, "exit": 3, "session_end": True, "requested": None},
+        {"attempt": 1, "exit": 0, "session_end": True, "requested": 1}],
+        "crashes": [{"attempt": 0, "exit": 3, "session_end": True, "tests": [a]}],
+        "resumed": True, "remaining": 0})
+    j0 = _junit(first, when).replace(
+        "</testsuite>", '<testcase time="0.001"></testcase><testcase classname="pytest" '
+                        'name="internal" time="0.0"><error message="internal error"/></testcase>'
+                        "</testsuite>")
+    if junit_of_crash:
+        (d / "junit.xml").write_text(j0, encoding="utf-8")
+    else:
+        (d / "junit.xml").unlink()
+    (d / "junit-resume-1.xml").write_text(_junit([(b, "passed")], when), encoding="utf-8")
+    report = census._ci_control().aggregate(
+        json.loads((rec / "ctl-manifest" / "manifest.json").read_text(encoding="utf-8")), rec,
+        run={"id": str(RUN_ID), "attempt": "1", "event": "schedule",
+             "url": f"https://github.com/{REPO}/actions/runs/{RUN_ID}"})
+    _write(rec / "ci-control-report" / "report.json", report)
+    _edit(rec / "run.json", lambda r: r.update(conclusion="failure"))
+
+
+def test_resumed_shard_is_accepted_and_the_crashed_test_is_a_named_regression(scene):
+    """Положительный контроль доигрывания: запись цела, тест аварии — поломка по имени."""
+    root, sha, rec, _ = scene
+    _resumed_shard_0(rec, junit_of_crash=True)
+    report = _measure(root, sha, rec)
+    assert report["verdict"] == census.REGRESSION
+    assert report["source"]["ci_verdict"] == "RED"
+    bad = [c["case"] for f in report["failed"] for c in f["cases"]]
+    assert bad == ["spa_core/tests/test_scene_risk.py::test_a"]
+    integ = report["source"]["record_integrity"]
+    assert integ == {"cases": 6, "confirmed_by_junit": 5, "stream_only_after_crash": 0,
+                     "crash_markers": 2}
+
+
+def test_killed_attempt_without_junit_is_counted_as_stream_only(scene):
+    root, sha, rec, _ = scene
+    _resumed_shard_0(rec, junit_of_crash=False)
+    integ = _measure(root, sha, rec)["source"]["record_integrity"]
+    assert integ["stream_only_after_crash"] == 3 and integ["confirmed_by_junit"] == 3
+
+
+def test_resumed_shard_with_a_second_copy_is_still_refused(scene):
+    root, sha, rec, _ = scene
+    _resumed_shard_0(rec, junit_of_crash=True)
+    p = rec / "ctl-shard-0" / "junit-resume-1.xml"
+    p.write_text(p.read_text(encoding="utf-8").replace(
+        'name="test_b"', 'name="test_a"'), encoding="utf-8")
+    _refused(census.CI_RECORD_INCONSISTENT, root, sha, rec)
+
+
+def test_a_valid_digest_does_not_vouch_for_the_unpacked_record(tmp_path):
+    """Дайджест подтверждает байты архива, а не согласованность распакованной записи:
+    испорченная ДО упаковки запись скачивается с верным дайджестом и всё равно отказ."""
+    root, sha = _tree(tmp_path)
+    rec = _record(tmp_path, sha, outcomes={"spa_core/tests/test_scene_arch.py::test_c": "failed"})
+    _swap_identities(rec)
+    gh = _FakeGitHub(rec)                       # дайджест посчитан по испорченным байтам
+    got = census.fetch_ci_record(str(tmp_path / "fetched"), run_id=RUN_ID, http=gh, now=NOW)
+    assert all(a.get("digest") for a in json.loads((got / "artifacts.json").read_text())["artifacts"])
+    _refused(census.CI_RECORD_INCONSISTENT, root, sha, got)
+
+
+def test_refusal_on_a_corrupted_record_keeps_the_prior_report(tmp_path, monkeypatch):
+    root, sha = _tree(tmp_path)
+    rec = _record(tmp_path, sha, outcomes={"spa_core/tests/test_scene_arch.py::test_c": "failed"})
+    mod = _load_producer()
+    monkeypatch.delenv(mod.VIA_ENV, raising=False)
+    out_root = tmp_path / "out"
+    mod.from_ci(root, out_root=out_root, sha=sha, run_id=RUN_ID, record_dir=rec, now=NOW)
+    target = out_root / census.REPORT_REL
+    written = target.read_bytes()
+    assert json.loads(written)["verdict"] == census.REGRESSION
+    _swap_identities(rec)
+    with pytest.raises(mod.NotMeasured):
+        mod.from_ci(root, out_root=out_root, sha=sha, run_id=RUN_ID, record_dir=rec, now=NOW)
+    assert target.read_bytes() == written
+    refusal = sorted((out_root / mod.RECORDS_REL).glob("*.refusal.json"))[-1]
+    doc = json.loads(refusal.read_text(encoding="utf-8"))
+    assert doc["code"] == census.CI_RECORD_INCONSISTENT and doc["live_report_untouched"] is True
+
+
+def test_the_identity_rule_is_pytests_own_mangling():
+    assert census.junit_key("spa_core/tests/test_x.py::TestA::test_b[p-1::2]") == (
+        "spa_core.tests.test_x.TestA", "test_b[p-1::2]")
+    assert census.junit_key("tests/test_y.py::test_z") == ("tests.test_y", "test_z")
+
+
+# ───────────── привязка отчёта к ревизии у конечного потребителя (ARB) ───────────
+
+def _probe(report, root):
+    from spa_core.monitoring import card_acceptance as ca
+    return ca._probe_no_regression_tests_pass(None, now=NOW, repo_root=str(root), report=report)
+
+
+def test_arb_repro_report_of_the_old_sha_is_not_counted_for_a_new_commit(scene):
+    """Воспроизведение ARB: тот же отчёт, новый коммит с прежним населением."""
+    from spa_core.monitoring import card_acceptance as ca
+    root, sha, rec, _ = scene
+    report = _measure(root, sha, rec)
+    verdict, detail = _probe(report, root)
+    assert verdict == ca.SATISFIED, detail                 # положительный контроль
+    p = root / "tests/test_security_audit.py"
+    p.write_text(p.read_text(encoding="utf-8").replace("assert True", "assert False"),
+                 encoding="utf-8")
+    _git(root, "-c", "user.name=t", "-c", "user.email=t@t", "commit", "-qam", "break it")
+    verdict, detail = _probe(report, root)
+    assert verdict == ca.UNMEASURED and "за другую ревизию" in detail, detail
+    assert sha[:12] in detail
+
+
+def test_uncommitted_edit_of_a_checked_source_is_unmeasured(scene):
+    from spa_core.monitoring import card_acceptance as ca
+    root, sha, rec, _ = scene
+    report = _measure(root, sha, rec)
+    p = root / "tests/test_security_audit.py"
+    p.write_text(p.read_text(encoding="utf-8").replace("assert True", "assert False"),
+                 encoding="utf-8")
+    verdict, detail = _probe(report, root)
+    assert verdict == ca.UNMEASURED and "изменено после коммита" in detail, detail
+    assert "tests/test_security_audit.py" in detail
+
+
+def test_workflow_sha_is_not_the_checked_revision(scene):
+    """Дисп-прогон: воркфлоу с другого коммита, код — закреплённый. Засчитывается код."""
+    from spa_core.monitoring import card_acceptance as ca
+    root, sha, rec, _ = scene
+    _edit(rec / "run.json", lambda d: d.update(head_sha="c" * 40, event="workflow_dispatch"))
+    _edit(rec / "artifacts.json",
+          lambda d: [a["workflow_run"].update(head_sha="c" * 40) for a in d["artifacts"]])
+    report = _measure(root, sha, rec)
+    verdict, detail = _probe(report, root)
+    assert verdict == ca.SATISFIED and "воркфлоу cccccccccccc" in detail, detail
+    forged = json.loads(json.dumps(report))
+    forged["source"]["sha"] = "c" * 40                     # подставить версию воркфлоу
+    verdict, detail = _probe(forged, root)
+    assert verdict == ca.UNMEASURED, detail
+
+
+def test_report_without_a_named_revision_is_unmeasured(scene):
+    from spa_core.monitoring import card_acceptance as ca
+    root, sha, rec, _ = scene
+    report = _measure(root, sha, rec)
+    bare = json.loads(json.dumps(report))
+    bare["source"].pop("sha")
+    verdict, detail = _probe(bare, root)
+    assert verdict == ca.UNMEASURED and "не называет проверяемую ревизию" in detail, detail
+    local = {k: v for k, v in report.items() if k not in ("tree_revision", "source")}
+    verdict, detail = _probe(local, root)
+    assert verdict == ca.UNMEASURED and "не называет проверяемую ревизию" in detail, detail
+
+
+def test_judged_directory_without_git_is_unmeasured(scene, tmp_path):
+    from spa_core.monitoring import card_acceptance as ca
+    import shutil
+    root, sha, rec, _ = scene
+    report = _measure(root, sha, rec)
+    plain = tmp_path / "plain_copy"
+    shutil.copytree(root, plain, ignore=shutil.ignore_patterns(".git"))
+    verdict, detail = _probe(report, plain)
+    assert verdict == ca.UNMEASURED and "ревизия судимого дерева не измерена" in detail, detail
+
+
+def test_untracked_new_source_outside_the_population_is_unmeasured(scene):
+    """Новый неотслеживаемый исходник (не тест): населения не меняет, а код меняет."""
+    from spa_core.monitoring import card_acceptance as ca
+    root, sha, rec, _ = scene
+    report = _measure(root, sha, rec)
+    (root / "spa_core" / "helper_new.py").write_text("X = 1\n", encoding="utf-8")
+    verdict, detail = _probe(report, root)
+    assert verdict == ca.UNMEASURED and "spa_core/helper_new.py" in detail, detail
+
+
+def test_a_directory_inside_another_repository_has_no_revision_of_its_own(scene, tmp_path):
+    root, sha, rec, _ = scene
+    inner = root / "nested_not_a_repo"
+    inner.mkdir()
+    rev = census.tree_revision(str(inner))
+    assert rev["sha"] is None and "сам им не является" in rev["reason"]
+
+
+def test_report_measured_on_a_dirty_tree_of_the_same_sha_is_unmeasured(tmp_path):
+    """Замер снят на дереве той же вершины, но с правкой: о коммите он не говорит,
+    даже если правку потом откатили и судимое дерево чисто."""
+    from spa_core.monitoring import card_acceptance as ca
+    from spa_core.monitoring import no_regression_census as nrc
+    root, sha = _tree(tmp_path)
+    rec = _record(tmp_path, sha)
+    p = root / "tests/test_security_audit.py"
+    original = p.read_text(encoding="utf-8")
+    p.write_text(original.replace("assert True", "assert False"), encoding="utf-8")
+    local = nrc.measure(str(root), record=census.read_record(
+        [str(rec / "ctl-shard-0" / "junit.xml"), str(rec / "ctl-shard-1" / "junit.xml")],
+        repo_root=str(root)))
+    p.write_text(original, encoding="utf-8")
+    assert local["tree_revision"]["sha"] == sha and local["tree_revision"]["clean"] is False
+    local["generated_at"] = (NOW - timedelta(hours=1)).isoformat()
+    verdict, detail = _probe(local, root)
+    assert verdict == ca.UNMEASURED and "снят не на целом дереве" in detail, detail

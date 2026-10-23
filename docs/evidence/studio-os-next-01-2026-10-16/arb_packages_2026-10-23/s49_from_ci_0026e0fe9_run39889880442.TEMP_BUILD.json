@@ -1,0 +1,626 @@
+{
+  "generated_at": "2026-10-23T02:29:52+00:00",
+  "criterion": "\u00a749 No regression \u2014 Existing risk/security/architecture tests \u043f\u0440\u043e\u0445\u043e\u0434\u044f\u0442",
+  "repo_root": "/var/folders/6q/78j7h2557tx6hkbkw3cmrsc00000gn/T/spa_s49_ci_dpxub9_7/tree",
+  "repo_head": "0026e0fe9384e95f52ec9fd899ff6343e392fd78",
+  "tree_revision": {
+    "sha": "0026e0fe9384e95f52ec9fd899ff6343e392fd78",
+    "clean": true,
+    "dirty": [],
+    "reason": ""
+  },
+  "declared_surfaces": {
+    "risk": "risk-\u0434\u0432\u0438\u0436\u043e\u043a \u0441\u0438\u0441\u0442\u0435\u043c\u044b \u2014 `spa_core/risk/` (RiskPolicy v1.0) \u0438 `spa_core/governance/` (\u0441\u0442\u043e\u043f-\u043a\u0440\u0430\u043d); \u0442\u0430\u043a \u043e\u0431\u043b\u0430\u0441\u0442\u044c \u043e\u0447\u0435\u0440\u0447\u0435\u043d\u0430 \u0432 `.claude/rules/risk-engine.md`",
+    "security": "\u0438\u043d\u0432\u0430\u0440\u0438\u0430\u043d\u0442\u044b \u0431\u0435\u0437\u043e\u043f\u0430\u0441\u043d\u043e\u0441\u0442\u0438, \u043d\u0430\u0437\u0432\u0430\u043d\u043d\u044b\u0435 `CLAUDE.md`: #3 \u0437\u0430\u043f\u0440\u0435\u0442 LLM \u0432 risk/execution/monitoring \u00b7 #6 \u0437\u0430\u043f\u0440\u0435\u0442 \u0438\u043c\u043f\u043e\u0440\u0442\u0430 `spa_core/execution/` \u0438\u0437 read-only \u043a\u043e\u0434\u0430 \u00b7 #7 \u043d\u0438\u043a\u0430\u043a\u0438\u0445 \u0441\u0435\u043a\u0440\u0435\u0442\u043e\u0432 \u0432 \u0444\u0430\u0439\u043b\u0430\u0445 \u00b7 \u0430\u0432\u0442\u043e\u0440\u0438\u0437\u0430\u0446\u0438\u044f API",
+    "architecture": "\u0441\u0442\u043e\u0440\u043e\u0436\u0430 \u0441\u043e\u043e\u0442\u0432\u0435\u0442\u0441\u0442\u0432\u0438\u044f \u0434\u0435\u0440\u0435\u0432\u0430 \u043e\u0431\u044a\u044f\u0432\u043b\u0435\u043d\u043d\u043e\u0439 \u0430\u0440\u0445\u0438\u0442\u0435\u043a\u0442\u0443\u0440\u0435 \u2014 `architecture/manifest.json` \u0438 \u0435\u0433\u043e \u0441\u0432\u0435\u0440\u043a\u0438"
+  },
+  "files_scanned": 2718,
+  "unparsed": [],
+  "missing_self_guards": [],
+  "roots_absent": [],
+  "records_read": [
+    "/var/folders/6q/78j7h2557tx6hkbkw3cmrsc00000gn/T/spa_s49_ci_dpxub9_7/record/ctl-shard-0/junit.xml",
+    "/var/folders/6q/78j7h2557tx6hkbkw3cmrsc00000gn/T/spa_s49_ci_dpxub9_7/record/ctl-shard-1/junit.xml",
+    "/var/folders/6q/78j7h2557tx6hkbkw3cmrsc00000gn/T/spa_s49_ci_dpxub9_7/record/ctl-shard-2/junit.xml",
+    "/var/folders/6q/78j7h2557tx6hkbkw3cmrsc00000gn/T/spa_s49_ci_dpxub9_7/record/ctl-shard-3/junit.xml",
+    "/var/folders/6q/78j7h2557tx6hkbkw3cmrsc00000gn/T/spa_s49_ci_dpxub9_7/record/ctl-shard-4/junit.xml",
+    "/var/folders/6q/78j7h2557tx6hkbkw3cmrsc00000gn/T/spa_s49_ci_dpxub9_7/record/ctl-shard-5/junit.xml",
+    "/var/folders/6q/78j7h2557tx6hkbkw3cmrsc00000gn/T/spa_s49_ci_dpxub9_7/record/ctl-shard-6/junit.xml",
+    "/var/folders/6q/78j7h2557tx6hkbkw3cmrsc00000gn/T/spa_s49_ci_dpxub9_7/record/ctl-shard-7/junit.xml",
+    "/var/folders/6q/78j7h2557tx6hkbkw3cmrsc00000gn/T/spa_s49_ci_dpxub9_7/record/ctl-shard-8/junit.xml",
+    "/var/folders/6q/78j7h2557tx6hkbkw3cmrsc00000gn/T/spa_s49_ci_dpxub9_7/record/ctl-shard-9/junit.xml",
+    "/var/folders/6q/78j7h2557tx6hkbkw3cmrsc00000gn/T/spa_s49_ci_dpxub9_7/record/ctl-shard-10/junit.xml",
+    "/var/folders/6q/78j7h2557tx6hkbkw3cmrsc00000gn/T/spa_s49_ci_dpxub9_7/record/ctl-shard-11/junit.xml"
+  ],
+  "records_unread": [],
+  "records_meta": [
+    {
+      "record": "/var/folders/6q/78j7h2557tx6hkbkw3cmrsc00000gn/T/spa_s49_ci_dpxub9_7/record/ctl-shard-0/junit.xml",
+      "hostname": "runnervm8k3b6",
+      "timestamp": "2026-10-23T02:34:04.815405+00:00",
+      "tests": "10721"
+    },
+    {
+      "record": "/var/folders/6q/78j7h2557tx6hkbkw3cmrsc00000gn/T/spa_s49_ci_dpxub9_7/record/ctl-shard-1/junit.xml",
+      "hostname": "runnervm8k3b6",
+      "timestamp": "2026-10-23T02:33:55.041823+00:00",
+      "tests": "11088"
+    },
+    {
+      "record": "/var/folders/6q/78j7h2557tx6hkbkw3cmrsc00000gn/T/spa_s49_ci_dpxub9_7/record/ctl-shard-2/junit.xml",
+      "hostname": "runnervm8k3b6",
+      "timestamp": "2026-10-23T02:33:40.640713+00:00",
+      "tests": "11426"
+    },
+    {
+      "record": "/var/folders/6q/78j7h2557tx6hkbkw3cmrsc00000gn/T/spa_s49_ci_dpxub9_7/record/ctl-shard-3/junit.xml",
+      "hostname": "runnervm8k3b6",
+      "timestamp": "2026-10-23T02:33:44.061244+00:00",
+      "tests": "10905"
+    },
+    {
+      "record": "/var/folders/6q/78j7h2557tx6hkbkw3cmrsc00000gn/T/spa_s49_ci_dpxub9_7/record/ctl-shard-4/junit.xml",
+      "hostname": "runnervm8k3b6",
+      "timestamp": "2026-10-23T02:34:06.126793+00:00",
+      "tests": "10999"
+    },
+    {
+      "record": "/var/folders/6q/78j7h2557tx6hkbkw3cmrsc00000gn/T/spa_s49_ci_dpxub9_7/record/ctl-shard-5/junit.xml",
+      "hostname": "runnervm8k3b6",
+      "timestamp": "2026-10-23T02:34:06.958165+00:00",
+      "tests": "11572"
+    },
+    {
+      "record": "/var/folders/6q/78j7h2557tx6hkbkw3cmrsc00000gn/T/spa_s49_ci_dpxub9_7/record/ctl-shard-6/junit.xml",
+      "hostname": "runnervm8k3b6",
+      "timestamp": "2026-10-23T02:34:02.142640+00:00",
+      "tests": "10885"
+    },
+    {
+      "record": "/var/folders/6q/78j7h2557tx6hkbkw3cmrsc00000gn/T/spa_s49_ci_dpxub9_7/record/ctl-shard-7/junit.xml",
+      "hostname": "runnervm8k3b6",
+      "timestamp": "2026-10-23T02:34:07.231668+00:00",
+      "tests": "14057"
+    },
+    {
+      "record": "/var/folders/6q/78j7h2557tx6hkbkw3cmrsc00000gn/T/spa_s49_ci_dpxub9_7/record/ctl-shard-8/junit.xml",
+      "hostname": "runnervm8k3b6",
+      "timestamp": "2026-10-23T02:33:45.810572+00:00",
+      "tests": "12117"
+    },
+    {
+      "record": "/var/folders/6q/78j7h2557tx6hkbkw3cmrsc00000gn/T/spa_s49_ci_dpxub9_7/record/ctl-shard-9/junit.xml",
+      "hostname": "runnervm8k3b6",
+      "timestamp": "2026-10-23T02:33:49.091330+00:00",
+      "tests": "11879"
+    },
+    {
+      "record": "/var/folders/6q/78j7h2557tx6hkbkw3cmrsc00000gn/T/spa_s49_ci_dpxub9_7/record/ctl-shard-10/junit.xml",
+      "hostname": "runnervm8k3b6",
+      "timestamp": "2026-10-23T02:33:41.625470+00:00",
+      "tests": "11581"
+    },
+    {
+      "record": "/var/folders/6q/78j7h2557tx6hkbkw3cmrsc00000gn/T/spa_s49_ci_dpxub9_7/record/ctl-shard-11/junit.xml",
+      "hostname": "runnervm8k3b6",
+      "timestamp": "2026-10-23T02:33:47.806848+00:00",
+      "tests": "11591"
+    }
+  ],
+  "cases_without_file": 0,
+  "measured": true,
+  "status": "REGRESSION",
+  "verdict": "REGRESSION",
+  "complete": true,
+  "population_total": 138,
+  "surfaces": {
+    "risk": {
+      "why": "risk-\u0434\u0432\u0438\u0436\u043e\u043a \u0441\u0438\u0441\u0442\u0435\u043c\u044b \u2014 `spa_core/risk/` (RiskPolicy v1.0) \u0438 `spa_core/governance/` (\u0441\u0442\u043e\u043f-\u043a\u0440\u0430\u043d); \u0442\u0430\u043a \u043e\u0431\u043b\u0430\u0441\u0442\u044c \u043e\u0447\u0435\u0440\u0447\u0435\u043d\u0430 \u0432 `.claude/rules/risk-engine.md`",
+      "population": 111,
+      "by_import": 111,
+      "by_declaration": [],
+      "cases_seen": 3264,
+      "files_passed": [
+        "scripts/tests/test_site_constitution_parity.py",
+        "spa_core/tests/test_alloc002_metamorphic.py",
+        "spa_core/tests/test_allocation_auditor.py",
+        "spa_core/tests/test_allocation_logic_explicit.py",
+        "spa_core/tests/test_allocation_rationale_shadow.py",
+        "spa_core/tests/test_allocator_properties.py",
+        "spa_core/tests/test_allocator_selects_best_n.py",
+        "spa_core/tests/test_api_cockpit.py",
+        "spa_core/tests/test_autonomy_mandate.py",
+        "spa_core/tests/test_capacity_coordinator.py",
+        "spa_core/tests/test_capacity_limits.py",
+        "spa_core/tests/test_capital_ladder.py",
+        "spa_core/tests/test_cash_buffer_boundary_in_cents.py",
+        "spa_core/tests/test_chaos_resilience.py",
+        "spa_core/tests/test_churn_damper.py",
+        "spa_core/tests/test_cio_arming.py",
+        "spa_core/tests/test_cio_kill_switch_controls.py",
+        "spa_core/tests/test_cio_trial_grant.py",
+        "spa_core/tests/test_cycle_derisk_e2e.py",
+        "spa_core/tests/test_cycle_runner.py",
+        "spa_core/tests/test_daily_limits_error_halts.py",
+        "spa_core/tests/test_dashboard_contract.py",
+        "spa_core/tests/test_defi_engine.py",
+        "spa_core/tests/test_defi_p0_repair.py",
+        "spa_core/tests/test_dl_unmeasurable_halts.py",
+        "spa_core/tests/test_econ10_eligible_universe_median.py",
+        "spa_core/tests/test_evidence_age_ladder_is_ordered.py",
+        "spa_core/tests/test_evidence_staleness_derisk.py",
+        "spa_core/tests/test_evidence_staleness_monitor.py",
+        "spa_core/tests/test_gate_mutations.py",
+        "spa_core/tests/test_governance_policy.py",
+        "spa_core/tests/test_halt_state_survives_tree_restore.py",
+        "spa_core/tests/test_integration_e2e.py",
+        "spa_core/tests/test_intraday_drawdown_control.py",
+        "spa_core/tests/test_intraday_equity.py",
+        "spa_core/tests/test_investment_cio_parity.py",
+        "spa_core/tests/test_investor_report.py",
+        "spa_core/tests/test_kill_switch.py",
+        "spa_core/tests/test_kill_switch_sharpe.py",
+        "spa_core/tests/test_l2_adapters.py",
+        "spa_core/tests/test_landing_read_fields_frozen.py",
+        "spa_core/tests/test_morpho_steakhouse.py",
+        "spa_core/tests/test_optimizer_yield_capture.py",
+        "spa_core/tests/test_orchestrator_registry_coverage.py",
+        "spa_core/tests/test_p1_wave2_site_truth.py",
+        "spa_core/tests/test_paper_apy_staleness.py",
+        "spa_core/tests/test_paper_trading.py",
+        "spa_core/tests/test_pendle.py",
+        "spa_core/tests/test_placing_idle_cash_is_not_churn.py",
+        "spa_core/tests/test_policy_binding_census.py",
+        "spa_core/tests/test_policy_enforcer_coverage_caps.py",
+        "spa_core/tests/test_policy_module_parity.py",
+        "spa_core/tests/test_pool_alias_gate.py",
+        "spa_core/tests/test_portal_data.py",
+        "spa_core/tests/test_pre_execution_safety.py",
+        "spa_core/tests/test_protection_lab_engine.py",
+        "spa_core/tests/test_rebalancing.py",
+        "spa_core/tests/test_red_flags_gate.py",
+        "spa_core/tests/test_redistribute_freed_budget.py",
+        "spa_core/tests/test_redistribution_mirrors_policy_t2_total.py",
+        "spa_core/tests/test_release_boundary.py",
+        "spa_core/tests/test_risk_axes.py",
+        "spa_core/tests/test_risk_depeg.py",
+        "spa_core/tests/test_risk_policy.py",
+        "spa_core/tests/test_risk_policy_gate.py",
+        "spa_core/tests/test_risk_policy_gate_symmetry.py",
+        "spa_core/tests/test_risk_policy_properties.py",
+        "spa_core/tests/test_risk_scores_regen.py",
+        "spa_core/tests/test_rules_watchdog_honesty.py",
+        "spa_core/tests/test_scoring_engine.py",
+        "spa_core/tests/test_ssot.py",
+        "spa_core/tests/test_strategy_lab_config.py",
+        "spa_core/tests/test_t3_total_cap_enforced.py",
+        "spa_core/tests/test_tear_sheet.py",
+        "spa_core/tests/test_tier_curator.py",
+        "spa_core/tests/test_tier_curator_uses_the_canon.py",
+        "spa_core/tests/test_tier_declaration_agreement.py",
+        "spa_core/tests/test_track_days_reconciliation.py",
+        "spa_core/tests/test_trade_journal_records_move_size.py",
+        "spa_core/tests/test_tuner_allocator_chain_caps.py",
+        "spa_core/tests/test_tuner_mirrors_policy.py",
+        "spa_core/tests/test_tvl_floor_one_definition.py",
+        "spa_core/tests/test_whitelabel_api.py",
+        "spa_core/tests/test_ws23_24_durable_golive.py",
+        "tests/test_aave_v3_apy_feed.py",
+        "tests/test_adr025_base_cap.py",
+        "tests/test_advisory_config.py",
+        "tests/test_allocation_optimizer.py",
+        "tests/test_capital_policy.py",
+        "tests/test_cpa_governance_watcher.py",
+        "tests/test_daily_limits.py",
+        "tests/test_e2e_seams.py",
+        "tests/test_emergency_breakers.py",
+        "tests/test_engine_production.py",
+        "tests/test_golive_hy.py",
+        "tests/test_kill_switch_eval_path.py",
+        "tests/test_kill_switch_min_days.py",
+        "tests/test_kill_switch_two_tier.py",
+        "tests/test_money_path_properties.py",
+        "tests/test_p1_risk_no_network.py",
+        "tests/test_p1_single_source_limits.py",
+        "tests/test_policy_enforcer.py",
+        "tests/test_policy_hy.py",
+        "tests/test_policy_lp.py",
+        "tests/test_portfolio_rebalancer.py",
+        "tests/test_risk_aggregator.py",
+        "tests/test_risk_analytics_v2.py",
+        "tests/test_risk_scoring_completeness.py",
+        "tests/test_signal_aggregator.py",
+        "tests/test_t2_concentration_alert.py",
+        "tests/test_type_safety.py"
+      ],
+      "files_failed": [],
+      "files_unmeasured": []
+    },
+    "security": {
+      "why": "\u0438\u043d\u0432\u0430\u0440\u0438\u0430\u043d\u0442\u044b \u0431\u0435\u0437\u043e\u043f\u0430\u0441\u043d\u043e\u0441\u0442\u0438, \u043d\u0430\u0437\u0432\u0430\u043d\u043d\u044b\u0435 `CLAUDE.md`: #3 \u0437\u0430\u043f\u0440\u0435\u0442 LLM \u0432 risk/execution/monitoring \u00b7 #6 \u0437\u0430\u043f\u0440\u0435\u0442 \u0438\u043c\u043f\u043e\u0440\u0442\u0430 `spa_core/execution/` \u0438\u0437 read-only \u043a\u043e\u0434\u0430 \u00b7 #7 \u043d\u0438\u043a\u0430\u043a\u0438\u0445 \u0441\u0435\u043a\u0440\u0435\u0442\u043e\u0432 \u0432 \u0444\u0430\u0439\u043b\u0430\u0445 \u00b7 \u0430\u0432\u0442\u043e\u0440\u0438\u0437\u0430\u0446\u0438\u044f API",
+      "population": 11,
+      "by_import": 9,
+      "by_declaration": [
+        "tests/test_security_audit.py",
+        "spa_core/tests/test_agent_servers_bind_loopback.py"
+      ],
+      "cases_seen": 229,
+      "files_passed": [
+        "scripts/tests/test_forbidden_reach_census.py",
+        "scripts/tests/test_lint_forbidden_imports.py",
+        "scripts/tests/test_lint_llm_forbidden.py",
+        "spa_core/tests/test_agent_servers_bind_loopback.py",
+        "spa_core/tests/test_api_security_ws2.py",
+        "spa_core/tests/test_cmo_router_auth.py",
+        "spa_core/tests/test_dfb_data_api.py",
+        "spa_core/tests/test_forbidden_import_probe.py",
+        "spa_core/tests/test_public_refusal_log.py",
+        "tests/test_api_auth.py",
+        "tests/test_security_audit.py"
+      ],
+      "files_failed": [],
+      "files_unmeasured": []
+    },
+    "architecture": {
+      "why": "\u0441\u0442\u043e\u0440\u043e\u0436\u0430 \u0441\u043e\u043e\u0442\u0432\u0435\u0442\u0441\u0442\u0432\u0438\u044f \u0434\u0435\u0440\u0435\u0432\u0430 \u043e\u0431\u044a\u044f\u0432\u043b\u0435\u043d\u043d\u043e\u0439 \u0430\u0440\u0445\u0438\u0442\u0435\u043a\u0442\u0443\u0440\u0435 \u2014 `architecture/manifest.json` \u0438 \u0435\u0433\u043e \u0441\u0432\u0435\u0440\u043a\u0438",
+      "population": 16,
+      "by_import": 16,
+      "by_declaration": [],
+      "cases_seen": 393,
+      "files_passed": [
+        "spa_core/tests/test_architecture_conformance.py",
+        "spa_core/tests/test_architecture_conformance_slo_budget.py",
+        "spa_core/tests/test_architecture_manifest.py",
+        "spa_core/tests/test_artifact_absence_shared_verdict.py",
+        "spa_core/tests/test_card_delivery_orphans.py",
+        "spa_core/tests/test_cio_architecture_constraints.py",
+        "spa_core/tests/test_conformance_contract_wiring.py",
+        "spa_core/tests/test_conformance_names_unassigned_slo.py",
+        "spa_core/tests/test_consumption_receipts.py",
+        "spa_core/tests/test_freshness_threshold_parity.py",
+        "spa_core/tests/test_house_view_gap.py",
+        "spa_core/tests/test_office_verdict_about_previous_decider.py",
+        "spa_core/tests/test_office_verdict_about_previous_subject.py",
+        "spa_core/tests/test_paused_intent_is_not_dead.py",
+        "spa_core/tests/test_site_delivery_receipt.py"
+      ],
+      "files_failed": [
+        {
+          "file": "spa_core/tests/test_office_subject_drift_producer_tick.py",
+          "cases": [
+            {
+              "case": "spa_core/tests/test_office_subject_drift_producer_tick.py::test_the_live_office_can_measure_the_tick_of_every_artifact_it_reads",
+              "kind": "failure",
+              "message": "spa_core/tests/test_office_subject_drift_producer_tick.py:440: in test_the_live_office_can_measure_the_tick_of_every_artifact_it_reads"
+            }
+          ]
+        }
+      ],
+      "files_unmeasured": []
+    }
+  },
+  "failed_total": 1,
+  "unmeasured_total": 0,
+  "failed": [
+    {
+      "surface": "architecture",
+      "file": "spa_core/tests/test_office_subject_drift_producer_tick.py",
+      "cases": [
+        {
+          "case": "spa_core/tests/test_office_subject_drift_producer_tick.py::test_the_live_office_can_measure_the_tick_of_every_artifact_it_reads",
+          "kind": "failure",
+          "message": "spa_core/tests/test_office_subject_drift_producer_tick.py:440: in test_the_live_office_can_measure_the_tick_of_every_artifact_it_reads"
+        }
+      ]
+    }
+  ],
+  "unmeasured_members": [],
+  "numbers_unit": {
+    "population": "\u0442\u0435\u0441\u0442-\u0424\u0410\u0419\u041b\u041e\u0412",
+    "cases_seen": "\u0441\u043b\u0443\u0447\u0430\u0435\u0432 \u0432 \u0437\u0430\u043f\u0438\u0441\u0438"
+  },
+  "assembled_at": "2026-10-23T06:00:01.465484+00:00",
+  "source": {
+    "kind": "ci_record",
+    "repo": "yurii-spa/SPA",
+    "workflow": ".github/workflows/ci-control.yml",
+    "workflow_name": "SPA CI control (sharded full suite)",
+    "run_id": 39889880442,
+    "run_attempt": 1,
+    "run_url": "https://github.com/yurii-spa/SPA/actions/runs/39889880442",
+    "event": "workflow_dispatch",
+    "conclusion": "failure",
+    "sha": "0026e0fe9384e95f52ec9fd899ff6343e392fd78",
+    "workflow_head_sha": "179832751e4a66067f4bde48df911d5e50ed4e54",
+    "sha_binding": "dispatch_input_pinned_by_manifest",
+    "run_started_at": "2026-10-23T02:29:52Z",
+    "run_updated_at": "2026-10-23T02:57:10Z",
+    "ci_verdict": "RED",
+    "ci_failures": [
+      "spa_core/tests/test_office_declaration_doors.py::TheLiveAnswerOfTheOrder::test_every_office_artifact_has_a_measurable_producer_tick",
+      "spa_core/tests/test_office_subject_drift_producer_tick.py::test_the_live_office_can_measure_the_tick_of_every_artifact_it_reads",
+      "spa_core/tests/test_unwired_guard_modules_ratchet.py::test_no_new_guard_module_is_left_unwired"
+    ],
+    "record_integrity": {
+      "cases": 135562,
+      "confirmed_by_junit": 135562,
+      "stream_only_after_crash": 0,
+      "crash_markers": 0
+    },
+    "tree_clean": true,
+    "ci_totals": {
+      "population": 135562,
+      "files": 2709,
+      "passed": 134840,
+      "skipped": 719,
+      "failed": 3,
+      "error": 0,
+      "not_obtained": 0,
+      "collect_errors": 0,
+      "shards_planned": 12,
+      "shards_complete": 12
+    },
+    "shards": [
+      0,
+      1,
+      2,
+      3,
+      4,
+      5,
+      6,
+      7,
+      8,
+      9,
+      10,
+      11
+    ],
+    "artifacts": [
+      {
+        "name": "ci-control-report",
+        "id": 12475277437,
+        "digest": "sha256:710a7f2369b27241fe617b499c693473a5d29c201e0e0795795695dc3f5de9b7",
+        "size_in_bytes": 1702681
+      },
+      {
+        "name": "ctl-manifest",
+        "id": 12474492226,
+        "digest": "sha256:cc06c5bc464e88b1fca0dabacf676dc01e48a7bda946f13971b2ca671cd37d30",
+        "size_in_bytes": 5068877
+      },
+      {
+        "name": "ctl-shard-0",
+        "id": 12474734556,
+        "digest": "sha256:d05c4470d113683f6955e7f49f0f281ab79c4073ebd36fd690783009ee3050e2",
+        "size_in_bytes": 524920
+      },
+      {
+        "name": "ctl-shard-1",
+        "id": 12474813834,
+        "digest": "sha256:29c3fd86df457a50caf47b609fd1ca7760adb6b68bc5ac72f315f90c14fabe3e",
+        "size_in_bytes": 547394
+      },
+      {
+        "name": "ctl-shard-10",
+        "id": 12474213785,
+        "digest": "sha256:ccd7c926d3726c443226f28aab656384a1c56d9ee74078461cf5a66735d3e570",
+        "size_in_bytes": 580201
+      },
+      {
+        "name": "ctl-shard-11",
+        "id": 12475410506,
+        "digest": "sha256:6ce211bde7d14924bf7fa17e8750915734c00f4cfe4de7acd603438c6c24ddd0",
+        "size_in_bytes": 554414
+      },
+      {
+        "name": "ctl-shard-2",
+        "id": 12475320060,
+        "digest": "sha256:fd043fdd629818e38440ad000dadc6af8c7636ed2779625b415117c802f4ab48",
+        "size_in_bytes": 553005
+      },
+      {
+        "name": "ctl-shard-3",
+        "id": 12474718591,
+        "digest": "sha256:5b0aca7805b418ba21b8dc3d56f9dc3f688798fe36fe3b7b4653f937d07bf59a",
+        "size_in_bytes": 542202
+      },
+      {
+        "name": "ctl-shard-4",
+        "id": 12474569704,
+        "digest": "sha256:bee84d402ddf0d96943cbba2e96b0a5c2e1913d020609e2f951f6ba3e9c97360",
+        "size_in_bytes": 568987
+      },
+      {
+        "name": "ctl-shard-5",
+        "id": 12475600357,
+        "digest": "sha256:cc3898c20d9cd5b263539623a7b8416416b214d46ce7c9ffffa57ec932f001d9",
+        "size_in_bytes": 574524
+      },
+      {
+        "name": "ctl-shard-6",
+        "id": 12474784617,
+        "digest": "sha256:25f8159724f9d866c520a5be0ac08b125509afcf3f5b3823e75e27a45606315d",
+        "size_in_bytes": 563573
+      },
+      {
+        "name": "ctl-shard-7",
+        "id": 12474624970,
+        "digest": "sha256:b4e82f3628650759bf0abf1ae5d5969b7b097f2f098efc07637b39dbbffae6fd",
+        "size_in_bytes": 685192
+      },
+      {
+        "name": "ctl-shard-8",
+        "id": 12474634090,
+        "digest": "sha256:54fc8a47341526d7342278aa7adb4c84800e270b4e53dcb3086ef8fed5d6f980",
+        "size_in_bytes": 600599
+      },
+      {
+        "name": "ctl-shard-9",
+        "id": 12474468268,
+        "digest": "sha256:885097840bcf4d0247527d0e181d77719153dba5b3c13bbdf7493230205d3ff2",
+        "size_in_bytes": 570686
+      }
+    ],
+    "record_dir": "/var/folders/6q/78j7h2557tx6hkbkw3cmrsc00000gn/T/spa_s49_ci_dpxub9_7/record",
+    "fetched_at": "2026-10-23T05:59:36.942642+00:00",
+    "age_h_at_assembly": 3.502
+  },
+  "ci_record_age_h": 3.502,
+  "ci_record_max_age_h": 192.0,
+  "invoked_by": {
+    "entry": "ci_record",
+    "producer": "com.spa.no_regression_census",
+    "ref": "origin/main",
+    "sha": "0026e0fe9384e95f52ec9fd899ff6343e392fd78",
+    "tree": "git clone --shared snapshot (\u0442\u043e\u043b\u044c\u043a\u043e \u043d\u0430\u0441\u0435\u043b\u0435\u043d\u0438\u0435)",
+    "tests_ran_on": "github-actions (ci-control.yml)",
+    "source": {
+      "kind": "ci_record",
+      "repo": "yurii-spa/SPA",
+      "workflow": ".github/workflows/ci-control.yml",
+      "workflow_name": "SPA CI control (sharded full suite)",
+      "run_id": 39889880442,
+      "run_attempt": 1,
+      "run_url": "https://github.com/yurii-spa/SPA/actions/runs/39889880442",
+      "event": "workflow_dispatch",
+      "conclusion": "failure",
+      "sha": "0026e0fe9384e95f52ec9fd899ff6343e392fd78",
+      "workflow_head_sha": "179832751e4a66067f4bde48df911d5e50ed4e54",
+      "sha_binding": "dispatch_input_pinned_by_manifest",
+      "run_started_at": "2026-10-23T02:29:52Z",
+      "run_updated_at": "2026-10-23T02:57:10Z",
+      "ci_verdict": "RED",
+      "ci_failures": [
+        "spa_core/tests/test_office_declaration_doors.py::TheLiveAnswerOfTheOrder::test_every_office_artifact_has_a_measurable_producer_tick",
+        "spa_core/tests/test_office_subject_drift_producer_tick.py::test_the_live_office_can_measure_the_tick_of_every_artifact_it_reads",
+        "spa_core/tests/test_unwired_guard_modules_ratchet.py::test_no_new_guard_module_is_left_unwired"
+      ],
+      "record_integrity": {
+        "cases": 135562,
+        "confirmed_by_junit": 135562,
+        "stream_only_after_crash": 0,
+        "crash_markers": 0
+      },
+      "tree_clean": true,
+      "ci_totals": {
+        "population": 135562,
+        "files": 2709,
+        "passed": 134840,
+        "skipped": 719,
+        "failed": 3,
+        "error": 0,
+        "not_obtained": 0,
+        "collect_errors": 0,
+        "shards_planned": 12,
+        "shards_complete": 12
+      },
+      "shards": [
+        0,
+        1,
+        2,
+        3,
+        4,
+        5,
+        6,
+        7,
+        8,
+        9,
+        10,
+        11
+      ],
+      "artifacts": [
+        {
+          "name": "ci-control-report",
+          "id": 12475277437,
+          "digest": "sha256:710a7f2369b27241fe617b499c693473a5d29c201e0e0795795695dc3f5de9b7",
+          "size_in_bytes": 1702681
+        },
+        {
+          "name": "ctl-manifest",
+          "id": 12474492226,
+          "digest": "sha256:cc06c5bc464e88b1fca0dabacf676dc01e48a7bda946f13971b2ca671cd37d30",
+          "size_in_bytes": 5068877
+        },
+        {
+          "name": "ctl-shard-0",
+          "id": 12474734556,
+          "digest": "sha256:d05c4470d113683f6955e7f49f0f281ab79c4073ebd36fd690783009ee3050e2",
+          "size_in_bytes": 524920
+        },
+        {
+          "name": "ctl-shard-1",
+          "id": 12474813834,
+          "digest": "sha256:29c3fd86df457a50caf47b609fd1ca7760adb6b68bc5ac72f315f90c14fabe3e",
+          "size_in_bytes": 547394
+        },
+        {
+          "name": "ctl-shard-10",
+          "id": 12474213785,
+          "digest": "sha256:ccd7c926d3726c443226f28aab656384a1c56d9ee74078461cf5a66735d3e570",
+          "size_in_bytes": 580201
+        },
+        {
+          "name": "ctl-shard-11",
+          "id": 12475410506,
+          "digest": "sha256:6ce211bde7d14924bf7fa17e8750915734c00f4cfe4de7acd603438c6c24ddd0",
+          "size_in_bytes": 554414
+        },
+        {
+          "name": "ctl-shard-2",
+          "id": 12475320060,
+          "digest": "sha256:fd043fdd629818e38440ad000dadc6af8c7636ed2779625b415117c802f4ab48",
+          "size_in_bytes": 553005
+        },
+        {
+          "name": "ctl-shard-3",
+          "id": 12474718591,
+          "digest": "sha256:5b0aca7805b418ba21b8dc3d56f9dc3f688798fe36fe3b7b4653f937d07bf59a",
+          "size_in_bytes": 542202
+        },
+        {
+          "name": "ctl-shard-4",
+          "id": 12474569704,
+          "digest": "sha256:bee84d402ddf0d96943cbba2e96b0a5c2e1913d020609e2f951f6ba3e9c97360",
+          "size_in_bytes": 568987
+        },
+        {
+          "name": "ctl-shard-5",
+          "id": 12475600357,
+          "digest": "sha256:cc3898c20d9cd5b263539623a7b8416416b214d46ce7c9ffffa57ec932f001d9",
+          "size_in_bytes": 574524
+        },
+        {
+          "name": "ctl-shard-6",
+          "id": 12474784617,
+          "digest": "sha256:25f8159724f9d866c520a5be0ac08b125509afcf3f5b3823e75e27a45606315d",
+          "size_in_bytes": 563573
+        },
+        {
+          "name": "ctl-shard-7",
+          "id": 12474624970,
+          "digest": "sha256:b4e82f3628650759bf0abf1ae5d5969b7b097f2f098efc07637b39dbbffae6fd",
+          "size_in_bytes": 685192
+        },
+        {
+          "name": "ctl-shard-8",
+          "id": 12474634090,
+          "digest": "sha256:54fc8a47341526d7342278aa7adb4c84800e270b4e53dcb3086ef8fed5d6f980",
+          "size_in_bytes": 600599
+        },
+        {
+          "name": "ctl-shard-9",
+          "id": 12474468268,
+          "digest": "sha256:885097840bcf4d0247527d0e181d77719153dba5b3c13bbdf7493230205d3ff2",
+          "size_in_bytes": 570686
+        }
+      ],
+      "record_dir": "/var/folders/6q/78j7h2557tx6hkbkw3cmrsc00000gn/T/spa_s49_ci_dpxub9_7/record",
+      "fetched_at": "2026-10-23T05:59:36.942642+00:00",
+      "age_h_at_assembly": 3.502
+    },
+    "env": {
+      "python": "3.13.11",
+      "platform": "macOS-27.0.1-arm64-arm-64bit-Mach-O",
+      "via": "manual"
+    }
+  }
+}

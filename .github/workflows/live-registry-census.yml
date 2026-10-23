@@ -1,0 +1,80 @@
+name: SPA live-registry scene census (isolated, advisory)
+
+# Изолированный запуск прибора spa_core/monitoring/live_registry_scene_census.py
+# (заказ G95 п. 2; пакет ARB 23.10, доставлен решением ARB 23.10, этап 7).
+# Три сессии pytest с подменой реестра проб (record / empty / grown), ~1950 с на
+# Mac mini — на рабочем Mac НЕ гонять; здесь — одноразовый раннер GitHub.
+#
+# Триггер ОГРАНИЧЕН: push только в ТОЧНУЮ integration-ветку
+# `integ/studio-os-next-01-stab` (она исключена из preview Cloudflare Pages
+# earn-defi; ci-probe/* — НЕ исключены, туда не пушить). Расписания нет. В main
+# этот файл не попадает без решения ARB/владельца; после слияния триггер ветки
+# снимается и остаётся workflow_dispatch.
+#
+# Безопасность (проверено 23.10): permissions contents: read; секретов нет;
+# прибор пишет только в --out (lrs-out/) и во временный каталог --workdir
+# (lrs-work/) одноразового checkout; ci-control.yml и обязательный полный набор
+# не тронуты; своя группа конкурентности.
+
+on:
+  push:
+    branches: ["integ/studio-os-next-01-stab"]
+  workflow_dispatch:
+    inputs:
+      sha:
+        description: "Commit to measure (empty = the commit the run was triggered on)"
+        required: false
+        default: ""
+
+concurrency:
+  group: live-registry-census      # своя группа: не делит очередь с ci-control
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+jobs:
+  census:
+    runs-on: ubuntu-latest           # стандартный раннер: 4 vCPU / 16 GB (public repo)
+    timeout-minutes: 150             # 3 режима × внутренний предел прибора 2400 с = 120 мин + установка
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.sha || github.sha }}
+          fetch-depth: 0             # часть населения мерит историю (deployment.md, «глубина клона»)
+
+      - name: Set up Python 3.11
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install dependencies
+        run: |
+          pip install pytest pytest-asyncio pytest-timeout pyyaml argon2-cffi eth-account fastapi pydantic httpx requests web3 numpy pandas python-multipart uvicorn bcrypt pyjwt pyflakes mypy==2.1.0  # тот же набор, что в ci-control.yml
+
+      # Код возврата прибора: 0 — находок нет · 1 — находки · 2 — НЕ ИЗМЕРЕНО.
+      # Он сохраняется ДО выхода, чтобы артефакт уехал при любом исходе.
+      - name: Run census (three pytest sessions with registry substitution)
+        timeout-minutes: 130
+        run: |
+          mkdir -p lrs-out lrs-work
+          echo "{\"sha\": \"$(git rev-parse HEAD)\", \"run_id\": \"${GITHUB_RUN_ID}\"}" > lrs-out/run.json
+          set +e
+          python -m spa_core.monitoring.live_registry_scene_census \
+            --out lrs-out/live_registry_scene_census.json \
+            --workdir lrs-work --timeout 2400 | tee lrs-out/report.txt
+          code=${PIPESTATUS[0]}
+          echo "{\"exit\": $code}" > lrs-out/exit.json
+          exit "$code"
+        env:
+          SPA_ENV: ci
+          PYTHONHASHSEED: '0'
+
+      - name: Upload census
+        if: ${{ always() }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: live-registry-scene-census
+          path: lrs-out/
+          retention-days: 30
+          if-no-files-found: warn
