@@ -171,7 +171,7 @@ def test_the_REAL_instrument_instruments_into_parseable_code():
 def test_unparseable_instrumentation_is_UNMEASURED_before_any_run(tmp_path, monkeypatch):
     calls: list = []
     monkeypatch.setattr(gbc, "_run_pytest", lambda *a, **k: calls.append(a) or {})
-    monkeypatch.setattr(gbc, "_wrap", lambda blob, s, e, did, inner: b"_GBC_REC((")
+    monkeypatch.setattr(gbc, "_wrap", lambda blob, s, e, did, inner, index: b"_GBC_REC((")
     doc = _contour(_mini_repo(tmp_path), tmp_path / "work")
     assert doc["status"] == "UNMEASURED", doc
     assert "инструментовка не собрана" in doc["reason"], doc
@@ -399,7 +399,7 @@ def test_broken_link_noise__an_instrumentation_that_changes_behaviour_is_caught(
     def _poison(src, decisions):
         return src.replace('return "satisfied", "сошлись"',
                            'return "not_satisfied", "шум"') \
-            + gbc._RECORDER_SRC
+            + gbc.recorder_src([d["id"] for d in decisions])
     monkeypatch.setattr(gbc, "instrument_source", _poison)
     doc = _contour(_mini_repo(tmp_path), tmp_path / "work")
     got = _verdicts(doc)
@@ -707,3 +707,17 @@ def test_inside_a_running_G16_census_the_run_refuses_explicitly(tmp_path):
         assert called == []
         got2 = gbc.run(root=tmp_path, write=False, if_due=False)
         assert got2["measured"] is True and called == [1]
+
+
+def test_inserted_calls_carry_no_quotes_so_old_pythons_parse_them():
+    """CI (Python 3.11) не разбирал вставку `_GBC_REC("id", …)` внутри f-строки в двойных кавычках
+    (до PEP 701 одинаковые кавычки внутри выражения f-строки запрещены). Вставка — только числа."""
+    import re
+    from spa_core.monitoring import green_by_construction_census as gbc
+    src = (Path(__file__).resolve().parents[1] / "monitoring" / "card_acceptance.py").read_text(encoding="utf-8")
+    found = gbc.decision_points(src)
+    out = gbc.instrument_source(src, found)
+    calls = re.findall(r"_GBC_REC\(([^,]*),", out)
+    inserted = [c for c in calls if c != "_gbc_id"]
+    assert inserted and all(c.strip().isdigit() for c in inserted), inserted[:5]
+    assert len(inserted) == len(found)

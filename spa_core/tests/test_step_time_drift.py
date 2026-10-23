@@ -427,14 +427,14 @@ class TheRealRecordsFitTheInstrument(unittest.TestCase):
     def _records(self, tag):
         out = []
         for i in (0, 1):
-            path = EXCERPT / tag / ("ctl-shard-%d" % i) / "stream.jsonl"
+            path = EXCERPT / tag / ("ctl-shard-%d" % i) / "stream.excerpt.jsonl"
             out.append((i, len(census_from_path(path).cases), str(path)))
         return out
 
     def test_each_real_shard_record_reads_as_one_ended_session(self):
         for tag in ("base_62fe88b48", "head_5bc06f5db"):
             for i in (0, 1):
-                c = census_from_path(EXCERPT / tag / ("ctl-shard-%d" % i) / "stream.jsonl")
+                c = census_from_path(EXCERPT / tag / ("ctl-shard-%d" % i) / "stream.excerpt.jsonl")
                 self.assertEqual(c.read, "read", (tag, i, c.reason))
                 self.assertTrue(c.ended)
                 self.assertEqual(c.sessions_in_record, 1)
@@ -453,7 +453,7 @@ class TheRealRecordsFitTheInstrument(unittest.TestCase):
         self.assertEqual(r["kind"], "unmeasured:too_few_comparable_files")
 
     def test_a_torn_last_line_of_a_real_record_is_counted_not_fatal(self):
-        src = EXCERPT / "head_5bc06f5db" / "ctl-shard-0" / "stream.jsonl"
+        src = EXCERPT / "head_5bc06f5db" / "ctl-shard-0" / "stream.excerpt.jsonl"
         with tempfile.TemporaryDirectory() as td:
             torn = pathlib.Path(td) / "stream.jsonl"
             text = src.read_text(encoding="utf-8")

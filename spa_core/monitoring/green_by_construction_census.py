@@ -186,8 +186,11 @@ _GBC_SEEN: set = set()
 
 
 def _GBC_REC(_gbc_id, _gbc_value):
-    _GBC_SEEN.add(_gbc_id)
+    _GBC_SEEN.add(_GBC_IDS[_gbc_id])
     return _gbc_value
+
+
+_GBC_IDS = __GBC_IDS__
 '''
 
 
@@ -272,18 +275,26 @@ class InstrumentationBroken(ValueError):
 
 
 def _wrap(blob: bytes, start: int, end: int, did: str,
-          inner: Sequence[Tuple[int, int, str, list]]) -> bytes:
+          inner: Sequence[Tuple[int, int, str, list]], index: Dict[str, int]) -> bytes:
     """Обёртка одного пролёта; вложенные пролёты оборачиваются ВНУТРИ его
     исходного текста, по координатам относительно этого же исходного текста."""
     parts: List[bytes] = []
     cur = start
     for i_start, i_end, i_did, i_inner in inner:
         parts.append(blob[cur:i_start])
-        parts.append(_wrap(blob, i_start, i_end, i_did, i_inner))
+        parts.append(_wrap(blob, i_start, i_end, i_did, i_inner, index))
         cur = i_end
     parts.append(blob[cur:end])
-    return (b"_GBC_REC(" + json.dumps(did).encode("utf-8") + b", ("
+    # Идентификатор — ЧИСЛО (индекс в _GBC_IDS), а не строка в кавычках: строка с двойными
+    # кавычками внутри f-строки в двойных кавычках допустима только с Python 3.12 (PEP 701),
+    # и на CI (3.11) инструментовка card_acceptance.py не разбиралась (CI 39885328559, строка 3451).
+    return (b"_GBC_REC(" + str(index[did]).encode("ascii") + b", ("
             + b"".join(parts) + b"))")
+
+
+def recorder_src(ids: Sequence[str]) -> str:
+    """Хвост записи достижимости с таблицей идентификаторов (индекс → id решения)."""
+    return _RECORDER_SRC.replace("__GBC_IDS__", json.dumps(list(ids), ensure_ascii=False))
 
 
 def instrument_source(source: str, decisions: Sequence[dict]) -> str:
@@ -317,14 +328,17 @@ def instrument_source(source: str, decisions: Sequence[dict]) -> str:
         else:
             roots.append(node)
         stack.append(node)
+    ids = [did for _s, _e, did in spans]
+    index = {did: i for i, did in enumerate(ids)}
     out: List[bytes] = []
     cur = 0
     for start, end, did, inner in roots:
         out.append(blob[cur:start])
-        out.append(_wrap(blob, start, end, did, inner))
+        out.append(_wrap(blob, start, end, did, inner, index))
         cur = end
     out.append(blob[cur:])
-    text = b"".join(out).decode("utf-8") + _RECORDER_SRC
+    text = (b"".join(out).decode("utf-8")
+            + recorder_src(ids))
     try:
         ast.parse(text)
     except SyntaxError as exc:

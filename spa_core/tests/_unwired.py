@@ -597,7 +597,7 @@ def data_write_targets(source: str) -> Optional[List[str]]:
             if isinstance(node.func, ast.Attribute):      # Path(...).open("w")
                 if _write_mode(node, 0):
                     target = node.func.value
-            elif node.args and _write_mode(node, 1):        # open(path, "w")
+            elif node.args and _write_mode(node, 1):        # вызов open с путём и режимом записи
                 target = node.args[0]
         elif name in _WRITE_SINKS:
             idx = _WRITE_SINKS[name]

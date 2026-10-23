@@ -36,7 +36,9 @@ from spa_core.monitoring import no_regression_census as census  # noqa: E402
 REPO = census.CI_REPO
 RUN_ID = 424242
 WF_NAME = "SPA CI control (sharded full suite)"
-NOW = datetime.now(timezone.utc).replace(microsecond=0)
+# FROZEN-DATE-OK: injected-clock — якорь сцены; каждый вызов проверки/сборки получает now=NOW явно
+# (чтение стенных часов на импорте запрещено test_no_import_time_clock_in_tests).
+NOW = datetime(2026, 10, 23, 12, 0, 0, tzinfo=timezone.utc)
 STARTED = NOW - timedelta(hours=2)
 PLANNED = STARTED + timedelta(minutes=3)
 FINISHED = STARTED + timedelta(minutes=40)
