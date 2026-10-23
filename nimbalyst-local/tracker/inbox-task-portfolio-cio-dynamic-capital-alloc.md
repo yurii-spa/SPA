@@ -8,12 +8,12 @@ created: 2026-08-13
 priority: critical
 status_trail:
   - "2026-08-26T22:31:36.748790+00:00 new -> in-progress · queue.set_status · cycle-96657"
-claimed_by: cycle-85365
-claimed_at: 2026-10-23T09:23:06Z
-claimed_run_id: orchestrator-84431-77371052F8634EEA9432943F39FB1187
-claimed_pid: 84431
-claimed_pid_start: Fri Oct 23 10:57:31 2026
-claim_takeover_reason: цикл #912 (cycle-85365, pid 85365): вердикт stale перемерен сам. Держатель pid 2329 МЁРТВ (ps -p пуст); cycle-40342 (#910) и cycle-8261 объявили card_state: done. ОСИРОТЕВШЕЙ РАБОТЫ НЕТ, измерено: шаг 0a код 2 — все 10 «не измерено» из удалённых деревьев #764/#868, и все их объявленные пути ЕСТЬ на origin/main; единственная «находка» (журнал 2026-W43 из /private/tmp/spa_c909) перемерена построчно — 0 уникальных строк против origin. #911 (ADR-789) на origin f438d923e.
+claimed_by: cycle-64776
+claimed_at: 2026-10-23T16:14:34Z
+claimed_run_id: orchestrator-64067-C88BAC3FE7F64B6C9C48CFFDE8377844
+claimed_pid: 64776
+claimed_pid_start: Fri Oct 23 18:03:14 2026
+claim_takeover_reason: шаг 0a-ГОЛОД цикла #914: вердикт stale перемерен — ps -p 2329 пусто, последний захват cycle-85365/pid84431 осиротел; осиротевшей работы НЕТ (шаг 0a: находки только в чужих деревьях, копия W43 из /private/tmp/spa_c909 — строгое подмножество origin)
 ---
 
 ## УКАЗАНИЕ ВЛАДЕЛЬЦА 2026-08-22 (cloud-сессия): ЗАПУСТИТЬ СЛЕДУЮЩИМ ЦИКЛОМ

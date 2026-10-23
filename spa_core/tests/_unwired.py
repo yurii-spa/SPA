@@ -537,3 +537,220 @@ def unwired_scripts(root: Optional[pathlib.Path] = None) -> List[str]:
     """
     base = pathlib.Path(root or _ROOT)
     return sorted(set(scripts_without_caller(base)) - registry_recorded_scripts(base))
+
+
+#: Каталог ЛЕТОПИСИ внутри `docs/`. Объявлен отдельно, потому что на нём стои́т
+#: одна из двух ног аудита ниже: журнал называет поимённо ВСЁ доставленное, и
+#: потому доказательством не является (замер 13.08 — у пяти скриптов из 88
+#: единственное упоминание было именно там).
+_JOURNAL_DIR = pathlib.Path("docs") / "journal"
+
+#: Суффиксы файлов `docs/`, которые читает аудит. Те же, что у отвергнутого
+#: правила «любое упоминание в docs/»: аудит обязан мерить ИМЕННО его, иначе
+#: сравнение шло бы с чем-то другим.
+_DOCS_SUFFIXES = (".md", ".json", ".txt", ".yaml", ".yml")
+
+
+def carve_out_audit(root: Optional[pathlib.Path] = None) -> dict:
+    """Чем вычет «ручного R&D» ОТЛИЧАЕТСЯ от отвергнутого правила — замером.
+
+    Отвечает на ОДИН вопрос: **правило по-прежнему СУЖАЕТ класс или его
+    расширили до «любого упоминания в `docs/`»?** Это предмет сторожа
+    `test_the_carve_out_did_not_swallow_the_watch`; до ADR-792 тот же сторож
+    спрашивал про ДОЛЮ вычета в населении, а доля двигается и без всякого
+    расширения правила — от роста самого R&D-класса. Замер, вскрывший подмену
+    (три дерева одним прибором):
+
+    =============== ===== ====== ============= ===================
+    дерево          `raw` вычет  под сторожем  отвергнутое простило бы
+    =============== ===== ====== ============= ===================
+    13.08 f6b87f139    88     34            54                   61
+    11.09 41b86eee7   118     54            64                   89
+    23.10 020917da9   137     71            66                  113
+    =============== ===== ====== ============= ===================
+
+    Доля вычета выросла 38.6 % → 45.8 % → 51.8 % и перешагнула порог половины;
+    при этом население ПОД сторожем не сократилось ни разу (54 → 64 → 66), а
+    разрыв с отвергнутым правилом только вырос (27 → 35 → 42). То есть сторож
+    краснел на рост класса, а не на расширение правила.
+
+    Возврат (``measured=False`` — это НЕ «правило цело» и НЕ «правило
+    расширено», а третий исход с названной причиной, инв. #17)::
+
+        {"measured": bool, "reason": str,
+         "raw": [...],            # вызывающего нет — сырое измерение
+         "excused": [...],        # прощены действующим правилом
+         "watched": [...],        # остались под храповиком
+         "rejected_rule_excused": [...],   # простило бы «любое упоминание в docs/»
+         "narrowed": [...],       # кого упоминание в docs/ НЕ прощает
+         "journal_only": [...],   # чьё единственное упоминание — в летописи
+         "journal_only_excused": [...],    # из них ПРОЩЁННЫЕ (обязан быть пуст)
+         "docs_files": int, "journal_files": int}
+
+    Почему тут нет ни одного порога на ЧИСЛО. Любое число про население
+    (`len(raw)`, доля вычета, пол населения под сторожем) краснеет от удачи:
+    подключили сироту — население упало, доля вычета выросла. Утверждения ниже
+    — о ПРАВИЛЕ, и ни одно из них не сдвигается ни новым R&D-замером, ни
+    подключением старого скрипта.
+    """
+    base = pathlib.Path(root or _ROOT)
+    raw = set(scripts_without_caller(base))
+    if not entrypoint_scripts(base):
+        return {"measured": False,
+                "reason": "точек входа в scripts/ не найдено — мерить нечего "
+                          "(пустой список сделал бы любой вердикт зелёным)"}
+    docs_dir = base / "docs"
+    if not docs_dir.is_dir():
+        return {"measured": False,
+                "reason": f"каталога {docs_dir} нет — отвергнутое правило "
+                          "«любое упоминание в docs/» мерить нечем"}
+    journal_text, other_text = [], []
+    n_docs = n_journal = 0
+    for p in sorted(docs_dir.rglob("*")):
+        if not p.is_file() or p.suffix not in _DOCS_SUFFIXES:
+            continue
+        try:
+            body = p.read_text(encoding="utf-8", errors="ignore")
+        except OSError:
+            continue
+        n_docs += 1
+        rel = p.relative_to(base)
+        # Летопись — ПОДДЕРЕВО, а не один каталог: `docs/journal/**`. Сравнение
+        # по префиксу кортежа частей, а не по строке: подстрочная проверка
+        # поймала бы и `docs/journal_archive/…`, то есть чужой каталог.
+        if rel.parts[:len(_JOURNAL_DIR.parts)] == _JOURNAL_DIR.parts:
+            n_journal += 1
+            journal_text.append(body)
+        else:
+            other_text.append(body)
+    if not n_docs:
+        return {"measured": False,
+                "reason": f"в {docs_dir} не прочитан ни один файл "
+                          f"{'/'.join(_DOCS_SUFFIXES)} — отвергнутое правило мерить нечем"}
+    # Склейка, а не пофайловый обход: ЗАМЕР 23.10 на 1228 файлах — пофайлово
+    # 68.8 с, склейкой 39 с. Ответ при этом ТОТ ЖЕ, и это сверено на живом
+    # дереве (113 прощённых отвергнутым правилом, 42 в разрыве, 2 «только
+    # летопись» — обоими способами). Склейка идёт через `\n`, а из используемых
+    # здесь форм ни `file`, ни `module` границу строки не переходят.
+    joined_journal = "\n".join(journal_text)
+    joined_other = "\n".join(other_text)
+    excused = registry_recorded_scripts(base) & raw
+    rejected, journal_only = set(), set()
+    for stem in sorted(raw):
+        pats = wiring_patterns(stem)
+        in_journal = bool(pats["file"].search(joined_journal)
+                          or pats["module"].search(joined_journal))
+        in_other = bool(pats["file"].search(joined_other)
+                        or pats["module"].search(joined_other))
+        if in_journal or in_other:
+            rejected.add(stem)
+        if in_journal and not in_other:
+            journal_only.add(stem)
+    return {
+        "measured": True, "reason": "",
+        "raw": sorted(raw), "excused": sorted(excused),
+        "watched": sorted(raw - excused),
+        "rejected_rule_excused": sorted(rejected),
+        "narrowed": sorted(rejected - excused),
+        "journal_only": sorted(journal_only),
+        "journal_only_excused": sorted(journal_only & excused),
+        "docs_files": n_docs, "journal_files": n_journal,
+    }
+
+
+#: Исходы суждения о вычете. ТРИ, и третий назван своим значением (инв. #17):
+#: «правило сузило класс» · «правило перестало сужать» · «мерить было нечем».
+CARVE_OUT_OK = "ok"
+CARVE_OUT_BROKEN = "broken"
+CARVE_OUT_UNMEASURED = "unmeasured"
+
+
+def carve_out_verdict(got: dict) -> Tuple[str, str]:
+    """Суждение по замеру :func:`carve_out_audit`. Возврат — (исход, причина).
+
+    **Живёт ОДНИМ местом намеренно.** Этот же вердикт выносят двое: сторож
+    `test_the_carve_out_did_not_swallow_the_watch` и проба приёмки
+    `rnd_carve_out_narrows_the_class` (`spa_core/monitoring/card_acceptance.py`).
+    Вторая копия ног разошлась бы с первой при первой же правке, и тогда
+    «критерий карточки выполнен» означало бы вердикт ДРУГОГО правила, чем
+    вердикт сторожа — класс ADR-522 («два вердикта у одного критерия»).
+
+    Функция ЧИСТАЯ: ни файлов, ни часов, ни окружения — только разбор замера.
+    Поэтому у каждой ноги есть честная мутация на синтетическом дереве.
+    """
+    if not got.get("measured"):
+        return CARVE_OUT_UNMEASURED, (got.get("reason")
+                                      or "причина не названа")
+    raw, excused = got["raw"], got["excused"]
+    if not got["watched"]:
+        return CARVE_OUT_BROKEN, (
+            f"храповик остался без подопечных: вычет забрал все {len(raw)} — "
+            "его вердикт больше ничего не значит")
+    if got["journal_only_excused"]:
+        return CARVE_OUT_BROKEN, (
+            "летопись стала доказательством: прощены скрипты, чьё единственное "
+            f"упоминание в docs/journal/ — {', '.join(got['journal_only_excused'])}")
+    if not got["narrowed"]:
+        return CARVE_OUT_BROKEN, (
+            "правило прощает РОВНО то же, что отвергнутое «любое упоминание в "
+            f"docs/» ({len(excused)} из {len(raw)}) — вычет перестал сужать класс")
+    return CARVE_OUT_OK, (
+        f"правило сужает класс: без вызывающего {len(raw)}, прощено {len(excused)}, "
+        f"под храповиком {len(got['watched'])}; отвергнутое правило простило бы "
+        f"{len(got['rejected_rule_excused'])}, то есть разрыв {len(got['narrowed'])} "
+        f"скрипт(ов), и летопись не прощает никого (в ней одной упомянуты "
+        f"{len(got['journal_only'])})")
+
+
+def carve_out_with_one_more_rnd_record(got: dict) -> dict:
+    """Тот же замер, но как БУДТО появился ещё один R&D-замер с записью.
+
+    Контрфакт, а не косметика. Дефект, который правит ADR-792, выглядел так:
+    «любой новый `scripts/edge_*.py` любой R&D-сессии делает `main` красным»
+    (карточка `inbox-storozh-r-d-isklyucheniya-upersya-v-poro`, замер 02.10).
+    Прежний сторож судил по ДОЛЕ, и каждый новый замер её двигал; у суждения о
+    ПРАВИЛЕ доля не участвует, и этот контрфакт обязан вердикт НЕ менять.
+
+    Он спрашивает у ТОГО ЖЕ судьи (:func:`carve_out_verdict`), а не у второй
+    копии ног: если однажды в судью вернётся любое утверждение о населении,
+    контрфакт шевельнётся — и проба приёмки скажет это вслух.
+
+    Новый скрипт добавляется ровно в тех ролях, в которых появляется настоящий
+    R&D-замер: без вызывающего (`raw`), прощённый записью реестра (`excused`),
+    упомянутый в `docs/` (`rejected_rule_excused`). Под сторожем он не
+    появляется и летописью не прощается — по устройству.
+    """
+    if not got.get("measured"):
+        return dict(got)
+    stem = "edge_contrafactual_new_measurement"
+    out = dict(got)
+    out["raw"] = sorted(set(got["raw"]) | {stem})
+    out["excused"] = sorted(set(got["excused"]) | {stem})
+    out["rejected_rule_excused"] = sorted(set(got["rejected_rule_excused"]) | {stem})
+    out["watched"] = list(got["watched"])
+    out["narrowed"] = list(got["narrowed"])
+    out["journal_only"] = list(got["journal_only"])
+    out["journal_only_excused"] = list(got["journal_only_excused"])
+    return out
+
+
+def carve_out_complaint(got: dict) -> Optional[str]:
+    """Жалоба сторожа по замеру: `None` — претензий нет, строка — текст падения.
+
+    **Зачем отдельная функция, а не два `assert` в тесте.** Мутационный прогон
+    ADR-792 (№1) оставил выжившей мутацию «сторож перестаёт различать третий
+    исход»: утверждение `assertIn(verdict, (OK, UNMEASURED))` на НАСТОЯЩЕМ дереве
+    неотличимо от строгого, потому что сегодня вердикт `OK`, — то есть
+    fail-OPEN инв. #17 въехал бы молча и ждал бы дня, когда замер сломается.
+    Воспроизвести «настоящее дерево неизмеримо» в тесте нельзя, зато можно
+    вынести САМО РАЗЛИЧЕНИЕ сюда и закрепить его синтетикой в три стороны.
+
+    `unmeasured` ЗЕЛЁНЫМ НЕ СЧИТАЕТСЯ и несёт свою пометку: «не измерено» не
+    выдаётся ни за «правило цело», ни за «правило расширено».
+    """
+    verdict, why = carve_out_verdict(got)
+    if verdict == CARVE_OUT_OK:
+        return None
+    if verdict == CARVE_OUT_UNMEASURED:
+        return f"аудит вычета НЕ ИЗМЕРЕН: {why}"
+    return why

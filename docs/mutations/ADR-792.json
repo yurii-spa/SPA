@@ -1,0 +1,93 @@
+{
+  "title": "ADR-792 — дельта цикла #914: сторож вычета R&D судит ПРАВИЛО, а не долю. Каждая мутация возвращает одно из состояний, в которых «правило расширили до любого упоминания в docs/» снова числилось бы неизмеренным либо зелёным",
+  "tests": [
+    "spa_core/tests/test_carve_out_probe.py",
+    "spa_core/tests/test_unwired_registry_evidence.py"
+  ],
+  "mutations": [
+    {
+      "name": "нога РАЗРЫВА снята — правило, расширенное до всего docs/, снова проходит",
+      "file": "spa_core/tests/_unwired.py",
+      "old": "    if not got[\"narrowed\"]:\n        return CARVE_OUT_BROKEN, (\n            \"правило прощает РОВНО то же, что отвергнутое «любое упоминание в \"\n            f\"docs/» ({len(excused)} из {len(raw)}) — вычет перестал сужать класс\")\n",
+      "new": "    if False:  # нога разрыва снята\n        pass\n"
+    },
+    {
+      "name": "нога ЛЕТОПИСИ снята — журнал снова становится доказательством молча",
+      "file": "spa_core/tests/_unwired.py",
+      "old": "    if got[\"journal_only_excused\"]:\n        return CARVE_OUT_BROKEN, (\n            \"летопись стала доказательством: прощены скрипты, чьё единственное \"\n            f\"упоминание в docs/journal/ — {', '.join(got['journal_only_excused'])}\")\n",
+      "new": "    if False:  # нога летописи снята\n        pass\n"
+    },
+    {
+      "name": "нога ПОДОПЕЧНЫХ снята — храповик без единого подопечного числится исправным",
+      "file": "spa_core/tests/_unwired.py",
+      "old": "    if not got[\"watched\"]:\n        return CARVE_OUT_BROKEN, (\n            f\"храповик остался без подопечных: вычет забрал все {len(raw)} — \"\n            \"его вердикт больше ничего не значит\")\n",
+      "new": "    if False:  # нога подопечных снята\n        pass\n"
+    },
+    {
+      "name": "ТРЕТИЙ ИСХОД схлопнут: «не измерено» идёт по ветке измеренного (инв. #17)",
+      "file": "spa_core/tests/_unwired.py",
+      "old": "    if not got.get(\"measured\"):\n        return CARVE_OUT_UNMEASURED, (got.get(\"reason\")\n                                      or \"причина не названа\")\n",
+      "new": "    got = dict(got, raw=got.get(\"raw\") or [], excused=got.get(\"excused\") or [], watched=got.get(\"watched\") or [\"x\"], narrowed=got.get(\"narrowed\") or [\"y\"], journal_only_excused=got.get(\"journal_only_excused\") or [], rejected_rule_excused=got.get(\"rejected_rule_excused\") or [], journal_only=got.get(\"journal_only\") or [])\n"
+    },
+    {
+      "name": "«каталога docs/ нет» и «в docs/ нет читаемых файлов» схлопнуты в один отказ",
+      "file": "spa_core/tests/_unwired.py",
+      "old": "    docs_dir = base / \"docs\"\n    if not docs_dir.is_dir():\n        return {\"measured\": False,\n                \"reason\": f\"каталога {docs_dir} нет — отвергнутое правило \"\n                          \"«любое упоминание в docs/» мерить нечем\"}\n",
+      "new": "    docs_dir = base / \"docs\"\n"
+    },
+    {
+      "name": "пустое население точек входа зеленит всё молча — страховка снята",
+      "file": "spa_core/tests/_unwired.py",
+      "old": "    if not entrypoint_scripts(base):\n        return {\"measured\": False,\n                \"reason\": \"точек входа в scripts/ не найдено — мерить нечего \"\n                          \"(пустой список сделал бы любой вердикт зелёным)\"}\n",
+      "new": "    pass\n"
+    },
+    {
+      "name": "летопись определяется ПОДСТРОКОЙ пути — docs/journalism.md становится летописью",
+      "file": "spa_core/tests/_unwired.py",
+      "old": "        if rel.parts[:len(_JOURNAL_DIR.parts)] == _JOURNAL_DIR.parts:",
+      "new": "        if \"journal\" in str(rel):"
+    },
+    {
+      "name": "КОНТРФАКТ пуст: «новый R&D-замер» не добавляет ничего, и нога становится украшением",
+      "file": "spa_core/tests/_unwired.py",
+      "old": "    stem = \"edge_contrafactual_new_measurement\"\n    out = dict(got)\n    out[\"raw\"] = sorted(set(got[\"raw\"]) | {stem})\n    out[\"excused\"] = sorted(set(got[\"excused\"]) | {stem})\n    out[\"rejected_rule_excused\"] = sorted(set(got[\"rejected_rule_excused\"]) | {stem})\n",
+      "new": "    out = dict(got)\n"
+    },
+    {
+      "name": "нога КОНТРФАКТА снята из пробы — судья, считающий население, снова не виден",
+      "file": "spa_core/monitoring/card_acceptance.py",
+      "old": "    if after != _unwired.CARVE_OUT_OK:\n        return NOT_SATISFIED, (\n            \"вердикт сторожа двигается от САМОГО ФАКТА нового R&D-замера с \"\n            f\"записью в реестре ({why_after}) — значит судит снова население, \"\n            \"а не правило (ровно дефект карточки: «любой новый edge-скрипт \"\n            \"краснит main»)\")\n",
+      "new": "    if False:  # нога контрфакта снята\n        pass\n"
+    },
+    {
+      "name": "ОТОБРАЖЕНИЕ исходов пробы: поломка правила выдаётся за выполненный критерий",
+      "file": "spa_core/monitoring/card_acceptance.py",
+      "old": "        _unwired.CARVE_OUT_BROKEN: NOT_SATISFIED,",
+      "new": "        _unwired.CARVE_OUT_BROKEN: SATISFIED,"
+    },
+    {
+      "name": "проба ГЛОТАЕТ аргумент — пофайловая форма критерия, которой не существует",
+      "file": "spa_core/monitoring/card_acceptance.py",
+      "old": "    if (arg or \"\").strip():\n        return UNMEASURED, (f\"проба не принимает аргумента (дано {arg!r}): \"\n                            \"критерий — о ПРАВИЛЕ, пофайловой формы у него нет\")\n",
+      "new": "    arg = None\n"
+    },
+    {
+      "name": "проба перестаёт ОБЪЯВЛЯТЬ дерево входом — вердикт о рабочей копии выдаётся за вердикт о стенде",
+      "file": "spa_core/monitoring/card_acceptance.py",
+      "old": "def _probe_rnd_carve_out_narrows_the_class(\n        arg: str | None, *, repo_root: str | None = None) -> tuple[str, str]:",
+      "new": "def _probe_rnd_carve_out_narrows_the_class(\n        arg: str | None) -> tuple[str, str]:\n    repo_root = None"
+    },
+    {
+      "name": "ТРЕТИЙ ИСХОД зачтён за зелёное в ЖАЛОБЕ сторожа — fail-OPEN инв. #17 (ровно выживший мутант прогона №1, теперь у различения есть своё место)",
+      "file": "spa_core/tests/_unwired.py",
+      "old": "    if verdict == CARVE_OUT_UNMEASURED:\n        return f\"аудит вычета НЕ ИЗМЕРЕН: {why}\"\n",
+      "new": "    if verdict == CARVE_OUT_UNMEASURED:\n        return None\n"
+    },
+    {
+      "name": "ЖАЛОБА не отличает поломку правила от «не измерено» — оба уезжают с пометкой НЕ ИЗМЕРЕН, и находка выглядит отсутствием прибора",
+      "file": "spa_core/tests/_unwired.py",
+      "old": "    if verdict == CARVE_OUT_OK:\n        return None\n    if verdict == CARVE_OUT_UNMEASURED:\n",
+      "new": "    if verdict == CARVE_OUT_OK:\n        return None\n    if True:\n"
+    }
+  ]
+}

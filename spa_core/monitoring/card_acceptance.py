@@ -3205,6 +3205,72 @@ def _probe_absent_observation_class_closed(arg: str | None) -> tuple[str, str]:
     return SATISFIED, f"новых мест класса нет и база не выросла ({counts})"
 
 
+# ── проба: вычет «ручного R&D» СУЖАЕТ класс, а не отключает сторожа ───────────
+def _probe_rnd_carve_out_narrows_the_class(
+        arg: str | None, *, repo_root: str | None = None) -> tuple[str, str]:
+    """Критерий: правило вычета не стало отвергнутым «любым упоминанием в docs/».
+
+    ЗАЧЕМ. Сторож вычета (`test_the_carve_out_did_not_swallow_the_watch`) с
+    02.10 краснел на ЧИСТОЙ вершине, и четыре карточки подряд его только
+    называли. Причина — подмена предмета: он спрашивал про ДОЛЮ вычета в
+    населении, а доля двигается от роста самого R&D-класса, а не от расширения
+    правила. Замер цикла #914 одним прибором по трём деревьям: доля 38.6 % →
+    45.8 % → 51.8 %, а население ПОД сторожем 54 → 64 → 66 и разрыв с
+    отвергнутым правилом 27 → 35 → 42 (ADR-792).
+
+    ЧТО МЕРИТ. Исход, а не структуру: три утверждения О ПРАВИЛЕ, каждое из
+    которых неподвижно и при новом R&D-замере, и при подключении старой сироты —
+    (1) упоминание в `docs/` само по себе не прощает никого, (2) летопись
+    `docs/journal/` не прощает, (3) у храповика есть подопечные.
+
+    ЧТО НЕ МЕРИТ, и это сказано вслух: верен ли ЯРЛЫК «ручной R&D» у каждого
+    прощённого скрипта (это предмет карточки
+    `inbox-krasnyi-na-chistom-main-vychet-ruchnoi-r`, п. 2) и зелен ли сам
+    храповик `test_unwired_scripts_ratchet` — у того свой вердикт и своя база.
+
+    АРГУМЕНТА НЕТ намеренно: критерий — о ПРАВИЛЕ, то есть обо всём дереве
+    сразу; пофайловой формы у него не существует, и переданный аргумент
+    отвергается вслух, а не глотается.
+    """
+    if (arg or "").strip():
+        return UNMEASURED, (f"проба не принимает аргумента (дано {arg!r}): "
+                            "критерий — о ПРАВИЛЕ, пофайловой формы у него нет")
+    try:
+        from spa_core.tests import _unwired
+    except Exception as exc:  # noqa: BLE001
+        return UNMEASURED, f"правило не импортируется: {type(exc).__name__}: {exc}"
+    try:
+        got = _unwired.carve_out_audit(repo_root or REPO_ROOT)
+        verdict, why = _unwired.carve_out_verdict(got)
+    except Exception as exc:  # noqa: BLE001
+        return UNMEASURED, f"аудит вычета не отработал: {type(exc).__name__}: {exc}"
+    # Ноги НЕ переписаны здесь второй копией: судит ровно тот код, которым судит
+    # сторож (`_unwired.carve_out_verdict`). Отображение исходов — единственное,
+    # что принадлежит пробе, и оно взаимно однозначно.
+    out = {
+        _unwired.CARVE_OUT_OK: SATISFIED,
+        _unwired.CARVE_OUT_BROKEN: NOT_SATISFIED,
+        _unwired.CARVE_OUT_UNMEASURED: UNMEASURED,
+    }[verdict]
+    if out is not SATISFIED:
+        return out, why
+    # Вторая нога — ДОСЛОВНЫЙ критерий карточки: «новый `scripts/edge_*.py` с
+    # записью в реестре не краснит сторожа». Спрашивается контрфактом у ТОГО ЖЕ
+    # судьи: вернись в него любое утверждение о населении — и вердикт шевельнётся.
+    try:
+        after, why_after = _unwired.carve_out_verdict(
+            _unwired.carve_out_with_one_more_rnd_record(got))
+    except Exception as exc:  # noqa: BLE001
+        return UNMEASURED, f"контрфакт нового R&D-замера не посчитан: {exc}"
+    if after != _unwired.CARVE_OUT_OK:
+        return NOT_SATISFIED, (
+            "вердикт сторожа двигается от САМОГО ФАКТА нового R&D-замера с "
+            f"записью в реестре ({why_after}) — значит судит снова население, "
+            "а не правило (ровно дефект карточки: «любой новый edge-скрипт "
+            "краснит main»)")
+    return SATISFIED, (f"{why}; новый R&D-замер с записью вердикта НЕ меняет")
+
+
 #: Якоря трёх реестров шага 0-офис. Объявлены ОДНИМ местом и читаются и пробой, и её
 #: батареей: вторая копия якоря разошлась бы с первой молча, а предмет здесь ровно
 #: «объявлено ли», поэтому расхождение копий означало бы зелёный ответ на свой вопрос.
@@ -10813,6 +10879,7 @@ PROBES: dict[str, Callable[[str | None], "tuple[str, str]"]] = {
     "free_move_priced_as_free": _probe_free_move_priced_as_free,
     "decision_journal_keeps_every_run": _probe_decision_journal_keeps_every_run,
     "absent_observation_class_closed": _probe_absent_observation_class_closed,
+    "rnd_carve_out_narrows_the_class": _probe_rnd_carve_out_narrows_the_class,
     "series_denominator_measured": _probe_series_denominator_measured,
     "second_artifact_tvl_agrees": _probe_second_artifact_tvl_agrees,
     "owner_protocols_report_carries_every_record":
