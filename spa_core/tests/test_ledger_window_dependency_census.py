@@ -191,13 +191,82 @@ class ListsAreAddressedByIdentity(unittest.TestCase):
                          "сдвиг адресов выдал бы изменившимися и уцелевшие элементы")
 
     def test_an_item_without_identity_still_gets_an_address(self):
+        # НАМЕРЕННАЯ правка ожидания (цикл #916, инв. #16): до неё здесь стояло
+        # `["xs[#0]", "xs[#1]"]`, то есть адресация по МЕСТУ — ровно тот дефект,
+        # против которого написан весь класс, только в списках без личности.
+        # Контракт усилен: элемент без личности адресуется СОДЕРЖИМЫМ плюс
+        # номером повтора, поэтому перестановка невидима, а вторая копия — видна.
         got = lwd.leaves({"xs": [1, 2]})
-        self.assertEqual(sorted(got), ["xs[#0]", "xs[#1]"])
+        self.assertEqual(sorted(got), ["xs[=1#0]", "xs[=2#0]"])
+        swapped = lwd.leaves({"xs": [2, 1]})
+        self.assertEqual(sorted(swapped), sorted(got),
+                         "перестановка не есть изменение ответа")
+
+    def test_a_second_copy_of_the_same_value_is_visible(self):
+        """Та самая слепота, найденная на себе: девять копий причины выглядели одной."""
+        one = lwd.leaves({"xs": ["r"]})
+        nine = lwd.leaves({"xs": ["r"] * 9})
+        self.assertEqual(sorted(one), ["xs[=\"r\"#0]"])
+        self.assertEqual(len(nine), 9,
+                         "повторы схлопнулись — рост списка остался бы невидимым")
+        changed = {p for p in set(one) | set(nine) if one.get(p) != nine.get(p)}
+        self.assertEqual(len(changed), 8)
 
     def test_a_boolean_is_not_mistaken_for_an_identity(self):
         # bool — подкласс int, и `id=True` адресовало бы два разных элемента одинаково.
+        # НАМЕРЕННАЯ правка ожидания (цикл #916): предмет теста тот же — два
+        # элемента НЕ схлопываются в один адрес, — но адрес теперь содержимое,
+        # а не место.
         got = lwd.leaves({"xs": [{"id": True, "v": 1}, {"id": True, "v": 2}]})
-        self.assertEqual(sorted(got), ["xs[#0].id", "xs[#0].v", "xs[#1].id", "xs[#1].v"])
+        self.assertEqual(len(got), 4, "два разных элемента получили один адрес")
+        self.assertEqual(len({k.split("].")[0] for k in got}), 2)
+        self.assertNotIn("xs[#0].id", got, "адресация по месту вернулась")
+
+    def test_a_list_of_identityless_dicts_must_be_declared(self):
+        """Не объявлен ⇒ путь назван вслух; объявлен как ранжированный ⇒ молчит."""
+        undeclared: set = set()
+        lwd.leaves({"latest": {"mystery": [{"a": 1}, {"a": 2}]}}, undeclared=undeclared)
+        self.assertEqual(undeclared, {"latest.mystery"})
+        declared: set = set()
+        lwd.leaves({"latest": {"sherlock": {"top_blockers": [{"gate": "g", "count": 2}]}}},
+                   undeclared=declared)
+        self.assertEqual(declared, set(),
+                         "объявленный список не имеет права числиться необъявленным")
+
+    def test_an_undeclared_identityless_list_makes_the_MEASUREMENT_unmeasured(self):
+        """Отказ обязан наступить в `measure()`, а не остаться знанием `leaves()`.
+
+        Сцена перебирает РЕЕСТР ЛИЧНОСТЕЙ, а не ответ модели: предмет проверки —
+        сам отказ, а в маленькой сцене списки без личности (`stale_feeds`,
+        `top_blockers`) приходят ПУСТЫМИ, и сторожу нечего было бы увидеть.
+        Пустой `ID_KEYS` делает список кандидатов безличным — то есть ровно тем
+        случаем, ради которого отказ и написан.
+        """
+        from unittest import mock
+
+        with TemporaryDirectory() as tmp:
+            data = build_scene(Path(tmp), scene_entries(refreshed=True))
+            good = lwd.measure(data, now=NOW, windows=LADDER)
+            self.assertTrue(good["measured"], good.get("reason"))
+            with mock.patch.object(lwd, "ID_KEYS", ()):
+                bad = lwd.measure(data, now=NOW, windows=LADDER)
+            self.assertFalse(bad["measured"],
+                             "список без личности и без объявления прошёл как "
+                             "измеренный — прибор мерил свою адресацию")
+            self.assertEqual(bad["status"], lwd.STATUS_UNMEASURED)
+            self.assertIn("НЕ ОБЪЯВЛЕНА", bad["reason"])
+            self.assertIn("latest.candidates", bad["reason"],
+                          "отказ не назвал ПУТЬ — починить его было бы нечем")
+
+    def test_a_ranked_list_keeps_its_place_as_the_address(self):
+        """У ранжированного списка МЕСТО есть ранг — мультимножество спрятало бы смену."""
+        got = lwd.leaves({"latest": {"sherlock": {"top_blockers": [
+            {"gate": "a", "count": 2}, {"gate": "b", "count": 1}]}}})
+        self.assertIn("latest.sherlock.top_blockers[#0].gate", got)
+        flipped = lwd.leaves({"latest": {"sherlock": {"top_blockers": [
+            {"gate": "b", "count": 1}, {"gate": "a", "count": 2}]}}})
+        changed = {p for p in set(got) | set(flipped) if got.get(p) != flipped.get(p)}
+        self.assertTrue(changed, "смена рангов обязана быть видна")
 
 
 class TheChainExclusionIsChecked(unittest.TestCase):

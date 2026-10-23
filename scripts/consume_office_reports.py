@@ -975,6 +975,16 @@ _READ_SCHEMA: dict[str, tuple[str, ...]] = {
     "ledger_window_dependency.json": ("status", "generated_at", "ledger", "baseline",
                                       "rows", "one_day_dependent_share_pct",
                                       "safe_window_days", "findings", "advisory"),
+    # Заказ G793 п. 1 (ADR-794). `cheapest_opener` в схеме обязателен и обязан
+    # доехать СВОИМ значением: `null` значит «НИ ОДИН объявленный рецепт не
+    # открыл окна», а не «рецептов не было» (инв. #17). `rows` — потому что
+    # цена без лестницы рецептов есть цена неизвестно чего, а разность соседних
+    # строк и есть цена ОДНОГО вида записи.
+    "ledger_resnapshot_price.json": ("status", "generated_at", "ledger", "baseline",
+                                     "rows", "cheapest_opener",
+                                     "cheapest_added_mb_per_day",
+                                     "cheapest_safe_window_days", "findings",
+                                     "advisory"),
     # Заказ G92 п. 2 (ADR-543). `stage_population` в схеме обязателен: без него
     # «зелёных по построению 1» прочлось бы как «во всём наборе один», тогда как
     # население СТУПЕНИ урезано до одного файла проб, а полный замер стои́т часа
@@ -1537,6 +1547,8 @@ _PRODUCER: dict[str, str] = {
         "spa_core/monitoring/ledger_parse_census.py",
     "ledger_window_dependency.json":
         "spa_core/monitoring/ledger_window_dependency_census.py",
+    "ledger_resnapshot_price.json":
+        "spa_core/monitoring/ledger_resnapshot_price_census.py",
     "green_by_construction_census.json":
         "spa_core/monitoring/green_by_construction_census.py",
     "acceptance_tree_capability.json":
@@ -3989,6 +4001,13 @@ def _summarize_json(path: str, data, *, now: dt.datetime | None = None,
         # делегируется ПРОИЗВОДИТЕЛЮ; ввоз ОДНОСТРОЧНЫЙ.
         from spa_core.monitoring.ledger_window_dependency_census import format_report as _lwd_report
         out.extend(_lwd_report(data))
+    elif name == "ledger_resnapshot_price.json":
+        # Заказ G793 п. 1 (ADR-794). Без этой ветки артефакт читался бы ВХОЛОСТУЮ:
+        # файл открыт, а в контекст не попадает ни цена рецепта, ни вердикт «ни
+        # один не открыл окна». Правило отрисовки делегируется ПРОИЗВОДИТЕЛЮ
+        # (вторая копия разошлась бы с первой молча); ввоз ОДНОСТРОЧНЫЙ.
+        from spa_core.monitoring.ledger_resnapshot_price_census import format_report as _rpc_report
+        out.extend(_rpc_report(data))
     elif name == "ledger_day_unit_census.json":
         # Заказ G765 п. 3 (ADR-766). Без этой ветки артефакт читается ВХОЛОСТУЮ:
         # файл открыт, а в контекст не попадает ни одно число — ровно тот класс

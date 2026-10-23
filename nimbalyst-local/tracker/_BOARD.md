@@ -2,11 +2,11 @@
 
 > Авто-генерится `scripts/build_tracker_board.py` из `nimbalyst-local/tracker/*.md`. НЕ править вручную — правь карточки. Источник правды — карточки, это индекс (bootstrap).
 >
-> Собрана: 2026-10-23T12:10:10Z · сверка с карточками: `python3 scripts/build_tracker_board.py --check` (сторож `spa_core/tests/test_tracker_board_matches_cards.py`).
+> Собрана: 2026-10-23T22:49:20Z · сверка с карточками: `python3 scripts/build_tracker_board.py --check` (сторож `spa_core/tests/test_tracker_board_matches_cards.py`).
 >
-> Сверено с `origin/main` (3084bed65) · у **2** своя правка, кто новее — не измерено.
+> Сверено с `origin/main` (b5b7fdf7c) · у **1** своя правка, кто новее — не измерено.
 >
-> Всего карточек: **1437** · ждёт владельца: **27** · занято сессиями: **16**.
+> Всего карточек: **1441** · ждёт владельца: **27** · занято сессиями: **15**.
 
 ## 🔴 ЖДЁТ ВЛАДЕЛЬЦА (needs-owner)
 
@@ -56,7 +56,6 @@
 - **Прогон тестов переписывает СОРОК git-tracked файлов в data/ (карточка #225/#226 считает, что их три) — среди них журнал исполнения** — держит `cycle-352` · с 2026-08-23T03:25:59Z  ·  `inbox-progon-testov-perepisyvaet-sorok-otslezhivaemyh-failov-data.md`
 - **Производители устаревших чисел сайта: дата go-live из API, сверка NAV до цикла, протухшие артефакты, молчащие стражи сайта** — держит `pid20023` · с 2026-09-08T21:15:05Z  ·  `inbox-proizvoditeli-ustarevshih-chisel-saita-d.md`
 - **Сторож ответа владельца зовёт человека на не-спор: 1 и "1" — одно решение, а сравниваются байты** — держит `cycle-84821` · с 2026-08-30T00:50:53Z  ·  `inbox-storozh-otveta-vladeltsa-zovet-cheloveka.md`
-- **TASK — Portfolio CIO: Dynamic Capital Allocation & Rebalancing** — держит `cycle-85365` · с 2026-10-23T09:23:06Z  ·  `inbox-task-portfolio-cio-dynamic-capital-alloc.md`
 - **Замок цикла оркестратора доставлен, но в проде не работает: обёртка агента синкается раз в сутки, а голос о пропавшей защите живёт в самом пропавшем файле** — держит `cycle-81141` · с 2026-08-08T01:59:06Z  ·  `inbox-zamok-tsikla-orkestratora-dostavlen-no-v.md`
 
 ## 🧑‍⚖️ Owner Decisions (что нужно от владельца)  (370)
@@ -436,7 +435,7 @@
 ### · closed
 - Считать ли верный отказ по правилам допуска неисправностью флота  ·  `owner-decision-schitat-li-vernyi-otkaz-po-pravilam-dopu.md` · 2026-10-08
 
-## 📥 Inbox (задания: Telegram / заметки / голос)  (789)
+## 📥 Inbox (задания: Telegram / заметки / голос)  (793)
 
 ### · in-progress
 - а задача починить все-таки еще раз сообщение которым не пишет нужно твое решени…  ·  `inbox-a-zadacha-pochinit-vse-taki-esche-raz-so.md` · 2026-08-14 · 🔒 `pid43119`
@@ -462,7 +461,7 @@
 - Расширить опрашиваемый набор адаптеров шагами (второй шаг варианта A, после ADR-138)  ·  `inbox-rasshirit-oprashivaemyi-nabor-adapterov.md` · 2026-08-26
 - Сторож кнопок нарушает границу, которую сам объявил соблюдённой: метка-БУКВА принималась где угодно, и слово в прозе = «наш дефект разбора» с лекарством чинить НЕСУЩЕСТВУЮЩУЮ форму (перемер #484: ложная ОДНА из 21, не пять; п.1 исполнен)  ·  `inbox-storozh-knopok-narushaet-granitsu-kotoru.md` · 2026-09-04
 - Сторож переходов статусов ждёт первого улова: назвать немого писателя и встроить прогон в агента  ·  `inbox-storozh-perehodov-statusov-zhdet-pervogo.md` · 2026-08-09
-- TASK — Portfolio CIO: Dynamic Capital Allocation & Rebalancing  ·  `inbox-task-portfolio-cio-dynamic-capital-alloc.md` · 2026-08-13 · 🔒 `cycle-85365`
+- TASK — Portfolio CIO: Dynamic Capital Allocation & Rebalancing  ·  `inbox-task-portfolio-cio-dynamic-capital-alloc.md` · 2026-08-13
 - Tier-C: 171 из 180 модулей не отвечают, 9 отвечающих — константы. Подключить или честно списать  ·  `inbox-tier-c-171-iz-180-modulei-ne-otvechayut.md` · 2026-08-06
 - Целостность трека SPA: подключить сторож, пересчёт из сырых входов, commit-reveal книги (перенос из earn-defi)  ·  `inbox-tselostnost-treka-spa-podklyuchit-storoz.md` · 2026-09-08
 - Цена класса «две сессии на одном предмете»: G38 п. 3 лежит остатком пятьдесят заказов  ·  `inbox-tsena-klassa-dve-sessii-na-odnom-predmet.md` · 2026-09-28
@@ -791,6 +790,7 @@
 - Сторож очереди владельца верит прод-копии карточки: три карточки, ЗАКРЫТЫЕ на origin, предъявлены как поручение агенту и как живой вопрос владельцу  ·  `inbox-storozh-ocheredi-vladeltsa-verit-prod-ko.md` · 2026-09-03
 - Сторож ответа владельца не знает слова «расхождение уже разобрано» — кричит «нужен человек» на закрытом вопросе  ·  `inbox-storozh-otveta-vladeltsa-ne-znaet-slova.md` · 2026-08-29
 - Сторож приёмки карточек читает только своё дерево — в проде он видит 583 карточки из 865  ·  `inbox-storozh-priemki-kartochek-chitaet-tolko.md` · 2026-09-02
+- Сторож R&D-исключения упёрся в порог: любой новый edge-скрипт краснит main  ·  `inbox-storozh-r-d-isklyucheniya-upersya-v-poro.md` · 2026-10-02
 - Сторож расхождений судит по СТАРОМУ снимку постуры: кричит CRITICAL, когда офис уже YELLOW  ·  `inbox-storozh-rashozhdenii-sudit-po-staromu-sn.md` · 2026-08-12
 - Сторож «способен ли флот стартовать» никем не запускается — у deployment_acceptance нет ни расписания, ни артефакта  ·  `inbox-storozh-sposoben-li-flot-startovat-nikem.md` · 2026-08-29
 - Сторож тира судит ПОДСТРОКОЙ и потому красен на верном состоянии  ·  `inbox-storozh-tira-sudit-podstrokoi-i-krasen-n.md` · 2026-10-02
@@ -897,6 +897,7 @@
 - Живая копия карточки отстала от origin, а перезаписать её запрещено намеренно — вопрос владельцу остаётся без кнопок и лечить его нечем  ·  `inbox-zhivaya-kopiya-kartochki-otstala-ot-origin.md` · 2026-08-21
 - Живой вопрос владельцу существует в двух редакциях: пересмотр рекомендации до него не доехал, а звезда стоит на отменённом варианте  ·  `inbox-zhivoi-vopros-vladeltsu-suschestvuet-v-d.md` · 2026-08-31
 - Живость дневного цикла судится по файлу, которого нет в его объявленном контракте  ·  `inbox-zhivost-dnevnogo-tsikla-suditsya-po-chuzhomu-failu.md` · 2026-08-28
+- Живость мутационного прогона спрашивали у ПАДДИНГА колонки, и живой прогон объявили мёртвым — окно восстановили под работающим прибором  ·  `inbox-zhivost-mutacionnogo-progona-sprasivali.md` · 2026-10-22
 - Журнал объявлений мерит ЗАПУСКАТЕЛЯ: вторая и третья двери оси работника  ·  `inbox-zhurnal-obyavlenii-merit-zapuskatelya-vt.md` · 2026-10-14
 - Журнал решений: чинить писателя и читателя одним заходом (ответ владельца, вариант A)  ·  `inbox-zhurnal-reshenii-chinit-pisatelya-i-chit.md` · 2026-09-15
 - Журнал циклов молча теряет записи при конкурентной доставке — за неделю пропало 9 (восстановлены)  ·  `inbox-zhurnal-tsiklov-molcha-teryaet-zapisi-pr.md` · 2026-08-06
@@ -1072,6 +1073,7 @@
 - Перепись «куда смотрит git в shell-скрипте» красная на чистом origin/main (2 из 20)  ·  `inbox-perepis-kuda-smotrit-git-v-shell-skripte.md` · 2026-09-29
 - Перепись оси работника написана и не позвана: храповик сирот красен на чистой вершине  ·  `inbox-perepis-osi-rabotnika-napisana-i-ne-pozv.md` · 2026-10-15
 - Перепись падает KeyError, когда файл соседской переписи не разобран: третий исход назван, но читателю не даётся  ·  `inbox-perepis-padaet-keyerror-kogda-fail-sosed.md` · 2026-09-24
+- Перепись разборов ленты меряет цену РАЗБОРА, а бюджет объявлен о ЗОВЕ ВИДА — и по объявленному предмету он уже пробит  ·  `inbox-perepis-razborov-lenty-meryaet-tsenu-raz.md` · 2026-10-23
 - Перепись сирот считает ПРОЗУ в manifest.json проводкой — упоминание в notes выводит модуль из переписи  ·  `inbox-perepis-sirot-schitaet-prozu-v-manifest.md` · 2026-09-07
 - Перепись: сколько адаптеров путают мёртвый фид с верным отказом (остаток ADR-671)  ·  `inbox-perepis-skolko-adapterov-putayut-mertvyi.md` · 2026-10-08
 - Перепись вердиктов по коду выхода красна на origin/main: у агента com.spa.mission_tick нет обёртки, и сайт остаётся неразобранным  ·  `inbox-perepis-verdiktov-po-kodu-vyhoda-krasna.md` · 2026-10-08
@@ -1133,6 +1135,7 @@
 - Реинвестировать начисленное: буфер и размещение от текущего equity, знаменатель потолков сделать ОБЩИМ  ·  `inbox-reinvestirovat-nachislennoe-bufer-i-razm.md` · 2026-09-09
 - Ремонт карточек-фантомов применяется наполовину: запрет на закрытие решения срабатывает после записи  ·  `inbox-remont-kartochek-fantomov-primenyaetsya.md` · 2026-10-18
 - РЕШЕНИЕ АГЕНТА (не вопрос владельцу): верный отказ по правилам допуска перестаёт быть неисправностью флота — исполнить  ·  `inbox-reshenie-politicheskii-otkaz-ne-neispravnost.md` · 2026-10-08
+- Рост ленты лечится только строкой УПЛОТНЕНИЯ — накапливающие списки причин переснять нельзя  ·  `inbox-rost-lenty-lechitsya-tolko-strokoi-uplot.md` · 2026-10-23
 - scripts/system_health_check.py заменён монитором два месяца назад, но остался в дереве  ·  `inbox-scripts-system-health-check-py-zamenen-m.md` · 2026-08-25
 - Семь мутационных подмен в батареях не спрашивают, применились ли они  ·  `inbox-sem-mutatsionnyh-podmen-v-batareyah-ne-s.md` · 2026-10-04
 - Семь скриптов, вскрытых строгим сканером: разобрать поштучно (подключить / списать / вывести класс правилом)  ·  `inbox-sem-skriptov-vskrytyh-strogim-skanerom-r.md` · 2026-08-16
@@ -1159,6 +1162,7 @@
 - Снять переходное послабление маячка: решения обязаны гейтиться СВОИМ умением  ·  `inbox-snyat-perehodnoe-poslablenie-mayachka-re.md` · 2026-08-17
 - Собрать дерево-приёмки §49 «Portfolio CIO» — только для чтения (решение владельца, вариант 1)  ·  `inbox-sobrat-derevo-priemki-49-portfolio-cio-t.md` · 2026-09-29
 - §6.4 закрывает ту самую карточку, которую вердикт истории велел взять в работу: 12 из 34 закрытий 31.08  ·  `inbox-sobytiinyi-inteik-proshel-po-staromu-bek.md` · 2026-09-03
+- Состав ступени моста разошёлся с объявлением CENSUS_STAGE: сторож красен на чистой вершине и перестал быть сигналом  ·  `inbox-sostav-stupeni-mosta-razoshelsya-s-obyav.md` · 2026-10-23
 - Список шагов CI выведен через ШЕСТЬ литеральных пробелов — сдвинется отступ, проверка замолчит  ·  `inbox-spisok-shagov-ci-vyveden-cherez-shest-li.md` · 2026-09-11
 - Спор об ответе владельца НЕ разрешается уборкой: старую сторону держат чужие живые деревья, а у сторожа нет слова «вытеснено ПОЗЖЕ»  ·  `inbox-spor-ob-otvete-vladeltsa-ne-razreshaetsy.md` · 2026-08-31
 - Срок годности четырёх отчётов короче такта агента, который их пишет — порог перестал отличать поломку от нормы  ·  `inbox-srok-godnosti-chetyreh-otchetov-koroche.md` · 2026-09-29
@@ -1175,7 +1179,6 @@
 - Сторож ответа владельца зовёт человека на не-спор: 1 и "1" — одно решение, а сравниваются байты  ·  `inbox-storozh-otveta-vladeltsa-zovet-cheloveka.md` · 2026-08-30 · 🔒 `cycle-84821`
 - Сторож параллельных прогонов кричит «СТОЛКНОВЕНИЕ» на ОДИН правильный прогон: обёртка и её же дочерний pytest считаются двумя  ·  `inbox-storozh-parallelnyh-progonov-krichit-sto.md` · 2026-08-30
 - Сторож публичной цепи ПОДСТАВЛЯЕТ фикстуру вместо настоящего журнала — оба исхода passed  ·  `inbox-storozh-publichnoi-tsepi-podstavlyaet-fi.md` · 2026-09-19
-- Сторож R&D-исключения упёрся в порог: любой новый edge-скрипт краснит main  ·  `inbox-storozh-r-d-isklyucheniya-upersya-v-poro.md` · 2026-10-02
 - Сторож срока годности: сцена кладёт 40 прогонов, а прибор видит «такт не наблюдён» — красный тест, не наш  ·  `inbox-storozh-sroka-godnosti-stsena-kladet-40.md` · 2026-10-12
 - Сторож столкновений прогонов опознаёт pytest ПОДСТРОКОЙ — ложный красный на гейте приёмки  ·  `inbox-storozh-stolknovenii-progonov-opoznaet-p.md` · 2026-10-06
 - Сторож сторожа краснеет на чистом origin — путь в вердикте стал абсолютным, а утверждение ждёт относительный  ·  `inbox-storozh-storozha-krasneet-na-chistom-ori.md` · 2026-10-16

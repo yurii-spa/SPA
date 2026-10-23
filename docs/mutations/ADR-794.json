@@ -1,0 +1,159 @@
+{
+ "title": "ADR-794 — дельта цикла #916: прибор мерит ЦЕНУ ПЕРЕСЪЁМКИ описания и проверяет, что лекарство не портит ответ; плюс адресация списков без личности переведена на мультимножество. Каждая мутация возвращает одно из состояний, в которых цена, окно или нейтральность снова были бы выдуманы, завышены или подменены молчанием",
+ "tests": [
+  "spa_core/tests/test_ledger_resnapshot_price_census.py",
+  "spa_core/tests/test_ledger_window_dependency_census.py"
+ ],
+ "mutations": [
+  {
+   "name": "адресация без личности снова ПО МЕСТУ — перестановка списка выдаётся за изменение ответа (9 ложных листьев stale_feeds)",
+   "file": "spa_core/monitoring/ledger_window_dependency_census.py",
+   "old": "            identity = _identity_of(value)\n            if identity is not None:\n                item = identity\n            elif ranked:\n                item = f\"#{index}\"\n            else:\n                token = _content_token(value)\n                repeat = seen.get(token, 0)\n                seen[token] = repeat + 1\n                item = f\"={token}#{repeat}\"\n",
+   "new": "            item = _item_key(value, index)\n"
+  },
+  {
+   "name": "номер повтора снят — девять копий причины снова схлопываются в один лист, и повтор истории выглядит нейтральным",
+   "file": "spa_core/monitoring/ledger_window_dependency_census.py",
+   "old": "                token = _content_token(value)\n                repeat = seen.get(token, 0)\n                seen[token] = repeat + 1\n                item = f\"={token}#{repeat}\"",
+   "new": "                token = _content_token(value)\n                item = f\"={token}\""
+  },
+  {
+   "name": "строка снова сходит за личность — список строк адресуется содержимым без номера повтора",
+   "file": "spa_core/monitoring/ledger_window_dependency_census.py",
+   "old": "    if isinstance(value, dict):\n        for key in ID_KEYS:\n            if isinstance(value.get(key), (str, int)) and not isinstance(value.get(key), bool):\n                return f\"{key}={value[key]}\"\n    return None",
+   "new": "    if isinstance(value, dict):\n        for key in ID_KEYS:\n            if isinstance(value.get(key), (str, int)) and not isinstance(value.get(key), bool):\n                return f\"{key}={value[key]}\"\n    if isinstance(value, str):\n        return f\"={value}\"\n    return None"
+  },
+  {
+   "name": "ранжированный список переводится на мультимножество — смена рангов top_blockers становится невидимой",
+   "file": "spa_core/monitoring/ledger_window_dependency_census.py",
+   "old": "RANKED_LISTS = frozenset({\n    \"latest.sherlock.top_blockers\",\n})",
+   "new": "RANKED_LISTS = frozenset()"
+  },
+  {
+   "name": "сторож необъявленного списка молчит — природа списка достаётся умолчанием, а не замером",
+   "file": "spa_core/monitoring/ledger_window_dependency_census.py",
+   "old": "        if (undeclared is not None and not ranked and where not in ORDER_FREE_LISTS\n                and any(isinstance(value, dict) and _identity_of(value) is None\n                        for value in obj)):\n            undeclared.add(where)",
+   "new": "        if False:\n            undeclared.add(where)"
+  },
+  {
+   "name": "необъявленный список перестаёт быть отказом — прибор мерит собственную адресацию и зовёт это замером",
+   "file": "spa_core/monitoring/ledger_window_dependency_census.py",
+   "old": "        if undeclared:\n            #: Список без личности и без объявленной природы адресуется ПО МЕСТУ,",
+   "new": "        if False:\n            #: Список без личности и без объявленной природы адресуется ПО МЕСТУ,"
+  },
+  {
+   "name": "контроль нейтральности снят — рецепт, портящий ответ, становится рекомендацией",
+   "file": "spa_core/monitoring/ledger_resnapshot_price_census.py",
+   "old": "                neutral = not drifted",
+   "new": "                neutral = True"
+  },
+  {
+   "name": "ненейтральный рецепт перестаёт быть находкой — сдвиг ответа доезжает молча",
+   "file": "spa_core/monitoring/ledger_resnapshot_price_census.py",
+   "old": "            if neutral is False:",
+   "new": "            if False:"
+  },
+  {
+   "name": "ненейтральный рецепт допускается в рекомендацию — «самый дешёвый» выбирается среди портящих ответ",
+   "file": "spa_core/monitoring/ledger_resnapshot_price_census.py",
+   "old": "                   and row.get(\"answer_neutral\") is not False]",
+   "new": "                   ]"
+  },
+  {
+   "name": "листья цепи не вычитаются из сдвига — ЛЮБОЙ рецепт объявляется ненейтральным, потому что цепь другая по построению",
+   "file": "spa_core/monitoring/ledger_resnapshot_price_census.py",
+   "old": "                    if path not in lwd.CHAIN_IDENTITY_LEAVES\n                    and live_answer.get(path) != scene_answer.get(path))",
+   "new": "                    if live_answer.get(path) != scene_answer.get(path))"
+  },
+  {
+   "name": "положительный контроль сцены снят — числа чужой ленты выдаются за измеренные",
+   "file": "spa_core/monitoring/ledger_resnapshot_price_census.py",
+   "old": "        if head != entries[-1].get(\"entry_hash\"):",
+   "new": "        if False:"
+  },
+  {
+   "name": "нулевой рецепт с окном перестаёт быть находкой — разница рецептов меряет не лекарство, и об этом молчат",
+   "file": "spa_core/monitoring/ledger_resnapshot_price_census.py",
+   "old": "        if zero is not None and zero.get(\"safe_window_days\") is not None:",
+   "new": "        if False:"
+  },
+  {
+   "name": "«ни один рецепт не открыл окна» перестаёт быть находкой — отчёт выглядит чистым",
+   "file": "spa_core/monitoring/ledger_resnapshot_price_census.py",
+   "old": "        if not openers:",
+   "new": "        if False:"
+  },
+  {
+   "name": "сетка пересъёмки начинается с k=0 — свежайшее описание садится ровно на горизонт, и окно открывается само",
+   "file": "spa_core/monitoring/ledger_resnapshot_price_census.py",
+   "old": "    step = 1\n    while True:\n        moment = horizon - dt.timedelta(days=cadence_days * step)",
+   "new": "    step = 0\n    while True:\n        moment = horizon - dt.timedelta(days=cadence_days * step)"
+  },
+  {
+   "name": "вставка садится ПЕРЕД живой записью того же мгновения — последняя строка кандидата подменяется",
+   "file": "spa_core/monitoring/ledger_resnapshot_price_census.py",
+   "old": "        + [(lwd._parse_at(entry[\"at\"]), 10 ** 9 + index, entry)\n           for index, entry in enumerate(injected)],",
+   "new": "        + [(lwd._parse_at(entry[\"at\"]), -1 - index, entry)\n           for index, entry in enumerate(injected)],"
+  },
+  {
+   "name": "переснимаются и МЁРТВЫЕ кандидаты — цена завышается на тех, кого в ответе нет",
+   "file": "spa_core/monitoring/ledger_resnapshot_price_census.py",
+   "old": "        if cid is None or cid not in live:\n            continue",
+   "new": "        if cid is None:\n            continue"
+  },
+  {
+   "name": "у вида `all_kinds` берётся только свежайшая строка — история переходов уходит, а цена падает",
+   "file": "spa_core/monitoring/ledger_resnapshot_price_census.py",
+   "old": "        if kind in recipe.all_kinds:\n            every.append(entry)",
+   "new": "        if kind in recipe.all_kinds:\n            pass"
+  },
+  {
+   "name": "неразобранная отметка перестаёт быть отказом — на какую сетку садится пересъёмка, прибор угадывает",
+   "file": "spa_core/monitoring/ledger_resnapshot_price_census.py",
+   "old": "    if unparsed:\n        return _unmeasured(",
+   "new": "    if False:\n        return _unmeasured("
+  },
+  {
+   "name": "темп роста ленты при нехватке охвата отдаётся НУЛЁМ вместо «не измерено»",
+   "file": "spa_core/monitoring/ledger_resnapshot_price_census.py",
+   "old": "    if stamps and stamps[0] > edge:\n        return None",
+   "new": "    if stamps and stamps[0] > edge:\n        return 0.0"
+  },
+  {
+   "name": "размер устаканивания подставляется при ОТСУТСТВИИ окна — «не измерено» становится числом",
+   "file": "spa_core/monitoring/ledger_resnapshot_price_census.py",
+   "old": "            if safe is not None:\n                edge = horizon - dt.timedelta(days=int(safe))",
+   "new": "            if True:\n                edge = horizon - dt.timedelta(days=int(safe or 1))"
+  },
+  {
+   "name": "неизвестное имя рецепта перестаёт быть отказом — набор молча становится полным",
+   "file": "spa_core/monitoring/ledger_resnapshot_price_census.py",
+   "old": "        if missing:\n            print(\"НЕ ИЗМЕРЕНО: рецепты не объявлены: \" + \", \".join(missing)",
+   "new": "        if False:\n            print(\"НЕ ИЗМЕРЕНО: рецепты не объявлены: \" + \", \".join(missing)"
+  },
+  {
+   "name": "такт перестаёт решать ФАЙЛ — артефакт переписывается каждым прогоном моста",
+   "file": "spa_core/monitoring/ledger_resnapshot_price_census.py",
+   "old": "        due, why = measurement_due(target, now=now, tact_days=tact_days)\n        if not due:",
+   "new": "        due, why = measurement_due(target, now=now, tact_days=tact_days)\n        if False:"
+  },
+  {
+   "name": "лента короче лестницы перестаёт быть отказом — цена сравнивается с пустотой",
+   "file": "spa_core/monitoring/ledger_resnapshot_price_census.py",
+   "old": "    if not ladder:\n        return _unmeasured(",
+   "new": "    if False:\n        return _unmeasured("
+  },
+  {
+   "name": "отказ читающей модели на сцене рецепта проглатывается — строка выпадает, а отчёт выглядит полным",
+   "file": "spa_core/monitoring/ledger_resnapshot_price_census.py",
+   "old": "                    rows.append(_row_unmeasured(\n                        recipe, f\"читающая модель не ответила на сцене рецепта \"\n                                f\"({type(exc).__name__}): {exc}\",\n                        injected_entries=injected))",
+   "new": "                    pass"
+  },
+  {
+   "name": "необъявленный список перестаёт быть отказом У НОВОГО прибора — цена считается по ответу, адресацию которого прибор не знает",
+   "file": "spa_core/monitoring/ledger_resnapshot_price_census.py",
+   "old": "        if undeclared:\n            return _unmeasured(\n                \"в ответе есть списки без объявленной природы: \"",
+   "new": "        if False:\n            return _unmeasured(\n                \"в ответе есть списки без объявленной природы: \""
+  }
+ ]
+}

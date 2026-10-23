@@ -175,6 +175,13 @@ PRODUCES = (
     # ФАЙЛ (`ledger_window_dependency_census.run` → `measurement_due`), SLO 192ч —
     # тот же довод, что у соседей.
     "data/ledger_window_dependency.json",
+    # Заказ G793 п. 1 (ADR-794). ТРЕТЬЕ плечо того же предмета: сосед выше
+    # закрыл усечение по возрасту как лекарство и НАЗВАЛ следующее —
+    # «переснимать описание». Цена этого лекарства и окно, которое оно
+    # открывает, не измерялись ни разу. Прибор мерит: сколько байт в сутки
+    # добавит пересъёмка и какое окно откроется — СВОИМ ЖЕ числом соседа.
+    # Такт недельный и решает его ФАЙЛ, SLO 192ч — тот же довод.
+    "data/ledger_resnapshot_price.json",
     # Заказ G97 п. 3 (ADR-562). ТРЕТЬЕ плечо того же семейства «часы как вход»:
     # сосед выше спрашивает, закрывается ли дверь читателя пином, а этот — ПРАВДА
     # ЛИ ВОЗРАСТ артефакта, то есть доходит ли инъектированный `now` до САМОЙ
@@ -522,6 +529,7 @@ CENSUS_STAGE: tuple[str, ...] = (
     "python_reader_clock_doors",
     "ledger_parse_census",
     "ledger_window_dependency_census",
+    "ledger_resnapshot_price_census",
     "artifact_stamp_clock_doors",
     "tact_gate_census",
     "rule_second_copy_census",
@@ -791,6 +799,9 @@ CENSUS_PRODUCT: dict[str, dict[str, str]] = {
     "ledger_window_dependency_census": {
         "module": "spa_core/monitoring/ledger_window_dependency_census.py",
         "artifact": "data/ledger_window_dependency.json"},
+    "ledger_resnapshot_price_census": {
+        "module": "spa_core/monitoring/ledger_resnapshot_price_census.py",
+        "artifact": "data/ledger_resnapshot_price.json"},
     "artifact_stamp_clock_doors": {
         "module": "spa_core/monitoring/artifact_stamp_clock_doors.py",
         "artifact": "data/artifact_stamp_clock_doors.json"},
@@ -3042,6 +3053,54 @@ def main(argv=None) -> int:
                   f"{_lwd_res.get('reason')}")
     except Exception as e:  # noqa: BLE001 — перепись не смеет валить мост
         census_skipped(_skipped, "ledger_window_dependency_census", e)
+    # Перепись ЦЕНЫ ПЕРЕСЪЁМКИ описания (G793 п. 1, ADR-794). Сосед выше
+    # закрывает усечение по возрасту и называет следующее лекарство; эта
+    # называет его ЦЕНУ — сколько байт в сутки добавит периодическая пересъёмка
+    # и какое безопасное окно она откроет. Ступень ДОРОЖЕ соседней (полная
+    # лестница окон на КАЖДЫЙ рецепт), поэтому такт тот же недельный и срок
+    # решает ФАЙЛ. «Внутри такта» и «измерено» — РАЗНЫЕ исходы.
+    try:
+        from spa_core.monitoring import ledger_resnapshot_price_census as _rpc
+        _rpc_res = _rpc.run(root=args.root, if_due=True)
+        if _rpc_res.get("measured"):
+            _rdoc = _rpc_res["doc"]
+            if not _rdoc.get("measured"):
+                print("ledger_resnapshot_price_census: НЕ ИЗМЕРЕНО — "
+                      f"{_rdoc.get('reason')}")
+            else:
+                #: У «самого дешёвого рецепта» ТРИ исхода, и `observed()` их
+                #: схлопнул бы: `None` здесь значит «не открыл НИ ОДИН», то есть
+                #: ИЗМЕРЕННОЕ утверждение, а отсутствие ключа — что прибор о
+                #: рецептах не сказал вовсе (инв. #17).
+                if "cheapest_opener" not in _rdoc:
+                    _cure = "НЕ ИЗМЕРЕНО — прибор не назвал рецептов вовсе"
+                elif _rdoc["cheapest_opener"] is None:
+                    _cure = "НИ ОДИН объявленный рецепт не открыл окна"
+                else:
+                    _cure = (f"«{_rdoc['cheapest_opener']}» за "
+                             f"+{_rdoc.get('cheapest_added_mb_per_day')} МБ/сут "
+                             f"открывает окно "
+                             f"{_rdoc.get('cheapest_safe_window_days')} сут "
+                             f"(лента устаканится на "
+                             f"{_rdoc.get('cheapest_steady_state_mb')} МБ)")
+                _rled = _rdoc.get("ledger") or {}
+                _growth = _rled.get("observed_growth_mb_per_day")
+                print(f"ledger_resnapshot_price_census: {_rdoc.get('status')} — "
+                      f"{_cure}; наблюдённый рост ленты "
+                      + ("НЕ ИЗМЕРЕН" if _growth is None else f"{_growth} МБ/сут")
+                      + f" (лента {_rled.get('entries')} зап., охват "
+                        f"{_rled.get('span_days')} сут)")
+                for _rrow in _rdoc.get("rows") or []:
+                    if not _rrow.get("measured"):
+                        print(f"   {_rrow.get('recipe')}: НЕ ИЗМЕРЕНО — "
+                              f"{str(_rrow.get('reason'))[:120]}")
+                for _rfind in (_rdoc.get("findings") or [])[:3]:
+                    print(f"   🔴 [{_rfind.get('kind')}] {str(_rfind.get('text'))[:160]}")
+        else:
+            print(f"ledger_resnapshot_price_census: внутри такта — "
+                  f"{_rpc_res.get('reason')}")
+    except Exception as e:  # noqa: BLE001 — перепись не смеет валить мост
+        census_skipped(_skipped, "ledger_resnapshot_price_census", e)
     # Перепись «зелёный по построению» (G92 п. 2, ADR-543): тесты, чей зелёный
     # не зависит НИ ОТ ОДНОГО решения прибора, который они проверяют. Ступень
     # ПОВЕДЕНЧЕСКАЯ (настоящие прогоны pytest на одноразовых копиях), поэтому

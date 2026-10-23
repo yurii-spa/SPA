@@ -65,6 +65,7 @@ from __future__ import annotations
 import argparse
 import datetime as dt
 import json
+import re
 
 import shutil
 import tempfile
@@ -109,6 +110,40 @@ CHAIN_IDENTITY_LEAVES = (
 
 #: Поля, по которым элемент списка опознаётся как ОДИН И ТОТ ЖЕ в двух ответах.
 ID_KEYS = ("candidate_id", "id", "key", "cid", "name", "exposure_key", "seq")
+
+#: Списки ответа, элементы которых НЕ НЕСУТ ни одного поля из :data:`ID_KEYS`.
+#:
+#: Первая редакция прибора (ADR-793) перевела на ЛИЧНОСТЬ те списки, у которых
+#: личность есть, и МОЛЧА оставила остальным адресацию по месту — то есть ровно
+#: тот дефект, против которого была написана, только в списках поменьше. Замер
+#: 2026-10-23 назвал население точно: из 7 674 элементов ответа по месту
+#: адресуются **14** в ДВУХ списках, и природа у них РАЗНАЯ, поэтому одного
+#: лекарства на оба нет.
+#:
+#: ``latest.stale_feeds`` — ``{source_root, age_h}`` без личности вовсе
+#: (``defillama:yields`` повторяется девять раз), а порядок берётся из порядка
+#: обхода кандидатов. Усечение ленты меняет порядок первого появления, и прибор
+#: докладывал **9 изменившихся листьев там, где множество пар совпадает
+#: ПОЛНОСТЬЮ** (замер на сцене с пересъёмкой: ``множества равны: True ·
+#: порядок равен: False``). Такой список адресуется как МУЛЬТИМНОЖЕСТВО — это
+#: УМОЛЧАНИЕ прибора, и объявление здесь существует не ради поведения, а ради
+#: того, чтобы природа списка была ЗАМЕРЕНА и названа, а не досталась молча.
+ORDER_FREE_LISTS = frozenset({
+    "latest.stale_feeds",
+})
+
+#: ``latest.sherlock.top_blockers`` — ``sorted(..., key=(-count, gate))[:5]``:
+#: место в списке ЕСТЬ ранг, то есть часть ответа. Здесь адресация по месту
+#: ВЕРНА, и перевод на мультимножество спрятал бы настоящую смену рангов.
+#: Объявление существует ради того, чтобы это был ЗАМЕР, а не умолчание.
+RANKED_LISTS = frozenset({
+    "latest.sherlock.top_blockers",
+})
+
+
+def generic_path(path: str) -> str:
+    """Путь с обезличенными индексами: ``a[id=7].b`` → ``a[*].b``."""
+    return re.sub(r"\[[^\]]*\]", "[*]", path)
 
 _CANDIDATE_PREFIX = "latest.candidates[candidate_id="
 
@@ -184,37 +219,86 @@ def rechain(entries: Sequence[dict], data_dir: Path) -> str:
 # ── ответ читающей модели ────────────────────────────────────────────────────────
 
 
-def _item_key(value, index: int) -> str:
+def _identity_of(value) -> Optional[str]:
+    """Личность элемента списка или ``None``, если её НЕТ (а не «есть пустая»).
+
+    Строка личностью НЕ является. Так было до цикла #916, и именно этим
+    «ответ НЕ ТРОНУТ» оказался неправдой: одинаковые строки списка получали
+    ОДИН путь и схлопывались в один лист, поэтому список, выросший с одной
+    копии причины до девяти, выглядел неизменившимся (замер 23.10 на живой
+    ленте: 4 554 расхождения, которых прибор не видел вовсе).
+    """
     if isinstance(value, dict):
         for key in ID_KEYS:
             if isinstance(value.get(key), (str, int)) and not isinstance(value.get(key), bool):
                 return f"{key}={value[key]}"
-    if isinstance(value, str):
-        return f"={value}"
-    return f"#{index}"
+    return None
 
 
-def leaves(obj, prefix: str = "", out: Optional[Dict[str, str]] = None) -> Dict[str, str]:
-    """Словарь → ``путь → значение``. Элементы списков адресуются по ЛИЧНОСТИ."""
+def _item_key(value, index: int) -> str:
+    identity = _identity_of(value)
+    return identity if identity is not None else f"#{index}"
+
+
+def _content_token(value) -> str:
+    """Канонический слепок значения — личность элемента в МУЛЬТИМНОЖЕСТВЕ."""
+    return json.dumps(value, sort_keys=True, ensure_ascii=False,
+                      separators=(",", ":"))
+
+
+def leaves(obj, prefix: str = "", out: Optional[Dict[str, str]] = None,
+           undeclared: Optional[Set[str]] = None) -> Dict[str, str]:
+    """Словарь → ``путь → значение``. Элементы списков адресуются по ЛИЧНОСТИ.
+
+    Личности нет ⇒ элемент адресуется МУЛЬТИМНОЖЕСТВЕННО: канонический слепок
+    содержимого плюс НОМЕР ПОВТОРА. Перестановка при этом невидима (её в ответе
+    и нет — порядок обхода кандидатов не есть утверждение), а появление второй
+    копии видно, потому что вторая копия получает свой номер.
+
+    Исключение одно и ОБЪЯВЛЕНО: :data:`RANKED_LISTS` — там место ЕСТЬ ранг.
+    Список словарей БЕЗ личности, не объявленный ни в :data:`ORDER_FREE_LISTS`,
+    ни в :data:`RANKED_LISTS`, кладётся в ``undeclared``, и вызывающий обязан
+    ответить НЕ ИЗМЕРЕНО: выбор природы — замер, а не умолчание.
+    """
     if out is None:
         out = {}
     if isinstance(obj, dict):
         for key in obj:
-            leaves(obj[key], f"{prefix}.{key!s}" if prefix else str(key), out)
+            leaves(obj[key], f"{prefix}.{key!s}" if prefix else str(key), out,
+                   undeclared)
     elif isinstance(obj, list):
+        where = generic_path(prefix)
+        ranked = where in RANKED_LISTS
+        if (undeclared is not None and not ranked and where not in ORDER_FREE_LISTS
+                and any(isinstance(value, dict) and _identity_of(value) is None
+                        for value in obj)):
+            undeclared.add(where)
+        seen: Dict[str, int] = {}
         for index, value in enumerate(obj):
-            leaves(value, f"{prefix}[{_item_key(value, index)}]", out)
+            identity = _identity_of(value)
+            if identity is not None:
+                item = identity
+            elif ranked:
+                item = f"#{index}"
+            else:
+                token = _content_token(value)
+                repeat = seen.get(token, 0)
+                seen[token] = repeat + 1
+                item = f"={token}#{repeat}"
+            leaves(value, f"{prefix}[{item}]", out, undeclared)
     else:
         out[prefix] = repr(obj)
     return out
 
 
-def answer_leaves(data_dir: Path, now: dt.datetime) -> Dict[str, str]:
+def answer_leaves(data_dir: Path, now: dt.datetime,
+                  undeclared: Optional[Set[str]] = None) -> Dict[str, str]:
     """Оба публичных входа читающей модели, разложенные в листья."""
     from spa_core.research_factory import read as rf_read  # noqa: PLC0415
 
     return leaves({"latest": rf_read.latest(Path(data_dir)),
-                   "cio_view": rf_read.cio_view(Path(data_dir), now)})
+                   "cio_view": rf_read.cio_view(Path(data_dir), now)},
+                  undeclared=undeclared)
 
 
 def candidate_ids(answer: Dict[str, str]) -> Set[str]:
@@ -321,11 +405,23 @@ def measure(data_dir: Path, *, now: Optional[dt.datetime] = None,
                 "пересборка полной цепи НЕ воспроизводит вершину живой ленты "
                 f"({head} против {live_head}) — сцена есть другая лента, и ни одно "
                 "число прибора не относится к измеряемой", now=moment)
+        undeclared: Set[str] = set()
         try:
-            base_answer = answer_leaves(base_dir, moment)
+            base_answer = answer_leaves(base_dir, moment, undeclared=undeclared)
         except Exception as exc:  # noqa: BLE001 — любой отказ модели = НЕ ИЗМЕРЕНО
             return _unmeasured(f"читающая модель не ответила на ПОЛНОЙ ленте "
                                f"({type(exc).__name__}): {exc}", now=moment)
+        if undeclared:
+            #: Список без личности и без объявленной природы адресуется ПО МЕСТУ,
+            #: а место в ответе читающей модели двигает САМО усечение — прибор
+            #: мерил бы собственную адресацию (замер: 9 «изменившихся» листьев
+            #: при полностью совпадающем множестве пар).
+            return _unmeasured(
+                "в ответе есть списки без личности, природа которых НЕ ОБЪЯВЛЕНА: "
+                + ", ".join(sorted(undeclared))
+                + " — объявить их в ORDER_FREE_LISTS (порядок не часть ответа) "
+                  "или в RANKED_LISTS (место есть ранг); до этого прибор мерил бы "
+                  "собственную адресацию", now=moment)
         absent = [leaf for leaf in CHAIN_IDENTITY_LEAVES if leaf not in base_answer]
         if absent:
             return _unmeasured(
