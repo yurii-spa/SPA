@@ -337,6 +337,45 @@ class HashLedger:
             return list(out)
         return self._parse(path)
 
+    def _seed_read_cache(self, path: Path, entries: List[dict], ident: Optional[tuple]) -> bool:
+        """Отдать ОБЛАСТНОМУ кэшу чтения (ADR-777) записи, которые :meth:`verify` ТОЛЬКО ЧТО
+        разобрал с диска. Возвращает, состоялся ли посев, — чтобы исход был наблюдаем тестом,
+        а не выводился из текста (ADR-787, цикл #908).
+
+        Зачем (ЗАМЕР, а не рассуждение). Один зов читающего вида
+        ``research_factory.read.latest()`` на живой ленте 69 101 205 Б разбирал файл ДВАЖДЫ:
+        свежий ``verify()`` (он кэшу не доверяет НИКОГДА — N3) и ещё один разбор, который
+        делят все помощники вида. Замер 2026-10-22 на живом ``data/``: оба разбора видели
+        ОДНУ И ТУ ЖЕ личность файла ``(dev, inode, size, mtime_ns)`` ⇒ второй читал те же
+        байты и был избыточен ПО ЗАМЕРУ. Цена этой избыточности названа прибором
+        ``ledger_parse_census``: при темпе 3.599 МБ/сутки бюджет 1.00 с на зов вида
+        проходится через ~13 суток, и вернуть запас можно ровно тремя путями — меньше
+        разборов, меньше лента, больше бюджет (заказ G784). Это первый из них.
+
+        Что НЕ меняется и почему посев не ослабляет N3. :meth:`verify` по-прежнему разбирает
+        файл САМ и из кэша не отвечает никогда — меняется только направление: раньше он
+        выбрасывал разобранное, теперь отдаёт. Байты, попадающие в кэш, строго СВЕЖЕЕ тех,
+        что положил бы туда обычный читатель следом, и они только что прошли проверку цепи.
+
+        Три условия посева, и каждое — не осторожность, а необходимость:
+
+        * **область открыта** (``_READ_CACHE_ENABLED``). Вне области кэша нет вовсе, и посев
+          пережил бы читающую секцию — ровно свойство вечного флага, снятого ADR-777.
+        * **писателю не доверено** (``not self._trusted``). У доверенного писателя своя
+          память (``self._cache``), и класть мимо неё значило бы завести вторую копию.
+        * **личность файла не изменилась, пока шли разбор и обход** — перепроверяется
+          ПОСЛЕ, тем же сравнением, что у :meth:`_read_all_from_disk`. Чужая дописка внутри
+          нашего разбора делает посев ложью о содержимом файла, и тогда его просто нет:
+          следующий читатель разберёт сам. Это третий исход (посева не было), а не тихий
+          успех.
+        """
+        if not _READ_CACHE_ENABLED or self._trusted or ident is None:
+            return False
+        if _file_identity(path) != ident:   # файл сменился, пока мы читали и обходили
+            return False
+        _READ_CACHE[str(path)] = (ident, [_freeze(e) for e in entries])
+        return True
+
     @staticmethod
     def _parse(path: Path) -> List[dict]:
         out: List[dict] = []
@@ -462,8 +501,16 @@ class HashLedger:
         cache populated before an OUTSIDE writer's perfectly legitimate append would otherwise
         see fewer entries than the (also fresh) anchors file now has, and report a false
         ``ledger_truncated`` break on a ledger that is actually fine. The opt-in stat-keyed read
-        cache (ADR-763) is bypassed here too: verify parses the file itself, always."""
+        cache (ADR-763) is bypassed here too: verify parses the file itself, always.
+
+        ADR-787 (cycle #908) changed the direction of that traffic and nothing else: a verify
+        that came back OK now HANDS its freshly parsed entries to the scoped read cache
+        (:meth:`_seed_read_cache`), so the helpers that run right after it inside the same
+        ``read_cache()`` scope do not parse the same unchanged bytes a second time. Reading
+        FROM the cache here is still never done — that is the property N3 names, and it is
+        untouched."""
         path = self.ledger_path()
+        ident_before = _file_identity(path)
         entries = self._parse(path) if path.exists() else []
         anchors = self.read_anchors()
         seqs = [a.get("seq") for a in anchors]
@@ -490,6 +537,10 @@ class HashLedger:
         beyond = [q for q in seqs if isinstance(q, int) and q > len(entries)]
         if beyond:
             return {"ok": False, "break_at": min(beyond), "entries": len(entries), "reason": "ledger_truncated"}
+        # Цепь сошлась — и ровно здесь разобранное ещё в руках. Посев только на ИСПРАВНОЙ
+        # ленте: «повод не верить кэшу есть повод не верить последнему verify»
+        # (:meth:`invalidate_cache`), и порванная лента — именно такой повод.
+        self._seed_read_cache(path, entries, ident_before)
         return {"ok": True, "break_at": None, "entries": len(entries), "reason": None}
 
     # ── write ────────────────────────────────────────────────────────────────────────────────

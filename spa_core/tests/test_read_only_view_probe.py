@@ -33,9 +33,18 @@ def test_the_probe_is_registered_under_its_declared_name():
 
 
 def test_green_on_the_whole_circuit():
+    """Число в отчёте пробы — ОДИН разбор за зов (ADR-787, цикл #908): было два, и прежняя
+    редакция ждала здесь «2 раз». Храповик ЗАТЯНУТ, а не ослаблен — прежнее поведение теперь
+    красит пробу; почему это стало возможно без снятия проверок, меряет батарея
+    `test_verify_seeds_the_read_cache.py`.
+
+    Искомое — «1 раз(а)» со скобкой, а не «1 раз»: в той же строке стои́т «из 2 объявленных
+    точек входа», и короткий образец совпал бы с ЧИСЛОМ ТОЧЕК. Прежняя редакция ровно так и
+    совпадала двумя способами сразу, и это было видно только после смены числа.
+    """
     state, why = _probe()
     assert state == ca.SATISFIED, why
-    assert "2 раз" in why and "кэш" in why
+    assert "1 раз(а)" in why and "кэш" in why
 
 
 def test_red_when_the_scope_is_removed_from_the_read_model(monkeypatch):

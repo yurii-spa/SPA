@@ -128,15 +128,23 @@ research_factory.read.latest``. Это ровно класс ADR-777 («лека
 **Причина одна: у ленты ВТОРОЙ вид, и население членов его не знает.** Член объявляет
 ровно один вид на ленту (``research_factory.read:latest``), а ту же ленту разбирает
 ``research_factory.read.cio_view`` — его зовут через ДРУГУЮ читающую модель
-(``investment_cio.research_universe.build``). Четыре места сборки платят по два разбора
-каждое (``verify`` + ``read_all``), и два из этих четырёх идут во второй вид:
+(``investment_cio.research_universe.build``). Четыре места сборки разбирают эту ленту, и
+два из этих четырёх идут во второй вид:
 
 ```
-_research_universe_section  → read.latest    (verify + read_all)
+_research_universe_section  → read.latest
 _live_readiness_section     → capital_shadow.readiness → read.latest
 _investment_cio_section     → research_universe.build  → read.cio_view
 _capital_sources_section    → read.capital_sources → … → read.cio_view
 ```
+
+Таблица выше — ЗАМЕР 2026-10-18/21, когда каждое из четырёх мест платило ДВА разбора
+(``verify`` + ``read_all``), и она оставлена как есть: это история находки, а не нынешнее
+состояние. С ADR-787 (цикл #908) исправный ``verify()`` отдаёт разобранное областному кэшу,
+каждое место платит ОДИН разбор, и те же три прогона мерятся так: ``mission_build`` **4**
+(1.165 с), ``telegram_oracle`` **2** (0.580 с), ``telegram_sherlock`` **1** (0.279 с).
+Множитель «мест × разборов» виден в обоих замерах — именно поэтому видно, что упал ИМЕННО
+второй множитель, а число мест осталось прежним.
 
 Экран Oracle при этом нёс объявленную причину «экран этой ленты не читает» — и читал её
 четыре раза за ОДНО нажатие владельца. Печатавшийся у него запас 61.9× оказался **1.2×**.
@@ -503,9 +511,13 @@ LEDGERS: Tuple[Member, ...] = (
         ledger_id="research_factory",
         ledger="research_factory/ledger.jsonl",
         view="spa_core.research_factory.read:latest",
-        declared_opens=2,
-        opens_reason=("два НАЗВАННЫХ числа (ADR-777): свежий verify(), который кэш не "
-                      "обслуживает принципиально, плюс один разбор на всех помощников вида"),
+        declared_opens=1,
+        opens_reason=("ЗАМЕР 2026-10-22 на живом data/ (69 101 205 Б, ADR-787): ОДИН разбор "
+                      "за зов. Было два — свежий verify() плюс разбор на помощников вида, — "
+                      "и замер показал, что оба видели ОДНУ личность файла, то есть второй "
+                      "читал те же байты. Исправный verify() теперь отдаёт разобранное "
+                      "областному кэшу (hash_ledger._seed_read_cache); сам он из кэша "
+                      "по-прежнему не отвечает НИКОГДА (N3)"),
         scoped_door=True,
         scoped_reason="читающая модель открывает область hash_ledger.read_cache (ADR-777)",
     ),
@@ -519,11 +531,11 @@ LEDGERS: Tuple[Member, ...] = (
         ledger_id="research_factory",
         ledger="research_factory/ledger.jsonl",
         view="spa_core.research_factory.read:cio_view",
-        declared_opens=2,
-        opens_reason=("ЗАМЕР 2026-10-21 на живом data/ (65 705 936 Б): два разбора за зов — "
-                      "столько же, сколько у latest, и по той же причине (свежий verify(), "
-                      "который кэш не обслуживает принципиально, плюс один разбор на "
-                      "помощников вида). Совпадение с latest тут ЗАМЕР, а не копия числа"),
+        declared_opens=1,
+        opens_reason=("ЗАМЕР 2026-10-22 на живом data/ (69 101 205 Б, ADR-787): один разбор "
+                      "за зов — столько же, сколько у latest, и по той же причине (verify() "
+                      "отдаёт разобранное областному кэшу). Было два, замер 2026-10-21 на "
+                      "65 705 936 Б. Совпадение с latest тут ЗАМЕР, а не копия числа"),
         scoped_door=True,
         scoped_reason="тот же модуль, та же область hash_ledger.read_cache (ADR-777)",
         #: cio_view(data_dir, now) — одного каталога ему недостаточно; см. Member.invoke
@@ -786,18 +798,19 @@ WORKLOADS: Tuple[Workload, ...] = (
                                "которая сама зовёт read.latest"),
             "sleeve_aggressive": "сборка рукавную ленту не читает вовсе — ноль тут ЗАМЕР",
         },
-        declared_opens={"research_factory": 8, "capital_shadow": 5,
+        declared_opens={"research_factory": 4, "capital_shadow": 5,
                         "investment_cio": 6, "sleeve_aggressive": 0},
         opens_reason={
             "research_factory": (
-                "ЧЕТЫРЕ места сборки разбирают эту ленту, и каждое платит ДВА разбора "
-                "(verify + read_all): _research_universe_section → read.latest · "
-                "_live_readiness_section → capital_shadow.readiness → read.latest · "
-                "_investment_cio_section → research_universe.build → read.cio_view · "
-                "_capital_sources_section → read.capital_sources → … → read.cio_view. "
-                "С цикла #900 модель это число ПРЕДСКАЗЫВАЕТ: оба вида объявлены, и сумма "
-                "2×2 + 2×2 сходится с замером у файла. До того модель давала 4, и "
-                "расхождение стояло находкой — верной, но неснимаемой"),
+                "ЗАМЕР 2026-10-22 (ADR-787): ЧЕТЫРЕ места сборки разбирают эту ленту, и "
+                "каждое платит теперь ОДИН разбор вместо двух: _research_universe_section → "
+                "read.latest · _live_readiness_section → capital_shadow.readiness → "
+                "read.latest · _investment_cio_section → research_universe.build → "
+                "read.cio_view · _capital_sources_section → read.capital_sources → … → "
+                "read.cio_view. Было 8 (каждое место платило verify + read_all); verify() "
+                "теперь отдаёт разобранное областному кэшу, и модель 1×4 + 1×4 сходится с "
+                "замером у файла. Пара «место × разбор» видна в обоих числах — это и "
+                "позволило увидеть, что упал ИМЕННО второй множитель"),
             "capital_shadow": "один зов вида, пять разборов внутри него — своя реализация ленты",
             "investment_cio": "два зова вида по три разбора каждый (latest · verify_chain · find_due)",
             "sleeve_aggressive": "сборка рукавную ленту не открывает ни разу — ноль тут ЗАМЕР",
@@ -828,11 +841,13 @@ WORKLOADS: Tuple[Workload, ...] = (
             "investment_cio": "экран этой ленты не читает",
             "sleeve_aggressive": "экран этой ленты не читает",
         },
-        declared_opens={"research_factory": 2, "capital_shadow": 0,
+        declared_opens={"research_factory": 1, "capital_shadow": 0,
                         "investment_cio": 0, "sleeve_aggressive": 0},
         opens_reason={
-            "research_factory": ("один зов вида, два разбора внутри него (verify + read_all) "
-                                 "— здесь модель и замер СОШЛИСЬ, и это тоже результат"),
+            "research_factory": ("ЗАМЕР 2026-10-22 (ADR-787): один зов вида, ОДИН разбор "
+                                 "внутри него. Было два (verify + read_all); verify() теперь "
+                                 "отдаёт разобранное областному кэшу. Модель и замер сошлись "
+                                 "и до, и после — это тоже результат"),
             "capital_shadow": "экран этой ленты не открывает — ноль тут ЗАМЕР",
             "investment_cio": "экран этой ленты не открывает — ноль тут ЗАМЕР",
             "sleeve_aggressive": "экран этой ленты не открывает — ноль тут ЗАМЕР",
@@ -858,16 +873,17 @@ WORKLOADS: Tuple[Workload, ...] = (
                                "READERS['sources'] → read.capital_sources → read.latest"),
             "sleeve_aggressive": "экран этой ленты не читает",
         },
-        declared_opens={"research_factory": 4, "capital_shadow": 0,
+        declared_opens={"research_factory": 2, "capital_shadow": 0,
                         "investment_cio": 6, "sleeve_aggressive": 0},
         opens_reason={
             "research_factory": (
-                "ЧЕТЫРЕ разбора 65-мегабайтной ленты на ОДНО нажатие: оба зова "
-                "investment_cio.read идут в research_universe.build → "
-                "research_factory.read.cio_view, по два разбора каждый "
-                "(verify + read_tail→read_all). С цикла #900 модель это предсказывает "
-                "(0×2 + 2×2 = 4); до того она давала НОЛЬ при измеренных четырёх — ошибка "
-                "в безопасную сторону, и самая крупная в населении"),
+                "ЗАМЕР 2026-10-22 (ADR-787): ДВА разбора ленты на ОДНО нажатие — оба "
+                "зова investment_cio.read идут в research_universe.build → "
+                "research_factory.read.cio_view, по ОДНОМУ разбору каждый. Было четыре "
+                "(по два: verify + read_tail→read_all), и модель это предсказывала с "
+                "цикла #900 (0×2 + 2×2); теперь сходится 0×1 + 2×1 = 2. До #900 модель "
+                "давала НОЛЬ при измеренных четырёх — ошибка в безопасную сторону, и "
+                "самая крупная в населении"),
             "capital_shadow": "экран этой ленты не открывает — ноль тут ЗАМЕР",
             "investment_cio": "два зова вида по три разбора (latest · verify_chain · find_due)",
             "sleeve_aggressive": "экран этой ленты не открывает — ноль тут ЗАМЕР",

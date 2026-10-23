@@ -1,0 +1,58 @@
+{
+  "title": "ADR-787 — дельта цикла #908: исправный verify() отдаёт разобранное областному кэшу чтения. Каждая мутация ниже возвращает один из исходов посева в состояние, в котором ускорение было бы куплено снятой проверкой либо устаревшим ответом",
+  "tests": [
+    "spa_core/tests/test_verify_seeds_the_read_cache.py",
+    "spa_core/tests/test_hash_ledger_read_cache.py",
+    "spa_core/tests/test_read_only_view_probe.py"
+  ],
+  "mutations": [
+    {
+      "name": "посев без области — кэш переживает читающую секцию, то есть возвращается вечный флаг, снятый ADR-777",
+      "file": "spa_core/utils/hash_ledger.py",
+      "old": "        if not _READ_CACHE_ENABLED or self._trusted or ident is None:\n            return False\n",
+      "new": "        if self._trusted or ident is None:\n            return False\n"
+    },
+    {
+      "name": "посев у ДОВЕРЕННОГО писателя — вторая копия памяти рядом с self._cache («одно правило, две копии»)",
+      "file": "spa_core/utils/hash_ledger.py",
+      "old": "        if not _READ_CACHE_ENABLED or self._trusted or ident is None:\n            return False\n",
+      "new": "        if not _READ_CACHE_ENABLED or ident is None:\n            return False\n"
+    },
+    {
+      "name": "личность файла после разбора НЕ перепроверяется — дописка соседа внутри нашего разбора делает посев ложью о содержимом файла",
+      "file": "spa_core/utils/hash_ledger.py",
+      "old": "        if _file_identity(path) != ident:   # файл сменился, пока мы читали и обходили\n            return False\n",
+      "new": "        pass\n"
+    },
+    {
+      "name": "посев живыми словарями — читатели области получают общий ИЗМЕНЯЕМЫЙ объект, и правка одного портит ответ соседу",
+      "file": "spa_core/utils/hash_ledger.py",
+      "old": "        _READ_CACHE[str(path)] = (ident, [_freeze(e) for e in entries])\n",
+      "new": "        _READ_CACHE[str(path)] = (ident, list(entries))\n"
+    },
+    {
+      "name": "исход посева не наблюдаем: «посеял» и «не стал» отвечают одинаково — третий исход становится неотличим от успеха (инв. #17)",
+      "file": "spa_core/utils/hash_ledger.py",
+      "old": "        _READ_CACHE[str(path)] = (ident, [_freeze(e) for e in entries])\n        return True\n",
+      "new": "        _READ_CACHE[str(path)] = (ident, [_freeze(e) for e in entries])\n        return False\n"
+    },
+    {
+      "name": "личность берётся ПОСЛЕ разбора, а не до — окно, в котором чужая дописка невидима, становится нулевым на вид и бесконечным на деле",
+      "file": "spa_core/utils/hash_ledger.py",
+      "old": "        ident_before = _file_identity(path)\n        entries = self._parse(path) if path.exists() else []\n",
+      "new": "        entries = self._parse(path) if path.exists() else []\n        ident_before = _file_identity(path)\n"
+    },
+    {
+      "name": "посев снят вовсе — цена зова вида возвращается к ДВУМ разборам тех же байтов, то есть заказ G784 п. 1 не исполнен",
+      "file": "spa_core/utils/hash_ledger.py",
+      "old": "        self._seed_read_cache(path, entries, ident_before)\n        return {\"ok\": True, \"break_at\": None, \"entries\": len(entries), \"reason\": None}",
+      "new": "        return {\"ok\": True, \"break_at\": None, \"entries\": len(entries), \"reason\": None}"
+    },
+    {
+      "name": "допуск пробы приёмки возвращён к двум разборам — храповик ослаблен, и прежняя цена снова зелена",
+      "file": "spa_core/monitoring/card_acceptance.py",
+      "old": "    allowed = 1\n",
+      "new": "    allowed = 2\n"
+    }
+  ]
+}

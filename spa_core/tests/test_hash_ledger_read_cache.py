@@ -135,11 +135,26 @@ def _rf_scene(tmp_path: Path, candidates: int = 1) -> Path:
     return data
 
 
-#: What ONE scoped call is allowed to parse: the fresh, deliberately UNCACHED `verify()` (N3 —
-#: integrity is never answered from a cache) plus ONE cached parse that every helper then shares.
-#: Not "== 1": pinning both numbers keeps `verify()`'s freshness from being optimised away by a
-#: future change that would make this test pass for the wrong reason.
-SCOPED_PARSES = 2
+#: What ONE scoped call is allowed to parse. ADR-787 (cycle #908) took this from 2 to 1: the
+#: ratchet is TIGHTENED, not loosened — the previous behaviour now REDDENS this test.
+#:
+#: The earlier comment here read: `Not "== 1": pinning both numbers keeps verify()'s freshness
+#: from being optimised away by a future change that would make this test pass for the wrong
+#: reason.` That concern is RIGHT and is not waived — it is MOVED, because a count can never
+#: distinguish "one parse because verify handed its rows on" from "one parse because verify
+#: stopped reading disk". A number cannot tell those apart; a named control can, and three now
+#: do, in `spa_core/tests/test_verify_seeds_the_read_cache.py`:
+#:
+#:   * `test_verify_still_never_answers_from_the_cache` — the exact failure the old comment
+#:     feared: tamper the file keeping size AND mtime, and verify must still catch it;
+#:   * `test_without_the_seed_the_same_call_costs_two_parses` — the cost is 1 BECAUSE of the
+#:     seed, measured by removing the seed;
+#:   * `test_a_broken_ledger_is_never_seeded` — a failed verify hands nothing on.
+#:
+#: What the one parse now is: the fresh, deliberately UNCACHED `verify()` (N3 — integrity is
+#: never answered from a cache), which on an OK verdict hands the rows it just parsed to the
+#: scoped cache, so the helpers that follow share them instead of re-reading the same bytes.
+SCOPED_PARSES = 1
 
 
 def test_the_read_model_carries_the_scope_so_every_caller_inherits_it(tmp_path):
