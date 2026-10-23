@@ -875,7 +875,14 @@ class BatteryHoleTests(unittest.TestCase):
         self.assertEqual(heir[0]["outcome"], g16.READER_UNMEASURED, heir[0])
         self.assertEqual(heir[0]["cause"], g16.CAUSE_REENTRY, heir[0])
         self.assertIn("перепись", heir[0]["reason"])
-        self.assertEqual(doc["readers"]["unmeasured_causes"].get(g16.CAUSE_REENTRY), 1)
+        # 23.10: явный отказ внутри переписи даёт и green_by_construction_census — прежде он здесь
+        # «мерил» настоящий, а не инструментированный модуль («0 решений достигнуто» как замер).
+        # Набор ИМЁН, а не число: лишний или пропавший отказ одинаково краснеют.
+        refused = sorted(r["module"] for r in doc["readers"]["modules"]
+                         if r.get("cause") == g16.CAUSE_REENTRY)
+        self.assertEqual(refused, ["spa_core.monitoring.green_by_construction_census",
+                                   "spa_core.monitoring.heir_all_rows_price"], refused)
+        self.assertEqual(doc["readers"]["unmeasured_causes"].get(g16.CAUSE_REENTRY), 2)
 
     def test_no_child_of_the_full_sweep_reaches_the_external_network(self):
         """Каждый питоний потомок переписи несёт сторожа сети (отчёт есть и
