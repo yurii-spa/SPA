@@ -258,23 +258,69 @@ class RunTreeAndReportTreeAreDifferentAddresses(unittest.TestCase):
         spec.loader.exec_module(mod)
         return mod
 
-    def test_a_prod_RUN_tree_is_refused_even_when_the_report_tree_is_not(self):
+    def test_the_refusal_receives_the_RUN_tree_and_not_the_report_tree(self):
         """Порванное звено: отказ спрашивают у дерева ОТЧЁТА.
 
         Тогда прогон в боевом дереве проходил бы молча — ровно авария 2026-08-24
-        (`.claude/rules/deployment.md` п. 4). Отказ наступает ДО `pytest`, поэтому
-        тест ничего не гоняет.
+        (`.claude/rules/deployment.md` п. 4).
+
+        **Меряется AST, и это ИЗМЕРЕННОЕ решение, а не осторожность.** Первая
+        редакция этого теста (цикл #912) звала `refresh(scene, run_tree=<боевое>)`,
+        то есть ПРОВЕРЯЛА поведение на живом дереве. Под мутацией «отказ спрашивают
+        у дерева ОТЧЁТА» отказ не наступал, и тест — убивая мутанта верно — успевал
+        прогнать всё население **В БОЕВОМ ДЕРЕВЕ**: замер 23.10, два прогона
+        (10:32Z и 11:13Z), 3879 случаев каждый, и девять живых файлов `data/` были
+        переписаны тестами. Живой трек (`data/equity_curve_daily.json`) не тронут,
+        потери не обнаружены — но тест, способный это сделать, сам есть та авария,
+        против которой написан. Поэтому предмет спрашивается у ТЕКСТА: какой
+        переменной передан отказ.
         """
-        mod = self._producer_module()
-        from spa_core.utils.live_paths import DEFAULT_LIVE_ROOT
-        scene = pathlib.Path(tempfile.mkdtemp(prefix="nrw_report_"))
-        try:
-            with self.assertRaises(mod.NotMeasured) as caught:
-                mod.refresh(scene, run_tree=pathlib.Path(DEFAULT_LIVE_ROOT))
-            self.assertIn("БОЕВОЕ", str(caught.exception))
-        finally:
-            import shutil
-            shutil.rmtree(scene, ignore_errors=True)
+        import ast
+        src = (_REPO / PRODUCER_REL).read_text(encoding="utf-8")
+        tree = ast.parse(src)
+        fn = next((n for n in ast.walk(tree)
+                   if isinstance(n, ast.FunctionDef) and n.name == "refresh"), None)
+        self.assertIsNotNone(fn, "в производителе нет `refresh()` — спрашивать нечего")
+        calls = [n for n in ast.walk(fn)  # type: ignore[arg-type]
+                 if isinstance(n, ast.Call) and isinstance(n.func, ast.Name)
+                 and n.func.id == "_refuse_if_prod_tree"]
+        self.assertEqual(len(calls), 1,
+                         f"отказ «дерево боевое» зовётся из `refresh` {len(calls)} раз — "
+                         f"ожидался РОВНО один: два зова разошлись бы при первой правке")
+        first = calls[0].args[0]
+        self.assertIsInstance(first, ast.Name,
+                              "отказу передано выражение, а не переменная — "
+                              "какому дереву задан вопрос, НЕ ИЗМЕРЕНО")
+        self.assertEqual(getattr(first, "id", None), "run_root",
+                         "отказ «дерево боевое» задан НЕ дереву прогона — прогон "
+                         "населения в боевом дереве прошёл бы молча (авария 2026-08-24)")
+
+    def test_no_test_in_this_file_ever_runs_the_population_in_the_live_tree(self):
+        """Сторож СЕБЯ: ни один тест файла не смеет подать боевое дерево как run_tree.
+
+        Положительный контроль — моя же первая редакция соседнего теста (см. её
+        разбор в его docstring). Меряется AST, а не подстрока: подстрочная проверка
+        нашла бы СВОИ ЖЕ образцы и была бы красной всегда (замер: именно это и
+        случилось при первой попытке). Исполнить такой тест, чтобы узнать,
+        исполняет ли он опасное, — то же самое, что его исполнить.
+        """
+        import ast
+        tree = ast.parse(pathlib.Path(__file__).read_text(encoding="utf-8"))
+        live_names = {"DEFAULT_LIVE_ROOT"}
+        bad: list[str] = []
+        for node in ast.walk(tree):
+            if not isinstance(node, ast.Call):
+                continue
+            for kw in node.keywords:
+                if kw.arg != "run_tree":
+                    continue
+                mentioned = {n.id for n in ast.walk(kw.value) if isinstance(n, ast.Name)}
+                mentioned |= {n.attr for n in ast.walk(kw.value) if isinstance(n, ast.Attribute)}
+                if mentioned & live_names:
+                    bad.append(f"строка {node.lineno}: run_tree ← {sorted(mentioned & live_names)}")
+        self.assertEqual(bad, [], (
+            "тест подаёт БОЕВОЕ дерево как дерево ПРОГОНА: под снятым отказом он "
+            f"прогонит всё население в живом `data/` (авария 2026-08-24). {bad}"))
 
     def test_a_prod_REPORT_tree_is_NOT_refused_when_the_run_tree_is_disposable(self):
         """Вторая половина того же звена, без которой первая ничего не стоит.

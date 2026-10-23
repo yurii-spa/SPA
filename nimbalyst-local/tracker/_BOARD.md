@@ -2,11 +2,11 @@
 
 > Авто-генерится `scripts/build_tracker_board.py` из `nimbalyst-local/tracker/*.md`. НЕ править вручную — правь карточки. Источник правды — карточки, это индекс (bootstrap).
 >
-> Собрана: 2026-10-23T09:50:50Z · сверка с карточками: `python3 scripts/build_tracker_board.py --check` (сторож `spa_core/tests/test_tracker_board_matches_cards.py`).
+> Собрана: 2026-10-23T12:10:10Z · сверка с карточками: `python3 scripts/build_tracker_board.py --check` (сторож `spa_core/tests/test_tracker_board_matches_cards.py`).
 >
-> Сверено с `origin/main` (2530cb1ec) · у **1** своя правка, кто новее — не измерено.
+> Сверено с `origin/main` (3084bed65) · у **2** своя правка, кто новее — не измерено.
 >
-> Всего карточек: **1437** · ждёт владельца: **27** · занято сессиями: **17**.
+> Всего карточек: **1437** · ждёт владельца: **27** · занято сессиями: **16**.
 
 ## 🔴 ЖДЁТ ВЛАДЕЛЬЦА (needs-owner)
 
@@ -47,7 +47,6 @@
 - **Паспорт агента — обязательное поле манифеста (ADR-154)** — держит `interactive-session-2026-08-28`  ·  `agent-passport-obyazatelen-dlya-agenta.md`
 - **ДОРОЖНАЯ КАРТА ADR-154 — контракты раньше оркестрации (все задачи, чтобы не потерять)** — держит `interactive-session-2026-08-27`  ·  `agent-roadmap-adr154-contracts.md`
 - **а задача починить все-таки еще раз сообщение которым не пишет нужно твое решени…** — держит `pid43119` · с 2026-08-14T11:52:34Z  ·  `inbox-a-zadacha-pochinit-vse-taki-esche-raz-so.md`
-- **Артефакт переписи No regression никто не переписывает: через 192 ч критерий §49 станет «не измерено»** — держит `cycle-84431` · с 2026-10-23T09:29:35Z  ·  `inbox-artefakt-no-regression-nikto-ne-perepisyv.md`
 - **CRITICAL сторожа фидов мигает: aave_v3 разошёлся на 1.69 пп в 01:14Z и сошёлся к 05:27Z — истории расхождений нет** — держит `cycle-63347` · с 2026-09-03T16:06:52Z  ·  `inbox-critical-storozha-fidov-migaet-aave-v3-r.md`
 - **Храповик считает упоминание в докстринге за проводку — и это лишь одна из трёх слепот** — держит `pid66130` · с 2026-08-16T03:49:44Z  ·  `inbox-hrapovik-schitaet-upominanie-v-dokstring.md`
 - **Осиротевшая работа цикла #474 (ADR-222) НЕ доставлена: её сторож в настоящем вызове не срабатывает никогда — сверяет прод-дерево само с собой** — держит `cycle-17778` · с 2026-09-04T15:24:15Z  ·  `inbox-osirotevshaya-rabota-tsikla-474-adr-222.md`
@@ -442,7 +441,6 @@
 ### · in-progress
 - а задача починить все-таки еще раз сообщение которым не пишет нужно твое решени…  ·  `inbox-a-zadacha-pochinit-vse-taki-esche-raz-so.md` · 2026-08-14 · 🔒 `pid43119`
 - ARB: разобрать тревогу Telegram после перезагрузки и снять технические вопросы с владельца  ·  `inbox-arb-razobrat-trevogu-telegram-posle-pere.md` · 2026-10-15
-- Артефакт переписи No regression никто не переписывает: через 192 ч критерий §49 станет «не измерено»  ·  `inbox-artefakt-no-regression-nikto-ne-perepisyv.md` · 2026-09-28 · 🔒 `cycle-84431`
 - CI на main красный 12 прогонов подряд: measure() переписи идёт 335 с при пороге 180 с на тест  ·  `inbox-ci-na-main-krasnyi-12-progonov-podryad-m.md` · 2026-09-24
 - CI на main: вердикт впервые измерен — tests/ зелено, scripts/tests/ красно ОДНИМ названным (lsof), spa_core/tests/ НЕ ИЗМЕРЕНО (клин 120 мин на 80 %)  ·  `inbox-ci-na-main-verdikt-vpervye-izmeren-tests.md` · 2026-09-25
 - CRITICAL сторожа фидов мигает: aave_v3 разошёлся на 1.69 пп в 01:14Z и сошёлся к 05:27Z — истории расхождений нет  ·  `inbox-critical-storozha-fidov-migaet-aave-v3-r.md` · 2026-08-27 · 🔒 `cycle-63347`
@@ -536,6 +534,7 @@
 - ALLOC-002-отбор: топ-8 по весу беднит книгу — отбирать ПОСЛЕ evidence/TVL-гейта  ·  `inbox-alloc-002-otbor-top-8-po-vesu-bednit-kni.md` · 2026-08-08
 - «anchored» пересказывает вход, а не меряет запись — и у контракта claim_card нет сторожа  ·  `inbox-anchored-pereskazyvaet-vhod-a-ne-meryaet.md` · 2026-10-15
 - APY Persistence / Confidence  ·  `inbox-apy-persistence-confidence.md` · 2026-08-13
+- Артефакт переписи No regression никто не переписывает: через 192 ч критерий §49 станет «не измерено»  ·  `inbox-artefakt-no-regression-nikto-ne-perepisyv.md` · 2026-09-28
 - Атрибуция кэша и гейт RiskPolicy по-разному определяют «живой TVL» — и атрибуция не знает про порог $5M  ·  `inbox-atributsiya-kesha-i-geit-riskpolicy-po-r.md` · 2026-08-07
 - Аудит пригодности не видел 186 модулей Tier-B из 479: форма входа dict не пробовалась ни разу  ·  `inbox-audit-prigodnosti-ne-videl-186-modulei-t.md` · 2026-08-06
 - Autouse-заслон data/ не доходит до корня spa_core/tests — 97 тыс. проверок судят живой файл хоста  ·  `inbox-autouse-zaslon-data-ne-dohodit-do-kornya.md` · 2026-08-26
