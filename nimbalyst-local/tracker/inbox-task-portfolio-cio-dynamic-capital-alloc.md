@@ -8,12 +8,6 @@ created: 2026-08-13
 priority: critical
 status_trail:
   - "2026-08-26T22:31:36.748790+00:00 new -> in-progress · queue.set_status · cycle-96657"
-claimed_by: cycle-30405
-claimed_at: 2026-10-23T19:22:49Z
-claimed_run_id: orchestrator-30405-D43345CF6ADF40B8916412931EBA1CB4
-claimed_pid: 30405
-claimed_pid_start: Fri Oct 23 21:09:41 2026
-claim_takeover_reason: шаг 0a-ГОЛОД цикла #915: вердикт stale перемерен сам — ps -p 64776 пусто (держатель #914 МЁРТВ), живой claude -p на хосте ровно один (мой pid 31106). Осиротевшей работы НЕТ и это ИЗМЕРЕНО: check_undelivered_work код 2, единственное 'НЕ ДОСТАВЛЕНО' — docs/journal/2026-W43.md из /private/tmp/spa_c909 — перемерено ПОСТРОЧНО: 0 уникальных строк против origin/main ea0afef4c; ADR-791/792 на origin есть
 ---
 
 ## УКАЗАНИЕ ВЛАДЕЛЬЦА 2026-08-22 (cloud-сессия): ЗАПУСТИТЬ СЛЕДУЮЩИМ ЦИКЛОМ
