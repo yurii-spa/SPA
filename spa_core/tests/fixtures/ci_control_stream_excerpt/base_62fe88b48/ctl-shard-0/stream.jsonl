@@ -1,0 +1,42 @@
+{"args": ["@/home/runner/work/SPA/SPA/ctl-out/shard-files.txt", "-q", "--tb=short", "-p", "no:randomly", "-p", "spa_core.ci.pytest_stream_record", "-p", "spa_core.ci.pytest_collect_manifest", "--continue-on-collection-errors", "--timeout=180", "--timeout-method=signal", "--junitxml=ctl-out/junit.xml"], "e": "session", "iso": "2026-10-22T19:31:58Z", "pid": 2154, "t": 1792697518.735}
+{"e": "start", "n": "tests/cartographer/test_governance.py::AuthorityIsQuotedNotAssumed::test_a_number_collision_is_shown_without_a_winner", "t": 1792697567.246}
+{"d": 0.003, "e": "ok", "n": "tests/cartographer/test_governance.py::AuthorityIsQuotedNotAssumed::test_a_number_collision_is_shown_without_a_winner", "t": 1792697567.261}
+{"e": "start", "n": "tests/cartographer/test_governance.py::AuthorityIsQuotedNotAssumed::test_rules_and_invariants_are_authoritative_with_a_quote", "t": 1792697567.262}
+{"d": 0.003, "e": "ok", "n": "tests/cartographer/test_governance.py::AuthorityIsQuotedNotAssumed::test_rules_and_invariants_are_authoritative_with_a_quote", "t": 1792697567.266}
+{"e": "start", "n": "tests/cartographer/test_governance.py::AuthorityIsQuotedNotAssumed::test_the_adr_index_is_not_treated_as_the_authority", "t": 1792697567.266}
+{"d": 0.003, "e": "ok", "n": "tests/cartographer/test_governance.py::AuthorityIsQuotedNotAssumed::test_the_adr_index_is_not_treated_as_the_authority", "t": 1792697567.27}
+{"e": "start", "n": "tests/cartographer/test_governance.py::AuthorityIsQuotedNotAssumed::test_the_second_adr_registry_has_undefined_authority", "t": 1792697567.271}
+{"d": 0.003, "e": "ok", "n": "tests/cartographer/test_governance.py::AuthorityIsQuotedNotAssumed::test_the_second_adr_registry_has_undefined_authority", "t": 1792697567.274}
+{"e": "start", "n": "tests/cartographer/test_governance.py::ApprovalAndPermissionsAreNeverInvented::test_a_subject_no_rule_places_stays_unknown", "t": 1792697567.275}
+{"d": 0.003, "e": "ok", "n": "tests/cartographer/test_governance.py::ApprovalAndPermissionsAreNeverInvented::test_a_subject_no_rule_places_stays_unknown", "t": 1792697567.278}
+{"e": "start", "n": "tests/cartographer/test_governance.py::ApprovalAndPermissionsAreNeverInvented::test_the_contract_refuses_an_unknown_permission_zone", "t": 1792697567.279}
+{"d": 0.003, "e": "ok", "n": "tests/cartographer/test_governance.py::ApprovalAndPermissionsAreNeverInvented::test_the_contract_refuses_an_unknown_permission_zone", "t": 1792697567.283}
+{"e": "start", "n": "tests/cartographer/test_governance.py::ApprovalAndPermissionsAreNeverInvented::test_the_three_owner_subjects_come_from_the_rule", "t": 1792697567.283}
+{"d": 0.003, "e": "ok", "n": "tests/cartographer/test_governance.py::ApprovalAndPermissionsAreNeverInvented::test_the_three_owner_subjects_come_from_the_rule", "t": 1792697567.287}
+{"e": "start", "n": "tests/cartographer/test_governance.py::ApprovalAndPermissionsAreNeverInvented::test_without_the_boundary_rule_no_zone_is_assigned", "t": 1792697567.287}
+{"d": 0.003, "e": "ok", "n": "tests/cartographer/test_governance.py::ApprovalAndPermissionsAreNeverInvented::test_without_the_boundary_rule_no_zone_is_assigned", "t": 1792697567.291}
+{"e": "start", "n": "tests/cartographer/test_governance.py::ABackupIsNotARestore::test_a_drill_with_a_result_is_the_only_proof_of_restore", "t": 1792697567.292}
+{"d": 0.003, "e": "ok", "n": "tests/cartographer/test_governance.py::ABackupIsNotARestore::test_a_drill_with_a_result_is_the_only_proof_of_restore", "t": 1792697567.295}
+{"e": "start", "n": "tests/cartographer/test_governance.py::ABackupIsNotARestore::test_a_failed_drill_is_not_proof", "t": 1792697567.296}
+{"d": 0.003, "e": "ok", "n": "tests/cartographer/test_governance.py::ABackupIsNotARestore::test_a_failed_drill_is_not_proof", "t": 1792697567.299}
+{"e": "start", "n": "tests/cartographer/test_governance.py::ABackupIsNotARestore::test_a_missing_procedure_stays_missing", "t": 1792697567.3}
+{"d": 0.003, "e": "ok", "n": "tests/cartographer/test_governance.py::ABackupIsNotARestore::test_a_missing_procedure_stays_missing", "t": 1792697567.303}
+{"e": "start", "n": "tests/cartographer/test_governance.py::ABackupIsNotARestore::test_a_written_runbook_is_documented_not_tested", "t": 1792697567.304}
+{"d": 0.003, "e": "ok", "n": "tests/cartographer/test_governance.py::ABackupIsNotARestore::test_a_written_runbook_is_documented_not_tested", "t": 1792697567.307}
+{"e": "start", "n": "tests/cartographer/test_governance.py::ABackupIsNotARestore::test_backup_presence_never_becomes_restore_proof", "t": 1792697567.308}
+{"d": 0.003, "e": "ok", "n": "tests/cartographer/test_governance.py::ABackupIsNotARestore::test_backup_presence_never_becomes_restore_proof", "t": 1792697567.312}
+{"e": "start", "n": "tests/cartographer/test_governance.py::ABackupIsNotARestore::test_the_contract_refuses_tested_without_evidence", "t": 1792697567.312}
+{"d": 0.003, "e": "ok", "n": "tests/cartographer/test_governance.py::ABackupIsNotARestore::test_the_contract_refuses_tested_without_evidence", "t": 1792697567.316}
+{"e": "start", "n": "tests/cartographer/test_governance.py::GapsAreMeasuredNotListed::test_a_backup_never_upgrades_the_recovery_proof", "t": 1792697567.317}
+{"d": 0.003, "e": "ok", "n": "tests/cartographer/test_governance.py::GapsAreMeasuredNotListed::test_a_backup_never_upgrades_the_recovery_proof", "t": 1792697567.321}
+{"e": "start", "n": "tests/cartographer/test_governance.py::GapsAreMeasuredNotListed::test_a_clean_tree_produces_fewer_gaps", "t": 1792697567.321}
+{"d": 0.003, "e": "ok", "n": "tests/cartographer/test_governance.py::GapsAreMeasuredNotListed::test_a_clean_tree_produces_fewer_gaps", "t": 1792697567.325}
+{"e": "start", "n": "tests/cartographer/test_governance.py::GapsAreMeasuredNotListed::test_a_document_outside_the_declared_scope_is_not_a_zone_gap", "t": 1792697567.325}
+{"d": 0.003, "e": "ok", "n": "tests/cartographer/test_governance.py::GapsAreMeasuredNotListed::test_a_document_outside_the_declared_scope_is_not_a_zone_gap", "t": 1792697567.329}
+{"e": "start", "n": "tests/cartographer/test_governance.py::GapsAreMeasuredNotListed::test_a_runbook_is_documented_untested_not_unknown", "t": 1792697567.329}
+{"d": 0.003, "e": "ok", "n": "tests/cartographer/test_governance.py::GapsAreMeasuredNotListed::test_a_runbook_is_documented_untested_not_unknown", "t": 1792697567.333}
+{"e": "start", "n": "tests/cartographer/test_governance.py::GapsAreMeasuredNotListed::test_an_action_inside_the_scope_without_a_zone_is_a_gap", "t": 1792697567.333}
+{"d": 0.003, "e": "ok", "n": "tests/cartographer/test_governance.py::GapsAreMeasuredNotListed::test_an_action_inside_the_scope_without_a_zone_is_a_gap", "t": 1792697567.337}
+{"e": "start", "n": "tests/cartographer/test_governance.py::GapsAreMeasuredNotListed::test_an_autonomous_rule_is_not_an_owner_gate", "t": 1792697567.337}
+{"d": 0.003, "e": "ok", "n": "tests/cartographer/test_governance.py::GapsAreMeasuredNotListed::test_an_autonomous_rule_is_not_an_owner_gate", "t": 1792697567.341}
+{"e": "end", "finished": 9951, "started": 9671, "status": 1, "t": 1792700958.492}

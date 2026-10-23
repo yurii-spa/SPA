@@ -1,0 +1,42 @@
+{"args": ["@/home/runner/work/SPA/SPA/ctl-out/shard-files.txt", "-q", "--tb=short", "-p", "no:randomly", "-p", "spa_core.ci.pytest_stream_record", "-p", "spa_core.ci.pytest_collect_manifest", "--continue-on-collection-errors", "--timeout=180", "--timeout-method=signal", "--junitxml=ctl-out/junit.xml"], "e": "session", "iso": "2026-10-22T19:31:59Z", "pid": 2389, "t": 1792697519.92}
+{"e": "start", "n": "tests/bee/test_bee_s94.py::TestReturnSeries::test_annualized_return_positive", "t": 1792697573.648}
+{"d": 0.0, "e": "ok", "n": "tests/bee/test_bee_s94.py::TestReturnSeries::test_annualized_return_positive", "t": 1792697573.667}
+{"e": "start", "n": "tests/bee/test_bee_s94.py::TestReturnSeries::test_std_zero_for_constant", "t": 1792697573.667}
+{"d": 0.0, "e": "ok", "n": "tests/bee/test_bee_s94.py::TestReturnSeries::test_std_zero_for_constant", "t": 1792697573.669}
+{"e": "start", "n": "tests/bee/test_bee_s94.py::TestReturnSeries::test_max_drawdown_zero_for_monotone", "t": 1792697573.67}
+{"d": 0.0, "e": "ok", "n": "tests/bee/test_bee_s94.py::TestReturnSeries::test_max_drawdown_zero_for_monotone", "t": 1792697573.671}
+{"e": "start", "n": "tests/bee/test_bee_s94.py::TestReturnSeries::test_max_drawdown_negative", "t": 1792697573.671}
+{"d": 0.0, "e": "ok", "n": "tests/bee/test_bee_s94.py::TestReturnSeries::test_max_drawdown_negative", "t": 1792697573.673}
+{"e": "start", "n": "tests/bee/test_bee_s94.py::TestReturnSeries::test_empty_returns", "t": 1792697573.673}
+{"d": 0.0, "e": "ok", "n": "tests/bee/test_bee_s94.py::TestReturnSeries::test_empty_returns", "t": 1792697573.675}
+{"e": "start", "n": "tests/bee/test_bee_s94.py::TestReturnSeries::test_annualized_std_scales_daily", "t": 1792697573.675}
+{"d": 0.0, "e": "ok", "n": "tests/bee/test_bee_s94.py::TestReturnSeries::test_annualized_std_scales_daily", "t": 1792697573.676}
+{"e": "start", "n": "tests/bee/test_bee_s94.py::TestReturnSeries::test_single_element_std_zero", "t": 1792697573.677}
+{"d": 0.0, "e": "ok", "n": "tests/bee/test_bee_s94.py::TestReturnSeries::test_single_element_std_zero", "t": 1792697573.678}
+{"e": "start", "n": "tests/bee/test_bee_s94.py::TestRatios::test_sharpe_returns_float", "t": 1792697573.679}
+{"d": 0.0, "e": "ok", "n": "tests/bee/test_bee_s94.py::TestRatios::test_sharpe_returns_float", "t": 1792697573.68}
+{"e": "start", "n": "tests/bee/test_bee_s94.py::TestRatios::test_sharpe_zero_std_returns_zero", "t": 1792697573.68}
+{"d": 0.0, "e": "ok", "n": "tests/bee/test_bee_s94.py::TestRatios::test_sharpe_zero_std_returns_zero", "t": 1792697573.681}
+{"e": "start", "n": "tests/bee/test_bee_s94.py::TestRatios::test_sharpe_positive_when_above_rf", "t": 1792697573.682}
+{"d": 0.0, "e": "ok", "n": "tests/bee/test_bee_s94.py::TestRatios::test_sharpe_positive_when_above_rf", "t": 1792697573.683}
+{"e": "start", "n": "tests/bee/test_bee_s94.py::TestRatios::test_sortino_inf_for_no_downside", "t": 1792697573.684}
+{"d": 0.0, "e": "ok", "n": "tests/bee/test_bee_s94.py::TestRatios::test_sortino_inf_for_no_downside", "t": 1792697573.685}
+{"e": "start", "n": "tests/bee/test_bee_s94.py::TestRatios::test_sortino_finite_with_losses", "t": 1792697573.685}
+{"d": 0.0, "e": "ok", "n": "tests/bee/test_bee_s94.py::TestRatios::test_sortino_finite_with_losses", "t": 1792697573.687}
+{"e": "start", "n": "tests/bee/test_bee_s94.py::TestRatios::test_calmar_inf_for_no_drawdown", "t": 1792697573.687}
+{"d": 0.0, "e": "ok", "n": "tests/bee/test_bee_s94.py::TestRatios::test_calmar_inf_for_no_drawdown", "t": 1792697573.688}
+{"e": "start", "n": "tests/bee/test_bee_s94.py::TestRatios::test_calmar_finite_with_drawdown", "t": 1792697573.689}
+{"d": 0.0, "e": "ok", "n": "tests/bee/test_bee_s94.py::TestRatios::test_calmar_finite_with_drawdown", "t": 1792697573.69}
+{"e": "start", "n": "tests/bee/test_bee_s94.py::TestBenchmarkComparison::test_high_return_beats_naive_return", "t": 1792697573.69}
+{"d": 0.0, "e": "ok", "n": "tests/bee/test_bee_s94.py::TestBenchmarkComparison::test_high_return_beats_naive_return", "t": 1792697573.692}
+{"e": "start", "n": "tests/bee/test_bee_s94.py::TestBenchmarkComparison::test_low_return_loses_vs_naive", "t": 1792697573.692}
+{"d": 0.0, "e": "ok", "n": "tests/bee/test_bee_s94.py::TestBenchmarkComparison::test_low_return_loses_vs_naive", "t": 1792697573.693}
+{"e": "start", "n": "tests/bee/test_bee_s94.py::TestBenchmarkComparison::test_no_apy_promises_in_note", "t": 1792697573.694}
+{"d": 0.0, "e": "ok", "n": "tests/bee/test_bee_s94.py::TestBenchmarkComparison::test_no_apy_promises_in_note", "t": 1792697573.695}
+{"e": "start", "n": "tests/bee/test_bee_s94.py::TestBenchmarkComparison::test_result_has_all_required_fields", "t": 1792697573.695}
+{"d": 0.0, "e": "ok", "n": "tests/bee/test_bee_s94.py::TestBenchmarkComparison::test_result_has_all_required_fields", "t": 1792697573.697}
+{"e": "start", "n": "tests/bee/test_bee_s94.py::TestBenchmarkComparison::test_verdict_values", "t": 1792697573.697}
+{"d": 0.0, "e": "ok", "n": "tests/bee/test_bee_s94.py::TestBenchmarkComparison::test_verdict_values", "t": 1792697573.698}
+{"e": "start", "n": "tests/bee/test_bee_s94.py::TestBenchmarkComparison::test_wins_in_range", "t": 1792697573.699}
+{"d": 0.0, "e": "ok", "n": "tests/bee/test_bee_s94.py::TestBenchmarkComparison::test_wins_in_range", "t": 1792697573.7}
+{"e": "end", "finished": 10698, "started": 10532, "status": 1, "t": 1792698944.675}

@@ -35,6 +35,13 @@ py3.11 и py3.12 — два задания одного прогона, разн
 **Чего прибор НЕ докладывает:** ПОЧЕМУ машина медленнее · тренд (две точки тренда не
 дают, ADR-473) · вклад отдельной фикстуры · верность самого потолка.
 
+**Где вызывается (23.10).** `scripts/ci_control.py compare --base-shards … --head-shards …`
+передаёт сюда записи шардов обоих контрольных прогонов (`compare_sharded`) и кладёт итог
+рядом со своим (`step_time_drift` в `--out-json`, текст — в печать). У шардированной пары
+контроля «тот же коммит» нет — каждый шард на своей машине, — поэтому род подорожания там
+НЕ ИЗМЕРЕН по построению, а числа распределения печатаются как описание. Код возврата
+`compare` прибор не меняет.
+
 ADVISORY: только ЧИТАЕТ. Только stdlib (инв. #4).
 """
 from __future__ import annotations
@@ -44,8 +51,9 @@ import json
 import pathlib
 import statistics
 import sys
+from typing import NamedTuple
 
-from spa_core.monitoring.step_time_census import READ_OK, by_file, census_from_path
+from spa_core.monitoring.step_time_census import READ_ABSENT, READ_OK, by_file, census_from_path
 
 #: Меньше этого числа сопоставимых файлов — квартили считать не на чем.
 MIN_COMPARABLE_FILES = 100
@@ -116,11 +124,17 @@ def read_as_work_or_environment(result, control_ratio=None):
     """
     if result.get("verdict") != "measured":
         return result.get("verdict", "unmeasured:unknown")
+    # Контроль спрашивается ДО формы, а не только для равномерной формы. Широкий
+    # размах без контроля НЕ есть улика «работы»: его даёт и разнородность машин.
+    # Замер 23.10 на ci-control (62fe88b48 → 5bc06f5db, 12+12 шардов, у каждого свой
+    # раннер): общий размах 0.32 при медиане ×1.00, а медианы ВНУТРИ пар «шард базы →
+    # шард головы» (66 пар с ≥ 5 файлами) лежат от ×0.57 до ×1.66 — ширину делают
+    # машины, а прежняя ветка назвала бы это «work_changed».
+    if control_ratio is None:
+        return "unmeasured:no_same_commit_control"
     uniform = result["iqr"] < 0.25 and result["share_slower"] > 0.90
     if not uniform:
         return "work_changed"
-    if control_ratio is None:
-        return "unmeasured:no_same_commit_control"
     if result["median_ratio"] <= control_ratio:
         return "within_runner_spread"
     return "environment_beyond_runner_spread"
@@ -158,6 +172,138 @@ def render(result, label_base, label_later, control_ratio=None, control_label=No
     return "\n".join(out)
 
 
+# ── шардированный прогон (`scripts/ci_control.py compare`) ───────────────────
+#
+# Контрольный прогон CI режет набор на шарды, и у КАЖДОГО шарда — своя машина
+# GitHub. Записи шардов — та же потоковая запись `pytest_stream_record`, поэтому
+# каждая читается той же дверью `census_from_path`; здесь они только СКЛАДЫВАЮТСЯ.
+# Своего разбора записи тут по-прежнему нет.
+
+#: Пар «шард базы → шард головы» с меньшим числом сопоставимых файлов в выжимке
+#: разброса не печатаем: медиана трёх файлов — не медиана.
+MIN_PAIR_FILES = 5
+
+#: Почему у шардированной пары нет причинного вывода. Это причина отказа, а не оговорка.
+NO_CONTROL_REASON = (
+    "нет контроля «тот же коммит на других машинах»: у каждого шарда своя машина GitHub, "
+    "и отношение файла смешивает работу с машиной его шарда; контролем был бы второй "
+    "прогон ci-control ТОГО ЖЕ SHA, а его не передали")
+
+
+class ShardedRun(NamedTuple):
+    """Союз переписей шардов одного прогона. ``read`` != READ_OK ⇒ числа бессмысленны.
+
+    Не выдаёт себя за ``Census``: тождества учёта у союза нет, стена — САМОГО ДОЛГОГО
+    шарда (шарды идут параллельно), а не сумма.
+    """
+
+    read: str
+    reason: str
+    cases: tuple
+    span_s: float
+    ended: bool
+    used: tuple                 # индексы шардов, вошедших в союз
+    excluded: tuple             # ((шард, причина), ...) — вошли бы, но не годятся
+    shard_of_file: dict
+
+
+def sharded_run(records):
+    """Сложить записи шардов. ``records`` — [(шард, тестов по плану, путь к записи)].
+
+    * плана нет ⇒ ``record_absent`` (сравнивать нечего — и это не ноль);
+    * запись шарда отсутствует или не читается ⇒ весь прогон НЕ ИЗМЕРЕН с названным
+      шардом: недостающий шард мог нести любые файлы;
+    * в записи несколько сессий (шард доигрывался) ⇒ шард ИСКЛЮЧЁН с причиной:
+      перепись берёт последнюю сессию, и часть файлов в ней неполна;
+    * случаев в записи не столько, сколько тестов в плане шарда ⇒ ИСКЛЮЧЁН: запись
+      не от этого отчёта или шард не дошёл.
+    """
+    records = list(records or [])
+    if not records:
+        return ShardedRun(READ_ABSENT, "отчёт не объявил ни одного шарда", (), 0.0, False,
+                          (), (), {})
+    cases, used, excluded, spans, ended, owner = [], [], [], [], True, {}
+    for shard, planned, path in records:
+        c = census_from_path(pathlib.Path(path) if path is not None else None)
+        if c.read != READ_OK:
+            return ShardedRun(c.read, "шард %s: %s" % (shard, c.reason), (), 0.0, False,
+                              (), (), {})
+        if c.sessions_in_record != 1:
+            excluded.append((shard, "сессий в записи %d: перепись читает последнюю, файлы "
+                                    "ранних сессий неполны" % c.sessions_in_record))
+            continue
+        if planned is None or len(c.cases) != planned:
+            excluded.append((shard, "случаев в записи %d, тестов в плане шарда %s"
+                                    % (len(c.cases), planned)))
+            continue
+        used.append(shard)
+        cases.extend(c.cases)
+        spans.append(c.span_s)
+        ended = ended and c.ended
+        for case in c.cases:
+            owner[case.file] = shard
+    if not used:
+        return ShardedRun("no_usable_shards", "ни один шард не годится: %s" % "; ".join(
+            "%s — %s" % e for e in excluded), (), 0.0, False, (), tuple(excluded), {})
+    return ShardedRun(READ_OK, "", tuple(cases), max(spans), ended, tuple(used),
+                      tuple(excluded), owner)
+
+
+def shard_pair_spread(base, later, min_baseline_s=MIN_BASELINE_S):
+    """Медианы отношения ВНУТРИ пар «шард базы → шард головы». Описание, не контроль.
+
+    Внутри пары обе машины закреплены, поэтому разброс МЕЖДУ медианами пар и есть
+    видимая доля машин в общем размахе. Причинного вывода отсюда не делается.
+    """
+    fb, fl = by_file(base), by_file(later)
+    pairs = {}
+    for f in comparable_files(base, later):
+        if fb[f] < min_baseline_s:
+            continue
+        key = (base.shard_of_file.get(f), later.shard_of_file.get(f))
+        pairs.setdefault(key, []).append(fl[f] / fb[f])
+    rows = [{"base_shard": k[0], "later_shard": k[1], "files": len(v),
+             "median_ratio": statistics.median(v)}
+            for k, v in pairs.items() if len(v) >= MIN_PAIR_FILES]
+    rows.sort(key=lambda r: r["median_ratio"])
+    return rows
+
+
+def compare_sharded(base_records, later_records, comparable=True, why_not=()):
+    """Сравнение двух шардированных прогонов. Род подорожания без контроля — НЕ ИЗМЕРЕН."""
+    if not comparable:
+        return {"verdict": "unmeasured:runs_not_comparable", "reason": "; ".join(why_not),
+                "kind": "unmeasured:runs_not_comparable"}
+    base, later = sharded_run(base_records), sharded_run(later_records)
+    result = drift(base, later)
+    result["shards"] = {
+        "base": {"used": list(base.used), "excluded": [list(e) for e in base.excluded]},
+        "later": {"used": list(later.used), "excluded": [list(e) for e in later.excluded]},
+    }
+    if result.get("verdict") == "measured":
+        result["shard_pairs"] = shard_pair_spread(base, later)
+    result["kind"] = read_as_work_or_environment(result, None)
+    if result["kind"] == "unmeasured:no_same_commit_control":
+        result["kind_reason"] = NO_CONTROL_REASON
+    return result
+
+
+def render_sharded(result, label_base, label_later):
+    out = [render(result, label_base, label_later)]
+    if result.get("kind_reason"):
+        out.append("   почему без вывода: %s" % result["kind_reason"])
+    pairs = result.get("shard_pairs") or []
+    if pairs:
+        out.append("   медиана ВНУТРИ пар «шард базы → шард головы» (пар с ≥ %d файлами: %d): "
+                   "от ×%.3f до ×%.3f — описание доли машин, не контроль"
+                   % (MIN_PAIR_FILES, len(pairs), pairs[0]["median_ratio"],
+                      pairs[-1]["median_ratio"]))
+    for side in ("base", "later"):
+        for shard, why in (result.get("shards") or {}).get(side, {}).get("excluded", []):
+            out.append("   исключён шард %s (%s): %s" % (shard, side, why))
+    return "\n".join(out)
+
+
 def main(argv=None):
     ap = argparse.ArgumentParser(description="Подорожание шага: работа или среда (заказ G87 п. 3).")
     ap.add_argument("base", help="потоковая запись БОЛЕЕ РАННЕГО прогона")
@@ -185,7 +331,7 @@ def main(argv=None):
     else:
         print(render(result, args.base, args.later, control))
 
-    if result.get("verdict") != "measured":
+    if result.get("verdict") != "measured" or str(result["kind"]).startswith("unmeasured"):
         return 2
     return 1 if result["kind"] != "within_runner_spread" else 0
 

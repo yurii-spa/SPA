@@ -1,0 +1,42 @@
+{"args": ["@/home/runner/work/SPA/SPA/ctl-out/shard-files.txt", "-q", "--tb=short", "-p", "no:randomly", "-p", "spa_core.ci.pytest_stream_record", "-p", "spa_core.ci.pytest_collect_manifest", "--continue-on-collection-errors", "--timeout=180", "--timeout-method=signal", "--junitxml=ctl-out/junit.xml"], "e": "session", "iso": "2026-10-22T23:27:55Z", "pid": 2389, "t": 1792711675.584}
+{"e": "start", "n": "tests/cartographer/test_reliability.py::OneObservationIsNotATrend::test_a_bare_observation_with_no_time_and_no_count_is_unknown", "t": 1792711743.907}
+{"d": 0.0, "e": "ok", "n": "tests/cartographer/test_reliability.py::OneObservationIsNotATrend::test_a_bare_observation_with_no_time_and_no_count_is_unknown", "t": 1792711743.916}
+{"e": "start", "n": "tests/cartographer/test_reliability.py::OneObservationIsNotATrend::test_a_finding_without_evidence_never_becomes_a_problem", "t": 1792711743.917}
+{"d": 0.005, "e": "ok", "n": "tests/cartographer/test_reliability.py::OneObservationIsNotATrend::test_a_finding_without_evidence_never_becomes_a_problem", "t": 1792711743.923}
+{"e": "start", "n": "tests/cartographer/test_reliability.py::OneObservationIsNotATrend::test_a_single_failure_stays_an_incident", "t": 1792711743.924}
+{"d": 0.004, "e": "ok", "n": "tests/cartographer/test_reliability.py::OneObservationIsNotATrend::test_a_single_failure_stays_an_incident", "t": 1792711743.929}
+{"e": "start", "n": "tests/cartographer/test_reliability.py::OneObservationIsNotATrend::test_repeated_evidence_becomes_a_problem_candidate", "t": 1792711743.93}
+{"d": 0.004, "e": "ok", "n": "tests/cartographer/test_reliability.py::OneObservationIsNotATrend::test_repeated_evidence_becomes_a_problem_candidate", "t": 1792711743.935}
+{"e": "start", "n": "tests/cartographer/test_reliability.py::OneObservationIsNotATrend::test_the_same_subject_from_two_sources_is_not_two_observations", "t": 1792711743.936}
+{"d": 0.004, "e": "ok", "n": "tests/cartographer/test_reliability.py::OneObservationIsNotATrend::test_the_same_subject_from_two_sources_is_not_two_observations", "t": 1792711743.941}
+{"e": "start", "n": "tests/cartographer/test_reliability.py::NothingIsInventedThatTheSourceDidNotSay::test_a_count_without_a_named_instrument_is_refused", "t": 1792711743.942}
+{"d": 0.0, "e": "ok", "n": "tests/cartographer/test_reliability.py::NothingIsInventedThatTheSourceDidNotSay::test_a_count_without_a_named_instrument_is_refused", "t": 1792711743.943}
+{"e": "start", "n": "tests/cartographer/test_reliability.py::NothingIsInventedThatTheSourceDidNotSay::test_a_silent_source_is_named_rather_than_hidden", "t": 1792711743.944}
+{"d": 0.004, "e": "ok", "n": "tests/cartographer/test_reliability.py::NothingIsInventedThatTheSourceDidNotSay::test_a_silent_source_is_named_rather_than_hidden", "t": 1792711743.949}
+{"e": "start", "n": "tests/cartographer/test_reliability.py::NothingIsInventedThatTheSourceDidNotSay::test_a_source_without_severity_leaves_it_unknown", "t": 1792711743.95}
+{"d": 0.004, "e": "ok", "n": "tests/cartographer/test_reliability.py::NothingIsInventedThatTheSourceDidNotSay::test_a_source_without_severity_leaves_it_unknown", "t": 1792711743.955}
+{"e": "start", "n": "tests/cartographer/test_reliability.py::NothingIsInventedThatTheSourceDidNotSay::test_a_stale_source_downgrades_active_to_unverified", "t": 1792711743.956}
+{"d": 0.004, "e": "ok", "n": "tests/cartographer/test_reliability.py::NothingIsInventedThatTheSourceDidNotSay::test_a_stale_source_downgrades_active_to_unverified", "t": 1792711743.961}
+{"e": "start", "n": "tests/cartographer/test_reliability.py::NothingIsInventedThatTheSourceDidNotSay::test_an_absent_source_produces_no_findings_and_says_so", "t": 1792711743.962}
+{"d": 0.004, "e": "ok", "n": "tests/cartographer/test_reliability.py::NothingIsInventedThatTheSourceDidNotSay::test_an_absent_source_produces_no_findings_and_says_so", "t": 1792711743.967}
+{"e": "start", "n": "tests/cartographer/test_reliability.py::NothingIsInventedThatTheSourceDidNotSay::test_an_unreadable_source_is_not_read_as_all_clear", "t": 1792711743.968}
+{"d": 0.004, "e": "ok", "n": "tests/cartographer/test_reliability.py::NothingIsInventedThatTheSourceDidNotSay::test_an_unreadable_source_is_not_read_as_all_clear", "t": 1792711743.973}
+{"e": "start", "n": "tests/cartographer/test_reliability.py::NothingIsInventedThatTheSourceDidNotSay::test_first_seen_is_never_invented", "t": 1792711743.974}
+{"d": 0.004, "e": "ok", "n": "tests/cartographer/test_reliability.py::NothingIsInventedThatTheSourceDidNotSay::test_first_seen_is_never_invented", "t": 1792711743.979}
+{"e": "start", "n": "tests/cartographer/test_reliability.py::NothingIsInventedThatTheSourceDidNotSay::test_no_field_anywhere_carries_a_cause", "t": 1792711743.98}
+{"d": 0.005, "e": "ok", "n": "tests/cartographer/test_reliability.py::NothingIsInventedThatTheSourceDidNotSay::test_no_field_anywhere_carries_a_cause", "t": 1792711743.986}
+{"e": "start", "n": "tests/cartographer/test_reliability.py::NothingIsInventedThatTheSourceDidNotSay::test_severity_is_carried_from_the_source_verbatim", "t": 1792711743.987}
+{"d": 0.004, "e": "ok", "n": "tests/cartographer/test_reliability.py::NothingIsInventedThatTheSourceDidNotSay::test_severity_is_carried_from_the_source_verbatim", "t": 1792711743.992}
+{"e": "start", "n": "tests/cartographer/test_reliability.py::NothingIsInventedThatTheSourceDidNotSay::test_the_age_of_a_source_is_not_part_of_the_snapshot_meaning", "t": 1792711743.993}
+{"d": 0.005, "e": "ok", "n": "tests/cartographer/test_reliability.py::NothingIsInventedThatTheSourceDidNotSay::test_the_age_of_a_source_is_not_part_of_the_snapshot_meaning", "t": 1792711743.998}
+{"e": "start", "n": "tests/cartographer/test_reliability.py::TheKnownRealConditionsAreSurfaced::test_a_retired_production_file_is_shown", "t": 1792711743.999}
+{"d": 0.004, "e": "ok", "n": "tests/cartographer/test_reliability.py::TheKnownRealConditionsAreSurfaced::test_a_retired_production_file_is_shown", "t": 1792711744.004}
+{"e": "start", "n": "tests/cartographer/test_reliability.py::TheKnownRealConditionsAreSurfaced::test_a_stale_component_is_shown", "t": 1792711744.005}
+{"d": 0.004, "e": "ok", "n": "tests/cartographer/test_reliability.py::TheKnownRealConditionsAreSurfaced::test_a_stale_component_is_shown", "t": 1792711744.01}
+{"e": "start", "n": "tests/cartographer/test_reliability.py::TheKnownRealConditionsAreSurfaced::test_authority_undefined_is_shown", "t": 1792711744.011}
+{"d": 0.004, "e": "ok", "n": "tests/cartographer/test_reliability.py::TheKnownRealConditionsAreSurfaced::test_authority_undefined_is_shown", "t": 1792711744.016}
+{"e": "start", "n": "tests/cartographer/test_reliability.py::TheKnownRealConditionsAreSurfaced::test_local_only_and_in_sync_are_treated_differently", "t": 1792711744.017}
+{"d": 0.004, "e": "ok", "n": "tests/cartographer/test_reliability.py::TheKnownRealConditionsAreSurfaced::test_local_only_and_in_sync_are_treated_differently", "t": 1792711744.022}
+{"e": "start", "n": "tests/cartographer/test_reliability.py::TheKnownRealConditionsAreSurfaced::test_nothing_is_invented_when_the_tree_is_healthy", "t": 1792711744.023}
+{"d": 0.001, "e": "ok", "n": "tests/cartographer/test_reliability.py::TheKnownRealConditionsAreSurfaced::test_nothing_is_invented_when_the_tree_is_healthy", "t": 1792711744.025}
+{"e": "end", "finished": 11070, "started": 10876, "status": 0, "t": 1792712758.8}

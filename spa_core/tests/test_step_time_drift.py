@@ -281,5 +281,188 @@ class ItReusesTheCensusRatherThanParsingAgain(unittest.TestCase):
         self.assertIn("by_file", names)
 
 
+class WithoutAControlNoShapeIsACause(unittest.TestCase):
+    """Широкий размах без контроля — НЕ улика работы (замер 23.10, ci-control).
+
+    Прежняя ветка спрашивала контроль только у равномерной формы и на широкой отвечала
+    «work_changed» без него. На паре ab17e71cf → 5bc06f5db (правка одного теста, план
+    шардов тот же) она так и ответила бы: доля подорожавших 67 % < 90 %. Ширину там
+    делают машины шардов (медианы пар ×0.94…×1.69), а не работа.
+    """
+
+    def _wide(self):
+        later = {f: v * (1.1 + (i % 50) * 0.08) for i, (f, v) in enumerate(sorted(BASE.items()))}
+        with tempfile.TemporaryDirectory() as td:
+            return D.drift(scene(td, "b.jsonl", BASE), scene(td, "l.jsonl", later))
+
+    def test_a_wide_spread_without_control_is_unmeasured(self):
+        r = self._wide()
+        self.assertGreater(r["iqr"], 0.25)
+        self.assertEqual(D.read_as_work_or_environment(r, control_ratio=None),
+                         "unmeasured:no_same_commit_control")
+
+    def test_the_same_spread_with_a_control_is_still_read_as_work(self):
+        """Обратная сторона: с контролем ветка «работа» жива."""
+        self.assertEqual(D.read_as_work_or_environment(self._wide(), control_ratio=1.09),
+                         "work_changed")
+
+    def test_the_cli_without_control_exits_unmeasured(self):
+        with tempfile.TemporaryDirectory() as td:
+            pb, pl = pathlib.Path(td) / "b.jsonl", pathlib.Path(td) / "l.jsonl"
+            write_record(pb, BASE)
+            write_record(pl, {f: v * 1.39 for f, v in BASE.items()})
+            self.assertEqual(D.main([str(pb), str(pl), "--json"]), 2)
+
+
+def sharded(td, name, shards, *, ended=True):
+    """Каталог прогона ci-control: `ctl-shard-N/stream.jsonl`; вернуть записи для прибора."""
+    out = []
+    for i, per_file in enumerate(shards):
+        d = pathlib.Path(td) / name / ("ctl-shard-%d" % i)
+        d.mkdir(parents=True)
+        c = write_record(d / "stream.jsonl", per_file, ended=ended)
+        out.append((i, len(c.cases), str(d / "stream.jsonl")))
+    return out
+
+
+HALF_A = {f: v for i, (f, v) in enumerate(sorted(BASE.items())) if i % 2 == 0}
+HALF_B = {f: v for i, (f, v) in enumerate(sorted(BASE.items())) if i % 2 == 1}
+
+
+class ShardedRunsAreComparedButNotExplained(unittest.TestCase):
+    """Проводка `scripts/ci_control.py compare`: записи шардов обоих прогонов."""
+
+    def test_the_union_of_shards_is_measured(self):
+        with tempfile.TemporaryDirectory() as td:
+            b = sharded(td, "b", [HALF_A, HALF_B])
+            l = sharded(td, "l", [{f: v * 1.39 for f, v in HALF_A.items()},
+                                  {f: v * 1.39 for f, v in HALF_B.items()}])
+            r = D.compare_sharded(b, l)
+        self.assertEqual(r["verdict"], "measured")
+        self.assertEqual(r["comparable_files"], len(BASE))
+        self.assertAlmostEqual(r["median_ratio"], 1.39, places=2)
+        self.assertEqual(r["kind"], "unmeasured:no_same_commit_control")
+        self.assertIn("ТОГО ЖЕ SHA", r["kind_reason"])
+
+    def test_per_shard_machines_alone_make_a_wide_spread(self):
+        """Работа та же, машины разные: шард 0 ×0.6, шард 1 ×1.5 — размах широкий,
+        и вывода о работе быть не должно. Пары шардов это и показывают."""
+        with tempfile.TemporaryDirectory() as td:
+            b = sharded(td, "b", [HALF_A, HALF_B])
+            l = sharded(td, "l", [{f: v * 0.6 for f, v in HALF_A.items()},
+                                  {f: v * 1.5 for f, v in HALF_B.items()}])
+            r = D.compare_sharded(b, l)
+        self.assertGreater(r["iqr"], 0.25)
+        self.assertEqual(r["kind"], "unmeasured:no_same_commit_control")
+        medians = sorted(round(p["median_ratio"], 2) for p in r["shard_pairs"])
+        self.assertEqual(medians, [0.6, 1.5])
+
+    def test_a_missing_shard_record_makes_the_run_unmeasured_and_names_it(self):
+        with tempfile.TemporaryDirectory() as td:
+            b = sharded(td, "b", [HALF_A, HALF_B])
+            l = sharded(td, "l", [HALF_A, HALF_B])
+            pathlib.Path(l[1][2]).unlink()
+            r = D.compare_sharded(b, l)
+        self.assertEqual(r["verdict"], "unmeasured:later_record_absent")
+        self.assertIn("шард 1", r["reason"])
+
+    def test_a_resumed_shard_is_excluded_by_name(self):
+        """Порча формы f4b098b7a: шард доигрывался — в записи 4 сессии."""
+        with tempfile.TemporaryDirectory() as td:
+            b = sharded(td, "b", [HALF_A, HALF_B])
+            l = sharded(td, "l", [HALF_A, HALF_B])
+            path = pathlib.Path(l[1][2])
+            text = path.read_text(encoding="utf-8")
+            path.write_text(text + text, encoding="utf-8")          # вторая сессия
+            run = D.sharded_run(l)
+        self.assertEqual(run.used, (0,))
+        self.assertEqual(run.excluded[0][0], 1)
+        self.assertIn("сессий в записи 2", run.excluded[0][1])
+
+    def test_a_record_that_does_not_cover_its_plan_is_excluded(self):
+        with tempfile.TemporaryDirectory() as td:
+            l = sharded(td, "l", [HALF_A, HALF_B])
+            l[0] = (0, l[0][1] + 1, l[0][2])                        # план больше записи
+            run = D.sharded_run(l)
+        self.assertEqual(run.used, (1,))
+        self.assertIn("тестов в плане шарда", run.excluded[0][1])
+
+    def test_no_usable_shard_is_unmeasured_not_zero(self):
+        with tempfile.TemporaryDirectory() as td:
+            l = [(i, n + 1, p) for i, n, p in sharded(td, "l", [HALF_A, HALF_B])]
+            b = sharded(td, "b", [HALF_A, HALF_B])
+            r = D.compare_sharded(b, l)
+        self.assertEqual(r["verdict"], "unmeasured:later_no_usable_shards")
+        self.assertNotIn("median_ratio", r)
+
+    def test_no_plan_is_unmeasured(self):
+        r = D.compare_sharded([], [])
+        self.assertEqual(r["verdict"], "unmeasured:baseline_record_absent")
+
+    def test_incomparable_runs_are_not_measured_at_all(self):
+        r = D.compare_sharded([], [], comparable=False, why_not=["python 3.11 ≠ 3.12"])
+        self.assertEqual(r["verdict"], "unmeasured:runs_not_comparable")
+        self.assertIn("3.12", r["reason"])
+
+    def test_the_printout_names_the_refusal_and_the_excluded_shard(self):
+        with tempfile.TemporaryDirectory() as td:
+            b = sharded(td, "b", [HALF_A, HALF_B])
+            l = sharded(td, "l", [HALF_A, HALF_B])
+            l.append((2, 5, str(pathlib.Path(td) / "l" / "ctl-shard-0" / "stream.jsonl")))
+            text = D.render_sharded(D.compare_sharded(b, l), "b", "l")
+        self.assertIn("ВЕРДИКТ: unmeasured:no_same_commit_control", text)
+        self.assertIn("почему без вывода", text)
+        self.assertIn("исключён шард 2", text)
+
+
+#: Выжимки НАСТОЯЩИХ записей ci-control (строки дословно, первые 20 случаев шардов 0 и 1
+#: плюс их строки `session` и `end`): прогон 39832458873 (62fe88b48) и 39871542027
+#: (5bc06f5db), артефакты `ctl-shard-N/stream.jsonl`.
+EXCERPT = pathlib.Path(__file__).resolve().parent / "fixtures" / "ci_control_stream_excerpt"
+
+
+class TheRealRecordsFitTheInstrument(unittest.TestCase):
+    """Совместимость формы: запись шарда читается той же дверью, что и запись test.yml."""
+
+    def _records(self, tag):
+        out = []
+        for i in (0, 1):
+            path = EXCERPT / tag / ("ctl-shard-%d" % i) / "stream.jsonl"
+            out.append((i, len(census_from_path(path).cases), str(path)))
+        return out
+
+    def test_each_real_shard_record_reads_as_one_ended_session(self):
+        for tag in ("base_62fe88b48", "head_5bc06f5db"):
+            for i in (0, 1):
+                c = census_from_path(EXCERPT / tag / ("ctl-shard-%d" % i) / "stream.jsonl")
+                self.assertEqual(c.read, "read", (tag, i, c.reason))
+                self.assertTrue(c.ended)
+                self.assertEqual(c.sessions_in_record, 1)
+                self.assertEqual(len(c.cases), 20)
+                self.assertEqual(c.cases_without_outcome, 0)
+                self.assertEqual(c.timeout_s, 180.0)        # порог прочитан у записи
+                self.assertTrue(all(case.span >= 0 for case in c.cases))
+
+    def test_the_real_union_is_built_and_a_small_excerpt_is_not_a_quartile(self):
+        b, l = self._records("base_62fe88b48"), self._records("head_5bc06f5db")
+        run = D.sharded_run(l)
+        self.assertEqual(run.used, (0, 1))
+        self.assertEqual(len(run.cases), 40)
+        r = D.compare_sharded(b, l)
+        self.assertEqual(r["verdict"], "unmeasured:too_few_comparable_files")
+        self.assertEqual(r["kind"], "unmeasured:too_few_comparable_files")
+
+    def test_a_torn_last_line_of_a_real_record_is_counted_not_fatal(self):
+        src = EXCERPT / "head_5bc06f5db" / "ctl-shard-0" / "stream.jsonl"
+        with tempfile.TemporaryDirectory() as td:
+            torn = pathlib.Path(td) / "stream.jsonl"
+            text = src.read_text(encoding="utf-8")
+            torn.write_text(text[: len(text) - 25], encoding="utf-8")   # оборвана `end`
+            c = census_from_path(torn)
+        self.assertEqual(c.read, "read")
+        self.assertEqual(c.torn_lines, 1)
+        self.assertFalse(c.ended)
+
+
 if __name__ == "__main__":                                   # pragma: no cover
     unittest.main()

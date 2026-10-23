@@ -1,0 +1,42 @@
+{"args": ["@/home/runner/work/SPA/SPA/ctl-out/shard-files.txt", "-q", "--tb=short", "-p", "no:randomly", "-p", "spa_core.ci.pytest_stream_record", "-p", "spa_core.ci.pytest_collect_manifest", "--continue-on-collection-errors", "--timeout=180", "--timeout-method=signal", "--junitxml=ctl-out/junit.xml"], "e": "session", "iso": "2026-10-22T23:27:58Z", "pid": 2386, "t": 1792711678.091}
+{"e": "start", "n": "tests/bee/test_bee_s95.py::TestScenarioEvaluation::test_mild_depeg_survived", "t": 1792711770.908}
+{"d": 0.0, "e": "ok", "n": "tests/bee/test_bee_s95.py::TestScenarioEvaluation::test_mild_depeg_survived", "t": 1792711770.926}
+{"e": "start", "n": "tests/bee/test_bee_s95.py::TestScenarioEvaluation::test_catastrophic_failed", "t": 1792711770.927}
+{"d": 0.0, "e": "ok", "n": "tests/bee/test_bee_s95.py::TestScenarioEvaluation::test_catastrophic_failed", "t": 1792711770.928}
+{"e": "start", "n": "tests/bee/test_bee_s95.py::TestScenarioEvaluation::test_gate_triggered_on_high_depeg", "t": 1792711770.929}
+{"d": 0.0, "e": "ok", "n": "tests/bee/test_bee_s95.py::TestScenarioEvaluation::test_gate_triggered_on_high_depeg", "t": 1792711770.93}
+{"e": "start", "n": "tests/bee/test_bee_s95.py::TestScenarioEvaluation::test_small_depeg_gate_not_triggered", "t": 1792711770.931}
+{"d": 0.0, "e": "ok", "n": "tests/bee/test_bee_s95.py::TestScenarioEvaluation::test_small_depeg_gate_not_triggered", "t": 1792711770.932}
+{"e": "start", "n": "tests/bee/test_bee_s95.py::TestScenarioEvaluation::test_result_has_disclaimer", "t": 1792711770.933}
+{"d": 0.0, "e": "ok", "n": "tests/bee/test_bee_s95.py::TestScenarioEvaluation::test_result_has_disclaimer", "t": 1792711770.934}
+{"e": "start", "n": "tests/bee/test_bee_s95.py::TestScenarioEvaluation::test_no_apy_promise_in_policy_response", "t": 1792711770.934}
+{"d": 0.0, "e": "ok", "n": "tests/bee/test_bee_s95.py::TestScenarioEvaluation::test_no_apy_promise_in_policy_response", "t": 1792711770.936}
+{"e": "start", "n": "tests/bee/test_bee_s95.py::TestScenarioEvaluation::test_all_scenarios_have_valid_outcome", "t": 1792711770.936}
+{"d": 0.0, "e": "ok", "n": "tests/bee/test_bee_s95.py::TestScenarioEvaluation::test_all_scenarios_have_valid_outcome", "t": 1792711770.938}
+{"e": "start", "n": "tests/bee/test_bee_s95.py::TestScenarioEvaluation::test_drawdown_non_negative", "t": 1792711770.938}
+{"d": 0.0, "e": "ok", "n": "tests/bee/test_bee_s95.py::TestScenarioEvaluation::test_drawdown_non_negative", "t": 1792711770.939}
+{"e": "start", "n": "tests/bee/test_bee_s95.py::TestScenarioEvaluation::test_recovery_false_only_on_failed_kill", "t": 1792711770.94}
+{"d": 0.0, "e": "ok", "n": "tests/bee/test_bee_s95.py::TestScenarioEvaluation::test_recovery_false_only_on_failed_kill", "t": 1792711770.942}
+{"e": "start", "n": "tests/bee/test_bee_s95.py::TestScenarioEvaluation::test_scenario_ids_unique", "t": 1792711770.942}
+{"d": 0.0, "e": "ok", "n": "tests/bee/test_bee_s95.py::TestScenarioEvaluation::test_scenario_ids_unique", "t": 1792711770.943}
+{"e": "start", "n": "tests/bee/test_bee_s95.py::TestScenarioEvaluation::test_eight_synthetic_scenarios", "t": 1792711770.944}
+{"d": 0.0, "e": "ok", "n": "tests/bee/test_bee_s95.py::TestScenarioEvaluation::test_eight_synthetic_scenarios", "t": 1792711770.945}
+{"e": "start", "n": "tests/bee/test_bee_s95.py::TestScenarioEvaluation::test_s1_has_scenario_id", "t": 1792711770.946}
+{"d": 0.0, "e": "ok", "n": "tests/bee/test_bee_s95.py::TestScenarioEvaluation::test_s1_has_scenario_id", "t": 1792711770.947}
+{"e": "start", "n": "tests/bee/test_bee_s95.py::TestScenarioEvaluation::test_policy_response_non_empty", "t": 1792711770.947}
+{"d": 0.0, "e": "ok", "n": "tests/bee/test_bee_s95.py::TestScenarioEvaluation::test_policy_response_non_empty", "t": 1792711770.949}
+{"e": "start", "n": "tests/bee/test_bee_s95.py::TestScenarioEvaluation::test_custom_policy_config", "t": 1792711770.949}
+{"d": 0.0, "e": "ok", "n": "tests/bee/test_bee_s95.py::TestScenarioEvaluation::test_custom_policy_config", "t": 1792711770.95}
+{"e": "start", "n": "tests/bee/test_bee_s95.py::TestScenarioEvaluation::test_funding_gate", "t": 1792711770.951}
+{"d": 0.0, "e": "ok", "n": "tests/bee/test_bee_s95.py::TestScenarioEvaluation::test_funding_gate", "t": 1792711770.952}
+{"e": "start", "n": "tests/bee/test_bee_s95.py::TestScenarioEvaluation::test_tvl_gate", "t": 1792711770.953}
+{"d": 0.0, "e": "ok", "n": "tests/bee/test_bee_s95.py::TestScenarioEvaluation::test_tvl_gate", "t": 1792711770.954}
+{"e": "start", "n": "tests/bee/test_bee_s95.py::TestFailureBoundary::test_boundary_returns_dict", "t": 1792711770.954}
+{"d": 0.0, "e": "ok", "n": "tests/bee/test_bee_s95.py::TestFailureBoundary::test_boundary_returns_dict", "t": 1792711770.956}
+{"e": "start", "n": "tests/bee/test_bee_s95.py::TestFailureBoundary::test_boundary_has_required_keys", "t": 1792711770.956}
+{"d": 0.0, "e": "ok", "n": "tests/bee/test_bee_s95.py::TestFailureBoundary::test_boundary_has_required_keys", "t": 1792711770.958}
+{"e": "start", "n": "tests/bee/test_bee_s95.py::TestFailureBoundary::test_boundary_found_status", "t": 1792711770.958}
+{"d": 0.0, "e": "ok", "n": "tests/bee/test_bee_s95.py::TestFailureBoundary::test_boundary_found_status", "t": 1792711770.96}
+{"e": "start", "n": "tests/bee/test_bee_s95.py::TestFailureBoundary::test_boundary_value_in_range", "t": 1792711770.96}
+{"d": 0.0, "e": "ok", "n": "tests/bee/test_bee_s95.py::TestFailureBoundary::test_boundary_value_in_range", "t": 1792711770.961}
+{"e": "end", "finished": 10642, "started": 10310, "status": 1, "t": 1792713384.201}

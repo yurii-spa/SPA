@@ -26,7 +26,7 @@
 
     plan      --collected F --weights W --shards N --budget-min M --sha S --out-dir D
     aggregate --manifest-dir D --shards-dir S [--needs-result R] --out-json J --out-md M
-    compare   BASE.json HEAD.json [--out-json J]
+    compare   BASE.json HEAD.json [--out-json J] [--base-shards D --head-shards D]
     weights   [--stream F]... [--junit F]... [--root R] --out W
     run-shard --files F --exit-file E [--max-resumes K] -- <аргументы pytest>
 
@@ -38,7 +38,14 @@ COMPARABLE)::
 
     # id артефактов двух прогонов: GET /repos/yurii-spa/SPA/actions/runs/<run>/artifacts
     #   (имя ci-control-report); скачать: GET …/actions/artifacts/<id>/zip → report.json
-    python3 scripts/ci_control.py compare base/report.json head/report.json --out-json cmp.json
+    python3 scripts/ci_control.py compare base/report.json head/report.json --out-json cmp.json \
+        --base-shards base/ --head-shards head/     # каталоги со скачанными ctl-shard-N/
+
+С `--base-shards/--head-shards` сравнение передаёт записи шардов обоих прогонов прибору
+`spa_core.monitoring.step_time_drift` и кладёт его итог в `step_time_drift` того же JSON
+(текст — в печать). Без них — `unmeasured:shard_records_not_passed`. Прибор ADVISORY: код
+возврата ниже от него не зависит; род подорожания у шардированной пары НЕ ИЗМЕРЕН (контроля
+«тот же коммит» нет).
 
 Код возврата: 0 — новых нет и всё измерено; 1 — есть NEW; 2 — несравнимы ИЛИ часть упавших
 головы в базе НЕ ИЗМЕРЕНА (`not_obtained`), ИЛИ голова сама INCOMPLETE. Первый прогон
@@ -645,10 +652,58 @@ def compare(base: dict, head: dict) -> dict:
     return out
 
 
+def _shard_records(report: dict, shards_dir: str | None) -> list | None:
+    """[(шард, тестов по плану, путь к записи)] из отчёта и каталога артефактов шардов.
+
+    Каталог — тот, куда скачаны `ctl-shard-N/` прогона (как `--shards-dir` у `aggregate`).
+    Не передан ⇒ ``None``: сравнение времени НЕ ИЗМЕРЕНО, а не «без изменений».
+    """
+    if not shards_dir:
+        return None
+    return [(row.get("shard"), row.get("tests"),
+             str(Path(shards_dir) / f"{SHARD_DIR_PREFIX}{row.get('shard')}" / STREAM_FILE))
+            for row in report.get("shards") or []]
+
+
+def step_time_drift_section(base: dict, head: dict, res: dict, base_shards: str | None,
+                            head_shards: str | None) -> tuple[dict, str]:
+    """Подорожание шага между прогонами — прибор `step_time_drift` по записям шардов.
+
+    ADVISORY: на вердикт и код возврата `compare` не влияет. Каждый отказ — НЕ ИЗМЕРЕНО
+    с причиной (записи не переданы · прибор не ввозится · прогоны несравнимы).
+    """
+    label_b = f"{base.get('sha')} run {(base.get('run') or {}).get('id')}"
+    label_h = f"{head.get('sha')} run {(head.get('run') or {}).get('id')}"
+    br, hr = _shard_records(base, base_shards), _shard_records(head, head_shards)
+    if br is None or hr is None:
+        missing = [n for n, r in (("--base-shards", br), ("--head-shards", hr)) if r is None]
+        out = {"verdict": "unmeasured:shard_records_not_passed",
+               "reason": "не передан каталог записей шардов: " + ", ".join(missing),
+               "kind": "unmeasured:shard_records_not_passed"}
+        return out, ("— подорожание шага (step_time_drift) —\n   ❗НЕ ИЗМЕРЕНО: "
+                     + out["verdict"] + " (" + out["reason"] + ")")
+    root = str(Path(__file__).resolve().parents[1])
+    if root not in sys.path:
+        sys.path.insert(0, root)
+    try:
+        from spa_core.monitoring import step_time_drift
+    except Exception as exc:                                   # pragma: no cover
+        out = {"verdict": "unmeasured:instrument_unavailable", "reason": repr(exc),
+               "kind": "unmeasured:instrument_unavailable"}
+        return out, "— подорожание шага (step_time_drift) —\n   ❗НЕ ИЗМЕРЕНО: " + repr(exc)
+    out = step_time_drift.compare_sharded(br, hr, comparable=res["comparable"],
+                                          why_not=res["why_not"])
+    return out, step_time_drift.render_sharded(out, label_b, label_h)
+
+
 def cmd_compare(args) -> int:
     base = json.loads(Path(args.base).read_text(encoding="utf-8"))
     head = json.loads(Path(args.head).read_text(encoding="utf-8"))
     res = compare(base, head)
+    drift, drift_text = step_time_drift_section(base, head, res, args.base_shards,
+                                                args.head_shards)
+    res["step_time_drift"] = drift
+    print(drift_text)
     if args.out_json:
         Path(args.out_json).write_text(json.dumps(res, ensure_ascii=False, indent=1),
                                        encoding="utf-8")
@@ -855,6 +910,8 @@ def main(argv: list[str] | None = None) -> int:
     cp.add_argument("base")
     cp.add_argument("head")
     cp.add_argument("--out-json")
+    cp.add_argument("--base-shards", help="каталог с ctl-shard-N/ базового прогона")
+    cp.add_argument("--head-shards", help="каталог с ctl-shard-N/ прогона головы")
     wt = sub.add_parser("weights")
     wt.add_argument("--stream", action="append")
     wt.add_argument("--junit", action="append")

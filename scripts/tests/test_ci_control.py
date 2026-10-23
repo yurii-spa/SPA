@@ -380,6 +380,100 @@ def test_cmd_compare_exit_codes(tmp_path):
     assert cc.main(["compare", str(bp), str(hp)]) == 2
 
 
+# ── проводка step_time_drift в compare (записи шардов обоих прогонов) ────────
+
+#: 200 файлов по 2 теста: случай в сцене `_write_shard` стоит 1 с, файл — 2 с, то есть
+#: выше пола прибора (1 с) и больше его порога населения (100 файлов).
+_DRIFT_POP = [f"spa_core/tests/test_f{i:03d}.py::test_{j}" for i in range(200) for j in (0, 1)]
+
+
+def _drift_run(tmp_path: Path, name: str) -> tuple[Path, Path]:
+    m = _manifest(2, population=_DRIFT_POP)
+    root = tmp_path / name
+    for i in range(2):
+        _write_shard(root, m, i)
+    report = cc.aggregate(m, root, "success")
+    rp = tmp_path / f"{name}.json"
+    rp.write_text(json.dumps(report), encoding="utf-8")
+    return rp, root
+
+
+def test_compare_hands_both_runs_shard_records_to_step_time_drift(tmp_path):
+    """Проводка: compare передаёт прибору записи ОБОИХ прогонов и кладёт итог рядом.
+
+    Убери вызов — ключа `step_time_drift` нет, тест красный (и храповик
+    `test_unwired_guard_modules_ratchet` снова называет модуль сиротой).
+    """
+    bp, broot = _drift_run(tmp_path, "base")
+    hp, hroot = _drift_run(tmp_path, "head")
+    out = tmp_path / "cmp.json"
+    code = cc.main(["compare", str(bp), str(hp), "--out-json", str(out),
+                    "--base-shards", str(broot), "--head-shards", str(hroot)])
+    assert code == 0                       # прибор ADVISORY: код возврата compare не меняет
+    drift = json.loads(out.read_text(encoding="utf-8"))["step_time_drift"]
+    assert drift["verdict"] == "measured", drift
+    assert drift["comparable_files"] == 200
+    assert drift["shards"]["base"]["used"] == [0, 1]
+    assert drift["shards"]["later"]["used"] == [0, 1]
+    # Шардированная пара без прогона ТОГО ЖЕ SHA: числа есть, рода подорожания нет.
+    assert drift["kind"] == "unmeasured:no_same_commit_control"
+    assert drift["kind_reason"]
+
+
+def test_compare_without_shard_records_says_unmeasured_not_unchanged(tmp_path, capsys):
+    bp, _ = _drift_run(tmp_path, "base")
+    hp, hroot = _drift_run(tmp_path, "head")
+    out = tmp_path / "cmp.json"
+    assert cc.main(["compare", str(bp), str(hp), "--out-json", str(out),
+                    "--head-shards", str(hroot)]) == 0
+    drift = json.loads(out.read_text(encoding="utf-8"))["step_time_drift"]
+    assert drift["verdict"] == "unmeasured:shard_records_not_passed"
+    assert "--base-shards" in drift["reason"] and "--head-shards" not in drift["reason"]
+    assert "НЕ ИЗМЕРЕНО" in capsys.readouterr().out
+
+
+def test_compare_drift_refuses_records_that_do_not_belong_to_the_report(tmp_path):
+    """Порча: каталог шардов от ДРУГОГО прогона (другой план) — шарды исключены поимённо."""
+    bp, broot = _drift_run(tmp_path, "base")
+    hp, _ = _drift_run(tmp_path, "head")
+    other = tmp_path / "other"
+    m = _manifest(2)                       # население из пяти тестов, а не из 400
+    for i in range(2):
+        _write_shard(other, m, i)
+    out = tmp_path / "cmp.json"
+    cc.main(["compare", str(bp), str(hp), "--out-json", str(out),
+             "--base-shards", str(broot), "--head-shards", str(other)])
+    drift = json.loads(out.read_text(encoding="utf-8"))["step_time_drift"]
+    assert drift["verdict"] == "unmeasured:later_no_usable_shards", drift
+    assert drift["kind"].startswith("unmeasured:")
+
+
+def test_compare_drift_of_incomparable_runs_is_unmeasured(tmp_path):
+    bp, broot = _drift_run(tmp_path, "base")
+    hp, hroot = _drift_run(tmp_path, "head")
+    head = json.loads(hp.read_text(encoding="utf-8"))
+    head["env"] = dict(head["env"] or {}, python="3.12.1")
+    hp.write_text(json.dumps(head), encoding="utf-8")
+    out = tmp_path / "cmp.json"
+    assert cc.main(["compare", str(bp), str(hp), "--out-json", str(out),
+                    "--base-shards", str(broot), "--head-shards", str(hroot)]) == 2
+    drift = json.loads(out.read_text(encoding="utf-8"))["step_time_drift"]
+    assert drift["verdict"] == "unmeasured:runs_not_comparable"
+    assert "python" in drift["reason"]
+
+
+def test_compare_drift_names_a_missing_shard_record(tmp_path):
+    bp, broot = _drift_run(tmp_path, "base")
+    hp, hroot = _drift_run(tmp_path, "head")
+    (hroot / f"{cc.SHARD_DIR_PREFIX}1" / cc.STREAM_FILE).unlink()
+    out = tmp_path / "cmp.json"
+    cc.main(["compare", str(bp), str(hp), "--out-json", str(out),
+             "--base-shards", str(broot), "--head-shards", str(hroot)])
+    drift = json.loads(out.read_text(encoding="utf-8"))["step_time_drift"]
+    assert drift["verdict"] == "unmeasured:later_record_absent", drift
+    assert "шард 1" in drift["reason"]
+
+
 # ── живой pytest: плагины → план → шарды → свод ──────────────────────────────
 
 def _scene(tmp_path: Path) -> Path:
