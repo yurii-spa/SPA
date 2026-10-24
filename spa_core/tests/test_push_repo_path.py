@@ -177,6 +177,13 @@ def test_file_at_repo_root_still_maps_to_bare_name(pusher, repo):
 
 
 def test_relative_path_still_resolves_against_project_root(batch, repo, monkeypatch):
+    """НАМЕРЕННАЯ ПРАВКА #919 (инв. #16): предмет — ОТОБРАЖЕНИЕ пути внутрь репо,
+    и он сохранён дословно. С ADR-796 выбор ПРОД-дерева для относительного пути
+    обязан быть объявлен, а не достаться умолчанию; объявление добавлено одной
+    строкой, утверждение теста не тронуто. Сам отказ двери меряет своя батарея
+    `test_delivery_tree_is_named.py` — там он предмет, а здесь был бы шумом.
+    """
+    monkeypatch.setattr(batch._root_push, "_ALLOW_PROD_ROOT_RELATIVE", True)
     monkeypatch.setattr(batch, "PROJECT_ROOT", repo)
     monkeypatch.setattr(batch._root_push, "PROJECT_ROOT", repo)
     _add_file(repo, "docs/STATE.md")

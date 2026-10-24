@@ -395,7 +395,11 @@ def test_cli_dry_run_writes_nothing(ptg, repo, monkeypatch):
 # ═════════════════════════════════════════════════════════════════════════════
 _SHARED = ["batch_push", "resolve_files", "create_blob", "create_tree",
            "create_commit", "update_ref", "get_base_ref", "remote_tree_modes",
-           "tree_entry_mode", "split_unchanged", "get_pat"]
+           "tree_entry_mode", "split_unchanged", "get_pat",
+           # ADR-796: дверь «дерево, из которого читаются байты, НАЗВАНО».
+           # Своя копия здесь означала бы, что одна дверь отказывает, а вторая
+           # молча везёт байты прод-дерева — дословно класс #37/#40.
+           "resolve_delivery_path", "declare_prod_root_relative"]
 
 
 @pytest.mark.parametrize("name", _SHARED)

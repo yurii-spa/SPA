@@ -1,0 +1,83 @@
+{
+ "title": "ADR-796 — дельта цикла #919: дверь «дерево, из которого читаются байты, НАЗВАНО». Каждая мутация возвращает одно из состояний, в которых относительный путь снова молча читался бы из ПРОД-дерева (замер #918: blob 0fcb1332 прод-копии вместо b29ddbf4 работы цикла, код возврата 0)",
+ "tests": [
+  "spa_core/tests/test_delivery_tree_is_named.py",
+  "spa_core/tests/test_delivery_tree_probe.py",
+  "spa_core/tests/test_delivery_bytes_pin.py",
+  "spa_core/tests/test_push_repo_path.py"
+ ],
+ "mutations": [
+  {
+   "name": "расхождение байтов больше не расхождение — умолчание вернулось целиком",
+   "file": "push_to_github.py",
+   "old": "    agreed = (len(set(blobs)) == 1\n              and not blobs[0].startswith(\"НЕ ИЗМЕРЕНО\"))",
+   "new": "    agreed = True"
+  },
+  {
+   "name": "нечитаемый кандидат выдан за СОВПАДЕНИЕ — «не прочитали» снова неотличимо от «расхождения нет» (инв. #17)",
+   "file": "push_to_github.py",
+   "old": "        return f\"НЕ ИЗМЕРЕНО: {type(exc).__name__}\"",
+   "new": "        return \"одинаково\""
+  },
+  {
+   "name": "файл, который есть ТОЛЬКО в прод-дереве, снова читается молча — тихая половина аварии #918",
+   "file": "push_to_github.py",
+   "old": "        if only[\"label\"] != \"ПРОД-дерево\":",
+   "new": "        if True:"
+  },
+  {
+   "name": "перечень деревьев схлопнут до прод-дерева — вопрос «байты какого файла» снова не задаётся",
+   "file": "push_to_github.py",
+   "old": "        out.append((label, Path(tree)))",
+   "new": "        out.append((label, Path(tree)))\n        break"
+  },
+  {
+   "name": "отказ стал ПРЕДУПРЕЖДЕНИЕМ: весь текст на месте, доставка идёт (контроль «не подстрокой»)",
+   "file": "push_to_github.py",
+   "old": "    if not allow_prod_root:\n        raise AmbiguousDeliveryTree(_tree_refusal(\n            file_arg, rows,\n            \"один и тот же путь указывает на РАЗНЫЕ байты в разных деревьях\"))",
+   "new": "    if not allow_prod_root:\n        print(_tree_refusal(\n            file_arg, rows,\n            \"один и тот же путь указывает на РАЗНЫЕ байты в разных деревьях\"))"
+  },
+  {
+   "name": "blob-ы из отказа убраны — «не тот файл» снова неотличимо от «файла нет»",
+   "file": "push_to_github.py",
+   "old": "            lines.append(f\"    {row['label']}: {row['path']} — blob {row['blob']}\")",
+   "new": "            lines.append(f\"    {row['label']}: {row['path']}\")"
+  },
+  {
+   "name": "вердикты двери не печатаются — выбранное дерево снова достаётся умолчанию МОЛЧА",
+   "file": "push_to_github.py",
+   "old": "    if first:\n        print(f\"  {text}\")",
+   "new": "    if False:\n        print(f\"  {text}\")"
+  },
+  {
+   "name": "абсолютный путь перестал быть неприкосновенным — правка задевает штатный путь доставки",
+   "file": "push_to_github.py",
+   "old": "    local = Path(file_arg)\n    if local.is_absolute():\n        return local",
+   "new": "    local = Path(file_arg)\n    if False:\n        return local"
+  },
+  {
+   "name": "«ни в одном дереве файла нет» подменило ВСЕ остальные исходы — дверь открыта настежь",
+   "file": "push_to_github.py",
+   "old": "    existing = [r for r in rows if r[\"exists\"]]\n    if not existing:",
+   "new": "    existing = [r for r in rows if r[\"exists\"]]\n    if True:"
+  },
+  {
+   "name": "след двери не записывается — «спросили и равно» снова неотличимо от «не спрашивали»",
+   "file": "push_to_github.py",
+   "old": "    _TREE_VERDICTS.append({\"file_arg\": str(file_arg), \"verdict\": verdict, \"text\": text})",
+   "new": "    pass"
+  },
+  {
+   "name": "согласие читается ВСЕГДА как данное — обход стал умолчанием, то есть авария #918 с флагом в кармане",
+   "file": "push_to_github.py",
+   "old": "    if allow_prod_root is None:\n        allow_prod_root = _ALLOW_PROD_ROOT_RELATIVE",
+   "new": "    if True:\n        allow_prod_root = True"
+  },
+  {
+   "name": "дверь выпала из пина — ключ слепка снова берётся умолчанием, и сверка ПОДТВЕРЖДАЕТ подмену",
+   "file": "push_to_github.py",
+   "old": "    return str(resolve_delivery_path(file_arg))",
+   "new": "    local = Path(file_arg)\n    if not local.is_absolute():\n        local = PROJECT_ROOT / local\n    return str(local)"
+  }
+ ]
+}

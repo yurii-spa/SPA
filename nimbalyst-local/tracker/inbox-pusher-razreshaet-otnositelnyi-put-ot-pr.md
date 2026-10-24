@@ -2,9 +2,13 @@
 trackerStatus:
   type: inbox
 title: Пушер разрешает относительный путь от ПРОД-дерева, и когда файл там есть — молча везёт чужие байты
-status: new
+status: done
 source: nimbalyst
 created: 2026-10-24
+acceptance_probe: delivery_refuses_an_unnamed_tree
+status_trail:
+  - "2026-10-24T04:34:20.723014+00:00 new -> in-progress · queue.set_status · cycle-24545"
+  - "2026-10-24T04:43:41.525530+00:00 in-progress -> done · queue.set_status/closed_by:цикл-919 (агент-оркестратор)/evidence:проба delivery_refuses_an_unnamed_tree = satisfied на живом пушере (код 12 с печатью обоих blob-ов против кода 0 и строки ОБХОД ОБЪЯВЛЕН); ADR-796; батареи test_delivery_tree_is_named.py 18 passed + t · cycle-24545"
 ---
 
 ## Что случилось и почему это важно

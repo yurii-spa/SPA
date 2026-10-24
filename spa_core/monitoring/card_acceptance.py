@@ -10852,6 +10852,142 @@ def _probe_no_regression_record_is_produced_without_a_hand(
                        f"{float(slo):.0f}ч")
 
 
+def _probe_delivery_refuses_an_unnamed_tree(
+    arg: str | None, *, repo_root: str | None = None,
+) -> tuple[str, str]:
+    """Критерий: относительный путь, разрешённый от ПРОД-дерева, есть ОТКАЗ (ADR-796).
+
+    Предмет — карточка `inbox-pusher-razreshaet-otnositelnyi-put-ot-pr`. Замер
+    цикла #918 (живой пушер, `--dry-run`): пушер разрешал относительные пути от
+    константы `PROJECT_ROOT`, и у умолчания было ДВЕ судьбы — «файла в проде нет»
+    (громкий `FileNotFoundError`) и «файл в проде ЕСТЬ» (читались ЕГО байты, молча).
+    `docs/STATE.md` попал во второй случай: слепок записал blob прод-копии
+    `0fcb1332` вместо `b29ddbf4` рабочего дерева, то есть доставка увезла бы на
+    `main` локальный дрейф прод-дерева вместо работы цикла, с кодом возврата 0.
+
+    **Проба меряет ИСХОД, а не наличие кода.** Она поднимает НАСТОЯЩИЙ пушер на
+    одноразовой сцене из двух деревьев, где ОДИН относительный путь несёт РАЗНЫЕ
+    байты, и спрашивает его ДВАЖДЫ — в сценах, у которых правильные ответы
+    ПРОТИВОПОЛОЖНЫЕ:
+
+    * согласие НЕ объявлено ⇒ отказ ненулевым кодом, и в отказе напечатаны ОБА
+      blob-а (без них читатель не отличит «не тот файл» от «файла нет»);
+    * согласие объявлено (`--allow-prod-root-relative`) ⇒ дверь пройдена и выбор
+      НАЗВАН вслух; код возврата ОБЯЗАН отличаться от первого.
+
+    **Подстрокой проба не проходит (ADR-333):** исходник пушера она не читает
+    вовсе — ни строки. Blob-ы кандидатов она считает САМА (git-объект sha1), а
+    судит по РАЗЛИЧИЮ кодов двух сцен и по напечатанным числам. Ярлык можно
+    переименовать, различие кодов и blob-ы файлов — нет.
+
+    Сеть не трогается: отказ наступает внутри слепка байтов, то есть до любого
+    обращения к GitHub, и обе сцены идут с `--dry-run`.
+
+    ТРИ ИСХОДА РАЗЛИЧИМЫ: пушера нет в дереве ⇒ `not_satisfied` (мерить нечего и
+    это находка); сцену не поднять (нет git, прогон не ответил) ⇒ `unmeasured` с
+    названной причиной; `satisfied` невозможен без ОБЕИХ сцен.
+    """
+    import hashlib as _hl
+    import subprocess as _sp
+    import tempfile as _tf
+
+    root = repo_root or REPO_ROOT
+    pusher = os.path.join(root, "push_to_github.py")
+    if not os.path.exists(pusher):
+        return NOT_SATISFIED, (
+            f"пушера нет в дереве ({pusher}) — спрашивать «отказывает ли он "
+            f"относительному пути от прод-дерева» не у чего")
+
+    rel = "docs/STATE.md"
+    prod_bytes = b"\xd0\xb4\xd1\x80\xd0\xb5\xd0\xb9\xd1\x84 \xd0\xbf\xd1\x80\xd0\xbe\xd0\xb4-\xd0\xb4\xd0\xb5\xd1\x80\xd0\xb5\xd0\xb2\xd0\xb0\n"
+    mine_bytes = b"\xd1\x80\xd0\xb0\xd0\xb1\xd0\xbe\xd1\x82\xd0\xb0 \xd1\x86\xd0\xb8\xd0\xba\xd0\xbb\xd0\xb0\n"
+
+    def _blob(data: bytes) -> str:
+        """git-объект blob: тот же sha1, что печатает пушер, посчитанный САМОСТОЯТЕЛЬНО."""
+        return _hl.sha1(b"blob " + str(len(data)).encode() + b"\0" + data).hexdigest()
+
+    driver_src = (
+        "import importlib.util, sys\n"
+        "from pathlib import Path\n"
+        "spec = importlib.util.spec_from_file_location('_probe_ptg', sys.argv[1])\n"
+        "mod = importlib.util.module_from_spec(spec)\n"
+        "sys.modules['_probe_ptg'] = mod\n"
+        "spec.loader.exec_module(mod)\n"
+        "mod.PROJECT_ROOT = Path(sys.argv[2])\n"
+        "mod.MODULE_FILE = str(Path(sys.argv[3]) / 'push_to_github.py')\n"
+        "sys.argv = ['push_to_github.py'] + sys.argv[4:]\n"
+        "mod.main()\n")
+
+    try:
+        with _tf.TemporaryDirectory(prefix="probe_c919_") as tmp:
+            prod = os.path.join(tmp, "prod")
+            mine = os.path.join(tmp, "mine")
+            for tree, payload in ((prod, prod_bytes), (mine, mine_bytes)):
+                os.makedirs(os.path.join(tree, "docs"))
+                # Сцена доставки обязана быть РАБОЧИМ ДЕРЕВОМ (ADR-789), иначе
+                # ответил бы чужой гейт. `-b main` объявлен: имя ветки — свойство
+                # хоста.
+                _sp.run(["git", "init", "-q", "-b", "main", tree], check=True,
+                        capture_output=True, timeout=120)
+                with open(os.path.join(tree, rel), "wb") as fh:
+                    fh.write(payload)
+            driver = os.path.join(tmp, "driver.py")
+            with open(driver, "w", encoding="utf-8") as fh:
+                fh.write(driver_src)
+
+            def _run(*extra) -> tuple[int, str]:
+                env = dict(os.environ)
+                env["SPA_PUSH_ALLOW_PROD_ROOT_RELATIVE"] = "0"
+                proc = _sp.run([sys.executable, driver, pusher, prod, mine,
+                                "--files", rel, "--message", "сцена пробы c919",
+                                "--dry-run", *extra],
+                               capture_output=True, text=True, cwd=mine,
+                               timeout=600, env=env)
+                return proc.returncode, (proc.stdout + proc.stderr)
+
+            rc_refused, out_refused = _run()
+            rc_declared, out_declared = _run("--allow-prod-root-relative")
+    except FileNotFoundError as exc:
+        return UNMEASURED, (f"сцену не поднять ({exc}) — скорее всего нет git в PATH; "
+                            f"НЕ ИЗМЕРЕНО, а не «прошло»")
+    except _sp.TimeoutExpired as exc:
+        return UNMEASURED, f"сцена не ответила за отведённое время ({exc}) — НЕ ИЗМЕРЕНО"
+    except Exception as exc:                                        # noqa: BLE001
+        return UNMEASURED, (f"сцену пушера не поднять ({type(exc).__name__}: {exc}) — "
+                            f"НЕ ИЗМЕРЕНО")
+
+    prod_blob, mine_blob = _blob(prod_bytes), _blob(mine_bytes)
+    if rc_refused == 0:
+        return NOT_SATISFIED, (
+            f"относительный путь, указывающий на РАЗНЫЕ байты в двух деревьях, прошёл "
+            f"с кодом 0 — ровно замер #918: уедут байты прод-дерева ({prod_blob[:8]}) "
+            f"вместо работы цикла ({mine_blob[:8]}), и ни одной строки об этом не "
+            f"напечатано")
+    if prod_blob not in out_refused or mine_blob not in out_refused:
+        return NOT_SATISFIED, (
+            f"отказ есть (код {rc_refused}), а blob-ов в нём нет: напечатан "
+            f"{'прод' if prod_blob in out_refused else 'не прод'}/"
+            f"{'своё' if mine_blob in out_refused else 'не своё'} — «не тот файл» "
+            f"неотличимо от «файла нет», и следующий шаг читателю не назван")
+    if rc_declared == rc_refused:
+        return NOT_SATISFIED, (
+            f"объявленное согласие дало ТОТ ЖЕ код {rc_declared}: либо обход не "
+            f"работает (и сторож учит снимать строгость целиком), либо дверь не меряет "
+            f"ничего — две сцены с противоположными правильными ответами обязаны "
+            f"отвечать по-разному")
+    if "ОБХОД ОБЪЯВЛЕН" not in out_declared:
+        return NOT_SATISFIED, (
+            "вторая сцена прошла дверь МОЛЧА — «объявил прод-дерево» неотличимо от "
+            "«никто не спрашивал», то есть подмена снова невидима")
+    return SATISFIED, (
+        f"дерево-источник НАЗВАНО по исходу: один относительный путь `{rel}` с "
+        f"РАЗНЫМИ байтами в двух деревьях (прод {prod_blob[:8]} против своего "
+        f"{mine_blob[:8]}) даёт код {rc_refused} с печатью ОБОИХ blob-ов, а то же "
+        f"самое с объявленным `--allow-prod-root-relative` — код {rc_declared} и "
+        f"строку «ОБХОД ОБЪЯВЛЕН»; blob-ы проба считает сама, исходник пушера не "
+        f"читает вовсе")
+
+
 PROBES: dict[str, Callable[[str | None], "tuple[str, str]"]] = {
     "cockpit_voice_loop_closed": _probe_cockpit_voice_loop,
     "card_claim_measures_the_worker": _probe_card_claim_measures_the_worker,
@@ -10970,6 +11106,7 @@ PROBES: dict[str, Callable[[str | None], "tuple[str, str]"]] = {
         _probe_publication_gate_refuses_an_unsigned_shelf_by_its_own_code,
     "no_regression_record_is_produced_without_a_hand":
         _probe_no_regression_record_is_produced_without_a_hand,
+    "delivery_refuses_an_unnamed_tree": _probe_delivery_refuses_an_unnamed_tree,
 }
 
 

@@ -168,6 +168,15 @@ DeliveryBytesDrifted = _root_push.DeliveryBytesDrifted
 DeliveryModeDrifted = _root_push.DeliveryModeDrifted
 BYTES_DRIFT_EXIT = _root_push.BYTES_DRIFT_EXIT
 
+# Дверь «дерево, из которого читаются байты, НАЗВАНО» (ADR-796) — та же ОДНА
+# реализация и то же согласие на модуле канона. Своей копии здесь нет по той же
+# причине, что у пина: две копии означали бы, что одна дверь отказывает, а
+# вторая молча везёт байты прод-дерева.
+resolve_delivery_path = _root_push.resolve_delivery_path
+declare_prod_root_relative = _root_push.declare_prod_root_relative
+AmbiguousDeliveryTree = _root_push.AmbiguousDeliveryTree
+DELIVERY_TREE_EXIT = _root_push.DELIVERY_TREE_EXIT
+
 
 def main():
     parser = argparse.ArgumentParser(
@@ -200,6 +209,10 @@ def main():
                         help="ОСОЗНАННО доставить байты, разошедшиеся со слепком, "
                              "снятым в момент решения «отправляю это» (по умолчанию "
                              "такой пуш отклоняется)")
+    parser.add_argument("--allow-prod-root-relative", action="store_true",
+                        help="ОСОЗНАННО читать ОТНОСИТЕЛЬНЫЕ пути от ПРОД-дерева, даже "
+                             "когда позвали из другого дерева; по умолчанию такой путь "
+                             "ОТКЛОНЯЕТСЯ с печатью всех кандидатов (ADR-796)")
     args = parser.parse_args()
 
     allow_overwrite = bool(args.allow_overwrite) or \
@@ -229,7 +242,16 @@ def main():
     # слепок, снятый ПОСЛЕ гейта, оставил бы этому гейту своё окно.
     allow_bytes_drift = bool(getattr(args, "allow_bytes_drift", False)) or \
         os.environ.get("SPA_PUSH_ALLOW_BYTES_DRIFT") == "1"
-    pin_delivery_bytes(all_files, allow_drift=allow_bytes_drift)
+    # Дерево-источник объявляется ДО пина: пин спрашивает БАЙТЫ и обязан уже
+    # знать, байты какого файла берёт (ADR-796).
+    declare_prod_root_relative(
+        bool(getattr(args, "allow_prod_root_relative", False))
+        or os.environ.get("SPA_PUSH_ALLOW_PROD_ROOT_RELATIVE") == "1")
+    try:
+        pin_delivery_bytes(all_files, allow_drift=allow_bytes_drift)
+    except AmbiguousDeliveryTree as e:
+        print(f"\nОТКАЗ (дерево доставки не названо): {e}", file=sys.stderr)
+        sys.exit(DELIVERY_TREE_EXIT)
 
     # ── СВЕРКА ИНСТРУМЕНТА ДОСТАВКИ (карточка `agent-host-pusher-copy-is-stale`) ──
     # Реализация — одна, в каноническом модуле; здесь только вызов. Про `__file__`:
@@ -329,6 +351,9 @@ def main():
         body = e.read().decode(errors="replace")
         print(f"\nFAIL HTTP {e.code}: {body[:500]}")
         sys.exit(1)
+    except AmbiguousDeliveryTree as e:
+        print(f"\nОТКАЗ (дерево доставки не названо): {e}", file=sys.stderr)
+        sys.exit(DELIVERY_TREE_EXIT)
     except DivergenceRefused as e:
         print(f"\nОТКАЗ (страж перезаписи): {e}", file=sys.stderr)
         sys.exit(4)

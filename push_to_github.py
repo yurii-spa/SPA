@@ -481,6 +481,250 @@ def reset_delivery_pin() -> None:
                           "mode_unreadable": {}, "allow_drift": False})
     _PIN_VERDICTS.clear()
     _MODE_VERDICTS.clear()
+    _TREE_VERDICTS.clear()
+
+
+# ══════════════════════════════════════════════════════════════════════════════
+# ДЕРЕВО, ИЗ КОТОРОГО ЧИТАЮТСЯ БАЙТЫ, ОБЯЗАНО БЫТЬ НАЗВАНО (ADR-796)
+#
+# Пин выше закрыл окно «гейт судил одни байты, а уехали другие». Эта дверь
+# отвечает на вопрос, который стоит ДО него и которого до ADR-796 не задавал
+# никто: байты КАКОГО ФАЙЛА мы вообще взяли. Относительный путь разрешался от
+# константы :data:`PROJECT_ROOT`, то есть от ПРОД-дерева, а не от дерева, которое
+# сессия собрала и протестировала, и у этого умолчания две РАЗНЫЕ судьбы:
+#
+#   * файла по такому пути в проде НЕТ  → `FileNotFoundError`, громкий отказ;
+#   * файл по такому пути в проде ЕСТЬ  → читаются ЕГО байты, и не печатается
+#                                         ни одного предупреждения.
+#
+# Замер цикла #918 (живой пушер, `--dry-run`): из шестнадцати объявленных
+# относительными путями файлов семь в прод-дереве отсутствовали и честно
+# покраснели, а восьмой — `docs/STATE.md` — там ЕСТЬ, и слепок записал про него
+# blob ПРОД-копии (`0fcb13322791`) вместо байтов рабочего дерева
+# (`b29ddbf48aba`, именно они и уехали потом на origin). Прод-копия `STATE.md`
+# дрейфует от origin ⇒ доставка относительным путём увезла бы на `main`
+# локальный дрейф прод-дерева вместо работы цикла, МОЛЧА и с кодом возврата 0.
+# Спасло ровно то, что семь путей из шестнадцати в прод-дереве не существовали.
+#
+# Защита от подмены байтов (ADR-774) этого НЕ ловит по построению: она пинует
+# байты ТОГО ЖЕ неверного файла, и сверка их ПОДТВЕРЖДАЕТ — «сверять одно и то
+# же с самим собой» уже знакомый класс.
+#
+# Три исхода, как велит инв. #17, и они РАЗЛИЧИМЫ:
+#   * дерево ОДНО (каталог вызова и есть прод-корень) → путь прежний, молча;
+#   * деревья разные, файл найден в ОДНОМ из них      → он и читается, дерево
+#                                                       НАЗВАНО вслух;
+#   * деревья разные, и выбор достался бы умолчанию   → `AmbiguousDeliveryTree`,
+#     (файл только в проде ЛИБО байты расходятся)       код 12, с печатью ВСЕХ
+#                                                       кандидатов и их blob-ов.
+# Четвёртый случай — байты кандидатов СОВПАЛИ: это «измерено и равно», и оно
+# печатается, а не молчит, иначе «не спрашивали» было бы неотличимо от
+# «спросили и расхождения нет».
+#
+# Осознанный обход — `--allow-prod-root-relative`
+# (`SPA_PUSH_ALLOW_PROD_ROOT_RELATIVE=1`): «да, я имею в виду ПРОД-дерево». Он
+# ПЕЧАТАЕТСЯ, как и все прочие обходы этого инструмента.
+# ══════════════════════════════════════════════════════════════════════════════
+
+DELIVERY_TREE_EXIT = 12
+
+
+class AmbiguousDeliveryTree(ValueError):
+    """Относительный путь, у которого дерево-источник досталось бы умолчанию.
+
+    Это НЕ «файл не найден» и НЕ «байты подменили»: это «я не знаю, байты какого
+    файла ты имеешь в виду, и молча выбирать прод-дерево не стану». Направление
+    ошибки выбрано осознанно — отказ, а не доставка чужих байтов под кодом 0.
+    """
+
+
+#: Объявленное согласие читать относительные пути от ПРОД-дерева. Живёт на
+#: модуле по той же причине, что и :data:`_DELIVERY_PIN`: дверей доставки две,
+#: читателей пути три, и протаскивать согласие параметром через три подписи
+#: значило бы развести «половину инъекции» — ровно ту бомбу, про которую
+#: `.claude/rules/deployment.md` (урок #453).
+_ALLOW_PROD_ROOT_RELATIVE: bool = False
+
+#: Вердикты этой двери: по записи на КАЖДЫЙ разрешённый относительный путь.
+#: Нужны тесту проводки и затем, чтобы один и тот же вердикт не печатался трижды
+#: (пин, `resolve_files`, `push_file` спрашивают один и тот же путь).
+_TREE_VERDICTS: list = []
+
+
+def declare_prod_root_relative(allow: bool) -> None:
+    """Объявить согласие читать относительные пути от ПРОД-дерева."""
+    global _ALLOW_PROD_ROOT_RELATIVE
+    _ALLOW_PROD_ROOT_RELATIVE = bool(allow)
+
+
+def reset_delivery_tree_verdicts() -> None:
+    """Забыть вердикты двери (для тестов и повторных прогонов в одном процессе)."""
+    _TREE_VERDICTS.clear()
+
+
+def _candidate_trees(project_root, runner_tree, cwd) -> list:
+    """`[(ярлык, дерево)]` без повторов. ПРОД-дерево ПЕРВЫМ: оно и есть умолчание.
+
+    Повторы снимаются по `resolve()`, а не по строке: `/tmp` и `/private/tmp` на
+    macOS — одно дерево, и считать их двумя значило бы печатать расхождение там,
+    где его нет.
+    """
+    out, seen = [], set()
+    for label, tree in (("ПРОД-дерево", project_root),
+                        ("дерево пушера", runner_tree),
+                        ("каталог вызова", cwd)):
+        if tree is None:
+            continue
+        try:
+            key = str(Path(tree).resolve())
+        except OSError:
+            key = str(tree)
+        if key in seen:
+            continue
+        seen.add(key)
+        out.append((label, Path(tree)))
+    return out
+
+
+def _blob_or_unmeasured(path) -> str:
+    """git-blob-sha файла либо «НЕ ИЗМЕРЕНО: причина» — третий исход (инв. #17).
+
+    Нечитаемый кандидат не получает ни пустой строки, ни совпадения с соседом:
+    и то, и другое превратило бы «не прочитали» в «расхождения нет».
+    """
+    try:
+        return git_blob_sha(Path(path).read_bytes())
+    except OSError as exc:
+        return f"НЕ ИЗМЕРЕНО: {type(exc).__name__}"
+
+
+def _tree_verdict(file_arg: str, verdict: str, text: str) -> None:
+    """Записать вердикт двери и напечатать его ОДИН раз на (путь, вердикт)."""
+    key = (str(file_arg), verdict)
+    first = key not in {(v["file_arg"], v["verdict"]) for v in _TREE_VERDICTS}
+    _TREE_VERDICTS.append({"file_arg": str(file_arg), "verdict": verdict, "text": text})
+    if first:
+        print(f"  {text}")
+
+
+def _tree_refusal(file_arg, rows: list, why: str) -> str:
+    """Текст отказа: ВСЕ кандидаты, их blob-ы и настоящее лекарство."""
+    lines = [f"дерево-источник относительного пути `{file_arg}` досталось бы УМОЛЧАНИЮ "
+             f"(`PROJECT_ROOT` = ПРОД-дерево): {why}. Доставка отменена ДО ЛЮБОЙ записи "
+             f"(fail-CLOSED, инв. #2, ADR-796). Кандидаты:"]
+    for row in rows:
+        if row["exists"]:
+            lines.append(f"    {row['label']}: {row['path']} — blob {row['blob']}")
+        else:
+            lines.append(f"    {row['label']}: {row['path']} — файла НЕТ")
+    lines.append("  Что делать: объявить АБСОЛЮТНЫЙ путь того дерева, которое ты собрал "
+                 "и протестировал (CLAUDE.md: «пуш — ABSOLUTE пути»). Если ты "
+                 "действительно имеешь в виду прод-дерево — сказать это вслух: "
+                 "`--allow-prod-root-relative` (или "
+                 "`SPA_PUSH_ALLOW_PROD_ROOT_RELATIVE=1`).")
+    return "\n".join(lines)
+
+
+def resolve_delivery_path(file_arg, *, project_root=None, runner_tree=None,
+                          cwd=None, allow_prod_root=None) -> Path:
+    """Абсолютный путь отправляемого файла — с НАЗВАННЫМ деревом-источником.
+
+    ОДНА дверь на всех трёх читателей пути (:func:`_delivery_abs`,
+    :func:`resolve_files`, :func:`push_file`). Разойдись они — пин лёг бы на один
+    файл, а уехал бы другой, то есть вернулся бы предмет ADR-774 с другой стороны.
+
+    Абсолютный путь не трогается НИ БИТОМ: он уже назвал своё дерево сам, и
+    именно этого требует `CLAUDE.md`. Относительный путь судится по трём
+    кандидатам — прод-дерево (умолчание), дерево запущенного пушера
+    (:data:`MODULE_FILE`) и каталог вызова; `project_root=None` читает
+    :data:`PROJECT_ROOT` в момент ВЫЗОВА, иначе константу нельзя подменить в тестах.
+    """
+    local = Path(file_arg)
+    if local.is_absolute():
+        return local
+
+    if project_root is None:
+        project_root = PROJECT_ROOT
+    if runner_tree is None:
+        runner_tree = Path(MODULE_FILE).parent
+    if cwd is None:
+        try:
+            cwd = Path.cwd()
+        except OSError:
+            cwd = None
+    if allow_prod_root is None:
+        allow_prod_root = _ALLOW_PROD_ROOT_RELATIVE
+
+    trees = _candidate_trees(project_root, runner_tree, cwd)
+    prod_path = Path(trees[0][1]) / local
+    if len(trees) == 1:
+        # Каталог вызова И есть прод-корень (штатный autopush из launchd):
+        # спрашивать нечего, поведение прежнее до бита.
+        return prod_path
+
+    rows = []
+    for label, tree in trees:
+        cand = Path(tree) / local
+        try:
+            exists = cand.is_file()
+        except OSError:
+            exists = False
+        rows.append({"label": label, "path": cand, "exists": exists,
+                     "blob": _blob_or_unmeasured(cand) if exists else None})
+
+    existing = [r for r in rows if r["exists"]]
+    if not existing:
+        # Ни в одном дереве файла нет: про это внятнее отказывают читатели ниже
+        # по стеку («Файл не найден»), и подменять их отказ своим значило бы
+        # сделать громкий случай тише.
+        return prod_path
+
+    uniq = {}
+    for row in existing:
+        try:
+            key = str(row["path"].resolve())
+        except OSError:
+            key = str(row["path"])
+        uniq.setdefault(key, row)
+
+    if len(uniq) == 1:
+        only = next(iter(uniq.values()))
+        if only["label"] != "ПРОД-дерево":
+            _tree_verdict(file_arg, "named",
+                          f"дерево НАЗВАНО: `{file_arg}` прочитан из "
+                          f"{only['label']} ({only['path']}), blob "
+                          f"{only['blob'][:12]}; в прод-дереве файла нет")
+            return only["path"]
+        if not allow_prod_root:
+            raise AmbiguousDeliveryTree(_tree_refusal(
+                file_arg, rows,
+                "файл есть ТОЛЬКО в прод-дереве, а позвали из другого дерева"))
+        _tree_verdict(file_arg, "declared_prod",
+                      f"ОБХОД ОБЪЯВЛЕН (--allow-prod-root-relative): `{file_arg}` "
+                      f"читается из ПРОД-дерева ({only['path']}), blob "
+                      f"{only['blob'][:12]}, хотя позвали из другого дерева")
+        return only["path"]
+
+    blobs = [r["blob"] for r in existing]
+    agreed = (len(set(blobs)) == 1
+              and not blobs[0].startswith("НЕ ИЗМЕРЕНО"))
+    if agreed:
+        chosen = existing[0]
+        _tree_verdict(file_arg, "agreed",
+                      f"деревьев {len(uniq)}, байты СОВПАЛИ (blob "
+                      f"{blobs[0][:12]}) — `{file_arg}` читается из "
+                      f"{chosen['label']} ({chosen['path']})")
+        return chosen["path"]
+
+    if not allow_prod_root:
+        raise AmbiguousDeliveryTree(_tree_refusal(
+            file_arg, rows,
+            "один и тот же путь указывает на РАЗНЫЕ байты в разных деревьях"))
+    _tree_verdict(file_arg, "declared_prod",
+                  f"ОБХОД ОБЪЯВЛЕН (--allow-prod-root-relative): `{file_arg}` "
+                  f"читается из ПРОД-дерева ({prod_path}), хотя байты кандидатов "
+                  f"РАСХОДЯТСЯ")
+    return prod_path
 
 
 def _delivery_abs(file_arg) -> str:
@@ -490,10 +734,7 @@ def _delivery_abs(file_arg) -> str:
     читатель спросил бы другой, и сторож тихо перестал бы существовать
     (`unmeasured` на каждом файле выглядел бы свойством окружения).
     """
-    local = Path(file_arg)
-    if not local.is_absolute():
-        local = PROJECT_ROOT / local
-    return str(local)
+    return str(resolve_delivery_path(file_arg))
 
 
 def pin_delivery_bytes(file_args: list, allow_drift: bool = False,
@@ -2217,10 +2458,9 @@ def push_file(pat: str, local_path: str, message: str, repo: str, dry_run: bool 
     import urllib.request
     import urllib.error
 
-    local = Path(local_path)
-    # Resolve relative to PROJECT_ROOT if not absolute
-    if not local.is_absolute():
-        local = PROJECT_ROOT / local
+    # Дерево-источник НАЗВАНО, а не досталось умолчанию (ADR-796): одна дверь на
+    # всех трёх читателей пути, иначе пин лёг бы на один файл, а уехал бы другой.
+    local = resolve_delivery_path(local_path)
     if not local.exists():
         return {"ok": False, "error": f"Файл не найден: {local_path}", "path": local_path}
 
@@ -2609,9 +2849,7 @@ def resolve_files(file_args: list) -> list:
     """Преобразовать пути в [(repo_relative_path, abs_path)]. Бросает на отсутствующий файл."""
     resolved = []
     for fa in file_args:
-        local = Path(fa)
-        if not local.is_absolute():
-            local = PROJECT_ROOT / local
+        local = resolve_delivery_path(fa)        # дерево НАЗВАНО (ADR-796)
         if not local.exists():
             raise RuntimeError(f"Файл не найден: {fa}")
         if not local.is_file():
@@ -3468,6 +3706,11 @@ def main():
                         help="ОСОЗНАННО доставить файл из дерева, где открыто окно "
                              "мутационного прибора (по умолчанию такой пуш отклоняется: "
                              "в дереве может лежать мутант, неотличимый от кода)")
+    parser.add_argument("--allow-prod-root-relative", action="store_true",
+                        help="ОСОЗНАННО читать ОТНОСИТЕЛЬНЫЕ пути от ПРОД-дерева "
+                             "(/Users/yuriikulieshov/Documents/SPA_Claude), даже когда "
+                             "позвали из другого дерева; по умолчанию такой путь "
+                             "ОТКЛОНЯЕТСЯ с печатью всех кандидатов (ADR-796)")
     parser.add_argument("--allow-adr-collision", action="store_true",
                         help="ОСОЗНАННО доставить решение под номером, уже занятым на origin, "
                              "или вне реестра INDEX.md (по умолчанию такой пуш отклоняется)")
@@ -3491,6 +3734,12 @@ def main():
         os.environ.get("SPA_PUSH_ALLOW_OWNER_CHOICE_WRITE") == "1"
     allow_ce_unmeasured = bool(args.allow_change_evidence_unmeasured) or \
         os.environ.get("SPA_PUSH_ALLOW_CHANGE_EVIDENCE_UNMEASURED") == "1"
+    # Объявляется ДО пина намеренно: пин спрашивает БАЙТЫ, а значит обязан уже
+    # знать, байты какого файла он берёт. Согласие, прочитанное после пина,
+    # опоздало бы на то самое наблюдение, ради которого пин и снимается.
+    declare_prod_root_relative(
+        bool(args.allow_prod_root_relative)
+        or os.environ.get("SPA_PUSH_ALLOW_PROD_ROOT_RELATIVE") == "1")
 
     # Собираем все файлы из всех источников
     all_files: list = []
@@ -3513,7 +3762,14 @@ def main():
     # оставил бы этому гейту своё окно, то есть воспроизвёл бы предмет ADR-774
     # на один шаг короче. Идёт и в `--dry-run`: превью обязано показывать тот
     # же манифест и тот же отказ, что настоящий пуш.
-    pin_delivery_bytes(all_files, allow_drift=allow_bytes_drift)
+    # Дверь «дерево НАЗВАНО» (ADR-796) отказывает ЗДЕСЬ, внутри пина, а не
+    # отдельным гейтом перед ним: вопрос «байты какого файла» стоит ДО вопроса
+    # «те ли это байты», и пин, снятый с чужого файла, подтвердил бы подмену.
+    try:
+        pin_delivery_bytes(all_files, allow_drift=allow_bytes_drift)
+    except AmbiguousDeliveryTree as e:
+        print(f"\nОТКАЗ (дерево доставки не названо): {e}", file=sys.stderr)
+        sys.exit(DELIVERY_TREE_EXIT)
 
     # ── СВЕРКА ИНСТРУМЕНТА ДОСТАВКИ — ДО owner-gate и до сети ────────────────
     # Стоит первой намеренно: owner-gate ниже зовёт `check_owner_gate.py`,
@@ -3641,6 +3897,12 @@ def main():
             print("Файлы НЕ досылались по одному: рваный набор на main — то, "
                   "что этот путь и устраняет (fail-CLOSED).", file=sys.stderr)
             sys.exit(1)
+        except AmbiguousDeliveryTree as e:
+            # Сюда попадает только библиотечный путь (пин выше уже спросил то же
+            # самое): свой код возврата нужен, чтобы «не то дерево» не читалось
+            # как сетевой сбой.
+            print(f"\nОТКАЗ (дерево доставки не названо): {e}", file=sys.stderr)
+            sys.exit(DELIVERY_TREE_EXIT)
         except DivergenceRefused as e:
             print(f"\nОТКАЗ (страж перезаписи): {e}", file=sys.stderr)
             sys.exit(4)
@@ -3682,6 +3944,9 @@ def main():
             r = push_file(pat, f, message, args.repo, dry_run=args.dry_run, branch=args.branch,
                           allow_overwrite=allow_overwrite, allow_name_loss=allow_name_loss,
                           allow_stale_base=allow_stale_base, expected_base=args.expected_base)
+        except AmbiguousDeliveryTree as e:
+            print(f"\nОТКАЗ (дерево доставки не названо): {e}", file=sys.stderr)
+            sys.exit(DELIVERY_TREE_EXIT)
         except DeliveryBytesDrifted as e:
             axis = ("РЕЖИМА файла" if isinstance(e, DeliveryModeDrifted)
                     else "отправляемых байтов")

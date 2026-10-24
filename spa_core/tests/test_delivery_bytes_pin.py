@@ -337,7 +337,17 @@ def test_readable_at_pin_time_is_not_recorded_as_unreadable(ptg, repo):
 # ═════════════════════════════════════════════════════════════════════════════
 def test_pin_key_matches_resolve_files_for_a_relative_argument(
         ptg, repo, monkeypatch, tmp_path):
-    """Относительный аргумент при `cwd` ≠ `PROJECT_ROOT` — обе стороны согласны."""
+    """Относительный аргумент при `cwd` ≠ `PROJECT_ROOT` — обе стороны согласны.
+
+    НАМЕРЕННАЯ ПРАВКА #919 (инв. #16), предмет сохранён дословно: с ADR-796
+    относительный путь, разрешаемый от ПРОД-дерева при `cwd` ≠ `PROJECT_ROOT`,
+    сам по себе есть ОТКАЗ — дерево-источник обязано быть названо. Утверждение
+    этой пробы («пин и читатель спрашивают ОДИН ключ») к выбору дерева не
+    относится, поэтому согласие объявляется явно, и проба продолжает мерить
+    ровно то, что мерила. Без объявления она мерила бы НЕ СВОЙ предмет —
+    отказ двери ADR-796, у которого есть собственная батарея.
+    """
+    monkeypatch.setattr(ptg, "_ALLOW_PROD_ROOT_RELATIVE", True)
     monkeypatch.setattr(ptg, "PROJECT_ROOT", repo)
     _write(repo, "pkg/rel.py", "rel\n")
     elsewhere = tmp_path / "elsewhere"
@@ -362,7 +372,12 @@ def test_a_relative_argument_is_actually_read_through_the_door(
 
     Без этой половины предыдущий тест был бы зелен и на нормализации, которая
     согласована сама с собой, но не с диском.
+
+    НАМЕРЕННАЯ ПРАВКА #919 (инв. #16) — та же, что у соседа выше и по той же
+    причине: согласие читать относительный путь от ПРОД-дерева (ADR-796)
+    объявляется явно, предмет пробы не меняется ни на слово.
     """
+    monkeypatch.setattr(ptg, "_ALLOW_PROD_ROOT_RELATIVE", True)
     monkeypatch.setattr(ptg, "PROJECT_ROOT", repo)
     _write(repo, "pkg/rel.py", "rel\n")
     elsewhere = tmp_path / "elsewhere2"
