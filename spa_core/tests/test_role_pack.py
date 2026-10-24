@@ -180,3 +180,63 @@ def test_the_pack_builds_on_the_real_repository_files():
     assert "Architecture Review Board" in p["role"]["authority_row"]
     assert "STUDIO-OS-NEXT-01" in p["owner_intent"]["roadmap_text"]
     assert all(isinstance(v, dict) for v in p["task"].values()), p["unknown"]
+
+
+# ───────── очистка КАЖДОГО текстового источника (замечание ARB 23.10: ключ в ROADMAP проходил) ─────────
+
+def _plant(root: Path, rel: str, old: str, new: str) -> None:
+    p = root / rel
+    p.write_text(p.read_text(encoding="utf-8").replace(old, new, 1), encoding="utf-8")
+
+
+def _assert_clean(p: dict) -> None:
+    assert SECRET not in json.dumps(p, ensure_ascii=False) and SECRET not in rp.render(p)
+
+
+def test_a_key_in_a_roadmap_directive_never_reaches_the_pack(tmp_path):
+    """Воспроизведение ARB дословно: ключ в строке директивы ROADMAP — в JSON и Markdown, dropped=0."""
+    root, _ = _scene(tmp_path)
+    _plant(root, "docs/ROADMAP.md", "> Latest owner directive: **2026-10-23**",  # FROZEN-DATE-OK: injected-clock — текст сцены
+           f"> Latest owner directive: **2026-10-23** {SECRET}")  # FROZEN-DATE-OK: injected-clock — текст сцены
+    p = _build(root)
+    _assert_clean(p)
+    assert p["credentials_dropped_lines"] >= 1
+    # Строка директивы целиком ушла ⇒ факт о ней НЕ ИЗМЕРЕН, а не «директив нет и так и надо».
+    assert any(u.startswith("docs/ROADMAP.md:") and "dropped" in u for u in p["unknown"])
+
+
+def test_a_key_in_the_roadmap_item_never_reaches_the_pack(tmp_path):
+    root, _ = _scene(tmp_path)
+    _plant(root, "docs/ROADMAP.md", "candidate, NOT ARB-accepted", f"candidate {SECRET}, NOT ARB-accepted")
+    p = _build(root)
+    _assert_clean(p)
+    assert p["owner_intent"]["roadmap_text"] == rp.UNKNOWN  # пункт был одной строкой — потерян целиком
+    assert any("roadmap item 17" in u for u in p["unknown"])
+
+
+def test_a_key_in_an_adr_heading_never_reaches_the_pack(tmp_path):
+    root, _ = _scene(tmp_path)
+    _plant(root, "docs/decisions/ADR-763-next.md", "# ADR-763 · next stage", f"# ADR-763 · next stage {SECRET}")
+    p = _build(root)
+    _assert_clean(p)
+    adr = next(a for a in p["decisions"] if a["id"] == "ADR-763")
+    assert adr["title"] == rp.UNKNOWN and "sanitizer" in adr["reason"]
+    assert p["credentials_dropped_lines"] >= 1
+
+
+def test_a_key_in_the_role_row_never_reaches_the_pack(tmp_path):
+    root, _ = _scene(tmp_path)
+    _plant(root, "docs/continuity/ARCHITECT_CONTEXT.md", "never implements", f"never implements {SECRET}")
+    p = _build(root)
+    _assert_clean(p)
+    assert p["role"]["authority_row"] == rp.UNKNOWN
+    assert any("role architect" in u for u in p["unknown"])
+
+
+def test_a_key_in_the_company_read_model_never_reaches_the_pack(tmp_path):
+    root, _ = _scene(tmp_path)
+    _plant(root, "docs/continuity/state.json", '"RM-TRUTH-01"', f'"RM-TRUTH-01 {SECRET}"')
+    p = _build(root)
+    _assert_clean(p)
+    assert p["company_read_model"]["latest_accepted_epic"] == rp.UNKNOWN
+    assert any("latest_accepted_epic" in u for u in p["unknown"])

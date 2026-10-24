@@ -115,10 +115,22 @@ def _resolve_adr(root: Path, adr: str) -> Dict[str, Any]:
             continue
         hits = sorted(p for p in d.glob(f"{adr}*.md"))
         if hits:
-            first = hits[0].read_text(encoding="utf-8", errors="replace").splitlines()
-            title = next((ln.lstrip("# ").strip() for ln in first if ln.startswith("#")), UNKNOWN)
-            return {"id": adr, "path": str(hits[0].relative_to(root)), "title": title,
-                    "files": len(hits)}
+            raw = hits[0].read_text(encoding="utf-8", errors="replace")
+            heading = next((ln for ln in raw.splitlines() if ln.startswith("#")), None)
+            row: Dict[str, Any] = {"id": adr, "path": str(hits[0].relative_to(root)),
+                                   "files": len(hits), "dropped": 0}
+            if heading is None:
+                row["title"] = UNKNOWN
+                row["reason"] = "no heading line"
+                return row
+            clean, n = _clean_text(heading)
+            row["dropped"] = n
+            if not clean.strip():
+                row["title"] = UNKNOWN
+                row["reason"] = "heading dropped by the credential sanitizer"
+            else:
+                row["title"] = clean.lstrip("# ").strip()
+            return row
     return {"id": adr, "path": UNKNOWN, "title": UNKNOWN, "files": 0,
             "reason": "no file in docs/decisions or docs/adr"}
 
@@ -184,17 +196,29 @@ def build(root: Path, handover_rel: str, roadmap_item: Optional[int], role: str 
     dropped = 0
     unknown: List[str] = []
 
-    def read(rel: str) -> Optional[str]:
+    def read(rel: str, *, sanitize_lines: bool = True) -> Optional[str]:
+        """Текст источника — уже ОЧИЩЕННЫЙ (ARB 23.10: очистка у КАЖДОГО текстового источника,
+        до разбора, чтобы ни один производный факт не унёс строку-секрет)."""
+        nonlocal dropped
         try:
             b = (root / rel).read_bytes()
         except OSError:
             unknown.append(f"{rel}: not readable")
             return None
         inputs[rel] = _sha256(b)
-        return b.decode("utf-8", errors="replace")
+        text = b.decode("utf-8", errors="replace")
+        if not sanitize_lines:
+            return text
+        text, n = _clean_text(text)
+        dropped += n
+        if n:
+            unknown.append(f"{rel}: {n} credential-like line(s) dropped — facts on them are UNKNOWN")
+        return text
 
     handover, n = _clean_text(hbytes.decode("utf-8", errors="replace"))
     dropped += n
+    if n:
+        unknown.append(f"{handover_rel}: {n} credential-like line(s) dropped — facts on them are UNKNOWN")
     context = read(CONTEXT_FILE) or ""
     roadmap = read(ROADMAP_FILE) or ""
 
@@ -228,6 +252,7 @@ def build(root: Path, handover_rel: str, roadmap_item: Optional[int], role: str 
     cited = sorted(set(_ADR.findall(handover)) | set(_ADR.findall(item or ""))
                    | set(a for d in directives for a in _ADR.findall(d)))
     adrs = [_resolve_adr(root, a) for a in cited]
+    dropped += sum(a.pop("dropped", 0) for a in adrs)
     unknown += [f"{a['id']}: {a['reason']}" for a in adrs if a.get("reason")]
 
     verified = verified or _verified_sha(handover)
@@ -239,13 +264,19 @@ def build(root: Path, handover_rel: str, roadmap_item: Optional[int], role: str 
             unknown.append(f"revision {k}: not measured")
 
     company = None
-    st = read(STATE_FILE)
+    # JSON нельзя чистить построчно (вырезанная строка ломает разбор) — чистится каждое ЗНАЧЕНИЕ.
+    st = read(STATE_FILE, sanitize_lines=False)
     if st:
         try:
             meta = json.loads(st).get("header") or {}
-            company = {k: meta.get(k, UNKNOWN) for k in
-                       ("generated_at", "repo_commit", "origin_commit", "verdict_at_generation",
-                        "copy_role", "latest_accepted_epic")}
+            company = {}
+            for k in ("generated_at", "repo_commit", "origin_commit", "verdict_at_generation",
+                      "copy_role", "latest_accepted_epic"):
+                v, n = _clean_text(str(meta[k])) if k in meta else (UNKNOWN, 0)
+                dropped += n
+                if n:
+                    unknown.append(f"{STATE_FILE} header {k!r}: dropped by the credential sanitizer")
+                company[k] = v if v.strip() else UNKNOWN
             unknown += [f"{STATE_FILE} header: no {k!r}" for k, v in company.items() if v == UNKNOWN]
         except ValueError:
             unknown.append(f"{STATE_FILE}: not JSON")
