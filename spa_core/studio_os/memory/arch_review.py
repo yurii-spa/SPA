@@ -67,6 +67,20 @@ class ReviewError(Exception):
     """The review cannot be built — refused before any model call."""
 
 
+def refuse_if_credential(field: str, value: Optional[str]) -> None:
+    """ARB 24.10: a credential-like value in ANY caller-supplied string is refused before the provider.
+
+    The check is the memory sanitizer itself (one copy of the patterns). The reason names only the
+    FIELD — never the value — so no report, refusal text or log can carry the secret onwards.
+    """
+    if value is None:
+        return
+    _clean, dropped = role_pack._clean_text(str(value))
+    if dropped:
+        raise ReviewError(f"{field} contains a credential-like value — refused before any provider call "
+                          f"(the value is not repeated here)")
+
+
 def _sha(text: str) -> str:
     return hashlib.sha256(text.encode("utf-8")).hexdigest()
 
@@ -86,10 +100,11 @@ def extra_fragments(paths: Sequence[Path]) -> tuple:
     parts: List[str] = []
     total = 0
     for p in paths:
+        refuse_if_credential("extra-context path", str(p))
         try:
             raw = Path(p).read_text(encoding="utf-8", errors="replace")
         except OSError as exc:
-            unknown.append(f"extra fragment {p}: not readable ({exc})")
+            unknown.append(f"extra fragment {Path(p).name}: not readable ({type(exc).__name__})")
             continue
         clean, dropped = role_pack._clean_text(raw)
         if dropped:
@@ -130,6 +145,11 @@ def run_review(root: Path, *, handover: str, task_id: str, task: str, verified_s
                provider: Optional[str], out: Path, roadmap_item: Optional[int] = None,
                extra: Sequence[Path] = (), adapters: Optional[Dict] = None,
                config: Optional[Dict] = None, at: Optional[str] = None) -> Dict[str, Any]:
+    # Every caller-supplied string that reaches the prompt, review.json, recommendation.md or a reason.
+    for field, value in (("task", task), ("task_id", task_id), ("handover", handover), ("provider", provider)):
+        refuse_if_credential(field, value)
+    for p in extra:
+        refuse_if_credential("extra-context path", str(p))
     if not re.fullmatch(r"[0-9a-f]{40}", verified_sha or ""):
         raise ReviewError("--verified-sha must be a full 40-hex commit id (the EXACT verified revision)")
     if _git(root, "cat-file", "-e", f"{verified_sha}^{{commit}}") is None:
@@ -211,6 +231,14 @@ def main(argv: Optional[List[str]] = None) -> int:
     ap.add_argument("--config", type=Path, default=None)
     ap.add_argument("--out", type=Path, required=True)
     a = ap.parse_args(argv)
+    try:
+        # Paths the CLI prints or quotes in diagnostics (out in the summary, config in its error).
+        for field, value in (("--out", a.out), ("--config", a.config), ("--fixture", a.fixture),
+                             ("--root", a.root)):
+            refuse_if_credential(field, None if value is None else str(value))
+    except ReviewError as exc:
+        print(f"REVIEW NOT BUILT: {exc}")
+        return 2
     adapters = {"claude_cli": ad.claude_cli()}
     if a.fixture:
         adapters["fixture"] = ad.fixture_from_file(a.fixture)

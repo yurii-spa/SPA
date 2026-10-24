@@ -157,3 +157,55 @@ def test_the_cli_runs_the_review_and_keeps_the_context_mode(tmp_path):
                 "--context", str(ctx), "--task-id", "t", "--instruction", "i"]) == 0
     assert subprocess.run(["git", "-C", str(root), "status", "--porcelain"], capture_output=True,
                           text=True).stdout == ""
+
+
+# ── ARB 24.10: распознаваемый секрет в пользовательских строках — отказ ДО провайдера ────────────
+
+def _spy_adapters(calls):
+    fx = ad.fixture({"*": GOOD})
+
+    def spy(req, **kw):
+        calls.append(req.task_id)
+        return fx(req, **kw)
+    return {"fixture": spy}
+
+
+@pytest.mark.parametrize("field", ["task", "task_id", "fragment_name", "handover", "provider"])
+def test_a_credential_in_a_caller_string_is_refused_before_the_provider(tmp_path, field, capsys):
+    root, verified = _scene(tmp_path)
+    calls = []
+    args = dict(handover="docs/evidence/HANDOVER.md", task_id="t", task="x", verified_sha=verified,
+                provider="fixture_test_adapter", out=tmp_path / "out", roadmap_item=17,
+                adapters=_spy_adapters(calls), at=trp.AT, extra=())
+    if field == "fragment_name":
+        frag = tmp_path / f"frag_{trp.SECRET}.md"
+        frag.write_text("plain\n", encoding="utf-8")
+        args["extra"] = [frag]
+    elif field == "task":
+        args["task"] = f"review {trp.SECRET} please"
+    else:
+        args[field] = f"x-{trp.SECRET}"
+    with pytest.raises(rv.ReviewError) as info:
+        rv.run_review(root, **args)
+    assert calls == [], "провайдер вызван"
+    assert trp.SECRET not in str(info.value) and "credential-like" in str(info.value)
+    assert not (tmp_path / "out").exists(), "артефакты созданы"
+    assert trp.SECRET not in capsys.readouterr().out
+
+
+def test_the_cli_refuses_a_credential_in_a_path_without_echoing_it(tmp_path, capsys):
+    root, verified = _scene(tmp_path)
+    out = tmp_path / f"out_{trp.SECRET}"
+    code = memory_cli(["arch-review", "--root", str(root), "--handover", "docs/evidence/HANDOVER.md",
+                       "--task-id", "t", "--task", "x", "--verified-sha", verified,
+                       "--provider", "fixture_test_adapter", "--out", str(out)])
+    printed = capsys.readouterr().out
+    assert code == 2 and "credential-like" in printed and trp.SECRET not in printed
+    assert not out.exists()
+
+
+def test_an_ordinary_task_still_runs_after_the_guard(tmp_path):
+    root, verified = _scene(tmp_path)
+    calls = []
+    rec, out = _run(root, verified, tmp_path, adapters=_spy_adapters(calls))
+    assert calls == ["B-12-review"] and rec["status"] == "ok" and rec["structure_complete"] is True
