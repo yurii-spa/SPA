@@ -50,6 +50,8 @@ class Request:
     instruction: str
     context: str
     context_ref: str = UNKNOWN        # e.g. the role-pack path; informational
+    #: The caller may NARROW the role's deadline (e.g. ``memory.answer.ask(timeout=…)``), never widen it.
+    deadline_s: Optional[float] = None
 
     @property
     def context_sha256(self) -> str:
@@ -155,6 +157,10 @@ def execute(req: Request, *, config: Mapping[str, Any], provider_id: Optional[st
 
     attempts = max(1, min(int(role.get("max_attempts", 1)), HARD_MAX_ATTEMPTS))
     deadline = float(role.get("deadline_s", 60))
+    if req.deadline_s is not None:
+        if req.deadline_s <= 0:
+            return _refused(req, f"deadline {req.deadline_s} s is not positive", pid, kind, real, role)
+        deadline = min(deadline, float(req.deadline_s))
     log: List[Dict[str, Any]] = []
     out = AdapterOutput("error", detail="not attempted")
     t0 = clock()

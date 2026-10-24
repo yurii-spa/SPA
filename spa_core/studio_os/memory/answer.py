@@ -3,41 +3,64 @@
 The session has no chat history, no tools and no MCP servers (`claude -p --tools "" --strict-mcp-config`,
 run from a temp cwd): whatever it knows about the project, it learned from the package. Offline /
 on-demand (it calls a model); results go to data/memory/benchmark_answers_<ts>.json.
+
+Since STUDIO-OS-MODELS-01 increment 3 (ARB 2026-10-24) the call goes through the provider contract
+(:mod:`spa_core.studio_os.model_roles`): role ``architect``, provider named EXPLICITLY
+(``claude_subscription_cli`` — the same subscription CLI as before; repository assignments stay null),
+deadline enforced by ``scripts/claude_run_with_timeout.py``. A refusal, quota or error is never an
+answer: ``answer`` is empty, ``rc`` non-zero and ``status``/``reason`` say why; no other provider is
+tried. ``usage`` carries only what the transport reported (absent ⇒ UNKNOWN).
 """
 from __future__ import annotations
 
+import hashlib
 import json
 import re
-import subprocess
-import tempfile
 import time
 from pathlib import Path
 from typing import Dict, List, Optional
+
+from spa_core.studio_os.model_roles import adapters as _adapters
+from spa_core.studio_os.model_roles import contract as _contract
 
 from . import assembler as asm
 from . import benchmark as bm
 from . import index as ix
 
-CLAUDE = str(Path.home() / ".local" / "bin" / "claude")
-PROMPT = ("You are a fresh assistant with NO prior knowledge of this project. Answer the owner's question "
-          "using ONLY the context package below. Cite the refs you used in square brackets. If the package does "
-          "not contain the answer, reply starting with «UNKNOWN» and say what evidence is missing. Answer in the "
-          "language of the question, at most 8 sentences.\n\nQUESTION: {q}\n\n{ctx}")
+#: Kept for importers; the transport constant now lives with the adapter (no reverse import).
+CLAUDE = _adapters.CLAUDE
+#: The provider this caller uses — named explicitly; the repository assigns none to any role.
+PROVIDER = "claude_subscription_cli"
+ROLE = "architect"
+INSTRUCTION = ("Answer the owner's question using ONLY the context package below. Cite the refs you used in "
+               "square brackets. If the package does not contain the answer, reply starting with «UNKNOWN» and "
+               "say what evidence is missing. Answer in the language of the question, at most 8 sentences."
+               "\n\nQUESTION: {q}")
+#: Return codes for non-transport outcomes (the transport's own code is not available through the contract).
+RC = {"ok": 0, "error": 1, "quota": 3, "malformed": 4, "timeout": 124, "refused": 2}
 
 
-def ask(question: str, *, budget_chars: int = 12000, model: Optional[str] = None, timeout: int = 180) -> Dict:
+def ask(question: str, *, budget_chars: int = 12000, model: Optional[str] = None, timeout: int = 180,
+        provider: str = PROVIDER, adapters: Optional[Dict] = None, config: Optional[Dict] = None) -> Dict:
+    """Same result keys as before (+ ``status``, ``provider``, ``model``, ``attempts``, ``usage``, ``reason``).
+
+    ``adapters``/``config`` are injectable for tests; by default the real subscription adapter is used.
+    """
     t0 = time.perf_counter()
     pkg = asm.assemble(question, budget_chars=budget_chars)
     ctx = asm.render_markdown(pkg)
     t1 = time.perf_counter()
-    cmd = [CLAUDE, "-p", PROMPT.format(q=question, ctx=ctx), "--tools", "", "--strict-mcp-config"]
-    if model:
-        cmd += ["--model", model]
-    p = subprocess.run(cmd, capture_output=True, text=True, timeout=timeout, cwd=tempfile.gettempdir())
-    return {"question": question, "answer": (p.stdout or "").strip(), "rc": p.returncode,
-            "context_chars": len(ctx), "assemble_ms": round(1000 * (t1 - t0)),
-            "answer_s": round(time.perf_counter() - t1, 1),
-            "sufficiency": pkg["evidence_sufficiency"]["verdict"]}
+    req = _contract.Request(ROLE, "memory-answer:" + hashlib.sha256(question.encode("utf-8")).hexdigest()[:12],
+                            INSTRUCTION.format(q=question), ctx, "memory.assembler", deadline_s=timeout)
+    res = _contract.execute(req, config=config or _contract.load_config(), provider_id=provider,
+                            adapters=adapters or {"claude_cli": _adapters.claude_cli(model=model)})
+    return {"question": question, "answer": res.text.strip() if res.status == "ok" else "",
+            "rc": RC.get(res.status, 1), "context_chars": len(ctx),
+            "assemble_ms": round(1000 * (t1 - t0)),
+            "answer_s": round(res.elapsed_s if res.elapsed_s is not None else time.perf_counter() - t1, 1),
+            "sufficiency": pkg["evidence_sufficiency"]["verdict"],
+            "status": res.status, "provider": res.provider_id, "model": res.model,
+            "attempts": res.attempts, "usage": res.usage, "reason": res.reason}
 
 
 def grade(q: Dict, ans: str) -> Dict:

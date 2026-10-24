@@ -10,7 +10,6 @@ from __future__ import annotations
 
 import copy
 import json
-import subprocess
 
 import pytest
 
@@ -31,18 +30,16 @@ class _Clock:
         return self.t
 
 
-class _Proc:
-    def __init__(self, rc=0, out="", err=""):
-        self.returncode, self.stdout, self.stderr = rc, out, err
-
-
 def _claude(out=None, rc=0, err="", raise_=None, seen=None):
-    def runner(cmd, **kw):
+    """Подменённый запуск: та же форма, что у `helper_runner` (cmd, срок, журнал, stdout-файл → rc)."""
+    def runner(cmd, timeout_s, log_path, out_path):
         if seen is not None:
-            seen.append((cmd, kw))
+            seen.append((cmd, {"timeout": timeout_s}))
         if raise_:
             raise raise_
-        return _Proc(rc, json.dumps(out) if isinstance(out, dict) else (out or ""), err)
+        out_path.write_text(json.dumps(out) if isinstance(out, dict) else (out or ""), encoding="utf-8")
+        log_path.write_text(err, encoding="utf-8")
+        return rc
     return ad.claude_cli(binary="/nonexistent/claude", runner=runner)
 
 
@@ -170,7 +167,9 @@ def test_an_empty_answer_is_malformed_and_a_crashing_adapter_is_an_error():
 
 
 @pytest.mark.parametrize("kw,status", [
-    ({"raise_": subprocess.TimeoutExpired("claude", 1)}, "timeout"),
+    ({"rc": 124}, "timeout"),
+    ({"rc": 125}, "timeout"),
+    ({"raise_": FileNotFoundError("no helper")}, "error"),
     ({"rc": 1, "err": "Claude AI usage limit reached"}, "quota"),
     ({"rc": 1, "err": "boom"}, "error"),
     ({"out": "not json"}, "malformed"),

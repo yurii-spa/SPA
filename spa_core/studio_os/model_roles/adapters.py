@@ -5,24 +5,34 @@
 Both adapters take the SAME input — :func:`render_prompt` of the request — and return
 :class:`~spa_core.studio_os.model_roles.contract.AdapterOutput`.
 
-* ``claude_cli`` — wraps the existing approved seam of :mod:`spa_core.studio_os.memory.answer`:
-  the local Claude Code CLI on the subscription, ``-p`` with ``--tools ""`` and
-  ``--strict-mcp-config`` from a temp cwd, now with ``--output-format json`` so that what the CLI
-  reports about usage can be recorded. Tools are disabled by construction; a request that asks for
-  tools is refused here as well (defence in depth — the role has none).
+* ``claude_cli`` — the existing approved seam (the local Claude Code CLI on the subscription; the same
+  ``-p --tools "" --strict-mcp-config`` call that :mod:`spa_core.studio_os.memory.answer` made), with
+  ``--output-format json`` so that what the CLI reports about usage can be recorded. The DEADLINE is
+  enforced by the existing ``scripts/claude_run_with_timeout.py`` (loaded by explicit path — one copy of
+  the ownership rules): ``subprocess.run(timeout=…)`` kills only the direct child, while that helper
+  finishes every descendant whose ownership by THIS run is proven and never touches anyone else's
+  process (exit 124 — closed, 125 — ownership not closed). The CLI's stdout goes to a private file via
+  ``sh -c 'exec …'`` (``exec`` keeps the same pid, so the helper's ownership proof is unchanged).
+  Tools are disabled by construction; a request that asks for tools is refused here as well.
 * ``fixture`` — a TEST adapter: deterministic canned answers from a JSON fixture (``{"<task_id>":
   "<answer>"}``, or ``{"*": …}``); it can also play timeout/quota/malformed. It is NOT a provider.
 """
 from __future__ import annotations
 
 import json
-import subprocess
 import tempfile
 from pathlib import Path
 from typing import Any, Callable, Dict, List, Mapping, Optional, Sequence
 
-from spa_core.studio_os.memory.answer import CLAUDE
 from spa_core.studio_os.model_roles.contract import UNKNOWN, AdapterOutput, Request
+
+#: The local Claude Code CLI (subscription). Defined HERE — the transport layer — and imported by
+#: ``memory.answer``; the reverse import (adapters ← answer) made a cycle once answer used the contract.
+CLAUDE = str(Path.home() / ".local" / "bin" / "claude")
+#: The existing deadline/ownership helper — loaded by path, never copied (as ``orchestrator_cycle_lock``).
+TIMEOUT_HELPER = Path(__file__).resolve().parents[3] / "scripts" / "claude_run_with_timeout.py"
+TIMEOUT_CODES = (124, 125)
+DEFAULT_GRACE_S = 10.0
 
 PROMPT = ("You act in the role «{role}». You have NO prior knowledge of this project and NO tools. "
           "Use ONLY the context below. If the context does not establish an answer, say UNKNOWN. "
@@ -34,8 +44,34 @@ def render_prompt(req: Request) -> str:
                          context=req.context)
 
 
+def load_timeout_helper(path: Path = TIMEOUT_HELPER):
+    """The helper module, or an exception — a missing helper is an ERROR result, never a bare run."""
+    import importlib.util
+    spec = importlib.util.spec_from_file_location("_model_roles_claude_timeout", path)
+    if spec is None or spec.loader is None or not Path(path).exists():
+        raise FileNotFoundError(f"deadline helper not found: {path}")
+    mod = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(mod)
+    for attr in ("run", "TIMEOUT_OWNERSHIP_CLOSED", "TIMEOUT_OWNERSHIP_UNRESOLVED"):
+        if not hasattr(mod, attr):
+            raise AttributeError(f"{path}: no {attr!r}")
+    return mod
+
+
+def helper_runner(*, grace_s: float = DEFAULT_GRACE_S, helper_path: Path = TIMEOUT_HELPER):
+    """``runner(cmd, timeout_s, log_path, out_path) -> rc`` through the existing deadline helper."""
+
+    def run(cmd: Sequence[str], timeout_s: float, log_path: Path, out_path: Path) -> int:
+        helper = load_timeout_helper(helper_path)
+        wrapped = ["/bin/sh", "-c", 'out="$1"; shift; exec "$@" > "$out"', "sh", str(out_path), *cmd]
+        return int(helper.run(wrapped, timeout_s=timeout_s, grace_s=grace_s, log_path=str(log_path),
+                              label="model-roles-claude"))
+
+    return run
+
+
 def claude_cli(*, binary: str = CLAUDE, model: Optional[str] = None,
-               runner: Callable[..., Any] = subprocess.run) -> Callable[..., AdapterOutput]:
+               runner: Optional[Callable[..., int]] = None) -> Callable[..., AdapterOutput]:
     """Adapter over the existing Claude CLI seam. ``runner`` is injectable (tests never call a model)."""
 
     def run(req: Request, *, timeout_s: float, tools: Sequence[str]) -> AdapterOutput:
@@ -45,23 +81,26 @@ def claude_cli(*, binary: str = CLAUDE, model: Optional[str] = None,
                           "--output-format", "json"]
         if model:
             cmd += ["--model", model]
-        try:
-            p = runner(cmd, capture_output=True, text=True, timeout=timeout_s,
-                       cwd=tempfile.gettempdir())
-        except subprocess.TimeoutExpired:
-            return AdapterOutput("timeout", detail=f"no answer within {timeout_s:g} s")
-        except OSError as exc:
-            return AdapterOutput("error", detail=f"CLI not runnable: {exc}")
-        err = (p.stderr or "") + (p.stdout or "")
-        if p.returncode != 0:
-            low = err.lower()
+        with tempfile.TemporaryDirectory(prefix="spa_model_roles_") as tmp:
+            log_path, out_path = Path(tmp) / "helper.log", Path(tmp) / "stdout.json"
+            try:
+                rc = (runner or helper_runner())(cmd, timeout_s, log_path, out_path)
+            except (OSError, AttributeError, ImportError) as exc:
+                return AdapterOutput("error", detail=f"deadline helper unusable: {exc}")
+            stdout = out_path.read_text(encoding="utf-8", errors="replace") if out_path.exists() else ""
+            err = log_path.read_text(encoding="utf-8", errors="replace") if log_path.exists() else ""
+        if rc in TIMEOUT_CODES:
+            how = "ownership closed" if rc == TIMEOUT_CODES[0] else "ownership NOT closed (see helper)"
+            return AdapterOutput("timeout", detail=f"no answer within {timeout_s:g} s; helper rc={rc}: {how}")
+        if rc != 0:
+            low = (err + stdout).lower()
             if "usage limit" in low or "rate limit" in low or "quota" in low:
-                return AdapterOutput("quota", detail=err.strip()[:300])
-            return AdapterOutput("error", detail=f"rc={p.returncode}: {err.strip()[:300]}")
+                return AdapterOutput("quota", detail=(err + stdout).strip()[-300:])
+            return AdapterOutput("error", detail=f"rc={rc}: {(err + stdout).strip()[-300:]}")
         try:
-            doc = json.loads(p.stdout)
+            doc = json.loads(stdout)
         except ValueError:
-            return AdapterOutput("malformed", detail=f"not JSON: {(p.stdout or '')[:200]!r}")
+            return AdapterOutput("malformed", detail=f"not JSON: {stdout[:200]!r}")
         if not isinstance(doc, dict) or doc.get("is_error"):
             return AdapterOutput("error", detail=f"CLI reported an error: {str(doc)[:300]}")
         text = doc.get("result")
