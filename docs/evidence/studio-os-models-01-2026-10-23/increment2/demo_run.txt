@@ -1,0 +1,20 @@
+### fixture_test_adapter
+{"status": "ok", "role": "architect", "provider_id": "fixture_test_adapter", "real_provider": false, "model": "fixture (not a model)", "attempts": 1, "elapsed_s": 0.0, "usage": {"input_tokens": "UNKNOWN", "output_tokens": "UNKNOWN", "cache_creation_input_tokens": "UNKNOWN", "cache_read_input_tokens": "UNKNOWN", "cost_reported_usd": "UNKNOWN", "quota_remaining": "UNKNOWN"}, "reason": ""}
+1) d12af8deb
+2) yes — only docs changed after the verified commit (context sha256 f56e70ffb6fef1a7967e687978be4992aa75ebe234fd9cf15d07e7b101dda134)
+3) read census 40031633042 by its artifact and record it, then wait for the ARB decision
+exit 0
+### claude_subscription_cli
+{"status": "ok", "role": "architect", "provider_id": "claude_subscription_cli", "real_provider": true, "model": "claude-haiku-4-5-20251001,claude-opus-5[1m]", "attempts": 1, "elapsed_s": 6.894, "usage": {"input_tokens": 2, "output_tokens": 292, "cache_creation_input_tokens": 5251, "cache_read_input_tokens": 3083, "cost_reported_usd": 0.0663545, "quota_remaining": "UNKNOWN"}, "reason": ""}
+1. `d12af8deb`
+2. No — `head_code_is_verified: False`; 8 code files (model_roles, role_pack, their tests) changed since `d12af8deb` and HEAD has no CI run of its own.
+3. Read census 40031633042 (about `d12af8deb`) from its artifact and record it in evidence; then await ARB decisions (§49 connection, MODELS-01 increment 2).
+exit 0
+### refusal provider=''
+{"status": "refused", "role": "architect", "provider_id": "UNKNOWN", "real_provider": null, "model": "UNKNOWN", "attempts": 0, "elapsed_s": null, "usage": {"input_tokens": "UNKNOWN", "output_tokens": "UNKNOWN", "cache_creation_input_tokens": "UNKNOWN", "cache_read_input_tokens": "UNKNOWN", "cost_reported_usd": "UNKNOWN", "quota_remaining": "UNKNOWN"}, "reason": "no provider for role 'architect': none given and the configuration assigns none (production routing is off)"}
+
+exit 2
+### refusal provider='some_local_model'
+{"status": "refused", "role": "architect", "provider_id": "some_local_model", "real_provider": null, "model": "UNKNOWN", "attempts": 0, "elapsed_s": null, "usage": {"input_tokens": "UNKNOWN", "output_tokens": "UNKNOWN", "cache_creation_input_tokens": "UNKNOWN", "cache_read_input_tokens": "UNKNOWN", "cost_reported_usd": "UNKNOWN", "quota_remaining": "UNKNOWN"}, "reason": "unknown provider 'some_local_model'; declared: ['claude_subscription_cli', 'fixture_test_adapter']"}
+
+exit 2

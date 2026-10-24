@@ -234,6 +234,8 @@ starting duplicates. Full rationale, increments, acceptance and constraints are 
     ready, NOT installed. Handover: `HANDOVER_2026-10-23_STAGE8.md`. NOT ARB-accepted.
     After ARB stage-8 review: B-9 cause proven and fixed (CI 40026699075 on 3da13e7bf), B-10 order defect and an
     evidence-name ambiguity fixed next; first STUDIO-OS-MODELS-01 slice (role-pack) demonstrated. NOT ARB-accepted.
+    STUDIO-OS-MODELS-01 increment 2 (c60ad6d6a): provider contract + role configuration (Claude CLI adapter and a test
+    adapter, explicit selection, refusals, bounded attempts, reported-only usage); production routing off. NOT ARB-accepted.
     Handover: `HANDOVER_FOR_ARB_FINAL.md`, `START_HERE.md` in the same folder.
 18. **Later engines:** traditional markets, volatility / options (scope decided inside RM-EXPAND-01)
 

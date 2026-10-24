@@ -1,0 +1,35 @@
+{
+  "status": "ok",
+  "role": "architect",
+  "task_id": "models01-demo-1",
+  "provider_id": "claude_subscription_cli",
+  "provider_kind": "claude_cli",
+  "real_provider": true,
+  "permissions": [
+    "read_context_pack",
+    "answer_text"
+  ],
+  "tools": [],
+  "text": "1. `d12af8deb`\n2. No \u2014 `head_code_is_verified: False`; 8 code files (model_roles, role_pack, their tests) changed since `d12af8deb` and HEAD has no CI run of its own.\n3. Read census 40031633042 (about `d12af8deb`) from its artifact and record it in evidence; then await ARB decisions (\u00a749 connection, MODELS-01 increment 2).",
+  "model": "claude-haiku-4-5-20251001,claude-opus-5[1m]",
+  "attempts": 1,
+  "elapsed_s": 6.894,
+  "usage": {
+    "input_tokens": 2,
+    "output_tokens": 292,
+    "cache_creation_input_tokens": 5251,
+    "cache_read_input_tokens": 3083,
+    "cost_reported_usd": 0.0663545,
+    "quota_remaining": "UNKNOWN"
+  },
+  "attempt_log": [
+    {
+      "attempt": 1,
+      "status": "ok",
+      "elapsed_s": 6.894,
+      "detail": "duration_ms=5605"
+    }
+  ],
+  "reason": "",
+  "context_sha256": "f56e70ffb6fef1a7967e687978be4992aa75ebe234fd9cf15d07e7b101dda134"
+}

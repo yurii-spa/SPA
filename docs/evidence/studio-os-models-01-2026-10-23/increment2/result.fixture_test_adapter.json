@@ -1,0 +1,35 @@
+{
+  "status": "ok",
+  "role": "architect",
+  "task_id": "models01-demo-1",
+  "provider_id": "fixture_test_adapter",
+  "provider_kind": "fixture",
+  "real_provider": false,
+  "permissions": [
+    "read_context_pack",
+    "answer_text"
+  ],
+  "tools": [],
+  "text": "1) d12af8deb\n2) yes \u2014 only docs changed after the verified commit (context sha256 f56e70ffb6fef1a7967e687978be4992aa75ebe234fd9cf15d07e7b101dda134)\n3) read census 40031633042 by its artifact and record it, then wait for the ARB decision",
+  "model": "fixture (not a model)",
+  "attempts": 1,
+  "elapsed_s": 0.0,
+  "usage": {
+    "input_tokens": "UNKNOWN",
+    "output_tokens": "UNKNOWN",
+    "cache_creation_input_tokens": "UNKNOWN",
+    "cache_read_input_tokens": "UNKNOWN",
+    "cost_reported_usd": "UNKNOWN",
+    "quota_remaining": "UNKNOWN"
+  },
+  "attempt_log": [
+    {
+      "attempt": 1,
+      "status": "ok",
+      "elapsed_s": 0.0,
+      "detail": "fixture answer"
+    }
+  ],
+  "reason": "",
+  "context_sha256": "f56e70ffb6fef1a7967e687978be4992aa75ebe234fd9cf15d07e7b101dda134"
+}
