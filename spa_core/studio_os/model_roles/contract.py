@@ -14,7 +14,8 @@ The contract, not the provider, fixes what a call may do:
   ⇒ ``refused``. Unknown, unqualified, incapable or too-small provider ⇒ ``refused`` with the reason.
   There is no fallback and no escalation: a refusal is a result, never a cue to try another provider.
 * **bounded.** ``attempts ≤ min(role.max_attempts, HARD_MAX_ATTEMPTS)``; every attempt has the role's
-  deadline; only ``timeout`` and transient ``error`` are retried; ``quota`` and ``malformed`` are not.
+  deadline; only ``timeout`` (ownership closed) and transient ``error`` are retried; ``quota``,
+  ``malformed`` and ``ownership_unresolved`` (survivors possible) are not.
 * **accounted.** Elapsed time, attempts and each attempt's outcome are recorded; token/quota/cost
   fields only as the adapter REPORTS them — absent ⇒ ``UNKNOWN``. A reported cost is the transport's
   own figure and is NOT a subscription charge (none is inferred).
@@ -34,7 +35,9 @@ UNKNOWN = "UNKNOWN"
 HARD_MAX_ATTEMPTS = 3
 CONFIG_SCHEMA = "model-roles/1"
 CONFIG_PATH = Path(__file__).resolve().parents[3] / "architecture" / "model_roles.json"
-STATUSES = ("ok", "refused", "timeout", "error", "quota", "malformed")
+#: ``ownership_unresolved`` (ARB 24.10): the deadline helper could not prove the run's processes are gone
+#: (its exit 125) — never retried, never an answer.
+STATUSES = ("ok", "refused", "timeout", "ownership_unresolved", "error", "quota", "malformed")
 _RETRYABLE = ("timeout", "error")
 _FORBIDDEN_PROVIDER_KEYS = ("permissions", "tools", "allowed_tools")
 

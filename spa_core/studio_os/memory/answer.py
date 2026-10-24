@@ -37,7 +37,8 @@ INSTRUCTION = ("Answer the owner's question using ONLY the context package below
                "say what evidence is missing. Answer in the language of the question, at most 8 sentences."
                "\n\nQUESTION: {q}")
 #: Return codes for non-transport outcomes (the transport's own code is not available through the contract).
-RC = {"ok": 0, "error": 1, "quota": 3, "malformed": 4, "timeout": 124, "refused": 2}
+RC = {"ok": 0, "error": 1, "quota": 3, "malformed": 4, "timeout": 124, "ownership_unresolved": 125,
+      "refused": 2}
 
 
 def ask(question: str, *, budget_chars: int = 12000, model: Optional[str] = None, timeout: int = 180,

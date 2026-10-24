@@ -76,7 +76,7 @@ def test_a_hung_call_times_out_and_only_our_detached_descendant_is_finished(tmp_
         out = adapter(REQ, timeout_s=3.0, tools=[])
         took = time.monotonic() - t0
         assert out.status == "timeout", out.detail
-        assert "rc=124" in out.detail and "ownership closed" in out.detail, out.detail
+        assert "rc=124" in out.detail and "every process of this run finished" in out.detail, out.detail
         grandchild = int(marker.read_text())
         assert _wait_gone(grandchild), "отделившийся потомок ЭТОГО запуска пережил срок"
         assert _alive(foreign.pid), "помощник срока тронул чужой процесс"
@@ -141,7 +141,7 @@ def test_without_an_injected_runner_the_adapter_goes_through_the_helper(monkeypa
     calls = []
 
     def spy_factory(**kw):
-        def run(cmd, timeout_s, log_path, out_path):
+        def run(cmd, timeout_s, log_path, out_path, cwd=None):
             calls.append((cmd[0], timeout_s))
             out_path.write_text(json.dumps({"is_error": False, "result": "ok"}), encoding="utf-8")
             return 0
@@ -149,3 +149,74 @@ def test_without_an_injected_runner_the_adapter_goes_through_the_helper(monkeypa
     monkeypatch.setattr(ad, "helper_runner", spy_factory)
     out = ad.claude_cli(binary="/nonexistent/claude")(REQ, timeout_s=7, tools=[])
     assert out.status == "ok" and calls == [("/nonexistent/claude", 7)]
+
+
+# ── ARB 24.10: рабочий каталог CLI и аргументы без интерполяции ─────────────────────────────
+
+@pytest.mark.skipif(sys.platform.startswith("win"), reason="POSIX-сцена процессов")
+def test_the_cli_runs_in_its_own_temp_dir_with_literal_arguments(tmp_path):
+    """Фактический cwd ДОЧЕРНЕГО процесса — свой временный каталог; аргументы доходят буквально."""
+    probe = tmp_path / "probe.json"
+    pwned = tmp_path / "PWNED"
+    binary = _fake_claude(tmp_path, f"""
+        import json, os, sys
+        json.dump({{"cwd": os.getcwd(), "argv": sys.argv[1:]}}, open({str(probe)!r}, "w"))
+        print(json.dumps({{"is_error": False, "result": "ok"}}))
+    """)
+    nasty = c.Request("architect", "t", f'$(touch {pwned}) "; touch {pwned}; echo `id`', "ctx $HOME")
+    parent_cwd = os.getcwd()
+    out = ad.claude_cli(binary=binary, runner=ad.helper_runner(grace_s=1.0))(nasty, timeout_s=30, tools=[])
+    assert out.status == "ok", out.detail
+    seen = json.loads(probe.read_text())
+    child_cwd = os.path.realpath(seen["cwd"])
+    assert child_cwd != os.path.realpath(parent_cwd), "CLI унаследовал рабочий каталог вызывающего"
+    assert os.path.basename(child_cwd) == "cwd" and "spa_model_roles_" in child_cwd, child_cwd
+    assert os.getcwd() == parent_cwd, "cwd родительского процесса изменён"
+    assert not pwned.exists(), "аргумент интерпретирован оболочкой"
+    argv = seen["argv"]
+    assert argv[argv.index("-p") + 1] == ad.render_prompt(nasty), "промпт дошёл не буквально"
+    assert argv[argv.index("--tools") + 1] == "" and "--strict-mcp-config" in argv
+
+
+# ── ARB 24.10: 125 — отдельный неповторяемый исход ─────────────────────────────────────────
+
+def _sequence_runner(codes, calls, log_text=""):
+    ok = json.dumps({"is_error": False, "result": "УСПЕХ, КОТОРЫЙ НЕДОСТИЖИМ"})
+
+    def run(cmd, timeout_s, log_path, out_path, cwd=None):
+        rc = codes[len(calls)]
+        calls.append(rc)
+        out_path.write_text(ok if rc == 0 else "", encoding="utf-8")
+        log_path.write_text(log_text, encoding="utf-8")
+        return rc
+    return run
+
+
+def test_125_is_not_retried_and_success_after_it_is_unreachable():
+    calls = []
+    log = "⏱ TIMEOUT: ВЛАДЕНИЕ НЕ ЗАКРЫТО — 1 процесс(ов) выжили:\n    SURVIVOR pid=4242 tree pytest"
+    adapters = {"claude_cli": ad.claude_cli(binary="/nonexistent/claude",
+                                            runner=_sequence_runner([125, 0], calls, log))}
+    r = c.execute(REQ, config=c.load_config(), provider_id="claude_subscription_cli", adapters=adapters)
+    assert calls == [125], "после 125 запущен второй вызов"
+    assert r.status == "ownership_unresolved" and r.attempts == 1 and r.text == ""
+    assert "SURVIVOR pid=4242" in r.reason, "диагностика помощника потеряна"
+
+
+def test_124_with_closed_ownership_is_still_retried_and_distinct_from_125():
+    calls = []
+    adapters = {"claude_cli": ad.claude_cli(binary="/nonexistent/claude",
+                                            runner=_sequence_runner([124, 0], calls))}
+    r = c.execute(REQ, config=c.load_config(), provider_id="claude_subscription_cli", adapters=adapters)
+    assert calls == [124, 0] and r.status == "ok" and r.attempts == 2
+
+
+def test_ask_turns_125_into_an_empty_answer_with_rc_125(monkeypatch):
+    from spa_core.studio_os.memory import answer
+    monkeypatch.setattr(answer.asm, "assemble", lambda q, budget_chars=12000: {"evidence_sufficiency": {"verdict": "X"}})
+    monkeypatch.setattr(answer.asm, "render_markdown", lambda pkg: "ctx")
+    calls = []
+    r = answer.ask("q", adapters={"claude_cli": ad.claude_cli(
+        binary="/nonexistent/claude", runner=_sequence_runner([125, 0], calls, "SURVIVOR pid=7"))})
+    assert calls == [125] and r["answer"] == "" and r["rc"] == 125
+    assert r["status"] == "ownership_unresolved" and "NOT closed" in r["reason"] and "SURVIVOR pid=7" in r["reason"]

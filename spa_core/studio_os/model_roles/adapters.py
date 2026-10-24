@@ -61,9 +61,16 @@ def load_timeout_helper(path: Path = TIMEOUT_HELPER):
 def helper_runner(*, grace_s: float = DEFAULT_GRACE_S, helper_path: Path = TIMEOUT_HELPER):
     """``runner(cmd, timeout_s, log_path, out_path) -> rc`` through the existing deadline helper."""
 
-    def run(cmd: Sequence[str], timeout_s: float, log_path: Path, out_path: Path) -> int:
+    def run(cmd: Sequence[str], timeout_s: float, log_path: Path, out_path: Path,
+            cwd: Optional[Path] = None) -> int:
         helper = load_timeout_helper(helper_path)
-        wrapped = ["/bin/sh", "-c", 'out="$1"; shift; exec "$@" > "$out"', "sh", str(out_path), *cmd]
+        # ARB 24.10: the CLI runs from its OWN empty temp directory (as `memory.answer` did with
+        # `cwd=tempfile.gettempdir()`), not from the caller's tree — the helper's Popen has no cwd, so
+        # the shell changes it right before `exec` (same pid ⇒ ownership proof unchanged). Every path
+        # and argument is a POSITIONAL parameter; nothing is interpolated into the shell code.
+        # The parent Python's cwd is never touched. A failed `cd` exits 97 (an error, not a run).
+        wrapped = ["/bin/sh", "-c", 'cd "$1" || exit 97; out="$2"; shift 2; exec "$@" > "$out"', "sh",
+                   str(cwd or out_path.parent), str(out_path), *cmd]
         return int(helper.run(wrapped, timeout_s=timeout_s, grace_s=grace_s, log_path=str(log_path),
                               label="model-roles-claude"))
 
@@ -83,15 +90,25 @@ def claude_cli(*, binary: str = CLAUDE, model: Optional[str] = None,
             cmd += ["--model", model]
         with tempfile.TemporaryDirectory(prefix="spa_model_roles_") as tmp:
             log_path, out_path = Path(tmp) / "helper.log", Path(tmp) / "stdout.json"
+            work = Path(tmp) / "cwd"
+            work.mkdir()
             try:
-                rc = (runner or helper_runner())(cmd, timeout_s, log_path, out_path)
+                rc = (runner or helper_runner())(cmd, timeout_s, log_path, out_path, cwd=work)
             except (OSError, AttributeError, ImportError) as exc:
                 return AdapterOutput("error", detail=f"deadline helper unusable: {exc}")
             stdout = out_path.read_text(encoding="utf-8", errors="replace") if out_path.exists() else ""
             err = log_path.read_text(encoding="utf-8", errors="replace") if log_path.exists() else ""
-        if rc in TIMEOUT_CODES:
-            how = "ownership closed" if rc == TIMEOUT_CODES[0] else "ownership NOT closed (see helper)"
-            return AdapterOutput("timeout", detail=f"no answer within {timeout_s:g} s; helper rc={rc}: {how}")
+        # The temp directory (and the helper log in it) is gone now — the evidence travels in `detail`.
+        tail = " | ".join(line.strip() for line in err.splitlines()[-12:] if line.strip())[-1500:]
+        if rc == TIMEOUT_CODES[1]:
+            # ARB 24.10: 125 = the helper could NOT prove that every process of this run is gone.
+            # Not a timeout to retry: a second run would start next to possible survivors.
+            return AdapterOutput("ownership_unresolved",
+                                 detail=f"no answer within {timeout_s:g} s and process ownership NOT closed "
+                                        f"(helper rc=125); not retried. helper log: {tail or 'empty'}")
+        if rc == TIMEOUT_CODES[0]:
+            return AdapterOutput("timeout", detail=f"no answer within {timeout_s:g} s; helper rc=124: "
+                                                   f"every process of this run finished. helper log: {tail or 'empty'}")
         if rc != 0:
             low = (err + stdout).lower()
             if "usage limit" in low or "rate limit" in low or "quota" in low:

@@ -30,7 +30,7 @@ def _small_package(monkeypatch):
 
 
 def _claude(seen, rc=0, out=None, err=""):
-    def runner(cmd, timeout_s, log_path, out_path):
+    def runner(cmd, timeout_s, log_path, out_path, cwd=None):
         seen.append({"cmd": cmd, "timeout_s": timeout_s})
         out_path.write_text(json.dumps(out) if out is not None else "", encoding="utf-8")
         log_path.write_text(err, encoding="utf-8")

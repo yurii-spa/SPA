@@ -32,7 +32,7 @@ class _Clock:
 
 def _claude(out=None, rc=0, err="", raise_=None, seen=None):
     """Подменённый запуск: та же форма, что у `helper_runner` (cmd, срок, журнал, stdout-файл → rc)."""
-    def runner(cmd, timeout_s, log_path, out_path):
+    def runner(cmd, timeout_s, log_path, out_path, cwd=None):
         if seen is not None:
             seen.append((cmd, {"timeout": timeout_s}))
         if raise_:
@@ -168,7 +168,7 @@ def test_an_empty_answer_is_malformed_and_a_crashing_adapter_is_an_error():
 
 @pytest.mark.parametrize("kw,status", [
     ({"rc": 124}, "timeout"),
-    ({"rc": 125}, "timeout"),
+    ({"rc": 125}, "ownership_unresolved"),  # ARB 24.10: 125 — отдельный неповторяемый исход (инв. #16)
     ({"raise_": FileNotFoundError("no helper")}, "error"),
     ({"rc": 1, "err": "Claude AI usage limit reached"}, "quota"),
     ({"rc": 1, "err": "boom"}, "error"),
