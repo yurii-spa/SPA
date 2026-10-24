@@ -215,3 +215,56 @@ def test_the_door_sites_still_add_up_to_the_same_operand() -> None:
         f"сумма исходов двери {total} против объявленных "
         f"{_baseline()['door_sites_total']}: площадка либо появилась, либо "
         f"ПРОПАЛА — второе молчанием быть не вправе")
+
+
+def test_the_declared_total_is_summed_from_the_declared_addends() -> None:
+    """Итог обязан быть СУММОЙ объявленных слагаемых, а не своим числом.
+
+    ADR-803 (цикл #926): до него пять слагаемых жили прозой в поле `_` базы, и
+    прозу не читает ни один код — поэтому «перепечатал итог» и «назвал, какое
+    ведро сдвинулось» были неотличимы. Сверку задаёт ПРИБОР
+    (`operand_verdict`), а не это тело: утверждение, живущее только в храповике
+    над живой базой, не закреплено ничем — мутационный замер первой редакции
+    этого же ADR показал, что снятие такой сверки не меняет ни одного вердикта.
+    """
+    verdict = gap.operand_verdict(_census(), _baseline())
+    assert verdict.unmeasured is None, verdict.unmeasured
+    reprinted = [row for row in verdict.problems
+                 if "не сходится САМО С СОБОЙ" in row]
+    assert not reprinted, "\n".join(reprinted)
+
+
+def test_every_outcome_matches_its_declared_addend() -> None:
+    """Сдвиг НАЗЫВАЕТ ведро и НАПРАВЛЕНИЕ, а не только «итог не тот».
+
+    Сверка одного итога слепа к компенсации: `sites −1` рядом с
+    `out_of_subject +1` даёт ТОТ ЖЕ итог при ПОТЕРЯННОЙ площадке — то есть ровно
+    при том событии, ради запрета на которое сторож и написан. Ведро, названное
+    поимённо, делает лечение однозначным: появление объясняется и дописывается в
+    `door_sites`, ПОТЕРЯ базу не трогает — её лечит возврат площадки (инв. #16).
+    """
+    verdict = gap.operand_verdict(_census(), _baseline())
+    assert verdict.unmeasured is None, verdict.unmeasured
+    assert not verdict.problems, "\n".join("  " + row for row in verdict.problems)
+
+
+def test_the_operand_names_every_outcome_of_the_door() -> None:
+    """Исход, добавленный в `Census` и не дописанный в перечень, выпал бы молча.
+
+    Четвёртый и пятый исходы прибор получил по ходу ADR-701/ADR-705, и каждый
+    раз операнд приходилось перераспределять. Перечень `OPERAND_BUCKETS` — ОДНА
+    копия на храповик и пробу приёмки; этот тест стережёт, чтобы он называл
+    ровно те поля, которые у замера есть.
+
+    Разложение базы с этим перечнем сверяет ПРИБОР (`operand_verdict` → исходы
+    `absent` / `extra`), а не этот тест: вторая копия той же сверки над ЖИВОЙ
+    базой не закреплена ничем и мутацию переживает — измерено этим же ADR.
+    """
+    empty = gap.Census()
+    for name in gap.OPERAND_BUCKETS:
+        assert isinstance(getattr(empty, name, None), list), (
+            f"исход `{name}` объявлен в `OPERAND_BUCKETS`, а поля с таким именем "
+            f"у замера нет — операнд сложится не из того")
+    assert tuple(gap.operand(empty)) == gap.OPERAND_BUCKETS, (
+        "разложение `operand()` обходит исходы не в объявленном порядке — "
+        "второй порядок разошёлся бы с первым молча")

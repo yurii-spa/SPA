@@ -11288,7 +11288,105 @@ def _probe_bridge_stage_declaration_agrees(
                        f"разности пусты, дублей нет")
 
 
+#: Канон порога зрелости не нужен — предмет пробы целиком в дереве.
+_DSO_BASELINE = ("spa_core", "tests", "fixture_schema_gap_baseline.json")
+
+
+def _dso_measure():
+    """Замер двери: прибор храповика на СВОЁМ дереве. Исключение — третий исход."""
+    import importlib  # noqa: PLC0415
+    gap = importlib.import_module("spa_core.tests._fixture_schema_gap")
+    office = importlib.import_module("scripts.consume_office_reports")
+    root = _pathlib.Path(__file__).resolve().parents[2]
+    census = gap.measure(schema=office._READ_SCHEMA, has_path=office._has_path,
+                         root=str(root))
+    return gap, census
+
+
+def _probe_door_sites_operand_agrees(
+        arg: str | None = None, *, census=None,
+        baseline=None) -> tuple[str, str]:
+    """Критерий карточки `inbox-operand-summa-ishodov-dveri-razoshelsya`:
+    операнд «площадок двери» согласован с замером И СЛОЖЕН из пяти слагаемых.
+
+    Предмет — не «тест зелен», а ИСХОД: храповик
+    `test_fixture_schema_gap_ratchet.py` существует ради одного утверждения —
+    «площадка двери не вправе ПРОПАСТЬ молча». Сверяет он ИТОГ, и у итога есть
+    свойство, которое и сломало сторожа: обычное ПОЯВЛЕНИЕ площадки (цикл #880
+    дописал две сцены в `test_shadow_arming_blockade.py`, ADR-764, 16.10)
+    краснит его ровно так же, как ПОТЕРЯ. Восемь суток сторож стоял красным, и
+    за эти сутки мимо него проехали ещё три появления (ADR-801) — то есть
+    сторож перестал быть сигналом ещё до того, как кто-то решил его погасить.
+
+    Поэтому проба спрашивает ДВА разных вопроса, и согласие нужно по обоим:
+
+    1. **замер против объявления, ПО ВЕДРАМ.** Каждое из пяти ведер
+       (`sites`, `unmeasured`, `out_of_subject`, `built_by_call`,
+       `mutation_unmodelled`) сверяется со своим объявленным слагаемым, и
+       расхождение НАЗЫВАЕТ ведро и НАПРАВЛЕНИЕ. «Итог сошёлся» ответом на этот
+       вопрос не является: `sites −1` рядом с `out_of_subject +1` — это
+       ПОТЕРЯННАЯ площадка при неизменном итоге, ровно тот случай, ради которого
+       сторож и написан;
+    2. **объявление против самого себя.** Объявленный итог обязан быть СУММОЙ
+       объявленных слагаемых. Без этого вопроса остаётся честный выход наружу:
+       перепечатать итог, слагаемые не тронуть — и сторож снова зелен, не назвав
+       ни одного ведра.
+
+    Три исхода различимы (инв. #17):
+
+    * `unmeasured` — базу не прочитать/не разобрать, слагаемых в ней нет, у
+      замера нет предмета (ни одного файла двери или ни одной разрешённой
+      площадки), прибор не импортируется. «Нечем измерить» согласием не
+      печатается НИКОГДА: fail-OPEN тише красного теста, поэтому опаснее;
+    * `not_satisfied` — хоть одно ведро разошлось с объявлением ЛИБО объявленный
+      итог не равен сумме объявленных слагаемых;
+    * `satisfied` — все пять ведер сошлись и объявление сходится само с собой.
+
+    Сам ВОПРОС задаёт прибор (`_fixture_schema_gap.operand_verdict`), а не это
+    тело: сверка, живущая только в тесте, читающем ЖИВУЮ базу, не закреплена
+    ничем — мутационный замер первой редакции ADR-803 показал это числом (три
+    выживших мутации из четырнадцати). Проба здесь — перевод вердикта прибора в
+    словарь приёмки, и ровно поэтому у обоих читателей ОДНА копия сверки.
+
+    `census` / `baseline` инъектируются ТОЛЬКО контрольной батареей: проба,
+    никогда не видевшая настоящей поломки, остаётся украшением
+    (`.claude/rules/acceptance.md` п. 3).
+    """
+    gap = None
+    if census is None:
+        try:
+            gap, census = _dso_measure()
+        except Exception as exc:  # noqa: BLE001 — третий исход, а не согласие
+            return UNMEASURED, (f"прибор двери не измерил: "
+                                f"{type(exc).__name__}: {exc}")
+    if gap is None:
+        import importlib  # noqa: PLC0415
+        try:
+            gap = importlib.import_module("spa_core.tests._fixture_schema_gap")
+        except Exception as exc:  # noqa: BLE001 — третий исход, а не согласие
+            return UNMEASURED, (f"прибор двери не импортируется: "
+                                f"{type(exc).__name__}: {exc}")
+
+    if baseline is None:
+        path = _pathlib.Path(__file__).resolve().parents[2].joinpath(*_DSO_BASELINE)
+        try:
+            baseline = json.loads(path.read_text(encoding="utf-8"))
+        except (OSError, ValueError) as exc:
+            return UNMEASURED, (f"база храповика не прочитана ({path}): "
+                                f"{type(exc).__name__}: {exc}")
+
+    verdict = gap.operand_verdict(census, baseline)
+    if verdict.unmeasured:
+        return UNMEASURED, verdict.unmeasured
+    if verdict.problems:
+        return NOT_SATISFIED, " · ".join(verdict.problems)
+    return SATISFIED, (
+        f"операнд двери {verdict.declared_total} сошёлся ПО ВЕДРАМ и СЛОЖЕН из "
+        "них: " + " + ".join(f"{n} {v}" for n, v in verdict.measured.items()))
+
+
 PROBES: dict[str, Callable[[str | None], "tuple[str, str]"]] = {
+    "door_sites_operand_agrees": _probe_door_sites_operand_agrees,
     "bridge_stage_declaration_agrees":
         _probe_bridge_stage_declaration_agrees,
     "cockpit_voice_loop_closed": _probe_cockpit_voice_loop,

@@ -1308,3 +1308,151 @@ def compare(census: Census, baseline: dict) -> list[str]:
             report.append(f"  ВЫРОС {key}: {was} \u2192 {now}\n"
                           f"        не несёт: {detail[key]}")
     return report
+
+
+#: Пять исходов двери, СУММА которых и есть операнд «площадок двери».
+#: Порядок объявлен здесь ОДИН раз и читается всеми (храповик, проба приёмки):
+#: второй литеральный перечень тех же пяти имён разошёлся бы с первым молча —
+#: класс ADR-220. Исход, добавленный в `Census` и НЕ дописанный сюда, из
+#: операнда выпадет, поэтому состав списка стережёт `test_the_operand_names_
+#: every_outcome_of_the_door` рядом с храповиком.
+OPERAND_BUCKETS: tuple[str, ...] = (
+    "sites", "unmeasured", "out_of_subject", "built_by_call",
+    "mutation_unmodelled",
+)
+
+
+def operand(census: Census) -> dict[str, int]:
+    """Разложение операнда двери по исходам: `{имя исхода: сколько площадок}`.
+
+    Зачем разложение, а не одно число (заказ карточки
+    `inbox-operand-summa-ishodov-dveri-razoshelsya`, цикл #926): до него пять
+    слагаемых жили ПРОЗОЙ в комментарии базы («60 + 9 + 16 + 18 + 18 = 121»), и
+    прозу не читает ни один код. Поэтому у следующего цикла оставался ровно один
+    доступный ход — перепечатать ИТОГ, то есть закрыть вместе с объяснённым
+    появлением и возможную ПОТЕРЮ площадки, ради запрета на которую сторож и
+    написан. Слагаемые, объявленные машинно, делают «перепечатал итог» отличимым
+    от «назвал, какое ведро сдвинулось и куда».
+    """
+    return {name: len(getattr(census, name)) for name in OPERAND_BUCKETS}
+
+
+@dataclass
+class OperandVerdict:
+    """Вердикт об операнде двери: три исхода РАЗЛИЧИМЫ (инв. #17).
+
+    * `unmeasured` непуст — у замера или у объявления нет предмета, и согласием
+      это не печатается НИКОГДА;
+    * `problems` непуст — операнд разошёлся, и каждая строка НАЗЫВАЕТ ведро и
+      НАПРАВЛЕНИЕ;
+    * оба пусты — сошлось.
+    """
+
+    measured: dict
+    declared: dict | None = None
+    declared_total: int | None = None
+    unmeasured: str | None = None
+    problems: list = field(default_factory=list)
+
+    @property
+    def measured_total(self) -> int:
+        return sum(self.measured.values())
+
+
+def operand_verdict(census: Census, baseline: dict) -> OperandVerdict:
+    """Сверка операнда двери с объявлением — В ПРИБОРЕ, а не в храповике.
+
+    Вынесено сюда по той же причине, что и `compare()` выше, и причина
+    ИЗМЕРЕНА, а не унаследована: первая редакция ADR-803 держала эту сверку
+    тремя утверждениями прямо в храповике, и мутационный замер по дельте
+    показал, что ТРИ мутации из четырнадцати ВЫЖИВАЮТ — снятие сверки не меняет
+    ни одного вердикта, пока живая база с живым замером согласны. Храповик,
+    читающий живую базу, аварию воспроизвести не может, не правя живую базу;
+    значит утверждение, живущее только в нём, не закреплено ничем. Прибор же
+    принимает объявление ВХОДОМ, и порванное звено краснеет на собранной сцене.
+
+    Порядок вопросов не косметический: «итог разошёлся» отвечается БЕЗ
+    разложения, и выдавать этот определённый ОТКАЗ за «нечем измерить» было бы
+    ровно той подменой, против которой инвариант #17 и написан.
+    """
+    measured = operand(census)
+    if not isinstance(baseline, dict):
+        # База, поданная не документом (текстом, None, списком), — третий исход
+        # с НАЗВАННОЙ причиной, а не исключение: падение сверки читалось бы как
+        # «тест сломан», то есть не как вердикт об операнде вовсе.
+        return OperandVerdict(
+            measured, None, None,
+            unmeasured=(f"объявление подано не документом, а "
+                        f"`{type(baseline).__name__}` — читать нечего"))
+    declared_total = baseline.get("door_sites_total")
+    declared = baseline.get("door_sites")
+    if not isinstance(declared_total, int) or isinstance(declared_total, bool):
+        return OperandVerdict(
+            measured, declared, None,
+            unmeasured=("в базе нет объявленного итога `door_sites_total` "
+                        "числом — сверять не с чем"))
+    if not census.files_scanned:
+        return OperandVerdict(
+            measured, declared, declared_total,
+            unmeasured=("ни один тест-файл не зовёт дверь — предмета у замера "
+                        "нет, и нулём это не считается"))
+    if not census.sites:
+        return OperandVerdict(
+            measured, declared, declared_total,
+            unmeasured=("ни одна площадка двери не разрешена до документа — "
+                        "согласие на нуле сравнений есть подделка доказательства"))
+
+    verdict = OperandVerdict(measured, declared, declared_total)
+    usable = isinstance(declared, dict) and all(
+        isinstance(declared.get(name), int)
+        and not isinstance(declared.get(name), bool)
+        for name in OPERAND_BUCKETS)
+    if verdict.measured_total != declared_total:
+        detail = (" · ".join(
+            f"`{name}`: объявлено {declared[name]}, измерено {measured[name]}"
+            for name in OPERAND_BUCKETS if declared[name] != measured[name])
+            if usable else "")
+        verdict.problems.append(
+            f"операнд двери разошёлся с объявленным: измерено "
+            f"{verdict.measured_total}, объявлено {declared_total} — площадка "
+            f"либо появилась, либо ПРОПАЛА"
+            + (f" ({detail})" if detail else ""))
+        return verdict
+
+    if not isinstance(declared, dict):
+        verdict.unmeasured = (
+            "итог сошёлся, а разложения `door_sites` в базе нет — и ровно этого "
+            "вопроса итог не закрывает: `sites −1` рядом с `out_of_subject +1` "
+            "даёт ТОТ ЖЕ итог при ПОТЕРЯННОЙ площадке")
+        return verdict
+    absent = sorted(name for name in OPERAND_BUCKETS
+                    if not isinstance(declared.get(name), int)
+                    or isinstance(declared.get(name), bool))
+    if absent:
+        verdict.unmeasured = (
+            f"в разложении `door_sites` не объявлены числом исходы {absent} — "
+            f"сумма неполна, и сверять её с итогом значило бы сверять разные "
+            f"операнды")
+        return verdict
+    extra = sorted(set(declared) - set(OPERAND_BUCKETS))
+    if extra:
+        verdict.unmeasured = (
+            f"в разложении `door_sites` объявлены исходы, которых прибор не "
+            f"знает: {extra} — перечень разошёлся с `OPERAND_BUCKETS`")
+        return verdict
+
+    declared_sum = sum(declared[name] for name in OPERAND_BUCKETS)
+    if declared_sum != declared_total:
+        verdict.problems.append(
+            f"объявление не сходится САМО С СОБОЙ: итог `door_sites_total` "
+            f"{declared_total}, а сумма объявленных слагаемых {declared_sum} "
+            f"({' + '.join(f'{n} {declared[n]}' for n in OPERAND_BUCKETS)}) — "
+            f"итог перепечатан, а не сложен")
+    for name in OPERAND_BUCKETS:
+        was, now = declared[name], measured[name]
+        if now != was:
+            moved = "ПОЯВИЛАСЬ" if now > was else "ПРОПАЛА"
+            verdict.problems.append(
+                f"ведро `{name}`: объявлено {was}, измерено {now} ⇒ площадка "
+                f"{moved} ({now - was:+d})")
+    return verdict

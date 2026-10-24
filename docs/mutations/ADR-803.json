@@ -1,0 +1,105 @@
+{
+ "title": "ADR-803 — дельта цикла #926: операнд «площадок двери» СЛОЖЕН машинно, а не перепечатан, и сдвиг НАЗЫВАЕТ ведро с направлением. Каждая мутация возвращает состояние, в котором сторож снова согласился бы молча: третий исход выдан за согласие · сверка по ведрам снята · объявление не сверяется само с собой · нулевой предмет за чистый · направление наоборот · перечень исходов разошёлся · проба переводит отказ в согласие",
+ "tests": [
+  "spa_core/tests/test_door_sites_operand_probe.py",
+  "spa_core/tests/test_fixture_schema_gap_ratchet.py"
+ ],
+ "mutations": [
+  {
+   "name": "третий исход выдан за согласие: разложения в базе нет, а вердикт пуст — fail-OPEN тише красного теста (инв. #17)",
+   "file": "spa_core/tests/_fixture_schema_gap.py",
+   "old": "    if not isinstance(declared, dict):\n        verdict.unmeasured = (\n            \"итог сошёлся, а разложения `door_sites` в базе нет",
+   "new": "    if False:\n        verdict.unmeasured = (\n            \"итог сошёлся, а разложения `door_sites` в базе нет"
+  },
+  {
+   "name": "сверка ПО ВЕДРАМ снята: компенсация `sites −1` / `out_of_subject +1` снова невидима при том же итоге — ровно то событие, ради запрета на которое сторож написан",
+   "file": "spa_core/tests/_fixture_schema_gap.py",
+   "old": "    for name in OPERAND_BUCKETS:\n        was, now = declared[name], measured[name]",
+   "new": "    for name in ():\n        was, now = declared[name], measured[name]"
+  },
+  {
+   "name": "объявление больше не сверяется САМО С СОБОЙ: перепечатать итог и не тронуть слагаемые снова проходит молча",
+   "file": "spa_core/tests/_fixture_schema_gap.py",
+   "old": "    if declared_sum != declared_total:\n        verdict.problems.append(",
+   "new": "    if False:\n        verdict.problems.append("
+  },
+  {
+   "name": "сверка итога с замером снята: появление площадки больше не краснит ни храповик, ни пробу",
+   "file": "spa_core/tests/_fixture_schema_gap.py",
+   "old": "    if verdict.measured_total != declared_total:\n        detail = (\" · \".join(",
+   "new": "    if False:\n        detail = (\" · \".join("
+  },
+  {
+   "name": "«ни один файл не зовёт дверь» выдано за согласие: нулевой предмет снова неотличим от чистого",
+   "file": "spa_core/tests/_fixture_schema_gap.py",
+   "old": "    if not census.files_scanned:\n        return OperandVerdict(",
+   "new": "    if False:\n        return OperandVerdict("
+  },
+  {
+   "name": "«ни одна площадка не разрешена» выдано за согласие: согласие на нуле сравнений есть подделка доказательства",
+   "file": "spa_core/tests/_fixture_schema_gap.py",
+   "old": "    if not census.sites:\n        return OperandVerdict(",
+   "new": "    if False:\n        return OperandVerdict("
+  },
+  {
+   "name": "неполное разложение больше не третий исход: часть слагаемых объявлена, и неполная сумма сверяется с полным итогом",
+   "file": "spa_core/tests/_fixture_schema_gap.py",
+   "old": "    if absent:\n        verdict.unmeasured = (",
+   "new": "    if False:\n        verdict.unmeasured = ("
+  },
+  {
+   "name": "исход, которого прибор не знает, перестаёт быть находкой: перечень базы может молча разойтись с `OPERAND_BUCKETS`",
+   "file": "spa_core/tests/_fixture_schema_gap.py",
+   "old": "    if extra:\n        verdict.unmeasured = (",
+   "new": "    if False:\n        verdict.unmeasured = ("
+  },
+  {
+   "name": "направление сдвига названо НАОБОРОТ: потеря площадки докладывается как появление, и лечение выбирается не то",
+   "file": "spa_core/tests/_fixture_schema_gap.py",
+   "old": "            moved = \"ПОЯВИЛАСЬ\" if now > was else \"ПРОПАЛА\"",
+   "new": "            moved = \"ПРОПАЛА\" if now > was else \"ПОЯВИЛАСЬ\""
+  },
+  {
+   "name": "база, поданная не документом, снова падает исключением вместо третьего исхода — «тест сломан» читается не как вердикт об операнде",
+   "file": "spa_core/tests/_fixture_schema_gap.py",
+   "old": "    if not isinstance(baseline, dict):\n        # База, поданная не документом",
+   "new": "    if False:\n        # База, поданная не документом"
+  },
+  {
+   "name": "итог объявлен не числом (строкой «126») и принимается за число — род значения перестаёт судиться",
+   "file": "spa_core/tests/_fixture_schema_gap.py",
+   "old": "    if not isinstance(declared_total, int) or isinstance(declared_total, bool):",
+   "new": "    if False:"
+  },
+  {
+   "name": "проба выдаёт «нечем измерить» за согласие: вердикт прибора с непустым `unmeasured` переводится в satisfied",
+   "file": "spa_core/monitoring/card_acceptance.py",
+   "old": "    if verdict.unmeasured:\n        return UNMEASURED, verdict.unmeasured",
+   "new": "    if verdict.unmeasured:\n        return SATISFIED, verdict.unmeasured"
+  },
+  {
+   "name": "проба выдаёт расхождение за согласие: непустые `problems` переводятся в satisfied",
+   "file": "spa_core/monitoring/card_acceptance.py",
+   "old": "    if verdict.problems:\n        return NOT_SATISFIED, \" · \".join(verdict.problems)",
+   "new": "    if verdict.problems:\n        return SATISFIED, \" · \".join(verdict.problems)"
+  },
+  {
+   "name": "храповик больше не спрашивает вердикт прибора о ведрах — набор снова видит только ИТОГ",
+   "file": "spa_core/tests/test_fixture_schema_gap_ratchet.py",
+   "old": "    verdict = gap.operand_verdict(_census(), _baseline())\n    assert verdict.unmeasured is None, verdict.unmeasured\n    assert not verdict.problems",
+   "new": "    verdict = gap.operand_verdict(_census(), _baseline())\n    assert verdict.unmeasured is None, verdict.unmeasured\n    assert not []"
+  },
+  {
+   "name": "прибор: перечень исходов теряет ведро — операнд складывается НЕ ИЗ ВСЕХ исходов двери",
+   "file": "spa_core/tests/_fixture_schema_gap.py",
+   "old": "    \"sites\", \"unmeasured\", \"out_of_subject\", \"built_by_call\",\n    \"mutation_unmodelled\",",
+   "new": "    \"sites\", \"unmeasured\", \"out_of_subject\", \"built_by_call\","
+  },
+  {
+   "name": "прибор: разложение обходит исходы в ЧУЖОМ порядке — второй порядок разошёлся бы с первым молча (класс ADR-220)",
+   "file": "spa_core/tests/_fixture_schema_gap.py",
+   "old": "    return {name: len(getattr(census, name)) for name in OPERAND_BUCKETS}",
+   "new": "    return {name: len(getattr(census, name)) for name in sorted(OPERAND_BUCKETS)}"
+  }
+ ]
+}
