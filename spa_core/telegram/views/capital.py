@@ -540,6 +540,13 @@ def _render_sherlock(lang: str) -> Tuple[str, Dict]:
     if not doc.get("schema") or not isinstance(sh, dict):
         return _screen("capital.sherlock", "исследование", head + ["Сводка Sherlock: {}.".format(NOT_MEASURED)],
                        freshness_line(_parse_iso(doc.get("generated_at")), now, stale, src), lang)
+    if doc.get("generated_at") is None:
+        # B-12 (ARB 24.10): an EMPTY ledger records no run (B-11: the reader leaves generated_at None and the
+        # cockpit says NOT_MEASURED). Its zero counters are not a measurement, so none are printed — no
+        # counters, no blockers. BROKEN is checked above and keeps precedence.
+        return _screen("capital.sherlock", "исследование",
+                       head + ["Сводка Sherlock: {} — данных о прогоне пока нет.".format(NOT_MEASURED)],
+                       freshness_line(None, now, stale, src), lang)
     denom = doc.get("denominators") or {}
     body = list(head)
     body.append("Просмотрено рынков (последний прогон): {}".format(_count(denom.get("scanned"))))
