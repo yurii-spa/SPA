@@ -164,6 +164,18 @@
   и `run.json` сделали `prior_run_operand_census` «не измеренным»; переименованы в `*.excerpt.json`.
   Правило для evidence: копии артефактов CI/census — только с суффиксом `.excerpt`.
 
+### B-11 · P2 · стенные часы в сборке Mission Control (найдено полным CI 40084749657, 2026-10-24)
+
+- **Тест:** `spa_core/tests/test_mission_rebuild_from_canon.py::test_rebuild_from_canon_gives_byte_identical_mission_json`.
+- **Причина (доказана):** `spa_core/research_factory/read.py:223` — при ленте без строк прогона
+  `generated_at = … or iso(datetime.now(timezone.utc))`; `mission_control._research_universe_section` зовёт
+  `rf_read.latest(data)` без момента вызывающего. Две сборки с ОДНИМИ инъецированными часами расходятся, если между
+  ними сменилась секунда. Воспроизведение: пауза 1,1 с между сборками ⇒ failed, без неё ⇒ passed.
+- **Род:** нестабильный тест из-за утечки часов в предмет (класс «время — вход», `deployment.md`); не связан с MODELS-01.
+- **Приёмка:** `latest()` принимает момент вызывающего (или отказ «нет прогона» без подстановки часов), Mission
+  Control передаёт `now`; тест с паузой 1,1 с между сборками — зелен; полный CI — тест passed.
+- **ROADMAP:** п. 17. Владелец — агент; приёмка — ARB. Пакетом MODELS-01 инкремент 3 НЕ исправлялось.
+
 ## Не вошло в задачи (и почему)
 
 - 760 `breaks_on_substitution` и 53 `claim_independent_of_members` — ожидаемые исходы, находками не являются.
