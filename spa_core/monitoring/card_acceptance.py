@@ -3482,6 +3482,174 @@ def _probe_ledger_census_artifact_reaches_the_cycle(arg: str | None) -> tuple[st
                        "обновляется")
 
 
+def ledger_retention_links(root=None, *, retention=None, history=None) -> list[str]:
+    """Перечень ПОРВАННЫХ звеньев отрезания ленты как ПЕРЕНОСА (ADR-797).
+
+    Вынесено отдельной функцией ровно по той же причине, что у соседа ADR-785: иначе
+    звенья нечем порвать. Оба модуля приходят ВХОДОМ (по умолчанию — настоящие), и
+    батарея пробы подаёт заглушки; стенд одноразовый, живой ``data/`` не открывается.
+
+    Пять звеньев, и каждое меряется ИСХОДОМ — ни одно не ищется подстрокой:
+
+    1. **окно есть РЕШЕНИЕ с запасом**: срок хранения строго больше такта писателя
+       уплотнения, иначе одна пропущенная запись уносит историю в архив вместе с собой;
+    2. **молчаливое усечение по-прежнему ЛОМАЕТ цепь** — звено, потеря которого сделала
+       бы порчу ленты невидимой;
+    3. **объявленный перенос ПРОВЕРЯЕМ**: цепь сходится от якоря, и вердикт это говорит;
+    4. **перенос обратим ПОБАЙТНО**: архив + горячий файл = исходная лента;
+    5. **ответ объявленных видов НЕ МЕНЯЕТСЯ**, а когда изменился бы — отрезание
+       ОТКАЗАНО с названным видом (контроль в обе стороны на двух сценах).
+    """
+    import datetime as _dt
+    import json as _json
+    import tempfile
+
+    if retention is None:
+        from spa_core.research_factory import retention  # noqa: PLC0415
+    if history is None:
+        from spa_core.research_factory import history  # noqa: PLC0415
+    from spa_core.monitoring import ledger_window_dependency_census as _lwd  # noqa: PLC0415
+    from spa_core.research_factory import contract as _rfc  # noqa: PLC0415
+    from spa_core.research_factory._common import ledger_for as _ledger_for  # noqa: PLC0415
+
+    broken: list[str] = []
+    if not retention.KEEP_DAYS > history.COMPACTION_TACT_DAYS:
+        broken.append(f"звено 1: окно {retention.KEEP_DAYS} сут не больше такта писателя "
+                      f"{history.COMPACTION_TACT_DAYS} сут — одна пропущенная запись "
+                      "уплотнения уносит историю в архив вместе с собой")
+
+    anchor = _dt.datetime(2026, 10, 1, tzinfo=_dt.timezone.utc)
+    horizon = anchor + _dt.timedelta(days=5, hours=1)
+    now = anchor + _dt.timedelta(days=5, hours=2)
+    cands = ("c0", "c1")
+
+    def _iso(moment):
+        return moment.strftime("%Y-%m-%dT%H:%M:%SZ")
+
+    def _rows(resnapshot_daily: bool):
+        out = []
+        for day in range(6):
+            at = anchor + _dt.timedelta(days=day)
+            if resnapshot_daily or day == 0:
+                for i, cid in enumerate(cands):
+                    out.append({"kind": "candidate_snapshot",
+                                "key": ["candidate_snapshot", cid, f"{cid}-{day}"],
+                                "payload": {"candidate": {"candidate_id": cid, "domain": "D",
+                                                          "admission_state": None}},
+                                "at": _iso(at + _dt.timedelta(minutes=i))})
+            if day in (0, 1):
+                for i, cid in enumerate(cands):
+                    out.append({"kind": "transition",
+                                "key": ["transition", cid, None, "x",
+                                        _iso(at + _dt.timedelta(minutes=30 + i))],
+                                "payload": {"candidate_id": cid,
+                                            "from_state": None if day == 0 else _rfc.DISCOVERED,
+                                            "gate_ref": None, "reason": f"r{day}{cid}",
+                                            "to_state": (_rfc.DISCOVERED if day == 0
+                                                         else _rfc.REJECTED)},
+                                "at": _iso(at + _dt.timedelta(minutes=30 + i))})
+            out.append({"kind": "run", "key": ["run", f"r{day}"],
+                        "payload": {"generated_at": _iso(at + _dt.timedelta(hours=1)),
+                                    "denominators": {"scanned": 2}},
+                        "at": _iso(at + _dt.timedelta(hours=1))})
+        return sorted(out, key=lambda e: (_lwd._parse_at(e["at"]), e["kind"]))
+
+    def _stand(tmp, name, resnapshot_daily):
+        data = _pathlib.Path(tmp) / name / "data"
+        _lwd.rechain(_rows(resnapshot_daily), data)
+        _ledger_for(data).invalidate_cache()
+        history.compact(data, now=horizon)
+        _ledger_for(data).invalidate_cache()
+        return data
+
+    with tempfile.TemporaryDirectory(prefix="spa_adr797_links_") as tmp:
+        data = _stand(tmp, "complete", True)
+        led = _ledger_for(data)
+
+        # --- звено 2: молчаливое усечение ЛОМАЕТ цепь ---
+        lines = led.ledger_path().read_text(encoding="utf-8").splitlines(keepends=True)
+        whole = "".join(lines)
+        led.ledger_path().write_text("".join(lines[3:]), encoding="utf-8")
+        led.invalidate_cache()
+        silent = led.verify()
+        led.ledger_path().write_text(whole, encoding="utf-8")
+        led.invalidate_cache()
+        if silent.get("ok"):
+            broken.append("звено 2: усечение БЕЗ объявления прошло verify — порча ленты "
+                          "стала невидимой")
+
+        # --- звенья 3, 4 и 5а: перенос состоялся, обратим и ответ тот же ---
+        before_bytes = led.ledger_path().read_bytes()
+        answers_before, unmeasured = retention.view_answers(data, now)
+        if unmeasured:
+            return broken + [f"стенд: ответ видов НЕ ИЗМЕРЕН до переноса ({unmeasured})"]
+        try:
+            report = retention.cut(data, now=now, keep_days=retention.KEEP_DAYS, apply=True)
+        except retention.CutRefused as exc:
+            return broken + [f"звено 5: на ПОЛНОМ рецепте перенос отказан ({exc}) — "
+                             "положительного контроля «перенос возможен» не существует"]
+        if not report.get("applied"):
+            broken.append(f"звено 5: перенос не состоялся на полном рецепте "
+                          f"({report.get('measurement')})")
+        else:
+            verdict = led.verify()
+            if not verdict.get("ok") or verdict.get("truncation") != "applied":
+                broken.append(f"звено 3: после переноса цепь не сходится от якоря "
+                              f"({verdict})")
+            archive = (led.root() / report["archive"]).read_bytes()
+            if archive + led.ledger_path().read_bytes() != before_bytes:
+                broken.append("звено 4: архив + горячий файл НЕ воспроизводят исходную "
+                              "ленту — отрезание оказалось удалением, а не переносом")
+            led.invalidate_cache()
+            answers_after, unmeasured_after = retention.view_answers(data, now)
+            if unmeasured_after or answers_after != answers_before:
+                broken.append("звено 5: ответ объявленных видов ИЗМЕНИЛСЯ после переноса, "
+                              "который замер назвал безопасным")
+
+        # --- звено 5б: ОБРАТНАЯ сторона — неполный рецепт обязан быть ОТКАЗАН ---
+        partial = _stand(tmp, "partial", False)
+        try:
+            retention.cut(partial, now=now, keep_days=retention.KEEP_DAYS, apply=True)
+        except retention.CutRefused as exc:
+            if "research_factory" not in str(exc):
+                broken.append(f"звено 5: отказ не НАЗВАЛ вид, ответ которого изменился "
+                              f"({exc})")
+        else:
+            broken.append("звено 5: на НЕПОЛНОМ рецепте перенос РАЗРЕШЁН — гейт слеп "
+                          "ровно к тому, из-за чего пять решений подряд называли "
+                          "лекарством не то")
+    return broken
+
+
+def _probe_ledger_cut_moves_and_is_measured(arg: str | None) -> tuple[str, str]:
+    """Отрезание ленты ИЗМЕРЯЕТСЯ и ПЕРЕНОСИТ, а не удаляет (ADR-797, заказ G795 п. 1).
+
+    Критерий по ИСХОДУ, а не по наличию модуля: ``read.latest``/``cio_view`` до и после
+    дают ОДИН И ТОТ ЖЕ ответ полистно, горячий файл уменьшился, архив + горячий файл
+    воспроизводят исходную ленту побайтно, а на сцене, где рецепт неполон, отрезание
+    ОТКАЗАНО с названным видом. Пять звеньев рвутся поимённо
+    (:func:`ledger_retention_links`), и контроль двусторонний: проверка, у которой нет
+    сцены с ОТКАЗОМ, зелена на приборе, который всегда разрешает.
+
+    Живой ``data/`` не открывается: обе сцены синтетические и строятся самой пробой.
+    """
+    if arg:
+        return UNMEASURED, (f"проба не принимает аргумента (дано {arg!r}): критерий "
+                            "назван целиком")
+    try:
+        broken = ledger_retention_links()
+    except Exception as exc:  # noqa: BLE001 — предпосылка не обеспечена ⇒ третий исход
+        return UNMEASURED, (f"отрезание не измерили ({type(exc).__name__}: {exc}) — "
+                            "вердикта это не даёт")
+    if broken:
+        return NOT_SATISFIED, "; ".join(broken)
+    return SATISFIED, ("окно строго больше такта писателя; молчаливое усечение ломает "
+                       "цепь; объявленный перенос проверяем от якоря; архив + горячий "
+                       "файл воспроизводят ленту побайтно; ответ обоих объявленных видов "
+                       "полистно тот же, а на неполном рецепте перенос ОТКАЗАН с "
+                       "названным видом")
+
+
 def _probe_journal_reader_census_reaches_http_routes(arg: str | None) -> tuple[str, str]:
     """Перепись читателей журнала ДОХОДИТ до обработчиков HTTP-маршрутов (заказ G27).
 
@@ -11011,6 +11179,7 @@ PROBES: dict[str, Callable[[str | None], "tuple[str, str]"]] = {
     "lead_channel_wiring_ok": _probe_lead_channel_wiring,
     "adapter_status_live_apy": _probe_adapter_status_live_apy,
     "tier_promotion_loop_closed": _probe_tier_promotion_loop,
+    "ledger_cut_moves_and_is_measured": _probe_ledger_cut_moves_and_is_measured,
     "candidate_discovery_loop_closed": _probe_candidate_discovery_loop,
     "free_move_priced_as_free": _probe_free_move_priced_as_free,
     "decision_journal_keeps_every_run": _probe_decision_journal_keeps_every_run,

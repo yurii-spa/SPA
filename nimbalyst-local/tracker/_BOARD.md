@@ -2,11 +2,11 @@
 
 > Авто-генерится `scripts/build_tracker_board.py` из `nimbalyst-local/tracker/*.md`. НЕ править вручную — правь карточки. Источник правды — карточки, это индекс (bootstrap).
 >
-> Собрана: 2026-10-24T05:01:47Z · сверка с карточками: `python3 scripts/build_tracker_board.py --check` (сторож `spa_core/tests/test_tracker_board_matches_cards.py`).
+> Собрана: 2026-10-24T07:22:49Z · сверка с карточками: `python3 scripts/build_tracker_board.py --check` (сторож `spa_core/tests/test_tracker_board_matches_cards.py`).
 >
-> Сверено с `origin/main` (688a60411) · у **1** своя правка, кто новее — не измерено.
+> Сверено с `origin/main` (7d97511e5) · у **1** своя правка, кто новее — не измерено.
 >
-> Всего карточек: **1446** · ждёт владельца: **27** · занято сессиями: **15**.
+> Всего карточек: **1447** · ждёт владельца: **27** · занято сессиями: **15**.
 
 ## 🔴 ЖДЁТ ВЛАДЕЛЬЦА (needs-owner)
 
@@ -435,7 +435,7 @@
 ### · closed
 - Считать ли верный отказ по правилам допуска неисправностью флота  ·  `owner-decision-schitat-li-vernyi-otkaz-po-pravilam-dopu.md` · 2026-10-08
 
-## 📥 Inbox (задания: Telegram / заметки / голос)  (798)
+## 📥 Inbox (задания: Telegram / заметки / голос)  (799)
 
 ### · in-progress
 - а задача починить все-таки еще раз сообщение которым не пишет нужно твое решени…  ·  `inbox-a-zadacha-pochinit-vse-taki-esche-raz-so.md` · 2026-08-14 · 🔒 `pid43119`
@@ -1205,6 +1205,7 @@
 - Тест доставки карточек красный в ЛЮБОМ свежем worktree: он судит mtime файлов дерева, а не поведение  ·  `inbox-test-dostavki-kartochek-krasnyi-v-lyubom.md` · 2026-09-08
 - Тест о реестре проб зелен на ПУСТОМ реестре — предмет взят из того, что мог опустеть  ·  `inbox-test-o-reestre-prob-zelen-na-pustom-rees.md` · 2026-10-03
 - Тест паспортов краснеет на main оттого, что курацию ДОВЕЛИ: он требует, чтобы работа оставалась незаконченной (91 из 91)  ·  `inbox-test-pasportov-krasneet-na-main-ottogo-c.md` · 2026-08-30
+- Тест ссылок на факты читает семя из каталога чужой сессии — падает предпосылкой, а не утверждением  ·  `inbox-test-ssylok-na-fakty-chitaet-semya-iz-ka.md` · 2026-10-24
 - На чистом origin/main красный храповик литеральных дат — test_studio_os.py вошёл в класс без разбора  ·  `inbox-test-studio-os-frozen-date-ratchet.md` · 2026-09-29
 - Тест судит о каталоге чужой сессии Claude: facts.jsonl-цитаты краснеют на чистом origin/main  ·  `inbox-test-sudit-o-kataloge-chuzhoi-sessii-cla.md` · 2026-10-23
 - Тест тождества капитала КРАСЕН на чистом origin: два читателя одной записи расходятся на сцене с дублем и порчей  ·  `inbox-test-tozhdestva-kapitala-krasen-na-chist.md` · 2026-09-16

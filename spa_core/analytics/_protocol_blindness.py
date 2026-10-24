@@ -5,7 +5,7 @@ _protocol_blindness.py — эмпирическая разметка прото�
 перегенерация: python3 scripts/audit_protocol_blindness.py --emit-markup
 (в sandbox-чекауте, не в живом репо — модули пишут data/*-логи).
 
-Дифференциальный аудит 2026-10-23T00:03:53.788364Z: каждый Tier-B модуль прогнан для
+Дифференциальный аудит 2026-10-24T06:25:22.209163Z: каждый Tier-B модуль прогнан для
 ['aave_v3', 'maple', 'pendle'] + повтор aave_v3 (недетерминизм) + контрольный
 несуществующий протокол; trio-слепые дополнительно прогнаны по ВСЕЙ
 вселенной _protocol_facts (волна 2, задача A2). Модули PROTOCOL_BLIND_DETAIL
@@ -20,7 +20,7 @@ WIDE_OK_MODULES — модули, равные на аудиторской тр�
 """
 from typing import Dict, FrozenSet
 
-AUDIT_GENERATED_AT = "2026-10-23T00:03:53.788364Z"
+AUDIT_GENERATED_AT = "2026-10-24T06:25:22.209163Z"
 
 # module_name -> подтип (blind_constant | blind_equal | nondeterministic)
 PROTOCOL_BLIND_DETAIL: Dict[str, str] = {

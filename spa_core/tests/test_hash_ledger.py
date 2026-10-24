@@ -88,7 +88,14 @@ def test_a_torn_line_raises_ledger_error_on_read(tmp_path):
 def test_verify_ok_on_empty_and_growing_ledger(tmp_path):
     led = _mk(tmp_path)
     v = led.verify()
-    assert v == {"ok": True, "break_at": None, "entries": 0, "reason": None}
+    #: ADR-797 расширил вердикт ДВУМЯ полями, и утверждение здесь намеренно осталось
+    #: СВЕРКОЙ ЦЕЛОГО словаря, а не ослаблено до проверки отдельных ключей: так новое
+    #: поле обязано быть объявлено здесь, чтобы тест прошёл, — то есть сверка целого и
+    #: есть сторож того, что вердикт не обрастает полями молча (инв. #16: изменение
+    #: намеренное и названо; журнал цикла #920). На нетронутой ленте перенос префикса не
+    #: объявлен, и оба новых поля это ГОВОРЯТ: усечения нет (0) и объявления нет.
+    assert v == {"ok": True, "break_at": None, "entries": 0, "reason": None,
+                 "truncated_through": 0, "truncation": "absent"}
     led.append("widget", ["w1"], {}, "t1")
     led.append("widget", ["w2"], {}, "t2")
     v2 = led.verify()

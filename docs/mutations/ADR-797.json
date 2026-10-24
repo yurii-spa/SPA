@@ -1,0 +1,142 @@
+{
+ "title": "ADR-797 — дельта цикла #920: отрезание ленты есть ПЕРЕНОС, а точка отрезания — ЗАМЕР ответа объявленных видов. Каждая мутация возвращает одно из состояний, в которых отрезание снова прошло бы МОЛЧА, либо перенос оказался бы удалением, либо «не измерено» выдавалось бы за «можно»",
+ "tests": [
+  "spa_core/tests/test_ledger_retention.py",
+  "spa_core/tests/test_hash_ledger.py",
+  "spa_core/tests/test_candidate_history_compaction.py"
+ ],
+ "mutations": [
+  {
+   "name": "несошедшееся объявление усечения перестало ломать verify — молчаливая порча ленты вернулась",
+   "file": "spa_core/utils/hash_ledger.py",
+   "old": "                return {\"ok\": False, \"break_at\": first_seq, \"entries\": len(entries),\n                        \"reason\": \"truncation_declaration_mismatch\",",
+   "new": "                return {\"ok\": True, \"break_at\": None, \"entries\": len(entries),\n                        \"reason\": None,"
+  },
+  {
+   "name": "точка усечения принимается БЕЗ сверки с якорем — объявить можно что угодно",
+   "file": "spa_core/utils/hash_ledger.py",
+   "old": "                    and anchor_hash == declared_hash\n",
+   "new": "                    and True\n"
+  },
+  {
+   "name": "первая горячая запись не сверяется с объявленной точкой — усечение на любую глубину проходит",
+   "file": "spa_core/utils/hash_ledger.py",
+   "old": "                         or (first_seq == declared + 1\n                             and entries[0].get(\"prev_hash\") == declared_hash)",
+   "new": "                         or True"
+  },
+  {
+   "name": "хвостовая проверка снова считает от нуля — перенос префикса сам выглядит обрезанным хвостом",
+   "file": "spa_core/utils/hash_ledger.py",
+   "old": "        beyond = [q for q in seqs if isinstance(q, int) and q > truncated_through + len(entries)]",
+   "new": "        beyond = [q for q in seqs if isinstance(q, int) and q > len(entries)]"
+  },
+  {
+   "name": "find перестал смотреть в архив — идемпотентность записи кончается в день первого переноса",
+   "file": "spa_core/utils/hash_ledger.py",
+   "old": "        return self._archived_entry(kind, key_l)",
+   "new": "        return None"
+  },
+  {
+   "name": "отсутствующий указатель ключей отвечает «дубля нет» — fail-OPEN вместо третьего исхода (инв. #17)",
+   "file": "spa_core/utils/hash_ledger.py",
+   "old": "                if not path.exists():\n                    raise LedgerError(",
+   "new": "                if False:\n                    raise LedgerError("
+  },
+  {
+   "name": "указатель ключей не сверяется с прочитанной строкой — неверный указатель выдаёт ЧУЖОЙ ряд за дубль",
+   "file": "spa_core/utils/hash_ledger.py",
+   "old": "        if entry.get(\"kind\") != kind or entry.get(\"key\") != key_l:",
+   "new": "        if False:"
+  },
+  {
+   "name": "замер всегда разрешает — гейт слеп ровно к тому, из-за чего пять решений называли лекарством не то",
+   "file": "spa_core/research_factory/retention.py",
+   "old": "    differs = [vid for vid in sorted(before) if before.get(vid) != after.get(vid)]\n    return {\"safe\": not differs, \"measured\": True, \"cut_rows\": cut_rows,",
+   "new": "    differs = []\n    return {\"safe\": not differs, \"measured\": True, \"cut_rows\": cut_rows,"
+  },
+  {
+   "name": "не вычислившийся вид ПОСЛЕ отрезания выдан за согласие — «не измерено» стало «можно»",
+   "file": "spa_core/research_factory/retention.py",
+   "old": "    if unmeasured_after:\n        return {\"safe\": False, \"measured\": False, \"cut_rows\": cut_rows,",
+   "new": "    if False:\n        return {\"safe\": False, \"measured\": False, \"cut_rows\": cut_rows,"
+  },
+  {
+   "name": "нулевое отрезание объявлено безопасным — «резать нечего» стало разрешением резать",
+   "file": "spa_core/research_factory/retention.py",
+   "old": "    if cut_rows <= 0:\n        return {\"safe\": False, \"measured\": True, \"reason\": \"measured_zero: резать нечего\",",
+   "new": "    if cut_rows <= 0:\n        return {\"safe\": True, \"measured\": True, \"reason\": \"measured_zero: резать нечего\","
+  },
+  {
+   "name": "лента без объявленного вида больше не третий исход — сверять нечем, а ответ «согласны»",
+   "file": "spa_core/research_factory/retention.py",
+   "old": "    if not members:\n        return {}, [{\"view\": ledger_id, \"reason\": \"НЕ ИЗМЕРЕНО: у этой ленты не объявлено \"\n                                                  \"ни одного читающего вида\"}]",
+   "new": "    if not members:\n        return {}, []"
+  },
+  {
+   "name": "перенос идёт БЕЗ записи архива — отрезание снова удаление, предмет №3 без владельца",
+   "file": "spa_core/research_factory/retention.py",
+   "old": "        payload = \"\".join(lines[:cut_rows]).encode(\"utf-8\")\n        _atomic_bytes(archive, payload)",
+   "new": "        payload = \"\".join(lines[:cut_rows]).encode(\"utf-8\")\n        _atomic_bytes(archive, b\"\")"
+  },
+  {
+   "name": "объявление усечения не пишется вовсе — горячий файл усечён МОЛЧА",
+   "file": "spa_core/research_factory/retention.py",
+   "old": "        _write_declaration(led.data_dir, led, prefix, archive_name=f\"archive/{name}\")\n        payload =",
+   "new": "        payload ="
+  },
+  {
+   "name": "отрезание применяется без вердикта замера — решение резать принимает срок, а не ответ",
+   "file": "spa_core/research_factory/retention.py",
+   "old": "    if not measurement[\"safe\"]:",
+   "new": "    if False:"
+  },
+  {
+   "name": "порванная цепь до начала работы перестала быть НЕ ИЗМЕРЕНО — резак работает на порченой ленте",
+   "file": "spa_core/research_factory/retention.py",
+   "old": "    if not verdict[\"ok\"]:\n        raise CutRefused(f\"цепь ленты порвана до начала работы:",
+   "new": "    if False:\n        raise CutRefused(f\"цепь ленты порвана до начала работы:"
+  },
+  {
+   "name": "канонизатор вернулся к json.dumps(sort_keys=True) — падение сериализатора снова неотличимо от находки",
+   "file": "spa_core/research_factory/retention.py",
+   "old": "    if isinstance(value, dict):\n        items = sorted((f\"{type(k).__name__}:{k!r}\", v) for k, v in value.items())",
+   "new": "    if isinstance(value, dict):\n        return json.dumps(value, ensure_ascii=False, sort_keys=True)\n        items = sorted((f\"{type(k).__name__}:{k!r}\", v) for k, v in value.items())"
+  },
+  {
+   "name": "ключи канонизируются str(k) — None и строка «None» слились в один ключ",
+   "file": "spa_core/research_factory/retention.py",
+   "old": "        items = sorted((f\"{type(k).__name__}:{k!r}\", v) for k, v in value.items())",
+   "new": "        items = sorted((str(k), v) for k, v in value.items())"
+  },
+  {
+   "name": "окно сравнялось с тактом писателя — пропущенная запись уносит историю в архив",
+   "file": "spa_core/research_factory/retention.py",
+   "old": "KEEP_DAYS = 3",
+   "new": "KEEP_DAYS = 1"
+  },
+  {
+   "name": "предложение режет всё подряд, не глядя на возраст — срок хранения перестал что-либо означать",
+   "file": "spa_core/research_factory/retention.py",
+   "old": "        if stamp >= cutoff:\n            break",
+   "new": "        if False:\n            break"
+  },
+  {
+   "name": "отказ потерял диагностику — «резать нельзя» без «почему», то есть ровно то, из-за чего лекарство выбирали неверно",
+   "file": "spa_core/research_factory/retention.py",
+   "old": "        report[\"diagnosis\"] = freshness_diagnosis(root, moment, keep_days)",
+   "new": "        pass"
+  },
+  {
+   "name": "сверяется только ПЕРВЫЙ объявленный вид — второй читатель ленты снова невидим (класс ADR-780)",
+   "file": "spa_core/research_factory/retention.py",
+   "old": "    return tuple(m for m in census.LEDGERS if m.ledger_id == ledger_id)",
+   "new": "    return tuple(m for m in census.LEDGERS if m.ledger_id == ledger_id)[:1]"
+  },
+  {
+   "name": "лента изменилась между замером и переносом — сверка снята, переносится не то, что мерили",
+   "file": "spa_core/research_factory/retention.py",
+   "old": "        if prefix[-1][\"seq\"] != plan[\"through_seq\"]:",
+   "new": "        if False:"
+  }
+ ]
+}

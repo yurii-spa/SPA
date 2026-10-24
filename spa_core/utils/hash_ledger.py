@@ -293,6 +293,9 @@ class HashLedger:
         #: append for the rest of this object's life. Defaults False, so every existing
         #: caller's behaviour (verify before every append) is UNCHANGED unless it opts in.
         self._trusted = False
+        #: ADR-797: указатель ключей перенесённого префикса, разобранный ОДИН раз за жизнь
+        #: объекта. ``None`` — ещё не читали; ``{}`` — переноса нет. Два разных состояния.
+        self._archive_index: Optional[dict] = None
 
     # ── paths ────────────────────────────────────────────────────────────────────────────────
     def root(self) -> Path:
@@ -313,6 +316,75 @@ class HashLedger:
     def anchors_path(self) -> Path:
         stem = self.ledger_name[: -len(".jsonl")] if self.ledger_name.endswith(".jsonl") else self.ledger_name
         return self.anchors_root() / f"{stem}.anchors.jsonl"
+
+    def _stem(self) -> str:
+        return self.ledger_name[: -len(".jsonl")] if self.ledger_name.endswith(".jsonl") else self.ledger_name
+
+    def truncation_path(self) -> Path:
+        """ОБЪЯВЛЕНИЕ переноса префикса в архив (ADR-797). Его отсутствие и его наличие —
+        два разных утверждения: усечённый файл БЕЗ объявления есть молчаливое усечение, и
+        :meth:`verify` обязан на него ломаться."""
+        return self.root() / f"{self._stem()}.truncation.json"
+
+    def truncation_keys_path(self) -> Path:
+        """Указатель ключей перенесённого префикса: сверка ключа → ``[архив, смещение,
+        длина]``. Без него :meth:`find` ослеп бы на ключи архива, и
+        :meth:`append_idempotent` молча создал бы второй ряд с тем же ключом."""
+        return self.root() / f"{self._stem()}.truncation.keys.json"
+
+    def read_truncation(self) -> Optional[dict]:
+        path = self.truncation_path()
+        if not path.exists():
+            return None
+        try:
+            doc = json.loads(path.read_text(encoding="utf-8"))
+        except (json.JSONDecodeError, OSError) as exc:
+            raise LedgerError(f"ledger truncation declaration unreadable ({path}): {exc}") from exc
+        if not isinstance(doc, dict):
+            raise LedgerError(f"ledger truncation declaration is not an object ({path})")
+        return doc
+
+    @staticmethod
+    def key_digest(kind: str, key: Sequence) -> str:
+        """Личность ПАРЫ (вид, ключ) — то, по чему :meth:`find` ищет дубль."""
+        return _sha256_hex(_canonical([kind, _key_list(key)]).encode("utf-8"))
+
+    def _archived_entry(self, kind: str, key_l: list) -> Optional[dict]:
+        """Строка архива с этим ключом, либо ``None``.
+
+        Три исхода, и ни один не подменяет другой: переноса не было (``None``) · ключ в
+        архиве есть (строка читается ПО СМЕЩЕНИЮ — один seek, а не разбор 72 МБ) · перенос
+        объявлен, а указателя нет или он не сходится ⇒ :class:`LedgerError`. Тихий ``None``
+        в третьем случае был бы fail-OPEN ровно того класса, против которого указатель и
+        написан: «дубля нет» стало бы неотличимо от «мы не смотрели».
+        """
+        if self._archive_index is None:
+            if self.read_truncation() is None:
+                self._archive_index = {}
+            else:
+                path = self.truncation_keys_path()
+                if not path.exists():
+                    raise LedgerError(
+                        f"ledger truncation is declared ({self.truncation_path()}) but its key "
+                        f"index is missing ({path}) — duplicate keys in the archive would be "
+                        "UNDETECTABLE; refusing to answer 'no duplicate'")
+                doc = json.loads(path.read_text(encoding="utf-8"))
+                self._archive_index = dict(doc.get("keys") or {})
+        hit = self._archive_index.get(self.key_digest(kind, key_l))
+        if hit is None:
+            return None
+        rel, offset, length = hit[0], int(hit[1]), int(hit[2])
+        blob = self.root() / rel
+        if not blob.exists():
+            raise LedgerError(f"archived key points at {blob}, which does not exist")
+        with open(blob, "rb") as fh:
+            fh.seek(offset)
+            raw = fh.read(length)
+        entry = json.loads(raw.decode("utf-8"))
+        if entry.get("kind") != kind or entry.get("key") != key_l:
+            raise LedgerError(f"archived key index points at a row with a DIFFERENT key "
+                              f"({entry.get('kind')!r}/{entry.get('key')!r}) — index is unfaithful")
+        return entry
 
     def file_lock(self, timeout_s: float = 5.0) -> _FileLock:
         return _FileLock(self._lock_path(), timeout_s=timeout_s)
@@ -417,6 +489,7 @@ class HashLedger:
         flag — a reason to distrust the cache is a reason to distrust the last verify too."""
         self._cache = None
         self._trusted = False
+        self._archive_index = None
 
     def mark_verified(self) -> None:
         """Record that the caller already ran a successful :meth:`verify` against the CURRENT
@@ -441,7 +514,9 @@ class HashLedger:
         for e in self.read_all():
             if e.get("kind") == kind and e.get("key") == key_l:
                 return e
-        return None
+        #: ADR-797: горячий файл — не вся лента. Ключ, уехавший в архив, обязан по-прежнему
+        #: находиться, иначе идемпотентность записи кончается в день первого переноса.
+        return self._archived_entry(kind, key_l)
 
     def head_hash(self) -> str:
         tail = self.read_tail()
@@ -520,6 +595,38 @@ class HashLedger:
         anchors_by_seq = {a.get("seq"): a for a in anchors}
         prev = GENESIS
         expected_seq = 1
+        #: ADR-797: горячий файл может НАЧИНАТЬСЯ не с первой записи — если перенос
+        #: префикса в архив ОБЪЯВЛЕН. Объявления нет, а первая запись не первая ⇒ это
+        #: молчаливое усечение, и ниже оно ломает цепь, как ломало всегда.
+        truncated_through = 0
+        truncation = self.read_truncation()
+        truncation_state = "absent" if truncation is None else "pending"
+        if truncation is not None:
+            declared = truncation.get("through_seq")
+            declared_hash = truncation.get("through_entry_hash")
+            anchor_hash = (anchors_by_seq.get(declared) or {}).get("entry_hash")
+            first_seq = entries[0].get("seq") if entries else None
+            if first_seq == 1:
+                #: Перенос объявлен, а префикс ещё на месте — процесс умер между
+                #: объявлением и подменой файла. Цепь читается от начала: состояние
+                #: ИСПРАВНОЕ, и оно НАЗВАНО (`pending`), а не выдано за обычное.
+                pass
+            elif (isinstance(declared, int) and declared >= 1 and declared_hash is not None
+                    and anchor_hash == declared_hash
+                    and (first_seq is None
+                         or (first_seq == declared + 1
+                             and entries[0].get("prev_hash") == declared_hash))):
+                prev = declared_hash
+                expected_seq = declared + 1
+                truncated_through = declared
+                truncation_state = "applied"
+            else:
+                return {"ok": False, "break_at": first_seq, "entries": len(entries),
+                        "reason": "truncation_declaration_mismatch",
+                        "truncated_through": 0, "truncation": "mismatch",
+                        "declared_through_seq": declared,
+                        "declared_through_entry_hash": declared_hash,
+                        "anchor_entry_hash_at_declared": anchor_hash}
         for e in entries:
             if e.get("seq") != expected_seq or e.get("prev_hash") != prev:
                 return {"ok": False, "break_at": e.get("seq"), "entries": len(entries), "reason": "chain"}
@@ -534,14 +641,19 @@ class HashLedger:
             prev = e["entry_hash"]
             expected_seq += 1
         # an anchor beyond the ledger's own tail means entries were cut off the end
-        beyond = [q for q in seqs if isinstance(q, int) and q > len(entries)]
+        #: ADR-797: «свой хвост» считается от ОБЪЯВЛЕННОЙ точки усечения, а не от нуля —
+        #: иначе перенос префикса сам выглядел бы обрезанным хвостом.
+        beyond = [q for q in seqs if isinstance(q, int) and q > truncated_through + len(entries)]
         if beyond:
-            return {"ok": False, "break_at": min(beyond), "entries": len(entries), "reason": "ledger_truncated"}
+            return {"ok": False, "break_at": min(beyond), "entries": len(entries),
+                    "reason": "ledger_truncated", "truncated_through": truncated_through,
+                    "truncation": truncation_state}
         # Цепь сошлась — и ровно здесь разобранное ещё в руках. Посев только на ИСПРАВНОЙ
         # ленте: «повод не верить кэшу есть повод не верить последнему verify»
         # (:meth:`invalidate_cache`), и порванная лента — именно такой повод.
         self._seed_read_cache(path, entries, ident_before)
-        return {"ok": True, "break_at": None, "entries": len(entries), "reason": None}
+        return {"ok": True, "break_at": None, "entries": len(entries), "reason": None,
+                "truncated_through": truncated_through, "truncation": truncation_state}
 
     # ── write ────────────────────────────────────────────────────────────────────────────────
     def append_locked(self, kind: str, key: Sequence, payload: dict, at: str) -> dict:
