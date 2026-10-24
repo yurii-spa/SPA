@@ -26,7 +26,7 @@ from spa_core.research_factory import contract, counterparty, dedup, forward, li
 from spa_core.research_factory import bundle as bundle_mod
 from spa_core.research_factory import decision as decision_mod
 from spa_core.research_factory import evidence_contract as ec
-from spa_core.research_factory._common import iso, ledger_for
+from spa_core.research_factory._common import ledger_for
 from spa_core.utils.hash_ledger import read_cache
 
 #: The read-only VIEW entry points of this module — the carriers of the stat-keyed
