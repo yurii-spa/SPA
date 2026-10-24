@@ -1,0 +1,82 @@
+{
+ "title": "ADR-798 — дельта цикла #921: трое недостающих писателей рецепта (ежесуточная пересъёмка описания кандидата) и НАЗВАННАЯ причина, по которой окно усечения всё равно закрыто — ПОРЯДОК списка в ответе. Каждая мутация возвращает одно из состояний, в которых пересъёмка врала бы о наблюдении, молчала бы о своём исходе, строила бы НЕ ТОТ рецепт, либо диагностика порядка стала бы разрешением",
+ "tests": [
+  "spa_core/tests/test_candidate_resnapshot.py",
+  "spa_core/tests/test_ledger_retention.py",
+  "spa_core/tests/test_candidate_history_compaction.py"
+ ],
+ "mutations": [
+  {
+   "name": "пересъёмка обновляет отметку наблюдения внутри payload — вчерашние решения стали сегодняшними",
+   "file": "spa_core/research_factory/resnapshot.py",
+   "old": "            _, created = ledger.append_idempotent(kind, resnapshot_key(kind, cid, at),\n                                                  payload, at)",
+   "new": "            payload = dict(payload, generated_at=at)\n            _, created = ledger.append_idempotent(kind, resnapshot_key(kind, cid, at),\n                                                  payload, at)"
+  },
+  {
+   "name": "ключ пересъёмки больше не несёт метку — пересъёмка неотличима от наблюдения",
+   "file": "spa_core/research_factory/resnapshot.py",
+   "old": "    return [kind, candidate_id, MARK, at]",
+   "new": "    return [kind, candidate_id, at, at]"
+  },
+  {
+   "name": "«вида нет вовсе» слито с «уже свежо» — переснять НЕЧЕГО выдано за НЕ НУЖНО (инв. #17)",
+   "file": "spa_core/research_factory/resnapshot.py",
+   "old": "            if entry is None:\n                absent.append({\"candidate_id\": cid, \"kind\": kind})\n                continue",
+   "new": "            if entry is None:\n                current.append({\"candidate_id\": cid, \"kind\": kind})\n                continue"
+  },
+  {
+   "name": "столкновение ключа объявлено записью — гонка выглядит успехом",
+   "file": "spa_core/research_factory/resnapshot.py",
+   "old": "            (written if created else collided).append({\"candidate_id\": cid, \"kind\": kind})",
+   "new": "            written.append({\"candidate_id\": cid, \"kind\": kind})"
+  },
+  {
+   "name": "неразборная отметка объявлена свежей — строка с битой датой не переснимется НИКОГДА",
+   "file": "spa_core/research_factory/resnapshot.py",
+   "old": "    at = contract.parse_ts(entry.get(\"at\"))\n    if at is None:\n        return True",
+   "new": "    at = contract.parse_ts(entry.get(\"at\"))\n    if at is None:\n        return False"
+  },
+  {
+   "name": "отсутствие записи зовёт пересъёмку — писатель переснимает то, чего нет",
+   "file": "spa_core/research_factory/resnapshot.py",
+   "old": "    if entry is None:\n        return False\n    at = contract.parse_ts(entry.get(\"at\"))",
+   "new": "    if entry is None:\n        return True\n    at = contract.parse_ts(entry.get(\"at\"))"
+  },
+  {
+   "name": "состав рецепта свой, а не у прибора цены — писатель строит окно, которого никто не мерил",
+   "file": "spa_core/research_factory/resnapshot.py",
+   "old": "RESNAPSHOT_KINDS: Tuple[str, ...] = (\"candidate_snapshot\", \"evidence_bundle\",\n                                     \"admission_decision\")",
+   "new": "RESNAPSHOT_KINDS: Tuple[str, ...] = (\"candidate_snapshot\",)"
+  },
+  {
+   "name": "такт пересъёмки длиннее такта уплотнения — описание уедет в архив вместе с историей",
+   "file": "spa_core/research_factory/resnapshot.py",
+   "old": "TACT_DAYS = 1",
+   "new": "TACT_DAYS = 5"
+  },
+  {
+   "name": "candidate_id берётся из payload вместо ключа — два вида из трёх молча не находятся",
+   "file": "spa_core/research_factory/resnapshot.py",
+   "old": "    key = entry.get(\"key\") or []\n    if len(key) >= 2 and key[0] == kind and isinstance(key[1], str) and key[1]:\n        return key[1]\n    return None",
+   "new": "    return ((entry.get(\"payload\") or {}).get(\"candidate\") or {}).get(\"candidate_id\")"
+  },
+  {
+   "name": "порядко-слепая диагностика стала гейтом — резать разрешено по более узкому вопросу",
+   "file": "spa_core/research_factory/retention.py",
+   "old": "    measurement = measure(root, plan[\"cut_rows\"], moment, ledger_id)",
+   "new": "    measurement = measure(root, plan[\"cut_rows\"], moment, ledger_id,\n                          canonical_ignoring_list_order)"
+  },
+  {
+   "name": "отчёт замера не называет, чем мерено — «безопасно» строгое неотличимо от порядко-слепого",
+   "file": "spa_core/research_factory/retention.py",
+   "old": "            \"shape\": (shape or canonical).__name__}",
+   "new": "            \"shape\": \"canonical\"}"
+  },
+  {
+   "name": "дневной прогон больше не зовёт пересъёмку — рецепт снова построен на четверть (ADR-790)",
+   "file": "spa_core/research_factory/run.py",
+   "old": "        resnapshots = resnapshot.resnapshot(data_dir, now=now)",
+   "new": "        resnapshots = {\"skipped\": True}"
+  }
+ ]
+}

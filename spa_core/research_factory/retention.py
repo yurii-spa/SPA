@@ -133,7 +133,8 @@ def declared_views(ledger_id: str = LEDGER_ID) -> tuple:
 
 
 def view_answers(data_dir: Path, now: datetime,
-                 ledger_id: str = LEDGER_ID) -> Tuple[Dict[str, str], List[dict]]:
+                 ledger_id: str = LEDGER_ID,
+                 shape=None) -> Tuple[Dict[str, str], List[dict]]:
     """``({вид: канонический ответ}, [не измеренные])``.
 
     Оба объявленных вида этой ленты ДЕТЕРМИНИРОВАНЫ при фиксированном ``now`` (замер 24.10:
@@ -159,7 +160,7 @@ def view_answers(data_dir: Path, now: datetime,
         except Exception as exc:                      # noqa: BLE001 — исход, а не глушение
             unmeasured.append({"view": member.id, "reason": f"{type(exc).__name__}: {exc}"})
             continue
-        answers[member.id] = canonical(answer)
+        answers[member.id] = (shape or canonical)(answer)
     return answers, unmeasured
 
 
@@ -180,6 +181,38 @@ def canonical(value) -> str:
         return "{" + ",".join(f"{json.dumps(k)}:{canonical(v)}" for k, v in items) + "}"
     if isinstance(value, (list, tuple)):
         return "[" + ",".join(canonical(v) for v in value) + "]"
+    try:
+        return json.dumps(value, ensure_ascii=False, sort_keys=True)
+    except (TypeError, ValueError):
+        return json.dumps(f"{type(value).__name__}:{value!r}", ensure_ascii=False)
+
+
+def canonical_ignoring_list_order(value) -> str:
+    """ДИАГНОСТИКА, а не гейт: тот же канонический вид, но ПОРЯДОК любого списка снят.
+
+    Зачем она существует — замер цикла #921 (ADR-798), а не удобство. После того как
+    трое недостающих писателей рецепта были построены (``resnapshot``), наибольшее
+    безопасное отрезание живой ленты осталось **0**, и причина оказалась НЕ той, которую
+    называли пять предыдущих решений: снятие САМОЙ СТАРОЙ записи не теряет ничего —
+    кандидатов 100 до и 100 после, множество совпадает, каждый лист совпадает, — но
+    список ``latest.candidates`` строится обходом ``registry.all_candidate_ids``, то есть
+    в порядке ПЕРВОГО ПОЯВЛЕНИЯ в ленте. Срезанный префикс переставляет список (кандидат
+    ``a6554f7d…`` переехал с места 0 на место 48), и строгая сверка полного ответа —
+    верно — называет это изменением ответа.
+
+    Эта мера отвечает на СТРОГО БОЛЕЕ УЗКИЙ вопрос: «изменилось ли что-нибудь, кроме
+    порядка списков». Она НЕ является разрешением резать и не зовётся ни из :func:`cut`,
+    ни из :func:`measure` — ни одного вызова, и это держит тест
+    (``test_candidate_resnapshot.py::TheOrderDiagnosisIsNotAPermission``). Разрешение
+    по-прежнему даёт только строгая :func:`canonical`: пока читающая модель выдаёт
+    порядок, зависящий от префикса, порядок ЕСТЬ часть ответа.
+    """
+    if isinstance(value, dict):
+        items = sorted((f"{type(k).__name__}:{k!r}", v) for k, v in value.items())
+        return "{" + ",".join(f"{json.dumps(k)}:{canonical_ignoring_list_order(v)}"
+                              for k, v in items) + "}"
+    if isinstance(value, (list, tuple)):
+        return "[" + ",".join(sorted(canonical_ignoring_list_order(v) for v in value)) + "]"
     try:
         return json.dumps(value, ensure_ascii=False, sort_keys=True)
     except (TypeError, ValueError):
@@ -266,13 +299,13 @@ def propose(data_dir: Path, now: datetime, keep_days: int = KEEP_DAYS) -> dict:
 
 
 def measure(data_dir: Path, cut_rows: int, now: datetime,
-            ledger_id: str = LEDGER_ID) -> dict:
+            ledger_id: str = LEDGER_ID, shape=None) -> dict:
     """Изменится ли ответ объявленных читающих видов, если снять ``cut_rows`` ведущих строк.
 
     Сцена — ОТДЕЛЬНЫЙ каталог: горячий файл там уже усечён, а живой ``data/`` не трогается
     ни на байт. ``verify`` на сцене опирается на объявление усечения, которое сцена несёт.
     """
-    before, unmeasured_before = view_answers(Path(data_dir), now, ledger_id)
+    before, unmeasured_before = view_answers(Path(data_dir), now, ledger_id, shape)
     if unmeasured_before:
         return {"safe": False, "measured": False, "reason": "НЕ ИЗМЕРЕНО до отрезания",
                 "unmeasured": unmeasured_before}
@@ -282,7 +315,7 @@ def measure(data_dir: Path, cut_rows: int, now: datetime,
     scene = Path(tempfile.mkdtemp(prefix="spa_retention_scene_"))
     try:
         _stage_scene(Path(data_dir), scene, cut_rows)
-        after, unmeasured_after = view_answers(scene / "data", now, ledger_id)
+        after, unmeasured_after = view_answers(scene / "data", now, ledger_id, shape)
     finally:
         shutil.rmtree(scene, ignore_errors=True)
     if unmeasured_after:
@@ -290,7 +323,11 @@ def measure(data_dir: Path, cut_rows: int, now: datetime,
                 "reason": "НЕ ИЗМЕРЕНО после отрезания", "unmeasured": unmeasured_after}
     differs = [vid for vid in sorted(before) if before.get(vid) != after.get(vid)]
     return {"safe": not differs, "measured": True, "cut_rows": cut_rows,
-            "views": sorted(before), "differs": differs, "unmeasured": []}
+            "views": sorted(before), "differs": differs, "unmeasured": [],
+            #: Чем мерено. Диагностический вид ОБЯЗАН называть себя в отчёте: иначе
+            #: «безопасно» строгой сверки стало бы неотличимо от «безопасно, если
+            #: закрыть глаза на порядок», а это разные утверждения.
+            "shape": (shape or canonical).__name__}
 
 
 def _stage_scene(data_dir: Path, scene: Path, cut_rows: int) -> Path:
@@ -442,7 +479,8 @@ def _write_key_index(led: HashLedger, prefix: Sequence[dict], raw: Sequence[str]
     return path
 
 
-def largest_safe_cut(data_dir: Path, now: datetime, ledger_id: str = LEDGER_ID) -> dict:
+def largest_safe_cut(data_dir: Path, now: datetime, ledger_id: str = LEDGER_ID,
+                     shape=None) -> dict:
     """Наибольшее отрезание, которое ЗАМЕР называет безопасным. Диагностический режим.
 
     Двоичный поиск по числу ведущих строк: ``lo`` всегда измерен безопасным, ``hi`` —
@@ -454,7 +492,7 @@ def largest_safe_cut(data_dir: Path, now: datetime, ledger_id: str = LEDGER_ID) 
     lo, hi, probes = 0, total, []
     while hi - lo > 1:
         mid = (lo + hi) // 2
-        verdict = measure(Path(data_dir), mid, now, ledger_id)
+        verdict = measure(Path(data_dir), mid, now, ledger_id, shape)
         probes.append({"cut_rows": mid, "safe": verdict["safe"],
                        "measured": verdict["measured"],
                        "differs": verdict.get("differs"),
@@ -464,7 +502,7 @@ def largest_safe_cut(data_dir: Path, now: datetime, ledger_id: str = LEDGER_ID) 
         else:
             hi = mid
     return {"rows": total, "largest_safe_cut_rows": lo, "first_unsafe_cut_rows": hi,
-            "probes": probes}
+            "shape": (shape or canonical).__name__, "probes": probes}
 
 
 # ── CLI ──────────────────────────────────────────────────────────────────────────────────────
@@ -481,6 +519,10 @@ def main(argv: Optional[List[str]] = None) -> int:
                         help="печатать свежесть диагностируемых видов, не трогая ленту")
     parser.add_argument("--bisect", action="store_true",
                         help="искать НАИБОЛЬШЕЕ безопасное отрезание (замер, не действие)")
+    parser.add_argument("--ignoring-list-order", action="store_true",
+                        help="ДИАГНОСТИКА: сверять ответ, сняв порядок списков. Строго "
+                             "более узкий вопрос, разрешением резать НЕ является и в "
+                             "--apply не действует")
     parser.add_argument("--json", action="store_true")
     args = parser.parse_args(argv)
     root = Path(args.data_dir)
@@ -489,7 +531,8 @@ def main(argv: Optional[List[str]] = None) -> int:
         report = freshness_diagnosis(root, now, args.keep_days)
         code = 0
     elif args.bisect:
-        report = largest_safe_cut(root, now)
+        report = largest_safe_cut(root, now, shape=(canonical_ignoring_list_order
+                                                   if args.ignoring_list_order else None))
         code = 0 if report["largest_safe_cut_rows"] else 3
     else:
         try:

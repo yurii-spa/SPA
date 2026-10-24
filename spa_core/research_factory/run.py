@@ -49,7 +49,7 @@ from pathlib import Path
 from typing import Optional
 
 from spa_core.research_factory import contract, decision, eligibility, forward, \
-    history, lifecycle, profile as profile_mod, read, registry, registry_loader
+    history, lifecycle, profile as profile_mod, read, registry, registry_loader, resnapshot
 from spa_core.research_factory import bundle as bundle_mod
 from spa_core.research_factory import evidence_contract as ec
 from spa_core.research_factory._common import iso, ledger_for
@@ -1231,6 +1231,16 @@ def run_once(data_dir: Path, now: datetime, *, rpc_client=None, http_client_=Non
         # cannot be re-recorded, only compacted.
         compaction = history.compact(data_dir, now=now)
 
+        # ADR-798 (order G797 §1): the three remaining writers of the SAME recipe — re-record
+        # the newest candidate_snapshot / evidence_bundle / admission_decision of every
+        # candidate, byte for byte, so the description always lies inside the retention window.
+        # ADR-797 measured why this is not optional: the recipe whose window the price census
+        # measured has FOUR writers and only the compaction above was built, so the largest
+        # safe cut stayed 0 of 25 519 records. The payload is never touched — only the key and
+        # the row's own `at` say "re-recorded", and the answer of both reading views is
+        # unchanged by construction (test_candidate_resnapshot.py measures both halves).
+        resnapshots = resnapshot.resnapshot(data_dir, now=now)
+
         run_payload = {
             "generated_at": iso(now),
             "denominators": {"scanned": total_scanned if any_scanned else None,
@@ -1244,6 +1254,12 @@ def run_once(data_dir: Path, now: datetime, *, rpc_client=None, http_client_=Non
             # leaves no trace in the ledger it writes to is indistinguishable from one that
             # never ran.
             "history_compaction": compaction,
+            # ADR-798: the re-snapshot writer's own report, for the same reason the compaction
+            # report is here — a writer whose work leaves no trace is indistinguishable from
+            # one that never ran. "absent" (the candidate never had that kind) is NOT merged
+            # into "already current": re-recording nothing and nothing needing it are
+            # different answers (inv. #17).
+            "resnapshot": resnapshots,
         }
         ledger.append_idempotent("run", ["run", iso(now)], run_payload, iso(now))
 
