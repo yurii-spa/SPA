@@ -1,5 +1,7 @@
 """python -m spa_core.studio_os.model_roles --role R --provider P --context FILE --task-id T --instruction TEXT
        [--fixture F.json] [--config C.json] [--out RECORD.json]
+python -m spa_core.studio_os.model_roles review --handover H --task-id T --task TEXT --verified-sha SHA
+       --provider P --out DIR [--roadmap-item N] [--extra-context FILE ...] [--fixture F.json]
 
 # LLM_FORBIDDEN
 
@@ -18,6 +20,11 @@ from spa_core.studio_os.model_roles.contract import ConfigError, Request, execut
 
 
 def main(argv=None) -> int:
+    argv = list(sys.argv[1:] if argv is None else argv)
+    if argv[:1] == ["review"]:
+        # STUDIO-OS-MODELS-01 increment 4: one command for a safe architecture review (see review.py).
+        from spa_core.studio_os.model_roles import review
+        return review.main(argv[1:])
     ap = argparse.ArgumentParser(prog="spa_core.studio_os.model_roles")
     ap.add_argument("--role", required=True)
     ap.add_argument("--provider", default=None, help="explicit provider id (no default routing)")
