@@ -1,0 +1,99 @@
+{
+  "review_version": "arch-review/1",
+  "task_id": "B-12-arch-review",
+  "task": "Architecture review of B-12: what must the Telegram Sherlock screen (spa_core/telegram/views/capital.py::_render_sherlock) show when the research-factory ledger is EMPTY, now that B-11 makes the cockpit show NOT_MEASURED for that case? Produce a fix plan only; do not implement.",
+  "generated_at": "2026-10-24T14:03:22+00:00",
+  "revisions": {
+    "verified_code_sha": "30ca5abc46a42a3fcf8910113f62d4edde967629",
+    "head": "e342aab0ac40fbabfb39d5f449433b7e56235fd0",
+    "server_branch_head": "6c6198d1db724aa123c26bde10aca5c0c964ad2e",
+    "head_code_is_verified": false,
+    "code_changed_since_verified": [
+      "spa_core/studio_os/model_roles/__main__.py",
+      "spa_core/studio_os/model_roles/review.py",
+      "spa_core/tests/test_model_roles_review.py"
+    ],
+    "branch": "integ/studio-os-next-01-stab"
+  },
+  "context_sha256": "e2590053466950052c7fcb49f450fa37cbaa935c00f5ea88d40e4e5b2a2b4a0e",
+  "context_chars": 22636,
+  "context_complete": true,
+  "context_unknown": [],
+  "fragments": [
+    {
+      "name": "0_bot_readers.md",
+      "sha256": "0b18a8d5d1c033b30cddbdb3a9a8b1f4d86f727b343bbe07734fbc45339e4e45",
+      "chars": 1168,
+      "credential_lines_dropped": 0
+    },
+    {
+      "name": "1_bot_render_sherlock.md",
+      "sha256": "d5f108ca8235cd6c0dc776c1b1ce46dface2c7ae41f8d0247f60d300f234e830",
+      "chars": 2727,
+      "credential_lines_dropped": 0
+    },
+    {
+      "name": "2_cockpit_research_universe.md",
+      "sha256": "0e7d5627d5e0715d96ecd5929aee18081f7eca0037cdcf8a7b70ece6a556bc12",
+      "chars": 2295,
+      "credential_lines_dropped": 0
+    },
+    {
+      "name": "3_read_derive_latest.md",
+      "sha256": "99dd3bcc3681af9c4c6ae7d0060e83b7d83559ae4a43d74f6941f86163b21b6c",
+      "chars": 1639,
+      "credential_lines_dropped": 0
+    },
+    {
+      "name": "4_company_truth_capital_sherlock.md",
+      "sha256": "64da78bac9d553748939aab1fc819a5f74906e73c3bd4fa7b64f13288f8fb2a8",
+      "chars": 1605,
+      "credential_lines_dropped": 0
+    },
+    {
+      "name": "5_backlog_B12.md",
+      "sha256": "e222acbd436e04781ba72cd30c8fde35c0d3de8ec38dbb2c3ab4f81c67fe69ec",
+      "chars": 961,
+      "credential_lines_dropped": 0
+    },
+    {
+      "name": "6a_same_truth_fixture.md",
+      "sha256": "5217cb9d00b17f9c7df5a0c60cf8ee6c299b53e1f36ce43bc98aeaede8b8886e",
+      "chars": 1049,
+      "credential_lines_dropped": 0
+    },
+    {
+      "name": "6b_same_truth_test.md",
+      "sha256": "9d1471b3af9928dc98937494591aff393104dfbddd3817f4e017145e819071a1",
+      "chars": 565,
+      "credential_lines_dropped": 0
+    }
+  ],
+  "provider": "fixture_test_adapter",
+  "real_provider": false,
+  "model": "fixture (not a model)",
+  "status": "ok",
+  "reason": "",
+  "attempts": 1,
+  "elapsed_s": 0.0,
+  "usage": {
+    "input_tokens": "UNKNOWN",
+    "output_tokens": "UNKNOWN",
+    "cache_creation_input_tokens": "UNKNOWN",
+    "cache_read_input_tokens": "UNKNOWN",
+    "cost_reported_usd": "UNKNOWN",
+    "quota_remaining": "UNKNOWN"
+  },
+  "sections": {
+    "FACTS": "- fixture",
+    "UNKNOWNS": "- fixture",
+    "DECISION": "fixture (canned, not a model)",
+    "ACCEPTANCE CRITERIA": "- fixture",
+    "CLAUDE TASK": "```text\nfixture task\n```"
+  },
+  "claude_task": "fixture task",
+  "structure_complete": true,
+  "missing_sections": [],
+  "disclaimer": "PROPOSAL ONLY \u2014 not an owner approval, not an ARB acceptance, changes nothing by itself. A successful model call does not prove the context was complete.",
+  "writes": "only this output directory"
+}
