@@ -70,7 +70,7 @@ def _rejection_reasons(ledger, candidate_id: str) -> list:
     return out
 
 
-def latest(data_dir: Path) -> dict:
+def latest(data_dir: Path, *, now: Optional[datetime] = None) -> dict:
     """N8: always derived from the verified ledger (status.json is never read back). N1: ``ledger.verify()`` runs FRESH FROM DISK on every single call, unconditionally — see
     the module docstring. Only once that comes back OK may a cached ``status.json`` be served
     (and only when its recorded ``ledger_head_hash`` still matches the JUST-VERIFIED live head);
@@ -84,7 +84,7 @@ def latest(data_dir: Path) -> dict:
         # N8 (second review): status.json is NEVER served back — its content is not bound to the ledger, so a
         # hand-edited file reached Mission Control and the readiness reason. Every read derives from the
         # verified ledger; status.json is a written artifact for humans only.
-        return _derive_latest(data_dir, verdict=verdict)
+        return _derive_latest(data_dir, verdict=verdict, now=now)
 
 
 def _position_for(data_dir: Path, candidate_id: str) -> Optional[dict]:
@@ -208,7 +208,8 @@ def _sherlock_block(data_dir: Path, ledger, run_now: datetime, denom_counts: dic
     }
 
 
-def _derive_latest(data_dir: Path, *, verdict: Optional[dict] = None) -> dict:
+def _derive_latest(data_dir: Path, *, verdict: Optional[dict] = None,
+                   now: Optional[datetime] = None) -> dict:
     ledger = ledger_for(data_dir)
     last_run = _last_run_row(ledger)
     # M5: generated_at is the last RUN's own recorded moment, never the wall clock — a status
@@ -218,12 +219,16 @@ def _derive_latest(data_dir: Path, *, verdict: Optional[dict] = None) -> dict:
     else:
         # tail of ADR-564 (found when the calendar turned 04.10 → 05.10): with no run row the reader fell
         # back to the WALL CLOCK, so "today's decisions" emptied at midnight. The ledger's own newest entry
-        # is the moment the data is from; the wall clock is used only for an empty ledger.
+        # is the moment the data is from.
+        # B-11 (ARB 2026-10-24): an EMPTY ledger has no moment at all — `generated_at` stays None. Stamping
+        # the wall clock there presented "nothing recorded" as a just-finished producer run AND made two
+        # builds over the same canon and the same injected `now` differ by the second they straddled.
         entries = ledger.read_all()
-        generated_at = (entries[-1].get("at") if entries else None) or iso(datetime.now(timezone.utc))
+        generated_at = entries[-1].get("at") if entries else None
     # M5 leftover: every OTHER freshness judgement below (stale_feeds, basis_track) is also
-    # judged against the RUN's own time, never the wall clock at read time.
-    run_now = contract.parse_ts(generated_at) or datetime.now(timezone.utc)
+    # judged against the RUN's own time, never the wall clock at read time. With no recorded moment
+    # the caller's `now` is the reference; the wall clock only when the caller gave none.
+    run_now = contract.parse_ts(generated_at) or now or datetime.now(timezone.utc)
     verdict = verdict if verdict is not None else ledger.verify()  # N1: always fresh (see latest())
     integrity = "OK" if verdict["ok"] else "BROKEN"
     head = ledger.head_hash()

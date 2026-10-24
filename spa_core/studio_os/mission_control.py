@@ -1075,7 +1075,7 @@ def _research_universe_section(data: Path, now: datetime) -> dict:
     src = ["data/research_factory/ledger.jsonl", "data/research_factory/status.json"]
     try:
         from spa_core.research_factory import read as rf_read
-        doc = rf_read.latest(data)
+        doc = rf_read.latest(data, now=now)
     except ImportError as exc:
         return {**_nm(src, now, f"research_factory not available ({exc})"), "banner": RESEARCH_UNIVERSE_BANNER,
                 "sherlock": None}
@@ -1084,6 +1084,10 @@ def _research_universe_section(data: Path, now: datetime) -> dict:
                 "banner": RESEARCH_UNIVERSE_BANNER, "sherlock": None}
     if not isinstance(doc, dict) or not doc.get("schema"):
         return {**_nm(src, now, "no research factory status yet"), "banner": RESEARCH_UNIVERSE_BANNER,
+                "sherlock": None}
+    if doc.get("integrity") != "BROKEN" and doc.get("generated_at") is None:
+        # B-11: an empty ledger records no run — not a HEALTHY observation "just now".
+        return {**_nm(src, now, "research factory ledger records no run yet"), "banner": RESEARCH_UNIVERSE_BANNER,
                 "sherlock": None}
     if doc.get("integrity") == "BROKEN":
         return {"_meta": _meta("CRITICAL", src, now, now, reason=safe_text(doc.get("reason"), 300)),

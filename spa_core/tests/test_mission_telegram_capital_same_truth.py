@@ -27,7 +27,7 @@ def one_input(monkeypatch):
     from spa_core.trading_research import read_model
     monkeypatch.setattr(read_model, "trading_lab_view", lambda data_dir, **kw: lab_doc())
     monkeypatch.setattr(cio_read, "latest", lambda data_dir, now=None: CIO_OK)
-    monkeypatch.setattr(rf_read, "latest", lambda data_dir: RF_OK)
+    monkeypatch.setattr(rf_read, "latest", lambda data_dir, now=None: RF_OK)  # B-11: MC passes now=
     # the bot keeps its DEFAULT readers — they import the patched functions at call time
     monkeypatch.setitem(C.READERS, "now", lambda: NOW)
     monkeypatch.setitem(C.READERS, "data_dir", lambda: Path("/nonexistent"))

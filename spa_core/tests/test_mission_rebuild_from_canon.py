@@ -121,3 +121,39 @@ def test_company_truth_touches_nothing_on_a_scratch_directory(tmp_path):
     ct.build(inp)
     after = sorted(os.listdir(scratch))
     assert before == after
+
+
+class _WallClock:
+    """Управляемые «настоящие» часы для `research_factory.read` (B-11): `now()` отдаёт заданный момент."""
+
+    def __init__(self, real):
+        self._real, self.at = real, None
+
+    def now(self, tz=None):
+        return self.at.astimezone(tz) if tz else self.at.replace(tzinfo=None)
+
+    def __getattr__(self, name):
+        return getattr(self._real, name)
+
+
+def test_b11_the_wall_clock_does_not_change_a_rebuild_over_the_same_canon(tmp_path, monkeypatch):
+    """B-11 (ARB 24.10): одинаковые canon и инъецированный NOW, РАЗНЫЕ настоящие часы ⇒ побайтно одинаково.
+
+    Прежде `research_factory.read` при пустой ленте ставил `generated_at = datetime.now()`, и сборки
+    расходились по секунде, которую пересекли. Часы здесь управляемые (без паузы): между A и B они
+    сдвигаются на трое суток — любая утечка стенных часов в сборку видна сразу."""
+    from spa_core.research_factory import read as rf_read
+    clock = _WallClock(rf_read.datetime)
+    monkeypatch.setattr(rf_read, "datetime", clock)
+    s = _scene(tmp_path)
+    ui_dir = Path(mc.__file__).resolve().parent / "mission_ui"
+    models = []
+    for wall, root in ((NOW + timedelta(days=30), tmp_path / "a"), (NOW + timedelta(days=33, seconds=7), tmp_path / "b")):
+        clock.at = wall
+        res = mission_build.build_bundle(root, now=NOW, build_fn=lambda: mc.build(_inputs(s)), ui_dir=ui_dir)
+        models.append((root / res["bundle"] / "mission.json").read_text(encoding="utf-8"))
+    a, b = (json.loads(m) for m in models)
+    assert json.dumps(a, sort_keys=True) == json.dumps(b, sort_keys=True)
+    ru = a["capital"]["research_universe"]["_meta"]
+    # Пустая лента — НЕ свидетельство свежего прогона: «не измерено» с причиной, а не HEALTHY «только что».
+    assert ru["state"] == "NOT_MEASURED" and ru["observed_at"] is None, ru

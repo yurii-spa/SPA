@@ -618,7 +618,7 @@ def test_research_universe_is_not_measured_when_the_package_is_absent(tmp_path, 
 
 def test_research_universe_broken_ledger_is_critical(tmp_path, monkeypatch):
     fake = types.ModuleType("spa_core.research_factory.read")
-    fake.latest = lambda data_dir: {"schema": "research-factory-status/1", "integrity": "BROKEN",
+    fake.latest = lambda data_dir, now=None: {"schema": "research-factory-status/1", "integrity": "BROKEN",
                                     "reason": "hash break"}
     import spa_core.research_factory as rf_pkg
     monkeypatch.setitem(sys.modules, "spa_core.research_factory.read", fake)
@@ -630,7 +630,7 @@ def test_research_universe_broken_ledger_is_critical(tmp_path, monkeypatch):
 
 
 def test_research_universe_read_failure_is_not_measured_never_a_crash(tmp_path, monkeypatch):
-    def _boom(data_dir):
+    def _boom(data_dir, now=None):
         raise RuntimeError("torn ledger line")
     fake = types.ModuleType("spa_core.research_factory.read")
     fake.latest = _boom
@@ -689,7 +689,7 @@ def test_research_universe_is_stale_when_the_last_run_is_four_days_old(tmp_path,
     never HEALTHY just because someone happened to ask recently."""
     old_generated_at = (NOW - timedelta(days=4)).strftime(ISO)
     fake = types.ModuleType("spa_core.research_factory.read")
-    fake.latest = lambda data_dir: {
+    fake.latest = lambda data_dir, now=None: {
         "schema": "research-factory-status/1", "generated_at": old_generated_at, "integrity": "OK",
         "denominators": {}, "by_domain": {}, "by_mechanism": {}, "candidates": [], "rejections": [],
         "stale_feeds": [], "counterparty_unknown_count": 0, "domain_decisions": {}, "basis_track": None,
@@ -706,7 +706,7 @@ def test_research_universe_is_stale_when_the_last_run_is_four_days_old(tmp_path,
 
 def test_research_universe_is_healthy_when_the_last_run_is_recent(tmp_path, monkeypatch):
     fake = types.ModuleType("spa_core.research_factory.read")
-    fake.latest = lambda data_dir: {
+    fake.latest = lambda data_dir, now=None: {
         "schema": "research-factory-status/1", "generated_at": NOW.strftime(ISO), "integrity": "OK",
         "denominators": {}, "by_domain": {}, "by_mechanism": {}, "candidates": [], "rejections": [],
         "stale_feeds": [], "counterparty_unknown_count": 0, "domain_decisions": {}, "basis_track": None,
@@ -725,7 +725,7 @@ def test_research_universe_stale_threshold_is_26h_not_the_generic_30h(tmp_path, 
     of aligning to the ~26h one the coordinator asked for."""
     old_generated_at = (NOW - timedelta(hours=28)).strftime(ISO)
     fake = types.ModuleType("spa_core.research_factory.read")
-    fake.latest = lambda data_dir: {
+    fake.latest = lambda data_dir, now=None: {
         "schema": "research-factory-status/1", "generated_at": old_generated_at, "integrity": "OK",
         "denominators": {}, "by_domain": {}, "by_mechanism": {}, "candidates": [], "rejections": [],
         "stale_feeds": [], "counterparty_unknown_count": 0, "domain_decisions": {}, "basis_track": None,
@@ -741,7 +741,16 @@ def test_research_universe_stale_threshold_is_26h_not_the_generic_30h(tmp_path, 
 
 def _fake_rf_read(monkeypatch, fn):
     fake = types.ModuleType("spa_core.research_factory.read")
-    fake.latest = fn
+    # B-11 (ARB 24.10): Mission Control now passes its injected moment — `latest(data, now=now)`.
+    # The fake accepts it (and records it) instead of every scene re-declaring the signature;
+    # the scene's document is unchanged (inv. #16: interface follow-up, not a weaker check).
+    seen_now = []
+
+    def latest(d, now=None):
+        seen_now.append(now)
+        return fn(d)
+    fake.latest = latest
+    fake.seen_now = seen_now
     import spa_core.research_factory as rf_pkg
     monkeypatch.setitem(sys.modules, "spa_core.research_factory.read", fake)
     monkeypatch.setattr(rf_pkg, "read", fake, raising=False)
