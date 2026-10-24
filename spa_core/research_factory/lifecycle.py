@@ -28,6 +28,7 @@ from typing import Any, Optional
 
 from spa_core.research_factory import contract
 from spa_core.research_factory import evidence_contract
+from spa_core.research_factory import history
 from spa_core.research_factory._common import iso, ledger_for
 from spa_core.utils.hash_ledger import DuplicateKey, HashLedger
 
@@ -40,42 +41,27 @@ def current_state(data_dir: Path, candidate_id: str) -> Optional[str]:
     return _current_state(ledger_for(data_dir), candidate_id)
 
 
+#: ADR-795: all three readers below take the candidate's history from ONE place —
+#: ``history.transitions_for`` — which merges the ledger's own ``transition`` rows with the
+#: newest COMPACTION row (``kind="candidate_history"``). On a whole ledger that is the same list
+#: these functions built before, in the same order; once the old rows are truncated away it is
+#: still the same list, because the compaction carries the prefix. The scan is by ORDER and no
+#: longer by ``seq``: ``seq`` is renumbered when a ledger is rebuilt from a subset of itself, so
+#: it is not an identity that survives truncation — within one file the two are the same thing.
 def _current_state(ledger: HashLedger, candidate_id: str) -> Optional[str]:
-    best = None
-    for e in ledger.read_all():
-        if e.get("kind") != "transition":
-            continue
-        payload = e.get("payload") or {}
-        if payload.get("candidate_id") != candidate_id:
-            continue
-        if best is None or e["seq"] > best["seq"]:
-            best = e
-    return (best.get("payload") or {}).get("to_state") if best else None
+    rows, _ = history.transitions_for(ledger, candidate_id)
+    return (rows[-1].get("payload") or {}).get("to_state") if rows else None
 
 
 def _latest_transition_row(ledger: HashLedger, candidate_id: str) -> Optional[dict]:
-    best = None
-    for e in ledger.read_all():
-        if e.get("kind") != "transition":
-            continue
-        if (e.get("payload") or {}).get("candidate_id") != candidate_id:
-            continue
-        if best is None or e["seq"] > best["seq"]:
-            best = e
-    return best
+    rows, _ = history.transitions_for(ledger, candidate_id)
+    return rows[-1] if rows else None
 
 
 def _last_transition_to(ledger: HashLedger, candidate_id: str, to_state: str) -> Optional[dict]:
-    best = None
-    for e in ledger.read_all():
-        if e.get("kind") != "transition":
-            continue
-        p = e.get("payload") or {}
-        if p.get("candidate_id") != candidate_id or p.get("to_state") != to_state:
-            continue
-        if best is None or e["seq"] > best["seq"]:
-            best = e
-    return best
+    rows, _ = history.transitions_for(ledger, candidate_id)
+    hits = [row for row in rows if (row.get("payload") or {}).get("to_state") == to_state]
+    return hits[-1] if hits else None
 
 
 def active_admission_id(data_dir: Path, candidate_id: str) -> Optional[str]:

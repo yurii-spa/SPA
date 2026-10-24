@@ -90,6 +90,23 @@ STATUS_CLEAN = lwd.STATUS_CLEAN
 STATUS_FINDINGS = lwd.STATUS_FINDINGS
 STATUS_UNMEASURED = lwd.STATUS_UNMEASURED
 
+#: Лист ответа, который есть ИМЯ САМОГО ЛЕКАРСТВА, а не утверждение о кандидате.
+#: ``latest.history_compaction`` докладывает, какие ОБСЛУЖИВАЮЩИЕ строки сегодня в
+#: ленте (ADR-795: OK · ABSENT · BROKEN — три значения, инв. #17). Сравнивать его в
+#: контроле нейтральности нельзя по ПОСТРОЕНИЮ: он меняется ровно оттого, что
+#: лекарство применено, и контроль отвечал бы на вопрос «применили ли лекарство»
+#: вместо «сдвинуло ли оно ответ». Вычет ОГРАНИЧЕН префиксом одного названного
+#: блока, его НАЛИЧИЕ в живом ответе проверяется (иначе это был бы вычет ничего), и
+#: ни одного утверждения о кандидате внутри него нет. Положительный контроль, что
+#: вычет не глушит настоящую находку, — ``test_candidate_history_compaction.py``
+#: (уплотнение, РАЗМНОЖАЮЩЕЕ причины, по-прежнему ловится как не-нейтральное).
+MEDICINE_PRESENCE_PREFIX = "latest.history_compaction."
+
+#: Вид записи УПЛОТНЕНИЯ. Литерал, а не импорт, чтобы модуль прибора не тянул
+#: `research_factory` на импорте; что литерал не разошёлся с каноном
+#: (`history.KIND`), держит отдельное утверждение батареи.
+COMPACTION_KIND = "candidate_history"
+
 FINDING_NO_RECIPE = "no_resnapshot_recipe_opens_a_window"
 FINDING_NOT_NEUTRAL = "resnapshot_changes_the_answer"
 FINDING_BASELINE_DRIFTED = "zero_recipe_already_has_a_window"
@@ -123,16 +140,37 @@ class Recipe:
 
     def __init__(self, recipe_id: str, *, cadence_days: int,
                  newest_kinds: Sequence[str] = (), all_kinds: Sequence[str] = (),
-                 note: str = "") -> None:
+                 synthesised_kinds: Sequence[str] = (),
+                 substitutes: Optional[str] = None, note: str = "") -> None:
         self.id = recipe_id
         self.cadence_days = int(cadence_days)
         self.newest_kinds = tuple(newest_kinds)
         self.all_kinds = tuple(all_kinds)
+        #: Виды, которых в живой ленте ЕЩЁ НЕТ: писатель их только получает, и прибор
+        #: СОБИРАЕТ их содержимое сам, на каждом моменте сетки (ADR-795). Объявлены
+        #: отдельным полем, а не спрятаны в флаг: сторож населения рецептов обязан
+        #: видеть ВСЕ виды, которые рецепт приносит, иначе «разность соседей = цена
+        #: вида» перестаёт быть правдой молча.
+        self.synthesised_kinds = tuple(synthesised_kinds)
+        #: Рецепт-ЗАМЕНА: он не прибавляет вид к соседу, а СТАВИТ СВОЙ ВМЕСТО его вида.
+        #: Лестница у таких рецептов не аддитивна по построению, и приписывать им
+        #: «разность с предыдущим» было бы ложью о том, что эта разность означает.
+        self.substitutes = substitutes
         self.note = note
 
     @property
+    def compaction(self) -> bool:
+        """Несёт ли рецепт строку УПЛОТНЕНИЯ (ADR-795).
+
+        Повтор `transition` накапливает причины (замер ADR-794: 4 554 листа), поэтому
+        цену истории нельзя мерить её повтором. Строка уплотнения несёт историю В СЕБЕ,
+        и читается только СВЕЖАЙШАЯ — поэтому её повтор не накапливает ничего.
+        """
+        return COMPACTION_KIND in self.synthesised_kinds
+
+    @property
     def is_zero(self) -> bool:
-        return not self.newest_kinds and not self.all_kinds
+        return not self.newest_kinds and not self.all_kinds and not self.synthesised_kinds
 
 
 #: Население рецептов ОБЪЯВЛЕНО, а не перебирается: каждый следующий добавляет
@@ -157,6 +195,13 @@ RECIPES: Tuple[Recipe, ...] = (
                          "admission_decision"),
            all_kinds=("transition",),
            note="тот же состав реже: цена падает, окно расширяется"),
+    Recipe("snapshot+evidence+compaction", cadence_days=1,
+           newest_kinds=("candidate_snapshot", "evidence_bundle",
+                         "admission_decision"),
+           synthesised_kinds=(COMPACTION_KIND,),
+           substitutes="snapshot+evidence+history",
+           note="тот же состав, но история СВЁРНУТА в строку уплотнения (ADR-795) "
+                "ВМЕСТО повтора всех transition — лекарство ФОРМЕ, не цене"),
 )
 
 
@@ -195,18 +240,56 @@ def resnapshot_rows(entries: Sequence[dict], stamps: Sequence[dt.datetime],
     return [e for _, e in newest.values()] + every
 
 
+def compaction_rows_at(entries: Sequence[dict], stamps: Sequence[dt.datetime],
+                       moment: dt.datetime, live: set) -> List[dict]:
+    """Строки УПЛОТНЕНИЯ, какие писатель мог бы записать В МОМЕНТ ``moment``.
+
+    Содержимое считается ПО МОМЕНТУ, а не один раз на весь прогон, и это не
+    аккуратность, а отказ от fail-OPEN: уплотнение, собранное на горизонте и
+    вставленное на такт раньше, несло бы переходы, которых писатель в тот
+    момент ВИДЕТЬ НЕ МОГ, и прибор объявил бы окно, которого нет. Нужды в этом
+    нет и по сути: переходы моложе момента остаются в ленте сами — усечение их
+    не трогает.
+    """
+    from spa_core.research_factory import history  # noqa: PLC0415
+
+    seen: Dict[str, List[dict]] = {}
+    for entry, at in zip(entries, stamps):
+        if entry.get("kind") != "transition" or at > moment:
+            continue
+        cid = (entry.get("payload") or {}).get("candidate_id")
+        if cid is None or cid not in live:
+            continue
+        seen.setdefault(cid, []).append(
+            {"kind": "transition", "at": entry.get("at"),
+             "payload": entry.get("payload") or {}})
+    stamp = moment.strftime("%Y-%m-%dT%H:%M:%SZ")
+    out: List[dict] = []
+    for cid in sorted(seen):
+        out.append({"kind": history.KIND, "key": [history.KIND, cid, stamp],
+                    "payload": history.build_payload(cid, seen[cid],
+                                                     recorded_at=stamp),
+                    "at": stamp})
+    return out
+
+
 def build_scene_entries(entries: Sequence[dict], stamps: Sequence[dt.datetime],
                         rows: Sequence[dict], cadence_days: int,
                         horizon: dt.datetime,
-                        first: dt.datetime) -> Tuple[List[dict], int]:
+                        first: dt.datetime,
+                        rows_for_moment=None) -> Tuple[List[dict], int]:
     """Лента + периодические повторы ``rows`` на сетке ``горизонт − k·такт``.
 
     Сетка идёт НАЗАД от горизонта и начинается с ``k = 1``: свежайшая пересъёмка
     оказывается ровно на такт старше горизонта. Это ХУДШИЙ случай писателя с
     таким тактом — сетка, привязанная к началу ленты, дала бы описание моложе
     такта и завысила бы лекарство.
+
+    ``rows_for_moment`` — рецепт, у которого содержимое записи ЗАВИСИТ ОТ
+    МОМЕНТА (уплотнение истории, ADR-795). Фиксированный набор ``rows`` для него
+    был бы fail-OPEN: вставка несла бы переходы из будущего своего момента.
     """
-    if not rows:
+    if not rows and rows_for_moment is None:
         return list(entries), 0
     injected: List[dict] = []
     step = 1
@@ -218,6 +301,8 @@ def build_scene_entries(entries: Sequence[dict], stamps: Sequence[dt.datetime],
         for entry in rows:
             injected.append({"kind": entry["kind"], "key": entry["key"],
                              "payload": entry["payload"], "at": stamp})
+        if rows_for_moment is not None:
+            injected.extend(rows_for_moment(moment))
         step += 1
     #: Порядок — ХРОНОЛОГИЧЕСКИЙ, и при равной отметке вставка идёт ПОСЛЕ
     #: настоящей записи: читающая модель берёт последнюю строку кандидата, и
@@ -333,8 +418,13 @@ def measure(data_dir: Path, *, now: Optional[dt.datetime] = None,
         findings: List[dict] = []
         for recipe in recipes:
             batch = resnapshot_rows(entries, stamps, recipe, live)
+            per_moment = None
+            if recipe.compaction:
+                def per_moment(moment, _e=entries, _s=stamps, _l=live):  # noqa: E731
+                    return compaction_rows_at(_e, _s, moment, _l)
             scene_entries, injected = build_scene_entries(
-                entries, stamps, batch, recipe.cadence_days, horizon, first)
+                entries, stamps, batch, recipe.cadence_days, horizon, first,
+                rows_for_moment=per_moment)
             scene = root / f"r_{recipe.id}" / "data"
             lwd.rechain(scene_entries, scene)
             scene_path = scene / contract.DATA_SUBDIR / contract.LEDGER
@@ -359,9 +449,17 @@ def measure(data_dir: Path, *, now: Optional[dt.datetime] = None,
                     shutil.rmtree(scene.parent, ignore_errors=True)
                     continue
                 union = set(live_answer) | set(scene_answer)
+                if not any(path.startswith(MEDICINE_PRESENCE_PREFIX)
+                           for path in live_answer):
+                    return _unmeasured(
+                        "в живом ответе нет ни одного листа с префиксом "
+                        f"{MEDICINE_PRESENCE_PREFIX!r} — вычет имени лекарства "
+                        "был бы вычетом ничего, а читающая модель отвечает не то, "
+                        "что прибор о ней объявил", now=moment)
                 drifted = sorted(
                     path for path in union
                     if path not in lwd.CHAIN_IDENTITY_LEAVES
+                    and not path.startswith(MEDICINE_PRESENCE_PREFIX)
                     and live_answer.get(path) != scene_answer.get(path))
                 neutral = not drifted
 
@@ -393,6 +491,9 @@ def measure(data_dir: Path, *, now: Optional[dt.datetime] = None,
                 "cadence_days": recipe.cadence_days,
                 "newest_kinds": list(recipe.newest_kinds),
                 "all_kinds": list(recipe.all_kinds),
+                "synthesised_kinds": list(recipe.synthesised_kinds),
+                "substitutes": recipe.substitutes,
+                "compaction": recipe.compaction,
                 "measured": True,
                 "rows_per_round": len(batch),
                 "injected_entries": injected,

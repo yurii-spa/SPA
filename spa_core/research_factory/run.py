@@ -49,7 +49,7 @@ from pathlib import Path
 from typing import Optional
 
 from spa_core.research_factory import contract, decision, eligibility, forward, \
-    lifecycle, profile as profile_mod, read, registry, registry_loader
+    history, lifecycle, profile as profile_mod, read, registry, registry_loader
 from spa_core.research_factory import bundle as bundle_mod
 from spa_core.research_factory import evidence_contract as ec
 from spa_core.research_factory._common import iso, ledger_for
@@ -1224,6 +1224,13 @@ def run_once(data_dir: Path, now: datetime, *, rpc_client=None, http_client_=Non
             _promote_after_review(data_dir, cid, all_candidates, existing_book_roots, now)
         _mark_open_positions(data_dir, v2_overrides, origins, now)
 
+        # ADR-795 (order G794 §1): refresh the COMPACTION row of every candidate's transition
+        # history. THIS is the writer and THIS is its tact — the agent's own run, once a day.
+        # Without a writer the record would be a shape nobody records, and age truncation of the
+        # ledger would stay closed for the reason ADR-794 measured: the accumulating reason lists
+        # cannot be re-recorded, only compacted.
+        compaction = history.compact(data_dir, now=now)
+
         run_payload = {
             "generated_at": iso(now),
             "denominators": {"scanned": total_scanned if any_scanned else None,
@@ -1232,6 +1239,11 @@ def run_once(data_dir: Path, now: datetime, *, rpc_client=None, http_client_=Non
             "scanners": [r.get("scanner") for r in scan_results],
             "scanner_errors": scanner_errors,  # H0: logged, never silently dropped
             "fact_refusals": fact_refusals,  # H6: logged, never silently dropped
+            # ADR-795: the compaction writer's own report — who was written, who was already
+            # current within the tact, and who was REFUSED with a reason. A writer whose work
+            # leaves no trace in the ledger it writes to is indistinguishable from one that
+            # never ran.
+            "history_compaction": compaction,
         }
         ledger.append_idempotent("run", ["run", iso(now)], run_payload, iso(now))
 

@@ -352,14 +352,49 @@ class TheRecipePopulationIsClosed(unittest.TestCase):
             self.assertEqual(code, 2)
 
     def test_the_declared_recipes_grow_by_exactly_one_kind_each(self):
-        """Соседние рецепты отличаются одним видом — иначе их разность не есть цена вида."""
-        ladder = [r for r in rpc.RECIPES if r.cadence_days == 1]
+        """Соседние рецепты отличаются одним видом — иначе их разность не есть цена вида.
+
+        ПРАВКА ADR-795 (инв. #16, намеренная и названная): из АДДИТИВНОЙ лестницы
+        исключены рецепты-ЗАМЕНЫ (`substitutes`). Предмет утверждения сохранён
+        дословно — у аддитивных соседей разность по-прежнему обязана быть ровно
+        одним видом; рецепт-замена не прибавляет вид к соседу, а ставит свой ВМЕСТО
+        его вида, и приписывать ему «разность с предыдущим» значило бы соврать о том,
+        что эта разность означает. Взамен у замен появился СВОЙ контракт, которого
+        до ADR-795 не было вовсе (тест ниже), то есть проверок стало больше.
+        """
+        ladder = [r for r in rpc.RECIPES
+                  if r.cadence_days == 1 and r.substitutes is None]
+        self.assertGreaterEqual(len(ladder), 4)
         for before, after in zip(ladder, ladder[1:]):
-            added = ((set(after.newest_kinds) | set(after.all_kinds))
-                     - (set(before.newest_kinds) | set(before.all_kinds)))
+            added = ((set(after.newest_kinds) | set(after.all_kinds)
+                      | set(after.synthesised_kinds))
+                     - (set(before.newest_kinds) | set(before.all_kinds)
+                        | set(before.synthesised_kinds)))
             self.assertTrue(added, f"{after.id} не добавил ни одного вида к {before.id}")
             self.assertTrue(set(before.newest_kinds) <= set(after.newest_kinds),
                             f"{after.id} ПОТЕРЯЛ вид, объявленный в {before.id}")
+
+    def test_a_substitution_recipe_names_its_base_and_what_it_puts_instead(self):
+        """Контракт рецепта-ЗАМЕНЫ (ADR-795): чего он не повторяет и что приносит вместо."""
+        from spa_core.research_factory import history
+
+        self.assertEqual(history.KIND, rpc.COMPACTION_KIND)
+        subs = [r for r in rpc.RECIPES if r.substitutes is not None]
+        self.assertTrue(subs, "рецепта-замены в населении нет — утверждение пустое")
+        by_id = {r.id: r for r in rpc.RECIPES}
+        for recipe in subs:
+            base = by_id.get(recipe.substitutes)
+            self.assertIsNotNone(base, f"{recipe.id} заменяет неизвестный {recipe.substitutes!r}")
+            #: Замена обязана принести СВОЙ вид — иначе она ничего не заменяет.
+            self.assertTrue(recipe.synthesised_kinds,
+                            f"{recipe.id} не объявил ни одного вида, который приносит")
+            #: ...и не повторять тот вид, вместо которого встала.
+            self.assertFalse(set(base.all_kinds) & set(recipe.all_kinds),
+                             f"{recipe.id} и повторяет вид {base.id}, и ставит свой — "
+                             "это не замена, а оба лекарства сразу")
+            #: Основа у замены та же, иначе сравнивать их цену не с чем.
+            self.assertEqual(set(base.newest_kinds), set(recipe.newest_kinds))
+            self.assertFalse(recipe.is_zero)
 
 
 class TheRowOfEveryRequestedRecipeReachesTheReport(unittest.TestCase):

@@ -1,0 +1,136 @@
+{
+ "title": "ADR-795 — дельта цикла #917: строка УПЛОТНЕНИЯ истории кандидата (вид записи · писатель · такт · ветка разбора) и рецепт уплотнения в переписи цены. Каждая мутация возвращает одно из состояний, в которых история кандидата снова терялась бы, УДВАИВАЛАСЬ бы, или окно объявлялось бы там, где его нет",
+ "tests": [
+  "spa_core/tests/test_candidate_history_compaction.py",
+  "spa_core/tests/test_ledger_resnapshot_price_census.py",
+  "spa_core/tests/test_ledger_window_dependency_census.py"
+ ],
+ "mutations": [
+  {
+   "name": "множество вместо мультимножества — девять одинаковых причин снова схлопываются в одну, и уплотнение «теряет» историю молча",
+   "file": "spa_core/research_factory/history.py",
+   "old": "        quota[token] = max(quota.get(token, 0), count)",
+   "new": "        quota[token] = 1"
+  },
+  {
+   "name": "сумма вместо максимума — уплотнение УДВАИВАЕТ историю, когда переходы ещё в ленте (ровно та болезнь, от которой лекарство)",
+   "file": "spa_core/research_factory/history.py",
+   "old": "        quota[token] = max(quota.get(token, 0), count)",
+   "new": "        quota[token] = quota.get(token, 0) + count"
+  },
+  {
+   "name": "проверка ВЕРНОГО ПРЕФИКСА снята — уплотнение, потерявшее переход, молча становится историей кандидата",
+   "file": "spa_core/research_factory/history.py",
+   "old": "        if known.get(token, 0) <= 0:",
+   "new": "        if False:"
+  },
+  {
+   "name": "объявленное число записей не сверяется — усечённый payload читается как полная история",
+   "file": "spa_core/research_factory/history.py",
+   "old": "    if declared != len(raw):",
+   "new": "    if False:"
+  },
+  {
+   "name": "схема записи не сверяется — чужая запись того же вида читается как уплотнение",
+   "file": "spa_core/research_factory/history.py",
+   "old": "    if payload.get(\"schema\") != SCHEMA:",
+   "new": "    if False:"
+  },
+  {
+   "name": "BROKEN схлопывается в ABSENT — «нельзя поручиться» становится неотличимо от «ещё нет» (инв. #17)",
+   "file": "spa_core/research_factory/history.py",
+   "old": "    if broken:\n        status = STATUS_BROKEN",
+   "new": "    if False:\n        status = STATUS_BROKEN"
+  },
+  {
+   "name": "отказ перестаёт быть отказом — ломаное уплотнение всё равно подмешивается в историю",
+   "file": "spa_core/research_factory/history.py",
+   "old": "    if reason is not None:\n        return rows, reason\n    through",
+   "new": "    if False:\n        return rows, reason\n    through"
+  },
+  {
+   "name": "писатель перестаёт обновлять запись в такт — строка уплотнения стареет и усекается вместе с историей, которую должна была спасти",
+   "file": "spa_core/research_factory/history.py",
+   "old": "    return (now - recorded) >= timedelta(days=tact_days)",
+   "new": "    return False"
+  },
+  {
+   "name": "писатель перестаёт замечать выросшую историю — уплотнение отстаёт от ленты на целый такт",
+   "file": "spa_core/research_factory/history.py",
+   "old": "    if payload.get(\"absorbed\") != len(rows):\n        return True",
+   "new": "    if False:\n        return True"
+  },
+  {
+   "name": "писатель не отказывает на ломаном уплотнении — пишет поверх того, за что поручиться нельзя",
+   "file": "spa_core/research_factory/history.py",
+   "old": "        if reason is not None:\n            refused.append({\"candidate_id\": cid, \"reason\": reason})\n            continue",
+   "new": "        if False:\n            refused.append({\"candidate_id\": cid, \"reason\": reason})\n            continue"
+  },
+  {
+   "name": "причины снова читаются прямо из ленты — усечение по возрасту опять теряет историю кандидата",
+   "file": "spa_core/research_factory/read.py",
+   "old": "    rows, _ = history.transitions_for(ledger, candidate_id)\n    out = []\n    for row in rows:\n        p = row.get(\"payload\") or {}\n        if p.get(\"to_state\") in contract.HOLD_STATES:\n            out.append(p.get(\"reason\"))\n    return out",
+   "new": "    out = []\n    for e in ledger.read_all():\n        if e.get(\"kind\") != \"transition\":\n            continue\n        p = e.get(\"payload\") or {}\n        if p.get(\"candidate_id\") == candidate_id and p.get(\"to_state\") in contract.HOLD_STATES:\n            out.append(p.get(\"reason\"))\n    return out"
+  },
+  {
+   "name": "состояние кандидата снова берётся только из ленты — после усечения кандидат теряет состояние",
+   "file": "spa_core/research_factory/lifecycle.py",
+   "old": "    rows, _ = history.transitions_for(ledger, candidate_id)\n    return (rows[-1].get(\"payload\") or {}).get(\"to_state\") if rows else None",
+   "new": "    best = None\n    for e in ledger.read_all():\n        if e.get(\"kind\") != \"transition\":\n            continue\n        payload = e.get(\"payload\") or {}\n        if payload.get(\"candidate_id\") != candidate_id:\n            continue\n        if best is None or e[\"seq\"] > best[\"seq\"]:\n            best = e\n    return (best.get(\"payload\") or {}).get(\"to_state\") if best else None"
+  },
+  {
+   "name": "блок состояния уплотнения переименован в ответе — три исхода перестают быть видны читателю, который их спрашивает",
+   "file": "spa_core/research_factory/read.py",
+   "old": "        \"history_compaction\": history_compaction,\n",
+   "new": "        \"history_compaction_renamed\": history_compaction,\n"
+  },
+  {
+   "name": "писатель отвязан от дневного прогона — вид записи остаётся видом, которого никто не пишет",
+   "file": "spa_core/research_factory/run.py",
+   "old": "        compaction = history.compact(data_dir, now=now)",
+   "new": "        compaction = {\"schema\": history.SCHEMA, \"written\": [], \"already_current\": [], \"refused\": []}"
+  },
+  {
+   "name": "синтез уплотнения перестаёт зависеть от МОМЕНТА — вставка несёт переходы из своего будущего (fail-OPEN: окно объявляется там, где его нет)",
+   "file": "spa_core/monitoring/ledger_resnapshot_price_census.py",
+   "old": "        if entry.get(\"kind\") != \"transition\" or at > moment:",
+   "new": "        if entry.get(\"kind\") != \"transition\":"
+  },
+  {
+   "name": "сцена перестаёт спрашивать рецепт на каждом моменте — уплотнение не вставляется вовсе, и окно пропадает",
+   "file": "spa_core/monitoring/ledger_resnapshot_price_census.py",
+   "old": "        if rows_for_moment is not None:\n            injected.extend(rows_for_moment(moment))",
+   "new": "        if False:\n            injected.extend(rows_for_moment(moment))"
+  },
+  {
+   "name": "вычет имени лекарства расширен на ВЕСЬ ответ — уплотнение, портящее причины, снова сходит за нейтральное",
+   "file": "spa_core/monitoring/ledger_resnapshot_price_census.py",
+   "old": "                    and not path.startswith(MEDICINE_PRESENCE_PREFIX)",
+   "new": "                    and False"
+  },
+  {
+   "name": "проверка НАЛИЧИЯ вычитаемого блока снята — вычет ничего выдаётся за чистый вердикт",
+   "file": "spa_core/monitoring/ledger_resnapshot_price_census.py",
+   "old": "                if not any(path.startswith(MEDICINE_PRESENCE_PREFIX)\n                           for path in live_answer):",
+   "new": "                if False:"
+  },
+  {
+   "name": "рецепт-замена перестаёт считаться лекарством — нулевой контроль объявляет его нулевым, и контроль нейтральности его не проверяет",
+   "file": "spa_core/monitoring/ledger_resnapshot_price_census.py",
+   "old": "        return not self.newest_kinds and not self.all_kinds and not self.synthesised_kinds",
+   "new": "        return not self.newest_kinds and not self.all_kinds"
+  },
+  {
+   "name": "синтезируемый вид перестаёт быть объявленным — сторож населения рецептов больше не видит, что рецепт приносит, и «разность соседей = цена вида» врёт молча",
+   "file": "spa_core/monitoring/ledger_resnapshot_price_census.py",
+   "old": "        self.synthesised_kinds = tuple(synthesised_kinds)",
+   "new": "        self.synthesised_kinds = ()"
+  },
+  {
+   "name": "вид уплотнения в приборе расходится с каноном `history.KIND` — рецепт синтезирует запись, которой читающая модель не знает",
+   "file": "spa_core/monitoring/ledger_resnapshot_price_census.py",
+   "old": "COMPACTION_KIND = \"candidate_history\"",
+   "new": "COMPACTION_KIND = \"candidate_history_v2\""
+  }
+ ]
+}

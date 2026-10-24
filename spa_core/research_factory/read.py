@@ -22,7 +22,7 @@ from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from typing import Optional
 
-from spa_core.research_factory import contract, counterparty, dedup, forward, lifecycle, registry
+from spa_core.research_factory import contract, counterparty, dedup, forward, history, lifecycle, registry
 from spa_core.research_factory import bundle as bundle_mod
 from spa_core.research_factory import decision as decision_mod
 from spa_core.research_factory import evidence_contract as ec
@@ -60,12 +60,16 @@ def _latest_run_denominators(ledger) -> dict:
 
 
 def _rejection_reasons(ledger, candidate_id: str) -> list:
+    """The hold-state reasons of the candidate's WHOLE life — the accumulating list ADR-794
+    named as the one thing age truncation could not survive, now read through the merged
+    history (ADR-795): the ledger's ``transition`` rows plus the newest COMPACTION row, as a
+    multiset by content, so a compaction standing in for truncated rows reproduces this list
+    exactly and repeating that compaction every tact adds nothing to it."""
+    rows, _ = history.transitions_for(ledger, candidate_id)
     out = []
-    for e in ledger.read_all():
-        if e.get("kind") != "transition":
-            continue
-        p = e.get("payload") or {}
-        if p.get("candidate_id") == candidate_id and p.get("to_state") in contract.HOLD_STATES:
+    for row in rows:
+        p = row.get("payload") or {}
+        if p.get("to_state") in contract.HOLD_STATES:
             out.append(p.get("reason"))
     return out
 
@@ -313,9 +317,15 @@ def _derive_latest(data_dir: Path, *, verdict: Optional[dict] = None) -> dict:
             break
 
     sherlock = _sherlock_block(data_dir, ledger, run_now, denom_counts)
+    #: ADR-795, inv. #17: "the compaction is in force", "there is no compaction yet" and "a
+    #: compaction row cannot be stood behind" are THREE values here, never one. A BROKEN row
+    #: never silently replaces the ledger's own history — the answer falls back to the ledger
+    #: (today's behaviour) and says so.
+    history_compaction = history.history_status(ledger, list(registry.all_candidate_ids(ledger)))
 
     return {
         "schema": contract.SCHEMA_STATUS, "generated_at": generated_at, "integrity": integrity,
+        "history_compaction": history_compaction,
         "ledger_head_hash": head, "authorization": contract.AUTHORIZATION_TEXT,
         "real_capital_usd": contract.REAL_CAPITAL_USD, "live_authorized": contract.LIVE_AUTHORIZED,
         "denominators": denominators, "by_state": by_state, "by_domain": by_domain,
