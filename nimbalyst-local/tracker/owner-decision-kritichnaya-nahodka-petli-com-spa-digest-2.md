@@ -8,6 +8,7 @@ created: 2026-09-02
 finding_key: "B1:dead:com.spa.digest_weekly"
 status_trail:
   - "2026-09-03T15:46:13.862548+00:00 needs-owner -> ingested · queue.set_status · cycle-63347"
+  - "2026-10-24T11:57:54.666096+00:00 done -> ingested · cycle-922.reconcile_with_origin · cycle-16231"
 ---
 
 ## Что случилось и почему это важно

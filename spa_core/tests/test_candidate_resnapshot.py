@@ -236,24 +236,38 @@ class ResnapshotOpensTheWindow(unittest.TestCase):
             self.assertGreater(after["largest_safe_cut_rows"], 0,
                               f"пересъёмка окна не открыла: {after}")
 
-    def test_description_alone_does_not_open_the_window_while_history_accumulates(self):
-        """Трое писателей — не четверо: без уплотнения истории окно остаётся закрытым.
+    def test_description_alone_does_not_open_the_window_as_wide_as_the_compaction_does(self):
+        """Трое писателей — не четверо: история переходов продолжает держать ответ.
 
         Это не оговорка, а ЗАМЕР состава рецепта: ``read._rejection_reasons`` обходит
         ВСЕ ``transition`` кандидата, поэтому отрезание старых переходов меняет ответ,
         сколько бы описание ни переснимали. И обратно: с четвёртым писателем
-        (``history.compact``) окно открывается на той же сцене.
+        (``history.compact``) окно на той же сцене ШИРЕ.
+
+        **Намеренная правка утверждения, цикл #922 (ADR-799, инв. #16.)** До ADR-799 тест
+        требовал у трёх писателей РОВНО ``0``, и это было верно по ДВУМ причинам сразу:
+        история переходов держала ответ И список кандидатов переставлялся префиксом.
+        Вторую причину ADR-799 снял в источнике (``registry.all_candidate_ids`` отдаёт
+        порядок как функцию множества), и ``0`` стало ``9`` — замер, а не регресс: предмет
+        теста («трое ≠ четверо») измеряется теперь РАЗНИЦЕЙ окон, которая и есть вклад
+        уплотнения, а не нулём, в который до сих пор складывались оба вклада. Замер
+        2026-10-24 на этой сцене: трое — **9 из 27**, четверо — **17 из 30**. Погасить
+        падение подстановкой ``9`` вместо ``0`` было бы тем самым запрещённым ослаблением:
+        литерал закрепил бы случайное число сцены, а не утверждение о рецепте.
         """
         with TemporaryDirectory() as tmp:
             data = build(Path(tmp), scene_entries(with_transitions=True))
             resnapshot.resnapshot(data, now=NOW)
             three = retention.largest_safe_cut(data, NOW)
-            self.assertEqual(three["largest_safe_cut_rows"], 0,
-                             f"история переходов перестала держать ответ: {three}")
+            self.assertLess(three["largest_safe_cut_rows"], three["rows"],
+                            f"трое писателей открыли ленту ЦЕЛИКОМ — история переходов "
+                            f"перестала держать ответ: {three}")
             history.compact(data, now=NOW)
             four = retention.largest_safe_cut(data, NOW)
-            self.assertGreater(four["largest_safe_cut_rows"], 0,
-                               f"четыре писателя окна не открыли: {four}")
+            self.assertGreater(four["largest_safe_cut_rows"],
+                               three["largest_safe_cut_rows"],
+                               f"четвёртый писатель окна НЕ расширил — вклад уплотнения "
+                               f"равен нулю: трое {three}, четверо {four}")
 
 
 class TheRowIsDistinguishableAndHonest(unittest.TestCase):
@@ -392,53 +406,127 @@ def scene_with_one_freshly_observed_candidate() -> List[dict]:
     return entries
 
 
+def _first_appearance_order(ledger) -> list:
+    """Тело ``registry.all_candidate_ids`` ДО ADR-799 — прибор, а не альтернатива.
+
+    Нужен затем, чтобы утверждения ниже имели ЧУВСТВИТЕЛЬНОСТЬ: «порядок не изменился»
+    без доказательства, что прежняя проводка его меняла, не отличалось бы от «сцена
+    ничего не проверяет».
+    """
+    seen: list = []
+    for entry in ledger.read_all():
+        if entry.get("kind") != "candidate_snapshot":
+            continue
+        cid = ((entry.get("payload") or {}).get("candidate") or {}).get("candidate_id")
+        if cid and cid not in seen:
+            seen.append(cid)
+    return seen
+
+
 class TheOrderDiagnosisIsNotAPermission(unittest.TestCase):
-    """Замер цикла #921: мешает ПОРЯДОК списка, и мера этого — ДИАГНОСТИКА, не разрешение."""
+    """Замер цикла #921 и его СНЯТИЕ циклом #922 — на одной и той же сцене.
+
+    **Намеренная правка трёх утверждений, цикл #922 (ADR-799, инв. #16).** Класс был
+    написан #921, когда мешал ПОРЯДОК списка кандидатов, и его тесты требовали у двух мер
+    ПРОТИВОПОЛОЖНЫХ вердиктов на этой сцене. ADR-799 снял причину в источнике, поэтому
+    требовать расхождения здесь стало требованием воспроизвести УСТРАНЁННЫЙ дефект —
+    такой тест краснел бы не на регрессе, а на лекарстве. Утверждения переписаны на то,
+    что на этой сцене ИЗМЕРЕНО сегодня, и каждое несёт свой контроль:
+
+    * две меры СОШЛИСЬ — и прежняя проводка, подставленная тут же, их снова разводит;
+    * ``shape`` в отчёте по-прежнему называет, ЧЕМ мерено (это утверждение не тронуто: им
+      убита мутация ADR-798, зашивавшая ``"canonical"``);
+    * вопросы двух мер остались РАЗНЫМИ — и это проверяется на самих функциях, а не на
+      ленте: после ADR-799 отрезание ленты списков не переставляет, поэтому сцены,
+      различающей две меры, сегодня не существует, и строить её имитацией значило бы
+      подпирать правду подделкой.
+    """
 
     def _scene(self, tmp) -> Path:
         data = build(Path(tmp), scene_with_one_freshly_observed_candidate())
         resnapshot.resnapshot(data, now=NOW)
         return data
 
-    def test_a_cut_safe_only_without_order_is_NOT_safe_strictly(self):
+    def test_the_two_measures_now_agree_on_the_scene_that_separated_them(self):
+        """Замер #921 на этой сцене: строгая **0**, порядко-слепая **>0**. Сегодня — равны.
+
+        Это и есть предмет ADR-799 в миниатюре (на живой ленте то же число: 0 → 25 161).
+        """
         with TemporaryDirectory() as tmp:
             data = self._scene(tmp)
             strict = retention.largest_safe_cut(data, NOW)
             blind = retention.largest_safe_cut(
                 data, NOW, shape=retention.canonical_ignoring_list_order)
-            self.assertEqual(strict["largest_safe_cut_rows"], 0,
-                             f"сцена не воспроизводит замер #921: {strict}")
-            self.assertGreater(blind["largest_safe_cut_rows"], 0,
-                               f"порядок оказался не единственной причиной: {blind}")
+            self.assertGreater(strict["largest_safe_cut_rows"], 0,
+                               f"строгая мера снова не даёт резать ничего: {strict}")
+            self.assertEqual(strict["largest_safe_cut_rows"],
+                             blind["largest_safe_cut_rows"],
+                             f"меры разошлись — порядок опять часть ответа: строго "
+                             f"{strict}, слепо {blind}")
             self.assertEqual(strict["shape"], "canonical")
             self.assertEqual(blind["shape"], "canonical_ignoring_list_order")
 
-    def test_what_the_cut_loses_is_only_the_order_of_the_candidate_list(self):
-        """И это ЗАМЕР, а не вывод: множество кандидатов и каждый их лист совпадают."""
+            # Контроль: сцена ДЕЙСТВИТЕЛЬНО та, на которой прежняя проводка разводила меры.
+            restore = registry.all_candidate_ids
+            registry.all_candidate_ids = _first_appearance_order
+            try:
+                was = retention.largest_safe_cut(data, NOW)
+            finally:
+                registry.all_candidate_ids = restore
+            self.assertEqual(was["largest_safe_cut_rows"], 0,
+                             f"с ПРЕЖНИМ порядком строгая мера не отказывает — сцена не "
+                             f"воспроизводит замер #921, и согласие мер выше ничего не "
+                             f"значит: {was}")
+
+    def test_the_cut_keeps_the_candidate_list_whole_and_in_place(self):
+        """ЗАМЕР, а не вывод: после разрешённого отрезания список тот же — и по составу,
+        и по порядку. До ADR-799 состав совпадал, а порядок — нет, и именно это отличие
+        отказывало в отрезании."""
         with TemporaryDirectory() as tmp:
             data = self._scene(tmp)
             before = raw_answers(data)
-            blind = retention.largest_safe_cut(
-                data, NOW, shape=retention.canonical_ignoring_list_order)
+            strict = retention.largest_safe_cut(data, NOW)
+            self.assertGreater(strict["largest_safe_cut_rows"], 0, strict)
             import shutil
             import tempfile as tf
             scene = Path(tf.mkdtemp(prefix="order_"))
             try:
-                retention._stage_scene(data, scene, blind["largest_safe_cut_rows"])
+                retention._stage_scene(data, scene, strict["largest_safe_cut_rows"])
                 after = raw_answers(scene / "data")
+                ids_before = [c["candidate_id"]
+                              for c in before["research_factory"]["candidates"]]
+                ids_after = [c["candidate_id"]
+                             for c in after["research_factory"]["candidates"]]
+                self.assertEqual(set(ids_before), set(ids_after),
+                                 "кандидат ПОТЕРЯН — это уже не про порядок")
+                self.assertEqual(ids_before, ids_after,
+                                 "список переставлен отрезанием — ADR-799 не держится")
+                # Контроль чувствительности: прежняя проводка на ТОМ ЖЕ отрезании
+                # переставляет список, то есть сравнение выше СПОСОБНО покраснеть.
+                restore = registry.all_candidate_ids
+                registry.all_candidate_ids = _first_appearance_order
+                try:
+                    was_before = _first_appearance_order(ledger_for(data))
+                    was_after = _first_appearance_order(ledger_for(scene / "data"))
+                finally:
+                    registry.all_candidate_ids = restore
+                self.assertEqual(set(was_before), set(was_after))
+                self.assertNotEqual(was_before, was_after,
+                                    "прежний порядок тоже не менялся — сцена не та")
             finally:
                 shutil.rmtree(scene, ignore_errors=True)
-            ids_before = [c["candidate_id"] for c in before["research_factory"]["candidates"]]
-            ids_after = [c["candidate_id"] for c in after["research_factory"]["candidates"]]
-            self.assertEqual(set(ids_before), set(ids_after), "кандидат ПОТЕРЯН, а не передвинут")
-            self.assertNotEqual(ids_before, ids_after, "порядок не изменился — сцена не та")
 
     def test_the_measure_report_names_the_shape_it_measured_with(self):
         """Иначе «безопасно» строгое неотличимо от «безопасно, если закрыть глаза на порядок».
 
-        Утверждение несущее, а не косметическое: на ОДНОМ И ТОМ ЖЕ отрезании две меры
-        дают ПРОТИВОПОЛОЖНЫЕ вердикты, и единственное, что их различает в отчёте, — это
-        поле. Дыру нашёл мутационный прогон ADR-798 (выжила мутация, зашившая «canonical»).
+        Утверждение несущее, а не косметическое: дыру нашёл мутационный прогон ADR-798
+        (выжила мутация, зашившая ``"canonical"``), и убивает её именно сверка ИМЕНИ меры
+        в отчёте.
+
+        Вторая половина теста держит то, ради чего поле вообще нужно: две меры задают
+        РАЗНЫЕ вопросы. После ADR-799 на ленте этого больше не видно (отрезание списков
+        не переставляет), поэтому вопрос спрашивается у самих функций — там, где он и
+        живёт, и где ответ не зависит от того, повезло ли сегодняшней сцене.
         """
         with TemporaryDirectory() as tmp:
             data = self._scene(tmp)
@@ -447,8 +535,14 @@ class TheOrderDiagnosisIsNotAPermission(unittest.TestCase):
                                       shape=retention.canonical_ignoring_list_order)
             self.assertEqual(strict["shape"], "canonical")
             self.assertEqual(blind["shape"], "canonical_ignoring_list_order")
-            self.assertFalse(strict["safe"], strict)
-            self.assertTrue(blind["safe"], blind)
+
+        straight, reversed_ = ["a", "b"], ["b", "a"]
+        self.assertNotEqual(retention.canonical(straight), retention.canonical(reversed_),
+                            "строгая мера перестала видеть порядок списка — она больше "
+                            "не строгая")
+        self.assertEqual(retention.canonical_ignoring_list_order(straight),
+                         retention.canonical_ignoring_list_order(reversed_),
+                         "порядко-слепая мера порядок всё ещё видит — она не слепая")
 
     def test_cut_never_consults_the_order_blind_shape(self):
         """Диагностика, протёкшая в гейт, разрешила бы резать по более узкому вопросу."""

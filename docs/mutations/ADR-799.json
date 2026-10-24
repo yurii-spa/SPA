@@ -1,0 +1,53 @@
+{
+ "title": "ADR-799 — дельта цикла #922: порядок кандидатов в ответе читающей модели обязан быть функцией МНОЖЕСТВА, а не префикса ленты. Каждая мутация возвращает одно из состояний, в которых порядок снова зависел бы от префикса (оба носителя класса), либо строгая мера перестала бы быть строгой, либо гейт отрезания перестал бы замечать ПОТЕРЮ кандидата",
+ "tests": [
+  "spa_core/tests/test_candidate_id_order.py",
+  "spa_core/tests/test_candidate_resnapshot.py",
+  "spa_core/tests/test_ledger_retention.py",
+  "spa_core/tests/test_candidate_registry_readers.py"
+ ],
+ "mutations": [
+  {
+   "name": "порядок кандидатов снова порядок ПЕРВОГО ПОЯВЛЕНИЯ — дефект замера #921 возвращён дословно",
+   "file": "spa_core/research_factory/registry.py",
+   "old": "    seen = set()\n    for e in ledger.read_all():\n        if e.get(\"kind\") != \"candidate_snapshot\":\n            continue\n        cid = ((e.get(\"payload\") or {}).get(\"candidate\") or {}).get(\"candidate_id\")\n        if cid:\n            seen.add(cid)\n    return sorted(seen)",
+   "new": "    seen = []\n    for e in ledger.read_all():\n        if e.get(\"kind\") != \"candidate_snapshot\":\n            continue\n        cid = ((e.get(\"payload\") or {}).get(\"candidate\") or {}).get(\"candidate_id\")\n        if cid and cid not in seen:\n            seen.append(cid)\n    return seen"
+  },
+  {
+   "name": "сортировка на месте, но по постоянному ключу — устойчивая сортировка сохраняет порядок обхода, и лекарство становится украшением",
+   "file": "spa_core/research_factory/registry.py",
+   "old": "    return sorted(seen)",
+   "new": "    return sorted(seen, key=lambda _cid: 0)"
+  },
+  {
+   "name": "второй носитель класса: список решений Шерлока снова строится в порядке вставки словаря, то есть в порядке ленты",
+   "file": "spa_core/research_factory/read.py",
+   "old": "    for cid, e in sorted(latest_by_candidate.items()):",
+   "new": "    for cid, e in latest_by_candidate.items():"
+  },
+  {
+   "name": "строгая мера перестала видеть порядок списка — разрешение резать выдаётся по БОЛЕЕ УЗКОМУ вопросу молча",
+   "file": "spa_core/research_factory/retention.py",
+   "old": "    if isinstance(value, (list, tuple)):\n        return \"[\" + \",\".join(canonical(v) for v in value) + \"]\"",
+   "new": "    if isinstance(value, (list, tuple)):\n        return \"[\" + \",\".join(sorted(canonical(v) for v in value)) + \"]\""
+  },
+  {
+   "name": "порядко-слепая мера порядок ВИДИТ — диагностика перестала отвечать на свой вопрос, и расхождение мер стало невозможно измерить",
+   "file": "spa_core/research_factory/retention.py",
+   "old": "        return \"[\" + \",\".join(sorted(canonical_ignoring_list_order(v) for v in value)) + \"]\"",
+   "new": "        return \"[\" + \",\".join(canonical_ignoring_list_order(v) for v in value) + \"]\""
+  },
+  {
+   "name": "умолчанием меры стала ДИАГНОСТИКА — отрезание разрешается по вопросу «кроме порядка», и отчёт об этом не говорит",
+   "file": "spa_core/research_factory/retention.py",
+   "old": "def measure(data_dir: Path, cut_rows: int, now: datetime,\n            ledger_id: str = LEDGER_ID, shape=None) -> dict:",
+   "new": "def measure(data_dir: Path, cut_rows: int, now: datetime,\n            ledger_id: str = LEDGER_ID, shape=canonical_ignoring_list_order) -> dict:"
+  },
+  {
+   "name": "гейт перестал замечать РАСХОЖДЕНИЕ вовсе — потеря кандидата читается как «безопасно» (обратный контроль ADR-799)",
+   "file": "spa_core/research_factory/retention.py",
+   "old": "    differs = [vid for vid in sorted(before) if before.get(vid) != after.get(vid)]",
+   "new": "    differs = []"
+  }
+ ]
+}

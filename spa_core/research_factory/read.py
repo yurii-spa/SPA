@@ -167,7 +167,17 @@ def _sherlock_block(data_dir: Path, ledger, run_now: datetime, denom_counts: dic
     evidence_ready = conflicted = stale = counterparty_unknown = 0
     blocker_counts: dict = {}
     decisions_today = []
-    for cid, e in latest_by_candidate.items():
+    #: ADR-799: порядок обхода — функция МНОЖЕСТВА кандидатов, а не порядка их появления
+    #: в ленте. ``latest_by_candidate`` наполняется обходом ``decision_rows``, то есть его
+    #: порядок вставки ЕСТЬ порядок ленты, и ``decisions_today`` уезжает читателю списком,
+    #: адресуемым по МЕСТУ. Замер цикла #922 на живой ленте (25 601 запись, копия): после
+    #: сортировки ``all_candidate_ids`` наибольшее безопасное отрезание сдвинулось 0 → 1 251,
+    #: и на 1 252-й записи отказ держал ровно этот список — 234 разошедшихся листа, ВСЕ
+    #: внутри ``sherlock.decisions_today[*]``, при неизменной длине списка и неизменном
+    #: составе решений. Тот же класс, что у ``all_candidate_ids``, одним уровнем глубже:
+    #: ранга в этом списке нет (ранжирующий сосед — ``top_blockers``, он сортируется своим
+    #: ключом), поэтому место в нём не значит ничего и зависеть от префикса не вправе.
+    for cid, e in sorted(latest_by_candidate.items()):
         p = e.get("payload") or {}
         bundle_digest = p.get("bundle_digest")
         bundle = bundle_mod.find_bundle(data_dir, cid, bundle_digest) if bundle_digest else None
