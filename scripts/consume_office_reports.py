@@ -985,6 +985,18 @@ _READ_SCHEMA: dict[str, tuple[str, ...]] = {
                                      "cheapest_added_mb_per_day",
                                      "cheapest_safe_window_days", "findings",
                                      "advisory"),
+    # Заказ G800 п. 2 (ADR-801). `population` обязателен и обязан доехать СВОИМ
+    # значением: `null` значит «списков не считали вовсе» (лента не прочитана или
+    # сцена не воспроизвела живую вершину), а не «списков ноль» — инв. #17.
+    # `carriers` и `unmeasured_lists` — ровно те два перечня, ради которых прибор
+    # написан: первый есть возврат класса ADR-799, второй — часть ответа, пробой
+    # не покрытая. `unexercised_declarations` в схеме потому, что это ТРЕТИЙ исход
+    # объявления (не задействовано ≠ не защищает), и схема, его потерявшая, унесла
+    # бы вместе с ним сам запрет сливать два состояния в находку.
+    "answer_list_order.json": ("status", "generated_at", "entries", "population",
+                               "permutations", "lists", "carriers",
+                               "unmeasured_lists", "findings",
+                               "unexercised_declarations", "unmeasured_reason"),
     # Заказ G92 п. 2 (ADR-543). `stage_population` в схеме обязателен: без него
     # «зелёных по построению 1» прочлось бы как «во всём наборе один», тогда как
     # население СТУПЕНИ урезано до одного файла проб, а полный замер стои́т часа
@@ -1549,6 +1561,8 @@ _PRODUCER: dict[str, str] = {
         "spa_core/monitoring/ledger_window_dependency_census.py",
     "ledger_resnapshot_price.json":
         "spa_core/monitoring/ledger_resnapshot_price_census.py",
+    "answer_list_order.json":
+        "spa_core/monitoring/answer_list_order_census.py",
     "green_by_construction_census.json":
         "spa_core/monitoring/green_by_construction_census.py",
     "acceptance_tree_capability.json":
@@ -4008,6 +4022,15 @@ def _summarize_json(path: str, data, *, now: dt.datetime | None = None,
         # (вторая копия разошлась бы с первой молча); ввоз ОДНОСТРОЧНЫЙ.
         from spa_core.monitoring.ledger_resnapshot_price_census import format_report as _rpc_report
         out.extend(_rpc_report(data))
+    elif name == "answer_list_order.json":
+        # Заказ G800 п. 2 (ADR-801). Без этой ветки артефакт читался бы ВХОЛОСТУЮ:
+        # файл открыт, а в контекст не попадает ни население списков, ни перечень
+        # носителей класса ADR-799 — то есть прибор остался бы ровно там, где
+        # ADR-800 его и застал («находка без читателя», класс ADR-345). Правило
+        # отрисовки делегируется ПРОИЗВОДИТЕЛЮ (вторая копия разошлась бы с первой
+        # молча); ввоз ОДНОСТРОЧНЫЙ.
+        from spa_core.monitoring.answer_list_order_census import format_report as _alo_report
+        out.extend(_alo_report(data))
     elif name == "ledger_day_unit_census.json":
         # Заказ G765 п. 3 (ADR-766). Без этой ветки артефакт читается ВХОЛОСТУЮ:
         # файл открыт, а в контекст не попадает ни одно число — ровно тот класс

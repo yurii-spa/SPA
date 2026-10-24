@@ -81,7 +81,15 @@ ADR-799 нашёл класс: список в ответе `research_factory.re
 ## Чего перепись НЕ делает и НЕ закрывает
 
 Ничего не чинит, в ленту не пишет НИ БАЙТА, ни один гейт её не читает — она
-ADVISORY. Объявления природы сняты с ЗАМЕРА (прогон на живой ленте 24.10), и у
+ADVISORY. **Но читатель у неё с ADR-801 (заказ G800 п. 2) ЕСТЬ, и это другое:**
+перепись проведена ступенью моста находок (`findings_bridge.main` → :func:`run`
+с тактом, решаемым ФАЙЛОМ), её артефакт объявлен в конституции со SLO 192ч, а
+шаг 0-офис открывает его ПОИМЁННОЙ веткой и печатает числа. До ADR-801 прибор
+звался только рукой цикла — ровно класс ADR-345 «находка без читателя», и
+ADR-800 назвал это своим последним незакрытым пунктом. Расписанный читатель
+гейтом не становится: он несёт число в контекст, а решения не меняет.
+
+Объявления природы сняты с ЗАМЕРА (прогон на живой ленте 24.10), и у
 этого есть цена, названная вслух: прибор, у которого объявление взято из его же
 вердикта, НЕ способен поймать список, который был носителем УЖЕ в день переписи.
 Он ловит другое, и этого по заказу довольно: (а) НОВЫЙ список ответа без
@@ -116,10 +124,17 @@ from typing import Dict, Iterable, List, Optional, Sequence, Tuple
 
 from spa_core.monitoring import ledger_window_dependency_census as lwd
 from spa_core.utils.atomic import atomic_save
+from spa_core.utils.observation import observed
 
 VERSION = "answer-list-order/1"
 ARTIFACT = "answer_list_order.json"
-SELF_REL = "spa_core/monitoring/answer_list_order_census.py"
+
+#: Имя писателя артефакта. Три чужих реестра проводки называют его СВОИМИ
+#: литералами (`findings_bridge.CENSUS_PRODUCT`, `_PRODUCER` шага 0-офис, запись
+#: манифеста) — объявления по природе литеральны, и обойтись одной копией нельзя.
+#: Поэтому здесь стои́т ЭТАЛОН, с которым батарея проводки сверяет все три: без
+#: эталона расхождение «объявили один модуль, пишет другой» было бы молчаливым.
+PRODUCER = "spa_core/monitoring/answer_list_order_census.py"
 
 #: Такт недельный: прогон поднимает настоящую читающую модель трижды на полной
 #: ленте и стои́т десятки секунд. Срок решает ФАЙЛ артефакта, а не расписание
@@ -399,7 +414,13 @@ def measure(ledger_path: Path, *, now: dt.datetime) -> dict:
     числа в этом случае говорят о чужой ленте.
     """
     ledger_path = Path(ledger_path)
-    report: dict = {"version": VERSION, "generated_at": lwd._utcnow().isoformat(),
+    # Отметку ставит ПЕРЕДАННЫЙ момент, а не стенные часы. До проводки разница
+    # была невидима: артефакт никто не читал, и возраст его не спрашивал никто.
+    # Со SLO 192ч отметку читает сторож свежести, и часы у неё обязаны быть
+    # ВХОДОМ — иначе «свежо» и «протухло» становятся свойством календаря машины
+    # (класс ADR-562, `artifact_stamp_clock_doors`: вердикт от часов не зависит,
+    # поэтому подмена проходит все контроли и врёт ровно в возрасте).
+    report: dict = {"version": VERSION, "generated_at": now.isoformat(),
                     "ledger": str(ledger_path), "status": STATUS_UNMEASURED,
                     "unmeasured_reason": None, "entries": None, "population": None,
                     "lists": {}, "findings": [], "permutations": [],
@@ -532,34 +553,126 @@ def measurement_due(artifact: Path, *, now: dt.datetime) -> str:
             else NOT_DUE)
 
 
-def _print(report: dict) -> None:
-    print(f"перепись порядка списков ответа ({report['version']}): {report['status']}")
-    print(f"  записей ленты: {report['entries']}  списков в ответе: {report['population']}")
-    print(f"  перестановок: {len(report['permutations'])} "
-          f"({', '.join(report['permutations']) or 'ни одной'})")
-    if report["status"] == STATUS_UNMEASURED and report["population"] is None:
-        print(f"  ⚠️ НЕ ИЗМЕРЕНО: {report['unmeasured_reason']}")
-        return
-    lists = report["lists"]
-    stable = sum(1 for s in lists.values() if s["verdict"] == VERDICT_STABLE)
-    moved = sum(1 for s in lists.values() if s["verdict"] == VERDICT_MOVED)
-    unm = sum(1 for s in lists.values() if s["verdict"] == VERDICT_UNMEASURED)
-    print(f"  порядок устойчив {stable} · сдвинулся {moved} · НЕ ИЗМЕРЕНО {unm}")
+def format_report(doc: dict) -> List[str]:
+    """Строки отчёта. ОДНА копия правила отрисовки — её зовут все читатели.
+
+    Правило живёт у ПРОИЗВОДИТЕЛЯ намеренно: шаг 0-офис, CLI и мост читают одно
+    и то же тело, и вторая копия разошлась бы с первой молча (класс ADR-220).
+
+    Отсутствие ключа и значение ключа — РАЗНЫЕ исходы (инв. #17): артефакт,
+    написанный чужой или прошлой версией прибора, обязан читаться как «этого
+    числа тут НЕТ», а не как ноль. Поэтому ни одного `doc[...]` в теле: любой
+    промах по ключу стал бы падением читателя, то есть «не измерено», выданным
+    за поломку офиса.
+    """
+    out = [f"перепись порядка списков ответа "
+           f"({doc.get('version') or 'версия НЕ НАЗВАНА'}): "
+           f"{doc.get('status') or 'статуса НЕТ'}"]
+    entries, population = doc.get("entries"), doc.get("population")
+    out.append(f"  записей ленты: {'НЕ ИЗМЕРЕНО' if entries is None else entries}"
+               f"  списков в ответе: "
+               f"{'НЕ ИЗМЕРЕНО' if population is None else population}")
+    perms = doc.get("permutations")
+    if perms is None:
+        out.append("  перестановок: НЕ ИЗМЕРЕНО — прибор их не назвал вовсе")
+    else:
+        out.append(f"  перестановок: {len(perms)} "
+                   f"({', '.join(perms) or 'ни одной'})")
+    if population is None:
+        out.append("  ⚠️ НЕ ИЗМЕРЕНО: "
+                   f"{doc.get('unmeasured_reason') or 'причина НЕ НАЗВАНА'}")
+        return out
+    #: Перечня НЕТ и перечень ПУСТ — разные наблюдения, и схлопнуть их здесь
+    #: значило бы напечатать «чисто» по документу, в котором находки просто не
+    #: написаны (инв. #17). Поэтому каждый перечень читается честно, и его
+    #: отсутствие печатается СВОЕЙ строкой, а не молчанием.
+    lists = observed(doc, "lists", kind=dict)
+    if lists is None:
+        out.append("  ⚠️ НЕ ИЗМЕРЕНО: перечня списков в артефакте нет вовсе — "
+                   "вердиктов о порядке читать негде")
+        return out
+    stable = sum(1 for s in lists.values() if s.get("verdict") == VERDICT_STABLE)
+    moved = sum(1 for s in lists.values() if s.get("verdict") == VERDICT_MOVED)
+    unm = sum(1 for s in lists.values() if s.get("verdict") == VERDICT_UNMEASURED)
+    out.append(f"  порядок устойчив {stable} · сдвинулся {moved} · НЕ ИЗМЕРЕНО {unm}")
     for nature in NATURES:
-        n = sum(1 for s in lists.values() if s["nature"] == nature)
-        print(f"    объявлено {nature}: {n}")
-    for path in report["carriers"]:
-        print(f"  [НОСИТЕЛЬ] {path} — {lists[path]['reason']}")
-    for path in report["unmeasured_lists"]:
-        print(f"  [НЕ ИЗМЕРЕНО] {path} — {lists[path]['reason']}")
-    for finding in report["findings"]:
-        print(f"  [{finding['finding']}] {finding['list']} — {finding['detail']}")
-    for pattern in report["unexercised_declarations"]:
-        print(f"  [НЕ ЗАДЕЙСТВОВАНО] {pattern} — этой лентой объявление не проверено; "
-              "«нет в ответе» не есть «не защищает» (инв. #17)")
-    if not report["findings"]:
-        print("  ✅ у каждого списка ответа природа ОБЪЯВЛЕНА и замер с ней согласен")
-    print("  ADVISORY: прибор только ЧИТАЕТ, в ленту не пишет ни байта")
+        n = sum(1 for s in lists.values() if s.get("nature") == nature)
+        out.append(f"    объявлено {nature}: {n}")
+    for key, label in (("carriers", "НОСИТЕЛЬ"),
+                       ("unmeasured_lists", "НЕ ИЗМЕРЕНО")):
+        rows = observed(doc, key, kind=list)
+        if rows is None:
+            out.append(f"  ⚠️ перечень «{key}» в артефакте ОТСУТСТВУЕТ — это НЕ "
+                       "«их ноль», а отсутствие наблюдения (инв. #17)")
+            continue
+        for path in rows:
+            out.append(f"  [{label}] {path} — "
+                       f"{(lists.get(path) or {}).get('reason')}")
+    findings = observed(doc, "findings", kind=list)
+    if findings is None:
+        out.append("  ⚠️ перечня находок в артефакте НЕТ — «находок ноль» сказать "
+                   "нельзя (инв. #17)")
+    else:
+        for finding in findings:
+            out.append(f"  🔴 [{finding.get('finding')}] {finding.get('list')} — "
+                       f"{finding.get('detail')}")
+    unexercised = observed(doc, "unexercised_declarations", kind=list)
+    if unexercised is None:
+        out.append("  ⚠️ третий исход объявлений (не задействованные) в артефакте "
+                   "НЕ НАЗВАН — «все проверены» сказать нельзя")
+    else:
+        for pattern in unexercised:
+            out.append(f"  [НЕ ЗАДЕЙСТВОВАНО] {pattern} — этой лентой объявление не "
+                       "проверено; «нет в ответе» не есть «не защищает» (инв. #17)")
+    if findings is not None and not findings:
+        out.append("  ✅ у каждого списка ответа природа ОБЪЯВЛЕНА и замер с ней "
+                   "согласен")
+    out.append("  ADVISORY: прибор только ЧИТАЕТ, в ленту не пишет ни байта")
+    return out
+
+
+def _print(report: dict) -> None:
+    for line in format_report(report):
+        print(line)
+
+
+def run(root: Optional[str] = None, *, data_dir: Optional[str] = None,
+        dest: Optional[str] = None, write: bool = True, if_due: bool = False,
+        now: Optional[dt.datetime] = None) -> dict:
+    """Ступень моста находок: внутри такта НЕ мерить и вердикта НЕ выдумывать.
+
+    Исходов ТРИ, и третий назван отдельным ключом (инв. #17):
+
+    * ``{"measured": True, "doc": …}`` — замер прошёл, артефакт перезаписан;
+    * ``{"measured": False, "due_unmeasured": False, "reason": …}`` — такт не
+      прошёл; артефакт НЕ переписывается и отметка НЕ обновляется, иначе
+      «мерили» стало бы следствием того, что прибор позвали;
+    * ``{"measured": False, "due_unmeasured": True, "reason": …}`` — СРОК не
+      прочитан (артефакт не открылся, не разобрался, отметки в нём нет). Это не
+      «не пора»: сломанный артефакт не имеет права выглядеть как свежий, и
+      звавший обязан увидеть разницу.
+    """
+    tree = Path(root) if root else lwd._ROOT
+    source = Path(data_dir) if data_dir is not None else tree / "data"
+    target = Path(dest) if dest is not None else source / ARTIFACT
+    moment = now if now is not None else lwd._utcnow()
+    if if_due:
+        verdict = measurement_due(target, now=moment)
+        if verdict == NOT_DUE:
+            return {"measured": False, "due_unmeasured": False,
+                    "artifact": str(target),
+                    "reason": (f"артефакт {target} свежее {MEASUREMENT_TACT_DAYS} "
+                               "сут — перепись не звалась")}
+        if verdict != DUE:
+            return {"measured": False, "due_unmeasured": True,
+                    "artifact": str(target),
+                    "reason": f"срок переписи не прочитан — {verdict}"}
+    from spa_core.research_factory import contract  # noqa: PLC0415
+
+    doc = measure(source / contract.DATA_SUBDIR / contract.LEDGER, now=moment)
+    if write:
+        atomic_save(doc, str(target))
+    return {"measured": True, "doc": doc, "artifact": str(target)}
 
 
 def main(argv: Optional[Sequence[str]] = None) -> int:
@@ -572,31 +685,28 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
                         help="мерить только если прошёл такт (решает файл артефакта)")
     args = parser.parse_args(argv)
 
-    from spa_core.research_factory import contract  # noqa: PLC0415
-
+    # CLI и ступень моста идут ОДНОЙ дверью (`run`): разойдись они, «пора ли
+    # мерить» имело бы две копии правила, и вторая отвечала бы на свой вопрос
+    # (класс ADR-220, тот же, из-за которого отрисовка живёт у производителя).
     data_dir = Path(args.data_dir)
     out = Path(args.out) if args.out else data_dir / ARTIFACT
-    now = lwd._utcnow()
-    if args.if_due:
-        verdict = measurement_due(out, now=now)
-        if verdict == NOT_DUE:
-            print(f"такт не прошёл: артефакт {out} свежее {MEASUREMENT_TACT_DAYS} сут — "
-                  "перепись не звалась")
-            return 0
-        if verdict != DUE:
-            print(f"⚠️ НЕ ИЗМЕРЕНО: срок переписи не прочитан — {verdict}")
+    try:
+        result = run(data_dir=str(data_dir), dest=str(out), if_due=args.if_due)
+    except OSError as exc:
+        print(f"⚠️ артефакт не записан: {exc}")
+        return 2
+    if not result["measured"]:
+        if result["due_unmeasured"]:
+            print(f"⚠️ НЕ ИЗМЕРЕНО: {result['reason']}")
             return 2
+        print(f"такт не прошёл: {result['reason']}")
+        return 0
 
-    report = measure(data_dir / contract.DATA_SUBDIR / contract.LEDGER, now=now)
+    report = result["doc"]
     if args.json:
         print(json.dumps(report, ensure_ascii=False, indent=2, sort_keys=True))
     else:
         _print(report)
-    try:
-        atomic_save(report, str(out))
-    except OSError as exc:
-        print(f"⚠️ артефакт не записан: {exc}")
-        return 2
     if report["status"] == STATUS_UNMEASURED:
         return 2
     return 1 if report["status"] == STATUS_FINDINGS else 0

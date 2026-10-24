@@ -1,0 +1,87 @@
+{
+  "title": "ADR-801 — дельта цикла #924: ЧИТАТЕЛЬ у переписи порядка списков ответа. Каждая мутация возвращает одно из состояний, в которых проводка снова молчит по-своему: вызов есть только на словах · такт двоичен · отметку ставят стенные часы · офис открывает файл и читает ноль чисел · SLO равен такту · правило живёт в двух копиях",
+  "tests": [
+    "spa_core/tests/test_answer_list_order_census_wiring.py",
+    "spa_core/tests/test_answer_list_order_census.py"
+  ],
+  "mutations": [
+    {
+      "name": "отметку снова ставят СТЕННЫЕ часы — инъекция доходит до логики и НЕ доходит до generated_at (класс ADR-562); со SLO 192ч это делает возраст свойством календаря машины",
+      "file": "spa_core/monitoring/answer_list_order_census.py",
+      "old": "    report: dict = {\"version\": VERSION, \"generated_at\": now.isoformat(),",
+      "new": "    report: dict = {\"version\": VERSION, \"generated_at\": lwd._utcnow().isoformat(),"
+    },
+    {
+      "name": "срок такта снова ДВОИЧЕН: «срок не прочитан» выдаётся за «внутри такта», и сломанный артефакт выглядит свежим",
+      "file": "spa_core/monitoring/answer_list_order_census.py",
+      "old": "            return {\"measured\": False, \"due_unmeasured\": True,\n                    \"artifact\": str(target),\n                    \"reason\": f\"срок переписи не прочитан — {verdict}\"}",
+      "new": "            return {\"measured\": False, \"due_unmeasured\": False,\n                    \"artifact\": str(target),\n                    \"reason\": f\"срок переписи не прочитан — {verdict}\"}"
+    },
+    {
+      "name": "ступень мерит ВНУТРИ такта: артефакт переписывается на каждом прогоне моста, и «мерили» становится следствием того, что прибор позвали",
+      "file": "spa_core/monitoring/answer_list_order_census.py",
+      "old": "        if verdict == NOT_DUE:\n            return {\"measured\": False, \"due_unmeasured\": False,",
+      "new": "        if False:\n            return {\"measured\": False, \"due_unmeasured\": False,"
+    },
+    {
+      "name": "write=False перестал быть входом — ступень пишет артефакт всегда, и сцена мутаций пачкала бы дерево",
+      "file": "spa_core/monitoring/answer_list_order_census.py",
+      "old": "    doc = measure(source / contract.DATA_SUBDIR / contract.LEDGER, now=moment)\n    if write:",
+      "new": "    doc = measure(source / contract.DATA_SUBDIR / contract.LEDGER, now=moment)\n    if True:"
+    },
+    {
+      "name": "перечня находок НЕТ, а печатается «✅ всё объявлено» — ровно класс «не измерено = ноль» (инв. #17) у читателя артефакта",
+      "file": "spa_core/monitoring/answer_list_order_census.py",
+      "old": "    if findings is not None and not findings:",
+      "new": "    if not findings:"
+    },
+    {
+      "name": "CLI держит СВОЮ копию правила такта — вторая копия отвечает на свой вопрос (класс ADR-220)",
+      "file": "spa_core/monitoring/answer_list_order_census.py",
+      "old": "    try:\n        result = run(data_dir=str(data_dir), dest=str(out), if_due=args.if_due)",
+      "new": "    if args.if_due and measurement_due(out, now=lwd._utcnow()) == NOT_DUE:\n        print('такт не прошёл')\n        return 0\n    try:\n        result = run(data_dir=str(data_dir), dest=str(out), if_due=False)"
+    },
+    {
+      "name": "отрисовка перестала быть ОДНОЙ копией: _print печатает своими строками, и офис с CLI разошлись бы молча",
+      "file": "spa_core/monitoring/answer_list_order_census.py",
+      "old": "def _print(report: dict) -> None:\n    for line in format_report(report):\n        print(line)",
+      "new": "def _print(report: dict) -> None:\n    print(report.get('status'))"
+    },
+    {
+      "name": "ступень моста снята: ввоз остался, вызова нет — «импорт зачтён за вызов», урок цикла #760",
+      "file": "spa_core/monitoring/findings_bridge.py",
+      "old": "        from spa_core.monitoring import answer_list_order_census as _alo\n        _alo_res = _alo.run(root=args.root, if_due=True)",
+      "new": "        from spa_core.monitoring import answer_list_order_census as _alo\n        _alo_res = {'measured': False, 'due_unmeasured': False, 'reason': 'внутри такта'}"
+    },
+    {
+      "name": "ступень зовётся БЕЗ такта — читающая модель поднимается трижды на КАЖДОМ прогоне моста",
+      "file": "spa_core/monitoring/findings_bridge.py",
+      "old": "        _alo_res = _alo.run(root=args.root, if_due=True)",
+      "new": "        _alo_res = _alo.run(root=args.root)"
+    },
+    {
+      "name": "в реестре моста объявлен ЧУЖОЙ модуль — объявление перестало сверяться с тем, кто артефакт пишет",
+      "file": "spa_core/monitoring/findings_bridge.py",
+      "old": "    \"answer_list_order_census\": {\n        \"module\": \"spa_core/monitoring/answer_list_order_census.py\",",
+      "new": "    \"answer_list_order_census\": {\n        \"module\": \"spa_core/monitoring/ledger_window_dependency_census.py\","
+    },
+    {
+      "name": "офис потерял ИМЕННУЮ ветку — файл открыт, в контекст не попадает ни одно число («вхолостую»)",
+      "file": "scripts/consume_office_reports.py",
+      "old": "    elif name == \"answer_list_order.json\":",
+      "new": "    elif False:"
+    },
+    {
+      "name": "офис не называет производителя — сверка схемы с исходником становится НЕ ИЗМЕРЕНО, а читатель этого не узнаёт",
+      "file": "scripts/consume_office_reports.py",
+      "old": "    \"answer_list_order.json\":\n        \"spa_core/monitoring/answer_list_order_census.py\",",
+      "new": "    \"answer_list_order.json\":\n        \"spa_core/monitoring/answer_list_order_census_MISSING.py\","
+    },
+    {
+      "name": "SLO приравнен такту — сторож свежести объявит протухшим артефакт, которому только предстоит перемериться",
+      "file": "architecture/manifest.json",
+      "old": "      \"path\": \"data/answer_list_order.json\",\n      \"producer\": \"com.spa.decision_loop\",\n      \"consumers\": [\n        \"orchestrator_protocol\"\n      ],\n      \"slo_hours\": 192,",
+      "new": "      \"path\": \"data/answer_list_order.json\",\n      \"producer\": \"com.spa.decision_loop\",\n      \"consumers\": [\n        \"orchestrator_protocol\"\n      ],\n      \"slo_hours\": 168,"
+    }
+  ]
+}

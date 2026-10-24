@@ -182,6 +182,15 @@ PRODUCES = (
     # добавит пересъёмка и какое окно откроется — СВОИМ ЖЕ числом соседа.
     # Такт недельный и решает его ФАЙЛ, SLO 192ч — тот же довод.
     "data/ledger_resnapshot_price.json",
+    # Заказ G800 п. 2 (ADR-801). ЧЕТВЁРТОЕ плечо того же предмета, и вопрос у
+    # него ДРУГОЙ: три соседа выше мерят ЦЕНУ роста ленты и цену лекарств, а
+    # этот — ПРИРОДУ ПОРЯДКА списков ответа (ADR-799: порядок кандидатов был
+    # функцией МЕСТА записи в ленте, а не её множества). ADR-800 назвал своим
+    # последним незакрытым пунктом ровно это: «у прибора НЕТ расписанного
+    # читателя… это единственное, что отделяет его от класса ADR-345». Такт
+    # недельный и решает его ФАЙЛ (`answer_list_order_census.run` →
+    # `measurement_due`), SLO 192ч — тот же довод, что у трёх соседей выше.
+    "data/answer_list_order.json",
     # Заказ G97 п. 3 (ADR-562). ТРЕТЬЕ плечо того же семейства «часы как вход»:
     # сосед выше спрашивает, закрывается ли дверь читателя пином, а этот — ПРАВДА
     # ЛИ ВОЗРАСТ артефакта, то есть доходит ли инъектированный `now` до САМОЙ
@@ -530,6 +539,7 @@ CENSUS_STAGE: tuple[str, ...] = (
     "ledger_parse_census",
     "ledger_window_dependency_census",
     "ledger_resnapshot_price_census",
+    "answer_list_order_census",
     "artifact_stamp_clock_doors",
     "tact_gate_census",
     "rule_second_copy_census",
@@ -802,6 +812,9 @@ CENSUS_PRODUCT: dict[str, dict[str, str]] = {
     "ledger_resnapshot_price_census": {
         "module": "spa_core/monitoring/ledger_resnapshot_price_census.py",
         "artifact": "data/ledger_resnapshot_price.json"},
+    "answer_list_order_census": {
+        "module": "spa_core/monitoring/answer_list_order_census.py",
+        "artifact": "data/answer_list_order.json"},
     "artifact_stamp_clock_doors": {
         "module": "spa_core/monitoring/artifact_stamp_clock_doors.py",
         "artifact": "data/artifact_stamp_clock_doors.json"},
@@ -3101,6 +3114,48 @@ def main(argv=None) -> int:
                   f"{_rpc_res.get('reason')}")
     except Exception as e:  # noqa: BLE001 — перепись не смеет валить мост
         census_skipped(_skipped, "ledger_resnapshot_price_census", e)
+    # Перепись ПРИРОДЫ ПОРЯДКА списков ответа (заказ G800 п. 2, ADR-801). Три
+    # соседа выше мерят ЦЕНУ роста той же ленты; у этой ступени вопрос другой —
+    # чем задан ПОРЯДОК каждого списка в ответе читающей модели, и согласен ли
+    # замер с тем, что о списке объявлено. ADR-799 нашёл класс на двух живых
+    # носителях, ADR-800 построил перепись и сам назвал её последний изъян: у
+    # прибора не было расписанного читателя, то есть он стоял в одном шаге от
+    # класса ADR-345 («находка без читателя»). Эта ступень и есть читатель.
+    # Ступень ДОРОГАЯ (поднимает настоящую читающую модель трижды на полной
+    # ленте), поэтому у неё ТАКТ и срок решает ФАЙЛ. Исходов ТРИ, и третий —
+    # «срок НЕ ПРОЧИТАН» — доезжает своим значением: сломанный артефакт не
+    # имеет права выглядеть как свежий (инв. #17).
+    try:
+        from spa_core.monitoring import answer_list_order_census as _alo
+        _alo_res = _alo.run(root=args.root, if_due=True)
+        if _alo_res.get("measured"):
+            _adoc = _alo_res["doc"]
+            #: `population is None` значит «списков не считали вовсе» — это НЕ
+            #: «списков ноль»: первое есть НЕ ИЗМЕРЕНО с причиной, второе было бы
+            #: утверждением о ленте (инв. #17).
+            if _adoc.get("population") is None:
+                print("answer_list_order_census: НЕ ИЗМЕРЕНО — "
+                      f"{_adoc.get('unmeasured_reason')}")
+            else:
+                _acarriers = _adoc.get("carriers")
+                _aunm = _adoc.get("unmeasured_lists")
+                print(f"answer_list_order_census: {_adoc.get('status')} — "
+                      f"списков в ответе {_adoc['population']}, носителей класса "
+                      + ("НЕ ИЗМЕРЕНО" if _acarriers is None
+                         else str(len(_acarriers)))
+                      + ", без вердикта о порядке "
+                      + ("НЕ ИЗМЕРЕНО" if _aunm is None else str(len(_aunm)))
+                      + f" (лента {_adoc.get('entries')} зап., перестановок "
+                        f"{len(_adoc.get('permutations') or [])})")
+                for _arow in (_adoc.get("findings") or [])[:3]:
+                    print(f"   🔴 [{_arow.get('finding')}] {_arow.get('list')}: "
+                          f"{str(_arow.get('detail'))[:140]}")
+        elif _alo_res.get("due_unmeasured"):
+            print(f"answer_list_order_census: НЕ ИЗМЕРЕНО — {_alo_res.get('reason')}")
+        else:
+            print(f"answer_list_order_census: внутри такта — {_alo_res.get('reason')}")
+    except Exception as e:  # noqa: BLE001 — перепись не смеет валить мост
+        census_skipped(_skipped, "answer_list_order_census", e)
     # Перепись «зелёный по построению» (G92 п. 2, ADR-543): тесты, чей зелёный
     # не зависит НИ ОТ ОДНОГО решения прибора, который они проверяют. Ступень
     # ПОВЕДЕНЧЕСКАЯ (настоящие прогоны pytest на одноразовых копиях), поэтому
