@@ -1,8 +1,11 @@
 """One command: a SAFE architecture review of one task by the chosen provider (STUDIO-OS-MODELS-01, inc. 4).
 
+Lives in ``memory`` (next to ``role_pack``), not in ``model_roles``: the dependency runs memory → model_roles
+only — the transport layer never imports its callers (held by ``test_memory_answer_via_contract``).
+
 # LLM_FORBIDDEN
 
-    python -m spa_core.studio_os.model_roles review --handover <repo-rel handover> --task-id ID \
+    python -m spa_core.studio_os.memory arch-review --handover <repo-rel handover> --task-id ID \
         --task "<one task>" --verified-sha <40-hex> --provider <id> --out DIR \
         [--roadmap-item 17] [--extra-context FILE ...] [--fixture F.json]
 
@@ -195,7 +198,7 @@ def render_recommendation(r: Dict[str, Any]) -> str:
 
 
 def main(argv: Optional[List[str]] = None) -> int:
-    ap = argparse.ArgumentParser(prog="spa_core.studio_os.model_roles review")
+    ap = argparse.ArgumentParser(prog="spa_core.studio_os.memory arch-review")
     ap.add_argument("--root", type=Path, default=role_pack.CODE_REPO)
     ap.add_argument("--handover", required=True)
     ap.add_argument("--task-id", required=True)

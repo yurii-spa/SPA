@@ -1,13 +1,13 @@
 # STUDIO-OS-MODELS-01 · инкремент 4 — одна команда безопасного архитектурного разбора (2026-10-24)
 
-Код: **`e342aab0a`** (ветка `integ/studio-os-next-01-stab`). Решение владельца — ADR-OWN-2026-10-23; пакет ARB 24.10.
+Код: модуль `spa_core/studio_os/memory/arch_review.py` (перенесён из `model_roles/review.py` коммитом-исправлением; демонстрация ниже выполнена кодом `e342aab0a` до переноса — логика та же, изменились путь модуля и имя команды). Решение владельца — ADR-OWN-2026-10-23; пакет ARB 24.10.
 Переиспользованы `memory/role_pack` (контекст), `model_roles` (контракт, адаптеры, CLI). Нового роутера, хранилища
 памяти, платформы агентов нет; `dev_agents/architect.py` не тронут и не запускался; назначения ролей — null.
 
 ## Команда
 
 ```sh
-python -m spa_core.studio_os.model_roles review \
+python -m spa_core.studio_os.memory arch-review \
   --handover docs/evidence/studio-os-next-01-2026-10-16/HANDOVER_2026-10-23_POST_ARB8.md \
   --task-id B-12-arch-review --task "<задача>" \
   --verified-sha 30ca5abc46a42a3fcf8910113f62d4edde967629 --roadmap-item 17 \
@@ -17,7 +17,7 @@ python -m spa_core.studio_os.model_roles review \
 Пишет ТОЛЬКО `<каталог>/{context.md, review.json, recommendation.md}`. `review.json`: task_id, ревизии (проверенная,
 HEAD, сервер ветки, «код HEAD = проверенный»), sha256 контекста, провайдер (`real_provider`), модель (как сообщил CLI),
 статус, попытки, время, usage (только сообщённое), полнота контекста и список UNKNOWN, разобранные секции, блок задания.
-Каждый выход несёт: «PROPOSAL ONLY — not an owner approval, not an ARB acceptance…». Режим `--context` сохранён.
+Каждый выход несёт: «PROPOSAL ONLY — not an owner approval, not an ARB acceptance…». Режим `python -m spa_core.studio_os.model_roles --context …` не тронут (`model_roles` побайтно = принятому `30ca5abc4`).
 
 ## Демонстрация — разбор B-12 («что показывает Telegram Sherlock при пустой ленте»)
 

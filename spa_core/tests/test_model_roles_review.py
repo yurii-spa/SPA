@@ -15,7 +15,8 @@ import subprocess
 import pytest
 
 from spa_core.studio_os.model_roles import adapters as ad
-from spa_core.studio_os.model_roles import review as rv
+from spa_core.studio_os.memory import arch_review as rv
+from spa_core.studio_os.memory.__main__ import main as memory_cli
 from spa_core.studio_os.model_roles.__main__ import main as cli
 from spa_core.tests import test_role_pack as trp
 from spa_core.tests.test_s49_variant_a_connection import _fingerprint
@@ -145,11 +146,11 @@ def test_the_cli_runs_the_review_and_keeps_the_context_mode(tmp_path):
     root, verified = _scene(tmp_path)
     fx = tmp_path / "fx.json"
     fx.write_text(json.dumps({"*": GOOD}), encoding="utf-8")
-    base = ["review", "--root", str(root), "--handover", "docs/evidence/HANDOVER.md", "--task-id", "t",
+    base = ["arch-review", "--root", str(root), "--handover", "docs/evidence/HANDOVER.md", "--task-id", "t",
             "--task", "x", "--verified-sha", verified, "--out", str(tmp_path / "o")]
-    assert cli(base + ["--provider", "fixture_test_adapter", "--fixture", str(fx)]) == 0
-    assert cli(base) == 2                    # no provider ⇒ refused (no routing)
-    assert cli(base[:-2] + ["--verified-sha", "abc", "--out", str(tmp_path / "o2")]) == 2
+    assert memory_cli(base + ["--provider", "fixture_test_adapter", "--fixture", str(fx)]) == 0
+    assert memory_cli(base) == 2                    # no provider ⇒ refused (no routing)
+    assert memory_cli(base[:-2] + ["--verified-sha", "abc", "--out", str(tmp_path / "o2")]) == 2
     ctx = tmp_path / "pack.md"
     ctx.write_text("ctx", encoding="utf-8")
     assert cli(["--role", "architect", "--provider", "fixture_test_adapter", "--fixture", str(fx),
