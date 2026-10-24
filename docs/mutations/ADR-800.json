@@ -1,0 +1,74 @@
+{
+ "title": "ADR-800 — дельта цикла #923: перепись природы порядка списков ответа. Каждая мутация возвращает одно из состояний, в которых прибор перестаёт отвечать на СВОЙ вопрос: либо перестановка рвёт предмет и негодность выдаётся за находку, либо «не измерено» сливается с ответом, либо объявление перестаёт быть обязательным, либо MULTISET снова покупает тишину",
+ "tests": [
+  "spa_core/tests/test_answer_list_order_census.py"
+ ],
+ "mutations": [
+  {
+   "name": "предмет снова разрешается по КЛЮЧУ открытия — дословно та ошибка, что оторвала марки от позиций и уронила NAV с 10 012,53 $ до 10 000,00 $",
+   "file": "spa_core/monitoring/answer_list_order_census.py",
+   "old": "        position_id = (entry.get(\"payload\") or {}).get(\"position_id\")\n        if position_id and len(key) >= 2 and isinstance(key[1], str):\n            out[position_id] = key[1]",
+   "new": "        position_id = key[2] if len(key) >= 3 and isinstance(key[2], str) else None\n        if position_id and len(key) >= 2 and isinstance(key[1], str):\n            out[position_id] = key[1]"
+  },
+  {
+   "name": "перестановка одна вместо двух — «уцелел под одной» снова выдаётся за «порядок устойчив»",
+   "file": "spa_core/monitoring/answer_list_order_census.py",
+   "old": "        (\"по слепку имени\", _subject_order(\n            entries, positions,\n            lambda s: sorted(s, key=lambda x: hashlib.sha256(\n                \"\".join(x).encode()).hexdigest()))),\n    ]",
+   "new": "    ]"
+  },
+  {
+   "name": "негодная перестановка выдаётся за НАХОДКУ: расхождение множества называется сдвигом порядка, и «не измерено» перестаёт быть третьим исходом",
+   "file": "spa_core/monitoring/answer_list_order_census.py",
+   "old": "            if not all(sorted(a) == sorted(b) for a, b in zip(mine, theirs)):\n                state[\"verdict\"] = VERDICT_UNMEASURED\n                state[\"reason\"] = (f\"перестановка «{label}» не сохранила СОДЕРЖИМОЕ этого \"\n                                   \"списка — о порядке по ней судить нельзя\")\n                continue",
+   "new": "            if not all(sorted(a) == sorted(b) for a, b in zip(mine, theirs)):\n                state[\"verdict\"] = VERDICT_MOVED\n                state[\"reason\"] = (f\"перестановка «{label}»: множество то же, ПОРЯДОК \"\n                                   \"сдвинулся\")\n                continue"
+  },
+  {
+   "name": "список без объявленной природы получает природу по умолчанию — «носителем не является» снова достаётся молча, а не замером",
+   "file": "spa_core/monitoring/answer_list_order_census.py",
+   "old": "        if nature is None:\n            findings.append({\"finding\": FINDING_UNDECLARED, \"list\": path,",
+   "new": "        if nature is None:\n            nature = SET_DERIVED\n        if False:\n            findings.append({\"finding\": FINDING_UNDECLARED, \"list\": path,"
+  },
+  {
+   "name": "MULTISET снова покупает тишину: объявление не сверяется с личностью элементов, и любую находку о сдвиге можно погасить словом",
+   "file": "spa_core/monitoring/answer_list_order_census.py",
+   "old": "        if nature == MULTISET and any_element_has_identity(base, path):",
+   "new": "        if False and any_element_has_identity(base, path):"
+  },
+  {
+   "name": "сдвиг порядка перестал быть находкой у SET_DERIVED — оба носителя ADR-799 вернулись бы незамеченными, потому что ранга в них нет",
+   "file": "spa_core/monitoring/answer_list_order_census.py",
+   "old": "        if state[\"verdict\"] == VERDICT_MOVED and nature in (RANKED, SET_DERIVED):",
+   "new": "        if state[\"verdict\"] == VERDICT_MOVED and nature in (RANKED,):"
+  },
+  {
+   "name": "положительный контроль построения сцены снят — числа о ЧУЖОЙ ленте печатаются как измеренные",
+   "file": "spa_core/monitoring/answer_list_order_census.py",
+   "old": "    if live is not None and rebuilt != live:",
+   "new": "    if False and rebuilt != live:"
+  },
+  {
+   "name": "срок переписи снова двоичен: «артефакт не разобран» сливается с «пора мерить», и сломанный артефакт прячется за обычным прогоном",
+   "file": "spa_core/monitoring/answer_list_order_census.py",
+   "old": "    except json.JSONDecodeError as exc:\n        return f\"{DUE_UNMEASURED}: артефакт не разобран ({exc})\"",
+   "new": "    except json.JSONDecodeError:\n        return DUE"
+  },
+  {
+   "name": "образец объявления накрывает путь ЛЮБОЙ глубины — объявление молча расширяется на то, чего никто не мерил",
+   "file": "spa_core/monitoring/answer_list_order_census.py",
+   "old": "        shape = pattern.split(\".\")\n        if len(shape) != len(parts):\n            continue\n        if all(want in (\"*\", have) for want, have in zip(shape, parts)):",
+   "new": "        shape = pattern.split(\".\")\n        if all(want in (\"*\", have) for want, have in zip(shape, parts)):"
+  },
+  {
+   "name": "ОБРАТНЫЙ контроль: прибор объявляет носителем ВСЁ — тогда чистый вердикт на непатченном коде становится невозможен, и зелёный день нулевой был бы ложным",
+   "file": "spa_core/monitoring/answer_list_order_census.py",
+   "old": "            moved = sum(1 for a, b in zip(mine, theirs) if a != b)",
+   "new": "            moved = sum(1 for a, b in zip(mine, theirs) if a == b)"
+  },
+  {
+   "name": "старшинство вердиктов снято: показанный сдвиг стирается НЕГОДНОЙ перестановкой, и вердикт начинает зависеть от того, какая перестановка прошла первой",
+   "file": "spa_core/monitoring/answer_list_order_census.py",
+   "old": "            if state[\"verdict\"] == VERDICT_MOVED:\n                continue\n",
+   "new": "            if False:  # старшинство снято\n                continue\n"
+  }
+ ]
+}
