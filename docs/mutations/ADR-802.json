@@ -1,0 +1,82 @@
+{
+ "title": "ADR-802 — дельта цикла #925: у сторожа состава ступени появился МАШИННЫЙ критерий, а само расхождение закрыто. Каждая мутация возвращает одно из состояний, в которых проба снова согласилась бы молча: «нечем измерить» выдано за согласие · одна из четырёх разностей не спрашивается · сверка подстрокой · ступенью считается любое упоминание · правка объявления откатана · проба не зарегистрирована",
+ "tests": [
+  "spa_core/tests/test_bridge_stage_declaration_probe.py",
+  "spa_core/tests/test_office_absent_artifact_producer_aware.py",
+  "spa_core/tests/test_artifact_absence_shared_verdict.py"
+ ],
+ "mutations": [
+  {
+   "name": "нулевое население выдаётся за согласие: «разбор промахнулся» становится «ступеней нет», и fail-OPEN тише красного теста (инв. #17)",
+   "file": "spa_core/monitoring/card_acceptance.py",
+   "old": "    if not names:\n        return [], (f\"в теле `{_BSD_ENTRY}()` не найдено ни одного вызова \"",
+   "new": "    if False:\n        return [], (f\"в теле `{_BSD_ENTRY}()` не найдено ни одного вызова \""
+  },
+  {
+   "name": "разность «тело богаче объявления» не спрашивается — забытая строка CENSUS_STAGE снова невидима (ровно дефект ADR-790)",
+   "file": "spa_core/monitoring/card_acceptance.py",
+   "old": "    if run - decl:\n        problems.append(f\"мост ЗАПУСКАЕТ, а `CENSUS_STAGE` не объявляет: \"",
+   "new": "    if False:\n        problems.append(f\"мост ЗАПУСКАЕТ, а `CENSUS_STAGE` не объявляет: \""
+  },
+  {
+   "name": "разность «объявление богаче тела» не спрашивается — снятая ступень оставляет живую строку в объявлении, и мост числится зовущим мертвеца",
+   "file": "spa_core/monitoring/card_acceptance.py",
+   "old": "    if decl - run:\n        problems.append(f\"`CENSUS_STAGE` объявляет, а тело `{_BSD_ENTRY}()` НЕ \"",
+   "new": "    if False:\n        problems.append(f\"`CENSUS_STAGE` объявляет, а тело `{_BSD_ENTRY}()` НЕ \""
+  },
+  {
+   "name": "третья разность снята: ступень объявлена, а карты «модуль → артефакт» у неё нет — «пропущено» снова неотличимо от «не бывало»",
+   "file": "spa_core/monitoring/card_acceptance.py",
+   "old": "    if decl - prod:\n        problems.append(f\"объявлено ступенью, а в `CENSUS_PRODUCT` нет: \"",
+   "new": "    if False:\n        problems.append(f\"объявлено ступенью, а в `CENSUS_PRODUCT` нет: \""
+  },
+  {
+   "name": "четвёртая разность снята: в карте продуктов живёт ступень, которой нет ни в теле, ни в объявлении",
+   "file": "spa_core/monitoring/card_acceptance.py",
+   "old": "    if prod - decl:\n        problems.append(f\"есть в `CENSUS_PRODUCT`, а ступенью не объявлено: \"",
+   "new": "    if False:\n        problems.append(f\"есть в `CENSUS_PRODUCT`, а ступенью не объявлено: \""
+  },
+  {
+   "name": "дубль имени ступени в теле перестал быть находкой — отчёт о пропуске уходит под одним именем от двух разных ступеней",
+   "file": "spa_core/monitoring/card_acceptance.py",
+   "old": "    if len(names) != len(run):",
+   "new": "    if False:"
+  },
+  {
+   "name": "сверка ПОДСТРОКОЙ вместо равенства множеств (ADR-333): объявленное `alpha_census_v2` закрывает запускаемое `alpha_census`",
+   "file": "spa_core/monitoring/card_acceptance.py",
+   "old": "    run, decl, prod = set(names), set(declared), set(product)",
+   "new": "    run = set(names)\n    decl = {n for n in names if any(n in d for d in declared)} | (\n        set(declared) - {d for d in declared if any(n in d for n in names)})\n    prod = set(product) | (run & decl)"
+  },
+  {
+   "name": "ступенью считается ЛЮБАЯ строка-константа в теле main: объявление начинает сверяться с прозой о себе, а не с формой вызова",
+   "file": "spa_core/monitoring/card_acceptance.py",
+   "old": "        if (isinstance(node, _ast.Call)\n                and isinstance(node.func, _ast.Name)\n                and node.func.id == _BSD_DOOR\n                and len(node.args) >= 2\n                and isinstance(node.args[1], _ast.Constant)\n                and isinstance(node.args[1].value, str)):\n            names.append(node.args[1].value)",
+   "new": "        if isinstance(node, _ast.Constant) and isinstance(node.value, str):\n            names.append(node.value)"
+  },
+  {
+   "name": "непрочитанный исходник выдаётся за согласие: SyntaxError в модуле моста становится «состав сошёлся»",
+   "file": "spa_core/monitoring/card_acceptance.py",
+   "old": "    names, why = _bsd_stages_in_entry(source)\n    if why:\n        return UNMEASURED, why",
+   "new": "    names, why = _bsd_stages_in_entry(source)\n    if False:\n        return UNMEASURED, why"
+  },
+  {
+   "name": "правка объявления ОТКАТАНА: имя ступени снова нет в CENSUS_STAGE — ровно состояние, в котором сторож краснел постоянно с 23.10",
+   "file": "spa_core/monitoring/findings_bridge.py",
+   "old": "    \"no_regression_producer\",\n    \"ledger_parse_census\",",
+   "new": "    \"ledger_parse_census\","
+  },
+  {
+   "name": "ключ ступени убран из CENSUS_PRODUCT — три объявления снова расходятся, но уже с другой стороны",
+   "file": "spa_core/monitoring/findings_bridge.py",
+   "old": "    \"no_regression_producer\": {\n        \"module\": NO_REGRESSION_PRODUCER,\n        \"artifact\": \"data/no_regression_census.json\"},\n",
+   "new": "    # ключ ступени убран мутацией: карты «модуль → артефакт» у неё больше нет\n"
+  },
+  {
+   "name": "проба написана, но не зарегистрирована под своим именем — класс ADR-345 («прибор есть, исполняется нигде»): очередь знает ТОЛЬКО имя",
+   "file": "spa_core/monitoring/card_acceptance.py",
+   "old": "    \"bridge_stage_declaration_agrees\":\n        _probe_bridge_stage_declaration_agrees,",
+   "new": "    \"bridge_stage_declaration_agrees_NOT_WIRED\":\n        _probe_bridge_stage_declaration_agrees,"
+  }
+ ]
+}

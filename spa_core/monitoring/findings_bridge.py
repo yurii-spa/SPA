@@ -536,6 +536,11 @@ CENSUS_STAGE: tuple[str, ...] = (
     "haystack_origin_census",
     "list_identity_census",
     "python_reader_clock_doors",
+    # (ADR-790, цикл #912) Ступень поставлена, а в объявление не
+    # дописана — сторож `StageIsDeclaredNotHandMaintained` краснел
+    # ПОСТОЯННО с 23.10 и перестал быть сигналом; дописано циклом
+    # #925 по карточке `inbox-sostav-stupeni-mosta-razoshelsya-s-obyav`.
+    "no_regression_producer",
     "ledger_parse_census",
     "ledger_window_dependency_census",
     "ledger_resnapshot_price_census",
@@ -588,6 +593,18 @@ CENSUS_STAGE: tuple[str, ...] = (
     "loop_retro",
     "loop_health",
 )
+
+
+#: Производитель ЗАПИСИ критерия §49 `No regression` (ADR-770). Эта строка — ЗОВ, и
+#: ровно этого зова у производителя не было ни одного: написанный 17.10, он до ADR-790
+#: не вызывался ниоткуда (храповик сирот `test_unwired_scripts_ratchet` держал его
+#: имя красным на чистой вершине), а артефакт `data/no_regression_census.json` жил
+#: 152.1 ч при пределе пробы 192 ч — то есть критерию владельца оставалось 39.9 ч до
+#: молчаливого `unmeasured`.
+NO_REGRESSION_PRODUCER = os.path.join("scripts", "refresh_no_regression_census.py")
+#: Определение стоит ВЫШЕ `CENSUS_PRODUCT` намеренно: карта ступеней ссылается
+#: на эту константу, и второй литерал того же пути разошёлся бы с первым молча
+#: (одно имя — один объект, класс ADR-220).
 
 #: ЧТО каждая перепись производит и ЧЕМ она написана — ОБЪЯВЛЕНО (ADR-158),
 #: а не выведено из имени.
@@ -803,6 +820,15 @@ CENSUS_PRODUCT: dict[str, dict[str, str]] = {
     "python_reader_clock_doors": {
         "module": "spa_core/monitoring/python_reader_clock_doors.py",
         "artifact": "data/python_reader_clock_doors.json"},
+    #: Производитель здесь — СКРИПТ, а не модуль переписи: население
+    #: критерия §49 обязано мериться в одноразовом дереве прогона
+    #: (ADR-790), и ступень зовёт `no_regression_step`, который этот
+    #: скрипт и запускает. Имя пути берётся у `NO_REGRESSION_PRODUCER`
+    #: тем же порядком, что у соседей — вторая копия литерала
+    #: разошлась бы с первой молча.
+    "no_regression_producer": {
+        "module": NO_REGRESSION_PRODUCER,
+        "artifact": "data/no_regression_census.json"},
     "ledger_parse_census": {
         "module": "spa_core/monitoring/ledger_parse_census.py",
         "artifact": "data/ledger_parse_census.json"},
@@ -1385,14 +1411,6 @@ def census_skipped(record: dict, name: str, exc: BaseException) -> None:
     record[name] = f"{type(exc).__name__}: {exc}"
     print(f"{name}: пропущено ({exc})")
 
-
-#: Производитель ЗАПИСИ критерия §49 `No regression` (ADR-770). Эта строка — ЗОВ, и
-#: ровно этого зова у производителя не было ни одного: написанный 17.10, он до ADR-790
-#: не вызывался ниоткуда (храповик сирот `test_unwired_scripts_ratchet` держал его
-#: имя красным на чистой вершине), а артефакт `data/no_regression_census.json` жил
-#: 152.1 ч при пределе пробы 192 ч — то есть критерию владельца оставалось 39.9 ч до
-#: молчаливого `unmeasured`.
-NO_REGRESSION_PRODUCER = os.path.join("scripts", "refresh_no_regression_census.py")
 
 #: Предел на ВЕСЬ зов производителя. Выше наблюдённой цены прогона населения с
 #: запасом; снятие по сроку — НЕ ИЗМЕРЕНО с названной причиной, а не «регрессий нет».

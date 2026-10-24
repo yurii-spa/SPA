@@ -11156,7 +11156,141 @@ def _probe_delivery_refuses_an_unnamed_tree(
         f"читает вовсе")
 
 
+
+#: Имя функции, чьё ТЕЛО и есть состав ступени моста: объявление сверяется
+#: с ним, а не с каталогом файлов — ступень, которая никем не зовётся,
+#: ступенью не является (урок #760: ввоз зовом не является).
+_BSD_ENTRY = "main"
+#: Дверь, через которую пропуск ступени попадает в отчёт. Имя ступени — её
+#: ВТОРОЙ аргумент; первый несёт запись отчёта.
+_BSD_DOOR = "census_skipped"
+
+
+def _bsd_stages_in_entry(source: str) -> tuple[list[str], str | None]:
+    """Имена ступеней из тела `main()` — разбором AST, а не поиском подстроки.
+
+    Возвращает `(имена, причина_немзерения)`. Непустая причина означает ровно
+    «измерить нечем» и НИКОГДА не читается как «ступеней нет»: ноль ступеней и
+    непрочитанный модуль — два разных ответа (инв. #17), и слить их значило бы
+    выдать сломанный разбор за согласие объявления с телом.
+
+    Имя берётся ТОЛЬКО у литерального второго аргумента вызова `census_skipped`
+    по ФОРМЕ вызова. Упоминание имени в строке, в комментарии или в соседнем
+    словаре ступенью не делает — иначе объявление сверялось бы с прозой о себе
+    (ADR-333: подстрокой проба не проходит).
+    """
+    import ast as _ast
+    try:
+        tree = _ast.parse(source)
+    except SyntaxError as exc:
+        return [], f"модуль моста не разобран: SyntaxError: {exc}"
+    entry = next((n for n in tree.body
+                  if isinstance(n, (_ast.FunctionDef, _ast.AsyncFunctionDef))
+                  and n.name == _BSD_ENTRY), None)
+    if entry is None:
+        return [], (f"в модуле моста нет функции `{_BSD_ENTRY}()` — состав ступени "
+                    f"сверять не с чем")
+    names: list[str] = []
+    for node in _ast.walk(entry):
+        if (isinstance(node, _ast.Call)
+                and isinstance(node.func, _ast.Name)
+                and node.func.id == _BSD_DOOR
+                and len(node.args) >= 2
+                and isinstance(node.args[1], _ast.Constant)
+                and isinstance(node.args[1].value, str)):
+            names.append(node.args[1].value)
+    if not names:
+        return [], (f"в теле `{_BSD_ENTRY}()` не найдено ни одного вызова "
+                    f"`{_BSD_DOOR}(...)` со строковым именем — разбор промахнулся, "
+                    f"а не ступеней нет")
+    return names, None
+
+
+def _probe_bridge_stage_declaration_agrees(
+        arg: str | None = None, *, bridge=None) -> tuple[str, str]:
+    """Критерий карточки `inbox-sostav-stupeni-mosta-razoshelsya-s-obyav`:
+    ТРИ объявления состава ступени моста находок согласны друг с другом.
+
+    Предмет — не «тест зелен», а ИСХОД: состав ступени, который мост реально
+    запускает (тело `main()`), обязан совпадать с объявлением `CENSUS_STAGE`, а
+    то — с ключами карты «ступень → модуль/артефакт» `CENSUS_PRODUCT`. Ручной
+    список отказывает ровно тогда, когда кто-то забыл дописать строку, и цена
+    расхождения — не «ещё одно падение»: пока сторож красен ПОСТОЯННО, следующая
+    забытая ступень утонет в уже красном тесте, то есть сторож перестаёт быть
+    сигналом (замер цикла #915, ADR-793: `no_regression_producer` поставлен
+    циклом #912 и в объявление не дописан; цикл #925 перемерил то же на чистой
+    вершине `6d756c0dd`).
+
+    Три исхода различимы (инв. #17):
+
+    * `unmeasured` — модуль моста не прочитан, не разобран, в нём нет `main()`
+      либо разбор не нашёл НИ ОДНОЙ ступени. «Нечем измерить» здесь никогда не
+      печатается как согласие: именно так fail-OPEN тише красного теста;
+    * `not_satisfied` — хоть одна из ЧЕТЫРЁХ разностей непуста либо ступень
+      названа в теле дважды; каждая разность НАЗЫВАЕТ имена, потому что вердикт
+      «состав разошёлся» без имени не чинится;
+    * `satisfied` — все четыре разности пусты и дублей нет.
+
+    Разностей именно четыре, а не одна: «тело богаче объявления» (забыли
+    дописать) и «объявление богаче тела» (ступень убрали, а строка осталась) —
+    РАЗНЫЕ дефекты с разным лечением, и та же пара существует между
+    `CENSUS_STAGE` и `CENSUS_PRODUCT`. Сложить их в одно «не совпало» значило бы
+    назвать симптом вместо причины.
+
+    `bridge` инъектируется ТОЛЬКО контрольной батареей: сцена с оборванным
+    звеном нужна, чтобы проба, никогда не видевшая настоящей поломки, не
+    осталась украшением (`.claude/rules/acceptance.md` п. 3).
+    """
+    if bridge is None:
+        from spa_core.monitoring import findings_bridge as bridge  # noqa: PLC0415
+    src_path = getattr(bridge, "__file__", None)
+    if not src_path:
+        return UNMEASURED, "у модуля моста нет `__file__` — исходник читать нечем"
+    try:
+        source = _pathlib.Path(src_path).read_text(encoding="utf-8")
+    except OSError as exc:
+        return UNMEASURED, f"исходник моста не прочитан: {type(exc).__name__}: {exc}"
+
+    names, why = _bsd_stages_in_entry(source)
+    if why:
+        return UNMEASURED, why
+
+    declared = observed(vars(bridge), "CENSUS_STAGE", kind=(list, tuple, set))
+    product = observed(vars(bridge), "CENSUS_PRODUCT", kind=dict)
+    if declared is None:
+        return UNMEASURED, "`CENSUS_STAGE` в модуле моста не объявлен — сверять не с чем"
+    if product is None:
+        return UNMEASURED, "`CENSUS_PRODUCT` в модуле моста не объявлен — сверять не с чем"
+
+    run, decl, prod = set(names), set(declared), set(product)
+    problems: list[str] = []
+    if len(names) != len(run):
+        dup = sorted({n for n in names if names.count(n) > 1})
+        problems.append(f"ступень названа в теле дважды: {dup}")
+    if run - decl:
+        problems.append(f"мост ЗАПУСКАЕТ, а `CENSUS_STAGE` не объявляет: "
+                        f"{sorted(run - decl)}")
+    if decl - run:
+        problems.append(f"`CENSUS_STAGE` объявляет, а тело `{_BSD_ENTRY}()` НЕ "
+                        f"запускает: {sorted(decl - run)}")
+    if decl - prod:
+        problems.append(f"объявлено ступенью, а в `CENSUS_PRODUCT` нет: "
+                        f"{sorted(decl - prod)}")
+    if prod - decl:
+        problems.append(f"есть в `CENSUS_PRODUCT`, а ступенью не объявлено: "
+                        f"{sorted(prod - decl)}")
+    if problems:
+        return NOT_SATISFIED, ("состав ступени разошёлся с объявлением: "
+                               + " · ".join(problems))
+    return SATISFIED, (f"три объявления согласны: тело `{_BSD_ENTRY}()` запускает "
+                       f"{len(run)} ступен(ь/и), `CENSUS_STAGE` объявляет столько же, "
+                       f"ключи `CENSUS_PRODUCT` совпадают с ними поимённо; все четыре "
+                       f"разности пусты, дублей нет")
+
+
 PROBES: dict[str, Callable[[str | None], "tuple[str, str]"]] = {
+    "bridge_stage_declaration_agrees":
+        _probe_bridge_stage_declaration_agrees,
     "cockpit_voice_loop_closed": _probe_cockpit_voice_loop,
     "card_claim_measures_the_worker": _probe_card_claim_measures_the_worker,
     "card_claim_absent_worker_reaches_the_verdict":
