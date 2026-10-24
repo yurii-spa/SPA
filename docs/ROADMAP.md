@@ -236,6 +236,8 @@ starting duplicates. Full rationale, increments, acceptance and constraints are 
     evidence-name ambiguity fixed next; first STUDIO-OS-MODELS-01 slice (role-pack) demonstrated. NOT ARB-accepted.
     STUDIO-OS-MODELS-01 increment 2 (c60ad6d6a): provider contract + role configuration (Claude CLI adapter and a test
     adapter, explicit selection, refusals, bounded attempts, reported-only usage); production routing off. NOT ARB-accepted.
+    Increment 3 (ef5ed5f27): memory.answer.ask moved onto the contract (explicit subscription Claude, deadline via
+    claude_run_with_timeout, no reverse import). Increment 2 accepted by ARB as a prepared contract (86d9c662a).
     Handover: `HANDOVER_FOR_ARB_FINAL.md`, `START_HERE.md` in the same folder.
 18. **Later engines:** traditional markets, volatility / options (scope decided inside RM-EXPAND-01)
 

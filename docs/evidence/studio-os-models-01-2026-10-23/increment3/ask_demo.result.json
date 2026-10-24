@@ -1,0 +1,47 @@
+{
+ "question": "Which file is the single canonical roadmap of the company?",
+ "fixture": {
+  "question": "Which file is the single canonical roadmap of the company?",
+  "answer": "docs/ROADMAP.md [fixture — canned, not a model]",
+  "rc": 0,
+  "context_chars": 8877,
+  "assemble_ms": 1208,
+  "answer_s": 0.0,
+  "sufficiency": "SUFFICIENT",
+  "status": "ok",
+  "provider": "fixture_test_adapter",
+  "model": "fixture (not a model)",
+  "attempts": 1,
+  "usage": {
+   "input_tokens": "UNKNOWN",
+   "output_tokens": "UNKNOWN",
+   "cache_creation_input_tokens": "UNKNOWN",
+   "cache_read_input_tokens": "UNKNOWN",
+   "cost_reported_usd": "UNKNOWN",
+   "quota_remaining": "UNKNOWN"
+  },
+  "reason": ""
+ },
+ "claude": {
+  "question": "Which file is the single canonical roadmap of the company?",
+  "answer": "`docs/ROADMAP.md` — единственный канонический roadmap компании (ADR-527) [spa:docs/ROADMAP.md; spa:docs/decisions/ADR-527-memory-and-context-architecture-v1.md].\n\nСам файл объявляет: «This file is THE roadmap», а все прочие `docs/*ROADMAP*.md` — исторические и помечены SUPERSEDED в `architecture/memory_truth.json` [spa:docs/ROADMAP.md]. Это подтверждают статусные факты пакета: `AI1_ROADMAP.md`, `PHASE2_ROADMAP.md`, `ATOMIC_MIGRATION_ROADMAP.md`, `FAMILY_FUND_ROADMAP.md`, `ROADMAP_2MONTH_EISENHOWER.md` — все SUPERSEDED с заменой на `docs/ROADMAP.md`. Иерархия источников в `ARCHITECT_CONTEXT.md` говорит то же: «`docs/ROADMAP.md` is the single roadmap; every other `*ROADMAP*.md` is SUPERSEDED (ADR-527)» [spa:docs/continuity/ARCHITECT_CONTEXT.md], и порядок чтения новой сессии ставит его третьим пунктом как «the single canonical roadmap» [spa:docs/continuity/BOOTSTRAP.md].\n\nВажная оговорка по порядку работы с ним: изменение порядка или добавление верхнеуровневого пункта требует директивы владельца и строки в `docs/decisions/` — roadmap не правится из чата; последнее подтверждение владельцем — 2026-10-01, последняя директива — 2026-10-16 (ADR-763, п. 17) [spa:docs/ROADMAP.md].",
+  "rc": 0,
+  "context_chars": 8877,
+  "assemble_ms": 504,
+  "answer_s": 10.7,
+  "sufficiency": "SUFFICIENT",
+  "status": "ok",
+  "provider": "claude_subscription_cli",
+  "model": "claude-haiku-4-5-20251001,claude-opus-5[1m]",
+  "attempts": 1,
+  "usage": {
+   "input_tokens": 2,
+   "output_tokens": 625,
+   "cache_creation_input_tokens": 49604,
+   "cache_read_input_tokens": 0,
+   "cost_reported_usd": 0.515505,
+   "quota_remaining": "UNKNOWN"
+  },
+  "reason": ""
+ }
+}
