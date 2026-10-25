@@ -160,3 +160,102 @@ def fixture(answers: Mapping[str, Any]) -> Callable[..., AdapterOutput]:
 
 def fixture_from_file(path: Path) -> Callable[..., AdapterOutput]:
     return fixture(json.loads(Path(path).read_text(encoding="utf-8")))
+
+
+# ── ollama_http — local Ollama over HTTP (STUDIO-OS-MODELS-01, probe preparation, ARB 2026-10-25) ──────────
+
+#: Hosts an Ollama endpoint may name. Anything else (a LAN address, a cloud URL) is refused: the probe is
+#: local by decision, and there is no fallback to any other endpoint.
+LOOPBACK_HOSTS = ("127.0.0.1", "::1", "localhost")
+#: Metrics Ollama reports on a finished generate call — kept verbatim in `transport` (never re-derived).
+OLLAMA_METRICS = ("done", "done_reason", "total_duration", "load_duration", "prompt_eval_count",
+                  "prompt_eval_duration", "eval_count", "eval_duration")
+
+
+def check_loopback(endpoint: str) -> Optional[str]:
+    """``None`` — the endpoint is an explicit loopback http URL; otherwise the refusal reason."""
+    from urllib.parse import urlparse
+    if not endpoint:
+        return "no endpoint given — the Ollama endpoint must be named explicitly"
+    u = urlparse(endpoint)
+    if u.scheme != "http" or (u.hostname or "") not in LOOPBACK_HOSTS or not u.port:
+        return "endpoint must be http://<loopback>:<port> — no remote or default endpoint is used"
+    return None
+
+
+def ollama_http(*, endpoint: str, model: str, num_ctx: int = 8192, num_predict: int = 3072,
+                temperature: float = 0.0, think: bool = True, keep_alive: str = "0s",
+                http_post: Optional[Callable[..., Dict[str, Any]]] = None) -> Callable[..., AdapterOutput]:
+    """Adapter for ONE explicit local Ollama endpoint. ``http_post(url, body, timeout_s)`` is injectable.
+
+    * no ``tools`` field is ever sent — the model can only produce text;
+    * the final answer is ``response``; ``thinking`` is NEVER promoted to the answer;
+    * an empty ``response`` after ``done_reason=length`` is ``malformed`` with reason ``budget_exhausted`` —
+      the budget was spent, which says nothing about the model's fitness (ADR-423 lesson);
+    * ``eval_count`` is Ollama's TOTAL generated-token count (thinking and answer together); separate token
+      counts for the two parts are not reported by the transport and are not invented — only their
+      character lengths are recorded;
+    * a timeout is ``ownership_unresolved``: the HTTP client cannot prove the server stopped generating, so
+      the contract does not retry it.
+    """
+    refusal = check_loopback(endpoint)
+    post = http_post or _urllib_post_json
+
+    def run(req: Request, *, timeout_s: float, tools: Sequence[str]) -> AdapterOutput:
+        if refusal:
+            return AdapterOutput("error", detail=refusal)
+        if list(tools):
+            return AdapterOutput("error", detail=f"tools requested {list(tools)}; ollama_http sends none")
+        body = {"model": model, "prompt": render_prompt(req), "stream": False, "think": bool(think),
+                "keep_alive": keep_alive,
+                "options": {"num_ctx": int(num_ctx), "num_predict": int(num_predict),
+                            "temperature": float(temperature)}}
+        try:
+            doc = post(endpoint.rstrip("/") + "/api/generate", body, timeout_s)
+        except TimeoutError:
+            return AdapterOutput("ownership_unresolved",
+                                 detail=f"no answer within {timeout_s:g} s; the HTTP client cannot confirm the "
+                                        f"server stopped generating — not retried")
+        except Exception as exc:  # noqa: BLE001 — transport failure is an error result, never a crash
+            return AdapterOutput("error", detail=f"ollama transport: {type(exc).__name__}: {str(exc)[:200]}")
+        if not isinstance(doc, dict):
+            return AdapterOutput("malformed", detail="ollama answer is not a JSON object")
+        if doc.get("error"):
+            return AdapterOutput("error", detail=f"ollama error: {str(doc.get('error'))[:200]}")
+        response = doc.get("response") if isinstance(doc.get("response"), str) else ""
+        thinking = doc.get("thinking") if isinstance(doc.get("thinking"), str) else ""
+        transport = {k: doc.get(k) for k in OLLAMA_METRICS if k in doc}
+        transport.update({"response_chars": len(response), "thinking_chars": len(thinking),
+                          "eval_count_counts": "thinking + response together (not split by the transport)",
+                          "endpoint": endpoint, "think": bool(think), "num_predict": int(num_predict),
+                          "num_ctx": int(num_ctx)})
+        usage = {"input_tokens": doc.get("prompt_eval_count"), "output_tokens": doc.get("eval_count")}
+        reported_model = doc.get("model") if isinstance(doc.get("model"), str) else model
+        if not response.strip():
+            why = ("budget_exhausted: done_reason=length, empty response "
+                   f"(thinking {len(thinking)} chars) — not evidence the model is unfit"
+                   if doc.get("done_reason") == "length" else
+                   f"empty response (done_reason={doc.get('done_reason')!r})")
+            return AdapterOutput("malformed", model=reported_model, usage=usage, detail=why, transport=transport)
+        return AdapterOutput("ok", text=response, model=reported_model, usage=usage,
+                             detail=f"done_reason={doc.get('done_reason')}", transport=transport)
+
+    return run
+
+
+def _urllib_post_json(url: str, body: Dict[str, Any], timeout_s: float) -> Dict[str, Any]:
+    import socket
+    import urllib.request
+    req = urllib.request.Request(url, data=json.dumps(body).encode("utf-8"),
+                                 headers={"Content-Type": "application/json"}, method="POST")
+    # no proxy: a loopback call never leaves the machine through an environment proxy
+    opener = urllib.request.build_opener(urllib.request.ProxyHandler({}))
+    try:
+        with opener.open(req, timeout=timeout_s) as resp:
+            return json.loads(resp.read().decode("utf-8"))
+    except socket.timeout as exc:
+        raise TimeoutError(str(exc)) from exc
+    except OSError as exc:
+        if "timed out" in str(exc):
+            raise TimeoutError(str(exc)) from exc
+        raise

@@ -5,18 +5,28 @@
   "roles": {
     "architect": {
       "description": "architecture review / acceptance on a context pack; answers in text",
-      "permissions": ["read_context_pack", "answer_text"],
+      "permissions": [
+        "read_context_pack",
+        "answer_text"
+      ],
       "tools": [],
-      "requires": ["text"],
+      "requires": [
+        "text"
+      ],
       "max_context_chars": 60000,
       "deadline_s": 300,
       "max_attempts": 2
     },
     "worker": {
       "description": "implementation worker — through THIS contract only a text answer on a context pack; code changes stay outside the contract",
-      "permissions": ["read_context_pack", "answer_text"],
+      "permissions": [
+        "read_context_pack",
+        "answer_text"
+      ],
       "tools": [],
-      "requires": ["text"],
+      "requires": [
+        "text"
+      ],
       "max_context_chars": 60000,
       "deadline_s": 300,
       "max_attempts": 2
@@ -27,17 +37,39 @@
       "kind": "claude_cli",
       "real_provider": true,
       "description": "existing approved seam: the local Claude Code CLI on the owner's subscription (`claude -p`, tools disabled, no MCP), as in spa_core/studio_os/memory/answer.py",
-      "capabilities": ["text"],
+      "capabilities": [
+        "text"
+      ],
       "max_context_chars": 150000,
-      "qualified_roles": ["architect", "worker"]
+      "qualified_roles": [
+        "architect",
+        "worker"
+      ]
     },
     "fixture_test_adapter": {
       "kind": "fixture",
       "real_provider": false,
       "description": "TEST adapter: deterministic canned answers from a fixture file; exercises the same contract; it is NOT a second provider and never production",
-      "capabilities": ["text"],
+      "capabilities": [
+        "text"
+      ],
       "max_context_chars": 200000,
-      "qualified_roles": ["architect", "worker"]
+      "qualified_roles": [
+        "architect",
+        "worker"
+      ]
+    },
+    "ollama_local": {
+      "kind": "ollama_http",
+      "real_provider": true,
+      "description": "local Ollama over HTTP on an EXPLICIT loopback endpoint (no default, no cloud, no fallback); no tools sent. Prepared for ONE bounded probe (ARB 2026-10-25). NOT qualified for any role: qualified_roles is empty until a probe is evaluated; the probe runs under a temporary role provider_probe in a temporary configuration.",
+      "model": "qwen3.5:4b",
+      "endpoint": null,
+      "capabilities": [
+        "text"
+      ],
+      "max_context_chars": 8000,
+      "qualified_roles": []
     }
   },
   "assignments": {

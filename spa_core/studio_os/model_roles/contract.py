@@ -69,6 +69,9 @@ class AdapterOutput:
     model: str = UNKNOWN
     usage: Dict[str, Any] = field(default_factory=dict)
     detail: str = ""
+    #: Raw transport metrics as REPORTED (e.g. Ollama done_reason, eval_count, durations, thinking/response
+    #: lengths). Kept verbatim next to `usage` — `_usage` keeps only its fixed keys (ARB 25.10).
+    transport: Dict[str, Any] = field(default_factory=dict)
 
 
 @dataclass
@@ -89,6 +92,7 @@ class Result:
     attempt_log: List[Dict[str, Any]]
     reason: str
     context_sha256: str
+    transport: Dict[str, Any] = field(default_factory=dict)
 
     def to_dict(self) -> Dict[str, Any]:
         return asdict(self)
@@ -176,7 +180,8 @@ def execute(req: Request, *, config: Mapping[str, Any], provider_id: Optional[st
         if out.status not in STATUSES or out.status == "refused":
             out = AdapterOutput("error", detail=f"adapter returned status {out.status!r}")
         if out.status == "ok" and not out.text.strip():
-            out = AdapterOutput("malformed", detail="empty answer", model=out.model, usage=out.usage)
+            out = AdapterOutput("malformed", detail="empty answer", model=out.model, usage=out.usage,
+                                transport=out.transport)
         log.append({"attempt": n, "status": out.status, "elapsed_s": round(clock() - a0, 3),
                     "detail": out.detail[:300]})
         if out.status not in _RETRYABLE:
@@ -185,4 +190,5 @@ def execute(req: Request, *, config: Mapping[str, Any], provider_id: Optional[st
                   list(role.get("permissions") or []), list(role.get("tools") or []),
                   out.text if out.status == "ok" else "", out.model or UNKNOWN, len(log),
                   round(clock() - t0, 3), _usage(out.usage), log,
-                  "" if out.status == "ok" else (out.detail or out.status), req.context_sha256)
+                  "" if out.status == "ok" else (out.detail or out.status), req.context_sha256,
+                  dict(out.transport or {}))
