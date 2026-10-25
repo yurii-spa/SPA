@@ -1,0 +1,64 @@
+{
+ "title": "ADR-811 — дельта цикла #934: мера критерия §49 `Architecture` получила ЗВАВШЕГО и ОБЪЯВЛЕНИЕ. Каждая мутация возвращает состояние, в котором писатель снова остаётся без вызова, артефакт — без объявления, а сторож класса «пишет ⇒ обязан объявить» перестаёт находить: запись не доходит до диска · запись мимо переданного дерева · вход засчитан продуктом · находка невозможна · вторая запись конституции не читается · проза сошла за зов писателя · завёрнутая цель не найдена · неразобранный модуль пропал молча · привязка расстроена прозой",
+ "tests": [
+  "spa_core/tests/test_census_writer_is_declared.py",
+  "spa_core/tests/test_s49_every_criterion_is_bound.py",
+  "spa_core/tests/test_cio_decision_owner_census.py"
+ ],
+ "mutations": [
+  {
+   "name": "запись не доходит до диска: ступень моста зовёт прибор, печатает бодрую строку, а меры критерия на диске нет — дословное состояние до ADR-811",
+   "file": "spa_core/monitoring/cio_decision_owner_census.py",
+   "old": "    if write:\n        from spa_core.utils.atomic import atomic_save",
+   "new": "    if False:\n        from spa_core.utils.atomic import atomic_save"
+  },
+  {
+   "name": "запись уезжает в дерево МОДУЛЯ, а не в переданное: прогон из одноразового дерева пишет в боевое",
+   "file": "spa_core/monitoring/cio_decision_owner_census.py",
+   "old": "        atomic_save(report, os.path.join(root, REPORT_REL))",
+   "new": "        atomic_save(report, os.path.join(REPO_ROOT, REPORT_REL))"
+  },
+  {
+   "name": "ВХОД засчитан продуктом: возвращаются десять ложных находок грубой редакции мерки — от модуля требуют объявить своим продуктом чужой файл",
+   "file": "spa_core/tests/test_census_writer_is_declared.py",
+   "old": "            if constant not in writes:\n                continue  # ВХОД, а не продукт — не предмет этого сторожа",
+   "new": "            if False:\n                continue  # ВХОД, а не продукт — не предмет этого сторожа"
+  },
+  {
+   "name": "находка невозможна: любой писатель объявляется объявленным, и сторож зелен всегда",
+   "file": "spa_core/tests/test_census_writer_is_declared.py",
+   "old": "                \"outcome\": DECLARED if artifact in declared else UNDECLARED,",
+   "new": "                \"outcome\": DECLARED,"
+  },
+  {
+   "name": "вторая запись конституции не читается: объявление со стороны БЕГУНА перестаёт быть объявлением",
+   "file": "spa_core/tests/test_census_writer_is_declared.py",
+   "old": "    for agent in manifest.get(\"agents\", []):\n        for produced in agent.get(\"produces\", []) or []:\n            if produced.get(\"artifact\"):\n                declared.add(produced[\"artifact\"])",
+   "new": "    for agent in []:\n        for produced in agent.get(\"produces\", []) or []:\n            if produced.get(\"artifact\"):\n                declared.add(produced[\"artifact\"])"
+  },
+  {
+   "name": "проза сошла за зов писателя: подстрока покупает вердикт (запрет ADR-333), и читающий модуль объявляется пишущим",
+   "file": "spa_core/tests/test_census_writer_is_declared.py",
+   "old": "        if name not in WRITER_NAMES:\n            continue",
+   "new": "        if False:\n            continue"
+  },
+  {
+   "name": "завёрнутая цель не найдена: atomic_save(doc, os.path.join(root, REPORT_REL)) перестаёт быть записью — настоящие писатели исчезают из населения",
+   "file": "spa_core/tests/test_census_writer_is_declared.py",
+   "old": "            for inner in ast.walk(arg):\n                if isinstance(inner, ast.Name):\n                    reached.add(inner.id)",
+   "new": "            if isinstance(arg, ast.Name):\n                reached.add(arg.id)"
+  },
+  {
+   "name": "неразобранный модуль пропадает МОЛЧА: третий исход слит с «не пишет» (инв. #17)",
+   "file": "spa_core/tests/test_census_writer_is_declared.py",
+   "old": "            rows.append({\"module\": rel, \"constant\": None, \"artifact\": None,\n                         \"outcome\": UNMEASURED,\n                         \"why\": f\"{type(exc).__name__}: {exc}\"})\n            continue",
+   "new": "            continue"
+  },
+  {
+   "name": "привязка расстроена прозой: `Architecture` снова unbound, а запись в манифесте выглядит сделанной — ошибка первой редакции заметки ADR-811",
+   "file": "architecture/manifest.json",
+   "old": "\"§49 `Architecture` приказа владельца «Portfolio CIO», ADR-811",
+   "new": "\"Критерий §49 ТЗ «Portfolio CIO» дословно — `Architecture`, ADR-811"
+  }
+ ]
+}

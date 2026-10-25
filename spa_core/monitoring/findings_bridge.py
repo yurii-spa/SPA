@@ -65,6 +65,16 @@ PRODUCES = (
     # производителя не проверяется вовсе — паритет манифест↔код и есть предмет
     # проверки `architecture_conformance`.
     "data/cio_target_producers.json",
+    # Объявлено ВМЕСТЕ с вызовом (цикл #934, ADR-811) — и это ЗЕРКАЛЬНЫЙ случай
+    # к двум соседним комментариям ниже. У них артефакт был ОБЪЯВЛЕН (манифест,
+    # читатель офиса) и не было вызова; сторож `test_declared_producer_is_reachable`
+    # написан ровно на эту сторону: «объявлен ⇒ обязан быть достижим». Здесь всё
+    # наоборот: модуль `cio_decision_owner_census` ПИСАЛ свой артефакт (REPORT_REL
+    # + atomic_save) и не был объявлен НИГДЕ — ни в манифесте, ни здесь, ни в карте
+    # ступеней. Население такого сторожа есть множество ОБЪЯВЛЕННЫХ путей, поэтому
+    # необъявленный писатель ему невидим ПО ПОСТРОЕНИЮ, и 27 дней (с #713) мера
+    # критерия §49 `Architecture` не появлялась в живом `data/` ни разу.
+    "data/cio_decision_owner.json",
     "data/cio_architecture_constraints.json",
     "data/cio_component_map.json",
     "data/cio_policy_change_procedure.json",
@@ -485,6 +495,7 @@ CENSUS_STAGE: tuple[str, ...] = (
     "cio_kill_switch_controls",
     "cio_auto_execution_limits",
     "cio_target_producers",
+    "cio_decision_owner_census",
     "cio_architecture_constraints",
     "cio_component_map",
     "cio_policy_change_procedure",
@@ -667,6 +678,13 @@ CENSUS_PRODUCT: dict[str, dict[str, str]] = {
     "cio_target_producers": {
         "module": "spa_core/monitoring/cio_target_producers.py",
         "artifact": "data/cio_target_producers.json"},
+    # Имя ступени и имя артефакта здесь РАСХОДЯТСЯ намеренно (модуль
+    # `cio_decision_owner_census.py`, продукт `data/cio_decision_owner.json`):
+    # объявление и существует для того, чтобы выведенное имя не подставлялось
+    # вместо объявленного (повод — fail-OPEN, названный выше).
+    "cio_decision_owner_census": {
+        "module": "spa_core/monitoring/cio_decision_owner_census.py",
+        "artifact": "data/cio_decision_owner.json"},
     "cio_architecture_constraints": {
         "module": "spa_core/monitoring/cio_architecture_constraints.py",
         "artifact": "data/cio_architecture_constraints.json"},
@@ -2556,6 +2574,41 @@ def main(argv=None) -> int:
                   f"{len(silent)})")
     except Exception as e:  # noqa: BLE001 — замер не смеет валить мост
         census_skipped(_skipped, "cio_target_producers", e)
+    # §49 ТЗ CIO `Architecture`: «Portfolio-level decision owner существует» —
+    # мера ЭТОГО критерия, и до ADR-811 её не звал никто. Прибор доставлен #713
+    # (ADR-490) вместе с объявлением `REPORT_REL`, но писал он только из своего
+    # CLI: ни одна из 115 ступеней моста модуль не называла, артефакта не было
+    # ни в живом `data/`, ни в манифесте, и сводка §49 честно докладывала
+    # `unbound` — «мерой этого критерия не объявлен НИ ОДИН артефакт
+    # конституции, такт его входа взять неоткуда». Это был ПОСЛЕДНИЙ `unbound`
+    # из тринадцати.
+    #
+    # Такта у ступени нет намеренно — как у семнадцати соседей выше: срок
+    # решает не файл, а период самого бегуна (`com.spa.decision_loop`,
+    # `interval:21600s`), и объявленный `slo_hours` артефакта (7) есть этот
+    # период плюс запас, а не выбранное число. Цена прогона ИЗМЕРЕНА — 22,2 с
+    # на живом `data/` 25.10 (в семье: сводка §49 стои́т 61–76 с), и при такте
+    # в шесть часов это доли процента.
+    #
+    # Мост находок вердикт НЕ читает — по той же причине, что у соседей:
+    # завести portfolio-level владельца решения значит переложить капитал между
+    # книгами, то есть money-path и решение владельца, а не строка
+    # автокарточки. Потребитель — шаг 0-офис.
+    try:
+        from spa_core.monitoring import cio_decision_owner_census
+        prep = cio_decision_owner_census.run(root=args.root)
+        if not prep.get("measured"):
+            print(f"cio_decision_owner_census: НЕ ИЗМЕРЕНО "
+                  f"({prep.get('reason')}) — это не «владелец решения есть»")
+        else:
+            print(f"cio_decision_owner_census: {prep['verdict']} "
+                  f"(самое широкое решение покрывает "
+                  f"{prep['widest_share'] * 100:.2f}% капитала "
+                  f"${prep['total_capital_usd']:,.2f}, книг "
+                  f"{len(prep['books'])}, межкнижных решателей "
+                  f"{len(prep['cross_book_deciders'])})")
+    except Exception as e:  # noqa: BLE001 — замер §49 не смеет валить мост
+        census_skipped(_skipped, "cio_decision_owner_census", e)
     # §45 ТЗ CIO «Architecture constraints»: не совмещены ли в ОДНОМ модуле
     # пять названных владельцем ответственностей (рынок · APY · gas · risk
     # decision · подпись) и не стал ли LLM финансовым control layer. Мост

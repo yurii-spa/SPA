@@ -335,3 +335,91 @@ def test_unreadable_ref_copy_is_not_reported_as_clean(tmp_path):
         _ORDER, tracker_dir=str(tracker), repo_root=str(tmp_path))
     assert verdict == ca.UNMEASURED, detail
     assert "не прочитана" in detail
+
+
+# ---------------------------------------------------------------------------
+# ADR-811: запись артефакта живёт в ОДНОЙ двери, и дверь эта ДЕЙСТВИТЕЛЬНО пишет
+# ---------------------------------------------------------------------------
+#
+# До ADR-811 запись жила только внутри `_main`, то есть артефакт появлялся ровно
+# тогда, когда модуль звали РУКОЙ. Звавшего не было ни одного (0 из 115 ступеней
+# моста), файл не появился в живом `data/` ни разу за 27 дней, и критерий §49
+# `Architecture` оставался единственным, у которого такт входа взять неоткуда.
+#
+# Проводка без этих сцен была бы утверждением о себе: ступень моста ЗОВЁТ `run`,
+# и если `run` перестанет писать (или начнёт писать мимо `root`), мост продолжит
+# печатать бодрую строку, а артефакта снова не будет. Мутация `if write:` →
+# `if False:` обязана краснеть — иначе дыра покрытия ровно в том месте, которое
+# этот ADR и чинит.
+
+def _scene_root(tmp_path):
+    """Дерево и каталог данных — ВХОДЫ: живое `data/` здесь не трогается."""
+    root = tmp_path / "tree"
+    (root / "data").mkdir(parents=True)
+    return root
+
+
+def test_run_actually_leaves_the_artifact_on_disk(tmp_path):
+    from spa_core.monitoring import cio_decision_owner_census as census
+
+    root = _scene_root(tmp_path)
+    target = root / census.REPORT_REL
+    assert not target.exists(), "сцена нечиста: артефакт уже лежит"
+
+    report = census.run(str(root), data_dir=str(root / "data"))
+
+    assert target.exists(), (
+        "`run` не оставила артефакта — ровно состояние до ADR-811, когда ступень "
+        "моста звала бы прибор, а меры критерия на диске не появлялось")
+    on_disk = json.loads(target.read_text(encoding="utf-8"))
+    assert on_disk.get("verdict") == report.get("verdict"), (
+        "на диске лежит НЕ тот отчёт, который вернула функция — сверить вердикт "
+        "ступени с артефактом стало бы невозможно")
+
+
+def test_write_false_measures_without_leaving_a_trace(tmp_path):
+    """Обратная сторона: иначе `write` ничего не значит и параметр декоративен."""
+    from spa_core.monitoring import cio_decision_owner_census as census
+
+    root = _scene_root(tmp_path)
+    census.run(str(root), data_dir=str(root / "data"), write=False)
+    assert not (root / census.REPORT_REL).exists(), (
+        "`write=False` всё равно записал — у `--no-write` и у тестов нет способа "
+        "снять замер без следа")
+
+
+def test_the_artifact_goes_to_the_GIVEN_root_not_to_the_module_default(tmp_path):
+    """`REPO_ROOT` — дефолт, а не адрес: иначе прогон в дереве писал бы в прод."""
+    from spa_core.monitoring import cio_decision_owner_census as census
+
+    root = _scene_root(tmp_path)
+    census.run(str(root), data_dir=str(root / "data"))
+    assert (root / census.REPORT_REL).exists()
+    assert not (pathlib.Path(census.REPO_ROOT) / census.REPORT_REL).exists() \
+        or pathlib.Path(census.REPO_ROOT) != root, (
+        "артефакт уехал в дерево модуля, а не в переданное — прогон из "
+        "одноразового дерева писал бы в боевое")
+
+
+def test_main_has_no_second_write_site(tmp_path):
+    """Одно имя — один объект (ADR-220): второй `atomic_save` разошёлся бы молча.
+
+    Мерка — разбор AST, а не подстрока: предмет здесь ЧИСЛО мест записи.
+    """
+    import ast
+
+    source = pathlib.Path(census_module_path()).read_text(encoding="utf-8")
+    tree = ast.parse(source)
+    writes = [node for node in ast.walk(tree)
+              if isinstance(node, ast.Call)
+              and (getattr(node.func, "attr", None)
+                   or getattr(node.func, "id", None)) == "atomic_save"]
+    assert len(writes) == 1, (
+        f"зовов `atomic_save` в модуле {len(writes)}, а не один — у артефакта "
+        f"снова два писателя, и сличить их отчёты нечем")
+
+
+def census_module_path():
+    from spa_core.monitoring import cio_decision_owner_census as census
+
+    return census.__file__

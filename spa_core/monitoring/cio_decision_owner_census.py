@@ -404,6 +404,34 @@ def _lines(report: dict) -> list[str]:
     return out
 
 
+def run(root: str = REPO_ROOT, *, data_dir: str | None = None,
+        write: bool = True, now: "datetime | None" = None) -> dict:
+    """Снять замер И ОСТАВИТЬ ЕГО АРТЕФАКТОМ — единственная дверь к записи.
+
+    Форма повторяет соседей по мосту (`cio_target_producers.run`) намеренно: до
+    ADR-811 запись жила ТОЛЬКО внутри `_main`, то есть появлялась ровно тогда,
+    когда модуль звали РУКОЙ из оболочки. Звавшего не было ни одного — ни одна
+    из 115 ступеней моста находок этот модуль не называла, — поэтому артефакт
+    `data/cio_decision_owner.json` не появился в живом ``data/`` ни разу за 27
+    дней с доставки прибора (#713), и критерий §49 `Architecture` оставался
+    единственным, у которого такт входа **взять неоткуда**.
+
+    Писать из ОДНОГО места существенно: второй `atomic_save` того же пути
+    разошёлся бы с первым молча (класс ADR-220, «одно имя — один объект»), а
+    ступень моста и CLI писали бы отчёты, которые невозможно сличить. Поэтому
+    `_main` зовёт эту же функцию, а своей копии записи у него больше нет.
+
+    ``write=False`` — для тестов и для `--no-write`: замер без следа на диске.
+    Часы и каталоги остаются ВХОДАМИ (`.claude/rules/deployment.md`).
+    """
+    report = run_census(data_dir or os.path.join(root, "data"),
+                        repo_root=root, now=now)
+    if write:
+        from spa_core.utils.atomic import atomic_save
+        atomic_save(report, os.path.join(root, REPORT_REL))
+    return report
+
+
 def _main(argv: list[str] | None = None) -> int:
     ap = argparse.ArgumentParser(description=__doc__.splitlines()[0])
     ap.add_argument("--data-dir", default=os.path.join(REPO_ROOT, "data"))
@@ -411,12 +439,10 @@ def _main(argv: list[str] | None = None) -> int:
     ap.add_argument("--no-write", action="store_true")
     args = ap.parse_args(argv)
 
-    report = run_census(args.data_dir, repo_root=args.repo_root)
+    report = run(args.repo_root, data_dir=args.data_dir,
+                 write=not args.no_write)
     for line in _lines(report):
         print(line)
-    if not args.no_write:
-        from spa_core.utils.atomic import atomic_save
-        atomic_save(report, os.path.join(args.repo_root, REPORT_REL))
     if not report.get("measured"):
         return 2
     return 1 if report["verdict"] == PER_BOOK_ONLY else 0
