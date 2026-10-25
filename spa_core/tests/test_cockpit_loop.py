@@ -257,6 +257,39 @@ def test_in_progress_without_a_probe_is_not_accepted_with_reason(scene):
     assert row["state_kind"] == "not_accepted" and row["reason"] and row["next_step"]
 
 
+# ── уведомление называет состояние ТЕМИ ЖЕ словами, что пульт (дефект 25.10) ──────────────────────────
+def _head(text):
+    return text.split("»", 1)[1].split(";", 1)[0].strip(" —")
+
+
+def test_notice_names_the_same_state_as_the_cockpit_row(scene):
+    """До правки уведомление говорило «в работе» о любой непринятой записи — и о той, которую никто не
+    брал (пульт: «не взято в работу»), и об остановленной (пульт: «остановлено»)."""
+    new = _submit(scene, sid="cockpitloop-0101")
+    _intake(scene)
+    scene.sent.clear()
+    cl.record_no_probe(new, "проба не объявлена", next_step="объявить пробу", now=NOW,
+                       outbox_path=scene.obox, notify=scene.notify)
+    row, _ = _row(scene, new)
+    assert row["state"].startswith("не взято в работу") and _head(scene.sent[-1]) == "не взята в работу"
+
+    work = _taken(scene)
+    scene.sent.clear()
+    _close(scene, work, ca.NOT_SATISFIED)
+    row, _ = _row(scene, work)
+    assert row["state"].startswith("в работе") and _head(scene.sent[-1]) == "в работе"
+
+    stopped = _submit(scene, sid="cockpitloop-0102")
+    cl.take_card(stopped, SPEC, executor="executor-a", claim=scene.claim)
+    scene.sent.clear()
+    cl.report_failure(stopped, "тест упал", next_step="починить", now=NOW, outbox_path=scene.obox,
+                      notify=scene.notify)
+    row, _ = _row(scene, stopped)
+    assert row["state"].startswith("остановлено") and _head(scene.sent[-1]) == "остановлена"
+    for text in scene.sent:
+        assert "ещё не принята" in text and "Следующий шаг" in text
+
+
 # ── падение на границах и семантика доставки ────────────────────────────────────────────────────────
 def test_crash_after_done_before_notice_is_recovered_by_the_next_intake_run(scene, monkeypatch):
     card = _taken(scene)

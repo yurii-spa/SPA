@@ -218,9 +218,21 @@ def done_notice_text(title: str, probe: str, verified_at: str, label: str = "З�
             f"<code>{html.escape(probe)}</code> ({html.escape(_madrid(verified_at))})")
 
 
+def notice_head(kind: str, status: Optional[str]) -> str:
+    """Состояние записи в уведомлении — ТЕМИ ЖЕ словами, что в пульте (``owner_view._record_outcome``):
+    никем не взятая запись — «не взята в работу», остановленная — «остановлена», иначе «в работе».
+    ``executor_failed`` — остановка (статус ``blocked`` ставится сразу после уведомления)."""
+    st = str(status or "").strip()
+    if kind == "executor_failed" or st == "blocked":
+        return "остановлена"
+    if st == "new":
+        return "не взята в работу"
+    return "в работе"
+
+
 def not_accepted_notice_text(title: str, reason: str, next_step: str,
-                             label: str = "Запись (автор не установлен)") -> str:
-    return (f"🔧 {html.escape(label)} «{html.escape(title)}» — в работе, но ещё не принята: "
+                             label: str = "Запись (автор не установлен)", head: str = "в работе") -> str:
+    return (f"🔧 {html.escape(label)} «{html.escape(title)}» — {html.escape(head)}; ещё не принята: "
             f"{html.escape(reason)}. Следующий шаг: {html.escape(next_step)}.")
 
 
@@ -257,7 +269,8 @@ def _record_not_accepted(path: Path, kind: str, detail: str, now: datetime, outb
     if not is_cockpit(fm) or str(fm.get("owner_notice") or "") == state:
         return False
     intake._outbox_put(f"{path.name}#{EVENT_NOT_ACCEPTED}",
-                       not_accepted_notice_text(str(fm.get("title") or path.stem), reason, nxt, record_label(fm)), now,
+                       not_accepted_notice_text(str(fm.get("title") or path.stem), reason, nxt, record_label(fm),
+                                                notice_head(kind, fm.get("status"))), now,
                        outbox_path)
     _set_fields(path, {"owner_notice": state, "owner_notice_at": _ts(now)})
     return True
