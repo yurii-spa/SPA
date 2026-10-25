@@ -229,9 +229,15 @@ _READ_SCHEMA: dict[str, tuple[str, ...]] = {
     # читалось как «повода нет», хотя все пять проверок отвечали из пустоты.
     "rebalance_trigger.json": ("should_rebalance", "triggered", "unmeasured",
                                "verdict", "checks", "checked_at"),
+    # ADR-806. `closure_drift.tracker` объявлен ОТДЕЛЬНЫМ ключом рядом с
+    # `closure_drift`: оси у них разные (журнал моста против знаменателя
+    # очереди), и замер #929 — 0 находок по первой при 41 по второй. Отсутствие
+    # ключа — вопрос объявленной схемы, а не своей строки читателя: своя строка
+    # краснела бы на здоровом контуре каждый цикл до следующего такта
+    # производителя (ложная тревога, снятая #248).
     "loop_health.json": ("open_cards", "recurrences_total", "cards_fate",
                          "latency_finding_to_card", "latency_card_to_close",
-                         "note", "closure_drift"),
+                         "note", "closure_drift", "closure_drift.tracker"),
     "code_sync_status.json": ("timestamp", "result", "detail", "origin_main",
                              "files_changed", "retired_instructions", "retired_code"),
     "adapter_feed_divergence.json": ("overall", "counts.critical", "counts.warn",
@@ -4962,6 +4968,48 @@ def _summarize_json(path: str, data, *, now: dt.datetime | None = None,
                        f"({str(drift.get('ref_sha') or _UNMEASURED)[:9]}): "
                        f"{_num(drift, 'checked')} закрыт(ых), сошлось "
                        f"{_num(drift, 'agreed')}{tail}")
+        # Вторая ось того же предмета — ЗНАМЕНАТЕЛЬ (ADR-806, цикл #929). Строка
+        # отдельная и печатается ВСЕГДА, в том числе когда ось журнала выше
+        # зелена: замер #929 — 0 находок по журналу при 41 по знаменателю, и
+        # пересечение осей ПУСТО. Прочитать зелень журнала как ответ про очередь
+        # и есть та подмена, ради которой ось заведена.
+        #
+        # Отсутствие блока эта ветка НЕ комментирует СОЗНАТЕЛЬНО — по той же
+        # причине, что и родительский блок выше: на него отвечает объявленная
+        # схема (`_READ_SCHEMA` + `_PRODUCER`), и отвечает точнее, различая
+        # «производитель ключа не пишет» и «артефакт произведён РАНЬШЕ доставки
+        # ключа». Своя строка здесь означала бы красное на здоровом контуре в
+        # каждый цикл до следующего такта производителя — ровно та ложная
+        # тревога, которую сняли в #248 (её и поймали два теста при первой
+        # редакции этой правки).
+        tracker = (drift or {}).get("tracker") if isinstance(drift, dict) else None
+        if not isinstance(tracker, dict):
+            pass
+        elif tracker.get("verdict") == "unmeasured":
+            out.append(f"   ⚠️ знаменатель закрытий {_UNMEASURED}: "
+                       f"{tracker.get('unmeasured_reason')}")
+        elif tracker.get("open_on_ref"):
+            rows = tracker["open_on_ref"]
+            out.append(f"   🔴 ЗАКРЫТО В ДЕРЕВЕ, ОТКРЫТО НА origin/main: "
+                       f"{len(rows)} карточк(и) — очередь предъявляет циклам работу, "
+                       f"снятую ранее; закрывал НЕ ТОЛЬКО мост, поэтому ось журнала "
+                       f"выше о них молчит (сверено с "
+                       f"{str(tracker.get('ref_sha'))[:9]}, знаменатель "
+                       f"{_num(tracker, 'checked')})")
+            for row in rows[:4]:
+                out.append(f"      - {row.get('card_id')}: в дереве "
+                           f"`{row.get('tree_status')}`, на origin "
+                           f"`{row.get('ref_status')}`")
+            if len(rows) > 4:
+                out.append(f"      … и ещё {len(rows) - 4} (полный список — "
+                           f"`python3 -m spa_core.monitoring.bridge_closure_drift`)")
+        else:
+            unread = len(tracker.get("unreadable") or [])
+            out.append(f"   знаменатель закрытий сверен с origin/main "
+                       f"({str(tracker.get('ref_sha') or _UNMEASURED)[:9]}): "
+                       f"{_num(tracker, 'checked')} терминальных в дереве, сошлось "
+                       f"{_num(tracker, 'agreed')}"
+                       + (f" · без разбираемого status: {unread}" if unread else ""))
     elif name == "owner_decision_pending.json":
         out.append(f"   статус: {data.get('status')}")
         if data.get("reason"):

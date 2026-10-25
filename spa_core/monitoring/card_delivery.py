@@ -105,6 +105,7 @@ import os
 import re
 import subprocess
 import sys
+from pathlib import Path
 
 from spa_core.monitoring.architecture_conformance import REPO_ROOT
 
@@ -1084,10 +1085,38 @@ def _card_status(path: str):
         return None
 
 
+def _ref_statuses_via_origin_view(root: str, card_ids: set, ref: str) -> dict:
+    """``{card_id: статус на ref}`` для НАЗВАННЫХ карточек. Бросает при неудаче.
+
+    Берём уже существующий батч-читатель (`origin_view.cards_by_id`: один
+    `ls-tree` + чтение блобов, замер #929 — 0.21 с на 671 карточку), а не свой
+    `git show` на карточку: 643 процесса ради того же ответа. Импорт отложен
+    внутрь по той же причине, что и в `bridge_closure_drift`: сторож обязан
+    импортироваться там, где очереди нет вовсе.
+    """
+    from spa_core.owner_queue.origin_view import cards_by_id
+
+    cards, _sha = cards_by_id(Path(os.path.join(root, TRACKER_REL)), card_ids, ref=ref)
+    return {cid: (c.status or "").strip().lower() for cid, c in cards.items()}
+
+
 def orphan_candidates(root: str = REPO_ROOT, *, ref: str = ORPHAN_REF,
                       limit: int = ORPHAN_LIMIT, fetch: bool = True,
-                      git=_git) -> dict:
-    """Карточки дерева, которых на ``ref`` нет ВООБЩЕ и которые не закрыты.
+                      git=_git, ref_statuses=_ref_statuses_via_origin_view) -> dict:
+    """Карточки дерева, чья РАБОТА на ``ref`` не доехала — по двум осям.
+
+    **РОЖДЕНИЕ** (замер #899): карточки нет на ``ref`` ВООБЩЕ и она не закрыта.
+    **ЗАКРЫТИЕ** (замер #929, ADR-806): карточка на ``ref`` ЕСТЬ, в дереве она
+    ЗАКРЫТА, а на ``ref`` всё ещё открыта — 41 такая карточка морила очередь, и
+    старейшему закрытию было 54.5 суток. Ведра отдельные (``candidates`` против
+    ``closed_here_open_on_ref``), пачка общая: судьба у них одна (везти), а
+    утверждения РАЗНЫЕ, и схлопнуть их значило бы потерять ответ на вопрос
+    «что именно не доехало — файл или его статус».
+
+    Обычное ОБНОВЛЕНИЕ карточки предметом НЕ является ни по одной оси: его
+    судьба — дело переноса (:func:`plan_batch`). Обратное направление
+    («на ``ref`` закрыто, в дереве открыто») — тоже: прод-копия отстаёт от
+    origin по построению, и замер #928 дал 17 таких карточек, все ЛОЖНЫЕ.
 
     Три исхода различимы (инвариант #17): измерено и пусто · измерено и есть
     находки · **НЕ ИЗМЕРЕНО** с названной причиной. «Не измерено» НИКОГДА не
@@ -1104,7 +1133,12 @@ def orphan_candidates(root: str = REPO_ROOT, *, ref: str = ORPHAN_REF,
     """
     out = {"status": ORPHAN_UNMEASURED, "ref": ref, "ref_fresh": None,
            "scanned": None, "terminal": 0, "status_unreadable": [],
-           "candidates": [], "over_limit": [], "limit": limit, "reason": ""}
+           "candidates": [], "over_limit": [], "limit": limit, "reason": "",
+           # Вторая ось (ADR-806): ЗАКРЫТИЕ, а не рождение. Своё ведро, а не
+           # прибавка к `candidates`: судьба общая (везти), утверждения РАЗНЫЕ,
+           # и схлопнуть их значило бы потерять ответ на вопрос «что именно
+           # не доехало — файл или его статус».
+           "closed_here_open_on_ref": [], "closures_unmeasured": None}
     tracker = os.path.join(root, TRACKER_REL)
     if not os.path.isdir(tracker):
         out["reason"] = f"каталога {TRACKER_REL} в дереве нет — спрашивать нечего"
@@ -1129,13 +1163,23 @@ def orphan_candidates(root: str = REPO_ROOT, *, ref: str = ORPHAN_REF,
                    if n.endswith(".md") and n not in NEVER_DELIVER)
     out["scanned"] = len(local)
     found = []
+    closed_here: dict = {}
     for name in local:
-        if name in on_ref:
-            continue
         path = os.path.join(tracker, name)
         status = _card_status(path)
         if status is None:
             out["status_unreadable"].append(os.path.join(TRACKER_REL, name))
+            continue
+        if name in on_ref:
+            # Файл на ref ЕСТЬ. Обычное ОБНОВЛЕНИЕ здесь не предмет — его судьба
+            # дело переноса (`plan_batch`), и тащить сюда всю очередь значило бы
+            # решать судьбу 840 карточек вместо тех, что правда не доехали.
+            # Предмет ровно один и измеренный: карточка ЗАКРЫТА в дереве, а на
+            # ref всё ещё открыта. Её не везёт никто — ни мост (он помнит только
+            # тронутое за прогон), ни эта сеть до ADR-806 (строка `continue`
+            # стояла ДО чтения статуса, то есть статус не спрашивался ни разу).
+            if status in ORPHAN_TERMINAL:
+                closed_here[os.path.splitext(name)[0]] = (name, status)
             continue
         if status in ORPHAN_TERMINAL:
             out["terminal"] += 1
@@ -1145,6 +1189,31 @@ def orphan_candidates(root: str = REPO_ROOT, *, ref: str = ORPHAN_REF,
         except OSError:
             age = 0.0
         found.append((age, name))
+
+    # Статус карточки на ref читается ОДНИМ батчем и только для закрытых здесь:
+    # спрашивать его у всех 840 значит платить за ответ, который не нужен.
+    # Неудача чтения — САМОСТОЯТЕЛЬНЫЙ исход: «закрытий не нашлось» о таком
+    # входе не сказано (инв. #17), и кандидатов этот путь тогда не даёт.
+    if closed_here:
+        try:
+            ref_status = ref_statuses(root, set(closed_here), ref)
+        except Exception as e:  # noqa: BLE001 — нет репозитория, нет ref, обрыв
+            out["closures_unmeasured"] = (f"статус закрытых карточек на {ref} НЕ ПРОЧИТАН: "
+                                          f"{type(e).__name__}: {e}")
+            ref_status = None
+        if ref_status is not None:
+            for cid, (name, status) in sorted(closed_here.items()):
+                upstream = ref_status.get(cid)
+                if upstream is None or upstream in ORPHAN_TERMINAL:
+                    continue
+                rel_path = os.path.join(TRACKER_REL, name)
+                out["closed_here_open_on_ref"].append(
+                    {"path": rel_path, "tree_status": status, "ref_status": upstream})
+                try:
+                    age = os.path.getmtime(os.path.join(tracker, name))
+                except OSError:
+                    age = 0.0
+                found.append((age, name))
     # Старшие вперёд: сирота 12 суток не обязана ждать, пока уедут свежие.
     found.sort()
     picked = [os.path.join(TRACKER_REL, n) for _, n in found[:limit]]
@@ -1153,8 +1222,11 @@ def orphan_candidates(root: str = REPO_ROOT, *, ref: str = ORPHAN_REF,
     out["candidates"] = picked
     out["over_limit"] = rest
     if not out["reason"]:
+        closures = len(out["closed_here_open_on_ref"])
         out["reason"] = (f"сверено с {ref}: карточек в дереве {len(local)}, "
-                         f"нет на {ref} и не закрыто {len(found)}"
+                         f"нет на {ref} и не закрыто {len(found) - closures}"
+                         + (f", закрыто здесь и открыто на {ref} {closures}" if closures else "")
+                         + (f", {out['closures_unmeasured']}" if out["closures_unmeasured"] else "")
                          + (f", взято {len(picked)} при потолке {limit}" if rest else ""))
     return out
 
@@ -1169,11 +1241,18 @@ def render_orphans(receipt: dict) -> str:
     n = len(o.get("candidates") or [])
     rest = len(o.get("over_limit") or [])
     unread = len(o.get("status_unreadable") or [])
+    closures = len(o.get("closed_here_open_on_ref") or [])
     tail = ""
     if n:
         tail += f" · сирот взято {n}"
         if rest:
             tail += f" (ещё {rest} сверх потолка {o.get('limit')})"
+    # Закрытия называются ОТДЕЛЬНЫМ числом: «не доехал файл» и «не доехал его
+    # статус» — разные аварии, и общее число не сказало бы, какая случилась.
+    if closures:
+        tail += f" · из них закрытий, не доехавших наверх: {closures}"
+    if o.get("closures_unmeasured"):
+        tail += f" · закрытия НЕ ИЗМЕРЕНЫ: {o['closures_unmeasured']}"
     if unread:
         tail += f" · карточек без разбираемого status: {unread}"
     return tail
@@ -1182,9 +1261,12 @@ def render_orphans(receipt: dict) -> str:
 def build_message(root: str, paths: list) -> str:
     names = [os.path.basename(p) for p in paths]
     head = ", ".join(names[:3]) + (f" (+{len(names) - 3})" if len(names) > 3 else "")
+    # «Рождены» было верно, пока пачка несла ТОЛЬКО рождения. С ADR-806 в ней
+    # едут и ЗАКРЫТИЯ, сделанные в живом дереве; оставить прежнее слово значило
+    # бы подписать коммит утверждением, которого замер не делал.
     return (f"cards(ADR-066): доставка карточек петли ({len(names)}): {head} — "
-            f"рождены агентом в прод-дереве, куда доставка не заглядывает; "
-            f"одной пачкой, одним коммитом")
+            f"рождены либо закрыты агентом в прод-дереве, куда доставка не "
+            f"заглядывает; одной пачкой, одним коммитом")
 
 
 def _default_pusher(root: str, paths: list, message: str,

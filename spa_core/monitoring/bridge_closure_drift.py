@@ -47,6 +47,42 @@ fail-OPEN — тише красной строки и потому опасне�
 своей карточкой. Сложить два списка в одно число значило бы предъявить циклу
 работу, которой нет.
 
+Ось вторая: ЗНАМЕНАТЕЛЬ (ADR-806, цикл #929)
+------------------------------------------------------------------------------
+Всё выше меряет ОДИН вопрос: «дошло ли наверх закрытие, сделанное МОСТОМ».
+Знаменатель у него — журнал моста (`findings` со `status: closed`), и читается
+этот ответ как ответ на ДРУГОЙ вопрос: «не предъявляет ли очередь работу,
+снятую ранее». Два вопроса совпадают ровно настолько, насколько мост —
+единственная дверь закрытия. Он не единственная.
+
+**Замер 2026-10-25 (цикл #929, живое дерево против `origin/main` 546687543):**
+
+| вопрос | знаменатель | находок |
+|---|---|---|
+| дошло ли закрытие МОСТА? (ось ledger) | 52 записи журнала | **0** — сошлось 52/52 |
+| закрыта в дереве, открыта на ref? (ось tracker) | 671 терминальная карточка | **41** |
+
+Пересечение осей — ПУСТО, и это не случайность, а построение: из 41 карточки
+журнал моста не знает НИ ОДНОЙ в состоянии `closed`. Пять были заведены мостом
+и закрыты ИНТЕЙКОМ как дубли (`queue.set_status · closed_by:owner_queue.intake/
+history_check`), шестая лежит в журнале как `carded` (мост всё ещё считает
+находку живой), остальные 35 закрыты сессиями через `queue.set_status` — а
+`TRACKER_DIR` по построению указывает в ЖИВОЕ дерево (`owner_queue.queue.
+_resolve_tracker_dir`, карточка-призрак 22.08), и доставки у этой записи нет
+ничьей: сеть под доставкой (`card_delivery.orphan_candidates`) пропускает
+карточку строкой `if name in on_ref: continue`, то есть отвечает только про
+РОЖДЕНИЕ файла, и про статус не спрашивает ни разу.
+
+Старейшему непришедшему закрытию **54.5 суток**, медиане 37.7, младшему 0.7 —
+класс ЖИВОЙ, а не исторический. Переоткрытий среди 41 — **ноль** (ни одна
+origin-копия не несёт `status_trail` вовсе), то есть дрейф односторонний:
+дерево впереди, ref позади, и «кто новее» здесь не вопрос.
+
+Поэтому ось tracker спрашивает у ДИСКА, а не у журнала: терминальная карточка
+дерева против своей же копии на ref. Старая ось СОХРАНЕНА и не ослаблена — она
+дешевле и отвечает на свой законный вопрос («сам мост довозит?»); снять её
+значило бы обменять одно слепое пятно на другое.
+
 LLM_FORBIDDEN. Только stdlib (git — через `origin_view`, без сети).
 """
 # LLM_FORBIDDEN
@@ -157,6 +193,112 @@ def scan(findings: dict, origin_lookup: Callable | None, *,
             "open_on_origin": open_on_origin, "absent_on_origin": absent}
 
 
+#: Файлы каталога очереди, которые карточками НЕ являются. `_BOARD.md` — общая
+#: производная доска: у неё нет `status:`, и считать её «нечитаемой карточкой»
+#: значило бы кормить третий исход мусором каждый прогон.
+TRACKER_NOT_A_CARD = frozenset({"_BOARD.md"})
+
+
+def _tracker_unmeasured(reason: str) -> dict:
+    return {"verdict": VERDICT_UNMEASURED, "unmeasured_reason": reason,
+            "ref_sha": None, "checked": 0, "agreed": 0,
+            "open_on_ref": [], "absent_on_ref": [], "unreadable": []}
+
+
+def read_tracker_statuses(root: str = REPO_ROOT) -> tuple[dict, list, bool]:
+    """``({card_id: статус}, [нечитаемые card_id], прочитан ли каталог)``.
+
+    Третий элемент — НЕ «каталог непустой»: очередь, которой в дереве нет
+    (песочница, CI-фикстура), и очередь, прочитанная и пустая, дают РАЗНЫЕ
+    вердикты, и схлопывание их в «находок 0» и есть fail-OPEN.
+
+    Карточка без разбираемого `status:` попадает в СВОЙ список, а не молча
+    выпадает: «не прочитали» не имеет права совпасть с «сошлось».
+    """
+    from spa_core.monitoring.findings_bridge import card_status
+
+    tracker = os.path.join(root, TRACKER_REL)
+    if not os.path.isdir(tracker):
+        return {}, [], False
+    try:
+        names = sorted(n for n in os.listdir(tracker)
+                       if n.endswith(".md") and n not in TRACKER_NOT_A_CARD)
+    except OSError:
+        return {}, [], False
+    statuses: dict[str, str] = {}
+    unreadable: list[str] = []
+    for name in names:
+        cid = os.path.splitext(name)[0]
+        try:
+            st = card_status(os.path.join(tracker, name))
+        except Exception:  # noqa: BLE001 — нечитаемый файл это третий исход, не ноль
+            st = None
+        if st:
+            statuses[cid] = str(st).strip().lower()
+        else:
+            unreadable.append(cid)
+    return statuses, unreadable, True
+
+
+def scan_tracker(tree_statuses: dict | None, origin_lookup: Callable | None, *,
+                 tracker_read: bool = True, unreadable: list | None = None) -> dict:
+    """Ось ЗНАМЕНАТЕЛЯ: терминальная карточка ДЕРЕВА против своей копии на ref.
+
+    Предмет — не «довёз ли мост своё закрытие» (это :func:`scan`), а «не
+    предъявляет ли очередь работу, снятую ранее». Спрашивается у ДИСКА, потому
+    что дверей закрытия больше одной: замер #929 — 41 находка при нуле по оси
+    журнала, пересечение осей пусто.
+
+    Находка — только направление «дерево закрыто, ref ОТКРЫТ». Обратное
+    («ref закрыт, дерево открыто») предметом НЕ является: прод-копия карточки
+    отстаёт от origin по построению (замер #928 — 17 карточек `owner-done` в
+    проде против `ingested` на origin, все 17 ЛОЖНЫЕ), и красить на нём значило
+    бы краснеть на верном состоянии.
+    """
+    if not tracker_read:
+        return _tracker_unmeasured("каталог очереди не прочитан — сверять было нечего")
+    if origin_lookup is None:
+        return _tracker_unmeasured("вызывающий не передал сверку с origin/main")
+
+    closed_here = sorted(cid for cid, st in (tree_statuses or {}).items()
+                         if st in CLOSED_ON_ORIGIN)
+    unreadable = sorted(unreadable or [])
+    if not closed_here:
+        # ИЗМЕРЕННАЯ пустота: каталог прочитан, закрытых карточек в нём нет.
+        return {"verdict": VERDICT_OK, "unmeasured_reason": None, "ref_sha": None,
+                "checked": 0, "agreed": 0, "open_on_ref": [], "absent_on_ref": [],
+                "unreadable": unreadable}
+
+    from spa_core.owner_queue.origin_view import Unmeasured
+    try:
+        statuses, sha = origin_lookup(set(closed_here))
+    except Unmeasured as exc:
+        out = _tracker_unmeasured(f"сверка с origin/main не выполнилась: {exc}")
+        out["unreadable"] = unreadable
+        return out
+
+    open_on_ref: list[dict] = []
+    absent: list[str] = []
+    agreed = 0
+    for cid in closed_here:
+        status = statuses.get(cid)
+        if status is None:
+            # Направление РОЖДЕНИЯ: файла на ref нет вовсе. Своя карточка, не
+            # эта — складывать два списка значит предъявить работу, которой нет.
+            absent.append(cid)
+        elif status in CLOSED_ON_ORIGIN:
+            agreed += 1
+        else:
+            open_on_ref.append({"card_id": cid,
+                                "tree_status": (tree_statuses or {}).get(cid),
+                                "ref_status": status})
+    return {"verdict": VERDICT_FINDINGS if open_on_ref else VERDICT_OK,
+            "unmeasured_reason": None, "ref_sha": sha,
+            "checked": len(closed_here), "agreed": agreed,
+            "open_on_ref": open_on_ref, "absent_on_ref": absent,
+            "unreadable": unreadable}
+
+
 def read_state(root: str = REPO_ROOT) -> tuple[dict, bool]:
     """(состояние моста, прочитано ли). Второй элемент — НЕ «состояние непустое»:
     пустое прочитанное состояние и непрочитанное дают разные вердикты."""
@@ -167,12 +309,30 @@ def read_state(root: str = REPO_ROOT) -> tuple[dict, bool]:
         return {}, False
 
 
+def scan_both(findings: dict, tree_statuses: dict | None, origin_lookup: Callable | None,
+              *, state_read: bool = True, tracker_read: bool = True,
+              unreadable: list | None = None) -> dict:
+    """Обе оси одним блоком: журнал моста (`scan`) + знаменатель очереди (`scan_tracker`).
+
+    Ось tracker кладётся ВНУТРЬ блока, а не рядом: предмет у них один
+    («закрытие не дошло наверх»), и разводить его по двум блокам значило бы
+    дать читателю повод прочитать зелёную строку одной оси как ответ обеих —
+    ровно та подмена, из-за которой ось tracker и понадобилась.
+    """
+    out = scan(findings, origin_lookup, state_read=state_read)
+    out["tracker"] = scan_tracker(tree_statuses, origin_lookup,
+                                  tracker_read=tracker_read, unreadable=unreadable)
+    return out
+
+
 def run(root: str = REPO_ROOT) -> dict:
     """Сверка для дерева `root`. Ничего не пишет: результат печатает читатель
     (шаг 0-офис) из `data/loop_health.json`, куда его кладёт `loop_health`."""
     state, state_read = read_state(root)
-    return scan(state.get("findings") or {}, origin_lookup_for(root),
-                state_read=state_read)
+    tree, unreadable, tracker_read = read_tracker_statuses(root)
+    return scan_both(state.get("findings") or {}, tree, origin_lookup_for(root),
+                     state_read=state_read, tracker_read=tracker_read,
+                     unreadable=unreadable)
 
 
 def main(argv=None) -> int:
@@ -187,18 +347,38 @@ def main(argv=None) -> int:
                     help="дерево, чьё состояние моста сверяем (по умолчанию прод)")
     args = ap.parse_args(argv)
     report = run(args.root)
+    tracker = report.get("tracker") or _tracker_unmeasured("блок оси tracker не произведён")
+
+    # Ось ЖУРНАЛА МОСТА — «довозит ли мост СВОИ закрытия».
     if report["verdict"] == VERDICT_UNMEASURED:
-        print(f"⚠️  НЕ ИЗМЕРЕНО: {report['unmeasured_reason']}")
+        print(f"⚠️  ось журнала моста НЕ ИЗМЕРЕНА: {report['unmeasured_reason']}")
+    else:
+        print(f"ось журнала моста — сверено с origin/main ({report['ref_sha']}): "
+              f"закрытых мостом карточек {report['checked']}, сошлось {report['agreed']}")
+        for row in report["absent_on_origin"]:
+            print(f"   ℹ️ на origin/main нет вовсе: {row['card_id']} ({row['key']}) — "
+                  "направление РОЖДЕНИЯ, своя карточка")
+        for row in report["open_on_origin"]:
+            print(f"   🔴 закрыта в проде, на origin/main `{row['origin_status']}`: "
+                  f"{row['card_id']} ({row['key']}, закрыта {row['closed_at']})")
+
+    # Ось ЗНАМЕНАТЕЛЯ — «не предъявляет ли очередь работу, снятую ранее».
+    if tracker["verdict"] == VERDICT_UNMEASURED:
+        print(f"⚠️  ось знаменателя НЕ ИЗМЕРЕНА: {tracker['unmeasured_reason']}")
+    else:
+        print(f"ось знаменателя — сверено с origin/main ({tracker['ref_sha']}): "
+              f"терминальных карточек дерева {tracker['checked']}, сошлось "
+              f"{tracker['agreed']}, на ref нет вовсе {len(tracker['absent_on_ref'])}"
+              + (f", без разбираемого status: {len(tracker['unreadable'])}"
+                 if tracker["unreadable"] else ""))
+        for row in tracker["open_on_ref"]:
+            print(f"   🔴 закрыта в дереве (`{row['tree_status']}`), на origin/main "
+                  f"`{row['ref_status']}`: {row['card_id']}")
+
+    # fail-CLOSED: «не измерено» ЛЮБОЙ оси важнее зелени другой.
+    if VERDICT_UNMEASURED in (report["verdict"], tracker["verdict"]):
         return 2
-    print(f"сверено с origin/main ({report['ref_sha']}): закрытых мостом карточек "
-          f"{report['checked']}, сошлось {report['agreed']}")
-    for row in report["absent_on_origin"]:
-        print(f"   ℹ️ на origin/main нет вовсе: {row['card_id']} ({row['key']}) — "
-              "направление РОЖДЕНИЯ, своя карточка")
-    for row in report["open_on_origin"]:
-        print(f"   🔴 закрыта в проде, на origin/main `{row['origin_status']}`: "
-              f"{row['card_id']} ({row['key']}, закрыта {row['closed_at']})")
-    return 1 if report["open_on_origin"] else 0
+    return 1 if (report["open_on_origin"] or tracker["open_on_ref"]) else 0
 
 
 if __name__ == "__main__":  # pragma: no cover — точка входа

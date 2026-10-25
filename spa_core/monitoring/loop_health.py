@@ -109,7 +109,13 @@ def _recurrence_liveness(recurring: list[dict]) -> dict:
 
 
 def compute(state: dict, status_of, now: dt.datetime, *,
-            origin_lookup=None, state_read: bool = True) -> dict:
+            origin_lookup=None, state_read: bool = True,
+            tree_statuses: dict | None = None, tracker_read: bool = False,
+            tracker_unreadable: list | None = None) -> dict:
+    """``tracker_read`` по умолчанию **False** намеренно: вызывающий, не подавший
+    очередь, обязан получить «НЕ ИЗМЕРЕНО», а не зелёный ноль. Умолчание `True`
+    означало бы, что забывший читатель молча утверждает «расхождений нет» —
+    ровно fail-OPEN, против которого ось и написана."""
     findings = state.get("findings") or {}
     entries = findings.values()
     to_card = [h for e in entries
@@ -180,8 +186,26 @@ def compute(state: dict, status_of, now: dt.datetime, *,
             # `status_of` читает диск ЭТОГО дерева и о второй копии не знает.
             # Три исхода внутри (`ok` / `findings` / `unmeasured`), см.
             # bridge_closure_drift: ноль без сверки был бы fail-OPEN.
-            "closure_drift": bridge_closure_drift.scan(
-                findings, origin_lookup, state_read=state_read),
+            # Две оси, один блок (ADR-806): журнал моста отвечает «довозит ли
+            # мост СВОИ закрытия», знаменатель — «не предъявляет ли очередь
+            # работу, снятую ранее». Замер #929: 0 находок по первой оси при
+            # 41 по второй, пересечение осей ПУСТО — дверей закрытия больше
+            # одной, и зелень журнала про очередь не говорит ничего.
+            # Ключ `tracker` назван ЗДЕСЬ дословно намеренно: производителем
+            # `loop_health.json` объявлен ЭТОТ файл, и сторож схемы шага 0-офис
+            # (`test_declared_schema_matches_the_live_producer`) сверяет
+            # объявленные читателем поля с ИСХОДНИКОМ производителя. Ключ,
+            # написанный только внутри помощника, читался бы как «потребитель
+            # читает поле, которого производитель не пишет» — то есть как
+            # мёртвая ветка. Измерение при этом не раздваивается: обе оси
+            # меряют `bridge_closure_drift`, здесь только имя ведра.
+            "closure_drift": {
+                **bridge_closure_drift.scan(findings, origin_lookup,
+                                            state_read=state_read),
+                "tracker": bridge_closure_drift.scan_tracker(
+                    tree_statuses, origin_lookup, tracker_read=tracker_read,
+                    unreadable=tracker_unreadable),
+            },
             "note": ("мало истории — медианы по n<5 не интерпретировать"
                      if len(to_card) < 5 else "")}
 
@@ -193,9 +217,12 @@ def run(root: str = REPO_ROOT, now: dt.datetime | None = None,
     # запись (`except: state = {}`) стирала разницу: в worktree, где `data/` нет
     # ПО ПОСТРОЕНИЮ, любая сверка по этому состоянию отвечала бы «расхождений 0».
     state, state_read = bridge_closure_drift.read_state(root)
+    tree_statuses, tracker_unreadable, tracker_read = \
+        bridge_closure_drift.read_tracker_statuses(root)
     report = compute(state, card_status, now,
                      origin_lookup=origin_lookup or bridge_closure_drift.origin_lookup_for(root),
-                     state_read=state_read)
+                     state_read=state_read, tree_statuses=tree_statuses,
+                     tracker_read=tracker_read, tracker_unreadable=tracker_unreadable)
     from spa_core.utils.atomic import atomic_save
     atomic_save(report, os.path.join(root, HEALTH_REL))
     return report

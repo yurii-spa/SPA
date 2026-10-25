@@ -1,0 +1,89 @@
+{
+ "title": "ADR-806 — дельта цикла #929: у ЗАКРЫТИЯ карточки появился и измеритель, и возчик. Каждая мутация возвращает состояние, в котором 41 непришедшее закрытие снова было бы невидимо: статус на ref не спрашивается вовсе · третий исход выдан за согласие · ось знаменателя молчит в коде возврата · обратное направление объявлено находкой · падение одной оси съедает вторую · закрытие схлопнуто с рождением в одно число",
+ "tests": [
+  "spa_core/tests/test_closure_reaches_the_ref.py",
+  "spa_core/tests/test_card_delivery_orphans.py",
+  "spa_core/tests/test_bridge_closure_drift.py",
+  "spa_core/tests/test_loop_health_measured_vs_unmeasured.py"
+ ],
+ "mutations": [
+  {
+   "name": "строка `continue` вернулась ДО чтения статуса: карточка, чей файл на ref есть, снова не рассматривается никогда — ровно тот байт, которым терялся 41 закрытие",
+   "file": "spa_core/monitoring/card_delivery.py",
+   "old": "        path = os.path.join(tracker, name)\n        status = _card_status(path)\n        if status is None:\n            out[\"status_unreadable\"].append(os.path.join(TRACKER_REL, name))\n            continue\n        if name in on_ref:",
+   "new": "        path = os.path.join(tracker, name)\n        if name in on_ref:\n            continue\n        status = _card_status(path)\n        if status is None:\n            out[\"status_unreadable\"].append(os.path.join(TRACKER_REL, name))\n            continue\n        if False:"
+  },
+  {
+   "name": "найденное закрытие НЕ попадает в пачку: названо, но не повезено — находка без читателя",
+   "file": "spa_core/monitoring/card_delivery.py",
+   "old": "                out[\"closed_here_open_on_ref\"].append(\n                    {\"path\": rel_path, \"tree_status\": status, \"ref_status\": upstream})\n                try:\n                    age = os.path.getmtime(os.path.join(tracker, name))\n                except OSError:\n                    age = 0.0\n                found.append((age, name))",
+   "new": "                out[\"closed_here_open_on_ref\"].append(\n                    {\"path\": rel_path, \"tree_status\": status, \"ref_status\": upstream})"
+  },
+  {
+   "name": "неудача чтения ref выдана за «закрытий нет»: fail-OPEN тише красного теста (инв. #17)",
+   "file": "spa_core/monitoring/card_delivery.py",
+   "old": "            out[\"closures_unmeasured\"] = (f\"статус закрытых карточек на {ref} НЕ ПРОЧИТАН: \"\n                                          f\"{type(e).__name__}: {e}\")\n            ref_status = None",
+   "new": "            ref_status = {}"
+  },
+  {
+   "name": "закрытие схлопнуто с рождением в одно число: читатель перестаёт различать «не доехал файл» и «не доехал его статус»",
+   "file": "spa_core/monitoring/card_delivery.py",
+   "old": "    if closures:\n        tail += f\" · из них закрытий, не доехавших наверх: {closures}\"",
+   "new": "    if False:\n        tail += f\" · из них закрытий, не доехавших наверх: {closures}\""
+  },
+  {
+   "name": "ось знаменателя не читает каталог: `tracker_read` снова умолчанием True — забывший вызывающий молча утверждает «расхождений нет»",
+   "file": "spa_core/monitoring/bridge_closure_drift.py",
+   "old": "    if not tracker_read:\n        return _tracker_unmeasured(\"каталог очереди не прочитан — сверять было нечего\")",
+   "new": "    if False:\n        return _tracker_unmeasured(\"каталог очереди не прочитан — сверять было нечего\")"
+  },
+  {
+   "name": "сверка с ref не передана — и это выдано за согласие вместо «не измерено»",
+   "file": "spa_core/monitoring/bridge_closure_drift.py",
+   "old": "    if origin_lookup is None:\n        return _tracker_unmeasured(\"вызывающий не передал сверку с origin/main\")\n\n    closed_here",
+   "new": "    if origin_lookup is None:\n        return {\"verdict\": VERDICT_OK, \"unmeasured_reason\": None, \"ref_sha\": None,\n                \"checked\": 0, \"agreed\": 0, \"open_on_ref\": [], \"absent_on_ref\": [],\n                \"unreadable\": []}\n\n    closed_here"
+  },
+  {
+   "name": "обратное направление объявлено находкой: прод, ОТСТАВШИЙ от origin, снова краснит — ровно 17 ложных срабатываний замера #928",
+   "file": "spa_core/monitoring/bridge_closure_drift.py",
+   "old": "    closed_here = sorted(cid for cid, st in (tree_statuses or {}).items()\n                         if st in CLOSED_ON_ORIGIN)",
+   "new": "    closed_here = sorted(cid for cid, st in (tree_statuses or {}).items())"
+  },
+  {
+   "name": "нечитаемая карточка исчезает при неудаче сверки: третий исход теряется ровно там, где он всего нужнее",
+   "file": "spa_core/monitoring/bridge_closure_drift.py",
+   "old": "        out = _tracker_unmeasured(f\"сверка с origin/main не выполнилась: {exc}\")\n        out[\"unreadable\"] = unreadable\n        return out",
+   "new": "        return _tracker_unmeasured(f\"сверка с origin/main не выполнилась: {exc}\")"
+  },
+  {
+   "name": "код возврата молчит про ось знаменателя: находка очереди снова выходит нулём",
+   "file": "spa_core/monitoring/bridge_closure_drift.py",
+   "old": "    if VERDICT_UNMEASURED in (report[\"verdict\"], tracker[\"verdict\"]):\n        return 2\n    return 1 if (report[\"open_on_origin\"] or tracker[\"open_on_ref\"]) else 0",
+   "new": "    if report[\"verdict\"] == VERDICT_UNMEASURED:\n        return 2\n    return 1 if report[\"open_on_origin\"] else 0"
+  },
+  {
+   "name": "квитанция без блока оси знаменателя читается как «сошлось», а не как «не измерено»",
+   "file": "spa_core/monitoring/bridge_closure_drift.py",
+   "old": "    tracker = report.get(\"tracker\") or _tracker_unmeasured(\"блок оси tracker не произведён\")",
+   "new": "    tracker = report.get(\"tracker\") or {\"verdict\": VERDICT_OK, \"unmeasured_reason\": None,\n                                        \"ref_sha\": None, \"checked\": 0, \"agreed\": 0,\n                                        \"open_on_ref\": [], \"absent_on_ref\": [],\n                                        \"unreadable\": []}"
+  },
+  {
+   "name": "ПРОИЗВОДИТЕЛЬ перестаёт писать ось знаменателя: измеритель жив, а строка у читателя молчит — и молчит тихо, как молчали 41 закрытие",
+   "file": "spa_core/monitoring/loop_health.py",
+   "old": "                \"tracker\": bridge_closure_drift.scan_tracker(\n                    tree_statuses, origin_lookup, tracker_read=tracker_read,\n                    unreadable=tracker_unreadable),",
+   "new": "                \"tracker_ne_pishetsya\": None,"
+  },
+  {
+   "name": "производитель не передаёт каталог очереди: ось знаменателя получает вечное «не измерено» на здоровом дереве",
+   "file": "spa_core/monitoring/loop_health.py",
+   "old": "    tree_statuses, tracker_unreadable, tracker_read = \\\n        bridge_closure_drift.read_tracker_statuses(root)",
+   "new": "    tree_statuses, tracker_unreadable, tracker_read = {}, [], False"
+  },
+  {
+   "name": "доска снова проходит в предмет: `_BOARD.md` ломал бы ВСЮ пачку пушера",
+   "file": "spa_core/monitoring/bridge_closure_drift.py",
+   "old": "TRACKER_NOT_A_CARD = frozenset({\"_BOARD.md\"})",
+   "new": "TRACKER_NOT_A_CARD = frozenset()"
+  }
+ ]
+}
