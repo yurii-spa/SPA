@@ -30,8 +30,9 @@ Pieces, each with its own refusal:
 * **launch** — runs the child under the existing ``scripts/claude_run_with_timeout.py`` (total deadline; on
   timeout it finishes only processes whose ownership by this run is proven, 124/125), then sweeps any survivor
   carrying OUR unique ``SPA_RUN_ID`` with the helper's own ``census``/``_terminate`` (ownership re-checked before
-  every signal). ONE ``verdict`` decides the record AND the exit code: status ok, grade PASS, server stopped,
-  ownership closed — all four, or it is not a success.
+  every signal). ONE final ``verdict`` decides the record AND the exit code: a child record proven to be THIS
+  run's (each run writes into its own ``runs/<run_id>/``; nothing earlier is read or overwritten), helper rc 0,
+  status ok, grade PASS, server stopped, ``ownership_closed is True`` — all of them, or it is not a success.
 
 A PASS proves only this scenario (short fixed context, four questions), not fitness for the architect role.
 """
@@ -220,14 +221,41 @@ def owned_pids(server_pid: int, helper=None) -> List[int]:
     return sorted(pids)
 
 
-def rss_mb(pids: List[int], ps_out: Optional[str] = None) -> float:
+def process_state(pid: int) -> str:
+    """Three distinct outcomes (inv. #17): "exited" — the OS answered "no such process"; "present" — it exists;
+    "unknown" — the OS gave no answer we can read (e.g. EPERM). Only "exited" is a confirmed exit."""
+    try:
+        os.kill(pid, 0)
+    except ProcessLookupError:
+        return "exited"
+    except OSError:
+        return "unknown"
+    return "present"
+
+
+def rss_mb(pids: List[int], ps_out: Optional[str] = None,
+           state: Optional[Callable[[int], str]] = None) -> float:
+    """RSS of ``pids`` in MB. An empty or unparsed table, or a required pid with no row whose exit is not
+    CONFIRMED, raises MeasurementError — absence from one table is never a 0 MB measurement (ARB R2)."""
     out = ps_out if ps_out is not None else _run(["ps", "-A", "-o", "pid=,rss="])
     rows = {}
     for line in out.splitlines():
+        if not line.strip():
+            continue
         parts = line.split()
-        if len(parts) == 2 and all(x.isdigit() for x in parts):
-            rows[int(parts[0])] = int(parts[1])
-    return sum(rows.get(p, 0) for p in pids) / 1024.0
+        if len(parts) != 2 or not all(x.isdigit() for x in parts):
+            raise MeasurementError(f"ps row not parsed: {line[:80]!r}")
+        rows[int(parts[0])] = int(parts[1])
+    if not rows:
+        raise MeasurementError("ps returned no process rows")
+    ask = state or process_state
+    total = 0
+    for pid in pids:
+        if pid in rows:
+            total += rows[pid]
+        elif ask(pid) != "exited":
+            raise MeasurementError(f"no RSS row for required process {pid} and its exit is not confirmed")
+    return total / 1024.0
 
 
 def mac_measure(server_pid: Optional[int] = None) -> Dict[str, float]:
@@ -325,11 +353,12 @@ def run_child(*, ollama: str, model: str, port: int, context: str, out: Path, mo
               deadline_s: float = TOTAL_DEADLINE_S) -> Dict[str, Any]:
     guard = ResourceGuard(measure, limits or Limits())
     record: Dict[str, Any] = {"probe": "models01-local-probe-1", "provider": PROVIDER, "model": model,
-                              "port": port, "role": PROBE_ROLE, "models_dir": models_dir}
+                              "port": port, "role": PROBE_ROLE, "models_dir": models_dir,
+                              "run_id": os.environ.get("SPA_RUN_ID")}   # binds this record to its launch
 
     def refuse(status: str, reason: str) -> Dict[str, Any]:
         record.update(status=status, reason=reason, samples=guard.samples)
-        record["verdict"] = verdict(record)
+        record["child_outcome"] = child_outcome(record)
         _save(out, record)
         return record
     # ── isolation BEFORE anything starts
@@ -357,7 +386,7 @@ def run_child(*, ollama: str, model: str, port: int, context: str, out: Path, mo
         abort.append(f"interrupted by signal {signum}")
         stop.set()
         record.update(status="interrupted", reason=abort[0], server_stopped=_stop_own(server))
-        record["verdict"] = verdict(record)
+        record["child_outcome"] = child_outcome(record)
         _save(out, record)
         os._exit(3)
     signal.signal(signal.SIGTERM, on_term)
@@ -422,15 +451,33 @@ def run_child(*, ollama: str, model: str, port: int, context: str, out: Path, mo
         record["server_stopped"] = _stop_own(server)
         record["samples"] = guard.samples
         record["grade"] = grade(record["result"]) if "result" in record else None
-        record["verdict"] = verdict(record)
+        record["child_outcome"] = child_outcome(record)
         _save(out, record)
     return record
 
 
+def child_outcome(record: Dict[str, Any]) -> Dict[str, Any]:
+    """The child's INTERMEDIATE outcome (its exit code). Never the final verdict: ownership, the helper's code
+    and the record's provenance are known only to ``launch``."""
+    reasons = _base_reasons(record)
+    return {"complete": not reasons, "reasons": reasons, "final": False}
+
+
 def verdict(record: Dict[str, Any]) -> Dict[str, Any]:
-    """ONE criterion for the record AND the exit code. Success needs ALL of: provider status ok, grade PASS,
-    no resource/abort status, our server stopped, and — once launched — ownership confirmed closed.
-    The answer's quality grade stays separate (``grade``) and never makes the probe a success by itself."""
+    """The FINAL verdict of ``launch`` — ONE criterion for the record AND the exit code. Success needs ALL of:
+    a child record proven to belong to THIS launch, helper rc 0, provider status ok, grade PASS, our server
+    stopped, and ``ownership_closed is True`` (absent, null and false all fail)."""
+    reasons = _base_reasons(record)
+    if record.get("record_provenance") != "current":
+        reasons.append(f"child record not proven current ({record.get('record_provenance')})")
+    if record.get("helper_rc") != 0:
+        reasons.append(f"helper rc {record.get('helper_rc')}")
+    if record.get("ownership_closed") is not True:
+        reasons.append("ownership not confirmed closed")
+    return {"success": not reasons, "reasons": reasons}
+
+
+def _base_reasons(record: Dict[str, Any]) -> List[str]:
     reasons = []
     if record.get("status") != "ok":
         reasons.append(f"status {record.get('status')}")
@@ -438,9 +485,7 @@ def verdict(record: Dict[str, Any]) -> Dict[str, Any]:
         reasons.append(f"grade {(record.get('grade') or {}).get('outcome')}")
     if record.get("server_stopped") is not True:
         reasons.append("own server stop not confirmed")
-    if "ownership_closed" in record and record["ownership_closed"] is not True:
-        reasons.append("ownership not confirmed closed")
-    return {"success": not reasons, "reasons": reasons}
+    return reasons
 
 
 def _save(out: Path, record: Dict[str, Any]) -> None:
@@ -494,21 +539,22 @@ def launch(*, ollama: str, model: str, port: int, context_path: Path, out_dir: P
     import uuid
     if not 1024 < int(port) < 65536 or int(port) == 11434:
         raise ValueError("port must be a private non-default loopback port (not 11434, the shared server)")
-    out_dir.mkdir(parents=True, exist_ok=True)
-    record_path = out_dir / "probe_record.json"
     helper = helper or ad.load_timeout_helper()
     run_id = f"models01-probe-{uuid.uuid4().hex}"           # unique per run
+    run_dir = Path(out_dir) / "runs" / run_id                # a NEW directory: earlier results are never touched
+    run_dir.mkdir(parents=True)
+    child_path, record_path = run_dir / "child_record.json", run_dir / "probe_record.json"
     cmd = [sys.executable, "-m", "spa_core.studio_os.model_roles.probe", "child", "--ollama", ollama,
-           "--model", model, "--port", str(port), "--context", str(context_path), "--out", str(record_path),
+           "--model", model, "--port", str(port), "--context", str(context_path), "--out", str(child_path),
            "--deadline-s", str(total_deadline_s), "--models-dir", str(models_dir)] + list(child_extra or [])
     t0 = time.monotonic()
-    rc = int(helper.run(cmd, timeout_s=total_deadline_s, grace_s=grace_s, log_path=str(out_dir / "helper.log"),
+    rc = int(helper.run(cmd, timeout_s=total_deadline_s, grace_s=grace_s, log_path=str(run_dir / "helper.log"),
                         label="models01-probe", run_id=run_id))
-    sweep = sweep_run_id(run_id, time.monotonic() - t0 + 5.0, helper, str(out_dir / "helper.log"))
-    try:
-        record = json.loads(record_path.read_text(encoding="utf-8"))
-    except (OSError, ValueError):
-        record = {"status": "no_record"}
+    sweep = sweep_run_id(run_id, time.monotonic() - t0 + 5.0, helper, str(run_dir / "helper.log"))
+    child, provenance = _current_child_record(child_path, run_id)
+    record = dict(child) if provenance == "current" else {"status": "no_current_record", "reason": provenance}
+    record["record_provenance"] = provenance
+    record["child_record"] = str(child_path)
     closed = sweep.get("closed") is True and rc != 125
     record["ownership_closed"] = closed
     record["ownership"] = {"helper_rc": rc, "sweep": sweep,
@@ -517,10 +563,25 @@ def launch(*, ollama: str, model: str, port: int, context_path: Path, out_dir: P
         record["status"] = "timeout" if closed else "ownership_unresolved"
     elif rc == 125 or not closed:
         record["status"] = "ownership_unresolved"
-    record.update(helper_rc=rc, run_id=run_id)
+    elif rc != 0 and record.get("status") == "ok":
+        record.update(status="helper_failed", reason=f"helper rc {rc}")
+    record.update(helper_rc=rc, run_id=run_id, record_path=str(record_path))
     record["verdict"] = verdict(record)
     _save(record_path, record)
     return record
+
+
+def _current_child_record(path: Path, run_id: str):
+    """(record, "current") only for a record written by THIS launch's child (same run id); else (None, why)."""
+    try:
+        child = json.loads(Path(path).read_text(encoding="utf-8"))
+    except FileNotFoundError:
+        return None, "missing: the child wrote no record for this run"
+    except (OSError, ValueError) as exc:
+        return None, f"unreadable: {type(exc).__name__}"
+    if not isinstance(child, dict) or child.get("run_id") != run_id:
+        return None, f"mismatch: record run id {(child or {}).get('run_id') if isinstance(child, dict) else None!r}"
+    return child, "current"
 
 
 def prepare_private_store(src: Path, model: str, dest: Path, *, max_bytes: Optional[int] = None) -> Dict[str, Any]:
@@ -586,7 +647,8 @@ def main(argv: Optional[List[str]] = None) -> int:
         extra = ["--fake-measure", a.fake_measure] if a.fake_measure else []
         rec = launch(ollama=a.ollama, model=a.model, port=a.port, context_path=a.context, out_dir=a.out,
                      models_dir=a.models_dir, total_deadline_s=a.deadline_s, child_extra=extra)
-        print(json.dumps({k: rec.get(k) for k in ("status", "verdict", "grade", "ownership")}, ensure_ascii=False))
+        print(json.dumps({k: rec.get(k) for k in ("status", "verdict", "grade", "ownership", "record_path")},
+                         ensure_ascii=False))
         return 0 if rec["verdict"]["success"] else 1
     measure = mac_measure
     if a.fake_measure:
@@ -602,6 +664,8 @@ def main(argv: Optional[List[str]] = None) -> int:
             last[0] = m
             if m == "error":
                 raise MeasurementError("fake measurement failure")
+            if m == "rss_unparsed":                                  # the REAL parser on an unusable table
+                rss_mb([server_pid or 0], ps_out="parse failed", state=lambda _pid: "unknown")
             if server_pid is not None:
                 owned_pids(server_pid)          # the real ownership walk still runs (and may fail)
             return dict(m)
@@ -609,7 +673,7 @@ def main(argv: Optional[List[str]] = None) -> int:
     rec = run_child(ollama=a.ollama, model=a.model, port=a.port, context=a.context.read_text(encoding="utf-8"),
                     out=a.out, measure=measure, deadline_s=a.deadline_s,
                     models_dir=str(a.models_dir) if a.models_dir else None, poll_s=0.5)
-    return 0 if rec["verdict"]["success"] else 1
+    return 0 if rec["child_outcome"]["complete"] else 1
 
 
 if __name__ == "__main__":  # pragma: no cover

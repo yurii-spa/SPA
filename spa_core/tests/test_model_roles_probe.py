@@ -93,13 +93,25 @@ def test_a_spent_budget_is_inconclusive_not_fail():
 
 # ── единый вердикт: запись и код выхода (воспроизведения ARB, без процессов и модели) ─────────────────
 
-def _fake_helper_run(record, rc):
+def _fake_helper_run(record, rc, run_id=None):
+    """Writes the child record where launch asked; run_id=None ⇒ the CURRENT run's id (a real child's claim)."""
     def run(cmd, **kw):
         out = Path(cmd[cmd.index("--out") + 1])
         out.parent.mkdir(parents=True, exist_ok=True)
-        out.write_text(json.dumps(record), encoding="utf-8")
+        out.write_text(json.dumps(dict(record, run_id=run_id or kw["run_id"])), encoding="utf-8")
         return rc
     return run
+
+
+def _cli_launch(tmp_path, monkeypatch, rec):
+    monkeypatch.setattr(pr, "launch", lambda **kw: rec)
+    return pr.main(["launch", "--ollama", "x", "--model", "m", "--port", "11535", "--context", "c",
+                    "--out", str(tmp_path / "o"), "--models-dir", str(tmp_path / "s")])
+
+
+def _mock_launch(tmp_path, helper):
+    return pr.launch(ollama="x", model="m", port=11535, context_path=tmp_path / "c", out_dir=tmp_path / "o",
+                     models_dir=tmp_path / "s", helper=helper)
 
 
 _CHILD_PASS = {"status": "ok", "grade": {"outcome": "PASS"}, "server_stopped": True, "result": {"status": "ok"}}
@@ -111,26 +123,91 @@ def test_a_passing_answer_without_closed_ownership_is_not_a_success(tmp_path, mo
     helper = ad.load_timeout_helper()
     monkeypatch.setattr(helper, "run", _fake_helper_run(_CHILD_PASS, rc))
     monkeypatch.setattr(pr, "sweep_run_id", lambda *a, **k: {"closed": closed, "left": [4242]})
-    rec = pr.launch(ollama="x", model="m", port=11535, context_path=tmp_path / "c", out_dir=tmp_path / "o",
-                    models_dir=tmp_path / "s", helper=helper)
+    rec = _mock_launch(tmp_path, helper)
     assert rec["grade"]["outcome"] == "PASS" and rec["status"] == status
     assert rec["verdict"]["success"] is False and rec["ownership_closed"] is False
-    saved = json.loads((tmp_path / "o" / "probe_record.json").read_text())
+    saved = json.loads(Path(rec["record_path"]).read_text())
     assert saved["verdict"]["success"] is False
-    monkeypatch.setattr(pr, "launch", lambda **kw: rec)
-    assert pr.main(["launch", "--ollama", "x", "--model", "m", "--port", "11535", "--context", "c",
-                    "--out", str(tmp_path / "o"), "--models-dir", str(tmp_path / "s")]) == 1
+    assert _cli_launch(tmp_path, monkeypatch, rec) == 1
+
+
+# ── ARB R1 (25.10): результат привязан к ЗАПУСКУ; старый/чужой/отсутствующий — не успех ни при каком rc ──
+
+_OLD = dict(_CHILD_PASS, run_id="models01-probe-OLD", verdict={"success": True, "reasons": []})
+
+
+@pytest.mark.parametrize("rc", [0, 1, 3, -15])
+def test_an_old_record_in_the_directory_is_never_a_new_success(tmp_path, monkeypatch, rc):
+    """Воспроизведение ARB: старый PASS в out_dir, helper ничего не пишет, зачистка closed=True."""
+    (tmp_path / "o").mkdir()
+    old_path = tmp_path / "o" / "probe_record.json"
+    old_path.write_text(json.dumps(_OLD), encoding="utf-8")
+    before = old_path.read_bytes()
+    helper = ad.load_timeout_helper()
+    monkeypatch.setattr(helper, "run", lambda cmd, **kw: rc)
+    monkeypatch.setattr(pr, "sweep_run_id", lambda *a, **k: {"closed": True, "swept": [], "left": []})
+    rec = _mock_launch(tmp_path, helper)
+    assert rec["verdict"]["success"] is False and rec["status"] == "no_current_record", rec
+    assert rec["record_provenance"].startswith("missing") and "grade" not in rec
+    assert old_path.read_bytes() == before, "старый результат затёрт или перемаркирован"
+    assert json.loads(Path(rec["record_path"]).read_text())["verdict"]["success"] is False
+    assert _cli_launch(tmp_path, monkeypatch, rec) == 1
+
+
+@pytest.mark.parametrize("rc", [0, 1, 3, -15])
+def test_a_record_of_another_run_is_refused_and_not_relabelled(tmp_path, monkeypatch, rc):
+    helper = ad.load_timeout_helper()
+    monkeypatch.setattr(helper, "run", _fake_helper_run(_CHILD_PASS, rc, run_id="models01-probe-OLD"))
+    monkeypatch.setattr(pr, "sweep_run_id", lambda *a, **k: {"closed": True, "swept": [], "left": []})
+    rec = _mock_launch(tmp_path, helper)
+    assert rec["verdict"]["success"] is False and rec["record_provenance"].startswith("mismatch")
+    child = json.loads(Path(rec["child_record"]).read_text())
+    assert child["run_id"] == "models01-probe-OLD", "чужой результат получил новый идентификатор"
+    assert _cli_launch(tmp_path, monkeypatch, rec) == 1
+
+
+@pytest.mark.parametrize("rc", [1, 3, -15, 2])
+def test_any_nonzero_helper_code_prevents_success_even_with_a_current_pass(tmp_path, monkeypatch, rc):
+    helper = ad.load_timeout_helper()
+    monkeypatch.setattr(helper, "run", _fake_helper_run(_CHILD_PASS, rc))
+    monkeypatch.setattr(pr, "sweep_run_id", lambda *a, **k: {"closed": True, "swept": [], "left": []})
+    rec = _mock_launch(tmp_path, helper)
+    assert rec["record_provenance"] == "current" and rec["grade"]["outcome"] == "PASS"
+    assert rec["status"] == "helper_failed" and rec["verdict"]["success"] is False
+    assert _cli_launch(tmp_path, monkeypatch, rec) == 1
+
+
+def test_a_reused_directory_keeps_every_earlier_result(tmp_path, monkeypatch):
+    helper = ad.load_timeout_helper()
+    monkeypatch.setattr(helper, "run", _fake_helper_run(_CHILD_PASS, 0))
+    monkeypatch.setattr(pr, "sweep_run_id", lambda *a, **k: {"closed": True, "swept": [], "left": []})
+    first = _mock_launch(tmp_path, helper)
+    first_bytes = Path(first["record_path"]).read_bytes()
+    second = _mock_launch(tmp_path, helper)
+    assert first["verdict"]["success"] is True and second["verdict"]["success"] is True
+    assert first["record_path"] != second["record_path"] and first["run_id"] != second["run_id"]
+    assert Path(first["record_path"]).read_bytes() == first_bytes
+    assert len(list((tmp_path / "o" / "runs").iterdir())) == 2
+    assert _cli_launch(tmp_path, monkeypatch, second) == 0
+
+
+def test_the_child_outcome_is_never_the_final_verdict():
+    rec = dict(_CHILD_PASS)
+    assert pr.child_outcome(rec) == {"complete": True, "reasons": [], "final": False}
+    assert pr.verdict(rec)["success"] is False       # без привязки, кода помощника и владения
 
 
 def test_only_everything_together_is_a_success(tmp_path, monkeypatch):
     helper = ad.load_timeout_helper()
     monkeypatch.setattr(helper, "run", _fake_helper_run(_CHILD_PASS, 0))
     monkeypatch.setattr(pr, "sweep_run_id", lambda *a, **k: {"closed": True, "swept": [], "left": []})
-    rec = pr.launch(ollama="x", model="m", port=11535, context_path=tmp_path / "c", out_dir=tmp_path / "o",
-                    models_dir=tmp_path / "s", helper=helper)
-    assert rec["verdict"] == {"success": True, "reasons": []}
+    rec = _mock_launch(tmp_path, helper)
+    assert rec["verdict"] == {"success": True, "reasons": []} and rec["record_provenance"] == "current"
+    no_field = {k: v for k, v in rec.items() if k != "ownership_closed"}
+    assert pr.verdict(no_field)["success"] is False                    # поле отсутствует — не успех
     for broken in ({"grade": {"outcome": "FAIL"}}, {"status": "resource_limit"}, {"server_stopped": False},
-                   {"ownership_closed": False}, {"ownership_closed": None}):
+                   {"ownership_closed": False}, {"ownership_closed": None}, {"helper_rc": 1},
+                   {"helper_rc": None}, {"record_provenance": "mismatch: 'x'"}):
         assert pr.verdict(dict(rec, **broken))["success"] is False
 
 
@@ -234,6 +311,30 @@ def test_a_failed_measurement_stops():
 
 def test_rss_counts_the_given_pids_only():
     assert pr.rss_mb([100, 200], "100 1024\n200 2048\n300 999999\n") == pytest.approx(3.0)
+
+
+# ARB R2 (25.10): синтетический номер 424242 — у ОС о нём не спрашивают (exited подменён), сигналов нет.
+@pytest.mark.parametrize("ps_out", ["", "parse failed", "\n\n", "100 1024\nweird row\n"])
+def test_an_empty_or_unparsed_table_is_a_measurement_failure_not_zero(ps_out):
+    with pytest.raises(pr.MeasurementError):
+        pr.rss_mb([424242], ps_out=ps_out, state=lambda pid: "present")
+
+
+def test_a_required_process_missing_from_the_table_is_not_zero_unless_its_exit_is_confirmed():
+    seen = []
+    with pytest.raises(pr.MeasurementError, match="424242"):
+        pr.rss_mb([100, 424242], "100 1024\n", state=lambda pid: seen.append(pid) or "present")
+    assert seen == [424242]
+    assert pr.rss_mb([100, 424242], "100 1024\n", state=lambda pid: "exited") == pytest.approx(1.0)
+    with pytest.raises(pr.MeasurementError):                 # «не знаю» — не завершение
+        pr.rss_mb([100, 424242], "100 1024\n", state=lambda pid: "unknown")
+
+
+def test_a_failed_rss_measurement_stops_the_guard():
+    def measure(server_pid=None):
+        return dict(OKM, server_rss_mb=pr.rss_mb([424242], ps_out="", state=lambda pid: "present"))
+    with pytest.raises(pr.ProbeAbort, match="measurement failed.*no process rows"):
+        pr.ResourceGuard(measure, pr.Limits()).check(424242)
 
 
 posix = pytest.mark.skipif(sys.platform.startswith("win"), reason="POSIX-сцена процессов")
@@ -403,6 +504,7 @@ def _launch(scene, measure=None, deadline=30.0, port=None):
 def test_a_normal_probe_succeeds_only_with_everything_confirmed(scene):
     rec = _launch(scene)
     assert rec["verdict"] == {"success": True, "reasons": []}, rec
+    assert rec["record_provenance"] == "current" and rec["helper_rc"] == 0
     assert rec["grade"]["outcome"] == "PASS" and rec["ownership_closed"] is True
     assert rec["models_dir"] == str(scene["store"]), "launch не передал models_dir ребёнку"
     assert rec["server_pid"] in rec["endpoint_listeners"]
@@ -431,6 +533,14 @@ def test_a_watcher_measurement_failure_mid_run_is_a_stop_not_a_pass(scene, monke
     rec = _launch(scene, measure=[OKM, {"in_watcher": "error"}], deadline=40.0)
     assert rec["status"] == "aborted" and "measurement failed" in rec["reason"], rec
     assert rec["verdict"]["success"] is False and not _alive(rec["server_pid"])
+
+
+@posix
+def test_an_unparsed_rss_table_mid_run_fails_the_final_verdict(scene, monkeypatch):
+    monkeypatch.setenv("FAKE_MODE", "hang")
+    rec = _launch(scene, measure=[OKM, {"in_watcher": "rss_unparsed"}], deadline=40.0)
+    assert rec["status"] == "aborted" and "ps row not parsed" in rec["reason"], rec
+    assert rec["verdict"]["success"] is False and not _alive(rec["server_pid"]) and _alive(scene["foreign"].pid)
 
 
 @posix
@@ -495,7 +605,8 @@ def test_an_interruption_stops_our_server(scene, monkeypatch, tmp_path):
     child.send_signal(signal.SIGTERM)
     child.wait(timeout=30)
     rec = json.loads(out.read_text(encoding="utf-8"))
-    assert rec["status"] == "interrupted" and rec["server_stopped"] is True and rec["verdict"]["success"] is False
+    assert rec["status"] == "interrupted" and rec["server_stopped"] is True and rec["child_outcome"]["complete"] is False
+    assert "verdict" not in rec                       # промежуточный исход ребёнка — не финальный вердикт
     assert not _alive(rec["server_pid"]) and _alive(scene["foreign"].pid)
 
 
