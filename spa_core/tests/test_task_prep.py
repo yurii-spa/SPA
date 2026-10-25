@@ -193,3 +193,81 @@ def test_an_unknown_kind_is_refused_before_the_provider(tmp_path):
     with pytest.raises(rv.ReviewError):
         rv.run_review(root, handover="docs/evidence/HANDOVER.md", task_id="t", task="x", verified_sha=verified,
                       provider="fixture_test_adapter", out=tmp_path / "o", adapters={}, kind="execute")
+
+
+# ── ARB R1/R2 (25.10): одна оценка → запись, текст владельцу, код выхода ───────────────────────────────
+
+def _drop(answer: str, section: str, empty: bool = False) -> str:
+    """Убрать раздел целиком (или оставить заголовок с пустым телом)."""
+    parts = answer.split("## ")
+    keep = []
+    for part in parts:
+        if part.startswith(section + "\n"):
+            if empty:
+                keep.append(section + "\n\n")
+            continue
+        keep.append(part)
+    return "## ".join(keep)
+
+
+@pytest.mark.parametrize("section", rv.PREP_SECTIONS)
+@pytest.mark.parametrize("empty", [False, True])
+def test_a_missing_or_empty_required_section_is_incomplete_everywhere(tmp_path, section, empty):
+    rec, out, *_ = _run(tmp_path, answer=_drop(_answer(), section, empty=empty))
+    p = rec["preparation"]
+    assert rec["status"] == "ok" and p["form"] == "incomplete" and p["acceptable"] is False
+    assert any(section in r for r in p["reasons"])
+    md = (out / "recommendation.md").read_text(encoding="utf-8")
+    assert "подготовка неполная" in md and "план готов к разбору" not in md
+
+
+def _cli(tmp_path, answer, name):
+    root, verified = trp._scene(tmp_path / name)
+    fx = tmp_path / f"{name}.json"
+    fx.write_text(json.dumps({"*": answer}), encoding="utf-8")
+    rc = memory_cli(["arch-review", "--kind", "task-prep", "--root", str(root), "--handover",
+                     "docs/evidence/HANDOVER.md", "--task-id", "t", "--task", REQUEST, "--verified-sha", verified,
+                     "--provider", "fixture_test_adapter", "--fixture", str(fx), "--out", str(tmp_path / name / "o")])
+    rec = json.loads((tmp_path / name / "o" / "review.json").read_text(encoding="utf-8"))
+    return rc, rec
+
+
+@pytest.mark.parametrize("name,answer,form,rc", [
+    ("plan", _answer(), "plan", 0),
+    ("question", _answer(plan=rv.NO_PLAN_MARK, question="Что именно улучшить: пульт или сайт?"), "clarification", 0),
+    # ARB R2 дословно: все заголовки на месте, PLAN=NO PLAN, вопроса нет ⇒ incomplete ⇒ НЕ успех
+    ("arb_r2", _answer(plan=rv.NO_PLAN_MARK, question="UNKNOWN: нет данных."), "incomplete", 1),
+    ("no_check", _answer(acceptance="Посмотрим глазами."), "incomplete", 1),
+    ("missing", _drop(_answer(), "OUTCOME"), "incomplete", 1),
+    ("bad_subject", _answer(subject="OWNER_OK"), "incomplete", 1),
+], ids=["plan", "question", "arb_r2", "no_check", "missing", "bad_subject"])
+def test_the_cli_exit_follows_the_same_assessment_as_the_record(tmp_path, name, answer, form, rc):
+    got_rc, rec = _cli(tmp_path, answer, name)
+    assert rec["preparation"]["form"] == form and got_rc == rc
+    assert rec["preparation"]["acceptable"] is (rc == 0)
+
+
+def test_a_clarification_with_an_unknown_subject_is_still_a_valid_question(tmp_path):
+    rec, *_ = _run(tmp_path, answer=_answer(plan=rv.NO_PLAN_MARK, question="Что именно?", subject="UNKNOWN_YET"))
+    assert rec["preparation"]["form"] == "clarification" and rec["preparation"]["subject"] == "UNKNOWN"
+
+
+def test_the_arch_kind_keeps_its_exit_contract(tmp_path):
+    """Прежний вид: 0 ⇔ структура полна; task-prep-оценка на него не влияет."""
+    from spa_core.tests.test_model_roles_review import GOOD
+    root, verified = trp._scene(tmp_path)
+    fx = tmp_path / "fx.json"
+    base = ["arch-review", "--root", str(root), "--handover", "docs/evidence/HANDOVER.md", "--task-id", "t",
+            "--task", "x", "--verified-sha", verified, "--provider", "fixture_test_adapter", "--fixture", str(fx)]
+    fx.write_text(json.dumps({"*": GOOD}), encoding="utf-8")
+    assert memory_cli(base + ["--out", str(tmp_path / "a")]) == 0
+    fx.write_text(json.dumps({"*": GOOD.split("## CLAUDE TASK")[0]}), encoding="utf-8")
+    assert memory_cli(base + ["--out", str(tmp_path / "b")]) == 1
+
+
+@pytest.mark.parametrize("subject", ["NONE", "MONEY"])
+def test_the_subject_is_shown_as_a_model_proposal_not_a_permission(tmp_path, subject):
+    rec, out, *_ = _run(tmp_path, answer=_answer(subject=subject))
+    assert rec["preparation"]["subject_note"] == rv.SUBJECT_NOTE
+    md = (out / "recommendation.md").read_text(encoding="utf-8")
+    assert "предложен моделью" in md and "не разрешение исполнять" in md and "даже NONE" in md

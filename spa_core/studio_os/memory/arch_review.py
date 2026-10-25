@@ -72,6 +72,12 @@ PREP_SECTIONS = ("OUTCOME", "PLAN", "ACCEPTANCE PROPOSAL", "UNKNOWNS AND QUESTIO
 NEW_CHECK_MARK = "NEW CHECK NEEDED"
 NO_PLAN_MARK = "NO PLAN"
 SUBJECT_NONE = "NONE"
+#: Forms a task-prep run may report as success (exit 0): a plan FOR REVIEW or a valid clarifying question.
+#: Neither is permission to execute.
+ACCEPTABLE_FORMS = ("plan", "clarification")
+#: ARB 25.10: the subject is the MODEL's proposal; only its membership in the vocabulary is checked.
+SUBJECT_NOTE = ("предмет полномочий предложен моделью; проверено только, что это значение словаря ADR-285. "
+                "Это не независимая проверка прав и не разрешение исполнять — даже NONE")
 PREP_DISCLAIMER = ("ПРЕДЛОЖЕНИЕ ДЛЯ РАЗБОРА — не задание к исполнению: карточка не меняется, проверка результата не "
                    "назначается, исполнитель не запускается, ничего не объявлено сделанным. Зарегистрированное имя "
                    "проверки не доказывает, что она меряет это поручение. Тестовый ответ не оценивает реальную модель.")
@@ -273,19 +279,27 @@ def check_preparation(sections: Dict[str, Optional[str]], probes: Optional[Seque
     acceptance = ("new_check_proposed" if new_check else
                   "registered_check_named_relevance_unproven" if any(n["registered"] for n in named) else
                   "none_usable")
-    if no_plan:
+    # ARB R1 (25.10): ONE assessment drives the record, the owner text and the CLI exit code. A missing or
+    # empty required section is an incomplete preparation — provider status ``ok`` is not completeness.
+    reasons = [f"required section {name} is missing or empty" for name in PREP_SECTIONS
+               if not (sections.get(name) or "").strip()]
+    if reasons:
+        form = "incomplete"
+    elif no_plan:
         form = "clarification" if has_question else "incomplete"
+    elif acceptance == "none_usable" or subject == subj.UNKNOWN:
+        form = "incomplete"           # a plan without a usable check or a vocabulary subject is not reviewable
     else:
-        form = "plan" if acceptance != "none_usable" else "incomplete"
-    reasons = []
+        form = "plan"
     if no_plan and not has_question:
         reasons.append("no plan and no question to the owner")
     if not no_plan and acceptance == "none_usable":
         reasons.append("the acceptance proposal names no registered check and proposes no new one")
     if subject == subj.UNKNOWN:
         reasons.append(f"PERMISSIONS subject {declared!r} is not in the ADR-285 vocabulary — reviewer decides")
-    return {"form": form, "acceptance": acceptance, "probes_named": named, "new_check_proposed": new_check,
-            "subject": subject, "subject_declared": declared, "question": has_question, "reasons": reasons}
+    return {"form": form, "acceptable": form in ACCEPTABLE_FORMS, "acceptance": acceptance, "probes_named": named,
+            "new_check_proposed": new_check, "subject": subject, "subject_declared": declared,
+            "subject_note": SUBJECT_NOTE, "question": has_question, "reasons": reasons}
 
 
 def is_current(record: Dict[str, Any], *, request: str, context_sha256: str, verified_sha: str) -> Dict[str, Any]:
@@ -336,7 +350,8 @@ def render_preparation(r: Dict[str, Any]) -> str:
                                                     if n["registered"] else "не зарегистрирована"))
         if s == "PERMISSIONS":
             body += ["", f"_Сверка предмета:_ `{p.get('subject')}`"
-                     + ("" if p.get("subject") != "UNKNOWN" else " — не из словаря ADR-285, решает разбор")]
+                     + ("" if p.get("subject") != "UNKNOWN" else " — не из словаря ADR-285, решает разбор")
+                     + f". {SUBJECT_NOTE[0].upper()}{SUBJECT_NOTE[1:]}."]
     if p.get("reasons"):
         body += ["", "## Замечания сверки", ""] + [f"- {x}" for x in p["reasons"]]
     return "\n".join(head + body) + "\n"
@@ -402,8 +417,13 @@ def main(argv: Optional[List[str]] = None) -> int:
     except (ReviewError, ConfigError) as exc:
         print(f"REVIEW NOT BUILT: {exc}")
         return 2
+    prep = rec.get("preparation") if rec.get("kind") == KIND_PREP else None
+    form = prep.get("form") if isinstance(prep, dict) else "not assessed"
     print(f"{rec['status']} · structure complete {rec['structure_complete']} · context complete "
-          f"{rec['context_complete']} → {a.out}/recommendation.md")
+          f"{rec['context_complete']}" + (f" · preparation {form}" if rec.get("kind") == KIND_PREP else "")
+          + f" → {a.out}/recommendation.md")
     if rec["status"] == "refused":
         return 2
+    if rec.get("kind") == KIND_PREP:   # ARB R2: the exit follows the SAME assessment as the record and the text
+        return 0 if rec["status"] == "ok" and isinstance(prep, dict) and prep.get("acceptable") is True else 1
     return 0 if rec["structure_complete"] else 1
