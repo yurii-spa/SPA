@@ -58,9 +58,10 @@
    (`docs/evidence/studio-os-models-01-2026-10-23/increment4/`); ждёт решения ARB.
 4. Backlog B-1…B-8 — `stage8_2026-10-23/BACKLOG_census_findings.md`.
 
-**Следующий шаг:** решение владельца об ОДНОМ запуске пробы
-`python3 -m spa_core.studio_os.model_roles.probe launch …` (готовая команда и условия —
-`docs/evidence/studio-os-models-01-2026-10-23/increment5-plan/PLAN.md`, раздел «Пакет подготовлен»). Код пробы — `e5a45db30`.
+**Следующий шаг:** решение владельца об ОДНОМ запуске пробы: `prepare-store` (частная копия модели), затем
+`launch … --models-dir` (готовая команда и условия — `docs/evidence/studio-os-models-01-2026-10-23/increment5-plan/PLAN.md`,
+раздел «Поправка по замечаниям ARB 25.10»). Код пробы — второй пакет 25.10 (единый вердикт, точный грейдер, изоляция) поверх
+`e5a45db30`; CI прежнего кандидата `84ab03679` — 40164854726 (2 failed, такт §49). Подключение Claude Pro НЕ проверено.
 
 ## 6. Разрешено / запрещено
 
