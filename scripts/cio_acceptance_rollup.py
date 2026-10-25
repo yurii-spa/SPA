@@ -27,6 +27,14 @@
 3. **Критерий без пробы — ТРЕТИЙ ИСХОД**, а не ноль, не «не выполнено» и тем более
    не «выполнено» (инв. #17). «Меры сегодня нет» и «мера есть и говорит нет» —
    разные ответы, и чинятся они разным: первое пишут, второе исправляют.
+5. **У каждого «НЕ ИЗМЕРЕНО» назван КЛАСС** — три, и чинятся они разным
+   (ADR-810): `мерки нет` · `НЕ О ТОМ ДЕРЕВЕ` (проба читала СВОЁ дерево, а
+   вердикт объявлен о другом) · `по существу`. Цена слияния ИЗМЕРЕНА: ADR-809
+   прочитал «НЕ ИЗМЕРЕНО 1», снятое в worktree с `--data-dir` прод-дерева, и
+   назвал долгом критерий `No regression`, который в прод-дереве ВЫПОЛНЕН
+   (запись прогона свежа, 138 файл(ов) населения). Заказ следующему циклу
+   поэтому указал на производителя входа, который работает. Строка про
+   дошедшие входы стояла рядом и была верна — её съела ТРОЙКА чисел ИТОГА.
 4. **У каждого «НЕ ИЗМЕРЕНО» названа ЦЕНА** (заказ G93 п. 1,
    `spa_core/monitoring/s49_criterion_price.py`). Десять одинаковых `НЕ ИЗМЕРЕНО`
    читаются как десять одинаковых дыр, а это неверно: у одних артефакт уже живёт,
@@ -87,6 +95,27 @@ SECTION_HEAD = "49. Acceptance criteria"
 
 #: Ветка доставки, с которой дочитывается вторая копия карточки.
 ORIGIN_REF = "origin/main"
+
+#: Классы ответа «НЕ ИЗМЕРЕНО». Их ТРИ, и слить их в одно число значило бы
+#: повторить инв. #17 этажом выше — у СВОДКИ, а не у пробы: проба каждый раз
+#: называла причину своей строкой честно, а ИТОГ сводил все причины в счёт.
+#:
+#: * `no_measure` — пробы, объявившей себя мерой критерия, нет вовсе (или их
+#:   несколько и выбрать молча нельзя). Чинится ОБЪЯВЛЕНИЕМ мерки;
+#: * `tree_not_reached` — проба объявила входы дерева, дерево замера объявлено,
+#:   и НИ ОДИН её вход его не получил: вердикт снят о ДРУГОМ дереве. Это не долг
+#:   критерия, а адрес прогона — чинится ПЕРЕМЕРОМ, и мерку трогать нельзя;
+#: * `in_subject_tree` — проба отвечала о том самом дереве, о котором вынесен
+#:   вердикт, и по существу не измерила. Только ЭТО есть долг.
+UNMEASURED_NO_MEASURE = "no_measure"
+UNMEASURED_TREE_NOT_REACHED = "tree_not_reached"
+UNMEASURED_IN_SUBJECT_TREE = "in_subject_tree"
+
+UNMEASURED_CLASS_RU = {
+    UNMEASURED_NO_MEASURE: "мерки нет",
+    UNMEASURED_TREE_NOT_REACHED: "НЕ О ТОМ ДЕРЕВЕ",
+    UNMEASURED_IN_SUBJECT_TREE: "по существу",
+}
 
 #: Заголовок критерия: короткая латинская строка БЕЗ точки на конце. Описание под
 #: ним точкой заканчивается всегда — на этом и держится разбор, и он проверяется
@@ -297,6 +326,36 @@ def read_population(repo_root: str, *, ref: str = ORIGIN_REF,
             "comparison": comparison, "problems": problems}
 
 
+def unmeasured_class(row: dict) -> str | None:
+    """Класс ответа «НЕ ИЗМЕРЕНО» у строки сводки — ОДНО правило, один дом.
+
+    Второго сравнения с `tree_inputs_reached` в файле нет намеренно (ADR-220):
+    две копии одной мерки расходятся молча, а эта разошлась бы ровно там, где
+    её читает человек, — в ИТОГЕ.
+
+    Три разбора и почему именно так:
+
+    * `reached is None` означает, что дерева замера не объявляли вовсе: проба
+      судила СВОЁ дерево, и оно же есть предмет вердикта ⇒ `in_subject_tree`.
+      Назвать это «не о том дереве» значило бы выдумать расхождение;
+    * `declared` пуст означает, что проба дерева не спрашивает ни одним входом:
+      дерево замера её ответ изменить НЕ МОЖЕТ, поэтому `in_subject_tree` здесь
+      не уступка, а верный ответ;
+    * `declared` не пуст И `reached == []` — дерево объявлено и не дошло ни
+      одним объявленным входом. Это единственный случай, когда вердикт строки
+      относится к дереву, о котором сводка не говорит.
+    """
+    if row.get("verdict") != UNMEASURED:
+        return None
+    if not row.get("probe"):
+        return UNMEASURED_NO_MEASURE
+    declared = row.get("tree_inputs_declared")
+    reached = row.get("tree_inputs_reached")
+    if declared and reached == []:
+        return UNMEASURED_TREE_NOT_REACHED
+    return UNMEASURED_IN_SUBJECT_TREE
+
+
 def measure(repo_root: str, *, ref: str = ORIGIN_REF, card_rel: str = CARD_REL,
             measure_tree: str | None = None, data_dir: str | None = None,
             probe_runner=None, now=None) -> dict:
@@ -363,6 +422,7 @@ def measure(repo_root: str, *, ref: str = ORIGIN_REF, card_rel: str = CARD_REL,
                          "detail": "машинной пробы, объявившей себя мерой этого "
                                    "критерия, в реестре НЕТ — вердикт сегодня взять "
                                    "неоткуда",
+                         "tree_inputs_declared": None,
                          "tree_inputs_reached": None})
             continue
         if len(probes) > 1:
@@ -370,6 +430,7 @@ def measure(repo_root: str, *, ref: str = ORIGIN_REF, card_rel: str = CARD_REL,
                          "detail": f"критерий объявлен мерой сразу у {len(probes)} проб "
                                    f"({', '.join(probes)}) — выбрать из них молча "
                                    f"значило бы спрятать столкновение объявлений",
+                         "tree_inputs_declared": None,
                          "tree_inputs_reached": None})
             continue
         accepted = probe_tree_inputs(probes[0])
@@ -397,13 +458,30 @@ def measure(repo_root: str, *, ref: str = ORIGIN_REF, card_rel: str = CARD_REL,
             verdict, detail = probe_runner(probes[0])
             reached = None
         rows.append({"criterion": name, "probe": probes[0], "verdict": verdict,
-                     "detail": detail, "tree_inputs_reached": reached,
+                     "detail": detail, "tree_inputs_declared": list(accepted),
+                     "tree_inputs_reached": reached,
                      "measure": _authorship_row(authorship_report,
                                                 authorship_problem, probes[0])})
 
     counts = {SATISFIED: 0, NOT_SATISFIED: 0, UNMEASURED: 0}
+    unmeasured_classes = {UNMEASURED_NO_MEASURE: 0,
+                          UNMEASURED_TREE_NOT_REACHED: 0,
+                          UNMEASURED_IN_SUBJECT_TREE: 0}
     for row in rows:
         counts[row["verdict"]] = counts.get(row["verdict"], 0) + 1
+        # Класс пишется в строку КАЖДОГО критерия, а не только неизмеренного:
+        # `None` у измеренной строки есть ответ «вопрос не стои́т», и отличим он
+        # от отсутствия поля, то есть от «класс не считали вовсе».
+        row["unmeasured_class"] = unmeasured_class(row)
+        if row["unmeasured_class"] is not None:
+            unmeasured_classes[row["unmeasured_class"]] += 1
+    # Перечень поимённый, а не только счёт: «перемерять» есть действие, и у него
+    # обязан быть адрес. Пустой список здесь значит «мерили, таких нет».
+    not_about_subject_tree = [
+        {"criterion": r["criterion"], "probe": r["probe"],
+         "tree_inputs_declared": r.get("tree_inputs_declared")}
+        for r in rows
+        if r.get("unmeasured_class") == UNMEASURED_TREE_NOT_REACHED]
 
     # Цена меряется О ТОМ ЖЕ дереве, о котором выносится вердикт: сводка про одно
     # дерево с ценой про другое была бы двумя ответами под одним заголовком.
@@ -459,6 +537,8 @@ def measure(repo_root: str, *, ref: str = ORIGIN_REF, card_rel: str = CARD_REL,
                  and os.path.abspath(data_dir) != os.path.abspath(
                      os.path.join(measure_tree, "data")))
     return {"population": len(names), "rows": rows, "counts": counts,
+            "unmeasured_classes": unmeasured_classes,
+            "not_about_subject_tree": not_about_subject_tree,
             "measure_tree": measure_tree, "data_dir": data_dir,
             "split_tree": split,
             "addressee_counts": (addressee or {}).get("counts"),
@@ -604,6 +684,23 @@ def main(argv: list[str] | None = None) -> int:
         print(f"ИТОГ: ВЫПОЛНЕНО {counts[SATISFIED]} · НЕ ВЫПОЛНЕНО "
               f"{counts[NOT_SATISFIED]} · НЕ ИЗМЕРЕНО {counts[UNMEASURED]} "
               f"из {report['population']}")
+        # Разбор «НЕ ИЗМЕРЕНО» печатается ВСЕГДА, когда оно не ноль, — и стои́т
+        # он ПОД ИТОГОМ, а не у строк: у строк причина была и до ADR-810, а
+        # прочитали всё равно тройку чисел.
+        if counts[UNMEASURED]:
+            classes = report["unmeasured_classes"]
+            print("  из «НЕ ИЗМЕРЕНО»: " + " · ".join(
+                f"{UNMEASURED_CLASS_RU[k]} {classes[k]}"
+                for k in (UNMEASURED_IN_SUBJECT_TREE,
+                          UNMEASURED_TREE_NOT_REACHED,
+                          UNMEASURED_NO_MEASURE)))
+        for miss in report["not_about_subject_tree"]:
+            print(f"  ❗ВЕРДИКТ СНЯТ НЕ О ТОМ ДЕРЕВЕ: {miss['criterion']} "
+                  f"[{miss['probe']}] читает СВОЁ дерево — объявленные им входы "
+                  f"({', '.join(miss['tree_inputs_declared'])}) до него НЕ "
+                  f"ДОШЛИ. Это НЕ долг критерия и не дыра в его мерке: "
+                  f"перемерять в том дереве, которое проба читает; мерку НЕ "
+                  f"ТРОГАТЬ")
         if report["addressee_problem"]:
             print(f"  ⚠️  АДРЕСАТ НЕ НАЗВАН НИ У ОДНОГО критерия: "
                   f"{report['addressee_problem']}")

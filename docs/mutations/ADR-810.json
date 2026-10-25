@@ -1,0 +1,68 @@
+{
+ "title": "ADR-810 — дельта цикла #933: сводка §49 разводит ТРИ класса «НЕ ИЗМЕРЕНО» (мерки нет · НЕ О ТОМ ДЕРЕВЕ · по существу). Каждая мутация возвращает состояние, в котором цикл #932 снова прочитал бы «НЕ ИЗМЕРЕНО 1» как долг критерия и выписал бы заказ чинить мерку, которая цела: класс схлопнут · объявление входов не спрашивается · «дерева не объявляли» выдано за расхождение · «мерки нет» слито с существом · класс не кладётся в строку · счёт не ведётся · перечень пуст всегда · разбор не печатается · громкая строка не печатается · объявленные входы не записаны",
+ "tests": [
+  "spa_core/tests/test_s49_unmeasured_is_classed.py"
+ ],
+ "mutations": [
+  {
+   "name": "класс схлопнут: «вердикт снят не о том дереве» снова неотличим от долга критерия — дословная авария ADR-809",
+   "file": "scripts/cio_acceptance_rollup.py",
+   "old": "    if declared and reached == []:\n        return UNMEASURED_TREE_NOT_REACHED",
+   "new": "    if False:\n        return UNMEASURED_TREE_NOT_REACHED"
+  },
+  {
+   "name": "объявление входов не спрашивается: проба, которой дерево вообще не нужно, обвиняется в дереве — ложный совет «перемерять», настоящий долг спрятан",
+   "file": "scripts/cio_acceptance_rollup.py",
+   "old": "    if declared and reached == []:",
+   "new": "    if reached == []:"
+  },
+  {
+   "name": "«дерева замера не объявляли» выдано за расхождение: `None` слит с `[]`, и прибор выдумывает, что мерил не то дерево",
+   "file": "scripts/cio_acceptance_rollup.py",
+   "old": "    if declared and reached == []:",
+   "new": "    if declared and not reached:"
+  },
+  {
+   "name": "«мерки нет» слито с существом: критерий без пробы читается как долг измерения, а не как долг объявления",
+   "file": "scripts/cio_acceptance_rollup.py",
+   "old": "    if not row.get(\"probe\"):\n        return UNMEASURED_NO_MEASURE",
+   "new": "    if False:\n        return UNMEASURED_NO_MEASURE"
+  },
+  {
+   "name": "класс не кладётся в строку: поле всегда `None`, и «посчитали, вопрос не стои́т» неотличимо от «не считали вовсе»",
+   "file": "scripts/cio_acceptance_rollup.py",
+   "old": "        row[\"unmeasured_class\"] = unmeasured_class(row)",
+   "new": "        row[\"unmeasured_class\"] = None"
+  },
+  {
+   "name": "счёт классов не ведётся: разбор говорит о пустом населении, а ИТОГ — о полном",
+   "file": "scripts/cio_acceptance_rollup.py",
+   "old": "        if row[\"unmeasured_class\"] is not None:\n            unmeasured_classes[row[\"unmeasured_class\"]] += 1",
+   "new": "        if False:\n            unmeasured_classes[row[\"unmeasured_class\"]] += 1"
+  },
+  {
+   "name": "перечень пуст всегда: число есть, адреса перемера нет — «перемерять» перестаёт быть действием",
+   "file": "scripts/cio_acceptance_rollup.py",
+   "old": "        if r.get(\"unmeasured_class\") == UNMEASURED_TREE_NOT_REACHED]",
+   "new": "        if False]"
+  },
+  {
+   "name": "разбор не печатается: поле в отчёте есть, читателя у него нет — ровно то состояние, в котором ADR-809 читал тройку чисел",
+   "file": "scripts/cio_acceptance_rollup.py",
+   "old": "        if counts[UNMEASURED]:\n            classes = report[\"unmeasured_classes\"]",
+   "new": "        if False:\n            classes = report[\"unmeasured_classes\"]"
+  },
+  {
+   "name": "громкая строка не печатается: класс посчитан, а совет «мерку НЕ ТРОГАТЬ» до человека не доходит",
+   "file": "scripts/cio_acceptance_rollup.py",
+   "old": "        for miss in report[\"not_about_subject_tree\"]:",
+   "new": "        for miss in []:"
+  },
+  {
+   "name": "объявленные входы не записаны в строку: предикат слепнет и всё объявляет существом",
+   "file": "scripts/cio_acceptance_rollup.py",
+   "old": "                     \"detail\": detail, \"tree_inputs_declared\": list(accepted),",
+   "new": "                     \"detail\": detail, \"tree_inputs_declared\": None,"
+  }
+ ]
+}
