@@ -74,6 +74,14 @@ prepare a reviewable plan and acceptance proposal from an ordinary request throu
 seam; do not make the owner choose internal test names. This is a candidate preparation path, not permission
 to dispatch live work. Evidence and scope: `evidence/studio-os-next-01-2026-10-16/voice_owner_check_2026-10-25/ARB_REVIEW.md`.
 
+**Task-prep checkpoint, ARB 2026-10-25:** the existing `memory arch-review --kind task-prep` now has a
+fixture-backed plan/clarification format (code `b1b1cbaff`, tested candidate `5499ceca4`, CI 40216933079:
+135127 passed, two known §49 failures, 719 skipped, no new failed node IDs). Acceptance remains open for
+two consistent-outcome corrections: missing required sections must not be labelled a complete plan, and
+an incomplete preparation must not return CLI success. Next package combines those corrections with one
+bounded real Claude response, subject to the existing included-subscription conditions. No fixture-quality,
+authority-validation or live-routing claim. Scope: `evidence/studio-os-next-01-2026-10-16/task_prep_2026-10-25/ARB_REVIEW.md`.
+
 **Verification efficiency:** bound work to the actual change, reuse traceable evidence, and batch the required
 full CI on a stable candidate. No repeated whole-system/AI audit by default; no removal of mandatory checks and
 no introduction of the unapproved two-tier test scheme. Read results from already running jobs rather than
@@ -299,7 +307,7 @@ separate and labelled; aligning it is an optional owner decision, Н).
 | # | Item | Status | Depends on | Owner | Acceptance | Next step |
 |---|---|---|---|---|---|---|
 | 23 | Voice intake, first real iPhone send | published, not owner-verified; corrected phone script ready 25.10 | — | owner (test) / agent | one card per submission ID, visible status in the cockpit | owner check using voice_owner_check_2026-10-25/OWNER_SCRIPT.md |
-| 24 | Who processes `cockpit-voice` cards, feedback | existing path checked on temporary data; ordinary requests remain no_probe; notification fix ARB-accepted on 33b3219ac, not delivered | 23 for live owner acceptance | agent | useful preparation before execution; truthful reason/outcome; no unverified done | connect ordinary-request preparation to the existing architect seam; no owner-facing probe picker by default; scope in voice checkpoint review |
+| 24 | Who processes `cockpit-voice` cards, feedback | existing path checked on temporary data; ordinary live requests remain no_probe; notification fix accepted in candidate; task-prep CLI implemented with fixtures, two result-contract corrections open | 23 for live owner acceptance | agent | useful preparation before execution; truthful reason/outcome; no unverified done | close the two task-prep corrections and evaluate one real Claude proposal under existing subscription conditions; no live routing or owner-facing probe picker |
 | 25 | Long/English voice, retry when Mac busy | same-ID retry covered by existing temporary tests; new input after confirmed success is a new submission; full iPhone retry/audio UX unverified | 24 | agent | preserved retry keeps the text and original card; new intent stays distinct | keep existing implementation; owner phone check first, later bounded long/English/failure checks |
 | 30 / 14 | ADR-762 version-bound answer; answer from cockpit | proposed | owner decision | owner (mechanism) / agent (candidate) | candidate: CAS under one lock, replay-safe, journal + recovery, kill-switch for writes | package 5 candidate, not wired live |
 | 16 | «Проверить ещё раз» (read-only) then «Исправить» | not decided | ADR-760 pattern | owner per action | one ADR per action; read-only first | package 5 after ADR-762 candidate |
