@@ -278,12 +278,23 @@ class NothingIsSilenced(_Tree):
         self.assertEqual(v.kind, aa.UNMEASURED_REPORT_UNREADABLE)
 
     def test_not_yet_is_the_only_non_finding(self):
-        """Ровно ОДИН исход из пяти не обязывает действовать."""
+        """Ровно ОДИН исход не обязывает действовать.
+
+        ЧИСЛО ИСХОДОВ ПОДНЯТО 7 → 8 ОСОЗНАННО (цикл #935, ADR-812, инв. #16):
+        добавлен `CALL_PRESENT_NOT_ATTEMPTED` — «вызов ЕСТЬ, бегун стартовал
+        позже и ступень не назвал». До него этот случай был неотличим от
+        `DECLARED_WITHOUT_CALL` («вызова нет»), а следующий шаг у них разный:
+        там вызов вписывают, здесь ищут, почему присутствующий не исполнился.
+        Проверяемое свойство храповика — «исходы не задвоены по значению» и
+        «не-находка ровно одна» — не ослаблено: оба утверждения ниже стоят на
+        полном составе, и новый исход в них ВКЛЮЧЁН как находка.
+        """
         kinds = (aa.ATTEMPTED_AND_ABSENT, aa.DECLARED_WITHOUT_CALL, aa.NOT_YET,
+                 aa.CALL_PRESENT_NOT_ATTEMPTED,
                  aa.UNMEASURED_NOT_DECLARED, aa.UNMEASURED_MODULE_ABSENT,
                  aa.UNMEASURED_REPORT_UNREADABLE,
                  aa.UNMEASURED_REPORT_HAS_NO_CLOCK)
-        self.assertEqual(len(set(kinds)), 7, "исходы задвоены по значению")
+        self.assertEqual(len(set(kinds)), 8, "исходы задвоены по значению")
         self.assertEqual(aa.Absence("x", aa.NOT_YET, False, "").not_yet, True)
         for k in kinds:
             if k != aa.NOT_YET:

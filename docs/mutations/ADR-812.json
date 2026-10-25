@@ -1,0 +1,64 @@
+{
+  "title": "ADR-812 — дельта цикла #935: мера прихода производящего кода перестала стоять на СОСЕДНЕМ файле. Каждая мутация возвращает одно из двух состояний до правки — ложную находку на исправной проводке, ждущей такта, либо fail-OPEN на самом дефекте ADR-259, где свежая дата файла прятала отсутствие вызова: проба вызова отключена · приход мерится по одному файлу · «вызова нет» больше не находка · неразобранная форма выдана за отсутствие · область разбора расширена за main() · модуль ImportFrom не читается · «вызов есть, исполнения нет» слит с «вызова нет» · офис называет не тот файл",
+  "tests": [
+    "spa_core/tests/test_artifact_absence_call_carrier.py",
+    "spa_core/tests/test_artifact_absence_shared_verdict.py",
+    "spa_core/tests/test_artifact_absence_runner_start.py"
+  ],
+  "mutations": [
+    {
+      "name": "проба вызова отключена: вердикт снова стоит только на датах — дословное состояние до ADR-812",
+      "file": "spa_core/monitoring/artifact_absence.py",
+      "old": "    call = (call_of(stage, spec) if call_of is not None\n            else _call_state(stage, spec, root=root,\n                             runner_module_rel=runner_module_rel))",
+      "new": "    call = Call(CALL_UNMEASURED, \"мутация: проба вызова отключена\")"
+    },
+    {
+      "name": "приход мерится по ОДНОМУ файлу (модулю переписи): доставка, правившая только вызывающего, снова даёт ложную находку",
+      "file": "spa_core/monitoring/artifact_absence.py",
+      "old": "    if call.carrier_mtime is not None and call.carrier_mtime > born:\n        born, carrier_rel = call.carrier_mtime, call.carrier",
+      "new": "    if False:\n        born, carrier_rel = call.carrier_mtime, call.carrier"
+    },
+    {
+      "name": "«вызова нет» больше не находка: ступень, которую не зовёт никто, при свежем модуле снова уходит в «ещё не производился» (fail-OPEN)",
+      "file": "spa_core/monitoring/artifact_absence.py",
+      "old": "    if call.state == CALL_ABSENT:",
+      "new": "    if False:"
+    },
+    {
+      "name": "неразобранная форма выдана за отсутствие вызова: производитель-СКРИПТ под подпроцессом объявляется незваным — выдуманная находка",
+      "file": "spa_core/monitoring/artifact_absence.py",
+      "old": "    if modname in _imported_module_names(tree) or os.path.basename(module) in src:",
+      "new": "    if False:"
+    },
+    {
+      "name": "область разбора расширена за main(): импорт в любой функции зачтён как вызов — утверждение «внутри main()» перестаёт исполняться",
+      "file": "spa_core/monitoring/artifact_absence.py",
+      "old": "    if modname in _imported_module_names(main_fn):",
+      "new": "    if modname in _imported_module_names(tree):"
+    },
+    {
+      "name": "у ImportFrom не читается МОДУЛЬ, только имена: форма `from ...X import run` объявляет живой вызов отсутствующим",
+      "file": "spa_core/monitoring/artifact_absence.py",
+      "old": "            if n.module:\n                out.add(n.module.rsplit(\".\", 1)[-1])",
+      "new": "            if False:\n                out.add(n.module.rsplit(\".\", 1)[-1])"
+    },
+    {
+      "name": "«вызов есть, исполнения нет» слит с «вызова нет»: два разных следующих шага снова неразличимы",
+      "file": "spa_core/monitoring/artifact_absence.py",
+      "old": "    if call.state == CALL_PRESENT:\n        if clock_field == \"generated_at\":",
+      "new": "    if False:\n        if clock_field == \"generated_at\":"
+    },
+    {
+      "name": "офис называет не тот файл: читателя снова отправляют смотреть модуль, который не менялся",
+      "file": "scripts/consume_office_reports.py",
+      "old": "        _late = (f\"несущий вызов {v.carrier}\" if v.carrier\n                 and v.carrier != v.module else f\"производитель {v.module}\")",
+      "new": "        _late = f\"производитель {v.module}\""
+    },
+    {
+      "name": "подветка «старт НЕ ИЗМЕРЕН» снова ссылается на форму ADR-259, хотя разбор её ИСКЛЮЧИЛ — утверждение лишнего",
+      "file": "spa_core/monitoring/artifact_absence.py",
+      "old": "                        f\"уже идущего прогона\"))",
+      "new": "                        f\"уже идущего прогона; форма ADR-259\"))"
+    }
+  ]
+}
