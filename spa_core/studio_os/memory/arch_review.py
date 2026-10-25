@@ -63,6 +63,40 @@ files, constraints (no production, no main, no tracker), checks, and what NOT to
 This is a proposal: do not claim approval or acceptance."""
 
 
+#: ``--kind task-prep`` (ARB 25.10): the SAME seam turns ONE ordinary owner request into a reviewable
+#: preparation — intended outcome, plan, an acceptance PROPOSAL, unknowns/question, required authority.
+#: It prepares, it never executes: no card, no ``acceptance_probe``, no claim, no worker, nothing «done».
+KIND_ARCH, KIND_PREP = "arch", "task-prep"
+PREP_VERSION = "task-prep/1"
+PREP_SECTIONS = ("OUTCOME", "PLAN", "ACCEPTANCE PROPOSAL", "UNKNOWNS AND QUESTION", "PERMISSIONS")
+NEW_CHECK_MARK = "NEW CHECK NEEDED"
+NO_PLAN_MARK = "NO PLAN"
+SUBJECT_NONE = "NONE"
+PREP_DISCLAIMER = ("ПРЕДЛОЖЕНИЕ ДЛЯ РАЗБОРА — не задание к исполнению: карточка не меняется, проверка результата не "
+                   "назначается, исполнитель не запускается, ничего не объявлено сделанным. Зарегистрированное имя "
+                   "проверки не доказывает, что она меряет это поручение. Тестовый ответ не оценивает реальную модель.")
+PREP_INSTRUCTION = """Prepare ONE ordinary request of the owner for later work. Use ONLY the context below. Do NOT do the work.
+The owner's request, verbatim (do not rewrite it):
+<<<REQUEST
+{task}
+REQUEST>>>
+
+Reply in plain Russian for the owner, in EXACTLY these five sections, with these headings, in this order:
+## OUTCOME — what will exist when the request is fulfilled, in one or two sentences the owner can check.
+## PLAN — 3–7 numbered steps of the work, each with its scope (what is touched, what is NOT touched).
+If the request is too ambiguous to plan, write exactly "{no_plan}" here and ask in the next section.
+## ACCEPTANCE PROPOSAL — how the RESULT will be checked by a machine, before the work starts. Either name an
+existing check in backticks AND say why it measures THIS outcome, or write "{new_check}: <what the check must
+measure, a positive and a negative control>". Never pick a check only because it exists.
+## UNKNOWNS AND QUESTION — what the context does not establish (say UNKNOWN); if anything blocks planning,
+ONE plain question to the owner ending with "?".
+## PERMISSIONS — first line exactly "subject: <one of NONE, MONEY, PUBLIC_NUMBERS_NAMING_LEGAL, IRREVERSIBLE,
+PHYSICAL_ACTION>" (the owner's three subjects of ADR-285, or an action only the owner can physically do);
+then why. This is a proposal: do not claim approval, acceptance or completion."""
+
+_IDENT = re.compile(r"`([A-Za-z][A-Za-z0-9_]{2,}(?::[A-Za-z0-9_.+\-]+)?)`")
+
+
 class ReviewError(Exception):
     """The review cannot be built — refused before any model call."""
 
@@ -118,11 +152,11 @@ def extra_fragments(paths: Sequence[Path]) -> tuple:
     return ("\n".join(parts), rows, unknown)
 
 
-def parse_sections(text: str) -> Dict[str, Optional[str]]:
+def parse_sections(text: str, sections: Sequence[str] = SECTIONS) -> Dict[str, Optional[str]]:
     """Body of each required ``## SECTION`` heading; ``None`` — the section is missing."""
-    out: Dict[str, Optional[str]] = {s: None for s in SECTIONS}
+    out: Dict[str, Optional[str]] = {s: None for s in sections}
     marks = []
-    for s in SECTIONS:
+    for s in sections:
         m = re.search(r"(?mi)^#{1,4}\s*" + re.escape(s) + r"\b.*$", text)
         if m:
             marks.append((m.start(), m.end(), s))
@@ -144,7 +178,9 @@ def claude_task_block(section: Optional[str]) -> Optional[str]:
 def run_review(root: Path, *, handover: str, task_id: str, task: str, verified_sha: str,
                provider: Optional[str], out: Path, roadmap_item: Optional[int] = None,
                extra: Sequence[Path] = (), adapters: Optional[Dict] = None,
-               config: Optional[Dict] = None, at: Optional[str] = None) -> Dict[str, Any]:
+               config: Optional[Dict] = None, at: Optional[str] = None, kind: str = KIND_ARCH) -> Dict[str, Any]:
+    if kind not in (KIND_ARCH, KIND_PREP):
+        raise ReviewError(f"unknown review kind {kind!r}; known: {KIND_ARCH}, {KIND_PREP}")
     # Every caller-supplied string that reaches the prompt, review.json, recommendation.md or a reason.
     for field, value in (("task", task), ("task_id", task_id), ("handover", handover), ("provider", provider)):
         refuse_if_credential(field, value)
@@ -161,13 +197,16 @@ def run_review(root: Path, *, handover: str, task_id: str, task: str, verified_s
     frag_md, frag_rows, frag_unknown = extra_fragments(extra)
     context = role_pack.render(pack) + ("\n## Task fragments (explicit, sanitized)\n\n" + frag_md if frag_md else "")
     unknown = list(pack["unknown"]) + frag_unknown
-    req = Request(ROLE, task_id, INSTRUCTION.format(task=task), context, "role-pack + fragments")
+    names = PREP_SECTIONS if kind == KIND_PREP else SECTIONS
+    instruction = (PREP_INSTRUCTION.format(task=task, no_plan=NO_PLAN_MARK, new_check=NEW_CHECK_MARK)
+                   if kind == KIND_PREP else INSTRUCTION.format(task=task))
+    req = Request(ROLE, task_id, instruction, context, "role-pack + fragments")
     res = execute(req, config=config or load_config(), provider_id=provider,
                   adapters=adapters if adapters is not None else {"claude_cli": ad.claude_cli()})
-    sections = parse_sections(res.text) if res.status == "ok" else {s: None for s in SECTIONS}
-    block = claude_task_block(sections["CLAUDE TASK"])
-    missing = [s for s, v in sections.items() if v is None] + ([] if block or res.status != "ok"
-                                                               else ["CLAUDE TASK code block"])
+    sections = parse_sections(res.text, names) if res.status == "ok" else {s: None for s in names}
+    block = claude_task_block(sections["CLAUDE TASK"]) if kind == KIND_ARCH else None
+    missing = [s for s, v in sections.items() if v is None] + ([] if kind == KIND_PREP or block
+                                                               or res.status != "ok" else ["CLAUDE TASK code block"])
     rev = pack["revision"]
     record = {
         "review_version": REVIEW_VERSION, "task_id": task_id, "task": task,
@@ -185,12 +224,122 @@ def run_review(root: Path, *, handover: str, task_id: str, task: str, verified_s
         "structure_complete": res.status == "ok" and not missing, "missing_sections": missing,
         "disclaimer": DISCLAIMER, "writes": "only this output directory",
     }
+    if kind == KIND_PREP:
+        record.update(review_version=PREP_VERSION, kind=KIND_PREP, request_sha256=_sha(task),
+                      disclaimer=PREP_DISCLAIMER,
+                      preparation=check_preparation(sections) if res.status == "ok" else None)
     out.mkdir(parents=True, exist_ok=True)
     from spa_core.utils.atomic import atomic_save, atomic_save_text
     atomic_save_text(context, str(out / "context.md"))
     atomic_save(record, str(out / "review.json"))
-    atomic_save_text(render_recommendation(record), str(out / "recommendation.md"))
+    render = render_preparation if kind == KIND_PREP else render_recommendation
+    atomic_save_text(render(record), str(out / "recommendation.md"))
     return record
+
+
+def check_preparation(sections: Dict[str, Optional[str]], probes: Optional[Sequence[str]] = None) -> Dict[str, Any]:
+    """Deterministic reading of a task-prep answer — it VALIDATES, it never decides readiness.
+
+    * every backticked identifier in ACCEPTANCE PROPOSAL is looked up in the probe registry: registered ⇒
+      «relevance NOT established» (a registered name is not proof it measures THIS request); unregistered ⇒
+      not a check at all; «NEW CHECK NEEDED» ⇒ a proposal to build one (not an installed check);
+    * PERMISSIONS ``subject:`` must be a word of the ADR-285 vocabulary (``owner_queue.subject``) or NONE;
+      anything else ⇒ UNKNOWN for the reviewer;
+    * the owner-facing form: ``plan`` · ``clarification`` (no plan, a question) · ``incomplete``.
+    There is deliberately NO «ready» / «approved» field: review and permission are not a schema flag."""
+    from spa_core.owner_queue import subject as subj
+    if probes is None:
+        from spa_core.monitoring.card_acceptance import PROBES as _reg
+        probes = list(_reg)
+    acc = sections.get("ACCEPTANCE PROPOSAL") or ""
+    named = []
+    for ident in dict.fromkeys(m.group(1) for m in _IDENT.finditer(acc)):
+        base = ident.split(":", 1)[0]
+        if base in probes:
+            named.append({"name": ident, "registered": True,
+                          "relevance": "NOT ESTABLISHED — a registered name is not proof it measures this request"})
+        elif "_" in base:
+            named.append({"name": ident, "registered": False, "relevance": "not a registered check"})
+    new_check = NEW_CHECK_MARK.lower() in acc.lower()
+    perm = sections.get("PERMISSIONS") or ""
+    m = re.search(r"(?im)^\s*subject\s*:\s*([A-Z_]+)\s*$", perm)
+    declared = m.group(1) if m else None
+    allowed = [x for x in subj.SUBJECTS if x != subj.UNKNOWN] + [SUBJECT_NONE]
+    subject = declared if declared in allowed else subj.UNKNOWN
+    plan = (sections.get("PLAN") or "").strip()
+    question = sections.get("UNKNOWNS AND QUESTION") or ""
+    has_question = "?" in question
+    no_plan = not plan or plan.upper().startswith(NO_PLAN_MARK)
+    acceptance = ("new_check_proposed" if new_check else
+                  "registered_check_named_relevance_unproven" if any(n["registered"] for n in named) else
+                  "none_usable")
+    if no_plan:
+        form = "clarification" if has_question else "incomplete"
+    else:
+        form = "plan" if acceptance != "none_usable" else "incomplete"
+    reasons = []
+    if no_plan and not has_question:
+        reasons.append("no plan and no question to the owner")
+    if not no_plan and acceptance == "none_usable":
+        reasons.append("the acceptance proposal names no registered check and proposes no new one")
+    if subject == subj.UNKNOWN:
+        reasons.append(f"PERMISSIONS subject {declared!r} is not in the ADR-285 vocabulary — reviewer decides")
+    return {"form": form, "acceptance": acceptance, "probes_named": named, "new_check_proposed": new_check,
+            "subject": subject, "subject_declared": declared, "question": has_question, "reasons": reasons}
+
+
+def is_current(record: Dict[str, Any], *, request: str, context_sha256: str, verified_sha: str) -> Dict[str, Any]:
+    """Freshness barrier for any later use: the preparation belongs to EXACTLY this request text, this context
+    and this verified revision. Any difference ⇒ stale (re-prepare), never «close enough»."""
+    reasons = []
+    if record.get("request_sha256") != _sha(request):
+        reasons.append("request text changed")
+    if record.get("context_sha256") != context_sha256:
+        reasons.append("context changed")
+    if (record.get("revisions") or {}).get("verified_code_sha") != verified_sha:
+        reasons.append("verified revision changed")
+    return {"current": not reasons, "reasons": reasons}
+
+
+_FORM_RU = {"plan": "план готов к разбору", "clarification": "нужно уточнение владельца",
+            "incomplete": "подготовка неполная — разбор обязателен"}
+_ACC_RU = {"new_check_proposed": "предложено подготовить новую проверку (её ещё нет)",
+           "registered_check_named_relevance_unproven": "названа существующая проверка — относится ли она к "
+                                                        "поручению, НЕ установлено, решает разбор",
+           "none_usable": "пригодной проверки не предложено"}
+
+
+def render_preparation(r: Dict[str, Any]) -> str:
+    rv = r["revisions"]
+    head = [f"# Подготовка поручения — {r['task_id']}", "", f"> {r['disclaimer']}", "",
+            "## Поручение (дословно)", "", "> " + r["task"].replace("\n", "\n> "), "",
+            f"- хеш поручения `{r['request_sha256']}` · контекст `{r['context_sha256']}` ({r['context_chars']} зн.)",
+            f"- проверенный код `{rv['verified_code_sha']}` · HEAD `{rv['head']}`",
+            f"- провайдер `{r['provider']}` (настоящий: {r['real_provider']}) · статус **{r['status']}** · попыток "
+            f"{r['attempts']}"]
+    if r["status"] != "ok":
+        return "\n".join(head + ["", f"## Плана нет — {r['status']}", "", str(r["reason"]),
+                                 "", f"Поручение сохранено выше дословно; вызовов: {r['attempts']} (политика роли, "
+                                     "без запасного провайдера)."]) + "\n"
+    p = r["preparation"]
+    if not isinstance(p, dict):
+        return "\n".join(head + ["", "## Сверка не выполнена — подготовка не читается как план"]) + "\n"
+    titles = {"OUTCOME": "Что должно получиться", "PLAN": "План", "ACCEPTANCE PROPOSAL": "Как проверим результат",
+              "UNKNOWNS AND QUESTION": "Что неизвестно / вопрос", "PERMISSIONS": "Полномочия"}
+    body = ["", f"**Итог подготовки: {_FORM_RU.get(p.get('form'), p.get('form'))}.**"]
+    for s in PREP_SECTIONS:
+        body += ["", f"## {titles[s]}", "", r["sections"][s] or "НЕТ — ответ не содержал этот раздел"]
+        if s == "ACCEPTANCE PROPOSAL":
+            body += ["", f"_Сверка:_ {_ACC_RU.get(p.get('acceptance'), '')}."]
+            for n in p.get("probes_named") or []:
+                body.append(f"- `{n['name']}` — " + ("зарегистрирована; отношение к поручению не установлено"
+                                                    if n["registered"] else "не зарегистрирована"))
+        if s == "PERMISSIONS":
+            body += ["", f"_Сверка предмета:_ `{p.get('subject')}`"
+                     + ("" if p.get("subject") != "UNKNOWN" else " — не из словаря ADR-285, решает разбор")]
+    if p.get("reasons"):
+        body += ["", "## Замечания сверки", ""] + [f"- {x}" for x in p["reasons"]]
+    return "\n".join(head + body) + "\n"
 
 
 def render_recommendation(r: Dict[str, Any]) -> str:
@@ -230,6 +379,8 @@ def main(argv: Optional[List[str]] = None) -> int:
     ap.add_argument("--fixture", type=Path, default=None, help="answers for the TEST adapter")
     ap.add_argument("--config", type=Path, default=None)
     ap.add_argument("--out", type=Path, required=True)
+    ap.add_argument("--kind", choices=(KIND_ARCH, KIND_PREP), default=KIND_ARCH,
+                    help="arch — architecture review (default); task-prep — prepare ONE ordinary owner request")
     a = ap.parse_args(argv)
     try:
         # Paths the CLI prints or quotes in diagnostics (out in the summary, config in its error).
@@ -246,7 +397,8 @@ def main(argv: Optional[List[str]] = None) -> int:
         cfg = load_config(a.config)
         rec = run_review(a.root, handover=a.handover, task_id=a.task_id, task=a.task,
                          verified_sha=a.verified_sha, provider=a.provider, out=a.out,
-                         roadmap_item=a.roadmap_item, extra=a.extra_context, adapters=adapters, config=cfg)
+                         roadmap_item=a.roadmap_item, extra=a.extra_context, adapters=adapters, config=cfg,
+                         kind=a.kind)
     except (ReviewError, ConfigError) as exc:
         print(f"REVIEW NOT BUILT: {exc}")
         return 2
