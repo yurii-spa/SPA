@@ -5311,6 +5311,218 @@ def _probe_no_regression_tests_pass(
                        f"зелёные: {tail}")
 
 
+
+#: Имена модулей двух ПОЛОВИН критерия §49 `Auditability`. Имена, а не объекты:
+#: подмена в `sys.modules` обязана доходить до пробы — иначе контроль проверял бы
+#: свою копию прибора, а не проводку.
+AUDIT_TRAIL_MODULE = "spa_core.monitoring.decision_audit_trail"
+EXPLAINABILITY_MODULE = "spa_core.monitoring.cio_explainability"
+
+#: Половины критерия владельца, в порядке его же слов: «snapshot и explanation».
+#: Якорь объявления у каждой свой — иначе прибор о снимке мог бы подписаться
+#: мерой объяснения и наоборот, и подмена прошла бы молча.
+AUDITABILITY_HALVES: tuple[tuple[str, str, str], ...] = (
+    ("snapshot", AUDIT_TRAIL_MODULE, "§49 Auditability (половина «snapshot»)"),
+    ("explanation", EXPLAINABILITY_MODULE, "§49 Auditability (половина «explanation»)"),
+)
+
+
+def _probe_auditability_decision_carries_snapshot_and_explanation(
+        arg: str | None, *, now: "datetime | None" = None,
+        repo_root: str | None = None,
+        data_dir: str | None = None) -> tuple[str, str]:
+    """Критерий §49 `Auditability` приказа CIO: «Каждое решение имеет snapshot и explanation».
+
+    Почему проба появилась только сейчас
+    ---------------------------------------------------------------------------
+    Замер 25.10 (`data/s49_tally_tact.json`): из тринадцати критериев §49 у
+    `Auditability` в графе пробы стоял **`null`**, а вердикт — `unmeasured`. При
+    этом ОБА прибора, мерящие дословные слова владельца, работают с 06.09, их
+    артефакты свежи и печатают `CRITICAL`:
+
+    * снимок — `decision_audit_trail` (§43): полностью объяснимых перекладок
+      **0 из 46**;
+    * объяснение — `cio_explainability` (§44): произносится **3 факта из 8**.
+
+    То есть критерий владельца был ИЗМЕРЕН дважды и НЕ ИМЕЛ ЧИТАТЕЛЯ ровно в том
+    месте, где считается его вердикт. Это тот же класс, которым болели `Costs`
+    (ADR-513) и `Determinism` (ADR-515): запись «этот прибор есть мера этого
+    критерия» лежала прозой — у этих двух не лежала вовсе.
+
+    Половин ДВЕ, и это не оформление
+    ---------------------------------------------------------------------------
+    Владелец назвал критерий двумя словами, и у слов РАЗНЫЕ населения: у снимка
+    — перекладки живого трека, у объяснения — книги, несущие recommendation.
+    Слить их в один знаменатель значило бы соврать о том, сколько решений
+    вообще судится. Поэтому вердикт каждой половины остаётся у её прибора
+    (`criterion_verdict`, ADR-220), а проба их СКЛАДЫВАЕТ.
+
+    Как складывается, и почему именно так
+    ---------------------------------------------------------------------------
+    Критерий есть КОНЪЮНКЦИЯ («snapshot И explanation»), поэтому:
+
+    * половина `NOT_SATISFIED` ⇒ критерий `not_satisfied` НЕЗАВИСИМО от второй.
+      Находка есть утверждение СУЩЕСТВОВАНИЯ, и непрочитанная рядом половина её
+      не отменяет — иначе измеренное красное владельца пряталось бы за «не
+      измерено», то есть инвариант #17 наизнанку (тот же урок, что у `Costs`);
+    * ни одной `NOT_SATISFIED`, но есть `UNMEASURED` ⇒ `unmeasured` с НАЗВАННОЙ
+      половиной: конъюнкция, у которой один член неизвестен, неизвестна;
+    * обе `SATISFIED` ⇒ `satisfied`.
+
+    Свежесть судится ПАСПОРТОМ артефакта
+    ---------------------------------------------------------------------------
+    Порог берётся из `architecture/manifest.json` одним читателем
+    (`rebalance_cost_evidence.declared_slo_hours`, оба дома объявления). Своего
+    «24 часа» проба не назначает: порог — решение, и дом его — конституция.
+    Дома нет ⇒ `unmeasured` с причиной, а не «свежо».
+
+    Чего проба НЕ докладывает (назвать слепоту — часть замера)
+    ---------------------------------------------------------------------------
+    * **Верность самих приборов.** Что девять полей §43 разрешаются правильно и
+      что восемь детекторов §44 не врут — держат сторожа приборов. У §44 есть
+      свой положительный контроль, и его провал проба переносит как «не
+      измерено», а не как «молчит».
+    * **Решения вне двух населений.** Перекладка, не попавшая в трейл, и книга,
+      не названная в `_BOOKS`, пробе не видны вовсе.
+    * **«Снимок есть» ≠ «снимок верен».** Поле засчитывается, когда данные
+      ОТДАЮТ значение для этого решения; что значение правдиво — вопрос другой
+      меры.
+    * **Ничего не чинит.** Читаются два артефакта и конституция; ни строки
+      трейла, схемы событий, фразы владельцу, RiskPolicy, стоп-крана или живого
+      трека. Дописать поле в запись решения — money-path и решение владельца.
+    """
+    if (arg or "").strip():
+        return UNMEASURED, (f"проба не принимает аргумента (дано {arg!r}): критерий "
+                            "о ДВУХ половинах целиком, и пофайловой формы у него нет")
+
+    root = repo_root or REPO_ROOT
+    data = data_dir or os.path.join(root, "data")
+
+    def _read(where: str):
+        with open(where, "r", encoding="utf-8") as handle:
+            return json.load(handle)
+
+    try:
+        slo_reader = _cost_evidence_module().declared_slo_hours
+    except BaseException as exc:  # noqa: BLE001 — причина обязана быть названа
+        return UNMEASURED, (f"читатель срока годности не загружен: "
+                            f"{type(exc).__name__}: {exc}")
+
+    verdicts: dict[str, tuple[str, str]] = {}
+    where: list[str] = []
+    for half, module_name, anchor in AUDITABILITY_HALVES:
+        try:
+            import importlib
+            meter = importlib.import_module(module_name)
+        except BaseException as exc:  # noqa: BLE001
+            verdicts[half] = (UNMEASURED, f"прибор половины «{half}» не загружен: "
+                                          f"{type(exc).__name__}: {exc}")
+            continue
+
+        # Объявление читается ДО артефакта: прибор, не сказавший, что он мера
+        # ЭТОГО критерия, мерой его не становится от того, что файл на месте.
+        declared = str(getattr(meter, "CRITERION", "") or "")
+        if not declared.startswith(anchor):
+            verdicts[half] = (UNMEASURED,
+                              f"прибор половины «{half}» не объявляет себя мерой "
+                              f"{anchor!r} (его CRITERION: {declared[:70]!r})")
+            continue
+
+        rel = str(getattr(meter, "REPORT_REL", "") or "")
+        if not rel:
+            verdicts[half] = (UNMEASURED, f"прибор половины «{half}» не называет "
+                                          f"адрес своего артефакта (`REPORT_REL`)")
+            continue
+        path = os.path.join(data, os.path.basename(rel))
+        try:
+            doc = _read(path)
+        except (OSError, ValueError) as exc:
+            verdicts[half] = (UNMEASURED, f"артефакт половины «{half}» {rel} не "
+                                          f"прочитан ({exc})")
+            continue
+        if not isinstance(doc, dict):
+            verdicts[half] = (UNMEASURED, f"артефакт половины «{half}» {rel} — не "
+                                          f"объект ({type(doc).__name__})")
+            continue
+
+        try:
+            slo, slo_prov = slo_reader(root, _read, rel)
+        except BaseException as exc:  # noqa: BLE001
+            verdicts[half] = (UNMEASURED, f"срок годности {rel} не прочитан: "
+                                          f"{type(exc).__name__}: {exc}")
+            continue
+        stamp = observed(doc, "generated_at", kind=str)
+        try:
+            made = datetime.fromisoformat(str(stamp).replace("Z", "+00:00"))
+        except (TypeError, ValueError):
+            made = None
+        if made is None:
+            verdicts[half] = (UNMEASURED, f"артефакт половины «{half}» не пишет "
+                                          f"разбираемый `generated_at` ({stamp!r}) — "
+                                          f"возраст НЕ ИЗМЕРЕН")
+            continue
+        if made.tzinfo is None:
+            made = made.replace(tzinfo=timezone.utc)
+        age = ((now or datetime.now(timezone.utc)) - made).total_seconds() / 3600.0
+        if slo is None:
+            verdicts[half] = (UNMEASURED, f"артефакту половины «{half}» {age:.1f} ч, а "
+                                          f"срок годности взять неоткуда: {slo_prov}")
+            continue
+        if age > float(slo):
+            verdicts[half] = (UNMEASURED, f"артефакт половины «{half}» протух: "
+                                          f"{age:.1f} ч при объявленном пределе "
+                                          f"{float(slo):g} ч ({slo_prov})")
+            continue
+
+        try:
+            block = meter.criterion_verdict(doc)
+        except BaseException as exc:  # noqa: BLE001
+            verdicts[half] = (UNMEASURED, f"вердикт половины «{half}» не вынесен: "
+                                          f"{type(exc).__name__}: {exc}")
+            continue
+        if not isinstance(block, dict):
+            verdicts[half] = (UNMEASURED, f"вердикт половины «{half}» — не объект "
+                                          f"({type(block).__name__})")
+            continue
+        status = block.get("status")
+        reason = block.get("reason") or "причина не названа"
+        where.append(f"«{half}»: артефакт снят {stamp} ({age:.1f} ч при пределе "
+                     f"{float(slo):g} ч, {slo_prov})")
+        if status == getattr(meter, "CRITERION_NOT_SATISFIED", None):
+            verdicts[half] = (NOT_SATISFIED, reason)
+        elif status == getattr(meter, "CRITERION_UNMEASURED", None):
+            verdicts[half] = (UNMEASURED, reason)
+        elif status == getattr(meter, "CRITERION_SATISFIED", None):
+            verdicts[half] = (SATISFIED, reason)
+        else:
+            verdicts[half] = (UNMEASURED, f"прибор половины «{half}» вернул вердикт "
+                                          f"{status!r}, который не переносится")
+
+    blind = ("мера НЕ отвечает: верны ли сами приборы · решения вне двух населений "
+             "(перекладка не в трейле, книга не в перечне) · правдив ли снимок, а не "
+             "только отдан ли он данными; дописать поле в запись решения или факт во "
+             "фразу владельцу — money-path и решение владельца")
+    tail = ("; ".join(where) + "; " if where else "") + blind
+
+    broken = [f"половина «{half}» — {reason}"
+              for half, (status, reason) in verdicts.items()
+              if status == NOT_SATISFIED]
+    if broken:
+        return NOT_SATISFIED, ("критерий есть конъюнкция «snapshot И explanation», и "
+                               "хотя бы один член ИЗМЕРЕН невыполненным: "
+                               + " || ".join(broken) + f" ({tail})")
+    unknown = [f"половина «{half}» — {reason}"
+               for half, (status, reason) in verdicts.items()
+               if status != SATISFIED]
+    if unknown:
+        return UNMEASURED, ("конъюнкция, у которой член неизвестен, НЕИЗВЕСТНА: "
+                            + " || ".join(unknown) + f" ({tail})")
+    return SATISFIED, ("обе половины критерия владельца ИЗМЕРЕНЫ выполненными: "
+                       + " || ".join(f"половина «{half}» — {reason}"
+                                     for half, (_s, reason) in verdicts.items())
+                       + f" ({tail})")
+
+
 def _probe_no_single_criterion_probe_on_a_multi_criterion_order(
         arg: str | None, *, tracker_dir: str | None = None,
         repo_root: str | None = None, ref: str = "origin/main") -> tuple[str, str]:
@@ -11806,6 +12018,8 @@ PROBES: dict[str, Callable[[str | None], "tuple[str, str]"]] = {
     "no_regression_record_is_produced_without_a_hand":
         _probe_no_regression_record_is_produced_without_a_hand,
     "delivery_refuses_an_unnamed_tree": _probe_delivery_refuses_an_unnamed_tree,
+    "auditability_decision_carries_snapshot_and_explanation":
+        _probe_auditability_decision_carries_snapshot_and_explanation,
 }
 
 
@@ -11832,6 +12046,8 @@ _probe_marginal_return_size_changes_expected_yield.s49_criterion = "Marginal ret
 _probe_determinism_recomputation_is_reproducible.s49_criterion = "Determinism"
 _probe_owner_visibility_numbers_delivered.s49_criterion = "Owner visibility"
 _probe_no_regression_tests_pass.s49_criterion = "No regression"
+_probe_auditability_decision_carries_snapshot_and_explanation.s49_criterion = \
+    "Auditability"
 
 
 def probes_by_s49_criterion() -> dict:

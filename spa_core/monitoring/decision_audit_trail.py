@@ -85,6 +85,124 @@ OWNER_FIELDS: tuple[tuple[str, str], ...] = (
 
 PRESENT, PARTIAL, ABSENT, UNMEASURED = "present", "partial", "absent", "unmeasured"
 
+#: Критерий §49 приказа «Portfolio CIO», мерой ПОЛОВИНЫ которого модуль себя
+#: объявляет. Якорь читается как НАЧАЛО строки (ADR-333): упоминание критерия
+#: в середине заметки есть ссылка на него, а не объявление себя его мерой.
+#:
+#: Половина — потому что критерий владельца назван ДВУМЯ словами: «Каждое
+#: решение имеет snapshot и explanation». Снимок меряет этот модуль (§43),
+#: объяснение — сосед `cio_explainability` (§44). Сводить их в один прибор
+#: было бы ложью о населении: у снимка население — ПЕРЕКЛАДКИ живого трека, у
+#: объяснения — РЕКОМЕНДАЦИИ книг, и это разные множества.
+CRITERION = (
+    "§49 Auditability (половина «snapshot») приказа владельца «Portfolio CIO» — "
+    "дословно: «Каждое решение имеет snapshot и explanation». Снимок здесь это "
+    "девять полей §43, и мера их — ВОССТАНОВИМОСТЬ по данным, а не наличие файла"
+)
+
+CRITERION_SATISFIED = "SATISFIED"
+CRITERION_NOT_SATISFIED = "NOT_SATISFIED"
+CRITERION_UNMEASURED = "UNMEASURED"
+
+
+def criterion_verdict(doc: dict) -> dict:
+    """Вердикт о ПОЛОВИНЕ критерия §49 `Auditability` — по уже снятому отчёту.
+
+    Правило вычисления живёт ЗДЕСЬ, у производителя чисел, и второй его копии
+    нет (ADR-220): читатель (`card_acceptance`) вердикт ПЕРЕНОСИТ, а не считает
+    заново.
+
+    Своего порога у вердикта нет ни одного. Квантор «КАЖДОЕ решение» — слово
+    владельца из §49, а не выбранная нами доля: поэтому `satisfied` требует
+    `fully_answerable == moves`, и «почти все» ответом не является.
+
+    **Переносится НЕ `overall`.** `overall` этого модуля есть лестница ТЯЖЕСТИ,
+    где `UNCHECKED` стои́т выше `CRITICAL` намеренно — для здоровья артефакта
+    это верно, а для вердикта критерия вывернуло бы инвариант #17 наизнанку:
+    находка «поле не восстановимо ни по одной перекладке» есть утверждение
+    СУЩЕСТВОВАНИЯ, и непрочитанный рядом источник её не отменяет.
+
+    Три исхода разведены (инв. #17):
+
+    * `SATISFIED` — перекладок хотя бы одна, и у КАЖДОЙ отвечают данными все
+      девять полей владельца;
+    * `NOT_SATISFIED` — есть перекладка, по которой данные не отвечают, и поля
+      НАЗВАНЫ;
+    * `UNMEASURED` — раздела `population` нет / числа в нём не читаются /
+      **перекладок НОЛЬ**. Последнее не «чисто»: «каждая перекладка
+      восстановима» при нуле перекладок верно ПО ПОСТРОЕНИЮ и ответом на вопрос
+      владельца не является.
+    """
+    pop = observed(doc, "population", kind=dict)
+    if pop is None:
+        return {"status": CRITERION_UNMEASURED,
+                "reason": ("в отчёте нет раздела `population` — судить о "
+                           "восстановимости нечем, и это НЕ «ноль перекладок»")}
+    moves = observed_number(pop, "moves")
+    answerable = observed_number(pop, "fully_answerable")
+    missing = [name for name, value in (("moves", moves),
+                                        ("fully_answerable", answerable))
+               if value is None]
+    if missing:
+        # Почему не прочитались — говорит сам отчёт: «источника нет» и «источник
+        # есть, а число не разобрано» чинятся разным (инв. #17). У самой причины
+        # тоже ТРИ исхода, и `or []` схлопнул бы два из них в один: «раздела
+        # `unchecked` в отчёте нет» и «отчёт назвал непрочитанного ноль» — разные
+        # положения дел, и храповик класса поймал здесь ровно это.
+        unread = observed(doc, "unchecked", kind=list)
+        if unread is None:
+            why = "раздела `unchecked` в отчёте нет — причина НЕ ИЗМЕРЕНА"
+        elif not unread:
+            why = "отчёт не называет непрочитанного ни одной строкой"
+        else:
+            why = "; ".join(str(item) for item in unread)
+        return {"status": CRITERION_UNMEASURED,
+                "reason": (f"в `population` не читаются числа {', '.join(missing)} — "
+                           f"знаменатель или числитель НЕ ИЗМЕРЕН ({why})")}
+    if moves <= 0:
+        return {"status": CRITERION_UNMEASURED,
+                "reason": ("перекладок в трейле НЕ НАЙДЕНО ни одной — «каждое "
+                           "решение восстановимо» при нуле решений верно ПО "
+                           "ПОСТРОЕНИЮ и ответом не является")}
+    if answerable < moves:
+        # Поля перечисляются ЧЕРЕЗ `observed`, а не через `or {}`: «поля в отчёте
+        # нет» и «поле есть, и по нему ноль отказов» — РАЗНЫЕ положения дел, и
+        # схлопнуть их в пустой словарь значило бы выдать непрочитанное за
+        # благополучие (инв. #17; храповик класса поймал здесь ровно это).
+        fields = observed(doc, "owner_fields", kind=dict)
+        named: list[str] = []
+        unread: list[str] = []
+        for key, wording in OWNER_FIELDS:
+            entry = observed(fields, key, kind=dict) if fields is not None else None
+            counts = observed(entry, "counts", kind=dict) if entry is not None else None
+            if counts is None:
+                unread.append(f"«{wording}»")
+                continue
+            bad = 0
+            for state in (PARTIAL, ABSENT, UNMEASURED):
+                seen = observed_number(counts, state)
+                if seen is not None:
+                    bad += int(seen)
+            if bad:
+                named.append(f"«{wording}» ({bad})")
+        where = []
+        if named:
+            where.append("; ".join(named))
+        if unread:
+            where.append("счёт НЕ ПРОЧИТАН у полей: " + "; ".join(unread))
+        if not where:
+            where.append("перечень полей в отчёте не разобран")
+        return {"status": CRITERION_NOT_SATISFIED,
+                "reason": (f"по данным восстановимы {answerable:.0f} перекладок из "
+                           f"{moves:.0f}: снимка решения у остальных НЕТ. Поля "
+                           f"владельца, по которым данные не отвечают: "
+                           + " · ".join(where)),
+                "answerable": answerable, "moves": moves}
+    return {"status": CRITERION_SATISFIED,
+            "reason": (f"у каждой из {moves:.0f} перекладок данные отвечают на все "
+                       f"девять полей §43 — снимок решения восстановим"),
+            "answerable": answerable, "moves": moves}
+
 
 def _read_json(path: str) -> Any:
     try:
@@ -611,6 +729,9 @@ def _report(root: str, now: dt.datetime, *, overall: str, fields: dict,
                      "трогаются — дописать поле в запись решения значит изменить путь, "
                      "по которому двигается капитал, это решение владельца"),
     }
+    # Вердикт о критерии владельца кладётся в САМ отчёт: иначе читателю пришлось
+    # бы вывести его из чисел, то есть завести ВТОРУЮ копию правила (ADR-220).
+    doc["criterion"] = criterion_verdict(doc)
     if write:
         from spa_core.utils.atomic import atomic_save
         atomic_save(doc, os.path.join(root, REPORT_REL))

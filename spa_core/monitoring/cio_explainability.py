@@ -121,6 +121,118 @@ OWNER_FACTS: tuple[tuple[str, str], ...] = (
 #: Плохая форма, названная владельцем дословно.
 OWNER_BAD_SHAPE = "utility score 0.7234"
 
+#: Критерий §49 приказа «Portfolio CIO», мерой ПОЛОВИНЫ которого модуль себя
+#: объявляет. Якорь читается как НАЧАЛО строки (ADR-333).
+#:
+#: Половина — потому что критерий владельца назван ДВУМЯ словами: «Каждое
+#: решение имеет snapshot и explanation». Объяснение меряет этот модуль (§44),
+#: снимок — сосед `decision_audit_trail` (§43). Населения у половин РАЗНЫЕ
+#: (рекомендации книг против перекладок живого трека), и слить их в один
+#: знаменатель значило бы соврать о том, сколько решений вообще судится.
+CRITERION = (
+    "§49 Auditability (половина «explanation») приказа владельца «Portfolio CIO» "
+    "— дословно: «Каждое решение имеет snapshot и explanation». Объяснение здесь "
+    "это восемь фактов §44 во фразе владельцу И отсутствие формы, которую он "
+    "назвал плохой (внутренний токен вместо фразы)"
+)
+
+CRITERION_SATISFIED = "SATISFIED"
+CRITERION_NOT_SATISFIED = "NOT_SATISFIED"
+CRITERION_UNMEASURED = "UNMEASURED"
+
+
+def criterion_verdict(doc: dict) -> dict:
+    """Вердикт о ПОЛОВИНЕ критерия §49 `Auditability` — по уже снятому отчёту.
+
+    Правило живёт здесь, у производителя чисел; читатель его ПЕРЕНОСИТ
+    (ADR-220). Своего порога нет ни одного: «для КАЖДОЙ recommendation» и
+    перечень из восьми фактов — слова владельца, а не выбранная нами доля.
+
+    **Положительный контроль — предпосылка вердикта, а не украшение.** Пример
+    владельца прогоняется теми же детекторами и обязан дать 8 из 8. Не дал ⇒
+    детекторы сломаны, и тогда ни «произносится», ни «молчит» не значат ничего:
+    вердикт `UNMEASURED`, а не «молчит». Это ровно то различение, из-за которого
+    у отчёта есть `control`.
+
+    Три исхода разведены (инв. #17):
+
+    * `SATISFIED` — есть хотя бы одна книга с recommendation, и у КАЖДОЙ такой
+      книги произнесены все восемь фактов, и ни в одной фразе нет формы,
+      названной владельцем плохой;
+    * `NOT_SATISFIED` — факт не произнесён либо во фразе стои́т внутренний
+      токен; книги и числа НАЗВАНЫ;
+    * `UNMEASURED` — контроль не прошёл / разделов отчёта нет / **ни одна книга
+      не несёт recommendation**. Последнее не «чисто»: «для каждой
+      recommendation объяснение полно» при нуле recommendation верно ПО
+      ПОСТРОЕНИЮ.
+    """
+    control = observed(doc, "control", kind=dict)
+    if control is None:
+        return {"status": CRITERION_UNMEASURED,
+                "reason": ("в отчёте нет раздела `control` — без положительного "
+                           "контроля «молчит» неотличимо от «детектор сломан»")}
+    if not control.get("passed"):
+        return {"status": CRITERION_UNMEASURED,
+                "reason": (f"положительный контроль НЕ ПРОШЁЛ "
+                           f"({control.get('reason') or 'причина не названа'}; "
+                           f"произнесено {control.get('spoken')} из "
+                           f"{control.get('expected')}) — детекторы не судят, и "
+                           f"их молчание о живых книгах не значит ничего")}
+    total = observed_number(doc, "facts_total")
+    if total is None:
+        return {"status": CRITERION_UNMEASURED,
+                "reason": ("в отчёте не читается `facts_total` — знаменателя "
+                           "владельца НЕТ, и доля произнесённого НЕ ИЗМЕРЕНА")}
+    books = observed(doc, "books", kind=list)
+    if books is None:
+        return {"status": CRITERION_UNMEASURED,
+                "reason": ("в отчёте нет списка `books` — население "
+                           "рекомендаций НЕ ПРОЧИТАНО")}
+    with_rec = [b for b in books
+                if isinstance(b, dict) and b.get("has_recommendation")]
+    if not with_rec:
+        return {"status": CRITERION_UNMEASURED,
+                "reason": (f"ни одна из {len(books)} книг не несёт recommendation — "
+                           f"«для КАЖДОЙ recommendation объяснение полно» при нуле "
+                           f"recommendation верно ПО ПОСТРОЕНИЮ и ответом не "
+                           f"является")}
+
+    silent: list[str] = []
+    tokens: list[str] = []
+    unread: list[str] = []
+    for book in with_rec:
+        name = book.get("book") or "книга не названа"
+        tally = observed(book, "tally", kind=dict)
+        spoken = observed_number(tally, SPOKEN) if tally is not None else None
+        if spoken is None:
+            unread.append(f"{name}: счёт произнесённого НЕ ПРОЧИТАН")
+            continue
+        if spoken < total:
+            silent.append(f"{name}: произносится {spoken:.0f} из {total:.0f}")
+        machine = book.get("machine_tokens")
+        if isinstance(machine, list) and machine:
+            tokens.append(f"{name}: " + ", ".join(str(t) for t in machine[:4]))
+
+    if silent or tokens:
+        parts = []
+        if silent:
+            parts.append("фраза владельцу не произносит названные им факты — "
+                         + "; ".join(silent))
+        if tokens:
+            parts.append("во фразе стои́т форма, названная владельцем плохой "
+                         "(внутренний токен вместо фразы) — " + "; ".join(tokens))
+        return {"status": CRITERION_NOT_SATISFIED, "reason": ". ".join(parts),
+                "books_judged": len(with_rec)}
+    if unread:
+        return {"status": CRITERION_UNMEASURED,
+                "reason": ("у части книг с recommendation счёт не прочитан: "
+                           + "; ".join(unread))}
+    return {"status": CRITERION_SATISFIED,
+            "reason": (f"у каждой из {len(with_rec)} книг с recommendation "
+                       f"произнесены все {total:.0f} фактов владельца, и формы, "
+                       f"названной им плохой, во фразе нет"),
+            "books_judged": len(with_rec)}
+
 #: Поля брифа, которые ЧИТАЕТ владелец. Служебные (`verdict`, `policy_version`,
 #: `decision_id`) сюда не входят намеренно: это метки записи, а не объяснение.
 _OWNER_TEXT_FIELDS = ("where", "how_much", "why", "why_now")
@@ -718,6 +830,9 @@ def run(*, root: str = REPO_ROOT, data_dir: Optional[str] = None,
                      "модулем не дописывается — что система говорит о движении "
                      "денег меняет money-path, это решение владельца"),
     }
+    # Вердикт о критерии владельца кладётся в САМ отчёт: иначе читателю пришлось
+    # бы вывести его из чисел, то есть завести ВТОРУЮ копию правила (ADR-220).
+    doc["criterion"] = criterion_verdict(doc)
     if write:
         from spa_core.utils.atomic import atomic_save
         atomic_save(doc, os.path.join(root, REPORT_REL))

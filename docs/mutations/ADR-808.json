@@ -1,0 +1,104 @@
+{
+ "title": "ADR-808 — дельта цикла #931: критерий §49 `Auditability` приказа «Portfolio CIO» получает МЕРУ. Каждая мутация возвращает состояние, в котором сводка §49 снова молча объявила бы критерий выполненным или неизмеренным: пустое население выдано за зелёное · невосстановимая перекладка пропущена · сломанный контроль §44 выдан за молчание · умолчавший факт пропущен · плохая форма владельца пропущена · конъюнкция схлопнута в обе стороны · якорь объявления прочитан подстрокой · протухший артефакт выдан за свежий · порог выдуман · неизвестный вердикт выдан за согласие · вердикт не положен в отчёт · привязка в конституции потеряла форму",
+ "tests": [
+  "spa_core/tests/test_auditability_criterion_probe.py"
+ ],
+ "mutations": [
+  {
+   "name": "пустое население снимка выдано за зелёное: «каждая перекладка восстановима» при НУЛЕ перекладок верно ПО ПОСТРОЕНИЮ (инв. #17)",
+   "file": "spa_core/monitoring/decision_audit_trail.py",
+   "old": "    if moves <= 0:\n        return {\"status\": CRITERION_UNMEASURED,",
+   "new": "    if False:\n        return {\"status\": CRITERION_UNMEASURED,"
+  },
+  {
+   "name": "невосстановимая перекладка больше не краснит: 0 из 46 снова читается как выполненный критерий владельца",
+   "file": "spa_core/monitoring/decision_audit_trail.py",
+   "old": "    if answerable < moves:\n        # Поля перечисляются ЧЕРЕЗ `observed`",
+   "new": "    if answerable < -1:\n        # Поля перечисляются ЧЕРЕЗ `observed`"
+  },
+  {
+   "name": "вердикт половины «snapshot» больше не кладётся в отчёт: читателю нечего переносить, и критерий снова НЕ ИЗМЕРЕН",
+   "file": "spa_core/monitoring/decision_audit_trail.py",
+   "old": "    doc[\"criterion\"] = criterion_verdict(doc)\n    if write:",
+   "new": "    if write:"
+  },
+  {
+   "name": "провал положительного контроля §44 выдан за молчание: сломанные детекторы снова судят о живых книгах",
+   "file": "spa_core/monitoring/cio_explainability.py",
+   "old": "    if not control.get(\"passed\"):\n        return {\"status\": CRITERION_UNMEASURED,",
+   "new": "    if False:\n        return {\"status\": CRITERION_UNMEASURED,"
+  },
+  {
+   "name": "ноль recommendation выдан за зелёное: «для КАЖДОЙ recommendation объяснение полно» при нуле recommendation верно по построению",
+   "file": "spa_core/monitoring/cio_explainability.py",
+   "old": "    if not with_rec:\n        return {\"status\": CRITERION_UNMEASURED,",
+   "new": "    if False:\n        return {\"status\": CRITERION_UNMEASURED,"
+  },
+  {
+   "name": "умолчавший факт владельца пропущен: 3 произнесённых из 8 снова читается как полное объяснение",
+   "file": "spa_core/monitoring/cio_explainability.py",
+   "old": "        if spoken < total:\n            silent.append(",
+   "new": "        if spoken < -1:\n            silent.append("
+  },
+  {
+   "name": "форма, названная владельцем ПЛОХОЙ, пропущена: внутренний токен во фразе снова не находка",
+   "file": "spa_core/monitoring/cio_explainability.py",
+   "old": "        if isinstance(machine, list) and machine:\n            tokens.append(",
+   "new": "        if False:\n            tokens.append("
+  },
+  {
+   "name": "вердикт половины «explanation» больше не кладётся в отчёт",
+   "file": "spa_core/monitoring/cio_explainability.py",
+   "old": "    doc[\"criterion\"] = criterion_verdict(doc)\n    if write:",
+   "new": "    if write:"
+  },
+  {
+   "name": "конъюнкция схлопнута в сторону «не измерено»: ИЗМЕРЕННАЯ находка одной половины тонет в непрочитанной второй — инв. #17 наизнанку",
+   "file": "spa_core/monitoring/card_acceptance.py",
+   "old": "    if broken:\n        return NOT_SATISFIED, (\"критерий есть конъюнкция «snapshot И explanation», и \"",
+   "new": "    if False:\n        return NOT_SATISFIED, (\"критерий есть конъюнкция «snapshot И explanation», и \""
+  },
+  {
+   "name": "конъюнкция схлопнута в сторону «выполнено»: половина, о которой НЕ ИЗМЕРЕНО ничего, снова выдаётся за согласие",
+   "file": "spa_core/monitoring/card_acceptance.py",
+   "old": "    if unknown:\n        return UNMEASURED, (\"конъюнкция, у которой член неизвестен, НЕИЗВЕСТНА: \"",
+   "new": "    if False:\n        return UNMEASURED, (\"конъюнкция, у которой член неизвестен, НЕИЗВЕСТНА: \""
+  },
+  {
+   "name": "якорь объявления прочитан ПОДСТРОКОЙ (ADR-333): заметка, лишь ссылающаяся на критерий, снова читается как объявление себя его мерой",
+   "file": "spa_core/monitoring/card_acceptance.py",
+   "old": "        if not declared.startswith(anchor):\n            verdicts[half] = (UNMEASURED,\n                              f\"прибор половины «{half}» не объявляет себя мерой \"",
+   "new": "        if anchor not in declared:\n            verdicts[half] = (UNMEASURED,\n                              f\"прибор половины «{half}» не объявляет себя мерой \""
+  },
+  {
+   "name": "протухший артефакт выдан за свежий: вчерашний ответ прибора снова печатается как сегодняшний",
+   "file": "spa_core/monitoring/card_acceptance.py",
+   "old": "        if age > float(slo):\n            verdicts[half] = (UNMEASURED, f\"артефакт половины «{half}» протух: \"",
+   "new": "        if False:\n            verdicts[half] = (UNMEASURED, f\"артефакт половины «{half}» протух: \""
+  },
+  {
+   "name": "порог свежести ВЫДУМАН вместо дома в конституции: «24 часа», которых никто не принимал",
+   "file": "spa_core/monitoring/card_acceptance.py",
+   "old": "        if slo is None:\n            verdicts[half] = (UNMEASURED, f\"артефакту половины «{half}» {age:.1f} ч, а \"",
+   "new": "        if slo is None:\n            slo = 24.0\n        if False:\n            verdicts[half] = (UNMEASURED, f\"артефакту половины «{half}» {age:.1f} ч, а \""
+  },
+  {
+   "name": "неизвестный вердикт прибора выдан за согласие (fail-OPEN тише красного теста)",
+   "file": "spa_core/monitoring/card_acceptance.py",
+   "old": "            verdicts[half] = (UNMEASURED, f\"прибор половины «{half}» вернул вердикт \"",
+   "new": "            verdicts[half] = (SATISFIED, f\"прибор половины «{half}» вернул вердикт \""
+  },
+  {
+   "name": "аргумент у пробы больше не отказывается: вердикт о ДВУХ половинах целиком снова подписывается именем одного файла",
+   "file": "spa_core/monitoring/card_acceptance.py",
+   "old": "        return UNMEASURED, (f\"проба не принимает аргумента (дано {arg!r}): критерий \"\n                            \"о ДВУХ половинах целиком, и пофайловой формы у него нет\")",
+   "new": "        pass"
+  },
+  {
+   "name": "привязка критерия в конституции потеряла каноническую форму: `s49_tally_tact` снова отвечает «такт этого критерия взять неоткуда»",
+   "file": "architecture/manifest.json",
+   "old": "ПРИВЯЗКА §49 `Auditability` (половина «snapshot»)",
+   "new": "ПРИВЯЗКА §49 Auditability (половина «snapshot»)"
+  }
+ ]
+}

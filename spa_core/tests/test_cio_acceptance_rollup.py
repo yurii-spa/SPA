@@ -462,7 +462,22 @@ def test_declarations_are_read_from_the_registry_not_from_a_side_list():
                         "Determinism":
                             ["determinism_recomputation_is_reproducible"],
                         "No regression": ["no_regression_tests_pass"],
-                        "Owner visibility": ["owner_visibility_numbers_delivered"]}
+                        "Owner visibility": ["owner_visibility_numbers_delivered"],
+                        # ADR-808 (цикл #931): критерий `Auditability` до этого
+                        # дня не имел пробы ВОВСЕ (`probe: null` в
+                        # data/s49_tally_tact.json), хотя ОБА прибора его
+                        # дословных слов работали с 06.09 и печатали CRITICAL —
+                        # §43 (снимок решения) и §44 (объяснение владельцу).
+                        # Правка снимка намеренна и обоснована (инв. #16): этот
+                        # предикат И ЕСТЬ живой реестр объявлений (см. имя
+                        # теста), поэтому новая строка здесь — предмет
+                        # утверждения, а не способ погасить падение. Равенство
+                        # остаётся СТРОГИМ: лишнее или пропавшее объявление
+                        # по-прежнему краснит. Привязка критерия к артефактам
+                        # конституции уехала тем же пушем, ДВУМЯ записями —
+                        # населения половин разные.
+                        "Auditability":
+                            ["auditability_decision_carries_snapshot_and_explanation"]}
 
 
 def test_every_declared_criterion_exists_in_the_live_order():
