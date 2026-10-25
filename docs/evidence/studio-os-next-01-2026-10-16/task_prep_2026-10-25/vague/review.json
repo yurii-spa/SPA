@@ -1,0 +1,63 @@
+{
+  "review_version": "task-prep/1",
+  "task_id": "owner-request-vague",
+  "task": "\u0421\u0434\u0435\u043b\u0430\u0439, \u0447\u0442\u043e\u0431\u044b \u0431\u044b\u043b\u043e \u043b\u0443\u0447\u0448\u0435.",
+  "generated_at": "2026-10-25T17:30:58+00:00",
+  "revisions": {
+    "verified_code_sha": "33b3219ac8b59ca56d49fa6b1e35fdcc04febf4c",
+    "head": "b1b1cbaff4518046b2facb7f8d3571d5bab3d2b0",
+    "server_branch_head": "cf3a33b0cff0b3131427ddb6a748cdd0adf11b73",
+    "head_code_is_verified": false,
+    "code_changed_since_verified": [
+      "spa_core/studio_os/memory/arch_review.py",
+      "spa_core/tests/test_task_prep.py"
+    ],
+    "branch": "integ/studio-os-next-01-stab"
+  },
+  "context_sha256": "22ad87a2e6d9308d2a3f7bb3a60e7e7d91b77b4cb1c750476c0d3abf19278e24",
+  "context_chars": 13402,
+  "context_complete": true,
+  "context_unknown": [],
+  "fragments": [],
+  "provider": "fixture_test_adapter",
+  "real_provider": false,
+  "model": "fixture (not a model)",
+  "status": "ok",
+  "reason": "",
+  "attempts": 1,
+  "elapsed_s": 0.0,
+  "usage": {
+    "input_tokens": "UNKNOWN",
+    "output_tokens": "UNKNOWN",
+    "cache_creation_input_tokens": "UNKNOWN",
+    "cache_read_input_tokens": "UNKNOWN",
+    "cost_reported_usd": "UNKNOWN",
+    "quota_remaining": "UNKNOWN"
+  },
+  "sections": {
+    "OUTCOME": "\u041f\u043e\u043a\u0430 \u043d\u0435 \u043e\u043f\u0440\u0435\u0434\u0435\u043b\u0435\u043d\u043e \u2014 \u043f\u043e\u0440\u0443\u0447\u0435\u043d\u0438\u0435 \u0434\u043e\u043f\u0443\u0441\u043a\u0430\u0435\u0442 \u043d\u0435\u0441\u043a\u043e\u043b\u044c\u043a\u043e \u0440\u0430\u0437\u043d\u044b\u0445 \u0440\u0435\u0437\u0443\u043b\u044c\u0442\u0430\u0442\u043e\u0432.",
+    "PLAN": "NO PLAN",
+    "ACCEPTANCE PROPOSAL": "NEW CHECK NEEDED: \u043e\u043f\u0440\u0435\u0434\u0435\u043b\u044f\u0435\u0442\u0441\u044f \u043f\u043e\u0441\u043b\u0435 \u0443\u0442\u043e\u0447\u043d\u0435\u043d\u0438\u044f.",
+    "UNKNOWNS AND QUESTION": "UNKNOWN: \u0447\u0442\u043e \u0438\u043c\u0435\u043d\u043d\u043e \u00ab\u043b\u0443\u0447\u0448\u0435\u00bb \u2014 \u0441\u043a\u043e\u0440\u043e\u0441\u0442\u044c \u043f\u0443\u043b\u044c\u0442\u0430, \u043f\u043e\u043d\u044f\u0442\u043d\u043e\u0441\u0442\u044c \u0442\u0435\u043a\u0441\u0442\u0430 \u0438\u043b\u0438 \u0447\u0442\u043e-\u0442\u043e \u0432 \u043f\u0440\u043e\u0434\u0443\u043a\u0442\u0435 Earn DeFi.\n\u0412\u043e\u043f\u0440\u043e\u0441: \u0447\u0442\u043e \u0438\u043c\u0435\u043d\u043d\u043e \u0432\u044b \u0445\u043e\u0442\u0438\u0442\u0435 \u0443\u043b\u0443\u0447\u0448\u0438\u0442\u044c \u2014 \u043f\u0443\u043b\u044c\u0442 Studio OS (\u0447\u0442\u043e \u0438 \u0433\u0434\u0435), \u0438\u043b\u0438 \u0441\u0430\u0439\u0442/\u043f\u0440\u043e\u0434\u0443\u043a\u0442 Earn DeFi?",
+    "PERMISSIONS": "subject: UNKNOWN_UNTIL_CLARIFIED\n\u0415\u0441\u043b\u0438 \u0440\u0435\u0447\u044c \u043e \u0441\u0430\u0439\u0442\u0435 \u0441 \u0447\u0438\u0441\u043b\u0430\u043c\u0438 \u2014 \u044d\u0442\u043e \u0432\u0430\u0448 \u043f\u0440\u0435\u0434\u043c\u0435\u0442 \u21162; \u0434\u043e \u0443\u0442\u043e\u0447\u043d\u0435\u043d\u0438\u044f \u043d\u0435 \u043e\u043f\u0440\u0435\u0434\u0435\u043b\u0438\u0442\u044c."
+  },
+  "claude_task": null,
+  "structure_complete": true,
+  "missing_sections": [],
+  "disclaimer": "\u041f\u0420\u0415\u0414\u041b\u041e\u0416\u0415\u041d\u0418\u0415 \u0414\u041b\u042f \u0420\u0410\u0417\u0411\u041e\u0420\u0410 \u2014 \u043d\u0435 \u0437\u0430\u0434\u0430\u043d\u0438\u0435 \u043a \u0438\u0441\u043f\u043e\u043b\u043d\u0435\u043d\u0438\u044e: \u043a\u0430\u0440\u0442\u043e\u0447\u043a\u0430 \u043d\u0435 \u043c\u0435\u043d\u044f\u0435\u0442\u0441\u044f, \u043f\u0440\u043e\u0432\u0435\u0440\u043a\u0430 \u0440\u0435\u0437\u0443\u043b\u044c\u0442\u0430\u0442\u0430 \u043d\u0435 \u043d\u0430\u0437\u043d\u0430\u0447\u0430\u0435\u0442\u0441\u044f, \u0438\u0441\u043f\u043e\u043b\u043d\u0438\u0442\u0435\u043b\u044c \u043d\u0435 \u0437\u0430\u043f\u0443\u0441\u043a\u0430\u0435\u0442\u0441\u044f, \u043d\u0438\u0447\u0435\u0433\u043e \u043d\u0435 \u043e\u0431\u044a\u044f\u0432\u043b\u0435\u043d\u043e \u0441\u0434\u0435\u043b\u0430\u043d\u043d\u044b\u043c. \u0417\u0430\u0440\u0435\u0433\u0438\u0441\u0442\u0440\u0438\u0440\u043e\u0432\u0430\u043d\u043d\u043e\u0435 \u0438\u043c\u044f \u043f\u0440\u043e\u0432\u0435\u0440\u043a\u0438 \u043d\u0435 \u0434\u043e\u043a\u0430\u0437\u044b\u0432\u0430\u0435\u0442, \u0447\u0442\u043e \u043e\u043d\u0430 \u043c\u0435\u0440\u044f\u0435\u0442 \u044d\u0442\u043e \u043f\u043e\u0440\u0443\u0447\u0435\u043d\u0438\u0435. \u0422\u0435\u0441\u0442\u043e\u0432\u044b\u0439 \u043e\u0442\u0432\u0435\u0442 \u043d\u0435 \u043e\u0446\u0435\u043d\u0438\u0432\u0430\u0435\u0442 \u0440\u0435\u0430\u043b\u044c\u043d\u0443\u044e \u043c\u043e\u0434\u0435\u043b\u044c.",
+  "writes": "only this output directory",
+  "kind": "task-prep",
+  "request_sha256": "cbd8bd2391bf35e703c805e65f005e86633dfea780d7bd3cb1661c38f33555e8",
+  "preparation": {
+    "form": "clarification",
+    "acceptance": "new_check_proposed",
+    "probes_named": [],
+    "new_check_proposed": true,
+    "subject": "UNKNOWN",
+    "subject_declared": "UNKNOWN_UNTIL_CLARIFIED",
+    "question": true,
+    "reasons": [
+      "PERMISSIONS subject 'UNKNOWN_UNTIL_CLARIFIED' is not in the ADR-285 vocabulary \u2014 reviewer decides"
+    ]
+  }
+}
