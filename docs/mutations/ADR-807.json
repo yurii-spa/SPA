@@ -1,0 +1,88 @@
+{
+ "title": "ADR-807 — дельта цикла #930: у вопроса интейка появилась НАЗВАННАЯ ретракция. Каждая мутация возвращает одно из двух состояний: либо поручение владельца (ADR-285) снова невыполнимо кодом очереди, либо дверь открыта шире названного — то есть агент снова может закрыть вопрос, который действительно был вопросом владельца",
+ "tests": [
+  "spa_core/tests/test_intake_question_retraction.py",
+  "spa_core/tests/test_build_loop_governance.py",
+  "spa_core/tests/test_repair_phantom_intake_cards.py"
+ ],
+ "mutations": [
+  {
+   "name": "ретракция снята совсем: гейт снова отказывает всем 11 карточкам, поручение ADR-285 невыполнимо (состояние ДО правки)",
+   "file": "spa_core/owner_queue/queue.py",
+   "old": "    claimed = RETRACTION_RULE_TOKEN in str(evidence or \"\")\n    if not claimed:\n        return False, \"\"",
+   "new": "    claimed = False\n    if not claimed:\n        return False, \"\""
+  },
+  {
+   "name": "правило в `evidence` больше не требуется: ретракция становится УМОЛЧАНИЕМ, и любое `done` закрывает НАСТОЯЩИЙ вопрос владельца — дверь открыта шире названного",
+   "file": "spa_core/owner_queue/queue.py",
+   "old": "    claimed = RETRACTION_RULE_TOKEN in str(evidence or \"\")\n    if not claimed:\n        return False, \"\"",
+   "new": "    claimed = True\n    if not claimed:\n        return False, \"\""
+  },
+  {
+   "name": "производитель не спрашивается: ретракция достаёт карточку любого происхождения, в том числе вопрос, рождённый не интейком",
+   "file": "spa_core/owner_queue/queue.py",
+   "old": "    source = str((fm or {}).get(\"source\") or \"\").strip()\n    if source not in INTAKE_SOURCES:",
+   "new": "    source = str((fm or {}).get(\"source\") or \"\").strip()\n    if False:"
+  },
+  {
+   "name": "тронутая карточка снова ретрактируема: карточку, которую мог двигать ВЛАДЕЛЕЦ, агент закрывает как свою",
+   "file": "spa_core/owner_queue/queue.py",
+   "old": "    if items:\n        unmet.append(f\"карточку уже двигали ({len(items)} запис(ь/и) в status_trail) — \"\n                     f\"тронутую карточку мог тронуть владелец\")",
+   "new": "    if False:\n        unmet.append(f\"карточку уже двигали ({len(items)} запис(ь/и) в status_trail) — \"\n                     f\"тронутую карточку мог тронуть владелец\")"
+  },
+  {
+   "name": "статус ретракции больше не ограничен `done`: агент выдаёт `owner-done` — слово владельца (инв. #14)",
+   "file": "spa_core/owner_queue/queue.py",
+   "old": "    if new != \"done\":\n        unmet.append(f\"статус ретракции только `done`, а не `{new}`\")",
+   "new": "    if False:\n        unmet.append(f\"статус ретракции только `done`, а не `{new}`\")"
+  },
+  {
+   "name": "ретракция становится анонимной: закрыватель не назван, и журнал аудита не узнает, КТО снял вопрос владельца",
+   "file": "spa_core/owner_queue/queue.py",
+   "old": "    if not str(closed_by or \"\").strip():\n        unmet.append(\"не назван closed_by — ретракция обязана быть атрибутирована\")",
+   "new": "    if False:\n        unmet.append(\"не назван closed_by — ретракция обязана быть атрибутирована\")"
+  },
+  {
+   "name": "третий исход схлопнут во второй: «заявлена и не прошла» неотличимо от «не заявлена», и отказ перестаёт называть непрошедшее условие (инв. #17)",
+   "file": "spa_core/owner_queue/queue.py",
+   "old": "    if unmet:\n        return False, \"; \".join(unmet)\n    return True, \"\"",
+   "new": "    if unmet:\n        return False, \"\"\n    return True, \"\""
+  },
+  {
+   "name": "названо ТОЛЬКО ПЕРВОЕ непрошедшее условие: сессия ходит по кругу, исправляя по одному",
+   "file": "spa_core/owner_queue/queue.py",
+   "old": "    if unmet:\n        return False, \"; \".join(unmet)\n    return True, \"\"",
+   "new": "    if unmet:\n        return False, unmet[0]\n    return True, \"\""
+  },
+  {
+   "name": "отказ больше НЕ НАЗЫВАЕТ законного выхода: сессия идёт искать обход, а не правило — тем же путём в проекте гасили храповики",
+   "file": "spa_core/owner_queue/queue.py",
+   "old": "            f\"Вопрос заведён интейком и не относится ни к одному из трёх предметов \"\n            f\"{RETRACTION_RULE_TOKEN}? Тогда это РЕТРАКЦИЯ: закрыть `done` с \"\n            f\"--closed-by <кто> и --evidence, НАЗЫВАЮЩИМ {RETRACTION_RULE_TOKEN} (ADR-807).\")",
+   "new": "            f\"\")"
+  },
+  {
+   "name": "заявленная и непрошедшая ретракция отвечает ПРЕЖНИМ текстом про ответ владельца: сессия не узнает, какое условие не выполнено",
+   "file": "spa_core/owner_queue/queue.py",
+   "old": "        if _intake_why:\n            raise LifecycleRefused(",
+   "new": "        if False:\n            raise LifecycleRefused("
+  },
+  {
+   "name": "ремонтник фантомов снова перепечатывает правило своей строкой: разойдись она с контрактом — ремонтник станет неисполнимым МОЛЧА (ADR-220)",
+   "file": "scripts/repair_phantom_intake_cards.py",
+   "old": "                       evidence=(f\"{RETRACTION_RULE_TOKEN}: вопрос интейка вне трёх предметов \"",
+   "new": "                       evidence=(f\"ADR-258: вопрос интейка вне трёх предметов \""
+  },
+  {
+   "name": "ретракция моста (ПЕРВАЯ, ADR-066 C2) снята этой правкой: вторая дверь не имеет права стоить первой",
+   "file": "spa_core/owner_queue/queue.py",
+   "old": "    _bridge_retraction = (new == \"done\" and bool(str(fm.get(\"finding_key\") or \"\").strip())\n                          and str(closed_by or \"\") in BRIDGE_CLOSERS and not items)",
+   "new": "    _bridge_retraction = False"
+  },
+  {
+   "name": "ошибочное суждение становится НЕОБРАТИМЫМ: `done → new` закрыт, и неверно снятый вопрос владельцу уже не вернуть",
+   "file": "spa_core/owner_queue/queue.py",
+   "old": "    \"done\": {\"new\", \"backlog\", \"in-progress\"},",
+   "new": "    \"done\": {\"backlog\", \"in-progress\"},"
+  }
+ ]
+}

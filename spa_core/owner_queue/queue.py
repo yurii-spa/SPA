@@ -192,6 +192,17 @@ BRIDGE_CLOSERS = frozenset({"findings_bridge"})
 #: Telegram answer path and by the ingest of an owner reply).
 OWNER_ANSWER_FIELDS = ("owner_choice", "owner_answer_via", "owner_answered_at")
 
+#: ВТОРАЯ названная РЕТРАКЦИЯ (ADR-807) — вопрос, заведённый ИНТЕЙКОМ и снятый агентом как
+#: дефект очереди ADR-285. Производитель читается у карточки (`source:`), а не угадывается.
+INTAKE_SOURCES = frozenset({"intake"})
+
+#: Правило, под которым ретракция совершается, обязано быть НАЗВАНО в `evidence`. Это
+#: АТРИБУЦИЯ, а не доказательство: предмет карточки («относится ли она к трём предметам
+#: владельца») — суждение, которое ADR-285 поручает агенту, и код проверить его не может.
+#: Он может лишь потребовать, чтобы суждение было записано и попало в журнал аудита —
+#: ровно та же роль, что у `closed_by` рядом.
+RETRACTION_RULE_TOKEN = "ADR-285"
+
 
 class AcceptanceCriterionLocked(RuntimeError):
     """Пробу карточки В РАБОТЕ пытаются заменить: мерку выбирают ДО работы, не после."""
@@ -523,6 +534,70 @@ def list_cards(
     return cards
 
 
+def intake_retraction_verdict(*, new: str, fm: dict, closed_by: str | None,
+                              evidence: str | None,
+                              items: list[dict]) -> tuple[bool, str]:
+    """Снимает ли агент вопрос, заведённый ИНТЕЙКОМ, как дефект очереди ADR-285.
+
+    **Зачем (ADR-807).** Два owner-approved правила противоречат на одной карточке.
+    ADR-285 (решение владельца 09.09) поручает агенту: «Карточка в очереди
+    ``needs-owner``, не принадлежащая ни одному из трёх предметов, — это дефект
+    очереди, а не ожидание ответа. Разбирать её обязан агент.» Гейт ADR-551 ровно
+    это и запрещал: решение владельца закрывается только по ЗАПИСАННОМУ ответу
+    владельца. Замер 2026-10-25 (цикл #930): **11 из 29** карточек ``needs-owner``
+    на ``origin/main`` — этого класса (шесть уточнений о тестовых заметках владельца,
+    пять носителей интейка, чей предмет уже стои́т отдельной ``inbox``-карточкой), и
+    все одиннадцать закрытий отказаны ОДНИМ текстом. Поручение было невыполнимо
+    кодом очереди, а не ленью сессий.
+
+    **Почему не ослабление инв. #14.** Инвариант #14 запрещает агенту утверждать, что
+    действовал ВЛАДЕЛЕЦ (``owner-done`` / ``owner-accepted``). Ретракция утверждает
+    обратное: вопрос никогда не был вопросом владельца. Держать его в ``needs-owner``
+    и есть ложь об очереди владельца. Перевод в ``new`` (таблица переходов его
+    разрешает) ХУЖЕ отказа: ``deliver-new`` доставляет вопросы, которых владелец не
+    видел ни разу, и снятый вопрос уехал бы ему.
+
+    **Это ВТОРАЯ ретракция, а не новая дверь.** Первая уже в контракте — ретракция
+    моста (ADR-066 C2): свой вопрос, только ``done``, только карточка, которую никто
+    не двигал с рождения, только закрыватели моста. Условия здесь той же тесноты:
+
+    * производитель НАЗВАН самой карточкой (``source: intake``), а не угадан;
+    * карточку никто не двигал с рождения (разобранный ``status_trail`` пуст) — то же
+      условие, что у моста: тронутая карточка могла быть тронута владельцем;
+    * только ``done``;
+    * ``closed_by`` назван И ``evidence`` НАЗЫВАЕТ правило (:data:`RETRACTION_RULE_TOKEN`).
+
+    **Чего это НЕ проверяет, и сказано вслух.** Принадлежность карточки трём предметам
+    владельца машинно не разрешима, и этот прибор её не решает. Требование назвать
+    правило есть АТРИБУЦИЯ (кто снял и под каким правилом — в журнал аудита), а не
+    доказательство верности суждения. Суждение ADR-285 поручает агенту; неверное
+    суждение ловится ревью и обратимо — переход ``done → new`` таблица разрешает.
+
+    **Три исхода различимы (инв. #17):** ``(True, "")`` — ретракция совершена ·
+    ``(False, "<какое условие не выполнено>")`` — ЗАЯВЛЕНА (правило названо в
+    ``evidence``) и не прошла · ``(False, "")`` — не заявлена вовсе, и тогда отказ
+    обязан остаться прежним, про ответ владельца.
+    """
+    claimed = RETRACTION_RULE_TOKEN in str(evidence or "")
+    if not claimed:
+        return False, ""
+    unmet: list[str] = []
+    if new != "done":
+        unmet.append(f"статус ретракции только `done`, а не `{new}`")
+    source = str((fm or {}).get("source") or "").strip()
+    if source not in INTAKE_SOURCES:
+        unmet.append(f"производитель карточки `source: {source or '—'}`, "
+                     f"а ретракция названа для {'/'.join(sorted(INTAKE_SOURCES))}")
+    if items:
+        unmet.append(f"карточку уже двигали ({len(items)} запис(ь/и) в status_trail) — "
+                     f"тронутую карточку мог тронуть владелец")
+    if not str(closed_by or "").strip():
+        unmet.append("не назван closed_by — ретракция обязана быть атрибутирована")
+    if unmet:
+        return False, "; ".join(unmet)
+    return True, ""
+
+
 def check_lifecycle(tracker_type, old: str | None, new: str, *, fm: dict | None = None,
                     closed_by: str | None = None, evidence: str | None = None,
                     carried: bool = False, name: str = "card") -> None:
@@ -564,12 +639,25 @@ def check_lifecycle(tracker_type, old: str | None, new: str, *, fm: dict | None 
     # (ADR-066 C2): only the bridge's closers, only `done`, only a card nobody has moved since birth.
     _bridge_retraction = (new == "done" and bool(str(fm.get("finding_key") or "").strip())
                           and str(closed_by or "") in BRIDGE_CLOSERS and not items)
+    # ВТОРАЯ названная ретракция (ADR-807): вопрос ИНТЕЙКА, снятый агентом как дефект очереди
+    # ADR-285. Исходов три, а не два — «не заявлена» отличимо от «заявлена и не прошла».
+    _intake_retraction, _intake_why = intake_retraction_verdict(
+        new=new, fm=fm, closed_by=closed_by, evidence=evidence, items=items)
     if (tracker_type == "owner-decision" and new in EVIDENCED_CLOSING_STATUSES
-            and old != OWNER_ACCEPTED_STATUS and not _owner_word and not _bridge_retraction):
+            and old != OWNER_ACCEPTED_STATUS and not _owner_word and not _bridge_retraction
+            and not _intake_retraction):
+        if _intake_why:
+            raise LifecycleRefused(
+                f"{name}: ретракция по {RETRACTION_RULE_TOKEN} ЗАЯВЛЕНА, но условия не выполнены — "
+                f"{_intake_why}. Ответа владельца тоже нет ⇒ карточка остаётся у владельца "
+                f"(инв. #14, ADR-551, ADR-807).")
         raise LifecycleRefused(
             f"{name}: an owner decision is closed only on the owner's recorded answer "
             f"({' / '.join(OWNER_ANSWER_FIELDS)} in the card, or status owner-accepted). "
-            f"No answer recorded ⇒ the card stays with the owner (invariant #14, ADR-551).")
+            f"No answer recorded ⇒ the card stays with the owner (invariant #14, ADR-551). "
+            f"Вопрос заведён интейком и не относится ни к одному из трёх предметов "
+            f"{RETRACTION_RULE_TOKEN}? Тогда это РЕТРАКЦИЯ: закрыть `done` с "
+            f"--closed-by <кто> и --evidence, НАЗЫВАЮЩИМ {RETRACTION_RULE_TOKEN} (ADR-807).")
 
 
 def set_status(path: str | Path, new_status: str,

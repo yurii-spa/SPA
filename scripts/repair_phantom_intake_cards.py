@@ -120,7 +120,9 @@ def find_phantoms(tracker_dir: Path) -> list[dict]:
 
 
 def repair(tracker_dir: Path, *, apply: bool) -> dict:
-    from spa_core.owner_queue.queue import set_status
+    # Правило ретракции берётся У КОНТРАКТА, а не перепечатывается здесь: разойдись
+    # строка с гейтом — ремонтник снова стал бы неисполнимым, и МОЛЧА (ADR-807, ADR-220).
+    from spa_core.owner_queue.queue import RETRACTION_RULE_TOKEN, set_status
 
     phantoms = find_phantoms(tracker_dir)
     closed, reopened, orphaned = [], [], []
@@ -137,8 +139,16 @@ def repair(tracker_dir: Path, *, apply: bool) -> dict:
             if "Закрыто автоматически" not in text:
                 item["phantom"].write_text(
                     text.rstrip() + _CLOSE_NOTE.format(sig=item["signature"]), encoding="utf-8")
+            # Ретракция вопроса интейка объявляется НАЗВАННЫМ правилом (ADR-807): без него
+            # гейт ADR-551 отказывает — «решение владельца закрывается только по его
+            # записанному ответу», — и этот ремонтник был НЕИСПОЛНИМ (7 его тестов красны
+            # на origin/main 80a95aaf2, замер цикла #930). Условия ретракции он выполняет по
+            # построению: `source: intake`, фантом с рождения никто не двигал, статус `done`,
+            # закрыватель назван. Инв. #14 не задет — `owner-done` здесь не ставится.
             set_status(item["phantom"], "done", closed_by="repair_phantom_intake_cards",
-                       evidence=f"phantom intake card, signature {item['signature']}")
+                       evidence=(f"{RETRACTION_RULE_TOKEN}: вопрос интейка вне трёх предметов "
+                                 f"владельца (фантом упавшего классификатора, подпись "
+                                 f"{item['signature']})"))
         closed.append(item["phantom"].name)
 
     return {
