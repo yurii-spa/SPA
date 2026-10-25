@@ -1,0 +1,7 @@
+R1 rc=  0: success=True status=ok cli=0 run_id=models01-probe-c376579… old_file_run_id_now=models01-probe-c376579… files=['probe_record.json']
+R1 rc=  1: success=True status=ok cli=0 run_id=models01-probe-d7ae3f5… old_file_run_id_now=models01-probe-d7ae3f5… files=['probe_record.json']
+R1 rc=  3: success=True status=ok cli=0 run_id=models01-probe-cb6b0ee… old_file_run_id_now=models01-probe-cb6b0ee… files=['probe_record.json']
+R1 rc=-15: success=True status=ok cli=0 run_id=models01-probe-cccc347… old_file_run_id_now=models01-probe-cccc347… files=['probe_record.json']
+R1 verdict without ownership_closed field: {'success': True, 'reasons': []}
+R2 rss_mb([424242], ps_out='') = 0.0
+R2 rss_mb([424242], ps_out='parse failed') = 0.0

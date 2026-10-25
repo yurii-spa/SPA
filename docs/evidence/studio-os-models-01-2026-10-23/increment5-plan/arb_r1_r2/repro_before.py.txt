@@ -1,0 +1,32 @@
+"""Воспроизведение R1/R2 ARB 25.10 — только временные файлы, helper и sweep подменены, процессов нет."""
+import json, sys, tempfile
+from pathlib import Path
+from spa_core.studio_os.model_roles import adapters as ad, probe as pr
+
+def r1(rc):
+    d = Path(tempfile.mkdtemp())
+    old = {"status": "ok", "grade": {"outcome": "PASS"}, "server_stopped": True, "run_id": "models01-probe-OLD"}
+    (d / "probe_record.json").write_text(json.dumps(old))
+    h = ad.load_timeout_helper()
+    h.run = lambda cmd, **kw: rc                         # новый результат НЕ пишется
+    pr.sweep_run_id = lambda *a, **k: {"closed": True, "swept": [], "left": []}
+    rec = pr.launch(ollama="x", model="m", port=11535, context_path=d / "c", out_dir=d, models_dir=d / "s", helper=h)
+    orig = pr.launch
+    pr.launch = lambda **kw: rec
+    code = pr.main(["launch", "--ollama", "x", "--model", "m", "--port", "11535", "--context", "c", "--out", str(d),
+                    "--models-dir", str(d / "s")])
+    pr.launch = orig
+    files = sorted(p.name for p in d.iterdir())
+    old_now = json.loads((d / "probe_record.json").read_text()).get("run_id")
+    print(f"R1 rc={rc:>3}: success={rec['verdict']['success']} status={rec.get('status')} cli={code} "
+          f"run_id={rec.get('run_id')[:22]}… old_file_run_id_now={old_now[:22]}… files={files}")
+
+for rc in (0, 1, 3, -15):
+    r1(rc)
+print("R1 verdict without ownership_closed field:",
+      pr.verdict({"status": "ok", "grade": {"outcome": "PASS"}, "server_stopped": True}))
+for out in ("", "parse failed"):
+    try:
+        print(f"R2 rss_mb([424242], ps_out={out!r}) =", pr.rss_mb([424242], ps_out=out))
+    except Exception as e:
+        print(f"R2 rss_mb([424242], ps_out={out!r}) -> {type(e).__name__}: {e}")

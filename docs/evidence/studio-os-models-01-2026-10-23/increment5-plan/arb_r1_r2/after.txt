@@ -1,0 +1,10 @@
+R1 rc=  0: success=False status=no_current_record cli=1 prov=missing: run_id=models01-probe-186f030… old_file_run_id_now=models01-probe-OLD… files=['probe_record.json', 'runs']
+R1 rc=  1: success=False status=no_current_record cli=1 prov=missing: run_id=models01-probe-c70afd7… old_file_run_id_now=models01-probe-OLD… files=['probe_record.json', 'runs']
+R1 rc=  3: success=False status=no_current_record cli=1 prov=missing: run_id=models01-probe-a01c60c… old_file_run_id_now=models01-probe-OLD… files=['probe_record.json', 'runs']
+R1 rc=-15: success=False status=no_current_record cli=1 prov=missing: run_id=models01-probe-642c7f4… old_file_run_id_now=models01-probe-OLD… files=['probe_record.json', 'runs']
+R1 ownership_closed='absent': success=False
+R1 ownership_closed=None: success=False
+R1 ownership_closed=False: success=False
+R1 ownership_closed=True: success=True
+R2 rss_mb([424242], ps_out='') -> MeasurementError: ps returned no process rows
+R2 rss_mb([424242], ps_out='parse failed') -> MeasurementError: ps row not parsed: 'parse failed'

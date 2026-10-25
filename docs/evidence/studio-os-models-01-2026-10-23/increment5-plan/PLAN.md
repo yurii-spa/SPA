@@ -137,6 +137,17 @@ python3 $E/probe_grade.py $E/probe_record.ollama_local.json | tee $E/probe_grade
 Проверено на поддельных серверах и крошечных временных хранилищах: 57 тестов; 10 мутаций (по одной на каждое
 свойство выше) — все убиты. Настоящие веса не копировались, модель не вызывалась.
 
+### Поправка по ARB R1/R2 (`ARB_REVIEW_2026-10-25_a2bdf7c09.md`) — действует поверх раздела выше
+
+| | было на `a2bdf7c09` (`arb_r1_r2/before_a2bdf7c09.txt`) | стало (`arb_r1_r2/after.txt`) |
+|---|---|---|
+| R1 старая запись в `out_dir` | при rc 0/1/3/−15 — success, код 0, старой записи присвоен новый `run_id` | каждый запуск пишет в НОВЫЙ `runs/<run_id>/`; ребёнок пишет свой `run_id` из `SPA_RUN_ID`; принимается только запись с тем же `run_id` (иначе `no_current_record`: missing/unreadable/mismatch); старое не читается и не затирается |
+| R1 код помощника | ≠ 124/125 не учитывался | любой ненулевой rc ⇒ не успех (`helper_failed`) |
+| R1 `ownership_closed` | отсутствие поля проходило | финальный успех только при `ownership_closed is True` |
+| R1 промежуточный исход | у ребёнка тоже `verdict` | у ребёнка `child_outcome` (`final: false`), `verdict` — только у `launch` |
+| R2 `rss_mb([424242], ps_out='')` / `'parse failed'` | 0.0 / 0.0 | MeasurementError ⇒ стоп пробы, финальный вердикт false |
+| R2 нет строки по нужному pid | 0 МБ | MeasurementError, кроме ПОДТВЕРЖДЁННОГО завершения (`process_state` = "exited"; "unknown" — не завершение) |
+
 ### Готовая команда будущей пробы (требует решения владельца)
 
 ```sh
@@ -147,7 +158,8 @@ python3 -m spa_core.studio_os.model_roles.probe prepare-store --model qwen3.5:4b
 # шаг 2 — ОДНА проба на своём экземпляре и частной копии
 python3 -m spa_core.studio_os.model_roles.probe launch --ollama /usr/local/bin/ollama --model qwen3.5:4b \
   --port 11535 --context $E/probe_context.md --out $E/probe_run --models-dir "$STORE"
-# код 0 ⇔ verdict.success; запись: $E/probe_run/probe_record.json + helper.log
+# код 0 ⇔ verdict.success; запись: $E/probe_run/runs/<run_id>/probe_record.json (+ child_record.json, helper.log);
+# путь печатается в record_path; прежние прогоны в каталоге не трогаются
 ```
 
 ### (прежний вариант команды — SUPERSEDED: без частного хранилища)
