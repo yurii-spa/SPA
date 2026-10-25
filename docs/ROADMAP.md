@@ -6,6 +6,8 @@
 > Last confirmed by the owner: **2026-10-01** (directive «THREE DEFI PAPER PORTFOLIOS — STRATEGY MECHANICS, OPERATIONS AND WEBSITE»).
 > Latest owner clarification: **2026-10-25** — support the owner's Claude Pro subscription for Studio OS management
 > through the official Claude Code CLI; included usage only, no automatic paid continuation (same owner decision below).
+> Latest sequencing directive: **2026-10-25** — test management with the existing Claude subscription now;
+> defer real local-model probes until the owner has a new Mac mini. No hardware purchase is authorized here.
 > Owner priority directive: **2026-10-23** — model-independent workers and architect, P1; bounded verification
 > ([owner decision](decisions/ADR-OWN-2026-10-23-model-independent-studio.md)).
 > Continuing owner directive: **2026-10-16** «STUDIO-OS-NEXT-01 — next stage of Earn DeFi Studio OS under the ARB plan»
@@ -44,6 +46,14 @@ Reuse the intended login without changing the active implementer's account. Pres
 authority; included usage only, no automatic API/paid-credit fallback. Shared quota exhaustion pauses the task.
 Actual Pro connection and billing safeguards remain unverified; the [owner decision](decisions/ADR-OWN-2026-10-23-model-independent-studio.md)
 records acceptance criteria and consequences.
+
+**Execution order, owner directive 2026-10-25:** next test the existing Claude subscription path on one useful
+management/architecture task through `memory arch-review`, using a fresh context package and the current
+intended login. Reuse accepted components; this is not a new adapter project. Local Ollama inference and real
+weight-copy preparation are deferred until the owner's new Mac mini is available and a bounded launch is
+explicitly authorized. Preserve the accepted probe preparation (`5a0d497f0`, ARB follow-up in
+`increment5-plan/ARB_REVIEW_2026-10-25_a2bdf7c09.md`); a second real provider is not a prerequisite for this
+Claude management test. Canonical model assignments remain null; no production delivery is implied.
 
 **Status:** the first safe architecture-review slice is ARB-accepted in candidate `393faa72d` (portable context,
 provider contract and `memory arch-review`); production delivery is not claimed. The overall MODELS-01 macro,

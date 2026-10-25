@@ -49,6 +49,28 @@ Rationale: reuse the owner's paid access for management and development while pr
 
 Provider references checked 2026-10-25: [Pro/Max access and shared limits](https://support.claude.com/en/articles/11145838-use-claude-code-with-your-pro-or-max-plan), [official authentication and profiles](https://code.claude.com/docs/en/authentication), [paid usage credits](https://support.claude.com/en/articles/12429409-manage-usage-credits-for-paid-claude-plans).
 
+## Owner sequencing directive — 2026-10-25: Claude now, local models after the new Mac mini
+
+- Decision owner: Yurii Kulieshov; recorded by ARB from: «я бы клод тестировал пока мак мини не купил новый».
+- Status: accepted for the next bounded management test, within the existing subscription and permissions.
+- Next step: use the existing official Claude Code subscription seam and `memory arch-review` for one useful
+  management/architecture task. Supply fresh canonical context and check factual accuracy, unknowns,
+  priorities, owner authority and the usefulness of its proposed implementation task. Preserve output as a
+  proposal for ARB review; do not execute the generated task automatically.
+- Reuse the intended authenticated subscription profile; do not switch accounts or represent an observed
+  Max profile as a verified Pro connection. Included-usage and no-paid-fallback restrictions above remain.
+- Defer real Ollama inference and real weight-copy preparation until the owner's new Mac mini is available.
+  Availability of the new hardware is not automatic permission to start: a bounded launch still needs its
+  own owner authorization. No hardware purchase or model download is authorized by this directive.
+- Keep the accepted local-probe preparation (`5a0d497f0`) and its evidence. Do not delete it, repeat its audit,
+  or make local-provider qualification a prerequisite for useful work with Claude.
+
+Rationale: deliver useful management behaviour using the owner's current access while postponing local
+compute experiments until the planned hardware change. Alternatives: run Qwen on the current Mac (deferred
+by the owner); block all management work until a second provider is qualified (rejected). Consequences:
+model-independent architecture remains P1, Claude management is the immediate test, and actual Pro-profile
+qualification, billing safeguards and second-provider qualification remain separate evidence questions.
+
 ## Acceptance
 
 - Owner intent, decisions and task state survive replacement of an AI session; existing memory is reused.

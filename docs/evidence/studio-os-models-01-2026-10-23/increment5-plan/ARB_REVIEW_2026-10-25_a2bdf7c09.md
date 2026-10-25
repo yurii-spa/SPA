@@ -77,3 +77,67 @@ counting or signalling unrelated processes. Test the final failed verdict as wel
 4. Failed RSS measurement cannot become 0 MB and cannot yield a successful probe; valid measurement still works.
 5. Prior evidence remains intact; normal owned-process cleanup and unrelated-process preservation remain covered.
 6. Report exact tested SHA, target checks and completed full CI, retaining the known §49 limitations.
+
+## Follow-up acceptance — 2026-10-25, candidate 5a0d497f0
+
+Decision owner: ARB (ChatGPT); real model activation remains a separate decision of Yurii Kulieshov.
+This section resolves the earlier R1/R2 review; the original findings above remain historical evidence.
+
+**Decision: ACCEPTED as preparation for one bounded local-provider probe**, on tested candidate
+`5a0d497f0ce7c9f7fe8740cf8e982ff1eb66ec0e` (code commit `a490f2979`). Observed HEAD before this annotation:
+`95ea39f1795ef4f48f86a9642f65937b4314b584`; changes above the tested candidate are documentation only.
+This acceptance is not a real provider qualification, production delivery, green CI or §49 NO_REGRESSION.
+
+Evidence independently checked by ARB:
+
+- Inspected the actual R1/R2 code and test diff. Each launch creates a fresh `runs/<run_id>/` directory,
+  retains the child's record, checks its run id, and requires helper rc 0 and explicit confirmed ownership
+  for final success. Intermediate `child_outcome` is explicitly non-final.
+- Repeated 12 controlled provenance/return-code cases without processes: missing, mismatching and current
+  records, each with rc 0/1/3/-15. Only a current passing record with rc 0 succeeded; CLI and record agreed;
+  old records remained byte-for-byte intact.
+- Independently verified empty/malformed/missing RSS data refuses for present or unknown synthetic process
+  state; confirmed exit is distinct and valid measurements still sum correctly. No OS query or signal was
+  made for the synthetic PID.
+- Target checks: 103 passed, 13 process-dependent probe cases deselected locally, 0.76 s. The real Mac
+  process behaviour remains an empirical question for the bounded probe; local deselection is not acceptance
+  evidence for those process scenes.
+- Read GitHub CI `40190831822` and verified the downloaded report artifact's SHA-256 against GitHub's digest.
+  Report SHA matches the tested candidate. 135826 population; 135105 passed; 2 failed; 719 skipped; 0 errors,
+  0 missing, 0 collection errors; 12/12 shards complete. The failing identities are the same two known §49
+  producer-tick tests, with no new failing identities relative to the previous reviewed candidate.
+- Diff whitespace check passed. No inference, Ollama server launch, real model copying, production mutation,
+  account switch, financial change or new CI dispatch was performed by ARB.
+
+Rationale: the two concrete acceptance blockers are closed with evidence, and the focused change introduces
+no observed new CI failures. Another general audit or another run of this same full CI is not justified.
+Alternative rejected: declare the local model qualified from fake-server tests. Real transport, process
+visibility, memory use and answer quality still require observation.
+
+### Concrete next step for the owner's decision (NOT yet authorized or executed)
+
+One `qwen3.5:4b` probe, using the current `prepare-store` then `launch --models-dir` commands in PLAN.md:
+
+- Copy only the selected already-installed model into a new private store (approximately 3.4 GB according
+  to the earlier inventory); no download, shared-store overwrite or deletion. If preparation fails, stop
+  before launching; an existing destination is not permission to reuse it implicitly.
+- Use the fixed `probe_context.md` and its four factual questions; it is a historical test fixture, not a
+  claim that its recorded HEAD is today's project HEAD.
+- One request, no tools, no retry; helper deadline 180 s, with bounded cleanup afterward. Private loopback
+  port 11535, private store, current resource guards (free memory >=40%, pressure <=1, swap growth <=1 GB,
+  owned-server/runner RSS <=6 GB). Any refused/unmeasured precondition ends this attempt.
+- Keep the existing service, model-role assignments, production, tracker, financial rules and account
+  settings unchanged. No paid API or automatic fallback. Preserve the evidence and private copy afterward.
+- Record answer/grade, final verdict, process closure, timing, usage actually reported, resource samples
+  and any observed shared-store changes. No automatic code repair, repeated model attempt or role admission
+  follows a failure or an inconclusive answer.
+- A passing result supports only this short scenario. Claude Pro management connection and its billing
+  safeguards remain a separate open part of MODELS-01.
+
+### Subsequent owner direction — 2026-10-25
+
+Yurii selected testing Claude management now and deferring local models until the new Mac mini. The local
+probe proposed above is therefore DEFERRED, not authorized; its preparation acceptance remains valid for
+the stated candidate and scope. No real weights are to be copied and no Ollama inference started under the
+current package. The updated execution order is recorded in ROADMAP and ADR-OWN-2026-10-23. This neither
+authorizes a hardware purchase nor schedules an automatic launch when hardware becomes available.
