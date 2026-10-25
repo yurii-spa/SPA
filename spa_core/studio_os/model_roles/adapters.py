@@ -243,13 +243,20 @@ def ollama_http(*, endpoint: str, model: str, num_ctx: int = 8192, num_predict: 
     return run
 
 
-def _urllib_post_json(url: str, body: Dict[str, Any], timeout_s: float) -> Dict[str, Any]:
+class _NoRedirect(__import__("urllib.request").request.HTTPRedirectHandler):
+    """A loopback URL checked once must not be redirected anywhere else (ARB 2026-10-25)."""
+
+    def redirect_request(self, req, fp, code, msg, headers, newurl):  # noqa: D401, ARG002
+        raise OSError(f"HTTP redirect {code} refused (to {newurl!r}) — the probe never follows redirects")
+
+
+def _urllib_post_json(url: str, body: Dict[str, Any], timeout_s: float, method: str = "POST") -> Dict[str, Any]:
     import socket
     import urllib.request
-    req = urllib.request.Request(url, data=json.dumps(body).encode("utf-8"),
-                                 headers={"Content-Type": "application/json"}, method="POST")
-    # no proxy: a loopback call never leaves the machine through an environment proxy
-    opener = urllib.request.build_opener(urllib.request.ProxyHandler({}))
+    data = json.dumps(body).encode("utf-8") if method == "POST" else None
+    req = urllib.request.Request(url, data=data, headers={"Content-Type": "application/json"}, method=method)
+    # no proxy (a loopback call never leaves the machine through an environment proxy) and NO redirects
+    opener = urllib.request.build_opener(urllib.request.ProxyHandler({}), _NoRedirect())
     try:
         with opener.open(req, timeout=timeout_s) as resp:
             return json.loads(resp.read().decode("utf-8"))
