@@ -365,6 +365,22 @@ class TallyKeepsTheDenominatorHonest(unittest.TestCase):
         self.assertEqual(counts["readers_measured"], 0)
 
 
+#: Синтетические сцены вердикта: население — ОДНО имя, тот самый модуль ``m``, о котором отвечает подменённый зонд.
+_SYNTHETIC_POPULATION = ("m",)
+
+
+def _small_tree(root: Path) -> Path:
+    """Маленькое настоящее дерево: один читатель ``m`` с полем-кандидатом ``label``."""
+    mod = root / "spa_core" / "monitoring"
+    mod.mkdir(parents=True)
+    (root / "spa_core" / "__init__.py").write_text("", encoding="utf-8")
+    (mod / "__init__.py").write_text("", encoding="utf-8")
+    (mod / "m.py").write_text(
+        'LABEL_KEY = "label"\n\n\ndef measure(rows):\n    return [{"label": r} for r in rows]\n',
+        encoding="utf-8")
+    return root
+
+
 class MeasureRefusesInsteadOfGuessing(unittest.TestCase):
     """Любое незакрытое звено даёт НЕ ИЗМЕРЕНО с причиной, а не CLEAN."""
 
@@ -384,6 +400,9 @@ class MeasureRefusesInsteadOfGuessing(unittest.TestCase):
         finally:
             census.population = real
         self.assertEqual(doc["status"], "UNMEASURED")
+        # Причина — ПУСТОЕ население, а не «стенд не построен» (без живого data/ ответ был бы верным по чужой
+        # причине, и отказ на пустом населении никто бы не проверял — найдено мутацией 26.10).
+        self.assertIn("населения переписи пуста", doc["reason"])
 
     def _with_stand(self, answer, why: str = "") -> dict:
         """Сцена, где стенд ПОСТРОЕН, — чтобы вердикт решало плечо зонда.
@@ -392,14 +411,42 @@ class MeasureRefusesInsteadOfGuessing(unittest.TestCase):
         этой подмены все сцены ниже упирались бы в «стенд не построен» — то
         есть проверяли бы не то звено, которое названо в их имени.
         """
-        real_stand, real_probe = census.build_stands, census.run_probe
+        # ARB 26.10 (инв. #16, разрешённая узкая правка сцены): ответ зонда здесь синтетический (модуль ``m``),
+        # поэтому и население — явное, ОДНО имя, согласованное с этим ответом, а дерево для оси рода и
+        # постоянных-операндов — маленькое НАСТОЯЩЕЕ (``_SMALL_TREE``), а не весь репозиторий: обход всего
+        # дерева (≈60 с локально, 164–180 с в CI) ничего не добавлял к предмету этих сцен — выбору вердикта.
+        # Сам measure/tally/вердикт не подменяется. Построение настоящего населения покрыто
+        # test_python_reader_clock_doors.py (population на дереве), оси — своими тестами.
+        real_stand, real_probe, real_pop = census.build_stands, census.run_probe, census.population
         try:
             census.build_stands = lambda src, dest, day=None: (
                 {"s1": str(dest), "day": "-", "donor_day": "-"}, "")
             census.run_probe = lambda *a, **k: (answer, why)
-            return census.measure(Path(ROOT) / "data", ROOT, now=_now())
+            census.population = lambda root: (list(_SYNTHETIC_POPULATION), {"python_branch": 1})
+            with tempfile.TemporaryDirectory() as tmp:
+                tree = _small_tree(Path(tmp))
+                return census.measure(Path(ROOT) / "data", tree, now=_now())
         finally:
-            census.build_stands, census.run_probe = real_stand, real_probe
+            census.build_stands, census.run_probe, census.population = real_stand, real_probe, real_pop
+
+    def test_the_synthetic_scene_population_matches_its_probe_answer(self):
+        """Контроль самой сцены: население непусто и называет ровно тот модуль, о котором отвечает зонд."""
+        answer = {"__modules__": {"m": {"entry": "measure", "lists": []}}}
+        self.assertEqual(list(_SYNTHETIC_POPULATION), list(answer["__modules__"]))
+        with tempfile.TemporaryDirectory() as tmp:
+            tree = _small_tree(Path(tmp))
+            self.assertTrue((tree / "spa_core" / "monitoring" / "m.py").is_file())
+
+    def test_the_small_tree_still_reaches_the_tree_axes(self):
+        """Дерево не выключает оси: tally с маленьким настоящим деревом отвечает тем же вердиктом, что и без
+        дерева, и оси рода/постоянных получают ВХОД (не «дерева нет»)."""
+        rows = {"m": {"entry": "measure", "lists": [
+            {"coord": ".a", "n": 2, "outcome": "unnamed_candidate_outside", "candidates": ["label"]}]}}
+        with tempfile.TemporaryDirectory() as tmp:
+            with_tree = census.tally(rows, tree_root=_small_tree(Path(tmp)))
+        without = census.tally(rows)
+        self.assertEqual(len(with_tree["finding_rows"]), len(without["finding_rows"]))
+        self.assertNotEqual(with_tree["constant_operand"], without["constant_operand"])
 
     def test_probe_failure_is_unmeasured_not_clean(self):
         doc = self._with_stand(None, "зонд вышел кодом 1")
