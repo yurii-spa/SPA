@@ -2,13 +2,14 @@
 trackerStatus:
   type: inbox
 title: Девять вопросов владельцу не относятся ни к одному из трёх предметов ADR-285 — это дефект очереди, разбирать агенту
-status: in-progress
+status: done
 source: nimbalyst
 created: 2026-10-18
 intake_seen: 2026-10-24T15:08:12Z
 acceptance_probe: named_cards_closed_at_origin:inbox-devyat-voprosov-vladeltsu-ne-otnosyatsya
 status_trail:
   - "2026-10-25T09:34:00.267363+00:00 new -> in-progress · queue.set_status · cycle-59306"
+  - "2026-10-25T10:07:54.949267+00:00 in-progress -> done · queue.set_status/closed_by:agent:orchestrator cycle-59306 (цикл #930)/evidence:объявленная ДО работы проба named_cards_closed_at_origin = satisfied на origin/main 1dc77d6ca (была not_satisfied); снято 11 карточек, needs-owner 29 -> 18 на origin и 28 -> 17 в живом дереве; остаток · cycle-59306"
 ---
 
 ## Задание

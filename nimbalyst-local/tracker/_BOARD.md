@@ -2,11 +2,11 @@
 
 > Авто-генерится `scripts/build_tracker_board.py` из `nimbalyst-local/tracker/*.md`. НЕ править вручную — правь карточки. Источник правды — карточки, это индекс (bootstrap).
 >
-> Собрана: 2026-10-25T03:08:43Z · сверка с карточками: `python3 scripts/build_tracker_board.py --check` (сторож `spa_core/tests/test_tracker_board_matches_cards.py`).
+> Собрана: 2026-10-25T10:08:08Z · сверка с карточками: `python3 scripts/build_tracker_board.py --check` (сторож `spa_core/tests/test_tracker_board_matches_cards.py`).
 >
-> Сверено с `origin/main` (615c99c7b) · ещё **2** карточ(ка/ки) есть на ref, а файла в этом дереве нет — их в списках ниже НЕТ · у **1** своя правка, кто новее — не измерено.
+> Сверено с `origin/main` (1dc77d6ca).
 >
-> Всего карточек: **1452** · ждёт владельца: **28** · занято сессиями: **16**.
+> Всего карточек: **1454** · ждёт владельца: **17** · занято сессиями: **16**.
 
 ## 🔴 ЖДЁТ ВЛАДЕЛЬЦА (needs-owner)
 
@@ -24,18 +24,7 @@
 - **Система не спрашивает, продержится ли выгода — и по факту она не продержалась ни разу** · _high_  ·  `owner-decision-sistema-ne-sprashivaet-proderzhitsya-li.md`
 - **Стоимость перекладки заряжается в 134 раза дороже наблюдаемой — нужен твой порог «сколько уже слишком»**  ·  `owner-decision-stoimost-perekladki-zaryazhaetsya-v-134.md`
 - **Убрать 2 ГБ служебного мусора git в рабочем дереве на Маке**  ·  `owner-decision-ubrat-2-gb-sluzhebnogo-musora-git-v-rabo.md`
-- **Уточнение по заметке: Догоняющий дневной цикл: сторож пропусков сам будит цикл, если к 10:00 UTC его не было (решение владельца 17.09, вариант A)**  ·  `owner-decision-utochnenie-po-zametke-dogonyayuschii-dne.md`
-- **Уточнение по заметке: Имена 41 упавшего теста на main не существуют нигде: reports/ не выгружается, а печать режет 61 до 20**  ·  `owner-decision-utochnenie-po-zametke-imena-41-upavshego.md`
-- **Уточнение по заметке: купить зонт в пятницу**  ·  `owner-decision-utochnenie-po-zametke-kupit-zont-v-pyatn-2.md`
-- **Уточнение по заметке: купить зонт в пятницу**  ·  `owner-decision-utochnenie-po-zametke-kupit-zont-v-pyatn-3.md`
-- **Уточнение по заметке: купить зонт в пятницу**  ·  `owner-decision-utochnenie-po-zametke-kupit-zont-v-pyatn-4.md`
-- **Уточнение по заметке: купить зонт в пятницу**  ·  `owner-decision-utochnenie-po-zametke-kupit-zont-v-pyatn-5.md`
-- **Уточнение по заметке: купить зонт в пятницу**  ·  `owner-decision-utochnenie-po-zametke-kupit-zont-v-pyatn.md`
-- **Уточнение по заметке: Приказ владельца ускользнул от сторожа, написанного РАДИ него: прод-копия закрыта однострочником 31.08, на origin она critical/in-progress с блоком «ЗАПУСТИТЬ СЛЕДУЮЩИМ ЦИКЛОМ»**  ·  `owner-decision-utochnenie-po-zametke-prikaz-vladeltsa-u.md`
-- **Уточнение по заметке: Шесть карточек заперты пустым claimed_at — «измерено и пусто» неотличимо от «не измерено»**  ·  `owner-decision-utochnenie-po-zametke-shest-kartochek-za.md`
-- **Уточнение по заметке: Слушай, это просто тест, никакой задачи нету, поэтому будь то знал.**  ·  `owner-decision-utochnenie-po-zametke-slushai-eto-prosto.md`
 - **Уточнение по заметке: Сто тридцать девять брошенных деревьев циклов: 24,6 ГБ, и снимать их вслепую нельзя**  ·  `owner-decision-utochnenie-po-zametke-sto-tridtsat-devya.md`
-- **Уточнение по заметке: Страж провенанса читает правку строки на месте как её исчезновение — и выводит автора на обход**  ·  `owner-decision-utochnenie-po-zametke-strazh-provenansa.md`
 - **Закрыть три черновых PR — у моего ключа нет на это прав (или выдать права)** · _medium_  ·  `owner-decision-zakryt-tri-chernovyh-pr-u-moego-klyucha.md`
 - **Защита от качелей сравнивает не то, что нужно — книга 12 раз вернулась туда, откуда ушла**  ·  `owner-decision-zaschita-ot-kachelei-sravnivaet-ne-to-ch.md`
 
@@ -77,18 +66,7 @@
 - Система не спрашивает, продержится ли выгода — и по факту она не продержалась ни разу  ·  `owner-decision-sistema-ne-sprashivaet-proderzhitsya-li.md` · 2026-09-26
 - Стоимость перекладки заряжается в 134 раза дороже наблюдаемой — нужен твой порог «сколько уже слишком»  ·  `owner-decision-stoimost-perekladki-zaryazhaetsya-v-134.md` · 2026-09-29
 - Убрать 2 ГБ служебного мусора git в рабочем дереве на Маке  ·  `owner-decision-ubrat-2-gb-sluzhebnogo-musora-git-v-rabo.md` · 2026-10-10
-- Уточнение по заметке: Догоняющий дневной цикл: сторож пропусков сам будит цикл, если к 10:00 UTC его не было (решение владельца 17.09, вариант A)  ·  `owner-decision-utochnenie-po-zametke-dogonyayuschii-dne.md` · 2026-10-13
-- Уточнение по заметке: Имена 41 упавшего теста на main не существуют нигде: reports/ не выгружается, а печать режет 61 до 20  ·  `owner-decision-utochnenie-po-zametke-imena-41-upavshego.md` · 2026-10-14
-- Уточнение по заметке: купить зонт в пятницу  ·  `owner-decision-utochnenie-po-zametke-kupit-zont-v-pyatn-2.md` · 2026-10-15
-- Уточнение по заметке: купить зонт в пятницу  ·  `owner-decision-utochnenie-po-zametke-kupit-zont-v-pyatn-3.md` · 2026-10-16
-- Уточнение по заметке: купить зонт в пятницу  ·  `owner-decision-utochnenie-po-zametke-kupit-zont-v-pyatn-4.md` · 2026-10-16
-- Уточнение по заметке: купить зонт в пятницу  ·  `owner-decision-utochnenie-po-zametke-kupit-zont-v-pyatn-5.md` · 2026-10-24
-- Уточнение по заметке: купить зонт в пятницу  ·  `owner-decision-utochnenie-po-zametke-kupit-zont-v-pyatn.md` · 2026-10-15
-- Уточнение по заметке: Приказ владельца ускользнул от сторожа, написанного РАДИ него: прод-копия закрыта однострочником 31.08, на origin она critical/in-progress с блоком «ЗАПУСТИТЬ СЛЕДУЮЩИМ ЦИКЛОМ»  ·  `owner-decision-utochnenie-po-zametke-prikaz-vladeltsa-u.md` · 2026-10-03
-- Уточнение по заметке: Шесть карточек заперты пустым claimed_at — «измерено и пусто» неотличимо от «не измерено»  ·  `owner-decision-utochnenie-po-zametke-shest-kartochek-za.md` · 2026-10-15
-- Уточнение по заметке: Слушай, это просто тест, никакой задачи нету, поэтому будь то знал.  ·  `owner-decision-utochnenie-po-zametke-slushai-eto-prosto.md` · 2026-10-15
 - Уточнение по заметке: Сто тридцать девять брошенных деревьев циклов: 24,6 ГБ, и снимать их вслепую нельзя  ·  `owner-decision-utochnenie-po-zametke-sto-tridtsat-devya.md` · 2026-10-15
-- Уточнение по заметке: Страж провенанса читает правку строки на месте как её исчезновение — и выводит автора на обход  ·  `owner-decision-utochnenie-po-zametke-strazh-provenansa.md` · 2026-10-06
 - Закрыть три черновых PR — у моего ключа нет на это прав (или выдать права)  ·  `owner-decision-zakryt-tri-chernovyh-pr-u-moego-klyucha.md` · 2026-09-26
 - Защита от качелей сравнивает не то, что нужно — книга 12 раз вернулась туда, откуда ушла  ·  `owner-decision-zaschita-ot-kachelei-sravnivaet-ne-to-ch.md` · 2026-09-26
 ### · ingested
@@ -413,10 +391,17 @@
 - Уточнение по заметке: ALLOC-002-отбор: топ-8 по весу беднит книгу — отбирать ПОСЛЕ evidence/TVL-гейта  ·  `owner-decision-utochnenie-po-zametke-alloc-002-otbor-to.md` · 2026-08-11
 - Уточнение по заметке: Атрибуция кэша и гейт RiskPolicy по-разному определяют «живой TVL» — и атрибуция не знает про порог $5M  ·  `owner-decision-utochnenie-po-zametke-atributsiya-kesha.md` · 2026-08-11
 - Уточнение по заметке: Демоушен книг Aggressive по ОТНОСИТЕЛЬНОМУ рангу (решение владельца 09.08, вариант A)  ·  `owner-decision-utochnenie-po-zametke-demoushen-knig-agg.md` · 2026-08-11
+- Уточнение по заметке: Догоняющий дневной цикл: сторож пропусков сам будит цикл, если к 10:00 UTC его не было (решение владельца 17.09, вариант A)  ·  `owner-decision-utochnenie-po-zametke-dogonyayuschii-dne.md` · 2026-10-13
 - Уточнение по заметке: Это почини - 🛡️ Сайт-сторож: нашёл проблем — 2 (2026-08-08T13:09:51Z)  ·  `owner-decision-utochnenie-po-zametke-eto-pochini-sait-s.md` · 2026-08-11
 - Уточнение по заметке: Храповик литеральных дат метит ОБРАЗЦОВЫЙ паттерн: тест по преференции №1 правила (инъекция часов) не проходит сторожа  ·  `owner-decision-utochnenie-po-zametke-hrapovik-literalny.md` · 2026-08-11
+- Уточнение по заметке: Имена 41 упавшего теста на main не существуют нигде: reports/ не выгружается, а печать режет 61 до 20  ·  `owner-decision-utochnenie-po-zametke-imena-41-upavshego.md` · 2026-10-14
 - Уточнение по заметке: Из алерта: ⚠️ SPA 7-Day Checkpoint FAILED: 1 check(s)  ·  `owner-decision-utochnenie-po-zametke-iz-alerta-spa-7-da-2.md` · 2026-08-11
 - Уточнение по заметке: Из алерта: ⚠️ SPA 7-Day Checkpoint FAILED: 1 check(s)  ·  `owner-decision-utochnenie-po-zametke-iz-alerta-spa-7-da.md` · 2026-08-11
+- Уточнение по заметке: купить зонт в пятницу  ·  `owner-decision-utochnenie-po-zametke-kupit-zont-v-pyatn-2.md` · 2026-10-15
+- Уточнение по заметке: купить зонт в пятницу  ·  `owner-decision-utochnenie-po-zametke-kupit-zont-v-pyatn-3.md` · 2026-10-16
+- Уточнение по заметке: купить зонт в пятницу  ·  `owner-decision-utochnenie-po-zametke-kupit-zont-v-pyatn-4.md` · 2026-10-16
+- Уточнение по заметке: купить зонт в пятницу  ·  `owner-decision-utochnenie-po-zametke-kupit-zont-v-pyatn-5.md` · 2026-10-24
+- Уточнение по заметке: купить зонт в пятницу  ·  `owner-decision-utochnenie-po-zametke-kupit-zont-v-pyatn.md` · 2026-10-15
 - Уточнение по заметке: Находка петли: docs/SYSTEM_BRIEFING.md: последний ресит старше SLO 2ч — потребитель з  ·  `owner-decision-utochnenie-po-zametke-nahodka-petli-docs.md` · 2026-08-11
 - Уточнение по заметке: Находка петли: постура офиса CRITICAL, но книга развёрнута (cash 10.0% < 50%) — офис  ·  `owner-decision-utochnenie-po-zametke-nahodka-petli-post.md` · 2026-08-11
 - Уточнение по заметке: Номер ADR-067 занят ДВУМЯ разными решениями — реестр показывает две строки  ·  `owner-decision-utochnenie-po-zametke-nomer-adr-067-zany.md` · 2026-08-11
@@ -425,9 +410,13 @@
 - Уточнение по заметке: Оркестратор ведом каноническим реестром + ALLOC-002-осознанный отбор (иначе больше кандидатов = хуже книга)  ·  `owner-decision-utochnenie-po-zametke-orkestrator-vedom.md` · 2026-08-11
 - Уточнение по заметке: Оживить фиды вне Ethereum — путь к снятию остатка кэша (решение владельца 08.08)  ·  `owner-decision-utochnenie-po-zametke-ozhivit-fidy-vne-e.md` · 2026-08-11
 - Уточнение по заметке: Подготовить ADR: пересмотр лимита одной цепочки 90% (решение владельца — за ним)  ·  `owner-decision-utochnenie-po-zametke-podgotovit-adr-per.md` · 2026-08-11
+- Уточнение по заметке: Приказ владельца ускользнул от сторожа, написанного РАДИ него: прод-копия закрыта однострочником 31.08, на origin она critical/in-progress с блоком «ЗАПУСТИТЬ СЛЕДУЮЩИМ ЦИКЛОМ»  ·  `owner-decision-utochnenie-po-zametke-prikaz-vladeltsa-u.md` · 2026-10-03
 - Уточнение по заметке: Сбалансированный трек: ноль профинансированных дней из 40 при 920 отработанных циклах  ·  `owner-decision-utochnenie-po-zametke-sbalansirovannyi-t.md` · 2026-08-11
+- Уточнение по заметке: Шесть карточек заперты пустым claimed_at — «измерено и пусто» неотличимо от «не измерено»  ·  `owner-decision-utochnenie-po-zametke-shest-kartochek-za.md` · 2026-10-15
+- Уточнение по заметке: Слушай, это просто тест, никакой задачи нету, поэтому будь то знал.  ·  `owner-decision-utochnenie-po-zametke-slushai-eto-prosto.md` · 2026-10-15
 - Уточнение по заметке: Статусы карточек владельца переписались сами: три карточки с одним заголовком, ответ уехал не в ту  ·  `owner-decision-utochnenie-po-zametke-statusy-kartochek.md` · 2026-08-11
 - Уточнение по заметке: Страж ADR-номеров ложно краснеет: не видит INDEX среди доставляемых файлов  ·  `owner-decision-utochnenie-po-zametke-strazh-adr-nomerov.md` · 2026-08-11
+- Уточнение по заметке: Страж провенанса читает правку строки на месте как её исчезновение — и выводит автора на обход  ·  `owner-decision-utochnenie-po-zametke-strazh-provenansa.md` · 2026-10-06
 - Уточнение по заметке: Свести две реализации перезаполнения бюджета в одну (ADR-072 vs версия параллельной сессии)  ·  `owner-decision-utochnenie-po-zametke-svesti-dve-realiza.md` · 2026-08-11
 - Уточнение по заметке: Табличка честности: дать ей дорогу на сайт (решение владельца 09.08)  ·  `owner-decision-utochnenie-po-zametke-tablichka-chestnos.md` · 2026-08-11
 - Уточнение по заметке: Так почини  ·  `owner-decision-utochnenie-po-zametke-tak-pochini.md` · 2026-08-11
@@ -438,7 +427,7 @@
 ### · closed
 - Считать ли верный отказ по правилам допуска неисправностью флота  ·  `owner-decision-schitat-li-vernyi-otkaz-po-pravilam-dopu.md` · 2026-10-08
 
-## 📥 Inbox (задания: Telegram / заметки / голос)  (803)
+## 📥 Inbox (задания: Telegram / заметки / голос)  (805)
 
 ### · in-progress
 - а задача починить все-таки еще раз сообщение которым не пишет нужно твое решени…  ·  `inbox-a-zadacha-pochinit-vse-taki-esche-raz-so.md` · 2026-08-14 · 🔒 `pid43119`
@@ -446,6 +435,7 @@
 - CI на main красный 12 прогонов подряд: measure() переписи идёт 335 с при пороге 180 с на тест  ·  `inbox-ci-na-main-krasnyi-12-progonov-podryad-m.md` · 2026-09-24
 - CI на main: вердикт впервые измерен — tests/ зелено, scripts/tests/ красно ОДНИМ названным (lsof), spa_core/tests/ НЕ ИЗМЕРЕНО (клин 120 мин на 80 %)  ·  `inbox-ci-na-main-verdikt-vpervye-izmeren-tests.md` · 2026-09-25
 - CRITICAL сторожа фидов мигает: aave_v3 разошёлся на 1.69 пп в 01:14Z и сошёлся к 05:27Z — истории расхождений нет  ·  `inbox-critical-storozha-fidov-migaet-aave-v3-r.md` · 2026-08-27 · 🔒 `cycle-63347`
+- Девять вопросов владельцу не относятся ни к одному из трёх предметов ADR-285 — это дефект очереди, разбирать агенту  ·  `inbox-devyat-voprosov-vladeltsu-ne-otnosyatsya.md` · 2026-10-18
 - earn-defi: свой расчёт realized price вместо лицензии Coin Metrics (ADR-286 §6, решение 09.09 без задачи)  ·  `inbox-earn-defi-svoi-raschet-realized-price-vm.md` · 2026-09-16
 - Храповик считает упоминание в докстринге за проводку — и это лишь одна из трёх слепот  ·  `inbox-hrapovik-schitaet-upominanie-v-dokstring.md` · 2026-08-14 · 🔒 `pid66130`
 - Храповик STATE.md снова красный на main: 164 строки при собственном пределе 150 — разовое сокращение классом не лечится  ·  `inbox-hrapovik-state-md-snova-krasnyi-na-main.md` · 2026-08-28
@@ -962,7 +952,6 @@
 - Девять мутантов в печати сводки §49 выжили: тесты проверяют наличие строки, а не её значение  ·  `inbox-devyat-mutantov-v-pechati-svodki-49-vyzh.md` · 2026-10-04
 - Девять случаев набора идут без срока: зонд часов гасит ITIMER_REAL прогона (заказ G676 п. 1)  ·  `inbox-devyat-sluchaev-nabora-idut-bez-sroka-zo.md` · 2026-10-09
 - Девять сторожей зелены без своего входа — чинить по одному  ·  `inbox-devyat-storozhei-zeleny-bez-svoego-vhoda.md` · 2026-09-19
-- Девять вопросов владельцу не относятся ни к одному из трёх предметов ADR-285 — это дефект очереди, разбирать агенту  ·  `inbox-devyat-voprosov-vladeltsu-ne-otnosyatsya.md` · 2026-10-18
 - Догоняющий дневной цикл: сторож пропусков сам будит цикл, если к 10:00 UTC его не было (решение владельца 17.09, вариант A)  ·  `inbox-dogonyayuschii-dnevnoi-tsikl-storozh-pro.md` · 2026-09-17
 - Доска _BOARD.md наследует слепоту по составу: строится из файлов на диске, в хост-дереве максимум 525 из 714  ·  `inbox-doska-board-md-nasleduet-slepotu-po-sost.md` · 2026-08-27
 - Доска Nimbalyst отстаёт от origin по построению: нужна постоянная доставка карточек и поштучный перемер 156 расходящихся  ·  `inbox-doska-nimbalyst-otstaet-ot-origin-po-pos.md` · 2026-09-17
@@ -1015,6 +1004,7 @@
 - Шаг 0b даёт НЕОБРАТИМЫЙ `unchecked` на критическом приказе владельца: четыре записи журнала без pid не стареют никогда  ·  `inbox-kriticheskii-prikaz-vladeltsa-nelzya-vzy.md` · 2026-09-12
 - Крупнейшая позиция книги стоит на константе: у aave_v3 (Ethereum, 40%) TVL «не измерено», а пул в фиде есть  ·  `inbox-krupneishaya-pozitsiya-knigi-stoit-na-ko.md` · 2026-08-09
 - купить зонт в пятницу  ·  `inbox-kupit-zont-v-pyatnitsu-5.md` · 2026-10-17
+- купить зонт в пятницу  ·  `inbox-kupit-zont-v-pyatnitsu-6.md` · 2026-10-24
 - «Лежит 8 служб» — но три строки из шести это НЕ ИЗМЕРЕНО: проверке не назвали файл вывода  ·  `inbox-lezhit-8-sluzhb-no-tri-stroki-iz-shesti.md` · 2026-10-10
 - main КРАСЕН: храповик инварианта #17 вырос на три координаты из двух чужих доставок  ·  `inbox-main-krasen-hrapovik-invarianta-17-vyros.md` · 2026-10-08
 - manifest.json уехал с indent=2 вместо канонического indent=1 — следующая регенерация выдаст 10 000 строк диффа за чужой счёт  ·  `inbox-manifest-json-uehal-s-indent-2-vmesto-ka.md` · 2026-10-08
@@ -1127,6 +1117,7 @@
 - проверь дашборд  ·  `inbox-prover-dashbord-3.md` · 2026-10-16
 - проверь дашборд  ·  `inbox-prover-dashbord-4.md` · 2026-10-16
 - проверь дашборд  ·  `inbox-prover-dashbord-5.md` · 2026-10-17
+- проверь дашборд  ·  `inbox-prover-dashbord-6.md` · 2026-10-24
 - Проверить retro TEST 1 rates_desk на шумном ряду цен LST/ETH  ·  `inbox-proverit-retro-test-1-rates-desk-na-shum.md` · 2026-10-02
 - Проверка мандата автономии падает по 180-секундному сроку чужого шага, а не по коду  ·  `inbox-proverka-mandata-avtonomii-padaet-po-180.md` · 2026-10-11
 - Проверка схемы отчётов судит по дате файла — в свежей копии репозитория это монетка  ·  `inbox-proverka-shemy-otchetov-sudit-po-date-fa.md` · 2026-09-08
