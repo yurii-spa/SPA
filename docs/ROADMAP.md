@@ -240,6 +240,9 @@ starting duplicates. Full rationale, increments, acceptance and constraints are 
     claude_run_with_timeout, no reverse import). Increment 2 accepted by ARB as a prepared contract (86d9c662a).
     Increment 3 + B-11 ARB-accepted on 30ca5abc4 (production routing off; no general NO_REGRESSION). Increment 4 in
     progress: one command for a safe architecture review through a chosen provider.
+    Increment 4 + B-12 ARB-accepted on 393faa72d (no production delivery claimed; no second real provider; CI RED on
+    the two §49 producer tests; no NO_REGRESSION). Next: one bounded local probe (qwen3.5:4b via Ollama HTTP) — plan
+    prepared, waits for the owner (increment5-plan/PLAN.md).
     Handover: `HANDOVER_FOR_ARB_FINAL.md`, `START_HERE.md` in the same folder.
 18. **Later engines:** traditional markets, volatility / options (scope decided inside RM-EXPAND-01)
 
