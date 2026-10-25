@@ -58,9 +58,9 @@
    (`docs/evidence/studio-os-models-01-2026-10-23/increment4/`); ждёт решения ARB.
 4. Backlog B-1…B-8 — `stage8_2026-10-23/BACKLOG_census_findings.md`.
 
-**Следующий шаг:** решение владельца по плану ОДНОЙ пробы второго провайдера
-(`docs/evidence/studio-os-models-01-2026-10-23/increment5-plan/PLAN.md`: сначала адаптер `ollama_http` + запись провайдера
-без назначения + тесты, затем один запуск `qwen3.5:4b`). Инкремент 4 и B-12 приняты ARB на `393faa72d`.
+**Следующий шаг:** решение владельца об ОДНОМ запуске пробы
+`python3 -m spa_core.studio_os.model_roles.probe launch …` (готовая команда и условия —
+`docs/evidence/studio-os-models-01-2026-10-23/increment5-plan/PLAN.md`, раздел «Пакет подготовлен»). Код пробы — `e5a45db30`.
 
 ## 6. Разрешено / запрещено
 
