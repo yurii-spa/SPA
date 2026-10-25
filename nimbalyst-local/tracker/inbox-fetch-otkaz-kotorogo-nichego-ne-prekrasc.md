@@ -2,11 +2,13 @@
 trackerStatus:
   type: inbox
 title: "fetch, отказ которого ничего не прекращает: четыре мутирующих зова работают на кэше неизмеренного возраста"
-status: new
+status: done
 source: nimbalyst
 created: 2026-09-12
 priority: high
 domain: delivery
+status_trail:
+  - "2026-09-17T14:59:51.049113+00:00 new -> done · queue.set_status"
 ---
 
 Замер ADR-361 (цикл #582, прибор `scripts/shell_git_ref_provenance.py`): из 12 зовов,

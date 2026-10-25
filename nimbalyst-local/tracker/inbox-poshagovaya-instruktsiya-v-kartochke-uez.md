@@ -2,8 +2,10 @@
 trackerStatus:
   type: inbox
 title: Пошаговая инструкция в карточке уезжает владельцу как ПЯТЬ кнопок-вариантов
-status: new
+status: done
 created: 2026-08-26
+status_trail:
+  - "2026-08-31T20:06:41.318686+00:00 new -> done · queue.set_status"
 ---
 
 ## Что случилось и почему это важно

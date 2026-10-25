@@ -2,9 +2,11 @@
 trackerStatus:
   type: inbox
 title: "Pendle: 22 модуля доходности отказывают только для него — локализовано поимённо, причина НЕ измерена (батарея оказалась инертной)"
-status: new
+status: done
 source: nimbalyst
 created: 2026-09-08
+status_trail:
+  - "2026-09-17T15:01:44.069543+00:00 new -> done · queue.set_status"
 ---
 
 ## Что случилось и почему это важно

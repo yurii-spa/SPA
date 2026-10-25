@@ -2,9 +2,11 @@
 trackerStatus:
   type: inbox
 title: "Храповик замороженных дат КРАСЕН на чистом main: test_studio_os.py принёс шесть литеральных дат"
-status: new
+status: done
 source: nimbalyst
 created: 2026-09-28
+status_trail:
+  - "2026-10-03T07:23:30.963357+00:00 new -> done · queue.set_status"
 ---
 
 ## Что случилось и почему это важно

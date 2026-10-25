@@ -2,9 +2,11 @@
 trackerStatus:
   type: inbox
 title: "ADR-107: 295 файлов состояния в git — разобрать по КЛАССАМ, не пачкой"
-status: new
+status: done
 source: nimbalyst
 created: 2026-08-21
+status_trail:
+  - "2026-08-31T19:50:44.839713+00:00 new -> done · queue.set_status"
 ---
 
 Продолжение **ADR-107** (решение владельца 1, 21.08 09:40Z). Первый файл снят, остальные — здесь.

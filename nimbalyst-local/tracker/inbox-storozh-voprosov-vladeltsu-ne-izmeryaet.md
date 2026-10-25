@@ -2,9 +2,11 @@
 trackerStatus:
   type: inbox
 title: Сторож вопросов владельцу не измеряет, ЖИВ ЛИ ещё вопрос — и звал отправить команду, ставшую разрушительной
-status: new
+status: done
 source: nimbalyst
 created: 2026-08-29
+status_trail:
+  - "2026-08-31T20:13:10.665423+00:00 new -> done · queue.set_status"
 ---
 
 ## Что случилось

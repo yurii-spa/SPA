@@ -2,9 +2,11 @@
 trackerStatus:
   type: inbox
 title: "Экономика хода на ИЗМЕРЕННОМ газе (дизайн готов, кода нет) — money-path, отдельный ADR"
-status: new
+status: done
 priority: medium
 created: 2026-09-02
+status_trail:
+  - "2026-09-17T14:59:33.617699+00:00 new -> done · queue.set_status"
 ---
 
 ## Что случилось и почему это важно

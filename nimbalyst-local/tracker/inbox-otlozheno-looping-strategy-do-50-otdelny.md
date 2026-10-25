@@ -2,9 +2,11 @@
 trackerStatus:
   type: inbox
 title: "ОТЛОЖЕНО · Looping Strategy «до +50%» — отдельный трек, вернуться после расчистки бэклога"
-status: new
+status: done
 source: nimbalyst
 created: 2026-08-23
+status_trail:
+  - "2026-08-31T20:03:53.879070+00:00 new -> done · queue.set_status"
 ---
 
 ## Отложенный трек (решение владельца 2026-08-23): Looping Strategy «до +50%»

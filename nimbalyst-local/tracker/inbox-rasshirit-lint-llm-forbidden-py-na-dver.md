@@ -2,8 +2,10 @@
 trackerStatus:
   type: inbox
 title: "Расширить lint_llm_forbidden.py на дверь-subprocess: запуск claude из каталогов риска/исполнения/наблюдения"
-status: new
+status: done
 created: 2026-09-09
+status_trail:
+  - "2026-09-17T15:02:43.318844+00:00 new -> done · queue.set_status"
 ---
 
 Решение владельца от 2026-09-09 (карточка `owner-decision-ii-ne-puskayut-k-dengam-no-proverka-koto`, вариант 1), записано [ADR-291 §2](../../docs/decisions/ADR-291-owner-decisions-2026-09-09-second-package.md).

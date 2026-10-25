@@ -2,8 +2,10 @@
 trackerStatus:
   type: inbox
 title: "Реинвестировать начисленное: буфер и размещение от текущего equity, знаменатель потолков сделать ОБЩИМ"
-status: new
+status: done
 created: 2026-09-09
+status_trail:
+  - "2026-09-17T15:02:59.306729+00:00 new -> done · queue.set_status"
 ---
 
 Решение владельца от 2026-09-09 (карточка `owner-decision-pyat-reshenii-po-itogam-nochnogo-audita`, вариант 2), записано [ADR-291 §1](../../docs/decisions/ADR-291-owner-decisions-2026-09-09-second-package.md).

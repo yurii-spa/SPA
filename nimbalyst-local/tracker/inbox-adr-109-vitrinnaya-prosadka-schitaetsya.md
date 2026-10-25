@@ -2,9 +2,11 @@
 trackerStatus:
   type: inbox
 title: "ADR-109: витринная просадка считается по РЕАЛЬНЫМ дням — шесть путей одним помощником"
-status: new
+status: done
 source: nimbalyst
 created: 2026-08-21
+status_trail:
+  - "2026-08-31T19:51:26.488346+00:00 new -> done · queue.set_status"
 ---
 
 Реализация **ADR-109** (решение владельца A, 21.08 09:37Z). Решение записано, код — здесь.

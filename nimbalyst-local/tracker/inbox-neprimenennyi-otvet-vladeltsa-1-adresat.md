@@ -2,9 +2,11 @@
 trackerStatus:
   type: inbox
 title: Неприменённый ответ владельца «1» — адресат не назван
-status: new
+status: done
 source: telegram
 created: 2026-09-10
+status_trail:
+  - "2026-09-17T15:01:12.922220+00:00 new -> done · queue.set_status"
 ---
 
 ## Неприменённый ответ владельца — это НЕ задание

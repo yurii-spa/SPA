@@ -2,8 +2,10 @@
 trackerStatus:
   type: inbox
 title: Заслон от шторма считает попытки, а не доставки — вопрос владельцу можно запереть, ни разу не показав
-status: new
+status: done
 created: 2026-08-26
+status_trail:
+  - "2026-08-31T20:20:56.366606+00:00 new -> done · queue.set_status"
 ---
 
 ## Что случилось и почему это важно

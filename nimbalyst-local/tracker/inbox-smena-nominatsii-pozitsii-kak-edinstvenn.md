@@ -2,9 +2,11 @@
 trackerStatus:
   type: inbox
 title: Смена номинации ПОЗИЦИЙ как единственный рычаг против депега своего же кэша (решение владельца 22.08, вариант 3)
-status: new
+status: done
 source: nimbalyst
 created: 2026-08-22
+status_trail:
+  - "2026-08-31T20:10:22.556780+00:00 new -> done · queue.set_status"
 ---
 
 ## Что случилось и почему это важно
