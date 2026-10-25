@@ -2,11 +2,11 @@
 
 > Авто-генерится `scripts/build_tracker_board.py` из `nimbalyst-local/tracker/*.md`. НЕ править вручную — правь карточки. Источник правды — карточки, это индекс (bootstrap).
 >
-> Собрана: 2026-10-25T02:41:34Z · сверка с карточками: `python3 scripts/build_tracker_board.py --check` (сторож `spa_core/tests/test_tracker_board_matches_cards.py`).
+> Собрана: 2026-10-25T03:08:43Z · сверка с карточками: `python3 scripts/build_tracker_board.py --check` (сторож `spa_core/tests/test_tracker_board_matches_cards.py`).
 >
-> Сверено с `origin/main` (e21aea67f) · ещё **2** карточ(ка/ки) есть на ref, а файла в этом дереве нет — их в списках ниже НЕТ · у **1** своя правка, кто новее — не измерено.
+> Сверено с `origin/main` (615c99c7b) · ещё **2** карточ(ка/ки) есть на ref, а файла в этом дереве нет — их в списках ниже НЕТ · у **1** своя правка, кто новее — не измерено.
 >
-> Всего карточек: **1451** · ждёт владельца: **28** · занято сессиями: **16**.
+> Всего карточек: **1452** · ждёт владельца: **28** · занято сессиями: **16**.
 
 ## 🔴 ЖДЁТ ВЛАДЕЛЬЦА (needs-owner)
 
@@ -438,7 +438,7 @@
 ### · closed
 - Считать ли верный отказ по правилам допуска неисправностью флота  ·  `owner-decision-schitat-li-vernyi-otkaz-po-pravilam-dopu.md` · 2026-10-08
 
-## 📥 Inbox (задания: Telegram / заметки / голос)  (802)
+## 📥 Inbox (задания: Telegram / заметки / голос)  (803)
 
 ### · in-progress
 - а задача починить все-таки еще раз сообщение которым не пишет нужно твое решени…  ·  `inbox-a-zadacha-pochinit-vse-taki-esche-raz-so.md` · 2026-08-14 · 🔒 `pid43119`
@@ -554,6 +554,7 @@
 - Демоушен книг Aggressive по ОТНОСИТЕЛЬНОМУ рангу (решение владельца 09.08, вариант A)  ·  `inbox-demoushen-knig-aggressive-po-otnositelno.md` · 2026-08-09
 - Десять тестов наследников (heir_all_rows_price) красны на чистом main — классификатор спорит со своими же контролями  ·  `inbox-desyat-testov-naslednikov-heir-all-rows.md` · 2026-09-18
 - Девять читателей журнала: «судить нечем» — их ответ несёт поля-возрасты, а прежнее «схлопывает» было артефактом  ·  `inbox-devyat-chitatelei-zhurnala-sudit-nechem.md` · 2026-09-16
+- Девять ступеней с тактом не называют ЗВАВШЕГО — класс измерен прозой и читателя не имеет  ·  `inbox-devyat-stupenei-s-taktom-ne-nazyvayut-zv.md` · 2026-10-25
 - Длинный документ владельца приехал СЕМЬЮ карточками, и шесть из них — не задачи, а куски предложений  ·  `inbox-dlinnyi-dokument-vladeltsa-priehal-semyu.md` · 2026-08-13
 - Для каждого этапа показать:  ·  `inbox-dlya-kazhdogo-etapa-pokazat.md` · 2026-08-13
 - Дневной цикл пишет четыре артефакта мимо своего контракта — среди них аварийный статус  ·  `inbox-dnevnoi-tsikl-pishet-chetyre-artefakta-mimo-kontrakta.md` · 2026-08-28

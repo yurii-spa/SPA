@@ -11511,7 +11511,177 @@ def _probe_answer_list_order_names_its_caller(
         f"`{entries[0]}` против `{entries[1]}`; обе строки отчёта называют его")
 
 
+#: Сцены пробы «ступень с тактом называет звавшего»: исходники ступеней подаются
+#: ТЕКСТОМ, а не файлами. Предмет пробы — ВЕРДИКТ прибора по ступени, и подмена
+#: чтения (`read_source`) оставляет его настоящим, тогда как копия репозитория
+#: ответила бы на вопрос «умеет ли проба копировать дерево».
+_CRG_WITH_RECORD = '''
+from spa_core.monitoring.call_provenance import call_provenance
+
+def run(root, *, if_due=False):
+    return {"generated_at": "…", "invoked_by": call_provenance(tree_root=root)}
+'''
+
+_CRG_TACT_NO_RECORD = '''
+def run(root, *, if_due=False):
+    return {"generated_at": "…"}
+'''
+
+#: Ступень, НАЗЫВАЮЩАЯ ключ строкой и даже зовущая прибор — но НЕ под ключом.
+#: Ровно та форма, которую грубый экран ADR-804 (подстрока `"invoked_by"`)
+#: засчитал бы как «несёт запись»; ADR-333: подстрокой вердикт не покупается.
+_CRG_RECORD_AS_SUBSTRING = '''
+from spa_core.monitoring.call_provenance import call_provenance
+
+def run(root, *, if_due=False):
+    """Поле `invoked_by` сюда ещё не проведено — см. заказ."""
+    call_provenance(tree_root=root)
+    return {"generated_at": "…"}
+'''
+
+#: Ступень, объявляющая звавшего ПАРАМЕТРОМ. Это её собственное утверждение о
+#: себе: она назвала бы себя ступенью и тогда, когда её никто не звал.
+_CRG_RECORD_AS_PARAMETER = '''
+def run(root, *, if_due=False, invoked_by=None):
+    return {"generated_at": "…", "invoked_by": invoked_by}
+'''
+
+#: Такт — ТОЛЬКО в докстринге, параметра нет. Форма `tact_gate_census`: такты
+#: его ПРЕДМЕТ, а собственного такта у него нет, и это сказано в коде вслух.
+#: Грубый экран ADR-804 засчитал его и в знаменатель, и в числитель «уже несут».
+_CRG_TACT_IN_PROSE = '''
+def run(root):
+    """Перепись гейтов такта: `if_due`, `measurement_due`, `_refresh_if_due`.
+
+    Гейта такта ЗДЕСЬ нет, и это замер, а не поблажка.
+    """
+    return {"generated_at": "…"}
+'''
+
+
+def _crg_scene(sources: dict) -> tuple:
+    """`(перепись, вердикт)` на сцене: `{имя ступени: исходник или None}`.
+
+    База сцены объявляется ЗДЕСЬ же и ровно по тем именам, что в сцене: подать
+    сцене ЖИВУЮ базу значило бы сверять замер с объявлением о ДРУГОМ населении.
+    """
+    from spa_core.tests import _caller_record_gap as crg  # noqa: PLC0415
+
+    registry = {name: {"module": f"{name}.py"} for name in sources}
+    census = crg.measure(
+        registry=registry,
+        read_source=lambda rel: sources.get(rel[:-3]))
+    return census, crg.verdict(census, {"missing": [], "missing_total": 0})
+
+
+def _probe_tact_stage_names_its_caller(
+        arg: str | None = None, *, scenes=None) -> tuple[str, str]:
+    """Критерий карточки `inbox-devyat-stupenei-s-taktom-ne-nazyvayut-z`:
+    класс «ступень с тактом не называет звавшего» закрыт ОДНИМ читателем,
+    и десятая такая ступень была бы НАЗВАНА, а не утонула.
+
+    Предмет — не «у девяти появилось поле», а ИСХОД: заказ G804 п. 3 требует
+    закрыть класс одним приёмом вместо девяти правок по одной и назвать
+    грубость мерки, которой класс был измерен. Поэтому проба спрашивает ПЯТЬ
+    вещей, и каждая рвётся по-своему:
+
+    1. замер на ЖИВОМ дереве согласен с объявленной базой ПО ИМЕНАМ, а не по
+       числу: `sites −1` рядом с появлением даёт тот же итог при ПОТЕРЕ
+       (класс ADR-803);
+    2. ступень с тактом и без записи ПОПАДАЕТ в класс и НАЗЫВАЕТСЯ вердиктом;
+    3. запись, названная ПОДСТРОКОЙ (ключ в докстринге, зов прибора не под
+       ключом), классом не закрывается — ровно та форма, которую грубый экран
+       ADR-804 счёл бы несущей (ADR-333);
+    4. такт, названный ПОДСТРОКОЙ в прозе, в класс не затягивает: иначе
+       перепись гейтов такта, у которой такты — ПРЕДМЕТ, попала бы в население
+       за свой же докстринг (измеренное ложное срабатывание грубого экрана);
+    5. модуль, которого нет, есть `unmeasured` со своей причиной, а не
+       «запись отсутствует» и не ноль (инв. #17).
+
+    Пункт 3 и пункт 4 — ПРОТИВОПОЛОЖНЫЕ направления одной ошибки, и ни один не
+    выводится из другого: «подстрока не считается записью» и «подстрока не
+    считается тактом» рвутся разными правками прибора.
+    """
+    scenes = _crg_scene if scenes is None else scenes
+    try:
+        from spa_core.tests import _caller_record_gap as crg  # noqa: PLC0415
+    except ImportError as exc:
+        return NOT_SATISFIED, (
+            f"прибора переписи нет: {exc}. Класс измерен прозой ADR-804 "
+            f"(грубый экран по подстроке) и читателя не имеет — десятая такая "
+            f"ступень не покраснела бы нигде")
+    import json as _json  # noqa: PLC0415
+
+    # 1 — живое дерево против объявленной базы, ПО ИМЕНАМ
+    root = _pathlib.Path(__file__).resolve().parents[2]
+    base_path = root / "spa_core" / "tests" / "caller_record_baseline.json"
+    try:
+        baseline = _json.loads(base_path.read_text(encoding="utf-8"))
+    except (OSError, ValueError) as exc:
+        return UNMEASURED, f"база не прочитана ({base_path}): {exc}"
+    live = crg.measure(root=root)
+    live_verdict = crg.verdict(live, baseline)
+    if live_verdict.unmeasured:
+        return UNMEASURED, f"замер на живом дереве: {live_verdict.unmeasured}"
+    if live_verdict.problems:
+        return NOT_SATISFIED, ("замер разошёлся с объявлением: "
+                                 + "; ".join(live_verdict.problems).strip())
+    lost = sorted(set(live_verdict.declared_missing) - set(live.names("missing")))
+
+    # 2 — ступень с тактом и без записи НАЗВАНА
+    census, verdict = scenes({"alpha": _CRG_TACT_NO_RECORD,
+                              "beta": _CRG_WITH_RECORD})
+    if census.names("missing") != ("alpha",):
+        return NOT_SATISFIED, (
+            f"ступень с тактом и без записи в класс не попала: "
+            f"missing={census.names('missing')}, carries={census.names('carries')}")
+    if not any("alpha" in p for p in verdict.problems):
+        return NOT_SATISFIED, (
+            "класс измерен, но вердикт ступень НЕ НАЗЫВАЕТ — находка без имени "
+            f"не адресуема: problems={verdict.problems}")
+
+    # 3 — подстрока записью не является (ADR-333)
+    census, _ = scenes({"gamma": _CRG_RECORD_AS_SUBSTRING,
+                        "delta": _CRG_RECORD_AS_PARAMETER})
+    if sorted(census.names("missing")) != ["delta", "gamma"]:
+        return NOT_SATISFIED, (
+            "запись, названная ПОДСТРОКОЙ или объявленная ПАРАМЕТРОМ, закрыла "
+            f"класс: missing={census.names('missing')}, "
+            f"carries={census.names('carries')} — переданный звавший есть "
+            f"утверждение ступени о себе, а упомянутый ключ не есть замер")
+
+    # 4 — такт в прозе в класс не затягивает
+    census, _ = scenes({"epsilon": _CRG_TACT_IN_PROSE})
+    if census.names("no_tact") != ("epsilon",) or census.missing:
+        return NOT_SATISFIED, (
+            "такт, названный ПОДСТРОКОЙ в прозе, затянул ступень в население: "
+            f"missing={census.names('missing')}, no_tact={census.names('no_tact')} "
+            f"— так грубый экран ADR-804 ошибся на `tact_gate_census`")
+
+    # 5 — отсутствующий модуль есть третий исход со своей причиной
+    census, verdict = scenes({"zeta": None})
+    if census.names("unmeasured") != ("zeta",):
+        return NOT_SATISFIED, (
+            f"модуль, которого нет, не стал третьим исходом: "
+            f"{crg.operand(census)} — «не прочитан» неотличим от «записи нет»")
+    if not verdict.unmeasured:
+        return NOT_SATISFIED, (
+            "ступень НЕ ИЗМЕРЕНА, а вердикт об этом молчит — fail-OPEN тише "
+            "красного теста (инв. #17)")
+
+    measured = crg.operand(live)
+    return SATISFIED, (
+        f"класс закрыт ОДНИМ читателем и назван по ступеням: "
+        f"{' + '.join(f'{k} {v}' for k, v in measured.items())} = "
+        f"{sum(measured.values())} объявленных ступеней; население класса "
+        f"{len(live_verdict.declared_missing)}"
+        + (f", из них ПОЧИНЕНО {len(lost)} ({', '.join(lost)})" if lost else "")
+        + "; подстрока ни записью, ни тактом не считается, отсутствующий модуль "
+          "даёт НЕ ИЗМЕРЕНО со своей причиной")
+
 PROBES: dict[str, Callable[[str | None], "tuple[str, str]"]] = {
+    "tact_stage_names_its_caller":
+        _probe_tact_stage_names_its_caller,
     "door_sites_operand_agrees": _probe_door_sites_operand_agrees,
     "answer_list_order_names_its_caller":
         _probe_answer_list_order_names_its_caller,

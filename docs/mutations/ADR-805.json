@@ -1,0 +1,93 @@
+{
+ "title": "ADR-805 — дельта цикла #928: у класса «ступень с тактом не называет ЗВАВШЕГО» появился ЧИТАТЕЛЬ, и мерка класса перемерена разбором вместо подстроки. Каждая мутация возвращает состояние, в котором либо десятая ступень класса перестаёт краснеть, либо вердикт перестаёт зависеть от РАЗБОРА: ось такта снова подстрока · ось записи снова подстрока · зов принимается не под ключом · параметр принимается за измерение · появление молчит · убывание краснит · объявление не сверяется с собой · «не прочитан» выдан за «записи нет» · НЕ ИЗМЕРЕНО выдано за согласие · ступень теряется между ведрами",
+ "tests": [
+  "spa_core/tests/test_caller_record_ratchet.py",
+  "spa_core/tests/test_caller_record_probe.py"
+ ],
+ "mutations": [
+  {
+   "name": "ось ТАКТА снова подстрока: перепись гейтов такта, у которой такты — ПРЕДМЕТ, затягивается в население за свой же докстринг (ровно ложное срабатывание грубого экрана ADR-804)",
+   "file": "spa_core/tests/_caller_record_gap.py",
+   "old": "            if TACT_PARAM in declared:\n                tact = \"in_signature\"\n",
+   "new": "            if TACT_PARAM in src:\n                tact = \"in_signature\"\n"
+  },
+  {
+   "name": "ось ЗАПИСИ снова подстрока: упоминание ключа в докстринге закрывает класс (ADR-333 — подстрокой вердикт не покупается)",
+   "file": "spa_core/tests/_caller_record_gap.py",
+   "old": "    tact = \"absent\"\n    record = \"absent\"\n",
+   "new": "    tact = \"absent\"\n    record = \"under_key\" if RECORD_KEY in src else \"absent\"\n"
+  },
+  {
+   "name": "зов прибора ПРИНИМАЕТСЯ не под ключом: ступень, позвавшая call_provenance и выбросившая результат, считается несущей запись",
+   "file": "spa_core/tests/_caller_record_gap.py",
+   "old": "                if (isinstance(key, ast.Constant) and key.value == RECORD_KEY\n                        and _call_name(value) == PROVENANCE_CALL):\n                    record = \"under_key\"\n",
+   "new": "                if _call_name(value) == PROVENANCE_CALL or (\n                        isinstance(key, ast.Constant) and key.value == RECORD_KEY):\n                    record = \"under_key\"\n"
+  },
+  {
+   "name": "звавший, ОБЪЯВЛЕННЫЙ параметром, принимается за измеренный: ступень назвала бы себя ступенью и тогда, когда её никто не звал",
+   "file": "spa_core/tests/_caller_record_gap.py",
+   "old": "    if not isinstance(node, ast.Call):\n        return None\n",
+   "new": "    if isinstance(node, ast.Name):\n        return PROVENANCE_CALL\n    if not isinstance(node, ast.Call):\n        return None\n"
+  },
+  {
+   "name": "ПОЯВЛЕНИЕ молчит: новое имя класса не доезжает до вердикта, и десятая ступень тонет ровно так же, как тонула в прозе ADR",
+   "file": "spa_core/tests/_caller_record_gap.py",
+   "old": "    appeared = sorted(set(census.names(\"missing\")) - set(declared_missing))\n",
+   "new": "    appeared = []\n"
+  },
+  {
+   "name": "УБЫВАНИЕ краснит: починка объявляется регрессом, и у цикла появляется стимул не чинить",
+   "file": "spa_core/tests/_caller_record_gap.py",
+   "old": "    appeared = sorted(set(census.names(\"missing\")) - set(declared_missing))\n",
+   "new": "    appeared = sorted(set(declared_missing) ^ set(census.names(\"missing\")))\n"
+  },
+  {
+   "name": "объявление НЕ сверяется само с собой: остаётся честный выход «перепечатал итог, перечень не тронул» (класс ADR-803)",
+   "file": "spa_core/tests/_caller_record_gap.py",
+   "old": "    if len(declared_missing) != declared_total:\n",
+   "new": "    if False and len(declared_missing) != declared_total:\n"
+  },
+  {
+   "name": "«модуль НЕ ПРОЧИТАН» выдано за «записи нет»: ступень, пропавшая из дерева, и ступень без записи лечатся по-разному, а вердикт у них стал один",
+   "file": "spa_core/tests/_caller_record_gap.py",
+   "old": "            buckets[\"unmeasured\"].append(Stage(\n                name, module, \"unmeasured\",\n                f\"модуль не прочитан: {module}\"))\n            continue\n",
+   "new": "            buckets[\"missing\"].append(Stage(name, module, \"missing\"))\n            continue\n"
+  },
+  {
+   "name": "НЕ ИЗМЕРЕНО выдано за согласие: fail-OPEN тише красного теста (инв. #17)",
+   "file": "spa_core/tests/_caller_record_gap.py",
+   "old": "    if census.unmeasured:\n",
+   "new": "    if False and census.unmeasured:\n"
+  },
+  {
+   "name": "ступень ТЕРЯЕТСЯ между ведрами: выпадение из переписи становится молчаливым, и сумма операнда перестаёт отвечать за население",
+   "file": "spa_core/tests/_caller_record_gap.py",
+   "old": "        elif record == \"under_key\":\n            buckets[\"carries\"].append(Stage(name, module, \"carries\"))\n        else:\n            buckets[\"missing\"].append(Stage(name, module, \"missing\"))\n",
+   "new": "        elif record == \"under_key\":\n            buckets[\"carries\"].append(Stage(name, module, \"carries\"))\n"
+  },
+  {
+   "name": "перечень ведёр операнда расходится с полями переписи: исход, добавленный в Census и не дописанный в OPERAND_BUCKETS, выпал бы из операнда МОЛЧА",
+   "file": "spa_core/tests/_caller_record_gap.py",
+   "old": "OPERAND_BUCKETS: tuple[str, ...] = (\"carries\", \"missing\", \"no_tact\", \"unmeasured\")\n",
+   "new": "OPERAND_BUCKETS: tuple[str, ...] = (\"carries\", \"missing\", \"no_tact\")\n"
+  },
+  {
+   "name": "база, поданная НЕ документом, валит сверку исключением вместо названного третьего исхода: падение читается как «тест сломан», а не как вердикт",
+   "file": "spa_core/tests/_caller_record_gap.py",
+   "old": "    if not isinstance(baseline, dict):\n",
+   "new": "    if False and not isinstance(baseline, dict):\n"
+  },
+  {
+   "name": "проба переводит РАСХОЖДЕНИЕ живого дерева с объявлением в согласие: сторож объявлен зелёным при выросшем населении",
+   "file": "spa_core/monitoring/card_acceptance.py",
+   "old": "    if live_verdict.problems:\n        return NOT_SATISFIED, (\"замер разошёлся с объявлением: \"\n                                 + \"; \".join(live_verdict.problems).strip())\n",
+   "new": "    if False and live_verdict.problems:\n        return NOT_SATISFIED, \"\"\n"
+  },
+  {
+   "name": "проба переводит НЕЧЕМ ИЗМЕРИТЬ в согласие: нечитаемая база становится зелёным ответом",
+   "file": "spa_core/monitoring/card_acceptance.py",
+   "old": "    if live_verdict.unmeasured:\n        return UNMEASURED, f\"замер на живом дереве: {live_verdict.unmeasured}\"\n",
+   "new": "    if False and live_verdict.unmeasured:\n        return UNMEASURED, \"\"\n"
+  }
+ ]
+}
