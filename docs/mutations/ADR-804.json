@@ -1,0 +1,81 @@
+{
+ "title": "ADR-804 — дельта цикла #927: у переписи порядка появилась запись о ЗВАВШЕМ. Каждая мутация возвращает состояние, в котором вторая ось заказа G801 снова неизмерима, а вердикт перестаёт зависеть от ЗОВА: записи нет · запись есть, но она КОНСТАНТА · звавший объявлен параметром (утверждение о себе) · строка о звавшем не доезжает до третьего исхода · молчание печатается как ответ · читатель перестал объявлять поле · проба переводит отказ и «нечем измерить» в согласие",
+ "tests": [
+  "spa_core/tests/test_answer_list_order_caller_probe.py",
+  "spa_core/tests/test_answer_list_order_census_wiring.py"
+ ],
+ "mutations": [
+  {
+   "name": "записи о звавшем снова НЕТ: вторая ось заказа неизмерима по построению, как и до правки",
+   "file": "spa_core/monitoring/answer_list_order_census.py",
+   "old": "                    \"invoked_by\": call_provenance(tree_root=tree_root),\n",
+   "new": "                    # мутация: записи о звавшем нет\n"
+  },
+  {
+   "name": "звавший ОБЪЯВЛЕН параметром, а не измерен у процесса: оба зова называют сам прибор — утверждение о себе вместо наблюдения",
+   "file": "spa_core/monitoring/answer_list_order_census.py",
+   "old": "                    \"invoked_by\": call_provenance(tree_root=tree_root),",
+   "new": "                    \"invoked_by\": call_provenance(tree_root=tree_root, main_file=__file__),"
+  },
+  {
+   "name": "запись о звавшем подменена КОНСТАНТОЙ-именем производителя: «поле есть» проходит, «различает зовы» валится",
+   "file": "spa_core/monitoring/answer_list_order_census.py",
+   "old": "                    \"invoked_by\": call_provenance(tree_root=tree_root),",
+   "new": "                    \"invoked_by\": {\"schema\": \"call_provenance.v1\", \"measured\": True,\n                                  \"entry\": PRODUCER, \"inside_tree\": True,\n                                  \"doors_agree\": True},"
+  },
+  {
+   "name": "строка о звавшем больше не печатается ВОВСЕ: запись есть, читателя нет (класс ADR-345)",
+   "file": "spa_core/monitoring/answer_list_order_census.py",
+   "old": "    out.append(f\"  [ЗВАВШИЙ] {provenance_line(observed(doc, 'invoked_by', kind=dict))}\")\n",
+   "new": "    pass  # мутация: строка о звавшем не печатается\n"
+  },
+  {
+   "name": "отсутствие записи печатается МОЛЧА (пустой строкой): «звавший НЕ ЗАПИСАН» перестаёт отличаться от «звал мост» (инв. #17)",
+   "file": "spa_core/monitoring/answer_list_order_census.py",
+   "old": "    out.append(f\"  [ЗВАВШИЙ] {provenance_line(observed(doc, 'invoked_by', kind=dict))}\")",
+   "new": "    _rec = observed(doc, 'invoked_by', kind=dict)\n    out.append(f\"  [ЗВАВШИЙ] {provenance_line(_rec) if _rec else ''}\")"
+  },
+  {
+   "name": "читатель перестал объявлять поле: сторож схемы о пропаже записи молчит, артефакт образца /1 читается как обычный",
+   "file": "scripts/consume_office_reports.py",
+   "old": "    \"answer_list_order.json\": (\"status\", \"generated_at\", \"invoked_by\", \"entries\",",
+   "new": "    \"answer_list_order.json\": (\"status\", \"generated_at\", \"entries\","
+  },
+  {
+   "name": "проба перестала сравнивать названные точки входа: КОНСТАНТА снова проходит",
+   "file": "spa_core/monitoring/card_acceptance.py",
+   "old": "    if entries[0] == entries[1]:\n        return NOT_SATISFIED, (",
+   "new": "    if False:\n        return NOT_SATISFIED, ("
+  },
+  {
+   "name": "проба перестала сравнивать СТРОКИ отчёта: отрисовка-константа покупает вердикт подстрокой (ADR-333)",
+   "file": "spa_core/monitoring/card_acceptance.py",
+   "old": "    if rendered[0] == rendered[1]:\n        return NOT_SATISFIED,",
+   "new": "    if False:\n        return NOT_SATISFIED,"
+  },
+  {
+   "name": "проба выдаёт «звавший НЕ ИЗМЕРЕН» за согласие: третий исход записи перестаёт быть отказом",
+   "file": "spa_core/monitoring/card_acceptance.py",
+   "old": "        if not rec.get(\"measured\"):\n            return NOT_SATISFIED, (",
+   "new": "        if False:\n            return NOT_SATISFIED, ("
+  },
+  {
+   "name": "проба выдаёт «строк отчёта нет вовсе» за расхождение, а не за НЕ ИЗМЕРЕНО: «нечем измерить» теряет своё значение",
+   "file": "spa_core/monitoring/card_acceptance.py",
+   "old": "            return UNMEASURED, (f\"строк отчёта прогона `{name}` нет вовсе — \"",
+   "new": "            return NOT_SATISFIED, (f\"строк отчёта прогона `{name}` нет вовсе — \""
+  },
+  {
+   "name": "проба перестала требовать, чтобы названная точка входа была СВОИМ бегуном: запись не о звавшем проходит",
+   "file": "spa_core/monitoring/card_acceptance.py",
+   "old": "        if entry != name:\n            return NOT_SATISFIED,",
+   "new": "        if False:\n            return NOT_SATISFIED,"
+  },
+  {
+   "name": "проба принимает ОДНУ сцену вместо двух за согласие: вердикт на одном зове не отвечает на вопрос заказа",
+   "file": "spa_core/monitoring/card_acceptance.py",
+   "old": "    if len(scenes) != 2:\n        return UNMEASURED,",
+   "new": "    if False:\n        return UNMEASURED,"
+  }
+ ]
+}

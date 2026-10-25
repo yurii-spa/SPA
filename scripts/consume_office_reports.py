@@ -993,8 +993,13 @@ _READ_SCHEMA: dict[str, tuple[str, ...]] = {
     # не покрытая. `unexercised_declarations` в схеме потому, что это ТРЕТИЙ исход
     # объявления (не задействовано ≠ не защищает), и схема, его потерявшая, унесла
     # бы вместе с ним сам запрет сливать два состояния в находку.
-    "answer_list_order.json": ("status", "generated_at", "entries", "population",
-                               "permutations", "lists", "carriers",
+    # `invoked_by` (заказ G801 п. 2) объявлен НАРАВНЕ с `generated_at`: отметка
+    # говорит КОГДА, запись о звавшем — КТО, и без второй первая не отвечает на
+    # вопрос «принадлежит ли прогон ступени моста» ни при каком своём значении
+    # (ADR-411). Артефакт образца `/1` этого поля не несёт — и сторож схемы
+    # обязан сказать об этом вслух, а не прочитать молчание как ответ.
+    "answer_list_order.json": ("status", "generated_at", "invoked_by", "entries",
+                               "population", "permutations", "lists", "carriers",
                                "unmeasured_lists", "findings",
                                "unexercised_declarations", "unmeasured_reason"),
     # Заказ G92 п. 2 (ADR-543). `stage_population` в схеме обязателен: без него

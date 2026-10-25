@@ -11385,8 +11385,136 @@ def _probe_door_sites_operand_agrees(
         "них: " + " + ".join(f"{n} {v}" for n, v in verdict.measured.items()))
 
 
+#: Сцена пробы «звавший назван»: ОДИН бегун, чьё ИМЯ — переменная сцены. Лента
+#: намеренно не существует: предмет пробы — запись о ЗВАВШЕМ, а она ставится при
+#: сборке документа и обязана быть в документе ЛЮБОГО исхода, включая третий.
+#: Полная лента здесь стоила бы десятки секунд и ответила бы на ЧУЖОЙ вопрос.
+_ALO_CALLER_RUNNER = '''import datetime as dt, json, pathlib, sys
+sys.path.insert(0, {repo!r})
+from spa_core.monitoring import answer_list_order_census as alo
+now = dt.datetime(2026, 10, 24, 21, 0, tzinfo=dt.timezone.utc)
+doc = alo.measure(pathlib.Path({absent!r}), now=now)
+print(json.dumps({{"invoked_by": doc.get("invoked_by"),
+                   "lines": alo.format_report(doc)}}, ensure_ascii=False))
+'''
+
+
+def _alo_caller_scene(runner_name: str) -> dict:
+    """Прогнать перепись через ДВЕРЬ с названным именем точки входа.
+
+    Бегун кладётся во ВРЕМЕННЫЙ каталог намеренно: запись о звавшем для файла
+    вне дерева есть его ИМЯ (`call_provenance._relative_to_tree`), поэтому имя
+    бегуна и есть ось, по которой проба различает два зова. Подсунуть
+    `main_file=` параметром было бы проверкой РАЗБОРА, а не исхода: признак
+    берётся у настоящего процесса, иначе проба проверяет свой же вход.
+    """
+    import subprocess  # noqa: PLC0415
+    import tempfile  # noqa: PLC0415
+
+    repo = _pathlib.Path(__file__).resolve().parents[2]
+    with tempfile.TemporaryDirectory() as tmp:
+        runner = _pathlib.Path(tmp) / runner_name
+        runner.write_text(
+            _ALO_CALLER_RUNNER.format(repo=str(repo),
+                                      absent=str(_pathlib.Path(tmp) / "no.jsonl")),
+            encoding="utf-8")
+        proc = subprocess.run([sys.executable, str(runner)], cwd=str(repo),
+                              capture_output=True, text=True, timeout=180)
+    if proc.returncode != 0:
+        raise RuntimeError(f"бегун {runner_name} вышел {proc.returncode}: "
+                           f"{(proc.stderr or '').strip()[:300]}")
+    return json.loads(proc.stdout.strip().splitlines()[-1])
+
+
+def _probe_answer_list_order_names_its_caller(
+        arg: str | None = None, *, scenes=None) -> tuple[str, str]:
+    """Критерий карточки `inbox-perepis-poryadka-ne-nazyvaet-zvavshego`:
+    читатель артефакта переписи порядка может узнать, КТО её позвал.
+
+    Предмет — не «поле есть в словаре», а ИСХОД: заказ G801 п. 2 требует
+    сверить, что отметка `generated_at` принадлежит прогону МОСТА, а не чьей-то
+    руке. На документе без записи о звавшем этот вопрос НЕИЗМЕРИМ ПО
+    ПОСТРОЕНИЮ, и это уже измерено однажды (ADR-411, заказ G36 п. 1): отметка —
+    часы, а не звавший, поэтому она сменится ОДИНАКОВО при зове ступени и при
+    зове рукой. Односторонность полная: отметка НЕ сменилась ⇒ ступень молчит
+    (вывод верен); сменилась ⇒ не известно НИЧЕГО.
+
+    Поэтому проба гоняет перепись ДВАЖДЫ через РАЗНЫЕ точки входа и требует,
+    чтобы ответы на одном предмете были ПРОТИВОПОЛОЖНЫ:
+
+    1. запись о звавшем ИЗМЕРЕНА в обоих прогонах;
+    2. названные точки входа РАЗНЫЕ, и каждая называет СВОЙ бегун. Константа
+       (`generated_by` соседа — имя самого производителя) прошла бы пункт 1 и
+       провалила этот: она отвечает «какой модуль это написал», а не «кто
+       позвал», и ответ у неё один при любом зове;
+    3. у записи есть ЧИТАТЕЛЬ: строки отчёта производителя (их печатает шаг
+       0-офис) называют звавшего, и в двух прогонах эти строки РАЗНЫЕ. Запись
+       без читателя — ровно класс ADR-345, которым этот прибор уже платил.
+
+    Три исхода различимы (инв. #17): `unmeasured` — бегун не завёлся, вывод не
+    разобран, перепись не импортируется («нечем измерить» согласием не
+    печатается НИКОГДА); `not_satisfied` — хоть один из трёх вопросов отвечен
+    отрицательно; `satisfied` — все три.
+
+    `scenes` инъектируется ТОЛЬКО контрольной батареей (проба, никогда не
+    видевшая настоящей поломки, остаётся украшением — `.claude/rules/acceptance.md`
+    п. 3).
+    """
+    names = ("alo_caller_scene_one.py", "alo_caller_scene_two.py")
+    if scenes is None:
+        try:
+            scenes = [_alo_caller_scene(n) for n in names]
+        except Exception as exc:  # noqa: BLE001 — третий исход, а не согласие
+            return UNMEASURED, (f"сцену звавшего измерить не удалось: "
+                                f"{type(exc).__name__}: {exc}")
+    if len(scenes) != 2:
+        return UNMEASURED, f"сцен должно быть две, получено {len(scenes)}"
+
+    records = [observed(s, "invoked_by", kind=dict) for s in scenes]
+    for name, rec in zip(names, records):
+        if rec is None:
+            return NOT_SATISFIED, (f"прогон через `{name}` не записал о звавшем "
+                                   "НИЧЕГО — поля `invoked_by` в документе нет")
+        if not rec.get("measured"):
+            return NOT_SATISFIED, (
+                f"прогон через `{name}` звавшего НЕ ИЗМЕРИЛ: "
+                f"{rec.get('reason', 'причина не названа')}")
+
+    entries = [rec.get("entry") for rec in records]
+    if entries[0] == entries[1]:
+        return NOT_SATISFIED, (
+            f"две РАЗНЫЕ точки входа назвались одинаково (`{entries[0]}`) — "
+            "запись не различает зов ступени от зова рукой, то есть отвечает "
+            "не на вопрос заказа")
+    for name, entry in zip(names, entries):
+        if entry != name:
+            return NOT_SATISFIED, (f"прогон через `{name}` назвал точкой входа "
+                                   f"`{entry}` — запись не о звавшем")
+
+    rendered = []
+    for name, scene in zip(names, scenes):
+        lines = observed(scene, "lines", kind=list)
+        if lines is None:
+            return UNMEASURED, (f"строк отчёта прогона `{name}` нет вовсе — "
+                                "читателя записи измерить нечем")
+        said = [ln for ln in lines if isinstance(ln, str) and name in ln]
+        if not said:
+            return NOT_SATISFIED, (
+                f"ни одна строка отчёта не называет звавшего `{name}`: запись "
+                "есть, а читателя у неё нет (класс ADR-345)")
+        rendered.append(said[0])
+    if rendered[0] == rendered[1]:
+        return NOT_SATISFIED, ("строки отчёта о звавшем совпали при РАЗНЫХ "
+                               f"точках входа: `{rendered[0]}`")
+    return SATISFIED, (
+        "звавший ИЗМЕРЕН и различает два зова: "
+        f"`{entries[0]}` против `{entries[1]}`; обе строки отчёта называют его")
+
+
 PROBES: dict[str, Callable[[str | None], "tuple[str, str]"]] = {
     "door_sites_operand_agrees": _probe_door_sites_operand_agrees,
+    "answer_list_order_names_its_caller":
+        _probe_answer_list_order_names_its_caller,
     "bridge_stage_declaration_agrees":
         _probe_bridge_stage_declaration_agrees,
     "cockpit_voice_loop_closed": _probe_cockpit_voice_loop,

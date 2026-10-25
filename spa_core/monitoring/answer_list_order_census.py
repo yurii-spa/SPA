@@ -123,10 +123,16 @@ from pathlib import Path
 from typing import Dict, Iterable, List, Optional, Sequence, Tuple
 
 from spa_core.monitoring import ledger_window_dependency_census as lwd
+from spa_core.monitoring.call_provenance import call_provenance
+from spa_core.monitoring.call_provenance import describe as provenance_line
 from spa_core.utils.atomic import atomic_save
 from spa_core.utils.observation import observed
 
-VERSION = "answer-list-order/1"
+#: `/2` — у документа появилась ЗАПИСЬ О ЗВАВШЕМ (`invoked_by`, заказ G801 п. 2).
+#: Версия поднята намеренно: артефакт образца `/1` этого поля не несёт ВОВСЕ, и
+#: читатель обязан видеть разницу между «звавший не записан прибором той версии»
+#: и «звавший не измерен» — слитые вместе, они прячут первое за вторым.
+VERSION = "answer-list-order/2"
 ARTIFACT = "answer_list_order.json"
 
 #: Имя писателя артефакта. Три чужих реестра проводки называют его СВОИМИ
@@ -406,7 +412,8 @@ def _live_head(ledger_path: Path) -> Optional[str]:
         return None
 
 
-def measure(ledger_path: Path, *, now: dt.datetime) -> dict:
+def measure(ledger_path: Path, *, now: dt.datetime,
+            tree_root: Optional[Path] = None) -> dict:
     """Перепись: население списков, природа каждого, согласие замера с объявлением.
 
     Положительный контроль построения сцены — вершина полной пересборки обязана
@@ -421,6 +428,18 @@ def measure(ledger_path: Path, *, now: dt.datetime) -> dict:
     # (класс ADR-562, `artifact_stamp_clock_doors`: вердикт от часов не зависит,
     # поэтому подмена проходит все контроли и врёт ровно в возрасте).
     report: dict = {"version": VERSION, "generated_at": now.isoformat(),
+                    # Заказ G801 п. 2. ДЕВЯТОЕ звено проводки: `generated_at` —
+                    # это ЧАСЫ, а не звавший. Отметка сменится ОДИНАКОВО,
+                    # позвала ли перепись ступень моста или рука цикла, набравшая
+                    # `python3 -m`, — поэтому вопрос заказа «принадлежит ли
+                    # отметка прогону МОСТА» на документе без этого поля
+                    # НЕИЗМЕРИМ ПО ПОСТРОЕНИЮ (ADR-411, заказ G36 п. 1: отметка
+                    # НЕ сменилась ⇒ ступень молчит, вывод верен; сменилась ⇒ не
+                    # известно НИЧЕГО). Признак берётся у ПРОЦЕССА, а не
+                    # передаётся параметром: переданный звавший есть его
+                    # собственное утверждение о себе, и ступень объявила бы себя
+                    # ступенью и тогда, когда её никто не звал.
+                    "invoked_by": call_provenance(tree_root=tree_root),
                     "ledger": str(ledger_path), "status": STATUS_UNMEASURED,
                     "unmeasured_reason": None, "entries": None, "population": None,
                     "lists": {}, "findings": [], "permutations": [],
@@ -568,6 +587,12 @@ def format_report(doc: dict) -> List[str]:
     out = [f"перепись порядка списков ответа "
            f"({doc.get('version') or 'версия НЕ НАЗВАНА'}): "
            f"{doc.get('status') or 'статуса НЕТ'}"]
+    #: Звавший печатается ВТОРОЙ строкой, то есть ДО любого раннего выхода: он
+    #: свойство ПРОГОНА, а не его находок, и документ третьего исхода обязан
+    #: называть звавшего так же, как документ с замером. Отсутствие поля (артефакт
+    #: образца `/1`) печатается СВОИМ значением — `describe` отвечает «позван: НЕ
+    #: ЗАПИСАНО», а не молчанием: молчание читалось бы как «звал мост».
+    out.append(f"  [ЗВАВШИЙ] {provenance_line(observed(doc, 'invoked_by', kind=dict))}")
     entries, population = doc.get("entries"), doc.get("population")
     out.append(f"  записей ленты: {'НЕ ИЗМЕРЕНО' if entries is None else entries}"
                f"  списков в ответе: "
@@ -669,7 +694,8 @@ def run(root: Optional[str] = None, *, data_dir: Optional[str] = None,
                     "reason": f"срок переписи не прочитан — {verdict}"}
     from spa_core.research_factory import contract  # noqa: PLC0415
 
-    doc = measure(source / contract.DATA_SUBDIR / contract.LEDGER, now=moment)
+    doc = measure(source / contract.DATA_SUBDIR / contract.LEDGER,
+                  now=moment, tree_root=tree)
     if write:
         atomic_save(doc, str(target))
     return {"measured": True, "doc": doc, "artifact": str(target)}

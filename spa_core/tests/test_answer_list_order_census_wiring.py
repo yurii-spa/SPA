@@ -39,6 +39,14 @@ ADR-800 построил перепись (`answer_list_order_census`) и САМ
 в возрасте). Отметка закреплена ADR-801 и проверяется ДИФФЕРЕНЦИАЛЬНО —
 подменой стенных часов, а не чтением подписи.
 
+**ДЕВЯТОЕ звено — ЗВАВШИЙ, и его открыл заказ G801 п. 2.** Заказ велел
+сверить, что отметка принадлежит прогону МОСТА, а не чьей-то руке, — и на
+документе без записи о звавшем этот вопрос НЕИЗМЕРИМ ПО ПОСТРОЕНИЮ: отметка
+сменится ОДИНАКОВО при зове ступенью и при зове рукой (ADR-411, заказ G36 п. 1).
+Восьмое звено ниже закрывает ЧАСЫ отметки, девятое — её ПРОИСХОЖДЕНИЕ, и одно
+другим не заменяется. Проба приёмки класса — `answer_list_order_names_its_caller`
+(контроль в обе стороны — `test_answer_list_order_caller_probe.py`).
+
 **Восьмое звено — ТРИ ИСХОДА ТАКТА.** `run(if_due=True)` обязан различать
 «измерено», «внутри такта» и «срок НЕ ПРОЧИТАН». Слей последние два — и
 сломанный артефакт станет неотличим от свежего: прибор молчит, а звавший
@@ -460,6 +468,63 @@ class TheCliAndTheStageShareOneDoor(unittest.TestCase):
         called = {node.func.id for node in ast.walk(printer)
                   if isinstance(node, ast.Call) and isinstance(node.func, ast.Name)}
         self.assertIn("format_report", called)
+
+
+class TheRecordSaysWhoCalled(unittest.TestCase):
+    """ДЕВЯТОЕ звено (заказ G801 п. 2): документ называет ЗВАВШЕГО.
+
+    Без этой записи вторая ось заказа неизмерима в ОДНУ сторону: отметка НЕ
+    сменилась ⇒ ступень молчит (вывод верен), сменилась ⇒ не известно НИЧЕГО.
+    Здесь мерится ПРОВОДКА записи (пишется · объявлена · печатается во ВСЕХ
+    исходах); что запись есть ИЗМЕРЕНИЕ, а не константа, меряет проба приёмки
+    на настоящих дверях — вторая копия того вопроса здесь была бы лишней.
+    """
+
+    def test_the_producer_writes_the_record(self):
+        record = _scene_doc().get("invoked_by")
+        self.assertIsInstance(record, dict,
+                              "документ обязан нести запись о звавшем")
+        self.assertIn("measured", record,
+                      "у записи обязан быть третий исход своим значением")
+
+    def test_the_office_declares_the_record_next_to_the_stamp(self):
+        """Объявление рядом с `generated_at`: одно «когда», второе «кто».
+
+        Схема, потерявшая `invoked_by`, унесла бы вместе с ним сам вопрос —
+        стухший артефакт образца `/1` читался бы как обычный.
+        """
+        schema = _office()._READ_SCHEMA[ARTIFACT_NAME]
+        self.assertIn("invoked_by", schema)
+        self.assertIn("generated_at", schema)
+
+    def test_the_caller_is_printed_in_every_outcome_including_the_third(self):
+        """Строка о звавшем идёт ДО раннего выхода: он свойство ПРОГОНА.
+
+        Документ третьего исхода (население не считалось вовсе) обязан называть
+        звавшего так же, как документ с замером: иначе «кто это написал» исчезало
+        бы ровно в том случае, когда ответ нужнее всего.
+        """
+        for doc in (_scene_doc(),
+                    {"version": alo.VERSION, "status": alo.STATUS_UNMEASURED,
+                     "invoked_by": {"schema": "call_provenance.v1",
+                                    "measured": True, "entry": "драйвер.py",
+                                    "inside_tree": False, "doors_agree": True},
+                     "entries": None, "population": None, "permutations": [],
+                     "unmeasured_reason": "лента не прочитана"}):
+            lines = alo.format_report(doc)
+            self.assertTrue(any("[ЗВАВШИЙ]" in line for line in lines), lines)
+
+    def test_a_document_of_the_old_shape_is_not_read_as_called_by_the_stage(self):
+        """ОБРАТНАЯ СТОРОНА: поля НЕТ — это своё значение, а не молчание.
+
+        Артефакт образца `/1` записи не несёт вовсе. Молчание о звавшем читалось
+        бы как «звал мост» — ровно та подмена, против которой инв. #17.
+        """
+        doc = _scene_doc()
+        doc.pop("invoked_by")
+        said = [ln for ln in alo.format_report(doc) if "[ЗВАВШИЙ]" in ln]
+        self.assertEqual(len(said), 1, said)
+        self.assertIn("НЕ ЗАПИСАНО", said[0])
 
 
 if __name__ == "__main__":
