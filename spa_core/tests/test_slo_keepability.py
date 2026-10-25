@@ -568,21 +568,42 @@ class ExitCodesSeparateThreeOutcomes(_StandCase):
     def test_everything_keepable_exits_zero(self):
         self.stand.agent("com.spa.loop", [("data/a.json", 26)])
         self.stand.runs("loop", list(range(0, 40)))
-        self.assertEqual(sk.main(self._argv()), 0)
+        self.assertEqual(sk.main(self._argv(), now=_ANCHOR), 0)
 
     def test_a_finding_exits_one(self):
         self.stand.agent("com.spa.loop", [("data/a.json", 5)])
         self.stand.runs("loop", [0, 9, 18, 27])
-        self.assertEqual(sk.main(self._argv()), 1)
+        self.assertEqual(sk.main(self._argv(), now=_ANCHOR), 1)
 
     def test_ONLY_unmeasured_still_exits_one_never_zero(self):
         """fail-OPEN тише красного, поэтому опаснее: «не измерено» не есть «чисто»."""
         self.stand.agent("com.spa.loop", [("data/a.json", 7)])
-        self.assertEqual(sk.main(self._argv()), 1)
+        self.assertEqual(sk.main(self._argv(), now=_ANCHOR), 1)
 
     def test_no_measurement_at_all_exits_two(self):
         self.stand.agent("com.spa.loop", [("data/a.json", None)])
-        self.assertEqual(sk.main(self._argv()), 2)
+        self.assertEqual(sk.main(self._argv(), now=_ANCHOR), 2)
+
+    def test_the_CLI_reads_the_injected_clock_and_not_the_WALL(self):
+        """Положительный контроль на саму проводку часов (#936).
+
+        Сцена одна и та же, а часы разные: на впрыснутых — находка (прогоны
+        внутри окна), на стенных — прогонов не видно вовсе и вердикт съезжает
+        в «такт не наблюдён». Уронивший проброс `now=` код краснеет ЗДЕСЬ, а не
+        через две недели от сдвига календаря.
+        """
+        self.stand.agent("com.spa.loop", [("data/a.json", 26)])
+        self.stand.runs("loop", list(range(0, 40)))
+        injected = sk.measure(self.stand.write(), log_dir=self.stand.root / "logs",
+                              scripts_dir=self.stand.root / "scripts", now=_ANCHOR)
+        wall = sk.measure(self.stand.write(), log_dir=self.stand.root / "logs",
+                          scripts_dir=self.stand.root / "scripts")
+        self.assertEqual(injected["tally"][sk.KEEPABLE], 1)
+        self.assertEqual(injected["tally"][sk.UNMEASURED], 0)
+        self.assertEqual(wall["tally"][sk.KEEPABLE], 0,
+                         "стенд лежит в прошлом — на стенных часах его прогонов "
+                         "в окне быть не может; если они видны, окно не применяется")
+        self.assertEqual(sk.main(self._argv(), now=_ANCHOR), 0)
 
     def test_the_three_codes_are_DISTINCT(self):
         self.assertEqual(len({0, 1, 2}), 3)
@@ -783,3 +804,177 @@ class TheLogAddressIsMeasuredNotAssumed(_StandCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+# ───────── ось ТАКТА: какое из ДВУХ состояний дало находку (ADR-813) ─────────
+
+class TheCadenceAxisSeparatesTwoStatesBehindOneVerdict(_StandCase):
+    """Вердикт стои́т на МАКСИМУМЕ и этой осью не двигается — ось называет СОСТОЯНИЕ.
+
+    Дефект, ради которого ось написана (замер 25.10, живой флот): находок 139, и
+    КАЖДОЙ строка отчёта говорила «артефакт протухает ПО ПОСТРОЕНИЮ». У 70 из них
+    медиана периода срок ДЕРЖИТ, то есть «по построению» было сказано про пары,
+    которые по построению его как раз выдерживают. Семьдесят неверных слов в
+    выводе сторожа и есть механизм, которым он учит себя игнорировать.
+
+    Каждый тест ниже — положительный контроль на КОНКРЕТНЫЙ способ соврать:
+    назвать выброс недостижимым сроком · назвать недостижимый срок выбросом ·
+    решить ось там, где различать нечем · сдвинуть вердикт, починив слово.
+    """
+
+    def _outlier(self, slo=5):
+        """Такт срок ДЕРЖИТ (медиана 1 ч), нарушил его ОДИН разрыв 10 ч."""
+        self.stand.agent("com.spa.loop", [("data/a.json", slo)])
+        self.stand.runs("loop", [0, 1, 2, 3, 13])
+        return self.stand.measure()
+
+    def _cannot_keep(self, slo=5):
+        """Такт срок выдержать НЕ СПОСОБЕН: каждый период 6 ч при сроке 5 ч."""
+        self.stand.agent("com.spa.loop", [("data/a.json", slo)])
+        self.stand.runs("loop", [0, 6, 12, 18, 24])
+        return self.stand.measure()
+
+    # ── состояние названо верно в обе стороны ────────────────────────────
+    def test_a_fit_cadence_broken_by_ONE_gap_is_NOT_called_by_construction(self):
+        row = self.row(self._outlier(), "data/a.json")
+        self.assertEqual(row["observed_median_hours"], 1.0)
+        self.assertEqual(row["observed_max_hours"], 10.0)
+        self.assertEqual(row["cadence_axis"], sk.CADENCE_OUTLIER)
+        self.assertEqual(row["periods_over_slo"], 1, "срок превысил РОВНО один период")
+        self.assertEqual(row["periods"], 4)
+
+    def test_a_cadence_that_cannot_keep_the_slo_is_named_by_construction(self):
+        row = self.row(self._cannot_keep(), "data/a.json")
+        self.assertEqual(row["observed_median_hours"], 6.0)
+        self.assertEqual(row["cadence_axis"], sk.CADENCE_CANNOT_KEEP)
+        self.assertEqual(row["periods_over_slo"], row["periods"],
+                         "срок превысил КАЖДЫЙ период — это и есть «по построению»")
+
+    def test_no_finding_at_all_leaves_the_axis_on_keeps(self):
+        self.stand.agent("com.spa.loop", [("data/a.json", 26)])
+        self.stand.runs("loop", list(range(0, 30)))
+        row = self.row(self.stand.measure(), "data/a.json")
+        self.assertEqual(row["verdict"], sk.KEEPABLE)
+        self.assertEqual(row["cadence_axis"], sk.CADENCE_KEEPS)
+        self.assertEqual(row["periods_over_slo"], 0)
+
+    # ── ось НЕ переопределяет вердикт (нельзя ослабить, инв. #16) ────────
+    def test_the_axis_does_NOT_move_the_verdict_the_tally_or_the_exit_code(self):
+        """Починка СЛОВА не смеет стать ослаблением СТОРОЖА.
+
+        Обе сцены — находки, и обе обязаны ими остаться: у выброса обещание
+        всё-таки нарушено, и прятать его за «такт в порядке» значило бы
+        вернуть ровно тот fail-OPEN, против которого прибор написан.
+        """
+        for name, doc in (("выброс", self._outlier()), ):
+            with self.subTest(name):
+                row = self.row(doc, "data/a.json")
+                self.assertEqual(row["verdict"], sk.UNKEEPABLE,
+                                 "ось назвала состояние и ПОГАСИЛА находку")
+                self.assertEqual(doc["tally"][sk.UNKEEPABLE], 1)
+                self.assertEqual(doc["tally"][sk.KEEPABLE], 0)
+                self.assertEqual(doc["verdict"], "declared_slo_unkeepable")
+                self.assertEqual(len(doc["findings"]), 1)
+
+    def test_the_median_based_axis_cannot_resurrect_the_hidden_gap_test(self):
+        """Соседний тест набора (`ONE_long_gap_decides…`) обязан остаться зелёным:
+        ось добавлена РЯДОМ с вердиктом, а не вместо него."""
+        self.stand.agent("com.spa.loop", [("data/a.json", 5)])
+        self.stand.runs("loop", [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 19, 20, 21, 22, 23])
+        row = self.row(self.stand.measure(), "data/a.json")
+        self.assertEqual(row["verdict"], sk.UNKEEPABLE)
+        self.assertEqual(row["cadence_axis"], sk.CADENCE_OUTLIER)
+
+    # ── третий исход: ниже порога различать НЕЧЕМ (инв. #17) ────────────
+    def test_fewer_periods_than_the_threshold_is_UNMEASURED_not_an_outlier(self):
+        """При двух периодах максимум САМ входит в медиану — она судила бы о
+        выбросе по себе. Это третий исход, а не «такт держит»."""
+        self.stand.agent("com.spa.loop", [("data/a.json", 6)])
+        self.stand.runs("loop", [0, 1, 11])          # периоды 1 ч и 10 ч
+        row = self.row(self.stand.measure(), "data/a.json")
+        self.assertEqual(row["periods"], 2)
+        self.assertLessEqual(row["observed_median_hours"], 6)
+        self.assertEqual(row["cadence_axis"], sk.CADENCE_UNMEASURED,
+                         "медиана из двух периодов не вправе решать ось")
+        self.assertEqual(row["verdict"], sk.UNKEEPABLE, "находка обязана остаться")
+
+    def test_the_threshold_is_the_smallest_n_where_one_outlier_is_not_the_median(self):
+        """Порог ВЫВЕДЕН, а не выбран: при `n = 3` максимум медианой быть не может."""
+        self.assertEqual(sk.CADENCE_MIN_PERIODS, 3)
+        self.stand.agent("com.spa.loop", [("data/a.json", 6)])
+        self.stand.runs("loop", [0, 1, 2, 12])       # периоды 1, 1, 10 → ровно 3
+        row = self.row(self.stand.measure(), "data/a.json")
+        self.assertEqual(row["periods"], 3)
+        self.assertEqual(row["cadence_axis"], sk.CADENCE_OUTLIER)
+
+    def test_a_row_without_a_producer_still_carries_the_axis_as_unmeasured(self):
+        """У пары без идущего производителя периода нет — ось обязана быть
+        НАЗВАНА «не измерено», а не отсутствовать ключом."""
+        self.stand.agent("com.spa.loop", [("data/a.json", 26)])
+        self.stand.runs("loop", list(range(0, 30)))
+        self.stand.artifact("data/orphan.json", 4, producer="com.spa.gone")
+        row = self.row(self.stand.measure(), "data/orphan.json")
+        self.assertEqual(row["verdict"], sk.UNMEASURED)
+        self.assertEqual(row["cadence_axis"], sk.CADENCE_UNMEASURED)
+
+    # ── разрез доходит до ЧИТАТЕЛЯ ───────────────────────────────────────
+    def test_the_report_gives_each_state_its_OWN_words(self):
+        """Дефект дословно: одно слово «ПО ПОСТРОЕНИЮ» на два состояния."""
+        by_construction = "\n".join(sk.report(self._cannot_keep()))
+        self.assertIn("ПО ПОСТРОЕНИЮ", by_construction)
+        outlier = "\n".join(sk.report(self._outlier()))
+        self.assertNotIn("протухает ПО ПОСТРОЕНИЮ", outlier,
+                         "выбросу сказано «по построению» — ровно дефект ADR-813")
+        self.assertIn("ОДИН разрыв", outlier)
+        self.assertIn(sk.CADENCE_OUTLIER, outlier)
+
+    def test_the_report_carries_the_split_so_139_is_never_one_lump(self):
+        doc = self._outlier()
+        text = "\n".join(sk.report(doc))
+        self.assertIn("ТАКТ не способен выдержать срок", text)
+        self.assertEqual(doc["cadence_axis"][sk.CADENCE_OUTLIER], 1)
+        self.assertEqual(doc["cadence_axis"][sk.CADENCE_CANNOT_KEEP], 0)
+
+    def test_the_axis_tally_counts_FINDINGS_only_not_the_whole_population(self):
+        """У пары без находки вопрос «какое состояние её подняло» предмета не
+        имеет; считать там `cadence_keeps` значило бы смешать «находки нет» с
+        «находка от выброса»."""
+        self.stand.agent("com.spa.ok", [("data/ok.json", 26)])
+        self.stand.runs("ok", list(range(0, 30)))
+        self.stand.agent("com.spa.loop", [("data/a.json", 5)])
+        self.stand.runs("loop", [0, 1, 2, 3, 13])
+        doc = self.stand.measure()
+        self.assertEqual(doc["tally"][sk.KEEPABLE], 1)
+        self.assertEqual(sum(doc["cadence_axis"].values()), doc["tally"][sk.UNKEEPABLE])
+
+    def test_findings_put_the_ACTIONABLE_class_first(self):
+        """Прежний порядок по одному отношению ставил первыми самые громкие
+        выбросы — то есть ровно те строки, по которым делать нечего."""
+        self.stand.agent("com.spa.loud", [("data/loud.json", 5)])
+        self.stand.runs("loud", [0, 1, 2, 3, 60])            # выброс ×12
+        self.stand.agent("com.spa.slow", [("data/slow.json", 5)])
+        self.stand.runs("slow", [0, 6, 12, 18, 24])          # такт не способен, ×1.2
+        doc = self.stand.measure()
+        order = [r["cadence_axis"] for r in doc["findings"]]
+        self.assertEqual(order[0], sk.CADENCE_CANNOT_KEEP, f"порядок находок: {order}")
+
+    def test_the_unmeasured_cause_of_the_outlier_is_declared_as_not_reported(self):
+        """Прибор НЕ меряет, почему случился выброс, и обязан это сказать."""
+        joined = " ".join(self._outlier()["not_reported"])
+        self.assertIn("ПРИЧИНА выброса", joined)
+
+    def test_an_artifact_written_BEFORE_the_axis_is_not_read_as_undecidable(self):
+        """Ключа НЕТ вовсе ≠ «ось измерена и неразличима» (инв. #17).
+
+        Отчёт, написанный производителем до ADR-813, про состояние не говорит
+        НИЧЕГО. Прочитать это молчание как замер значило бы повторить
+        разбираемый дефект на один этаж выше — там, где его уже починили.
+        """
+        doc = self._outlier()
+        stale = {**doc, "cadence_axis": {},
+                 "findings": [{k: v for k, v in row.items() if k != "cadence_axis"}
+                              for row in doc["findings"]]}
+        text = "\n".join(sk.report(stale))
+        self.assertIn("ДО ADR-813", text)
+        self.assertNotIn("периодов меньше порога", text)
+        self.assertNotIn("протухает ПО ПОСТРОЕНИЮ", text)

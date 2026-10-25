@@ -3323,11 +3323,22 @@ def main(argv=None) -> int:
             print(f"slo_keepability: НЕ ИЗМЕРЕНО — {_slokdoc.get('reason')}")
         else:
             _sltally = observed(_slokdoc, "tally", kind=dict) or {}
+            # Разрез находки по ОСИ ТАКТА (ADR-813) печатается ЗДЕСЬ же: без
+            # него «НЕ выдерживаем 139» читается как 139 недостижимых сроков,
+            # тогда как замер 25.10 насчитал таких 69, а у 70 такт срок держит
+            # и нарушил его один разрыв. Лечатся эти два состояния разным.
+            _slcad = observed(_slokdoc, "cadence_axis", kind=dict) or {}
             print(f"slo_keepability: объявленный срок годности — выдерживаем "
                   f"{observed_number(_sltally, slo_keepability.KEEPABLE)} · НЕ выдерживаем "
                   f"{observed_number(_sltally, slo_keepability.UNKEEPABLE)} · такт не наблюдён "
                   f"{observed_number(_sltally, slo_keepability.UNMEASURED)} из "
-                  f"{_slokdoc.get('population')}; вердикт {_slokdoc.get('verdict')}")
+                  f"{_slokdoc.get('population')}; вердикт {_slokdoc.get('verdict')}; "
+                  f"такт НЕ способен "
+                  f"{observed_number(_slcad, slo_keepability.CADENCE_CANNOT_KEEP)} · "
+                  f"нарушил ОДИН разрыв "
+                  f"{observed_number(_slcad, slo_keepability.CADENCE_OUTLIER)} · "
+                  f"различать нечем "
+                  f"{observed_number(_slcad, slo_keepability.CADENCE_UNMEASURED)}")
     except Exception as e:  # noqa: BLE001 — перепись не смеет валить мост
         census_skipped(_skipped, "slo_keepability", e)
     # Заказ G94 п. 3 (ADR-550): сколько привязок конституции держится ПРОЗОЙ и

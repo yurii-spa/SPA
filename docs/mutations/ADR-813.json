@@ -1,0 +1,68 @@
+{
+  "title": "ADR-813 — дельта цикла #936: вердикт `unkeepable` перестал быть ОДНИМ словом на ДВА состояния. Каждая мутация возвращает одно из состояний до правки — находку от выброса, названную недостижимым сроком, либо ось, решённую там, где различать нечем, либо ослабление сторожа «починкой слова»: ось не считается · порог различимости снят · медиана перевёрнута · ось гасит находку · ось не доходит до читателя · слово одно на два состояния · порядок находок прежний · часы `main` снова стенные · отсутствие ключа выдано за замер",
+  "tests": [
+    "spa_core/tests/test_slo_keepability.py"
+  ],
+  "mutations": [
+    {
+      "name": "ось не считается вовсе: каждая находка снова безымянна — дословное состояние до ADR-813",
+      "file": "spa_core/monitoring/slo_keepability.py",
+      "old": "        elif middle > binding:\n            cadence = CADENCE_CANNOT_KEEP\n        else:\n            cadence = CADENCE_OUTLIER",
+      "new": "        else:\n            cadence = CADENCE_UNMEASURED"
+    },
+    {
+      "name": "порог различимости снят: медиана из ДВУХ периодов решает ось, то есть судит о выбросе ПО СЕБЕ",
+      "file": "spa_core/monitoring/slo_keepability.py",
+      "old": "        elif len(spans) < CADENCE_MIN_PERIODS:\n            cadence = CADENCE_UNMEASURED",
+      "new": "        elif False:\n            cadence = CADENCE_UNMEASURED"
+    },
+    {
+      "name": "медиана перевёрнута: недостижимый срок объявляется выбросом, а выброс — недостижимым сроком",
+      "file": "spa_core/monitoring/slo_keepability.py",
+      "old": "        elif middle > binding:\n            cadence = CADENCE_CANNOT_KEEP",
+      "new": "        elif middle <= binding:\n            cadence = CADENCE_CANNOT_KEEP"
+    },
+    {
+      "name": "ось ГАСИТ находку: выброс перестаёт быть `unkeepable` — ровно тот fail-OPEN, которым починка слова стала бы ослаблением сторожа (инв. #16)",
+      "file": "spa_core/monitoring/slo_keepability.py",
+      "old": "        elif widest > binding:\n            rows.append({**shared, \"verdict\": UNKEEPABLE, \"cause\": None})",
+      "new": "        elif widest > binding:\n            rows.append({**shared, \"verdict\": UNKEEPABLE if shared.get(\"cadence_axis\") == CADENCE_CANNOT_KEEP else KEEPABLE, \"cause\": None})"
+    },
+    {
+      "name": "ось не доходит до читателя: разрез считается, но в артефакт не кладётся — прибор без читателя",
+      "file": "spa_core/monitoring/slo_keepability.py",
+      "old": "        \"cadence_axis\": cadence_axes,",
+      "new": "        \"cadence_axis\": {},"
+    },
+    {
+      "name": "слово ОДНО на два состояния: выбросу снова сказано «протухает ПО ПОСТРОЕНИЮ» — дефект дословно",
+      "file": "spa_core/monitoring/slo_keepability.py",
+      "old": "        CADENCE_OUTLIER: \"такт срок ДЕРЖИТ (медиана внутри) — обещание нарушил ОДИН \"\n                         \"разрыв; причина выброса прибором НЕ измерена\",",
+      "new": "        CADENCE_OUTLIER: \"артефакт протухает ПО ПОСТРОЕНИЮ\","
+    },
+    {
+      "name": "порядок находок прежний: первыми снова самые громкие выбросы, то есть строки, по которым делать нечего",
+      "file": "spa_core/monitoring/slo_keepability.py",
+      "old": "    findings.sort(key=lambda r: (\n        _rank.get(r.get(\"cadence_axis\"), 1),\n        -(r[\"observed_max_hours\"] / r[\"slo_hours\"]) if r[\"slo_hours\"] else 0))",
+      "new": "    findings.sort(key=lambda r: -(r[\"observed_max_hours\"] / r[\"slo_hours\"]) if r[\"slo_hours\"] else 0)"
+    },
+    {
+      "name": "часы `main` снова СТЕННЫЕ: восстановлена бомба замороженной даты, от которой тест краснел по сдвигу календаря, а три соседних зеленели ВХОЛОСТУЮ",
+      "file": "spa_core/monitoring/slo_keepability.py",
+      "old": "                      window_hours=args.window_hours, now=now)",
+      "new": "                      window_hours=args.window_hours)"
+    },
+    {
+      "name": "число периодов и число превысивших срок не печатаются: ярлык оси нечем ПЕРЕПРОВЕРИТЬ",
+      "file": "spa_core/monitoring/slo_keepability.py",
+      "old": "            \"periods\": len(spans), \"periods_over_slo\": over,",
+      "new": "            \"periods\": 0, \"periods_over_slo\": 0,"
+    },
+    {
+      "name": "ОТСУТСТВИЕ ключа оси читается как «различать нечем»: молчание прежнего производителя выдано за замер — разбираемый дефект на этаж выше",
+      "file": "spa_core/monitoring/slo_keepability.py",
+      "old": "        axis = row.get(\"cadence_axis\") or \"cadence_axis_absent\"",
+      "new": "        axis = row.get(\"cadence_axis\") or CADENCE_UNMEASURED"
+    }
+  ]
+}

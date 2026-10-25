@@ -37,6 +37,43 @@ ADR-506 измерил ответ РУКОЙ у одного агента и н�
 ``unmeasured``
     такт не наблюдён, и причина НАЗВАНА (см. ниже). Это не ноль и не «чисто».
 
+## Ось ТАКТА — какое из ДВУХ состояний дало находку (ADR-813, цикл #936)
+
+Вердикт стои́т на МАКСИМУМЕ и этим не двигается: обещание «файл свежее N часов»
+нарушил ОДИН разрыв, и это правда о прошлом, которую медиана прячет. Но
+**вопрос, объявленный выше, — про СПОСОБНОСТЬ** («способен ли производитель
+такой срок выдержать вообще»), а максимум отвечает про ИСТОРИЮ («был ли срок
+нарушён хоть раз»). Это два разных вопроса, и до #936 оба печатались одним
+словом: строка отчёта говорила «артефакт протухает ПО ПОСТРОЕНИЮ» КАЖДОЙ
+находке.
+
+Замер 25.10 на живом флоте: находок **139**, и у **70** из них медиана периода
+срок ДЕРЖИТ — то есть «по построению» было сказано про пары, которые по
+построению его как раз выдерживают. Семьдесят неверных слов в выводе сторожа и
+есть механизм, которым он учит себя игнорировать: разобрать 139 одинаковых
+строк дороже, чем 69 настоящих.
+
+Поэтому рядом с вердиктом считается ОСЬ (``cadence_axis``), и в сумму вердиктов
+она НЕ входит — как и ось расписания:
+
+``cadence_cannot_keep``
+    медиана периода ``>`` срока. Такт НЕ СПОСОБЕН выдержать обещание — класс
+    ADR-506, и чинится он сроком либо расписанием.
+``cadence_keeps_outlier_broke``
+    медиана ``<=`` срока ``<`` максимума. Такт обещание держит, нарушил его
+    ОДИН разрыв. Находка остаётся находкой, но лечится она не сроком.
+``cadence_keeps``
+    максимум ``<=`` срока — находки нет вовсе.
+``cadence_unmeasured``
+    периодов МЕНЬШЕ ТРЁХ. Порог не выбран, а выведен: при двух периодах
+    максимум сам входит в медиану, то есть различать состояния нечем. Это
+    третий исход (инв. #17), а не «такт держит».
+
+**ПРИЧИНУ выброса прибор НЕ меряет** и поэтому не называет её в имени оси.
+Хост спал (``launchd.plist(5)``: пропущенное срабатывание не догоняется),
+перезагрузка, разовый долгий прогон — всё это разные вещи с разными владельцами,
+и записать их одним словом значило бы выдумать замер.
+
 **Почему окно обязано быть не короче срока.** Разрыв длиннее 26 ч не поместится
 в окно наблюдения длиной 3 ч: «нарушений не нашлось» там верно ПО ПОСТРОЕНИЮ и
 о сроке не говорит ничего (урок ADR-543 — зелёный по построению). Поэтому такой
@@ -140,6 +177,19 @@ PRODUCER_NOT_DECLARED = "producer_not_declared"
 CAUSE_NOT_NAMED = "cause_not_named"
 WINDOW_SHORTER_THAN_SLO = "window_shorter_than_slo"
 TIMESTAMPS_UNPARSABLE = "timestamps_unparsable"
+
+#: Ось ТАКТА: какое из двух состояний дало находку (ADR-813). НЕ вердикт —
+#: вердикт стои́т на максимуме и этой осью не двигается.
+CADENCE_CANNOT_KEEP = "cadence_cannot_keep"
+CADENCE_OUTLIER = "cadence_keeps_outlier_broke"
+CADENCE_KEEPS = "cadence_keeps"
+CADENCE_UNMEASURED = "cadence_unmeasured"
+
+#: Сколько периодов нужно, чтобы медиана МОГЛА отличить выброс от такта. Порог
+#: не выбран, а ВЫВЕДЕН: при ``n`` периодах один максимум не может быть медианой
+#: только начиная с ``n = 3``; при двух он в медиану входит сам, и тогда медиана
+#: судила бы о выбросе ПО СЕБЕ. Ниже порога ось = ``cadence_unmeasured``.
+CADENCE_MIN_PERIODS = 3
 
 #: Ось «расписание против наблюдения» (ПРИЧИНА находки, не вердикт).
 SCHEDULE_WITHIN = "observed_within_declared"
@@ -488,7 +538,8 @@ def measure(manifest_path: Optional[Path] = None, *, log_dir: Path = Path("/tmp"
                          "observed_median_hours": None, "span_hours": None,
                          "schedule_axis": SCHEDULE_OBSERVATION_ABSENT, "records": [],
                          "foreign_banners": 0, "unparsable_banners": 0,
-                         "future_banners": 0})
+                         "future_banners": 0, "cadence_axis": CADENCE_UNMEASURED,
+                         "periods": 0, "periods_over_slo": 0})
             continue
         merged: list = []
         causes: list = []
@@ -527,6 +578,21 @@ def measure(manifest_path: Optional[Path] = None, *, log_dir: Path = Path("/tmp"
                                        SCHEDULE_UNPARSED, SCHEDULE_NOT_PERIODIC,
                                        SCHEDULE_OBSERVATION_ABSENT)
                      if vote in axis_votes), SCHEDULE_OBSERVATION_ABSENT)
+        # Ось ТАКТА (ADR-813). Считается РЯДОМ с вердиктом и его не меняет:
+        # вердикт стои́т на максимуме, ось отвечает, какое из двух состояний
+        # его подняло. Ниже `CADENCE_MIN_PERIODS` различать нечем — максимум
+        # сам входит в медиану, и это ТРЕТИЙ ИСХОД, а не «такт держит».
+        over = sum(1 for value in spans if value > binding)
+        if widest is None or middle is None:
+            cadence = CADENCE_UNMEASURED
+        elif widest <= binding:
+            cadence = CADENCE_KEEPS
+        elif len(spans) < CADENCE_MIN_PERIODS:
+            cadence = CADENCE_UNMEASURED
+        elif middle > binding:
+            cadence = CADENCE_CANNOT_KEEP
+        else:
+            cadence = CADENCE_OUTLIER
         shared = {
             **shared, "runs": len(merged), "records": records, "schedule_axis": axis,
             "schedule_ratio": None if ratio is None else round(ratio, 4), **dropped,
@@ -534,6 +600,10 @@ def measure(manifest_path: Optional[Path] = None, *, log_dir: Path = Path("/tmp"
             "observed_median_hours": None if middle is None else round(middle, 3),
             "span_hours": None if span is None else round(span, 3),
             "producer_causes": sorted(set(causes)),
+            "cadence_axis": cadence,
+            # Числа, по которым читатель вправе ПЕРЕПРОВЕРИТЬ ось, а не поверить
+            # ярлыку: сколько периодов наблюдено и сколько из них срок превысили.
+            "periods": len(spans), "periods_over_slo": over,
         }
         if widest is None:
             # Ни один производитель не дал периода — причина НАЗВАНА, и если
@@ -557,6 +627,11 @@ def measure(manifest_path: Optional[Path] = None, *, log_dir: Path = Path("/tmp"
     causes: dict = {}
     axes = {SCHEDULE_WITHIN: 0, SCHEDULE_EXCEEDS: 0, SCHEDULE_UNPARSED: 0,
             SCHEDULE_NOT_PERIODIC: 0, SCHEDULE_OBSERVATION_ABSENT: 0}
+    # Ось такта считается ПО НАХОДКАМ, а не по всему населению: вопрос «какое
+    # состояние дало находку» у пары без находки не имеет предмета, и считать
+    # там `cadence_keeps` значило бы смешать «находки нет» с «находка от
+    # выброса». Полный разрез по населению лежит построчно в `rows`.
+    cadence_axes = {CADENCE_CANNOT_KEEP: 0, CADENCE_OUTLIER: 0, CADENCE_UNMEASURED: 0}
     no_margin = 0
     disagreements = 0
     worst_ratio: dict = {}
@@ -576,6 +651,9 @@ def measure(manifest_path: Optional[Path] = None, *, log_dir: Path = Path("/tmp"
             if cause:
                 causes[cause] = causes.get(cause, 0) + 1
         axes[row["schedule_axis"]] = axes.get(row["schedule_axis"], 0) + 1
+        if row["verdict"] == UNKEEPABLE:
+            key = row.get("cadence_axis") or CADENCE_UNMEASURED
+            cadence_axes[key] = cadence_axes.get(key, 0) + 1
         if row.get("slo_disagreement"):
             disagreements += 1
         widest = row.get("observed_max_hours")
@@ -584,7 +662,14 @@ def measure(manifest_path: Optional[Path] = None, *, log_dir: Path = Path("/tmp"
             no_margin += 1
 
     findings = [r for r in rows if r["verdict"] == UNKEEPABLE]
-    findings.sort(key=lambda r: -(r["observed_max_hours"] / r["slo_hours"]) if r["slo_hours"] else 0)
+    # Сортировка ДВУХКЛЮЧЕВАЯ: сначала те, чей ТАКТ срок выдержать не способен
+    # (их чинят сроком или расписанием), затем нарушенные выбросом. Прежний
+    # порядок по одному отношению ставил первыми самые громкие выбросы — то
+    # есть ровно те строки, по которым делать нечего.
+    _rank = {CADENCE_CANNOT_KEEP: 0, CADENCE_UNMEASURED: 1, CADENCE_OUTLIER: 2}
+    findings.sort(key=lambda r: (
+        _rank.get(r.get("cadence_axis"), 1),
+        -(r["observed_max_hours"] / r["slo_hours"]) if r["slo_hours"] else 0))
     verdict = ("every_declared_slo_keepable"
                if tally[UNKEEPABLE] == 0 and tally[UNMEASURED] == 0
                else "declared_slo_unkeepable" if tally[UNKEEPABLE]
@@ -596,6 +681,8 @@ def measure(manifest_path: Optional[Path] = None, *, log_dir: Path = Path("/tmp"
         "tally": tally,
         "unmeasured_causes": causes,
         "schedule_axis": axes,
+        "cadence_axis": cadence_axes,
+        "cadence_min_periods": CADENCE_MIN_PERIODS,
         "worst_schedule_ratio": worst_ratio or None,
         "slo_disagreements": disagreements,
         "no_margin_for_one_miss": no_margin,
@@ -614,6 +701,8 @@ def measure(manifest_path: Optional[Path] = None, *, log_dir: Path = Path("/tmp"
             "вторая запись о прогонах (launchctl runs — без отметок времени)",
             "верность самого срока (цену опоздания назначают две роли, ADR-158)",
             "производитель вне конституции",
+            "ПРИЧИНА выброса (хост спал · перезагрузка · разовый долгий прогон) — "
+            "ось такта называет СОСТОЯНИЕ, а не причину",
         ],
     }
 
@@ -658,13 +747,44 @@ def report(doc: dict, max_rows: int = 12) -> list:
         f"Выдерживаем ли объявленный срок годности (заказ G94): ВЫДЕРЖИВАЕМ "
         f"{_num(KEEPABLE)} · НЕ ВЫДЕРЖИВАЕМ {_num(UNKEEPABLE)} · ТАКТ НЕ НАБЛЮДЁН "
         f"{_num(UNMEASURED)} из {doc.get('population')} артефакт(ов) с объявленным сроком")
-    for row in (doc.get("findings") or [])[:max_rows]:
+    cadence = observed(doc, "cadence_axis", kind=dict) or {}
+    if tally.get(UNKEEPABLE):
+        # Разрез находки ДО перечня: 139 одинаковых строк разбирать дороже, чем
+        # 69 настоящих, и до #936 читатель не мог их отличить вовсе.
         lines.append(
-            f"  [{UNKEEPABLE}] {row.get('artifact')} (пишут: "
+            f"  из них ТАКТ не способен выдержать срок: "
+            f"{cadence.get(CADENCE_CANNOT_KEEP, 'НЕ ИЗМЕРЕНО')} (чинится сроком или "
+            f"расписанием) · срок нарушил ОДИН разрыв при годном такте: "
+            f"{cadence.get(CADENCE_OUTLIER, 'НЕ ИЗМЕРЕНО')} · периодов меньше "
+            f"{doc.get('cadence_min_periods')}, различать нечем: "
+            f"{cadence.get(CADENCE_UNMEASURED, 'НЕ ИЗМЕРЕНО')}")
+    #: Слово про КАЖДОЕ состояние — своё. Прежняя строка говорила «протухает ПО
+    #: ПОСТРОЕНИЮ» всем находкам подряд, и на замере 25.10 это было неверно у
+    #: 70 из 139: у них медиана периода срок ДЕРЖИТ.
+    _VERB = {
+        CADENCE_CANNOT_KEEP: "артефакт протухает ПО ПОСТРОЕНИЮ — медиана периода "
+                             "срок НЕ держит",
+        CADENCE_OUTLIER: "такт срок ДЕРЖИТ (медиана внутри) — обещание нарушил ОДИН "
+                         "разрыв; причина выброса прибором НЕ измерена",
+        CADENCE_UNMEASURED: "периодов меньше порога — отличить выброс от такта НЕЧЕМ "
+                            "(не «протухает по построению»)",
+        "cadence_axis_absent": "состояние такта НЕ ИЗМЕРЕНО: отчёт написан производителем "
+                               "ДО ADR-813 и про ось не говорит ничего",
+    }
+    for row in (doc.get("findings") or [])[:max_rows]:
+        # Ключа НЕТ вовсе ≠ «ось измерена и неразличима»: артефакт, написанный
+        # производителем ДО ADR-813, про состояние не говорит ничего, и выдать
+        # его молчание за замер значило бы повторить разбираемый дефект на один
+        # этаж выше. Эти отчёты переписываются следующим тактом бегуна.
+        axis = row.get("cadence_axis") or "cadence_axis_absent"
+        lines.append(
+            f"  [{UNKEEPABLE}/{axis}] {row.get('artifact')} (пишут: "
             f"{', '.join(row.get('producers') or []) or 'НЕ ИЗМЕРЕНО'}): объявлено "
             f"{row.get('slo_hours')}ч, наблюдённый максимум {row.get('observed_max_hours')}ч "
             f"(медиана {row.get('observed_median_hours')}ч по {row.get('runs')} прогон(ам) "
-            f"ВСЕХ производителей) — артефакт протухает ПО ПОСТРОЕНИЮ")
+            f"ВСЕХ производителей; срок превысили {row.get('periods_over_slo')} из "
+            f"{row.get('periods')} период(ов)) — "
+            + _VERB.get(axis, "состояние такта НЕ НАЗВАНО"))
     extra = len(doc.get("findings") or []) - max_rows
     if extra > 0:
         lines.append(f"  … ещё {extra} пар(ы) того же вида (полный перечень — `--json`)")
@@ -699,7 +819,22 @@ def format_report(doc: dict, max_rows: int = 8) -> list:
     return ["   " + line for line in report(doc, max_rows=max_rows)]
 
 
-def main(argv: Optional[list] = None) -> int:
+def main(argv: Optional[list] = None, *, now: Optional[datetime] = None) -> int:
+    """CLI. ``now`` — ЧАСЫ ВХОДОМ (`.claude/rules/deployment.md`, приём №1).
+
+    Параметр keyword-only и в проде не передаётся НИКОГДА: его единственный
+    вызывающий — тест, которому иначе нечем закрепить обе стороны сравнения.
+    До #936 этого параметра не было, и `main` был ЕДИНСТВЕННОЙ дверью модуля
+    со стенными часами при том, что `measure` и `run` часы принимают обе. Файл
+    набора помечен `FROZEN-DATE-OK: injected-clock`, и для этой двери претензия
+    была НЕВЕРНА: отметки стенда считаются от `_ANCHOR` (03.10), окно по
+    умолчанию 168 ч, поэтому `test_everything_keepable_exits_zero` обязан был
+    покраснеть около 10.10 — и покраснел, от сдвига КАЛЕНДАРЯ, а не кода
+    (замер 25.10: красный на чистом `origin/main`). Соседние три теста того же
+    класса при этом остались ЗЕЛЁНЫМИ ВХОЛОСТУЮ: вне окна прогонов не видно
+    вовсе, вердикт становился `fewer_than_two_runs`, и код 1 они получали не за
+    то, что проверяли. Это ровно «та же бомба, только с запиской».
+    """
     parser = argparse.ArgumentParser(description=__doc__.splitlines()[0])
     parser.add_argument("--manifest", default=None, help="путь к architecture/manifest.json")
     parser.add_argument("--log-dir", default="/tmp", help="каталог записей прогонов")
@@ -712,7 +847,7 @@ def main(argv: Optional[list] = None) -> int:
         doc = measure(Path(args.manifest) if args.manifest else None,
                       log_dir=Path(args.log_dir),
                       scripts_dir=Path(args.scripts_dir) if args.scripts_dir else None,
-                      window_hours=args.window_hours)
+                      window_hours=args.window_hours, now=now)
     except Unmeasured as exc:
         print(f"НЕ ИЗМЕРЕНО: {exc}")
         print("  про объявленные сроки НЕ СКАЗАНО НИЧЕГО")
