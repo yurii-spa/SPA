@@ -67,6 +67,13 @@ handover/backlog contained stale implementation statuses. See
 `docs/evidence/studio-os-models-01-2026-10-23/increment6-claude-management/ARB_REVIEW.md` before choosing work
 from that answer. No automatic execution or actual Pro-profile qualification is established.
 
+**Voice checkpoint, ARB 2026-10-25:** notification wording accepted in candidate `33b3219ac`
+(CI 40209078724: 135106 passed, 2 known §49 failures, 719 skipped, 12/12; no new failed node IDs versus
+`5a0d497f0`). Ordinary requests without a declared check still remain `no_probe`. Next bounded connection:
+prepare a reviewable plan and acceptance proposal from an ordinary request through the existing architect
+seam; do not make the owner choose internal test names. This is a candidate preparation path, not permission
+to dispatch live work. Evidence and scope: `evidence/studio-os-next-01-2026-10-16/voice_owner_check_2026-10-25/ARB_REVIEW.md`.
+
 **Verification efficiency:** bound work to the actual change, reuse traceable evidence, and batch the required
 full CI on a stable candidate. No repeated whole-system/AI audit by default; no removal of mandatory checks and
 no introduction of the unapproved two-tier test scheme. Read results from already running jobs rather than
@@ -269,8 +276,10 @@ starting duplicates. Full rationale, increments, acceptance and constraints are 
     Increment 3 + B-11 ARB-accepted on 30ca5abc4 (production routing off; no general NO_REGRESSION). Increment 4 in
     progress: one command for a safe architecture review through a chosen provider.
     Increment 4 + B-12 ARB-accepted on 393faa72d (no production delivery claimed; no second real provider; CI RED on
-    the two §49 producer tests; no NO_REGRESSION). Next: one bounded local probe (qwen3.5:4b via Ollama HTTP) — plan
-    prepared, waits for the owner (increment5-plan/PLAN.md).
+    the two §49 producer tests; no NO_REGRESSION). Local-probe preparation later accepted on `5a0d497f0`;
+    real local inference/weight copies DEFERRED by the owner on 25.10 until a new Mac mini and separate launch
+    authorization. The Claude management call has already completed; current next step is recorded in the
+    25.10 voice checkpoint above, not another local-probe or management-call rerun.
     Handover: `HANDOVER_FOR_ARB_FINAL.md`, `START_HERE.md` in the same folder.
 18. **Later engines:** traditional markets, volatility / options (scope decided inside RM-EXPAND-01)
 
@@ -289,9 +298,9 @@ separate and labelled; aligning it is an optional owner decision, Н).
 
 | # | Item | Status | Depends on | Owner | Acceptance | Next step |
 |---|---|---|---|---|---|---|
-| 23 | Voice intake, first real iPhone send | published, not owner-verified | — | owner (test) / agent | one card per send, visible status in the cockpit | STUDIO-OS-NEXT-01 package 4: phone script |
-| 24 | Who processes `cockpit-voice` cards, feedback | implementation exists in reviewed branch (`cockpit_dispatch`, `cockpit_loop`, `cockpit_records`); current production delivery and owner end-to-end verification not established by ARB's 25.10 read | 23 | agent | card leaves `new` with a reason; owner sees the outcome | package 4: reconcile existing implementation and delivery; do not rebuild |
-| 25 | Long/English voice, retry when Mac busy | submission-id deduplication and explicit transcription failure/busy outcomes exist in reviewed branch; full retry UX, long/English audio and owner verification remain unverified | 24 | agent | retry keeps the text; no duplicate card | package 4: check existing re-send/failure path; no wholesale rewrite |
+| 23 | Voice intake, first real iPhone send | published, not owner-verified; corrected phone script ready 25.10 | — | owner (test) / agent | one card per submission ID, visible status in the cockpit | owner check using voice_owner_check_2026-10-25/OWNER_SCRIPT.md |
+| 24 | Who processes `cockpit-voice` cards, feedback | existing path checked on temporary data; ordinary requests remain no_probe; notification fix ARB-accepted on 33b3219ac, not delivered | 23 for live owner acceptance | agent | useful preparation before execution; truthful reason/outcome; no unverified done | connect ordinary-request preparation to the existing architect seam; no owner-facing probe picker by default; scope in voice checkpoint review |
+| 25 | Long/English voice, retry when Mac busy | same-ID retry covered by existing temporary tests; new input after confirmed success is a new submission; full iPhone retry/audio UX unverified | 24 | agent | preserved retry keeps the text and original card; new intent stays distinct | keep existing implementation; owner phone check first, later bounded long/English/failure checks |
 | 30 / 14 | ADR-762 version-bound answer; answer from cockpit | proposed | owner decision | owner (mechanism) / agent (candidate) | candidate: CAS under one lock, replay-safe, journal + recovery, kill-switch for writes | package 5 candidate, not wired live |
 | 16 | «Проверить ещё раз» (read-only) then «Исправить» | not decided | ADR-760 pattern | owner per action | one ADR per action; read-only first | package 5 after ADR-762 candidate |
 | 32 | Package value history by day | no data in canon | — | agent | `capital.package_values` series with measured_at, read-only from `data/defi_engine/` | package 5 |
