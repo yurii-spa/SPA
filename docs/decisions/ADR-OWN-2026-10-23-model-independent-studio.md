@@ -35,6 +35,20 @@ Inspect only the existing model-call seams, role declarations and continuity int
 
 The first reviewable result is one safe task recovered by a fresh architect and processed through the same role/provider contract without a provider-specific workflow rewrite. New provider activation remains a separate delivery step. Subsequent slices are selected from actual gaps, not a speculative framework backlog.
 
+## Owner clarification — 2026-10-25: Claude Pro for management
+
+- Decision owner: Yurii Kulieshov; recorded by ARB from the owner's request to connect his Claude Pro subscription for management.
+- Status: requirement accepted for design; the actual account, plan, billing safeguards and production connection are not verified by this record.
+- Reuse the official Claude Code CLI and the existing `claude_subscription_cli` seam for architecture review, planning and preparation of implementation tasks. Support the owner's Pro subscription and compatible Max access; do not require another subscription or an API account. The same provider may serve different roles without changing their permissions. Company memory remains the existing files and Git.
+- Authentication stays in the official client. Do not extract or copy OAuth tokens into SDKs, adapters, context packs or reports. Reuse the intended signed-in profile; an explicitly selected `CLAUDE_CONFIG_DIR` may separate accounts when needed. Do not log out, replace credentials or change the active implementer's account automatically. Account/plan facts must be reported from safe status metadata or marked UNKNOWN.
+- Stay within included subscription usage. Do not silently use API credentials, cloud billing, paid usage credits or another provider. Detect and refuse a billing mode outside the intended subscription; unknown paid-overage settings must remain UNKNOWN rather than a promise of no charges. Changes to payment settings are the owner's decision.
+- Management and implementation share the subscription's limits. A quota refusal preserves the task and reports a pause; do not repeatedly poll with model calls or infer subscription charges from CLI cost estimates.
+- Acceptance: an explicitly selected subscription profile can perform a safe management task through the existing contract; unavailable login, quota and unsupported billing mode have clear outcomes; owner authority and all existing safety gates remain unchanged. This does not authorize local inference, a new production provider, paid fallback or service changes.
+
+Rationale: reuse the owner's paid access for management and development while preserving model-independent roles and bounded costs. Alternatives rejected: a separate API dependency for management, exported subscription credentials, and implicit paid continuation. Consequence: management consumes the same quota as development and can pause when that quota is exhausted.
+
+Provider references checked 2026-10-25: [Pro/Max access and shared limits](https://support.claude.com/en/articles/11145838-use-claude-code-with-your-pro-or-max-plan), [official authentication and profiles](https://code.claude.com/docs/en/authentication), [paid usage credits](https://support.claude.com/en/articles/12429409-manage-usage-credits-for-paid-claude-plans).
+
 ## Acceptance
 
 - Owner intent, decisions and task state survive replacement of an AI session; existing memory is reused.

@@ -4,7 +4,9 @@
 > `architecture/memory_truth.json` (ADR-527). Changing the order or adding a top-level item needs the
 > owner's directive and a line in `docs/decisions/` — the roadmap is not edited from chat.
 > Last confirmed by the owner: **2026-10-01** (directive «THREE DEFI PAPER PORTFOLIOS — STRATEGY MECHANICS, OPERATIONS AND WEBSITE»).
-> Latest owner directive: **2026-10-23** — model-independent workers and architect, P1; bounded verification
+> Latest owner clarification: **2026-10-25** — support the owner's Claude Pro subscription for Studio OS management
+> through the official Claude Code CLI; included usage only, no automatic paid continuation (same owner decision below).
+> Owner priority directive: **2026-10-23** — model-independent workers and architect, P1; bounded verification
 > ([owner decision](decisions/ADR-OWN-2026-10-23-model-independent-studio.md)).
 > Continuing owner directive: **2026-10-16** «STUDIO-OS-NEXT-01 — next stage of Earn DeFi Studio OS under the ARB plan»
 > (ADR-763, item 17). Status words used below are kept apart: **implemented** (code on `origin/main`) · **published**
@@ -36,8 +38,17 @@ Start with the existing Claude subscription seam and a fixture-backed second ada
 activation is not approved by this priority change. ADR-423's design deferral is reopened; paid fallback,
 hardware purchases and resource limits remain gated. No LLM enters risk/execution/monitoring/kill.
 
-**Status:** owner-prioritized; not implemented or ARB-accepted. First acceptance: one safe task can recover its
-context in a fresh architect session and use the same role/provider contract, with explicit evidence and refusals.
+**Owner clarification 2026-10-25:** support the owner's Claude Pro subscription (and compatible Max access) for
+architecture review, planning and task preparation through the existing official Claude Code subscription seam.
+Reuse the intended login without changing the active implementer's account. Preserve role permissions and owner
+authority; included usage only, no automatic API/paid-credit fallback. Shared quota exhaustion pauses the task.
+Actual Pro connection and billing safeguards remain unverified; the [owner decision](decisions/ADR-OWN-2026-10-23-model-independent-studio.md)
+records acceptance criteria and consequences.
+
+**Status:** the first safe architecture-review slice is ARB-accepted in candidate `393faa72d` (portable context,
+provider contract and `memory arch-review`); production delivery is not claimed. The overall MODELS-01 macro,
+an actual Pro-profile connection and qualification of a second real provider remain open. Acceptance is scoped
+to the tested task, revision and evidence; it never transfers to every model or to production by implication.
 
 **Verification efficiency:** bound work to the actual change, reuse traceable evidence, and batch the required
 full CI on a stable candidate. No repeated whole-system/AI audit by default; no removal of mandatory checks and
