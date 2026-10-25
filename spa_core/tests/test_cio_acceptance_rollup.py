@@ -477,7 +477,21 @@ def test_declarations_are_read_from_the_registry_not_from_a_side_list():
                         # конституции уехала тем же пушем, ДВУМЯ записями —
                         # населения половин разные.
                         "Auditability":
-                            ["auditability_decision_carries_snapshot_and_explanation"]}
+                            ["auditability_decision_carries_snapshot_and_explanation"],
+                        # ADR-809 (цикл #932, заказ G808 п. 1): ПОСЛЕДНИЙ
+                        # критерий §49 без мерки. Прибор его дословных слов
+                        # («Проведены shadow/replay tests») работает с 06.09 —
+                        # §38 cio_shadow_replay, три руки по накопителю ADR-060,
+                        # свеж, читается шагом 0-офис, печатает CRITICAL, — а в
+                        # графе пробы стоял `null`, такт входа `unbound`, цена
+                        # по s49_criterion_price — DECISION. Правка снимка
+                        # намеренна и обоснована (инв. #16): этот предикат И
+                        # ЕСТЬ живой реестр объявлений (см. имя теста), поэтому
+                        # новая строка здесь — предмет утверждения, а не способ
+                        # погасить падение. Равенство остаётся СТРОГИМ. С этой
+                        # строкой объявлены ВСЕ 13 критериев §49.
+                        "Shadow verification":
+                            ["shadow_verification_replay_was_conducted"]}
 
 
 def test_every_declared_criterion_exists_in_the_live_order():

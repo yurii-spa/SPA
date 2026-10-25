@@ -115,6 +115,58 @@ ARM_CIO_HOLD = "cio_hold"
 ARM_CIO_OPT = "cio_opt"
 ARMS = (ARM_CURRENT, ARM_CIO_HOLD, ARM_CIO_OPT)
 
+#: Колонки стоимости, в которых прогон обязан дойти до сравнения. ДВЕ, и это
+#: не оформление: вывод, живущий только на ЗАРЯЖЕННОМ (литеральном) газе,
+#: ADR-243 уже опроверг на этом самом прогоне — на наблюдённом газе число
+#: ложных перекладок стало 9 из 13 вместо 12 из 13. Перечень ЗАКРЫТ, и его
+#: спрашивают ОБА читателя: сборщик колонок в :func:`run` и вердикт критерия
+#: §49. Разойдись они — вердикт требовал бы колонку, которой сборщик не делает.
+COST_COLUMNS = ("charged", "observed")
+
+#: Порог, ниже которого прогон САМ отказывается утверждать свой вывод. Дом у
+#: него ОДИН, и сравнение с ним — ровно одно, в :func:`population_too_thin`
+#: ниже (ADR-220); второй копии нет намеренно, и единственность сравнения
+#: МЕРЯЕТСЯ AST, а не доверием к этому комментарию
+#: (`spa_core/tests/test_s49_shadow_verification_probe.py`).
+MIN_COMMON_DAYS_FOR_CLAIM = 10
+
+#: Код той находки — для читателя-человека.
+THIN_POPULATION_CODE = "thin_common_population"
+
+
+def population_too_thin(common_scored_days: float) -> bool:
+    """Узка ли популяция настолько, что прогон своего вывода НЕ утверждает.
+
+    Дом правила ОДИН (ADR-220), и оба его читателя зовут эту функцию: находка
+    `thin_common_population` для человека и вердикт критерия §49 для машины.
+
+    Почему вердикт зовёт ПРЕДИКАТ, а не ищет находку в отчёте: отчёт, собранный
+    версией прибора без этой находки, читался бы тогда как «вывод утверждаем» —
+    fail-OPEN, то есть ровно тот дефект, который инв. #17 запрещает (отсутствие
+    наблюдения выданное за благополучие). Предикат отвечает по ЧИСЛУ, которое в
+    отчёте есть всегда.
+    """
+    return common_scored_days < MIN_COMMON_DAYS_FOR_CLAIM
+
+
+#: Критерий §49 приказа владельца «Portfolio CIO», мерой которого модуль себя
+#: объявляет. Якорь читается как НАЧАЛО строки (ADR-333): упоминание критерия
+#: в середине текста есть ссылка на него, а не объявление себя его мерой.
+#:
+#: Критерий у владельца назван ОДНОЙ фразой и мерится ОДНИМ прибором — в
+#: отличие от `Auditability`, где слов было два и населения разные (ADR-808).
+CRITERION = (
+    "§49 Shadow verification приказа владельца «Portfolio CIO» — дословно: "
+    "«Проведены shadow/replay tests». Мера — ИСХОД прогона: сверены ли дни во "
+    "ВСЕХ трёх руках, дошло ли сравнение до вердикта в ОБЕИХ колонках "
+    "стоимости и не отказался ли прогон САМ утверждать свой вывод. Наличие "
+    "файла отчёта мерой не является"
+)
+
+CRITERION_SATISFIED = "SATISFIED"
+CRITERION_NOT_SATISFIED = "NOT_SATISFIED"
+CRITERION_UNMEASURED = "UNMEASURED"
+
 
 def _num(v: object) -> float | None:
     """Число или None. Строку-число принимаем, мусор — нет."""
@@ -499,9 +551,15 @@ def run(root: str | None = None, *, now: dt.datetime | None = None,
     common = [i for i in range(len(records) - 1)
               if all(daily[arm][i] is not None for arm in ARMS)]
 
+    # Имена колонок берутся из ОДНОГО перечня (`COST_COLUMNS`), а не набираются
+    # здесь второй раз: вердикт критерия §49 ниже спрашивает ровно этот перечень,
+    # и разойдись они — он требовал бы колонку, которой сборщик не делает, либо
+    # пропускал бы ту, которую делает. Отсутствие цены за колонку — KeyError,
+    # то есть ГРОМКИЙ отказ, а не молчаливый пропуск.
+    gas_of_column = {"charged": charged_gas, "observed": observed_or_charged_gas}
     columns: dict[str, dict] = {}
-    for column, gas_of in (("charged", charged_gas),
-                           ("observed", observed_or_charged_gas)):
+    for column in COST_COLUMNS:
+        gas_of = gas_of_column[column]
         if column == "observed" and not observed_gas:
             continue
         moves = {arm: move_costs(books[arm], records, legs_of=_legs,
@@ -671,10 +729,10 @@ def _findings(columns: dict[str, dict], comparison: dict, population: dict) -> l
                         f"ход тюнера окупился бы вперёд сверх полосы гейта"),
         })
 
-    if population["common_scored_days"] < 10:
+    if population_too_thin(population["common_scored_days"]):
         findings.append({
             "severity": "WARN",
-            "code": "thin_common_population",
+            "code": THIN_POPULATION_CODE,
             "message": (
                 f"общих сверенных дней {population['common_scored_days']} из "
                 f"{population['day_pairs']} — прогон снят на узкой популяции, и "
@@ -683,6 +741,166 @@ def _findings(columns: dict[str, dict], comparison: dict, population: dict) -> l
                 f"или цель касались в этот день"),
         })
     return findings
+
+
+def _why_unread(doc: dict) -> str:
+    """Что сам отчёт говорит о НЕПРОЧИТАННОМ. Три исхода, и `or []` схлопнул бы два.
+
+    «Раздела `unchecked` в отчёте нет» и «отчёт назвал непрочитанного ноль» —
+    РАЗНЫЕ положения дел и чинятся разным (инв. #17): первое означает, что
+    отчёт собран не этим прибором или устаревшей его версией, второе — что
+    прибор прошёл всё и молчать ему не о чем.
+    """
+    unread = observed_field(doc, "unchecked", kind=list)
+    if unread is None:
+        return "раздела `unchecked` в отчёте нет — причина НЕ ИЗМЕРЕНА"
+    if not unread:
+        return "отчёт не называет непрочитанного ни одной строкой"
+    return "; ".join(str(item) for item in unread)
+
+
+def criterion_verdict(doc: dict) -> dict:
+    """Вердикт о критерии §49 `Shadow verification` — по уже снятому отчёту.
+
+    Правило вычисления живёт ЗДЕСЬ, у производителя чисел, и второй его копии
+    нет (ADR-220): читатель (`card_acceptance`) вердикт ПЕРЕНОСИТ, а не считает
+    заново.
+
+    Дословные слова владельца — «**Проведены shadow/replay tests**». Вопрос
+    поэтому о ПРОВЕДЁННОСТИ, а не о том, кто победил: находки
+    `hold_beats_the_live_book` и `false_rebalances_dominate` говорят о
+    СОДЕРЖАНИИ §38 и есть money-path — решение владельца, а не вердикт этого
+    критерия. Прогон, нашедший, что живая книга проигрывает тени, проведён; он
+    и обязан считаться проведённым.
+
+    **Переносится НЕ `overall`.** `overall` этого модуля есть лестница ТЯЖЕСТИ
+    находок (`CRITICAL` > `WARN` > `OK`), и живой замер 25.10 даёт на нём
+    `CRITICAL` именно потому, что прогон СОСТОЯЛСЯ и нашёл дефект. Переносить
+    такую лестницу в вердикт критерия значило бы объявить невыполненным
+    критерий, который как раз выполняется, — вопрос соседний, ответ обратный.
+
+    Своего порога у вердикта нет ни одного: узость популяции судит
+    :func:`population_too_thin` — тот же предикат, которым прогон рождает свою
+    находку `thin_common_population`. Порог живёт в ОДНОМ месте
+    (:data:`MIN_COMMON_DAYS_FOR_CLAIM`), и второго сравнения с ним здесь нет.
+
+    Четыре вопроса, и каждый обязан дойти до «да», чтобы прогон считался
+    проведённым:
+
+    1. сверенных во ВСЕХ трёх руках дней хотя бы один;
+    2. сравнение дошло до вердикта в ОБЕИХ колонках стоимости
+       (:data:`COST_COLUMNS`) — одноколоночный вывод ADR-243 опроверг на этом
+       же прогоне;
+    3. у каждой из трёх рук в каждой колонке есть читаемая чистая ставка —
+       иначе сравнения «Current против CIO Shadow» не было, что бы ни стояло
+       в графе вердикта;
+    4. популяция не узка по мерке самого прогона — то есть прогон не отзывает
+       свой вывод сам.
+
+    Три исхода разведены (инв. #17):
+
+    * `SATISFIED` — все четыре «да»: прогон проведён, и вывод его утверждаем;
+    * `NOT_SATISFIED` — прогон состоялся, но САМ отказался утверждать вывод:
+      популяция узка, и это ИЗМЕРЕНО числами и адресами (сколько дней, из
+      скольких пар, у каких протоколов нет цен вперёд);
+    * `UNMEASURED` — раздела `population` нет / числа в нём не читаются /
+      **сверенных дней НОЛЬ** / колонки стоимости нет или её вердикт
+      `UNCHECKED` / перечень находок не прочитан. Ноль сверенных дней не
+      «чисто»: «тень сверена с фактом» при нуле сверенных дней верно ПО
+      ПОСТРОЕНИЮ и ответом на вопрос владельца не является.
+    """
+    pop = observed_field(doc, "population", kind=dict)
+    if pop is None:
+        return {"status": CRITERION_UNMEASURED,
+                "reason": ("в отчёте нет раздела `population` — судить о "
+                           "проведённости прогона нечем, и это НЕ «сверенных "
+                           "дней ноль»")}
+    days = observed_number(pop, "common_scored_days")
+    pairs = observed_number(pop, "day_pairs")
+    missing = [name for name, value in (("common_scored_days", days),
+                                        ("day_pairs", pairs)) if value is None]
+    if missing:
+        return {"status": CRITERION_UNMEASURED,
+                "reason": (f"в `population` не читаются числа "
+                           f"{', '.join(missing)} — сверенных дней или их "
+                           f"знаменателя НЕТ ({_why_unread(doc)})")}
+    if days <= 0:
+        return {"status": CRITERION_UNMEASURED,
+                "reason": (f"ни одного дня, сверенного во ВСЕХ трёх руках "
+                           f"(из {pairs:.0f} пар) — прогон НЕ СОСТОЯЛСЯ: «тень "
+                           f"сверена с фактом» при нуле сверенных дней верно "
+                           f"ПО ПОСТРОЕНИЮ и ответом не является "
+                           f"({_why_unread(doc)})"),
+                "common_scored_days": days, "day_pairs": pairs}
+
+    comparison = observed_field(doc, "comparison", kind=dict)
+    if comparison is None:
+        return {"status": CRITERION_UNMEASURED,
+                "reason": (f"сверенных дней {days:.0f}, а раздела `comparison` "
+                           f"в отчёте НЕТ — сравнения рук не было, и «дней "
+                           f"сверено» само по себе сравнением не является "
+                           f"({_why_unread(doc)})"),
+                "common_scored_days": days, "day_pairs": pairs}
+    for column in COST_COLUMNS:
+        block = observed_field(comparison, column, kind=dict)
+        if block is None:
+            return {"status": CRITERION_UNMEASURED,
+                    "reason": (f"колонки стоимости «{column}» в сравнении НЕТ: "
+                               f"прогон дошёл до вердикта не во всех "
+                               f"{len(COST_COLUMNS)} колонках, а вывод, живущий "
+                               f"лишь на одной, ADR-243 опроверг на этом же "
+                               f"прогоне ({_why_unread(doc)})"),
+                    "common_scored_days": days, "day_pairs": pairs}
+        if block.get("verdict") == _UNCHECKED:
+            return {"status": CRITERION_UNMEASURED,
+                    "reason": (f"в колонке «{column}» сравнение НЕ ВЫНЕСЕНО: "
+                               f"{block.get('reason') or 'причина не названа'}"),
+                    "common_scored_days": days, "day_pairs": pairs}
+        rates = observed_field(block, "net_apy_pct", kind=dict)
+        if rates is None:
+            return {"status": CRITERION_UNMEASURED,
+                    "reason": (f"в колонке «{column}» нет раздела `net_apy_pct` — "
+                               f"чем сравнивали руки, НЕ ИЗМЕРЕНО"),
+                    "common_scored_days": days, "day_pairs": pairs}
+        blank = [arm for arm in ARMS if observed_number(rates, arm) is None]
+        if blank:
+            return {"status": CRITERION_UNMEASURED,
+                    "reason": (f"в колонке «{column}» чистая ставка не читается у "
+                               f"рук {', '.join(blank)} — сравнения «Current "
+                               f"против CIO Shadow» НЕ БЫЛО, что бы ни стояло в "
+                               f"графе вердикта"),
+                    "common_scored_days": days, "day_pairs": pairs}
+
+    if population_too_thin(days):
+        starved = observed_field(pop, "unpriced_per_arm", kind=dict)
+        if starved is None:
+            where = ("у каких протоколов нет цен вперёд — НЕ ИЗМЕРЕНО: раздела "
+                     "`unpriced_per_arm` в отчёте нет")
+        else:
+            names = sorted({str(name) for arm in ARMS
+                            for name in (observed_field(starved, arm, kind=list)
+                                         or [])})
+            where = ("цен вперёд нет у протоколов: " + ", ".join(names)
+                     if names else
+                     "протоколов без цен вперёд отчёт не называет ни одного — "
+                     "узость популяции сложилась иначе")
+        return {"status": CRITERION_NOT_SATISFIED,
+                "reason": (f"прогон СОСТОЯЛСЯ, но сам отказался утверждать свой "
+                           f"вывод: сверенных во всех трёх руках дней "
+                           f"{days:.0f} из {pairs:.0f} пар при объявленном "
+                           f"пороге {MIN_COMMON_DAYS_FOR_CLAIM} — «проведены "
+                           f"shadow/replay tests» на популяции, с которой сам "
+                           f"прогон улучшение НЕ утверждает, ответом не "
+                           f"является. {where}"),
+                "common_scored_days": days, "day_pairs": pairs}
+    return {"status": CRITERION_SATISFIED,
+            "reason": (f"прогон проведён и утверждаем: сверенных во всех трёх "
+                       f"руках дней {days:.0f} из {pairs:.0f} пар (порог "
+                       f"{MIN_COMMON_DAYS_FOR_CLAIM}), сравнение вынесено в "
+                       f"обеих колонках стоимости "
+                       f"({', '.join(COST_COLUMNS)}), и прогон сам свой вывод "
+                       f"не отзывал"),
+            "common_scored_days": days, "day_pairs": pairs}
 
 
 def _report(root: str, now: dt.datetime, *, overall: str, arms: dict,
@@ -711,6 +929,11 @@ def _report(root: str, now: dt.datetime, *, overall: str, arms: dict,
                      "итогам меняет решение о движении капитала, это money-path "
                      "и решение владельца"),
     }
+    # Вердикт критерия §49 живёт в САМОМ артефакте, а не выводится читателем из
+    # чисел: иначе у правила появилась бы вторая копия на стороне `card_acceptance`
+    # (ADR-220/808). Строка стои́т в `_report`, а не в `run`, потому что ранних
+    # выходов у прогона семь — и каждый обязан отдать вердикт, а не молчание.
+    doc["criterion"] = criterion_verdict(doc)
     if write:
         from spa_core.utils.atomic import atomic_save
         atomic_save(doc, os.path.join(root, REPORT_REL))

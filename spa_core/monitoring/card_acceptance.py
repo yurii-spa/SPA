@@ -5523,6 +5523,160 @@ def _probe_auditability_decision_carries_snapshot_and_explanation(
                        + f" ({tail})")
 
 
+SHADOW_REPLAY_MODULE = "spa_core.monitoring.cio_shadow_replay"
+SHADOW_REPLAY_ANCHOR = "§49 Shadow verification"
+
+
+def _probe_shadow_verification_replay_was_conducted(
+        arg: str | None, *, now: "datetime | None" = None,
+        repo_root: str | None = None,
+        data_dir: str | None = None) -> tuple[str, str]:
+    """Критерий §49 `Shadow verification` приказа CIO: «Проведены shadow/replay tests».
+
+    Почему проба появилась только сейчас
+    ---------------------------------------------------------------------------
+    Замер 25.10 (`data/s49_tally_tact.json`, ADR-808): из тринадцати критериев
+    §49 у `Shadow verification` в графе пробы стоял **`null`**, вердикт —
+    `unmeasured`, а такт входа — `unbound`. При этом прибор, отвечающий на
+    дословный вопрос владельца, работает с 06.09 (`cio_shadow_replay`, §38),
+    объявлен в конституции со сроком годности 7 ч, свеж, читается шагом
+    0-офис и печатает `CRITICAL` каждым тактом.
+
+    То есть критерий был ИЗМЕРЕН и не имел читателя ровно в том месте, где
+    считается его вердикт, — последний такой случай в §49 (ADR-808 закрыл
+    предпоследний, `Auditability`). Разница с ним одна: там критерий был назван
+    ДВУМЯ словами с разными населениями, и прибора понадобилось два; здесь слово
+    одно и прибор один, поэтому складывать нечего — вердикт ПЕРЕНОСИТСЯ.
+
+    Что именно считается «проведённым»
+    ---------------------------------------------------------------------------
+    Проба своего правила не имеет ни строки: правило живёт у производителя
+    чисел (`cio_shadow_replay.criterion_verdict`, ADR-220), а здесь переносится
+    поле `criterion.status`. Переносится ИМЕННО оно, а **не `overall`**: у
+    этого прибора `overall` есть лестница ТЯЖЕСТИ находок, и живой замер даёт
+    на нём `CRITICAL` потому, что прогон СОСТОЯЛСЯ и нашёл дефект движения
+    денег. Перенеси мы `overall` — критерий «прогон проведён» оказался бы
+    невыполненным ровно тогда, когда он выполняется.
+
+    Свежесть судится ПАСПОРТОМ артефакта
+    ---------------------------------------------------------------------------
+    Порог читается из `architecture/manifest.json` тем же единственным
+    читателем, что и у соседей (`rebalance_cost_evidence.declared_slo_hours`:
+    оба дома объявления, расхождение домов — третий исход). Своего «24 часа»
+    проба не назначает: порог — решение, и дом его — конституция. Дома нет ⇒
+    `unmeasured` с причиной, а не «свежо».
+
+    Чего проба НЕ докладывает (назвать слепоту — часть замера)
+    ---------------------------------------------------------------------------
+    * **Правоту самого прогона.** Что три руки собраны без look-ahead bias, что
+      модель стоимости верна и что метрики §38 посчитаны правильно — держат
+      сторожа прибора, а не эта проба.
+    * **ИТОГ прогона.** Находки `hold_beats_the_live_book` и
+      `false_rebalances_dominate` говорят, что живая книга проигрывает
+      НЕсделанной перекладке; это предмет §38 и **money-path** — решение
+      владельца. Критерий §49 спрашивает, проведён ли прогон, а не кто в нём
+      победил, и подменять один вопрос другим значило бы вернуть ровно тот
+      класс, против которого написан весь ряд.
+    * **Дни вне общей популяции.** День, на котором замороженной руке нет цен
+      вперёд, прогону не виден по построению — интерполировать запрещено. Проба
+      НАЗЫВАЕТ число таких дней, но не умеет их восстановить.
+    * **Ничего не чинит.** Читаются один артефакт и конституция; ни строки
+      истории ADR-060, модели стоимости, гейтов, RiskPolicy, стоп-крана или
+      живого трека.
+    """
+    if (arg or "").strip():
+        return UNMEASURED, (f"проба не принимает аргумента (дано {arg!r}): "
+                            "критерий о прогоне целиком, и пофайловой формы у "
+                            "него нет")
+
+    root = repo_root or REPO_ROOT
+    data = data_dir or os.path.join(root, "data")
+
+    def _read(where: str):
+        with open(where, "r", encoding="utf-8") as handle:
+            return json.load(handle)
+
+    try:
+        slo_reader = _cost_evidence_module().declared_slo_hours
+    except BaseException as exc:  # noqa: BLE001 — причина обязана быть названа
+        return UNMEASURED, (f"читатель срока годности не загружен: "
+                            f"{type(exc).__name__}: {exc}")
+
+    try:
+        import importlib
+        meter = importlib.import_module(SHADOW_REPLAY_MODULE)
+    except BaseException as exc:  # noqa: BLE001
+        return UNMEASURED, (f"прибор не загружен: {type(exc).__name__}: {exc}")
+
+    # Объявление читается ДО артефакта: прибор, не сказавший, что он мера ЭТОГО
+    # критерия, мерой его не становится от того, что файл на месте.
+    declared = str(getattr(meter, "CRITERION", "") or "")
+    if not declared.startswith(SHADOW_REPLAY_ANCHOR):
+        return UNMEASURED, (f"прибор не объявляет себя мерой "
+                            f"{SHADOW_REPLAY_ANCHOR!r} (его CRITERION: "
+                            f"{declared[:70]!r})")
+
+    rel = str(getattr(meter, "REPORT_REL", "") or "")
+    if not rel:
+        return UNMEASURED, ("прибор не называет адрес своего артефакта "
+                            "(`REPORT_REL`)")
+    path = os.path.join(data, os.path.basename(rel))
+    try:
+        doc = _read(path)
+    except (OSError, ValueError) as exc:
+        return UNMEASURED, f"артефакт {rel} не прочитан ({exc})"
+    if not isinstance(doc, dict):
+        return UNMEASURED, f"артефакт {rel} — не объект ({type(doc).__name__})"
+
+    try:
+        slo, slo_prov = slo_reader(root, _read, rel)
+    except BaseException as exc:  # noqa: BLE001
+        return UNMEASURED, (f"срок годности {rel} не прочитан: "
+                            f"{type(exc).__name__}: {exc}")
+    stamp = observed(doc, "generated_at", kind=str)
+    try:
+        made = datetime.fromisoformat(str(stamp).replace("Z", "+00:00"))
+    except (TypeError, ValueError):
+        made = None
+    if made is None:
+        return UNMEASURED, (f"артефакт не пишет разбираемый `generated_at` "
+                            f"({stamp!r}) — возраст НЕ ИЗМЕРЕН")
+    if made.tzinfo is None:
+        made = made.replace(tzinfo=timezone.utc)
+    age = ((now or datetime.now(timezone.utc)) - made).total_seconds() / 3600.0
+    if slo is None:
+        return UNMEASURED, (f"артефакту {age:.1f} ч, а срок годности взять "
+                            f"неоткуда: {slo_prov}")
+    if age > float(slo):
+        return UNMEASURED, (f"артефакт протух: {age:.1f} ч при объявленном "
+                            f"пределе {float(slo):g} ч ({slo_prov})")
+
+    try:
+        block = meter.criterion_verdict(doc)
+    except BaseException as exc:  # noqa: BLE001
+        return UNMEASURED, (f"вердикт не вынесен: {type(exc).__name__}: {exc}")
+    if not isinstance(block, dict):
+        return UNMEASURED, f"вердикт — не объект ({type(block).__name__})"
+
+    blind = ("мера НЕ отвечает: прав ли сам прогон (три руки, модель стоимости, "
+             "метрики §38) · КТО победил в прогоне — это предмет §38 и "
+             "money-path, решение владельца · дни, на которых замороженной руке "
+             "нет цен вперёд, прогону не видны по построению")
+    reason = block.get("reason") or "причина не названа"
+    tail = (f"артефакт снят {stamp} ({age:.1f} ч при пределе {float(slo):g} ч, "
+            f"{slo_prov}); {blind}")
+
+    status = block.get("status")
+    if status == getattr(meter, "CRITERION_NOT_SATISFIED", None):
+        return NOT_SATISFIED, f"{reason} ({tail})"
+    if status == getattr(meter, "CRITERION_UNMEASURED", None):
+        return UNMEASURED, f"{reason} ({tail})"
+    if status == getattr(meter, "CRITERION_SATISFIED", None):
+        return SATISFIED, f"{reason} ({tail})"
+    return UNMEASURED, (f"прибор вернул вердикт {status!r}, который не "
+                        f"переносится ({tail})")
+
+
 def _probe_no_single_criterion_probe_on_a_multi_criterion_order(
         arg: str | None, *, tracker_dir: str | None = None,
         repo_root: str | None = None, ref: str = "origin/main") -> tuple[str, str]:
@@ -12020,6 +12174,8 @@ PROBES: dict[str, Callable[[str | None], "tuple[str, str]"]] = {
     "delivery_refuses_an_unnamed_tree": _probe_delivery_refuses_an_unnamed_tree,
     "auditability_decision_carries_snapshot_and_explanation":
         _probe_auditability_decision_carries_snapshot_and_explanation,
+    "shadow_verification_replay_was_conducted":
+        _probe_shadow_verification_replay_was_conducted,
 }
 
 
@@ -12048,6 +12204,8 @@ _probe_owner_visibility_numbers_delivered.s49_criterion = "Owner visibility"
 _probe_no_regression_tests_pass.s49_criterion = "No regression"
 _probe_auditability_decision_carries_snapshot_and_explanation.s49_criterion = \
     "Auditability"
+_probe_shadow_verification_replay_was_conducted.s49_criterion = \
+    "Shadow verification"
 
 
 def probes_by_s49_criterion() -> dict:

@@ -1,0 +1,104 @@
+{
+ "title": "ADR-809 — дельта цикла #932: ПОСЛЕДНИЙ критерий §49 приказа «Portfolio CIO» (`Shadow verification`) получает МЕРУ. Каждая мутация возвращает состояние, в котором сводка §49 снова молча объявила бы критерий выполненным или неизмеренным: пустая популяция выдана за зелёное · узкая популяция выдана за утверждаемую · порог набран второй копией · одноколоночное сравнение выдано за полное · рука без ставки пропущена · вердикт сравнения UNCHECKED пропущен · вердикт не положен в отчёт · якорь объявления прочитан подстрокой · протухший артефакт выдан за свежий · свой порог свежести выдуман · неизвестный вердикт выдан за согласие · `overall` перенесён вместо вердикта критерия",
+ "tests": [
+  "spa_core/tests/test_s49_shadow_verification_probe.py"
+ ],
+ "mutations": [
+  {
+   "name": "пустая популяция выдана за зелёное: «тень сверена с фактом» при НУЛЕ сверенных дней верно ПО ПОСТРОЕНИЮ (инв. #17)",
+   "file": "spa_core/monitoring/cio_shadow_replay.py",
+   "old": "    if days <= 0:\n        return {\"status\": CRITERION_UNMEASURED,",
+   "new": "    if False:\n        return {\"status\": CRITERION_UNMEASURED,"
+  },
+  {
+   "name": "узкая популяция выдана за утверждаемую: 7 сверенных дней снова читается как проведённый и утверждаемый прогон",
+   "file": "spa_core/monitoring/cio_shadow_replay.py",
+   "old": "    if population_too_thin(days):\n        starved",
+   "new": "    if False:\n        starved"
+  },
+  {
+   "name": "порог узости перестал быть порогом: предикат согласен на любую популяцию, и находка прогона тоже",
+   "file": "spa_core/monitoring/cio_shadow_replay.py",
+   "old": "    return common_scored_days < MIN_COMMON_DAYS_FOR_CLAIM",
+   "new": "    return common_scored_days < 0"
+  },
+  {
+   "name": "одноколоночное сравнение выдано за полное: вывод на ЗАРЯЖЕННОМ газе ADR-243 опроверг на этом же прогоне",
+   "file": "spa_core/monitoring/cio_shadow_replay.py",
+   "old": "        block = observed_field(comparison, column, kind=dict)\n        if block is None:",
+   "new": "        block = observed_field(comparison, column, kind=dict)\n        if False:"
+  },
+  {
+   "name": "вердикт сравнения UNCHECKED пропущен: колонка, в которой руки не сравнивались, читается как сравнённая",
+   "file": "spa_core/monitoring/cio_shadow_replay.py",
+   "old": "        if block.get(\"verdict\") == _UNCHECKED:\n            return {\"status\": CRITERION_UNMEASURED,",
+   "new": "        if block.get(\"verdict\") == \"НИКОГДА\":\n            return {\"status\": CRITERION_UNMEASURED,"
+  },
+  {
+   "name": "рука без чистой ставки пропущена: сравнения «Current против CIO Shadow» не было, а критерий зелен",
+   "file": "spa_core/monitoring/cio_shadow_replay.py",
+   "old": "        blank = [arm for arm in ARMS if observed_number(rates, arm) is None]\n        if blank:",
+   "new": "        blank = [arm for arm in ARMS if observed_number(rates, arm) is None]\n        if False:"
+  },
+  {
+   "name": "раздел net_apy_pct пропущен: чем сравнивали руки, не измерено, а вердикт вынесен",
+   "file": "spa_core/monitoring/cio_shadow_replay.py",
+   "old": "        rates = observed_field(block, \"net_apy_pct\", kind=dict)\n        if rates is None:",
+   "new": "        rates = observed_field(block, \"net_apy_pct\", kind=dict)\n        if False:"
+  },
+  {
+   "name": "раздела comparison нет, а вердикт есть: «дней сверено» выдано за сравнение рук",
+   "file": "spa_core/monitoring/cio_shadow_replay.py",
+   "old": "    comparison = observed_field(doc, \"comparison\", kind=dict)\n    if comparison is None:",
+   "new": "    comparison = observed_field(doc, \"comparison\", kind=dict)\n    if False:"
+  },
+  {
+   "name": "нечитаемые числа популяции пропущены: знаменателя нет, а вердикт вынесен",
+   "file": "spa_core/monitoring/cio_shadow_replay.py",
+   "old": "    if missing:\n        return {\"status\": CRITERION_UNMEASURED,",
+   "new": "    if False:\n        return {\"status\": CRITERION_UNMEASURED,"
+  },
+  {
+   "name": "вердикт критерия больше не кладётся в отчёт: читателю нечего переносить, и критерий снова НЕ ИЗМЕРЕН",
+   "file": "spa_core/monitoring/cio_shadow_replay.py",
+   "old": "    doc[\"criterion\"] = criterion_verdict(doc)\n    if write:",
+   "new": "    if write:"
+  },
+  {
+   "name": "якорь объявления прочитан ПОДСТРОКОЙ (ADR-333): прибор, лишь упомянувший критерий, становится его мерой",
+   "file": "spa_core/monitoring/card_acceptance.py",
+   "old": "    if not declared.startswith(SHADOW_REPLAY_ANCHOR):",
+   "new": "    if SHADOW_REPLAY_ANCHOR not in declared:"
+  },
+  {
+   "name": "протухший артефакт выдан за свежий: вердикт переносится с отчёта любого возраста",
+   "file": "spa_core/monitoring/card_acceptance.py",
+   "old": "    if age > float(slo):\n        return UNMEASURED, (f\"артефакт протух: {age:.1f} ч при объявленном \"",
+   "new": "    if False:\n        return UNMEASURED, (f\"артефакт протух: {age:.1f} ч при объявленном \""
+  },
+  {
+   "name": "свой порог свежести выдуман: дома в конституции нет, а проба всё равно судит",
+   "file": "spa_core/monitoring/card_acceptance.py",
+   "old": "    if slo is None:\n        return UNMEASURED, (f\"артефакту {age:.1f} ч, а срок годности взять \"",
+   "new": "    if slo is None:\n        slo = 24.0\n    if False:\n        return UNMEASURED, (f\"артефакту {age:.1f} ч, а срок годности взять \""
+  },
+  {
+   "name": "неизвестный вердикт прибора выдан за согласие: fail-OPEN вместо fail-CLOSED",
+   "file": "spa_core/monitoring/card_acceptance.py",
+   "old": "    return UNMEASURED, (f\"прибор вернул вердикт {status!r}, который не \"\n                        f\"переносится ({tail})\")",
+   "new": "    return SATISFIED, (f\"прибор вернул вердикт {status!r}, который не \"\n                       f\"переносится ({tail})\")"
+  },
+  {
+   "name": "перенесён `overall` вместо вердикта критерия: лестница ТЯЖЕСТИ находок объявляет невыполненным критерий, который как раз выполняется",
+   "file": "spa_core/monitoring/card_acceptance.py",
+   "old": "    status = block.get(\"status\")\n    if status == getattr(meter, \"CRITERION_NOT_SATISFIED\", None):\n        return NOT_SATISFIED, f\"{reason} ({tail})\"",
+   "new": "    status = block.get(\"status\")\n    if doc.get(\"overall\") == \"CRITICAL\":\n        return NOT_SATISFIED, f\"{reason} ({tail})\"\n    if status == getattr(meter, \"CRITERION_NOT_SATISFIED\", None):\n        return NOT_SATISFIED, f\"{reason} ({tail})\""
+  },
+  {
+   "name": "артефакт без разбираемого generated_at выдан за измеренный возраст",
+   "file": "spa_core/monitoring/card_acceptance.py",
+   "old": "    if made is None:\n        return UNMEASURED, (f\"артефакт не пишет разбираемый `generated_at` \"\n                            f\"({stamp!r}) — возраст НЕ ИЗМЕРЕН\")",
+   "new": "    if made is None:\n        made = datetime.now(timezone.utc)\n    if False:\n        return UNMEASURED, (f\"артефакт не пишет разбираемый `generated_at` \"\n                            f\"({stamp!r}) — возраст НЕ ИЗМЕРЕН\")"
+  }
+ ]
+}
