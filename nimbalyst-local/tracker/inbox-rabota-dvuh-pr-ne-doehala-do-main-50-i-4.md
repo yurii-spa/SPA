@@ -2,11 +2,13 @@
 trackerStatus:
   type: inbox
 title: "Работа двух PR не доехала до main: 50 и 42 дня, среди потерянного — восемь ADR решений владельца"
-status: new
+status: done
 source: agent
 created: 2026-09-25
 priority: high
 acceptance_probe: pr_work_arrived_on_main
+status_trail:
+  - "2026-10-03T07:33:06.006899+00:00 new -> done · queue.set_status"
 ---
 
 ## Что измерено (цикл #699, 2026-09-25, прибор `scripts/pr_delivery_census.py`, ADR-477)
