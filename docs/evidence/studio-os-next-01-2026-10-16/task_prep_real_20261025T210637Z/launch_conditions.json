@@ -1,0 +1,24 @@
+{
+  "observed_at_utc": "2026-10-25T21:06:12Z",
+  "source": "Claude Code CLI 2.1.276 (~/.local/bin/claude): 'claude auth status --json' + ~/.claude.json oauthAccount of the SAME profile (email and org hashes match; values not recorded)",
+  "authMethod": "claude.ai",
+  "apiProvider": "firstParty",
+  "subscriptionType": "max",
+  "organizationType": "claude_max",
+  "organizationRateLimitTier": "default_claude_max_20x",
+  "billingType": "stripe_subscription",
+  "hasExtraUsageEnabled": false,
+  "cachedExtraUsageDisabledReason": "org_level_disabled",
+  "profileFetchedAt_utc": "2026-10-25T19:18:08Z",
+  "api_override_env": {
+    "ANTHROPIC_API_KEY": "unset",
+    "ANTHROPIC_AUTH_TOKEN": "unset",
+    "ANTHROPIC_BASE_URL": "unset",
+    "CLAUDE_CODE_USE_BEDROCK": "unset",
+    "CLAUDE_CODE_USE_VERTEX": "unset",
+    "CLAUDE_CODE_OAUTH_TOKEN": "unset",
+    "CLAUDE_CONFIG_DIR": "unset"
+  },
+  "limits": "cached profile field fetched by the CLI 1 h 48 min before observation, not a live billing statement; no charge or absence of charge is proven; Pro is NOT this profile",
+  "changed": "nothing — no account, payment or settings change"
+}
