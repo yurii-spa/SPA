@@ -60,6 +60,13 @@ provider contract and `memory arch-review`); production delivery is not claimed.
 an actual Pro-profile connection and qualification of a second real provider remain open. Acceptance is scoped
 to the tested task, revision and evidence; it never transfers to every model or to production by implication.
 
+**Management test 2026-10-25:** one real `memory arch-review` call completed on the observed Max profile
+(115.951 s, one attempt; `increment6-claude-management/run/`). ARB accepts evidence that the existing
+management call path works for this scenario; its proposal is a draft requiring review. The supplied
+handover/backlog contained stale implementation statuses. See
+`docs/evidence/studio-os-models-01-2026-10-23/increment6-claude-management/ARB_REVIEW.md` before choosing work
+from that answer. No automatic execution or actual Pro-profile qualification is established.
+
 **Verification efficiency:** bound work to the actual change, reuse traceable evidence, and batch the required
 full CI on a stable candidate. No repeated whole-system/AI audit by default; no removal of mandatory checks and
 no introduction of the unapproved two-tier test scheme. Read results from already running jobs rather than
@@ -283,8 +290,8 @@ separate and labelled; aligning it is an optional owner decision, Н).
 | # | Item | Status | Depends on | Owner | Acceptance | Next step |
 |---|---|---|---|---|---|---|
 | 23 | Voice intake, first real iPhone send | published, not owner-verified | — | owner (test) / agent | one card per send, visible status in the cockpit | STUDIO-OS-NEXT-01 package 4: phone script |
-| 24 | Who processes `cockpit-voice` cards, feedback | not built | 23 | agent | card leaves `new` with a reason; owner sees the outcome | package 4 |
-| 25 | Long/English voice, retry when Mac busy | not built | 24 | agent | retry keeps the text; no duplicate card | package 4 (re-send/failure only) |
+| 24 | Who processes `cockpit-voice` cards, feedback | implementation exists in reviewed branch (`cockpit_dispatch`, `cockpit_loop`, `cockpit_records`); current production delivery and owner end-to-end verification not established by ARB's 25.10 read | 23 | agent | card leaves `new` with a reason; owner sees the outcome | package 4: reconcile existing implementation and delivery; do not rebuild |
+| 25 | Long/English voice, retry when Mac busy | submission-id deduplication and explicit transcription failure/busy outcomes exist in reviewed branch; full retry UX, long/English audio and owner verification remain unverified | 24 | agent | retry keeps the text; no duplicate card | package 4: check existing re-send/failure path; no wholesale rewrite |
 | 30 / 14 | ADR-762 version-bound answer; answer from cockpit | proposed | owner decision | owner (mechanism) / agent (candidate) | candidate: CAS under one lock, replay-safe, journal + recovery, kill-switch for writes | package 5 candidate, not wired live |
 | 16 | «Проверить ещё раз» (read-only) then «Исправить» | not decided | ADR-760 pattern | owner per action | one ADR per action; read-only first | package 5 after ADR-762 candidate |
 | 32 | Package value history by day | no data in canon | — | agent | `capital.package_values` series with measured_at, read-only from `data/defi_engine/` | package 5 |
