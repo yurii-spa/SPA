@@ -1,0 +1,96 @@
+"""Сцена голосового пути пульта на ВРЕМЕННЫХ данных (повтор фикстур test_cockpit_dispatch / test_cockpit_loop).
+Ни модели, ни транскрибации, ни Telegram: классификатор указан на несуществующий путь, уведомления — в список,
+трекер/исходящие/журнал захватов — во временном каталоге. Живой трекер не трогается (сверка до/после в конце)."""
+import hashlib, importlib.util, json, os, sys, tempfile
+from datetime import datetime, timedelta, timezone
+from pathlib import Path
+from spa_core.monitoring import card_acceptance as ca
+from spa_core.owner_queue import cockpit_dispatch as cd, cockpit_loop as cl, intake as oi
+from spa_core.studio_os import mission_intake as mi, mission_control as mc, owner_view as ov
+from spa_core.telegram import ask_router
+
+NOW = datetime(2026, 10, 25, 12, 0, 0, tzinfo=timezone.utc)
+START = (NOW - timedelta(hours=2)).strftime("%a %b %d %H:%M:%S %Y")
+SPEC = "contract_manifest_parity_agrees"
+LIVE = Path(ca.REPO_ROOT) / "nimbalyst-local" / "tracker"
+live_before = sorted(os.listdir(LIVE)) if LIVE.is_dir() else None
+
+tmp = Path(tempfile.mkdtemp(prefix="voice_scene_"))
+ask_router._CLAUDE = str(tmp / "no-real-claude")          # LLM-классификатор недоступен по построению
+tracker = tmp / "tracker"; tracker.mkdir()
+log = tmp / "session_changes.jsonl"; log.write_text("")
+spec = importlib.util.spec_from_file_location("_g", Path(ca.REPO_ROOT) / "scripts" / "check_card_claim.py")
+g = importlib.util.module_from_spec(spec); spec.loader.exec_module(g)
+sib = g.load_sibling()
+def claim(path, executor):
+    g.claim_card(Path(path).stem, log=str(log), session=executor, tracker_dir=str(tracker), now=NOW,
+                 sibling=sib, ps=lambda _pid: (0, START), self_anchor=(os.getpid(), START))
+sent = []
+notify = lambda text: sent.append(text) or True
+obox = tmp / "data" / "intake_outbox.json"
+prov = mi.provenance_for("public", verified_email="owner@example.org", owner_emails=("owner@example.org",))
+fm = lambda p: ca.parse_frontmatter(Path(p).read_text(encoding="utf-8"))
+
+def submit(text, sid):
+    body = {"text": text, "transcript": text, "kind": "task", "submission_id": sid}   # голосовая запись
+    return mi.submit(json.dumps(body).encode(), actor="local", tracker_dir=tracker, now=NOW, provenance=prov)
+
+def intake():
+    return oi.run_note_intake(NOW, tracker_dir=tracker, repo_root=tmp, notify=notify,
+                              history=lambda _b: {"verdict": "NEW", "response": ""}, ingest=False)
+
+def status_row(card):
+    rec = mc.cockpit_records(mc._cards(tracker), NOW, source="tracker")
+    view = ov.my_records({"intake": {"my_records": rec}}, None)
+    r = next(r for r in view["rows"] if r["technical"]["карточка"] == Path(card).name)
+    return {k: r.get(k) for k in ("status", "outcome", "reason", "next_step") if k in r} or r
+
+def show(title, card):
+    f = fm(card)
+    print(f"  карточка {Path(card).name}: status={f.get('status')} source={f.get('source')} author={f.get('author')}"
+          f" claimed_by={f.get('claimed_by')} verdict={f.get('acceptance_verdict')} verified_by={f.get('verified_by_probe')}")
+    print(f"  «Мои записи»: {json.dumps(status_row(card), ensure_ascii=False)[:400]}")
+
+print("=== A. ОБЫЧНАЯ голосовая запись владельца, без внутреннего имени пробы ===")
+a1 = submit("Проверь, пожалуйста, всё ли в порядке с ночным бэкапом и скажи мне итог", "voice-owner-0001")
+a2 = submit("Проверь, пожалуйста, всё ли в порядке с ночным бэкапом и скажи мне итог", "voice-owner-0001")  # повтор
+cards = sorted(p.name for p in tracker.glob("inbox-*.md"))
+print(f"  отправка ×2 с одним submission_id → карточек: {len(cards)}; ответы: {a1.get('card')==a2.get('card')}, "
+      f"повтор: {a2.get('duplicate', a2.get('status'))}")
+cardA = tracker / a1["card"]
+print("  текст сохранён:", "ночным бэкапом" in cardA.read_text(encoding="utf-8"))
+intake(); n_after_intake = len(sent)
+dA = cd.dispatch(executor="cycle-a", tracker_dir=tracker, claim=claim, now=NOW, outbox_path=obox, notify=notify)
+dA2 = cd.dispatch(executor="cycle-b", tracker_dir=tracker, claim=claim, now=NOW, outbox_path=obox, notify=notify)
+print(f"  диспетчер: taken={dA['taken']} no_probe={dA['no_probe']}; второй проход: taken={dA2['taken']} no_probe={dA2['no_probe']}")
+show("A", cardA)
+print(f"  уведомлений после приёма: {n_after_intake}; после диспетчера: {len(sent)} (последнее: {sent[-1][:160]!r})")
+
+print("\n=== B. Запись с ОБЪЯВЛЕННОЙ пробой (внутреннее имя — так устроена приёмка сегодня) ===")
+sent.clear()
+b = submit(f"Сверить манифест контрактов. проба: {SPEC}", "voice-owner-0002"); cardB = tracker / b["card"]
+intake()
+dB = cd.dispatch(executor="cycle-a", tracker_dir=tracker, claim=claim, now=NOW, outbox_path=obox, notify=notify)
+dB2 = cd.dispatch(executor="cycle-b", tracker_dir=tracker, claim=claim, now=NOW, outbox_path=obox, notify=notify)
+print(f"  диспетчер: taken={Path(dB['taken']).name if dB['taken'] else None} probe={dB['probe']}; повтор другим исполнителем: taken={dB2['taken']}")
+show("B после взятия", cardB)
+r = cd.settle(cardB, executor="cycle-a", now=NOW, runner=lambda _s: (ca.SATISFIED, "проба удовлетворена (подменённый замер сцены)"),
+              outbox_path=obox, notify=notify)
+r2 = cd.settle(cardB, executor="cycle-a", now=NOW, outbox_path=obox, notify=notify)
+print(f"  settle: {r['action']}; повторный settle: {r2['action']}")
+show("B после проверки", cardB)
+print(f"  уведомлений: {len(sent)}: {[s[:90] for s in sent]}")
+
+print("\n=== C. Проверка не прошла → понятный отказ, второго исполнения нет ===")
+sent.clear()
+c = submit(f"Сверить манифест ещё раз. проба: {SPEC}", "voice-owner-0003"); cardC = tracker / c["card"]
+intake(); cd.dispatch(executor="cycle-a", tracker_dir=tracker, claim=claim, now=NOW, outbox_path=obox, notify=notify)
+rc = cd.settle(cardC, executor="cycle-a", now=NOW, runner=lambda _s: (ca.NOT_SATISFIED, "манифест расходится (сцена)"),
+               outbox_path=obox, notify=notify)
+again = cd.dispatch(executor="cycle-b", tracker_dir=tracker, claim=claim, now=NOW, outbox_path=obox, notify=notify)
+print(f"  settle: {rc['action']}; следующий проход берёт её снова: {again['taken'] is not None}")
+show("C", cardC)
+print(f"  уведомлений: {len(sent)}")
+
+live_after = sorted(os.listdir(LIVE)) if LIVE.is_dir() else None
+print("\nживой трекер не тронут:", live_before == live_after)

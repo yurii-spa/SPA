@@ -1,0 +1,24 @@
+=== A. ОБЫЧНАЯ голосовая запись владельца, без внутреннего имени пробы ===
+  отправка ×2 с одним submission_id → карточек: 1; ответы: True, повтор: True
+  текст сохранён: True
+  диспетчер: taken=None no_probe=['inbox-prover-pozhaluista-vse-li-v-poryadke-s-n.md']; второй проход: taken=None no_probe=[]
+  карточка inbox-prover-pozhaluista-vse-li-v-poryadke-s-n.md: status=new source=cockpit-voice author=owner claimed_by=None verdict=no_probe verified_by=None
+  «Мои записи»: {"reason": "проверка результата не объявлена, поэтому «сделано» поставить нельзя", "next_step": "нужна машинная проверка результата: допишите в запись строку «проба: <имя>» (список — (служебное имя).PROBES) или агент заведёт новую пробу с контролем в обе стороны; до этого запись не исполняется, чтобы «сделано» не было поставлено на слово"}
+  уведомлений после приёма: 1; после диспетчера: 2 (последнее: '🔧 Ваша запись «Проверь, пожалуйста, всё ли в порядке с ночным бэкапом и скажи мне итог» — не взята в работу; ещё не принята: проверка результата не объявлена, п')
+
+=== B. Запись с ОБЪЯВЛЕННОЙ пробой (внутреннее имя — так устроена приёмка сегодня) ===
+  диспетчер: taken=inbox-sverit-manifest-kontraktov-proba-contrac.md probe=contract_manifest_parity_agrees; повтор другим исполнителем: taken=None
+  карточка inbox-sverit-manifest-kontraktov-proba-contrac.md: status=in-progress source=cockpit-voice author=owner claimed_by=cycle-a verdict=None verified_by=None
+  «Мои записи»: {"reason": null, "next_step": null}
+  settle: closed; повторный settle: already-done
+  карточка inbox-sverit-manifest-kontraktov-proba-contrac.md: status=done source=cockpit-voice author=owner claimed_by=cycle-a verdict=satisfied verified_by=contract_manifest_parity_agrees
+  «Мои записи»: {"reason": null, "next_step": null}
+  уведомлений: 2: ['📥 Создал задачу: <b>Сверить манифест контрактов. проба: contract_manifest_parity_agrees</b', '✅ Ваша запись «Сверить манифест контрактов. проба: contract_manifest_parity_agrees» — сдел']
+
+=== C. Проверка не прошла → понятный отказ, второго исполнения нет ===
+  settle: blocked; следующий проход берёт её снова: False
+  карточка inbox-sverit-manifest-esche-raz-proba-contract.md: status=blocked source=cockpit-voice author=owner claimed_by=cycle-a verdict=executor_failed verified_by=None
+  «Мои записи»: {"reason": "исполнитель не смог выполнить работу: цикл исполнителя закончился, а проверка (служебное имя) ответила (служебное имя): манифест расходится (сцена)", "next_step": "карточка остановлена до разбора; второго автоматического исполнения нет, чтобы работа не выполнилась дважды — её снимет с блока и возьмёт заново следующий исполнитель, назвав причину"}
+  уведомлений: 2
+
+живой трекер не тронут: True
