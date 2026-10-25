@@ -271,3 +271,19 @@ def test_the_subject_is_shown_as_a_model_proposal_not_a_permission(tmp_path, sub
     assert rec["preparation"]["subject_note"] == rv.SUBJECT_NOTE
     md = (out / "recommendation.md").read_text(encoding="utf-8")
     assert "предложен моделью" in md and "не разрешение исполнять" in md and "даже NONE" in md
+
+
+@pytest.mark.parametrize("real", [False, True])
+def test_the_disclaimer_names_who_wrote_the_answer(tmp_path, real):
+    """Найдено на реальном прогоне 25.10: «тестовый ответ…» печаталось и для настоящего провайдера."""
+    from spa_core.studio_os.model_roles import contract as c
+    root, verified = trp._scene(tmp_path)
+    cfg = c.load_config()
+    pid = "claude_subscription_cli" if real else "fixture_test_adapter"
+    key = "claude_cli" if real else "fixture"
+    rec = rv.run_review(root, handover="docs/evidence/HANDOVER.md", task_id="t", task=REQUEST, verified_sha=verified,
+                        provider=pid, out=tmp_path / "o", roadmap_item=17, config=cfg,
+                        adapters={key: ad.fixture({"*": _answer()})}, at=trp.AT, kind=rv.KIND_PREP)
+    md = (tmp_path / "o" / "recommendation.md").read_text(encoding="utf-8")
+    assert rec["real_provider"] is real
+    assert (rv.PREP_REAL_NOTE in md) is real and (rv.PREP_FIXTURE_NOTE in md) is (not real)

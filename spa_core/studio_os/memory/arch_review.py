@@ -80,7 +80,10 @@ SUBJECT_NOTE = ("предмет полномочий предложен моде
                 "Это не независимая проверка прав и не разрешение исполнять — даже NONE")
 PREP_DISCLAIMER = ("ПРЕДЛОЖЕНИЕ ДЛЯ РАЗБОРА — не задание к исполнению: карточка не меняется, проверка результата не "
                    "назначается, исполнитель не запускается, ничего не объявлено сделанным. Зарегистрированное имя "
-                   "проверки не доказывает, что она меряет это поручение. Тестовый ответ не оценивает реальную модель.")
+                   "проверки не доказывает, что она меряет это поручение.")
+#: Which provider wrote the answer changes what the answer can show — said in the disclaimer itself.
+PREP_FIXTURE_NOTE = "Ответ тестового адаптера — не модель: показаны форма и сверка, качество модели не оценено."
+PREP_REAL_NOTE = "Ответ настоящей модели — черновик: один ответ не доказывает пригодность модели."
 PREP_INSTRUCTION = """Prepare ONE ordinary request of the owner for later work. Use ONLY the context below. Do NOT do the work.
 The owner's request, verbatim (do not rewrite it):
 <<<REQUEST
@@ -232,7 +235,7 @@ def run_review(root: Path, *, handover: str, task_id: str, task: str, verified_s
     }
     if kind == KIND_PREP:
         record.update(review_version=PREP_VERSION, kind=KIND_PREP, request_sha256=_sha(task),
-                      disclaimer=PREP_DISCLAIMER,
+                      disclaimer=PREP_DISCLAIMER + " " + (PREP_REAL_NOTE if res.real_provider else PREP_FIXTURE_NOTE),
                       preparation=check_preparation(sections) if res.status == "ok" else None)
     out.mkdir(parents=True, exist_ok=True)
     from spa_core.utils.atomic import atomic_save, atomic_save_text
