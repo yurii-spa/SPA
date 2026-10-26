@@ -164,10 +164,12 @@ risk-логику, стоп-кран, аллокатор, живой трек и
 from __future__ import annotations
 
 import argparse
+import importlib.util
 import json
 import re
 import statistics
 import sys
+import tempfile
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from typing import Optional
@@ -177,6 +179,7 @@ if str(_REPO_ROOT) not in sys.path:
     sys.path.insert(0, str(_REPO_ROOT))
 
 from spa_core.monitoring import artifact_io_scan  # noqa: E402
+from spa_core.monitoring import call_provenance  # noqa: E402
 from spa_core.monitoring import slo_proposal  # noqa: E402
 from spa_core.monitoring.manifest_slo import slo_hours_by_path  # noqa: E402
 from spa_core.utils.atomic import atomic_save  # noqa: E402
@@ -1556,6 +1559,371 @@ def write_stamp_price_line(doc: dict) -> str:
         "это РАЗНЫЕ числа")
 
 
+#: ИМЯ файла-пробы, которым спрашивается читатель штампа (ADR-822). Отметка
+#: собирается НАСТОЯЩИМ производителем (:func:`call_provenance.call_provenance`)
+#: на этом файле, а не складывается руками: собранная руками отметка проверяла
+#: бы СВОЙ словарь, а не проводку — ровно та ошибка, которую положительный
+#: контроль ADR-820/821 пережил дважды (мутация «секция под другим именем»).
+STAMP_READER_PROBE_NAME = "spa_stamp_reader_probe_entry.py"
+
+#: Загруженная дверь чтения. Ключ — (путь, отметка файла, размер): ключ по
+#: одному пути отвечал бы о двери, какой она была при первом зове, и правка
+#: читателя внутри процесса осталась бы невидимой (тот же выбор и та же
+#: причина, что у :data:`_DOORS_CACHE`).
+_READER_DOOR_CACHE: dict = {}
+
+
+def stamp_reader_probe(root: Optional[Path] = None, *, provenance=None) -> tuple:
+    """Отметка-ПРОБА, собранная настоящим производителем. ``(отметка, причина)``.
+
+    ``None`` в первом элементе — НЕ ИЗМЕРЕНО с причиной (инв. #17): без
+    отметки спросить читателя нечем, и «читателя нет» из этого не следует.
+
+    **``provenance`` — ПРОИЗВОДИТЕЛЬ ВХОДОМ, а не окружением** (тот же приём,
+    что у часов и у живости процесса в `.claude/rules/deployment.md`).
+    Умолчание читает настоящего (:func:`call_provenance.call_provenance`), и
+    он на существующем файле всегда отвечает ``measured=True`` — поэтому
+    отказные ветки этой двери БЕЗ инъекции недостижимы по построению, а
+    недостижимая ветка есть ветка непроверенная. Найдено своим же мутационным
+    прогоном: мутация «отметка-проба принимается НЕИЗМЕРЕННОЙ» пережила первый
+    прогон именно потому, что подставить молчащего производителя было нечем.
+    """
+    produce = provenance or call_provenance.call_provenance
+    with tempfile.TemporaryDirectory(prefix="spa_stamp_reader_") as folder:
+        probe = Path(folder) / STAMP_READER_PROBE_NAME
+        try:
+            probe.write_text("# проба читателя штампа (ADR-822)\n", encoding="utf-8")
+        except OSError as exc:
+            return None, (f"файл-пробу не создать ({type(exc).__name__}) — "
+                          f"отметку собирать нечем")
+        try:
+            stamp = produce(
+                tree_root=Path(root) if root is not None else None,
+                main_file=str(probe), argv=[])
+        except Exception as exc:  # производитель чужой — его отказ не наш вердикт
+            return None, (f"производитель отметки отказал "
+                          f"({type(exc).__name__}: {exc})")
+    if not isinstance(stamp, dict) or not stamp.get("measured"):
+        return None, (f"производитель отметки не назвал входа: "
+                      f"{(stamp or {}).get('reason') if isinstance(stamp, dict) else stamp!r}")
+    entry = stamp.get(ATTRIBUTION_ENTRY_FIELD)
+    if not isinstance(entry, str) or not entry:
+        return None, "производитель отметки вернул вход не строкой — искать нечего"
+    return stamp, ""
+
+
+def stamp_reader_door(root: Path) -> tuple:
+    """ИЗМЕРЕННАЯ дверь чтения артефакта. ``(дверь, причина)``.
+
+    Дверь ОДНА и выбрана ЗАМЕРОМ, а не вкусом: ``scripts/consume_office_reports.py``
+    — единственный читатель, про которого ИЗМЕРЕНО, что его вывод доходит до
+    цикла (ADR-820; прочие строки печатает мост, чей stdout уходит в лог
+    агента). В конституции он же объявлен потребителем **141** артефакта из
+    161 — остальные 20 имён принадлежат двадцати артефактам и НЕ ИЗМЕРЕНЫ.
+
+    Берётся ``_summarize_json`` — ветка отрисовки ОДНОГО артефакта, а не
+    ``main()``: ``main()`` пишет квитанции потребления на диск, и спросить им
+    читателя значило бы изменить состояние системы вопросом о ней. Имя приватно
+    намеренно: вопрос заказа — что делает НАСТОЯЩИЙ читатель, а не что про него
+    объявлено, и публичной двери к его отрисовке в скрипте нет.
+    """
+    path = Path(root) / "scripts" / "consume_office_reports.py"
+    try:
+        stat = path.stat()
+    except OSError as exc:
+        return None, (f"читателя нет в дереве ({path}): {type(exc).__name__} — "
+                      f"про читателя штампа не сказано ничего")
+    key = (str(path.resolve()), stat.st_mtime_ns, stat.st_size)
+    cached = _READER_DOOR_CACHE.get(key)
+    if cached is not None:
+        return cached, ""
+    spec = importlib.util.spec_from_file_location(
+        "spa_stamp_reader_door_consume_office_reports", path)
+    if spec is None or spec.loader is None:
+        return None, f"читатель {path} не загружается как модуль"
+    module = importlib.util.module_from_spec(spec)
+    try:
+        spec.loader.exec_module(module)
+    except Exception as exc:  # чужой модуль — его отказ не наш вердикт
+        return None, (f"читатель {path} не загрузился "
+                      f"({type(exc).__name__}: {exc})")
+    for name in ("_summarize_json", "office_targets"):
+        if not callable(getattr(module, name, None)):
+            return None, (f"у читателя {path} нет двери `{name}` — спросить его "
+                          f"нечем")
+    _READER_DOOR_CACHE[key] = module
+    return module, ""
+
+
+def stamp_reader_observation(door, stamp: dict, path: Path, *,
+                             root: Path, artifact_root: Path,
+                             now: Optional[datetime] = None) -> dict:
+    """ДИФФЕРЕНЦИАЛЬНЫЙ замер: меняется ли вывод читателя от ПОЯВЛЕНИЯ отметки.
+
+    Один и тот же документ отрисовывается ДВАЖДЫ — без отметки и с отметкой, —
+    и сравниваются ВЫВОДЫ. Это и есть «мерить исходом, не структурой» (заказ
+    G821 п. 1): объявление поля читаемым краснеет на ОТСУТСТВИИ отметки и
+    ничего не обещает про её ПОЯВЛЕНИЕ, а разница выводов есть наблюдение.
+
+    Направление замера — ПОЯВЛЕНИЕ, и это существенно. Отметка снимается с
+    документа ПЕРЕД первой отрисовкой: иначе у пятнадцати артефактов, уже
+    несущих её, «без отметки» означало бы «с настоящей отметкой», и вопрос
+    «если появится» подменился бы вопросом «если сменится значение».
+    """
+    try:
+        if not path.is_file():
+            return {"differs": None, "entry_printed": None,
+                    "why": f"носителя нет на месте ({path}) — читателя "
+                           f"спросить нечем"}
+    except OSError as exc:
+        return {"differs": None, "entry_printed": None,
+                "why": f"наличие носителя не прочитано ({type(exc).__name__})"}
+    try:
+        doc = json.loads(path.read_text(encoding="utf-8", errors="replace"))
+    except (OSError, ValueError) as exc:
+        return {"differs": None, "entry_printed": None,
+                "why": f"носитель не разобран как JSON ({type(exc).__name__}) — "
+                       f"отрисовать его читателю нечем"}
+    if not isinstance(doc, dict):
+        return {"differs": None, "entry_printed": None,
+                "why": f"корень носителя — {type(doc).__name__}, не объект: "
+                       f"отметки верхнего уровня у него не существует, и вопрос "
+                       f"о её читателе предмета не имеет"}
+    without = dict(doc)
+    without.pop(ATTRIBUTION_ENTRY_KEY, None)
+    with_stamp = dict(without)
+    with_stamp[ATTRIBUTION_ENTRY_KEY] = stamp
+    try:
+        before = door._summarize_json(str(path), without, now=now,
+                                      root=str(root), artifact_root=str(artifact_root))
+        after = door._summarize_json(str(path), with_stamp, now=now,
+                                     root=str(root), artifact_root=str(artifact_root))
+    except Exception as exc:  # отказ ЧУЖОГО читателя — третий исход, не вердикт
+        return {"differs": None, "entry_printed": None,
+                "why": f"читатель отказал на отрисовке "
+                       f"({type(exc).__name__}: {exc})"}
+    needle = str(stamp.get(ATTRIBUTION_ENTRY_FIELD))
+    printed = any(needle in str(line) for line in (after or []))
+    return {"differs": [str(line) for line in (before or [])]
+                       != [str(line) for line in (after or [])],
+            "entry_printed": printed, "why": ""}
+
+
+def stamp_reader_census(write_stamp_price: dict, agents: list, root: Path,
+                        data_dir: Path, *, manifest: Optional[dict] = None,
+                        now: Optional[datetime] = None,
+                        provenance=None) -> dict:
+    """КТО ПРОЧТЁТ штамп атрибуции — СЕДЬМАЯ секция (ADR-822, заказ G821 п. 1).
+
+    ADR-821 назвал ЦЕНУ: одна правка внутри общей двери донесла бы штамп до
+    153 артефактов из 231. Заказ запретил предлагать эту правку прежде, чем
+    спрошено у ЧИТАТЕЛЯ:
+
+        «кто вообще прочтёт ``invoked_by.entry``, если он появится? ADR-820
+        назвал канал единственным найденным, а читателей его не мерил ВОВСЕ.
+        Штамп без читателя есть ровно тот класс „у записки нет читателя“,
+        который закрывали пять ADR подряд. Мерить ИСХОДОМ, не структурой.»
+
+    **Здесь ДВА числа, и они не складываются** — тот же порядок, что у ADR-820
+    и ADR-821:
+
+    ``inventory``
+        перепись ВСЕЙ конституции: сколько артефактов имеют читателя штампа.
+        Это про НАЛИЧИЕ читателя в системе.
+    ``population``
+        артефакты, которым штамп ДОСТАЛСЯ БЫ от одной правки — то есть строки
+        ШЕСТОЙ секции с ценой :data:`slo_proposal.STAMP_ONE_EDIT`, взятые
+        ССЫЛКОЙ, а не посчитанные заново. Это и есть население ВОПРОСА: про
+        артефакт, которому штамп не придёт, вопрос о его читателе задан не был.
+
+    Замер 26.10 (231 артефакт, прод-каталог ``data/``): вход НАЗВАН у **11**,
+    замечено только ОТСУТСТВИЕ у **4**, читатель НЕМ у **123**, двери не
+    адресовано **69**, имя СПОРНО у **1**, НЕ ИЗМЕРЕНО **24** (носителя нет 10
+    · носитель — лента строк или не объект 14). У населения вопроса (153
+    артефакта, которым штамп пришёл бы) прочитан был бы **11**.
+
+    **Ответ заказа: правку предлагать НЕ НАДО.** Одна правка дёшева (ADR-821) и
+    молча: 142 штампа из 153 пришли бы туда, где их никто не читает. «Дешевле,
+    чем кажется» и «есть кому прочесть» — разные утверждения, и второе измерено
+    отрицательно.
+
+    Вердикты сроков эта перепись не переписывает ни одним числом — тот же
+    порядок, что у ADR-816/817/819/820/821 (заказ G815 п. 2).
+    """
+    stamp, why = stamp_reader_probe(root, provenance=provenance)
+    if stamp is None:
+        return {"status": slo_proposal.READER_UNMEASURED,
+                "cause": f"отметка-проба НЕ СОБРАНА: {why}",
+                "door": None, "inventory": None, "inventory_population": None,
+                "population": None, "population_cause": None,
+                "population_rows": None, "tally": None, "rows": None,
+                "findings": None}
+    door, why = stamp_reader_door(Path(root))
+    if door is None:
+        return {"status": slo_proposal.READER_UNMEASURED,
+                "cause": f"измеренная дверь чтения НЕ ОПРОШЕНА: {why}",
+                "door": None, "inventory": None, "inventory_population": None,
+                "population": None, "population_cause": None,
+                "population_rows": None, "tally": None, "rows": None,
+                "findings": None}
+    declared: dict = {}
+    for agent in agents:
+        if not isinstance(agent, dict):
+            continue
+        label = str(agent.get("label") or "")
+        if not label:
+            continue
+        for produced in (agent.get("produces") or []):
+            if isinstance(produced, dict) and produced.get("artifact"):
+                declared.setdefault(str(produced["artifact"]), set()).add(label)
+    if not declared:
+        return {"status": slo_proposal.READER_UNMEASURED,
+                "cause": "в конституции нет ни одного объявленного артефакта — "
+                         "читателя штампа не на чем мерить",
+                "door": str(Path(root) / "scripts" / "consume_office_reports.py"),
+                "inventory": None, "inventory_population": None,
+                "population": None, "population_cause": None,
+                "population_rows": None, "tally": None, "rows": None,
+                "findings": None}
+
+    # АДРЕСНОСТЬ спрашивается у ЕДИНСТВЕННОГО читателя правила отбора
+    # (`office_targets`, ADR-502): своя копия «что офис обязан прочитать»
+    # разошлась бы молча, и перепись мерила бы НЕ ТОТ операнд, которым
+    # работает шаг. Манифест не передан ⇒ адресность НЕ ИЗМЕРЕНА у ВСЕХ, а
+    # не False: False означал бы «дверь его не читает», то есть ответ.
+    addressed: Optional[set] = None
+    addressed_cause = ""
+    if isinstance(manifest, dict):
+        try:
+            addressed = {str(item) for item in door.office_targets(manifest)}
+        except Exception as exc:
+            addressed_cause = (f"перечень адресованного двери не получен "
+                               f"({type(exc).__name__}: {exc})")
+    else:
+        addressed_cause = "конституция в перепись не передана"
+
+    # Спорность имени — ДЛЯ ЧИТАТЕЛЯ, и мера у неё своя: ветки отрисовки
+    # выбираются по `os.path.basename`, поэтому спорным имя делает другой
+    # ОБЪЯВЛЕННЫЙ артефакт с тем же именем файла. Это НЕ та же мера, что в
+    # шестой секции (там спорность считается по литералам путей у дверей
+    # записи): вопросы разные, и одна мера на два вопроса ответила бы на один.
+    by_basename: dict = {}
+    for artifact in declared:
+        by_basename.setdefault(artifact.split("/")[-1], set()).add(artifact)
+
+    dd = Path(data_dir)
+    rows: list = []
+    inventory: dict = {}
+    for artifact in sorted(declared):
+        is_addressed = None if addressed is None else (artifact in addressed)
+        contested = len(by_basename.get(artifact.split("/")[-1]) or ()) > 1
+        obs = {"differs": None, "entry_printed": None, "why": addressed_cause}
+        if is_addressed and not contested:
+            obs = stamp_reader_observation(
+                door, stamp, artifact_file(artifact, Path(root), dd),
+                root=Path(root), artifact_root=dd.parent, now=now)
+        kind, why = slo_proposal.stamp_reader(
+            obs.get("differs"), obs.get("entry_printed"),
+            addressed=is_addressed, name_contested=contested)
+        inventory[kind] = inventory.get(kind, 0) + 1
+        rows.append({"artifact": artifact, "reader": kind,
+                     "addressed": is_addressed, "name_contested": contested,
+                     "differs": obs.get("differs"),
+                     "entry_printed": obs.get("entry_printed"),
+                     "note": f"{why}; {obs['why']}" if obs.get("why") else why})
+
+    by_artifact = {row["artifact"]: row for row in rows}
+    # Население ВОПРОСА берётся ССЫЛКОЙ у ШЕСТОЙ секции: там измерено, КОМУ
+    # штамп достанется от одной правки. Пересчитать его здесь значило бы
+    # завести ВТОРОЕ определение одного населения.
+    population: Optional[list] = None
+    population_cause = None
+    section = write_stamp_price if isinstance(write_stamp_price, dict) else {}
+    if section.get("status") != "OK" or not isinstance(section.get("rows"), list):
+        population_cause = (
+            "население вопроса НЕ ИЗМЕРЕНО — шестая секция "
+            "(`declared_write_stamp_price`) его не дала: "
+            f"{section.get('cause') or section.get('status') or 'секции нет'}")
+    else:
+        population = []
+        for row in section["rows"]:
+            if not isinstance(row, dict) or not row.get("artifact"):
+                continue
+            if row.get("price") != slo_proposal.STAMP_ONE_EDIT:
+                continue
+            mine = by_artifact.get(str(row["artifact"]))
+            population.append({
+                "artifact": str(row["artifact"]),
+                "price": row.get("price"),
+                "reader": (mine or {}).get("reader") or slo_proposal.READER_UNMEASURED,
+            })
+
+    tally: dict = {}
+    for row in (population or []):
+        tally[row["reader"]] = tally.get(row["reader"], 0) + 1
+    return {
+        "status": "OK",
+        "door": str(Path(root) / "scripts" / "consume_office_reports.py"),
+        "probe_entry": stamp.get(ATTRIBUTION_ENTRY_FIELD),
+        "inventory": inventory,
+        "inventory_population": len(declared),
+        "population": None if population is None else len(population),
+        "population_cause": population_cause,
+        "population_rows": population,
+        "tally": tally,
+        "data_dir": str(dd),
+        # НАХОДКА — артефакт, чья отметка ОБЪЯВЛЕНА читаемой и чей читатель
+        # умеет пожаловаться только на её ОТСУТСТВИЕ. «Читатель нем» находкой
+        # НЕ является: это ответ заказа (штамп без читателя), а не дефект
+        # проводки — чинится он решением не платить, а не правкой.
+        "findings": [row for row in rows
+                     if row["reader"] == slo_proposal.READER_ABSENCE_ONLY],
+        "rows": rows,
+    }
+
+
+def stamp_reader_line(doc: dict) -> str:
+    """Строка ЧИТАТЕЛЯ штампа. Единственная её форма, читатель — :func:`report`.
+
+    Тот же выбор читателя и та же измеренная причина, что у
+    :func:`write_attribution_line` и :func:`write_stamp_price_line` (ADR-820):
+    строка, которую печатает только ``findings_bridge``, уходит в лог агента, а
+    не в вывод шага 0-офис.
+    """
+    section = observed(doc, "declared_stamp_reader", kind=dict)
+    if section is None:
+        return ("  читатель штампа атрибуции: НЕ ИЗМЕРЕНО — секции "
+                "`declared_stamp_reader` в замере нет (отчёт написан "
+                "производителем ДО ADR-822)")
+    if section.get("status") != "OK":
+        return ("  читатель штампа атрибуции: НЕ ИЗМЕРЕНО — "
+                f"{section.get('cause') or 'причина не названа'}")
+    inventory = observed(section, "inventory", kind=dict) or {}
+    tally = observed(section, "tally", kind=dict) or {}
+    findings = section.get("findings") or []
+    names = ", ".join(str(row.get("artifact")) for row in findings)
+    population = section.get("population")
+    read = tally.get(slo_proposal.READER_ENTRY_NAMED, 0)
+    return (
+        "  читатель штампа атрибуции (ADR-822, в сумму вердиктов НЕ входит): по "
+        f"ВСЕЙ конституции ({section.get('inventory_population')} артефакт(ов)) "
+        f"вход НАЗВАЛ БЫ читатель у {inventory.get(slo_proposal.READER_ENTRY_NAMED, 0)}"
+        f" · замечено только ОТСУТСТВИЕ у "
+        f"{inventory.get(slo_proposal.READER_ABSENCE_ONLY, 0)}"
+        f"{f' ({names})' if names else ''} · читатель НЕМ у "
+        f"{inventory.get(slo_proposal.READER_MUTE, 0)} · измеренной двери НЕ "
+        f"адресовано {inventory.get(slo_proposal.READER_NOT_ADDRESSED, 0)} · имя "
+        f"СПОРНО {inventory.get(slo_proposal.READER_NAME_CONTESTED, 0)} · НЕ "
+        f"ИЗМЕРЕНО {inventory.get(slo_proposal.READER_UNMEASURED, 0)}; у НАСЕЛЕНИЯ "
+        f"ВОПРОСА ("
+        f"{'НЕ ИЗМЕРЕНО' if population is None else str(population) + ' артефакт(ов), которым штамп пришёл бы от ОДНОЙ правки'}"
+        f") прочитан был бы {read}"
+        + ("" if population is None else
+           f", остальные {population - read} пришли бы НЕМЫМИ")
+        + " — ЦЕНА и ЧИТАТЕЛЬ это РАЗНЫЕ числа, и дешёвая правка молчит так же "
+          "дорого")
+
+
 def write_attribution_line(doc: dict) -> str:
     """Строка КАНАЛА АТРИБУЦИИ. Единственная её форма.
 
@@ -1910,6 +2278,12 @@ def measure(manifest_path: Optional[Path] = None, *, log_dir: Path = Path("/tmp"
     # разных ответа про один артефакт при любом сдвиге содержимого файла.
     _attribution_section = write_attribution_census(
         _reality_section, agents, base, data)
+    # Замер ШЕСТОЙ секции тоже считается ОДИН раз: её строки с ценой «одна
+    # правка» суть население вопроса для СЕДЬМОЙ (ADR-822), и второй
+    # независимый прогон дал бы два разных ответа про один артефакт при любом
+    # сдвиге дерева кода.
+    _price_section = write_stamp_price_census(
+        _attribution_section, agents, base, data)
     return {
         "status": "OK",
         "generated_at": _stamp(now),
@@ -1959,8 +2333,15 @@ def measure(manifest_path: Optional[Path] = None, *, log_dir: Path = Path("/tmp"
         # неё не срок и не канал, а то, ЧЕГО СТОИЛА БЫ правка, дающая канал.
         # ПЯТАЯ секция подаётся ей входом (население вопроса берётся ССЫЛКОЙ, а
         # не считается заново), и её «НЕ ИЗМЕРЕНО» остаётся «НЕ ИЗМЕРЕНО».
-        "declared_write_stamp_price": write_stamp_price_census(
-            _attribution_section, agents, base, data),
+        "declared_write_stamp_price": _price_section,
+        # ЧИТАТЕЛЬ ШТАМПА — СЕДЬМАЯ секция (ADR-822, заказ G821 п. 1). Как и
+        # шесть предыдущих, в `tally`/`verdict` не входит ни одним числом:
+        # предмет у неё не срок, не канал и не цена, а то, ПРОЧТЁТ ЛИ кто-нибудь
+        # штамп, если правка его принесёт. ШЕСТАЯ секция подаётся ей входом
+        # (население вопроса — её строки с ценой «одна правка», взятые ССЫЛКОЙ),
+        # и её «НЕ ИЗМЕРЕНО» остаётся «НЕ ИЗМЕРЕНО», а не превращается в ноль.
+        "declared_stamp_reader": stamp_reader_census(
+            _price_section, agents, base, data, manifest=payload, now=now),
         "rows": rows,
         "findings": findings,
         "measured_from": {"manifest": str(manifest), "log_dir": str(log_dir),
@@ -1981,6 +2362,19 @@ def measure(manifest_path: Optional[Path] = None, *, log_dir: Path = Path("/tmp"
             "конституции у агента объявлена только обёртка (`program`), правила "
             "«обёртка → цель» здесь нет ни строкой — `write_attribution_entry_named` "
             "означает «канал к запущенному существует», а не «агент назван»",
+            "ЧИТАТЕЛЕЙ штампа БОЛЬШЕ ОДНОЙ двери (ADR-822): измеренная "
+            "дверь одна — отрисовка шага 0-офис (`_summarize_json`), и выбрана "
+            "она потому, что про её вывод ИЗМЕРЕНО, что он доходит до цикла. "
+            "Прочие объявленные потребители (20 имён на 20 артефактов против "
+            "141 у `orchestrator_protocol`) НЕ ИЗМЕРЕНЫ, и "
+            "`stamp_reader_door_not_addressed` означает «измеренная дверь его "
+            "не зовёт», а не «читателя нет вовсе»",
+            "читателя МАРКДАУН-артефакта (ADR-822): у шага 0-офис своя дверь "
+            "`_summarize_md`, и спрошена она не была — `docs/SYSTEM_BRIEFING.md` "
+            "остаётся третьим исходом с названной причиной, а не «читателя нет»",
+            "НАДО ЛИ делать правку (ADR-822): перепись отвечает, сколько "
+            "штампов пришло бы НЕМЫМИ, а решение платить или нет — предмет с "
+            "автором; прибор только ЧИТАЕТ",
             "запись ПРОГОНОВ как канал атрибуции (ADR-820): обёртка пишет в лог "
             "баннеры START/EXIT с именем агента и pid, но про записи ФАЙЛОВ в "
             "нём нет ни строки; связать запись с прогоном по времени значило бы "
@@ -2125,6 +2519,8 @@ def report(doc: dict, max_rows: int = 12) -> list:
     # ЦЕНА ШТАМПА — строка ЗДЕСЬ по той же измеренной причине (ADR-820): то,
     # что печатает только мост, цикл не читает.
     lines.append(write_stamp_price_line(doc))
+    # ЧИТАТЕЛЬ ШТАМПА — строка ЗДЕСЬ по той же измеренной причине (ADR-820).
+    lines.append(stamp_reader_line(doc))
     causes = observed(doc, "unmeasured_causes", kind=dict) or {}
     if causes:
         lines.append("  такт НЕ наблюдён, по причинам: " + " · ".join(

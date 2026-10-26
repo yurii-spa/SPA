@@ -1,0 +1,206 @@
+{
+ "title": "ADR-822 — дельта цикла #946 (кто прочтёт штамп атрибуции)",
+ "tests": [
+  "spa_core/tests/test_slo_stamp_reader.py"
+ ],
+ "mutations": [
+  {
+   "name": "НЕ АДРЕСОВАННЫЙ артефакт судится по отрисовке, которой у него не бывает",
+   "file": "spa_core/monitoring/slo_proposal.py",
+   "old": "    if not addressed:\n        return READER_NOT_ADDRESSED, (",
+   "new": "    if False:\n        return READER_NOT_ADDRESSED, ("
+  },
+  {
+   "name": "АДРЕСНОСТЬ спрашивается ПОСЛЕ исхода отрисовки — порядок вопросов перевёрнут",
+   "file": "spa_core/monitoring/slo_proposal.py",
+   "old": "    if not addressed:\n        return READER_NOT_ADDRESSED, (",
+   "new": "    if not addressed and differs is None:\n        return READER_NOT_ADDRESSED, ("
+  },
+  {
+   "name": "НЕ ИЗМЕРЕННАЯ адресность выдаётся за «дверь его не читает»",
+   "file": "spa_core/monitoring/slo_proposal.py",
+   "old": "    if addressed is None:\n        return READER_UNMEASURED, (",
+   "new": "    if False:\n        return READER_UNMEASURED, ("
+  },
+  {
+   "name": "СПОРНОЕ ИМЯ игнорируется: ответ чужой ветки отрисовки приписывается артефакту",
+   "file": "spa_core/monitoring/slo_proposal.py",
+   "old": "    if name_contested:\n        return READER_NAME_CONTESTED, (",
+   "new": "    if False:\n        return READER_NAME_CONTESTED, ("
+  },
+  {
+   "name": "СПОРНОСТЬ судится правдивостью, а не родом — строка «возможно» проходит как «нет спора»",
+   "file": "spa_core/monitoring/slo_proposal.py",
+   "old": "    if name_contested is None or not isinstance(name_contested, bool):",
+   "new": "    if name_contested is None:"
+  },
+  {
+   "name": "НЕ СОСТОЯВШАЯСЯ отрисовка выдаётся за «читатель нем» — fail-OPEN тише красного",
+   "file": "spa_core/monitoring/slo_proposal.py",
+   "old": "    if differs is None:\n        return READER_UNMEASURED, (",
+   "new": "    if False:\n        return READER_UNMEASURED, ("
+  },
+  {
+   "name": "ИСХОД ОТРИСОВКИ судится правдивостью, а не родом — строка проходит как «разошлось»",
+   "file": "spa_core/monitoring/slo_proposal.py",
+   "old": "    if not isinstance(differs, bool):\n        return READER_UNMEASURED, (",
+   "new": "    if False:\n        return READER_UNMEASURED, ("
+  },
+  {
+   "name": "НАЗВАН ЛИ ВХОД не спрашивается вовсе: «замечено отсутствие» сливается с «прочитан»",
+   "file": "spa_core/monitoring/slo_proposal.py",
+   "old": "    if entry_printed:\n        return READER_ENTRY_NAMED, (",
+   "new": "    if True:\n        return READER_ENTRY_NAMED, ("
+  },
+  {
+   "name": "НЕ ИЗМЕРЕННОЕ «назван ли вход» выдаётся за «вход не назван»",
+   "file": "spa_core/monitoring/slo_proposal.py",
+   "old": "    if entry_printed is None:\n        return READER_UNMEASURED, (",
+   "new": "    if False:\n        return READER_UNMEASURED, ("
+  },
+  {
+   "name": "ВОПРОС ПОДМЕНЁН: отметка НЕ снимается перед первой отрисовкой — мерится смена ЗНАЧЕНИЯ, а не ПОЯВЛЕНИЕ",
+   "file": "spa_core/monitoring/slo_keepability.py",
+   "old": "    without = dict(doc)\n    without.pop(ATTRIBUTION_ENTRY_KEY, None)",
+   "new": "    without = dict(doc)"
+  },
+  {
+   "name": "НУЖНОЕ СРАВНЕНИЕ НАОБОРОТ: вход ищется в выводе БЕЗ отметки",
+   "file": "spa_core/monitoring/slo_keepability.py",
+   "old": "    printed = any(needle in str(line) for line in (after or []))",
+   "new": "    printed = any(needle in str(line) for line in (before or []))"
+  },
+  {
+   "name": "КОРЕНЬ НЕ ОБЪЕКТ выдаётся за «читатель нем», а не за третий исход",
+   "file": "spa_core/monitoring/slo_keepability.py",
+   "old": "        return {\"differs\": None, \"entry_printed\": None,\n                \"why\": f\"корень носителя — {type(doc).__name__}, не объект: \"",
+   "new": "        return {\"differs\": False, \"entry_printed\": False,\n                \"why\": f\"корень носителя — {type(doc).__name__}, не объект: \""
+  },
+  {
+   "name": "ОТСУТСТВИЕ НОСИТЕЛЯ выдаётся за «читатель нем»",
+   "file": "spa_core/monitoring/slo_keepability.py",
+   "old": "            return {\"differs\": None, \"entry_printed\": None,\n                    \"why\": f\"носителя нет на месте ({path}) — читателя \"",
+   "new": "            return {\"differs\": False, \"entry_printed\": False,\n                    \"why\": f\"носителя нет на месте ({path}) — читателя \""
+  },
+  {
+   "name": "НЕРАЗОБРАННЫЙ НОСИТЕЛЬ выдаётся за «читатель нем»",
+   "file": "spa_core/monitoring/slo_keepability.py",
+   "old": "        return {\"differs\": None, \"entry_printed\": None,\n                \"why\": f\"носитель не разобран как JSON ({type(exc).__name__}) — \"",
+   "new": "        return {\"differs\": False, \"entry_printed\": False,\n                \"why\": f\"носитель не разобран как JSON ({type(exc).__name__}) — \""
+  },
+  {
+   "name": "ОТКАЗ ЧИТАТЕЛЯ глотается как «вывод не изменился»",
+   "file": "spa_core/monitoring/slo_keepability.py",
+   "old": "        return {\"differs\": None, \"entry_printed\": None,\n                \"why\": f\"читатель отказал на отрисовке \"",
+   "new": "        return {\"differs\": False, \"entry_printed\": False,\n                \"why\": f\"читатель отказал на отрисовке \""
+  },
+  {
+   "name": "ОТМЕТКА-ПРОБА принимается НЕИЗМЕРЕННОЙ — спрашивать читателя становится нечем, а перепись молчит",
+   "file": "spa_core/monitoring/slo_keepability.py",
+   "old": "    if not isinstance(stamp, dict) or not stamp.get(\"measured\"):",
+   "new": "    if False:"
+  },
+  {
+   "name": "ДВЕРЬ ЧИТАТЕЛЯ принимается БЕЗ своей отрисовки — модуль-пустышка проходит за читателя",
+   "file": "spa_core/monitoring/slo_keepability.py",
+   "old": "    for name in (\"_summarize_json\", \"office_targets\"):\n        if not callable(getattr(module, name, None)):",
+   "new": "    for name in (\"_summarize_json\", \"office_targets\"):\n        if False:"
+  },
+  {
+   "name": "СЛЕПОК ДВЕРИ ключуется одним путём — правка читателя внутри процесса невидима",
+   "file": "spa_core/monitoring/slo_keepability.py",
+   "old": "    key = (str(path.resolve()), stat.st_mtime_ns, stat.st_size)",
+   "new": "    key = (str(path.resolve()),)"
+  },
+  {
+   "name": "НЕПЕРЕДАННАЯ КОНСТИТУЦИЯ выдаётся за «дверь артефакт не читает»",
+   "file": "spa_core/monitoring/slo_keepability.py",
+   "old": "    else:\n        addressed_cause = \"конституция в перепись не передана\"",
+   "new": "    else:\n        addressed = set()\n        addressed_cause = \"конституция в перепись не передана\""
+  },
+  {
+   "name": "НАСЕЛЕНИЕ ВОПРОСА расширяется до ВСЕХ строк цены — вопрос задаётся про штамп, который не придёт",
+   "file": "spa_core/monitoring/slo_keepability.py",
+   "old": "            if row.get(\"price\") != slo_proposal.STAMP_ONE_EDIT:\n                continue",
+   "new": "            if False:\n                continue"
+  },
+  {
+   "name": "СЛОМАННАЯ ШЕСТАЯ СЕКЦИЯ даёт население НОЛЬ вместо НЕ ИЗМЕРЕНО",
+   "file": "spa_core/monitoring/slo_keepability.py",
+   "old": "    if section.get(\"status\") != \"OK\" or not isinstance(section.get(\"rows\"), list):\n        population_cause = (\n            \"население вопроса НЕ ИЗМЕРЕНО — шестая секция \"",
+   "new": "    if False:\n        population_cause = (\n            \"население вопроса НЕ ИЗМЕРЕНО — шестая секция \""
+  },
+  {
+   "name": "НАХОДКОЙ объявляется ОТВЕТ заказа: «читатель нем» выдаётся за дефект проводки",
+   "file": "spa_core/monitoring/slo_keepability.py",
+   "old": "        \"findings\": [row for row in rows\n                     if row[\"reader\"] == slo_proposal.READER_ABSENCE_ONLY],",
+   "new": "        \"findings\": [row for row in rows\n                     if row[\"reader\"] == slo_proposal.READER_MUTE],"
+  },
+  {
+   "name": "ПУСТАЯ КОНСТИТУЦИЯ объявляется измеренной — 231 вердикт «читателя нет» из ничего",
+   "file": "spa_core/monitoring/slo_keepability.py",
+   "old": "    if not declared:\n        return {\"status\": slo_proposal.READER_UNMEASURED,\n                \"cause\": \"в конституции нет ни одного объявленного артефакта — \"",
+   "new": "    if False:\n        return {\"status\": slo_proposal.READER_UNMEASURED,\n                \"cause\": \"в конституции нет ни одного объявленного артефакта — \""
+  },
+  {
+   "name": "СПОРНОСТЬ ИМЕНИ не считается вовсе — чужая ветка отрисовки отвечает за артефакт",
+   "file": "spa_core/monitoring/slo_keepability.py",
+   "old": "        contested = len(by_basename.get(artifact.split(\"/\")[-1]) or ()) > 1",
+   "new": "        contested = False"
+  },
+  {
+   "name": "СЕКЦИЯ ПОПАДАЕТ В ДОКУМЕНТ ПОД ДРУГИМ ИМЕНЕМ — та же мутация, что выжила у ADR-820 и ADR-821",
+   "file": "spa_core/monitoring/slo_keepability.py",
+   "old": "        \"declared_stamp_reader\": stamp_reader_census(",
+   "new": "        \"declared_stamp_readers\": stamp_reader_census("
+  },
+  {
+   "name": "СТРОКА НЕ ПЕЧАТАЕТСЯ: читатель секции — только `--json`, то есть никто",
+   "file": "spa_core/monitoring/slo_keepability.py",
+   "old": "    lines.append(stamp_reader_line(doc))",
+   "new": "    _ = stamp_reader_line(doc)"
+  },
+  {
+   "name": "ВХОДОМ СЕДЬМОЙ СЕКЦИИ подаётся ПЯТАЯ вместо ШЕСТОЙ — население вопроса становится чужим",
+   "file": "spa_core/monitoring/slo_keepability.py",
+   "old": "        \"declared_stamp_reader\": stamp_reader_census(\n            _price_section,",
+   "new": "        \"declared_stamp_reader\": stamp_reader_census(\n            _attribution_section,"
+  },
+  {
+   "name": "ОТСУТСТВУЮЩАЯ СЕКЦИЯ печатается нулями вместо НЕ ИЗМЕРЕНО",
+   "file": "spa_core/monitoring/slo_keepability.py",
+   "old": "    if section is None:\n        return (\"  читатель штампа атрибуции: НЕ ИЗМЕРЕНО — секции \"",
+   "new": "    if section is None:\n        return (\"  читатель штампа атрибуции: 0 — секции \""
+  },
+  {
+   "name": "НЕ ИЗМЕРЕННОЕ НАСЕЛЕНИЕ печатается нулём",
+   "file": "spa_core/monitoring/slo_keepability.py",
+   "old": "        f\"{'НЕ ИЗМЕРЕНО' if population is None else str(population) + ' артефакт(ов), которым штамп пришёл бы от ОДНОЙ правки'}\"",
+   "new": "        f\"{population} артефакт(ов), которым штамп пришёл бы от ОДНОЙ правки\""
+  },
+  {
+   "name": "ЕДИНСТВЕННАЯ ИЗМЕРЕННАЯ ДВЕРЬ не названа — «читателя нет» читается как про систему",
+   "file": "spa_core/monitoring/slo_keepability.py",
+   "old": "            \"ЧИТАТЕЛЕЙ штампа БОЛЬШЕ ОДНОЙ двери (ADR-822): измеренная \"",
+   "new": "            \"— (ADR-822): измеренная \""
+  },
+  {
+   "name": "ИНЪЕКЦИЯ ПРОИЗВОДИТЕЛЯ игнорируется — отказные ветки пробы снова недостижимы",
+   "file": "spa_core/monitoring/slo_keepability.py",
+   "old": "    produce = provenance or call_provenance.call_provenance",
+   "new": "    produce = call_provenance.call_provenance"
+  },
+  {
+   "name": "ИНЪЕКЦИЯ НЕ ПРОБРАСЫВАЕТСЯ переписью — «половина инъекции» (урок #453)",
+   "file": "spa_core/monitoring/slo_keepability.py",
+   "old": "    stamp, why = stamp_reader_probe(root, provenance=provenance)",
+   "new": "    stamp, why = stamp_reader_probe(root)"
+  },
+  {
+   "name": "ВХОД НЕ СТРОКОЙ принимается — искать в выводе становится нечего, а вердикт печатается",
+   "file": "spa_core/monitoring/slo_keepability.py",
+   "old": "    if not isinstance(entry, str) or not entry:",
+   "new": "    if False:"
+  }
+ ]
+}
