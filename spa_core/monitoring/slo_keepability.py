@@ -176,6 +176,7 @@ _REPO_ROOT = Path(__file__).resolve().parents[2]
 if str(_REPO_ROOT) not in sys.path:
     sys.path.insert(0, str(_REPO_ROOT))
 
+from spa_core.monitoring import artifact_io_scan  # noqa: E402
 from spa_core.monitoring import slo_proposal  # noqa: E402
 from spa_core.monitoring.manifest_slo import slo_hours_by_path  # noqa: E402
 from spa_core.utils.atomic import atomic_save  # noqa: E402
@@ -1266,6 +1267,295 @@ def write_attribution_census(producer_reality: dict, agents: list, root: Path,
     }
 
 
+def carrier_root(path: Path) -> tuple:
+    """Какой КОРЕНЬ у носителя — то есть есть ли куда положить отметку.
+
+    Условие ВТОРОЕ и от двери НЕЗАВИСИМОЕ. ``atomic_save`` принимает ``Any`` и
+    кладёт на диск что дали: штамп, положенный внутрь неё, доходит только до
+    документа-ОБЪЕКТА. Поэтому «дверь одна» само по себе покрытия НЕ означает,
+    и вопрос о корне задаётся отдельно.
+
+    Возвращается ``(род, причина)``; род ``None`` — НЕ ИЗМЕРЕНО (инв. #17), и
+    это не то же, что «корень не объект»: нечитаемый файл не доказывает ни
+    способности нести штамп, ни неспособности.
+    """
+    try:
+        if not path.exists():
+            return None, f"носителя нет на месте ({path}) — корень не измерен"
+    except OSError as exc:
+        return None, f"наличие носителя не прочитано ({exc.__class__.__name__})"
+    if path.suffix == ".jsonl":
+        return "лента строк", ("носитель — лента строк: документа верхнего уровня "
+                               "у неё нет вовсе, и отметка легла бы в каждую строку")
+    try:
+        doc = json.loads(path.read_text(encoding="utf-8", errors="replace"))
+    except (OSError, ValueError) as exc:
+        return None, f"носитель не разобран ({exc.__class__.__name__}) — корень НЕ ИЗМЕРЕН"
+    if isinstance(doc, dict):
+        return slo_proposal.CARRIER_OBJECT, "корень — объект: отметка верхнего уровня помещается"
+    return type(doc).__name__, (f"корень — {type(doc).__name__}, не объект: "
+                                f"отметку верхнего уровня положить некуда")
+
+
+#: Слепок прошлого обхода дерева: ключ — (корень, число файлов, самая свежая
+#: отметка, суммарный размер). Нужен не ради скорости как таковой: прибор
+#: зовётся в одном процессе десятки раз (только соседний набор тестов — 60), и
+#: каждый обход стои́т 14,2 с, то есть ЧЕТВЕРТЬ ЧАСА на прогон.
+#:
+#: **Ключ несёт отметки, а не только путь, и это существенно.** Слепок по одному
+#: пути отвечал бы о дереве, КАКИМ ОНО БЫЛО при первом зове, и правка кода
+#: внутри процесса осталась бы невидимой — то есть прибор утверждал бы о
+#: моменте, которого не видел. Снять отметки дёшево (``stat`` без разбора),
+#: поэтому платить за честность нечем.
+_DOORS_CACHE: dict = {}
+
+
+def _tree_fingerprint(folders: list) -> tuple:
+    """(число файлов, самая свежая отметка, суммарный размер) — дёшево и честно."""
+    count = 0
+    newest = 0
+    total = 0
+    for folder in folders:
+        for module in folder.rglob("*.py"):
+            text = str(module)
+            if "/tests/" in text or module.name.startswith("test_"):
+                continue
+            try:
+                stat = module.stat()
+            except OSError:
+                continue
+            count += 1
+            total += stat.st_size
+            newest = max(newest, stat.st_mtime_ns)
+    return count, newest, total
+
+
+def write_doors_by_artifact(root: Path, scan_dirs=("spa_core", "scripts")) -> tuple:
+    """{имя файла артефакта: {двери}} и {имя: [модули, пишущие СВОЕЙ дверью]}.
+
+    Обход дерева стои́т **14,2 с** на 2488 файлах (замер 26.10) — это названо
+    вслух, потому что прибор зовётся шагом цикла, а не руками.
+
+    Каталог кода нечитаем ⇒ ``(None, None)``, то есть **НЕ ИЗМЕРЕНО с
+    причиной**, а не пустой словарь: пустой словарь дал бы 231 вердикт
+    «писателя не нашли», то есть fail-OPEN, который тише красного — ровно
+    дефект, названный в `.claude/rules/deployment.md`.
+    """
+    base = Path(root)
+    folders = [base / name for name in scan_dirs if (base / name).is_dir()]
+    if not folders:
+        return None, None
+    key = (str(base.resolve()), tuple(scan_dirs)) + _tree_fingerprint(folders)
+    cached = _DOORS_CACHE.get(key)
+    if cached is not None:
+        return cached
+    found = False
+    doors: dict = {}
+    own_writers: dict = {}
+    for folder in folders:
+        found = True
+        for module in sorted(folder.rglob("*.py")):
+            text = str(module)
+            if "/tests/" in text or module.name.startswith("test_"):
+                continue
+            try:
+                src = module.read_text(encoding="utf-8", errors="replace")
+            except OSError:
+                continue
+            for artifact, kinds in artifact_io_scan.write_doors(src).items():
+                # Ключ — литерал КАК НАЙДЕН. Сворачивать его к имени файла
+                # здесь нельзя: полный путь есть ТОЧНОЕ разрешение, и потеряв
+                # его, перепись спутала бы шесть разных `status.json`.
+                doors.setdefault(artifact, set()).update(kinds)
+                if artifact_io_scan.DOOR_OWN in kinds:
+                    own_writers.setdefault(artifact, []).append(
+                        str(module.relative_to(base)))
+    if not found:
+        return None, None
+    _DOORS_CACHE[key] = (doors, own_writers)
+    return doors, own_writers
+
+
+def write_stamp_price_census(write_attribution: dict, agents: list, root: Path,
+                             data_dir: Path) -> dict:
+    """ЦЕНА штампа атрибуции — ШЕСТАЯ секция (ADR-821, заказ G820 п. 1).
+
+    ADR-820 ответил, что канал атрибуции в системе ЕСТЬ, а у населения вопроса
+    его нет ЦЕЛИКОМ. Заказ запретил предлагать правку писателей прежде, чем
+    спрошено, сколько она стои́т, и назвал проверяемую догадку: «если дверь одна,
+    штамп стоит одной правки, а не 36».
+
+    **Замер догадку ПОДТВЕРЖДАЕТ в целом и ОПРОВЕРГАЕТ там, где живёт вопрос.**
+    По 231 артефакту конституции (26.10): одной правки хватило бы **158**; своя
+    правка нужна **35** (89 мест в 35 модулях); писатель не найден у **28**;
+    дверь части писателей не разобрана у **9**; и у **одного** дверь общая, а
+    корень — массив, то есть правка одна, а положить её некуда. У населения
+    вопроса (8 со-производимых артефактов) одной правкой покрылись бы **6 из
+    8**, а два остатка — ``defi_engine/status.json`` и ``kill_switch_active.json``
+    — требуют своей, причём второй есть money-path, и правка его за мандатом
+    автономного цикла.
+
+    **Дверь одна не потому, что её так написали, а потому, что её ДОСТИГАЮТ
+    транзитивно.** В дереве 304 определения локальных помощников
+    ``_atomic_write*``, и две трети зовут ``atomic_save`` сами. Остановись разбор
+    на первом шаге — ответ был бы 142 вместо 158; спроси он имя вызова без
+    владельца — 12 вместо 159 (``str.replace`` неотличим от ``os.replace`` по
+    имени). Оба промаха сдвигали цену в ОДНУ сторону: завышали.
+
+    Вердикты сроков эта перепись не переписывает ни одним числом — тот же
+    порядок, что у ADR-816/817/819/820 (заказ G815 п. 2). Население вопроса
+    берётся ССЫЛКОЙ у ПЯТОЙ секции и заново не считается; её «НЕ ИЗМЕРЕНО»
+    остаётся «НЕ ИЗМЕРЕНО», а не превращается в ноль.
+    """
+    doors_by_art, own_writers = write_doors_by_artifact(Path(root))
+    if doors_by_art is None:
+        return {"status": slo_proposal.STAMP_PRICE_UNMEASURED,
+                "cause": (f"каталога кода нет в дереве {root} — двери писателей "
+                          f"НЕ ИЗМЕРЕНЫ ни у одного артефакта"),
+                "inventory": None, "population": None, "population_cause": None,
+                "tally": None, "price_modules": None, "rows": None, "findings": None}
+    dd = Path(data_dir)
+    declared: dict = {}
+    for agent in agents:
+        if not isinstance(agent, dict):
+            continue
+        label = str(agent.get("label") or "")
+        if not label:
+            continue
+        for produced in (agent.get("produces") or []):
+            if isinstance(produced, dict) and produced.get("artifact"):
+                declared.setdefault(str(produced["artifact"]), set()).add(label)
+    if not declared:
+        return {"status": slo_proposal.STAMP_PRICE_UNMEASURED,
+                "cause": "в конституции нет ни одного объявленного артефакта — "
+                         "цену штампа не на чем мерить",
+                "inventory": None, "population": None, "population_cause": None,
+                "tally": None, "price_modules": None, "rows": None, "findings": None}
+
+    # СПОРНОЕ имя: путь собран из констант ⇒ у двери видно только имя файла.
+    # Имя считается спорным, если его носит больше одного артефакта
+    # конституции ЛИБО если в дереве есть ПОЛНЫЙ путь с тем же именем, но
+    # другой. Замер 26.10: таких артефактов 11 из 231.
+    by_basename: dict = {}
+    for artifact in declared:
+        by_basename.setdefault(artifact.split("/")[-1], set()).add(artifact)
+    for literal in doors_by_art:
+        if "/" in literal:
+            by_basename.setdefault(literal.split("/")[-1], set()).add(literal)
+
+    rows: list = []
+    inventory: dict = {}
+    own_modules: set = set()
+    for artifact in sorted(declared):
+        key = artifact.split("/")[-1]
+        exact = artifact in doors_by_art
+        contested = not exact and len(by_basename.get(key) or ()) > 1
+        kinds = doors_by_art.get(artifact if exact else key, set())
+        carrier, carrier_why = carrier_root(artifact_file(artifact, Path(root), dd))
+        price, why = slo_proposal.write_stamp_price(
+            kinds, carrier, name_contested=contested)
+        inventory[price] = inventory.get(price, 0) + 1
+        modules = (sorted(own_writers.get(artifact if exact else key) or [])
+                    if price == slo_proposal.STAMP_OWN_EDIT_NEEDED else [])
+        own_modules.update(modules)
+        rows.append({"artifact": artifact, "price": price, "doors": sorted(kinds),
+                     "carrier": carrier, "own_writers": modules,
+                     "resolved_exactly": exact, "name_contested": contested,
+                     "note": f"{why}; {carrier_why}"})
+
+    by_artifact = {row["artifact"]: row for row in rows}
+    # Население ВОПРОСА берётся ССЫЛКОЙ у ПЯТОЙ секции (ADR-820) — там он и
+    # измерен. Пересчитать его здесь значило бы завести ВТОРОЕ определение
+    # одного населения, и разойдясь, две копии дали бы разные ответы про один
+    # артефакт.
+    population: Optional[list] = None
+    population_cause = None
+    section = write_attribution if isinstance(write_attribution, dict) else {}
+    if section.get("status") != "OK" or not isinstance(section.get("rows"), list):
+        population_cause = ("население вопроса НЕ ИЗМЕРЕНО — пятая секция "
+                            "(`declared_write_attribution`) его не дала: "
+                            f"{section.get('cause') or section.get('status') or 'секции нет'}")
+    else:
+        population = []
+        for row in section["rows"]:
+            if not isinstance(row, dict) or not row.get("artifact"):
+                continue
+            mine = by_artifact.get(str(row["artifact"]))
+            population.append({
+                "artifact": str(row["artifact"]),
+                "home": row.get("home"),
+                "attribution": row.get("attribution"),
+                "price": (mine or {}).get("price") or slo_proposal.STAMP_PRICE_UNMEASURED,
+                "own_writers": (mine or {}).get("own_writers") or [],
+            })
+
+    tally: dict = {}
+    for row in (population or []):
+        tally[row["price"]] = tally.get(row["price"], 0) + 1
+    return {
+        "status": "OK",
+        "inventory": inventory,
+        "inventory_population": len(declared),
+        "population": None if population is None else len(population),
+        "population_cause": population_cause,
+        "population_rows": population,
+        "tally": tally,
+        # ЦЕНА в правках: модули, которые пришлось бы тронуть по отдельности.
+        "price_modules": len(own_modules),
+        "price_modules_named": sorted(own_modules)[:12],
+        "data_dir": str(dd),
+        # НАХОДКА — артефакт, который ВЫГЛЯДИТ покрытым одной правкой и не
+        # покрыт: дверь у него общая, а корень отметку верхнего уровня не
+        # несёт. Читатель, считающий «дверь одна ⇒ штамп придёт», ошибётся
+        # именно здесь. «Нужна своя правка» находкой НЕ является — это
+        # честная цена, а не дефект.
+        "findings": [row for row in rows
+                     if row["price"] == slo_proposal.STAMP_CARRIER_CANNOT_HOLD],
+        "rows": rows,
+    }
+
+
+def write_stamp_price_line(doc: dict) -> str:
+    """Строка ЦЕНЫ штампа. Единственная её форма, читатель — :func:`report`.
+
+    Тот же выбор читателя, что у :func:`write_attribution_line`, и по той же
+    измеренной причине (ADR-820): строка, которую печатает только
+    ``findings_bridge``, уходит в лог агента, а не в вывод шага 0-офис.
+    """
+    section = observed(doc, "declared_write_stamp_price", kind=dict)
+    if section is None:
+        return ("  цена штампа атрибуции: НЕ ИЗМЕРЕНО — секции "
+                "`declared_write_stamp_price` в замере нет (отчёт написан "
+                "производителем ДО ADR-821)")
+    if section.get("status") != "OK":
+        return ("  цена штампа атрибуции: НЕ ИЗМЕРЕНО — "
+                f"{section.get('cause') or 'причина не названа'}")
+    inventory = observed(section, "inventory", kind=dict) or {}
+    tally = observed(section, "tally", kind=dict) or {}
+    findings = section.get("findings") or []
+    names = ", ".join(f"{row.get('artifact')} (корень {row.get('carrier')})"
+                      for row in findings)
+    population = section.get("population")
+    return (
+        "  цена штампа атрибуции (ADR-821, в сумму вердиктов НЕ входит): по ВСЕЙ "
+        f"конституции ({section.get('inventory_population')} артефакт(ов)) ОДНОЙ "
+        f"правки общей двери хватило бы "
+        f"{inventory.get(slo_proposal.STAMP_ONE_EDIT, 0)} · своя правка нужна "
+        f"{inventory.get(slo_proposal.STAMP_OWN_EDIT_NEEDED, 0)} "
+        f"({section.get('price_modules')} модул(ей)) · дверь общая, а корень "
+        f"штамп НЕ несёт {inventory.get(slo_proposal.STAMP_CARRIER_CANNOT_HOLD, 0)}"
+        f"{f' ({names})' if names else ''} · писатель НЕ НАЙДЕН "
+        f"{inventory.get(slo_proposal.STAMP_WRITER_NOT_FOUND, 0)} · имя артефакта "
+        f"СПОРНО {inventory.get(slo_proposal.STAMP_NAME_CONTESTED, 0)} · НЕ ИЗМЕРЕНО "
+        f"{inventory.get(slo_proposal.STAMP_PRICE_UNMEASURED, 0)}; у НАСЕЛЕНИЯ "
+        f"ВОПРОСА ("
+        f"{'НЕ ИЗМЕРЕНО' if population is None else str(population) + ' артефакт(ов)'}"
+        f") одной правкой покрылось бы "
+        f"{tally.get(slo_proposal.STAMP_ONE_EDIT, 0)}, своя правка нужна "
+        f"{tally.get(slo_proposal.STAMP_OWN_EDIT_NEEDED, 0)} — цена и ПОКРЫТИЕ "
+        "это РАЗНЫЕ числа")
+
+
 def write_attribution_line(doc: dict) -> str:
     """Строка КАНАЛА АТРИБУЦИИ. Единственная её форма.
 
@@ -1615,6 +1905,11 @@ def measure(manifest_path: Optional[Path] = None, *, log_dir: Path = Path("/tmp"
     # дал бы два разных ответа на один вопрос при любом сдвиге часов.
     _reality_section = producer_reality_census(
         declared_section, agents, base, data, now=now)
+    # Замер ПЯТОЙ секции тоже считается ОДИН раз: её строки суть население
+    # вопроса для ШЕСТОЙ (ADR-821), и второй независимый прогон дал бы два
+    # разных ответа про один артефакт при любом сдвиге содержимого файла.
+    _attribution_section = write_attribution_census(
+        _reality_section, agents, base, data)
     return {
         "status": "OK",
         "generated_at": _stamp(now),
@@ -1658,8 +1953,14 @@ def measure(manifest_path: Optional[Path] = None, *, log_dir: Path = Path("/tmp"
         # ли наблюдаемый канал, приписывающий запись запущенному. Секция
         # ЧЕТВЁРТАЯ подаётся ей входом (второй дом населения — её находки), и
         # её «НЕ ИЗМЕРЕНО» остаётся «НЕ ИЗМЕРЕНО», а не превращается в ноль.
-        "declared_write_attribution": write_attribution_census(
-            _reality_section, agents, base, data),
+        "declared_write_attribution": _attribution_section,
+        # ЦЕНА ШТАМПА — ШЕСТАЯ секция (ADR-821, заказ G820 п. 1). Как и пять
+        # предыдущих, в `tally`/`verdict` не входит ни одним числом: предмет у
+        # неё не срок и не канал, а то, ЧЕГО СТОИЛА БЫ правка, дающая канал.
+        # ПЯТАЯ секция подаётся ей входом (население вопроса берётся ССЫЛКОЙ, а
+        # не считается заново), и её «НЕ ИЗМЕРЕНО» остаётся «НЕ ИЗМЕРЕНО».
+        "declared_write_stamp_price": write_stamp_price_census(
+            _attribution_section, agents, base, data),
         "rows": rows,
         "findings": findings,
         "measured_from": {"manifest": str(manifest), "log_dir": str(log_dir),
@@ -1821,6 +2122,9 @@ def report(doc: dict, max_rows: int = 12) -> list:
     # 0-офис», а печатает их только мост, чей stdout уходит в лог агента;
     # `report()` — вывод, который цикл читает НА САМОМ ДЕЛЕ.
     lines.append(write_attribution_line(doc))
+    # ЦЕНА ШТАМПА — строка ЗДЕСЬ по той же измеренной причине (ADR-820): то,
+    # что печатает только мост, цикл не читает.
+    lines.append(write_stamp_price_line(doc))
     causes = observed(doc, "unmeasured_causes", kind=dict) or {}
     if causes:
         lines.append("  такт НЕ наблюдён, по причинам: " + " · ".join(

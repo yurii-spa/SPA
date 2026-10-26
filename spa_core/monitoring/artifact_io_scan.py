@@ -323,3 +323,172 @@ def writers_by_agent(entry_modules: dict[str, str], repo: Path) -> dict[str, set
                 if WRITE in kinds:
                     out.setdefault(art.split("/")[-1], set()).add(label)
     return out
+
+
+#: Канонические двери записи — те, что живут в ОДНОМ месте
+#: (:mod:`spa_core.utils.atomic`). Правка внутри любой из них достаётся всем её
+#: вызывающим даром, и именно это свойство меряет :func:`write_doors`.
+#: ``atomic_append``/``atomic_append_ring``/``atomic_update`` перечислены не для
+#: полноты: каждая из них САМА зовёт ``atomic_save``, поэтому её вызывающий стои́т
+#: за общей дверью ровно так же, как если бы звал её напрямую.
+CANONICAL_DOORS = frozenset({
+    "atomic_save", "atomic_save_text", "atomic_append", "atomic_append_ring",
+    "atomic_update", "atomic_write_via_tmp",
+})
+
+#: Дверь ОБЩАЯ · дверь СВОЯ · дверь НЕ РАЗОБРАНА. Третий исход отделён
+#: намеренно (инв. #17): помощник, определённый в ДРУГОМ модуле, не есть ни
+#: доказательство общей двери, ни доказательство своей.
+DOOR_SHARED = "shared"
+DOOR_OWN = "own"
+DOOR_UNRESOLVED = "unresolved"
+
+#: Модули, чей ``dump`` действительно пишет в файловый объект. Голое ``dump``
+#: встречается у чего угодно (своего класса, numpy, joblib), и считать его
+#: дверью записи значило бы повторить ошибку с ``replace`` ниже.
+_DUMP_OWNERS = frozenset({"json", "pickle", "yaml", "msgpack"})
+
+
+def _own_door_call(node: ast.Call) -> bool:
+    """Пишет ли ЭТОТ вызов на диск САМ, минуя общую дверь.
+
+    **Имя берётся вместе с ВЛАДЕЛЬЦЕМ, и это не придирка.** Первая редакция
+    замера (цикл #945) спрашивала у вызова только имя — и получила ``replace``
+    12 раз, ``_parse_ts`` 13 и ``_headline`` 7 в перечне «пишет своей дверью»:
+    ``str.replace`` и ``datetime.replace`` неотличимы от ``os.replace`` по
+    имени, а помощник, внутри которого они стоят, транзитивно получал вердикт
+    «своя дверь». Ответ при этом вышел неверным в ОПАСНУЮ сторону — цена штампа
+    завышалась (12 артефактов «за общей дверью» против 159 при верном разборе).
+    Ровно об этом предупреждает докстринг :data:`_RENAME_CALLS` выше, и
+    поэтому ``replace``/``rename``/``move`` здесь спрашиваются у
+    :func:`_is_rename_call`, а не у имени.
+    """
+    name = _call_name(node)
+    if name is None:
+        return False
+    if name == "open":
+        return _open_mode_is_write(node)
+    if name in _RENAME_CALLS:
+        return _is_rename_call(node)
+    if name in ("write_text", "write_bytes"):
+        return isinstance(node.func, ast.Attribute)
+    if name == "mkstemp":
+        return (isinstance(node.func, ast.Attribute)
+                and isinstance(node.func.value, ast.Name)
+                and node.func.value.id == "tempfile")
+    if name == "dump":
+        return (isinstance(node.func, ast.Attribute)
+                and isinstance(node.func.value, ast.Name)
+                and node.func.value.id in _DUMP_OWNERS)
+    return False
+
+
+def helper_doors(tree: ast.Module) -> dict[str, str]:
+    """{имя функции модуля: дверь, за которой она пишет} — до неподвижной точки.
+
+    **Зачем транзитивность.** В дереве 304 определения локальных помощников вида
+    ``_atomic_write``/``_atomic_write_json`` (замер 26.10), и две трети из них
+    САМИ зовут ``atomic_save``: то есть пишут через общую дверь, лишь называясь
+    по-своему. Остановиться на первом шаге значило бы объявить их своей дверью и
+    завысить цену общей правки — замер этой ошибки: 142 артефакта «за общей
+    дверью» при одном шаге против 159 при неподвижной точке.
+
+    ``own`` сильнее ``shared`` НАМЕРЕННО: помощник, который в одной ветке зовёт
+    общую дверь, а в другой пишет сам, правкой общей двери не покрывается, и
+    назвать его покрытым было бы ответом в опасную сторону.
+    """
+    bodies: dict[str, ast.AST] = {}
+    for node in ast.walk(tree):
+        if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef)):
+            bodies[node.name] = node
+    calls: dict[str, set[str]] = {}
+    verdict: dict[str, str] = {}
+    for name, fn in bodies.items():
+        seen: set[str] = set()
+        for node in ast.walk(fn):
+            if not isinstance(node, ast.Call):
+                continue
+            called = _call_name(node)
+            if called:
+                seen.add(called)
+            if called in CANONICAL_DOORS:
+                verdict.setdefault(name, DOOR_SHARED)
+            elif _own_door_call(node):
+                verdict[name] = DOOR_OWN
+        calls[name] = seen
+    changed = True
+    while changed:
+        changed = False
+        for name, seen in calls.items():
+            if verdict.get(name) == DOOR_OWN:
+                continue
+            reached = {verdict[c] for c in seen if c in verdict}
+            new = DOOR_OWN if DOOR_OWN in reached else (
+                DOOR_SHARED if DOOR_SHARED in reached else None)
+            if new and verdict.get(name) != new:
+                if verdict.get(name) == DOOR_SHARED and new == DOOR_SHARED:
+                    continue
+                verdict[name] = new
+                changed = True
+    return verdict
+
+
+def write_doors(src: str) -> dict[str, set[str]]:
+    """{имя артефакта: {двери, которыми его пишут}} для одного модуля.
+
+    **Вопрос у этой функции свой, и он не тот, на который отвечает**
+    :func:`scan_source`. Та говорит, ЧТО модуль пишет; эта — ЧЕМ он пишет, то
+    есть достанется ли ему правка, сделанная ОДИН раз внутри общей двери. Для
+    заказа G820 п. 1 (ADR-821) это вопрос ЦЕНЫ: штамп атрибуции, положенный в
+    ``atomic_save``, приходит её вызывающим даром и не приходит никому другому.
+
+    Разрешатель путей здесь НЕ СВОЙ — берутся те же :func:`_name_table`,
+    :func:`_names_in`, :func:`_scopes`, :func:`_own_nodes`, что у соседа. Своя
+    копия разрешателя была бы вторым определением одного имени, то есть ровно
+    тем дефектом, который `.claude/rules/adapters.md` описывает как «одно имя —
+    один объект»: разойдясь, две копии дали бы разную запись об одном файле.
+
+    Синтаксис битый ⇒ пусто (как у соседа): модуль, который не разобрался, не
+    утверждает ни «общая дверь», ни «своя».
+    """
+    try:
+        tree = ast.parse(src)
+    except SyntaxError:
+        return {}
+    helpers = helper_doors(tree)
+    module_table = _name_table(tree.body)
+    out: dict[str, set[str]] = {}
+
+    def mark(names: set[str], door: str) -> None:
+        for n in names:
+            out.setdefault(n, set()).add(door)
+
+    for body, is_module in _scopes(tree):
+        table = module_table if is_module else _name_table(body, seed=module_table)
+        for node in _own_nodes(body):
+            if not isinstance(node, ast.Call):
+                continue
+            fname = _call_name(node)
+            if fname is None:
+                continue
+            if fname in CANONICAL_DOORS:
+                names: set[str] = set()
+                for arg in list(node.args) + [k.value for k in node.keywords]:
+                    names |= _names_in(arg, table)
+                mark(names, DOOR_SHARED)
+            elif _own_door_call(node):
+                if fname in ("write_text", "write_bytes"):
+                    mark(_names_in(node.func.value, table), DOOR_OWN)
+                elif fname == "dump" and len(node.args) > 1:
+                    mark(_names_in(node.args[1], table), DOOR_OWN)
+                else:
+                    names = set()
+                    for arg in node.args:
+                        names |= _names_in(arg, table)
+                    mark(names, DOOR_OWN)
+            elif fname in _WRITE_ANY_ARG or fname in helpers:
+                names = set()
+                for arg in list(node.args) + [k.value for k in node.keywords]:
+                    names |= _names_in(arg, table)
+                mark(names, helpers.get(fname) or DOOR_UNRESOLVED)
+    return out

@@ -1,0 +1,152 @@
+{
+ "title": "ADR-821 — дельта цикла #945 (чего стоил бы штамп атрибуции)",
+ "tests": [
+  "spa_core/tests/test_slo_write_stamp_price.py"
+ ],
+ "mutations": [
+  {
+   "name": "ЦЕНА ЗАВЫШЕНА НАОБОРОТ: «дверь своя» выдаётся за «одна правка» — обещание покрытия тому, до кого правка не доходит",
+   "file": "spa_core/monitoring/slo_proposal.py",
+   "old": "    if artifact_io_scan.DOOR_OWN in found:\n        return STAMP_OWN_EDIT_NEEDED, (",
+   "new": "    if False:\n        return STAMP_OWN_EDIT_NEEDED, ("
+  },
+  {
+   "name": "СВОЯ ДВЕРЬ спрашивается ПОСЛЕ корня — большинство писателей переписывает вердикт",
+   "file": "spa_core/monitoring/slo_proposal.py",
+   "old": "    if artifact_io_scan.DOOR_OWN in found:",
+   "new": "    if carrier == CARRIER_OBJECT and artifact_io_scan.DOOR_OWN in found and False:"
+  },
+  {
+   "name": "НЕ РАЗОБРАННАЯ дверь сливается с общей — «не измерено» становится «одна правка»",
+   "file": "spa_core/monitoring/slo_proposal.py",
+   "old": "    if artifact_io_scan.DOOR_UNRESOLVED in found:\n        return STAMP_PRICE_UNMEASURED, (",
+   "new": "    if False:\n        return STAMP_PRICE_UNMEASURED, ("
+  },
+  {
+   "name": "«ПИСАТЕЛЯ НЕ НАШЛИ» выдаётся за «дверь не разобрана» — две разные причины в одном ведре",
+   "file": "spa_core/monitoring/slo_proposal.py",
+   "old": "    if not found:\n        return STAMP_WRITER_NOT_FOUND, (",
+   "new": "    if not found:\n        return STAMP_PRICE_UNMEASURED, ("
+  },
+  {
+   "name": "КОРЕНЬ, не несущий штамп, объявляется покрытым одной правкой",
+   "file": "spa_core/monitoring/slo_proposal.py",
+   "old": "    if carrier != CARRIER_OBJECT:\n        return STAMP_CARRIER_CANNOT_HOLD, (",
+   "new": "    if False:\n        return STAMP_CARRIER_CANNOT_HOLD, ("
+  },
+  {
+   "name": "НЕ ИЗМЕРЕННЫЙ корень подменяется неспособным — «не прочитали» становится «положить некуда»",
+   "file": "spa_core/monitoring/slo_proposal.py",
+   "old": "    if carrier is None:\n        return STAMP_PRICE_UNMEASURED, (",
+   "new": "    if False:\n        return STAMP_PRICE_UNMEASURED, ("
+  },
+  {
+   "name": "СПОРНОЕ ИМЯ игнорируется: шесть разных status.json получают двери друг друга",
+   "file": "spa_core/monitoring/slo_proposal.py",
+   "old": "    if name_contested:\n        return STAMP_NAME_CONTESTED, (",
+   "new": "    if False:\n        return STAMP_NAME_CONTESTED, ("
+  },
+  {
+   "name": "СПОРНОСТЬ судится правдивостью, а не родом — строка «возможно» проходит как «нет спора»",
+   "file": "spa_core/monitoring/slo_proposal.py",
+   "old": "    if not isinstance(name_contested, bool):",
+   "new": "    if name_contested is None:"
+  },
+  {
+   "name": "ИМЯ ВЫЗОВА БЕЗ ВЛАДЕЛЬЦА: str.replace читается как дверь записи (ошибка первого замера #945)",
+   "file": "spa_core/monitoring/artifact_io_scan.py",
+   "old": "    if name in _RENAME_CALLS:\n        return _is_rename_call(node)",
+   "new": "    if name in _RENAME_CALLS:\n        return True"
+  },
+  {
+   "name": "ЧУЖОЙ dump принят за дверь: голое .dump() любого объекта считается записью",
+   "file": "spa_core/monitoring/artifact_io_scan.py",
+   "old": "    if name == \"dump\":\n        return (isinstance(node.func, ast.Attribute)\n                and isinstance(node.func.value, ast.Name)\n                and node.func.value.id in _DUMP_OWNERS)",
+   "new": "    if name == \"dump\":\n        return True"
+  },
+  {
+   "name": "РАЗБОР ПОМОЩНИКОВ ОСТАНОВЛЕН НА ПЕРВОМ ШАГЕ — две трети локальных _atomic_write* читаются своей дверью",
+   "file": "spa_core/monitoring/artifact_io_scan.py",
+   "old": "    changed = True\n    while changed:\n        changed = False\n        for name, seen in calls.items():\n            if verdict.get(name) == DOOR_OWN:\n                continue",
+   "new": "    changed = False\n    while changed:\n        changed = False\n        for name, seen in calls.items():\n            if verdict.get(name) == DOOR_OWN:\n                continue"
+  },
+  {
+   "name": "ОБЩАЯ ДВЕРЬ СИЛЬНЕЕ СВОЕЙ: помощник, пишущий в одной ветке сам, объявляется покрытым",
+   "file": "spa_core/monitoring/artifact_io_scan.py",
+   "old": "            elif _own_door_call(node):\n                verdict[name] = DOOR_OWN",
+   "new": "            elif _own_door_call(node):\n                verdict.setdefault(name, DOOR_OWN)"
+  },
+  {
+   "name": "ПОМОЩНИК ИЗ ДРУГОГО МОДУЛЯ объявляется общей дверью вместо НЕ ИЗМЕРЕНО",
+   "file": "spa_core/monitoring/artifact_io_scan.py",
+   "old": "                mark(names, helpers.get(fname) or DOOR_UNRESOLVED)",
+   "new": "                mark(names, helpers.get(fname) or DOOR_SHARED)"
+  },
+  {
+   "name": "НЕЧИТАЕМЫЙ КАТАЛОГ КОДА даёт пустой словарь — 231 артефакту «писателя нет» (fail-OPEN)",
+   "file": "spa_core/monitoring/slo_keepability.py",
+   "old": "    folders = [base / name for name in scan_dirs if (base / name).is_dir()]\n    if not folders:\n        return None, None",
+   "new": "    folders = [base / name for name in scan_dirs if (base / name).is_dir()]\n    if not folders:\n        return {}, {}"
+  },
+  {
+   "name": "ПУТЬ СВЁРНУТ К ИМЕНИ ФАЙЛА — точное разрешение теряется (дефект, найденный в #945)",
+   "file": "spa_core/monitoring/slo_keepability.py",
+   "old": "                doors.setdefault(artifact, set()).update(kinds)",
+   "new": "                doors.setdefault(artifact.split(\"/\")[-1], set()).update(kinds)"
+  },
+  {
+   "name": "СЛЕПОК ДЕРЕВА КЛЮЧУЕТСЯ ОДНИМ ПУТЁМ — ответ о дереве, которого уже нет",
+   "file": "spa_core/monitoring/slo_keepability.py",
+   "old": "    key = (str(base.resolve()), tuple(scan_dirs)) + _tree_fingerprint(folders)",
+   "new": "    key = (str(base.resolve()), tuple(scan_dirs))"
+  },
+  {
+   "name": "«НЕ ИЗМЕРЕНО» ПЯТОЙ СЕКЦИИ превращается в ПУСТОЕ население шестой, то есть в ноль",
+   "file": "spa_core/monitoring/slo_keepability.py",
+   "old": "        population_cause = (\"население вопроса НЕ ИЗМЕРЕНО — пятая секция \"",
+   "new": "        population = []\n        population_cause = (\"население вопроса НЕ ИЗМЕРЕНО — пятая секция \""
+  },
+  {
+   "name": "НАХОДКОЙ объявляется ЦЕНА: «нужна своя правка» печатается как дефект",
+   "file": "spa_core/monitoring/slo_keepability.py",
+   "old": "        \"findings\": [row for row in rows\n                     if row[\"price\"] == slo_proposal.STAMP_CARRIER_CANNOT_HOLD],",
+   "new": "        \"findings\": [row for row in rows\n                     if row[\"price\"] == slo_proposal.STAMP_OWN_EDIT_NEEDED],"
+  },
+  {
+   "name": "СТРОКА ШАГА 0-ОФИС УБРАНА — секция считается, а читатель её не видит",
+   "file": "spa_core/monitoring/slo_keepability.py",
+   "old": "    lines.append(write_stamp_price_line(doc))",
+   "new": "    pass"
+  },
+  {
+   "name": "СЕКЦИЯ ПОПАДАЕТ В ДОКУМЕНТ ПОД ДРУГИМ ИМЕНЕМ — строка честно печатает НЕ ИЗМЕРЕНО (выжившая мутация #944)",
+   "file": "spa_core/monitoring/slo_keepability.py",
+   "old": "        \"declared_write_stamp_price\": write_stamp_price_census(",
+   "new": "        \"declared_write_stamp_price_v2\": write_stamp_price_census("
+  },
+  {
+   "name": "ПЯТАЯ СЕКЦИЯ СЧИТАЕТСЯ ВТОРОЙ РАЗ — два ответа на один вопрос",
+   "file": "spa_core/monitoring/slo_keepability.py",
+   "old": "        \"declared_write_stamp_price\": write_stamp_price_census(\n            _attribution_section, agents, base, data),",
+   "new": "        \"declared_write_stamp_price\": write_stamp_price_census(\n            write_attribution_census(_reality_section, agents, base, data),\n            agents, base, data),"
+  },
+  {
+   "name": "ЛЕНТА СТРОК объявляется объектным корнем — штамп обещан в каждую строку",
+   "file": "spa_core/monitoring/slo_keepability.py",
+   "old": "    if path.suffix == \".jsonl\":\n        return \"лента строк\", (",
+   "new": "    if False:\n        return \"лента строк\", ("
+  },
+  {
+   "name": "ОТСУТСТВУЮЩИЙ НОСИТЕЛЬ выдаётся за неспособный нести штамп",
+   "file": "spa_core/monitoring/slo_keepability.py",
+   "old": "            return None, f\"носителя нет на месте ({path}) — корень не измерен\"",
+   "new": "            return \"нет файла\", f\"носителя нет на месте ({path}) — корень не измерен\""
+  },
+  {
+   "name": "НЕРАЗОБРАННЫЙ НОСИТЕЛЬ объявляется объектом — штамп обещан туда, где его не прочитали",
+   "file": "spa_core/monitoring/slo_keepability.py",
+   "old": "    except (OSError, ValueError) as exc:\n        return None, f\"носитель не разобран ({exc.__class__.__name__}) — корень НЕ ИЗМЕРЕН\"",
+   "new": "    except (OSError, ValueError) as exc:\n        return slo_proposal.CARRIER_OBJECT, f\"носитель не разобран ({exc.__class__.__name__}) — корень НЕ ИЗМЕРЕН\""
+  }
+ ]
+}
