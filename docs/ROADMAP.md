@@ -74,15 +74,16 @@ prepare a reviewable plan and acceptance proposal from an ordinary request throu
 seam; do not make the owner choose internal test names. This is a candidate preparation path, not permission
 to dispatch live work. Evidence and scope: `evidence/studio-os-next-01-2026-10-16/voice_owner_check_2026-10-25/ARB_REVIEW.md`.
 
-**Task-prep checkpoint, ARB 2026-10-26 (R1/R2/U1 follow-up):** R2 concurrent preparation and U1 owner-facing
-presentation accepted in the candidate scope. Original R1 source/card-change cases fixed; one code-identity
-case remains: two commits changing the same file produce the same path list, so stale work is reused.
-Candidate `e289dcd1c`, CI 40295468694: 135178 passed, two previous §49 failures, 719 skipped, 12/12; no new
-failed IDs. RED, not NO_REGRESSION. Earlier screenshot cropping was a capture artifact, not measured overflow.
-Next bounded package: bind freshness/reuse to actual code identity and finish a concrete delivery proposal
-(root/revision/sources, builder environment, preservation of newer code, justified restart if any).
-No new model call or broad audit. One final CI against e289dcd1c; no deployment or execution in this package.
-Decision: `evidence/studio-os-next-01-2026-10-16/record_prep_preview_20261026T084330Z/ARB_REVIEW_2026-10-26.md`.
+**Task-prep checkpoint, ARB 2026-10-26 (code identity accepted):** R1, R2 and U1 accepted in the
+candidate scope; the remaining code-content identity correction is verified by 38 targeted tests.
+Candidate `aac3b4316`, CI 40317312101: 135187 passed, two previous §49 failures, TWO NEW fixture errors
+in `test_foreign_markup_reader_census`, 719 skipped, 12/12. RED, not NO_REGRESSION; one local timing pair
+cannot establish the cause. Integration HEAD `1f47378ff` adds CI docs only.
+Next bounded package: fix the independently reproduced release-builder false-success on a conflicting
+patch, then finish an exact main-based release candidate and its delivery evidence. No renewed R1/R2/U1
+audit or model call. The release tree is distinct from the integration CI tree; its full CI is not yet
+established. Production delivery and automatic execution remain unapproved.
+Decision: `evidence/studio-os-next-01-2026-10-16/release_task_prep_20261026T100847Z/ARB_REVIEW_2026-10-26.md`.
 
 **Verification efficiency:** bound work to the actual change, reuse traceable evidence, and batch the required
 full CI on a stable candidate. No repeated whole-system/AI audit by default; no removal of mandatory checks and
