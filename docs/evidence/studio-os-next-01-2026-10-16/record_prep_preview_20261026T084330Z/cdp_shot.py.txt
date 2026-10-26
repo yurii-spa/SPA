@@ -1,0 +1,46 @@
+"""Minimal stdlib CDP client: mobile viewport, measure overflow in «Мои записи», full-page screenshot."""
+import base64, json, os, socket, struct, sys, time, urllib.request
+dbg, url, width, out = sys.argv[1], sys.argv[2], int(sys.argv[3]), sys.argv[4]
+tab = json.loads(urllib.request.urlopen(urllib.request.Request(f"http://127.0.0.1:{dbg}/json/new?about:blank", method="PUT")).read())
+ws = tab["webSocketDebuggerUrl"]; host, path = ws[5:].split("/", 1)
+h, p = host.split(":"); s = socket.create_connection((h, int(p)))
+key = base64.b64encode(os.urandom(16)).decode()
+s.sendall((f"GET /{path} HTTP/1.1\r\nHost: {host}\r\nUpgrade: websocket\r\nConnection: Upgrade\r\n"
+           f"Sec-WebSocket-Key: {key}\r\nSec-WebSocket-Version: 13\r\n\r\n").encode())
+buf = b""
+while b"\r\n\r\n" not in buf: buf += s.recv(4096)
+buf = buf.split(b"\r\n\r\n", 1)[1]
+def send(obj):
+    data = json.dumps(obj).encode(); mask = os.urandom(4); n = len(data)
+    hdr = bytes([0x81]) + (bytes([0x80 | n]) if n < 126 else bytes([0x80 | 126]) + struct.pack(">H", n) if n < 65536
+                           else bytes([0x80 | 127]) + struct.pack(">Q", n))
+    s.sendall(hdr + mask + bytes(b ^ mask[i % 4] for i, b in enumerate(data)))
+def recv_frame():
+    global buf
+    def need(k):
+        global buf
+        while len(buf) < k: buf += s.recv(1 << 20)
+    need(2); b1 = buf[1] & 0x7f; off = 2
+    if b1 == 126: need(4); b1 = struct.unpack(">H", buf[2:4])[0]; off = 4
+    elif b1 == 127: need(10); b1 = struct.unpack(">Q", buf[2:10])[0]; off = 10
+    need(off + b1); payload = buf[off:off + b1]; buf = buf[off + b1:]; return payload
+mid = [0]
+def call(method, params=None):
+    mid[0] += 1; send({"id": mid[0], "method": method, "params": params or {}})
+    while True:
+        msg = json.loads(recv_frame())
+        if msg.get("id") == mid[0]: return msg.get("result", msg)
+call("Emulation.setDeviceMetricsOverride", {"width": width, "height": 900, "deviceScaleFactor": 2, "mobile": True})
+call("Page.enable"); call("Page.navigate", {"url": url}); time.sleep(4)
+js = """(function(){var vw=window.innerWidth,bad=[];document.querySelectorAll('.ux-my-records *').forEach(function(el){
+var r=el.getBoundingClientRect(); if(r.width>0&&r.right>vw+0.5) bad.push(el.tagName+'.'+el.className+':'+Math.round(r.right));});
+var w=document.querySelector('.ux-my-records'); if(w) w.scrollIntoView();
+return JSON.stringify({vw:vw,docScrollWidth:document.documentElement.scrollWidth,horizontalScroll:document.documentElement.scrollWidth>vw+0.5,
+overflowing:bad.length,sample:bad.slice(0,5),records:document.querySelectorAll('.ux-my-records > li').length,
+prepBlocks:document.querySelectorAll('.ux-record-prep').length,heads:[].map.call(document.querySelectorAll('.ux-record-prep-head'),function(e){return e.textContent;})});})()"""
+print(call("Runtime.evaluate", {"expression": js, "returnByValue": True})["result"]["value"])
+rect = json.loads(call("Runtime.evaluate", {"expression": "JSON.stringify(document.querySelector('.ux-my-records').closest('section,.ux-card,div').getBoundingClientRect())", "returnByValue": True})["result"]["value"])
+m = call("Page.getLayoutMetrics"); top = rect["top"] + m["cssVisualViewport"]["pageY"]
+shot = call("Page.captureScreenshot", {"format": "png", "captureBeyondViewport": True,
+            "clip": {"x": 0, "y": max(0, top - 10), "width": width, "height": rect["height"] + 20, "scale": 1}})
+open(out, "wb").write(base64.b64decode(shot["data"]))

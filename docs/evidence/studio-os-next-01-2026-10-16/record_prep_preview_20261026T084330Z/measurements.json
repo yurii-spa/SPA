@@ -1,0 +1,11 @@
+{
+  "method": "headless Chrome via CDP (cdp_shot.py.txt): Emulation.setDeviceMetricsOverride mobile=true, deviceScaleFactor 2; measured elements inside .ux-my-records whose right edge exceeds the viewport, and document horizontal scroll",
+  "after_candidate": {
+    "390": {"vw": 390, "docScrollWidth": 390, "horizontalScroll": false, "overflowing": 0, "records": 6, "prepBlocks": 6},
+    "430": {"vw": 430, "docScrollWidth": 430, "horizontalScroll": false, "overflowing": 0, "records": 6, "prepBlocks": 6}
+  },
+  "before_0d3a85e24": {
+    "390": {"vw": 390, "docScrollWidth": 390, "horizontalScroll": false, "overflowing": 0, "records": 5, "prepBlocks": 5}
+  },
+  "note": "The earlier 430px evidence image (record_prep_preview_20261025T235449Z) was taken with --window-size=430, but headless Chrome laid the page out at 500px (measured vw=500) and the image was cropped: the 'clipped' text there was a capture artifact, not page overflow. True-width emulation shows no overflow before or after; the CSS change (wrap long tokens) is kept as a safeguard. Fixed header/tab bar appear over the full-page capture because sticky elements are drawn at their viewport position."
+}
