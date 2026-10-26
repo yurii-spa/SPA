@@ -2417,3 +2417,13 @@ details.mk-devfold[open] > summary::after { content: "▾"; }
   .mk-hero-next { display: none; }
   .mk-kpi-caption { display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden; }
 }
+
+/* ARB 26.10: «Мои записи» rows and the preparation block — readable at 390/430 px, nothing clipped:
+   each part of a record row takes the full row width and long words/paths wrap instead of overflowing. */
+.ux-my-records > li { min-width: 0; }
+.ux-my-records > li > * { flex: 1 1 100%; min-width: 0; max-width: 100%; overflow-wrap: anywhere; }
+.ux-record-prep { margin-top: 6px; padding-left: 10px; border-left: 2px solid var(--border, #3a3a4a);
+                  box-sizing: border-box; min-width: 0; }
+.ux-record-prep > p { margin: 4px 0; overflow-wrap: anywhere; }
+.ux-record-prep-head { font-weight: 700; }
+.ux-prewrap { white-space: pre-wrap; }
