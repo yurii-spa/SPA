@@ -4,6 +4,49 @@ Date: 2026-10-26, Europe/Madrid. Decision owner: ChatGPT / ARB.
 Implementer: Claude Code. Deployment authority: Yurii.
 Source: full attachment «Вставленный текст(20261026-125130).txt», 306 lines.
 
+## Superseding follow-up — v3 ready for publication and full CI
+
+Date: 2026-10-26, Europe/Madrid. Decision owner: ChatGPT / ARB.
+The release-builder conflict refusal is ACCEPTED. R1/R2/U1 remain accepted; no further implementation
+round is requested. The earlier blocker/next-package sections below are historical.
+
+Independently checked after Claude's v3 report:
+- Local/remote integration HEAD 9cadd32b260a36725b7a3ca73eaf59ac1730e03e; clean before these ARB doc edits.
+- Server main still 37e06e185dfaddd24ca9a3e0f993e118fd20a9ba at review time.
+- Release 6ca0ce2a8cff3b2d44aa94e9e32f7b3c499736b7 has exactly that parent. All 23 changed paths,
+  statuses and blob hashes match RELEASE_MANIFEST_v3.txt. Integration code unchanged since aac3b4316.
+- Ran the unchanged v3 builder against ARB's previous private conflicting-base control:
+  exit 5, HEAD remains the base, no release manifest, refusal marker present, directory preserved.
+  Evidence: /var/folders/6q/78j7h2557tx6hkbkw3cmrsc00000gn/T/arb-release-guard-j6frb0y4/v3_findings.json
+- Read local release test evidence: 975 passed, 1 warning, 10 subtests; this is Claude's local evidence,
+  not an independent rerun or full CI. Two previous integration CI errors remain open.
+- Read release-tree workflow push triggers: the present push workflows are main-only; publication
+  to release/task-prep-20261026 is not a main push. Full ci-control is to be dispatched explicitly
+  with inputs.sha equal to the COMPLETE release SHA.
+- Fixed a malformed push refspec in DELIVERY.md (:refs/heads/ was missing). No implementation changed.
+
+Next action is ONE bounded publication/validation package: publish the exact local release SHA to
+release/task-prep-20261026, no force; dispatch one complete ci-control run for that exact SHA; retain
+manifest/JUnit/results and compare against evidence for the exact main base. Do not assume the old
++28 baseline remains exhaustive and do not waive mandatory checks. Report any missing baseline evidence.
+The CI input stays pinned while main moves; assess main drift before any eventual promotion.
+
+Owner authorization, 2026-10-26 Europe/Madrid: Yurii answered «Да разрешаю» to the explicit request
+for Claude to publish release/task-prep-20261026 at 6ca0ce2a8cff3b2d44aa94e9e32f7b3c499736b7 and run
+one full CI of that exact SHA. This permission persists and requires no reconfirmation.
+Executor: Claude Code. Publication/CI have not been performed by ARB.
+Scope: normal non-force push of this exact release SHA to that exact branch, then one complete ci-control
+run pinned to it. If a matching run already exists, reuse it instead of dispatching a duplicate.
+If the branch already points elsewhere, stop rather than overwrite it. Main movement during the run
+does not change the approved CI SHA. Existing integration-branch documentation permissions remain.
+It grants no main merge/push, production sync, feature enablement, model call or restart.
+Rationale: validate the concrete reviewed release before considering production delivery. Alternative
+of another integration-only run was rejected because it measures a different tree. Consequence:
+remote release branch and one CI record become review evidence; deployment remains separately gated.
+Full release CI is pending, so production delivery and NO_REGRESSION are not accepted.
+Rationale: the reported implementation boundary is now closed; testing the assembled release is the
+next useful evidence. A further general audit or repeated full integration run adds no release proof.
+
 ## Decision and scope
 
 The remaining R1 code-content identity correction is ACCEPTED in candidate aac3b4316.

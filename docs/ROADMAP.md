@@ -74,16 +74,17 @@ prepare a reviewable plan and acceptance proposal from an ordinary request throu
 seam; do not make the owner choose internal test names. This is a candidate preparation path, not permission
 to dispatch live work. Evidence and scope: `evidence/studio-os-next-01-2026-10-16/voice_owner_check_2026-10-25/ARB_REVIEW.md`.
 
-**Task-prep checkpoint, ARB 2026-10-26 (code identity accepted):** R1, R2 and U1 accepted in the
-candidate scope; the remaining code-content identity correction is verified by 38 targeted tests.
-Candidate `aac3b4316`, CI 40317312101: 135187 passed, two previous §49 failures, TWO NEW fixture errors
-in `test_foreign_markup_reader_census`, 719 skipped, 12/12. RED, not NO_REGRESSION; one local timing pair
-cannot establish the cause. Integration HEAD `1f47378ff` adds CI docs only.
-Next bounded package: fix the independently reproduced release-builder false-success on a conflicting
-patch, then finish an exact main-based release candidate and its delivery evidence. No renewed R1/R2/U1
-audit or model call. The release tree is distinct from the integration CI tree; its full CI is not yet
-established. Production delivery and automatic execution remain unapproved.
-Decision: `evidence/studio-os-next-01-2026-10-16/release_task_prep_20261026T100847Z/ARB_REVIEW_2026-10-26.md`.
+**Task-prep checkpoint, ARB 2026-10-26 (release preparation accepted):** R1/R2/U1 and the v3
+release-builder conflict refusal are accepted in their reviewed scope. Exact local release
+`6ca0ce2a8cff3b2d44aa94e9e32f7b3c499736b7` is based on main `37e06e185`; ARB verified all 23 paths/blob
+hashes and independently reproduced nonzero refusal with no release commit on a conflicting base.
+Claude reports 975 local release tests passed. Full CI for this release is PENDING.
+Owner authorized publication of that exact SHA to `release/task-prep-20261026` and ONE full CI on
+2026-10-26 («Да разрешаю»). Next: Claude executes the authorized publication/CI and returns its evidence.
+No new implementation round or general audit. No deployment, main promotion or execution is authorized.
+Integration CI 40317312101 on `aac3b4316` remains RED: two known §49 failures and two new fixture errors;
+its result does not certify the release. Decision and evidence:
+`evidence/studio-os-next-01-2026-10-16/release_task_prep_20261026T100847Z/ARB_REVIEW_2026-10-26.md`.
 
 **Verification efficiency:** bound work to the actual change, reuse traceable evidence, and batch the required
 full CI on a stable candidate. No repeated whole-system/AI audit by default; no removal of mandatory checks and
