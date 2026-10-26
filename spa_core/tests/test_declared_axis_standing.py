@@ -106,7 +106,7 @@ class TheFourMeasuredDeploymentPairsStopBeingFindings(unittest.TestCase):
     def test_with_two_declared_producers_the_axis_abstains(self):
         for schedule in (_DAILY_MORNING, _DAILY_EVENING):
             with self.subTest(schedule=schedule):
-                axis, note = sp.audit_declared(_DEPLOY_SLO, schedule, _DEPLOY_MEDIAN, 2)
+                axis, note = sp.audit_declared(_DEPLOY_SLO, schedule, _DEPLOY_MEDIAN, 2, intent=sp.PRODUCER_ACTIVE)
                 self.assertEqual(axis, sp.DECLARED_CO_PRODUCED, note)
 
     def test_the_abstention_names_what_it_would_have_said(self):
@@ -118,7 +118,7 @@ class TheFourMeasuredDeploymentPairsStopBeingFindings(unittest.TestCase):
         Поэтому причина обязана назвать оба числа сравнения и сам факт, что
         отрицание отклонено.
         """
-        _, note = sp.audit_declared(_DEPLOY_SLO, _DAILY_MORNING, _DEPLOY_MEDIAN, 2)
+        _, note = sp.audit_declared(_DEPLOY_SLO, _DAILY_MORNING, _DEPLOY_MEDIAN, 2, intent=sp.PRODUCER_ACTIVE)
         self.assertIn("15", note, "не назван срок, о котором шла речь")
         self.assertIn("26", note, "не назван пол, против которого сравнивали")
         self.assertIn("отрицание", note, "не сказано, что именно отклонено")
@@ -126,7 +126,7 @@ class TheFourMeasuredDeploymentPairsStopBeingFindings(unittest.TestCase):
 
     def test_uncounted_producers_abstain_separately_from_co_production(self):
         """«Не посчитали» и «их несколько» лечатся разным — и различимы."""
-        axis, note = sp.audit_declared(_DEPLOY_SLO, _DAILY_MORNING, _DEPLOY_MEDIAN, None)
+        axis, note = sp.audit_declared(_DEPLOY_SLO, _DAILY_MORNING, _DEPLOY_MEDIAN, None, intent=sp.PRODUCER_ACTIVE)
         self.assertEqual(axis, sp.DECLARED_STANDING_UNMEASURED, note)
         self.assertNotEqual(sp.DECLARED_STANDING_UNMEASURED, sp.DECLARED_CO_PRODUCED)
 
@@ -141,7 +141,7 @@ class RealFindingsSurviveTheDoor(unittest.TestCase):
                 (7, "interval:21600s", 6.001, "architecture_conformance: такт 6 ч, срок 7 ч"),
                 (1, "interval:3600s", 1.0, "chief_investment: 1 ч/1 ч, случай ADR-549")):
             with self.subTest(who=who):
-                axis, note = sp.audit_declared(slo, schedule, median, 1)
+                axis, note = sp.audit_declared(slo, schedule, median, 1, intent=sp.PRODUCER_ACTIVE)
                 self.assertIn(axis, (sp.CURATED_BELOW, sp.CURATED_MARGIN_ONLY),
                               f"{who} — находка ПОГАШЕНА правомочием: {note}")
 
@@ -152,7 +152,7 @@ class RealFindingsSurviveTheDoor(unittest.TestCase):
         но нарушение меряет наблюдённая ось, и там предмет АРТЕФАКТ целиком.
         Проверяем, что воздержание не выдаётся за «выдерживает».
         """
-        axis, note = sp.audit_declared(_DEPLOY_SLO, _DAILY_MORNING, 40.0, 2)
+        axis, note = sp.audit_declared(_DEPLOY_SLO, _DAILY_MORNING, 40.0, 2, intent=sp.PRODUCER_ACTIVE)
         self.assertNotEqual(axis, sp.CURATED_ABOVE, note)
         self.assertEqual(axis, sp.DECLARED_CO_PRODUCED, note)
 
@@ -163,14 +163,14 @@ class StandingIsAsymmetricByConstruction(unittest.TestCase):
     def test_a_positive_verdict_needs_no_standing(self):
         # `data/system_health.json`: те же ДВА производителя, срок 26 ч, пол 26 ч.
         # «Этот агент один способен держать срок» для файла ДОСТАТОЧНО.
-        axis, note = sp.audit_declared(_HEALTH_SLO, _DAILY_MORNING, _DEPLOY_MEDIAN, 2)
+        axis, note = sp.audit_declared(_HEALTH_SLO, _DAILY_MORNING, _DEPLOY_MEDIAN, 2, intent=sp.PRODUCER_ACTIVE)
         self.assertEqual(axis, sp.CURATED_ABOVE, note)
 
     def test_the_positive_verdict_is_identical_with_and_without_co_producers(self):
         for count in (1, 2, 7, None):
             with self.subTest(co_producers=count):
                 axis, _ = sp.audit_declared(_HEALTH_SLO, _DAILY_MORNING,
-                                            _DEPLOY_MEDIAN, count)
+                                            _DEPLOY_MEDIAN, count, intent=sp.PRODUCER_ACTIVE)
                 self.assertEqual(axis, sp.CURATED_ABOVE,
                                  "правомочие израсходовано на утверждение, которому "
                                  "оно не нужно — положительная сторона потеряна")
@@ -182,11 +182,11 @@ class TheDoorDelegatesAndKeepsNoSecondCopyOfTheRule(unittest.TestCase):
     def test_the_verdict_moves_with_the_schedule_it_was_given(self):
         """Расписание — вход: подмени его, и вердикт обязан поехать."""
         # Часовой агент: пол 2 ч, срок 15 ч — выше пола, правомочие не при чём.
-        axis, note = sp.audit_declared(_DEPLOY_SLO, "interval:3600s", _DEPLOY_MEDIAN, 2)
+        axis, note = sp.audit_declared(_DEPLOY_SLO, "interval:3600s", _DEPLOY_MEDIAN, 2, intent=sp.PRODUCER_ACTIVE)
         self.assertEqual(axis, sp.CURATED_ABOVE, note)
 
     def test_an_unparsable_schedule_is_the_third_outcome_of_the_floor(self):
-        axis, note = sp.audit_declared(_DEPLOY_SLO, "по понедельникам", _DEPLOY_MEDIAN, 2)
+        axis, note = sp.audit_declared(_DEPLOY_SLO, "по понедельникам", _DEPLOY_MEDIAN, 2, intent=sp.PRODUCER_ACTIVE)
         self.assertEqual(axis, sp.CURATED_UNMEASURED, note)
 
     def test_the_margin_rule_is_not_reimplemented_here(self):
@@ -204,10 +204,10 @@ class TheCensusCountsProducersFromTheConstitution(unittest.TestCase):
 
     #: Сцена — две пары агентов на один артефакт, дословно форма живой конституции.
     _AGENTS = [
-        {"label": "com.spa.morning", "schedule": _DAILY_MORNING,
+        {"intent": "active", "label": "com.spa.morning", "schedule": _DAILY_MORNING,
          "produces": [{"artifact": "data/shared.json", "slo_hours": _DEPLOY_SLO},
                       {"artifact": "data/mine.json", "slo_hours": _DEPLOY_SLO}]},
-        {"label": "com.spa.evening", "schedule": _DAILY_EVENING,
+        {"intent": "active", "label": "com.spa.evening", "schedule": _DAILY_EVENING,
          "produces": [{"artifact": "data/shared.json", "slo_hours": _DEPLOY_SLO}]},
     ]
 
@@ -243,7 +243,7 @@ class TheCensusCountsProducersFromTheConstitution(unittest.TestCase):
 
     def test_a_pair_without_a_deadline_is_not_a_pair_of_this_axis(self):
         out = sk.declared_axis_census(
-            [{"label": "com.spa.x", "schedule": _DAILY_MORNING,
+            [{"intent": "active", "label": "com.spa.x", "schedule": _DAILY_MORNING,
               "produces": [{"artifact": "data/no_slo.json"}]}], {})
         self.assertEqual(out["population"], 0)
         self.assertEqual(out["tally"], {})
@@ -265,10 +265,17 @@ class TheOfficeLineIsTheOnlyFormAndHasAThirdOutcome(unittest.TestCase):
             self.assertIn(number, line)
 
     def test_missing_sub_keys_are_not_printed_as_zero(self):
-        """«Находок нет» и «находки не посчитаны» обязаны быть различимы."""
+        """«Находок нет» и «находки не посчитаны» обязаны быть различимы.
+
+        Число ЗДЕСЬ есть счёт под-ключей строки, а не константа: ADR-818 добавил
+        четвёртый (`not_running`), и требование к нему РОВНО то же — отсутствие
+        ключа печатается как «НЕ ИЗМЕРЕНО», а не как ноль. Поэтому 3 → 4 есть
+        расширение проверки на новый ключ, а не её послабление (инв. #16).
+        """
         line = sk.declared_axis_line({"declared_axis": {"population": 1}})
-        self.assertEqual(line.count("НЕ ИЗМЕРЕНО"), 3, line)
+        self.assertEqual(line.count("НЕ ИЗМЕРЕНО"), 4, line)
         self.assertNotIn("находок 0", line)
+        self.assertNotIn("агент НЕ ИДЁТ 0", line)
 
 
 if __name__ == "__main__":

@@ -1,0 +1,100 @@
+{
+  "title": "ADR-818 — дельта цикла #942 (объявленная ось судила сроки ОТСТАВНЫХ агентов)",
+  "tests": [
+    "spa_core/tests/test_declared_axis_producer_standing.py",
+    "spa_core/tests/test_declared_axis_standing.py",
+    "spa_core/tests/test_declared_co_production_actual.py"
+  ],
+  "mutations": [
+    {
+      "name": "ДЕФЕКТ ДОСЛОВНО: дверь объявляет идущим КОГО УГОДНО — отставной агент снова судится",
+      "file": "spa_core/monitoring/slo_proposal.py",
+      "old": "    if intent == PRODUCER_ACTIVE:\n        return True, f\"агент объявлен идущим ({intent}) — такт у него есть\"\n",
+      "new": "    return True, f\"агент объявлен идущим ({intent}) — такт у него есть\"\n    if intent == PRODUCER_ACTIVE:\n        return True, \"\"\n"
+    },
+    {
+      "name": "дверь знает только retired/designed — `paused` снова проходит как идущий",
+      "file": "spa_core/monitoring/slo_proposal.py",
+      "old": "    if intent == PRODUCER_ACTIVE:\n        return True, f\"агент объявлен идущим ({intent}) — такт у него есть\"\n",
+      "new": "    if intent not in (\"retired\", \"designed\"):\n        return True, f\"агент объявлен идущим ({intent}) — такт у него есть\"\n"
+    },
+    {
+      "name": "третий исход подменён вторым: непрочитанный ярлык объявляется отставкой",
+      "file": "spa_core/monitoring/slo_proposal.py",
+      "old": "    if not isinstance(intent, str) or not intent:\n        return None, (f\"ярлык состояния агента не прочитан ({intent!r}) — идёт он \"\n                      f\"или выведен, сказать нечем\")\n",
+      "new": "    if not isinstance(intent, str) or not intent:\n        return False, (f\"ярлык состояния агента не прочитан ({intent!r}) — идёт он \"\n                       f\"или выведен, сказать нечем\")\n"
+    },
+    {
+      "name": "третий исход подменён ПЕРВЫМ: непрочитанный ярлык объявляется идущим (fail-OPEN)",
+      "file": "spa_core/monitoring/slo_proposal.py",
+      "old": "    if not isinstance(intent, str) or not intent:\n        return None, (f\"ярлык состояния агента не прочитан ({intent!r}) — идёт он \"\n                      f\"или выведен, сказать нечем\")\n",
+      "new": "    if not isinstance(intent, str) or not intent:\n        return True, (f\"ярлык состояния агента не прочитан ({intent!r}) — идёт он \"\n                      f\"или выведен, сказать нечем\")\n"
+    },
+    {
+      "name": "`bool` не отсекается: True есть int, и ярлык-булево проходит дверь",
+      "file": "spa_core/monitoring/slo_proposal.py",
+      "old": "    if not isinstance(intent, str) or not intent:\n",
+      "new": "    if intent is None:\n"
+    },
+    {
+      "name": "ПОРЯДОК ВОПРОСОВ: пол спрашивается раньше отставки — пара уходит в чужой третий исход",
+      "file": "spa_core/monitoring/slo_proposal.py",
+      "old": "    runs, why_runs = producer_standing(intent)\n    if runs is False:\n",
+      "new": "    floor, _why_pre = architect_floor(schedule)\n    if below_floor(declared_hours, floor)[0] is None:\n        return CURATED_UNMEASURED, \"пол не выведен\"\n    runs, why_runs = producer_standing(intent)\n    if runs is False:\n"
+    },
+    {
+      "name": "АСИММЕТРИЯ ADR-816 ошибочно перенесена сюда: положительный вердикт выдаётся отставному",
+      "file": "spa_core/monitoring/slo_proposal.py",
+      "old": "    runs, why_runs = producer_standing(intent)\n    if runs is False:\n",
+      "new": "    runs, why_runs = producer_standing(intent)\n    if runs is False and below_floor(declared_hours, architect_floor(schedule)[0])[0] is not False:\n"
+    },
+    {
+      "name": "`intent` получает умолчание — вызов без ярлыка снова тихо судит пару",
+      "file": "spa_core/monitoring/slo_proposal.py",
+      "old": "                   co_producers, *, intent) -> tuple[str, str]:",
+      "new": "                   co_producers, intent=PRODUCER_ACTIVE) -> tuple[str, str]:"
+    },
+    {
+      "name": "перепись не спрашивает ярлык у агента — подставляет идущего (ДЕФЕКТ ДОСЛОВНО)",
+      "file": "spa_core/monitoring/slo_keepability.py",
+      "old": "                intent=agent.get(\"intent\"))",
+      "new": "                intent=slo_proposal.PRODUCER_ACTIVE)"
+    },
+    {
+      "name": "пара отставного агента складывается в население вопроса ADR-817",
+      "file": "spa_core/monitoring/slo_keepability.py",
+      "old": "        \"abstained\": [r for r in pairs if r[\"declared_vs_floor\"] in (\n            slo_proposal.DECLARED_CO_PRODUCED,\n            slo_proposal.DECLARED_STANDING_UNMEASURED)],",
+      "new": "        \"abstained\": [r for r in pairs if r[\"declared_vs_floor\"] in (\n            slo_proposal.DECLARED_CO_PRODUCED,\n            slo_proposal.DECLARED_STANDING_UNMEASURED,\n            slo_proposal.DECLARED_PRODUCER_NOT_RUNNING)],"
+    },
+    {
+      "name": "перечень `not_running` исчезает — девять пар просто пропадают из отчёта",
+      "file": "spa_core/monitoring/slo_keepability.py",
+      "old": "        \"not_running\": [r for r in pairs if r[\"declared_vs_floor\"] in (\n            slo_proposal.DECLARED_PRODUCER_NOT_RUNNING,\n            slo_proposal.DECLARED_PRODUCER_STANDING_UNMEASURED)],",
+      "new": "        \"not_running\": [],"
+    },
+    {
+      "name": "читатель шага 0-офис печатает отсутствие ключа НУЛЁМ (инв. #17 наизнанку)",
+      "file": "spa_core/monitoring/slo_keepability.py",
+      "old": "    not_running = section.get(\"not_running\")",
+      "new": "    not_running = section.get(\"not_running\") or []"
+    },
+    {
+      "name": "соседняя ось перестаёт исключать отставных — своя копия правила возвращается",
+      "file": "spa_core/monitoring/slo_keepability.py",
+      "old": "        runs, _why_runs = slo_proposal.producer_standing(intent)\n        if runs is not True:",
+      "new": "        runs, _why_runs = slo_proposal.producer_standing(intent)\n        if runs is False and intent in (\"designed\",):"
+    },
+    {
+      "name": "ведро «ярлык не прочитан» снова поглощает `paused`",
+      "file": "spa_core/monitoring/slo_keepability.py",
+      "old": "                key = intent if isinstance(intent, str) and intent else \"intent_absent\"",
+      "new": "                key = intent if intent in (\"retired\", \"designed\") else \"intent_absent\""
+    },
+    {
+      "name": "литерал идущего ярлыка снова живёт в двух копиях",
+      "file": "spa_core/monitoring/slo_keepability.py",
+      "old": "ACTIVE = slo_proposal.PRODUCER_ACTIVE",
+      "new": "ACTIVE = \"active\""
+    }
+  ]
+}

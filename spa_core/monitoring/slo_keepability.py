@@ -257,7 +257,13 @@ MARGIN_FACTOR = 2.0
 
 #: Только идущие агенты. `retired`/`designed` такта не имеют по построению, и
 #: судить их сроки значило бы печатать находку о том, чего нет.
-ACTIVE = "active"
+#:
+#: **Литерал ОДИН** (ADR-818): правило это до сегодня исполняла только соседняя
+#: ось (`measure` ниже), а ОБЪЯВЛЕННАЯ ось про `intent` не спрашивала вовсе и
+#: судила сроки отставных агентов — 9 пар из 231. Теперь его спрашивают оба,
+#: через единственную дверь `slo_proposal.producer_standing`, и своей копии
+#: литерала здесь больше нет.
+ACTIVE = slo_proposal.PRODUCER_ACTIVE
 
 #: Совпадает ли ОБЪЯВЛЕННОЕ со-производство с ДЕЙСТВИТЕЛЬНЫМ (ADR-817, заказ
 #: G816 п. 2). Предмет — ПРЕДПОСЫЛКА воздержания ADR-816, а НЕ срок годности:
@@ -504,12 +510,21 @@ def declared_axis_line(doc: dict) -> str:
     above = tally.get(slo_proposal.CURATED_ABOVE)
     findings = section.get("findings")
     abstained = section.get("abstained")
+    # Пары ОТСТАВНЫХ производителей — своё число (ADR-818), и сложить его с
+    # воздержаниями со-производства нельзя: они о разных предметах, и ровно это
+    # смешение девять пар до сегодня и прятало внутри «срок не ниже пола».
+    # Ключа нет ⇒ «НЕ ИЗМЕРЕНО»: прибор старой версии и прибор без населения
+    # обязаны быть различимы (инв. #17).
+    not_running = section.get("not_running")
     return ("slo_keepability, объявленная ось (пара «агент × артефакт» по расписанию): "
             f"население {section.get('population')} · срок не ниже пола "
             f"{'НЕ ИЗМЕРЕНО' if above is None else above} · находок "
             f"{'НЕ ИЗМЕРЕНО' if findings is None else len(findings)} · ВОЗДЕРЖАНИЙ "
             f"{'НЕ ИЗМЕРЕНО' if abstained is None else len(abstained)} "
-            "(артефакт за несколькими производителями — такт ОДНОГО про файл не отвечает)")
+            "(артефакт за несколькими производителями — такт ОДНОГО про файл не отвечает)"
+            " · агент НЕ ИДЁТ "
+            f"{'НЕ ИЗМЕРЕНО' if not_running is None else len(not_running)} "
+            "(такта нет по построению — срок судить не о чем ни в одну сторону)")
 
 
 def declared_producer_labels(agents: list, artifact: str) -> list:
@@ -754,10 +769,12 @@ def declared_axis_census(agents: list, medians: dict) -> dict:
                 continue
             declared_producers = len(declared_producer_labels(agents, art))
             axis, note = slo_proposal.audit_declared(
-                slo, schedule, medians.get(art), declared_producers)
+                slo, schedule, medians.get(art), declared_producers,
+                intent=agent.get("intent"))
             tally[axis] = tally.get(axis, 0) + 1
             pairs.append({"agent": agent.get("label"), "artifact": art,
                           "slo_hours": slo, "schedule": schedule,
+                          "intent": agent.get("intent"),
                           "declared_producers": declared_producers,
                           "declared_vs_floor": axis, "note": note})
     return {
@@ -773,6 +790,16 @@ def declared_axis_census(agents: list, medians: dict) -> dict:
         "abstained": [r for r in pairs if r["declared_vs_floor"] in (
             slo_proposal.DECLARED_CO_PRODUCED,
             slo_proposal.DECLARED_STANDING_UNMEASURED)],
+        # ОТДЕЛЬНЫЙ перечень, а не строка в `abstained` (ADR-818). Делит их
+        # ПРЕДМЕТ воздержания, а не его знак: `abstained` есть население вопроса
+        # ADR-817 («существует ли объявленное со-производство в
+        # действительности»), и пара отставного агента в нём стала бы вопросом,
+        # которого никто не задавал, — у неё со-производства нет по построению.
+        # Перечисляется ПОИМЁННО по той же причине, что и `abstained`: пара,
+        # просто исчезнувшая из отчёта, неотличима от пары, которой не было.
+        "not_running": [r for r in pairs if r["declared_vs_floor"] in (
+            slo_proposal.DECLARED_PRODUCER_NOT_RUNNING,
+            slo_proposal.DECLARED_PRODUCER_STANDING_UNMEASURED)],
     }
 
 
@@ -841,9 +868,20 @@ def measure(manifest_path: Optional[Path] = None, *, log_dir: Path = Path("/tmp"
         produces = [p for p in (agent.get("produces") or []) if isinstance(p, dict)]
         declares = [p for p in produces if isinstance(p.get("slo_hours"), (int, float))]
         no_slo += len(produces) - len(declares)
-        if intent != ACTIVE:
+        # Та же дверь, что и у объявленной оси (ADR-818): прежде здесь жил свой
+        # `intent != ACTIVE`, и правило существовало в двух копиях — одна
+        # исполнялась, вторая (на объявленной оси) отсутствовала вовсе.
+        runs, _why_runs = slo_proposal.producer_standing(intent)
+        if runs is not True:
             if declares:
-                key = intent if intent in ("retired", "designed") else "intent_absent"
+                # Ярлык НАЗЫВАЕТСЯ как он есть, а «не прочитан» — отдельным
+                # ведром: прежняя редакция клала под `intent_absent` любой
+                # незнакомый ярлык, то есть `paused` докладывался как
+                # «состояние не объявлено». Замер 26.10: `paused` объявлен у
+                # одного агента, пар со сроком у него НОЛЬ, поэтому ни одно
+                # число этой правкой не двинулось — дефект закрыт до появления
+                # населения, а не после.
+                key = intent if isinstance(intent, str) and intent else "intent_absent"
                 excluded[key] = excluded.get(key, 0) + len(declares)
             continue
         active_labels.add(label)
