@@ -2,7 +2,7 @@
 trackerStatus:
   type: inbox
 title: "Пульт UX-02 · E: проверка сценариев и отчёт для ARB"
-status: in-progress
+status: done
 source: nimbalyst
 created: 2026-10-09
 owner: "@yurii"
@@ -13,6 +13,7 @@ final_outcome: "ВЫПУЩЕНО 15.10 коммитом 2df987cec (одобре�
 acceptance_probe: director_os_owner_view_section:scenarios
 status_trail:
   - "2026-10-09T08:15:06.425879+00:00 new -> in-progress · queue.set_status"
+  - "2026-10-26T16:51:10.212159+00:00 in-progress -> done · queue.set_status/closed_by:cycle-26527/evidence:машинная проба карточки ВЫПОЛНЕНА, перемерено из прод-дерева с живым data/ 26.10 (spa_core.monitoring.card_acceptance, ADR-208): критерий объявлен ДО работы и выполнен — закрытие по ИСХОДУ, не по проз · cycle-26527"
 ---
 
 ## Что сделать

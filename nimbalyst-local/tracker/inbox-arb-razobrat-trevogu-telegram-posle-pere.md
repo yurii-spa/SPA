@@ -10,6 +10,7 @@ acceptance_probe: agent_health_reboot_false_alarm_closed
 status_trail:
   - "2026-10-16T01:27:05.360314+00:00 new -> in-progress · queue.set_status"
   - "2026-10-26T05:39:00.106438+00:00 in-progress -> done · queue.set_status/closed_by:cycle-49348 (оркестратор, цикл #940)/evidence:собственная проба карточки agent_health_reboot_false_alarm_closed = satisfied (перемерено card_acceptance на живом прод-дереве 26.10: zz_arb_probe_calendar/hourly=awaiting_first_run, zz_arb_probe_rece · cycle-49348"
+  - "2026-10-26T16:51:06.834049+00:00 done -> done · queue.set_status/closed_by:cycle-26527/evidence:машинная проба карточки ВЫПОЛНЕНА, перемерено из прод-дерева с живым data/ 26.10 (spa_core.monitoring.card_acceptance, ADR-208): критерий объявлен ДО работы и выполнен — закрытие по ИСХОДУ, не по проз · cycle-26527"
 ---
 
 ## Основание и полномочия

@@ -2,12 +2,13 @@
 trackerStatus:
   type: inbox
 title: Отчёт владельцу /protocols показывает 2 протокола из 36 — раздел adapters приходит словарём, а читатель ждёт список
-status: in-progress
+status: done
 source: nimbalyst
 created: 2026-10-12
 acceptance_probe: owner_protocols_report_carries_every_record
 status_trail:
   - "2026-10-13T00:49:55.045578+00:00 new -> in-progress · queue.set_status · cycle-854"
+  - "2026-10-26T16:51:07.791135+00:00 in-progress -> done · queue.set_status/closed_by:cycle-26527/evidence:машинная проба карточки ВЫПОЛНЕНА, перемерено из прод-дерева с живым data/ 26.10 (spa_core.monitoring.card_acceptance, ADR-208): критерий объявлен ДО работы и выполнен — закрытие по ИСХОДУ, не по проз · cycle-26527"
 ---
 
 ## Что измерено (цикл #853, ADR-709)

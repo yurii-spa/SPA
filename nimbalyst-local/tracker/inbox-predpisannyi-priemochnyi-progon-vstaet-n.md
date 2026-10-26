@@ -2,7 +2,7 @@
 trackerStatus:
   type: inbox
 title: "Предписанный приёмочный прогон встаёт на полчаса на одном тесте: он читает ЖИВОЕ прод-дерево (журнал 52 МБ)"
-status: in-progress
+status: done
 source: nimbalyst
 created: 2026-10-17
 priority: high
@@ -14,6 +14,7 @@ claimed_pid: 44669
 claimed_pid_start: Sat Oct 17 22:20:32 2026
 status_trail:
   - "2026-10-17T20:52:45.225565+00:00 new -> in-progress · queue.set_status · cycle-44669"
+  - "2026-10-26T16:51:08.253491+00:00 in-progress -> done · queue.set_status/closed_by:cycle-26527/evidence:машинная проба карточки ВЫПОЛНЕНА, перемерено из прод-дерева с живым data/ 26.10 (spa_core.monitoring.card_acceptance, ADR-208): критерий объявлен ДО работы и выполнен — закрытие по ИСХОДУ, не по проз · cycle-26527"
 ---
 
 ## Что случилось и почему это важно

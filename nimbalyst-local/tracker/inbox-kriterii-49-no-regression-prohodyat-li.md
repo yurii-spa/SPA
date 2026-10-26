@@ -2,7 +2,7 @@
 trackerStatus:
   type: inbox
 title: "Критерий §49 «No regression»: проходят ли существующие risk/security/architecture-тесты — не мерил никто"
-status: in-progress
+status: done
 source: nimbalyst
 created: 2026-09-28
 acceptance_probe: no_regression_tests_pass
@@ -10,6 +10,7 @@ status_trail:
   - "2026-09-28T06:39:43.834602+00:00 new -> in-progress · queue.set_status · cycle-6648"
   - "2026-09-28T07:08:46.137686+00:00 in-progress -> done · queue.set_status · cycle-6648"
   - "2026-09-28T07:57:54.889697+00:00 done -> in-progress · queue.set_status · cycle-6648"
+  - "2026-10-26T16:51:07.337998+00:00 in-progress -> done · queue.set_status/closed_by:cycle-26527/evidence:машинная проба карточки ВЫПОЛНЕНА, перемерено из прод-дерева с живым data/ 26.10 (spa_core.monitoring.card_acceptance, ADR-208): критерий объявлен ДО работы и выполнен — закрытие по ИСХОДУ, не по проз · cycle-26527"
 ---
 
 ## Что случилось и почему это важно
