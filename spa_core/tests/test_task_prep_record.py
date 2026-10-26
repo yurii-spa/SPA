@@ -452,3 +452,86 @@ def test_the_delivery_switch_is_off_unless_the_environment_names_a_store(monkeyp
     assert mc.MCInputs().task_prep_root is None
     monkeypatch.setenv(mc.TASK_PREP_ROOT_ENV, str(tmp_path / "store"))
     assert mc.MCInputs().task_prep_root == tmp_path / "store"
+
+
+# ── ARB 26.10 R1 (остаток): версия кода — по СОДЕРЖИМОМУ, не по списку путей ───────────────────────────
+
+def _commit(s, rel, text, msg):
+    p = s.root / rel
+    p.parent.mkdir(parents=True, exist_ok=True)
+    p.write_text(text, encoding="utf-8")
+    trp._g(s.root, "add", rel)
+    trp._g(s.root, "commit", "-q", "-m", msg)
+
+
+def test_two_successive_commits_of_one_code_file_make_the_plan_stale_and_repreparation_new(scene):
+    """Воспроизведение ARB: тот же verified_sha, те же документы, spa_core/x.py x=2 → x=3."""
+    _commit(scene, "spa_core/x.py", "x = 2\n", "x=2")
+    card = _submit(scene)
+    first = _prepare(scene, card)
+    assert first["state"]["state"] == "current"
+    _commit(scene, "spa_core/x.py", "x = 3\n", "x=3")
+    row = _row(scene, card)
+    assert row["preparation"]["state"] == "stale" and "изменилась версия кода" in row["preparation"]["why"]
+    again = _prepare(scene, card, at="2026-10-26T09:30:00+00:00")
+    assert again["action"] == "prepared" and again["run"] != first["run"] and len(scene.calls) == 2
+    assert _row(scene, card)["preparation"]["state"] == "plan"
+
+
+@pytest.mark.parametrize("change", ["modified", "untracked", "staged"])
+def test_an_uncommitted_code_change_makes_the_plan_stale(scene, change):
+    _commit(scene, "spa_core/x.py", "x = 2\n", "x=2")
+    card = _submit(scene)
+    _prepare(scene, card)
+    if change == "modified":
+        (scene.root / "spa_core/x.py").write_text("x = 4\n", encoding="utf-8")
+    elif change == "untracked":
+        (scene.root / "spa_core/y.py").write_text("y = 1\n", encoding="utf-8")
+    else:
+        (scene.root / "spa_core/x.py").write_text("x = 5\n", encoding="utf-8")
+        trp._g(scene.root, "add", "spa_core/x.py")
+    assert _row(scene, card)["preparation"]["state"] == "stale"
+    assert _prepare(scene, card, at="2026-10-26T09:31:00+00:00")["action"] == "prepared"
+
+
+def test_a_documentation_only_commit_keeps_the_plan_current_and_reusable(scene):
+    """Определено явно: docs/ — не код. Документы, из которых построен план, связаны своими байтами отдельно;
+    коммит документа, НЕ входившего в контекст, план не делает устаревшим."""
+    _commit(scene, "spa_core/x.py", "x = 2\n", "x=2")
+    card = _submit(scene)
+    first = _prepare(scene, card)
+    _commit(scene, "docs/unrelated_note.md", "заметка\n", "docs only")
+    assert _row(scene, card)["preparation"]["state"] == "plan"
+    again = _prepare(scene, card, at="2026-10-26T11:00:00+00:00")       # другое время, те же входы
+    assert again["action"] == "unchanged" and again["run"] == first["run"] and len(scene.calls) == 1
+
+
+def test_a_documentation_commit_to_a_context_source_still_makes_it_stale(scene):
+    card = _submit(scene)
+    _prepare(scene, card)
+    h = scene.root / "docs/evidence/HANDOVER.md"
+    _commit(scene, "docs/evidence/HANDOVER.md", h.read_text(encoding="utf-8") + "\nдописано\n", "handover edit")
+    assert _row(scene, card)["preparation"]["state"] == "stale"
+
+
+def test_an_old_record_without_a_code_fingerprint_never_passes(scene):
+    card = _submit(scene)
+    run = Path(_prepare(scene, card)["run"])
+    rec_path = run / rv.PREP_RECORD_FILE
+    rec = json.loads(rec_path.read_text(encoding="utf-8"))
+    rec["input_identity_parts"].pop("code_identity")                 # запись прежнего формата (только в сцене)
+    rec_path.write_text(json.dumps(rec, ensure_ascii=False), encoding="utf-8")
+    row = _row(scene, card)
+    assert row["preparation"]["state"] == "stale" and "отпечатка версии кода" in row["preparation"]["why"]
+    assert _prepare(scene, card, at="2026-10-26T09:32:00+00:00")["action"] == "prepared"
+
+
+def test_code_identity_is_content_not_paths_and_none_when_unmeasurable(scene, tmp_path):
+    _commit(scene, "spa_core/x.py", "x = 2\n", "x=2")
+    a = rv.code_identity(scene.root)
+    _commit(scene, "spa_core/x.py", "x = 3\n", "x=3")
+    b = rv.code_identity(scene.root)
+    assert a and b and a != b
+    plain = tmp_path / "not_a_repo"
+    plain.mkdir()
+    assert rv.code_identity(plain) is None

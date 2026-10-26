@@ -484,6 +484,10 @@ def cockpit_records(prod_cards: Optional[dict], now: datetime, *, source: str,
         return {"state": "NOT_MEASURED", "reason": "рабочий трекер на Mac не прочитан", "items": None,
                 "total": None, "source": source, "measured_at": measured_at}
     rows = []
+    code_now = None
+    if task_prep_root is not None:      # the code version is measured ONCE per build, not per record
+        from spa_core.studio_os.memory import arch_review as _ar
+        code_now = _ar.code_identity(code_root if code_root is not None else _ar.role_pack.CODE_REPO)
     for name, c in prod_cards.items():
         fm = c.get("fm") or {}
         if not name.startswith("inbox-") or fm.get("source") not in COCKPIT_SOURCES:
@@ -504,14 +508,15 @@ def cockpit_records(prod_cards: Optional[dict], now: datetime, *, source: str,
                      "acceptance_verdict": fm.get("acceptance_verdict") or None,
                      "acceptance_reason": fm.get("acceptance_reason") or None,
                      "acceptance_next": fm.get("acceptance_next") or None,
-                     **({"preparation": _record_preparation(name, c, task_prep_root, code_root)}
+                     **({"preparation": _record_preparation(name, c, task_prep_root, code_root, code_now)}
                         if task_prep_root is not None else {})})
     rows.sort(key=lambda r: (str(r["created_at"] or ""), r["card"]), reverse=True)
     return {"state": "MEASURED", "reason": None, "items": rows[:limit], "total": len(rows),
             "source": source, "measured_at": measured_at}
 
 
-def _record_preparation(name: str, card: dict, prep_root: Path, code_root: Optional[Path]) -> dict:
+def _record_preparation(name: str, card: dict, prep_root: Path, code_root: Optional[Path],
+                        code_now: Optional[str] = None) -> dict:
     """The newest stored task-prep of ONE record, judged against the card and sources as they are NOW
     (``memory.arch_review.preparation_state``). Read-only: never prepares, never calls a model, never writes.
     No stored run ⇒ ``none`` (nobody prepared it), a different value from ``unreadable``."""
@@ -520,8 +525,9 @@ def _record_preparation(name: str, card: dict, prep_root: Path, code_root: Optio
     if not runs:
         return {"state": "none", "reasons": [], "runs": 0}
     body = card.get("body")
-    st = ar.preparation_state(runs[-1], card_text=body if isinstance(body, str) else None,
-                              root=code_root if code_root is not None else ar.role_pack.CODE_REPO)
+    root = code_root if code_root is not None else ar.role_pack.CODE_REPO
+    st = ar.preparation_state(runs[-1], card_text=body if isinstance(body, str) else None, root=root,
+                              code_now=code_now if code_now is not None else ar.code_identity(root))
     return {**st, "runs": len(runs)}
 
 

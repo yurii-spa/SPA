@@ -957,6 +957,12 @@ def _prep_reason_ru(r: str) -> str:
         return "текст записи сейчас не читается"
     if r.startswith("no source fingerprints"):
         return "актуальность плана проверить нельзя"
+    if r == "the code version changed":
+        return "изменилась версия кода"
+    if r.startswith("no code fingerprint"):
+        return "у плана нет отпечатка версии кода — подготовить заново"
+    if r.startswith("the code version is not measurable"):
+        return "версию кода сейчас установить нельзя"
     if r == "provider status quota":
         return "у модели закончился лимит"
     if r == "provider status refused":

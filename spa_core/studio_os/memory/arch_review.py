@@ -247,6 +247,39 @@ def run_review(root: Path, *, handover: str, task_id: str, task: str, verified_s
     return record
 
 
+#: ARB 26.10 (R1 remainder): what «the code version» means for a preparation — the paths code-sync delivers
+#: (``mission_control.SYNCED_PREFIXES``). Documentation-only commits (``docs/``), the tracker and ``data/`` are NOT
+#: code: the documents a plan was built from are bound separately by their own bytes (``sources_sha256``).
+CODE_SCOPE = ("spa_core", "scripts", "tests", "architecture", "CLAUDE.md", ".claude")
+
+
+def code_identity(root: Path) -> Optional[str]:
+    """Fingerprint of the CONTENT of the code scope as it is in ``root`` right now: the committed tree entries of
+    HEAD, the uncommitted diff against HEAD, and every untracked (not ignored) file by its bytes. A path list is
+    not an identity — two versions of one file differ here. ``None`` ⇒ not measurable (never «unchanged»)."""
+    head = _git(root, "ls-tree", "HEAD", "--", *CODE_SCOPE)
+    if head is None:
+        return None
+    try:
+        diff = subprocess.run(["git", "-C", str(root), "diff", "HEAD", "--binary", "--", *CODE_SCOPE],
+                              capture_output=True, timeout=120)
+        untracked = subprocess.run(["git", "-C", str(root), "ls-files", "--others", "--exclude-standard", "-z",
+                                    "--", *CODE_SCOPE], capture_output=True, timeout=120)
+    except (OSError, subprocess.SubprocessError):
+        return None
+    if diff.returncode != 0 or untracked.returncode != 0:
+        return None
+    h = hashlib.sha256()
+    h.update(head.encode("utf-8"))
+    h.update(b"\0diff\0" + diff.stdout)
+    for rel in sorted(x for x in untracked.stdout.decode("utf-8", "replace").split("\0") if x):
+        try:
+            h.update(b"\0new\0" + rel.encode("utf-8") + b"\0" + (Path(root) / rel).read_bytes())
+        except OSError:
+            return None
+    return h.hexdigest()
+
+
 def build_inputs(root: Path, *, handover: str, task: str, verified_sha: str, provider: Optional[str],
                  roadmap_item: Optional[int] = None, extra: Sequence[Path] = (), config: Optional[Dict] = None,
                  at: Optional[str] = None, kind: str = KIND_ARCH) -> Dict[str, Any]:
@@ -268,7 +301,10 @@ def build_inputs(root: Path, *, handover: str, task: str, verified_sha: str, pro
     for row in frag_rows:
         sources[_rel(root, Path(row["path"]))] = row["source_sha256"]
     cfg = config if config is not None else load_config()
-    parts = {"kind": kind, "role": ROLE, "provider": provider, "request_sha256": _sha(task),
+    code = code_identity(root)
+    if code is None:
+        raise ReviewError("the code version of the root is not measurable (git) — a plan cannot be bound to it")
+    parts = {"kind": kind, "code_identity": code, "role": ROLE, "provider": provider, "request_sha256": _sha(task),
              "handover": handover, "roadmap_item": roadmap_item, "verified_sha": verified_sha,
              "code_changed_since_verified": pack["revision"].get("code_changed_since_verified"),
              "sources": dict(sorted(sources.items())),
@@ -321,7 +357,8 @@ def preparation_runs(prep_root: Path, card_name: str) -> List[Path]:
     return sorted(p for p in d.iterdir() if (p / PREP_RECORD_FILE).is_file())
 
 
-def preparation_state(run_dir: Path, *, card_text: Optional[str], root: Path) -> Dict[str, Any]:
+def preparation_state(run_dir: Path, *, card_text: Optional[str], root: Path,
+                      code_now: Any = "measure") -> Dict[str, Any]:
     """Read ONE stored preparation and judge it against INDEPENDENTLY read current inputs: the request is
     re-extracted from the card as it is NOW, every source file is re-hashed NOW. Read-only; no model call.
     ``state``: current · stale (request or a source changed / vanished) · incomplete (provider not ok or
@@ -350,6 +387,16 @@ def preparation_state(run_dir: Path, *, card_text: Optional[str], root: Path) ->
             reasons.append(f"source changed or missing: {rel}")
     if not recorded:
         reasons.append("no source fingerprints recorded — freshness cannot be established")
+    # R1 remainder: the code version is checked independently too; an old record without it never passes.
+    parts = rec.get("input_identity_parts") if isinstance(rec.get("input_identity_parts"), dict) else {}
+    then = parts.get("code_identity")
+    now_code = code_identity(root) if code_now == "measure" else code_now
+    if not then:
+        reasons.append("no code fingerprint recorded — freshness against the code cannot be established")
+    elif now_code is None:
+        reasons.append("the code version is not measurable now")
+    elif now_code != then:
+        reasons.append("the code version changed")
     p = rec.get("preparation") if isinstance(rec.get("preparation"), dict) else None
     sec = rec.get("sections") if isinstance(rec.get("sections"), dict) else {}
     if reasons:
@@ -407,7 +454,7 @@ def prepare_record(root: Path, card: Path, prep_root: Path, *, handover: str, ve
                              roadmap_item=roadmap_item, extra=extra, config=config, at=at, kind=KIND_PREP)
         runs = preparation_runs(prep_root, card.name)
         if runs:
-            last = preparation_state(runs[-1], card_text=text, root=root)
+            last = preparation_state(runs[-1], card_text=text, root=root, code_now=built["identity_parts"]["code_identity"])
             same = _recorded_identity(runs[-1]) == built["identity"]
             if same and last["state"] == "current":
                 return {"action": "unchanged", "run": str(runs[-1]), "state": last}
