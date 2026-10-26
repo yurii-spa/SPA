@@ -1,0 +1,94 @@
+{
+  "title": "ADR-817 — дельта цикла #941, заказ G816 п. 2: совпадает ли ОБЪЯВЛЕННОЕ со-производство с ДЕЙСТВИТЕЛЬНЫМ. Каждая мутация возвращает одно состояние до правки либо рвёт одно звено: предпосылка всегда верна · ненаблюдённый производитель выдан за молчащего · асимметрия сломана с двух сторон · два состояния слиты в одно · счёт производителей снова по вхождениям · копия счёта рядом с дверью · население подменено · отсутствие перечня выдано за пустую перепись · воздержание с неизмеренным правомочием выпало из отчёта · проводка меряет ноль вместо НЕ НАБЛЮДАЛИ · секция просочилась в вердикты · строка офиса печатает ноль вместо НЕ ИЗМЕРЕНО",
+  "tests": [
+    "spa_core/tests/test_declared_co_production_actual.py",
+    "spa_core/tests/test_declared_axis_standing.py",
+    "spa_core/tests/test_slo_keepability.py"
+  ],
+  "mutations": [
+    {
+      "name": "ПРЕДПОСЫЛКА ВЕРНА ВСЕГДА: мнимое со-производство больше не находка — ровно дефект, который ADR-817 и закрывает",
+      "file": "spa_core/monitoring/slo_keepability.py",
+      "old": "    if len(running) >= 2:\n        return CO_PRODUCTION_CONFIRMED, (",
+      "new": "    if len(running) >= 0:\n        return CO_PRODUCTION_CONFIRMED, ("
+    },
+    {
+      "name": "НЕНАБЛЮДЁННЫЙ производитель выдан за МОЛЧАЩЕГО: ноль вместо None — инв. #17 наизнанку, отсутствие наблюдения становится доказательством",
+      "file": "spa_core/monitoring/slo_keepability.py",
+      "old": "        if isinstance(runs, bool) or not isinstance(runs, int):\n            unobserved.append(label)",
+      "new": "        if isinstance(runs, bool) or not isinstance(runs, int):\n            silent.append(label)"
+    },
+    {
+      "name": "АСИММЕТРИЯ сломана со стороны ПОЛОЖИТЕЛЬНОГО ответа: ненаблюдённый третий отменяет двух свидетелей, и измеренное объявляется неизмеренным",
+      "file": "spa_core/monitoring/slo_keepability.py",
+      "old": "    # Асимметрия: ДВУХ свидетелей довольно, и ненаблюдённый третий их не отменяет.\n    if len(running) >= 2:",
+      "new": "    if unobserved:\n        return CO_PRODUCTION_UNMEASURED, \"ждём всех\"\n    if len(running) >= 2:"
+    },
+    {
+      "name": "АСИММЕТРИЯ сломана со стороны ОТРИЦАНИЯ: один наблюдённый при ненаблюдённом втором объявляется мнимым со-производством — находка из воздуха",
+      "file": "spa_core/monitoring/slo_keepability.py",
+      "old": "    if unobserved:\n        return CO_PRODUCTION_UNMEASURED, (",
+      "new": "    if unobserved and False:\n        return CO_PRODUCTION_UNMEASURED, ("
+    },
+    {
+      "name": "ДВА СОСТОЯНИЯ СЛИТЫ: «идёт ОДИН» и «не идёт НИКТО» лечатся разным (второе про срок не говорит ничего), а печатаются одним словом",
+      "file": "spa_core/monitoring/slo_keepability.py",
+      "old": "    return CO_PRODUCTION_NONE_RUNNING, (",
+      "new": "    return CO_PRODUCTION_NOMINAL, ("
+    },
+    {
+      "name": "счёт производителей СНОВА ПО ВХОЖДЕНИЯМ: агент, объявивший артефакт дважды, выписывает себе воздержание в одиночку и гасит находку опечаткой",
+      "file": "spa_core/monitoring/slo_keepability.py",
+      "old": "    found: set = set()",
+      "new": "    found: list = []"
+    },
+    {
+      "name": "КОПИЯ счёта рядом с дверью: перепись объявленной оси считает сама, и дверь перестаёт быть единственной — форма, на которой выжила мутация №2 батареи ADR-814",
+      "file": "spa_core/monitoring/slo_keepability.py",
+      "old": "            declared_producers = len(declared_producer_labels(agents, art))",
+      "new": "            declared_producers = sum(\n                1 for other in agents if isinstance(other, dict)\n                for op in (other.get(\"produces\") or [])\n                if isinstance(op, dict) and op.get(\"artifact\") == art)"
+    },
+    {
+      "name": "НАСЕЛЕНИЕ ПОДМЕНЕНО: вместо артефактов, у которых правомочие БЫЛО применено к отрицанию, считаются пары — четыре и два складываются в одно число (урок заказа G814 п. 4)",
+      "file": "spa_core/monitoring/slo_keepability.py",
+      "old": "        \"population\": len(rows),\n        \"abstained_pairs\": len(abstained),",
+      "new": "        \"population\": len(abstained),\n        \"abstained_pairs\": len(abstained),"
+    },
+    {
+      "name": "ОТСУТСТВИЕ ПЕРЕЧНЯ выдано за ПУСТУЮ перепись: fail-OPEN тише красного, поэтому опаснее — «воздержаний нет» неотличимо от «мы их не читали»",
+      "file": "spa_core/monitoring/slo_keepability.py",
+      "old": "    abstained = observed(declared_axis, \"abstained\", kind=list)\n    if abstained is None:",
+      "new": "    abstained = observed(declared_axis, \"abstained\", kind=list) or []\n    if abstained is None:"
+    },
+    {
+      "name": "воздержание с НЕИЗМЕРЕННЫМ правомочием выпало из отчёта: строка исчезает и становится неотличима от «её не было»",
+      "file": "spa_core/monitoring/slo_keepability.py",
+      "old": "        if any(r.get(\"declared_vs_floor\")\n               == slo_proposal.DECLARED_STANDING_UNMEASURED for r in pairs):",
+      "new": "        if False:"
+    },
+    {
+      "name": "ПРОВОДКА меряет НОЛЬ вместо НЕ НАБЛЮДАЛИ: производитель без лога становится молчащим, и воздержание объявляется мнимым по отсутствию наблюдения",
+      "file": "spa_core/monitoring/slo_keepability.py",
+      "old": "        label: (None if (seen.get(\"cause\") in RUNS_UNOBSERVABLE)\n                else len(seen.get(\"starts\") or []))",
+      "new": "        label: len(seen.get(\"starts\") or [])"
+    },
+    {
+      "name": "СЕКЦИЯ ПРОСОЧИЛАСЬ В ВЕРДИКТЫ: предпосылка довода сложена с вердиктами о сроке — ответ на четвёртый, никем не заданный вопрос",
+      "file": "spa_core/monitoring/slo_keepability.py",
+      "old": "        \"tally\": tally,\n        \"unmeasured_causes\": causes,",
+      "new": "        \"tally\": {**tally, \"co_production_findings\": len(\n            co_production_census(declared_section, agents, runs_by_agent).get(\"findings\") or [])},\n        \"unmeasured_causes\": causes,"
+    },
+    {
+      "name": "строка офиса печатает НОЛЬ вместо НЕ ИЗМЕРЕНО: прибор старой версии и прибор без находок становятся неразличимы",
+      "file": "spa_core/monitoring/slo_keepability.py",
+      "old": "            f\"МНИМО {'НЕ ИЗМЕРЕНО' if findings is None else len(findings)} · \"",
+      "new": "            f\"МНИМО {len(findings or [])} · \""
+    },
+    {
+      "name": "строка офиса МОЛЧИТ об отсутствии секции: опечатка уехала бы под except моста как «перепись пропущена», то есть молча",
+      "file": "spa_core/monitoring/slo_keepability.py",
+      "old": "    section = observed(doc, \"declared_co_production\", kind=dict)\n    if section is None:",
+      "new": "    section = observed(doc, \"declared_co_production\", kind=dict) or {\"status\": \"OK\"}\n    if section is None:"
+    }
+  ]
+}

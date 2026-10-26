@@ -259,6 +259,23 @@ MARGIN_FACTOR = 2.0
 #: судить их сроки значило бы печатать находку о том, чего нет.
 ACTIVE = "active"
 
+#: Совпадает ли ОБЪЯВЛЕННОЕ со-производство с ДЕЙСТВИТЕЛЬНЫМ (ADR-817, заказ
+#: G816 п. 2). Предмет — ПРЕДПОСЫЛКА воздержания ADR-816, а НЕ срок годности:
+#: воздержание говорит «артефакт объявлен за несколькими производителями, такт
+#: ОДНОГО про файл не отвечает», и если в действительности идёт один, то
+#: предпосылка ложна, а поагентное отрицание было ВЕРНО.
+CO_PRODUCTION_CONFIRMED = "declared_co_production_confirmed"
+CO_PRODUCTION_NOMINAL = "declared_co_production_nominal_only"
+CO_PRODUCTION_NONE_RUNNING = "declared_co_production_no_producer_running"
+CO_PRODUCTION_UNMEASURED = "declared_co_production_unmeasured"
+
+#: Причины, при которых прогонов производителя НЕ НАБЛЮДАЛИ ВОВСЕ. Счёт здесь
+#: обязан быть ``None``, а не нулём: «лог не найден» и «лог прочитан, прогонов в
+#: нём нет» — разные положения дел (инв. #17), и ноль вместо первого превратил бы
+#: немого производителя в доказательство того, что со-производство мнимое.
+RUNS_UNOBSERVABLE = (ADDRESS_UNRESOLVED, RECORD_ABSENT, RECORD_UNREADABLE,
+                     FORM_UNRECOGNISED, TIMESTAMPS_UNPARSABLE)
+
 CAUSE_RU = {
     FORM_UNRECOGNISED: "обёртка ведёт СВОЮ форму записи прогонов — канонического баннера нет",
     ADDRESS_UNRESOLVED: "имя агента в обёртке не объявлено — адрес записи назвать нечем",
@@ -495,6 +512,214 @@ def declared_axis_line(doc: dict) -> str:
             "(артефакт за несколькими производителями — такт ОДНОГО про файл не отвечает)")
 
 
+def declared_producer_labels(agents: list, artifact: str) -> list:
+    """Кто ОБЪЯВЛЕН производителем артефакта. ЕДИНСТВЕННОЕ место этого счёта.
+
+    Выделено из :func:`declared_axis_census` (ADR-817), потому что спрашивают его
+    ДВА читателя: само правомочие (``slo_proposal.declared_axis_standing`` — через
+    ЧИСЛО) и :func:`co_production_census` (через ИМЕНА, чтобы спросить у каждого
+    производителя его прогоны). Копия счёта рядом с дверью — ровно та форма, на
+    которой выжила мутация №2 батареи ADR-814.
+
+    **Считаются РАЗНЫЕ агенты, а не вхождения в** ``produces``. Прежняя редакция
+    складывала вхождения, и у неё был латентный дефект того же класса, который
+    закрывает весь ADR-817: агент, объявивший один артефакт в ``produces`` ДВАЖДЫ,
+    давал ``declared_producers = 2``, то есть выписывал себе воздержание в
+    одиночку — находка гасилась опечаткой в конституции. Замер 26.10 на живой
+    конституции: таких артефактов **0** из 231 (измерено и равно нулю, инв. #17),
+    поэтому ни один вердикт правкой не двинут; дефект закрыт до появления
+    населения, а не после.
+
+    Пустое имя агента производителем не считается: обратиться к такому
+    производителю за прогонами нечем, а в счёте он поднимал бы правомочие.
+    """
+    found: set = set()
+    for agent in agents:
+        if not isinstance(agent, dict):
+            continue
+        label = str(agent.get("label") or "")
+        if not label:
+            continue
+        for produced in (agent.get("produces") or []):
+            if isinstance(produced, dict) and produced.get("artifact") == artifact:
+                found.add(label)
+    return sorted(found)
+
+
+def co_production_actual(runs_by_producer: dict) -> tuple[str, str]:
+    """Существует ли объявленное со-производство В ДЕЙСТВИТЕЛЬНОСТИ.
+
+    Вопрос ADR-817 (заказ G816 п. 2) и ПРЕДМЕТ его — не срок годности, а
+    **предпосылка воздержания** ADR-816. Воздержание говорит дословно: «артефакт
+    объявлен за несколькими производителями — такт ОДНОГО из них не есть такт
+    артефакта». Если в действительности идёт ОДИН, предпосылка ложна: такт
+    артефакта и есть такт этого одного, и поагентное отрицание было ВЕРНО, а
+    погасило его воздержание — заслуженно по ФОРМЕ и незаслуженно по СУТИ.
+
+    **Правомочие остаётся конституционным, и эта дверь его не трогает.** Заказ
+    G816 п. 2 требует мерить НАБЛЮДЁННЫМ списком производителей и при этом НЕ
+    СВОДИТЬ оси. Поэтому здесь не вердикт пары, а ОТДЕЛЬНОЕ утверждение о
+    предпосылке: ``slo_proposal.declared_axis_standing`` по-прежнему спрашивает
+    только число ОБЪЯВЛЕННЫХ производителей и ответа этой двери не видит.
+
+    **Вход — счёт прогонов по производителю**, ``None`` = НЕ НАБЛЮДАЛИ (причины
+    перечислены в :data:`RUNS_UNOBSERVABLE`). Ноль и ``None`` здесь разное: ноль
+    есть наблюдение («лог прочитан, своих прогонов в нём нет»), ``None`` —
+    отсутствие наблюдения, и подстановка нуля сделала бы немого производителя
+    доказательством мнимого со-производства.
+
+    **Правило АСИММЕТРИЧНО — по той же причине, что и правомочие в ADR-816.**
+    Двух наблюдённых производителей ДОСТАТОЧНО, чтобы со-производство
+    существовало; третий ненаблюдённый ничего не отнимает, и ждать его значило бы
+    объявлять «не измерено» там, где ответ уже получен. Обратная сторона
+    несимметрична: чтобы сказать «идёт ОДИН», нужны все остальные — хоть один
+    ненаблюдённый, и различить «один производитель» от «двух» нечем.
+
+    Четыре исхода, и три последних различимы намеренно (инв. #17).
+    """
+    if not isinstance(runs_by_producer, dict) or not runs_by_producer:
+        return CO_PRODUCTION_UNMEASURED, (
+            "производителей не названо — существование со-производства "
+            "судить не о чем")
+    running: list = []
+    silent: list = []
+    unobserved: list = []
+    for label in sorted(runs_by_producer):
+        runs = runs_by_producer[label]
+        if isinstance(runs, bool) or not isinstance(runs, int):
+            unobserved.append(label)
+        elif runs > 0:
+            running.append(label)
+        else:
+            silent.append(label)
+    # Асимметрия: ДВУХ свидетелей довольно, и ненаблюдённый третий их не отменяет.
+    if len(running) >= 2:
+        return CO_PRODUCTION_CONFIRMED, (
+            f"прогоны наблюдены у {len(running)} производителей "
+            f"({', '.join(running)}) — со-производство действительно, воздержание "
+            f"заслуженно и по форме, и по сути")
+    if unobserved:
+        return CO_PRODUCTION_UNMEASURED, (
+            f"прогоны НЕ НАБЛЮДАЛИ у {', '.join(unobserved)}; наблюдены у "
+            f"{len(running)} — различить «производитель один» от «их несколько» "
+            f"нечем, и ни воздержанием, ни находкой это не выдаётся")
+    if len(running) == 1:
+        return CO_PRODUCTION_NOMINAL, (
+            f"объявлено производителей {len(runs_by_producer)}, прогоны идут у "
+            f"ОДНОГО ({running[0]}); молчат {', '.join(silent)} — такт артефакта "
+            f"и есть такт этого одного, поагентное отрицание было ВЕРНО, и "
+            f"воздержание погасило его незаслуженно")
+    return CO_PRODUCTION_NONE_RUNNING, (
+        f"ни один из {len(runs_by_producer)} объявленных производителей "
+        f"({', '.join(silent)}) прогонов не ведёт — со-производства нет, но нет и "
+        f"такта: про СРОК это не говорит ничего")
+
+
+def co_production_census(declared_axis: dict, agents: list,
+                         runs_by_agent: dict) -> dict:
+    """Перепись предпосылок ВОЗДЕРЖАНИЙ объявленной оси. Единственная её форма.
+
+    **Население — артефакты, у которых правомочие БЫЛО применено к отрицанию**,
+    и выбор этот назван, а не удобен (урок заказа G814 п. 4: прежде чем назвать
+    число, спросить, о каком населении речь). Со-производимых артефактов в
+    конституции 26.10 — **восемь**; воздержание же выписано ДВУМ, потому что у
+    остальных шести пара и так выше пола и гасить было нечего. Вред — только
+    погашенная находка, поэтому и меряется ровно то население, где он возможен.
+    Восемь и два НЕ СКЛАДЫВАЮТСЯ и ни в одном числе этой секции не смешаны.
+
+    **Единица населения — АРТЕФАКТ, а воздержаний было ЧЕТЫРЕ**, потому что
+    воздержание выписывается ПАРЕ «агент × артефакт», а предпосылка одна на файл.
+    Оба числа печатаются рядом: 4 пары на 2 артефакта.
+
+    Воздержание вида ``declared_axis_standing_unmeasured`` из населения НЕ
+    выпадает: там не посчитаны сами производители, значит и существование
+    со-производства не судится — это третий исход с названной причиной, а не
+    строка, которой в отчёте не стало.
+    """
+    abstained = observed(declared_axis, "abstained", kind=list)
+    if abstained is None:
+        return {"status": CO_PRODUCTION_UNMEASURED,
+                "cause": "в объявленной оси нет перечня воздержаний (`abstained`)",
+                "population": None, "tally": None, "rows": None}
+    rows: list = []
+    tally: dict = {}
+    for artifact in sorted({r.get("artifact") for r in abstained
+                            if isinstance(r, dict) and r.get("artifact")}):
+        pairs = [r for r in abstained
+                 if isinstance(r, dict) and r.get("artifact") == artifact]
+        labels = declared_producer_labels(agents, artifact)
+        if any(r.get("declared_vs_floor")
+               == slo_proposal.DECLARED_STANDING_UNMEASURED for r in pairs):
+            kind, why = CO_PRODUCTION_UNMEASURED, (
+                "правомочие объявленной оси НЕ ИЗМЕРЕНО (производители не "
+                "посчитаны) — существование со-производства не судится")
+            runs = {}
+        else:
+            runs = {label: runs_by_agent.get(label) for label in labels}
+            kind, why = co_production_actual(runs)
+        tally[kind] = tally.get(kind, 0) + 1
+        rows.append({
+            "artifact": artifact,
+            "abstained_pairs": len(pairs),
+            "declared_producers": labels,
+            "observed_runs": runs,
+            "co_production": kind,
+            "note": why,
+        })
+    return {
+        "status": "OK",
+        # ДВА числа, и они о РАЗНОМ: предпосылка одна на файл, а воздержание
+        # выписано паре. Одно число на два предмета было бы ответом на третий,
+        # никем не заданный вопрос.
+        "population": len(rows),
+        "abstained_pairs": len(abstained),
+        "tally": tally,
+        # Находка этой секции — ТОЛЬКО мнимое со-производство: воздержание
+        # выписано, а предпосылки под ним нет.
+        "findings": [r for r in rows if r["co_production"] in (
+            CO_PRODUCTION_NOMINAL, CO_PRODUCTION_NONE_RUNNING)],
+        # Каждый артефакт назван ПОИМЁННО со счётом прогонов каждого
+        # производителя — тот же порядок, что у воздержаний ADR-816: «находок
+        # нет» без имён неотличимо от «население пусто», и доказательство
+        # положительного ответа тогда негде прочитать.
+        "rows": rows,
+    }
+
+
+def co_production_line(doc: dict) -> str:
+    """Строка ПРЕДПОСЫЛКИ воздержаний для шага 0-офис. Единственная её форма.
+
+    Живёт здесь по той же причине, что и :func:`declared_axis_line` (ADR-816):
+    инлайн-печать внутри ``findings_bridge.main`` лежит за ступенью переписей,
+    которая на живом Маке идёт часами, и проверить её отдельно НЕЧЕМ, а любая
+    опечатка в ней ушла бы в ``except`` моста как «перепись пропущена» — то есть
+    молча, ровно тем fail-OPEN, против которого написан инв. #17.
+
+    Секции нет ⇒ так и сказано, а не ноль: прибор старой версии и прибор без
+    находок обязаны быть различимы.
+    """
+    section = observed(doc, "declared_co_production", kind=dict)
+    if section is None:
+        return ("slo_keepability, предпосылка воздержаний: НЕ ИЗМЕРЕНО — секции "
+                "`declared_co_production` в замере нет")
+    if section.get("status") != "OK":
+        return ("slo_keepability, предпосылка воздержаний: НЕ ИЗМЕРЕНО — "
+                f"{section.get('cause') or 'причина не названа'}")
+    tally = observed(section, "tally", kind=dict) or {}
+    findings = section.get("findings")
+    population = section.get("population")
+    pairs = section.get("abstained_pairs")
+    return ("slo_keepability, предпосылка воздержаний объявленной оси "
+            "(со-производство действительно?): артефактов "
+            f"{'НЕ ИЗМЕРЕНО' if population is None else population} на "
+            f"{'НЕ ИЗМЕРЕНО' if pairs is None else pairs} воздержавшихся пар · "
+            f"действительно {tally.get(CO_PRODUCTION_CONFIRMED, 'НЕ ИЗМЕРЕНО')} · "
+            f"МНИМО {'НЕ ИЗМЕРЕНО' if findings is None else len(findings)} · "
+            f"не измерено {tally.get(CO_PRODUCTION_UNMEASURED, 0)} "
+            "(мнимое = воздержание выписано, а идёт ОДИН производитель — "
+            "поагентная находка погашена незаслуженно)")
+
+
 def declared_axis_census(agents: list, medians: dict) -> dict:
     """ОБЪЯВЛЕННАЯ ось: пара «АГЕНТ × артефакт» по расписанию из конституции.
 
@@ -527,10 +752,7 @@ def declared_axis_census(agents: list, medians: dict) -> dict:
             art, slo = pr.get("artifact"), pr.get("slo_hours")
             if not art or not isinstance(slo, (int, float)) or isinstance(slo, bool):
                 continue
-            declared_producers = sum(
-                1 for other in agents if isinstance(other, dict)
-                for op in (other.get("produces") or [])
-                if isinstance(op, dict) and op.get("artifact") == art)
+            declared_producers = len(declared_producer_labels(agents, art))
             axis, note = slo_proposal.audit_declared(
                 slo, schedule, medians.get(art), declared_producers)
             tally[axis] = tally.get(axis, 0) + 1
@@ -826,6 +1048,18 @@ def measure(manifest_path: Optional[Path] = None, *, log_dir: Path = Path("/tmp"
                if tally[UNKEEPABLE] == 0 and tally[UNMEASURED] == 0
                else "declared_slo_unkeepable" if tally[UNKEEPABLE]
                else "tact_not_observed")
+    # Счёт прогонов ПО ПРОИЗВОДИТЕЛЮ — вход вопроса ADR-817. Ноль и `None`
+    # здесь разное (инв. #17): ноль есть наблюдение («лог прочитан, своих
+    # прогонов нет»), `None` — отсутствие наблюдения. Агент НЕ `active` в
+    # `seen_by_agent` не попадает вовсе, и его прогоны остаются `None`: «отставка
+    # объявлена» не есть «прогонов не наблюдали», и выдавать объявление за
+    # наблюдение значило бы ответить конституцией на вопрос про действительность.
+    runs_by_agent = {
+        label: (None if (seen.get("cause") in RUNS_UNOBSERVABLE)
+                else len(seen.get("starts") or []))
+        for label, seen in seen_by_agent.items()}
+    declared_section = declared_axis_census(
+        agents, {r["artifact"]: r.get("observed_median_hours") for r in rows})
     return {
         "status": "OK",
         "generated_at": _stamp(now),
@@ -849,8 +1083,14 @@ def measure(manifest_path: Optional[Path] = None, *, log_dir: Path = Path("/tmp"
         # выше она не входит ни одним числом: предмет у неё другой (агент, а не
         # артефакт), и сложение их было бы ответом на третий, никем не заданный
         # вопрос.
-        "declared_axis": declared_axis_census(
-            agents, {r["artifact"]: r.get("observed_median_hours") for r in rows}),
+        "declared_axis": declared_section,
+        # ПРЕДПОСЫЛКА воздержаний объявленной оси — ТРЕТЬЯ секция, и она тоже не
+        # входит в `tally`/`verdict` ни одним числом (ADR-817, заказ G816 п. 2).
+        # Предмет у неё не срок и не пара, а ПРАВДИВОСТЬ довода, которым пара
+        # была снята с суда; сложить её с вердиктами значило бы ответить на
+        # четвёртый, никем не заданный вопрос.
+        "declared_co_production": co_production_census(
+            declared_section, agents, runs_by_agent),
         "rows": rows,
         "findings": findings,
         "measured_from": {"manifest": str(manifest), "log_dir": str(log_dir),
@@ -860,6 +1100,17 @@ def measure(manifest_path: Optional[Path] = None, *, log_dir: Path = Path("/tmp"
             "вторая запись о прогонах (launchctl runs — без отметок времени)",
             "верность самого срока (цену опоздания назначают две роли, ADR-158)",
             "производитель вне конституции",
+            "ПИШЕТ ли производитель артефакт на самом деле (ADR-817): "
+            "существование со-производства меряется ПРОГОНАМИ объявленных "
+            "производителей, а истории `mtime` система не хранит — «агент идёт» "
+            "и «агент пишет этот файл» разные утверждения",
+            "ЧЕРЕДУЮТСЯ ли прогоны со-производителей (ADR-817): два агента, "
+            "идущие в один и тот же час, дают такт артефакта не короче своего, и "
+            "это предмет СОСЕДНЕЙ оси (наблюдённый такт артефакта) — сводить их "
+            "запрещено заказом G815 п. 2",
+            "прогоны со-производителя, объявленного НЕ `active` (ADR-817): его "
+            "лог не читается вовсе, и счёт остаётся `None` — отставка есть "
+            "объявление, а не наблюдение",
             "ПРИЧИНА выброса (хост спал · перезагрузка · разовый долгий прогон) — "
             "ось такта называет СОСТОЯНИЕ, а не причину",
             "ПЕРЕНОСИМОСТЬ потолка запаса на наблюдённую базу (ADR-814/815): "
