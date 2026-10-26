@@ -267,6 +267,9 @@ def _rel(root: Path, p: Path) -> str:
 #: Where the owner's words live in a cockpit card (``telegram.inbox_intake.save_inbox_task``).
 _TASK_HEADING = re.compile(r"(?m)^## Задание \(из [^)]*\)\s*$")
 PREP_STATES = ("current", "stale", "incomplete", "unreadable")
+#: The record a preparation reader opens. Its OWN name, not ``review.json``: that name is shared by several
+#: committed evidence files, and a reader of an ambiguous name cannot be told apart by the prior-run census.
+PREP_RECORD_FILE = "task_prep_record.json"
 
 
 def request_text_of(card_text: str) -> Optional[str]:
@@ -293,7 +296,7 @@ def preparation_runs(prep_root: Path, card_name: str) -> List[Path]:
     d = _stem_dir(prep_root, card_name)
     if not d.is_dir():
         return []
-    return sorted(p for p in d.iterdir() if (p / "review.json").is_file())
+    return sorted(p for p in d.iterdir() if (p / PREP_RECORD_FILE).is_file())
 
 
 def preparation_state(run_dir: Path, *, card_text: Optional[str], root: Path) -> Dict[str, Any]:
@@ -302,9 +305,9 @@ def preparation_state(run_dir: Path, *, card_text: Optional[str], root: Path) ->
     ``state``: current · stale (request or a source changed / vanished) · incomplete (provider not ok or
     preparation not acceptable) · unreadable. Never «ready»/«approved» — a preparation permits nothing."""
     try:
-        rec = json.loads((Path(run_dir) / "review.json").read_text(encoding="utf-8"))
+        rec = json.loads((Path(run_dir) / PREP_RECORD_FILE).read_text(encoding="utf-8"))
     except (OSError, ValueError) as exc:
-        return {"state": "unreadable", "reasons": [f"review.json not readable ({type(exc).__name__})"],
+        return {"state": "unreadable", "reasons": [f"{PREP_RECORD_FILE} not readable ({type(exc).__name__})"],
                 "run": str(run_dir)}
     if not isinstance(rec, dict) or rec.get("kind") != KIND_PREP:
         return {"state": "unreadable", "reasons": ["not a task-prep record"], "run": str(run_dir)}
@@ -371,6 +374,8 @@ def prepare_record(root: Path, card: Path, prep_root: Path, *, handover: str, ve
     rec = run_review(root, handover=handover, task_id=card.stem, task=request, verified_sha=verified_sha,
                      provider=provider, out=out, roadmap_item=roadmap_item, extra=extra, adapters=adapters,
                      config=config, at=at, kind=KIND_PREP)
+    from spa_core.utils.atomic import atomic_save
+    atomic_save(rec, str(out / PREP_RECORD_FILE))
     return {"action": "prepared", "run": str(out), "status": rec["status"],
             "state": preparation_state(out, card_text=text, root=root)}
 
