@@ -535,3 +535,23 @@ def test_code_identity_is_content_not_paths_and_none_when_unmeasurable(scene, tm
     plain = tmp_path / "not_a_repo"
     plain.mkdir()
     assert rv.code_identity(plain) is None
+
+
+def test_the_code_root_switch_names_the_pinned_snapshot(monkeypatch, tmp_path):
+    monkeypatch.delenv(mc.TASK_PREP_CODE_ROOT_ENV, raising=False)
+    assert mc.MCInputs().task_prep_code_root is None
+    monkeypatch.setenv(mc.TASK_PREP_CODE_ROOT_ENV, str(tmp_path / "pin"))
+    assert mc.MCInputs().task_prep_code_root == tmp_path / "pin"
+
+
+def test_freshness_is_judged_against_the_root_the_plan_was_made_from(scene, tmp_path):
+    """Подготовка из закреплённого снимка: свежесть по ТОМУ ЖЕ корню; чужое дерево — другая версия кода."""
+    _commit(scene, "spa_core/x.py", "x = 2\n", "x=2")
+    card = _submit(scene)
+    _prepare(scene, card)
+    other_root, _v = trp._scene(tmp_path / "other")
+    rec = mc.cockpit_records(mc._cards(scene.tracker), NOW, source="t", task_prep_root=scene.prep, code_root=other_root)
+    assert rec["items"][0]["preparation"]["state"] == "stale"
+    assert "the code version changed" in rec["items"][0]["preparation"]["reasons"]
+    rec = mc.cockpit_records(mc._cards(scene.tracker), NOW, source="t", task_prep_root=scene.prep, code_root=scene.root)
+    assert rec["items"][0]["preparation"]["state"] == "current"

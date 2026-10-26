@@ -278,10 +278,19 @@ def _default_mirror() -> Path:
 #: Delivery switch (ARB 26.10): the explicit task-prep store the read model may SHOW. Unset or empty ⇒ None ⇒
 #: «Мои записи» carry no preparation block (production today). The read model never prepares or writes there.
 TASK_PREP_ROOT_ENV = "SPA_TASK_PREP_ROOT"
+#: The pinned code/document snapshot preparations are made from (the ``--root`` of ``prepare-record``). The read
+#: model checks code freshness against THAT root, not against its own tree — otherwise a plan made from a pinned
+#: snapshot would be judged against a different (drifting) tree. Unset ⇒ the read model's own code root.
+TASK_PREP_CODE_ROOT_ENV = "SPA_TASK_PREP_CODE_ROOT"
 
 
 def _task_prep_root_from_env() -> Optional[Path]:
     v = os.environ.get(TASK_PREP_ROOT_ENV, "").strip()
+    return Path(v).expanduser() if v else None
+
+
+def _task_prep_code_root_from_env() -> Optional[Path]:
+    v = os.environ.get(TASK_PREP_CODE_ROOT_ENV, "").strip()
     return Path(v).expanduser() if v else None
 
 @dataclass
@@ -300,6 +309,7 @@ class MCInputs:
     # ARB 26.10 candidate: where EXPLICIT task-prep runs of cockpit records are stored. None (default, also
     # production) ⇒ «Мои записи» carry no preparation block at all. The read model only reads it.
     task_prep_root: Optional[Path] = field(default_factory=lambda: _task_prep_root_from_env())
+    task_prep_code_root: Optional[Path] = field(default_factory=lambda: _task_prep_code_root_from_env())
 
 
 #: the origin mirror re-fetches every 30 min; older than this, its cards/board/history are STALE
@@ -1562,7 +1572,8 @@ def build(inp: Optional[MCInputs] = None) -> dict:
         # ADR-760: what became of the owner's own cockpit records (production tracker, read-only)
         "my_records": cockpit_records(
             prod_cards if Path(inp.repo) != Path(inp.mirror) else cards, now,
-            source="nimbalyst-local/tracker (рабочее дерево на Mac)", task_prep_root=inp.task_prep_root),
+            source="nimbalyst-local/tracker (рабочее дерево на Mac)", task_prep_root=inp.task_prep_root,
+            code_root=inp.task_prep_code_root),
     }
 
     # ── TRUTH (Company Truth read model, RM-TRUTH-01 / ADR-580 → Director OS v2, ADR-592
