@@ -19,7 +19,6 @@ from spa_core.studio_os.memory import arch_review as rv
 from spa_core.studio_os.memory.__main__ import main as memory_cli
 from spa_core.studio_os.model_roles.__main__ import main as cli
 from spa_core.tests import test_role_pack as trp
-from spa_core.tests.test_s49_variant_a_connection import _fingerprint
 
 GOOD = """## FACTS
 - empty ledger ⇒ generated_at None [docs/x.md]
@@ -113,10 +112,10 @@ def test_a_failed_claude_call_is_not_a_recommendation(tmp_path):
 
 def test_the_review_writes_only_its_output_directory(tmp_path):
     root, verified = _scene(tmp_path)
-    before = _fingerprint(root / ".git"), trp._g(root, "status", "--porcelain"), \
+    before = trp.git_dir_fingerprint(root / ".git"), trp._g(root, "status", "--porcelain"), \
         (root / "docs/ROADMAP.md").read_bytes()
     _run(root, verified, tmp_path)
-    after = _fingerprint(root / ".git"), trp._g(root, "status", "--porcelain"), \
+    after = trp.git_dir_fingerprint(root / ".git"), trp._g(root, "status", "--porcelain"), \
         (root / "docs/ROADMAP.md").read_bytes()
     assert before == after
 

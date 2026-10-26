@@ -55,6 +55,17 @@ def _handover(verified: str, *, with_secret: bool = False, drop_next: bool = Fal
     return "\n".join(body)
 
 
+def git_dir_fingerprint(git_dir: Path) -> dict:
+    """Каждый файл ``.git``: путь → sha256. Любая запись в репозиторий его меняет (копия помощника
+    ``test_s49_variant_a_connection._fingerprint`` — чтобы тесты MODELS-01 не зависели от сцены §49)."""
+    import hashlib
+    out = {}
+    for p in sorted(git_dir.rglob("*")):
+        if p.is_file():
+            out[str(p.relative_to(git_dir))] = hashlib.sha256(p.read_bytes()).hexdigest()
+    return out
+
+
 def _g(root: Path, *a: str) -> str:
     return subprocess.run(["git", "-C", str(root), "-c", "user.name=t", "-c", "user.email=t@t", *a],
                           capture_output=True, text=True, check=True).stdout.strip()

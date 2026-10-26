@@ -20,7 +20,6 @@ from spa_core.studio_os.memory import arch_review as rv
 from spa_core.studio_os.memory.__main__ import main as memory_cli
 from spa_core.studio_os.model_roles import adapters as ad
 from spa_core.tests import test_role_pack as trp
-from spa_core.tests.test_s49_variant_a_connection import _fingerprint
 
 REQUEST = "Хочу каждое утро видеть в пульте, прошёл ли ночной бэкап, и чтобы мне не приходилось лезть в логи."
 PROBE = "contract_manifest_parity_agrees"          # зарегистрирована, но к бэкапу отношения не имеет
@@ -164,11 +163,11 @@ def test_quota_is_called_exactly_once(tmp_path):
 
 def test_preparation_writes_only_its_output_directory_and_no_card(tmp_path):
     root, verified = trp._scene(tmp_path)
-    before = _fingerprint(root / ".git"), trp._g(root, "status", "--porcelain"), sorted(p.name for p in root.rglob("*"))
+    before = trp.git_dir_fingerprint(root / ".git"), trp._g(root, "status", "--porcelain"), sorted(p.name for p in root.rglob("*"))
     rv.run_review(root, handover="docs/evidence/HANDOVER.md", task_id="t", task=REQUEST, verified_sha=verified,
                   provider="fixture_test_adapter", out=tmp_path / "o", roadmap_item=17,
                   adapters={"fixture": ad.fixture({"*": _answer()})}, at=trp.AT, kind=rv.KIND_PREP)
-    after = _fingerprint(root / ".git"), trp._g(root, "status", "--porcelain"), sorted(p.name for p in root.rglob("*"))
+    after = trp.git_dir_fingerprint(root / ".git"), trp._g(root, "status", "--porcelain"), sorted(p.name for p in root.rglob("*"))
     assert before == after
 
 
