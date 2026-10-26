@@ -19,6 +19,15 @@
 - Инкремент 3 MODELS-01 (`memory/answer.py`) НЕ входит: им пользуется `owner_remote/gateway` — это изменение живой
   функции вне предмета. Его тест (`test_model_roles_deadline.py`) поэтому тоже не входит.
 
+## 0a. Поправка после CI 40305538365 — действующая версия пакета `release_v2.patch`
+- CI нашёл: `code_identity` передавала пути через `*CODE_SCOPE` — перепись происхождения git-ссылок не разрешает такой
+  аргумент («не измерено»). Исправлено литералами (`1181addb1`, тест держит их равными `CODE_SCOPE`). Действующие файлы:
+  `release_task_prep_20261026T100847Z/release_v2.patch`, `FILES_v2.txt` (те же 22 файла), `build_release_v2.sh.txt`; `release.patch` — прежняя версия,
+  сохранена как есть. `release_v2.patch` чисто ложится на `origin/main` `f9282333e`.
+- На дереве релиза тест `test_python_git_ref_provenance` (реальное дерево) красный «вырос на 28» — и ТОЧНО ТАК ЖЕ красный
+  на ЧИСТОМ `origin/main` `f9282333e` (контрольный прогон): все 28 мест — код самого `main`; пакет мест не добавляет.
+  Это существующее состояние `main`, вне предмета; при доставке его нужно учитывать (CI `main` уже такой).
+
 ## 1. Пакет (`release_task_prep_*/` → `release_task_prep_20261026T100847Z/`)
 - `release.patch` — 22 файла (`FILES.txt`): 7 новых модулей + `architecture/model_roles.json` + 6 новых тестов + 2 новых
   документа (передачи STAGE8 и POST_ARB8) + 6 изменённых (`owner_view`, `mission_control`, UI ×3, `memory/__main__`).
