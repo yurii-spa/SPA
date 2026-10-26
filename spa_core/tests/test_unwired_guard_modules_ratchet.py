@@ -52,7 +52,10 @@ KNOWN_UNWIRED = _FOUND_BY_STRICTER_DETECTOR | {
     "spa_core/monitoring/findings_bridge_c125.py",
     "spa_core/monitoring/golive_checker_lp.py",
     "spa_core/monitoring/optimism_gas_monitor.py",
-    "spa_core/monitoring/slo_proposal.py",
+    # `slo_proposal.py` УШЁл из переписи 26.10 (ADR-814): его зовёт
+    # `slo_keepability._derived` — правило «какой срок физически возможен»
+    # получило читателя, и второй копии правила в дереве нет. Храповик по
+    # построению может только убывать, и это его убыль.
     "spa_core/monitoring/stalled_run_diagnosis.py",
     "spa_core/monitoring/unified_gas_monitor.py",
     "spa_core/governance/cpa_governance_watcher.py",

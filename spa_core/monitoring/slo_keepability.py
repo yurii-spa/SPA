@@ -69,6 +69,31 @@ ADR-506 измерил ответ РУКОЙ у одного агента и н�
     максимум сам входит в медиану, то есть различать состояния нечем. Это
     третий исход (инв. #17), а не «такт держит».
 
+## ВЫВЕДЕННЫЙ срок — ответ на «а какой тогда?» (ADR-814, цикл #938)
+
+Назвать пару невыдерживаемой и не назвать выдерживаемого числа значит оставить
+читателю ровно ту работу, ради которой прибор написан. Поэтому у КАЖДОЙ пары
+считается ``derived_slo_hours`` — пол, который наблюдённый такт выдержать
+способен, — и ``curated_vs_floor``: ниже ли его объявленный срок.
+
+**Правило считает не этот модуль, а** ``slo_proposal`` (ADR-158): запас поверх
+такта там восстановлен по 35 курированным человеком срокам. Новое здесь ОДНО —
+**база**: пол берётся от НАБЛЮДЁННОЙ медианы, а не от объявленного расписания,
+потому что ADR-506 измерил, что расписание про такт врёт (launchd считает
+``StartInterval`` от ЗАВЕРШЕНИЯ прогона).
+
+Печатается выведенный срок только состоянию ``cadence_cannot_keep``: у выброса
+причина НЕ измерена, и предложить проглотить его сроком значило бы сделать ровно
+то, что ADR-813 запретил.
+
+**Замер 26.10 на живой конституции:** курированных пар со сроком **231**, из них
+**82** ниже пола, который даёт правило ``slo_proposal`` по ОБЪЯВЛЕННОМУ
+расписанию, и **69** из 82 — одна семья ``com.spa.decision_loop``. Ни об одной
+``slo_proposal.propose`` не говорил ничего, и это не промах реализации: при уже
+проставленном человеком сроке он возвращает ``already_curated`` и роли срок НЕ
+переназначают. Для его вопроса («какой срок назначить, если его нет») это верно;
+вопроса «а назначенный — не ниже ли пола» у него не было ПО ПОСТРОЕНИЮ.
+
 **ПРИЧИНУ выброса прибор НЕ меряет** и поэтому не называет её в имени оси.
 Хост спал (``launchd.plist(5)``: пропущенное срабатывание не догоняется),
 перезагрузка, разовый долгий прогон — всё это разные вещи с разными владельцами,
@@ -151,6 +176,7 @@ _REPO_ROOT = Path(__file__).resolve().parents[2]
 if str(_REPO_ROOT) not in sys.path:
     sys.path.insert(0, str(_REPO_ROOT))
 
+from spa_core.monitoring import slo_proposal  # noqa: E402
 from spa_core.monitoring.manifest_slo import slo_hours_by_path  # noqa: E402
 from spa_core.utils.atomic import atomic_save  # noqa: E402
 from spa_core.utils.observation import observed  # noqa: E402
@@ -416,6 +442,23 @@ def _schedule_axis(declared: Optional[float], median: Optional[float],
     return SCHEDULE_EXCEEDS if median > declared else SCHEDULE_WITHIN
 
 
+def _derived(median: Optional[float], declared) -> dict:
+    """Какой срок НАБЛЮДЁННЫЙ такт выдержать способен — и ниже ли его объявленный.
+
+    Правило не моё и здесь не живёт: пол считает ``slo_proposal.observed_floor``
+    (ADR-158, запас восстановлен по 35 курированным срокам), сравнение —
+    ``slo_proposal.audit_curated``. Второй копии правила «какой срок возможен» в
+    дереве быть не должно: ровно на двух копиях одного правила стоял ADR-220.
+
+    Три исхода различимы (инв. #17): пол ВЫВЕДЕН · объявленный срок НИЖЕ пола ·
+    такта не наблюдали ⇒ пола нет, и причина НАЗВАНА.
+    """
+    floor, why = slo_proposal.observed_floor(median)
+    axis, note = slo_proposal.audit_curated(declared, floor, median)
+    return {"derived_slo_hours": floor, "derived_slo_basis": why,
+            "curated_vs_floor": axis, "curated_vs_floor_note": note}
+
+
 def measure(manifest_path: Optional[Path] = None, *, log_dir: Path = Path("/tmp"),
             scripts_dir: Optional[Path] = None, now: Optional[datetime] = None,
             window_hours: float = WINDOW_HOURS, root: Optional[Path] = None) -> dict:
@@ -539,7 +582,10 @@ def measure(manifest_path: Optional[Path] = None, *, log_dir: Path = Path("/tmp"
                          "schedule_axis": SCHEDULE_OBSERVATION_ABSENT, "records": [],
                          "foreign_banners": 0, "unparsable_banners": 0,
                          "future_banners": 0, "cadence_axis": CADENCE_UNMEASURED,
-                         "periods": 0, "periods_over_slo": 0})
+                         "periods": 0, "periods_over_slo": 0,
+                         # Производителя нет ⇒ такта нет ⇒ пола нет. Причина
+                         # НАЗВАНА, а не подставлена из расписания (инв. #17).
+                         **_derived(None, binding)})
             continue
         merged: list = []
         causes: list = []
@@ -604,6 +650,10 @@ def measure(manifest_path: Optional[Path] = None, *, log_dir: Path = Path("/tmp"
             # Числа, по которым читатель вправе ПЕРЕПРОВЕРИТЬ ось, а не поверить
             # ярлыку: сколько периодов наблюдено и сколько из них срок превысили.
             "periods": len(spans), "periods_over_slo": over,
+            # ВЫВЕДЕННЫЙ срок (ADR-814). Считается у КАЖДОЙ пары, а не только у
+            # находок: ответ «пол ниже объявленного» тоже ответ, и прятать его
+            # означало бы отдавать читателю только половину сравнения.
+            **_derived(middle, shared.get("slo_hours")),
         }
         if widest is None:
             # Ни один производитель не дал периода — причина НАЗВАНА, и если
@@ -632,6 +682,11 @@ def measure(manifest_path: Optional[Path] = None, *, log_dir: Path = Path("/tmp"
     # там `cadence_keeps` значило бы смешать «находки нет» с «находка от
     # выброса». Полный разрез по населению лежит построчно в `rows`.
     cadence_axes = {CADENCE_CANNOT_KEEP: 0, CADENCE_OUTLIER: 0, CADENCE_UNMEASURED: 0}
+    # Разрез «курированный срок против ВЫВЕДЕННОГО пола» (ADR-814) считается по
+    # ВСЕМУ населению, а не по находкам: срок ниже пола у пары без находки —
+    # тоже ответ (пара просто ещё не успела нарушить обещание).
+    curated_axes = {slo_proposal.CURATED_ABOVE: 0, slo_proposal.CURATED_BELOW: 0,
+                    slo_proposal.CURATED_MARGIN_ONLY: 0, slo_proposal.CURATED_UNMEASURED: 0}
     no_margin = 0
     disagreements = 0
     worst_ratio: dict = {}
@@ -654,6 +709,8 @@ def measure(manifest_path: Optional[Path] = None, *, log_dir: Path = Path("/tmp"
         if row["verdict"] == UNKEEPABLE:
             key = row.get("cadence_axis") or CADENCE_UNMEASURED
             cadence_axes[key] = cadence_axes.get(key, 0) + 1
+        bucket = row.get("curated_vs_floor") or slo_proposal.CURATED_UNMEASURED
+        curated_axes[bucket] = curated_axes.get(bucket, 0) + 1
         if row.get("slo_disagreement"):
             disagreements += 1
         widest = row.get("observed_max_hours")
@@ -683,6 +740,7 @@ def measure(manifest_path: Optional[Path] = None, *, log_dir: Path = Path("/tmp"
         "schedule_axis": axes,
         "cadence_axis": cadence_axes,
         "cadence_min_periods": CADENCE_MIN_PERIODS,
+        "curated_vs_floor": curated_axes,
         "worst_schedule_ratio": worst_ratio or None,
         "slo_disagreements": disagreements,
         "no_margin_for_one_miss": no_margin,
@@ -703,6 +761,12 @@ def measure(manifest_path: Optional[Path] = None, *, log_dir: Path = Path("/tmp"
             "производитель вне конституции",
             "ПРИЧИНА выброса (хост спал · перезагрузка · разовый долгий прогон) — "
             "ось такта называет СОСТОЯНИЕ, а не причину",
+            "ПЕРЕНОСИМОСТЬ запаса на наблюдённую базу (ADR-814): `_MARGIN_HOURS` "
+            "калиброван по 35 ОБЪЯВЛЕННЫМ тактам, и что он верен поверх наблюдённой "
+            "медианы — допущение, а не замер",
+            "ПОТОЛОК цены опоздания (`slo_proposal.hoi_ceiling`): выведенный пол есть "
+            "«что физически возможно», а не «что допустимо»; согласование ролей "
+            "(ADR-158) прибор не делает",
         ],
     }
 
@@ -784,10 +848,31 @@ def report(doc: dict, max_rows: int = 12) -> list:
             f"(медиана {row.get('observed_median_hours')}ч по {row.get('runs')} прогон(ам) "
             f"ВСЕХ производителей; срок превысили {row.get('periods_over_slo')} из "
             f"{row.get('periods')} период(ов)) — "
-            + _VERB.get(axis, "состояние такта НЕ НАЗВАНО"))
+            + _VERB.get(axis, "состояние такта НЕ НАЗВАНО")
+            # ВЫВЕДЕННЫЙ срок печатается только тому состоянию, которое сроком
+            # и лечится. У выброса (`cadence_keeps_outlier_broke`) печатать его
+            # значило бы предлагать проглотить разрыв, причина которого НЕ
+            # измерена, — ровно то, что ADR-813 запретил делать сроком.
+            + (f"; срок, который такт выдержать СПОСОБЕН: "
+               f"{row.get('derived_slo_hours')}ч ({row.get('derived_slo_basis')})"
+               if axis == CADENCE_CANNOT_KEEP else ""))
     extra = len(doc.get("findings") or []) - max_rows
     if extra > 0:
         lines.append(f"  … ещё {extra} пар(ы) того же вида (полный перечень — `--json`)")
+    curated = observed(doc, "curated_vs_floor", kind=dict)
+    if curated is None:
+        lines.append("  курированный срок против ВЫВЕДЕННОГО пола: НЕ ИЗМЕРЕНО — отчёт "
+                     "написан производителем ДО ADR-814 и про пол не говорит ничего")
+    else:
+        lines.append(
+            f"  курированный срок против ВЫВЕДЕННОГО пола (ADR-814, в сумму вердиктов НЕ "
+            f"входит): ниже пола И медиана его ПРЕВЫШАЕТ "
+            f"{curated.get(slo_proposal.CURATED_BELOW, 'НЕ ИЗМЕРЕНО')} (лечится сроком) · "
+            f"ниже пола, но такт обещание ДЕРЖИТ "
+            f"{curated.get(slo_proposal.CURATED_MARGIN_ONLY, 'НЕ ИЗМЕРЕНО')} (предел "
+            f"КОНСТАНТНОГО запаса, сроком НЕ лечится) · не ниже "
+            f"{curated.get(slo_proposal.CURATED_ABOVE, 'НЕ ИЗМЕРЕНО')} · пол НЕ ВЫВЕДЕН "
+            f"{curated.get(slo_proposal.CURATED_UNMEASURED, 'НЕ ИЗМЕРЕНО')}")
     causes = observed(doc, "unmeasured_causes", kind=dict) or {}
     if causes:
         lines.append("  такт НЕ наблюдён, по причинам: " + " · ".join(

@@ -2,15 +2,16 @@
 
 > Авто-генерится `scripts/build_tracker_board.py` из `nimbalyst-local/tracker/*.md`. НЕ править вручную — правь карточки. Источник правды — карточки, это индекс (bootstrap).
 >
-> Собрана: 2026-10-25T15:52:18Z · сверка с карточками: `python3 scripts/build_tracker_board.py --check` (сторож `spa_core/tests/test_tracker_board_matches_cards.py`).
+> Собрана: 2026-10-26T01:10:44Z · сверка с карточками: `python3 scripts/build_tracker_board.py --check` (сторож `spa_core/tests/test_tracker_board_matches_cards.py`).
 >
-> Сверено с `origin/main` (0901db16b).
+> Сверено с `origin/main` (8e2924ae7).
 >
-> Всего карточек: **1455** · ждёт владельца: **17** · занято сессиями: **15**.
+> Всего карточек: **1456** · ждёт владельца: **18** · занято сессиями: **16**.
 
 ## 🔴 ЖДЁТ ВЛАДЕЛЬЦА (needs-owner)
 
 - **«Оптимум», который система предлагает, шесть раз оказался хуже решения ничего не делать**  ·  `own-optimum-proigryvaet-resheniyu-nichego-ne-d.md`
+- **Агент-наблюдатель просыпается раз в 7,6 часа вместо 6 — поменять расписание на фиксированные отметки**  ·  `owner-decision-agent-nablyudatel-prosypaetsya-raz-v-7-6.md`
 - **Диск Mac Mini забит под ноль — один журнал агента вырос до 7,1 ГБ и остановил запись на всей машине**  ·  `owner-decision-disk-mac-mini-zabit-pod-nol-odin-zhurnal.md`
 - **Два места в системе зовут один и тот же протокол разным тиром — от этого потолок на него меняется вдвое**  ·  `owner-decision-dva-mesta-zovut-odin-protokol-raznym-t.md`
 - **earn-defi: нужен Telegram-канал — иначе доказательства сигналов копятся, но не публикуются**  ·  `owner-decision-earn-defi-kanal-telegram-dlya-publikatsii.md`
@@ -46,12 +47,14 @@
 - **Прогон тестов переписывает СОРОК git-tracked файлов в data/ (карточка #225/#226 считает, что их три) — среди них журнал исполнения** — держит `cycle-352` · с 2026-08-23T03:25:59Z  ·  `inbox-progon-testov-perepisyvaet-sorok-otslezhivaemyh-failov-data.md`
 - **Производители устаревших чисел сайта: дата go-live из API, сверка NAV до цикла, протухшие артефакты, молчащие стражи сайта** — держит `pid20023` · с 2026-09-08T21:15:05Z  ·  `inbox-proizvoditeli-ustarevshih-chisel-saita-d.md`
 - **Сторож ответа владельца зовёт человека на не-спор: 1 и "1" — одно решение, а сравниваются байты** — держит `cycle-84821` · с 2026-08-30T00:50:53Z  ·  `inbox-storozh-otveta-vladeltsa-zovet-cheloveka.md`
+- **TASK — Portfolio CIO: Dynamic Capital Allocation & Rebalancing** — держит `cycle-24771` · с 2026-10-25T23:35:03Z  ·  `inbox-task-portfolio-cio-dynamic-capital-alloc.md`
 - **Замок цикла оркестратора доставлен, но в проде не работает: обёртка агента синкается раз в сутки, а голос о пропавшей защите живёт в самом пропавшем файле** — держит `cycle-81141` · с 2026-08-08T01:59:06Z  ·  `inbox-zamok-tsikla-orkestratora-dostavlen-no-v.md`
 
-## 🧑‍⚖️ Owner Decisions (что нужно от владельца)  (371)
+## 🧑‍⚖️ Owner Decisions (что нужно от владельца)  (372)
 
 ### · needs-owner
 - «Оптимум», который система предлагает, шесть раз оказался хуже решения ничего не делать  ·  `own-optimum-proigryvaet-resheniyu-nichego-ne-d.md` · 2026-09-27
+- Агент-наблюдатель просыпается раз в 7,6 часа вместо 6 — поменять расписание на фиксированные отметки  ·  `owner-decision-agent-nablyudatel-prosypaetsya-raz-v-7-6.md` · 2026-10-26
 - Диск Mac Mini забит под ноль — один журнал агента вырос до 7,1 ГБ и остановил запись на всей машине  ·  `owner-decision-disk-mac-mini-zabit-pod-nol-odin-zhurnal.md` · 2026-09-26
 - Два места в системе зовут один и тот же протокол разным тиром — от этого потолок на него меняется вдвое  ·  `owner-decision-dva-mesta-zovut-odin-protokol-raznym-t.md` · 2026-09-27
 - earn-defi: нужен Telegram-канал — иначе доказательства сигналов копятся, но не публикуются  ·  `owner-decision-earn-defi-kanal-telegram-dlya-publikatsii.md` · 2026-09-09
@@ -452,7 +455,7 @@
 - Расширить опрашиваемый набор адаптеров шагами (второй шаг варианта A, после ADR-138)  ·  `inbox-rasshirit-oprashivaemyi-nabor-adapterov.md` · 2026-08-26
 - Сторож кнопок нарушает границу, которую сам объявил соблюдённой: метка-БУКВА принималась где угодно, и слово в прозе = «наш дефект разбора» с лекарством чинить НЕСУЩЕСТВУЮЩУЮ форму (перемер #484: ложная ОДНА из 21, не пять; п.1 исполнен)  ·  `inbox-storozh-knopok-narushaet-granitsu-kotoru.md` · 2026-09-04
 - Сторож переходов статусов ждёт первого улова: назвать немого писателя и встроить прогон в агента  ·  `inbox-storozh-perehodov-statusov-zhdet-pervogo.md` · 2026-08-09
-- TASK — Portfolio CIO: Dynamic Capital Allocation & Rebalancing  ·  `inbox-task-portfolio-cio-dynamic-capital-alloc.md` · 2026-08-13
+- TASK — Portfolio CIO: Dynamic Capital Allocation & Rebalancing  ·  `inbox-task-portfolio-cio-dynamic-capital-alloc.md` · 2026-08-13 · 🔒 `cycle-24771`
 - Tier-C: 171 из 180 модулей не отвечают, 9 отвечающих — константы. Подключить или честно списать  ·  `inbox-tier-c-171-iz-180-modulei-ne-otvechayut.md` · 2026-08-06
 - Целостность трека SPA: подключить сторож, пересчёт из сырых входов, commit-reveal книги (перенос из earn-defi)  ·  `inbox-tselostnost-treka-spa-podklyuchit-storoz.md` · 2026-09-08
 - Цена класса «две сессии на одном предмете»: G38 п. 3 лежит остатком пятьдесят заказов  ·  `inbox-tsena-klassa-dve-sessii-na-odnom-predmet.md` · 2026-09-28
@@ -586,6 +589,7 @@
 - Храповик «отсутствие наблюдения» краснеет на СДВИГЕ строк и зовёт это новым местом класса  ·  `inbox-hrapovik-otsutstvie-nablyudeniya-krasnee.md` · 2026-08-24
 - Храповик замороженных дат КРАСЕН на чистом main: test_studio_os.py принёс шесть литеральных дат  ·  `inbox-hrapovik-zamorozhennyh-dat-krasen-na-chi.md` · 2026-09-28
 - Хвост ADR-564: пять дефектов фабрики исследований после повторного разбора  ·  `inbox-hvost-adr-564-pyat-defektov-fabriki-issl.md` · 2026-10-04
+- Имена 41 упавшего теста на main не существуют нигде: reports/ не выгружается, а печать режет 61 до 20  ·  `inbox-imena-upavshih-testov-na-main-zhivut-tol.md` · 2026-09-28
 - Исправленные факты вместо отвергнутых проверкой: USYC, OUSG, USDY (fact-043…055)  ·  `inbox-ispravlennye-fakty-vmesto-otvergnutyh-pr.md` · 2026-10-05
 - Исследователь кандидатов считает, что активных адаптеров НОЛЬ: парсер написан под dict, а реестр — список  ·  `inbox-issledovatel-kandidatov-schitaet-chto-ak.md` · 2026-08-17
 - Из алерта: ⚠️ SPA 7-Day Checkpoint FAILED: 1 check(s)  ·  `inbox-iz-alerta-spa-7-day-checkpoint-failed-1-2.md` · 2026-08-08
@@ -603,6 +607,7 @@
 - Контракт якоря сторожит одну дверь из трёх: gather и release принимают вход вне контракта молча  ·  `inbox-kontrakt-yakorya-storozhit-odnu-dver-iz.md` · 2026-10-15
 - Корневой __init__.py не может доехать до прода НИ ОДНИМ механизмом — и после #275 он там не просто устарел, а противоречив  ·  `inbox-kornevoi-init-py-ne-mozhet-doehat-do-pro.md` · 2026-08-17
 - Критическая тревога о здоровье системы уходит в никуда: третий вызов отставленного менеджера, а оператору печатают «cooldown active»  ·  `inbox-kriticheskaya-trevoga-o-zdorove-sistemy.md` · 2026-08-10
+- купить зонт в пятницу  ·  `inbox-kupit-zont-v-pyatnitsu-5.md` · 2026-10-17
 - Локальные сессии на Маке рассуждают по устаревшим docs/ — зеркало origin + SessionStart-хук  ·  `inbox-lokalnye-sessii-rassuzhdayut-po-ustarevshim-docs.md` · 2026-08-26
 - Мандат «3 трека параллельно» — поднять в top-приоритет. Порядок: шаг 1 (фикс пе…  ·  `inbox-mandat-3-treka-parallelno-podnyat-v-top.md` · 2026-08-19
 - Манифест архитектуры отстал от РЕАЛЬНОСТИ: три агента стали reboot-safe, тест красный на чистом origin  ·  `inbox-manifest-arhitektury-otstal-ot-realnosti.md` · 2026-08-06
@@ -631,6 +636,7 @@
 - Находка петли: com.spa.swarm_dwell работает, но plist не персистентен (repo:launchd/c  ·  `inbox-nahodka-petli-com-spa-swarm-dwell-rabota.md` · 2026-08-05
 - Находка петли: com.spa.telegram_bot: код и манифест называют РАЗНЫЙ продукт (только в  ·  `inbox-nahodka-petli-com-spa-telegram-bot-kod-i.md` · 2026-08-29
 - Находка петли: com.spa.tracker_status_sentinel работает, но plist не персистентен (re  ·  `inbox-nahodka-petli-com-spa-tracker-status-sen.md` · 2026-08-27
+- Находка петли: data/act_day_recovery.json: возраст 8.3ч > SLO 7ч (класс agent_registr  ·  `inbox-nahodka-petli-data-act-day-recovery-json.md` · 2026-10-14
 - Находка петли: data/adapter_repair_price.json: возраст 9.0ч > SLO 7ч (класс agent_reg  ·  `inbox-nahodka-petli-data-adapter-repair-price-2.md` · 2026-10-16
 - Находка петли: data/adapter_repair_price.json: возраст 15.9ч > SLO 7ч (класс agent_re  ·  `inbox-nahodka-petli-data-adapter-repair-price.md` · 2026-09-27
 - Находка петли: data/agent_registry.json: возраст 477.2ч > SLO 26ч (класс agent_regist  ·  `inbox-nahodka-petli-data-agent-registry-json-v.md` · 2026-08-05
@@ -646,7 +652,12 @@
 - Находка петли: data/candidate_discovery_status.json: активный артефакт отсутствует на  ·  `inbox-nahodka-petli-data-candidate-discovery-s.md` · 2026-09-15
 - Находка петли: data/candidate_registry.json: возраст 39.0ч > SLO 26ч (класс agent_reg  ·  `inbox-nahodka-petli-data-candidate-registry-js-2.md` · 2026-09-29
 - Находка петли: data/candidate_registry.json: активный артефакт отсутствует на диске —  ·  `inbox-nahodka-petli-data-candidate-registry-js.md` · 2026-09-15
+- Находка петли: data/capital_observability_history.json: возраст 8.3ч > SLO 7ч (класс  ·  `inbox-nahodka-petli-data-capital-observability.md` · 2026-10-14
+- Находка петли: data/capital_shadow/latest.json: consumer_required, но НИ ОДНОГО ресит  ·  `inbox-nahodka-petli-data-capital-shadow-latest.md` · 2026-10-04
 - Находка петли: data/cio_outcome_independence.json: активный артефакт отсутствует на д  ·  `inbox-nahodka-petli-data-cio-outcome-independe.md` · 2026-09-08
+- Находка петли: data/criterion_population_floor.json: возраст 8.3ч > SLO 7ч (класс age  ·  `inbox-nahodka-petli-data-criterion-population.md` · 2026-10-14
+- Находка петли: data/criterion_value_interval.json: возраст 8.3ч > SLO 7ч (класс agent  ·  `inbox-nahodka-petli-data-criterion-value-inter.md` · 2026-10-14
+- Находка петли: data/decision_journal_coverage.json: возраст 8.3ч > SLO 7ч (класс agen  ·  `inbox-nahodka-petli-data-decision-journal-cove.md` · 2026-10-14
 - Находка петли: data/heir_all_rows_price.json: возраст 13.2ч > SLO 7ч (класс agent_reg  ·  `inbox-nahodka-petli-data-heir-all-rows-price-j.md` · 2026-10-03
 - Находка петли: data/investment_cio/latest.json: consumer_required, но НИ ОДНОГО ресит  ·  `inbox-nahodka-petli-data-investment-cio-latest.md` · 2026-10-04
 - Находка петли: data/investment_os/chief_investment.json: последний ресит старше SLO 1  ·  `inbox-nahodka-petli-data-investment-os-chief-i-2.md` · 2026-08-22
@@ -753,6 +764,7 @@
 - Пушер разрешает относительный путь от ПРОД-дерева, и когда файл там есть — молча везёт чужие байты  ·  `inbox-pusher-razreshaet-otnositelnyi-put-ot-pr.md` · 2026-10-24
 - py: числа скриншота → approved:False (не DN); та же позиция с is_delta_neutral=…  ·  `inbox-py-chisla-skrinshota-approved-false-ne-d.md` · 2026-08-05
 - PYTHONPATH=/home/user/SPA pytest spa_core/tests/test_s{76,41,73,77,22}*.py -q →…  ·  `inbox-pythonpath-home-user-spa-pytest-spa-core.md` · 2026-08-05
+- Работа двух PR не доехала до main: 50 и 42 дня, среди потерянного — восемь ADR решений владельца  ·  `inbox-rabota-dvuh-pr-ne-doehala-do-main-50-i-4.md` · 2026-09-25
 - Расширить lint_llm_forbidden.py на дверь-subprocess: запуск claude из каталогов риска/исполнения/наблюдения  ·  `inbox-rasshirit-lint-llm-forbidden-py-na-dver.md` · 2026-09-09
 - Разбор workflow читает шаг pip install как ПРОГОН pytest, а слово в комментарии — как его цель  ·  `inbox-razbor-workflow-chitaet-shag-pip-install.md` · 2026-08-19
 - Раздел находок шага 0a называет автора записи её же свидетелем: also_declared_by эхом повторяет одну сессию  ·  `inbox-razdel-nahodok-shaga-0a-nazyvaet-avtora.md` · 2026-08-19
@@ -1004,7 +1016,6 @@
 - Храповик замороженных дат КРАСЕН на чистом origin/main: test_record_survival_census.py принёс литеральную дату  ·  `inbox-hrapovik-zamorozhennyh-dat-krasen-na-chi-2.md` · 2026-10-10
 - Храповик замороженных дат красный на main: тесту витрины чисел не хватает пометки  ·  `inbox-hrapovik-zamorozhennyh-dat-krasnyi-na-ma.md` · 2026-09-13
 - Храповик зашитых дат КРАСНЫЙ на origin/main: 7 файлов за пять дней, четыре — сегодняшние  ·  `inbox-hrapovik-zashityh-dat-krasnyi-na-origin.md` · 2026-09-10
-- Имена 41 упавшего теста на main не существуют нигде: reports/ не выгружается, а печать режет 61 до 20  ·  `inbox-imena-upavshih-testov-na-main-zhivut-tol.md` · 2026-09-28
 - Исчерпание лимитов Claude невидимо: цех молча стоит, владелец гадает «работает ли» — нужен явный сигнал «нет топлива»  ·  `inbox-ischerpanie-limitov-claude-nevidimo-tsehu.md` · 2026-08-22
 - Исполнить Вариант 2 владельца: дописать 38 ставок и подключить их к hit_rate со СМЕШАННОЙ пробой  ·  `inbox-ispolnit-variant-2-vladeltsa-dopisat-38.md` · 2026-09-10
 - Карточку моста закрыли руками — живая находка осиротела: мост считает её открытой и новую не заведёт  ·  `inbox-kartochku-mosta-zakryli-rukami-zhivaya-n.md` · 2026-08-17
@@ -1015,7 +1026,6 @@
 - Красный на чистом main: вычет «ручной R&D» съел 68 из 131 скриптов — сторож храповика больше не мерит  ·  `inbox-krasnyi-na-chistom-main-vychet-ruchnoi-r.md` · 2026-10-13
 - Шаг 0b даёт НЕОБРАТИМЫЙ `unchecked` на критическом приказе владельца: четыре записи журнала без pid не стареют никогда  ·  `inbox-kriticheskii-prikaz-vladeltsa-nelzya-vzy.md` · 2026-09-12
 - Крупнейшая позиция книги стоит на константе: у aave_v3 (Ethereum, 40%) TVL «не измерено», а пул в фиде есть  ·  `inbox-krupneishaya-pozitsiya-knigi-stoit-na-ko.md` · 2026-08-09
-- купить зонт в пятницу  ·  `inbox-kupit-zont-v-pyatnitsu-5.md` · 2026-10-17
 - купить зонт в пятницу  ·  `inbox-kupit-zont-v-pyatnitsu-6.md` · 2026-10-24
 - «Лежит 8 служб» — но три строки из шести это НЕ ИЗМЕРЕНО: проверке не назвали файл вывода  ·  `inbox-lezhit-8-sluzhb-no-tri-stroki-iz-shesti.md` · 2026-10-10
 - main КРАСЕН: храповик инварианта #17 вырос на три координаты из двух чужих доставок  ·  `inbox-main-krasen-hrapovik-invarianta-17-vyros.md` · 2026-10-08
@@ -1027,12 +1037,6 @@
 - Мост доставки 402 часа не может довезти карточку: обе копии терминальны, спорит только status_trail  ·  `inbox-most-dostavki-402-chasa-ne-mozhet-dovezt.md` · 2026-09-20
 - Мост отказывает ВЕРНО, но долг доставки НЕПОГАСИМ: следы карточки разошлись двумя ЗАКОННЫМИ переходами из одного статуса  ·  `inbox-most-otkazyvaet-verno-no-dolg-dostavki-n.md` · 2026-09-04
 - На Linux принадлежность процесса всегда OWNERSHIP_UNKNOWN: 19 красных тестов и, возможно, инертный клин  ·  `inbox-na-linux-prinadlezhnost-protsessa-vsegda.md` · 2026-09-26
-- Находка петли: data/act_day_recovery.json: возраст 8.3ч > SLO 7ч (класс agent_registr  ·  `inbox-nahodka-petli-data-act-day-recovery-json.md` · 2026-10-14
-- Находка петли: data/capital_observability_history.json: возраст 8.3ч > SLO 7ч (класс  ·  `inbox-nahodka-petli-data-capital-observability.md` · 2026-10-14
-- Находка петли: data/capital_shadow/latest.json: consumer_required, но НИ ОДНОГО ресит  ·  `inbox-nahodka-petli-data-capital-shadow-latest.md` · 2026-10-04
-- Находка петли: data/criterion_population_floor.json: возраст 8.3ч > SLO 7ч (класс age  ·  `inbox-nahodka-petli-data-criterion-population.md` · 2026-10-14
-- Находка петли: data/criterion_value_interval.json: возраст 8.3ч > SLO 7ч (класс agent  ·  `inbox-nahodka-petli-data-criterion-value-inter.md` · 2026-10-14
-- Находка петли: data/decision_journal_coverage.json: возраст 8.3ч > SLO 7ч (класс agen  ·  `inbox-nahodka-petli-data-decision-journal-cove.md` · 2026-10-14
 - Находки третьего шага не доходят до судьи достижимости — ряд считает девять вместо десяти  ·  `inbox-nahodki-tretego-shaga-ne-dohodyat-do-sud.md` · 2026-09-30
 - НЕ ПРОЧИТАН артефакт ступени: офис не отличает «код приехал внутрь прогона» от «ступень не зовёт никто»  ·  `inbox-ne-prochitan-artefakt-stupeni-ofis-ne-ot.md` · 2026-10-02
 - Недельный такт витрины сайта считает недели по своей копии, а читатель читает origin  ·  `inbox-nedelnyi-takt-vitriny-saita-schitaet-ned.md` · 2026-09-20
@@ -1130,7 +1134,6 @@
 - Проводка приборов переписи не проверяется: мост может перестать запускать прибор молча  ·  `inbox-provodka-priborov-perepisi-ne-proveryaet.md` · 2026-09-10
 - Пульт UX-02 · A: аудит и словарь интерфейса  ·  `inbox-pult-ux-02-a-audit-i-slovar-interfeisa.md` · 2026-10-09
 - Пять спящих процессов притворяются прогоном тестов — любой pgrep по имени pytest врёт сутки  ·  `inbox-pyat-spyaschih-protsessov-pritvoryayutsy.md` · 2026-09-23
-- Работа двух PR не доехала до main: 50 и 42 дня, среди потерянного — восемь ADR решений владельца  ·  `inbox-rabota-dvuh-pr-ne-doehala-do-main-50-i-4.md` · 2026-09-25
 - Работа мёртвого цикла лежит недоставленной, и это неотличимо от «цикл ещё ждёт замер»  ·  `inbox-rabota-mertvogo-tsikla-lezhit-nedostavle.md` · 2026-10-04
 - Работа уезжает в ветвь rescue/* на origin и не доходит до main — пять циклов подряд, и ни один сторож об этом не сказал  ·  `inbox-rabota-uezzhaet-v-vetv-rescue-na-origin.md` · 2026-09-27
 - Рассыльщик открытых вопросов наследует ту же слепоту: закрытый на origin вопрос может уехать владельцу повторно  ·  `inbox-rassylschik-otkrytyh-voprosov-nasleduet.md` · 2026-09-03

@@ -1,0 +1,116 @@
+{
+  "title": "ADR-814 — дельта цикла #938: пол срока годности ВЫВОДИТСЯ из наблюдённого такта, и «ниже пола» перестало быть одним словом на два состояния. Каждая мутация возвращает одно из состояний до правки: база пола снова объявленное расписание · запас скопирован вторым определением · такта нет, а число есть · медиана не доходит до сравнения · два состояния «ниже пола» слиты · ВЫБРОСУ предложен срок · разрез не доходит до читателя · ось не считается · пол не кладётся в строку · конституция держит прежние 7 ч в одном доме из двух",
+  "tests": [
+    "spa_core/tests/test_slo_floor_from_observed_cadence.py"
+  ],
+  "mutations": [
+    {
+      "name": "база пола — снова ОБЪЯВЛЕННОЕ расписание: дефект ADR-506 дословно (launchd считает StartInterval от ЗАВЕРШЕНИЯ, и пол из объявления ниже физически возможного)",
+      "file": "spa_core/monitoring/slo_keepability.py",
+      "old": "    floor, why = slo_proposal.observed_floor(median)",
+      "new": "    floor, why = slo_proposal.architect_floor(\"interval:21600s\")"
+    },
+    {
+      "name": "запас заведён ВТОРЫМ определением в приборе: правило «какой срок возможен» получает две копии — предмет ADR-220",
+      "file": "spa_core/monitoring/slo_keepability.py",
+      "old": "    floor, why = slo_proposal.observed_floor(median)",
+      "new": "    floor = None if median is None else round(median + 2.0, 2)\n    why = \"пол посчитан здесь\""
+    },
+    {
+      "name": "такта НЕ наблюдали, а число есть: третий исход подменён нулём (инв. #17)",
+      "file": "spa_core/monitoring/slo_proposal.py",
+      "old": "    if median_hours is None:\n        return None, (\"наблюдённого такта нет — пол из объявленного расписания здесь НЕ \"\n                      \"подставляется (ADR-506: объявление про такт врёт)\")",
+      "new": "    if median_hours is None:\n        median_hours = 0.0"
+    },
+    {
+      "name": "строка «не положителен» снята: ноль принимается за мгновенный такт, и пол становится 2 ч у производителя, которого не наблюдали",
+      "file": "spa_core/monitoring/slo_proposal.py",
+      "old": "    if middle <= 0:\n        return None, f\"наблюдённый такт не положителен ({middle:g} ч) — судить не о чем\"",
+      "new": "    if middle < -1e9:\n        return None, \"никогда\""
+    },
+    {
+      "name": "строка приводится числом МОЛЧА: разбор чужой формы случается там, где за разбор не отвечают",
+      "file": "spa_core/monitoring/slo_proposal.py",
+      "old": "    if isinstance(median_hours, bool) or not isinstance(median_hours, (int, float)):\n        return None, f\"наблюдённый такт не число ({median_hours!r}) — судить не о чем\"\n    middle = float(median_hours)",
+      "new": "    middle = float(median_hours)"
+    },
+    {
+      "name": "медиана НЕ доходит до сравнения: два состояния «ниже пола» снова неразличимы по построению",
+      "file": "spa_core/monitoring/slo_keepability.py",
+      "old": "    axis, note = slo_proposal.audit_curated(declared, floor, median)",
+      "new": "    axis, note = slo_proposal.audit_curated(declared, floor)"
+    },
+    {
+      "name": "два состояния «ниже пола» СЛИТЫ: быстрый производитель, держащий обещание с запасом ×6, объявлен классом ADR-506 — дефект ADR-813 в новой оси",
+      "file": "spa_core/monitoring/slo_proposal.py",
+      "old": "    if middle > declared:\n        return CURATED_BELOW, (f\"курированный срок {declared:g} ч НИЖЕ пола {floor:g} ч, и \"",
+      "new": "    if middle > -1.0:\n        return CURATED_BELOW, (f\"курированный срок {declared:g} ч НИЖЕ пола {floor:g} ч, и \""
+    },
+    {
+      "name": "медианы нет, а состояние названо: «обещание нарушено» угадано там, где различать нечем",
+      "file": "spa_core/monitoring/slo_proposal.py",
+      "old": "    if median_hours is None:\n        return CURATED_UNMEASURED, (\n            f\"курированный срок {declared:g} ч ниже пола {floor:g} ч, но медианы такта \"\n            f\"нет — «обещание нарушено» от «запас правила велик» отличить НЕЧЕМ\")",
+      "new": "    if median_hours is None:\n        return CURATED_BELOW, \"ниже пола\""
+    },
+    {
+      "name": "пол выше курированного срока объявлен находкой БЕЗ сравнения: срок, равный полу, становится дефектом",
+      "file": "spa_core/monitoring/slo_proposal.py",
+      "old": "    if declared >= floor:\n        return CURATED_ABOVE, f\"курированный срок {declared:g} ч не ниже пола {floor:g} ч\"",
+      "new": "    if declared > floor * 10:\n        return CURATED_ABOVE, f\"курированный срок {declared:g} ч не ниже пола {floor:g} ч\""
+    },
+    {
+      "name": "ВЫБРОСУ предложен срок: прибор советует проглотить разрыв, причина которого НЕ измерена — ровно то, что ADR-813 запретил лечить сроком",
+      "file": "spa_core/monitoring/slo_keepability.py",
+      "old": "               if axis == CADENCE_CANNOT_KEEP else \"\"))",
+      "new": "               if axis else \"\"))"
+    },
+    {
+      "name": "выведенный срок НЕ печатается вовсе: число посчитано и читателю не отдано — прибор без читателя",
+      "file": "spa_core/monitoring/slo_keepability.py",
+      "old": "            + (f\"; срок, который такт выдержать СПОСОБЕН: \"\n               f\"{row.get('derived_slo_hours')}ч ({row.get('derived_slo_basis')})\"",
+      "new": "            + (\"\""
+    },
+    {
+      "name": "разрез по населению не доходит до артефакта: ось считается и в отчёт не кладётся",
+      "file": "spa_core/monitoring/slo_keepability.py",
+      "old": "        \"curated_vs_floor\": curated_axes,",
+      "new": "        \"curated_vs_floor\": {},"
+    },
+    {
+      "name": "ось не считается ни у одной пары: перепись пуста, и «ниже пола нет ни одного» читается как чистота",
+      "file": "spa_core/monitoring/slo_keepability.py",
+      "old": "        bucket = row.get(\"curated_vs_floor\") or slo_proposal.CURATED_UNMEASURED\n        curated_axes[bucket] = curated_axes.get(bucket, 0) + 1",
+      "new": "        bucket = row.get(\"curated_vs_floor\")"
+    },
+    {
+      "name": "пол не кладётся в строку пары без производителя: отсутствие наблюдения выдано за отсутствие ключа",
+      "file": "spa_core/monitoring/slo_keepability.py",
+      "old": "                         **_derived(None, binding)})",
+      "new": "                         })"
+    },
+    {
+      "name": "отчёт, написанный ДО ADR-814, выдаётся за чистый замер: пустая перепись печатается как ноль находок",
+      "file": "spa_core/monitoring/slo_keepability.py",
+      "old": "    curated = observed(doc, \"curated_vs_floor\", kind=dict)\n    if curated is None:",
+      "new": "    curated = observed(doc, \"curated_vs_floor\", kind=dict) or {}\n    if False:"
+    },
+    {
+      "name": "конституция держит прежние 7 ч в доме `artifacts[]`: срок поднят в одном доме из двух, в силе остаётся КОРОТКОЕ число, и дерево при этом выглядит поправленным",
+      "file": "architecture/manifest.json",
+      "old": "      \"path\": \"data/act_day_recovery.json\",\n      \"producer\": \"com.spa.decision_loop\",\n      \"consumers\": [\n        \"orchestrator_protocol\"\n      ],\n      \"slo_hours\": 9.28,",
+      "new": "      \"path\": \"data/act_day_recovery.json\",\n      \"producer\": \"com.spa.decision_loop\",\n      \"consumers\": [\n        \"orchestrator_protocol\"\n      ],\n      \"slo_hours\": 7,"
+    },
+    {
+      "name": "конституция держит прежние 7 ч в доме `agents[].produces[]`: та же односторонность с другой стороны",
+      "file": "architecture/manifest.json",
+      "old": "        {\n          \"artifact\": \"data/act_day_recovery.json\",\n          \"slo_hours\": 9.28\n        },",
+      "new": "        {\n          \"artifact\": \"data/act_day_recovery.json\",\n          \"slo_hours\": 7\n        },"
+    },
+    {
+      "name": "ПРОЗА паспорта держит опровергнутое число: человек читает «свежее 7 ч» там, где машина сверяет 9,28",
+      "file": "architecture/manifest.json",
+      "old": "data/house_view_gap.json свежее 9.28 ч",
+      "new": "data/house_view_gap.json свежее 7 ч"
+    }
+  ]
+}
