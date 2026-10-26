@@ -1,0 +1,9 @@
+build_release_v3 controls — 2026-10-26 (temporary trees in the session scratchpad; nothing published)
+
+conflict base: local commit cd2d97105819ad6c1ab8ffebac1a18de3e436039 = main 37e06e185 + one changed line in mission_control.py at the patch context
+  v2 (build_release_v2.sh.txt, unchanged): exit 0, stderr "patch does not apply", partial tree left (arch_review.py written)  ← ARB defect reproduced
+  v3: exit 5 "REFUSED(5): spa_core/studio_os/mission_control.py: patch does not apply"; directory KEPT with .release_refused;
+      HEAD == conflict base (no release commit); no RELEASE_MANIFEST.txt
+compatible base: server-verified main 37e06e185dfaddd24ca9a3e0f993e118fd20a9ba (git ls-remote == fetched ref)
+  v3 (22-path list, before ADR-OWN was added): exit 0, release 0c96a2abd, 22 paths — superseded
+  v3 (current, 23 paths incl. ADR-OWN-2026-10-23): exit 0, release 6ca0ce2a8cff3b2d44aa94e9e32f7b3c499736b7, 23 paths, pre-commit gates passed

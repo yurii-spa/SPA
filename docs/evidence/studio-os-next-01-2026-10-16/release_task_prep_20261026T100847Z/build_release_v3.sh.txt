@@ -1,0 +1,58 @@
+#!/bin/bash
+# build_release_v3 — the task-prep release as ONE local commit on top of a GIVEN main commit, in a FRESH tree.
+# Usage: build_release_v3.sh <repo> <candidate sha> <main sha> <new empty dir>
+# Exit: 0 — release commit made, composition verified, manifest written · 2 — usage/precondition ·
+#       3 — a new file already exists on main · 4 — a replaced file's base changed on main ·
+#       5 — mission_control patch does not apply (check) · 6 — apply failed · 7 — composition mismatch ·
+#       8 — commit failed. On ANY refusal the directory is KEPT as evidence and NO commit/manifest is made.
+# v2 defect (ARB 26.10): `git apply --check && git apply` inside `set -e` — a failed left side does not stop the
+# script, and the trailing `git status` returned 0 with a half-built tree. Every step below checks its own status.
+set -uo pipefail
+REPO=${1:?repo}; C=${2:?candidate}; M=${3:?main}; REL=${4:?dir}
+PRE=22fe8c8cf21df82c237211330986bd2c2abc2a8c     # integ state before the record-prep package (mission_control base)
+refuse() { echo "REFUSED($1): $2" >&2; echo "$1 $2" > "$REL/.release_refused" 2>/dev/null; exit "$1"; }
+[ -e "$REL" ] && { echo "REFUSED(2): $REL exists — never reused" >&2; exit 2; }
+git -C "$REPO" cat-file -e "${C}^{commit}" && git -C "$REPO" cat-file -e "${M}^{commit}" || { echo "REFUSED(2): unknown commit" >&2; exit 2; }
+git -C "$REPO" worktree add --detach -q "$REL" "$M" || { echo "REFUSED(2): worktree add failed" >&2; exit 2; }
+cd "$REL" || exit 2
+NEW="spa_core/studio_os/memory/arch_review.py spa_core/studio_os/memory/role_pack.py
+     spa_core/studio_os/model_roles/__init__.py spa_core/studio_os/model_roles/__main__.py
+     spa_core/studio_os/model_roles/adapters.py spa_core/studio_os/model_roles/contract.py
+     spa_core/studio_os/model_roles/probe.py architecture/model_roles.json"
+TESTS="spa_core/tests/test_task_prep.py spa_core/tests/test_task_prep_record.py spa_core/tests/test_model_roles_contract.py
+       spa_core/tests/test_model_roles_review.py spa_core/tests/test_model_roles_probe.py spa_core/tests/test_role_pack.py"
+DOCS="docs/evidence/studio-os-next-01-2026-10-16/HANDOVER_2026-10-23_STAGE8.md
+      docs/evidence/studio-os-next-01-2026-10-16/HANDOVER_2026-10-23_POST_ARB8.md
+      docs/decisions/ADR-OWN-2026-10-23-model-independent-studio.md"   # owner decision the role cites (authority source)
+SAME_BASE="spa_core/studio_os/owner_view.py spa_core/studio_os/mission_ui/app.js spa_core/studio_os/mission_ui/i18n.js
+           spa_core/studio_os/mission_ui/styles.css spa_core/studio_os/memory/__main__.py"
+PATCHED="spa_core/studio_os/mission_control.py"
+for f in $NEW $TESTS $DOCS; do
+  git cat-file -e "${M}:$f" 2>/dev/null && refuse 3 "$f already exists on main — would overwrite"
+  mkdir -p "$(dirname "$f")" && git show "${C}:$f" > "$f" || refuse 2 "cannot write $f"
+done
+for f in $SAME_BASE; do
+  case $f in
+    */memory/__main__.py)
+      git diff "${M}:$f" "${C}:$f" | grep '^-[^-]' | grep -qv '^-"""' && refuse 4 "$f: main has lines the candidate removes" ;;
+    *) [ "$(git rev-parse "${M}:$f")" = "$(git rev-parse "${PRE}:$f")" ] || refuse 4 "$f changed on main since the package base" ;;
+  esac
+  git show "${C}:$f" > "$f" || refuse 2 "cannot write $f"
+done
+git diff "$PRE" "$C" -- "$PATCHED" > "$REL/.mission_control.patch" || refuse 2 "cannot produce the mission_control patch"
+git apply --check "$REL/.mission_control.patch" || refuse 5 "$PATCHED: patch does not apply to main ${M:0:9}"
+git apply "$REL/.mission_control.patch" || refuse 6 "$PATCHED: apply failed"
+# composition: exactly the intended paths changed, nothing else (data/ and helper files excluded from staging)
+git add -- $NEW $TESTS $DOCS $SAME_BASE $PATCHED || refuse 7 "staging failed"
+WANT=$(printf "%s\n" $NEW $TESTS $DOCS $SAME_BASE $PATCHED | sort)
+GOT=$(git diff --cached --name-only "$M" | sort)
+[ "$WANT" = "$GOT" ] || { diff <(echo "$WANT") <(echo "$GOT") >&2; refuse 7 "staged composition differs from the intended list"; }
+[ "$(echo "$GOT" | grep -c .)" = 23 ] || refuse 7 "expected 23 paths, got $(echo "$GOT" | grep -c .)"
+git -c user.name="Yurii SPA" -c user.email="yuriycooleshov@gmail.com" commit -q \
+  -m "release: task-prep record preparation shown in «Мои записи» (from integ ${C:0:9}, on main ${M:0:9}); switch off by default" \
+  || refuse 8 "commit failed"
+R=$(git rev-parse HEAD)
+{ echo "release_commit $R"; echo "main_base $M"; echo "candidate $C";
+  git diff --name-status "$M" "$R"; echo "-- blob hashes"; for f in $(git diff --name-only "$M" "$R"); do echo "$(git rev-parse "$R:$f") $f"; done
+} > "$REL/RELEASE_MANIFEST.txt"
+echo "OK release $R"

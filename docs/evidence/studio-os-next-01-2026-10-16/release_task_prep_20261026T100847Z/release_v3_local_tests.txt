@@ -1,0 +1,4 @@
+release commit 6ca0ce2a8cff3b2d44aa94e9e32f7b3c499736b7 (main 37e06e185 + 23 paths), local run in the release tree (not CI):
+975 passed, 1 warning, 10 subtests passed in 235.96s (0:03:55)
+set: package tests (task_prep, task_prep_record, model_roles contract/review/probe, role_pack) + owner_view/mission_*/cockpit + absent_observation, prior_run_operand_census, llm_forbidden, unsynced_hard, frozen_date, injected_clock
+not run here: test_python_git_ref_provenance (red on clean main: +28, main's own code)
