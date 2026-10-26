@@ -903,6 +903,46 @@ def _record_status(r: dict) -> tuple:
     return o["text"], o["known"]
 
 
+#: ARB 26.10 — the preparation of a record, in the owner's words. A preparation permits nothing.
+PREP_STATE_RU = {
+    "none": "подготовки нет — план для этой записи ещё не готовили",
+    "current": "план подготовлен и соответствует записи — это предложение для разбора, не начало работы",
+    "stale": "план устарел — запись или её источники изменились; нужен новый план",
+    "incomplete": "подготовка не удалась или неполна — плана для разбора нет",
+    "unreadable": "подготовку не удалось прочитать — это проблема отображения",
+}
+PREP_FORM_RU = {"plan": "план", "clarification": "нужно ваше уточнение", "incomplete": "неполно"}
+PREP_TEXT_LIMIT = 1500
+
+
+def _prep_text(v: Any) -> Optional[str]:
+    """Model text is shown AS TEXT (the UI uses text nodes) and bounded; nothing is interpreted."""
+    if not isinstance(v, str) or not v.strip():
+        return None
+    v = v.strip()
+    return v if len(v) <= PREP_TEXT_LIMIT else v[:PREP_TEXT_LIMIT] + " …(сокращено)"
+
+
+def _record_preparation_ru(p: Any) -> Optional[dict]:
+    if p is None:
+        return None                                   # feature not attached (production) — no block at all
+    if not isinstance(p, dict) or p.get("state") not in PREP_STATE_RU:
+        return {"state": "unreadable", "state_ru": PREP_STATE_RU["unreadable"], "known": False}
+    st = p["state"]
+    out = {"state": st, "state_ru": PREP_STATE_RU[st], "known": st != "unreadable"}
+    if st in ("current", "stale"):
+        out.update({"form_ru": PREP_FORM_RU.get(p.get("form"), "не определено"),
+                    "outcome": _prep_text(p.get("outcome")), "plan": _prep_text(p.get("plan")),
+                    "question": _prep_text(p.get("question")), "check": _prep_text(p.get("acceptance_text")),
+                    "authority": (f"предмет {p.get('subject')} — {p.get('subject_note')}"
+                                  if p.get("subject") else None),
+                    "by": "тестовый адаптер (не модель)" if p.get("real_provider") is False else "модель",
+                    "prepared_at": _madrid(p.get("prepared_at")) or "время не записано"})
+    if p.get("reasons"):
+        out["why"] = "; ".join(str(r) for r in p["reasons"])[:400]
+    return out
+
+
 def my_records(model: dict, updated: Optional[str]) -> Optional[dict]:
     """«Мои записи» — the latest cockpit records from the production tracker, read-only."""
     mr = _get(model, "intake.my_records")
@@ -934,6 +974,7 @@ def my_records(model: dict, updated: Optional[str]) -> Optional[dict]:
                      "state_kind": o["kind"], "verified": o["verified"],
                      "reason": o["reason"], "next_step": o["next_step"],
                      "voice": bool(r.get("voice")),
+                     **({"preparation": _record_preparation_ru(r.get("preparation"))} if "preparation" in r else {}),
                      "technical": {"карточка": r.get("card"), "статус в трекере": r.get("status"),
                                    "перенесено в": r.get("carried_to"),
                                    "исполнитель": r.get("claimed_by"),

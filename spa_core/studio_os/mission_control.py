@@ -287,6 +287,9 @@ class MCInputs:
     leases: Optional[Callable[[], Optional[list]]] = None
     mirror_synced_at: Optional[datetime] = None          # injectable (tests); default: the mirror's last fetch
     launchctl_full: Optional[Callable[[], Optional[str]]] = None   # injectable (tests): full `launchctl list` text
+    # ARB 26.10 candidate: where EXPLICIT task-prep runs of cockpit records are stored. None (default, also
+    # production) ⇒ «Мои записи» carry no preparation block at all. The read model only reads it.
+    task_prep_root: Optional[Path] = None
 
 
 #: the origin mirror re-fetches every 30 min; older than this, its cards/board/history are STALE
@@ -458,7 +461,8 @@ def cockpit_provenance(fm: dict, body: str) -> dict:
 
 
 def cockpit_records(prod_cards: Optional[dict], now: datetime, *, source: str,
-                    limit: int = COCKPIT_RECORDS_LIMIT) -> dict:
+                    limit: int = COCKPIT_RECORDS_LIMIT, task_prep_root: Optional[Path] = None,
+                    code_root: Optional[Path] = None) -> dict:
     """The owner's own cockpit records (source cockpit*), newest first, read-only from the PRODUCTION
     tracker — the tree the mission server writes into (the origin mirror never has them).
 
@@ -489,10 +493,26 @@ def cockpit_records(prod_cards: Optional[dict], now: datetime, *, source: str,
                      "verified_at": fm.get("verified_at") or None,
                      "acceptance_verdict": fm.get("acceptance_verdict") or None,
                      "acceptance_reason": fm.get("acceptance_reason") or None,
-                     "acceptance_next": fm.get("acceptance_next") or None})
+                     "acceptance_next": fm.get("acceptance_next") or None,
+                     **({"preparation": _record_preparation(name, c, task_prep_root, code_root)}
+                        if task_prep_root is not None else {})})
     rows.sort(key=lambda r: (str(r["created_at"] or ""), r["card"]), reverse=True)
     return {"state": "MEASURED", "reason": None, "items": rows[:limit], "total": len(rows),
             "source": source, "measured_at": measured_at}
+
+
+def _record_preparation(name: str, card: dict, prep_root: Path, code_root: Optional[Path]) -> dict:
+    """The newest stored task-prep of ONE record, judged against the card and sources as they are NOW
+    (``memory.arch_review.preparation_state``). Read-only: never prepares, never calls a model, never writes.
+    No stored run ⇒ ``none`` (nobody prepared it), a different value from ``unreadable``."""
+    from spa_core.studio_os.memory import arch_review as ar
+    runs = ar.preparation_runs(prep_root, name)
+    if not runs:
+        return {"state": "none", "reasons": [], "runs": 0}
+    body = card.get("body")
+    st = ar.preparation_state(runs[-1], card_text=body if isinstance(body, str) else None,
+                              root=code_root if code_root is not None else ar.role_pack.CODE_REPO)
+    return {**st, "runs": len(runs)}
 
 
 def risk_class(fm: dict) -> str:
@@ -1526,7 +1546,7 @@ def build(inp: Optional[MCInputs] = None) -> dict:
         # ADR-760: what became of the owner's own cockpit records (production tracker, read-only)
         "my_records": cockpit_records(
             prod_cards if Path(inp.repo) != Path(inp.mirror) else cards, now,
-            source="nimbalyst-local/tracker (рабочее дерево на Mac)"),
+            source="nimbalyst-local/tracker (рабочее дерево на Mac)", task_prep_root=inp.task_prep_root),
     }
 
     # ── TRUTH (Company Truth read model, RM-TRUTH-01 / ADR-580 → Director OS v2, ADR-592

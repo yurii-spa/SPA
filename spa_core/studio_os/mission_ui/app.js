@@ -2022,6 +2022,9 @@
         if (r.provenance) li.appendChild(h("p", { class: "ux-note" }, [r.provenance]));
         if (r.provenance_note) li.appendChild(h("p", { class: "ux-note ux-metric--alert" }, [r.provenance_note]));
         if (r.authority_ru) li.appendChild(h("p", { class: "ux-note" }, [r.authority_ru]));
+        // ARB 26.10: the record's PREPARATION (a proposal for review) — separate from the execution state above.
+        // Model text arrives as plain strings and is placed as text nodes by h(); nothing is parsed as HTML.
+        if (r.preparation) li.appendChild(renderRecordPreparation(r.preparation));
         var d = uxDetails(techLines(r), null, r.title);
         if (d) li.appendChild(d);
         ul.appendChild(li);
@@ -2029,6 +2032,23 @@
       c.appendChild(ul);
     }
     return c;
+  }
+
+  function renderRecordPreparation(p) {
+    var box = h("div", { class: "ux-record-prep" }, [
+      h("p", { class: "ux-note" + (p.known === false || p.state === "stale" || p.state === "incomplete"
+                                     ? " ux-metric--alert" : "") },
+        [t("records.prep.state") + ": " + (p.state_ru || t("state.NOT_MEASURED"))])]);
+    var rows = [["records.prep.outcome", p.outcome], ["records.prep.plan", p.plan],
+                ["records.prep.question", p.question], ["records.prep.check", p.check],
+                ["records.prep.authority", p.authority], ["records.prep.why", p.why]];
+    rows.forEach(function (kv) {
+      if (!kv[1]) return;
+      box.appendChild(h("p", { class: "ux-metric-text ux-prewrap" }, [t(kv[0]) + ": " + kv[1]]));
+    });
+    if (p.prepared_at) box.appendChild(h("p", { class: "ux-note" },
+      [t("records.prep.by") + ": " + (p.by || "") + " · " + p.prepared_at]));
+    return box;
   }
 
   function renderWorkArea(root) {

@@ -2417,3 +2417,7 @@ details.mk-devfold[open] > summary::after { content: "▾"; }
   .mk-hero-next { display: none; }
   .mk-kpi-caption { display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden; }
 }
+
+/* ARB 26.10: preparation of a cockpit record (plain text, line breaks kept) */
+.ux-record-prep { margin-top: 6px; padding-left: 10px; border-left: 2px solid var(--line, #3a3a4a); }
+.ux-prewrap { white-space: pre-wrap; }

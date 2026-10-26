@@ -234,7 +234,17 @@ def run_review(root: Path, *, handover: str, task_id: str, task: str, verified_s
         "disclaimer": DISCLAIMER, "writes": "only this output directory",
     }
     if kind == KIND_PREP:
+        # Sources of the context by their OWN bytes (not the rendered context: that carries a generation time).
+        # A later reader re-hashes these files itself — the stored values are never echoed back as «fresh».
+        inputs = pack.get("inputs_sha256")
+        sources = dict(inputs) if isinstance(inputs, dict) else {}
+        for p in extra:
+            try:
+                sources[_rel(root, Path(p))] = hashlib.sha256(Path(p).read_bytes()).hexdigest()
+            except OSError:
+                sources[_rel(root, Path(p))] = None
         record.update(review_version=PREP_VERSION, kind=KIND_PREP, request_sha256=_sha(task),
+                      sources_sha256=sources,
                       disclaimer=PREP_DISCLAIMER + " " + (PREP_REAL_NOTE if res.real_provider else PREP_FIXTURE_NOTE),
                       preparation=check_preparation(sections) if res.status == "ok" else None)
     out.mkdir(parents=True, exist_ok=True)
@@ -244,6 +254,125 @@ def run_review(root: Path, *, handover: str, task_id: str, task: str, verified_s
     render = render_preparation if kind == KIND_PREP else render_recommendation
     atomic_save_text(render(record), str(out / "recommendation.md"))
     return record
+
+
+def _rel(root: Path, p: Path) -> str:
+    try:
+        return str(Path(p).resolve().relative_to(Path(root).resolve()))
+    except ValueError:
+        return str(Path(p).resolve())
+
+
+# ── ARB 26.10: one cockpit record → its preparation, shown read-only in «Мои записи» ────────────────────────
+#: Where the owner's words live in a cockpit card (``telegram.inbox_intake.save_inbox_task``).
+_TASK_HEADING = re.compile(r"(?m)^## Задание \(из [^)]*\)\s*$")
+PREP_STATES = ("current", "stale", "incomplete", "unreadable")
+
+
+def request_text_of(card_text: str) -> Optional[str]:
+    """The owner's request inside a cockpit card: the body of «## Задание (из …)» up to the next heading or
+    rule, without the «пометил как» line. Fields the intake/dispatcher add to the frontmatter do not change it.
+    Not found ⇒ None (no request — nothing to prepare), never the whole card."""
+    m = _TASK_HEADING.search(card_text or "")
+    if not m:
+        return None
+    rest = card_text[m.end():]
+    stop = re.search(r"(?m)^(## |---\s*$)", rest)
+    body = rest[:stop.start()] if stop else rest
+    lines = [ln for ln in body.splitlines() if not re.match(r"^_.*(пометил как|Пометка при отправке).*_$", ln.strip())]
+    text = "\n".join(lines).strip()
+    return text or None
+
+
+def _stem_dir(prep_root: Path, card_name: str) -> Path:
+    return Path(prep_root) / Path(card_name).stem
+
+
+def preparation_runs(prep_root: Path, card_name: str) -> List[Path]:
+    """Every stored preparation of one card, oldest first (directory names start with a UTC stamp)."""
+    d = _stem_dir(prep_root, card_name)
+    if not d.is_dir():
+        return []
+    return sorted(p for p in d.iterdir() if (p / "review.json").is_file())
+
+
+def preparation_state(run_dir: Path, *, card_text: Optional[str], root: Path) -> Dict[str, Any]:
+    """Read ONE stored preparation and judge it against INDEPENDENTLY read current inputs: the request is
+    re-extracted from the card as it is NOW, every source file is re-hashed NOW. Read-only; no model call.
+    ``state``: current · stale (request or a source changed / vanished) · incomplete (provider not ok or
+    preparation not acceptable) · unreadable. Never «ready»/«approved» — a preparation permits nothing."""
+    try:
+        rec = json.loads((Path(run_dir) / "review.json").read_text(encoding="utf-8"))
+    except (OSError, ValueError) as exc:
+        return {"state": "unreadable", "reasons": [f"review.json not readable ({type(exc).__name__})"],
+                "run": str(run_dir)}
+    if not isinstance(rec, dict) or rec.get("kind") != KIND_PREP:
+        return {"state": "unreadable", "reasons": ["not a task-prep record"], "run": str(run_dir)}
+    reasons = []
+    now_request = request_text_of(card_text) if card_text is not None else None
+    if now_request is None:
+        reasons.append("the card's request is not readable now")
+    elif _sha(now_request) != rec.get("request_sha256"):
+        reasons.append("the request text changed")
+    recorded = rec.get("sources_sha256") if isinstance(rec.get("sources_sha256"), dict) else {}
+    for rel, old in sorted(recorded.items()):
+        p = Path(rel) if Path(rel).is_absolute() else Path(root) / rel
+        try:
+            now = hashlib.sha256(p.read_bytes()).hexdigest()
+        except OSError:
+            now = None
+        if old is None or now != old:
+            reasons.append(f"source changed or missing: {rel}")
+    if not recorded:
+        reasons.append("no source fingerprints recorded — freshness cannot be established")
+    p = rec.get("preparation") if isinstance(rec.get("preparation"), dict) else None
+    sec = rec.get("sections") if isinstance(rec.get("sections"), dict) else {}
+    if reasons:
+        state = "stale"
+    elif rec.get("status") != "ok" or p is None or p.get("acceptable") is not True:
+        state = "incomplete"
+        reasons.append(f"provider status {rec.get('status')}" if rec.get("status") != "ok"
+                       else f"preparation {p.get('form') if p else 'not assessed'}")
+    else:
+        state = "current"
+    return {"state": state, "reasons": reasons, "run": str(run_dir), "prepared_at": rec.get("generated_at"),
+            "provider": rec.get("provider"), "real_provider": rec.get("real_provider"),
+            "form": p.get("form") if p else None, "acceptance": p.get("acceptance") if p else None,
+            "subject": p.get("subject") if p else None, "subject_note": SUBJECT_NOTE,
+            "outcome": sec.get("OUTCOME"), "plan": sec.get("PLAN"), "question": sec.get("UNKNOWNS AND QUESTION"),
+            "acceptance_text": sec.get("ACCEPTANCE PROPOSAL"), "request_sha256": rec.get("request_sha256")}
+
+
+def prepare_record(root: Path, card: Path, prep_root: Path, *, handover: str, verified_sha: str,
+                   provider: Optional[str], adapters: Optional[Dict] = None, config: Optional[Dict] = None,
+                   extra: Sequence[Path] = (), roadmap_item: Optional[int] = None,
+                   at: Optional[str] = None) -> Dict[str, Any]:
+    """EXPLICIT preparation of one cockpit record (ARB 26.10). Reads the card, never writes it: no
+    ``acceptance_probe``, no claim, no status. If the newest stored preparation is still current against
+    independently re-read inputs, nothing is called and nothing is written (``unchanged``). Otherwise ONE new,
+    uniquely named directory ``<prep_root>/<card-stem>/<UTC stamp>-<request sha8>`` — earlier ones are kept."""
+    card = Path(card)
+    try:
+        text = card.read_text(encoding="utf-8")
+    except OSError as exc:
+        raise ReviewError(f"record not readable: {card.name} ({type(exc).__name__})") from exc
+    request = request_text_of(text)
+    if request is None:
+        raise ReviewError(f"{card.name}: no «## Задание» section — nothing to prepare")
+    runs = preparation_runs(prep_root, card.name)
+    if runs:
+        last = preparation_state(runs[-1], card_text=text, root=root)
+        if last["state"] == "current":
+            return {"action": "unchanged", "run": str(runs[-1]), "state": last}
+    stamp = (at or datetime.now(timezone.utc).isoformat(timespec="seconds")).replace(":", "").replace("-", "")
+    out = _stem_dir(prep_root, card.name) / f"{stamp[:15]}Z-{_sha(request)[:8]}"
+    if out.exists():
+        raise ReviewError(f"{out} already exists — earlier evidence is never overwritten")
+    rec = run_review(root, handover=handover, task_id=card.stem, task=request, verified_sha=verified_sha,
+                     provider=provider, out=out, roadmap_item=roadmap_item, extra=extra, adapters=adapters,
+                     config=config, at=at, kind=KIND_PREP)
+    return {"action": "prepared", "run": str(out), "status": rec["status"],
+            "state": preparation_state(out, card_text=text, root=root)}
 
 
 def check_preparation(sections: Dict[str, Optional[str]], probes: Optional[Sequence[str]] = None) -> Dict[str, Any]:
@@ -430,3 +559,36 @@ def main(argv: Optional[List[str]] = None) -> int:
     if rec.get("kind") == KIND_PREP:   # ARB R2: the exit follows the SAME assessment as the record and the text
         return 0 if rec["status"] == "ok" and isinstance(prep, dict) and prep.get("acceptable") is True else 1
     return 0 if rec["structure_complete"] else 1
+
+
+def main_record(argv: Optional[List[str]] = None) -> int:
+    """``python -m spa_core.studio_os.memory prepare-record`` — EXPLICIT task-prep of ONE cockpit record.
+    Exit: 0 prepared and acceptable, or unchanged and current · 1 prepared but not acceptable · 2 refused."""
+    ap = argparse.ArgumentParser(prog="spa_core.studio_os.memory prepare-record")
+    ap.add_argument("--root", type=Path, default=role_pack.CODE_REPO)
+    ap.add_argument("--card", type=Path, required=True)
+    ap.add_argument("--prep-root", type=Path, required=True)
+    ap.add_argument("--handover", required=True)
+    ap.add_argument("--verified-sha", required=True)
+    ap.add_argument("--provider", default=None, help="explicit provider id (no default routing)")
+    ap.add_argument("--roadmap-item", type=int, default=None)
+    ap.add_argument("--extra-context", type=Path, action="append", default=[])
+    ap.add_argument("--fixture", type=Path, default=None, help="answers for the TEST adapter")
+    ap.add_argument("--config", type=Path, default=None)
+    a = ap.parse_args(argv)
+    adapters = {"claude_cli": ad.claude_cli()}
+    if a.fixture:
+        adapters["fixture"] = ad.fixture_from_file(a.fixture)
+    try:
+        for field, value in (("--card", a.card), ("--prep-root", a.prep_root), ("--config", a.config),
+                             ("--fixture", a.fixture), ("--root", a.root)):
+            refuse_if_credential(field, None if value is None else str(value))
+        res = prepare_record(a.root, a.card, a.prep_root, handover=a.handover, verified_sha=a.verified_sha,
+                             provider=a.provider, adapters=adapters, config=load_config(a.config),
+                             extra=a.extra_context, roadmap_item=a.roadmap_item)
+    except (ReviewError, ConfigError) as exc:
+        print(f"PREPARATION NOT BUILT: {exc}")
+        return 2
+    st = res["state"]
+    print(f"{res['action']} · state {st['state']} · form {st.get('form')} → {res['run']}")
+    return 0 if st["state"] == "current" else 1
