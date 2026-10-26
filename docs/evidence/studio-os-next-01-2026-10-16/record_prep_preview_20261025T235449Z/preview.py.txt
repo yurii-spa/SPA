@@ -1,0 +1,81 @@
+"""Reproducible PREVIEW of «Мои записи» with record preparations (ARB 26.10). Temporary data + LABELLED FIXTURE answers.
+
+Run from the candidate worktree:  PYTHONPATH=. python3 <this file as .py> <out_dir>
+Real functions only: mission_intake.submit → owner_queue.intake → cockpit_dispatch.dispatch → arch_review.prepare_record
+(FIXTURE adapter, not a model) → mission_control.cockpit_records → owner_view.build → mission_build.build_bundle (real UI).
+The model around «Мои записи» is a READ-ONLY copy of the current live bundle's mission.json; nothing live is written.
+NOT a physical iPhone check: no microphone, no whisper, no Access, no Telegram.
+"""
+import json, os, sys, tempfile
+from datetime import datetime, timezone
+from pathlib import Path
+from spa_core.owner_queue import cockpit_dispatch as cd, intake as oi
+from spa_core.studio_os import mission_build as mb, mission_control as mc, mission_intake as mi, owner_view as ov
+from spa_core.studio_os.memory import arch_review as rv
+from spa_core.studio_os.model_roles import adapters as ad
+from spa_core.telegram import ask_router
+
+OUT = Path(sys.argv[1]); OUT.mkdir(parents=True, exist_ok=False)
+NOW = datetime(2026, 10, 26, 9, 0, 0, tzinfo=timezone.utc)
+ROOT = Path.cwd()
+VERIFIED = "a5724a1028562cdf9f2cc1bb5fe3839e5fa8af9d"
+HANDOVER = "docs/evidence/studio-os-next-01-2026-10-16/HANDOVER_2026-10-23_POST_ARB8.md"
+FRAG = [Path(sys.argv[2]) / "fragments" / n for n in ("01_acceptance_rule.md", "02_ci_state.md")] + [
+    ROOT / "docs/evidence/studio-os-next-01-2026-10-16/task_prep_real_20261025T210637Z/fragments" / n
+    for n in ("01_intake_mission_intake.md", "02_dispatcher_cockpit_dispatch.md", "03_loop_cockpit_loop.md")]
+ask_router._CLAUDE = str(OUT / "no-real-claude")                       # no LLM classifier in the intake step
+tracker = OUT / "tracker"; tracker.mkdir()
+prep = OUT / "task_prep"
+prov = mi.provenance_for("public", verified_email="owner@example.org", owner_emails=("owner@example.org",))
+
+def submit(text, sid):
+    body = {"text": text, "transcript": text, "kind": "task", "submission_id": sid}
+    return tracker / mi.submit(json.dumps(body).encode(), actor="local", tracker_dir=tracker, now=NOW, provenance=prov)["card"]
+
+PLAN = ("## OUTCOME\nКаждое утро на главном экране пульта одна строка: прошёл ли ночной бэкап и когда; нет журнала — «не измерено».\n"
+        "## PLAN\n1. Найти, откуда пульт может прочитать итог ночного бэкапа (только чтение).\n"
+        "2. Одно поле в модели пульта и одна строка на главном экране.\n3. Проверка на временных данных: успех, ошибка, нет журнала.\n"
+        "4. Доставка в production — отдельным решением.\n"
+        "## ACCEPTANCE PROPOSAL\nNEW CHECK NEEDED: строка пульта совпадает с последним журналом бэкапа; отрицательные контроли — "
+        "журнал с ошибкой и журнала нет.\n## UNKNOWNS AND QUESTION\nUNKNOWN: где лежит журнал бэкапа.\n"
+        "Вопрос: достаточно последней ночи или нужна история за неделю?\n## PERMISSIONS\nsubject: NONE\nТолько отображение.\n")
+QUESTION = ("## OUTCOME\nПока не определено.\n## PLAN\nNO PLAN\n## ACCEPTANCE PROPOSAL\nNEW CHECK NEEDED: после уточнения.\n"
+            "## UNKNOWNS AND QUESTION\nВопрос: что именно улучшить — пульт Studio OS или сайт Earn DeFi?\n"
+            "## PERMISSIONS\nsubject: UNKNOWN_UNTIL_CLARIFIED\nДо уточнения не определить.\n")
+EVIL = PLAN.replace("2. Одно поле", "2. <script>alert('x')</script><b>жирный?</b> Одно поле")
+
+a = submit("Проверь, пожалуйста, всё ли в порядке с ночным бэкапом, и сделай так, чтобы я каждое утро видел это в пульте сам.", "preview-0001")
+b = submit("Сделай, чтобы было лучше.", "preview-0002")
+c = submit("Покажи в пульте, сколько карточек закрыто за неделю.", "preview-0003")
+d = submit("Добавь в пульт строку про свободное место на диске.", "preview-0004")
+e = submit("Покажи в пульте, когда последний раз обновлялось зеркало.", "preview-0005")
+oi.run_note_intake(NOW, tracker_dir=tracker, repo_root=OUT, notify=lambda t: True,
+                   history=lambda _b: {"verdict": "NEW", "response": ""}, ingest=False)
+cd.dispatch(executor="preview-cycle", tracker_dir=tracker, claim=lambda *x: None, now=NOW,
+            outbox_path=OUT / "obox.json", notify=lambda t: True)            # ordinary records ⇒ no_probe (honest)
+
+def prepare(card, answer, provider="fixture_test_adapter"):
+    return rv.prepare_record(ROOT, card, prep, handover=HANDOVER, verified_sha=VERIFIED, provider=provider,
+                             adapters={"fixture": ad.fixture({"*": answer})}, extra=FRAG, roadmap_item=17,
+                             at="2026-10-26T09:00:00+00:00")
+log = {"a_plan": prepare(a, PLAN), "a_again": prepare(a, PLAN), "b_question": prepare(b, QUESTION),
+       "c_incomplete": prepare(c, {"status": "quota"}), "e_evil_text": prepare(e, EVIL)}
+c2 = prepare(a, PLAN)
+# request of A changes AFTER preparation ⇒ the shown plan must read as stale
+a.write_text(a.read_text(encoding="utf-8").replace("сам.", "сам, и за прошлую неделю тоже."), encoding="utf-8")
+
+rec = mc.cockpit_records(mc._cards(tracker), NOW, source="ВРЕМЕННЫЙ трекер превью", task_prep_root=prep, code_root=ROOT)
+live = sorted(Path.home().glob("studio-os-serve/mission/b-*/mission.json"))[-1]
+model = json.loads(live.read_text(encoding="utf-8"))                   # read-only copy of the live model
+model.setdefault("intake", {})["my_records"] = rec
+model["owner_view"] = ov.build(model, NOW)
+bundle = mb.build_bundle(OUT / "bundle", build_fn=lambda: model)
+rows = model["owner_view"]["sections"]["work"]["my_records"]["rows"]
+json.dump({"prepare_log": {k: {"action": v["action"], "state": v["state"]["state"]} for k, v in log.items()},
+           "rows": [{k: r.get(k) for k in ("title", "state", "preparation")} for r in rows],
+           "bundle": str(bundle), "live_model_copied_from": str(live).replace(str(Path.home()), "~")},
+          open(OUT / "preview_rows.json", "w"), ensure_ascii=False, indent=2)
+print(json.dumps({k: {"action": v["action"], "state": v["state"]["state"]} for k, v in log.items()}, ensure_ascii=False))
+for r in rows:
+    p = r.get("preparation") or {}
+    print("-", r["title"][:50], "| исполнение:", r["state"][:60], "| подготовка:", p.get("state"))
