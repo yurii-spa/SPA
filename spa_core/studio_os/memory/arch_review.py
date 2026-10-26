@@ -257,14 +257,18 @@ def code_identity(root: Path) -> Optional[str]:
     """Fingerprint of the CONTENT of the code scope as it is in ``root`` right now: the committed tree entries of
     HEAD, the uncommitted diff against HEAD, and every untracked (not ignored) file by its bytes. A path list is
     not an identity — two versions of one file differ here. ``None`` ⇒ not measurable (never «unchanged»)."""
-    head = _git(root, "ls-tree", "HEAD", "--", *CODE_SCOPE)
+    # Paths are LITERALS in every git argv (not ``*CODE_SCOPE``): the git-ref provenance census must be able to
+    # resolve each argument; ``test_code_identity_argv_paths_equal_the_code_scope`` keeps them equal to CODE_SCOPE.
+    head = _git(root, "ls-tree", "HEAD", "--", "spa_core", "scripts", "tests", "architecture", "CLAUDE.md", ".claude")
     if head is None:
         return None
     try:
-        diff = subprocess.run(["git", "-C", str(root), "diff", "HEAD", "--binary", "--", *CODE_SCOPE],
+        diff = subprocess.run(["git", "-C", str(root), "diff", "HEAD", "--binary", "--",
+                               "spa_core", "scripts", "tests", "architecture", "CLAUDE.md", ".claude"],
                               capture_output=True, timeout=120)
-        untracked = subprocess.run(["git", "-C", str(root), "ls-files", "--others", "--exclude-standard", "-z",
-                                    "--", *CODE_SCOPE], capture_output=True, timeout=120)
+        untracked = subprocess.run(["git", "-C", str(root), "ls-files", "--others", "--exclude-standard", "-z", "--",
+                                    "spa_core", "scripts", "tests", "architecture", "CLAUDE.md", ".claude"],
+                                   capture_output=True, timeout=120)
     except (OSError, subprocess.SubprocessError):
         return None
     if diff.returncode != 0 or untracked.returncode != 0:

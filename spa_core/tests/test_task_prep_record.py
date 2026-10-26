@@ -555,3 +555,21 @@ def test_freshness_is_judged_against_the_root_the_plan_was_made_from(scene, tmp_
     assert "the code version changed" in rec["items"][0]["preparation"]["reasons"]
     rec = mc.cockpit_records(mc._cards(scene.tracker), NOW, source="t", task_prep_root=scene.prep, code_root=scene.root)
     assert rec["items"][0]["preparation"]["state"] == "current"
+
+
+def test_code_identity_argv_paths_equal_the_code_scope():
+    """Пути в argv git-вызовов code_identity — литералы (их должна разрешать перепись происхождения git-ссылок);
+    этот тест держит их равными CODE_SCOPE, чтобы две копии не разошлись молча."""
+    import ast
+    import inspect
+    tree = ast.parse(inspect.getsource(rv.code_identity))
+    want = list(rv.CODE_SCOPE)
+    seen = 0
+    for node in ast.walk(tree):
+        if isinstance(node, (ast.List, ast.Call)):
+            items = node.elts if isinstance(node, ast.List) else node.args
+            vals = [e.value for e in items if isinstance(e, ast.Constant) and isinstance(e.value, str)]
+            if "--" in vals:
+                assert vals[vals.index("--") + 1:] == want, vals
+                seen += 1
+    assert seen == 3
