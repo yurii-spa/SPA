@@ -465,6 +465,95 @@ def _derived(median: Optional[float], declared) -> dict:
             "curated_vs_floor": axis, "curated_vs_floor_note": note}
 
 
+def declared_axis_line(doc: dict) -> str:
+    """Строка ОБЪЯВЛЕННОЙ оси для шага 0-офис. Единственная её форма.
+
+    Живёт здесь, а не в мосте, по той же причине, по которой правило пола живёт
+    в ``slo_proposal``: инлайн-печать внутри ``findings_bridge.main`` лежит за
+    ступенью переписей, которая на живом Маке идёт часами, и проверить её
+    отдельно НЕЧЕМ. Хуже того, любая опечатка в ней ушла бы в ``except`` моста
+    как «перепись пропущена» — то есть молча, ровно тем fail-OPEN, против
+    которого написан инв. #17.
+
+    Секции нет ⇒ так и сказано («НЕ ИЗМЕРЕНО» с причиной), а не ноль и не
+    пустая строка: прибор старой версии и прибор без находок обязаны быть
+    различимы.
+    """
+    section = observed(doc, "declared_axis", kind=dict)
+    if section is None:
+        return ("slo_keepability, объявленная ось: НЕ ИЗМЕРЕНО — секции "
+                "`declared_axis` в замере нет")
+    tally = observed(section, "tally", kind=dict) or {}
+    above = tally.get(slo_proposal.CURATED_ABOVE)
+    findings = section.get("findings")
+    abstained = section.get("abstained")
+    return ("slo_keepability, объявленная ось (пара «агент × артефакт» по расписанию): "
+            f"население {section.get('population')} · срок не ниже пола "
+            f"{'НЕ ИЗМЕРЕНО' if above is None else above} · находок "
+            f"{'НЕ ИЗМЕРЕНО' if findings is None else len(findings)} · ВОЗДЕРЖАНИЙ "
+            f"{'НЕ ИЗМЕРЕНО' if abstained is None else len(abstained)} "
+            "(артефакт за несколькими производителями — такт ОДНОГО про файл не отвечает)")
+
+
+def declared_axis_census(agents: list, medians: dict) -> dict:
+    """ОБЪЯВЛЕННАЯ ось: пара «АГЕНТ × артефакт» по расписанию из конституции.
+
+    Соседняя ось этого же прибора (всё остальное в модуле) судит АРТЕФАКТ по
+    НАБЛЮДЁННОМУ такту. Эта судит АГЕНТА по ОБЪЯВЛЕННОМУ расписанию, и две оси
+    живут раздельными секциями НАМЕРЕННО: заказ G815 п. 2 запрещает сводить их в
+    одно число, потому что у со-производимого артефакта они расходятся ВЕРНО —
+    каждая права о своём предмете.
+
+    Правила здесь своего нет: пара судится единственной дверью
+    ``slo_proposal.audit_declared``, которая сама берёт пол у ``architect_floor``,
+    сравнение у ``audit_curated``, а правомочие — у числа ОБЪЯВЛЕННЫХ
+    производителей. Число это считается ЗДЕСЬ, по конституции, и наблюдённый
+    список производителей (``rows[].producers``) для него не трогается: взять его
+    оттуда и было бы тем самым сведением осей.
+
+    Медиана передаётся только затем, чтобы различить два состояния «ниже пола»
+    (нарушено против «запаса нет»), — ту же роль она играет и у соседней оси.
+    Медианы нет ⇒ третий исход у ``audit_curated``, а не подстановка.
+    """
+    tally: dict = {}
+    pairs: list = []
+    for agent in agents:
+        if not isinstance(agent, dict):
+            continue
+        schedule = agent.get("schedule")
+        for pr in (agent.get("produces") or []):
+            if not isinstance(pr, dict):
+                continue
+            art, slo = pr.get("artifact"), pr.get("slo_hours")
+            if not art or not isinstance(slo, (int, float)) or isinstance(slo, bool):
+                continue
+            declared_producers = sum(
+                1 for other in agents if isinstance(other, dict)
+                for op in (other.get("produces") or [])
+                if isinstance(op, dict) and op.get("artifact") == art)
+            axis, note = slo_proposal.audit_declared(
+                slo, schedule, medians.get(art), declared_producers)
+            tally[axis] = tally.get(axis, 0) + 1
+            pairs.append({"agent": agent.get("label"), "artifact": art,
+                          "slo_hours": slo, "schedule": schedule,
+                          "declared_producers": declared_producers,
+                          "declared_vs_floor": axis, "note": note})
+    return {
+        "population": len(pairs),
+        "tally": tally,
+        # Находка объявленной оси — только та, у которой есть ПРЕДМЕТ: один
+        # объявленный производитель, и он со сроком не справляется.
+        "findings": [r for r in pairs if r["declared_vs_floor"] in (
+            slo_proposal.CURATED_BELOW, slo_proposal.CURATED_MARGIN_ONLY)],
+        # Воздержания печатаются ПОИМЁННО, а не только счётчиком: «ось об этом не
+        # отвечает» обязано быть видно, иначе четыре пары просто исчезнут из
+        # отчёта и неотличимы станут от «их не было».
+        "abstained": [r for r in pairs if r["declared_vs_floor"] in (
+            slo_proposal.DECLARED_CO_PRODUCED,
+            slo_proposal.DECLARED_STANDING_UNMEASURED)],
+    }
+
+
 def measure(manifest_path: Optional[Path] = None, *, log_dir: Path = Path("/tmp"),
             scripts_dir: Optional[Path] = None, now: Optional[datetime] = None,
             window_hours: float = WINDOW_HOURS, root: Optional[Path] = None) -> dict:
@@ -756,6 +845,12 @@ def measure(manifest_path: Optional[Path] = None, *, log_dir: Path = Path("/tmp"
         "excluded_by_intent": excluded,
         "produces_without_slo": no_slo,
         "verdict": verdict,
+        # ОБЪЯВЛЕННАЯ ось — ОТДЕЛЬНАЯ секция (ADR-816). В `tally`/`verdict`
+        # выше она не входит ни одним числом: предмет у неё другой (агент, а не
+        # артефакт), и сложение их было бы ответом на третий, никем не заданный
+        # вопрос.
+        "declared_axis": declared_axis_census(
+            agents, {r["artifact"]: r.get("observed_median_hours") for r in rows}),
         "rows": rows,
         "findings": findings,
         "measured_from": {"manifest": str(manifest), "log_dir": str(log_dir),

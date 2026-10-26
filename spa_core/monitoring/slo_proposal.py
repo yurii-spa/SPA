@@ -248,6 +248,129 @@ CURATED_BELOW = "curated_below_floor_and_tact_breaks_it"
 CURATED_MARGIN_ONLY = "curated_below_floor_but_tact_keeps_it"
 CURATED_UNMEASURED = "curated_floor_unmeasured"
 
+#: Четвёртый исход ОБЪЯВЛЕННОЙ оси (ADR-816, заказ G815 п. 2). Не «выдерживает» и
+#: не находка: у отрицания просто нет ПРЕДМЕТА, потому что обещание дано ФАЙЛУ, а
+#: судили бы одного из нескольких его производителей.
+DECLARED_CO_PRODUCED = "declared_axis_abstains_artifact_is_co_produced"
+DECLARED_STANDING_UNMEASURED = "declared_axis_standing_unmeasured"
+
+
+def declared_axis_standing(co_producers) -> tuple[bool | None, str]:
+    """Вправе ли ОБЪЯВЛЕННАЯ ось ОТРИЦАТЬ про этот артефакт?
+
+    Правомочие спрашивается у числа ОБЪЯВЛЕННЫХ производителей — из конституции,
+    не из наблюдения. Взять его из наблюдённого списка значило бы свести две оси
+    в одно число, что заказ G815 п. 2 запрещает дословно: объявленная ось обязана
+    судить по объявленному миру.
+
+    Три исхода (инв. #17), и третий здесь не украшение: «производителей не
+    посчитали» и «производитель один» — разные положения дел, а подстановка
+    единицы вернула бы ровно тот дефект, который дверь и закрывает.
+    """
+    if isinstance(co_producers, bool) or not isinstance(co_producers, int):
+        return None, f"число объявленных производителей не целое ({co_producers!r})"
+    if co_producers < 1:
+        return None, (f"объявленных производителей {co_producers} — артефакт без "
+                      f"производителя судить не о чем")
+    if co_producers == 1:
+        return True, "производитель объявлен ОДИН — его такт и есть такт артефакта"
+    return False, (f"артефакт объявлен за {co_producers} производителями — такт ОДНОГО "
+                   f"из них не есть такт артефакта, и отрицать про файл по нему нельзя")
+
+
+def audit_declared(declared_hours, schedule: str | None, median_hours,
+                   co_producers) -> tuple[str, str]:
+    """Тот же вопрос, что :func:`audit_curated`, но у пары «АГЕНТ × артефакт».
+
+    **Правила здесь своего нет ни одного**: пол считает :func:`architect_floor`,
+    сравнение — :func:`audit_curated`. Новое — только ПРАВОМОЧИЕ, и оно
+    спрашивается ровно там, где без него рождается ложная находка.
+
+    **Правомочие асимметрично, и это не поблажка.** Утверждения двух знаков
+    говорят о РАЗНОМ:
+
+    ==========================  ====================================  ============
+    знак                        что утверждается об АРТЕФАКТЕ         нужно ли
+                                                                      правомочие
+    ==========================  ====================================  ============
+    ``CURATED_ABOVE``           этот агент ОДИН способен держать срок  нет
+                                — для файла этого ДОСТАТОЧНО
+    ``CURATED_BELOW`` /         этот агент один не способен —         **да**
+    ``CURATED_MARGIN_ONLY``     про файл это НЕ СЛЕДУЕТ, пока не
+                                спросили про остальных
+    ==========================  ====================================  ============
+
+    Замер 26.10 (живая конституция, 231 пара «агент × артефакт» со сроком): ниже
+    пола на объявленной оси — **6** пар, и **4** из них суть один и тот же случай.
+    ``data/deployment_acceptance.json`` и ``data/deployment_drift.json`` (срок 15 ч)
+    объявлены за ДВУМЯ суточными агентами — ``system_health_morning``
+    (``calendar:08:00``) и ``system_health_evening`` (``calendar:20:00``). У каждого
+    такт 24 ч ⇒ пол 26 ч, и поагентно срок 15 ч читается «ниже пола». У АРТЕФАКТА
+    же наблюдённый такт **12 ч** (агенты стоят в 12 ч друг от друга), и срок он
+    держит: ``slo_keepability`` зовёт его ``keepable``. **Обе оси правы, и
+    расхождение между ними ВЕРНО** — неверно было printing находку.
+
+    **Правило это не ново, ново его ИСПОЛНЕНИЕ.** Докстрока
+    ``slo_keepability.measure`` говорит ровно это и теми же двумя агентами в
+    примере: «судить такую пару поагентно значило бы печатать находку там, где
+    обещание выдерживается». Прозой оно прожило до ADR-816 и четыре пары
+    всплывали в каждой переписи заново: у записки нет читателя — знакомый класс
+    (``FROZEN-DATE-OK: injected-clock`` сверяется с кодом ровно поэтому).
+
+    Остаток из тех же 6 пар правомочием НЕ лечится и лечиться не должен —
+    ``architecture_conformance`` (такт 6 ч, срок 7 ч) и ``chief_investment``
+    (1 ч/1 ч, ADR-549): у обоих производитель ОДИН, утверждение про артефакт
+    верно, и находка остаётся находкой (инв. #16).
+    """
+    floor, _why_floor = architect_floor(schedule)
+    # ПОРЯДОК ВОПРОСОВ ЗДЕСЬ — ПРЕДМЕТ, а не стиль, и нашёл его собственный
+    # контроль этой же правки. Сначала «а отрицаем ли мы вообще», и только
+    # потом — чем отрицание обосновано. Прежняя редакция звала `audit_curated`
+    # первой, и у со-производимого артефакта БЕЗ наблюдённой медианы пара
+    # уходила в `CURATED_UNMEASURED` — то есть «различить нечем» вместо
+    # «ось об этом не отвечает». Правомочие отрицать от наблюдения НЕ ЗАВИСИТ:
+    # производителей объявлено двое независимо от того, мерили мы такт или нет.
+    below, why_cmp = below_floor(declared_hours, floor)
+    if below is None:
+        return CURATED_UNMEASURED, why_cmp
+    if not below:
+        # Положительная сторона правомочия не требует (см. таблицу в докстроке):
+        # «этот агент ОДИН способен держать срок» для файла достаточно.
+        return CURATED_ABOVE, why_cmp
+    standing, why = declared_axis_standing(co_producers)
+    if standing is False:
+        return DECLARED_CO_PRODUCED, (
+            f"{why}; поагентно вышло бы отрицание ({why_cmp}) — про АРТЕФАКТ это "
+            f"утверждение не следует, его меряет наблюдённая ось")
+    if standing is None:
+        return DECLARED_STANDING_UNMEASURED, (
+            f"{why}; поагентно вышло бы отрицание ({why_cmp}), но правомочие НЕ "
+            f"ИЗМЕРЕНО — ни находкой, ни «выдерживает» это не выдаётся")
+    # Правомочие есть ⇒ отрицание осмысленно, и ДВА его состояния («обещание
+    # нарушено» против «запаса нет») различает уже чужая дверь по медиане.
+    return audit_curated(declared_hours, floor, median_hours)
+
+
+def below_floor(declared_hours, floor: float | None) -> tuple[bool | None, str]:
+    """Ниже ли курированный срок пола. ЕДИНСТВЕННОЕ место этого сравнения.
+
+    Выделено из :func:`audit_curated` (ADR-816), потому что спрашивают его ДВА
+    судьи: сам ``audit_curated`` и :func:`audit_declared`, которому ответ нужен
+    РАНЬШЕ медианы — правомочие отрицать не зависит от того, наблюдали такт или
+    нет. Копия сравнения рядом с дверью — ровно та форма, на которой выжила
+    мутация №2 батареи ADR-814.
+
+    Третий исход (инв. #17): пола нет или срок не число ⇒ ``None`` с причиной.
+    """
+    if floor is None:
+        return None, "пол не выведен — сравнивать не с чем"
+    if isinstance(declared_hours, bool) or not isinstance(declared_hours, (int, float)):
+        return None, f"курированный срок не число ({declared_hours!r})"
+    declared = float(declared_hours)
+    if declared >= floor:
+        return False, f"курированный срок {declared:g} ч не ниже пола {floor:g} ч"
+    return True, f"курированный срок {declared:g} ч НИЖЕ пола {floor:g} ч"
+
 
 def audit_curated(declared_hours, floor: float | None,
                   median_hours: float | None = None) -> tuple[str, str]:
@@ -293,13 +416,12 @@ def audit_curated(declared_hours, floor: float | None,
     Медиана не передана ⇒ различить два состояния НЕЧЕМ, и это ``CURATED_UNMEASURED``,
     а не «превышает»: подставить сюда «да» значило бы выдумать замер.
     """
-    if floor is None:
-        return CURATED_UNMEASURED, "пол не выведен — сравнивать не с чем"
-    if isinstance(declared_hours, bool) or not isinstance(declared_hours, (int, float)):
-        return CURATED_UNMEASURED, f"курированный срок не число ({declared_hours!r})"
+    below, why_cmp = below_floor(declared_hours, floor)
+    if below is None:
+        return CURATED_UNMEASURED, why_cmp
+    if not below:
+        return CURATED_ABOVE, why_cmp
     declared = float(declared_hours)
-    if declared >= floor:
-        return CURATED_ABOVE, f"курированный срок {declared:g} ч не ниже пола {floor:g} ч"
     if median_hours is None:
         return CURATED_UNMEASURED, (
             f"курированный срок {declared:g} ч ниже пола {floor:g} ч, но медианы такта "

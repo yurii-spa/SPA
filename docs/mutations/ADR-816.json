@@ -1,0 +1,77 @@
+{
+  "title": "ADR-816 — дельта цикла #940, заказ G815 п. 2: у ОТРИЦАНИЯ объявленной оси должно быть ПРАВОМОЧИЕ. Каждая мутация возвращает одно состояние до правки либо рвёт одно звено: правомочие всегда есть · правомочие посчитано, но не применено · правомочие израсходовано на ПОЛОЖИТЕЛЬНОЕ утверждение · третий исход подменён единицей · артефакт без производителя получил правомочие · порядок вопросов возвращён (медиана раньше правомочия) · перепись считает производителей не по конституции · граница сравнения сдвинута · воздержания сосчитаны, но не названы · строка офиса печатает ноль вместо НЕ ИЗМЕРЕНО · строка офиса молчит об отсутствии секции",
+  "tests": [
+    "spa_core/tests/test_declared_axis_standing.py",
+    "spa_core/tests/test_slo_floor_from_observed_cadence.py",
+    "spa_core/tests/test_slo_margin_for_fast_producers.py",
+    "spa_core/tests/test_slo_proposal.py"
+  ],
+  "mutations": [
+    {
+      "name": "правомочие есть ВСЕГДА: четыре пары deployment_* снова печатаются находкой — ровно дефект, который ADR-816 и закрывает",
+      "file": "spa_core/monitoring/slo_proposal.py",
+      "old": "    return False, (f\"артефакт объявлен за {co_producers} производителями — такт ОДНОГО \"",
+      "new": "    return True, (f\"артефакт объявлен за {co_producers} производителями — такт ОДНОГО \""
+    },
+    {
+      "name": "правомочие посчитано, но НЕ ПРИМЕНЕНО: отрицание уезжает поагентно, как до правки (записка без читателя — знакомый класс)",
+      "file": "spa_core/monitoring/slo_proposal.py",
+      "old": "    if standing is False:\n        return DECLARED_CO_PRODUCED, (",
+      "new": "    if standing is False and False:\n        return DECLARED_CO_PRODUCED, ("
+    },
+    {
+      "name": "правомочие израсходовано на ПОЛОЖИТЕЛЬНОЕ утверждение: «этот агент один способен держать срок» для файла ДОСТАТОЧНО, и воздержание здесь теряет верный ответ (data/system_health.json, срок 26 ч при поле 26 ч)",
+      "file": "spa_core/monitoring/slo_proposal.py",
+      "old": "    if not below:\n        # Положительная сторона правомочия не требует (см. таблицу в докстроке):\n        # «этот агент ОДИН способен держать срок» для файла достаточно.\n        return CURATED_ABOVE, why_cmp",
+      "new": "    if not below:\n        if declared_axis_standing(co_producers)[0] is False:\n            return DECLARED_CO_PRODUCED, why_cmp\n        return CURATED_ABOVE, why_cmp"
+    },
+    {
+      "name": "третий исход ПОДМЕНЁН единицей: «производителей не посчитали» выдаётся за «производитель один» — та самая молчаливая подстановка, против которой написан инв. #17",
+      "file": "spa_core/monitoring/slo_proposal.py",
+      "old": "    if isinstance(co_producers, bool) or not isinstance(co_producers, int):\n        return None, f\"число объявленных производителей не целое ({co_producers!r})\"",
+      "new": "    if isinstance(co_producers, bool) or not isinstance(co_producers, int):\n        return True, f\"число объявленных производителей не целое ({co_producers!r})\""
+    },
+    {
+      "name": "артефакт БЕЗ объявленного производителя получил правомочие: судить там не о чем, а ось начинает отрицать",
+      "file": "spa_core/monitoring/slo_proposal.py",
+      "old": "    if co_producers < 1:",
+      "new": "    if co_producers < 0:"
+    },
+    {
+      "name": "ПОРЯДОК ВОПРОСОВ возвращён к первой редакции — медиана раньше правомочия: со-производимый артефакт БЕЗ наблюдённой медианы уходит в «различить нечем» вместо «ось об этом не отвечает» (дефект нашёл собственный контроль правки)",
+      "file": "spa_core/monitoring/slo_proposal.py",
+      "old": "    below, why_cmp = below_floor(declared_hours, floor)\n    if below is None:\n        return CURATED_UNMEASURED, why_cmp\n    if not below:\n        # Положительная сторона правомочия не требует (см. таблицу в докстроке):\n        # «этот агент ОДИН способен держать срок» для файла достаточно.\n        return CURATED_ABOVE, why_cmp\n    standing, why = declared_axis_standing(co_producers)",
+      "new": "    _axis, _note = audit_curated(declared_hours, floor, median_hours)\n    if _axis not in (CURATED_BELOW, CURATED_MARGIN_ONLY):\n        return _axis, _note\n    below, why_cmp = True, _note\n    standing, why = declared_axis_standing(co_producers)"
+    },
+    {
+      "name": "перепись считает производителей НЕ ПО КОНСТИТУЦИИ, а по одному агенту: со-производство становится невидимым и воздержания исчезают",
+      "file": "spa_core/monitoring/slo_keepability.py",
+      "old": "            declared_producers = sum(\n                1 for other in agents if isinstance(other, dict)\n                for op in (other.get(\"produces\") or [])\n                if isinstance(op, dict) and op.get(\"artifact\") == art)",
+      "new": "            declared_producers = 1"
+    },
+    {
+      "name": "ГРАНИЦА сравнения сдвинута: срок, РАВНЫЙ полу, объявляется ниже пола — у суточного агента это ровно курированный якорь 26 ч",
+      "file": "spa_core/monitoring/slo_proposal.py",
+      "old": "    if declared >= floor:\n        return False, f\"курированный срок {declared:g} ч не ниже пола {floor:g} ч\"",
+      "new": "    if declared > floor:\n        return False, f\"курированный срок {declared:g} ч не ниже пола {floor:g} ч\""
+    },
+    {
+      "name": "воздержания СОСЧИТАНЫ, но не НАЗВАНЫ: четыре пары исчезают из отчёта и становятся неотличимы от «их не было»",
+      "file": "spa_core/monitoring/slo_keepability.py",
+      "old": "        \"abstained\": [r for r in pairs if r[\"declared_vs_floor\"] in (\n            slo_proposal.DECLARED_CO_PRODUCED,\n            slo_proposal.DECLARED_STANDING_UNMEASURED)],",
+      "new": "        \"abstained\": [],"
+    },
+    {
+      "name": "строка офиса печатает НОЛЬ вместо НЕ ИЗМЕРЕНО: «находок нет» становится неотличимо от «находки не посчитаны» — fail-OPEN тише красного теста",
+      "file": "spa_core/monitoring/slo_keepability.py",
+      "old": "            f\"{'НЕ ИЗМЕРЕНО' if findings is None else len(findings)} · ВОЗДЕРЖАНИЙ \"",
+      "new": "            f\"{len(findings or [])} · ВОЗДЕРЖАНИЙ \""
+    },
+    {
+      "name": "строка офиса МОЛЧИТ об отсутствии секции: прибор старой версии и прибор без находок перестают быть различимы",
+      "file": "spa_core/monitoring/slo_keepability.py",
+      "old": "        return (\"slo_keepability, объявленная ось: НЕ ИЗМЕРЕНО — секции \"\n                \"`declared_axis` в замере нет\")",
+      "new": "        return \"slo_keepability, объявленная ось: находок 0\""
+    }
+  ]
+}
