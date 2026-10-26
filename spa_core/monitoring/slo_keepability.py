@@ -290,6 +290,25 @@ WRITE_STAMP_KEYS = ("generated_at", "updated_at", "last_updated", "written_at",
 #: чтобы по нему что-то искали.
 DOMAIN_DATE_KEYS = ("as_of", "as_of_utc", "asof", "day", "date")
 
+#: Отметка, называющая ТОЧКУ ВХОДА прогона, — единственный канал атрибуции,
+#: найденный замером 26.10 (ADR-820, заказ G819 п. 1). Поле вложенное
+#: (``invoked_by.entry``), схема ``call_provenance.v1``, и значение снимается у
+#: самого процесса в момент записи, а не печатается литералом.
+ATTRIBUTION_ENTRY_KEY = "invoked_by"
+ATTRIBUTION_ENTRY_FIELD = "entry"
+
+#: Отметки, называющие КОД (модуль, скрипт, роль), — перечень ЗАМКНУТ и
+#: ИЗМЕРЕН, а не угадан. Замер 26.10 по 231 артефакту конституции (ключи
+#: верхнего уровня, значения прочитаны глазами): ``generated_by`` 20 ·
+#: ``agent`` 11 (роль аналитика внутри `investment_os`) · ``source`` 8 ·
+#: ``module`` 3 · ``producer`` 2 · ``writers`` 2 · ``monitor`` 2 · ``runner`` 2 ·
+#: ``engine`` 2. Ни одна из них атрибуцией НЕ является (см.
+#: :func:`slo_proposal.write_attribution`): это литерал пишущего кода, и он один
+#: и тот же, кто бы код ни позвал. Перечень существует, чтобы причина была
+#: НАЗВАНА — чтобы «похожая на имя писавшего строка» отличалась от «ничего нет».
+ATTRIBUTION_CODE_KEYS = ("generated_by", "producer", "module", "monitor",
+                         "runner", "source", "engine", "writers", "agent")
+
 #: Воздержание ПЕРЕПИСИ (не двери): артефакт объявлен ещё и за ИДУЩИМ
 #: производителем. Тогда «файл свежий» объясняется им, и находка «объявлен не тот
 #: производитель» была бы НЕОБОСНОВАННОЙ — верное чтение здесь «лишнее отставное
@@ -1053,6 +1072,243 @@ def producer_reality_line(doc: dict) -> str:
             f"не измерено {tally.get(slo_proposal.TRACE_UNMEASURED, 0)}")
 
 
+def write_attribution_observation(path: Path, *, dir_readable: bool = True) -> dict:
+    """Какие отметки о писавшем несёт ОДИН артефакт — и почему, если никаких.
+
+    Две РАЗНЫЕ находки под одной крышей, и смешивать их нельзя (ADR-820):
+    ``entry`` — точка входа прогона, снятая у процесса; ``code_keys`` — имена
+    КОДА, которые на имя писавшего похожи, но им не являются.
+
+    ``dir_readable=False`` ⇒ все пробы отсутствуют с названной причиной, по той
+    же причине, что у :func:`write_trace_observation`: каталог данных, которого
+    нет, превратил бы каждый артефакт в «канала нет», то есть выдал бы НЕ
+    ИЗМЕРЕНО за измеренный ответ целой переписью сразу.
+    """
+    if not dir_readable:
+        return {"present": None, "entry": None, "code_keys": None,
+                "why": "каталог данных НЕ ПРОЧИТАН — про канал атрибуции не "
+                       "сказано ничего"}
+    try:
+        exists = path.is_file()
+    except OSError as exc:
+        return {"present": None, "entry": None, "code_keys": None,
+                "why": f"файл не опрошен ({type(exc).__name__}) — {path}"}
+    if not exists:
+        return {"present": False, "entry": None, "code_keys": None,
+                "why": f"файла нет по пути {path}"}
+    try:
+        doc = json.loads(path.read_text())
+    except (OSError, ValueError) as exc:
+        return {"present": True, "entry": None, "code_keys": None,
+                "why": f"артефакт не разобран как JSON ({type(exc).__name__}) — "
+                       f"отметки читать нечем"}
+    if not isinstance(doc, dict):
+        return {"present": True, "entry": None, "code_keys": None,
+                "why": f"корень артефакта — {type(doc).__name__}, не объект: "
+                       f"отметки верхнего уровня у него не существует"}
+    stamp = doc.get(ATTRIBUTION_ENTRY_KEY)
+    entry = None
+    why = ""
+    if isinstance(stamp, dict):
+        # Отметка на месте, а поля входа в ней нет — это НЕ «канала нет»:
+        # носитель объявлен, и пустота внутри него есть своя причина.
+        entry = stamp.get(ATTRIBUTION_ENTRY_FIELD)
+        if entry is None:
+            why = (f"отметка `{ATTRIBUTION_ENTRY_KEY}` есть, поля "
+                   f"`{ATTRIBUTION_ENTRY_FIELD}` в ней нет")
+    elif stamp is not None:
+        entry = ""  # дверь прочтёт это как «отметка есть, но не разобрана»
+        why = (f"отметка `{ATTRIBUTION_ENTRY_KEY}` — {type(stamp).__name__}, "
+               f"не объект")
+    return {"present": True, "entry": entry,
+            "code_keys": [key for key in ATTRIBUTION_CODE_KEYS if key in doc],
+            "why": why}
+
+
+def write_attribution_census(producer_reality: dict, agents: list, root: Path,
+                             data_dir: Path) -> dict:
+    """Перепись КАНАЛА АТРИБУТАЦИИ там, где вопрос «кто записал» имеет предмет.
+
+    **Заказ G819 п. 1 запретил искать прибор прежде замера**, и замер отвечает
+    на свой вопрос: есть ли вообще наблюдаемый канал, приписывающий запись
+    запущенному. Поэтому здесь ДВА разных числа, и они не складываются:
+
+    ``population``
+        артефакты, у которых вопрос «кто записал» ИМЕЕТ ПРЕДМЕТ: кандидатов
+        больше одного. Дома два, и каждый считается ОТДЕЛЬНО
+        (``population_homes``): **со-производимый** артефакт (≥2 объявленных
+        производителя — ровно тот
+        случай, который ADR-819 назвал неразрешимым по построению) и
+        **артефакт с находкой ADR-819** (свежая запись при неидущем
+        производителе ⇒ писал кто-то, в конституции не названный).
+    ``inventory``
+        перепись ВСЕЙ конституции — сколько артефактов вообще несут отметку. Это
+        про НАЛИЧИЕ канала в системе, а не про вопрос; выдать одно за другое
+        значило бы ответить «канал есть» там, где у вопроса его нет.
+
+    Пересечение этих двух чисел и есть ответ заказа: канал, существующий в
+    системе, но отсутствующий у населения вопроса, вопроса не решает.
+
+    Второй дом берётся из секции ``declared_producer_reality`` (ADR-819). Её
+    статус НЕ ``OK`` ⇒ дом даёт **НЕ ИЗМЕРЕНО с причиной**, а не ноль: ноль
+    здесь означал бы «находок нет», то есть ответ на вопрос, которого не
+    задавали. Вердикты сроков эта перепись не переписывает ни одним числом — тот
+    же порядок, что у ADR-816/817/819 (заказ G815 п. 2).
+    """
+    dd = Path(data_dir)
+    dir_readable = dd.is_dir()
+    prod: dict = {}
+    for agent in agents:
+        if not isinstance(agent, dict):
+            continue
+        label = str(agent.get("label") or "")
+        if not label:
+            continue
+        for produced in (agent.get("produces") or []):
+            if isinstance(produced, dict) and produced.get("artifact"):
+                prod.setdefault(str(produced["artifact"]), set()).add(label)
+    if not prod:
+        return {"status": slo_proposal.ATTRIBUTION_UNMEASURED,
+                "cause": "в конституции нет ни одного объявленного артефакта — "
+                         "населения у вопроса нет",
+                "population": None, "inventory": None, "tally": None,
+                "rows": None, "findings": None}
+
+    seen: dict = {}
+
+    def _observe(artifact: str) -> dict:
+        if artifact not in seen:
+            seen[artifact] = write_attribution_observation(
+                artifact_file(artifact, Path(root), dd), dir_readable=dir_readable)
+        return seen[artifact]
+
+    def _verdict(obs: dict) -> tuple[str, str]:
+        kind, why = slo_proposal.write_attribution(
+            obs.get("entry"), obs.get("code_keys"), present=obs.get("present"))
+        return kind, (f"{why}; {obs['why']}" if obs.get("why") else why)
+
+    # Перепись ВСЕЙ конституции — отдельное число про наличие канала в системе.
+    inventory: dict = {}
+    for artifact in sorted(prod):
+        kind, _why = _verdict(_observe(artifact))
+        inventory[kind] = inventory.get(kind, 0) + 1
+
+    # Дом №1 — со-производство: кандидатов больше одного ПО КОНСТИТУЦИИ.
+    rows: list = []
+    for artifact in sorted(prod):
+        labels = sorted(prod[artifact])
+        if len(labels) < 2:
+            continue
+        obs = _observe(artifact)
+        kind, why = _verdict(obs)
+        rows.append({"artifact": artifact, "home": "co_produced",
+                     "candidates": labels, "attribution": kind,
+                     "code_keys": obs.get("code_keys"),
+                     "entry": obs.get("entry"), "note": why})
+
+    # Дом №2 — находка ADR-819: писал кто-то, в конституции не названный.
+    misdeclared_home: Optional[int] = None
+    cause = None
+    section = observed(producer_reality, "status", kind=str) if isinstance(
+        producer_reality, dict) else None
+    if section != "OK":
+        cause = ("дом «находка ADR-819» НЕ ИЗМЕРЕН: секция "
+                 "`declared_producer_reality` не дала замера"
+                 + (f" ({producer_reality.get('cause')})"
+                    if isinstance(producer_reality, dict)
+                    and producer_reality.get("cause") else ""))
+    else:
+        findings = observed(producer_reality, "findings", kind=list)
+        if findings is None:
+            cause = ("дом «находка ADR-819» НЕ ИЗМЕРЕН: перечня находок в секции "
+                     "`declared_producer_reality` нет")
+        else:
+            misdeclared_home = 0
+            known = {row["artifact"] for row in rows}
+            for finding in findings:
+                if not isinstance(finding, dict) or not finding.get("artifact"):
+                    continue
+                artifact = str(finding["artifact"])
+                if artifact in known:
+                    continue
+                misdeclared_home += 1
+                obs = _observe(artifact)
+                kind, why = _verdict(obs)
+                rows.append({"artifact": artifact, "home": "misdeclared",
+                             "candidates": [finding.get("agent")],
+                             "attribution": kind,
+                             "code_keys": obs.get("code_keys"),
+                             "entry": obs.get("entry"), "note": why})
+
+    tally: dict = {}
+    for row in rows:
+        tally[row["attribution"]] = tally.get(row["attribution"], 0) + 1
+    return {
+        "status": "OK",
+        "population": len(rows),
+        "population_homes": {
+            "co_produced": len([r for r in rows if r["home"] == "co_produced"]),
+            "misdeclared": misdeclared_home,
+        },
+        "population_cause": cause,
+        "inventory": inventory,
+        "inventory_population": len(prod),
+        "data_dir": str(dd),
+        "data_dir_readable": dir_readable,
+        "tally": tally,
+        # НАХОДКА — отметка, которая на атрибуцию ПОХОЖА, а ею не является:
+        # читатель принимает литерал пишущего кода за имя писавшего. «Канала
+        # нет вовсе» находкой НЕ является: это ответ заказа (третий исход), а
+        # не дефект, который чинится правкой.
+        "findings": [r for r in rows
+                     if r["attribution"] == slo_proposal.ATTRIBUTION_CODE_ONLY],
+        "rows": rows,
+    }
+
+
+def write_attribution_line(doc: dict) -> str:
+    """Строка КАНАЛА АТРИБУЦИИ. Единственная её форма.
+
+    Живёт здесь по той же причине, что :func:`declared_axis_line` и родня, но
+    читателя получает ДРУГОГО: не инлайн-печать `findings_bridge.main`, а
+    :func:`report` — то есть тот самый вывод шага 0-офис, который цикл читает.
+    Замер 26.10 (ADR-820): четыре строки ADR-816…819 объявлены «строкой шага
+    0-офис», а зовёт их ровно один не-тестовый вызывающий — `findings_bridge`,
+    чей stdout уходит в лог агента `com.spa.decision_loop`; `report()` не несёт
+    ни одной из них, и в выводе шага 0-офис их НЕТ. Класс чужой (четыре ADR со
+    своими авторами) и заведён карточкой; своя строка его не пополняет.
+    """
+    section = observed(doc, "declared_write_attribution", kind=dict)
+    if section is None:
+        return ("  канал атрибуции записи: НЕ ИЗМЕРЕНО — секции "
+                "`declared_write_attribution` в замере нет (отчёт написан "
+                "производителем ДО ADR-820)")
+    if section.get("status") != "OK":
+        return ("  канал атрибуции записи: НЕ ИЗМЕРЕНО — "
+                f"{section.get('cause') or 'причина не названа'}")
+    inventory = observed(section, "inventory", kind=dict) or {}
+    tally = observed(section, "tally", kind=dict) or {}
+    findings = section.get("findings")
+    homes = observed(section, "population_homes", kind=dict) or {}
+    names = ", ".join(f"{r.get('artifact')} ({', '.join(r.get('code_keys') or [])})"
+                      for r in (findings or []))
+    return (
+        "  канал атрибуции записи (ADR-820, в сумму вердиктов НЕ входит): у "
+        f"вопроса «кто записал» население {section.get('population')} артефакт(ов) "
+        f"(со-производимых {homes.get('co_produced')} · с находкой ADR-819 "
+        f"{'НЕ ИЗМЕРЕНО' if homes.get('misdeclared') is None else homes['misdeclared']})"
+        f" — из них точку входа прогона несут "
+        f"{tally.get(slo_proposal.ATTRIBUTION_ENTRY_NAMED, 0)} · имя КОДА вместо "
+        f"атрибуции {tally.get(slo_proposal.ATTRIBUTION_CODE_ONLY, 0)}"
+        f"{f' ({names})' if names else ''} · ничего "
+        f"{tally.get(slo_proposal.ATTRIBUTION_ABSENT, 0)} · носителя нет "
+        f"{tally.get(slo_proposal.ATTRIBUTION_CARRIER_ABSENT, 0)} · НЕ ИЗМЕРЕНО "
+        f"{tally.get(slo_proposal.ATTRIBUTION_UNMEASURED, 0)}; по ВСЕЙ конституции "
+        f"({section.get('inventory_population')} артефакт(ов)) точку входа несут "
+        f"{inventory.get(slo_proposal.ATTRIBUTION_ENTRY_NAMED, 0)} — канал в "
+        "системе есть, у населения вопроса его может не быть, и это РАЗНЫЕ числа")
+
+
 def measure(manifest_path: Optional[Path] = None, *, log_dir: Path = Path("/tmp"),
             scripts_dir: Optional[Path] = None, now: Optional[datetime] = None,
             window_hours: float = WINDOW_HOURS, root: Optional[Path] = None,
@@ -1354,6 +1610,11 @@ def measure(manifest_path: Optional[Path] = None, *, log_dir: Path = Path("/tmp"
         for label, seen in seen_by_agent.items()}
     declared_section = declared_axis_census(
         agents, {r["artifact"]: r.get("observed_median_hours") for r in rows})
+    # Замер ЧЕТВЁРТОЙ секции считается ОДИН раз: её находки суть второй дом
+    # населения ПЯТОЙ (ADR-820), и второй независимый прогон той же переписи
+    # дал бы два разных ответа на один вопрос при любом сдвиге часов.
+    _reality_section = producer_reality_census(
+        declared_section, agents, base, data, now=now)
     return {
         "status": "OK",
         "generated_at": _stamp(now),
@@ -1390,8 +1651,15 @@ def measure(manifest_path: Optional[Path] = None, *, log_dir: Path = Path("/tmp"
         # предмет у неё не срок и не пара, а то, НАЗВАН ЛИ В КОНСТИТУЦИИ тот,
         # кто файл действительно пишет. Сложить её с вердиктами о сроках значило
         # бы ответить на пятый, никем не заданный вопрос.
-        "declared_producer_reality": producer_reality_census(
-            declared_section, agents, base, data, now=now),
+        "declared_producer_reality": _reality_section,
+        # КАНАЛ АТРИБУЦИИ — ПЯТАЯ секция (ADR-820, заказ G819 п. 1). Как и
+        # четыре предыдущие, в `tally`/`verdict` не входит ни одним числом:
+        # предмет у неё не срок и не правдивость конституции, а то, СУЩЕСТВУЕТ
+        # ли наблюдаемый канал, приписывающий запись запущенному. Секция
+        # ЧЕТВЁРТАЯ подаётся ей входом (второй дом населения — её находки), и
+        # её «НЕ ИЗМЕРЕНО» остаётся «НЕ ИЗМЕРЕНО», а не превращается в ноль.
+        "declared_write_attribution": write_attribution_census(
+            _reality_section, agents, base, data),
         "rows": rows,
         "findings": findings,
         "measured_from": {"manifest": str(manifest), "log_dir": str(log_dir),
@@ -1404,7 +1672,19 @@ def measure(manifest_path: Optional[Path] = None, *, log_dir: Path = Path("/tmp"
             "КТО именно записал артефакт (ADR-819): свежая запись при "
             "неидущем объявленном производителе доказывает, что писал КТО-ТО "
             "ДРУГОЙ, но имени его не называет — для имени нужна атрибуция, "
-            "которой у `mtime` нет",
+            "которой у `mtime` нет. С ADR-820 про САМ КАНАЛ атрибуции "
+            "докладывает пятая секция (`declared_write_attribution`): имени "
+            "писавшего она по-прежнему не называет, но ОТСУТСТВИЕ канала у "
+            "населения вопроса называет числом, а не молчанием",
+            "сводится ли НАЗВАННАЯ точка входа к ЯРЛЫКУ агента (ADR-820): в "
+            "конституции у агента объявлена только обёртка (`program`), правила "
+            "«обёртка → цель» здесь нет ни строкой — `write_attribution_entry_named` "
+            "означает «канал к запущенному существует», а не «агент назван»",
+            "запись ПРОГОНОВ как канал атрибуции (ADR-820): обёртка пишет в лог "
+            "баннеры START/EXIT с именем агента и pid, но про записи ФАЙЛОВ в "
+            "нём нет ни строки; связать запись с прогоном по времени значило бы "
+            "допустить, что файл пишет только прогон, — а ADR-819 ровно это и "
+            "опроверг (снимок писал библиотечный зов из ДРУГОГО процесса)",
             "С КАКИМ ТАКТОМ пишут артефакт (ADR-819): `mtime` есть ОДНА точка, "
             "а не история, поэтому «свежее срока сегодня» не означает «срок "
             "будет выдержан» — вердикт переписи правдивости говорит о "
@@ -1536,6 +1816,11 @@ def report(doc: dict, max_rows: int = 12) -> list:
             f"ОДИН ПРОПУСК у срока нет, ADR-815) · не ниже "
             f"{curated.get(slo_proposal.CURATED_ABOVE, 'НЕ ИЗМЕРЕНО')} · пол НЕ ВЫВЕДЕН "
             f"{curated.get(slo_proposal.CURATED_UNMEASURED, 'НЕ ИЗМЕРЕНО')}")
+    # КАНАЛ АТРИБУЦИИ — строка ЗДЕСЬ, а не только в `findings_bridge` (ADR-820).
+    # Причина измерена: четыре строки ADR-816…819 объявлены «строкой шага
+    # 0-офис», а печатает их только мост, чей stdout уходит в лог агента;
+    # `report()` — вывод, который цикл читает НА САМОМ ДЕЛЕ.
+    lines.append(write_attribution_line(doc))
     causes = observed(doc, "unmeasured_causes", kind=dict) or {}
     if causes:
         lines.append("  такт НЕ наблюдён, по причинам: " + " · ".join(

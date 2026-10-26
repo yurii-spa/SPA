@@ -1,0 +1,98 @@
+{
+ "title": "ADR-820 — дельта цикла #944 (есть ли канал, приписывающий запись запущенному)",
+ "tests": [
+  "spa_core/tests/test_write_attribution_census.py"
+ ],
+ "mutations": [
+  {
+   "name": "КАНАЛА НЕТ НИКОГДА: точка входа не признаётся вовсе — отчёт всегда говорит «канала нет»",
+   "file": "spa_core/monitoring/slo_proposal.py",
+   "old": "    if isinstance(entry, str):\n        return ATTRIBUTION_ENTRY_NAMED, (",
+   "new": "    if False:\n        return ATTRIBUTION_ENTRY_NAMED, ("
+  },
+  {
+   "name": "ИМЯ КОДА ПРИНЯТО ЗА АТРИБУЦИЮ — ровно дефект, против которого написана дверь",
+   "file": "spa_core/monitoring/slo_proposal.py",
+   "old": "        return ATTRIBUTION_CODE_ONLY, (\n            f\"артефакт несёт имя КОДА",
+   "new": "        return ATTRIBUTION_ENTRY_NAMED, (\n            f\"артефакт несёт имя КОДА"
+  },
+  {
+   "name": "НОСИТЕЛЬ И КАНАЛ СКЛЕЕНЫ: «файла нет» выдаётся за «в файле ничего нет»",
+   "file": "spa_core/monitoring/slo_proposal.py",
+   "old": "        return ATTRIBUTION_CARRIER_ABSENT, (\n            \"артефакта нет на месте",
+   "new": "        return ATTRIBUTION_ABSENT, (\n            \"артефакта нет на месте"
+  },
+  {
+   "name": "`present` судится ПРАВДИВОСТЬЮ, а не родом: строка «да» проходит как наличие",
+   "file": "spa_core/monitoring/slo_proposal.py",
+   "old": "    if not isinstance(present, bool):\n        return ATTRIBUTION_UNMEASURED, (\n            f\"наличие носителя НЕ ИЗМЕРЕНО",
+   "new": "    if present is None:\n        return ATTRIBUTION_UNMEASURED, (\n            f\"наличие носителя НЕ ИЗМЕРЕНО"
+  },
+  {
+   "name": "НЕЧИТАЕМАЯ ОТМЕТКА ВХОДА выдаётся за отсутствие канала, а не за НЕ ИЗМЕРЕНО",
+   "file": "spa_core/monitoring/slo_proposal.py",
+   "old": "    if entry is not None and (not isinstance(entry, str) or not entry.strip()):",
+   "new": "    if False:"
+  },
+  {
+   "name": "ПЕРЕЧЕНЬ ОТМЕТОК НЕ ИЗМЕРЕН подменяется пустым — «не прочитали» становится «ничего нет»",
+   "file": "spa_core/monitoring/slo_proposal.py",
+   "old": "    if code_keys is None:\n        return ATTRIBUTION_UNMEASURED, (",
+   "new": "    if False:\n        return ATTRIBUTION_UNMEASURED, ("
+  },
+  {
+   "name": "НЕЧИТАЕМЫЙ КАТАЛОГ ДАННЫХ игнорируется: 231 артефакт молча становится «канала нет»",
+   "file": "spa_core/monitoring/slo_keepability.py",
+   "old": "    if not dir_readable:\n        return {\"present\": None, \"entry\": None, \"code_keys\": None,\n                \"why\": \"каталог данных НЕ ПРОЧИТАН",
+   "new": "    if False:\n        return {\"present\": None, \"entry\": None, \"code_keys\": None,\n                \"why\": \"каталог данных НЕ ПРОЧИТАН"
+  },
+  {
+   "name": "ВЛОЖЕННОЕ ПОЛЕ подменено самой отметкой: носитель принят за точку входа",
+   "file": "spa_core/monitoring/slo_keepability.py",
+   "old": "        entry = stamp.get(ATTRIBUTION_ENTRY_FIELD)",
+   "new": "        entry = str(stamp)"
+  },
+  {
+   "name": "ИНВЕНТАРЬ ПОДМЕНЯЕТ НАСЕЛЕНИЕ ВОПРОСА: судится вся конституция, а не пары с кандидатами",
+   "file": "spa_core/monitoring/slo_keepability.py",
+   "old": "        labels = sorted(prod[artifact])\n        if len(labels) < 2:\n            continue",
+   "new": "        labels = sorted(prod[artifact])\n        if False:\n            continue"
+  },
+  {
+   "name": "НЕ ИЗМЕРЕННЫЙ ВХОД становится НУЛЁМ: «находок ADR-819 нет» вместо «дом не измерен»",
+   "file": "spa_core/monitoring/slo_keepability.py",
+   "old": "    misdeclared_home: Optional[int] = None\n    cause = None",
+   "new": "    misdeclared_home: Optional[int] = 0\n    cause = None"
+  },
+  {
+   "name": "НАХОДКОЙ ОБЪЯВЛЕНО ОТСУТСТВИЕ КАНАЛА — третий исход выдаётся за дефект",
+   "file": "spa_core/monitoring/slo_keepability.py",
+   "old": "        \"findings\": [r for r in rows\n                     if r[\"attribution\"] == slo_proposal.ATTRIBUTION_CODE_ONLY],",
+   "new": "        \"findings\": [r for r in rows\n                     if r[\"attribution\"] != slo_proposal.ATTRIBUTION_ENTRY_NAMED],"
+  },
+  {
+   "name": "ДВА ДОМА СЧИТАЮТ ОДИН АРТЕФАКТ ДВАЖДЫ: население раздувается повтором",
+   "file": "spa_core/monitoring/slo_keepability.py",
+   "old": "                if artifact in known:\n                    continue",
+   "new": "                if False:\n                    continue"
+  },
+  {
+   "name": "ЧИТАТЕЛЯ НЕТ: строка не печатается из `report()` — та же болезнь, что нашёл цикл",
+   "file": "spa_core/monitoring/slo_keepability.py",
+   "old": "    lines.append(write_attribution_line(doc))",
+   "new": "    pass"
+  },
+  {
+   "name": "СЕКЦИЯ НЕ ПОПАДАЕТ В ЗАМЕР: перепись считается, а в документ не входит",
+   "file": "spa_core/monitoring/slo_keepability.py",
+   "old": "        \"declared_write_attribution\": write_attribution_census(\n            _reality_section, agents, base, data),",
+   "new": "        \"declared_write_attribution_НЕ_ТА\": write_attribution_census(\n            _reality_section, agents, base, data),"
+  },
+  {
+   "name": "ЧЕТВЁРТАЯ ПЕРЕПИСЬ СЧИТАЕТСЯ ДВАЖДЫ: два ответа на один вопрос",
+   "file": "spa_core/monitoring/slo_keepability.py",
+   "old": "        \"declared_producer_reality\": _reality_section,",
+   "new": "        \"declared_producer_reality\": producer_reality_census(\n            declared_section, agents, base, data, now=now),"
+  }
+ ]
+}
