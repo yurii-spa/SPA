@@ -14,14 +14,16 @@ Base result: 136042 total · 135266 passed · 57 failed · 0 error · 12/12.
 
 `ci_control.py compare 40328594274 → 40353173933`: **new 9 · pre-existing 57 · not obtained 0 · fixed 0**.
 
-## The 9 new — all in `spa_core/tests/test_python_git_ref_provenance.py`, shard 8, one cascade
-- Trigger: `TestRatchet::test_a_baseline_without_the_schema_is_unmeasured_not_clean` — **Timeout (>180 s)**;
-  on the base run the same test PASSED in 135.8 s, and the file's tests there take 140–165 s each (near the limit).
-- After the timeout the shard harness crashed three times on tests of this file (`crashed_on`, 4 attempts, wall 3613 s);
-  the rest of the file is `failed`/`error` "pytest internal error … not re-run" — a cascade, not separate assertions.
-- Cause of the slowdown NOT established by one run. The package adds 23 paths (~4.8k lines, incl. 7 modules with git
-  calls) to the tree this whole-tree census walks; an effect of the package is NOT excluded. On the base, this file's
-  real-tree test is already red (+28 subjects of main's own code) — pre-existing.
+## The 9 new — `spa_core/tests/test_python_git_ref_provenance.py`, shard 8 (corrected per ARB 27.10)
+- **Seven** new IDs failed with an explicit JUnit `Timeout (>180 s)`, each stopped in `Resolver.enter → ast.walk(fn)`;
+  **two** new IDs are `pytest internal error … not re-run`. (A third internal error belongs to an ID already failed on the
+  base.) In this file the run recorded ten timeouts and three internal errors in total, including its four pre-existing
+  failed IDs. Exact IDs and JUnit attribution: `arb_new_failures_20261027.json`.
+- The earlier wording here («one timeout, then an eight-test cascade») was wrong: these are several real timeout
+  observations of one repeated expensive code path.
+- On the base run the tests of this file took 140–165 s each (limit 180 s). How much the added package versus runner load
+  contributed is NOT established separately. Pre-existing: the real-tree test is red on the base (+28 subjects of main's
+  own code).
 
 ## Previous integration errors
 `test_foreign_markup_reader_census.py::test_the_live_tree_is_measured_and_the_custodian_is_in_the_class` — **passed**

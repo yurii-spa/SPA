@@ -1,0 +1,55 @@
+From 4a326236bc0ce6a0afd13b684ac3e7e5586aff54 Mon Sep 17 00:00:00 2001
+From: Yurii SPA <yuriycooleshov@gmail.com>
+Date: Tue, 27 Oct 2026 00:41:04 +0100
+Subject: [PATCH] perf(git provenance census): cache each function's assignment
+ list in Resolver.enter (2 hunks of 34e5bc85a, unchanged)
+
+Values are still resolved on every entry; detection rules, baseline, pytest limits untouched. ARB 27.10: the release CI
+40353173933 timed out in Resolver.enter -> ast.walk; ARB measured 100.725 s -> 9.365 s with byte-identical report.
+---
+ scripts/python_git_ref_provenance.py | 22 ++++++++++++++++------
+ 1 file changed, 16 insertions(+), 6 deletions(-)
+
+diff --git a/scripts/python_git_ref_provenance.py b/scripts/python_git_ref_provenance.py
+index d6a653557..752079190 100644
+--- a/scripts/python_git_ref_provenance.py
++++ b/scripts/python_git_ref_provenance.py
+@@ -233,6 +233,7 @@ class Resolver:
+                                                  "parse_known_args"):
+                 self.namespaces.add(node.targets[0].id)
+         self.local = {}
++        self._assigns = {}
+ 
+     @staticmethod
+     def _literal(node):
+@@ -265,12 +266,21 @@ class Resolver:
+                 self.local[name.arg] = got
+         for name, val in (inherited or {}).items():
+             self.local.setdefault(name, val)
+-        for node in ast.walk(fn):
+-            if isinstance(node, ast.Assign) and len(node.targets) == 1 \
+-                    and isinstance(node.targets[0], ast.Name):
+-                got = self.resolve(node.value)
+-                if got is not None:
+-                    self.local.setdefault(node.targets[0].id, got)
++        # Список присваиваний функции неизменен — обход AST делается ОДИН раз на функцию
++        # (замер 22.10: enter звался 183 814 раз, каждый раз ast.walk — ~95 % цены переписи).
++        # Значения по-прежнему разрешаются на КАЖДОМ входе: они зависят от состояния self.local.
++        assigns = self._assigns.get(id(fn))
++        if assigns is None:
++            assigns = [(node.targets[0].id, node.value) for node in ast.walk(fn)
++                       if isinstance(node, ast.Assign) and len(node.targets) == 1
++                       and isinstance(node.targets[0], ast.Name)]
++            self._assigns[id(fn)] = (fn, assigns)   # fn в значении держит id живым
++        else:
++            assigns = assigns[1]
++        for target, value in assigns:
++            got = self.resolve(value)
++            if got is not None:
++                self.local.setdefault(target, got)
+         return [p.arg for p in params]
+ 
+     def resolve(self, node):
+-- 
+2.54.0 (Apple Git-157)
+

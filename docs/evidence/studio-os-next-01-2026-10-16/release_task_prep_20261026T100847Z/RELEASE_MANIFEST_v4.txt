@@ -1,0 +1,55 @@
+release_commit 4a326236bc0ce6a0afd13b684ac3e7e5586aff54
+parent (published release) 6ca0ce2a8cff3b2d44aa94e9e32f7b3c499736b7
+main_base 37e06e185dfaddd24ca9a3e0f993e118fd20a9ba
+-- delta from 6ca0ce2a8
+M	scripts/python_git_ref_provenance.py
+-- full composition vs main
+A	architecture/model_roles.json
+A	docs/decisions/ADR-OWN-2026-10-23-model-independent-studio.md
+A	docs/evidence/studio-os-next-01-2026-10-16/HANDOVER_2026-10-23_POST_ARB8.md
+A	docs/evidence/studio-os-next-01-2026-10-16/HANDOVER_2026-10-23_STAGE8.md
+M	scripts/python_git_ref_provenance.py
+M	spa_core/studio_os/memory/__main__.py
+A	spa_core/studio_os/memory/arch_review.py
+A	spa_core/studio_os/memory/role_pack.py
+M	spa_core/studio_os/mission_control.py
+M	spa_core/studio_os/mission_ui/app.js
+M	spa_core/studio_os/mission_ui/i18n.js
+M	spa_core/studio_os/mission_ui/styles.css
+A	spa_core/studio_os/model_roles/__init__.py
+A	spa_core/studio_os/model_roles/__main__.py
+A	spa_core/studio_os/model_roles/adapters.py
+A	spa_core/studio_os/model_roles/contract.py
+A	spa_core/studio_os/model_roles/probe.py
+M	spa_core/studio_os/owner_view.py
+A	spa_core/tests/test_model_roles_contract.py
+A	spa_core/tests/test_model_roles_probe.py
+A	spa_core/tests/test_model_roles_review.py
+A	spa_core/tests/test_role_pack.py
+A	spa_core/tests/test_task_prep.py
+A	spa_core/tests/test_task_prep_record.py
+-- blob hashes
+7e19ea029c2631272666389c7f47fdeea8268835 architecture/model_roles.json
+f954852e0a5b723273df1a30723e8da4c179fb86 docs/decisions/ADR-OWN-2026-10-23-model-independent-studio.md
+08d8d5121addfdeef8c4087438ec39f8345e3506 docs/evidence/studio-os-next-01-2026-10-16/HANDOVER_2026-10-23_POST_ARB8.md
+86e21ebc30eb41cbd8bb4bdafcaf030b70476f49 docs/evidence/studio-os-next-01-2026-10-16/HANDOVER_2026-10-23_STAGE8.md
+7520791905766fe5a7925ad88bf2e5821f646188 scripts/python_git_ref_provenance.py
+28431e7e23c44b4a51c18a45e19034296ec101b6 spa_core/studio_os/memory/__main__.py
+762f445af6c673f3b12c89c23013efb062c1e86f spa_core/studio_os/memory/arch_review.py
+e975fd11c12db884e6975d39b841a19956b6112f spa_core/studio_os/memory/role_pack.py
+6769ffc72a152518c6e201a7f178994ace36d923 spa_core/studio_os/mission_control.py
+fecf9cb2d2a2e02ea4b298d7efa177c789d32e8d spa_core/studio_os/mission_ui/app.js
+ef0ffa78bc48de1736e35f9c1dd34ed5f7a75c6a spa_core/studio_os/mission_ui/i18n.js
+66bbd66893f9d799cff6f99a8b3059488b96db9b spa_core/studio_os/mission_ui/styles.css
+00b903e56032431c2688f92bf4d3ee805b1b3c5a spa_core/studio_os/model_roles/__init__.py
+8ce3f00d8e7d5e026c63da6fd231ef4b94e2466f spa_core/studio_os/model_roles/__main__.py
+4cf9e8d7db4a1a2894cc3d2468677d80a48aed1f spa_core/studio_os/model_roles/adapters.py
+38e2f8a6a2ec02bca2c7aedfffa3c0ff91dc56c9 spa_core/studio_os/model_roles/contract.py
+7d2f83671d9b3c82be04a007551bb01bc4ed3b71 spa_core/studio_os/model_roles/probe.py
+ecd291b16e3eca0e91d445c36cbd6401792d4196 spa_core/studio_os/owner_view.py
+9b6363cd329aa54047c13bc38988b76af5fd275d spa_core/tests/test_model_roles_contract.py
+ce28ba92887eed46809c993d9e686eb56c05709d spa_core/tests/test_model_roles_probe.py
+4cb9581d820219dd50cc85f31107e860034bad57 spa_core/tests/test_model_roles_review.py
+2d52a5f3b5bd98a2a9242bc3f7e9e7dd94a0d66f spa_core/tests/test_role_pack.py
+613481f9491ebe5fc52dbd0883a865d7cc1c7b41 spa_core/tests/test_task_prep.py
+12db5f424902f27c38d521d424776ff5b81335b3 spa_core/tests/test_task_prep_record.py
