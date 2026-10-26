@@ -32,6 +32,7 @@ from __future__ import annotations
 import argparse
 import hashlib
 import json
+import os
 import re
 import subprocess
 from datetime import datetime, timezone
@@ -155,8 +156,10 @@ def extra_fragments(paths: Sequence[Path]) -> tuple:
         total += len(clean)
         if total > EXTRA_LIMIT_CHARS:
             raise ReviewError(f"extra fragments exceed {EXTRA_LIMIT_CHARS} chars — give smaller fragments")
+        # ARB 26.10 R1-A: the raw fingerprint is taken from the SAME bytes that went into the prompt.
         rows.append({"name": Path(p).name, "sha256": _sha(clean), "chars": len(clean),
-                     "credential_lines_dropped": dropped})
+                     "credential_lines_dropped": dropped, "path": str(Path(p).resolve()),
+                     "source_sha256": _sha(raw)})
         parts.append(f"### Fragment: {Path(p).name}\n\n{clean.rstrip()}\n")
     return ("\n".join(parts), rows, unknown)
 
@@ -187,7 +190,8 @@ def claude_task_block(section: Optional[str]) -> Optional[str]:
 def run_review(root: Path, *, handover: str, task_id: str, task: str, verified_sha: str,
                provider: Optional[str], out: Path, roadmap_item: Optional[int] = None,
                extra: Sequence[Path] = (), adapters: Optional[Dict] = None,
-               config: Optional[Dict] = None, at: Optional[str] = None, kind: str = KIND_ARCH) -> Dict[str, Any]:
+               config: Optional[Dict] = None, at: Optional[str] = None, kind: str = KIND_ARCH,
+               prebuilt: Optional[Dict[str, Any]] = None) -> Dict[str, Any]:
     if kind not in (KIND_ARCH, KIND_PREP):
         raise ReviewError(f"unknown review kind {kind!r}; known: {KIND_ARCH}, {KIND_PREP}")
     # Every caller-supplied string that reaches the prompt, review.json, recommendation.md or a reason.
@@ -195,17 +199,10 @@ def run_review(root: Path, *, handover: str, task_id: str, task: str, verified_s
         refuse_if_credential(field, value)
     for p in extra:
         refuse_if_credential("extra-context path", str(p))
-    if not re.fullmatch(r"[0-9a-f]{40}", verified_sha or ""):
-        raise ReviewError("--verified-sha must be a full 40-hex commit id (the EXACT verified revision)")
-    if _git(root, "cat-file", "-e", f"{verified_sha}^{{commit}}") is None:
-        raise ReviewError(f"verified revision {verified_sha[:12]} is not a commit in {root}")
-    try:
-        pack = role_pack.build(root, handover, roadmap_item, ROLE, at, verified_sha)
-    except role_pack.PackError as exc:
-        raise ReviewError(f"context pack not built: {exc}") from exc
-    frag_md, frag_rows, frag_unknown = extra_fragments(extra)
-    context = role_pack.render(pack) + ("\n## Task fragments (explicit, sanitized)\n\n" + frag_md if frag_md else "")
-    unknown = list(pack["unknown"]) + frag_unknown
+    built = prebuilt if prebuilt is not None else build_inputs(
+        root, handover=handover, task=task, verified_sha=verified_sha, provider=provider,
+        roadmap_item=roadmap_item, extra=extra, config=config, at=at, kind=kind)
+    pack, context, frag_rows, unknown = built["pack"], built["context"], built["fragments"], built["unknown"]
     names = PREP_SECTIONS if kind == KIND_PREP else SECTIONS
     instruction = (PREP_INSTRUCTION.format(task=task, no_plan=NO_PLAN_MARK, new_check=NEW_CHECK_MARK)
                    if kind == KIND_PREP else INSTRUCTION.format(task=task))
@@ -234,17 +231,11 @@ def run_review(root: Path, *, handover: str, task_id: str, task: str, verified_s
         "disclaimer": DISCLAIMER, "writes": "only this output directory",
     }
     if kind == KIND_PREP:
-        # Sources of the context by their OWN bytes (not the rendered context: that carries a generation time).
-        # A later reader re-hashes these files itself — the stored values are never echoed back as «fresh».
-        inputs = pack.get("inputs_sha256")
-        sources = dict(inputs) if isinstance(inputs, dict) else {}
-        for p in extra:
-            try:
-                sources[_rel(root, Path(p))] = hashlib.sha256(Path(p).read_bytes()).hexdigest()
-            except OSError:
-                sources[_rel(root, Path(p))] = None
+        # Sources by the bytes captured AT THE READ that built the prompt (ARB 26.10 R1-A) — never re-hashed
+        # after the call. A later reader re-hashes the files itself; stored values are only the reference.
         record.update(review_version=PREP_VERSION, kind=KIND_PREP, request_sha256=_sha(task),
-                      sources_sha256=sources,
+                      sources_sha256=built["sources"], input_identity=built["identity"],
+                      input_identity_parts=built["identity_parts"],
                       disclaimer=PREP_DISCLAIMER + " " + (PREP_REAL_NOTE if res.real_provider else PREP_FIXTURE_NOTE),
                       preparation=check_preparation(sections) if res.status == "ok" else None)
     out.mkdir(parents=True, exist_ok=True)
@@ -254,6 +245,37 @@ def run_review(root: Path, *, handover: str, task_id: str, task: str, verified_s
     render = render_preparation if kind == KIND_PREP else render_recommendation
     atomic_save_text(render(record), str(out / "recommendation.md"))
     return record
+
+
+def build_inputs(root: Path, *, handover: str, task: str, verified_sha: str, provider: Optional[str],
+                 roadmap_item: Optional[int] = None, extra: Sequence[Path] = (), config: Optional[Dict] = None,
+                 at: Optional[str] = None, kind: str = KIND_ARCH) -> Dict[str, Any]:
+    """Everything the model will see, read ONCE, plus a deterministic IDENTITY of those inputs (ARB 26.10 R1-B):
+    request, every source by the raw bytes of this very read, the selected source set, verified revision and
+    the code changed since it, role, provider, the role configuration. The generation time is NOT part of it."""
+    if not re.fullmatch(r"[0-9a-f]{40}", verified_sha or ""):
+        raise ReviewError("--verified-sha must be a full 40-hex commit id (the EXACT verified revision)")
+    if _git(root, "cat-file", "-e", f"{verified_sha}^{{commit}}") is None:
+        raise ReviewError(f"verified revision {verified_sha[:12]} is not a commit in {root}")
+    try:
+        pack = role_pack.build(root, handover, roadmap_item, ROLE, at, verified_sha)
+    except role_pack.PackError as exc:
+        raise ReviewError(f"context pack not built: {exc}") from exc
+    frag_md, frag_rows, frag_unknown = extra_fragments(extra)
+    context = role_pack.render(pack) + ("\n## Task fragments (explicit, sanitized)\n\n" + frag_md if frag_md else "")
+    inputs = pack.get("inputs_sha256")
+    sources = dict(inputs) if isinstance(inputs, dict) else {}
+    for row in frag_rows:
+        sources[_rel(root, Path(row["path"]))] = row["source_sha256"]
+    cfg = config if config is not None else load_config()
+    parts = {"kind": kind, "role": ROLE, "provider": provider, "request_sha256": _sha(task),
+             "handover": handover, "roadmap_item": roadmap_item, "verified_sha": verified_sha,
+             "code_changed_since_verified": pack["revision"].get("code_changed_since_verified"),
+             "sources": dict(sorted(sources.items())),
+             "role_config_sha256": _sha(json.dumps(cfg, sort_keys=True, ensure_ascii=False))}
+    return {"pack": pack, "context": context, "fragments": frag_rows,
+            "unknown": list(pack["unknown"]) + frag_unknown, "sources": sources, "identity_parts": parts,
+            "identity": _sha(json.dumps(parts, sort_keys=True, ensure_ascii=False))}
 
 
 def _rel(root: Path, p: Path) -> str:
@@ -351,9 +373,19 @@ def prepare_record(root: Path, card: Path, prep_root: Path, *, handover: str, ve
                    extra: Sequence[Path] = (), roadmap_item: Optional[int] = None,
                    at: Optional[str] = None) -> Dict[str, Any]:
     """EXPLICIT preparation of one cockpit record (ARB 26.10). Reads the card, never writes it: no
-    ``acceptance_probe``, no claim, no status. If the newest stored preparation is still current against
-    independently re-read inputs, nothing is called and nothing is written (``unchanged``). Otherwise ONE new,
-    uniquely named directory ``<prep_root>/<card-stem>/<UTC stamp>-<request sha8>`` — earlier ones are kept."""
+    ``acceptance_probe``, no claim, no status.
+
+    * inputs are read ONCE (:func:`build_inputs`) and identified deterministically (no generation time);
+    * reuse (``unchanged``) only when the newest complete run has the SAME input identity as THIS request and is
+      still current against independently re-read inputs — a new source, handover, revision, provider or config
+      is a new preparation (ARB R1-B);
+    * a process-safe ``flock`` per record in the preparation store is taken BEFORE any provider call; a concurrent
+      caller gets ``busy`` and calls nothing (ARB R2). The lock dies with its process — never a stale «success»;
+    * the output directory is reserved atomically (``os.mkdir``); the completeness marker ``task_prep_record.json``
+      is written LAST, so an interrupted run stays an incomplete directory that no reader counts. Nothing earlier
+      is overwritten or removed;
+    * after the call the card and every source are re-read: a change during the call ⇒ ``stale``, never current."""
+    import fcntl
     card = Path(card)
     try:
         text = card.read_text(encoding="utf-8")
@@ -362,22 +394,58 @@ def prepare_record(root: Path, card: Path, prep_root: Path, *, handover: str, ve
     request = request_text_of(text)
     if request is None:
         raise ReviewError(f"{card.name}: no «## Задание» section — nothing to prepare")
-    runs = preparation_runs(prep_root, card.name)
-    if runs:
-        last = preparation_state(runs[-1], card_text=text, root=root)
-        if last["state"] == "current":
-            return {"action": "unchanged", "run": str(runs[-1]), "state": last}
-    stamp = (at or datetime.now(timezone.utc).isoformat(timespec="seconds")).replace(":", "").replace("-", "")
-    out = _stem_dir(prep_root, card.name) / f"{stamp[:15]}Z-{_sha(request)[:8]}"
-    if out.exists():
-        raise ReviewError(f"{out} already exists — earlier evidence is never overwritten")
-    rec = run_review(root, handover=handover, task_id=card.stem, task=request, verified_sha=verified_sha,
-                     provider=provider, out=out, roadmap_item=roadmap_item, extra=extra, adapters=adapters,
-                     config=config, at=at, kind=KIND_PREP)
-    from spa_core.utils.atomic import atomic_save
-    atomic_save(rec, str(out / PREP_RECORD_FILE))
-    return {"action": "prepared", "run": str(out), "status": rec["status"],
-            "state": preparation_state(out, card_text=text, root=root)}
+    store = _stem_dir(prep_root, card.name)
+    store.mkdir(parents=True, exist_ok=True)
+    lock_fd = os.open(str(store / ".prepare.lock"), os.O_CREAT | os.O_RDWR, 0o600)
+    try:
+        try:
+            fcntl.flock(lock_fd, fcntl.LOCK_EX | fcntl.LOCK_NB)
+        except OSError:
+            return {"action": "busy", "run": None,
+                    "state": {"state": "busy", "reasons": ["another preparation of this record is running"]}}
+        built = build_inputs(root, handover=handover, task=request, verified_sha=verified_sha, provider=provider,
+                             roadmap_item=roadmap_item, extra=extra, config=config, at=at, kind=KIND_PREP)
+        runs = preparation_runs(prep_root, card.name)
+        if runs:
+            last = preparation_state(runs[-1], card_text=text, root=root)
+            same = _recorded_identity(runs[-1]) == built["identity"]
+            if same and last["state"] == "current":
+                return {"action": "unchanged", "run": str(runs[-1]), "state": last}
+        stamp = (at or datetime.now(timezone.utc).isoformat(timespec="seconds")).replace(":", "").replace("-", "")
+        out = _reserve(store, f"{stamp[:15]}Z-{built['identity'][:8]}")
+        rec = run_review(root, handover=handover, task_id=card.stem, task=request, verified_sha=verified_sha,
+                         provider=provider, out=out, roadmap_item=roadmap_item, extra=extra, adapters=adapters,
+                         config=config, at=at, kind=KIND_PREP, prebuilt=built)
+        from spa_core.utils.atomic import atomic_save
+        atomic_save(rec, str(out / PREP_RECORD_FILE))           # completeness marker — LAST
+        try:
+            now_text = card.read_text(encoding="utf-8")
+        except OSError:
+            now_text = None
+        return {"action": "prepared", "run": str(out), "status": rec["status"],
+                "state": preparation_state(out, card_text=now_text, root=root)}
+    finally:
+        os.close(lock_fd)                                       # releases the flock
+
+
+def _reserve(store: Path, name: str) -> Path:
+    """Atomically create a NEW run directory; an existing name is never reused (suffix -2, -3 …)."""
+    for n in range(1, 1000):
+        out = store / (name if n == 1 else f"{name}-{n}")
+        try:
+            os.mkdir(out)
+            return out
+        except FileExistsError:
+            continue
+    raise ReviewError(f"cannot reserve a new run directory under {store}")
+
+
+def _recorded_identity(run_dir: Path) -> Optional[str]:
+    try:
+        rec = json.loads((Path(run_dir) / PREP_RECORD_FILE).read_text(encoding="utf-8"))
+    except (OSError, ValueError):
+        return None
+    return rec.get("input_identity") if isinstance(rec, dict) else None
 
 
 def check_preparation(sections: Dict[str, Optional[str]], probes: Optional[Sequence[str]] = None) -> Dict[str, Any]:

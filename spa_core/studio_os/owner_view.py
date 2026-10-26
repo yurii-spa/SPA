@@ -839,6 +839,11 @@ def _record_outcome(r: dict) -> dict:
             return out("in_work", f"{head} — проверка пройдена, закрытие ещё не завершено")
         return out("in_work", f"{head} — результат ещё не проверялся")
     if st == "new" and r.get("intake_seen"):
+        if verdict == "no_probe":
+            # ARB 26.10 U1: простыми словами; служебный текст диспетчера — в технических подробностях
+            return out("not_accepted", "не взято в работу: проверка результата ещё не назначена; работа не начата",
+                       reason="проверка результата ещё не назначена; работа не начата",
+                       next_step="назначить проверку результата до начала работы — автоматически это пока не делается")
         if verdict in _NOT_ACCEPTED_DEFAULT:
             # исполнитель не взял: у записи нет машинной проверки результата (cockpit_dispatch, ARB 16.10)
             d_reason, d_next = _NOT_ACCEPTED_DEFAULT[verdict]
@@ -904,42 +909,103 @@ def _record_status(r: dict) -> tuple:
 
 
 #: ARB 26.10 — the preparation of a record, in the owner's words. A preparation permits nothing.
-PREP_STATE_RU = {
-    "none": "подготовки нет — план для этой записи ещё не готовили",
-    "current": "план подготовлен и соответствует записи — это предложение для разбора, не начало работы",
-    "stale": "план устарел — запись или её источники изменились; нужен новый план",
-    "incomplete": "подготовка не удалась или неполна — плана для разбора нет",
-    "unreadable": "подготовку не удалось прочитать — это проблема отображения",
-}
-PREP_FORM_RU = {"plan": "план", "clarification": "нужно ваше уточнение", "incomplete": "неполно"}
 PREP_TEXT_LIMIT = 1500
+#: The owner-facing heading of each preparation state (U1: a question is a question, never «план подготовлен»).
+PREP_HEAD_RU = {
+    "none": "Плана пока нет — подготовку для этой записи не запускали",
+    "plan": "План подготовлен — это предложение для разбора, работа не начата",
+    "clarification": "Нужно уточнение",
+    "stale": "План устарел — его нужно подготовить заново",
+    "incomplete": "Подготовка не удалась — плана нет",
+    "unreadable": "Подготовку не удалось прочитать — это проблема отображения",
+    "busy": "Подготовка идёт",
+}
+#: Model-declared subject (ADR-285 vocabulary) in plain words; always marked as the MODEL's estimate.
+_SUBJECT_RU = {"NONE": "особых полномочий не требуется", "MONEY": "касается денег — решает только владелец",
+               "PUBLIC_NUMBERS_NAMING_LEGAL": "касается публичных чисел, названий или юридических формулировок — "
+                                              "решает только владелец",
+               "IRREVERSIBLE": "необратимое действие — решает только владелец",
+               "PHYSICAL_ACTION": "нужно действие, которое может сделать только владелец",
+               "UNKNOWN": "не определено"}
+_MARKERS = ((re.compile(r"(?mi)^\s*UNKNOWN\s*:\s*"), "Неизвестно: "),
+            (re.compile(r"(?i)NEW CHECK NEEDED\s*:\s*"), ""),
+            (re.compile(r"(?mi)^\s*subject\s*:.*$\n?"), ""),
+            (re.compile(r"`([^`]*)`"), r"«\1»"),
+            (re.compile(r"(?mi)^\s*(Вопрос|Question)\s*:\s*"), ""))
 
 
 def _prep_text(v: Any) -> Optional[str]:
-    """Model text is shown AS TEXT (the UI uses text nodes) and bounded; nothing is interpreted."""
+    """Model text shown AS TEXT (the UI uses text nodes), bounded; raw model markers become plain words."""
     if not isinstance(v, str) or not v.strip():
         return None
+    for rx, rep in _MARKERS:
+        v = rx.sub(rep, v)
     v = v.strip()
+    if not v:
+        return None
     return v if len(v) <= PREP_TEXT_LIMIT else v[:PREP_TEXT_LIMIT] + " …(сокращено)"
+
+
+def _prep_reason_ru(r: str) -> str:
+    """Diagnostic reason (English, for the technical details) → one plain Russian phrase."""
+    r = str(r)
+    if r == "the request text changed":
+        return "текст записи изменился после подготовки"
+    if r.startswith("source changed or missing"):
+        return "изменились документы, на которых построен план"
+    if r.startswith("the card's request is not readable"):
+        return "текст записи сейчас не читается"
+    if r.startswith("no source fingerprints"):
+        return "актуальность плана проверить нельзя"
+    if r == "provider status quota":
+        return "у модели закончился лимит"
+    if r == "provider status refused":
+        return "подготовка не запускалась: модель не назначена"
+    if r.startswith("provider status"):
+        return "модель не дала ответа"
+    if r.startswith("preparation"):
+        return "ответ модели неполный"
+    if r.startswith("another preparation"):
+        return "подготовка этой записи уже идёт"
+    return "причина записана в технических подробностях"
 
 
 def _record_preparation_ru(p: Any) -> Optional[dict]:
     if p is None:
         return None                                   # feature not attached (production) — no block at all
-    if not isinstance(p, dict) or p.get("state") not in PREP_STATE_RU:
-        return {"state": "unreadable", "state_ru": PREP_STATE_RU["unreadable"], "known": False}
+    if not isinstance(p, dict) or p.get("state") not in ("none", "current", "stale", "incomplete", "unreadable"):
+        return {"state": "unreadable", "head": PREP_HEAD_RU["unreadable"], "known": False, "technical": {}}
     st = p["state"]
-    out = {"state": st, "state_ru": PREP_STATE_RU[st], "known": st != "unreadable"}
-    if st in ("current", "stale"):
-        out.update({"form_ru": PREP_FORM_RU.get(p.get("form"), "не определено"),
-                    "outcome": _prep_text(p.get("outcome")), "plan": _prep_text(p.get("plan")),
-                    "question": _prep_text(p.get("question")), "check": _prep_text(p.get("acceptance_text")),
-                    "authority": (f"предмет {p.get('subject')} — {p.get('subject_note')}"
-                                  if p.get("subject") else None),
-                    "by": "тестовый адаптер (не модель)" if p.get("real_provider") is False else "модель",
-                    "prepared_at": _madrid(p.get("prepared_at")) or "время не записано"})
-    if p.get("reasons"):
-        out["why"] = "; ".join(str(r) for r in p["reasons"])[:400]
+    shown = st
+    if st == "current":
+        shown = "clarification" if p.get("form") == "clarification" else "plan"
+    out: dict = {"state": shown, "head": PREP_HEAD_RU[shown], "known": st != "unreadable",
+                           "alert": shown in ("stale", "incomplete", "unreadable", "clarification")}
+    raw = p.get("reasons")
+    reasons = [str(r) for r in raw] if isinstance(raw, list) else []
+    plain_reasons = list(dict.fromkeys(_prep_reason_ru(r) for r in reasons))
+    if plain_reasons:
+        out["why"] = "; ".join(plain_reasons)
+    if shown == "plan":
+        out["outcome"] = _prep_text(p.get("outcome"))
+        out["plan"] = _prep_text(p.get("plan"))
+        out["check"] = (("Нужна новая проверка результата (её ещё нет): " + (_prep_text(p.get("acceptance_text")) or ""))
+                        if p.get("acceptance") == "new_check_proposed" else
+                        "Названа существующая проверка — относится ли она к поручению, не установлено")
+        out["question"] = _prep_text(p.get("question"))
+    elif shown == "clarification":
+        out["question"] = _prep_text(p.get("question"))
+    if shown in ("plan", "clarification"):
+        out["authority"] = ("по оценке модели — " + _SUBJECT_RU.get(str(p.get("subject")), "не определено")
+                            + ". Это не проверка прав и не разрешение начинать работу.")
+        out["by"] = "тестовый адаптер (не модель)" if p.get("real_provider") is False else "модель"
+        out["prepared_at"] = _madrid(p.get("prepared_at")) or "время не записано"
+    out["technical"] = {"подготовка: код состояния": st, "подготовка: форма": p.get("form"),
+                        "подготовка: предмет (код)": p.get("subject"),
+                        "подготовка: диагностика": "; ".join(reasons) or None,
+                        "подготовка: каталог": p.get("run"),
+                        "подготовка: исходный текст плана" if shown == "stale" else "подготовка: исходный текст приёмки":
+                            (p.get("plan") if shown == "stale" else p.get("acceptance_text"))}
     return out
 
 
@@ -967,6 +1033,7 @@ def my_records(model: dict, updated: Optional[str]) -> Optional[dict]:
             continue
         o = _record_outcome(r)
         pv = _record_provenance(r)
+        prep = _record_preparation_ru(r.get("preparation")) if "preparation" in r else None
         rows.append({**pv, "title": plain(r.get("title")) or "запись без названия",
                      "at_ru": _madrid(r.get("created_at")) or "время не записано",
                      "kind": RECORD_KIND_RU.get(r.get("kind"), "без пометки"),
@@ -974,13 +1041,16 @@ def my_records(model: dict, updated: Optional[str]) -> Optional[dict]:
                      "state_kind": o["kind"], "verified": o["verified"],
                      "reason": o["reason"], "next_step": o["next_step"],
                      "voice": bool(r.get("voice")),
-                     **({"preparation": _record_preparation_ru(r.get("preparation"))} if "preparation" in r else {}),
-                     "technical": {"карточка": r.get("card"), "статус в трекере": r.get("status"),
+                     **({"preparation": prep} if prep is not None else {}),
+                     "technical": {**(prep["technical"] if prep is not None else {}),
+                                   "карточка": r.get("card"), "статус в трекере": r.get("status"),
                                    "перенесено в": r.get("carried_to"),
                                    "исполнитель": r.get("claimed_by"),
                                    "проба приёмки": r.get("acceptance_probe"),
                                    "проверено пробой": r.get("verified_by_probe"),
                                    "исход проверки": r.get("acceptance_verdict"),
+                                   "причина (служебная)": r.get("acceptance_reason"),
+                                   "следующий шаг (служебный)": r.get("acceptance_next"),
                                    "канал": r.get("channel"), "автор": r.get("author"),
                                    "основание авторства": r.get("author_basis")}})
     total = mr.get("total")

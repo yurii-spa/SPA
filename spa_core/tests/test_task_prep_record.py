@@ -106,9 +106,10 @@ def test_an_ordinary_record_without_a_probe_gets_a_visible_plan_and_an_honest_ex
     assert fm["status"] == "new" and "acceptance_probe" not in fm and "claimed_by" not in fm
     row = _row(scene, card)
     p = row["preparation"]
-    assert p["state"] == "current" and "предложение для разбора, не начало работы" in p["state_ru"]
+    assert p["state"] == "plan" and "предложение для разбора, работа не начата" in p["head"]
     assert p["outcome"] == "В пульте видно, прошёл ли ночной бэкап." and "Найти источник" in p["plan"]
-    assert p["by"] == "тестовый адаптер (не модель)" and "даже NONE" in p["authority"]
+    assert p["by"] == "тестовый адаптер (не модель)" and "не проверка прав" in p["authority"]
+    assert row["technical"]["подготовка: код состояния"] == "current"
     assert row["state"] == "принято, ждёт исполнителя"                  # исполнение — отдельно и честно
 
 
@@ -123,7 +124,8 @@ def test_preparation_does_not_assign_a_probe_so_the_dispatcher_still_refuses(sce
     assert res["taken"] is None and res["no_probe"] == [card.name]
     assert _fm(card)["status"] == "new" and "acceptance_probe" not in _fm(card)
     row = _row(scene, card)
-    assert row["state"].startswith("не взято в работу") and row["preparation"]["state"] == "current"
+    assert row["state"] == "не взято в работу: проверка результата ещё не назначена; работа не начата"
+    assert row["preparation"]["state"] == "plan" and "проба" not in row["state"]
 
 
 def test_repeated_processing_creates_no_duplicates_and_ignores_incidental_timestamps(scene):
@@ -143,11 +145,12 @@ def test_a_changed_request_makes_the_shown_plan_stale_and_keeps_the_old_evidence
     card.write_text(card.read_text(encoding="utf-8").replace(REQUEST, REQUEST + " И за прошлую неделю."),
                     encoding="utf-8")
     p = _row(scene, card)["preparation"]
-    assert p["state"] == "stale" and "request text changed" in p["why"] and "устарел" in p["state_ru"]
+    assert p["state"] == "stale" and "текст записи изменился" in p["why"] and "устарел" in p["head"]
+    assert "plan" not in p                                            # устаревший план не показывается как план
     second = _prepare(scene, card, at="2026-10-26T10:00:00+00:00")
     assert second["action"] == "prepared" and second["run"] != first["run"]
     assert _tree(Path(first["run"])) == old and len(rv.preparation_runs(scene.prep, card.name)) == 2
-    assert _row(scene, card)["preparation"]["state"] == "current"
+    assert _row(scene, card)["preparation"]["state"] == "plan"
 
 
 def test_a_changed_source_makes_the_plan_stale_by_an_independent_reread(scene):
@@ -155,8 +158,9 @@ def test_a_changed_source_makes_the_plan_stale_by_an_independent_reread(scene):
     _prepare(scene, card)
     h = scene.root / "docs/evidence/HANDOVER.md"
     h.write_text(h.read_text(encoding="utf-8") + "\nновая строка\n", encoding="utf-8")
-    p = _row(scene, card)["preparation"]
-    assert p["state"] == "stale" and "docs/evidence/HANDOVER.md" in p["why"]
+    row = _row(scene, card)
+    assert row["preparation"]["state"] == "stale" and "изменились документы" in row["preparation"]["why"]
+    assert "docs/evidence/HANDOVER.md" in row["technical"]["подготовка: диагностика"]
 
 
 def test_echoing_stored_hashes_is_not_a_freshness_check(scene):
@@ -178,7 +182,7 @@ def test_an_incomplete_or_refused_preparation_never_looks_ready(scene, answer, p
     card = _submit(scene)
     _prepare(scene, card, answer=answer, provider=provider)
     p = _row(scene, card)["preparation"]
-    assert p["state"] == "incomplete" and "плана для разбора нет" in p["state_ru"]
+    assert p["state"] == "incomplete" and "Подготовка не удалась" in p["head"]
     assert "plan" not in p and "outcome" not in p
 
 
@@ -226,3 +230,225 @@ def test_a_record_without_a_task_section_is_refused_before_any_call(scene):
 def test_request_text_extraction_ignores_intake_fields_and_the_kind_line(scene):
     card = _submit(scene)
     assert rv.request_text_of(card.read_text(encoding="utf-8")) == REQUEST
+
+
+# ── ARB 26.10 R1: идентичность и свежесть подготовки (воспроизведения ARB) ─────────────────────────────
+
+def _extra(s, text="SOURCE VERSION A"):
+    p = s.tmp / "extra.md"
+    p.write_text(text, encoding="utf-8")
+    return p
+
+
+def _prepare_with(s, card, adapters, extra=(), at="2026-10-26T09:00:00+00:00"):
+    return rv.prepare_record(s.root, card, s.prep, handover="docs/evidence/HANDOVER.md", verified_sha=s.verified,
+                             provider="fixture_test_adapter", adapters=adapters, extra=extra, roadmap_item=17, at=at)
+
+
+def _mutating_adapter(s, mutate):
+    fx = ad.fixture({"*": _answer()})
+
+    def run(req, **kw):
+        s.calls.append(req.task_id)
+        mutate()
+        return fx(req, **kw)
+    return {"fixture": run}
+
+
+def test_r1a_a_source_changed_during_the_call_is_stale_not_current(scene):
+    card = _submit(scene)
+    extra = _extra(scene)
+    res = _prepare_with(scene, card, _mutating_adapter(scene, lambda: extra.write_text("SOURCE VERSION B",
+                                                                                       encoding="utf-8")),
+                        extra=[extra])
+    run = Path(res["run"])
+    rec = json.loads((run / rv.PREP_RECORD_FILE).read_text(encoding="utf-8"))
+    assert "SOURCE VERSION A" in (run / "context.md").read_text(encoding="utf-8")
+    assert rec["sources_sha256"][rv._rel(scene.root, extra)] == hashlib.sha256(b"SOURCE VERSION A").hexdigest()
+    assert res["state"]["state"] == "stale" and _row(scene, card)["preparation"]["state"] == "stale"
+
+
+def test_r1b_a_new_source_on_repeat_is_a_new_preparation_not_unchanged(scene):
+    card = _submit(scene)
+    first = _prepare(scene, card)
+    extra = _extra(scene, "NEW SOURCE ON REPEAT")
+    again = _prepare_with(scene, card, _adapters(scene, _answer()), extra=[extra],
+                          at="2026-10-26T09:05:00+00:00")
+    assert again["action"] == "prepared" and again["run"] != first["run"] and len(scene.calls) == 2
+    assert "NEW SOURCE ON REPEAT" in (Path(again["run"]) / "context.md").read_text(encoding="utf-8")
+    same = _prepare_with(scene, card, _adapters(scene, _answer()), extra=[extra], at="2026-10-26T10:00:00+00:00")
+    assert same["action"] == "unchanged" and len(scene.calls) == 2      # те же входы, другое время ⇒ повтор
+
+
+@pytest.mark.parametrize("change", ["provider_config", "verified_revision"])
+def test_r1b_other_identity_parts_are_not_ignored(scene, change):
+    from spa_core.studio_os.model_roles import contract as c
+    card = _submit(scene)
+    _prepare(scene, card)
+    if change == "provider_config":
+        cfg = c.load_config()
+        cfg["roles"]["architect"]["deadline_s"] = 299
+        res = rv.prepare_record(scene.root, card, scene.prep, handover="docs/evidence/HANDOVER.md",
+                                verified_sha=scene.verified, provider="fixture_test_adapter",
+                                adapters=_adapters(scene, _answer()), config=cfg, roadmap_item=17,
+                                at="2026-10-26T09:01:00+00:00")
+    else:
+        other = trp._g(scene.root, "rev-parse", "HEAD")
+        assert other != scene.verified
+        res = rv.prepare_record(scene.root, card, scene.prep, handover="docs/evidence/HANDOVER.md",
+                                verified_sha=other, provider="fixture_test_adapter",
+                                adapters=_adapters(scene, _answer()), roadmap_item=17, at="2026-10-26T09:01:00+00:00")
+    assert res["action"] == "prepared" and len(scene.calls) == 2
+
+
+def test_r1c_the_card_changed_during_the_call_is_stale_not_current(scene):
+    card = _submit(scene)
+    res = _prepare_with(scene, card, _mutating_adapter(scene, lambda: card.write_text(
+        card.read_text(encoding="utf-8").replace(REQUEST, "Другое поручение."), encoding="utf-8")))
+    assert res["state"]["state"] == "stale" and "the request text changed" in res["state"]["reasons"]
+
+
+def test_the_cli_prepares_again_when_a_source_changed(scene, tmp_path):
+    card = _submit(scene)
+    extra = _extra(scene)
+    fx = tmp_path / "fx.json"
+    fx.write_text(json.dumps({"*": _answer()}), encoding="utf-8")
+    from spa_core.studio_os.memory.__main__ import main as memory_cli
+    base = ["prepare-record", "--root", str(scene.root), "--card", str(card), "--prep-root", str(scene.prep),
+            "--handover", "docs/evidence/HANDOVER.md", "--verified-sha", scene.verified, "--provider",
+            "fixture_test_adapter", "--fixture", str(fx), "--roadmap-item", "17", "--extra-context", str(extra)]
+    assert memory_cli(base) == 0
+    extra.write_text("changed after", encoding="utf-8")
+    assert memory_cli(base) == 0                       # входы изменились ⇒ новая подготовка, свежая
+    card.write_text(card.read_text(encoding="utf-8").replace(REQUEST, "x"), encoding="utf-8")
+    assert len(rv.preparation_runs(scene.prep, card.name)) == 2
+
+
+# ── ARB 26.10 R2: одновременные запуски разных ПРОЦЕССОВ и прерывание ────────────────────────────────────
+
+_WORKER = r'''
+import json, sys, time
+from pathlib import Path
+from spa_core.studio_os.memory import arch_review as rv
+from spa_core.studio_os.model_roles import adapters as ad
+a = json.loads(sys.argv[1])
+fx = ad.fixture({"*": a["answer"]})
+def slow(req, **kw):
+    with open(a["calls"], "a") as f:
+        f.write(req.task_id + "\n")
+    Path(a["started"]).write_text("1")
+    deadline = time.time() + 30
+    while not Path(a["go"]).exists() and time.time() < deadline:
+        time.sleep(0.05)
+    return fx(req, **kw)
+res = rv.prepare_record(Path(a["root"]), Path(a["card"]), Path(a["prep"]), handover="docs/evidence/HANDOVER.md",
+                        verified_sha=a["verified"], provider="fixture_test_adapter", adapters={"fixture": slow},
+                        roadmap_item=17, at="2026-10-26T09:00:00+00:00")
+print(json.dumps({"action": res["action"], "run": res["run"]}))
+'''
+
+
+def _spawn(scene, card, tag):
+    import subprocess
+    import sys
+    import os as _os
+    args = {"answer": _answer(), "calls": str(scene.tmp / "calls.txt"), "started": str(scene.tmp / f"started-{tag}"),
+            "go": str(scene.tmp / "go"), "root": str(scene.root), "card": str(card), "prep": str(scene.prep),
+            "verified": scene.verified}
+    return subprocess.Popen([sys.executable, "-c", _WORKER, json.dumps(args)], cwd=str(_REPO),
+                            env=dict(_os.environ, PYTHONPATH=str(_REPO)), stdout=subprocess.PIPE, text=True)
+
+
+def _wait(path, seconds=30.0):
+    import time
+    t0 = time.time()
+    while not Path(path).exists():
+        assert time.time() - t0 < seconds, f"{path} did not appear"
+        time.sleep(0.05)
+
+
+def test_r2_two_processes_call_the_provider_once_and_never_share_a_result(scene):
+    card = _submit(scene)
+    a = _spawn(scene, card, "a")
+    _wait(scene.tmp / "started-a")
+    b = _spawn(scene, card, "b")
+    out_b = json.loads(b.communicate(timeout=60)[0])
+    (scene.tmp / "go").write_text("1")
+    out_a = json.loads(a.communicate(timeout=60)[0])
+    calls = (scene.tmp / "calls.txt").read_text().splitlines()
+    assert calls == [card.stem], calls
+    assert out_a["action"] == "prepared" and out_b == {"action": "busy", "run": None}
+    assert len(rv.preparation_runs(scene.prep, card.name)) == 1
+    after = rv.prepare_record(scene.root, card, scene.prep, handover="docs/evidence/HANDOVER.md",
+                              verified_sha=scene.verified, provider="fixture_test_adapter",
+                              adapters=_adapters(scene, _answer()), roadmap_item=17, at="2026-10-26T09:00:00+00:00")
+    assert after["action"] == "unchanged" and after["run"] == out_a["run"]
+
+
+def test_r2_an_interrupted_run_stays_incomplete_is_kept_and_frees_the_record(scene):
+    import signal
+    card = _submit(scene)
+    a = _spawn(scene, card, "a")
+    _wait(scene.tmp / "started-a")
+    a.send_signal(signal.SIGKILL)
+    a.wait(timeout=30)
+    store = scene.prep / card.stem
+    partial = [d for d in store.iterdir() if d.is_dir()]
+    assert len(partial) == 1 and not (partial[0] / rv.PREP_RECORD_FILE).exists()
+    assert rv.preparation_runs(scene.prep, card.name) == []          # незавершённое не считается результатом
+    assert _row(scene, card)["preparation"]["state"] == "none"
+    res = _prepare(scene, card)                                       # захват освобождён смертью процесса
+    assert res["action"] == "prepared" and Path(res["run"]) != partial[0] and partial[0].is_dir()
+
+
+# ── ARB 26.10 U1: понятный блок — вопрос это вопрос, служебное — в технических подробностях ─────────────
+
+_RAW = ("NO PLAN", "NEW CHECK NEEDED", "UNKNOWN", "subject:", "PROBES", "проба:", "current", "incomplete",
+        "request text changed", "provider status")
+
+
+def _visible(row):
+    p = row.get("preparation") or {}
+    return [row["state"], row.get("reason") or "", row.get("next_step") or ""] + [
+        str(v) for k, v in p.items() if k not in ("technical", "state", "known", "alert") and isinstance(v, str)]
+
+
+def test_a_clarification_is_shown_as_a_question_without_a_fictitious_plan(scene):
+    card = _submit(scene)
+    _prepare(scene, card, answer=_answer(plan=rv.NO_PLAN_MARK, question="Что именно улучшить: пульт или сайт?"))
+    row = _row(scene, card)
+    p = row["preparation"]
+    assert p["state"] == "clarification" and p["head"] == "Нужно уточнение"
+    assert "plan" not in p and "outcome" not in p and p["question"].endswith("пульт или сайт?")
+    assert "План подготовлен" not in " ".join(_visible(row))
+
+
+@pytest.mark.parametrize("answer,provider", [
+    (_answer(), "fixture_test_adapter"),
+    (_answer(plan=rv.NO_PLAN_MARK, question="UNKNOWN: где журнал.\nВопрос: какой журнал?"), "fixture_test_adapter"),
+    ({"status": "quota"}, "fixture_test_adapter"),
+])
+def test_visible_text_carries_no_internal_markers_and_the_codes_stay_in_technical_details(scene, answer, provider):
+    from spa_core.owner_queue import cockpit_dispatch as cd
+    card = _submit(scene)
+    oi.run_note_intake(NOW, tracker_dir=scene.tracker, repo_root=scene.tmp, notify=scene.sent.append,
+                       history=lambda _b: {"verdict": "NEW", "response": ""}, ingest=False)
+    cd.dispatch(executor="cycle-a", tracker_dir=scene.tracker, claim=lambda *a: None, now=NOW,
+                outbox_path=scene.tmp / "obox.json", notify=scene.sent.append)
+    _prepare(scene, card, answer=answer, provider=provider)
+    row = _row(scene, card)
+    for text in _visible(row):
+        for raw in _RAW:
+            assert raw not in text, (raw, text)
+    tech = row["technical"]
+    assert tech["подготовка: код состояния"] in ("current", "incomplete") and tech["подготовка: каталог"]
+    assert tech["причина (служебная)"] and tech["следующий шаг (служебный)"]   # служебное не потеряно
+
+
+def test_the_delivery_switch_is_off_unless_the_environment_names_a_store(monkeypatch, tmp_path):
+    monkeypatch.delenv(mc.TASK_PREP_ROOT_ENV, raising=False)
+    assert mc.MCInputs().task_prep_root is None
+    monkeypatch.setenv(mc.TASK_PREP_ROOT_ENV, "  ")
+    assert mc.MCInputs().task_prep_root is None
+    monkeypatch.setenv(mc.TASK_PREP_ROOT_ENV, str(tmp_path / "store"))
+    assert mc.MCInputs().task_prep_root == tmp_path / "store"

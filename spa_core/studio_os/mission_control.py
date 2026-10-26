@@ -274,6 +274,16 @@ def _default_mirror() -> Path:
     return m if (m / ".git").exists() else REPO
 
 
+
+#: Delivery switch (ARB 26.10): the explicit task-prep store the read model may SHOW. Unset or empty ⇒ None ⇒
+#: «Мои записи» carry no preparation block (production today). The read model never prepares or writes there.
+TASK_PREP_ROOT_ENV = "SPA_TASK_PREP_ROOT"
+
+
+def _task_prep_root_from_env() -> Optional[Path]:
+    v = os.environ.get(TASK_PREP_ROOT_ENV, "").strip()
+    return Path(v).expanduser() if v else None
+
 @dataclass
 class MCInputs:
     repo: Path = REPO                       # production tree (live data/)
@@ -289,7 +299,7 @@ class MCInputs:
     launchctl_full: Optional[Callable[[], Optional[str]]] = None   # injectable (tests): full `launchctl list` text
     # ARB 26.10 candidate: where EXPLICIT task-prep runs of cockpit records are stored. None (default, also
     # production) ⇒ «Мои записи» carry no preparation block at all. The read model only reads it.
-    task_prep_root: Optional[Path] = None
+    task_prep_root: Optional[Path] = field(default_factory=lambda: _task_prep_root_from_env())
 
 
 #: the origin mirror re-fetches every 30 min; older than this, its cards/board/history are STALE

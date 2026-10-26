@@ -2035,13 +2035,15 @@
   }
 
   function renderRecordPreparation(p) {
+    // ARB 26.10 U1: the heading says what this is (plan / question / stale / failed); diagnostics stay in the
+    // record's technical details. Every string is placed as a text node by h().
     var box = h("div", { class: "ux-record-prep" }, [
-      h("p", { class: "ux-note" + (p.known === false || p.state === "stale" || p.state === "incomplete"
-                                     ? " ux-metric--alert" : "") },
-        [t("records.prep.state") + ": " + (p.state_ru || t("state.NOT_MEASURED"))])]);
+      h("p", { class: "ux-record-prep-head" + (p.alert || p.known === false ? " ux-metric--alert" : "") },
+        [p.head || t("state.NOT_MEASURED")])]);
     var rows = [["records.prep.outcome", p.outcome], ["records.prep.plan", p.plan],
-                ["records.prep.question", p.question], ["records.prep.check", p.check],
-                ["records.prep.authority", p.authority], ["records.prep.why", p.why]];
+                ["records.prep.check", p.check],
+                [p.state === "clarification" ? "records.prep.ask" : "records.prep.question", p.question],
+                ["records.prep.why", p.why], ["records.prep.authority", p.authority]];
     rows.forEach(function (kv) {
       if (!kv[1]) return;
       box.appendChild(h("p", { class: "ux-metric-text ux-prewrap" }, [t(kv[0]) + ": " + kv[1]]));
