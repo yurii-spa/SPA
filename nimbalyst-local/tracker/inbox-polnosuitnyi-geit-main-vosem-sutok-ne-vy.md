@@ -166,3 +166,60 @@ Python 3.11 и 3.12 — вердикт одинаков), **по СВОДКАМ,
 дельты ADR-817 (мои четыре предсуществующих красных из `spa_core/tests/` воспроизведены на
 чистом `origin/main` и названы в ADR-817; каталоги `tests/` и `scripts/tests/` этот цикл не
 прогонял вовсе, и за «зелено» их не выдаёт).
+
+### Уточнение к поправке: сводку к шагу я ПРИВЯЗАЛ ПО ДОГАДКЕ, а не по логу — вот измеренная привязка
+
+Поправка выше назвала сводки верно, а РАЗНЕСЛА их по шагам неверно: я сопоставил их по
+размеру каталога и длительности, то есть догадкой. В логе порядок однозначен — сводка идёт
+внутри группы СВОЕГО шага, и привязка такая (номера строк лога планового прогона
+`40179300907`, Python 3.12):
+
+| строка | шаг | сводка |
+|---|---|---|
+| 474 | `pytest tests/` | **4 failed, 14 359 passed, 42 skipped, 880 subtests — 384,22 с** |
+| 15316 | `pytest spa_core/tests/` | **СВОДКИ НЕТ ВОВСЕ** (между 15316 и шагом вердикта 16894 ни одной) |
+| 16960 | `pytest scripts/tests/ + colocated` | **4 failed, 774 passed — 87,51 с** |
+| 17105 | `pre_deploy_check.py` | 1 failed, 4415 passed, 18 skipped, 324 subtests — 103,70 с |
+
+**Отсюда три исправления к поправке:**
+
+1. **Падений НАЗВАНО восемь, а не девять.** Девятое я получил, посчитав сводку
+   `pre_deploy_check` третьим каталогом тестов, — она принадлежит ЧЕТВЁРТОМУ шагу, и шаг этот
+   отдельный предмет.
+2. **`spa_core/tests/` не дал «4 failed» — он не дал НИЧЕГО.** Сводки в логе нет вовсе, и это
+   дефект ADR-474 ДОСЛОВНО, теми же словами, какими он описан в `CLAUDE.md`: «сводки pytest в
+   логе может не быть ВОВСЕ, и ≈96 000 тестов остаются без вердикта под словом `failure`».
+   Шаг вердикта поэтому сказал `НЕ ИЗМЕРЕНО` — и сказал **верно**. «4 failed» в поправке выше
+   было МОИМ числом, приклеенным не к тому шагу.
+3. Поэтому и вилка «14 359 против ≈96 000» из поправки неверна по адресу: 14 359 — это
+   население `tests/`, а про население `spa_core/tests/` плановый прогон не говорит **ничего**.
+
+### Восемь имён — чтобы берущая сессия не качала лог заново
+
+Под `tests/` (4):
+
+- `tests/test_dead_code_resolved.py::TestScannerImprovement::test_15_todo_count_le_15`
+- `tests/test_dead_code_resolved.py::TestScannerImprovement::test_16_unused_imports_decreased`
+- `tests/test_no_utcnow.py::test_no_bare_utcnow_in_runtime`
+- `tests/test_spaerror_complete.py::test_20_zero_bare_exceptions_in_spa_core`
+
+Под `scripts/tests/` (4):
+
+- `scripts/tests/test_check_concurrent_pytest.py::TestOpenFilesParsesRealLsof::test_a_live_process_whose_only_write_target_is_unlinked_reads_UNREADABLE`
+- `scripts/tests/test_fill_agent_passports.py::TestManifestFormatIsPreserved::test_manifest_on_disk_is_byte_identical_to_a_reserialization`
+- `scripts/tests/test_shell_git_cd_target_census.py::RatchetOnTheRealTree::test_real_tree_subject_is_within_the_baseline`
+- `scripts/tests/test_shell_git_cd_target_census.py::RatchetOnTheRealTree::test_the_ratchet_is_able_to_fail`
+
+**Ни одного под `spa_core/tests/`** — по построению, см. п. 2. Поэтому четыре предсуществующих
+красных, которые цикл #941 воспроизвёл на чистом `origin/main` (они ВСЕ в `spa_core/tests/`,
+названы в ADR-817), с этими восемью **не пересекаются и не складываются**: разные каталоги,
+и о населении `spa_core/tests/` плановый прогон молчит.
+
+Часть восьми уже имеет свои карточки (`test_no_utcnow` — «сторож запрета utcnow судит
+ТЕКСТОМ», `test_shell_git_cd_target_census` — храповик реального дерева); сверку «кто из
+восьми уже карточкой, а кто нет» цикл #941 НЕ делал и за сделанную не выдаёт.
+
+Три раза правил сам себя на одной карточке (догадка про население → догадка про привязку
+сводки → имена). Обе ошибки одного рода: **я называл число, не спросив прибор**, — ровно то,
+против чего написано правило `.claude/rules/site-numbers.md` («брать число из текста вместо
+прибора»). Записи не стираю: они и есть замер того, как эта ошибка выглядит изнутри.
