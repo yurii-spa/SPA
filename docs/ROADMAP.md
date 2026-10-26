@@ -74,17 +74,16 @@ prepare a reviewable plan and acceptance proposal from an ordinary request throu
 seam; do not make the owner choose internal test names. This is a candidate preparation path, not permission
 to dispatch live work. Evidence and scope: `evidence/studio-os-next-01-2026-10-16/voice_owner_check_2026-10-25/ARB_REVIEW.md`.
 
-**Task-prep checkpoint, ARB 2026-10-26 (release preparation accepted):** R1/R2/U1 and the v3
-release-builder conflict refusal are accepted in their reviewed scope. Exact local release
-`6ca0ce2a8cff3b2d44aa94e9e32f7b3c499736b7` is based on main `37e06e185`; ARB verified all 23 paths/blob
-hashes and independently reproduced nonzero refusal with no release commit on a conflicting base.
-Claude reports 975 local release tests passed. Full CI for this release is PENDING.
-Owner authorized publication of that exact SHA to `release/task-prep-20261026` and ONE full CI on
-2026-10-26 («Да разрешаю»). Next: Claude executes the authorized publication/CI and returns its evidence.
-No new implementation round or general audit. No deployment, main promotion or execution is authorized.
-Integration CI 40317312101 on `aac3b4316` remains RED: two known §49 failures and two new fixture errors;
-its result does not certify the release. Decision and evidence:
-`evidence/studio-os-next-01-2026-10-16/release_task_prep_20261026T100847Z/ARB_REVIEW_2026-10-26.md`.
+**Task-prep checkpoint, ARB 2026-10-27 (release CI reviewed):** R1/R2/U1 and the v3 guard remain
+accepted. Owner-authorized release `6ca0ce2a8` was published and CI 40353173933 completed: 135524 passed,
+63 failed, 3 error, 719 skipped, 12/12. All 350 explicitly checked package/UI cases passed. Compared
+with approximate main baseline d0c3c59ed: 57 pre-existing failed IDs, nine new (seven timeouts in the
+same Resolver.enter/ast.walk path and two internal errors). RED, not NO_REGRESSION; no deployment.
+The existing 22.10 optimization 34e5bc85a is absent from main/release. ARB verified that its narrow
+Resolver portion applies and reduced one local measurement 100.725 → 9.365 s with identical report
+bytes. Next: a bounded LOCAL port, exact-parent targeted comparison and prepared new release SHA;
+no broad audit or blind CI retry. The previous one-run publication authorization has been carried out.
+Decision: `evidence/studio-os-next-01-2026-10-16/release_task_prep_20261026T100847Z/ARB_REVIEW_2026-10-27.md`.
 
 **Verification efficiency:** bound work to the actual change, reuse traceable evidence, and batch the required
 full CI on a stable candidate. No repeated whole-system/AI audit by default; no removal of mandatory checks and

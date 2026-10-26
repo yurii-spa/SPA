@@ -1,0 +1,21 @@
+{
+  "original": {
+    "seconds": 100.7250688750064,
+    "sha256": "14c8ae4ce620661204990d44391f3418b70f4f22da802b30c2a6701631bf7df8",
+    "rows": 85
+  },
+  "optimized": {
+    "seconds": 9.364830917096697,
+    "sha256": "14c8ae4ce620661204990d44391f3418b70f4f22da802b30c2a6701631bf7df8",
+    "rows": 85
+  },
+  "identical_reports": true,
+  "date": "2026-10-27",
+  "timezone": "Europe/Madrid",
+  "python": "3.13.11 | packaged by Anaconda, Inc. | (main, Dec 10 2025, 21:21:08) [Clang 20.1.8 ]",
+  "input_release_sha": "6ca0ce2a8cff3b2d44aa94e9e32f7b3c499736b7",
+  "scanner_change": "First two Resolver hunks only of 34e5bc85a5bbe8d71ba4cb26d8eff2cbe336b974; no whole-census memo or semantic changes",
+  "method": "Both scanner versions loaded outside the same immutable temporary input tree; JSON sorted by keys and compared as bytes",
+  "scope": "One local pair; not CI, not whole-system no-regression evidence",
+  "temporary_evidence": "/var/folders/6q/78j7h2557tx6hkbkw3cmrsc00000gn/T/arb-provenance-transfer-4s9nzbxg"
+}

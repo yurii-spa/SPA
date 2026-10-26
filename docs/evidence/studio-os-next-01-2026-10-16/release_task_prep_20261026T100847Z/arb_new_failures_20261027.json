@@ -1,0 +1,105 @@
+[
+  {
+    "nodeid": "spa_core/tests/test_python_git_ref_provenance.py::TestRatchet::test_a_baseline_without_the_schema_is_unmeasured_not_clean",
+    "outcome": "failed",
+    "junit": [
+      {
+        "xml": "junit.xml",
+        "time": "180.004",
+        "message": "Failed: Timeout (>180.0s) from pytest-timeout.",
+        "stack_enter_ast_walk": true
+      }
+    ],
+    "stream_message": "spa_core/tests/test_python_git_ref_provenance.py:524: in test_a_baseline_without_the_schema_is_unmeasured_not_clean"
+  },
+  {
+    "nodeid": "spa_core/tests/test_python_git_ref_provenance.py::TestRatchet::test_empty_baseline_names_every_subject_call",
+    "outcome": "error",
+    "junit": [],
+    "stream_message": "pytest internal error (pytest exit 3) while this test was running or being reported — not re-run"
+  },
+  {
+    "nodeid": "spa_core/tests/test_python_git_ref_provenance.py::TestRatchet::test_json_is_exactly_one_document",
+    "outcome": "failed",
+    "junit": [
+      {
+        "xml": "junit-resume-1.xml",
+        "time": "180.001",
+        "message": "Failed: Timeout (>180.0s) from pytest-timeout.",
+        "stack_enter_ast_walk": true
+      }
+    ],
+    "stream_message": "spa_core/tests/test_python_git_ref_provenance.py:461: in test_json_is_exactly_one_document"
+  },
+  {
+    "nodeid": "spa_core/tests/test_python_git_ref_provenance.py::TestRatchet::test_missing_baseline_is_unmeasured_not_clean",
+    "outcome": "failed",
+    "junit": [
+      {
+        "xml": "junit-resume-1.xml",
+        "time": "180.001",
+        "message": "Failed: Timeout (>180.0s) from pytest-timeout.",
+        "stack_enter_ast_walk": true
+      }
+    ],
+    "stream_message": "spa_core/tests/test_python_git_ref_provenance.py:417: in test_missing_baseline_is_unmeasured_not_clean"
+  },
+  {
+    "nodeid": "spa_core/tests/test_python_git_ref_provenance.py::TestRatchet::test_prescreen_does_not_change_the_answer",
+    "outcome": "failed",
+    "junit": [
+      {
+        "xml": "junit-resume-1.xml",
+        "time": "180.001",
+        "message": "Failed: Timeout (>180.0s) from pytest-timeout.",
+        "stack_enter_ast_walk": true
+      }
+    ],
+    "stream_message": "spa_core/tests/test_python_git_ref_provenance.py:536: in test_prescreen_does_not_change_the_answer"
+  },
+  {
+    "nodeid": "spa_core/tests/test_python_git_ref_provenance.py::RegistryGovernance::test_a_non_string_reason_is_unmeasured_not_pass",
+    "outcome": "error",
+    "junit": [],
+    "stream_message": "pytest internal error (pytest exit 3) while this test was running or being reported — not re-run"
+  },
+  {
+    "nodeid": "spa_core/tests/test_python_git_ref_provenance.py::RegistryGovernance::test_an_empty_admitted_reason_is_unmeasured_not_pass",
+    "outcome": "failed",
+    "junit": [
+      {
+        "xml": "junit-resume-3.xml",
+        "time": "180.001",
+        "message": "Failed: Timeout (>180.0s) from pytest-timeout.",
+        "stack_enter_ast_walk": true
+      }
+    ],
+    "stream_message": "spa_core/tests/test_python_git_ref_provenance.py:582: in test_an_empty_admitted_reason_is_unmeasured_not_pass"
+  },
+  {
+    "nodeid": "spa_core/tests/test_python_git_ref_provenance.py::RegistryGovernance::test_an_empty_unresolved_reason_is_unmeasured_not_pass",
+    "outcome": "failed",
+    "junit": [
+      {
+        "xml": "junit-resume-3.xml",
+        "time": "180.001",
+        "message": "Failed: Timeout (>180.0s) from pytest-timeout.",
+        "stack_enter_ast_walk": true
+      }
+    ],
+    "stream_message": "spa_core/tests/test_python_git_ref_provenance.py:590: in test_an_empty_unresolved_reason_is_unmeasured_not_pass"
+  },
+  {
+    "nodeid": "spa_core/tests/test_python_git_ref_provenance.py::RegistryReactsToTheCensus::test_a_new_unresolved_identity_turns_the_ratchet_red_and_is_named",
+    "outcome": "failed",
+    "junit": [
+      {
+        "xml": "junit-resume-3.xml",
+        "time": "180.001",
+        "message": "Failed: Timeout (>180.0s) from pytest-timeout.",
+        "stack_enter_ast_walk": true
+      }
+    ],
+    "stream_message": "spa_core/tests/test_python_git_ref_provenance.py:645: in test_a_new_unresolved_identity_turns_the_ratchet_red_and_is_named"
+  }
+]
