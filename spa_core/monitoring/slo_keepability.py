@@ -275,6 +275,29 @@ CO_PRODUCTION_NOMINAL = "declared_co_production_nominal_only"
 CO_PRODUCTION_NONE_RUNNING = "declared_co_production_no_producer_running"
 CO_PRODUCTION_UNMEASURED = "declared_co_production_unmeasured"
 
+#: Ключи, которые суть ОТМЕТКА ЗАПИСИ артефакта — вторая проба вопроса ADR-819
+#: («пишет ли файл ещё кто-то»). Перечень ЗАМКНУТ намеренно: угадывать по имени
+#: ключа значило бы выдавать предметную дату за время записи.
+WRITE_STAMP_KEYS = ("generated_at", "updated_at", "last_updated", "written_at",
+                    "measured_at", "timestamp")
+
+#: ПРЕДМЕТНЫЕ даты, исключённые из второй пробы НАМЕРЕННО, и исключение это
+#: ИЗМЕРЕНО, а не предположено: `data/dfb/pools.json` несёт
+#: `generated_at=2026-08-30` рядом с `as_of=2026-06-25` — **66 суток** между
+#: «когда записали» и «про когда это». Принять `as_of` за отметку записи значило
+#: бы объявить живой файл беспризорным (или наоборот) по дате, которая про
+#: запись не говорит вовсе. Перечень существует, чтобы причина была НАЗВАНА, а не
+#: чтобы по нему что-то искали.
+DOMAIN_DATE_KEYS = ("as_of", "as_of_utc", "asof", "day", "date")
+
+#: Воздержание ПЕРЕПИСИ (не двери): артефакт объявлен ещё и за ИДУЩИМ
+#: производителем. Тогда «файл свежий» объясняется им, и находка «объявлен не тот
+#: производитель» была бы НЕОБОСНОВАННОЙ — верное чтение здесь «лишнее отставное
+#: объявление», а это другой вопрос с другим автором. Население случая ИЗМЕРЕНО
+#: циклом #942 и равно НУЛЮ (0 из 224), и ветка написана не про запас: без неё
+#: первый же такой артефакт родил бы ложную находку молча.
+TRACE_ACTIVE_PRODUCER = "write_trace_abstains_active_producer_declared"
+
 #: Причины, при которых прогонов производителя НЕ НАБЛЮДАЛИ ВОВСЕ. Счёт здесь
 #: обязан быть ``None``, а не нулём: «лог не найден» и «лог прочитан, прогонов в
 #: нём нет» — разные положения дел (инв. #17), и ноль вместо первого превратил бы
@@ -803,9 +826,237 @@ def declared_axis_census(agents: list, medians: dict) -> dict:
     }
 
 
+def parse_write_stamp(raw) -> Optional[datetime]:
+    """Отметка записи из артефакта — или ``None``, если её НЕ РАЗОБРАЛИ.
+
+    Две формы, обе встречены в живых артефактах: строка ISO (с дробными
+    секундами и без, с ``Z`` и со смещением) и ЧИСЛО epoch —
+    `data/basis_trade_opportunities.json` несёт `generated_at` числом, а
+    `timestamp` строкой в одном и том же файле. Не разобрали ⇒ ``None``, и это
+    «второй пробы нет», а не «файл старый»: подстановка любого числа здесь
+    родила бы вердикт из отсутствия наблюдения (инв. #17).
+    """
+    if isinstance(raw, bool):
+        return None
+    if isinstance(raw, (int, float)):
+        try:
+            return datetime.fromtimestamp(float(raw), tz=timezone.utc)
+        except (OverflowError, OSError, ValueError):
+            return None
+    if not isinstance(raw, str) or not raw:
+        return None
+    text = raw[:-1] + "+00:00" if raw.endswith("Z") else raw
+    try:
+        parsed = datetime.fromisoformat(text)
+    except ValueError:
+        return _parse_stamp(raw)
+    return parsed.replace(tzinfo=timezone.utc) if parsed.tzinfo is None else parsed
+
+
+def artifact_file(artifact: str, root: Path, data_dir: Path) -> Path:
+    """Где лежит артефакт конституции. ЕДИНСТВЕННОЕ место этого правила.
+
+    Путь в конституции объявлен от КОРНЯ репозитория (`data/...`, `logs/...`), а
+    живой каталог данных может лежать и ВНЕ дерева: замер из worktree обязан
+    спрашивать `data/` прод-дерева, иначе ответ «артефакта нет» получается по
+    построению, а не по делу (ровно урок ADR-364, `--data-dir`). Поэтому
+    префикс ``data/`` переадресуется на ``data_dir``, а всё прочее — на корень.
+    """
+    rel = str(artifact)
+    if rel.startswith("data/"):
+        return Path(data_dir) / rel[len("data/"):]
+    return Path(root) / rel
+
+
+def write_trace_observation(path: Path, *, now: Optional[datetime] = None,
+                            dir_readable: bool = True) -> dict:
+    """ДВЕ пробы возраста записи одного артефакта + причина, если их нет.
+
+    ``dir_readable=False`` ⇒ ВСЕ пробы отсутствуют с названной причиной, и это не
+    перестраховка: каталог данных, которого нет, превратил бы каждый артефакт в
+    «отсутствует», то есть выдал бы НЕ ИЗМЕРЕНО за измеренный ответ целой
+    переписью сразу — тот самый fail-OPEN, что тише красного.
+    """
+    if not dir_readable:
+        return {"present": None, "mtime_age_hours": None, "stamp_age_hours": None,
+                "stamp_key": None,
+                "why": "каталог данных НЕ ПРОЧИТАН — про запись не сказано ничего"}
+    moment = _now(now)
+    try:
+        stat = path.stat()
+    except FileNotFoundError:
+        return {"present": False, "mtime_age_hours": None, "stamp_age_hours": None,
+                "stamp_key": None, "why": f"файла нет по пути {path}"}
+    except OSError as exc:
+        return {"present": None, "mtime_age_hours": None, "stamp_age_hours": None,
+                "stamp_key": None,
+                "why": f"файл не опрошен ({type(exc).__name__}) — {path}"}
+    mtime_age = (moment.timestamp() - stat.st_mtime) / 3600.0
+    stamp_age, stamp_key, why = None, None, ""
+    try:
+        doc = json.loads(path.read_text())
+    except (OSError, ValueError) as exc:
+        why = (f"вторая проба недоступна: артефакт не разобран как JSON "
+               f"({type(exc).__name__})")
+        doc = None
+    if isinstance(doc, dict):
+        for key in WRITE_STAMP_KEYS:
+            parsed = parse_write_stamp(doc.get(key)) if key in doc else None
+            if parsed is not None:
+                stamp_age = (moment - parsed).total_seconds() / 3600.0
+                stamp_key = key
+                break
+        if stamp_key is None:
+            present_domain = [k for k in DOMAIN_DATE_KEYS if k in doc]
+            why = ("вторая проба недоступна: отметки записи в артефакте нет"
+                   + (f"; предметные даты {present_domain} за отметку записи НЕ "
+                      f"принимаются" if present_domain else ""))
+    elif doc is not None:
+        why = (f"вторая проба недоступна: корень артефакта — "
+               f"{type(doc).__name__}, не объект")
+    return {"present": True, "mtime_age_hours": mtime_age,
+            "stamp_age_hours": stamp_age, "stamp_key": stamp_key, "why": why}
+
+
+def producer_reality_census(declared_axis: dict, agents: list, root: Path,
+                            data_dir: Path, *, now: Optional[datetime] = None) -> dict:
+    """Перепись ПРАВДИВОСТИ конституции у пар, снятых с суда за отставку.
+
+    **Население — пары из ``not_running``**, и выбор назван: воздержание ADR-818
+    ВЕРНО («такта нет — срок судить не о чем»), но ровно внутри него прячется
+    второй вопрос, и вред от его отсутствия односторонний — артефакт, который
+    система пишет каждые сутки, числится за агентом, которого не запускают, и
+    никто этого не говорит. Пары со ``..._standing_unmeasured`` из населения НЕ
+    выпадают: там не прочитан ярлык, значит и про запись судить нельзя — третий
+    исход с причиной, а не строка, которой в отчёте не стало.
+
+    **Единица населения — ПАРА, а не артефакт**, в отличие от
+    :func:`co_production_census`. Делит их предмет: там предпосылка одна на файл,
+    здесь обещание дано ПАРОЙ и порогом служит её собственный ``slo_hours``.
+    Взяв артефакт единицей, пришлось бы придумывать правило сведения двух разных
+    сроков в один порог — то есть второе правило свежести. Число артефактов
+    печатается РЯДОМ, а не вместо: оба о разном и не складываются.
+
+    Вердикт объявленной оси эта перепись НЕ ПЕРЕПИСЫВАЕТ ни одной парой, и в
+    ``tally``/``verdict`` замера не входит ни одним числом — тот же порядок, что
+    у ADR-816/817, и по той же причине (заказ G815 п. 2).
+    """
+    not_running = observed(declared_axis, "not_running", kind=list)
+    if not_running is None:
+        return {"status": slo_proposal.TRACE_UNMEASURED,
+                "cause": ("в объявленной оси нет перечня пар с неидущим "
+                          "производителем (`not_running`)"),
+                "population": None, "artifacts": None, "tally": None, "rows": None}
+    dd = Path(data_dir)
+    dir_readable = dd.is_dir()
+    active = {a.get("label") for a in agents if isinstance(a, dict)
+              and a.get("intent") == ACTIVE}
+    seen: dict = {}
+    rows: list = []
+    tally: dict = {}
+    for pair in not_running:
+        if not isinstance(pair, dict):
+            continue
+        artifact = pair.get("artifact")
+        if not artifact:
+            continue
+        if artifact not in seen:
+            seen[artifact] = write_trace_observation(
+                artifact_file(artifact, Path(root), dd), now=now,
+                dir_readable=dir_readable)
+        obs = seen[artifact]
+        # Воздержание ПЕРЕПИСИ спрашивается РАНЬШЕ двери: артефакт, объявленный
+        # ещё и за ИДУЩИМ производителем, свежесть объясняет им, и находка
+        # «объявлен не тот» была бы необоснованной. Население ИЗМЕРЕНО и равно
+        # нулю (цикл #942) — ветка против ПЕРВОГО такого случая, не про запас.
+        alive = sorted(set(declared_producer_labels(agents, artifact)) & active)
+        if alive:
+            kind, why = TRACE_ACTIVE_PRODUCER, (
+                f"артефакт объявлен ещё и за идущим производителем ({', '.join(alive)}) "
+                f"— свежесть объясняется им, и «объявлен не тот производитель» из "
+                f"неё не следует")
+        elif pair.get("declared_vs_floor") == (
+                slo_proposal.DECLARED_PRODUCER_STANDING_UNMEASURED):
+            kind, why = slo_proposal.TRACE_UNMEASURED, (
+                "ярлык состояния производителя НЕ ПРОЧИТАН — пока неизвестно, "
+                "идёт он или выведен, про запись судить нельзя")
+        else:
+            kind, why = slo_proposal.write_trace(
+                obs.get("mtime_age_hours"), obs.get("stamp_age_hours"),
+                pair.get("slo_hours"), present=obs.get("present"))
+            if obs.get("why"):
+                why = f"{why}; {obs['why']}"
+        tally[kind] = tally.get(kind, 0) + 1
+        rows.append({
+            "agent": pair.get("agent"), "artifact": artifact,
+            "intent": pair.get("intent"), "slo_hours": pair.get("slo_hours"),
+            "mtime_age_hours": obs.get("mtime_age_hours"),
+            "stamp_age_hours": obs.get("stamp_age_hours"),
+            "stamp_key": obs.get("stamp_key"),
+            "write_trace": kind, "note": why,
+        })
+    return {
+        "status": "OK",
+        "population": len(rows),
+        "artifacts": len(seen),
+        "data_dir": str(dd),
+        "data_dir_readable": dir_readable,
+        "tally": tally,
+        # Находка — ТОЛЬКО свежий след при неидущем производителе. «Не пишет
+        # никто» находкой оси НЕ является: это вопрос к КУРАЦИИ со своим
+        # автором (правка конституции), и выдать его за находку прибора значило
+        # бы предложить чистку, которую заказ G818 п. 1 запрещает предлагать
+        # прежде замера.
+        "findings": [r for r in rows if r["write_trace"] == slo_proposal.TRACE_MISDECLARED],
+        # Беспризорные перечисляются ПОИМЁННО по той же причине, что и
+        # воздержания ADR-816: пара, просто исчезнувшая из отчёта, неотличима от
+        # пары, которой не было.
+        "unmaintained": [r for r in rows if r["write_trace"] in (
+            slo_proposal.TRACE_UNMAINTAINED, slo_proposal.TRACE_ABSENT)],
+        "rows": rows,
+    }
+
+
+def producer_reality_line(doc: dict) -> str:
+    """Строка ПРАВДИВОСТИ конституции для шага 0-офис. Единственная её форма.
+
+    Живёт здесь по той же причине, что :func:`declared_axis_line` и
+    :func:`co_production_line`: инлайн-печать внутри ``findings_bridge.main``
+    лежит за ступенью переписей, идущей на живом Маке часами, проверить её
+    отдельно НЕЧЕМ, и любая опечатка ушла бы в ``except`` моста как «перепись
+    пропущена» — молча.
+    """
+    section = observed(doc, "declared_producer_reality", kind=dict)
+    if section is None:
+        return ("slo_keepability, правдивость конституции: НЕ ИЗМЕРЕНО — секции "
+                "`declared_producer_reality` в замере нет")
+    if section.get("status") != "OK":
+        return ("slo_keepability, правдивость конституции: НЕ ИЗМЕРЕНО — "
+                f"{section.get('cause') or 'причина не названа'}")
+    tally = observed(section, "tally", kind=dict) or {}
+    findings = section.get("findings")
+    unmaintained = section.get("unmaintained")
+    population = section.get("population")
+    artifacts = section.get("artifacts")
+    names = ", ".join(f"{r.get('artifact')} ← {r.get('agent')}"
+                      for r in (findings or []))
+    return ("slo_keepability, правдивость конституции (пару снял с суда отставной "
+            "производитель — а файл пишет кто-то?): пар "
+            f"{'НЕ ИЗМЕРЕНО' if population is None else population} на "
+            f"{'НЕ ИЗМЕРЕНО' if artifacts is None else artifacts} артефакт(ов) · "
+            f"ОБЪЯВЛЕН НЕ ТОТ ПРОИЗВОДИТЕЛЬ "
+            f"{'НЕ ИЗМЕРЕНО' if findings is None else len(findings)}"
+            f"{f' ({names})' if names else ''} · никто не пишет "
+            f"{'НЕ ИЗМЕРЕНО' if unmaintained is None else len(unmaintained)} "
+            "(вопрос к КУРАЦИИ — правка конституции, не находка прибора) · "
+            f"пробы разошлись {tally.get(slo_proposal.TRACE_DISPUTED, 0)} · "
+            f"не измерено {tally.get(slo_proposal.TRACE_UNMEASURED, 0)}")
+
+
 def measure(manifest_path: Optional[Path] = None, *, log_dir: Path = Path("/tmp"),
             scripts_dir: Optional[Path] = None, now: Optional[datetime] = None,
-            window_hours: float = WINDOW_HOURS, root: Optional[Path] = None) -> dict:
+            window_hours: float = WINDOW_HOURS, root: Optional[Path] = None,
+            data_dir: Optional[Path] = None) -> dict:
     """Замер по КАЖДОМУ артефакту конституции, у которого объявлен срок годности.
 
     **Предмет — АРТЕФАКТ, а не агент**, и это не вкусовщина: срок обещан ФАЙЛУ,
@@ -821,6 +1072,11 @@ def measure(manifest_path: Optional[Path] = None, *, log_dir: Path = Path("/tmp"
     base = Path(root) if root is not None else _REPO_ROOT
     manifest = Path(manifest_path) if manifest_path is not None else base / "architecture" / "manifest.json"
     scripts = Path(scripts_dir) if scripts_dir is not None else base / "scripts"
+    # Каталог ДАННЫХ — отдельный вход, а не производное от корня (ADR-819).
+    # Замер из worktree обязан спрашивать живой `data/` прод-дерева: иначе
+    # «артефакта нет» получается ПО ПОСТРОЕНИЮ, и перепись правдивости
+    # конституции отвечает про своё дерево, а не про систему (урок ADR-364).
+    data = Path(data_dir) if data_dir is not None else base / "data"
     try:
         payload = json.loads(manifest.read_text())
     except (OSError, ValueError) as exc:
@@ -1129,15 +1385,30 @@ def measure(manifest_path: Optional[Path] = None, *, log_dir: Path = Path("/tmp"
         # четвёртый, никем не заданный вопрос.
         "declared_co_production": co_production_census(
             declared_section, agents, runs_by_agent),
+        # ПРАВДИВОСТЬ КОНСТИТУЦИИ — ЧЕТВЁРТАЯ секция (ADR-819, заказ G818 п. 1).
+        # Как и две предыдущие, в `tally`/`verdict` не входит ни одним числом:
+        # предмет у неё не срок и не пара, а то, НАЗВАН ЛИ В КОНСТИТУЦИИ тот,
+        # кто файл действительно пишет. Сложить её с вердиктами о сроках значило
+        # бы ответить на пятый, никем не заданный вопрос.
+        "declared_producer_reality": producer_reality_census(
+            declared_section, agents, base, data, now=now),
         "rows": rows,
         "findings": findings,
         "measured_from": {"manifest": str(manifest), "log_dir": str(log_dir),
-                          "scripts_dir": str(scripts)},
+                          "scripts_dir": str(scripts), "data_dir": str(data)},
         "not_reported": [
             "моменты ЗАПИСИ артефакта (период мерится СТАРТ→СТАРТ прогона)",
             "вторая запись о прогонах (launchctl runs — без отметок времени)",
             "верность самого срока (цену опоздания назначают две роли, ADR-158)",
             "производитель вне конституции",
+            "КТО именно записал артефакт (ADR-819): свежая запись при "
+            "неидущем объявленном производителе доказывает, что писал КТО-ТО "
+            "ДРУГОЙ, но имени его не называет — для имени нужна атрибуция, "
+            "которой у `mtime` нет",
+            "С КАКИМ ТАКТОМ пишут артефакт (ADR-819): `mtime` есть ОДНА точка, "
+            "а не история, поэтому «свежее срока сегодня» не означает «срок "
+            "будет выдержан» — вердикт переписи правдивости говорит о "
+            "КОНСТИТУЦИИ, а не о выдерживании срока",
             "ПИШЕТ ли производитель артефакт на самом деле (ADR-817): "
             "существование со-производства меряется ПРОГОНАМИ объявленных "
             "производителей, а истории `mtime` система не хранит — «агент идёт» "
@@ -1175,7 +1446,8 @@ def run(root: str | Path = _REPO_ROOT, *, data_dir: Optional[Path] = None,
     source = Path(data_dir) if data_dir is not None else base / "data"
     target = Path(dest) if dest is not None else source / ARTIFACT
     try:
-        doc = measure(root=base, log_dir=Path(log_dir), now=now, **kw)
+        doc = measure(root=base, log_dir=Path(log_dir), now=now,
+                      data_dir=source, **kw)
     except Unmeasured as exc:
         doc = {"status": "UNMEASURED", "reason": str(exc), "generated_at": _stamp(now)}
     if write:

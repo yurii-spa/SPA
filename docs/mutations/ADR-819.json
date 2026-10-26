@@ -1,0 +1,141 @@
+{
+  "title": "ADR-819 — дельта цикла #943 (пишет ли артефакт ещё кто-то при отставном производителе)",
+  "tests": [
+    "spa_core/tests/test_write_trace_reality.py",
+    "spa_core/tests/test_declared_axis_producer_standing.py"
+  ],
+  "mutations": [
+    {
+      "name": "ВТОРОГО ВОПРОСА НЕТ ВОВСЕ: дверь всегда говорит «не пишет никто» — находка исчезает",
+      "file": "spa_core/monitoring/slo_proposal.py",
+      "old": "    if fresh:\n        return TRACE_MISDECLARED, (",
+      "new": "    if False:\n        return TRACE_MISDECLARED, ("
+    },
+    {
+      "name": "ПОРОГ ВЫДУМАН: вместо объявленного срока — своя константа свежести",
+      "file": "spa_core/monitoring/slo_proposal.py",
+      "old": "    fresh = age <= slo\n",
+      "new": "    fresh = age <= 24.0\n"
+    },
+    {
+      "name": "ГРАНИЦА сдвинута: ровно на сроке обещание объявляется нарушенным",
+      "file": "spa_core/monitoring/slo_proposal.py",
+      "old": "    fresh = age <= slo\n",
+      "new": "    fresh = age < slo\n"
+    },
+    {
+      "name": "ТРЕТИЙ ИСХОД подменён порогом по умолчанию: срока нет — подставляется неделя",
+      "file": "spa_core/monitoring/slo_proposal.py",
+      "old": "    slo = _as_number(declared_hours)\n    if slo is None or slo <= 0:",
+      "new": "    slo = _as_number(declared_hours) or 168.0\n    if False:"
+    },
+    {
+      "name": "ВОЗРАСТ не измерен — подставляется ноль, и находка родится из отсутствия наблюдения",
+      "file": "spa_core/monitoring/slo_proposal.py",
+      "old": "    age = _as_number(mtime_age_hours)\n    if age is None:",
+      "new": "    age = _as_number(mtime_age_hours) or 0.0\n    if False:"
+    },
+    {
+      "name": "`present` судится ПРАВДИВОСТЬЮ, а не родом: строка «да» проходит как наличие",
+      "file": "spa_core/monitoring/slo_proposal.py",
+      "old": "    if not isinstance(present, bool):\n",
+      "new": "    if present is None:\n"
+    },
+    {
+      "name": "ОТСУТСТВИЕ артефакта склеено с устарелостью — признак «замер не в том дереве» потерян",
+      "file": "spa_core/monitoring/slo_proposal.py",
+      "old": "        return TRACE_ABSENT, (\n            \"артефакта нет на месте",
+      "new": "        return TRACE_UNMAINTAINED, (\n            \"артефакта нет на месте"
+    },
+    {
+      "name": "РАСХОЖДЕНИЕ ДВУХ ПРОБ проглочено: скопированный файл становится находкой",
+      "file": "spa_core/monitoring/slo_proposal.py",
+      "old": "    elif (stamp <= slo) != fresh:\n        return TRACE_DISPUTED, (",
+      "new": "    elif False:\n        return TRACE_DISPUTED, ("
+    },
+    {
+      "name": "`bool` снова число: ярлык-булево проходит как срок/возраст",
+      "file": "spa_core/monitoring/slo_proposal.py",
+      "old": "    if isinstance(value, bool) or not isinstance(value, (int, float)):\n        return None\n    return float(value)",
+      "new": "    if not isinstance(value, (int, float)):\n        return None\n    return float(value)"
+    },
+    {
+      "name": "ПРЕДМЕТНАЯ ДАТА принята за отметку записи — живой файл объявляется беспризорным",
+      "file": "spa_core/monitoring/slo_keepability.py",
+      "old": "WRITE_STAMP_KEYS = (\"generated_at\", \"updated_at\", \"last_updated\", \"written_at\",\n                    \"measured_at\", \"timestamp\")",
+      "new": "WRITE_STAMP_KEYS = (\"generated_at\", \"updated_at\", \"last_updated\", \"written_at\",\n                    \"measured_at\", \"timestamp\", \"as_of\", \"as_of_utc\")"
+    },
+    {
+      "name": "EPOCH-число не разбирается — вторая проба теряется там, где она ЕСТЬ",
+      "file": "spa_core/monitoring/slo_keepability.py",
+      "old": "    if isinstance(raw, (int, float)):\n        try:\n            return datetime.fromtimestamp(float(raw), tz=timezone.utc)",
+      "new": "    if False:\n        try:\n            return datetime.fromtimestamp(float(raw), tz=timezone.utc)"
+    },
+    {
+      "name": "FAIL-OPEN: нечитаемый каталог данных выдаётся за «артефактов нет»",
+      "file": "spa_core/monitoring/slo_keepability.py",
+      "old": "    if not dir_readable:\n        return {\"present\": None,",
+      "new": "    if False:\n        return {\"present\": None,"
+    },
+    {
+      "name": "ВОЗДЕРЖАНИЕ при живом со-производителе снято — рождается ложная находка",
+      "file": "spa_core/monitoring/slo_keepability.py",
+      "old": "        if alive:\n            kind, why = TRACE_ACTIVE_PRODUCER, (",
+      "new": "        if False:\n            kind, why = TRACE_ACTIVE_PRODUCER, ("
+    },
+    {
+      "name": "НЕПРОЧИТАННЫЙ ярлык судится о записи вместо третьего исхода",
+      "file": "spa_core/monitoring/slo_keepability.py",
+      "old": "        elif pair.get(\"declared_vs_floor\") == (\n                slo_proposal.DECLARED_PRODUCER_STANDING_UNMEASURED):",
+      "new": "        elif False:"
+    },
+    {
+      "name": "ПЕРЕЧНЯ `not_running` нет — перепись отвечает пустотой вместо НЕ ИЗМЕРЕНО",
+      "file": "spa_core/monitoring/slo_keepability.py",
+      "old": "    not_running = observed(declared_axis, \"not_running\", kind=list)\n    if not_running is None:",
+      "new": "    not_running = observed(declared_axis, \"not_running\", kind=list) or []\n    if False:"
+    },
+    {
+      "name": "«НИКТО НЕ ПИШЕТ» выдаётся за находку прибора — чистка предлагается без замера",
+      "file": "spa_core/monitoring/slo_keepability.py",
+      "old": "        \"findings\": [r for r in rows if r[\"write_trace\"] == slo_proposal.TRACE_MISDECLARED],",
+      "new": "        \"findings\": [r for r in rows if r[\"write_trace\"] != slo_proposal.TRACE_ACTIVE_PRODUCER],"
+    },
+    {
+      "name": "ПАРЫ И АРТЕФАКТЫ склеены в одно число — два предмета под одной меткой",
+      "file": "spa_core/monitoring/slo_keepability.py",
+      "old": "        \"population\": len(rows),\n        \"artifacts\": len(seen),",
+      "new": "        \"population\": len(seen),\n        \"artifacts\": len(seen),"
+    },
+    {
+      "name": "ПОРОГ берётся не у ПАРЫ, а у первой встреченной — свой срок пары теряется",
+      "file": "spa_core/monitoring/slo_keepability.py",
+      "old": "                obs.get(\"mtime_age_hours\"), obs.get(\"stamp_age_hours\"),\n                pair.get(\"slo_hours\"), present=obs.get(\"present\"))",
+      "new": "                obs.get(\"mtime_age_hours\"), obs.get(\"stamp_age_hours\"),\n                not_running[0].get(\"slo_hours\"), present=obs.get(\"present\"))"
+    },
+    {
+      "name": "ЧИТАТЕЛЯ НЕТ: строка шага 0-офис никем не печатается",
+      "file": "spa_core/monitoring/findings_bridge.py",
+      "old": "            print(slo_keepability.producer_reality_line(_slokdoc))",
+      "new": "            pass  # строку никто не печатает"
+    },
+    {
+      "name": "СЕКЦИЯ не вписана в замер — перепись считается, но в документ не попадает",
+      "file": "spa_core/monitoring/slo_keepability.py",
+      "old": "        \"declared_producer_reality\": producer_reality_census(\n            declared_section, agents, base, data, now=now),",
+      "new": "        \"_declared_producer_reality_dropped\": None,"
+    },
+    {
+      "name": "СТРОКА гасит отсутствие нулём — прибор старой версии неотличим от «находок нет»",
+      "file": "spa_core/monitoring/slo_keepability.py",
+      "old": "            f\"{'НЕ ИЗМЕРЕНО' if findings is None else len(findings)}\"",
+      "new": "            f\"{len(findings or [])}\""
+    },
+    {
+      "name": "ОСИ СВЕДЕНЫ: вердикт пары переписывается находкой правдивости",
+      "file": "spa_core/monitoring/slo_keepability.py",
+      "old": "        \"not_running\": [r for r in pairs if r[\"declared_vs_floor\"] in (",
+      "new": "        \"not_running\": [dict(r, declared_vs_floor=slo_proposal.TRACE_MISDECLARED) for r in pairs if r[\"declared_vs_floor\"] in ("
+    }
+  ]
+}
