@@ -16,21 +16,60 @@ from spa_core.monitoring import slo_proposal as sp
 
 
 class TestFloorRuleReproducesCuratedAnchors(unittest.TestCase):
-    """Правило восстановлено по курированным значениям — оно обязано их воспроизводить."""
+    """Правило восстановлено по курированным значениям — и обязано их НЕ НАРУШАТЬ.
 
-    def test_hourly_agent_gets_three_hours(self):
+    **Утверждение сужено ADR-815, и это усиление, а не уступка.** Прежняя
+    редакция требовала, чтобы пол РАВНЯЛСЯ курированному значению, и держала
+    это равенство у часового агента (3 ч, `agent_health`). Такого свойства у
+    пола быть не может, и это ЗАМЕРЕНО, а не рассуждение: на живой конституции
+    при ОДНОМ И ТОМ ЖЕ такте 1 ч люди проставили **шесть** разных сроков —
+    1 · 2 · 3 · 25 · 26 · 168 ч. Ни одна функция такта не равна всем шести,
+    значит равенство у одного из них было совпадением с самым популярным
+    выбором. Курированный срок есть ПОТОЛОК цены опоздания (роль HoI), а пол —
+    «что физически возможно» (роль Архитектора); требовать их совпадения значит
+    требовать, чтобы ответ на один вопрос совпал с ответом на другой — ровно
+    ошибка, разобранная в ADR-164.
+
+    Поэтому контроль теперь двусторонний: пол НЕ НАРУШАЕТ ни один курированный
+    якорь (и у суточного совпадает с ним точно, потому что там его связывает
+    потолок запаса), а курированные якоря остаются `CURATED_ABOVE`.
+    """
+
+    #: Курированные сроки при ОДНОМ такте 1 ч — замер 26.10 по `architecture/manifest.json`.
+    HOURLY_CURATED = (1.0, 2.0, 3.0, 25.0, 26.0, 168.0)
+
+    def test_hourly_agent_floor_does_not_violate_the_curated_anchor(self):
         floor, why = sp.architect_floor("interval:3600s")
-        self.assertEqual(floor, 3.0, "часовой агент: курировано 3 ч (agent_health)")
+        self.assertEqual(floor, 2.0, "часовой агент: один пропуск стои́т 1 ч")
+        self.assertLessEqual(floor, 3.0, "пол не вправе нарушить курированные 3 ч")
         self.assertIn("такт", why)
+        axis, note = sp.audit_curated(3.0, floor, 1.0)
+        self.assertEqual(axis, sp.CURATED_ABOVE, note)
+
+    def test_no_floor_can_equal_all_six_curated_values_at_one_tact(self):
+        """Замер, которым сужено утверждение класса. Не рассуждение — счёт."""
+        floor, _ = sp.architect_floor("interval:3600s")
+        self.assertEqual(len(set(self.HOURLY_CURATED)), 6)
+        self.assertEqual(sum(1 for v in self.HOURLY_CURATED if v == floor), 1,
+                         "пол равен РОВНО одному из шести — равенство не свойство правила")
+        below = [v for v in self.HOURLY_CURATED if v < floor]
+        self.assertEqual(below, [1.0], "единственный нарушенный якорь — случай ADR-549")
 
     def test_daily_agent_gets_twentysix_hours(self):
         self.assertEqual(sp.architect_floor("calendar:08:00")[0], 26.0,
                          "суточный агент: курировано 26 ч")
 
-    def test_times_two_rule_would_miss_both_anchors(self):
-        """Обратный контроль: прежнее правило не даёт ни 3, ни 26 — потому и заменено."""
-        self.assertNotEqual(sp.cadence_hours("interval:3600s") * 2, 3.0)
-        self.assertNotEqual(sp.cadence_hours("calendar:08:00") * 2, 26.0)
+    def test_times_two_rule_would_break_the_daily_anchor(self):
+        """Обратный контроль: чистое «× 2» нарушило бы суточный якорь.
+
+        Именно этим ADR-815 и отсекает чистую пропорциональность: 38 пар
+        суточных агентов курированы ровно 26 ч, а «× 2» объявило бы их ниже
+        пола (48 ч). Потолок запаса существует ради этих 38 пар.
+        """
+        daily = sp.cadence_hours("calendar:08:00")
+        self.assertEqual(daily * 2, 48.0)
+        self.assertGreater(daily * 2, 26.0)
+        self.assertEqual(sp.architect_floor("calendar:08:00")[0], 26.0)
 
     def test_schedule_without_cadence_is_unmeasured(self):
         floor, why = sp.architect_floor("daemon")

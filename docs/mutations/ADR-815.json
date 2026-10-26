@@ -1,0 +1,76 @@
+{
+  "title": "ADR-815 — дельта цикла #939, заказ G814 п. 1: запас поверх такта есть ОДИН ПРОПУСК с калиброванным ПОТОЛКОМ, а не константа. Каждая мутация возвращает одно состояние до правки либо рвёт одно звено: запас снова константа · потолок снят · min↔max · судья округляется вверх · предложение вниз · зажим 1,0 вернулся · пол ниже такта · правило скопировано рядом с каждой из двух дверей · нота снова про константу · прибор печатает судью вместо предложения",
+  "tests": [
+    "spa_core/tests/test_slo_margin_for_fast_producers.py",
+    "spa_core/tests/test_slo_floor_from_observed_cadence.py",
+    "spa_core/tests/test_slo_proposal.py"
+  ],
+  "mutations": [
+    {
+      "name": "запас снова КОНСТАНТА 2 ч: у пятиминутного производителя пол требует 25 его тактов — дефект, который и чинит ADR-815 (7 ложных тревог на оси объявленного расписания, 6 на оси наблюдённой медианы)",
+      "file": "spa_core/monitoring/slo_proposal.py",
+      "old": "    return min(float(tact), _MARGIN_HOURS)",
+      "new": "    return _MARGIN_HOURS"
+    },
+    {
+      "name": "потолок запаса СНЯТ — запас стал чистым тактом: 38 пар суточных агентов, курированных ровно 26 ч, объявляются ниже пола 48 ч (спор с сошедшимися кураторами 6221 против 16)",
+      "file": "spa_core/monitoring/slo_proposal.py",
+      "old": "    return min(float(tact), _MARGIN_HOURS)",
+      "new": "    return float(tact)"
+    },
+    {
+      "name": "min заменён на max: запас медленного агента становится его тактом, а быстрого — константой, то есть ровно наоборот",
+      "file": "spa_core/monitoring/slo_proposal.py",
+      "old": "    return min(float(tact), _MARGIN_HOURS)",
+      "new": "    return max(float(tact), _MARGIN_HOURS)"
+    },
+    {
+      "name": "СУДЬЯ округляется к ближайшему, то есть иногда ВВЕРХ: пол 0,17 объявляет невозможным срок 0,1668 — находка рождается собственным округлением на 18 секундах",
+      "file": "spa_core/monitoring/slo_proposal.py",
+      "old": "    coarse = math.floor(exact * 100) / 100.0",
+      "new": "    coarse = round(exact, 2)"
+    },
+    {
+      "name": "ПРЕДЛОЖЕНИЕ округляется ВНИЗ: в манифест уезжает срок НИЖЕ физически возможного — дефект ADR-814 дословно, с другой стороны",
+      "file": "spa_core/monitoring/slo_proposal.py",
+      "old": "    return math.ceil(exact_floor(tact) * 100) / 100.0",
+      "new": "    return math.floor(exact_floor(tact) * 100) / 100.0"
+    },
+    {
+      "name": "зажим max(..., 1.0) вернулся: нигде не объявленный второй порог внутри пола снова держит ниже пола data/resource_health.json (такт 5 мин, срок 0,5 ч)",
+      "file": "spa_core/monitoring/slo_proposal.py",
+      "old": "    return max(coarse, tact)",
+      "new": "    return max(coarse, tact, 1.0)"
+    },
+    {
+      "name": "пол падает НИЖЕ такта: при такте мельче цены округления свежее своего такта агент оказывается «возможен»",
+      "file": "spa_core/monitoring/slo_proposal.py",
+      "old": "    return max(coarse, tact)",
+      "new": "    return coarse"
+    },
+    {
+      "name": "правило заведено ВТОРЫМ определением рядом с дверью у наблюдённой базы: контроль «константа одна» этого не видит (мутация №2 батареи ADR-814 выжила ровно так)",
+      "file": "spa_core/monitoring/slo_proposal.py",
+      "old": "    floor = floor_from_tact(middle)",
+      "new": "    floor = round(middle + _MARGIN_HOURS, 2)"
+    },
+    {
+      "name": "то же у объявленной базы: пол из расписания считается своей строкой мимо двери",
+      "file": "spa_core/monitoring/slo_proposal.py",
+      "old": "    floor = floor_from_tact(c)",
+      "new": "    floor = round(c + _MARGIN_HOURS, 2)"
+    },
+    {
+      "name": "нота класса снова называет причиной КОНСТАНТНЫЙ запас: читатель узнаёт о пределе правила там, где утверждение про срок ВЕРНО",
+      "file": "spa_core/monitoring/slo_proposal.py",
+      "old": "        f\"{middle:g} ч ВНУТРИ срока — обещание держится, а запаса на ОДИН ПРОПУСК \"\n        f\"(нужно {margin_hours(middle):g} ч поверх такта) у срока нет\")",
+      "new": "        f\"{middle:g} ч ВНУТРИ срока — обещание держится; ниже пола он из-за \"\n        f\"КОНСТАНТНОГО запаса {_MARGIN_HOURS:g} ч, и сроком это не лечится\")"
+    },
+    {
+      "name": "прибор кладёт в строку СУДЬЮ вместо предложения: человеку предлагается срок на сотую ниже физически возможного",
+      "file": "spa_core/monitoring/slo_keepability.py",
+      "old": "    offer = None if median is None else slo_proposal.offered_slo(median)",
+      "new": "    offer = floor"
+    }
+  ]
+}

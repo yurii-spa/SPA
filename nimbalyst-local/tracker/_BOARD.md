@@ -2,11 +2,11 @@
 
 > Авто-генерится `scripts/build_tracker_board.py` из `nimbalyst-local/tracker/*.md`. НЕ править вручную — правь карточки. Источник правды — карточки, это индекс (bootstrap).
 >
-> Собрана: 2026-10-26T01:10:44Z · сверка с карточками: `python3 scripts/build_tracker_board.py --check` (сторож `spa_core/tests/test_tracker_board_matches_cards.py`).
+> Собрана: 2026-10-26T03:49:07Z · сверка с карточками: `python3 scripts/build_tracker_board.py --check` (сторож `spa_core/tests/test_tracker_board_matches_cards.py`).
 >
-> Сверено с `origin/main` (8e2924ae7).
+> Сверено с `origin/main` (d4e3bdc25) · у **1** своя правка, кто новее — не измерено.
 >
-> Всего карточек: **1456** · ждёт владельца: **18** · занято сессиями: **16**.
+> Всего карточек: **1457** · ждёт владельца: **18** · занято сессиями: **16**.
 
 ## 🔴 ЖДЁТ ВЛАДЕЛЬЦА (needs-owner)
 
@@ -429,7 +429,7 @@
 ### · closed
 - Считать ли верный отказ по правилам допуска неисправностью флота  ·  `owner-decision-schitat-li-vernyi-otkaz-po-pravilam-dopu.md` · 2026-10-08
 
-## 📥 Inbox (задания: Telegram / заметки / голос)  (806)
+## 📥 Inbox (задания: Telegram / заметки / голос)  (807)
 
 ### · in-progress
 - а задача починить все-таки еще раз сообщение которым не пишет нужно твое решени…  ·  `inbox-a-zadacha-pochinit-vse-taki-esche-raz-so.md` · 2026-08-14 · 🔒 `pid43119`
@@ -1230,6 +1230,7 @@
 - Ветка сверки по mtime срабатывает на свежем worktree всегда — у неё СВОЙ дефект, тактом не лечится (остаток ADR-264)  ·  `inbox-vetka-sverki-po-mtime-srabatyvaet-na-sve.md` · 2026-09-08
 - Внести артефакт в манифест «без срока» нельзя: B5 требует положительный slo_hours — предпосылка замера #426 верна только для B2  ·  `inbox-vnesti-artefakt-v-manifest-bez-sroka-nel.md` · 2026-08-30
 - Восемь карточек: машинный критерий приёмки выполнен, а статус держит их открытыми  ·  `inbox-vosem-kartochek-mashinnyi-kriterii-priem.md` · 2026-10-21
+- Восемь сроков годности без объявленной единицы — часы это или секунды, по документу не определить  ·  `inbox-vosem-srokov-godnosti-bez-obyavlennoi-ed.md` · 2026-10-26
 - Восемнадцать сторожей судят артефакты, которых конституция не знает — их пороги не способен проверить никто  ·  `inbox-vosemnadtsat-storozhei-sudyat-artefakty.md` · 2026-10-08
 - Воспроизводимость решения не спрошена у решателей двух третей капитала  ·  `inbox-vosproizvodimost-resheniya-ne-sproshena-u.md` · 2026-09-29
 - Вторая запись о деньгах, позванная как предписано — из своего worktree, — не видит ту самую дыру, ради которой написана  ·  `inbox-vtoraya-zapis-o-dengah-iz-worktree-ne-vi.md` · 2026-10-22

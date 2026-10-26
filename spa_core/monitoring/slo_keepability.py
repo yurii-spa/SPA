@@ -455,7 +455,13 @@ def _derived(median: Optional[float], declared) -> dict:
     """
     floor, why = slo_proposal.observed_floor(median)
     axis, note = slo_proposal.audit_curated(declared, floor, median)
-    return {"derived_slo_hours": floor, "derived_slo_basis": why,
+    # ПРЕДЛОЖЕНИЕ и СУДЬЯ — одно точное значение, округлённое в РАЗНЫЕ стороны
+    # (ADR-815). Поле `derived_slo_hours` уезжает в манифест человеком, поэтому
+    # оно обязано быть НЕ НИЖЕ физически возможного; сравнение же обязано ошибаться
+    # в сторону «возможно», иначе округление само рождает находку.
+    offer = None if median is None else slo_proposal.offered_slo(median)
+    return {"derived_slo_hours": offer, "derived_slo_basis": why,
+            "derived_floor_hours": floor,
             "curated_vs_floor": axis, "curated_vs_floor_note": note}
 
 
@@ -761,9 +767,10 @@ def measure(manifest_path: Optional[Path] = None, *, log_dir: Path = Path("/tmp"
             "производитель вне конституции",
             "ПРИЧИНА выброса (хост спал · перезагрузка · разовый долгий прогон) — "
             "ось такта называет СОСТОЯНИЕ, а не причину",
-            "ПЕРЕНОСИМОСТЬ запаса на наблюдённую базу (ADR-814): `_MARGIN_HOURS` "
-            "калиброван по 35 ОБЪЯВЛЕННЫМ тактам, и что он верен поверх наблюдённой "
-            "медианы — допущение, а не замер",
+            "ПЕРЕНОСИМОСТЬ потолка запаса на наблюдённую базу (ADR-814/815): "
+            "`_MARGIN_HOURS` калиброван по ОБЪЯВЛЕННЫМ тактам, и что он верен поверх "
+            "наблюдённой медианы — допущение, а не замер; с ADR-815 потолок связывает "
+            "запас только у производителей с тактом длиннее 2 ч",
             "ПОТОЛОК цены опоздания (`slo_proposal.hoi_ceiling`): выведенный пол есть "
             "«что физически возможно», а не «что допустимо»; согласование ролей "
             "(ADR-158) прибор не делает",
@@ -869,8 +876,8 @@ def report(doc: dict, max_rows: int = 12) -> list:
             f"входит): ниже пола И медиана его ПРЕВЫШАЕТ "
             f"{curated.get(slo_proposal.CURATED_BELOW, 'НЕ ИЗМЕРЕНО')} (лечится сроком) · "
             f"ниже пола, но такт обещание ДЕРЖИТ "
-            f"{curated.get(slo_proposal.CURATED_MARGIN_ONLY, 'НЕ ИЗМЕРЕНО')} (предел "
-            f"КОНСТАНТНОГО запаса, сроком НЕ лечится) · не ниже "
+            f"{curated.get(slo_proposal.CURATED_MARGIN_ONLY, 'НЕ ИЗМЕРЕНО')} (запаса на "
+            f"ОДИН ПРОПУСК у срока нет, ADR-815) · не ниже "
             f"{curated.get(slo_proposal.CURATED_ABOVE, 'НЕ ИЗМЕРЕНО')} · пол НЕ ВЫВЕДЕН "
             f"{curated.get(slo_proposal.CURATED_UNMEASURED, 'НЕ ИЗМЕРЕНО')}")
     causes = observed(doc, "unmeasured_causes", kind=dict) or {}

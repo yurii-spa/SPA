@@ -16,11 +16,14 @@
    в приборе значило бы повторить ADR-220 (два определения одного имени);
 3. **выдать «такта не наблюдали» за число.** Подставить расписание или ноль —
    нарушение инв. #17: три исхода обязаны быть различимы;
-4. **назвать ОДНИМ словом два состояния «ниже пола».** Запас — КОНСТАНТА 2 ч, а
-   такты агентов различаются на два порядка: `resource_health.json` (срок 0,5 ч,
-   медиана 0,083 ч) ниже пола 2,08 ч, хотя обещание держит с запасом ×6. Слить
-   его с настоящим классом ADR-506 значило бы воспроизвести дефект ADR-813 на
-   один этаж выше — в СВОЕЙ новой оси;
+4. **назвать ОДНИМ словом два состояния «ниже пола».** Слить «обещание нарушено»
+   с «запаса на пропуск нет» значило бы воспроизвести дефект ADR-813 на один этаж
+   выше — в СВОЕЙ новой оси. ⚠️ **Носитель этого контроля заменён ADR-815:** при
+   КОНСТАНТНОМ запасе 2 ч сюда попадал `resource_health.json` (срок 0,5 ч, медиана
+   0,083 ч, пол 2,08 ч) — и попадал не по своему свойству, а потому что у
+   пятиминутного агента константа требует срока в 25 тактов. Семь пар из девяти
+   были таким артефактом; теперь носитель — `architecture_conformance.json`
+   (такт 6 ч, срок 7 ч), у кого утверждение верно;
 5. **предложить проглотить ВЫБРОС сроком.** У состояния
    `cadence_keeps_outlier_broke` причина разрыва прибором НЕ измерена, и печатать
    ему выведенный срок значило бы советовать спрятать неизмеренное.
@@ -65,7 +68,15 @@ _LIVE_PERIODS = [9.315, 7.795, 7.291, 7.822, 7.049, 7.117, 7.681, 7.021, 23.349,
 _DECLARED = 7.0
 #: Срок, который ВЫВОДИТСЯ из наблюдённой медианы. Литералом здесь он стои́т
 #: намеренно: тест обязан поймать смену правила, а не пересчитать его заново.
-_DERIVED = 9.28
+#: Число, которое ПРЕДЛАГАЕТСЯ поставить в манифест (и которое ADR-814 туда
+#: доставил). Округлено ВВЕРХ: срок, предложенный ниже физически возможного, и
+#: есть дефект, с которым этот модуль чинили.
+_OFFERED = 9.28
+#: То же точное значение, но как СУДЬЯ («срок невозможен?»), округлённое ВНИЗ.
+#: Две стороны у одного числа — ADR-815: судья, ошибившийся вверх, объявляет
+#: невозможным возможное (замер: 18 секунд округления у пятиминутного агента).
+_FLOOR = 9.27
+_DERIVED = _OFFERED
 
 
 def _hours_ago(periods: list) -> list:
@@ -102,7 +113,9 @@ class FloorComesFromTheObservation(unittest.TestCase):
     def test_floor_is_derived_from_the_observed_median(self):
         """Прямая сторона: медиана живого замера ⇒ выведенный срок."""
         floor, why = sp.observed_floor(7.27764)
-        self.assertEqual(floor, _DERIVED)
+        self.assertEqual(floor, _FLOOR, "пол есть СУДЬЯ и округляется вниз")
+        self.assertEqual(sp.offered_slo(7.27764), _OFFERED,
+                         "ПРЕДЛОЖЕНИЕ округляется вверх — и это то же точное значение")
         self.assertIn("МЕДИАНА", why)
 
     def test_the_declared_schedule_does_NOT_produce_the_same_floor(self):
@@ -116,7 +129,7 @@ class FloorComesFromTheObservation(unittest.TestCase):
         declared, _ = sp.architect_floor("interval:21600s")
         observed, _ = sp.observed_floor(7.27764)
         self.assertEqual(declared, 8.0)
-        self.assertEqual(observed, _DERIVED)
+        self.assertEqual(observed, _FLOOR)
         self.assertGreater(observed, declared)
 
     def test_the_margin_itself_has_exactly_one_definition(self):
@@ -127,12 +140,16 @@ class FloorComesFromTheObservation(unittest.TestCase):
         """
         original = sp._MARGIN_HOURS
         try:
-            sp._MARGIN_HOURS = original + 5.0
-            self.assertEqual(sp.observed_floor(7.27764)[0], _DERIVED + 5.0)
-            self.assertEqual(sp.architect_floor("interval:21600s")[0], 13.0)
+            # Потолок двигается ВНИЗ: так он остаётся связывающим у ОБОИХ тактов,
+            # и движение видно у обеих дверей. Сдвинь его вверх — у такта 6 ч
+            # связывать стал бы сам такт (запас = один пропуск), и дверь молчала
+            # бы не от копии правила, а от того, что константа перестала решать.
+            sp._MARGIN_HOURS = 1.0
+            self.assertEqual(sp.observed_floor(7.27764)[0], 8.27)
+            self.assertEqual(sp.architect_floor("interval:21600s")[0], 7.0)
         finally:
             sp._MARGIN_HOURS = original
-        self.assertEqual(sp.observed_floor(7.27764)[0], _DERIVED)
+        self.assertEqual(sp.observed_floor(7.27764)[0], _FLOOR)
 
     def test_the_instrument_goes_THROUGH_the_module_and_not_around_it(self):
         """Звено, которое утверждение выше НЕ закрывает — и мутация это доказала.
@@ -202,17 +219,35 @@ class BelowTheFloorIsTwoStates(unittest.TestCase):
         self.assertEqual(axis, sp.CURATED_BELOW)
         self.assertIn("ПРЕВЫШАЕТ", note)
 
-    def test_a_fast_producer_below_the_floor_is_NOT_the_same_class(self):
-        """Живой случай `data/resource_health.json`: срок 0,5 ч, медиана 0,083 ч.
+    def test_a_producer_without_slack_for_one_miss_is_NOT_the_same_class(self):
+        """Состояние «обещание держится, но запаса на пропуск нет» — своё имя.
 
-        Пол 2,08 ч выше срока — но обещание такт ДЕРЖИТ с запасом ×6, и лечить
-        это сроком было бы вредом. Состояние обязано иметь СВОЁ имя.
+        **Пара в этом контроле ЗАМЕНЕНА ADR-815, и это не подгонка под новый
+        ответ.** Прежде здесь стоя́л `data/resource_health.json` (срок 0,5 ч,
+        медиана 0,083 ч), и он попадал сюда НЕ по своему свойству, а потому что
+        запас был КОНСТАНТОЙ 2 ч: у пятиминутного агента пол 2,08 ч требовал
+        срока в 25 его тактов. Из девяти пар замера 26.10 семь были таким же
+        артефактом константы. Вопрос контроля («два состояния обязаны носить
+        разные имена») остался, а носителем стал тот, у кого утверждение ВЕРНО:
+        `data/architecture_conformance.json` — такт 6 ч при сроке 7 ч, то есть
+        один пропуск срок не переживает.
+        """
+        floor, _ = sp.observed_floor(6.001)
+        axis, note = sp.audit_curated(7.0, floor, 6.001)
+        self.assertEqual(axis, sp.CURATED_MARGIN_ONLY)
+        self.assertNotEqual(axis, sp.CURATED_BELOW)
+        self.assertIn("ОДИН ПРОПУСК", note)
+
+    def test_the_constant_margin_false_alarm_is_gone(self):
+        """Обратная сторона той же правки: прежний носитель ушёл из класса.
+
+        `data/resource_health.json` держит обещание с запасом ×6, и объявлять
+        его срок невозможным было ложной тревогой. Контроль на ОТСУТСТВИЕ
+        находки — иначе «починили» было бы нечем поверить.
         """
         floor, _ = sp.observed_floor(0.083)
         axis, note = sp.audit_curated(0.5, floor, 0.083)
-        self.assertEqual(axis, sp.CURATED_MARGIN_ONLY)
-        self.assertNotEqual(axis, sp.CURATED_BELOW)
-        self.assertIn("КОНСТАНТНОГО", note)
+        self.assertEqual(axis, sp.CURATED_ABOVE, note)
 
     def test_without_a_median_the_two_states_are_unmeasured_not_guessed(self):
         """Различать нечем ⇒ третий исход, а НЕ «обещание нарушено»."""
