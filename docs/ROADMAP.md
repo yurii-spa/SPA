@@ -74,17 +74,16 @@ prepare a reviewable plan and acceptance proposal from an ordinary request throu
 seam; do not make the owner choose internal test names. This is a candidate preparation path, not permission
 to dispatch live work. Evidence and scope: `evidence/studio-os-next-01-2026-10-16/voice_owner_check_2026-10-25/ARB_REVIEW.md`.
 
-**Task-prep checkpoint, ARB 2026-10-26:** R1/R2 result-contract corrections and real/fixture labelling
-accepted in the bounded scope; one real Claude subscription response recorded (66.654 s, current Max,
-not Pro qualification). It understood existing components but proposed installing a check that does not
-exist yet. Model output remains a draft. Candidate `a5724a102`, CI 40234524248: 135148 passed, 3 failed,
-719 skipped, 12/12; two previous §49 failures plus one NEW census timeout. RED, not NO_REGRESSION.
-Next product increment: an ordinary cockpit record gets a visible plan/question in the EXISTING “Мои записи”
-on temporary data; no probe assignment, execution, new approval UI or production routing. Include fresh
-acceptance rules/current CI context and independently checked source freshness. Batch a bounded synthetic
-verdict-test fixture correction with this increment; no timeout increase, skipped checks or broad audit.
-Compare final CI against both `a5724a102` and pre-timeout `5499ceca4`. No new real model call required.
-Decision: `evidence/studio-os-next-01-2026-10-16/task_prep_real_20261025T210637Z/ARB_REVIEW_2026-10-26.md`.
+**Task-prep checkpoint, ARB 2026-10-26 (record connection review):** the existing “Мои записи” displays
+preparations on temporary fixture data. Census timeout correction accepted; final candidate `1215d3b77`,
+CI 40250024701: 135165 passed, two previous §49 failures, 719 skipped, 12/12; no new failed IDs. RED,
+not NO_REGRESSION. Previous task-prep result-contract fixes and the one real Max response stay accepted
+in their bounded scope. Record-connection acceptance remains OPEN: reproduced stale-input reuse/false
+freshness and concurrent calls sharing one output directory; mobile preview needs readable labels/wrapping.
+Next: finish those boundaries and the existing UI together, no new model call or whole-system audit;
+prepare concrete delivery/rollback after targeted checks and one final CI versus 1215d3b77.
+No live preparation routing, probe assignment, execution, new approval UI or deployment.
+Decision: `evidence/studio-os-next-01-2026-10-16/record_prep_preview_20261025T235449Z/ARB_REVIEW_2026-10-26.md`.
 
 **Verification efficiency:** bound work to the actual change, reuse traceable evidence, and batch the required
 full CI on a stable candidate. No repeated whole-system/AI audit by default; no removal of mandatory checks and
@@ -311,7 +310,7 @@ separate and labelled; aligning it is an optional owner decision, Н).
 | # | Item | Status | Depends on | Owner | Acceptance | Next step |
 |---|---|---|---|---|---|---|
 | 23 | Voice intake, first real iPhone send | published, not owner-verified; corrected phone script ready 25.10 | — | owner (test) / agent | one card per submission ID, visible status in the cockpit | owner check using voice_owner_check_2026-10-25/OWNER_SCRIPT.md |
-| 24 | Who processes `cockpit-voice` cards, feedback | existing path checked on temporary data; ordinary live requests remain no_probe; notification fix accepted in candidate; task-prep R1/R2 accepted; one real Claude response reviewed as a draft; new CI timeout remains open | 23 for live owner acceptance | agent | useful preparation before execution; truthful reason/outcome; no unverified done | connect record to visible plan/question on temporary data; fresh context; bounded timeout-fixture fix; one final CI; no live routing or owner-facing probe picker |
+| 24 | Who processes `cockpit-voice` cards, feedback | existing path checked on temporary data; ordinary live requests remain no_probe; notification fix accepted in candidate; task-prep R1/R2 and timeout correction accepted; record-to-plan preview implemented; freshness/concurrency and mobile usability corrections open | 23 for live owner acceptance | agent | useful preparation before execution; truthful reason/outcome; no unverified done | finish preparation freshness/reuse, concurrent output integrity and readable mobile block; one final CI; prepare delivery only |
 | 25 | Long/English voice, retry when Mac busy | same-ID retry covered by existing temporary tests; new input after confirmed success is a new submission; full iPhone retry/audio UX unverified | 24 | agent | preserved retry keeps the text and original card; new intent stays distinct | keep existing implementation; owner phone check first, later bounded long/English/failure checks |
 | 30 / 14 | ADR-762 version-bound answer; answer from cockpit | proposed | owner decision | owner (mechanism) / agent (candidate) | candidate: CAS under one lock, replay-safe, journal + recovery, kill-switch for writes | package 5 candidate, not wired live |
 | 16 | «Проверить ещё раз» (read-only) then «Исправить» | not decided | ADR-760 pattern | owner per action | one ADR per action; read-only first | package 5 after ADR-762 candidate |
