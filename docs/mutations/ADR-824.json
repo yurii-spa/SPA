@@ -1,0 +1,86 @@
+{
+ "title": "ADR-824 — дельта цикла #949 (адрес замера в строке отчёта)",
+ "tests": [
+  "spa_core/tests/test_slo_data_dir_named.py"
+ ],
+ "mutations": [
+  {
+   "name": "ПРОВОДКА снята — строка адреса исчезает из отчёта целиком",
+   "file": "spa_core/monitoring/slo_keepability.py",
+   "old": "    lines.append(measured_from_line(doc))",
+   "new": "    pass"
+  },
+  {
+   "name": "ОТСУТСТВИЕ `measured_from` выдаётся за «каталога в нём нет»",
+   "file": "spa_core/monitoring/slo_keepability.py",
+   "old": "    inputs = observed(doc, \"measured_from\", kind=dict)\n    if inputs is None:",
+   "new": "    inputs = observed(doc, \"measured_from\", kind=dict) or {}\n    if False:"
+  },
+  {
+   "name": "КАТАЛОГА нет в замере, а строка молчит об этом — fail-OPEN",
+   "file": "spa_core/monitoring/slo_keepability.py",
+   "old": "    if data_dir is None:\n        return (\"  ИЗМЕРЕНО ПО: каталог данных НЕ ИЗМЕРЕН",
+   "new": "    if False:\n        return (\"  ИЗМЕРЕНО ПО: каталог данных НЕ ИЗМЕРЕН"
+  },
+  {
+   "name": "РОД значения каталога не спрашивается — список печатается как путь",
+   "file": "spa_core/monitoring/slo_keepability.py",
+   "old": "    data_dir = observed(inputs, \"data_dir\", kind=str)",
+   "new": "    data_dir = inputs.get(\"data_dir\")"
+  },
+  {
+   "name": "НЕ ИЗМЕРЕННАЯ читаемость выдаётся за ЧИТАЕМ — fail-OPEN",
+   "file": "spa_core/monitoring/slo_keepability.py",
+   "old": "    readable = None\n    for key in (\"declared_producer_reality\",",
+   "new": "    readable = True\n    for key in (\"declared_producer_reality\","
+  },
+  {
+   "name": "НЕ ЧИТАЕТСЯ сливается с ЧИТАЕМ — различие исчезает",
+   "file": "spa_core/monitoring/slo_keepability.py",
+   "old": "    state = (\"ЧИТАЕМ\" if readable is True else",
+   "new": "    state = (\"ЧИТАЕМ\" if readable is not None else"
+  },
+  {
+   "name": "ЧИТАЕМОСТЬ спрашивается у ФАЙЛОВОЙ СИСТЕМЫ читателя, а не у замера",
+   "file": "spa_core/monitoring/slo_keepability.py",
+   "old": "    state = (\"ЧИТАЕМ\" if readable is True else\n             \"НЕ ЧИТАЕТСЯ\" if readable is False else\n             \"читаемость НЕ ИЗМЕРЕНА\")",
+   "new": "    state = (\"ЧИТАЕМ\" if Path(str(data_dir)).is_dir() else \"НЕ ЧИТАЕТСЯ\")"
+  },
+  {
+   "name": "ПЕРЕБОР секций берёт первую попавшуюся, не глядя на наблюдение",
+   "file": "spa_core/monitoring/slo_keepability.py",
+   "old": "        seen = observed(section, \"data_dir_readable\", kind=bool)\n        if seen is not None:",
+   "new": "        seen = observed(section, \"data_dir_readable\", kind=bool)\n        if True:"
+  },
+  {
+   "name": "СТРОКА называет путь и молчит, что числа ниже про ЭТОТ каталог",
+   "file": "spa_core/monitoring/slo_keepability.py",
+   "old": "        f\"{log_dir or 'НЕ ИЗМЕРЕНЫ'} — все числа ниже судят об ЭТОМ каталоге, \"",
+   "new": "        f\"{log_dir or 'НЕ ИЗМЕРЕНЫ'} — \""
+  },
+  {
+   "name": "АДРЕС встаёт ПЕРЕД заголовком — место не закреплено с ОБЕИХ сторон",
+   "file": "spa_core/monitoring/slo_keepability.py",
+   "old": "    lines.append(measured_from_line(doc))",
+   "new": "    lines.insert(0, measured_from_line(doc))"
+  },
+  {
+   "name": "ФЛАГ `--data-dir` объявлен, но до замера не доезжает",
+   "file": "spa_core/monitoring/slo_keepability.py",
+   "old": "                      data_dir=Path(args.data_dir) if args.data_dir else None,",
+   "new": "                      data_dir=None,"
+  },
+  {
+   "name": "ФЛАГ `--data-dir` переписывает УМОЛЧАНИЕ живого агента",
+   "file": "spa_core/monitoring/slo_keepability.py",
+   "old": "                      data_dir=Path(args.data_dir) if args.data_dir else None,",
+   "new": "                      data_dir=Path(args.data_dir) if args.data_dir else Path(\"/tmp\"),"
+  },
+  {
+   "name": "КАТАЛОГ замера подменяется корнем дерева — адрес верен по форме и ложен",
+   "file": "spa_core/monitoring/slo_keepability.py",
+   "old": "    data = Path(data_dir) if data_dir is not None else base / \"data\"",
+   "new": "    data = base / \"data\""
+  }
+ ]
+}

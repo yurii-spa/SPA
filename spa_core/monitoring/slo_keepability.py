@@ -2822,6 +2822,88 @@ def run(root: str | Path = _REPO_ROOT, *, data_dir: Optional[Path] = None,
     return {"measured": True, "doc": doc, "artifact": str(target)}
 
 
+def measured_from_line(doc: dict) -> str:
+    """Строка ВХОДОВ замера: по какому каталогу данных получены числа ниже.
+
+    **Предмет — не свежесть и не население, а АДРЕС замера.** Замер 26.10
+    (цикл #948, хвост ADR-823): тот же код, то же дерево, РАЗНЫЕ каталоги
+    данных дают разные числа у всех четырёх строк семейства ADR-820…823 —
+    живой прод-``data/`` «дошла бы 89 · НЕ ИЗМЕРЕНО 14», замороженная
+    git-копия ``data/`` в worktree «0 · 137». Fail-OPEN при этом НЕТ и
+    инвариант #17 соблюдён: пропажа носителя честно уходит в третий исход. Но
+    у «НЕ ИЗМЕРЕНО» не названа ПРИЧИНА — каталог записан в ``measured_from`` и
+    в ``data_dir`` каждой секции, а в ЧИТАЕМУЮ циклом строку не попадает ни
+    разу (замер этого цикла: **0** строк из 27 называют каталог при том, что
+    **четыре** секции из пяти несут его в JSON). Читатель строки не отличает
+    «система такова» от «прогон был слеп».
+
+    **Почему строка ОДНА, а не по одной в каждой из четырёх.** Цена измерена
+    дифференциально: ``measured_from`` лежит на ВЕРХНЕМ уровне замера, поэтому
+    одна строка отвечает за весь отчёт — все 27 строк и все пять секций,
+    включая те, которых ещё нет. Подстрока в каждой из четырёх стоила бы
+    четыре правки и покрыла бы четыре строки, а пятую (``ADR-819``,
+    ``declared_producer_reality``) заказ G824 не назвал вовсе — его счёт был
+    «четыре», замер дал ПЯТЬ носителей ``data_dir``.
+
+    **Читатель измерен, а не предположён** (тот же порядок, что G821 п. 1 →
+    ADR-822 и G822 п. 1 → ADR-823): проба, вложенная в отрисовку этого
+    производителя, приходит в вывод измеренной двери ОТДЕЛЬНОЙ строкой —
+    вердикт :data:`slo_proposal.REPORT_LINE_READ` у
+    ``data/slo_keepability.json``. То есть правка будет ПРОЧИТАНА, и это
+    противоположно ответу про штамп атрибуции (144 из 153 пришли бы немыми).
+
+    **Файловую систему эта строка НЕ спрашивает — и не вправе.** Отрисовка
+    идёт над ДОКУМЕНТОМ, измеренным в другом процессе и, вообще говоря, на
+    другой машине; спросить здесь ``Path(data_dir).is_dir()`` значило бы
+    ответить про дерево ЧИТАТЕЛЯ, а выдать ответ за дерево ЗАМЕРА. Читаемость
+    каталога берётся ССЫЛКОЙ у секций, которые её наблюдали (``data_dir_readable``,
+    ADR-819/820), и её отсутствие остаётся «НЕ ИЗМЕРЕНО», а не «читаем».
+
+    Три исхода различимы (инв. #17): адрес НАЗВАН · ``measured_from`` есть, а
+    каталога в нём нет · секции ``measured_from`` в замере нет вовсе (отчёт
+    написан производителем ДО ADR-824).
+    """
+    inputs = observed(doc, "measured_from", kind=dict)
+    if inputs is None:
+        return ("  ИЗМЕРЕНО ПО: НЕ ИЗМЕРЕНО — секции `measured_from` в замере "
+                "нет (отчёт написан производителем ДО ADR-824); по какому "
+                "каталогу данных получены числа ниже, сказать НЕЧЕМ, и "
+                "отнести их к системе нельзя")
+    data_dir = observed(inputs, "data_dir", kind=str)
+    manifest = observed(inputs, "manifest", kind=str)
+    log_dir = observed(inputs, "log_dir", kind=str)
+    # Читаемость каталога — ССЫЛКОЙ у тех секций, которые её НАБЛЮДАЛИ. Своё
+    # наблюдение здесь было бы наблюдением дерева ЧИТАТЕЛЯ (см. docstring), а
+    # второе определение одного имени разошлось бы с первым молча.
+    readable = None
+    for key in ("declared_producer_reality", "declared_write_attribution",
+                "declared_write_stamp_price", "declared_stamp_reader"):
+        section = observed(doc, key, kind=dict)
+        if section is None:
+            continue
+        seen = observed(section, "data_dir_readable", kind=bool)
+        if seen is not None:
+            readable = seen
+            break
+    state = ("ЧИТАЕМ" if readable is True else
+             "НЕ ЧИТАЕТСЯ" if readable is False else
+             "читаемость НЕ ИЗМЕРЕНА")
+    if data_dir is None:
+        return ("  ИЗМЕРЕНО ПО: каталог данных НЕ ИЗМЕРЕН — в `measured_from` "
+                f"его нет (конституция {manifest or 'НЕ ИЗМЕРЕНА'}, записи "
+                f"прогонов {log_dir or 'НЕ ИЗМЕРЕНЫ'}); «НЕ ИЗМЕРЕНО» ниже "
+                "отнести НЕ К ЧЕМУ")
+    return (
+        f"  ИЗМЕРЕНО ПО: каталог данных {data_dir} ({state}) · конституция "
+        f"{manifest or 'НЕ ИЗМЕРЕНА'} · записи прогонов "
+        f"{log_dir or 'НЕ ИЗМЕРЕНЫ'} — все числа ниже судят об ЭТОМ каталоге, "
+        "а не о системе: при одном и том же коде замер по живому `data/` "
+        "прод-дерева и по замороженной git-копии в worktree даёт РАЗНЫЕ числа "
+        "(замер #948: «дошла бы 89 · НЕ ИЗМЕРЕНО 14» против «0 · 137»), и "
+        "спросить про живой каталог из worktree можно флагом `--data-dir`"
+    )
+
+
 def report(doc: dict, max_rows: int = 12) -> list:
     """Отрисовка для шага 0-офис. Делегирована ПРОИЗВОДИТЕЛЮ (ADR-158)."""
     lines: list = []
@@ -2840,6 +2922,11 @@ def report(doc: dict, max_rows: int = 12) -> list:
         f"Выдерживаем ли объявленный срок годности (заказ G94): ВЫДЕРЖИВАЕМ "
         f"{_num(KEEPABLE)} · НЕ ВЫДЕРЖИВАЕМ {_num(UNKEEPABLE)} · ТАКТ НЕ НАБЛЮДЁН "
         f"{_num(UNMEASURED)} из {doc.get('population')} артефакт(ов) с объявленным сроком")
+    # АДРЕС ЗАМЕРА — строка ЗДЕСЬ и ПЕРВОЙ после заголовка (ADR-824, заказ
+    # G824 п. 1). Место выбрано предметом, а не вкусом: строка не добавляет
+    # числа, она КВАЛИФИЦИРУЕТ все числа ниже, и прочитанная после них она
+    # опоздала бы ровно на тот разбор, который и должна предотвратить.
+    lines.append(measured_from_line(doc))
     cadence = observed(doc, "cadence_axis", kind=dict) or {}
     if tally.get(UNKEEPABLE):
         # Разрез находки ДО перечня: 139 одинаковых строк разбирать дороже, чем
@@ -2968,6 +3055,13 @@ def main(argv: Optional[list] = None, *, now: Optional[datetime] = None) -> int:
     parser.add_argument("--manifest", default=None, help="путь к architecture/manifest.json")
     parser.add_argument("--log-dir", default="/tmp", help="каталог записей прогонов")
     parser.add_argument("--scripts-dir", default=None, help="каталог обёрток агентов")
+    # Каталог ДАННЫХ входом CLI (ADR-824). `measure` принимает его с ADR-819,
+    # а СПРОСИТЬ извне было нечем: любой прогон из worktree мерил замороженную
+    # git-копию `data/` и об этом не говорил ни строкой. Умолчание прежнее —
+    # `data/` своего дерева, поэтому поведение живого агента не меняется.
+    parser.add_argument("--data-dir", default=None,
+                        help="каталог данных (по умолчанию `data/` своего дерева; "
+                             "из worktree живой замер требует каталог прод-дерева)")
     parser.add_argument("--window-hours", type=float, default=WINDOW_HOURS)
     parser.add_argument("--out", default=None, help="куда записать артефакт (по умолчанию не писать)")
     parser.add_argument("--json", action="store_true", help="печатать замер как JSON")
@@ -2976,6 +3070,7 @@ def main(argv: Optional[list] = None, *, now: Optional[datetime] = None) -> int:
         doc = measure(Path(args.manifest) if args.manifest else None,
                       log_dir=Path(args.log_dir),
                       scripts_dir=Path(args.scripts_dir) if args.scripts_dir else None,
+                      data_dir=Path(args.data_dir) if args.data_dir else None,
                       window_hours=args.window_hours, now=now)
     except Unmeasured as exc:
         print(f"НЕ ИЗМЕРЕНО: {exc}")
