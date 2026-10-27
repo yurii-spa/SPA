@@ -356,6 +356,25 @@ separate and labelled; aligning it is an optional owner decision, Н).
 | 26 | Cockpit without the Mac | not decided | — | owner | — | later |
 | 7, 8, 18, 21, 31, 33, 34 | Search · notifications in cockpit · incident history · repositories · VoiceOver · policies · company memory section | low priority (Н) | — | owner (8, 31, 33) / agent | — | later |
 
+## Trading process improvement — owner intake 2026-10-27
+
+**TRADING-PROCESS-01 — planned, not implemented.** Owner asked to assess trader-skill and record useful
+ideas. Decision: [ADR-OWN-2026-10-27](decisions/ADR-OWN-2026-10-27-trader-patterns.md).
+Backlog: [TRP-01 through TRP-08](tasks/trader-patterns-backlog-2026-10-27.md).
+
+- P1, after the current stable delivery: derive a replayable signal-to-paper-result package from existing
+  evidence; check cumulative post-order risk and intent/risk/authority version binding in paper/shadow.
+- P1, linked to the existing operations package: source freshness/provenance and event identity/exposure;
+  reuse current DFB, push-policy, fixture and queue work rather than opening duplicate repairs.
+- P2: reconcile performance/cash/cost attribution, then a bounded sizing/rebalance-band paper experiment
+  with new candidate identities and a preserved control. Imported example percentages are not our limits.
+- P3: explore attributed public on-chain portfolios as research evidence; no automatic copying.
+
+Keep the existing Trading Research Engine and forward history running. The separate earn-defi engine
+is not silently replaced or merged. No broker installation, live orders, risk-policy change or promised
+return improvement. The current 42-task operations scope and model-independent Studio priority remain.
+The source document's old fleet/paper-start assumptions do not authorize another general audit.
+
 ## Standing constraints
 
 Real capital, exchange orders, leverage, production risk limits, public yield numbers and irreversible
