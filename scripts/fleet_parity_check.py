@@ -41,6 +41,8 @@ _PLIST_DIRS = (ROOT / "scripts", ROOT / "launchd")
 _OUT = ROOT / "data" / "fleet_parity.json"
 # Манифест — источник правды о судьбе агента (`intent`); см. retired_labels().
 _MANIFEST = ROOT / "architecture" / "manifest.json"
+# Реестр карантина — тот же файл, что читает установщик перед каждой install_agent.
+_QUARANTINE = ROOT / "attic" / "agents" / "QUARANTINE.json"
 
 # a quoted "com.spa.<label>" token that is NOT a path and NOT a .plist filename = an install label
 _LABEL_RE = re.compile(r'"(com\.spa\.[a-z0-9_-]+)"')
@@ -61,6 +63,31 @@ def declared_labels() -> set:
         for m in _LABEL_RE.finditer(code):
             out.add(m.group(1))
     return out
+
+
+def quarantined_labels():
+    """Метки, которые установщик ПРОПУСКАЕТ (attic/agents/QUARANTINE.json), либо None.
+
+    Строка install_agent в установщике — ещё не установка: установщик сверяет каждую
+    метку с этим реестром и отложенную не ставит (test_installer_respects_quarantine).
+    Без этой сверки каждый отложенный агент читался как «retired, но устанавливается»
+    (замер 27.10: 5 из 5 находок класса — отложенные решением владельца 29–30.08).
+
+    Разбор — тот же, что у установщика. Файла нет ⇒ пустое множество (установщик тоже
+    никого не пропускает). Файл не читается ⇒ None — «не измерено» (инв. #17):
+    установщик в этом случае ОТКАЗЫВАЕТ, и выдавать его карантин за пустой нельзя.
+    """
+    if not _QUARANTINE.exists():
+        return set()
+    try:
+        import json
+        data = json.loads(_QUARANTINE.read_text(encoding="utf-8"))
+        rows = data.get("quarantined", data) if isinstance(data, dict) else data
+        names = list(rows) if isinstance(rows, dict) else [
+            r.get("label") or r.get("agent") or r.get("name") for r in rows]
+    except Exception:  # noqa: BLE001 — нечитаемый реестр есть третий исход, а не пустота
+        return None
+    return {n if str(n).startswith("com.spa.") else "com.spa." + str(n) for n in names if n}
 
 
 def plist_labels() -> set:
@@ -128,7 +155,11 @@ def _live_labels():
 
 
 def build_report(write: bool = True) -> dict:
-    declared = declared_labels()
+    written = declared_labels()
+    quarantined = quarantined_labels()
+    # Объявлен = строка в установщике И установщик её не пропустит. Реестр не читается ⇒
+    # ничего не вычитаем (установщик в этом случае отказывает целиком), и это видно ниже.
+    declared = written - (quarantined or set())
     plist = plist_labels()
     retired = retired_labels()
 
@@ -138,7 +169,7 @@ def build_report(write: bool = True) -> dict:
     # отдельной строкой, а НЕ прячется: «сверено и нормально» обязано остаться
     # отличимым от «не сверяли».
     designed = {l for l, i in manifest_intents().items() if i == "designed"}
-    orphan = sorted(plist - declared - retired - designed)  # plist exists, not installed, not retired
+    orphan = sorted(plist - declared - retired - designed - (quarantined or set()))  # not installed, not retired, not quarantined
     designed_not_deployed = sorted((plist - declared) & designed)
     retired_installed = sorted(declared & retired)         # retired yet still installed → hazard
 
@@ -151,7 +182,7 @@ def build_report(write: bool = True) -> dict:
         live_block["declared_not_running"] = sorted(expected_running - live)
         live_block["running_not_declared"] = sorted(live - declared - retired)
 
-    problems = bool(broken or orphan or retired_installed)
+    problems = bool(broken or orphan or retired_installed or quarantined is None)
     report = {
         "model": "fleet_parity_check",
         "generated_at": datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ"),
@@ -169,6 +200,12 @@ def build_report(write: bool = True) -> dict:
         # нормально» осталось отличимо от «не сверяли».
         "designed_not_deployed": designed_not_deployed,
         "retired_but_installed": retired_installed,
+        # Строка в установщике есть, но установщик её пропускает (карантин). Штатное
+        # состояние отложенного агента; None — реестр не прочитан (не измерено).
+        "quarantined_skipped_by_installer": (sorted(written & quarantined)
+                                             if quarantined is not None else None),
+        "quarantine_registry": "absent" if not _QUARANTINE.exists() else (
+            "unreadable" if quarantined is None else "read"),
         "live": live_block,
         "note": (
             "Deterministic fleet-drift guard: the installer's declared fleet, the on-disk plists, and "
@@ -190,6 +227,8 @@ def main() -> int:
     for k in ("broken_declared_no_plist", "orphan_plist_not_declared", "retired_but_installed"):
         if rep[k]:
             print(f"  {k}: {rep[k]}")
+    if rep["quarantine_registry"] == "unreadable":
+        print("  quarantine registry: UNREADABLE — карантин не измерен, установщик откажет")
     lv = rep["live"]
     if lv.get("available"):
         if lv.get("declared_not_running"):
