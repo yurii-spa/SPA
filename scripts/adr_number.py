@@ -96,16 +96,53 @@ def file_key(name: str):
     return m.group("key") if m else None
 
 
-def row_columns(line: str):
-    """Колонки строки markdown-таблицы, либо None если строка не обрамлена чёрточками.
+def cell_separators(line: str):
+    r"""Позиции РАЗДЕЛИТЕЛЕЙ ячеек: чёрточек, НЕ экранированных обратной косой.
+
+    **Почему не `line.split("|")` (поправка ADR-831 к ADR-830).** ADR-830 вылечил «статус
+    берётся по номеру колонки от конца», но сама колонка по-прежнему отделялась ЛЮБОЙ
+    чёрточкой — то есть мера отвечала «сколько в строке чёрточек», ровно как и прежде,
+    только на шаг позже. У markdown ответ другой: `\|` — литеральная чёрточка ВНУТРИ
+    ячейки, ячейку она не делит, и читатель реестра видит на экране именно это.
+
+    Замер 2026-10-27 на живом реестре (683 строки): разбор меняется у ОДНОЙ строки — 481
+    (`ADR-508`, grep-шаблон `"Exception\|RuntimeError"` внутри обратных кавычек), и
+    меняется В СТОРОНУ «строка в форме». Ни одна строка формы не теряет. То есть прежняя
+    мера держала одно ЛОЖНОЕ срабатывание из 187, и оно же было единственной причиной,
+    по которой экранирование чёрточки не могло починить строку: мера не видела экранов.
+
+    Обратная косая экранирует СЛЕДУЮЩИЙ символ, каким бы он ни был (`\\|` — это
+    экранированная косая, а потом разделитель), поэтому строка проходится, а не режется
+    регуляркой с оглядкой назад.
+    """
+    out = []
+    i, n = 0, len(line)
+    while i < n:
+        if line[i] == "\\":
+            i += 2
+            continue
+        if line[i] == "|":
+            out.append(i)
+        i += 1
+    return out
+
+
+def _cells(line: str, strip: bool):
+    """Ячейки строки markdown-таблицы, либо None если строка не обрамлена чёрточками.
 
     Обрамление — часть формы: строка, не начинающаяся и не кончающаяся `|`, не является
     строкой таблицы, и судить её колонки значило бы выдумывать их число.
     """
-    parts = line.split("|")
-    if len(parts) < 3 or parts[0].strip() or parts[-1].strip():
+    seps = cell_separators(line)
+    if len(seps) < 2 or line[:seps[0]].strip() or line[seps[-1] + 1:].strip():
         return None
-    return [p.strip() for p in parts[1:-1]]
+    cells = [line[a + 1:b] for a, b in zip(seps, seps[1:])]
+    return [c.strip() for c in cells] if strip else cells
+
+
+def row_columns(line: str):
+    """Колонки строки markdown-таблицы (очищенные), либо None."""
+    return _cells(line, strip=True)
 
 
 def _row_fields(line: str):
@@ -176,10 +213,51 @@ def is_live_claim(status, dup: bool) -> bool:
 
 # ── форма строки реестра: перепись и предложение починки (ADR-830) ───────────
 
+#: Разделитель внутри колонки статуса. Взят у самого реестра, а не из головы.
+META_JOIN = " · "
+#: Предел длины ячейки, которую писатель готов счесть мета-колонкой (дата или
+#: ярлык статуса). Нужен против обратной ошибки: обрывок прозы, случайно
+#: совпавший с ярлыком, не должен уехать в статус. Самый длинный ЖИВОЙ ярлык
+#: реестра — 66 символов (`Owner directive (приоритет и дизайн; …)`), поэтому
+#: предел объявлен числом и с запасом.
+META_CELL_MAXLEN = 120
+
 _HEADER_RE = re.compile(r"^\|\s*ADR\s*\|")
 _STATUS_HEADER = "Статус"
 _DECLARED_STATUS_RE = re.compile(
     r"^\s*[-*]?\s*\*\*Статус:?\*\*:?\s*(?P<v>.+?)\s*$", re.IGNORECASE | re.MULTILINE)
+#: ВСТРОЕННОЕ объявление статуса — поле однострочной шапки решения:
+#: `**Дата:** 2026-09-12 · **Статус:** принято · **Область:** …`. Читается ТОЛЬКО
+#: если объявления отдельной строкой нет: иначе ответы 552 решений сменились бы
+#: молча, а менять их этот цикл не брался.
+#:
+#: ЗАЧЕМ. «Статус не объявлен» у 45 строк остатка оказался свойством ЧИТАТЕЛЯ, а не
+#: решений: замер 27.10 по всем 686 файлам — отдельной строкой статус объявляют 552,
+#: встроенным полем шапки ещё **98**, и не объявляют вовсе **36**. То есть прежний
+#: читатель спрашивал «объявлен ли статус В МОЕЙ ФОРМЕ», а не «объявлен ли он»; это
+#: тот же класс, который ADR-830 вылечил у строки реестра, — только у файла решения.
+#:
+#: Значение ограничено разделителями полей шапки (` · `, `|`, `*`, конец строки) —
+#: иначе в колонку статуса уехало бы соседнее поле. Двоеточие ОБЯЗАТЕЛЬНО: без него
+#: совпадало бы слово «статус» в прозе («статус скрипта = статус последней команды»).
+#:
+#: ЧИТАТЕЛЬ ДВУЯЗЫЧЕН, и это не удобство. Репозиторий двуязычен по построению (ADR-437:
+#: канал имён был одноязычным, а репозиторий — нет), и «статус не объявлен» у
+#: ADR-816/817/818 оказался ТРЕТЬИМ случаем одного класса за один цикл: читатель
+#: спрашивал «объявлен ли статус В МОЕЙ ФОРМЕ СТРОКИ» (ADR-830 — у строки реестра),
+#: «…В МОЕЙ ФОРМЕ ОБЪЯВЛЕНИЯ» (отдельной строкой, а не полем шапки) и «…НА МОЁМ ЯЗЫКЕ»
+#: (здесь). Замер 27.10 по всем 686 решениям: отдельной строкой по-русски — 552, полем
+#: шапки — ещё 98, только по-английски — 34, не объявляет НИ НА ОДНОМ языке РОВНО ОДНО
+#: (`ADR-167`).
+#:
+#: ОТДЕЛЬНОГО англоязычного читателя строки здесь НЕТ намеренно: он был написан и
+#: ОКАЗАЛСЯ МЁРТВЫМ — мутационный замер #957 показал, что его снятие не меняет ни одного
+#: ответа, потому что это же объявление читает регулярка выше. Мутант выжил не от дыры в
+#: тестах, а оттого, что мерил ЭКВИВАЛЕНТНУЮ правку; вторая дверь к одному измерению
+#: снята, а не укрыта тестом.
+_INLINE_STATUS_RE = re.compile(
+    r"(?<![А-Яа-яЁёA-Za-z])\*{0,2}(?:Статус|Status)\*{0,2}:\s*\*{0,2}(?P<v>[^·|*\n]+)",
+    re.IGNORECASE)
 
 
 def declared_form(text: str):
@@ -199,19 +277,47 @@ def declared_form(text: str):
     return None
 
 
-def declared_status(path: Path):
-    """Статус, объявленный САМИМ файлом решения (`- **Статус:** …`), либо None.
+def declared_status(path: Path, max_len=META_CELL_MAXLEN):
+    """Статус, объявленный САМИМ файлом решения, либо None.
 
     Источник правды о статусе решения — решение. Строка реестра — проекция; выдумывать
     её статус запрещено (общий стандарт эвиденса, `docs/37`), поэтому «в файле статуса
     нет» остаётся третьим исходом, а не подставляется «Accepted».
+
+    Форм объявления ДВЕ, и спрашиваются обе (замер 27.10, ADR-831): отдельной строкой
+    по-русски (552 решения из 686) и полем однострочной шапки на любом из двух языков
+    (ещё 133). `max_len=None` отдаёт объявленное значение БЕЗ ограничения — это нужно,
+    чтобы отличить «не объявлено» от «объявлено прозой, не помещающейся в ячейку
+    статуса»: два разных исхода, и чинятся они по-разному.
     """
     try:
         head = path.read_text(encoding="utf-8")[:4000]
     except OSError:
         return None
     m = _DECLARED_STATUS_RE.search(head)
-    return m.group("v") if m else None
+    if m:
+        # Русское объявление отдельной строкой читается КАК И ПРЕЖДЕ, значением до конца
+        # строки: так отвечают 552 решения из 686, и менять их ответы этот цикл не брался.
+        return m.group("v")
+    m = _INLINE_STATUS_RE.search(head)
+    if not m:
+        return None
+    # Значение ОГРАНИЧЕНО самим классом символов захвата (`·`, `|`, `*`, перевод строки
+    # в него не входят): иначе в ячейку статуса уехало бы соседнее поле шапки или абзац
+    # про решение владельца на 250 символов, а это ровно инв. #17 — не-статус в колонке
+    # статуса, только с другой стороны. Повторной обрезки по ` · ` здесь НЕТ: замер
+    # мутациями #957 показал, что она ничего не меняет (разделитель уже исключён
+    # классом), то есть была вторым выражением одного и того же ограничения.
+    value = m.group("v").strip().rstrip(",;·").strip()
+    # Незакрытая скобка — след обрезки по разделителю поля («принято владельцем
+    # (вариант 1 из карточки *own-…*)»): в ячейке статуса она шум, а не наблюдение.
+    while value.count("(") > value.count(")"):
+        value = value[:value.rfind("(")].strip()
+    if not value:
+        return None
+    if max_len is not None and len(value) > max_len:
+        return None
+    return value
 
 
 def form_scan(text: str):
@@ -274,12 +380,19 @@ def index_form(root, index_rel=INDEX_REL):
         if len(named) == 1:
             repair["file"] = named[0]
             status = declared_status(decisions / named[0])
+            raw = declared_status(decisions / named[0], max_len=None)
             if status:
                 repair["status"] = status
+            elif raw:
+                repair["status_reason"] = (
+                    f"{named[0]}: объявленный статус длиной {len(raw)} символов — проза, "
+                    f"а не ярлык (предел ячейки {META_CELL_MAXLEN}); в колонку статуса он "
+                    f"не годится, статус НЕ ИЗМЕРЕН")
             else:
                 repair["status_reason"] = (
-                    f"{named[0]} не объявляет `- **Статус:**` — статус НЕ ИЗМЕРЕН, "
-                    f"выдумывать его запрещено")
+                    f"{named[0]} не объявляет статус ни отдельной строкой "
+                    f"(`- **Статус:**` / `- **Status:**`), ни полем шапки — статус "
+                    f"НЕ ИЗМЕРЕН, выдумывать его запрещено")
         else:
             repair["file_reason"] = (
                 f"файлов ADR-{key}-*.md в {DECISIONS_DIR}: {len(named)} — ссылка НЕ измерена"
@@ -289,6 +402,319 @@ def index_form(root, index_rel=INDEX_REL):
         out["out_of_form"].append(dict(row, repair=repair))
     return out
 
+
+# ── ПРИВЕДЕНИЕ строки к объявленной форме (ADR-831) ──────────────────────────
+#
+# ЗАЧЕМ ОТДЕЛЬНЫЙ ПИСАТЕЛЬ. ADR-830 построил ПЕРЕПИСЬ (`index_form`) и назвал
+# 187 строк вне формы, но переписывать их руками нечем: строка реестра — до
+# 8400 символов, и у 140 из них правка касается того, что в этих символах
+# ЗАТЕРЯЛОСЬ. Ручная правка такого объёма непроверяема по построению, поэтому
+# починка — детерминированный писатель с контролем в обе стороны, а МЕРА
+# остаётся одна (`form_scan`): второй двери к вопросу «в форме ли строка» в
+# этом репозитории нет.
+#
+# ЧТО ПИСАТЕЛЮ РАЗРЕШЕНО — РОВНО ТРИ ДЕЙСТВИЯ, и ни одно не переставляет текст:
+#
+#   1. ЭКРАНИРОВАТЬ чёрточку, съеденную разбором таблицы. `^(FAILED|ERROR)` в
+#      заголовке — это ОДНА ячейка в замысле автора и ДВЕ в разборе markdown;
+#      `\|` возвращает замысел. Текст не меняется ни на символ, добавляется
+#      обратная косая на стыке.
+#   2. СВЕРНУТЬ лишнюю колонку даты/статуса в колонку статуса через ` · `.
+#      Это не выдумка формата: так устроены 131 строка реестра, УЖЕ стоящие в
+#      форме (`2026-10-08 · принято`) — конвенцию объявляет сам документ, и
+#      перепись ярлыков берётся у него же (`declared_status_labels`).
+#   3. ДОПИСАТЬ колонку, которой нет: ссылку (единственный файл решения на
+#      диске) и статус (объявленный САМИМ файлом решения).
+#
+# ЧТО ЗАПРЕЩЕНО. Выдумывать статус (`docs/37`: нет объявления ⇒ третий исход, а
+# не «Accepted» по умолчанию), переставлять текст между колонками, удалять
+# наблюдение (дата сохраняется ВСЕГДА, ADR-537) и трогать строку, чьё
+# приведение не измеримо целиком. Любой из этих случаев — ОТКАЗ по строке с
+# названной причиной; строка остаётся в базе храповика, а не «починенной».
+#
+# ПОЧЕМУ ДАТА ОСТАЁТСЯ В КОЛОНКЕ СТАТУСА, А НЕ УЕЗЖАЕТ В ХВОСТ ЗАГОЛОВКА.
+# Заказ G831 предписывал второе. Замер опроверг посылку заказа: у 118 строк
+# вида `| ADR | проза | ДАТА |` дата стои́т РОВНО в третьей колонке, то есть
+# уже на месте статуса, а 131 строка В ФОРМЕ несёт там `ДАТА · принято`.
+# Перенос даты в заголовок развёл бы две половины реестра по разным
+# конвенциям и потребовал бы экранированной чёрточки там, где её не было.
+
+#: Ссылка на файл решения в последней колонке. Якорь — расширение `.md`: это
+#: ссылка на ФАЙЛ, а не на раздел.
+_LINK_CELL_RE = re.compile(r"^\[[^\]]+\]\([^()\s]+\.md\)$")
+#: Дата-наблюдение в ячейке. Ровно ISO-день: «2026-09» или «сентябрь» датой
+#: здесь не считаются — угадывать формат значило бы выдумывать наблюдение.
+_DATE_CELL_RE = re.compile(r"^\d{4}-\d{2}-\d{2}$")
+#: Дата с пометкой цикла — `2026-10-15 (#870, доставлено #871)`. Форма взята у
+#: самого реестра: такие же пометки стоя́т в колонке статуса строк В ФОРМЕ
+#: (`Accepted (#884)`, `принято 2026-10-16 (#881)`). Население замерено, а не
+#: предположено: из 103 коротких ячеек строк вне формы этой формы ровно ВОСЕМЬ,
+#: и без неё писатель принимал их за обрывок заголовка — ошибка в ту сторону
+#: экранировала бы чёрточку там, где её не ел разбор (замер 27.10, ADR-831).
+_DATE_NOTE_CELL_RE = re.compile(r"^\d{4}-\d{2}-\d{2}\s*\([^()]*\)$")
+
+
+def declared_status_labels(text: str, decisions_dir=None):
+    """Ярлыки статуса, объявленные САМИМИ документами, либо None если форма не измерена.
+
+    Та же логика, что у `declared_form`: словарь статусов — свойство документов, а не
+    память модуля. Список в коде пришлось бы догонять руками, и расхождение было бы
+    невидимым; здесь он меряется каждый прогон. Шапки нет ⇒ None = НЕ ИЗМЕРЕНО.
+
+    **Источников ДВА, и это не удобство.** Реестр — проекция, решения — источник правды о
+    статусе, и спрашивать надо оба:
+
+    * строки реестра В ФОРМЕ — так документ объявляет свою конвенцию печати
+      (`2026-10-08 · принято`);
+    * `- **Статус:**` файлов решений — так объявляет статус тот, кто вправе.
+
+    Одного реестра НЕ ХВАТАЕТ, и это измерено контролем: в реестре, где ВСЕ строки вне
+    формы, строк в форме нет вовсе ⇒ словарь пуст ⇒ писатель принимал за обрывок
+    заголовка даже ячейку `принято`. На живом реестре дефект не проявлялся (496 строк в
+    форме кормили словарь), то есть держался на СОВПАДЕНИИ — ровно класс, который проект
+    чинит заменой совпадения на решение.
+    """
+    form = declared_form(text)
+    if form is None:
+        return None
+    ncols, status_col = form
+    labels: set[str] = set()
+
+    def add(value: str):
+        for part in value.split(META_JOIN):
+            part = part.strip()
+            if part and not _DATE_CELL_RE.match(part) \
+                    and not _DATE_NOTE_CELL_RE.match(part):
+                labels.add(part)
+
+    for line in text.splitlines():
+        if not _ROW_RE.match(line):
+            continue
+        cols = row_columns(line)
+        if cols is None or len(cols) != ncols:
+            continue
+        add(cols[status_col - 1])
+    if decisions_dir is not None and Path(decisions_dir).is_dir():
+        for path in sorted(Path(decisions_dir).glob("ADR-*.md")):
+            status = declared_status(path)
+            if status and len(status) <= META_CELL_MAXLEN:
+                add(status)
+    return labels
+
+
+def _is_meta_cell(value: str, labels) -> bool:
+    """Ячейка — дата-наблюдение и/или ярлык статуса (а не обрывок заголовка)?
+
+    Мера направлена в безопасную сторону: не узнали ⇒ ячейка считается ЧАСТЬЮ
+    ЗАГОЛОВКА, то есть её чёрточка экранируется и текст остаётся на месте. Ошибка в
+    другую сторону (обрывок прозы уехал в колонку статуса) была бы потерей смысла.
+    """
+    value = value.strip()
+    if not value or len(value) > META_CELL_MAXLEN:
+        return False
+    for part in value.split(META_JOIN):
+        part = part.strip()
+        if not part:
+            return False
+        if not (_DATE_CELL_RE.match(part) or _DATE_NOTE_CELL_RE.match(part)
+                or part in labels):
+            return False
+    return True
+
+
+def _has_status_label(value: str, labels) -> bool:
+    """В свёрнутой колонке есть хоть один ЯРЛЫК, а не только даты?
+
+    Дата статусом не является: строка `| ADR | проза | 2026-09-09 |` отвечает «когда»,
+    а не «принято ли». Поэтому к одной дате статус ДОПИСЫВАЕТСЯ из файла решения, и если
+    файл молчит — строка не трогается.
+    """
+    return any(part.strip() in labels for part in value.split(META_JOIN))
+
+
+def _raw_cells(line: str):
+    """Сырые (неочищенные) ячейки обрамлённой строки, либо None.
+
+    Сырые — чтобы заголовок в 8400 символов уехал в починенную строку ПОБАЙТОВО:
+    `strip()` на нём сменил бы отбивку у 140 строк без всякой нужды. Разделители — те же,
+    что у меры (`cell_separators`): второго определения ячейки быть не должно.
+    """
+    return _cells(line, strip=False)
+
+
+def _split_tail(cells, labels):
+    """(ячейки заголовка, мета-ячейки, ячейка-ссылка|None) — разбор СПРАВА.
+
+    Разбор идёт от конца, потому что именно конец строки и объявлен формой: ссылка
+    последняя, статус перед ней. Всё, что осталось слева, — заголовок, сколько бы
+    чёрточек в нём ни съел разбор.
+    """
+    stripped = [c.strip() for c in cells]
+    j = len(cells) - 1
+    link = None
+    if j >= 1 and _LINK_CELL_RE.match(stripped[j]):
+        link = cells[j]
+        j -= 1
+    meta = []
+    while j >= 1 and _is_meta_cell(stripped[j], labels):
+        meta.insert(0, cells[j])
+        j -= 1
+    return cells[1:j + 1], meta, link
+
+
+def _escape_title_pipes(line: str, title_count: int) -> str:
+    """Экранировать чёрточки ВНУТРИ заголовка, не тронув остальную строку.
+
+    Экранируются ровно разделители между кусками заголовка — с `title_count - 1`-й по
+    счёту чёрточки после первой. Правка адресная: позиции считаются по сырой строке,
+    поэтому ни один другой байт не двигается.
+    """
+    hits = cell_separators(line)
+    # hits[0] — обрамление, hits[1] — граница «номер | заголовок»; дальше внутри заголовка.
+    inner = hits[2:2 + title_count - 1]
+    out = []
+    prev = 0
+    for pos in inner:
+        out.append(line[prev:pos])
+        out.append("\\|")
+        prev = pos + 1
+    out.append(line[prev:])
+    return "".join(out)
+
+
+def verify_repair(old_line: str, new_line: str, ncols: int):
+    """Причина, по которой починке НЕЛЬЗЯ верить, либо пустая строка.
+
+    Контроль, а не украшение: он проверяет ровно то, что писателю разрешено, и всё
+    остальное объявляет отказом. Три утверждения:
+
+    * строка стала строкой объявленной формы, и её статус теперь ИЗМЕРЕН;
+    * номер (претензия на ключ) не изменился;
+    * **каждое прежнее поле выжило ДОСЛОВНО** — текст старой ячейки обязан быть
+      подстрокой новой строки. Проверять подстрокой строку ЦЕЛИКОМ невозможно по
+      построению: добавление колонки меняет её конец. Поэтому мера поля, а не строки,
+      — и этого довольно: потерять наблюдение, не потеряв ни одного поля, нельзя.
+    """
+    new_cols = row_columns(new_line)
+    if new_cols is None or len(new_cols) != ncols:
+        return (f"починенная строка не в форме: колонок "
+                f"{'нет обрамления' if new_cols is None else len(new_cols)} при {ncols}")
+    old_fields = _row_fields(old_line)
+    new_fields = _row_fields(new_line)
+    if new_fields is None:
+        return "починенная строка перестала быть строкой реестра — номер потерян"
+    if old_fields is not None and new_fields[0] != old_fields[0]:
+        return f"номер изменился: {old_fields[0]} → {new_fields[0]}"
+    if new_fields[1] is None:
+        return "статус починенной строки всё равно НЕ ИЗМЕРЕН"
+    for cell in (_raw_cells(old_line) or []):
+        cell = cell.strip()
+        if cell and cell not in new_line:
+            return f"прежнее поле не выжило дословно: «{cell[:60]}…»"
+    return ""
+
+
+def repair_line(line: str, labels, declared, ncols=DECLARED_COLUMNS):
+    """(новая строка | None, действие, причина отказа) для ОДНОЙ строки реестра.
+
+    `declared` — объявленный статус решения и имя его файла: `(status|None, file|None)`.
+    Берётся ВНЕ этой функции (она ничего не читает с диска), чтобы контроль мог
+    подставить оба исхода.
+    """
+    cells = _raw_cells(line)
+    if cells is None:
+        return None, "", ("строка не обрамлена чёрточками — число колонок пришлось бы "
+                          "выдумать; приведение потребовало бы ПЕРЕСТАВИТЬ текст")
+    if len(cells) == ncols:
+        return None, "", "строка уже в объявленной форме"
+
+    actions = []
+    for _ in range(len(cells)):           # предел витков = число ячеек, зацикливания нет
+        cells = _raw_cells(line)
+        title, meta, link = _split_tail(cells, labels)
+        if len(title) <= 1:
+            break
+        line = _escape_title_pipes(line, len(title))
+        actions.append("экранирована чёрточка в заголовке")
+    cells = _raw_cells(line)
+    title, meta, link = _split_tail(cells, labels)
+    if len(title) != 1:
+        return None, "", (f"заголовок остался из {len(title)} кусков — приведение "
+                          f"не измерено")
+
+    status_raw = META_JOIN.join(c.strip() for c in meta)
+    declared_status_value, file_name = declared
+    if len(meta) > 1:
+        actions.append("лишняя колонка свёрнута в статус")
+    if not status_raw or not _has_status_label(status_raw, labels):
+        if not declared_status_value:
+            return None, "", ("статус не объявлен ни строкой, ни файлом решения — "
+                              "подставлять его ЗАПРЕЩЕНО (docs/37)")
+        status_raw = (f"{status_raw}{META_JOIN}{declared_status_value}"
+                      if status_raw else declared_status_value)
+        actions.append("статус взят у файла решения")
+
+    if link is None:
+        if not file_name:
+            return None, "", "файл решения не назван однозначно — ссылка НЕ измерена"
+        key = _row_fields(line)[0]
+        link = f" [ADR-{key}]({file_name}) "
+        actions.append("дописана ссылка на файл решения")
+
+    new_line = f"|{cells[0]}|{title[0]}| {status_raw} |{link}|"
+    bad = verify_repair(line, new_line, ncols)
+    if bad:
+        return None, "", f"контроль починки отказал: {bad}"
+    return new_line, " · ".join(actions), ""
+
+
+def repair_index(root, index_rel=INDEX_REL):
+    """Починка реестра ЦЕЛИКОМ: новый текст и отчёт по каждой строке вне формы.
+
+    Прибор НИЧЕГО не пишет — писать решает CLI. Третий исход различим: реестр не
+    прочитан или шапки нет ⇒ `measured=False` с причиной.
+    """
+    root = Path(root)
+    out = {"measured": False, "unmeasured_reason": None, "repaired": [],
+           "refused": [], "new_text": None}
+    try:
+        text = (root / index_rel).read_text(encoding="utf-8")
+    except OSError as exc:
+        out["unmeasured_reason"] = f"{index_rel} не читается ({exc}) — починка НЕ измерена"
+        return out
+    decisions = root / DECISIONS_DIR
+    labels = declared_status_labels(text, decisions)
+    form = declared_form(text)
+    if form is None or labels is None:
+        out["unmeasured_reason"] = (
+            f"{index_rel}: шапка таблицы с колонкой «{_STATUS_HEADER}» не найдена — "
+            f"ни форма, ни словарь статусов НЕ измерены, починить нечем")
+        return out
+    ncols, _status_col = form
+    out["measured"] = True
+
+    lines = text.splitlines(keepends=True)
+    for n, raw in enumerate(lines, 1):
+        line = raw.rstrip("\n")
+        if not _ROW_RE.match(line):
+            continue
+        cols = row_columns(line)
+        if cols is not None and len(cols) == ncols:
+            continue
+        key = _row_fields(line)[0]
+        named = sorted(p.name for p in decisions.glob(f"ADR-{key}-*.md")) \
+            if decisions.is_dir() else []
+        file_name = named[0] if len(named) == 1 else None
+        status = declared_status(decisions / file_name) if file_name else None
+        new_line, action, reason = repair_line(line, labels, (status, file_name), ncols)
+        if new_line is None:
+            out["refused"].append({"key": key, "line": n, "reason": reason})
+            continue
+        lines[n - 1] = new_line + ("\n" if raw.endswith("\n") else "")
+        out["repaired"].append({"key": key, "line": n, "action": action,
+                                "old": line, "new": new_line})
+    out["new_text"] = "".join(lines)
+    return out
 
 def _origin_files(root, base_ref, git=_git):
     """Имена файлов решений на base ref, либо None если ref не измерим (fail-CLOSED)."""
@@ -699,6 +1125,45 @@ def _cmd_form(args) -> int:
     return 1
 
 
+def _cmd_repair(args) -> int:
+    """Привести строки реестра к объявленной форме. По умолчанию НИЧЕГО не пишет.
+
+    Коды возврата те же, что у соседей: 0 — приводить нечего · 1 — есть находки
+    (строки, которые приведены или которые привести нельзя) · 2 — НЕ ИЗМЕРЕНО.
+    """
+    rep = repair_index(Path(args.root))
+    if args.json:
+        print(json.dumps({k: v for k, v in rep.items() if k != "new_text"},
+                         ensure_ascii=False, indent=2))
+        return 2 if not rep["measured"] else (
+            1 if (rep["repaired"] or rep["refused"]) else 0)
+    if not rep["measured"]:
+        print("❓ НЕ ИЗМЕРЕНО — починку реестра не подтверждаю (fail-CLOSED):")
+        print(f"  - {rep['unmeasured_reason']}")
+        return 2
+    print(f"починка {INDEX_REL}: приведено {len(rep['repaired'])} · "
+          f"ОТКАЗАНО {len(rep['refused'])}")
+    by_action: dict[str, int] = {}
+    for r in rep["repaired"]:
+        by_action[r["action"]] = by_action.get(r["action"], 0) + 1
+    for action, n in sorted(by_action.items(), key=lambda kv: -kv[1]):
+        print(f"    · {action}: {n}")
+    by_reason: dict[str, int] = {}
+    for r in rep["refused"]:
+        by_reason[r["reason"]] = by_reason.get(r["reason"], 0) + 1
+    for reason, n in sorted(by_reason.items(), key=lambda kv: -kv[1]):
+        print(f"    ✗ {reason}: {n}")
+    for r in rep["refused"][:args.limit]:
+        print(f"  - строка {r['line']} ADR-{r['key']}: {r['reason']}")
+    if not args.write:
+        print("  (ничего не записано — повтори с `--write`)")
+        return 1 if (rep["repaired"] or rep["refused"]) else 0
+    index = Path(args.root) / INDEX_REL
+    index.write_text(rep["new_text"], encoding="utf-8")
+    print(f"  записано: {index}")
+    return 1 if (rep["repaired"] or rep["refused"]) else 0
+
+
 def main(argv=None) -> int:
     ap = argparse.ArgumentParser(description=__doc__,
                                  formatter_class=argparse.RawDescriptionHelpFormatter)
@@ -715,10 +1180,17 @@ def main(argv=None) -> int:
     f = sub.add_parser("form", help="перепись формы строк реестра (только читает)")
     f.add_argument("--limit", type=int, default=20, help="сколько строк печатать поимённо")
 
+    r = sub.add_parser("repair", help="привести строки реестра к объявленной форме")
+    r.add_argument("--write", action="store_true",
+                   help="записать результат (без флага — только показать)")
+    r.add_argument("--limit", type=int, default=20, help="сколько строк печатать поимённо")
+
     args = ap.parse_args(argv)
     if args.cmd == "next":
         return _cmd_next(args)
-    return _cmd_check(args) if args.cmd == "check" else _cmd_form(args)
+    if args.cmd == "check":
+        return _cmd_check(args)
+    return _cmd_repair(args) if args.cmd == "repair" else _cmd_form(args)
 
 
 if __name__ == "__main__":

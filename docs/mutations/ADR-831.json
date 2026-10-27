@@ -1,0 +1,136 @@
+{
+  "title": "ADR-831 — дельта цикла #957: 140 строк реестра приведены к объявленной форме ИЗМЕРЕННОЙ починкой; мера считает ячейки markdown, а не чёрточки",
+  "tests": [
+    "spa_core/tests/test_adr_index_repair.py",
+    "spa_core/tests/test_adr_index_form.py",
+    "spa_core/tests/test_adr_number_allocator.py"
+  ],
+  "mutations": [
+    {
+      "name": "мера снова отвечает «сколько в строке чёрточек»: экраны не видны, строка с `\\|` числится вне формы",
+      "file": "scripts/adr_number.py",
+      "old": "    out = []\n    i, n = 0, len(line)\n    while i < n:\n        if line[i] == \"\\\\\":\n            i += 2\n            continue\n        if line[i] == \"|\":\n            out.append(i)\n        i += 1\n    return out",
+      "new": "    return [i for i, ch in enumerate(line) if ch == \"|\"]"
+    },
+    {
+      "name": "обратная косая экранирует только чёрточку, а не ЛЮБОЙ символ: `\\\\|` перестаёт быть разделителем",
+      "file": "scripts/adr_number.py",
+      "old": "        if line[i] == \"\\\\\":\n            i += 2\n            continue\n        if line[i] == \"|\":",
+      "new": "        if line[i] == \"|\" and i and line[i - 1] == \"\\\\\":\n            i += 1\n            continue\n        if line[i] == \"|\":"
+    },
+    {
+      "name": "мета-ячейкой считается ЛЮБАЯ: обрывок заголовка уезжает в колонку статуса",
+      "file": "scripts/adr_number.py",
+      "old": "    value = value.strip()\n    if not value or len(value) > META_CELL_MAXLEN:\n        return False",
+      "new": "    value = value.strip()\n    return bool(value)\n    if not value or len(value) > META_CELL_MAXLEN:\n        return False"
+    },
+    {
+      "name": "мета-ячеек не бывает вовсе: дата и статус строки экранируются в заголовок, а не сворачиваются",
+      "file": "scripts/adr_number.py",
+      "old": "    for part in value.split(META_JOIN):\n        part = part.strip()\n        if not part:\n            return False\n        if not (_DATE_CELL_RE.match(part) or _DATE_NOTE_CELL_RE.match(part)\n                or part in labels):\n            return False\n    return True",
+      "new": "    return False"
+    },
+    {
+      "name": "дата с пометкой цикла (`2026-10-14 (#868)`) наблюдением не считается — её чёрточку экранируют",
+      "file": "scripts/adr_number.py",
+      "old": "        if not (_DATE_CELL_RE.match(part) or _DATE_NOTE_CELL_RE.match(part)\n                or part in labels):",
+      "new": "        if not (_DATE_CELL_RE.match(part) or part in labels):"
+    },
+    {
+      "name": "словарь статусов спрашивают только у реестра — у решений не спрашивают (совпадение вместо решения)",
+      "file": "scripts/adr_number.py",
+      "old": "    if decisions_dir is not None and Path(decisions_dir).is_dir():\n        for path in sorted(Path(decisions_dir).glob(\"ADR-*.md\")):\n            status = declared_status(path)\n            if status and len(status) <= META_CELL_MAXLEN:\n                add(status)\n    return labels",
+      "new": "    return labels"
+    },
+    {
+      "name": "одна дата считается статусом: статус у файла решения больше не спрашивают (инв. #17 наизнанку)",
+      "file": "scripts/adr_number.py",
+      "old": "    return any(part.strip() in labels for part in value.split(META_JOIN))",
+      "new": "    return bool(value.strip())"
+    },
+    {
+      "name": "статус выдумывается, когда его не объявляет никто (`docs/37` нарушен молча)",
+      "file": "scripts/adr_number.py",
+      "old": "        if not declared_status_value:\n            return None, \"\", (\"статус не объявлен ни строкой, ни файлом решения — \"\n                              \"подставлять его ЗАПРЕЩЕНО (docs/37)\")",
+      "new": "        if not declared_status_value:\n            declared_status_value = \"Accepted\""
+    },
+    {
+      "name": "незакрытой строке число колонок УГАДЫВАЕТСЯ: приведение переставляет текст молча",
+      "file": "scripts/adr_number.py",
+      "old": "    cells = _raw_cells(line)\n    if cells is None:\n        return None, \"\", (\"строка не обрамлена чёрточками — число колонок пришлось бы \"\n                          \"выдумать; приведение потребовало бы ПЕРЕСТАВИТЬ текст\")",
+      "new": "    cells = _raw_cells(line + \" |\")\n    if cells is None:\n        return None, \"\", \"строка не разобрана\""
+    },
+    {
+      "name": "сверка починки не смотрит на ПОЛЯ: наблюдение можно потерять молча (ADR-537)",
+      "file": "scripts/adr_number.py",
+      "old": "    for cell in (_raw_cells(old_line) or []):\n        cell = cell.strip()\n        if cell and cell not in new_line:\n            return f\"прежнее поле не выжило дословно: «{cell[:60]}…»\"\n    return \"\"",
+      "new": "    return \"\""
+    },
+    {
+      "name": "сверка починки не смотрит на НОМЕР: запись реестра может сменить тождество",
+      "file": "scripts/adr_number.py",
+      "old": "    if old_fields is not None and new_fields[0] != old_fields[0]:\n        return f\"номер изменился: {old_fields[0]} → {new_fields[0]}\"",
+      "new": "    if False:\n        return \"номер изменился\""
+    },
+    {
+      "name": "сверка починки принимает любое число колонок: «привели в форму» перестаёт что-либо значить",
+      "file": "scripts/adr_number.py",
+      "old": "    new_cols = row_columns(new_line)\n    if new_cols is None or len(new_cols) != ncols:\n        return (f\"починенная строка не в форме: колонок \"\n                f\"{'нет обрамления' if new_cols is None else len(new_cols)} при {ncols}\")",
+      "new": "    new_cols = row_columns(new_line)\n    if new_cols is None:\n        return \"нет обрамления\""
+    },
+    {
+      "name": "писатель переписывает и строки, УЖЕ стоящие в форме — чужой текст трогается без нужды",
+      "file": "scripts/adr_number.py",
+      "old": "        cols = row_columns(line)\n        if cols is not None and len(cols) == ncols:\n            continue\n        key = _row_fields(line)[0]",
+      "new": "        key = _row_fields(line)[0]"
+    },
+    {
+      "name": "ссылка дописывается даже когда файла решения нет: мёртвая ссылка вместо третьего исхода",
+      "file": "scripts/adr_number.py",
+      "old": "        if not file_name:\n            return None, \"\", \"файл решения не назван однозначно — ссылка НЕ измерена\"\n        key = _row_fields(line)[0]\n        link = f\" [ADR-{key}]({file_name}) \"",
+      "new": "        key = _row_fields(line)[0]\n        link = f\" [ADR-{key}](ADR-{key}.md) \""
+    },
+    {
+      "name": "НЕ ИЗМЕРЕНО отдаёт текст реестра как починенный — третий исход сворачивается в успех",
+      "file": "scripts/adr_number.py",
+      "old": "        out[\"unmeasured_reason\"] = f\"{index_rel} не читается ({exc}) — починка НЕ измерена\"\n        return out",
+      "new": "        out[\"unmeasured_reason\"] = f\"{index_rel} не читается ({exc})\"\n        out[\"new_text\"] = \"\"\n        return out"
+    },
+    {
+      "name": "двоеточие перестаёт быть обязательным — слово «статус» в прозе читается как объявление",
+      "file": "scripts/adr_number.py",
+      "old": "    r\"(?<![А-Яа-яЁёA-Za-z])\\*{0,2}(?:Статус|Status)\\*{0,2}:\\s*\\*{0,2}(?P<v>[^·|*\\n]+)\",",
+      "new": "    r\"(?<![А-Яа-яЁёA-Za-z])\\*{0,2}(?:Статус|Status)\\*{0,2}:?\\s*\\*{0,2}(?P<v>[^·|*\\n]+)\","
+    },
+    {
+      "name": "предел длины ячейки статуса снят — проза на 250 символов встаёт в колонку статуса (инв. #17)",
+      "file": "scripts/adr_number.py",
+      "old": "    if max_len is not None and len(value) > max_len:\n        return None\n    return value",
+      "new": "    return value"
+    },
+    {
+      "name": "два исхода отказа по статусу сливаются в один — «не объявлено» неотличимо от «объявлено прозой»",
+      "file": "scripts/adr_number.py",
+      "old": "            elif raw:\n                repair[\"status_reason\"] = (\n                    f\"{named[0]}: объявленный статус длиной {len(raw)} символов — проза, \"\n                    f\"а не ярлык (предел ячейки {META_CELL_MAXLEN}); в колонку статуса он \"\n                    f\"не годится, статус НЕ ИЗМЕРЕН\")",
+      "new": "            elif raw:\n                repair[\"status_reason\"] = (\n                    f\"{named[0]} не объявляет статус — статус НЕ ИЗМЕРЕН\")"
+    },
+    {
+      "name": "читатель шапки снова ОДНОЯЗЫЧЕН — `- **Status:** ACCEPTED` объявлением не считается",
+      "file": "scripts/adr_number.py",
+      "old": "(?:Статус|Status)\\*{0,2}:",
+      "new": "(?:Статус)\\*{0,2}:"
+    },
+    {
+      "name": "захват шапки не ограничен полями — соседнее поле (`**Область:** …`) уезжает в колонку статуса",
+      "file": "scripts/adr_number.py",
+      "old": "(?P<v>[^·|*\\n]+)",
+      "new": "(?P<v>[^\\n]+)"
+    },
+    {
+      "name": "русское объявление отдельной строкой читается ТЕМ ЖЕ ограниченным захватом — ответы 552 решений меняются молча",
+      "file": "scripts/adr_number.py",
+      "old": "    m = _DECLARED_STATUS_RE.search(head)\n    if m:",
+      "new": "    m = None\n    if m:"
+    }
+  ]
+}
