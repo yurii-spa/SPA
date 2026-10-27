@@ -2,7 +2,7 @@
 trackerStatus:
   type: owner-decision
 title: "Уточнение по заметке: Сто тридцать девять брошенных деревьев циклов: 24,6 ГБ, и снимать их вслепую нельзя"
-status: owner-done
+status: ingested
 source: intake
 created: 2026-10-15
 owner_choice: закрыть
@@ -12,6 +12,7 @@ owner_answered_by: владелец (сессия Claude Code; ADR-836)
 owner_answer_kind: option
 status_trail:
   - "2026-10-27T19:44:03.832534+00:00 needs-owner -> owner-done · owner_answer.record_session_answer"
+  - "2026-10-27T21:05:24.161830+00:00 owner-done -> ingested · queue.set_status · cycle-18168"
 ---
 
 ## Что случилось и почему это важно

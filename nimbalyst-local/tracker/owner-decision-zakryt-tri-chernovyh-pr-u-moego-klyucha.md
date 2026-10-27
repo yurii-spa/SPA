@@ -2,7 +2,7 @@
 trackerStatus:
   type: owner-decision
 title: Закрыть три черновых PR — у моего ключа нет на это прав (или выдать права)
-status: owner-done
+status: ingested
 source: agent
 created: 2026-09-26
 priority: medium
@@ -13,6 +13,7 @@ owner_answered_by: владелец (сессия Claude Code; ADR-836)
 owner_answer_kind: option
 status_trail:
   - "2026-10-27T19:44:03.835402+00:00 needs-owner -> owner-done · owner_answer.record_session_answer"
+  - "2026-10-27T21:05:26.184818+00:00 owner-done -> ingested · queue.set_status · cycle-18168"
 ---
 
 ## Что случилось и почему это важно

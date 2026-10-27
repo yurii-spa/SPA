@@ -2,7 +2,7 @@
 trackerStatus:
   type: owner-decision
 title: «Оптимум», который система предлагает, шесть раз оказался хуже решения ничего не делать
-status: owner-done
+status: ingested
 source: nimbalyst
 created: 2026-09-27
 # ADR-555 — эта карточка объявлена адресатом критериев §49 приказа «Portfolio CIO».
@@ -15,6 +15,7 @@ owner_answered_by: владелец (сессия Claude Code; ADR-836)
 owner_answer_kind: option
 status_trail:
   - "2026-10-27T19:44:03.837150+00:00 needs-owner -> owner-done · owner_answer.record_session_answer"
+  - "2026-10-27T21:05:08.956854+00:00 owner-done -> ingested · queue.set_status · cycle-18168"
 ---
 
 ## Что случилось и почему это важно

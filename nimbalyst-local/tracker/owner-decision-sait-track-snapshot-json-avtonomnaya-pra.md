@@ -2,7 +2,7 @@
 trackerStatus:
   type: owner-decision
 title: "Сайт: track_snapshot.json — автономная правка задела owner-gated область, нужно решение"
-status: owner-done
+status: ingested
 source: orchestrator
 created: 2026-10-06
 approves: landing/src/data/track_snapshot.json
@@ -13,6 +13,7 @@ owner_answered_by: владелец (сессия Claude Code; ADR-834)
 owner_answer_kind: option
 status_trail:
   - "2026-10-27T19:24:04.420446+00:00 needs-owner -> owner-done · owner_answer.record_session_answer"
+  - "2026-10-27T21:05:17.097304+00:00 owner-done -> ingested · queue.set_status · cycle-18168"
 ---
 
 ## Что случилось и почему это важно

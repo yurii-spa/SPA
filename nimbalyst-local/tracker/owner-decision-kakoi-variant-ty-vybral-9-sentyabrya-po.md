@@ -2,7 +2,7 @@
 trackerStatus:
   type: owner-decision
 title: "Какой вариант ты выбрал 9 сентября по лицензии на данные: машинная запись говорит «1», канон записал «2»"
-status: owner-done
+status: ingested
 source: nimbalyst
 created: 2026-10-15
 owner_choice: A
@@ -12,6 +12,7 @@ owner_answered_by: владелец (сессия Claude Code; ADR-836)
 owner_answer_kind: option
 status_trail:
   - "2026-10-27T19:44:03.834092+00:00 needs-owner -> owner-done · owner_answer.record_session_answer"
+  - "2026-10-27T21:05:13.920196+00:00 owner-done -> ingested · queue.set_status · cycle-18168"
 ---
 
 ## Что случилось и почему это важно

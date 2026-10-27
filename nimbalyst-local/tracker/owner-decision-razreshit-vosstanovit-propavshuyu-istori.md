@@ -2,7 +2,7 @@
 trackerStatus:
   type: owner-decision
 title: Разрешить восстановить пропавшую историю двух карточек в рабочем дереве (95 и 6 записей)
-status: owner-done
+status: ingested
 source: nimbalyst
 created: 2026-10-13
 owner_choice: 1
@@ -12,6 +12,7 @@ owner_answered_by: владелец (сессия Claude Code; ADR-836)
 owner_answer_kind: option
 status_trail:
   - "2026-10-27T19:44:03.833354+00:00 needs-owner -> owner-done · owner_answer.record_session_answer"
+  - "2026-10-27T21:05:21.131038+00:00 owner-done -> ingested · queue.set_status · cycle-18168"
 ---
 
 ## Что случилось и почему это важно

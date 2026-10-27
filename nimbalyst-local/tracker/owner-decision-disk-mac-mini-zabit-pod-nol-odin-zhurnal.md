@@ -2,7 +2,7 @@
 trackerStatus:
   type: owner-decision
 title: Диск Mac Mini забит под ноль — один журнал агента вырос до 7,1 ГБ и остановил запись на всей машине
-status: owner-done
+status: ingested
 source: nimbalyst
 created: 2026-09-26
 subject: IRREVERSIBLE
@@ -14,6 +14,7 @@ owner_answered_by: владелец (сессия Claude Code; ADR-836)
 owner_answer_kind: option
 status_trail:
   - "2026-10-27T19:44:03.830551+00:00 needs-owner -> owner-done · owner_answer.record_session_answer"
+  - "2026-10-27T21:05:11.109025+00:00 owner-done -> ingested · queue.set_status · cycle-18168"
 ---
 
 ## Что случилось и почему это важно

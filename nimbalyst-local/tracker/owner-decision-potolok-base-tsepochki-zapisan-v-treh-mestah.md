@@ -2,7 +2,7 @@
 trackerStatus:
   type: owner-decision
 title: Потолок Base-цепочки записан в трёх местах — какое из них главное?
-status: owner-done
+status: ingested
 source: nimbalyst
 created: 2026-09-21
 subject: MONEY
@@ -14,6 +14,7 @@ owner_answered_by: владелец (сессия Claude Code; ADR-836)
 owner_answer_kind: option
 status_trail:
   - "2026-10-27T19:44:03.837827+00:00 needs-owner -> owner-done · owner_answer.record_session_answer"
+  - "2026-10-27T21:05:19.050778+00:00 owner-done -> ingested · queue.set_status · cycle-18168"
 ---
 
 ## Что случилось и почему это важно

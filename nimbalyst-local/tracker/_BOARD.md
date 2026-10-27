@@ -2,9 +2,9 @@
 
 > Авто-генерится `scripts/build_tracker_board.py` из `nimbalyst-local/tracker/*.md`. НЕ править вручную — правь карточки. Источник правды — карточки, это индекс (bootstrap).
 >
-> Собрана: 2026-10-27T19:44:04Z · сверка с карточками: `python3 scripts/build_tracker_board.py --check` (сторож `spa_core/tests/test_tracker_board_matches_cards.py`).
+> Собрана: 2026-10-27T21:05:27Z · сверка с карточками: `python3 scripts/build_tracker_board.py --check` (сторож `spa_core/tests/test_tracker_board_matches_cards.py`).
 >
-> Сверено с `origin/main` (094e5fbca) · у **16** своя правка, кто новее — не измерено.
+> Сверено с `origin/main` (f6804725c) · у **18** своя правка, кто новее — не измерено.
 >
 > Всего карточек: **1482** · ждёт владельца: **0** · занято сессиями: **15**.
 
@@ -29,7 +29,7 @@ _Пусто — открытых решений на владельце нет._
 - **Прогон тестов переписывает СОРОК git-tracked файлов в data/ (карточка #225/#226 считает, что их три) — среди них журнал исполнения** — держит `cycle-352` · с 2026-08-23T03:25:59Z  ·  `inbox-progon-testov-perepisyvaet-sorok-otslezhivaemyh-failov-data.md`
 - **Производители устаревших чисел сайта: дата go-live из API, сверка NAV до цикла, протухшие артефакты, молчащие стражи сайта** — держит `pid20023` · с 2026-09-08T21:15:05Z  ·  `inbox-proizvoditeli-ustarevshih-chisel-saita-d.md`
 - **Сторож ответа владельца зовёт человека на не-спор: 1 и "1" — одно решение, а сравниваются байты** — держит `cycle-84821` · с 2026-08-30T00:50:53Z  ·  `inbox-storozh-otveta-vladeltsa-zovet-cheloveka.md`
-- **TASK — Portfolio CIO: Dynamic Capital Allocation & Rebalancing** — держит `cycle-49862` · с 2026-10-27T18:34:21Z  ·  `inbox-task-portfolio-cio-dynamic-capital-alloc.md`
+- **TASK — Portfolio CIO: Dynamic Capital Allocation & Rebalancing** — держит `cycle-18168` · с 2026-10-27T20:55:24Z  ·  `inbox-task-portfolio-cio-dynamic-capital-alloc.md`
 - **Замок цикла оркестратора доставлен, но в проде не работает: обёртка агента синкается раз в сутки, а голос о пропавшей защите живёт в самом пропавшем файле** — держит `cycle-81141` · с 2026-08-08T01:59:06Z  ·  `inbox-zamok-tsikla-orkestratora-dostavlen-no-v.md`
 
 ## 🧑‍⚖️ Owner Decisions (что нужно от владельца)  (372)
@@ -88,6 +88,7 @@ _Пусто — открытых решений на владельце нет._
 - Четверть книги уехала в самый низкодоходный протокол — нашёл причину, чинить или нет  ·  `own-dengi-uehali-v-samyi-nizkodohodnyi-protokol.md` · 2026-08-31
 - Fluid закрыт для капитала по правилу другого протокола — нужно твоё решение  ·  `own-fluid-gsm-gate-chuzhoy-parametr.md` · 2026-08-18
 - МАНДАТ АВТОНОМИИ ВОЗОБНОВЛЁН на 30 дней (решение владельца 2026-08-20, cloud-сессия) — вернуться к темпу ADR-078  ·  `own-mandat-avtonomii-vozobnovlen-30-dnei.md` · 2026-08-20
+- «Оптимум», который система предлагает, шесть раз оказался хуже решения ничего не делать  ·  `own-optimum-proigryvaet-resheniyu-nichego-ne-d.md` · 2026-09-27
 - Деньги, срезанные защитами аллокатора, теперь ПОСЧИТАНЫ и НАЗВАНЫ — включать ли их обратно в работу?  ·  `own-pererazdavat-li-srezannoe-zaschitami.md` · 2026-08-26
 - Размещение свободных денег останавливает перекладку книги на трое суток — я это сделал вчера, надо решить  ·  `own-razmeshenie-kesha-perezapuskaet-72-chasa.md` · 2026-08-30
 - Наблюдённая угроза до тебя не доезжает, а наша собственная остановка доезжает каждый день  ·  `own-red-team-nablyudennaya-ugroza-ne-doezzhaet.md` · 2026-08-18
@@ -111,6 +112,7 @@ _Пусто — открытых решений на владельце нет._
 - ОТВЕЧЕНО: правила вложений записаны, владелец выбрал вариант 1 по последнему вопросу  ·  `owner-decision-AI1-approach-2026-08-29.md` · 2026-08-29
 - Aave на Arbitrum: мы смотрим на опустевший рынок —  тыс. вместо заявленного .2 млрд  ·  `owner-decision-aave-na-arbitrum-my-smotrim-na-opustevsh.md` · 2026-08-29
 - Агент бумажных книг каждую ночь стирает накопленное — тиры Balanced/Aggressive не станут доказанными никогда  ·  `owner-decision-agent-bumazhnyh-knig-kazhduyu-noch-stira.md` · 2026-08-01
+- Агент-наблюдатель просыпается раз в 7,6 часа вместо 6 — поменять расписание на фиксированные отметки  ·  `owner-decision-agent-nablyudatel-prosypaetsya-raz-v-7-6.md` · 2026-10-26
 - Аллокатор ранжирует пулы на невыверенном TVL ($50M-литерал) — исключать ли их из свежих целей?  ·  `owner-decision-allokator-ranzhiruet-puly-na-vydumannom-tvl.md` · 2026-08-02
 - Аварийная остановка ТЕРЯЕТСЯ при восстановлении из резерва (выбери, как убрать файлы состояния из git)  ·  `owner-decision-avariinaya-ostanovka-teryaetsya-pri-vosst.md` · 2026-08-18
 - Аварийный тормоз: осталось одно решение — что делать после срабатывания (кнопки теперь есть)  ·  `owner-decision-avariinyi-tormoz-ostalos-odno-reshenie-c.md` · 2026-08-19
@@ -136,6 +138,7 @@ _Пусто — открытых решений на владельце нет._
 - Я задал тебе неверный вопрос про слепые протоколы — проверил, и всё оказалось наоборот  ·  `owner-decision-derisk-vopros-byl-postavlen-neverno-2026-08-29.md` · 2026-08-29
 - Девять агентов висят нерешёнными: закрыть или включить  ·  `owner-decision-devyat-agentov-visyat-nereshennymi-zakry.md` · 2026-08-05
 - Девять тысяч долларов достаются протоколу по алфавиту — чинить ли ступеньку в расчёте раскладки  ·  `owner-decision-devyat-tysyach-dollarov-dostayutsya-prot.md` · 2026-09-09
+- Диск Mac Mini забит под ноль — один журнал агента вырос до 7,1 ГБ и остановил запись на всей машине  ·  `owner-decision-disk-mac-mini-zabit-pod-nol-odin-zhurnal.md` · 2026-09-26
 - Дневной лимит убытка: а если сама проверка УПАЛА — торгуем или нет? (второй вопрос той же карточки, ответа нет)  ·  `owner-decision-dnevnoi-limit-ubytka-a-esli-sama-proverk.md` · 2026-08-21
 - Дневной цикл сегодня запускали 8 раз не по расписанию — и кто именно, система не записывает  ·  `owner-decision-dnevnoi-tsikl-segodnya-zapuskali-8-raz-n.md` · 2026-08-08
 - Дневной лимит убытка считает «не знаю» за «убытка нет» — и в этот день цикл торгует  ·  `owner-decision-dnevnoy-limit-ubytka-schitaet-neizvestn.md` · 2026-08-18
@@ -145,6 +148,7 @@ _Пусто — открытых решений на владельце нет._
 - Два агента не переживут перезагрузку — разрешить доустановить их в системную папку  ·  `owner-decision-dva-agenta-ne-perezhivut-perezagruzku-ra.md` · 2026-08-06
 - Два дня трека помечены доказанными, хотя в эти дни система не держала ничего  ·  `owner-decision-dva-dnya-treka-pomecheny-dokazannymi-hot.md` · 2026-08-10
 - Запрет на fluid_usdc объявлен и НЕ исполняется: там стоит 20 % книги  ·  `owner-decision-dva-imeni-odin-kontrakt-20-deneg-stoyat.md` · 2026-09-04
+- Два места в системе зовут один и тот же протокол разным тиром — от этого потолок на него меняется вдвое  ·  `owner-decision-dva-mesta-zovut-odin-protokol-raznym-t.md` · 2026-09-27
 - Два пакета из трёх живут без потолка риска — и сегодня стоят вдвое и втрое выше нашего же лимита  ·  `owner-decision-dva-paketa-iz-treh-zhivut-bez-potolka-ri.md` · 2026-09-07
 - Два помощника готовы, но включить их можешь только ты — они стоят вторые сутки  ·  `owner-decision-dva-pomoschnika-gotovy-no-vklyuchit-ih-m.md` · 2026-08-26
 - Два цикла оркестратора работали одновременно — карточки защищены, сам цикл нет  ·  `owner-decision-dva-tsikla-orkestratora-rabotali-odnovre.md` · 2026-08-01
@@ -154,6 +158,7 @@ _Пусто — открытых решений на владельце нет._
 - Две трети капитала стоят на числах, которых никто не наблюдал  ·  `owner-decision-dve-treti-kapitala-stoyat-na-chislah-kot.md` · 2026-09-05
 - Две записи о деньгах: причина найдена и измерена — выбрать, чем чинить  ·  `owner-decision-dve-zapisi-o-dengah-prichina-naidena-i-i.md` · 2026-08-17
 - earn-defi: в белом списке пусто — движок не может профинансировать ничего  ·  `owner-decision-earn-defi-belyi-spisok-nichego-ne-odobreno.md` · 2026-09-09
+- earn-defi: нужен Telegram-канал — иначе доказательства сигналов копятся, но не публикуются  ·  `owner-decision-earn-defi-kanal-telegram-dlya-publikatsii.md` · 2026-09-09
 - earn-defi: данные взяты по бесплатной лицензии «не для коммерции»  ·  `owner-decision-earn-defi-litsenziya-na-dannye-do-deneg.md` · 2026-09-09
 - earn-defi: создать репозиторий на GitHub — у агента нет прав, работа лежит локально  ·  `owner-decision-earn-defi-sozdat-repozitorii-na-github.md` · 2026-09-09
 - earn-defi: таблица режимов на истории НЕ бьёт «просто держать биткоин»  ·  `owner-decision-earn-defi-tablitsa-rezhimov-ne-bet-buy-and-hold.md` · 2026-09-09
@@ -173,6 +178,7 @@ _Пусто — открытых решений на владельце нет._
 - Хвост maple ты принял на доле 15%, а фактическая доля — 20%: принятый убыток на треть больше  ·  `owner-decision-hvost-maple-ty-prinyal-na-dole-15-a-fakt.md` · 2026-08-22
 - ИИ не пускают к деньгам — но проверка, которая это стережёт, слепа на нашу единственную дверь  ·  `owner-decision-ii-ne-puskayut-k-dengam-no-proverka-koto.md` · 2026-09-07
 - Инструкции, по которым работают агенты на Маке, отстали от принятых решений — включая уже снятый запрет  ·  `owner-decision-instruktsii-po-kotorym-rabotayut-agenty.md` · 2026-09-02
+- Какой вариант ты выбрал 9 сентября по лицензии на данные: машинная запись говорит «1», канон записал «2»  ·  `owner-decision-kakoi-variant-ty-vybral-9-sentyabrya-po.md` · 2026-10-15
 - Карта агентов в проде устаревает навсегда: её некому пересобирать  ·  `owner-decision-karta-agentov-v-prode-ustarevaet-navsegd.md` · 2026-09-02
 - Кэш системы — тот же USDC: замер показал, что наивная корзина кэша не лечит, а вредит  ·  `owner-decision-kesh-sistemy-tot-zhe-usdc-zamer-pokazal.md` · 2026-08-22
 - Ключ GitHub: переспрашиваю — прошлые кнопки были моей ошибкой  ·  `owner-decision-klyuch-github-peresprashivayu-proshlye-k.md` · 2026-08-26
@@ -215,6 +221,7 @@ _Пусто — открытых решений на владельце нет._
 - Публичное число двух книг: считать трек с 22 июня (там были литералы) или с 10 сентября (там начались наблюдения)?  ·  `owner-decision-otkuda-schitat-trek-dvuh-knig.md` · 2026-09-10
 - Партия 2 карантина: кандидатов четыре, и по ним у меня разные рекомендации  ·  `owner-decision-partiya-2-karantina-kandidatov-chetyre-i.md` · 2026-08-29
 - Pendle сам назначает себе уровень риска по размеру пула — а в справочнике написано другое  ·  `owner-decision-pendle-sam-naznachaet-sebe-uroven-riska.md` · 2026-09-05
+- Перепроверка перед сделкой: назови два числа — насколько свежими должны быть ставки и сколько живёт решение  ·  `owner-decision-pereproverka-pered-sdelkoi-nazovi-dva-ch.md` · 2026-09-27
 - Переспрашиваю: судьба сторожа telegram_watcher — твой ответ 15.08 потерялся вместе с закрытой веткой  ·  `owner-decision-peresprashivayu-sudba-storozha-telegram.md` · 2026-08-21
 - Перезапустить сторожа реального времени, чтобы починка начала работать (одна команда)  ·  `owner-decision-perezapustit-storozha-realnogo-vremeni-c.md` · 2026-08-02
 - Починка журнала решений: сломанных мест три, а не два — в каком порядке чинить  ·  `owner-decision-pochinka-zhurnala-reshenii-slomannyh-mes.md` · 2026-09-14
@@ -225,16 +232,19 @@ _Пусто — открытых решений на владельце нет._
 - Понижение тира при ухудшении: правило обещает «агент немедленно», исполнителя нет  ·  `owner-decision-ponizhenie-tira-pri-uhudshenii-pravilo-o.md` · 2026-09-11
 - После страховки деньги остаются сиротами: 10 % капитала ($10 000) лежат в кэше, потому что освободившийся бюджет никто не перекладывает  ·  `owner-decision-posle-strahovki-dengi-ostayutsya-sirotam.md` · 2026-08-07
 - Поставить на Мак программу Bitcoin Core — без неё свою цену биткоина считать не из чего  ·  `owner-decision-postavit-na-mak-programmu-bitcoin-core-b.md` · 2026-09-17
+- Потолок Base-цепочки записан в трёх местах — какое из них главное?  ·  `owner-decision-potolok-base-tsepochki-zapisan-v-treh-mestah.md` · 2026-09-21
 - Правило «Sky/sUSDS = 0 %» отменено твоим же решением, но написано как действующее — и уже породило ложную тревогу  ·  `owner-decision-pravilo-sky-susds-0-otmeneno-tvoim-zhe-r.md` · 2026-08-17
 - Пробный ход советника состоялся, но оценить его нечем — разрешение потрачено впустую  ·  `owner-decision-probnyi-hod-sovetnika-sostoyalsya-no-ots.md` · 2026-09-14
 - 🅰🅰🅰 Продуктовый слой агентов (Head of Product + R&D продукта + продвижение) — построить  ·  `owner-decision-produktovyi-sloi-agentov-head-of-product.md` · 2026-07-16
 - Проверь одно поле: доходят ли до тебя заявки с сайта (одна минута)  ·  `owner-decision-prover-odno-pole-dohodyat-li-do-tebya-za.md` · 2026-08-22
 - Проверка книги слабее проверки перед сделкой — 60 % в рисковом уровне проходит как «здоровый портфель»  ·  `owner-decision-proverka-knigi-slabee-proverki-pered-sde.md` · 2026-08-18
 - Публичная страница «проверь нас» показывает замеры месячной давности — выбери, как их обновлять  ·  `owner-decision-publichnaya-stranitsa-prover-nas-pokazyv.md` · 2026-07-29
+- Пять процентов кэша записаны в двух местах — это одно правило или два?  ·  `owner-decision-pyat-protsentov-kesha-zapisany-v-dvuh-me.md` · 2026-09-19
 - Пять решений после ночного аудита: честные числа, кнопка «Пауза» и кто что решает  ·  `owner-decision-pyat-reshenii-po-itogam-nochnogo-audita.md` · 2026-09-09
 - Пятая часть денег стоит на числе, о котором две наши системы спорят (Pendle)  ·  `owner-decision-pyataya-chast-deneg-stoit-na-chisle-o-ko.md` · 2026-08-26
 - Рабочая копия проекта на маке отстала от GitHub на 345 коммитов — из-за этого очередь заданий показывает старое  ·  `owner-decision-rabochaya-kopiya-proekta-na-make-otstala.md` · 2026-07-31
 - Разорвать замкнутый круг автовзвода: советник ребаланса заблокирован 34 дня из 34  ·  `owner-decision-razorvat-zamknutyi-krug-avtovzvoda-sovet.md` · 2026-09-09
+- Разрешить восстановить пропавшую историю двух карточек в рабочем дереве (95 и 6 записей)  ·  `owner-decision-razreshit-vosstanovit-propavshuyu-istori.md` · 2026-10-13
 - Реинвестировать заработанное или держать базу ровно 100 тысяч  ·  `owner-decision-reinvestirovat-nachislennoe-ili-derzhat-100k.md` · 2026-09-09
 - Решение ADR-070 п.6 исполнить нельзя: «один вольт — один риск» упирается в тир morpho_steakhouse (40% → 20%)  ·  `owner-decision-reshenie-adr-070-p-6-ispolnit-nelzya-odi.md` · 2026-08-10
 - Решение ADR-104 записано, но до машины не доехало: CIO обязан смотреть раз в 5 минут, а смотрит раз в сутки  ·  `owner-decision-reshenie-adr-104-zapisano-no-do-mashiny.md` · 2026-08-21
@@ -247,6 +257,8 @@ _Пусто — открытых решений на владельце нет._
 - Сайт: на трёх страницах всё ещё старая ставка «~3.3%» вместо живой 4.9% — заменить на общий источник  ·  `owner-decision-sait-na-treh-stranitsah-vse-esche-staray.md` · 2026-10-01
 - Как округлять доходность на сайте: 4,9637 % печатается как 5,0 % — вверх  ·  `owner-decision-sait-pokazyvaet-chisla-ot-20-sentyabrya.md` · 2026-09-25
 - Сайт: страница Aggressive в четырёх местах всё ещё пишет про плечо, которого в книге нет  ·  `owner-decision-sait-stranitsa-aggressive-v-chetyreh-mes.md` · 2026-10-01
+- Сайт: track_snapshot.json — автономная правка задела owner-gated область, нужно решение  ·  `owner-decision-sait-track-snapshot-json-avtonomnaya-pra-2.md` · 2026-10-22
+- Сайт: track_snapshot.json — автономная правка задела owner-gated область, нужно решение  ·  `owner-decision-sait-track-snapshot-json-avtonomnaya-pra.md` · 2026-10-06
 - Сайт: убрать восемь утверждений, которые не совпадают с тем, что делает система (тиры, вывод, L6, плечо, стоп-кран)  ·  `owner-decision-sait-ubrat-vosem-utverzhdenii-kotorye-ne.md` · 2026-10-01
 - Сайт: устаревшие и спорные утверждения — что менять  ·  `owner-decision-sait-ustarevshie-i-spornye-utverzhdeniya.md` · 2026-09-08
 - Сайт: why-20-apy-means-tail-risk.astro и ещё 2 — автономная правка задела owner-gated область, нужно решение  ·  `owner-decision-sait-why-20-apy-means-tail-risk-astro-i.md` · 2026-09-09
@@ -256,6 +268,7 @@ _Пусто — открытых решений на владельце нет._
 - Сегодняшний цикл трека не запускался: Мак был выключен в 08:00  ·  `owner-decision-segodnyashnii-tsikl-treka-ne-zapuskalsya.md` · 2026-09-17
 - Шесть модулей выдумывают остаток на кошельке вместо отказа — чинить сейчас или записать условием go-live?  ·  `owner-decision-shest-modulei-vydumyvayut-ostatok-na-kos.md` · 2026-09-07
 - Шесть находок за день оказались ОДНОЙ болезнью: где наблюдения нет, система говорит «всё хорошо» вместо «не знаю»  ·  `owner-decision-shest-nahodok-za-den-okazalis-odnoi-bole.md` · 2026-08-18
+- Система не спрашивает, продержится ли выгода — и по факту она не продержалась ни разу  ·  `owner-decision-sistema-ne-sprashivaet-proderzhitsya-li.md` · 2026-09-26
 - Система остановлена аварийным выключателем: он сравнивает живую доходность с числами, вписанными в код  ·  `owner-decision-sistema-ostanovlena-avariinym-vyklyuchat.md` · 2026-08-10
 - Сколько минут слепоты внутридневного сенсора — уже повод тебя разбудить  ·  `owner-decision-skolko-minut-slepoty-vnutridnevnogo-sens.md` · 2026-08-23
 - Сколько стоит один цикл агента — без твоего числа стоимость цеха не считается  ·  `owner-decision-skolko-stoit-odin-tsikl-agenta.md` · 2026-09-09
@@ -266,6 +279,7 @@ _Пусто — открытых решений на владельце нет._
 - Советник по перекладке денег не сможет включиться НИКОГДА — 30 дней он молчал не потому, что рынок тихий  ·  `owner-decision-sovetnik-po-perekladke-deneg-ne-smozhet.md` · 2026-09-05
 - Списать 180 фоновых модулей Tier-C или честно записать, что мы про них не знаем  ·  `owner-decision-spisat-180-fonovyh-modulei-tier-c-ili-ch.md` · 2026-08-17
 - Стейбл-нога BTC-движка лежит под 0 % — разместить её в консервативной книге SPA?  ·  `owner-decision-steibl-noga-btc-dvizhka-v-pol-spa.md` · 2026-09-09
+- Стоимость перекладки заряжается в 134 раза дороже наблюдаемой — нужен твой порог «сколько уже слишком»  ·  `owner-decision-stoimost-perekladki-zaryazhaetsya-v-134.md` · 2026-09-29
 - Сторож базисной сделки ожил и хочет слать тебе «отличная возможность» — включаем эти сообщения или нет  ·  `owner-decision-storozh-bazisnoi-sdelki-ozhil-i-hochet-s.md` · 2026-08-01
 - Сторож чисел сайта краснеет ~10 раз в день на нашей же автоматике — разрешить ему молчать там, где он всё равно ничего не измеряет?  ·  `owner-decision-storozh-chisel-saita-krasneet-10-raz-v-den.md` · 2026-08-19
 - Сторож голосований следит за чужими протоколами, а за нашими — нет: выбери, добавлять источники или убрать лишние  ·  `owner-decision-storozh-golosovanii-sledit-za-chuzhimi-p.md` · 2026-08-01
@@ -295,6 +309,7 @@ _Пусто — открытых решений на владельце нет._
 - Твоё решение от 10 августа про Morpho Steakhouse не действует в коде: потолок 40 % вместо 20 %  ·  `owner-decision-tvoe-reshenie-ot-10-avgusta-pro-morpho-s.md` · 2026-08-29
 - Твой ответ «Ответ 1» сегодня не применился — теперь можно отвечать прямо на сообщение с вопросом  ·  `owner-decision-tvoi-otvet-otvet-1-segodnya-ne-primenils.md` · 2026-08-20
 - Твои решения от 23 июля 11 дней не лежали в git — доставил, подтверди что в силе  ·  `owner-decision-tvoi-resheniya-ot-23-iyulya-11-dnei-ne-l.md` · 2026-08-02
+- Убрать 2 ГБ служебного мусора git в рабочем дереве на Маке  ·  `owner-decision-ubrat-2-gb-sluzhebnogo-musora-git-v-rabo.md` · 2026-10-10
 - Один лишний файл в рабочей папке не даёт запустить ТЕСТЫ на твоей машине — убрать его  ·  `owner-decision-ubrat-slomannyi-ostatok-v-rabochei-papke.md` · 2026-08-19
 - Удалить оставшийся файл с токеном из папки проекта (одна команда)  ·  `owner-decision-udalit-ostavshiisya-fail-s-tokenom.md` · 2026-09-09
 - ИСПОЛНЕНО: убраны все заявки о том, что мы торговали реальными деньгами  ·  `owner-decision-urovni-dokazatelnosti-2026-08-29.md` · 2026-08-29
@@ -307,6 +322,7 @@ _Пусто — открытых решений на владельце нет._
 - Уточнение по заметке: Неприменённый ответ владельца «1» — адресат не назван  ·  `owner-decision-utochnenie-po-zametke-neprimenennyi-otve.md` · 2026-09-17
 - Уточнение по заметке: Приборы бросают одноразовый стенд: 87 ГБ снято, остаток класса измерен — 35 файлов без уборки  ·  `owner-decision-utochnenie-po-zametke-pribory-brosayut-o.md` · 2026-10-15
 - Уточнение по заметке: проверь дашборд  ·  `owner-decision-utochnenie-po-zametke-prover-dashbord.md` · 2026-10-15
+- Уточнение по заметке: Сто тридцать девять брошенных деревьев циклов: 24,6 ГБ, и снимать их вслепую нельзя  ·  `owner-decision-utochnenie-po-zametke-sto-tridtsat-devya.md` · 2026-10-15
 - Утреннее письмо может не дойти, а система этого не заметит — выбери, как это показывать  ·  `owner-decision-utrennee-pismo-mozhet-ne-doiti-a-sistema.md` · 2026-08-01
 - Утренние сообщения в Telegram: главное + подробности  ·  `owner-decision-utrennie-soobscheniya-v-telegram-glavnoe.md` · 2026-09-08
 - В шаблоне договора осталось снятое ограничение по Sky/sUSDS  ·  `owner-decision-v-shablone-dogovora-ostalos-snyatoe-ogra.md` · 2026-08-25
@@ -320,11 +336,13 @@ _Пусто — открытых решений на владельце нет._
 - Второй цикл оркестратора не переживёт перезагрузку — его записка лежит не в той папке  ·  `owner-decision-vtoroi-tsikl-orkestratora-ne-perezhivet.md` · 2026-08-27
 - Выдуманная казна протокола в оценке страховки — оставить или отказываться?  ·  `owner-decision-vydumannaya-kazna-protokola-v-otsenke-st.md` · 2026-08-04
 - Я откатил 116 файлов живого состояния в боевом дереве — 114 вернул из резерва, дыра 19,5 часов осталась  ·  `owner-decision-ya-otkatil-116-failov-zhivogo-sostoyaniy.md` · 2026-08-23
+- Закрыть три черновых PR — у моего ключа нет на это прав (или выдать права)  ·  `owner-decision-zakryt-tri-chernovyh-pr-u-moego-klyucha.md` · 2026-09-26
 - Закрытие вопроса владельца из рабочего дерева читается сторожем как «закрыли без владельца» — выбери, чем лечим  ·  `owner-decision-zakrytie-voprosa-vladeltsa-iz-rabochego.md` · 2026-08-17
 - Замок дневного цикла не спрашивает, жив ли держатель — сегодня 18 отказов подряд из-за мёртвого процесса  ·  `owner-decision-zamok-dnevnogo-tsikla-ne-sprashivaet-zhi.md` · 2026-08-08
 - Запасной ключ к защите сайта не работает — починить или убрать из инструкции?  ·  `owner-decision-zapasnoi-klyuch-k-zaschite-saita-ne-rabo.md` · 2026-08-07
 - Записывать ли в дневное решение ВСЕ живые ставки дня, а не только те, что в портфеле  ·  `owner-decision-zapisyvat-li-v-dnevnoe-reshenie-vse-zhiv.md` · 2026-09-10
 - Запустить сторожа архитектуры (он готов, но включать агентов может только владелец)  ·  `owner-decision-zapustit-storozha-arhitektury-on-gotov-n.md` · 2026-08-05
+- Защита от качелей сравнивает не то, что нужно — книга 12 раз вернулась туда, откуда ушла  ·  `owner-decision-zaschita-ot-kachelei-sravnivaet-ne-to-ch.md` · 2026-09-26
 - Защита сайта каждый день ловит нашего же робота: числа доходности уезжают в live мимо гейта  ·  `owner-decision-zaschita-saita-kazhdyi-den-lovit-nashego.md` · 2026-08-02
 - Живой вход только по стейблам: чем закрываем нестейбл-экспозицию до реальных денег  ·  `owner-decision-zhivoi-vhod-tolko-po-steiblam-chem-zakry.md` · 2026-08-23
 ### · done
@@ -389,25 +407,6 @@ _Пусто — открытых решений на владельце нет._
 - Уточнение по заметке: Tier-C: пять настоящих отказов агрегатора — два чинятся, три требуют фактов, которых нет  ·  `owner-decision-utochnenie-po-zametke-tier-c-pyat-nastoy.md` · 2026-08-11
 - Уточнение по заметке: Задача присылать в телеграм не просто нужно твое решение а и кнопки с вариантам…  ·  `owner-decision-utochnenie-po-zametke-zadacha-prisylat-v.md` · 2026-08-11
 - Уточнение по заметке: Замок цикла оркестратора доставлен, но в проде не работает: обёртка агента синкается раз в сутки, а голос о пропавшей защите живёт в самом пропавшем файле  ·  `owner-decision-utochnenie-po-zametke-zamok-tsikla-orkes.md` · 2026-08-11
-### · owner-done
-- «Оптимум», который система предлагает, шесть раз оказался хуже решения ничего не делать  ·  `own-optimum-proigryvaet-resheniyu-nichego-ne-d.md` · 2026-09-27
-- Агент-наблюдатель просыпается раз в 7,6 часа вместо 6 — поменять расписание на фиксированные отметки  ·  `owner-decision-agent-nablyudatel-prosypaetsya-raz-v-7-6.md` · 2026-10-26
-- Диск Mac Mini забит под ноль — один журнал агента вырос до 7,1 ГБ и остановил запись на всей машине  ·  `owner-decision-disk-mac-mini-zabit-pod-nol-odin-zhurnal.md` · 2026-09-26
-- Два места в системе зовут один и тот же протокол разным тиром — от этого потолок на него меняется вдвое  ·  `owner-decision-dva-mesta-zovut-odin-protokol-raznym-t.md` · 2026-09-27
-- earn-defi: нужен Telegram-канал — иначе доказательства сигналов копятся, но не публикуются  ·  `owner-decision-earn-defi-kanal-telegram-dlya-publikatsii.md` · 2026-09-09
-- Какой вариант ты выбрал 9 сентября по лицензии на данные: машинная запись говорит «1», канон записал «2»  ·  `owner-decision-kakoi-variant-ty-vybral-9-sentyabrya-po.md` · 2026-10-15
-- Перепроверка перед сделкой: назови два числа — насколько свежими должны быть ставки и сколько живёт решение  ·  `owner-decision-pereproverka-pered-sdelkoi-nazovi-dva-ch.md` · 2026-09-27
-- Потолок Base-цепочки записан в трёх местах — какое из них главное?  ·  `owner-decision-potolok-base-tsepochki-zapisan-v-treh-mestah.md` · 2026-09-21
-- Пять процентов кэша записаны в двух местах — это одно правило или два?  ·  `owner-decision-pyat-protsentov-kesha-zapisany-v-dvuh-me.md` · 2026-09-19
-- Разрешить восстановить пропавшую историю двух карточек в рабочем дереве (95 и 6 записей)  ·  `owner-decision-razreshit-vosstanovit-propavshuyu-istori.md` · 2026-10-13
-- Сайт: track_snapshot.json — автономная правка задела owner-gated область, нужно решение  ·  `owner-decision-sait-track-snapshot-json-avtonomnaya-pra-2.md` · 2026-10-22
-- Сайт: track_snapshot.json — автономная правка задела owner-gated область, нужно решение  ·  `owner-decision-sait-track-snapshot-json-avtonomnaya-pra.md` · 2026-10-06
-- Система не спрашивает, продержится ли выгода — и по факту она не продержалась ни разу  ·  `owner-decision-sistema-ne-sprashivaet-proderzhitsya-li.md` · 2026-09-26
-- Стоимость перекладки заряжается в 134 раза дороже наблюдаемой — нужен твой порог «сколько уже слишком»  ·  `owner-decision-stoimost-perekladki-zaryazhaetsya-v-134.md` · 2026-09-29
-- Убрать 2 ГБ служебного мусора git в рабочем дереве на Маке  ·  `owner-decision-ubrat-2-gb-sluzhebnogo-musora-git-v-rabo.md` · 2026-10-10
-- Уточнение по заметке: Сто тридцать девять брошенных деревьев циклов: 24,6 ГБ, и снимать их вслепую нельзя  ·  `owner-decision-utochnenie-po-zametke-sto-tridtsat-devya.md` · 2026-10-15
-- Закрыть три черновых PR — у моего ключа нет на это прав (или выдать права)  ·  `owner-decision-zakryt-tri-chernovyh-pr-u-moego-klyucha.md` · 2026-09-26
-- Защита от качелей сравнивает не то, что нужно — книга 12 раз вернулась туда, откуда ушла  ·  `owner-decision-zaschita-ot-kachelei-sravnivaet-ne-to-ch.md` · 2026-09-26
 ### · closed
 - Считать ли верный отказ по правилам допуска неисправностью флота  ·  `owner-decision-schitat-li-vernyi-otkaz-po-pravilam-dopu.md` · 2026-10-08
 
@@ -429,7 +428,7 @@ _Пусто — открытых решений на владельце нет._
 - Расширить опрашиваемый набор адаптеров шагами (второй шаг варианта A, после ADR-138)  ·  `inbox-rasshirit-oprashivaemyi-nabor-adapterov.md` · 2026-08-26
 - Сторож кнопок нарушает границу, которую сам объявил соблюдённой: метка-БУКВА принималась где угодно, и слово в прозе = «наш дефект разбора» с лекарством чинить НЕСУЩЕСТВУЮЩУЮ форму (перемер #484: ложная ОДНА из 21, не пять; п.1 исполнен)  ·  `inbox-storozh-knopok-narushaet-granitsu-kotoru.md` · 2026-09-04
 - Сторож переходов статусов ждёт первого улова: назвать немого писателя и встроить прогон в агента  ·  `inbox-storozh-perehodov-statusov-zhdet-pervogo.md` · 2026-08-09
-- TASK — Portfolio CIO: Dynamic Capital Allocation & Rebalancing  ·  `inbox-task-portfolio-cio-dynamic-capital-alloc.md` · 2026-08-13 · 🔒 `cycle-49862`
+- TASK — Portfolio CIO: Dynamic Capital Allocation & Rebalancing  ·  `inbox-task-portfolio-cio-dynamic-capital-alloc.md` · 2026-08-13 · 🔒 `cycle-18168`
 - Tier-C: 171 из 180 модулей не отвечают, 9 отвечающих — константы. Подключить или честно списать  ·  `inbox-tier-c-171-iz-180-modulei-ne-otvechayut.md` · 2026-08-06
 - Целостность трека SPA: подключить сторож, пересчёт из сырых входов, commit-reveal книги (перенос из earn-defi)  ·  `inbox-tselostnost-treka-spa-podklyuchit-storoz.md` · 2026-09-08
 - Цена класса «две сессии на одном предмете»: G38 п. 3 лежит остатком пятьдесят заказов  ·  `inbox-tsena-klassa-dve-sessii-na-odnom-predmet.md` · 2026-09-28

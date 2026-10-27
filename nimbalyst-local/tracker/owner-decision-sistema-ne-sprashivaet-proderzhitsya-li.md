@@ -2,7 +2,7 @@
 trackerStatus:
   type: owner-decision
 title: Система не спрашивает, продержится ли выгода — и по факту она не продержалась ни разу
-status: owner-done
+status: ingested
 source: nimbalyst
 created: 2026-09-26
 priority: high
@@ -13,6 +13,7 @@ owner_answered_by: владелец (сессия Claude Code; ADR-836)
 owner_answer_kind: option
 status_trail:
   - "2026-10-27T19:44:03.839062+00:00 needs-owner -> owner-done · owner_answer.record_session_answer"
+  - "2026-10-27T21:05:20.074595+00:00 owner-done -> ingested · queue.set_status · cycle-18168"
 ---
 
 ## Что случилось и почему это важно

@@ -2,7 +2,7 @@
 trackerStatus:
   type: owner-decision
 title: Агент-наблюдатель просыпается раз в 7,6 часа вместо 6 — поменять расписание на фиксированные отметки
-status: owner-done
+status: ingested
 source: nimbalyst
 created: 2026-10-26
 owner_choice: ускорить
@@ -12,6 +12,7 @@ owner_answered_by: владелец (сессия Claude Code; ADR-836)
 owner_answer_kind: option
 status_trail:
   - "2026-10-27T19:44:03.834739+00:00 needs-owner -> owner-done · owner_answer.record_session_answer"
+  - "2026-10-27T21:05:10.234797+00:00 owner-done -> ingested · queue.set_status · cycle-18168"
 ---
 
 ## Что случилось и почему это важно
