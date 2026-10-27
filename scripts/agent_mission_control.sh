@@ -7,5 +7,8 @@
 # not retry or mask that; agent_template.sh propagates the exit code to launchd unchanged.
 #
 # Canonical bash wrapper (launchd cannot exec miniconda python directly → exit 78); logs in /tmp.
+# ARB 26.10 task-prep display (scoped to this agent only; remove both lines to switch off)
+export SPA_TASK_PREP_ROOT="$HOME/studio-os-serve/task_prep"
+export SPA_TASK_PREP_CODE_ROOT="$HOME/studio-os-serve/task_prep_root"
 exec /bin/bash /Users/yuriikulieshov/Documents/SPA_Claude/scripts/agent_template.sh \
     mission_control spa_core.studio_os.mission_build
