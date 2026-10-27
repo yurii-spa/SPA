@@ -1,6 +1,19 @@
 # Доставка подготовки записей — релизный коммит, ПОДГОТОВЛЕН, НЕ ВЫПОЛНЕН (ARB 26.10, третья редакция)
 
-> Действующие артефакты — только `v3` в `release_task_prep_20261026T100847Z/`: `build_release_v3.sh.txt`, `release_v3.patch`,
+> **Актуализация ARB 27.10 — кандидат v4, приоритет над историей v3 ниже.**
+> Локальный SHA `4a326236bc0ce6a0afd13b684ac3e7e5586aff54`, прямой потомок опубликованного `6ca0ce2a8`.
+> Дельта: только `scripts/python_git_ref_provenance.py`, +16/-6; полный состав 24 пути.
+> Артефакты: `release_v4_delta_from_6ca0ce2a8.patch`, `release_v4.patch`, `RELEASE_MANIFEST_v4.txt`,
+> `release_v4_local_checks.md`. ARB принял перенос и сверил хеши. Полного CI v4 ещё нет.
+> Следующий шаг РАЗРЕШЁН владельцем 27.10:
+> `git push origin 4a326236bc0ce6a0afd13b684ac3e7e5586aff54:refs/heads/release/task-prep-20261026`
+> обычным fast-forward; один ci-control с тем же полным inputs.sha. База: 40353173933 на 6ca0ce2a8.
+> Прежнее разрешение/публикация/CI v3 выполнены; старые команды ниже — история, не повторять их.
+> Доставка и включение теперь разрешены УСЛОВНО: после критериев ARB, резерва, свежей сверки состава и штатных гейтов.
+> См. ../OPERATIONS_BACKLOG_2026-10-27.md и дополнение ADR-OWN от 27.10. Выполнение не заявлено.
+
+> **Историческая редакция v3 ниже; команды повторно не выполнять. Действующие артефакты — v4 выше.**
+> На момент этой исторической редакции артефакты — `v3` в `release_task_prep_20261026T100847Z/`: `build_release_v3.sh.txt`, `release_v3.patch`,
 > `RELEASE_MANIFEST_v3.txt`, `controls_v3.txt`, `enable_switch.patch`. Исторические (`build_release.sh.txt`, `_v2`,
 > `release.patch`, `release_v2.patch`, `FILES*.txt`) сохранены, в шагах не используются: v2 при конфликте возвращал 0 (ARB).
 > Исполнение и `acceptance_probe` не входят. Выполнение — одним одобрением владельца (deployment.md §6).

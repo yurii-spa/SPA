@@ -3,7 +3,49 @@
 Date: 2026-10-27, Europe/Madrid. Decision owner: ChatGPT / ARB.
 Implementer: Claude Code. Publication/deployment authority: Yurii.
 
-## Decision
+## Owner mandate received — supersedes the publication restrictions below
+
+On 27.10 Yurii said «я все разрешаю» and requested owner-backlog/Telegram triage. The prior one-SHA
+permission restriction is superseded. Ordinary publication of v4, required CI and conditional task-prep
+delivery are authorized within the bounded package; individual SHA changes do not need another general
+permission request. Implementation must still satisfy evidence and deployment gates. This is permission,
+not a claim that v4 CI passed or production is accepted. Financial/public/destructive boundaries remain.
+Canonical mandate: ADR-OWN-2026-10-23, 27.10 amendment. Execution criteria: ../OPERATIONS_BACKLOG_2026-10-27.md.
+
+## Superseding follow-up — v4 local correction accepted, ready for one full CI
+
+Date: 2026-10-27, Europe/Madrid. Decision owner: ChatGPT / ARB.
+Reviewed Claude's report and local integration HEAD 35a7aba59 (clean before ARB doc edits).
+The bounded Resolver port is ACCEPTED. The earlier local-implementation assignment below is completed.
+
+Independent checks:
+- Candidate 4a326236bc0ce6a0afd13b684ac3e7e5586aff54 is a direct child of published
+  6ca0ce2a8cff3b2d44aa94e9e32f7b3c499736b7; only scripts/python_git_ref_provenance.py changes, +16/-6.
+- The scanner bytes EXACTLY match the temporary implementation ARB previously measured at 9.365 s,
+  with report equivalence against the original. Scanner SHA256:
+  2631315d7fce19f5a11da913810ad25b7aa059053d73e8a8985f55704e53f2ff.
+- All 24 paths/blob hashes in RELEASE_MANIFEST_v4.txt match the candidate objects.
+- Remote release/task-prep-20261026 still points to 6ca0ce2a8 at review time: publication can be a
+  normal fast-forward, preserving that prior commit and CI.
+- Read release_v4_local_checks.md: Claude reports 45 passed / 4 previous failed in 124 s, all nine
+  previously new IDs passed; 92 relevant checks passed. The exact main-parent single measurement
+  and candidate name the same 28 baseline findings. These are Claude's targeted results, not a new
+  independent pytest run. Disabling the timeout plugin for the one baseline measurement does not
+  certify that test under normal CI limits; the candidate run retained 180 s.
+
+Next validation has an EXACT PARENT baseline: compare the new full CI against 40353173933 on 6ca0ce2a8.
+This establishes the effect of the one-file correction; it does not retroactively turn the earlier
+comparison to main d0c3c59ed into an exact comparison to main 37e06e185. Preserve both scopes.
+No further broad audit or redundant local test run is requested before CI.
+
+Owner decision received 27.10: ordinary fast-forward of release/task-prep-20261026 to the exact candidate
+4a326236bc0ce6a0afd13b684ac3e7e5586aff54, then one full ci-control with inputs.sha pinned to it.
+Further necessary checks/fixes and conditional delivery follow the bounded mandate above. No duplicate run
+or blanket permission to restart services, execute model proposals or publish financial claims.
+Rationale: the precise requested fix and composition are verified; the remaining evidence is full CI
+on the actual corrected release. No whole-system NO_REGRESSION or production readiness declared.
+
+## Historical initial decision — publication restriction superseded by the owner mandate above
 
 The authorized publication and one full CI are completed and accepted as evidence. R1/R2/U1 and the
 v3 conflict guard remain accepted. Release 6ca0ce2a8 is NOT cleared for production or NO_REGRESSION.

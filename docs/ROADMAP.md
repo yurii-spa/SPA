@@ -4,6 +4,8 @@
 > `architecture/memory_truth.json` (ADR-527). Changing the order or adding a top-level item needs the
 > owner's directive and a line in `docs/decisions/` — the roadmap is not edited from chat.
 > Last confirmed by the owner: **2026-10-01** (directive «THREE DEFI PAPER PORTFOLIOS — STRATEGY MECHANICS, OPERATIONS AND WEBSITE»).
+> Latest execution mandate: **2026-10-27** — finish task-prep delivery and triage owner/operational queues;
+> standing authorization within the bounded package, preserving safety gates (same owner decision below).
 > Latest owner clarification: **2026-10-25** — support the owner's Claude Pro subscription for Studio OS management
 > through the official Claude Code CLI; included usage only, no automatic paid continuation (same owner decision below).
 > Latest sequencing directive: **2026-10-25** — test management with the existing Claude subscription now;
@@ -25,6 +27,20 @@
 | Capital Architecture v1 · Trading Research Engine v0 (keeps running, forward paper) | ADR-525, `docs/CAPITAL_ARCHITECTURE.md`, `docs/TRADING_RESEARCH_ENGINE.md` |
 | Memory & Context Architecture v1 (MemPalace evaluated: borrow ideas, not a dependency) | ADR-527, `docs/MEMORY_ARCHITECTURE.md` |
 | DeFi Architecture Gap Audit | ADR-530, `docs/DEFI_ARCHITECTURE_GAP_AUDIT.md` |
+
+## Immediate delivery and operations priority — 2026-10-27
+
+Owner: Yurii; recorded by ARB in ADR-OWN-2026-10-23 (27.10 amendment).
+1. Finish the prepared task-prep release: v4 publication/CI and conditional delivery are authorized.
+2. In parallel with CI, triage 18 owner questions and three recurring OPEN problems; correct UNKNOWN
+   wording, stale premises and technical work stranded on the owner. Reuse existing queue/alert tools.
+3. Next useful Studio result: approved plan -> declared acceptance -> bounded execution -> recorded outcome.
+4. Keep model-independent roles/architect P1 and the current Claude path; local inference remains deferred.
+   Investment Engine stays separate: preserve ongoing forward paper and assess its accumulated evidence.
+
+Work, facts and acceptance: [OPERATIONS_BACKLOG_2026-10-27.md](evidence/studio-os-next-01-2026-10-16/OPERATIONS_BACKLOG_2026-10-27.md).
+No new general audit, implicit financial/public decision or claim that pending delivery is complete.
+Older epic acceptance states below remain historical facts; this section sets the next execution order.
 
 ## Owner priority update — 2026-10-23
 
@@ -74,16 +90,17 @@ prepare a reviewable plan and acceptance proposal from an ordinary request throu
 seam; do not make the owner choose internal test names. This is a candidate preparation path, not permission
 to dispatch live work. Evidence and scope: `evidence/studio-os-next-01-2026-10-16/voice_owner_check_2026-10-25/ARB_REVIEW.md`.
 
-**Task-prep checkpoint, ARB 2026-10-27 (release CI reviewed):** R1/R2/U1 and the v3 guard remain
-accepted. Owner-authorized release `6ca0ce2a8` was published and CI 40353173933 completed: 135524 passed,
-63 failed, 3 error, 719 skipped, 12/12. All 350 explicitly checked package/UI cases passed. Compared
-with approximate main baseline d0c3c59ed: 57 pre-existing failed IDs, nine new (seven timeouts in the
-same Resolver.enter/ast.walk path and two internal errors). RED, not NO_REGRESSION; no deployment.
-The existing 22.10 optimization 34e5bc85a is absent from main/release. ARB verified that its narrow
-Resolver portion applies and reduced one local measurement 100.725 → 9.365 s with identical report
-bytes. Next: a bounded LOCAL port, exact-parent targeted comparison and prepared new release SHA;
-no broad audit or blind CI retry. The previous one-run publication authorization has been carried out.
-Decision: `evidence/studio-os-next-01-2026-10-16/release_task_prep_20261026T100847Z/ARB_REVIEW_2026-10-27.md`.
+**Task-prep checkpoint, ARB 2026-10-27 (v4 ready for full CI):** R1/R2/U1, v3 refusal and the narrow
+Resolver optimization are accepted in their reviewed scope. Local candidate `4a326236b` is a direct
+child of published `6ca0ce2a8`; only the scanner changes (+16/-6). ARB verified all 24 manifest paths
+and exact equality with its measured optimized scanner. Claude reports 45 passed / 4 previous failed
+in the targeted file; all nine new release-CI cases passed locally. Full v4 CI is PENDING.
+Next: owner authorization received 27.10 for normal fast-forward of `release/task-prep-20261026` to v4
+and the required full CI. Compare with exact-parent CI 40353173933, preserving its RED result and the
+older approximate-main comparison. Conditional delivery follows the criteria in the operations package;
+no new general audit or automatic execution from model proposals. v4 CI/delivery are not yet evidenced.
+Decision: `evidence/studio-os-next-01-2026-10-16/release_task_prep_20261026T100847Z/ARB_REVIEW_2026-10-27.md`,
+“Superseding follow-up — v4”.
 
 **Verification efficiency:** bound work to the actual change, reuse traceable evidence, and batch the required
 full CI on a stable candidate. No repeated whole-system/AI audit by default; no removal of mandatory checks and

@@ -1,0 +1,460 @@
+{
+  "observed_at_utc": "2026-10-27T07:05:25.042355+00:00",
+  "kind": "read_only_arb_triage",
+  "sources": {
+    "mission": {
+      "path": "/var/folders/6q/78j7h2557tx6hkbkw3cmrsc00000gn/T/arb-owner-backlog-20261027-4qzy7vm0/mission_snapshot.json",
+      "sha256": "1c1c17dcd120be1c13063d824ad873e8606c666e5112b11faea63b789e902220",
+      "bytes": 821343
+    },
+    "tracker": {
+      "path": "/var/folders/6q/78j7h2557tx6hkbkw3cmrsc00000gn/T/arb-owner-backlog-20261027-4qzy7vm0/tracker_canonical_fields.json",
+      "sha256": "41aa9ea3d53fabcfa0fbe51ccf73ca88d2156b3a0ffbfd52094519f6a3d2ba09",
+      "bytes": 357262
+    },
+    "problems": {
+      "path": "/var/folders/6q/78j7h2557tx6hkbkw3cmrsc00000gn/T/arb-owner-backlog-20261027-4qzy7vm0/problems_snapshot.json",
+      "sha256": "7fdc01f8f3e4ec7134977301b5fac0ac88fcabf844cb28b1360e90962322750d",
+      "bytes": 125533
+    },
+    "alerts": {
+      "path": "/Users/yuriikulieshov/Documents/SPA_Claude/data/alert_history.json",
+      "sha256": "2dba28cacc2b3e7d4595b14f9726cff062f410cbce2757e0d94b099bfe93a480",
+      "bytes": 242414
+    },
+    "resource": {
+      "path": "/Users/yuriikulieshov/Documents/SPA_Claude/data/resource_health.json",
+      "sha256": "50c3ef40c1c74f1a8e2d2385e3f3500bfee3db97f896cfda877c4b94b38bb497",
+      "bytes": 34845
+    },
+    "fleet": {
+      "path": "/Users/yuriikulieshov/Documents/SPA_Claude/data/fleet_parity.json",
+      "sha256": "4a4e60c04d443093151438d1d8479e34ce9bad5aa2c3c7525225b5d8aaf6ec28",
+      "bytes": 1712
+    },
+    "trading": {
+      "path": "/Users/yuriikulieshov/Documents/SPA_Claude/data/trading_research/status.json",
+      "sha256": "f40a64c691c210f6fc87bbae4fb6163f86b79ca4a2254d51d16def18456b4cbf",
+      "bytes": 4358
+    },
+    "system_health": {
+      "path": "/Users/yuriikulieshov/Documents/SPA_Claude/data/system_health.json",
+      "sha256": "029494ba2daa092f99255d14b1f15db423bb261b4cf6c653db0cebd632edd34b",
+      "bytes": 29032
+    }
+  },
+  "limits": [
+    "Not all project chats reviewed by this snapshot",
+    "Local sender journal is not complete Telegram history",
+    "Observations are not trades or notifications"
+  ],
+  "mission": {
+    "generated_at": "2026-10-27T06:45:52Z",
+    "decision_meta": {
+      "state": "HEALTHY",
+      "colour": "neutral-ok",
+      "sources": [
+        "origin tracker owner cards",
+        "production-tree owner answers"
+      ],
+      "observed_at": "2026-10-27T06:34:02Z",
+      "age_min": 11.8,
+      "stale_after_min": 90,
+      "reason": null
+    },
+    "nav_counts": {
+      "decisions": 3,
+      "protection": 2,
+      "work": 1
+    },
+    "pending": [
+      {
+        "id": "owner-decision-earn-defi-kanal-telegram-dlya-publikatsii",
+        "title": "earn-defi: нужен Telegram-канал — иначе доказательства сигналов копятся, но не публикуются",
+        "subject": null,
+        "created": "2026-09-09"
+      },
+      {
+        "id": "owner-decision-pyat-protsentov-kesha-zapisany-v-dvuh-me",
+        "title": "Пять процентов кэша записаны в двух местах — это одно правило или два?",
+        "subject": "MONEY",
+        "created": "2026-09-19"
+      },
+      {
+        "id": "owner-decision-potolok-base-tsepochki-zapisan-v-treh-mestah",
+        "title": "Потолок Base-цепочки записан в трёх местах — какое из них главное?",
+        "subject": "MONEY",
+        "created": "2026-09-21"
+      },
+      {
+        "id": "owner-decision-disk-mac-mini-zabit-pod-nol-odin-zhurnal",
+        "title": "Диск Mac Mini забит под ноль — один журнал агента вырос до 7,1 ГБ и остановил запись на всей машине",
+        "subject": "IRREVERSIBLE",
+        "created": "2026-09-26"
+      },
+      {
+        "id": "owner-decision-sistema-ne-sprashivaet-proderzhitsya-li",
+        "title": "Система не спрашивает, продержится ли выгода — и по факту она не продержалась ни разу",
+        "subject": null,
+        "created": "2026-09-26"
+      },
+      {
+        "id": "owner-decision-zakryt-tri-chernovyh-pr-u-moego-klyucha",
+        "title": "Закрыть три черновых PR — у моего ключа нет на это прав (или выдать права)",
+        "subject": null,
+        "created": "2026-09-26"
+      },
+      {
+        "id": "owner-decision-zaschita-ot-kachelei-sravnivaet-ne-to-ch",
+        "title": "Защита от качелей сравнивает не то, что нужно — книга 12 раз вернулась туда, откуда ушла",
+        "subject": null,
+        "created": "2026-09-26"
+      },
+      {
+        "id": "own-optimum-proigryvaet-resheniyu-nichego-ne-d",
+        "title": "«Оптимум», который система предлагает, шесть раз оказался хуже решения ничего не делать",
+        "subject": null,
+        "created": "2026-09-27"
+      },
+      {
+        "id": "owner-decision-dva-mesta-zovut-odin-protokol-raznym-t",
+        "title": "Два места в системе зовут один и тот же протокол разным тиром — от этого потолок на него меняется вдвое",
+        "subject": null,
+        "created": "2026-09-27"
+      },
+      {
+        "id": "owner-decision-pereproverka-pered-sdelkoi-nazovi-dva-ch",
+        "title": "Перепроверка перед сделкой: назови два числа — насколько свежими должны быть ставки и сколько живёт решение",
+        "subject": null,
+        "created": "2026-09-27"
+      },
+      {
+        "id": "owner-decision-stoimost-perekladki-zaryazhaetsya-v-134",
+        "title": "Стоимость перекладки заряжается в 134 раза дороже наблюдаемой — нужен твой порог «сколько уже слишком»",
+        "subject": null,
+        "created": "2026-09-29"
+      },
+      {
+        "id": "owner-decision-sait-track-snapshot-json-avtonomnaya-pra",
+        "title": "Сайт: track_snapshot.json — автономная правка задела owner-gated область, нужно решение",
+        "subject": null,
+        "created": "2026-10-06"
+      },
+      {
+        "id": "owner-decision-ubrat-2-gb-sluzhebnogo-musora-git-v-rabo",
+        "title": "Убрать 2 ГБ служебного мусора git в рабочем дереве на Маке",
+        "subject": null,
+        "created": "2026-10-10"
+      },
+      {
+        "id": "owner-decision-razreshit-vosstanovit-propavshuyu-istori",
+        "title": "Разрешить восстановить пропавшую историю двух карточек в рабочем дереве (95 и 6 записей)",
+        "subject": null,
+        "created": "2026-10-13"
+      },
+      {
+        "id": "owner-decision-kakoi-variant-ty-vybral-9-sentyabrya-po",
+        "title": "Какой вариант ты выбрал 9 сентября по лицензии на данные: машинная запись говорит «1», канон записал «2»",
+        "subject": null,
+        "created": "2026-10-15"
+      },
+      {
+        "id": "owner-decision-utochnenie-po-zametke-sto-tridtsat-devya",
+        "title": "Уточнение по заметке: Сто тридцать девять брошенных деревьев циклов: 24,6 ГБ, и снимать их вслепую нельзя",
+        "subject": null,
+        "created": "2026-10-15"
+      },
+      {
+        "id": "owner-decision-sait-track-snapshot-json-avtonomnaya-pra-2",
+        "title": "Сайт: track_snapshot.json — автономная правка задела owner-gated область, нужно решение",
+        "subject": null,
+        "created": "2026-10-22"
+      },
+      {
+        "id": "owner-decision-agent-nablyudatel-prosypaetsya-raz-v-7-6",
+        "title": "Агент-наблюдатель просыпается раз в 7,6 часа вместо 6 — поменять расписание на фиксированные отметки",
+        "subject": null,
+        "created": "2026-10-26"
+      }
+    ]
+  },
+  "tracker": {
+    "total": 873,
+    "status_counts": {
+      "done": 419,
+      "ingested": 247,
+      "backlog": 71,
+      "in-progress": 66,
+      "needs-owner": 18,
+      "owner-done": 17,
+      "new": 33,
+      "blocked": 1,
+      "closed": 1
+    }
+  },
+  "problems": {
+    "generated_at": "2026-10-27T06:10:35.981068+00:00",
+    "status_counts": {
+      "OPEN": 3,
+      "MITIGATED": 33,
+      "INCIDENT": 20,
+      "CLOSED": 19
+    },
+    "open": [
+      {
+        "key": "com.spa.resource_guard|exit_nonzero:1",
+        "status": "OPEN",
+        "occurrences": 259,
+        "first_seen": "2026-10-06T09:39:21.502245+00:00",
+        "last_seen": "2026-10-27T06:10:35.981068+00:00",
+        "rca": null,
+        "task_id": null
+      },
+      {
+        "key": "fleet|retired_but_loaded",
+        "status": "OPEN",
+        "occurrences": 485,
+        "first_seen": "2026-10-06T09:39:21.502245+00:00",
+        "last_seen": "2026-10-27T06:10:35.981068+00:00",
+        "rca": null,
+        "task_id": null
+      },
+      {
+        "key": "system_health|domains_degraded",
+        "status": "OPEN",
+        "occurrences": 485,
+        "first_seen": "2026-10-06T09:39:21.502245+00:00",
+        "last_seen": "2026-10-27T06:10:35.981068+00:00",
+        "rca": null,
+        "task_id": null
+      }
+    ]
+  },
+  "alerts": {
+    "source_updated_at": "2026-10-26T23:31:47.523997+00:00",
+    "window_utc": [
+      "2026-10-20",
+      "2026-10-27"
+    ],
+    "logged": 36,
+    "send_ok": 36,
+    "by_day": {
+      "2026-10-20": 3,
+      "2026-10-21": 5,
+      "2026-10-22": 5,
+      "2026-10-23": 3,
+      "2026-10-24": 5,
+      "2026-10-25": 8,
+      "2026-10-26": 7
+    },
+    "headlines": {
+      "🟠 Система: есть предупреждения — предупреждения: данные, связь, качество стратег": 4,
+      "📊 <b>SPA — отчёт за день</b> (2026-10-20)": 1,
+      "☀️ Что сделано вчера (2026-10-19) — сырьём (авто-сводка недоступна):": 1,
+      "📊 <b>SPA — отчёт за день</b> (2026-10-21)": 1,
+      "☀️ Что сделано вчера (2026-10-20) — сырьём (авто-сводка недоступна):": 1,
+      "🛡️ Сайт-сторож: нашёл проблем — 2 (2026-10-21T13:48:55Z)": 1,
+      "🛡️ Сайт-сторож: нашёл проблем — 2 (2026-10-21T19:50:53Z)": 1,
+      "📊 <b>SPA — отчёт за день</b> (2026-10-22)": 1,
+      "☀️ Что сделано вчера (21 октября)": 1,
+      "🧑‍⚖️ <b>Нужно твоё решение</b>": 3,
+      "🚨 <b>Агенты: критическая проблема</b>": 3,
+      "🟠 Система: есть предупреждения — предупреждения: данные, связь, целостность кода": 1,
+      "📊 <b>SPA — отчёт за день</b> (2026-10-23)": 1,
+      "☀️ Что сделано вчера (22 октября)": 1,
+      "📊 <b>SPA — отчёт за день</b> (2026-10-24)": 1,
+      "☀️ Что сделано вчера (23 октября)": 1,
+      "📥 Разобрал входящих за один прогон: <b>4</b>. Шлю сводкой, чтобы не завалить чат": 1,
+      "🟠 Система: есть предупреждения — предупреждения: данные, качество стратегий, цел": 2,
+      "📊 <b>SPA — отчёт за день</b> (2026-10-25)": 1,
+      "☀️ Что сделано вчера (24 октября)": 1,
+      "📋 <b>SPA Weekly Summary</b> — Week 20 (October 19-25, 2026)": 1,
+      "✅ <b>Агенты: критичных сбоев больше нет</b>": 1,
+      "🚨 <b>Ресурсы Мака на исходе</b>": 3,
+      "📊 <b>SPA — отчёт за день</b> (2026-10-26)": 1,
+      "☀️ Что сделано вчера (25 октября)": 1,
+      "✅ <b>Ресурсы Мака в норме</b>": 1
+    }
+  },
+  "resource": {
+    "generated_at": "2026-10-27T07:02:53Z",
+    "overall": "WARN",
+    "disk": {
+      "state": "OK",
+      "volume": "/System/Volumes/Data",
+      "free_gb": 51.8,
+      "total_gb": 460.4,
+      "warn_free_gb": 40,
+      "critical_free_gb": 15
+    },
+    "memory": {
+      "state": "WARN",
+      "pressure_level": 1,
+      "swap": {
+        "total_mb": 9216.0,
+        "used_mb": 7831.12,
+        "used_pct": 85.0
+      },
+      "ram_total_gb": 24.0,
+      "triggers": [
+        {
+          "signal": "swap",
+          "state": "WARN"
+        }
+      ]
+    }
+  },
+  "fleet": {
+    "generated_at": "2026-10-27T07:01:22Z",
+    "status": "DRIFT",
+    "retired_but_installed": [
+      "com.spa.bts-feed",
+      "com.spa.bts-monitor",
+      "com.spa.dfb_capture",
+      "com.spa.governance_watcher",
+      "com.spa.source_discovery"
+    ],
+    "orphan_plist_not_declared": [
+      "com.spa.capital_shadow",
+      "com.spa.gas_price_agent",
+      "com.spa.investment_cio",
+      "com.spa.mission_control",
+      "com.spa.mission_server",
+      "com.spa.research_factory",
+      "com.spa.resource_cleanup",
+      "com.spa.resource_guard"
+    ]
+  },
+  "trading": {
+    "generated_at_ms": 1793083960071,
+    "mode": "PAPER_RESEARCH_ONLY",
+    "live_capital_usd": 0,
+    "candidates": 138,
+    "stages": {
+      "REJECTED": 133,
+      "FORWARD_PAPER": 5
+    },
+    "observations": 37490,
+    "forward_since_ms": 1790803372716,
+    "evidence_verified": true,
+    "evidence_breaks": []
+  },
+  "system_health": {
+    "generated_at": "2026-10-27T07:00:04.643667Z",
+    "domains": {
+      "d1_data_pipeline": {
+        "status": "WARNING",
+        "ms": 2
+      },
+      "d2_connectivity": {
+        "status": "OK",
+        "ms": 329
+      },
+      "d3_strategy_quality": {
+        "status": "WARNING",
+        "ms": 0
+      },
+      "d4_external": {
+        "status": "OK",
+        "ms": 450
+      },
+      "d5_code_integrity": {
+        "status": "WARNING",
+        "ms": 9572
+      },
+      "d6_risk_gates": {
+        "status": "WARNING",
+        "ms": 68
+      },
+      "d7_hygiene": {
+        "status": "WARNING",
+        "ms": 309
+      },
+      "d_dfb_defi_board": {
+        "status": "WARNING",
+        "ms": 0
+      },
+      "d_riskwire": {
+        "status": "WARNING",
+        "ms": 3
+      }
+    },
+    "non_ok_checks": [
+      {
+        "id": "d1.adapter.apy_range",
+        "status": "WARNING",
+        "title": "1 adapter APY(s) out of 0.5-25.0%"
+      },
+      {
+        "id": "d1.equity.count",
+        "status": "WARNING",
+        "title": "only 125 track days (expected ~128)"
+      },
+      {
+        "id": "d1.equity.dates",
+        "status": "WARNING",
+        "title": "2 date anomaly(ies): gap 2d before 2026-07-20"
+      },
+      {
+        "id": "d1.golive.count",
+        "status": "INFO",
+        "title": "golive 29/29 — all pass"
+      },
+      {
+        "id": "d3.alloc.cap",
+        "status": "INFO",
+        "title": "compound_v3 at 40.0% of total (>= 85% of 40% cap)"
+      },
+      {
+        "id": "d3.cycle.ran_today",
+        "status": "WARNING",
+        "title": "cycle did not run today (last 2026-10-26)"
+      },
+      {
+        "id": "d3.equity.trend7",
+        "status": "INFO",
+        "title": "7d equity growing (+0.09%)"
+      },
+      {
+        "id": "d5.deployment.drift",
+        "status": "WARNING",
+        "title": "delivered work is not running here"
+      },
+      {
+        "id": "d5.security.secrets",
+        "status": "WARNING",
+        "title": "4 untracked file(s) named like a secret but holding no credential-shaped value"
+      },
+      {
+        "id": "d6.health",
+        "status": "WARNING",
+        "title": "portfolio health 69.91 < 70.0"
+      },
+      {
+        "id": "d6.red_flags",
+        "status": "INFO",
+        "title": "2 red flag(s) on external protocols (advisory)"
+      },
+      {
+        "id": "d7.logs.size",
+        "status": "WARNING",
+        "title": "/tmp/spa_*.log total 1122MB > 500MB"
+      },
+      {
+        "id": "d_dfb.capture.heartbeat",
+        "status": "WARNING",
+        "title": "dfb_capture agent log absent — agent never ran on this host"
+      },
+      {
+        "id": "d_dfb.snapshot.fresh",
+        "status": "WARNING",
+        "title": "dfb/pools.json STALE (1391.5h > 30h) — capture agent presumed down"
+      },
+      {
+        "id": "d_riskwire.no_fork",
+        "status": "WARNING",
+        "title": "13 pool measurement(s) carry NO seed_proof_hash — RISKWIRE may have graded independently of the seed"
+      }
+    ]
+  }
+}
