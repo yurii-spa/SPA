@@ -1,0 +1,87 @@
+{
+  "title": "ADR-830 — дельта цикла #956: строка реестра решений судится по ФОРМЕ, статус вне формы НЕ ИЗМЕРЕН, претензия на номер fail-CLOSED",
+  "tests": [
+    "spa_core/tests/test_adr_index_form.py",
+    "spa_core/tests/test_adr_number_allocator.py"
+  ],
+  "mutations": [
+    {
+      "name": "статус снова берётся предпоследней колонкой — заголовок выдаётся за измеренный статус",
+      "file": "scripts/adr_number.py",
+      "old": "    cols = row_columns(line)\n    status = None\n    if cols is not None and len(cols) == DECLARED_COLUMNS:\n        status = cols[STATUS_COLUMN - 1]",
+      "new": "    parts = line.split(\"|\")\n    status = parts[-3].strip() if len(parts) >= 5 else None"
+    },
+    {
+      "name": "порог «хотя бы пять кусков» восстановлен — верная строка из двух колонок ИСЧЕЗАЕТ из реестра",
+      "file": "scripts/adr_number.py",
+      "old": "    m = _ROW_RE.match(line)\n    if not m:\n        return None\n    cols = row_columns(line)",
+      "new": "    m = _ROW_RE.match(line)\n    if not m or len(line.split(\"|\")) < 5:\n        return None\n    cols = row_columns(line)"
+    },
+    {
+      "name": "форма мерится нестрого (колонок НЕ МЕНЬШЕ объявленного) — пятиколоночная строка проходит как измеренная",
+      "file": "scripts/adr_number.py",
+      "old": "    if cols is not None and len(cols) == DECLARED_COLUMNS:\n        status = cols[STATUS_COLUMN - 1]",
+      "new": "    if cols is not None and len(cols) >= DECLARED_COLUMNS:\n        status = cols[STATUS_COLUMN - 1]"
+    },
+    {
+      "name": "неизмеренный статус читается как СНЯТАЯ претензия — занятый номер освобождается (fail-OPEN)",
+      "file": "scripts/adr_number.py",
+      "old": "    if status is None:\n        return True\n    return not _RELEASED_STATUS_RE.match(status)",
+      "new": "    if status is None:\n        return False\n    return not _RELEASED_STATUS_RE.match(status)"
+    },
+    {
+      "name": "метка неизмеренного статуса молчит — «не измерено» снова неотличимо от пустого значения",
+      "file": "scripts/adr_number.py",
+      "old": "    return UNMEASURED_STATUS if status is None else status",
+      "new": "    return \"\" if status is None else status"
+    },
+    {
+      "name": "форма объявляется памятью модуля, а не шапкой документа — шапку не читают вовсе",
+      "file": "scripts/adr_number.py",
+      "old": "    for line in text.splitlines():\n        if not _HEADER_RE.match(line):\n            continue\n        cols = row_columns(line)\n        if not cols or _STATUS_HEADER not in cols:\n            return None\n        return len(cols), cols.index(_STATUS_HEADER) + 1\n    return None",
+      "new": "    return DECLARED_COLUMNS, STATUS_COLUMN"
+    },
+    {
+      "name": "нечитаемый реестр выдаётся за измеренный — «вне формы ноль строк» вместо третьего исхода",
+      "file": "scripts/adr_number.py",
+      "old": "        out[\"unmeasured_reason\"] = f\"{index_rel} не читается ({exc}) — форма НЕ измерена\"\n        return out",
+      "new": "        out[\"measured\"] = True\n        return out"
+    },
+    {
+      "name": "статус решения ВЫДУМЫВАЕТСЯ, когда файл его не объявляет",
+      "file": "scripts/adr_number.py",
+      "old": "    m = _DECLARED_STATUS_RE.search(head)\n    return m.group(\"v\") if m else None",
+      "new": "    m = _DECLARED_STATUS_RE.search(head)\n    return m.group(\"v\") if m else \"Accepted\""
+    },
+    {
+      "name": "ссылка на файл решения УГАДЫВАЕТСЯ, когда файла нет",
+      "file": "scripts/adr_number.py",
+      "old": "            repair[\"file_reason\"] = (\n                f\"файлов ADR-{key}-*.md в {DECISIONS_DIR}: {len(named)} — ссылка НЕ измерена\"\n                if named else\n                f\"файла ADR-{key}-*.md в {DECISIONS_DIR} нет — ссылка НЕ измерена\")",
+      "new": "            repair[\"file\"] = f\"ADR-{key}-x.md\""
+    },
+    {
+      "name": "интерлок молчит о строке вне формы — доставка уезжает со строкой, чей статус не измерен",
+      "file": "scripts/adr_number.py",
+      "old": "        broken = out_of_form_by_key.get(key, [])\n        if broken:",
+      "new": "        broken = out_of_form_by_key.get(key, [])\n        if False:"
+    },
+    {
+      "name": "интерлок краснеет на ЧУЖИХ сломанных строках — сторож запирает доставку, к нему не относящуюся",
+      "file": "scripts/adr_number.py",
+      "old": "        broken = out_of_form_by_key.get(key, [])",
+      "new": "        broken = [r for rows_ in out_of_form_by_key.values() for r in rows_]"
+    },
+    {
+      "name": "отсутствие шапки в реестре интерлок пропускает молча вместо fail-CLOSED",
+      "file": "scripts/adr_number.py",
+      "old": "    if index_form_scan is None:\n        return [], [f\"{INDEX_REL}: шапка таблицы с колонкой «{_STATUS_HEADER}» не найдена — \"\n                    f\"форма строк НЕ измерена (fail-CLOSED)\"]",
+      "new": "    if index_form_scan is None:\n        index_form_scan, out_of_form_rows = (DECLARED_COLUMNS, STATUS_COLUMN), []"
+    },
+    {
+      "name": "обрамление строки больше не часть формы — незакрытая строка судится как таблица",
+      "file": "scripts/adr_number.py",
+      "old": "    if len(parts) < 3 or parts[0].strip() or parts[-1].strip():\n        return None",
+      "new": "    if len(parts) < 3:\n        return None"
+    }
+  ]
+}

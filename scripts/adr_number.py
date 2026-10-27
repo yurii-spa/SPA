@@ -78,6 +78,12 @@ _NUMERIC_KEY_RE = re.compile(r"^\d+$")
 # колонке — часть принятого способа расходиться, а не мусор: см. ADR-073.
 _ROW_RE = re.compile(r"^\|\s*(?P<num>ADR-[0-9A-Za-z.-]+?)\s*(?P<dup>\(дубль\))?\s*\|")
 
+# Объявленная форма строки реестра — ЗАГОЛОВОК таблицы в самом файле:
+# `| ADR | Заголовок | Статус | Файл |`. Четыре колонки, статус — третья.
+# Это не выбор автора модуля: число берётся из шапки, которую читает человек (ADR-830).
+DECLARED_COLUMNS = 4
+STATUS_COLUMN = 3  # 1-based, по шапке таблицы
+
 # Статус, снимающий претензию на номер. Строка-указатель не занимает номер: она объясняет,
 # КУДА уехало решение, и без неё ссылка из старого коммита упирается в пустоту.
 _RELEASED_STATUS_RE = re.compile(r"^\s*(superseded|withdrawn|rejected|отозван|заменен|заменён)",
@@ -90,20 +96,43 @@ def file_key(name: str):
     return m.group("key") if m else None
 
 
-def _row_fields(line: str):
-    """(ключ, статус, дубль?) для строки реестра, либо None.
+def row_columns(line: str):
+    """Колонки строки markdown-таблицы, либо None если строка не обрамлена чёрточками.
 
-    Колонки берутся с КОНЦА: заголовки решений длинные и содержат запятые, скобки и
-    вложенные ссылки, поэтому «третья колонка слева» ломается на первом же заголовке
-    с разделителем внутри, а «предпоследняя» — нет.
+    Обрамление — часть формы: строка, не начинающаяся и не кончающаяся `|`, не является
+    строкой таблицы, и судить её колонки значило бы выдумывать их число.
+    """
+    parts = line.split("|")
+    if len(parts) < 3 or parts[0].strip() or parts[-1].strip():
+        return None
+    return [p.strip() for p in parts[1:-1]]
+
+
+def _row_fields(line: str):
+    """(ключ, статус | None, дубль?) для строки реестра, либо None если это не строка.
+
+    **Строка узнаётся по ЯКОРЮ, статус — по ФОРМЕ (ADR-830).** Прежняя мера — «колонок
+    хотя бы пять, статус предпоследний» — отвечала на вопрос «сколько в строке чёрточек»,
+    а не «в объявленной ли она форме», и платила этим в обе стороны:
+
+    * верно написанная строка из двух колонок получала `None`, то есть ИСЧЕЗАЛА из реестра,
+      и `check` отказывал «нет ни одной строки ADR-NNN» — отказ верный по направлению и
+      ложный по причине (цикл #955 заплатил им: его строка прошла только благодаря чёрточке
+      внутри `^(FAILED|ERROR)` своего же заголовка);
+    * строка вне формы отдавала СТАТУСОМ не ту колонку — у 118 строк замера 27.10 это
+      заголовок на 900 символов, то есть «не измерено», выданное за измеренное (инв. #17).
+
+    Теперь: якорь `| ADR-NNN |` делает строку строкой реестра ВСЕГДА (претензия на номер
+    не зависит от формы — иначе сломанная форма освобождала бы номер, а это fail-OPEN),
+    а статус читается ТОЛЬКО из объявленной формы. Нет формы ⇒ `None` = НЕ ИЗМЕРЕНО.
     """
     m = _ROW_RE.match(line)
     if not m:
         return None
-    parts = line.split("|")
-    if len(parts) < 5:
-        return None
-    status = parts[-3].strip()
+    cols = row_columns(line)
+    status = None
+    if cols is not None and len(cols) == DECLARED_COLUMNS:
+        status = cols[STATUS_COLUMN - 1]
     key = m.group("num")[len("ADR-"):]
     return key, status, bool(m.group("dup"))
 
@@ -120,11 +149,145 @@ def parse_index(text: str):
     return rows
 
 
-def is_live_claim(status: str, dup: bool) -> bool:
-    """Строка ПРЕТЕНДУЕТ на номер? Указатель и снятое решение — не претендуют."""
+UNMEASURED_STATUS = "НЕ ИЗМЕРЕНО (строка вне объявленной формы)"
+
+
+def status_label(status) -> str:
+    """Статус для ПЕЧАТИ: неизмеренное не притворяется строкой статуса (инв. #17)."""
+    return UNMEASURED_STATUS if status is None else status
+
+
+def is_live_claim(status, dup: bool) -> bool:
+    """Строка ПРЕТЕНДУЕТ на номер? Указатель и снятое решение — не претендуют.
+
+    `status is None` — статус НЕ ИЗМЕРЕН (строка вне объявленной формы). Тогда претензия
+    считается ЖИВОЙ: fail-CLOSED. Неизмеренный статус, прочитанный как «снято», освободил
+    бы занятый номер и выдал его второму решению — ровно авария 08.08, ради которой этот
+    модуль написан. Прежний код приходил к тому же ответу СЛУЧАЙНО (заголовок не совпадает
+    с регуляркой снятия), и это держалось на том, что ни один заголовок не начинается со
+    слова «Superseded». Теперь это решение, а не совпадение.
+    """
     if dup:
         return False
-    return not _RELEASED_STATUS_RE.match(status or "")
+    if status is None:
+        return True
+    return not _RELEASED_STATUS_RE.match(status)
+
+
+# ── форма строки реестра: перепись и предложение починки (ADR-830) ───────────
+
+_HEADER_RE = re.compile(r"^\|\s*ADR\s*\|")
+_STATUS_HEADER = "Статус"
+_DECLARED_STATUS_RE = re.compile(
+    r"^\s*[-*]?\s*\*\*Статус:?\*\*:?\s*(?P<v>.+?)\s*$", re.IGNORECASE | re.MULTILINE)
+
+
+def declared_form(text: str):
+    """(число колонок, 1-based номер колонки статуса) по ШАПКЕ таблицы, либо None.
+
+    Форму объявляет сам документ, а не этот модуль: шапку `| ADR | Заголовок | Статус |
+    Файл |` читает человек, и если она однажды изменится, судить строки по старой памяти
+    было бы ровно тем дефектом, против которого правило. Шапки нет ⇒ None = НЕ ИЗМЕРЕНО.
+    """
+    for line in text.splitlines():
+        if not _HEADER_RE.match(line):
+            continue
+        cols = row_columns(line)
+        if not cols or _STATUS_HEADER not in cols:
+            return None
+        return len(cols), cols.index(_STATUS_HEADER) + 1
+    return None
+
+
+def declared_status(path: Path):
+    """Статус, объявленный САМИМ файлом решения (`- **Статус:** …`), либо None.
+
+    Источник правды о статусе решения — решение. Строка реестра — проекция; выдумывать
+    её статус запрещено (общий стандарт эвиденса, `docs/37`), поэтому «в файле статуса
+    нет» остаётся третьим исходом, а не подставляется «Accepted».
+    """
+    try:
+        head = path.read_text(encoding="utf-8")[:4000]
+    except OSError:
+        return None
+    m = _DECLARED_STATUS_RE.search(head)
+    return m.group("v") if m else None
+
+
+def form_scan(text: str):
+    """(форма | None, всего строк, в форме, [строки ВНЕ формы]) по тексту реестра.
+
+    ОДНА дверь к вопросу «в форме ли строка» — её зовут и перепись, и интерлок пушера.
+    Второй реализации того же измерения в этом репозитории быть не должно.
+    """
+    form = declared_form(text)
+    if form is None:
+        return None, 0, 0, []
+    ncols, _status_col = form
+    total = in_form = 0
+    out = []
+    for n, line in enumerate(text.splitlines(), 1):
+        m = _ROW_RE.match(line)
+        if not m:
+            continue
+        total += 1
+        cols = row_columns(line)
+        if cols is not None and len(cols) == ncols:
+            in_form += 1
+            continue
+        out.append({"key": m.group("num")[len("ADR-"):], "line": n,
+                    "columns": len(cols) if cols is not None else None,
+                    "kind": "без обрамления" if cols is None else f"колонок {len(cols)}"})
+    return form, total, in_form, out
+
+
+def index_form(root, index_rel=INDEX_REL):
+    """Перепись ФОРМЫ строк реестра: что в форме, что вне, и что про вне ИЗМЕРИМО.
+
+    Прибор только ЧИТАЕТ. Третий исход различим: реестр не прочитан / шапка не найдена ⇒
+    `measured=False` с причиной, а не «вне формы нет ни одной».
+    """
+    root = Path(root)
+    index = root / index_rel
+    out = {"declared_columns": None, "status_column": None, "rows_total": 0,
+           "in_form": 0, "out_of_form": [], "measured": False, "unmeasured_reason": None}
+    try:
+        text = index.read_text(encoding="utf-8")
+    except OSError as exc:
+        out["unmeasured_reason"] = f"{index_rel} не читается ({exc}) — форма НЕ измерена"
+        return out
+    form, total, in_form, rows = form_scan(text)
+    if form is None:
+        out["unmeasured_reason"] = (
+            f"{index_rel}: шапка таблицы с колонкой «{_STATUS_HEADER}» не найдена — "
+            f"объявленная форма НЕ измерена, судить строки не по чему")
+        return out
+    out["declared_columns"], out["status_column"] = form
+    out["rows_total"], out["in_form"], out["measured"] = total, in_form, True
+
+    decisions = root / DECISIONS_DIR
+    for row in rows:
+        key = row["key"]
+        named = sorted(p.name for p in decisions.glob(f"ADR-{key}-*.md")) \
+            if decisions.is_dir() else []
+        repair = {"file": None, "file_reason": None, "status": None, "status_reason": None}
+        if len(named) == 1:
+            repair["file"] = named[0]
+            status = declared_status(decisions / named[0])
+            if status:
+                repair["status"] = status
+            else:
+                repair["status_reason"] = (
+                    f"{named[0]} не объявляет `- **Статус:**` — статус НЕ ИЗМЕРЕН, "
+                    f"выдумывать его запрещено")
+        else:
+            repair["file_reason"] = (
+                f"файлов ADR-{key}-*.md в {DECISIONS_DIR}: {len(named)} — ссылка НЕ измерена"
+                if named else
+                f"файла ADR-{key}-*.md в {DECISIONS_DIR} нет — ссылка НЕ измерена")
+            repair["status_reason"] = "файл решения не назван однозначно — статус НЕ ИЗМЕРЕН"
+        out["out_of_form"].append(dict(row, repair=repair))
+    return out
 
 
 def _origin_files(root, base_ref, git=_git):
@@ -333,6 +496,18 @@ def check_push(root, files, base_ref=DEFAULT_BASE, git=_git):
             return [], [f"{INDEX_REL} на {base_ref} не читается — не измерено"]
     index_rows = parse_index(index_text)
 
+    # Форма строк реестра, которые уезжают этим пушем (ADR-830). Судим ТОЛЬКО тронутые
+    # строки: предсуществующие 187 строк вне формы не имеют права запирать чужую
+    # доставку — сторож, краснеющий не на твоей работе, отключают первым. Их убыль
+    # стережёт храповик `test_adr_index_form.py`, а не этот отказ.
+    index_form_scan, _total, _in_form, out_of_form_rows = form_scan(index_text)
+    if index_form_scan is None:
+        return [], [f"{INDEX_REL}: шапка таблицы с колонкой «{_STATUS_HEADER}» не найдена — "
+                    f"форма строк НЕ измерена (fail-CLOSED)"]
+    out_of_form_by_key: dict[str, list] = {}
+    for row in out_of_form_rows:
+        out_of_form_by_key.setdefault(row["key"], []).append(row)
+
     origin_by_key: dict[str, list] = {}
     for name in origin_names:
         key = file_key(name)
@@ -396,6 +571,21 @@ def check_push(root, files, base_ref=DEFAULT_BASE, git=_git):
                 f"{rel}: все строки ADR-{key} в реестре сняты (Superseded/указатель), "
                 f"а файл доставляется как действующее решение — реестр и файл спорят")
 
+        # 2b. Строка ЕСТЬ, но не в объявленной форме ⇒ её статус НЕ ИЗМЕРЕН (ADR-830).
+        #     Прежде такая строка либо проходила насквозь, отдавая статусом заголовок,
+        #     либо исчезала из реестра и получала отказ #2 с ЛОЖНОЙ причиной «нет ни одной
+        #     строки». Теперь причина названа верно, и починка — одна строка.
+        broken = out_of_form_by_key.get(key, [])
+        if broken:
+            where = ", ".join(f"строка {b['line']} ({b['kind']})" for b in broken)
+            ncols, status_col = index_form_scan
+            findings.append(
+                f"{rel}: строка ADR-{key} в {INDEX_REL} НЕ в объявленной форме "
+                f"(шапка: {ncols} колонки, статус — {status_col}-я) — {where}. "
+                f"Статус такой строки НЕ ИЗМЕРЕН, и реестр молча считает номер занятым. "
+                f"Перепиши строку формой `| ADR-{key} | Заголовок | Статус | Файл |` "
+                f"(`python3 scripts/adr_number.py form` печатает измеренные значения)")
+
     # 3. Две ЖИВЫЕ строки на один номер среди тронутых этим пушем — но находка только
     #    если ИМЕННО ЭТОТ пуш их создаёт или добавляет. Предсуществующий дубль (ADR-067)
     #    не должен запирать правку файла под тем же номером: сторож, краснеющий на чужой
@@ -410,7 +600,8 @@ def check_push(root, files, base_ref=DEFAULT_BASE, git=_git):
         if len(live) > 1 and len(live) > was:
             findings.append(
                 f"ADR-{key}: в {INDEX_REL} становится {len(live)} действующих строки на один "
-                f"номер ({', '.join(live)}), было {was} — номер делят двое. Разойтись: "
+                f"номер ({', '.join(status_label(s) for s in live)}), было {was} — номер делят "
+                f"двое. Разойтись: "
                 f"проигравший перенумеровывается, на старом номере остаётся "
                 f"строка-указатель Superseded")
 
@@ -472,6 +663,42 @@ def _cmd_check(args) -> int:
     return 0
 
 
+def _cmd_form(args) -> int:
+    rep = index_form(Path(args.root))
+    if args.json:
+        print(json.dumps(rep, ensure_ascii=False, indent=2))
+        return 2 if not rep["measured"] else (1 if rep["out_of_form"] else 0)
+    if not rep["measured"]:
+        print("❓ НЕ ИЗМЕРЕНО — форму строк реестра не подтверждаю (fail-CLOSED):")
+        print(f"  - {rep['unmeasured_reason']}")
+        return 2
+    print(f"форма строк {INDEX_REL} (шапка: {rep['declared_columns']} колонки, "
+          f"статус — {rep['status_column']}-я):")
+    print(f"  строк реестра: {rep['rows_total']} · в форме: {rep['in_form']} · "
+          f"ВНЕ формы: {len(rep['out_of_form'])}")
+    if not rep["out_of_form"]:
+        print("✅ все строки в объявленной форме — статус измерен у каждой.")
+        return 0
+    whole = [r for r in rep["out_of_form"]
+             if r["repair"]["file"] and r["repair"]["status"]]
+    print(f"  починка ИЗМЕРИМА целиком: {len(whole)} · "
+          f"статус не объявлен и выдумывать его нельзя: "
+          f"{len(rep['out_of_form']) - len(whole)}")
+    by_kind: dict[str, int] = {}
+    for r in rep["out_of_form"]:
+        by_kind[r["kind"]] = by_kind.get(r["kind"], 0) + 1
+    for kind, n in sorted(by_kind.items(), key=lambda kv: -kv[1]):
+        print(f"    · {kind}: {n}")
+    for r in rep["out_of_form"][:args.limit]:
+        rp = r["repair"]
+        print(f"  - строка {r['line']} ADR-{r['key']} ({r['kind']}): "
+              f"файл={rp['file'] or rp['file_reason']} · "
+              f"статус={rp['status'] or rp['status_reason']}")
+    if len(rep["out_of_form"]) > args.limit:
+        print(f"  … и ещё {len(rep['out_of_form']) - args.limit} (полный список — `--json`)")
+    return 1
+
+
 def main(argv=None) -> int:
     ap = argparse.ArgumentParser(description=__doc__,
                                  formatter_class=argparse.RawDescriptionHelpFormatter)
@@ -485,8 +712,13 @@ def main(argv=None) -> int:
     c = sub.add_parser("check", help="можно ли доставлять этот набор файлов")
     c.add_argument("--files", nargs="+", required=True, help="файлы набора доставки")
 
+    f = sub.add_parser("form", help="перепись формы строк реестра (только читает)")
+    f.add_argument("--limit", type=int, default=20, help="сколько строк печатать поимённо")
+
     args = ap.parse_args(argv)
-    return _cmd_next(args) if args.cmd == "next" else _cmd_check(args)
+    if args.cmd == "next":
+        return _cmd_next(args)
+    return _cmd_check(args) if args.cmd == "check" else _cmd_form(args)
 
 
 if __name__ == "__main__":
