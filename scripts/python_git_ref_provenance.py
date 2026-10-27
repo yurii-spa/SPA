@@ -233,6 +233,7 @@ class Resolver:
                                                  "parse_known_args"):
                 self.namespaces.add(node.targets[0].id)
         self.local = {}
+        self._assigns = {}
 
     @staticmethod
     def _literal(node):
@@ -265,12 +266,21 @@ class Resolver:
                 self.local[name.arg] = got
         for name, val in (inherited or {}).items():
             self.local.setdefault(name, val)
-        for node in ast.walk(fn):
-            if isinstance(node, ast.Assign) and len(node.targets) == 1 \
-                    and isinstance(node.targets[0], ast.Name):
-                got = self.resolve(node.value)
-                if got is not None:
-                    self.local.setdefault(node.targets[0].id, got)
+        # Список присваиваний функции неизменен — обход AST делается ОДИН раз на функцию
+        # (замер 22.10: enter звался 183 814 раз, каждый раз ast.walk — ~95 % цены переписи).
+        # Значения по-прежнему разрешаются на КАЖДОМ входе: они зависят от состояния self.local.
+        assigns = self._assigns.get(id(fn))
+        if assigns is None:
+            assigns = [(node.targets[0].id, node.value) for node in ast.walk(fn)
+                       if isinstance(node, ast.Assign) and len(node.targets) == 1
+                       and isinstance(node.targets[0], ast.Name)]
+            self._assigns[id(fn)] = (fn, assigns)   # fn в значении держит id живым
+        else:
+            assigns = assigns[1]
+        for target, value in assigns:
+            got = self.resolve(value)
+            if got is not None:
+                self.local.setdefault(target, got)
         return [p.arg for p in params]
 
     def resolve(self, node):
