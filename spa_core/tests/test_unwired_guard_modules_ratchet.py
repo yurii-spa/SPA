@@ -41,8 +41,19 @@ _DIRS = ("spa_core/alerts", "spa_core/monitoring", "spa_core/governance")
 #: не видел. Карточка на подключение —
 #: `agent-golive-checker-hy-sirota-naidena-uzhestocheniem`.
 #: Правило «в KNOWN_UNWIRED не добавлять» остаётся в силе для НОВЫХ модулей.
+#:
+#: 2026-10-27 (цикл #958, ADR-835) — ВТОРОЕ переякорение, той же природы и по
+#: тому же разрешению. Детектор перестал считать проводкой ПУТЬ ТЕСТ-ФАЙЛА,
+#: написанный внутри чужого текста, и на этом вскрылась сирота, которой он не
+#: видел НИ ОДНОГО дня: `live_registry_scene_census` родился 23.10 тем же
+#: коммитом (`1f56210e0`), что и `scripts/ci_control_weights.json`, и его
+#: единственным «вызывающим» была строка таблицы весов
+#: `"spa_core/tests/test_live_registry_scene_census.py": 68.174`.
+#: Карточка на подключение —
+#: `inbox-live-registry-scene-census-sirota-vskryt.md`.
 _FOUND_BY_STRICTER_DETECTOR = {
     "spa_core/monitoring/golive_checker_hy.py",
+    "spa_core/monitoring/live_registry_scene_census.py",
 }
 
 KNOWN_UNWIRED = _FOUND_BY_STRICTER_DETECTOR | {
@@ -102,6 +113,42 @@ def _code_only(text: str) -> str:
     return "\n".join(kept)
 
 
+#: Путь ТЕСТ-ФАЙЛА, написанный внутри чужого текста.
+#:
+#: Форма закрытая и узкая: `test_<имя>.py` с необязательным каталогом впереди.
+#: Ошибка идёт в сторону «меньше упоминаний» ⇒ БОЛЬШЕ сирот в переписи —
+#: fail-CLOSED, тот же знак, что у `_code_only`.
+_TEST_PATH = re.compile(r"[\w./-]*\btest_[A-Za-z0-9_]+\.py")
+
+
+def _without_test_paths(text: str) -> str:
+    """Текст без ПУТЕЙ ТЕСТ-ФАЙЛОВ: имя сторожа в них — не вызов.
+
+    Четвёртый случай одного класса («доказательство слабее вызова»): докстринг
+    (#255), комментарий (#227), текст сообщения (#278), груз пуша (#379) — и
+    теперь ПУТЬ ТЕСТ-ФАЙЛА в чужой таблице. Файл `_tree_texts` отбрасывает по
+    каталогу (`"/tests/" in rel`), то есть тест как ФАЙЛ вызывающим не
+    считается; но ИМЯ тест-файла, написанное ВНУТРИ не-теста, проскакивало
+    подстрокой, потому что стем сторожа — его часть
+    (`spa_core/tests/test_adaptive_monitor.py` содержит `adaptive_monitor`).
+
+    Замер 2026-10-27 на `origin/main` 599c8ed4f: таблица весов CI
+    `scripts/ci_control_weights.json` (родилась 23.10, коммит `1f56210e0`,
+    2030 путей тест-файлов) объявила «подключёнными» ПЯТЬ сторожей, и у всех
+    пяти это было ЕДИНСТВЕННОЕ доказательство. Четверо из пяти числились в
+    `KNOWN_UNWIRED`, поэтому `test_fixed_modules_leave_the_census` покраснел и
+    СВОИМ ЖЕ текстом потребовал убрать их из списка — то есть сторож
+    предписывал снять с учёта четыре настоящие сироты НАВСЕГДА (список может
+    только убывать). Пятая (`live_registry_scene_census`) не числилась нигде и
+    не была видна вовсе — fail-OPEN, тише красного теста.
+
+    Запуск теста вызовом сторожа не является и по смыслу: `pytest
+    spa_core/tests/test_adaptive_monitor.py` исполняет ТЕСТ, а вопрос
+    храповика — включён ли сам сторож в проводку системы (урок #144).
+    """
+    return _TEST_PATH.sub("", text)
+
+
 def _tree_texts() -> dict:
     """{путь: текст} по всему дереву, где мог бы стоять вызов — ОДИН проход.
 
@@ -127,7 +174,8 @@ def _tree_texts() -> dict:
                 body = f.read_text(encoding="utf-8", errors="replace")
             except OSError:
                 continue
-            out[rel] = _code_only(body) if f.suffix == ".py" else body
+            out[rel] = _without_test_paths(
+                _code_only(body) if f.suffix == ".py" else body)
     return out
 
 
@@ -214,3 +262,64 @@ def test_a_real_call_survives_the_prose_strip():
     """Обратный контроль: настоящий импорт вырезать нельзя."""
     src = '"""Докстрока про zzz_orphan_module."""\nfrom spa_core.x import zzz_orphan_module\n'
     assert "zzz_orphan_module" in _code_only(src)
+
+
+def test_a_test_file_path_is_not_wiring():
+    """Положительный контроль ADR-835: авария 23.10 воспроизводится ДОСЛОВНО.
+
+    Строка взята из `scripts/ci_control_weights.json` без единой правки. До
+    починки стем `adaptive_monitor` был в ней виден подстрокой, и сторож,
+    которого не зовёт никто, числился подключённым.
+    """
+    row = '  "spa_core/tests/test_adaptive_monitor.py": 0.419,\n'
+    assert "adaptive_monitor" in row, "строка аварии перестала нести стем"
+    assert "adaptive_monitor" not in _without_test_paths(row), (
+        "путь тест-файла снова читается как проводка — ровно та форма, "
+        "которой таблица весов CI объявила пять сторожей подключёнными")
+
+
+def test_a_real_call_on_the_same_line_survives_the_test_path_strip():
+    """Обратный контроль: вырезается ПУТЬ ТЕСТА, а не строка с ним.
+
+    Без этого плеча починка могла бы съесть настоящий вызов, стоящий рядом, —
+    и сторож объявил бы сиротой живой модуль. Ошибаться он обязан в сторону
+    находки, но не в сторону выдумки.
+    """
+    line = ('python3 -m spa_core.alerts.adaptive_monitor && '
+            'pytest spa_core/tests/test_adaptive_monitor.py\n')
+    kept = _without_test_paths(line)
+    assert "spa_core.alerts.adaptive_monitor" in kept, (
+        "вырезан настоящий вызов — полоса реза шире предмета")
+    assert "tests/test_adaptive_monitor.py" not in kept
+
+
+def test_the_weights_table_no_longer_wires_the_five():
+    """Поведенческое плечо НА ЖИВОМ ДЕРЕВЕ: вердикт меряется, а не заявляется.
+
+    Контроль детали (две проверки выше) зелен и на мёртвой проводке — урок
+    #144. Здесь спрашивается НАСТОЯЩАЯ перепись: пятеро обязаны быть в ней, и
+    `scripts/ci_control_weights.json` обязан оставаться их единственным
+    упоминанием (иначе утверждение стухло бы молча, когда появится настоящий
+    вызывающий, — и тогда модуль честно уйдёт из `KNOWN_UNWIRED`).
+    """
+    five = {
+        "spa_core/alerts/adaptive_monitor.py",
+        "spa_core/monitoring/data_freshness_monitor.py",
+        "spa_core/monitoring/live_registry_scene_census.py",
+        "spa_core/monitoring/unified_gas_monitor.py",
+        "spa_core/governance/cpa_governance_watcher.py",
+    }
+    present = {m for m in five if (_ROOT / m).exists()}
+    assert present == five, f"модули переписи пропали из дерева: {five - present}"
+    census = _census()
+    assert five <= census, (
+        "пятеро снова числятся подключёнными: "
+        f"{sorted(five - census)}")
+    # Вернуться в ПЕРЕПИСЬ и СТОЯТЬ НА УЧЁТЕ — разные утверждения, и второе
+    # мутация сняла бы молча: имя, выпавшее из `_FOUND_BY_STRICTER_DETECTOR`,
+    # ушло бы в «новые сироты», а тот тест КРАСЕН по другой причине
+    # (`step_time_drift`) — то есть сигнал был бы замаскирован чужим красным.
+    # Замер мутациями ADR-835 нашёл ровно это: мутант 5/11 ВЫЖИЛ.
+    assert five <= KNOWN_UNWIRED, (
+        "сторож вернулся в перепись, но на учёте не стои́т: "
+        f"{sorted(five - KNOWN_UNWIRED)}")

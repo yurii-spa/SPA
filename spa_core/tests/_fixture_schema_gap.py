@@ -124,8 +124,15 @@ _EXEMPT_BARE_RE = re.compile(r"#\s*SCHEMA-GAP-OK\s*:?\s*$")
 #: словаря-фикстуры у площадки нет. Причины НАЗВАНЫ врозь нарочно — так цена
 #: отказа от одалживания считается в `census.built_by_call`, а не растворяется
 #: в общем «вызов не разрешён».
+#:
+#: `unpacked_from_call` добавлен ADR-835 (цикл #958) и той же природы:
+#: `doc, root, d = _measured(tmp)` — документ есть продукт ВЫЗОВА, а не
+#: словарь-фикстура. До поправки такое имя не было связано ничем и уходило в
+#: «НЕ ИЗМЕРЕНО» (`name_unbound`), то есть в ведро «разбор не справился» —
+#: вердикт тот же, ведро чужое, и потолок охвата платил за это чужую цену.
 _BUILT_BY_CALL = frozenset({"call_unresolved", "helper_returns_no_dict",
-                            "receiver_not_self", "self_outside_class"})
+                            "receiver_not_self", "self_outside_class",
+                            "unpacked_from_call"})
 
 #: Каталоги тестов — предмет замера. Передаются ВХОДОМ, здесь только умолчание.
 DEFAULT_TEST_DIRS = ("spa_core/tests", "tests", "scripts/tests")
@@ -278,6 +285,71 @@ def _merge(dst: dict, src: dict) -> None:
             dst[key] = value
 
 
+class _Unpacked(ast.AST):
+    """Имя, связанное РАСПАКОВКОЙ кортежа: `doc, root, d = _measured(tmp)`.
+
+    До ADR-835 `_assigns_of` записывал только цель-`Name`, поэтому такое имя
+    не было связано НИЧЕМ, и `_name_skeleton` честно отвечал `name_unbound` —
+    то есть «разбор не справился». Ответ неверен не по вердикту, а по ВЕДРУ:
+    документ там собран ВЫЗОВОМ, и у этого исхода в приборе есть своё имя
+    (`built_by_call`). Разница не косметическая: «НЕ ИЗМЕРЕНО» ограничено
+    потолком `unmeasured_max`, который поднимать запрещено, и площадка,
+    положенная не в своё ведро, съедала бы запас охвата, которого не теряла.
+
+    `source` — правая часть присваивания: по ней и решается ведро.
+    """
+
+    _fields = ("source",)
+
+    def __init__(self, source: ast.AST) -> None:
+        super().__init__()
+        self.source = source
+
+
+def _unpack_targets(target: ast.AST) -> list[ast.Name]:
+    """Имена внутри цели-распаковки, включая вложенные `(a, (b, c))`.
+
+    `Starred` пропускается НАМЕРЕННО: `a, *rest = …` связывает `rest` списком,
+    а не элементом, и выдать его за документ значило бы угадать.
+    """
+    out: list[ast.Name] = []
+    if isinstance(target, ast.Name):
+        out.append(target)
+    elif isinstance(target, (ast.Tuple, ast.List)):
+        for element in target.elts:
+            if isinstance(element, ast.Starred):
+                continue
+            out.extend(_unpack_targets(element))
+    return out
+
+
+def _bind_unpacking(target: ast.AST, value: ast.AST,
+                    out: dict[str, list[ast.AST]]) -> None:
+    """Связать имена цели-распаковки — ПОЭЛЕМЕНТНО, если это дано статике.
+
+    Две дороги, и первая сильнее второй:
+
+    * обе стороны — литеральная последовательность одной длины без `Starred`
+      ⇒ каждое имя связывается СВОИМ выражением (разбор становится СИЛЬНЕЕ:
+      `a, b = {...}, {...}` раньше не разрешался вовсе);
+    * иначе ⇒ каждое имя связывается `_Unpacked(value)`, и ведро исхода
+      решает правая часть, а не слабость разбора.
+    """
+    names = _unpack_targets(target)
+    if not names:
+        return
+    if (isinstance(target, (ast.Tuple, ast.List))
+            and isinstance(value, (ast.Tuple, ast.List))
+            and len(target.elts) == len(value.elts)
+            and not any(isinstance(e, ast.Starred) for e in target.elts)
+            and all(isinstance(e, ast.Name) for e in target.elts)):
+        for element, bound in zip(target.elts, value.elts):
+            out.setdefault(element.id, []).append(bound)      # type: ignore[union-attr]
+        return
+    for name in names:
+        out.setdefault(name.id, []).append(_Unpacked(value))
+
+
 def _assigns_of(scope: ast.AST) -> dict[str, list[ast.AST]]:
     """Присваивания СВОЕЙ области: тело `scope` без вложенных функций и классов.
 
@@ -295,6 +367,8 @@ def _assigns_of(scope: ast.AST) -> dict[str, list[ast.AST]]:
                 for tgt in child.targets:
                     if isinstance(tgt, ast.Name):
                         out.setdefault(tgt.id, []).append(child.value)
+                    elif isinstance(tgt, (ast.Tuple, ast.List)):
+                        _bind_unpacking(tgt, child.value, out)
             elif (isinstance(child, ast.AnnAssign)
                   and isinstance(child.target, ast.Name)
                   and child.value is not None):
@@ -796,6 +870,14 @@ class _ModuleFlow:
             return None, "depth_limit"
         if isinstance(node, ast.Dict):
             return self._dict_skeleton(node, depth, seen)
+        if isinstance(node, _Unpacked):
+            # Имя связано РАСПАКОВКОЙ (ADR-835). Ведро решает ПРАВАЯ ЧАСТЬ:
+            # вызов — «документ собрал ВЫЗОВ», всё прочее — честное «НЕ
+            # ИЗМЕРЕНО» со своей причиной. Угадывать содержимое нельзя: к
+            # какому элементу кортежа привязано имя, статике не дано.
+            return None, ("unpacked_from_call"
+                          if isinstance(node.source, ast.Call)
+                          else "unpacked_unresolved")
         if isinstance(node, ast.Name):
             return self._name_skeleton(node, depth, seen)
         if isinstance(node, ast.Call):

@@ -1,0 +1,78 @@
+{
+ "title": "ADR-835 — дельта цикла #958: путь тест-файла проводкой не считается; имя, связанное РАСПАКОВКОЙ, получает своё ведро",
+ "tests": [
+  "spa_core/tests/test_unwired_guard_modules_ratchet.py",
+  "spa_core/tests/test_fixture_schema_gap.py",
+  "spa_core/tests/test_fixture_schema_gap_ratchet.py",
+  "spa_core/tests/test_bridge_closure_drift.py",
+  "spa_core/tests/test_door_sites_operand_probe.py"
+ ],
+ "mutations": [
+  {
+   "name": "путь тест-файла снова читается как проводка (поведение ДО ADR-835)",
+   "file": "spa_core/tests/test_unwired_guard_modules_ratchet.py",
+   "old": "    return _TEST_PATH.sub(\"\", text)",
+   "new": "    return text"
+  },
+  {
+   "name": "рез применяется только к .py — таблица весов CI снова всех «подключает»",
+   "file": "spa_core/tests/test_unwired_guard_modules_ratchet.py",
+   "old": "            out[rel] = _without_test_paths(\n                _code_only(body) if f.suffix == \".py\" else body)",
+   "new": "            out[rel] = (_without_test_paths(_code_only(body))\n                        if f.suffix == \".py\" else body)"
+  },
+  {
+   "name": "рез шире предмета: вырезается ВСЯ строка с путём теста, вместе с настоящим вызовом",
+   "file": "spa_core/tests/test_unwired_guard_modules_ratchet.py",
+   "old": "_TEST_PATH = re.compile(r\"[\\w./-]*\\btest_[A-Za-z0-9_]+\\.py\")",
+   "new": "_TEST_PATH = re.compile(r\"^.*\\btest_[A-Za-z0-9_]+\\.py.*$\", re.M)"
+  },
+  {
+   "name": "рез узок по префиксу: `tests/test_x.py` без каталога пакета остаётся проводкой",
+   "file": "spa_core/tests/test_unwired_guard_modules_ratchet.py",
+   "old": "_TEST_PATH = re.compile(r\"[\\w./-]*\\btest_[A-Za-z0-9_]+\\.py\")",
+   "new": "_TEST_PATH = re.compile(r\"spa_core/tests/test_[A-Za-z0-9_]+\\.py\")"
+  },
+  {
+   "name": "сирота, вскрытая ужесточением, снята с учёта вместо переякорения",
+   "file": "spa_core/tests/test_unwired_guard_modules_ratchet.py",
+   "old": "    \"spa_core/monitoring/golive_checker_hy.py\",\n    \"spa_core/monitoring/live_registry_scene_census.py\",",
+   "new": "    \"spa_core/monitoring/golive_checker_hy.py\","
+  },
+  {
+   "name": "распаковка кортежа снова не связывает имя ничем (`name_unbound`)",
+   "file": "spa_core/tests/_fixture_schema_gap.py",
+   "old": "                    elif isinstance(tgt, (ast.Tuple, ast.List)):\n                        _bind_unpacking(tgt, child.value, out)",
+   "new": "                    elif isinstance(tgt, (ast.Tuple, ast.List)):\n                        pass"
+  },
+  {
+   "name": "ведро решает не правая часть: распаковка ЛЮБОГО выражения числится вызовом",
+   "file": "spa_core/tests/_fixture_schema_gap.py",
+   "old": "            return None, (\"unpacked_from_call\"\n                          if isinstance(node.source, ast.Call)\n                          else \"unpacked_unresolved\")",
+   "new": "            return None, \"unpacked_from_call\""
+  },
+  {
+   "name": "поэлементного связывания нет: `a, b = {…}, {…}` остаётся неразрешённым",
+   "file": "spa_core/tests/_fixture_schema_gap.py",
+   "old": "        for element, bound in zip(target.elts, value.elts):\n            out.setdefault(element.id, []).append(bound)      # type: ignore[union-attr]\n        return",
+   "new": "        pass"
+  },
+  {
+   "name": "`a, *rest = …` связывает `rest` как элемент — документ УГАДАН",
+   "file": "spa_core/tests/_fixture_schema_gap.py",
+   "old": "            if isinstance(element, ast.Starred):\n                continue\n            out.extend(_unpack_targets(element))",
+   "new": "            if isinstance(element, ast.Starred):\n                out.extend(_unpack_targets(element.value))\n                continue\n            out.extend(_unpack_targets(element))"
+  },
+  {
+   "name": "`unpacked_from_call` не числится «собран ВЫЗОВОМ» — площадка снова съедает потолок охвата",
+   "file": "spa_core/tests/_fixture_schema_gap.py",
+   "old": "                            \"receiver_not_self\", \"self_outside_class\",\n                            \"unpacked_from_call\"})",
+   "new": "                            \"receiver_not_self\", \"self_outside_class\"})"
+  },
+  {
+   "name": "фикстура соседа снова отстаёт от производителя: ось знаменателя снята",
+   "file": "spa_core/tests/test_bridge_closure_drift.py",
+   "old": "                             \"tracker\": {\"verdict\": \"ok\",\n                                         \"unmeasured_reason\": None,\n                                         \"ref_sha\": REF_SHA,\n                                         \"checked\": 0, \"agreed\": 0,\n                                         \"open_on_ref\": [], \"absent_on_ref\": [],\n                                         \"unreadable\": []}}}",
+   "new": "                             }}"
+  }
+ ]
+}

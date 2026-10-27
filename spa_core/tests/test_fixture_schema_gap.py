@@ -491,10 +491,31 @@ class TheContractIsPinnedLiterally(unittest.TestCase):
         неизвестному получателю, `self_outside_class` — `self.f()` вне класса.
         Пин остаётся РАВЕНСТВОМ, а не вхождением: вырасти набору молча
         по-прежнему нельзя.
+
+        **Пин расширен ВТОРОЙ раз — ADR-835 (цикл #958), и обоснование то же
+        по форме, но НЕ по следствию.** Добавлена одна причина
+        (`unpacked_from_call`), ни одна не убрана и ни одна не переименована;
+        прежний набор целиком входит в новый. Форма, которой у меры не было:
+        `doc, root, d = _measured(tmp)` — имя связано РАСПАКОВКОЙ, и до этого
+        хода `_assigns_of` не записывал его вовсе, поэтому
+        `spa_core/tests/test_slo_data_dir_named.py:271` отвечал `name_unbound`
+        и лежал в «НЕ ИЗМЕРЕНО».
+
+        Почему это НЕ послабление, хотя площадка покидает «НЕ ИЗМЕРЕНО».
+        Вердикт у неё НЕ меняется — она как не входила в население
+        («путей не хватает»), так и не входит. Меняется ВЕДРО, и у двух вёдер
+        разная цена: `unmeasured` ограничен потолком `unmeasured_max`,
+        поднимать который запрещено, а «документ собрал ВЫЗОВ» — свой исход
+        по построению (словаря-фикстуры там нет). Площадка в чужом ведре
+        тратила бы запас охвата, которого мера не теряла, то есть прятала бы
+        НАСТОЯЩУЮ потерю охвата за своей. Обратная сторона закреплена
+        отдельно: правая часть, вызовом НЕ являющаяся, даёт
+        `unpacked_unresolved` и остаётся в «НЕ ИЗМЕРЕНО».
         """
         self.assertEqual(sorted(gap._BUILT_BY_CALL),
                          ["call_unresolved", "helper_returns_no_dict",
-                          "receiver_not_self", "self_outside_class"])
+                          "receiver_not_self", "self_outside_class",
+                          "unpacked_from_call"])
 
     def test_the_depth_limit_is_its_own_outcome_not_an_absence(self):
         """Упёрлись в предел ⇒ причина, а не «полей нет»."""
@@ -1541,3 +1562,81 @@ class TheMutationModelArrivesAsAnInput(_SceneCase):
         которого у двери нет (решение ADR-705)."""
         self.assertEqual([s.missing for s in self._run().population],
                          [("counts.a",)])
+
+
+class ANameBoundByUnpackingHasItsOwnBucket(_SceneCase):
+    """ADR-835 (цикл #958): распаковка кортежа — не «разбор не справился».
+
+    Площадка `spa_core/tests/test_slo_data_dir_named.py:271` отвечала
+    `name_unbound` и лежала в «НЕ ИЗМЕРЕНО» только потому, что `_assigns_of`
+    записывал одни цели-`Name`. Вердикт о населении от этого не менялся —
+    менялось ВЕДРО, а у вёдер разная цена: «НЕ ИЗМЕРЕНО» ограничено потолком,
+    который поднимать запрещено.
+
+    Каждая проверка ниже судит через НАСТОЯЩУЮ точку входа (`gap.measure`), а
+    не через внутреннюю функцию: урок #144.
+    """
+
+    SCHEMA = {"y.json": ("status", "order")}
+
+    def test_a_document_unpacked_from_a_call_is_BUILT_BY_A_CALL(self):
+        self.scene.write("test_unpack_call.py", '''
+            def t():
+                doc, root, extra = _measured(tmp)
+                return office._summarize_json("y.json", doc)
+        ''')
+        census = self.scene.measure(self.SCHEMA)
+        self.assertEqual(census.population, [])
+        self.assertEqual(census.unmeasured, [],
+                         "распаковка из вызова снова числится «не измерено»")
+        self.assertEqual([why for _where, why in census.built_by_call],
+                         ["unpacked_from_call"])
+
+    def test_a_document_unpacked_from_something_ELSE_stays_UNMEASURED(self):
+        """Обратная сторона: ведро решает ПРАВАЯ ЧАСТЬ, а не сама распаковка.
+
+        Без этого плеча поправка была бы лазейкой наружу: распакуй что угодно
+        — и объявленный путь перестанет стеречь кто-либо.
+        """
+        self.scene.write("test_unpack_other.py", '''
+            def t():
+                doc, rest = PAIR
+                return office._summarize_json("y.json", doc)
+        ''')
+        census = self.scene.measure(self.SCHEMA)
+        self.assertEqual(census.population, [])
+        self.assertEqual(census.built_by_call, [])
+        self.assertEqual([why for _where, why in census.unmeasured],
+                         ["doc_unresolved:unpacked_unresolved"])
+
+    def test_two_literals_unpacked_side_by_side_are_resolved_ELEMENTWISE(self):
+        """Усиление, а не послабление: такую фикстуру прибор раньше НЕ ВИДЕЛ.
+
+        Найденная нехватка пути — настоящая: `order` не несёт первый элемент,
+        и именно он доезжает до двери.
+        """
+        self.scene.write("test_unpack_pair.py", '''
+            def t():
+                doc, other = {"status": 1}, {"order": 2}
+                return office._summarize_json("y.json", doc)
+        ''')
+        census = self.scene.measure(self.SCHEMA)
+        self.assertEqual(census.unmeasured, [])
+        self.assertEqual([s.missing for s in census.population], [("order",)])
+
+    def test_a_starred_target_is_not_guessed(self):
+        """`a, *rest = …` связывает `rest` СПИСКОМ, а не элементом.
+
+        Выдать список за документ значило бы угадать; имя остаётся несвязанным
+        и площадка — честно НЕ ИЗМЕРЕННОЙ.
+        """
+        self.scene.write("test_unpack_star.py", '''
+            def t():
+                head, *doc = _measured(tmp)
+                return office._summarize_json("y.json", doc)
+        ''')
+        census = self.scene.measure(self.SCHEMA)
+        self.assertEqual(census.population, [])
+        self.assertEqual(census.built_by_call, [])
+        self.assertEqual([why for _where, why in census.unmeasured],
+                         ["doc_unresolved:name_unbound"])

@@ -324,7 +324,20 @@ def test_office_step_prints_the_finding() -> None:
                              "open_on_origin": [{"key": INCIDENT_KEY,
                                                  "card_id": INCIDENT_CARD_ID,
                                                  "origin_status": "new",
-                                                 "closed_at": "2026-08-11T07:03:01+00:00"}]}}
+                                                 "closed_at": "2026-08-11T07:03:01+00:00"}],
+                             # Ось ЗНАМЕНАТЕЛЯ (ADR-806) — её `loop_health.run`
+                             # пишет БЕЗУСЛОВНО, и объявлена она в
+                             # `_READ_SCHEMA` как `closure_drift.tracker`.
+                             # Без неё фикстура отставала от производителя, и
+                             # ЧУЖАЯ сцена краснила храповик зазора (ADR-835).
+                             # Пустая ось здесь ВЕРНА по замеру ADR-806:
+                             # пересечение двух осей пусто.
+                             "tracker": {"verdict": "ok",
+                                         "unmeasured_reason": None,
+                                         "ref_sha": REF_SHA,
+                                         "checked": 0, "agreed": 0,
+                                         "open_on_ref": [], "absent_on_ref": [],
+                                         "unreadable": []}}}
 
     out = "\n".join(OFFICE._summarize_json("data/loop_health.json", doc))
 
@@ -342,7 +355,19 @@ def test_office_step_says_unmeasured_out_loud() -> None:
            "closure_drift": {"verdict": "unmeasured",
                              "unmeasured_reason": "состояние моста не прочитано",
                              "ref_sha": None, "checked": 0, "agreed": 0,
-                             "open_on_origin": [], "absent_on_origin": []}}
+                             "open_on_origin": [], "absent_on_origin": [],
+                             # Та же ось ЗНАМЕНАТЕЛЯ (ADR-806). Здесь она тоже
+                             # НЕ ИЗМЕРЕНА — и причина у неё СВОЯ: «состояние
+                             # моста не прочитано» и «каталог очереди не
+                             # прочитан» суть два разных отказа (инв. #17).
+                             "tracker": {"verdict": "unmeasured",
+                                         "unmeasured_reason":
+                                             "каталог очереди не прочитан — "
+                                             "сверять было нечего",
+                                         "ref_sha": None,
+                                         "checked": 0, "agreed": 0,
+                                         "open_on_ref": [], "absent_on_ref": [],
+                                         "unreadable": []}}}
 
     out = "\n".join(OFFICE._summarize_json("data/loop_health.json", doc))
 

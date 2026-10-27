@@ -8,12 +8,12 @@ created: 2026-08-13
 priority: critical
 status_trail:
   - "2026-08-26T22:31:36.748790+00:00 new -> in-progress · queue.set_status · cycle-96657"
-claimed_by: cycle-36175
-claimed_at: 2026-10-27T16:22:16Z
-claimed_run_id: orchestrator-36175-E609227F5C5F492382CEDC9B98580415
-claimed_pid: 36175
-claimed_pid_start: Tue Oct 27 17:00:50 2026
-claim_takeover_reason: шаг 0a код 1: работа #956 (ADR-830) ЕСТЬ на origin/main 21e8f8acd — сверено git log по docs/decisions/INDEX.md и наличием docs/decisions/ADR-830-*.md + spa_core/tests/test_adr_index_form.py на origin; #956 объявил card_state=done 14:58:51Z, его дерево /private/tmp/spa_c956 снято. Поднимать нечего, цикл берёт ЗАКАЗ G831 п. 1
+claimed_by: cycle-49862
+claimed_at: 2026-10-27T18:34:21Z
+claimed_run_id: orchestrator-49862-991C39DBFBAE49B7A66A2C08B3A22E0D
+claimed_pid: 49862
+claimed_pid_start: Tue Oct 27 19:30:57 2026
+claim_takeover_reason: шаг 0a код 1: работа #957 (ADR-831) ЕСТЬ на origin/main ffbe6bc6b — сверено git log по docs/decisions/ADR-831-*.md, docs/STATE.md, docs/decisions/INDEX.md и docs/journal/2026-W44.md; строки 'НЕ ДОСТАВЛЕНО' про INDEX.md/STATE.md от #956 (cycle-42136) ПЕРЕКРЫТЫ работой #957 по тем же путям. Захватчик cycle-36175 (pid 36175) мёртв — ps -p пуст. Поднимать нечего, цикл берёт долг, названный ADR-831 в разделе «Что это НЕ закрывает»: восемь КРАСНЫХ храповиков на origin/main
 ---
 
 ## УКАЗАНИЕ ВЛАДЕЛЬЦА 2026-08-22 (cloud-сессия): ЗАПУСТИТЬ СЛЕДУЮЩИМ ЦИКЛОМ
