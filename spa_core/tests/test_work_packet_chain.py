@@ -133,6 +133,7 @@ def test_approval_and_outcome_are_written_once_and_shown_in_the_cockpit(tmp_path
     view = ov._record_preparation_ru({**st, **wp.decisions_for(run, st)})
     assert view["head"].startswith("Выполнено и проверено") and "Юрий" in view["approval"]
     assert "условие отсутствует" in view["result"]
+    assert view.get("outcome") == "итог", "текст ожидаемого итога плана затёрт записью исполнения"
 
 
 def test_approval_of_an_older_plan_version_is_shown_as_not_valid(tmp_path):

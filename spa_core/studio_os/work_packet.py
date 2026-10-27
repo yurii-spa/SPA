@@ -162,7 +162,9 @@ def decisions_for(run_dir: Path, plan_state: Dict[str, Any]) -> Dict[str, Any]:
         out["approval"]["valid"] = bool(version and ap.get("version") == version
                                         and plan_state.get("state") == "current")
     if oc:
-        out["outcome"] = {k: oc.get(k) for k in ("probe", "verdict", "detail", "at", "version")}
+        # Ключ `execution`, а не `outcome`: `outcome` в блоке подготовки — ТЕКСТ ожидаемого итога
+        # из плана (preparation_state), и одно имя затёрло бы другое в пульте.
+        out["execution"] = {k: oc.get(k) for k in ("probe", "verdict", "detail", "at", "version")}
     return out
 
 
