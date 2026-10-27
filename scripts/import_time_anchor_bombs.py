@@ -43,6 +43,7 @@ import subprocess
 import sys
 import tempfile
 from pathlib import Path
+from xml.etree import ElementTree
 
 ROOT = Path(__file__).resolve().parents[1]
 
@@ -64,16 +65,27 @@ DEFAULT_LAG_MIN = 95.0
 #: настоящем pytest 9.0.3; тот же дефект найден в `delta_mutation_run._FAILED_LINE`).
 #: Суффикс формы `(n=1)` / `(n=1, k='a b')` / `(<subtest>)` / `[метка]` стои́т ВНЕ
 #: группы вердикта: в нём бывают пробелы, и имя нельзя брать «вторым словом».
-#: Пропуск суффикса строку `SKIPPED` НЕ задевает, и это ИЗМЕРЕНО, а не предположено:
-#: `SUBFAILED(n=1) имя` печатается БЕЗ пробела перед скобкой, а пропуск — с пробелом
-#: (`SKIPPED [1] файл:строка:`), поэтому необязательная группа к его `[1]` не
-#: прикладывается никогда и ключ пропущенного теста остаётся прежним. Первая редакция
-#: правки #951 сужала группу до одного `SUBFAILED` «на всякий случай» — прибор по дельте
-#: показал мутанта этого сужения ВЫЖИВШИМ, и выживший оказался ЭКВИВАЛЕНТНЫМ: сужение
-#: было украшением. Договор закреплён сценой, а не формой регекса
-#: (`test_the_skipped_key_is_untouched_by_the_suffix_group`).
+#: Первая редакция правки #951 сужала группу до одного `SUBFAILED` «на всякий случай» —
+#: прибор по дельте показал мутанта этого сужения ВЫЖИВШИМ, и выживший оказался
+#: ЭКВИВАЛЕНТНЫМ: сужение было украшением. Договор закреплён сценой, а не формой регекса.
+#:
+#: **`SKIPPED` в этой группе больше НЕТ, и это правка #952 (заказ G827 п. 1).** Короткая
+#: сводка имени пропущенного теста не печатает ВООБЩЕ: строка выглядит как
+#: `SKIPPED [n] файл:строка: причина`, где `[n]` — РАЗМЕР ГРУППЫ (пропуски сводятся по
+#: паре «место + причина»), а не номер и не имя. Пробел перед `[n]` не давал
+#: необязательной группе к нему приложиться, поэтому ключом вердикта становился сам
+#: счётчик `[1]` — то есть ПОРЯДОК, а не личность. ЗАМЕР на настоящем pytest 9.0.3
+#: (цикл #952, две сцены: пропуск «пока прогон короткий» и пропуск «когда прогон
+#: длинный»): задержка меняла вердикт ОБОИХ тестов, у обеих сторон ключ выходил `[1]`,
+#: сравнение давало равенство, и прибор печатал «Бомб нет» при `__passed__` = 1 на обеих
+#: сторонах — окольной улики нет, и ошибка шла в сторону САМОУСПОКОЕНИЯ. На этом ключе
+#: стои́т урок #465 про переход в `skipped`, то есть слепым был ровно тот переход, ради
+#: которого прибор и мерит обе стороны. Место в строке личностью тоже НЕ является и это
+#: измерено: `raise unittest.SkipTest` из простой функции печатает место ВНУТРИ pytest
+#: (`_pytest/unittest.py:502`), и четыре разных теста сводятся там к двум группам.
+#: Поэтому пропуски читаются ОТДЕЛЬНОЙ дверью — `_skips_from_junit`, по имени теста.
 _OUTCOME = re.compile(
-    r"^(FAILED|ERROR|SKIPPED|SUBFAILED)(?:\([^)]*\)|\[[^\]]*\])?\s+(\S+)", re.M)
+    r"^(FAILED|ERROR|SUBFAILED)(?:\([^)]*\)|\[[^\]]*\])?\s+(\S+)", re.M)
 
 #: Итоговая строка pytest. Её ОТСУТСТВИЕ и есть «не смогли измерить».
 _SUMMARY = re.compile(r"\d+ (?:passed|failed|error|errors|skipped)", re.I)
@@ -81,6 +93,43 @@ _SUMMARY = re.compile(r"\d+ (?:passed|failed|error|errors|skipped)", re.I)
 
 class NotMeasured(RuntimeError):
     """Замер не состоялся. Причина обязана быть названа."""
+
+
+def _skips_from_junit(xml_path: Path, lag_min: float) -> dict[str, str]:
+    """Пропущенные тесты ПО ИМЕНИ — то, чего короткая сводка не печатает вовсе.
+
+    Короткая сводка сводит пропуски в группы «место + причина» и печатает РАЗМЕР
+    группы (`SKIPPED [3] …`), а не имена. Поэтому вопрос прибора — «у КАКОГО теста
+    сменился вердикт» — на ней не разрешим в принципе, и до #952 ключом становился
+    счётчик. Отчёт `--junit-xml` (встроенный в pytest, плагин не нужен) несёт
+    `classname` + `name` на КАЖДЫЙ тест, в том числе параметризованный, поэтому
+    обмен двух пропусков местами перестаёт быть равенством.
+
+    Дверь намеренно УЗКАЯ: имена падений по-прежнему читаются из короткой сводки.
+    `SUBFAILED` — понятие `pytest-subtests`, и в junit отдельным исходом не живёт;
+    переводить на junit всё означало бы выкинуть договор #951, не измерив замену.
+    Это названная граница, а не недосмотр.
+
+    Третий исход обязателен (инв. #17): отчёта нет или он не разобран ⇒ отказ с
+    причиной, а не пустой словарь, который был бы неотличим от «пропусков не было».
+    """
+    if not xml_path.exists():
+        raise NotMeasured(f"pytest не оставил junit-отчёт {xml_path} "
+                          f"(задержка {lag_min} мин) — какие тесты пропущены, не измерено")
+    try:
+        tree = ElementTree.parse(xml_path)
+    except ElementTree.ParseError as exc:
+        raise NotMeasured(f"junit-отчёт не разобран (задержка {lag_min} мин): {exc}") from exc
+    skipped: dict[str, str] = {}
+    for case in tree.iter("testcase"):
+        if case.find("skipped") is None:
+            continue
+        cls, name = case.get("classname") or "", case.get("name") or ""
+        if not name:
+            raise NotMeasured(f"junit-отчёт назвал пропуск без имени теста "
+                              f"(задержка {lag_min} мин): classname={cls!r}")
+        skipped[f"{cls}::{name}" if cls else name] = "SKIPPED"
+    return skipped
 
 
 def anchored_at_import(root: Path = ROOT) -> list[tuple[str, str, int]]:
@@ -133,7 +182,11 @@ def outcomes(files: list[str], lag_min: float, root: Path = ROOT) -> dict[str, s
     env = {**os.environ, "SPA_ENV": "ci", "PYTHONHASHSEED": "0",
            "SPA_LAG_MIN": str(lag_min), "SPA_LAG_CLOCKS": ",".join(sorted(CLOCKS)),
            "PYTHONPATH": str(plugin_dir) + os.pathsep + os.environ.get("PYTHONPATH", "")}
+    # Отчёт junit кладётся в тот же временный каталог и по той же причине. Он нужен
+    # ровно для пропусков: короткая сводка их ИМЁН не печатает (см. `_skips_from_junit`).
+    junit = plugin_dir / "outcomes.xml"
     cmd = [sys.executable, "-m", "pytest", *files, "-q", "--tb=no", "-rfEs",
+           f"--junit-xml={junit}",
            "-p", "no:randomly", "-p", "no:cacheprovider", "-p", "spa_lag_plugin"]
     try:
         proc = subprocess.run(cmd, cwd=root, env=env, capture_output=True,
@@ -161,7 +214,12 @@ def outcomes(files: list[str], lag_min: float, root: Path = ROOT) -> dict[str, s
         raise NotMeasured(f"вывод pytest не разобран (задержка {lag_min} мин): "
                           f"{proc.stdout[-400:]}")
     passed = re.search(r"(\d+) passed", proc.stdout)
-    return {"__passed__": passed.group(1) if passed else "0", **verdicts}
+    # Пропуски ПОСЛЕДНИМИ намеренно: имя из junit — единственная личность пропущенного
+    # теста, и перекрыть её счётчиком из сводки больше нечем (`SKIPPED` из `_OUTCOME`
+    # убран этой же правкой). Столкнуться ключи не могут: junit даёт точечный
+    # `модуль.Класс::тест`, сводка — слэшевый `путь/файл.py::тест`.
+    skips = _skips_from_junit(junit, lag_min)
+    return {"__passed__": passed.group(1) if passed else "0", **verdicts, **skips}
 
 
 _PLUGIN_SRC = '''"""Двигает НАСТОЯЩИЕ ЧАСЫ вперёд — ровно то, что делает длинный прогон.
@@ -235,6 +293,28 @@ def pytest_collection_modifyitems(session, config, items):
 '''
 
 
+def changed_verdicts(base: dict[str, str], aged: dict[str, str]) -> list[tuple[str, str, str]]:
+    """Тесты, у которых вердикт отличается между двумя прогонами: (тест, было, стало).
+
+    «Прошёл» в разборе отсутствует ПО ПОСТРОЕНИЮ — pytest перечисляет только не
+    прошедшие, — отсюда умолчание `passed` у обеих сторон: переход passed→skipped
+    ловится так же, как passed→failed (урок #465). С #952 это верно и на деле, а не
+    только на словах: до него пропуск приходил под ключом-СЧЁТЧИКОМ, и обмен двух
+    пропусков местами давал равенство (см. `_skips_from_junit`).
+
+    Вынесено отдельной функцией, чтобы у сравнения был контроль на НАСТОЯЩИХ словарях
+    прибора, а не на собранных руками: рукотворный словарь мерит сам себя.
+    """
+    changed: list[tuple[str, str, str]] = []
+    for test in sorted(set(base) | set(aged)):
+        if test == "__passed__":
+            continue
+        was, now = base.get(test, "passed"), aged.get(test, "passed")
+        if was != now:
+            changed.append((test, was, now))
+    return changed
+
+
 def bombs(lag_min: float = DEFAULT_LAG_MIN, root: Path = ROOT) -> list[tuple[str, str, str]]:
     """Тесты, у которых вердикт МЕНЯЕТСЯ от одной лишь задержки: (тест, было, стало)."""
     population = anchored_at_import(root)
@@ -244,16 +324,7 @@ def bombs(lag_min: float = DEFAULT_LAG_MIN, root: Path = ROOT) -> list[tuple[str
     files = sorted({f for f, _, _ in population})
     base = outcomes(files, 0.0, root)
     aged = outcomes(files, lag_min, root)
-    changed: list[tuple[str, str, str]] = []
-    for test in sorted(set(base) | set(aged)):
-        if test == "__passed__":
-            continue
-        # «Прошёл» отсутствует в разборе по построению: pytest перечисляет только
-        # НЕ прошедшие. Отсюда и обе стороны сравнения — с умолчанием «passed»;
-        # переход passed→skipped ловится так же, как passed→failed (урок #465).
-        was, now = base.get(test, "passed"), aged.get(test, "passed")
-        if was != now:
-            changed.append((test, was, now))
+    changed = changed_verdicts(base, aged)
     if base["__passed__"] == "0" and len(base) == 1:
         raise NotMeasured("базовый прогон (задержка 0) не дал НИ ОДНОГО исхода — "
                           "набор не исполнялся, и сравнивать не с чем")

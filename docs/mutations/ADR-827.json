@@ -1,0 +1,56 @@
+{
+ "title": "ADR-827 — дельта цикла #952 (личность пропущенного теста у прибора бомб)",
+ "tests": [
+  "spa_core/tests/test_import_time_anchor_instrument.py"
+ ],
+ "mutations": [
+  {
+   "name": "пропуски снова читаются из короткой сводки — ключом станет счётчик [1]",
+   "file": "scripts/import_time_anchor_bombs.py",
+   "old": "    r\"^(FAILED|ERROR|SUBFAILED)(?:\\([^)]*\\)|\\[[^\\]]*\\])?\\s+(\\S+)\", re.M)",
+   "new": "    r\"^(FAILED|ERROR|SKIPPED|SUBFAILED)(?:\\([^)]*\\)|\\[[^\\]]*\\])?\\s+(\\S+)\", re.M)"
+  },
+  {
+   "name": "пропуски из junit до вердикта НЕ доезжают (половина инъекции)",
+   "file": "scripts/import_time_anchor_bombs.py",
+   "old": "    return {\"__passed__\": passed.group(1) if passed else \"0\", **verdicts, **skips}",
+   "new": "    return {\"__passed__\": passed.group(1) if passed else \"0\", **verdicts}"
+  },
+  {
+   "name": "pytest не просят об junit-отчёте — его не будет вовсе",
+   "file": "scripts/import_time_anchor_bombs.py",
+   "old": "           f\"--junit-xml={junit}\",",
+   "new": "           \"-q\","
+  },
+  {
+   "name": "отсутствие junit-отчёта выдаётся за «пропусков не было» (fail-OPEN, инв. #17)",
+   "file": "scripts/import_time_anchor_bombs.py",
+   "old": "        raise NotMeasured(f\"pytest не оставил junit-отчёт {xml_path} \"\n                          f\"(задержка {lag_min} мин) — какие тесты пропущены, не измерено\")",
+   "new": "        return {}"
+  },
+  {
+   "name": "неразобранный junit-отчёт выдаётся за пустой (fail-OPEN)",
+   "file": "scripts/import_time_anchor_bombs.py",
+   "old": "        raise NotMeasured(f\"junit-отчёт не разобран (задержка {lag_min} мин): {exc}\") from exc",
+   "new": "        return {}"
+  },
+  {
+   "name": "ключ без classname — два теста с одним именем в разных файлах склеиваются",
+   "file": "scripts/import_time_anchor_bombs.py",
+   "old": "        skipped[f\"{cls}::{name}\" if cls else name] = \"SKIPPED\"",
+   "new": "        skipped[name] = \"SKIPPED\""
+  },
+  {
+   "name": "в junit читаются НЕ пропуски (условие перевёрнуто)",
+   "file": "scripts/import_time_anchor_bombs.py",
+   "old": "        if case.find(\"skipped\") is None:",
+   "new": "        if case.find(\"skipped\") is not None:"
+  },
+  {
+   "name": "умолчание сравнения — SKIPPED вместо passed: переход passed->skipped невидим (урок #465)",
+   "file": "scripts/import_time_anchor_bombs.py",
+   "old": "        was, now = base.get(test, \"passed\"), aged.get(test, \"passed\")",
+   "new": "        was, now = base.get(test, \"SKIPPED\"), aged.get(test, \"SKIPPED\")"
+  }
+ ]
+}

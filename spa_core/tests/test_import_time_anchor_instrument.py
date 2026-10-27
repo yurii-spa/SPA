@@ -220,28 +220,6 @@ class TheInstrumentSeesACarrierHiddenUnderSubTest(unittest.TestCase):
         self.assertEqual([v for k, v in base.items() if k != "__passed__"], ["FAILED"],
                          f"исход ВНЕШНЕГО падения обязан победить подтестовый: {base}")
 
-    def test_the_skipped_key_is_untouched_by_the_suffix_group(self):
-        """ЗВЕНО: пропуск суффикса НЕ задевает строку `SKIPPED`.
-
-        Строка пропуска печатается как `SKIPPED [1] файл:строка:` — её `[1]` это
-        СЧЁТЧИК, и смена ключа пропущенного теста со счётчика на «файл:строка» ломала бы
-        сравнение «было ↔ стало» МОЛЧА, а именно на нём стои́т урок #465 про переход
-        в `skipped`. Держит это НЕ форма регекса, а ПРОБЕЛ в выводе pytest: суффикс
-        `SUBFAILED` печатается без пробела перед скобкой, пропуск — с пробелом, и
-        необязательная группа к его `[1]` не прикладывается никогда. Сужение группы до
-        одного `SUBFAILED` писалось в этом же цикле и снято как ЭКВИВАЛЕНТНОЕ (прибор по
-        дельте показал его мутанта выжившим) — договор держит эта сцена."""
-        body = (
-            "import unittest\n\n\n"
-            "class Scene(unittest.TestCase):\n"
-            "    def test_scene(self):\n"
-            "        raise unittest.SkipTest('пропуск')\n")
-        base, _ = self._verdicts(body, "skipped_key")
-        keys = [k for k in base if k != "__passed__"]
-        self.assertEqual(keys, ["[1]"],
-                         "ключ строки SKIPPED обязан остаться прежним (счётчик), иначе "
-                         f"правка #951 молча сменила предмет сравнения: {base}")
-
     def test_the_message_form_of_the_suffix_is_parsed_too(self):
         """ЗВЕНО: форма `SUBFAILED[метка с пробелом]` — вторая из двух, и у прибора
         бомб СВОЯ копия регекса. Без этой сцены квадратная форма была бы проверена
@@ -257,6 +235,170 @@ class TheInstrumentSeesACarrierHiddenUnderSubTest(unittest.TestCase):
             [(k.rsplit("::", 1)[-1], v) for k, v in base.items() if k != "__passed__"],
             [("test_scene", "SUBFAILED")],
             f"имя обязано быть взято ПОСЛЕ квадратного суффикса с пробелом: {base}")
+
+
+#: Пропуск, который происходит ПОКА прогон короткий: при задержке 0 тест пропущен, при
+#: 95 мин — проходит. Якорь на импорте тут не дефект, а МЕХАНИЗМ сцены: он и есть то,
+#: чем длительность прогона меняет вердикт.
+_SKIP_WHEN_EARLY = '''
+import unittest
+from spa_core.tests._freshness import now_utc
+
+NOW = now_utc()                      # ЯКОРЬ НА ИМПОРТЕ
+
+
+class Scene(unittest.TestCase):
+    def test_scene(self):
+        if (now_utc() - NOW).total_seconds() < 60:
+            raise unittest.SkipTest("прогон короткий")
+        self.assertTrue(True)
+'''
+
+#: Обратный: при задержке 0 проходит, при 95 мин пропускается. Вместе с предыдущим даёт
+#: сцену, на которой прибор молчал: пропусков по ОДНОМУ с каждой стороны, а тесты РАЗНЫЕ.
+_SKIP_WHEN_LATE = _SKIP_WHEN_EARLY.replace(
+    'if (now_utc() - NOW).total_seconds() < 60:\n'
+    '            raise unittest.SkipTest("прогон короткий")',
+    'if (now_utc() - NOW).total_seconds() >= 60:\n'
+    '            raise unittest.SkipTest("прогон длинный")')
+
+#: Пропуск, которому задержка безразлична: обязан остаться чистым на ОБЕИХ сторонах.
+_SKIP_ALWAYS = '''
+import unittest
+
+
+class Scene(unittest.TestCase):
+    def test_scene(self):
+        raise unittest.SkipTest("пропуск не зависит от длительности прогона")
+'''
+
+#: Два РАЗНЫХ теста, которых короткая сводка сводит в ОДНО место. Замер #952 на pytest
+#: 9.0.3: `raise unittest.SkipTest` из простой функции печатается как
+#: `SKIPPED [n] …/_pytest/unittest.py:502: причина` — место лежит ВНУТРИ pytest и у обоих
+#: тестов одинаково. Поэтому ключом не годится ни счётчик, ни «файл:строка».
+_SKIPS_AT_ONE_PLACE = '''
+import unittest
+
+
+def test_first():
+    raise unittest.SkipTest("первая причина")
+
+
+def test_second():
+    raise unittest.SkipTest("вторая причина")
+'''
+
+
+class TheInstrumentNamesWhichTestWasSkipped(unittest.TestCase):
+    """Пропуск обязан иметь ЛИЧНОСТЬ, а не номер. Класс найден циклом #952 (заказ G827 п. 1).
+
+    До правки ключом вердикта пропущенного теста становился СЧЁТЧИК из короткой сводки
+    (`SKIPPED [1] место: причина`): короткая сводка имён пропущенных тестов не печатает
+    ВООБЩЕ и сводит их в группы «место + причина», а `[1]` — размер группы. Сравнение
+    «было ↔ стало» по такому ключу работало только пока пропуск был один и тот же: обмен
+    двух пропусков местами давал РАВЕНСТВО, и прибор печатал «Бомб нет» при двух
+    сменившихся вердиктах. Ошибка шла в сторону САМОУСПОКОЕНИЯ, и слепым был ровно тот
+    переход (`passed → skipped`), на котором стои́т урок #465.
+
+    Замер цены до правки (живое население, 30 файлов, задержка 0): исходов кроме
+    `__passed__` = 741 НЕ БЫЛО НИ ОДНОГО, то есть сегодня слепота ЛАТЕНТНА и стоила
+    НОЛЬ находок. Платили не за сегодняшнюю находку, а за то, что ответ «чисто»
+    сейчас держится на отсутствии пропусков в населении, а не на умении прибора их
+    различать."""
+
+    def setUp(self):
+        import tempfile
+        self.tmp = Path(tempfile.mkdtemp(prefix="spa_anchor_skip_"))
+
+    def tearDown(self):
+        import shutil
+        shutil.rmtree(self.tmp, ignore_errors=True)
+
+    def _sides(self, files: list[str]):
+        return iab.outcomes(files, 0.0, ROOT), iab.outcomes(files, LAG_MIN, ROOT)
+
+    def test_two_skips_swapping_places_are_both_found(self):
+        """ПОЛОЖИТЕЛЬНЫЙ КОНТРОЛЬ класса: до правки прибор здесь говорил «Бомб нет»."""
+        files = [_scene(self.tmp, "skip_when_early", _SKIP_WHEN_EARLY),
+                 _scene(self.tmp, "skip_when_late", _SKIP_WHEN_LATE)]
+        base, aged = self._sides(files)
+        # Сцена обязана быть ИМЕННО такой, иначе она не воспроизводит класс: по одному
+        # пропуску с каждой стороны и «1 passed» у обеих — окольной улики нет.
+        self.assertEqual(
+            ([v for k, v in base.items() if k != "__passed__"],
+             [v for k, v in aged.items() if k != "__passed__"],
+             base.get("__passed__"), aged.get("__passed__")),
+            (["SKIPPED"], ["SKIPPED"], "1", "1"),
+            f"сцена сломана, а не класс воспроизведён: {base} / {aged}")
+        # СЕРДЦЕ класса, и проверяется ДО обращения к сравнению: на чистом origin/main
+        # ключами обеих сторон был счётчик `[1]`, то есть они СОВПАДАЛИ — и сравнение по
+        # ним давало равенство при двух сменившихся вердиктах. Утверждение стои́т здесь
+        # нарочно: упади оно позже, падение читалось бы как «нет такой функции», а не
+        # как предмет класса.
+        self.assertNotEqual([k for k in base if k != "__passed__"],
+                            [k for k in aged if k != "__passed__"],
+                            f"ключи пропусков у двух сторон СОВПАЛИ — значит ключом стал "
+                            f"не тест, а номер, и сравнение слепо: {base} / {aged}")
+        changed = iab.changed_verdicts(base, aged)
+        self.assertEqual(sorted((was, now) for _, was, now in changed),
+                         [("SKIPPED", "passed"), ("passed", "SKIPPED")],
+                         f"прибор обязан назвать ОБА перехода, а не равенство: {changed}")
+        names = [t for t, _, _ in changed]
+        self.assertTrue(all(t.endswith("Scene::test_scene") for t in names),
+                        f"переход обязан быть назван ИМЕНЕМ теста, не номером: {names}")
+        self.assertTrue(all("skip_when_early" in t for t in names[:1])
+                        and any("skip_when_late" in t for t in names),
+                        f"имена обязаны различать два РАЗНЫХ теста: {names}")
+
+    def test_a_skip_that_ignores_the_lag_is_not_a_bomb(self):
+        """ОБРАТНАЯ СТОРОНА: без неё правка читалась бы как «любой пропуск подозрителен».
+
+        И отдельно проверено, что равенство здесь — от СОВПАДЕНИЯ, а не от слепоты:
+        пропуск ВИДЕН обеим сторонам поимённо."""
+        files = [_scene(self.tmp, "skip_always", _SKIP_ALWAYS)]
+        base, aged = self._sides(files)
+        self.assertEqual(iab.changed_verdicts(base, aged), [],
+                         f"задержке этот пропуск безразличен — находки быть не вправе: "
+                         f"{base} / {aged}")
+        self.assertEqual(([v for k, v in base.items() if k != "__passed__"],
+                          [v for k, v in aged.items() if k != "__passed__"]),
+                         (["SKIPPED"], ["SKIPPED"]),
+                         f"пропуск обязан быть ВИДЕН обеим сторонам, иначе равенство "
+                         f"получено слепотой: {base} / {aged}")
+
+    def test_two_tests_the_summary_puts_at_one_place_get_two_keys(self):
+        """ЗВЕНО: личностью не является и «файл:строка».
+
+        Замер #952: оба этих пропуска короткая сводка печатает с местом ВНУТРИ pytest
+        (`_pytest/unittest.py:502`), то есть ОДИНАКОВЫМ. Ключ по месту склеил бы их, и
+        подмена одного другим снова стала бы равенством — поэтому дверь к пропускам
+        читает junit, а не сводку."""
+        files = [_scene(self.tmp, "one_place", _SKIPS_AT_ONE_PLACE)]
+        base, _ = self._sides(files)
+        keys = sorted(k for k in base if k != "__passed__")
+        self.assertEqual([k.rsplit("::", 1)[-1] for k in keys], ["test_first", "test_second"],
+                         f"два разных пропуска обязаны получить два ключа: {base}")
+
+    def test_the_summary_reader_no_longer_claims_skips(self):
+        """ЗВЕНО: дверь к пропускам ОДНА.
+
+        Останься `SKIPPED` в группе `_OUTCOME`, счётчик `[1]` снова встал бы ключом
+        РЯДОМ с именем из junit — и сравнение опять зависело бы от порядка."""
+        line = "SKIPPED [1] spa_core/tests/test_x.py:12: причина\n"
+        self.assertEqual(iab._OUTCOME.findall(line), [],
+                         "читатель короткой сводки не вправе объявлять пропуски своими")
+
+    def test_a_missing_junit_report_is_a_refusal_not_an_empty_dict(self):
+        """Третий исход (инв. #17): пустой словарь был бы неотличим от «пропусков нет»."""
+        with self.assertRaises(iab.NotMeasured) as ctx:
+            iab._skips_from_junit(self.tmp / "отчёта-нет.xml", 0.0)
+        self.assertIn("junit", str(ctx.exception).lower())
+
+    def test_an_unparsable_junit_report_is_a_refusal(self):
+        bad = self.tmp / "bad.xml"
+        bad.write_text("<testsuite", encoding="utf-8")
+        with self.assertRaises(iab.NotMeasured):
+            iab._skips_from_junit(bad, 0.0)
 
 
 class TheInstrumentRefusesInsteadOfGuessing(unittest.TestCase):
