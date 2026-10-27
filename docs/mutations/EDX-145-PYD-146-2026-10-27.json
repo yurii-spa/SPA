@@ -1,0 +1,86 @@
+{
+  "title": "#145 EDX + #146 PYD — дельта итерации novel-edge-rnd 2026-10-27 (вторая; заказ #143: головы отрицательного ряда без eth_directional; новая гипотеза — диверсификация по ПЛАТЕЛЬЩИКУ)",
+  "tests": [
+    "spa_core/tests/test_edge_excision_payer.py"
+  ],
+  "mutations": [
+    {
+      "name": "M1 вырез имени, которого в панели НЕТ, становится молчаливым no-op — «вырез ничего не меняет» печатается без выреза",
+      "file": "scripts/edge_excision_payer.py",
+      "old": "    missing = [b for b in drop if b not in present]\n    if missing:\n        raise ExcisionError(\n",
+      "new": "    missing = [b for b in drop if b not in present]\n    if False:\n        raise ExcisionError(\n"
+    },
+    {
+      "name": "M2 axis_identity перестаёт ОТКАЗЫВАТЬ на разных осях — смена ОКНА выдаётся за эффект выреза",
+      "file": "scripts/edge_excision_payer.py",
+      "old": "    if not out[\"identical\"]:\n        raise ExcisionError(\n",
+      "new": "    if False:\n        raise ExcisionError(\n"
+    },
+    {
+      "name": "M3 дырка границы N-ног теряет НАЗВАННУЮ ПРИЧИНУ (инв. #17: «не измерено» становится безымянным)",
+      "file": "scripts/edge_excision_payer.py",
+      "old": "            holes.append({\"n\": r[\"n\"], \"reason\": r.get(\"reason\") or f\"{key} not measured\"})\n",
+      "new": "            holes.append({\"n\": r[\"n\"], \"reason\": None})\n"
+    },
+    {
+      "name": "M3b неподтверждённая ступень становится НУЛЁМ вместо дырки — ноль подставлен вместо наблюдения",
+      "file": "scripts/edge_excision_payer.py",
+      "old": "            holes.append({\"n\": r[\"n\"], \"reason\": r.get(\"reason\") or f\"{key} not measured\"})\n            continue\n",
+      "new": "            ns.append(float(r[\"n\"]))\n            vals.append(0.0)\n            continue\n"
+    },
+    {
+      "name": "M4 PYD-веса делятся по КНИГАМ, а не по классам — правило вырождается в EW и «подтверждает себя»",
+      "file": "scripts/edge_excision_payer.py",
+      "old": "            w[b] = (1.0 / n) / len(members)\n",
+      "new": "            w[b] = 1.0 / sum(len(v) for v in groups.values())\n"
+    },
+    {
+      "name": "M4b класс получает вес ПРОПОРЦИОНАЛЬНО размеру — «по плательщику» снова становится «по книгам»",
+      "file": "scripts/edge_excision_payer.py",
+      "old": "            w[b] = (1.0 / n) / len(members)\n",
+      "new": "            w[b] = (len(members) / sum(len(v) for v in groups.values())) / len(members)\n"
+    },
+    {
+      "name": "M5 плацебо теряет ДЕТЕРМИНИЗМ — перцентиль перестаёт быть воспроизводимым числом",
+      "file": "scripts/edge_excision_payer.py",
+      "old": "    rng = random.Random(seed)\n",
+      "new": "    rng = random.Random()\n"
+    },
+    {
+      "name": "M5b плацебо теряет ПРОФИЛЬ размеров — контроль начинает мерить другой класс разбиений",
+      "file": "scripts/edge_excision_payer.py",
+      "old": "            groups[f\"g{j}\"] = sorted(order[i:i + size])\n",
+      "new": "            groups[f\"g{j}\"] = sorted(order[i:i + 1])\n"
+    },
+    {
+      "name": "M6 отказанная ΔCalmar получает знак «0» вместо None — «не измерено» сливается с «ровно ноль» (инв. #17)",
+      "file": "scripts/edge_excision_payer.py",
+      "old": "                \"sign\": (None if dc is None else (\"+\" if dc > 0 else \"-\" if dc < 0 else \"0\")),\n",
+      "new": "                \"sign\": (\"0\" if dc is None else (\"+\" if dc > 0 else \"-\" if dc < 0 else \"0\")),\n"
+    },
+    {
+      "name": "M7 tub_tally считает НЕИЗМЕРЕННУЮ строку как False — находка тонет в непрочитанном",
+      "file": "scripts/edge_excision_payer.py",
+      "old": "            if three is None:\n                unmeasured += 1\n            elif three:\n",
+      "new": "            if False:\n                unmeasured += 1\n            elif three:\n"
+    },
+    {
+      "name": "M8 смена знака объявляется, даже когда одна из сторон НЕ ИЗМЕРЕНА",
+      "file": "scripts/edge_excision_payer.py",
+      "old": "        gz[k] = {\"full\": f.get(\"delta_calmar\"), \"exc\": e.get(\"delta_calmar\"),\n                 \"full_sign\": f.get(\"sign\"), \"exc_sign\": e.get(\"sign\"),\n                 \"flipped\": (f.get(\"sign\") is not None and e.get(\"sign\") is not None\n                             and f.get(\"sign\") != e.get(\"sign\"))}\n",
+      "new": "        gz[k] = {\"full\": f.get(\"delta_calmar\"), \"exc\": e.get(\"delta_calmar\"),\n                 \"full_sign\": f.get(\"sign\"), \"exc_sign\": e.get(\"sign\"),\n                 \"flipped\": f.get(\"sign\") != e.get(\"sign\")}\n"
+    },
+    {
+      "name": "M9 неизвестная книга МОЛЧА ссыпается в класс вместо третьего исхода «кто платит — неизвестно»",
+      "file": "scripts/edge_excision_payer.py",
+      "old": "        if not s:\n            unclassified.append(b)\n        else:\n            shape[b] = s\n",
+      "new": "        if not s:\n            shape[b] = \"unknown\"\n        else:\n            shape[b] = s\n"
+    },
+    {
+      "name": "M10 вырез до ОДНОЙ книги больше не отказывает — «панель» из одного имени",
+      "file": "scripts/edge_excision_payer.py",
+      "old": "    if len(keep) < 2:\n        raise ExcisionError(f\"excision leaves {len(keep)} book(s) — not a panel\")\n",
+      "new": "    if len(keep) < 0:\n        raise ExcisionError(f\"excision leaves {len(keep)} book(s) — not a panel\")\n"
+    }
+  ]
+}
