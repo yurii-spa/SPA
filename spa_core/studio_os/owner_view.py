@@ -1005,20 +1005,30 @@ def _record_preparation_ru(p: Any) -> Optional[dict]:
     oc = p.get("execution") if isinstance(p.get("execution"), dict) else None
     if ap is not None:
         when = _madrid(ap.get("at")) or "время не записано"
+        how = ("перенесено агентом из сессии — импорт оператора, не подтверждённый канал"
+               if ap.get("source") == "operator-import" else
+               "запись до привязки задачи, предмета и проверки — ручной сценарий")
         if ap.get("valid"):
-            out["approval"] = f"Одобрено: {ap.get('approver') or '?'} ({when}), версия плана {str(ap.get('version'))[:12]}"
-            out["head"] = "План одобрен — выполняется по объявленной проверке результата"
+            out["approval"] = (f"Одобрено: {ap.get('approver') or '?'} ({when}), версия плана "
+                               f"{str(ap.get('version'))[:12]}; {how}")
+            out["head"] = ("План одобрен — исполнение допускается только с объявленной проверкой"
+                           if ap.get("bound") else
+                           "План одобрен до привязки проверки — к исполнению по этой записи не допускается")
         else:
             out["approval"] = (f"Одобрение {when} относится к ПРЕЖНЕЙ версии плана — "
                                "для текущего плана оно не действует, нужно одобрить заново")
             out["alert"] = True
-    if oc is not None and ap is not None and ap.get("valid") and oc.get("version") == ap.get("version"):
+    if oc is not None:
+        # «Проверено» — только по записи ФАКТИЧЕСКОГО запуска одобренной пробы (ADR-839,
+        # work_packet.decisions_for); файл итога со словом satisfied этого не доказывает.
         verdict = str(oc.get("verdict"))
-        out["head"] = ("Выполнено и проверено: результат подтверждён проверкой" if verdict == "satisfied" else
-                       "Выполнено, но проверка результат НЕ подтвердила" if verdict == "not_satisfied" else
-                       "Выполнено, но проверка результата не измерена")
-        out["alert"] = verdict != "satisfied"
-        out["result"] = f"Проверка «{oc.get('probe')}»: {_prep_text(oc.get('detail')) or verdict}"
+        if oc.get("verified"):
+            out["head"] = "Выполнено и проверено: проверка запущена и результат подтвердила"
+        else:
+            out["head"] = ("Итог записан, но проверкой НЕ подтверждён: "
+                           + str(oc.get("not_verified_because") or "причина не названа"))
+            out["alert"] = True
+        out["result"] = f"Проверка «{oc.get('probe')}» ({verdict}): {_prep_text(oc.get('detail')) or verdict}"
     if shown in ("plan", "clarification"):
         out["authority"] = ("по оценке модели — " + _SUBJECT_RU.get(str(p.get("subject")), "не определено")
                             + ". Это не проверка прав и не разрешение начинать работу.")
