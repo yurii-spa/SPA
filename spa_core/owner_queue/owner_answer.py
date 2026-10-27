@@ -167,41 +167,10 @@ def status_for_answer(kind: str, choice_num: str) -> str:
     return OWNER_ONLY_STATUS
 
 
-def record_owner_answer(
-    path: str | Path,
-    *,
-    choice_num: str,
-    choice_label: str,
-    actor_chat_id,
-    owner_chat_id: Optional[str] = None,
-    via: str = "telegram",
-    kind: str = KIND_OPTION,
-    now: Optional[datetime] = None,
-) -> dict:
-    """Записать решение владельца в карточку и перевести её в статус ЕГО ответа.
-
-    Куда именно — решает :func:`status_for_answer`: выбор варианта и «не надо»
-    закрывают карточку (``owner-done``), «принято — беру в работу» переводит её в
-    НЕтерминальный ``owner-accepted``, потому что работа после этого только
-    начинается (#350).
-
-    Идемпотентно: повторный тот же выбор ничего не переписывает и не плодит вторую
-    секцию «Решение владельца» — владелец может нажать дважды из двух чатов, и это
-    не должно выглядеть как два разных решения.
-
-    ``kind`` — ЧЕМ был ответ: :data:`KIND_OPTION` (выбран вариант карточки) или
-    :data:`KIND_ACK` (карточка вариантов не предлагала, владелец подтвердил
-    поручение). Личность проверяется одинаково: инвариант #14 не знает разницы
-    между кнопкой «Вариант 1» и кнопкой «Принято» — обе нажимает владелец.
-
-    :raises NotTheOwner: ответ не от владельца либо личность не подтверждена.
-    """
-    if not is_owner(actor_chat_id, owner_chat_id):
-        raise NotTheOwner(
-            "owner-done может поставить только владелец (инвариант #14): "
-            "chat_id отправителя не совпал с chat_id владельца или не подтверждён"
-        )
-
+def _write_answer(path, *, choice_num: str, choice_label: str, answered_by, via: str, kind: str,
+                  now: Optional[datetime], verdict_override: Optional[str] = None,
+                  source: str = "owner_answer.record_owner_answer") -> dict:
+    """Общая запись ответа владельца в карточку (поля, статус, раздел, след перехода)."""
     p = Path(path)
     text = p.read_text(encoding="utf-8")
     fm_lines, _body = _split_frontmatter(text)
@@ -247,7 +216,7 @@ def record_owner_answer(
     end = _set_frontmatter_field(lines, start, end, "owner_answered_at", stamp)
     end = _set_frontmatter_field(lines, start, end, "owner_answer_via", via)
     end = _set_frontmatter_field(
-        lines, start, end, "owner_answered_by", str(actor_chat_id)
+        lines, start, end, "owner_answered_by", str(answered_by)
     )
 
     end = _set_frontmatter_field(lines, start, end, "owner_answer_kind", str(kind))
@@ -256,7 +225,7 @@ def record_owner_answer(
                 else f"**Вариант {choice_num}** — {choice_label}")
     # Приписка про закрытие обязана быть ПРАВДОЙ: «принято» карточку не закрывает,
     # и читатель карточки (человек, не только фильтр) должен узнать это здесь же.
-    verdict = (
+    verdict = verdict_override or (
         "Карточка закрыта самим владельцем, не агентом (инвариант #14)."
         if new_status == OWNER_ONLY_STATUS else
         "Поручение ПРИНЯТО владельцем — карточка остаётся открытой "
@@ -273,13 +242,82 @@ def record_owner_answer(
     # владельца): ответ владельца тоже переезжает между деревьями, и без следа
     # он приезжает немым ровно так же, как закрытие агентом.
     out = stamp_trail(out, old=old_status, new=new_status,
-                      source="owner_answer.record_owner_answer", now=now)
+                      source=source, now=now)
     atomic_save_text(out, str(p))
     record_status_write(p, old=old_status, new=new_status,
-                        source="owner_answer.record_owner_answer", now=now)
+                        source=source, now=now)
     return {"path": str(p), "choice": choice_num, "already": False,
             "answered_at": stamp, "status": new_status,
             "superseded": superseded}
+
+
+def record_owner_answer(
+    path: str | Path,
+    *,
+    choice_num: str,
+    choice_label: str,
+    actor_chat_id,
+    owner_chat_id: Optional[str] = None,
+    via: str = "telegram",
+    kind: str = KIND_OPTION,
+    now: Optional[datetime] = None,
+) -> dict:
+    """Записать решение владельца в карточку и перевести её в статус ЕГО ответа.
+
+    Куда именно — решает :func:`status_for_answer`: выбор варианта и «не надо»
+    закрывают карточку (``owner-done``), «принято — беру в работу» переводит её в
+    НЕтерминальный ``owner-accepted``, потому что работа после этого только
+    начинается (#350).
+
+    Идемпотентно: повторный тот же выбор ничего не переписывает и не плодит вторую
+    секцию «Решение владельца» — владелец может нажать дважды из двух чатов, и это
+    не должно выглядеть как два разных решения.
+
+    ``kind`` — ЧЕМ был ответ: :data:`KIND_OPTION` (выбран вариант карточки) или
+    :data:`KIND_ACK` (карточка вариантов не предлагала, владелец подтвердил
+    поручение). Личность проверяется одинаково: инвариант #14 не знает разницы
+    между кнопкой «Вариант 1» и кнопкой «Принято» — обе нажимает владелец.
+
+    :raises NotTheOwner: ответ не от владельца либо личность не подтверждена.
+    """
+    if not is_owner(actor_chat_id, owner_chat_id):
+        raise NotTheOwner(
+            "owner-done может поставить только владелец (инвариант #14): "
+            "chat_id отправителя не совпал с chat_id владельца или не подтверждён"
+        )
+
+    return _write_answer(path, choice_num=choice_num, choice_label=choice_label,
+                         answered_by=actor_chat_id, via=via, kind=kind, now=now)
+
+
+SESSION_VIA = "claude-code-session"
+
+
+def record_session_answer(path, *, choice_num: str, choice_label: str, adr_path,
+                          kind: str = KIND_OPTION, now: Optional[datetime] = None) -> dict:
+    """Ответ владельца, данный в СЕССИИ Claude Code (не кнопкой бота), — в карточку и в её статус.
+
+    Решение владельца 27.10 (ADR-834): закрывать карточки решений по его ответам делает агент, а не он
+    руками. Личность здесь подтверждается не chat_id (его у сессии нет — подставить его значило бы
+    выдать запись агента за нажатие), а ЗАПИСЬЮ ответа: ADR по пути ``adr_path`` обязан существовать
+    и называть эту карточку по имени. Нет ADR / карточка в нём не названа ⇒ :class:`NotTheOwner`,
+    ничего не записано: ответ не придумывается.
+    """
+    card = Path(path)
+    adr = Path(adr_path)
+    try:
+        adr_text = adr.read_text(encoding="utf-8")
+    except OSError:
+        raise NotTheOwner(f"ответ владельца не записан: нет {adr} — закрывать нечем")
+    if card.stem not in adr_text:
+        raise NotTheOwner(f"{adr.name} не называет карточку {card.stem} — её ответ не записан, закрывать нечем")
+    ref = adr.stem.split("-")[0] + "-" + adr.stem.split("-")[1] if adr.stem.count("-") >= 1 else adr.stem
+    return _write_answer(
+        card, choice_num=choice_num, choice_label=choice_label,
+        answered_by=f"владелец (сессия Claude Code; {ref})", via=SESSION_VIA, kind=kind, now=now,
+        verdict_override=(f"Ответ владельца дан в сессии Claude Code и записан в {adr.name}; "
+                          "карточку по этой записи закрыл агент (решение владельца 27.10, ADR-834)."),
+        source="owner_answer.record_session_answer")
 
 
 # ── перенос следа решения владельца в ту копию карточки, которая уедет в git ──
