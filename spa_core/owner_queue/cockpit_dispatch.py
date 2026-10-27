@@ -157,6 +157,26 @@ def dispatch(*, executor: str, tracker_dir=None, claim: Optional[Callable] = Non
     return res
 
 
+def packet_note(card: str, prep_root=None, code_root=None) -> str:
+    """Пакет передачи ADR-154 для взятой карточки (studio_os.work_packet), одной строкой.
+
+    Подготовка берётся последняя из ``prep_root`` (тот же корень, что у пульта); её свежесть
+    судится по ``code_root`` (снимок кода подготовки). Не названы / сбой ⇒ пакет «плана нет»
+    или названная причина — выбор карточки этим НИКОГДА не блокируется.
+    """
+    try:
+        from spa_core.studio_os import work_packet as wp
+        from spa_core.studio_os.memory import arch_review as ar
+        run = None
+        if prep_root:
+            runs = ar.preparation_runs(Path(prep_root), Path(card).name)
+            run = runs[-1] if runs else None
+        root = Path(code_root) if code_root else Path(__file__).resolve().parents[2]
+        return wp.render(wp.build(Path(card), run, root=root))
+    except Exception as exc:  # noqa: BLE001 — пакет не смеет уронить выбор исполнителя
+        return f"ПАКЕТ ПЕРЕДАЧИ НЕ СОБРАН ({type(exc).__name__}: {exc}) — работай по карточке. "
+
+
 def prompt_prefix(card: str, probe: str, executor: str, repo: str, python: str) -> str:
     cmd = f"cd {repo} && {python} -m spa_core.owner_queue.cockpit_loop"
     return (f"ЗАПИСЬ ИЗ ПУЛЬТА ВЗЯТА ЭТИМ ЦИКЛОМ (исполнитель {executor}; захват шага 0b сделан, проба "
@@ -234,6 +254,8 @@ def main(argv=None) -> int:
     d.add_argument("--card-out", default=None, help="файл, куда записать путь взятой карточки")
     d.add_argument("--repo", default=str(Path(__file__).resolve().parents[2]))
     d.add_argument("--python", default=sys.executable)
+    d.add_argument("--prep-root", default=None, help="хранилище подготовок task-prep (пакет передачи)")
+    d.add_argument("--prep-code-root", default=None, help="снимок кода, по которому судится свежесть плана")
     s = sub.add_parser("settle")
     s.add_argument("--card", required=True)
     s.add_argument("--executor", required=True)
@@ -251,7 +273,8 @@ def main(argv=None) -> int:
         if res["taken"]:
             if a.card_out:
                 Path(a.card_out).write_text(res["taken"], encoding="utf-8")
-            print(prompt_prefix(res["taken"], res["probe"], a.executor, a.repo, a.python), end="")
+            print(prompt_prefix(res["taken"], res["probe"], a.executor, a.repo, a.python)
+                  + packet_note(res["taken"], a.prep_root, a.prep_code_root), end="")
             return RC_TAKEN
         if res["refused"]:
             return RC_UNMEASURED

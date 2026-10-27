@@ -176,7 +176,9 @@ if [ -f "$COCKPIT_DISPATCH" ]; then
     COCKPIT_CARD_FILE="$(mktemp "${TMPDIR:-/tmp}/spa_cockpit_card.XXXXXX")"
     COCKPIT_OUT="$("$PYTHON" -m spa_core.owner_queue.cockpit_dispatch dispatch \
                     --executor "$SPA_SESSION_ID" --card-out "$COCKPIT_CARD_FILE" \
-                    --repo "$REPO_ROOT" --python "$PYTHON" 2>>"$LOG")"
+                    --repo "$REPO_ROOT" --python "$PYTHON" \
+                    --prep-root "$HOME/studio-os-serve/task_prep" \
+                    --prep-code-root "$HOME/studio-os-serve/task_prep_root" 2>>"$LOG")"
     COCKPIT_RC=$?
     case "$COCKPIT_RC" in
         0|4) echo "[$(ts)] cockpit-dispatch(rc=$COCKPIT_RC): взятой записи пульта нет" >> "$LOG" ;;
