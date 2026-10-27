@@ -1,0 +1,63 @@
+{
+  "title": "ADR-829 — дельта цикла #955: третий исход у читателя 2 (заказ G829 п. 4) на ТРЁХ дверях, форма словаря и измеренный отказ от сторожа `collected` (п. 5)",
+  "tests": [
+    "spa_core/tests/test_pytest_summary_readers.py",
+    "spa_core/tests/test_tester_agent.py"
+  ],
+  "mutations": [
+    {
+      "name": "читатель 2: третий исход снят — отсутствие сводной строки снова выдаётся за измеренный ноль (инв. #17)",
+      "file": "spa_core/agents/tester_agent.py",
+      "old": "        if bar_body is None:\n            return {\n                \"totals\": _unmeasured_totals(collected),",
+      "new": "        if False:\n            return {\n                \"totals\": _unmeasured_totals(collected),"
+    },
+    {
+      "name": "«не измерено» снова печатается НУЛЯМИ — третий исход неотличим от чистого прогона",
+      "file": "spa_core/agents/tester_agent.py",
+      "old": "    return {key: None for key in _TOTAL_KEYS} | {\"collected\": collected}",
+      "new": "    return {key: 0 for key in _TOTAL_KEYS} | {\"collected\": collected}"
+    },
+    {
+      "name": "у причины отказа отобрали текст — третий исход без названной причины есть то же молчание",
+      "file": "spa_core/agents/tester_agent.py",
+      "old": "_NO_BAR_REASON = (\n    \"pytest printed no summary bar — the outcome tally was NOT measured \"\n    \"(timeout, crash or truncated output)\"\n)",
+      "new": "_NO_BAR_REASON = \"\""
+    },
+    {
+      "name": "`collected` теряет СВОЮ дверь — одно измерение спрятано за отсутствием другого",
+      "file": "spa_core/agents/tester_agent.py",
+      "old": "                \"collected_measured\": collected is not None,\n                \"failures\": failures,\n                \"duration_s\": None,",
+      "new": "                \"collected_measured\": False,\n                \"failures\": failures,\n                \"duration_s\": None,"
+    },
+    {
+      "name": "дверь 2 класса: прогон, которого НЕ БЫЛО (каталогов нет), снова докладывает нулями",
+      "file": "spa_core/agents/tester_agent.py",
+      "old": "                \"unmeasured_reason\": _NO_RUN_REASON,",
+      "new": "                \"unmeasured_reason\": None,"
+    },
+    {
+      "name": "дверь 3 класса: подпроцесс, который не завершился, снова докладывает нулями",
+      "file": "spa_core/agents/tester_agent.py",
+      "old": "                \"unmeasured_reason\": f\"{_RUN_FAILED_REASON}: {exc}\",",
+      "new": "                \"unmeasured_reason\": None,"
+    },
+    {
+      "name": "дверь 2 класса отдаёт ИЗМЕРЕННЫЕ нули вместо третьего исхода",
+      "file": "spa_core/agents/tester_agent.py",
+      "old": "                \"totals\": _unmeasured_totals(),\n                \"counts_measured\": False,\n                \"unmeasured_reason\": _NO_RUN_REASON,",
+      "new": "                \"totals\": {key: 0 for key in _TOTAL_KEYS} | {\"collected\": 0},\n                \"counts_measured\": True,\n                \"unmeasured_reason\": _NO_RUN_REASON,"
+    },
+    {
+      "name": "одиночный `error` снова не сворачивается — форма словаря зависит от ветки, одна ошибка читается нулём",
+      "file": "spa_core/agents/tester_agent.py",
+      "old": "_BAR_TOKEN_TO_KEY = {tok: tok for tok in _TOTAL_KEYS} | {\"error\": \"errors\"}",
+      "new": "_BAR_TOKEN_TO_KEY = {tok: tok for tok in _TOTAL_KEYS}"
+    },
+    {
+      "name": "журнал агента снова печатает «0 passed / 0 failed» для неизмеренного прогона",
+      "file": "spa_core/agents/tester_agent.py",
+      "old": "        if report.get(\"counts_measured\"):",
+      "new": "        if True:"
+    }
+  ]
+}

@@ -1,0 +1,74 @@
+{
+ "title": "ADR-828 — дельта циклов #953 (построено) + #954 (ПОДЪЁМ и граница 60 с): два читателя сводки pytest — счёт, имена, третий исход, длинный прогон",
+ "tests": [
+  "spa_core/tests/test_pytest_summary_readers.py"
+ ],
+ "mutations": [
+  {
+   "name": "читатель 1 снова слеп к SUBFAILED в ИМЕНАХ — красный вердикт без имени",
+   "file": "spa_core/dev_agents/tester.py",
+   "old": "    r\"^(?P<kind>FAILED|ERROR|SUBFAILED)(?:\\([^)]*\\))?\"\n    r\"\\s+(?P<name>\\S*\\.py(?:::\\S+)?)(?:\\s+-\\s+(?P<msg>.+))?\\s*$\"",
+   "new": "    r\"^(?P<kind>FAILED|ERROR)\"\n    r\"\\s+(?P<name>\\S*\\.py(?:::\\S+)?)(?:\\s+-\\s+(?P<msg>.+))?\\s*$\""
+  },
+  {
+   "name": "имя снова заякорено на префикс tests/ — падение в spa_core/tests/ безымянно",
+   "file": "spa_core/dev_agents/tester.py",
+   "old": "    r\"\\s+(?P<name>\\S*\\.py(?:::\\S+)?)(?:\\s+-\\s+(?P<msg>.+))?\\s*$\"",
+   "new": "    r\"\\s+(?P<name>tests/\\S*\\.py(?:::\\S+)?)(?:\\s+-\\s+(?P<msg>.+))?\\s*$\""
+  },
+  {
+   "name": "одиночный `error` не сворачивается в `errors` — одна ошибка читается нулём",
+   "file": "spa_core/dev_agents/tester.py",
+   "old": "            elif tok == \"error\":\n                counts[\"errors\"] += n",
+   "new": "            elif tok == \"error\":\n                pass"
+  },
+  {
+   "name": "`failed` из сводной строки не берётся — падение подтестов снова даёт 0",
+   "file": "spa_core/dev_agents/tester.py",
+   "old": "            elif tok in counts:\n                counts[tok] = n",
+   "new": "            elif tok in counts and tok != \"failed\":\n                counts[tok] = n"
+  },
+  {
+   "name": "отсутствие сводной строки снова выдаётся за измеренный ноль (инв. #17)",
+   "file": "spa_core/dev_agents/tester.py",
+   "old": "        if bar_body is None:",
+   "new": "        if False:"
+  },
+  {
+   "name": "владельцу не говорят, что счёт НЕ ИЗМЕРЕН — молчание вместо третьего исхода",
+   "file": "spa_core/dev_agents/tester.py",
+   "old": "            msg += \"📊 счёт НЕ ИЗМЕРЕН: \" + str(",
+   "new": "            msg += \"📊 \" + str("
+  },
+  {
+   "name": "дедупликация имён снята — два подтеста одного теста дают два имени",
+   "file": "spa_core/dev_agents/tester.py",
+   "old": "                if name not in seen:\n                    seen.add(name)\n                    failed_tests.append(name)",
+   "new": "                if True:\n                    seen.add(name)\n                    failed_tests.append(name)"
+  },
+  {
+   "name": "читатель 2 снова слеп к SUBFAILED — имена падений подтестов пусты",
+   "file": "spa_core/agents/tester_agent.py",
+   "old": "    r\"^(?P<kind>FAILED|ERROR|SUBFAILED)(?:\\((?P<params>[^)]*)\\))?\"",
+   "new": "    r\"^(?P<kind>FAILED|ERROR)(?:\\((?P<params>[^)]*)\\))?\""
+  },
+  {
+   "name": "читатель 2 теряет ПАРАМЕТРЫ подтеста — два падения сливаются в одно",
+   "file": "spa_core/agents/tester_agent.py",
+   "old": "                    \"params\": m.group(\"params\"),",
+   "new": "                    \"params\": None,"
+  },
+  {
+   "name": "читатель 1 снова не берёт сводную строку прогона длиннее минуты — ложное «НЕ ИЗМЕРЕНО»",
+   "file": "spa_core/dev_agents/tester.py",
+   "old": "    r\"^=+\\s*(?P<body>.*?)\\s+in\\s+(?P<dur>[0-9]+(?:\\.[0-9]+)?)s\"\n    r\"(?:\\s+\\([^)]*\\))?\\s*=+\\s*$\"",
+   "new": "    r\"^=+\\s*(?P<body>.*?)\\s+in\\s+(?P<dur>[0-9]+(?:\\.[0-9]+)?)s\"\n    r\"\\s*=+\\s*$\""
+  },
+  {
+   "name": "читатель 2 снова не берёт сводную строку длинного прогона — молчаливые нули вместо «1 failed»",
+   "file": "spa_core/agents/tester_agent.py",
+   "old": "    r\"^=+\\s*(?P<body>.*?)\\s+in\\s+(?P<duration>[0-9]+(?:\\.[0-9]+)?)\\s*s\"\n    r\"(?:\\s+\\([^)]*\\))?\\s*=+\\s*$\"",
+   "new": "    r\"^=+\\s*(?P<body>.*?)\\s+in\\s+(?P<duration>[0-9]+(?:\\.[0-9]+)?)\\s*s\"\n    r\"\\s*=+\\s*$\""
+  }
+ ]
+}

@@ -102,23 +102,56 @@ def test_parse_summary_with_errors(agent: TesterAgent):
 
 
 def test_parse_summary_empty_or_garbage(agent: TesterAgent):
-    # Empty stdout → all zeros, no failures, no duration.
+    """
+    НАМЕРЕННОЕ изменение теста (инв. #16, ADR-829, цикл #955).
+
+    Этот тест требовал от разбора пустого и мусорного вывода РОВНО НУЛЕЙ
+    (`totals["passed"] == 0`, `["failed"] == 0`, `["collected"] == 0`), то
+    есть закреплял тестом сам дефект: «измерено и равно нулю» было
+    неотличимо от «не измерено» (инв. #17). Замер 27.10 показал цену: на
+    настоящем прогоне длиной 61,12 с, где pytest напечатал «1 failed»,
+    читатель отдавал `0 passed / 0 failed / 0 errors` рядом с `collected=3`.
+
+    Ослаблением это НЕ является: проверка не снята и не сужена — она
+    спрашивает то же самое состояние, но требует ТРЕТЬЕГО исхода вместо
+    нулей. Звенья «нет падений», «нет длительности», «нет сводной строки»
+    сохранены дословно.
+    """
+    # Empty stdout → nothing was measured, and it says so.
     parsed_empty = agent.parse_pytest_output("")
-    assert parsed_empty["totals"]["passed"] == 0
-    assert parsed_empty["totals"]["failed"] == 0
-    assert parsed_empty["totals"]["collected"] == 0
+    assert parsed_empty["counts_measured"] is False
+    assert parsed_empty["unmeasured_reason"]
+    assert parsed_empty["totals"]["passed"] is None
+    assert parsed_empty["totals"]["failed"] is None
+    # `collected` has its OWN door, and here it was not measured either.
+    assert parsed_empty["collected_measured"] is False
+    assert parsed_empty["totals"]["collected"] is None
     assert parsed_empty["failures"] == []
     assert parsed_empty["duration_s"] is None
     assert parsed_empty["summary_line"] is None
 
-    # Garbage that doesn't match anything → also zeros.
+    # Garbage that doesn't match anything → also "not measured", not zeros.
     parsed_junk = agent.parse_pytest_output(
         "this is\nnot pytest\noutput at all 12345\n"
     )
-    assert parsed_junk["totals"]["passed"] == 0
-    assert parsed_junk["totals"]["failed"] == 0
+    assert parsed_junk["counts_measured"] is False
+    assert parsed_junk["totals"]["passed"] is None
+    assert parsed_junk["totals"]["failed"] is None
     assert parsed_junk["failures"] == []
     assert parsed_junk["duration_s"] is None
+
+    # The SHAPE of `totals` must not depend on which branch produced it.
+    # Until this cycle the empty-stdout path alone carried an extra "error"
+    # key, because the error-fold ran after an early return (ADR-829).
+    measured = agent.parse_pytest_output(
+        "collected 2 items\n"
+        "==================== 1 failed, 1 passed in 0.01s ====================\n"
+    )
+    assert measured["counts_measured"] is True
+    assert set(parsed_empty["totals"]) == set(measured["totals"]), (
+        "totals keys differ between the measured and the unmeasured path"
+    )
+    assert "error" not in parsed_empty["totals"]
 
 
 def test_parse_pytest_output_extracts_failure_names(agent: TesterAgent):
