@@ -1,4 +1,4 @@
-"""python -m spa_core.studio_os.memory {build|ensure-fresh|search|assemble|passport|why|lineage|bench|answer-bench|coverage|continuity}"""
+"""python -m spa_core.studio_os.memory {build|ensure-fresh|search|assemble|passport|why|lineage|bench|answer-bench|coverage|continuity|role-pack|arch-review|prepare-record}"""
 from __future__ import annotations
 
 import argparse
@@ -14,6 +14,17 @@ def main(argv=None) -> int:
         # ADR-610: the ARB continuity read model has its own options (build|check, --root/--out/...)
         from . import continuity
         return continuity.main(argv[1:])
+    if argv[:1] == ["prepare-record"]:
+        from . import arch_review
+        return arch_review.main_record(argv[1:])
+    if argv[:1] == ["arch-review"]:
+        # ADR-OWN-2026-10-23 (STUDIO-OS-MODELS-01, increment 4): one safe architecture review
+        from . import arch_review
+        return arch_review.main(argv[1:])
+    if argv[:1] == ["role-pack"]:
+        # ADR-OWN-2026-10-23 (STUDIO-OS-MODELS-01, increment 1): portable role context pack
+        from . import role_pack
+        return role_pack.main(argv[1:])
     ap = argparse.ArgumentParser(prog="spa_core.studio_os.memory")
     ap.add_argument("cmd", choices=("build", "search", "assemble", "passport", "why", "lineage", "bench",
                                     "answer-bench", "coverage", "ensure-fresh"))
