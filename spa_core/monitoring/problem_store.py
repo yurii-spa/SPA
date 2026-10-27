@@ -142,6 +142,14 @@ def problem_id(agent: str, cause_code: str) -> str:
     """Id для ``acceptance_probe: problem_absent:<problem_id>`` — внутри charset пробы."""
     raw = f"{agent}.{cause_code}"
     safe = _ID_UNSAFE_RE.sub("_", raw).strip("_") or "problem"
+    # 27.10: кириллический код причины («маячку … не крутится») вырождался в ПУСТОЙ хвост —
+    # `com.spa.x.` — и две разные такие причины одного агента делили бы один id (а с ним
+    # пробу и `record_rca`). Хвост без единой буквы/цифры получает короткий хеш причины.
+    # Существующие id (в хвосте есть буквы/цифры) НЕ меняются: на них ссылаются пробы карточек.
+    tail = _ID_UNSAFE_RE.sub("_", str(cause_code or ""))
+    if not any(ch.isascii() and ch.isalnum() for ch in tail):
+        import hashlib
+        safe = f"{safe.rstrip('._')}.c{hashlib.sha1(str(cause_code).encode('utf-8')).hexdigest()[:10]}"
     return safe[:120]
 
 
