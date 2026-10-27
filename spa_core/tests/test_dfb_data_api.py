@@ -70,7 +70,11 @@ def _pool_obj(pool_id: str, *, risk_class="B", verdict="ALLOW", tail_veto=False,
 def _write_universe(data_dir: Path, pools: list) -> None:
     dfb = data_dir / "dfb"
     (dfb / "pool").mkdir(parents=True, exist_ok=True)
-    (dfb / "pools.json").write_text(_canonical(pools), encoding="utf-8")
+    # Вариант отказа DFB требует отметку времени снимка: фикстура пишет СВЕЖУЮ (инв. #16 —
+    # предмет тестов прежний, меняется только форма снимка, которую вариант делает обязательной).
+    from datetime import datetime, timezone
+    (dfb / "pools.json").write_text(_canonical({"generated_at": datetime.now(timezone.utc).isoformat(),
+                                                "pools": pools}), encoding="utf-8")
     for p in pools:
         (dfb / "pool" / f"{p['pool_id']}.json").write_text(_canonical(p), encoding="utf-8")
 

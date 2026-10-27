@@ -159,6 +159,11 @@ def _read_pools_list() -> list:
     (an overlay row is an object). NaN/inf is scrubbed by the caller before serialize.
     """
     raw = read_state("dfb/pools.json", [])
+    # ВАРИАНТ ОТКАЗА (решение владельца, предмет №2 ADR-285): снимок старше порога или без
+    # отметки времени НЕ отдаётся строками ни одной ручкой (общая точка чтения для /api/dfb/* и
+    # /api/dfb/v1/*) — архив не выдаётся за текущую доску (fail-CLOSED). Причина — в `snapshot`.
+    if snapshot_freshness(raw)["stale"] is not False:
+        return []
     # The Lane-1 overlay writer wraps the rows: {generated_at, schema, n_pools, …, pools:[…]}.
     # Accept BOTH that wrapped form AND a bare list (fixtures/older writers) — fail-CLOSED.
     if isinstance(raw, dict):
@@ -194,8 +199,9 @@ def get_dfb_pools():
         "pools": pools,
         "note": (
             None if available
-            else "DFB pool universe unavailable — data/dfb/pools.json missing or "
-                 "corrupt. No fabricated rows are served (fail-CLOSED)."
+            else "DFB pool universe unavailable — data/dfb/pools.json missing, corrupt, or older "
+                 f"than {SNAPSHOT_FRESH_H:.0f} h (see `snapshot`). No stale or fabricated rows are "
+                 "served (fail-CLOSED)."
         ),
         "disclaimer": _DISCLAIMER,
         "reproduce": _reproduce_block(
