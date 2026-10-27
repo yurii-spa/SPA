@@ -1,0 +1,40 @@
+{
+  "source_sha256": {
+    "/Users/yuriikulieshov/Documents/SPA_Claude/spa_core/owner_queue/owner_answer.py": "8e61b171511b9cd752b7769352382b1ffe0a444e86eb6658a0a81d6009040282",
+    "/Users/yuriikulieshov/Documents/SPA_Claude/spa_core/studio_os/work_packet.py": "e74772dd8bf043c010f78c3474d64e7dbbda7e8a0938849737a2e2d23b6b8f70"
+  },
+  "cases": [
+    {
+      "case": "ADR_mentions_card_without_any_answer",
+      "writer_reached": true,
+      "choice_forwarded": "2"
+    },
+    {
+      "case": "ADR_says_option_1_but_caller_submits_option_2",
+      "writer_reached": true,
+      "choice_forwarded": "2"
+    },
+    {
+      "case": "ADR_names_a_different_card_with_matching_prefix",
+      "writer_reached": true,
+      "choice_forwarded": "2"
+    },
+    {
+      "case": "ready_accepts_wrong_task_and_insufficient_role",
+      "accepted": true
+    },
+    {
+      "case": "record_outcome_accepts_unregistered_unrun_probe",
+      "written": true,
+      "outcome": {
+        "schema": "work-packet/1",
+        "task_id": "task-a",
+        "version": "example-plan-v1",
+        "probe": "unregistered_probe:x",
+        "verdict": "satisfied",
+        "detail": "no probe was run",
+        "at": "test-time"
+      }
+    }
+  ]
+}

@@ -139,6 +139,26 @@ def test_accepted_cockpit_task_is_selected_exactly_once(scene):
     assert scene.sent == []
 
 
+def test_owner_subject_record_is_not_taken_without_an_approval(scene):
+    """ARB 27.10 (R2, ADR-839): граница ДО исполнения — в выборе, а не в тексте промпта. Запись с
+    объявленным предметом владельца без одобренного плана не берётся и в файл ничего не получает;
+    соседняя запись без предмета берётся как прежде."""
+    held = _accepted(scene, sid="dispatch-money")
+    text = held.read_text(encoding="utf-8").replace("\nstatus: new\n", "\nstatus: new\nowner_subject: money\n", 1)
+    held.write_text(text, encoding="utf-8")
+    before = held.read_bytes()
+    res = cd.dispatch(executor="cycle-a", tracker_dir=scene.tracker, claim=scene.claim, now=NOW,
+                      outbox_path=scene.obox, notify=scene.notify, prep_root=scene.tmp / "prep",
+                      code_root=scene.tmp)
+    assert res["taken"] is None and res["awaiting_approval"] and held.name in res["awaiting_approval"][0]
+    assert held.read_bytes() == before
+    free = _accepted(scene, sid="dispatch-free", at=NOW + timedelta(minutes=1))
+    res = cd.dispatch(executor="cycle-a", tracker_dir=scene.tracker, claim=scene.claim, now=NOW,
+                      outbox_path=scene.obox, notify=scene.notify, prep_root=scene.tmp / "prep",
+                      code_root=scene.tmp)
+    assert res["taken"] == str(free) and held.read_bytes() == before
+
+
 def test_card_not_yet_accepted_by_intake_is_not_selected(scene):
     card = _submit(scene, f"проба: {SPEC}", "dispatch-0002")       # приём ещё не прошёл
     assert _dispatch(scene) == {"taken": None, "probe": None, "no_probe": [], "refused": []}

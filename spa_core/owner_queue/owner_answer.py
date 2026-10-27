@@ -25,6 +25,8 @@
 """
 from __future__ import annotations
 
+import hashlib
+import json
 import re
 import subprocess
 from datetime import datetime, timezone
@@ -169,7 +171,8 @@ def status_for_answer(kind: str, choice_num: str) -> str:
 
 def _write_answer(path, *, choice_num: str, choice_label: str, answered_by, via: str, kind: str,
                   now: Optional[datetime], verdict_override: Optional[str] = None,
-                  source: str = "owner_answer.record_owner_answer") -> dict:
+                  source: str = "owner_answer.record_owner_answer",
+                  extra_fields: Optional[dict] = None) -> dict:
     """Общая запись ответа владельца в карточку (поля, статус, раздел, след перехода)."""
     p = Path(path)
     text = p.read_text(encoding="utf-8")
@@ -220,6 +223,8 @@ def _write_answer(path, *, choice_num: str, choice_label: str, answered_by, via:
     )
 
     end = _set_frontmatter_field(lines, start, end, "owner_answer_kind", str(kind))
+    for key, value in (extra_fields or {}).items():   # порядок — объявленный вызывающим
+        end = _set_frontmatter_field(lines, start, end, key, str(value))
 
     headline = (f"**{choice_label}**" if kind == KIND_ACK
                 else f"**Вариант {choice_num}** — {choice_label}")
@@ -292,32 +297,141 @@ def record_owner_answer(
 
 SESSION_VIA = "claude-code-session"
 
+#: Схема реестра ответов, данных в сессии (ADR-839). Реестр — JSON рядом с ADR, а не проза ADR:
+#: проза называет карточку подстрокой и выбор словами, и её нельзя сверить машинно (ARB R1).
+SESSION_REGISTER_SCHEMA = "owner-session-answers/1"
+#: Доверие ответа из сессии. Сессия Claude Code не удостоверяет личность отвечающего (chat_id у неё
+#: нет, журнал сессии лежит на машине агента), поэтому перенесённый агентом ответ — ИМПОРТ
+#: ОПЕРАТОРА, а не подтверждённый автоматический канал. Подтверждённый канал — только бот
+#: (:func:`record_owner_answer`, сверка chat_id).
+TRUST_OPERATOR_IMPORT = "operator-import"
+#: Что поле карточки говорит об исполнении выбранной работы: ответ закрывает ВОПРОС, работу — нет.
+EXECUTION_SEPARATE = "separate-task"
 
-def record_session_answer(path, *, choice_num: str, choice_label: str, adr_path,
-                          kind: str = KIND_OPTION, now: Optional[datetime] = None) -> dict:
-    """Ответ владельца, данный в СЕССИИ Claude Code (не кнопкой бота), — в карточку и в её статус.
 
-    Решение владельца 27.10 (ADR-834): закрывать карточки решений по его ответам делает агент, а не он
-    руками. Личность здесь подтверждается не chat_id (его у сессии нет — подставить его значило бы
-    выдать запись агента за нажатие), а ЗАПИСЬЮ ответа: ADR по пути ``adr_path`` обязан существовать
-    и называть эту карточку по имени. Нет ADR / карточка в нём не названа ⇒ :class:`NotTheOwner`,
-    ничего не записано: ответ не придумывается.
+class SessionAnswerRefused(NotTheOwner):
+    """Ответ из сессии не записан: записи нет, она не та или вопрос изменился. Файл не тронут."""
+
+
+def question_version(text: str) -> str:
+    """sha256 вопроса карточки: тело без frontmatter до раздела «Решение владельца».
+
+    Ответ привязывается к ЭТОЙ версии вопроса: изменённый вопрос (другие варианты, другой текст)
+    разрешения прежнего ответа не наследует. Раздел ответа и след статуса в версию не входят —
+    поэтому версия у карточки до ответа и после ответа одна и та же (замер 28.10: 18 из 18).
+    """
+    _fm_lines, body = _split_frontmatter(text)
+    rows = body.splitlines()
+    cut = next((i for i, ln in enumerate(rows) if ln.strip().startswith(ANSWER_HEADING)), len(rows))
+    q = "\n".join(rows[:cut]).rstrip()
+    while q.endswith("---"):
+        q = q[:-3].rstrip()
+    return hashlib.sha256(q.encode("utf-8")).hexdigest()
+
+
+def load_session_register(register_path) -> dict:
+    """Прочитать реестр ответов сессии; любая неполнота ⇒ :class:`SessionAnswerRefused`."""
+    reg = Path(register_path)
+    try:
+        doc = json.loads(reg.read_text(encoding="utf-8"))
+    except (OSError, ValueError) as exc:
+        raise SessionAnswerRefused(f"реестр ответов {reg} не прочитан ({type(exc).__name__}) — закрывать нечем")
+    if not isinstance(doc, dict) or doc.get("schema") != SESSION_REGISTER_SCHEMA:
+        raise SessionAnswerRefused(f"{reg.name}: не реестр ответов ({SESSION_REGISTER_SCHEMA})")
+    if doc.get("trust") != TRUST_OPERATOR_IMPORT or doc.get("channel") != SESSION_VIA:
+        raise SessionAnswerRefused(f"{reg.name}: доверие/канал не объявлены как импорт оператора из сессии")
+    if not isinstance(doc.get("answers"), list) or not doc.get("adr"):
+        raise SessionAnswerRefused(f"{reg.name}: нет списка ответов или ссылки на ADR")
+    return doc
+
+
+def session_entry(register: dict, card_stem: str) -> dict:
+    """Единственная запись реестра для карточки с ТОЧНО этим именем; иначе отказ."""
+    hits = [e for e in register["answers"] if isinstance(e, dict) and e.get("card") == card_stem]
+    if len(hits) != 1:
+        raise SessionAnswerRefused(
+            f"в реестре {register.get('adr')} записей для карточки {card_stem}: {len(hits)} "
+            "(нужна ровно одна, имя сверяется целиком) — ответ не записан")
+    e = hits[0]
+    missing = [k for k in ("choice", "label", "question_sha256", "owner_text", "event") if not e.get(k)]
+    if missing:
+        raise SessionAnswerRefused(f"запись {card_stem} неполна ({', '.join(missing)}) — ответ не записан")
+    return e
+
+
+def record_session_answer(path, *, register_path, choice_num: str, now: Optional[datetime] = None) -> dict:
+    """Ответ владельца, данный в СЕССИИ Claude Code, — в карточку по ЗАПИСИ реестра (ADR-834, ADR-839).
+
+    Выбор и его текст берутся из реестра, а не из вызова: ``choice_num`` вызывающего — только
+    ожидание, и расхождение с записью — отказ. Запись должна называть карточку ТОЧНЫМ именем,
+    нести версию вопроса (:func:`question_version`), дословный ответ владельца (``owner_text``) и
+    событие-первоисточник (``event``: вопрос сессии и его результат). Вопрос изменился ⇒ отказ.
+    Тот же ответ по тому же событию повторно ⇒ ничего не пишется; ДРУГОЙ уже записанный ответ ⇒
+    отказ без записи (вытеснять ответ владельца переносом из сессии нельзя).
+
+    Доверие — :data:`TRUST_OPERATOR_IMPORT`: это перенос агентом, а не подтверждённый канал, и
+    карточка так и помечается. Ответ закрывает ВОПРОС; исполнение выбранной работы — отдельная
+    задача со своей проверкой (поле ``owner_choice_execution``), эта запись её не разрешает.
+
+    :raises SessionAnswerRefused: (подкласс :class:`NotTheOwner`) — ничего не записано.
     """
     card = Path(path)
-    adr = Path(adr_path)
-    try:
-        adr_text = adr.read_text(encoding="utf-8")
-    except OSError:
-        raise NotTheOwner(f"ответ владельца не записан: нет {adr} — закрывать нечем")
-    if card.stem not in adr_text:
-        raise NotTheOwner(f"{adr.name} не называет карточку {card.stem} — её ответ не записан, закрывать нечем")
-    ref = adr.stem.split("-")[0] + "-" + adr.stem.split("-")[1] if adr.stem.count("-") >= 1 else adr.stem
+    reg = load_session_register(register_path)
+    e = session_entry(reg, card.stem)
+    if str(e["choice"]) != str(choice_num):
+        raise SessionAnswerRefused(
+            f"{card.stem}: в записи {reg['adr']} выбран вариант {e['choice']!r}, а передан {choice_num!r} — "
+            "ответ не записан")
+    text = card.read_text(encoding="utf-8")
+    if question_version(text) != e["question_sha256"]:
+        raise SessionAnswerRefused(f"{card.stem}: вопрос изменился после ответа — прежний ответ его не закрывает")
+    fm = _parse_frontmatter(_split_frontmatter(text)[0])
+    have = str(fm.get("owner_choice") or "").strip().strip('"')
+    if have and have not in EMPTY_SCALARS:
+        if have == str(e["choice"]) and str(fm.get("owner_answer_event") or "") == str(e["event"]):
+            return {"path": str(card), "choice": have, "already": True}
+        raise SessionAnswerRefused(
+            f"{card.stem}: в карточке уже записан другой ответ ({have!r}) — перенос из сессии его не вытесняет")
+    rel = Path(register_path).name
     return _write_answer(
-        card, choice_num=choice_num, choice_label=choice_label,
-        answered_by=f"владелец (сессия Claude Code; {ref})", via=SESSION_VIA, kind=kind, now=now,
-        verdict_override=(f"Ответ владельца дан в сессии Claude Code и записан в {adr.name}; "
-                          "карточку по этой записи закрыл агент (решение владельца 27.10, ADR-834)."),
-        source="owner_answer.record_session_answer")
+        card, choice_num=str(e["choice"]), choice_label=str(e["label"]),
+        answered_by=f"импорт оператора: ответ владельца в сессии Claude Code ({reg['adr']})",
+        via=SESSION_VIA, kind=str(e.get("kind") or KIND_OPTION), now=now,
+        verdict_override=(f"Ответ владельца дан в сессии Claude Code; перенесён агентом по записи {rel} "
+                          f"(событие {e['event']}) — это импорт оператора, не подтверждённый канал. "
+                          "Закрыт ВОПРОС; исполнение выбранной работы — отдельная задача со своей проверкой."),
+        source="owner_answer.record_session_answer",
+        extra_fields={"owner_answer_trust": TRUST_OPERATOR_IMPORT, "owner_answer_event": e["event"],
+                      "owner_question_sha256": e["question_sha256"], "owner_answer_record": rel,
+                      "owner_choice_execution": EXECUTION_SEPARATE})
+
+
+def verify_session_answers(register_path, tracker_dir) -> list:
+    """Сверить уже закрытые карточки с реестром: [(карточка, None | причина расхождения)].
+
+    Для карточек, закрытых ДО ADR-839 (18 ответов 27.10): поля карточки не переписываются, их связь
+    с первоисточником доказывается этой сверкой — выбор, канал и версия вопроса.
+    """
+    reg = load_session_register(register_path)
+    out = []
+    for e in reg["answers"]:
+        name = str(e.get("card") or "")
+        p = Path(tracker_dir) / f"{name}.md"
+        try:
+            text = p.read_text(encoding="utf-8")
+        except OSError:
+            out.append((name, "карточка не прочитана"))
+            continue
+        fm = _parse_frontmatter(_split_frontmatter(text)[0])
+        why = None
+        if str(fm.get("owner_choice") or "").strip().strip('"') != str(e.get("choice")):
+            why = f"выбор в карточке {fm.get('owner_choice')!r} ≠ записи {e.get('choice')!r}"
+        elif fm.get("owner_answer_via") != SESSION_VIA:
+            why = f"канал {fm.get('owner_answer_via')!r} — не сессия"
+        elif question_version(text) != e.get("question_sha256"):
+            why = "версия вопроса не совпадает с записанной"
+        out.append((name, why))
+    return out
 
 
 # ── перенос следа решения владельца в ту копию карточки, которая уедет в git ──

@@ -1,0 +1,195 @@
+{
+ "schema": "owner-session-answers/1",
+ "adr": "ADR-834 · ADR-836",
+ "trust": "operator-import",
+ "channel": "claude-code-session",
+ "source": {
+  "session": "a08dc8b6-5bc8-4a55-a13a-a13c77d766f2",
+  "tool": "AskUserQuestion",
+  "note": "event = id вызова вопроса в журнале сессии Claude Code и номер вопроса в нём; owner_text — дословный выбранный владельцем вариант из результата вызова. Журнал лежит на машине агента: это первоисточник ответа, но НЕ удостоверение личности — отсюда trust=operator-import."
+ },
+ "recorded_by": "Claude Code, 2026-10-28 (ADR-839; ответы даны 27.10 19:07–19:40 UTC, карточки закрыты 27.10 по ADR-834/836)",
+ "answers": [
+  {
+   "card": "owner-decision-sait-track-snapshot-json-avtonomnaya-pra",
+   "adr": "ADR-834",
+   "choice": "1",
+   "label": "закрыть как устаревшую (снимок публикуется штатно)",
+   "owner_text": "Закрыть обе как устаревшие (Recommended)",
+   "event": "toolu_01Pd92TZnp4qjg4wHC1iW8xM#3",
+   "question_sha256": "b0584051a4e03e370a3be7f6efc983d156d81c52ecdaaa8d826ad93db701fc3d",
+   "kind": "option"
+  },
+  {
+   "card": "owner-decision-sait-track-snapshot-json-avtonomnaya-pra-2",
+   "adr": "ADR-834",
+   "choice": "1",
+   "label": "закрыть как устаревшую (снимок публикуется штатно)",
+   "owner_text": "Закрыть обе как устаревшие (Recommended)",
+   "event": "toolu_01Pd92TZnp4qjg4wHC1iW8xM#3",
+   "question_sha256": "838ae78c6500c62c4c50979873186a8863a65852ea315bca2063e6f374d636c4",
+   "kind": "option"
+  },
+  {
+   "card": "owner-decision-disk-mac-mini-zabit-pod-nol-odin-zhurnal",
+   "adr": "ADR-836",
+   "choice": "закрыть",
+   "label": "закрыть как устаревшую: свободно 43 ГБ из 460, журнал 7,1 ГБ не причина",
+   "owner_text": "Закрыть как устаревшую (Recommended)",
+   "event": "toolu_019QDtF5Ax68CYSMUGHitYYd#1",
+   "question_sha256": "b0876387f17a07b4c9fee0dc72b972078101c47446051d72060f7bf0e6657651",
+   "kind": "option",
+   "note": "у карточки две РАЗОШЕДШИЕСЯ копии: прод-копия (неотслеживаемая) несёт раздел «Замер 2026-10-16», которого нет на origin; версия вопроса посчитана по origin, сверка на прод-копии честно отвечает «версия вопроса не совпадает» (замер 28.10)"
+  },
+  {
+   "card": "owner-decision-ubrat-2-gb-sluzhebnogo-musora-git-v-rabo",
+   "adr": "ADR-836",
+   "choice": "2",
+   "label": "ничего не делать (мусора 0,6 МБ, 2,4 ГБ — несжатые объекты)",
+   "owner_text": "Закрыть, ничего не делать (Recommended)",
+   "event": "toolu_019QDtF5Ax68CYSMUGHitYYd#2",
+   "question_sha256": "fd8602291d8e07ead8617e207c45ffccb3c103a3850bc622f7864d9ceffc6c5b",
+   "kind": "option"
+  },
+  {
+   "card": "owner-decision-utochnenie-po-zametke-sto-tridtsat-devya",
+   "adr": "ADR-836",
+   "choice": "закрыть",
+   "label": "вопрос снят; уборка деревьев — задача агента",
+   "owner_text": "Закрыть вопрос, уборка — задача агента (Recommended)",
+   "event": "toolu_019QDtF5Ax68CYSMUGHitYYd#3",
+   "question_sha256": "f91aabe47eaf84055d70c0534f658e92cdfe2cb77fd79a04867d2b53a4af28d9",
+   "kind": "option"
+  },
+  {
+   "card": "owner-decision-razreshit-vosstanovit-propavshuyu-istori",
+   "adr": "ADR-836",
+   "choice": "1",
+   "label": "объединить записи — сделано 27.10",
+   "owner_text": "Закрыть — сделано (Recommended)",
+   "event": "toolu_019QDtF5Ax68CYSMUGHitYYd#4",
+   "question_sha256": "0f3824e30a9260e5155d9ee705e0c2f17ff44e9ffd90f355e18b127640141943",
+   "kind": "option"
+  },
+  {
+   "card": "owner-decision-kakoi-variant-ty-vybral-9-sentyabrya-po",
+   "adr": "ADR-836",
+   "choice": "A",
+   "label": "вариант 1 — решать при первом реальном долларе (ADR-832)",
+   "owner_text": "Вариант 1 (Recommended)",
+   "event": "toolu_01X2FEBggNht5QBzW51jvZDJ#1",
+   "question_sha256": "86d762e67d4edcd282366b6c543aa1a67af157b42ad3cf912f2eb013a5785871",
+   "kind": "option"
+  },
+  {
+   "card": "owner-decision-agent-nablyudatel-prosypaetsya-raz-v-7-6",
+   "adr": "ADR-836",
+   "choice": "ускорить",
+   "label": "расписание не менять; ускорить прогон decision_loop",
+   "owner_text": "Ускорить прогон (Recommended)",
+   "event": "toolu_01PXTVkH6tjzWs8a3Z7Za4q1#1",
+   "question_sha256": "b5f5e509ca420816aa81212acaed3a921e22232e63c190f14749dda32f01b8cb",
+   "kind": "option"
+  },
+  {
+   "card": "owner-decision-zakryt-tri-chernovyh-pr-u-moego-klyucha",
+   "adr": "ADR-836",
+   "choice": "1",
+   "label": "выдать права — агент закрывает #50, #10, #9 сам",
+   "owner_text": "Разрешу агенту закрывать PR",
+   "event": "toolu_01Pd92TZnp4qjg4wHC1iW8xM#2",
+   "question_sha256": "4c894d574a5b997b5c03c14a09888489255d037714b84ef9c4569d68dca703e9",
+   "kind": "option"
+  },
+  {
+   "card": "owner-decision-earn-defi-kanal-telegram-dlya-publikatsii",
+   "adr": "ADR-836",
+   "choice": "1",
+   "label": "публичный канал только для хешей",
+   "owner_text": "Публичный, только хеши (Recommended)",
+   "event": "toolu_01C1GMhm4CT8ezM9kgWF4KDA#1",
+   "question_sha256": "720b93274caf50329bbb874f9d80826e861c8fccb90aba425af13404cb432949",
+   "kind": "option"
+  },
+  {
+   "card": "owner-decision-dva-mesta-zovut-odin-protokol-raznym-t",
+   "adr": "ADR-836",
+   "choice": "A",
+   "label": "выровнять morpho_steakhouse → T2, pendle → T2 + сторож расхождения тиров",
+   "owner_text": "Выровнять оба на T2 + сторож (Recommended)",
+   "event": "toolu_012U5Lj1nj7gcjZDuoQ9nMWD#1",
+   "question_sha256": "7a9741dc7d89481c0e8b59c39cb3cc347655bd9b44d20a58d9a18cc9fe7f1e5e",
+   "kind": "option"
+  },
+  {
+   "card": "own-optimum-proigryvaet-resheniyu-nichego-ne-d",
+   "adr": "ADR-836",
+   "choice": "1",
+   "label": "сравнивать предложение аллокатора с «ничего не делать», брать лучшее",
+   "owner_text": "Сравнивать с «ничего не делать» (Recommended)",
+   "event": "toolu_015QZ36KE6McnJdvv5jnQiK4#1",
+   "question_sha256": "34710600a9057b1c289c1bfdbaa54c46eb22362200b0f076c4cde99ee089107a",
+   "kind": "option"
+  },
+  {
+   "card": "owner-decision-potolok-base-tsepochki-zapisan-v-treh-mestah",
+   "adr": "ADR-836",
+   "choice": "A",
+   "label": "главное — spa_core/risk/policy.py; число 20 % не меняется",
+   "owner_text": "Главное — правило риска (Recommended)",
+   "event": "toolu_01EXGgdr7YXwWbN8AZjhkdzT#1",
+   "question_sha256": "7b3cd72f5992b80c86c84cced83f8091e494e16227fc134a7d25b1abf363d817",
+   "kind": "option"
+  },
+  {
+   "card": "owner-decision-pyat-protsentov-kesha-zapisany-v-dvuh-me",
+   "adr": "ADR-836",
+   "choice": "1",
+   "label": "одно правило: бэктест и тесты берут 0.05 у правила риска",
+   "owner_text": "Одно правило (Recommended)",
+   "event": "toolu_01M26T34DHYMYpyz96fgw2mj#1",
+   "question_sha256": "269c30fe8ebef3de33a4d424641c24edeee1eacaeaee3428d7e88d6c248a6bc8",
+   "kind": "option"
+  },
+  {
+   "card": "owner-decision-sistema-ne-sprashivaet-proderzhitsya-li",
+   "adr": "ADR-836",
+   "choice": "1",
+   "label": "ход — только если выгода держится N = 3 дня подряд",
+   "owner_text": "Требовать, чтобы выгода продержалась N дней (Recommended) · N: 3 дня",
+   "event": "toolu_01Y8o2hPX9BXRCGS7cbVFvX6#1 + toolu_01CmkTWmZKPnCPAX6hkzBK6D#1",
+   "question_sha256": "ece0a2bb9be2bc3c64e05b8383444dd0ab1af8592f7a19b7b06223ceba8dfdfd",
+   "kind": "option"
+  },
+  {
+   "card": "owner-decision-stoimost-perekladki-zaryazhaetsya-v-134",
+   "adr": "ADR-836",
+   "choice": "1",
+   "label": "допуск расхождения «заряжено ↔ наблюдено» ×3",
+   "owner_text": "Объявить допуск ×3 (Recommended)",
+   "event": "toolu_016kPcdYdPVZrj6L6UowzBNZ#1",
+   "question_sha256": "7bb7f4b76c89e1edc5c691fd9cc61069ef46e2376302a3ca24590d6c30ea821f",
+   "kind": "option"
+  },
+  {
+   "card": "owner-decision-zaschita-ot-kachelei-sravnivaet-ne-to-ch",
+   "adr": "ADR-836",
+   "choice": "1",
+   "label": "сравнивать с состоянием книги за 14 дней",
+   "owner_text": "С состоянием книги за 14 дней (Recommended)",
+   "event": "toolu_016kPcdYdPVZrj6L6UowzBNZ#2",
+   "question_sha256": "81e1636082c8248d06839ca0cd2191bee5e2a3960627cd4c0eae6bc09a500f14",
+   "kind": "option"
+  },
+  {
+   "card": "owner-decision-pereproverka-pered-sdelkoi-nazovi-dva-ch",
+   "adr": "ADR-836",
+   "choice": "А",
+   "label": "свежесть 60 с на бумаге / 15 с вживую; срок годности решения 10 мин",
+   "owner_text": "60 с на бумаге / 15 с вживую, решение 10 мин (Recommended)",
+   "event": "toolu_016kPcdYdPVZrj6L6UowzBNZ#3",
+   "question_sha256": "04aeff2bbe294450e4ea44b096ed14dc5290c89c47fe60ef333c73cf20b4cc9b",
+   "kind": "option"
+  }
+ ]
+}

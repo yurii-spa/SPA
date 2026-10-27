@@ -128,10 +128,37 @@ def probe_for(path: Path, fm: Optional[dict] = None) -> tuple[Optional[str], str
     return (found[0], "") if why is None else (None, f"проба «{found[0]}» не годится: {why.split('. Известные')[0]}")
 
 
+def approval_gate(card: Path, probe: str, prep_root=None, code_root=None) -> Optional[str]:
+    """Граница ДО исполнения (ADR-839): None — брать можно, иначе причина.
+
+    Карточка с ОБЪЯВЛЕННЫМ предметом владельца (``owner_subject``: money · public · irreversible)
+    без годного одобрения текущей версии плана с этой же пробой не берётся. Сбой проверки — тоже
+    отказ (fail-CLOSED): здесь, в отличие от :func:`packet_note`, ошибка не «работай по карточке».
+    Карточки без предмета владельца на этой границе не задерживаются и ошибкой подготовки не
+    останавливаются — их путь прежний (названный предел, ADR-839)."""
+    from spa_core.studio_os import work_packet as wp
+    if _s(_fm(Path(card)), "owner_subject") not in wp.SUBJECTS_OWNER:
+        return None
+    try:
+        from spa_core.studio_os.memory import arch_review as ar
+        run = None
+        if prep_root:
+            runs = ar.preparation_runs(Path(prep_root), Path(card).name)
+            run = runs[-1] if runs else None
+        root = Path(code_root) if code_root else Path(__file__).resolve().parents[2]
+        return wp.entry_gate(Path(card), run, root=root, probe=probe)
+    except Exception as exc:  # noqa: BLE001 — не смогли проверить ⇒ не берём
+        return f"граница одобрения не проверена ({type(exc).__name__}: {exc})"
+
+
 def dispatch(*, executor: str, tracker_dir=None, claim: Optional[Callable] = None,
              now: Optional[datetime] = None, outbox_path=None, notify: Optional[Callable] = None,
-             flush: bool = True) -> dict:
-    """Один проход выбора: все «пробы нет» — записать; первую проверяемую — взять. Не более ОДНОЙ."""
+             flush: bool = True, prep_root=None, code_root=None) -> dict:
+    """Один проход выбора: все «пробы нет» — записать; первую проверяемую — взять. Не более ОДНОЙ.
+
+    Карточка, которую не пускает :func:`approval_gate`, не берётся и ничего не получает в файл —
+    она в ``awaiting_approval`` (ключ появляется только при задержанных) и снова кандидат, как
+    только одобрение появится."""
     now = now or datetime.now(timezone.utc)
     res = {"taken": None, "probe": None, "no_probe": [], "refused": []}
     for path in candidates(tracker_dir):
@@ -142,6 +169,10 @@ def dispatch(*, executor: str, tracker_dir=None, claim: Optional[Callable] = Non
             cl.record_no_probe(path, why, next_step=NEXT_NO_PROBE, now=now, outbox_path=outbox_path,
                                notify=notify, flush=False)
             res["no_probe"].append(path.name)
+            continue
+        gate = approval_gate(path, spec, prep_root, code_root)
+        if gate:
+            res.setdefault("awaiting_approval", []).append(f"{path.name}: {gate}")
             continue
         try:
             out = cl.take_card(path, spec, executor=executor, claim=claim)
@@ -162,7 +193,8 @@ def packet_note(card: str, prep_root=None, code_root=None) -> str:
 
     Подготовка берётся последняя из ``prep_root`` (тот же корень, что у пульта); её свежесть
     судится по ``code_root`` (снимок кода подготовки). Не названы / сбой ⇒ пакет «плана нет»
-    или названная причина — выбор карточки этим НИКОГДА не блокируется.
+    или названная причина. Это ТЕКСТ для исполнителя, не граница: допуск к исполнению решает
+    :func:`approval_gate` в :func:`dispatch` (ARB 27.10, R2).
     """
     try:
         from spa_core.studio_os import work_packet as wp
@@ -268,7 +300,8 @@ def main(argv=None) -> int:
         if not a.executor.strip():
             print("НЕ ИЗМЕРЕНО: исполнитель не назван", file=sys.stderr)
             return RC_UNMEASURED
-        res = dispatch(executor=a.executor, tracker_dir=a.tracker_dir)
+        res = dispatch(executor=a.executor, tracker_dir=a.tracker_dir, prep_root=a.prep_root,
+                       code_root=a.prep_code_root)
         print(json.dumps(res, ensure_ascii=False), file=sys.stderr)
         if res["taken"]:
             if a.card_out:

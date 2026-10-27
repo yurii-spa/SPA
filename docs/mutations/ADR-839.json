@@ -1,0 +1,130 @@
+{
+  "title": "ADR-839 — ARB 27.10 R1/R2: ответ из сессии — по точной записи реестра; «готово» и «проверено» — по одобренной связке и фактическому запуску пробы",
+  "tests": [
+    "spa_core/tests/test_owner_session_answer.py",
+    "spa_core/tests/test_work_packet_chain.py",
+    "spa_core/tests/test_cockpit_dispatch.py"
+  ],
+  "mutations": [
+    {
+      "name": "имя карточки сверяется ПОДСТРОКОЙ — обход ARB R1 №3 (префикс)",
+      "file": "spa_core/owner_queue/owner_answer.py",
+      "old": "if isinstance(e, dict) and e.get(\"card\") == card_stem]",
+      "new": "if isinstance(e, dict) and card_stem in str(e.get(\"card\"))]"
+    },
+    {
+      "name": "выбор вызывающего не сверяется с записью — обход ARB R1 №2",
+      "file": "spa_core/owner_queue/owner_answer.py",
+      "old": "    if str(e[\"choice\"]) != str(choice_num):",
+      "new": "    if False:"
+    },
+    {
+      "name": "версия вопроса не сверяется — изменённый вопрос наследует ответ",
+      "file": "spa_core/owner_queue/owner_answer.py",
+      "old": "    if question_version(text) != e[\"question_sha256\"]:",
+      "new": "    if False:"
+    },
+    {
+      "name": "другой уже записанный ответ вытесняется переносом из сессии",
+      "file": "spa_core/owner_queue/owner_answer.py",
+      "old": "    if have and have not in EMPTY_SCALARS:",
+      "new": "    if False:"
+    },
+    {
+      "name": "реестр без объявленного доверия/канала принимается",
+      "file": "spa_core/owner_queue/owner_answer.py",
+      "old": "    if doc.get(\"trust\") != TRUST_OPERATOR_IMPORT or doc.get(\"channel\") != SESSION_VIA:",
+      "new": "    if False:"
+    },
+    {
+      "name": "запись без первоисточника и версии вопроса принимается",
+      "file": "spa_core/owner_queue/owner_answer.py",
+      "old": "    missing = [k for k in (\"choice\", \"label\", \"question_sha256\", \"owner_text\", \"event\") if not e.get(k)]",
+      "new": "    missing = []"
+    },
+    {
+      "name": "карточка не помечается импортом оператора",
+      "file": "spa_core/owner_queue/owner_answer.py",
+      "old": "extra_fields={\"owner_answer_trust\": TRUST_OPERATOR_IMPORT, ",
+      "new": "extra_fields={"
+    },
+    {
+      "name": "ready не сверяет задачу — обход ARB R2 (чужая задача)",
+      "file": "spa_core/studio_os/work_packet.py",
+      "old": "    if approval.get(\"task_id\") != pkt.get(\"task_id\"):",
+      "new": "    if False:"
+    },
+    {
+      "name": "ready не сверяет версию",
+      "file": "spa_core/studio_os/work_packet.py",
+      "old": "    if approval.get(\"version\") != pkt.get(\"version\"):",
+      "new": "    if False:"
+    },
+    {
+      "name": "ready не сверяет предмет",
+      "file": "spa_core/studio_os/work_packet.py",
+      "old": "    if \"subject\" not in approval or (approval.get(\"subject\") or None) != (pkt.get(\"owner_subject\") or None):",
+      "new": "    if False:"
+    },
+    {
+      "name": "ready пускает одобрение агента на предмет владельца — обход ARB R2 (роль)",
+      "file": "spa_core/studio_os/work_packet.py",
+      "old": "    elif authority(pkt) == \"owner\" and approval.get(\"role\") != \"owner\":",
+      "new": "    elif False:"
+    },
+    {
+      "name": "ready не сверяет одобренную пробу с исполняемой",
+      "file": "spa_core/studio_os/work_packet.py",
+      "old": "        if (approval.get(\"probe\") or \"\").strip() != bound:",
+      "new": "        if False:"
+    },
+    {
+      "name": "approve не сверяет пробу с реестром",
+      "file": "spa_core/studio_os/work_packet.py",
+      "old": "    bound = bind_probe(probe)\n",
+      "new": "    bound = probe\n"
+    },
+    {
+      "name": "итог пишется при любом вердикте пробы",
+      "file": "spa_core/studio_os/work_packet.py",
+      "old": "    if verdict != ca.SATISFIED:",
+      "new": "    if False:"
+    },
+    {
+      "name": "подделанная запись запуска (run_id не сходится) считается проверенной",
+      "file": "spa_core/studio_os/work_packet.py",
+      "old": "    if oc.get(\"run_id\") != _run_id(oc):",
+      "new": "    if False:"
+    },
+    {
+      "name": "запуск на подставленных входах считается проверенным",
+      "file": "spa_core/studio_os/work_packet.py",
+      "old": "    if any((oc.get(\"inputs\") or {}).values()):",
+      "new": "    if False:"
+    },
+    {
+      "name": "одобрение, заменённое после запуска, не замечается",
+      "file": "spa_core/studio_os/work_packet.py",
+      "old": "    if ap_raw is None or oc.get(\"approval_sha256\") != hashlib.sha256(ap_raw).hexdigest():",
+      "new": "    if False:"
+    },
+    {
+      "name": "пульт пишет «проверено» по слову satisfied, а не по записи запуска",
+      "file": "spa_core/studio_os/owner_view.py",
+      "old": "        if oc.get(\"verified\"):",
+      "new": "        if oc.get(\"verdict\") == \"satisfied\":"
+    },
+    {
+      "name": "диспетчер не держит карточку на границе одобрения",
+      "file": "spa_core/owner_queue/cockpit_dispatch.py",
+      "old": "        if gate:\n",
+      "new": "        if False:\n"
+    },
+    {
+      "name": "граница одобрения пропускает предмет владельца",
+      "file": "spa_core/owner_queue/cockpit_dispatch.py",
+      "old": "    if _s(_fm(Path(card)), \"owner_subject\") not in wp.SUBJECTS_OWNER:",
+      "new": "    if True:"
+    }
+  ]
+}
