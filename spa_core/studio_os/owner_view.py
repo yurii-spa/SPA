@@ -1001,6 +1001,24 @@ def _record_preparation_ru(p: Any) -> Optional[dict]:
         out["question"] = _prep_text(p.get("question"))
     elif shown == "clarification":
         out["question"] = _prep_text(p.get("question"))
+    ap = p.get("approval") if isinstance(p.get("approval"), dict) else None
+    oc = p.get("outcome") if isinstance(p.get("outcome"), dict) else None
+    if ap is not None:
+        when = _madrid(ap.get("at")) or "время не записано"
+        if ap.get("valid"):
+            out["approval"] = f"Одобрено: {ap.get('approver') or '?'} ({when}), версия плана {str(ap.get('version'))[:12]}"
+            out["head"] = "План одобрен — выполняется по объявленной проверке результата"
+        else:
+            out["approval"] = (f"Одобрение {when} относится к ПРЕЖНЕЙ версии плана — "
+                               "для текущего плана оно не действует, нужно одобрить заново")
+            out["alert"] = True
+    if oc is not None and ap is not None and ap.get("valid") and oc.get("version") == ap.get("version"):
+        verdict = str(oc.get("verdict"))
+        out["head"] = ("Выполнено и проверено: результат подтверждён проверкой" if verdict == "satisfied" else
+                       "Выполнено, но проверка результат НЕ подтвердила" if verdict == "not_satisfied" else
+                       "Выполнено, но проверка результата не измерена")
+        out["alert"] = verdict != "satisfied"
+        out["result"] = f"Проверка «{oc.get('probe')}»: {_prep_text(oc.get('detail')) or verdict}"
     if shown in ("plan", "clarification"):
         out["authority"] = ("по оценке модели — " + _SUBJECT_RU.get(str(p.get("subject")), "не определено")
                             + ". Это не проверка прав и не разрешение начинать работу.")

@@ -104,6 +104,68 @@ def build(card: Path, run_dir: Optional[Path], *, root: Path, code_now: Any = "m
     return pkt
 
 
+APPROVAL_FILE = "approval.json"
+OUTCOME_FILE = "outcome.json"
+
+
+def _write_once(path: Path, doc: Dict[str, Any]) -> None:
+    """Записать документ ОДИН раз: файл уже есть ⇒ отказ (одобрение и итог не переписываются)."""
+    import os
+    try:
+        fd = os.open(str(path), os.O_WRONLY | os.O_CREAT | os.O_EXCL, 0o600)
+    except FileExistsError:
+        raise Refused(f"{path.name} уже записан — запись не переписывается")
+    with os.fdopen(fd, "w", encoding="utf-8") as fh:
+        json.dump(doc, fh, ensure_ascii=False, indent=1)
+
+
+def _read(path: Path) -> Optional[Dict[str, Any]]:
+    try:
+        doc = json.loads(path.read_text(encoding="utf-8"))
+    except (OSError, ValueError):
+        return None
+    return doc if isinstance(doc, dict) else None
+
+
+def record_approval(run_dir: Path, approval: Dict[str, Any]) -> Path:
+    """Зафиксировать одобрение (результат :func:`approve`) рядом с подготовкой; один раз."""
+    p = Path(run_dir) / APPROVAL_FILE
+    _write_once(p, {"schema": SCHEMA, **approval})
+    return p
+
+
+def record_outcome(run_dir: Path, pkt: Dict[str, Any], *, probe: str, verdict: str, detail: str,
+                   at: str) -> Path:
+    """Итог исполнения: только для ОДОБРЕННОЙ текущей версии и объявленной проверки; один раз."""
+    ap = _read(Path(run_dir) / APPROVAL_FILE)
+    if not ready(pkt, ap, probe):
+        raise Refused("итог не записывается: нет одобрения ЭТОЙ версии плана или проверка не объявлена")
+    p = Path(run_dir) / OUTCOME_FILE
+    _write_once(p, {"schema": SCHEMA, "task_id": pkt["task_id"], "version": pkt["version"], "probe": probe,
+                    "verdict": verdict, "detail": detail, "at": at})
+    return p
+
+
+def decisions_for(run_dir: Path, plan_state: Dict[str, Any]) -> Dict[str, Any]:
+    """Одобрение и итог подготовки — для пульта. Одобрение ДРУГОЙ версии ⇒ ``valid: False``."""
+    from spa_core.studio_os.memory import arch_review as ar
+    rec = _read(Path(run_dir) / ar.PREP_RECORD_FILE) or {}
+    ident = rec.get("input_identity") or ""
+    body = "\n\x1e".join(str(x or "") for x in (plan_state.get("plan"), plan_state.get("outcome"),
+                                                 plan_state.get("acceptance_text")))
+    version = _sha(f"{ident}\n\x1d{body}") if ident else None
+    ap = _read(Path(run_dir) / APPROVAL_FILE)
+    oc = _read(Path(run_dir) / OUTCOME_FILE)
+    out: Dict[str, Any] = {"version": version}
+    if ap:
+        out["approval"] = {k: ap.get(k) for k in ("approver", "role", "at", "version")}
+        out["approval"]["valid"] = bool(version and ap.get("version") == version
+                                        and plan_state.get("state") == "current")
+    if oc:
+        out["outcome"] = {k: oc.get(k) for k in ("probe", "verdict", "detail", "at", "version")}
+    return out
+
+
 def authority(pkt: Dict[str, Any]) -> str:
     """'owner' | 'agent'. Не объявленный предмет — владельцу (UNKNOWN не значит «вне трёх»)."""
     subj = pkt.get("owner_subject")

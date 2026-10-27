@@ -116,3 +116,33 @@ def test_dispatch_prompt_carries_the_packet_and_never_breaks_on_failure(tmp_path
     assert "ПАКЕТ ПЕРЕДАЧИ" in note and "inbox-demo" in note
     broken = cd.packet_note(str(tmp_path / "нет-такой.md"), tmp_path / "prep", tmp_path)
     assert broken.startswith("ПАКЕТ ПЕРЕДАЧИ НЕ СОБРАН")
+
+
+def test_approval_and_outcome_are_written_once_and_shown_in_the_cockpit(tmp_path):
+    from spa_core.studio_os import owner_view as ov
+    pkt, card, run, _ = _pkt(tmp_path, subject="none")
+    with pytest.raises(wp.Refused, match="нет одобрения"):
+        wp.record_outcome(run, pkt, probe="problem_absent:x", verdict="satisfied", detail="d", at="t")
+    ap = wp.approve(pkt, version=pkt["version"], approver="Юрий", role="owner", at="2026-10-27T19:20:00+00:00")
+    wp.record_approval(run, ap)
+    with pytest.raises(wp.Refused, match="не переписывается"):
+        wp.record_approval(run, ap)
+    wp.record_outcome(run, pkt, probe="problem_absent:x", verdict="satisfied", detail="условие отсутствует",
+                      at="2026-10-27T19:21:00+00:00")
+    st = ar.preparation_state(run, card_text=card.read_text(encoding="utf-8"), root=tmp_path, code_now=CODE)
+    view = ov._record_preparation_ru({**st, **wp.decisions_for(run, st)})
+    assert view["head"].startswith("Выполнено и проверено") and "Юрий" in view["approval"]
+    assert "условие отсутствует" in view["result"]
+
+
+def test_approval_of_an_older_plan_version_is_shown_as_not_valid(tmp_path):
+    from spa_core.studio_os import owner_view as ov
+    pkt, card, run, _ = _pkt(tmp_path, subject="none")
+    wp.record_approval(run, wp.approve(pkt, version=pkt["version"], approver="Юрий", role="owner", at="t"))
+    rec = json.loads((run / ar.PREP_RECORD_FILE).read_text())
+    rec["sections"]["PLAN"] = "1. другой план"
+    (run / ar.PREP_RECORD_FILE).write_text(json.dumps(rec))
+    st = ar.preparation_state(run, card_text=card.read_text(encoding="utf-8"), root=tmp_path, code_now=CODE)
+    d = wp.decisions_for(run, st)
+    assert d["approval"]["valid"] is False
+    assert "ПРЕЖНЕЙ версии" in ov._record_preparation_ru({**st, **d})["approval"]
