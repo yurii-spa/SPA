@@ -704,6 +704,7 @@
 | ADR-836 | ADR-836 · Ответы владельца 27.10 в сессии Claude Code — шестнадцать вопросов очереди | Accepted | [ADR-836](ADR-836-owner-answers-2026-10-27-queue.md) |
 | ADR-837 | ADR-837 · Предел `docs/STATE.md` меряет цену ЧТЕНИЯ, а не число строк | Accepted | [ADR-837](ADR-837-state-read-cost-is-what-the-limit-was-for.md) |
 | ADR-838 | Предел цены чтения стоял на одном файле: реестр решений — 1 574 806 символов | Accepted | [ADR-838](ADR-838-the-read-price-limit-was-set-on-one-file.md) |
+| ADR-839 | ADR-839 — Ответ из сессии — по точной записи реестра; «проверено» — по фактическому запуску пробы (ARB 27.10, R1/R2) | Accepted | [ADR-839](ADR-839-session-answer-and-work-packet-bound-to-exact-record-and-real-probe-run.md) |
 | ADR-840 | ADR-840 — Колонка «Заголовок» реестра решений приведена к заголовку: 1 574 973 → 136 610 символов | Accepted | [ADR-840](ADR-840-register-title-column-is-a-title.md) |
 | ADR-841 | ADR-841 — Вердикта CI на `main` не было четыре прогона подряд: версию pytest выбирал календарь, а не дерево | Accepted | [ADR-841](ADR-841-ci-pins-the-pytest-it-installs.md) |
 
