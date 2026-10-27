@@ -242,7 +242,15 @@ else
 fi
 
 # ── ARMED: run one headless GOVERNED-AUTONOMY cycle ─────────────────────────
-PROMPT="${COCKPIT_PREFIX}${STARVE_PREFIX}Ты — оркестратор SPA под НОВЫМ протоколом «управляемая автономия» (owner-approved 2026-07-15). \
+# ── РАЗБОР ВХОДЯЩИХ до сессии (ADR-154 §3, 27.10) ─────────────────────────────
+# Детерминированный отчёт без правки карточек: тип · готовность (объявлена проверка) · дубли.
+# Разбор больше не конкурирует с исполнением за слот сессии; сбой отчёта назван, цикл идёт.
+TRIAGE_PREFIX="$( ( "$PYTHON" -m spa_core.owner_queue.triage \
+                     --tracker-dir "$REPO_ROOT/nimbalyst-local/tracker" \
+                     --out "$REPO_ROOT/data/inbox_triage.json" ) 2>>"$LOG" )"
+echo "[$(ts)] triage: ${TRIAGE_PREFIX:-(нет вывода)}" >> "$LOG"
+
+PROMPT="${COCKPIT_PREFIX}${STARVE_PREFIX}${TRIAGE_PREFIX}Ты — оркестратор SPA под НОВЫМ протоколом «управляемая автономия» (owner-approved 2026-07-15). \
 Исполни ПОЛНОСТЬЮ docs/ORCHESTRATOR_PROTOCOL.md за один цикл, включая раздел «Автономный рабочий мандат»: \
 (1) прочитай docs/STATE.md + docs/decisions/INDEX.md + docs/SYSTEM_BRIEFING.md + свежие data/session_changes.jsonl, \
 затем ОБЯЗАТЕЛЬНО python3 scripts/consume_office_reports.py (ADR-066: офис+сторож архитектуры в контекст, \
