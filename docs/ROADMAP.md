@@ -31,7 +31,10 @@
 ## Immediate delivery and operations priority — 2026-10-27
 
 Owner: Yurii; recorded by ARB in ADR-OWN-2026-10-23 (27.10 amendment).
-1. Finish the prepared task-prep release: v4 publication/CI and conditional delivery are authorized.
+1. ~~Finish the prepared task-prep release~~ — **DELIVERED 27.10**: main `606b48e08` + switch `2b43d9b9d`, prod synced,
+   one preparation `current` visible in mission.json (see DELIVERY.md top). Package B delivered as `f4e21f1cb`.
+   **Current next step:** STUDIO-OS-DELIVERY-AND-BACKLOG-01 —
+   `evidence/studio-os-backlog-01-2026-10-27/CONTROL.md` (candidate `backlog/studio-os-backlog-01`).
 2. In parallel with CI, triage 18 owner questions and three recurring OPEN problems; correct UNKNOWN
    wording, stale premises and technical work stranded on the owner. Reuse existing queue/alert tools.
 3. Next useful Studio result: approved plan -> declared acceptance -> bounded execution -> recorded outcome.
@@ -90,7 +93,11 @@ prepare a reviewable plan and acceptance proposal from an ordinary request throu
 seam; do not make the owner choose internal test names. This is a candidate preparation path, not permission
 to dispatch live work. Evidence and scope: `evidence/studio-os-next-01-2026-10-16/voice_owner_check_2026-10-25/ARB_REVIEW.md`.
 
-**Task-prep checkpoint, ARB 2026-10-27 (v4 ready for full CI):** R1/R2/U1, v3 refusal and the narrow
+**Task-prep — DELIVERED 27.10 (history below is the pre-delivery checkpoint, kept as history).** v4 `4a326236b` was not
+delivered as such: v5 `d8baff308` → v6b `e06c1d652` (registry row for ADR-OWN-2026-10-23 + adr_number fix) → main
+`606b48e08`; CI 40506193805 (RED on pre-existing). Evidence: `release_task_prep_20261026T100847Z/release_ci_result_*`.
+
+*History —* **Task-prep checkpoint, ARB 2026-10-27 (v4 ready for full CI):** R1/R2/U1, v3 refusal and the narrow
 Resolver optimization are accepted in their reviewed scope. Local candidate `4a326236b` is a direct
 child of published `6ca0ce2a8`; only the scanner changes (+16/-6). ARB verified all 24 manifest paths
 and exact equality with its measured optimized scanner. Claude reports 45 passed / 4 previous failed
