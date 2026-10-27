@@ -115,11 +115,22 @@ def test_the_beacon_and_the_journal_agree_on_one_tree():
     Разойдись они — кнопка нашлась бы (маячок виден), а записи о ней нет, и нажатие
     владельца получило бы «не нашёл эту карточку». Хуже отсутствия кнопки.
     """
-    from spa_core.telegram import alert_actions as aa
-    from spa_core.telegram import owner_decisions as od
-
-    assert aa.BEACON_PATH.parent == od.STATE_PATH.parent
-    assert aa.STATE_PATH.parent == od.STATE_PATH.parent
+    # Инв. #16 (27.10, намеренно; предмет прежний): оба пути вычисляются ПРИ ИМПОРТЕ, и в общем
+    # процессе набора исход решал ПОРЯДОК тестов — первый импорт мог случиться под изолированным
+    # `SPA_DATA_DIR` соседа (CI 40561031732: перебалансировка шардов, маячок «уехал» в изоляцию).
+    # Прод импортирует оба модуля в ОДНОМ свежем процессе — так и меряем: подпроцесс, тот же
+    # интерпретатор и окружение, ответ про то, что сделает прод, а не про историю импортов.
+    import os
+    import subprocess
+    import sys
+    code = ("from spa_core.telegram import alert_actions as aa, owner_decisions as od;"
+            "print(aa.BEACON_PATH.parent == od.STATE_PATH.parent, aa.STATE_PATH.parent == od.STATE_PATH.parent)")
+    root = str(LP.OWN_TREE)
+    env = dict(os.environ, PYTHONPATH=root + os.pathsep + os.environ.get("PYTHONPATH", ""))
+    out = subprocess.run([sys.executable, "-c", code], capture_output=True, text=True, cwd=root,
+                         env=env, timeout=120)
+    assert out.returncode == 0, out.stderr[-500:]
+    assert out.stdout.split() == ["True", "True"], out.stdout
 
 
 def test_module_creates_no_directories(monkeypatch, tmp_path):

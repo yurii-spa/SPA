@@ -168,6 +168,7 @@ PROBLEM_FAMILY_RU = {
     "exit_nonzero": "агент «{agent}» завершается с ошибкой (код {n})",
     "stale_log": "агент «{agent}» давно ничего не пишет в журнал — возможно, завис или не запускается",
     "retired_but_loaded": "отключённые агенты всё ещё запущены: {names}",
+    "fleet_parity_drift": "установщик флота расходится с запущенными агентами — переустановка поставила бы не тот набор",
     "domains_degraded": "проверка здоровья предупреждает в областях: {names}",
     "publication_behind": "сайт отстаёт от свежих данных",
 }
@@ -281,6 +282,8 @@ def problem_plain(agent: Any, cause_code: Any, detail: Any = None) -> dict:
         lm = _LOADED_RE.search(det)
         names = [_agent_short(x.strip()) for x in lm.group(1).split(",")] if lm else []
         return {"tone": "warn", "text": PROBLEM_FAMILY_RU["retired_but_loaded"].format(names=_join_ru(names) if names else "список в подробностях")}
+    if code == "fleet_parity_drift":
+        return {"tone": "warn", "text": PROBLEM_FAMILY_RU["fleet_parity_drift"]}
     if code == "domains_degraded":
         doms = [SYSTEM_DOMAIN_RU.get(d, d) for d, _st in _DOMAIN_RE.findall(det)]
         return {"tone": "warn", "text": PROBLEM_FAMILY_RU["domains_degraded"].format(names=_join_ru(doms) if doms else "список в подробностях")}
