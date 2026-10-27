@@ -168,7 +168,7 @@ ADR-824 про ЭКВИВАЛЕНТНОГО мутанта — ошибка бы
 - Семейство `slo_*` и офис: `test_slo_keepability` · `test_slo_proposal` ·
   `test_slo_data_dir_named` · `test_slo_report_line_reader` · `test_slo_write_stamp_price` ·
   `test_consume_office_reports` · `test_call_provenance` · `test_write_attribution_census` ·
-  `test_cio_brief` — **557 passed + 6 subtests** (включая исправленный `test_slo_stamp_reader`).
+  `test_cio_brief` — **558 passed + 6 subtests** (включая исправленный `test_slo_stamp_reader`; число ПЕРЕМЕРЕНО после правки набора — в первой редакции этого ADR стояло 557, выведенное арифметикой из прогона ДО правки, а не снятое прибором).
 - Прочие соседи, трогающие изменённые модули (11 файлов) — **371 passed + 83 subtests, 2 failed**;
   обе красные (`test_unwired_guard_modules_ratchet`) ПРЕДСУЩЕСТВУЮЩИЕ: перечни модулей в моём
   дереве и на чистом `origin/main` совпали посимвольно.
