@@ -125,6 +125,140 @@ class TheInstrumentTellsABombFromAnHonestTest(unittest.TestCase):
                          "часы инъектированы — длительность прогона не имеет права на них влиять")
 
 
+#: Та же бомба, но её утверждение живёт ТОЛЬКО под `self.subTest`. Предмет — не часы,
+#: а ВИДИМОСТЬ носителя прибору: падение под `subTest` pytest печатает строкой
+#: `SUBFAILED(...)`, сам тест при этом идёт точкой и попадает в «N passed». До цикла
+#: #951 `_OUTCOME` читал только `FAILED|ERROR|SKIPPED` ⇒ такая бомба была приборУ
+#: НЕОТЛИЧИМА от прошедшего теста на ОБЕИХ сторонах сравнения, то есть молчала.
+_BOMB_UNDER_SUBTEST = '''
+from datetime import timedelta
+import unittest
+from spa_core.tests._freshness import now_utc
+
+NOW = now_utc()                      # ЯКОРЬ НА ИМПОРТЕ — предмет класса
+
+
+class Scene(unittest.TestCase):
+    def test_scene(self):
+        with self.subTest(side="носитель живёт только здесь"):
+            self.assertLess((now_utc() - NOW).total_seconds(), 60)
+'''
+
+
+class TheInstrumentSeesACarrierHiddenUnderSubTest(unittest.TestCase):
+    """Носитель утверждения под `self.subTest` обязан доходить до вердикта.
+
+    Класс найден циклом #951 замером на НАСТОЯЩЕМ pytest 9.0.3 и общий у двух приборов
+    цикла: тот же дефект жил в `delta_mutation_run._FAILED_LINE`, где за четыре цикла
+    (#876, #947, #950) съел девять мутационных находок. Ошибка здесь шла в сторону
+    САМОУСПОКОЕНИЯ — «бомб нет», — то есть тише красного и потому опаснее.
+
+    Обе стороны обязательны: прибор видит носителя под `subTest` И не меняет вердикт
+    там, где `subTest` стои́т вокруг честно инъектированных часов."""
+
+    def setUp(self):
+        import tempfile
+        self.tmp = Path(tempfile.mkdtemp(prefix="spa_anchor_subtest_"))
+
+    def tearDown(self):
+        import shutil
+        shutil.rmtree(self.tmp, ignore_errors=True)
+
+    def _verdicts(self, body: str, name: str):
+        f = [_scene(self.tmp, name, body)]
+        return iab.outcomes(f, 0.0, ROOT), iab.outcomes(f, LAG_MIN, ROOT)
+
+    def test_a_bomb_whose_assertion_lives_only_under_subtest_is_found(self):
+        """Положительный контроль класса #951. ДО правки обе стороны давали «passed»."""
+        base, aged = self._verdicts(_BOMB_UNDER_SUBTEST, "bomb_subtest")
+        self.assertEqual(base.get("__passed__"), "1",
+                         "сцена обязана быть зелёной БЕЗ задержки, иначе она сломана, "
+                         "а не бомба")
+        exploded = [(k, v) for k, v in aged.items() if k != "__passed__"]
+        self.assertEqual([v for _, v in exploded], ["SUBFAILED"],
+                         f"прибор не увидел носителя под subTest: {aged}")
+        self.assertEqual(aged.get("__passed__"), "1",
+                         "и это главное в находке: pytest СЧИТАЕТ такой тест прошедшим "
+                         "— по счётчику прошедших бомба неразличима")
+
+    def test_a_subtest_around_an_injected_clock_is_still_not_a_bomb(self):
+        """Обратная сторона: `subTest` сам по себе бомбой не делает. Без неё правка
+        читалась бы как «считать подозрительным всё, что под subTest»."""
+        body = _INJECTED.replace(
+            "def test_scene():\n"
+            "    assert _age_hours(FIXED_NOW - timedelta(minutes=1)) < 0.5\n",
+            "import unittest\n\n\n"
+            "class Scene(unittest.TestCase):\n"
+            "    def test_scene(self):\n"
+            "        with self.subTest(side='часы инъектированы'):\n"
+            "            self.assertLess(_age_hours(FIXED_NOW - timedelta(minutes=1)), 0.5)\n")
+        base, aged = self._verdicts(body, "injected_subtest")
+        self.assertEqual((base.get("__passed__"), aged.get("__passed__")), ("1", "1"),
+                         f"часы инъектированы — задержка влиять не вправе: {base} / {aged}")
+
+    def test_a_name_printed_twice_gets_the_outer_failure(self):
+        """НАБЛЮДАЕМЫЙ ДОГОВОР на случай двух строк об одном имени.
+
+        Тест, упавший И под `subTest`, И вне него, печатает ДВЕ строки сводки на одно
+        имя. Прибор берёт последнюю, и это ИЗМЕРЕНО достаточным: pytest печатает отчёты
+        в порядке фаз, поэтому сильнейший исход и так приходит последним. Таблица
+        приоритетов была написана этим же циклом и СНЯТА — прибор по дельте показал её
+        мутанта выжившим, и выживший оказался ЭКВИВАЛЕНТНЫМ (урок #949): ни один
+        достижимый вывод pytest двух правил не различает.
+
+        Сцена закрепляет не реализацию, а ответ: сменится порядок печати в будущем
+        pytest — красным станет ЭТО утверждение, и тогда таблица приоритетов будет
+        написана по замеру, а не на всякий случай."""
+        body = (
+            "import unittest\n\n\n"
+            "class Scene(unittest.TestCase):\n"
+            "    def test_scene(self):\n"
+            "        with self.subTest(n=1):\n"
+            "            self.assertEqual(1, 2)\n"
+            "        self.assertEqual(3, 4)\n")
+        base, _ = self._verdicts(body, "both_sides")
+        self.assertEqual([v for k, v in base.items() if k != "__passed__"], ["FAILED"],
+                         f"исход ВНЕШНЕГО падения обязан победить подтестовый: {base}")
+
+    def test_the_skipped_key_is_untouched_by_the_suffix_group(self):
+        """ЗВЕНО: пропуск суффикса НЕ задевает строку `SKIPPED`.
+
+        Строка пропуска печатается как `SKIPPED [1] файл:строка:` — её `[1]` это
+        СЧЁТЧИК, и смена ключа пропущенного теста со счётчика на «файл:строка» ломала бы
+        сравнение «было ↔ стало» МОЛЧА, а именно на нём стои́т урок #465 про переход
+        в `skipped`. Держит это НЕ форма регекса, а ПРОБЕЛ в выводе pytest: суффикс
+        `SUBFAILED` печатается без пробела перед скобкой, пропуск — с пробелом, и
+        необязательная группа к его `[1]` не прикладывается никогда. Сужение группы до
+        одного `SUBFAILED` писалось в этом же цикле и снято как ЭКВИВАЛЕНТНОЕ (прибор по
+        дельте показал его мутанта выжившим) — договор держит эта сцена."""
+        body = (
+            "import unittest\n\n\n"
+            "class Scene(unittest.TestCase):\n"
+            "    def test_scene(self):\n"
+            "        raise unittest.SkipTest('пропуск')\n")
+        base, _ = self._verdicts(body, "skipped_key")
+        keys = [k for k in base if k != "__passed__"]
+        self.assertEqual(keys, ["[1]"],
+                         "ключ строки SKIPPED обязан остаться прежним (счётчик), иначе "
+                         f"правка #951 молча сменила предмет сравнения: {base}")
+
+    def test_the_message_form_of_the_suffix_is_parsed_too(self):
+        """ЗВЕНО: форма `SUBFAILED[метка с пробелом]` — вторая из двух, и у прибора
+        бомб СВОЯ копия регекса. Без этой сцены квадратная форма была бы проверена
+        только у прибора дельты, а второй копии хватило бы круглой."""
+        body = (
+            "import unittest\n\n\n"
+            "class Scene(unittest.TestCase):\n"
+            "    def test_scene(self):\n"
+            "        with self.subTest('метка с пробелом'):\n"
+            "            self.assertEqual(1, 2)\n")
+        base, _ = self._verdicts(body, "msg_form")
+        self.assertEqual(
+            [(k.rsplit("::", 1)[-1], v) for k, v in base.items() if k != "__passed__"],
+            [("test_scene", "SUBFAILED")],
+            f"имя обязано быть взято ПОСЛЕ квадратного суффикса с пробелом: {base}")
+
+
 class TheInstrumentRefusesInsteadOfGuessing(unittest.TestCase):
     """Инв. #17: не измерено — отдельный исход с названной причиной, а не «чисто»."""
 

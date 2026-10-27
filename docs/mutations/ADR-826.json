@@ -1,0 +1,69 @@
+{
+ "title": "ADR-826 — дельта цикла #951 (носитель утверждения под subTest виден приборам)",
+ "tests": [
+  "spa_core/tests/test_delta_mutation_run.py",
+  "spa_core/tests/test_import_time_anchor_instrument.py"
+ ],
+ "mutations": [
+  {
+   "name": "прибор ДЕЛЬТЫ снова слеп к SUBFAILED — ровно дефект до #951",
+   "file": "scripts/delta_mutation_run.py",
+   "old": "    r\"^(?:FAILED|ERROR|SUBFAILED(?:\\([^)]*\\)|\\[[^\\]]*\\]))\\s+(\\S+)\", re.M)",
+   "new": "    r\"^(?:FAILED|ERROR)\\s+(\\S+)\", re.M)"
+  },
+  {
+   "name": "суффикс в КРУГЛЫХ скобках не пропускается — имя взято бы вторым словом",
+   "file": "scripts/delta_mutation_run.py",
+   "old": "    r\"^(?:FAILED|ERROR|SUBFAILED(?:\\([^)]*\\)|\\[[^\\]]*\\]))\\s+(\\S+)\", re.M)",
+   "new": "    r\"^(?:FAILED|ERROR|SUBFAILED(?:\\[[^\\]]*\\]))\\s+(\\S+)\", re.M)"
+  },
+  {
+   "name": "форма с КВАДРАТНЫМИ скобками (`subTest('метка')`) не разбирается",
+   "file": "scripts/delta_mutation_run.py",
+   "old": "    r\"^(?:FAILED|ERROR|SUBFAILED(?:\\([^)]*\\)|\\[[^\\]]*\\]))\\s+(\\S+)\", re.M)",
+   "new": "    r\"^(?:FAILED|ERROR|SUBFAILED(?:\\([^)]*\\)))\\s+(\\S+)\", re.M)"
+  },
+  {
+   "name": "строка ERROR потеряна (регрессия находки #870 рядом с правкой #951)",
+   "file": "scripts/delta_mutation_run.py",
+   "old": "    r\"^(?:FAILED|ERROR|SUBFAILED(?:\\([^)]*\\)|\\[[^\\]]*\\]))\\s+(\\S+)\", re.M)",
+   "new": "    r\"^(?:FAILED|SUBFAILED(?:\\([^)]*\\)|\\[[^\\]]*\\]))\\s+(\\S+)\", re.M)"
+  },
+  {
+   "name": "имя из SUBFAILED разобрано, но до вердикта НЕ доезжает (половина инъекции)",
+   "file": "scripts/delta_mutation_run.py",
+   "old": "            fresh = tuple(n for n in parse_failures(m_out) if n not in baseline)",
+   "new": "            fresh = tuple(n for n in parse_failures(m_out) if n not in baseline\n                          and not n.endswith('OnlyUnderSubTest::test_value'))"
+  },
+  {
+   "name": "прибор БОМБ снова слеп к SUBFAILED — бомба под subTest молчит",
+   "file": "scripts/import_time_anchor_bombs.py",
+   "old": "    r\"^(FAILED|ERROR|SKIPPED|SUBFAILED)(?:\\([^)]*\\)|\\[[^\\]]*\\])?\\s+(\\S+)\", re.M)",
+   "new": "    r\"^(FAILED|ERROR|SKIPPED)(?:\\([^)]*\\)|\\[[^\\]]*\\])?\\s+(\\S+)\", re.M)"
+  },
+  {
+   "name": "суффикс у прибора БОМБ не пропускается вовсе — имя взято бы вторым словом",
+   "file": "scripts/import_time_anchor_bombs.py",
+   "old": "    r\"^(FAILED|ERROR|SKIPPED|SUBFAILED)(?:\\([^)]*\\)|\\[[^\\]]*\\])?\\s+(\\S+)\", re.M)",
+   "new": "    r\"^(FAILED|ERROR|SKIPPED|SUBFAILED)\\s+(\\S+)\", re.M)"
+  },
+  {
+   "name": "КРУГЛАЯ форма суффикса у прибора БОМБ не разбирается",
+   "file": "scripts/import_time_anchor_bombs.py",
+   "old": "    r\"^(FAILED|ERROR|SKIPPED|SUBFAILED)(?:\\([^)]*\\)|\\[[^\\]]*\\])?\\s+(\\S+)\", re.M)",
+   "new": "    r\"^(FAILED|ERROR|SKIPPED|SUBFAILED)(?:\\[[^\\]]*\\])?\\s+(\\S+)\", re.M)"
+  },
+  {
+   "name": "КВАДРАТНАЯ форма суффикса у прибора БОМБ не разбирается",
+   "file": "scripts/import_time_anchor_bombs.py",
+   "old": "    r\"^(FAILED|ERROR|SKIPPED|SUBFAILED)(?:\\([^)]*\\)|\\[[^\\]]*\\])?\\s+(\\S+)\", re.M)",
+   "new": "    r\"^(FAILED|ERROR|SKIPPED|SUBFAILED)(?:\\([^)]*\\))?\\s+(\\S+)\", re.M)"
+  },
+  {
+   "name": "на одно имя побеждает ПЕРВАЯ строка — внешнее падение теряется под подтестовым",
+   "file": "scripts/import_time_anchor_bombs.py",
+   "old": "    verdicts = {m.group(2): m.group(1) for m in _OUTCOME.finditer(proc.stdout)}",
+   "new": "    verdicts = {}\n    for m in _OUTCOME.finditer(proc.stdout):\n        verdicts.setdefault(m.group(2), m.group(1))"
+  }
+ ]
+}

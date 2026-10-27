@@ -253,6 +253,93 @@ def test_the_summary_parser_reads_both_failures_and_errors():
     assert dmr.parse_failures("2 passed") == ()
 
 
+@pytest.mark.timeout(300)
+def test_the_summary_parser_sees_a_failure_under_subtest(tmp_path):
+    """ЗВЕНО: третья строка сводки. Падение под `self.subTest` приходит НЕ как `FAILED`.
+
+    Сцена поднимает НАСТОЯЩИЙ pytest намеренно: предметом здесь является ФОРМА его
+    вывода, и выдуманная строка проверяла бы мою память о pytest, а не pytest. Четыре
+    формы суффикса закреплены ровно потому, что в них БЫВАЮТ ПРОБЕЛЫ — имя теста нельзя
+    брать «вторым словом строки», и смена формы в будущей версии pytest обязана
+    КРАСНИТЬ этот тест, а не молча вернуть прибору слепоту.
+
+    Положительный контроль класса, съевшего ДЕВЯТЬ мутационных находок за четыре цикла
+    (#876 ADR-761, #947 ADR-823, #950 ADR-825): до цикла #951 `parse_failures` на этом
+    самом выводе возвращала ПУСТО для всех четырёх носителей, и прибор звал их дырой
+    покрытия."""
+    root = str(tmp_path)
+    with open(os.path.join(root, "test_forms.py"), "w", encoding="utf-8") as fh:
+        fh.write(
+            "import unittest\n\n\n"
+            "class V(unittest.TestCase):\n"
+            "    def test_no_params(self):\n"
+            "        with self.subTest():\n"
+            "            self.assertEqual(1, 2)\n\n"
+            "    def test_msg_with_a_space(self):\n"
+            "        with self.subTest('метка с пробелом'):\n"
+            "            self.assertEqual(1, 2)\n\n"
+            "    def test_kwargs_with_a_space(self):\n"
+            "        with self.subTest(n=1, k='a b'):\n"
+            "            self.assertEqual(1, 2)\n\n"
+            "    def test_both_inside_and_outside(self):\n"
+            "        with self.subTest(n=1):\n"
+            "            self.assertEqual(1, 2)\n"
+            "        self.assertEqual(3, 4)\n\n"
+            "    def test_plain(self):\n"
+            "        self.assertEqual(1, 2)\n\n"
+            "    def test_passes(self):\n"
+            "        self.assertEqual(1, 1)\n")
+    rc, out = dmr.pytest_runner(["test_forms.py"], repo_root=root)
+    assert rc == 1, out
+
+    # Формы, на которые опирается регекс, названы ЗАМЕРОМ — если pytest перестанет их
+    # печатать, красным станет ЭТО утверждение, с названной формой в тексте.
+    for form in ("SUBFAILED(<subtest>) ", "SUBFAILED[метка с пробелом] ",
+                 "SUBFAILED(n=1, k='a b') ", "FAILED "):
+        assert form in out, (f"pytest больше не печатает форму {form!r} — регекс "
+                             f"`_FAILED_LINE` опирается на неё:\n{out}")
+
+    assert dmr.parse_failures(out) == (
+        "test_forms.py::V::test_both_inside_and_outside",
+        "test_forms.py::V::test_kwargs_with_a_space",
+        "test_forms.py::V::test_msg_with_a_space",
+        "test_forms.py::V::test_no_params",
+        "test_forms.py::V::test_plain",
+    ), out
+    assert "test_passes" not in " ".join(dmr.parse_failures(out)), (
+        "обратная сторона: прошедший тест с `subTest` в набор упавших попасть не может")
+
+
+@pytest.mark.timeout(300)
+def test_a_mutant_killed_only_under_subtest_is_not_called_a_coverage_hole(tmp_path):
+    """ТО ЖЕ ЗВЕНО у ПРОВОДКИ, а не у разбора: имя из `SUBFAILED` обязано доехать до
+    вердикта «убит». Разбор, проверенный в отрыве от решения, — «половина инъекции»
+    (урок #453): прибор мог бы читать строку и всё равно печатать дыру покрытия.
+
+    Сцена — настоящий pytest, носитель утверждения ОДИН и живёт ТОЛЬКО под `subTest`.
+    Замер ДО правки #951: `выжил · набор упавших имён не изменился — дыра покрытия`,
+    при этом pytest выходил кодом 1 и печатал «2 failed, 1 passed»."""
+    root = _real_tree(tmp_path, test_body=(
+        "import os, sys, unittest\n"
+        "sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))\n"
+        "from pkg.mod import value\n\n\n"
+        "class OnlyUnderSubTest(unittest.TestCase):\n"
+        "    def test_value(self):\n"
+        "        for n in (1, 2):\n"
+        "            with self.subTest(n=n):\n"
+        "                self.assertEqual(value(), 1)\n"))
+    report = dmr.run(_spec([("носитель только под subTest", "pkg/mod.py",
+                             "return 1", "return 2")], tests=("t/test_x.py",)),
+                     repo_root=root)
+    assert report.unmeasured_reason is None, report.unmeasured_reason
+    assert report.baseline_failures == (), (
+        "сцена обязана быть ЗЕЛЁНОЙ до мутации, иначе она сломана, а не носитель")
+    assert report.results[0].outcome == dmr.KILLED, report.results[0].detail
+    assert report.results[0].new_failures == (
+        "t/test_x.py::OnlyUnderSubTest::test_value",), (
+        "имя обязано быть РАЗОБРАНО из строки SUBFAILED и доехать до вердикта")
+
+
 def test_a_new_error_line_kills_the_mutant_too(tmp_path):
     """Обратная сторона того же звена у ПРОВОДКИ, а не у разбора: имя из строки `ERROR`
     обязано доходить до вердикта «убит», иначе звено проверено в отрыве от решения."""
