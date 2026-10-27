@@ -40,8 +40,10 @@ from pathlib import Path
 from typing import Any, Callable, Dict, List, Optional
 
 from spa_core.monitoring.call_provenance import call_provenance
+from spa_core.monitoring.call_provenance import describe as provenance_line
 from spa_core.paper_trading.shadow_trigger_eval import load_history
 from spa_core.utils.atomic import atomic_save
+from spa_core.utils.observation import observed
 
 #: Артефакт и его производитель — ОБЪЯВЛЕНИЕ, а не вывод из кода (ADR-154/158).
 #: Сверяется с `findings_bridge.CENSUS_PRODUCT` и с конституцией
@@ -371,13 +373,25 @@ def format_report(report: dict) -> str:
     двумя отрисовками, и одна из них непременно отстала бы от другой — читатель
     шага 0-офис получает ровно то, что печатает CLI.
     """
+    # ЗВАВШИЙ печатается ДО раннего возврата намеренно: на документе
+    # UNMEASURED вопрос «кто это позвал» не менее интересен, чем на
+    # измеренном — именно так выглядел бы прогон, который ступень моста
+    # завела, а стенд не построила. Тот же приём и та же причина, что у
+    # `list_identity_census`. До ADR-825 этот отчёт умел ПОЖАЛОВАТЬСЯ на
+    # отсутствие штампа (строкой шага 0-офис) и не умел его ПРОЧЕСТЬ:
+    # замер ADR-822 назвал четыре таких производителя, этот — один из них.
+    # `report()` у этого производителя нет вовсе: печатную сводку собирает
+    # `format_report`, и она ОДНА строка (CLI печатает её `print`-ом, шаг
+    # 0-офис разбирает `splitlines()`) — поэтому строка звавшего ЗДЕСЬ.
+    caller = ("   [ЗВАВШИЙ] "
+              f"{provenance_line(observed(report, 'invoked_by', kind=dict))}")
     if "status" in report:
         report = dict(report, measured=report.get("status") != "UNMEASURED")
     if not report.get("measured"):
-        return "НЕ ИЗМЕРЕНО: " + str(report.get("reason"))
+        return "НЕ ИЗМЕРЕНО: " + str(report.get("reason")) + "\n" + caller
     lines = ["пустой совет (ADR-765): книг измерено {}, записей {}, из них "
              "пустых {}".format(report["books_measured"], report["records_total"],
-                                report["vacuous_records"])]
+                                report["vacuous_records"]), caller]
     for book, data in sorted((report.get("books") or {}).items()):
         tape = data.get("tape") or {}
         if not data.get("brief_available"):

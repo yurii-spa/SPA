@@ -26,6 +26,7 @@
 # стороны сравнения, настенных часов в файле нет ни одного зова.
 from __future__ import annotations
 
+import contextlib
 import json
 import tempfile
 import unittest
@@ -34,6 +35,7 @@ from pathlib import Path
 
 from spa_core.monitoring import slo_keepability as keep
 from spa_core.monitoring import slo_proposal as prop
+from spa_core.monitoring import vacuous_advice_census as _absence_only_producer
 
 _REPO = Path(__file__).resolve().parents[2]
 _ANCHOR = datetime(2026, 10, 26, 18, 0, 0, tzinfo=timezone.utc)
@@ -311,12 +313,59 @@ class DifferentialObservationOnTheRealReader(unittest.TestCase):
         self.assertIsNone(obs["differs"])
         self.assertIn("читатель отказал", obs["why"])
 
-    #: Артефакт класса «замечено только ОТСУТСТВИЕ» (замер 26.10: таких 4).
-    #: Его читатель печатает строку «отчёт СТАРОГО ОБРАЗЦА», когда отметки НЕТ,
-    #: и НЕ печатает звавшего, когда она есть. Поля — те, без которых отрисовка
-    #: этого артефакта падает; держатся здесь литералом намеренно, чтобы сцена
-    #: не зависела от словаря читателя.
+    #: Артефакт класса «замечено только ОТСУТСТВИЕ». Его читатель печатает
+    #: строку «отчёт СТАРОГО ОБРАЗЦА», когда отметки НЕТ, и НЕ печатает
+    #: звавшего, когда она есть. Поля — те, без которых отрисовка этого
+    #: артефакта падает; держатся здесь литералом намеренно, чтобы сцена не
+    #: зависела от словаря читателя.
+    #:
+    #: **НАМЕРЕННОЕ ИЗМЕНЕНИЕ ТЕСТА (инв. #16), ADR-825, заказ G825 п. 1.**
+    #: На 26.10 носителей этого класса было ЧЕТЫРЕ живых, и сцена брала
+    #: любого из них как есть. Цикл #950 закрыл весь класс (замер на живом
+    #: `data/`: 4 → 0, `stamp_reader_names_the_entry` 11 → 15), поэтому
+    #: НАСТОЯЩЕГО носителя в системе больше НЕТ — и это не ослабление
+    #: проверки, а исчезновение дефекта, которым она пользовалась как
+    #: сценой. Предмет обеих проб НИЖЕ не менялся ни на слово: он про
+    #: НАПРАВЛЕНИЕ замера (ПОЯВЛЕНИЕ отметки против смены её ЗНАЧЕНИЯ), а не
+    #: про население класса. Предпосылку сцены теперь обеспечивает ИНЪЕКЦИЯ
+    #: читателя отметки у производителя — тот же приём, которым положительный
+    #: контроль ADR-825 откатывает свою же проводку
+    #: (`test_stamp_reader_four_name_the_entry.py`). Подставлять вердикт или
+    #: скипать пробу было бы ровно «не измерено, выданное за ответ».
     _ABSENCE_ONLY_ARTIFACT = "vacuous_advice_census.json"
+
+    @contextlib.contextmanager
+    def _producer_that_cannot_read_the_stamp(self):
+        """Производитель носителя БЕЗ читателя отметки — предпосылка сцены.
+
+        Откатывается РОВНО одна строка проводки ADR-825: `provenance_line`
+        у производителя. Его собственный отчёт при этом остаётся его
+        собственным — подменяется не вывод, а читатель отметки, которого у
+        него до #950 не было.
+        """
+        original = _absence_only_producer.provenance_line
+        _absence_only_producer.provenance_line = (
+            lambda _stamp: "запись о звавшем ЕСТЬ, а читать её нечем")
+        try:
+            yield
+        finally:
+            _absence_only_producer.provenance_line = original
+
+    def test_the_absence_only_scene_needs_an_injected_producer_today(self):
+        """Положительный контроль САМОЙ предпосылки — в обе стороны.
+
+        Без инъекции носитель класса уже НЕ принадлежит ему (это и есть
+        правка #950), с инъекцией — принадлежит. Проба обязана отличать два
+        состояния: иначе «сцена построена» стало бы неотличимо от «сцена
+        построена не та», и две пробы ниже проверяли бы неизвестно что.
+        """
+        clean = self._observe(self._ABSENCE_ONLY_ARTIFACT,
+                              self._absence_only_doc())
+        self.assertTrue(clean["entry_printed"], clean["why"])
+        with self._producer_that_cannot_read_the_stamp():
+            rolled = self._observe(self._ABSENCE_ONLY_ARTIFACT,
+                                   self._absence_only_doc())
+        self.assertFalse(rolled["entry_printed"], rolled["why"])
 
     def _absence_only_doc(self) -> dict:
         return {"status": "CLEAN",
@@ -340,7 +389,8 @@ class DifferentialObservationOnTheRealReader(unittest.TestCase):
         doc[keep.ATTRIBUTION_ENTRY_KEY] = {
             "schema": "call_provenance.v1", "measured": True,
             "entry": "zz_a_completely_different_entry_7f3a.py"}
-        obs = self._observe(self._ABSENCE_ONLY_ARTIFACT, doc)
+        with self._producer_that_cannot_read_the_stamp():
+            obs = self._observe(self._ABSENCE_ONLY_ARTIFACT, doc)
         self.assertTrue(obs["differs"], obs["why"])
         self.assertFalse(obs["entry_printed"], obs["why"])
         kind, _why = prop.stamp_reader(obs["differs"], obs["entry_printed"],
@@ -349,7 +399,9 @@ class DifferentialObservationOnTheRealReader(unittest.TestCase):
 
     def test_a_clean_carrier_of_the_same_class_gives_the_same_verdict(self):
         """Обратная сторона той же сцены: без отметки вердикт НЕ меняется."""
-        obs = self._observe(self._ABSENCE_ONLY_ARTIFACT, self._absence_only_doc())
+        with self._producer_that_cannot_read_the_stamp():
+            obs = self._observe(self._ABSENCE_ONLY_ARTIFACT,
+                                self._absence_only_doc())
         self.assertTrue(obs["differs"], obs["why"])
         self.assertFalse(obs["entry_printed"], obs["why"])
 

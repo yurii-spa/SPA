@@ -98,7 +98,9 @@ if str(_ROOT) not in sys.path:  # запуск ПО ПУТИ, а не пакет
     sys.path.insert(0, str(_ROOT))
 
 from spa_core.monitoring.call_provenance import call_provenance  # noqa: E402
+from spa_core.monitoring.call_provenance import describe as provenance_line  # noqa: E402,E501
 from spa_core.utils.atomic import atomic_save  # noqa: E402
+from spa_core.utils.observation import observed  # noqa: E402
 
 ARTIFACT = "foreign_markup_reader_census.json"
 PRODUCER = "spa_core/monitoring/foreign_markup_reader_census.py"
@@ -1121,16 +1123,28 @@ def measure(root: str | Path = _ROOT, *, now: Optional[dt.datetime] = None
 
 
 def report(doc: dict) -> List[str]:
+    # ЗВАВШИЙ печатается ДО раннего возврата намеренно: на документе
+    # UNMEASURED вопрос «кто это позвал» не менее интересен, чем на
+    # измеренном — именно так выглядел бы прогон, который ступень моста
+    # завела, а стенд не построила. Тот же приём и та же причина, что у
+    # `list_identity_census`. До ADR-825 этот отчёт умел ПОЖАЛОВАТЬСЯ на
+    # отсутствие штампа (строкой шага 0-офис) и не умел его ПРОЧЕСТЬ:
+    # замер ADR-822 назвал четыре таких производителя, этот — один из них.
+    # Отступ здесь не украшение: `format_report` этого производителя
+    # делит СВОИ же строки по отступу, и строка без него ушла бы в
+    # голову, то есть печаталась бы ПОСЛЕ хвоста.
+    caller = f"   [ЗВАВШИЙ] {provenance_line(observed(doc, 'invoked_by', kind=dict))}"
     if str(doc.get("status")) != "MEASURED":
         return [f"❌ НЕ ИЗМЕРЕНО ({doc.get('gap')}): {doc.get('reason')}",
-                f"   заказ {doc.get('order')} — третий исход, не «ноль находок»"]
+                f"   заказ {doc.get('order')} — третий исход, не «ноль находок»",
+                caller]
     head = (f"читатели ЧУЖОЙ разметки по литеральной личности "
             f"(заказ {doc['order']}): население {doc['population']} · "
             f"чужой стог {doc['foreign_population']} · судимо {doc['judged']} "
             f"· НЕ ПОДТВЕРЖДЕНО НИЧЕМ, КРОМЕ СЕБЯ {doc['unsupported']} "
             f"(нигде {doc['refuted']} · только своя сцена "
             f"{doc['echoed_by_own_scene']})")
-    lines = [head]
+    lines = [head, caller]
     lines_unresolved = doc.get("origin_unresolved", 0)
     if lines_unresolved:
         lines.append(

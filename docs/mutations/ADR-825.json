@@ -1,0 +1,81 @@
+{
+ "title": "ADR-825 — дельта цикла #950 (четвёрка ADR-822 учится ЧИТАТЬ штамп)",
+ "tests": [
+  "spa_core/tests/test_stamp_reader_four_name_the_entry.py",
+  "spa_core/tests/test_slo_stamp_reader.py"
+ ],
+ "mutations": [
+  {
+   "name": "ПРОВОДКА снята у call_sourced_input_census — измеренная ветка",
+   "file": "spa_core/monitoring/call_sourced_input_census.py",
+   "old": "        f\"НАХОДОК {doc.get('findings')}\",\n        caller,\n",
+   "new": "        f\"НАХОДОК {doc.get('findings')}\",\n"
+  },
+  {
+   "name": "ПРОВОДКА снята у unresolved_path_census — измеренная ветка",
+   "file": "spa_core/monitoring/unresolved_path_census.py",
+   "old": "        + f\" · остаток {doc.get('still_unresolved')}\",\n        caller,\n",
+   "new": "        + f\" · остаток {doc.get('still_unresolved')}\",\n"
+  },
+  {
+   "name": "ПРОВОДКА снята у foreign_markup_reader_census — измеренная ветка",
+   "file": "spa_core/monitoring/foreign_markup_reader_census.py",
+   "old": "    lines = [head, caller]\n",
+   "new": "    lines = [head]\n"
+  },
+  {
+   "name": "ПРОВОДКА снята у vacuous_advice_census — измеренная ветка",
+   "file": "spa_core/monitoring/vacuous_advice_census.py",
+   "old": "                                report[\"vacuous_records\"]), caller]\n",
+   "new": "                                report[\"vacuous_records\"])]\n"
+  },
+  {
+   "name": "РАННИЙ ВОЗВРАТ call_sourced_input_census звавшего не называет",
+   "file": "spa_core/monitoring/call_sourced_input_census.py",
+   "old": "        return [f\"НЕ ИЗМЕРЕНО — {doc.get('reason') or 'причина не записана'}\",\n                caller]\n",
+   "new": "        return [f\"НЕ ИЗМЕРЕНО — {doc.get('reason') or 'причина не записана'}\"]\n"
+  },
+  {
+   "name": "РАННИЙ ВОЗВРАТ unresolved_path_census звавшего не называет",
+   "file": "spa_core/monitoring/unresolved_path_census.py",
+   "old": "        return [f\"НЕ ИЗМЕРЕНО — {observed(doc, 'reason', kind=str) or 'причина не записана'}\",\n                caller]\n",
+   "new": "        return [f\"НЕ ИЗМЕРЕНО — {observed(doc, 'reason', kind=str) or 'причина не записана'}\"]\n"
+  },
+  {
+   "name": "РАННИЙ ВОЗВРАТ foreign_markup_reader_census звавшего не называет",
+   "file": "spa_core/monitoring/foreign_markup_reader_census.py",
+   "old": "                f\"   заказ {doc.get('order')} — третий исход, не «ноль находок»\",\n                caller]\n",
+   "new": "                f\"   заказ {doc.get('order')} — третий исход, не «ноль находок»\"]\n"
+  },
+  {
+   "name": "РАННИЙ ВОЗВРАТ vacuous_advice_census звавшего не называет",
+   "file": "spa_core/monitoring/vacuous_advice_census.py",
+   "old": "        return \"НЕ ИЗМЕРЕНО: \" + str(report.get(\"reason\")) + \"\\n\" + caller\n",
+   "new": "        return \"НЕ ИЗМЕРЕНО: \" + str(report.get(\"reason\"))\n"
+  },
+  {
+   "name": "ЗВАВШИЙ встаёт ПОСЛЕ раннего возврата — слепой прогон остаётся без имени",
+   "file": "spa_core/monitoring/unresolved_path_census.py",
+   "old": "    caller = f\"[ЗВАВШИЙ] {provenance_line(observed(doc, 'invoked_by', kind=dict))}\"\n    if status == \"UNMEASURED\":\n        return [f\"НЕ ИЗМЕРЕНО — {observed(doc, 'reason', kind=str) or 'причина не записана'}\",\n                caller]\n",
+   "new": "    if status == \"UNMEASURED\":\n        return [f\"НЕ ИЗМЕРЕНО — {observed(doc, 'reason', kind=str) or 'причина не записана'}\"]\n    caller = f\"[ЗВАВШИЙ] {provenance_line(observed(doc, 'invoked_by', kind=dict))}\"\n"
+  },
+  {
+   "name": "ВМЕСТО точки входа печатается ЗАГЛУШКА — строка есть, замера нет",
+   "file": "spa_core/monitoring/call_sourced_input_census.py",
+   "old": "    caller = f\"[ЗВАВШИЙ] {provenance_line(observed(doc, 'invoked_by', kind=dict))}\"\n",
+   "new": "    caller = \"[ЗВАВШИЙ] позван из точки входа `неизвестно`\"\n"
+  },
+  {
+   "name": "ОТМЕТКА подменяется ПУСТОЙ — читатель отвечает о своём словаре",
+   "file": "spa_core/monitoring/foreign_markup_reader_census.py",
+   "old": "    caller = f\"   [ЗВАВШИЙ] {provenance_line(observed(doc, 'invoked_by', kind=dict))}\"\n",
+   "new": "    caller = f\"   [ЗВАВШИЙ] {provenance_line({})}\"\n"
+  },
+  {
+   "name": "ЧИТАЕТСЯ НЕ ТО ПОЛЕ — вместо записи о звавшем берётся имя производителя",
+   "file": "spa_core/monitoring/vacuous_advice_census.py",
+   "old": "              f\"{provenance_line(observed(report, 'invoked_by', kind=dict))}\")\n",
+   "new": "              f\"{provenance_line(observed(report, 'generated_by', kind=dict))}\")\n"
+  }
+ ]
+}

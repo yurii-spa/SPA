@@ -83,7 +83,9 @@ if str(_ROOT) not in sys.path:  # запуск ПО ПУТИ, а не пакет
 
 from spa_core.monitoring import rule_second_copy_census as census  # noqa: E402
 from spa_core.monitoring.call_provenance import call_provenance  # noqa: E402
+from spa_core.monitoring.call_provenance import describe as provenance_line  # noqa: E402,E501
 from spa_core.utils.atomic import atomic_save  # noqa: E402
+from spa_core.utils.observation import observed  # noqa: E402
 
 ARTIFACT = "call_sourced_input_census.json"
 PRODUCER = "spa_core/monitoring/call_sourced_input_census.py"
@@ -922,8 +924,17 @@ def measure(root: Path, *, now: Optional[dt.datetime] = None) -> dict:
 
 def report(doc: dict, *, max_rows: int = 25) -> List[str]:
     status = str(doc.get("status"))
+    # ЗВАВШИЙ печатается ДО раннего возврата намеренно: на документе
+    # UNMEASURED вопрос «кто это позвал» не менее интересен, чем на
+    # измеренном — именно так выглядел бы прогон, который ступень моста
+    # завела, а стенд не построила. Тот же приём и та же причина, что у
+    # `list_identity_census`. До ADR-825 этот отчёт умел ПОЖАЛОВАТЬСЯ на
+    # отсутствие штампа (строкой шага 0-офис) и не умел его ПРОЧЕСТЬ:
+    # замер ADR-822 назвал четыре таких производителя, этот — один из них.
+    caller = f"[ЗВАВШИЙ] {provenance_line(observed(doc, 'invoked_by', kind=dict))}"
     if status == "UNMEASURED":
-        return [f"НЕ ИЗМЕРЕНО — {doc.get('reason') or 'причина не записана'}"]
+        return [f"НЕ ИЗМЕРЕНО — {doc.get('reason') or 'причина не записана'}",
+                caller]
     doors = doc.get("doors") or {}
     places = doc.get("places") or {}
     share = doc.get("unresolved_share")
@@ -931,6 +942,7 @@ def report(doc: dict, *, max_rows: int = 25) -> List[str]:
         f"перепись входов, собранных ВЫЗОВОМ (заказ G45 п. 1): {status} · "
         f"сторожей {doc.get('guards')} · входов дерева {doc.get('inputs')} · "
         f"НАХОДОК {doc.get('findings')}",
+        caller,
         f"[ДВЕРИ] отказ/скип {doors.get(DOOR_REFUSES)} · ПОДСТАНОВКА "
         f"{doors.get(DOOR_SUBSTITUTES)} · ПУСТОЙ ЧАСОВОЙ {doors.get(DOOR_EMPTY)} "
         f"(отсутствие выдано за ноль, инв. #17) · двери нет "

@@ -66,6 +66,7 @@ if str(_ROOT) not in sys.path:  # запуск ПО ПУТИ, а не пакет
 
 from spa_core.monitoring import call_sourced_input_census as census  # noqa: E402
 from spa_core.monitoring.call_provenance import call_provenance  # noqa: E402
+from spa_core.monitoring.call_provenance import describe as provenance_line  # noqa: E402,E501
 from spa_core.utils.atomic import atomic_save  # noqa: E402
 from spa_core.utils.observation import observed  # noqa: E402
 
@@ -703,8 +704,17 @@ def measure(root: Path, *, now: Optional[dt.datetime] = None) -> dict:
 
 def report(doc: dict, *, max_rows: int = 20) -> List[str]:
     status = str(doc.get("status"))
+    # ЗВАВШИЙ печатается ДО раннего возврата намеренно: на документе
+    # UNMEASURED вопрос «кто это позвал» не менее интересен, чем на
+    # измеренном — именно так выглядел бы прогон, который ступень моста
+    # завела, а стенд не построила. Тот же приём и та же причина, что у
+    # `list_identity_census`. До ADR-825 этот отчёт умел ПОЖАЛОВАТЬСЯ на
+    # отсутствие штампа (строкой шага 0-офис) и не умел его ПРОЧЕСТЬ:
+    # замер ADR-822 назвал четыре таких производителя, этот — один из них.
+    caller = f"[ЗВАВШИЙ] {provenance_line(observed(doc, 'invoked_by', kind=dict))}"
     if status == "UNMEASURED":
-        return [f"НЕ ИЗМЕРЕНО — {observed(doc, 'reason', kind=str) or 'причина не записана'}"]
+        return [f"НЕ ИЗМЕРЕНО — {observed(doc, 'reason', kind=str) or 'причина не записана'}",
+                caller]
     ext = observed(doc, "by_extension", kind=dict) or {}
     reasons = observed(doc, "by_reason", kind=dict) or {}
     place = observed(doc, "by_place", kind=dict) or {}
@@ -716,6 +726,7 @@ def report(doc: dict, *, max_rows: int = 20) -> List[str]:
         f"невычисленных {total} · РАЗРЕШИМО УЖЕСТОЧЕНИЕМ {got}"
         + (f" = {share:.1%}" if share is not None else "")
         + f" · остаток {doc.get('still_unresolved')}",
+        caller,
         "[ЧЕМ РАЗРЕШЕНО] " + " · ".join(f"{k} {ext.get(k, 0)}" for k in EXTENSIONS),
         "[КУДА ЛЕГЛИ] дерево репозитория "
         f"{place.get(census.PLACE_REPO, 0)} · фикстура "
