@@ -8,12 +8,12 @@ created: 2026-08-13
 priority: critical
 status_trail:
   - "2026-08-26T22:31:36.748790+00:00 new -> in-progress · queue.set_status · cycle-96657"
-claimed_by: cycle-49662
-claimed_at: 2026-10-27T10:39:28Z
-claimed_run_id: orchestrator-49662-8089201FCC5D4401B4C150428044BD83
-claimed_pid: 49662
-claimed_pid_start: Tue Oct 27 11:30:51 2026
-claim_takeover_reason: держатель cycle-49243 (#952) снял захват объявлением card_state:done, его работа 15ba1c054 на origin/main; последующий #953 (cycle-97320/pid97320) умер НЕ доставив — измерено: pid мёртв, шаг 0a называет 3 пути в /private/tmp/spa_c953 (2 отличаются, 1 отсутствует на origin). Работа поднята в /private/tmp/spa_c954 побайтовой копией (md5 сверены), отчёт #953 перемеряется заново
+claimed_by: cycle-92232
+claimed_at: 2026-10-27T12:47:31Z
+claimed_run_id: orchestrator-92232-71F87A0C7D3F47FAB287DACDD6E9DE33
+claimed_pid: 92232
+claimed_pid_start: Tue Oct 27 13:03:12 2026
+claim_takeover_reason: держатель cycle-49662 (#954) МЁРТВ (pid49662 не существует), его работа НЕ потеряна — поднята циклом #955 побайтово (md5 9/9) и ПЕРЕМЕРЕНА, доставлена на origin/main коммитом e87d3e90 вместе с ADR-829; строка захвата уехала копией #954 и названа ошибочно — исправляю на свою
 ---
 
 ## УКАЗАНИЕ ВЛАДЕЛЬЦА 2026-08-22 (cloud-сессия): ЗАПУСТИТЬ СЛЕДУЮЩИМ ЦИКЛОМ
