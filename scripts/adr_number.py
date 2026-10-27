@@ -277,6 +277,17 @@ def next_number(root, base_ref=DEFAULT_BASE, git=_git):
 
 # ── интерлок пушера: набор файлов ────────────────────────────────────────────
 
+def _registry_listed_names(index_text: str) -> set:
+    """Имена файлов, на которые ссылается реестр — тем же разбором, что у теста реестра.
+
+    Одна мерка на двоих (`check_memory_in_git.check_index_links`): иначе сторож до пуша и
+    тест после пуша спорили бы о том, «упомянуто ли решение».
+    """
+    from check_memory_in_git import _BACKTICK_RE, _LINK_RE
+    targets = set(_LINK_RE.findall(index_text)) | set(_BACKTICK_RE.findall(index_text))
+    return {Path(t).name for t in targets}
+
+
 def check_push(root, files, base_ref=DEFAULT_BASE, git=_git):
     """(находки, не_измерено) для НАБОРА доставляемых файлов.
 
@@ -335,6 +346,20 @@ def check_push(root, files, base_ref=DEFAULT_BASE, git=_git):
         name = Path(rel).name
         key = file_key(name)
 
+        # 0. Именованное семейство (`OWN`, `YL`, `TEST`) — другое пространство имён, и номер
+        #    в нём НЕ распределяется (шапка модуля, `_FILE_RE`). Его имя — весь слаг: шесть
+        #    `ADR-OWN-…` живут на main рядом штатно. До 27.10 проверки ниже судили семейство
+        #    как один номер `OWN` и отказывали ЛЮБОМУ новому решению владельца по построению:
+        #    «номер занят» (#1) и «нет строки ADR-OWN» (#2 — строки реестра несут ключ
+        #    `OWN-2026-07`, а не `OWN`). Для семейства претензия ровно та, что у теста
+        #    реестра (`test_live_registry_of_decisions_is_intact`): на файл ссылается строка.
+        if not _NUMERIC_KEY_RE.match(key):
+            if name not in _registry_listed_names(index_text):
+                findings.append(
+                    f"{rel}: в {INDEX_REL} нет строки со ссылкой на {name} — решение уехало бы "
+                    f"вне реестра и покрасило бы main (test_live_registry_of_decisions_is_intact)")
+            continue
+
         # 1. Столкновение: НОВЫЙ файл берёт номер, уже занятый ДРУГИМ файлом на origin.
         others = [n for n in origin_by_key.get(key, []) if n != name]
         collides_on_base = bool(others) and name not in origin_by_key.get(key, [])
@@ -378,6 +403,8 @@ def check_push(root, files, base_ref=DEFAULT_BASE, git=_git):
     #    Порог — состояние origin: стало хуже ⇒ отказ, не хуже (в т.ч. ЛУЧШЕ) ⇒ пропуск.
     before_rows = parse_index(_origin_index(root, base_ref, git=git) or "")
     for key in sorted({file_key(Path(r).name) for r in pushed_decisions}):
+        if not _NUMERIC_KEY_RE.match(key):
+            continue  # именованное семейство номер не делит — см. п. 0
         live = [s for s, d in index_rows.get(key, []) if is_live_claim(s, d)]
         was = len([s for s, d in before_rows.get(key, []) if is_live_claim(s, d)])
         if len(live) > 1 and len(live) > was:
