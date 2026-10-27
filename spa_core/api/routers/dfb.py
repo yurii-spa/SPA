@@ -109,6 +109,48 @@ def _valid_pool_id(pool_id: str) -> bool:
     return bool(_POOL_ID_RE.match(pool_id))
 
 
+#: Порог свежести снимка (часы): суточный захват + запас. Тот же, что `DFB_FRESH_H`
+#: в system_health_monitor — равенство держит тест (test_dfb_snapshot_freshness.py).
+SNAPSHOT_FRESH_H = 30.0
+
+
+def snapshot_freshness(raw=None, *, now_dt=None) -> dict:
+    """Истинные отметки снимка data/dfb/pools.json и его возраст — ДОПОЛНИТЕЛЬНЫЙ блок.
+
+    27.10: верхний `generated_at` ответа — время ЗАПРОСА, а у каждой строки `data_source:
+    "live"`; снимок при этом стоял с 30.08 (производитель в карантине), `as_of` строк —
+    25.06. Читатель не мог узнать, что видит архив. Этот блок ничего не убирает и не
+    меняет строки (у них свой row_hash) — он называет, КОГДА снимок снят и сколько ему.
+    Отметки нет / не разбирается ⇒ `age_hours=None`, `stale=None` — «не измерено» (инв. #17),
+    а не «свежо».
+    """
+    from datetime import datetime, timezone
+    if raw is None:
+        raw = read_state("dfb/pools.json", None)
+    head = raw if isinstance(raw, dict) else {}
+    gen = head.get("generated_at") if isinstance(head.get("generated_at"), str) else None
+    as_of = head.get("as_of") if isinstance(head.get("as_of"), str) else None
+    age = None
+    if gen:
+        try:
+            dt = datetime.fromisoformat(gen.replace("Z", "+00:00"))
+            if dt.tzinfo is None:
+                dt = dt.replace(tzinfo=timezone.utc)
+            age = round(((now_dt or datetime.now(timezone.utc)) - dt).total_seconds() / 3600.0, 1)
+        except ValueError:
+            age = None
+    stale = None if age is None else bool(age > SNAPSHOT_FRESH_H)
+    if stale is None:
+        words = "возраст снимка НЕ ИЗМЕРЕН — отметки времени нет"
+    elif stale:
+        words = (f"снимок снят {gen}, ему {age:.0f} ч (> {SNAPSHOT_FRESH_H:.0f} ч): это АРХИВ, "
+                 "а не текущие данные; пометки строк `data_source` относятся к моменту снимка")
+    else:
+        words = f"снимок снят {gen}, ему {age:.1f} ч"
+    return {"snapshot_generated_at": gen, "snapshot_as_of": as_of, "age_hours": age,
+            "fresh_threshold_hours": SNAPSHOT_FRESH_H, "stale": stale, "words": words}
+
+
 def _read_pools_list() -> list:
     """Load data/dfb/pools.json as a list of overlay objects, fail-CLOSED.
 
@@ -144,6 +186,7 @@ def get_dfb_pools():
     available = bool(pools)
     return scrub_nonfinite({
         "generated_at": now(),
+        "snapshot": snapshot_freshness(),
         "model": "dfb_pool_screener",
         "is_advisory": True,
         "available": available,
@@ -191,6 +234,8 @@ def get_dfb_pool(pool_id: str):
         })
     raw.setdefault("is_advisory", True)
     raw.setdefault("disclaimer", _DISCLAIMER)
+    # Свежесть — у ОБЩЕГО снимка вселенной (детали пулов пишет тот же захват).
+    raw["snapshot"] = snapshot_freshness()
     raw.setdefault("reproduce", _reproduce_block(
         [f"dfb/pool/{pool_id}.json"],
         "This pool's row_hash is reproducible over its canonical-JSON payload per "
@@ -525,6 +570,7 @@ def get_dfb_summary():
 
     return scrub_nonfinite({
         "generated_at": now(),
+        "snapshot": snapshot_freshness(),
         "model": "dfb_universe_summary",
         "is_advisory": True,
         "available": available,

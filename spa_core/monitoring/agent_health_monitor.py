@@ -881,6 +881,41 @@ def parse_boottime(text: Optional[str]) -> Optional[datetime]:
         return None
 
 
+#: Сколько процесс-долгожитель обязан проработать ПОСЛЕ прошлого сбоя, чтобы тот
+#: перестал быть тревогой и стал пометкой (27.10). Бот, упавший один раз 18.10 и
+#: неделю работавший, давал WARNING каждый час: 147 «повторов» одного сбоя.
+PRIOR_CRASH_QUIET_AFTER_S = 24 * 3600.0
+
+
+def parse_etime(text: Optional[str]) -> Optional[float]:
+    """``ps -o etime=`` (``[[dd-]hh:]mm:ss``) → секунды. Не разобрали ⇒ None."""
+    t = (text or "").strip()
+    if not t:
+        return None
+    days = 0
+    if "-" in t:
+        d, t = t.split("-", 1)
+        if not d.isdigit():
+            return None
+        days = int(d)
+    parts = t.split(":")
+    if not all(x.isdigit() for x in parts) or not 2 <= len(parts) <= 3:
+        return None
+    nums = [int(x) for x in parts]
+    h, m, sec = (0, *nums) if len(nums) == 2 else nums
+    return float(days * 86400 + h * 3600 + m * 60 + sec)
+
+
+def _measure_proc_uptime_s(pid: int) -> Optional[float]:
+    """Сколько секунд живёт процесс ``pid`` (``ps -o etime=``). Не измерено ⇒ None."""
+    try:
+        out = subprocess.run(["ps", "-o", "etime=", "-p", str(int(pid))],
+                             capture_output=True, text=True, timeout=5)
+    except (OSError, subprocess.SubprocessError, ValueError):
+        return None
+    return parse_etime(out.stdout) if out.returncode == 0 else None
+
+
 def _measure_boot_time() -> Optional[datetime]:
     """Время загрузки хоста. Недоступно ⇒ None = НЕ ИЗМЕРЕНО (поблажки нет)."""
     try:
@@ -1131,7 +1166,8 @@ def check_agent(label: str, plist: Optional[dict], parse_ok: bool,
                 disabled: bool = False,
                 boot_time: Optional[datetime] = None,
                 receipts: Optional[Dict[str, Tuple[str, str]]] = None,
-                calendar_tz=None) -> AgentHealth:
+                calendar_tz=None,
+                proc_uptime_s=None) -> AgentHealth:
     """Classify the health of a single agent. Fail-safe.
 
     ``boot_time`` — момент загрузки хоста (вход, а не окружение). ``None`` = НЕ
@@ -1255,7 +1291,20 @@ def check_agent(label: str, plist: Optional[dict], parse_ok: bool,
             # причина названа в самой строке, иначе владелец снова читает голую
             # цифру и гадает, что она значит.
             _exit_text = f"{_exit_text} — {_lock_refusal.words}"
-        if _server_alive:
+        _uptime = None
+        if _server_alive and proc_uptime_s is not None:
+            try:
+                _uptime = proc_uptime_s(health.pid)
+            except Exception:  # noqa: BLE001 — не измерено, а не «давно работает»
+                _uptime = None
+        if _server_alive and _uptime is not None and _uptime >= PRIOR_CRASH_QUIET_AFTER_S:
+            # Прошлый сбой, после которого процесс проработал ≥ 24 ч: назван пометкой,
+            # а не тревогой. Решение 05.08 («сбой не прятать») цело: первые 24 ч это
+            # WARNING, а время работы НЕ ИЗМЕРЕНО ⇒ WARNING как прежде (fail-CLOSED).
+            health.note = (f"{_exit_text} — прошлый сбой; процесс после перезапуска "
+                           f"работает {_uptime / 3600.0:.0f} ч без сбоев")
+            sev = OK
+        elif _server_alive:
             # crashed previously, KeepAlive brought it back → visible, not OK
             issues.append(f"{_exit_text} (prior crash; restarted)")
             sev = WARNING
@@ -2501,7 +2550,9 @@ class AgentHealthMonitor:
             agents.append(check_agent(label, plist, parse_ok, launchctl, self.now,
                                       data_dir=self.data_dir,
                                       disabled=label in disabled,
-                                      boot_time=self.boot_time))
+                                      boot_time=self.boot_time,
+                                      proc_uptime_s=(None if self._launchctl_output is not None
+                                                     else _measure_proc_uptime_s)))
 
         sys_checks, sys_status, sys_issues = check_system(
             self.data_dir, self.now, self.autopush_log)
