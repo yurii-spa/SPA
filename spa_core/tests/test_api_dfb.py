@@ -113,7 +113,11 @@ def _write_universe(data_dir: Path, pools: list) -> None:
     """Write pools.json + the per-pool detail files matching the contract."""
     dfb = data_dir / "dfb"
     (dfb / "pool").mkdir(parents=True, exist_ok=True)
-    (dfb / "pools.json").write_text(_canonical(pools), encoding="utf-8")
+    # Вариант отказа DFB требует отметку времени снимка: фикстура пишет СВЕЖУЮ (инв. #16 —
+    # предмет тестов прежний, меняется только форма снимка, которую вариант делает обязательной).
+    from datetime import datetime, timezone
+    (dfb / "pools.json").write_text(_canonical({"generated_at": datetime.now(timezone.utc).isoformat(),
+                                                "pools": pools}), encoding="utf-8")
     for p in pools:
         (dfb / "pool" / f"{p['pool_id']}.json").write_text(_canonical(p), encoding="utf-8")
 
@@ -380,7 +384,10 @@ def test_redteam_nonfinite_in_pools_is_scrubbed_not_500(tmp_path, monkeypatch):
     # inject a non-finite via the raw JSON tokens json.loads accepts.
     raw = _canonical(pool).replace('"tvl_usd":1200000000.0', '"tvl_usd":NaN')
     (tmp_path / "dfb" / "pool").mkdir(parents=True, exist_ok=True)
-    (tmp_path / "dfb" / "pools.json").write_text("[" + raw + "]", encoding="utf-8")
+    from datetime import datetime, timezone
+    (tmp_path / "dfb" / "pools.json").write_text(
+        '{"generated_at": "' + datetime.now(timezone.utc).isoformat() + '", "pools": [' + raw + ']}',
+        encoding="utf-8")
     (tmp_path / "dfb" / "pool" / "dfb_pool_nan.json").write_text(raw, encoding="utf-8")
     monkeypatch.setattr(server, "_DATA_DIR", tmp_path)
     with TestClient(server.app, raise_server_exceptions=True) as c:

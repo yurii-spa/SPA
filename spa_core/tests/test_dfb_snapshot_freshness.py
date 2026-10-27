@@ -50,5 +50,16 @@ def test_endpoints_carry_the_snapshot_block_and_rows_stay_verbatim(tmp_path, mon
     body = c.get("/api/dfb/pools").json()
     assert body["snapshot"]["snapshot_generated_at"].startswith("2026-08-30")
     assert body["snapshot"]["stale"] is True
-    assert body["pools"] == [row], "строки обязаны идти дословно"
+    assert body["pools"] == [], "вариант отказа: устаревшие строки не отдаются"
     assert c.get("/api/dfb/summary").json()["snapshot"]["stale"] is True
+
+
+def test_refusal_variant_withholds_stale_rows_on_every_door(tmp_path, monkeypatch):
+    """ВАРИАНТ ОТКАЗА (решение владельца): устаревший снимок — ни одной строки ни в /pools, ни в v1."""
+    monkeypatch.setattr(server, "_DATA_DIR", tmp_path)
+    (tmp_path / "dfb").mkdir()
+    (tmp_path / "dfb" / "pools.json").write_text(json.dumps(
+        {"generated_at": "2026-08-30T07:30:39+00:00", "pools": [{"pool_id": "p1"}]}))
+    body = TestClient(server.app).get("/api/dfb/pools").json()
+    assert body["pools"] == [] and body["available"] is False and body["snapshot"]["stale"] is True
+    assert "older than" in body["note"]
