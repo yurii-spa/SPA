@@ -2,10 +2,17 @@
 trackerStatus:
   type: owner-decision
 title: "Сайт: track_snapshot.json — автономная правка задела owner-gated область, нужно решение"
-status: needs-owner
+status: owner-done
 source: orchestrator
 created: 2026-10-22
 approves: landing/src/data/track_snapshot.json
+owner_choice: 1
+owner_answered_at: 2026-10-27T19:24:04.496348+00:00
+owner_answer_via: claude-code-session
+owner_answered_by: владелец (сессия Claude Code; ADR-834)
+owner_answer_kind: option
+status_trail:
+  - "2026-10-27T19:24:04.496618+00:00 needs-owner -> owner-done · owner_answer.record_session_answer"
 ---
 
 ## Что случилось и почему это важно
@@ -41,3 +48,11 @@ approves: landing/src/data/track_snapshot.json
 Одобришь → изменение уезжает в live /dashboard и на сайт. Отклонишь → оркестратор не трогает эту область.
 
 <!-- owner-gate-fingerprint: 42973523e304 -->
+
+---
+
+## Решение владельца
+
+**Вариант 1** — закрыть как устаревшую: снимок трека публикуется штатно (ADR-833 п. 3)
+
+_Ответ владельца получен 2026-10-27T19:24:04.496348+00:00 (claude-code-session). Ответ владельца дан в сессии Claude Code и записан в ADR-834-claude-closes-decision-cards-by-recorded-owner-answer.md; карточку по этой записи закрыл агент (решение владельца 27.10, ADR-834)._

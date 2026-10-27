@@ -2,11 +2,11 @@
 
 > Авто-генерится `scripts/build_tracker_board.py` из `nimbalyst-local/tracker/*.md`. НЕ править вручную — правь карточки. Источник правды — карточки, это индекс (bootstrap).
 >
-> Собрана: 2026-10-27T18:38:39Z · сверка с карточками: `python3 scripts/build_tracker_board.py --check` (сторож `spa_core/tests/test_tracker_board_matches_cards.py`).
+> Собрана: 2026-10-27T19:24:22Z · сверка с карточками: `python3 scripts/build_tracker_board.py --check` (сторож `spa_core/tests/test_tracker_board_matches_cards.py`).
 >
-> Сверено с `origin/main` (599c8ed4f).
+> Сверено с `origin/main` (eb00c3313) · у **2** своя правка, кто новее — не измерено.
 >
-> Всего карточек: **1479** · ждёт владельца: **18** · занято сессиями: **15**.
+> Всего карточек: **1479** · ждёт владельца: **16** · занято сессиями: **15**.
 
 ## 🔴 ЖДЁТ ВЛАДЕЛЬЦА (needs-owner)
 
@@ -20,8 +20,6 @@
 - **Потолок Base-цепочки записан в трёх местах — какое из них главное?**  ·  `owner-decision-potolok-base-tsepochki-zapisan-v-treh-mestah.md`
 - **Пять процентов кэша записаны в двух местах — это одно правило или два?**  ·  `owner-decision-pyat-protsentov-kesha-zapisany-v-dvuh-me.md`
 - **Разрешить восстановить пропавшую историю двух карточек в рабочем дереве (95 и 6 записей)**  ·  `owner-decision-razreshit-vosstanovit-propavshuyu-istori.md`
-- **Сайт: track_snapshot.json — автономная правка задела owner-gated область, нужно решение**  ·  `owner-decision-sait-track-snapshot-json-avtonomnaya-pra-2.md`
-- **Сайт: track_snapshot.json — автономная правка задела owner-gated область, нужно решение**  ·  `owner-decision-sait-track-snapshot-json-avtonomnaya-pra.md`
 - **Система не спрашивает, продержится ли выгода — и по факту она не продержалась ни разу** · _high_  ·  `owner-decision-sistema-ne-sprashivaet-proderzhitsya-li.md`
 - **Стоимость перекладки заряжается в 134 раза дороже наблюдаемой — нужен твой порог «сколько уже слишком»**  ·  `owner-decision-stoimost-perekladki-zaryazhaetsya-v-134.md`
 - **Убрать 2 ГБ служебного мусора git в рабочем дереве на Маке**  ·  `owner-decision-ubrat-2-gb-sluzhebnogo-musora-git-v-rabo.md`
@@ -62,8 +60,6 @@
 - Потолок Base-цепочки записан в трёх местах — какое из них главное?  ·  `owner-decision-potolok-base-tsepochki-zapisan-v-treh-mestah.md` · 2026-09-21
 - Пять процентов кэша записаны в двух местах — это одно правило или два?  ·  `owner-decision-pyat-protsentov-kesha-zapisany-v-dvuh-me.md` · 2026-09-19
 - Разрешить восстановить пропавшую историю двух карточек в рабочем дереве (95 и 6 записей)  ·  `owner-decision-razreshit-vosstanovit-propavshuyu-istori.md` · 2026-10-13
-- Сайт: track_snapshot.json — автономная правка задела owner-gated область, нужно решение  ·  `owner-decision-sait-track-snapshot-json-avtonomnaya-pra-2.md` · 2026-10-22
-- Сайт: track_snapshot.json — автономная правка задела owner-gated область, нужно решение  ·  `owner-decision-sait-track-snapshot-json-avtonomnaya-pra.md` · 2026-10-06
 - Система не спрашивает, продержится ли выгода — и по факту она не продержалась ни разу  ·  `owner-decision-sistema-ne-sprashivaet-proderzhitsya-li.md` · 2026-09-26
 - Стоимость перекладки заряжается в 134 раза дороже наблюдаемой — нужен твой порог «сколько уже слишком»  ·  `owner-decision-stoimost-perekladki-zaryazhaetsya-v-134.md` · 2026-09-29
 - Убрать 2 ГБ служебного мусора git в рабочем дереве на Маке  ·  `owner-decision-ubrat-2-gb-sluzhebnogo-musora-git-v-rabo.md` · 2026-10-10
@@ -425,6 +421,9 @@
 - Уточнение по заметке: Tier-C: пять настоящих отказов агрегатора — два чинятся, три требуют фактов, которых нет  ·  `owner-decision-utochnenie-po-zametke-tier-c-pyat-nastoy.md` · 2026-08-11
 - Уточнение по заметке: Задача присылать в телеграм не просто нужно твое решение а и кнопки с вариантам…  ·  `owner-decision-utochnenie-po-zametke-zadacha-prisylat-v.md` · 2026-08-11
 - Уточнение по заметке: Замок цикла оркестратора доставлен, но в проде не работает: обёртка агента синкается раз в сутки, а голос о пропавшей защите живёт в самом пропавшем файле  ·  `owner-decision-utochnenie-po-zametke-zamok-tsikla-orkes.md` · 2026-08-11
+### · owner-done
+- Сайт: track_snapshot.json — автономная правка задела owner-gated область, нужно решение  ·  `owner-decision-sait-track-snapshot-json-avtonomnaya-pra-2.md` · 2026-10-22
+- Сайт: track_snapshot.json — автономная правка задела owner-gated область, нужно решение  ·  `owner-decision-sait-track-snapshot-json-avtonomnaya-pra.md` · 2026-10-06
 ### · closed
 - Считать ли верный отказ по правилам допуска неисправностью флота  ·  `owner-decision-schitat-li-vernyi-otkaz-po-pravilam-dopu.md` · 2026-10-08
 
