@@ -2,11 +2,18 @@
 trackerStatus:
   type: owner-decision
 title: Диск Mac Mini забит под ноль — один журнал агента вырос до 7,1 ГБ и остановил запись на всей машине
-status: needs-owner
+status: owner-done
 source: nimbalyst
 created: 2026-09-26
 subject: IRREVERSIBLE
 subject_source: "card body names ADR-285 subject explicitly (RM-TRUTH-01 C5 backfill 2026-10-07)"
+owner_choice: закрыть
+owner_answered_at: 2026-10-27T19:44:03.830315+00:00
+owner_answer_via: claude-code-session
+owner_answered_by: владелец (сессия Claude Code; ADR-836)
+owner_answer_kind: option
+status_trail:
+  - "2026-10-27T19:44:03.830551+00:00 needs-owner -> owner-done · owner_answer.record_session_answer"
 ---
 
 ## Что случилось и почему это важно
@@ -64,3 +71,11 @@ subject_source: "card body names ADR-285 subject explicitly (RM-TRUTH-01 C5 back
 именно этот случай: журнал растёт, предел срабатывает, запись продолжается). Заводить сторожа
 свободного места тоже имеет смысл — сейчас о переполнении не сказал ни один: все 97 артефактов
 офиса были «прочитаны», а машина при этом не могла записать байт.
+
+---
+
+## Решение владельца
+
+**Вариант закрыть** — закрыть как устаревшую: свободно 43 ГБ из 460, журнал 7,1 ГБ не причина
+
+_Ответ владельца получен 2026-10-27T19:44:03.830315+00:00 (claude-code-session). Ответ владельца дан в сессии Claude Code и записан в ADR-836-owner-answers-2026-10-27-queue.md; карточку по этой записи закрыл агент (решение владельца 27.10, ADR-834)._

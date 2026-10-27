@@ -2,10 +2,17 @@
 trackerStatus:
   type: owner-decision
 title: "earn-defi: нужен Telegram-канал — иначе доказательства сигналов копятся, но не публикуются"
-status: needs-owner
+status: owner-done
 source: agent
 created: 2026-09-09
 tags: [earn-defi, telegram, commit-reveal, publication]
+owner_choice: 1
+owner_answered_at: 2026-10-27T19:44:03.835962+00:00
+owner_answer_via: claude-code-session
+owner_answered_by: владелец (сессия Claude Code; ADR-836)
+owner_answer_kind: option
+status_trail:
+  - "2026-10-27T19:44:03.835997+00:00 needs-owner -> owner-done · owner_answer.record_session_answer"
 ---
 
 ## Что случилось и почему это важно
@@ -49,3 +56,11 @@ BTC-движок устроен так, что честность проверя
 Выбран **вариант 1 — публичный канал только для хешей**. Политика зафиксирована; карточка
 остаётся `needs-owner`, потому что критерий приёмки — конкретный `chat_id` канала — ещё не
 получен. Шаги 1–3 (создать канал, добавить бота админом, прислать ID) по-прежнему на владельце.
+
+---
+
+## Решение владельца
+
+**Вариант 1** — публичный канал только для хешей
+
+_Ответ владельца получен 2026-10-27T19:44:03.835962+00:00 (claude-code-session). Ответ владельца дан в сессии Claude Code и записан в ADR-836-owner-answers-2026-10-27-queue.md; карточку по этой записи закрыл агент (решение владельца 27.10, ADR-834)._

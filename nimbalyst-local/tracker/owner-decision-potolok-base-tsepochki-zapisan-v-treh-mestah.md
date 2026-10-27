@@ -2,11 +2,18 @@
 trackerStatus:
   type: owner-decision
 title: Потолок Base-цепочки записан в трёх местах — какое из них главное?
-status: needs-owner
+status: owner-done
 source: nimbalyst
 created: 2026-09-21
 subject: MONEY
 subject_source: "card body names ADR-285 subject explicitly (RM-TRUTH-01 C5 backfill 2026-10-07)"
+owner_choice: A
+owner_answered_at: 2026-10-27T19:44:03.837787+00:00
+owner_answer_via: claude-code-session
+owner_answered_by: владелец (сессия Claude Code; ADR-836)
+owner_answer_kind: option
+status_trail:
+  - "2026-10-27T19:44:03.837827+00:00 needs-owner -> owner-done · owner_answer.record_session_answer"
 ---
 
 ## Что случилось и почему это важно
@@ -63,3 +70,11 @@ subject_source: "card body names ADR-285 subject explicitly (RM-TRUTH-01 C5 back
 Получив ответ, агент сведёт копии выбранным способом, закрепит результат тестом в обе
 стороны (сведено — зелено; разведено — красно) и запишет решение отдельным ADR. Сам
 порог не трогается ни на единицу.
+
+---
+
+## Решение владельца
+
+**Вариант A** — главное — spa_core/risk/policy.py; сайт и документ берут число оттуда
+
+_Ответ владельца получен 2026-10-27T19:44:03.837787+00:00 (claude-code-session). Ответ владельца дан в сессии Claude Code и записан в ADR-836-owner-answers-2026-10-27-queue.md; карточку по этой записи закрыл агент (решение владельца 27.10, ADR-834)._

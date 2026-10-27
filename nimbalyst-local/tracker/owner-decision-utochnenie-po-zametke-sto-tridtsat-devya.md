@@ -2,9 +2,16 @@
 trackerStatus:
   type: owner-decision
 title: "Уточнение по заметке: Сто тридцать девять брошенных деревьев циклов: 24,6 ГБ, и снимать их вслепую нельзя"
-status: needs-owner
+status: owner-done
 source: intake
 created: 2026-10-15
+owner_choice: закрыть
+owner_answered_at: 2026-10-27T19:44:03.832454+00:00
+owner_answer_via: claude-code-session
+owner_answered_by: владелец (сессия Claude Code; ADR-836)
+owner_answer_kind: option
+status_trail:
+  - "2026-10-27T19:44:03.832534+00:00 needs-owner -> owner-done · owner_answer.record_session_answer"
 ---
 
 ## Что случилось и почему это важно
@@ -101,3 +108,11 @@ git worktree list   # держатели, прежде чем что-то сни
 
 ## Что будет после
 Обработаю по твоему ответу.
+
+---
+
+## Решение владельца
+
+**Вариант закрыть** — вопрос снят; уборка деревьев — задача агента
+
+_Ответ владельца получен 2026-10-27T19:44:03.832454+00:00 (claude-code-session). Ответ владельца дан в сессии Claude Code и записан в ADR-836-owner-answers-2026-10-27-queue.md; карточку по этой записи закрыл агент (решение владельца 27.10, ADR-834)._

@@ -2,9 +2,16 @@
 trackerStatus:
   type: owner-decision
 title: "Перепроверка перед сделкой: назови два числа — насколько свежими должны быть ставки и сколько живёт решение"
-status: needs-owner
+status: owner-done
 source: nimbalyst
 created: 2026-09-27
+owner_choice: А
+owner_answered_at: 2026-10-27T19:44:03.840604+00:00
+owner_answer_via: claude-code-session
+owner_answered_by: владелец (сессия Claude Code; ADR-836)
+owner_answer_kind: option
+status_trail:
+  - "2026-10-27T19:44:03.840648+00:00 needs-owner -> owner-done · owner_answer.record_session_answer"
 ---
 
 ## Что случилось и почему это важно
@@ -70,3 +77,11 @@ created: 2026-09-27
 RiskPolicy не касаются), прибор начинает краснеть по делу, и я приношу первый замер по
 твоим числам. По Б — записываю условие в go-live-чеклист и закрываю вопрос. По В —
 записываю решение в ADR, и прибор меняет уровень с претензии на наблюдение.
+
+---
+
+## Решение владельца
+
+**Вариант А** — допуск свежести 60 с на бумаге / 15 с вживую; срок годности решения 10 мин
+
+_Ответ владельца получен 2026-10-27T19:44:03.840604+00:00 (claude-code-session). Ответ владельца дан в сессии Claude Code и записан в ADR-836-owner-answers-2026-10-27-queue.md; карточку по этой записи закрыл агент (решение владельца 27.10, ADR-834)._

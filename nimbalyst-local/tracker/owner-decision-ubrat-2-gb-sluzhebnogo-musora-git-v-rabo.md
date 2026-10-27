@@ -2,9 +2,16 @@
 trackerStatus:
   type: owner-decision
 title: Убрать 2 ГБ служебного мусора git в рабочем дереве на Маке
-status: needs-owner
+status: owner-done
 source: nimbalyst
 created: 2026-10-10
+owner_choice: 2
+owner_answered_at: 2026-10-27T19:44:03.831707+00:00
+owner_answer_via: claude-code-session
+owner_answered_by: владелец (сессия Claude Code; ADR-836)
+owner_answer_kind: option
+status_trail:
+  - "2026-10-27T19:44:03.831757+00:00 needs-owner -> owner-done · owner_answer.record_session_answer"
 ---
 
 ## Что случилось и почему это важно
@@ -62,3 +69,11 @@ GitHub напрямую через API, а служебную уборку (`git
 (заказ G688 п. 1) и больше не спрашиваю. Варианта 3 — после распрямления прибор
 `history_door_price` сам увидит, что своё дерево стало пригодной дверью, и
 напечатает это; объявление зеркала при этом остаётся как запас.
+
+---
+
+## Решение владельца
+
+**Вариант 2** — ничего не делать (мусора 0,6 МБ, 2,4 ГБ — несжатые объекты)
+
+_Ответ владельца получен 2026-10-27T19:44:03.831707+00:00 (claude-code-session). Ответ владельца дан в сессии Claude Code и записан в ADR-836-owner-answers-2026-10-27-queue.md; карточку по этой записи закрыл агент (решение владельца 27.10, ADR-834)._

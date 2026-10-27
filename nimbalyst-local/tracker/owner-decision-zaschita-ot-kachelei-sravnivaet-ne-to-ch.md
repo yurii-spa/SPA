@@ -2,9 +2,16 @@
 trackerStatus:
   type: owner-decision
 title: Защита от качелей сравнивает не то, что нужно — книга 12 раз вернулась туда, откуда ушла
-status: needs-owner
+status: owner-done
 source: nimbalyst
 created: 2026-09-26
+owner_choice: 1
+owner_answered_at: 2026-10-27T19:44:03.840119+00:00
+owner_answer_via: claude-code-session
+owner_answered_by: владелец (сессия Claude Code; ADR-836)
+owner_answer_kind: option
+status_trail:
+  - "2026-10-27T19:44:03.840165+00:00 needs-owner -> owner-done · owner_answer.record_session_answer"
 ---
 
 ## Что случилось и почему это важно
@@ -77,3 +84,11 @@ $40 526 оборота, — и книга оказалась там же, где
 Журнал: 34 хода с 18.06 по 11.09. Пороги прибор берёт из твоей же колонки
 `TriggerParams` (раздел 22 ТЗ: «Все значения должны быть config/policy. Не
 hardcode»), своих чисел у него нет ни одного.
+
+---
+
+## Решение владельца
+
+**Вариант 1** — сравнивать с состоянием книги за 14 дней
+
+_Ответ владельца получен 2026-10-27T19:44:03.840119+00:00 (claude-code-session). Ответ владельца дан в сессии Claude Code и записан в ADR-836-owner-answers-2026-10-27-queue.md; карточку по этой записи закрыл агент (решение владельца 27.10, ADR-834)._

@@ -2,11 +2,18 @@
 trackerStatus:
   type: owner-decision
 title: Пять процентов кэша записаны в двух местах — это одно правило или два?
-status: needs-owner
+status: owner-done
 source: nimbalyst
 created: 2026-09-19
 subject: MONEY
 subject_source: "card body names ADR-285 subject explicitly (RM-TRUTH-01 C5 backfill 2026-10-07)"
+owner_choice: 1
+owner_answered_at: 2026-10-27T19:44:03.838499+00:00
+owner_answer_via: claude-code-session
+owner_answered_by: владелец (сессия Claude Code; ADR-836)
+owner_answer_kind: option
+status_trail:
+  - "2026-10-27T19:44:03.838548+00:00 needs-owner -> owner-done · owner_answer.record_session_answer"
 ---
 
 ## Что случилось и почему это важно
@@ -85,3 +92,11 @@ subject_source: "card body names ADR-285 subject explicitly (RM-TRUTH-01 C5 back
 все четыре стороны.
 
 Ни одна копия не тронута: пороги на денежном пути — предмет №1 границы ADR-285.
+
+---
+
+## Решение владельца
+
+**Вариант 1** — одно правило: бэктест и тесты берут 0.05 у правила риска
+
+_Ответ владельца получен 2026-10-27T19:44:03.838499+00:00 (claude-code-session). Ответ владельца дан в сессии Claude Code и записан в ADR-836-owner-answers-2026-10-27-queue.md; карточку по этой записи закрыл агент (решение владельца 27.10, ADR-834)._

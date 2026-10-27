@@ -2,9 +2,16 @@
 trackerStatus:
   type: owner-decision
 title: Агент-наблюдатель просыпается раз в 7,6 часа вместо 6 — поменять расписание на фиксированные отметки
-status: needs-owner
+status: owner-done
 source: nimbalyst
 created: 2026-10-26
+owner_choice: ускорить
+owner_answered_at: 2026-10-27T19:44:03.834695+00:00
+owner_answer_via: claude-code-session
+owner_answered_by: владелец (сессия Claude Code; ADR-836)
+owner_answer_kind: option
+status_trail:
+  - "2026-10-27T19:44:03.834739+00:00 needs-owner -> owner-done · owner_answer.record_session_answer"
 ---
 
 ## Что случилось и почему это важно
@@ -75,3 +82,11 @@ python3 -m spa_core.monitoring.deployment_acceptance
 Получив подтверждение, агент перемерит такт по журналу прогонов и, если медиана
 действительно легла в 6 часов, вернёт срок 69 артефактов с 9,28 ч к 7 ч — тем же
 выведенным правилом и отдельным ADR, а не правкой руками.
+
+---
+
+## Решение владельца
+
+**Вариант ускорить** — расписание не менять; ускорить прогон decision_loop
+
+_Ответ владельца получен 2026-10-27T19:44:03.834695+00:00 (claude-code-session). Ответ владельца дан в сессии Claude Code и записан в ADR-836-owner-answers-2026-10-27-queue.md; карточку по этой записи закрыл агент (решение владельца 27.10, ADR-834)._
