@@ -222,7 +222,7 @@ def test_pools_serves_full_list_verbatim(populated_client):
     assert body["available"] is True
     assert body["is_advisory"] is True
     assert body["n_pools"] == 3
-    on_disk = json.loads((data_dir / "dfb" / "pools.json").read_text())
+    on_disk = json.loads((data_dir / "dfb" / "pools.json").read_text())["pools"]
     assert body["pools"] == on_disk  # served verbatim, no recomputation
     assert body["note"] is None
 
