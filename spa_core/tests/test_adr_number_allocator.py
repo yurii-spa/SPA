@@ -346,6 +346,74 @@ def test_named_families_are_a_separate_namespace():
     assert adr.file_key("_TEMPLATE.md") is None
 
 
+
+def _origin_with_own_family(repo):
+    """Как на main: несколько `ADR-OWN-…` рядом, строки реестра с ключом `OWN-2026-07`."""
+    _commit_origin(repo, {
+        "docs/decisions/ADR-OWN-2026-07-autoship.md": "x",
+        "docs/decisions/ADR-OWN-2026-07-lead-pings.md": "x",
+        "docs/decisions/INDEX.md": INDEX_HEAD
+        + "| ADR-OWN-2026-07 (autoship) | a | Accepted | [ADR-OWN-2026-07-autoship](ADR-OWN-2026-07-autoship.md) |\n"
+        + "| ADR-OWN-2026-07 (lead-pings) | b | Accepted | [ADR-OWN-2026-07-lead-pings](ADR-OWN-2026-07-lead-pings.md) |\n",
+    })
+
+
+def test_new_owner_decision_with_its_registry_row_is_delivered(repo):
+    """АВАРИЯ 27.10: релиз с `ADR-OWN-2026-10-23-…` и его строкой реестра получал ОТКАЗ.
+
+    Семейство судилось как один номер `OWN`: «номер занят» шестью штатными соседями и
+    «нет строки ADR-OWN» (строки несут ключ `OWN-2026-…`). Любое новое решение владельца
+    было недоставляемо по построению.
+    """
+    _origin_with_own_family(repo)
+    new = repo / "docs" / "decisions" / "ADR-OWN-2026-10-23-model-independent-studio.md"
+    new.write_text("x", encoding="utf-8")
+    index = repo / "docs" / "decisions" / "INDEX.md"
+    index.write_text(index.read_text(encoding="utf-8")
+                     + "| ADR-OWN-2026-10-23 | c | Accepted | "
+                       "[ADR-OWN-2026-10-23-model-independent-studio](ADR-OWN-2026-10-23-model-independent-studio.md) |\n",
+                     encoding="utf-8")
+    assert adr.check_push(repo, [str(new), str(index)]) == ([], [])
+
+
+def test_new_owner_decision_without_a_registry_link_is_still_refused(repo):
+    """Контроль: снятие проверки номера НЕ снимает реестр — тот же отказ, что у теста реестра."""
+    _origin_with_own_family(repo)
+    new = repo / "docs" / "decisions" / "ADR-OWN-2026-10-23-model-independent-studio.md"
+    new.write_text("x", encoding="utf-8")
+    findings, unchecked = adr.check_push(repo, [str(new)])
+    assert not unchecked
+    assert len(findings) == 1 and "нет строки со ссылкой" in findings[0], findings
+
+
+def test_a_row_naming_the_family_without_linking_the_file_is_not_a_registry_entry(repo):
+    """Контроль: строка `ADR-OWN-2026-10-23` без ССЫЛКИ на файл тест реестра не удовлетворяет."""
+    _origin_with_own_family(repo)
+    new = repo / "docs" / "decisions" / "ADR-OWN-2026-10-23-model-independent-studio.md"
+    new.write_text("x", encoding="utf-8")
+    index = repo / "docs" / "decisions" / "INDEX.md"
+    index.write_text(index.read_text(encoding="utf-8")
+                     + "| ADR-OWN-2026-10-23 | c | Accepted | — |\n", encoding="utf-8")
+    findings, _ = adr.check_push(repo, [str(new), str(index)])
+    assert any("нет строки со ссылкой" in f for f in findings), findings
+
+
+def test_numeric_collision_is_still_refused_next_to_a_named_family(repo):
+    """Контроль: исключение — только для именованного ключа; числовой номер распределяется как прежде."""
+    _origin_with_073(repo)
+    p = repo / "docs" / "decisions" / "ADR-073-owner-decisions-in-telegram.md"
+    p.write_text("x", encoding="utf-8")
+    findings, _ = adr.check_push(repo, [str(p)])
+    assert any("уже занят" in f for f in findings), findings
+
+
+def test_registry_mention_is_measured_by_the_registry_test_itself():
+    """Одна мерка: гейт до пуша и тест реестра после пуша разбирают ссылки ОДНИМ кодом."""
+    import check_memory_in_git as mig
+    text = "| x | y | z | [a](ADR-OWN-1-a.md) |\n`docs/decisions/ADR-OWN-2-b.md`\n"
+    assert adr._registry_listed_names(text) == {"ADR-OWN-1-a.md", "ADR-OWN-2-b.md"}
+    assert mig._LINK_RE.findall(text) == ["ADR-OWN-1-a.md"]
+
 # ── ПРОВОДКА: интерлок реально стоит в пушере ────────────────────────────────
 
 def test_pusher_refuses_a_colliding_decision_end_to_end():
