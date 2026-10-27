@@ -329,3 +329,20 @@ def _no_live_paper_feeds(monkeypatch):
         _s.modules["spa_paper_feed_guard"] = mod
     mod.install(monkeypatch)
     yield
+
+
+# ── сторож записи в git-tracked состояние (agent-test-run-dirties-tracked-fixtures) ──
+# Один экземпляр на сессию, даже когда прогон берёт оба корня (tests/ и spa_core/tests/):
+# модуль грузится по пути под ОДНИМ именем, install() регистрирует плагин один раз.
+def pytest_configure(config):
+    import importlib.util as _twg_ilu
+    import sys as _twg_sys
+    from pathlib import Path as _TwgPath
+    _mod = _twg_sys.modules.get("spa_tracked_write_guard_mod")
+    if _mod is None:
+        _spec = _twg_ilu.spec_from_file_location(
+            "spa_tracked_write_guard_mod", _TwgPath(__file__).resolve().parents[1] / "spa_core" / "tests" / "tracked_write_guard.py")
+        _mod = _twg_ilu.module_from_spec(_spec)
+        _twg_sys.modules["spa_tracked_write_guard_mod"] = _mod
+        _spec.loader.exec_module(_mod)
+    _mod.install(config)

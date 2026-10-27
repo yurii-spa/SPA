@@ -538,7 +538,12 @@ def _record_preparation(name: str, card: dict, prep_root: Path, code_root: Optio
     root = code_root if code_root is not None else ar.role_pack.CODE_REPO
     st = ar.preparation_state(runs[-1], card_text=body if isinstance(body, str) else None, root=root,
                               code_now=code_now if code_now is not None else ar.code_identity(root))
-    return {**st, "runs": len(runs)}
+    try:  # одобрение версии и итог исполнения (studio_os.work_packet) — только чтение
+        from spa_core.studio_os import work_packet as _wp
+        extra = _wp.decisions_for(runs[-1], st)
+    except Exception as exc:  # noqa: BLE001 — блок подготовки важнее; причина названа
+        extra = {"decisions_error": f"{type(exc).__name__}: {exc}"}
+    return {**st, **extra, "runs": len(runs)}
 
 
 def risk_class(fm: dict) -> str:

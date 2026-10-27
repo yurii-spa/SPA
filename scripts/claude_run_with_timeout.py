@@ -60,7 +60,9 @@ from __future__ import annotations
 import argparse
 import datetime
 import errno
+import json
 import os
+import re
 import signal
 import subprocess
 import sys
@@ -69,6 +71,60 @@ import uuid
 
 TIMEOUT_OWNERSHIP_CLOSED = 124
 TIMEOUT_OWNERSHIP_UNRESOLVED = 125
+
+# ── журнал исходов прогонов (27.10) ─────────────────────────────────────────
+# Исход сессии раньше жил только в /tmp-журнале агента, а тот перезаписывался: неделю
+# кодов 1 у оркестратора (14–21.10) разобрать было нечем, а 20.10 у novel_edge в том же
+# журнале стояло «Failed to authenticate: OAuth session expired» — причина, которую
+# пульс видел как голую цифру. Одна строка JSON на прогон, с распознанной причиной.
+LEDGER_ENV = "SPA_CLAUDE_RUNS_LEDGER"
+# Журнал пишется ТОЛЬКО когда назван (`--ledger` или переменная): иначе любой тест,
+# зовущий main(), писал бы в data/ репозитория. Боевые обёртки называют его явно.
+_AUTH_RE = re.compile(r"Failed to authenticate|OAuth session expired|Invalid API key|"
+                      r"Please run /login", re.I)
+CAUSE_OK, CAUSE_AUTH, CAUSE_TIMEOUT_CLOSED = "ok", "auth_expired", "timeout_closed"
+CAUSE_TIMEOUT_UNRESOLVED, CAUSE_ERROR = "timeout_unresolved", "error"
+
+
+def classify(rc: int, output: str) -> str:
+    """Причина исхода по коду и выводу ЭТОГО прогона. Неузнанный ненулевой — `error`."""
+    if rc == TIMEOUT_OWNERSHIP_CLOSED:
+        return CAUSE_TIMEOUT_CLOSED
+    if rc == TIMEOUT_OWNERSHIP_UNRESOLVED:
+        return CAUSE_TIMEOUT_UNRESOLVED
+    if rc != 0 and _AUTH_RE.search(output or ""):
+        return CAUSE_AUTH
+    return CAUSE_OK if rc == 0 else CAUSE_ERROR
+
+
+def _read_from(path, offset: int, limit: int = 200_000) -> str:
+    try:
+        with open(path, "rb") as fh:
+            fh.seek(offset)
+            return fh.read(limit).decode("utf-8", "replace")
+    except OSError:
+        return ""
+
+
+def record_outcome(*, label: str, run_id, rc: int, cause: str, started_at: str,
+                   ended_at: str, ledger=None) -> bool:
+    """Дописать строку исхода. Ошибка записи возвращает False и НЕ меняет код прогона."""
+    path = ledger or os.environ.get(LEDGER_ENV)
+    if not path:
+        return False
+    line = json.dumps({"label": label, "run_id": run_id, "rc": rc, "cause": cause,
+                       "started_at": started_at, "ended_at": ended_at},
+                      ensure_ascii=False, sort_keys=True)
+    try:
+        os.makedirs(os.path.dirname(path), exist_ok=True)
+        fd = os.open(path, os.O_WRONLY | os.O_APPEND | os.O_CREAT, 0o644)
+        try:
+            os.write(fd, (line + "\n").encode("utf-8"))
+        finally:
+            os.close(fd)
+        return True
+    except OSError:
+        return False
 
 #: Запас на дрожание замера при фильтре «процесс не старше самого запуска».
 START_SLACK_S = 10.0
@@ -771,6 +827,8 @@ def build_parser() -> argparse.ArgumentParser:
     ap.add_argument("--run-id", default=None,
                     help="готовая метка владения (умолчание — сгенерировать). Нужна, когда\nметку уже записал замок цикла, чтобы обе стороны мерили ОДНУ личность")
     ap.add_argument("--poll-s", type=float, default=DEFAULT_POLL_S)
+    ap.add_argument("--ledger", default=None,
+                    help="журнал исходов (JSONL); не назван — исход не записывается")
     ap.add_argument("cmd", nargs=argparse.REMAINDER)
     return ap
 
@@ -781,8 +839,25 @@ def main(argv=None) -> int:
     cmd = ns.cmd[1:] if ns.cmd and ns.cmd[0] == "--" else ns.cmd
     if not cmd:
         ap.error("после -- обязана быть команда")
-    return run(cmd, timeout_s=ns.timeout_s, grace_s=ns.grace_s, log_path=ns.log,
-               label=ns.label, poll_s=ns.poll_s, run_id=ns.run_id)
+    run_id = str(ns.run_id or "").strip() or f"{ns.label}-{os.getpid()}-{uuid.uuid4().hex}"
+    offset = 0
+    if ns.log:
+        try:
+            offset = os.path.getsize(ns.log)
+        except OSError:
+            offset = 0
+    started_at = datetime.datetime.now(datetime.timezone.utc).isoformat()
+    rc = run(cmd, timeout_s=ns.timeout_s, grace_s=ns.grace_s, log_path=ns.log,
+             label=ns.label, poll_s=ns.poll_s, run_id=run_id)
+    cause = classify(rc, _read_from(ns.log, offset) if ns.log else "")
+    named = bool(ns.ledger or os.environ.get(LEDGER_ENV))
+    ok = record_outcome(label=ns.label, run_id=run_id, rc=rc, cause=cause, ledger=ns.ledger,
+                        started_at=started_at,
+                        ended_at=datetime.datetime.now(datetime.timezone.utc).isoformat())
+    log = Log(ns.log)
+    log(f"⏱ OUTCOME {run_id}: rc={rc} cause={cause}"
+        + ("" if ok or not named else " (журнал исходов НЕ записан)"))
+    return rc
 
 
 if __name__ == "__main__":

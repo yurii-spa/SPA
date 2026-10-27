@@ -55,8 +55,11 @@ owner-gated шаг (инвариант #12), а нагружать decision_loop
 # LLM_FORBIDDEN
 from __future__ import annotations
 
+import contextlib
+import fcntl
 import logging
 import re
+import time
 from dataclasses import dataclass
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
@@ -70,6 +73,13 @@ log = logging.getLogger("spa.monitoring.problem_store")
 
 _REPO_ROOT = Path(__file__).resolve().parents[2]
 OUTPUT_FILENAME = "problems.json"
+#: Замок «прочитать → изменить → записать» хранилища. Писателей два — ежечасный
+#: `run_once` (из agent_health) и `record_rca` (сессия, записывающая RCA), — и оба
+#: живут в ЭТОМ модуле, поэтому замок уважают все писатели по построению, а не по
+#: договорённости. Без него `record_rca`, попавший между load и save хода, терялся молча
+#: (или стирал ход): `atomic_save` защищает файл от порчи, но не от потерянного обновления.
+LOCK_FILENAME = "problems.json.lock"
+LOCK_TIMEOUT_S = 60.0
 
 
 def _default_data_dir() -> Path:
@@ -132,6 +142,14 @@ def problem_id(agent: str, cause_code: str) -> str:
     """Id для ``acceptance_probe: problem_absent:<problem_id>`` — внутри charset пробы."""
     raw = f"{agent}.{cause_code}"
     safe = _ID_UNSAFE_RE.sub("_", raw).strip("_") or "problem"
+    # 27.10: кириллический код причины («маячку … не крутится») вырождался в ПУСТОЙ хвост —
+    # `com.spa.x.` — и две разные такие причины одного агента делили бы один id (а с ним
+    # пробу и `record_rca`). Хвост без единой буквы/цифры получает короткий хеш причины.
+    # Существующие id (в хвосте есть буквы/цифры) НЕ меняются: на них ссылаются пробы карточек.
+    tail = _ID_UNSAFE_RE.sub("_", str(cause_code or ""))
+    if not any(ch.isascii() and ch.isalnum() for ch in tail):
+        import hashlib
+        safe = f"{safe.rstrip('._')}.c{hashlib.sha1(str(cause_code).encode('utf-8')).hexdigest()[:10]}"
     return safe[:120]
 
 
@@ -237,20 +255,36 @@ def _conditions_from_agent_health(doc: dict) -> list[dict]:
     # И per-agent WARNING-строками (отфильтрованными выше). Один факт ⇒ ОДНА запись,
     # что бы из двух путей его ни увидело — `detail` называет агентов поимённо, когда
     # они известны, точнее, чем агрегатный счётчик fleet_parity.
-    fleet_drift_detail = None
+    #
+    # 27.10: строка fleet_parity DRIFT несёт РАЗНЫЕ классы, и складывать их под одним кодом
+    # `retired_but_loaded` было неверно: после того как сторож перестал считать карантин
+    # «выведенным, но устанавливаемым» (5/5 ложных), в DRIFT остались только живые агенты,
+    # которых не знает установщик — и Problem продолжала бы звать это «выведен, но загружен».
+    # Код причины теперь следует за классом: выведенное ⇒ `retired_but_loaded`, всё прочее
+    # расхождение установщика с флотом ⇒ `fleet_parity_drift`.
+    retired_drift_detail = None
+    other_drift_detail = None
     for issue in (observed(doc, "system_issues", kind=list) or []):
         if not isinstance(issue, str):
             continue
-        if "retired-still-installed" in issue or "fleet parity DRIFT" in issue:
-            fleet_drift_detail = issue
-    if retired_loaded_agents or fleet_drift_detail:
+        if "retired-still-installed" in issue:
+            retired_drift_detail = issue
+        if "fleet parity DRIFT" in issue and any(
+                k in issue for k in ("orphan-plist", "declared-no-plist", "declared-not-running",
+                                     "see fleet_parity.json")):
+            other_drift_detail = issue
+    if retired_loaded_agents or retired_drift_detail:
         parts = []
         if retired_loaded_agents:
             parts.append("загружены: " + ", ".join(sorted(set(retired_loaded_agents))))
-        if fleet_drift_detail:
-            parts.append(fleet_drift_detail)
+        if retired_drift_detail:
+            parts.append(retired_drift_detail)
         out.append({"agent": "fleet", "cause_code": "retired_but_loaded",
                     "severity": "WARNING", "detail": "; ".join(parts),
+                    "source": SOURCE_AGENT_HEALTH})
+    if other_drift_detail:
+        out.append({"agent": "fleet", "cause_code": "fleet_parity_drift",
+                    "severity": "WARNING", "detail": other_drift_detail,
                     "source": SOURCE_AGENT_HEALTH})
     return out
 
@@ -390,6 +424,37 @@ def load_store(data_dir: Path | str) -> dict:
 
 def save_store(data_dir: Path | str, store: dict) -> None:
     atomic_save(store, str(Path(data_dir) / OUTPUT_FILENAME))
+
+
+class StoreLockTimeout(RuntimeError):
+    """Замок хранилища не взят за отведённое время — записи НЕ было (fail-CLOSED)."""
+
+
+@contextlib.contextmanager
+def store_lock(data_dir: Path | str, *, timeout_s: Optional[float] = None):
+    """Исключительный замок на цикл «прочитать → изменить → записать» хранилища.
+
+    Не взят за ``timeout_s`` ⇒ :class:`StoreLockTimeout`, ничего не записано: писать без
+    замка значило бы вернуть ровно ту гонку, ради которой он заведён.
+    """
+    timeout_s = LOCK_TIMEOUT_S if timeout_s is None else timeout_s
+    path = Path(data_dir) / LOCK_FILENAME
+    path.parent.mkdir(parents=True, exist_ok=True)
+    with open(path, "a+", encoding="utf-8") as fh:
+        deadline = time.monotonic() + timeout_s
+        while True:
+            try:
+                fcntl.flock(fh.fileno(), fcntl.LOCK_EX | fcntl.LOCK_NB)
+                break
+            except BlockingIOError:
+                if time.monotonic() >= deadline:
+                    raise StoreLockTimeout(
+                        f"{path}: замок не взят за {timeout_s:.0f} с — запись не выполнена")
+                time.sleep(0.05)
+        try:
+            yield
+        finally:
+            fcntl.flock(fh.fileno(), fcntl.LOCK_UN)
 
 
 def _parse_iso(ts: Optional[str]) -> Optional[datetime]:
@@ -544,6 +609,14 @@ def record_rca(
     ``KeyError`` — Problem не заведена (RCA нельзя привязать к тому, что не открывалось).
     """
     data_dir = Path(data_dir)
+    with store_lock(data_dir):
+        return _record_rca_locked(data_dir, problem_id=problem_id, agent=agent,
+                                  cause_code=cause_code, cause=cause, fix_ref=fix_ref,
+                                  regression_test=regression_test, now=now)
+
+
+def _record_rca_locked(data_dir: Path, *, problem_id, agent, cause_code, cause, fix_ref,
+                       regression_test, now) -> dict:
     store = load_store(data_dir)
     problems = store.setdefault("problems", {})
     key = None
@@ -689,21 +762,11 @@ def run_once(
     try:
         conditions, source_status = collect(data_dir, now=now)
         report["sources"] = source_status
-        store = load_store(data_dir)
-        store, events = update_store(
-            store, conditions, source_status, now=now, window_days=window_days,
-            open_threshold=open_threshold, close_absent_streak=close_absent_streak)
-        if create_cards:
-            for ev in events:
-                path = _create_problem_card(
-                    ev.entry, tracker_dir=tracker_dir, now=now, window_days=window_days,
-                    open_threshold=open_threshold, close_absent_streak=close_absent_streak)
-                if path:
-                    ev.entry["card_path"] = path
-                    report["cards_created"].append({"problem_id": ev.problem_id, "path": path})
-        save_store(data_dir, store)
-        report["written"] = True
-        report["newly_opened"] = [e.problem_id for e in events]
+        with store_lock(data_dir):
+            store = _run_once_locked(
+                data_dir, conditions, source_status, report, now=now, tracker_dir=tracker_dir,
+                create_cards=create_cards, window_days=window_days,
+                open_threshold=open_threshold, close_absent_streak=close_absent_streak)
         report["open_count"] = sum(
             1 for p in store["problems"].values()
             if isinstance(p, dict) and p.get("status") == STATUS_OPEN)
@@ -711,6 +774,28 @@ def run_once(
         log.warning("problem_store.run_once упал: %s: %s", type(exc).__name__, exc)
         report["error"] = f"{type(exc).__name__}: {exc}"
     return report
+
+
+def _run_once_locked(data_dir: Path, conditions, source_status, report: dict, *, now,
+                     tracker_dir, create_cards, window_days, open_threshold,
+                     close_absent_streak) -> dict:
+    """Тело хода под замком хранилища: load → update → карточки → save."""
+    store = load_store(data_dir)
+    store, events = update_store(
+        store, conditions, source_status, now=now, window_days=window_days,
+        open_threshold=open_threshold, close_absent_streak=close_absent_streak)
+    if create_cards:
+        for ev in events:
+            path = _create_problem_card(
+                ev.entry, tracker_dir=tracker_dir, now=now, window_days=window_days,
+                open_threshold=open_threshold, close_absent_streak=close_absent_streak)
+            if path:
+                ev.entry["card_path"] = path
+                report["cards_created"].append({"problem_id": ev.problem_id, "path": path})
+    save_store(data_dir, store)
+    report["written"] = True
+    report["newly_opened"] = [e.problem_id for e in events]
+    return store
 
 
 def main(argv: Optional[list] = None) -> int:

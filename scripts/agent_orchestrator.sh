@@ -176,7 +176,9 @@ if [ -f "$COCKPIT_DISPATCH" ]; then
     COCKPIT_CARD_FILE="$(mktemp "${TMPDIR:-/tmp}/spa_cockpit_card.XXXXXX")"
     COCKPIT_OUT="$("$PYTHON" -m spa_core.owner_queue.cockpit_dispatch dispatch \
                     --executor "$SPA_SESSION_ID" --card-out "$COCKPIT_CARD_FILE" \
-                    --repo "$REPO_ROOT" --python "$PYTHON" 2>>"$LOG")"
+                    --repo "$REPO_ROOT" --python "$PYTHON" \
+                    --prep-root "$HOME/studio-os-serve/task_prep" \
+                    --prep-code-root "$HOME/studio-os-serve/task_prep_root" 2>>"$LOG")"
     COCKPIT_RC=$?
     case "$COCKPIT_RC" in
         0|4) echo "[$(ts)] cockpit-dispatch(rc=$COCKPIT_RC): взятой записи пульта нет" >> "$LOG" ;;
@@ -240,7 +242,15 @@ else
 fi
 
 # ── ARMED: run one headless GOVERNED-AUTONOMY cycle ─────────────────────────
-PROMPT="${COCKPIT_PREFIX}${STARVE_PREFIX}Ты — оркестратор SPA под НОВЫМ протоколом «управляемая автономия» (owner-approved 2026-07-15). \
+# ── РАЗБОР ВХОДЯЩИХ до сессии (ADR-154 §3, 27.10) ─────────────────────────────
+# Детерминированный отчёт без правки карточек: тип · готовность (объявлена проверка) · дубли.
+# Разбор больше не конкурирует с исполнением за слот сессии; сбой отчёта назван, цикл идёт.
+TRIAGE_PREFIX="$( ( "$PYTHON" -m spa_core.owner_queue.triage \
+                     --tracker-dir "$REPO_ROOT/nimbalyst-local/tracker" \
+                     --out "$REPO_ROOT/data/inbox_triage.json" ) 2>>"$LOG" )"
+echo "[$(ts)] triage: ${TRIAGE_PREFIX:-(нет вывода)}" >> "$LOG"
+
+PROMPT="${COCKPIT_PREFIX}${STARVE_PREFIX}${TRIAGE_PREFIX}Ты — оркестратор SPA под НОВЫМ протоколом «управляемая автономия» (owner-approved 2026-07-15). \
 Исполни ПОЛНОСТЬЮ docs/ORCHESTRATOR_PROTOCOL.md за один цикл, включая раздел «Автономный рабочий мандат»: \
 (1) прочитай docs/STATE.md + docs/decisions/INDEX.md + docs/SYSTEM_BRIEFING.md + свежие data/session_changes.jsonl, \
 затем ОБЯЗАТЕЛЬНО python3 scripts/consume_office_reports.py (ADR-066: офис+сторож архитектуры в контекст, \
@@ -274,6 +284,7 @@ nice -n 10 "$PYTHON" "$REPO_ROOT/scripts/claude_run_with_timeout.py" \
     --timeout-s "${SPA_ORCHESTRATOR_TIMEOUT_S:-14400}" \
     --grace-s "${SPA_ORCHESTRATOR_KILL_GRACE_S:-120}" \
     --log "$LOG" --label orchestrator --run-id "$CYCLE_RUN_ID" \
+    --ledger "$REPO_ROOT/data/claude_runs.jsonl" \
     -- "$CLAUDE_BIN" -p "$PROMPT" --dangerously-skip-permissions
 RC=$?
 # Запись пульта, взятая этим циклом: «сделано» ставит только её проба, а не слово сессии.

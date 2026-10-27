@@ -342,9 +342,11 @@ SHAPE_GOLDEN = {
     ),
     "/api/tournament": ("live", "mass_results", "meta", "server_time", "shadow_paper", "tournament", "trustworthy"),
     # DFB (LANE 2): the screener fallback shape against an empty data dir (honest "unavailable").
+    # 27.10 (инв. #16, намеренно): + `snapshot` — истинные отметки и возраст снимка DFB
+    # (`generated_at` ответа — время запроса); набор ключей лишь расширен, ни один не убран.
     "/api/dfb/pools": (
         "available", "disclaimer", "generated_at", "is_advisory", "model",
-        "n_pools", "note", "pools", "reproduce",
+        "n_pools", "note", "pools", "reproduce", "snapshot",
     ),
     "/api/v1/evidence": ("data", "source", "timestamp"),
     "/api/live/ping": ("ok", "ts", "version"),

@@ -755,9 +755,11 @@ if __name__ == "__main__":
     ]
 
     import json as _json
-    print(_json.dumps(analyze(_demo_positions[0]), indent=2, default=str))
+    # Демо ничего не пишет: журнал решений — состояние data/, а не вывод примера
+    # (agent-test-run-dirties-tracked-fixtures: test_demo_main_runs переписывал его).
+    print(_json.dumps(analyze(_demo_positions[0], config={"log_path": None}), indent=2, default=str))
     print("---- portfolio ----")
-    summary = analyze_portfolio(_demo_positions)
+    summary = analyze_portfolio(_demo_positions, config={"log_path": None})
     summary_view = {k: v for k, v in summary.items() if k != "results"}
     print(_json.dumps(summary_view, indent=2, default=str))
     sys.exit(0)
