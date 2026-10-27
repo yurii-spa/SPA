@@ -1002,7 +1002,7 @@ def _record_preparation_ru(p: Any) -> Optional[dict]:
     elif shown == "clarification":
         out["question"] = _prep_text(p.get("question"))
     ap = p.get("approval") if isinstance(p.get("approval"), dict) else None
-    oc = p.get("outcome") if isinstance(p.get("execution"), dict) else None
+    oc = p.get("execution") if isinstance(p.get("execution"), dict) else None
     if ap is not None:
         when = _madrid(ap.get("at")) or "время не записано"
         if ap.get("valid"):
