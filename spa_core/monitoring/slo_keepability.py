@@ -170,6 +170,7 @@ import re
 import statistics
 import sys
 import tempfile
+import types
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from typing import Optional
@@ -1924,6 +1925,381 @@ def stamp_reader_line(doc: dict) -> str:
           "дорого")
 
 
+#: Строка-ПРОБА для вопроса «дойдёт ли до цикла строка отчёта» (ADR-823).
+#:
+#: Литерал, а не случайная строка: обе стороны сравнения обязаны быть
+#: закреплены, иначе тест сравнивает своё с несвоим. Форма выбрана так, чтобы
+#: в выводе двери её не мог напечатать никто другой.
+#:
+#: **ПУСТАЯ проба сделала бы вердикт ЗЕЛЁНЫМ при любом значении** — ``"" in
+#: что_угодно`` истинно всегда, и перепись объявила бы прочитанными все 139
+#: артефактов, ничего не измерив. Это ровно тот класс «проверка зелёная при
+#: любом значении», который мутационный прогон ADR-822 нашёл в своём же
+#: контроле; поэтому непустота пробы проверяется ВХОДОМ переписи, а не
+#: предполагается.
+REPORT_LINE_PROBE = "⟦SPA-ПРОБА-СТРОКИ-ОТЧЁТА-ADR-823⟧"
+
+#: Куда кладётся проба в отрисовке производителя: ВТОРОЙ строкой.
+#:
+#: Это не вкус, а МЕСТО ПРЕДЛАГАЕМОЙ ПРАВКИ: у всех одиннадцати производителей,
+#: чей отчёт уже называет звавшего, строка ``[ЗВАВШИЙ] provenance_line(...)``
+#: стои́т вторым элементом списка — сразу за строкой состояния (образец —
+#: ``truncated_input_census.report``). Мерить в другом месте значило бы
+#: отвечать про правку, которой никто не предлагал.
+#:
+#: **Чего мера НЕ утверждает:** что место безразлично. Отрисовка производителя
+#: вправе фильтровать свои строки сама (``foreign_markup_reader_census``
+#: пересобирает их в три группы), и вердикт здесь — про ЭТО место. Замер 26.10
+#: по четвёрке ADR-822 сравнил три места (голова, вторая строка, хвост) и
+#: расхождений не нашёл — но население «место решает» ОСТАЛОСЬ НЕ ИЗМЕРЕННЫМ по
+#: всей конституции, и выдавать четыре артефакта за 139 нельзя.
+REPORT_LINE_POSITION = 1
+
+
+class _RenderingSpy(types.ModuleType):
+    """Подставной модуль производителя: ЗАПИСЫВАЕТ, о чём спросила дверь.
+
+    Нужен потому, что вопрос «спросила ли дверь у производителя отрисовку»
+    обязан меряться ИСХОДОМ. Разбор текста двери (AST её ветвей) ответил бы на
+    СОСЕДНИЙ вопрос — «написана ли ветка», — и ошибся бы в обе стороны: ветка
+    бывает написана и недостижима, а зов бывает не в ветке.
+
+    Доступ к атрибуту и ЗОВ атрибута — тоже разные наблюдения, и оба
+    записываются: дверь может взять у производителя константу и не звать его
+    отрисовку вовсе. Проба вкладывается ТОЛЬКО в возврат, похожий на текст
+    (строка либо последовательность строк); возврат иной формы отмечается в
+    ``non_text`` и зовом отрисовки НЕ считается — иначе «позвала помощника,
+    отдающего число» читалось бы как «позвала отрисовку и уронила строку».
+    """
+
+    def __init__(self, real, probe: str, position: int = REPORT_LINE_POSITION):
+        super().__init__(getattr(real, "__name__", "spa_rendering_spy"))
+        self.__dict__["_real"] = real
+        self.__dict__["_probe"] = probe
+        self.__dict__["_position"] = position
+        self.__dict__["accessed"] = []
+        self.__dict__["invoked"] = []
+        self.__dict__["non_text"] = []
+
+    def __getattr__(self, name):
+        real = self.__dict__["_real"]
+        value = getattr(real, name)
+        if name.startswith("__"):
+            return value
+        self.__dict__["accessed"].append(name)
+        if not callable(value):
+            return value
+        probe = self.__dict__["_probe"]
+        position = self.__dict__["_position"]
+        spy = self
+
+        def rendering(*args, **kwargs):
+            result = value(*args, **kwargs)
+            if isinstance(result, str):
+                spy.__dict__["invoked"].append(name)
+                head, sep, rest = result.partition("\n")
+                return head + "\n" + probe + (sep + rest if sep else "")
+            if isinstance(result, (list, tuple)) and all(
+                    isinstance(item, str) for item in result):
+                spy.__dict__["invoked"].append(name)
+                lines = list(result)
+                lines.insert(min(position, len(lines)), probe)
+                return lines
+            spy.__dict__["non_text"].append(name)
+            return result
+
+        return rendering
+
+
+def report_line_producer(door, artifact: str) -> tuple:
+    """Модуль производителя ПО ВЕРСИИ САМОЙ ДВЕРИ. ``(имя модуля, причина)``.
+
+    Берётся ``_PRODUCER`` измеренной двери — её СОБСТВЕННАЯ карта «артефакт →
+    модуль». Своя копия этой карты была бы вторым определением одного имени
+    («одно имя — один объект», `.claude/rules/adapters.md`) и разошлась бы с
+    дверью молча, после чего перепись мерила бы модуль, которого дверь не
+    зовёт.
+
+    Имя приватно у двери намеренно, и это НЕ обход: вопрос переписи — что
+    делает НАСТОЯЩИЙ читатель, а публичной карты производителей у него нет.
+    Нет карты вовсе либо нет в ней этого артефакта ⇒ НЕ ИЗМЕРЕНО с причиной
+    (инв. #17), а не «производителя нет».
+    """
+    table = getattr(door, "_PRODUCER", None)
+    if not isinstance(table, dict):
+        return None, ("у измеренной двери нет карты `_PRODUCER` — какой модуль "
+                      "она зовёт для артефакта, сказать нечем")
+    path = table.get(artifact.split("/")[-1])
+    if not isinstance(path, str) or not path.endswith(".py"):
+        return None, ("измеренная дверь не называет производителя этого "
+                      "артефакта в своей карте `_PRODUCER` — её ветка могла бы "
+                      "звать его и мимо карты, и это НЕ «отрисовки нет»")
+    return path[:-3].replace("/", "."), ""
+
+
+def report_line_observation(door, module_name: str, path: Path, *,
+                            root: Path, artifact_root: Path,
+                            probe: str = REPORT_LINE_PROBE,
+                            now: Optional[datetime] = None) -> dict:
+    """ИСХОД: дойдёт ли до вывода двери строка, вложенная в отрисовку.
+
+    Один прогон НАСТОЯЩЕЙ двери (та же ветка ``_summarize_json``, что у
+    :func:`stamp_reader_observation`, и по той же причине: ``main()`` пишет
+    квитанции, и спросить им читателя значило бы изменить состояние системы
+    вопросом о ней). У вывода спрашиваются ДВА вопроса:
+
+    ``as_line``
+        проба нашлась ОТДЕЛЬНОЙ строкой — ровно то, чем правка будет для
+        читателя;
+    ``anywhere``
+        проба нашлась в СКЛЕЙКЕ всех строк — то есть её буквы доехали, а
+        строка нет. Между двумя ответами живёт измеренный дефект
+        ``out.extend(<строка>)``.
+
+    Подстановка модуля снимается в ``finally``: подставной модуль, оставшийся в
+    ``sys.modules``, отвечал бы вместо настоящего всем последующим вопросам
+    этого же процесса.
+    """
+    if not probe:
+        return {"as_line": None, "anywhere": None, "asked": None,
+                "why": "строка-проба ПУСТА — поиск её в любом выводе истинен "
+                       "всегда, и перепись не измерила бы ничего"}
+    try:
+        if not path.is_file():
+            return {"as_line": None, "anywhere": None, "asked": None,
+                    "why": f"носителя нет на месте ({path}) — дверь нечем "
+                           f"позвать"}
+    except OSError as exc:
+        return {"as_line": None, "anywhere": None, "asked": None,
+                "why": f"наличие носителя не прочитано ({type(exc).__name__})"}
+    try:
+        doc = json.loads(path.read_text(encoding="utf-8", errors="replace"))
+    except (OSError, ValueError) as exc:
+        return {"as_line": None, "anywhere": None, "asked": None,
+                "why": f"носитель не разобран как JSON ({type(exc).__name__}) — "
+                       f"отрисовать его дверью нечем"}
+    try:
+        real = importlib.import_module(module_name)
+    except Exception as exc:  # чужой модуль — его отказ не наш вердикт
+        return {"as_line": None, "anywhere": None, "asked": None,
+                "why": f"модуль производителя `{module_name}` не ввозится "
+                       f"({type(exc).__name__}: {exc})"}
+    spy = _RenderingSpy(real, probe)
+    previous = sys.modules.get(module_name)
+    sys.modules[module_name] = spy
+    try:
+        out = door._summarize_json(str(path), doc, now=now, root=str(root),
+                                   artifact_root=str(artifact_root)) or []
+    except Exception as exc:  # отказ ЧУЖОЙ двери — третий исход, не вердикт
+        return {"as_line": None, "anywhere": None, "asked": None,
+                "why": f"дверь отказала на отрисовке ({type(exc).__name__}: {exc})"}
+    finally:
+        if previous is None:
+            sys.modules.pop(module_name, None)
+        else:
+            sys.modules[module_name] = previous
+    lines = [str(line) for line in out]
+    return {"as_line": any(probe in line for line in lines),
+            "anywhere": probe in "".join(lines),
+            "asked": bool(spy.invoked),
+            "rendering": sorted(set(spy.invoked)) or None,
+            "accessed": sorted(set(spy.accessed)) or None,
+            "non_text": sorted(set(spy.non_text)) or None,
+            "door_lines": len(lines), "why": ""}
+
+
+def report_line_census(stamp_reader: dict, root: Path, data_dir: Path, *,
+                       probe: str = REPORT_LINE_PROBE,
+                       now: Optional[datetime] = None) -> dict:
+    """ДОЙДЁТ ЛИ СТРОКА ОТЧЁТА до цикла — ВОСЬМАЯ секция (ADR-823, заказ G822).
+
+    ADR-822 ответил про штамп: канал дёшев (одна правка — 153 артефакта), а
+    читателя у него нет (144 из 153 пришли бы немыми). И нашёл четвёрку, чей
+    читатель умеет пожаловаться только на ОТСУТСТВИЕ штампа. Заказ G822
+    запретил платить за эту четвёрку прежде, чем спрошена цена ЕЁ строки:
+
+        «Правка выглядит как одна строка ``provenance_line(...)`` в каждом
+        ``report()`` — но прежде замерить то же, что замерил этот цикл про
+        общую дверь: есть ли у СТРОКИ отчёта этих четырёх читатель, доходящий
+        до цикла. У одиннадцати читающих он измерен, у этих четырёх — НЕ
+        ИЗМЕРЕН ни разу. Четыре правки, читателя у которых нет, суть тот же
+        класс, что 144 немых штампа, только дешевле и потому соблазнительнее.»
+
+    **Здесь ТРИ числа, и они не складываются** — тот же порядок, что у
+    ADR-820/821/822:
+
+    ``inventory``
+        перепись по ВСЕЙ конституции: дойдёт ли строка у каждого артефакта.
+    ``population_absence_only``
+        четвёрка ADR-822, взятая ССЫЛКОЙ у СЕДЬМОЙ секции (её ``findings``) —
+        это и есть население вопроса G822 п. 1.
+    ``population_mute``
+        «читатель НЕМ» СЕДЬМОЙ секции, взятое ССЫЛКОЙ, — население вопроса
+        G822 п. 2, где заказ требовал разделить немоту по причине ТОЛЬКО после
+        замера населения.
+
+    **ОТВЕТ G822 п. 1 (замер 26.10): цена ПОЛОЖИТЕЛЬНА, и это противоположно
+    ответу про штамп.** У трёх из четырёх строка приходит в вывод шага 0-офис
+    ОТДЕЛЬНОЙ строкой ⇒ правка будет прочитана. У четвёртого
+    (``data/vacuous_advice_census.json``) она приходит ПОСИМВОЛЬНО: его
+    ``format_report`` отдаёт ОДНУ строку (его CLI её печатает), а ветка двери
+    делала ``out.extend(...)`` — и отчёт стоял в выводе цикла столбиком из
+    **731** одиночной буквы. Это НАХОДКА, а не ответ: канал есть, сообщения
+    нет, и ни один сторож об этом не сказал.
+
+    **ОТВЕТ G822 п. 2: немота делится замером, и одно из состояний — ноль.**
+    «Дверь не спросила отрисовку вовсе» — **34** артефакта из 139
+    адресованных: их дверь печатает СВОИМИ строками, и правка в отрисовке
+    производителя была бы нема при любом содержании. «Спросила и уронила» —
+    **0**: население пусто, и делить его дальше не на чем (G820 п. 2).
+
+    Вердикты сроков эта перепись не переписывает ни одним числом — тот же
+    порядок, что у ADR-816/817/819/820/821/822 (заказ G815 п. 2).
+    """
+    section = stamp_reader if isinstance(stamp_reader, dict) else {}
+    if section.get("status") != "OK" or not isinstance(section.get("rows"), list):
+        return {"status": slo_proposal.REPORT_LINE_UNMEASURED,
+                "cause": ("адресность артефактов НЕ ИЗМЕРЕНА — седьмая секция "
+                          "(`declared_stamp_reader`) не дала строк: "
+                          f"{section.get('cause') or section.get('status') or 'секции нет'}"),
+                "door": None, "inventory": None, "inventory_population": None,
+                "population_absence_only": None, "population_mute": None,
+                "absence_only_tally": None, "mute_tally": None,
+                "rows": None, "findings": None}
+    door, why = stamp_reader_door(Path(root))
+    if door is None:
+        return {"status": slo_proposal.REPORT_LINE_UNMEASURED,
+                "cause": f"измеренная дверь чтения НЕ ОПРОШЕНА: {why}",
+                "door": None, "inventory": None, "inventory_population": None,
+                "population_absence_only": None, "population_mute": None,
+                "absence_only_tally": None, "mute_tally": None,
+                "rows": None, "findings": None}
+    dd = Path(data_dir)
+    rows: list = []
+    inventory: dict = {}
+    for source in section["rows"]:
+        if not isinstance(source, dict) or not source.get("artifact"):
+            continue
+        artifact = str(source["artifact"])
+        # Адресность берётся ССЫЛКОЙ у СЕДЬМОЙ секции: там она измерена у
+        # ЕДИНСТВЕННОГО читателя правила отбора (`office_targets`). Второе
+        # определение адресности разошлось бы с первым молча.
+        addressed = source.get("addressed")
+        obs = {"as_line": None, "anywhere": None, "asked": None, "why": ""}
+        module_name = None
+        if addressed is True:
+            module_name, why = report_line_producer(door, artifact)
+            if module_name is None:
+                obs["why"] = why
+            else:
+                obs = report_line_observation(
+                    door, module_name, artifact_file(artifact, Path(root), dd),
+                    root=Path(root), artifact_root=dd.parent, probe=probe,
+                    now=now)
+        kind, why = slo_proposal.report_line(
+            obs.get("as_line"), obs.get("anywhere"),
+            addressed=addressed, asked=obs.get("asked"))
+        inventory[kind] = inventory.get(kind, 0) + 1
+        rows.append({"artifact": artifact, "line": kind,
+                     "addressed": addressed, "producer": module_name,
+                     "as_line": obs.get("as_line"),
+                     "anywhere": obs.get("anywhere"),
+                     "asked": obs.get("asked"),
+                     "rendering": obs.get("rendering"),
+                     "accessed": obs.get("accessed"),
+                     "door_lines": obs.get("door_lines"),
+                     "note": f"{why}; {obs['why']}" if obs.get("why") else why})
+
+    by_artifact = {row["artifact"]: row for row in rows}
+
+    def _population(source_rows, label):
+        """Население вопроса — ССЫЛКОЙ у седьмой секции, не счётом заново."""
+        out = []
+        for source in source_rows or []:
+            if not isinstance(source, dict) or not source.get("artifact"):
+                continue
+            mine = by_artifact.get(str(source["artifact"]))
+            out.append({
+                "artifact": str(source["artifact"]),
+                "stamp_reader": source.get("reader"),
+                "line": (mine or {}).get("line") or slo_proposal.REPORT_LINE_UNMEASURED,
+                "rendering": (mine or {}).get("rendering"),
+            })
+        return out
+
+    absence_only = _population(section.get("findings"), "absence_only")
+    mute = _population([row for row in section["rows"]
+                        if isinstance(row, dict)
+                        and row.get("reader") == slo_proposal.READER_MUTE], "mute")
+    absence_tally: dict = {}
+    for row in absence_only:
+        absence_tally[row["line"]] = absence_tally.get(row["line"], 0) + 1
+    mute_tally: dict = {}
+    for row in mute:
+        mute_tally[row["line"]] = mute_tally.get(row["line"], 0) + 1
+    return {
+        "status": "OK",
+        "door": str(Path(root) / "scripts" / "consume_office_reports.py"),
+        "probe": probe,
+        "probe_position": REPORT_LINE_POSITION,
+        "inventory": inventory,
+        "inventory_population": len(rows),
+        "population_absence_only": len(absence_only),
+        "population_absence_only_rows": absence_only,
+        "absence_only_tally": absence_tally,
+        "population_mute": len(mute),
+        "mute_tally": mute_tally,
+        "data_dir": str(dd),
+        # НАХОДКА — отчёт, доезжающий до цикла ПОСИМВОЛЬНО. «Дверь не спросила»
+        # находкой НЕ является: это ОТВЕТ заказа про немоту (правка там будет
+        # нема), а не дефект проводки — у двери свои строки, и она их печатает.
+        "findings": [row for row in rows
+                     if row["line"] == slo_proposal.REPORT_LINE_SHREDDED],
+        "rows": rows,
+    }
+
+
+def report_line_line(doc: dict) -> str:
+    """Строка ЦЕНЫ СТРОКИ ОТЧЁТА. Единственная её форма, читатель — :func:`report`.
+
+    Тот же выбор читателя и та же измеренная причина, что у
+    :func:`stamp_reader_line` и родни (ADR-820): строка, которую печатает
+    только ``findings_bridge``, уходит в лог агента, а не в вывод шага 0-офис.
+    """
+    section = observed(doc, "declared_report_line_reader", kind=dict)
+    if section is None:
+        return ("  цена строки отчёта: НЕ ИЗМЕРЕНО — секции "
+                "`declared_report_line_reader` в замере нет (отчёт написан "
+                "производителем ДО ADR-823)")
+    if section.get("status") != "OK":
+        return ("  цена строки отчёта: НЕ ИЗМЕРЕНО — "
+                f"{section.get('cause') or 'причина не названа'}")
+    inventory = observed(section, "inventory", kind=dict) or {}
+    absence = observed(section, "absence_only_tally", kind=dict) or {}
+    mute = observed(section, "mute_tally", kind=dict) or {}
+    findings = section.get("findings") or []
+    names = ", ".join(str(row.get("artifact")) for row in findings)
+    return (
+        "  цена строки отчёта (ADR-823, в сумму вердиктов НЕ входит): по ВСЕЙ "
+        f"конституции ({section.get('inventory_population')} артефакт(ов)) "
+        f"строка ДОШЛА БЫ у {inventory.get(slo_proposal.REPORT_LINE_READ, 0)}"
+        f" · дошла бы ПОСИМВОЛЬНО у "
+        f"{inventory.get(slo_proposal.REPORT_LINE_SHREDDED, 0)}"
+        f"{f' ({names})' if names else ''} · дверь отрисовку НЕ СПРАШИВАЕТ у "
+        f"{inventory.get(slo_proposal.REPORT_RENDERING_NOT_ASKED, 0)} · спросила "
+        f"и УРОНИЛА у {inventory.get(slo_proposal.REPORT_LINE_DROPPED, 0)} · "
+        f"двери НЕ адресовано "
+        f"{inventory.get(slo_proposal.REPORT_LINE_NOT_ADDRESSED, 0)} · НЕ "
+        f"ИЗМЕРЕНО {inventory.get(slo_proposal.REPORT_LINE_UNMEASURED, 0)}; у "
+        f"ЧЕТВЁРКИ ADR-822 ({section.get('population_absence_only')}) дошла бы у "
+        f"{absence.get(slo_proposal.REPORT_LINE_READ, 0)}, посимвольно у "
+        f"{absence.get(slo_proposal.REPORT_LINE_SHREDDED, 0)}; у НЕМОТЫ "
+        f"({section.get('population_mute')}) дверь не спрашивает отрисовку у "
+        f"{mute.get(slo_proposal.REPORT_RENDERING_NOT_ASKED, 0)}, уронила у "
+        f"{mute.get(slo_proposal.REPORT_LINE_DROPPED, 0)} — ЧИТАТЕЛЬ ШТАМПА и "
+        "ЧИТАТЕЛЬ СТРОКИ это РАЗНЫЕ вопросы, и второй отвечает «да» там, где "
+        "первый ответил «нет»")
+
 def write_attribution_line(doc: dict) -> str:
     """Строка КАНАЛА АТРИБУЦИИ. Единственная её форма.
 
@@ -2284,6 +2660,12 @@ def measure(manifest_path: Optional[Path] = None, *, log_dir: Path = Path("/tmp"
     # сдвиге дерева кода.
     _price_section = write_stamp_price_census(
         _attribution_section, agents, base, data)
+    # Замер СЕДЬМОЙ секции тоже считается ОДИН раз: её строки суть население
+    # вопроса для ВОСЬМОЙ (ADR-823) и источник её адресности, и второй
+    # независимый прогон дал бы два разных ответа про один артефакт при любом
+    # сдвиге содержимого файла.
+    _reader_section = stamp_reader_census(
+        _price_section, agents, base, data, manifest=payload, now=now)
     return {
         "status": "OK",
         "generated_at": _stamp(now),
@@ -2340,8 +2722,17 @@ def measure(manifest_path: Optional[Path] = None, *, log_dir: Path = Path("/tmp"
         # штамп, если правка его принесёт. ШЕСТАЯ секция подаётся ей входом
         # (население вопроса — её строки с ценой «одна правка», взятые ССЫЛКОЙ),
         # и её «НЕ ИЗМЕРЕНО» остаётся «НЕ ИЗМЕРЕНО», а не превращается в ноль.
-        "declared_stamp_reader": stamp_reader_census(
-            _price_section, agents, base, data, manifest=payload, now=now),
+        "declared_stamp_reader": _reader_section,
+        # ЦЕНА СТРОКИ ОТЧЁТА — ВОСЬМАЯ секция (ADR-823, заказ G822 пп. 1–2).
+        # Как и семь предыдущих, в `tally`/`verdict` не входит ни одним числом:
+        # предмет у неё не срок, не канал, не цена штампа и не его читатель, а
+        # то, ДОЙДЁТ ЛИ ДО ЦИКЛА одна строка, добавленная в отрисовку
+        # производителя. СЕДЬМАЯ секция подаётся ей входом: оба населения
+        # вопроса (четвёрка «замечено только отсутствие» и немота) берутся
+        # ССЫЛКОЙ, а адресность — измеренной ею же, и её «НЕ ИЗМЕРЕНО»
+        # остаётся «НЕ ИЗМЕРЕНО», а не превращается в ноль.
+        "declared_report_line_reader": report_line_census(
+            _reader_section, base, data, now=now),
         "rows": rows,
         "findings": findings,
         "measured_from": {"manifest": str(manifest), "log_dir": str(log_dir),
@@ -2521,6 +2912,11 @@ def report(doc: dict, max_rows: int = 12) -> list:
     lines.append(write_stamp_price_line(doc))
     # ЧИТАТЕЛЬ ШТАМПА — строка ЗДЕСЬ по той же измеренной причине (ADR-820).
     lines.append(stamp_reader_line(doc))
+    # ЦЕНА СТРОКИ ОТЧЁТА — строка ЗДЕСЬ по той же измеренной причине (ADR-820),
+    # и для ЭТОЙ секции причина не просто унаследована: её предмет — судьба
+    # строки отчёта в выводе шага 0-офис, и жить ей в выводе, которого цикл не
+    # читает, значило бы мерить себя мимо себя.
+    lines.append(report_line_line(doc))
     causes = observed(doc, "unmeasured_causes", kind=dict) or {}
     if causes:
         lines.append("  такт НЕ наблюдён, по причинам: " + " · ".join(

@@ -4014,7 +4014,15 @@ def _summarize_json(path: str, data, *, now: dt.datetime | None = None,
         # исход, не доехавший до читателя. Правило отрисовки делегируется
         # ПРОИЗВОДИТЕЛЮ; ввоз ОДНОСТРОЧНЫЙ.
         from spa_core.monitoring.vacuous_advice_census import format_report as _vac_report
-        out.extend(_vac_report(data))
+        # ADR-823: `format_report` этого производителя отдаёт ОДНУ СТРОКУ (его
+        # CLI её печатает `print`-ом), а `out.extend(<строка>)` раскладывает
+        # строку ПОСИМВОЛЬНО — замер 26.10 на живом выводе шага 0-офис: **731**
+        # одиночная буква столбиком вместо отчёта. Канал был, сообщения не
+        # было, и ни один сторож об этом не сказал: он честно отвечал, что
+        # артефакт ПРОЧИТАН. Чиним ЗДЕСЬ, а не у производителя: вернуть из
+        # `format_report` список значило бы сломать его собственный CLI,
+        # который печатает ровно одну сводку.
+        out.extend(str(_vac_report(data)).splitlines())
     elif name == "ledger_parse_census.json":
         # Карточка inbox-u-pribora-perepisi-razborov-lenty-net-ch (ADR-785). Без этой
         # ветки артефакт читался бы ВХОЛОСТУЮ: файл открыт, а в контекст не попадает

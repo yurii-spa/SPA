@@ -1,0 +1,254 @@
+{
+ "title": "ADR-823 — дельта цикла #947 (дойдёт ли строка отчёта до цикла)",
+ "tests": [
+  "spa_core/tests/test_slo_report_line_reader.py"
+ ],
+ "mutations": [
+  {
+   "name": "НЕ АДРЕСОВАННЫЙ артефакт судится по отрисовке, которой у него не бывает",
+   "file": "spa_core/monitoring/slo_proposal.py",
+   "old": "    if not addressed:\n        return REPORT_LINE_NOT_ADDRESSED, (",
+   "new": "    if False:\n        return REPORT_LINE_NOT_ADDRESSED, ("
+  },
+  {
+   "name": "АДРЕСНОСТЬ спрашивается ПОСЛЕ исхода отрисовки — порядок перевёрнут",
+   "file": "spa_core/monitoring/slo_proposal.py",
+   "old": "    if not addressed:\n        return REPORT_LINE_NOT_ADDRESSED, (",
+   "new": "    if not addressed and as_line is None:\n        return REPORT_LINE_NOT_ADDRESSED, ("
+  },
+  {
+   "name": "НЕ ИЗМЕРЕННАЯ адресность выдаётся за «дверь его не читает»",
+   "file": "spa_core/monitoring/slo_proposal.py",
+   "old": "    if addressed is None:\n        return REPORT_LINE_UNMEASURED, (\n            \"адресован ли артефакт измеренной двери — НЕ ИЗМЕРЕНО: про судьбу \"",
+   "new": "    if False:\n        return REPORT_LINE_UNMEASURED, (\n            \"адресован ли артефакт измеренной двери — НЕ ИЗМЕРЕНО: про судьбу \""
+  },
+  {
+   "name": "АДРЕСНОСТЬ судится правдивостью, а не родом",
+   "file": "spa_core/monitoring/slo_proposal.py",
+   "old": "    if not isinstance(addressed, bool):\n        return REPORT_LINE_UNMEASURED, (\n            f\"адресность артефакта двери не разобрана ({addressed!r}) — про \"",
+   "new": "    if False:\n        return REPORT_LINE_UNMEASURED, (\n            f\"адресность артефакта двери не разобрана ({addressed!r}) — про \""
+  },
+  {
+   "name": "СТРОКА объявляется дошедшей ВСЕГДА — «посимвольно» и «не дошла» исчезают",
+   "file": "spa_core/monitoring/slo_proposal.py",
+   "old": "    if as_line:\n        return REPORT_LINE_READ, (",
+   "new": "    if True:\n        return REPORT_LINE_READ, ("
+  },
+  {
+   "name": "НЕ СОСТОЯВШАЯСЯ отрисовка выдаётся за «строка не дошла» — fail-OPEN",
+   "file": "spa_core/monitoring/slo_proposal.py",
+   "old": "    if as_line is None:\n        return REPORT_LINE_UNMEASURED, (",
+   "new": "    if False:\n        return REPORT_LINE_UNMEASURED, ("
+  },
+  {
+   "name": "ИСХОД «пришла строкой» судится правдивостью, а не родом",
+   "file": "spa_core/monitoring/slo_proposal.py",
+   "old": "    if not isinstance(as_line, bool):\n        return REPORT_LINE_UNMEASURED, (",
+   "new": "    if False:\n        return REPORT_LINE_UNMEASURED, ("
+  },
+  {
+   "name": "ПОСИМВОЛЬНЫЙ приход сливается с «не дошла» — находка исчезает",
+   "file": "spa_core/monitoring/slo_proposal.py",
+   "old": "    if anywhere:\n        return REPORT_LINE_SHREDDED, (",
+   "new": "    if False:\n        return REPORT_LINE_SHREDDED, ("
+  },
+  {
+   "name": "ПОСИМВОЛЬНЫЙ приход объявляется ВСЕГДА — «не дошла» исчезает",
+   "file": "spa_core/monitoring/slo_proposal.py",
+   "old": "    if anywhere:\n        return REPORT_LINE_SHREDDED, (",
+   "new": "    if True:\n        return REPORT_LINE_SHREDDED, ("
+  },
+  {
+   "name": "НЕ ИЗМЕРЕННЫЕ буквы выдаются за «букв нет»",
+   "file": "spa_core/monitoring/slo_proposal.py",
+   "old": "    if anywhere is None:\n        return REPORT_LINE_UNMEASURED, (",
+   "new": "    if False:\n        return REPORT_LINE_UNMEASURED, ("
+  },
+  {
+   "name": "ИСХОД «пришла вообще» судится правдивостью, а не родом",
+   "file": "spa_core/monitoring/slo_proposal.py",
+   "old": "    if not isinstance(anywhere, bool):\n        return REPORT_LINE_UNMEASURED, (",
+   "new": "    if False:\n        return REPORT_LINE_UNMEASURED, ("
+  },
+  {
+   "name": "«ДВЕРЬ НЕ СПРАШИВАЛА» сливается с «спросила и уронила» — лечится разным",
+   "file": "spa_core/monitoring/slo_proposal.py",
+   "old": "    if asked:\n        return REPORT_LINE_DROPPED, (",
+   "new": "    if True:\n        return REPORT_LINE_DROPPED, ("
+  },
+  {
+   "name": "НЕ ИЗМЕРЕННЫЙ зов выдаётся за «не спрашивала»",
+   "file": "spa_core/monitoring/slo_proposal.py",
+   "old": "    if asked is None:\n        return REPORT_LINE_UNMEASURED, (",
+   "new": "    if False:\n        return REPORT_LINE_UNMEASURED, ("
+  },
+  {
+   "name": "ЗОВ судится правдивостью, а не родом",
+   "file": "spa_core/monitoring/slo_proposal.py",
+   "old": "    if not isinstance(asked, bool):\n        return REPORT_LINE_UNMEASURED, (",
+   "new": "    if False:\n        return REPORT_LINE_UNMEASURED, ("
+  },
+  {
+   "name": "ПРОБА ПУСТА: поиск её в любом выводе истинен всегда (зелёная при любом значении)",
+   "file": "spa_core/monitoring/slo_keepability.py",
+   "old": "REPORT_LINE_PROBE = \"⟦SPA-ПРОБА-СТРОКИ-ОТЧЁТА-ADR-823⟧\"",
+   "new": "REPORT_LINE_PROBE = \"\""
+  },
+  {
+   "name": "ПУСТАЯ проба принимается, а не отвергается — вакуумный вердикт",
+   "file": "spa_core/monitoring/slo_keepability.py",
+   "old": "    if not probe:\n        return {\"as_line\": None,",
+   "new": "    if False:\n        return {\"as_line\": None,"
+  },
+  {
+   "name": "МЕСТО пробы уехало с места предлагаемой правки",
+   "file": "spa_core/monitoring/slo_keepability.py",
+   "old": "REPORT_LINE_POSITION = 1",
+   "new": "REPORT_LINE_POSITION = 0"
+  },
+  {
+   "name": "ЗОВ отрисовки-СТРОКИ не записывается — авария 26.10 читается как «не спрашивала»",
+   "file": "spa_core/monitoring/slo_keepability.py",
+   "old": "            if isinstance(result, str):\n                spy.__dict__[\"invoked\"].append(name)",
+   "new": "            if isinstance(result, str):\n                pass"
+  },
+  {
+   "name": "ПРОБА в отрисовку-СТРОКУ не вкладывается — посимвольный приход невидим",
+   "file": "spa_core/monitoring/slo_keepability.py",
+   "old": "                head, sep, rest = result.partition(\"\\n\")\n                return head + \"\\n\" + probe + (sep + rest if sep else \"\")",
+   "new": "                head, sep, rest = result.partition(\"\\n\")\n                return result"
+  },
+  {
+   "name": "ВОЗВРАТ НЕ-ТЕКСТА считается зовом отрисовки — «позвала помощника» = «уронила строку»",
+   "file": "spa_core/monitoring/slo_keepability.py",
+   "old": "            spy.__dict__[\"non_text\"].append(name)\n            return result",
+   "new": "            spy.__dict__[\"invoked\"].append(name)\n            return result"
+  },
+  {
+   "name": "ДОСТУП к атрибуту не записывается — «спросила константу» неотличимо от «не спрашивала»",
+   "file": "spa_core/monitoring/slo_keepability.py",
+   "old": "        self.__dict__[\"accessed\"].append(name)\n        if not callable(value):",
+   "new": "        if not callable(value):"
+  },
+  {
+   "name": "ПРОБА вкладывается в ХВОСТ списка, а не на место правки",
+   "file": "spa_core/monitoring/slo_keepability.py",
+   "old": "                lines.insert(min(position, len(lines)), probe)",
+   "new": "                lines.append(probe)"
+  },
+  {
+   "name": "ОБА ВОПРОСА сводятся в один: «пришла строкой» мерится склейкой",
+   "file": "spa_core/monitoring/slo_keepability.py",
+   "old": "    return {\"as_line\": any(probe in line for line in lines),\n            \"anywhere\": probe in \"\".join(lines),",
+   "new": "    return {\"as_line\": probe in \"\".join(lines),\n            \"anywhere\": probe in \"\".join(lines),"
+  },
+  {
+   "name": "ВТОРОЙ ВОПРОС подменяется первым: буквы мерятся построчно",
+   "file": "spa_core/monitoring/slo_keepability.py",
+   "old": "    return {\"as_line\": any(probe in line for line in lines),\n            \"anywhere\": probe in \"\".join(lines),",
+   "new": "    return {\"as_line\": any(probe in line for line in lines),\n            \"anywhere\": any(probe in line for line in lines),"
+  },
+  {
+   "name": "ЗОВ мерится ДОСТУПОМ, а не зовом отрисовки",
+   "file": "spa_core/monitoring/slo_keepability.py",
+   "old": "            \"asked\": bool(spy.invoked),",
+   "new": "            \"asked\": bool(spy.accessed),"
+  },
+  {
+   "name": "ПОДСТАВНОЙ модуль остаётся в sys.modules — отвечает вместо настоящего всем",
+   "file": "spa_core/monitoring/slo_keepability.py",
+   "old": "    finally:\n        if previous is None:\n            sys.modules.pop(module_name, None)\n        else:\n            sys.modules[module_name] = previous",
+   "new": "    finally:\n        pass"
+  },
+  {
+   "name": "ОТКАЗ чужой двери становится вердиктом «не дошла»",
+   "file": "spa_core/monitoring/slo_keepability.py",
+   "old": "    except Exception as exc:  # отказ ЧУЖОЙ двери — третий исход, не вердикт\n        return {\"as_line\": None, \"anywhere\": None, \"asked\": None,",
+   "new": "    except Exception as exc:  # отказ ЧУЖОЙ двери — третий исход, не вердикт\n        return {\"as_line\": False, \"anywhere\": False, \"asked\": None,"
+  },
+  {
+   "name": "НЕРАЗОБРАННЫЙ носитель выдаётся за «строка не дошла»",
+   "file": "spa_core/monitoring/slo_keepability.py",
+   "old": "    except (OSError, ValueError) as exc:\n        return {\"as_line\": None, \"anywhere\": None, \"asked\": None,\n                \"why\": f\"носитель не разобран как JSON",
+   "new": "    except (OSError, ValueError) as exc:\n        return {\"as_line\": False, \"anywhere\": False, \"asked\": False,\n                \"why\": f\"носитель не разобран как JSON"
+  },
+  {
+   "name": "НЕВВОЗИМЫЙ модуль производителя выдаётся за «отрисовки нет»",
+   "file": "spa_core/monitoring/slo_keepability.py",
+   "old": "    except Exception as exc:  # чужой модуль — его отказ не наш вердикт\n        return {\"as_line\": None, \"anywhere\": None, \"asked\": None,\n                \"why\": f\"модуль производителя",
+   "new": "    except Exception as exc:  # чужой модуль — его отказ не наш вердикт\n        return {\"as_line\": False, \"anywhere\": False, \"asked\": False,\n                \"why\": f\"модуль производителя"
+  },
+  {
+   "name": "КАРТА производителей двери подменяется догадкой по имени артефакта",
+   "file": "spa_core/monitoring/slo_keepability.py",
+   "old": "    table = getattr(door, \"_PRODUCER\", None)",
+   "new": "    table = getattr(door, \"_PRODUCER\", None) or {}"
+  },
+  {
+   "name": "АРТЕФАКТ вне карты получает ВЫДУМАННЫЙ модуль вместо третьего исхода",
+   "file": "spa_core/monitoring/slo_keepability.py",
+   "old": "    if not isinstance(path, str) or not path.endswith(\".py\"):\n        return None, (\"измеренная дверь не называет производителя этого \"",
+   "new": "    if False:\n        return None, (\"измеренная дверь не называет производителя этого \""
+  },
+  {
+   "name": "АДРЕСНОСТЬ считается ЗАНОВО, а не берётся у седьмой секции",
+   "file": "spa_core/monitoring/slo_keepability.py",
+   "old": "        addressed = source.get(\"addressed\")",
+   "new": "        addressed = True"
+  },
+  {
+   "name": "СЛОМАННАЯ седьмая секция даёт НОЛЬ вместо «НЕ ИЗМЕРЕНО»",
+   "file": "spa_core/monitoring/slo_keepability.py",
+   "old": "    if section.get(\"status\") != \"OK\" or not isinstance(section.get(\"rows\"), list):\n        return {\"status\": slo_proposal.REPORT_LINE_UNMEASURED,\n                \"cause\": (\"адресность артефактов НЕ ИЗМЕРЕНА",
+   "new": "    if False:\n        return {\"status\": slo_proposal.REPORT_LINE_UNMEASURED,\n                \"cause\": (\"адресность артефактов НЕ ИЗМЕРЕНА"
+  },
+  {
+   "name": "НАХОДКОЙ объявляется немота, а не посимвольный приход",
+   "file": "spa_core/monitoring/slo_keepability.py",
+   "old": "        \"findings\": [row for row in rows\n                     if row[\"line\"] == slo_proposal.REPORT_LINE_SHREDDED],",
+   "new": "        \"findings\": [row for row in rows\n                     if row[\"line\"] == slo_proposal.REPORT_RENDERING_NOT_ASKED],"
+  },
+  {
+   "name": "НАСЕЛЕНИЕ НЕМОТЫ берётся у находок седьмой секции, а не у её немых строк",
+   "file": "spa_core/monitoring/slo_keepability.py",
+   "old": "    mute = _population([row for row in section[\"rows\"]\n                        if isinstance(row, dict)\n                        and row.get(\"reader\") == slo_proposal.READER_MUTE], \"mute\")",
+   "new": "    mute = _population(section.get(\"findings\"), \"mute\")"
+  },
+  {
+   "name": "ОТСУТСТВИЕ двери даёт пустую перепись вместо «НЕ ИЗМЕРЕНО»",
+   "file": "spa_core/monitoring/slo_keepability.py",
+   "old": "    if door is None:\n        return {\"status\": slo_proposal.REPORT_LINE_UNMEASURED,\n                \"cause\": f\"измеренная дверь чтения НЕ ОПРОШЕНА: {why}\",",
+   "new": "    if False:\n        return {\"status\": slo_proposal.REPORT_LINE_UNMEASURED,\n                \"cause\": f\"измеренная дверь чтения НЕ ОПРОШЕНА: {why}\","
+  },
+  {
+   "name": "СЕКЦИЯ попадает в документ под ДРУГИМ именем (та же мутация, что выжила у ADR-820/821)",
+   "file": "spa_core/monitoring/slo_keepability.py",
+   "old": "        \"declared_report_line_reader\": report_line_census(",
+   "new": "        \"declared_report_line_reader_v2\": report_line_census("
+  },
+  {
+   "name": "СТРОКА секции не печатается в отчёте — находка без читателя внутри цикла",
+   "file": "spa_core/monitoring/slo_keepability.py",
+   "old": "    lines.append(report_line_line(doc))",
+   "new": "    pass"
+  },
+  {
+   "name": "ОТСУТСТВИЕ секции печатается МОЛЧА вместо «НЕ ИЗМЕРЕНО»",
+   "file": "spa_core/monitoring/slo_keepability.py",
+   "old": "    if section is None:\n        return (\"  цена строки отчёта: НЕ ИЗМЕРЕНО — секции \"",
+   "new": "    if False:\n        return (\"  цена строки отчёта: НЕ ИЗМЕРЕНО — секции \""
+  },
+  {
+   "name": "СЕДЬМАЯ секция считается ВТОРОЙ РАЗ — два ответа про один артефакт",
+   "file": "spa_core/monitoring/slo_keepability.py",
+   "old": "        \"declared_report_line_reader\": report_line_census(\n            _reader_section, base, data, now=now),",
+   "new": "        \"declared_report_line_reader\": report_line_census(\n            stamp_reader_census(_price_section, agents, base, data,\n                                manifest=payload, now=now),\n            base, data, now=now),"
+  },
+  {
+   "name": "ПРАВКА ДВЕРИ ОТКАЧЕНА: отчёт снова раскладывается ПОСИМВОЛЬНО (авария 26.10)",
+   "file": "scripts/consume_office_reports.py",
+   "old": "        out.extend(str(_vac_report(data)).splitlines())",
+   "new": "        out.extend(_vac_report(data))"
+  }
+ ]
+}
