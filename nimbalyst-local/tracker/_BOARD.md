@@ -2,11 +2,11 @@
 
 > Авто-генерится `scripts/build_tracker_board.py` из `nimbalyst-local/tracker/*.md`. НЕ править вручную — правь карточки. Источник правды — карточки, это индекс (bootstrap).
 >
-> Собрана: 2026-10-27T00:16:16Z · сверка с карточками: `python3 scripts/build_tracker_board.py --check` (сторож `spa_core/tests/test_tracker_board_matches_cards.py`).
+> Собрана: 2026-10-27T18:38:39Z · сверка с карточками: `python3 scripts/build_tracker_board.py --check` (сторож `spa_core/tests/test_tracker_board_matches_cards.py`).
 >
-> Сверено с `origin/main` (0ec10c3a1) · у **1** своя правка, кто новее — не измерено.
+> Сверено с `origin/main` (599c8ed4f).
 >
-> Всего карточек: **1460** · ждёт владельца: **18** · занято сессиями: **15**.
+> Всего карточек: **1479** · ждёт владельца: **18** · занято сессиями: **15**.
 
 ## 🔴 ЖДЁТ ВЛАДЕЛЬЦА (needs-owner)
 
@@ -46,7 +46,7 @@
 - **Прогон тестов переписывает СОРОК git-tracked файлов в data/ (карточка #225/#226 считает, что их три) — среди них журнал исполнения** — держит `cycle-352` · с 2026-08-23T03:25:59Z  ·  `inbox-progon-testov-perepisyvaet-sorok-otslezhivaemyh-failov-data.md`
 - **Производители устаревших чисел сайта: дата go-live из API, сверка NAV до цикла, протухшие артефакты, молчащие стражи сайта** — держит `pid20023` · с 2026-09-08T21:15:05Z  ·  `inbox-proizvoditeli-ustarevshih-chisel-saita-d.md`
 - **Сторож ответа владельца зовёт человека на не-спор: 1 и "1" — одно решение, а сравниваются байты** — держит `cycle-84821` · с 2026-08-30T00:50:53Z  ·  `inbox-storozh-otveta-vladeltsa-zovet-cheloveka.md`
-- **TASK — Portfolio CIO: Dynamic Capital Allocation & Rebalancing** — держит `cycle-93004` · с 2026-10-26T23:22:38Z  ·  `inbox-task-portfolio-cio-dynamic-capital-alloc.md`
+- **TASK — Portfolio CIO: Dynamic Capital Allocation & Rebalancing** — держит `cycle-36175` · с 2026-10-27T16:22:16Z  ·  `inbox-task-portfolio-cio-dynamic-capital-alloc.md`
 - **Замок цикла оркестратора доставлен, но в проде не работает: обёртка агента синкается раз в сутки, а голос о пропавшей защите живёт в самом пропавшем файле** — держит `cycle-81141` · с 2026-08-08T01:59:06Z  ·  `inbox-zamok-tsikla-orkestratora-dostavlen-no-v.md`
 
 ## 🧑‍⚖️ Owner Decisions (что нужно от владельца)  (372)
@@ -446,7 +446,7 @@
 - Расширить опрашиваемый набор адаптеров шагами (второй шаг варианта A, после ADR-138)  ·  `inbox-rasshirit-oprashivaemyi-nabor-adapterov.md` · 2026-08-26
 - Сторож кнопок нарушает границу, которую сам объявил соблюдённой: метка-БУКВА принималась где угодно, и слово в прозе = «наш дефект разбора» с лекарством чинить НЕСУЩЕСТВУЮЩУЮ форму (перемер #484: ложная ОДНА из 21, не пять; п.1 исполнен)  ·  `inbox-storozh-knopok-narushaet-granitsu-kotoru.md` · 2026-09-04
 - Сторож переходов статусов ждёт первого улова: назвать немого писателя и встроить прогон в агента  ·  `inbox-storozh-perehodov-statusov-zhdet-pervogo.md` · 2026-08-09
-- TASK — Portfolio CIO: Dynamic Capital Allocation & Rebalancing  ·  `inbox-task-portfolio-cio-dynamic-capital-alloc.md` · 2026-08-13 · 🔒 `cycle-93004`
+- TASK — Portfolio CIO: Dynamic Capital Allocation & Rebalancing  ·  `inbox-task-portfolio-cio-dynamic-capital-alloc.md` · 2026-08-13 · 🔒 `cycle-36175`
 - Tier-C: 171 из 180 модулей не отвечают, 9 отвечающих — константы. Подключить или честно списать  ·  `inbox-tier-c-171-iz-180-modulei-ne-otvechayut.md` · 2026-08-06
 - Целостность трека SPA: подключить сторож, пересчёт из сырых входов, commit-reveal книги (перенос из earn-defi)  ·  `inbox-tselostnost-treka-spa-podklyuchit-storoz.md` · 2026-09-08
 - Цена класса «две сессии на одном предмете»: G38 п. 3 лежит остатком пятьдесят заказов  ·  `inbox-tsena-klassa-dve-sessii-na-odnom-predmet.md` · 2026-09-28
@@ -1246,7 +1246,7 @@
 - Запись ЗА другую сессию уезжает с якорем ЖИВОГО процесса писателя — чужой ярлык читается как ACTIVE  ·  `inbox-zapis-za-druguyu-sessiyu-uezzhaet-s-yako.md` · 2026-08-26
 - Журнал одного агента вырос до 4,85 ГБ и заполнил диск на 100 % — свободное место не меряет никто  ·  `inbox-zhurnal-odnogo-agenta-vyros-do-4-85-gb-i.md` · 2026-10-02
 
-## 🤖 Agent Tasks (что делает агент)  (198)
+## 🤖 Agent Tasks (что делает агент)  (217)
 
 ### · in-progress
 - 🅰🅰🅰 Продуктовый слой агентов (супер-студия)  ·  `agent-aaa-product-layer.md` · 2026-07-16
@@ -1430,6 +1430,25 @@
 - Красный CI-Lite невидим: гейт mypy живёт в workflow, который никто не смотрит, и его падение гасит две другие проверки  ·  `agent-task-krasnyi-ci-lite-nevidim-geit-mypy-zhivet.md` · 2026-08-03
 - Одно число — два вердикта: portfolio health 69.4 это CRITICAL у системного сторожа и WARNING у агентного  ·  `agent-task-odno-chislo-dva-verdikta-portfolio-healt.md` · 2026-08-07
 - Повторное дописывание файла в одном цикле дублирует содержимое: rebase_append считает хвост от устаревшей базы, а не от remote  ·  `agent-task-povtornoe-dopisyvanie-faila-v-odnom-tsik.md` · 2026-08-03
+- Повторяющийся сбой com.spa.analytics_tier_c: log_missing_(never_ran?)  ·  `agent-task-povtoryayuschiisya-sboi-com-spa-analytic.md` · 2026-10-15
+- Повторяющийся сбой com.spa.artifact_freshness: log_missing_(never_ran?)  ·  `agent-task-povtoryayuschiisya-sboi-com-spa-artifact.md` · 2026-10-15
+- Повторяющийся сбой com.spa.autopush: log_missing_(never_ran?)  ·  `agent-task-povtoryayuschiisya-sboi-com-spa-autopush.md` · 2026-10-15
+- Повторяющийся сбой com.spa.base_gas_monitor: log_missing_(never_ran?)  ·  `agent-task-povtoryayuschiisya-sboi-com-spa-base-gas.md` · 2026-10-15
+- Повторяющийся сбой com.spa.capital_shadow: log_missing_(never_ran?)  ·  `agent-task-povtoryayuschiisya-sboi-com-spa-capital.md` · 2026-10-15
+- Повторяющийся сбой com.spa.daily_cycle: log_missing_(never_ran?)  ·  `agent-task-povtoryayuschiisya-sboi-com-spa-daily-cy.md` · 2026-10-15
+- Повторяющийся сбой com.spa.digest_daily: log_missing_(never_ran?)  ·  `agent-task-povtoryayuschiisya-sboi-com-spa-digest-d.md` · 2026-10-15
+- Повторяющийся сбой com.spa.golive_freshness: log_missing_(never_ran?)  ·  `agent-task-povtoryayuschiisya-sboi-com-spa-golive-f.md` · 2026-10-15
+- Повторяющийся сбой com.spa.investment_cio: log_missing_(never_ran?)  ·  `agent-task-povtoryayuschiisya-sboi-com-spa-investme.md` · 2026-10-15
+- Повторяющийся сбой com.spa.mass_tournament: stale_log  ·  `agent-task-povtoryayuschiisya-sboi-com-spa-mass-tou.md` · 2026-10-15
+- Повторяющийся сбой com.spa.novel_edge_rnd: log_missing_(never_ran?)  ·  `agent-task-povtoryayuschiisya-sboi-com-spa-novel-ed.md` · 2026-10-15
+- Повторяющийся сбой com.spa.research_factory: log_missing_(never_ran?)  ·  `agent-task-povtoryayuschiisya-sboi-com-spa-research.md` · 2026-10-15
+- Повторяющийся сбой com.spa.resilience: log_missing_(never_ran?)  ·  `agent-task-povtoryayuschiisya-sboi-com-spa-resilien.md` · 2026-10-15
+- Повторяющийся сбой com.spa.resource_cleanup: log_missing_(never_ran?)  ·  `agent-task-povtoryayuschiisya-sboi-com-spa-resource-3.md` · 2026-10-15
+- Повторяющийся сбой com.spa.sky_monitor: log_missing_(never_ran?)  ·  `agent-task-povtoryayuschiisya-sboi-com-spa-sky-moni.md` · 2026-10-15
+- Повторяющийся сбой com.spa.telegram_milestone: log_missing_(never_ran?)  ·  `agent-task-povtoryayuschiisya-sboi-com-spa-telegram-2.md` · 2026-10-15
+- Повторяющийся сбой com.spa.tier1_governance: stale_log  ·  `agent-task-povtoryayuschiisya-sboi-com-spa-tier1-go.md` · 2026-10-15
+- Повторяющийся сбой com.spa.tournament_engine: stale_log  ·  `agent-task-povtoryayuschiisya-sboi-com-spa-tourname.md` · 2026-10-15
+- Повторяющийся сбой com.spa.work_digest: log_missing_(never_ran?)  ·  `agent-task-povtoryayuschiisya-sboi-com-spa-work-dig.md` · 2026-10-15
 - Сторож governance отчитывается «8 ok / 0 failed», не проверяя НИ ОДИН удерживаемый протокол — пересечение с портфелем пустое  ·  `agent-task-storozh-governance-otchityvaetsya-8-ok-0.md` · 2026-08-01
 - Сторож-автоперезапуск telegram_bot: маячок протух — бот перезапускается сам  ·  `agent-telegram-bot-watchdog.md` · 2026-08-21
 - Последнее падение на main — страж сети требует ПУСТОЙ журнал попыток, а к его очереди накоплено 2267 чужих записей  ·  `agent-telegram-guard-outermost-fails-only-in-full-run.md` · 2026-08-03
