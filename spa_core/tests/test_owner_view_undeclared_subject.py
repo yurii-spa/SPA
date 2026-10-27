@@ -6,7 +6,6 @@
 """
 from __future__ import annotations
 
-import re
 from pathlib import Path
 
 from spa_core.studio_os import owner_view as ov
@@ -37,6 +36,8 @@ def test_the_summary_counts_undeclared_questions_as_open():
 
 
 def test_the_ui_header_over_the_groups_does_not_claim_no_answer_is_needed():
-    js = _UI.read_text(encoding="utf-8")
-    for line in re.findall(r'"ux\.dec\.other_groups":\s*"([^"]*)"', js):
+    lines = [ln for ln in _UI.read_text(encoding="utf-8").splitlines() if '"ux.dec.other_groups":' in ln]
+    # ровно две строки — RU и EN; ноль значил бы, что ключ переименован и проверка стала пустой
+    assert len(lines) == 2, lines
+    for line in lines:
         assert "не нужен" not in line and "no answer needed" not in line.lower()
