@@ -97,6 +97,7 @@ echo "[$(ts)] ARMED: invoking headless Claude (novel-edge R&D, skip-permissions)
 nice -n 10 /Users/yuriikulieshov/miniconda3/bin/python3 "$REPO_ROOT/scripts/claude_run_with_timeout.py" \
     --timeout-s "${SPA_RND_TIMEOUT_S:-14400}" --grace-s 120 \
     --log "$LOG" --label novel_edge_rnd \
+    --ledger "$REPO_ROOT/data/claude_runs.jsonl" \
     -- "$CLAUDE_BIN" -p "$PROMPT" --dangerously-skip-permissions
 RC=$?
 echo "[$(ts)] === iteration END (claude exit $RC) ===" >> "$LOG"

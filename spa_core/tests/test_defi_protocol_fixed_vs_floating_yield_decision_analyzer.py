@@ -662,7 +662,7 @@ def test_analyze_all_numeric_finite(tmp_log):
          "floating_apr_volatility_pct": 20.0},
         {"current_floating_apr_pct": 0.001},
     ):
-        r = analyze(pos)
+        r = analyze(pos, config=tmp_log)
         s = json.dumps(r)
         d = json.loads(s)
         for k, v in d.items():

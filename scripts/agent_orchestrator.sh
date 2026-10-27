@@ -274,6 +274,7 @@ nice -n 10 "$PYTHON" "$REPO_ROOT/scripts/claude_run_with_timeout.py" \
     --timeout-s "${SPA_ORCHESTRATOR_TIMEOUT_S:-14400}" \
     --grace-s "${SPA_ORCHESTRATOR_KILL_GRACE_S:-120}" \
     --log "$LOG" --label orchestrator --run-id "$CYCLE_RUN_ID" \
+    --ledger "$REPO_ROOT/data/claude_runs.jsonl" \
     -- "$CLAUDE_BIN" -p "$PROMPT" --dangerously-skip-permissions
 RC=$?
 # Запись пульта, взятая этим циклом: «сделано» ставит только её проба, а не слово сессии.

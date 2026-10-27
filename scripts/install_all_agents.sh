@@ -757,6 +757,52 @@ install_agent \
     "$REPO/launchd/com.spa.work_digest.plist" \
     "com.spa.work_digest"
 
+# 27.10 (пакет STUDIO-OS-DELIVERY-AND-BACKLOG-01). Десять агентов, которые манифест держит
+#      `intent: active` (architecture/manifest.json) и которые РАБОТАЮТ (launchctl), ставились
+#      только руками — штатная переустановка флота их бы потеряла (fleet_parity: orphan-plist).
+#      plist в launchd/ сверены с установленными в ~/Library/LaunchAgents побайтно 27.10 —
+#      строки ниже ничего не меняют в их конфигурации, только делают установку воспроизводимой.
+#      Отложенные в карантин метки сюда НЕ добавляются (attic/agents/QUARANTINE.json).
+install_agent \
+    "$REPO/launchd/com.spa.capital_shadow.plist" \
+    "com.spa.capital_shadow"
+
+install_agent \
+    "$REPO/launchd/com.spa.gas_price_agent.plist" \
+    "com.spa.gas_price_agent"
+
+install_agent \
+    "$REPO/launchd/com.spa.investment_cio.plist" \
+    "com.spa.investment_cio"
+
+install_agent \
+    "$REPO/launchd/com.spa.mission_control.plist" \
+    "com.spa.mission_control"
+
+install_agent \
+    "$REPO/launchd/com.spa.mission_server.plist" \
+    "com.spa.mission_server"
+
+install_agent \
+    "$REPO/launchd/com.spa.research_factory.plist" \
+    "com.spa.research_factory"
+
+install_agent \
+    "$REPO/launchd/com.spa.resource_cleanup.plist" \
+    "com.spa.resource_cleanup"
+
+install_agent \
+    "$REPO/launchd/com.spa.resource_guard.plist" \
+    "com.spa.resource_guard"
+
+install_agent \
+    "$REPO/launchd/com.spa.director_build.plist" \
+    "com.spa.director_build"
+
+install_agent \
+    "$REPO/launchd/com.spa.director_server.plist" \
+    "com.spa.director_server"
+
 # ===========================================================================
 # ИТОГОВАЯ ТАБЛИЦА
 # ===========================================================================
