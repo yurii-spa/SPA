@@ -104,6 +104,10 @@ _SEVERITY = {OK: 0, WARNING: 1, CRITICAL: 2}
 SNAPSHOT_CADENCE_MIN = 60.0
 SNAPSHOT_STALE_MIN = 90.0
 
+#: ARB 27.10: resource_guard's documented exit contract (resource_guard.py: «0 OK · 1 WARN · 2 CRITICAL or NOT MEASURED»).
+RESOURCE_GUARD_LABEL = "com.spa.resource_guard"
+RESOURCE_GUARD_EXIT_WARN = 1
+
 # WAKE_STORM: N agents carrying a nonzero last exit at the same time = a mass
 # simultaneous failure (host wake / broken deploy / exec-bit strip), a distinct
 # CRITICAL signal even when each individual agent would only be WARNING.
@@ -1231,6 +1235,15 @@ def check_agent(label: str, plist: Optional[dict], parse_ok: bool,
             f"last_exit={health.last_exit} — {_cycle_exit_meaning}; "
             f"{_lock_refusal.words}"
         )
+    # literal label: the exit-code verdict census resolves the consumer's label by its literal value
+    elif (label == "com.spa.resource_guard" and health.last_exit == RESOURCE_GUARD_EXIT_WARN
+          and not _clean_signal_restart):
+        # ARB 27.10: у resource_guard код выхода — ВЕРДИКТ замера (0 OK · 1 WARN · 2 CRITICAL или не измерено).
+        # Код 1 — измеренное предупреждение о ресурсах, а не сбой агента: статус WARNING СОХРАНЁН (предупреждение
+        # видно), но причина названа своими словами, а не голым `last_exit=1` («агент упал»). Код 2 и прочие —
+        # прежней веткой ниже. Словарь применяется только к этой метке (fail-CLOSED, как у дневного цикла).
+        issues.append("ресурсы Мака: измерено WARN (память/своп) — код 1 по договору resource_guard, не сбой агента")
+        health.status = _worst(health.status, WARNING)
     elif health.last_exit not in (None, 0) and not _clean_signal_restart:
         _exit_text = (
             f"last_exit={health.last_exit}"
