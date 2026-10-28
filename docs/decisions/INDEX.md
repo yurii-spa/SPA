@@ -706,6 +706,7 @@
 | ADR-838 | Предел цены чтения стоял на одном файле: реестр решений — 1 574 806 символов | Accepted | [ADR-838](ADR-838-the-read-price-limit-was-set-on-one-file.md) |
 | ADR-840 | ADR-840 — Колонка «Заголовок» реестра решений приведена к заголовку: 1 574 973 → 136 610 символов | Accepted | [ADR-840](ADR-840-register-title-column-is-a-title.md) |
 | ADR-841 | ADR-841 — Вердикта CI на `main` не было четыре прогона подряд: версию pytest выбирал календарь, а не дерево | Accepted | [ADR-841](ADR-841-ci-pins-the-pytest-it-installs.md) |
+| ADR-842 | ADR-842 — Освобождение, заработанное замером, до своего файла не доезжало: запись R&D-реестра не называла свой скрипт | Accepted | [ADR-842](ADR-842-earned-carve-out-did-not-reach-its-script.md) |
 
 ## Соглашения
 
