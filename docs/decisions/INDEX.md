@@ -717,6 +717,8 @@
 | ADR-847 | ADR-847 — Ответ владельца «допуск ×3» получил ИСПОЛНИТЕЛЯ, и на нём вскрылся зелёный критерий при расхождении ×97 | Accepted | [ADR-847](ADR-847-owner-answer-of-27-10-gets-an-executor.md) |
 | ADR-848 | ADR-848 — Потолок размера читается как ФИЛЬТР предложений, а не как РАЗМЕР хода (вариант А приказа «Portfolio CIO» опровергнут) | Accepted | [ADR-848](ADR-848-proposal-is-never-cut-to-the-admissible-size.md) |
 
+| ADR-849 | ADR-849 — Эксплуатация 28.10: launchd в синхронизации кода, тесты не пишут в рабочие данные, стенды decision_loop клоном APFS | Accepted | [ADR-849](ADR-849-ops-launchd-sync-test-isolation-decision-loop.md) |
+
 ## Соглашения
 
 - Нумерация: `ADR-NNN` (сквозная) либо `ADR-YL-NNN` (Yield Lab слой), `ADR-OWN-YYYY-MM` (пакеты owner-решений).
