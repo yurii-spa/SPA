@@ -104,7 +104,7 @@ _READ_SCHEMA: dict[str, tuple[str, ...]] = {
     # четырнадцать верхних ключей, читается семь.
     "shadow_trigger_evaluation.json": ("status", "ready_to_arm", "observation_days",
                                       "counts.act", "criteria", "arming_blockade",
-                                      "trial_grant_reach"),
+                                      "trial_grant_reach", "admissible_size_reach"),
     # ADR-526, заказ G86 п. 4. `fails` объявлен вместе с `n_fails` намеренно:
     # число без перечня не говорит, ЧТО именно расходится, а перечень без числа
     # не отличает «нашли ноль» от «поле не пишется».
@@ -5315,8 +5315,14 @@ def _summarize_json(path: str, data, *, now: dt.datetime | None = None,
                 format_blockade, format_trial_reach,
             )
 
-            blockade_lines = (format_blockade(data.get("arming_blockade"))
-                              + format_trial_reach(data.get("trial_grant_reach")))
+            from spa_core.paper_trading.admissible_size import (
+                format_admissible_reach,
+            )
+
+            blockade_lines = (
+                format_blockade(data.get("arming_blockade"))
+                + format_trial_reach(data.get("trial_grant_reach"))
+                + format_admissible_reach(data.get("admissible_size_reach")))
         except Exception as exc:  # noqa: BLE001
             # Тот же приём, что у кнопок ниже: обязательный шаг 0-офис не имеет
             # права упасть из-за строчки оформления — упавший шаг это НЕ

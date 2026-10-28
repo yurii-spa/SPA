@@ -941,6 +941,18 @@ def evaluate_window(
         min_gain_pp=float(TriggerParams.for_mode("paper").min_gain_pp),
         acts=len(acts),
     )
+    # Третий соседний вопрос, и опять НЕ тот же самый. Два блока выше спрашивают
+    # про СНЯТИЕ стен (какой набор гейтов держит день; что освободится, если гейт
+    # принудительно пройдёт). Этот — про УРЕЗАНИЕ хода до потолка, который НИКТО
+    # не снимает: оценка идёт с другой стороны (нижняя граница вместо потолка),
+    # и прохождение здесь есть доказательство достижимости, а не её оценка.
+    from spa_core.paper_trading.admissible_size import admissible_size_reach
+
+    admissible = admissible_size_reach(
+        _window_history,
+        params=TriggerParams.for_mode("paper"),
+        acts=len(acts),
+    )
 
     doc = {
         "generated_at": None,  # filled below; kept out of the hash-relevant zone
@@ -971,6 +983,10 @@ def evaluate_window(
         # (ADR-334) снимает пять гейтов из девяти, поэтому «взвод недостижим» о
         # нём не говорит ничего. Тоже не критерий и не гейт.
         "trial_grant_reach": reach,
+        # Не критерий и не гейт — третий соседний вопрос: прошёл бы ход, УРЕЗАННЫЙ
+        # до допустимого размера (ADR-848). Снятие стены даёт потолок, урезание —
+        # нижнюю границу; из потолка достижимость не следует, из границы следует.
+        "admissible_size_reach": admissible,
         "params": {
             "horizon_days": horizon_days,
             "min_observation_days": min_days,
@@ -1135,6 +1151,9 @@ def format_summary(doc: dict) -> str:
                      f"(факт: {c['actual']}){note}")
     lines.extend(format_blockade(doc.get("arming_blockade")))
     lines.extend(format_trial_reach(doc.get("trial_grant_reach")))
+    from spa_core.paper_trading.admissible_size import format_admissible_reach
+
+    lines.extend(format_admissible_reach(doc.get("admissible_size_reach")))
     lines.append("Включение — отдельное owner-решение (pre_cutover_gate + ADR); "
                  "этот отчёт капитал не двигает.")
     return "\n".join(lines)

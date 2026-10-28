@@ -1,0 +1,92 @@
+{
+  "title": "#968 ADR-848 — предложение не урезается до допустимого размера (перепись достижимости урезанного хода)",
+  "tests": [
+    "spa_core/tests/test_admissible_size_reach.py"
+  ],
+  "mutations": [
+    {
+      "name": "окупаемость урезанного хода перестаёт быть ОЦЕНКОЙ СВЕРХУ (стоимость как будто тоже урезана) — находки родились бы из арифметики",
+      "file": "spa_core/paper_trading/admissible_size.py",
+      "old": "    bound = (float(payback) / k) if payback is not None else None\n",
+      "new": "    bound = (float(payback)) if payback is not None else None\n"
+    },
+    {
+      "name": "нога, обращаемая урезанием в пыль, перестаёт быть третьим исходом (предложение подменяется молча)",
+      "file": "spa_core/paper_trading/admissible_size.py",
+      "old": "        if dust:\n            return None, (\"урезание обращает в пыль ноги {} — предложение станет \"\n                          \"ДРУГИМ, линейность выигрыша о нём не говорит\".format(sorted(dust)))\n",
+      "new": "        if False:\n            return None, (\"урезание обращает в пыль ноги {} — предложение станет \"\n                          \"ДРУГИМ, линейность выигрыша о нём не говорит\".format(sorted(dust)))\n"
+    },
+    {
+      "name": "предложение, УЖЕ влезающее в потолки, объявляется находкой (урезание выдаётся за работу там, где урезать нечего)",
+      "file": "spa_core/paper_trading/admissible_size.py",
+      "old": "        out.update({\"klass\": CLASS_ALREADY_ADMISSIBLE,\n                    \"why\": \"оборот предложения уже внутри потолков размера\"})\n",
+      "new": "        out.update({\"klass\": CLASS_FIRES,\n                    \"why\": \"оборот предложения уже внутри потолков размера\"})\n"
+    },
+    {
+      "name": "отказавший бюджет оборота на оси «без разрешения» выдаётся за ОТКРЫТО (не измерено → в порядке, инв. #17)",
+      "file": "spa_core/paper_trading/admissible_size.py",
+      "old": "    if undecided:\n        return ARM_UNDECIDED, sorted(undecided)\n",
+      "new": "    if False:\n        return ARM_UNDECIDED, sorted(undecided)\n"
+    },
+    {
+      "name": "монотонность бюджета перевёрнута: ПРОЙДЕННЫЙ при большем обороте бюджет объявляется не решённым",
+      "file": "spa_core/paper_trading/admissible_size.py",
+      "old": "    for gate in _BUDGET_GATES:\n        if not gates.get(gate, True):\n            undecided.append(gate)\n",
+      "new": "    for gate in _BUDGET_GATES:\n        if gates.get(gate, True):\n            undecided.append(gate)\n"
+    },
+    {
+      "name": "не измеренные записи идут в ЗНАМЕНАТЕЛЬ измеренных (НЕ ИЗМЕРЕНО становится неотличимо от «не прошло»)",
+      "file": "spa_core/paper_trading/admissible_size.py",
+      "old": "    judged = [r for r in rows if r[\"klass\"] != CLASS_UNMEASURED]\n",
+      "new": "    judged = list(rows)\n"
+    },
+    {
+      "name": "планка берётся у ПЛАНКИ ДНЯ вместо БАЗОВОГО порога — ответ владельца молча сужается надбавкой за разворот",
+      "file": "spa_core/paper_trading/admissible_size.py",
+      "old": "    rows = [judge_record(rec, params=params, min_gain_pp=float(params.min_gain_pp),\n",
+      "new": "    rows = [judge_record(rec, params=params, min_gain_pp=float(rec.get(\"required_gain_pp\") or params.min_gain_pp),\n"
+    },
+    {
+      "name": "допустимый ход берёт МАКСИМУМ потолков вместо минимума (потолок размера перестаёт быть потолком)",
+      "file": "spa_core/paper_trading/admissible_size.py",
+      "old": "    return min(float(params.max_turnover_per_move) * float(capital_usd),\n               float(params.max_trade_usd))\n",
+      "new": "    return max(float(params.max_turnover_per_move) * float(capital_usd),\n               float(params.max_trade_usd))\n"
+    },
+    {
+      "name": "случившийся ACT больше не снимает вопрос — прибор судит там, где судить нечего",
+      "file": "spa_core/paper_trading/admissible_size.py",
+      "old": "    if acts:\n        verdict = ADM_MOOT\n",
+      "new": "    if False:\n        verdict = ADM_MOOT\n"
+    },
+    {
+      "name": "ненаблюдённая цель подаётся разрешению как снятый гейт (размер лечит то, чего он не лечит)",
+      "file": "spa_core/paper_trading/admissible_size.py",
+      "old": "    if not gates.get(\"target_fully_evidenced\", True):\n        failing.append(\"target_fully_evidenced\")\n",
+      "new": "    if False:\n        failing.append(\"target_fully_evidenced\")\n"
+    },
+    {
+      "name": "блок исчезает из отчёта — читателю шага 0-офис нечего читать (сирота по ADR-843)",
+      "file": "spa_core/paper_trading/shadow_trigger_eval.py",
+      "old": "        \"admissible_size_reach\": admissible,\n",
+      "new": "        \"admissible_size_reach_renamed\": admissible,\n"
+    },
+    {
+      "name": "шаг 0-офис перестаёт печатать блок (прибор становится сиротой при живом артефакте)",
+      "file": "scripts/consume_office_reports.py",
+      "old": "                + format_admissible_reach(data.get(\"admissible_size_reach\")))",
+      "new": "                )"
+    },
+    {
+      "name": "поле не объявлено схемой чтения — необъявленное чтение молча станет None",
+      "file": "scripts/consume_office_reports.py",
+      "old": "                                      \"trial_grant_reach\", \"admissible_size_reach\"),",
+      "new": "                                      \"trial_grant_reach\"),"
+    },
+    {
+      "name": "отсутствие блока перестаёт быть третьим исходом — молчание отчёта старого образца читается согласием",
+      "file": "spa_core/paper_trading/admissible_size.py",
+      "old": "    if not isinstance(reach, dict):\n        return [\"Ход, урезанный до допустимого: ⚠️ НЕ ИЗМЕРЕН — в отчёте нет блока \"\n                \"`admissible_size_reach` (отчёт старого образца)\"]\n",
+      "new": "    if not isinstance(reach, dict):\n        return []\n"
+    }
+  ]
+}

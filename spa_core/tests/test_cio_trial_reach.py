@@ -27,7 +27,7 @@ from __future__ import annotations
 import importlib.util
 import json
 import unittest
-from datetime import date, timedelta
+from datetime import date, datetime, timedelta, timezone
 from pathlib import Path
 
 from spa_core.paper_trading import cio_trial as CT
@@ -309,7 +309,12 @@ class TheReaderOfTheCensus(unittest.TestCase):
             "cor_reach", _REPO / "scripts" / "consume_office_reports.py")
         cor = importlib.util.module_from_spec(spec)
         spec.loader.exec_module(cor)
+        # Отметка времени добавлена циклом #968: без неё эта площадка перевела
+        # потолок двери объявлений 16 → 17 (`test_office_declaration_doors`),
+        # то есть красный, не замеченный в цикле её рождения. Дата ОТНОСИТЕЛЬНАЯ:
+        # свежесть сцены ни на один вердикт переписи не влияет.
         doc = {"status": "NOT_READY", "ready_to_arm": False, "observation_days": 84,
+               "generated_at": datetime.now(timezone.utc).isoformat(),
                "counts": {"act": 0}, "criteria": [],
                "arming_blockade": {"verdict": STE.BLOCKADE_UNREACHABLE, "reason": "—"},
                "trial_grant_reach": _reach([_rec(1, gates={"payback_within_horizon": False})])}

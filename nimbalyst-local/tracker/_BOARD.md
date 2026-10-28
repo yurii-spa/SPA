@@ -2,11 +2,11 @@
 
 > Авто-генерится `scripts/build_tracker_board.py` из `nimbalyst-local/tracker/*.md`. НЕ править вручную — правь карточки. Источник правды — карточки, это индекс (bootstrap).
 >
-> Собрана: 2026-10-28T14:30:26Z · сверка с карточками: `python3 scripts/build_tracker_board.py --check` (сторож `spa_core/tests/test_tracker_board_matches_cards.py`).
+> Собрана: 2026-10-28T16:34:57Z · сверка с карточками: `python3 scripts/build_tracker_board.py --check` (сторож `spa_core/tests/test_tracker_board_matches_cards.py`).
 >
-> Сверено с `origin/main` (25eccb3a5).
+> Сверено с `origin/main` (850172508).
 >
-> Всего карточек: **1489** · ждёт владельца: **0** · занято сессиями: **15**.
+> Всего карточек: **1490** · ждёт владельца: **0** · занято сессиями: **15**.
 
 ## 🔴 ЖДЁТ ВЛАДЕЛЬЦА (needs-owner)
 
@@ -29,7 +29,7 @@ _Пусто — открытых решений на владельце нет._
 - **Прогон тестов переписывает СОРОК git-tracked файлов в data/ (карточка #225/#226 считает, что их три) — среди них журнал исполнения** — держит `cycle-352` · с 2026-08-23T03:25:59Z  ·  `inbox-progon-testov-perepisyvaet-sorok-otslezhivaemyh-failov-data.md`
 - **Производители устаревших чисел сайта: дата go-live из API, сверка NAV до цикла, протухшие артефакты, молчащие стражи сайта** — держит `pid20023` · с 2026-09-08T21:15:05Z  ·  `inbox-proizvoditeli-ustarevshih-chisel-saita-d.md`
 - **Сторож ответа владельца зовёт человека на не-спор: 1 и "1" — одно решение, а сравниваются байты** — держит `cycle-84821` · с 2026-08-30T00:50:53Z  ·  `inbox-storozh-otveta-vladeltsa-zovet-cheloveka.md`
-- **TASK — Portfolio CIO: Dynamic Capital Allocation & Rebalancing** — держит `cycle-37353` · с 2026-10-28T01:05:40Z  ·  `inbox-task-portfolio-cio-dynamic-capital-alloc.md`
+- **TASK — Portfolio CIO: Dynamic Capital Allocation & Rebalancing** — держит `cycle-10346` · с 2026-10-28T14:41:55Z  ·  `inbox-task-portfolio-cio-dynamic-capital-alloc.md`
 - **Замок цикла оркестратора доставлен, но в проде не работает: обёртка агента синкается раз в сутки, а голос о пропавшей защите живёт в самом пропавшем файле** — держит `cycle-81141` · с 2026-08-08T01:59:06Z  ·  `inbox-zamok-tsikla-orkestratora-dostavlen-no-v.md`
 
 ## 🧑‍⚖️ Owner Decisions (что нужно от владельца)  (373)
@@ -411,7 +411,7 @@ _Пусто — открытых решений на владельце нет._
 ### · closed
 - Считать ли верный отказ по правилам допуска неисправностью флота  ·  `owner-decision-schitat-li-vernyi-otkaz-po-pravilam-dopu.md` · 2026-10-08
 
-## 📥 Inbox (задания: Telegram / заметки / голос)  (816)
+## 📥 Inbox (задания: Telegram / заметки / голос)  (817)
 
 ### · in-progress
 - а задача починить все-таки еще раз сообщение которым не пишет нужно твое решени…  ·  `inbox-a-zadacha-pochinit-vse-taki-esche-raz-so.md` · 2026-08-14 · 🔒 `pid43119`
@@ -429,7 +429,7 @@ _Пусто — открытых решений на владельце нет._
 - Расширить опрашиваемый набор адаптеров шагами (второй шаг варианта A, после ADR-138)  ·  `inbox-rasshirit-oprashivaemyi-nabor-adapterov.md` · 2026-08-26
 - Сторож кнопок нарушает границу, которую сам объявил соблюдённой: метка-БУКВА принималась где угодно, и слово в прозе = «наш дефект разбора» с лекарством чинить НЕСУЩЕСТВУЮЩУЮ форму (перемер #484: ложная ОДНА из 21, не пять; п.1 исполнен)  ·  `inbox-storozh-knopok-narushaet-granitsu-kotoru.md` · 2026-09-04
 - Сторож переходов статусов ждёт первого улова: назвать немого писателя и встроить прогон в агента  ·  `inbox-storozh-perehodov-statusov-zhdet-pervogo.md` · 2026-08-09
-- TASK — Portfolio CIO: Dynamic Capital Allocation & Rebalancing  ·  `inbox-task-portfolio-cio-dynamic-capital-alloc.md` · 2026-08-13 · 🔒 `cycle-37353`
+- TASK — Portfolio CIO: Dynamic Capital Allocation & Rebalancing  ·  `inbox-task-portfolio-cio-dynamic-capital-alloc.md` · 2026-08-13 · 🔒 `cycle-10346`
 - Tier-C: 171 из 180 модулей не отвечают, 9 отвечающих — константы. Подключить или честно списать  ·  `inbox-tier-c-171-iz-180-modulei-ne-otvechayut.md` · 2026-08-06
 - Целостность трека SPA: подключить сторож, пересчёт из сырых входов, commit-reveal книги (перенос из earn-defi)  ·  `inbox-tselostnost-treka-spa-podklyuchit-storoz.md` · 2026-09-08
 - Цена класса «две сессии на одном предмете»: G38 п. 3 лежит остатком пятьдесят заказов  ·  `inbox-tsena-klassa-dve-sessii-na-odnom-predmet.md` · 2026-09-28
@@ -985,6 +985,7 @@ _Пусто — открытых решений на владельце нет._
 - Генератор конституции флота и файл в git разошлись по формату — первая пересборка перепишет 10 402 строки и спрячет в них настоящую правку  ·  `inbox-generator-konstitutsii-flota-i-fail-v-gi.md` · 2026-10-16
 - Go-live: условием перехода — разнесение подписывающих адаптеров (решение владельца, вариант 2)  ·  `inbox-go-live-usloviem-perehoda-raznesenie-pod.md` · 2026-09-07
 - Голый ответ владельца («1», «2») при вопросе БЕЗ вариантов молча превращается в задачу — решение не применяется  ·  `inbox-golyi-otvet-vladeltsa-1-2-pri-voprose-be.md` · 2026-08-22
+- Ход не урезается до допустимого размера — потолок владельца читается как фильтр предложений  ·  `inbox-hod-ne-urezaetsya-do-dopustimogo-razmera.md` · 2026-10-28
 - Пометка FROZEN-DATE-OK ВНЕ комментария не читается никем и молчит — второй файл храповика  ·  `inbox-hrapovik-dat-krasnyi-na-origin-main-u-dv.md` · 2026-09-07
 - Храповик дат КРАСНЫЙ на origin/main: у test_decision_reproducibility.py нет пометки (причина injected-clock была бы ложной)  ·  `inbox-hrapovik-dat-krasnyi-na-origin-main-u-te.md` · 2026-09-06
 - Храповик инварианта #17 красен на чистом origin: новый член в reachability_of_the_rest.py:664  ·  `inbox-hrapovik-invarianta-17-krasen-na-chistom-2.md` · 2026-10-05
