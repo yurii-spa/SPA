@@ -256,6 +256,20 @@ The source document's old fleet/paper-start assumptions do not authorize another
 Kept: whitelist, financial thresholds, immediate criticals, kill-switch outside the daily limit. Not a new bot or
 notification system; not mixed with R1/R2 (ADR-839) or TRADING-PROCESS-01 implementation.
 
+## Mac storage — owner intake 2026-10-28
+
+**MAC-STORAGE-AUDIT-01 — backlog, not started (P1, next operations triage).** Owner asked only to record the
+task; no disk audit or cleanup now. Decision: [ADR-OWN-2026-10-28](decisions/ADR-OWN-2026-10-28-mac-storage-audit.md).
+Task: [mac-storage-audit-2026-10-28](tasks/mac-storage-audit-2026-10-28.md).
+
+- Read-only measurement first: volume state (APFS clones, snapshots, purgeable), largest sources (repos, temporary
+  worktrees/clones, session files, CI downloads, logs, caches, backups), growth over repeated measurements tied to
+  a process where provable; unproven causes named unknown.
+- Result: a dated table per object — size and method, growth, purpose, user, recovery value, re-obtainability,
+  proposed step, realistically freeable space and risk; keep / candidate after check / optimise / unknown.
+- Any cleanup is a separate explicit list with consequences and recovery, executed only after the owner approves it.
+  Links: TELEGRAM-OWNER-UX-01 (resource alerts), ADR-849 §3 (temporary census stands).
+
 ## Standing constraints
 
 Real capital, exchange orders, leverage, production risk limits, public yield numbers and irreversible
