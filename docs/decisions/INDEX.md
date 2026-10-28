@@ -713,6 +713,7 @@
 | ADR-843 | ADR-843 — Прибор оси РАБОТНИКА был написанной и не позванной проверкой; теперь его зовёт ступень моста | Accepted | [ADR-843](ADR-843-worker-axis-census-is-called-not-just-written.md) |
 | ADR-844 | ADR-844 — Вердикт `SPA CI` на `main` система уничтожает САМА: приёмку ADR-841 даёт только контрольный прогон | Accepted | [ADR-844](ADR-844-the-ci-verdict-on-main-is-destroyed-by-the-next-push.md) |
 | ADR-845 | ADR-845 — У вердикта контрольного прогона появился ЧИТАТЕЛЬ, и `conclusion` вердиктом не является | Accepted | [ADR-845](ADR-845-ci-control-verdict-gets-a-reader.md) |
+| ADR-846 | ADR-846 — Эксплуатация 28.10: launchd в синхронизации кода, тесты не пишут в рабочие данные, стенды decision_loop клоном APFS | Accepted | [ADR-846](ADR-846-ops-launchd-sync-test-isolation-decision-loop.md) |
 
 ## Соглашения
 
