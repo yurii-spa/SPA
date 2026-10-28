@@ -67,7 +67,7 @@ jobs:
 
       - name: Install dependencies
         run: |
-          pip install pytest pytest-asyncio pytest-timeout pyyaml argon2-cffi eth-account fastapi pydantic httpx requests web3 numpy pandas python-multipart uvicorn bcrypt pyjwt pyflakes mypy==2.1.0  # тот же набор, что в ci.yml / test.yml
+          pip install pytest==9.1.1 pytest-asyncio pytest-timeout pyyaml argon2-cffi eth-account fastapi pydantic httpx requests web3 numpy pandas python-multipart uvicorn bcrypt pyjwt pyflakes mypy==2.1.0  # тот же набор, что в ci.yml / test.yml
 
       # Население = то, что СОБЕРЁТ предписанная команда (CLAUDE.md), а не glob по
       # именам файлов. `--continue-on-collection-errors`: файл, который не собирается,
@@ -133,7 +133,7 @@ jobs:
 
       - name: Install dependencies
         run: |
-          pip install pytest pytest-asyncio pytest-timeout pyyaml argon2-cffi eth-account fastapi pydantic httpx requests web3 numpy pandas python-multipart uvicorn bcrypt pyjwt pyflakes mypy==2.1.0  # тот же набор, что в ci.yml / test.yml
+          pip install pytest==9.1.1 pytest-asyncio pytest-timeout pyyaml argon2-cffi eth-account fastapi pydantic httpx requests web3 numpy pandas python-multipart uvicorn bcrypt pyjwt pyflakes mypy==2.1.0  # тот же набор, что в ci.yml / test.yml
 
       - name: Download manifest
         uses: actions/download-artifact@v4
