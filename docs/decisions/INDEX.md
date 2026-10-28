@@ -712,6 +712,7 @@
 | ADR-842 | ADR-842 — Освобождение, заработанное замером, до своего файла не доезжало: запись R&D-реестра не называла свой скрипт | Accepted | [ADR-842](ADR-842-earned-carve-out-did-not-reach-its-script.md) |
 | ADR-843 | ADR-843 — Прибор оси РАБОТНИКА был написанной и не позванной проверкой; теперь его зовёт ступень моста | Accepted | [ADR-843](ADR-843-worker-axis-census-is-called-not-just-written.md) |
 | ADR-844 | ADR-844 — Вердикт `SPA CI` на `main` система уничтожает САМА: приёмку ADR-841 даёт только контрольный прогон | Accepted | [ADR-844](ADR-844-the-ci-verdict-on-main-is-destroyed-by-the-next-push.md) |
+| ADR-845 | ADR-845 — У вердикта контрольного прогона появился ЧИТАТЕЛЬ, и `conclusion` вердиктом не является | Accepted | [ADR-845](ADR-845-ci-control-verdict-gets-a-reader.md) |
 
 ## Соглашения
 

@@ -892,6 +892,22 @@ _READ_SCHEMA: dict[str, tuple[str, ...]] = {
                                 "env_readable", "env_blind", "readable_share",
                                 "blind_by_class", "axis_measurable", "runs",
                                 "findings", "advisory"),
+    # (ADR-845, заказ G843 п. 2) Вердикт КОНТРОЛЬНОГО прогона CI — единственная
+    # достижимая приёмка полного набора (ADR-844). `verdict` и `conclusion`
+    # объявлены ОБА намеренно: `conclusion` вердиктом не является (`failure` стоял
+    # у 20 прогонов из 20, а вердикт был `RED` 17 раз и `INCOMPLETE` 3), и
+    # артефакт, несущий только второе, прочёлся бы как вердикт. `measured_sha` и
+    # `head_sha` — тоже ОБА: у 2 прогонов из 20 они расходятся, и тогда верный
+    # вердикт относится к ДРУГОМУ коммиту. `verdict_age_h` рядом с
+    # `stale_after_h` — число без порога не отвечает «свеж ли он», а порог без
+    # числа не отвечает ни на что. `invoked_by` — единственное поле, которое
+    # покраснеет, если проводку однажды снимут и прибор снова начнёт звать рука.
+    "ci_control_verdict.json": ("status", "invoked_by", "branch", "verdict",
+                                "verdict_age_h", "stale_after_h", "measured_sha",
+                                "head_sha", "run", "failed", "shards",
+                                "not_obtained", "incomplete_reasons", "totals",
+                                "env", "runs_scanned", "in_progress",
+                                "findings", "advisory"),
     "python_reader_clock_doors.json": ("status", "invoked_by", "counts",
                                        "import_bound_doors", "other_doors",
                                        "run_provenance", "provenance_unmeasured",
@@ -1574,6 +1590,8 @@ _PRODUCER: dict[str, str] = {
         "spa_core/monitoring/list_identity_census.py",
     "worker_axis_census.json":
         "scripts/worker_axis_census.py",
+    "ci_control_verdict.json":
+        "scripts/ci_control_verdict.py",
     "python_reader_clock_doors.json":
         "spa_core/monitoring/python_reader_clock_doors.py",
     "tact_gate_census.json":
@@ -3944,6 +3962,20 @@ def _summarize_json(path: str, data, *, now: dt.datetime | None = None,
         sys.path.insert(0, os.path.join(REPO_ROOT, "scripts"))
         from worker_axis_census import format_report as _wac_report
         out.extend(_wac_report(data))
+    elif name == "ci_control_verdict.json":
+        # (ADR-845, заказ G843 п. 2) ЗАЧЕМ ЭТА ВЕТКА: без неё артефакт читается
+        # ВХОЛОСТУЮ (`_HOLLOW_MARK`) — файл открылся, квитанция не пишется, и в
+        # контекст оркестратора не попадает ни одно число, то есть вердикт набора
+        # снова некому спросить. Правило отрисовки делегируется ПРОИЗВОДИТЕЛЮ, а
+        # не переписывается здесь: вторая копия расходится с первой молча (ADR-220).
+        # Производитель живёт в `scripts/` — это НЕ пакет, поэтому путь к нему
+        # добавляется в `sys.path`, ровно как у соседа выше. Форма ввоза
+        # ОДНОСТРОЧНАЯ намеренно: сторож достижимости
+        # (`test_declared_producer_is_reachable`) вырезает ввозы двух объявленных
+        # форм, и скобочная многострочная ни одной из них не является (замер #627).
+        sys.path.insert(0, os.path.join(REPO_ROOT, "scripts"))
+        from ci_control_verdict import format_report as _ccv_report
+        out.extend(_ccv_report(data))
     elif name == "python_reader_clock_doors.json":
         # Заказ G37 п. 2 (ADR-414). ЗАЧЕМ ЭТА ВЕТКА: без неё артефакт читается
         # ВХОЛОСТУЮ (`_HOLLOW_MARK`) — файл открылся, ресит не пишется, и в

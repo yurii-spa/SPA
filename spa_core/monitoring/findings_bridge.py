@@ -611,6 +611,10 @@ CENSUS_STAGE: tuple[str, ...] = (
     # 14.10 и не звался НИОТКУДА — его имя держало красным храповик сирот
     # `test_unwired_scripts_ratchet`. Чинит ПРОВОДКА, не строка в базе.
     "worker_axis_census",
+    # (ADR-845, цикл #965, заказ G843 п. 2) Вердикт КОНТРОЛЬНОГО прогона CI
+    # (`ci-control.yml`) — единственная достижимая приёмка полного набора
+    # (ADR-844) — жил артефактом GitHub и не спрашивался ни одним шагом цикла.
+    "ci_control_verdict",
     "outcomes",
     "loop_retro",
     "loop_health",
@@ -643,6 +647,22 @@ WORKER_AXIS_CENSUS_PRODUCER = os.path.join("scripts", "worker_axis_census.py")
 #: не вкусовщина: сканер записи (`spa_core/monitoring/artifact_io_scan.py`) следит за
 #: именами через таблицу присваиваний и узнаёт `os.path.join("data", "<имя>.json")`.
 WORKER_AXIS_CENSUS_ARTIFACT = os.path.join("data", "worker_axis_census.json")
+
+#: Производитель вердикта КОНТРОЛЬНОГО прогона CI (ADR-845, заказ G843 п. 2). Та же
+#: история, что у двух соседей выше, и ровно та же причина: вердикт полного набора с
+#: 16.10 даёт ТОЛЬКО `ci-control.yml` (у `SPA CI` на `main` он недостижим по
+#: построению — ADR-844), живёт он АРТЕФАКТОМ GitHub на 90 дней, и до 28.10 его не
+#: спрашивал ни один шаг цикла. `conclusion` прогона вердиктом НЕ является: замер
+#: 28.10 по 20 последним прогонам на `main` — `failure` у 20 из 20, а вердикт
+#: `RED` 17 · `INCOMPLETE` 3, то есть «упавшие названы» и «не измерено вовсе»
+#: неразличимы (инв. #17).
+CI_CONTROL_VERDICT_PRODUCER = os.path.join("scripts", "ci_control_verdict.py")
+#: Отчёт о вердикте контрольного прогона. Пишет его ЭТА ступень, а не прибор — по
+#: тому же доводу, что у соседа выше (сторож достижимости ищет писателя среди точек
+#: входа и импортированного кода, а зов подпроцессом по константе пути ему не виден).
+#: Форма пути — `os.path.join("data", "<имя>.json")`, чтобы сканер записи
+#: (`artifact_io_scan`) узнал писателя по имени.
+CI_CONTROL_VERDICT_ARTIFACT = os.path.join("data", "ci_control_verdict.json")
 
 #: Определение стоит ВЫШЕ `CENSUS_PRODUCT` намеренно: карта ступеней ссылается
 #: на эту константу, и второй литерал того же пути разошёлся бы с первым молча
@@ -878,6 +898,11 @@ CENSUS_PRODUCT: dict[str, dict[str, str]] = {
     "worker_axis_census": {
         "module": WORKER_AXIS_CENSUS_PRODUCER,
         "artifact": WORKER_AXIS_CENSUS_ARTIFACT},
+    #: Производитель — СКРИПТ, и путь берётся у ОДНОЙ константы тем же порядком,
+    #: что у соседей: второй литерал того же пути разошёлся бы с первым молча.
+    "ci_control_verdict": {
+        "module": CI_CONTROL_VERDICT_PRODUCER,
+        "artifact": CI_CONTROL_VERDICT_ARTIFACT},
     "no_regression_producer": {
         "module": NO_REGRESSION_PRODUCER,
         "artifact": "data/no_regression_census.json"},
@@ -1639,6 +1664,125 @@ def worker_axis_census_line(out: dict) -> str:
         return f"worker_axis_census: такт не истёк, замера не было — {out.get('reason')}"
     return (f"worker_axis_census: {out.get('status')} (код {out.get('code')}), "
             f"находок {out.get('findings')} — {out.get('reason')}")
+
+
+#: Предел на ВЕСЬ зов прибора вердикта. Он ходит в сеть дважды (список прогонов и
+#: zip отчёта ≈1.7 МБ), поэтому предел щедрый; снятие по сроку — НЕ ИЗМЕРЕНО с
+#: названной причиной, а не «вердикта нет».
+CI_CONTROL_VERDICT_TIMEOUT_S = 300.0
+
+#: Такт замера — ШЕСТЬ ЧАСОВ, и это РОВНО такт самого прогона
+#: (`ci-control.yml`, `cron: 23 */6 * * *`): спрашивать чаще значило бы получать тот
+#: же вердикт, спрашивать реже — узнавать о красном наборе позже, чем он покраснел.
+#: Объявлен в СУТКАХ потому, что гейт такта ВЗЯТ у соседа
+#: (`python_reader_clock_doors.measurement_due`), а не скопирован: вторая копия
+#: правила «пора ли мерить» разошлась бы с первой молча. 0.25 сут = 6 ч.
+CI_CONTROL_VERDICT_TACT_DAYS = 0.25
+
+
+def ci_control_verdict_step(root: str = REPO_ROOT, *, runner=None,
+                            timeout_s: float = CI_CONTROL_VERDICT_TIMEOUT_S,
+                            now=None, tact_days: float = CI_CONTROL_VERDICT_TACT_DAYS,
+                            writer=None) -> dict:
+    """Позвать читателя вердикта контрольного прогона и ЗАПИСАТЬ его отчёт (ADR-845).
+
+    Ступень ничего не измеряет сама — она ЗОВЁТ, сверяет СРОК и ПИШЕТ. Внутри такта
+    (6 ч) подпроцесс не поднимается вовсе и в сеть никто не идёт.
+
+    **Почему зов подпроцессом, а не импортом** — тот же довод, что у двух соседей:
+    прибор ходит в СЕТЬ, и держать это чтение в процессе моста значило бы ронять мост
+    всем, что упадёт в сокете (#524). Мост не смеет падать от переписи.
+
+    **Почему пишет ступень, а не прибор** — урок ADR-843, найденный сторожем
+    достижимости до доставки: писателя артефакта он ищет среди точек входа и
+    импортированного кода, и подпроцессный зов по константе пути ему не виден.
+
+    ``runner`` и ``writer`` — ДВЕРИ к подпроцессу и к диску ВХОДАМИ, а не окружением:
+    без них каждый тест ступени ходил бы в живой GitHub и писал бы в живое `data/`,
+    то есть отвечал бы на вопрос «что сегодня у GitHub», а не о проводке
+    (`.claude/rules/deployment.md`, § про инъекцию).
+
+    Исходы РАЗЛИЧИМЫ (инв. #17) и ни один не выдаётся за другой:
+
+    * ``ok`` — вердикт получен, находок нет (код 0), отчёт записан;
+    * ``finding`` — вердикт получен, находка НАЗВАНА (код 1), отчёт записан;
+    * ``within_tact`` — срок не пришёл, замера НЕ БЫЛО и это ЗАМЕР срока, не вердикт;
+    * ``unmeasured`` — вердикта НЕТ (прибора нет на диске · не запустился · снят по
+      сроку · код 2: нет токена, сеть, у прогона нет отчёта · документ не разобран).
+      Это НЕ «вердикт зелёный», и отчёт НЕ пишется: артефакт с выдуманным вердиктом
+      лгал бы ещё и своим возрастом.
+    """
+    producer = os.path.join(root, CI_CONTROL_VERDICT_PRODUCER)
+    target = os.path.join(root, CI_CONTROL_VERDICT_ARTIFACT)
+    if not os.path.isfile(producer):
+        return {"status": "unmeasured", "code": None, "reason":
+                f"прибора нет на диске: {producer} — вердикт НЕ СПРОШЕН, "
+                f"и это не «вердикт зелёный»"}
+    due, why = measurement_due(Path(target), now=now, tact_days=tact_days)
+    if not due:
+        return {"status": "within_tact", "code": None, "reason": why}
+
+    cmd = [sys.executable, producer, "--json", "--repo-root", str(root)]
+    run = runner if runner is not None else subprocess.run
+    try:
+        cp = run(cmd, capture_output=True, text=True, timeout=timeout_s)
+    except subprocess.TimeoutExpired as exc:
+        return {"status": "unmeasured", "code": None,
+                "reason": f"прибор снят по сроку {timeout_s:.0f}с: {exc}"}
+    except OSError as exc:
+        return {"status": "unmeasured", "code": None,
+                "reason": f"прибор не запущен: {type(exc).__name__}: {exc}"}
+    code = getattr(cp, "returncode", None)
+    out = getattr(cp, "stdout", "") or ""
+    err = (getattr(cp, "stderr", "") or "").strip()
+    # Код, которого нет, — тот же третий исход, что и код 2: «не измерено».
+    if code not in (0, 1):
+        tail = "\n".join((err or out).strip().splitlines()[-3:])
+        return {"status": "unmeasured", "code": code,
+                "reason": tail or "прибор не назвал ни вердикта, ни причины"}
+    try:
+        doc = json.loads(out)
+    except (ValueError, TypeError) as exc:
+        return {"status": "unmeasured", "code": code,
+                "reason": f"документ прибора не разобран ({type(exc).__name__}) — "
+                          f"отчёта не пишу: его возраст читался бы как свежий замер"}
+    if not isinstance(doc, dict) or "findings" not in doc or not doc.get("verdict"):
+        return {"status": "unmeasured", "code": code,
+                "reason": "документ прибора не несёт ни вердикта, ни перечня находок — "
+                          "это не «вердикт зелёный»"}
+    try:
+        # Зов ИМЕНЕМ, а не через переменную: сканер записи узнаёт писателя по имени
+        # вызова, и `save(doc, target)` через переменную не узнаётся — артефакт стал
+        # бы «объявленным продуктом, которого никто не вычисляет».
+        if writer is not None:
+            writer(doc, target)
+        else:
+            atomic_save(doc, target)
+    except OSError as exc:
+        return {"status": "unmeasured", "code": code,
+                "reason": f"отчёт не записан ({type(exc).__name__}: {exc}) — "
+                          f"читателю читать нечего"}
+    found = doc.get("findings") or []
+    return {"status": "finding" if found else "ok", "code": code,
+            "artifact": target, "verdict": doc.get("verdict"),
+            "findings": len(found),
+            "reason": "; ".join(str(f) for f in found[:2]) or "находок нет"}
+
+
+def ci_control_verdict_line(out: dict) -> str:
+    """Строка ступени для читателя лога. Отдельной функцией — чтобы её мерил тест.
+
+    Три формы на три разных исхода, и ни одна не выглядит как другая: «НЕ ИЗМЕРЕНО»
+    (вердикта нет) · «такт не истёк» (замер СРОКА, а не вердикт о наборе) · вердикт.
+    Слить первые две значило бы потерять различие, за которым написан инв. #17.
+    """
+    if out.get("status") == "unmeasured":
+        return f"ci_control_verdict: НЕ ИЗМЕРЕНО — {out.get('reason')}"
+    if out.get("status") == "within_tact":
+        return f"ci_control_verdict: такт не истёк, замера не было — {out.get('reason')}"
+    return (f"ci_control_verdict: {out.get('status')} (код {out.get('code')}), "
+            f"вердикт {out.get('verdict')}, находок {out.get('findings')} — "
+            f"{out.get('reason')}")
 
 
 def no_regression_line(out: dict) -> str:
@@ -3051,6 +3195,18 @@ def main(argv=None) -> int:
         print(worker_axis_census_line(worker_axis_census_step(args.root)))
     except Exception as e:  # noqa: BLE001 — перепись не смеет валить мост
         census_skipped(_skipped, "worker_axis_census", e)
+    # (ADR-845, заказ G843 п. 2) Вердикт КОНТРОЛЬНОГО прогона CI. ЗАЧЕМ ЭТА
+    # СТРОКА: с 16.10 приёмку полного набора даёт только `ci-control.yml` (у
+    # `SPA CI` на `main` вердикт недостижим по построению — ADR-844), а живёт
+    # этот вердикт артефактом GitHub на 90 дней, и до 28.10 его не спрашивал ни
+    # один шаг цикла. `conclusion` прогона вердиктом НЕ является: `failure` стоял
+    # у 20 прогонов из 20, а вердикт был `RED` 17 раз и `INCOMPLETE` 3. Такт 6 ч
+    # и решает его ФАЙЛ, поэтому в большинстве зовов ступень стоит одного чтения
+    # отметки и в сеть не ходит.
+    try:
+        print(ci_control_verdict_line(ci_control_verdict_step(args.root)))
+    except Exception as e:  # noqa: BLE001 — перепись не смеет валить мост
+        census_skipped(_skipped, "ci_control_verdict", e)
     # (G97 п. 3, ADR-562) ТРЕТЬЕ плечо семейства «часы как вход». Сосед выше
     # спрашивает, закрывается ли дверь ЧИТАТЕЛЯ пином класса; этот — доходит ли
     # инъектированный `now` до САМОЙ отметки `generated_at` у ПРОИЗВОДИТЕЛЯ.
