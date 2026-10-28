@@ -383,12 +383,30 @@ class TestCLI(unittest.TestCase):
 
     _ROOT = _ROOT  # project root, resolved at module level
 
+    def setUp(self):
+        # Временный каталог данных с воспроизводимым `adapter_status.json` (ADR-849 §2):
+        # CLI больше не читает живой статус адаптеров и не переписывает живой кэш режима.
+        self._tmp = tempfile.TemporaryDirectory()
+        self._data = self._tmp.name
+        with open(os.path.join(self._data, "adapter_status.json"), "w") as fh:
+            json.dump({"adapters": {"aave_v3": {"live_apy": 4.2, "tier": "T1"},
+                                    "compound_v3": {"live_apy": 4.8, "tier": "T1"}}}, fh)
+
+    def tearDown(self):
+        self._tmp.cleanup()
+
     def _run_cli(self):
         return subprocess.run(
-            [sys.executable, "-m", "spa_core.analysis.market_regime"],
+            [sys.executable, "-m", "spa_core.analysis.market_regime", "--data-dir", self._data],
             capture_output=True, text=True,
             cwd=self._ROOT, timeout=30,
         )
+
+    def test_cli_writes_the_cache_into_the_given_data_dir(self):
+        proc = self._run_cli()
+        self.assertEqual(proc.returncode, 0, proc.stderr)
+        with open(os.path.join(self._data, "market_regime.json")) as fh:
+            self.assertEqual(json.load(fh)["regime"], json.loads(proc.stdout)["regime"])
 
     def test_cli_exits_zero(self):
         proc = self._run_cli()

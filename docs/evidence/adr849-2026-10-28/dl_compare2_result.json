@@ -1,0 +1,294 @@
+{
+ "files": 110,
+ "only_before": [],
+ "only_after": [],
+ "fields_by_class": {
+  "STAMP": 121,
+  "AGE": 174,
+  "CONTROLLED": 54,
+  "SELF_SCAN": 29,
+  "PID": 4,
+  "UNCONFIRMED": 269,
+  "NONDET_BY_DESIGN": 2,
+  "AGE_TEXT": 21,
+  "RUN_PATH": 8,
+  "ELAPSED": 8,
+  "MACHINE": 41,
+  "DIFFERENT": 38
+ },
+ "files_by_worst_class": {
+  "EXPLAINED": 103,
+  "CONTROLLED": 2,
+  "UNCONFIRMED": 2,
+  "EQUAL": 1,
+  "DIFFERENT": 2
+ },
+ "different": [
+  [
+   "rule_second_copy_census.json",
+   ".reader_cost_of_test_channel.findings[].why",
+   "цена объявлена неизмеримой ПО ПРИЧИНЕ «вложенный прогон»; замер: замыкания на ступень не наблюдено ни у одного из 2 файл",
+   "цена объявлена неизмеримой ПО ПРИЧИНЕ «вложенный прогон»; замер: замыкания на ступень не наблюдено ни у одного из 2 файл",
+   "нет правила"
+  ],
+  [
+   "rule_second_copy_census.json",
+   ".reader_cost_of_test_channel.margin",
+   "268.8",
+   "241.9",
+   "нет правила"
+  ],
+  [
+   "rule_second_copy_census.json",
+   ".reader_cost_of_test_channel.prior_cost_s",
+   "2.03",
+   "4.74",
+   "нет правила"
+  ],
+  [
+   "rule_second_copy_census.json",
+   ".reader_cost_of_test_channel.rows[].cost_s",
+   "69.38",
+   "74.67",
+   "нет правила"
+  ],
+  [
+   "rule_second_copy_census.json",
+   ".reader_cost_of_test_channel.rows[].why",
+   "прогон завершился кодом 0 за 69.38 с; отметок входа в ступень 0",
+   "прогон завершился кодом 0 за 74.67 с; отметок входа в ступень 0",
+   "нет правила"
+  ],
+  [
+   "rule_second_copy_census.json",
+   ".reader_cost_of_test_channel.rows[].cost_s",
+   "8.94",
+   "9.9",
+   "нет правила"
+  ],
+  [
+   "rule_second_copy_census.json",
+   ".reader_cost_of_test_channel.rows[].why",
+   "прогон завершился кодом 1 за 8.94 с; отметок входа в ступень 0",
+   "прогон завершился кодом 1 за 9.9 с; отметок входа в ступень 0",
+   "нет правила"
+  ],
+  [
+   "rule_second_copy_census.json",
+   ".reader_cost_of_test_channel.total_cost_s",
+   "78.32",
+   "84.57",
+   "нет правила"
+  ],
+  [
+   "rule_second_copy_census.json",
+   ".recompute_cost_budget.blind[]",
+   "часы меряют ЭТУ машину и ЭТО дерево; ответ имеет право не зависеть от их точности, и запас 10640.4× говорит, во сколько ",
+   "часы меряют ЭТУ машину и ЭТО дерево; ответ имеет право не зависеть от их точности, и запас 4557.0× говорит, во сколько р",
+   "нет правила"
+  ],
+  [
+   "rule_second_copy_census.json",
+   ".recompute_cost_budget.costs[].claim_error_ratio",
+   "13.0",
+   "4.06",
+   "нет правила"
+  ],
+  [
+   "rule_second_copy_census.json",
+   ".recompute_cost_budget.costs[].claim_error_s",
+   "19.5",
+   "16.85",
+   "нет правила"
+  ],
+  [
+   "rule_second_copy_census.json",
+   ".recompute_cost_budget.costs[].cost_s_per_run",
+   "1.5",
+   "4.15",
+   "нет правила"
+  ],
+  [
+   "rule_second_copy_census.json",
+   ".recompute_cost_budget.costs[].claim_error_ratio",
+   "128.63",
+   "119.69",
+   "нет правила"
+  ],
+  [
+   "rule_second_copy_census.json",
+   ".recompute_cost_budget.costs[].claim_error_s",
+   "34.73",
+   "34.71",
+   "нет правила"
+  ],
+  [
+   "rule_second_copy_census.json",
+   ".recompute_cost_budget.costs[].cost_s_per_run",
+   "0.27",
+   "0.29",
+   "нет правила"
+  ],
+  [
+   "rule_second_copy_census.json",
+   ".recompute_cost_budget.findings[].why",
+   "объявленная цена 21 с разошлась с измеренной ценой прогона 1.5 с на 13.0 доли — литерал свойством читателя не является",
+   "объявленная цена 21 с разошлась с измеренной ценой прогона 4.15 с на 4.06 доли — литерал свойством читателя не является",
+   "нет правила"
+  ],
+  [
+   "rule_second_copy_census.json",
+   ".recompute_cost_budget.findings[].why",
+   "объявленная цена 35 с разошлась с измеренной ценой прогона 0.27 с на 128.63 доли — литерал свойством читателя не являетс",
+   "объявленная цена 35 с разошлась с измеренной ценой прогона 0.29 с на 119.69 доли — литерал свойством читателя не являетс",
+   "нет правила"
+  ],
+  [
+   "rule_second_copy_census.json",
+   ".recompute_cost_budget.margin",
+   "10640.4",
+   "4557.0",
+   "нет правила"
+  ],
+  [
+   "rule_second_copy_census.json",
+   ".recompute_cost_budget.total_cost_s",
+   "2.03",
+   "4.74",
+   "нет правила"
+  ],
+  [
+   "rule_second_copy_census.json",
+   ".registry_ambiguity_scope.files_parsed",
+   "5326",
+   "5327",
+   "нет правила"
+  ],
+  [
+   "rule_second_copy_census.json",
+   ".registry_ambiguity_scope.rows[].candidates",
+   "4",
+   "5",
+   "нет правила"
+  ],
+  [
+   "rule_second_copy_census.json",
+   ".registry_ambiguity_scope.rows[].list_elements",
+   "449",
+   "453",
+   "нет правила"
+  ],
+  [
+   "rule_second_copy_census.json",
+   ".registry_ambiguity_scope.rows[].lists_in_doc",
+   "153",
+   "154",
+   "нет правила"
+  ],
+  [
+   "rule_second_copy_census.json",
+   ".registry_ambiguity_scope.rows[].candidates",
+   "11",
+   "12",
+   "нет правила"
+  ],
+  [
+   "rule_second_copy_census.json",
+   ".registry_ambiguity_scope.rows[].candidates",
+   "10",
+   "11",
+   "нет правила"
+  ],
+  [
+   "rule_second_copy_census.json",
+   ".registry_ambiguity_scope.rows[].candidates",
+   "6",
+   "7",
+   "нет правила"
+  ],
+  [
+   "rule_second_copy_census.json",
+   ".registry_ambiguity_scope.rows[].ambiguous_deep",
+   "41",
+   "40",
+   "нет правила"
+  ],
+  [
+   "rule_second_copy_census.json",
+   ".registry_ambiguity_scope.rows[].ambiguous_only_deep",
+   "32",
+   "31",
+   "нет правила"
+  ],
+  [
+   "rule_second_copy_census.json",
+   ".registry_ambiguity_scope.rows[].ambiguous_share_deep_pct",
+   "40.2",
+   "39.6",
+   "нет правила"
+  ],
+  [
+   "rule_second_copy_census.json",
+   ".registry_ambiguity_scope.rows[].ambiguous_share_shallow_pct",
+   "14.29",
+   "14.52",
+   "нет правила"
+  ],
+  [
+   "rule_second_copy_census.json",
+   ".registry_ambiguity_scope.rows[].candidates",
+   "38",
+   "39",
+   "нет правила"
+  ],
+  [
+   "rule_second_copy_census.json",
+   ".registry_ambiguity_scope.rows[].tails_deep",
+   "102",
+   "101",
+   "нет правила"
+  ],
+  [
+   "rule_second_copy_census.json",
+   ".registry_ambiguity_scope.rows[].tails_shallow",
+   "63",
+   "62",
+   "нет правила"
+  ],
+  [
+   "rule_second_copy_census.json",
+   ".scanned",
+   "5270",
+   "5271",
+   "нет правила"
+  ],
+  [
+   "slo_keepability.json",
+   ".declared_report_line_reader.rows[].door_lines",
+   "93",
+   "94",
+   "нет правила"
+  ],
+  [
+   "slo_keepability.json",
+   ".declared_report_line_reader.rows[].door_lines",
+   "27",
+   "26",
+   "нет правила"
+  ],
+  [
+   "slo_keepability.json",
+   ".findings[].periods_over_slo",
+   "66",
+   "67",
+   "нет правила"
+  ],
+  [
+   "slo_keepability.json",
+   ".rows[].periods_over_slo",
+   "66",
+   "67",
+   "нет правила"
+  ]
+ ]
+}

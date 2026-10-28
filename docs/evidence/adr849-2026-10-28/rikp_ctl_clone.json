@@ -1,0 +1,28 @@
+{
+ "variant": "clone",
+ "tree": "/private/tmp/claude-501/-private-tmp-spa-wt-integ/a08dc8b6-5bc8-4a55-a13a-a13c77d766f2/scratchpad/ops_wt",
+ "row": {
+  "module": "spa_core.api.routers.agents",
+  "entry": "http_routes",
+  "clock_injected": true,
+  "routes": {
+   "/api/agents/registry": {
+    "route": "/api/agents/registry",
+    "unstable_coords": 0,
+    "outcome": "unmeasured",
+    "cause": "stand_not_read",
+    "reason": "ответ тот же и на ПУСТОМ каталоге — каталог стенда читатель не открывал; «нечувствителен к стенду» было бы про него неправдой"
+   }
+  },
+  "routes_refused": {},
+  "routes_by_outcome": {
+   "unmeasured": 1
+  },
+  "outcome": "unmeasured",
+  "cause": "stand_not_read",
+  "reason": "ни один из 1 маршрутов не измерен; преобладающая причина — stand_not_read (1)"
+ },
+ "clock_pinned": true,
+ "stand_day": "2026-10-23",
+ "donor_day": "2026-10-23"
+}

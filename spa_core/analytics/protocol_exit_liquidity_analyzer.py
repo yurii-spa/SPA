@@ -22,6 +22,8 @@ _DEFAULT_TARGET_EXIT_DAYS: int = 7
 _LOG_PATH = os.path.join(
     os.path.dirname(__file__), "..", "..", "data", "exit_liquidity_log.json"
 )
+_LOG_PATH_AT_IMPORT = _LOG_PATH
+from spa_core.utils.data_dir import default_file as _default_file  # ADR-849 §2: SPA_DATA_DIR сильнее умолчания
 _LOG_CAP = 100
 
 
@@ -302,7 +304,7 @@ def analyze(positions: list[dict], config: dict | None = None) -> dict:
     }
 
     try:
-        _atomic_log(_LOG_PATH, result)
+        _atomic_log(_default_file(_LOG_PATH, _LOG_PATH_AT_IMPORT), result)
     except Exception:
         pass  # advisory: never crash caller
 

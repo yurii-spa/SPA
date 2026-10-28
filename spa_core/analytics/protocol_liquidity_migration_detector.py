@@ -12,6 +12,8 @@ import time
 from pathlib import Path
 
 DATA_FILE = Path("data/liquidity_migration_log.json")
+_DATA_FILE_AT_IMPORT = DATA_FILE
+from spa_core.utils.data_dir import default_file as _default_file  # ADR-849 §2: SPA_DATA_DIR сильнее умолчания
 MAX_ENTRIES = 100
 
 _DEFAULT_CONFIG = {
@@ -276,7 +278,7 @@ def analyze(protocols: list, config: dict = None) -> dict:
 
 def _append_log(entry: dict) -> None:
     """Append entry to DATA_FILE, capped at MAX_ENTRIES. Atomic write."""
-    data_path = DATA_FILE
+    data_path = _default_file(DATA_FILE, _DATA_FILE_AT_IMPORT)
     try:
         if data_path.exists():
             with open(data_path, "r") as f:

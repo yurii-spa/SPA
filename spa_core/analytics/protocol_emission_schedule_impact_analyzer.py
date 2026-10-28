@@ -15,6 +15,8 @@ from spa_core.utils import clock
 # Constants
 # ---------------------------------------------------------------------------
 _LOG_FILE = os.path.join(os.path.dirname(__file__), "..", "..", "data", "emission_schedule_log.json")
+_LOG_FILE_AT_IMPORT = _LOG_FILE
+from spa_core.utils.data_dir import default_file as _default_file  # ADR-849 §2: SPA_DATA_DIR сильнее умолчания
 _LOG_CAP = 100
 
 EMISSION_LABELS = (
@@ -53,7 +55,7 @@ class ProtocolEmissionScheduleImpactAnalyzer:
     """
 
     def __init__(self, log_path: str | None = None):
-        self._log_path = log_path or _LOG_FILE
+        self._log_path = log_path or _default_file(_LOG_FILE, _LOG_FILE_AT_IMPORT)
 
     # ------------------------------------------------------------------
     # Public API

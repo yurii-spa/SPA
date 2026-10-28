@@ -60,8 +60,9 @@ class _Fixture:
         # целиком (вердикт SNAPSHOT_FAILED). Дерево-фикстура обязано быть похоже
         # на прод в том, что скрипт трогает, иначе тест судит о своей же нехватке.
         seed = tmp / "seed"
-        for d in ("spa_core", "scripts", "tests", "architecture", ".claude/rules"):
+        for d in ("spa_core", "scripts", "tests", "architecture", "launchd", ".claude/rules"):
             (seed / d).mkdir(parents=True)
+        (seed / "launchd" / "com.spa.seed.plist").write_text("<plist>v1</plist>\n")
         (seed / "spa_core" / "live.py").write_text("VALUE = 1\n")
         (seed / "scripts" / "keep.sh").write_text("#!/bin/bash\ntrue\n")
         (seed / "tests" / "test_seed.py").write_text("def test_seed():\n    pass\n")
@@ -171,6 +172,31 @@ class CodeSyncTest(unittest.TestCase):
         self.assertEqual((self.fx.repo / "spa_core" / "live.py").read_text(),
                          "VALUE = 2\n")
         self.assertEqual(len(self.fx.snapshots()), 1)
+
+    def test_launchd_plist_drift_is_synced_and_no_agent_is_touched(self):
+        """ADR-849: plist с origin доезжает до дерева — и ни один агент не перезапущен.
+
+        Подмена ДВЕРИ: `launchctl` в PATH записывает любой свой вызов. Синхронизация
+        обязана сойтись по копии в репо и не позвать launchctl ни разу.
+        """
+        shim = self.fx.tmp / "lshim"
+        shim.mkdir()
+        calls = self.fx.tmp / "launchctl.calls"
+        (shim / "launchctl").write_text(f'#!/bin/bash\necho "$@" >> "{calls}"\n')
+        (shim / "launchctl").chmod(0o755)
+
+        def move(w):
+            (w / "launchd" / "com.spa.seed.plist").write_text("<plist>v2</plist>\n")
+            (w / "launchd" / "com.spa.new_agent.plist").write_text("<plist>new</plist>\n")
+        self.fx.origin_commit(move)
+        r = self.fx.run(path_shim=shim)
+        st = self.fx.status()
+        self.assertEqual(st["result"], "SYNCED", r.stdout + r.stderr)
+        self.assertEqual((self.fx.repo / "launchd" / "com.spa.seed.plist").read_text(),
+                         "<plist>v2</plist>\n")
+        self.assertTrue((self.fx.repo / "launchd" / "com.spa.new_agent.plist").is_file())
+        self.assertFalse(calls.exists(), "синхронизация позвала launchctl: " +
+                         (calls.read_text() if calls.exists() else ""))
 
     def test_clean_tree_reports_in_sync_and_empty_retired_code(self):
         """«Измерено и пусто» обязано отличаться от «не измерено» (None)."""

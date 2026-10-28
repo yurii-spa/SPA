@@ -9,7 +9,7 @@
 #
 # RULES (hard-learned, see memory git-push-api-drift):
 #   * CODE ONLY, whole directories: spa_core/ scripts/ tests/ + the two root pushers,
-#     PLUS architecture/ — see next rule.
+#     PLUS architecture/ and launchd/ — see the exceptions below.
 #     NEVER data/ (live track), docs/, nimbalyst-local/, KANBAN.json, or .claude/ as a
 #     whole — only its rules/ subdirectory, see the second exception below.
 #   * architecture/ is a non-code exception, added on the owner's decision
@@ -31,6 +31,16 @@
 #     red origin. Delivered code without the instructions that govern it is half a
 #     delivery. Only .claude/rules/ — NOT .claude/ whole: that directory also holds
 #     local session state (worktrees/, settings.local.json) that origin must not own.
+#   * launchd/ is the THIRD non-code exception, added 2026-10-28 (ARB 27.10 «синхронизация
+#     launchd без массовых перезапусков» — agreed work; task of 28.10; ADR-849). The
+#     installer (`install_all_agents.sh`) and the fleet-parity guard read the plists FROM
+#     THIS TREE, and nothing ever carried them here. Measured 28.10: prod launchd/ lacked
+#     four plists origin has (btc_nav, director_build, director_server, trading_research),
+#     three differed (orchestrator, source_discovery, tracker_status_sentinel), and
+#     `data/fleet_parity.json` reported broken=2 (director_build, director_server) on two
+#     agents that RUN — a permanent false line. The sync converges the REPO COPIES only:
+#     it never installs, loads, unloads or kickstarts an agent; ~/Library/LaunchAgents is
+#     untouched and installing stays the manual gated path (check_agent_before_deploy.sh).
 #   * A checkout does not DELETE: a rule file the owner retires on origin keeps
 #     living here. That is this card's own failure class (an obsolete ban still
 #     obeyed), so the sync NAMES such files in the log and in the status file — it
@@ -65,7 +75,7 @@ main() {
     # (`scripts/tests/test_code_sync_from_origin.py`) на синтетическом git-репо.
     PYTHON="${SPA_SYNC_PYTHON:-/Users/yuriikulieshov/miniconda3/bin/python3}"
     REPO="${SPA_SYNC_REPO:-$HOME/Documents/SPA_Claude}"
-    CODE_PATHS=(spa_core scripts tests architecture push_to_github.py push_to_github_batch.py CLAUDE.md .claude/rules)
+    CODE_PATHS=(spa_core scripts tests architecture launchd push_to_github.py push_to_github_batch.py CLAUDE.md .claude/rules)
     LOG="${SPA_SYNC_LOG:-/tmp/spa_code_sync.log}"
     SNAP_DIR="${SPA_SYNC_SNAP_DIR:-/tmp}"
     SNAP_KEEP="${SPA_SYNC_SNAP_KEEP:-10}"
