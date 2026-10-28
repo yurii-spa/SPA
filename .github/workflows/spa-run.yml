@@ -45,7 +45,7 @@ jobs:
         # directory simplifies discovery and avoids path-import confusion.
         # Fixes: SPA-B002 (--fetch added to export step), SPA-F002 (full coverage).
         run: |
-          pip install pytest --quiet
+          pip install pytest==9.1.1 --quiet
           python -m pytest spa_core/tests/ -x -q --tb=short 2>&1 | tee test_output.txt
           echo "Tests exit code: $?"
         continue-on-error: true

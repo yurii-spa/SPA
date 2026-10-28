@@ -61,7 +61,7 @@ jobs:
           python-version: '3.11'
 
       - name: Install pytest (stdlib-only runtime; pytest is test-only)
-        run: python3 -m pip install --quiet pytest
+        run: python3 -m pip install --quiet pytest==9.1.1
 
       # ── (1) Standalone verifier: re-derive every published proof, zero-dep ──
       # Rebuild the EVIDENCED equity-track chain from the committed equity curve so
