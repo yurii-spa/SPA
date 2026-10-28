@@ -2,15 +2,15 @@
 
 > Авто-генерится `scripts/build_tracker_board.py` из `nimbalyst-local/tracker/*.md`. НЕ править вручную — правь карточки. Источник правды — карточки, это индекс (bootstrap).
 >
-> Собрана: 2026-10-27T21:05:27Z · сверка с карточками: `python3 scripts/build_tracker_board.py --check` (сторож `spa_core/tests/test_tracker_board_matches_cards.py`).
+> Собрана: 2026-10-28T06:24:22Z · сверка с карточками: `python3 scripts/build_tracker_board.py --check` (сторож `spa_core/tests/test_tracker_board_matches_cards.py`).
 >
-> Сверено с `origin/main` (f6804725c) · у **18** своя правка, кто новее — не измерено.
+> Сверено с `origin/main` (01dcead10).
 >
-> Всего карточек: **1482** · ждёт владельца: **0** · занято сессиями: **15**.
+> Всего карточек: **1486** · ждёт владельца: **1** · занято сессиями: **15**.
 
 ## 🔴 ЖДЁТ ВЛАДЕЛЬЦА (needs-owner)
 
-_Пусто — открытых решений на владельце нет._
+- **Уточнение по заметке: купить зонт в пятницу**  ·  `owner-decision-utochnenie-po-zametke-kupit-zont-v-pyatn-6.md`
 
 ## 🔒 ЗАНЯТЫ СЕССИЯМИ (claimed_by)
 
@@ -29,11 +29,13 @@ _Пусто — открытых решений на владельце нет._
 - **Прогон тестов переписывает СОРОК git-tracked файлов в data/ (карточка #225/#226 считает, что их три) — среди них журнал исполнения** — держит `cycle-352` · с 2026-08-23T03:25:59Z  ·  `inbox-progon-testov-perepisyvaet-sorok-otslezhivaemyh-failov-data.md`
 - **Производители устаревших чисел сайта: дата go-live из API, сверка NAV до цикла, протухшие артефакты, молчащие стражи сайта** — держит `pid20023` · с 2026-09-08T21:15:05Z  ·  `inbox-proizvoditeli-ustarevshih-chisel-saita-d.md`
 - **Сторож ответа владельца зовёт человека на не-спор: 1 и "1" — одно решение, а сравниваются байты** — держит `cycle-84821` · с 2026-08-30T00:50:53Z  ·  `inbox-storozh-otveta-vladeltsa-zovet-cheloveka.md`
-- **TASK — Portfolio CIO: Dynamic Capital Allocation & Rebalancing** — держит `cycle-18168` · с 2026-10-27T20:55:24Z  ·  `inbox-task-portfolio-cio-dynamic-capital-alloc.md`
+- **TASK — Portfolio CIO: Dynamic Capital Allocation & Rebalancing** — держит `cycle-37353` · с 2026-10-28T01:05:40Z  ·  `inbox-task-portfolio-cio-dynamic-capital-alloc.md`
 - **Замок цикла оркестратора доставлен, но в проде не работает: обёртка агента синкается раз в сутки, а голос о пропавшей защите живёт в самом пропавшем файле** — держит `cycle-81141` · с 2026-08-08T01:59:06Z  ·  `inbox-zamok-tsikla-orkestratora-dostavlen-no-v.md`
 
-## 🧑‍⚖️ Owner Decisions (что нужно от владельца)  (372)
+## 🧑‍⚖️ Owner Decisions (что нужно от владельца)  (373)
 
+### · needs-owner
+- Уточнение по заметке: купить зонт в пятницу  ·  `owner-decision-utochnenie-po-zametke-kupit-zont-v-pyatn-6.md` · 2026-10-27
 ### · ingested
 - Ключ Etherscan уже работает — задача была «фантомной» (петля исправлена)  ·  `own-06-etherscan-prod-key.md` · 2026-07-15
 - Включить письма-подтверждения для подписки — добавить два ключа на сервер  ·  `own-07-retention-secrets.md` · 2026-07-15
@@ -428,7 +430,7 @@ _Пусто — открытых решений на владельце нет._
 - Расширить опрашиваемый набор адаптеров шагами (второй шаг варианта A, после ADR-138)  ·  `inbox-rasshirit-oprashivaemyi-nabor-adapterov.md` · 2026-08-26
 - Сторож кнопок нарушает границу, которую сам объявил соблюдённой: метка-БУКВА принималась где угодно, и слово в прозе = «наш дефект разбора» с лекарством чинить НЕСУЩЕСТВУЮЩУЮ форму (перемер #484: ложная ОДНА из 21, не пять; п.1 исполнен)  ·  `inbox-storozh-knopok-narushaet-granitsu-kotoru.md` · 2026-09-04
 - Сторож переходов статусов ждёт первого улова: назвать немого писателя и встроить прогон в агента  ·  `inbox-storozh-perehodov-statusov-zhdet-pervogo.md` · 2026-08-09
-- TASK — Portfolio CIO: Dynamic Capital Allocation & Rebalancing  ·  `inbox-task-portfolio-cio-dynamic-capital-alloc.md` · 2026-08-13 · 🔒 `cycle-18168`
+- TASK — Portfolio CIO: Dynamic Capital Allocation & Rebalancing  ·  `inbox-task-portfolio-cio-dynamic-capital-alloc.md` · 2026-08-13 · 🔒 `cycle-37353`
 - Tier-C: 171 из 180 модулей не отвечают, 9 отвечающих — константы. Подключить или честно списать  ·  `inbox-tier-c-171-iz-180-modulei-ne-otvechayut.md` · 2026-08-06
 - Целостность трека SPA: подключить сторож, пересчёт из сырых входов, commit-reveal книги (перенос из earn-defi)  ·  `inbox-tselostnost-treka-spa-podklyuchit-storoz.md` · 2026-09-08
 - Цена класса «две сессии на одном предмете»: G38 п. 3 лежит остатком пятьдесят заказов  ·  `inbox-tsena-klassa-dve-sessii-na-odnom-predmet.md` · 2026-09-28
@@ -583,6 +585,7 @@ _Пусто — открытых решений на владельце нет._
 - Критерий §49 «No regression»: проходят ли существующие risk/security/architecture-тесты — не мерил никто  ·  `inbox-kriterii-49-no-regression-prohodyat-li.md` · 2026-09-28
 - Критическая тревога о здоровье системы уходит в никуда: третий вызов отставленного менеджера, а оператору печатают «cooldown active»  ·  `inbox-kriticheskaya-trevoga-o-zdorove-sistemy.md` · 2026-08-10
 - купить зонт в пятницу  ·  `inbox-kupit-zont-v-pyatnitsu-5.md` · 2026-10-17
+- купить зонт в пятницу  ·  `inbox-kupit-zont-v-pyatnitsu-6.md` · 2026-10-24
 - Локальные сессии на Маке рассуждают по устаревшим docs/ — зеркало origin + SessionStart-хук  ·  `inbox-lokalnye-sessii-rassuzhdayut-po-ustarevshim-docs.md` · 2026-08-26
 - Мандат «3 трека параллельно» — поднять в top-приоритет. Порядок: шаг 1 (фикс пе…  ·  `inbox-mandat-3-treka-parallelno-podnyat-v-top.md` · 2026-08-19
 - Манифест архитектуры отстал от РЕАЛЬНОСТИ: три агента стали reboot-safe, тест красный на чистом origin  ·  `inbox-manifest-arhitektury-otstal-ot-realnosti.md` · 2026-08-06
@@ -1011,7 +1014,6 @@ _Пусто — открытых решений на владельце нет._
 - Красный на чистом main: вычет «ручной R&D» съел 68 из 131 скриптов — сторож храповика больше не мерит  ·  `inbox-krasnyi-na-chistom-main-vychet-ruchnoi-r.md` · 2026-10-13
 - Шаг 0b даёт НЕОБРАТИМЫЙ `unchecked` на критическом приказе владельца: четыре записи журнала без pid не стареют никогда  ·  `inbox-kriticheskii-prikaz-vladeltsa-nelzya-vzy.md` · 2026-09-12
 - Крупнейшая позиция книги стоит на константе: у aave_v3 (Ethereum, 40%) TVL «не измерено», а пул в фиде есть  ·  `inbox-krupneishaya-pozitsiya-knigi-stoit-na-ko.md` · 2026-08-09
-- купить зонт в пятницу  ·  `inbox-kupit-zont-v-pyatnitsu-6.md` · 2026-10-24
 - «Лежит 8 служб» — но три строки из шести это НЕ ИЗМЕРЕНО: проверке не назвали файл вывода  ·  `inbox-lezhit-8-sluzhb-no-tri-stroki-iz-shesti.md` · 2026-10-10
 - live_registry_scene_census — сирота, вскрытая ужесточением детектора: её «вызывающим» был путь её же теста  ·  `inbox-live-registry-scene-census-sirota-vskryt.md` · 2026-10-27
 - main КРАСЕН: храповик инварианта #17 вырос на три координаты из двух чужих доставок  ·  `inbox-main-krasen-hrapovik-invarianta-17-vyros.md` · 2026-10-08
@@ -1231,7 +1233,7 @@ _Пусто — открытых решений на владельце нет._
 - Запись ЗА другую сессию уезжает с якорем ЖИВОГО процесса писателя — чужой ярлык читается как ACTIVE  ·  `inbox-zapis-za-druguyu-sessiyu-uezzhaet-s-yako.md` · 2026-08-26
 - Журнал одного агента вырос до 4,85 ГБ и заполнил диск на 100 % — свободное место не меряет никто  ·  `inbox-zhurnal-odnogo-agenta-vyros-do-4-85-gb-i.md` · 2026-10-02
 
-## 🤖 Agent Tasks (что делает агент)  (217)
+## 🤖 Agent Tasks (что делает агент)  (220)
 
 ### · in-progress
 - 🅰🅰🅰 Продуктовый слой агентов (супер-студия)  ·  `agent-aaa-product-layer.md` · 2026-07-16
@@ -1262,6 +1264,7 @@ _Пусто — открытых решений на владельце нет._
 - Подстановка выдуманного APY живёт ещё в 15 адаптерах — у 14 она доходит до оркестратора  ·  `agent-fake-fallback-v-15-adapterah.md` · 2026-08-08
 - Панель идеи #17 на 6 книгах из 10 состоит из неподвижных марок — кросс-секцию на ней измерить нельзя  ·  `agent-idea17-needs-a-panel-with-daily-marks.md` · 2026-08-02
 - Карта агентов в проде устаревает навсегда: её некому пересобирать  ·  `agent-karta-agentov-v-prode-ustarevaet-navsegd.md` · 2026-09-09
+- Карточка «Диск Mac Mini» разошлась между прод-копией и origin — сверка ответов 27.10 даёт 17 из 18 на проде  ·  `agent-kartochka-diska-razoshlas-s-origin-sverka-17-iz-18.md` · 2026-10-28
 - Книгу перекладывают 22 раза за неделю. По нашей же модели издержек это съело бы доходность в 15 раз  ·  `agent-knigu-perekladyvayut-22-raza-za-nedelyu-2026-08-29.md` · 2026-09-09
 - Кто планирует развитие проекта: судьба «Архитектора» и живой план  ·  `agent-kto-planiruet-razvitie-proekta-sudba-arh.md` · 2026-09-09
 - Метрика качества и slo_hours в манифесте расходятся у двух агентов  ·  `agent-manifest-metrika-i-slo-rashodyatsya.md` · 2026-09-10
@@ -1311,6 +1314,7 @@ _Пусто — открытых решений на владельце нет._
 - Повторяющийся сбой com.spa.orchestrator: exit_nonzero:1  ·  `agent-task-povtoryayuschiisya-sboi-com-spa-orchestr-3.md` · 2026-10-14
 - Повторяющийся сбой com.spa.orchestrator: stale_log  ·  `agent-task-povtoryayuschiisya-sboi-com-spa-orchestr.md` · 2026-10-07
 - Повторяющийся сбой com.spa.resource_guard: exit_nonzero:2  ·  `agent-task-povtoryayuschiisya-sboi-com-spa-resource-2.md` · 2026-10-14
+- Повторяющийся сбой com.spa.resource_guard: ресурсы_мака:_измерено_warn_(память/своп  ·  `agent-task-povtoryayuschiisya-sboi-com-spa-resource-4.md` · 2026-10-27
 - Повторяющийся сбой com.spa.resource_guard: exit_nonzero:1  ·  `agent-task-povtoryayuschiisya-sboi-com-spa-resource.md` · 2026-10-06
 - Повторяющийся сбой com.spa.site_freshness: exit_nonzero:1  ·  `agent-task-povtoryayuschiisya-sboi-com-spa-site-fre.md` · 2026-10-06
 - Повторяющийся сбой com.spa.strategy_lab_paper: stale_log  ·  `agent-task-povtoryayuschiisya-sboi-com-spa-strategy.md` · 2026-10-19
@@ -1319,6 +1323,7 @@ _Пусто — открытых решений на владельце нет._
 - Повторяющийся сбой com.spa.telegram_milestone: stale_log  ·  `agent-task-povtoryayuschiisya-sboi-com-spa-telegram-4.md` · 2026-10-19
 - Повторяющийся сбой com.spa.telegram_health: exit_nonzero:2  ·  `agent-task-povtoryayuschiisya-sboi-com-spa-telegram.md` · 2026-10-13
 - Повторяющийся сбой com.spa.tier1_digest: no_run_since_reboot_(>_)_—_missed_first  ·  `agent-task-povtoryayuschiisya-sboi-com-spa-tier1-di.md` · 2026-10-22
+- Повторяющийся сбой fleet: fleet_parity_drift  ·  `agent-task-povtoryayuschiisya-sboi-fleet-fleet-pari.md` · 2026-10-27
 - Повторяющийся сбой fleet: retired_but_loaded  ·  `agent-task-povtoryayuschiisya-sboi-fleet-retired-bu.md` · 2026-10-06
 - Повторяющийся сбой site_freshness: COMPARISON_NOT_MEASURED  ·  `agent-task-povtoryayuschiisya-sboi-site-freshness-c.md` · 2026-10-08
 - Повторяющийся сбой site_freshness: MISSING_ASOF  ·  `agent-task-povtoryayuschiisya-sboi-site-freshness-m.md` · 2026-10-08
