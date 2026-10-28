@@ -799,6 +799,53 @@ def arming_blockade(records: List[dict], *, observed_days: int, min_days: int,
     }
 
 
+def live_trim_census(records: List[dict]) -> dict:
+    """Что ЖИВОЙ шаг урезания (ADR-850) сделал на записанных днях.
+
+    Три блока рядом (`arming_blockade`, `trial_grant_reach`,
+    `admissible_size_reach`) отвечают на вопрос «что БЫЛО БЫ». Этот — на
+    вопрос «что шаг СДЕЛАЛ», и он единственный умеет сказать, что проводка в
+    проде молчит.
+
+    Строка БЕЗ поля ``admissible_trim`` считается ОТДЕЛЬНЫМ числом
+    (``records_without_field``): все строки, записанные до ADR-850, поля не
+    несут, и зачесть их в «не урезано» значило бы выдать отсутствие наблюдения
+    за наблюдение нуля (инв. #17). Перепись только ЧИТАЕТ.
+    """
+    if not isinstance(records, list):
+        return {"unmeasured_reason": "история не список — перепись не измерена"}
+    counts: Dict[str, int] = {}
+    without = 0
+    last_applied: Optional[dict] = None
+    for rec in records:
+        if not isinstance(rec, dict):
+            continue
+        trim = rec.get("admissible_trim")
+        if not isinstance(trim, dict) or not trim:
+            without += 1
+            continue
+        verdict = str(trim.get("verdict") or "UNMEASURED")
+        counts[verdict] = counts.get(verdict, 0) + 1
+        if verdict == "TRIMMED_TO_ADMISSIBLE":
+            last_applied = {
+                "date": rec.get("cycle_date"),
+                "k": trim.get("k"),
+                "turnover_full_usd": trim.get("turnover_full_usd"),
+                "turnover_final_usd": trim.get("turnover_final_usd",
+                                               trim.get("turnover_cut_usd")),
+                "admissible_usd": trim.get("admissible_usd"),
+                "verdict_of_day": rec.get("verdict"),
+            }
+    return {
+        "records": len([r for r in records if isinstance(r, dict)]),
+        "records_without_field": without,
+        "counts": counts,
+        "last_applied": last_applied,
+        "note": ("перепись ЧИТАЕТ запись живого шага и ничего не решает; строка без "
+                 "поля — это «шаг не звали», а не «не урезано»"),
+    }
+
+
 def _criterion(name: str, threshold, actual, status: str, note: str = "") -> dict:
     c = {"criterion": name, "threshold": threshold, "actual": actual, "status": status}
     if note:
@@ -953,6 +1000,11 @@ def evaluate_window(
         params=TriggerParams.for_mode("paper"),
         acts=len(acts),
     )
+    # Четвёртый вопрос, и он про ПРОВОДКУ, а не про достижимость: три блока выше
+    # спрашивают, ЧТО БЫЛО БЫ, этот — что живой шаг ADR-850 на записанных днях
+    # СДЕЛАЛ. Прибор без читателя сирота (ADR-843), поэтому у живого урезания
+    # есть перепись, и её печатают оба читателя артефакта.
+    live_trim = live_trim_census(_window_history)
 
     doc = {
         "generated_at": None,  # filled below; kept out of the hash-relevant zone
@@ -987,6 +1039,10 @@ def evaluate_window(
         # до допустимого размера (ADR-848). Снятие стены даёт потолок, урезание —
         # нижнюю границу; из потолка достижимость не следует, из границы следует.
         "admissible_size_reach": admissible,
+        # Проводка живого урезания (ADR-850): что шаг 2e'' сделал на записанных
+        # днях. Не критерий и не гейт; отвечает на вопрос, которого у трёх
+        # блоков выше нет вовсе — работает ли проводка в проде.
+        "live_trim_census": live_trim,
         "params": {
             "horizon_days": horizon_days,
             "min_observation_days": min_days,
@@ -1154,6 +1210,9 @@ def format_summary(doc: dict) -> str:
     from spa_core.paper_trading.admissible_size import format_admissible_reach
 
     lines.extend(format_admissible_reach(doc.get("admissible_size_reach")))
+    from spa_core.paper_trading.admissible_trim import format_live_trim
+
+    lines.extend(format_live_trim(doc.get("live_trim_census")))
     lines.append("Включение — отдельное owner-решение (pre_cutover_gate + ADR); "
                  "этот отчёт капитал не двигает.")
     return "\n".join(lines)

@@ -2,11 +2,11 @@
 
 > Авто-генерится `scripts/build_tracker_board.py` из `nimbalyst-local/tracker/*.md`. НЕ править вручную — правь карточки. Источник правды — карточки, это индекс (bootstrap).
 >
-> Собрана: 2026-10-28T16:34:57Z · сверка с карточками: `python3 scripts/build_tracker_board.py --check` (сторож `spa_core/tests/test_tracker_board_matches_cards.py`).
+> Собрана: 2026-10-28T18:41:35Z · сверка с карточками: `python3 scripts/build_tracker_board.py --check` (сторож `spa_core/tests/test_tracker_board_matches_cards.py`).
 >
-> Сверено с `origin/main` (850172508).
+> Сверено с `origin/main` (39fb2db91) · у **1** своя правка, кто новее — не измерено.
 >
-> Всего карточек: **1490** · ждёт владельца: **0** · занято сессиями: **15**.
+> Всего карточек: **1491** · ждёт владельца: **0** · занято сессиями: **15**.
 
 ## 🔴 ЖДЁТ ВЛАДЕЛЬЦА (needs-owner)
 
@@ -411,7 +411,7 @@ _Пусто — открытых решений на владельце нет._
 ### · closed
 - Считать ли верный отказ по правилам допуска неисправностью флота  ·  `owner-decision-schitat-li-vernyi-otkaz-po-pravilam-dopu.md` · 2026-10-08
 
-## 📥 Inbox (задания: Telegram / заметки / голос)  (817)
+## 📥 Inbox (задания: Telegram / заметки / голос)  (818)
 
 ### · in-progress
 - а задача починить все-таки еще раз сообщение которым не пишет нужно твое решени…  ·  `inbox-a-zadacha-pochinit-vse-taki-esche-raz-so.md` · 2026-08-14 · 🔒 `pid43119`
@@ -1077,6 +1077,7 @@ _Пусто — открытых решений на владельце нет._
 - Перепись вердиктов по коду выхода красна на origin/main: у агента com.spa.mission_tick нет обёртки, и сайт остаётся неразобранным  ·  `inbox-perepis-verdiktov-po-kodu-vyhoda-krasna.md` · 2026-10-08
 - Перепись закончена: опрошены все 36 адаптеров своими фидами — доступная доходность из нашего набора исчерпана, кроме трёх статических меток  ·  `inbox-perepis-zakonchena-oprosheny-vse-36-adap.md` · 2026-08-29
 - Первичный источник fluid_usdc МЁРТВ: оба endpoint'а Fluid отвечают 404, а докстринг обещает слой «кто первый»  ·  `inbox-pervichnyi-istochnik-fluid-usdc-mertv-ob.md` · 2026-09-06
+- Писатели цикла не видят песочницы data_dir — прогон тестов меняет git-tracked data/ (пять модулей, четыре файла)  ·  `inbox-pisateli-tsikla-ne-vidyat-pesochnitsy-da.md` · 2026-10-28
 - Починить писателей живого data/ по карте замера — класс обнесён храповиком, но не закрыт  ·  `inbox-pochinit-pisatelei-zhivogo-data-po-karte.md` · 2026-08-23
 - Починить те 11 модулей — выбор владельца от 31.08, восемнадцать суток без карточки  ·  `inbox-pochinit-te-11-modulei-vybor-vladeltsa-o.md` · 2026-09-18
 - Под ключом stusd объявлены ДВА разных контракта с одинаковым vanity-префиксом — проверить on-chain  ·  `inbox-pod-klyuchom-stusd-obyavleny-dva-raznyh.md` · 2026-08-18

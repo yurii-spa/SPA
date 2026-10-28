@@ -12045,7 +12045,102 @@ def _probe_tact_stage_names_its_caller(
         + "; подстрока ни записью, ни тактом не считается, отсутствующий модуль "
           "даёт НЕ ИЗМЕРЕНО со своей причиной")
 
+#: Предел возраста артефакта оценки теневого триггера. Такт его писателя —
+#: дневной цикл (26 ч по конституции), и запас назван ЯВНО: порог, равный такту,
+#: краснеет от задержки прогона, а не от предмета (находка `no_margin`, ADR-646).
+_SHADOW_EVAL_MAX_AGE_H = 36.0
+
+
+def _probe_cio_act_fires_and_is_scored(arg: str | None, *,
+                                       now: "datetime | None" = None,
+                                       data_dir: str | None = None) -> tuple[str, str]:
+    """Критерий карточки `inbox-hod-ne-urezaetsya-do-dopustimogo-razmera` (ADR-850).
+
+    Дословно: ``data/shadow_trigger_evaluation.json`` несёт ``counts.act >= 1``
+    И этот ACT **ОЦЕНЁН** (``outcome`` = ``hit``/``miss``, не ``UNCHECKED``) —
+    то есть третий критерий мандата взвода (``net_bps_if_followed``) впервые
+    считается на НАБЛЮДЕНИИ, а не остаётся `UNCHECKED` 84-й день подряд.
+
+    Почему критерий именно двусоставный. ACT без оценки закрыл бы карточку
+    ровно тем, что вопрос «окупается ли советник» так и остался бы без входа:
+    первый же сработавший ход расходует ЕДИНСТВЕННОЕ разрешение владельца
+    (ADR-334, ``moves: 1``), а ``apy_forecast_accuracy`` на 28 днях из 139
+    расходился знаком с фактом. Поэтому ход обязан оцениваться ВПЕРЁД, а не
+    считаться успехом заранее.
+
+    Три исхода различимы (инв. #17): артефакта нет / он протух / число ACT не
+    записано ⇒ ``unmeasured`` с названной причиной (НИКОГДА не `not_satisfied`:
+    `data/` частично лежит в git, и в worktree лежит ЗАМОРОЖЕННЫЙ канон, по
+    которому о живом производителе не известно ничего) · ACT нет либо он не
+    оценён ⇒ ``not_satisfied`` с числом · ACT есть и оценён ⇒ ``satisfied``.
+
+    Время и каталог — ВХОДЫ (``now``, ``data_dir``), а не окружение: иначе
+    вердикт решала бы переменная среды, а не предмет. Проба только ЧИТАЕТ.
+    """
+    if arg:
+        return UNMEASURED, (f"проба не принимает аргумента (дано {arg!r}): критерий "
+                            "назван целиком")
+    path = os.path.join(data_dir or os.path.join(REPO_ROOT, "data"),
+                        "shadow_trigger_evaluation.json")
+    try:
+        with open(path, encoding="utf-8") as fh:
+            doc = json.load(fh)
+    except OSError as exc:
+        return UNMEASURED, f"артефакт оценки не прочитан ({type(exc).__name__}): {path}"
+    except ValueError as exc:
+        return UNMEASURED, f"артефакт оценки не разобран: {type(exc).__name__}: {exc}"
+    if not isinstance(doc, dict):
+        return UNMEASURED, "артефакт оценки не документ — судить нечем"
+
+    stamp = doc.get("generated_at")
+    if not stamp:
+        return UNMEASURED, ("у артефакта оценки нет `generated_at` — возраст не "
+                            "измерен, о живом производителе не известно ничего")
+    try:
+        made = datetime.fromisoformat(str(stamp).replace("Z", "+00:00"))
+    except ValueError:
+        return UNMEASURED, f"generated_at {stamp!r} не разобран — возраст не измерен"
+    if made.tzinfo is None:
+        made = made.replace(tzinfo=timezone.utc)
+    age_h = ((now or datetime.now(timezone.utc)) - made).total_seconds() / 3600.0
+    if age_h > _SHADOW_EVAL_MAX_AGE_H:
+        return UNMEASURED, (f"артефакт оценки протух: возраст {age_h:.1f}ч при пределе "
+                            f"{_SHADOW_EVAL_MAX_AGE_H:.0f}ч — это замороженный канон, "
+                            "а не наблюдение; мерить из дерева с живым data/")
+
+    counts = doc.get("counts")
+    if not isinstance(counts, dict) or "act" not in counts:
+        return UNMEASURED, "число ACT в артефакте не записано — критерий не измерен"
+    try:
+        acts = int(counts["act"])
+    except (TypeError, ValueError):
+        return UNMEASURED, f"число ACT не разобрано: {counts.get('act')!r}"
+
+    records = [r for r in (doc.get("per_verdict") or [])
+               if isinstance(r, dict) and str(r.get("verdict")) == "ACT"]
+    if acts <= 0:
+        return NOT_SATISFIED, (
+            f"ни одного вердикта ACT за {doc.get('observation_days')} дн. наблюдения "
+            f"(записей {len(doc.get('per_verdict') or [])}) — советнику нечего "
+            "оценивать, и урезание хода до допустимого ещё ни раз не сработало")
+    scored = [r for r in records
+              if str(r.get("outcome") or "UNCHECKED").lower() in ("hit", "miss")]
+    if not scored:
+        return NOT_SATISFIED, (
+            f"ACT есть ({acts}), но ни один НЕ ОЦЕНЁН: outcome="
+            f"{sorted({str(r.get('outcome')) for r in records}) or ['нет записи']} — "
+            "ход, посчитанный успехом заранее, не отвечает на вопрос «окупается ли "
+            "советник», ради которого разрешение и выдано")
+    last = scored[-1]
+    return SATISFIED, (
+        f"ACT {acts}, оценённых {len(scored)}; последний {last.get('cycle_date')}: "
+        f"outcome={last.get('outcome')}, net ${last.get('net_usd')} "
+        f"(net_bps_if_followed={doc.get('net_bps_if_followed')}) — третий критерий "
+        "мандата взвода впервые считается на наблюдении")
+
+
 PROBES: dict[str, Callable[[str | None], "tuple[str, str]"]] = {
+    "cio_act_fires_and_is_scored": _probe_cio_act_fires_and_is_scored,
     "tact_stage_names_its_caller":
         _probe_tact_stage_names_its_caller,
     "door_sites_operand_agrees": _probe_door_sites_operand_agrees,

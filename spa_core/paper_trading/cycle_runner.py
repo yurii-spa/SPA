@@ -2126,6 +2126,37 @@ def run_cycle(
     target_usd = apply_pool_alias_gate(target_usd, capital_usd=capital_usd, notes=notes,
                                        adapters=adapters, ddir=ddir)
 
+    # ── Step 2e'' (ADR-850): урезать предложение до допустимого РАЗМЕРА хода ──
+    # Потолок размера владельца ($15 000, ADR-357; 15 % за ход) до этого шага
+    # читался как ФИЛЬТР предложений: аллокатор предлагал перекладку целиком,
+    # потолок отказывал ей ЦЕЛИКОМ, и урезать её не умел никто — замер ADR-848
+    # нашёл 7 записей (6 дат, 3 после выдачи разрешения ADR-334), где урезанный
+    # до допустимого ход прошёл бы ВСЕ остальные гейты. Шаг стои́т РЯДОМ с двумя
+    # соседями того же рода (RTMR-поза, псевдонимы пула) и ДО Step 2f, чтобы
+    # вердикт CIO судил РОВНО тот ход, который цикл и сделает: одна цель, один
+    # вердикт, один ход. Ни один порог не ослаблен (ход становится МЕНЬШЕ),
+    # RiskPolicy переспрашивается на урезанной книге и её отказ означает прежнее
+    # поведение, перетасовка — единственный предмет (де-риск и размещение кэша
+    # не урезаются никогда).
+    _trim_record: dict | None = None
+    try:
+        from spa_core.paper_trading.admissible_trim import apply_admissible_trim
+        target_usd, _trim_record = apply_admissible_trim(
+            target_usd,
+            current_positions=current_positions,
+            capital_usd=capital_usd,
+            notes=notes,
+            adapters=adapters,
+            ddir=ddir,
+            trades=_read_json(ddir / TRADES_FILENAME, []),
+            now=now_dt,
+        )
+    except Exception as _trim_exc:  # noqa: BLE001 — не измерено ⇒ цель прежняя
+        log.warning("ADR-850 urezanie не измерено (%s) — цель прежняя", _trim_exc)
+        notes.append(f"admissible_trim_unmeasured: {type(_trim_exc).__name__}")
+        _trim_record = {"verdict": "UNMEASURED", "adr": "ADR-850",
+                        "why": f"шаг не исполнен: {type(_trim_exc).__name__}"}
+
     # ── Step 2f (ADR-060 phase 0): yield-trigger SHADOW ──────────────────────
     # Records what the yield-improvement trigger WOULD decide about moving from the
     # held book to this cycle's target — gain over total capital, cost of the move,
@@ -2176,6 +2207,10 @@ def run_cycle(
             policy_refusals=list(_policy_refusals),
             trades=_read_json(ddir / TRADES_FILENAME, []),
             write=write,
+            # ADR-850: чем судимая цель отличается от предложения аллокатора —
+            # провенанс хода обязан ехать вместе с вердиктом, иначе документ
+            # описывает урезанное предложение и молчит, что оно урезано.
+            admissible_trim=_trim_record,
             # ADR-339: кулдаун и возраст позиций CIO — по часам цикла (см. демпфер ниже).
             now=now_dt,
         )

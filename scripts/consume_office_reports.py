@@ -5319,10 +5319,18 @@ def _summarize_json(path: str, data, *, now: dt.datetime | None = None,
                 format_admissible_reach,
             )
 
+            from spa_core.paper_trading.admissible_trim import (
+                format_live_trim,
+            )
+
             blockade_lines = (
                 format_blockade(data.get("arming_blockade"))
                 + format_trial_reach(data.get("trial_grant_reach"))
-                + format_admissible_reach(data.get("admissible_size_reach")))
+                + format_admissible_reach(data.get("admissible_size_reach"))
+                # ADR-850: четвёртая строка отвечает не «что было бы», а «что
+                # живой шаг СДЕЛАЛ» — единственная, по которой видно молчащую
+                # проводку.
+                + format_live_trim(data.get("live_trim_census")))
         except Exception as exc:  # noqa: BLE001
             # Тот же приём, что у кнопок ниже: обязательный шаг 0-офис не имеет
             # права упасть из-за строчки оформления — упавший шаг это НЕ

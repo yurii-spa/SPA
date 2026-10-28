@@ -229,6 +229,12 @@ def build_history_record(
         "turnover_usd": dec.get("turnover_usd"),
         "turnover_frac": dec.get("turnover_frac"),
         "warnings_count": len(dec.get("warnings") or []),
+        # ADR-850, АДДИТИВНО и ВПЕРЁД (тот же приём, что у `apy_as_of`/ADR-312):
+        # был ли СУДИМЫЙ ход урезан до допустимого размера. Ключа нет ⇒ шаг не
+        # звали (все строки до этого ADR), и это ТРЕТИЙ исход, а не «не урезан»:
+        # перепись `shadow_trigger_eval.live_trim_census` считает такие строки
+        # отдельным числом и ноль за ответ не выдаёт.
+        "admissible_trim": doc.get("admissible_trim"),
     }
 
 
@@ -553,6 +559,7 @@ def write_shadow_rationale(
     policy_refusals: Optional[List[dict]] = None,
     book_id: Optional[str] = None,
     apy_as_of: Optional[Dict[str, str]] = None,
+    admissible_trim: Optional[dict] = None,
 ) -> dict:
     """Compute the shadow verdict and (optionally) persist it. Never raises.
 
@@ -770,6 +777,12 @@ def write_shadow_rationale(
             "capital_usd": capital_usd,
             "decision_shadow": decision.to_dict(),
             "cio_trial": _trial_note,
+            # ADR-850: цель, которую судит вердикт выше, могла быть УРЕЗАНА до
+            # допустимого размера хода на Step 2e''. Без этой записи документ
+            # честно описывал бы урезанное предложение и МОЛЧАЛ о том, что оно
+            # урезано, — провенанс хода исчез бы ровно там, где он и нужен.
+            # Отсутствие ключа ⇒ шаг не звали (старые записи), а не «не урезано».
+            "admissible_trim": admissible_trim,
             "cash": cash,
             "below_median_cap": below_median,
             # Книга ДО хода / книга, которую ход СОЗДАЁТ / что появилось именно

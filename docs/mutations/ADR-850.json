@@ -1,0 +1,104 @@
+{
+  "title": "ADR-850 (цикл #969) — предложение урезается до допустимого РАЗМЕРА хода ПЕРЕД вердиктом; дельта = admissible_trim.py + Step 2e'' + провенанс записи + перепись + проба приёмки",
+  "tests": [
+    "spa_core/tests/test_admissible_trim.py"
+  ],
+  "mutations": [
+    {
+      "name": "урезается ЛЮБОЙ ход, включая де-риск и размещение кэша (де-риск задержан, капитал простаивает)",
+      "file": "spa_core/paper_trading/admissible_trim.py",
+      "old": "    if damper_reason in NOT_A_RESHUFFLE:\n        record.update({\n            \"verdict\": TRIM_NOT_A_RESHUFFLE,",
+      "new": "    if False and damper_reason in NOT_A_RESHUFFLE:\n        record.update({\n            \"verdict\": TRIM_NOT_A_RESHUFFLE,"
+    },
+    {
+      "name": "RiskPolicy НЕ переспрашивается — урезанная книга принимается на вере (отрезок «по построению» вместо вопроса)",
+      "file": "spa_core/paper_trading/admissible_trim.py",
+      "old": "    if verdict.get(\"error\") is not None or not verdict.get(\"approved\"):",
+      "new": "    if False:"
+    },
+    {
+      "name": "ошибка гейта читается как одобрение (fail-OPEN на money-path)",
+      "file": "spa_core/paper_trading/admissible_trim.py",
+      "old": "    if verdict.get(\"error\") is not None or not verdict.get(\"approved\"):",
+      "new": "    if not verdict.get(\"approved\"):"
+    },
+    {
+      "name": "книга, расширенная гейтом обратно, принимается молча (потолок размера снова фильтр, а не размер)",
+      "file": "spa_core/paper_trading/admissible_trim.py",
+      "old": "    if turnover_final > admissible + 0.01:",
+      "new": "    if False:"
+    },
+    {
+      "name": "оборот считается СВОЕЙ копией определения (пыль учтена иначе, чем у отказавшего гейта)",
+      "file": "spa_core/paper_trading/admissible_trim.py",
+      "old": "    _, turnover = _legs(dict(current or {}), dict(target or {}),\n                        float(capital_usd), float(min_leg_frac))\n    return float(turnover)",
+      "new": "    up = down = 0.0\n    for proto in set(current or {}) | set(target or {}):\n        delta = float((target or {}).get(proto, 0.0) or 0.0) - float((current or {}).get(proto, 0.0) or 0.0)\n        if delta > 0:\n            up += delta\n        else:\n            down += -delta\n    return float(up + down)"
+    },
+    {
+      "name": "потолок размера берётся СВОИМ литералом, а не дверью ADR-848",
+      "file": "spa_core/paper_trading/admissible_trim.py",
+      "old": "    admissible = float(admissible_turnover_usd(capital, params))",
+      "new": "    admissible = 25_000.0"
+    },
+    {
+      "name": "урезание продаёт позицию ЦЕЛИКОМ (точка вне отрезка: ход становится БОЛЬШЕ допустимого)",
+      "file": "spa_core/paper_trading/admissible_trim.py",
+      "old": "        val = round(cur + k * (tgt - cur), 2)",
+      "new": "        val = round(tgt if tgt <= 0 else cur + k * (tgt - cur), 2)"
+    },
+    {
+      "name": "нечитаемый род хода трактуется как перетасовка (догадка вместо третьего исхода)",
+      "file": "spa_core/paper_trading/admissible_trim.py",
+      "old": "    except Exception as exc:  # noqa: BLE001 — не классифицировано ⇒ третий исход\n        record[\"why\"] = f\"род хода не классифицирован ({type(exc).__name__}) ⇒ цель не тронута\"\n        return target_in, record",
+      "new": "    except Exception:  # noqa: BLE001\n        damper_reason = None"
+    },
+    {
+      "name": "цикл НЕ берёт урезанную цель (вердикт судит один ход, делается другой — предмет ADR-774 с другой стороны)",
+      "file": "spa_core/paper_trading/cycle_runner.py",
+      "old": "        target_usd, _trim_record = apply_admissible_trim(",
+      "new": "        _unused_target, _trim_record = apply_admissible_trim("
+    },
+    {
+      "name": "провенанс урезания не доезжает до документа советника (документ описывает урезанный ход и молчит об этом)",
+      "file": "spa_core/paper_trading/cycle_runner.py",
+      "old": "            admissible_trim=_trim_record,",
+      "new": "            admissible_trim=None,"
+    },
+    {
+      "name": "запись истории провенанс не несёт (перепись проводки измерить нечем)",
+      "file": "spa_core/paper_trading/allocation_rationale.py",
+      "old": "        \"admissible_trim\": doc.get(\"admissible_trim\"),",
+      "new": "        \"admissible_trim_absent\": None,"
+    },
+    {
+      "name": "строка БЕЗ поля зачтена как «не урезано» (отсутствие наблюдения выдано за наблюдение нуля, инв. #17)",
+      "file": "spa_core/paper_trading/shadow_trigger_eval.py",
+      "old": "        if not isinstance(trim, dict) or not trim:\n            without += 1\n            continue",
+      "new": "        if not isinstance(trim, dict) or not trim:\n            counts[\"ALREADY_WITHIN_SIZE_CAPS\"] = counts.get(\"ALREADY_WITHIN_SIZE_CAPS\", 0) + 1\n            continue"
+    },
+    {
+      "name": "печать молчит об отсутствии переписи (сирота выглядит как исправная проводка)",
+      "file": "spa_core/paper_trading/admissible_trim.py",
+      "old": "    if not isinstance(census, dict) or not census:\n        return [\"Живое урезание хода (ADR-850): ⚠️ НЕ ИЗМЕРЕНО — переписи в артефакте нет\"]",
+      "new": "    if not isinstance(census, dict) or not census:\n        return []"
+    },
+    {
+      "name": "проба приёмки зачитывает НЕ ОЦЕНЁННЫЙ ACT за исполненный критерий (успех объявлен заранее)",
+      "file": "spa_core/monitoring/card_acceptance.py",
+      "old": "    scored = [r for r in records\n              if str(r.get(\"outcome\") or \"UNCHECKED\").lower() in (\"hit\", \"miss\")]",
+      "new": "    scored = list(records)"
+    },
+    {
+      "name": "проба приёмки выдаёт протухший артефакт за наблюдение (замороженный канон worktree = вердикт)",
+      "file": "spa_core/monitoring/card_acceptance.py",
+      "old": "    if age_h > _SHADOW_EVAL_MAX_AGE_H:",
+      "new": "    if False:"
+    },
+    {
+      "name": "отсутствие артефакта приёмки трактуется как находка, а не как НЕ ИЗМЕРЕНО",
+      "file": "spa_core/monitoring/card_acceptance.py",
+      "old": "    except OSError as exc:\n        return UNMEASURED, f\"артефакт оценки не прочитан ({type(exc).__name__}): {path}\"",
+      "new": "    except OSError as exc:\n        return NOT_SATISFIED, f\"артефакт оценки не прочитан ({type(exc).__name__}): {path}\""
+    }
+  ]
+}
