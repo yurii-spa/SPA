@@ -91,6 +91,16 @@ def _orch(tvl_source="live"):
                          for k, v in _LIVE_TVL.items()]}
 
 
+#: Дом допуска владельца (ADR-836, вариант 1). Число то же, что в живом
+#: `architecture/owner_settings.json`; сцена объявляет его СВОИМ, чтобы тест
+#: не зависел от содержимого рабочего дерева.
+_OWNER_TOLERANCE_X = 3.0
+
+
+def _owner_settings(tolerance=_OWNER_TOLERANCE_X):
+    return {"schema_version": 1, "cost_drift_tolerance_x": tolerance}
+
+
 def _manifest(slo=1.5):
     return {"artifacts": [{"path": R.GAS_ARTIFACT_REL, "slo_hours": slo}]}
 
@@ -113,6 +123,12 @@ class _Tree:
             "data/adapter_orchestrator_status.json": _orch(),
             "data/gas_price_history.json": _gas_doc(),
             "architecture/manifest.json": _manifest(),
+            # Дом допуска «заряжено ↔ наблюдено», объявленного владельцем 27.10
+            # (ADR-836, вариант 1). Сцена обязана его нести: прибор читает порог
+            # из своего дома и запасного литерала не имеет, поэтому дерево БЕЗ
+            # этого файла — честное «не измерено», а не зелёный путь. Правим
+            # СЦЕНУ, а не прибор (урок «сцена обязана быть рабочим деревом»).
+            "architecture/owner_settings.json": _owner_settings(),
         }
         self.files.update({k: v for k, v in files.items() if v is not None})
         self.dropped = {k for k, v in files.items() if v is None}
@@ -749,20 +765,149 @@ class TestTheCriterionVerdictIsNotTheSeverityLadder(unittest.TestCase):
         self.assertEqual(rep["criterion"]["status"], R.CRITERION_UNMEASURED)
         self.assertIn("НЕ ИЗМЕРЕН", rep["criterion"]["reason"])
 
-    def test_the_unjudged_ratio_is_named_when_the_gate_margin_is_absent(self):
-        """Тихий день: отношение ИЗМЕРЕНО, но зазора гейта нет — и это сказано.
+    # ── ПЕРЕАНКЕРОВАНО 28.10 ПО ОТВЕТУ ВЛАДЕЛЬЦА (ADR-836/ADR-847) ──────────
+    # Здесь стоял `test_the_unjudged_ratio_is_named_when_the_gate_margin_is_absent`:
+    # «тихий день ⇒ зазора гейта нет ⇒ отношение измерено, но НЕ СУЖДЕНО, и
+    # находки быть не может — порога вне зазора гейта владелец не объявлял».
+    # Это утверждение было верно до 27.10 и перестало быть верным после:
+    # владелец объявил допуск ×3 (ADR-836, вариант 1). Тест не ослаблен и не
+    # удалён — его ПРЕДМЕТ разделился на два, и оба закреплены ниже:
+    #   1. тихий день теперь СУДИТСЯ допуском (а не остаётся без вердикта);
+    #   2. «не суждено» выжило РОВНО там, где и должно: допуск не прочитан из
+    #      своего дома — тогда отношение измерено, а судить его нечем.
+    # Инв. #16: причина названа здесь и записана в `docs/journal/2026-W44.md`.
 
-        Порога «во сколько раз уже много» вне зазора гейта владелец не
-        объявлял; назначить его здесь значило бы завести порог вне его дома.
-        Поэтому число печатается, а вердикта из него не выходит.
+    def test_a_quiet_day_is_JUDGED_by_the_owners_tolerance(self):
+        """Тихий день (зазора гейта нет) больше не остаётся без вердикта.
+
+        Это ровно то, о чём спрашивала карточка
+        `owner-decision-stoimost-perekladki-zaryazhaetsya-v-134`: расхождение
+        живёт постоянно, а видно его было лишь в день предложенной перекладки.
         """
         quiet = _rationale(payback=None)
-        rep = _tree(**{"data/allocation_rationale.json": quiet}).run()
+        rep = _tree(**{"data/allocation_rationale.json": quiet,
+                       # Газ дороже наблюдённого в разы — заряжаем ethereum по
+                       # $12 за ногу против наблюдённых копеек.
+                       "data/gas_price_history.json": _gas_doc(eth_gwei=0.0006)}).run()
+        sub = rep["substitution"]
+        self.assertIsNone(sub["gate_flip_margin"],
+                          "сцена обязана быть тихим днём: зазора гейта быть не должно")
+        self.assertIsNone(rep["criterion"]["unjudged"],
+                          "допуск прочитан — «не суждено» здесь уже неверно")
+        self.assertIn("gas_charged_beyond_owner_tolerance", rep["criterion"]["found"])
+        self.assertEqual(rep["criterion"]["status"], R.CRITERION_NOT_SATISFIED,
+                         "владелец просил вердикт «не выполнено», а не строку рядом")
+
+    def test_a_drift_WITHIN_the_tolerance_is_not_a_finding(self):
+        """Контроль в обратную сторону: допуск — порог, а не штамп «красное».
+
+        Без этого теста находка «за допуском» была бы неотличима от находки
+        «всегда».
+        """
+        quiet = _rationale(payback=None)
+        # Замеренная сцена: ×1.6 — расхождение ЕСТЬ, но внутри допуска ×3.
+        rep = _tree(**{"data/allocation_rationale.json": quiet,
+                       "data/gas_price_history.json": _gas_doc(eth_gwei=12.0,
+                                                               base_gwei=1.2)}).run()
+        self.assertGreater(rep["substitution"]["gas_drift_x"], 1.0,
+                           "сцена обязана нести РАСХОЖДЕНИЕ, иначе порог не проверен")
+        self.assertEqual(rep["criterion"]["found"], [],
+                         "расхождение внутри допуска находкой быть не обязано")
+        self.assertIn("gas_charged_within_owner_tolerance",
+                      rep["criterion"]["compared"])
+        self.assertTrue(rep["substitution"]["gas_ratio_within_owner_tolerance"])
+
+    def test_the_tolerance_is_READ_from_its_home_not_copied_here(self):
+        """Подмена числа В ДОМЕ меняет вердикт — значит копии порога в коде нет."""
+        quiet = _rationale(payback=None)
+        scene = {"data/allocation_rationale.json": quiet,
+                 "data/gas_price_history.json": _gas_doc(eth_gwei=12.0,
+                                                         base_gwei=1.2)}
+        lax = _tree(**scene).run()
+        self.assertEqual(lax["criterion"]["found"], [], "сцена обязана быть зелёной")
+        strict = _tree(**dict(scene, **{
+            "architecture/owner_settings.json": _owner_settings(tolerance=1.01)})).run()
+        self.assertIn("gas_charged_beyond_owner_tolerance",
+                      strict["criterion"]["found"],
+                      "порог читается не из дома: подмена дома вердикта не сдвинула")
+
+    def test_a_tolerance_without_a_home_is_UNMEASURED_not_invented(self):
+        """Остаток класса «измерено, но не суждено» — и он назван причиной.
+
+        Запасного литерала у допуска нет намеренно: порог, не прочитанный из
+        своего дома, это «не измерено», а не число.
+        """
+        quiet = _rationale(payback=None)
+        rep = _tree(**{"data/allocation_rationale.json": quiet,
+                       "architecture/owner_settings.json": None}).run()
         unjudged = rep["criterion"]["unjudged"]
         self.assertIsNotNone(unjudged, "измеренное отношение не названо вовсе")
         self.assertIsNotNone(unjudged["gas_ratio_charged_over_observed"])
+        self.assertIn(R.OWNER_SETTINGS_REL.replace("\\", "/"), unjudged["reason"],
+                      "причина обязана называть ДОМ, которого не нашли")
+        self.assertEqual(rep["criterion"]["status"], R.CRITERION_UNMEASURED,
+                         "отсутствие допуска обязано быть третьим исходом, "
+                         "а не зелёным путём и не находкой")
+        # Статуса НЕДОСТАТОЧНО: мутация, убравшая строку `unchecked`, выжила
+        # ровно потому, что `UNMEASURED` приходил в этой сцене и по ДРУГОЙ
+        # причине (у записанного вердикта нет дома срока годности). Третий
+        # исход обязан быть назван ПО СВОЕЙ причине, иначе вердикт верен
+        # случайно (мутант 8/11 замера ADR-847).
+        self.assertIn(R.OWNER_SETTINGS_REL.replace("\\", "/"),
+                      rep["criterion"]["reason"],
+                      "третий исход пришёл не от отсутствия допуска")
         self.assertEqual(rep["criterion"]["found"], [],
-                         "без зазора гейта находки нет — и выдумывать её нельзя")
+                         "без допуска находку выдумывать нельзя")
+
+    def test_a_tolerance_not_greater_than_one_is_REFUSED_not_guessed(self):
+        """Допуск «во сколько раз» ≤ 1 бессмыслен — и трактовать его молча нельзя.
+
+        Симметричное расхождение не бывает меньше ×1, поэтому порог ≤ 1 означал
+        бы «находка всегда». Это опечатка в доме, а не строгая настройка, и
+        прибор обязан сказать «не измерено», а не выбрать за владельца.
+        """
+        quiet = _rationale(payback=None)
+        rep = _tree(**{"data/allocation_rationale.json": quiet,
+                       "architecture/owner_settings.json":
+                           _owner_settings(tolerance=0.5)}).run()
+        self.assertEqual(rep["criterion"]["status"], R.CRITERION_UNMEASURED)
+        self.assertEqual(rep["criterion"]["found"], [],
+                         "из бессмысленного порога находку выводить нельзя")
+        self.assertIn("не больше 1", rep["criterion"]["unjudged"]["reason"])
+
+    def test_the_tolerance_is_symmetric_charged_CHEAPER_is_a_finding_too(self):
+        """Заряжено ДЕШЕВЛЕ наблюдённого — опасная сторона, и она тоже судится.
+
+        Односторонний допуск дал бы сторожа, слепого ровно в ту сторону, где
+        решение разрешает ход, которого цепь не берёт.
+        """
+        quiet = _rationale(payback=None)
+        rep = _tree(**{"data/allocation_rationale.json": quiet,
+                       # Наблюдённый газ в разы ДОРОЖЕ заряженного (замер сцены:
+                       # отношение ×0.3, то есть расхождение ×3.33 в опасную сторону).
+                       "data/gas_price_history.json": _gas_doc(eth_gwei=60.0,
+                                                               base_gwei=6.0)}).run()
+        self.assertLess(rep["substitution"]["gas_ratio_charged_over_observed"], 1.0,
+                        "сцена обязана быть «заряжено дешевле наблюдённого»")
+        self.assertIn("gas_charged_beyond_owner_tolerance", rep["criterion"]["found"])
+
+    def test_no_gate_reads_the_owners_tolerance(self):
+        """Допуск — порог ОТЧЁТНОСТИ: решение о деньгах его не видит.
+
+        Положительный контроль на границу ответа владельца: он объявил допуск
+        для ПРИБОРА, а «подставлять ли наблюдённый газ в само решение» оставил
+        отдельным вопросом. Прочитай этот порог слой решения — ответ владельца
+        был бы исполнен шире, чем он его дал.
+        """
+        import pathlib
+
+        for rel in ("spa_core/allocator/rebalance_economics.py",
+                    "spa_core/risk/policy.py",
+                    "spa_core/governance/kill_switch.py",
+                    "spa_core/paper_trading/cycle_gates.py"):
+            src = pathlib.Path(R.REPO_ROOT, rel).read_text(encoding="utf-8")
+            self.assertNotIn(R.OWNER_TOLERANCE_FIELD, src,
+                             f"{rel} читает допуск отчётности — это money-path")
 
     def test_the_declaration_names_THIS_criterion_by_anchor(self):
         self.assertTrue(R.CRITERION.startswith("§49 Costs"),

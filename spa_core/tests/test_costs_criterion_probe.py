@@ -91,6 +91,12 @@ _GWEI_THAT_MATCHES_THE_CHARGE = 12.0 / (1e-9 * R.GAS_LIMIT_PER_LEG * 2500.0)
 _GWEI_OF_THE_INCIDENT = 0.06
 
 
+#: Допуск владельца, объявленный 27.10 (ADR-836, вариант 1). То же число, что в
+#: живом `architecture/owner_settings.json`; сцена объявляет его СВОИМ, чтобы
+#: вердикт теста не зависел от содержимого рабочего дерева.
+_OWNER_TOLERANCE_X = 3.0
+
+
 class _Scene(unittest.TestCase):
     """Одноразовое дерево: конституция в `architecture/`, материал в `data/`."""
 
@@ -115,6 +121,7 @@ class _Scene(unittest.TestCase):
               gas_age_h: float = 0.5, gas_slo: float | None = 1.5,
               verdict_slo: float | None = 26.0, payback: float | None = 23.11,
               tvl_for: set[str] | None = None,
+              owner_tolerance: float | None = _OWNER_TOLERANCE_X,
               verdict_stamp: str | None = None) -> None:
         gwei = _GWEI_THAT_MATCHES_THE_CHARGE if gwei is None else gwei
         tvl_for = set(_TVL) if tvl_for is None else tvl_for
@@ -129,6 +136,18 @@ class _Scene(unittest.TestCase):
                                          "slo_hours": verdict_slo}]})
         self._write(self.root / "architecture" / "manifest.json",
                     {"artifacts": [], "agents": agents})
+
+        # Дом допуска «заряжено ↔ наблюдено» (ответ владельца 27.10, ADR-836,
+        # вариант 1). Сцена несёт его, потому что прибор читает порог из своего
+        # дома и запасного литерала не имеет: дерево БЕЗ этого файла — честное
+        # «не измерено», а не зелёный путь. `owner_tolerance=None` снимает дом
+        # НАМЕРЕННО — это отдельная сцена третьего исхода.
+        if owner_tolerance is not None:
+            self._write(self.root / "architecture" / "owner_settings.json",
+                        {"schema_version": 1,
+                         R.OWNER_TOLERANCE_FIELD: owner_tolerance})
+        else:
+            (self.root / "architecture" / "owner_settings.json").unlink(missing_ok=True)
 
         self._write(self.data_dir / "allocation_rationale.json", {
             "generated_at": (verdict_stamp if verdict_stamp is not None

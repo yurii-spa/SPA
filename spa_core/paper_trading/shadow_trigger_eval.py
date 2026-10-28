@@ -1097,8 +1097,16 @@ def format_trial_reach(reach: Optional[dict]) -> List[str]:
     for row in (reach.get("blocker_census") or [])[:5]:
         out.append(f"  мешает {row.get('gate') or row.get('class')}: "
                    f"{row.get('records')} зап. ({row.get('pct_of_after')} % после выдачи)")
-    sample = reach.get("unmeasured_sample") or []
-    if sample:
+    # Инв. #17: у образца НЕ ИЗМЕРЕННЫХ записей три исхода, а не два. `or []`
+    # склеивал «поля нет вовсе» с «не измеренных нет», то есть делал молчание
+    # отчёта СТАРОГО образца похожим на чистый замер — ровно в блоке, который
+    # для этого и написан (ADR-846 объявил `_READ_SCHEMA` именно против этого).
+    sample = observed(reach, "unmeasured_sample", kind=list)
+    if sample is None:
+        out.append("  ⚠️ образец НЕ ИЗМЕРЕННЫХ записей в отчёте не назван вовсе "
+                   "(`unmeasured_sample`) — «не измеренных нет» отсюда сказать "
+                   "нельзя")
+    elif sample:
         out.append(f"  ⚠️ НЕ ИЗМЕРЕНО записей (образец {len(sample)}): "
                    + "; ".join(f"{r.get('date')} — {r.get('why')}" for r in sample[:2]))
     out.append("  ADVISORY: перепись только ЧИТАЕТ — ни разрешения, ни порога, ни "

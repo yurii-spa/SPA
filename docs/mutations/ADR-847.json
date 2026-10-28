@@ -1,0 +1,76 @@
+{
+  "title": "ADR-847 — ответ владельца 27.10 («допуск ×3») получает ИСПОЛНИТЕЛЯ: §49 Costs судится каждый день, а не только в день предложенной перекладки; плюс член класса инв. #17 у читателя достижимости",
+  "tests": [
+    "spa_core/tests/test_rebalance_cost_evidence.py",
+    "spa_core/tests/test_costs_criterion_probe.py",
+    "spa_core/tests/test_cio_trial_reach.py"
+  ],
+  "mutations": [
+    {
+      "name": "у допуска появился ЗАПАСНОЙ литерал — «дома нет» молча становится ×3",
+      "file": "spa_core/monitoring/rebalance_cost_evidence.py",
+      "old": "    except Exception as exc:  # noqa: BLE001 — нечитаемый дом = НЕ измерено\n        return None, f\"{OWNER_SETTINGS_REL} не прочитан: {exc}\"",
+      "new": "    except Exception as exc:  # noqa: BLE001 — нечитаемый дом = НЕ измерено\n        return 3.0, f\"{OWNER_SETTINGS_REL} не прочитан: {exc}\""
+    },
+    {
+      "name": "порог взят КОПИЕЙ в коде, а не из дома — подмена дома перестаёт двигать вердикт",
+      "file": "spa_core/monitoring/rebalance_cost_evidence.py",
+      "old": "    value = float(raw)\n    if not (value > 1.0):",
+      "new": "    value = 3.0\n    if not (value > 1.0):"
+    },
+    {
+      "name": "бессмысленный допуск ≤ 1 принимается молча",
+      "file": "spa_core/monitoring/rebalance_cost_evidence.py",
+      "old": "    if not (value > 1.0):",
+      "new": "    if False:"
+    },
+    {
+      "name": "допуск односторонний — «заряжено ДЕШЕВЛЕ наблюдённого» перестаёт судиться",
+      "file": "spa_core/monitoring/rebalance_cost_evidence.py",
+      "old": "                        drift = max(gas_ratio, 1.0 / gas_ratio)",
+      "new": "                        drift = gas_ratio"
+    },
+    {
+      "name": "ось находки понижена до `compared` — критерий остаётся зелёным при расхождении ×134",
+      "file": "spa_core/monitoring/rebalance_cost_evidence.py",
+      "old": "    \"gas_charged_beyond_owner_tolerance\": AXIS_FOUND,",
+      "new": "    \"gas_charged_beyond_owner_tolerance\": AXIS_COMPARED,"
+    },
+    {
+      "name": "суждение снова привязано к зазору гейта — тихий день остаётся без вердикта",
+      "file": "spa_core/monitoring/rebalance_cost_evidence.py",
+      "old": "                        if drift > tolerance_x:",
+      "new": "                        if drift > tolerance_x and margin is not None:"
+    },
+    {
+      "name": "«не суждено» снова рождается от зазора гейта, а не от отсутствия допуска",
+      "file": "spa_core/monitoring/rebalance_cost_evidence.py",
+      "old": "        if ratio is not None and substitution.get(\"owner_tolerance_x\") is None:",
+      "new": "        if ratio is not None and substitution.get(\"gate_flip_margin\") is None:"
+    },
+    {
+      "name": "отсутствие допуска перестало быть третьим исходом — молчим и идём зелёным путём",
+      "file": "spa_core/monitoring/rebalance_cost_evidence.py",
+      "old": "                        unchecked.append(\n                            f\"отношение заряженного газа к наблюдённому измерено \"\n                            f\"(×{gas_ratio}), а судить его нечем: \"\n                            f\"{tolerance_provenance}\")",
+      "new": "                        pass"
+    },
+    {
+      "name": "порог отчётности читает слой РЕШЕНИЯ — ответ владельца исполнен шире, чем дан",
+      "file": "spa_core/allocator/rebalance_economics.py",
+      "old": "_EPS = 1e-9",
+      "new": "_EPS = 1e-9\n_UNUSED_TOLERANCE_READ = \"cost_drift_tolerance_x\""
+    },
+    {
+      "name": "инв. #17 у читателя достижимости возвращён: «поля нет» снова равно «не измеренных нет»",
+      "file": "spa_core/paper_trading/shadow_trigger_eval.py",
+      "old": "    sample = observed(reach, \"unmeasured_sample\", kind=list)\n    if sample is None:",
+      "new": "    sample = reach.get(\"unmeasured_sample\") or []\n    if sample is None:"
+    },
+    {
+      "name": "измеренный ПУСТОЙ образец объявляется отсутствующим — инв. #17 наизнанку",
+      "file": "spa_core/paper_trading/shadow_trigger_eval.py",
+      "old": "    if sample is None:\n        out.append(\"  ⚠️ образец НЕ ИЗМЕРЕННЫХ записей в отчёте не назван вовсе \"",
+      "new": "    if not sample:\n        out.append(\"  ⚠️ образец НЕ ИЗМЕРЕННЫХ записей в отчёте не назван вовсе \""
+    }
+  ]
+}

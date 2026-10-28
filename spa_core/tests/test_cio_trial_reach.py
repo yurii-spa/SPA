@@ -271,6 +271,31 @@ class TheReaderOfTheCensus(unittest.TestCase):
         self.assertEqual(len(lines), 1)
         self.assertIn("НЕ ИЗМЕРЕНА", lines[0])
 
+    def test_an_ABSENT_unmeasured_sample_is_not_read_as_clean(self):
+        """Инв. #17 у ОБРАЗЦА: «поля нет» ≠ «не измеренных нет».
+
+        Положительный контроль на дефект, найденный храповиком класса 28.10:
+        читатель брал `reach.get("unmeasured_sample") or []`, и отчёт СТАРОГО
+        образца (поля нет вовсе) печатался ровно как чистый замер — молча, в том
+        самом блоке, который против этого и написан.
+        """
+        out = _reach([_rec(1, gates={"payback_within_horizon": False})])
+        out.pop("unmeasured_sample", None)
+        text = "\n".join(STE.format_trial_reach(out))
+        self.assertIn("не назван вовсе", text,
+                      "отсутствие образца выдано за «не измеренных нет»")
+
+    def test_an_EMPTY_unmeasured_sample_stays_a_measurement(self):
+        """Контроль в обратную сторону: пустой образец — ЗАМЕР, а не отсутствие.
+
+        Без него «назови отсутствие» было бы неотличимо от «назови всегда».
+        """
+        out = _reach([_rec(1, gates={"payback_within_horizon": False})])
+        out["unmeasured_sample"] = []
+        text = "\n".join(STE.format_trial_reach(out))
+        self.assertNotIn("не назван вовсе", text,
+                         "измеренный пустой образец объявлен отсутствующим")
+
     def test_the_blocked_verdict_is_drawn_with_its_numbers(self):
         out = _reach([_rec(1, gates={"payback_within_horizon": False})])
         text = "\n".join(STE.format_trial_reach(out))

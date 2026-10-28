@@ -714,6 +714,7 @@
 | ADR-844 | ADR-844 — Вердикт `SPA CI` на `main` система уничтожает САМА: приёмку ADR-841 даёт только контрольный прогон | Accepted | [ADR-844](ADR-844-the-ci-verdict-on-main-is-destroyed-by-the-next-push.md) |
 | ADR-845 | ADR-845 — У вердикта контрольного прогона появился ЧИТАТЕЛЬ, и `conclusion` вердиктом не является | Accepted | [ADR-845](ADR-845-ci-control-verdict-gets-a-reader.md) |
 | ADR-846 | ADR-846 — Разрешение владельца на пробный ход НЕ МОГЛО сработать ни в один день после выдачи | Accepted | [ADR-846](ADR-846-trial-grant-reachability.md) |
+| ADR-847 | ADR-847 — Ответ владельца «допуск ×3» получил ИСПОЛНИТЕЛЯ, и на нём вскрылся зелёный критерий при расхождении ×97 | Accepted | [ADR-847](ADR-847-owner-answer-of-27-10-gets-an-executor.md) |
 
 ## Соглашения
 
