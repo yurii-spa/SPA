@@ -84,7 +84,6 @@ import datetime as dt
 import importlib
 import json
 import re
-import shutil
 import signal
 import tempfile
 import time
@@ -650,15 +649,8 @@ def build_stands(source_data_dir: Path, dest: Path, *, factor: int,
     def _write(stand_name: str, pick: int) -> Path:
         stand = Path(dest) / f"{prefix}{stand_name}"
         data = stand / "data"
-        data.mkdir(parents=True, exist_ok=True)
-        for item in sorted(source.iterdir()):
-            if item.name in STAND_EXCLUDE:
-                continue
-            dst = data / item.name
-            if item.is_dir():
-                shutil.copytree(item, dst, dirs_exist_ok=True)
-            else:
-                shutil.copy2(item, dst)
+        from spa_core.utils.stand_copy import copy_data_tree  # ADR-849 §3: клон APFS, иначе прежняя копия
+        copy_data_tree(Path(source), data, STAND_EXCLUDE)
         for name, book_id in BOOKS:
             if name not in tapes:
                 continue
