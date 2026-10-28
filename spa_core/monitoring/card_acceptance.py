@@ -12119,10 +12119,22 @@ def _probe_cio_act_fires_and_is_scored(arg: str | None, *,
     records = [r for r in (doc.get("per_verdict") or [])
                if isinstance(r, dict) and str(r.get("verdict")) == "ACT"]
     if acts <= 0:
+        # ADR-851: прежняя редакция дописывала сюда «и урезание хода до
+        # допустимого ещё ни раз не сработало», НИЧЕГО про урезание не
+        # прочитав — вывод делался из `acts <= 0`. Замер 28.10: шага не звали
+        # ни на одной из 163 записей (код приехал в прод в 20:18Z, а
+        # производитель с тех пор не тикал), то есть «сработало ноль раз» и
+        # «не звали ни разу» слиплись в одну фразу у ЧИТАТЕЛЯ. Род исхода
+        # спрашивается у единственной двери — той же, что у шага 0-офис.
+        from spa_core.paper_trading.admissible_trim import (
+            LIVE_UNMEASURED, live_trim_outcome)
+        _kind, _why = live_trim_outcome(doc.get("live_trim_census"))
+        trim = (f"про урезание хода НЕ ИЗМЕРЕНО — {_why}"
+                if _kind == LIVE_UNMEASURED else f"урезание хода: {_why}")
         return NOT_SATISFIED, (
             f"ни одного вердикта ACT за {doc.get('observation_days')} дн. наблюдения "
             f"(записей {len(doc.get('per_verdict') or [])}) — советнику нечего "
-            "оценивать, и урезание хода до допустимого ещё ни раз не сработало")
+            f"оценивать; {trim}")
     scored = [r for r in records
               if str(r.get("outcome") or "UNCHECKED").lower() in ("hit", "miss")]
     if not scored:

@@ -109,8 +109,8 @@
 | ADR-OWN-2026-07 (repo-freeze) | Инцидент freeze-main-phase0: пуши восстановлены (bypass admin), запрет молчаливых изменений настроек репо/launchd | Accepted | [ADR-OWN-2026-07-repo-freeze-incident](ADR-OWN-2026-07-repo-freeze-incident.md) |
 | ADR-OWN-2026-10-23 | ADR-OWN-2026-10-23 · Model-independent Studio OS and bounded verification | 2026-10-23 · Owner directive (приоритет и дизайн; реализация не заявлена) | [ADR-OWN-2026-10-23-model-independent-studio](ADR-OWN-2026-10-23-model-independent-studio.md) |
 | ADR-OWN-2026-10-27 | TRADING-PROCESS-01: идеи trader-skill в бэклог; воспроизводимость, совокупный риск, версии намерений, свежесть, paper-эксперименты. Без live/смены лимитов. | 2026-10-27 · Owner intake / accepted for backlog; implementation not claimed | [ADR-OWN-2026-10-27-trader-patterns](ADR-OWN-2026-10-27-trader-patterns.md) |
-| ADR-OWN-2026-10-28 | TELEGRAM-OWNER-UX-01: понятные сообщения владельцу в бэклог — смысл состояния, русская сводка, объединение по инциденту, earn-defi. Готово к работе, не начато. | 2026-10-28 · Owner intake / accepted for backlog; implementation not claimed | [ADR-OWN-2026-10-28-telegram-owner-ux](ADR-OWN-2026-10-28-telegram-owner-ux.md) |
-| ADR-OWN-2026-10-28 | MAC-STORAGE-AUDIT-01: что заполняет диск Mac — аудит только чтением и план без очистки в бэклог. Бэклог, не начато. | 2026-10-28 · Owner intake / accepted for backlog; implementation not claimed | [ADR-OWN-2026-10-28-mac-storage-audit](ADR-OWN-2026-10-28-mac-storage-audit.md) |
+| ADR-OWN-2026-10-28 (telegram-owner-ux) | TELEGRAM-OWNER-UX-01: понятные сообщения владельцу в бэклог — смысл состояния, русская сводка, объединение по инциденту, earn-defi. Готово к работе, не начато. | 2026-10-28 · Owner intake / accepted for backlog; implementation not claimed | [ADR-OWN-2026-10-28-telegram-owner-ux](ADR-OWN-2026-10-28-telegram-owner-ux.md) |
+| ADR-OWN-2026-10-28 (mac-storage-audit) | MAC-STORAGE-AUDIT-01: что заполняет диск Mac — аудит только чтением и план без очистки в бэклог. Бэклог, не начато. | 2026-10-28 · Owner intake / accepted for backlog; implementation not claimed | [ADR-OWN-2026-10-28-mac-storage-audit](ADR-OWN-2026-10-28-mac-storage-audit.md) |
 | ADR-OWN-2026-07 (readiness-truth) | Публичный READY ⇔ реальный гейт ready:true И score ≥80 (вариант А) | Accepted | [ADR-OWN-2026-07-readiness-truth](ADR-OWN-2026-07-readiness-truth.md) |
 | ADR-143 | ADR-143 — Владелец снял с себя ручные шаги: мердж и установку двух агентов делает агент | Accepted | [ADR-143](ADR-143-owner-authorised-self-merge-and-agent-install.md) |
 | ADR-146 | ADR-146 — Агент закрывает карточки сам; уцелевшая половина запрета — «закрыто = проверено» | Accepted | [ADR-146](ADR-146-agent-may-close-cards.md) |
@@ -719,6 +719,7 @@
 | ADR-848 | ADR-848 — Потолок размера читается как ФИЛЬТР предложений, а не как РАЗМЕР хода (вариант А приказа «Portfolio CIO» опровергнут) | Accepted | [ADR-848](ADR-848-proposal-is-never-cut-to-the-admissible-size.md) |
 | ADR-849 | ADR-849 — Эксплуатация 28.10: launchd в синхронизации кода, тесты не пишут в рабочие данные, стенды decision_loop клоном APFS | Accepted | [ADR-849](ADR-849-ops-launchd-sync-test-isolation-decision-loop.md) |
 | ADR-850 | ADR-850 — Предложение урезается до допустимого РАЗМЕРА хода ПЕРЕД вердиктом CIO (вариант Г; пороги владельца не ослаблены, RiskPolicy переспрошена) | Accepted | [ADR-850](ADR-850-proposal-is-cut-to-the-admissible-size-before-the-verdict.md) |
+| ADR-851 | ADR-851 — «Шаг не звали» это НЕ «сработало ноль раз»: третий исход восстановлен У ЧИТАТЕЛЯ живого урезания (печать шага 0-офис + причина пробы приёмки; вердикт и money-path не тронуты) | Accepted | [ADR-851](ADR-851-the-step-was-never-called-is-not-a-measured-zero.md) |
 
 ## Соглашения
 

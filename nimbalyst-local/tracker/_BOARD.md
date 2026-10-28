@@ -2,11 +2,11 @@
 
 > Авто-генерится `scripts/build_tracker_board.py` из `nimbalyst-local/tracker/*.md`. НЕ править вручную — правь карточки. Источник правды — карточки, это индекс (bootstrap).
 >
-> Собрана: 2026-10-28T18:41:35Z · сверка с карточками: `python3 scripts/build_tracker_board.py --check` (сторож `spa_core/tests/test_tracker_board_matches_cards.py`).
+> Собрана: 2026-10-28T20:52:14Z · сверка с карточками: `python3 scripts/build_tracker_board.py --check` (сторож `spa_core/tests/test_tracker_board_matches_cards.py`).
 >
-> Сверено с `origin/main` (39fb2db91) · у **1** своя правка, кто новее — не измерено.
+> Сверено с `origin/main` (4439df882) · у **1** своя правка, кто новее — не измерено.
 >
-> Всего карточек: **1491** · ждёт владельца: **0** · занято сессиями: **15**.
+> Всего карточек: **1492** · ждёт владельца: **0** · занято сессиями: **15**.
 
 ## 🔴 ЖДЁТ ВЛАДЕЛЬЦА (needs-owner)
 
@@ -411,7 +411,7 @@ _Пусто — открытых решений на владельце нет._
 ### · closed
 - Считать ли верный отказ по правилам допуска неисправностью флота  ·  `owner-decision-schitat-li-vernyi-otkaz-po-pravilam-dopu.md` · 2026-10-08
 
-## 📥 Inbox (задания: Telegram / заметки / голос)  (818)
+## 📥 Inbox (задания: Telegram / заметки / голос)  (819)
 
 ### · in-progress
 - а задача починить все-таки еще раз сообщение которым не пишет нужно твое решени…  ·  `inbox-a-zadacha-pochinit-vse-taki-esche-raz-so.md` · 2026-08-14 · 🔒 `pid43119`
@@ -951,6 +951,7 @@ _Пусто — открытых решений на владельце нет._
 - Четыре теста краснеют на чистом origin/main bbfcc9724 — храповик наблюдения отстал на три площадки + джоба CI без истории  ·  `inbox-chetyre-testa-krasneyut-na-chistom-origi.md` · 2026-10-08
 - Четыре теста судят о структуре переписи вторых копий ПОДСТРОКОЙ и доказанно слепы к её элементам  ·  `inbox-chetyre-testa-sudyat-o-strukture-perepis.md` · 2026-10-15
 - Число трека в нарративных документах некому обновлять — сторож будет краснеть примерно раз в неделю  ·  `inbox-chislo-treka-v-narrativnyh-dokumentah-ne.md` · 2026-08-24
+- Читатель считает население по ВСЕМ записям, а не по несущим новое поле — класс шире одного экземпляра (ADR-851)  ·  `inbox-chitatel-schitaet-naselenie-po-vsem-zapi.md` · 2026-10-28
 - Чужой полный прогон в том же дереве невидим: пробы «дерево занято прогоном» нет ни у кого  ·  `inbox-chuzhoi-polnyi-progon-v-tom-zhe-dereve-n.md` · 2026-09-21
 - CI-Lite гоняет pytest без истории репозитория — тесты про доставку не мерят ничего и выглядят зелёными  ·  `inbox-ci-lite-gonyaet-pytest-bez-istorii-repoz.md` · 2026-10-08
 - CI на main ничего не мерил: job Python 3.11 умирал на сборе, а красная галочка читалась как «тесты упали»  ·  `inbox-ci-na-main-nichego-ne-meril-job-python-3.md` · 2026-09-21

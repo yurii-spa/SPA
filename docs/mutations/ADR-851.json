@@ -1,0 +1,74 @@
+{
+  "title": "ADR-851 (цикл #970) — «шаг не звали» это НЕ «сработало ноль раз»; дельта = род исхода значением (live_trim_outcome) + печать шага 0-офис + причина пробы приёмки",
+  "tests": [
+    "spa_core/tests/test_admissible_trim.py"
+  ],
+  "mutations": [
+    {
+      "name": "население замера берётся по ЗАПИСЯМ, а не по записям С полем — ДОСЛОВНО дефект, найденный 28.10",
+      "file": "spa_core/paper_trading/admissible_trim.py",
+      "old": "    if not carrying:\n        if not records:",
+      "new": "    if not records:\n        if not records:"
+    },
+    {
+      "name": "«шага не звали» объявлено замером нуля (третий исход схлопнут в ответ)",
+      "file": "spa_core/paper_trading/admissible_trim.py",
+      "old": "        return LIVE_UNMEASURED, (\n            f\"шаг не звали ни на одной из {records} записей (поля \"",
+      "new": "        return LIVE_MEASURED_ZERO, (\n            f\"шаг не звали ни на одной из {records} записей (поля \""
+    },
+    {
+      "name": "пустая история объявлена замером нуля, а не отсутствием наблюдения",
+      "file": "spa_core/paper_trading/admissible_trim.py",
+      "old": "            return LIVE_UNMEASURED, (\"история пуста — ни одной записи, судить \"",
+      "new": "            return LIVE_MEASURED_ZERO, (\"история пуста — ни одной записи, судить \""
+    },
+    {
+      "name": "нечитаемая перепись считается нулём (инв. #17 наизнанку: fail-OPEN тише красного)",
+      "file": "spa_core/paper_trading/admissible_trim.py",
+      "old": "        except (TypeError, ValueError):\n            return LIVE_UNMEASURED, (\"перепись не разобрана: в `counts` лежит \"",
+      "new": "        except (TypeError, ValueError):\n            return LIVE_MEASURED_ZERO, (\"перепись не разобрана: в `counts` лежит \""
+    },
+    {
+      "name": "срабатывания не отличаются от их отсутствия — род всегда «измерено»",
+      "file": "spa_core/paper_trading/admissible_trim.py",
+      "old": "    applied = counts.get(TRIM_APPLIED, 0)\n    if applied:",
+      "new": "    applied = counts.get(TRIM_APPLIED, 0)\n    if True:"
+    },
+    {
+      "name": "печать перестаёт спрашивать дверь и судит сама (вторая копия правила — тот же класс, что находка)",
+      "file": "spa_core/paper_trading/admissible_trim.py",
+      "old": "    if kind == LIVE_UNMEASURED:\n        out.append(f\"  ⚠️ НЕ ИЗМЕРЕНО: {why}\")",
+      "new": "    if kind == LIVE_UNMEASURED and not census.get(\"records\"):\n        out.append(f\"  ⚠️ НЕ ИЗМЕРЕНО: {why}\")"
+    },
+    {
+      "name": "печать молчит о роде исхода вовсе (сирота: различение есть в значении, но читателю не доходит)",
+      "file": "spa_core/paper_trading/admissible_trim.py",
+      "old": "    else:\n        out.append(f\"  {why}\")\n    return out",
+      "new": "    else:\n        pass\n    return out"
+    },
+    {
+      "name": "проба снова утверждает про урезание, ничего про него не прочитав",
+      "file": "spa_core/monitoring/card_acceptance.py",
+      "old": "        trim = (f\"про урезание хода НЕ ИЗМЕРЕНО — {_why}\"\n                if _kind == LIVE_UNMEASURED else f\"урезание хода: {_why}\")",
+      "new": "        trim = \"урезание хода до допустимого ещё ни раз не сработало\""
+    },
+    {
+      "name": "проба читает род исхода наоборот (НЕ ИЗМЕРЕНО печатается как замер)",
+      "file": "spa_core/monitoring/card_acceptance.py",
+      "old": "                if _kind == LIVE_UNMEASURED else f\"урезание хода: {_why}\")",
+      "new": "                if _kind != LIVE_UNMEASURED else f\"урезание хода: {_why}\")"
+    },
+    {
+      "name": "критерий карточки ОСЛАБЛЕН: ACT 0 закрывает карточку, если про урезание не измерено",
+      "file": "spa_core/monitoring/card_acceptance.py",
+      "old": "        return NOT_SATISFIED, (\n            f\"ни одного вердикта ACT за {doc.get('observation_days')} дн. наблюдения \"",
+      "new": "        return SATISFIED, (\n            f\"ни одного вердикта ACT за {doc.get('observation_days')} дн. наблюдения \""
+    },
+    {
+      "name": "перепись сливает строки без поля со строками-нулями (починка «наоборот», у производителя)",
+      "file": "spa_core/paper_trading/shadow_trigger_eval.py",
+      "old": "        if not isinstance(trim, dict) or not trim:\n            without += 1\n            continue",
+      "new": "        if not isinstance(trim, dict) or not trim:\n            counts[\"ALREADY_WITHIN_SIZE_CAPS\"] = counts.get(\"ALREADY_WITHIN_SIZE_CAPS\", 0) + 1\n            continue"
+    }
+  ]
+}

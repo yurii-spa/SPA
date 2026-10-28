@@ -306,6 +306,82 @@ class UnmeasuredIsItsOwnOutcome(unittest.TestCase):
         self.assertEqual(census["counts"][AT.TRIM_NOT_NEEDED], 1)
         self.assertEqual(census["last_applied"]["date"], "2026-10-02")
 
+    def test_a_history_where_the_step_was_never_called_is_not_a_measured_zero(self):
+        """ADR-851, положительный контроль на СОСТОЯНИЕ ПРОДА 28.10: 163 из 163.
+
+        Прежняя печать на этой самой сцене говорила «урезаний не было ни на
+        одной записи — это ЗАМЕР, а не отсутствие проводки», то есть ровно
+        наоборот: поля не несла НИ ОДНА запись, шага не звали ни разу. Ветка
+        срабатывала по населению ЗАПИСЕЙ вместо населения записей, НЕСУЩИХ
+        поле, — тест ломается именно на этой подмене.
+        """
+        census = {"records": 163, "records_without_field": 163,
+                  "counts": {}, "last_applied": None}
+        kind, why = AT.live_trim_outcome(census)
+        self.assertEqual(kind, AT.LIVE_UNMEASURED, why)
+        self.assertIn("163", why)
+        lines = " ".join(AT.format_live_trim(census))
+        self.assertIn("НЕ ИЗМЕРЕНО", lines)
+        # Обратная сторона того же утверждения: слова «ЗАМЕР» здесь быть не
+        # должно ни в каком виде — именно оно и было ложью.
+        self.assertNotIn("ЗАМЕР", lines)
+
+    def test_a_called_step_with_no_trims_is_a_measured_zero(self):
+        """Та же сцена с ОДНИМ изменением: поле появилось хотя бы у одной записи."""
+        census = {"records": 163, "records_without_field": 162,
+                  "counts": {AT.TRIM_NOT_NEEDED: 1}, "last_applied": None}
+        kind, why = AT.live_trim_outcome(census)
+        self.assertEqual(kind, AT.LIVE_MEASURED_ZERO, why)
+        lines = " ".join(AT.format_live_trim(census))
+        self.assertIn("ЗАМЕР", lines)
+        self.assertNotIn("НЕ ИЗМЕРЕНО", lines)
+        # и население замера — записи С полем (1), а не все 163
+        self.assertIn("из 1 записей", lines)
+
+    def test_a_trim_that_happened_is_measured(self):
+        census = {"records": 3, "records_without_field": 1,
+                  "counts": {AT.TRIM_APPLIED: 1, AT.TRIM_NOT_NEEDED: 1},
+                  "last_applied": {"date": "2026-10-02", "k": 0.375,
+                                   "turnover_full_usd": 40_000.0,
+                                   "turnover_final_usd": 15_000.0}}
+        kind, why = AT.live_trim_outcome(census)
+        self.assertEqual(kind, AT.LIVE_MEASURED, why)
+        self.assertNotIn("НЕ ИЗМЕРЕНО", " ".join(AT.format_live_trim(census)))
+
+    def test_an_empty_history_is_unmeasured_and_says_so(self):
+        census = {"records": 0, "records_without_field": 0,
+                  "counts": {}, "last_applied": None}
+        kind, why = AT.live_trim_outcome(census)
+        self.assertEqual(kind, AT.LIVE_UNMEASURED, why)
+        self.assertIn("пуста", why)
+
+    def test_an_unparsable_census_is_unmeasured_with_a_named_reason(self):
+        """Третий исход у самой переписи: в `counts` лежит не число."""
+        kind, why = AT.live_trim_outcome(
+            {"records": 2, "records_without_field": 0,
+             "counts": {AT.TRIM_APPLIED: "много"}, "last_applied": None})
+        self.assertEqual(kind, AT.LIVE_UNMEASURED, why)
+        self.assertIn("не разобрана", why)
+
+    def test_the_three_outcomes_are_three_distinct_values(self):
+        """Различение живёт ЗНАЧЕНИЕМ, а не формулировкой (инв. #17)."""
+        self.assertEqual(
+            len({AT.LIVE_MEASURED, AT.LIVE_MEASURED_ZERO, AT.LIVE_UNMEASURED}), 3)
+
+    def test_the_census_itself_already_separated_the_rows(self):
+        """Контроль, что находка ADR-851 была У ЧИТАТЕЛЯ, а не у переписи.
+
+        Перепись и до правки считала `records_without_field` отдельным числом;
+        терялось различение на печати. Если однажды починят «наоборот» —
+        сольют числа в переписи, — красным станет этот тест, а не формулировка.
+        """
+        from spa_core.paper_trading.shadow_trigger_eval import live_trim_census
+
+        census = live_trim_census([{"cycle_date": "2026-10-01", "verdict": "HOLD"}])
+        self.assertEqual(census["records"], 1)
+        self.assertEqual(census["records_without_field"], 1)
+        self.assertEqual(census["counts"], {})
+
     def test_the_printer_says_unmeasured_when_there_is_no_census(self):
         self.assertIn("НЕ ИЗМЕРЕНО", " ".join(AT.format_live_trim(None)))
         self.assertIn("НЕ ИЗМЕРЕНО", " ".join(AT.format_live_trim({})))
@@ -588,6 +664,48 @@ class TheAcceptanceProbeMeasuresTheOutcome(unittest.TestCase):
             verdict, why = self._run(Path(td), doc)
         self.assertEqual(verdict, "unmeasured")
         self.assertIn("не разобрано", why)
+
+    def test_the_probe_reason_does_not_claim_a_trim_it_never_read(self):
+        """ADR-851: вердикт тот же, а ПРИЧИНА обязана отличать два состояния.
+
+        Проба зовётся через НАСТОЯЩИЙ реестр, артефакт настоящий (файл на
+        диске), и различаются сцены ровно одним полем — `live_trim_census`.
+        Прежняя редакция печатала «урезание ещё ни раз не сработало» в ОБЕИХ,
+        прочитав про урезание ноль байт.
+        """
+        import tempfile
+
+        never_called = self._doc(0, "UNCHECKED")
+        never_called["live_trim_census"] = {
+            "records": 163, "records_without_field": 163,
+            "counts": {}, "last_applied": None}
+        with tempfile.TemporaryDirectory() as td:
+            verdict, why = self._run(Path(td), never_called)
+        self.assertEqual(verdict, "not_satisfied", why)
+        self.assertIn("НЕ ИЗМЕРЕНО", why)
+        self.assertNotIn("ЗАМЕР", why)
+
+        called_zero = self._doc(0, "UNCHECKED")
+        called_zero["live_trim_census"] = {
+            "records": 163, "records_without_field": 162,
+            "counts": {AT.TRIM_NOT_NEEDED: 1}, "last_applied": None}
+        with tempfile.TemporaryDirectory() as td:
+            verdict2, why2 = self._run(Path(td), called_zero)
+        # Вердикт карточки от этого НЕ меняется: ACT по-прежнему 0, и критерий
+        # не ослаблен ни на шаг — меняется только то, что сказано про урезание.
+        self.assertEqual(verdict2, "not_satisfied", why2)
+        self.assertIn("ЗАМЕР", why2)
+        self.assertNotEqual(why, why2)
+
+    def test_an_artifact_without_the_census_says_so_instead_of_guessing(self):
+        """Строки до ADR-850 переписи не несут — это НЕ «урезаний не было»."""
+        import tempfile
+
+        with tempfile.TemporaryDirectory() as td:
+            verdict, why = self._run(Path(td), self._doc(0, "UNCHECKED"))
+        self.assertEqual(verdict, "not_satisfied", why)
+        self.assertIn("НЕ ИЗМЕРЕНО", why)
+        self.assertIn("переписи в артефакте нет", why)
 
     def test_the_probe_declares_the_tree_it_accepts(self):
         """Половина инъекции — та же бомба: читатель обязан узнать это у реестра."""

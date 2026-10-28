@@ -287,17 +287,86 @@ def apply_admissible_trim(
     return final, record
 
 
+#: Исходы вопроса «что живой шаг урезания сделал». Три, и третий —
+#: самостоятельное значение (инв. #17 CLAUDE.md), а не формулировка.
+LIVE_MEASURED = "measured"          # шаг звали, и он урезал хотя бы раз
+LIVE_MEASURED_ZERO = "measured_zero"  # шаг звали, урезаний не было — ЗАМЕР нуля
+LIVE_UNMEASURED = "unmeasured"      # шага не звали ни разу — наблюдения НЕТ
+
+
+def live_trim_outcome(census: Optional[dict]) -> Tuple[str, str]:
+    """Один ответ на вопрос «урезание сработало?» — род исхода И его причина.
+
+    **Почему это ОТДЕЛЬНАЯ дверь, а не строка внутри печати.** До ADR-851 род
+    исхода существовал только как ПРОЗА внутри :func:`format_live_trim`, и
+    ветка «урезаний не было» срабатывала по условию ``records > 0``, то есть
+    по населению ЗАПИСЕЙ, а не по населению записей, НЕСУЩИХ поле. Замер
+    28.10 (прод, 163 записи, из них 163 БЕЗ поля — код ADR-850 приехал в прод
+    в 20:18Z, производитель с тех пор не тикал ни разу): печать сказала
+    «урезаний не было ни на одной записи — это ЗАМЕР, а не отсутствие
+    проводки», то есть ровно наоборот. Сама перепись при этом честна — она
+    считает ``records_without_field`` отдельным числом и в своей же строке
+    `note` говорит «строка без поля — это „шаг не звали“». Терялось
+    различение У ЧИТАТЕЛЯ, то есть на единственной поверхности, которую
+    оркестратор и проба в самом деле читают.
+
+    Поэтому род исхода возвращается ЗНАЧЕНИЕМ: у вопроса два читателя
+    (шаг 0-офис через :func:`format_live_trim` и проба
+    ``cio_act_fires_and_is_scored``), и вторая копия правила разошлась бы с
+    первой — тот же класс, которым жила сама находка.
+
+    Население наблюдения считается по записям, НЕСУЩИМ поле (сумма
+    ``counts``), а не по ``records``: именно подмена одного другим и была
+    дефектом. Прибор только ЧИТАЕТ.
+    """
+    if not isinstance(census, dict) or not census:
+        return LIVE_UNMEASURED, "переписи в артефакте нет"
+    if census.get("unmeasured_reason"):
+        return LIVE_UNMEASURED, str(census["unmeasured_reason"])
+    counts = census.get("counts")
+    counts = counts if isinstance(counts, dict) else {}
+    carrying = 0
+    for value in counts.values():
+        try:
+            carrying += int(value)
+        except (TypeError, ValueError):
+            return LIVE_UNMEASURED, ("перепись не разобрана: в `counts` лежит "
+                                     f"не число ({value!r})")
+    records = census.get("records")
+    records = records if isinstance(records, int) else None
+    if not carrying:
+        if not records:
+            return LIVE_UNMEASURED, ("история пуста — ни одной записи, судить "
+                                     "не о чем")
+        return LIVE_UNMEASURED, (
+            f"шаг не звали ни на одной из {records} записей (поля "
+            "`admissible_trim` нет ни у одной) — наблюдения ещё НЕТ, и ноль "
+            "урезаний здесь не замер")
+    applied = counts.get(TRIM_APPLIED, 0)
+    if applied:
+        return LIVE_MEASURED, (f"урезание срабатывало {applied} раз(а) на "
+                               f"{carrying} записях, несущих поле")
+    return LIVE_MEASURED_ZERO, (
+        f"урезаний не было ни на одной из {carrying} записей, НЕСУЩИХ поле — "
+        "это ЗАМЕР нуля, а не отсутствие проводки: проводку меряет контроль в обе стороны")
+
+
 def format_live_trim(census: Optional[dict]) -> List[str]:
     """Строки шага 0-офис про ЖИВОЙ трим — что он сделал на записанных днях.
 
     Прибор без читателя — сирота (урок ADR-843), поэтому у записи трима есть
     перепись (`shadow_trigger_eval.live_trim_census`) и эта печать, которую
     зовут оба читателя артефакта: его собственная сводка и шаг 0-офис.
+
+    Род исхода печать больше не выводит сама — спрашивает у
+    :func:`live_trim_outcome` (ADR-851), чтобы «шаг не звали» и «шаг звал и
+    урезаний не было» не читались одной строкой.
     """
-    if not isinstance(census, dict) or not census:
-        return ["Живое урезание хода (ADR-850): ⚠️ НЕ ИЗМЕРЕНО — переписи в артефакте нет"]
-    if census.get("unmeasured_reason"):
-        return [f"Живое урезание хода (ADR-850): ⚠️ НЕ ИЗМЕРЕНО — {census['unmeasured_reason']}"]
+    kind, why = live_trim_outcome(census)
+    # Переписи нет вовсе / она сама себя объявила неизмеренной ⇒ печатать
+    # шапку с числами НЕ ИЗ ЧЕГО: чисел нет. Одна строка, причина названа.
+    if not isinstance(census, dict) or not census or census.get("unmeasured_reason"):
+        return [f"Живое урезание хода (ADR-850): ⚠️ НЕ ИЗМЕРЕНО — {why}"]
     counts = census.get("counts") or {}
     out = [
         "Живое урезание хода (ADR-850): записей {} · урезано {} · уже внутри потолков {} · "
@@ -308,11 +377,12 @@ def format_live_trim(census: Optional[dict]) -> List[str]:
             census.get("records_without_field")),
     ]
     last = census.get("last_applied")
-    if isinstance(last, dict) and last:
+    if kind == LIVE_UNMEASURED:
+        out.append(f"  ⚠️ НЕ ИЗМЕРЕНО: {why}")
+    elif kind == LIVE_MEASURED and isinstance(last, dict) and last:
         out.append("  последнее урезание: {} — ${:,.0f} → ${:,.0f} (k={})".format(
             last.get("date"), float(last.get("turnover_full_usd") or 0.0),
             float(last.get("turnover_final_usd") or 0.0), last.get("k")))
-    elif census.get("records"):
-        out.append("  урезаний не было ни на одной записи — это ЗАМЕР, а не отсутствие "
-                   "проводки: проводку меряет контроль в обе стороны")
+    else:
+        out.append(f"  {why}")
     return out
