@@ -36,7 +36,6 @@ import html
 import json
 import logging
 import re
-from collections import Counter
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, Optional
@@ -75,65 +74,53 @@ def _esc(value: Any) -> str:
 
 # ── digest-queue → section ───────────────────────────────────────────────────
 _TAG_RE = re.compile(r"<[^>]+>")
-# Строки тела, которые не несут смысла события (подвал дашборд-алерта, рамки).
-_EVENT_NOISE_PREFIXES = ("📊 Portfolio", "🤖 Agents", "━", "─")
-_EVENT_SIGNAL_MARKS = ("🔴", "🟠", "🟡", "⚠️", "❌", "🛑", "⛔")
-_EVENT_SIGNAL_WORDS = ("CRITICAL", "WARNING", "DOWN", "FAIL", "ERROR")
+#: Сколько разных проблем назвать словами; остальные — числом.
 _EVENT_GISTS_SHOWN = 3
-
-
-def _event_gist(item: dict) -> str:
-    """Одна строка события СЛОВАМИ (не event_key): что случилось.
-
-    Тело — чужой HTML в несколько строк; берём строку с сигналом (эмодзи
-    статуса / CRITICAL / DOWN …), иначе первую содержательную. Пустое тело →
-    заголовок события. Never raises on a malformed item.
-    """
-    body = _TAG_RE.sub("", str(item.get("body") or ""))
-    lines = [ln.strip() for ln in body.splitlines()]
-    lines = [ln for ln in lines
-             if ln and not ln.startswith(_EVENT_NOISE_PREFIXES)
-             and any(ch.isalnum() for ch in ln)]
-    if not lines:
-        return _TAG_RE.sub("", str(item.get("title") or item.get("event_key") or "?")).strip()
-    for ln in lines:
-        if ln.startswith(_EVENT_SIGNAL_MARKS) or any(w in ln.upper() for w in _EVENT_SIGNAL_WORDS):
-            return ln
-    return lines[0]
 
 
 def _format_digest_section(items: list[dict]) -> str:
     """Render the queued (demoted) events as a compact summary section.
 
-    Аудит 08.09: секция перечисляла внутренние ключи (dashboard_watch ×34…),
-    а 15 из 62 тел несли CRITICAL — и этого владелец не видел. Теперь: одна
-    строка счёта «N событий, из них M с CRITICAL» + до трёх самых важных тел
-    словами (CRITICAL первыми, одинаковые схлопнуты с ×N). Гистограмма по
-    event_key остаётся только когда тел меньше трёх — тогда она и есть всё,
-    что известно. Never lists each event individually — a flapping detector
-    would otherwise re-create the flood inside the digest.
+    TELEGRAM-OWNER-UX-01 (ADR-OWN-2026-10-28). Прежняя секция: при < 3 тел печатала
+    сырые ``event_key`` («system_health_summary»), при ≥ 3 — брала строку тела как есть
+    и склеивала одинаковые ПЕРВЫЕ 120 символов («⚠️ Agent DOWN: com.spa.resource_guard ×12»
+    — это двенадцать наблюдений одного предупреждения замера, а не двенадцать падений).
+
+    Теперь каждое событие описывает общий переводчик ``humanize.describe_queued_event`` —
+    тот же смысл, что у отдельной тревоги; объединение идёт по ИДЕНТИЧНОСТИ инцидента;
+    числа подписаны раздельно: наблюдений в очереди · разных проблем · критичных. Очередь
+    сводки — не отправка: так и сказано. Пустая очередь — тоже ответ, и он печатается.
+    Never lists each event individually — a flapping detector would otherwise re-create
+    the flood inside the digest.
     """
+    from spa_core.telegram import humanize
+
     if not items:
-        return ""
-    n_crit = sum(1 for i in items if "CRITICAL" in str(i.get("body") or "").upper())
+        return "\n".join(["", "🗂️ <b>События за сутки</b>",
+                          "  отложенных событий с прошлого отчёта нет"])
+    groups: dict[str, dict] = {}
+    for it in items:
+        ev = humanize.describe_queued_event(it if isinstance(it, dict) else {})
+        g = groups.setdefault(ev["incident"], {"text": ev["text"], "n": 0, "critical": False,
+                                               "order": len(groups)})
+        g["n"] += 1
+        g["critical"] = g["critical"] or ev["critical"]
+        g["text"] = ev["text"]  # последнее наблюдение — самое свежее описание
+    n_obs = len(items)
+    n_crit_obs = sum(1 for i in items if isinstance(i, dict)
+                     and humanize.describe_queued_event(i)["critical"])
+    n_crit_inc = sum(1 for g in groups.values() if g["critical"])
     lines = ["", "🗂️ <b>События за сутки</b>"]
-    lines.append(f"  событий с прошлого отчёта: {len(items)}, из них с CRITICAL: {n_crit}")
-    with_body = [i for i in items if str(i.get("body") or "").strip()]
-    if len(with_body) < _EVENT_GISTS_SHOWN:
-        by_key: Counter[str] = Counter(str(i.get("event_key", "?")) for i in items)
-        for key, n in sorted(by_key.items(), key=lambda kv: (-kv[1], kv[0])):
-            suffix = f" ×{n}" if n > 1 else ""
-            lines.append(f"  • {_esc(key)}{suffix}")
-        return "\n".join(lines)
-    gists: Counter[str] = Counter(_event_gist(i)[:120] for i in with_body)
-    ranked = sorted(gists.items(),
-                    key=lambda kv: ("CRITICAL" not in kv[0].upper(), -kv[1], kv[0]))
-    for gist, n in ranked[:_EVENT_GISTS_SHOWN]:
-        suffix = f" ×{n}" if n > 1 else ""
-        lines.append(f"  • {_esc(gist)}{suffix}")
+    lines.append(f"  событий с прошлого отчёта: {n_obs}, из них с CRITICAL: {n_crit_obs} · "
+                 f"разных проблем: {len(groups)}, из них критичных: {n_crit_inc}")
+    lines.append("  (это очередь сводки: отдельными сообщениями эти события не отправлялись)")
+    ranked = sorted(groups.values(), key=lambda g: (not g["critical"], -g["n"], g["order"]))
+    for g in ranked[:_EVENT_GISTS_SHOWN]:
+        suffix = f" — наблюдений: {g['n']}" if g["n"] > 1 else ""
+        lines.append(f"  • {_esc(g['text'])}{suffix}")
     rest = len(ranked) - _EVENT_GISTS_SHOWN
     if rest > 0:
-        lines.append(f"  • …и ещё разных событий: {rest}")
+        lines.append(f"  • …и ещё разных проблем: {rest}")
     return "\n".join(lines)
 
 
@@ -574,7 +561,20 @@ def _fleet_line(ddir: Path, data: dict) -> str:
     if not em_status:
         parts.append(f"аварийный статус: {_UNMEASURED}")
     elif em_status == "CLEAR":
-        parts.append("аварий нет")
+        # TELEGRAM-OWNER-UX-01: «аварий нет» по одному CLEAR звучало как вердикт обо всей
+        # системе (и о BTC-движке earn-defi, у которого свой режим). Говорим ровно то, что
+        # измерено: аварийные правила SPA не сработали; сколько проверок и сколько из них
+        # НЕ измерено (SKIP — третий исход, не «прошло»); время замера.
+        checks = em.get("checks") if isinstance(em.get("checks"), dict) else {}
+        n_all = sum(1 for c in checks.values() if isinstance(c, dict))
+        n_skip = sum(1 for c in checks.values()
+                     if isinstance(c, dict) and str(c.get("status") or "").upper() == "SKIP")
+        scope = []
+        if n_all:
+            scope.append(f"проверок {n_all}" + (f", не измерено {n_skip}" if n_skip else ""))
+        if em.get("checked_at"):
+            scope.append(_fmt_ts(em["checked_at"]))
+        parts.append("аварийные правила SPA не сработали" + (f" ({'; '.join(scope)})" if scope else ""))
     else:
         parts.append(f"аварийный статус {em_status}")
     return "🤖 " + _esc(" · ".join(parts))

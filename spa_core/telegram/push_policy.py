@@ -302,6 +302,14 @@ def _today(now: Optional[datetime] = None) -> str:
 
 
 # ── Transport (the ONLY allowed Tier-1 send) ─────────────────────────────────
+def _text_fingerprint(text: str) -> Optional[str]:
+    try:
+        from spa_core.alerts.telegram_client import text_fingerprint
+        return text_fingerprint(text)
+    except Exception:  # noqa: BLE001 — след не имеет права уронить доставку
+        return None
+
+
 def _send(text: str) -> bool:
     """Send via the shared telegram_client transport (HTML). Never raises.
 
@@ -640,9 +648,15 @@ def _push_critical_impl(
         return False
 
     # ── Push the entry transition ────────────────────────────────────────────
-    sent = _send(_format_message(severity, title, body)) if send else True
+    entry_text = _format_message(severity, title, body)
+    sent = _send(entry_text) if send else True
     events[event_key] = {"state": _STATE_BAD, "last_ts": ts,
-                         "entry_pushed": bool(sent), "fingerprint": dedup_key}
+                         "entry_pushed": bool(sent), "fingerprint": dedup_key,
+                         # След доставки (TELEGRAM-OWNER-UX-01, п. 5): отпечаток ровно того
+                         # текста, что ушёл в транспорт, — по нему запись alert_history
+                         # (text_sha256) связывается с этим инцидентом. entry_pushed — ответ
+                         # API, не прочтение владельцем.
+                         "entry_text_sha256": _text_fingerprint(entry_text)}
     if sent and not exempt:
         ceil["pushed"] = int(ceil["pushed"]) + 1
     _save_state(tg_dir, state)

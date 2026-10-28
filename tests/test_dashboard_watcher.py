@@ -79,10 +79,14 @@ def test_agent_health_unhealthy_agent_real_shape():
         {"label": "com.spa.uptime_monitor", "status": "WARNING", "issue": "log stale"},
     ]}
     findings = dw.check_agent_health(data)
-    downs = [f for f in findings if f["subtype"] == "down"]
-    assert len(downs) == 1
-    assert downs[0]["label"] == "com.spa.uptime_monitor"
-    assert downs[0]["critical"] is False
+    # Changed 28.10 (TELEGRAM-OWNER-UX-01, inv. #16 — journal W44): a WARNING agent is a
+    # WARNING, not "down". The old assertion pinned exactly the defect the owner saw as
+    # «Agent DOWN ×12». The finding is still produced (nothing is silenced).
+    warns = [f for f in findings if f["subtype"] == "warning"]
+    assert len(warns) == 1
+    assert not [f for f in findings if f["subtype"] in ("down", "stopped")]
+    assert warns[0]["label"] == "com.spa.uptime_monitor"
+    assert warns[0]["critical"] is False
 
 
 def test_agent_health_unhealthy_documented_shape():
@@ -99,8 +103,10 @@ def test_agent_health_critical_agent_flagged():
         {"label": "com.spa.peg_monitor", "status": "CRITICAL",
          "issue": "log stale 42.3 min (threshold 10 min)"},
     ]}
-    downs = [f for f in dw.check_agent_health(data) if f["subtype"] == "down"]
-    assert downs[0]["critical"] is True
+    # Changed 28.10 (TELEGRAM-OWNER-UX-01, inv. #16): CRITICAL by a stale log is critical,
+    # but not proven stopped — the subtype says what was measured. Critical flag kept.
+    crits = [f for f in dw.check_agent_health(data) if f["subtype"] == "critical"]
+    assert crits[0]["critical"] is True
 
 
 def test_agent_health_issue_field_becomes_issues_list():

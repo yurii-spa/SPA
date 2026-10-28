@@ -46,6 +46,7 @@ from __future__ import annotations
 
 import json
 import os
+import re
 import subprocess
 import sys
 from datetime import datetime, timedelta, timezone
@@ -395,7 +396,33 @@ def _ci_block(ci_text: str) -> str:
         # строка каждый день была бы шумом. Детерминированным печатается ровно то,
         # что 10.09 было занижено, — длина красноты.
         return ""
-    return "\n\n🔴 Автопроверка кода КРАСНАЯ. " + ci_text.split("КРАСНАЯ.", 1)[-1].strip()
+    tail = ci_text.split("КРАСНАЯ.", 1)[-1].strip().rstrip(".")
+    # TELEGRAM-OWNER-UX-01, случай 9: одно и то же «красное N суток (последний зелёный …)»
+    # печаталось отдельно для каждого задания, каждое утро — простыня без нового содержания.
+    # Задания с ОДНОЙ датой последнего зелёного прогона сворачиваются в одну строку; число
+    # суток остаётся прибором (то же значение, побайтно). Чего этот замер НЕ знает — новых
+    # падений и сравнения прогонов, — сказано вслух, а не умолчано.
+    groups: dict[tuple[str, str], list[str]] = {}
+    rest: list[str] = []
+    for part in (x.strip() for x in tail.split(";")):
+        m = _CI_PART_RE.fullmatch(part)
+        if m:
+            groups.setdefault((m.group(2), m.group(3)), []).append(m.group(1))
+        elif part:
+            rest.append(part)
+    if not groups:
+        return "\n\n🔴 Автопроверка кода КРАСНАЯ. " + ci_text.split("КРАСНАЯ.", 1)[-1].strip()
+    lines = []
+    for (days, green), names in groups.items():
+        jobs = ", ".join(f"«{n}»" for n in names)
+        lines.append(f"🔴 Автопроверка кода КРАСНАЯ {days} суток ({jobs}; последний зелёный "
+                     f"прогон {green}).")
+    lines += [f"🔴 {r}." for r in rest]
+    lines.append("Новые ли это падения, эта строка не измеряет — только длину красной серии.")
+    return "\n\n" + "\n".join(lines)
+
+
+_CI_PART_RE = re.compile(r"«(.+?)» красное (\d+(?:\.\d+)?) суток \(последний зелёный (\S+)\)")
 
 
 def _unread_block(unread: list[str]) -> str:

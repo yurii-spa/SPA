@@ -436,9 +436,18 @@ def build_report_data(
         "last_cycle_status": last_cycle_status,
         "risk_policy_approved": risk_approved,
         "risk_blocks_today": risk_blocks,
+        # Когда гейт выносил это одобрение: последний цикл (тот же статус-файл).
+        "risk_checked_at": status_doc.get("last_cycle_ts"),
         "base_chain": base_chain,
         "books_summary": books_summary,
     }
+
+
+def _fmt_owner_ts(iso: Any) -> str:
+    """UTC-отметка → время владельца (Europe/Madrid, ADR-660); непарсибельное — как есть."""
+    from spa_core.utils.presentation import to_owner_time
+    local = to_owner_time(iso) if isinstance(iso, str) else None
+    return local.strftime("%d.%m %H:%M") + " Мадрид" if local is not None else str(iso)[:25]
 
 
 def _fmt_money(value: Any, signed: bool = False) -> str:
@@ -595,7 +604,13 @@ def _golive_cycle_risk_lines(data: dict) -> list[str]:
     if blocks:
         lines.append(f"🔒 Риск-гейт: блокировок сегодня {blocks} (см. risk_policy_blocks.json)")
     elif approved is True:
-        lines.append("🔒 Риск-гейт: все позиции в пределах лимитов")
+        # TELEGRAM-OWNER-UX-01: «все позиции в пределах лимитов» утверждало больше, чем
+        # измерено. Измерено вот что: RiskPolicy одобрил раскладку последнего цикла и за
+        # день блокировок не записано. Текущие доли позиций это не проверяет — так и сказано.
+        when = data.get("risk_checked_at")
+        when_txt = f" ({_fmt_owner_ts(when)})" if when else " (время проверки не измерено)"
+        lines.append(f"🔒 Риск-гейт: раскладка последнего цикла одобрена{when_txt}, "
+                     f"блокировок за день нет — это не сверка текущих долей позиций")
     return lines
 
 

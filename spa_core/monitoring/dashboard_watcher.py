@@ -106,6 +106,45 @@ CRITICAL_AGENTS = {
 
 HEADER = "🖥️ <b>Dashboard Alert</b>\n━━━━━━━━━━━━━━━━━"
 
+# TELEGRAM-OWNER-UX-01 (ADR-OWN-2026-10-28): «не OK» у агента — это НЕ одно состояние.
+# До правки каждая запись healthy=False становилась subtype=down → «Agent DOWN», и
+# измеренное предупреждение resource_guard (код 1 по его договору) владелец читал как
+# «упал сторож ×12». Теперь состояние называется тем, чем оно измерено:
+#   stopped   — процесс точно не работает (не загружен / сервер с PID=0);
+#   critical  — агент в критическом состоянии по замеру agent_health (не обязательно остановлен);
+#   warning   — предупреждение агента (процесс может работать);
+#   measured  — агент-ЗАМЕР штатно сообщил плохой результат замера кодом выхода по договору;
+#   stale     — снимок о нём устарел;  unchecked — состояние не измерено (третий исход, инв. #17).
+# Отключённый владельцем агент приходит со статусом OK и пометкой — находкой он не является.
+AGENT_STOPPED = "stopped"
+AGENT_CRITICAL = "critical"
+AGENT_WARNING = "warning"
+AGENT_MEASURED = "measured"
+AGENT_STALE = "stale"
+AGENT_UNCHECKED = "unchecked"
+#: Документированная форма ``{"healthy": false}`` без статуса — прежний контракт «down».
+AGENT_DOWN_LEGACY = "down"
+
+#: Агенты, у которых код выхода — ВЕРДИКТ замера, а не исход процесса. Договор
+#: resource_guard: 0 OK · 1 WARN · 2 CRITICAL или «не измерено». Замером здесь читается
+#: ровно то, что так прочитал agent_health (ARB 27.10): код 1. Код 2 ARB оставил прежней
+#: веткой («как прежде» — он же и аварийный выход процесса), поэтому и здесь он остаётся
+#: предупреждением агента, а не «штатным замером» (fail-CLOSED).
+MEASUREMENT_VERDICT_AGENTS: Dict[str, Dict[int, str]] = {
+    "com.spa.resource_guard": {
+        1: "контроль ресурсов Mac сообщает о нехватке ресурсов (замер: предупреждение)",
+    },
+}
+
+_AGENT_STATE_RU: Dict[str, str] = {
+    AGENT_STOPPED: "не работает",
+    AGENT_CRITICAL: "критическое состояние (процесс может работать — см. причину)",
+    AGENT_WARNING: "предупреждение (это не остановка агента)",
+    AGENT_STALE: "сведения о нём устарели",
+    AGENT_UNCHECKED: "состояние не измерено",
+    AGENT_DOWN_LEGACY: "отмечен как неисправный (вид неисправности источник не указал)",
+}
+
 # Status vocabularies actually emitted by the producers we read (agent_health_
 # monitor / system_health_monitor). Anything outside these is reported as
 # "not measured" with the value quoted verbatim, never silently read as healthy.
@@ -144,7 +183,8 @@ def get_chat_id() -> Optional[str]:
 
 
 def route_to_digest(text: str, *, title: str = "Dashboard watcher finding",
-                    severity: str = "INFO") -> bool:
+                    severity: str = "INFO", incident: Optional[str] = None,
+                    summary: Optional[str] = None) -> bool:
     """Append one finding to the digest queue. True iff it was enqueued.
 
     This is the watcher's ONLY outbound path (the Telegram push is retired, see
@@ -164,6 +204,10 @@ def route_to_digest(text: str, *, title: str = "Dashboard watcher finding",
                 "title": title,
                 "body": text[:500],
                 "reason": "dashboard_watcher_retired_push",
+                # Идентичность инцидента и смысловая строка (TELEGRAM-OWNER-UX-01):
+                # сводка объединяет по ним, а не по первым 120 символам текста.
+                **({"incident": incident} if incident else {}),
+                **({"summary": summary} if summary else {}),
             },
         )
         return True
@@ -173,7 +217,8 @@ def route_to_digest(text: str, *, title: str = "Dashboard watcher finding",
 
 
 def send_telegram(text: str, token: Optional[str] = None,
-                  chat_id: Optional[str] = None) -> bool:
+                  chat_id: Optional[str] = None, *, incident: Optional[str] = None,
+                  summary: Optional[str] = None, severity: str = "INFO") -> bool:
     """RETIRED as a Telegram push (Phase-1 Telegram rebuild).
 
     dashboard_watcher used to push ~26 alerts/day every 5 min. Everything it
@@ -186,7 +231,7 @@ def send_telegram(text: str, token: Optional[str] = None,
     the published contract; internal callers that need the routing result use
     ``route_to_digest`` instead. Never raises.
     """
-    route_to_digest(text)
+    route_to_digest(text, incident=incident, summary=summary, severity=severity)
     return False
 
 
@@ -323,8 +368,47 @@ def _norm_agents(data: Dict[str, Any]) -> Tuple[str, List[Dict[str, Any]]]:
             "healthy": healthy,
             "issues": issues,
             "log_age_min": ag.get("log_age_min"),
+            # Сырые поля состояния — чтобы классификация говорила то, что измерено,
+            # а не сводила любое «не OK» к остановке.
+            "status": (str(ag["status"]).upper() if ag.get("status") is not None else None),
+            "pid": ag.get("pid"),
+            "last_exit": ag.get("last_exit"),
+            "loaded": ag.get("loaded"),
+            "category": ag.get("category"),
         })
     return overall, out
+
+
+def classify_agent(ag: Dict[str, Any]) -> str:
+    """Вид неисправности агента — по ИЗМЕРЕННОМУ состоянию, а не по «не OK».
+
+    Порядок важен: замер по договору проверяется первым только для объявленных меток и
+    объявленных кодов; «остановлен» — только при прямом признаке (не загружен / сервер
+    с PID=0); прочий CRITICAL остаётся критическим, но не называется остановкой.
+    """
+    label = ag.get("label") or ""
+    status = ag.get("status")
+    last_exit = ag.get("last_exit")
+    contract = MEASUREMENT_VERDICT_AGENTS.get(label)
+    if (contract and isinstance(last_exit, int) and not isinstance(last_exit, bool)
+            and last_exit in contract and not ag.get("pid")
+            and status in ("WARNING", "CRITICAL") and ag.get("loaded") is not False):
+        return AGENT_MEASURED
+    if ag.get("loaded") is False:
+        return AGENT_STOPPED
+    issues = " ".join(str(i) for i in ag.get("issues") or [])
+    if "PID=0 (server down)" in issues or "not loaded in launchctl" in issues:
+        return AGENT_STOPPED
+    if status == "CRITICAL":
+        return AGENT_CRITICAL
+    if status == "WARNING":
+        return AGENT_WARNING
+    if status == "STALE":
+        return AGENT_STALE
+    if status is None:
+        return AGENT_DOWN_LEGACY
+    # UNCHECKED и любой неизвестный статус — «не измерено», значение сохраняется в причинах.
+    return AGENT_UNCHECKED
 
 
 def _as_int(value: Any) -> Optional[int]:
@@ -555,12 +639,17 @@ def check_agent_health(data: Optional[Dict[str, Any]]) -> List[Dict[str, Any]]:
         if ag["healthy"]:
             continue
         is_critical = _short_label(ag["label"]) in CRITICAL_AGENTS
+        subtype = classify_agent(ag)
+        if subtype == AGENT_UNCHECKED and ag.get("status") not in (None, "UNCHECKED"):
+            # Неизвестный статус не выдаётся за «здоров» и не теряется — назван дословно.
+            ag["issues"] = list(ag["issues"]) + [f"статус источника: {ag['status']}"]
         findings.append({
-            "kind": "agent", "subtype": "down",
-            "key": f"agent:down:{ag['label']}",
+            "kind": "agent", "subtype": subtype,
+            "key": f"agent:{subtype}:{ag['label']}",
             "label": ag["label"],
             "issues": ag["issues"],
             "log_age_min": ag["log_age_min"],
+            "last_exit": ag.get("last_exit"),
             "critical": is_critical,
         })
     return findings
@@ -703,15 +792,56 @@ def format_agent_alert(finding: Dict[str, Any], ctx: Dict[str, Any]) -> str:
         if tail:
             body += " — " + ", ".join(tail)
     else:
-        icon = "🔴" if finding.get("critical") else "⚠️"
-        suffix = " (CRITICAL agent)" if finding.get("critical") else ""
-        body = f"{icon} Agent DOWN: {finding['label']}{suffix}"
+        body = agent_summary(finding)
         age = finding.get("log_age_min")
         if isinstance(age, (int, float)):
-            body += f"\nLast seen: {age:.1f} мин назад"
+            body += f"\nПоследняя запись в журнале агента: {age:.1f} мин назад"
         if finding.get("issues"):
-            body += "\nIssues: " + "; ".join(str(i) for i in finding["issues"])
+            body += "\nПричина: " + "; ".join(_issue_ru(i) for i in finding["issues"])
     return f"{HEADER}\n{body}{_footer(ctx)}"
+
+
+def _finding_severity(finding: Dict[str, Any]) -> str:
+    """Степень находки для очереди сводки: остановка/критика ключевого — CRITICAL.
+
+    До 28.10 всё уходило как INFO, и сводка считала критичным только тело со словом
+    «CRITICAL»; остановленный ключевой агент терялся среди предупреждений.
+    """
+    sub = finding.get("subtype")
+    if sub == "overall_critical" or (sub in (AGENT_STOPPED, AGENT_CRITICAL) and finding.get("critical")):
+        return "CRITICAL"
+    if sub in (AGENT_STOPPED, AGENT_CRITICAL, AGENT_WARNING, AGENT_MEASURED, AGENT_DOWN_LEGACY):
+        return "WARNING"
+    return "INFO"
+
+
+def _issue_ru(issue: Any) -> str:
+    """Причина простым языком через общий словарь humanize; нераспознанное — дословно."""
+    text = str(issue)
+    try:
+        from spa_core.telegram import humanize
+        return humanize.humanize_body(text)
+    except Exception:  # noqa: BLE001 — причина обязана дойти, хоть и технической строкой
+        return text
+
+
+def agent_summary(finding: Dict[str, Any]) -> str:
+    """Одна строка: ЧТО с агентом — тем видом состояния, который измерен.
+
+    Её же кладём в очередь сводки как ``summary``: дневная сводка и отдельная тревога
+    говорят одно и то же (TELEGRAM-OWNER-UX-01, п. 2).
+    """
+    label = finding.get("label") or "?"
+    subtype = finding.get("subtype")
+    if subtype == AGENT_MEASURED:
+        words = MEASUREMENT_VERDICT_AGENTS.get(label, {}).get(finding.get("last_exit"))
+        if words:
+            return f"⚠️ {words[0].upper()}{words[1:]}; агент отработал штатно ({label})"
+    crit = finding.get("critical")
+    icon = "🔴" if subtype in (AGENT_STOPPED, AGENT_CRITICAL) or crit else "⚠️"
+    state = _AGENT_STATE_RU.get(subtype, "неизвестное состояние")
+    who = "ключевой агент" if crit else "агент"
+    return f"{icon} {who[0].upper()}{who[1:]} {label}: {state}"
 
 
 def format_portfolio_alert(finding: Dict[str, Any], ctx: Dict[str, Any]) -> str:
@@ -820,7 +950,10 @@ def maybe_send(finding: Dict[str, Any], ctx: Dict[str, Any]) -> bool:
         return False
     _mark_seen(key)  # mark immediately to avoid parallel double-send
     text = format_finding(finding, ctx)
-    if send_telegram(text):        # retired push: routes to digest, returns False
+    # Push retired: the finding goes to the digest queue WITH its incident identity and
+    # one-line meaning, so the digest folds repeats of the same incident (and only them).
+    summary = agent_summary(finding) if kind == "agent" and finding.get("subtype") != "overall_critical" else None
+    if send_telegram(text, incident=key, summary=summary, severity=_finding_severity(finding)):  # retired push: routes to digest, returns False
         _start_cooldown(kind)
         log.info("Alert pushed: %s", key)
         return True

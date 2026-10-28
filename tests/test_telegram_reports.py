@@ -186,7 +186,12 @@ class TestDailyReport(unittest.TestCase):
         data = daily.build_report_data("2026-06-16", data_dir=self.ddir)
         msg = daily.format_daily_message(data)
         # 08.09 (inv. #16, reason): «within limits» → «в пределах лимитов».
-        self.assertIn("в пределах лимитов", msg)
+        # Changed 28.10 (TELEGRAM-OWNER-UX-01, inv. #16 — journal W44): «все позиции в
+        # пределах лимитов» claimed more than was measured (RiskPolicy approved the last
+        # cycle's allocation, no blocks recorded). The line now says exactly that.
+        self.assertIn("раскладка последнего цикла одобрена", msg)
+        self.assertIn("это не сверка текущих долей позиций", msg)
+        self.assertNotIn("все позиции в пределах лимитов", msg)
 
     def test_position_cap_collapses_remainder(self):
         # 12 positions → capped to MAX_POSITION_LINES + a "+N more" line.

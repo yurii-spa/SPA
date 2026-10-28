@@ -198,6 +198,12 @@ def _classify(text: str) -> str:
     return "other"
 
 
+def text_fingerprint(text: str) -> str:
+    """SHA-256 полного отрендеренного текста — общий ключ журнала отправок и инцидента."""
+    import hashlib
+    return hashlib.sha256((text or "").encode("utf-8")).hexdigest()
+
+
 def _record_history(text: str, ok: bool, message_id=None, error: str | None = None,
                     solicited: bool = False, buttons: bool | None = None) -> None:
     """Append one send outcome to the ring-buffered alert_history.json. Never raises.
@@ -224,6 +230,11 @@ def _record_history(text: str, ok: bool, message_id=None, error: str | None = No
             "type": _classify(text),
             "ok": bool(ok),
             "preview": (text or "")[:_PREVIEW_LEN],
+            # TELEGRAM-OWNER-UX-01, п. 5: превью 80 знаков не позволяет сверить полный пример
+            # владельца с записью. Полный текст не храним (личная переписка), храним его
+            # отпечаток и длину: тот же текст ⇒ тот же отпечаток. «ok» — ответ API, не прочтение.
+            "text_sha256": text_fingerprint(text),
+            "chars": len(text or ""),
             # Ключ повтора хранится ОТДЕЛЬНО от превью: превью — для человека, который
             # разбирает «кто это шлёт», и урезать его до неузнаваемости нельзя.
             "dkey": _dedup_preview(text),

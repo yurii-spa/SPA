@@ -67,22 +67,32 @@ def test_daily_digest_consolidates_queue_into_the_details_message(tmp_path, sent
     # The section counts events + CRITICAL bodies and names the bodies in WORDS
     # (CRITICAL first, identical bodies collapsed ×N) — not the event_key histogram.
     assert "События за сутки" in msg
+    # Changed 28.10 (TELEGRAM-OWNER-UX-01, inv. #16 — journal W44): observations,
+    # distinct problems and the queue-is-not-a-send fact are labelled separately, and a
+    # repeat of the SAME incident is «наблюдений: N», not a «×N» that read as N failures.
     assert "событий с прошлого отчёта: 4, из них с CRITICAL: 2" in msg
-    assert "System health CRITICAL (overall) ×2" in msg
+    assert "разных проблем: 3, из них критичных: 1" in msg
+    assert "отдельными сообщениями эти события не отправлялись" in msg
+    assert "System health CRITICAL (overall) — наблюдений: 2" in msg
     assert "compound_v3 9.20% &gt; 8.00%" in msg  # body text is HTML-escaped (parse_mode=HTML)
     assert "dashboard_watch" not in msg  # internal key is not what the owner reads
     # Queue drained after a real send.
     assert push_policy.drain_digest_queue(data_dir=str(tmp_path), clear=False) == []
 
 
-def test_digest_section_keeps_the_histogram_when_bodies_are_too_few(tmp_path):
-    """Fewer than 3 bodies ⇒ the event_key histogram is all that is known — keep it."""
+def test_digest_section_explains_bodiless_events_in_words(tmp_path):
+    """Changed 28.10 (TELEGRAM-OWNER-UX-01, inv. #16): fewer than 3 bodies used to print the
+    raw event_key histogram («dashboard_watch ×2») — the owner's «набор букв». The key is
+    now explained in words; the event is still counted and not dropped."""
     for key in ["dashboard_watch", "dashboard_watch", "apy_spike"]:
         push_policy.enqueue_digest(key, key, "", data_dir=str(tmp_path))
     msg, _ = daily_digest.build_digest_message(
         "2026-06-15", data_dir=str(tmp_path), drain=False
     )
-    assert "dashboard_watch ×2" in msg and "apy_spike" in msg
+    assert "событий с прошлого отчёта: 3" in msg and "разных проблем: 2" in msg
+    assert "находка проверки панели (агенты, портфель, API) — наблюдений: 2" in msg
+    assert "резкий скачок доходности протокола" in msg
+    assert "dashboard_watch" not in msg
 
 
 def test_daily_digest_idempotent_per_utc_date(tmp_path, sent_daily):
@@ -124,7 +134,9 @@ def test_daily_digest_no_queue_still_the_pair(tmp_path, sent_daily):
     )
     assert res["sent"] is True
     assert len(sent_daily) == 2  # 08.09: headline + details, nothing more
-    assert "События за сутки" not in sent_daily[1]  # no section when nothing queued
+    # Changed 28.10 (TELEGRAM-OWNER-UX-01, inv. #16): an empty queue is an ANSWER and is
+    # printed as one line (was: no section at all — indistinguishable from «not checked»).
+    assert "отложенных событий с прошлого отчёта нет" in sent_daily[1]
 
 
 def test_daily_digest_never_raises_on_corrupt_data(tmp_path, sent_daily):

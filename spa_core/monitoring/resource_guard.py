@@ -525,6 +525,9 @@ def owner_body(rep: dict, top: int = 3) -> str:
     if procs:
         def name(r: dict) -> str:
             cmd = r.get("cmd") or ""
+            app = _APP_LABEL_RE.match(r.get("label") or "")
+            if app:  # «application.com.google.Chrome.795720550.903014360» → «Chrome (приложение)»
+                return f"{app.group(1)} (приложение)"
             mod = re.search(r"-m\s+([\w.]+)", cmd)
             base = mod.group(1).rsplit(".", 1)[-1] if mod else (cmd.split() or ["?"])[0].rsplit("/", 1)[-1]
             return base + (f" ({r['label']})" if r.get("label") else "")
@@ -532,15 +535,55 @@ def owner_body(rep: dict, top: int = 3) -> str:
     return "\n".join(lines)
 
 
+_APP_LABEL_RE = re.compile(r"^application\.(?:[\w-]+\.)*?([A-Za-z][\w-]*)\.\d+\.\d+$")
+
+_FIRED_RU = {"pressure": "давление на оперативную память", "swap": "заполнен файл подкачки (своп)"}
+_STATE_RU = {WARN: "предупреждение", CRITICAL: "критично"}
+
+
+def fired_summary(rep: dict) -> tuple[str, str]:
+    """(заголовок, строка «Что случилось») — ровно то, что сработало, со степенью каждого.
+
+    TELEGRAM-OWNER-UX-01, случай 4: заголовок «Ресурсы Мака на исходе» стоял и тогда, когда
+    давление на RAM было в норме, а сработали своп и диск. Нормальная RAM названа отдельно,
+    но других порогов не отменяет.
+    """
+    d, m = rep.get("disk") or {}, rep.get("memory") or {}
+    short, full = [], []
+    trig = {t.get("signal"): t.get("state") for t in m.get("triggers") or []}
+    if "swap" in trig:
+        short.append("своп заполнен")
+        full.append(f"{_FIRED_RU['swap']} — {_STATE_RU.get(trig['swap'], trig['swap'])}")
+    if d.get("state") in (WARN, CRITICAL):
+        short.append("мало места на диске")
+        full.append(f"на диске мало места — {_STATE_RU.get(d['state'], d['state'])}")
+    if "pressure" in trig:
+        short.append("давление на память")
+        full.append(f"{_FIRED_RU['pressure']} — {_STATE_RU.get(trig['pressure'], trig['pressure'])}")
+    elif m.get("pressure_level") == 1:
+        full.append("давление на оперативную память в норме (другие пороги это не отменяет)")
+    for sig, st in trig.items():
+        if sig not in ("swap", "pressure"):
+            short.append(str(sig)); full.append(f"{sig} — {_STATE_RU.get(st, st)}")
+    title = "Ресурсы Mac: " + (", ".join(short) if short else "критично")
+    return title, "Что случилось: " + ("; ".join(full) if full else "сработал порог ресурсов") + "."
+
+
 def notify(rep: dict, *, data_dir: Path, send: bool = True) -> Optional[bool]:
     from spa_core.telegram import push_policy
     if rep["overall"] == CRITICAL:
         fp = f"disk:{rep['disk']['state']}|mem:{rep['memory']['state']}"
-        body = owner_body(rep)
+        title, what = fired_summary(rep)
+        body = (what + "\n" + owner_body(rep)
+                + "\nВлияние на работу системы: не установлено. Кто занимается: не назначен. "
+                  "Решения от тебя это сообщение не запрашивает.")
         bl = rep.get("disposable_backlog") or {}
         if bl.get("count"):
-            body += f"\nexpired disposable stands: {bl['count']} (daily cleanup removes them; resource_guard --cleanup --apply now)"
-        return push_policy.push_critical(EVENT_KEY, "CRITICAL", "Ресурсы Мака на исходе", body,
+            # Факт замера, без обещаний и без приписывания причины (вклад стендов в нехватку
+            # места не измерен). Команда для терминала в ленту владельца не идёт.
+            body += (f"\nПросроченных временных тестовых стендов: {bl['count']} — сколько места они "
+                     f"занимают, этот замер не установил.")
+        return push_policy.push_critical(EVENT_KEY, "CRITICAL", title, body,
                                          data_dir=data_dir, dedup_key=fp, send=send)
     if rep["overall"] == UNMEASURED:
         # A blind guard is an incident of its own (inv. #17): pushed under its own fingerprint so it is

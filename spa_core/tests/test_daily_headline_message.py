@@ -131,7 +131,10 @@ def test_headline_is_short_russian_and_ordered_most_important_first(repo):
     assert "агенты 74 из 77 в порядке" in head
     # ADR-660: owner time is Europe/Madrid (CEST in September) — 07:27 UTC is 09:27 in Madrid
     assert "цикл 08.09 09:27 Мадрид" in head
-    assert "стоп-кран не включён" in head and "аварий нет" in head
+    # Changed 28.10 (TELEGRAM-OWNER-UX-01, inv. #16): one subsystem's CLEAR is no longer
+    # «аварий нет» about the whole system — it names its scope (SPA emergency rules).
+    assert "стоп-кран не включён" in head and "аварийные правила SPA не сработали" in head
+    assert "аварий нет" not in head
 
 
 def test_headline_budget_is_a_hard_contract_even_under_a_flood(repo):
