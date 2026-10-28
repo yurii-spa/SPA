@@ -563,3 +563,21 @@ class TestStopFromCurrentExperimentPeak:
         monkeypatch.setattr(m, "load_hy_state", _no_baseline)
         r = m.run_hy_cycle(dry_run=True)
         assert r.get("kill_switch") is True and "legacy_peak" in r["reason"]
+
+
+def test_regime_log_is_written_to_the_path_hy_cycle_declares(tmp_path, monkeypatch):
+    """ADR-846 §2: путь журнала режима — вход писателя. Подмена `_HY_REGIME_LOG_PATH` доходит до
+    `regime_gate.log_regime_change`; до 28.10 писатель брал свою копию пути и писал в живой data/."""
+    import spa_core.paper_trading.hy_cycle as m
+    from spa_core.risk import regime_gate
+    seen = {}
+    real = regime_gate.log_regime_change
+
+    def spy(result, previous_state=None, log_path=None):
+        seen["log_path"] = log_path
+        return real(result, previous_state=previous_state, log_path=log_path)
+    monkeypatch.setattr(regime_gate, "log_regime_change", spy)
+    monkeypatch.setattr("spa_core.paper_trading.sleeve_yield.hy_target_apy_pct", lambda: 9.0)
+    m.refresh_hy_regime("EXIT")
+    assert seen.get("log_path") == tmp_path / "hy_regime_log.json"
+    assert (tmp_path / "hy_regime_log.json").is_file()

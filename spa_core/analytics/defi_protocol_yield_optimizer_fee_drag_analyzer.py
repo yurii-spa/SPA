@@ -25,6 +25,8 @@ __mp__ = "MP-1088"
 LOG_PATH = os.path.join(
     os.path.dirname(__file__), "..", "..", "data", "yield_optimizer_fee_drag_log.json"
 )
+_LOG_PATH_AT_IMPORT = LOG_PATH
+from spa_core.utils.data_dir import default_file as _default_file  # ADR-846 §2: SPA_DATA_DIR сильнее умолчания
 LOG_CAP = 100
 
 # Fee label constants
@@ -189,7 +191,7 @@ class DeFiProtocolYieldOptimizerFeeDragAnalyzer:
         log_path: str | None = None,
         log_cap: int = LOG_CAP,
     ) -> None:
-        self._log_path = log_path or LOG_PATH
+        self._log_path = log_path or _default_file(LOG_PATH, _LOG_PATH_AT_IMPORT)
         self._log_cap = log_cap
 
     # ------------------------------------------------------------------

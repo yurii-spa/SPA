@@ -22,6 +22,8 @@ _DEFAULT_DATA_FILE = os.path.join(
     os.path.dirname(os.path.dirname(os.path.dirname(__file__))),
     "data", "fee_revenue_trend_log.json"
 )
+_DEFAULT_DATA_FILE_AT_IMPORT = _DEFAULT_DATA_FILE
+from spa_core.utils.data_dir import default_file as _default_file  # ADR-846 §2: SPA_DATA_DIR сильнее умолчания
 
 # ---------------------------------------------------------------------------
 # Trend label constants
@@ -79,7 +81,7 @@ class ProtocolFeeRevenueTrendAnalyzer:
     """Analyze fee revenue trends for DeFi protocols."""
 
     def __init__(self, data_file: Optional[str] = None):
-        self._data_file = data_file or _DEFAULT_DATA_FILE
+        self._data_file = data_file or _default_file(_DEFAULT_DATA_FILE, _DEFAULT_DATA_FILE_AT_IMPORT)
 
     # ------------------------------------------------------------------
     # Public API

@@ -55,7 +55,8 @@ class ApyMilestoneTracker(BaseAnalytics):
     def __init__(self, data_dir: Optional[str | Path] = None) -> None:
         super().__init__()  # sets self.base_dir = "."
         if data_dir is None:
-            self._data_dir = _DEFAULT_DATA_DIR
+            from spa_core.utils.data_dir import own_data_dir  # ADR-846 §2
+            self._data_dir = own_data_dir(_DEFAULT_DATA_DIR)
         else:
             self._data_dir = Path(data_dir)
         self._log_path = self._data_dir / _LOG_FILENAME

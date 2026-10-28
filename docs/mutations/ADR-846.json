@@ -1,0 +1,98 @@
+{
+  "title": "ADR-846 §1–§2 — launchd в синхронизации; тесты не пишут в рабочее состояние",
+  "tests": [
+    "spa_core/tests/test_code_sync_paths.py",
+    "scripts/tests/test_code_sync_from_origin.py",
+    "spa_core/tests/test_data_dir_default_file.py",
+    "tests/test_cycle_side_writers_stay_in_sandbox.py",
+    "tests/test_hy_cycle.py",
+    "tests/test_market_regime.py",
+    "tests/test_uptime_monitor.py"
+  ],
+  "mutations": [
+    {
+      "name": "синхронизация снова не возит launchd/",
+      "file": "scripts/code_sync_from_origin.sh",
+      "old": "CODE_PATHS=(spa_core scripts tests architecture launchd push_to_github.py",
+      "new": "CODE_PATHS=(spa_core scripts tests architecture push_to_github.py"
+    },
+    {
+      "name": "default_file никогда не уводит в песочницу",
+      "file": "spa_core/utils/data_dir.py",
+      "old": "    if os.fspath(path) != os.fspath(default):\n        return path\n",
+      "new": "    if True:\n        return path\n"
+    },
+    {
+      "name": "default_file уводит в песочницу и ЯВНО переданный путь",
+      "file": "spa_core/utils/data_dir.py",
+      "old": "    if os.fspath(path) != os.fspath(default):\n        return path\n",
+      "new": "    if False:\n        return path\n"
+    },
+    {
+      "name": "regime_gate снова пишет по своей копии пути",
+      "file": "spa_core/risk/regime_gate.py",
+      "old": "    log_path = default_file(Path(log_path) if log_path is not None else _REGIME_LOG, _REGIME_LOG)\n",
+      "new": "    log_path = _REGIME_LOG\n"
+    },
+    {
+      "name": "hy_cycle не передаёт свой путь журнала",
+      "file": "spa_core/paper_trading/hy_cycle.py",
+      "old": "log_regime_change(result, previous_state=current_state, log_path=_HY_REGIME_LOG_PATH)",
+      "new": "log_regime_change(result, previous_state=current_state)"
+    },
+    {
+      "name": "сигнальный писатель (путь от __file__) мимо песочницы",
+      "file": "spa_core/analytics/protocol_exit_liquidity_analyzer.py",
+      "old": "_atomic_log(_default_file(_LOG_PATH, _LOG_PATH_AT_IMPORT), result)",
+      "new": "_atomic_log(_LOG_PATH, result)"
+    },
+    {
+      "name": "сигнальный писатель (относительный путь) мимо песочницы",
+      "file": "spa_core/analytics/protocol_liquidity_migration_detector.py",
+      "old": "    data_path = _default_file(DATA_FILE, _DATA_FILE_AT_IMPORT)\n",
+      "new": "    data_path = DATA_FILE\n"
+    },
+    {
+      "name": "сигнальный писатель (поиск вверх) мимо песочницы",
+      "file": "spa_core/analytics/protocol_token_emission_analyzer.py",
+      "old": "    if _sandbox:\n        return os.path.join(_sandbox, \"token_emission_log.json\")",
+      "new": "    if False:\n        return os.path.join(_sandbox, \"token_emission_log.json\")"
+    },
+    {
+      "name": "сигнальный писатель (атрибут класса) мимо песочницы",
+      "file": "spa_core/analytics/defi_yield_aggregator_fee_analyzer.py",
+      "old": "self._log_path = log_path or _default_file(LOG_PATH, _LOG_PATH_AT_IMPORT)",
+      "new": "self._log_path = log_path or LOG_PATH"
+    },
+    {
+      "name": "gap_monitor пишет статус мимо песочницы",
+      "file": "spa_core/paper_trading/gap_monitor.py",
+      "old": "    atomic_save(data, str(_default_file(GAP_STATUS_FILE, _GAP_STATUS_AT_IMPORT)))",
+      "new": "    atomic_save(data, str(GAP_STATUS_FILE))"
+    },
+    {
+      "name": "трекер APY мимо песочницы",
+      "file": "spa_core/analytics/apy_milestone_tracker.py",
+      "old": "            self._data_dir = own_data_dir(_DEFAULT_DATA_DIR)\n",
+      "new": "            self._data_dir = _DEFAULT_DATA_DIR\n"
+    },
+    {
+      "name": "генератор статуса адаптеров мимо песочницы",
+      "file": "spa_core/monitoring/adapter_status_generator.py",
+      "old": "    output_path = default_file(output_path, _STATUS_FILE)\n",
+      "new": "    output_path = output_path\n"
+    },
+    {
+      "name": "CLI market_regime игнорирует --data-dir",
+      "file": "spa_core/analysis/market_regime.py",
+      "old": "    detector = MarketRegimeDetector(data_dir=args.data_dir)",
+      "new": "    detector = MarketRegimeDetector()"
+    },
+    {
+      "name": "uptime_monitor игнорирует --data-dir",
+      "file": "spa_core/monitoring/uptime_monitor.py",
+      "old": "        data_dir = Path(args[i + 1])\n",
+      "new": "        data_dir = data_dir\n"
+    }
+  ]
+}

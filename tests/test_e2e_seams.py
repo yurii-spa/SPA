@@ -176,7 +176,13 @@ def sandbox(tmp_path_factory):
     ddir = tmp_path_factory.mktemp("spa_seam_data")
 
     # 1) Run the inert cycle — writes trades / status / positions / golive.
-    result = _run_inert_cycle(ddir)
+    #    ADR-846 §2: побочные писатели цикла (сигнальные модули, gap_monitor, генератор статуса
+    #    адаптеров) берут умолчание из SPA_DATA_DIR. Фикстура уровня МОДУЛЯ поднимается раньше
+    #    пер-тестового заслона conftest, поэтому песочница выставляется здесь, на время цикла.
+    side = tmp_path_factory.mktemp("spa_seam_side_writers")
+    with pytest.MonkeyPatch.context() as mp:
+        mp.setenv("SPA_DATA_DIR", str(side))
+        result = _run_inert_cycle(ddir)
     assert result.status in ("ok", "blocked_by_policy"), result.status
 
     # 2) Overlay a 30-day EVIDENCED curve so real_track_days is meaningful, then

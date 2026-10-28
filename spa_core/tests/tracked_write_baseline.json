@@ -1,38 +1,6 @@
 {
-  "note": "Модули, которые на момент введения сторожа (27.10, замер на origin/main f4e21f1cb) меняли git-tracked состояние. База может ТОЛЬКО уменьшаться; дописывать запрещено (инв. #16). Писатели tests/test_e2e_seams|perf_budget|type_safety — побочные писатели run_cycle (adapter_status_generator.run_and_write, apy_milestone_tracker, gap_monitor) — пишут по путям от модуля, игнорируя data_dir цикла: в прод-дереве это живое состояние.",
-  "measured_at": "2026-10-27",
+  "note": "Модули, которые на момент введения сторожа (27.10, замер на origin/main f4e21f1cb) меняли git-tracked состояние. База может ТОЛЬКО уменьшаться; дописывать запрещено (инв. #16). Писатели tests/test_e2e_seams|perf_budget|type_safety — побочные писатели run_cycle (adapter_status_generator.run_and_write, apy_milestone_tracker, gap_monitor) — пишут по путям от модуля, игнорируя data_dir цикла: в прод-дереве это живое состояние. 2026-10-28 (ADR-846 §2): все семь модулей перестали писать — база пуста; побочные писатели цикла разрешают умолчание через SPA_DATA_DIR (utils.data_dir.default_file), CLI market_regime/uptime_monitor получили --data-dir, tear_sheet и hy_cycle — временные данные.",
+  "measured_at": "2026-10-28",
   "measured_on": "f4e21f1cb",
-  "modules": {
-    "tests/test_e2e_seams.py": [
-      "data/adapter_status.json",
-      "data/apy_milestone_log.json",
-      "data/gap_monitor.json",
-      "data/risk_alerts.json"
-    ],
-    "tests/test_hy_cycle.py": [
-      "data/hy_regime_log.json"
-    ],
-    "tests/test_market_regime.py": [
-      "data/market_regime.json"
-    ],
-    "tests/test_perf_budget.py": [
-      "data/adapter_status.json",
-      "data/apy_milestone_log.json",
-      "data/gap_monitor.json",
-      "data/risk_alerts.json"
-    ],
-    "tests/test_tear_sheet.py": [
-      "data/tear_sheet_summary.json"
-    ],
-    "tests/test_type_safety.py": [
-      "data/adapter_status.json",
-      "data/apy_milestone_log.json",
-      "data/gap_monitor.json",
-      "data/risk_alerts.json"
-    ],
-    "tests/test_uptime_monitor.py": [
-      "data/uptime_prev_state.json",
-      "data/uptime_status.json"
-    ]
-  }
+  "modules": {}
 }

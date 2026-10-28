@@ -334,8 +334,14 @@ class MarketRegimeDetector:
 # CLI entry-point
 # ---------------------------------------------------------------------------
 
-def _main() -> int:
-    detector = MarketRegimeDetector()
+def _main(argv=None) -> int:
+    import argparse
+    ap = argparse.ArgumentParser(description="Market regime detector (writes <data_dir>/market_regime.json)")
+    # Каталог данных — ВХОДОМ (ADR-846 §2). Без ключа — прежний `<repo>/data`; тест обязан
+    # указывать временный каталог, иначе прогон переписывает живой кэш режима.
+    ap.add_argument("--data-dir", default=None)
+    args = ap.parse_args(argv)
+    detector = MarketRegimeDetector(data_dir=args.data_dir)
     apy_map = detector.load_from_adapter_status()
     result = detector.detect(apy_map)
     detector.save_to_cache(result)

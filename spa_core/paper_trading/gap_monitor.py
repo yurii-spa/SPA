@@ -31,6 +31,9 @@ GAP_THRESHOLD_HOURS = 26  # сутки + 2ч буфер для launchd jitter
 
 # ─── MP-101: алерты + recovery ───────────────────────────────────────────────
 RISK_ALERTS_FILE = DATA_DIR / "risk_alerts.json"
+_GAP_STATUS_AT_IMPORT = GAP_STATUS_FILE
+_RISK_ALERTS_AT_IMPORT = RISK_ALERTS_FILE
+from spa_core.utils.data_dir import default_file as _default_file  # ADR-846 §2: SPA_DATA_DIR сильнее умолчания
 RECOVERY_LOCK_FILE = DATA_DIR / "gap_recovery.lock"
 LOCK_STALE_SECONDS = 2 * 3600   # lock старше 2ч считается протухшим (упавший процесс)
 ALERT_SOURCE = "gap_monitor"
@@ -329,7 +332,7 @@ def check_gaps() -> dict:
 
 def _write(data: dict):
     # LLM FORBIDDEN — deterministic atomic write
-    atomic_save(data, str(GAP_STATUS_FILE))
+    atomic_save(data, str(_default_file(GAP_STATUS_FILE, _GAP_STATUS_AT_IMPORT)))
 
 def _finalize(result: dict) -> dict:
     """MP-101: сохранить результат детекции, перенеся recovery-историю из
@@ -374,7 +377,7 @@ def _finalize(result: dict) -> dict:
 def _read_status() -> dict:
     """Текущий gap_monitor.json (defensive: отсутствует/бит → {})."""
     try:
-        doc = json.loads(GAP_STATUS_FILE.read_text())
+        doc = json.loads(_default_file(GAP_STATUS_FILE, _GAP_STATUS_AT_IMPORT).read_text())
         return doc if isinstance(doc, dict) else {}
     except Exception:
         return {}
@@ -386,7 +389,7 @@ def _atomic_write_json(path: Path, obj) -> None:
 def _load_alerts_doc() -> dict:
     """risk_alerts.json defensively; чужие алерты (export_data и др.) сохраняем."""
     try:
-        doc = json.loads(RISK_ALERTS_FILE.read_text())
+        doc = json.loads(_default_file(RISK_ALERTS_FILE, _RISK_ALERTS_AT_IMPORT).read_text())
     except Exception:
         doc = {}
     if not isinstance(doc, dict):
@@ -398,7 +401,7 @@ def _load_alerts_doc() -> dict:
 def _save_alerts_doc(alerts: list) -> None:
     """Пересборка документа в схеме export_data.py: generated_at/count/status/alerts."""
     alerts = alerts[-MAX_ALERTS:]
-    _atomic_write_json(RISK_ALERTS_FILE, {
+    _atomic_write_json(_default_file(RISK_ALERTS_FILE, _RISK_ALERTS_AT_IMPORT), {
         "generated_at": datetime.now(timezone.utc).isoformat(),
         "count": len(alerts),
         "status": "critical" if any(a.get("severity") == "critical" for a in alerts)

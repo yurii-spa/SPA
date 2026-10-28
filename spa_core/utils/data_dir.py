@@ -74,3 +74,26 @@ def own_data_dir(module_default: Path | str) -> Path:
     if override:
         return Path(override)
     return Path(module_default)
+
+
+def default_file(path, default):
+    """Путь файла состояния с учётом ``SPA_DATA_DIR`` — но ТОЛЬКО если это умолчание модуля.
+
+    ``path`` — путь, который модуль собирается использовать сейчас (константа, аргумент,
+    значение конфига); ``default`` — объявленное умолчание модуля, снятое при импорте.
+    Совпали ⇒ путь никто не перебивал ⇒ песочница (если выставлена) сильнее умолчания:
+    ``own_data_dir(<каталог умолчания>) / <имя файла>``. Не совпали ⇒ вызывающий или тест
+    сказал своё ⇒ путь возвращается как есть (тот же принцип, что у ``own_data_dir``:
+    явно переданное этот модуль не трогает). Тип сохраняется: строка ⇒ строка, Path ⇒ Path.
+
+    ADR-846 §2: побочные писатели цикла (сигнальные модули, gap_monitor, генератор статуса
+    адаптеров) брали путь от своего ``__file__`` и писали в живой data/ из ЛЮБОГО прогона.
+    **Без ``SPA_DATA_DIR`` путь бит-в-бит прежний** — в т. ч. относительный ``data/…``.
+    """
+    if os.fspath(path) != os.fspath(default):
+        return path
+    d = Path(default)
+    out = own_data_dir(d.parent) / d.name
+    if os.fspath(out) == os.fspath(d):
+        return path
+    return out if isinstance(path, Path) else os.fspath(out)

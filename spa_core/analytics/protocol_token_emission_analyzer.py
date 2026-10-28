@@ -59,6 +59,11 @@ def _save_log(log_path: str, entries: list) -> None:
 def _get_log_path(data_dir: Optional[str]) -> str:
     if data_dir:
         return os.path.join(data_dir, "token_emission_log.json")
+    # ADR-846 §2: песочница (SPA_DATA_DIR) сильнее умолчания; без неё — прежний поиск ниже.
+    from spa_core.utils.data_dir import DATA_DIR_ENV
+    _sandbox = os.environ.get(DATA_DIR_ENV, "").strip()
+    if _sandbox:
+        return os.path.join(_sandbox, "token_emission_log.json")
     here = os.path.dirname(os.path.abspath(__file__))
     for _ in range(6):
         candidate = os.path.join(here, "data", "token_emission_log.json")

@@ -159,6 +159,7 @@ def evaluate_regime(
 def log_regime_change(
     regime_result: dict,
     previous_state: Optional[str] = None,
+    log_path: Optional[Path] = None,
 ) -> None:
     """
     Атомарно записывает изменение/подтверждение режима в hy_regime_log.json.
@@ -166,7 +167,10 @@ def log_regime_change(
     Использует tmp + os.replace для атомарности (идиома проекта).
     Если файл повреждён — пересоздаёт с нуля (fail-safe).
     """
-    log_path = _PROJECT_ROOT / "data" / "hy_regime_log.json"
+    # Путь — ВХОДОМ (ADR-846 §2): вызывающий (`hy_cycle`) объявляет свой журнал, и его подмена
+    # в тесте обязана доходить до писателя. По умолчанию — тот же `_REGIME_LOG`, что и раньше.
+    from spa_core.utils.data_dir import default_file
+    log_path = default_file(Path(log_path) if log_path is not None else _REGIME_LOG, _REGIME_LOG)
 
     # Читаем существующий лог (или начинаем с нуля)
     try:

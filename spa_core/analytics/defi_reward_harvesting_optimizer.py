@@ -50,6 +50,11 @@ def _save_log(log_path: str, entries: list) -> None:
 def _get_log_path(data_dir: Optional[str]) -> str:
     if data_dir:
         return os.path.join(data_dir, "reward_harvesting_log.json")
+    # ADR-846 §2: песочница (SPA_DATA_DIR) сильнее умолчания; без неё — прежний поиск ниже.
+    from spa_core.utils.data_dir import DATA_DIR_ENV
+    _sandbox = os.environ.get(DATA_DIR_ENV, "").strip()
+    if _sandbox:
+        return os.path.join(_sandbox, "reward_harvesting_log.json")
     # Walk up from this file to find project root containing data/
     here = os.path.dirname(os.path.abspath(__file__))
     for _ in range(6):

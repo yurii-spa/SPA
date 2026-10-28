@@ -16,6 +16,8 @@ from spa_core.utils import clock
 _LOG_PATH = os.path.join(
     os.path.dirname(__file__), "..", "..", "data", "yield_reserve_buffer_log.json"
 )
+_LOG_PATH_AT_IMPORT = _LOG_PATH
+from spa_core.utils.data_dir import default_file as _default_file  # ADR-846 §2: SPA_DATA_DIR сильнее умолчания
 _LOG_CAP = 100
 
 # --------------------------------------------------------------------------- #
@@ -203,7 +205,7 @@ class DeFiProtocolYieldReserveBufferAnalyzer:
     """
 
     def __init__(self, log_path: str | None = None, log_cap: int = _LOG_CAP):
-        self._log_path = log_path or _LOG_PATH
+        self._log_path = log_path or _default_file(_LOG_PATH, _LOG_PATH_AT_IMPORT)
         self._log_cap = log_cap
 
     # ---------------------------------------------------------------------- #

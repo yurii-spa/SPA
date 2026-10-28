@@ -915,6 +915,14 @@ def main(argv: list[str] | None = None) -> int:
     here = Path(__file__).resolve()
     repo_dir = here.parent.parent.parent  # spa_core/monitoring/uptime_monitor.py → repo root
     data_dir = repo_dir / "data"
+    # `--data-dir <каталог>` (ADR-846 §2): куда писать статус и прежнее состояние. Без ключа — прежний
+    # `<repo>/data`; тест обязан указывать временный каталог, иначе прогон переписывает живой статус.
+    if "--data-dir" in args:
+        i = args.index("--data-dir")
+        if i + 1 >= len(args):
+            print("[uptime_monitor] FATAL: --data-dir без значения", file=sys.stderr)
+            return 1
+        data_dir = Path(args[i + 1])
 
     try:
         result = run_all_checks(data_dir=data_dir, repo_dir=repo_dir)

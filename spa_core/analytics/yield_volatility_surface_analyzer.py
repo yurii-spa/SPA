@@ -22,6 +22,8 @@ from typing import Optional
 _LOG_PATH = os.path.join(
     os.path.dirname(__file__), "..", "..", "data", "yield_volatility_surface_log.json"
 )
+_LOG_PATH_AT_IMPORT = _LOG_PATH
+from spa_core.utils.data_dir import default_file as _default_file  # ADR-846 §2: SPA_DATA_DIR сильнее умолчания
 _LOG_CAP = 100
 
 
@@ -135,7 +137,7 @@ def _surface_label(protocol: str, asset: str, yield_cat: str,
 
 def _log_result(result: dict) -> None:
     """Append result to ring-buffer log (cap 100), atomic write."""
-    log_path = os.path.normpath(_LOG_PATH)
+    log_path = os.path.normpath(_default_file(_LOG_PATH, _LOG_PATH_AT_IMPORT))
     try:
         if os.path.exists(log_path):
             with open(log_path, "r") as f:
