@@ -1,0 +1,43 @@
+{
+  "source_sha256": {
+    "spa_core/owner_queue/owner_answer.py": "3d6b2b67ca268cd23dd20a531d25e57c81bbce65f06c77e8a40b1a0b7e1aef25",
+    "spa_core/studio_os/work_packet.py": "7f27a643212146c2197f2154a647034458225bdb0acb9e220a80b5e37ef5d467"
+  },
+  "cases": [
+    {
+      "case": "ADR_mentions_card_without_any_answer",
+      "writer_reached": false,
+      "refusal": "реестр ответов /var/folders/6q/78j7h2557tx6hkbkw3cmrsc00000gn/T/arb-after-fix-vay4vyyd/ADR-999-example.md не прочитан (JSONDecodeError) — закрывать нечем",
+      "card_untouched": true
+    },
+    {
+      "case": "ADR_says_option_1_but_caller_submits_option_2",
+      "writer_reached": false,
+      "refusal": "owner-decision-review-example: в записи ADR-999 выбран вариант '1', а передан '2' — ответ не записан",
+      "card_untouched": true
+    },
+    {
+      "case": "ADR_names_a_different_card_with_matching_prefix",
+      "writer_reached": false,
+      "refusal": "в реестре ADR-999 записей для карточки owner-decision-review-example: 0 (нужна ровно одна, имя сверяется целиком) — ответ не записан",
+      "card_untouched": true
+    },
+    {
+      "case": "ready_accepts_wrong_task_and_insufficient_role",
+      "accepted": false,
+      "refusals": [
+        "одобрение другой задачи (task-b)",
+        "предмет карточки не тот, что был одобрен",
+        "предмет карточки — решение владельца, а одобрил не владелец",
+        "проверка «unregistered_probe» неизвестна реестру — её нужно сначала написать и проверить"
+      ]
+    },
+    {
+      "case": "record_outcome_accepts_unregistered_unrun_probe",
+      "record_outcome_takes_a_verdict": false,
+      "approve_with_unregistered_probe": "refused: проверка «unregistered_probe» неизвестна реестру — её нужно сначала написать и проверить",
+      "hand_written_approval_outcome": "refused: итог не записывается: проверка «unregistered_probe» неизвестна реестру — её нужно сначала написать и проверить",
+      "written": false
+    }
+  ]
+}
