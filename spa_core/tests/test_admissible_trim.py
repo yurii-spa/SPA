@@ -66,14 +66,14 @@ def _refusing_gate(target, capital, adapters, ddir=None, current_positions=None)
             "tvl_unverified": []}
 
 
-def _trim(target, held=None, *, gate=_approving_gate, notes=None, **kw):
+def _trim(target, held=None, *, gate=_approving_gate, notes=None, ddir=None, **kw):
     return AT.apply_admissible_trim(
         target,
         current_positions=dict(_HELD if held is None else held),
         capital_usd=CAP,
         notes=notes if notes is not None else [],
         adapters=[],
-        ddir=None,
+        ddir=ddir,
         trades=[],
         now=_NOW,
         policy_gate=gate,
@@ -716,3 +716,415 @@ class TheAcceptanceProbeMeasuresTheOutcome(unittest.TestCase):
 
 if __name__ == "__main__":  # pragma: no cover
     unittest.main()
+
+
+# ══════════════════════════════════════════════════════════════════════════════
+# 7. ADR-853: у трима есть СВОЯ ЦЕНА, и она измеряется на ОДНОМ предложении
+# ══════════════════════════════════════════════════════════════════════════════
+
+
+class TheTrimHasItsOwnPrice(unittest.TestCase):
+    """Цикл #970 назвал это ГИПОТЕЗОЙ и честно за замер не выдал.
+
+    Он наблюдал первое живое урезание ($55 000 → $15 000, k=0.2727) и рядом
+    две цены: урезанный ход $55.65 на $15 000 ≈ 37 бп, неурезанное предложение
+    более РАННЕЙ пробежки того же дня $38.30 на $20 000 ≈ 19 бп. Но пробежки
+    судили РАЗНЫЕ предложения с разным набором ног, и приписать разницу триму
+    по ним было нельзя. Здесь обе цены берутся с ОДНОГО предложения, ОДНОЙ
+    моделью и ОДНОЙ картой сетей — меняется ровно урезание.
+    """
+
+    def test_the_same_proposal_costs_more_per_dollar_after_the_cut(self):
+        """Предмет: механизм — число ног с `k` НЕ падает, а газ платится за ногу."""
+        cut, rec = _trim(_TARGET_BIG)
+        self.assertEqual(rec["verdict"], AT.TRIM_APPLIED, rec)
+        cost = rec["cost"]
+        self.assertEqual(cost["kind"], AT.COST_MEASURED, cost)
+        self.assertEqual(cost["full_legs"], cost["final_legs"],
+                         "сцена обязана держать число ног: именно в нём механизм")
+        self.assertLess(cost["final_turnover_usd"], cost["full_turnover_usd"])
+        self.assertLess(cost["final_usd"], cost["full_usd"],
+                        "урезанный ход в АБСОЛЮТЕ дешевле — иначе он не меньше")
+        self.assertGreater(cost["delta_bps"], 0.0,
+                           "а за ДОЛЛАР хода он дороже: это и есть цена трима")
+        self.assertAlmostEqual(cost["full_bps"],
+                               cost["full_usd"] / cost["full_turnover_usd"] * 10_000.0, 1)
+        self.assertAlmostEqual(cost["final_bps"],
+                               cost["final_usd"] / cost["final_turnover_usd"] * 10_000.0, 1)
+        self.assertAlmostEqual(cost["delta_bps"],
+                               cost["final_bps"] - cost["full_bps"], 1)
+
+    def test_the_cost_comes_from_the_cycles_own_model_not_a_copy_here(self):
+        """Контроль «ответ приходит ИЗ двери»: подменённая модель меняет ответ.
+
+        Своя формула издержек спорила бы с ценой, записанной в бар дня
+        (`equity.cost_usd`), МОЛЧА — ровно тот класс, из-за которого оборот в
+        этом же модуле считается дверью `_legs`, а не своей формулой.
+        """
+        import spa_core.allocator.rebalance_economics as RE
+
+        honest = _trim(_TARGET_BIG)[1]["cost"]["full_usd"]
+        real = RE._move_cost_usd
+        try:
+            RE._move_cost_usd = lambda legs, turnover, chains: real(
+                legs, turnover, chains) + 1_000.0
+            doped = _trim(_TARGET_BIG)[1]["cost"]["full_usd"]
+        finally:
+            RE._move_cost_usd = real
+        self.assertAlmostEqual(doped - honest, 1_000.0, 2,
+                               "цена обязана приходить из модели цикла, а не отсюда")
+        self.assertAlmostEqual(_trim(_TARGET_BIG)[1]["cost"]["full_usd"], honest, 2)
+
+    def test_the_price_changes_no_verdict_and_no_target(self):
+        """Запись, а не вердикт: ни цель, ни вердикт от цены не зависят."""
+        import spa_core.paper_trading.admissible_trim as MOD
+
+        cut_a, rec_a = _trim(_TARGET_BIG)
+        real = MOD.cost_of_the_trim
+        try:
+            MOD.cost_of_the_trim = lambda *a, **k: {"kind": AT.COST_UNMEASURED,
+                                                    "why": "подменено контролем"}
+            cut_b, rec_b = _trim(_TARGET_BIG)
+        finally:
+            MOD.cost_of_the_trim = real
+        self.assertEqual(cut_a, cut_b, "цель не имеет права зависеть от цены")
+        self.assertEqual(rec_a["verdict"], rec_b["verdict"])
+        self.assertEqual(rec_a["turnover_final_usd"], rec_b["turnover_final_usd"])
+
+    def test_a_proposal_that_was_never_cut_has_no_price_subject(self):
+        """Обратная сторона: нет двух книг — нет и предмета у цены.
+
+        Сцены перечислены ПО ВЕРДИКТАМ, а не «несколько похожих»: мутация
+        «приписать нулевую цену вердикту ALREADY_WITHIN_SIZE_CAPS» пережила
+        два замера этого цикла, потому что обе прежние сцены уходили в ДРУГИЕ
+        ветки (`NOTHING_MATERIAL_TO_MOVE` и `NOT_A_RESHUFFLE`), а та, которую
+        мутация трогала, не проверялась вовсе.
+        """
+        # настоящая перетасовка, оборот $10 000 при потолке $15 000
+        within = dict(_HELD)
+        within["compound_v3"] -= 10_000.0
+        within["morpho_blue_base"] += 10_000.0
+        dust = dict(_HELD)
+        dust["compound_v3"] -= 100.0          # ниже полосы пыли ($500 = 0.5 % капитала)
+        dust["morpho_blue_base"] += 100.0
+        scenes = {
+            AT.TRIM_NOT_NEEDED: (within, None),
+            AT.TRIM_NOTHING_TO_MOVE: (dust, None),
+            AT.TRIM_NOT_A_RESHUFFLE: ({}, {"maple": 10_000.0}),
+        }
+        seen = set()
+        for expect, (target, held) in scenes.items():
+            _, rec = _trim(target, held)
+            self.assertEqual(rec["verdict"], expect,
+                             f"сцена обязана попасть именно в эту ветку: {rec}")
+            seen.add(rec["verdict"])
+            self.assertIsNone(rec.get("cost"),
+                              "блок цены без урезания был бы ценой несуществующего хода")
+        self.assertEqual(len(seen), 3, "три РАЗНЫЕ ветки, а не три похожие сцены")
+
+    def test_a_silent_cost_model_is_a_third_outcome_not_a_zero(self):
+        """Инв. #17: модель не ответила ⇒ НЕ ИЗМЕРЕНО с причиной, а не 0 бп."""
+        import spa_core.allocator.rebalance_economics as RE
+
+        real = RE._move_cost_usd
+
+        def _boom(legs, turnover, chains):
+            raise RuntimeError("фид издержек молчит")
+
+        try:
+            RE._move_cost_usd = _boom
+            _, rec = _trim(_TARGET_BIG)
+        finally:
+            RE._move_cost_usd = real
+        self.assertEqual(rec["verdict"], AT.TRIM_APPLIED,
+                         "молчащая цена не имеет права отменить само урезание")
+        self.assertEqual(rec["cost"]["kind"], AT.COST_UNMEASURED)
+        self.assertIn("RuntimeError", rec["cost"]["why"])
+        self.assertNotIn("delta_bps", rec["cost"],
+                         "числа у неизмеренной цены быть не должно вовсе")
+
+    def test_a_zero_turnover_side_is_unmeasured_not_zero_bps(self):
+        """Делить на ноль нельзя, и 0 бп здесь означало бы «бесплатно»."""
+        out = AT.cost_of_the_trim({"maple": 10_000.0}, {"maple": 10_000.0},
+                                  {"maple": 10_000.0}, capital_usd=CAP,
+                                  min_leg_frac=0.005)
+        self.assertEqual(out["kind"], AT.COST_UNMEASURED, out)
+        self.assertIn("не положителен", out["why"])
+        self.assertNotIn("delta_bps", out)
+
+    def test_an_unread_chain_map_is_named_not_assumed(self):
+        """Карта сетей входит в цену мостом — «не прочитана» обязано быть ВИДНО."""
+        cut, _ = _trim(_TARGET_BIG)
+        blind = AT.cost_of_the_trim(_HELD, _TARGET_BIG, cut,
+                                    capital_usd=CAP, min_leg_frac=0.005, ddir=None)
+        self.assertEqual(blind["kind"], AT.COST_MEASURED, blind)
+        self.assertFalse(blind["chains_measured"])
+        self.assertIn("карта сетей НЕ прочитана", blind["why"])
+
+    def test_the_chain_map_is_read_from_the_same_file_the_cycle_reads(self, ):
+        """Обратная сторона: настоящий файл реестра ⇒ карта ИЗМЕРЕНА."""
+        import tempfile
+
+        with tempfile.TemporaryDirectory() as tmp:
+            ddir = Path(tmp)
+            (ddir / "adapter_registry.json").write_text(json.dumps(
+                {"adapters": {"compound_v3": {"chain": "Base"},
+                              "morpho_blue_base": {"chain": "ethereum"}}}), "utf-8")
+            seen = AT.cost_of_the_trim(_HELD, _TARGET_BIG, _trim(_TARGET_BIG)[0],
+                                       capital_usd=CAP, min_leg_frac=0.005, ddir=ddir)
+        self.assertEqual(seen["kind"], AT.COST_MEASURED, seen)
+        self.assertTrue(seen["chains_measured"])
+        self.assertNotIn("карта сетей НЕ прочитана", seen["why"])
+
+    def test_both_sides_are_priced_with_the_SAME_chain_map(self):
+        """Иначе дельта мешает «мост против без-моста» в «цену трима».
+
+        Мутация «урезанной стороне подсунуть пустую карту» ПЕРЕЖИЛА первый
+        замер этого цикла: все сцены рядом шли с `ddir=None`, то есть с пустой
+        картой у ОБЕИХ сторон, и подмена ничего не меняла. Здесь карта не
+        пустая, и обе цены обязаны быть посчитаны по ней.
+        """
+        import tempfile
+
+        with tempfile.TemporaryDirectory() as tmp:
+            ddir = Path(tmp)
+            (ddir / "adapter_registry.json").write_text(json.dumps(
+                {"adapters": {**{p: {"chain": "ethereum"} for p in _HELD},
+                              "morpho_blue_base": {"chain": "base"}}}), "utf-8")
+            _, rec = _trim(_TARGET_BIG, ddir=ddir)
+            cost = rec["cost"]
+            cut = rec["target_after"]
+            # эталон: та же дверь, та же карта — считаем урезанную сторону сами
+            same = AT.cost_of_the_trim(_HELD, cut, cut, capital_usd=CAP,
+                                       min_leg_frac=TriggerParams.for_mode("paper").min_leg_frac,
+                                       ddir=ddir)
+            blind = AT.cost_of_the_trim(_HELD, cut, cut, capital_usd=CAP,
+                                        min_leg_frac=TriggerParams.for_mode("paper").min_leg_frac,
+                                        ddir=None)
+        self.assertTrue(cost["chains_measured"])
+        self.assertGreater(same["full_usd"], blind["full_usd"],
+                           "сцена обязана ЗАВИСЕТЬ от карты, иначе она ничего не держит")
+        self.assertAlmostEqual(cost["final_usd"], same["full_usd"], 2,
+                               "урезанная сторона обязана быть посчитана ПО ТОЙ ЖЕ карте")
+
+    def test_an_unreadable_registry_is_unmeasured_not_a_read_map(self):
+        """Вторая дверь той же оси: файл ЕСТЬ, но не читается.
+
+        `ddir=None` уходит в более раннюю ветку, поэтому ветку исключения не
+        проверял никто — мутация «объявить карту прочитанной» её пережила.
+        """
+        import tempfile
+
+        with tempfile.TemporaryDirectory() as tmp:
+            ddir = Path(tmp)
+            (ddir / "adapter_registry.json").write_text("{не json", "utf-8")
+            chains, measured = AT._chain_map(ddir)
+        self.assertEqual(chains, {})
+        self.assertFalse(measured,
+                         "нечитаемый реестр — НЕ ИЗМЕРЕНО, а не «карта прочитана»")
+        ok_ddir = None
+        with tempfile.TemporaryDirectory() as tmp:
+            ok_ddir = Path(tmp)
+            (ok_ddir / "adapter_registry.json").write_text(
+                json.dumps({"adapters": {"maple": {"chain": "Ethereum"}}}), "utf-8")
+            good, good_measured = AT._chain_map(ok_ddir)
+        self.assertTrue(good_measured)
+        self.assertEqual(good, {"maple": "ethereum"})
+
+    def test_two_chains_cost_more_than_one_and_that_is_the_bridge(self):
+        """Карта не декорация: она МЕНЯЕТ цену — иначе её чтение бессмысленно."""
+        import tempfile
+
+        def _with(chains: dict) -> float:
+            with tempfile.TemporaryDirectory() as tmp:
+                ddir = Path(tmp)
+                (ddir / "adapter_registry.json").write_text(
+                    json.dumps({"adapters": chains}), "utf-8")
+                cut, rec = _trim(_TARGET_BIG, ddir=ddir)
+                return rec["cost"]["full_usd"]
+
+        one = _with({p: {"chain": "ethereum"} for p in _HELD})
+        two = _with({**{p: {"chain": "ethereum"} for p in _HELD},
+                     "morpho_blue_base": {"chain": "base"}})
+        self.assertGreater(two, one, "две сети обязаны стоить дороже одной (мост)")
+
+
+class TheCostCensusKeepsTheFourOutcomesApart(unittest.TestCase):
+    """Урок ADR-851 в применении к НОВОМУ полю: отсутствие ≠ ноль.
+
+    Запись, сделанная ДО этой цены, блока не несёт не потому, что цена равна
+    нулю, а потому что считать её было некому. Поле, добавленное «аддитивно и
+    вперёд», даёт у читателя ровно эту развилку — её и держат тесты ниже.
+    """
+
+    @staticmethod
+    def _census(rows):
+        from spa_core.paper_trading.shadow_trigger_eval import live_trim_census
+
+        return live_trim_census(rows)
+
+    @staticmethod
+    def _applied(cost=None, date="2026-10-28"):
+        trim = {"verdict": AT.TRIM_APPLIED, "k": 0.272727,
+                "turnover_full_usd": 55_000.0, "turnover_final_usd": 15_000.0}
+        if cost is not None:
+            trim["cost"] = cost
+        return {"cycle_date": date, "verdict": "HOLD", "admissible_trim": trim}
+
+    _MEASURED = {"kind": AT.COST_MEASURED, "full_usd": 107.65, "final_usd": 55.65,
+                 "full_turnover_usd": 55_000.0, "final_turnover_usd": 15_000.0,
+                 "full_bps": 19.57, "final_bps": 37.1, "delta_bps": 17.53,
+                 "full_legs": 4, "final_legs": 4, "chains_measured": True}
+
+    def test_an_applied_record_without_the_block_is_not_a_free_trim(self):
+        census = self._census([self._applied()])
+        self.assertEqual(census["cost"]["applied_without_block"], 1)
+        self.assertEqual(census["cost"]["measured"], 0)
+        self.assertIsNone(census["cost"]["delta_bps_median"])
+        kind, why = AT.live_trim_cost_outcome(census)
+        self.assertEqual(kind, AT.LIVE_COST_UNMEASURED, why)
+        self.assertIn("старше самой цены", why)
+        lines = " ".join(AT.format_live_trim_cost(census))
+        self.assertIn("НЕ ИЗМЕРЕНО", lines)
+        # и обратная сторона: цена НЕ имеет права читаться как ноль
+        self.assertNotIn("0.00 бп", lines)
+
+    def test_a_history_without_any_trim_is_no_subject_not_unmeasured(self):
+        census = self._census([
+            {"cycle_date": "2026-10-01", "verdict": "HOLD"},                   # до ADR-850
+            {"cycle_date": "2026-10-02", "verdict": "HOLD",
+             "admissible_trim": {"verdict": AT.TRIM_NOT_NEEDED}}])
+        self.assertEqual(census["cost"]["no_subject"], 1)
+        self.assertEqual(census["cost"]["applied_without_block"], 0)
+        kind, why = AT.live_trim_cost_outcome(census)
+        self.assertEqual(kind, AT.LIVE_COST_NO_SUBJECT, why)
+        self.assertIn("ЗАМЕР отсутствия предмета", why)
+
+    def test_a_measured_price_is_measured_and_carries_the_numbers(self):
+        census = self._census([self._applied(self._MEASURED)])
+        self.assertEqual(census["cost"]["measured"], 1)
+        self.assertEqual(census["cost"]["delta_bps_median"], 17.53)
+        self.assertEqual(census["cost"]["last"]["date"], "2026-10-28")
+        kind, why = AT.live_trim_cost_outcome(census)
+        self.assertEqual(kind, AT.LIVE_COST_MEASURED, why)
+        self.assertIn("+17.53", why)
+        lines = " ".join(AT.format_live_trim_cost(census))
+        self.assertNotIn("НЕ ИЗМЕРЕНО", lines)
+        self.assertIn("37.1", lines)
+        self.assertIn("19.57", lines)
+
+    def test_a_block_that_calls_itself_measured_without_a_number_is_unmeasured(self):
+        """Третий исход у самого блока: `kind=measured`, а числа нет."""
+        census = self._census([self._applied({"kind": AT.COST_MEASURED})])
+        self.assertEqual(census["cost"]["measured"], 0)
+        self.assertEqual(census["cost"]["unmeasured"], 1)
+        kind, why = AT.live_trim_cost_outcome(census)
+        self.assertEqual(kind, AT.LIVE_COST_UNMEASURED, why)
+
+    def test_a_silent_model_in_the_record_reaches_the_reader_as_unmeasured(self):
+        census = self._census([self._applied({"kind": AT.COST_UNMEASURED,
+                                              "why": "модель молчит"})])
+        self.assertEqual(census["cost"]["unmeasured"], 1)
+        self.assertEqual(AT.live_trim_cost_outcome(census)[0], AT.LIVE_COST_UNMEASURED)
+
+    def test_the_median_and_the_range_are_measured_not_invented(self):
+        census = self._census([
+            self._applied({**self._MEASURED, "delta_bps": 4.0}, "2026-10-26"),
+            self._applied({**self._MEASURED, "delta_bps": 17.53}, "2026-10-27"),
+            self._applied({**self._MEASURED, "delta_bps": 30.0}, "2026-10-28")])
+        self.assertEqual(census["cost"]["measured"], 3)
+        self.assertEqual(census["cost"]["delta_bps_min"], 4.0)
+        self.assertEqual(census["cost"]["delta_bps_max"], 30.0)
+        self.assertEqual(census["cost"]["delta_bps_median"], 17.53)
+
+    def test_a_census_older_than_the_cost_axis_says_so_instead_of_zero(self):
+        """Печать соседки отвечает про шаг, эта — про цену, и исходы РАЗНЫЕ."""
+        old = {"records": 2, "records_without_field": 1,
+               "counts": {AT.TRIM_APPLIED: 1},
+               "last_applied": {"date": "2026-10-28", "k": 0.27,
+                                "turnover_full_usd": 55_000.0,
+                                "turnover_final_usd": 15_000.0}}
+        self.assertEqual(AT.live_trim_outcome(old)[0], AT.LIVE_MEASURED,
+                         "шаг СДЕЛАЛ — на свой вопрос соседка отвечает измеренно")
+        kind, why = AT.live_trim_cost_outcome(old)
+        self.assertEqual(kind, AT.LIVE_COST_UNMEASURED, why)
+        self.assertIn("оси цены вовсе", why)
+        # и именно поэтому печати две: один ответ не переписывает другой
+        self.assertNotIn("НЕ ИЗМЕРЕНО", " ".join(AT.format_live_trim(old)))
+        self.assertIn("НЕ ИЗМЕРЕНО", " ".join(AT.format_live_trim_cost(old)))
+
+    def test_the_three_cost_outcomes_are_three_distinct_values(self):
+        self.assertEqual(len({AT.LIVE_COST_MEASURED, AT.LIVE_COST_NO_SUBJECT,
+                              AT.LIVE_COST_UNMEASURED}), 3)
+        self.assertEqual(len({AT.COST_MEASURED, AT.COST_UNMEASURED,
+                              AT.COST_NO_SUBJECT}), 3)
+
+    def test_no_census_at_all_is_unmeasured_not_free(self):
+        for empty in (None, {}, {"unmeasured_reason": "история не список"}):
+            kind, why = AT.live_trim_cost_outcome(empty)
+            self.assertEqual(kind, AT.LIVE_COST_UNMEASURED, why)
+            self.assertIn("НЕ ИЗМЕРЕНО", " ".join(AT.format_live_trim_cost(empty)))
+
+    def test_a_measured_axis_without_a_median_is_unmeasured_not_zero(self):
+        """Ось назвала цену измеренной, а медианы не несёт — числа НЕТ.
+
+        Мутация «объявить такую ось измеренной» пережила первый замер цикла:
+        ветку не проверял никто, а мутант не просто врёт — он падает, потому
+        что печать форматирует медиану как число.
+        """
+        for median in (None, "много", True):
+            census = {"records": 1, "counts": {AT.TRIM_APPLIED: 1},
+                      "cost": {"measured": 1, "unmeasured": 0,
+                               "applied_without_block": 0, "no_subject": 0,
+                               "delta_bps_min": 1.0, "delta_bps_max": 2.0,
+                               "delta_bps_median": median}}
+            kind, why = AT.live_trim_cost_outcome(census)
+            self.assertEqual(kind, AT.LIVE_COST_UNMEASURED, f"{median!r} → {why}")
+            self.assertIn("не разобрана", why)
+            # и печать обязана ВЫЖИТЬ на этой оси, а не упасть на формате
+            self.assertIn("НЕ ИЗМЕРЕНО", " ".join(AT.format_live_trim_cost(census)))
+
+    def test_an_unparsable_count_in_the_cost_axis_is_unmeasured(self):
+        kind, why = AT.live_trim_cost_outcome(
+            {"records": 1, "counts": {AT.TRIM_APPLIED: 1},
+             "cost": {"measured": "одна", "unmeasured": 0,
+                      "applied_without_block": 0, "no_subject": 0}})
+        self.assertEqual(kind, AT.LIVE_COST_UNMEASURED, why)
+        self.assertIn("не целое", why)
+
+
+class BothReadersOfTheArtifactPrintThePrice(unittest.TestCase):
+    """Прибор без читателя — сирота (урок ADR-843), и читателей у цены ДВА."""
+
+    def test_the_artifacts_own_summary_prints_the_cost_line(self):
+        from spa_core.paper_trading import shadow_trigger_eval as STE
+
+        text = STE.format_summary({
+            "generated_at": "2026-10-28T20:56:22Z",
+            "status": "NOT_READY", "ready_to_arm": False, "observation_days": 84,
+            "counts": {"act": 0, "hold": 84, "trivial_hold": 0, "scored": 0,
+                       "unchecked": 0},
+            "hit_rate": None, "criteria": [],
+            "live_trim_census": {
+                "records": 1, "records_without_field": 0,
+                "counts": {AT.TRIM_APPLIED: 1},
+                "last_applied": {"date": "2026-10-28", "k": 0.27,
+                                 "turnover_full_usd": 55_000.0,
+                                 "turnover_final_usd": 15_000.0},
+                "cost": {"measured": 1, "unmeasured": 0, "applied_without_block": 0,
+                         "no_subject": 0, "delta_bps_min": 17.53,
+                         "delta_bps_max": 17.53, "delta_bps_median": 17.53,
+                         "last": {"date": "2026-10-28", "full_usd": 107.65,
+                                  "final_usd": 55.65, "full_bps": 19.57,
+                                  "final_bps": 37.1, "delta_bps": 17.53,
+                                  "full_legs": 4, "final_legs": 4,
+                                  "chains_measured": True}}}})
+        self.assertIn("Цена трима", text)
+        self.assertIn("17.53", text)
+
+    def test_the_office_step_names_the_cost_printer_by_name(self):
+        """Шаг 0-офис — второй читатель; зов должен быть в его тексте, не в прозе."""
+        text = Path("scripts/consume_office_reports.py").read_text("utf-8")
+        self.assertIn("format_live_trim_cost", text)
+        self.assertEqual(text.count("format_live_trim_cost("), 1,
+                         "вторая копия зова разошлась бы с первой")

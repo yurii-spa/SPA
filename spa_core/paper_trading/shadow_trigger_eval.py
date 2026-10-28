@@ -817,6 +817,16 @@ def live_trim_census(records: List[dict]) -> dict:
     counts: Dict[str, int] = {}
     without = 0
     last_applied: Optional[dict] = None
+    # Ось ЦЕНЫ трима: сколько стоило ОДНО И ТО ЖЕ предложение до и после
+    # урезания. Четыре исхода раздельно, и `applied_without_block` — ровно
+    # урок ADR-851: у записи, сделанной ДО появления этой цены, блока нет не
+    # потому, что цена равна нулю, а потому что считать её было некому.
+    cost_measured = 0
+    cost_unmeasured = 0
+    cost_applied_without_block = 0
+    cost_no_subject = 0
+    deltas: List[float] = []
+    cost_last: Optional[dict] = None
     for rec in records:
         if not isinstance(rec, dict):
             continue
@@ -826,6 +836,34 @@ def live_trim_census(records: List[dict]) -> dict:
             continue
         verdict = str(trim.get("verdict") or "UNMEASURED")
         counts[verdict] = counts.get(verdict, 0) + 1
+        cost = trim.get("cost")
+        if verdict != "TRIMMED_TO_ADMISSIBLE":
+            # Двух книг нет ⇒ предмета нет. Это НЕ «цена равна нулю».
+            cost_no_subject += 1
+        elif not isinstance(cost, dict) or not cost:
+            cost_applied_without_block += 1
+        elif str(cost.get("kind")) == "measured":
+            cost_measured += 1
+            try:
+                deltas.append(float(cost["delta_bps"]))
+            except (KeyError, TypeError, ValueError):
+                # Блок назвал себя измеренным, а числа не несёт — это НЕ ноль.
+                cost_measured -= 1
+                cost_unmeasured += 1
+            else:
+                cost_last = {
+                    "date": rec.get("cycle_date"),
+                    "full_bps": cost.get("full_bps"),
+                    "final_bps": cost.get("final_bps"),
+                    "delta_bps": cost.get("delta_bps"),
+                    "full_usd": cost.get("full_usd"),
+                    "final_usd": cost.get("final_usd"),
+                    "full_legs": cost.get("full_legs"),
+                    "final_legs": cost.get("final_legs"),
+                    "chains_measured": cost.get("chains_measured"),
+                }
+        else:
+            cost_unmeasured += 1
         if verdict == "TRIMMED_TO_ADMISSIBLE":
             last_applied = {
                 "date": rec.get("cycle_date"),
@@ -836,11 +874,31 @@ def live_trim_census(records: List[dict]) -> dict:
                 "admissible_usd": trim.get("admissible_usd"),
                 "verdict_of_day": rec.get("verdict"),
             }
+    ordered = sorted(deltas)
+    median = None
+    if ordered:
+        mid = len(ordered) // 2
+        median = (ordered[mid] if len(ordered) % 2
+                  else round((ordered[mid - 1] + ordered[mid]) / 2.0, 4))
     return {
         "records": len([r for r in records if isinstance(r, dict)]),
         "records_without_field": without,
         "counts": counts,
         "last_applied": last_applied,
+        "cost": {
+            "measured": cost_measured,
+            "unmeasured": cost_unmeasured,
+            "applied_without_block": cost_applied_without_block,
+            "no_subject": cost_no_subject,
+            "delta_bps_min": (ordered[0] if ordered else None),
+            "delta_bps_max": (ordered[-1] if ordered else None),
+            "delta_bps_median": median,
+            "last": cost_last,
+            "note": ("цена трима мерится на ОДНОМ предложении одной моделью; "
+                     "`applied_without_block` — запись старше этой цены, а не "
+                     "её ноль (урок ADR-851); `no_subject` — урезания не было, "
+                     "двух книг нет"),
+        },
         "note": ("перепись ЧИТАЕТ запись живого шага и ничего не решает; строка без "
                  "поля — это «шаг не звали», а не «не урезано»"),
     }
@@ -1210,9 +1268,13 @@ def format_summary(doc: dict) -> str:
     from spa_core.paper_trading.admissible_size import format_admissible_reach
 
     lines.extend(format_admissible_reach(doc.get("admissible_size_reach")))
-    from spa_core.paper_trading.admissible_trim import format_live_trim
+    from spa_core.paper_trading.admissible_trim import (
+        format_live_trim, format_live_trim_cost)
 
     lines.extend(format_live_trim(doc.get("live_trim_census")))
+    # ADR-853: «чего это стоило» — отдельный вопрос с отдельными исходами
+    # (шаг мог сработать, а цена остаться неизмеренной), поэтому и печать своя.
+    lines.extend(format_live_trim_cost(doc.get("live_trim_census")))
     lines.append("Включение — отдельное owner-решение (pre_cutover_gate + ADR); "
                  "этот отчёт капитал не двигает.")
     return "\n".join(lines)

@@ -2,9 +2,11 @@
 trackerStatus:
   type: inbox
 title: "Сто тридцать девять брошенных деревьев циклов: 24,6 ГБ, и снимать их вслепую нельзя"
-status: new
+status: done
 source: nimbalyst
 created: 2026-10-03
+status_trail:
+  - "2026-10-15T23:38:26.689329+00:00 new -> done · queue.set_status"
 ---
 
 ## Что случилось и почему это важно
@@ -57,3 +59,29 @@ git worktree list   # держатели, прежде чем что-то сни
 Агент добавляет шаг уборки с проверкой на недоставленное (одно дерево — один
 вердикт) и закрывает карточку замером числа каталогов и объёма. Родственная
 карточка — `inbox-pribory-brosayut-odnorazovyi-stend-87-gb`.
+
+> ⚠️ Проверка истории: похоже на уже существующее — Похоже на соседнюю половину того же класса: карточка `inbox-pribory-brosayut-odnorazovyi-stend-87-gb` (ADR-546, каталоги `tempfile.mkdtemp`, остаток 5,86 ГБ) — она сама названа родственной, но мерит другое население. Плюс в памяти уже есть уборщики ресурсов: `resource_guard` / `cleanup` агенты и heavy-job leases из ADR-551 (`build-loop-governance-resource-guardrails`), и записанный урок «осмотри `/tmp/spa_*` и держателей ДО первой правки — работа бывает сделана 4 раза и не доставлена» (`dead-cycles-redo-the-same-card-check-worktrees-first`).
+Ровно про снятие брошенных git-worktree с проверкой «есть ли тут то, чего нет на origin» отдельной закрытой карточки или ADR в памяти нет — проверь, не покрывает ли это `resource_guard` из ADR-551, или это новый предмет.
+> Проверь: это то же самое или новое?
+
+> ⚠️ Проверка истории: похоже на уже существующее — Похоже на соседнюю половину того же класса: карточка `inbox-pribory-brosayut-odnorazovyi-stend-87-gb` (ADR-546) мерит каталоги `tempfile.mkdtemp`, а здесь население другое — git-worktree циклов `/private/tmp/spa_c7*`.
+Рядом в памяти есть уборщики ресурсов (`resource_guard` / heavy-job leases, ADR-551 `build-loop-governance-resource-guardrails`) и записанный урок `dead-cycles-redo-the-same-card-check-worktrees-first` («осмотри `/tmp/spa_*` и держателей ДО правки — работа бывает сделана 4 раза и не доставлена»).
+Отдельной закрытой карточки или ADR ровно про снятие брошенных worktree с проверкой «есть ли тут то, чего нет на origin» в контексте нет.
+Проверь: это покрывается `resource_guard` из ADR-551 — или это новый предмет (тогда заводим как продолжение ADR-546)?
+> Проверь: это то же самое или новое?
+
+> ⚠️ Проверка истории: похоже на уже существующее — Похоже на соседнюю половину того же класса: карточка `inbox-pribory-brosayut-odnorazovyi-stend-87-gb` (ADR-546) мерит каталоги `tempfile.mkdtemp` (остаток 5,86 ГБ), а здесь население другое — git-worktree циклов `/private/tmp/spa_c7*` (139 кат., ≈24,6 ГБ).
+Рядом в памяти есть уборщики ресурсов (`resource_guard` / heavy-job leases, ADR-551 `build-loop-governance-resource-guardrails`) и урок `dead-cycles-redo-the-same-card-check-worktrees-first` — ровно про «работа бывает сделана 4 раза и не доставлена».
+Отдельной закрытой карточки или ADR именно про снятие брошенных worktree с проверкой «есть ли тут то, чего нет на origin» в контексте нет. Проверь: это покрывает `resource_guard` из ADR-551 — или заводим как продолжение ADR-546?
+> Проверь: это то же самое или новое?
+
+> ⚠️ Проверка истории: похоже на уже существующее — Похоже на соседнюю половину того же класса: карточка `inbox-pribory-brosayut-odnorazovyi-stend-87-gb` (ADR-546) мерит каталоги `tempfile.mkdtemp` — здесь население другое, git-worktree циклов `/private/tmp/spa_c7*`, и сама карточка это признаёт.
+Рядом в памяти лежат уборщики ресурсов (`resource_guard` / heavy-job leases, ADR-551 `build-loop-governance-resource-guardrails`) и записанный урок `dead-cycles-redo-the-same-card-check-worktrees-first` («осмотри `/tmp/spa_*` и держателей ДО правки — работа бывает сделана 4 раза и не доставлена»).
+Отдельной закрытой карточки или ADR ровно про снятие брошенных worktree с проверкой «есть ли тут то, чего нет на origin» в контексте нет.
+Проверь: это покрывает `resource_guard` из ADR-551 — или заводим как продолжение ADR-546?
+> Проверь: это то же самое или новое?
+
+> ⚠️ Проверка истории: похоже на уже существующее — Это соседняя половина того же класса, но не то же население: `inbox-pribory-brosayut-odnorazovyi-stend-87-gb` (ADR-546) мерит каталоги `tempfile.mkdtemp` (5,86 ГБ), а здесь — git-worktree циклов `/private/tmp/spa_c7*` (139 шт., ≈24,6 ГБ).
+Рядом в памяти: уборщики ресурсов и heavy-job leases из ADR-551 (`build-loop-governance-resource-guardrails`) и урок `dead-cycles-redo-the-same-card-check-worktrees-first` («осмотри `/tmp/spa_*` и держателей ДО правки — работа бывает сделана 4 раза и не доставлена»).
+Отдельной закрытой карточки или ADR ровно про снятие брошенных worktree с проверкой «есть ли тут то, чего нет на origin» в контексте нет. Проверь: это покрывает `resource_guard` из ADR-551 — или заводим как продолжение ADR-546?
+> Проверь: это то же самое или новое?

@@ -1,0 +1,134 @@
+{
+ "title": "ADR-853 (цикл #971) — у трима есть СВОЯ ЦЕНА: стоимость ОДНОГО И ТОГО ЖЕ предложения до и после урезания; дельта = cost_of_the_trim + ось цены в переписи + дверь чтения + своя печать у двух читателей",
+ "tests": [
+  "spa_core/tests/test_admissible_trim.py"
+ ],
+ "mutations": [
+  {
+   "name": "цена считается СВОЕЙ формулой, а не моделью цикла (две копии модели издержек спорят молча)",
+   "file": "spa_core/paper_trading/admissible_trim.py",
+   "old": "    cost = _move_cost_usd(legs, turnover, chains) if legs else 0.0",
+   "new": "    cost = turnover * 0.0001 if legs else 0.0"
+  },
+  {
+   "name": "обе стороны получают РАЗНЫЕ карты сетей — дельта перестаёт быть про урезание",
+   "file": "spa_core/paper_trading/admissible_trim.py",
+   "old": "        final_cost, final_legs, final_turnover = _move_cost(\n            current_positions, target_final, capital_usd, min_leg_frac, chains)",
+   "new": "        final_cost, final_legs, final_turnover = _move_cost(\n            current_positions, target_final, capital_usd, min_leg_frac, {})"
+  },
+  {
+   "name": "молчащая модель издержек объявлена нулевой ценой (инв. #17 наизнанку, fail-OPEN)",
+   "file": "spa_core/paper_trading/admissible_trim.py",
+   "old": "        return {\"kind\": COST_UNMEASURED,\n                \"chains_measured\": chains_measured,\n                \"why\": (f\"модель издержек не ответила ({type(exc).__name__}) — \"",
+   "new": "        return {\"kind\": COST_MEASURED, \"delta_bps\": 0.0,\n                \"chains_measured\": chains_measured,\n                \"why\": (f\"модель издержек не ответила ({type(exc).__name__}) — \""
+  },
+  {
+   "name": "нулевой оборот одной из сторон считается нулевой ценой вместо третьего исхода",
+   "file": "spa_core/paper_trading/admissible_trim.py",
+   "old": "    if full_turnover <= _EPS or final_turnover <= _EPS:\n        return {\"kind\": COST_UNMEASURED,",
+   "new": "    if False:\n        return {\"kind\": COST_UNMEASURED,"
+  },
+  {
+   "name": "дельта берётся с обратным знаком — «трим дешевле» вместо «дороже»",
+   "file": "spa_core/paper_trading/admissible_trim.py",
+   "old": "    delta_bps = final_bps - full_bps",
+   "new": "    delta_bps = full_bps - final_bps"
+  },
+  {
+   "name": "цена за доллар считается от ЧУЖОГО оборота (полная цена делится на урезанный оборот)",
+   "file": "spa_core/paper_trading/admissible_trim.py",
+   "old": "    full_bps = full_cost / full_turnover * 10_000.0",
+   "new": "    full_bps = full_cost / final_turnover * 10_000.0"
+  },
+  {
+   "name": "непрочитанная карта сетей объявлена прочитанной (абсолютные бп выдаются за измеренные)",
+   "file": "spa_core/paper_trading/admissible_trim.py",
+   "old": "    except Exception:  # noqa: BLE001 — карты нет ⇒ сказать об этом, а не угадать\n        return {}, False",
+   "new": "    except Exception:  # noqa: BLE001 — карты нет ⇒ сказать об этом, а не угадать\n        return {}, True"
+  },
+  {
+   "name": "карта сетей не читается вовсе — мост исчезает из цены обеих сторон",
+   "file": "spa_core/paper_trading/admissible_trim.py",
+   "old": "    if ddir is None:\n        return {}, False",
+   "new": "    if True:\n        return {}, False"
+  },
+  {
+   "name": "цена несуществующего хода объявлена нулём — блок появляется в вердикте «уже внутри потолков», где двух книг нет (ПЕРЕПИСАНА: прежняя форма была ЭКВИВАЛЕНТНОЙ мутацией — setdefault перед настоящим присваиванием, наблюдаемый выход не менялся)",
+   "file": "spa_core/paper_trading/admissible_trim.py",
+   "old": "        record.update({\"verdict\": TRIM_NOT_NEEDED, \"k\": 1.0,\n                       \"why\": \"оборот предложения уже внутри потолков размера\"})",
+   "new": "        record.update({\"verdict\": TRIM_NOT_NEEDED, \"k\": 1.0,\n                       \"cost\": {\"kind\": COST_MEASURED, \"delta_bps\": 0.0},\n                       \"why\": \"оборот предложения уже внутри потолков размера\"})"
+  },
+  {
+   "name": "цена считается на цели ПОСЛЕ трима с обеих сторон — сравнение книги с собой",
+   "file": "spa_core/paper_trading/admissible_trim.py",
+   "old": "        current_positions or {}, target_in, final,\n        capital_usd=capital, min_leg_frac=float(params.min_leg_frac), ddir=ddir)",
+   "new": "        current_positions or {}, final, final,\n        capital_usd=capital, min_leg_frac=float(params.min_leg_frac), ddir=ddir)"
+  },
+  {
+   "name": "запись БЕЗ блока цены зачтена в «измерено» (урок ADR-851 сломан: отсутствие = ноль)",
+   "file": "spa_core/paper_trading/shadow_trigger_eval.py",
+   "old": "        elif not isinstance(cost, dict) or not cost:\n            cost_applied_without_block += 1",
+   "new": "        elif not isinstance(cost, dict) or not cost:\n            cost_measured += 1"
+  },
+  {
+   "name": "«урезания не было» схлопнуто с «цена не измерена» — два исхода в один",
+   "file": "spa_core/paper_trading/shadow_trigger_eval.py",
+   "old": "            # Двух книг нет ⇒ предмета нет. Это НЕ «цена равна нулю».\n            cost_no_subject += 1",
+   "new": "            # Двух книг нет ⇒ предмета нет. Это НЕ «цена равна нулю».\n            cost_unmeasured += 1"
+  },
+  {
+   "name": "блок, назвавший себя измеренным без числа, зачтён в измеренные",
+   "file": "spa_core/paper_trading/shadow_trigger_eval.py",
+   "old": "                cost_measured -= 1\n                cost_unmeasured += 1",
+   "new": "                cost_measured -= 0\n                cost_unmeasured += 0"
+  },
+  {
+   "name": "медиана дельты выдумывается при пустом населении",
+   "file": "spa_core/paper_trading/shadow_trigger_eval.py",
+   "old": "    ordered = sorted(deltas)\n    median = None\n    if ordered:",
+   "new": "    ordered = sorted(deltas)\n    median = 0.0\n    if ordered:"
+  },
+  {
+   "name": "перепись без оси цены читается как «цена равна нулю» (третий исход у читателя схлопнут)",
+   "file": "spa_core/paper_trading/admissible_trim.py",
+   "old": "    if not isinstance(cost, dict) or not cost:\n        return LIVE_COST_UNMEASURED, (\n            \"перепись не несёт оси цены вовсе — она старше самой цены, и это \"",
+   "new": "    if not isinstance(cost, dict) or not cost:\n        return LIVE_COST_NO_SUBJECT, (\n            \"перепись не несёт оси цены вовсе — она старше самой цены, и это \""
+  },
+  {
+   "name": "урезания БЕЗ блока цены читаются как отсутствие предмета («трим бесплатен»)",
+   "file": "spa_core/paper_trading/admissible_trim.py",
+   "old": "    if without_block:\n        return LIVE_COST_UNMEASURED, (",
+   "new": "    if False:\n        return LIVE_COST_UNMEASURED, ("
+  },
+  {
+   "name": "нецелое число в оси цены читается как ответ, а не как «не разобрано»",
+   "file": "spa_core/paper_trading/admissible_trim.py",
+   "old": "    if None in (measured, unmeasured, without_block, no_subject):\n        return LIVE_COST_UNMEASURED, (\"ось цены не разобрана: одно из чисел \"",
+   "new": "    if False:\n        return LIVE_COST_UNMEASURED, (\"ось цены не разобрана: одно из чисел \""
+  },
+  {
+   "name": "измеренная цена без медианы объявлена измеренной (число подставляется молча)",
+   "file": "spa_core/paper_trading/admissible_trim.py",
+   "old": "        if not isinstance(median, (int, float)) or isinstance(median, bool):\n            return LIVE_COST_UNMEASURED, (",
+   "new": "        if False:\n            return LIVE_COST_UNMEASURED, ("
+  },
+  {
+   "name": "печать цены больше не спрашивает дверь, а судит сама (вторая копия правила)",
+   "file": "spa_core/paper_trading/admissible_trim.py",
+   "old": "    kind, why = live_trim_cost_outcome(census)\n    mark = {LIVE_COST_MEASURED: \"\", LIVE_COST_NO_SUBJECT: \"предмета нет — \",",
+   "new": "    kind, why = (LIVE_COST_MEASURED, \"цена измерена\")\n    mark = {LIVE_COST_MEASURED: \"\", LIVE_COST_NO_SUBJECT: \"предмета нет — \","
+  },
+  {
+   "name": "шаг 0-офис перестаёт звать печать цены — прибор остаётся сиротой",
+   "file": "scripts/consume_office_reports.py",
+   "old": "                + format_live_trim_cost(data.get(\"live_trim_census\")))",
+   "new": "                )"
+  },
+  {
+   "name": "собственная сводка артефакта перестаёт печатать цену (второй читатель отвязан)",
+   "file": "spa_core/paper_trading/shadow_trigger_eval.py",
+   "old": "    lines.extend(format_live_trim_cost(doc.get(\"live_trim_census\")))",
+   "new": "    pass"
+  }
+ ]
+}

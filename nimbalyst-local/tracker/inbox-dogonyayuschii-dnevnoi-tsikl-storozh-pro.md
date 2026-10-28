@@ -2,10 +2,12 @@
 trackerStatus:
   type: inbox
 title: "Догоняющий дневной цикл: сторож пропусков сам будит цикл, если к 10:00 UTC его не было (решение владельца 17.09, вариант A)"
-status: new
+status: done
 source: nimbalyst
 created: 2026-09-17
 owner_decision: owner-decision-segodnyashnii-tsikl-treka-ne-zapuskalsya
+status_trail:
+  - "2026-10-13T23:35:19.966891+00:00 new -> done · queue.set_status"
 ---
 
 ## Задание
@@ -33,3 +35,13 @@ owner_decision: owner-decision-segodnyashnii-tsikl-treka-ne-zapuskalsya
 
 Проба объявляется сессией, берущей карточку (правило acceptance.md): положительный контроль —
 воспроизведение 17.09 (цикла нет, время после порога ⇒ ровно один запуск; повторный прогон ⇒ ноль).
+
+## Как понять, что готово
+Задача выполнена и проверена (детали — обычный цикл).
+
+> ⚠️ Проверка истории: похоже на уже существующее — Похоже, что ядро этого уже есть: `spa_core/paper_trading/gap_monitor.py` умеет `--recover` (MP-101, `attempt_recovery` — один раз в UTC-сутки, под file-lock, `today_bar_exists`/`no_gap` ⇒ ничего не делать), и его зовёт `spa_core/monitoring/self_heal.py:294` (`_recover_cycle` → `--recover` + `launchctl kickstart com.spa.daily_cycle`).
+
+Но ровно варианта A владельца там нет: срабатывание привязано к `gap_detected` (порог ~сутки, из-за чего 17.09 день и повис до 26,3 ч), а не к «цикла за сегодня не было к 10:00 UTC», и цикл запускается прямо в процессе (`cycle_runner.run_cycle`), а не через ту же обёртку сервиса. ADR по решению 17.09 в `docs/decisions/` не нашёл.
+
+Карточка-носитель существует и не взята: `nimbalyst-local/tracker/inbox-dogonyayuschii-dnevnoi-tsikl-storozh-pro.md`, `status: new`. Проверь — это доработка существующего `gap_monitor --recover` (порог 10:00 UTC + запуск через kickstart) или ты ждёшь отдельный механизм?
+> Проверь: это то же самое или новое?

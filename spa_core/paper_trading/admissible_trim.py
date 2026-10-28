@@ -110,6 +110,137 @@ def _turnover(current: Dict[str, float], target: Dict[str, float],
     return float(turnover)
 
 
+#: Исходы вопроса «сколько стоит трим на ОДНОМ И ТОМ ЖЕ предложении».
+#: Четыре, и каждый — ЗНАЧЕНИЕ (инв. #17), а не пустое поле. Различие
+#: ``COST_NO_SUBJECT`` / отсутствие блока вовсе — ровно урок ADR-851: у записи,
+#: сделанной ДО этого ADR, блока нет не потому, что цена равна нулю, а потому
+#: что считать её было некому.
+COST_MEASURED = "measured"
+COST_UNMEASURED = "unmeasured"
+COST_NO_SUBJECT = "no_subject"
+
+
+def _chain_map(ddir) -> Tuple[Dict[str, str], bool]:
+    """Карта «протокол → сеть» — тем же файлом, которым её читает цикл.
+
+    Возврат ``(карта, измерена ли)``. Карта входит в цену мостом
+    (``BRIDGE_BPS`` при более чем одной сети), поэтому «не прочитана» обязано
+    быть ВИДНО: обе стороны сравнения получают ОДНУ И ТУ ЖЕ карту, и дельта
+    остаётся осмысленной, а вот абсолютные бп без карты занижены. Молча выдать
+    их за измеренные значило бы вернуть класс «не измерено как ответ».
+    """
+    if ddir is None:
+        return {}, False
+    import json
+    from pathlib import Path
+    try:
+        raw = json.loads((Path(ddir) / "adapter_registry.json").read_text("utf-8"))
+    except Exception:  # noqa: BLE001 — карты нет ⇒ сказать об этом, а не угадать
+        return {}, False
+    out: Dict[str, str] = {}
+    for name, entry in ((raw or {}).get("adapters") or {}).items():
+        if isinstance(entry, dict) and entry.get("chain"):
+            out[str(name)] = str(entry["chain"]).strip().lower()
+    return out, True
+
+
+def _move_cost(current: Dict[str, float], book: Dict[str, float],
+               capital_usd: float, min_leg_frac: float,
+               chains: Dict[str, str]) -> Tuple[float, int, float]:
+    """Цена хода «стоящая книга → ``book``» — ТОЙ ЖЕ моделью, что у цикла.
+
+    Возврат ``(цена USD, число ног, оборот USD)``. Своя копия модели издержек
+    спорила бы с ценой, записанной в бар дня (``equity.cost_usd``), молча — тот
+    же класс, из-за которого оборот здесь считается дверью ``_legs``, а не
+    своей формулой.
+    """
+    from spa_core.allocator.rebalance_economics import _legs, _move_cost_usd
+
+    legs, turnover = _legs(dict(current or {}), dict(book or {}),
+                           float(capital_usd), float(min_leg_frac))
+    cost = _move_cost_usd(legs, turnover, chains) if legs else 0.0
+    return float(cost), len(legs), float(turnover)
+
+
+def cost_of_the_trim(current_positions: Dict[str, float],
+                     target_full: Dict[str, float],
+                     target_final: Dict[str, float],
+                     *,
+                     capital_usd: float,
+                     min_leg_frac: float,
+                     ddir=None) -> dict:
+    """Цена ОДНОГО И ТОГО ЖЕ предложения до и после урезания.
+
+    **Зачем это отдельное число.** Цикл #970 наблюдал первое живое урезание
+    ($55 000 → $15 000, k=0.2727) и заметил рядом: цена урезанного хода
+    $55.65 на $15 000 ≈ **37 бп**, а цена неурезанного предложения более
+    РАННЕЙ пробежки того же дня — $38.30 на $20 000 ≈ **19 бп**. Механизм
+    напрашивался: интерполяция ``cur + k·(tgt − cur)`` трогает ВСЕ ноги
+    частично, поэтому ЧИСЛО ног с ``k`` не падает, а газ платится за ногу —
+    значит цена за доллар хода у урезанного ходa выше. Но две пробежки судили
+    РАЗНЫЕ предложения ($20 000 против $55 000) с разным набором ног, и
+    приписать разницу триму по ним нельзя. Цикл назвал это ГИПОТЕЗОЙ и за
+    замер не выдал.
+
+    Эта дверь и делает его замером: обе цены считаются на ОДНОМ предложении,
+    ОДНОЙ моделью и с ОДНОЙ картой сетей — меняется ровно урезание. Поэтому
+    ``delta_bps`` отвечает на вопрос «есть ли у варианта Г своя цена», а не на
+    вопрос «чем отличались два дня».
+
+    Чего дверь НЕ делает: не судит, не гейтит и ничего не меняет. Вердикт дня,
+    пороги, RiskPolicy v1.0, стоп-кран и цель — не её предмет; она ЧИТАЕТ две
+    книги и называет цену каждой. «Ход только МЕНЬШЕ ⇒ строго консервативнее»
+    остаётся верным по РИСКУ при любом знаке ``delta_bps``; по ОКУПАЕМОСТИ это
+    число и есть то, чего до сих пор не было.
+    """
+    chains, chains_measured = _chain_map(ddir)
+    try:
+        full_cost, full_legs, full_turnover = _move_cost(
+            current_positions, target_full, capital_usd, min_leg_frac, chains)
+        final_cost, final_legs, final_turnover = _move_cost(
+            current_positions, target_final, capital_usd, min_leg_frac, chains)
+    except Exception as exc:  # noqa: BLE001 — модель не ответила ⇒ третий исход
+        return {"kind": COST_UNMEASURED,
+                "chains_measured": chains_measured,
+                "why": (f"модель издержек не ответила ({type(exc).__name__}) — "
+                        "цена трима НЕ ИЗМЕРЕНА")}
+    if full_turnover <= _EPS or final_turnover <= _EPS:
+        return {"kind": COST_UNMEASURED,
+                "chains_measured": chains_measured,
+                "full_usd": round(full_cost, 2), "final_usd": round(final_cost, 2),
+                "full_turnover_usd": round(full_turnover, 2),
+                "final_turnover_usd": round(final_turnover, 2),
+                "why": (f"оборот одной из сторон не положителен (полный "
+                        f"${full_turnover:,.2f}, урезанный ${final_turnover:,.2f}) — "
+                        "цену за доллар хода считать не от чего")}
+    full_bps = full_cost / full_turnover * 10_000.0
+    final_bps = final_cost / final_turnover * 10_000.0
+    delta_bps = final_bps - full_bps
+    return {
+        "kind": COST_MEASURED,
+        "chains_measured": chains_measured,
+        "full_usd": round(full_cost, 2),
+        "final_usd": round(final_cost, 2),
+        "full_turnover_usd": round(full_turnover, 2),
+        "final_turnover_usd": round(final_turnover, 2),
+        "full_bps": round(full_bps, 2),
+        "final_bps": round(final_bps, 2),
+        "delta_bps": round(delta_bps, 2),
+        "full_legs": full_legs,
+        "final_legs": final_legs,
+        "why": (f"цена ОДНОГО предложения: полное ${full_cost:,.2f} на "
+                f"${full_turnover:,.0f} = {full_bps:.2f} бп ({full_legs} ног) · "
+                f"урезанное ${final_cost:,.2f} на ${final_turnover:,.0f} = "
+                f"{final_bps:.2f} бп ({final_legs} ног) ⇒ трим "
+                + ("дороже" if delta_bps > 0 else ("дешевле" if delta_bps < 0
+                                                   else "ровно той же цены"))
+                + f" на {delta_bps:+.2f} бп за доллар хода"
+                + ("" if chains_measured else
+                   "; карта сетей НЕ прочитана — абсолютные бп занижены на мост, "
+                   "дельта осмысленна (карта у сторон одна)")),
+    }
+
+
 def apply_admissible_trim(
     target_usd: Dict[str, float],
     *,
@@ -270,6 +401,16 @@ def apply_admissible_trim(
         notes.append(f"admissible_trim: урезание отменено — {record['why']} (ADR-850)")
         return target_in, record
 
+    # Цена ОДНОГО И ТОГО ЖЕ предложения до и после урезания — гипотеза #970
+    # («у трима есть своя цена, потому что число ног с k не падает, а газ
+    # платится за ногу») становится ЗАМЕРОМ только здесь: раньше её нельзя
+    # было проверить, потому что цена ДО трима не записывалась нигде, и две
+    # сравниваемые пробежки судили РАЗНЫЕ предложения. Запись, не вердикт:
+    # ни один порог и ни одна цель от этого числа не зависят.
+    record["cost"] = cost_of_the_trim(
+        current_positions or {}, target_in, final,
+        capital_usd=capital, min_leg_frac=float(params.min_leg_frac), ddir=ddir)
+
     record.update({
         "verdict": TRIM_APPLIED,
         "target_before": {p: round(float(v), 2) for p, v in target_in.items()},
@@ -351,6 +492,67 @@ def live_trim_outcome(census: Optional[dict]) -> Tuple[str, str]:
         "это ЗАМЕР нуля, а не отсутствие проводки: проводку меряет контроль в обе стороны")
 
 
+#: Исходы вопроса «что живая цена трима показала». Три, и третий —
+#: значение (инв. #17). ``NO_SUBJECT`` отличается от ``UNMEASURED``
+#: содержательно: в первом урезаний не было вовсе (предмета нет), во втором
+#: они были, а цены у них нет — записи старше этой цены либо модель молчала.
+LIVE_COST_MEASURED = "measured"
+LIVE_COST_NO_SUBJECT = "no_subject"
+LIVE_COST_UNMEASURED = "unmeasured"
+
+
+def live_trim_cost_outcome(census: Optional[dict]) -> Tuple[str, str]:
+    """Один ответ на вопрос «есть ли у трима своя цена» — род И причина.
+
+    Дверь ОДНА по той же причине, по которой ею стал
+    :func:`live_trim_outcome` (ADR-851): у вопроса два читателя (шаг 0-офис
+    через :func:`format_live_trim` и собственная сводка артефакта), и вторая
+    копия правила разошлась бы с первой молча. Прибор только ЧИТАЕТ.
+    """
+    if not isinstance(census, dict) or not census:
+        return LIVE_COST_UNMEASURED, "переписи в артефакте нет"
+    if census.get("unmeasured_reason"):
+        return LIVE_COST_UNMEASURED, str(census["unmeasured_reason"])
+    cost = census.get("cost")
+    if not isinstance(cost, dict) or not cost:
+        return LIVE_COST_UNMEASURED, (
+            "перепись не несёт оси цены вовсе — она старше самой цены, и это "
+            "НЕ «цена равна нулю»")
+
+    def _int(key: str) -> Optional[int]:
+        value = cost.get(key)
+        return value if isinstance(value, int) and not isinstance(value, bool) else None
+
+    measured = _int("measured")
+    unmeasured = _int("unmeasured")
+    without_block = _int("applied_without_block")
+    no_subject = _int("no_subject")
+    if None in (measured, unmeasured, without_block, no_subject):
+        return LIVE_COST_UNMEASURED, ("ось цены не разобрана: одно из чисел "
+                                      "переписи не целое")
+    if measured:
+        median = cost.get("delta_bps_median")
+        lo, hi = cost.get("delta_bps_min"), cost.get("delta_bps_max")
+        if not isinstance(median, (int, float)) or isinstance(median, bool):
+            return LIVE_COST_UNMEASURED, (
+                f"цена измерена на {measured} урезани(и/ях), а медиана дельты не "
+                "разобрана — числа нет")
+        return LIVE_COST_MEASURED, (
+            f"цена сравнена на {measured} урезани(и/ях) ОДНОГО предложения: "
+            f"дельта {median:+.2f} бп по медиане (от {lo:+.2f} до {hi:+.2f})")
+    if without_block:
+        return LIVE_COST_UNMEASURED, (
+            f"урезаний {without_block}, и ни одно не несёт блока цены — записи "
+            "старше самой цены; это НЕ «трим бесплатен»")
+    if unmeasured:
+        return LIVE_COST_UNMEASURED, (
+            f"цена не измерена ни на одном из {unmeasured} урезани(я/й) — "
+            "причина названа в самой записи")
+    return LIVE_COST_NO_SUBJECT, (
+        f"урезаний не было ни на одной из {no_subject} записей, несущих поле — "
+        "предмета у цены нет, и это ЗАМЕР отсутствия предмета, а не нулевая цена")
+
+
 def format_live_trim(census: Optional[dict]) -> List[str]:
     """Строки шага 0-офис про ЖИВОЙ трим — что он сделал на записанных днях.
 
@@ -385,4 +587,35 @@ def format_live_trim(census: Optional[dict]) -> List[str]:
             float(last.get("turnover_final_usd") or 0.0), last.get("k")))
     else:
         out.append(f"  {why}")
+    return out
+
+
+def format_live_trim_cost(census: Optional[dict]) -> List[str]:
+    """Строки шага 0-офис про ЦЕНУ трима — отдельная печать на отдельный вопрос.
+
+    **Почему это НЕ строка внутри** :func:`format_live_trim`. Та печать
+    отвечает на вопрос «что шаг СДЕЛАЛ», эта — на вопрос «чего это стоило»,
+    и исходы у них не совпадают: шаг может сработать (`measured`), а цена при
+    этом не быть измеренной (запись старше цены). Слить их в одну печать
+    значило бы, что ответ на один вопрос меняет чтение ответа на другой —
+    ровно класс «зелёный ответ сторожа на СВОЙ вопрос прочитан как ответ на
+    нужный». Зовут её те же два читателя, что и соседку.
+    """
+    kind, why = live_trim_cost_outcome(census)
+    mark = {LIVE_COST_MEASURED: "", LIVE_COST_NO_SUBJECT: "предмета нет — ",
+            LIVE_COST_UNMEASURED: "⚠️ НЕ ИЗМЕРЕНО — "}.get(kind, "")
+    out = [f"Цена трима (ADR-853, {kind}): {mark}{why}"]
+    cost = census.get("cost") if isinstance(census, dict) else None
+    last = cost.get("last") if isinstance(cost, dict) else None
+    if kind == LIVE_COST_MEASURED and isinstance(last, dict) and last:
+        out.append(
+            "  последнее: {} — полное ${:,.2f} / {} ног = {} бп · урезанное "
+            "${:,.2f} / {} ног = {} бп · дельта {} бп{}".format(
+                last.get("date"),
+                float(last.get("full_usd") or 0.0), last.get("full_legs"),
+                last.get("full_bps"),
+                float(last.get("final_usd") or 0.0), last.get("final_legs"),
+                last.get("final_bps"), last.get("delta_bps"),
+                "" if last.get("chains_measured") else
+                " (карта сетей не прочитана — абсолютные бп занижены на мост)"))
     return out

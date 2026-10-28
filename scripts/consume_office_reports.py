@@ -5321,6 +5321,7 @@ def _summarize_json(path: str, data, *, now: dt.datetime | None = None,
 
             from spa_core.paper_trading.admissible_trim import (
                 format_live_trim,
+                format_live_trim_cost,
             )
 
             blockade_lines = (
@@ -5330,7 +5331,12 @@ def _summarize_json(path: str, data, *, now: dt.datetime | None = None,
                 # ADR-850: четвёртая строка отвечает не «что было бы», а «что
                 # живой шаг СДЕЛАЛ» — единственная, по которой видно молчащую
                 # проводку.
-                + format_live_trim(data.get("live_trim_census")))
+                + format_live_trim(data.get("live_trim_census"))
+                # ADR-853: пятая строка отвечает «чего урезание СТОИЛО» —
+                # цена ОДНОГО И ТОГО ЖЕ предложения до и после трима. До неё
+                # «ход только МЕНЬШЕ ⇒ консервативнее» было верно по РИСКУ и
+                # НЕ ИЗМЕРЕНО по ОКУПАЕМОСТИ.
+                + format_live_trim_cost(data.get("live_trim_census")))
         except Exception as exc:  # noqa: BLE001
             # Тот же приём, что у кнопок ниже: обязательный шаг 0-офис не имеет
             # права упасть из-за строчки оформления — упавший шаг это НЕ
