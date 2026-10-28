@@ -2,10 +2,18 @@
 trackerStatus:
   type: owner-decision
 title: "Уточнение по заметке: купить зонт в пятницу"
-status: needs-owner
+status: ingested
 source: intake
 created: 2026-10-27
 intake_source_card: inbox-kupit-zont-v-pyatnitsu-6.md
+owner_choice: nack
+owner_answered_at: 2026-10-28T05:43:31.592236+00:00
+owner_answer_via: telegram
+owner_answered_by: 258651137
+owner_answer_kind: ack
+status_trail:
+  - "2026-10-28T05:43:31.592682+00:00 needs-owner -> owner-done · owner_answer.record_owner_answer"
+  - "2026-10-28T08:09:06.817360+00:00 owner-done -> ingested · queue.set_status · cycle-8075"
 ---
 
 ## Что случилось и почему это важно
@@ -30,3 +38,11 @@ _Оркестратор: классифицируй (задача/идея/не�
 
 ## Что будет после
 Обработаю по твоему ответу.
+
+---
+
+## Решение владельца
+
+**Не надо — не делаем**
+
+_Ответ владельца получен 2026-10-28T05:43:31.592236+00:00 (telegram). Карточка закрыта самим владельцем, не агентом (инвариант #14)._

@@ -38,8 +38,15 @@ import os
 import subprocess
 import sys
 
+from pathlib import Path
+
+from spa_core.utils.atomic import atomic_save
 from spa_core.utils.observation import observed, observed_number
 from spa_core.monitoring.architecture_conformance import REPO_ROOT, subject_inputs
+# Гейт такта ВЗЯТ у соседа, а не скопирован: вторая копия правила «пора ли мерить»
+# разошлась бы с первой молча (ADR-220). Ввоз одной строкой — сторож достижимости
+# вырезает ввозы двух объявленных форм, скобочная многострочная ни одной не является.
+from spa_core.monitoring.python_reader_clock_doors import measurement_due
 
 #: Контракт агента (ADR-154/158): что этот агент ПРОИЗВОДИТ.
 #: Объявление, а не вывод из кода — вывести производителя разбором нельзя
@@ -600,6 +607,10 @@ CENSUS_STAGE: tuple[str, ...] = (
     "apy_composition",
     "pool_identity_collision",
     "evidence_staleness",
+    # (ADR-843, цикл #964, заказ G842 п. 2) Прибор оси РАБОТНИКА был написан
+    # 14.10 и не звался НИОТКУДА — его имя держало красным храповик сирот
+    # `test_unwired_scripts_ratchet`. Чинит ПРОВОДКА, не строка в базе.
+    "worker_axis_census",
     "outcomes",
     "loop_retro",
     "loop_health",
@@ -613,6 +624,26 @@ CENSUS_STAGE: tuple[str, ...] = (
 #: 152.1 ч при пределе пробы 192 ч — то есть критерию владельца оставалось 39.9 ч до
 #: молчаливого `unmeasured`.
 NO_REGRESSION_PRODUCER = os.path.join("scripts", "refresh_no_regression_census.py")
+#: Производитель переписи ИЗМЕРИМОСТИ оси РАБОТНИКА (ADR-722 — прибор, ADR-843 —
+#: эта строка). Та же история, что у соседа выше, и тот же вывод: прибор,
+#: написанный 14.10, до 28.10 не звался НИОТКУДА — храповик сирот держал его имя
+#: красным на чистой вершине. Предмет прибора — ЖИВОЙ хост (доля строк `ps` с
+#: читаемым окружением и видимость работника у живого запуска), поэтому и такт у
+#: него не недельный, а шестичасовой; срок решает ФАЙЛ отчёта (ADR-414).
+WORKER_AXIS_CENSUS_PRODUCER = os.path.join("scripts", "worker_axis_census.py")
+#: Отчёт переписи оси РАБОТНИКА. Пишет его ЭТА ступень, а не прибор, и причина не
+#: косметическая: писателя артефакта сторож достижимости
+#: (`spa_core/tests/_orphan_producer.py`) ищет среди ТОЧЕК ВХОДА агентов и
+#: импортированного не-тестовым кодом — зов подпроцессом по константе пути ему не
+#: виден. Писатель, живущий в `scripts/worker_axis_census.py`, был бы «объявленным
+#: продуктом, которого никто не вычисляет», и сторож ровно это и сказал на первой
+#: редакции ADR-843 (до доставки). Мост — программа агента `com.spa.decision_loop`,
+#: то есть точка входа, и потому писателем быть вправе.
+#: Форма пути — ТА ЖЕ, что у соседнего отчёта того же файла (`REPORT_REL`), и это
+#: не вкусовщина: сканер записи (`spa_core/monitoring/artifact_io_scan.py`) следит за
+#: именами через таблицу присваиваний и узнаёт `os.path.join("data", "<имя>.json")`.
+WORKER_AXIS_CENSUS_ARTIFACT = os.path.join("data", "worker_axis_census.json")
+
 #: Определение стоит ВЫШЕ `CENSUS_PRODUCT` намеренно: карта ступеней ссылается
 #: на эту константу, и второй литерал того же пути разошёлся бы с первым молча
 #: (одно имя — один объект, класс ADR-220).
@@ -844,6 +875,9 @@ CENSUS_PRODUCT: dict[str, dict[str, str]] = {
     #: скрипт и запускает. Имя пути берётся у `NO_REGRESSION_PRODUCER`
     #: тем же порядком, что у соседей — вторая копия литерала
     #: разошлась бы с первой молча.
+    "worker_axis_census": {
+        "module": WORKER_AXIS_CENSUS_PRODUCER,
+        "artifact": WORKER_AXIS_CENSUS_ARTIFACT},
     "no_regression_producer": {
         "module": NO_REGRESSION_PRODUCER,
         "artifact": "data/no_regression_census.json"},
@@ -1485,6 +1519,126 @@ def no_regression_step(root: str = REPO_ROOT, *, runner=None,
     status = {0: "ok", 1: "regression"}.get(code, "unmeasured") \
         if isinstance(code, int) else "unmeasured"
     return {"status": status, "code": code, "ran": "[ПРОГОН]" in out, "reason": tail}
+
+
+WORKER_AXIS_CENSUS_TIMEOUT_S = 180.0
+
+#: Такт замера — ШЕСТЬ ЧАСОВ, и срок решает ФАЙЛ отчёта, а не расписание бегуна
+#: (ADR-414). Объявлен в СУТКАХ потому, что гейт такта ВЗЯТ у соседа
+#: (`python_reader_clock_doors.measurement_due`), а НЕ скопирован: вторая копия правила
+#: «пора ли мерить» разошлась бы с первой молча. 0.25 сут = 6 ч.
+#:
+#: Почему не недельный, как у того же соседа: предмет соседа — дерево исходников, оно за
+#: неделю не меняется; предмет этого прибора — ЖИВОЙ хост (доля строк `ps` с читаемым
+#: окружением и видимость работника у живого запуска), и недельный такт отвечал бы на
+#: вопрос о случайной минуте семидневки.
+WORKER_AXIS_CENSUS_TACT_DAYS = 0.25
+
+
+def worker_axis_census_step(root: str = REPO_ROOT, *, runner=None,
+                            timeout_s: float = WORKER_AXIS_CENSUS_TIMEOUT_S,
+                            now=None, tact_days: float = WORKER_AXIS_CENSUS_TACT_DAYS,
+                            writer=None) -> dict:
+    """Позвать перепись оси РАБОТНИКА и ЗАПИСАТЬ её отчёт (ADR-843, заказ G842 п. 2).
+
+    Ступень ничего не измеряет сама — она ЗОВЁТ, сверяет СРОК и ПИШЕТ. Внутри такта
+    (6 ч) подпроцесс не поднимается вовсе: ступень стоит одного чтения отметки.
+
+    **Почему зов подпроцессом, а не импортом** — тот же довод, что у соседа
+    (`no_regression_step`): прибор читает живой `ps` через чужой модуль-обёртку, и
+    держать это чтение в процессе моста значило бы ронять мост всем, что упадёт внутри
+    снимка. Мост не смеет падать от переписи (#524). Второй довод свой: прибор
+    СПРАШИВАЕТ ОСЬ О СЕБЕ (вычитает собственные pid из носителей метки), и зов импортом
+    из долгоживущего моста подменил бы ему эту личность.
+
+    **Почему пишет ступень, а не прибор.** Сторож достижимости ищет писателя артефакта
+    среди точек входа и импортированного кода; подпроцессный зов по константе пути ему
+    не виден, и писатель внутри прибора делал бы артефакт «объявленным продуктом,
+    которого никто не вычисляет». Мост — программа `com.spa.decision_loop`, значит
+    точка входа. Прибор при этом остаётся ЧИТАЮЩИМ, как и объявлено в его шапке.
+
+    ``runner`` и ``writer`` — ДВЕРИ к подпроцессу и к диску ВХОДАМИ, а не окружением:
+    без них каждый тест ступени снимал бы настоящий `ps` и писал бы в живое `data/`,
+    то есть отвечал бы на вопрос о ХОСТЕ, а не о проводке (`.claude/rules/deployment.md`,
+    § про инъекцию).
+
+    Исходы РАЗЛИЧИМЫ (инв. #17) и ни один не выдаётся за другой:
+
+    * ``ok`` — прибор ответил, находок нет (код 0), отчёт записан;
+    * ``finding`` — прибор ответил, находка НАЗВАНА (код 1), отчёт записан;
+    * ``within_tact`` — срок не пришёл, замера НЕ БЫЛО и это ЗАМЕР срока, не вердикт;
+    * ``unmeasured`` — замера не было (прибора нет на диске · не запустился · снят по
+      сроку · код 2 · документ не разобран). Это НЕ «находок нет», и отчёт НЕ пишется:
+      артефакт с выдуманным вердиктом лгал бы ещё и своим возрастом.
+    """
+    producer = os.path.join(root, WORKER_AXIS_CENSUS_PRODUCER)
+    target = os.path.join(root, WORKER_AXIS_CENSUS_ARTIFACT)
+    if not os.path.isfile(producer):
+        return {"status": "unmeasured", "code": None, "reason":
+                f"прибора нет на диске: {producer} — замера НЕ БЫЛО, "
+                f"и это не «находок нет»"}
+    due, why = measurement_due(Path(target), now=now, tact_days=tact_days)
+    if not due:
+        return {"status": "within_tact", "code": None, "reason": why}
+
+    cmd = [sys.executable, producer, "--json", "--repo-root", str(root)]
+    run = runner if runner is not None else subprocess.run
+    try:
+        cp = run(cmd, capture_output=True, text=True, timeout=timeout_s)
+    except subprocess.TimeoutExpired as exc:
+        return {"status": "unmeasured", "code": None,
+                "reason": f"прибор снят по сроку {timeout_s:.0f}с: {exc}"}
+    except OSError as exc:
+        return {"status": "unmeasured", "code": None,
+                "reason": f"прибор не запущен: {type(exc).__name__}: {exc}"}
+    code = getattr(cp, "returncode", None)
+    out = getattr(cp, "stdout", "") or ""
+    err = (getattr(cp, "stderr", "") or "").strip()
+    # Код, которого нет, — тот же третий исход, что и код 2: «не измерено».
+    if code not in (0, 1):
+        tail = "\n".join((err or out).strip().splitlines()[-3:])
+        return {"status": "unmeasured", "code": code,
+                "reason": tail or "прибор не назвал ни вердикта, ни причины"}
+    try:
+        doc = json.loads(out)
+    except (ValueError, TypeError) as exc:
+        return {"status": "unmeasured", "code": code,
+                "reason": f"документ прибора не разобран ({type(exc).__name__}) — "
+                          f"отчёта не пишу: его возраст читался бы как свежий замер"}
+    if not isinstance(doc, dict) or "findings" not in doc:
+        return {"status": "unmeasured", "code": code,
+                "reason": "документ прибора не несёт перечня находок — это не «находок нет»"}
+    try:
+        # Зов ИМЕНЕМ, а не через переменную: сканер записи узнаёт писателя по имени
+        # вызова, и `save(doc, target)` через переменную не узнаётся — артефакт стал бы
+        # для сторожа достижимости «объявленным продуктом, которого никто не вычисляет».
+        if writer is not None:
+            writer(doc, target)
+        else:
+            atomic_save(doc, target)
+    except OSError as exc:
+        return {"status": "unmeasured", "code": code,
+                "reason": f"отчёт не записан ({type(exc).__name__}: {exc}) — "
+                          f"читателю читать нечего"}
+    found = doc.get("findings") or []
+    return {"status": "finding" if found else "ok", "code": code,
+            "artifact": target, "findings": len(found),
+            "reason": "; ".join(str(f) for f in found[:2]) or "находок нет"}
+
+
+def worker_axis_census_line(out: dict) -> str:
+    """Строка ступени для читателя лога. Отдельной функцией — чтобы её мерил тест.
+
+    Три формы на три разных исхода, и ни одна не выглядит как другая: «НЕ ИЗМЕРЕНО»
+    (замера не было) · «такт не истёк» (замер СРОКА, а не вердикт о населении) ·
+    вердикт. Слить первые две значило бы потерять различие, за которым написан инв. #17.
+    """
+    if out.get("status") == "unmeasured":
+        return f"worker_axis_census: НЕ ИЗМЕРЕНО — {out.get('reason')}"
+    if out.get("status") == "within_tact":
+        return f"worker_axis_census: такт не истёк, замера не было — {out.get('reason')}"
+    return (f"worker_axis_census: {out.get('status')} (код {out.get('code')}), "
+            f"находок {out.get('findings')} — {out.get('reason')}")
 
 
 def no_regression_line(out: dict) -> str:
@@ -2887,6 +3041,16 @@ def main(argv=None) -> int:
         print(no_regression_line(no_regression_step(args.root)))
     except Exception as e:  # noqa: BLE001 — перепись не смеет валить мост
         census_skipped(_skipped, "no_regression_producer", e)
+    # (ADR-843, заказ G842 п. 2) Перепись измеримости оси РАБОТНИКА. ЗАЧЕМ ЭТА
+    # СТРОКА: прибор написан 14.10 (ADR-722) и до 28.10 его не звал НИКТО —
+    # храповик сирот `test_unwired_scripts_ratchet` держал его имя красным на
+    # чистой вершине, то есть прибор был ровно тем, что сам измеряет: написанной
+    # и не позванной проверкой. Такт 6 ч и решает его ФАЙЛ, поэтому в
+    # подавляющем большинстве зовов ступень стоит одного чтения отметки.
+    try:
+        print(worker_axis_census_line(worker_axis_census_step(args.root)))
+    except Exception as e:  # noqa: BLE001 — перепись не смеет валить мост
+        census_skipped(_skipped, "worker_axis_census", e)
     # (G97 п. 3, ADR-562) ТРЕТЬЕ плечо семейства «часы как вход». Сосед выше
     # спрашивает, закрывается ли дверь ЧИТАТЕЛЯ пином класса; этот — доходит ли
     # инъектированный `now` до САМОЙ отметки `generated_at` у ПРОИЗВОДИТЕЛЯ.

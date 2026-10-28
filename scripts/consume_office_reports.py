@@ -879,6 +879,19 @@ _READ_SCHEMA: dict[str, tuple[str, ...]] = {
     # `doors_that_rewrite_the_answer` объявлен рядом с `doors_free_to_close`
     # намеренно: цена закрытия двери и её отсутствие — разные утверждения, и
     # артефакт, несущий только второе, прочёлся бы как «закрывать всё даром».
+    # (ADR-843, заказ G842 п. 2) Перепись измеримости оси РАБОТНИКА. `invoked_by`
+    # объявлен ЧИТАЕМЫМ по тому же доводу, что у соседа ниже: это единственное
+    # поле, которое покраснеет, если проводку однажды снимут и отметку снова
+    # начнёт ставить рука цикла. `env_readable` / `env_blind` / `rows_total`
+    # объявлены все три: числитель без знаменателя читался бы как доля, а это
+    # три разных наблюдения. `axis_measurable` — вопрос «слепа ли ось целиком»,
+    # и ответ на него НЕ выводится из доли: 0 читаемых строк и 7.8 % — разные
+    # состояния. `findings` — потому что находка обязана доехать до читателя
+    # ПРИЧИНОЙ, а не числом; `status` отличает «измерено и чисто» от находки.
+    "worker_axis_census.json": ("status", "invoked_by", "rows_total",
+                                "env_readable", "env_blind", "readable_share",
+                                "blind_by_class", "axis_measurable", "runs",
+                                "findings", "advisory"),
     "python_reader_clock_doors.json": ("status", "invoked_by", "counts",
                                        "import_bound_doors", "other_doors",
                                        "run_provenance", "provenance_unmeasured",
@@ -1559,6 +1572,8 @@ _PRODUCER: dict[str, str] = {
         "spa_core/monitoring/haystack_origin_census.py",
     "list_identity_census.json":
         "spa_core/monitoring/list_identity_census.py",
+    "worker_axis_census.json":
+        "scripts/worker_axis_census.py",
     "python_reader_clock_doors.json":
         "spa_core/monitoring/python_reader_clock_doors.py",
     "tact_gate_census.json":
@@ -3913,6 +3928,22 @@ def _summarize_json(path: str, data, *, now: dt.datetime | None = None,
         # а здесь она сделала бы сторожа слепым ровно к этому артефакту.
         from spa_core.monitoring.list_identity_census import format_report
         out.extend(format_report(data))
+    elif name == "worker_axis_census.json":
+        # (ADR-843, заказ G842 п. 2) ЗАЧЕМ ЭТА ВЕТКА: без неё артефакт читается
+        # ВХОЛОСТУЮ (`_HOLLOW_MARK`) — файл открылся, квитанция не пишется, и в
+        # контекст оркестратора не попадает ни одно число. Тот же класс, что
+        # закрыт у соседей ниже, и тот же довод: правило отрисовки делегируется
+        # ПРОИЗВОДИТЕЛЮ, а не переписывается здесь — вторая копия расходится с
+        # первой молча (ADR-220).
+        # Производитель живёт в `scripts/`, а это НЕ пакет, поэтому путь к нему
+        # добавляется в `sys.path` — ровно так же, как это уже делает ветка
+        # `forbidden_reach_census` ниже в этом же файле. Форма ввоза
+        # ОДНОСТРОЧНАЯ намеренно: сторож достижимости
+        # (`test_declared_producer_is_reachable`) вырезает ввозы двух объявленных
+        # форм, и скобочная многострочная ни одной из них не является (замер #627).
+        sys.path.insert(0, os.path.join(REPO_ROOT, "scripts"))
+        from worker_axis_census import format_report as _wac_report
+        out.extend(_wac_report(data))
     elif name == "python_reader_clock_doors.json":
         # Заказ G37 п. 2 (ADR-414). ЗАЧЕМ ЭТА ВЕТКА: без неё артефакт читается
         # ВХОЛОСТУЮ (`_HOLLOW_MARK`) — файл открылся, ресит не пишется, и в

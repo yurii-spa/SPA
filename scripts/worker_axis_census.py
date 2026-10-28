@@ -27,11 +27,33 @@ ADR-722 — журнальный захват. Но живость по ней �
 Коды возврата: **0** — измерено, находок нет · **1** — находка НАЗВАНА · **2** — НЕ
 ИЗМЕРЕНО (прибор не ответил) с причиной. Третий исход не выдаётся за «чисто» (инв. #17).
 
-Прибор только ЧИТАЕТ: ни одного файла он не пишет и ничего не перезапускает.
+Прибор только ЧИТАЕТ: ни одного файла он не пишет и ничего не перезапускает. Отчёт
+(``data/worker_axis_census.json``) записывает ТОТ, КТО ПОЗВАЛ, — ступень моста; прибор
+отдаёт документ на stdout (``--json``). Это не мелочь оформления: писателя артефакта
+сторож достижимости (`spa_core/tests/_orphan_producer.py`) ищет среди ТОЧЕК ВХОДА и
+импортированного кода, а зов подпроцессом по константе пути ему не виден. Писатель,
+живущий здесь, был бы объявленным продуктом, которого «никто не вычисляет», — и сторож
+это и сказал на первой редакции ADR-843, до доставки.
+
+ПРОВОДКА (ADR-843, заказ G842 п. 2). До 28.10 прибор не звал НИКТО: написанный 14.10,
+он держал своё имя красным у храповика сирот `test_unwired_scripts_ratchet` («новые
+скрипты с точкой входа, которых никто не вызывает») — то есть был ровно тем, что сам
+измеряет: написанной и не позванной проверкой. Чинит это ПРОВОДКА, а не строка в базе:
+ступень `findings_bridge.worker_axis_census_step` зовёт прибор подпроцессом с ``--json``,
+сама сверяет такт по возрасту отчёта и сама его записывает; артефакт объявлен в
+конституции со SLO, и его читает поимённая ветка шага 0-офис. Образец и цена такого зова
+названы у соседей — ADR-414 (такт решает ФАЙЛ) и ADR-790 (зов подпроцессом, чтобы
+перепись не валила мост).
+
+ПОЧЕМУ ТАКТ ШЕСТЬ ЧАСОВ, а не недельный, как у соседа `python_reader_clock_doors`.
+Предмет соседа — дерево исходников, оно за неделю не меняется. Предмет ЭТОГО прибора —
+ЖИВОЙ хост: доля строк `ps` с читаемым окружением и видимость работника у живого
+запуска. Недельный такт отвечал бы на вопрос о случайной минуте семидневки.
 """
 from __future__ import annotations
 
 import argparse
+import datetime as dt
 import importlib.util
 import json
 import os
@@ -40,7 +62,21 @@ import sys
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent
+if str(ROOT) not in sys.path:          # прибор зовут и подпроцессом, и из тестов
+    sys.path.insert(0, str(ROOT))
 WRAPPER = ROOT / "scripts" / "claude_run_with_timeout.py"
+
+from spa_core.monitoring.call_provenance import call_provenance  # noqa: E402
+from spa_core.monitoring.call_provenance import describe as provenance_line  # noqa: E402,E501
+from spa_core.utils.observation import observed  # noqa: E402
+
+#: НИ ПУТИ ОТЧЁТА, НИ ТАКТА здесь НЕТ — и это решение, а не пропуск. Отчёт пишет
+#: ПОЗВАВШИЙ (ступень моста: только она достижима для сторожа писателей), срок решает
+#: ФАЙЛ отчёта, значит и путь, и гейт такта живут у него —
+#: `findings_bridge.WORKER_AXIS_CENSUS_ARTIFACT` / `…_TACT_DAYS`. Вторая копия любого из
+#: них здесь разошлась бы с первой МОЛЧА, а это ровно класс ADR-220, которым прибор и
+#: его соседи заняты.
+
 
 #: Класс исполняемого файла по ПУТИ. Платформенные двоичные файлы Apple окружение в
 #: `ps -E` не отдают (это не наша настройка и починить её нельзя), поэтому класс —
@@ -185,42 +221,141 @@ def findings(rep: dict) -> list:
     return out
 
 
+def document(rep: dict, found: list, *, root=ROOT, now=None,
+             main_file=None, argv_in=None) -> dict:
+    """Отчёт прибора как ДОКУМЕНТ — то, что читают конституция и шаг 0-офис.
+
+    ``status`` объявлен словом, а не выведен из длины списка находок читателем:
+    вывод «находок нет ⇒ чисто» был бы неверен для третьего исхода, а третий исход
+    документом не становится вовсе — он поднимает :class:`NotMeasured` и артефакт не
+    пишется (инв. #17: «не измерено» не имеет права выглядеть как «измерено и чисто»).
+
+    ``invoked_by`` — наблюдение «КТО ПОЗВАЛ», и оно здесь по тому же доводу, что у
+    соседа (`python_reader_clock_doors`, заказ G37 п. 1): это единственное поле,
+    которое покраснеет, если проводку однажды снимут и отметку снова начнёт ставить
+    рука цикла. Часы и обе двери разбора — ВХОДЫ, стенных часов в документе нет.
+    """
+    moment = now if now is not None else dt.datetime.now(dt.timezone.utc)
+    prov = call_provenance(
+        tree_root=Path(root),
+        **({"main_file": main_file} if main_file is not None else {}),
+        **({"argv": argv_in} if argv_in is not None else {}))
+    return {
+        "generated_at": moment.isoformat(),
+        "status": "FINDING" if found else "CLEAN",
+        "advisory": True,
+        "invoked_by": prov,
+        "rows_total": rep["rows_total"],
+        "env_readable": rep["env_readable"],
+        "env_blind": rep["env_blind"],
+        "readable_share": rep["readable_share"],
+        "blind_by_class": rep["blind_by_class"],
+        "axis_measurable": rep["axis_measurable"],
+        "runs": rep["runs"],
+        "findings": list(found),
+    }
+
+
+def report(doc: dict) -> list:
+    """Строки отчёта. ЕДИНСТВЕННАЯ копия правила отрисовки в приборе.
+
+    И консоль, и шаг 0-офис идут сюда: вторая копия правила расходилась бы с первой
+    молча (ADR-220), а расхождение «в консоли одно, в отчёте другое» и есть тот дефект,
+    который прибор рядом измеряет. Отсутствующее поле печатается словами «НЕ ИЗМЕРЕНО»,
+    а не `None` и не нулём (инв. #17): `None` читается глазом как «пусто, всё в порядке».
+    """
+    def _n(key, kind=int):
+        """Отсутствие наблюдения — СЛОВА, а не `None` и не нуль (инв. #17).
+
+        `None` в выводе читается глазом как «пусто, всё в порядке» — ровно fail-OPEN,
+        и собственный контроль этого файла поймал здесь именно его.
+        """
+        value = observed(doc, key, kind=kind)
+        return "НЕ ИЗМЕРЕНО" if value is None else value
+
+    share = observed(doc, "readable_share", kind=float)
+    out = [f"перепись измеримости оси РАБОТНИКА · строк ps: {_n('rows_total')}"]
+    out.append(f"   окружение читается: {_n('env_readable')} "
+               f"({'НЕ ИЗМЕРЕНО' if share is None else f'{share * 100:.1f} %'}) · "
+               f"не читается: {_n('env_blind')}")
+    for klass, n in (observed(doc, "blind_by_class", kind=dict) or {}).items():
+        out.append(f"     слепых [{klass}]: {n}")
+    runs = observed(doc, "runs", kind=list)
+    out.append("   живых запусков (по аргументу `--run-id` у запускателя): "
+               f"{'НЕ ИЗМЕРЕНО' if runs is None else len(runs)}")
+    for run in runs or []:
+        out.append(f"     {'✅' if run.get('visible') else '❌'} {run.get('label')}: "
+                   f"запускатель {run.get('launcher_pids')} · "
+                   f"работник(и) {run.get('worker_pids') or '—'} · "
+                   f"носители по происхождению {run.get('counts')} · "
+                   f"из них сам прибор: {run.get('self') or '—'}")
+    out.append(f"   [ЗВАВШИЙ] {provenance_line(observed(doc, 'invoked_by', kind=dict))}")
+    found = observed(doc, "findings", kind=list)
+    if found:
+        out.append("   🔎 НАХОДКИ:")
+        out.extend(f"     • {f}" for f in found)
+    elif found == []:
+        out.append("   ✅ находок нет: ось измерима, у каждого живого запуска работник виден")
+    else:
+        out.append("   ⛔ НЕ ИЗМЕРЕНО: перечня находок в отчёте нет — это не «находок нет»")
+    out.append("   ADVISORY: прибор только ЧИТАЕТ состояние системы и ничего не перезапускает")
+    return out
+
+
+def format_report(doc: dict) -> list:
+    """Строки для ЧИТАТЕЛЯ — обязательного шага 0-офис.
+
+    Отличие от :func:`report` ровно одно и оно про читателя, а не про предмет: у офиса
+    заведено правило «красные строки = действовать», поэтому находка помечается знаком.
+    """
+    lines = report(doc)
+    if str(doc.get("status")) == "FINDING":
+        lines[0] = f"⚠️ {lines[0]}"
+    return lines
+
+
+def run(root=ROOT, *, now=None, wrapper=None, snap=None, argv=None,
+        self_pid=None) -> dict:
+    """ОДИН замер и документ. Ни файла, ни гейта такта — оба у того, КТО ПОЗВАЛ.
+
+    Разделение не декоративное: писателя артефакта сторож достижимости ищет среди точек
+    входа и импортированного кода, и прибор, зовомый подпроцессом по константе пути, ему
+    не виден. Поэтому пишет ступень моста (она — точка входа агента
+    `com.spa.decision_loop`), а прибор отдаёт документ и остаётся читающим.
+
+    Третий исход сюда НЕ помещается по построению: прибор, не снявший снимка, поднимает
+    :class:`NotMeasured`, и документа не существует — значит и записать нечего (инв. #17:
+    артефакт с выдуманным вердиктом лгал бы ещё и своим возрастом).
+
+    Все двери к ОС остаются ВХОДАМИ (``wrapper``/``snap``/``argv``/``self_pid``) — иначе
+    каждый тест отвечал бы на вопрос о ХОСТЕ, а не о проводке
+    (`.claude/rules/deployment.md`, § про инъекцию).
+    """
+    rep = census(wrapper, snap=snap, argv=argv, self_pid=self_pid)
+    return document(rep, findings(rep), root=root, now=now)
+
+
 def main(argv=None) -> int:
     ap = argparse.ArgumentParser(description=__doc__.splitlines()[0])
-    ap.add_argument("--json", action="store_true")
+    ap.add_argument("--json", action="store_true",
+                    help="отдать документ на stdout (его записывает ПОЗВАВШИЙ)")
+    ap.add_argument("--repo-root", default=str(ROOT),
+                    help="дерево, о котором спрашивается происхождение зова")
     args = ap.parse_args(argv)
     try:
-        rep = census()
+        doc = run(root=args.repo_root)
     except NotMeasured as exc:
         print(f"⛔ НЕ ИЗМЕРЕНО: {exc}", file=sys.stderr)
         if args.json:
             print(json.dumps({"unmeasured": str(exc)}, ensure_ascii=False))
         return 2
 
-    found = findings(rep)
     if args.json:
-        print(json.dumps({**rep, "findings": found}, ensure_ascii=False, indent=1))
-        return 1 if found else 0
-
-    share = rep["readable_share"]
-    print(f"Перепись измеримости оси РАБОТНИКА · строк ps: {rep['rows_total']}")
-    print(f"  окружение читается: {rep['env_readable']} "
-          f"({'—' if share is None else f'{share*100:.1f} %'}) · не читается: {rep['env_blind']}")
-    for klass, n in rep["blind_by_class"].items():
-        print(f"    слепых [{klass}]: {n}")
-    print(f"  живых запусков (по аргументу `--run-id` у запускателя): {len(rep['runs'])}")
-    for run in rep["runs"]:
-        mark = "✅" if run["visible"] else "❌"
-        print(f"    {mark} {run['label']}: запускатель {run['launcher_pids']} · "
-              f"работник(и) {run['worker_pids'] or '—'} · носители по происхождению "
-              f"{run['counts']} · из них сам прибор: {run['self'] or '—'}")
-    if found:
-        print("\n🔎 НАХОДКИ:")
-        for f in found:
-            print(f"  • {f}")
-        return 1
-    print("\n✅ находок нет: ось измерима, у каждого живого запуска работник виден.")
-    return 0
+        print(json.dumps(doc, ensure_ascii=False))
+    else:
+        for line in report(doc):
+            print(line)
+    return 1 if doc["findings"] else 0
 
 
 if __name__ == "__main__":
