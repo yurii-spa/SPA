@@ -1,9 +1,8 @@
 {
-  "measured_at_cycle": 564,
-  "measured_on": "origin/main 4e9c01c89",
+  "measured_at_cycle": 966,
+  "measured_on": "origin/main 766edfecc",
   "no_entry": [
-    "owner_decision_pending.json",
-    "shadow_trigger_evaluation.json"
+    "owner_decision_pending.json"
   ],
   "undeclared_top": {
     "_health.json": [
@@ -29,5 +28,8 @@
       "inputs"
     ]
   },
-  "nested_population_at_measurement": 169
+  "nested_population_at_measurement": 169,
+  "notes": [
+    "ADR-846 (цикл #966): `shadow_trigger_evaluation.json` ВЫШЕЛ из класса — у артефакта объявлены и производитель (`_PRODUCER`), и семь читаемых полей (`_READ_SCHEMA`). База опущена, а не дописана: класс уменьшился."
+  ]
 }

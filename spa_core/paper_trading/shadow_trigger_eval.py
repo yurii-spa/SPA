@@ -42,6 +42,7 @@ from spa_core.paper_trading.allocation_rationale import (
     history_filename as _history_filename,
     run_identity as _run_identity,
 )
+from spa_core.paper_trading import cio_trial
 from spa_core.utils.atomic import atomic_save
 
 log = logging.getLogger("spa.paper_trading.shadow_trigger_eval")
@@ -385,6 +386,15 @@ BLOCKADE_ACCUMULATING = "ACCUMULATING"
 BLOCKADE_NOT_BLOCKED = "NOT_BLOCKED"
 BLOCKADE_UNMEASURED = "UNMEASURED"
 
+# Достижимость РАЗРЕШЕНИЯ ВЛАДЕЛЬЦА на пробный ход (ADR-334) — вопрос, соседний
+# с достижимостью взвода и НЕ тот же самый: взвод держат девять гейтов разом,
+# а разрешение по построению снимает пять из них и надбавку за разворот. То, что
+# «взвод недостижим», про разрешение не говорит НИЧЕГО, и обратно тоже.
+REACH_BLOCKED = "UNREACHABLE_BY_GATES"
+REACH_OPEN = "OPEN_BY_GATES"
+REACH_MOOT = "NOT_BLOCKED"
+REACH_UNMEASURED = "UNMEASURED"
+
 # Глубина точного перебора минимального покрытия. Гейтов девять, поэтому до
 # трёх проверяется исчерпывающе (≈130 сочетаний); живой замер 15.10 закрылся
 # ДВУМЯ гейтами, то есть запас есть.
@@ -466,6 +476,175 @@ def blockade_cover(material: List[dict], census_gates: List[str]) -> Tuple[List[
         greedy.append(best)
         remaining = [i for i in remaining if days[i].get(best, True)]
     return sorted(greedy), False
+
+
+def trial_grant_reach(records: List[dict], *, grant: Optional[dict] = None,
+                      min_gain_pp: Optional[float] = None,
+                      acts: int = 0) -> dict:
+    """Могло ли РАЗРЕШЕНИЕ ВЛАДЕЛЬЦА на пробный ход сработать хоть раз после выдачи.
+
+    Вопрос, которого не задавал никто. Владелец ответил 11.09 (``ADR-334``,
+    ``owner_choice: 1``): «советник получает право ровно на ОДИН ход, чтобы
+    появилось что оценивать». Ответ дан затем, чтобы закрыть критерий №3 взвода
+    (``net_bps_if_followed``), который без единого ACT не считается. Сорок семь
+    дней спустя ACT по-прежнему ноль — и до этой переписи ни один сторож не
+    отвечал на вопрос «а разрешение-то могло сработать?». «Ещё не случилось» и
+    «не могло случиться ни в один день» читаются одинаково и означают разное:
+    второе есть ответ владельцу, а не ожидание.
+
+    Правило разрешения НЕ переписывается здесь: оно живёт одной дверью
+    :func:`spa_core.paper_trading.cio_trial.grant_blockers`, которой тот же цикл
+    судит живой ход. Вторая копия спорила бы с первой молча.
+
+    **Единица счёта — ЗАПИСЬ вердикта, а не календарный день**, и это названо в
+    самом отчёте: цикл в иной день прогоняется до пятнадцати раз, поэтому
+    «записей» и «дат» — разные числа, и доля от записей взвешена частотой
+    прогона. Обе величины печатаются рядом.
+
+    Три исхода различимы (инв. #17):
+
+    * ``UNREACHABLE_BY_GATES`` — измеренных записей после выдачи есть, и ни на
+      одной разрешение сработать не могло; препятствия НАЗВАНЫ переписью;
+    * ``OPEN_BY_GATES`` — есть запись, которой гейты и выигрыш не мешали. Это НЕ
+      «разрешение сработало»: сработает ли оно, зависит ещё от входов, которых в
+      этой истории нет (класс хода у демпфера ADR-168, книга, израсходованность),
+      и о них отчёт молчит ВСЛУХ;
+    * ``UNMEASURED`` — мерить было нечего либо состояние гейтов выведено из строк
+      причин (вывод лосси по построению: строка вроде ``reversal_of_recent_move``
+      гейта не называет), а по лосси-источнику «не мешало» не утверждается. В
+      обратную сторону лосси-источник годится: НАЗВАННЫЙ отказ — положительное
+      свидетельство.
+
+    ADVISORY. Ничего не гейтит, ``ready_to_arm`` не трогает, ни одного порога не
+    читает кроме базового ``min_gain_pp`` — и тот аргументом.
+    """
+    grant = dict(grant or cio_trial.TRIAL_GRANT)
+    granted_at = str(grant.get("granted_at") or "")
+    grant_date = granted_at[:10]
+
+    buckets = {
+        "after_grant": {"records": [], "dates": set(), "open_records": [],
+                        "open_dates": set(), "blocked": 0, "unmeasured": 0},
+        "before_grant": {"records": [], "dates": set(), "open_records": [],
+                         "open_dates": set(), "blocked": 0, "unmeasured": 0},
+    }
+    blocker_counts: Dict[Tuple[str, str], int] = {}
+    unmeasured_rows: List[dict] = []
+
+    for rec in records:
+        state, source = gate_state(rec)
+        date = str(rec.get("cycle_date") or "")
+        if state is None or not state.get("has_legs", True):
+            continue          # нечего двигать ⇒ разрешению нечего снимать
+        # Граница по ДАТЕ выдачи, и день выдачи отнесён к «до»: разрешение
+        # пришло в 14:31Z, а время записи вердикта внутри дня здесь не
+        # сохранено — отнести день выдачи к «после» значило бы утверждать
+        # порядок, которого замер не видел.
+        key = "after_grant" if (grant_date and date > grant_date) else "before_grant"
+        b = buckets[key]
+        b["records"].append(date)
+        b["dates"].add(date)
+
+        failing = [g for g, ok in state.items() if not ok and g != "has_legs"]
+        # Выигрыш хода носит ДВА имени у одной величины: `gain_pp` в строке
+        # истории и `gain_pp_claimed` в строке отчёта. Перепись годится для
+        # обеих форм, и спрашиваются они ПООЧЕРЁДНО, а не подстановкой: имя, по
+        # которому значения нет, обязано остаться отсутствием наблюдения.
+        gain = observed(rec, "gain_pp", kind=(int, float))
+        if gain is None:
+            gain = observed(rec, "gain_pp_claimed", kind=(int, float))
+        blockers, why = cio_trial.grant_blockers(
+            failing, gain_pp=gain, min_gain_pp=min_gain_pp,
+        )
+        if blockers is None:
+            b["unmeasured"] += 1
+            unmeasured_rows.append({"date": date, "why": why, "source": source})
+            continue
+        if not blockers:
+            if source != "gates":
+                b["unmeasured"] += 1
+                unmeasured_rows.append({
+                    "date": date, "source": source,
+                    "why": ("состояние гейтов выведено из строк причин (лосси) — "
+                            "«не мешало» по такому источнику не утверждается")})
+                continue
+            b["open_records"].append(date)
+            b["open_dates"].add(date)
+            continue
+        b["blocked"] += 1
+        for kind, gate_names in blockers:
+            for g in (gate_names or [""]):
+                if key == "after_grant":
+                    blocker_counts[(kind, g)] = blocker_counts.get((kind, g), 0) + 1
+
+    after, before = buckets["after_grant"], buckets["before_grant"]
+    n_after = len(after["records"])
+    measured_after = n_after - after["unmeasured"]
+
+    census = [
+        {"class": kind, "gate": gate or None, "records": cnt,
+         "pct_of_after": round(100.0 * cnt / n_after, 1) if n_after else None}
+        for (kind, gate), cnt in sorted(blocker_counts.items(),
+                                        key=lambda kv: (-kv[1], kv[0]))
+    ]
+
+    if acts:
+        verdict = REACH_MOOT
+        reason = ("оценивать есть что без разрешения: ACT в окне "
+                  f"{acts} — вопрос «могло ли сработать разрешение» не стоит")
+    elif not n_after:
+        verdict = REACH_UNMEASURED
+        reason = (f"существенных записей ПОСЛЕ выдачи ({grant_date}) в окне отчёта "
+                  "нет ни одной — достижимость не мерена")
+    elif not measured_after:
+        verdict = REACH_UNMEASURED
+        reason = (f"все {n_after} существенных записей после выдачи не измерены "
+                  "(нет выигрыша либо лосси-источник состояния гейтов)")
+    elif after["open_records"]:
+        verdict = REACH_OPEN
+        reason = (f"гейты и выигрыш не мешали на {len(after['open_records'])} из "
+                  f"{n_after} существенных записей после выдачи "
+                  f"({len(after['open_dates'])} дат) — тишина этих записей "
+                  "правилом разрешения НЕ объяснена: остальные его входы "
+                  "(класс хода у демпфера, книга, расход) эта история не несёт")
+    else:
+        top = census[0] if census else None
+        named = (f"{top['gate'] or top['class']} — {top['records']} зап. "
+                 f"({top['pct_of_after']} % записей после выдачи)"
+                 if top else "препятствия не названы")
+        verdict = REACH_BLOCKED
+        reason = (f"разрешение владельца от {grant_date} не могло сработать НИ НА ОДНОЙ "
+                  f"из {measured_after} измеренных существенных записей после выдачи "
+                  f"({len(after['dates'])} дат); чаще всех стои́т {named}. До выдачи "
+                  f"таких записей было {len(before['open_records'])} из "
+                  f"{len(before['records'])} — предпосылка ответа владельца была верна "
+                  "в день ответа и перестала быть верной после него")
+
+    return {
+        "verdict": verdict,
+        "reason": reason,
+        "grant": {k: grant.get(k) for k in ("adr", "granted_at", "book", "moves")},
+        "unit": ("запись вердикта (цикл), а не календарный день — цикл в иной день "
+                 "прогоняется многократно, и доля от записей взвешена частотой прогона"),
+        "min_gain_pp": min_gain_pp,
+        "after_grant": {
+            "records": n_after, "dates": len(after["dates"]),
+            "measured_records": measured_after,
+            "open_by_gates_records": len(after["open_records"]),
+            "open_by_gates_dates": sorted(after["open_dates"]),
+            "blocked_records": after["blocked"],
+            "unmeasured_records": after["unmeasured"],
+        },
+        "before_grant": {
+            "records": len(before["records"]), "dates": len(before["dates"]),
+            "open_by_gates_records": len(before["open_records"]),
+            "open_by_gates_dates": sorted(before["open_dates"]),
+            "blocked_records": before["blocked"],
+            "unmeasured_records": before["unmeasured"],
+        },
+        "blocker_census": census,
+        "unmeasured_sample": unmeasured_rows[:10],
+    }
 
 
 def arming_blockade(records: List[dict], *, observed_days: int, min_days: int,
@@ -587,6 +766,14 @@ def arming_blockade(records: List[dict], *, observed_days: int, min_days: int,
         "verdict": verdict,
         "reason": reason,
         "material_days": n,
+        # Единица счёта у всех `*_days` этого блока — ЗАПИСЬ вердикта, а не
+        # календарная дата: цикл в иной день прогоняется до пятнадцати раз
+        # (замер 28.10: 148 существенных записей на 69 датах, максимум 15 на
+        # дате), поэтому доля «% существенных» взвешена частотой прогона, а не
+        # календарём. Имена `*_days` оставлены — на них стоят читатели и
+        # храповик, — но число дат печатается РЯДОМ: два разных числа под одним
+        # именем были бы ровно той подменой, против которой написан блок.
+        "material_dates": len({row["date"] for row in material}),
         "necessary_blockers": necessary,
         "blockade_cover": cover,
         "cover_is_minimal": cover_exact,
@@ -737,10 +924,22 @@ def evaluate_window(
     # обрезано выше, и брать для неё всю историю значило бы ответить на другой
     # вопрос («когда-нибудь») вместо заданного («в оценённом окне»).
     _window_dates = {r.get("cycle_date") for r in per_verdict}
+    _window_history = [rec for rec in history
+                       if rec.get("cycle_date") in _window_dates]
     blockade = arming_blockade(
-        [rec for rec in history if rec.get("cycle_date") in _window_dates],
+        _window_history,
         observed_days=observed_days, min_days=min_days,
         acts_scored=len(acts_scored),
+    )
+    # Базовый порог выигрыша берётся у ЖИВОГО контракта порогов, а не литералом:
+    # литерал здесь разошёлся бы с тем, чем разрешение судит живой ход, и
+    # разошёлся бы молча. Колонка — та же, в которой работает бумажная книга.
+    from spa_core.allocator.rebalance_economics import TriggerParams
+
+    reach = trial_grant_reach(
+        _window_history,
+        min_gain_pp=float(TriggerParams.for_mode("paper").min_gain_pp),
+        acts=len(acts),
     )
 
     doc = {
@@ -768,6 +967,10 @@ def evaluate_window(
         # владельца и этим блоком не меняется. Блок отвечает на соседний вопрос —
         # «достижим ли взвод ожиданием» — который до цикла #487 не задавал никто.
         "arming_blockade": blockade,
+        # Соседний вопрос и НЕ тот же самый: разрешение владельца на пробный ход
+        # (ADR-334) снимает пять гейтов из девяти, поэтому «взвод недостижим» о
+        # нём не говорит ничего. Тоже не критерий и не гейт.
+        "trial_grant_reach": reach,
         "params": {
             "horizon_days": horizon_days,
             "min_observation_days": min_days,
@@ -870,6 +1073,39 @@ def format_blockade(blockade: Optional[dict]) -> List[str]:
     return out
 
 
+def format_trial_reach(reach: Optional[dict]) -> List[str]:
+    """Строки про достижимость разрешения на пробный ход — CLI и шаг 0-офис.
+
+    Отсутствие блока — ТРЕТИЙ исход: отчёт старого образца молчит ровно так же,
+    как отчёт, в котором разрешение достижимо, и молчание читалось бы согласием.
+    """
+    if not isinstance(reach, dict):
+        return ["Достижимость пробного хода: ⚠️ НЕ ИЗМЕРЕНА — в отчёте нет блока "
+                "`trial_grant_reach` (отчёт старого образца)"]
+    mark = "🔴" if reach.get("verdict") == REACH_BLOCKED else "•"
+    grant = reach.get("grant") or {}
+    after = reach.get("after_grant") or {}
+    before = reach.get("before_grant") or {}
+    out = [f"Достижимость пробного хода ({grant.get('adr')}): {mark} "
+           f"{reach.get('verdict')} — {reach.get('reason')}",
+           f"  после выдачи: записей {after.get('records')} "
+           f"({after.get('dates')} дат) · измерено {after.get('measured_records')} · "
+           f"разрешение сработало бы на {after.get('open_by_gates_records')} · "
+           f"не измерено {after.get('unmeasured_records')}",
+           f"  до выдачи для сравнения: {before.get('open_by_gates_records')} из "
+           f"{before.get('records')} записей разрешение сработало бы"]
+    for row in (reach.get("blocker_census") or [])[:5]:
+        out.append(f"  мешает {row.get('gate') or row.get('class')}: "
+                   f"{row.get('records')} зап. ({row.get('pct_of_after')} % после выдачи)")
+    sample = reach.get("unmeasured_sample") or []
+    if sample:
+        out.append(f"  ⚠️ НЕ ИЗМЕРЕНО записей (образец {len(sample)}): "
+                   + "; ".join(f"{r.get('date')} — {r.get('why')}" for r in sample[:2]))
+    out.append("  ADVISORY: перепись только ЧИТАЕТ — ни разрешения, ни порога, ни "
+               "вердикта она не меняет")
+    return out
+
+
 def format_summary(doc: dict) -> str:
     """Human-readable stdout summary (RU — owner-facing)."""
     lines = [
@@ -890,6 +1126,7 @@ def format_summary(doc: dict) -> str:
         lines.append(f"  [{c['status']:>9}] {c['criterion']} {c['threshold']} "
                      f"(факт: {c['actual']}){note}")
     lines.extend(format_blockade(doc.get("arming_blockade")))
+    lines.extend(format_trial_reach(doc.get("trial_grant_reach")))
     lines.append("Включение — отдельное owner-решение (pre_cutover_gate + ADR); "
                  "этот отчёт капитал не двигает.")
     return "\n".join(lines)

@@ -100,6 +100,11 @@ _READ_SCHEMA: dict[str, tuple[str, ...]] = {
                                     "escalated", "sources_unread", "open_cards", "delivery",
                                     "owner_answer_delivery", "censuses"),
     "loop_retro.json": ("findings", "outcomes_completeness"),
+    # Перечень вымерен ПО ВЕТКЕ выжимки, а не по файлу: у артефакта
+    # четырнадцать верхних ключей, читается семь.
+    "shadow_trigger_evaluation.json": ("status", "ready_to_arm", "observation_days",
+                                      "counts.act", "criteria", "arming_blockade",
+                                      "trial_grant_reach"),
     # ADR-526, заказ G86 п. 4. `fails` объявлен вместе с `n_fails` намеренно:
     # число без перечня не говорит, ЧТО именно расходится, а перечень без числа
     # не отличает «нашли ноль» от «поле не пишется».
@@ -1506,6 +1511,11 @@ _PRODUCER: dict[str, str] = {
     "cio_outcome_independence.json": "spa_core/monitoring/cio_outcome_independence.py",
     "cio_substitution_census.json": "spa_core/monitoring/cio_substitution_census.py",
     "shadow_blockade_attribution.json": "spa_core/monitoring/shadow_blockade_attribution.py",
+    # Писатель — модуль, а запускатель — `com.spa.daily_cycle` (конституция,
+    # SLO 26 ч). Объявлено циклом #966: до него ветка этого артефакта читала
+    # ШЕСТЬ полей, не объявив ни одного, и «блока нет» печаталось безусловно —
+    # ровно тот класс, ради которого схема и `_absent_verdict` заведены.
+    "shadow_trigger_evaluation.json": "spa_core/paper_trading/shadow_trigger_eval.py",
     "target_stability.json": "spa_core/monitoring/target_stability.py",
     "ranking_tie_census.json": "spa_core/monitoring/ranking_tie_census.py",
     "ranking_tie_persistence.json": "spa_core/monitoring/ranking_tie_persistence.py",
@@ -5301,9 +5311,12 @@ def _summarize_json(path: str, data, *, now: dt.datetime | None = None,
                 out.append(f"   [{c.get('status')}] критерий {c.get('criterion')} "
                            f"{c.get('threshold')} (факт: {c.get('actual')})")
         try:
-            from spa_core.paper_trading.shadow_trigger_eval import format_blockade
+            from spa_core.paper_trading.shadow_trigger_eval import (
+                format_blockade, format_trial_reach,
+            )
 
-            blockade_lines = format_blockade(data.get("arming_blockade"))
+            blockade_lines = (format_blockade(data.get("arming_blockade"))
+                              + format_trial_reach(data.get("trial_grant_reach")))
         except Exception as exc:  # noqa: BLE001
             # Тот же приём, что у кнопок ниже: обязательный шаг 0-офис не имеет
             # права упасть из-за строчки оформления — упавший шаг это НЕ

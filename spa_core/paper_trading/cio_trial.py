@@ -69,6 +69,53 @@ FREQUENCY_GATES = frozenset({"cooldown_ok", "min_hold_ok", "move_turnover_ok",
 #: Экономика и данные — обязаны пройти сами.
 ECONOMIC_GATES = frozenset({"payback_within_horizon", "target_fully_evidenced"})
 
+#: Что разрешение СНИМАЕТ: ограничители частоты + надбавка за разворот.
+#: Полоса `gain_above_band` снимается не целиком — базовый порог ниже проверяется
+#: отдельно: снимается ровно НАДБАВКА, и это разные утверждения.
+WAIVED_GATES = frozenset(FREQUENCY_GATES | {"gain_above_band"})
+
+#: Классы препятствий разрешению. Имена — часть контракта двери: по ним считает
+#: перепись достижимости, и переименование = смена вопроса.
+BLOCK_ECONOMIC = "economics_failed"      # экономика хода не прошла сама
+BLOCK_BASE_GAIN = "below_base_gain"      # выигрыш ниже БАЗОВОГО порога
+BLOCK_UNKNOWN = "unknown_gate"           # гейт, разрешению не названный ⇒ держать
+
+
+def grant_blockers(failing, *, gain_pp, min_gain_pp):
+    """Что мешает разрешению превратить ЭТОТ HOLD в пробный ход — ОДНА дверь правила.
+
+    ``failing`` — имена отказавших гейтов (без ``has_legs``: «двигать нечего» это
+    не препятствие разрешению, а отсутствие предмета).
+
+    Возврат ``(blockers, unmeasured)`` — три исхода, различимые (инв. #17):
+
+    * ``([], None)`` — по гейтам и выигрышу ничто не мешает;
+    * ``([(класс, [гейты…]), …], None)`` — препятствия НАЗВАНЫ, в том же порядке,
+      в котором их называет :func:`apply_trial_grant`;
+    * ``(None, причина)`` — НЕ ИЗМЕРЕНО: входа нет, и «сработало бы» по нему не
+      утверждается ни в одну сторону.
+
+    Правило живёт здесь, а не двумя копиями: :func:`apply_trial_grant` решает им
+    живой ход, перепись достижимости (``shadow_trigger_eval.trial_grant_reach``)
+    им же судит историю. Две копии спорили бы о том же дне молча — обе печатают
+    ответ, ни одна не печатает правило.
+    """
+    if gain_pp is None:
+        return None, "выигрыш хода не измерен"
+    if min_gain_pp is None:
+        return None, "базовый порог выигрыша не измерен"
+    names = sorted(str(g) for g in failing if str(g) != "has_legs")
+    blockers = []
+    econ = [g for g in names if g in ECONOMIC_GATES]
+    if econ:
+        blockers.append((BLOCK_ECONOMIC, econ))
+    if float(gain_pp) < float(min_gain_pp) - 1e-9:
+        blockers.append((BLOCK_BASE_GAIN, []))
+    unknown = [g for g in names if g not in WAIVED_GATES and g not in ECONOMIC_GATES]
+    if unknown:
+        blockers.append((BLOCK_UNKNOWN, unknown))
+    return blockers, None
+
 
 def trial_moves_spent(data_dir, trades_filename: str = "trades.json") -> Tuple[Optional[int], str]:
     """Сколько ходов уже сделано по разрешению. ``(None, причина)`` — не измерено."""
@@ -116,18 +163,23 @@ def apply_trial_grant(decision, params, *, book_id: str, data_dir,
         return decision, "разрешение израсходовано"
 
     failing = sorted(k for k, v in gates.items() if not v)
-    failing_econ = [g for g in failing if g in ECONOMIC_GATES]
-    if failing_econ:
-        return decision, f"экономика хода не прошла сама: {failing_econ}"
-    base_gain_ok = float(getattr(decision, "gain_pp", 0.0)) >= float(params.min_gain_pp) - 1e-9
-    if not base_gain_ok:
-        return decision, (f"выигрыш {decision.gain_pp:.3f} пп ниже базового порога "
-                          f"{params.min_gain_pp:.3f} пп — пробовать нечего")
-    unknown = [g for g in failing if g not in FREQUENCY_GATES | {"gain_above_band"}]
-    if unknown:
-        return decision, f"отказал неизвестный разрешению гейт: {unknown} ⇒ держать"
+    blockers, unmeasured = grant_blockers(
+        failing,
+        gain_pp=float(getattr(decision, "gain_pp", 0.0)),
+        min_gain_pp=float(params.min_gain_pp),
+    )
+    if blockers is None:
+        return decision, f"препятствия разрешению не измерены ⇒ держать: {unmeasured}"
+    for kind, gate_names in blockers:
+        if kind == BLOCK_ECONOMIC:
+            return decision, f"экономика хода не прошла сама: {gate_names}"
+        if kind == BLOCK_BASE_GAIN:
+            return decision, (f"выигрыш {decision.gain_pp:.3f} пп ниже базового порога "
+                              f"{params.min_gain_pp:.3f} пп — пробовать нечего")
+        if kind == BLOCK_UNKNOWN:
+            return decision, f"отказал неизвестный разрешению гейт: {gate_names} ⇒ держать"
 
-    waived = [g for g in failing if g in FREQUENCY_GATES or g == "gain_above_band"]
+    waived = [g for g in failing if g in WAIVED_GATES]
     decision.decision = "ACT"
     decision.gates[MARK] = True
     decision.reasons.append(

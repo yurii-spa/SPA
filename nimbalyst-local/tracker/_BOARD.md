@@ -2,15 +2,15 @@
 
 > Авто-генерится `scripts/build_tracker_board.py` из `nimbalyst-local/tracker/*.md`. НЕ править вручную — правь карточки. Источник правды — карточки, это индекс (bootstrap).
 >
-> Собрана: 2026-10-28T06:24:22Z · сверка с карточками: `python3 scripts/build_tracker_board.py --check` (сторож `spa_core/tests/test_tracker_board_matches_cards.py`).
+> Собрана: 2026-10-28T12:00:21Z · сверка с карточками: `python3 scripts/build_tracker_board.py --check` (сторож `spa_core/tests/test_tracker_board_matches_cards.py`).
 >
-> Сверено с `origin/main` (01dcead10).
+> Сверено с `origin/main` (766edfecc) · у **1** своя правка, кто новее — не измерено.
 >
-> Всего карточек: **1486** · ждёт владельца: **1** · занято сессиями: **15**.
+> Всего карточек: **1487** · ждёт владельца: **0** · занято сессиями: **15**.
 
 ## 🔴 ЖДЁТ ВЛАДЕЛЬЦА (needs-owner)
 
-- **Уточнение по заметке: купить зонт в пятницу**  ·  `owner-decision-utochnenie-po-zametke-kupit-zont-v-pyatn-6.md`
+_Пусто — открытых решений на владельце нет._
 
 ## 🔒 ЗАНЯТЫ СЕССИЯМИ (claimed_by)
 
@@ -34,8 +34,6 @@
 
 ## 🧑‍⚖️ Owner Decisions (что нужно от владельца)  (373)
 
-### · needs-owner
-- Уточнение по заметке: купить зонт в пятницу  ·  `owner-decision-utochnenie-po-zametke-kupit-zont-v-pyatn-6.md` · 2026-10-27
 ### · ingested
 - Ключ Etherscan уже работает — задача была «фантомной» (петля исправлена)  ·  `own-06-etherscan-prod-key.md` · 2026-07-15
 - Включить письма-подтверждения для подписки — добавить два ключа на сервер  ·  `own-07-retention-secrets.md` · 2026-07-15
@@ -320,6 +318,7 @@
 - Уточнение по заметке: ADR-070.13: тревогу core-agent-down гасит agent_health  ·  `owner-decision-utochnenie-po-zametke-adr-070-13-trevogu-2.md` · 2026-08-31
 - Уточнение по заметке: Давай так и сделаем  ·  `owner-decision-utochnenie-po-zametke-davai-tak-i-sdelae.md` · 2026-07-22
 - Уточнение по заметке: Храповик замороженных дат КРАСЕН на чистом main: test_studio_os.py принёс шесть литеральных дат  ·  `owner-decision-utochnenie-po-zametke-hrapovik-zamorozhe.md` · 2026-10-03
+- Уточнение по заметке: купить зонт в пятницу  ·  `owner-decision-utochnenie-po-zametke-kupit-zont-v-pyatn-6.md` · 2026-10-27
 - Уточнение по заметке: Неприменённый ответ владельца «1» — адресат не назван  ·  `owner-decision-utochnenie-po-zametke-neprimenennyi-otve-2.md` · 2026-10-03
 - Уточнение по заметке: Неприменённый ответ владельца «1» — адресат не назван  ·  `owner-decision-utochnenie-po-zametke-neprimenennyi-otve.md` · 2026-09-17
 - Уточнение по заметке: Приборы бросают одноразовый стенд: 87 ГБ снято, остаток класса измерен — 35 файлов без уборки  ·  `owner-decision-utochnenie-po-zametke-pribory-brosayut-o.md` · 2026-10-15
@@ -412,7 +411,7 @@
 ### · closed
 - Считать ли верный отказ по правилам допуска неисправностью флота  ·  `owner-decision-schitat-li-vernyi-otkaz-po-pravilam-dopu.md` · 2026-10-08
 
-## 📥 Inbox (задания: Telegram / заметки / голос)  (813)
+## 📥 Inbox (задания: Telegram / заметки / голос)  (814)
 
 ### · in-progress
 - а задача починить все-таки еще раз сообщение которым не пишет нужно твое решени…  ·  `inbox-a-zadacha-pochinit-vse-taki-esche-raz-so.md` · 2026-08-14 · 🔒 `pid43119`
@@ -1097,6 +1096,7 @@
 - Предписанный прогон КРАСНЫЙ на чистом main: 17 падений, замер на пришпиленном af1d972eb  ·  `inbox-predpisannyi-progon-krasnyi-na-chistom-m.md` · 2026-08-29
 - Предписанный прогон мёртвой сессии шёл 3ч47м и не дошёл до 6 процентов — цена прогона может зависеть от живости номера в окружении  ·  `inbox-predpisannyi-progon-mertvoi-sessii-shel.md` · 2026-10-22
 - Предписанный прогон не доживает до вердикта — CI умирает по таймауту внутри пробы стабильности  ·  `inbox-predpisannyi-progon-ne-dozhivaet-do-verdi.md` · 2026-09-19
+- Предписанный прогон тестов на хосте НЕ ЗАПУСКАЕТСЯ: гейт допуска отказывает по диску (16.2 ГБ < 20), и это неотличимо от быстрого успеха  ·  `inbox-predpisannyi-progon-testov-na-hoste-ne-z.md` · 2026-10-28
 - Прибор мутаций по дельте слеп к SUBFAILED и называет своё слепое пятно дырой покрытия  ·  `inbox-pribor-mutatsii-po-delte-slep-k-subfaile.md` · 2026-10-26
 - Прибор наблюдённости капитала каждый цикл кричит про спор TVL, а деньгам это не вредит  ·  `inbox-pribor-nablyudennosti-kapitala-kazhdyi-t.md` · 2026-09-15
 - Приборы бросают одноразовый стенд: 87 ГБ снято, остаток класса измерен — 35 файлов без уборки  ·  `inbox-pribory-brosayut-odnorazovyi-stend-87-gb.md` · 2026-10-03

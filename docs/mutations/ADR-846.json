@@ -1,0 +1,98 @@
+{
+  "title": "ADR-846 — дельта цикла #966: достижимость разрешения владельца на пробный ход (одна дверь правила + перепись + читатель)",
+  "tests": [
+    "spa_core/tests/test_cio_trial_reach.py"
+  ],
+  "mutations": [
+    {
+      "name": "дверь снимает ЭКОНОМИКУ (разрешение открывает ход, который не окупается)",
+      "file": "spa_core/paper_trading/cio_trial.py",
+      "old": "    econ = [g for g in names if g in ECONOMIC_GATES]\n",
+      "new": "    econ = []\n"
+    },
+    {
+      "name": "дверь снимает БАЗОВЫЙ порог выигрыша, а не только надбавку",
+      "file": "spa_core/paper_trading/cio_trial.py",
+      "old": "    if float(gain_pp) < float(min_gain_pp) - 1e-9:\n",
+      "new": "    if False:\n"
+    },
+    {
+      "name": "дверь принимает незнакомый гейт за снятый (потолок суммы владельца молча отменён)",
+      "file": "spa_core/paper_trading/cio_trial.py",
+      "old": "    unknown = [g for g in names if g not in WAIVED_GATES and g not in ECONOMIC_GATES]\n",
+      "new": "    unknown = []\n"
+    },
+    {
+      "name": "НЕ ИЗМЕРЕНО подставляется нулём (инв. #17 наизнанку: выигрыша нет ⇒ считаем 0)",
+      "file": "spa_core/paper_trading/cio_trial.py",
+      "old": "    if gain_pp is None:\n        return None, \"выигрыш хода не измерен\"\n",
+      "new": "    if gain_pp is None:\n        gain_pp = 0.0\n"
+    },
+    {
+      "name": "живой ход судит НЕ дверью: вернулась вторая копия правила",
+      "file": "spa_core/paper_trading/cio_trial.py",
+      "old": "    blockers, unmeasured = grant_blockers(\n",
+      "new": "    blockers, unmeasured = ([g for g in failing if g in ECONOMIC_GATES] and [(BLOCK_ECONOMIC, [])] or [], None) or grant_blockers(\n"
+    },
+    {
+      "name": "лосси-источник выдаётся за измеренный («сработало бы» по выводу из строк причин)",
+      "file": "spa_core/paper_trading/shadow_trigger_eval.py",
+      "old": "            if source != \"gates\":\n",
+      "new": "            if False:\n"
+    },
+    {
+      "name": "НАЗВАННЫЙ отказ из лосси-источника выбрасывается вместе с ним (свидетельство потеряно)",
+      "file": "spa_core/paper_trading/shadow_trigger_eval.py",
+      "old": "        if not blockers:\n            if source != \"gates\":\n",
+      "new": "        if True:\n            if source != \"gates\":\n"
+    },
+    {
+      "name": "день выдачи отнесён к «после» (разрешение судится днём, которого не видело)",
+      "file": "spa_core/paper_trading/shadow_trigger_eval.py",
+      "old": "        key = \"after_grant\" if (grant_date and date > grant_date) else \"before_grant\"\n",
+      "new": "        key = \"after_grant\" if (grant_date and date >= grant_date) else \"before_grant\"\n"
+    },
+    {
+      "name": "«не измерено ВОВСЕ» выдано за «недостижимо» (третий исход склеен со вторым)",
+      "file": "spa_core/paper_trading/shadow_trigger_eval.py",
+      "old": "    elif not measured_after:\n        verdict = REACH_UNMEASURED\n",
+      "new": "    elif not measured_after:\n        verdict = REACH_BLOCKED\n"
+    },
+    {
+      "name": "оценённый ACT не делает вопрос снятым (прибор продолжает кричать о недостижимости)",
+      "file": "spa_core/paper_trading/shadow_trigger_eval.py",
+      "old": "    if acts:\n        verdict = REACH_MOOT\n",
+      "new": "    if False:\n        verdict = REACH_MOOT\n"
+    },
+    {
+      "name": "даты считаются записями (единица счёта снова одна, а не две)",
+      "file": "spa_core/paper_trading/shadow_trigger_eval.py",
+      "old": "            \"records\": n_after, \"dates\": len(after[\"dates\"]),\n",
+      "new": "            \"records\": n_after, \"dates\": n_after,\n"
+    },
+    {
+      "name": "у переписи отказов снова ОДНО число под именем дней",
+      "file": "spa_core/paper_trading/shadow_trigger_eval.py",
+      "old": "        \"material_dates\": len({row[\"date\"] for row in material}),\n",
+      "new": "        \"material_dates\": n,\n"
+    },
+    {
+      "name": "вердикт теряет сравнение «до выдачи ↔ после» (находка перестаёт быть находкой)",
+      "file": "spa_core/paper_trading/shadow_trigger_eval.py",
+      "old": "                  f\"{len(before['records'])} — предпосылка ответа владельца была верна \"\n                  \"в день ответа и перестала быть верной после него\")\n",
+      "new": "                  f\"{len(before['records'])}.\")\n"
+    },
+    {
+      "name": "шаг 0-офис перестаёт читать блок (прибор остаётся сиротой — урок ADR-843)",
+      "file": "scripts/consume_office_reports.py",
+      "old": "            blockade_lines = (format_blockade(data.get(\"arming_blockade\"))\n                              + format_trial_reach(data.get(\"trial_grant_reach\")))\n",
+      "new": "            blockade_lines = format_blockade(data.get(\"arming_blockade\"))\n"
+    },
+    {
+      "name": "отсутствие блока печатается как тишина, а не как третий исход",
+      "file": "spa_core/paper_trading/shadow_trigger_eval.py",
+      "old": "        return [\"Достижимость пробного хода: ⚠️ НЕ ИЗМЕРЕНА — в отчёте нет блока \"\n                \"`trial_grant_reach` (отчёт старого образца)\"]\n",
+      "new": "        return []\n"
+    }
+  ]
+}
