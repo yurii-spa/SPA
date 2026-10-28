@@ -30,6 +30,8 @@ FLAG_NET_OUTFLOW_ACCELERATING  = "NET_OUTFLOW_ACCELERATING"
 # ── Constants ──────────────────────────────────────────────────────────────
 _LOG_CAP          = 100
 _LOG_PATH_DEFAULT = "data/stablecoin_health_log.json"
+_LOG_PATH_AT_IMPORT = _LOG_PATH_DEFAULT
+from spa_core.utils.data_dir import default_file as _default_file  # ADR-849 §2: SPA_DATA_DIR сильнее умолчания
 
 
 # ── Helpers ────────────────────────────────────────────────────────────────
@@ -237,7 +239,7 @@ class ProtocolDeFiStablecoinHealthMonitor:
         if config is None:
             config = {}
 
-        log_path  = config.get("log_path", _LOG_PATH_DEFAULT)
+        log_path  = _default_file(config.get("log_path", _LOG_PATH_DEFAULT), _LOG_PATH_AT_IMPORT)
         write_log = config.get("write_log", True)
 
         if not stablecoins:

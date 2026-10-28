@@ -28,8 +28,12 @@ def test_within_baseline_is_not_a_violation():
 
 
 def test_live_baseline_parses_and_every_entry_names_files():
+    # ADR-849 §2: база ДОШЛА до нуля (все семь модулей перестали писать) — пустая база это цель
+    # храповика, а не поломка. Предмет прежний: файл разбирается в словарь, и у каждой записи,
+    # если она есть, названы файлы (запись без файлов разрешала бы модулю писать что угодно).
     base = g.load_baseline()
-    assert base and all(files for files in base.values())
+    assert isinstance(base, dict)
+    assert all(files for files in base.values())
 
 
 def test_fixed_module_is_not_in_the_baseline():

@@ -206,7 +206,7 @@ def test_main_returns_one_on_internal_failure(monkeypatch):
     assert um.main(argv=[]) == 1
 
 
-def test_main_smoke_real_run(monkeypatch):
+def test_main_smoke_real_run(monkeypatch, tmp_path):
     """End-to-end: main() against the real repo must return 0 and not raise.
 
     Runs against the LIVE repo, so it sees the real launchd fleet and — before
@@ -215,5 +215,11 @@ def test_main_smoke_real_run(monkeypatch):
     the down-alert path itself is covered by the dedicated tests above.
     """
     monkeypatch.setattr(um, "_send_agent_alert", lambda *a, **kw: False)
-    rc = um.main(argv=[])
+    # ADR-849 §2: статус и прежнее состояние — во ВРЕМЕННЫЙ каталог; живой data/ не переписывается.
+    rc = um.main(argv=["--data-dir", str(tmp_path)])
     assert rc == 0
+    assert (tmp_path / um.UPTIME_STATUS_FILE).is_file()
+
+
+def test_main_data_dir_without_value_is_an_internal_failure():
+    assert um.main(argv=["--data-dir"]) == 1

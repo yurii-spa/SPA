@@ -17,6 +17,8 @@ _MODULE_DIR = os.path.dirname(os.path.abspath(__file__))
 _PROJECT_ROOT = os.path.normpath(os.path.join(_MODULE_DIR, "..", ".."))
 
 LOG_PATH = os.path.join(_PROJECT_ROOT, "data", "portfolio_health_log.json")
+_LOG_PATH_AT_IMPORT = LOG_PATH
+from spa_core.utils.data_dir import default_file as _default_file  # ADR-849 §2: SPA_DATA_DIR сильнее умолчания
 LOG_RING_SIZE = 100
 
 _DEFAULT_CONFIG = {
@@ -148,7 +150,7 @@ def analyze(positions, config=None):
     # ---- Empty positions ----
     if not positions:
         result = _empty_result()
-        _append_log(LOG_PATH, result)
+        _append_log(_default_file(LOG_PATH, _LOG_PATH_AT_IMPORT), result)
         return result
 
     total_value = sum(float(p.get("value_usd", 0.0)) for p in positions)
@@ -276,7 +278,7 @@ def analyze(positions, config=None):
         "timestamp": time.time(),
     }
 
-    _append_log(LOG_PATH, result)
+    _append_log(_default_file(LOG_PATH, _LOG_PATH_AT_IMPORT), result)
     return result
 
 

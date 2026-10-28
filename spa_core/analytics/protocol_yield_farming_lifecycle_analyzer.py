@@ -30,6 +30,8 @@ FLAG_STICKY_FARMERS        = "STICKY_FARMERS"
 # Ring-buffer cap
 _LOG_CAP = 100
 _LOG_PATH_DEFAULT = "data/farming_lifecycle_log.json"
+_LOG_PATH_AT_IMPORT = _LOG_PATH_DEFAULT
+from spa_core.utils.data_dir import default_file as _default_file  # ADR-849 §2: SPA_DATA_DIR сильнее умолчания
 
 # Zombie thresholds
 _ZOMBIE_APY_THRESHOLD     = 2.0   # % — very low APY
@@ -187,7 +189,7 @@ class ProtocolYieldFarmingLifecycleAnalyzer:
     """
 
     def __init__(self, log_path: str = _LOG_PATH_DEFAULT):
-        self._log_path = log_path
+        self._log_path = _default_file(log_path, _LOG_PATH_AT_IMPORT)
 
     # ------------------------------------------------------------------
     # Public API

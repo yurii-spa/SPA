@@ -1425,6 +1425,8 @@ def run_and_write(
     Intended for call-sites that want fire-and-forget behaviour (the caller
     catches all exceptions).
     """
+    from spa_core.utils.data_dir import default_file  # ADR-849 §2: SPA_DATA_DIR сильнее умолчания
+    output_path = default_file(output_path, _STATUS_FILE)
     doc = generate(
         registry_path=registry_path,
         output_path=output_path,

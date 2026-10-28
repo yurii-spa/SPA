@@ -14,6 +14,8 @@ import sys
 from datetime import datetime, timezone
 
 DATA_FILE = "data/fee_switch_impact_log.json"
+_DATA_FILE_AT_IMPORT = DATA_FILE
+from spa_core.utils.data_dir import default_file as _default_file  # ADR-849 §2: SPA_DATA_DIR сильнее умолчания
 LOG_CAP = 100
 
 DEFAULT_CONFIG: dict = {
@@ -226,7 +228,7 @@ def _analyze_single(proto: dict, cfg: dict) -> dict:
 
 def _append_log(result: dict, cfg: dict) -> None:
     """Append summary to ring-buffer log; atomic write."""
-    log_path = cfg.get("log_path", DATA_FILE)
+    log_path = _default_file(cfg.get("log_path", DATA_FILE), _DATA_FILE_AT_IMPORT)
     cap = int(cfg.get("log_cap", LOG_CAP))
 
     dir_name = os.path.dirname(log_path)

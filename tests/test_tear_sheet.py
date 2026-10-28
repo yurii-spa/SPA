@@ -533,36 +533,39 @@ class TestEdgeCases:
         assert abs(jan - 0.03) < 0.005  # roughly 0.01 + 0.02 compounded
 
 
-# ── Section 10: real data integration ────────────────────────────────────────
+# ── Section 10: full-shape integration (reproducible fixture) ────────────────
+#
+# ADR-849 §2: до 28.10 эти два теста звали `generate(data_dir=<живой data/>)` — читали рабочее
+# состояние и ПИСАЛИ в него `tear_sheet_summary.json` (в прод-дереве это живой файл). Теперь входы
+# — git-tracked снимок `tests/fixtures/tear_sheet_full/` (data/ на 28.10, ряды длиннее 400 точек
+# обрезаны до первых 400, все разделы отчёта сохранены), а пишет генератор во временный каталог.
+
+_FULL_FIXTURE = ROOT / "tests" / "fixtures" / "tear_sheet_full"
+
+
+@pytest.fixture
+def full_data_dir(tmp_path):
+    d = tmp_path / "data"
+    shutil.copytree(_FULL_FIXTURE, d)
+    return d
+
 
 class TestRealDataIntegration:
-    def test_generate_with_real_project_data(self):
-        """Generate using the actual project data/ directory."""
+    def test_generate_with_real_project_data(self, full_data_dir, tmp_path):
+        """Full-shape inputs (snapshot of project data/) → summary with a best strategy."""
         gen = TearSheetGenerator()
-        project_root = ROOT
-        data_dir = project_root / "data"
-        if not data_dir.exists():
-            pytest.skip("project data/ dir not available in this environment")
-        with tempfile.TemporaryDirectory() as tmpdir:
-            summary = gen.generate(
-                data_dir=str(data_dir),
-                output_dir=str(Path(tmpdir) / "reports")
-            )
+        summary = gen.generate(data_dir=str(full_data_dir), output_dir=str(tmp_path / "reports"))
         assert isinstance(summary, dict)
         assert "best_strategy" in summary
         assert summary["best_strategy"] is not None
+        assert (full_data_dir / "tear_sheet_summary.json").is_file(), "сводка пишется во ВРЕМЕННЫЙ data_dir"
 
-    def test_real_html_has_all_sections(self):
-        """Full check of HTML output from real project data."""
+    def test_real_html_has_all_sections(self, full_data_dir, tmp_path):
+        """Full check of HTML output from the full-shape snapshot."""
         gen = TearSheetGenerator()
-        project_root = ROOT
-        data_dir = project_root / "data"
-        if not data_dir.exists():
-            pytest.skip("project data/ dir not available in this environment")
-        with tempfile.TemporaryDirectory() as tmpdir:
-            out_dir = Path(tmpdir) / "reports"
-            gen.generate(data_dir=str(data_dir), output_dir=str(out_dir))
-            html = (out_dir / "backtest_tearsheet.html").read_text(encoding="utf-8")
+        out_dir = tmp_path / "reports"
+        gen.generate(data_dir=str(full_data_dir), output_dir=str(out_dir))
+        html = (out_dir / "backtest_tearsheet.html").read_text(encoding="utf-8")
         required = [
             "Systematic Portfolio Allocator",
             "Backtest Report 2022",
