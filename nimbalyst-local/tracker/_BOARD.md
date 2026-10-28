@@ -2,11 +2,11 @@
 
 > Авто-генерится `scripts/build_tracker_board.py` из `nimbalyst-local/tracker/*.md`. НЕ править вручную — правь карточки. Источник правды — карточки, это индекс (bootstrap).
 >
-> Собрана: 2026-10-28T20:52:14Z · сверка с карточками: `python3 scripts/build_tracker_board.py --check` (сторож `spa_core/tests/test_tracker_board_matches_cards.py`).
+> Собрана: 2026-10-28T21:00:18Z · сверка с карточками: `python3 scripts/build_tracker_board.py --check` (сторож `spa_core/tests/test_tracker_board_matches_cards.py`).
 >
-> Сверено с `origin/main` (4439df882) · у **1** своя правка, кто новее — не измерено.
+> Сверено с `origin/main` (4a836e706).
 >
-> Всего карточек: **1492** · ждёт владельца: **0** · занято сессиями: **15**.
+> Всего карточек: **1493** · ждёт владельца: **0** · занято сессиями: **15**.
 
 ## 🔴 ЖДЁТ ВЛАДЕЛЬЦА (needs-owner)
 
@@ -411,7 +411,7 @@ _Пусто — открытых решений на владельце нет._
 ### · closed
 - Считать ли верный отказ по правилам допуска неисправностью флота  ·  `owner-decision-schitat-li-vernyi-otkaz-po-pravilam-dopu.md` · 2026-10-08
 
-## 📥 Inbox (задания: Telegram / заметки / голос)  (819)
+## 📥 Inbox (задания: Telegram / заметки / голос)  (820)
 
 ### · in-progress
 - а задача починить все-таки еще раз сообщение которым не пишет нужно твое решени…  ·  `inbox-a-zadacha-pochinit-vse-taki-esche-raz-so.md` · 2026-08-14 · 🔒 `pid43119`
@@ -961,6 +961,7 @@ _Пусто — открытых решений на владельце нет._
 - `--data-dir` шага 0-офис не доходит до проб приёмки: они читают ЗАМОРОЖЕННЫЙ канон worktree  ·  `inbox-data-dir-shaga-0-ofis-ne-dohodit-do-prob-priemki.md` · 2026-09-13
 - Десять критериев приёмки «Portfolio CIO» измерены ОДНАЖДЫ И ПРОЗОЙ — машины, способной перемерить их сегодня, нет  ·  `inbox-desyat-kriteriev-priemki-portfolio-cio-i.md` · 2026-09-29
 - Детектор голодающих приказов не отличает «не начато» от «готово, но не доставлено»  ·  `inbox-detektor-golodayuschih-prikazov-ne-otlic.md` · 2026-09-23
+- Детерминированный разбор входящих меряет ПРОД-дерево: 33 против 318 на origin, и печатает это числом без третьего исхода  ·  `inbox-determinirovannyi-razbor-vhodyaschih-mer.md` · 2026-10-28
 - Девять красных в CI с разными причинами: разобрать поимённо, числа в базы не дописывать  ·  `inbox-devyat-krasnyh-v-ci-s-raznymi-prichinami.md` · 2026-09-26
 - Девять мутантов в печати сводки §49 выжили: тесты проверяют наличие строки, а не её значение  ·  `inbox-devyat-mutantov-v-pechati-svodki-49-vyzh.md` · 2026-10-04
 - Девять случаев набора идут без срока: зонд часов гасит ITIMER_REAL прогона (заказ G676 п. 1)  ·  `inbox-devyat-sluchaev-nabora-idut-bez-sroka-zo.md` · 2026-10-09
