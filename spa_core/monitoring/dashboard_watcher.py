@@ -392,7 +392,9 @@ def classify_agent(ag: Dict[str, Any]) -> str:
     contract = MEASUREMENT_VERDICT_AGENTS.get(label)
     if (contract and isinstance(last_exit, int) and not isinstance(last_exit, bool)
             and last_exit in contract and not ag.get("pid")
-            and status in ("WARNING", "CRITICAL") and ag.get("loaded") is not False):
+            and status == "WARNING" and ag.get("loaded") is not False):
+        # Только WARNING: agent_health ставит по коду 1 ровно WARNING; CRITICAL у той же метки
+        # пришёл бы из ДРУГОЙ причины (лог, загрузка) и «штатным замером» не является.
         return AGENT_MEASURED
     # Остановка — только по ИЗМЕРЕННОМУ признаку agent_health. Одно `loaded: false` им не является:
     # календарный агент между запусками штатно не загружен и судится свежестью лога.

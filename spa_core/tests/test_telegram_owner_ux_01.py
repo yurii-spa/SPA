@@ -105,6 +105,9 @@ def test_case3_a_really_stopped_agent_stays_visible_and_critical(monkeypatch, tm
     # календарный агент между запусками не загружен — это не остановка; судит свежесть лога
     ({"label": "com.spa.cal", "status": "WARNING", "pid": 0, "loaded": False,
       "issue": "log stale 30.0h (>26h)"}, "warning", "предупреждение (это не остановка агента)"),
+    # resource_guard, код 1, но CRITICAL — критичность пришла из другой причины, не «штатный замер»
+    ({"label": "com.spa.resource_guard", "status": "CRITICAL", "pid": 0, "last_exit": 1,
+      "issue": "log stale 30.0h (>2h)"}, "critical", "критическое состояние"),
     # resource_guard, код 2: ARB 27.10 оставил его прежней веткой — не «штатный замер»
     ({"label": "com.spa.resource_guard", "status": "WARNING", "pid": 0, "last_exit": 2,
       "issue": "last_exit=2"}, "warning", "предупреждение"),
@@ -298,8 +301,9 @@ def test_case8_assignment_card_is_not_titled_as_an_owner_decision():
                             "## Что случилось\nНастройка расписания.\n", [], has_buttons=True,
                             ack_buttons=True)
     assert "Нужно твоё решение" not in text
-    assert text.startswith("📋 <b>Поручение системе — нужно только подтверждение</b>")
-    assert "Выбора в карточке нет" in text and "НЕ взята в работу" in text
+    assert text.startswith("📋 <b>Поручение — нужно только подтверждение</b>")
+    assert "техническая работа системы" not in text  # чья работа — по карточке не видно (ревью)
+    assert "Выбора в карточке нет" in text and "НЕ взято в работу" in text
     assert "Молчание ответом не считается" in text
 
 
