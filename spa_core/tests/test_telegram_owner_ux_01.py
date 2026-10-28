@@ -1,4 +1,5 @@
 # LLM_FORBIDDEN
+# FROZEN-DATE-OK: dates are the subject — PDF incident fixtures rendered verbatim; no freshness is judged against the clock
 """TELEGRAM-OWNER-UX-01 (ADR-OWN-2026-10-28, задание docs/tasks/telegram-owner-alerts-2026-10-28.md).
 
 Девять случаев из разбора владельца (PDF 14–28.10, SHA256 a9cc7dba…) — на ВРЕМЕННЫХ фикстурах

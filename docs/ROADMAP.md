@@ -241,7 +241,7 @@ The source document's old fleet/paper-start assumptions do not authorize another
 
 ## Telegram owner UX — ARB intake 2026-10-28
 
-**TELEGRAM-OWNER-UX-01 — ready to work, not started.** Owner: «часто набор букв … шум и мусор». Decision:
+**TELEGRAM-OWNER-UX-01 — in progress (28.10): candidate built, ADR-852; delivery via the active gate.** Owner: «часто набор букв … шум и мусор». Decision:
 [ADR-OWN-2026-10-28](decisions/ADR-OWN-2026-10-28-telegram-owner-ux.md). Task (ARB analysis, acceptance, order):
 [telegram-owner-alerts-2026-10-28](tasks/telegram-owner-alerts-2026-10-28.md).
 
