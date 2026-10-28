@@ -720,7 +720,7 @@
 | ADR-849 | ADR-849 — Эксплуатация 28.10: launchd в синхронизации кода, тесты не пишут в рабочие данные, стенды decision_loop клоном APFS | Accepted | [ADR-849](ADR-849-ops-launchd-sync-test-isolation-decision-loop.md) |
 | ADR-850 | ADR-850 — Предложение урезается до допустимого РАЗМЕРА хода ПЕРЕД вердиктом CIO (вариант Г; пороги владельца не ослаблены, RiskPolicy переспрошена) | Accepted | [ADR-850](ADR-850-proposal-is-cut-to-the-admissible-size-before-the-verdict.md) |
 | ADR-851 | ADR-851 — «Шаг не звали» это НЕ «сработало ноль раз»: третий исход восстановлен У ЧИТАТЕЛЯ живого урезания (печать шага 0-офис + причина пробы приёмки; вердикт и money-path не тронуты) | Accepted | [ADR-851](ADR-851-the-step-was-never-called-is-not-a-measured-zero.md) |
-| ADR-852 | ADR-852 — TELEGRAM-OWNER-UX-01: смысл состояния агента, один русский рендер сводки, объединение по инциденту, утверждения не шире замера | Accepted | [ADR-852](ADR-852-telegram-owner-ux-01-meaning-render-incident-identity.md) |
+| ADR-852 | ADR-852 — TELEGRAM-OWNER-UX-01: смысл состояния агента, один русский рендер сводки, объединение по инциденту, утверждения не шире замера | Proposed | [ADR-852](ADR-852-telegram-owner-ux-01-meaning-render-incident-identity.md) |
 
 ## Соглашения
 

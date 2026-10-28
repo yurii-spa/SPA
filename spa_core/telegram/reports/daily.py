@@ -78,50 +78,118 @@ _TAG_RE = re.compile(r"<[^>]+>")
 _EVENT_GISTS_SHOWN = 3
 
 
-def _format_digest_section(items: list[dict]) -> str:
-    """Render the queued (demoted) events as a compact summary section.
+#: Критичные проблемы называются в самой сводке ВСЕ, но не больше этого числа строк (защита
+#: «Подробностей» от предела 4096 знаков); всё, что не поместилось, уходит полным списком.
+_EVENT_CRITICAL_SHOWN = 10
+#: Длина строки события в сводке; полный текст — в полном списке.
+_EVENT_LINE_MAX = 300
+#: Часть полного списка — с запасом ниже предела одного сообщения Bot API (4096).
+_EVENT_LIST_PART_MAX = 3800
 
-    TELEGRAM-OWNER-UX-01 (ADR-OWN-2026-10-28). Прежняя секция: при < 3 тел печатала
-    сырые ``event_key`` («system_health_summary»), при ≥ 3 — брала строку тела как есть
-    и склеивала одинаковые ПЕРВЫЕ 120 символов («⚠️ Agent DOWN: com.spa.resource_guard ×12»
-    — это двенадцать наблюдений одного предупреждения замера, а не двенадцать падений).
 
-    Теперь каждое событие описывает общий переводчик ``humanize.describe_queued_event`` —
-    тот же смысл, что у отдельной тревоги; объединение идёт по ИДЕНТИЧНОСТИ инцидента;
-    числа подписаны раздельно: наблюдений в очереди · разных проблем · критичных. Очередь
-    сводки — не отправка: так и сказано. Пустая очередь — тоже ответ, и он печатается.
-    Never lists each event individually — a flapping detector would otherwise re-create
-    the flood inside the digest.
-    """
+def _digest_groups(items: list[dict]) -> list[dict]:
+    """События очереди → разные проблемы (по идентичности инцидента), критичные первыми."""
     from spa_core.telegram import humanize
 
-    if not items:
-        return "\n".join(["", "🗂️ <b>События за сутки</b>",
-                          "  отложенных событий с прошлого отчёта нет"])
     groups: dict[str, dict] = {}
     for it in items:
         ev = humanize.describe_queued_event(it if isinstance(it, dict) else {})
         g = groups.setdefault(ev["incident"], {"text": ev["text"], "n": 0, "critical": False,
-                                               "order": len(groups)})
+                                               "known": True, "order": len(groups)})
         g["n"] += 1
         g["critical"] = g["critical"] or ev["critical"]
+        g["known"] = g["known"] and ev["known"]
         g["text"] = ev["text"]  # последнее наблюдение — самое свежее описание
+    return sorted(groups.values(), key=lambda g: (not g["critical"], -g["n"], g["order"]))
+
+
+def _group_line(g: dict, limit: Optional[int]) -> str:
+    text = g["text"]
+    if limit is not None and len(text) > limit:
+        text = text[: limit - 1].rstrip() + "…"
+    icon = "🔴 " if g["critical"] and not text.startswith(("🔴", "🛑", "⛔", "🚨")) else ""
+    suffix = f" — наблюдений: {g['n']}" if g["n"] > 1 else ""
+    return f"  • {icon}{_esc(text)}{suffix}"
+
+
+def _digest_shown(ranked: list[dict]) -> list[dict]:
+    """Что назвать в самой сводке: все критичные (до предела) и до трёх строк всего."""
+    crit = [g for g in ranked if g["critical"]][:_EVENT_CRITICAL_SHOWN]
+    rest = [g for g in ranked if not g["critical"]][: max(0, _EVENT_GISTS_SHOWN - len(crit))]
+    return crit + rest
+
+
+def _format_digest_section(items: list[dict]) -> str:
+    """Render the queued (demoted) events as a compact summary section.
+
+    TELEGRAM-OWNER-UX-01 (ADR-OWN-2026-10-28, ADR-852). Прежняя секция: при < 3 тел печатала
+    сырые ``event_key`` («system_health_summary»), при ≥ 3 — брала строку тела как есть
+    и склеивала одинаковые ПЕРВЫЕ 120 символов («⚠️ Agent DOWN: com.spa.resource_guard ×12»
+    — это двенадцать наблюдений одного предупреждения замера, а не двенадцать падений).
+
+    Каждое событие описывает общий переводчик ``humanize.describe_queued_event`` — тот же
+    смысл, что у отдельной тревоги; объединение идёт по ИДЕНТИЧНОСТИ инцидента; числа подписаны
+    раздельно. Критичные проблемы названы ВСЕ (ARB 29.10, R3: четвёртая критичная терялась за
+    счётчиком «…и ещё: 1»); всё, что не поместилось, не «и ещё N», а полный список следующим
+    сообщением (:func:`digest_full_list_messages`) — его отправляет тот же транспорт.
+    Пустая очередь — тоже ответ, и он печатается.
+    """
+    if not items:
+        return "\n".join(["", "🗂️ <b>События за сутки</b>",
+                          "  отложенных событий с прошлого отчёта нет"])
+    ranked = _digest_groups(items)
+    from spa_core.telegram import humanize
     n_obs = len(items)
     n_crit_obs = sum(1 for i in items if isinstance(i, dict)
                      and humanize.describe_queued_event(i)["critical"])
-    n_crit_inc = sum(1 for g in groups.values() if g["critical"])
+    n_crit_inc = sum(1 for g in ranked if g["critical"])
     lines = ["", "🗂️ <b>События за сутки</b>"]
     lines.append(f"  событий с прошлого отчёта: {n_obs}, из них с CRITICAL: {n_crit_obs} · "
-                 f"разных проблем: {len(groups)}, из них критичных: {n_crit_inc}")
+                 f"разных проблем: {len(ranked)}, из них критичных: {n_crit_inc}")
     lines.append("  (это очередь сводки: отдельными сообщениями эти события не отправлялись)")
-    ranked = sorted(groups.values(), key=lambda g: (not g["critical"], -g["n"], g["order"]))
-    for g in ranked[:_EVENT_GISTS_SHOWN]:
-        suffix = f" — наблюдений: {g['n']}" if g["n"] > 1 else ""
-        lines.append(f"  • {_esc(g['text'])}{suffix}")
-    rest = len(ranked) - _EVENT_GISTS_SHOWN
+    shown = _digest_shown(ranked)
+    lines += [_group_line(g, _EVENT_LINE_MAX) for g in shown]
+    rest = len(ranked) - len(shown)
+    truncated = any(len(g["text"]) > _EVENT_LINE_MAX for g in shown)
     if rest > 0:
-        lines.append(f"  • …и ещё разных проблем: {rest}")
+        lines.append(f"  • …и ещё разных проблем: {rest} — полный список следующим сообщением")
+    elif truncated:
+        lines.append("  • полный текст длинных строк — следующим сообщением")
     return "\n".join(lines)
+
+
+def digest_full_list_messages(items: list[dict]) -> list[str]:
+    """Полный список разных проблем очереди — когда в сводке названы не все (или не целиком).
+
+    Пусто, если сводка уже назвала всё. Иначе — части ≤ ``_EVENT_LIST_PART_MAX`` знаков, резка
+    только по границе строки; строка длиннее части режется на куски, а не теряется. Порядок тот же,
+    что в сводке (критичные первыми). Отправляет тот же транспорт, что и «Подробности».
+    """
+    if not items:
+        return []
+    ranked = _digest_groups(items)
+    shown = _digest_shown(ranked)
+    if len(shown) == len(ranked) and not any(len(g["text"]) > _EVENT_LINE_MAX for g in shown):
+        return []
+    body: list[str] = []
+    for g in ranked:
+        line = _group_line(g, None)
+        while len(line) > _EVENT_LIST_PART_MAX - 200:
+            body.append(line[: _EVENT_LIST_PART_MAX - 200])
+            line = "    " + line[_EVENT_LIST_PART_MAX - 200:]
+        body.append(line)
+    parts: list[list[str]] = [[]]
+    size = 0
+    for line in body:
+        if parts[-1] and size + len(line) + 1 > _EVENT_LIST_PART_MAX - 200:
+            parts.append([])
+            size = 0
+        parts[-1].append(line)
+        size += len(line) + 1
+    n = len(parts)
+    return [f"🗂️ <b>Все события за сутки</b> — разных проблем: {len(ranked)}"
+            + (f" (часть {i} из {n})" if n > 1 else "") + "\n" + "\n".join(part)
+            for i, part in enumerate(parts, 1)]
 
 
 def build_digest_message(
@@ -154,6 +222,8 @@ def build_digest_message(
 
     section = _format_digest_section(queued)
     message = base_msg + ("\n" + section if section else "")
+    # Полный список — данными, отправляет run_daily_digest следом за «Подробностями».
+    data["digest_full_list"] = digest_full_list_messages(queued)
 
     office, consumed = _build_office_section(ddir)
     if office:
@@ -989,6 +1059,17 @@ def run_daily_digest(
             if head_ok:
                 _mark_sent_today(ddir, today, now_dt.isoformat())
             ok = head_ok and _send_html(msg)
+            if ok:
+                # ARB 29.10, R3: то, что сводка не назвала, уходит полным списком тем же
+                # транспортом. Не дошло — это ошибка доставки, а не «отправлено».
+                parts = data.get("digest_full_list") or []
+                sent_parts = sum(1 for part in parts if _send_html(part))
+                result["full_list_parts"] = {"planned": len(parts), "sent": sent_parts}
+                if sent_parts != len(parts):
+                    # Заголовок и подробности ушли — `sent` про них; недоставленный список назван
+                    # отдельной ошибкой, а не выдан за доставку.
+                    result["error"] = (f"полный список событий доставлен не целиком: "
+                                       f"{sent_parts} из {len(parts)} частей")
             result["sent"] = ok
             if ok:
                 # ADR-066 Фаза 2: квитанции потребления — ТОЛЬКО после реальной
@@ -1005,7 +1086,7 @@ def run_daily_digest(
                 # daily summary went out today so it can pass (the retired legacy
                 # daily-report agents used to own this write).
                 _mark_daily_summary_sent(ddir, today)
-            else:
+            elif not result.get("error"):
                 result["error"] = ("Telegram send returned False (headline)" if not head_ok
                                    else "Telegram send returned False (details)")
     except Exception as exc:  # noqa: BLE001 — never raises

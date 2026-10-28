@@ -341,3 +341,65 @@ def test_one_subsystem_clear_is_not_a_whole_system_claim(tmp_path):
     line = daily._fleet_line(tmp_path, {})
     assert "аварий нет" not in line
     assert "аварийные правила SPA не сработали" in line and "не измерено 1" in line
+
+
+# ── ARB 29.10, R3: четвёртая критичная/неизвестная проблема не теряется за счётчиком ─────────
+
+def _crit(i):
+    return {"event_key": f"src{i}", "severity": "CRITICAL", "body": f"🔴 Критическая проблема {i}: источник {i} недоступен"}
+
+
+def test_r3_every_critical_problem_is_named_in_the_digest_itself():
+    section = daily._format_digest_section([_crit(i) for i in range(1, 5)])
+    for i in range(1, 5):
+        assert f"Критическая проблема {i}: источник {i} недоступен" in section
+    assert "и ещё разных проблем" not in section
+    assert daily.digest_full_list_messages([_crit(i) for i in range(1, 5)]) == []
+
+
+def test_r3_problems_beyond_the_three_lines_go_out_as_a_full_list_not_a_counter():
+    items = [{"event_key": f"w{i}", "body": f"⚠️ предупреждение {i}"} for i in range(1, 4)]
+    items.append({"event_key": "zz_unknown_probe", "body": ""})          # неизвестное за пределом
+    section = daily._format_digest_section(items)
+    assert "…и ещё разных проблем: 1 — полный список следующим сообщением" in section
+    full = "\n".join(daily.digest_full_list_messages(items))
+    assert "zz_unknown_probe" in full and "событие без описания" in full
+    for i in range(1, 4):
+        assert f"предупреждение {i}" in full
+
+
+def test_r3_full_list_is_html_safe_split_by_lines_and_loses_nothing():
+    items = [{"event_key": f"k{i}", "severity": "CRITICAL" if i < 12 else "INFO",
+              "body": f"⚠️ <b>проблема {i}</b> & " + "длинный текст " * 60} for i in range(40)]
+    parts = daily.digest_full_list_messages(items)
+    assert len(parts) > 1
+    assert all(len(p) <= 4096 for p in parts)
+    joined = "\n".join(parts)
+    assert "<b>проблема" not in joined and "&amp;" in joined
+    for i in range(40):
+        assert f"проблема {i}" in joined
+    section = daily._format_digest_section(items)
+    assert len(section) < 4096
+    assert section.count("🔴") + section.count("⚠️") >= 10       # критичные названы (до предела)
+
+
+def test_r3_the_full_list_is_sent_by_the_same_transport_and_a_failure_is_named(tmp_path, monkeypatch):
+    for i in range(1, 6):
+        push_policy.enqueue_digest(f"w{i}", f"w{i}", f"⚠️ предупреждение {i}", data_dir=str(tmp_path))
+    sent: list[str] = []
+    monkeypatch.setattr(daily, "_send_html", lambda m: sent.append(m) or True)
+    res = daily.run_daily_digest("2026-10-28", data_dir=str(tmp_path), send=True)
+    assert res["sent"] is True and res["full_list_parts"] == {"planned": 1, "sent": 1}
+    assert len(sent) == 3 and sent[2].startswith("🗂️ <b>Все события за сутки</b>")
+    assert "предупреждение 5" in sent[2]
+    # сбой части списка — названная ошибка, а не «доставлено»
+    for i in range(1, 6):
+        push_policy.enqueue_digest(f"w{i}", f"w{i}", f"⚠️ предупреждение {i}", data_dir=str(tmp_path))
+    calls = {"n": 0}
+
+    def flaky(m):
+        calls["n"] += 1
+        return calls["n"] < 3
+    monkeypatch.setattr(daily, "_send_html", flaky)
+    res = daily.run_daily_digest("2026-10-29", data_dir=str(tmp_path), send=True, force=True)
+    assert "полный список событий доставлен не целиком: 0 из 1" in res["error"]
