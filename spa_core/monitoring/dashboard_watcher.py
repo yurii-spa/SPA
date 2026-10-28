@@ -394,8 +394,8 @@ def classify_agent(ag: Dict[str, Any]) -> str:
             and last_exit in contract and not ag.get("pid")
             and status in ("WARNING", "CRITICAL") and ag.get("loaded") is not False):
         return AGENT_MEASURED
-    if ag.get("loaded") is False:
-        return AGENT_STOPPED
+    # Остановка — только по ИЗМЕРЕННОМУ признаку agent_health. Одно `loaded: false` им не является:
+    # календарный агент между запусками штатно не загружен и судится свежестью лога.
     issues = " ".join(str(i) for i in ag.get("issues") or [])
     if "PID=0 (server down)" in issues or "not loaded in launchctl" in issues:
         return AGENT_STOPPED

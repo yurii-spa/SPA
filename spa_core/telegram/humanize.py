@@ -274,6 +274,12 @@ _RULES: tuple[_Rule, ...] = (
      lambda m: f"команда загрузки выполнена: {_agent_ru(m.group(1))} — что агент ожил, это сообщение не подтверждает"),
     (re.compile(r"^bootstrap failed (com\.spa\.[\w.\-]+) \(not loaded\)$"),
      lambda m: f"загрузить НЕ УДАЛОСЬ: {_agent_ru(m.group(1))}"),
+    # --- commit-reveal книги SPA (audit/book_commitments): хеш — в подробностях, не в строке ---
+    (re.compile(r"^SPA COMMIT книги (\d{4}-\d{2}-\d{2})$"),
+     lambda m: f"раскладка книги SPA за {m.group(1)} зафиксирована хешем — раскрытие позже, "
+               f"делать ничего не нужно"),
+    (re.compile(r"^SPA REVEAL книги (\d{4}-\d{2}-\d{2})$"),
+     lambda m: f"раскрыта зафиксированная раскладка книги SPA за {m.group(1)} — её можно сверить с хешем"),
     # --- свежесть артефактов и турнир (понижены в сводку) ---
     (re.compile(r"^Artifact freshness: (\d+) stale$"),
      lambda m: f"устарели файлы данных: {m.group(1)}"),

@@ -102,6 +102,9 @@ def test_case3_a_really_stopped_agent_stays_visible_and_critical(monkeypatch, tm
      "stopped", "не работает"),
     ({"label": "com.spa.x", "status": "CRITICAL", "pid": 5, "issue": "log stale 42 min"},
      "critical", "критическое состояние"),
+    # календарный агент между запусками не загружен — это не остановка; судит свежесть лога
+    ({"label": "com.spa.cal", "status": "WARNING", "pid": 0, "loaded": False,
+      "issue": "log stale 30.0h (>26h)"}, "warning", "предупреждение (это не остановка агента)"),
     # resource_guard, код 2: ARB 27.10 оставил его прежней веткой — не «штатный замер»
     ({"label": "com.spa.resource_guard", "status": "WARNING", "pid": 0, "last_exit": 2,
       "issue": "last_exit=2"}, "warning", "предупреждение"),
@@ -165,11 +168,14 @@ def test_digest_a_changing_age_or_time_is_the_same_incident_but_worse_severity_i
 
 def test_digest_is_html_safe_and_hashes_are_not_events():
     items = [{"event_key": "x", "body": "⚠️ <script>alert(1)</script> & co"},
-             {"event_key": "book_commit", "title": "Book commitment",
-              "body": "sha256 f22a960c59ce4eebb8deac43b45961c75cec0fdb1327ca5f58567d6800d4ae17"}]
+             # настоящая форма записи audit/book_commitments._commit_text
+             {"event_key": "book_commit:2026-10-27:sha256=f22a960c", "title": "SPA COMMIT книги 2026-10-27",
+              "body": "sha256 f22a960c59ce4eebb8deac43b45961c75cec0fdb1327ca5f58567d6800d4ae17\n"
+                      "раскрытие через 1 цикл; проверка: python3 scripts/verify_spa.py data/book_commitments.jsonl"}]
     section = daily._format_digest_section(items)
     assert "<script>" not in section and "&amp;" in section
     assert "f22a960c" not in section
+    assert "раскладка книги SPA за 2026-10-27 зафиксирована хешем" in section
 
 
 def test_digest_counts_observations_problems_and_says_queue_is_not_a_send():
