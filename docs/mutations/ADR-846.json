@@ -1,5 +1,5 @@
 {
-  "title": "ADR-846 §1–§2 — launchd в синхронизации; тесты не пишут в рабочее состояние",
+  "title": "ADR-846 §1–§3 — launchd в синхронизации; тесты не пишут в рабочее состояние; стенды переписей клоном",
   "tests": [
     "spa_core/tests/test_code_sync_paths.py",
     "scripts/tests/test_code_sync_from_origin.py",
@@ -7,7 +7,9 @@
     "tests/test_cycle_side_writers_stay_in_sandbox.py",
     "tests/test_hy_cycle.py",
     "tests/test_market_regime.py",
-    "tests/test_uptime_monitor.py"
+    "tests/test_uptime_monitor.py",
+    "spa_core/tests/test_stand_copy.py",
+    "spa_core/tests/test_judge_alone_price.py"
   ],
   "mutations": [
     {
@@ -93,6 +95,37 @@
       "file": "spa_core/monitoring/uptime_monitor.py",
       "old": "        data_dir = Path(args[i + 1])\n",
       "new": "        data_dir = data_dir\n"
+    },
+    {
+      "name": "стенд: отказ клонирования считается успехом",
+      "file": "spa_core/utils/stand_copy.py",
+      "old": "            if proc.returncode == 0:\n                return \"clone\"",
+      "new": "            if True:\n                return \"clone\""
+    },
+    {
+      "name": "стенд: исключения (backups/) копируются",
+      "file": "spa_core/utils/stand_copy.py",
+      "old": "    items = [p for p in sorted(source.iterdir()) if p.name not in skip]",
+      "new": "    items = [p for p in sorted(source.iterdir())]"
+    },
+    {
+      "name": "стенд: клон без сохранения времён и прав",
+      "file": "spa_core/utils/stand_copy.py",
+      "old": "[\"/bin/cp\", \"-c\", \"-p\", \"-R\", \"-L\",",
+      "new": "[\"/bin/cp\", \"-c\", \"-R\", \"-L\",",
+      "note": "ЭКВИВАЛЕНТНЫЙ (замер 28.10): клон APFS (`cp -c`) сохраняет время изменения и права файла и без `-p`; наблюдаемый выход стенда тот же. `-p` оставлен ради явности."
+    },
+    {
+      "name": "стенд: при отказе клона прежняя копия не делается",
+      "file": "spa_core/utils/stand_copy.py",
+      "old": "    _python_copy(items, dest_data)  # прежний путь",
+      "new": "    pass  # прежний путь"
+    },
+    {
+      "name": "judge_alone_price копирует стенд вместе с backups/",
+      "file": "spa_core/monitoring/judge_alone_price.py",
+      "old": "    copy_data_tree(Path(src), dest_data, STAND_EXCLUDE)",
+      "new": "    copy_data_tree(Path(src), dest_data, ())"
     }
   ]
 }

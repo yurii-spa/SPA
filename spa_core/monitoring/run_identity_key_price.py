@@ -772,15 +772,8 @@ def build_stands(source_data_dir: Path, dest: Path,
     def _write(name: str, day_rows: List[dict]) -> Path:
         stand = Path(dest) / name
         data = stand / "data"
-        data.mkdir(parents=True, exist_ok=True)
-        for item in sorted(Path(source_data_dir).iterdir()):
-            if item.name in STAND_EXCLUDE:
-                continue
-            dst = data / item.name
-            if item.is_dir():
-                shutil.copytree(item, dst, dirs_exist_ok=True)
-            else:
-                shutil.copy2(item, dst)
+        from spa_core.utils.stand_copy import copy_data_tree  # ADR-846 §3: клон APFS, иначе прежняя копия
+        copy_data_tree(Path(source_data_dir), data, STAND_EXCLUDE)
         out: List[dict] = []
         for i, row in enumerate(rows):
             if i == idx:

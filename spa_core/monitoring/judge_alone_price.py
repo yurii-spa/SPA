@@ -123,7 +123,6 @@ from __future__ import annotations
 import ast
 import json
 import logging
-import shutil
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Callable, Dict, List, Optional, Sequence, Tuple
@@ -311,15 +310,8 @@ def judge_values(doc: dict) -> Dict[str, object]:
 
 # ── стенды ───────────────────────────────────────────────────────────────────
 def _copy_data(src: Path, dest_data: Path) -> None:
-    dest_data.mkdir(parents=True, exist_ok=True)
-    for item in sorted(Path(src).iterdir()):
-        if item.name in STAND_EXCLUDE:
-            continue
-        dst = dest_data / item.name
-        if item.is_dir():
-            shutil.copytree(item, dst, dirs_exist_ok=True)
-        else:
-            shutil.copy2(item, dst)
+    from spa_core.utils.stand_copy import copy_data_tree  # ADR-846 §3: клон APFS, иначе прежняя копия
+    copy_data_tree(Path(src), dest_data, STAND_EXCLUDE)
 
 
 class _Carousel:
