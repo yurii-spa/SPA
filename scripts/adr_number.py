@@ -716,6 +716,188 @@ def repair_index(root, index_rel=INDEX_REL):
     out["new_text"] = "".join(lines)
     return out
 
+
+# ── КОЛОНКА «ЗАГОЛОВОК»: заголовок, а не пересказ решения (ADR-840) ──────────
+#
+# Предел и его якорь живут у сторожа (`spa_core/tests/test_mandatory_reading_read_price.py`,
+# ADR-838); здесь — ПРИБОР, который приводит колонку к пределу, и он ничего не выдумывает:
+# новый заголовок берётся из `H1` файла решения, на который ссылается четвёртая колонка той
+# же строки. Нет файла, нет `H1`, `H1` сам длиннее предела ⇒ третий исход с названной
+# причиной (инв. #17), а не «сократить как-нибудь».
+
+#: Предел длины колонки «Заголовок», который прибор СОБЛЮДАЕТ. Объявлен один раз здесь и
+#: сверяется сторожем с его собственным числом: две копии предела, разойдясь, не сказали бы,
+#: какая врёт (урок ADR-837).
+TITLE_MAX_CHARS = 200
+
+_TITLE_LINK_RE = re.compile(r"\]\((?P<name>ADR-[A-Za-z0-9_.-]+\.md)\)")
+
+
+def register_title_rows(text: str):
+    r"""[(ключ, колонка «Заголовок» как есть, номер строки)] по тексту реестра.
+
+    ОДНА дверь к вопросу «какой у строки заголовок и какой он длины». Второй реализации
+    быть не должно, и это не стилистика: до ADR-840 храповик цены чтения мерил колонку
+    своим разбором `line.strip("|").split("|")`, который не видит экранированных чёрточек
+    (`\|`, ADR-831), и на 18 строках живого реестра отвечал КОРОЧЕ, чем стои́т ячейка —
+    у ADR-831 163 символа против 2 089. Две строки (ADR-611, ADR-831) проходили предел,
+    не будучи в нём: «не измерено», выданное за измеренное.
+
+    Строка узнаётся ЯКОРЁМ (`_ROW_RE`), заголовок читается ТОЛЬКО из объявленной формы —
+    тот же порядок, что у статуса в `_row_fields` (ADR-830). Вне формы заголовок не
+    измерен, и такая строка здесь просто не возвращается: за её форму отвечает другой
+    сторож, а не этот.
+    """
+    rows = []
+    for no, line in enumerate(text.splitlines(), start=1):
+        fields = _row_fields(line)
+        if fields is None:
+            continue
+        cols = row_columns(line)
+        if cols is None or len(cols) != DECLARED_COLUMNS:
+            continue
+        rows.append((fields[0], cols[1], no))
+    return rows
+
+
+def title_from_decision(path: Path):
+    """(заголовок из `H1` файла решения | None, причина | None).
+
+    `H1` есть ЗАГОЛОВОК решения, объявленный самим решением, — тот же принцип, что у
+    `declared_status`: источник правды о решении есть решение. Файла нет или `H1` в нём
+    нет ⇒ None с причиной; подставлять первую строку абзаца ЗАПРЕЩЕНО (`docs/37`).
+    """
+    try:
+        head = path.read_text(encoding="utf-8")[:8000]
+    except OSError as exc:
+        return None, f"файл решения {path.name} не читается ({exc}) — заголовок НЕ измерен"
+    for line in head.splitlines():
+        if line.startswith("# "):
+            title = line[2:].strip()
+            if title:
+                return title, None
+            return None, f"в {path.name} заголовок `H1` пуст — брать нечего"
+    return None, f"в {path.name} нет строки `H1` — заголовок НЕ объявлен самим решением"
+
+
+def _escape_cell(value: str) -> str:
+    """Чёрточки внутри ячейки экранируются: иначе заголовок РАЗДЕЛИЛ бы строку (ADR-831)."""
+    return value.replace("|", "\\|")
+
+
+def verify_shorten(old_line: str, new_line: str, limit: int = TITLE_MAX_CHARS):
+    """Причина, по которой сокращению НЕЛЬЗЯ верить, либо пустая строка.
+
+    Контроль проверяет ровно то, что писателю разрешено — заменить ОДНУ ячейку, — и всё
+    остальное объявляет отказом. Пять утверждений:
+
+    * строка осталась строкой объявленной формы (колонок столько же);
+    * номер (претензия на ключ) не изменился;
+    * **статус выжил ДОСЛОВНО** — иначе сокращение заголовка молча переписало бы статус;
+    * **ячейка файла выжила ДОСЛОВНО** — она и есть адрес, куда уехала проза;
+    * новый заголовок непуст и не длиннее предела.
+    """
+    old_cols = row_columns(old_line)
+    new_cols = row_columns(new_line)
+    if old_cols is None or len(old_cols) != DECLARED_COLUMNS:
+        return "исходная строка не в объявленной форме — сокращать её этот прибор не вправе"
+    if new_cols is None or len(new_cols) != DECLARED_COLUMNS:
+        return (f"сокращённая строка не в форме: колонок "
+                f"{'нет обрамления' if new_cols is None else len(new_cols)} при "
+                f"{DECLARED_COLUMNS}")
+    old_fields, new_fields = _row_fields(old_line), _row_fields(new_line)
+    if new_fields is None:
+        return "сокращённая строка перестала быть строкой реестра — номер потерян"
+    if old_fields is not None and new_fields[0] != old_fields[0]:
+        return f"номер изменился: {old_fields[0]} → {new_fields[0]}"
+    if new_cols[2] != old_cols[2]:
+        return f"статус изменился: «{old_cols[2]}» → «{new_cols[2]}»"
+    if new_cols[3] != old_cols[3]:
+        return f"ячейка файла изменилась: «{old_cols[3]}» → «{new_cols[3]}»"
+    if not new_cols[1]:
+        return "новый заголовок пуст — пустая ячейка не является заголовком"
+    if len(new_cols[1]) > limit:
+        return f"новый заголовок стои́т {len(new_cols[1])} символов при пределе {limit}"
+    return ""
+
+
+def shorten_line(line: str, title: str, limit: int = TITLE_MAX_CHARS):
+    """(новая строка | None, причина отказа) для ОДНОЙ строки реестра.
+
+    `title` берётся ВНЕ этой функции (она ничего не читает с диска), чтобы контроль мог
+    подставить оба исхода. Правка адресная: меняется ровно ячейка заголовка, остальные
+    три переносятся побайтово.
+    """
+    cells = _raw_cells(line)
+    if cells is None or len(cells) != DECLARED_COLUMNS:
+        return None, ("строка не в объявленной форме — предмет сторожа ADR-830/831, "
+                      "а не этого прибора")
+    if len(title) > limit:
+        return None, (f"`H1` файла решения сам стои́т {len(title)} символов при пределе "
+                      f"{limit} — сокращать ЗАГОЛОВОК РЕШЕНИЯ этот прибор не вправе")
+    new_line = "|" + cells[0] + "| " + _escape_cell(title) + " |" + cells[2] + "|" + cells[3] + "|"
+    bad = verify_shorten(line, new_line, limit)
+    if bad:
+        return None, f"контроль сокращения отказал: {bad}"
+    return new_line, ""
+
+
+def shorten_index(root, index_rel=INDEX_REL, limit: int = TITLE_MAX_CHARS):
+    """Приведение колонки «Заголовок» ЦЕЛИКОМ: новый текст и отчёт по каждой строке.
+
+    Прибор НИЧЕГО не пишет — писать решает CLI. Три исхода различимы (инв. #17): реестр
+    не прочитан ⇒ `measured=False` с причиной · строка сокращена · строку сократить
+    нельзя, и причина НАЗВАНА. Строка, чей заголовок уже в пределе, не трогается и
+    попадает в `already`: это «измерено и равно», а не находка.
+    """
+    root = Path(root)
+    out = {"measured": False, "unmeasured_reason": None, "shortened": [],
+           "refused": [], "already": [], "new_text": None,
+           "chars_before": None, "chars_after": None}
+    try:
+        text = (root / index_rel).read_text(encoding="utf-8")
+    except OSError as exc:
+        out["unmeasured_reason"] = (f"{index_rel} не читается ({exc}) — колонка "
+                                    f"«Заголовок» НЕ измерена")
+        return out
+    if declared_form(text) is None:
+        out["unmeasured_reason"] = (
+            f"{index_rel}: шапка таблицы с колонкой «{_STATUS_HEADER}» не найдена — "
+            f"форма НЕ измерена, значит неизвестно, какая колонка является заголовком")
+        return out
+    out["measured"] = True
+    out["chars_before"] = len(text)
+    decisions = root / DECISIONS_DIR
+
+    lines = text.splitlines(keepends=True)
+    for key, title, no in register_title_rows(text):
+        raw = lines[no - 1]
+        line = raw.rstrip("\n")
+        if len(title) <= limit:
+            out["already"].append({"key": key, "line": no, "chars": len(title)})
+            continue
+        m = _TITLE_LINK_RE.search(row_columns(line)[3])
+        if m is None:
+            out["refused"].append({"key": key, "line": no, "reason": (
+                "в колонке «Файл» нет ссылки на файл решения — заголовок брать негде; "
+                "проза строки остаётся на месте, а не угадывается")})
+            continue
+        new_title, reason = title_from_decision(decisions / m.group("name"))
+        if new_title is None:
+            out["refused"].append({"key": key, "line": no, "reason": reason})
+            continue
+        new_line, reason = shorten_line(line, new_title, limit)
+        if new_line is None:
+            out["refused"].append({"key": key, "line": no, "reason": reason})
+            continue
+        lines[no - 1] = new_line + ("\n" if raw.endswith("\n") else "")
+        out["shortened"].append({"key": key, "line": no, "was": len(title),
+                                 "now": len(new_title), "old": line, "new": new_line})
+    out["new_text"] = "".join(lines)
+    out["chars_after"] = len(out["new_text"])
+    return out
+
+
 def _origin_files(root, base_ref, git=_git):
     """Имена файлов решений на base ref, либо None если ref не измерим (fail-CLOSED)."""
     rc, out, _ = git(root, "ls-tree", "--name-only", f"{base_ref}:{DECISIONS_DIR}")
@@ -1164,6 +1346,44 @@ def _cmd_repair(args) -> int:
     return 1 if (rep["repaired"] or rep["refused"]) else 0
 
 
+def _cmd_titles(args) -> int:
+    """Привести колонку «Заголовок» к ЗАГОЛОВКУ. По умолчанию НИЧЕГО не пишет.
+
+    Коды возврата те же, что у соседей: 0 — приводить нечего · 1 — есть находки
+    (строки сокращённые или те, которые сократить нельзя) · 2 — НЕ ИЗМЕРЕНО.
+    """
+    rep = shorten_index(Path(args.root), limit=args.limit_chars)
+    if args.json:
+        print(json.dumps({k: v for k, v in rep.items() if k != "new_text"},
+                         ensure_ascii=False, indent=2))
+        return 2 if not rep["measured"] else (
+            1 if (rep["shortened"] or rep["refused"]) else 0)
+    if not rep["measured"]:
+        print("❓ НЕ ИЗМЕРЕНО — колонку «Заголовок» не подтверждаю (fail-CLOSED):")
+        print(f"  - {rep['unmeasured_reason']}")
+        return 2
+    print(f"колонка «Заголовок» {INDEX_REL} при пределе {args.limit_chars} символов:")
+    print(f"  строк в форме: "
+          f"{len(rep['shortened']) + len(rep['refused']) + len(rep['already'])} · "
+          f"уже в пределе: {len(rep['already'])} · сокращено: {len(rep['shortened'])} · "
+          f"ОТКАЗАНО: {len(rep['refused'])}")
+    print(f"  цена чтения реестра: {rep['chars_before']} → {rep['chars_after']} символов")
+    by_reason: dict[str, int] = {}
+    for r in rep["refused"]:
+        by_reason[r["reason"]] = by_reason.get(r["reason"], 0) + 1
+    for reason, n in sorted(by_reason.items(), key=lambda kv: -kv[1]):
+        print(f"    ✗ {reason}: {n}")
+    for r in rep["refused"][:args.limit]:
+        print(f"  - строка {r['line']} ADR-{r['key']}: {r['reason']}")
+    if not args.write:
+        print("  (ничего не записано — повтори с `--write`)")
+        return 1 if (rep["shortened"] or rep["refused"]) else 0
+    index = Path(args.root) / INDEX_REL
+    index.write_text(rep["new_text"], encoding="utf-8")
+    print(f"  записано: {index}")
+    return 1 if (rep["shortened"] or rep["refused"]) else 0
+
+
 def main(argv=None) -> int:
     ap = argparse.ArgumentParser(description=__doc__,
                                  formatter_class=argparse.RawDescriptionHelpFormatter)
@@ -1185,11 +1405,21 @@ def main(argv=None) -> int:
                    help="записать результат (без флага — только показать)")
     r.add_argument("--limit", type=int, default=20, help="сколько строк печатать поимённо")
 
+    t = sub.add_parser("titles",
+                       help="привести колонку «Заголовок» к H1 файла решения (ADR-840)")
+    t.add_argument("--write", action="store_true",
+                   help="записать результат (без флага — только показать)")
+    t.add_argument("--limit", type=int, default=20, help="сколько строк печатать поимённо")
+    t.add_argument("--limit-chars", type=int, default=TITLE_MAX_CHARS,
+                   help="предел длины колонки «Заголовок» (умолчание — TITLE_MAX_CHARS)")
+
     args = ap.parse_args(argv)
     if args.cmd == "next":
         return _cmd_next(args)
     if args.cmd == "check":
         return _cmd_check(args)
+    if args.cmd == "titles":
+        return _cmd_titles(args)
     return _cmd_repair(args) if args.cmd == "repair" else _cmd_form(args)
 
 

@@ -1,0 +1,124 @@
+{
+  "title": "ADR-840 — дельта цикла #961: колонка «Заголовок» реестра решений берётся из H1 файла решения; ОДНА дверь к длине колонки",
+  "tests": [
+    "spa_core/tests/test_adr_index_titles.py",
+    "spa_core/tests/test_mandatory_reading_read_price.py",
+    "spa_core/tests/test_adr_index_form.py"
+  ],
+  "mutations": [
+    {
+      "name": "заголовок берётся НЕ из H1, а первой непустой строкой файла решения — проза выдаётся за заголовок",
+      "file": "scripts/adr_number.py",
+      "old": "    for line in head.splitlines():\n        if line.startswith(\"# \"):",
+      "new": "    for line in head.splitlines():\n        if line.strip():"
+    },
+    {
+      "name": "нет H1 ⇒ пустой заголовок вместо третьего исхода: «не измерено» становится «измерено и пусто»",
+      "file": "scripts/adr_number.py",
+      "old": "    return None, f\"в {path.name} нет строки `H1` — заголовок НЕ объявлен самим решением\"",
+      "new": "    return \"\", None"
+    },
+    {
+      "name": "файл не читается ⇒ прибор молчит вместо названной причины",
+      "file": "scripts/adr_number.py",
+      "old": "        return None, f\"файл решения {path.name} не читается ({exc}) — заголовок НЕ измерен\"",
+      "new": "        return None, None"
+    },
+    {
+      "name": "H1 длиннее предела ОБРЕЗАЕТСЯ вместо отказа — прибор правит заголовок решения",
+      "file": "scripts/adr_number.py",
+      "old": "    if len(title) > limit:\n        return None, (f\"`H1` файла решения сам стои́т {len(title)} символов при пределе \"\n                      f\"{limit} — сокращать ЗАГОЛОВОК РЕШЕНИЯ этот прибор не вправе\")",
+      "new": "    title = title[:limit]"
+    },
+    {
+      "name": "чёрточка в заголовке НЕ экранируется — заголовок делит строку на лишние колонки",
+      "file": "scripts/adr_number.py",
+      "old": "    return value.replace(\"|\", \"\\\\|\")",
+      "new": "    return value"
+    },
+    {
+      "name": "контроль не сверяет СТАТУС — сокращение заголовка вправе переписать статус",
+      "file": "scripts/adr_number.py",
+      "old": "    if new_cols[2] != old_cols[2]:\n        return f\"статус изменился: «{old_cols[2]}» → «{new_cols[2]}»\"",
+      "new": "    pass"
+    },
+    {
+      "name": "контроль не сверяет ЯЧЕЙКУ ФАЙЛА — адрес, куда уехала проза, вправе смениться",
+      "file": "scripts/adr_number.py",
+      "old": "    if new_cols[3] != old_cols[3]:\n        return f\"ячейка файла изменилась: «{old_cols[3]}» → «{new_cols[3]}»\"",
+      "new": "    pass"
+    },
+    {
+      "name": "контроль не сверяет предел — «сокращённый» заголовок вправе остаться толстым",
+      "file": "scripts/adr_number.py",
+      "old": "    if len(new_cols[1]) > limit:\n        return f\"новый заголовок стои́т {len(new_cols[1])} символов при пределе {limit}\"",
+      "new": "    pass"
+    },
+    {
+      "name": "контроль не сверяет НОМЕР — строка вправе уехать на чужой ключ",
+      "file": "scripts/adr_number.py",
+      "old": "    if new_fields is None:\n        return \"сокращённая строка перестала быть строкой реестра — номер потерян\"\n    if old_fields is not None and new_fields[0] != old_fields[0]:\n        return f\"номер изменился: {old_fields[0]} → {new_fields[0]}\"",
+      "new": "    if new_fields is None:\n        return \"сокращённая строка перестала быть строкой реестра — номер потерян\""
+    },
+    {
+      "name": "строка без ссылки на решение ТИХО пропускается вместо названного отказа",
+      "file": "scripts/adr_number.py",
+      "old": "            out[\"refused\"].append({\"key\": key, \"line\": no, \"reason\": (\n                \"в колонке «Файл» нет ссылки на файл решения — заголовок брать негде; \"\n                \"проза строки остаётся на месте, а не угадывается\")})\n            continue",
+      "new": "            continue"
+    },
+    {
+      "name": "третий исход отчёта: отказ читателя файла решения теряется внутри прибора",
+      "file": "scripts/adr_number.py",
+      "old": "        if new_title is None:\n            out[\"refused\"].append({\"key\": key, \"line\": no, \"reason\": reason})\n            continue",
+      "new": "        if new_title is None:\n            continue"
+    },
+    {
+      "name": "нечитаемый реестр объявляется ИЗМЕРЕННЫМ — «сокращать нечего» вместо «не измерено»",
+      "file": "scripts/adr_number.py",
+      "old": "        out[\"unmeasured_reason\"] = (f\"{index_rel} не читается ({exc}) — колонка \"\n                                    f\"«Заголовок» НЕ измерена\")\n        return out",
+      "new": "        out[\"measured\"] = True\n        return out"
+    },
+    {
+      "name": "реестр без шапки судится по памяти модуля: неизвестно, какая колонка заголовок",
+      "file": "scripts/adr_number.py",
+      "old": "    if declared_form(text) is None:",
+      "new": "    if False:"
+    },
+    {
+      "name": "дверь к длине колонки — НАИВНЫЙ split: экранированная чёрточка снова делит ячейку",
+      "file": "scripts/adr_number.py",
+      "old": "        cols = row_columns(line)\n        if cols is None or len(cols) != DECLARED_COLUMNS:\n            continue\n        rows.append((fields[0], cols[1], no))",
+      "new": "        cols = [c.strip() for c in line.strip().strip(\"|\").split(\"|\")]\n        if len(cols) < DECLARED_COLUMNS:\n            continue\n        rows.append((fields[0], cols[1], no))"
+    },
+    {
+      "name": "дверь пускает строку ВНЕ формы: заголовком становится вторая ячейка чего угодно",
+      "file": "scripts/adr_number.py",
+      "old": "        if cols is None or len(cols) != DECLARED_COLUMNS:\n            continue\n        rows.append((fields[0], cols[1], no))",
+      "new": "        if cols is None or len(cols) < 2:\n            continue\n        rows.append((fields[0], cols[1], no))"
+    },
+    {
+      "name": "предел прибора поднят выше максимума прежнего реестра — пересказ снова проходит",
+      "file": "scripts/adr_number.py",
+      "old": "TITLE_MAX_CHARS = 200",
+      "new": "TITLE_MAX_CHARS = 10_000"
+    },
+    {
+      "name": "потолок цены чтения реестра поднят — сокращение перестаёт быть обязательным",
+      "file": "spa_core/tests/test_mandatory_reading_read_price.py",
+      "old": "REGISTER_MAX_CHARS = 180_000",
+      "new": "REGISTER_MAX_CHARS = 100_000_000"
+    },
+    {
+      "name": "храповик цены чтения возвращается к СВОЕМУ разбору колонки (поведение до ADR-840)",
+      "file": "spa_core/tests/test_mandatory_reading_read_price.py",
+      "old": "    return [(f\"ADR-{key}\", title) for key, title, _line in _adr.register_title_rows(text)]",
+      "new": "    out = []\n    for line in text.split(\"\\n\"):\n        s = line.strip()\n        if not s.startswith(\"|\"):\n            continue\n        cells = [c.strip() for c in s.strip(\"|\").split(\"|\")]\n        if len(cells) < 4 or not cells[0].strip(\"*\").startswith(\"ADR-\"):\n            continue\n        out.append((cells[0].strip(\"*\").strip(), cells[1]))\n    return out"
+    },
+    {
+      "name": "длина ключа берётся у ПОСЛЕДНЕЙ его строки, а не у самой длинной — дубль затирает толстую",
+      "file": "spa_core/tests/test_mandatory_reading_read_price.py",
+      "old": "        out[key] = max(out.get(key, 0), len(title))",
+      "new": "        out[key] = len(title)"
+    }
+  ]
+}

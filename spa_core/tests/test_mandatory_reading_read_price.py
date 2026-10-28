@@ -19,7 +19,16 @@
 | `nimbalyst-local/tracker/_BOARD.md` | 1 545 | 243 712 | 308 | нет |
 | **`docs/decisions/INDEX.md`** | **713** | **1 574 806** | **8 373** | нет |
 
-Реестр решений стои́т **52× потолка**, который ADR-837 назвал пределом для соседа по той же
+> **Долг СОКРАЩЁН 2026-10-28 (цикл #961, ADR-840, заказ G839 п. 2).** ADR-838 остановил рост,
+> состояние оставил. Колонка «Заголовок» приведена к ЗАГОЛОВКУ — им стала строка `H1` файла
+> решения, на который ссылается четвёртая колонка той же строки (`python3 scripts/adr_number.py
+> titles --write`): сокращено **675** строк из 691, отказов **0**, цена чтения реестра
+> **1 574 973 → 136 610** символов (11,5×), максимум колонки 8 270 → **188**. Реестр дословно
+> сохранён — [`docs/journal/INDEX-archive-2026-10-28.md`](../../docs/journal/INDEX-archive-2026-10-28.md):
+> проза строки в файле решения НЕ лежала (найдена у 96 из 675, 14,2 %), то есть сокращение есть
+> ПЕРЕНОС, и без архива 579 строк были бы потеряны молча. Числа ниже — замер ДО сокращения.
+
+Реестр стоял **52× потолка**, который ADR-837 назвал пределом для соседа по той же
 строке протокола, и **2,66×** от той версии `STATE.md`, ради остановки которой храповик вообще
 был написан. Он растёт КАЖДЫЙ цикл: 25 коммитов, 26.10 → 27.10, дали 1 499 653 → 1 574 806
 символов, то есть **≈ 2 300 символов за ADR** при одной добавленной строке.
@@ -64,8 +73,9 @@
 """
 from __future__ import annotations
 
+import importlib.util
 import json
-import re
+import sys
 from pathlib import Path
 
 import pytest
@@ -73,6 +83,19 @@ import pytest
 _REPO_ROOT = Path(__file__).resolve().parents[2]
 _REGISTER = _REPO_ROOT / "docs" / "decisions" / "INDEX.md"
 _BASELINE = Path(__file__).parent / "adr_index_read_price_baseline.json"
+
+
+def _load(name: str, rel: str):
+    """Загрузить модуль по пути: `scripts/` не является пакетом."""
+    spec = importlib.util.spec_from_file_location(name, _REPO_ROOT / rel)
+    mod = importlib.util.module_from_spec(spec)
+    sys.modules.setdefault(name, mod)
+    spec.loader.exec_module(mod)
+    return mod
+
+
+#: Канонический разбор строки реестра — ОДНА дверь на всех читателей (ADR-830/831/839).
+_adr = _load("adr_number_under_read_price", "scripts/adr_number.py")
 
 #: Потолки цены чтения у файлов обязательного набора, которым предел назначить можно.
 #: Только ВНИЗ. Запас есть рабочее место (та же причина, что у базы ADR-837): потолок,
@@ -99,15 +122,16 @@ REGISTER_MAX_TITLE_CHARS = 200
 
 #: Потолок цены чтения самого реестра, в символах. Только ВНИЗ.
 #:
-#: Это НЕ «разрешённое состояние»: 1 574 806 символов есть названный долг (см. докстринг), и
-#: обязанность его сократить записана в ADR-838, а не отложена молча. Работа потолка здесь
-#: другая — поймать РАСШИРЕНИЕ строки, уже внесённой в базу: её ключ храповиком по колонке
-#: разрешён, и без этого числа такая строка могла бы расти неограниченно.
+#: Работа потолка — поймать РАСШИРЕНИЕ строки, уже внесённой в базу долга: её ключ храповиком
+#: по колонке разрешён, и без этого числа такая строка могла бы расти неограниченно.
 #:
-#: Запас над замером (1 574 806 + строка этой правки) — ≈ 25 000 символов, то есть около 75
-#: честных строк по новому пределу. Больше не нужно: к тому времени сокращение либо сделано,
-#: либо обязанность обсуждается заново, а не продлевается тишиной.
-REGISTER_MAX_CHARS = 1_600_000
+#: История (только вниз):
+#:   1 600 000 (цикл #960, ADR-838 — потолок над названным долгом 1 574 806)
+#:   → 180 000 (цикл #961, ADR-840 — долг СОКРАЩЁН: 1 574 973 → 136 610 символов).
+#: Запас над замером ≈ 43 000 символов, то есть около 290 честных строк по пределу колонки.
+#: Приколачивать потолок вплотную к замеру нельзя по той же причине, что и у соседей: он
+#: покраснел бы на первой честной правке и выучил бы всех его двигать.
+REGISTER_MAX_CHARS = 180_000
 
 
 def _lines(path: Path) -> list[str]:
@@ -133,26 +157,37 @@ def _longest_line(path: Path) -> tuple[int, int]:
 
 
 def register_rows(text: str) -> list[tuple[str, str]]:
-    """Строки реестра в ОБЪЯВЛЕННОЙ форме: (ключ ADR, колонка «Заголовок»).
+    r"""Строки реестра: (ключ `ADR-NNN`, колонка «Заголовок»). ОДНА дверь, не своя копия.
 
-    Разбор идёт по форме, а не по числу чёрточек — тот же порядок, что в
-    `test_adr_index_form.py` (ADR-830): «сколько в строке чёрточек» отдавало статусом не ту
-    колонку. Строка не в форме здесь просто не является строкой реестра и в замер не входит;
-    за её форму отвечает сторож ADR-830, а не этот.
+    **НАМЕРЕННОЕ изменение проверки, цикл #961 (инв. #16): здесь был ВТОРОЙ разбор строки
+    реестра**, `line.strip("|").split("|")`, и он платил fail-OPEN'ом. Markdown считает
+    `\|` литеральной чёрточкой ВНУТРИ ячейки (ADR-831 ею же и починил 185 строк), а
+    наивный split делит ячейку по ней — то есть отдавал ЗАГОЛОВКОМ его первый кусок.
+
+    Замер 28.10 на живом реестре: разборы расходятся на **21** строке, и на **18** из них
+    наивный отвечает КОРОЧЕ, чем стои́т ячейка. Цена названа числом: `ADR-831` — **163**
+    символа против **2 089**, `ADR-611` — **200** против **509**; обе строки проходили
+    предел, не будучи в нём, и в базе долга их поэтому нет. Ещё на трёх строках наивный
+    разбор выдумывал ключ (`ADR-067 (дубль)` вместо `ADR-067`), то есть база сторожила
+    ключи, которых канонический реестр не знает.
+
+    Обоснование — ADR-840 и `docs/journal/2026-W44.md`. Это УСИЛЕНИЕ меры: предмет тот же,
+    но «не измерено» перестало выдаваться за измеренное (инв. #17).
     """
-    rows: list[tuple[str, str]] = []
-    for line in text.split("\n"):
-        stripped = line.strip()
-        if not stripped.startswith("|"):
-            continue
-        cells = [c.strip() for c in stripped.strip("|").split("|")]
-        if len(cells) < 4:
-            continue
-        key = cells[0].strip("*").strip()
-        if not re.match(r"^ADR-", key):
-            continue
-        rows.append((key, cells[1]))
-    return rows
+    return [(f"ADR-{key}", title) for key, title, _line in _adr.register_title_rows(text)]
+
+
+def title_lengths(text: str) -> dict[str, int]:
+    """{ключ: САМАЯ ДЛИННАЯ его колонка «Заголовок»}.
+
+    Максимум, а не «последняя строка с этим ключом»: у реестра есть номера, выписанные
+    дважды (`ADR-067`, `ADR-073`, `ADR-145` — строка решения и строка-указатель), и `dict()`
+    по парам затёр бы одну из них молча. Затёртой оказалась бы ровно толстая.
+    """
+    out: dict[str, int] = {}
+    for key, title in register_rows(text):
+        out[key] = max(out.get(key, 0), len(title))
+    return out
 
 
 def _baseline_keys() -> set[str]:
@@ -193,9 +228,9 @@ def baseline_declares_the_enforced_limit(doc: dict, limit: int) -> bool:
     return doc.get("_limit_chars") == limit
 
 
-def row_obeys_the_title_limit(rows: dict[str, str], key: str, limit: int) -> bool:
+def row_obeys_the_title_limit(lengths: dict[str, int], key: str, limit: int) -> bool:
     """Заголовок строки `key` в пределе. Вынесено ради контроля (см. выше)."""
-    return key in rows and len(rows[key]) <= limit
+    return key in lengths and lengths[key] <= limit
 
 
 @pytest.mark.parametrize("rel", sorted(_CEILINGS))
@@ -282,7 +317,7 @@ def test_the_baseline_is_a_measurement_and_not_a_wish():
     Без этого «база только вниз» держалось бы на прозе: выдуманный ключ занижал бы долг
     молча, а проверка оставалась бы зелёной.
     """
-    rows = dict(register_rows(_REGISTER.read_text(encoding="utf-8")))
+    lengths = title_lengths(_REGISTER.read_text(encoding="utf-8"))
     doc = _baseline_doc()
     assert baseline_declares_the_enforced_limit(doc, REGISTER_MAX_TITLE_CHARS), (
         f"База объявляет предел {doc['_limit_chars']}, а проверяется "
@@ -290,9 +325,9 @@ def test_the_baseline_is_a_measurement_and_not_a_wish():
         f"иначе одно из них врёт, и неизвестно какое (урок ADR-837)."
     )
     for key in doc["over_limit_titles"]:
-        assert key in rows, f"База называет {key}, которого в реестре нет вовсе."
-        assert len(rows[key]) > REGISTER_MAX_TITLE_CHARS, (
-            f"База числит {key} в долге, а его заголовок стои́т {len(rows[key])} символов — "
+        assert key in lengths, f"База называет {key}, которого в реестре нет вовсе."
+        assert lengths[key] > REGISTER_MAX_TITLE_CHARS, (
+            f"База числит {key} в долге, а его заголовок стои́т {lengths[key]} символов — "
             f"в пределе. База обязана быть замером, а не списком опасений."
         )
 
@@ -303,13 +338,13 @@ def test_the_register_row_of_this_very_change_obeys_the_new_limit():
     Правило, которое не может выполнить даже вводящий его цикл, — не правило. ADR-838 стои́т
     в реестре с заголовком в пределе и ссылкой на файл, где лежит вся проза.
     """
-    rows = dict(register_rows(_REGISTER.read_text(encoding="utf-8")))
-    assert "ADR-838" in rows, (
+    lengths = title_lengths(_REGISTER.read_text(encoding="utf-8"))
+    assert "ADR-838" in lengths, (
         "Строки ADR-838 в реестре нет — решение, вводящее предел на строку реестра, обязано "
         "само в нём стоять (иначе реестр не является реестром решений)."
     )
-    assert row_obeys_the_title_limit(rows, "ADR-838", REGISTER_MAX_TITLE_CHARS), (
-        f"Заголовок собственной строки ADR-838 стои́т {len(rows['ADR-838'])} символов при "
+    assert row_obeys_the_title_limit(lengths, "ADR-838", REGISTER_MAX_TITLE_CHARS), (
+        f"Заголовок собственной строки ADR-838 стои́т {lengths['ADR-838']} символов при "
         f"пределе {REGISTER_MAX_TITLE_CHARS} — правило невыполнимо для своего же автора."
     )
     assert "ADR-838" not in _baseline_keys(), (
@@ -485,6 +520,43 @@ def test_debt_demands_the_baseline_drop_when_a_title_is_shortened():
     assert debt["newly_over"] == [] and debt["stale"] == []
 
 
+def test_the_length_of_a_twice_written_number_is_the_LONGEST_of_its_rows():
+    """Номер, выписанный дважды, мерится САМОЙ ДЛИННОЙ строкой, а не последней.
+
+    У реестра есть такие номера — `ADR-067`, `ADR-073`, `ADR-145`: строка решения и
+    строка-указатель. `dict()` по парам оставил бы последнюю, и затёртой оказалась бы ровно
+    толстая. Написан по мутационному замеру #961: подмена `max(...)` на `len(title)` ВЫЖИЛА —
+    на сегодняшнем реестре все заголовки коротки, и обе меры отвечают одинаково. То есть
+    контроль мерил бы своё совпадение, а не проводку.
+    """
+    text = (_INDEX_HEAD
+            + "| ADR-920 | " + "я" * 900 + " | Accepted | [x](ADR-920-x.md) |\n"
+            + "| ADR-920 (дубль) | Указатель | Superseded | [x](ADR-920-y.md) |\n")
+    assert title_lengths(text)["ADR-920"] == 900, (
+        "длина ключа взята у строки-указателя: толстая строка того же номера затёрта молча")
+    assert register_debt(text, baseline=set())["newly_over"] == ["ADR-920"]
+
+
+def test_the_debt_sees_a_fat_title_hidden_behind_an_escaped_pipe():
+    """Контроль на ОДНУ дверь: наивный разбор такую строку через предел ПУСКАЛ.
+
+    Это не стилистика, а воспроизведение цены (ADR-840): у `ADR-831` наивный разбор мерил
+    163 символа вместо 2 089, и строка в базу долга не попала. Сцена нарочно устроена так,
+    чтобы ПЕРВЫЙ кусок заголовка был короче предела, — иначе проверка прошла бы и на
+    сломанном разборе, то есть мерила бы саму себя.
+    """
+    tail = "хвост пересказа, " * 20
+    line = f"| ADR-919 | начало \\| {tail} | Accepted | [x](ADR-919-x.md) |"
+    naive = [c.strip() for c in line.strip("|").split("|")][1]
+    assert len(naive) <= REGISTER_MAX_TITLE_CHARS, (
+        f"сцена не воспроизводит аварию: первый кусок заголовка стои́т {len(naive)} символов "
+        f"и толст сам по себе, поэтому его увидел бы любой разбор")
+    debt = register_debt(_INDEX_HEAD + line + "\n", baseline=set())
+    assert debt["newly_over"] == ["ADR-919"], (
+        "толстый заголовок, спрятанный за экранированной чёрточкой, долгом не признан — "
+        "мера считает ячейкой первый кусок заголовка (дефект, закрытый ADR-840)")
+
+
 def test_the_declared_limit_check_rejects_a_disagreeing_baseline():
     """Сверка «база объявляет = проверка применяет» ловит расхождение, а не только совпадение.
 
@@ -503,12 +575,12 @@ def test_the_declared_limit_check_rejects_a_disagreeing_baseline():
 
 def test_the_row_obedience_check_answers_both_ways():
     """`row_obeys_the_title_limit` ловит и подчинение, и нарушение, и ОТСУТСТВИЕ строки."""
-    rows = {"ADR-838": "Короткий заголовок", "ADR-818": "ы" * 7_137}
-    assert row_obeys_the_title_limit(rows, "ADR-838", 200)
-    assert not row_obeys_the_title_limit(rows, "ADR-818", 200), (
+    lengths = {"ADR-838": len("Короткий заголовок"), "ADR-818": 7_137}
+    assert row_obeys_the_title_limit(lengths, "ADR-838", 200)
+    assert not row_obeys_the_title_limit(lengths, "ADR-818", 200), (
         "Заголовок на 7 137 символов признан подчиняющимся пределу."
     )
-    assert not row_obeys_the_title_limit(rows, "ADR-404", 200), (
+    assert not row_obeys_the_title_limit(lengths, "ADR-404", 200), (
         "Отсутствующая строка признана подчиняющейся — «нет строки» выдано за «в пределе»."
     )
 
@@ -542,9 +614,9 @@ def test_the_register_char_ceiling_is_anchored_by_a_literal_and_moves_only_down(
     Единственный замок на храповик — литерал рядом с проверкой, как в ADR-837
     (`assert (STATE_MAX_LINES, STATE_MAX_CHARS, STATE_MAX_LINE_CHARS) == (150, 30_000, 700)`).
     """
-    assert (REGISTER_MAX_TITLE_CHARS, REGISTER_MAX_CHARS) == (200, 1_600_000), (
+    assert (REGISTER_MAX_TITLE_CHARS, REGISTER_MAX_CHARS) == (200, 180_000), (
         "Потолки реестра разошлись с объявленными числами (200 символов заголовка / "
-        "1 600 000 символов файла). Двигать их можно ТОЛЬКО вниз, и тогда литерал здесь "
+        "180 000 символов файла). Двигать их можно ТОЛЬКО вниз, и тогда литерал здесь "
         "двигается тем же коммитом — иначе непонятно, какое из двух чисел правда (инв. #16)."
     )
     assert _CEILINGS == {
