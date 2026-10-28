@@ -72,6 +72,15 @@ class TestSyncedPaths(unittest.TestCase):
         self.assertIn(".claude/rules", paths,
                       "path-специфичные правила обязаны доезжать до прод-дерева")
 
+    def test_launchd_plists_are_synced(self):
+        """ADR-846: установщик и сторож паритета флота читают plist ИЗ ПРОД-ДЕРЕВА.
+
+        Замер 28.10: в прод-дереве не было четырёх plist с origin, и
+        `data/fleet_parity.json` вечно называл два РАБОТАЮЩИХ агента «broken».
+        """
+        self.assertIn("launchd", _code_paths(),
+                      "plist агентов обязаны доезжать до дерева, из которого их читают")
+
     def test_data_is_NEVER_synced(self):
         """Сторона, где ошибка стоит трека целиком."""
         self.assertNotIn("data", _code_paths(),
@@ -104,6 +113,13 @@ class TestTheRuleIsWrittenDown(unittest.TestCase):
         text = _script_text()
         self.assertIn("architecture/ is a non-code exception", text)
         self.assertIn("2026-08-09", text, "решение владельца датировано")
+
+    def test_the_launchd_exception_is_explained_in_the_script(self):
+        text = _script_text()
+        self.assertIn("launchd/ is the THIRD non-code exception", text)
+        self.assertIn("2026-10-28", text)
+        self.assertIn("never installs, loads, unloads or kickstarts", text,
+                      "граница «только копии в репо, без перезапусков» записана там же")
 
     def test_the_instructions_exception_is_explained_in_the_script(self):
         text = _script_text()
