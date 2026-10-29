@@ -1,0 +1,129 @@
+{
+ "title": "ADR-863 (цикл #980) — у ОТВЕТА на задание владельца появился канал: писатель, читатель и три различимых исхода; историческое население НАЗВАНО, а не разослано",
+ "tests": [
+  "spa_core/tests/test_owner_task_answer_channel.py",
+  "spa_core/tests/test_cockpit_loop.py"
+ ],
+ "mutations": [
+  {
+   "name": "население каналов теряет голос и Telegram — возвращается ровно дефект 29.10 (0 из 18 доставлено)",
+   "file": "spa_core/owner_queue/answer_channel.py",
+   "old": "OWNER_TASK_SOURCES = tuple(COCKPIT_SOURCES) + (\"voice\", \"telegram\")",
+   "new": "OWNER_TASK_SOURCES = tuple(COCKPIT_SOURCES)"
+  },
+  {
+   "name": "население каналов открыто всем — находка сторожа уедет владельцу как его просьба (209 карточек nimbalyst)",
+   "file": "spa_core/owner_queue/answer_channel.py",
+   "old": "def is_owner_task(fm: dict | None) -> bool:\n    \"\"\"Задание ли это САМОГО владельца — по объявленному каналу прихода.\"\"\"\n    return str((fm or {}).get(\"source\") or \"\") in OWNER_TASK_SOURCES",
+   "new": "def is_owner_task(fm: dict | None) -> bool:\n    \"\"\"Задание ли это САМОГО владельца — по объявленному каналу прихода.\"\"\"\n    return True"
+  },
+  {
+   "name": "МОЛЧАНИЕ ВЫДАЁТСЯ ЗА ОТВЕТ: метки нет ⇒ «дошло» вместо «НЕ ИЗМЕРЕНО» (инв. #17 наизнанку)",
+   "file": "spa_core/owner_queue/answer_channel.py",
+   "old": "        return None, (\"метки уведомления нет: карточка закрыта путём, который метку ставить \"\n                      \"не умел (до ADR-863) — НЕ ИЗМЕРЕНО, а не «дошло»\")",
+   "new": "        return True, (\"метки уведомления нет: карточка закрыта путём, который метку ставить \"\n                      \"не умел (до ADR-863) — НЕ ИЗМЕРЕНО, а не «дошло»\")"
+  },
+  {
+   "name": "НЕЧИТАЕМЫЕ ИСХОДЯЩИЕ СНОВА ЧИТАЮТСЯ КАК ДОСТАВКА — тот самый fail-OPEN, который нашла обратная сцена внутри цикла",
+   "file": "spa_core/owner_queue/answer_channel.py",
+   "old": "        if not isinstance(doc, dict) or not isinstance(doc.get(\"pending\"), list):\n            return None",
+   "new": "        if False:\n            return None"
+  },
+  {
+   "name": "«положили в очередь» выдаётся за «канал принял» — запись, лежащая в исходящих, объявляется доставленной",
+   "file": "spa_core/owner_queue/answer_channel.py",
+   "old": "        if f\"{p.name}#{event}\" in keys:\n            return False, (\"запись ВСЁ ЕЩЁ лежит в исходящих",
+   "new": "        if False:\n            return False, (\"запись ВСЁ ЕЩЁ лежит в исходящих"
+  },
+  {
+   "name": "работающий путь пульта объявляется слепым: `done-verified` перестаёт быть ответом (2 из 2 доставленных становятся «не измерено»)",
+   "file": "spa_core/owner_queue/answer_channel.py",
+   "old": "_ANSWERING_EVENTS = {\n    ANSWER_SENT: EVENT_ANSWER,\n    \"done-verified\": \"done-verified\",\n}",
+   "new": "_ANSWERING_EVENTS = {\n    ANSWER_SENT: EVENT_ANSWER,\n}"
+  },
+  {
+   "name": "ответ объявляется записанным ВСЕГДА — владельцу обещают «готово», не умея сказать ЧТО",
+   "file": "spa_core/owner_queue/answer_channel.py",
+   "old": "    if body and _ANSWER_HEADING.search(body):\n        return EV_SECTION, \"\"\n    return None",
+   "new": "    return EV_SECTION, \"\""
+  },
+  {
+   "name": "перепись считает «ответа не записано» доставленным — число отсутствия исчезает из вердикта (класс ADR-851)",
+   "file": "spa_core/owner_queue/answer_channel.py",
+   "old": "        if ev is None:\n            kind = NO_ANSWER",
+   "new": "        if ev is None:\n            kind = DELIVERED"
+  },
+  {
+   "name": "отсутствующий каталог трекера даёт ЗАМЕР НУЛЯ вместо «не измерено» (инв. #17)",
+   "file": "spa_core/owner_queue/answer_channel.py",
+   "old": "        return {\"tracker_dir\": str(d), \"closed_owner_tasks\": None, \"counts\": counts,",
+   "new": "        return {\"tracker_dir\": str(d), \"closed_owner_tasks\": 0, \"counts\": counts,"
+  },
+  {
+   "name": "ЗАКРЫТИЕ НЕ ОСТАВЛЯЕТ СЛЕДА — первое звено канала исчезает, уведомить владельца нечем",
+   "file": "spa_core/owner_queue/queue.py",
+   "old": "            if _fm_end2 is not None:\n                lines.insert(_fm_end2, f\"owner_notice: {_ac.ANSWER_PENDING}\\n\")",
+   "new": "            if False:\n                lines.insert(_fm_end2, f\"owner_notice: {_ac.ANSWER_PENDING}\\n\")"
+  },
+  {
+   "name": "ГРАНИЦА С ИСТОРИЕЙ СНЯТА: метка ставится и поверх чужого события — второй писатель одного понятия (ADR-220)",
+   "file": "spa_core/owner_queue/queue.py",
+   "old": "                and not str(_fm.get(\"owner_notice\") or \"\").strip()",
+   "new": "                and True"
+  },
+  {
+   "name": "граница с писателем пульта снята — карточка пульта с пробой получает ВТОРУЮ метку (воспроизводится красный тест внутри цикла)",
+   "file": "spa_core/owner_queue/queue.py",
+   "old": "                and not str(_fm.get(\"verified_by_probe\") or \"\").strip()):",
+   "new": "                ):"
+  },
+  {
+   "name": "АНТИ-ШТОРМ ПРОБИТ: дочистка берёт карточку без метки — рассылка 18 ответов о работе недельной давности",
+   "file": "spa_core/owner_queue/cockpit_loop.py",
+   "old": "        answer_due = ac.ANSWER_PENDING in text",
+   "new": "        answer_due = True"
+  },
+  {
+   "name": "порядок записей перевёрнут: метка `answer-sent` ставится ДО исходящих — падение между ними теряет ответ НАВСЕГДА",
+   "file": "spa_core/owner_queue/cockpit_loop.py",
+   "old": "    intake._outbox_put(\n        f\"{path.name}#{ac.EVENT_ANSWER}\",\n        ac.answer_notice_text(str(fm.get(\"title\") or path.stem), ev[0], ev[1], path.name),\n        now, outbox_path)\n    _set_fields(path, {\"owner_notice\": ac.ANSWER_SENT, \"owner_notice_at\": _ts(now)})",
+   "new": "    _set_fields(path, {\"owner_notice\": ac.ANSWER_SENT, \"owner_notice_at\": _ts(now)})\n    intake._outbox_put(\n        f\"{path.name}#{ac.EVENT_ANSWER}\",\n        ac.answer_notice_text(str(fm.get(\"title\") or path.stem), ev[0], ev[1], path.name),\n        now, outbox_path)"
+  },
+  {
+   "name": "метка не проверяется в самом звене — уведомление уходит на КАЖДУЮ дочистку (дубль в чате владельца)",
+   "file": "spa_core/owner_queue/cockpit_loop.py",
+   "old": "    if str(fm.get(\"owner_notice\") or \"\").strip() != ac.ANSWER_PENDING:\n        return False",
+   "new": "    if False:\n        return False"
+  },
+  {
+   "name": "путь пульта теряет приоритет — карточка с пробой получает сообщение «вот ответ» вместо «сделано и проверено»",
+   "file": "spa_core/owner_queue/cockpit_loop.py",
+   "old": "            if probe_due and _ensure_done_notice(p, now, outbox_path):\n                queued.append(p.name)\n            elif answer_due and _ensure_answer_notice(p, now, outbox_path):",
+   "new": "            if answer_due and _ensure_answer_notice(p, now, outbox_path):\n                queued.append(p.name)\n            elif probe_due and _ensure_done_notice(p, now, outbox_path):"
+  },
+  {
+   "name": "проба приёмки перестаёт проверять анти-шторм — защита объявлена и не измерена",
+   "file": "spa_core/monitoring/card_acceptance.py",
+   "old": "            if hist.name in queued:\n                return NOT_SATISFIED, (",
+   "new": "            if False:\n                return NOT_SATISFIED, ("
+  },
+  {
+   "name": "проба приёмки перестаёт требовать смены вердикта двери — проводка объявлена живой без замера",
+   "file": "spa_core/monitoring/card_acceptance.py",
+   "old": "            if (before, after) != (False, True):\n                return NOT_SATISFIED, (",
+   "new": "            if False:\n                return NOT_SATISFIED, ("
+  },
+  {
+   "name": "проба приёмки перестаёт требовать «НЕ ИЗМЕРЕНО» у исторической карточки — молчание снова сошло бы за ответ",
+   "file": "spa_core/monitoring/card_acceptance.py",
+   "old": "            if hist_verdict is not None:\n                return NOT_SATISFIED, (",
+   "new": "            if False:\n                return NOT_SATISFIED, ("
+  }
+ ],
+ "result_2026_10_29": {
+  "applied": 19,
+  "killed": 17,
+  "survived": 2,
+  "note": "Первый прогон: убито 11, выжило 8. Из восьми ЧЕТЫРЕ оказались настоящими дырами и закрыты тестами в этом же цикле (форма исходящих при разбираемом JSON · закрытие поверх уже отданного события · порядок «исходящие перед меткой», наблюдаемый только при падении между ними · приоритет звена пульта на карточке, годной обоим), ДВЕ — внутренними проверками самой пробы, которых не трогало ни одно порванное звено (контролы дописаны, рвут их поодиночке), и ДВЕ — ЭКВИВАЛЕНТНЫМИ, а не дырами. Эквивалентность ИЗМЕРЕНА, а не предположена: отсев по метке стоит ДВАЖДЫ (в sweep_notices и в _ensure_answer_notice), снятие любого ОДНОГО наблюдаемого выхода не меняет, снятие ОБОИХ отправляет владельцу историческую карточку — проверено прямым прогоном и закреплено TheAntiStormIsHeldByTwoIndependentConditions. Дописывать тест под эквивалентного мутанта значило бы закрепить оптимизацию как поведение. Повторный прогон: 17 из 19, выжили ровно эти две. Дерево ОТДЕЛЬНОЕ (/tmp/spa_c980_mut), окно прибора снято, байты сверены побайтово."
+ }
+}

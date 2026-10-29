@@ -348,8 +348,55 @@ def record_no_probe(card, detail: str, *, next_step: str, now: Optional[datetime
     return {"card": path.name, "no_probe": True, "noticed": noticed}
 
 
+def _ensure_answer_notice(path: Path, now: datetime, outbox_path) -> bool:
+    """Положить в исходящие ОДНО «вот ответ на твою просьбу». True — положено сейчас.
+
+    Второе звено канала ADR-863. Первое — метка ``answer-pending``, которую ставит
+    ``queue.set_status`` при закрытии задания владельца с записанным ответом; здесь она
+    превращается в сообщение и в метку ``answer-sent``.
+
+    Порядок (исходящие → метка) тот же, что у пути пульта, и по той же причине: падение
+    между ними ПОВТОРИТ сообщение следующим прогоном, а обратный порядок ПОТЕРЯЛ бы его
+    навсегда. Доставка — не менее одного раза.
+
+    Метку ставим ТОЛЬКО на ``answer-pending``: карточка без метки закрыта кодом до
+    ADR-863, и рассылать владельцу работу недельной давности мы не вправе (граница
+    нарисована полем, не календарём — см. ``queue.set_status``).
+    """
+    from spa_core.owner_queue import answer_channel as ac
+    from spa_core.owner_queue import intake
+    try:
+        text = path.read_text(encoding="utf-8")
+    except OSError:
+        return False
+    fm, body = ac.split_frontmatter(text)
+    if str(fm.get("owner_notice") or "").strip() != ac.ANSWER_PENDING:
+        return False
+    ev = ac.answer_evidence(fm, body)
+    if ev is None:
+        # Метка есть, а ответа в карточке больше нет (тело переписали) — сказать владельцу
+        # нечего. Молча метку не снимаем: это находка, а не рядовой случай.
+        return False
+    intake._outbox_put(
+        f"{path.name}#{ac.EVENT_ANSWER}",
+        ac.answer_notice_text(str(fm.get("title") or path.stem), ev[0], ev[1], path.name),
+        now, outbox_path)
+    _set_fields(path, {"owner_notice": ac.ANSWER_SENT, "owner_notice_at": _ts(now)})
+    return True
+
+
 def sweep_notices(*, tracker_dir=None, outbox_path=None, now: Optional[datetime] = None) -> list[str]:
-    """Дочистка после падения: закрытые пробой карточки пульта без переданного уведомления."""
+    """Дочистка после падения: закрытые карточки без переданного владельцу уведомления.
+
+    Два предмета, ОДНА дочистка (её зовёт каждый прогон приёма):
+
+    * путь пульта — закрытые пробой карточки пульта (``done-verified``);
+    * ответ на задание владельца (ADR-863) — метка ``answer-pending`` → исходящие.
+
+    Сторожить их по отдельности было бы вторым расписанием для одного действия; оба
+    звена идемпотентны и обойдённая карточка ничего не стоит.
+    """
+    from spa_core.owner_queue import answer_channel as ac
     from spa_core.owner_queue import queue as q
     d = Path(tracker_dir) if tracker_dir is not None else Path(q.TRACKER_DIR)
     now = now or datetime.now(timezone.utc)
@@ -361,10 +408,17 @@ def sweep_notices(*, tracker_dir=None, outbox_path=None, now: Optional[datetime]
             text = p.read_text(encoding="utf-8")
         except OSError:
             continue
-        if "verified_by_probe:" not in text or "owner_notice: \"" + EVENT_DONE in text:
+        # Два дешёвых отсева по тексту — чтобы не разбирать 891 карточку целиком; сами
+        # условия перемеряются по frontmatter внутри каждого звена.
+        probe_due = ("verified_by_probe:" in text
+                     and "owner_notice: \"" + EVENT_DONE not in text)
+        answer_due = ac.ANSWER_PENDING in text
+        if not (probe_due or answer_due):
             continue
         try:
-            if _ensure_done_notice(p, now, outbox_path):
+            if probe_due and _ensure_done_notice(p, now, outbox_path):
+                queued.append(p.name)
+            elif answer_due and _ensure_answer_notice(p, now, outbox_path):
                 queued.append(p.name)
         except Exception:  # noqa: BLE001 — одна битая карточка не останавливает дочистку
             continue

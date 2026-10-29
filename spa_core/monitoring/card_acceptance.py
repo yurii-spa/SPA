@@ -188,6 +188,118 @@ def _probe_additive_field_reader_distinguishes(arg: str | None) -> tuple[str, st
         f"ось «читает только „все“» объявлена НЕ ИЗМЕРЕННОЙ")
 
 
+def _probe_owner_task_answer_reaches_the_channel(arg: str | None) -> tuple[str, str]:
+    """Критерий: у ЗАКРЫТОГО задания владельца есть машинная запись о судьбе ОТВЕТА,
+    и «не измерено» отличимо от «дошло» (ADR-863, карточка
+    `inbox-otvet-na-golosovoe-zadanie-vladeltsa-ne`).
+
+    Проба мерит ИСХОД живой проводки, а не наличие модуля, и у неё ТРИ замера:
+
+    1. **эталон класса** (`answer_channel.drive_exemplar`) — настоящая дверь на трёх
+       сценах, отличающихся РОВНО меткой `owner_notice`; одинаковый род исхода на
+       «закрыто до появления канала» и «ответ отдан каналу» есть дословная авария 29.10;
+    2. **проводка** — НАСТОЯЩИЕ `queue.set_status` и `cockpit_loop.sweep_notices` на
+       одноразовом трекере: закрытие задания с записанным ответом обязано (а) оставить
+       метку и (б) положить в исходящие запись ПОД СВОИМ КЛЮЧОМ. Спрашивается
+       ПРИСУТСТВИЕ ключа и СМЕНА вердикта двери, а не слова сообщения: печать, собранная
+       из того же числа, подтверждала бы сама себя (ADR-333);
+    3. **анти-шторм** — карточка исторической формы (закрыта, ответ записан, метки нет)
+       обязана остаться НЕ отправленной. Рассылка 18 ответов о работе недельной давности
+       — не исполнение просьбы, а шум, и проба это ПРОВЕРЯЕТ, а не обещает.
+
+    Население живой очереди печатается числом: «сколько закрытых просьб владельца не
+    могут сказать, узнал ли он ответ». Оно НЕ является условием прохода — предмет
+    карточки в том, чтобы у ответа ПОЯВИЛСЯ канал, а историю этот канал не переписывает.
+
+    Третий исход СВОЙ: модуль не ввозится или сцену не удалось собрать ⇒ `unmeasured`,
+    а не «не выполнено».
+    """
+    import json as _json
+    import tempfile
+    from datetime import datetime, timezone
+    from pathlib import Path as _Path
+
+    try:
+        from spa_core.owner_queue import answer_channel as ac
+        from spa_core.owner_queue import cockpit_loop as cl
+        from spa_core.owner_queue import queue as _q
+    except Exception as exc:  # noqa: BLE001
+        return UNMEASURED, f"канал ответа не ввозится: {type(exc).__name__}: {exc}"
+
+    drive = ac.drive_exemplar()
+    if drive.get("kind") == ac.DRIVE_UNMEASURED:
+        return UNMEASURED, f"эталон класса не измерен: {drive.get('reason')}"
+    if drive.get("kind") != ac.DRIVE_DISTINGUISHES:
+        return NOT_SATISFIED, (
+            f"эталон НЕ различает три исхода, вердикты {drive.get('verdicts')} — "
+            f"«закрыто до канала», «ещё не отдано» и «отдано» он смешивает")
+
+    now = datetime(2026, 1, 2, 3, 4, 5, tzinfo=timezone.utc)
+    card = ("---\ntrackerStatus:\n  type: inbox\ntitle: проверь дашборд\n"
+            "status: {status}\nsource: voice\n{extra}---\n\n## ОТВЕТ\n\nпроверено\n")
+    try:
+        with tempfile.TemporaryDirectory() as td:
+            d = _Path(td)
+            ob = d / "outbox.json"
+            ob.write_text(_json.dumps({"schema": 1, "pending": []}), encoding="utf-8")
+            live = d / "inbox-live.md"
+            live.write_text(card.format(status="in-progress",
+                                        extra='acceptance_probe: "problem_absent:x"\n'),
+                            encoding="utf-8")
+            hist = d / "inbox-hist.md"          # историческая форма: метки нет
+            hist.write_text(card.format(status="done",
+                                        extra="carried_to: docs/STATE.md\n"),
+                            encoding="utf-8")
+
+            _q.set_status(live, "done", closed_by="probe", evidence="ответ в теле")
+            fm, _ = ac.split_frontmatter(live.read_text(encoding="utf-8"))
+            if str(fm.get("owner_notice") or "") != ac.ANSWER_PENDING:
+                return NOT_SATISFIED, (
+                    f"закрытие задания владельца НЕ оставило следа для канала "
+                    f"(owner_notice={fm.get('owner_notice')!r}) — уведомить его нечем")
+            before = ac.delivery_verdict(live, outbox_path=ob)[0]
+            queued = cl.sweep_notices(tracker_dir=d, outbox_path=ob, now=now)
+            keys = [i.get("key") for i in
+                    _json.loads(ob.read_text(encoding="utf-8")).get("pending", [])]
+            if f"{live.name}#{ac.EVENT_ANSWER}" not in keys:
+                return NOT_SATISFIED, (
+                    f"дочистка не положила ответ в исходящие: очередь={keys}, "
+                    f"поставлено={queued}")
+            if hist.name in queued:
+                return NOT_SATISFIED, (
+                    "АНТИ-ШТОРМ ПРОБИТ: карточка, закрытая до появления канала, "
+                    "отправлена владельцу — это рассылка о работе недельной давности")
+            ob.write_text(_json.dumps({"schema": 1, "pending": []}), encoding="utf-8")
+            after = ac.delivery_verdict(live, outbox_path=ob)[0]
+            hist_verdict = ac.delivery_verdict(hist, outbox_path=ob)[0]
+            if (before, after) != (False, True):
+                return NOT_SATISFIED, (
+                    f"вердикт двери не сменился проводкой: до дочистки {before!r}, "
+                    f"после {after!r} (ожидалось False -> True)")
+            if hist_verdict is not None:
+                return NOT_SATISFIED, (
+                    f"историческая карточка получила вердикт {hist_verdict!r} вместо "
+                    f"«НЕ ИЗМЕРЕНО» — молчание выдано за ответ")
+    except Exception as exc:  # noqa: BLE001
+        return UNMEASURED, (f"проводку НЕ ИЗМЕРИТЬ: сцена не собралась — "
+                            f"{type(exc).__name__}: {exc}")
+
+    try:
+        pop = ac.measure(_Path(REPO_ROOT) / "nimbalyst-local" / "tracker")
+        c = pop["counts"]
+        where = (f"живая очередь: закрытых заданий владельца {pop['closed_owner_tasks']} "
+                 f"(отдано каналу {c[ac.DELIVERED]} · ждёт {c[ac.PENDING]} · НЕ ИЗМЕРЕНО "
+                 f"{c[ac.UNMEASURED]} · ответа не записано {c[ac.NO_ANSWER]})")
+    except Exception as exc:  # noqa: BLE001
+        where = f"живая очередь НЕ измерена: {type(exc).__name__}: {exc}"
+
+    return SATISFIED, (
+        f"эталон различает три исхода {drive['verdicts']}; проводка жива "
+        f"(закрытие -> метка -> исходящие под ключом «#{ac.EVENT_ANSWER}» -> вердикт "
+        f"False->True); анти-шторм держит (карточка без метки не отправлена, вердикт "
+        f"«НЕ ИЗМЕРЕНО»); {where}")
+
+
 def _probe_owner_repeat_named_by_the_hunger_step(arg: str | None) -> tuple[str, str]:
     """Критерий: шаг 0a НАЗЫВАЕТ ЧИСЛОМ повтор просьбы владельца, и повторов в очереди нет.
 
@@ -12441,6 +12553,8 @@ PROBES: dict[str, Callable[[str | None], "tuple[str, str]"]] = {
         _probe_additive_field_reader_distinguishes,
     "owner_repeat_named_by_the_hunger_step":
         _probe_owner_repeat_named_by_the_hunger_step,
+    "owner_task_answer_reaches_the_channel":
+        _probe_owner_task_answer_reaches_the_channel,
     "adapter_status_live_apy": _probe_adapter_status_live_apy,
     "tier_promotion_loop_closed": _probe_tier_promotion_loop,
     "ledger_cut_moves_and_is_measured": _probe_ledger_cut_moves_and_is_measured,

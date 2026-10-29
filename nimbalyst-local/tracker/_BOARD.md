@@ -2,9 +2,9 @@
 
 > Авто-генерится `scripts/build_tracker_board.py` из `nimbalyst-local/tracker/*.md`. НЕ править вручную — правь карточки. Источник правды — карточки, это индекс (bootstrap).
 >
-> Собрана: 2026-10-29T18:12:42Z · сверка с карточками: `python3 scripts/build_tracker_board.py --check` (сторож `spa_core/tests/test_tracker_board_matches_cards.py`).
+> Собрана: 2026-10-29T21:27:21Z · сверка с карточками: `python3 scripts/build_tracker_board.py --check` (сторож `spa_core/tests/test_tracker_board_matches_cards.py`).
 >
-> Сверено с `origin/main` (020ad9a16).
+> Сверено с `origin/main` (2f8006a98) · у **1** своя правка, кто новее — не измерено.
 >
 > Всего карточек: **1512** · ждёт владельца: **3** · занято сессиями: **14**.
 
@@ -714,6 +714,7 @@
 - ОТЛОЖЕНО · Looping Strategy «до +50%» — отдельный трек, вернуться после расчистки бэклога  ·  `inbox-otlozheno-looping-strategy-do-50-otdelny.md` · 2026-08-23
 - Отметка из БУДУЩЕГО читается как «только что»: общий помощник свежести зажимает возраст в ноль  ·  `inbox-otmetka-iz-buduschego-chitaetsya-kak-tol.md` · 2026-08-18
 - Ответ 1  ·  `inbox-otvet-1.md` · 2026-08-20
+- Ответ на голосовое задание владельца не имеет канала к нему: просьбу «проверь дашборд» он повторил СЕДЬМОЙ раз во время цикла, который на неё отвечал  ·  `inbox-otvet-na-golosovoe-zadanie-vladeltsa-ne.md` · 2026-10-29
 - Ответ владельца живёт только в хост-дереве: бот пишет туда, инжест пушит на origin, копии расходятся навсегда  ·  `inbox-otvet-vladeltsa-zhivet-tolko-v-host-dereve.md` · 2026-08-09
 - owner-gate краснеет на СВОЕЙ ежедневной автоматике: сдвиг снимка трека на один цент = owner-gated  ·  `inbox-owner-gate-krasneet-na-svoei-ezhednevnoi.md` · 2026-08-13
 - Owner-gate заводит дубль карточки на каждый заблокированный пуш одних и тех же файлов  ·  `inbox-owner-gate-zavodit-dubl-kartochki-na-kaz.md` · 2026-08-08
@@ -1085,7 +1086,6 @@
 - Отбор лучших восьми протоколов не бережёт T1-якорь: два хороших кандидата вместе ухудшают книгу  ·  `inbox-otbor-luchshih-vosmi-protokolov-ne-berez.md` · 2026-08-29
 - Отчёт объявлен мерой критерия приёмки, которого владелец не писал  ·  `inbox-otchet-obyavlen-meroi-kriteriya-priemki.md` · 2026-09-29
 - Отсутствие оценки TVL публикуется НУЛЁМ у 4 записей — инв. #17 на вложенном пути  ·  `inbox-otsutstvie-otsenki-tvl-publikuetsya-nule.md` · 2026-10-12
-- Ответ на голосовое задание владельца не имеет канала к нему: просьбу «проверь дашборд» он повторил СЕДЬМОЙ раз во время цикла, который на неё отвечал  ·  `inbox-otvet-na-golosovoe-zadanie-vladeltsa-ne.md` · 2026-10-29
 - Paper-модули #39 CDR и #36 dwell обязаны логировать концентрацию и duty — иначе форвард будет неатрибутируем  ·  `inbox-paper-moduli-39-cdr-i-36-dwell-obyazany.md` · 2026-08-08
 - Печать ступени переписей убивает третий исход прибора: 78 жёстких индексов по counts  ·  `inbox-pechat-stupeni-perepisei-ubivaet-tretii.md` · 2026-09-11
 - Перечень видов ленты research_factory не имеет читателя и расходится с самой лентой в обе стороны  ·  `inbox-perechen-vidov-lenty-research-factory-ne.md` · 2026-10-24
