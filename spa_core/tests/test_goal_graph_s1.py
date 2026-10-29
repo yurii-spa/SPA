@@ -46,6 +46,10 @@ def stand(tmp_path):
     return s
 
 
+def _lease(g, tid, run, worker="worker", now=T0, ttl=3600):
+    return gg.claim(run, g, tid, worker=worker, process=f"{worker}:proc", now=now, ttl_s=ttl)
+
+
 def _graph():
     res = gg.validate_plan(_goal(), _plan(), scope=["notes"])
     assert res["ok"], res["refusals"]
@@ -59,13 +63,15 @@ def test_goal_to_graph_to_admission_to_stand_action_to_machine_result(stand, tmp
     assert gg.ready_tasks(g, []) == ["t1"]                       # t2 ждёт зависимость
     for tid in g["order"]:
         ap = gg.approve_task(g, tid, approver="agent:cycle", role="agent", at=T0, expires_at=EXPIRES)
-        out = gg.execute_on_stand(g, tid, ap, stand=stand, run_dir=run, now=T1, author="worker")
+        lease = _lease(g, tid, run)
+        out = gg.execute_on_stand(g, tid, ap, stand=stand, run_dir=run, now=T1, author="worker", lease=lease)
         assert out["state"] == "applied"
-        res = gg.machine_result(g, tid, stand=stand, run_dir=run, now=T1)
+        res = gg.machine_result(g, tid, stand=stand, run_dir=run, now=T1, lease=lease)
         assert res["verdict"] == gg.SATISFIED, res
     assert gg.done_tasks(run, g["version"]) == ["t1", "t2"]
     assert (stand / "notes" / "status.md").read_text() == CONTENT
-    states = [json.loads(x)["state"] for x in (run / gg.JOURNAL_FILE).read_text().splitlines()]
+    states = [json.loads(x)["state"] for x in (run / gg.JOURNAL_FILE).read_text().splitlines()
+              if "state" in json.loads(x)]
     assert states == ["started", "applied", f"checked:{gg.SATISFIED}"] * 2
 
 
@@ -155,7 +161,8 @@ def test_stale_changed_expired_or_revoked_approval_produces_no_effect(stand, tmp
     g2["tasks"]["t1"]["operations"][0]["content"] = "other\n"
     assert "операции изменились после допуска" in gg.admission(g2, "t1", ap, now=T1)
     with pytest.raises(gg.Refused, match="не допущено"):
-        gg.execute_on_stand(g, "t1", ap, stand=stand, run_dir=tmp_path / "run", now=LATE, author="w")
+        gg.execute_on_stand(g, "t1", ap, stand=stand, run_dir=tmp_path / "run", now=LATE, author="w",
+                            lease=None)
     assert not (stand / "notes").exists()                               # эффекта нет
 
 
@@ -165,7 +172,8 @@ def test_action_never_leaves_the_stand_and_never_touches_an_unmarked_tree(tmp_pa
     plain = tmp_path / "work_tree"
     plain.mkdir()
     with pytest.raises(gg.Refused, match="не помечен как стенд"):
-        gg.execute_on_stand(g, "t1", ap, stand=plain, run_dir=tmp_path / "run", now=T1, author="w")
+        gg.execute_on_stand(g, "t1", ap, stand=plain, run_dir=tmp_path / "run", now=T1, author="w",
+                            lease=None)
     assert list(plain.iterdir()) == []
 
 
@@ -173,13 +181,14 @@ def test_repeat_does_not_create_a_second_effect_and_partial_state_is_not_done(st
     run = tmp_path / "run"
     g = _graph()
     ap = gg.approve_task(g, "t1", approver="a", role="agent", at=T0, expires_at=EXPIRES)
-    first = gg.execute_on_stand(g, "t1", ap, stand=stand, run_dir=run, now=T1, author="w")
-    again = gg.execute_on_stand(g, "t1", ap, stand=stand, run_dir=run, now=T1, author="w")
+    lease = _lease(g, "t1", run)
+    first = gg.execute_on_stand(g, "t1", ap, stand=stand, run_dir=run, now=T1, author="w", lease=lease)
+    again = gg.execute_on_stand(g, "t1", ap, stand=stand, run_dir=run, now=T1, author="w", lease=lease)
     assert again["repeated"] is True and again["op_key"] == first["op_key"]
-    assert len((run / gg.JOURNAL_FILE).read_text().splitlines()) == 2
+    assert len((run / gg.JOURNAL_FILE).read_text().splitlines()) == 3          # claim + started + applied
     assert gg.done_tasks(run, g["version"]) == []                       # applied ≠ done
     with pytest.raises(gg.Refused, match="проверять нечего"):
-        gg.machine_result(g, "t2", stand=stand, run_dir=run, now=T1)
+        gg.machine_result(g, "t2", stand=stand, run_dir=run, now=T1, lease=lease)
 
 
 def test_machine_result_has_three_distinct_outcomes(stand, tmp_path):
@@ -187,11 +196,13 @@ def test_machine_result_has_three_distinct_outcomes(stand, tmp_path):
     p = _plan()
     p["tasks"][1]["check"]["sha256"] = "0" * 64
     g = gg.validate_plan(_goal(), p, scope=["notes"])["graph"]
+    leases = {}
     for tid in ("t1", "t2"):
         ap = gg.approve_task(g, tid, approver="a", role="agent", at=T0, expires_at=EXPIRES)
-        gg.execute_on_stand(g, tid, ap, stand=stand, run_dir=run, now=T1, author="w")
-    assert gg.machine_result(g, "t1", stand=stand, run_dir=run, now=T1)["verdict"] == gg.SATISFIED
-    assert gg.machine_result(g, "t2", stand=stand, run_dir=run, now=T1)["verdict"] == gg.NOT_SATISFIED
+        leases[tid] = _lease(g, tid, run)
+        gg.execute_on_stand(g, tid, ap, stand=stand, run_dir=run, now=T1, author="w", lease=leases[tid])
+    assert gg.machine_result(g, "t1", stand=stand, run_dir=run, now=T1, lease=leases["t1"])["verdict"] == gg.SATISFIED
+    assert gg.machine_result(g, "t2", stand=stand, run_dir=run, now=T1, lease=leases["t2"])["verdict"] == gg.NOT_SATISFIED
     assert gg.done_tasks(run, g["version"]) == ["t1"]                  # неудача не стала done
     # третий исход: проверка не смогла измерить (файл стал каталогом)
     p3 = _plan()
@@ -201,7 +212,9 @@ def test_machine_result_has_three_distinct_outcomes(stand, tmp_path):
     stand3.mkdir()
     (stand3 / ".studio_stand").write_text("x")
     ap = gg.approve_task(g3, "t1", approver="a", role="agent", at=T0, expires_at=EXPIRES)
-    gg.execute_on_stand(g3, "t1", ap, stand=stand3, run_dir=run3, now=T1, author="w")
-    (stand3 / "notes" / "draft.md").unlink()
+    l3 = _lease(g3, "t1", run3)
+    gg.execute_on_stand(g3, "t1", ap, stand=stand3, run_dir=run3, now=T1, author="w", lease=l3)
+    # подмена файла каталогом — не удаление данных: стенд одноразовый, файл переименован рядом
+    (stand3 / "notes" / "draft.md").rename(stand3 / "notes" / "draft.md.moved")
     (stand3 / "notes" / "draft.md").mkdir()
-    assert gg.machine_result(g3, "t1", stand=stand3, run_dir=run3, now=T1)["verdict"] == gg.UNMEASURED
+    assert gg.machine_result(g3, "t1", stand=stand3, run_dir=run3, now=T1, lease=l3)["verdict"] == gg.UNMEASURED

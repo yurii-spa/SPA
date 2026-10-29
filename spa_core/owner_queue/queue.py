@@ -660,10 +660,64 @@ def check_lifecycle(tracker_type, old: str | None, new: str, *, fm: dict | None 
             f"--closed-by <кто> и --evidence, НАЗЫВАЮЩИМ {RETRACTION_RULE_TOKEN} (ADR-807).")
 
 
+class StaleCardRevision(ValueError):
+    """Карточка изменилась после того, как писатель её прочитал — запись не сделана (E2.2)."""
+
+
+def card_revision(path: str | Path) -> str:
+    """Ревизия карточки для протокола записи — sha256 её байтов."""
+    import hashlib as _hashlib
+    return _hashlib.sha256(Path(path).read_bytes()).hexdigest()
+
+
+def _card_lock_path(path: Path) -> Path:
+    """Файл блокировки ВНЕ трекера (в трекере не должно появляться посторонних файлов)."""
+    import hashlib as _hashlib
+    import tempfile as _tempfile
+    d = Path(_tempfile.gettempdir()) / "spa_card_locks"
+    d.mkdir(parents=True, exist_ok=True)
+    return d / (_hashlib.sha256(str(Path(path).resolve()).encode("utf-8")).hexdigest()[:24] + ".lock")
+
+
+class StaleCardRevision(ValueError):
+    """Карточка изменилась после того, как писатель её прочитал — запись не сделана (E2.2)."""
+
+
+def card_revision(path: str | Path) -> str:
+    """Ревизия карточки для протокола записи — sha256 её байтов."""
+    import hashlib as _hashlib
+    return _hashlib.sha256(Path(path).read_bytes()).hexdigest()
+
+
+def _card_lock_path(path: Path) -> Path:
+    """Файл блокировки ВНЕ трекера (в трекере не должно появляться посторонних файлов)."""
+    import hashlib as _hashlib
+    import tempfile as _tempfile
+    d = Path(_tempfile.gettempdir()) / "spa_card_locks"
+    d.mkdir(parents=True, exist_ok=True)
+    return d / (_hashlib.sha256(str(Path(path).resolve()).encode("utf-8")).hexdigest()[:24] + ".lock")
+
+
+@__import__("contextlib").contextmanager
+def _card_write_lock(path: str | Path, expected_revision: str | None):
+    import fcntl as _fcntl
+    with open(_card_lock_path(Path(path)), "a+") as _lk:
+        _fcntl.flock(_lk.fileno(), _fcntl.LOCK_EX)
+        try:
+            if expected_revision is not None and card_revision(path) != expected_revision:
+                raise StaleCardRevision(
+                    f"{Path(path).name}: карточка изменилась после чтения (ожидалась ревизия "
+                    f"{expected_revision[:12]}) — запись статуса не сделана, перечитайте карточку")
+            yield
+        finally:
+            _fcntl.flock(_lk.fileno(), _fcntl.LOCK_UN)
+
+
 def set_status(path: str | Path, new_status: str,
                closed_by: str | None = None, evidence: str | None = None,
                carried_to: str | Path | None = None,
-               repo_root: str | Path | None = None) -> None:
+               repo_root: str | Path | None = None,
+               expected_revision: str | None = None) -> None:
     """Atomically rewrite the top-level ``status:`` in a card's frontmatter.
 
     Refuses ``owner-accepted`` outright: that status is the owner's own words, and an agent
@@ -676,140 +730,145 @@ def set_status(path: str | Path, new_status: str,
 
     Only the ``status:`` line changes; the rest of the file is preserved byte-for-byte modulo
     that one line (the closure stamp is appended to the body, not the frontmatter).
-    """
-    if new_status in OWNER_ONLY_STATUSES:
-        raise OwnerDoneForbidden(
-            f"Agents may not set status '{new_status}' — that status is the owner's own words, "
-            "not a verdict an agent may reach (CLAUDE.md invariant #14, ADR-146). It is "
-            "non-terminal and closes nothing; to CLOSE a card use owner-done with evidence."
-        )
-    if new_status == AGENT_CLOSABLE_STATUS and not (closed_by and evidence):
-        raise OwnerDoneForbidden(
-            f"Closing a card with '{new_status}' requires closed_by= AND evidence= "
-            "(CLAUDE.md invariant #14, ADR-146). A terminal status must mean the card's "
-            "acceptance criterion was CHECKED — that is what авария #350 cost, and it is the "
-            "half of the old guard that stays machine-enforced."
-        )
-    p = Path(path)
-    text = p.read_text(encoding="utf-8")
-    fm_lines, _ = _split_frontmatter(text)
-    if not fm_lines:
-        raise ValueError(f"{p}: no frontmatter to update")
 
-    # Статус ДО записи — половина ответа на вопрос «кто закрыл вопрос владельца»;
-    # прочитать его после записи уже негде.
-    _fm = _parse_frontmatter(fm_lines)
-    _old_status = _fm.get("status")
-    _old_status = str(_old_status).strip() if isinstance(_old_status, str) else None
+    STUDIO-AUTONOMY-01 E2.2 (ADR-857): запись идёт под блокировкой на карточку (``fcntl``, файл вне
+    трекера); ``expected_revision`` — sha256 байтов, которые писатель прочитал: карточка изменилась ⇒
+    :class:`StaleCardRevision`, ничего не записано. Без ``expected_revision`` — прежнее поведение.
+    Предел: блокировку соблюдают только писатели, идущие через эту функцию."""
+    with _card_write_lock(path, expected_revision):
+            if new_status in OWNER_ONLY_STATUSES:
+                raise OwnerDoneForbidden(
+                    f"Agents may not set status '{new_status}' — that status is the owner's own words, "
+                    "not a verdict an agent may reach (CLAUDE.md invariant #14, ADR-146). It is "
+                    "non-terminal and closes nothing; to CLOSE a card use owner-done with evidence."
+                )
+            if new_status == AGENT_CLOSABLE_STATUS and not (closed_by and evidence):
+                raise OwnerDoneForbidden(
+                    f"Closing a card with '{new_status}' requires closed_by= AND evidence= "
+                    "(CLAUDE.md invariant #14, ADR-146). A terminal status must mean the card's "
+                    "acceptance criterion was CHECKED — that is what авария #350 cost, and it is the "
+                    "half of the old guard that stays machine-enforced."
+                )
+            p = Path(path)
+            text = p.read_text(encoding="utf-8")
+            fm_lines, _ = _split_frontmatter(text)
+            if not fm_lines:
+                raise ValueError(f"{p}: no frontmatter to update")
 
-    # Правило приёмки (`.claude/rules/acceptance.md`, п. 1): inbox-карточка уходит из
-    # приёма (`new`/`backlog`) только с машинным критерием. Отказ здесь, а не в отчёте
-    # через сутки: мерку выбирают ДО работы, иначе «стало лучше» нечем поверить.
-    _tracker_type = (_fm.get("trackerStatus") or {}).get("type") if isinstance(_fm.get("trackerStatus"), dict) else None
-    # КАРТОЧКА-НОСИТЕЛЬ — не «взятие в работу» (ADR-375).
-    #
-    # Правило ниже написано про случай «карточку БЕРУТ В РАБОТУ без мерки». Приём
-    # заданий (`owner_queue.intake`) делает нечто иное: содержимое пришедшей карточки
-    # уезжает в другой предмет — идея в заметку `docs/ideas/`, вопрос в карточку
-    # владельцу, — а сама inbox-карточка гасится как отработавший НОСИТЕЛЬ. Работы
-    # тут не берут, и требовать у носителя критерий приёмки не к чему: его приёмка
-    # ровно одна — содержимое теперь лежит ВОТ ЗДЕСЬ.
-    #
-    # Поэтому освобождение не «флагом-доверием», а ЗАРАБОТАННОЕ: вызывающий обязан
-    # НАЗВАТЬ путь, куда уехало содержимое, и путь обязан СУЩЕСТВОВАТЬ. Имя без файла
-    # освобождения не даёт — иначе это был бы тот самый опт-аут, который учит
-    # отключать сторожа.
-    # ОДНА копия условия (ADR-501) — та же, что ввозит сторож. Своей редакции здесь
-    # больше нет: прежняя считала путь от CWD и отказывала законному носителю всюду,
-    # кроме корня репозитория.
-    _carried_ok = False
-    if carried_to is not None:
-        # `repo_root` ВВОДИТСЯ вызывающим, а не берётся у окружения: приём заданий
-        # (`owner_queue.intake`) кладёт заметку-идею в СВОЙ корень, и без этого шва
-        # законное освобождение идеей получало отказ всюду, кроме боевого дерева.
-        _resolved, _why = carried_release(carried_to, p, repo_root=repo_root)
-        _carried_ok = _resolved is not None
-        if not _carried_ok:
-            raise AcceptanceCriterionMissing(f"{p.name}: {_why}")
-    if (_tracker_type == "inbox" and new_status not in INTAKE_STATUSES
-            and not _carried_ok and not has_acceptance_criterion(_fm)):
-        _base = _inbox_acceptance_baseline()
-        if _base is None:
-            import sys as _sys
-            print(f"WARNING: {INBOX_ACCEPTANCE_BASELINE} не прочиталась — освобождение по базе "
-                  f"НЕ ИЗМЕРЕНО, карточка {p.name} пропущена без проверки критерия", file=_sys.stderr)
-        elif p.name not in _base:
-            raise AcceptanceCriterionMissing(
-                f"{p.name}: inbox-карточку нельзя перевести в '{new_status}' без машинного критерия "
-                f"приёмки (.claude/rules/acceptance.md). ДО работы объявить пробу: "
-                f"python3 scripts/orchestrator_queue.py probe {p} <имя из card_acceptance.PROBES[:аргумент]>. "
-                f"Нет подходящей пробы — зарегистрировать новую с контролем в обе стороны. "
-                f"В базу scripts/inbox_acceptance_baseline.json НЕ дописывать: она только уменьшается.")
+            # Статус ДО записи — половина ответа на вопрос «кто закрыл вопрос владельца»;
+            # прочитать его после записи уже негде.
+            _fm = _parse_frontmatter(fm_lines)
+            _old_status = _fm.get("status")
+            _old_status = str(_old_status).strip() if isinstance(_old_status, str) else None
 
-    # Build Loop v1 (ADR-551): the lifecycle check runs AFTER the acceptance rule above, so a card
-    # taken without a criterion is still refused for THAT reason first.
-    try:
-        from spa_core.owner_queue.status_audit import read_trail as _read_trail
-        _fm_lc = dict(_fm, status_trail_items=_read_trail(text))
-    except Exception:  # noqa: BLE001 — no trail reader ⇒ judged on fields alone (stricter)
-        _fm_lc = _fm
-    # Legacy own-* cards carry a top-level `type:` instead of `trackerStatus.type` (16 measured) — they
-    # are owner decisions all the same (second review 2026-10-03).
-    _lc_type = _tracker_type or (str(_fm.get("type")).strip() if _fm.get("type") else None)
-    check_lifecycle(_lc_type, _old_status, new_status, fm=_fm_lc, closed_by=closed_by,
-                    evidence=evidence, carried=_carried_ok, name=p.name)
+            # Правило приёмки (`.claude/rules/acceptance.md`, п. 1): inbox-карточка уходит из
+            # приёма (`new`/`backlog`) только с машинным критерием. Отказ здесь, а не в отчёте
+            # через сутки: мерку выбирают ДО работы, иначе «стало лучше» нечем поверить.
+            _tracker_type = (_fm.get("trackerStatus") or {}).get("type") if isinstance(_fm.get("trackerStatus"), dict) else None
+            # КАРТОЧКА-НОСИТЕЛЬ — не «взятие в работу» (ADR-375).
+            #
+            # Правило ниже написано про случай «карточку БЕРУТ В РАБОТУ без мерки». Приём
+            # заданий (`owner_queue.intake`) делает нечто иное: содержимое пришедшей карточки
+            # уезжает в другой предмет — идея в заметку `docs/ideas/`, вопрос в карточку
+            # владельцу, — а сама inbox-карточка гасится как отработавший НОСИТЕЛЬ. Работы
+            # тут не берут, и требовать у носителя критерий приёмки не к чему: его приёмка
+            # ровно одна — содержимое теперь лежит ВОТ ЗДЕСЬ.
+            #
+            # Поэтому освобождение не «флагом-доверием», а ЗАРАБОТАННОЕ: вызывающий обязан
+            # НАЗВАТЬ путь, куда уехало содержимое, и путь обязан СУЩЕСТВОВАТЬ. Имя без файла
+            # освобождения не даёт — иначе это был бы тот самый опт-аут, который учит
+            # отключать сторожа.
+            # ОДНА копия условия (ADR-501) — та же, что ввозит сторож. Своей редакции здесь
+            # больше нет: прежняя считала путь от CWD и отказывала законному носителю всюду,
+            # кроме корня репозитория.
+            _carried_ok = False
+            if carried_to is not None:
+                # `repo_root` ВВОДИТСЯ вызывающим, а не берётся у окружения: приём заданий
+                # (`owner_queue.intake`) кладёт заметку-идею в СВОЙ корень, и без этого шва
+                # законное освобождение идеей получало отказ всюду, кроме боевого дерева.
+                _resolved, _why = carried_release(carried_to, p, repo_root=repo_root)
+                _carried_ok = _resolved is not None
+                if not _carried_ok:
+                    raise AcceptanceCriterionMissing(f"{p.name}: {_why}")
+            if (_tracker_type == "inbox" and new_status not in INTAKE_STATUSES
+                    and not _carried_ok and not has_acceptance_criterion(_fm)):
+                _base = _inbox_acceptance_baseline()
+                if _base is None:
+                    import sys as _sys
+                    print(f"WARNING: {INBOX_ACCEPTANCE_BASELINE} не прочиталась — освобождение по базе "
+                          f"НЕ ИЗМЕРЕНО, карточка {p.name} пропущена без проверки критерия", file=_sys.stderr)
+                elif p.name not in _base:
+                    raise AcceptanceCriterionMissing(
+                        f"{p.name}: inbox-карточку нельзя перевести в '{new_status}' без машинного критерия "
+                        f"приёмки (.claude/rules/acceptance.md). ДО работы объявить пробу: "
+                        f"python3 scripts/orchestrator_queue.py probe {p} <имя из card_acceptance.PROBES[:аргумент]>. "
+                        f"Нет подходящей пробы — зарегистрировать новую с контролем в обе стороны. "
+                        f"В базу scripts/inbox_acceptance_baseline.json НЕ дописывать: она только уменьшается.")
 
-    lines = text.splitlines(keepends=True)
-    # Locate frontmatter bounds in the raw (keepends) line list.
-    start = None
-    end = None
-    seen = 0
-    for i, ln in enumerate(lines):
-        if ln.strip() == "---":
-            seen += 1
-            if seen == 1:
-                start = i
-            elif seen == 2:
-                end = i
-                break
-    if start is None or end is None:
-        raise ValueError(f"{p}: could not locate frontmatter bounds")
+            # Build Loop v1 (ADR-551): the lifecycle check runs AFTER the acceptance rule above, so a card
+            # taken without a criterion is still refused for THAT reason first.
+            try:
+                from spa_core.owner_queue.status_audit import read_trail as _read_trail
+                _fm_lc = dict(_fm, status_trail_items=_read_trail(text))
+            except Exception:  # noqa: BLE001 — no trail reader ⇒ judged on fields alone (stricter)
+                _fm_lc = _fm
+            # Legacy own-* cards carry a top-level `type:` instead of `trackerStatus.type` (16 measured) — they
+            # are owner decisions all the same (second review 2026-10-03).
+            _lc_type = _tracker_type or (str(_fm.get("type")).strip() if _fm.get("type") else None)
+            check_lifecycle(_lc_type, _old_status, new_status, fm=_fm_lc, closed_by=closed_by,
+                            evidence=evidence, carried=_carried_ok, name=p.name)
 
-    replaced = False
-    for i in range(start + 1, end):
-        stripped = lines[i].strip()
-        if stripped.startswith("status:") and not lines[i][:1].isspace():
-            newline = "\n" if lines[i].endswith("\n") else ""
-            lines[i] = f"status: {new_status}{newline}"
-            replaced = True
-            break
-    if not replaced:
-        # Repair a status-less card (dead-letter): insert a top-level 'status:' line as
-        # the last frontmatter entry, right before the closing '---'. Without this, a card
-        # created with no status is invisible to every filter AND unfixable by this tool.
-        lines.insert(end, f"status: {new_status}\n")
+            lines = text.splitlines(keepends=True)
+            # Locate frontmatter bounds in the raw (keepends) line list.
+            start = None
+            end = None
+            seen = 0
+            for i, ln in enumerate(lines):
+                if ln.strip() == "---":
+                    seen += 1
+                    if seen == 1:
+                        start = i
+                    elif seen == 2:
+                        end = i
+                        break
+            if start is None or end is None:
+                raise ValueError(f"{p}: could not locate frontmatter bounds")
 
-    # След перехода едет В САМОЙ карточке — решение владельца 2026-08-23, вариант 1
-    # (ADR-129). Одной записью со статусом, а не двумя: журнал в `data/` в git не
-    # попадает, поэтому законное закрытие из рабочего дерева приезжало в прод немым,
-    # и сторож называл его «вопрос владельца закрыли без владельца» КАЖДЫЙ раз.
-    #
-    # Закрытие агентом (ADR-146) едет ТЕМ ЖЕ следом, а не своей параллельной записью: кто
-    # закрыл и на каком основании — половина ответа на «почему карточка закрыта», и она
-    # обязана лежать там же, где остальные переходы, иначе появится второй источник правды.
-    # Разделитель следа из основания вычищается: иначе основание с ` · ` внутри развалило бы
-    # разбор строки на поля.
-    _source = "queue.set_status"
-    if new_status in EVIDENCED_CLOSING_STATUSES and closed_by and evidence:
-        _clean = str(evidence).replace(TRAIL_SEP.strip(), "-").replace("\n", " ").strip()
-        _source = f"queue.set_status/closed_by:{closed_by}/evidence:{_clean[:200]}"
-    _text = stamp_trail("".join(lines), old=_old_status, new=new_status,
-                        source=_source)
-    atomic_save_text(_text, str(p))
-    # Кто перевёл карточку — в журнал. Импорт наверху, а не здесь: аудит держится
-    # на одной stdlib и кольца не создаёт, а «на всякий случай локальный» импорт —
-    # это молчаливая своя копия правила, за которую проект уже платил (#144).
-    record_status_write(p, old=_old_status, new=new_status, source="queue.set_status")
+            replaced = False
+            for i in range(start + 1, end):
+                stripped = lines[i].strip()
+                if stripped.startswith("status:") and not lines[i][:1].isspace():
+                    newline = "\n" if lines[i].endswith("\n") else ""
+                    lines[i] = f"status: {new_status}{newline}"
+                    replaced = True
+                    break
+            if not replaced:
+                # Repair a status-less card (dead-letter): insert a top-level 'status:' line as
+                # the last frontmatter entry, right before the closing '---'. Without this, a card
+                # created with no status is invisible to every filter AND unfixable by this tool.
+                lines.insert(end, f"status: {new_status}\n")
+
+            # След перехода едет В САМОЙ карточке — решение владельца 2026-08-23, вариант 1
+            # (ADR-129). Одной записью со статусом, а не двумя: журнал в `data/` в git не
+            # попадает, поэтому законное закрытие из рабочего дерева приезжало в прод немым,
+            # и сторож называл его «вопрос владельца закрыли без владельца» КАЖДЫЙ раз.
+            #
+            # Закрытие агентом (ADR-146) едет ТЕМ ЖЕ следом, а не своей параллельной записью: кто
+            # закрыл и на каком основании — половина ответа на «почему карточка закрыта», и она
+            # обязана лежать там же, где остальные переходы, иначе появится второй источник правды.
+            # Разделитель следа из основания вычищается: иначе основание с ` · ` внутри развалило бы
+            # разбор строки на поля.
+            _source = "queue.set_status"
+            if new_status in EVIDENCED_CLOSING_STATUSES and closed_by and evidence:
+                _clean = str(evidence).replace(TRAIL_SEP.strip(), "-").replace("\n", " ").strip()
+                _source = f"queue.set_status/closed_by:{closed_by}/evidence:{_clean[:200]}"
+            _text = stamp_trail("".join(lines), old=_old_status, new=new_status,
+                                source=_source)
+            atomic_save_text(_text, str(p))
+            # Кто перевёл карточку — в журнал. Импорт наверху, а не здесь: аудит держится
+            # на одной stdlib и кольца не создаёт, а «на всякий случай локальный» импорт —
+            # это молчаливая своя копия правила, за которую проект уже платил (#144).
+            record_status_write(p, old=_old_status, new=new_status, source="queue.set_status")
 
 
 def first_instruction_line(card: Card) -> str:

@@ -137,7 +137,11 @@ def approval_gate(card: Path, probe: str, prep_root=None, code_root=None) -> Opt
     Карточки без предмета владельца на этой границе не задерживаются и ошибкой подготовки не
     останавливаются — их путь прежний (названный предел, ADR-839)."""
     from spa_core.studio_os import work_packet as wp
-    if _s(_fm(Path(card)), "owner_subject") not in wp.SUBJECTS_OWNER:
+    fm = _fm(Path(card))
+    graph_gate = _goal_graph_gate(fm)
+    if graph_gate is not False:
+        return graph_gate
+    if _s(fm, "owner_subject") not in wp.SUBJECTS_OWNER:
         return None
     try:
         from spa_core.studio_os.memory import arch_review as ar
@@ -149,6 +153,28 @@ def approval_gate(card: Path, probe: str, prep_root=None, code_root=None) -> Opt
         return wp.entry_gate(Path(card), run, root=root, probe=probe)
     except Exception as exc:  # noqa: BLE001 — не смогли проверить ⇒ не берём
         return f"граница одобрения не проверена ({type(exc).__name__}: {exc})"
+
+
+def _goal_graph_gate(fm: dict, now: Optional[datetime] = None):
+    """STUDIO-AUTONOMY-01 E3.2 (ADR-857): карточка, объявившая ``goal_graph_run`` (каталог прогона
+    с ``graph.json`` и ``approval.json``) и ``goal_graph_task``, берётся пультом только при годном
+    допуске ``goal_graph.admission`` — тот же контракт, что у стенда и CLI. ``False`` — карточка
+    графа не объявляла (прежний путь); ``None`` — допуск годен; строка — отказ. Сбой — отказ."""
+    run = _s(fm, "goal_graph_run")
+    if not run:
+        return False
+    try:
+        import json as _json
+        from spa_core.studio_os import goal_graph as gg
+        task = _s(fm, "goal_graph_task")
+        graph = _json.loads((Path(run) / "graph.json").read_text(encoding="utf-8"))
+        ap_path = Path(run) / "approval.json"
+        approval = _json.loads(ap_path.read_text(encoding="utf-8")) if ap_path.exists() else None
+        why = gg.admission(graph, task, approval,
+                           now=(now or datetime.now(timezone.utc)).isoformat())
+        return ("допуск графа задач: " + "; ".join(why)) if why else None
+    except Exception as exc:  # noqa: BLE001 — не смогли проверить ⇒ не берём
+        return f"допуск графа задач не проверен ({type(exc).__name__}: {exc})"
 
 
 def dispatch(*, executor: str, tracker_dir=None, claim: Optional[Callable] = None,

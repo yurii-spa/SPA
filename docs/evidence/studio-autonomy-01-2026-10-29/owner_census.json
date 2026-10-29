@@ -1,0 +1,4046 @@
+{
+ "census": [
+  {
+   "counts": {
+    "agent_work": 19,
+    "answer_in_session_register": 18,
+    "answer_recorded": 274,
+    "needs_decision": 1,
+    "other_open": 0,
+    "register_conflict": 0
+   },
+   "measured": true,
+   "population": 312,
+   "register_cards_outside_population": [],
+   "rows": [
+    {
+     "card": "own-06-etherscan-prod-key",
+     "class": "answer_recorded",
+     "status": "ingested",
+     "title": "Ключ Etherscan уже работает — задача была «фантомной» (петля исправлена)",
+     "why": null
+    },
+    {
+     "card": "own-07-retention-secrets",
+     "class": "answer_recorded",
+     "status": "ingested",
+     "title": "Включить письма-подтверждения для подписки — добавить два ключа на сервер",
+     "why": null
+    },
+    {
+     "card": "own-08-spa-naming",
+     "class": "answer_recorded",
+     "status": "ingested",
+     "title": "Выбрать одну расшифровку названия «SPA» для сайта",
+     "why": null
+    },
+    {
+     "card": "own-11-pilot-human-mailbox",
+     "class": "answer_recorded",
+     "status": "ingested",
+     "title": "Добавить живого человека и рабочую почту на страницу /pilot",
+     "why": null
+    },
+    {
+     "card": "own-13-early-access-framing",
+     "class": "answer_recorded",
+     "status": "ingested",
+     "title": "Подтвердить формулировку списка раннего доступа (waitlist)",
+     "why": null
+    },
+    {
+     "card": "own-14-conservative-headline",
+     "class": "answer_recorded",
+     "status": "ingested",
+     "title": "Выбрать одно «главное» число доходности Conservative на сайте",
+     "why": null
+    },
+    {
+     "card": "own-15-verifier-git-tag",
+     "class": "answer_recorded",
+     "status": "ingested",
+     "title": "Поставить git-тег verifier-v1.2 — неизменяемая ссылка на верификатор",
+     "why": null
+    },
+    {
+     "card": "own-16-instant-lead-ping",
+     "class": "answer_recorded",
+     "status": "ingested",
+     "title": "Мгновенный Telegram-пинг о заявке или оставить в ежедневном дайджесте?",
+     "why": null
+    },
+    {
+     "card": "own-17-fundability-capacity-framing",
+     "class": "answer_recorded",
+     "status": "ingested",
+     "title": "Какое capacity-число сделать заголовочным на /fundability",
+     "why": null
+    },
+    {
+     "card": "own-19-dashboard-preview-verdict",
+     "class": "answer_recorded",
+     "status": "ingested",
+     "title": "Одобрить новый вид дашборда (превью готово) — переносить на живой?",
+     "why": null
+    },
+    {
+     "card": "own-20-research-changelog-automation",
+     "class": "answer_recorded",
+     "status": "ingested",
+     "title": "Как автоматизировать публичный research-changelog (heartbeat сайта)",
+     "why": null
+    },
+    {
+     "card": "own-2026-08-18-avariinaya-kniga-idet-mimo-geitov-svezhesti",
+     "class": "answer_recorded",
+     "status": "ingested",
+     "title": "Аварийная книга раздаёт деньги мимо проверок свежести — цена закрытия дыры $75.9K в кэш",
+     "why": null
+    },
+    {
+     "card": "own-2026-08-18-dozapisat-li-knigu-za-12-proshlyh-dnei",
+     "class": "answer_recorded",
+     "status": "ingested",
+     "title": "Дозаписать ли книгу за 12 прошлых дней трека — или оставить дыры как есть",
+     "why": null
+    },
+    {
+     "card": "own-2026-08-18-dva-proizvoditelya-apy-opoznayut-pul-po-raznomu",
+     "class": "answer_recorded",
+     "status": "ingested",
+     "title": "Два источника доходности опознают пул по-разному — и денежный путь ходит в тот, у которого проверки нет",
+     "why": null
+    },
+    {
+     "card": "own-2026-08-18-metka-zhivoi-na-konstante-v-allokatore",
+     "class": "answer_recorded",
+     "status": "ingested",
+     "title": "Аллокатор ставит метку «живой размер пула» на выдуманное число — прямой запрет правила",
+     "why": null
+    },
+    {
+     "card": "own-2026-08-18-potolok-ne-vidit-obshchego-kuratora",
+     "class": "answer_recorded",
+     "status": "ingested",
+     "title": "Потолок концентрации не видит общего куратора — половина книги может лечь под одну команду",
+     "why": null
+    },
+    {
+     "card": "own-2026-08-18-prosadka-v-otchete-eto-shov-dvuh-simulyatsii",
+     "class": "answer_recorded",
+     "status": "ingested",
+     "title": "Просадка в отчёте — это шов двух симуляций, а не рыночное событие",
+     "why": null
+    },
+    {
+     "card": "own-2026-08-18-tyuner-ne-znaet-o-setevykh-potolkakh",
+     "class": "answer_recorded",
+     "status": "ingested",
+     "title": "Подборщик раскладки И САМ АЛЛОКАТОР не знают про потолки по сетям — предлагают то, что гейт заворачивает",
+     "why": null
+    },
+    {
+     "card": "own-2026-08-18-zapas-rebalansera-strozhe-politiki",
+     "class": "answer_recorded",
+     "status": "ingested",
+     "title": "У ребалансера свой запас строже политики — оставляем или снимаем",
+     "why": null
+    },
+    {
+     "card": "own-2026-08-19-sudba-voronki-chekapa-i-kanal-zayavok",
+     "class": "answer_recorded",
+     "status": "ingested",
+     "title": "Судьба чекапа — воронка ведёт в никуда, а канал заявок молчит, если Телеграм не настроен",
+     "why": null
+    },
+    {
+     "card": "own-2026-08-22-snyat-changelog-so-saita",
+     "class": "answer_recorded",
+     "status": "ingested",
+     "title": "Снять замороженный «Журнал изменений» с сайта — нужна твоя подпись на удалении",
+     "why": null
+    },
+    {
+     "card": "own-2026-08-23-postoyannyi-progon-storozha-perehodov",
+     "class": "answer_recorded",
+     "status": "ingested",
+     "title": "Сторожа переходов статусов сейчас двигают только циклы вручную — заводить ли ему отдельного агента",
+     "why": null
+    },
+    {
+     "card": "own-2026-08-24-pustaya-kniga-prohodit-chek-list-go-live",
+     "class": "answer_recorded",
+     "status": "ingested",
+     "title": "Пустая книга проходит чек-лист go-live целиком — проверка «все позиции безопасны» на нуле позиций отвечает «да»",
+     "why": null
+    },
+    {
+     "card": "own-21-agent-cleanup-decisions",
+     "class": "answer_recorded",
+     "status": "ingested",
+     "title": "Навести порядок в агентах — реши по каждому пункту (сводка инвентаризации)",
+     "why": null
+    },
+    {
+     "card": "own-22-yield-lab-branch-review",
+     "class": "answer_recorded",
+     "status": "ingested",
+     "title": "Ревью ветки yield-lab-scaffolding — мержить или оставить как есть",
+     "why": null
+    },
+    {
+     "card": "own-23-autonomy-cadence-recheck",
+     "class": "answer_recorded",
+     "status": "ingested",
+     "title": "Через 2 дня (~17.07) — пересмотреть, как часто работает автономный цикл",
+     "why": null
+    },
+    {
+     "card": "own-24-pushi-v-main-tolko-cherez-pr",
+     "class": "answer_recorded",
+     "status": "ingested",
+     "title": "Пуш в main закрыт правилом — результаты R&D ждут в PR, и висят 4 старых PR",
+     "why": null
+    },
+    {
+     "card": "own-25-siwe-secret-exposed-rotate",
+     "class": "answer_recorded",
+     "status": "ingested",
+     "title": "Секрет входа в кабинет засветился в переписке — сменить его (ротация SIWE_SESSION_SECRET)",
+     "why": null
+    },
+    {
+     "card": "own-26-resend-domain-verification",
+     "class": "answer_recorded",
+     "status": "ingested",
+     "title": "Письма уходят с чужого адреса onboarding@resend.dev — подтвердить домен earn-defi.com в Resend",
+     "why": null
+    },
+    {
+     "card": "own-27-spisanie-modulei-analitiki",
+     "class": "answer_recorded",
+     "status": "ingested",
+     "title": "Утвердить списание 55 записей из реестра аналитики — это не анализаторы",
+     "why": null
+    },
+    {
+     "card": "own-28-kto-gasit-trevogu-core-agent-down",
+     "class": "answer_recorded",
+     "status": "ingested",
+     "title": "Кто имеет право сказать «флот ожил» и погасить тревогу об упавших агентах?",
+     "why": null
+    },
+    {
+     "card": "own-29-morpho-steakhouse-demote-signal",
+     "class": "answer_recorded",
+     "status": "ingested",
+     "title": "Наша крупнейшая позиция ($40k в morpho) держится без живого подтверждения размера пула — что делаем?",
+     "why": null
+    },
+    {
+     "card": "own-30-deploy-swarm-dwell-agent",
+     "class": "answer_recorded",
+     "status": "ingested",
+     "title": "Запустить ежедневного агента для paper-книги «защёлка после выхода»",
+     "why": null
+    },
+    {
+     "card": "own-30-razbor-ocheredi-vladeltsa",
+     "class": "answer_recorded",
+     "status": "ingested",
+     "title": "Разбор очереди — 16 вопросов одним списком, по каждому есть рекомендация",
+     "why": null
+    },
+    {
+     "card": "own-31-desyat-agentov-v-reestre-bez-flota",
+     "class": "answer_recorded",
+     "status": "ingested",
+     "title": "Десять агентов заявлены в реестре и не работают — четыре готовы к установке, шесть на вывод",
+     "why": null
+    },
+    {
+     "card": "own-32-evidence-vs-curve-diverge",
+     "class": "answer_recorded",
+     "status": "ingested",
+     "title": "",
+     "why": null
+    },
+    {
+     "card": "own-33-plist-marker-for-cycle-origin",
+     "class": "answer_recorded",
+     "status": "ingested",
+     "title": "",
+     "why": null
+    },
+    {
+     "card": "own-34-kill-switch-active-13h-unnoticed",
+     "class": "answer_recorded",
+     "status": "ingested",
+     "title": "",
+     "why": null
+    },
+    {
+     "card": "own-35-srok-godnosti-artefakta-agenta",
+     "class": "answer_recorded",
+     "status": "ingested",
+     "title": "Паспорта агентов: кто назначает срок годности файла, который агент обновляет",
+     "why": null
+    },
+    {
+     "card": "own-36-partiya-agentov-v-karantin",
+     "class": "answer_recorded",
+     "status": "ingested",
+     "title": "Девять агентов не читает никто — какую партию отложить первой?",
+     "why": null
+    },
+    {
+     "card": "own-37-primenit-37-srokov-godnosti",
+     "class": "answer_recorded",
+     "status": "ingested",
+     "title": "Две роли сошлись по 37 срокам годности — применять?",
+     "why": null
+    },
+    {
+     "card": "own-54-mertvye-knigi-issledovatelskoy-paneli",
+     "class": "answer_recorded",
+     "status": "ingested",
+     "title": "",
+     "why": null
+    },
+    {
+     "card": "own-56-avtopochinshchik-ostalsya-bez-vyzyvayushchih",
+     "class": "answer_recorded",
+     "status": "ingested",
+     "title": "Автопочинщик кода остался без вызывающих: убрать совсем или оставить лежать",
+     "why": null
+    },
+    {
+     "card": "own-76-shum-ratio-ubivaet-knigi-laboratorii",
+     "class": "answer_recorded",
+     "status": "ingested",
+     "title": "Курс, по которому лаборатория решает «сработала авария», шумит сильнее самой аварии — и убил четыре книги зря",
+     "why": null
+    },
+    {
+     "card": "own-aud19-volatile-clmm-vvodim-li-klass",
+     "class": "answer_recorded",
+     "status": "ingested",
+     "title": "Вторая задача из твоего сообщения (волатильный ETH-пул с доходностью «79%») — сам её не беру, нужно твоё решение",
+     "why": null
+    },
+    {
+     "card": "own-btc-dvizhok-ne-vlezaet-pod-stop-kran",
+     "class": "answer_recorded",
+     "status": "ingested",
+     "title": "BTC-движок не помещается под наш стоп-кран — выбери, как быть: отдельный NAV, маленькая доля или только research",
+     "why": null
+    },
+    {
+     "card": "own-chto-dolzhen-pokazyvat-lokalnyi-server",
+     "class": "agent_work",
+     "status": "ingested",
+     "title": "Cloudflare проверять не нужно — я измерил сам; остался один вопрос про локальный сервер",
+     "why": null
+    },
+    {
+     "card": "own-cio-i-paper-cifry-tri-mandata-vladeltsa",
+     "class": "answer_recorded",
+     "status": "ingested",
+     "title": "Нажми, чтобы на сайте появилась строка «идёт paper-тест» по Balanced и Aggressive",
+     "why": null
+    },
+    {
+     "card": "own-dashboard-razdaval-repozitorii-v-set",
+     "class": "answer_recorded",
+     "status": "ingested",
+     "title": "Один из агентов раздавал весь проект в домашнюю сеть — закрыто, в интернет не выходило",
+     "why": null
+    },
+    {
+     "card": "own-dengi-stoyat-iz-za-starogo-potolka",
+     "class": "answer_recorded",
+     "status": "ingested",
+     "title": "Пятая часть денег стояла без работы из-за старого потолка — починил; остался один вопрос по правилу",
+     "why": null
+    },
+    {
+     "card": "own-dengi-uehali-v-samyi-nizkodohodnyi-protokol",
+     "class": "answer_recorded",
+     "status": "ingested",
+     "title": "Четверть книги уехала в самый низкодоходный протокол — нашёл причину, чинить или нет",
+     "why": null
+    },
+    {
+     "card": "own-fluid-gsm-gate-chuzhoy-parametr",
+     "class": "answer_recorded",
+     "status": "ingested",
+     "title": "Fluid закрыт для капитала по правилу другого протокола — нужно твоё решение",
+     "why": null
+    },
+    {
+     "card": "own-mandat-avtonomii-vozobnovlen-30-dnei",
+     "class": "answer_recorded",
+     "status": "ingested",
+     "title": "МАНДАТ АВТОНОМИИ ВОЗОБНОВЛЁН на 30 дней (решение владельца 2026-08-20, cloud-сессия) — вернуться к темпу ADR-078",
+     "why": null
+    },
+    {
+     "card": "own-optimum-proigryvaet-resheniyu-nichego-ne-d",
+     "class": "answer_in_session_register",
+     "status": "ingested",
+     "title": "«Оптимум», который система предлагает, шесть раз оказался хуже решения ничего не делать",
+     "why": null
+    },
+    {
+     "card": "own-pererazdavat-li-srezannoe-zaschitami",
+     "class": "answer_recorded",
+     "status": "ingested",
+     "title": "Деньги, срезанные защитами аллокатора, теперь ПОСЧИТАНЫ и НАЗВАНЫ — включать ли их обратно в работу?",
+     "why": null
+    },
+    {
+     "card": "own-razmeshenie-kesha-perezapuskaet-72-chasa",
+     "class": "answer_recorded",
+     "status": "ingested",
+     "title": "Размещение свободных денег останавливает перекладку книги на трое суток — я это сделал вчера, надо решить",
+     "why": null
+    },
+    {
+     "card": "own-red-team-nablyudennaya-ugroza-ne-doezzhaet",
+     "class": "answer_recorded",
+     "status": "ingested",
+     "title": "Наблюдённая угроза до тебя не доезжает, а наша собственная остановка доезжает каждый день",
+     "why": null
+    },
+    {
+     "card": "own-rnd-cdr-demotion-readmission-paper-module",
+     "class": "answer_recorded",
+     "status": "ingested",
+     "title": "",
+     "why": null
+    },
+    {
+     "card": "own-rnd-duty-is-concentration-adr055",
+     "class": "answer_recorded",
+     "status": "ingested",
+     "title": "",
+     "why": null
+    },
+    {
+     "card": "own-rnd-dwell-hysteresis-paper-module",
+     "class": "answer_recorded",
+     "status": "ingested",
+     "title": "",
+     "why": null
+    },
+    {
+     "card": "own-rnd-killswitch-rearm-policy-missing",
+     "class": "answer_recorded",
+     "status": "ingested",
+     "title": "",
+     "why": null
+    },
+    {
+     "card": "own-rnd-killswitch-soft-tier-meaning",
+     "class": "answer_recorded",
+     "status": "ingested",
+     "title": "",
+     "why": null
+    },
+    {
+     "card": "own-rnd-xsd-rank-demotion-allocator",
+     "class": "answer_recorded",
+     "status": "ingested",
+     "title": "",
+     "why": null
+    },
+    {
+     "card": "own-rnd-xvd-vol-rank-second-arm",
+     "class": "answer_recorded",
+     "status": "ingested",
+     "title": "",
+     "why": null
+    },
+    {
+     "card": "own-ruchnoy-instrument-poiska-istochnikov",
+     "class": "answer_recorded",
+     "status": "ingested",
+     "title": "Ручной инструмент поиска новых источников доходности никто не запускает — оставить, поставить на расписание или списать",
+     "why": null
+    },
+    {
+     "card": "own-storozh-sam-sozdaet-prosadku-na-rovnykh-knigakh",
+     "class": "answer_recorded",
+     "status": "ingested",
+     "title": "Сторож просадки сам создаёт просадку на ровных книгах — где ему запретить срабатывать",
+     "why": null
+    },
+    {
+     "card": "own-tsena-nashego-limita-20-na-odno-imya-izme",
+     "class": "answer_recorded",
+     "status": "ingested",
+     "title": "",
+     "why": null
+    },
+    {
+     "card": "own-tuner-zerkalit-politiku-zapasy-snyaty",
+     "class": "answer_recorded",
+     "status": "ingested",
+     "title": "Тюнер зеркалит политику БЕЗ запасов — решение владельца 26.08 (cloud, кнопка), ОТМЕНЯЕТ «запас оставить» от 25.08; реализация доставлена",
+     "why": null
+    },
+    {
+     "card": "own-yakorenie-treka-ne-rabotalo-43-dnya",
+     "class": "answer_recorded",
+     "status": "ingested",
+     "title": "Внешнее якорение трека не работало 43 дня — я его починил, нужен твой взгляд на два хвоста",
+     "why": null
+    },
+    {
+     "card": "owner-decision-10-deneg-stoyat-bez-raboty-prichina-naid",
+     "class": "answer_recorded",
+     "status": "ingested",
+     "title": "10% денег стоят без работы: причина найдена — 11 протоколов закрыты из-за отсутствия живого фида, нужен твой выбор",
+     "why": null
+    },
+    {
+     "card": "owner-decision-20260715-124956-owner-done",
+     "class": "answer_recorded",
+     "status": "ingested",
+     "title": "ТЕСТ: подтверди, что очередь работает — переведи в Owner Done",
+     "why": null
+    },
+    {
+     "card": "owner-decision-20260715-212059-apy",
+     "class": "answer_recorded",
+     "status": "ingested",
+     "title": "Сайт: алерт кастодиана про APY — ложное срабатывание, как чинить?",
+     "why": null
+    },
+    {
+     "card": "owner-decision-20260716-082215-k-1-22",
+     "class": "answer_recorded",
+     "status": "ingested",
+     "title": "Живой пилот k на пакет 1 (~22 июля) — запускать? + сверщик живое/бумага",
+     "why": null
+    },
+    {
+     "card": "owner-decision-20260716-084859-note",
+     "class": "answer_recorded",
+     "status": "ingested",
+     "title": "Программа аудита системы + архитектурной памяти («швейцарские часы») — утвердить приоритет",
+     "why": null
+    },
+    {
+     "card": "owner-decision-AI1-approach-2026-08-29",
+     "class": "answer_recorded",
+     "status": "ingested",
+     "title": "ОТВЕЧЕНО: правила вложений записаны, владелец выбрал вариант 1 по последнему вопросу",
+     "why": null
+    },
+    {
+     "card": "owner-decision-aave-na-arbitrum-my-smotrim-na-opustevsh",
+     "class": "answer_recorded",
+     "status": "ingested",
+     "title": "Aave на Arbitrum: мы смотрим на опустевший рынок —  тыс. вместо заявленного .2 млрд",
+     "why": null
+    },
+    {
+     "card": "owner-decision-agent-bumazhnyh-knig-kazhduyu-noch-stira",
+     "class": "answer_recorded",
+     "status": "ingested",
+     "title": "Агент бумажных книг каждую ночь стирает накопленное — тиры Balanced/Aggressive не станут доказанными никогда",
+     "why": null
+    },
+    {
+     "card": "owner-decision-agent-nablyudatel-prosypaetsya-raz-v-7-6",
+     "class": "answer_in_session_register",
+     "status": "ingested",
+     "title": "Агент-наблюдатель просыпается раз в 7,6 часа вместо 6 — поменять расписание на фиксированные отметки",
+     "why": null
+    },
+    {
+     "card": "owner-decision-allokator-ranzhiruet-puly-na-vydumannom-tvl",
+     "class": "answer_recorded",
+     "status": "ingested",
+     "title": "Аллокатор ранжирует пулы на невыверенном TVL ($50M-литерал) — исключать ли их из свежих целей?",
+     "why": null
+    },
+    {
+     "card": "owner-decision-avariinaya-ostanovka-teryaetsya-pri-vosst",
+     "class": "answer_recorded",
+     "status": "ingested",
+     "title": "Аварийная остановка ТЕРЯЕТСЯ при восстановлении из резерва (выбери, как убрать файлы состояния из git)",
+     "why": null
+    },
+    {
+     "card": "owner-decision-avariinyi-tormoz-ostalos-odno-reshenie-c",
+     "class": "answer_recorded",
+     "status": "ingested",
+     "title": "Аварийный тормоз: осталось одно решение — что делать после срабатывания (кнопки теперь есть)",
+     "why": null
+    },
+    {
+     "card": "owner-decision-avariinyi-tormoz-stoit-s-nochi-kniga-dev",
+     "class": "answer_recorded",
+     "status": "ingested",
+     "title": "ДУБЛЬ (отвечать не нужно) — Аварийный тормоз стоит с ночи — книга девять часов в кэше, снимать может только ты",
+     "why": null
+    },
+    {
+     "card": "owner-decision-avtotorgovlya-dnevnoi-limit-oborota",
+     "class": "answer_recorded",
+     "status": "ingested",
+     "title": "Автоторговля, вопрос 2 из 3: нужен ли ДНЕВНОЙ лимит оборота вдобавок к недельному?",
+     "why": null
+    },
+    {
+     "card": "owner-decision-avtotorgovlya-iz-12-tvoih-ogranichitelei",
+     "class": "answer_recorded",
+     "status": "ingested",
+     "title": "Автоторговля: из 12 твоих ограничителей работают 4 — нужны три решения (потолок суммы, дневной оборот, незнакомый протокол)",
+     "why": null
+    },
+    {
+     "card": "owner-decision-avtotorgovlya-neznakomyi-protokol-i-tir",
+     "class": "answer_recorded",
+     "status": "ingested",
+     "title": "Автоторговля, вопрос 3 из 3: что делать с незнакомым протоколом и незнакомым тиром?",
+     "why": null
+    },
+    {
+     "card": "owner-decision-avtotorgovlya-potolok-summy-odnoi-sdelki",
+     "class": "answer_recorded",
+     "status": "ingested",
+     "title": "Автоторговля, вопрос 1 из 3: ставить ли потолок на СУММУ одной сделки?",
+     "why": null
+    },
+    {
+     "card": "owner-decision-bezopasnost-admin-panel-admin-bez-paroly",
+     "class": "answer_recorded",
+     "status": "ingested",
+     "title": "Безопасность: admin-панель /admin без пароля — закрыть за Cloudflare Access",
+     "why": null
+    },
+    {
+     "card": "owner-decision-broshennye-progony-testov-vosmoi-raz-sed",
+     "class": "agent_work",
+     "status": "ingested",
+     "title": "Брошенные прогоны тестов восьмой раз съедают процессор — разрешить поставить сторожа по расписанию?",
+     "why": null
+    },
+    {
+     "card": "owner-decision-bumazhnyi-test-zakonchen-vyberi-kak-dvig",
+     "class": "answer_recorded",
+     "status": "ingested",
+     "title": "Бумажный тест закончен — выбери, как двигаемся дальше (5 решений)",
+     "why": null
+    },
+    {
+     "card": "owner-decision-chasovye-agenty-do-sutok-krutyat-staryi",
+     "class": "answer_recorded",
+     "status": "ingested",
+     "title": "Часовые агенты до суток крутят старый код — защита от столкновения сессий выложена, но в проде её нет",
+     "why": null
+    },
+    {
+     "card": "owner-decision-chastota-80-agentov-flota-2-nahodki-po-t",
+     "class": "agent_work",
+     "status": "ingested",
+     "title": "Частота 80 агентов флота: 2 находки по токенам/CPU, остальное — оставить",
+     "why": null
+    },
+    {
+     "card": "owner-decision-chetyre-tysyachi-dollarov-edut-v-token-f",
+     "class": "answer_recorded",
+     "status": "ingested",
+     "title": "Четыре тысячи долларов едут в токен-ферму под видом кредитной ставки (Spark)",
+     "why": null
+    },
+    {
+     "card": "owner-decision-chisla-treka-na-saite-ne-podtverzhdayuts",
+     "class": "answer_recorded",
+     "status": "ingested",
+     "title": "Числа трека на сайте не подтверждаются ничем в git — канон замёрз 17 июля, и сторож краснеет каждый день",
+     "why": null
+    },
+    {
+     "card": "owner-decision-chistka-razreshit-udalyat-mertvye-moduli",
+     "class": "answer_recorded",
+     "status": "ingested",
+     "title": "Чистка: разрешить удалять мёртвые МОДУЛИ из ядра (не только скрипты)?",
+     "why": null
+    },
+    {
+     "card": "owner-decision-chistka-yadra-ws-a-60-mertvyh-dublei-45",
+     "class": "answer_recorded",
+     "status": "ingested",
+     "title": "Чистка ядра (WS-A): ~60 мёртвых/дублей + 45 аналитич. модулей раздувают paper_trading — greenlight подход",
+     "why": null
+    },
+    {
+     "card": "owner-decision-ci-molcha-ne-zapustilsya-na-pr-zelenaya",
+     "class": "answer_recorded",
+     "status": "ingested",
+     "title": "CI молча не запустился на PR — зелёная галочка означала «не проверяли»",
+     "why": null
+    },
+    {
+     "card": "owner-decision-ci-na-main-krasnyi-novyi-protokol-bez-ot",
+     "class": "answer_recorded",
+     "status": "ingested",
+     "title": "CI на main красный: новый протокол без оценки риска (40% книги) и два теста, отставших от честного TVL",
+     "why": null
+    },
+    {
+     "card": "owner-decision-cio-ne-vzvoditsya-nikogda-byudzhet-oborota",
+     "class": "answer_recorded",
+     "status": "ingested",
+     "title": "CIO не взведётся НИКОГДА: чтобы доказать, что он окупается, нужен хоть один ход — а бюджет оборота запрещает их все",
+     "why": null
+    },
+    {
+     "card": "owner-decision-dannye-treka-v-git-fail-dokazatelstv-zam",
+     "class": "answer_recorded",
+     "status": "ingested",
+     "title": "Данные трека в git: файл доказательств заморожен на 21.06, файла бэктест-гейта нет вовсе — реши, что коммитить",
+     "why": null
+    },
+    {
+     "card": "owner-decision-dengi-stoyat-ne-iz-za-leni-sistemy-vse-z",
+     "class": "answer_recorded",
+     "status": "ingested",
+     "title": "Деньги стоят не из-за лени системы: все живые протоколы — на одной цепочке",
+     "why": null
+    },
+    {
+     "card": "owner-decision-derisk-vopros-byl-postavlen-neverno-2026-08-29",
+     "class": "answer_recorded",
+     "status": "ingested",
+     "title": "Я задал тебе неверный вопрос про слепые протоколы — проверил, и всё оказалось наоборот",
+     "why": null
+    },
+    {
+     "card": "owner-decision-devyat-agentov-visyat-nereshennymi-zakry",
+     "class": "answer_recorded",
+     "status": "ingested",
+     "title": "Девять агентов висят нерешёнными: закрыть или включить",
+     "why": null
+    },
+    {
+     "card": "owner-decision-devyat-tysyach-dollarov-dostayutsya-prot",
+     "class": "agent_work",
+     "status": "ingested",
+     "title": "Девять тысяч долларов достаются протоколу по алфавиту — чинить ли ступеньку в расчёте раскладки",
+     "why": null
+    },
+    {
+     "card": "owner-decision-disk-mac-mini-zabit-pod-nol-odin-zhurnal",
+     "class": "answer_in_session_register",
+     "status": "ingested",
+     "title": "Диск Mac Mini забит под ноль — один журнал агента вырос до 7,1 ГБ и остановил запись на всей машине",
+     "why": null
+    },
+    {
+     "card": "owner-decision-dnevnoi-limit-ubytka-a-esli-sama-proverk",
+     "class": "answer_recorded",
+     "status": "ingested",
+     "title": "Дневной лимит убытка: а если сама проверка УПАЛА — торгуем или нет? (второй вопрос той же карточки, ответа нет)",
+     "why": null
+    },
+    {
+     "card": "owner-decision-dnevnoi-tsikl-segodnya-zapuskali-8-raz-n",
+     "class": "answer_recorded",
+     "status": "ingested",
+     "title": "Дневной цикл сегодня запускали 8 раз не по расписанию — и кто именно, система не записывает",
+     "why": null
+    },
+    {
+     "card": "owner-decision-dnevnoy-limit-ubytka-schitaet-neizvestn",
+     "class": "answer_recorded",
+     "status": "ingested",
+     "title": "Дневной лимит убытка считает «не знаю» за «убытка нет» — и в этот день цикл торгует",
+     "why": null
+    },
+    {
+     "card": "owner-decision-dogovor-nazyvaet-staryi-potolok-t2-35-pr",
+     "class": "answer_recorded",
+     "status": "ingested",
+     "title": "Договор называет старый потолок T2 — 35 % при живых 50 %",
+     "why": null
+    },
+    {
+     "card": "owner-decision-doizmerili-te-82-modulya-kak-ty-prosil-7",
+     "class": "answer_recorded",
+     "status": "ingested",
+     "title": "Доизмерили те 82 модуля, как ты просил: 71 подтвердился слепым вторым инструментом",
+     "why": null
+    },
+    {
+     "card": "owner-decision-doska-kartochek-obeschaet-bolshe-chem-da",
+     "class": "answer_recorded",
+     "status": "ingested",
+     "title": "Доска карточек обещает больше, чем даёт: поправить одну фразу в CLAUDE.md",
+     "why": null
+    },
+    {
+     "card": "owner-decision-dva-agenta-ne-perezhivut-perezagruzku-ra",
+     "class": "answer_recorded",
+     "status": "ingested",
+     "title": "Два агента не переживут перезагрузку — разрешить доустановить их в системную папку",
+     "why": null
+    },
+    {
+     "card": "owner-decision-dva-dnya-treka-pomecheny-dokazannymi-hot",
+     "class": "answer_recorded",
+     "status": "ingested",
+     "title": "Два дня трека помечены доказанными, хотя в эти дни система не держала ничего",
+     "why": null
+    },
+    {
+     "card": "owner-decision-dva-imeni-odin-kontrakt-20-deneg-stoyat",
+     "class": "agent_work",
+     "status": "ingested",
+     "title": "Запрет на fluid_usdc объявлен и НЕ исполняется: там стоит 20 % книги",
+     "why": null
+    },
+    {
+     "card": "owner-decision-dva-mesta-zovut-odin-protokol-raznym-t",
+     "class": "answer_in_session_register",
+     "status": "ingested",
+     "title": "Два места в системе зовут один и тот же протокол разным тиром — от этого потолок на него меняется вдвое",
+     "why": null
+    },
+    {
+     "card": "owner-decision-dva-paketa-iz-treh-zhivut-bez-potolka-ri",
+     "class": "agent_work",
+     "status": "ingested",
+     "title": "Два пакета из трёх живут без потолка риска — и сегодня стоят вдвое и втрое выше нашего же лимита",
+     "why": null
+    },
+    {
+     "card": "owner-decision-dva-pomoschnika-gotovy-no-vklyuchit-ih-m",
+     "class": "answer_recorded",
+     "status": "ingested",
+     "title": "Два помощника готовы, но включить их можешь только ты — они стоят вторые сутки",
+     "why": null
+    },
+    {
+     "card": "owner-decision-dva-tsikla-orkestratora-rabotali-odnovre",
+     "class": "answer_recorded",
+     "status": "ingested",
+     "title": "Два цикла оркестратора работали одновременно — карточки защищены, сам цикл нет",
+     "why": null
+    },
+    {
+     "card": "owner-decision-dva-tvoih-otveta-ot-29-avgusta-zapisany",
+     "class": "answer_recorded",
+     "status": "ingested",
+     "title": "Два твоих ответа от 29 августа записаны по-разному — и на одну кнопку ты смотрел с перевёрнутой подсказкой",
+     "why": null
+    },
+    {
+     "card": "owner-decision-dva-tvoih-resheniya-ot-18-08-ne-ispolnen",
+     "class": "answer_recorded",
+     "status": "ingested",
+     "title": "Два твоих решения от 18.08 не исполнены — а ветку, где они записаны, мы закрываем как «повторы»",
+     "why": null
+    },
+    {
+     "card": "owner-decision-dva-tvoih-vcherashnih-otveta-zapisany-v",
+     "class": "answer_recorded",
+     "status": "ingested",
+     "title": "Два твоих вчерашних ответа записаны в двух версиях и говорят разное — нужен один",
+     "why": null
+    },
+    {
+     "card": "owner-decision-dve-treti-kapitala-stoyat-na-chislah-kot",
+     "class": "answer_recorded",
+     "status": "ingested",
+     "title": "Две трети капитала стоят на числах, которых никто не наблюдал",
+     "why": null
+    },
+    {
+     "card": "owner-decision-dve-zapisi-o-dengah-prichina-naidena-i-i",
+     "class": "answer_recorded",
+     "status": "ingested",
+     "title": "Две записи о деньгах: причина найдена и измерена — выбрать, чем чинить",
+     "why": null
+    },
+    {
+     "card": "owner-decision-earn-defi-belyi-spisok-nichego-ne-odobreno",
+     "class": "answer_recorded",
+     "status": "ingested",
+     "title": "earn-defi: в белом списке пусто — движок не может профинансировать ничего",
+     "why": null
+    },
+    {
+     "card": "owner-decision-earn-defi-kanal-telegram-dlya-publikatsii",
+     "class": "answer_in_session_register",
+     "status": "ingested",
+     "title": "earn-defi: нужен Telegram-канал — иначе доказательства сигналов копятся, но не публикуются",
+     "why": null
+    },
+    {
+     "card": "owner-decision-earn-defi-litsenziya-na-dannye-do-deneg",
+     "class": "answer_recorded",
+     "status": "ingested",
+     "title": "earn-defi: данные взяты по бесплатной лицензии «не для коммерции»",
+     "why": null
+    },
+    {
+     "card": "owner-decision-earn-defi-sozdat-repozitorii-na-github",
+     "class": "answer_recorded",
+     "status": "ingested",
+     "title": "earn-defi: создать репозиторий на GitHub — у агента нет прав, работа лежит локально",
+     "why": null
+    },
+    {
+     "card": "owner-decision-earn-defi-tablitsa-rezhimov-ne-bet-buy-and-hold",
+     "class": "answer_recorded",
+     "status": "ingested",
+     "title": "earn-defi: таблица режимов на истории НЕ бьёт «просто держать биткоин»",
+     "why": null
+    },
+    {
+     "card": "owner-decision-eb02-sravnivaet-zhivoe-s-konstantoi",
+     "class": "answer_recorded",
+     "status": "ingested",
+     "title": "",
+     "why": null
+    },
+    {
+     "card": "owner-decision-edinstvennaya-chestnaya-vnevyborochnaya",
+     "class": "agent_work",
+     "status": "ingested",
+     "title": "Единственная честная вневыборочная таблица реестра посчитана способом, который льстит сторожу — что делать с опубликованными числами",
+     "why": null
+    },
+    {
+     "card": "owner-decision-esche-devyatnadtsat-mest-gde-ne-izmerili",
+     "class": "answer_recorded",
+     "status": "ingested",
+     "title": "Ещё девятнадцать мест, где «не измерили» читается как «продать всё» — чинить все или только одно?",
+     "why": null
+    },
+    {
+     "card": "owner-decision-etalonnaya-planka-issledovanii-nasilno-d",
+     "class": "answer_recorded",
+     "status": "ingested",
+     "title": "Эталонная планка исследований насильно докупает убыточные книги — менять ли конвенцию",
+     "why": null
+    },
+    {
+     "card": "owner-decision-ezhednevnuyu-proverku-analitiki-nekomu-g",
+     "class": "answer_recorded",
+     "status": "ingested",
+     "title": "Ежедневную проверку аналитики некому гонять — выбери, кто это делает",
+     "why": null
+    },
+    {
+     "card": "owner-decision-flot-7-agentov-ne-perezhivut-reboot-swar",
+     "class": "answer_recorded",
+     "status": "ingested",
+     "title": "Флот: 7 агентов не переживут reboot (swarm+DR) — разрешить сделать reboot-safe",
+     "why": null
+    },
+    {
+     "card": "owner-decision-gde-granitsa-reshai-sam-i-sprosi-menya",
+     "class": "answer_recorded",
+     "status": "ingested",
+     "title": "Где проходит граница «решай сам» и «спроси меня» — 26 карточек ждут тебя",
+     "why": null
+    },
+    {
+     "card": "owner-decision-gde-proveryat-priemku-zakaza-portfolio-c",
+     "class": "answer_recorded",
+     "status": "ingested",
+     "title": "Где проверять приёмку заказа «Portfolio CIO» — ни одна папка сегодня не может ответить целиком",
+     "why": null
+    },
+    {
+     "card": "owner-decision-gde-zhivet-pervyi-pilot-na-realnyh-dengah-2026-08-30",
+     "class": "answer_recorded",
+     "status": "ingested",
+     "title": "Где живёт первый пилот на реальных деньгах: посчитано, при каком размере книга перестаёт проедать себя комиссиями",
+     "why": null
+    },
+    {
+     "card": "owner-decision-geit-gotovnosti-zelenyi-po-adapteru-koto",
+     "class": "answer_recorded",
+     "status": "ingested",
+     "title": "Гейт готовности зелёный по адаптеру, который невозможно загрузить — проверяется только синтаксис файла (выбери, как чинить)",
+     "why": null
+    },
+    {
+     "card": "owner-decision-geit-i-allokator-schitayut-zhivoi-tvl-po",
+     "class": "answer_recorded",
+     "status": "ingested",
+     "title": "Гейт и аллокатор считают «живой TVL» по-разному — из-за этого отчёт спорит сам с собой",
+     "why": null
+    },
+    {
+     "card": "owner-decision-glavnaya-reklamiruet-besplatnyi-chekap-k",
+     "class": "answer_recorded",
+     "status": "ingested",
+     "title": "Главная рекламирует бесплатный чекап, которого больше нет: снять секции или поднимать сервис?",
+     "why": null
+    },
+    {
+     "card": "owner-decision-go-live-geit-proiden-29-iz-29-reshenie-tvoe",
+     "class": "answer_recorded",
+     "status": "ingested",
+     "title": "Go-live: гейт пройден 29 из 29, и дальше решать только тебе",
+     "why": null
+    },
+    {
+     "card": "owner-decision-hvost-maple-ty-prinyal-na-dole-15-a-fakt",
+     "class": "answer_recorded",
+     "status": "ingested",
+     "title": "Хвост maple ты принял на доле 15%, а фактическая доля — 20%: принятый убыток на треть больше",
+     "why": null
+    },
+    {
+     "card": "owner-decision-ii-ne-puskayut-k-dengam-no-proverka-koto",
+     "class": "answer_recorded",
+     "status": "ingested",
+     "title": "ИИ не пускают к деньгам — но проверка, которая это стережёт, слепа на нашу единственную дверь",
+     "why": null
+    },
+    {
+     "card": "owner-decision-instruktsii-po-kotorym-rabotayut-agenty",
+     "class": "answer_recorded",
+     "status": "ingested",
+     "title": "Инструкции, по которым работают агенты на Маке, отстали от принятых решений — включая уже снятый запрет",
+     "why": null
+    },
+    {
+     "card": "owner-decision-kakoi-variant-ty-vybral-9-sentyabrya-po",
+     "class": "answer_in_session_register",
+     "status": "ingested",
+     "title": "Какой вариант ты выбрал 9 сентября по лицензии на данные: машинная запись говорит «1», канон записал «2»",
+     "why": null
+    },
+    {
+     "card": "owner-decision-karta-agentov-v-prode-ustarevaet-navsegd",
+     "class": "agent_work",
+     "status": "ingested",
+     "title": "Карта агентов в проде устаревает навсегда: её некому пересобирать",
+     "why": null
+    },
+    {
+     "card": "owner-decision-kesh-sistemy-tot-zhe-usdc-zamer-pokazal",
+     "class": "answer_recorded",
+     "status": "ingested",
+     "title": "Кэш системы — тот же USDC: замер показал, что наивная корзина кэша не лечит, а вредит",
+     "why": null
+    },
+    {
+     "card": "owner-decision-klyuch-github-peresprashivayu-proshlye-k",
+     "class": "answer_recorded",
+     "status": "ingested",
+     "title": "Ключ GitHub: переспрашиваю — прошлые кнопки были моей ошибкой",
+     "why": null
+    },
+    {
+     "card": "owner-decision-klyuch-github-vot-pravilnaya-komanda-vch",
+     "class": "answer_recorded",
+     "status": "ingested",
+     "title": "Ключ GitHub: вот ПРАВИЛЬНАЯ команда — вчерашняя вела ключ не туда",
+     "why": null
+    },
+    {
+     "card": "owner-decision-kniga-inogda-sobiraetsya-avariinoi-raskl",
+     "class": "answer_recorded",
+     "status": "ingested",
+     "title": "Книга иногда собирается аварийной раскладкой — и уносит с собой числа от отвергнутой",
+     "why": null
+    },
+    {
+     "card": "owner-decision-knigi-aggressive-lab-perepisyvayut-svoyu",
+     "class": "answer_recorded",
+     "status": "ingested",
+     "title": "Книги aggressive_lab переписывают свою историю — и это отложенно заденет числа на сайте",
+     "why": null
+    },
+    {
+     "card": "owner-decision-knigu-perekladyvayut-22-raza-za-nedelyu-2026-08-29",
+     "class": "agent_work",
+     "status": "ingested",
+     "title": "Книгу перекладывают 22 раза за неделю. По нашей же модели издержек это съело бы доходность в 15 раз",
+     "why": null
+    },
+    {
+     "card": "owner-decision-knopka-pauza-ne-stavit-na-pauzu-ona-prod",
+     "class": "answer_recorded",
+     "status": "ingested",
+     "title": "Кнопка «Пауза» не ставит на паузу — она продаёт всю книгу; настоящей паузы у тебя нет",
+     "why": null
+    },
+    {
+     "card": "owner-decision-kogda-ty-poslednii-raz-menyal-parol-klyu",
+     "class": "answer_recorded",
+     "status": "ingested",
+     "title": "Когда ты последний раз менял пароль-ключ для GitHub? Машина этого не знает, а срок — через 7 дней",
+     "why": null
+    },
+    {
+     "card": "owner-decision-koordinator-emkosti-pulov-mezhdu-tremya",
+     "class": "answer_recorded",
+     "status": "ingested",
+     "title": "Координатор ёмкости пулов между тремя книгами: блокировать жёстко или предупреждать?",
+     "why": null
+    },
+    {
+     "card": "owner-decision-koordinator-emkosti-pulov-svoi-porog-dly",
+     "class": "answer_recorded",
+     "status": "ingested",
+     "title": "Координатор ёмкости пулов: свой порог для суммы трёх книг или текущий RiskPolicy?",
+     "why": null
+    },
+    {
+     "card": "owner-decision-kriterii-gotovnosti-c012-podtverzhdaet-a",
+     "class": "answer_recorded",
+     "status": "ingested",
+     "title": "Критерий готовности C012 подтверждает автопуш наличием файла, который никто не запускает",
+     "why": null
+    },
+    {
+     "card": "owner-decision-kritichnaya-nahodka-petli-com-spa-daily",
+     "class": "answer_recorded",
+     "status": "ingested",
+     "title": "Критичная находка петли: com.spa.daily_cycle: intent=active, но НЕ загружен во флоте",
+     "why": null
+    },
+    {
+     "card": "owner-decision-kritichnaya-nahodka-petli-com-spa-digest-2",
+     "class": "answer_recorded",
+     "status": "ingested",
+     "title": "Критичная находка петли: com.spa.digest_weekly: intent=active, но НЕ загружен во флоте",
+     "why": null
+    },
+    {
+     "card": "owner-decision-kritichnaya-nahodka-petli-com-spa-digest",
+     "class": "answer_recorded",
+     "status": "ingested",
+     "title": "Критичная находка петли: com.spa.digest_weekly работает при intent=retired",
+     "why": null
+    },
+    {
+     "card": "owner-decision-kritichnaya-nahodka-petli-com-spa-missio-2",
+     "class": "answer_recorded",
+     "status": "ingested",
+     "title": "Критичная находка петли: com.spa.mission_tick: intent=active, но НЕ загружен во флоте",
+     "why": null
+    },
+    {
+     "card": "owner-decision-kritichnaya-nahodka-petli-com-spa-site-f",
+     "class": "answer_recorded",
+     "status": "ingested",
+     "title": "Критичная находка петли: com.spa.site_freshness: intent=active, но НЕ загружен во флоте",
+     "why": null
+    },
+    {
+     "card": "owner-decision-kritichnaya-nahodka-petli-com-spa-telegr",
+     "class": "answer_recorded",
+     "status": "ingested",
+     "title": "Критичная находка петли: com.spa.telegram_health загружен, в манифесте ОТСУТСТВУЕТ (класс swarm",
+     "why": null
+    },
+    {
+     "card": "owner-decision-kritichnaya-nahodka-petli-com-spa-tier1-2",
+     "class": "answer_recorded",
+     "status": "ingested",
+     "title": "Критичная находка петли: com.spa.tier1_digest: intent=active, но НЕ загружен во флоте",
+     "why": null
+    },
+    {
+     "card": "owner-decision-kritichnaya-nahodka-petli-com-spa-tier1",
+     "class": "answer_recorded",
+     "status": "ingested",
+     "title": "Критичная находка петли: com.spa.tier1_digest работает при intent=retired",
+     "why": null
+    },
+    {
+     "card": "owner-decision-kritichnaya-nahodka-petli-com-spa-weekly-2",
+     "class": "answer_recorded",
+     "status": "ingested",
+     "title": "Критичная находка петли: com.spa.weekly_backup: intent=active, но НЕ загружен во флоте",
+     "why": null
+    },
+    {
+     "card": "owner-decision-kritichnaya-nahodka-petli-com-spa-weekly",
+     "class": "answer_recorded",
+     "status": "ingested",
+     "title": "Критичная находка петли: com.spa.weekly_backup работает при intent=retired",
+     "why": null
+    },
+    {
+     "card": "owner-decision-kto-planiruet-razvitie-proekta-sudba-arh",
+     "class": "agent_work",
+     "status": "ingested",
+     "title": "Кто планирует развитие проекта: судьба «Архитектора» и живой план",
+     "why": null
+    },
+    {
+     "card": "owner-decision-mandat-samostoyatelnoi-raboty-konchaetsy-2",
+     "class": "answer_recorded",
+     "status": "ingested",
+     "title": "Мандат самостоятельной работы кончается 19 сентября — продлеваем?",
+     "why": null
+    },
+    {
+     "card": "owner-decision-mandat-samostoyatelnoi-raboty-konchaetsy",
+     "class": "answer_recorded",
+     "status": "ingested",
+     "title": "Мандат самостоятельной работы кончается сегодня — продлеваем, сужаем или закрываем?",
+     "why": null
+    },
+    {
+     "card": "owner-decision-maple-15-knigi-defolt-prihodit-bez-predu",
+     "class": "answer_recorded",
+     "status": "ingested",
+     "title": "Maple 15% книги: дефолт приходит без предупреждения — что делаем с кредитным каналом",
+     "why": null
+    },
+    {
+     "card": "owner-decision-monitor-depega-steiblov-slep-net-istochn",
+     "class": "answer_recorded",
+     "status": "ingested",
+     "title": "Монитор депега стейблов слеп — нет источника цены (чинить нельзя молча: связан со стоп-краном)",
+     "why": null
+    },
+    {
+     "card": "owner-decision-morfo-40-knigi-pri-propazhe-dannyh-podst",
+     "class": "answer_recorded",
+     "status": "ingested",
+     "title": "Морфо — 40% книги — при пропаже данных подставляет выдуманные 6.5% вместо честного отказа",
+     "why": null
+    },
+    {
+     "card": "owner-decision-na-vetke-lezhat-52-tvoi-kartochki-a-ne-t",
+     "class": "answer_recorded",
+     "status": "ingested",
+     "title": "На ветке лежат 52 твои карточки, а не только 8 решений — удалять её сейчас или сначала разобрать",
+     "why": null
+    },
+    {
+     "card": "owner-decision-nastupila-faza-2-1-avgusta-vklyuchaem-sd",
+     "class": "answer_recorded",
+     "status": "ingested",
+     "title": "Наступила Фаза 2 (1 августа) — включаем, сдвигаем или осознанно откладываем?",
+     "why": null
+    },
+    {
+     "card": "owner-decision-nochyu-odnu-zadachu-sdelali-dvazhdy-moya",
+     "class": "answer_recorded",
+     "status": "ingested",
+     "title": "Ночью одну задачу сделали дважды — из-за этого main был красным; выбери, какую версию оставляем",
+     "why": null
+    },
+    {
+     "card": "owner-decision-nol-ne-izmereno-etim-instrumentom-nedost",
+     "class": "answer_recorded",
+     "status": "ingested",
+     "title": "Ноль «не измерено» этим инструментом недостижим — выяснилось, пока я исполнял твоё решение",
+     "why": null
+    },
+    {
+     "card": "owner-decision-novyi-porog-storozha-prosadki-gotov-i-pr",
+     "class": "answer_recorded",
+     "status": "ingested",
+     "title": "Новый порог сторожа просадки готов и проверен — нужно твоё «да» на доставку в прод и перезапуск агента",
+     "why": null
+    },
+    {
+     "card": "owner-decision-obschaya-pamyat-stiraetsya-pushem-iz-rabo",
+     "class": "answer_recorded",
+     "status": "ingested",
+     "title": "Общая память проекта стирается пушем из рабочей копии на маке — сегодня так пропало 1729 строк истории",
+     "why": null
+    },
+    {
+     "card": "owner-decision-obsidian-chitaet-sostoyanie-nedelnoi-davnosti",
+     "class": "answer_recorded",
+     "status": "ingested",
+     "title": "Твой Obsidian показывает состояние проекта недельной давности — одна минута на починку",
+     "why": null
+    },
+    {
+     "card": "owner-decision-opublikovat-volnu-2-saita-dohodnost-za-p",
+     "class": "answer_recorded",
+     "status": "ingested",
+     "title": "Опубликовать волну 2 сайта: доходность за период 22.06–15.10.2026 (+1,51 %), 17 исправленных утверждений",
+     "why": null
+    },
+    {
+     "card": "owner-decision-otchet-gotovnosti-govorit-gotovy-hotya-t",
+     "class": "answer_recorded",
+     "status": "ingested",
+     "title": "Отчёт готовности говорит «ГОТОВЫ», хотя трек не добран (26/30) — публичный API противоречит сам себе",
+     "why": null
+    },
+    {
+     "card": "owner-decision-otchet-o-zanyatosti-kartochki-bolshe-ne-sc",
+     "class": "answer_recorded",
+     "status": "ingested",
+     "title": "Отчёт «эту карточку я НЕ беру» больше не считается захватом — подтверди или откати",
+     "why": null
+    },
+    {
+     "card": "owner-decision-otkat-vetki-1249-kommitov-2026-08-29",
+     "class": "answer_recorded",
+     "status": "ingested",
+     "title": "СНЯТО ЗАМЕРОМ: ветку уже вернули без тебя — команду из этой карточки выполнять НЕЛЬЗЯ",
+     "why": null
+    },
+    {
+     "card": "owner-decision-otkuda-schitat-trek-dvuh-knig",
+     "class": "answer_recorded",
+     "status": "ingested",
+     "title": "Публичное число двух книг: считать трек с 22 июня (там были литералы) или с 10 сентября (там начались наблюдения)?",
+     "why": null
+    },
+    {
+     "card": "owner-decision-partiya-2-karantina-kandidatov-chetyre-i",
+     "class": "answer_recorded",
+     "status": "ingested",
+     "title": "Партия 2 карантина: кандидатов четыре, и по ним у меня разные рекомендации",
+     "why": null
+    },
+    {
+     "card": "owner-decision-pendle-sam-naznachaet-sebe-uroven-riska",
+     "class": "agent_work",
+     "status": "ingested",
+     "title": "Pendle сам назначает себе уровень риска по размеру пула — а в справочнике написано другое",
+     "why": null
+    },
+    {
+     "card": "owner-decision-pereproverka-pered-sdelkoi-nazovi-dva-ch",
+     "class": "answer_in_session_register",
+     "status": "ingested",
+     "title": "Перепроверка перед сделкой: назови два числа — насколько свежими должны быть ставки и сколько живёт решение",
+     "why": null
+    },
+    {
+     "card": "owner-decision-peresprashivayu-sudba-storozha-telegram",
+     "class": "answer_recorded",
+     "status": "ingested",
+     "title": "Переспрашиваю: судьба сторожа telegram_watcher — твой ответ 15.08 потерялся вместе с закрытой веткой",
+     "why": null
+    },
+    {
+     "card": "owner-decision-perezapustit-storozha-realnogo-vremeni-c",
+     "class": "answer_recorded",
+     "status": "ingested",
+     "title": "Перезапустить сторожа реального времени, чтобы починка начала работать (одна команда)",
+     "why": null
+    },
+    {
+     "card": "owner-decision-pochinka-zhurnala-reshenii-slomannyh-mes",
+     "class": "answer_recorded",
+     "status": "ingested",
+     "title": "Починка журнала решений: сломанных мест три, а не два — в каком порядке чинить",
+     "why": null
+    },
+    {
+     "card": "owner-decision-podklyuchit-k-oprosu-dva-pula-kotorye-ot",
+     "class": "answer_recorded",
+     "status": "ingested",
+     "title": "Подключить к опросу два пула, которые отвечают живыми числами (Aave Arbitrum T1 $28 млн) — это прямой ответ на вопрос «почему 40 % в Aave под 2.7 %»",
+     "why": null
+    },
+    {
+     "card": "owner-decision-podpisat-publikatsiyu-nedelnoi-vitriny-c",
+     "class": "answer_recorded",
+     "status": "ingested",
+     "title": "Подписать публикацию недельной витрины чисел сайта (уже одобрено в чате 07.10)",
+     "why": null
+    },
+    {
+     "card": "owner-decision-podpisyvayuschie-adaptery-delayut-chetyre",
+     "class": "answer_recorded",
+     "status": "ingested",
+     "title": "Подписывающие адаптеры делают четыре дела из твоих пяти в одном файле — чинить сейчас или поставить условием перехода на реальные деньги",
+     "why": null
+    },
+    {
+     "card": "owner-decision-poisk-novyh-protokolov-ne-idet-programmu",
+     "class": "answer_recorded",
+     "status": "ingested",
+     "title": "Поиск новых протоколов не идёт: программу, которая его делает, никто не запускает",
+     "why": null
+    },
+    {
+     "card": "owner-decision-ponizhenie-tira-pri-uhudshenii-pravilo-o",
+     "class": "answer_recorded",
+     "status": "ingested",
+     "title": "Понижение тира при ухудшении: правило обещает «агент немедленно», исполнителя нет",
+     "why": null
+    },
+    {
+     "card": "owner-decision-posle-strahovki-dengi-ostayutsya-sirotam",
+     "class": "answer_recorded",
+     "status": "ingested",
+     "title": "После страховки деньги остаются сиротами: 10 % капитала ($10 000) лежат в кэше, потому что освободившийся бюджет никто не перекладывает",
+     "why": null
+    },
+    {
+     "card": "owner-decision-postavit-na-mak-programmu-bitcoin-core-b",
+     "class": "answer_recorded",
+     "status": "ingested",
+     "title": "Поставить на Мак программу Bitcoin Core — без неё свою цену биткоина считать не из чего",
+     "why": null
+    },
+    {
+     "card": "owner-decision-potolok-base-tsepochki-zapisan-v-treh-mestah",
+     "class": "answer_in_session_register",
+     "status": "ingested",
+     "title": "Потолок Base-цепочки записан в трёх местах — какое из них главное?",
+     "why": null
+    },
+    {
+     "card": "owner-decision-pravilo-sky-susds-0-otmeneno-tvoim-zhe-r",
+     "class": "answer_recorded",
+     "status": "ingested",
+     "title": "Правило «Sky/sUSDS = 0 %» отменено твоим же решением, но написано как действующее — и уже породило ложную тревогу",
+     "why": null
+    },
+    {
+     "card": "owner-decision-probnyi-hod-sovetnika-sostoyalsya-no-ots",
+     "class": "answer_recorded",
+     "status": "ingested",
+     "title": "Пробный ход советника состоялся, но оценить его нечем — разрешение потрачено впустую",
+     "why": null
+    },
+    {
+     "card": "owner-decision-produktovyi-sloi-agentov-head-of-product",
+     "class": "answer_recorded",
+     "status": "ingested",
+     "title": "🅰🅰🅰 Продуктовый слой агентов (Head of Product + R&D продукта + продвижение) — построить",
+     "why": null
+    },
+    {
+     "card": "owner-decision-prover-odno-pole-dohodyat-li-do-tebya-za",
+     "class": "answer_recorded",
+     "status": "ingested",
+     "title": "Проверь одно поле: доходят ли до тебя заявки с сайта (одна минута)",
+     "why": null
+    },
+    {
+     "card": "owner-decision-proverka-knigi-slabee-proverki-pered-sde",
+     "class": "answer_recorded",
+     "status": "ingested",
+     "title": "Проверка книги слабее проверки перед сделкой — 60 % в рисковом уровне проходит как «здоровый портфель»",
+     "why": null
+    },
+    {
+     "card": "owner-decision-publichnaya-stranitsa-prover-nas-pokazyv",
+     "class": "answer_recorded",
+     "status": "ingested",
+     "title": "Публичная страница «проверь нас» показывает замеры месячной давности — выбери, как их обновлять",
+     "why": null
+    },
+    {
+     "card": "owner-decision-pyat-protsentov-kesha-zapisany-v-dvuh-me",
+     "class": "answer_in_session_register",
+     "status": "ingested",
+     "title": "Пять процентов кэша записаны в двух местах — это одно правило или два?",
+     "why": null
+    },
+    {
+     "card": "owner-decision-pyat-reshenii-po-itogam-nochnogo-audita",
+     "class": "answer_recorded",
+     "status": "ingested",
+     "title": "Пять решений после ночного аудита: честные числа, кнопка «Пауза» и кто что решает",
+     "why": null
+    },
+    {
+     "card": "owner-decision-pyataya-chast-deneg-stoit-na-chisle-o-ko",
+     "class": "answer_recorded",
+     "status": "ingested",
+     "title": "Пятая часть денег стоит на числе, о котором две наши системы спорят (Pendle)",
+     "why": null
+    },
+    {
+     "card": "owner-decision-rabochaya-kopiya-proekta-na-make-otstala",
+     "class": "answer_recorded",
+     "status": "ingested",
+     "title": "Рабочая копия проекта на маке отстала от GitHub на 345 коммитов — из-за этого очередь заданий показывает старое",
+     "why": null
+    },
+    {
+     "card": "owner-decision-razorvat-zamknutyi-krug-avtovzvoda-sovet",
+     "class": "agent_work",
+     "status": "ingested",
+     "title": "Разорвать замкнутый круг автовзвода: советник ребаланса заблокирован 34 дня из 34",
+     "why": null
+    },
+    {
+     "card": "owner-decision-razreshit-vosstanovit-propavshuyu-istori",
+     "class": "answer_in_session_register",
+     "status": "ingested",
+     "title": "Разрешить восстановить пропавшую историю двух карточек в рабочем дереве (95 и 6 записей)",
+     "why": null
+    },
+    {
+     "card": "owner-decision-reinvestirovat-nachislennoe-ili-derzhat-100k",
+     "class": "agent_work",
+     "status": "ingested",
+     "title": "Реинвестировать заработанное или держать базу ровно 100 тысяч",
+     "why": null
+    },
+    {
+     "card": "owner-decision-reshenie-adr-070-p-6-ispolnit-nelzya-odi",
+     "class": "answer_recorded",
+     "status": "ingested",
+     "title": "Решение ADR-070 п.6 исполнить нельзя: «один вольт — один риск» упирается в тир morpho_steakhouse (40% → 20%)",
+     "why": null
+    },
+    {
+     "card": "owner-decision-reshenie-adr-104-zapisano-no-do-mashiny",
+     "class": "answer_recorded",
+     "status": "ingested",
+     "title": "Решение ADR-104 записано, но до машины не доехало: CIO обязан смотреть раз в 5 минут, а смотрит раз в сутки",
+     "why": null
+    },
+    {
+     "card": "owner-decision-reshenie-po-alertu-spa-7-day-checkpoint",
+     "class": "answer_recorded",
+     "status": "ingested",
+     "title": "Решение по алерту: ⚠️ SPA 7-Day Checkpoint FAILED: 1 check(s)",
+     "why": null
+    },
+    {
+     "card": "owner-decision-resheniya-o-riske-lezhat-v-treh-papkah-a",
+     "class": "answer_recorded",
+     "status": "ingested",
+     "title": "Решения о риске лежат в трёх папках, а список считается одним",
+     "why": null
+    },
+    {
+     "card": "owner-decision-reshit-sudbu-9-zavisshih-agentov-10-minu",
+     "class": "answer_recorded",
+     "status": "ingested",
+     "title": "Решить судьбу 9 «зависших» агентов — 10 минут, и конституция станет полной",
+     "why": null
+    },
+    {
+     "card": "owner-decision-sait-avtonomnaya-pravka-zadela-owner-gat-2",
+     "class": "answer_recorded",
+     "status": "ingested",
+     "title": "Сайт: автономная правка задела owner-gated область — нужно решение",
+     "why": null
+    },
+    {
+     "card": "owner-decision-sait-avtonomnaya-pravka-zadela-owner-gat-3",
+     "class": "answer_recorded",
+     "status": "ingested",
+     "title": "Сайт: автономная правка задела owner-gated область — нужно решение",
+     "why": null
+    },
+    {
+     "card": "owner-decision-sait-avtonomnaya-pravka-zadela-owner-gat",
+     "class": "answer_recorded",
+     "status": "ingested",
+     "title": "Сайт: автономная правка задела owner-gated область — нужно решение",
+     "why": null
+    },
+    {
+     "card": "owner-decision-sait-na-treh-stranitsah-vse-esche-staray",
+     "class": "answer_recorded",
+     "status": "ingested",
+     "title": "Сайт: на трёх страницах всё ещё старая ставка «~3.3%» вместо живой 4.9% — заменить на общий источник",
+     "why": null
+    },
+    {
+     "card": "owner-decision-sait-pokazyvaet-chisla-ot-20-sentyabrya",
+     "class": "answer_recorded",
+     "status": "ingested",
+     "title": "Как округлять доходность на сайте: 4,9637 % печатается как 5,0 % — вверх",
+     "why": null
+    },
+    {
+     "card": "owner-decision-sait-site-numbers-json-avtonomnaya-pravk",
+     "class": "needs_decision",
+     "status": "needs-owner",
+     "title": "Сайт: site_numbers.json — автономная правка задела owner-gated область, нужно решение",
+     "why": null
+    },
+    {
+     "card": "owner-decision-sait-stranitsa-aggressive-v-chetyreh-mes",
+     "class": "answer_recorded",
+     "status": "ingested",
+     "title": "Сайт: страница Aggressive в четырёх местах всё ещё пишет про плечо, которого в книге нет",
+     "why": null
+    },
+    {
+     "card": "owner-decision-sait-track-snapshot-json-avtonomnaya-pra-2",
+     "class": "answer_in_session_register",
+     "status": "ingested",
+     "title": "Сайт: track_snapshot.json — автономная правка задела owner-gated область, нужно решение",
+     "why": null
+    },
+    {
+     "card": "owner-decision-sait-track-snapshot-json-avtonomnaya-pra",
+     "class": "answer_in_session_register",
+     "status": "ingested",
+     "title": "Сайт: track_snapshot.json — автономная правка задела owner-gated область, нужно решение",
+     "why": null
+    },
+    {
+     "card": "owner-decision-sait-ubrat-vosem-utverzhdenii-kotorye-ne",
+     "class": "answer_recorded",
+     "status": "ingested",
+     "title": "Сайт: убрать восемь утверждений, которые не совпадают с тем, что делает система (тиры, вывод, L6, плечо, стоп-кран)",
+     "why": null
+    },
+    {
+     "card": "owner-decision-sait-ustarevshie-i-spornye-utverzhdeniya",
+     "class": "answer_recorded",
+     "status": "ingested",
+     "title": "Сайт: устаревшие и спорные утверждения — что менять",
+     "why": null
+    },
+    {
+     "card": "owner-decision-sait-why-20-apy-means-tail-risk-astro-i",
+     "class": "answer_recorded",
+     "status": "ingested",
+     "title": "Сайт: why-20-apy-means-tail-risk.astro и ещё 2 — автономная правка задела owner-gated область, нужно решение",
+     "why": null
+    },
+    {
+     "card": "owner-decision-sbalansirovannyi-tir-na-saite-idet-paper",
+     "class": "answer_recorded",
+     "status": "ingested",
+     "title": "Сбалансированный тир: на сайте «идёт paper-трек», а в книге ноль позиций",
+     "why": null
+    },
+    {
+     "card": "owner-decision-schitat-li-dopisannye-zadnim-chislom-sta",
+     "class": "answer_recorded",
+     "status": "ingested",
+     "title": "Считать ли дописанные задним числом ставки наравне с живыми в проверке готовности",
+     "why": null
+    },
+    {
+     "card": "owner-decision-security-skan-risk-geita-nashel-dva-rash",
+     "class": "answer_recorded",
+     "status": "ingested",
+     "title": "Security-скан risk-гейта нашёл два расхождения между ADR и реальным кодом: оси риска не подключены, тир протокола не сверяется",
+     "why": null
+    },
+    {
+     "card": "owner-decision-segodnyashnii-tsikl-treka-ne-zapuskalsya",
+     "class": "answer_recorded",
+     "status": "ingested",
+     "title": "Сегодняшний цикл трека не запускался: Мак был выключен в 08:00",
+     "why": null
+    },
+    {
+     "card": "owner-decision-shest-modulei-vydumyvayut-ostatok-na-kos",
+     "class": "agent_work",
+     "status": "ingested",
+     "title": "Шесть модулей выдумывают остаток на кошельке вместо отказа — чинить сейчас или записать условием go-live?",
+     "why": null
+    },
+    {
+     "card": "owner-decision-shest-nahodok-za-den-okazalis-odnoi-bole",
+     "class": "answer_recorded",
+     "status": "ingested",
+     "title": "Шесть находок за день оказались ОДНОЙ болезнью: где наблюдения нет, система говорит «всё хорошо» вместо «не знаю»",
+     "why": null
+    },
+    {
+     "card": "owner-decision-sistema-ne-sprashivaet-proderzhitsya-li",
+     "class": "answer_in_session_register",
+     "status": "ingested",
+     "title": "Система не спрашивает, продержится ли выгода — и по факту она не продержалась ни разу",
+     "why": null
+    },
+    {
+     "card": "owner-decision-sistema-ostanovlena-avariinym-vyklyuchat",
+     "class": "answer_recorded",
+     "status": "ingested",
+     "title": "Система остановлена аварийным выключателем: он сравнивает живую доходность с числами, вписанными в код",
+     "why": null
+    },
+    {
+     "card": "owner-decision-skolko-minut-slepoty-vnutridnevnogo-sens",
+     "class": "answer_recorded",
+     "status": "ingested",
+     "title": "Сколько минут слепоты внутридневного сенсора — уже повод тебя разбудить",
+     "why": null
+    },
+    {
+     "card": "owner-decision-skolko-stoit-odin-tsikl-agenta",
+     "class": "answer_recorded",
+     "status": "ingested",
+     "title": "Сколько стоит один цикл агента — без твоего числа стоимость цеха не считается",
+     "why": null
+    },
+    {
+     "card": "owner-decision-skript-zhivogo-agenta-zapuskaetsya-tolko",
+     "class": "answer_recorded",
+     "status": "ingested",
+     "title": "Скрипт живого агента запускается только благодаря настройке в обёртке — чинить сам скрипт?",
+     "why": null
+    },
+    {
+     "card": "owner-decision-slepaya-prosadka-i-pokupki-naraschivat-l",
+     "class": "answer_recorded",
+     "status": "ingested",
+     "title": "Слепая просадка и покупки: наращивать ли позиции, когда просадку вычислить не из чего",
+     "why": null
+    },
+    {
+     "card": "owner-decision-snyat-mertvyi-adres-checkup-earn-defi-co",
+     "class": "answer_recorded",
+     "status": "ingested",
+     "title": "Снять мёртвый адрес checkup.earn-defi.com — последнее, что осталось от похороненного чекапа",
+     "why": null
+    },
+    {
+     "card": "owner-decision-sorok-protsentov-knigi-stoyat-na-rynke-k",
+     "class": "agent_work",
+     "status": "ingested",
+     "title": "Сорок процентов книги стоят на рынке, который система выбирает заново каждое утро",
+     "why": null
+    },
+    {
+     "card": "owner-decision-sovetnik-po-perekladke-deneg-ne-smozhet",
+     "class": "agent_work",
+     "status": "ingested",
+     "title": "Советник по перекладке денег не сможет включиться НИКОГДА — 30 дней он молчал не потому, что рынок тихий",
+     "why": null
+    },
+    {
+     "card": "owner-decision-spisat-180-fonovyh-modulei-tier-c-ili-ch",
+     "class": "answer_recorded",
+     "status": "ingested",
+     "title": "Списать 180 фоновых модулей Tier-C или честно записать, что мы про них не знаем",
+     "why": null
+    },
+    {
+     "card": "owner-decision-steibl-noga-btc-dvizhka-v-pol-spa",
+     "class": "answer_recorded",
+     "status": "ingested",
+     "title": "Стейбл-нога BTC-движка лежит под 0 % — разместить её в консервативной книге SPA?",
+     "why": null
+    },
+    {
+     "card": "owner-decision-stoimost-perekladki-zaryazhaetsya-v-134",
+     "class": "answer_in_session_register",
+     "status": "ingested",
+     "title": "Стоимость перекладки заряжается в 134 раза дороже наблюдаемой — нужен твой порог «сколько уже слишком»",
+     "why": null
+    },
+    {
+     "card": "owner-decision-storozh-bazisnoi-sdelki-ozhil-i-hochet-s",
+     "class": "answer_recorded",
+     "status": "ingested",
+     "title": "Сторож базисной сделки ожил и хочет слать тебе «отличная возможность» — включаем эти сообщения или нет",
+     "why": null
+    },
+    {
+     "card": "owner-decision-storozh-chisel-saita-krasneet-10-raz-v-den",
+     "class": "answer_recorded",
+     "status": "ingested",
+     "title": "Сторож чисел сайта краснеет ~10 раз в день на нашей же автоматике — разрешить ему молчать там, где он всё равно ничего не измеряет?",
+     "why": null
+    },
+    {
+     "card": "owner-decision-storozh-golosovanii-sledit-za-chuzhimi-p",
+     "class": "answer_recorded",
+     "status": "ingested",
+     "title": "Сторож голосований следит за чужими протоколами, а за нашими — нет: выбери, добавлять источники или убрать лишние",
+     "why": null
+    },
+    {
+     "card": "owner-decision-storozh-nomerov-reshenii-chitaet-odnu-pa",
+     "class": "answer_recorded",
+     "status": "ingested",
+     "title": "Сторож номеров решений читает одну папку из трёх — десять номеров заняты дважды",
+     "why": null
+    },
+    {
+     "card": "owner-decision-storozh-pravil-ne-vidit-stop-kran-smotri",
+     "class": "answer_recorded",
+     "status": "ingested",
+     "title": "Сторож правил не видит стоп-кран — смотрит в файл, которого нет (выбери, как чинить)",
+     "why": null
+    },
+    {
+     "card": "owner-decision-storozh-propuschennogo-tsikla-molchit-do",
+     "class": "answer_recorded",
+     "status": "ingested",
+     "title": "Сторож пропущенного цикла молчит до 10:00 UTC, хотя цикл стартует в 06:00 UTC — опустить порог?",
+     "why": null
+    },
+    {
+     "card": "owner-decision-storozh-prosadki-reshaet-uzhe-znaya-itog",
+     "class": "answer_recorded",
+     "status": "ingested",
+     "title": "Сторож просадки решает, уже зная итог дня — наши числа о его пользе завышены",
+     "why": null
+    },
+    {
+     "card": "owner-decision-storozh-rashozhdeniya-flota-ne-zapuskals",
+     "class": "answer_recorded",
+     "status": "ingested",
+     "title": "Сторож расхождения флота не запускался 21 день — его никто не зовёт",
+     "why": null
+    },
+    {
+     "card": "owner-decision-storozh-saita-odnoi-komandy-ne-hvatilo-r",
+     "class": "answer_recorded",
+     "status": "ingested",
+     "title": "Сторож сайта: «одной команды» не хватило — рабочая папка отстала на 665 коммитов, и публикация отказана",
+     "why": null
+    },
+    {
+     "card": "owner-decision-storozh-vspleskov-apy-nikto-ne-zovet-2026-08-29",
+     "class": "answer_recorded",
+     "status": "ingested",
+     "title": "Сторож всплесков доходности написан, порог верный, сработал бы 25 августа — и его не зовёт никто",
+     "why": null
+    },
+    {
+     "card": "owner-decision-stranitsa-treka-chetvertyi-den-pryachet",
+     "class": "answer_recorded",
+     "status": "ingested",
+     "title": "Страница трека четвёртый день прячет цифры — снять табличку честности некому",
+     "why": null
+    },
+    {
+     "card": "owner-decision-strategiya-s23-nikogda-ne-vidit-zhivoi-p",
+     "class": "answer_recorded",
+     "status": "ingested",
+     "title": "Стратегия S23 никогда не видит живой Pendle — адаптер «похоронен», ошибка глотается молча (выбери, как чинить)",
+     "why": null
+    },
+    {
+     "card": "owner-decision-sudya-schitaet-besplatnyi-hod-dorozhe-de",
+     "class": "answer_recorded",
+     "status": "ingested",
+     "title": "Судья считает бесплатный ход дороже дешёвого: ноль и «не записано» это одна строка кода",
+     "why": null
+    },
+    {
+     "card": "owner-decision-tablichka-chestnosti-ne-doezzhaet-do-sai",
+     "class": "answer_recorded",
+     "status": "ingested",
+     "title": "Табличка честности не доезжает до сайта — публично видно 5.2% там, где живой расчёт даёт 4.8%",
+     "why": null
+    },
+    {
+     "card": "owner-decision-tier-b-84-modulya-otvechayut-odinakovo-d",
+     "class": "answer_recorded",
+     "status": "ingested",
+     "title": "Tier-B: 84 модуля отвечают одинаково даже несуществующему протоколу — списать?",
+     "why": null
+    },
+    {
+     "card": "owner-decision-tier-b-esche-82-modulya-razlichii-ne-pok",
+     "class": "answer_recorded",
+     "status": "ingested",
+     "title": "Tier-B: ещё 82 модуля различий не показали — списать или заморозить?",
+     "why": null
+    },
+    {
+     "card": "owner-decision-tier-steakhouse-2026-08-29",
+     "class": "answer_recorded",
+     "status": "ingested",
+     "title": "Твоё решение от 7 августа доехало не везде: один протокол до сих пор числится не тем тиром",
+     "why": null
+    },
+    {
+     "card": "owner-decision-tret-flota-nelzya-proverit-u-sluzhb-i-de",
+     "class": "answer_recorded",
+     "status": "ingested",
+     "title": "Треть флота нельзя проверить: у служб и демонов метрика «свежесть файла» не работает, а замены нет",
+     "why": null
+    },
+    {
+     "card": "owner-decision-tret-kapitala-vstala-bez-raboty-kniga-ne",
+     "class": "answer_recorded",
+     "status": "ingested",
+     "title": "Треть капитала встала без работы: перераздачу отклонил гейт, и отказ невозможно проверить",
+     "why": null
+    },
+    {
+     "card": "owner-decision-tretya-proverka-koda-slomalas-i-8-chasov",
+     "class": "answer_recorded",
+     "status": "ingested",
+     "title": "Третья проверка кода сломалась и 8 часов этого никто не видел — нужен сторож за всеми проверками",
+     "why": null
+    },
+    {
+     "card": "owner-decision-trevoga-o-stop-krane-do-tebya-bolshe-ne",
+     "class": "answer_recorded",
+     "status": "ingested",
+     "title": "Тревога о стоп-кране до тебя больше не дойдёт — событие застряло в «плохо» с 4 июля (выбери, как чинить)",
+     "why": null
+    },
+    {
+     "card": "owner-decision-tri-bumazhnyh-portfelya-rabotayut-ostalo",
+     "class": "answer_recorded",
+     "status": "ingested",
+     "title": "Три бумажных портфеля работают — осталось одобрить формулировки на сайте одним пакетом (метки «отказан для live», FAQ, комиссии, первая фраза главной)",
+     "why": null
+    },
+    {
+     "card": "owner-decision-tri-otcheta-o-dokazatelnoi-baze-treka-mo",
+     "class": "answer_recorded",
+     "status": "ingested",
+     "title": "Три отчёта о доказательной базе трека молчат 2 месяца — оживить или убрать в архив",
+     "why": null
+    },
+    {
+     "card": "owner-decision-tri-paketa-nachali-realnyi-paper-test-ba",
+     "class": "answer_recorded",
+     "status": "ingested",
+     "title": "Три пакета начали реальный paper-тест — Balanced и Aggressive пошли (нужно да/нет по двум пунктам)",
+     "why": null
+    },
+    {
+     "card": "owner-decision-tri-vyvedennyh-agenta-ostalis-v-sisteme",
+     "class": "answer_recorded",
+     "status": "ingested",
+     "title": "Три выведенных агента остались в системе и красят сверку архитектуры",
+     "why": null
+    },
+    {
+     "card": "owner-decision-tsena-gaza-v-reshenii-o-perekladke-vzyat",
+     "class": "agent_work",
+     "status": "ingested",
+     "title": "Цена газа в решении о перекладке взята константой — живые показания сети в 316 раз дешевле",
+     "why": null
+    },
+    {
+     "card": "owner-decision-tvoe-reshenie-ot-10-avgusta-pro-morpho-s",
+     "class": "answer_recorded",
+     "status": "ingested",
+     "title": "Твоё решение от 10 августа про Morpho Steakhouse не действует в коде: потолок 40 % вместо 20 %",
+     "why": null
+    },
+    {
+     "card": "owner-decision-tvoi-otvet-otvet-1-segodnya-ne-primenils",
+     "class": "answer_recorded",
+     "status": "ingested",
+     "title": "Твой ответ «Ответ 1» сегодня не применился — теперь можно отвечать прямо на сообщение с вопросом",
+     "why": null
+    },
+    {
+     "card": "owner-decision-tvoi-resheniya-ot-23-iyulya-11-dnei-ne-l",
+     "class": "answer_recorded",
+     "status": "ingested",
+     "title": "Твои решения от 23 июля 11 дней не лежали в git — доставил, подтверди что в силе",
+     "why": null
+    },
+    {
+     "card": "owner-decision-ubrat-2-gb-sluzhebnogo-musora-git-v-rabo",
+     "class": "answer_in_session_register",
+     "status": "ingested",
+     "title": "Убрать 2 ГБ служебного мусора git в рабочем дереве на Маке",
+     "why": null
+    },
+    {
+     "card": "owner-decision-ubrat-slomannyi-ostatok-v-rabochei-papke",
+     "class": "answer_recorded",
+     "status": "ingested",
+     "title": "Один лишний файл в рабочей папке не даёт запустить ТЕСТЫ на твоей машине — убрать его",
+     "why": null
+    },
+    {
+     "card": "owner-decision-udalit-ostavshiisya-fail-s-tokenom",
+     "class": "answer_recorded",
+     "status": "ingested",
+     "title": "Удалить оставшийся файл с токеном из папки проекта (одна команда)",
+     "why": null
+    },
+    {
+     "card": "owner-decision-urovni-dokazatelnosti-2026-08-29",
+     "class": "answer_recorded",
+     "status": "ingested",
+     "title": "ИСПОЛНЕНО: убраны все заявки о том, что мы торговали реальными деньгами",
+     "why": null
+    },
+    {
+     "card": "owner-decision-utochnenie-po-zametke-1",
+     "class": "agent_work",
+     "status": "ingested",
+     "title": "Уточнение по заметке: 1",
+     "why": null
+    },
+    {
+     "card": "owner-decision-utochnenie-po-zametke-adr-070-11-chestny-2",
+     "class": "answer_recorded",
+     "status": "ingested",
+     "title": "Уточнение по заметке: ADR-070.11: честный exit digest-обёртки",
+     "why": null
+    },
+    {
+     "card": "owner-decision-utochnenie-po-zametke-adr-070-13-trevogu-2",
+     "class": "agent_work",
+     "status": "ingested",
+     "title": "Уточнение по заметке: ADR-070.13: тревогу core-agent-down гасит agent_health",
+     "why": null
+    },
+    {
+     "card": "owner-decision-utochnenie-po-zametke-davai-tak-i-sdelae",
+     "class": "answer_recorded",
+     "status": "ingested",
+     "title": "Уточнение по заметке: Давай так и сделаем",
+     "why": null
+    },
+    {
+     "card": "owner-decision-utochnenie-po-zametke-hrapovik-zamorozhe",
+     "class": "answer_recorded",
+     "status": "ingested",
+     "title": "Уточнение по заметке: Храповик замороженных дат КРАСЕН на чистом main: test_studio_os.py принёс шесть литеральных дат",
+     "why": null
+    },
+    {
+     "card": "owner-decision-utochnenie-po-zametke-kupit-zont-v-pyatn-6",
+     "class": "answer_recorded",
+     "status": "ingested",
+     "title": "Уточнение по заметке: купить зонт в пятницу",
+     "why": null
+    },
+    {
+     "card": "owner-decision-utochnenie-po-zametke-neprimenennyi-otve-2",
+     "class": "answer_recorded",
+     "status": "ingested",
+     "title": "Уточнение по заметке: Неприменённый ответ владельца «1» — адресат не назван",
+     "why": null
+    },
+    {
+     "card": "owner-decision-utochnenie-po-zametke-neprimenennyi-otve",
+     "class": "answer_recorded",
+     "status": "ingested",
+     "title": "Уточнение по заметке: Неприменённый ответ владельца «1» — адресат не назван",
+     "why": null
+    },
+    {
+     "card": "owner-decision-utochnenie-po-zametke-pribory-brosayut-o",
+     "class": "answer_recorded",
+     "status": "ingested",
+     "title": "Уточнение по заметке: Приборы бросают одноразовый стенд: 87 ГБ снято, остаток класса измерен — 35 файлов без уборки",
+     "why": null
+    },
+    {
+     "card": "owner-decision-utochnenie-po-zametke-prover-dashbord",
+     "class": "answer_recorded",
+     "status": "ingested",
+     "title": "Уточнение по заметке: проверь дашборд",
+     "why": null
+    },
+    {
+     "card": "owner-decision-utochnenie-po-zametke-sto-tridtsat-devya",
+     "class": "answer_in_session_register",
+     "status": "ingested",
+     "title": "Уточнение по заметке: Сто тридцать девять брошенных деревьев циклов: 24,6 ГБ, и снимать их вслепую нельзя",
+     "why": null
+    },
+    {
+     "card": "owner-decision-utrennee-pismo-mozhet-ne-doiti-a-sistema",
+     "class": "answer_recorded",
+     "status": "ingested",
+     "title": "Утреннее письмо может не дойти, а система этого не заметит — выбери, как это показывать",
+     "why": null
+    },
+    {
+     "card": "owner-decision-utrennie-soobscheniya-v-telegram-glavnoe",
+     "class": "answer_recorded",
+     "status": "ingested",
+     "title": "Утренние сообщения в Telegram: главное + подробности",
+     "why": null
+    },
+    {
+     "card": "owner-decision-v-shablone-dogovora-ostalos-snyatoe-ogra",
+     "class": "answer_recorded",
+     "status": "ingested",
+     "title": "В шаблоне договора осталось снятое ограничение по Sky/sUSDS",
+     "why": null
+    },
+    {
+     "card": "owner-decision-v-zhurnalah-dohodnosti-zapisany-vydumann",
+     "class": "answer_recorded",
+     "status": "ingested",
+     "title": "В журналах доходности записаны выдуманные 10.115% — реши, что делать со старыми записями",
+     "why": null
+    },
+    {
+     "card": "owner-decision-vesti-opros-ot-polnogo-reestra-adapterov",
+     "class": "answer_recorded",
+     "status": "ingested",
+     "title": "Вести опрос от полного реестра адаптеров? Замер: 27 проходных при пределе 8 — книга каждый цикл уходит в аварийную",
+     "why": null
+    },
+    {
+     "card": "owner-decision-vetka-s-vosemyu-zapisannymi-resheniyami",
+     "class": "answer_recorded",
+     "status": "ingested",
+     "title": "Ветка с восемью записанными решениями: влить или закрыть",
+     "why": null
+    },
+    {
+     "card": "owner-decision-vklyuchit-novogo-storozha-saita-na-make",
+     "class": "answer_recorded",
+     "status": "ingested",
+     "title": "Включить нового сторожа сайта на Маке — одна команда, и табличка снимется сама",
+     "why": null
+    },
+    {
+     "card": "owner-decision-vnutridnevnaya-prosadka-slepota-teper-sl",
+     "class": "answer_recorded",
+     "status": "ingested",
+     "title": "Внутридневная просадка: мягкий тир внутри дня — действовать в минутах или как сейчас",
+     "why": null
+    },
+    {
+     "card": "owner-decision-vozit-li-katalog-reshenii-ob-agentah-na",
+     "class": "answer_recorded",
+     "status": "ingested",
+     "title": "Возить ли каталог решений об агентах на рабочую машину — или оставить как сейчас (сторож уже читает их из git)",
+     "why": null
+    },
+    {
+     "card": "owner-decision-vse-82-izmereny-krome-odnogo-i-devyat-iz",
+     "class": "answer_recorded",
+     "status": "ingested",
+     "title": "Все 82 измерены, кроме одного — и девять из одиннадцати «сломанных» оказались не сломаны",
+     "why": null
+    },
+    {
+     "card": "owner-decision-vtoroi-tsikl-orkestratora-ne-perezhivet",
+     "class": "answer_recorded",
+     "status": "ingested",
+     "title": "Второй цикл оркестратора не переживёт перезагрузку — его записка лежит не в той папке",
+     "why": null
+    },
+    {
+     "card": "owner-decision-vydumannaya-kazna-protokola-v-otsenke-st",
+     "class": "answer_recorded",
+     "status": "ingested",
+     "title": "Выдуманная казна протокола в оценке страховки — оставить или отказываться?",
+     "why": null
+    },
+    {
+     "card": "owner-decision-ya-otkatil-116-failov-zhivogo-sostoyaniy",
+     "class": "answer_recorded",
+     "status": "ingested",
+     "title": "Я откатил 116 файлов живого состояния в боевом дереве — 114 вернул из резерва, дыра 19,5 часов осталась",
+     "why": null
+    },
+    {
+     "card": "owner-decision-zakryt-tri-chernovyh-pr-u-moego-klyucha",
+     "class": "answer_in_session_register",
+     "status": "ingested",
+     "title": "Закрыть три черновых PR — у моего ключа нет на это прав (или выдать права)",
+     "why": null
+    },
+    {
+     "card": "owner-decision-zakrytie-voprosa-vladeltsa-iz-rabochego",
+     "class": "answer_recorded",
+     "status": "ingested",
+     "title": "Закрытие вопроса владельца из рабочего дерева читается сторожем как «закрыли без владельца» — выбери, чем лечим",
+     "why": null
+    },
+    {
+     "card": "owner-decision-zamok-dnevnogo-tsikla-ne-sprashivaet-zhi",
+     "class": "answer_recorded",
+     "status": "ingested",
+     "title": "Замок дневного цикла не спрашивает, жив ли держатель — сегодня 18 отказов подряд из-за мёртвого процесса",
+     "why": null
+    },
+    {
+     "card": "owner-decision-zapasnoi-klyuch-k-zaschite-saita-ne-rabo",
+     "class": "answer_recorded",
+     "status": "ingested",
+     "title": "Запасной ключ к защите сайта не работает — починить или убрать из инструкции?",
+     "why": null
+    },
+    {
+     "card": "owner-decision-zapisyvat-li-v-dnevnoe-reshenie-vse-zhiv",
+     "class": "answer_recorded",
+     "status": "ingested",
+     "title": "Записывать ли в дневное решение ВСЕ живые ставки дня, а не только те, что в портфеле",
+     "why": null
+    },
+    {
+     "card": "owner-decision-zapustit-storozha-arhitektury-on-gotov-n",
+     "class": "answer_recorded",
+     "status": "ingested",
+     "title": "Запустить сторожа архитектуры (он готов, но включать агентов может только владелец)",
+     "why": null
+    },
+    {
+     "card": "owner-decision-zaschita-ot-kachelei-sravnivaet-ne-to-ch",
+     "class": "answer_in_session_register",
+     "status": "ingested",
+     "title": "Защита от качелей сравнивает не то, что нужно — книга 12 раз вернулась туда, откуда ушла",
+     "why": null
+    },
+    {
+     "card": "owner-decision-zaschita-saita-kazhdyi-den-lovit-nashego",
+     "class": "answer_recorded",
+     "status": "ingested",
+     "title": "Защита сайта каждый день ловит нашего же робота: числа доходности уезжают в live мимо гейта",
+     "why": null
+    },
+    {
+     "card": "owner-decision-zhivoi-vhod-tolko-po-steiblam-chem-zakry",
+     "class": "answer_recorded",
+     "status": "ingested",
+     "title": "Живой вход только по стейблам: чем закрываем нестейбл-экспозицию до реальных денег",
+     "why": null
+    }
+   ],
+   "tracker": "nimbalyst-local/tracker",
+   "unreadable": []
+  },
+  {
+   "counts": {
+    "agent_work": 19,
+    "answer_in_session_register": 0,
+    "answer_recorded": 225,
+    "needs_decision": 3,
+    "other_open": 0,
+    "register_conflict": 0
+   },
+   "measured": true,
+   "population": 247,
+   "register_cards_outside_population": [
+    "own-optimum-proigryvaet-resheniyu-nichego-ne-d",
+    "owner-decision-agent-nablyudatel-prosypaetsya-raz-v-7-6",
+    "owner-decision-disk-mac-mini-zabit-pod-nol-odin-zhurnal",
+    "owner-decision-dva-mesta-zovut-odin-protokol-raznym-t",
+    "owner-decision-earn-defi-kanal-telegram-dlya-publikatsii",
+    "owner-decision-kakoi-variant-ty-vybral-9-sentyabrya-po",
+    "owner-decision-pereproverka-pered-sdelkoi-nazovi-dva-ch",
+    "owner-decision-potolok-base-tsepochki-zapisan-v-treh-mestah",
+    "owner-decision-pyat-protsentov-kesha-zapisany-v-dvuh-me",
+    "owner-decision-razreshit-vosstanovit-propavshuyu-istori",
+    "owner-decision-sait-track-snapshot-json-avtonomnaya-pra",
+    "owner-decision-sait-track-snapshot-json-avtonomnaya-pra-2",
+    "owner-decision-sistema-ne-sprashivaet-proderzhitsya-li",
+    "owner-decision-stoimost-perekladki-zaryazhaetsya-v-134",
+    "owner-decision-ubrat-2-gb-sluzhebnogo-musora-git-v-rabo",
+    "owner-decision-utochnenie-po-zametke-sto-tridtsat-devya",
+    "owner-decision-zakryt-tri-chernovyh-pr-u-moego-klyucha",
+    "owner-decision-zaschita-ot-kachelei-sravnivaet-ne-to-ch"
+   ],
+   "rows": [
+    {
+     "card": "own-06-etherscan-prod-key",
+     "class": "answer_recorded",
+     "status": "ingested",
+     "title": "Ключ Etherscan уже работает — задача была «фантомной» (петля исправлена)",
+     "why": null
+    },
+    {
+     "card": "own-07-retention-secrets",
+     "class": "answer_recorded",
+     "status": "ingested",
+     "title": "Включить письма-подтверждения для подписки — добавить два ключа на сервер",
+     "why": null
+    },
+    {
+     "card": "own-08-spa-naming",
+     "class": "answer_recorded",
+     "status": "ingested",
+     "title": "Выбрать одну расшифровку названия «SPA» для сайта",
+     "why": null
+    },
+    {
+     "card": "own-11-pilot-human-mailbox",
+     "class": "answer_recorded",
+     "status": "ingested",
+     "title": "Добавить живого человека и рабочую почту на страницу /pilot",
+     "why": null
+    },
+    {
+     "card": "own-13-early-access-framing",
+     "class": "answer_recorded",
+     "status": "ingested",
+     "title": "Подтвердить формулировку списка раннего доступа (waitlist)",
+     "why": null
+    },
+    {
+     "card": "own-14-conservative-headline",
+     "class": "answer_recorded",
+     "status": "ingested",
+     "title": "Выбрать одно «главное» число доходности Conservative на сайте",
+     "why": null
+    },
+    {
+     "card": "own-15-verifier-git-tag",
+     "class": "answer_recorded",
+     "status": "ingested",
+     "title": "Поставить git-тег verifier-v1.2 — неизменяемая ссылка на верификатор",
+     "why": null
+    },
+    {
+     "card": "own-16-instant-lead-ping",
+     "class": "answer_recorded",
+     "status": "ingested",
+     "title": "Мгновенный Telegram-пинг о заявке или оставить в ежедневном дайджесте?",
+     "why": null
+    },
+    {
+     "card": "own-17-fundability-capacity-framing",
+     "class": "answer_recorded",
+     "status": "ingested",
+     "title": "Какое capacity-число сделать заголовочным на /fundability",
+     "why": null
+    },
+    {
+     "card": "own-19-dashboard-preview-verdict",
+     "class": "answer_recorded",
+     "status": "ingested",
+     "title": "Одобрить новый вид дашборда (превью готово) — переносить на живой?",
+     "why": null
+    },
+    {
+     "card": "own-20-research-changelog-automation",
+     "class": "answer_recorded",
+     "status": "ingested",
+     "title": "Как автоматизировать публичный research-changelog (heartbeat сайта)",
+     "why": null
+    },
+    {
+     "card": "own-2026-08-18-avariinaya-kniga-idet-mimo-geitov-svezhesti",
+     "class": "answer_recorded",
+     "status": "ingested",
+     "title": "Аварийная книга раздаёт деньги мимо проверок свежести — цена закрытия дыры $75.9K в кэш",
+     "why": null
+    },
+    {
+     "card": "own-2026-08-18-dozapisat-li-knigu-za-12-proshlyh-dnei",
+     "class": "answer_recorded",
+     "status": "ingested",
+     "title": "Дозаписать ли книгу за 12 прошлых дней трека — или оставить дыры как есть",
+     "why": null
+    },
+    {
+     "card": "own-2026-08-18-dva-proizvoditelya-apy-opoznayut-pul-po-raznomu",
+     "class": "answer_recorded",
+     "status": "ingested",
+     "title": "Два источника доходности опознают пул по-разному — и денежный путь ходит в тот, у которого проверки нет",
+     "why": null
+    },
+    {
+     "card": "own-2026-08-18-potolok-ne-vidit-obshchego-kuratora",
+     "class": "answer_recorded",
+     "status": "ingested",
+     "title": "Потолок концентрации не видит общего куратора — половина книги может лечь под одну команду",
+     "why": null
+    },
+    {
+     "card": "own-2026-08-18-prosadka-v-otchete-eto-shov-dvuh-simulyatsii",
+     "class": "answer_recorded",
+     "status": "ingested",
+     "title": "Просадка в отчёте — это шов двух симуляций, а не рыночное событие",
+     "why": null
+    },
+    {
+     "card": "own-2026-08-18-zapas-rebalansera-strozhe-politiki",
+     "class": "answer_recorded",
+     "status": "ingested",
+     "title": "У ребалансера свой запас строже политики — оставляем или снимаем",
+     "why": null
+    },
+    {
+     "card": "own-2026-08-19-sudba-voronki-chekapa-i-kanal-zayavok",
+     "class": "answer_recorded",
+     "status": "ingested",
+     "title": "Судьба чекапа — воронка ведёт в никуда, а канал заявок молчит, если Телеграм не настроен",
+     "why": null
+    },
+    {
+     "card": "own-2026-08-22-snyat-changelog-so-saita",
+     "class": "answer_recorded",
+     "status": "ingested",
+     "title": "Снять замороженный «Журнал изменений» с сайта — нужна твоя подпись на удалении",
+     "why": null
+    },
+    {
+     "card": "own-2026-08-23-postoyannyi-progon-storozha-perehodov",
+     "class": "answer_recorded",
+     "status": "ingested",
+     "title": "Сторожа переходов статусов сейчас двигают только циклы вручную — заводить ли ему отдельного агента",
+     "why": null
+    },
+    {
+     "card": "own-2026-08-24-pustaya-kniga-prohodit-chek-list-go-live",
+     "class": "answer_recorded",
+     "status": "ingested",
+     "title": "Пустая книга проходит чек-лист go-live целиком — проверка «все позиции безопасны» на нуле позиций отвечает «да»",
+     "why": null
+    },
+    {
+     "card": "own-21-agent-cleanup-decisions",
+     "class": "answer_recorded",
+     "status": "ingested",
+     "title": "Навести порядок в агентах — реши по каждому пункту (сводка инвентаризации)",
+     "why": null
+    },
+    {
+     "card": "own-22-yield-lab-branch-review",
+     "class": "answer_recorded",
+     "status": "ingested",
+     "title": "Ревью ветки yield-lab-scaffolding — мержить или оставить как есть",
+     "why": null
+    },
+    {
+     "card": "own-23-autonomy-cadence-recheck",
+     "class": "answer_recorded",
+     "status": "ingested",
+     "title": "Через 2 дня (~17.07) — пересмотреть, как часто работает автономный цикл",
+     "why": null
+    },
+    {
+     "card": "own-24-pushi-v-main-tolko-cherez-pr",
+     "class": "answer_recorded",
+     "status": "ingested",
+     "title": "Пуш в main закрыт правилом — результаты R&D ждут в PR, и висят 4 старых PR",
+     "why": null
+    },
+    {
+     "card": "own-25-siwe-secret-exposed-rotate",
+     "class": "answer_recorded",
+     "status": "ingested",
+     "title": "Секрет входа в кабинет засветился в переписке — сменить его (ротация SIWE_SESSION_SECRET)",
+     "why": null
+    },
+    {
+     "card": "own-26-resend-domain-verification",
+     "class": "answer_recorded",
+     "status": "ingested",
+     "title": "Письма уходят с чужого адреса onboarding@resend.dev — подтвердить домен earn-defi.com в Resend",
+     "why": null
+    },
+    {
+     "card": "own-27-spisanie-modulei-analitiki",
+     "class": "answer_recorded",
+     "status": "ingested",
+     "title": "Утвердить списание 55 записей из реестра аналитики — это не анализаторы",
+     "why": null
+    },
+    {
+     "card": "own-28-kto-gasit-trevogu-core-agent-down",
+     "class": "answer_recorded",
+     "status": "ingested",
+     "title": "Кто имеет право сказать «флот ожил» и погасить тревогу об упавших агентах?",
+     "why": null
+    },
+    {
+     "card": "own-29-morpho-steakhouse-demote-signal",
+     "class": "answer_recorded",
+     "status": "ingested",
+     "title": "Наша крупнейшая позиция ($40k в morpho) держится без живого подтверждения размера пула — что делаем?",
+     "why": null
+    },
+    {
+     "card": "own-30-deploy-swarm-dwell-agent",
+     "class": "answer_recorded",
+     "status": "ingested",
+     "title": "Запустить ежедневного агента для paper-книги «защёлка после выхода»",
+     "why": null
+    },
+    {
+     "card": "own-30-razbor-ocheredi-vladeltsa",
+     "class": "answer_recorded",
+     "status": "ingested",
+     "title": "Разбор очереди — 16 вопросов одним списком, по каждому есть рекомендация",
+     "why": null
+    },
+    {
+     "card": "own-32-evidence-vs-curve-diverge",
+     "class": "answer_recorded",
+     "status": "ingested",
+     "title": "",
+     "why": null
+    },
+    {
+     "card": "own-33-plist-marker-for-cycle-origin",
+     "class": "answer_recorded",
+     "status": "ingested",
+     "title": "",
+     "why": null
+    },
+    {
+     "card": "own-34-kill-switch-active-13h-unnoticed",
+     "class": "answer_recorded",
+     "status": "ingested",
+     "title": "",
+     "why": null
+    },
+    {
+     "card": "own-35-srok-godnosti-artefakta-agenta",
+     "class": "answer_recorded",
+     "status": "ingested",
+     "title": "Паспорта агентов: кто назначает срок годности файла, который агент обновляет",
+     "why": null
+    },
+    {
+     "card": "own-36-partiya-agentov-v-karantin",
+     "class": "answer_recorded",
+     "status": "ingested",
+     "title": "Девять агентов не читает никто — какую партию отложить первой?",
+     "why": null
+    },
+    {
+     "card": "own-54-mertvye-knigi-issledovatelskoy-paneli",
+     "class": "answer_recorded",
+     "status": "ingested",
+     "title": "",
+     "why": null
+    },
+    {
+     "card": "own-56-avtopochinshchik-ostalsya-bez-vyzyvayushchih",
+     "class": "answer_recorded",
+     "status": "ingested",
+     "title": "Автопочинщик кода остался без вызывающих: убрать совсем или оставить лежать",
+     "why": null
+    },
+    {
+     "card": "own-76-shum-ratio-ubivaet-knigi-laboratorii",
+     "class": "answer_recorded",
+     "status": "ingested",
+     "title": "Курс, по которому лаборатория решает «сработала авария», шумит сильнее самой аварии — и убил четыре книги зря",
+     "why": null
+    },
+    {
+     "card": "own-aud19-volatile-clmm-vvodim-li-klass",
+     "class": "answer_recorded",
+     "status": "ingested",
+     "title": "Вторая задача из твоего сообщения (волатильный ETH-пул с доходностью «79%») — сам её не беру, нужно твоё решение",
+     "why": null
+    },
+    {
+     "card": "own-btc-dvizhok-ne-vlezaet-pod-stop-kran",
+     "class": "answer_recorded",
+     "status": "ingested",
+     "title": "BTC-движок не помещается под наш стоп-кран — выбери, как быть: отдельный NAV, маленькая доля или только research",
+     "why": null
+    },
+    {
+     "card": "own-chto-dolzhen-pokazyvat-lokalnyi-server",
+     "class": "agent_work",
+     "status": "ingested",
+     "title": "Cloudflare проверять не нужно — я измерил сам; остался один вопрос про локальный сервер",
+     "why": null
+    },
+    {
+     "card": "own-dashboard-razdaval-repozitorii-v-set",
+     "class": "answer_recorded",
+     "status": "ingested",
+     "title": "Один из агентов раздавал весь проект в домашнюю сеть — закрыл; в интернет не выходило, остался один вопрос",
+     "why": null
+    },
+    {
+     "card": "own-dengi-stoyat-iz-za-starogo-potolka",
+     "class": "answer_recorded",
+     "status": "ingested",
+     "title": "Пятая часть денег стояла без работы из-за старого потолка — починил; остался один вопрос по правилу",
+     "why": null
+    },
+    {
+     "card": "own-dengi-uehali-v-samyi-nizkodohodnyi-protokol",
+     "class": "answer_recorded",
+     "status": "ingested",
+     "title": "Четверть книги уехала в самый низкодоходный протокол — нашёл причину, чинить или нет",
+     "why": null
+    },
+    {
+     "card": "own-fluid-gsm-gate-chuzhoy-parametr",
+     "class": "answer_recorded",
+     "status": "ingested",
+     "title": "Fluid закрыт для капитала по правилу другого протокола — нужно твоё решение",
+     "why": null
+    },
+    {
+     "card": "own-pererazdavat-li-srezannoe-zaschitami",
+     "class": "answer_recorded",
+     "status": "ingested",
+     "title": "Деньги, срезанные защитами аллокатора, теперь ПОСЧИТАНЫ и НАЗВАНЫ — включать ли их обратно в работу?",
+     "why": null
+    },
+    {
+     "card": "own-razmeshenie-kesha-perezapuskaet-72-chasa",
+     "class": "answer_recorded",
+     "status": "ingested",
+     "title": "Размещение свободных денег останавливает перекладку книги на трое суток — я это сделал вчера, надо решить",
+     "why": null
+    },
+    {
+     "card": "own-rnd-cdr-demotion-readmission-paper-module",
+     "class": "answer_recorded",
+     "status": "ingested",
+     "title": "",
+     "why": null
+    },
+    {
+     "card": "own-rnd-duty-is-concentration-adr055",
+     "class": "answer_recorded",
+     "status": "ingested",
+     "title": "",
+     "why": null
+    },
+    {
+     "card": "own-rnd-dwell-hysteresis-paper-module",
+     "class": "answer_recorded",
+     "status": "ingested",
+     "title": "",
+     "why": null
+    },
+    {
+     "card": "own-rnd-killswitch-rearm-policy-missing",
+     "class": "answer_recorded",
+     "status": "ingested",
+     "title": "",
+     "why": null
+    },
+    {
+     "card": "own-rnd-killswitch-soft-tier-meaning",
+     "class": "answer_recorded",
+     "status": "ingested",
+     "title": "",
+     "why": null
+    },
+    {
+     "card": "own-rnd-xsd-rank-demotion-allocator",
+     "class": "answer_recorded",
+     "status": "ingested",
+     "title": "",
+     "why": null
+    },
+    {
+     "card": "own-ruchnoy-instrument-poiska-istochnikov",
+     "class": "answer_recorded",
+     "status": "ingested",
+     "title": "Ручной инструмент поиска новых источников доходности никто не запускает — оставить, поставить на расписание или списать",
+     "why": null
+    },
+    {
+     "card": "own-storozh-sam-sozdaet-prosadku-na-rovnykh-knigakh",
+     "class": "answer_recorded",
+     "status": "ingested",
+     "title": "Сторож просадки сам создаёт просадку на ровных книгах — где ему запретить срабатывать",
+     "why": null
+    },
+    {
+     "card": "own-tsena-nashego-limita-20-na-odno-imya-izme",
+     "class": "answer_recorded",
+     "status": "ingested",
+     "title": "",
+     "why": null
+    },
+    {
+     "card": "own-tuner-zerkalit-politiku-zapasy-snyaty",
+     "class": "answer_recorded",
+     "status": "ingested",
+     "title": "Тюнер зеркалит политику БЕЗ запасов — решение владельца 26.08 (cloud, кнопка), ОТМЕНЯЕТ «запас оставить» от 25.08; реализация доставлена",
+     "why": null
+    },
+    {
+     "card": "owner-decision-10-deneg-stoyat-bez-raboty-prichina-naid",
+     "class": "answer_recorded",
+     "status": "ingested",
+     "title": "10% денег стоят без работы: причина найдена — 11 протоколов закрыты из-за отсутствия живого фида, нужен твой выбор",
+     "why": null
+    },
+    {
+     "card": "owner-decision-20260715-124956-owner-done",
+     "class": "answer_recorded",
+     "status": "ingested",
+     "title": "ТЕСТ: подтверди, что очередь работает — переведи в Owner Done",
+     "why": null
+    },
+    {
+     "card": "owner-decision-20260715-212059-apy",
+     "class": "answer_recorded",
+     "status": "ingested",
+     "title": "Сайт: алерт кастодиана про APY — ложное срабатывание, как чинить?",
+     "why": null
+    },
+    {
+     "card": "owner-decision-20260716-082215-k-1-22",
+     "class": "answer_recorded",
+     "status": "ingested",
+     "title": "Живой пилот k на пакет 1 (~22 июля) — запускать? + сверщик живое/бумага",
+     "why": null
+    },
+    {
+     "card": "owner-decision-20260716-084859-note",
+     "class": "answer_recorded",
+     "status": "ingested",
+     "title": "Программа аудита системы + архитектурной памяти («швейцарские часы») — утвердить приоритет",
+     "why": null
+    },
+    {
+     "card": "owner-decision-AI1-approach-2026-08-29",
+     "class": "answer_recorded",
+     "status": "ingested",
+     "title": "Правила вложений записаны на бумаге, проверяющий уже нашёл три расхождения — нужны твои ответы",
+     "why": null
+    },
+    {
+     "card": "owner-decision-aave-na-arbitrum-my-smotrim-na-opustevsh",
+     "class": "answer_recorded",
+     "status": "ingested",
+     "title": "Aave на Arbitrum: мы смотрим на опустевший рынок —  тыс. вместо заявленного .2 млрд",
+     "why": null
+    },
+    {
+     "card": "owner-decision-agent-bumazhnyh-knig-kazhduyu-noch-stira",
+     "class": "answer_recorded",
+     "status": "ingested",
+     "title": "Агент бумажных книг каждую ночь стирает накопленное — тиры Balanced/Aggressive не станут доказанными никогда",
+     "why": null
+    },
+    {
+     "card": "owner-decision-allokator-ranzhiruet-puly-na-vydumannom-tvl",
+     "class": "answer_recorded",
+     "status": "ingested",
+     "title": "Аллокатор ранжирует пулы на невыверенном TVL ($50M-литерал) — исключать ли их из свежих целей?",
+     "why": null
+    },
+    {
+     "card": "owner-decision-avariinaya-ostanovka-teryaetsya-pri-vosst",
+     "class": "answer_recorded",
+     "status": "ingested",
+     "title": "Аварийная остановка ТЕРЯЕТСЯ при восстановлении из резерва (выбери, как убрать файлы состояния из git)",
+     "why": null
+    },
+    {
+     "card": "owner-decision-avariinyi-tormoz-ostalos-odno-reshenie-c",
+     "class": "answer_recorded",
+     "status": "ingested",
+     "title": "Аварийный тормоз: осталось одно решение — что делать после срабатывания (кнопки теперь есть)",
+     "why": null
+    },
+    {
+     "card": "owner-decision-avariinyi-tormoz-stoit-s-nochi-kniga-dev",
+     "class": "answer_recorded",
+     "status": "ingested",
+     "title": "ДУБЛЬ (отвечать не нужно) — Аварийный тормоз стоит с ночи — книга девять часов в кэше, снимать может только ты",
+     "why": null
+    },
+    {
+     "card": "owner-decision-avtotorgovlya-dnevnoi-limit-oborota",
+     "class": "answer_recorded",
+     "status": "ingested",
+     "title": "Автоторговля, вопрос 2 из 3: нужен ли ДНЕВНОЙ лимит оборота вдобавок к недельному?",
+     "why": null
+    },
+    {
+     "card": "owner-decision-avtotorgovlya-iz-12-tvoih-ogranichitelei",
+     "class": "answer_recorded",
+     "status": "ingested",
+     "title": "Автоторговля: из 12 твоих ограничителей работают 4 — нужны три решения (потолок суммы, дневной оборот, незнакомый протокол)",
+     "why": null
+    },
+    {
+     "card": "owner-decision-avtotorgovlya-neznakomyi-protokol-i-tir",
+     "class": "answer_recorded",
+     "status": "ingested",
+     "title": "Автоторговля, вопрос 3 из 3: что делать с незнакомым протоколом и незнакомым тиром?",
+     "why": null
+    },
+    {
+     "card": "owner-decision-avtotorgovlya-potolok-summy-odnoi-sdelki",
+     "class": "answer_recorded",
+     "status": "ingested",
+     "title": "Автоторговля, вопрос 1 из 3: ставить ли потолок на СУММУ одной сделки?",
+     "why": null
+    },
+    {
+     "card": "owner-decision-bezopasnost-admin-panel-admin-bez-paroly",
+     "class": "answer_recorded",
+     "status": "ingested",
+     "title": "Безопасность: admin-панель /admin без пароля — закрыть за Cloudflare Access",
+     "why": null
+    },
+    {
+     "card": "owner-decision-broshennye-progony-testov-vosmoi-raz-sed",
+     "class": "agent_work",
+     "status": "ingested",
+     "title": "Брошенные прогоны тестов восьмой раз съедают процессор — разрешить поставить сторожа по расписанию?",
+     "why": null
+    },
+    {
+     "card": "owner-decision-bumazhnyi-test-zakonchen-vyberi-kak-dvig",
+     "class": "answer_recorded",
+     "status": "ingested",
+     "title": "Бумажный тест закончен — выбери, как двигаемся дальше (5 решений)",
+     "why": null
+    },
+    {
+     "card": "owner-decision-chastota-80-agentov-flota-2-nahodki-po-t",
+     "class": "agent_work",
+     "status": "ingested",
+     "title": "Частота 80 агентов флота: 2 находки по токенам/CPU, остальное — оставить",
+     "why": null
+    },
+    {
+     "card": "owner-decision-chisla-treka-na-saite-ne-podtverzhdayuts",
+     "class": "answer_recorded",
+     "status": "ingested",
+     "title": "Числа трека на сайте не подтверждаются ничем в git — канон замёрз 17 июля, и сторож краснеет каждый день",
+     "why": null
+    },
+    {
+     "card": "owner-decision-chistka-razreshit-udalyat-mertvye-moduli",
+     "class": "answer_recorded",
+     "status": "ingested",
+     "title": "Чистка: разрешить удалять мёртвые МОДУЛИ из ядра (не только скрипты)?",
+     "why": null
+    },
+    {
+     "card": "owner-decision-chistka-yadra-ws-a-60-mertvyh-dublei-45",
+     "class": "answer_recorded",
+     "status": "ingested",
+     "title": "Чистка ядра (WS-A): ~60 мёртвых/дублей + 45 аналитич. модулей раздувают paper_trading — greenlight подход",
+     "why": null
+    },
+    {
+     "card": "owner-decision-ci-na-main-krasnyi-novyi-protokol-bez-ot",
+     "class": "answer_recorded",
+     "status": "ingested",
+     "title": "CI на main красный: новый протокол без оценки риска (40% книги) и два теста, отставших от честного TVL",
+     "why": null
+    },
+    {
+     "card": "owner-decision-cio-ne-vzvoditsya-nikogda-byudzhet-oborota",
+     "class": "answer_recorded",
+     "status": "ingested",
+     "title": "CIO не взведётся НИКОГДА: чтобы доказать, что он окупается, нужен хоть один ход — а бюджет оборота запрещает их все",
+     "why": null
+    },
+    {
+     "card": "owner-decision-dannye-treka-v-git-fail-dokazatelstv-zam",
+     "class": "answer_recorded",
+     "status": "ingested",
+     "title": "Данные трека в git: файл доказательств заморожен на 21.06, файла бэктест-гейта нет вовсе — реши, что коммитить",
+     "why": null
+    },
+    {
+     "card": "owner-decision-dengi-stoyat-ne-iz-za-leni-sistemy-vse-z",
+     "class": "answer_recorded",
+     "status": "ingested",
+     "title": "Деньги стоят не из-за лени системы: все живые протоколы — на одной цепочке",
+     "why": null
+    },
+    {
+     "card": "owner-decision-derisk-vopros-byl-postavlen-neverno-2026-08-29",
+     "class": "answer_recorded",
+     "status": "ingested",
+     "title": "Я задал тебе неверный вопрос про слепые протоколы — проверил, и всё оказалось наоборот",
+     "why": null
+    },
+    {
+     "card": "owner-decision-devyat-agentov-visyat-nereshennymi-zakry",
+     "class": "answer_recorded",
+     "status": "ingested",
+     "title": "Девять агентов висят нерешёнными: закрыть или включить",
+     "why": null
+    },
+    {
+     "card": "owner-decision-devyat-tysyach-dollarov-dostayutsya-prot",
+     "class": "agent_work",
+     "status": "ingested",
+     "title": "Девять тысяч долларов достаются протоколу по алфавиту — чинить ли ступеньку в расчёте раскладки",
+     "why": null
+    },
+    {
+     "card": "owner-decision-disk-snova-sel-odin-zhurnal-agenta-9-82",
+     "class": "needs_decision",
+     "status": "needs-owner",
+     "title": "Диск снова съел один журнал агента: 9,82 ГБ из 9,91 ГБ всех логов — выбрать починку из трёх",
+     "why": null
+    },
+    {
+     "card": "owner-decision-dnevnoi-limit-ubytka-a-esli-sama-proverk",
+     "class": "answer_recorded",
+     "status": "ingested",
+     "title": "Дневной лимит убытка: а если сама проверка УПАЛА — торгуем или нет? (второй вопрос той же карточки, ответа нет)",
+     "why": null
+    },
+    {
+     "card": "owner-decision-dnevnoy-limit-ubytka-schitaet-neizvestn",
+     "class": "answer_recorded",
+     "status": "ingested",
+     "title": "Дневной лимит убытка считает «не знаю» за «убытка нет» — и в этот день цикл торгует",
+     "why": null
+    },
+    {
+     "card": "owner-decision-dogovor-nazyvaet-staryi-potolok-t2-35-pr",
+     "class": "answer_recorded",
+     "status": "ingested",
+     "title": "Договор называет старый потолок T2 — 35 % при живых 50 %",
+     "why": null
+    },
+    {
+     "card": "owner-decision-doizmerili-te-82-modulya-kak-ty-prosil-7",
+     "class": "answer_recorded",
+     "status": "ingested",
+     "title": "Доизмерили те 82 модуля, как ты просил: 71 подтвердился слепым вторым инструментом",
+     "why": null
+    },
+    {
+     "card": "owner-decision-doska-kartochek-obeschaet-bolshe-chem-da",
+     "class": "answer_recorded",
+     "status": "ingested",
+     "title": "Доска карточек обещает больше, чем даёт: поправить одну фразу в CLAUDE.md",
+     "why": null
+    },
+    {
+     "card": "owner-decision-dva-agenta-ne-perezhivut-perezagruzku-ra",
+     "class": "answer_recorded",
+     "status": "ingested",
+     "title": "Два агента не переживут перезагрузку — разрешить доустановить их в системную папку",
+     "why": null
+    },
+    {
+     "card": "owner-decision-dva-dnya-treka-pomecheny-dokazannymi-hot",
+     "class": "answer_recorded",
+     "status": "ingested",
+     "title": "Два дня трека помечены доказанными, хотя в эти дни система не держала ничего",
+     "why": null
+    },
+    {
+     "card": "owner-decision-dva-imeni-odin-kontrakt-20-deneg-stoyat",
+     "class": "agent_work",
+     "status": "ingested",
+     "title": "Запрет на fluid_usdc объявлен и НЕ исполняется: там стоит 20 % книги",
+     "why": null
+    },
+    {
+     "card": "owner-decision-dva-paketa-iz-treh-zhivut-bez-potolka-ri",
+     "class": "agent_work",
+     "status": "ingested",
+     "title": "Два пакета из трёх живут без потолка риска — и сегодня стоят вдвое и втрое выше нашего же лимита",
+     "why": null
+    },
+    {
+     "card": "owner-decision-dva-pomoschnika-gotovy-no-vklyuchit-ih-m",
+     "class": "answer_recorded",
+     "status": "ingested",
+     "title": "Два помощника готовы, но включить их можешь только ты — они стоят вторые сутки",
+     "why": null
+    },
+    {
+     "card": "owner-decision-dva-tsikla-orkestratora-rabotali-odnovre",
+     "class": "answer_recorded",
+     "status": "ingested",
+     "title": "Два цикла оркестратора работали одновременно — карточки защищены, сам цикл нет",
+     "why": null
+    },
+    {
+     "card": "owner-decision-dva-tvoih-otveta-ot-29-avgusta-zapisany",
+     "class": "answer_recorded",
+     "status": "ingested",
+     "title": "Два твоих ответа от 29 августа записаны по-разному — и на одну кнопку ты смотрел с перевёрнутой подсказкой",
+     "why": null
+    },
+    {
+     "card": "owner-decision-dva-tvoih-resheniya-ot-18-08-ne-ispolnen",
+     "class": "answer_recorded",
+     "status": "ingested",
+     "title": "Два твоих решения от 18.08 не исполнены — а ветку, где они записаны, мы закрываем как «повторы»",
+     "why": null
+    },
+    {
+     "card": "owner-decision-dva-tvoih-vcherashnih-otveta-zapisany-v",
+     "class": "answer_recorded",
+     "status": "ingested",
+     "title": "Два твоих вчерашних ответа записаны в двух версиях и говорят разное — нужен один",
+     "why": null
+    },
+    {
+     "card": "owner-decision-dve-treti-kapitala-stoyat-na-chislah-kot",
+     "class": "answer_recorded",
+     "status": "ingested",
+     "title": "Две трети капитала стоят на числах, которых никто не наблюдал",
+     "why": null
+    },
+    {
+     "card": "owner-decision-dve-zapisi-o-dengah-prichina-naidena-i-i",
+     "class": "answer_recorded",
+     "status": "ingested",
+     "title": "Две записи о деньгах: причина найдена и измерена — выбрать, чем чинить",
+     "why": null
+    },
+    {
+     "card": "owner-decision-earn-defi-belyi-spisok-nichego-ne-odobreno",
+     "class": "answer_recorded",
+     "status": "ingested",
+     "title": "earn-defi: в белом списке пусто — движок не может профинансировать ничего",
+     "why": null
+    },
+    {
+     "card": "owner-decision-earn-defi-sozdat-repozitorii-na-github",
+     "class": "answer_recorded",
+     "status": "ingested",
+     "title": "earn-defi: создать репозиторий на GitHub — у агента нет прав, работа лежит локально",
+     "why": null
+    },
+    {
+     "card": "owner-decision-eb02-sravnivaet-zhivoe-s-konstantoi",
+     "class": "answer_recorded",
+     "status": "ingested",
+     "title": "",
+     "why": null
+    },
+    {
+     "card": "owner-decision-edinstvennaya-chestnaya-vnevyborochnaya",
+     "class": "agent_work",
+     "status": "ingested",
+     "title": "Единственная честная вневыборочная таблица реестра посчитана способом, который льстит сторожу — что делать с опубликованными числами",
+     "why": null
+    },
+    {
+     "card": "owner-decision-esche-devyatnadtsat-mest-gde-ne-izmerili",
+     "class": "answer_recorded",
+     "status": "ingested",
+     "title": "Ещё девятнадцать мест, где «не измерили» читается как «продать всё» — чинить все или только одно?",
+     "why": null
+    },
+    {
+     "card": "owner-decision-etalonnaya-planka-issledovanii-nasilno-d",
+     "class": "answer_recorded",
+     "status": "ingested",
+     "title": "Эталонная планка исследований насильно докупает убыточные книги — менять ли конвенцию",
+     "why": null
+    },
+    {
+     "card": "owner-decision-ezhednevnuyu-proverku-analitiki-nekomu-g",
+     "class": "answer_recorded",
+     "status": "ingested",
+     "title": "Ежедневную проверку аналитики некому гонять — выбери, кто это делает",
+     "why": null
+    },
+    {
+     "card": "owner-decision-flot-7-agentov-ne-perezhivut-reboot-swar",
+     "class": "answer_recorded",
+     "status": "ingested",
+     "title": "Флот: 7 агентов не переживут reboot (swarm+DR) — разрешить сделать reboot-safe",
+     "why": null
+    },
+    {
+     "card": "owner-decision-gde-proveryat-priemku-zakaza-portfolio-c",
+     "class": "answer_recorded",
+     "status": "ingested",
+     "title": "Где проверять приёмку заказа «Portfolio CIO» — ни одна папка сегодня не может ответить целиком",
+     "why": null
+    },
+    {
+     "card": "owner-decision-geit-gotovnosti-zelenyi-po-adapteru-koto",
+     "class": "answer_recorded",
+     "status": "ingested",
+     "title": "Гейт готовности зелёный по адаптеру, который невозможно загрузить — проверяется только синтаксис файла (выбери, как чинить)",
+     "why": null
+    },
+    {
+     "card": "owner-decision-glavnaya-reklamiruet-besplatnyi-chekap-k",
+     "class": "answer_recorded",
+     "status": "ingested",
+     "title": "Главная рекламирует бесплатный чекап, которого больше нет: снять секции или поднимать сервис?",
+     "why": null
+    },
+    {
+     "card": "owner-decision-hvost-maple-ty-prinyal-na-dole-15-a-fakt",
+     "class": "answer_recorded",
+     "status": "ingested",
+     "title": "Хвост maple ты принял на доле 15%, а фактическая доля — 20%: принятый убыток на треть больше",
+     "why": null
+    },
+    {
+     "card": "owner-decision-instruktsii-po-kotorym-rabotayut-agenty",
+     "class": "answer_recorded",
+     "status": "ingested",
+     "title": "Инструкции, по которым работают агенты на Маке, отстали от принятых решений — включая уже снятый запрет",
+     "why": null
+    },
+    {
+     "card": "owner-decision-karta-agentov-v-prode-ustarevaet-navsegd",
+     "class": "agent_work",
+     "status": "ingested",
+     "title": "Карта агентов в проде устаревает навсегда: её некому пересобирать",
+     "why": null
+    },
+    {
+     "card": "owner-decision-kesh-sistemy-tot-zhe-usdc-zamer-pokazal",
+     "class": "answer_recorded",
+     "status": "ingested",
+     "title": "Кэш системы — тот же USDC: замер показал, что наивная корзина кэша не лечит, а вредит",
+     "why": null
+    },
+    {
+     "card": "owner-decision-klyuch-github-peresprashivayu-proshlye-k",
+     "class": "answer_recorded",
+     "status": "ingested",
+     "title": "Ключ GitHub: переспрашиваю — прошлые кнопки были моей ошибкой",
+     "why": null
+    },
+    {
+     "card": "owner-decision-klyuch-github-vot-pravilnaya-komanda-vch",
+     "class": "answer_recorded",
+     "status": "ingested",
+     "title": "Ключ GitHub: вот ПРАВИЛЬНАЯ команда — вчерашняя вела ключ не туда",
+     "why": null
+    },
+    {
+     "card": "owner-decision-kniga-inogda-sobiraetsya-avariinoi-raskl",
+     "class": "answer_recorded",
+     "status": "ingested",
+     "title": "Книга иногда собирается аварийной раскладкой — и уносит с собой числа от отвергнутой",
+     "why": null
+    },
+    {
+     "card": "owner-decision-knigi-aggressive-lab-perepisyvayut-svoyu",
+     "class": "answer_recorded",
+     "status": "ingested",
+     "title": "Книги aggressive_lab переписывают свою историю — и это отложенно заденет числа на сайте",
+     "why": null
+    },
+    {
+     "card": "owner-decision-knigu-perekladyvayut-22-raza-za-nedelyu-2026-08-29",
+     "class": "agent_work",
+     "status": "ingested",
+     "title": "Книгу перекладывают 22 раза за неделю. По нашей же модели издержек это съело бы доходность в 15 раз",
+     "why": null
+    },
+    {
+     "card": "owner-decision-knopka-pauza-ne-stavit-na-pauzu-ona-prod",
+     "class": "answer_recorded",
+     "status": "ingested",
+     "title": "Кнопка «Пауза» не ставит на паузу — она продаёт всю книгу; настоящей паузы у тебя нет",
+     "why": null
+    },
+    {
+     "card": "owner-decision-kogda-ty-poslednii-raz-menyal-parol-klyu",
+     "class": "answer_recorded",
+     "status": "ingested",
+     "title": "Когда ты последний раз менял пароль-ключ для GitHub? Машина этого не знает, а срок — через 7 дней",
+     "why": null
+    },
+    {
+     "card": "owner-decision-kritichnaya-nahodka-petli-com-spa-daily",
+     "class": "answer_recorded",
+     "status": "ingested",
+     "title": "Критичная находка петли: com.spa.daily_cycle: intent=active, но НЕ загружен во флоте",
+     "why": null
+    },
+    {
+     "card": "owner-decision-kritichnaya-nahodka-petli-com-spa-digest-2",
+     "class": "answer_recorded",
+     "status": "ingested",
+     "title": "Критичная находка петли: com.spa.digest_weekly: intent=active, но НЕ загружен во флоте",
+     "why": null
+    },
+    {
+     "card": "owner-decision-kritichnaya-nahodka-petli-com-spa-digest",
+     "class": "answer_recorded",
+     "status": "ingested",
+     "title": "Критичная находка петли: com.spa.digest_weekly работает при intent=retired",
+     "why": null
+    },
+    {
+     "card": "owner-decision-kritichnaya-nahodka-petli-com-spa-missio-2",
+     "class": "answer_recorded",
+     "status": "ingested",
+     "title": "Критичная находка петли: com.spa.mission_tick: intent=active, но НЕ загружен во флоте",
+     "why": null
+    },
+    {
+     "card": "owner-decision-kritichnaya-nahodka-petli-com-spa-site-f",
+     "class": "answer_recorded",
+     "status": "ingested",
+     "title": "Критичная находка петли: com.spa.site_freshness: intent=active, но НЕ загружен во флоте",
+     "why": null
+    },
+    {
+     "card": "owner-decision-kritichnaya-nahodka-petli-com-spa-telegr",
+     "class": "answer_recorded",
+     "status": "ingested",
+     "title": "Критичная находка петли: com.spa.telegram_health загружен, в манифесте ОТСУТСТВУЕТ (класс swarm",
+     "why": null
+    },
+    {
+     "card": "owner-decision-kritichnaya-nahodka-petli-com-spa-tier1-2",
+     "class": "answer_recorded",
+     "status": "ingested",
+     "title": "Критичная находка петли: com.spa.tier1_digest: intent=active, но НЕ загружен во флоте",
+     "why": null
+    },
+    {
+     "card": "owner-decision-kritichnaya-nahodka-petli-com-spa-tier1",
+     "class": "answer_recorded",
+     "status": "ingested",
+     "title": "Критичная находка петли: com.spa.tier1_digest работает при intent=retired",
+     "why": null
+    },
+    {
+     "card": "owner-decision-kritichnaya-nahodka-petli-com-spa-weekly-2",
+     "class": "answer_recorded",
+     "status": "ingested",
+     "title": "Критичная находка петли: com.spa.weekly_backup: intent=active, но НЕ загружен во флоте",
+     "why": null
+    },
+    {
+     "card": "owner-decision-kritichnaya-nahodka-petli-com-spa-weekly",
+     "class": "answer_recorded",
+     "status": "ingested",
+     "title": "Критичная находка петли: com.spa.weekly_backup работает при intent=retired",
+     "why": null
+    },
+    {
+     "card": "owner-decision-kto-planiruet-razvitie-proekta-sudba-arh",
+     "class": "agent_work",
+     "status": "ingested",
+     "title": "Кто планирует развитие проекта: судьба «Архитектора» и живой план",
+     "why": null
+    },
+    {
+     "card": "owner-decision-mandat-samostoyatelnoi-raboty-konchaetsy-2",
+     "class": "answer_recorded",
+     "status": "ingested",
+     "title": "Мандат самостоятельной работы кончается 19 сентября — продлеваем?",
+     "why": null
+    },
+    {
+     "card": "owner-decision-mandat-samostoyatelnoi-raboty-konchaetsy",
+     "class": "answer_recorded",
+     "status": "ingested",
+     "title": "Мандат самостоятельной работы кончается сегодня — продлеваем, сужаем или закрываем?",
+     "why": null
+    },
+    {
+     "card": "owner-decision-maple-15-knigi-defolt-prihodit-bez-predu",
+     "class": "answer_recorded",
+     "status": "ingested",
+     "title": "Maple 15% книги: дефолт приходит без предупреждения — что делаем с кредитным каналом",
+     "why": null
+    },
+    {
+     "card": "owner-decision-monitor-depega-steiblov-slep-net-istochn",
+     "class": "answer_recorded",
+     "status": "ingested",
+     "title": "Монитор депега стейблов слеп — нет источника цены (чинить нельзя молча: связан со стоп-краном)",
+     "why": null
+    },
+    {
+     "card": "owner-decision-morfo-40-knigi-pri-propazhe-dannyh-podst",
+     "class": "answer_recorded",
+     "status": "ingested",
+     "title": "Морфо — 40% книги — при пропаже данных подставляет выдуманные 6.5% вместо честного отказа",
+     "why": null
+    },
+    {
+     "card": "owner-decision-na-vetke-lezhat-52-tvoi-kartochki-a-ne-t",
+     "class": "answer_recorded",
+     "status": "ingested",
+     "title": "На ветке лежат 52 твои карточки, а не только 8 решений — удалять её сейчас или сначала разобрать",
+     "why": null
+    },
+    {
+     "card": "owner-decision-nastupila-faza-2-1-avgusta-vklyuchaem-sd",
+     "class": "answer_recorded",
+     "status": "ingested",
+     "title": "Наступила Фаза 2 (1 августа) — включаем, сдвигаем или осознанно откладываем?",
+     "why": null
+    },
+    {
+     "card": "owner-decision-nochyu-odnu-zadachu-sdelali-dvazhdy-moya",
+     "class": "answer_recorded",
+     "status": "ingested",
+     "title": "Ночью одну задачу сделали дважды — из-за этого main был красным; выбери, какую версию оставляем",
+     "why": null
+    },
+    {
+     "card": "owner-decision-nol-ne-izmereno-etim-instrumentom-nedost",
+     "class": "answer_recorded",
+     "status": "ingested",
+     "title": "Ноль «не измерено» этим инструментом недостижим — выяснилось, пока я исполнял твоё решение",
+     "why": null
+    },
+    {
+     "card": "owner-decision-obschaya-pamyat-stiraetsya-pushem-iz-rabo",
+     "class": "answer_recorded",
+     "status": "ingested",
+     "title": "Общая память проекта стирается пушем из рабочей копии на маке — сегодня так пропало 1729 строк истории",
+     "why": null
+    },
+    {
+     "card": "owner-decision-obsidian-chitaet-sostoyanie-nedelnoi-davnosti",
+     "class": "answer_recorded",
+     "status": "ingested",
+     "title": "Твой Obsidian показывает состояние проекта недельной давности — одна минута на починку",
+     "why": null
+    },
+    {
+     "card": "owner-decision-otchet-gotovnosti-govorit-gotovy-hotya-t",
+     "class": "answer_recorded",
+     "status": "ingested",
+     "title": "Отчёт готовности говорит «ГОТОВЫ», хотя трек не добран (26/30) — публичный API противоречит сам себе",
+     "why": null
+    },
+    {
+     "card": "owner-decision-otchet-o-zanyatosti-kartochki-bolshe-ne-sc",
+     "class": "answer_recorded",
+     "status": "ingested",
+     "title": "Отчёт «эту карточку я НЕ беру» больше не считается захватом — подтверди или откати",
+     "why": null
+    },
+    {
+     "card": "owner-decision-otkat-vetki-1249-kommitov-2026-08-29",
+     "class": "answer_recorded",
+     "status": "ingested",
+     "title": "СНЯТО ЗАМЕРОМ: ветку уже вернули без тебя — команду из этой карточки выполнять НЕЛЬЗЯ",
+     "why": null
+    },
+    {
+     "card": "owner-decision-otkuda-schitat-trek-dvuh-knig",
+     "class": "answer_recorded",
+     "status": "ingested",
+     "title": "Публичное число двух книг: считать трек с 22 июня (там были литералы) или с 10 сентября (там начались наблюдения)?",
+     "why": null
+    },
+    {
+     "card": "owner-decision-partiya-2-karantina-kandidatov-chetyre-i",
+     "class": "answer_recorded",
+     "status": "ingested",
+     "title": "Партия 2 карантина: кандидатов четыре, и по ним у меня разные рекомендации",
+     "why": null
+    },
+    {
+     "card": "owner-decision-pendle-sam-naznachaet-sebe-uroven-riska",
+     "class": "agent_work",
+     "status": "ingested",
+     "title": "Pendle сам назначает себе уровень риска по размеру пула — а в справочнике написано другое",
+     "why": null
+    },
+    {
+     "card": "owner-decision-peresprashivayu-sudba-storozha-telegram",
+     "class": "answer_recorded",
+     "status": "ingested",
+     "title": "Переспрашиваю: судьба сторожа telegram_watcher — твой ответ 15.08 потерялся вместе с закрытой веткой",
+     "why": null
+    },
+    {
+     "card": "owner-decision-perezapustit-storozha-realnogo-vremeni-c",
+     "class": "answer_recorded",
+     "status": "ingested",
+     "title": "Перезапустить сторожа реального времени, чтобы починка начала работать (одна команда)",
+     "why": null
+    },
+    {
+     "card": "owner-decision-pochinka-zhurnala-reshenii-slomannyh-mes",
+     "class": "answer_recorded",
+     "status": "ingested",
+     "title": "Починка журнала решений: сломанных мест три, а не два — в каком порядке чинить",
+     "why": null
+    },
+    {
+     "card": "owner-decision-podklyuchit-k-oprosu-dva-pula-kotorye-ot",
+     "class": "answer_recorded",
+     "status": "ingested",
+     "title": "Подключить к опросу два пула, которые отвечают живыми числами (Aave Arbitrum T1 $28 млн) — это прямой ответ на вопрос «почему 40 % в Aave под 2.7 %»",
+     "why": null
+    },
+    {
+     "card": "owner-decision-podpisyvayuschie-adaptery-delayut-chetyre",
+     "class": "answer_recorded",
+     "status": "ingested",
+     "title": "Подписывающие адаптеры делают четыре дела из твоих пяти в одном файле — чинить сейчас или поставить условием перехода на реальные деньги",
+     "why": null
+    },
+    {
+     "card": "owner-decision-poisk-novyh-protokolov-ne-idet-programmu",
+     "class": "answer_recorded",
+     "status": "ingested",
+     "title": "Поиск новых протоколов не идёт: программу, которая его делает, никто не запускает",
+     "why": null
+    },
+    {
+     "card": "owner-decision-posle-strahovki-dengi-ostayutsya-sirotam",
+     "class": "answer_recorded",
+     "status": "ingested",
+     "title": "После страховки деньги остаются сиротами: 10 % капитала ($10 000) лежат в кэше, потому что освободившийся бюджет никто не перекладывает",
+     "why": null
+    },
+    {
+     "card": "owner-decision-postavit-na-mak-programmu-bitcoin-core-b",
+     "class": "answer_recorded",
+     "status": "ingested",
+     "title": "Поставить на Мак программу Bitcoin Core — без неё свою цену биткоина считать не из чего",
+     "why": null
+    },
+    {
+     "card": "owner-decision-probnyi-hod-sovetnika-sostoyalsya-no-ots",
+     "class": "answer_recorded",
+     "status": "ingested",
+     "title": "Пробный ход советника состоялся, но оценить его нечем — разрешение потрачено впустую",
+     "why": null
+    },
+    {
+     "card": "owner-decision-produktovyi-sloi-agentov-head-of-product",
+     "class": "answer_recorded",
+     "status": "ingested",
+     "title": "🅰🅰🅰 Продуктовый слой агентов (Head of Product + R&D продукта + продвижение) — построить",
+     "why": null
+    },
+    {
+     "card": "owner-decision-prover-odno-pole-dohodyat-li-do-tebya-za",
+     "class": "answer_recorded",
+     "status": "ingested",
+     "title": "Проверь одно поле: доходят ли до тебя заявки с сайта (одна минута)",
+     "why": null
+    },
+    {
+     "card": "owner-decision-proverka-knigi-slabee-proverki-pered-sde",
+     "class": "answer_recorded",
+     "status": "ingested",
+     "title": "Проверка книги слабее проверки перед сделкой — 60 % в рисковом уровне проходит как «здоровый портфель»",
+     "why": null
+    },
+    {
+     "card": "owner-decision-publichnaya-stranitsa-prover-nas-pokazyv",
+     "class": "answer_recorded",
+     "status": "ingested",
+     "title": "Публичная страница «проверь нас» показывает замеры месячной давности — выбери, как их обновлять",
+     "why": null
+    },
+    {
+     "card": "owner-decision-pyataya-chast-deneg-stoit-na-chisle-o-ko",
+     "class": "answer_recorded",
+     "status": "ingested",
+     "title": "Пятая часть денег стоит на числе, о котором две наши системы спорят (Pendle)",
+     "why": null
+    },
+    {
+     "card": "owner-decision-rabochaya-kopiya-proekta-na-make-otstala",
+     "class": "answer_recorded",
+     "status": "ingested",
+     "title": "Рабочая копия проекта на маке отстала от GitHub на 345 коммитов — из-за этого очередь заданий показывает старое",
+     "why": null
+    },
+    {
+     "card": "owner-decision-razorvat-zamknutyi-krug-avtovzvoda-sovet",
+     "class": "agent_work",
+     "status": "ingested",
+     "title": "Разорвать замкнутый круг автовзвода: советник ребаланса заблокирован 34 дня из 34",
+     "why": null
+    },
+    {
+     "card": "owner-decision-reinvestirovat-nachislennoe-ili-derzhat-100k",
+     "class": "agent_work",
+     "status": "ingested",
+     "title": "Реинвестировать заработанное или держать базу ровно 100 тысяч",
+     "why": null
+    },
+    {
+     "card": "owner-decision-reshenie-adr-070-p-6-ispolnit-nelzya-odi",
+     "class": "answer_recorded",
+     "status": "ingested",
+     "title": "Решение ADR-070 п.6 исполнить нельзя: «один вольт — один риск» упирается в тир morpho_steakhouse (40% → 20%)",
+     "why": null
+    },
+    {
+     "card": "owner-decision-reshenie-adr-104-zapisano-no-do-mashiny",
+     "class": "answer_recorded",
+     "status": "ingested",
+     "title": "Решение ADR-104 записано, но до машины не доехало: CIO обязан смотреть раз в 5 минут, а смотрит раз в сутки",
+     "why": null
+    },
+    {
+     "card": "owner-decision-reshenie-po-alertu-spa-7-day-checkpoint",
+     "class": "answer_recorded",
+     "status": "ingested",
+     "title": "Решение по алерту: ⚠️ SPA 7-Day Checkpoint FAILED: 1 check(s)",
+     "why": null
+    },
+    {
+     "card": "owner-decision-resheniya-o-riske-lezhat-v-treh-papkah-a",
+     "class": "answer_recorded",
+     "status": "ingested",
+     "title": "Решения о риске лежат в трёх папках, а список считается одним",
+     "why": null
+    },
+    {
+     "card": "owner-decision-reshit-sudbu-9-zavisshih-agentov-10-minu",
+     "class": "answer_recorded",
+     "status": "ingested",
+     "title": "Решить судьбу 9 «зависших» агентов — 10 минут, и конституция станет полной",
+     "why": null
+    },
+    {
+     "card": "owner-decision-sait-avtonomnaya-pravka-zadela-owner-gat-2",
+     "class": "answer_recorded",
+     "status": "ingested",
+     "title": "Сайт: автономная правка задела owner-gated область — нужно решение",
+     "why": null
+    },
+    {
+     "card": "owner-decision-sait-avtonomnaya-pravka-zadela-owner-gat-3",
+     "class": "answer_recorded",
+     "status": "ingested",
+     "title": "Сайт: автономная правка задела owner-gated область — нужно решение",
+     "why": null
+    },
+    {
+     "card": "owner-decision-sait-avtonomnaya-pravka-zadela-owner-gat",
+     "class": "answer_recorded",
+     "status": "ingested",
+     "title": "Сайт: автономная правка задела owner-gated область — нужно решение",
+     "why": null
+    },
+    {
+     "card": "owner-decision-sait-site-numbers-json-avtonomnaya-pravk",
+     "class": "needs_decision",
+     "status": "needs-owner",
+     "title": "Сайт: site_numbers.json — автономная правка задела owner-gated область, нужно решение",
+     "why": null
+    },
+    {
+     "card": "owner-decision-sait-track-snapshot-json-avtonomnaya-pra-3",
+     "class": "needs_decision",
+     "status": "needs-owner",
+     "title": "Сайт: track_snapshot.json — автономная правка задела owner-gated область, нужно решение",
+     "why": null
+    },
+    {
+     "card": "owner-decision-sait-ustarevshie-i-spornye-utverzhdeniya",
+     "class": "answer_recorded",
+     "status": "ingested",
+     "title": "Сайт: устаревшие и спорные утверждения — что менять",
+     "why": null
+    },
+    {
+     "card": "owner-decision-sait-why-20-apy-means-tail-risk-astro-i",
+     "class": "answer_recorded",
+     "status": "ingested",
+     "title": "Сайт: why-20-apy-means-tail-risk.astro и ещё 2 — автономная правка задела owner-gated область, нужно решение",
+     "why": null
+    },
+    {
+     "card": "owner-decision-sbalansirovannyi-tir-na-saite-idet-paper",
+     "class": "answer_recorded",
+     "status": "ingested",
+     "title": "Сбалансированный тир: на сайте «идёт paper-трек», а в книге ноль позиций",
+     "why": null
+    },
+    {
+     "card": "owner-decision-schitat-li-dopisannye-zadnim-chislom-sta",
+     "class": "answer_recorded",
+     "status": "ingested",
+     "title": "Считать ли дописанные задним числом ставки наравне с живыми в проверке готовности",
+     "why": null
+    },
+    {
+     "card": "owner-decision-security-skan-risk-geita-nashel-dva-rash",
+     "class": "answer_recorded",
+     "status": "ingested",
+     "title": "Security-скан risk-гейта нашёл два расхождения между ADR и реальным кодом: оси риска не подключены, тир протокола не сверяется",
+     "why": null
+    },
+    {
+     "card": "owner-decision-segodnyashnii-tsikl-treka-ne-zapuskalsya",
+     "class": "answer_recorded",
+     "status": "ingested",
+     "title": "Сегодняшний цикл трека не запускался: Мак был выключен в 08:00",
+     "why": null
+    },
+    {
+     "card": "owner-decision-shest-modulei-vydumyvayut-ostatok-na-kos",
+     "class": "agent_work",
+     "status": "ingested",
+     "title": "Шесть модулей выдумывают остаток на кошельке вместо отказа — чинить сейчас или записать условием go-live?",
+     "why": null
+    },
+    {
+     "card": "owner-decision-shest-nahodok-za-den-okazalis-odnoi-bole",
+     "class": "answer_recorded",
+     "status": "ingested",
+     "title": "Шесть находок за день оказались ОДНОЙ болезнью: где наблюдения нет, система говорит «всё хорошо» вместо «не знаю»",
+     "why": null
+    },
+    {
+     "card": "owner-decision-sistema-ostanovlena-avariinym-vyklyuchat",
+     "class": "answer_recorded",
+     "status": "ingested",
+     "title": "Система остановлена аварийным выключателем: он сравнивает живую доходность с числами, вписанными в код",
+     "why": null
+    },
+    {
+     "card": "owner-decision-skolko-minut-slepoty-vnutridnevnogo-sens",
+     "class": "answer_recorded",
+     "status": "ingested",
+     "title": "Сколько минут слепоты внутридневного сенсора — уже повод тебя разбудить",
+     "why": null
+    },
+    {
+     "card": "owner-decision-slepaya-prosadka-i-pokupki-naraschivat-l",
+     "class": "answer_recorded",
+     "status": "ingested",
+     "title": "Слепая просадка и покупки: наращивать ли позиции, когда просадку вычислить не из чего",
+     "why": null
+    },
+    {
+     "card": "owner-decision-snyat-mertvyi-adres-checkup-earn-defi-co",
+     "class": "answer_recorded",
+     "status": "ingested",
+     "title": "Снять мёртвый адрес checkup.earn-defi.com — последнее, что осталось от похороненного чекапа",
+     "why": null
+    },
+    {
+     "card": "owner-decision-sorok-protsentov-knigi-stoyat-na-rynke-k",
+     "class": "agent_work",
+     "status": "ingested",
+     "title": "Сорок процентов книги стоят на рынке, который система выбирает заново каждое утро",
+     "why": null
+    },
+    {
+     "card": "owner-decision-sovetnik-po-perekladke-deneg-ne-smozhet",
+     "class": "agent_work",
+     "status": "ingested",
+     "title": "Советник по перекладке денег не сможет включиться НИКОГДА — 30 дней он молчал не потому, что рынок тихий",
+     "why": null
+    },
+    {
+     "card": "owner-decision-storozh-bazisnoi-sdelki-ozhil-i-hochet-s",
+     "class": "answer_recorded",
+     "status": "ingested",
+     "title": "Сторож базисной сделки ожил и хочет слать тебе «отличная возможность» — включаем эти сообщения или нет",
+     "why": null
+    },
+    {
+     "card": "owner-decision-storozh-chisel-saita-krasneet-10-raz-v-den",
+     "class": "answer_recorded",
+     "status": "ingested",
+     "title": "Сторож чисел сайта краснеет ~10 раз в день на нашей же автоматике — разрешить ему молчать там, где он всё равно ничего не измеряет?",
+     "why": null
+    },
+    {
+     "card": "owner-decision-storozh-golosovanii-sledit-za-chuzhimi-p",
+     "class": "answer_recorded",
+     "status": "ingested",
+     "title": "Сторож голосований следит за чужими протоколами, а за нашими — нет: выбери, добавлять источники или убрать лишние",
+     "why": null
+    },
+    {
+     "card": "owner-decision-storozh-nomerov-reshenii-chitaet-odnu-pa",
+     "class": "answer_recorded",
+     "status": "ingested",
+     "title": "Сторож номеров решений читает одну папку из трёх — десять номеров заняты дважды",
+     "why": null
+    },
+    {
+     "card": "owner-decision-storozh-pravil-ne-vidit-stop-kran-smotri",
+     "class": "answer_recorded",
+     "status": "ingested",
+     "title": "Сторож правил не видит стоп-кран — смотрит в файл, которого нет (выбери, как чинить)",
+     "why": null
+    },
+    {
+     "card": "owner-decision-storozh-propuschennogo-tsikla-molchit-do",
+     "class": "answer_recorded",
+     "status": "ingested",
+     "title": "Сторож пропущенного цикла молчит до 10:00 UTC, хотя цикл стартует в 06:00 UTC — опустить порог?",
+     "why": null
+    },
+    {
+     "card": "owner-decision-storozh-prosadki-reshaet-uzhe-znaya-itog",
+     "class": "answer_recorded",
+     "status": "ingested",
+     "title": "Сторож просадки решает, уже зная итог дня — наши числа о его пользе завышены",
+     "why": null
+    },
+    {
+     "card": "owner-decision-storozh-rashozhdeniya-flota-ne-zapuskals",
+     "class": "answer_recorded",
+     "status": "ingested",
+     "title": "Сторож расхождения флота не запускался 21 день — его никто не зовёт",
+     "why": null
+    },
+    {
+     "card": "owner-decision-storozh-saita-odnoi-komandy-ne-hvatilo-r",
+     "class": "answer_recorded",
+     "status": "ingested",
+     "title": "Сторож сайта: «одной команды» не хватило — рабочая папка отстала на 665 коммитов, и публикация отказана",
+     "why": null
+    },
+    {
+     "card": "owner-decision-storozh-vspleskov-apy-nikto-ne-zovet-2026-08-29",
+     "class": "answer_recorded",
+     "status": "ingested",
+     "title": "Сторож всплесков доходности написан, порог верный, сработал бы 25 августа — и его не зовёт никто",
+     "why": null
+    },
+    {
+     "card": "owner-decision-stranitsa-treka-chetvertyi-den-pryachet",
+     "class": "answer_recorded",
+     "status": "ingested",
+     "title": "Страница трека четвёртый день прячет цифры — снять табличку честности некому",
+     "why": null
+    },
+    {
+     "card": "owner-decision-strategiya-s23-nikogda-ne-vidit-zhivoi-p",
+     "class": "answer_recorded",
+     "status": "ingested",
+     "title": "Стратегия S23 никогда не видит живой Pendle — адаптер «похоронен», ошибка глотается молча (выбери, как чинить)",
+     "why": null
+    },
+    {
+     "card": "owner-decision-sudya-schitaet-besplatnyi-hod-dorozhe-de",
+     "class": "answer_recorded",
+     "status": "ingested",
+     "title": "Судья считает бесплатный ход дороже дешёвого: ноль и «не записано» это одна строка кода",
+     "why": null
+    },
+    {
+     "card": "owner-decision-tablichka-chestnosti-ne-doezzhaet-do-sai",
+     "class": "answer_recorded",
+     "status": "ingested",
+     "title": "Табличка честности не доезжает до сайта — публично видно 5.2% там, где живой расчёт даёт 4.8%",
+     "why": null
+    },
+    {
+     "card": "owner-decision-tier-b-84-modulya-otvechayut-odinakovo-d",
+     "class": "answer_recorded",
+     "status": "ingested",
+     "title": "Tier-B: 84 модуля отвечают одинаково даже несуществующему протоколу — списать?",
+     "why": null
+    },
+    {
+     "card": "owner-decision-tier-b-esche-82-modulya-razlichii-ne-pok",
+     "class": "answer_recorded",
+     "status": "ingested",
+     "title": "Tier-B: ещё 82 модуля различий не показали — списать или заморозить?",
+     "why": null
+    },
+    {
+     "card": "owner-decision-tret-flota-nelzya-proverit-u-sluzhb-i-de",
+     "class": "answer_recorded",
+     "status": "ingested",
+     "title": "Треть флота нельзя проверить: у служб и демонов метрика «свежесть файла» не работает, а замены нет",
+     "why": null
+    },
+    {
+     "card": "owner-decision-tretya-proverka-koda-slomalas-i-8-chasov",
+     "class": "answer_recorded",
+     "status": "ingested",
+     "title": "Третья проверка кода сломалась и 8 часов этого никто не видел — нужен сторож за всеми проверками",
+     "why": null
+    },
+    {
+     "card": "owner-decision-trevoga-o-stop-krane-do-tebya-bolshe-ne",
+     "class": "answer_recorded",
+     "status": "ingested",
+     "title": "Тревога о стоп-кране до тебя больше не дойдёт — событие застряло в «плохо» с 4 июля (выбери, как чинить)",
+     "why": null
+    },
+    {
+     "card": "owner-decision-tri-otcheta-o-dokazatelnoi-baze-treka-mo",
+     "class": "answer_recorded",
+     "status": "ingested",
+     "title": "Три отчёта о доказательной базе трека молчат 2 месяца — оживить или убрать в архив",
+     "why": null
+    },
+    {
+     "card": "owner-decision-tsena-gaza-v-reshenii-o-perekladke-vzyat",
+     "class": "agent_work",
+     "status": "ingested",
+     "title": "Цена газа в решении о перекладке взята константой — живые показания сети в 316 раз дешевле",
+     "why": null
+    },
+    {
+     "card": "owner-decision-tvoe-reshenie-ot-10-avgusta-pro-morpho-s",
+     "class": "answer_recorded",
+     "status": "ingested",
+     "title": "Твоё решение от 10 августа про Morpho Steakhouse не действует в коде: потолок 40 % вместо 20 %",
+     "why": null
+    },
+    {
+     "card": "owner-decision-tvoi-otvet-otvet-1-segodnya-ne-primenils",
+     "class": "answer_recorded",
+     "status": "ingested",
+     "title": "Твой ответ «Ответ 1» сегодня не применился — теперь можно отвечать прямо на сообщение с вопросом",
+     "why": null
+    },
+    {
+     "card": "owner-decision-tvoi-resheniya-ot-23-iyulya-11-dnei-ne-l",
+     "class": "answer_recorded",
+     "status": "ingested",
+     "title": "Твои решения от 23 июля 11 дней не лежали в git — доставил, подтверди что в силе",
+     "why": null
+    },
+    {
+     "card": "owner-decision-ubrat-slomannyi-ostatok-v-rabochei-papke",
+     "class": "answer_recorded",
+     "status": "ingested",
+     "title": "Один лишний файл в рабочей папке не даёт запустить ТЕСТЫ на твоей машине — убрать его",
+     "why": null
+    },
+    {
+     "card": "owner-decision-udalit-ostavshiisya-fail-s-tokenom",
+     "class": "answer_recorded",
+     "status": "ingested",
+     "title": "Удалить оставшийся файл с токеном из папки проекта (одна команда)",
+     "why": null
+    },
+    {
+     "card": "owner-decision-urovni-dokazatelnosti-2026-08-29",
+     "class": "answer_recorded",
+     "status": "ingested",
+     "title": "Одиннадцать мест в коде утверждают, что мы торговали реальными деньгами. Мы не торговали",
+     "why": null
+    },
+    {
+     "card": "owner-decision-utochnenie-po-zametke-1",
+     "class": "agent_work",
+     "status": "ingested",
+     "title": "Уточнение по заметке: 1",
+     "why": null
+    },
+    {
+     "card": "owner-decision-utochnenie-po-zametke-adr-070-11-chestny-2",
+     "class": "answer_recorded",
+     "status": "ingested",
+     "title": "Уточнение по заметке: ADR-070.11: честный exit digest-обёртки",
+     "why": null
+    },
+    {
+     "card": "owner-decision-utochnenie-po-zametke-adr-070-13-trevogu-2",
+     "class": "agent_work",
+     "status": "ingested",
+     "title": "Уточнение по заметке: ADR-070.13: тревогу core-agent-down гасит agent_health",
+     "why": null
+    },
+    {
+     "card": "owner-decision-utochnenie-po-zametke-davai-tak-i-sdelae",
+     "class": "answer_recorded",
+     "status": "ingested",
+     "title": "Уточнение по заметке: Давай так и сделаем",
+     "why": null
+    },
+    {
+     "card": "owner-decision-utochnenie-po-zametke-hrapovik-zamorozhe",
+     "class": "answer_recorded",
+     "status": "ingested",
+     "title": "Уточнение по заметке: Храповик замороженных дат КРАСЕН на чистом main: test_studio_os.py принёс шесть литеральных дат",
+     "why": null
+    },
+    {
+     "card": "owner-decision-utochnenie-po-zametke-kupit-zont-v-pyatn-6",
+     "class": "answer_recorded",
+     "status": "ingested",
+     "title": "Уточнение по заметке: купить зонт в пятницу",
+     "why": null
+    },
+    {
+     "card": "owner-decision-utochnenie-po-zametke-neprimenennyi-otve-2",
+     "class": "answer_recorded",
+     "status": "ingested",
+     "title": "Уточнение по заметке: Неприменённый ответ владельца «1» — адресат не назван",
+     "why": null
+    },
+    {
+     "card": "owner-decision-utochnenie-po-zametke-neprimenennyi-otve",
+     "class": "answer_recorded",
+     "status": "ingested",
+     "title": "Уточнение по заметке: Неприменённый ответ владельца «1» — адресат не назван",
+     "why": null
+    },
+    {
+     "card": "owner-decision-utrennee-pismo-mozhet-ne-doiti-a-sistema",
+     "class": "answer_recorded",
+     "status": "ingested",
+     "title": "Утреннее письмо может не дойти, а система этого не заметит — выбери, как это показывать",
+     "why": null
+    },
+    {
+     "card": "owner-decision-v-shablone-dogovora-ostalos-snyatoe-ogra",
+     "class": "answer_recorded",
+     "status": "ingested",
+     "title": "В шаблоне договора осталось снятое ограничение по Sky/sUSDS",
+     "why": null
+    },
+    {
+     "card": "owner-decision-v-zhurnalah-dohodnosti-zapisany-vydumann",
+     "class": "answer_recorded",
+     "status": "ingested",
+     "title": "В журналах доходности записаны выдуманные 10.115% — реши, что делать со старыми записями",
+     "why": null
+    },
+    {
+     "card": "owner-decision-vesti-opros-ot-polnogo-reestra-adapterov",
+     "class": "answer_recorded",
+     "status": "ingested",
+     "title": "Вести опрос от полного реестра адаптеров? Замер: 27 проходных при пределе 8 — книга каждый цикл уходит в аварийную",
+     "why": null
+    },
+    {
+     "card": "owner-decision-vetka-s-vosemyu-zapisannymi-resheniyami",
+     "class": "answer_recorded",
+     "status": "ingested",
+     "title": "Ветка с восемью записанными решениями: влить или закрыть",
+     "why": null
+    },
+    {
+     "card": "owner-decision-vklyuchit-novogo-storozha-saita-na-make",
+     "class": "answer_recorded",
+     "status": "ingested",
+     "title": "Включить нового сторожа сайта на Маке — одна команда, и табличка снимется сама",
+     "why": null
+    },
+    {
+     "card": "owner-decision-vnutridnevnaya-prosadka-slepota-teper-sl",
+     "class": "answer_recorded",
+     "status": "ingested",
+     "title": "Внутридневная просадка: мягкий тир внутри дня — действовать в минутах или как сейчас",
+     "why": null
+    },
+    {
+     "card": "owner-decision-vse-82-izmereny-krome-odnogo-i-devyat-iz",
+     "class": "answer_recorded",
+     "status": "ingested",
+     "title": "Все 82 измерены, кроме одного — и девять из одиннадцати «сломанных» оказались не сломаны",
+     "why": null
+    },
+    {
+     "card": "owner-decision-vtoroi-tsikl-orkestratora-ne-perezhivet",
+     "class": "answer_recorded",
+     "status": "ingested",
+     "title": "Второй цикл оркестратора не переживёт перезагрузку — его записка лежит не в той папке",
+     "why": null
+    },
+    {
+     "card": "owner-decision-vydumannaya-kazna-protokola-v-otsenke-st",
+     "class": "answer_recorded",
+     "status": "ingested",
+     "title": "Выдуманная казна протокола в оценке страховки — оставить или отказываться?",
+     "why": null
+    },
+    {
+     "card": "owner-decision-ya-otkatil-116-failov-zhivogo-sostoyaniy",
+     "class": "answer_recorded",
+     "status": "ingested",
+     "title": "Я откатил 116 файлов живого состояния в боевом дереве — 114 вернул из резерва, дыра 19,5 часов осталась",
+     "why": null
+    },
+    {
+     "card": "owner-decision-zakrytie-voprosa-vladeltsa-iz-rabochego",
+     "class": "answer_recorded",
+     "status": "ingested",
+     "title": "Закрытие вопроса владельца из рабочего дерева читается сторожем как «закрыли без владельца» — выбери, чем лечим",
+     "why": null
+    },
+    {
+     "card": "owner-decision-zapustit-storozha-arhitektury-on-gotov-n",
+     "class": "answer_recorded",
+     "status": "ingested",
+     "title": "Запустить сторожа архитектуры (он готов, но включать агентов может только владелец)",
+     "why": null
+    },
+    {
+     "card": "owner-decision-zaschita-saita-kazhdyi-den-lovit-nashego",
+     "class": "answer_recorded",
+     "status": "ingested",
+     "title": "Защита сайта каждый день ловит нашего же робота: числа доходности уезжают в live мимо гейта",
+     "why": null
+    },
+    {
+     "card": "owner-decision-zhivoi-vhod-tolko-po-steiblam-chem-zakry",
+     "class": "answer_recorded",
+     "status": "ingested",
+     "title": "Живой вход только по стейблам: чем закрываем нестейбл-экспозицию до реальных денег",
+     "why": null
+    }
+   ],
+   "tracker": "/Users/yuriikulieshov/Documents/SPA_Claude/nimbalyst-local/tracker",
+   "unreadable": []
+  }
+ ],
+ "compare": {
+  "class_differs": [],
+  "only_a": [
+   "own-2026-08-18-metka-zhivoi-na-konstante-v-allokatore",
+   "own-2026-08-18-tyuner-ne-znaet-o-setevykh-potolkakh",
+   "own-31-desyat-agentov-v-reestre-bez-flota",
+   "own-37-primenit-37-srokov-godnosti",
+   "own-cio-i-paper-cifry-tri-mandata-vladeltsa",
+   "own-mandat-avtonomii-vozobnovlen-30-dnei",
+   "own-optimum-proigryvaet-resheniyu-nichego-ne-d",
+   "own-red-team-nablyudennaya-ugroza-ne-doezzhaet",
+   "own-rnd-xvd-vol-rank-second-arm",
+   "own-yakorenie-treka-ne-rabotalo-43-dnya",
+   "owner-decision-agent-nablyudatel-prosypaetsya-raz-v-7-6",
+   "owner-decision-chasovye-agenty-do-sutok-krutyat-staryi",
+   "owner-decision-chetyre-tysyachi-dollarov-edut-v-token-f",
+   "owner-decision-ci-molcha-ne-zapustilsya-na-pr-zelenaya",
+   "owner-decision-disk-mac-mini-zabit-pod-nol-odin-zhurnal",
+   "owner-decision-dnevnoi-tsikl-segodnya-zapuskali-8-raz-n",
+   "owner-decision-dva-mesta-zovut-odin-protokol-raznym-t",
+   "owner-decision-earn-defi-kanal-telegram-dlya-publikatsii",
+   "owner-decision-earn-defi-litsenziya-na-dannye-do-deneg",
+   "owner-decision-earn-defi-tablitsa-rezhimov-ne-bet-buy-and-hold",
+   "owner-decision-gde-granitsa-reshai-sam-i-sprosi-menya",
+   "owner-decision-gde-zhivet-pervyi-pilot-na-realnyh-dengah-2026-08-30",
+   "owner-decision-geit-i-allokator-schitayut-zhivoi-tvl-po",
+   "owner-decision-go-live-geit-proiden-29-iz-29-reshenie-tvoe",
+   "owner-decision-ii-ne-puskayut-k-dengam-no-proverka-koto",
+   "owner-decision-kakoi-variant-ty-vybral-9-sentyabrya-po",
+   "owner-decision-koordinator-emkosti-pulov-mezhdu-tremya",
+   "owner-decision-koordinator-emkosti-pulov-svoi-porog-dly",
+   "owner-decision-kriterii-gotovnosti-c012-podtverzhdaet-a",
+   "owner-decision-novyi-porog-storozha-prosadki-gotov-i-pr",
+   "owner-decision-opublikovat-volnu-2-saita-dohodnost-za-p",
+   "owner-decision-pereproverka-pered-sdelkoi-nazovi-dva-ch",
+   "owner-decision-podpisat-publikatsiyu-nedelnoi-vitriny-c",
+   "owner-decision-ponizhenie-tira-pri-uhudshenii-pravilo-o",
+   "owner-decision-potolok-base-tsepochki-zapisan-v-treh-mestah",
+   "owner-decision-pravilo-sky-susds-0-otmeneno-tvoim-zhe-r",
+   "owner-decision-pyat-protsentov-kesha-zapisany-v-dvuh-me",
+   "owner-decision-pyat-reshenii-po-itogam-nochnogo-audita",
+   "owner-decision-razreshit-vosstanovit-propavshuyu-istori",
+   "owner-decision-sait-na-treh-stranitsah-vse-esche-staray",
+   "owner-decision-sait-pokazyvaet-chisla-ot-20-sentyabrya",
+   "owner-decision-sait-stranitsa-aggressive-v-chetyreh-mes",
+   "owner-decision-sait-track-snapshot-json-avtonomnaya-pra",
+   "owner-decision-sait-track-snapshot-json-avtonomnaya-pra-2",
+   "owner-decision-sait-ubrat-vosem-utverzhdenii-kotorye-ne",
+   "owner-decision-sistema-ne-sprashivaet-proderzhitsya-li",
+   "owner-decision-skolko-stoit-odin-tsikl-agenta",
+   "owner-decision-skript-zhivogo-agenta-zapuskaetsya-tolko",
+   "owner-decision-spisat-180-fonovyh-modulei-tier-c-ili-ch",
+   "owner-decision-steibl-noga-btc-dvizhka-v-pol-spa",
+   "owner-decision-stoimost-perekladki-zaryazhaetsya-v-134",
+   "owner-decision-tier-steakhouse-2026-08-29",
+   "owner-decision-tret-kapitala-vstala-bez-raboty-kniga-ne",
+   "owner-decision-tri-bumazhnyh-portfelya-rabotayut-ostalo",
+   "owner-decision-tri-paketa-nachali-realnyi-paper-test-ba",
+   "owner-decision-tri-vyvedennyh-agenta-ostalis-v-sisteme",
+   "owner-decision-ubrat-2-gb-sluzhebnogo-musora-git-v-rabo",
+   "owner-decision-utochnenie-po-zametke-pribory-brosayut-o",
+   "owner-decision-utochnenie-po-zametke-prover-dashbord",
+   "owner-decision-utochnenie-po-zametke-sto-tridtsat-devya",
+   "owner-decision-utrennie-soobscheniya-v-telegram-glavnoe",
+   "owner-decision-vozit-li-katalog-reshenii-ob-agentah-na",
+   "owner-decision-zakryt-tri-chernovyh-pr-u-moego-klyucha",
+   "owner-decision-zamok-dnevnogo-tsikla-ne-sprashivaet-zhi",
+   "owner-decision-zapasnoi-klyuch-k-zaschite-saita-ne-rabo",
+   "owner-decision-zapisyvat-li-v-dnevnoe-reshenie-vse-zhiv",
+   "owner-decision-zaschita-ot-kachelei-sravnivaet-ne-to-ch"
+  ],
+  "only_b": [
+   "owner-decision-disk-snova-sel-odin-zhurnal-agenta-9-82",
+   "owner-decision-sait-track-snapshot-json-avtonomnaya-pra-3"
+  ]
+ }
+}

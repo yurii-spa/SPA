@@ -30,6 +30,8 @@ LLM здесь нет (инв. #3): план модели — ВХОД вали�
 """
 from __future__ import annotations
 
+import contextlib
+import fcntl
 import hashlib
 import json
 import os
@@ -303,7 +305,30 @@ def admission(graph: Dict[str, Any], task_id: str, approval: Optional[Dict[str, 
     return why
 
 
-# ── журнал переходов ─────────────────────────────────────────────────────────────────────────────
+# ── журнал переходов: ОДИН протокол записи (E2.2) ─────────────────────────────────────────────
+# Каждая запись: блокировка каталога прогона (flock) → перечитать журнал → сверить ОЖИДАЕМОЕ прежнее
+# состояние задачи и текущее поколение захвата → дописать одну строку (fsync). Несовпадение — отказ
+# «конфликт», а не перезапись. Атомарна одна строка; набор файлов атомарным НЕ объявляется.
+LOCK_FILE = ".goal_journal.lock"
+TERMINAL_PREFIXES = ("checked:", "aborted:")
+
+
+class Conflict(Refused):
+    """Ожидаемое состояние или поколение захвата не совпало с журналом — запись не сделана."""
+
+
+@contextlib.contextmanager
+def _locked(run_dir: Path):
+    run_dir = Path(run_dir)
+    run_dir.mkdir(parents=True, exist_ok=True)
+    with open(run_dir / LOCK_FILE, "a+") as fh:
+        fcntl.flock(fh.fileno(), fcntl.LOCK_EX)
+        try:
+            yield
+        finally:
+            fcntl.flock(fh.fileno(), fcntl.LOCK_UN)
+
+
 def _journal(run_dir: Path) -> List[Dict[str, Any]]:
     path = Path(run_dir) / JOURNAL_FILE
     if not path.exists():
@@ -315,22 +340,80 @@ def _journal(run_dir: Path) -> List[Dict[str, Any]]:
     return rows
 
 
-def _append(run_dir: Path, row: Dict[str, Any]) -> None:
+def _raw_append(run_dir: Path, row: Dict[str, Any]) -> None:
     path = Path(run_dir) / JOURNAL_FILE
-    path.parent.mkdir(parents=True, exist_ok=True)
     with open(path, "a", encoding="utf-8") as fh:
         fh.write(json.dumps(row, sort_keys=True, ensure_ascii=False) + "\n")
         fh.flush()
         os.fsync(fh.fileno())
 
 
-def task_state(run_dir: Path, graph_version: str, task_id: str) -> str:
-    """Последнее записанное состояние задачи для этой версии графа ('new' — записей нет)."""
+def _state_of(rows: List[Dict[str, Any]], graph_version: str, task_id: str) -> str:
     st = "new"
-    for row in _journal(run_dir):
-        if row.get("graph_version") == graph_version and row.get("task_id") == task_id:
+    for row in rows:
+        if row.get("graph_version") == graph_version and row.get("task_id") == task_id and "state" in row:
             st = row["state"]
     return st
+
+
+def _lease_of(rows: List[Dict[str, Any]], graph_version: str, task_id: str) -> Optional[Dict[str, Any]]:
+    lease = None
+    for row in rows:
+        if row.get("graph_version") == graph_version and row.get("task_id") == task_id and row.get("kind") == "claim":
+            lease = row
+    return lease
+
+
+def _transition(run_dir: Path, row: Dict[str, Any], *, expected: str, lease: Optional[Dict[str, Any]],
+                now: str) -> None:
+    """Записать переход, если журнал всё ещё в ожидаемом состоянии и захват — текущий."""
+    with _locked(run_dir):
+        rows = _journal(run_dir)
+        cur = _state_of(rows, row["graph_version"], row["task_id"])
+        if cur != expected:
+            raise Conflict(f"конфликт: ожидалось состояние «{expected}», в журнале «{cur}» — запись не сделана")
+        _check_lease(rows, row["graph_version"], row["task_id"], lease, now)
+        _raw_append(run_dir, {**row, "expected": expected,
+                              "generation": (lease or {}).get("generation")})
+
+
+def task_state(run_dir: Path, graph_version: str, task_id: str) -> str:
+    """Последнее записанное состояние задачи для этой версии графа ('new' — записей нет)."""
+    return _state_of(_journal(run_dir), graph_version, task_id)
+
+
+# ── захват с поколением (E2.3) ───────────────────────────────────────────────────────────────────
+def claim(run_dir: Path, graph: Dict[str, Any], task_id: str, *, worker: str, process: str, now: str,
+          ttl_s: int) -> Dict[str, Any]:
+    """Захват задачи. Новый захват при ЖИВОМ (не истёкшем) чужом — отказ; после истечения — перехват
+    с поколением +1: прежний исполнитель, проснувшись, писать уже не может. PID сам по себе не
+    идентичность (``process`` — объявленная идентичность процесса), истечение срока — не доказательство
+    смерти, а правило, после которого прежнее поколение теряет право записи."""
+    if task_id not in graph["tasks"]:
+        raise Refused(f"задачи {task_id!r} нет в графе")
+    with _locked(run_dir):
+        rows = _journal(run_dir)
+        prev = _lease_of(rows, graph["version"], task_id)
+        if prev and _parse(now) < _parse(prev["expires_at"]) and prev["worker"] != worker:
+            raise Conflict(f"задачу держит {prev['worker']} (поколение {prev['generation']}) до {prev['expires_at']}")
+        gen = (prev or {}).get("generation", 0) + 1
+        exp = datetime.fromtimestamp(_parse(now).timestamp() + int(ttl_s), tz=timezone.utc).isoformat()
+        lease = {"kind": "claim", "graph_version": graph["version"], "task_id": task_id, "worker": worker,
+                 "process": process, "generation": gen, "at": now, "expires_at": exp,
+                 "takeover_of": (prev or {}).get("generation")}
+        _raw_append(run_dir, lease)
+    return lease
+
+
+def _check_lease(rows, graph_version: str, task_id: str, lease: Optional[Dict[str, Any]], now: str) -> None:
+    cur = _lease_of(rows, graph_version, task_id)
+    if cur is None:
+        raise Conflict("задача не захвачена — исполнять без захвата нельзя")
+    if not isinstance(lease, dict) or lease.get("generation") != cur["generation"] or lease.get("worker") != cur["worker"]:
+        raise Conflict(f"захват устарел: текущее поколение {cur['generation']} ({cur['worker']}) — "
+                       f"прежний исполнитель после перехвата не пишет")
+    if _parse(now) >= _parse(cur["expires_at"]):
+        raise Conflict("срок захвата истёк — нужен новый захват")
 
 
 # ── исполнение на стенде ─────────────────────────────────────────────────────────────────────────
@@ -346,30 +429,42 @@ def _stand_path(stand: Path, rel: str) -> Path:
 
 
 def execute_on_stand(graph: Dict[str, Any], task_id: str, approval: Optional[Dict[str, Any]], *,
-                     stand: Path, run_dir: Path, now: str, author: str,
-                     revoked: Iterable[str] = ()) -> Dict[str, Any]:
+                     stand: Path, run_dir: Path, now: str, author: str, lease: Optional[Dict[str, Any]],
+                     revoked: Iterable[str] = (), revoked_now=None, entry: str = "stand_api") -> Dict[str, Any]:
     """Исполнить операции задачи на стенде. Повтор с тем же ключом не даёт второго эффекта.
 
-    Журнал: ``started`` (ожидалось new) → ``applied`` → ``checked:<исход>``. Падение между записями
-    оставляет ``started`` — зависимые задачи такое состояние НЕ считают выполненным.
+    Журнал: ``started`` (ожидалось new/aborted) → ``applied`` → ``checked:<исход>``. Падение между
+    записями оставляет ``started`` — зависимые задачи его НЕ считают выполненным, повторно исполнять
+    нельзя до :func:`recover`. ``revoked_now`` — вызываемая проверка отзыва ПЕРЕД КАЖДОЙ операцией
+    (E3.6): отзыв посреди действия прекращает новые эффекты, сделанные остаются в журнале.
     """
+    assert_entry(entry)
     why = admission(graph, task_id, approval, now=now, revoked=revoked)
     if why:
         raise Refused("действие не допущено: " + "; ".join(why))
+    if approval and approval.get("approver") == author:
+        raise Refused("исполнитель и допустивший — одно лицо: самодопуск не принимается (E3.5)")
     stand, run_dir = Path(stand), Path(run_dir)
     if not (stand / ".studio_stand").is_file():
         raise Refused("каталог не помечен как стенд (.studio_stand) — рабочие файлы не трогаются")
     op_key = _sha({"graph": graph["version"], "task": task_id, "approval": _sha(approval)})
     prev = task_state(run_dir, graph["version"], task_id)
-    if prev in ("applied",) or prev.startswith("checked:"):
+    if prev == "applied" or prev.startswith("checked:"):
         return {"op_key": op_key, "state": prev, "repeated": True}
+    if prev == "started":
+        raise Refused("предыдущая попытка не завершена (started) — сначала recover, повтор вслепую запрещён")
     task = graph["tasks"][task_id]
-    _append(run_dir, {"graph_version": graph["version"], "task_id": task_id, "op_key": op_key,
-                      "expected": prev, "state": "started", "author": author, "at": now})
+    base = {"graph_version": graph["version"], "task_id": task_id, "op_key": op_key, "author": author,
+            "entry": entry}
+    _transition(run_dir, {**base, "state": "started", "at": now}, expected=prev, lease=lease, now=now)
     effects = []
     for op in task["operations"]:
         if op["op"] not in STAND_OPS:
             raise Refused(f"операция {op['op']} на стенде S1 не исполняется — отдельный допуск/поставка")
+        if revoked_now is not None and revoked_now():
+            _transition(run_dir, {**base, "state": "aborted:revoked", "effects": effects, "at": now},
+                        expected="started", lease=lease, now=now)
+            return {"op_key": op_key, "state": "aborted:revoked", "repeated": False, "effects": effects}
         target = _stand_path(stand, op["path"])
         target.parent.mkdir(parents=True, exist_ok=True)
         data = str(op.get("content") or "").encode("utf-8")
@@ -377,13 +472,38 @@ def execute_on_stand(graph: Dict[str, Any], task_id: str, approval: Optional[Dic
         tmp.write_bytes(data)
         os.replace(tmp, target)
         effects.append({"path": op["path"], "sha256": hashlib.sha256(data).hexdigest()})
-    _append(run_dir, {"graph_version": graph["version"], "task_id": task_id, "op_key": op_key,
-                      "expected": "started", "state": "applied", "effects": effects, "author": author, "at": now})
+    _transition(run_dir, {**base, "state": "applied", "effects": effects, "at": now},
+                expected="started", lease=lease, now=now)
     return {"op_key": op_key, "state": "applied", "repeated": False, "effects": effects}
 
 
+def recover(graph: Dict[str, Any], task_id: str, *, stand: Path, run_dir: Path, now: str, author: str,
+            lease: Optional[Dict[str, Any]]) -> Dict[str, Any]:
+    """Разбор незавершённой попытки (E2.4) по ПРОВЕРЯЕМЫМ фактам стенда, без повторного эффекта.
+
+    Все цели операций уже несут ровно задуманные байты ⇒ ``applied`` (восстановлено). Иначе ⇒
+    ``aborted:crash`` с перечнем найденного: новая попытка возможна, но только новым исполнением.
+    Повтор восстановления на уже разобранной задаче — без новой записи.
+    """
+    st = task_state(run_dir, graph["version"], task_id)
+    if st != "started":
+        return {"task_id": task_id, "state": st, "recovered": False}
+    found, complete = [], True
+    for op in graph["tasks"][task_id]["operations"]:
+        want = hashlib.sha256(str(op.get("content") or "").encode("utf-8")).hexdigest()
+        target = _stand_path(Path(stand), op["path"])
+        got = hashlib.sha256(target.read_bytes()).hexdigest() if target.is_file() else None
+        found.append({"path": op["path"], "sha256": got, "expected": want})
+        complete = complete and got == want
+    state = "applied" if complete else "aborted:crash"
+    _transition(Path(run_dir), {"graph_version": graph["version"], "task_id": task_id, "state": state,
+                                "effects": found, "recovered": True, "author": author, "at": now},
+                expected="started", lease=lease, now=now)
+    return {"task_id": task_id, "state": state, "recovered": True, "effects": found}
+
+
 def machine_result(graph: Dict[str, Any], task_id: str, *, stand: Path, run_dir: Path, now: str,
-                   author: str = "goal_graph") -> Dict[str, Any]:
+                   lease: Optional[Dict[str, Any]], author: str = "goal_graph") -> Dict[str, Any]:
     """Исход по проверке, объявленной ДО работы. Записывается в журнал; done ставит только он."""
     st = task_state(Path(run_dir), graph["version"], task_id)
     if st != "applied":
@@ -411,8 +531,9 @@ def machine_result(graph: Dict[str, Any], task_id: str, *, stand: Path, run_dir:
         raise
     except Exception as exc:  # noqa: BLE001 — сбой проверки — третий исход, а не «прошло»
         verdict, detail = UNMEASURED, f"{type(exc).__name__}: {exc}"
-    _append(Path(run_dir), {"graph_version": graph["version"], "task_id": task_id, "expected": "applied",
-                            "state": f"checked:{verdict}", "detail": detail, "author": author, "at": now})
+    _transition(Path(run_dir), {"graph_version": graph["version"], "task_id": task_id,
+                                "state": f"checked:{verdict}", "detail": detail, "author": author, "at": now},
+                expected="applied", lease=lease, now=now)
     return {"task_id": task_id, "verdict": verdict, "detail": detail}
 
 
@@ -420,6 +541,137 @@ def done_tasks(run_dir: Path, graph_version: str) -> List[str]:
     """Выполненные задачи — ТОЛЬКО с машинным исходом satisfied для этой версии графа."""
     last: Dict[str, str] = {}
     for row in _journal(Path(run_dir)):
-        if row.get("graph_version") == graph_version:
+        if row.get("graph_version") == graph_version and "state" in row:
             last[row["task_id"]] = row["state"]
     return sorted(t for t, s in last.items() if s == f"checked:{SATISFIED}")
+
+
+# ── E3.2 входы: какие пути запуска охвачены этим контрактом ─────────────────────────────────────
+#: Охваченные входы исполнения задач графа. Всё, чего здесь нет, для задач графа ЗАПРЕЩЕНО — а не
+#: «наверное, безопасно». Ручная работа владельца в терминале и права ОС этим списком НЕ
+#: контролируются; программа не объявляет, что охраняет root или весь Mac.
+ENTRY_POINTS: Dict[str, str] = {
+    "stand_api": "covered — прямой вызов execute_on_stand: допуск, захват, стенд, журнал",
+    "goal_graph_cli": "covered — python -m spa_core.studio_os.goal_graph (тот же контракт)",
+    "cockpit_dispatch": "covered — диспетчер пульта: карточка с полем goal_graph_run берётся только при "
+                        "годном допуске goal_graph (cockpit_dispatch._goal_graph_gate)",
+}
+#: Известные пути, которые контракт НЕ охватывает (явный отказ для задач графа).
+UNCOVERED_ENTRIES: Dict[str, str] = {
+    "hourly_cycle": "часовой цикл оркестратора берёт карточки по своему протоколу — задачи графа не исполняет",
+    "telegram_callbacks": "кнопки владельца пишут ответы через owner_answer — исполнения задач нет",
+    "recovery_cron": "автоматического восстановления по расписанию нет — recover зовётся явно",
+}
+
+
+def assert_entry(entry: str) -> None:
+    if entry not in ENTRY_POINTS:
+        why = UNCOVERED_ENTRIES.get(entry, "вход не объявлен")
+        raise Refused(f"вход «{entry}» не охвачен контрактом допуска ({why}) — исполнение запрещено")
+
+
+# ── E1.5 выбор следующей работы ──────────────────────────────────────────────────────────────────
+#: Сколько подряд внутренних находок можно взять, пока готова продуктовая задача.
+MAX_INTERNAL_STREAK = 2
+
+
+def select_next(candidates: Sequence[Dict[str, Any]], *, recent_kinds: Sequence[str] = (),
+                incident: bool = False) -> Dict[str, Any]:
+    """Выбор следующей готовой задачи с ЗАПИСЫВАЕМОЙ причиной.
+
+    ``candidates`` — готовые задачи ``{"task_id", "kind": product|internal|incident, "priority": int
+    (меньше — важнее), "due": iso|None, "waiting_since": iso}``. Порядок: активная авария (если
+    ``incident``) → защита от вытеснения продукта (после ``MAX_INTERNAL_STREAK`` внутренних подряд
+    берётся продуктовая) → приоритет → срок → дольше ждёт. Пустой список — явный ответ «нечего».
+    """
+    if not candidates:
+        return {"task_id": None, "reason": "готовых задач нет"}
+    pool = list(candidates)
+    if incident:
+        inc = [c for c in pool if c.get("kind") == "incident"]
+        if inc:
+            pool, why = inc, "активная авария сохраняет приоритет"
+        else:
+            why = "авария объявлена, но готовой аварийной задачи нет"
+    else:
+        why = ""
+    streak = 0
+    for k in reversed(list(recent_kinds)):
+        if k != "internal":
+            break
+        streak += 1
+    product = [c for c in pool if c.get("kind") == "product"]
+    if not why.startswith("активная") and streak >= MAX_INTERNAL_STREAK and product:
+        pool, why = product, f"{streak} внутренних находок подряд — продуктовая задача не вытесняется"
+
+    def key(c):
+        return (int(c.get("priority", 99)), c.get("due") or "9999", c.get("waiting_since") or "9999", c["task_id"])
+
+    pick = sorted(pool, key=key)[0]
+    reason = why or "приоритет, затем срок, затем время ожидания"
+    return {"task_id": pick["task_id"], "reason": f"{reason}: {pick['task_id']} "
+                                                  f"(приоритет {pick.get('priority', 99)}, срок {pick.get('due') or 'нет'})"}
+
+
+# ── CLI: охваченный вход goal_graph_cli ──────────────────────────────────────────────────────────
+def _load(p: str) -> Any:
+    return json.loads(Path(p).read_text(encoding="utf-8"))
+
+
+def main(argv: Optional[Sequence[str]] = None) -> int:
+    """Коды: 0 — успех; 1 — отказ звена (причина в stderr); 2 — неверный вызов."""
+    import argparse
+    import sys
+    ap = argparse.ArgumentParser(prog="goal_graph", description=__doc__.splitlines()[0])
+    sub = ap.add_subparsers(dest="cmd", required=True)
+    v = sub.add_parser("validate"); v.add_argument("--goal", required=True); v.add_argument("--plan", required=True)
+    v.add_argument("--scope", nargs="+", required=True); v.add_argument("--out", required=True)
+    for name in ("execute", "result", "recover", "claim"):
+        c = sub.add_parser(name)
+        c.add_argument("--graph", required=True); c.add_argument("--task", required=True)
+        c.add_argument("--run-dir", required=True); c.add_argument("--now", required=True)
+        c.add_argument("--worker", required=True)
+        if name == "claim":
+            c.add_argument("--process", required=True); c.add_argument("--ttl", type=int, default=900)
+            c.add_argument("--out", required=True)
+        else:
+            c.add_argument("--stand", required=True); c.add_argument("--lease", required=True)
+        if name == "execute":
+            c.add_argument("--approval", required=True)
+    args = ap.parse_args(argv)
+    try:
+        if args.cmd == "validate":
+            res = validate_plan(_load(args.goal), _load(args.plan), scope=args.scope)
+            if not res["ok"]:
+                print("\n".join(res["refusals"]), file=sys.stderr)
+                return 1
+            Path(args.out).write_text(json.dumps(res["graph"], ensure_ascii=False, sort_keys=True), encoding="utf-8")
+            print(res["graph"]["version"])
+            return 0
+        graph = _load(args.graph)
+        if args.cmd == "claim":
+            lease = claim(Path(args.run_dir), graph, args.task, worker=args.worker, process=args.process,
+                          now=args.now, ttl_s=args.ttl)
+            Path(args.out).write_text(json.dumps(lease, sort_keys=True), encoding="utf-8")
+            print(lease["generation"])
+            return 0
+        lease = _load(args.lease)
+        if args.cmd == "execute":
+            out = execute_on_stand(graph, args.task, _load(args.approval), stand=Path(args.stand),
+                                   run_dir=Path(args.run_dir), now=args.now, author=args.worker, lease=lease,
+                                   entry="goal_graph_cli")
+        elif args.cmd == "recover":
+            out = recover(graph, args.task, stand=Path(args.stand), run_dir=Path(args.run_dir), now=args.now,
+                          author=args.worker, lease=lease)
+        else:
+            out = machine_result(graph, args.task, stand=Path(args.stand), run_dir=Path(args.run_dir),
+                                 now=args.now, lease=lease, author=args.worker)
+        print(json.dumps(out, ensure_ascii=False, sort_keys=True))
+        return 0
+    except Refused as exc:
+        print(str(exc), file=sys.stderr)
+        return 1
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())
