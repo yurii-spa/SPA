@@ -2,11 +2,11 @@
 
 > Авто-генерится `scripts/build_tracker_board.py` из `nimbalyst-local/tracker/*.md`. НЕ править вручную — правь карточки. Источник правды — карточки, это индекс (bootstrap).
 >
-> Собрана: 2026-10-29T11:28:52Z · сверка с карточками: `python3 scripts/build_tracker_board.py --check` (сторож `spa_core/tests/test_tracker_board_matches_cards.py`).
+> Собрана: 2026-10-29T12:31:41Z · сверка с карточками: `python3 scripts/build_tracker_board.py --check` (сторож `spa_core/tests/test_tracker_board_matches_cards.py`).
 >
-> Сверено с `origin/main` (9d985516a).
+> Сверено с `origin/main` (4e387eeaa).
 >
-> Всего карточек: **1506** · ждёт владельца: **3** · занято сессиями: **14**.
+> Всего карточек: **1507** · ждёт владельца: **3** · занято сессиями: **14**.
 
 ## 🔴 ЖДЁТ ВЛАДЕЛЬЦА (needs-owner)
 
@@ -416,7 +416,7 @@
 ### · closed
 - Считать ли верный отказ по правилам допуска неисправностью флота  ·  `owner-decision-schitat-li-vernyi-otkaz-po-pravilam-dopu.md` · 2026-10-08
 
-## 📥 Inbox (задания: Telegram / заметки / голос)  (830)
+## 📥 Inbox (задания: Telegram / заметки / голос)  (831)
 
 ### · in-progress
 - а задача починить все-таки еще раз сообщение которым не пишет нужно твое решени…  ·  `inbox-a-zadacha-pochinit-vse-taki-esche-raz-so.md` · 2026-08-14 · 🔒 `pid43119`
@@ -1122,6 +1122,7 @@
 - Причина недоизмеренности hit_rate названа не та: рычаг у писателя журнала, а не у фида  ·  `inbox-prichina-nedoizmerennosti-hit-rate-nazva.md` · 2026-09-11
 - Привязка читателя к блоку по ДОРОГЕ значения — ось «судит о населении „все“» осталась НЕ ИЗМЕРЕННОЙ (ADR-856)  ·  `inbox-privyazka-chitatelya-k-bloku-po-doroge-z.md` · 2026-10-29
 - Проба двери доставки считает ПОЛОМКУ сторожа его отказом (катч-олл в приёмке ADR-714)  ·  `inbox-proba-dveri-dostavki-schitaet-polomku-st.md` · 2026-10-15
+- Проба приёмки идёт 464 с при таймауте 180 с, и фитиль растёт вместе с журналом  ·  `inbox-proba-priemki-idet-464-s-pri-taimaute-18.md` · 2026-10-29
 - Проба приёмки карточек даёт разное число из прода и из worktree, и ни одно дерево не даёт полного — SPA_DATA_DIR её не лечит  ·  `inbox-proba-priemki-kartochek-daet-raznoe-chis.md` · 2026-10-22
 - Проба приёмки мерит соседнюю дверь: прибор ввозится по имени, а не из измеряемого дерева (3 из 51)  ·  `inbox-proba-priemki-merit-sosednyuyu-dver-prib.md` · 2026-10-14
 - Проба приёмки объявляет карточку закрытой, не проверив, что подмена применилась  ·  `inbox-proba-priemki-obyavlyaet-kartochku-zakry.md` · 2026-10-04
