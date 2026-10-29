@@ -239,6 +239,26 @@ def declared_funded_cap() -> Optional[int]:
         return None
 
 
+#: Сколько гипотетических книг судили в этом процессе, сколько отказано. Строки
+#: журнала о каждой не пишутся (см. ``book_verdict``); счёт остаётся наблюдаемым.
+HYPOTHETICAL_CHECKS: Dict[str, int] = {"checked": 0, "rejected": 0}
+
+
+def _record_hypothetical_check(result) -> None:
+    """Сток журнала политики для ГИПОТЕТИЧЕСКОЙ книги: считает, а не пишет строку.
+
+    Первая проба процесса оставляет одну строку INFO — чтобы по логу было видно,
+    что построчные вердикты пробных книг намеренно не печатаются, а не пропали.
+    """
+    HYPOTHETICAL_CHECKS["checked"] += 1
+    if not result.approved:
+        HYPOTHETICAL_CHECKS["rejected"] += 1
+    if HYPOTHETICAL_CHECKS["checked"] == 1:
+        log.info("trim_admissibility: вердикты RiskPolicy о ГИПОТЕТИЧЕСКИХ книгах "
+                 "перебора урезания не печатаются построчно — они в отчёте "
+                 "переписи; живые проверки логируются как прежде")
+
+
 def book_verdict(book: Dict[str, float],
                  apy_pct: Dict[str, float],
                  capital_usd: float,
@@ -275,7 +295,16 @@ def book_verdict(book: Dict[str, float],
         return None, sorted(set(unknown))
     state = PortfolioState(total_capital_usd=float(capital_usd),
                            positions=positions)
-    result = RiskPolicy().check_portfolio_health(state)
+    policy = RiskPolicy()
+    # Книга здесь ГИПОТЕТИЧЕСКАЯ (форма урезания, кандидат перебора), а не живая:
+    # переписи зовут дверь десятки тысяч раз на один прогон (замер 30.10: 60 947
+    # вызовов на один ``shadow_trigger_eval.evaluate_window``), и построчный
+    # WARNING/ERROR о каждой пробной книге за ночь набрал >100 ГБ в
+    # /tmp/spa_decision_loop.log. Вердикт, нарушения и ответ НЕ меняются и уходят
+    # в отчёт переписи; не пишется только строка журнала о книге, которой нет.
+    # Живые вызовы политики (цикл, монитор здоровья) логируют как прежде.
+    policy._log_result = _record_hypothetical_check
+    result = policy.check_portfolio_health(state)
     return ({"approved": bool(result.approved),
              "violations": [str(v) for v in result.violations],
              "required_response": str(result.required_response),
