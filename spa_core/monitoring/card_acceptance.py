@@ -188,6 +188,129 @@ def _probe_additive_field_reader_distinguishes(arg: str | None) -> tuple[str, st
         f"ось «читает только „все“» объявлена НЕ ИЗМЕРЕННОЙ")
 
 
+def _probe_owner_repeat_named_by_the_hunger_step(arg: str | None) -> tuple[str, str]:
+    """Критерий: шаг 0a НАЗЫВАЕТ ЧИСЛОМ повтор просьбы владельца, и повторов в очереди нет.
+
+    Два условия, ровно как у карточки-заказчика (`inbox-vse-pyat-golosovyh-zadanii-
+    vladeltsa-odn`): мера работает И население на сегодня пусто. Одно без другого
+    принятием не является — работающая мера при пяти висящих просьбах означает, что
+    просьбу теперь ВИДНО, а не что её исполнили.
+
+    Проба мерит ИСХОД живой двери, а не наличие модуля, и у неё ТРИ замера:
+
+    1. **эталон класса** (`owner_repeat_census.drive_exemplar`) — настоящая мера на двух
+       сценах, отличающихся РОВНО повтором; одинаковый род исхода есть дефект;
+    2. **проводка** — НАСТОЯЩИЙ `scripts/check_owner_order_starvation.py` поднимается на
+       одноразовом трекере и обязан (а) отдать разный КОД ВОЗВРАТА на двух сценах и
+       (б) принести ключи `repeated_groups`/`repeated_cards` со значениями. Сверять
+       текст подстрокой здесь нельзя (ADR-333): печать, собранная из того же числа,
+       подтверждала бы сама себя — поэтому спрашивается ПРИСУТСТВИЕ ключа и ПОВЕДЕНИЕ
+       (код возврата), а не слова;
+    3. **население** — повторы в живой очереди. Не ноль ⇒ `not_satisfied` с числом.
+
+    Третий исход СВОЙ: прибор не ввозится, сцену не удалось собрать или очередь не
+    прочитана ⇒ `unmeasured`, а не «не выполнено».
+    """
+    import importlib.util as _ilu
+    import json as _json
+    import tempfile
+    from contextlib import redirect_stdout
+    from datetime import datetime, timezone
+    from io import StringIO
+    from pathlib import Path as _Path
+
+    try:
+        from spa_core.monitoring import owner_repeat_census as m
+    except Exception as exc:  # noqa: BLE001
+        return UNMEASURED, f"прибор переписи повторов не ввозится: {type(exc).__name__}: {exc}"
+
+    drive = m.drive_exemplar(now=datetime(2026, 10, 29, tzinfo=timezone.utc))
+    if drive.get("kind") == m.DRIVE_UNMEASURED:
+        return UNMEASURED, f"эталон класса не измерен: {drive.get('reason')}"
+    if drive.get("kind") == m.DRIVE_CONFLATES:
+        return NOT_SATISFIED, (
+            "эталон отвечает одно и то же на сцену с повтором и на сцену без него "
+            f"(«{drive['scene_repeated']['outcome']}») — повтор он не различает")
+    pair = (drive["scene_repeated"]["outcome"], drive["scene_single"]["outcome"])
+    if pair != (m.REPEATED, m.MEASURED_ZERO):
+        return NOT_SATISFIED, (
+            f"исходы различны, но НЕ в ту сторону: сцена с повтором дала «{pair[0]}», "
+            f"сцена без повтора — «{pair[1]}»")
+
+    guard_path = _Path(REPO_ROOT) / "scripts" / "check_owner_order_starvation.py"
+    try:
+        spec = _ilu.spec_from_file_location("_owner_starvation_for_probe", guard_path)
+        guard = _ilu.module_from_spec(spec)          # type: ignore[arg-type]
+        spec.loader.exec_module(guard)               # type: ignore[union-attr]
+    except Exception as exc:  # noqa: BLE001
+        return UNMEASURED, (f"шаг 0a не поднимается ({guard_path}): "
+                            f"{type(exc).__name__}: {exc} — проводка НЕ ИЗМЕРЕНА")
+
+    def _scene(titles: list[str]):
+        """Поднять НАСТОЯЩИЙ шаг 0a на одноразовом трекере → (код, разобранный JSON).
+
+        Строка вместо пары = сцена не собралась (третий исход, разбирает вызывающий).
+        """
+        try:
+            with tempfile.TemporaryDirectory() as tmp:
+                for i, title in enumerate(titles, 1):
+                    (_Path(tmp) / f"inbox-probe-{i}.md").write_text(
+                        "---\ntrackerStatus:\n  type: inbox\n"
+                        f"title: \"{title}\"\nstatus: new\nsource: voice\n"
+                        f"created: 2026-10-1{i}\n---\n\nтело\n", encoding="utf-8")
+                buf = StringIO()
+                with redirect_stdout(buf):
+                    rc = guard.main(["--tracker-dir", tmp, "--ref", "", "--no-write",
+                                     "--json"])
+                return int(rc), _json.loads(buf.getvalue())
+        except Exception as exc:  # noqa: BLE001 — сцена могла не собраться как угодно
+            return f"{type(exc).__name__}: {exc}"
+
+    with_repeat = _scene(["проверь дашборд", "проверь дашборд"])
+    if isinstance(with_repeat, str):
+        return UNMEASURED, f"сцена проводки «с повтором» не собралась: {with_repeat}"
+    without = _scene(["проверь дашборд"])
+    if isinstance(without, str):
+        return UNMEASURED, f"сцена проводки «без повтора» не собралась: {without}"
+    rc_rep, doc_rep = with_repeat
+    rc_one, doc_one = without
+    missing = [k for k in ("repeated_groups", "repeated_cards", "repeat_groups")
+               if k not in doc_rep]
+    if missing:
+        return NOT_SATISFIED, ("шаг 0a не публикует ключи оси повтора: нет "
+                               f"{', '.join(missing)} — числа у повтора НЕТ")
+    if doc_rep.get("repeated_cards") != 2 or doc_one.get("repeated_cards") != 0:
+        return NOT_SATISFIED, (
+            "шаг 0a назвал повтор НЕ ТЕМ числом: сцена с повтором дала "
+            f"repeated_cards={doc_rep.get('repeated_cards')} (ожидалось 2), "
+            f"сцена без повтора — {doc_one.get('repeated_cards')} (ожидалось 0)")
+    if rc_rep == rc_one:
+        return NOT_SATISFIED, (
+            f"код возврата одинаков на обеих сценах ({rc_rep}) — повтор назван в JSON, "
+            "но вердикта шага 0a не меняет: обёртка его не увидит")
+
+    try:
+        from spa_core.owner_queue.queue import TRACKER_DIR, list_cards
+        cards = list_cards()
+    except Exception as exc:  # noqa: BLE001
+        return UNMEASURED, (f"мера и проводка подтверждены, но очередь НЕ ПРОЧИТАНА: "
+                            f"{type(exc).__name__}: {exc} — население не измерено")
+    live = m.repeated_requests(cards, now=datetime.now(timezone.utc),
+                               source=str(TRACKER_DIR))
+    if live:
+        loud = live[0]
+        return NOT_SATISFIED, (
+            f"мера работает (эталон различает «{pair[0]}»/«{pair[1]}», коды {rc_rep}≠"
+            f"{rc_one}), но в очереди ещё {len(live)} групп(а) повторов на "
+            f"{sum(g['count'] for g in live)} карточек; громчайшая — "
+            f"«{loud['title']}» × {loud['count']}")
+    return SATISFIED, (
+        f"шаг 0a называет повтор числом (сцена с повтором: repeated_cards="
+        f"{doc_rep['repeated_cards']}, код {rc_rep}; без повтора: "
+        f"{doc_one['repeated_cards']}, код {rc_one}), эталон различает "
+        f"«{pair[0]}»/«{pair[1]}»; повторов в очереди ({TRACKER_DIR}) — 0")
+
+
 def _probe_lead_channel_wiring(arg: str | None) -> tuple[str, str]:
     """Критерий: обработчик заявки с сайта ДЕЙСТВИТЕЛЬНО зовёт уведомителя владельца.
 
@@ -12227,6 +12350,8 @@ PROBES: dict[str, Callable[[str | None], "tuple[str, str]"]] = {
     "lead_channel_wiring_ok": _probe_lead_channel_wiring,
     "additive_field_reader_distinguishes":
         _probe_additive_field_reader_distinguishes,
+    "owner_repeat_named_by_the_hunger_step":
+        _probe_owner_repeat_named_by_the_hunger_step,
     "adapter_status_live_apy": _probe_adapter_status_live_apy,
     "tier_promotion_loop_closed": _probe_tier_promotion_loop,
     "ledger_cut_moves_and_is_measured": _probe_ledger_cut_moves_and_is_measured,

@@ -1,0 +1,92 @@
+{
+ "title": "ADR-860 (цикл #977) — повтор просьбы владельца стал измеряемой осью шага 0a (пять «проверь дашборд» за 10 суток), а у заработанного освобождения носителя появилась ЗАПИСЬ",
+ "tests": [
+  "spa_core/tests/test_owner_repeat_census.py"
+ ],
+ "mutations": [
+  {
+   "name": "порог повтора снят — ОДНА просьба владельца объявляется повтором, и сигнал перестаёт отличать «повторил» от «сказал»",
+   "file": "spa_core/monitoring/owner_repeat_census.py",
+   "old": "        if len(group) < min_repeats:\n            continue",
+   "new": "        if False:\n            continue"
+  },
+  {
+   "name": "канал не читается — карточки находок САМИХ АГЕНТОВ (258 штук `new`) входят в население и топят просьбу владельца в шуме своего производства",
+   "file": "spa_core/monitoring/owner_repeat_census.py",
+   "old": "        if _owner_channel(c) is None:\n            continue",
+   "new": "        if False:\n            continue"
+  },
+  {
+   "name": "статус не читается — карточка, которую уже кто-то взял, снова считается неисполненной просьбой",
+   "file": "spa_core/monitoring/owner_repeat_census.py",
+   "old": "        if status not in UNTAKEN_STATUSES:\n            continue",
+   "new": "        if False:\n            continue"
+  },
+  {
+   "name": "нормализация теряет регистр — «Проверь дашборд.» и «проверь дашборд» становятся двумя разными просьбами, и повтор распадается на одиночки",
+   "file": "spa_core/monitoring/owner_repeat_census.py",
+   "old": "    s = unicodedata.normalize(\"NFKC\", str(title)).casefold()",
+   "new": "    s = unicodedata.normalize(\"NFKC\", str(title))"
+  },
+  {
+   "name": "«не смотрели» выдаётся за «повторов нет» (инв. #17 наизнанку): None получает род MEASURED_ZERO",
+   "file": "spa_core/monitoring/owner_repeat_census.py",
+   "old": "    if groups is None:\n        return UNMEASURED\n    return REPEATED if groups else MEASURED_ZERO",
+   "new": "    if groups is None:\n        return MEASURED_ZERO\n    return REPEATED if groups else MEASURED_ZERO"
+  },
+  {
+   "name": "неразобранная дата подставляется НУЛЁМ суток — «владелец повторил всё сегодня» оправдывает простой, которого было десять суток",
+   "file": "spa_core/monitoring/owner_repeat_census.py",
+   "old": "            \"span_days\": (round((last - first).total_seconds() / 86400.0, 1)\n                          if first and last and len(parsed) >= 2 else None),",
+   "new": "            \"span_days\": (round((last - first).total_seconds() / 86400.0, 1)\n                          if first and last and len(parsed) >= 2 else 0.0),"
+  },
+  {
+   "name": "сведение двух копий очереди перестаёт быть fail-CLOSED: побеждает ПЕРВАЯ копия, а не громчайшая — повтор, видимый только на origin, исчезает",
+   "file": "spa_core/monitoring/owner_repeat_census.py",
+   "old": "        if cur is None or g[\"count\"] > cur[\"count\"]:",
+   "new": "        if cur is None:"
+  },
+  {
+   "name": "печать называет повтор СЛОВОМ без числа — читателю остаётся «есть повтор», а сколько раз и за сколько суток, он узнать не может",
+   "file": "spa_core/monitoring/owner_repeat_census.py",
+   "old": "        lines.append(f\"  - «{g['title']}» × {g['count']} ({span}, {age}{unparsed}) \"\n                     f\"[копия: {g['source']}]\")",
+   "new": "        lines.append(f\"  - «{g['title']}» (повтор) [копия: {g['source']}]\")"
+  },
+  {
+   "name": "эталон класса перестаёт различать сцены: сцена-одиночка получает тот же набор карточек, что и сцена с повтором, — проба приёмки подтверждала бы себя",
+   "file": "spa_core/monitoring/owner_repeat_census.py",
+   "old": "        single = repeated_requests([\n            _Card(\"a.md\", \"проверь дашборд\", \"new\", \"voice\", \"2026-10-15\"),",
+   "new": "        single = repeated_requests([\n            _Card(\"a.md\", \"проверь дашборд\", \"new\", \"voice\", \"2026-10-15\"),\n            _Card(\"a2.md\", \"проверь дашборд\", \"new\", \"voice\", \"2026-10-15\"),"
+  },
+  {
+   "name": "ось повтора не меняет ВЕРДИКТ шага 0a — обёртка его не увидит, и просьба владельца снова голодает на нуле",
+   "file": "scripts/check_owner_order_starvation.py",
+   "old": "    if findings or repeat_groups:\n        return _RC_FINDING",
+   "new": "    if findings:\n        return _RC_FINDING"
+  },
+  {
+   "name": "вызывающий, не знающий оси, получает НОЛЬ вместо третьего исхода: отчёт прежнего сторожа читался бы как «повторов нет»",
+   "file": "scripts/check_owner_order_starvation.py",
+   "old": "                 repeat_groups: list[dict] | None = None,\n                 repeats_unmeasured: str | None = None) -> dict:",
+   "new": "                 repeat_groups: list[dict] | None = [],\n                 repeats_unmeasured: str | None = None) -> dict:"
+  },
+  {
+   "name": "дайджест читает ОТСУТСТВИЕ ключа как ноль — владелец видит «повторов нет» там, где ось не измерена вовсе",
+   "file": "spa_core/analytics/telegram_daily_digest.py",
+   "old": "        if not isinstance(groups, list):\n            return [\"повтор просьбы владельца НЕ ИЗМЕРЕН: отчёт сторожа этой оси не \"\n                    \"несёт — это не «повторов нет»\"]",
+   "new": "        if not isinstance(groups, list):\n            return [\"повторов просьб владельца нет\"]"
+  },
+  {
+   "name": "заработанное освобождение носителя снова НЕ ЗАПИСЫВАЕТСЯ — сторож читает фронтматтер и законно сведённую карточку навсегда числит закрытой без критерия",
+   "file": "spa_core/owner_queue/queue.py",
+   "old": "        _carried_record = _carried_frontmatter_value(_resolved, repo_root=repo_root,\n                                                     declared=carried_to)",
+   "new": "        _carried_record = None"
+  },
+  {
+   "name": "запись освобождения уезжает АБСОЛЮТНЫМ путём worktree — на origin `/private/tmp/spa_cNNN/…` не значит ничего, и сторож освобождения не найдёт",
+   "file": "spa_core/owner_queue/queue.py",
+   "old": "    try:\n        return str(Path(resolved).resolve().relative_to(Path(root).resolve()))\n    except (ValueError, OSError):\n        return str(declared if declared is not None else resolved)",
+   "new": "    return str(resolved)"
+  }
+ ]
+}

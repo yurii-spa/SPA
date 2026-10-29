@@ -2,12 +2,15 @@
 trackerStatus:
   type: inbox
 title: Все пять голосовых заданий владельца — одна просьба, повторённая 5 раз за 10 дней, и шаг 0a её не видит
-status: new
+status: in-progress
 source: nimbalyst
 created: 2026-10-29
 priority: high
 finding_cycle: 976
 finding_adr: ADR-859
+acceptance_probe: owner_repeat_named_by_the_hunger_step
+status_trail:
+  - "2026-10-29T13:48:21.537400+00:00 new -> in-progress · queue.set_status · cycle-50334"
 ---
 
 ## Что случилось и почему это важно

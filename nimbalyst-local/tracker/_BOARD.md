@@ -2,9 +2,9 @@
 
 > Авто-генерится `scripts/build_tracker_board.py` из `nimbalyst-local/tracker/*.md`. НЕ править вручную — правь карточки. Источник правды — карточки, это индекс (bootstrap).
 >
-> Собрана: 2026-10-29T12:31:41Z · сверка с карточками: `python3 scripts/build_tracker_board.py --check` (сторож `spa_core/tests/test_tracker_board_matches_cards.py`).
+> Собрана: 2026-10-29T14:08:01Z · сверка с карточками: `python3 scripts/build_tracker_board.py --check` (сторож `spa_core/tests/test_tracker_board_matches_cards.py`).
 >
-> Сверено с `origin/main` (4e387eeaa).
+> Сверено с `origin/main` (44dad2378) · у **6** своя правка, кто новее — не измерено.
 >
 > Всего карточек: **1507** · ждёт владельца: **3** · занято сессиями: **14**.
 
@@ -439,6 +439,7 @@
 - Tier-C: 171 из 180 модулей не отвечают, 9 отвечающих — константы. Подключить или честно списать  ·  `inbox-tier-c-171-iz-180-modulei-ne-otvechayut.md` · 2026-08-06
 - Целостность трека SPA: подключить сторож, пересчёт из сырых входов, commit-reveal книги (перенос из earn-defi)  ·  `inbox-tselostnost-treka-spa-podklyuchit-storoz.md` · 2026-09-08
 - Цена класса «две сессии на одном предмете»: G38 п. 3 лежит остатком пятьдесят заказов  ·  `inbox-tsena-klassa-dve-sessii-na-odnom-predmet.md` · 2026-09-28
+- Все пять голосовых заданий владельца — одна просьба, повторённая 5 раз за 10 дней, и шаг 0a её не видит  ·  `inbox-vse-pyat-golosovyh-zadanii-vladeltsa-odn.md` · 2026-10-29
 ### · backlog
 - 23 работающих агента установщик не вернёт — флот не соберётся заново с одного хоста  ·  `agent-23-rabotayushih-agentov-ustanovshik-ne-vernet.md` · 2026-08-31
 - Контракт называет производителем агента, который не развёрнут — срок свежести невыполним по построению  ·  `agent-kontrakt-nazyvaet-proizvoditelem-nerazvernutogo-agenta.md` · 2026-08-31
@@ -745,6 +746,10 @@
 - Простой капитала снова НЕ объяснён: 10% при закрытой карточке «объяснён полностью» — нарушение действующего правила ADR-055  ·  `inbox-prostoi-kapitala-snova-ne-obyasnen-10-pr.md` · 2026-08-07
 - Провал доставки карточек некому повторить — и через два часа он сам станет зелёным  ·  `inbox-proval-dostavki-kartochek-nekomu-povtori.md` · 2026-08-12
 - Провенанс ответа выдавался за сам ответ: половина «нужен человек» была о канале и отметке, а не о решении  ·  `inbox-provenans-otveta-vydavalsya-za-sam-otvet.md` · 2026-08-30
+- проверь дашборд  ·  `inbox-prover-dashbord-3.md` · 2026-10-16
+- проверь дашборд  ·  `inbox-prover-dashbord-4.md` · 2026-10-16
+- проверь дашборд  ·  `inbox-prover-dashbord-5.md` · 2026-10-17
+- проверь дашборд  ·  `inbox-prover-dashbord-6.md` · 2026-10-24
 - проверь own-54 в _BOARD.md напрямую и пришли мне её с вариантами ответа  ·  `inbox-prover-own-54-v-board-md-napryamuyu-i-pr.md` · 2026-08-19
 - Проверь прям сейчас все ли ок  ·  `inbox-prover-pryam-seichas-vse-li-ok.md` · 2026-08-05
 - Проверь систему, сделай аудит, все ли ок?  ·  `inbox-prover-sistemu-sdelai-audit-vse-li-ok.md` · 2026-07-26
@@ -1133,10 +1138,6 @@
 - Проработать расширение whitelist для настоящих ~20% в Aggressive (advisory, владельцу на решение)  ·  `inbox-prorabotat-rasshirenie-whitelist-dlya-na.md` · 2026-08-23
 - Protection Lab фазы 6–8: AI-генератор параметров, перебор adversarial-комбинаций, страница сайта (owner-gated)  ·  `inbox-protection-lab-fazy-6-8-ai-generator-par.md` · 2026-08-22
 - проверь дашборд  ·  `inbox-prover-dashbord-2.md` · 2026-10-15
-- проверь дашборд  ·  `inbox-prover-dashbord-3.md` · 2026-10-16
-- проверь дашборд  ·  `inbox-prover-dashbord-4.md` · 2026-10-16
-- проверь дашборд  ·  `inbox-prover-dashbord-5.md` · 2026-10-17
-- проверь дашборд  ·  `inbox-prover-dashbord-6.md` · 2026-10-24
 - Проверить retro TEST 1 rates_desk на шумном ряду цен LST/ETH  ·  `inbox-proverit-retro-test-1-rates-desk-na-shum.md` · 2026-10-02
 - Проверка мандата автономии падает по 180-секундному сроку чужого шага, а не по коду  ·  `inbox-proverka-mandata-avtonomii-padaet-po-180.md` · 2026-10-11
 - Проверка схемы отчётов судит по дате файла — в свежей копии репозитория это монетка  ·  `inbox-proverka-shemy-otchetov-sudit-po-date-fa.md` · 2026-09-08
@@ -1242,7 +1243,6 @@
 - Восемнадцать ответов владельца 27.10: исполнителя не назвал никто  ·  `inbox-vosemnadtsat-otvetov-vladeltsa-27-10-isp.md` · 2026-10-28
 - Восемнадцать сторожей судят артефакты, которых конституция не знает — их пороги не способен проверить никто  ·  `inbox-vosemnadtsat-storozhei-sudyat-artefakty.md` · 2026-10-08
 - Воспроизводимость решения не спрошена у решателей двух третей капитала  ·  `inbox-vosproizvodimost-resheniya-ne-sproshena-u.md` · 2026-09-29
-- Все пять голосовых заданий владельца — одна просьба, повторённая 5 раз за 10 дней, и шаг 0a её не видит  ·  `inbox-vse-pyat-golosovyh-zadanii-vladeltsa-odn.md` · 2026-10-29
 - Вторая запись о деньгах, позванная как предписано — из своего worktree, — не видит ту самую дыру, ради которой написана  ·  `inbox-vtoraya-zapis-o-dengah-iz-worktree-ne-vi.md` · 2026-10-22
 - Вторая запись о деньгах из worktree печатает ЛОЖНУЮ дыру: журнал обрезан до 7 ходов из 34, а вывод выглядит находкой  ·  `inbox-vtoraya-zapis-o-dengah-iz-worktree-pecha.md` · 2026-09-28
 - Вторая запись о деньгах из worktree судит о ЗАМОРОЖЕННОМ каноне git, и код возврата тот же  ·  `inbox-vtoraya-zapis-o-dengah-iz-worktree-sudit.md` · 2026-10-24

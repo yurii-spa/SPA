@@ -297,6 +297,24 @@ def carried_release(carried_to: str | Path | None,
 
 
 
+def _carried_frontmatter_value(resolved, repo_root=None, declared=None) -> str:
+    """Как ЗАПИСАТЬ заработанное освобождение, чтобы его прочитал кто угодно и откуда угодно.
+
+    Система координат та же, в которой условие и судит (:func:`carried_release`) — корень
+    репозитория. Абсолютный путь worktree здесь записывать нельзя: карточка уезжает на
+    origin, а `/private/tmp/spa_cNNN/...` на другом дереве не значит ничего.
+
+    Относительным путь сделать не удалось (предмет вне репозитория — шов песочницы) ⇒
+    пишется ОБЪЯВЛЕННАЯ строка как есть: судить о ней будет тот же `carried_release`,
+    и потерять её молча хуже, чем записать в неудобной форме.
+    """
+    root = Path(repo_root) if repo_root is not None else _REPO_ROOT
+    try:
+        return str(Path(resolved).resolve().relative_to(Path(root).resolve()))
+    except (ValueError, OSError):
+        return str(declared if declared is not None else resolved)
+
+
 def _inbox_acceptance_baseline() -> set[str] | None:
     """Имена карточек, освобождённых от критерия по базе. `None` — база не прочиталась
     (это НЕ «пусто»: отказать тогда нельзя никому, и вызывающий обязан сказать это вслух)."""
@@ -723,6 +741,7 @@ def set_status(path: str | Path, new_status: str,
     # больше нет: прежняя считала путь от CWD и отказывала законному носителю всюду,
     # кроме корня репозитория.
     _carried_ok = False
+    _carried_record: str | None = None
     if carried_to is not None:
         # `repo_root` ВВОДИТСЯ вызывающим, а не берётся у окружения: приём заданий
         # (`owner_queue.intake`) кладёт заметку-идею в СВОЙ корень, и без этого шва
@@ -731,6 +750,8 @@ def set_status(path: str | Path, new_status: str,
         _carried_ok = _resolved is not None
         if not _carried_ok:
             raise AcceptanceCriterionMissing(f"{p.name}: {_why}")
+        _carried_record = _carried_frontmatter_value(_resolved, repo_root=repo_root,
+                                                     declared=carried_to)
     if (_tracker_type == "inbox" and new_status not in INTAKE_STATUSES
             and not _carried_ok and not has_acceptance_criterion(_fm)):
         _base = _inbox_acceptance_baseline()
@@ -788,6 +809,41 @@ def set_status(path: str | Path, new_status: str,
         # the last frontmatter entry, right before the closing '---'. Without this, a card
         # created with no status is invisible to every filter AND unfixable by this tool.
         lines.insert(end, f"status: {new_status}\n")
+
+    # ЗАРАБОТАННОЕ ОСВОБОЖДЕНИЕ ОБЯЗАНО ОСТАВИТЬ ЗАПИСЬ (ADR-860, цикл #977).
+    #
+    # До этой правки `carried_to` был ПАРАМЕТРОМ ВЫЗОВА и только им: условие
+    # (`carried_release`) проверялось здесь, освобождение выдавалось — и исчезало
+    # вместе с вызовом. Сторож же (`test_inbox_acceptance_ratchet.carried_home`)
+    # читает `carried_to:` во ФРОНТМАТТЕРЕ, то есть ЗАПИСЬ, которой никто не делал.
+    # Одна копия условия (ADR-501) была, а записи не было — и законно сведённый
+    # носитель навсегда оставался у сторожа «закрытым без критерия приёмки». Замер
+    # 29.10: четыре просьбы владельца, сведённые в якорную карточку этим же циклом,
+    # покраснели у храповика СРАЗУ, а среди десяти чужих красных того же прогона
+    # лежат носители того же вида (`inbox-kupit-zont-v-pyatnitsu-5/6`).
+    #
+    # Писать ПОСЛЕ разбора статуса и до следа: граница фронтматтера могла сдвинуться
+    # на вставленной строке `status:`, поэтому конец ищется заново, а не берётся из
+    # прежней переменной.
+    if _carried_record:
+        _fm_end = None
+        _seen = 0
+        for i, ln in enumerate(lines):
+            if ln.strip() == "---":
+                _seen += 1
+                if _seen == 2:
+                    _fm_end = i
+                    break
+        if _fm_end is not None:
+            _done = False
+            for i in range(0, _fm_end):
+                if (lines[i].strip().startswith("carried_to:")
+                        and not lines[i][:1].isspace()):
+                    lines[i] = f"carried_to: {_carried_record}\n"
+                    _done = True
+                    break
+            if not _done:
+                lines.insert(_fm_end, f"carried_to: {_carried_record}\n")
 
     # След перехода едет В САМОЙ карточке — решение владельца 2026-08-23, вариант 1
     # (ADR-129). Одной записью со статусом, а не двумя: журнал в `data/` в git не

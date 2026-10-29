@@ -311,7 +311,50 @@ class TelegramDailyDigest:
         if not findings and age_h is not None and age_h <= self.STARVATION_REPORT_MAX_AGE_H:
             lines.append(f"голодающих приказов нет (мерили {age_h:.0f}ч назад)")
 
+        lines.extend(self._starvation_repeat_lines(data))
         return DigestSection(title="Приказы владельца", emoji="⏳", lines=lines)
+
+    def _starvation_repeat_lines(self, data: dict) -> List[str]:
+        """Вторая ось отчёта: ОДНА просьба владельца, повторённая в непринятых карточках.
+
+        **Зачем в дайджесте (ADR-860, цикл #977).** Замер 29.10: все пять голосовых
+        заданий владельца были одной просьбой — «проверь дашборд», 15.10…24.10, десять
+        суток, ни один цикл не взял. Ось про `critical`-приказы её не видит по построению
+        (голосовое задание рождается без приоритета и без маркера приказа), а владелец
+        повторял — то есть повтор и был его способом сказать, что ничего не произошло.
+        Единственный канал, который переживает смерть сессии, — этот.
+
+        Три исхода РАЗНЫЕ (инв. #17): поля оси нет вовсе или причина названа ⇒ «НЕ
+        ИЗМЕРЕНО»; ноль групп ⇒ сказать, что мерили и чисто; группы есть ⇒ число групп,
+        число карточек и самая громкая просьба. Отсутствие ключа НЕ читается нулём: отчёт
+        мог написать прежний сторож, который этой оси не знал.
+        """
+        groups = data.get("repeat_groups")
+        why = data.get("repeats_unmeasured")
+        if not isinstance(groups, list):
+            return ["повтор просьбы владельца НЕ ИЗМЕРЕН: отчёт сторожа этой оси не "
+                    "несёт — это не «повторов нет»"]
+        out: List[str] = []
+        if why:
+            out.append(f"повтор просьбы владельца измерен НЕ ПОЛНОСТЬЮ: {why}")
+        if not groups:
+            if not why:
+                out.append("повторов просьб владельца нет")
+            return out
+        cards = sum(g.get("count") or 0 for g in groups if isinstance(g, dict))
+        out.append(f"🔁 владелец повторил одну просьбу: групп {len(groups)}, "
+                   f"карточек {cards} — первая не исполнена")
+        for g in groups:
+            if not isinstance(g, dict):
+                continue
+            span = g.get("span_days")
+            # Ноль суток («повторил всё сегодня») оправдывает простой, неразобранная
+            # дата — нет. Поэтому склеивать их в одну строку запрещено.
+            span_ru = (f"за {span:g} сут." if isinstance(span, (int, float))
+                       else "пролёт НЕ ИЗМЕРЕН")
+            out.append(f"   · «{g.get('title') or '(без заголовка)'}» × "
+                       f"{g.get('count')} ({span_ru})")
+        return out
 
     def _report_age_hours(self, generated_at) -> Optional[float]:
         """Возраст отметки в часах; None — отметка не разбирается (НЕ ИЗМЕРЕНО, не ноль).

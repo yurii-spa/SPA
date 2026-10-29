@@ -39,6 +39,16 @@
 Не «критично + не взято» вообще: сигнал узкий и по объявленному владельцем приказу, а не по
 любой critical-карточке (это отдельный, гораздо более шумный вопрос очерёдности приоритетов).
 
+**Вторая ось: ПОВТОР просьбы владельца (ADR-860, цикл #977).** Мерка выше спрашивает
+приоритет `critical` и маркер ``## УКАЗАНИЕ ВЛАДЕЛЬЦА``, поэтому голосовое задание её не
+касается ВОВСЕ: оно рождается без приоритета и без маркера, и его голод по этой мерке равен
+нулю, сколько бы раз владелец ни повторил. Замер 29.10 (цикл #976): из 37 карточек `new`
+**все пять** голосовых заданий владельца были одной просьбой — «проверь дашборд», 15.10 ·
+16.10 · 16.10 · 17.10 · 24.10, десять суток, ни один цикл не взял. Повтор и есть способ
+владельца сказать, что ничего не произошло, — сигнал СИЛЬНЕЕ одной `in-progress` карточки.
+Мера живёт одним модулем (`spa_core.monitoring.owner_repeat_census`), здесь её ВЫЗОВ: вторая
+копия порога разошлась бы с первой молча. Находка по ЛЮБОЙ из двух осей даёт код 3.
+
 **Как это встроено в протокол (docs/ORCHESTRATOR_PROTOCOL.md, шаг 0a-голод):** проверка
 идёт ДО шага 0a (подъём осиротевшей работы) и до разбора очереди — находка обязывает взять
 голодающую карточку первой, кроме случая активной аварии/стоп-крана (это решает сам цикл,
@@ -91,6 +101,7 @@ _REPO_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 if _REPO_ROOT not in sys.path:
     sys.path.insert(0, _REPO_ROOT)
 
+from spa_core.monitoring import owner_repeat_census as repeats
 from spa_core.owner_queue import origin_view
 from spa_core.owner_queue.queue import (TRACKER_DIR, Card, list_cards,
                                         load_card_text)
@@ -294,13 +305,31 @@ def _held_but_free(card: Card, claim_verdict) -> tuple[bool, str]:
     return False, ""
 
 
-def build_report(findings: list[dict], min_hours: float, now: datetime) -> dict:
-    """Отчёт для читателя, который в момент замера не работал (владелец через дайджест)."""
+def build_report(findings: list[dict], min_hours: float, now: datetime,
+                 repeat_groups: list[dict] | None = None,
+                 repeats_unmeasured: str | None = None) -> dict:
+    """Отчёт для читателя, который в момент замера не работал (владелец через дайджест).
+
+    ``repeat_groups`` — вторая ось вердикта (ADR-860): ОДНА и та же просьба владельца,
+    повторённая в непринятых карточках. Умолчание ``None`` означает «повтор НЕ ИЗМЕРЕН»,
+    а не «повторов нет»: вызывающий, который этой оси не знает (старый тест, старая
+    обёртка), обязан получить третий исход, а не успокоительный ноль (инв. #17).
+
+    ``repeats_unmeasured`` — названная причина, почему ось не измерена. Причина без
+    значения и значение без причины читаются одинаково плохо, поэтому поля два.
+    """
     return {
         "generated_at": now.isoformat(),
         "min_hours": min_hours,
         "starving_count": len(findings),
         "findings": findings,
+        # Число ГРУПП и число КАРТОЧЕК — разные величины: одна просьба, сказанная пять
+        # раз, и пять разных просьб по два раза — две разные аварии.
+        "repeated_groups": None if repeat_groups is None else len(repeat_groups),
+        "repeated_cards": (None if repeat_groups is None
+                           else sum(g["count"] for g in repeat_groups)),
+        "repeat_groups": repeat_groups,
+        "repeats_unmeasured": repeats_unmeasured,
     }
 
 
@@ -395,9 +424,21 @@ def merge_findings(tree: list[dict], ref: list[dict]) -> list[dict]:
     return merged
 
 
-def render(findings: list[dict], min_hours: float) -> str:
+def render(findings: list[dict], min_hours: float,
+           repeat_groups: list[dict] | None = None,
+           repeats_unmeasured: str | None = None,
+           show_repeats: bool = False) -> str:
+    """Вердикт словами. Две оси печатаются ОДНОЙ строкой-вердиктом, но не смешиваются.
+
+    ``show_repeats`` — печатать ли вторую ось вообще. Умолчание ``False`` сохраняет
+    прежний текст для вызывающих, которые об оси не знают; `main()` передаёт ``True``.
+    Ось, которой нет в печати, не обязана подразумеваться читателем.
+    """
+    repeat_text = (repeats.render(repeat_groups, unmeasured_reason=repeats_unmeasured)
+                   if show_repeats else "")
     if not findings:
-        return f"✅ голодающих critical-приказов владельца (>{min_hours:g}ч) не найдено"
+        head = f"✅ голодающих critical-приказов владельца (>{min_hours:g}ч) не найдено"
+        return f"{head}\n{repeat_text}" if repeat_text else head
     lines = [f"🚨 ГОЛОДАЮЩИЙ ПРИКАЗ ВЛАДЕЛЬЦА (critical, старше {min_hours:g}ч, "
              f"взять ПЕРВОЙ — до шага 0a, кроме активной аварии/стоп-крана):"]
     for f in findings:
@@ -414,6 +455,8 @@ def render(findings: list[dict], min_hours: float) -> str:
                       f"стоит {f['status']} уже {f['age_hours']:.1f}ч{tail}{where}")
         if f.get("held_check"):
             lines.append(f"      ↳ {f['held_check']}")
+    if repeat_text:
+        lines.append(repeat_text)
     return "\n".join(lines)
 
 
@@ -450,6 +493,13 @@ def main(argv=None) -> int:
     tree_findings = starving_owner_orders(cards, now=now, min_hours=args.min_hours,
                                           announce_path=announce,
                                           claim_verdict=claim_verdict, source="дерево")
+    # Вторая ось вердикта (ADR-860): ОДНА просьба владельца, повторённая в непринятых
+    # карточках. Старая мерка её не видит по построению — голосовое задание рождается
+    # без приоритета `critical` и без маркера приказа, поэтому его голод по ней равен
+    # нулю, сколько бы раз владелец ни повторил. Замер 29.10: пять «проверь дашборд»
+    # за десять суток при 37 карточках `new`.
+    tree_repeats = repeats.repeated_requests(cards, now=now, source="дерево")
+    ref_repeats: list[dict] = []
     ref_findings: list[dict] = []
     ref_error = None
     if args.ref:
@@ -461,12 +511,22 @@ def main(argv=None) -> int:
             ref_findings = starving_owner_orders(
                 ref_cards, now=now, min_hours=args.min_hours, announce_path=announce,
                 claim_verdict=claim_verdict, source=args.ref)
+            ref_repeats = repeats.repeated_requests(ref_cards, now=now, source=args.ref)
     findings = merge_findings(tree_findings, ref_findings)
+    repeat_groups = repeats.merge_groups(tree_repeats, ref_repeats)
+    # Половина оси может быть неизмерима, и это НЕ «повторов нет»: ответ по дереву
+    # верен про КАТАЛОГ, а просьба владельца живёт в очереди на origin.
+    repeats_unmeasured = (None if ref_error is None else
+                          f"очередь на `{args.ref}` не прочитана ({ref_error}) — "
+                          f"по дереву повторов {len(tree_repeats)}, про остальные "
+                          f"карточки не измерено ничего")
 
     if not args.no_write:
         # Пустой отчёт пишется наравне с находкой: по его свежести читатель отличает
         # «голода нет» от «измерять было некому» — без него тишина означала бы и то, и другое.
-        report = build_report(findings, args.min_hours, now)
+        report = build_report(findings, args.min_hours, now,
+                              repeat_groups=repeat_groups,
+                              repeats_unmeasured=repeats_unmeasured)
         report["ref"] = args.ref or None
         # Третий исход отдельным полем: «ref не прочитан» ≠ «на ref голода нет».
         report["ref_unmeasured"] = ref_error
@@ -482,11 +542,19 @@ def main(argv=None) -> int:
 
     if args.json:
         print(json.dumps({"min_hours": args.min_hours, "ref": args.ref or None,
-                          "ref_unmeasured": ref_error, "findings": findings},
+                          "ref_unmeasured": ref_error, "findings": findings,
+                          "repeated_groups": len(repeat_groups),
+                          "repeated_cards": sum(g["count"] for g in repeat_groups),
+                          "repeat_groups": repeat_groups,
+                          "repeats_unmeasured": repeats_unmeasured},
                           ensure_ascii=False, indent=2))
     else:
-        print(render(findings, args.min_hours))
-    if findings:
+        print(render(findings, args.min_hours, repeat_groups=repeat_groups,
+                     repeats_unmeasured=repeats_unmeasured, show_repeats=True))
+    # Находка по ЛЮБОЙ из двух осей — находка: повтор просьбы владельца есть голод под
+    # другим именем, и прятать его за кодом 0 значило бы вернуть ровно тот молчаливый
+    # ноль, которым десять суток держалась просьба «проверь дашборд».
+    if findings or repeat_groups:
         return _RC_FINDING
     # Голода не увидели — но если вторую копию очереди прочитать не удалось, «не найдено»
     # означает «не искали там, где приказ и живёт». Это не 0.

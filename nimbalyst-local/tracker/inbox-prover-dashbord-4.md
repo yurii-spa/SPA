@@ -2,10 +2,13 @@
 trackerStatus:
   type: inbox
 title: проверь дашборд
-status: new
+status: done
 source: voice
 created: 2026-10-16
 intake_seen: 2026-10-16T23:14:33Z
+carried_to: nimbalyst-local/tracker/inbox-prover-dashbord-2.md
+status_trail:
+  - "2026-10-29T13:59:42.275905+00:00 new -> done · queue.set_status · cycle-50334"
 ---
 
 ## Задание (из Telegram)

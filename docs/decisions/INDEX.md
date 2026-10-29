@@ -726,6 +726,7 @@
 | ADR-856 | ADR-856 — Население класса ADR-851 измерено, и у замера есть ось, честный ответ которой «НЕ ИЗМЕРЕНО» | Accepted | [ADR-856](ADR-856-the-population-of-the-additive-forward-reader-class.md) |
 | ADR-858 | ADR-858 — Сторож сказал, а читатель превратил ответ в шум: число свободного места не доезжало до файловой поверхности сессии | Accepted | [ADR-858](ADR-858-the-guard-said-it-and-the-reader-made-it-noise.md) |
 | ADR-859 | ADR-859 — Жадный спред есть НИЖНЯЯ ГРАНИЦА, и приз ограниченного поиска ИЗМЕРЕН | Accepted | [ADR-859](ADR-859-the-greedy-spread-is-a-lower-bound.md) |
+| ADR-860 | ADR-860 — Владелец повторил просьбу шесть раз, и шаг 0a её не видел; у заработанного освобождения носителя появилась ЗАПИСЬ | Accepted | [ADR-860](ADR-860-the-owner-repeated-the-request-and-the-hunger-step-did-not-see-it.md) |
 
 ## Соглашения
 
