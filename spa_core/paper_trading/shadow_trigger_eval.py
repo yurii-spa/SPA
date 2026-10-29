@@ -1063,6 +1063,23 @@ def evaluate_window(
     # СДЕЛАЛ. Прибор без читателя сирота (ADR-843), поэтому у живого урезания
     # есть перепись, и её печатают оба читателя артефакта.
     live_trim = live_trim_census(_window_history)
+    # Пятый вопрос, и опять НЕ тот же: четыре блока выше спрашивают про РАЗМЕР
+    # урезанного хода и про его цену, этот — про его ФОРМУ. ADR-853 вывел из
+    # механизма («газ за ногу, а число ног с k не падает»), что урезание с
+    # МЕНЬШИМ числом ног дешевле при том же размере, и честно оставил это
+    # РАССУЖДЕНИЕМ. Здесь оно становится замером, и население у него другое по
+    # построению: урезаемым является любое записанное предложение выше потолка,
+    # а не только то, до которого дошла живая проводка (там население — ОДНА
+    # запись). ADVISORY: допустимость книги подмножества НЕ утверждается.
+    from spa_core.paper_trading.admissible_trim import _chain_map
+    from spa_core.paper_trading.trim_shape import trim_shape_census
+
+    _chains_for_shape, _chains_measured = _chain_map(data_dir)
+    trim_shape = trim_shape_census(
+        _window_history,
+        params=TriggerParams.for_mode("paper"),
+        chains=_chains_for_shape,
+        chains_measured=_chains_measured)
 
     doc = {
         "generated_at": None,  # filled below; kept out of the hash-relevant zone
@@ -1101,6 +1118,11 @@ def evaluate_window(
         # днях. Не критерий и не гейт; отвечает на вопрос, которого у трёх
         # блоков выше нет вовсе — работает ли проводка в проде.
         "live_trim_census": live_trim,
+        # Форма урезания (ADR-854). Не критерий и не гейт: `ready_to_arm`
+        # считается ровно по мандату владельца и этим блоком не меняется.
+        # Отвечает на вопрос, которого у четырёх блоков выше нет вовсе —
+        # стоит ли формы урезания РАЗЛИЧАТЬ, и на каком населении это измерено.
+        "trim_shape_census": trim_shape,
         "params": {
             "horizon_days": horizon_days,
             "min_observation_days": min_days,
@@ -1275,6 +1297,12 @@ def format_summary(doc: dict) -> str:
     # ADR-853: «чего это стоило» — отдельный вопрос с отдельными исходами
     # (шаг мог сработать, а цена остаться неизмеренной), поэтому и печать своя.
     lines.extend(format_live_trim_cost(doc.get("live_trim_census")))
+    # ADR-854: «стоит ли формы различать» — третий вопрос с третьими исходами
+    # (цена живого трима может быть не записана, а формы при этом сравнены на
+    # всей истории), поэтому и печать своя.
+    from spa_core.paper_trading.trim_shape import format_trim_shape
+
+    lines.extend(format_trim_shape(doc.get("trim_shape_census")))
     lines.append("Включение — отдельное owner-решение (pre_cutover_gate + ADR); "
                  "этот отчёт капитал не двигает.")
     return "\n".join(lines)

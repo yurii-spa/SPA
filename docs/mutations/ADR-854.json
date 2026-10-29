@@ -1,0 +1,146 @@
+{
+ "title": "ADR-854 (цикл #972) — ФОРМА урезания имеет свою цену: перепись пропорциональной интерполяции против подмножества, упорядоченного по спреду, на ВСЕЙ истории предложений (население 102 против ОДНОЙ записи у ADR-853)",
+ "tests": [
+  "spa_core/tests/test_trim_shape.py"
+ ],
+ "mutations": [
+  {
+   "name": "цена подмножества считается СВОЕЙ формулой, а не моделью цикла (две копии модели спорят молча)",
+   "file": "spa_core/paper_trading/trim_shape.py",
+   "old": "        cost_s = _move_cost_usd(legs_s, turnover_s, chains) if legs_s else 0.0",
+   "new": "        cost_s = turnover_s * 0.0001 if legs_s else 0.0"
+  },
+  {
+   "name": "формы получают РАЗНЫЕ карты сетей — дельта перестаёт быть про форму",
+   "file": "spa_core/paper_trading/trim_shape.py",
+   "old": "        cost_s = _move_cost_usd(legs_s, turnover_s, chains) if legs_s else 0.0\n",
+   "new": "        cost_s = _move_cost_usd(legs_s, turnover_s, {}) if legs_s else 0.0\n"
+  },
+  {
+   "name": "спред не упорядочивает ноги — выбор перестаёт «считать ноги» и становится произвольным",
+   "file": "spa_core/paper_trading/trim_shape.py",
+   "old": "    inc.sort(key=lambda row: -float((apy_pct or {}).get(row[0], 0.0) or 0.0))\n    dec.sort(key=lambda row: float((apy_pct or {}).get(row[0], 0.0) or 0.0))",
+   "new": "    pass"
+  },
+  {
+   "name": "забираем с ЛУЧШЕЙ ставки вместо худшей — знак спреда перевёрнут",
+   "file": "spa_core/paper_trading/trim_shape.py",
+   "old": "    dec.sort(key=lambda row: float((apy_pct or {}).get(row[0], 0.0) or 0.0))",
+   "new": "    dec.sort(key=lambda row: -float((apy_pct or {}).get(row[0], 0.0) or 0.0))"
+  },
+  {
+   "name": "условие сравнения снято: подмножество разворачивает кэш, которого соседка не разворачивала",
+   "file": "spa_core/paper_trading/trim_shape.py",
+   "old": "        moved = min(cap, cap_inc, cap_dec + net)\n        buy, sell = moved, moved - net",
+   "new": "        moved = min(cap, cap_inc, cap_dec)\n        buy, sell = moved, moved"
+  },
+  {
+   "name": "потолок размера выпал из выбора — форма сравнивается с ходом ДРУГОГО размера",
+   "file": "spa_core/paper_trading/trim_shape.py",
+   "old": "        moved = min(cap, cap_inc, cap_dec + net)",
+   "new": "        moved = min(cap_inc, cap_dec + net)"
+  },
+  {
+   "name": "нога берётся ЦЕЛИКОМ бюджетом — книга выходит за предложение (угол бокса нарушен)",
+   "file": "spa_core/paper_trading/trim_shape.py",
+   "old": "            take = min(room, left)",
+   "new": "            take = left"
+  },
+  {
+   "name": "окупаемость без выигрыша объявлена нулём — «окупается мгновенно» вместо третьего исхода",
+   "file": "spa_core/paper_trading/trim_shape.py",
+   "old": "    if gain_pp is None or gain_pp <= _EPS or capital_usd <= _EPS:\n        return None",
+   "new": "    if gain_pp is None or gain_pp <= _EPS or capital_usd <= _EPS:\n        return 0.0"
+  },
+  {
+   "name": "отсутствие блока в артефакте объявлено измеренной переписью (fail-OPEN, урок ADR-851 наизнанку)",
+   "file": "spa_core/paper_trading/trim_shape.py",
+   "old": "    if not isinstance(census, dict) or not census:\n        return CENSUS_UNMEASURED, (\"блока переписи форм в артефакте нет",
+   "new": "    if not isinstance(census, dict) or not census:\n        return CENSUS_MEASURED, (\"блока переписи форм в артефакте нет"
+  },
+  {
+   "name": "неразобранный исход переписи сходит за измеренный",
+   "file": "spa_core/paper_trading/trim_shape.py",
+   "old": "    return CENSUS_UNMEASURED, f\"исход переписи форм не разобран ({kind!r})\"",
+   "new": "    return CENSUS_MEASURED, f\"исход переписи форм не разобран ({kind!r})\""
+  },
+  {
+   "name": "пустая история объявлена ЗАМЕРОМ нуля — «не измерено» выдано за наблюдение",
+   "file": "spa_core/paper_trading/trim_shape.py",
+   "old": "        return {\"kind\": (CENSUS_MEASURED_ZERO if outcomes else CENSUS_UNMEASURED),",
+   "new": "        return {\"kind\": CENSUS_MEASURED_ZERO,"
+  },
+  {
+   "name": "предложение внутри потолка признано предметом — форма появляется там, где урезания нет",
+   "file": "spa_core/paper_trading/trim_shape.py",
+   "old": "    if turnover_full <= admissible + 0.01:\n        out.update({\"kind\": SHAPE_NO_SUBJECT,",
+   "new": "    if False:\n        out.update({\"kind\": SHAPE_NO_SUBJECT,"
+  },
+  {
+   "name": "незаписанный капитал дня не останавливает замер — цена считается от нуля",
+   "file": "spa_core/paper_trading/trim_shape.py",
+   "old": "    if capital <= _EPS:\n        out.update({\"kind\": SHAPE_UNMEASURED,\n                    \"why\": \"капитал дня не записан",
+   "new": "    if False:\n        out.update({\"kind\": SHAPE_UNMEASURED,\n                    \"why\": \"капитал дня не записан"
+  },
+  {
+   "name": "окупаемость, не определённая у одной формы, зачтена в сравнимые",
+   "file": "spa_core/paper_trading/trim_shape.py",
+   "old": "    pb_one_side = len(rows) - len(both_pb)",
+   "new": "    pb_one_side = 0"
+  },
+  {
+   "name": "счётчик превышений потолка исчез из переписи — «измерено и равно нулю» становится неотличимо от «не измерено»",
+   "file": "spa_core/paper_trading/trim_shape.py",
+   "old": "                     \"larger\": turnover_larger, \"over_cap\": turnover_over_cap},",
+   "new": "                     \"larger\": turnover_larger},"
+  },
+  {
+   "name": "горизонт гейта взят литералом вместо двери порогов",
+   "file": "spa_core/paper_trading/trim_shape.py",
+   "old": "    horizon = float(getattr(params, \"max_payback_days\", 0.0) or 0.0)",
+   "new": "    horizon = 30.0"
+  },
+  {
+   "name": "медиана подменена последней строкой — число снова становится ОДНИМ",
+   "file": "spa_core/paper_trading/trim_shape.py",
+   "old": "    ordered = sorted(values)\n    mid = len(ordered) // 2",
+   "new": "    ordered = list(values)\n    mid = len(ordered) - 1"
+  },
+  {
+   "name": "печать неизмеренной переписи печатает числа — исход теряется в оформлении",
+   "file": "spa_core/paper_trading/trim_shape.py",
+   "old": "    if kind != CENSUS_MEASURED:\n        return [head, f\"  [{kind}] {why}\"]",
+   "new": "    if kind != CENSUS_MEASURED:\n        return [head, f\"  [{kind}] {why}\", \"  население 0 предложени(й)\"]"
+  },
+  {
+   "name": "перепись не доезжает до артефакта — прибор становится сиротой (ADR-843)",
+   "file": "spa_core/paper_trading/shadow_trigger_eval.py",
+   "old": "        \"trim_shape_census\": trim_shape,",
+   "new": "        \"trim_shape_census_UNWIRED\": trim_shape,"
+  },
+  {
+   "name": "печать формы снята из сводки — у артефакта остаётся читатель, у человека нет",
+   "file": "spa_core/paper_trading/shadow_trigger_eval.py",
+   "old": "    lines.extend(format_trim_shape(doc.get(\"trim_shape_census\")))",
+   "new": "    pass"
+  },
+  {
+   "name": "предложение берётся из УРЕЗАННОЙ книги — единственная запись с живым урезанием читается как «урезать нечего»",
+   "file": "spa_core/paper_trading/trim_shape.py",
+   "old": "    trim = rec.get(\"admissible_trim\")\n    if isinstance(trim, dict):",
+   "new": "    trim = rec.get(\"admissible_trim\")\n    if False:"
+  },
+  {
+   "name": "отсутствие цели выдано за пустое предложение — третий исход исчезает из оси источника",
+   "file": "spa_core/paper_trading/trim_shape.py",
+   "old": "    return {}, PROPOSAL_ABSENT",
+   "new": "    return {}, PROPOSAL_FROM_TARGET"
+  },
+  {
+   "name": "ось источника предложения не доезжает до переписи — читатель не узнает, ЧТО сравнивали",
+   "file": "spa_core/paper_trading/trim_shape.py",
+   "old": "        \"proposal_sources\": sources,\n        \"population\": len(rows),",
+   "new": "        \"population\": len(rows),"
+  }
+ ]
+}

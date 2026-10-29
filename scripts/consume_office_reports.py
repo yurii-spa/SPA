@@ -5324,6 +5324,8 @@ def _summarize_json(path: str, data, *, now: dt.datetime | None = None,
                 format_live_trim_cost,
             )
 
+            from spa_core.paper_trading.trim_shape import format_trim_shape
+
             blockade_lines = (
                 format_blockade(data.get("arming_blockade"))
                 + format_trial_reach(data.get("trial_grant_reach"))
@@ -5336,7 +5338,13 @@ def _summarize_json(path: str, data, *, now: dt.datetime | None = None,
                 # цена ОДНОГО И ТОГО ЖЕ предложения до и после трима. До неё
                 # «ход только МЕНЬШЕ ⇒ консервативнее» было верно по РИСКУ и
                 # НЕ ИЗМЕРЕНО по ОКУПАЕМОСТИ.
-                + format_live_trim_cost(data.get("live_trim_census")))
+                + format_live_trim_cost(data.get("live_trim_census"))
+                # ADR-854: шестая строка отвечает «стоит ли формы РАЗЛИЧАТЬ» —
+                # пропорциональная интерполяция против подмножества при одном
+                # потолке и одном движении кэша. Население здесь другое по
+                # построению: любое записанное предложение выше потолка, а не
+                # только то, до которого дошла живая проводка.
+                + format_trim_shape(data.get("trim_shape_census")))
         except Exception as exc:  # noqa: BLE001
             # Тот же приём, что у кнопок ниже: обязательный шаг 0-офис не имеет
             # права упасть из-за строчки оформления — упавший шаг это НЕ
