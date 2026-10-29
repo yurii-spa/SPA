@@ -2,11 +2,11 @@
 
 > Авто-генерится `scripts/build_tracker_board.py` из `nimbalyst-local/tracker/*.md`. НЕ править вручную — правь карточки. Источник правды — карточки, это индекс (bootstrap).
 >
-> Собрана: 2026-10-29T21:27:21Z · сверка с карточками: `python3 scripts/build_tracker_board.py --check` (сторож `spa_core/tests/test_tracker_board_matches_cards.py`).
+> Собрана: 2026-10-29T21:34:28Z · сверка с карточками: `python3 scripts/build_tracker_board.py --check` (сторож `spa_core/tests/test_tracker_board_matches_cards.py`).
 >
-> Сверено с `origin/main` (2f8006a98) · у **1** своя правка, кто новее — не измерено.
+> Сверено с `origin/main` (786e1988d).
 >
-> Всего карточек: **1512** · ждёт владельца: **3** · занято сессиями: **14**.
+> Всего карточек: **1515** · ждёт владельца: **3** · занято сессиями: **14**.
 
 ## 🔴 ЖДЁТ ВЛАДЕЛЬЦА (needs-owner)
 
@@ -416,7 +416,7 @@
 ### · closed
 - Считать ли верный отказ по правилам допуска неисправностью флота  ·  `owner-decision-schitat-li-vernyi-otkaz-po-pravilam-dopu.md` · 2026-10-08
 
-## 📥 Inbox (задания: Telegram / заметки / голос)  (836)
+## 📥 Inbox (задания: Telegram / заметки / голос)  (839)
 
 ### · in-progress
 - а задача починить все-таки еще раз сообщение которым не пишет нужно твое решени…  ·  `inbox-a-zadacha-pochinit-vse-taki-esche-raz-so.md` · 2026-08-14 · 🔒 `pid43119`
@@ -751,6 +751,7 @@
 - проверь дашборд  ·  `inbox-prover-dashbord-5.md` · 2026-10-17
 - проверь дашборд  ·  `inbox-prover-dashbord-6.md` · 2026-10-24
 - проверь дашборд  ·  `inbox-prover-dashbord-7.md` · 2026-10-29
+- проверь дашборд  ·  `inbox-prover-dashbord-8.md` · 2026-10-29
 - проверь own-54 в _BOARD.md напрямую и пришли мне её с вариантами ответа  ·  `inbox-prover-own-54-v-board-md-napryamuyu-i-pr.md` · 2026-08-19
 - Проверь прям сейчас все ли ок  ·  `inbox-prover-pryam-seichas-vse-li-ok.md` · 2026-08-05
 - Проверь систему, сделай аудит, все ли ок?  ·  `inbox-prover-sistemu-sdelai-audit-vse-li-ok.md` · 2026-07-26
@@ -1149,6 +1150,7 @@
 - Проводка приборов переписи не проверяется: мост может перестать запускать прибор молча  ·  `inbox-provodka-priborov-perepisi-ne-proveryaet.md` · 2026-09-10
 - Пульт UX-02 · A: аудит и словарь интерфейса  ·  `inbox-pult-ux-02-a-audit-i-slovar-interfeisa.md` · 2026-10-09
 - Пять спящих процессов притворяются прогоном тестов — любой pgrep по имени pytest врёт сутки  ·  `inbox-pyat-spyaschih-protsessov-pritvoryayutsy.md` · 2026-09-23
+- Пятьдесят пять закрытых просьб владельца не несут ответа ничем — три объяснения сегодня неотличимы  ·  `inbox-pyatdesyat-pyat-zakrytyh-prosb-vladeltsa.md` · 2026-10-29
 - Работа мёртвого цикла лежит недоставленной, и это неотличимо от «цикл ещё ждёт замер»  ·  `inbox-rabota-mertvogo-tsikla-lezhit-nedostavle.md` · 2026-10-04
 - Работа мёртвой сессии cycle-4362 (ADR-857, доставка карточек) не на origin — поднять из дерева или патча  ·  `inbox-rabota-mertvoi-sessii-cycle-4362-adr-857.md` · 2026-10-29
 - Работа уезжает в ветвь rescue/* на origin и не доходит до main — пять циклов подряд, и ни один сторож об этом не сказал  ·  `inbox-rabota-uezzhaet-v-vetv-rescue-na-origin.md` · 2026-09-27
@@ -1232,6 +1234,7 @@
 - Тяжёлый прогон из необъявленного дерева занимает слот допуска, и заказчика назвать нечем  ·  `inbox-tyazhelyi-progon-iz-neobyavlennogo-derev.md` · 2026-10-07
 - У AST-сторожа инварианта №3 нет своей ступени: артефакт есть, наблюдения за ним нет  ·  `inbox-u-ast-storozha-invarianta-3-net-svoei-st.md` · 2026-10-07
 - У фразы «незамеренную половину прогона меряет CI» нет читателя: вердикта полного набора нет с 21 октября  ·  `inbox-u-frazy-nezamerennuyu-polovinu-progona-m.md` · 2026-10-23
+- У исходящих приёма нет квитанции доставки: «отдали каналу» не означает «владелец прочитал»  ·  `inbox-u-ishodyaschih-priema-net-kvitantsii-dos.md` · 2026-10-29
 - У шага 0-офис нет памяти: число CRITICAL выросло с 85 до 87, и какие две — не измерено  ·  `inbox-u-shaga-0-ofis-net-pamyati-chislo-critic.md` · 2026-10-15
 - У журналов агентов в /tmp нет предела размера — один снова вырос до 2,3 ГБ  ·  `inbox-u-zhurnalov-agentov-v-tmp-net-predela-ra.md` · 2026-10-08
 - Убитый прогон переписи оставляет МУТАНТ чужого модуля в рабочем дереве: форсированный исходник пишется сквозь символическую ссылку  ·  `inbox-ubityi-progon-perepisi-ostavlyaet-mutant.md` · 2026-10-09
