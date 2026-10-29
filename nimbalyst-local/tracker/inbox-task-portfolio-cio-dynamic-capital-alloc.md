@@ -8,12 +8,12 @@ created: 2026-08-13
 priority: critical
 status_trail:
   - "2026-08-26T22:31:36.748790+00:00 new -> in-progress · queue.set_status · cycle-96657"
-claimed_by: cycle-63557
-claimed_at: 2026-10-28T23:58:58Z
-claimed_run_id: orchestrator-63557-6D32652F27CE4FD5980B85F2CE64E65E
-claimed_pid: 63557
-claimed_pid_start: Thu Oct 29 00:49:37 2026
-claim_takeover_reason: шаг 0a-голод назвал карточку голодающей (critical, in-progress 1631.8 ч, мимо 855 циклов); прошлый захватчик cycle-20752 мёртв, его работа (#971, ADR-853) ЕСТЬ на origin/main a78c38f56. Поднимать нечего. Предмет взят из заказа G853 п. 1: утверждение ADR-853 «меньше ног ⇒ дешевле» было РАССУЖДЕНИЕМ при населении ОДНА запись — цикл #972 делает его замером (ADR-854, 103 предложения / 66 дат), money-path не трогает
+claimed_by: cycle-11180
+claimed_at: 2026-10-29T02:03:43Z
+claimed_run_id: orchestrator-11180-DBC9EBE2BBFF49D09CCF7EAA0F5E58AB
+claimed_pid: 11180
+claimed_pid_start: Thu Oct 29 02:54:14 2026
+claim_takeover_reason: шаг 0a-голод назвал карточку голодающей (critical, in-progress 1633.9 ч, мимо 856 циклов); прошлый захватчик cycle-63557 мёртв, его работа (#972, ADR-854) ЕСТЬ на origin/main 4abc0c2c2. Поднимать нечего. Предмет взят из заказа G854 п. 1 (а): ADR-854 измерил РАЗМЕР ПРИЗА формы и сам назвал, что ДОПУСТИМОСТЬ книги подмножества не спрашивали — цикл #973 спрашивает её у RiskPolicy (ADR-855), money-path не трогает
 ---
 
 ## УКАЗАНИЕ ВЛАДЕЛЬЦА 2026-08-22 (cloud-сессия): ЗАПУСТИТЬ СЛЕДУЮЩИМ ЦИКЛОМ

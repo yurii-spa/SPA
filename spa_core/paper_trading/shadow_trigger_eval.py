@@ -1080,6 +1080,25 @@ def evaluate_window(
         params=TriggerParams.for_mode("paper"),
         chains=_chains_for_shape,
         chains_measured=_chains_measured)
+    # Шестой вопрос, и он НЕ тот же: пять блоков выше спрашивают, что было бы и
+    # чего бы это стоило, а этот — ПУСТИТ ЛИ полученную книгу риск-политика.
+    # ADR-854 измерил размер приза формы «подмножество» и сам назвал, что
+    # допустимость её книги не спрашивали; ADR-850 привёл контрпример (потолок
+    # на ГРУППУ угол бокса не сохраняет) и честно оставил его рассуждением.
+    # Здесь он становится замером. ADVISORY: спрошена дверь КНИГИ
+    # (`check_portfolio_health`), живая дверь дня на истории невоспроизводима —
+    # снимка адаптеров запись не несёт, и это НАЗВАНО, а не умолчано.
+    from spa_core.paper_trading.trim_admissibility import (
+        tier_map, trim_admissibility_census)
+
+    _tiers_for_shape, _tiers_measured = tier_map(data_dir)
+    trim_admissibility = trim_admissibility_census(
+        _window_history,
+        params=TriggerParams.for_mode("paper"),
+        tiers=_tiers_for_shape,
+        tiers_measured=_tiers_measured,
+        chains=_chains_for_shape,
+        chains_measured=_chains_measured)
 
     doc = {
         "generated_at": None,  # filled below; kept out of the hash-relevant zone
@@ -1123,6 +1142,7 @@ def evaluate_window(
         # Отвечает на вопрос, которого у четырёх блоков выше нет вовсе —
         # стоит ли формы урезания РАЗЛИЧАТЬ, и на каком населении это измерено.
         "trim_shape_census": trim_shape,
+        "trim_admissibility_census": trim_admissibility,
         "params": {
             "horizon_days": horizon_days,
             "min_observation_days": min_days,
@@ -1303,6 +1323,13 @@ def format_summary(doc: dict) -> str:
     from spa_core.paper_trading.trim_shape import format_trim_shape
 
     lines.extend(format_trim_shape(doc.get("trim_shape_census")))
+    # ADR-855: «пустит ли книгу формы политика» — четвёртый вопрос с четвёртыми
+    # исходами (формы могут быть сравнены, а реестр тиров не прочитан, и
+    # наоборот), поэтому и печать своя.
+    from spa_core.paper_trading.trim_admissibility import (
+        format_trim_admissibility)
+
+    lines.extend(format_trim_admissibility(doc.get("trim_admissibility_census")))
     lines.append("Включение — отдельное owner-решение (pre_cutover_gate + ADR); "
                  "этот отчёт капитал не двигает.")
     return "\n".join(lines)

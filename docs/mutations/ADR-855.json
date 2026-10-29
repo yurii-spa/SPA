@@ -1,0 +1,135 @@
+{
+ "title": "ADR-855 (цикл #973) — допустимость книги формы урезания СПРОШЕНА у RiskPolicy: перепись вердиктов двери КНИГИ на 103 предложениях (приз ADR-854 на живом дне 28.10 равен нулю — книгу подмножества отказывает потолок на ГРУППУ T2)",
+ "tests": [
+  "spa_core/tests/test_trim_admissibility.py",
+  "spa_core/tests/test_trim_shape.py"
+ ],
+ "mutations": [
+  {
+   "name": "неизвестный тир подменяется вторым — ровно дефект, снятый ADR-359 (сомнение в пользу сделки)",
+   "file": "spa_core/paper_trading/trim_admissibility.py",
+   "old": "        tier = (tiers or {}).get(str(proto))\n        if tier is None:\n            unknown.append(str(proto))\n            continue",
+   "new": "        tier = (tiers or {}).get(str(proto)) or \"T2\""
+  },
+  {
+   "name": "разбор тира — своя копия вместо канона tier_from_registry (T3 становится T2, строка \"T1\" — не первым)",
+   "file": "spa_core/paper_trading/trim_admissibility.py",
+   "old": "        tier = tier_from_registry(entry.get(\"tier\"))\n        if tier is not None:",
+   "new": "        tier = \"T1\" if entry.get(\"tier\") == 1 else \"T2\"\n        if tier is not None:"
+  },
+  {
+   "name": "карта сетей не доходит до двери — потолок на сеть и суммарный L2 судятся по подстановке",
+   "file": "spa_core/paper_trading/trim_admissibility.py",
+   "old": "            chain=str((chains or {}).get(str(proto)) or \"ethereum\")))",
+   "new": "            chain=\"ethereum\"))"
+  },
+  {
+   "name": "вердикт не спрашивается вовсе — книга объявляется допустимой",
+   "file": "spa_core/paper_trading/trim_admissibility.py",
+   "old": "    result = RiskPolicy().check_portfolio_health(state)",
+   "new": "    from spa_core.risk.policy import RiskCheckResult\n    result = RiskCheckResult(approved=True, check_name=\"portfolio_health\")"
+  },
+  {
+   "name": "потолок числа профинансированных позиций — литерал рядом с дверью вместо объекта политики",
+   "file": "spa_core/paper_trading/trim_admissibility.py",
+   "old": "        return int(RiskPolicy().config.max_protocols)",
+   "new": "        return 8"
+  },
+  {
+   "name": "потолок не прочитан ⇒ НОЛЬ вместо «не измерено» (ноль читается как «превышений нет»)",
+   "file": "spa_core/paper_trading/trim_admissibility.py",
+   "old": "        log.warning(\"max_protocols не прочитан (%s) — потолок НЕ ИЗМЕРЕН\", exc)\n        return None",
+   "new": "        log.warning(\"max_protocols не прочитан (%s) — потолок НЕ ИЗМЕРЕН\", exc)\n        return 0"
+  },
+  {
+   "name": "наследство мерится по ОДНОМУ концу — нарушение предложения вменяется форме",
+   "file": "spa_core/paper_trading/trim_admissibility.py",
+   "old": "    ends = {violation_key(v) for v in verdicts[\"standing\"][\"violations\"]}\n    ends |= {violation_key(v) for v in verdicts[\"proposal\"][\"violations\"]}",
+   "new": "    ends = {violation_key(v) for v in verdicts[\"standing\"][\"violations\"]}"
+  },
+  {
+   "name": "наследство мерится ТЕКСТОМ нарушения — процент внутри строки делает его «новым»",
+   "file": "spa_core/paper_trading/trim_admissibility.py",
+   "old": "def violation_key(text: str) -> Tuple[str, str]:",
+   "new": "def violation_key(text: str) -> Tuple[str, str]:\n    return (\"text\", str(text or \"\"))"
+  },
+  {
+   "name": "предмет нарушения теряет имя протокола — два разных протокола сливаются в один ключ",
+   "file": "spa_core/paper_trading/trim_admissibility.py",
+   "old": "        subject = tail.split(\" at \", 1)[0].strip()",
+   "new": "        subject = \"\""
+  },
+  {
+   "name": "неопознанный текст теряет себя как предмет — два разных нарушения сливаются молча",
+   "file": "spa_core/paper_trading/trim_admissibility.py",
+   "old": "    else:\n        return RULE_OTHER, s",
+   "new": "    else:\n        return RULE_OTHER, \"\""
+  },
+  {
+   "name": "приз «на допустимой части» считается по ВСЕМ сравнимым — отказанная книга снова даёт число",
+   "file": "spa_core/paper_trading/trim_admissibility.py",
+   "old": "    adm_subset = [r for r in comparable if _ok(r, \"subset\")]",
+   "new": "    adm_subset = list(comparable)"
+  },
+  {
+   "name": "реестр не прочитан ⇒ перепись идёт дальше, как будто ярлыки есть",
+   "file": "spa_core/paper_trading/trim_admissibility.py",
+   "old": "    if not tiers_measured:\n        return {\"kind\": CENSUS_UNMEASURED,",
+   "new": "    if False:\n        return {\"kind\": CENSUS_UNMEASURED,"
+  },
+  {
+   "name": "пустая история объявляется ЗАМЕРОМ нуля вместо «не измерено»",
+   "file": "spa_core/paper_trading/trim_admissibility.py",
+   "old": "        return {\"kind\": (CENSUS_MEASURED_ZERO if outcomes else CENSUS_UNMEASURED),",
+   "new": "        return {\"kind\": CENSUS_MEASURED_ZERO,"
+  },
+  {
+   "name": "отсутствие блока в артефакте читается как ЗАМЕР (урок ADR-851 забыт)",
+   "file": "spa_core/paper_trading/trim_admissibility.py",
+   "old": "    if not isinstance(census, dict) or not census:\n        return CENSUS_UNMEASURED, (\"блока допустимости форм в артефакте нет — \"",
+   "new": "    if False:\n        return CENSUS_UNMEASURED, (\"блока допустимости форм в артефакте нет — \""
+  },
+  {
+   "name": "неразобранный исход переписи сходит за измеренный",
+   "file": "spa_core/paper_trading/trim_admissibility.py",
+   "old": "    return CENSUS_UNMEASURED, f\"исход переписи допустимости не разобран ({kind!r})\"",
+   "new": "    return CENSUS_MEASURED, f\"исход переписи допустимости не разобран ({kind!r})\""
+  },
+  {
+   "name": "горизонт гейта — литерал 30 вместо двери параметров",
+   "file": "spa_core/paper_trading/trim_admissibility.py",
+   "old": "    horizon = float(getattr(params, \"max_payback_days\", 0.0) or 0.0)",
+   "new": "    horizon = 30.0"
+  },
+  {
+   "name": "книга подмножества берётся не у двери форм, а у интерполяции — сравнивать становится нечего",
+   "file": "spa_core/paper_trading/trim_admissibility.py",
+   "old": "             \"subset\": shapes[\"book_subset\"]}",
+   "new": "             \"subset\": shapes[\"book_interpolated\"]}"
+  },
+  {
+   "name": "«формы-соседки не существует» выдаётся за измеренную допустимость",
+   "file": "spa_core/paper_trading/trim_admissibility.py",
+   "old": "    if kind == SHAPE_NO_ALTERNATIVE:\n        return {\"kind\": ADM_NO_ALTERNATIVE, \"why\": shapes.get(\"why\")}",
+   "new": "    if kind == SHAPE_NO_ALTERNATIVE:\n        return {\"kind\": ADM_MEASURED, \"why\": shapes.get(\"why\")}"
+  },
+  {
+   "name": "дверь форм строит книгу по ОКРУГЛЁННОМУ k — ровно дефект, из-за которого население было 102 вместо 103",
+   "file": "spa_core/paper_trading/trim_shape.py",
+   "old": "    k = admissible / turnover_full\n    net_k = k * (sum(tgt.values()) - sum(cur.values()))\n    out.update({\"k\": k, \"net_cash_usd\": net_k})",
+   "new": "    k = round(admissible / turnover_full, 2)\n    net_k = k * (sum(tgt.values()) - sum(cur.values()))\n    out.update({\"k\": k, \"net_cash_usd\": net_k})"
+  },
+  {
+   "name": "дверь форм отдаёт книгу целиком вместо точки отрезка — урезания нет",
+   "file": "spa_core/paper_trading/trim_shape.py",
+   "old": "        out[\"book_interpolated\"] = _interpolate(cur, tgt, k)",
+   "new": "        out[\"book_interpolated\"] = _interpolate(cur, tgt, 1.0)"
+  },
+  {
+   "name": "потолок размера у двери форм выпал — предложение внутри потолка перестаёт быть «вне предмета»",
+   "file": "spa_core/paper_trading/trim_shape.py",
+   "old": "    if turnover_full <= admissible + 0.01:\n        out.update({\"kind\": SHAPE_NO_SUBJECT,",
+   "new": "    if False:\n        out.update({\"kind\": SHAPE_NO_SUBJECT,"
+  }
+ ]
+}

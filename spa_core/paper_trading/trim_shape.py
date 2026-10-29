@@ -218,6 +218,82 @@ def _book_apy_pp(book: Dict[str, float], apy_pct: Dict[str, float],
                for p, v in (book or {}).items())
 
 
+def shapes_of_proposal(current: Dict[str, float],
+                       target: Dict[str, float],
+                       apy_pct: Dict[str, float],
+                       *,
+                       capital_usd: float,
+                       params) -> dict:
+    """Две КНИГИ одного урезания и его НЕОКРУГЛЁННЫЕ входы — одна дверь (ADR-855).
+
+    Вынесено из ``compare_trim_shapes`` без изменения смысла, чтобы соседний
+    вопрос — «допустима ли книга формы» (``trim_admissibility``) — брал ТУ ЖЕ
+    книгу, а не воспроизводил её по напечатанным числам. Напечатанное ``k``
+    округлено до шести знаков, и книга, восстановленная по нему, ОТЛИЧАЕТСЯ:
+    замер #973 на живой истории дал 102 предложения против 103, то есть одна
+    запись молча уходила в «формы-соседки не существует». Своя копия вывода
+    книги спорила бы с этой дверью ровно так же, как своя копия определения
+    оборота спорит с ``_legs``.
+
+    Возврат — запись с ``kind`` из того же словаря исходов (четыре значения
+    выше): ``SHAPE_MEASURED`` ⇒ обе книги есть · ``SHAPE_NO_ALTERNATIVE`` ⇒
+    книга интерполяции есть, книги подмножества не существует · остальные два —
+    предмета нет либо мерить было нечем. Причина НАЗЫВАЕТСЯ всегда.
+    """
+    from spa_core.allocator.rebalance_economics import _legs
+    from spa_core.paper_trading.admissible_size import admissible_turnover_usd
+    from spa_core.paper_trading.admissible_trim import _interpolate
+
+    out: dict = {}
+    try:
+        capital = float(capital_usd or 0.0)
+    except (TypeError, ValueError):
+        capital = 0.0
+    if capital <= _EPS:
+        out.update({"kind": SHAPE_UNMEASURED,
+                    "why": "капитал дня не записан — ни цену, ни выигрыш считать не от чего"})
+        return out
+    cur = {str(p): float(v or 0.0) for p, v in (current or {}).items()}
+    tgt = {str(p): float(v or 0.0) for p, v in (target or {}).items()}
+    mlf = float(params.min_leg_frac)
+    out.update({"capital_usd": capital, "current": cur, "proposal": tgt,
+                "min_leg_frac": mlf})
+    try:
+        admissible = float(admissible_turnover_usd(capital, params))
+        _, turnover_full = _legs(cur, tgt, capital, mlf)
+    except Exception as exc:  # noqa: BLE001 — дверь не ответила ⇒ третий исход
+        out.update({"kind": SHAPE_UNMEASURED,
+                    "why": f"дверь оборота не ответила ({type(exc).__name__})"})
+        return out
+    out.update({"admissible_usd": admissible, "turnover_full_usd": turnover_full})
+    if turnover_full <= _EPS:
+        out.update({"kind": SHAPE_NO_SUBJECT,
+                    "why": "материального хода нет — формы сравнивать не на чем"})
+        return out
+    if turnover_full <= admissible + 0.01:
+        out.update({"kind": SHAPE_NO_SUBJECT,
+                    "why": ("предложение уже внутри потолка размера — урезания нет, "
+                            "и формы у него нет тоже")})
+        return out
+
+    k = admissible / turnover_full
+    net_k = k * (sum(tgt.values()) - sum(cur.values()))
+    out.update({"k": k, "net_cash_usd": net_k})
+    try:
+        out["book_interpolated"] = _interpolate(cur, tgt, k)
+    except Exception as exc:  # noqa: BLE001
+        out.update({"kind": SHAPE_UNMEASURED,
+                    "why": f"форма интерполяции не посчитана ({type(exc).__name__})"})
+        return out
+    book_subset, why = subset_trim(cur, tgt, apy_pct or {},
+                                   admissible_usd=admissible, net_cash_usd=net_k)
+    if book_subset is None:
+        out.update({"kind": SHAPE_NO_ALTERNATIVE, "why": why})
+        return out
+    out.update({"kind": SHAPE_MEASURED, "book_subset": book_subset})
+    return out
+
+
 def compare_trim_shapes(current: Dict[str, float],
                         target: Dict[str, float],
                         apy_pct: Dict[str, float],
@@ -231,47 +307,34 @@ def compare_trim_shapes(current: Dict[str, float],
     Возврат — запись с полем ``kind`` из четырёх значений выше. Прибор ничего
     не судит и ни одного порога не применяет: он называет цену, выигрыш, число
     ног и окупаемость у каждой формы.
+
+    Сами книги строит дверь ``shapes_of_proposal`` (ADR-855) — здесь остаётся
+    только ЭКОНОМИКА форм; так соседний вопрос о допустимости судит ровно ту
+    книгу, которую посчитала эта функция.
     """
     from spa_core.allocator.rebalance_economics import _legs, _move_cost_usd
-    from spa_core.paper_trading.admissible_size import admissible_turnover_usd
-    from spa_core.paper_trading.admissible_trim import _interpolate
 
     out: dict = {"chains_measured": bool(chains_measured)}
-    try:
-        capital = float(capital_usd or 0.0)
-    except (TypeError, ValueError):
-        capital = 0.0
-    if capital <= _EPS:
-        out.update({"kind": SHAPE_UNMEASURED,
-                    "why": "капитал дня не записан — ни цену, ни выигрыш считать не от чего"})
-        return out
-    cur = {str(p): float(v or 0.0) for p, v in (current or {}).items()}
-    tgt = {str(p): float(v or 0.0) for p, v in (target or {}).items()}
-    mlf = float(params.min_leg_frac)
-    try:
-        admissible = float(admissible_turnover_usd(capital, params))
-        legs_full, turnover_full = _legs(cur, tgt, capital, mlf)
-    except Exception as exc:  # noqa: BLE001 — дверь не ответила ⇒ третий исход
-        out.update({"kind": SHAPE_UNMEASURED,
-                    "why": f"дверь оборота не ответила ({type(exc).__name__})"})
-        return out
-    out["admissible_usd"] = round(admissible, 2)
-    out["turnover_full_usd"] = round(turnover_full, 2)
-    if turnover_full <= _EPS:
-        out.update({"kind": SHAPE_NO_SUBJECT,
-                    "why": "материального хода нет — формы сравнивать не на чем"})
-        return out
-    if turnover_full <= admissible + 0.01:
-        out.update({"kind": SHAPE_NO_SUBJECT,
-                    "why": ("предложение уже внутри потолка размера — урезания нет, "
-                            "и формы у него нет тоже")})
+    shapes = shapes_of_proposal(current, target, apy_pct,
+                                capital_usd=capital_usd, params=params)
+    kind = str(shapes.get("kind"))
+    if "admissible_usd" in shapes:
+        out["admissible_usd"] = round(float(shapes["admissible_usd"]), 2)
+        out["turnover_full_usd"] = round(float(shapes["turnover_full_usd"]), 2)
+    if "k" in shapes:
+        out["k"] = round(float(shapes["k"]), 6)
+    if kind in (SHAPE_UNMEASURED, SHAPE_NO_SUBJECT):
+        out.update({"kind": kind, "why": shapes.get("why")})
         return out
 
-    k = admissible / turnover_full
-    net_k = k * (sum(tgt.values()) - sum(cur.values()))
-    out["k"] = round(k, 6)
+    capital = float(shapes["capital_usd"])
+    cur = shapes["current"]
+    tgt = shapes["proposal"]
+    mlf = float(shapes["min_leg_frac"])
+    admissible = float(shapes["admissible_usd"])
+    turnover_full = float(shapes["turnover_full_usd"])
+    book_interp = shapes["book_interpolated"]
     try:
-        book_interp = _interpolate(cur, tgt, k)
         legs_i, turnover_i = _legs(cur, book_interp, capital, mlf)
         cost_i = _move_cost_usd(legs_i, turnover_i, chains) if legs_i else 0.0
     except Exception as exc:  # noqa: BLE001
@@ -279,14 +342,13 @@ def compare_trim_shapes(current: Dict[str, float],
                     "why": f"форма интерполяции не посчитана ({type(exc).__name__})"})
         return out
 
-    book_subset, why = subset_trim(cur, tgt, apy_pct or {},
-                                   admissible_usd=admissible, net_cash_usd=net_k)
-    if book_subset is None:
-        out.update({"kind": SHAPE_NO_ALTERNATIVE, "why": why,
+    if kind == SHAPE_NO_ALTERNATIVE:
+        out.update({"kind": SHAPE_NO_ALTERNATIVE, "why": shapes.get("why"),
                     "interpolated": {"legs": len(legs_i),
                                      "turnover_usd": round(turnover_i, 2),
                                      "cost_usd": round(cost_i, 2)}})
         return out
+    book_subset = shapes["book_subset"]
     try:
         legs_s, turnover_s = _legs(cur, book_subset, capital, mlf)
         cost_s = _move_cost_usd(legs_s, turnover_s, chains) if legs_s else 0.0

@@ -101,10 +101,18 @@ _READ_SCHEMA: dict[str, tuple[str, ...]] = {
                                     "owner_answer_delivery", "censuses"),
     "loop_retro.json": ("findings", "outcomes_completeness"),
     # Перечень вымерен ПО ВЕТКЕ выжимки, а не по файлу: у артефакта
-    # четырнадцать верхних ключей, читается семь.
+    # семнадцать верхних ключей, читается десять.
+    # ADR-855 (цикл #973): три блока урезания ЧИТАЛИСЬ и не были объявлены —
+    # `live_trim_census` с #969 (ADR-850), `trim_shape_census` с #972 (ADR-854),
+    # `trim_admissibility_census` появился сейчас. Необъявленный блок молча
+    # становится `None` в строке, которую читает оркестратор, и тревоги
+    # «СХЕМА РАЗОШЛАСЬ» по нему нет. База храповика при этом НЕ дописана —
+    # класс уменьшился на три (инв. #16).
     "shadow_trigger_evaluation.json": ("status", "ready_to_arm", "observation_days",
                                       "counts.act", "criteria", "arming_blockade",
-                                      "trial_grant_reach", "admissible_size_reach"),
+                                      "trial_grant_reach", "admissible_size_reach",
+                                      "live_trim_census", "trim_shape_census",
+                                      "trim_admissibility_census"),
     # ADR-526, заказ G86 п. 4. `fails` объявлен вместе с `n_fails` намеренно:
     # число без перечня не говорит, ЧТО именно расходится, а перечень без числа
     # не отличает «нашли ноль» от «поле не пишется».
@@ -5326,6 +5334,10 @@ def _summarize_json(path: str, data, *, now: dt.datetime | None = None,
 
             from spa_core.paper_trading.trim_shape import format_trim_shape
 
+            from spa_core.paper_trading.trim_admissibility import (
+                format_trim_admissibility,
+            )
+
             blockade_lines = (
                 format_blockade(data.get("arming_blockade"))
                 + format_trial_reach(data.get("trial_grant_reach"))
@@ -5344,7 +5356,13 @@ def _summarize_json(path: str, data, *, now: dt.datetime | None = None,
                 # потолке и одном движении кэша. Население здесь другое по
                 # построению: любое записанное предложение выше потолка, а не
                 # только то, до которого дошла живая проводка.
-                + format_trim_shape(data.get("trim_shape_census")))
+                + format_trim_shape(data.get("trim_shape_census"))
+                # ADR-855: седьмая строка отвечает «пустит ли книгу формы
+                # риск-политика». Без неё приз шестой строки читается как
+                # разрешение его взять, а на живом дне 28.10 книга лучшей
+                # формы отказана потолком на ГРУППУ T2.
+                + format_trim_admissibility(
+                    data.get("trim_admissibility_census")))
         except Exception as exc:  # noqa: BLE001
             # Тот же приём, что у кнопок ниже: обязательный шаг 0-офис не имеет
             # права упасть из-за строчки оформления — упавший шаг это НЕ
