@@ -2,11 +2,11 @@
 
 > Авто-генерится `scripts/build_tracker_board.py` из `nimbalyst-local/tracker/*.md`. НЕ править вручную — правь карточки. Источник правды — карточки, это индекс (bootstrap).
 >
-> Собрана: 2026-10-29T14:08:01Z · сверка с карточками: `python3 scripts/build_tracker_board.py --check` (сторож `spa_core/tests/test_tracker_board_matches_cards.py`).
+> Собрана: 2026-10-29T14:18:48Z · сверка с карточками: `python3 scripts/build_tracker_board.py --check` (сторож `spa_core/tests/test_tracker_board_matches_cards.py`).
 >
-> Сверено с `origin/main` (44dad2378) · у **6** своя правка, кто новее — не измерено.
+> Сверено с `origin/main` (2f84723a5) · у **1** своя правка, кто новее — не измерено.
 >
-> Всего карточек: **1507** · ждёт владельца: **3** · занято сессиями: **14**.
+> Всего карточек: **1509** · ждёт владельца: **3** · занято сессиями: **14**.
 
 ## 🔴 ЖДЁТ ВЛАДЕЛЬЦА (needs-owner)
 
@@ -416,7 +416,7 @@
 ### · closed
 - Считать ли верный отказ по правилам допуска неисправностью флота  ·  `owner-decision-schitat-li-vernyi-otkaz-po-pravilam-dopu.md` · 2026-10-08
 
-## 📥 Inbox (задания: Telegram / заметки / голос)  (831)
+## 📥 Inbox (задания: Telegram / заметки / голос)  (833)
 
 ### · in-progress
 - а задача починить все-таки еще раз сообщение которым не пишет нужно твое решени…  ·  `inbox-a-zadacha-pochinit-vse-taki-esche-raz-so.md` · 2026-08-14 · 🔒 `pid43119`
@@ -439,7 +439,6 @@
 - Tier-C: 171 из 180 модулей не отвечают, 9 отвечающих — константы. Подключить или честно списать  ·  `inbox-tier-c-171-iz-180-modulei-ne-otvechayut.md` · 2026-08-06
 - Целостность трека SPA: подключить сторож, пересчёт из сырых входов, commit-reveal книги (перенос из earn-defi)  ·  `inbox-tselostnost-treka-spa-podklyuchit-storoz.md` · 2026-09-08
 - Цена класса «две сессии на одном предмете»: G38 п. 3 лежит остатком пятьдесят заказов  ·  `inbox-tsena-klassa-dve-sessii-na-odnom-predmet.md` · 2026-09-28
-- Все пять голосовых заданий владельца — одна просьба, повторённая 5 раз за 10 дней, и шаг 0a её не видит  ·  `inbox-vse-pyat-golosovyh-zadanii-vladeltsa-odn.md` · 2026-10-29
 ### · backlog
 - 23 работающих агента установщик не вернёт — флот не соберётся заново с одного хоста  ·  `agent-23-rabotayushih-agentov-ustanovshik-ne-vernet.md` · 2026-08-31
 - Контракт называет производителем агента, который не развёрнут — срок свежести невыполним по построению  ·  `agent-kontrakt-nazyvaet-proizvoditelem-nerazvernutogo-agenta.md` · 2026-08-31
@@ -750,6 +749,7 @@
 - проверь дашборд  ·  `inbox-prover-dashbord-4.md` · 2026-10-16
 - проверь дашборд  ·  `inbox-prover-dashbord-5.md` · 2026-10-17
 - проверь дашборд  ·  `inbox-prover-dashbord-6.md` · 2026-10-24
+- проверь дашборд  ·  `inbox-prover-dashbord-7.md` · 2026-10-29
 - проверь own-54 в _BOARD.md напрямую и пришли мне её с вариантами ответа  ·  `inbox-prover-own-54-v-board-md-napryamuyu-i-pr.md` · 2026-08-19
 - Проверь прям сейчас все ли ок  ·  `inbox-prover-pryam-seichas-vse-li-ok.md` · 2026-08-05
 - Проверь систему, сделай аудит, все ли ок?  ·  `inbox-prover-sistemu-sdelai-audit-vse-li-ok.md` · 2026-07-26
@@ -888,6 +888,7 @@
 - Восемь карточек всё ещё ждут владельца БЕЗ КНОПОК — разобрать остаток  ·  `inbox-vosem-kartochek-vse-esche-zhdut-vladelts.md` · 2026-08-10
 - Восемь вопросов владельцу живут только на origin — отправитель считает очередь по ПРОД-дереву и не видел их ни разу  ·  `inbox-vosem-voprosov-vladeltsu-zhivut-tolko-na.md` · 2026-08-21
 - Вот обе задачи, оформленные подробно и по отдельности — в стиле карточек проект…  ·  `inbox-vot-obe-zadachi-oformlennye-podrobno-i-p.md` · 2026-08-05
+- Все пять голосовых заданий владельца — одна просьба, повторённая 5 раз за 10 дней, и шаг 0a её не видит  ·  `inbox-vse-pyat-golosovyh-zadanii-vladeltsa-odn.md` · 2026-10-29
 - Вторая ветка с решением и карточками владельца: unreadable-description-ltyucb — измерить, жива ли, и разобрать  ·  `inbox-vtoraya-vetka-s-resheniem-i-kartochkami.md` · 2026-08-20
 - Второй артефакт несёт литералы TVL там, где наблюдение уже есть (47 % книги)  ·  `inbox-vtoroi-artefakt-neset-literaly-tvl-tam-g.md` · 2026-09-12
 - Второй исследовательский агент считает охваченным то, что оркестратор ОПРОСИЛ: 8 имён вместо 36, и пустой список платит +15 баллов дублям  ·  `inbox-vtoroi-issledovatelskii-agent-schitaet-o.md` · 2026-08-17
@@ -1081,6 +1082,7 @@
 - Отбор лучших восьми протоколов не бережёт T1-якорь: два хороших кандидата вместе ухудшают книгу  ·  `inbox-otbor-luchshih-vosmi-protokolov-ne-berez.md` · 2026-08-29
 - Отчёт объявлен мерой критерия приёмки, которого владелец не писал  ·  `inbox-otchet-obyavlen-meroi-kriteriya-priemki.md` · 2026-09-29
 - Отсутствие оценки TVL публикуется НУЛЁМ у 4 записей — инв. #17 на вложенном пути  ·  `inbox-otsutstvie-otsenki-tvl-publikuetsya-nule.md` · 2026-10-12
+- Ответ на голосовое задание владельца не имеет канала к нему: просьбу «проверь дашборд» он повторил СЕДЬМОЙ раз во время цикла, который на неё отвечал  ·  `inbox-otvet-na-golosovoe-zadanie-vladeltsa-ne.md` · 2026-10-29
 - Paper-модули #39 CDR и #36 dwell обязаны логировать концентрацию и duty — иначе форвард будет неатрибутируем  ·  `inbox-paper-moduli-39-cdr-i-36-dwell-obyazany.md` · 2026-08-08
 - Печать ступени переписей убивает третий исход прибора: 78 жёстких индексов по counts  ·  `inbox-pechat-stupeni-perepisei-ubivaet-tretii.md` · 2026-09-11
 - Перечень видов ленты research_factory не имеет читателя и расходится с самой лентой в обе стороны  ·  `inbox-perechen-vidov-lenty-research-factory-ne.md` · 2026-10-24
