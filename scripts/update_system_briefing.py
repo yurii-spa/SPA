@@ -264,6 +264,154 @@ def resilience_header_cell(resil: dict) -> str:
         f" ({n_notes} note{'s' if n_notes != 1 else ''})" if n_notes else "")
 
 
+# ── Ресурсы машины: число свободного места (ADR-858) ──────────────────────────
+#: Бюджет свежести здесь СВОЙ и назван: вопрос «число ещё про сейчас?» — не тот
+#: же вопрос, что «файл свежий по контракту продюсера» (урок B3, цикл #348).
+#: Такт `com.spa.resource_guard` — 0.5 ч, бюджет взят с запасом в три такта.
+RESOURCE_STALE_H = 1.5
+RESOURCE_UNMEASURED = "NOT_MEASURED"
+_RESOURCE_ICON = {"OK": "✅", "WARN": "⚠️", "CRITICAL": "🔴",
+                  RESOURCE_UNMEASURED: "❓"}
+
+
+def resource_state(d: dict, *, now: "datetime | None" = None) -> dict:
+    """Разбор `data/resource_health.json` — ТРИ исхода, и третий ЗНАЧЕНИЕМ (инв. #17).
+
+    Почему эта функция вообще есть (ADR-858, замер 2026-10-29). `resource_guard`
+    отработал БЕЗУПРЕЧНО: каждые пять минут мерил и выходил кодом 2 (CRITICAL),
+    называя ЧИСЛО — «disk 4.8 GB free», потом 4.4, 3.4, 2.6 — и запушил владельцу
+    (`push_state.resource_critical.entry_pushed=true`). До ФАЙЛОВОЙ поверхности,
+    которую `CLAUDE.md` §1 предписывает читать КАЖДОЙ сессии, число не доехало ни
+    одним байтом: брифинг печатал `⚠️ com.spa.resource_guard — last_exit=2`,
+    форму, НЕОТЛИЧИМУЮ от `com.spa.site_freshness — last_exit=1`. Сессия видела
+    `Portfolio ✅`, `Resilience ✅ OK` и два одинаковых предупреждения — и не могла
+    узнать, что машине осталось 2.6 ГБ и около 28 минут до отказа записи.
+
+    Это НЕ «сторож молчал». Это «сторож сказал, а читатель превратил ответ в шум»:
+    код выхода 2 есть ВЕРДИКТ агента, а сводка агентского здоровья читает его как
+    «агент нездоров». Величины в ней нет вовсе, поэтому отличить «агент сломался»
+    от «агент докладывает аварию» по ней нельзя ни в одну сторону.
+
+    Порог ЗДЕСЬ НЕ ВЫЧИСЛЯЕТСЯ. Вердикт (`disk.state`) и пороги берутся у
+    производителя как есть: пересчитать их тут значило бы завести ВТОРОЕ место для
+    порога, и расхождение двух мест было бы вопросом времени (ровно урок
+    `.claude/rules/site-numbers.md`). Отсюда и третий исход: вердикта в документе
+    нет ⇒ `NOT_MEASURED`, а не «посчитаем сами».
+
+    Отсутствие числа НИКОГДА не подставляется нулём: `free_gb` нет ⇒ исход
+    `NOT_MEASURED` с названной причиной. Ноль здесь означал бы «диск полон», то
+    есть аварию, противоположную по смыслу молчанию прибора.
+    """
+    now = now or datetime.now(timezone.utc)
+    if not d:
+        return {"measured": False, "state": RESOURCE_UNMEASURED,
+                "reason": "data/resource_health.json не прочитан (нет файла "
+                          "либо не разобран)"}
+    disk = d.get("disk")
+    if not isinstance(disk, dict):
+        return {"measured": False, "state": RESOURCE_UNMEASURED,
+                "reason": "в resource_health.json нет блока `disk`"}
+    free_gb = disk.get("free_gb")
+    if not isinstance(free_gb, (int, float)) or isinstance(free_gb, bool):
+        return {"measured": False, "state": RESOURCE_UNMEASURED,
+                "reason": "`disk.free_gb` не опубликован — отсутствие числа "
+                          "НЕ подставляется нулём (инв. #17)"}
+    verdict = disk.get("state")
+    if not isinstance(verdict, str) or not verdict:
+        return {"measured": False, "state": RESOURCE_UNMEASURED,
+                "free_gb": float(free_gb),
+                "reason": "`disk.state` не опубликован — вердикт берётся у "
+                          "производителя, а не пересчитывается здесь"}
+
+    age_h = None
+    ts = d.get("generated_at")
+    if isinstance(ts, str) and ts:
+        try:
+            parsed = datetime.fromisoformat(ts.replace("Z", "+00:00"))
+            if parsed.tzinfo is None:
+                parsed = parsed.replace(tzinfo=timezone.utc)
+            age_h = max(0.0, (now - parsed).total_seconds() / 3600.0)
+        except ValueError:
+            age_h = None
+
+    mem = d.get("memory") if isinstance(d.get("memory"), dict) else {}
+    swap = mem.get("swap") if isinstance(mem.get("swap"), dict) else {}
+    return {
+        "measured": True,
+        "state": verdict,
+        "free_gb": float(free_gb),
+        "total_gb": disk.get("total_gb"),
+        "warn_free_gb": disk.get("warn_free_gb"),
+        "critical_free_gb": disk.get("critical_free_gb"),
+        "mem_state": mem.get("state"),
+        "swap_used_pct": swap.get("used_pct"),
+        "age_h": age_h,
+        # Возраст НЕ ИЗМЕРЕН — это тоже не «свежо»: отметки нет либо не разобрана.
+        "stale": (True if age_h is None else age_h > RESOURCE_STALE_H),
+        "stale_reason": ("отметка `generated_at` отсутствует или не разобрана"
+                         if age_h is None else None),
+        "reason": None,
+    }
+
+
+def resource_header_cell(st: dict) -> str:
+    """Заголовочная ячейка. ОДИН источник значка с детальной секцией — ровно по
+    образцу `resilience_header_cell` (урок F9/#197: две поверхности с двумя
+    копиями карты расходятся, и расхождение находят не там, где оно живёт)."""
+    icon = _RESOURCE_ICON.get(st["state"], "❓")
+    if not st.get("measured"):
+        return f"{icon} НЕ ИЗМЕРЕНО — {st['reason']}"
+    free = f"{st['free_gb']:.1f} ГБ свободно"
+    if st.get("stale"):
+        why = (st.get("stale_reason")
+               or f"замеру {st['age_h']:.1f}ч > {RESOURCE_STALE_H:g}ч")
+        return f"{icon} {st['state']} · последнее известное {free} ({why})"
+    return f"{icon} {st['state']} · {free}"
+
+
+def build_resource_section() -> str:
+    """Секция «есть ли куда писать». Печатает ЧИСЛО, а не только род вердикта."""
+    st = resource_state(read_json("resource_health.json"))
+    lines = ["## 💽 Ресурсы машины (диск · память · swap)"]
+    if not st.get("measured"):
+        lines += [f"**❓ НЕ ИЗМЕРЕНО** — {st['reason']}.",
+                  "",
+                  "«Не измерено» здесь НИКОГДА не означает «есть куда писать»: "
+                  "производитель — `com.spa.resource_guard` (такт 0.5 ч, "
+                  "`data/resource_health.json`), и его молчание само есть находка.",
+                  ""]
+        return "\n".join(lines)
+
+    icon = _RESOURCE_ICON.get(st["state"], "❓")
+    free_txt = f"**{st['free_gb']:.1f} ГБ**"
+    if isinstance(st.get("total_gb"), (int, float)):
+        free_txt += f" из {st['total_gb']:.1f} ГБ"
+    age_txt = (f"  ·  замеру {st['age_h']:.1f}ч"
+               if st.get("age_h") is not None else "")
+    lines.append(f"{icon} **диск: {st['state']}** — свободно {free_txt}{age_txt}")
+    if st.get("critical_free_gb") is not None or st.get("warn_free_gb") is not None:
+        lines.append(f"- пороги производителя: WARN < {st.get('warn_free_gb')} ГБ"
+                     f"  ·  CRITICAL < {st.get('critical_free_gb')} ГБ "
+                     f"(живут в `architecture/resource_policy.json`, здесь НЕ "
+                     f"пересчитываются — второе место для порога запрещено)")
+    if st.get("mem_state") or st.get("swap_used_pct") is not None:
+        swap_txt = (f"  ·  swap занят {st['swap_used_pct']:.1f} %"
+                    if isinstance(st.get("swap_used_pct"), (int, float)) else "")
+        lines.append(f"- память: {st.get('mem_state') or 'НЕ ИЗМЕРЕНО'}{swap_txt}")
+    if st.get("stale"):
+        why = (st.get("stale_reason")
+               or f"возраст {st['age_h']:.1f}ч > {RESOURCE_STALE_H:g}ч")
+        lines.append(f"- ⚠️ число — ПОСЛЕДНЕЕ ИЗВЕСТНОЕ, не «сейчас»: {why}")
+    if st["state"] == "CRITICAL":
+        lines.append("- 🔴 код выхода `com.spa.resource_guard` = 2 есть его ВЕРДИКТ, "
+                     "а не его поломка. В сводке агентского здоровья он выглядит "
+                     "как `last_exit=2` — форма, неотличимая от рядового "
+                     "предупреждения (ADR-858): отличить «агент сломался» от "
+                     "«агент докладывает аварию» можно только ЗДЕСЬ, по числу.")
+    lines.append("")
+    return "\n".join(lines)
+
+
 def build_golive_section() -> str:
     """Per-scope readiness (ADR-580 §C3) — NOT a single verdict.
 
@@ -1280,6 +1428,11 @@ def main() -> None:
     # than its ward is its echo, and two surfaces with two sources are worse still).
     track_cell = track_integrity_cell(track_integrity_state(read_json("cycle_health.json")))
 
+    # Ресурсы: ЧИСЛО свободного места в сводке (ADR-858). Одна функция на ячейку
+    # и на секцию — чтобы две поверхности не могли разойтись (урок F9/#197).
+    resource_cell = resource_header_cell(
+        resource_state(read_json("resource_health.json")))
+
     _investment_icon = _SCOPE_ICON.get(_investment["status"], "❓")
     if agent_state == "missing":
         agent_icon = "❓"
@@ -1313,6 +1466,7 @@ def main() -> None:
 | Track integrity | {track_cell} |
 | Go-live target | {golive_target} (30 honest track days) |
 | Resilience (DR) | {resil_cell} |
+| Диск · память (ADR-858) | {resource_cell} |
 | Sprint | see KANBAN section |
 
 """
@@ -1331,6 +1485,7 @@ def main() -> None:
         build_tier_curator_section() + "\n",
         build_candidate_registry_section() + "\n",
         build_system_health_section() + "\n",
+        build_resource_section() + "\n",
         build_resilience_section() + "\n",
         build_sprint_section() + "\n",
         build_rules_section() + "\n",

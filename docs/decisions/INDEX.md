@@ -724,6 +724,7 @@
 | ADR-854 | ADR-854 — У ФОРМЫ урезания есть своя цена, и население этого замера не равно единице | Accepted | [ADR-854](ADR-854-the-shape-of-the-trim-has-a-price.md) |
 | ADR-855 | ADR-855 — Допустимость книги формы СПРОШЕНА, и приз ADR-854 на живом дне равен нулю | Accepted | [ADR-855](ADR-855-the-shape-admissibility-is-asked.md) |
 | ADR-856 | ADR-856 — Население класса ADR-851 измерено, и у замера есть ось, честный ответ которой «НЕ ИЗМЕРЕНО» | Accepted | [ADR-856](ADR-856-the-population-of-the-additive-forward-reader-class.md) |
+| ADR-858 | ADR-858 — Сторож сказал, а читатель превратил ответ в шум: число свободного места не доезжало до файловой поверхности сессии | Accepted | [ADR-858](ADR-858-the-guard-said-it-and-the-reader-made-it-noise.md) |
 
 ## Соглашения
 

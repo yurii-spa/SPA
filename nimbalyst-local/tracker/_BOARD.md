@@ -2,14 +2,15 @@
 
 > Авто-генерится `scripts/build_tracker_board.py` из `nimbalyst-local/tracker/*.md`. НЕ править вручную — правь карточки. Источник правды — карточки, это индекс (bootstrap).
 >
-> Собрана: 2026-10-29T05:47:30Z · сверка с карточками: `python3 scripts/build_tracker_board.py --check` (сторож `spa_core/tests/test_tracker_board_matches_cards.py`).
+> Собрана: 2026-10-29T09:25:49Z · сверка с карточками: `python3 scripts/build_tracker_board.py --check` (сторож `spa_core/tests/test_tracker_board_matches_cards.py`).
 >
-> Сверено с `origin/main` (495d26423) · у **1** своя правка, кто новее — не измерено.
+> Сверено с `origin/main` (fe77594cb).
 >
-> Всего карточек: **1500** · ждёт владельца: **1** · занято сессиями: **14**.
+> Всего карточек: **1504** · ждёт владельца: **2** · занято сессиями: **14**.
 
 ## 🔴 ЖДЁТ ВЛАДЕЛЬЦА (needs-owner)
 
+- **Диск снова съел один журнал агента: 9,82 ГБ из 9,91 ГБ всех логов — выбрать починку из трёх** · _critical_  ·  `owner-decision-disk-snova-sel-odin-zhurnal-agenta-9-82.md`
 - **Сайт: site_numbers.json — автономная правка задела owner-gated область, нужно решение**  ·  `owner-decision-sait-site-numbers-json-avtonomnaya-pravk.md`
 
 ## 🔒 ЗАНЯТЫ СЕССИЯМИ (claimed_by)
@@ -31,9 +32,10 @@
 - **TASK — Portfolio CIO: Dynamic Capital Allocation & Rebalancing** — держит `cycle-11180` · с 2026-10-29T02:03:43Z  ·  `inbox-task-portfolio-cio-dynamic-capital-alloc.md`
 - **Замок цикла оркестратора доставлен, но в проде не работает: обёртка агента синкается раз в сутки, а голос о пропавшей защите живёт в самом пропавшем файле** — держит `cycle-81141` · с 2026-08-08T01:59:06Z  ·  `inbox-zamok-tsikla-orkestratora-dostavlen-no-v.md`
 
-## 🧑‍⚖️ Owner Decisions (что нужно от владельца)  (374)
+## 🧑‍⚖️ Owner Decisions (что нужно от владельца)  (375)
 
 ### · needs-owner
+- Диск снова съел один журнал агента: 9,82 ГБ из 9,91 ГБ всех логов — выбрать починку из трёх  ·  `owner-decision-disk-snova-sel-odin-zhurnal-agenta-9-82.md` · 2026-10-29
 - Сайт: site_numbers.json — автономная правка задела owner-gated область, нужно решение  ·  `owner-decision-sait-site-numbers-json-avtonomnaya-pravk.md` · 2026-10-28
 ### · ingested
 - Ключ Etherscan уже работает — задача была «фантомной» (петля исправлена)  ·  `own-06-etherscan-prod-key.md` · 2026-07-15
@@ -412,7 +414,7 @@
 ### · closed
 - Считать ли верный отказ по правилам допуска неисправностью флота  ·  `owner-decision-schitat-li-vernyi-otkaz-po-pravilam-dopu.md` · 2026-10-08
 
-## 📥 Inbox (задания: Telegram / заметки / голос)  (826)
+## 📥 Inbox (задания: Telegram / заметки / голос)  (829)
 
 ### · in-progress
 - а задача починить все-таки еще раз сообщение которым не пишет нужно твое решени…  ·  `inbox-a-zadacha-pochinit-vse-taki-esche-raz-so.md` · 2026-08-14 · 🔒 `pid43119`
@@ -1052,6 +1054,7 @@
 - Обязательный шаг цикла отвечает о деньгах по закоммиченному канону и молчит об этом — измерено дважды в один день  ·  `inbox-obyazatelnyi-shag-tsikla-otvechaet-o-den.md` · 2026-10-07
 - «Очередь полна» верна ровно настолько, насколько свеж локальный ref: в проде origin/main отстал, и отставание не мерит никто  ·  `inbox-ochered-polna-verna-rovno-nastolko-nasko.md` · 2026-08-31
 - Очередь владельца: в needs-owner 32 карточки, а циклы докладывают 6 — 26 с пометкой расхождения в отчёт не попадают  ·  `inbox-ochered-vladeltsa-v-needs-owner-32-karto.md` · 2026-09-16
+- Один агент пишет 123 ГиБ в сутки в свой журнал и в одиночку останавливает машину (ADR-858)  ·  `inbox-odin-agent-pishet-123-gib-v-sutki-v-svoi.md` · 2026-10-29
 - Один агент пишет 2 ГБ логов в сутки, 59 процентов — одна повторяющаяся строка: приёмка цикла не измерилась из-за диска  ·  `inbox-odin-agent-pishet-2-gb-logov-v-sutki-59.md` · 2026-10-07
 - Один артефакт — три правила чтения тира: монитор над потолками не знает T3 вовсе (целое 3 читается как T2), и флаг «не прочитан» никто не читает  ·  `inbox-odin-artefakt-tri-pravila-chteniya-tira.md` · 2026-10-13
 - Один порог «40 %» меряется ДВУМЯ знаменателями — DL-03 и RiskPolicy спорят о крупнейшей позиции книги  ·  `inbox-odin-porog-40-meryaetsya-dvumya-znamenat.md` · 2026-09-06
@@ -1138,12 +1141,14 @@
 - Пульт UX-02 · A: аудит и словарь интерфейса  ·  `inbox-pult-ux-02-a-audit-i-slovar-interfeisa.md` · 2026-10-09
 - Пять спящих процессов притворяются прогоном тестов — любой pgrep по имени pytest врёт сутки  ·  `inbox-pyat-spyaschih-protsessov-pritvoryayutsy.md` · 2026-09-23
 - Работа мёртвого цикла лежит недоставленной, и это неотличимо от «цикл ещё ждёт замер»  ·  `inbox-rabota-mertvogo-tsikla-lezhit-nedostavle.md` · 2026-10-04
+- Работа мёртвой сессии cycle-4362 (ADR-857, доставка карточек) не на origin — поднять из дерева или патча  ·  `inbox-rabota-mertvoi-sessii-cycle-4362-adr-857.md` · 2026-10-29
 - Работа уезжает в ветвь rescue/* на origin и не доходит до main — пять циклов подряд, и ни один сторож об этом не сказал  ·  `inbox-rabota-uezzhaet-v-vetv-rescue-na-origin.md` · 2026-09-27
 - Рассыльщик открытых вопросов наследует ту же слепоту: закрытый на origin вопрос может уехать владельцу повторно  ·  `inbox-rassylschik-otkrytyh-voprosov-nasleduet.md` · 2026-09-03
 - Реестр решений: дописать указатели на 78 ADR из других папок (решение владельца, вариант А)  ·  `inbox-reestr-reshenii-dopisat-ukazateli-na-78.md` · 2026-09-07
 - Реестр решений: строки ADR-777 и ADR-778 без имени файла — решения не находятся по ссылке  ·  `inbox-reestr-reshenii-stroki-adr-777-i-adr-778.md` · 2026-10-18
 - Ремонт карточек-фантомов применяется наполовину: запрет на закрытие решения срабатывает после записи  ·  `inbox-remont-kartochek-fantomov-primenyaetsya.md` · 2026-10-18
 - РЕШЕНИЕ АГЕНТА (не вопрос владельцу): верный отказ по правилам допуска перестаёт быть неисправностью флота — исполнить  ·  `inbox-reshenie-politicheskii-otkaz-ne-neispravnost.md` · 2026-10-08
+- resource_health.json объявлен consumer_required, а шаг 0-офис не упоминает его ни разу (ADR-858)  ·  `inbox-resource-health-json-obyavlen-consumer-r.md` · 2026-10-29
 - Рост ленты лечится только строкой УПЛОТНЕНИЯ — накапливающие списки причин переснять нельзя  ·  `inbox-rost-lenty-lechitsya-tolko-strokoi-uplot.md` · 2026-10-23
 - scripts/system_health_check.py заменён монитором два месяца назад, но остался в дереве  ·  `inbox-scripts-system-health-check-py-zamenen-m.md` · 2026-08-25
 - Семь мутационных подмен в батареях не спрашивают, применились ли они  ·  `inbox-sem-mutatsionnyh-podmen-v-batareyah-ne-s.md` · 2026-10-04

@@ -1,0 +1,56 @@
+{
+ "title": "ADR-858 (цикл #975) — число свободного места измерено прибором, запушено владельцу и НЕ доехало до файловой поверхности сессии; читатель появился в брифинге, три исхода различимы",
+ "tests": [
+  "spa_core/tests/test_briefing_resource_section.py"
+ ],
+ "mutations": [
+  {
+   "name": "проводка снята: секция выброшена из сборки документа — число снова никуда не доезжает (дословный дефект 29.10)",
+   "file": "scripts/update_system_briefing.py",
+   "old": "        build_resource_section() + \"\\n\",",
+   "new": "        \"\","
+  },
+  {
+   "name": "ячейка сводки убрана из таблицы — сессия, читающая только сводку, число не видит",
+   "file": "scripts/update_system_briefing.py",
+   "old": "| Диск · память (ADR-858) | {resource_cell} |",
+   "new": "| Спринт-заглушка | n/a |"
+  },
+  {
+   "name": "отсутствие числа подставляется НУЛЁМ вместо третьего исхода (инв. #17 наизнанку: 0 ГБ значит «диск полон»)",
+   "file": "scripts/update_system_briefing.py",
+   "old": "    if not isinstance(free_gb, (int, float)) or isinstance(free_gb, bool):\n        return {\"measured\": False, \"state\": RESOURCE_UNMEASURED,\n                \"reason\": \"`disk.free_gb` не опубликован — отсутствие числа \"\n                          \"НЕ подставляется нулём (инв. #17)\"}",
+   "new": "    if not isinstance(free_gb, (int, float)) or isinstance(free_gb, bool):\n        free_gb = 0.0"
+  },
+  {
+   "name": "НЕ ИЗМЕРЕНО выдаётся за норму (fail-OPEN тише красного)",
+   "file": "scripts/update_system_briefing.py",
+   "old": "_RESOURCE_ICON = {\"OK\": \"✅\", \"WARN\": \"⚠️\", \"CRITICAL\": \"🔴\",\n                  RESOURCE_UNMEASURED: \"❓\"}",
+   "new": "_RESOURCE_ICON = {\"OK\": \"✅\", \"WARN\": \"⚠️\", \"CRITICAL\": \"🔴\",\n                  RESOURCE_UNMEASURED: \"✅\"}"
+  },
+  {
+   "name": "вердикт ПЕРЕСЧИТЫВАЕТСЯ здесь вместо чтения у производителя — второе место для порога",
+   "file": "scripts/update_system_briefing.py",
+   "old": "    verdict = disk.get(\"state\")\n    if not isinstance(verdict, str) or not verdict:",
+   "new": "    verdict = disk.get(\"state\") or (\"CRITICAL\" if free_gb < 15 else \"OK\")\n    if not isinstance(verdict, str) or not verdict:"
+  },
+  {
+   "name": "неизмеренный возраст объявляется СВЕЖИМ — «последнее известное» выдаётся за «сейчас»",
+   "file": "scripts/update_system_briefing.py",
+   "old": "        \"stale\": (True if age_h is None else age_h > RESOURCE_STALE_H),",
+   "new": "        \"stale\": (False if age_h is None else age_h > RESOURCE_STALE_H),"
+  },
+  {
+   "name": "просроченный замер перестаёт помечаться — число любого возраста читается как текущее",
+   "file": "scripts/update_system_briefing.py",
+   "old": "        \"stale\": (True if age_h is None else age_h > RESOURCE_STALE_H),",
+   "new": "        \"stale\": False,"
+  },
+  {
+   "name": "строка про код выхода 2 недостижима — «агент сломался» снова неотличимо от «агент докладывает аварию»",
+   "file": "scripts/update_system_briefing.py",
+   "old": "    if st[\"state\"] == \"CRITICAL\":",
+   "new": "    if False:"
+  }
+ ]
+}
