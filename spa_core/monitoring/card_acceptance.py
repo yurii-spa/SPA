@@ -12319,8 +12319,97 @@ def _probe_cio_act_fires_and_is_scored(arg: str | None, *,
         "мандата взвода впервые считается на наблюдении")
 
 
+def _probe_size_edge_prize_source_is_named(
+        arg: str | None, *,
+        now: "datetime | None" = None,
+        data_dir: str | None = None) -> tuple[str, str]:
+    """Критерий карточки ADR-861 — «цена ПРИЧИНЫ 2 названа ИСТОЧНИКОМ».
+
+    Дословно: ``data/shadow_trigger_evaluation.json`` несёт блок
+    ``trim_size_edge_census`` с исходом ``measured`` И осью ``prize_source``,
+    где число улучшений РАЗЛОЖЕНО на ``from_dust_band`` + ``economic``.
+
+    Почему критерий именно такой, а не «блок есть». Замер 29.10: улучшений
+    восемь, и ВСЕ восемь созданы пыльным порогом двери цены, а не экономикой
+    (``_legs`` выбрасывает подпороговую дельту и из газа, и из оборота, а
+    ``_book_apy_pp`` её выигрыш считает). Опубликованное «строго лучше на 8»
+    без разложения читается как экономический приз — то есть прибор, честно
+    измеривший число, соврал бы ИМЕНЕМ этого числа. Поэтому приёмка требует
+    РАЗЛОЖЕНИЯ, а сумма частей обязана сходиться с целым.
+
+    Три исхода различимы (инв. #17): артефакта нет / он протух / блока нет ⇒
+    ``unmeasured`` с названной причиной (НИКОГДА не `not_satisfied`: в worktree
+    ``data/`` — замороженный канон, по которому о живом производителе не
+    известно ничего) · блок есть, но ось источника отсутствует либо части не
+    сходятся с целым ⇒ ``not_satisfied`` с числами · разложено ⇒ ``satisfied``.
+
+    Время и каталог — ВХОДЫ, а не окружение. Проба только ЧИТАЕТ.
+    """
+    if arg:
+        return UNMEASURED, (f"проба не принимает аргумента (дано {arg!r}): критерий "
+                            "назван целиком")
+    path = os.path.join(data_dir or os.path.join(REPO_ROOT, "data"),
+                        "shadow_trigger_evaluation.json")
+    try:
+        with open(path, encoding="utf-8") as fh:
+            doc = json.load(fh)
+    except OSError as exc:
+        return UNMEASURED, f"артефакт оценки не прочитан ({type(exc).__name__}): {path}"
+    except ValueError as exc:
+        return UNMEASURED, f"артефакт оценки не разобран: {type(exc).__name__}: {exc}"
+    if not isinstance(doc, dict):
+        return UNMEASURED, "артефакт оценки не документ — судить нечем"
+    stamp = doc.get("generated_at")
+    if not stamp:
+        return UNMEASURED, ("у артефакта оценки нет `generated_at` — возраст не "
+                            "измерен, о живом производителе не известно ничего")
+    try:
+        made = datetime.fromisoformat(str(stamp).replace("Z", "+00:00"))
+    except ValueError:
+        return UNMEASURED, f"generated_at {stamp!r} не разобран — возраст не измерен"
+    if made.tzinfo is None:
+        made = made.replace(tzinfo=timezone.utc)
+    age_h = ((now or datetime.now(timezone.utc)) - made).total_seconds() / 3600.0
+    if age_h > _SHADOW_EVAL_MAX_AGE_H:
+        return UNMEASURED, (f"артефакт оценки протух: возраст {age_h:.1f}ч при пределе "
+                            f"{_SHADOW_EVAL_MAX_AGE_H:.0f}ч — это замороженный канон, "
+                            "а не наблюдение; мерить из дерева с живым data/")
+
+    # Род исхода блока спрашивается у ЕДИНСТВЕННОЙ двери чтения — той же, что
+    # у шага 0-офис (урок ADR-851: своя копия разбора разошлась бы молча).
+    from spa_core.paper_trading.trim_size_edge import (CENSUS_MEASURED,
+                                                       trim_size_edge_outcome)
+    kind, why = trim_size_edge_outcome(doc.get("trim_size_edge_census"))
+    if kind != CENSUS_MEASURED:
+        return UNMEASURED, f"блок цены размера: [{kind}] {why}"
+    census = doc.get("trim_size_edge_census") or {}
+    src = census.get("prize_source")
+    if not isinstance(src, dict):
+        return NOT_SATISFIED, ("блок измерен, а оси ИСТОЧНИКА приза в нём нет: "
+                               "«строго лучше на N» без разложения читается как "
+                               "экономический приз")
+    missing = [k for k in ("strictly_better", "from_dust_band", "economic")
+               if not isinstance(src.get(k), int)]
+    if missing:
+        return NOT_SATISFIED, (f"ось источника неполна — нет чисел {missing}: "
+                               "разложение объявлено и не предъявлено")
+    whole = int(src["strictly_better"])
+    parts = int(src["from_dust_band"]) + int(src["economic"])
+    if whole != parts:
+        return NOT_SATISFIED, (f"части не сходятся с целым: строго лучше {whole}, "
+                               f"пыль {src['from_dust_band']} + экономика "
+                               f"{src['economic']} = {parts}")
+    return SATISFIED, (
+        f"цена ПРИЧИНЫ 2 разложена: строго лучше {whole} из "
+        f"{census.get('comparable')} — пыльный порог {src['from_dust_band']}, "
+        f"экономика {src['economic']}; медиана {census.get('median_edge_only')} → "
+        f"{census.get('median_scanned')} дн., скан хуже на "
+        f"{census.get('scan_worse')} (обязан быть 0)")
+
+
 PROBES: dict[str, Callable[[str | None], "tuple[str, str]"]] = {
     "cio_act_fires_and_is_scored": _probe_cio_act_fires_and_is_scored,
+    "size_edge_prize_source_is_named": _probe_size_edge_prize_source_is_named,
     "tact_stage_names_its_caller":
         _probe_tact_stage_names_its_caller,
     "door_sites_operand_agrees": _probe_door_sites_operand_agrees,

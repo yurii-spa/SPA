@@ -1116,6 +1116,23 @@ def evaluate_window(
         chains=_chains_for_shape,
         chains_measured=_chains_measured)
 
+    # Девятый вопрос, и он НЕ тот же: восемь блоков выше спрашивают, что было
+    # бы, чего бы это стоило, пустит ли это дверь и есть ли книга ЛУЧШЕ жадной,
+    # а этот — ОПТИМАЛЕН ЛИ САМ КРАЙ ОТРЕЗКА размеров. ADR-859 брал наибольший
+    # допустимый размер и честно назвал это ПРИЧИНОЙ 2 своей нижней границы
+    # («монотонность окупаемости по размеру не доказана»). Здесь она становится
+    # замером. ADVISORY: ПРИЧИНА 1 (раскладка фиксирована спредом) остаётся
+    # открытой, и это сказано в самой переписи.
+    from spa_core.paper_trading.trim_size_edge import trim_size_edge_census
+
+    trim_size_edge = trim_size_edge_census(
+        _window_history,
+        params=TriggerParams.for_mode("paper"),
+        tiers=_tiers_for_shape,
+        tiers_measured=_tiers_measured,
+        chains=_chains_for_shape,
+        chains_measured=_chains_measured)
+
     doc = {
         "generated_at": None,  # filled below; kept out of the hash-relevant zone
         "version": EVAL_VERSION,
@@ -1164,6 +1181,11 @@ def evaluate_window(
         # меняется. Отвечает на вопрос, которого у шести блоков выше нет вовсе —
         # НАСКОЛЬКО жадный спред хуже допустимого оптимума.
         "trim_optimum_census": trim_optimum,
+        # Цена ПРИЧИНЫ 2 нижней границы (ADR-861). Не критерий и не гейт:
+        # `ready_to_arm` считается ровно по мандату владельца и этим блоком не
+        # меняется. Отвечает на вопрос, которого у семи блоков выше нет вовсе —
+        # ОПТИМАЛЕН ли наибольший допустимый размер хода внутри подмножества.
+        "trim_size_edge_census": trim_size_edge,
         "params": {
             "horizon_days": horizon_days,
             "min_observation_days": min_days,
@@ -1357,6 +1379,10 @@ def format_summary(doc: dict) -> str:
     from spa_core.paper_trading.trim_optimum import format_trim_optimum
 
     lines.extend(format_trim_optimum(doc.get("trim_optimum_census")))
+
+    from spa_core.paper_trading.trim_size_edge import format_trim_size_edge
+
+    lines.extend(format_trim_size_edge(doc.get("trim_size_edge_census")))
     lines.append("Включение — отдельное owner-решение (pre_cutover_gate + ADR); "
                  "этот отчёт капитал не двигает.")
     return "\n".join(lines)

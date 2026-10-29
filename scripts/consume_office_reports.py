@@ -116,7 +116,11 @@ _READ_SCHEMA: dict[str, tuple[str, ...]] = {
                                       "trial_grant_reach", "admissible_size_reach",
                                       "live_trim_census", "trim_shape_census",
                                       "trim_admissibility_census",
-                                      "trim_optimum_census"),
+                                      "trim_optimum_census",
+    # ADR-861 (цикл #978): `trim_size_edge_census` объявлен В ТОТ ЖЕ ПУШ, что и
+    # прибор, — тем же порядком, что завёл ADR-859, и ровно затем, чтобы не
+    # повторить класс «блок читается и не объявлен» (три цикла подряд до #973).
+                                      "trim_size_edge_census"),
     # ADR-526, заказ G86 п. 4. `fails` объявлен вместе с `n_fails` намеренно:
     # число без перечня не говорит, ЧТО именно расходится, а перечень без числа
     # не отличает «нашли ноль» от «поле не пишется».
@@ -5344,6 +5348,10 @@ def _summarize_json(path: str, data, *, now: dt.datetime | None = None,
 
             from spa_core.paper_trading.trim_optimum import format_trim_optimum
 
+            from spa_core.paper_trading.trim_size_edge import (
+                format_trim_size_edge,
+            )
+
             blockade_lines = (
                 format_blockade(data.get("arming_blockade"))
                 + format_trial_reach(data.get("trial_grant_reach"))
@@ -5374,7 +5382,14 @@ def _summarize_json(path: str, data, *, now: dt.datetime | None = None,
                 # разрешено», а замер 29.10 говорит иное: против лучшей
                 # допустимой прежней формы медиана окупаемости 112.43 → 78.28
                 # дн., и в горизонт 30 дн. попадает 20 записей против 15.
-                + format_trim_optimum(data.get("trim_optimum_census")))
+                + format_trim_optimum(data.get("trim_optimum_census"))
+                # ADR-861: девятая строка отвечает «оптимален ли сам КРАЙ
+                # отрезка размеров». Без неё восьмая читается как «лучшее
+                # допустимое», тогда как ADR-859 назвал край ПРИЧИНОЙ 2 своей
+                # нижней границы. Замер 29.10: медиана 75.13 → 74.30 дн., скан
+                # строго лучше на 8 из 87, в горизонт 30 дн. 22 → 22 — цена
+                # причины РЕАЛЬНА и МАЛА, и ACT она не открывает.
+                + format_trim_size_edge(data.get("trim_size_edge_census")))
         except Exception as exc:  # noqa: BLE001
             # Тот же приём, что у кнопок ниже: обязательный шаг 0-офис не имеет
             # права упасть из-за строчки оформления — упавший шаг это НЕ

@@ -1,0 +1,110 @@
+{
+ "title": "ADR-861 (цикл #978) — КРАЙ отрезка допустимых размеров: ПРИЧИНА 2 нижней границы ADR-859 измерена перебором концов участков, а цена приза разложена на ПЫЛЬНЫЙ ПОРОГ двери цены и ЭКОНОМИКУ (8 и 0)",
+ "tests": [
+  "spa_core/tests/test_trim_size_edge.py"
+ ],
+ "mutations": [
+  {
+   "name": "край отрезка выброшен из кандидатов — доминирование над ответом ADR-859 (единственный доказуемый инвариант прибора) рвётся",
+   "file": "spa_core/paper_trading/trim_size_edge.py",
+   "old": "    raw: List[float] = [float(edge)]",
+   "new": "    raw: List[float] = []"
+  },
+  {
+   "name": "порог ПЫЛИ выброшен из концов участков — кандидат $499.99 не рождается никогда, и немонотонность, созданная пыльным порогом, становится невидимой",
+   "file": "spa_core/paper_trading/trim_size_edge.py",
+   "old": "        out.append(cum + min_leg_usd)   # порог двери `_legs`",
+   "new": "        pass  # порог двери `_legs`"
+  },
+  {
+   "name": "пробуется только ОДНА сторона порога — верх нижнего участка не проверяется, и минимум на нём не находится",
+   "file": "spa_core/paper_trading/trim_size_edge.py",
+   "old": "            raw.append(at - delta)\n            raw.append(at + delta)",
+   "new": "            raw.append(at + delta)"
+  },
+  {
+   "name": "ось ПЛАТО возвращается к ЗАПРОШЕННОМУ размеру вместо фактического оборота книги — воспроизводится ошибка замера этого же цикла (36 из 87 против нуля)",
+   "file": "spa_core/paper_trading/trim_size_edge.py",
+   "old": "    def _to(row: dict, name: str) -> Optional[float]:\n        v = (row.get(\"turnover_usd\") or {}).get(name)\n        return None if v is None else float(v)",
+   "new": "    def _to(row: dict, name: str) -> Optional[float]:\n        v = (row.get(\"size_usd\") or {}).get(name)\n        return None if v is None else float(v)"
+  },
+  {
+   "name": "пыльная полоса не читается вовсе — весь приз объявляется ЭКОНОМИЧЕСКИМ, то есть прибор врёт ИМЕНЕМ своего же числа",
+   "file": "spa_core/paper_trading/trim_size_edge.py",
+   "old": "        if 0.005 < abs(delta) <= float(min_leg_usd) + 1e-9:\n            out[proto] = round(delta, 2)",
+   "new": "        if False:\n            out[proto] = round(delta, 2)"
+  },
+  {
+   "name": "источник приза перестаёт фильтровать по пыли — `from_dust_band` равен числу улучшений независимо от книги (ось становится украшением)",
+   "file": "spa_core/paper_trading/trim_size_edge.py",
+   "old": "    from_dust = [r for r in better if (r.get(\"prize_dust_deltas\") or {})]",
+   "new": "    from_dust = list(better)"
+  },
+  {
+   "name": "допустимость кандидата читается fail-OPEN: неизвестный тир (`None`) проходит как допустимый — ADR-359 наизнанку",
+   "file": "spa_core/paper_trading/trim_size_edge.py",
+   "old": "        if _approved(book, apy_pct, capital_usd,\n                     tiers=tiers, chains=chains) is not True:\n            return None",
+   "new": "        if _approved(book, apy_pct, capital_usd,\n                     tiers=tiers, chains=chains) is False:\n            return None"
+  },
+  {
+   "name": "перебор кандидатов молча усекается вместо третьего исхода — неполный ответ выдаётся за полный (инв. #17)",
+   "file": "spa_core/paper_trading/trim_size_edge.py",
+   "old": "    if len(sizes) > max_candidates:\n        return None, (f\"кандидатов {len(sizes)} при потолке {max_candidates} — \"",
+   "new": "    if False:\n        return None, (f\"кандидатов {len(sizes)} при потолке {max_candidates} — \""
+  },
+  {
+   "name": "непрочитанный реестр тиров даёт ЗАМЕР НУЛЯ вместо «не измерено» — отсутствие наблюдения выдаётся за наблюдение (инв. #17)",
+   "file": "spa_core/paper_trading/trim_size_edge.py",
+   "old": "    if not tiers_measured:\n        return {\"kind\": CENSUS_UNMEASURED,",
+   "new": "    if not tiers_measured:\n        return {\"kind\": CENSUS_MEASURED_ZERO,"
+  },
+  {
+   "name": "день, УЖЕ стоявший вне политики, судится как сравнимый — наследство вменяется размеру хода",
+   "file": "spa_core/paper_trading/trim_size_edge.py",
+   "old": "    if standing is False:\n        return {\"kind\": SZ_STANDING_INADMISSIBLE,",
+   "new": "    if False:\n        return {\"kind\": SZ_STANDING_INADMISSIBLE,"
+  },
+  {
+   "name": "густая сетка больше не гоняется ни на одной записи — положительный контроль структурного вывода исчезает молча",
+   "file": "spa_core/paper_trading/trim_size_edge.py",
+   "old": "            grid_points=(grid_points if idx >= grid_from else 0))",
+   "new": "            grid_points=0)"
+  },
+  {
+   "name": "притязание прибора теряет ПРИЧИНУ 1 — нижняя граница начинает читаться как оптимум",
+   "file": "spa_core/paper_trading/trim_size_edge.py",
+   "old": "            \"claim\": (\"закрыта ПРИЧИНА 2 нижней границы ADR-859 (размер хода). \"\n                      \"ПРИЧИНА 1 — раскладка внутри подмножества фиксирована \"",
+   "new": "            \"claim\": (\"оптимум НАЙДЕН\" if True else \"\"), \"_\": (\"\"\n                      \"ПРИЧИНА 1 — раскладка внутри подмножества фиксирована \""
+  },
+  {
+   "name": "блок не доезжает до артефакта — прибор становится сиротой (ADR-843)",
+   "file": "spa_core/paper_trading/shadow_trigger_eval.py",
+   "old": "        \"trim_size_edge_census\": trim_size_edge,",
+   "new": "        \"trim_size_edge_census_\": trim_size_edge,"
+  },
+  {
+   "name": "блок не объявлен в схеме чтения шага 0-офис — необъявленное чтение молча становится `None` (класс ADR-855)",
+   "file": "scripts/consume_office_reports.py",
+   "old": "                                      \"trim_size_edge_census\"),",
+   "new": "                                      ),"
+  },
+  {
+   "name": "проба приёмки перестаёт сверять части с целым — разложение объявлено и не проверено",
+   "file": "spa_core/monitoring/card_acceptance.py",
+   "old": "    if whole != parts:\n        return NOT_SATISFIED, (f\"части не сходятся с целым: строго лучше {whole}, \"",
+   "new": "    if False:\n        return NOT_SATISFIED, (f\"части не сходятся с целым: строго лучше {whole}, \""
+  },
+  {
+   "name": "проба приёмки читает род блока СВОЕЙ копией разбора вместо единственной двери — fail-OPEN на непрочитанной переписи",
+   "file": "spa_core/monitoring/card_acceptance.py",
+   "old": "    if kind != CENSUS_MEASURED:\n        return UNMEASURED, f\"блок цены размера: [{kind}] {why}\"",
+   "new": "    if False:\n        return UNMEASURED, f\"блок цены размера: [{kind}] {why}\""
+  }
+ ],
+ "result_2026_10_29": {
+  "applied": 16,
+  "killed": 16,
+  "survived": 0,
+  "note": "первый прогон: убито 13, выжило 3 — все три НАСТОЯЩИЕ дыры, чьё население в живой истории отсутствует по построению (край против насыщения комнат · ось источника, когда ВСЕ улучшения пыльные · неизвестный тир, отсекаемый раньше по пути переписи). Различает их ДВЕРЬ, а не история. Повтор по трём — 3 из 3. Прогон шёл в ОТДЕЛЬНОМ дереве /private/tmp/spa_c978_mut, окно прибора снято (--window-check = no_window)"
+ }
+}
