@@ -728,6 +728,7 @@
 | ADR-859 | ADR-859 — Жадный спред есть НИЖНЯЯ ГРАНИЦА, и приз ограниченного поиска ИЗМЕРЕН | Accepted | [ADR-859](ADR-859-the-greedy-spread-is-a-lower-bound.md) |
 | ADR-860 | ADR-860 — Владелец повторил просьбу шесть раз, и шаг 0a её не видел; у заработанного освобождения носителя появилась ЗАПИСЬ | Accepted | [ADR-860](ADR-860-the-owner-repeated-the-request-and-the-hunger-step-did-not-see-it.md) |
 | ADR-861 | ADR-861 — КРАЙ отрезка размеров: ПРИЧИНА 2 нижней границы измерена, и её цена — НОЛЬ по экономике (все 8 улучшений даёт пыльный порог двери цены) | Accepted | [ADR-861](ADR-861-the-edge-of-the-admissible-size-interval.md) |
+| ADR-862 | ADR-862 — Сторож ресурсов мерил УРОВЕНЬ свободного места и никогда СКОРОСТЬ; премиса его собственных порогов ложна ×14.3 | Accepted | [ADR-862](ADR-862-resource-guard-measures-the-rate-not-only-the-level.md) |
 
 ## Соглашения
 

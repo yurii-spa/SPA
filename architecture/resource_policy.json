@@ -7,7 +7,15 @@
     "critical_free_gb": 15,
     "reserve_gb": 2,
     "reserve_path": "~/.spa_disk_reserve/reserve.bin",
-    "_why": "Measured 2026-10-02/03: the Data volume reached 0 bytes twice (ENOSPC 22:58-23:03Z and 07:55-08:05Z) from ~87 GB of abandoned test stands plus parallel worktrees; nothing in the fleet asked «is there room to write». 40 GB leaves a day of the worst measured growth (~30 GB/day); 15 GB still lets the alert itself be written. The reserve file is released at CRITICAL so canonical writers (paper books, atomic_save) keep room while the cause is found."
+    "_why": "Measured 2026-10-02/03: the Data volume reached 0 bytes twice (ENOSPC 22:58-23:03Z and 07:55-08:05Z) from ~87 GB of abandoned test stands plus parallel worktrees; nothing in the fleet asked «is there room to write». 15 GB still lets the alert itself be written. The reserve file is released at CRITICAL so canonical writers (paper books, atomic_save) keep room while the cause is found. ⚠️ CORRECTED 2026-10-29 (ADR-862): this _why used to justify warn_free_gb=40 as «a day of the worst measured growth (~30 GB/day)». That premise is FALSE by a measured x14.3 — on 2026-10-29 a single agent log (/tmp/spa_decision_loop.log, com.spa.decision_loop) grew 17.87 GB/h = 428.9 GB/day, so 40 GB is 2.2 HOURS of headroom and 15 GB is 50 minutes, not a day and half a day. The levels are NOT raised here: a level cannot notice its own premise going stale, and raising it would only move the same blind line. The rate below is what noticed. Cause of that growth is owner-gated (owner-decision-disk-snova-sel-odin-zhurnal-agenta-9-82): the three fixes are money-path, risk logic and an agent restart.",
+    "exhaustion": {
+      "min_span_s": 240,
+      "max_span_s": 7200,
+      "max_samples": 24,
+      "warn_minutes_to_full": 240,
+      "critical_minutes_to_full": 60,
+      "_why": "ADR-862. The guard ran every 5 minutes for a month publishing only the LEVEL, so the rate had to be timed by hand with a sleep loop by two sessions in a row (#978, #979) and the owner's card said «about 28 minutes» when the measured answer was 33. min_span_s=240 because the guard's own interval is 300 s and a span shorter than that is jitter, not a rate; max_span_s=7200 because a sample older than two hours says nothing about now (the guard may have been down between them) — past it the verdict is WARMING_UP, never a stale rate. max_samples=24 keeps two hours of 5-minute history. critical_minutes_to_full=60 fires at 18 GB free under the growth measured on 2026-10-29 — an hour BEFORE the 15 GB level line, which is the whole point of measuring a rate. These are not financial or risk limits; changing them is a reviewed commit, like every other number in this file."
+    }
   },
   "memory": {
     "pressure_warn_level": 2,

@@ -2,11 +2,11 @@
 
 > Авто-генерится `scripts/build_tracker_board.py` из `nimbalyst-local/tracker/*.md`. НЕ править вручную — правь карточки. Источник правды — карточки, это индекс (bootstrap).
 >
-> Собрана: 2026-10-29T16:09:10Z · сверка с карточками: `python3 scripts/build_tracker_board.py --check` (сторож `spa_core/tests/test_tracker_board_matches_cards.py`).
+> Собрана: 2026-10-29T18:12:42Z · сверка с карточками: `python3 scripts/build_tracker_board.py --check` (сторож `spa_core/tests/test_tracker_board_matches_cards.py`).
 >
-> Сверено с `origin/main` (7988c6aa5) · у **1** своя правка, кто новее — не измерено.
+> Сверено с `origin/main` (020ad9a16).
 >
-> Всего карточек: **1511** · ждёт владельца: **3** · занято сессиями: **14**.
+> Всего карточек: **1512** · ждёт владельца: **3** · занято сессиями: **14**.
 
 ## 🔴 ЖДЁТ ВЛАДЕЛЬЦА (needs-owner)
 
@@ -416,7 +416,7 @@
 ### · closed
 - Считать ли верный отказ по правилам допуска неисправностью флота  ·  `owner-decision-schitat-li-vernyi-otkaz-po-pravilam-dopu.md` · 2026-10-08
 
-## 📥 Inbox (задания: Telegram / заметки / голос)  (835)
+## 📥 Inbox (задания: Telegram / заметки / голос)  (836)
 
 ### · in-progress
 - а задача починить все-таки еще раз сообщение которым не пишет нужно твое решени…  ·  `inbox-a-zadacha-pochinit-vse-taki-esche-raz-so.md` · 2026-08-14 · 🔒 `pid43119`
@@ -962,6 +962,7 @@
 - Агент com.spa.mission_tick объявлен активным, а его обёртки нет ни в git, ни в проде  ·  `inbox-agent-com-spa-mission-tick-obyavlen-akti.md` · 2026-10-08
 - scripts/agent_quarantine.py вызывается РУКАМИ по построению — объяснение для храповика несвязанных скриптов  ·  `inbox-agent-quarantine-zapuskaetsya-rukami-po-postroeniyu.md` · 2026-08-28
 - AI1 (книга владельца): три внедрения доставлены — экономика цеха, паспорта агентов, стандарт отчёта; циклам — заполнить паспорта и подключить генератор  ·  `inbox-ai1-tri-vnedreniya-ekonomika-pasporta-standart.md` · 2026-08-20
+- Байты просроченного мусора и срок его доступности — два числа, которых не знает никто  ·  `inbox-baity-prosrochennogo-musora-i-srok-ego-d.md` · 2026-10-29
 - Батарея ленты один раз из 18 упала ошибкой в уборке — причина не сохранена  ·  `inbox-batareya-lenty-odin-raz-iz-18-upala-oshi.md` · 2026-10-22
 - Бот на прямой вопрос владельца отрицает существующую needs-owner карточку (own-54) — ответ про очередь обязан читаться из доски, не из контекст-брифа  ·  `inbox-bot-otritsaet-suschestvuyuschuyu-own-kartochku.md` · 2026-08-19
 - Бриф владельцу называет ПРОГОНЫ сутками: один день, переигранный трижды, печатается как «3-й день подряд»  ·  `inbox-brif-vladeltsu-nazyvaet-progony-sutkami.md` · 2026-09-15

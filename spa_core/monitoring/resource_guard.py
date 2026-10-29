@@ -48,6 +48,11 @@ EVENT_KEY = "resource_critical"
 GB = 1024 ** 3
 
 OK, WARN, CRITICAL, UNMEASURED = "OK", "WARN", "CRITICAL", "NOT_MEASURED"
+#: Verdicts of the EXHAUSTION sensor (ADR-862). Three outcomes are kept apart (inv. #17):
+#: FALLING — measured and falling · STEADY — measured and NOT falling (an answer, not a missing one) ·
+#: WARMING_UP — no prior sample inside the window yet (normal after a restart, NOT a blind sensor) ·
+#: UNMEASURED — the sensor itself could not answer (history unreadable, clock ran backwards).
+FALLING, STEADY, WARMING_UP = "FALLING", "STEADY", "WARMING_UP"
 # CRITICAL outranks NOT_MEASURED (a measured emergency is named as such); NOT_MEASURED outranks WARN
 # and OK — a missing measurement is never «fine» (inv. #17, second review 2026-10-03).
 _RANK = {OK: 0, WARN: 1, UNMEASURED: 2, CRITICAL: 3}
@@ -100,6 +105,9 @@ def measure_disk(policy: dict, *, disk_usage: Callable = shutil.disk_usage) -> d
     free = u.free / GB
     state = CRITICAL if free < d["critical_free_gb"] else WARN if free < d["warn_free_gb"] else OK
     return {"state": state, "volume": d["volume"], "free_gb": round(free, 1),
+            # free_bytes is published UNROUNDED on purpose: free_gb is rounded to 0.1 GB (= 107 MB), and a
+            # rate divided from rounded levels would quantise to ~1.3 GB/h on the 5-minute path (ADR-862).
+            "free_bytes": u.free,
             "total_gb": round(u.total / GB, 1), "warn_free_gb": d["warn_free_gb"],
             "critical_free_gb": d["critical_free_gb"]}
 
@@ -313,6 +321,124 @@ def manage_reserve(disk: dict, policy: dict) -> dict:
         return {"action": "error", "path": str(path), "error": str(exc)}
 
 
+# ── exhaustion: the RATE, not the level (ADR-862) ───────────────────────────
+#
+# Measured 2026-10-29: "9.7 GB free" and "9.7 GB free, falling 17.9 GB/h" demand DIFFERENT actions —
+# the first is a WARN someday, the second is 33 minutes. The guard ran every 5 minutes for a month and
+# published only the level, so two sessions in a row (#978, #979) had to time the rate by hand with a
+# sleep loop, and the owner's card said "about 28 minutes" because nobody had the number. Every
+# threshold in architecture/resource_policy.json was sized against a declared premise — "40 GB leaves a
+# day of the worst measured growth (~30 GB/day)" — which the same day measured 428.9 GB/day: FALSE x14.3.
+# A level cannot notice that; a rate can.
+
+
+def load_samples(path: Path) -> tuple[list, Optional[str]]:
+    """Past free-space observations. Returns (samples, reason-it-could-not-be-read).
+
+    An absent file is NOT an error: it is the first run ever (⇒ WARMING_UP, not UNMEASURED). An
+    unreadable or malformed one IS, and it is named — never silently treated as "no history" (inv. #17).
+    """
+    if not path.exists():
+        return [], None
+    try:
+        doc = json.loads(path.read_text(encoding="utf-8"))
+    except (OSError, ValueError) as exc:
+        return [], f"{path.name}: {type(exc).__name__}: {exc}"
+    rows = doc.get("samples") if isinstance(doc, dict) else doc
+    if not isinstance(rows, list):
+        return [], f"{path.name}: samples is {type(rows).__name__}, expected list"
+    return rows, None
+
+
+def measure_exhaustion(disk: dict, policy: dict, *, samples: list, now: float,
+                       samples_error: Optional[str] = None) -> dict:
+    """How fast free space is going, and how long until none is left.
+
+    ``now`` and ``samples`` are INPUTS, never the wall clock and never a file read from here
+    (.claude/rules/deployment.md: time is an input, so the test fixes both ends and cannot rot).
+    The span used is the LONGEST one available inside the declared window, because a rate divided over
+    one 5-minute step is dominated by whatever a single cleanup or a single test shard did in it.
+    """
+    cfg = (policy.get("disk") or {}).get("exhaustion") or {}
+    if samples_error:
+        return {"state": UNMEASURED, "reason": f"история замеров не прочитана: {samples_error}"}
+    free = disk.get("free_bytes")
+    if free is None:
+        return {"state": UNMEASURED,
+                "reason": f"свободное место не измерено: {disk.get('reason') or disk.get('state')}"}
+    span_max = float(cfg.get("max_span_s", 7200))
+    span_min = float(cfg.get("min_span_s", 240))
+    usable = [r for r in samples
+              if isinstance(r, dict) and isinstance(r.get("ts"), (int, float))
+              and isinstance(r.get("free_bytes"), (int, float)) and not isinstance(r.get("ts"), bool)]
+    ahead = [r for r in usable if r["ts"] > now]
+    fresh = [r for r in usable if 0 < now - r["ts"] <= span_max]
+    if ahead and not fresh:
+        # A sample stamped in the future means the clock moved, so no span here is arithmetic we may
+        # trust. Guessing "steady" would hide a fall; guessing a rate would invent one.
+        return {"state": UNMEASURED, "reason": "отметка замера в будущем — часы шли назад",
+                "samples": len(usable)}
+    if not fresh:
+        return {"state": WARMING_UP, "reason": f"нет прежнего замера в окне {span_max / 60:.0f} мин",
+                "samples": len(usable), "window_s": span_max}
+    base = min(fresh, key=lambda r: r["ts"])
+    span = now - base["ts"]
+    if span < span_min:
+        return {"state": WARMING_UP,
+                "reason": f"пролёт {span:.0f} с короче объявленного минимума {span_min:.0f} с",
+                "span_s": round(span, 1), "samples": len(fresh)}
+    spent = base["free_bytes"] - free                     # > 0 ⇒ free space is FALLING
+    per_h = spent / span * 3600.0
+    out = {"span_s": round(span, 1), "samples": len(fresh), "gb_per_hour": round(per_h / GB, 2),
+           "free_gb": round(free / GB, 2)}
+    if per_h <= 0:
+        # Measured AND equal to zero is an ANSWER (inv. #17): not falling must be distinguishable both
+        # from "falling slowly" and from "nobody looked". There is no time-to-full, and that is a fact.
+        out.update({"state": STEADY, "minutes_to_full": None})
+        return out
+    out.update({"state": FALLING, "minutes_to_full": round(free / per_h * 60.0, 1)})
+    return out
+
+
+def exhaustion_state(exh: dict, policy: dict) -> str:
+    """The rate's own verdict — the half of the sensor that has a READER.
+
+    A published number nobody reads is the defect this repo keeps finding, so the rate votes in
+    ``overall``. It votes in ONE direction only (see build_report): it may escalate, never calm.
+    """
+    cfg = (policy.get("disk") or {}).get("exhaustion") or {}
+    if exh.get("state") == UNMEASURED:
+        # Deliberately NOT UNMEASURED for the report as a whole: the LEVEL is still measured, and
+        # claiming the guard is blind would be false. ADR-400's lesson — two different questions must
+        # not be equated. It is printed instead (summary_line, owner_body), so it is not silent either.
+        return OK
+    mins = exh.get("minutes_to_full")
+    if mins is None:
+        return OK
+    if mins <= float(cfg.get("critical_minutes_to_full", 60)):
+        return CRITICAL
+    if mins <= float(cfg.get("warn_minutes_to_full", 240)):
+        return WARN
+    return OK
+
+
+def record_sample(path: Path, disk: dict, policy: dict, *, samples: list, now: float) -> None:
+    """Append this observation and keep the declared tail. Never raises: losing the history costs the
+    NEXT rate (⇒ WARMING_UP, named), while a crash here would cost the whole 5-minute guard run."""
+    if disk.get("free_bytes") is None:
+        return
+    cfg = (policy.get("disk") or {}).get("exhaustion") or {}
+    keep = int(cfg.get("max_samples", 24))
+    rows = [r for r in samples if isinstance(r, dict) and isinstance(r.get("ts"), (int, float))]
+    rows.append({"ts": round(now, 1), "free_bytes": int(disk["free_bytes"])})
+    rows = sorted(rows, key=lambda r: r["ts"])[-keep:]
+    try:
+        from spa_core.utils.atomic import atomic_save
+        atomic_save({"schema": "resource-free-samples/1", "samples": rows}, str(path))
+    except Exception:  # noqa: BLE001 — see docstring: the guard's run outlives its own history file
+        pass
+
+
 # ── cleanup ─────────────────────────────────────────────────────────────────
 
 def _dir_size(p: Path, cap_entries: int = 200_000) -> int:
@@ -448,15 +574,31 @@ def reap_worktrees(apply: bool) -> dict:
 # ── report ──────────────────────────────────────────────────────────────────
 
 def build_report(policy: dict, *, disk_usage: Callable = shutil.disk_usage, run: Callable = _run,
-                 now: Optional[datetime] = None) -> dict:
+                 now: Optional[datetime] = None, data_dir: Optional[Path] = None,
+                 samples: Optional[list] = None, samples_error: Optional[str] = None,
+                 record: bool = True) -> dict:
     now = now or datetime.now(timezone.utc)
     disk = measure_disk(policy, disk_usage=disk_usage)
     mem = measure_memory(policy, run=run)
     procs = measure_processes(policy, run=run)
-    overall = max((disk["state"], mem["state"], procs["state"]), key=lambda s: _RANK[s])
+
+    # ── the rate (ADR-862). History comes from an argument when given, so a test fixes BOTH ends.
+    spath = Path(data_dir) / "resource_free_samples.json" if data_dir else None
+    if samples is None and spath is not None:
+        samples, samples_error = load_samples(spath)
+    exh = measure_exhaustion(disk, policy, samples=samples or [], now=now.timestamp(),
+                             samples_error=samples_error)
+    exh_state = exhaustion_state(exh, policy)
+    # The rate votes in ONE direction. _RANK-max over the level AND the rate means a measured fall can
+    # raise the verdict (18 GB/h at 18 GB free is CRITICAL an hour before the 15 GB line is crossed),
+    # while a calm rate can never talk the level down from CRITICAL — fail-CLOSED (inv. #2).
+    overall = max((disk["state"], mem["state"], procs["state"], exh_state), key=lambda s: _RANK[s])
     rep = {"schema": "resource-health/1", "generated_at": now.strftime("%Y-%m-%dT%H:%M:%SZ"),
            "overall": overall, "disk": disk, "memory": mem, "processes": procs,
+           "exhaustion": {**exh, "state_vote": exh_state},
            "policy": str(POLICY_PATH.relative_to(REPO)), "policy_version": policy.get("version")}
+    if record and spath is not None:
+        record_sample(spath, disk, policy, samples=samples or [], now=now.timestamp())
     if disk["state"] in (WARN, CRITICAL):
         # No size walk on the 5-minute path (review 2026-10-03: hundreds of 87-GB stands would make the
         # guard overrun its own interval exactly when it matters). Counts and oldest names only; the
@@ -474,10 +616,33 @@ def summary_line(rep: dict) -> str:
     disk = f"disk {d.get('free_gb')} GB free" if d.get("free_gb") is not None else f"disk {d['state']}"
     sw = (m.get("swap") or {}).get("used_pct")
     mem = f"memory pressure {m.get('pressure_level')}, swap {sw}%" if m["state"] != UNMEASURED else "memory NOT MEASURED"
-    return f"{rep['overall']}: {disk}; {mem}"
+    return f"{rep['overall']}: {disk}{exhaustion_line(rep)}; {mem}"
+
+
+def exhaustion_line(rep: dict) -> str:
+    """The rate, in the one line the agent log and the office step actually read (ADR-862)."""
+    e = rep.get("exhaustion") or {}
+    st = e.get("state")
+    if st == FALLING:
+        return f", falling {e.get('gb_per_hour')} GB/h — full in {e.get('minutes_to_full')} min"
+    if st == STEADY:
+        return ", not falling"
+    if st == WARMING_UP:
+        return f", rate not yet measured ({e.get('reason')})"
+    if st == UNMEASURED:
+        return f", rate NOT MEASURED ({e.get('reason')})"
+    return ""
 
 
 _PRESSURE_RU = {1: "норма", 2: "предупреждение", 4: "критично"}
+
+
+def _minutes_ru(mins: Optional[float]) -> str:
+    if mins is None:
+        return "неизвестно"
+    if mins < 90:
+        return f"{round(mins)} мин"
+    return f"{str(round(mins / 60, 1)).replace('.', ',')} ч"
 
 
 def _gb(mb: Optional[float]) -> str:
@@ -513,6 +678,18 @@ def owner_body(rep: dict, top: int = 3) -> str:
         lines.append(f"Диск: свободно {str(d['free_gb']).replace('.', ',')} ГБ" + (f" из {str(tot).replace('.', ',')} ГБ" if tot else ""))
     else:
         lines.append(f"Диск: {d.get('state', 'не измерено')}")
+    # The rate, in words: "свободно 9,7 ГБ" let the owner's card say «около 28 минут» when the measured
+    # answer was 33 (ADR-862). A number without its speed is not actionable.
+    e = rep.get("exhaustion") or {}
+    if e.get("state") == FALLING:
+        mins = e.get("minutes_to_full")
+        lines.append(f"Скорость: место уходит {str(e.get('gb_per_hour')).replace('.', ',')} ГБ/ч — "
+                     f"при этой скорости диск кончится через {_minutes_ru(mins)} "
+                     f"(замер по пролёту {round((e.get('span_s') or 0) / 60)} мин)")
+    elif e.get("state") == STEADY:
+        lines.append("Скорость: место НЕ уходит (измерено, не «не измерено»)")
+    elif e.get("state") == UNMEASURED:
+        lines.append(f"Скорость: НЕ ИЗМЕРЕНО — {e.get('reason')}")
     why = []
     if d.get("state") in (WARN, CRITICAL):
         why.append(f"диск ({d['state']})")
@@ -587,7 +764,7 @@ def main(argv: Optional[list[str]] = None) -> int:
         print(json.dumps(res, ensure_ascii=False, indent=1, default=str))
         return 0
 
-    rep = build_report(policy)
+    rep = build_report(policy, data_dir=Path(data_dir))
     if not a.no_protect:
         rep["protection"] = {"reniced": protect(rep, policy, verify=_same_process),
                              "reserve": manage_reserve(rep["disk"], policy)}
