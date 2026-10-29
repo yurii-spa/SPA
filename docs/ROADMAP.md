@@ -256,6 +256,20 @@ The source document's old fleet/paper-start assumptions do not authorize another
 Kept: whitelist, financial thresholds, immediate criticals, kill-switch outside the daily limit. Not a new bot or
 notification system; not mixed with R1/R2 (ADR-839) or TRADING-PROCESS-01 implementation.
 
+## PRODUCT-ADVANCE-01 — owner intake 2026-10-29 (one epic, 20 acceptance sub-tasks, 3 deliveries)
+
+**In progress (29.10): delivery 1 (A) built and CI-measured, NOT delivered — push to main refused by the automatic
+control; deliveries 2 (B+C) and 3 (D+E) planned, not started.** Task (verbatim from the ARB project):
+[product-advance-01-2026-10-29](tasks/product-advance-01-2026-10-29.md). State and next steps:
+[START_HERE](evidence/product-advance-01-2026-10-29/START_HERE.md).
+
+- A = TELEGRAM-OWNER-UX-01 above (ADR-852, earn-defi D-62/D-63) — not duplicated here.
+- B/C reuse TRADING-PROCESS-01 (TRP-01/02/03/04/07 above) and the existing `trading_research` read model and
+  earn-defi replay/commit-reveal; no new engine, no strategy sweep.
+- D reuses the owner queue (`orchestrator_queue.py set-status`) and the 27.10 answers registry; closing a question ≠
+  doing the work. E reuses `studio_os/memory` (assembler/role_pack/arch_review) and `architecture/model_roles.json`.
+- Out of scope: real capital, ADR-836 money delivery, new models/paid APIs, Ollama, MAC-STORAGE-AUDIT-01, disk cleanup.
+
 ## Mac storage — owner intake 2026-10-28
 
 **MAC-STORAGE-AUDIT-01 — backlog, not started (P1, next operations triage).** Owner asked only to record the
