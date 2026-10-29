@@ -270,6 +270,20 @@ Task: [mac-storage-audit-2026-10-28](tasks/mac-storage-audit-2026-10-28.md).
 - Any cleanup is a separate explicit list with consequences and recovery, executed only after the owner approves it.
   Links: TELEGRAM-OWNER-UX-01 (resource alerts), ADR-849 §3 (temporary census stands).
 
+## STUDIO-AUTONOMY-01 — owner/ARB intake 2026-10-29 (active entry point: 8 epics, 48 tasks, 5 deliveries)
+
+**In progress (29.10): S1 slice implemented and tested on a stand (ADR-857, branch `autonomy/s1`), not connected to
+production entry points, not delivered; 48 tasks prepared, NOT done.** Task (verbatim from the ARB project):
+[studio-autonomy-01-2026-10-29](tasks/studio-autonomy-01-2026-10-29.md). State, map and next steps:
+[START_HERE](evidence/studio-autonomy-01-2026-10-29/START_HERE.md).
+
+- Includes PRODUCT-ADVANCE-01 ([task](tasks/product-advance-01-2026-10-29.md)) as user outcomes; not a parallel program.
+- Step 0 = TELEGRAM-OWNER-UX-01 R1/R2/R3 (ADR-852; earn-defi D-62/D-63): fixed in candidates, publication refused
+  by the automatic control on 28.10 and not bypassed.
+- Reuses: `work_packet`/`card_acceptance` (E1/E3), `orchestrator_queue`/claims/cycle lock (E2), memory/role_pack/
+  model_roles (E4/E7), release_* only after E5 review (no deletions), trading_research + earn-defi (E6).
+- Out of scope: real capital ($0), money policy, ADR-762 (OFF), paid APIs, Ollama, MAC-STORAGE-AUDIT-01.
+
 ## Standing constraints
 
 Real capital, exchange orders, leverage, production risk limits, public yield numbers and irreversible
