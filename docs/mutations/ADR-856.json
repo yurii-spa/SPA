@@ -1,0 +1,92 @@
+{
+ "title": "ADR-856 (цикл #974, заказ G855 п. 4) — НАСЕЛЕНИЕ класса ADR-851: 18 блоков, публикующих два населения; у 8 число отсутствия не читает никто; ось «читает только „все“» объявлена НЕ ИЗМЕРЕННОЙ, и это ЗАМЕР, а не осторожность",
+ "tests": [
+  "spa_core/tests/test_additive_field_reader_census.py"
+ ],
+ "mutations": [
+  {
+   "name": "эталон не ЗАПУСКАЕТСЯ, а объявляется различающим — проба становится украшением",
+   "file": "spa_core/monitoring/additive_field_reader_census.py",
+   "old": "    same = nobody[0] == zero[0]",
+   "new": "    same = False"
+  },
+  {
+   "name": "две сцены перестают отличаться — различие исчезает, и дверь «различает» по построению",
+   "file": "spa_core/monitoring/additive_field_reader_census.py",
+   "old": "        nobody = door(_blank_census(163, 163))",
+   "new": "        nobody = door(_blank_census(163, 0))"
+  },
+  {
+   "name": "сломанная дверь объявляется различающей (fail-OPEN тише красного)",
+   "file": "spa_core/monitoring/additive_field_reader_census.py",
+   "old": "        return {\"kind\": DRIVE_UNMEASURED,\n                \"reason\": f\"эталон не отвечает: {type(exc).__name__}: {exc}\"}",
+   "new": "        return {\"kind\": DRIVE_DISTINGUISHES,\n                \"reason\": f\"эталон не отвечает: {type(exc).__name__}: {exc}\"}"
+  },
+  {
+   "name": "блок без ключа отсутствия втягивается в население — класс теряет свой предмет",
+   "file": "spa_core/monitoring/additive_field_reader_census.py",
+   "old": "            if all_keys and without_keys:",
+   "new": "            if all_keys or without_keys:"
+  },
+  {
+   "name": "нечитаемый файл молча исчезает — «не измерено» становится неотличимо от «чисто»",
+   "file": "spa_core/monitoring/additive_field_reader_census.py",
+   "old": "            unparsed.append({\"file\": rel, \"reason\": f\"{type(exc).__name__}: {exc}\"})\n            continue\n        funcs = _enclosing_functions(tree)\n        for node in ast.walk(tree):",
+   "new": "            continue\n        funcs = _enclosing_functions(tree)\n        for node in ast.walk(tree):"
+  },
+  {
+   "name": "производитель зачитывается в читатели своего же числа — блок без читателя выглядит прочитанным",
+   "file": "spa_core/monitoring/additive_field_reader_census.py",
+   "old": "                if any(blk[\"file\"] == rel and blk[\"producer\"] == fn\n                       for blk in producers):\n                    continue",
+   "new": "                pass"
+  },
+  {
+   "name": "честная форма чтения `observed(doc, key)` не видна — читатель на ней найден НЕ будет",
+   "file": "spa_core/monitoring/additive_field_reader_census.py",
+   "old": "        elif (isinstance(node, ast.Call) and isinstance(node.func, ast.Name)\n                and node.func.id == \"observed\" and len(node.args) >= 2\n                and isinstance(node.args[1], ast.Constant)\n                and isinstance(node.args[1].value, str)):\n            key = node.args[1].value",
+   "new": "        elif False:\n            key = None"
+  },
+  {
+   "name": "читающий ОБА населения и читающий только отсутствие сливаются в один исход",
+   "file": "spa_core/monitoring/additive_field_reader_census.py",
+   "old": "                    \"outcome\": READS_BOTH if reads_all else READS_WITHOUT_ONLY,",
+   "new": "                    \"outcome\": READS_BOTH,"
+  },
+  {
+   "name": "прибор мерит СЕБЯ — своя же сцена прибавляется к населению класса",
+   "file": "spa_core/monitoring/additive_field_reader_census.py",
+   "old": "        if rel.split(\"/\")[0] not in ROOTS or _is_test(rel) or rel == SELF_PATH:\n            continue\n        try:\n            tree = ast.parse(path.read_text(encoding=\"utf-8\"))\n        except (SyntaxError, UnicodeDecodeError, OSError) as exc:\n            unparsed.append({\"file\": rel, \"reason\": f\"{type(exc).__name__}: {exc}\"})\n            continue\n        funcs = _enclosing_functions(tree)\n        for node in ast.walk(tree):",
+   "new": "        if rel.split(\"/\")[0] not in ROOTS or _is_test(rel):\n            continue\n        try:\n            tree = ast.parse(path.read_text(encoding=\"utf-8\"))\n        except (SyntaxError, UnicodeDecodeError, OSError) as exc:\n            unparsed.append({\"file\": rel, \"reason\": f\"{type(exc).__name__}: {exc}\"})\n            continue\n        funcs = _enclosing_functions(tree)\n        for node in ast.walk(tree):"
+  },
+  {
+   "name": "НЕ ИЗМЕРЕННАЯ ось исчезает из отчёта — ноль вместо названного третьего исхода",
+   "file": "spa_core/monitoring/additive_field_reader_census.py",
+   "old": "    axis = report.get(\"reader_axis_not_measured\") or {}\n    if axis:",
+   "new": "    axis = {}\n    if axis:"
+  },
+  {
+   "name": "блок, чьё число отсутствия никто не читает, объявляется прочитанным",
+   "file": "spa_core/monitoring/additive_field_reader_census.py",
+   "old": "              if not (set(b[\"without_keys\"]) & reached)]",
+   "new": "              if False]"
+  },
+  {
+   "name": "проба приёмки зеленеет на СЛИТОМ эталоне (дверь отвечает одно и то же)",
+   "file": "spa_core/monitoring/card_acceptance.py",
+   "old": "    if kind == m.DRIVE_CONFLATES:\n        return NOT_SATISFIED, (",
+   "new": "    if False:\n        return NOT_SATISFIED, ("
+  },
+  {
+   "name": "проба приёмки выдаёт НЕ ИЗМЕРЕНО за выполнено",
+   "file": "spa_core/monitoring/card_acceptance.py",
+   "old": "    if kind == m.DRIVE_UNMEASURED:\n        return UNMEASURED, f\"эталон класса не измерен: {drive.get('reason')}\"",
+   "new": "    if kind == m.DRIVE_UNMEASURED:\n        return SATISFIED, f\"эталон класса не измерен: {drive.get('reason')}\""
+  },
+  {
+   "name": "проба не смотрит НАПРАВЛЕНИЕ различия — «measured_zero» на сцене без поля сойдёт за выполнено",
+   "file": "spa_core/monitoring/card_acceptance.py",
+   "old": "    if (nobody, zero) != (\"unmeasured\", \"measured_zero\"):",
+   "new": "    if False:"
+  }
+ ]
+}

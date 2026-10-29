@@ -2,11 +2,14 @@
 trackerStatus:
   type: inbox
 title: Читатель считает население по ВСЕМ записям, а не по несущим новое поле — класс шире одного экземпляра (ADR-851)
-status: new
+status: in-progress
 source: nimbalyst
 created: 2026-10-28
 priority: high
 finding_adr: ADR-851
+acceptance_probe: additive_field_reader_distinguishes
+status_trail:
+  - "2026-10-29T05:05:23.573091+00:00 new -> in-progress · queue.set_status · cycle-58886"
 ---
 
 ## Находка (замер 2026-10-28, цикл #970, ADR-851)

@@ -2,11 +2,11 @@
 
 > Авто-генерится `scripts/build_tracker_board.py` из `nimbalyst-local/tracker/*.md`. НЕ править вручную — правь карточки. Источник правды — карточки, это индекс (bootstrap).
 >
-> Собрана: 2026-10-29T03:10:46Z · сверка с карточками: `python3 scripts/build_tracker_board.py --check` (сторож `spa_core/tests/test_tracker_board_matches_cards.py`).
+> Собрана: 2026-10-29T05:47:30Z · сверка с карточками: `python3 scripts/build_tracker_board.py --check` (сторож `spa_core/tests/test_tracker_board_matches_cards.py`).
 >
-> Сверено с `origin/main` (9ea96aa7f).
+> Сверено с `origin/main` (495d26423) · у **1** своя правка, кто новее — не измерено.
 >
-> Всего карточек: **1498** · ждёт владельца: **1** · занято сессиями: **14**.
+> Всего карточек: **1500** · ждёт владельца: **1** · занято сессиями: **14**.
 
 ## 🔴 ЖДЁТ ВЛАДЕЛЬЦА (needs-owner)
 
@@ -412,10 +412,11 @@
 ### · closed
 - Считать ли верный отказ по правилам допуска неисправностью флота  ·  `owner-decision-schitat-li-vernyi-otkaz-po-pravilam-dopu.md` · 2026-10-08
 
-## 📥 Inbox (задания: Telegram / заметки / голос)  (824)
+## 📥 Inbox (задания: Telegram / заметки / голос)  (826)
 
 ### · in-progress
 - а задача починить все-таки еще раз сообщение которым не пишет нужно твое решени…  ·  `inbox-a-zadacha-pochinit-vse-taki-esche-raz-so.md` · 2026-08-14 · 🔒 `pid43119`
+- Читатель считает население по ВСЕМ записям, а не по несущим новое поле — класс шире одного экземпляра (ADR-851)  ·  `inbox-chitatel-schitaet-naselenie-po-vsem-zapi.md` · 2026-10-28
 - CI на main красный 12 прогонов подряд: measure() переписи идёт 335 с при пороге 180 с на тест  ·  `inbox-ci-na-main-krasnyi-12-progonov-podryad-m.md` · 2026-09-24
 - CI на main: вердикт впервые измерен — tests/ зелено, scripts/tests/ красно ОДНИМ названным (lsof), spa_core/tests/ НЕ ИЗМЕРЕНО (клин 120 мин на 80 %)  ·  `inbox-ci-na-main-verdikt-vpervye-izmeren-tests.md` · 2026-09-25
 - CRITICAL сторожа фидов мигает: aave_v3 разошёлся на 1.69 пп в 01:14Z и сошёлся к 05:27Z — истории расхождений нет  ·  `inbox-critical-storozha-fidov-migaet-aave-v3-r.md` · 2026-08-27 · 🔒 `cycle-63347`
@@ -960,7 +961,6 @@
 - Четыре теста краснеют на чистом origin/main bbfcc9724 — храповик наблюдения отстал на три площадки + джоба CI без истории  ·  `inbox-chetyre-testa-krasneyut-na-chistom-origi.md` · 2026-10-08
 - Четыре теста судят о структуре переписи вторых копий ПОДСТРОКОЙ и доказанно слепы к её элементам  ·  `inbox-chetyre-testa-sudyat-o-strukture-perepis.md` · 2026-10-15
 - Число трека в нарративных документах некому обновлять — сторож будет краснеть примерно раз в неделю  ·  `inbox-chislo-treka-v-narrativnyh-dokumentah-ne.md` · 2026-08-24
-- Читатель считает население по ВСЕМ записям, а не по несущим новое поле — класс шире одного экземпляра (ADR-851)  ·  `inbox-chitatel-schitaet-naselenie-po-vsem-zapi.md` · 2026-10-28
 - Чужой полный прогон в том же дереве невидим: пробы «дерево занято прогоном» нет ни у кого  ·  `inbox-chuzhoi-polnyi-progon-v-tom-zhe-dereve-n.md` · 2026-09-21
 - CI-Lite гоняет pytest без истории репозитория — тесты про доставку не мерят ничего и выглядят зелёными  ·  `inbox-ci-lite-gonyaet-pytest-bez-istorii-repoz.md` · 2026-10-08
 - CI на main ничего не мерил: job Python 3.11 умирал на сборе, а красная галочка читалась как «тесты упали»  ·  `inbox-ci-na-main-nichego-ne-meril-job-python-3.md` · 2026-09-21
@@ -1115,6 +1115,7 @@
 - Прибор наблюдённости капитала каждый цикл кричит про спор TVL, а деньгам это не вредит  ·  `inbox-pribor-nablyudennosti-kapitala-kazhdyi-t.md` · 2026-09-15
 - Причина, которая возникает только в облаке, не доходит до учёта повторов  ·  `inbox-prichina-kotoraya-voznikaet-tolko-v-obla.md` · 2026-10-23
 - Причина недоизмеренности hit_rate названа не та: рычаг у писателя журнала, а не у фида  ·  `inbox-prichina-nedoizmerennosti-hit-rate-nazva.md` · 2026-09-11
+- Привязка читателя к блоку по ДОРОГЕ значения — ось «судит о населении „все“» осталась НЕ ИЗМЕРЕННОЙ (ADR-856)  ·  `inbox-privyazka-chitatelya-k-bloku-po-doroge-z.md` · 2026-10-29
 - Проба двери доставки считает ПОЛОМКУ сторожа его отказом (катч-олл в приёмке ADR-714)  ·  `inbox-proba-dveri-dostavki-schitaet-polomku-st.md` · 2026-10-15
 - Проба приёмки карточек даёт разное число из прода и из worktree, и ни одно дерево не даёт полного — SPA_DATA_DIR её не лечит  ·  `inbox-proba-priemki-kartochek-daet-raznoe-chis.md` · 2026-10-22
 - Проба приёмки мерит соседнюю дверь: прибор ввозится по имени, а не из измеряемого дерева (3 из 51)  ·  `inbox-proba-priemki-merit-sosednyuyu-dver-prib.md` · 2026-10-14
@@ -1227,6 +1228,7 @@
 - Вернуть разделы, потерянные доставкой 07.10 с шести карточек владельца  ·  `inbox-vernut-razdely-poteryannye-dostavkoi-07.md` · 2026-10-15
 - Ветка сверки по mtime срабатывает на свежем worktree всегда — у неё СВОЙ дефект, тактом не лечится (остаток ADR-264)  ·  `inbox-vetka-sverki-po-mtime-srabatyvaet-na-sve.md` · 2026-09-08
 - Внести артефакт в манифест «без срока» нельзя: B5 требует положительный slo_hours — предпосылка замера #426 верна только для B2  ·  `inbox-vnesti-artefakt-v-manifest-bez-sroka-nel.md` · 2026-08-30
+- Восемь блоков публикуют число отсутствия, и не читает его никто (ADR-856, замер #974)  ·  `inbox-vosem-blokov-publikuyut-chislo-otsutstvi.md` · 2026-10-29
 - Восемь карточек: машинный критерий приёмки выполнен, а статус держит их открытыми  ·  `inbox-vosem-kartochek-mashinnyi-kriterii-priem.md` · 2026-10-21
 - Восемь сроков годности без объявленной единицы — часы это или секунды, по документу не определить  ·  `inbox-vosem-srokov-godnosti-bez-obyavlennoi-ed.md` · 2026-10-26
 - Восемнадцать ответов владельца 27.10: исполнителя не назвал никто  ·  `inbox-vosemnadtsat-otvetov-vladeltsa-27-10-isp.md` · 2026-10-28

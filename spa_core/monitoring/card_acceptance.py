@@ -143,6 +143,51 @@ def _probe_artifact_contract(arg: str | None) -> tuple[str, str]:
     return UNMEASURED, f"агента {arg} нет среди сверенных ({len(rows)}) — предмет не измерен"
 
 
+def _probe_additive_field_reader_distinguishes(arg: str | None) -> tuple[str, str]:
+    """Критерий: у класса ADR-851 НАЗВАНО население И эталон различает два исхода.
+
+    Проба мерит ИСХОД, а не наличие модуля: она ЗАПУСКАЕТ живую дверь на двух
+    сценах, отличающихся РОВНО тем, у скольких записей есть поле, и требует
+    РАЗНОГО рода исхода — «шага не звали» против «замера нуля». Дверь,
+    отвечающая одно и то же, есть дословная авария 28.10 (ADR-851).
+
+    Третий исход у пробы СВОЙ: прибор не ввезён либо дверь не отвечает ⇒
+    `unmeasured`, а не «не выполнено» — про предмет тогда не измерено ничего.
+    """
+    try:
+        from spa_core.monitoring import additive_field_reader_census as m
+    except Exception as exc:
+        return UNMEASURED, f"прибор переписи не ввозится: {type(exc).__name__}: {exc}"
+    drive = m.drive_exemplar()
+    kind = drive.get("kind")
+    if kind == m.DRIVE_UNMEASURED:
+        return UNMEASURED, f"эталон класса не измерен: {drive.get('reason')}"
+    if kind == m.DRIVE_CONFLATES:
+        return NOT_SATISFIED, (
+            f"эталон {drive.get('door')} отвечает одно и то же на обе сцены "
+            f"(«{drive['scene_nobody_carries']['outcome']}») — «шага не звали» "
+            f"от «замера нуля» он не отличает")
+    nobody = drive["scene_nobody_carries"]["outcome"]
+    zero = drive["scene_measured_zero"]["outcome"]
+    if (nobody, zero) != ("unmeasured", "measured_zero"):
+        return NOT_SATISFIED, (
+            f"исходы различны, но НЕ в ту сторону: сцена без поля дала "
+            f"«{nobody}», сцена замера нуля — «{zero}»")
+    try:
+        report = m.run_census()
+    except Exception as exc:
+        return UNMEASURED, (f"эталон различает, но население НЕ измерено: "
+                            f"{type(exc).__name__}: {exc}")
+    c = report["counts"]
+    unread = len(report["blocks_with_no_reader"])
+    return SATISFIED, (
+        f"эталон различает («{nobody}» против «{zero}»); население класса "
+        f"НАЗВАНО: блоков {report['block_count']}, читателей числа отсутствия "
+        f"{report['pair_count']} (оба населения {c[m.READS_BOTH]} · только "
+        f"отсутствие {c[m.READS_WITHOUT_ONLY]}), блоков без читателя {unread}; "
+        f"ось «читает только „все“» объявлена НЕ ИЗМЕРЕННОЙ")
+
+
 def _probe_lead_channel_wiring(arg: str | None) -> tuple[str, str]:
     """Критерий: обработчик заявки с сайта ДЕЙСТВИТЕЛЬНО зовёт уведомителя владельца.
 
@@ -12180,6 +12225,8 @@ PROBES: dict[str, Callable[[str | None], "tuple[str, str]"]] = {
     "contract_manifest_parity_agrees": _probe_contract_manifest_parity,
     "artifact_contract_confirmed": _probe_artifact_contract,
     "lead_channel_wiring_ok": _probe_lead_channel_wiring,
+    "additive_field_reader_distinguishes":
+        _probe_additive_field_reader_distinguishes,
     "adapter_status_live_apy": _probe_adapter_status_live_apy,
     "tier_promotion_loop_closed": _probe_tier_promotion_loop,
     "ledger_cut_moves_and_is_measured": _probe_ledger_cut_moves_and_is_measured,
