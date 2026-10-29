@@ -2,16 +2,17 @@
 
 > Авто-генерится `scripts/build_tracker_board.py` из `nimbalyst-local/tracker/*.md`. НЕ править вручную — правь карточки. Источник правды — карточки, это индекс (bootstrap).
 >
-> Собрана: 2026-10-29T09:25:49Z · сверка с карточками: `python3 scripts/build_tracker_board.py --check` (сторож `spa_core/tests/test_tracker_board_matches_cards.py`).
+> Собрана: 2026-10-29T11:28:52Z · сверка с карточками: `python3 scripts/build_tracker_board.py --check` (сторож `spa_core/tests/test_tracker_board_matches_cards.py`).
 >
-> Сверено с `origin/main` (fe77594cb).
+> Сверено с `origin/main` (9d985516a).
 >
-> Всего карточек: **1504** · ждёт владельца: **2** · занято сессиями: **14**.
+> Всего карточек: **1506** · ждёт владельца: **3** · занято сессиями: **14**.
 
 ## 🔴 ЖДЁТ ВЛАДЕЛЬЦА (needs-owner)
 
 - **Диск снова съел один журнал агента: 9,82 ГБ из 9,91 ГБ всех логов — выбрать починку из трёх** · _critical_  ·  `owner-decision-disk-snova-sel-odin-zhurnal-agenta-9-82.md`
 - **Сайт: site_numbers.json — автономная правка задела owner-gated область, нужно решение**  ·  `owner-decision-sait-site-numbers-json-avtonomnaya-pravk.md`
+- **Сайт: track_snapshot.json — автономная правка задела owner-gated область, нужно решение**  ·  `owner-decision-sait-track-snapshot-json-avtonomnaya-pra-3.md`
 
 ## 🔒 ЗАНЯТЫ СЕССИЯМИ (claimed_by)
 
@@ -32,11 +33,12 @@
 - **TASK — Portfolio CIO: Dynamic Capital Allocation & Rebalancing** — держит `cycle-11180` · с 2026-10-29T02:03:43Z  ·  `inbox-task-portfolio-cio-dynamic-capital-alloc.md`
 - **Замок цикла оркестратора доставлен, но в проде не работает: обёртка агента синкается раз в сутки, а голос о пропавшей защите живёт в самом пропавшем файле** — держит `cycle-81141` · с 2026-08-08T01:59:06Z  ·  `inbox-zamok-tsikla-orkestratora-dostavlen-no-v.md`
 
-## 🧑‍⚖️ Owner Decisions (что нужно от владельца)  (375)
+## 🧑‍⚖️ Owner Decisions (что нужно от владельца)  (376)
 
 ### · needs-owner
 - Диск снова съел один журнал агента: 9,82 ГБ из 9,91 ГБ всех логов — выбрать починку из трёх  ·  `owner-decision-disk-snova-sel-odin-zhurnal-agenta-9-82.md` · 2026-10-29
 - Сайт: site_numbers.json — автономная правка задела owner-gated область, нужно решение  ·  `owner-decision-sait-site-numbers-json-avtonomnaya-pravk.md` · 2026-10-28
+- Сайт: track_snapshot.json — автономная правка задела owner-gated область, нужно решение  ·  `owner-decision-sait-track-snapshot-json-avtonomnaya-pra-3.md` · 2026-10-29
 ### · ingested
 - Ключ Etherscan уже работает — задача была «фантомной» (петля исправлена)  ·  `own-06-etherscan-prod-key.md` · 2026-07-15
 - Включить письма-подтверждения для подписки — добавить два ключа на сервер  ·  `own-07-retention-secrets.md` · 2026-07-15
@@ -414,7 +416,7 @@
 ### · closed
 - Считать ли верный отказ по правилам допуска неисправностью флота  ·  `owner-decision-schitat-li-vernyi-otkaz-po-pravilam-dopu.md` · 2026-10-08
 
-## 📥 Inbox (задания: Telegram / заметки / голос)  (829)
+## 📥 Inbox (задания: Telegram / заметки / голос)  (830)
 
 ### · in-progress
 - а задача починить все-таки еще раз сообщение которым не пишет нужно твое решени…  ·  `inbox-a-zadacha-pochinit-vse-taki-esche-raz-so.md` · 2026-08-14 · 🔒 `pid43119`
@@ -1239,6 +1241,7 @@
 - Восемнадцать ответов владельца 27.10: исполнителя не назвал никто  ·  `inbox-vosemnadtsat-otvetov-vladeltsa-27-10-isp.md` · 2026-10-28
 - Восемнадцать сторожей судят артефакты, которых конституция не знает — их пороги не способен проверить никто  ·  `inbox-vosemnadtsat-storozhei-sudyat-artefakty.md` · 2026-10-08
 - Воспроизводимость решения не спрошена у решателей двух третей капитала  ·  `inbox-vosproizvodimost-resheniya-ne-sproshena-u.md` · 2026-09-29
+- Все пять голосовых заданий владельца — одна просьба, повторённая 5 раз за 10 дней, и шаг 0a её не видит  ·  `inbox-vse-pyat-golosovyh-zadanii-vladeltsa-odn.md` · 2026-10-29
 - Вторая запись о деньгах, позванная как предписано — из своего worktree, — не видит ту самую дыру, ради которой написана  ·  `inbox-vtoraya-zapis-o-dengah-iz-worktree-ne-vi.md` · 2026-10-22
 - Вторая запись о деньгах из worktree печатает ЛОЖНУЮ дыру: журнал обрезан до 7 ходов из 34, а вывод выглядит находкой  ·  `inbox-vtoraya-zapis-o-dengah-iz-worktree-pecha.md` · 2026-09-28
 - Вторая запись о деньгах из worktree судит о ЗАМОРОЖЕННОМ каноне git, и код возврата тот же  ·  `inbox-vtoraya-zapis-o-dengah-iz-worktree-sudit.md` · 2026-10-24

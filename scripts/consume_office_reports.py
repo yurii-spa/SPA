@@ -108,11 +108,15 @@ _READ_SCHEMA: dict[str, tuple[str, ...]] = {
     # становится `None` в строке, которую читает оркестратор, и тревоги
     # «СХЕМА РАЗОШЛАСЬ» по нему нет. База храповика при этом НЕ дописана —
     # класс уменьшился на три (инв. #16).
+    # ADR-859 (цикл #976): `trim_optimum_census` объявлен В ТОТ ЖЕ ПУШ, которым
+    # прибор появился, — именно затем, чтобы не повторить класс выше (три блока
+    # читались и были необъявлены три цикла подряд).
     "shadow_trigger_evaluation.json": ("status", "ready_to_arm", "observation_days",
                                       "counts.act", "criteria", "arming_blockade",
                                       "trial_grant_reach", "admissible_size_reach",
                                       "live_trim_census", "trim_shape_census",
-                                      "trim_admissibility_census"),
+                                      "trim_admissibility_census",
+                                      "trim_optimum_census"),
     # ADR-526, заказ G86 п. 4. `fails` объявлен вместе с `n_fails` намеренно:
     # число без перечня не говорит, ЧТО именно расходится, а перечень без числа
     # не отличает «нашли ноль» от «поле не пишется».
@@ -5338,6 +5342,8 @@ def _summarize_json(path: str, data, *, now: dt.datetime | None = None,
                 format_trim_admissibility,
             )
 
+            from spa_core.paper_trading.trim_optimum import format_trim_optimum
+
             blockade_lines = (
                 format_blockade(data.get("arming_blockade"))
                 + format_trial_reach(data.get("trial_grant_reach"))
@@ -5362,7 +5368,13 @@ def _summarize_json(path: str, data, *, now: dt.datetime | None = None,
                 # разрешение его взять, а на живом дне 28.10 книга лучшей
                 # формы отказана потолком на ГРУППУ T2.
                 + format_trim_admissibility(
-                    data.get("trim_admissibility_census")))
+                    data.get("trim_admissibility_census"))
+                # ADR-859: восьмая строка отвечает «есть ли ДОПУСТИМАЯ книга
+                # ЛУЧШЕ жадной». Без неё седьмая читается как «лучшее, что
+                # разрешено», а замер 29.10 говорит иное: против лучшей
+                # допустимой прежней формы медиана окупаемости 112.43 → 78.28
+                # дн., и в горизонт 30 дн. попадает 20 записей против 15.
+                + format_trim_optimum(data.get("trim_optimum_census")))
         except Exception as exc:  # noqa: BLE001
             # Тот же приём, что у кнопок ниже: обязательный шаг 0-офис не имеет
             # права упасть из-за строчки оформления — упавший шаг это НЕ

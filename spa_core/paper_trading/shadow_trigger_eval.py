@@ -1099,6 +1099,22 @@ def evaluate_window(
         tiers_measured=_tiers_measured,
         chains=_chains_for_shape,
         chains_measured=_chains_measured)
+    # Седьмой вопрос, и он НЕ тот же: шесть блоков выше спрашивают, что было бы,
+    # чего бы это стоило и пустит ли это дверь, а этот — есть ли ДОПУСТИМАЯ
+    # книга ЛУЧШЕ той, которую выбрал жадный спред. ADR-855 назвал жадный спред
+    # НИЖНЕЙ границей, а не оптимумом, и честно оставил это РАССУЖДЕНИЕМ (жадное
+    # правило про потолки не спрашивает вовсе). Здесь оно становится замером.
+    # ADVISORY: найденное есть НИЖНЯЯ граница оптимума, а не оптимум, — две
+    # причины названы в докстринге прибора и повторены в самой переписи.
+    from spa_core.paper_trading.trim_optimum import trim_optimum_census
+
+    trim_optimum = trim_optimum_census(
+        _window_history,
+        params=TriggerParams.for_mode("paper"),
+        tiers=_tiers_for_shape,
+        tiers_measured=_tiers_measured,
+        chains=_chains_for_shape,
+        chains_measured=_chains_measured)
 
     doc = {
         "generated_at": None,  # filled below; kept out of the hash-relevant zone
@@ -1143,6 +1159,11 @@ def evaluate_window(
         # стоит ли формы урезания РАЗЛИЧАТЬ, и на каком населении это измерено.
         "trim_shape_census": trim_shape,
         "trim_admissibility_census": trim_admissibility,
+        # Приз ограниченного поиска (ADR-859). Не критерий и не гейт:
+        # `ready_to_arm` считается ровно по мандату владельца и этим блоком не
+        # меняется. Отвечает на вопрос, которого у шести блоков выше нет вовсе —
+        # НАСКОЛЬКО жадный спред хуже допустимого оптимума.
+        "trim_optimum_census": trim_optimum,
         "params": {
             "horizon_days": horizon_days,
             "min_observation_days": min_days,
@@ -1330,6 +1351,12 @@ def format_summary(doc: dict) -> str:
         format_trim_admissibility)
 
     lines.extend(format_trim_admissibility(doc.get("trim_admissibility_census")))
+    # ADR-859: «есть ли допустимая книга ЛУЧШЕ жадной» — пятый вопрос с пятыми
+    # исходами (допустимость может быть измерена, а приз нет — ног больше
+    # потолка перебора, — и наоборот), поэтому и печать своя.
+    from spa_core.paper_trading.trim_optimum import format_trim_optimum
+
+    lines.extend(format_trim_optimum(doc.get("trim_optimum_census")))
     lines.append("Включение — отдельное owner-решение (pre_cutover_gate + ADR); "
                  "этот отчёт капитал не двигает.")
     return "\n".join(lines)

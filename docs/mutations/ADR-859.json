@@ -1,0 +1,104 @@
+{
+ "title": "ADR-859 (цикл #976) — жадный спред назван НИЖНЕЙ границей и это ИЗМЕРЕНО: ограниченный поиск по подмножествам ног спрашивает допустимость той же дверью книги; доминирование жадного — инвариант построения, оптимум НЕ утверждается",
+ "tests": [
+  "spa_core/tests/test_trim_optimum.py"
+ ],
+ "mutations": [
+  {
+   "name": "ПОЛНОЕ подмножество выброшено из перебора — книги жадного среди кандидатов больше нет, и доминирование (единственный доказуемый инвариант прибора) рвётся",
+   "file": "spa_core/paper_trading/trim_optimum.py",
+   "old": "    for n_i in range(len(inc) + 1):",
+   "new": "    for n_i in range(len(inc)):"
+  },
+  {
+   "name": "деление отрезка снято: размер берётся только у потолка — внутренний край не находится никогда, и допустимая книга объявляется несуществующей",
+   "file": "spa_core/paper_trading/trim_optimum.py",
+   "old": "    if ok(ceiling):\n        return ceiling\n    lo, hi, found = 0.0, ceiling, None",
+   "new": "    if ok(ceiling):\n        return ceiling\n    return None\n    lo, hi, found = 0.0, ceiling, None"
+  },
+  {
+   "name": "край отрезка НЕ спрашивается у двери, а объявляется потолком (fail-OPEN: недопустимая книга выдаётся за допустимую)",
+   "file": "spa_core/paper_trading/trim_optimum.py",
+   "old": "    if ok(ceiling):\n        return ceiling",
+   "new": "    return ceiling\n    if ok(ceiling):\n        return ceiling"
+  },
+  {
+   "name": "ось «против жадного» перестаёт спрашивать ДОПУСТИМОСТЬ — отказанная книга читается как дорогой вариант, рода смешаны (дефект ADR-580 C2), и `search_worse` становится ненулевым",
+   "file": "spa_core/paper_trading/trim_optimum.py",
+   "old": "    vs_greedy = [r for r in rows\n                 if (r.get(\"approved\") or {}).get(\"greedy\")\n                 and _pb(r, \"greedy\") is not None and _pb(r, \"search\") is not None]",
+   "new": "    vs_greedy = [r for r in rows\n                 if _pb(r, \"greedy\") is not None and _pb(r, \"search\") is not None]"
+  },
+  {
+   "name": "база сравнения берёт ЛУЧШЕЕ число из двух форм, не спрашивая допустимости — «лучшая допустимая прежняя форма» становится «лучшая напечатанная»",
+   "file": "spa_core/paper_trading/trim_optimum.py",
+   "old": "    known: List[float] = []\n    if ok_greedy and sc_greedy:\n        known.append(float(sc_greedy[\"payback_days\"]))\n    if ok_interp and sc_interp:\n        known.append(float(sc_interp[\"payback_days\"]))",
+   "new": "    known: List[float] = []\n    if sc_greedy:\n        known.append(float(sc_greedy[\"payback_days\"]))\n    if sc_interp:\n        known.append(float(sc_interp[\"payback_days\"]))"
+  },
+  {
+   "name": "неизвестный тир читается как ДОПУСТИМО (ADR-359 наизнанку: сомнение трактуется в пользу сделки)",
+   "file": "spa_core/paper_trading/trim_optimum.py",
+   "old": "    if verdict is None:\n        return None\n    return bool(verdict.get(\"approved\"))",
+   "new": "    if verdict is None:\n        return True\n    return bool(verdict.get(\"approved\"))"
+  },
+  {
+   "name": "стоящая книга больше не судится — приз раскладки считается и на дне, которое УЖЕ стояло вне политики, то есть наследство вменяется форме",
+   "file": "spa_core/paper_trading/trim_optimum.py",
+   "old": "    if standing is False:\n        return {\"kind\": OPT_STANDING_INADMISSIBLE,",
+   "new": "    if False:\n        return {\"kind\": OPT_STANDING_INADMISSIBLE,"
+  },
+  {
+   "name": "«допустимой книги нет» схлопывается в measured с пустым лучшим — искали и не нашли становится неотличимо от нашли (инв. #17)",
+   "file": "spa_core/paper_trading/trim_optimum.py",
+   "old": "    if best is None:\n        return {\"kind\": OPT_NONE_ADMISSIBLE,",
+   "new": "    if best is None:\n        return {\"kind\": OPT_MEASURED,"
+  },
+  {
+   "name": "перебор молча усекается вместо третьего исхода — неполный ответ выдаётся за полный",
+   "file": "spa_core/paper_trading/trim_optimum.py",
+   "old": "    if total > max_subsets:\n        return {\"kind\": OPT_SEARCH_TRUNCATED,",
+   "new": "    if False:\n        return {\"kind\": OPT_SEARCH_TRUNCATED,"
+  },
+  {
+   "name": "притязание «НИЖНЯЯ ГРАНИЦА» снято с переписи — нижняя граница читается как оптимум, и вопрос закрывается, оставаясь открытым",
+   "file": "spa_core/paper_trading/trim_optimum.py",
+   "old": "        \"claim\": (\"НИЖНЯЯ ГРАНИЦА оптимума, НЕ оптимум — две названные причины \"",
+   "new": "        \"claim\": (\"ОПТИМУМ под ограничениями — две названные причины \""
+  },
+  {
+   "name": "притязание снято с ОДНОЙ записи (соседний контейнер того же слова — урок ADR-200: чинить один контейнер мало)",
+   "file": "spa_core/paper_trading/trim_optimum.py",
+   "old": "            \"claim\": (\"НИЖНЯЯ ГРАНИЦА оптимума: раскладка внутри подмножества \"",
+   "new": "            \"claim\": (\"ОПТИМУМ: раскладка внутри подмножества \""
+  },
+  {
+   "name": "условие сравнения снято: чистое движение кэша больше не держится, и поиск разворачивает кэш, которого соседка не разворачивала (две книги становятся несравнимыми)",
+   "file": "spa_core/paper_trading/trim_optimum.py",
+   "old": "    if buy < -_EPS or sell < -_EPS:\n        return None",
+   "new": "    buy, sell = max(buy, 0.0), max(sell, 0.0)\n    if False:\n        return None"
+  },
+  {
+   "name": "окупаемость без выигрыша становится НУЛЁМ вместо «не определена» — ноль читается как «окупается мгновенно»",
+   "file": "spa_core/paper_trading/trim_optimum.py",
+   "old": "    payback = _payback_days(cost, gain, capital_usd)\n    if payback is None:\n        return None",
+   "new": "    payback = _payback_days(cost, gain, capital_usd)\n    if payback is None:\n        payback = 0.0"
+  },
+  {
+   "name": "блок снят с документа оценщика — прибор становится сиротой (ADR-843), и ни один читатель о призе не узнаёт",
+   "file": "spa_core/paper_trading/shadow_trigger_eval.py",
+   "old": "        \"trim_optimum_census\": trim_optimum,",
+   "new": "        \"trim_optimum_census_\": trim_optimum,"
+  },
+  {
+   "name": "блок снят с ПЕЧАТИ отчёта — число есть в документе и не доезжает до читателя (дословный дефект ADR-858)",
+   "file": "spa_core/paper_trading/shadow_trigger_eval.py",
+   "old": "    lines.extend(format_trim_optimum(doc.get(\"trim_optimum_census\")))",
+   "new": "    lines.extend([])"
+  },
+  {
+   "name": "объявление блока снято из схемы чтения шага 0-офис — необъявленное чтение молча становится None, и тревоги «СХЕМА РАЗОШЛАСЬ» по нему нет (класс ADR-855)",
+   "file": "scripts/consume_office_reports.py",
+   "old": "                                      \"trim_optimum_census\"),",
+   "new": "                                      ),"
+  }
+ ]
+}

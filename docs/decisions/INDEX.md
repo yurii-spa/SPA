@@ -725,6 +725,7 @@
 | ADR-855 | ADR-855 — Допустимость книги формы СПРОШЕНА, и приз ADR-854 на живом дне равен нулю | Accepted | [ADR-855](ADR-855-the-shape-admissibility-is-asked.md) |
 | ADR-856 | ADR-856 — Население класса ADR-851 измерено, и у замера есть ось, честный ответ которой «НЕ ИЗМЕРЕНО» | Accepted | [ADR-856](ADR-856-the-population-of-the-additive-forward-reader-class.md) |
 | ADR-858 | ADR-858 — Сторож сказал, а читатель превратил ответ в шум: число свободного места не доезжало до файловой поверхности сессии | Accepted | [ADR-858](ADR-858-the-guard-said-it-and-the-reader-made-it-noise.md) |
+| ADR-859 | ADR-859 — Жадный спред есть НИЖНЯЯ ГРАНИЦА, и приз ограниченного поиска ИЗМЕРЕН | Accepted | [ADR-859](ADR-859-the-greedy-spread-is-a-lower-bound.md) |
 
 ## Соглашения
 
