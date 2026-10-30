@@ -1,0 +1,110 @@
+{
+ "title": "#148 MPC + #149 LBS — дельта итерации novel-edge-rnd 2026-10-30 (перепись измеримого населения + сайзер по бюджету потерь)",
+ "tests": [
+  "spa_core/tests/test_edge_measurable_population.py"
+ ],
+ "mutations": [
+  {
+   "name": "M1 перепись считает ЗАМОРОЖЕННУЮ книгу измеренным нулём (нарушение инв. #17)",
+   "file": "scripts/edge_measurable_population.py",
+   "old": "                \"unmeasured\": \"no movement on TEST\" if moves_test == 0 else None,\n",
+   "new": "                \"unmeasured\": None,\n"
+  },
+  {
+   "name": "M2 измеримость перестаёт читать пошлину — измеримы все, кто вообще считался",
+   "file": "scripts/edge_measurable_population.py",
+   "old": "                \"test_measurable\": dd_test > t,\n",
+   "new": "                \"test_measurable\": dd_test >= 0.0,\n"
+  },
+  {
+   "name": "M3 шов, оставляющий огрызок половины, больше НЕ отказывает",
+   "file": "scripts/edge_measurable_population.py",
+   "old": "    if hi < 60 or len(axis) - hi < 60:\n",
+   "new": "    if False:\n"
+  },
+  {
+   "name": "M4 отсутствующий источник §2 выдаётся за ЧИСТЫЙ ноль (fail-OPEN)",
+   "file": "scripts/edge_measurable_population.py",
+   "old": "        out.append({\"source\": \"swarm/blend_forward.json\", \"unmeasured\": \"file absent\"})\n",
+   "new": "        out.append({\"source\": \"swarm/blend_forward.json\", \"days\": 0, \"maxdd\": 0.0,\n                    \"down_days\": None, \"measurable\": False, \"unmeasured\": None})\n"
+  },
+  {
+   "name": "M5 §2 отвечает «измеримых нет», не прочитав НИ ОДНОГО источника",
+   "file": "scripts/edge_measurable_population.py",
+   "old": "    if not judged:\n        raise PopulationError(\n",
+   "new": "    if False:\n        raise PopulationError(\n"
+  },
+  {
+   "name": "M6 водоналивка — ДОСЛОВНО прежняя редакция прибора (добавление перелива к уже закапанным весам: реальный дефект, отказавший на живой панели)",
+   "file": "scripts/edge_measurable_population.py",
+   "old": "    capped: set = set()\n    for _ in range(len(names) + 1):\n        free = [k for k in names if k not in capped]\n        room = sum(raw[k] for k in free)\n        remaining = 1.0 - cap * len(capped)\n        if not free or room <= 0 or remaining < -1e-12:\n            raise PopulationError(\"ceiling spill has nowhere to go — refusing to drop capital\")\n        w = {k: cap for k in capped}\n        for k in free:\n            w[k] = remaining * raw[k] / room\n        over = [k for k in free if w[k] > cap + 1e-12]\n        if not over:\n            return w\n        capped |= set(over)\n",
+   "new": "    total = sum(raw.values())\n    w = {k: raw[k] / total for k in names}\n    for _ in range(len(names) + 1):\n        over = [k for k in names if w[k] > cap + 1e-12]\n        if not over:\n            return w\n        spill = sum(w[k] - cap for k in over)\n        for k in over:\n            w[k] = cap\n        free = [k for k in names if k not in over]\n        room = sum(raw[k] for k in free)\n        if room <= 0:\n            raise PopulationError(\"ceiling spill has nowhere to go — refusing to drop capital\")\n        for k in free:\n            w[k] += spill * raw[k] / room\n"
+  },
+  {
+   "name": "M7 потолок 20 %/имя не применяется вовсе",
+   "file": "scripts/edge_measurable_population.py",
+   "old": "        over = [k for k in free if w[k] > cap + 1e-12]\n",
+   "new": "        over = []\n"
+  },
+  {
+   "name": "M8 пол знаменателя больше не НАЗЫВАЕТ книги, чей риск не наблюдался",
+   "file": "scripts/edge_measurable_population.py",
+   "old": "        if d <= t:\n            floored.append(b)\n",
+   "new": "        if False:\n            floored.append(b)\n"
+  },
+  {
+   "name": "M9 ЭКВИВАЛЕНТНАЯ (ожидается ВЫЖИВАНИЕ): пол в знаменателе снят, но потолок биндит раньше",
+   "file": "scripts/edge_measurable_population.py",
+   "old": "    raw = {b: 1.0 / max(dd[b], t) for b in books}\n",
+   "new": "    raw = {b: 1.0 / max(dd[b], 1e-12) for b in books}\n"
+  },
+  {
+   "name": "M10 пошлина берётся КАЖДЫЙ день, а не один раз",
+   "file": "scripts/edge_measurable_population.py",
+   "old": "    series[0] -= t * deployed\n",
+   "new": "    series = [x - t * deployed for x in series]\n"
+  },
+  {
+   "name": "M11 пошлина не берётся вовсе (рукаву выдана скидка, которой нет у нулей)",
+   "file": "scripts/edge_measurable_population.py",
+   "old": "    series[0] -= t * deployed\n",
+   "new": "    series[0] -= 0.0\n"
+  },
+  {
+   "name": "M12 кэш платит выдуманную ставку вместо нуля",
+   "file": "scripts/edge_measurable_population.py",
+   "old": "    series = [deployed * sum(weights[b] * rets[b][i] for b in weights) for i in range(lo, hi)]\n",
+   "new": "    series = [deployed * sum(weights[b] * rets[b][i] for b in weights)\n              + (1.0 - deployed) * 0.0001 for i in range(lo, hi)]\n"
+  },
+  {
+   "name": "M13 отказ Calmar на вырожденном знаменателе заклинен в «не отказан» (#129)",
+   "file": "scripts/edge_measurable_population.py",
+   "old": "    p[\"calmar_refused\"] = p[\"maxdd\"] <= t\n",
+   "new": "    p[\"calmar_refused\"] = False\n"
+  },
+  {
+   "name": "M14 плацебо оставляет ТОЖДЕСТВЕННУЮ перестановку — рукав сравнивается с собой",
+   "file": "scripts/edge_measurable_population.py",
+   "old": "        if perm in seen or all(i == j for i, j in enumerate(perm)):\n",
+   "new": "        if perm in seen:\n"
+  },
+  {
+   "name": "M15 тонкое плацебо больше не отказывает",
+   "file": "scripts/edge_measurable_population.py",
+   "old": "    if len(seen) < n:\n        raise PopulationError(\n",
+   "new": "    if False:\n        raise PopulationError(\n"
+  },
+  {
+   "name": "M16 бюджет потерь вписан числом вместо чтения ступени стоп-крана",
+   "file": "scripts/edge_measurable_population.py",
+   "old": "    return float(kill_switch.SOFT_DERISK_THRESHOLD_PCT) / 100.0\n",
+   "new": "    return 0.07\n"
+  },
+  {
+   "name": "M17 контрольный рукав QUIET собран НЕ из книг с полом в знаменателе",
+   "file": "scripts/edge_measurable_population.py",
+   "old": "        quiet = list(lbs[\"denominator_floored\"])\n",
+   "new": "        quiet = list(books[:4])\n"
+  }
+ ]
+}
