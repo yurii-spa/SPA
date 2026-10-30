@@ -2,14 +2,15 @@
 
 > Авто-генерится `scripts/build_tracker_board.py` из `nimbalyst-local/tracker/*.md`. НЕ править вручную — правь карточки. Источник правды — карточки, это индекс (bootstrap).
 >
-> Собрана: 2026-10-30T01:10:02Z · сверка с карточками: `python3 scripts/build_tracker_board.py --check` (сторож `spa_core/tests/test_tracker_board_matches_cards.py`).
+> Собрана: 2026-10-30T03:00:15Z · сверка с карточками: `python3 scripts/build_tracker_board.py --check` (сторож `spa_core/tests/test_tracker_board_matches_cards.py`).
 >
-> Сверено с `origin/main` (d27f5a59b) · у **1** своя правка, кто новее — не измерено.
+> Сверено с `origin/main` (e585abf1b) · у **1** своя правка, кто новее — не измерено.
 >
-> Всего карточек: **1519** · ждёт владельца: **4** · занято сессиями: **14**.
+> Всего карточек: **1521** · ждёт владельца: **5** · занято сессиями: **14**.
 
 ## 🔴 ЖДЁТ ВЛАДЕЛЬЦА (needs-owner)
 
+- **Диск: починку я доставил — от тебя нужны усечение журнала на 123 ГиБ и включение агента** · _critical_  ·  `owner-decision-disk-pochinku-ya-dostavil-ot-tebya-nuzhn.md`
 - **Диск снова съел один журнал агента: 9,82 ГБ из 9,91 ГБ всех логов — выбрать починку из трёх** · _critical_  ·  `owner-decision-disk-snova-sel-odin-zhurnal-agenta-9-82.md`
 - **Сайт: site_numbers.json — автономная правка задела owner-gated область, нужно решение**  ·  `owner-decision-sait-site-numbers-json-avtonomnaya-pravk.md`
 - **Сайт: track_snapshot.json — автономная правка задела owner-gated область, нужно решение**  ·  `owner-decision-sait-track-snapshot-json-avtonomnaya-pra-3.md`
@@ -34,9 +35,10 @@
 - **TASK — Portfolio CIO: Dynamic Capital Allocation & Rebalancing** — держит `cycle-85305` · с 2026-10-29T15:33:34Z  ·  `inbox-task-portfolio-cio-dynamic-capital-alloc.md`
 - **Замок цикла оркестратора доставлен, но в проде не работает: обёртка агента синкается раз в сутки, а голос о пропавшей защите живёт в самом пропавшем файле** — держит `cycle-81141` · с 2026-08-08T01:59:06Z  ·  `inbox-zamok-tsikla-orkestratora-dostavlen-no-v.md`
 
-## 🧑‍⚖️ Owner Decisions (что нужно от владельца)  (377)
+## 🧑‍⚖️ Owner Decisions (что нужно от владельца)  (378)
 
 ### · needs-owner
+- Диск: починку я доставил — от тебя нужны усечение журнала на 123 ГиБ и включение агента  ·  `owner-decision-disk-pochinku-ya-dostavil-ot-tebya-nuzhn.md` · 2026-10-30
 - Диск снова съел один журнал агента: 9,82 ГБ из 9,91 ГБ всех логов — выбрать починку из трёх  ·  `owner-decision-disk-snova-sel-odin-zhurnal-agenta-9-82.md` · 2026-10-29
 - Сайт: site_numbers.json — автономная правка задела owner-gated область, нужно решение  ·  `owner-decision-sait-site-numbers-json-avtonomnaya-pravk.md` · 2026-10-28
 - Сайт: track_snapshot.json — автономная правка задела owner-gated область, нужно решение  ·  `owner-decision-sait-track-snapshot-json-avtonomnaya-pra-3.md` · 2026-10-29
@@ -418,7 +420,7 @@
 ### · closed
 - Считать ли верный отказ по правилам допуска неисправностью флота  ·  `owner-decision-schitat-li-vernyi-otkaz-po-pravilam-dopu.md` · 2026-10-08
 
-## 📥 Inbox (задания: Telegram / заметки / голос)  (842)
+## 📥 Inbox (задания: Telegram / заметки / голос)  (843)
 
 ### · in-progress
 - а задача починить все-таки еще раз сообщение которым не пишет нужно твое решени…  ·  `inbox-a-zadacha-pochinit-vse-taki-esche-raz-so.md` · 2026-08-14 · 🔒 `pid43119`
@@ -1186,6 +1188,7 @@
 - «Слепой» модуль может быть зрячим: 2 из 167 различают протоколы, а коэрция агрегатора теряет это различие  ·  `inbox-slepota-mozhet-byt-poteryannoi-koerciei.md` · 2026-08-17
 - Слив Aggressive: CIO обязан курировать пропорции постоянно — директива владельца 31.08  ·  `inbox-sliv-aggressive-cio-obyazan-kurirovat-pr.md` · 2026-08-31
 - Снять переходное послабление маячка: решения обязаны гейтиться СВОИМ умением  ·  `inbox-snyat-perehodnoe-poslablenie-mayachka-re.md` · 2026-08-17
+- Снятый вопрос владельцу нечем закрыть: отзыв гасит кнопки, но статус остаётся needs-owner навсегда  ·  `inbox-snyatyi-vopros-vladeltsu-nechem-zakryt-o.md` · 2026-10-30
 - Собрать дерево-приёмки §49 «Portfolio CIO» — только для чтения (решение владельца, вариант 1)  ·  `inbox-sobrat-derevo-priemki-49-portfolio-cio-t.md` · 2026-09-29
 - §6.4 закрывает ту самую карточку, которую вердикт истории велел взять в работу: 12 из 34 закрытий 31.08  ·  `inbox-sobytiinyi-inteik-proshel-po-staromu-bek.md` · 2026-09-03
 - Спор об ответе владельца НЕ разрешается уборкой: старую сторону держат чужие живые деревья, а у сторожа нет слова «вытеснено ПОЗЖЕ»  ·  `inbox-spor-ob-otvete-vladeltsa-ne-razreshaetsy.md` · 2026-08-31
