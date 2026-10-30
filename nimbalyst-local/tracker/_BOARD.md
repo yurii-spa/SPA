@@ -2,11 +2,11 @@
 
 > Авто-генерится `scripts/build_tracker_board.py` из `nimbalyst-local/tracker/*.md`. НЕ править вручную — правь карточки. Источник правды — карточки, это индекс (bootstrap).
 >
-> Собрана: 2026-10-30T16:29:47Z · сверка с карточками: `python3 scripts/build_tracker_board.py --check` (сторож `spa_core/tests/test_tracker_board_matches_cards.py`).
+> Собрана: 2026-10-30T16:45:57Z · сверка с карточками: `python3 scripts/build_tracker_board.py --check` (сторож `spa_core/tests/test_tracker_board_matches_cards.py`).
 >
-> Сверено с `origin/main` (c78fc7baf).
+> Сверено с `origin/main` (990ff1403).
 >
-> Всего карточек: **1530** · ждёт владельца: **5** · занято сессиями: **13**.
+> Всего карточек: **1531** · ждёт владельца: **5** · занято сессиями: **13**.
 
 ## 🔴 ЖДЁТ ВЛАДЕЛЬЦА (needs-owner)
 
@@ -419,7 +419,7 @@
 ### · closed
 - Считать ли верный отказ по правилам допуска неисправностью флота  ·  `owner-decision-schitat-li-vernyi-otkaz-po-pravilam-dopu.md` · 2026-10-08
 
-## 📥 Inbox (задания: Telegram / заметки / голос)  (852)
+## 📥 Inbox (задания: Telegram / заметки / голос)  (853)
 
 ### · in-progress
 - а задача починить все-таки еще раз сообщение которым не пишет нужно твое решени…  ·  `inbox-a-zadacha-pochinit-vse-taki-esche-raz-so.md` · 2026-08-14 · 🔒 `pid43119`
@@ -1052,6 +1052,7 @@
 - Красный на чистом main: вычет «ручной R&D» съел 68 из 131 скриптов — сторож храповика больше не мерит  ·  `inbox-krasnyi-na-chistom-main-vychet-ruchnoi-r.md` · 2026-10-13
 - Шаг 0b даёт НЕОБРАТИМЫЙ `unchecked` на критическом приказе владельца: четыре записи журнала без pid не стареют никогда  ·  `inbox-kriticheskii-prikaz-vladeltsa-nelzya-vzy.md` · 2026-09-12
 - Крупнейшая позиция книги стоит на константе: у aave_v3 (Ethereum, 40%) TVL «не измерено», а пул в фиде есть  ·  `inbox-krupneishaya-pozitsiya-knigi-stoit-na-ko.md` · 2026-08-09
+- Квитанция мутаций ADR-871 заработана РАННЕЙ редакцией батареи — доставленная НЕ ИЗМЕРЕНА, и перемер в оболочке цикла невозможен (прибор рестартует)  ·  `inbox-kvitantsiya-mutatsii-adr-871-zarabotana.md` · 2026-10-30
 - «Лежит 8 служб» — но три строки из шести это НЕ ИЗМЕРЕНО: проверке не назвали файл вывода  ·  `inbox-lezhit-8-sluzhb-no-tri-stroki-iz-shesti.md` · 2026-10-10
 - live_registry_scene_census — сирота, вскрытая ужесточением детектора: её «вызывающим» был путь её же теста  ·  `inbox-live-registry-scene-census-sirota-vskryt.md` · 2026-10-27
 - main КРАСЕН: храповик инварианта #17 вырос на три координаты из двух чужих доставок  ·  `inbox-main-krasen-hrapovik-invarianta-17-vyros.md` · 2026-10-08
