@@ -77,7 +77,7 @@ def test_module_never_deletes():
 def test_fresh_materialise_is_proven_and_repeat_changes_nothing(repo):
     r, sha, rel = repo
     path, verdict = RA.materialise_release(sha, rel, r)
-    assert verdict == "OK" and RA.verify_release(path, sha) == (True, "")
+    assert verdict == "OK" and RA.verify_release(path, sha, r) == (True, "")
     before = _digest_tree(path)
     again, verdict2 = RA.materialise_release(sha, rel, r)
     assert (again, verdict2) == (path, "OK")
@@ -92,7 +92,7 @@ def test_corrupt_existing_release_is_kept_and_refused(repo):
     got, verdict = RA.materialise_release(sha, rel, r)
     assert got is None and verdict.startswith("RELEASE_DIR_CORRUPT"), verdict
     assert _digest_tree(path) == before                                 # повреждённая копия сохранена
-    assert RA.exec_root(sha, rel) == (None, "APPROVED_RELEASE_CORRUPT")  # A5
+    assert RA.exec_root(sha, rel, r) == (None, "APPROVED_RELEASE_CORRUPT")  # A5
 
 
 def test_incomplete_reservation_is_kept_and_refused(repo):
@@ -103,7 +103,7 @@ def test_incomplete_reservation_is_kept_and_refused(repo):
     got, verdict = RA.materialise_release(sha, rel, r)
     assert got is None and verdict.startswith("RELEASE_DIR_INCOMPLETE"), verdict
     assert _digest_tree(rel / sha) == before
-    assert RA.exec_root(sha, rel) == (None, "APPROVED_RELEASE_CORRUPT")
+    assert RA.exec_root(sha, rel, r) == (None, "APPROVED_RELEASE_CORRUPT")
 
 
 def test_missing_object_creates_nothing(repo):
@@ -118,7 +118,7 @@ def test_missing_object_creates_nothing(repo):
 def test_exec_root_proves_composition_not_just_the_stamp(repo, tamper):
     r, sha, rel = repo
     path, _ = RA.materialise_release(sha, rel, r)
-    assert RA.exec_root(sha, rel) == (path, "ACTIVATE_OK")
+    assert RA.exec_root(sha, rel, r) == (path, "ACTIVATE_OK")
     if tamper == "changed":
         (path / "README").write_text("tampered\n")
     elif tamper == "extra":
@@ -126,13 +126,13 @@ def test_exec_root_proves_composition_not_just_the_stamp(repo, tamper):
     elif tamper == "missing":
         os.rename(path / "README", r.parent / "README.moved")         # без удаления: файл вынесен
     elif tamper == "manifest":
-        (path / RA.MANIFEST_FILE).write_text("{}")
+        (path / ".release_manifest.json").write_text("{}")             # подложенный манифест — лишний файл
     elif tamper == "stamp":
         (path / RA.RELEASE_SHA_FILE).write_text("f" * 40)
     elif tamper == "link":
         os.rename(path / "link_to_mod", r.parent / "link.moved")
         os.symlink("README", path / "link_to_mod")
-    assert RA.exec_root(sha, rel) == (None, "APPROVED_RELEASE_CORRUPT")
+    assert RA.exec_root(sha, rel, r) == (None, "APPROVED_RELEASE_CORRUPT")
 
 
 def test_bytecode_written_by_execution_does_not_break_the_proof(repo):
@@ -140,7 +140,7 @@ def test_bytecode_written_by_execution_does_not_break_the_proof(repo):
     path, _ = RA.materialise_release(sha, rel, r)
     (path / "pkg" / "__pycache__").mkdir()
     (path / "pkg" / "__pycache__" / "mod.cpython-311.pyc").write_bytes(b"\x00")
-    assert RA.exec_root(sha, rel) == (path, "ACTIVATE_OK")
+    assert RA.exec_root(sha, rel, r) == (path, "ACTIVATE_OK")
 
 
 # ── A6: два процесса — один создаёт, другой не подменяет ────────────────────────────────────────
@@ -161,7 +161,7 @@ def test_two_processes_materialise_the_same_sha_without_substitution(repo):
     assert "OK" in verdicts
     assert all(v == "OK" or v.startswith("RELEASE_DIR_INCOMPLETE") for v in verdicts), verdicts
     assert sorted(p.name for p in rel.iterdir()) == [sha]               # один каталог, без временных
-    assert RA.verify_release(rel / sha, sha) == (True, "")
+    assert RA.verify_release(rel / sha, sha, r) == (True, "")
 
 
 def test_archive_that_differs_from_the_commit_tree_is_refused_and_kept(tmp_path):
@@ -182,16 +182,20 @@ def test_archive_that_differs_from_the_commit_tree_is_refused_and_kept(tmp_path)
     assert got is None and verdict.startswith("MATERIALISE_FAILED:состав не совпал"), verdict
     assert (rel / sha / "keep.py").exists()                             # незавершённая копия сохранена
     assert not (rel / sha / RA.RELEASE_SHA_FILE).exists()               # и исполнению не подлежит
-    assert RA.exec_root(sha, rel) == (None, "APPROVED_RELEASE_CORRUPT")
+    assert RA.exec_root(sha, rel, r) == (None, "APPROVED_RELEASE_CORRUPT")
 
 
-def test_proven_release_is_returned_even_when_the_object_is_no_longer_local(repo, tmp_path):
+def test_without_local_objects_a_release_is_not_proven_and_not_touched(repo, tmp_path):
     r, sha, rel = repo
     path, _ = RA.materialise_release(sha, rel, r)
     empty = tmp_path / "empty_repo"
     empty.mkdir()
     _git(["init", "-q", "-b", "main"], empty)
-    assert RA.materialise_release(sha, rel, empty) == (path, "OK")      # готовый доказанный — без git
+    # S2-01 (ARB раунд 5, изменено намеренно): без доверенного дерева коммита доказать каталог НЕЧЕМ —
+    # ни «OK», ни подмены; каталог при этом не трогается.
+    before = _digest_tree(path)
+    assert RA.materialise_release(sha, rel, empty) == (None, "OBJECT_MISSING")
+    assert _digest_tree(path) == before
 
 
 def test_case_colliding_paths_never_yield_a_silently_wrong_release(tmp_path):
@@ -217,6 +221,116 @@ def test_case_colliding_paths_never_yield_a_silently_wrong_release(tmp_path):
     got, verdict = RA.materialise_release(sha, rel, r)
     if case_insensitive:
         assert got is None and "состав не совпал" in verdict, verdict
-        assert RA.exec_root(sha, rel) == (None, "APPROVED_RELEASE_CORRUPT")
+        assert RA.exec_root(sha, rel, r) == (None, "APPROVED_RELEASE_CORRUPT")
     else:
-        assert verdict == "OK" and RA.verify_release(got, sha) == (True, "")
+        assert verdict == "OK" and RA.verify_release(got, sha, r) == (True, "")
+
+
+# ── S2-01 (ARB раунд 5): эталон состава — доверенное дерево ОДОБРЕННОГО коммита, а не манифест в каталоге ──
+def _forge_manifest(path: Path, sha: str, files: dict):
+    """Самосогласованная подделка: манифест перечисляет ровно то, что лежит в каталоге."""
+    import json as _json
+    (path / ".release_manifest.json").write_text(_json.dumps({"sha": sha, "files": files}))
+    (path / RA.RELEASE_SHA_FILE).write_text(sha)
+
+
+def _blob(data: bytes) -> str:
+    return hashlib.sha1(b"blob %d\0" % len(data) + data).hexdigest()
+
+
+def _plan(sha, rel, r):
+    return RA.activation_plan(approved_sha=sha, staged_sha=None, releases_dir=rel, repo=r)
+
+
+def test_arbitrary_dir_with_a_self_consistent_manifest_is_not_activated(repo):
+    """Воспроизведение ARB: каталог одобренного sha содержит произвольный файл, манифест и штамп согласованы."""
+    r, sha, rel = repo
+    d = rel / sha
+    d.mkdir(parents=True)
+    data = b"not the approved commit\n"
+    (d / "arbitrary.txt").write_bytes(data)
+    _forge_manifest(d, sha, {"arbitrary.txt": ["100644", _blob(data)]})
+    assert _plan(sha, rel, r)["action"] != "EXEC_FROM_RELEASE"
+    assert (d / "arbitrary.txt").read_bytes() == data                   # без удаления
+
+
+def test_file_and_manifest_swapped_together_are_refused(repo):
+    r, sha, rel = repo
+    path, _ = RA.materialise_release(sha, rel, r)
+    data = b"VALUE = 'EVIL'\n"
+    (path / "pkg" / "mod.py").write_bytes(data)
+    import json as _json
+    man = path / ".release_manifest.json"
+    if man.exists():
+        doc = _json.loads(man.read_text())
+        doc["files"]["pkg/mod.py"] = ["100644", _blob(data)]
+        man.write_text(_json.dumps(doc))
+    assert _plan(sha, rel, r)["action"] != "EXEC_FROM_RELEASE"
+
+
+def test_shortened_manifest_with_missing_file_is_refused(repo):
+    r, sha, rel = repo
+    path, _ = RA.materialise_release(sha, rel, r)
+    os.rename(path / "README", r.parent / "README.aside")
+    import json as _json
+    man = path / ".release_manifest.json"
+    if man.exists():
+        doc = _json.loads(man.read_text())
+        doc["files"].pop("README", None)
+        man.write_text(_json.dumps(doc))
+    assert _plan(sha, rel, r)["action"] != "EXEC_FROM_RELEASE"
+
+
+def test_correct_release_of_another_commit_renamed_to_the_approved_sha_is_refused(repo):
+    r, sha_a, rel = repo
+    (r / "pkg" / "mod.py").write_text("VALUE = 'B'\n")
+    _git(["commit", "-qam", "B"], r)
+    sha_b = _git(["rev-parse", "HEAD"], r).stdout.strip()
+    path_b, verdict = RA.materialise_release(sha_b, rel, r)
+    assert verdict == "OK"
+    os.rename(path_b, rel / sha_a)                                       # честный релиз B под именем A
+    for f in (rel / sha_a / RA.RELEASE_SHA_FILE,):
+        f.write_text(sha_a)
+    import json as _json
+    man = rel / sha_a / ".release_manifest.json"
+    if man.exists():
+        doc = _json.loads(man.read_text())
+        doc["sha"] = sha_a
+        man.write_text(_json.dumps(doc))
+    assert _plan(sha_a, rel, r)["action"] != "EXEC_FROM_RELEASE"
+
+
+def test_mode_and_link_kind_are_part_of_the_composition(repo):
+    r, sha, rel = repo
+    path, _ = RA.materialise_release(sha, rel, r)
+    assert _plan(sha, rel, r)["action"] == "EXEC_FROM_RELEASE"          # положительный контроль
+    os.chmod(path / "pkg" / "mod.py", 0o755)                             # режим 100644 → исполняемый
+    assert _plan(sha, rel, r)["action"] != "EXEC_FROM_RELEASE"
+    os.chmod(path / "pkg" / "mod.py", 0o644)
+    target = os.readlink(path / "link_to_mod")
+    os.rename(path / "link_to_mod", r.parent / "link.aside")
+    (path / "link_to_mod").write_text(target)                            # ссылка → обычный файл с тем же текстом
+    assert _plan(sha, rel, r)["action"] != "EXEC_FROM_RELEASE"
+
+
+def test_no_local_objects_means_unverifiable_not_trusted(repo, tmp_path):
+    r, sha, rel = repo
+    RA.materialise_release(sha, rel, r)
+    empty = tmp_path / "no_objects"
+    empty.mkdir()
+    _git(["init", "-q", "-b", "main"], empty)
+    plan = _plan(sha, rel, empty)
+    assert plan["action"] != "EXEC_FROM_RELEASE"
+    assert RA.exec_root(sha, rel) == (None, "APPROVED_RELEASE_UNVERIFIABLE")   # «не проверено» ≠ «не совпало»
+    assert RA.exec_root(sha, rel, empty) == (None, "APPROVED_RELEASE_UNVERIFIABLE")
+
+
+def test_regular_file_replaced_by_a_link_to_identical_bytes_outside_is_refused(repo, tmp_path):
+    """Содержимое по ссылке совпадает, но исполнение ушло бы ЗА пределы релиза: род пути — часть состава."""
+    r, sha, rel = repo
+    path, _ = RA.materialise_release(sha, rel, r)
+    outside = tmp_path / "outside_mod.py"
+    outside.write_bytes((path / "pkg" / "mod.py").read_bytes())
+    os.rename(path / "pkg" / "mod.py", tmp_path / "mod.aside")
+    os.symlink(outside, path / "pkg" / "mod.py")
+    assert RA.exec_root(sha, rel, r) == (None, "APPROVED_RELEASE_CORRUPT")
