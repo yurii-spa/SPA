@@ -2221,7 +2221,9 @@ def register_push(
         "pid": prep.pid,
         "snapshots": snapshots,
         "current_vtag": vtag,
-        "history": history[-HISTORY_MAX:],
+        # S1-R5-01: история отправок карточки НЕ усекается — ни молча, ни общим лимитом журнала.
+        "history": history,
+        "protocol": PUSH_PROTOCOL,
         "send_count": send_count,
         "card": str(live_card),
         "card_id": p.stem,
@@ -2250,8 +2252,10 @@ def register_push(
     return prep
 
 
-#: Сколько прошлых отправок карточки держит запись (снимки вопросов этим числом не ограничены).
-HISTORY_MAX = 50
+#: Маркер записи протокола R3b (ADR-857). Запись С маркером обязана доказать версию показанного вопроса:
+#: без неё нажатие любой дверью (кнопка, реплай, меню, досылка) — ``version_unknown``. Записи БЕЗ маркера —
+#: настоящие записи до R3b, их прежняя ветка и названный предел сохраняются (S1-R5-02, ARB раунд 5).
+PUSH_PROTOCOL = "r3b"
 
 
 def _add_snapshot(snapshots: Dict, vtag: str, question_sha256: Optional[str], options,
@@ -2757,8 +2761,9 @@ def record_choice(
             return {"ok": False, "reason": "version_unknown", "card": rec.get("card")}
         rec_options = snap.get("options") or []
         sent_version_of_snapshot = snap.get("question_sha256")
-    elif snapshots:
-        # Запись знает версии, а нажатие версии не несёт — полномочия по legacy-ветке нет.
+    elif snapshots or rec.get("protocol") == PUSH_PROTOCOL:
+        # Запись знает версии (или обязана их знать по протоколу), а нажатие версии не несёт —
+        # полномочия по legacy-ветке нет. Новая запись с неизмеренной версией сюда и попадает.
         return {"ok": False, "reason": "version_unknown", "card": rec.get("card")}
     else:
         snap = None
