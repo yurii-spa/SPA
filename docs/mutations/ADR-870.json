@@ -1,0 +1,104 @@
+{
+ "title": "ADR-870 — дельта цикла #987: перепись «у двери ТРИ исхода, у читателя ДВА» (население класса ADR-869)",
+ "tests": [
+  "spa_core/tests/test_three_outcome_reader_census.py"
+ ],
+ "mutations": [
+  {
+   "name": "дверь с двумя исходами снова считается дверью класса — класс раздувается до «всё»",
+   "file": "spa_core/monitoring/three_outcome_reader_census.py",
+   "old": "        if not unmeasured or len(set(names.values())) < 3:\n",
+   "new": "        if not unmeasured or len(set(names.values())) < 2:\n"
+  },
+  {
+   "name": "словарь, объявленный ПРОЗОЙ, снова считается дверью — возврат шумной переписи",
+   "file": "spa_core/monitoring/three_outcome_reader_census.py",
+   "old": "        if door:\n            doors[rel] = door\n        elif _prose_only_door(src):\n",
+   "new": "        if door:\n            doors[rel] = door\n        elif False:\n"
+  },
+  {
+   "name": "цепочка имён не протягивается: `guard = probe` снова невидим, читателей 0",
+   "file": "spa_core/monitoring/three_outcome_reader_census.py",
+   "old": "    _propagate(borrows, out)\n    return out\n",
+   "new": "    return out\n"
+  },
+  {
+   "name": "семя модульной таблицы снято: путь двери в модульной константе снова теряется",
+   "file": "spa_core/monitoring/three_outcome_reader_census.py",
+   "old": "    out: dict[str, list[str]] = {k: list(v) for k, v in (seed or {}).items()}\n",
+   "new": "    out: dict[str, list[str]] = {}\n"
+  },
+  {
+   "name": "сторож `== 1` снова делит ноль от остатка — fail-OPEN читается как различение",
+   "file": "spa_core/monitoring/three_outcome_reader_census.py",
+   "old": "    if value == 0:\n        part.note_zero_split()\n    else:\n        part.note_eq(value)\n",
+   "new": "    part.note_zero_split()\n    if value != 0:\n        part.note_eq(value)\n"
+  },
+  {
+   "name": "«не измерено» в классе нуля больше не выделяется — худший исход слит со сводящим",
+   "file": "spa_core/monitoring/three_outcome_reader_census.py",
+   "old": "        if 0 in codes and classes.get(0) == classes.get(u):\n",
+   "new": "        if False:\n"
+  },
+  {
+   "name": "остаточный класс снова объявлен находкой — неизмеренное выдано за дефект",
+   "file": "spa_core/monitoring/three_outcome_reader_census.py",
+   "old": "    if part.eq:\n        return {\"verdict\": RESIDUAL_SHARED,",
+   "new": "    if False:\n        return {\"verdict\": RESIDUAL_SHARED,"
+  },
+  {
+   "name": "вердикт, едущий полем вывода, снова объявлен дефектом — ADR-869 опровергнут своей же мерой",
+   "file": "spa_core/monitoring/three_outcome_reader_census.py",
+   "old": "        if _captures_output(call) and _names_unmeasured(scope):\n",
+   "new": "        if False:\n"
+  },
+  {
+   "name": "читатель, не читающий код вовсе, объявлен чистым (fail-OPEN самой переписи)",
+   "file": "spa_core/monitoring/three_outcome_reader_census.py",
+   "old": "        return {\"verdict\": IGNORED, \"reason\": reason, \"classes\": 1, \"clash\": []}\n",
+   "new": "        return {\"verdict\": DISTINGUISHES, \"reason\": reason, \"classes\": 1, \"clash\": []}\n"
+  },
+  {
+   "name": "дверь, зовущая саму себя, снова считается своим читателем",
+   "file": "spa_core/monitoring/three_outcome_reader_census.py",
+   "old": "                if door_rel == rel:\n                    continue  # дверь, зовущая себя, читателем себя не является\n",
+   "new": "                if False:\n                    continue  # дверь, зовущая себя, читателем себя не является\n"
+  },
+  {
+   "name": "тесты снова разбираются как проводка — населением класса стали бы сцены",
+   "file": "spa_core/monitoring/three_outcome_reader_census.py",
+   "old": "_SKIP_DIR_PARTS = (\"/tests/\", \"/node_modules/\", \"/.git/\", \"/site-packages/\")\n",
+   "new": "_SKIP_DIR_PARTS = (\"/node_modules/\", \"/.git/\", \"/site-packages/\")\n"
+  },
+  {
+   "name": "непрочитанное дерево выдаётся за чистое — «не измерено» перестаёт быть исходом CLI",
+   "file": "spa_core/monitoring/three_outcome_reader_census.py",
+   "old": "        return {\"verdict\": UNMEASURED, \"reason\": f\"каталога дерева нет: {root}\"}\n",
+   "new": "        return {\"verdict\": DISTINGUISHES, \"reason\": f\"каталога дерева нет: {root}\",\n                \"counts\": {}, \"findings\": [], \"readers\": [], \"doors\": {},\n                \"door_count\": 0, \"reader_count\": 0,\n                \"doors_declared_in_prose_only\": [],\n                \"not_measured_surfaces\": {}}\n"
+  },
+  {
+   "name": "находки больше не доезжают до кода возврата CLI — прибор молчит зелёным",
+   "file": "spa_core/monitoring/three_outcome_reader_census.py",
+   "old": "    if report[\"counts\"][FAIL_OPEN] or report[\"findings\"]:\n        return RC_FINDING\n",
+   "new": "    if False:\n        return RC_FINDING\n"
+  },
+  {
+   "name": "сцена эталона перестаёт быть рабочим деревом — читатель отвечает СВОИМ третьим исходом на обеих",
+   "file": "spa_core/monitoring/three_outcome_reader_census.py",
+   "old": "            init = subprocess.run([\"git\", \"init\", \"-b\", \"main\", str(scene)],\n",
+   "new": "            init = subprocess.run([\"git\", \"--version\"],\n"
+  },
+  {
+   "name": "эталон объявлен различающим без проверки направления исходов",
+   "file": "spa_core/monitoring/three_outcome_reader_census.py",
+   "old": "    ok = (refused[\"findings\"] >= 1 and refused[\"unmeasured\"] == 0\n          and silent[\"unmeasured\"] >= 1 and silent[\"findings\"] == 0)\n",
+   "new": "    ok = True\n"
+  },
+  {
+   "name": "личность находки снова включает номер строки — храповик краснеет от переноса строк",
+   "file": "spa_core/monitoring/three_outcome_reader_census.py",
+   "old": "    return f\"{row['reader']}::{row['scope']}::{row['door']}\"\n",
+   "new": "    return f\"{row['reader']}:{row['line']}::{row['scope']}::{row['door']}\"\n"
+  }
+ ]
+}

@@ -1,0 +1,23 @@
+{
+ "_why": "Храповик класса ADR-869 («у двери ТРИ исхода, у читателя ДВА»). База — читатели, сводящие «не измерено» с «отказано», НА ДЕНЬ ЗАМЕРА. Может только УМЕНЬШАТЬСЯ. Дописывать сюда файл, чтобы погасить падение, ЗАПРЕЩЕНО (инв. #16; тот же порядок, что у frozen_date_baseline.json, design_status_baseline.json, site_numbers_baseline.json) — чинить ЧИТАТЕЛЯ.",
+ "_measured_at": "2026-10-30",
+ "_measured_by": "python3 -m spa_core.monitoring.three_outcome_reader_census",
+ "_cycle": "#987",
+ "_counts_at_baseline": {
+  "fail_open": 0,
+  "collapsed": 4,
+  "ignored": 0,
+  "distinguishes": 0,
+  "residual_shared": 1,
+  "other_channel": 1,
+  "unmeasured": 0
+ },
+ "_doors_at_baseline": 14,
+ "_readers_at_baseline": 6,
+ "collapsing_readers": [
+  "push_to_github.py::enforce_owner_choice_authorship::scripts/check_owner_choice_authorship.py",
+  "push_to_github.py::main::scripts/verify_publication.py",
+  "push_to_github_batch.py::main::scripts/verify_publication.py",
+  "spa_core/monitoring/card_acceptance.py::_probe_mutation_window_restore_refuses_a_live_owner::scripts/delta_mutation_run.py"
+ ]
+}

@@ -1,0 +1,26 @@
+{
+ "title": "ADR-870 — ПОВТОРНЫЙ прогон трёх выживших мутаций первого замера против ДОПОЛНЕННОЙ батареи",
+ "tests": [
+  "spa_core/tests/test_three_outcome_reader_census.py"
+ ],
+ "mutations": [
+  {
+   "name": "дверь с двумя исходами снова считается дверью класса — класс раздувается до «всё»",
+   "file": "spa_core/monitoring/three_outcome_reader_census.py",
+   "old": "        if not unmeasured or len(set(names.values())) < 3:\n",
+   "new": "        if not unmeasured or len(set(names.values())) < 2:\n"
+  },
+  {
+   "name": "семя модульной таблицы снято: путь двери в модульной константе снова теряется",
+   "file": "spa_core/monitoring/three_outcome_reader_census.py",
+   "old": "    out: dict[str, list[str]] = {k: list(v) for k, v in (seed or {}).items()}\n",
+   "new": "    out: dict[str, list[str]] = {}\n"
+  },
+  {
+   "name": "эталон объявлен различающим без проверки направления исходов",
+   "file": "spa_core/monitoring/three_outcome_reader_census.py",
+   "old": "    distinguishes = (refused[\"findings\"] >= 1 and refused[\"unmeasured\"] == 0\n                     and silent[\"unmeasured\"] >= 1 and silent[\"findings\"] == 0)\n",
+   "new": "    distinguishes = True\n"
+  }
+ ]
+}

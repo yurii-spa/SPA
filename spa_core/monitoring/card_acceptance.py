@@ -188,6 +188,61 @@ def _probe_additive_field_reader_distinguishes(arg: str | None) -> tuple[str, st
         f"ось «читает только „все“» объявлена НЕ ИЗМЕРЕННОЙ")
 
 
+def _probe_three_outcome_reader_population_named(arg: str | None) -> tuple[str, str]:
+    """Критерий: население класса ADR-869 НАЗВАНО переписью И эталон различает исходы.
+
+    Предмет — карточка `inbox-u-dveri-tri-ishoda-u-chitatelya-dva-nase`. ADR-869 закрыл
+    РОВНО ОДИН экземпляр («ворота публикации против `safe_site_push`») и сам запретил
+    считать класс закрытым по находке из одного. Проба мерит ИСХОД, а не наличие модуля,
+    и у неё ДВА независимых замера:
+
+    1. **живой эталон** (`drive_exemplar`) — НАСТОЯЩИЙ читатель дерева
+       (`push_to_github.mutation_window_verdict`) на двух сценах, отличающихся РОВНО
+       кодом, которым отвечает дверь (1 против 2). Одинаковый род исхода на «отказано»
+       и «не ответило» есть дословный дефект класса, и тогда проба НЕ выполнена;
+    2. **население** (`run_census`) — поимённый перечень читателей, у которых «не
+       измерено» неотличимо от «отказано», и число у каждой НЕ ИЗМЕРЕННОЙ поверхности
+       (оболочка, воркфлоу, импорт двери). Население НЕ является условием прохода:
+       предмет карточки — чтобы класс был ИЗМЕРЕН, а не чтобы он был пуст; чинить
+       читателей — отдельная работа с отдельной пробой.
+
+    Третий исход СВОЙ: прибор не ввозится либо эталон не поднялся ⇒ `unmeasured`, а не
+    «не выполнено» — про предмет тогда не измерено ничего. Проба, которая на неподнятой
+    сцене сказала бы «не выполнено», и была бы тем же дефектом на шаг дальше.
+    """
+    try:
+        from spa_core.monitoring import three_outcome_reader_census as m
+    except Exception as exc:                                        # noqa: BLE001
+        return UNMEASURED, f"прибор переписи не ввозится: {type(exc).__name__}: {exc}"
+    drive = m.drive_exemplar()
+    kind = drive.get("kind")
+    if kind == m.DRIVE_UNMEASURED:
+        return UNMEASURED, f"живой эталон не измерен: {drive.get('reason')}"
+    if kind == m.DRIVE_CONFLATES:
+        return NOT_SATISFIED, (
+            f"эталон {drive.get('reader')} отвечает один и тот же род исхода на «дверь "
+            f"отказала» и «дверь не ответила» — различение в этом дереве НЕ достигнуто")
+    try:
+        report = m.run_census()
+    except Exception as exc:                                        # noqa: BLE001
+        return UNMEASURED, (f"эталон различает, но население НЕ измерено: "
+                            f"{type(exc).__name__}: {exc}")
+    if report.get("verdict") == m.UNMEASURED and "reason" in report:
+        return UNMEASURED, f"население НЕ измерено: {report['reason']}"
+    counts = report["counts"]
+    nm = report["not_measured_surfaces"]
+    return SATISFIED, (
+        f"эталон различает («отказано» против «не ответило» на сценах, отличающихся "
+        f"РОВНО кодом двери); население НАЗВАНО: дверей {report['door_count']}, "
+        f"читателей {report['reader_count']} — сводят {counts[m.COLLAPSED]} · "
+        f"fail-OPEN {counts[m.FAIL_OPEN]} · не читают код {counts[m.IGNORED]} · "
+        f"делят остаточный класс {counts[m.RESIDUAL_SHARED]} · вердикт едет не кодом "
+        f"{counts[m.OTHER_CHANNEL]} · различают кодом {counts[m.DISTINGUISHES]}; "
+        f"НЕ ИЗМЕРЕНО: оболочка {nm['shell_sites']} · воркфлоу {nm['workflow_sites']} · "
+        f"импорт двери {nm['import_sites']} мест, словарь только прозой у "
+        f"{len(report['doors_declared_in_prose_only'])} модулей")
+
+
 def _probe_owner_task_answer_reaches_the_channel(arg: str | None) -> tuple[str, str]:
     """Критерий: у ЗАКРЫТОГО задания владельца есть машинная запись о судьбе ОТВЕТА,
     и «не измерено» отличимо от «дошло» (ADR-863, карточка
@@ -13160,6 +13215,8 @@ PROBES: dict[str, Callable[[str | None], "tuple[str, str]"]] = {
         _probe_twin_guard_survives_the_intake_stamp,
     "owner_task_answer_reaches_the_channel":
         _probe_owner_task_answer_reaches_the_channel,
+    "three_outcome_reader_population_named":
+        _probe_three_outcome_reader_population_named,
     "adapter_status_live_apy": _probe_adapter_status_live_apy,
     "tier_promotion_loop_closed": _probe_tier_promotion_loop,
     "ledger_cut_moves_and_is_measured": _probe_ledger_cut_moves_and_is_measured,

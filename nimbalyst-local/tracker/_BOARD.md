@@ -2,11 +2,11 @@
 
 > Авто-генерится `scripts/build_tracker_board.py` из `nimbalyst-local/tracker/*.md`. НЕ править вручную — правь карточки. Источник правды — карточки, это индекс (bootstrap).
 >
-> Собрана: 2026-10-30T10:38:38Z · сверка с карточками: `python3 scripts/build_tracker_board.py --check` (сторож `spa_core/tests/test_tracker_board_matches_cards.py`).
+> Собрана: 2026-10-30T12:54:05Z · сверка с карточками: `python3 scripts/build_tracker_board.py --check` (сторож `spa_core/tests/test_tracker_board_matches_cards.py`).
 >
-> Сверено с `origin/main` (1952e214b) · у **1** своя правка, кто новее — не измерено.
+> Сверено с `origin/main` (87821bc36).
 >
-> Всего карточек: **1525** · ждёт владельца: **5** · занято сессиями: **14**.
+> Всего карточек: **1527** · ждёт владельца: **5** · занято сессиями: **13**.
 
 ## 🔴 ЖДЁТ ВЛАДЕЛЬЦА (needs-owner)
 
@@ -32,7 +32,6 @@
 - **Прогон тестов переписывает СОРОК git-tracked файлов в data/ (карточка #225/#226 считает, что их три) — среди них журнал исполнения** — держит `cycle-352` · с 2026-08-23T03:25:59Z  ·  `inbox-progon-testov-perepisyvaet-sorok-otslezhivaemyh-failov-data.md`
 - **Производители устаревших чисел сайта: дата go-live из API, сверка NAV до цикла, протухшие артефакты, молчащие стражи сайта** — держит `pid20023` · с 2026-09-08T21:15:05Z  ·  `inbox-proizvoditeli-ustarevshih-chisel-saita-d.md`
 - **Сторож ответа владельца зовёт человека на не-спор: 1 и "1" — одно решение, а сравниваются байты** — держит `cycle-84821` · с 2026-08-30T00:50:53Z  ·  `inbox-storozh-otveta-vladeltsa-zovet-cheloveka.md`
-- **TASK — Portfolio CIO: Dynamic Capital Allocation & Rebalancing** — держит `cycle-74824` · с 2026-10-30T10:09:51Z  ·  `inbox-task-portfolio-cio-dynamic-capital-alloc.md`
 - **Замок цикла оркестратора доставлен, но в проде не работает: обёртка агента синкается раз в сутки, а голос о пропавшей защите живёт в самом пропавшем файле** — держит `cycle-81141` · с 2026-08-08T01:59:06Z  ·  `inbox-zamok-tsikla-orkestratora-dostavlen-no-v.md`
 
 ## 🧑‍⚖️ Owner Decisions (что нужно от владельца)  (378)
@@ -420,7 +419,7 @@
 ### · closed
 - Считать ли верный отказ по правилам допуска неисправностью флота  ·  `owner-decision-schitat-li-vernyi-otkaz-po-pravilam-dopu.md` · 2026-10-08
 
-## 📥 Inbox (задания: Telegram / заметки / голос)  (847)
+## 📥 Inbox (задания: Telegram / заметки / голос)  (849)
 
 ### · in-progress
 - а задача починить все-таки еще раз сообщение которым не пишет нужно твое решени…  ·  `inbox-a-zadacha-pochinit-vse-taki-esche-raz-so.md` · 2026-08-14 · 🔒 `pid43119`
@@ -439,7 +438,7 @@
 - Расширить опрашиваемый набор адаптеров шагами (второй шаг варианта A, после ADR-138)  ·  `inbox-rasshirit-oprashivaemyi-nabor-adapterov.md` · 2026-08-26
 - Сторож кнопок нарушает границу, которую сам объявил соблюдённой: метка-БУКВА принималась где угодно, и слово в прозе = «наш дефект разбора» с лекарством чинить НЕСУЩЕСТВУЮЩУЮ форму (перемер #484: ложная ОДНА из 21, не пять; п.1 исполнен)  ·  `inbox-storozh-knopok-narushaet-granitsu-kotoru.md` · 2026-09-04
 - Сторож переходов статусов ждёт первого улова: назвать немого писателя и встроить прогон в агента  ·  `inbox-storozh-perehodov-statusov-zhdet-pervogo.md` · 2026-08-09
-- TASK — Portfolio CIO: Dynamic Capital Allocation & Rebalancing  ·  `inbox-task-portfolio-cio-dynamic-capital-alloc.md` · 2026-08-13 · 🔒 `cycle-74824`
+- TASK — Portfolio CIO: Dynamic Capital Allocation & Rebalancing  ·  `inbox-task-portfolio-cio-dynamic-capital-alloc.md` · 2026-08-13
 - Tier-C: 171 из 180 модулей не отвечают, 9 отвечающих — константы. Подключить или честно списать  ·  `inbox-tier-c-171-iz-180-modulei-ne-otvechayut.md` · 2026-08-06
 - Целостность трека SPA: подключить сторож, пересчёт из сырых входов, commit-reveal книги (перенос из earn-defi)  ·  `inbox-tselostnost-treka-spa-podklyuchit-storoz.md` · 2026-09-08
 - Цена класса «две сессии на одном предмете»: G38 п. 3 лежит остатком пятьдесят заказов  ·  `inbox-tsena-klassa-dve-sessii-na-odnom-predmet.md` · 2026-09-28
@@ -870,6 +869,7 @@
 - Три числа из приказа CIO не доходят до владельца — дописать их в выдачу и на страницу  ·  `inbox-tri-chisla-iz-prikaza-cio-ne-dohodyat-do.md` · 2026-09-27
 - Три рабочих дерева держат недоставленную работу — поднять или осознанно списать  ·  `inbox-tri-rabochih-dereva-derzhat-nedostavlenn.md` · 2026-08-14
 - Контракт в коде и контракт в манифесте разошлись у трёх агентов — один за несколько часов  ·  `inbox-tri-rashozhdeniya-kontrakta-s-manifestom.md` · 2026-08-28
+- У двери ТРИ исхода, у читателя ДВА: население класса ADR-869 измерено — 4 находки из 6 читателей, и три из них в инструменте доставки  ·  `inbox-u-dveri-tri-ishoda-u-chitatelya-dva-nase.md` · 2026-10-30
 - У ежедневного аудита 90% нет сторожа — он молча стоял 13 суток, и метрика не сдвинулась ни на модуль  ·  `inbox-u-ezhednevnogo-audita-90-net-storozha-on.md` · 2026-08-22
 - У файлов .claude/rules/ нет ни одного сторожа: 104 строки правил исчезли на шесть дней и нашлись случайно  ·  `inbox-u-failov-claude-rules-net-ni-odnogo-stor.md` · 2026-09-02
 - У ГЛАВНОГО артефакта офиса нет срока годности: house_view 17 ч, и ни один сторож этого не судит  ·  `inbox-u-glavnogo-artefakta-ofisa-net-sroka-god.md` · 2026-08-13
@@ -1039,6 +1039,7 @@
 - Храповик зашитых дат КРАСНЫЙ на origin/main: 7 файлов за пять дней, четыре — сегодняшние  ·  `inbox-hrapovik-zashityh-dat-krasnyi-na-origin.md` · 2026-09-10
 - Исчерпание лимитов Claude невидимо: цех молча стоит, владелец гадает «работает ли» — нужен явный сигнал «нет топлива»  ·  `inbox-ischerpanie-limitov-claude-nevidimo-tsehu.md` · 2026-08-22
 - Исполнить Вариант 2 владельца: дописать 38 ставок и подключить их к hit_rate со СМЕШАННОЙ пробой  ·  `inbox-ispolnit-variant-2-vladeltsa-dopisat-38.md` · 2026-09-10
+- Карточка, рождённая через 4 ч 54 мин ПОСЛЕ починки ADR-866, ключа близнеца не несёт — и три дешёвые гипотезы опровергнуты  ·  `inbox-kartochka-rozhdennaya-cherez-4-ch-54-min.md` · 2026-10-30
 - Карточку моста закрыли руками — живая находка осиротела: мост считает её открытой и новую не заведёт  ·  `inbox-kartochku-mosta-zakryli-rukami-zhivaya-n.md` · 2026-08-17
 - Каталог доставки берётся из окружения: 15 зовов git, включая checkout origin/main в прод-дерево  ·  `inbox-katalog-dostavki-beretsya-iz-okruzheniya.md` · 2026-09-12
 - Книги за прошлый день нет в архиве: дозапись исходов навсегда несёт null в позициях  ·  `inbox-knigi-za-proshlyi-den-net-v-arhive-dozap.md` · 2026-08-17
