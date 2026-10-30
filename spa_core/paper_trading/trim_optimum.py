@@ -164,6 +164,21 @@ def _approved(book: Dict[str, float], apy_pct: Dict[str, float],
     return bool(verdict.get("approved"))
 
 
+def _unexecuted(current: Dict[str, float], book: Dict[str, float],
+                capital_usd: float, min_leg_frac: float,
+                legs: List[dict]) -> Dict[str, float]:
+    """Проводка к ЕДИНСТВЕННОЙ двери ADR-864 — своего правила пыли здесь нет.
+
+    Имя у проводки отдельное по одной причине: приёмка обязана уметь порвать
+    ЭТО звено, не задевая соседнее. Дверь у `evaluate` и у перебора размеров
+    одна (``rebalance_economics.unexecuted_legs``), и подмена самой двери
+    рвёт оба звена сразу — то есть контроль «перебор перестал отказывать»
+    был бы неотличим от «вердикт перестал отказывать».
+    """
+    from spa_core.allocator.rebalance_economics import unexecuted_legs
+    return unexecuted_legs(current, book, capital_usd, min_leg_frac, legs=legs)
+
+
 def score_book(current: Dict[str, float], book: Dict[str, float],
                apy_pct: Dict[str, float], *, capital_usd: float,
                min_leg_frac: float, chains: Dict[str, str]) -> Optional[dict]:
@@ -178,6 +193,15 @@ def score_book(current: Dict[str, float], book: Dict[str, float],
 
     legs, turnover = _legs(current, book, capital_usd, min_leg_frac)
     if not legs or turnover <= _EPS:
+        return None
+    # ADR-864: книга, одну из ног которой дверь цены не исполнит, НЕ СЧИТАЕТСЯ.
+    # Это та же дверь и та же причина, что у `evaluate`: цена посчитана по
+    # материальным ногам, а выигрыш — по книге, которой мы держать не будем.
+    # Без этой строки перебор размеров выигрывал тем, что сползал к
+    # `min_leg_usd ± $0.01` (замер #978: 8 «улучшений» из 8 — ровно эта полоса).
+    # ``None`` здесь уже означает «окупаемость не определена» — отдельного
+    # значения заводить не нужно.
+    if _unexecuted(current, book, capital_usd, min_leg_frac, legs):
         return None
     cost = _move_cost_usd(legs, turnover, chains)
     gain = (_book_apy_pp(book, apy_pct, capital_usd)

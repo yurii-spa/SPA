@@ -12431,6 +12431,158 @@ def _probe_cio_act_fires_and_is_scored(arg: str | None, *,
         "мандата взвода впервые считается на наблюдении")
 
 
+#: Сцена пробы ADR-864. Капитал и порог названы ЧИСЛАМИ, а не выведены из
+#: окружения: проба судит об АРИФМЕТИКЕ двери, и подставлять ей сегодняшний
+#: капитал значило бы сделать вердикт зависимым от книги дня.
+_ONE_BOOK_CAPITAL = 100_000.0
+_ONE_BOOK_APY = {"aave_v3": 5.5724, "compound_v3": 5.31, "morpho_blue_base": 9.0}
+_ONE_BOOK_CHAINS = {"aave_v3": "ethereum", "compound_v3": "ethereum",
+                    "morpho_blue_base": "base"}
+_ONE_BOOK_CURRENT = {"aave_v3": 5_000.0, "compound_v3": 40_000.0,
+                     "morpho_blue_base": 0.0}
+
+
+def _one_book_scene(aave_delta: float) -> dict:
+    """Предложение, отличающееся от книги РОВНО размером дельты ``aave_v3``.
+
+    Остальные две ноги — материальные и у всех сцен одинаковые, поэтому между
+    сценами меняется ровно одно: исполнит дверь цены ногу ``aave_v3`` или нет.
+    """
+    tgt = dict(_ONE_BOOK_CURRENT)
+    tgt["aave_v3"] = _ONE_BOOK_CURRENT["aave_v3"] + aave_delta
+    tgt["compound_v3"] = 30_000.0
+    tgt["morpho_blue_base"] = 10_000.0
+    return tgt
+
+
+def _probe_price_door_and_gain_door_judge_one_book(arg: str | None) -> tuple[str, str]:
+    """Критерий ADR-864 — цена хода и его выигрыш судят ОДНУ книгу.
+
+    Дословно: дельта, которую дверь цены НЕ ИСПОЛНИТ (ненулевая и не больше
+    ``min_leg_frac · capital``), больше не приносит выигрыша бесплатно. Ход с
+    такой ногой получает НАЗВАННЫЙ отказ у обеих дверей — у вердикта цикла
+    (``rebalance_economics.evaluate``) и у перебора размеров
+    (``trim_optimum.score_book``), — а ход, у которого все ноги исполнимы,
+    считается как раньше.
+
+    Проба меряет ИСХОД, а не структуру: она гоняет НАСТОЯЩИЕ двери на
+    синтетических сценах, отличающихся РОВНО размером одной дельты. Живой
+    ``data/`` не читается и в вердикт не входит — предмет про арифметику двери,
+    а не про то, какая книга стоит сегодня.
+
+    Три сцены, и каждая отвечает на свой вопрос:
+
+    1. **рваная** — дельта ``aave_v3`` на цент НИЖЕ порога: обе двери обязаны
+       ОТКАЗАТЬ, и ``evaluate`` обязан НАЗВАТЬ протокол;
+    2. **целая** — та же сцена с дельтой на цент ВЫШЕ порога: отказа быть не
+       должно ни у одной двери, иначе «починка» просто запретила бы ходы;
+    3. **нулевая** — дельты ``aave_v3`` нет вовсе: ноль есть ОТСУТСТВИЕ хода, а
+       не пыль, и подмножество без протокола обязано остаться считаемым. Без
+       этой сцены отказ мог бы съесть ровно тот рычаг (меньше ног — меньше
+       газа), ради которого перебор размеров и существует.
+
+    Ось ``evidence["unexecuted_legs"]`` спрашивается у всех трёх: пустой
+    словарь — «измерено и равно нулю» (инв. #17), и его отсутствие есть
+    ``not_satisfied``, а не мелочь.
+    """
+    if arg:
+        return UNMEASURED, (f"проба не принимает аргумента (дано {arg!r}): критерий "
+                            "назван целиком")
+    try:
+        from spa_core.allocator.rebalance_economics import TriggerParams, evaluate
+        from spa_core.paper_trading.trim_optimum import score_book
+    except Exception as exc:  # noqa: BLE001 — нечем мерить ≠ критерий не выполнен
+        return UNMEASURED, f"двери не ввезены ({type(exc).__name__}): {exc}"
+
+    params = TriggerParams.for_mode("paper")
+    min_leg_usd = float(params.min_leg_frac) * _ONE_BOOK_CAPITAL
+    if min_leg_usd <= 0.02:
+        return UNMEASURED, (f"порог ноги ${min_leg_usd:,.2f} — сцены «на цент ниже» и "
+                            "«на цент выше» им не различаются, мерить нечем")
+    evidenced = set(_ONE_BOOK_APY)
+
+    def _ask(delta: float):
+        tgt = _one_book_scene(delta)
+        try:
+            d = evaluate(current_positions=dict(_ONE_BOOK_CURRENT),
+                         target_positions=tgt, apy_pct=_ONE_BOOK_APY,
+                         evidenced=evidenced, chains=_ONE_BOOK_CHAINS,
+                         capital_usd=_ONE_BOOK_CAPITAL, params=params)
+            scored = score_book(dict(_ONE_BOOK_CURRENT), tgt, _ONE_BOOK_APY,
+                                capital_usd=_ONE_BOOK_CAPITAL,
+                                min_leg_frac=params.min_leg_frac,
+                                chains=_ONE_BOOK_CHAINS)
+        except Exception as exc:  # noqa: BLE001
+            return None, None, f"{type(exc).__name__}: {exc}"
+        return d, scored, None
+
+    torn, torn_scored, err = _ask(min_leg_usd - 0.01)
+    if err:
+        return UNMEASURED, f"рваная сцена не посчиталась ({err})"
+    whole, whole_scored, err = _ask(min_leg_usd + 0.01)
+    if err:
+        return UNMEASURED, f"целая сцена не посчиталась ({err})"
+    zero, zero_scored, err = _ask(0.0)
+    if err:
+        return UNMEASURED, f"нулевая сцена не посчиталась ({err})"
+
+    _AXIS = "unexecuted_legs"
+    for name, dec in (("рваная", torn), ("целая", whole), ("нулевая", zero)):
+        if not isinstance(dec.evidence, dict) or _AXIS not in dec.evidence:
+            return NOT_SATISFIED, (
+                f"у сцены «{name}» нет оси `{_AXIS}` в evidence — отсутствие "
+                "неисполнимых ног неотличимо от того, что их не искали (инв. #17)")
+
+    _REASON = "proposal_has_unexecuted_legs"
+
+    def _refused(dec) -> bool:
+        return any(str(r).startswith(_REASON) for r in (dec.reasons or []))
+
+    if not _refused(torn):
+        return NOT_SATISFIED, (
+            f"РВАНАЯ сцена не отказана: дельта ${min_leg_usd - 0.01:,.2f} при пороге "
+            f"${min_leg_usd:,.2f} в ноги не попала, а вердикт {torn.decision} с "
+            f"выигрышем {torn.gain_pp} pp — выигрыш отдан БЕСПЛАТНО "
+            f"(причины: {list(torn.reasons or [])})")
+    if "aave_v3" not in str(torn.reasons):
+        return NOT_SATISFIED, ("отказ рваной сцены не НАЗЫВАЕТ протокол: "
+                               f"{list(torn.reasons or [])}")
+    if not torn.evidence.get(_AXIS):
+        return NOT_SATISFIED, ("рваная сцена отказана, но ось "
+                               f"`{_AXIS}` пуста — причина отказа не предъявлена числом")
+    if torn_scored is not None:
+        return NOT_SATISFIED, (
+            "перебор размеров ПОСЧИТАЛ книгу с неисполнимой ногой "
+            f"({torn_scored.get('payback_days')} дн.) — щель, которой он сползал к "
+            "`min_leg_usd − $0.01`, осталась открытой")
+
+    if _refused(whole):
+        return NOT_SATISFIED, (
+            f"ЦЕЛАЯ сцена отказана: дельта ${min_leg_usd + 0.01:,.2f} ВЫШЕ порога "
+            f"${min_leg_usd:,.2f} и обязана исполняться "
+            f"(причины: {list(whole.reasons or [])})")
+    if whole.evidence.get(_AXIS):
+        return NOT_SATISFIED, (f"у целой сцены ось `{_AXIS}` не пуста: "
+                               f"{whole.evidence.get(_AXIS)!r}")
+    if whole_scored is None:
+        return NOT_SATISFIED, ("перебор размеров отказал ЦЕЛОЙ книге — отказ съел "
+                               "исполнимый ход")
+    if _refused(zero):
+        return NOT_SATISFIED, (
+            "НУЛЕВАЯ сцена отказана: ноль есть ОТСУТСТВИЕ хода, а не пыль; так отказ "
+            f"съел бы подмножество без протокола (причины: {list(zero.reasons or [])})")
+    if zero_scored is None:
+        return NOT_SATISFIED, ("перебор размеров отказал книге БЕЗ дельты — рычаг "
+                               "«меньше ног, меньше газа» закрыт")
+
+    return SATISFIED, (
+        f"двери судят одну книгу: при пороге ${min_leg_usd:,.2f} дельта "
+        f"${min_leg_usd - 0.01:,.2f} отказана обеими и названа "
+        f"({torn.evidence.get(_AXIS)}), дельта ${min_leg_usd + 0.01:,.2f} считается "
+        f"(окупаемость {whole_scored.get('payback_days')} дн., ось пуста), нулевая "
+        f"дельта считается ({zero_scored.get('payback_days')} дн.)")
+
+
 def _probe_size_edge_prize_source_is_named(
         arg: str | None, *,
         now: "datetime | None" = None,
@@ -12522,6 +12674,8 @@ def _probe_size_edge_prize_source_is_named(
 PROBES: dict[str, Callable[[str | None], "tuple[str, str]"]] = {
     "cio_act_fires_and_is_scored": _probe_cio_act_fires_and_is_scored,
     "size_edge_prize_source_is_named": _probe_size_edge_prize_source_is_named,
+    "price_door_and_gain_door_judge_one_book":
+        _probe_price_door_and_gain_door_judge_one_book,
     "tact_stage_names_its_caller":
         _probe_tact_stage_names_its_caller,
     "door_sites_operand_agrees": _probe_door_sites_operand_agrees,

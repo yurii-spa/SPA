@@ -158,15 +158,35 @@ def _record(label, current, target, apy):
             "apy_evidenced_pct": dict(apy)}
 
 
-class TheEdgeIsNotAlwaysTheOptimumInsideASubset(unittest.TestCase):
-    """Дефект 1: ПРИЧИНА 2 перестаёт быть рассуждением."""
+class TheEdgeIsTheOptimumOnceTheDustBandIsClosed(unittest.TestCase):
+    """ПРИЧИНА 2 измерена до конца — и ответ оказался «улучшений нет».
 
-    def test_a_size_below_the_edge_beats_the_edge_on_a_live_record(self):
+    ⚠️ НАМЕРЕННОЕ ИЗМЕНЕНИЕ ТЕСТА (инв. #16, ADR-864; запись в
+    `docs/journal/2026-W44.md`). Здесь стоял класс
+    ``TheEdgeIsNotAlwaysTheOptimumInsideASubset`` с утверждением «размер ниже
+    края БЬЁТ край на живой записи» (окупаемость 169.22 против 170.82). Это
+    утверждение было ВЕРНЫМ замером НЕИСПРАВНОЙ двери и неверным утверждением
+    о монотонности: приз создавался пыльной полосой — ``_legs`` выбрасывала
+    подпороговую дельту из газа и оборота, а ставку книги считали ПО ОБЪЯВЛЕННОЙ
+    цели, где эти деньги уже переложены. Перебор размеров сам сползал к
+    ``min_leg_usd − $0.01``.
+
+    ADR-864 заставил обе половины двери судить ОДНУ книгу: книга с
+    неисполнимой ногой больше не считается (``trim_optimum.score_book`` → None).
+    На ТОЙ ЖЕ записи приз исчез — ``scanned == edge_only``, — и это первый
+    честный ответ про монотонность. Тест не ослаблен: он утверждает РОВНО то же
+    про ту же сцену, только теперь его предмет — исход исправленной двери.
+    Контроль обратной стороны (дверь снова отдаёт полосу бесплатно ⇒ приз
+    возвращается) живёт в ``TheSourceAxisIsWiredToTheDustReading`` ниже.
+    """
+
+    def test_the_edge_is_not_beaten_on_the_live_record(self):
         one = _win()
         self.assertEqual(one["kind"], SZ_MEASURED)
         self.assertAlmostEqual(one["payback"]["edge_only"], 170.82, places=2)
-        self.assertAlmostEqual(one["payback"]["scanned"], 169.22, places=2)
-        self.assertLess(one["payback"]["scanned"], one["payback"]["edge_only"])
+        self.assertAlmostEqual(one["payback"]["scanned"], 170.82, places=2)
+        self.assertEqual(one["payback"]["scanned"], one["payback"]["edge_only"],
+                         "приз вернулся — дверь снова судит две книги")
 
     def test_the_scan_is_never_worse_than_the_edge_on_any_scene(self):
         """Инвариант ПОСТРОЕНИЯ: край входит в кандидатов на каждом подмножестве."""
@@ -195,12 +215,22 @@ class TheEdgeIsNotAlwaysTheOptimumInsideASubset(unittest.TestCase):
 
 
 class ThePrizeIsTheDustBandNotEconomics(unittest.TestCase):
-    """Дефект 2 — главный: ЧЕМ создан приз, спрашивается ОТДЕЛЬНО."""
+    """ЧЕМ создан приз, спрашивается ОТДЕЛЬНО — и после ADR-864 приза нет.
 
-    def test_the_winning_book_carries_a_sub_dust_delta(self):
+    ⚠️ НАМЕРЕННОЕ ИЗМЕНЕНИЕ ТЕСТОВ класса (инв. #16, ADR-864; запись в
+    `docs/journal/2026-W44.md`). Три теста утверждали числа НЕИСПРАВНОЙ двери
+    (победившая книга несёт дельту $499.99 · строго лучших 1 · пыльных 1).
+    Все три перемеряны на ТЕХ ЖЕ сценах: дверь больше не считает книгу с
+    неисполнимой ногой, поэтому победителя нет, и разложение приза стало
+    ``0 = 0 + 0``. Ось при этом СОХРАНЕНА и по-прежнему обязана сходиться —
+    она и есть то, что отличает «приза нет» от «приза не искали».
+    """
+
+    def test_the_winning_book_no_longer_carries_a_sub_dust_delta(self):
         one = _win()
         self.assertEqual(one["min_leg_usd"], 500.0)
-        self.assertEqual(one["prize_dust_deltas"], {"aave_v3": 499.99})
+        self.assertEqual(one["prize_dust_deltas"], {},
+                         "книга с неисполнимой ногой снова побеждает")
 
     def test_the_cost_door_itself_charges_nothing_for_a_sub_dust_delta(self):
         """Механизм — У ДВЕРИ, а не на словах прибора.
@@ -233,10 +263,13 @@ class ThePrizeIsTheDustBandNotEconomics(unittest.TestCase):
             chains=WIN_CHAINS, chains_measured=True,
             grid_control_records=0)
         src = census["prize_source"]
-        self.assertEqual(src["strictly_better"], 1)
-        self.assertEqual(src["from_dust_band"], 1)
+        self.assertEqual(src["strictly_better"], 0)
+        self.assertEqual(src["from_dust_band"], 0)
         self.assertEqual(src["economic"], 0,
                          "экономический приз объявлен там, где его нет")
+        # Части сходятся с целым и при нуле: это ЗАМЕР нуля, а не пустота.
+        self.assertEqual(src["from_dust_band"] + src["economic"],
+                         src["strictly_better"])
         self.assertIn("ПЫЛЬНЫМ ПОРОГОМ", src["note"])
         self.assertIn("ИСТОЧНИК приза", "\n".join(
             format_trim_size_edge(census)))
@@ -248,10 +281,19 @@ class ThePrizeIsTheDustBandNotEconomics(unittest.TestCase):
         «фильтр работает» дают одно число — населения, различающего их, в
         истории нет вовсе. Различает ДВЕРЬ: подменим чтение полосы пустым
         ответом, и то же улучшение обязано стать ЭКОНОМИЧЕСКИМ.
+
+        ⚠️ ADR-864 добавил ВТОРУЮ подмену, и без неё тест перестал мерить свой
+        предмет: после починки победителя на этой сцене нет вовсе (книга с
+        неисполнимой ногой не считается), поэтому «ось без фильтра» и «ось с
+        фильтром» снова дали бы одно число — ноль. Подменяются обе двери, то
+        есть сцена ВОЗВРАЩАЕТСЯ к поведению до ADR-864, и ось обязана назвать
+        тот же приз ЭКОНОМИЧЕСКИМ. Это и есть обратный контроль самой починки.
         """
         from unittest import mock
+        from spa_core.allocator import rebalance_economics as _re
         with mock.patch("spa_core.paper_trading.trim_size_edge.dust_deltas",
-                        return_value={}):
+                        return_value={}), \
+             mock.patch.object(_re, "unexecuted_legs", return_value={}):
             census = trim_size_edge_census(
                 [_record("день-1", WIN_CURRENT, WIN_TARGET, WIN_APY)],
                 params=PARAMS, tiers=WIN_TIERS, tiers_measured=True,
@@ -654,8 +696,14 @@ class TheAcceptanceProbeHasAControlInBothDirections(unittest.TestCase):
 
     def test_parts_that_do_not_add_up_to_the_whole_are_refused(self):
         from spa_core.monitoring.card_acceptance import NOT_SATISFIED
+        # Сцена строится так, чтобы части НЕ СХОДИЛИСЬ: целое объявлено
+        # единицей, части — нулями. До ADR-864 то же состояние получалось
+        # обнулением частей (целое тогда было 1 само); теперь целое ноль, и
+        # обнуление частей дало бы СХОДЯЩУЮСЯ сцену, то есть контроль молча
+        # перестал бы рвать звено. Предмет контроля не менялся.
         census = dict(self._census())
         census["prize_source"] = dict(census["prize_source"],
+                                      strictly_better=1,
                                       from_dust_band=0, economic=0)
         with TemporaryDirectory() as raw:
             tmp = Path(raw)

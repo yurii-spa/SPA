@@ -244,6 +244,65 @@ def _legs(
     return legs, max(increases, decreases)
 
 
+def unexecuted_legs(
+    current: Dict[str, float],
+    target: Dict[str, float],
+    capital_usd: float,
+    min_leg_frac: float,
+    *,
+    legs: Optional[List[dict]] = None,
+) -> Dict[str, float]:
+    """Ненулевые дельты, которые дверь цены НЕ ИСПОЛНИТ (ADR-864).
+
+    ``{}`` — измерено и равно нулю: у хода таких ног нет.
+
+    **Предмет.** ``_legs`` выбрасывает дельту ``abs(delta) <= min_leg_frac ·
+    capital`` целиком: она не платит ни газа, ни проскальзывания, ни моста — и
+    НЕ ИСПОЛНЯЕТСЯ. Выигрыш же считался по ОБЪЯВЛЕННОЙ цели, где эти деньги уже
+    переложены. Две половины двери судили РАЗНЫЕ книги, и знак ошибки зависит от
+    направления дельты: неисполненная ПОКУПКА начисляла доход деньгам, которые не
+    двинулись (завышение, fail-OPEN), неисполненная ПРОДАЖА отнимала доход у
+    денег, которые остались на месте (занижение).
+
+    **Почему возвращается ОТКАЗ, а не «правильная» книга.** Первая редакция этой
+    правки считала ставку по книге удержания (цель с откатанными подпороговыми
+    ногами) — и была ИЗМЕРЕНА НЕВЕРНОЙ на живой истории: приз пыльной полосы не
+    исчез, а ВЫРОС (переписью ``trim_size_edge``: строго лучших 8 → 19, лучший
+    выигрыш 1.6 → 47.81 дн.). Причина — книга удержания НЕ СОХРАНЯЕТ ДЕНЬГИ:
+    ``trim_optimum._fill`` строит книгу так, что ``buy − sell`` равно ровно
+    объявленному движению кэша, поэтому откат одной ПРОДАЖИ оставляет исполненные
+    покупки без фондирования, то есть разворачивает кэш, которого ход не
+    запрашивал. Оптимизатор немедленно нашёл и эту щель — с другой стороны порога.
+
+    Сохраняющей книги здесь не существует без МОДЕЛИ ИСПОЛНЕНИЯ (чем именно
+    урезать встречную сторону), а выдумывать её в советательной двери значило бы
+    построить второй аллокатор — money-path и решение владельца. Поэтому честный
+    ответ третий (инв. #17): ход, одну из ног которого дверь цены не исполнит, —
+    это НЕ ход, про который можно сказать «стоит он своих денег». Про него
+    говорится «не измерено, и вот почему», и вердикт остаётся HOLD (инв. #2).
+
+    **Цена отказа ИЗМЕРЕНА, а не оценена.** На записанной истории
+    (``data/allocation_rationale_history*.jsonl``, 166 записей) подпороговую
+    ненулевую ногу несут **8** предложений цикла, и у всех восьми записанный
+    вердикт дня — уже ``HOLD``. То есть отказ не отнимает ни одного ACT: он
+    меняет НАЗВАННУЮ ПРИЧИНУ у восьми записей и закрывает щель, которой
+    пользовался перебор размеров.
+    """
+    cur = {k: float(v or 0.0) for k, v in (current or {}).items()}
+    tgt = {k: float(v or 0.0) for k, v in (target or {}).items()}
+    if legs is None:
+        legs, _turnover = _legs(cur, tgt, capital_usd, min_leg_frac)
+    moved = {str(leg.get("protocol")) for leg in (legs or [])}
+    out: Dict[str, float] = {}
+    for proto in sorted(set(cur) | set(tgt)):
+        if proto in moved:
+            continue
+        delta = tgt.get(proto, 0.0) - cur.get(proto, 0.0)
+        if abs(delta) > _EPS:
+            out[proto] = round(delta, 2)
+    return out
+
+
 def _move_cost_usd(legs: List[dict], turnover_usd: float, chains: Dict[str, str]) -> float:
     """USD cost of executing ``legs``: gas per touched position + slippage + bridge.
 
@@ -295,6 +354,15 @@ def evaluate(
     current_positions = {k: float(v or 0.0) for k, v in (current_positions or {}).items()}
     target_positions = {k: float(v or 0.0) for k, v in (target_positions or {}).items()}
 
+    # ── L1 (ADR-864): ноги считаются ПЕРВЫМИ ───────────────────────────────
+    # Они решают не только цену, но и сам вопрос «а есть ли тут один ход»: дельта,
+    # которую дверь цены не исполнит, делает объявленную цель книгой, которой мы
+    # держать не будем. Считать по ней выигрыш — обещать доход, которого не
+    # будет; см. докстринг :func:`unexecuted_legs`.
+    legs, turnover_usd = _legs(current_positions, target_positions, capital_usd, p.min_leg_frac)
+    unexecuted = unexecuted_legs(
+        current_positions, target_positions, capital_usd, p.min_leg_frac, legs=legs)
+
     # ── L1: the two comparable numbers ─────────────────────────────────────
     d.apy_now_pp, unev_now = _blended_apy_pp(current_positions, apy_pct, capital_usd, evidenced)
     d.apy_opt_pp, unev_opt = _blended_apy_pp(target_positions, apy_pct, capital_usd, evidenced)
@@ -310,6 +378,9 @@ def evaluate(
             and target_positions[proto] > 0
             and proto not in tvl_evidenced
         ),
+        # ADR-864. Ось объявлена ВСЕГДА: пустой словарь — «измерено и равно нулю»,
+        # иначе отсутствие таких ног было бы неотличимо от того, что их не искали.
+        "unexecuted_legs": dict(unexecuted),
     }
     if unev_opt:
         # Funding something we cannot observe is not an improvement, whatever the
@@ -325,12 +396,21 @@ def evaluate(
                 d.evidence["tvl_unevidenced_in_target"]))
 
     # ── L1: cost of the move ───────────────────────────────────────────────
-    d.legs, d.turnover_usd = _legs(current_positions, target_positions, capital_usd, p.min_leg_frac)
+    d.legs, d.turnover_usd = legs, turnover_usd   # посчитаны выше, у выбора книги
     d.turnover_usd = round(d.turnover_usd, 2)
     d.turnover_frac = round(d.turnover_usd / capital_usd, 6)
     if not d.legs:
         d.reasons.append("no_material_legs")
         d.gates = {"has_legs": False}
+        return d
+    if unexecuted:
+        # ADR-864, fail-CLOSED. «Ног нет вовсе» (выше) и «часть ног дверь цены не
+        # исполнит» — РАЗНЫЕ состояния, поэтому и причина своя: про такой ход
+        # нельзя сказать, что он стоит своих денег, потому что нельзя сказать,
+        # ЧТО это за ход. Сохраняющей книги без модели исполнения не существует.
+        d.reasons.append("proposal_has_unexecuted_legs:{}".format(
+            {k: round(v, 2) for k, v in unexecuted.items()}))
+        d.gates = {"has_legs": True, "every_leg_executable": False}
         return d
 
     d.cost_usd = round(_move_cost_usd(d.legs, d.turnover_usd, chains), 2)
