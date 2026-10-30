@@ -4785,10 +4785,19 @@ def _summarize_json(path: str, data, *, now: dt.datetime | None = None,
                 # строкой (наше закрытие оказалось повторным). Схлопнув их, шаг
                 # 0-офис перестал бы отличать «мы отстали» от «мы сделали дважды».
                 outcome = len(d.get("same_outcome_on_origin") or [])
+                # ЧЕТВЁРТОЕ основание, и мера у него СЛАБЕЕ: на origin лежит
+                # каждая наша строка тела, но ни одного порядкосохраняющего
+                # вложения нет (ручное сведение переплело наш текст с чужим,
+                # замер #985). Печатается отдельно и со словом «слабая мера»:
+                # выдать слабое доказательство за строгое — тот же дефект, что
+                # схлопнуть «уже на origin» с «доставлено».
+                unordered = len(d.get("body_lines_on_origin_unordered") or [])
                 out.append(f"   доставка карточек: {st} ({len(d.get('delivered') or [])} на origin"
                            + (f"; уже на origin, origin ушёл вперёд: {covered}" if covered else "")
                            + (f"; origin закрыл раньше нас (повторное закрытие): {outcome}"
                               if outcome else "")
+                           + (f"; строки тела все на origin, порядок не наш "
+                              f"(слабая мера): {unordered}" if unordered else "")
                            + ")")
             else:
                 out.append(f"   ⚠️ ДОСТАВКА КАРТОЧЕК {st}: {d.get('reason')} "

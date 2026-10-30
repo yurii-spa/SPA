@@ -327,6 +327,107 @@ def _covered_lines(ours: bytes, theirs: bytes) -> tuple:
     return True, [e for e in extra if e.strip()]
 
 
+def origin_carries_our_body_lines(local: bytes, remote: bytes) -> tuple:
+    """Каждая НАША строка тела лежит на origin, но ПОРЯДОК не наш → ``(да/нет, причина)``.
+
+    Четвёртый — и самый слабый — член семьи «везти нечего». Порядок вопросов
+    (каждый следующий задаётся ТОЛЬКО после отказа предыдущего):
+
+    * ``remote == local`` — файлы совпали побайтово;
+    * :func:`origin_covers_card` — наши строки лежат на origin
+      ПОДПОСЛЕДОВАТЕЛЬНОСТЬЮ (порядок сохранён);
+    * :func:`rebase_card` — нашу правку можно перенести на свежий origin;
+    * :func:`origin_reached_same_outcome` — origin записал тот же переход своей
+      строкой;
+    * здесь — **наши строки на origin ЕСТЬ ВСЕ, но ни одного порядкосохраняющего
+      вложения не существует**.
+
+    **Замер 2026-10-30 (цикл #985).** Долг доставки моста стоял **91.4 ч** на двух
+    карточках (``inbox-spisok-shagov-ci-vyveden-cherez-shest-li``,
+    ``inbox-strazh-provenansa-chitaet-pravku-stroki``) с эскалацией «не рассасывается
+    повтором (≥5 попыток), нужен человек». Человек там УЖЕ был: цикл #971 свёл долг
+    8 → 2 вручную (``a78c38f56``, 28.10 23:46) и оставил в карточках свою пометку
+    «перенесено ВРУЧНУЮ из прод-дерева». Именно эта починка и сделала долг
+    непогасимым: руками текст кладут туда, где он ЧИТАЕТСЯ, а не туда, где
+    доказуемо вложение. Замер прод-копий против ``origin/main`` b6a091cea:
+
+    * frontmatter покрыт строгой мерой у ОБЕИХ карточек;
+    * наших непустых строк тела 32 и 40, у origin 36 и 60;
+    * наших строк, которых на origin НЕТ ВОВСЕ, — **0** и **0**;
+    * вложения при этом НЕ СУЩЕСТВУЕТ, и это не жадность матчера (жадное
+      левое соответствие для подпоследовательности оптимально): у первой
+      карточки наша строка «Прибор … (ADR-328) назвал этот» есть на origin
+      ТОЛЬКО в дописанном блоке (позиция 50), а её продолжение — ТОЛЬКО на
+      позиции 19, то есть ПОЗАДИ. Ручное сведение не вставило наш абзац
+      блоком, а переплело его с чужим текстом.
+
+    Население класса ИЗМЕРЕНО по всему трекеру (1524 карточки на origin): ровно
+    **2**, и это те самые две. То есть ветка не «на будущее», у неё есть ровно
+    тот вход, ради которого она написана.
+
+    **Доказательство здесь СЛАБЕЕ, и это сказано вслух.** Мера отвечает на
+    вопрос «есть ли на origin каждая наша строка», а НЕ на вопрос «лежит ли наш
+    абзац на origin абзацем». Поэтому:
+
+    * **frontmatter сверяется прежней СТРОГОЙ мерой** — машинную часть карточки
+      (статус, захват, ответ владельца, ``finding_key``, проба) читают
+      программы, и ослаблять её порядок нельзя ничем;
+    * **тело** — проза для человека, и её перестановка законна;
+    * **пропажа хотя бы одной нашей строки — отказ**, как и прежде: «origin
+      ушёл вперёд» и «origin разошёлся с нами» решаются по-разному;
+    * **равное число строк — тоже отказ**: перестановка того же набора есть
+      ПЕРЕПИСЫВАНИЕ, а не обгон, и объявлять «везти нечего» там нельзя.
+
+    Ветка ничего не пишет — как и :func:`origin_covers_card`, она только
+    снимает ЛОЖНЫЙ долг. Ложный долг топит настоящий: пока эти две карточки
+    числились должными, строка «⛔ нужен человек» печаталась каждый прогон
+    шага 0-офис и просила сделать то, что уже сделано.
+    """
+    lp, rp = card_parts(local), card_parts(remote)
+    if lp is None or rp is None:
+        return False, "одна из копий не карточка (нет frontmatter) — сравнивать нечем"
+    l_fm, l_body = lp
+    r_fm, r_body = rp
+    fm_ok, fm_extra = _covered_lines(l_fm, r_fm)
+    if not fm_ok:
+        return False, ("машинная часть карточки (frontmatter) origin не содержит наших "
+                       "строк — это расхождение, а не обгон; слабую меру тела "
+                       "спрашивать не о чем")
+    ours = _body_line_counts(l_body)
+    theirs = _body_line_counts(r_body)
+    missing = sum(max(0, n - theirs.get(line, 0)) for line, n in ours.items())
+    if missing:
+        return False, (f"на origin нет {missing} наш(ей/их) строк(и) тела — origin "
+                       f"разошёлся с нами, а не обогнал нас")
+    n_ours = sum(ours.values())
+    n_theirs = sum(theirs.values())
+    if n_theirs <= n_ours:
+        return False, (f"строк тела у origin {n_theirs}, у нас {n_ours} — набор тот же, "
+                       f"изменился только порядок: это ПЕРЕПИСЫВАНИЕ, а не обгон")
+    return True, (f"каждая наша строка тела ({n_ours}) лежит на origin ({n_theirs}), "
+                  f"но ПОРЯДОК не наш — порядкосохраняющего вложения нет, поэтому "
+                  f"доказательство слабее `covered_by_origin`: оно про СТРОКИ, а не "
+                  f"про абзац целиком. Везти нечего: наша копия старее"
+                  + (f"; origin сверх того: {', '.join(fm_extra)[:120]}" if fm_extra else ""))
+
+
+def _body_line_counts(body: bytes) -> dict:
+    """Непустые строки тела → ``{строка: сколько раз}``.
+
+    Пустые строки отброшены намеренно: содержания они не несут, а их число
+    расходится у любой ручной правки. Сравнение ПО СОДЕРЖАНИЮ не вправе
+    падать от лишнего перевода строки — и не вправе прощать пропавший абзац,
+    поэтому отбрасываются ровно пустые.
+    """
+    counts: dict = {}
+    for line in body.splitlines():
+        stripped = line.strip()
+        if not stripped:
+            continue
+        counts[stripped] = counts.get(stripped, 0) + 1
+    return counts
+
+
 def split_trail_block(fm: bytes) -> tuple:
     """frontmatter → ``(без блока status_trail, сам блок)``. Блока нет ⇒ ``(fm, b"")``.
 
@@ -759,12 +860,13 @@ def plan_batch(root: str, paths: list, reader=_default_remote_reader) -> dict:
     """Что делать с каждой карточкой пачки ДО пуша.
 
     ``{to_push, rebased, refused, already_on_origin, covered_by_origin,
-    same_outcome_on_origin, unmeasured, held}`` — ни один путь не исчезает
-    молча: он либо в пачке, либо назван в одном из списков.
+    same_outcome_on_origin, body_lines_on_origin_unordered, unmeasured, held}``
+    — ни один путь не исчезает молча: он либо в пачке, либо назван в одном из
+    списков.
     """
     plan = {"to_push": [], "rebased": [], "refused": [],
             "already_on_origin": [], "covered_by_origin": [],
-            "same_outcome_on_origin": [],
+            "same_outcome_on_origin": [], "body_lines_on_origin_unordered": [],
             "unmeasured": [], "held": []}
     for absolute in paths:
         repo_path = _rel(root, absolute).replace(os.sep, "/")
@@ -806,6 +908,16 @@ def plan_batch(root: str, paths: list, reader=_default_remote_reader) -> dict:
             same, why = origin_reached_same_outcome(local, remote)
             if same:
                 plan["same_outcome_on_origin"].append({"path": repo_path, "reason": why})
+                continue
+            # ЧЕТВЁРТЫЙ и последний вопрос семьи «везти нечего», и он задаётся
+            # ТОЛЬКО здесь — после всех трёх строгих. Доказательство слабее
+            # (оно про СТРОКИ тела, не про абзац) и названо слабым в самой
+            # причине; ведро отдельное ровно поэтому — схлопнув его с
+            # `covered_by_origin`, квитанция выдала бы слабую меру за строгую.
+            unordered, why_unordered = origin_carries_our_body_lines(local, remote)
+            if unordered:
+                plan["body_lines_on_origin_unordered"].append(
+                    {"path": repo_path, "reason": why_unordered})
                 continue
             plan["refused"].append({"path": repo_path, "reason": reason})
             continue
@@ -881,7 +993,8 @@ def arrived_paths(receipt: dict) -> set:
         return set()
     arrived = (set(receipt.get("delivered") or [])
                | set(receipt.get("already_on_origin") or []))
-    for key in ("covered_by_origin", "same_outcome_on_origin"):
+    for key in ("covered_by_origin", "same_outcome_on_origin",
+                "body_lines_on_origin_unordered"):
         arrived |= {c.get("path") for c in (receipt.get(key) or [])
                     if isinstance(c, dict) and c.get("path")}
     return arrived
@@ -1319,6 +1432,7 @@ def deliver(paths, root: str = REPO_ROOT, now: dt.datetime | None = None,
                "attempted": [], "delivered": [], "refused": [],
                "rebased": [], "rebase_refused": [], "already_on_origin": [],
                "covered_by_origin": [], "same_outcome_on_origin": [],
+               "body_lines_on_origin_unordered": [],
                "rebase_unmeasured": [], "held": [],
                "status": UNCHECKED, "reason": "", "returncode": None, "output": ""}
     debt: dict = {}
@@ -1373,6 +1487,7 @@ def deliver(paths, root: str = REPO_ROOT, now: dt.datetime | None = None,
             receipt["already_on_origin"] = plan["already_on_origin"]
             receipt["covered_by_origin"] = plan["covered_by_origin"]
             receipt["same_outcome_on_origin"] = plan["same_outcome_on_origin"]
+            receipt["body_lines_on_origin_unordered"] = plan["body_lines_on_origin_unordered"]
             receipt["rebase_unmeasured"] = plan["unmeasured"]
             receipt["held"] = plan["held"]
             # Застряло = не переносится ЛИБО придержано под чужим `--allow-overwrite`.
@@ -1390,13 +1505,17 @@ def deliver(paths, root: str = REPO_ROOT, now: dt.datetime | None = None,
                     same = len(plan["already_on_origin"])
                     covered = len(plan["covered_by_origin"])
                     outcome = len(plan["same_outcome_on_origin"])
+                    unordered = len(plan["body_lines_on_origin_unordered"])
                     receipt["reason"] = ("везти нечего — "
                                          + f"совпадают с нашими: {same}"
                                          + (f"; наша правка уже на origin (origin ушёл "
                                             f"вперёд): {covered}" if covered else "")
                                          + (f"; origin пришёл к тому же исходу раньше нас "
                                             f"(повторное закрытие): {outcome}"
-                                            if outcome else ""))
+                                            if outcome else "")
+                                         + (f"; каждая наша строка тела на origin, но "
+                                            f"ПОРЯДОК не наш (слабая мера): {unordered}"
+                                            if unordered else ""))
             else:
                 msg = message or build_message(root, plan["to_push"])
                 receipt["message"] = msg

@@ -1,0 +1,72 @@
+{
+  "title": "ADR-868 — дельта цикла #985: ручное сведение карточки сделало долг доставки НЕПОГАСИМЫМ (четвёртое основание «везти нечего», слабая мера)",
+  "tests": [
+    "spa_core/tests/test_card_delivery_body_lines_out_of_order.py",
+    "spa_core/tests/test_card_delivery.py",
+    "spa_core/tests/test_card_delivery_same_outcome_on_origin.py",
+    "spa_core/tests/test_card_delivery_rebase_onto_ahead_origin.py",
+    "spa_core/tests/test_card_delivery_debt.py"
+  ],
+  "mutations": [
+    {
+      "name": "слабая мера спрашивается ПЕРВОЙ — строгая `covered_by_origin` не срабатывает больше никогда",
+      "file": "spa_core/monitoring/card_delivery.py",
+      "old": "        covered, extra = origin_covers_card(local, remote)\n        if covered:\n",
+      "new": "        covered, extra = origin_covers_card(local, remote)\n        if origin_carries_our_body_lines(local, remote)[0] or covered:\n            extra = []\n"
+    },
+    {
+      "name": "пропажа НАШЕЙ строки прощена: «origin разошёлся с нами» выдано за «origin обогнал нас»",
+      "file": "spa_core/monitoring/card_delivery.py",
+      "old": "    if missing:\n        return False, (f\"на origin нет {missing} наш(ей/их) строк(и) тела — origin \"\n                       f\"разошёлся с нами, а не обогнал нас\")\n",
+      "new": "    if False:\n        return False, (f\"на origin нет {missing} наш(ей/их) строк(и) тела — origin \"\n                       f\"разошёлся с нами, а не обогнал нас\")\n"
+    },
+    {
+      "name": "перестановка того же набора строк объявлена обгоном (переписывание выдано за «везти нечего»)",
+      "file": "spa_core/monitoring/card_delivery.py",
+      "old": "    if n_theirs <= n_ours:\n",
+      "new": "    if False:\n"
+    },
+    {
+      "name": "машинная часть карточки (frontmatter) судится слабой мерой — порядок статуса/захвата перестаёт быть обязательным",
+      "file": "spa_core/monitoring/card_delivery.py",
+      "old": "    fm_ok, fm_extra = _covered_lines(l_fm, r_fm)\n    if not fm_ok:\n        return False, (\"машинная часть карточки (frontmatter) origin не содержит наших \"\n                       \"строк — это расхождение, а не обгон; слабую меру тела \"\n                       \"спрашивать не о чем\")\n",
+      "new": "    fm_ok, fm_extra = _covered_lines(l_fm, r_fm)\n    if False:\n        return False, (\"машинная часть карточки (frontmatter) origin не содержит наших \"\n                       \"строк — это расхождение, а не обгон; слабую меру тела \"\n                       \"спрашивать не о чем\")\n"
+    },
+    {
+      "name": "сравнение по СОДЕРЖАНИЮ подменено сравнением с пустотой — каждая наша строка «пропала»",
+      "file": "spa_core/monitoring/card_delivery.py",
+      "old": "    missing = sum(max(0, n - theirs.get(line, 0)) for line, n in ours.items())\n",
+      "new": "    missing = sum(max(0, n - 0) for line, n in ours.items())\n"
+    },
+    {
+      "name": "пустые строки снова считаются содержанием — лишний перевод строки читается как пропавший абзац",
+      "file": "spa_core/monitoring/card_delivery.py",
+      "old": "        stripped = line.strip()\n        if not stripped:\n            continue\n        counts[stripped] = counts.get(stripped, 0) + 1\n",
+      "new": "        stripped = line.strip()\n        counts[stripped] = counts.get(stripped, 0) + 1\n"
+    },
+    {
+      "name": "ведро не зачтено в ЕДИНСТВЕННОЕ определение «доехало» — ложный долг остаётся вечным",
+      "file": "spa_core/monitoring/card_delivery.py",
+      "old": "    for key in (\"covered_by_origin\", \"same_outcome_on_origin\",\n                \"body_lines_on_origin_unordered\"):\n",
+      "new": "    for key in (\"covered_by_origin\", \"same_outcome_on_origin\"):\n"
+    },
+    {
+      "name": "слабая мера схлопнута со СТРОГОЙ: квитанция выдаёт доказательство про СТРОКИ за доказательство про абзац",
+      "file": "spa_core/monitoring/card_delivery.py",
+      "old": "                plan[\"body_lines_on_origin_unordered\"].append(\n                    {\"path\": repo_path, \"reason\": why_unordered})\n",
+      "new": "                plan[\"covered_by_origin\"].append(\n                    {\"path\": repo_path, \"reason\": why_unordered})\n"
+    },
+    {
+      "name": "причина больше не называет свою меру слабой — слабое доказательство читается как строгое",
+      "file": "spa_core/monitoring/card_delivery.py",
+      "old": "                  f\"но ПОРЯДОК не наш — порядкосохраняющего вложения нет, поэтому \"\n                  f\"доказательство слабее `covered_by_origin`: оно про СТРОКИ, а не \"\n                  f\"про абзац целиком. Везти нечего: наша копия старее\"\n",
+      "new": "                  f\"наша правка УЖЕ на origin\"\n"
+    },
+    {
+      "name": "четвёртое основание не названо в исходе прогона — «везти нечего, потому что всё уже там» слито с «везти нечего вообще» (класс #268)",
+      "file": "spa_core/monitoring/card_delivery.py",
+      "old": "                                         + (f\"; каждая наша строка тела на origin, но \"\n                                            f\"ПОРЯДОК не наш (слабая мера): {unordered}\"\n                                            if unordered else \"\"))\n",
+      "new": "                                         + \"\")\n"
+    }
+  ]
+}

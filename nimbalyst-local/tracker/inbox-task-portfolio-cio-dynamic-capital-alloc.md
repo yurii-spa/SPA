@@ -8,12 +8,12 @@ created: 2026-08-13
 priority: critical
 status_trail:
   - "2026-08-26T22:31:36.748790+00:00 new -> in-progress · queue.set_status · cycle-96657"
-claimed_by: cycle-85305
-claimed_at: 2026-10-29T15:33:34Z
-claimed_run_id: orchestrator-85305-D1AB0B47209A4B7D94029BF25EF69AAE
-claimed_pid: 85305
-claimed_pid_start: Thu Oct 29 16:22:46 2026
-claim_takeover_reason: шаг 0a-голод назвал карточку голодающей (critical, in-progress 1647.4 ч, мимо 862 цикла), вердикт занятости прошлого держателя cycle-11180 — stale; его работа (#976, ADR-859) ЕСТЬ на origin/main 7988c6aa5 — поднимать нечего. Предмет взят из заказа G860 п. 1: у остатка G5 два названных конца, и ОБА вне мандата сессии по предмету (настоящий оптимум = ЛП в рантайме, money-path и решение владельца — так записано в самом заказе; max_protocols у двери книги = правка RiskPolicy.check_portfolio_health, то есть risk-логика, которую сессии запрещено трогать). Внутри мандата оставалась ровно ПРИЧИНА 2 нижней границы ADR-859 — про размер хода; она и измерена (ADR-861), RiskPolicy не правлена ни строкой
+claimed_by: cycle-9843
+claimed_at: 2026-10-30T08:03:29Z
+claimed_run_id: orchestrator-9843-D054A6C7E23F43209D650A7A7CC7F3B5
+claimed_pid: 9843
+claimed_pid_start: Fri Oct 30 08:55:31 2026
+claim_takeover_reason: шаг 0a прогнан из своего дерева (код 2 — только давние чужие ветви и клоны, работа #981/#984 на origin: ADR-864 b6a091cea^, ADR-867 3b3a76992); objavlenie cycle-20178/#980 — своё дерево совпадает с origin; конкурентных pytest 0; беру остаток G867 п.10, прежние замеры не переделываю
 ---
 
 ## УКАЗАНИЕ ВЛАДЕЛЬЦА 2026-08-22 (cloud-сессия): ЗАПУСТИТЬ СЛЕДУЮЩИМ ЦИКЛОМ
