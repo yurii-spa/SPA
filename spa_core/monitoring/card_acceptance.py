@@ -300,6 +300,174 @@ def _probe_owner_task_answer_reaches_the_channel(arg: str | None) -> tuple[str, 
         f"«НЕ ИЗМЕРЕНО»); {where}")
 
 
+def _probe_twin_guard_survives_the_intake_stamp(arg: str | None) -> tuple[str, str]:
+    """Критерий: работа по карточке НЕ отключает защиту очереди от дублей (ADR-866).
+
+    Проба мерит ИСХОД настоящей двери рождения (`queue.create_card`) на одноразовом
+    трекере — живая очередь не тронута — и у неё ЧЕТЫРЕ замера, каждый со своим
+    контролем:
+
+    1. **сама авария** — карточка рождена, тело дописано приёмом, та же просьба пришла
+       снова ⇒ файл обязан остаться ОДИН. До ADR-866 рождалась вторая (замер #981:
+       «проверь дашборд» родилась десять раз);
+    2. **обратный контроль** — ДРУГАЯ просьба под тем же заголовком обязана родиться
+       своей, иначе «починка» просто склеивала бы всё одноимённое;
+    3. **третий исход** — открытый кандидат БЕЗ ключа рождения с дописанным телом даёт
+       род «НЕ ИЗМЕРЕНО», а не «близнеца нет»; рождённая при этом карточка НЕСЁТ ключ и
+       поглощает следующий повтор (старое население не переписывается календарём);
+    4. **настоящий читатель** — НАСТОЯЩИЙ `scripts/check_owner_order_starvation.py`
+       поднимается на обеих сценах и обязан дать `repeated_cards` 0 на слитой и 2 на
+       расплодившейся. Сверять текст подстрокой здесь нельзя (ADR-333): печать,
+       собранная из того же числа, подтверждала бы сама себя — спрашивается ЧИСЛО и
+       разный исход на разных сценах.
+
+    Пятый замер — НАСЕЛЕНИЕ живой очереди (сколько открытых карточек несут ключ): он
+    ПЕЧАТАЕТСЯ, но критерий не гейтит, и это намеренно. Тело старых карточек уже
+    дописано работой, текст рождения из него не восстановить, и требовать ключ у них
+    значило бы требовать догадку.
+
+    Третий исход СВОЙ: дверь не ввозится, сцена не собралась или шаг 0a не поднялся ⇒
+    `unmeasured`, а не «не выполнено».
+    """
+    import json as _json
+    import subprocess as _sp
+    import sys as _sys
+    import tempfile
+    from pathlib import Path as _Path
+
+    try:
+        from spa_core.owner_queue import queue as Q
+    except Exception as exc:  # noqa: BLE001
+        return UNMEASURED, f"дверь рождения карточек не ввозится: {type(exc).__name__}: {exc}"
+    for need in ("twin_key", "twin_verdict", "TWIN_UNMEASURED", "TWIN_KEY_FIELD"):
+        if not hasattr(Q, need):
+            return UNMEASURED, (f"у двери рождения нет `{need}` — ключ близнеца "
+                                "НЕ ИЗМЕРИТЬ (проводка ADR-866 отсутствует)")
+
+    TITLE = "проверь дашборд"
+    BODY = ("## Задание (из Telegram)\n\nпроверь дашборд\n\n"
+            "## Расшифровка голосового (whisper)\n\nпроверь дашборд на телефоне\n")
+    STAMP = ("\n## Как понять, что готово\n"
+             "Задача выполнена и проверена (детали — обычный цикл).\n")
+
+    def _legacy(d: _Path, name: str, body: str) -> None:
+        (d / name).write_text("---\ntrackerStatus:\n  type: inbox\n"
+                              f"title: {TITLE}\nstatus: new\nsource: voice\n---\n\n"
+                              + body, encoding="utf-8")
+
+    try:
+        root = _Path(tempfile.mkdtemp(prefix="twin_probe_"))
+        # (1) сама авария
+        merged = root / "merged"
+        merged.mkdir()
+        first = Q.create_card("inbox", TITLE, BODY, tracker_dir=merged, source="voice")
+        first.write_text(first.read_text(encoding="utf-8").rstrip("\n") + STAMP,
+                         encoding="utf-8")
+        again = Q.create_card("inbox", TITLE, BODY, tracker_dir=merged, source="voice")
+        born_after_stamp = sorted(x.name for x in merged.glob("inbox-*.md"))
+        # (2) обратный контроль
+        other = root / "other"
+        other.mkdir()
+        o1 = Q.create_card("inbox", TITLE, BODY, tracker_dir=other, source="voice")
+        o1.write_text(o1.read_text(encoding="utf-8").rstrip("\n") + STAMP, encoding="utf-8")
+        o2 = Q.create_card("inbox", TITLE, BODY.replace("дашборд", "почту"),
+                           tracker_dir=other, source="voice")
+        # (3) третий исход на старом населении
+        legacy = root / "legacy"
+        legacy.mkdir()
+        _legacy(legacy, "inbox-prover-dashbord.md", BODY + STAMP)
+        third = Q.twin_verdict("inbox", TITLE, BODY, tracker_dir=legacy)
+        heir = Q.create_card("inbox", TITLE, BODY, tracker_dir=legacy, source="voice")
+        heir_key = str((Q.load_card(heir).fields or {}).get(Q.TWIN_KEY_FIELD) or "")
+        heir_again = Q.create_card("inbox", TITLE, BODY, tracker_dir=legacy, source="voice")
+        # сцена «расплодилась» для читателя: две карточки ОДНОЙ просьбы
+        bred = root / "bred"
+        bred.mkdir()
+        _legacy(bred, "inbox-prover-dashbord.md", BODY + STAMP)
+        _legacy(bred, "inbox-prover-dashbord-2.md", BODY)
+    except Exception as exc:  # noqa: BLE001
+        return UNMEASURED, (f"сцена не собралась — {type(exc).__name__}: {exc}; "
+                            "исход НЕ ИЗМЕРЕН")
+
+    if again != first:
+        return NOT_SATISFIED, (
+            "дописка тела приёмом снова отключает защиту: та же просьба родила вторую "
+            f"карточку {born_after_stamp} — ключ близнеца опять ИЗМЕНЯЕМЫЙ")
+    if o2 == o1:
+        return NOT_SATISFIED, (
+            "защита стала глухотой: ДРУГАЯ просьба под тем же заголовком слилась в "
+            f"{o1.name} — разные задания владельца съедаются")
+    if third.get("kind") != Q.TWIN_UNMEASURED:
+        return NOT_SATISFIED, (
+            f"кандидат БЕЗ ключа рождения получил род {third.get('kind')!r} вместо "
+            "«НЕ ИЗМЕРЕНО» — молчание выдано за измеренный ответ (инв. #17)")
+    if heir_key != Q.twin_key(BODY):
+        return NOT_SATISFIED, (
+            "карточка, рождённая после НЕИЗМЕРЕННОГО близнеца, ключа не несёт "
+            f"({heir_key!r}) — размножение не остановится и на следующем повторе")
+    if heir_again != heir:
+        return NOT_SATISFIED, (
+            "следующий повтор не слился в наследника — размножение продолжается: "
+            f"{sorted(x.name for x in heir.parent.glob('inbox-*.md'))}")
+
+    starv = _Path(REPO_ROOT) / "scripts" / "check_owner_order_starvation.py"
+
+    def _axis(d: _Path):
+        """Настоящий шаг 0a на одноразовом трекере → число оси повтора либо строка."""
+        try:
+            out = _sp.run([_sys.executable, str(starv), "--tracker-dir", str(d),
+                           "--ref", "", "--no-write", "--json"],
+                          capture_output=True, text=True, timeout=300)
+            if not out.stdout.strip():
+                return f"шаг 0a не напечатал JSON (rc={out.returncode})"
+            doc = _json.loads(out.stdout)
+            if "repeated_cards" not in doc:
+                return "шаг 0a не публикует ключ `repeated_cards` — оси повтора НЕТ"
+            return doc["repeated_cards"]
+        except Exception as exc:  # noqa: BLE001
+            return f"{type(exc).__name__}: {exc}"
+
+    axis_merged, axis_bred = _axis(merged), _axis(bred)
+    for label, value in (("слитой", axis_merged), ("расплодившейся", axis_bred)):
+        if isinstance(value, str):
+            return UNMEASURED, f"ось повтора на сцене «{label}» НЕ ИЗМЕРЕНА: {value}"
+    if axis_bred == axis_merged:
+        return NOT_SATISFIED, (
+            f"ось повтора шага 0a отвечает одно и то же ({axis_merged}) на слитую и на "
+            "расплодившуюся очередь — повтор она не различает, и критерий нечем поверить")
+    if axis_merged != 0:
+        return NOT_SATISFIED, (
+            f"просьба слита в одну карточку, а ось повтора шага 0a даёт "
+            f"{axis_merged} — читатель всё равно потребует «возьми эту карточку первой»")
+
+    try:
+        live = _Path(REPO_ROOT) / "nimbalyst-local" / "tracker"
+        keyed = keyless = 0
+        for f in sorted(live.glob("*.md")):
+            try:
+                c = Q.load_card(f)
+            except Exception:  # noqa: BLE001
+                continue
+            if (c.status or "") not in Q._OPEN_STATUSES:
+                continue
+            if str((c.fields or {}).get(Q.TWIN_KEY_FIELD) or "").strip():
+                keyed += 1
+            else:
+                keyless += 1
+        pop = (f"живая очередь: открытых карточек с ключом рождения {keyed}, без ключа "
+               f"{keyless} (у последних «та же просьба» НЕ ИЗМЕРЕНО по построению — "
+               "тело уже дописано работой; календарём их не переписываем)")
+    except Exception as exc:  # noqa: BLE001
+        pop = f"население живой очереди НЕ измерено: {type(exc).__name__}: {exc}"
+
+    return SATISFIED, (
+        "дверь рождения держит: дописка тела приёмом близнеца не теряет (одна карточка "
+        f"{born_after_stamp}), ДРУГАЯ просьба под тем же заголовком рождается своей, "
+        "кандидат без ключа даёт «НЕ ИЗМЕРЕНО» и наследник несёт ключ (следующий повтор "
+        f"слит); ось повтора шага 0a {axis_merged} на слитой против {axis_bred} на "
+        f"расплодившейся; {pop}")
+
+
 def _probe_owner_repeat_named_by_the_hunger_step(arg: str | None) -> tuple[str, str]:
     """Критерий: шаг 0a НАЗЫВАЕТ ЧИСЛОМ повтор просьбы владельца, и повторов в очереди нет.
 
@@ -12707,6 +12875,8 @@ PROBES: dict[str, Callable[[str | None], "tuple[str, str]"]] = {
         _probe_additive_field_reader_distinguishes,
     "owner_repeat_named_by_the_hunger_step":
         _probe_owner_repeat_named_by_the_hunger_step,
+    "twin_guard_survives_the_intake_stamp":
+        _probe_twin_guard_survives_the_intake_stamp,
     "owner_task_answer_reaches_the_channel":
         _probe_owner_task_answer_reaches_the_channel,
     "adapter_status_live_apy": _probe_adapter_status_live_apy,

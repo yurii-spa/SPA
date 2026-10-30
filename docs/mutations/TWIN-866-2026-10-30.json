@@ -1,0 +1,100 @@
+{
+  "title": "ADR-866 TWIN — дельта цикла #983: ключ близнеца НЕИЗМЕНЯЕМ (защита очереди от дублей не отключается работой по карточке)",
+  "tests": [
+    "spa_core/tests/test_twin_key_guard.py",
+    "spa_core/tests/test_twin_guard_probe.py",
+    "spa_core/tests/test_card_creation_idempotent.py"
+  ],
+  "mutations": [
+    {
+      "name": "дверь снова читает ИЗМЕНЯЕМОЕ тело вместо ключа рождения (авария #981 дословно)",
+      "file": "spa_core/owner_queue/queue.py",
+      "old": "            stored = str((card.fields or {}).get(TWIN_KEY_FIELD) or \"\").strip()\n",
+      "new": "            stored = \"\"\n"
+    },
+    {
+      "name": "ключ не пишется при РОЖДЕНИИ — неизменяемости не на чём стоять",
+      "file": "spa_core/owner_queue/queue.py",
+      "old": "    fields_out.setdefault(TWIN_KEY_FIELD, twin_key(body))\n",
+      "new": "    pass\n"
+    },
+    {
+      "name": "третий исход выдан за «близнеца нет» (молчание вместо ответа, инв. #17)",
+      "file": "spa_core/owner_queue/queue.py",
+      "old": "                TWIN_UNMEASURED, None,\n                f\"открытых карточек без ключа рождения: {len(keyless)}; их тело уже \"\n",
+      "new": "                TWIN_NONE, None,\n                f\"открытых карточек без ключа рождения: {len(keyless)}; их тело уже \"\n"
+    },
+    {
+      "name": "«слито по телу» выдано за «слито по ключу» — два утверждения слиты в одно",
+      "file": "spa_core/owner_queue/queue.py",
+      "old": "                    TWIN_BY_BODY, cand,\n",
+      "new": "                    TWIN_BY_KEY, cand,\n"
+    },
+    {
+      "name": "защита старого населения опущена НИЖЕ прежней: тело больше не сверяется",
+      "file": "spa_core/owner_queue/queue.py",
+      "old": "            if (card.body or \"\").strip() == wanted:\n                return TwinVerdict(\n",
+      "new": "            if False:\n                return TwinVerdict(\n"
+    },
+    {
+      "name": "ключ стал СТРОЖЕ мерки: нормализация выброшена (лишний перевод строки = новый вопрос)",
+      "file": "spa_core/owner_queue/queue.py",
+      "old": "        (body or \"\").strip().encode(\"utf-8\")).hexdigest()\n",
+      "new": "        (body or \"\").encode(\"utf-8\")).hexdigest()\n"
+    },
+    {
+      "name": "ключ стал ГРУБЕЕ мерки: не зависит от текста вовсе — склеивает разные задания",
+      "file": "spa_core/owner_queue/queue.py",
+      "old": "    return _TWIN_KEY_PREFIX + hashlib.sha256(\n        (body or \"\").strip().encode(\"utf-8\")).hexdigest()\n",
+      "new": "    return _TWIN_KEY_PREFIX + \"odin-klyuch-na-vse\"\n"
+    },
+    {
+      "name": "кандидат с ДРУГИМ ключом объявлен неизмеренным (измеренное выдано за неизмеренное)",
+      "file": "spa_core/owner_queue/queue.py",
+      "old": "                continue  # ключ есть и ДРУГОЙ — это ИЗМЕРЕННОЕ «другая просьба»\n",
+      "new": "                keyless.append(cand.name)\n                continue\n"
+    },
+    {
+      "name": "статус перестал править ключом: закрытая карточка снова глушит вернувшийся вопрос",
+      "file": "spa_core/owner_queue/queue.py",
+      "old": "            if (card.status or \"\") not in _OPEN_STATUSES:\n                continue\n            stored = str((card.fields or {}).get(TWIN_KEY_FIELD) or \"\").strip()\n",
+      "new": "            stored = str((card.fields or {}).get(TWIN_KEY_FIELD) or \"\").strip()\n"
+    },
+    {
+      "name": "сбой поиска снова выдаётся за «близнеца нет» (fail-OPEN третьего исхода)",
+      "file": "spa_core/owner_queue/queue.py",
+      "old": "        return TwinVerdict(TWIN_UNMEASURED, None,\n                           f\"поиск близнеца не удался",
+      "new": "        return TwinVerdict(TWIN_NONE, None,\n                           f\"поиск близнеца не удался"
+    },
+    {
+      "name": "merge_open_twin=False начинает консультироваться с ключом — пульт теряет свою идемпотентность",
+      "file": "spa_core/owner_queue/queue.py",
+      "old": "               else TwinVerdict(TWIN_NONE, None, \"идемпотентность у вызывающего \"\n                                                 \"(merge_open_twin=False)\"))\n",
+      "new": "               else _open_twin(d, base, tracker_type, body))\n"
+    },
+    {
+      "name": "ПРОБА принимает ось, отвечающую одно и то же на обе сцены (подтверждение сама собой)",
+      "file": "spa_core/monitoring/card_acceptance.py",
+      "old": "    if axis_bred == axis_merged:\n",
+      "new": "    if False:\n"
+    },
+    {
+      "name": "ПРОБА принимает СЛОВА вместо ключа `repeated_cards` (ADR-333 наизнанку)",
+      "file": "spa_core/monitoring/card_acceptance.py",
+      "old": "            if \"repeated_cards\" not in doc:\n                return \"шаг 0a не публикует ключ `repeated_cards` — оси повтора НЕТ\"\n            return doc[\"repeated_cards\"]\n",
+      "new": "            return doc.get(\"repeated_cards\", 0)\n"
+    },
+    {
+      "name": "ПРОБА не спрашивает, несёт ли наследник ключ — размножение остаётся незамеченным",
+      "file": "spa_core/monitoring/card_acceptance.py",
+      "old": "    if heir_key != Q.twin_key(BODY):\n",
+      "new": "    if False:\n"
+    },
+    {
+      "name": "ПРОБА не держит обратный контроль — глухота защиты проходит приёмку",
+      "file": "spa_core/monitoring/card_acceptance.py",
+      "old": "    if o2 == o1:\n",
+      "new": "    if False:\n"
+    }
+  ]
+}

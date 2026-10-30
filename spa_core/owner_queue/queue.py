@@ -20,6 +20,7 @@ Card frontmatter shape (see .nimbalyst/trackers/owner-decision.yaml)::
 
 from __future__ import annotations
 
+import hashlib
 import logging
 import json
 import os
@@ -1000,20 +1001,83 @@ _OPEN_STATUSES = frozenset({"needs-owner", "new", "in-progress", "blocked",
                             OWNER_ACCEPTED_STATUS})
 
 
-def _open_twin(d: Path, base: str, tracker_type: str, body: str) -> Path | None:
-    """Уже открытая карточка с ТЕМ ЖЕ вопросом, если она есть.
+#: Поле frontmatter с НЕИЗМЕНЯЕМЫМ ключом близнеца (ADR-866). Пишется ОДИН раз, при
+#: рождении карточки, и больше никем не правится: именно неизменяемость и есть предмет.
+TWIN_KEY_FIELD = "twin_key"
+_TWIN_KEY_PREFIX = "sha256:"
+
+#: Четыре РАЗЛИЧИМЫХ исхода вопроса «та же это просьба или новая» (инв. #17).
+TWIN_BY_KEY = "key"              #: совпал ключ рождения — ИЗМЕРЕНО
+TWIN_BY_BODY = "body"            #: ключа у кандидата НЕТ, совпало тело — ключ НЕ ИЗМЕРЕН
+TWIN_UNMEASURED = "unmeasured"   #: открытый кандидат без ключа, тело разошлось — НЕ ИЗМЕРЕНО
+TWIN_NONE = "none"               #: близнеца нет, и это ИЗМЕРЕНО (у всех кандидатов ключи)
+
+
+def twin_key(body: str | None) -> str:
+    """НЕИЗМЕНЯЕМЫЙ ключ близнеца: дайджест текста задания НА МОМЕНТ РОЖДЕНИЯ.
+
+    Нормализация ровно та же, что была у прежней сверки тела (``.strip()``), и это
+    НАМЕРЕННО: ключ обязан различать просьбы НЕ ХУЖЕ и НЕ ЛУЧШЕ тела, иначе правка
+    про неизменяемость заодно и ослабила бы защиту, и это было бы не видно
+    (`.claude/rules/acceptance.md`: мерка, выбранная после работы, ничего не мерит).
+    Единственное изменение — ключ не переписывается работой по карточке.
+    """
+    return _TWIN_KEY_PREFIX + hashlib.sha256(
+        (body or "").strip().encode("utf-8")).hexdigest()
+
+
+@dataclass(frozen=True)
+class TwinVerdict:
+    """Ответ двери рождения: «это та же просьба?» — с НАЗВАННЫМ родом ответа.
+
+    ``path is not None`` ⇔ сливаем в существующую карточку. Род (``kind``) нужен
+    затем, что «слито по ключу», «слито по телу, ключ НЕ ИЗМЕРЕН» и «близнец НЕ
+    ИЗМЕРЕН» — три разных утверждения, и выдавать их одним молчанием запрещено.
+    """
+
+    kind: str
+    path: Path | None = None
+    reason: str = ""
+    keyless: tuple[str, ...] = ()
+
+    @property
+    def measured(self) -> bool:
+        """Был ли вопрос ИЗМЕРЕН (а не «не удалось выяснить»)."""
+        return self.kind in (TWIN_BY_KEY, TWIN_NONE)
+
+
+def _open_twin(d: Path, base: str, tracker_type: str, body: str) -> TwinVerdict:
+    """Уже открытая карточка с ТЕМ ЖЕ вопросом, если она есть, — и РОД ответа.
 
     Тип карточки отдельно НЕ сверяется: он входит в ``base`` (``inbox-…`` против
     ``owner-decision-…``), поэтому карточки разных типов физически не могут совпасть
     именем. Лишняя проверка выглядела бы защитой, которой нечего защищать.
 
+    **Ключ сравнения — НЕИЗМЕНЯЕМЫЙ (ADR-866).** Прежняя редакция сверяла ПОЛНОЕ ТЕЛО
+    открытой карточки, а тело дописывает сам приём сразу после рождения (штамп критерия,
+    пометка истории), затем цикл и ответ владельцу. Защита отключалась ровно тем, что по
+    карточке сделали работу: замер #981 — «проверь дашборд» родилась ДЕСЯТЬ раз, и
+    положительный контроль на этой же двери дал «СЛИЛОСЬ» без дописки против «РОДИЛАСЬ
+    ВТОРАЯ» с допиской, при побайтно одинаковом тексте просьбы.
+
+    Старое население ключом не переписывается КАЛЕНДАРЁМ: тело такой карточки уже
+    дописано, и восстановить из него текст рождения нечем — догадка здесь была бы ровно
+    тем, что запрещает `.claude/rules/deployment.md`. Поэтому у карточки без ключа
+    остаётся прежняя сверка тела (ниже защиты она не опускается), а её род НАЗЫВАЕТСЯ:
+    совпало — ``TWIN_BY_BODY`` («ключ не измерен»), разошлось — ``TWIN_UNMEASURED``
+    («близнец не измерен»), и во втором случае карточка рождается — но уже С КЛЮЧОМ,
+    поэтому следующий повтор той же просьбы сольётся в неё.
+
     Никогда не бросает: сбой поиска не имеет права ПОДАВИТЬ карточку — в сомнении
-    возвращаем ``None`` и карточка создаётся. Лишняя карточка — неприятность, потерянный
-    вопрос владельцу — потеря контроля.
+    возвращаем ``TWIN_UNMEASURED`` без пути и карточка создаётся. Лишняя карточка —
+    неприятность, потерянный вопрос владельцу — потеря контроля.
     """
     try:
         wanted = (body or "").strip()
+        wanted_key = twin_key(body)
         candidates = [d / f"{base}.md"] + sorted(d.glob(f"{base}-[0-9]*.md"))
+        keyless: list[str] = []
+        keyed = 0
         for cand in candidates:
             if not cand.exists():
                 continue
@@ -1023,11 +1087,50 @@ def _open_twin(d: Path, base: str, tracker_type: str, body: str) -> Path | None:
                 continue
             if (card.status or "") not in _OPEN_STATUSES:
                 continue
+            stored = str((card.fields or {}).get(TWIN_KEY_FIELD) or "").strip()
+            if stored:
+                keyed += 1
+                if stored == wanted_key:
+                    return TwinVerdict(TWIN_BY_KEY, cand,
+                                       f"ключ рождения совпал ({stored[:14]}…)")
+                continue  # ключ есть и ДРУГОЙ — это ИЗМЕРЕННОЕ «другая просьба»
             if (card.body or "").strip() == wanted:
-                return cand
-    except Exception:  # noqa: BLE001
-        return None
-    return None
+                return TwinVerdict(
+                    TWIN_BY_BODY, cand,
+                    "ключа рождения у близнеца нет (старое население); совпало ТЕЛО — "
+                    "сам ключ НЕ ИЗМЕРЕН")
+            keyless.append(cand.name)
+        if keyless:
+            return TwinVerdict(
+                TWIN_UNMEASURED, None,
+                f"открытых карточек без ключа рождения: {len(keyless)}; их тело уже "
+                "дописано работой, текст рождения из него не восстановить — «та же это "
+                "просьба» НЕ ИЗМЕРЕНО. Карточка создаётся И НЕСЁТ КЛЮЧ: следующий "
+                "повтор сольётся в неё",
+                tuple(keyless))
+        return TwinVerdict(TWIN_NONE, None,
+                           f"близнеца нет; открытых кандидатов с ключом: {keyed}")
+    except Exception as exc:  # noqa: BLE001
+        return TwinVerdict(TWIN_UNMEASURED, None,
+                           f"поиск близнеца не удался ({type(exc).__name__}: {exc}) — "
+                           "вопрос НЕ ИЗМЕРЕН, карточка создаётся")
+
+
+def twin_verdict(tracker_type: str, title: str, body: str = "", *,
+                 tracker_dir: str | Path | None = None) -> dict:
+    """Спросить ТОЙ ЖЕ дверью, что и рождение: та же это просьба или новая.
+
+    Нужна затем, что до ADR-866 ответ на этот вопрос существовал только как побочный
+    эффект `create_card` — то есть измерить его, ничего не создав, было нечем, и
+    «повтор просьбы владельца» (ось шага 0a, ADR-860) считался не той мерой, которой
+    рождается карточка. Двери две быть не может: вторая копия мерки расходится с
+    первой молча (ADR-220), поэтому здесь ТОТ ЖЕ `_open_twin`.
+    """
+    d = Path(tracker_dir) if tracker_dir is not None else TRACKER_DIR
+    v = _open_twin(d, f"{tracker_type}-{_slug(title)}", tracker_type, body)
+    return {"kind": v.kind, "path": str(v.path) if v.path else None,
+            "reason": v.reason, "keyless": list(v.keyless),
+            "measured": v.measured, "key": twin_key(body)}
 
 
 def set_acceptance_probe(path: str | Path, spec: str) -> str | None:
@@ -1132,14 +1235,22 @@ def create_card(
     # авторов много, и завтра появится новый. Поэтому защита стоит здесь — в ЕДИНСТВЕННОЙ
     # точке, через которую карточки рождаются.
     #
-    # Условие узкое и проверяемое: тот же заголовок (⇒ то же имя файла), то же тело И
-    # карточка всё ещё ОТКРЫТА. Изменилось тело — вопрос другой, заводим новую с суффиксом.
-    # Карточка закрыта — вопрос вернулся, тоже новая.
-    existing = _open_twin(d, base, tracker_type, body) if merge_open_twin else None
-    if existing is not None:
-        log.info("create_card: открытая карточка с тем же вопросом уже есть (%s) — "
-                 "не плодим дубль", existing.name)
-        return existing
+    # Условие узкое и проверяемое: тот же заголовок (⇒ то же имя файла), тот же КЛЮЧ
+    # РОЖДЕНИЯ (ADR-866; у старого населения — то же тело) И карточка всё ещё ОТКРЫТА.
+    # Другой ключ — вопрос другой, заводим новую с суффиксом. Карточка закрыта — вопрос
+    # вернулся, тоже новая.
+    verdict = (_open_twin(d, base, tracker_type, body) if merge_open_twin
+               else TwinVerdict(TWIN_NONE, None, "идемпотентность у вызывающего "
+                                                 "(merge_open_twin=False)"))
+    if verdict.path is not None:
+        log.info("create_card: открытая карточка с тем же вопросом уже есть (%s, род "
+                 "«%s»: %s) — не плодим дубль",
+                 verdict.path.name, verdict.kind, verdict.reason)
+        return verdict.path
+    if verdict.kind == TWIN_UNMEASURED:
+        # Третий исход НАЗВАН, а не выдан за «близнеца нет» (инв. #17): молчание здесь и
+        # было тем, из-за чего десять одинаковых просьб выглядели десятью просьбами.
+        log.info("create_card: близнец НЕ ИЗМЕРЕН (%s) — %s", base, verdict.reason)
 
     n = 2
     while path.exists():  # collision guard → readable numeric suffix (-2, -3, …)
@@ -1154,7 +1265,12 @@ def create_card(
     if source:
         lines.append(f"source: {source}")
     lines.append(f"created: {date_str}")
-    for k, v in (extra_fields or {}).items():
+    # Ключ близнеца пишется ПРИ РОЖДЕНИИ и больше не правится (ADR-866). Вызывающий
+    # может подать свой (`extra_fields`) — тогда ключ его, и это осознанное объявление,
+    # а не умолчание.
+    fields_out = dict(extra_fields or {})
+    fields_out.setdefault(TWIN_KEY_FIELD, twin_key(body))
+    for k, v in fields_out.items():
         lines.append(f"{k}: {_yaml_escape(str(v))}")
     lines.append("---")
     lines.append("")
