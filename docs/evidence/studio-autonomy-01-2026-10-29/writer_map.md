@@ -32,3 +32,15 @@
 
 Следствие (E2.6): ОПАСНАЯ общая операция над трекером (прежний `repair --apply`, массовые переходы) остаётся
 ЗАКРЫТОЙ — охват писателей неполон.
+
+## Раунд 3 (30.10): что стало с непокрытыми путями
+
+| п. | было | стало | доказательство |
+|---|---|---|---|
+| 1 | редакторы frontmatter мимо блокировки | `_set_fields`, `_stamp_seen`, `_write_answer`, `refresh_live_copy_from_ref` — `@card_writer`; `materialize_card`, `check_card_claim._atomic_write` — та же блокировка внутри; `set_acceptance_probe` — `card_writer` | `test_editor_and_set_status_in_two_processes_lose_no_update`, `test_writer_coverage_names_every_writer_and_the_one_left_outside` |
+| 2 | кнопка не сверяет версию вопроса | `question_sha256` в журнале отправок; отказ `question_changed` | `test_button_answer_to_a_changed_question_is_not_written` |
+| 3 | замки приёма и цикла не пересекаются | **не изменено** (вне охвата S1; запись карточек приёмом теперь под блокировкой карточки) | — |
+| 4 | окно в `create_card` | `_create_exclusive` (`os.link`, EEXIST ⇒ следующий суффикс) | 8 процессов; детерминированный TOCTOU |
+| — | `repair_phantom_intake_cards` пишет тело фантома напрямую | **оставлен вне протокола намеренно**: ворота `shared_tracker_operation_gate` держат его `--apply` закрытым на живом трекере | `test_repair_apply_on_the_live_tracker_is_refused_and_writes_nothing` |
+
+Реестр — `queue.CARD_WRITERS`; новый писатель карточек без пометки `__card_writer__` закрывает ворота сам.
