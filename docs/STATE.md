@@ -31,9 +31,9 @@
   (ADR-610/611/612) · PRODUCT-TRUTH-02 · CAPITAL-SOURCES-01 (ADR-640/641) · PRODUCT-UX-01 · DeFi vNext Phase 1 (ADR-532).
 - **Сайт:** Волна 2 опубликована 15.10 с одобрения владельца; пульт владельца «SPA Director OS»
   выпущен 15.10 (ADR-762, голос ADR-760). Витрина чисел — недельный такт, `scripts/publish_site_numbers.py`.
-- **STUDIO-OS-NEXT-01 (ADR-763) передан ARB 18.10:** кандидат `b47b637a1`; вердикт CI восстановлен
-  (ADR-768). **Ремонт набора НЕ завершён** — остатки с задачами в `docs/evidence/studio-os-next-01-2026-10-16/`
-  (`START_HERE.md` — вход новой сессии, `HANDOVER_FOR_ARB_FINAL.md` — передача).
+- **STUDIO-OS-NEXT-01 (ADR-763)** передан ARB 18.10 (`b47b637a1`, CI ADR-768); ремонт набора НЕ завершён — `docs/evidence/studio-os-next-01-2026-10-16/START_HERE.md`.
+- **STUDIO-AUTONOMY-01 (ADR-857), 30.10:** кандидат S1 — ветка `autonomy/s1`, R1/R2 ARB приняты, R3b закрыт и ждёт ARB; S2 задача 01 — ветка
+  `s2/release-materialise`. Вход: `docs/evidence/studio-autonomy-01-2026-10-29/START_HERE.md`. Не доставлено, не активировано.
 - **Ждёт владельца, только его руками:** `incident-clear` earn-defi (ADR-006 K3) · LOGOS — юр. выбор
   VPN/ToS или KILL + готовый патч надёжности · шифрование iCloud (Advanced Data Protection) ·
   проверка кокпита с iPhone через Cloudflare Access · iPhone-голос не подтверждён · ADR-762 выключен.

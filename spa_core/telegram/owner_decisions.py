@@ -54,6 +54,7 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Dict, List, Optional, Sequence, Tuple
 
+from spa_core.utils.observation import observed
 from spa_core.owner_queue.owner_answer import (
     ACK_ACCEPT_CHOICE as _ACK_ACCEPT_CHOICE,
     ACK_DECLINE_CHOICE as _ACK_DECLINE_CHOICE,
@@ -2208,7 +2209,9 @@ def register_push(
     # R3b: прежние снимки и прежняя запись отправки НЕ стираются — запись карточки одна, но
     # каждый показанный вопрос остаётся в ней неизменным снимком, а прошлая отправка — в истории.
     snapshots = dict(prev.get("snapshots") or {}) if isinstance(prev, dict) else {}
-    history = list(prev.get("history") or []) if isinstance(prev, dict) else []
+    # Записи до R3b истории не несут: наблюдения НЕТ (None) ⇒ история начинается с этой отправки.
+    prior_history = observed(prev, "history", kind=list)
+    history = list(prior_history) if prior_history is not None else []
     if isinstance(prev, dict):
         history.append({k: v for k, v in prev.items() if k not in ("history", "snapshots")})
     vtag = version_tag(prep.question_sha256)
@@ -2272,8 +2275,12 @@ def _snapshot_for_message(rec: Dict, message_id) -> Optional[str]:
         mid = int(message_id)
     except (TypeError, ValueError):
         return None
-    for vtag, snap in (rec.get("snapshots") or {}).items():
-        if isinstance(snap, dict) and mid in (snap.get("message_ids") or []):
+    snaps = observed(rec, "snapshots", kind=dict)
+    if snaps is None:
+        return None                               # записи до R3b: снимков нет — и адресата по снимку нет
+    for vtag, snap in snaps.items():
+        ids = observed(snap, "message_ids", kind=list)
+        if ids is not None and mid in ids:
             return vtag
     return None
 
