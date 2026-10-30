@@ -1,0 +1,16 @@
+                continue  # не отправилось ⇒ отметку не ставим, попробуем в следующий раз
+            if mark_buttons_delivered(heal.pid, message_id=message_id_of(ok),
+                                      options=heal.options, ack=heal.ack,
+                                      now=now, state_path=state_path):
+                fixed.append(heal.pid)
+    except Exception:  # noqa: BLE001
+        pass
+    return fixed
+
+
+def record_choice(
+    pid: str,
+    choice: str,
+    actor_chat_id,
+    *,
+    owner_chat_id: Optional[str] = None,

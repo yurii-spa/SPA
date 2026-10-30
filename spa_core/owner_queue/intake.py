@@ -231,6 +231,8 @@ def _already_accepted(card) -> bool:
     return _INTAKE_CRITERION_STAMP in text
 
 
+# STUDIO-AUTONOMY-01 E2.6 (ADR-857): общий протокол записи карточки — та же блокировка, что у set_status.
+@__import__("spa_core.owner_queue.queue", fromlist=["card_writer"]).card_writer
 def _stamp_seen(path, at: datetime) -> None:
     """Вписать ``intake_seen: <UTC>`` во frontmatter (тело и прочие поля не меняются)."""
     from spa_core.utils.atomic import atomic_save_text

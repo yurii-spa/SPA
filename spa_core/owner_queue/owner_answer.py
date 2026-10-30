@@ -169,6 +169,8 @@ def status_for_answer(kind: str, choice_num: str) -> str:
     return OWNER_ONLY_STATUS
 
 
+# STUDIO-AUTONOMY-01 E2.6 (ADR-857): общий протокол записи карточки — та же блокировка, что у set_status.
+@__import__("spa_core.owner_queue.queue", fromlist=["card_writer"]).card_writer
 def _write_answer(path, *, choice_num: str, choice_label: str, answered_by, via: str, kind: str,
                   now: Optional[datetime], verdict_override: Optional[str] = None,
                   source: str = "owner_answer.record_owner_answer",

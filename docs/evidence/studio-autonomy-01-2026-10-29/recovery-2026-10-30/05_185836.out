@@ -1,0 +1,15 @@
+spa_core/owner_queue/cockpit_loop.py:96:def _set_fields(path: Path, fields: dict) -> None:
+spa_core/owner_queue/intake.py:234:def _stamp_seen(path, at: datetime) -> None:
+spa_core/owner_queue/owner_answer.py:172:def _write_answer(path, *, choice_num: str, choice_label: str, answered_by, via: str, kind: str,
+spa_core/telegram/owner_decisions.py:1894:def refresh_live_copy_from_ref(card_path: str | Path, *,
+spa_core/telegram/owner_decisions.py:2019:def materialize_card(card_path: Path,
+108:from __future__ import annotations
+110:import argparse
+111:import importlib.util
+112:import json
+113:import os
+114:import sys
+115:import tempfile
+116:from datetime import datetime, timedelta, timezone
+117:from pathlib import Path
+1962:def _set_claim_fields(text: str, values) -> str:

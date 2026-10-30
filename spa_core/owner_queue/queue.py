@@ -698,11 +698,30 @@ def _card_lock_path(path: Path) -> Path:
     return d / (_hashlib.sha256(str(Path(path).resolve()).encode("utf-8")).hexdigest()[:24] + ".lock")
 
 
+#: Блокировки карточек, которые ЭТОТ поток уже держит: вложенный писатель (например
+#: ``set_status`` внутри заблокированного редактора) не ждёт сам себя.
+_HELD_CARD_LOCKS = __import__("threading").local()
+
+
 @__import__("contextlib").contextmanager
 def _card_write_lock(path: str | Path, expected_revision: str | None):
     import fcntl as _fcntl
-    with open(_card_lock_path(Path(path)), "a+") as _lk:
+    key = str(_card_lock_path(Path(path)))
+    held = getattr(_HELD_CARD_LOCKS, "keys", None)
+    if held is None:
+        held = _HELD_CARD_LOCKS.keys = {}
+    if held.get(key):
+        held[key] += 1
+        try:
+            if expected_revision is not None and card_revision(path) != expected_revision:
+                raise StaleCardRevision(f"{Path(path).name}: карточка изменилась после чтения")
+            yield
+        finally:
+            held[key] -= 1
+        return
+    with open(key, "a+") as _lk:
         _fcntl.flock(_lk.fileno(), _fcntl.LOCK_EX)
+        held[key] = 1
         try:
             if expected_revision is not None and card_revision(path) != expected_revision:
                 raise StaleCardRevision(
@@ -710,7 +729,25 @@ def _card_write_lock(path: str | Path, expected_revision: str | None):
                     f"{expected_revision[:12]}) — запись статуса не сделана, перечитайте карточку")
             yield
         finally:
+            held[key] = 0
             _fcntl.flock(_lk.fileno(), _fcntl.LOCK_UN)
+
+
+def card_write_lock(path: str | Path):
+    """Общая блокировка записи карточки (E2.2/E2.6) для редакторов frontmatter вне ``set_status``."""
+    return _card_write_lock(path, None)
+
+
+def card_writer(fn):
+    """Декоратор: функция-писатель карточки (первый аргумент — путь) держит общую блокировку."""
+    import functools as _functools
+
+    @_functools.wraps(fn)
+    def _wrapped(path, *args, **kwargs):
+        with _card_write_lock(path, None):
+            return fn(path, *args, **kwargs)
+    _wrapped.__card_writer__ = True
+    return _wrapped
 
 
 def set_status(path: str | Path, new_status: str,

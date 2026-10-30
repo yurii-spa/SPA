@@ -1891,6 +1891,8 @@ def _refresh_verdict(code: str, detail: str, path: Path) -> dict:
             "measured": code != REFRESH_UNMEASURED}
 
 
+# STUDIO-AUTONOMY-01 E2.6 (ADR-857): общий протокол записи карточки — та же блокировка, что у set_status.
+@__import__("spa_core.owner_queue.queue", fromlist=["card_writer"]).card_writer
 def refresh_live_copy_from_ref(card_path: str | Path, *,
                                ref: str = "origin/main") -> dict:
     """Обновить копию карточки с ``ref`` — ТОЛЬКО когда доказано, что терять нечего.
@@ -2051,7 +2053,10 @@ def materialize_card(card_path: Path,
         if not card_path.is_file():
             return card_path
         target_dir.mkdir(parents=True, exist_ok=True)
-        atomic_save_text(card_path.read_text(encoding="utf-8"), str(target))
+        from spa_core.owner_queue.queue import card_write_lock
+        with card_write_lock(target):  # E2.6: общий протокол записи карточки
+            if not target.exists():
+                atomic_save_text(card_path.read_text(encoding="utf-8"), str(target))
         return target
     except Exception:  # noqa: BLE001 — перенос не важнее самого уведомления
         return card_path
@@ -2194,10 +2199,22 @@ def register_push(
         # ближайший старт бота в логе — 04:22Z, а когда умер предыдущий экземпляр, не
         # записано нигде. Был ли маячок жив в момент отправки — установить УЖЕ НЕЧЕМ.
         "buttons": prep.keyboard is not None,
+        # STUDIO-AUTONOMY-01 E3.4 (ADR-857): версия ВОПРОСА, который владелец увидел. Нажатие
+        # сверяет её с карточкой в момент записи: вопрос изменился ⇒ старый ответ не пишется.
+        "question_sha256": _question_version_of(p),
         "choice": None,
     })
     _save(doc, path_obj)
     return prep
+
+
+def _question_version_of(card) -> Optional[str]:
+    """Версия вопроса карточки (тот же расчёт, что у реестра ответов); не прочли — None."""
+    try:
+        from spa_core.owner_queue.owner_answer import question_version
+        return question_version(Path(card).read_text(encoding="utf-8"))
+    except Exception:  # noqa: BLE001 — «не измерено», а не выдуманная версия
+        return None
 
 
 def mark_withdrawn(
@@ -2535,6 +2552,9 @@ def mark_buttons_delivered(
             if options is not None:
                 rec["options"] = [{"num": o.num, "label": o.label,
                                    "recommended": o.recommended} for o in options]
+            if (options is not None or ack is not None) and rec.get("card"):
+                # Досылка показывает владельцу ТЕКУЩИЙ вопрос — его версия и есть отправленная.
+                rec["question_sha256"] = _question_version_of(rec["card"])
             if ack is not None:
                 rec["ack"] = bool(ack)
             _remember_message_id(rec, message_id_of(message_id))
@@ -2632,6 +2652,11 @@ def record_choice(
     card_path = Path(rec["card"])
     if not card_path.exists():
         return {"ok": False, "reason": "card_gone", "card": str(card_path)}
+    # E3.4: ответ относится к той версии вопроса, что была отправлена. Записи до правки версию не
+    # несут — для них сверка не проводится (названный предел), а не выдумывается.
+    sent_version = rec.get("question_sha256")
+    if sent_version and _question_version_of(card_path) != sent_version:
+        return {"ok": False, "reason": "question_changed", "card": str(card_path)}
 
     try:
         res = record_owner_answer(
@@ -2670,6 +2695,8 @@ _REASON_RU: Dict[str, str] = {
                        "ложной. Ничего не записал — отвечать не нужно."),
     "not_owner": "Это решение может принять только владелец — ничего не записал.",
     "write_failed": "Не смог записать решение. В карточке ничего не изменилось.",
+    "question_changed": ("Вопрос в карточке изменился после того, как я его отправил — старый ответ "
+                         "не записал. Пришлю актуальную версию; ответь на неё."),
 }
 
 
@@ -3044,6 +3071,7 @@ def resolve_text_answer(
 PRESERVE_ON_REFUSAL = frozenset({
     "card_unknown", "ambiguous", "no_open_decision", "multiple_choices",
     "unknown_option", "unknown_card", "card_gone", "card_withdrawn", "write_failed",
+    "question_changed",
 })
 
 _TEXT_REASON_RU: Dict[str, str] = {

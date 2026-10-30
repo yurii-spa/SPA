@@ -1860,6 +1860,19 @@ def gather(card, *, log=DEFAULT_LOG, tracker_dir=DEFAULT_TRACKER, sibling=None,
 # ── взятие / освобождение карточки ───────────────────────────────────────────
 
 def _atomic_write(path: Path, content: str) -> None:
+    # STUDIO-AUTONOMY-01 E2.6 (ADR-857): та же блокировка карточки, что у queue.set_status. Модуль
+    # недоступен (скрипт вне репозитория) ⇒ запись без неё, и это сказано в stderr, а не молча.
+    try:
+        from spa_core.owner_queue.queue import card_write_lock
+    except ImportError:
+        print(f"WARNING: общий протокол записи карточки недоступен — {path.name} пишется без блокировки",
+              file=sys.stderr)
+        return _atomic_write_unlocked(path, content)
+    with card_write_lock(path):
+        return _atomic_write_unlocked(path, content)
+
+
+def _atomic_write_unlocked(path: Path, content: str) -> None:
     fd, tmp = tempfile.mkstemp(dir=str(path.parent), suffix=".tmp")
     try:
         with os.fdopen(fd, "w", encoding="utf-8") as fh:

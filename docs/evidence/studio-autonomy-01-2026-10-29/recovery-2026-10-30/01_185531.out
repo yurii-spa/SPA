@@ -1,0 +1,8 @@
+46:import hashlib
+47:import difflib
+48:import html
+49:import json
+50:import os
+FAILED spa_core/tests/test_owner_decision_ack_button.py::test_heal_refreshes_options_so_the_button_leads_somewhere
+FAILED spa_core/tests/test_owner_decision_heal_stale_live_copy.py::test_the_press_lands_in_the_card_after_the_repair
+2 failed, 919 passed, 11 subtests passed in 33.25s

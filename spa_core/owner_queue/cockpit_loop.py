@@ -93,6 +93,8 @@ def _clean(value: str, limit: int = 300) -> str:
     return " ".join(str(value).replace('"', "'").split())[:limit]
 
 
+# STUDIO-AUTONOMY-01 E2.6 (ADR-857): общий протокол записи карточки — та же блокировка, что у set_status.
+@__import__("spa_core.owner_queue.queue", fromlist=["card_writer"]).card_writer
 def _set_fields(path: Path, fields: dict) -> None:
     """Записать/заменить плоские поля frontmatter (тело и прочие поля — байт в байт), атомарно."""
     from spa_core.utils.atomic import atomic_save_text
