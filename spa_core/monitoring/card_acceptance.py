@@ -12751,6 +12751,285 @@ def _probe_price_door_and_gain_door_judge_one_book(arg: str | None) -> tuple[str
         f"дельта считается ({zero_scored.get('payback_days')} дн.)")
 
 
+# ── ADR-867: сцены ТРЕТЬЕЙ двери семейства (сравнение ФОРМ урезания) ────────
+#
+# Книги здесь НЕ объявляются руками: их строит сама дверь `shapes_of_proposal`
+# из предложения. Поэтому сцена задаётся так, чтобы ИНТЕРПОЛЯЦИЯ получила
+# подпороговую ногу, и размер этой дельты вычисляется ИЗ ЖИВЫХ порогов, а не
+# литералом: порог ноги и потолок размера — чужие числа, и литерал разошёлся бы
+# с ними молча (ровно класс ADR-340).
+_SHAPE_APY = {"aave_v3": 5.5724, "compound_v3": 5.31, "morpho_blue_base": 9.0,
+              "fluid_fusdc": 7.2}
+_SHAPE_CHAINS = {"aave_v3": "ethereum", "compound_v3": "ethereum",
+                 "morpho_blue_base": "base", "fluid_fusdc": "ethereum"}
+_SHAPE_CURRENT = {"aave_v3": 5_000.0, "compound_v3": 40_000.0,
+                  "morpho_blue_base": 10_000.0, "fluid_fusdc": 20_000.0}
+
+
+def _shape_scene(base_move: float, delta: float) -> dict:
+    """Предложение, отличающееся от соседнего РОВНО размером дельты ``aave_v3``.
+
+    ``base_move`` — ход ВЫШЕ потолка размера, он и делает предложение урезаемым
+    у всех сцен (без него сцена уходит в ``no_subject`` и проба мерила бы
+    отсутствие предмета). Дельта идёт парой ``aave_v3`` / ``fluid_fusdc``, чтобы
+    деньги сохранялись: иначе сцена спорила бы с самим понятием книги.
+    """
+    tgt = dict(_SHAPE_CURRENT)
+    tgt["compound_v3"] = _SHAPE_CURRENT["compound_v3"] - base_move
+    tgt["morpho_blue_base"] = _SHAPE_CURRENT["morpho_blue_base"] + base_move
+    tgt["aave_v3"] = _SHAPE_CURRENT["aave_v3"] + delta
+    tgt["fluid_fusdc"] = _SHAPE_CURRENT["fluid_fusdc"] - delta
+    return tgt
+
+
+def _shape_subset_scene(room_best: float, room_rest: float) -> dict:
+    """Сцена, где подпороговую ногу несёт ПОДМНОЖЕСТВО, а не интерполяция.
+
+    Механизм другой, и это важно: у интерполяции пыль берётся из множителя
+    ``k``, а у подмножества — из ЧАСТИЧНОГО ДОБОРА (``subset_trim`` берёт
+    ``min(room, left)`` у последней ноги стороны). Сцена ведёт остаток ``left``
+    ниже порога ноги, не трогая форму интерполяции вовсе. Без этой сцены
+    приёмка мерила бы ОДНУ половину двери: на прод-истории подпороговую ногу
+    несёт подмножество у ДЕСЯТИ записей из тринадцати.
+    """
+    tgt = dict(_SHAPE_CURRENT)
+    tgt["morpho_blue_base"] = _SHAPE_CURRENT["morpho_blue_base"] + room_best
+    tgt["fluid_fusdc"] = _SHAPE_CURRENT["fluid_fusdc"] + room_rest
+    tgt["compound_v3"] = _SHAPE_CURRENT["compound_v3"] - (room_best + room_rest)
+    return tgt
+
+
+def _probe_shape_comparison_judges_one_book(arg: str | None) -> tuple[str, str]:
+    """Критерий ADR-867 — ТРЕТЬЯ дверь семейства ADR-864 судит ОДНУ книгу.
+
+    Дословно: у ``trim_shape.compare_trim_shapes`` цена формы считалась по
+    МАТЕРИАЛЬНЫМ ногам (``_legs`` выбрасывает дельту ``abs(delta) <=
+    min_leg_frac · capital`` целиком), а её выигрыш — по ОБЪЯВЛЕННОЙ книге
+    формы, где деньги этой ноги уже переложены. Та же пара и тот же знак
+    ошибки, что у вердикта цикла и у перебора размеров; ADR-864 закрыл их и
+    НАЗВАЛ третью дверь открытой. Замер прод-истории (166 записей, 105
+    урезаемых предложений): подпороговую ногу несут **13**, и у **пяти** она
+    достаётся РОВНО одной форме — то есть сравнение выигрывала не форма, а то,
+    что у одной из них нога не исполнится, а её выигрыш достанется бесплатно.
+
+    Проба меряет ИСХОД на НАСТОЯЩЕЙ двери, а не структуру: три сцены, книги
+    которых строит сама дверь ``shapes_of_proposal``, различаются РОВНО
+    размером одной дельты.
+
+    1. **рваная** — дельта подобрана так, что в книге ИНТЕРПОЛЯЦИИ её остаток
+       на цент НИЖЕ порога ноги: запись обязана получить ``SHAPE_REFUSED``,
+       назвать протокол и НЕ нести ни выигрыша, ни окупаемости, ни дельт форм;
+    2. **целая** — та же сцена, остаток на цент ВЫШЕ порога: отказа быть не
+       должно, иначе «починка» просто запретила бы сравнение;
+    3. **нулевая** — дельты нет вовсе: ноль есть ОТСУТСТВИЕ ноги, а не пыль, и
+       сравнение форм обязано остаться считаемым. Без этой сцены отказ мог бы
+       съесть сам прибор ADR-854.
+
+    Четвёртый вопрос — к ПЕРЕПИСИ: отказ обязан быть НАСЕЛЕНИЕМ, а не вычетом
+    из населения. Исчезни он из печати, и падение числа сравнимых записей
+    читалось бы как «таких предложений стало меньше».
+
+    Ось ``unexecuted_legs`` спрашивается у КАЖДОЙ формы каждой сцены: пустой
+    словарь — «измерено и равно нулю» (инв. #17), и его ОТСУТСТВИЕ есть
+    ``not_satisfied``, а не мелочь. Живой ``data/`` не читается: предмет — про
+    арифметику двери, а не про то, какая книга стоит сегодня.
+    """
+    if arg:
+        return UNMEASURED, (f"проба не принимает аргумента (дано {arg!r}): критерий "
+                            "назван целиком")
+    try:
+        from spa_core.allocator.rebalance_economics import TriggerParams
+        from spa_core.paper_trading.admissible_size import admissible_turnover_usd
+        from spa_core.paper_trading.trim_shape import (SHAPE_MEASURED,
+                                                       SHAPE_REFUSED,
+                                                       compare_trim_shapes,
+                                                       trim_shape_census)
+    except Exception as exc:  # noqa: BLE001 — нечем мерить ≠ критерий не выполнен
+        return UNMEASURED, f"дверь сравнения форм не ввезена ({type(exc).__name__}): {exc}"
+
+    capital = 100_000.0
+    params = TriggerParams.for_mode("paper")
+    try:
+        cap_usd = float(admissible_turnover_usd(capital, params))
+    except Exception as exc:  # noqa: BLE001
+        return UNMEASURED, f"потолок размера не прочитан ({type(exc).__name__}): {exc}"
+    leg_usd = float(params.min_leg_frac) * capital
+    if not (0.0 < leg_usd < cap_usd):
+        return UNMEASURED, (f"порог ноги ${leg_usd:,.2f} и потолок размера "
+                            f"${cap_usd:,.2f} сцену не задают — мерить нечем")
+    base_move = 1.2 * cap_usd
+    # d, при котором остаток ноги в книге интерполяции РАВЕН порогу:
+    # k·d = cap·d/(base+d) = leg  ⇒  d = leg·base/(cap − leg).
+    boundary = leg_usd * base_move / (cap_usd - leg_usd)
+    step = 5.0
+
+    def _ask(delta: float):
+        try:
+            return compare_trim_shapes(
+                dict(_SHAPE_CURRENT), _shape_scene(base_move, delta), _SHAPE_APY,
+                capital_usd=capital, params=params, chains=_SHAPE_CHAINS,
+                chains_measured=True), None
+        except Exception as exc:  # noqa: BLE001
+            return None, f"{type(exc).__name__}: {exc}"
+
+    torn, err = _ask(boundary - step)
+    if err:
+        return UNMEASURED, f"рваная сцена не посчиталась ({err})"
+    whole, err = _ask(boundary + step)
+    if err:
+        return UNMEASURED, f"целая сцена не посчиталась ({err})"
+    zero, err = _ask(0.0)
+    if err:
+        return UNMEASURED, f"нулевая сцена не посчиталась ({err})"
+
+    def _ask_subset(room_best: float):
+        try:
+            return compare_trim_shapes(
+                dict(_SHAPE_CURRENT),
+                _shape_subset_scene(room_best, 3.0 * leg_usd), _SHAPE_APY,
+                capital_usd=capital, params=params, chains=_SHAPE_CHAINS,
+                chains_measured=True), None
+        except Exception as exc:  # noqa: BLE001
+            return None, f"{type(exc).__name__}: {exc}"
+
+    # Остаток добора подмножества: `cap − room_best`. Ниже порога ⇒ пыль.
+    torn_s, err = _ask_subset(cap_usd - leg_usd / 2.0)
+    if err:
+        return UNMEASURED, f"рваная сцена подмножества не посчиталась ({err})"
+    whole_s, err = _ask_subset(cap_usd - 2.0 * leg_usd)
+    if err:
+        return UNMEASURED, f"целая сцена подмножества не посчиталась ({err})"
+
+    _AXIS = "unexecuted_legs"
+    for name, rec in (("рваная", torn), ("целая", whole), ("нулевая", zero),
+                      ("рваная-подмножество", torn_s),
+                      ("целая-подмножество", whole_s)):
+        for side in ("interpolated", "subset"):
+            block = rec.get(side)
+            if not isinstance(block, dict):
+                return NOT_SATISFIED, (
+                    f"у сцены «{name}» нет блока формы `{side}` "
+                    f"(исход {rec.get('kind')!r}) — сцена не задала предмет либо "
+                    "дверь перестала печатать форму")
+            if _AXIS not in block:
+                return NOT_SATISFIED, (
+                    f"у сцены «{name}», форма `{side}`: оси `{_AXIS}` нет — "
+                    "отсутствие неисполнимых ног неотличимо от того, что их не "
+                    "искали (инв. #17)")
+
+    # ── рваная: отказ, НАЗВАННЫЙ протоколом, и ни одного числа выигрыша ────
+    if str(torn.get("kind")) != SHAPE_REFUSED:
+        return NOT_SATISFIED, (
+            f"РВАНАЯ сцена не отказана (исход {torn.get('kind')!r}): остаток ноги в "
+            f"книге интерполяции ${(torn.get('interpolated') or {}).get('turnover_usd')} "
+            f"при пороге ${leg_usd:,.2f}, а выигрыш напечатан "
+            f"{(torn.get('interpolated') or {}).get('gain_pp')!r} пп — он посчитан "
+            "по книге, которой ход держать не будет")
+    torn_legs = (torn.get("interpolated") or {}).get(_AXIS) or {}
+    if not torn_legs:
+        return NOT_SATISFIED, ("рваная сцена отказана, но ось "
+                               f"`{_AXIS}` формы интерполяции пуста — причина "
+                               "отказа не предъявлена числом")
+    if "aave_v3" not in torn_legs:
+        return NOT_SATISFIED, (f"отказ рваной сцены не НАЗЫВАЕТ протокол: {torn_legs}")
+    for field in ("gain_pp", "payback_days", "cost_usd"):
+        if field in (torn.get("interpolated") or {}):
+            return NOT_SATISFIED, (
+                f"отказанная форма всё равно печатает `{field}` — выигрыш по книге, "
+                "которой мы держать не будем, остался читаемым")
+    for field in ("gain_delta_pp", "cost_delta_usd", "payback_delta_days"):
+        if field in torn:
+            return NOT_SATISFIED, (
+                f"отказанная запись печатает дельту форм `{field}`={torn[field]!r} — "
+                "сравнение измеренной формы с отказанной есть сравнение разных "
+                "вопросов")
+    if not str(torn.get("why") or "").strip():
+        return NOT_SATISFIED, "отказ рваной сцены без причины — исход не НАЗВАН"
+
+    # ── вторая половина двери: пыль у ПОДМНОЖЕСТВА ───────────────────────
+    if str(torn_s.get("kind")) != SHAPE_REFUSED:
+        return NOT_SATISFIED, (
+            f"сцена с пылью у ПОДМНОЖЕСТВА не отказана (исход "
+            f"{torn_s.get('kind')!r}): дверь спрошена только у одной формы, а на "
+            "прод-истории подпороговую ногу несёт подмножество у десяти записей "
+            "из тринадцати")
+    if torn_s.get("refused_sides") != ["subset"]:
+        return NOT_SATISFIED, (
+            f"отказ не назвал ФОРМУ: refused_sides={torn_s.get('refused_sides')!r} "
+            "при пыли у подмножества")
+    if not (torn_s.get("subset") or {}).get(_AXIS):
+        return NOT_SATISFIED, ("отказ подмножества не предъявлен числом: ось "
+                               f"`{_AXIS}` пуста")
+
+    # ── целая и нулевая: отказ НЕ съел исполнимое сравнение ───────────────
+    for name, rec in (("ЦЕЛАЯ", whole), ("НУЛЕВАЯ", zero),
+                      ("ЦЕЛАЯ-ПОДМНОЖЕСТВО", whole_s)):
+        if str(rec.get("kind")) != SHAPE_MEASURED:
+            return NOT_SATISFIED, (
+                f"{name} сцена не измерена (исход {rec.get('kind')!r}, "
+                f"причина {rec.get('why')!r}): отказ съел сравнение, у которого все "
+                "ноги исполнимы — так «починка» просто запретила бы прибор ADR-854")
+        for side in ("interpolated", "subset"):
+            if (rec.get(side) or {}).get(_AXIS):
+                return NOT_SATISFIED, (
+                    f"у {name} сцены форма `{side}` несёт неисполнимые ноги "
+                    f"{(rec.get(side) or {}).get(_AXIS)!r} — сцена подобрана неверно "
+                    "либо дверь считает порог иначе")
+        if (rec.get("interpolated") or {}).get("gain_pp") is None:
+            return NOT_SATISFIED, (f"у {name} сцены выигрыш формы интерполяции не "
+                                   "посчитан — считать его здесь честно")
+
+    # ── перепись: отказ есть НАСЕЛЕНИЕ, а не вычет из населения ───────────
+    def _rec(day: int, tgt: dict) -> dict:
+        return {"cycle_date": "2026-01-{:02d}".format(day),
+                "capital_usd": capital,
+                "current_positions": dict(_SHAPE_CURRENT),
+                "apy_evidenced_pct": dict(_SHAPE_APY),
+                "target_positions": tgt}
+
+    recs = [_rec(1, _shape_scene(base_move, boundary - step)),
+            _rec(2, _shape_scene(base_move, boundary + step)),
+            _rec(3, _shape_scene(base_move, 0.0)),
+            _rec(4, _shape_subset_scene(cap_usd - leg_usd / 2.0, 3.0 * leg_usd)),
+            _rec(5, _shape_subset_scene(cap_usd - 2.0 * leg_usd, 3.0 * leg_usd))]
+    try:
+        census = trim_shape_census(recs, params=params, chains=_SHAPE_CHAINS,
+                                   chains_measured=True)
+    except Exception as exc:  # noqa: BLE001
+        return UNMEASURED, f"перепись форм не посчиталась ({type(exc).__name__}): {exc}"
+    ref = census.get("refused")
+    if not isinstance(ref, dict):
+        return NOT_SATISFIED, (
+            "перепись форм не несёт блока `refused` — «дверь спрошена, таких ног "
+            "нет» стало бы неотличимо от «дверь не спрашивали» (инв. #17)")
+    if int(ref.get("population") or 0) != 2:
+        return NOT_SATISFIED, (
+            f"перепись считает отказов {ref.get('population')!r} на сцене, где их "
+            "РОВНО два (по одному на форму) — отказ не стал населением")
+    if int(ref.get("only_interpolated") or 0) != 1 or int(ref.get("only_subset") or 0) != 1:
+        return NOT_SATISFIED, (
+            f"перепись не разложила отказ по формам: {ref!r} — ось «нога РОВНО у "
+            "одной формы» и есть та, на которой менялся вердикт сравнения")
+    if int(census.get("population") or 0) != 3:
+        return NOT_SATISFIED, (
+            f"сравнимых записей {census.get('population')!r} при трёх исполнимых "
+            "сценах — отказ вычел из населения не то, что отказал")
+
+    return SATISFIED, (
+        f"третья дверь судит одну книгу: при пороге ноги ${leg_usd:,.2f} и потолке "
+        f"${cap_usd:,.2f} подпороговый остаток "
+        f"отказан и назван ({torn_legs}), остаток выше порога считается "
+        f"(окупаемость {(whole.get('interpolated') or {}).get('payback_days')} → "
+        f"{(whole.get('subset') or {}).get('payback_days')} дн.), нулевая дельта "
+        f"считается ({(zero.get('interpolated') or {}).get('payback_days')} дн.); "
+        f"пыль ПОДМНОЖЕСТВА (частичный добор "
+        f"{(torn_s.get('subset') or {}).get(_AXIS)}) отказана той же дверью; "
+        f"перепись называет отказ населением {ref.get('population')} "
+        f"(только интерполяция {ref.get('only_interpolated')} · только "
+        f"подмножество {ref.get('only_subset')}) при "
+        f"{census.get('population')} сравнимых")
+
+
 def _probe_size_edge_prize_source_is_named(
         arg: str | None, *,
         now: "datetime | None" = None,
@@ -12844,6 +13123,8 @@ PROBES: dict[str, Callable[[str | None], "tuple[str, str]"]] = {
     "size_edge_prize_source_is_named": _probe_size_edge_prize_source_is_named,
     "price_door_and_gain_door_judge_one_book":
         _probe_price_door_and_gain_door_judge_one_book,
+    "shape_comparison_judges_one_book":
+        _probe_shape_comparison_judges_one_book,
     "tact_stage_names_its_caller":
         _probe_tact_stage_names_its_caller,
     "door_sites_operand_agrees": _probe_door_sites_operand_agrees,

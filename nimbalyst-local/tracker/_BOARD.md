@@ -2,9 +2,9 @@
 
 > Авто-генерится `scripts/build_tracker_board.py` из `nimbalyst-local/tracker/*.md`. НЕ править вручную — правь карточки. Источник правды — карточки, это индекс (bootstrap).
 >
-> Собрана: 2026-10-30T04:57:28Z · сверка с карточками: `python3 scripts/build_tracker_board.py --check` (сторож `spa_core/tests/test_tracker_board_matches_cards.py`).
+> Собрана: 2026-10-30T06:52:21Z · сверка с карточками: `python3 scripts/build_tracker_board.py --check` (сторож `spa_core/tests/test_tracker_board_matches_cards.py`).
 >
-> Сверено с `origin/main` (859c22e19) · у **1** своя правка, кто новее — не измерено.
+> Сверено с `origin/main` (f83ec453d) · у **1** своя правка, кто новее — не измерено.
 >
 > Всего карточек: **1523** · ждёт владельца: **5** · занято сессиями: **14**.
 
@@ -820,6 +820,7 @@
 - Состав ступени моста разошёлся с объявлением CENSUS_STAGE: сторож красен на чистой вершине и перестал быть сигналом  ·  `inbox-sostav-stupeni-mosta-razoshelsya-s-obyav.md` · 2026-10-23
 - SPA CI красный 12 прогонов: 17 тестов судят о ХОСТЕ (нет launchctl на Linux, cwd=spa_core), не о коде  ·  `inbox-spa-ci-krasnyi-12-progonov-17-testov-sud.md` · 2026-08-13
 - Список шагов CI выведен через ШЕСТЬ литеральных пробелов — сдвинется отступ, проверка замолчит  ·  `inbox-spisok-shagov-ci-vyveden-cherez-shest-li.md` · 2026-09-11
+- Сравнение ФОРМ считает выигрыш по книге формы, а цену — по материальным ногам (третья дверь семейства ADR-864)  ·  `inbox-sravnenie-form-schitaet-vyigrysh-po-knig.md` · 2026-10-29
 - Статусы карточек владельца переписались сами: три карточки с одним заголовком, ответ уехал не в ту  ·  `inbox-statusy-kartochek-vladeltsa-perepisalis.md` · 2026-08-08
 - Сто тридцать девять брошенных деревьев циклов: 24,6 ГБ, и снимать их вслепую нельзя  ·  `inbox-sto-tridtsat-devyat-broshennyh-derevev-t.md` · 2026-10-03
 - Сторож архитектуры кричит CRITICAL о четырёх агентах — и все четыре обвинения ложные: прод читает манифест, который доставка никогда не обновляет  ·  `inbox-storozh-arhitektury-krichit-critical-o-c.md` · 2026-08-08
@@ -1195,7 +1196,6 @@
 - Собрать дерево-приёмки §49 «Portfolio CIO» — только для чтения (решение владельца, вариант 1)  ·  `inbox-sobrat-derevo-priemki-49-portfolio-cio-t.md` · 2026-09-29
 - §6.4 закрывает ту самую карточку, которую вердикт истории велел взять в работу: 12 из 34 закрытий 31.08  ·  `inbox-sobytiinyi-inteik-proshel-po-staromu-bek.md` · 2026-09-03
 - Спор об ответе владельца НЕ разрешается уборкой: старую сторону держат чужие живые деревья, а у сторожа нет слова «вытеснено ПОЗЖЕ»  ·  `inbox-spor-ob-otvete-vladeltsa-ne-razreshaetsy.md` · 2026-08-31
-- Сравнение ФОРМ считает выигрыш по книге формы, а цену — по материальным ногам (третья дверь семейства ADR-864)  ·  `inbox-sravnenie-form-schitaet-vyigrysh-po-knig.md` · 2026-10-29
 - Срок годности четырёх отчётов короче такта агента, который их пишет — порог перестал отличать поломку от нормы  ·  `inbox-srok-godnosti-chetyreh-otchetov-koroche.md` · 2026-09-29
 - Сторож «артефакт ступени лежит в data/» КРАСЕН с 03.10: приёмник-псевдоним не импортируется как модуль  ·  `inbox-storozh-artefakt-stupeni-lezhit-v-data-k.md` · 2026-10-03
 - Сторож брошенных прогонов слеп к /tmp-дереву: починку относительного пути применили к ОДНОМУ читателю журнала, читателей два  ·  `inbox-storozh-broshennyh-progonov-slep-k-tmp-d.md` · 2026-09-08

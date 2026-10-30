@@ -1,0 +1,71 @@
+{
+  "title": "ADR-867 — дельта цикла #984: третья дверь семейства ADR-864 (сравнение ФОРМ урезания) судит ОДНУ книгу",
+  "tests": [
+    "spa_core/tests/test_shape_comparison_one_book.py",
+    "spa_core/tests/test_trim_shape.py",
+    "spa_core/tests/test_trim_optimum.py",
+    "spa_core/tests/test_trim_admissibility.py"
+  ],
+  "mutations": [
+    {
+      "name": "дверь ADR-864 не спрашивается у формы ИНТЕРПОЛЯЦИИ — выигрыш снова по книге, которой не держим",
+      "file": "spa_core/paper_trading/trim_shape.py",
+      "old": "        unex_i = _unexecuted(cur, book_interp, capital, mlf, legs_i)\n",
+      "new": "        unex_i = {}\n"
+    },
+    {
+      "name": "дверь не спрашивается у формы ПОДМНОЖЕСТВА",
+      "file": "spa_core/paper_trading/trim_shape.py",
+      "old": "        unex_s = _unexecuted(cur, book_subset, capital, mlf, legs_s)\n",
+      "new": "        unex_s = {}\n"
+    },
+    {
+      "name": "проводка завела СВОЮ копию правила пыли вместо единственной двери (класс ADR-340)",
+      "file": "spa_core/paper_trading/trim_shape.py",
+      "old": "    from spa_core.allocator.rebalance_economics import unexecuted_legs\n    return unexecuted_legs(current, book, capital_usd, min_leg_frac, legs=legs)\n",
+      "new": "    moved = {str(leg.get(\"protocol\")) for leg in (legs or [])}\n    return {p: round(float(book.get(p, 0.0)) - float(current.get(p, 0.0)), 2)\n            for p in sorted(set(current) | set(book))\n            if p not in moved\n            and abs(float(book.get(p, 0.0)) - float(current.get(p, 0.0))) > 1.0}\n"
+    },
+    {
+      "name": "отказа нет вовсе — расхождение цены и выигрыша вернулось целиком",
+      "file": "spa_core/paper_trading/trim_shape.py",
+      "old": "    if unex_i or unex_s:\n",
+      "new": "    if False:\n"
+    },
+    {
+      "name": "отказ только когда нога у ОБЕИХ форм — пять асимметричных записей снова сравниваются (ровно предмет ADR-867)",
+      "file": "spa_core/paper_trading/trim_shape.py",
+      "old": "    if unex_i or unex_s:\n",
+      "new": "    if unex_i and unex_s:\n"
+    },
+    {
+      "name": "отказ выдан за ЗАМЕР: род исхода подменён, перепись считает его сравнимым",
+      "file": "spa_core/paper_trading/trim_shape.py",
+      "old": "            \"kind\": SHAPE_REFUSED,\n",
+      "new": "            \"kind\": SHAPE_MEASURED,\n"
+    },
+    {
+      "name": "ось отсутствия не объявлена у ИЗМЕРЕННОЙ записи (инв. #17: пустое неотличимо от неспрошенного)",
+      "file": "spa_core/paper_trading/trim_shape.py",
+      "old": "                         \"cost_bps\": None if bps_i is None else round(bps_i, 2),\n                         \"unexecuted_legs\": dict(unex_i)},\n",
+      "new": "                         \"cost_bps\": None if bps_i is None else round(bps_i, 2)},\n"
+    },
+    {
+      "name": "перепись не делает отказ НАСЕЛЕНИЕМ — падение числа сравнимых читается как «предложений стало меньше»",
+      "file": "spa_core/paper_trading/trim_shape.py",
+      "old": "            refused.append(cmp_)\n",
+      "new": "            pass\n"
+    },
+    {
+      "name": "разложение отказа по формам подменено: ось «нога РОВНО у одной формы» потеряна",
+      "file": "spa_core/paper_trading/trim_shape.py",
+      "old": "    return {\"population\": len(refused), \"both_forms\": both,\n            \"only_interpolated\": only_i, \"only_subset\": only_s,\n",
+      "new": "    return {\"population\": len(refused), \"both_forms\": both,\n            \"only_interpolated\": both, \"only_subset\": only_s,\n"
+    },
+    {
+      "name": "отказанная форма всё равно печатает выигрыш — число по книге, которой не держим, осталось читаемым",
+      "file": "spa_core/paper_trading/trim_shape.py",
+      "old": "            \"interpolated\": {\"legs\": len(legs_i),\n                             \"turnover_usd\": round(turnover_i, 2),\n                             \"unexecuted_legs\": dict(unex_i)},\n",
+      "new": "            \"interpolated\": {\"legs\": len(legs_i),\n                             \"turnover_usd\": round(turnover_i, 2),\n                             \"gain_pp\": 0.5,\n                             \"unexecuted_legs\": dict(unex_i)},\n"
+    }
+  ]
+}

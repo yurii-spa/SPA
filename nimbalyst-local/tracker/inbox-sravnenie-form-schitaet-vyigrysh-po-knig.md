@@ -2,10 +2,14 @@
 trackerStatus:
   type: inbox
 title: Сравнение ФОРМ считает выигрыш по книге формы, а цену — по материальным ногам (третья дверь семейства ADR-864)
-status: new
+status: done
 source: nimbalyst
 created: 2026-10-29
 priority: medium
+acceptance_probe: shape_comparison_judges_one_book
+status_trail:
+  - "2026-10-30T06:30:43.338969+00:00 new -> in-progress · queue.set_status · cycle-76599"
+  - "2026-10-30T06:52:20.767576+00:00 in-progress -> done · queue.set_status/closed_by:цикл #984 (оркестратор)/evidence:ADR-867 + проба shape_comparison_judges_one_book = satisfied (5 сцен на настоящей двери); замер прод-истории 13 из 105 записей, дифференциально 105 -> 92 сравнимых, оборот форм 8/2 -> 0/0; мутации по  · cycle-76599"
 ---
 
 ## Что случилось и почему это важно

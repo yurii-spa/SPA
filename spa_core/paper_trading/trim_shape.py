@@ -80,12 +80,18 @@ log = logging.getLogger("spa.paper_trading.trim_shape")
 _EPS = 1e-9
 _DAYS_YEAR = 365.0
 
-#: Исходы вопроса «дешевле ли урезание другой формы» на ОДНОЙ записи. Четыре, и
+#: Исходы вопроса «дешевле ли урезание другой формы» на ОДНОЙ записи. Пять, и
 #: каждый — ЗНАЧЕНИЕ (инв. #17 CLAUDE.md), а не пустое поле.
 SHAPE_MEASURED = "measured"
 SHAPE_UNMEASURED = "unmeasured"
 SHAPE_NO_SUBJECT = "no_subject"          # оборот уже внутри потолка ⇒ урезать нечего
 SHAPE_NO_ALTERNATIVE = "no_alternative"  # форма-соседка пуста (одна сторона хода пуста)
+#: ADR-867 (цикл #984): книга формы несёт ненулевую дельту, которую дверь цены НЕ
+#: ИСПОЛНИТ. Это НЕ «не измерено»: мерить было чем, и причина отказа предъявлена
+#: числом. Пятым значением, а не пометкой рядом с посчитанным выигрышем, —
+#: иначе выигрыш остался бы читаемым, а он посчитан по книге, которой мы
+#: держать не будем (ровно предмет ADR-864 у третьей двери семейства).
+SHAPE_REFUSED = "refused"
 
 
 def _sides(current: Dict[str, float],
@@ -294,6 +300,22 @@ def shapes_of_proposal(current: Dict[str, float],
     return out
 
 
+def _unexecuted(current: Dict[str, float], book: Dict[str, float],
+                capital_usd: float, min_leg_frac: float,
+                legs: List[dict]) -> Dict[str, float]:
+    """Проводка к ЕДИНСТВЕННОЙ двери ADR-864 — своего правила пыли здесь нет.
+
+    Имя у проводки отдельное по той же причине, что у ``trim_optimum._unexecuted``:
+    приёмка обязана уметь порвать ЭТО звено, не задевая соседние. Дверь у
+    вердикта цикла, у перебора размеров и у сравнения форм ОДНА
+    (``rebalance_economics.unexecuted_legs``), и подмена самой двери рвёт все
+    три звена сразу — то есть контроль «сравнение форм перестало отказывать»
+    был бы неотличим от «вердикт перестал отказывать».
+    """
+    from spa_core.allocator.rebalance_economics import unexecuted_legs
+    return unexecuted_legs(current, book, capital_usd, min_leg_frac, legs=legs)
+
+
 def compare_trim_shapes(current: Dict[str, float],
                         target: Dict[str, float],
                         apy_pct: Dict[str, float],
@@ -304,9 +326,19 @@ def compare_trim_shapes(current: Dict[str, float],
                         chains_measured: bool) -> dict:
     """Две формы ОДНОГО урезания, одной моделью и одним потолком.
 
-    Возврат — запись с полем ``kind`` из четырёх значений выше. Прибор ничего
-    не судит и ни одного порога не применяет: он называет цену, выигрыш, число
+    Возврат — запись с полем ``kind`` из ПЯТИ значений выше. Прибор ничего не
+    судит и ни одного порога не применяет САМ: он называет цену, выигрыш, число
     ног и окупаемость у каждой формы.
+
+    Единственный отказ, который он произносит, — чужой: дверь ADR-864
+    (``rebalance_economics.unexecuted_legs``) спрашивается у КАЖДОЙ формы, и
+    форма, несущая ненулевую подпороговую дельту, получает ``SHAPE_REFUSED`` с
+    названной причиной вместо посчитанного выигрыша. До ADR-867 здесь жило
+    расхождение, уже закрытое у двух соседних дверей: ``cost`` считался по
+    материальным ногам, а ``gain`` — по объявленной книге формы, где деньги
+    подпороговой ноги уже переложены. На живой истории это давало ПЯТЬ записей,
+    где победа одной формы над другой создавалась неисполнимой ногой, а не
+    формой.
 
     Сами книги строит дверь ``shapes_of_proposal`` (ADR-855) — здесь остаётся
     только ЭКОНОМИКА форм; так соседний вопрос о допустимости судит ровно ту
@@ -337,24 +369,72 @@ def compare_trim_shapes(current: Dict[str, float],
     try:
         legs_i, turnover_i = _legs(cur, book_interp, capital, mlf)
         cost_i = _move_cost_usd(legs_i, turnover_i, chains) if legs_i else 0.0
+        # ADR-867: дверь ADR-864 спрашивается ЗДЕСЬ, до единого выигрыша, — ровно
+        # как у `evaluate` и у `score_book`. Ось объявляется ВСЕГДА: пустой
+        # словарь есть «измерено и равно нулю» (инв. #17), иначе отсутствие
+        # неисполнимых ног было бы неотличимо от того, что их не искали.
+        unex_i = _unexecuted(cur, book_interp, capital, mlf, legs_i)
     except Exception as exc:  # noqa: BLE001
         out.update({"kind": SHAPE_UNMEASURED,
                     "why": f"форма интерполяции не посчитана ({type(exc).__name__})"})
         return out
 
     if kind == SHAPE_NO_ALTERNATIVE:
+        # Выигрыша эта ветка не печатает ВОВСЕ (книги-соседки нет, сравнивать не
+        # с чем), поэтому две половины двери здесь не расходятся и отказывать
+        # нечему. Ось всё равно названа: читатель не должен угадывать, спрошена
+        # ли она у этого исхода.
         out.update({"kind": SHAPE_NO_ALTERNATIVE, "why": shapes.get("why"),
                     "interpolated": {"legs": len(legs_i),
                                      "turnover_usd": round(turnover_i, 2),
-                                     "cost_usd": round(cost_i, 2)}})
+                                     "cost_usd": round(cost_i, 2),
+                                     "unexecuted_legs": dict(unex_i)}})
         return out
     book_subset = shapes["book_subset"]
     try:
         legs_s, turnover_s = _legs(cur, book_subset, capital, mlf)
         cost_s = _move_cost_usd(legs_s, turnover_s, chains) if legs_s else 0.0
+        unex_s = _unexecuted(cur, book_subset, capital, mlf, legs_s)
     except Exception as exc:  # noqa: BLE001
         out.update({"kind": SHAPE_UNMEASURED,
                     "why": f"форма подмножества не посчитана ({type(exc).__name__})"})
+        return out
+
+    # ── ADR-867: отказ ДО единого выигрыша ─────────────────────────────────
+    # Цена здесь считается по МАТЕРИАЛЬНЫМ ногам (`_legs` выбрасывает дельту
+    # `abs(delta) <= min_leg_frac · capital` целиком), а выигрыш считался по
+    # ОБЪЯВЛЕННОЙ книге формы, где эти деньги уже переложены. Та же пара и тот
+    # же знак ошибки, что у двух дверей ADR-864; замер прод-истории (166 записей,
+    # 105 урезаемых предложений) дал 13 записей с такой ногой, и у ПЯТИ отказ
+    # достаётся РОВНО одной форме — то есть выигрывала не форма, а то, что у
+    # одной из них нога не исполнится и её выигрыш достанется бесплатно.
+    # Сохраняющей книги без модели исполнения не существует (докстринг
+    # `unexecuted_legs`), поэтому исход третий: про такую форму не говорится
+    # «окупается за N дней», про неё говорится «не измерено, и вот почему».
+    if unex_i or unex_s:
+        sides = []
+        if unex_i:
+            sides.append("интерполяция {}".format(
+                {k: round(v, 2) for k, v in unex_i.items()}))
+        if unex_s:
+            sides.append("подмножество {}".format(
+                {k: round(v, 2) for k, v in unex_s.items()}))
+        out.update({
+            "kind": SHAPE_REFUSED,
+            "interpolated": {"legs": len(legs_i),
+                             "turnover_usd": round(turnover_i, 2),
+                             "unexecuted_legs": dict(unex_i)},
+            "subset": {"legs": len(legs_s),
+                       "turnover_usd": round(turnover_s, 2),
+                       "unexecuted_legs": dict(unex_s)},
+            "refused_sides": (["interpolated"] if unex_i else [])
+                             + (["subset"] if unex_s else []),
+            "why": ("форма несёт ногу, которую дверь цены НЕ ИСПОЛНИТ (ADR-864): "
+                    + " · ".join(sides)
+                    + "; выигрыш по такой книге был бы обещанием дохода, которого "
+                      "ход не произведёт, поэтому ни он, ни окупаемость, ни "
+                      "дельты форм не считаются"),
+        })
         return out
 
     base_pp = _book_apy_pp(cur, apy_pct or {}, capital)
@@ -370,11 +450,13 @@ def compare_trim_shapes(current: Dict[str, float],
         "interpolated": {"legs": len(legs_i), "turnover_usd": round(turnover_i, 2),
                          "cost_usd": round(cost_i, 2), "gain_pp": gain_i,
                          "payback_days": pb_i,
-                         "cost_bps": None if bps_i is None else round(bps_i, 2)},
+                         "cost_bps": None if bps_i is None else round(bps_i, 2),
+                         "unexecuted_legs": dict(unex_i)},
         "subset": {"legs": len(legs_s), "turnover_usd": round(turnover_s, 2),
                    "cost_usd": round(cost_s, 2), "gain_pp": gain_s,
                    "payback_days": pb_s,
-                   "cost_bps": None if bps_s is None else round(bps_s, 2)},
+                   "cost_bps": None if bps_s is None else round(bps_s, 2),
+                   "unexecuted_legs": dict(unex_s)},
         "legs_delta": len(legs_s) - len(legs_i),
         "cost_delta_usd": round(cost_s - cost_i, 2),
         "gain_delta_pp": round(gain_s - gain_i, 6),
@@ -410,6 +492,28 @@ def _median(values: List[float]) -> Optional[float]:
     return round((ordered[mid - 1] + ordered[mid]) / 2.0, 4)
 
 
+def _refusal_block(refused: List[dict]) -> dict:
+    """Разложение отказа ADR-867 — печатается ДАЖЕ когда он ноль.
+
+    Ноль здесь есть ЗАМЕР («дверь спрошена, таких ног нет»), и отсутствие
+    блока было бы от него неотличимо (инв. #17). Ось «ровно одна форма» —
+    отдельная и несущая: именно на ней вердикт СРАВНЕНИЯ менялся отказом, а
+    там, где нога у обеих форм, сравнение теряется целиком.
+    """
+    both = sum(1 for r in refused
+               if (r.get("interpolated") or {}).get("unexecuted_legs")
+               and (r.get("subset") or {}).get("unexecuted_legs"))
+    only_i = sum(1 for r in refused
+                 if (r.get("interpolated") or {}).get("unexecuted_legs")
+                 and not (r.get("subset") or {}).get("unexecuted_legs"))
+    only_s = sum(1 for r in refused
+                 if (r.get("subset") or {}).get("unexecuted_legs")
+                 and not (r.get("interpolated") or {}).get("unexecuted_legs"))
+    return {"population": len(refused), "both_forms": both,
+            "only_interpolated": only_i, "only_subset": only_s,
+            "dates": sorted({str(r.get("date")) for r in refused})[:20]}
+
+
 def trim_shape_census(records: List[dict], *, params,
                       chains: Dict[str, str],
                       chains_measured: bool) -> dict:
@@ -427,6 +531,7 @@ def trim_shape_census(records: List[dict], *, params,
         return {"kind": CENSUS_UNMEASURED,
                 "why": "история не список — перепись форм не измерена"}
     rows: List[dict] = []
+    refused: List[dict] = []
     outcomes: Dict[str, int] = {}
     sources: Dict[str, int] = {}
     for rec in records:
@@ -446,10 +551,19 @@ def trim_shape_census(records: List[dict], *, params,
             cmp_["date"] = rec.get("cycle_date")
             cmp_["proposal_source"] = source
             rows.append(cmp_)
+        elif kind == SHAPE_REFUSED:
+            # ADR-867. Отказ — НАСЕЛЕНИЕ, а не вычет из населения: исчезни он из
+            # печати, и падение числа сравнимых записей читалось бы как «таких
+            # предложений стало меньше», хотя предложений столько же, а судить
+            # их больше нечем.
+            cmp_["date"] = rec.get("cycle_date")
+            cmp_["proposal_source"] = source
+            refused.append(cmp_)
     if not rows:
         return {"kind": (CENSUS_MEASURED_ZERO if outcomes else CENSUS_UNMEASURED),
                 "outcomes": outcomes,
                 "proposal_sources": sources,
+                "refused": _refusal_block(refused),
                 "records": len([r for r in records if isinstance(r, dict)]),
                 "why": ("урезаемых предложений в истории не нашлось — это ЗАМЕР нуля"
                         if outcomes else
@@ -500,6 +614,7 @@ def trim_shape_census(records: List[dict], *, params,
         "records": len([r for r in records if isinstance(r, dict)]),
         "outcomes": outcomes,
         "proposal_sources": sources,
+        "refused": _refusal_block(refused),
         "population": len(rows),
         "dates": len({r.get("date") for r in rows}),
         "legs": {"fewer": legs_fewer, "same": legs_same, "more": legs_more,
@@ -564,8 +679,35 @@ def format_trim_shape(census: Optional[dict]) -> List[str]:
     """
     kind, why = trim_shape_outcome(census)
     head = "форма урезания (ADR-854, ADVISORY — допустимость не утверждается):"
+    ref = (census or {}).get("refused") if isinstance(census, dict) else None
+
+    def _refusal_lines() -> List[str]:
+        """Строка отказа ADR-867 — печатается и при НУЛЕ, и при пустом населении.
+
+        Иначе «дверь спрошена, таких ног нет» выглядело бы ровно как «дверь не
+        спрашивали»: оба молчат.
+
+        Предмет строки — перепись, которая ЕСТЬ. У переписи, которой нет вовсе
+        (артефакт старше прибора ⇒ ``CENSUS_UNMEASURED``), про отказ неизвестно
+        ровно то же, что про всё остальное, и это уже сказано строкой выше;
+        дописать туда вторую значило бы ответить дважды на один вопрос.
+        """
+        if not isinstance(census, dict) or str(census.get("kind")) not in (
+                CENSUS_MEASURED, CENSUS_MEASURED_ZERO):
+            return []
+        if not isinstance(ref, dict):
+            return ["  отказ ADR-867: НЕ ИЗМЕРЕН — блок `refused` в переписи "
+                    "отсутствует, то есть неизвестно, спрашивалась ли дверь цены"]
+        return [
+            f"  отказ ADR-867 (нога, которую дверь цены не исполнит): "
+            f"{ref.get('population')} предложени(й) — у обеих форм "
+            f"{ref.get('both_forms')} · только у интерполяции "
+            f"{ref.get('only_interpolated')} · только у подмножества "
+            f"{ref.get('only_subset')}; где нога РОВНО у одной формы, прежний "
+            f"вердикт сравнения создавался ею, а не формой"]
+
     if kind != CENSUS_MEASURED:
-        return [head, f"  [{kind}] {why}"]
+        return [head, f"  [{kind}] {why}"] + _refusal_lines()
     legs = census.get("legs") or {}
     cost = census.get("cost") or {}
     gain = census.get("gain") or {}
@@ -600,6 +742,7 @@ def format_trim_shape(census: Optional[dict]) -> List[str]:
         f"сторон; где БОЛЬШЕ, интерполяция потеряла ход на пыли (её мелкие ноги "
         f"отсекает дверь `_legs`), а не подмножество вышло за потолок",
     ]
+    lines.extend(_refusal_lines())
     if last:
         lines.append(
             f"  последнее: {last.get('date')} — ног "
