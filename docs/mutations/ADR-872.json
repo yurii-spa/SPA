@@ -1,0 +1,50 @@
+{
+ "title": "ADR-872 — третья сцена пробы ворот публикации: каждая мутация снимает ОДНО звено, которым исход FAIL стал измеримым",
+ "tests": [
+  "spa_core/tests/test_publication_gate_probe.py"
+ ],
+ "mutations": [
+  {
+   "name": "нога FAIL принимает и код «не измерено» — исходы двери снова неразличимы (класс ADR-869)",
+   "file": "spa_core/monitoring/card_acceptance.py",
+   "old": "                if cp.returncode != 3:\n                    bad.append(f\"{door}: на схемно-верной НЕПОДПИСАННОЙ витрине \"",
+   "new": "                if cp.returncode not in (3, 13):\n                    bad.append(f\"{door}: на схемно-верной НЕПОДПИСАННОЙ витрине \""
+  },
+  {
+   "name": "«сцена не поднята» объявлена зелёной — «не измерено» снова неотличимо от «измерено и чисто»",
+   "file": "spa_core/monitoring/card_acceptance.py",
+   "old": "            if fgrc.returncode != 1 and not fail_scene_published_unreadable:\n                return UNMEASURED, (",
+   "new": "            if fgrc.returncode != 1 and not fail_scene_published_unreadable:\n                return SATISFIED, ("
+  },
+  {
+   "name": "на третью сцену всегда кладётся ЗАГЛУШКА — сцена FAIL не поднимается никогда",
+   "file": "spa_core/monitoring/card_acceptance.py",
+   "old": "                '{\"published_at\": \"2026-10-07\"}' if fail_scene_shelf_stub\n                else json.dumps(fail_doc, ensure_ascii=False, indent=1), encoding=\"utf-8\")",
+   "new": "                '{\"published_at\": \"2026-10-07\"}' if True\n                else json.dumps(fail_doc, ensure_ascii=False, indent=1), encoding=\"utf-8\")"
+  },
+  {
+   "name": "опубликованная витрина сцены СОВПАДАЕТ с кандидатом — одобрения не требуется, FAIL не наступает",
+   "file": "spa_core/monitoring/card_acceptance.py",
+   "old": "            prov[\"schema_version\"] = f\"{_bsn.SCHEMA_VERSION}-previous\"",
+   "new": "            prov[\"schema_version\"] = f\"{_bsn.SCHEMA_VERSION}\""
+  },
+  {
+   "name": "контроль различимости у двери лишён обхода — он мерил бы свою же ветку, а не дверь",
+   "file": "spa_core/monitoring/card_acceptance.py",
+   "old": "            if fgrc.returncode != 1 and not fail_scene_published_unreadable:",
+   "new": "            if fgrc.returncode != 1:"
+  },
+  {
+   "name": "вердикт перестаёт называть три сцены — «satisfied» становится нечем поверить",
+   "file": "spa_core/monitoring/card_acceptance.py",
+   "old": "    return SATISFIED, (f\"двери {', '.join(doors)}, ТРИ сцены: (1) витрина-заглушка — \"",
+   "new": "    return SATISFIED, (f\"двери {', '.join(doors)}: витрина-заглушка — \""
+  },
+  {
+   "name": "вердикт перестаёт разводить три исхода ворот — остаётся строка, сверяемая сама с собой",
+   "file": "spa_core/monitoring/card_acceptance.py",
+   "old": "                       f\"не наступает ни на одной сцене, FAIL → 3, НЕ ИЗМЕРЕНО → 13, \"\n                       f\"окно прибора → 10\")",
+   "new": "                       f\"не наступает ни на одной сцене\")"
+  }
+ ]
+}

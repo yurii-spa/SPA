@@ -2,11 +2,15 @@
 trackerStatus:
   type: inbox
 title: Исход FAIL у ворот публикации не меряет ни одна проба — на сцене ADR-789 ворота отвечают «НЕ ИЗМЕРЕНО»
-status: new
+status: done
 source: nimbalyst
 created: 2026-10-30
 priority: high
 twin_key: "sha256:cffb2a04f89c3ba7251b666b8c87530561c87eceba25e050b075b78f4ddedec6"
+acceptance_probe: publication_gate_refuses_an_unsigned_shelf_by_its_own_code
+status_trail:
+  - "2026-10-30T18:06:37.441765+00:00 new -> in-progress · queue.set_status · cycle-27070"
+  - "2026-10-30T18:21:27.320505+00:00 in-progress -> done · queue.set_status/closed_by:cycle-27070/evidence:ADR-872: третья сцена поднята — ворота дают FAIL (rc=1), обе двери доставки отвечают кодом 3; проба publication_gate_refuses_an_unsigned_shelf_by_its_own_code = satisfied (13.4 с) и теперь ВЛЁЧЕТ «FAI · cycle-27070"
 ---
 
 Цикл #988 (ADR-871) развёл у ворот публикации «ОТКАЗАНО» и «НЕ ИЗМЕРЕНО» и тем вскрыл, что
@@ -48,3 +52,28 @@ RC=2
 
 Не ослаблять существующие ноги пробы и не подменять сцену: «ворота не ответили» — ВЕРНЫЙ
 третий исход, он остаётся и после появления сцены FAIL.
+
+## СДЕЛАНО циклом #990 (ADR-872)
+
+Третья сцена поднята. Витрина собирается `scripts/build_site_numbers.py` на канонических
+входах репозитория, опубликованная витрина сцены отличается РОВНО схемой ⇒ ворота отвечают
+`rc=1` (FAIL) с одной находкой «missing owner approval for: first publication of shelf
+schema …», и каждая дверь доставки отвечает кодом **3**, называя причину словами
+`publication gate`.
+
+Сцена, которую не удалось поднять, даёт `unmeasured` с причиной ⇒ **`satisfied` теперь
+ВЛЁЧЕТ «FAIL измерен»**, чего прежний `satisfied` не влёк (граница была лишь названа).
+
+Два новых звена контроля (`spa_core/tests/test_publication_gate_probe.py`):
+`fail_scene_shelf_stub=True` ⇒ `unmeasured` «сцена FAIL НЕ ПОДНЯТА» ·
+`fail_scene_published_unreadable=True` ⇒ `not_satisfied` «а не 3 — кодом исхода FAIL»
+(второе меряет различимость исходов У ДВЕРИ: сведи она их снова — контроль позеленеет, и
+покраснеет его сторож).
+
+Дифференциально, один и тот же новый файл сторожа в одном дереве: на `origin/main`
+6b8118894 — **3 failed, 8 passed**, на этой правке — **11 passed** (30.5 с). Проба на целом
+контуре `satisfied` за 13.4 с.
+
+Прежние ноги не ослаблены. Из токенов зелёного вердикта УБРАН `НАЗВАННАЯ ГРАНИЦА` —
+намеренно и с обоснованием (инв. #16): он требовал признания в неизмеренном исходе FAIL и
+был верен ровно до этой правки.

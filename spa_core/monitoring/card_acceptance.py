@@ -11648,7 +11648,9 @@ def _probe_publication_gate_refuses_an_unsigned_shelf_by_its_own_code(
         arg: str | None, *, scene_outside_a_tree: bool = False,
         pushers: "tuple[str, ...] | None" = None,
         guard_test: str | None = None,
-        window_bypass: bool = False) -> tuple[str, str]:
+        window_bypass: bool = False,
+        fail_scene_shelf_stub: bool = False,
+        fail_scene_published_unreadable: bool = False) -> tuple[str, str]:
     """Критерий: НЕПОДПИСАННАЯ витрина публичных чисел не уезжает ни одним пушером,
     и отказывают ей ВОРОТА ПУБЛИКАЦИИ — своим кодом, а не чужим (ADR-789, карточка
     `inbox-dva-otkaza-pushera-sporyat-za-odin-kod-v`).
@@ -11675,12 +11677,20 @@ def _probe_publication_gate_refuses_an_unsigned_shelf_by_its_own_code(
         названа · окно прибора перестало отвечать своим кодом (тогда порядок отказов
         снова держится ни на чём).
 
-    **НАЗВАННАЯ ГРАНИЦА (ADR-871).** На сцене этой пробы ворота отвечают «НЕ ИЗМЕРЕНО»:
-    витрина сцены — заглушка, и `measured_at/published_at` в ней не разбираются. Значит
-    «витрина НЕ ПОДПИСАНА» (FAIL) этой пробой НЕ ИЗМЕРЕН, и вердикт говорит это вслух.
-    Измерено: витрина не уезжает ни одной дверью, и код отказа следует за ИСХОДОМ
-    ворот. Сцена, на которой ворота дают настоящий FAIL, требует схемно-верной витрины
-    — отдельная работа, названная в карточке, а не умолчанная здесь.
+    **ГРАНИЦА ADR-871 СНЯТА (ADR-872): исход FAIL теперь ИЗМЕРЕН третьей сценой.**
+    Здесь стояло «витрина сцены — заглушка, ворота отвечают «НЕ ИЗМЕРЕНО», значит
+    «витрина НЕ ПОДПИСАНА» (FAIL) этой пробой НЕ ИЗМЕРЕН», и это было верно: заглушка
+    `{"published_at": …}` не доходит до вопроса об одобрении — ворота обрываются раньше
+    на «measured_at/published_at not parseable». Третья сцена строится СБОРЩИКОМ
+    (`scripts/build_site_numbers.py`) на тех же канонических входах, что и живая
+    витрина, поэтому все ранние «НЕ ИЗМЕРЕНО» ворот пройдены и остаётся РОВНО одна
+    находка — отсутствие одобрения владельца. Это и есть FAIL: `rc=1` у ворот, код
+    **3** у каждой двери доставки.
+
+    Разница между двумя сценами — не вкусовая: `satisfied` ДО этой правки не влёк
+    «FAIL измерен» (граница была названа в вердикте и только), а после — влечёт, потому
+    что сцена, которую не удалось поднять, даёт `unmeasured` с причиной. Критерий
+    УСИЛЕН, ни одна прежняя нога не ослаблена (инв. #16).
 
     Порядок отказов — РЕШЕНИЕ с названной причиной, и проба его закрепляет: окно
     прибора стоит ВЫШЕ ворот публикации, потому что отвечает на вопрос «те ли это
@@ -11697,6 +11707,18 @@ def _probe_publication_gate_refuses_an_unsigned_shelf_by_its_own_code(
     ворот публикации, а проба ОБЯЗАНА сказать `not_satisfied`. Без этого входа нога про
     окно была бы незаметна для мутаций: итоговая строка вердикта называет «код 10» сама
     по себе, и снятая нога сверялась бы СО СВОЕЙ ЖЕ строкой.
+    ``fail_scene_shelf_stub=True`` — ОТРИЦАТЕЛЬНЫЙ контроль ТРЕТЬЕЙ сцены: вместо
+    собранной витрины кладётся та же заглушка, что на первой сцене, и проба ОБЯЗАНА
+    сказать `unmeasured` — «сцену FAIL поднять не удалось». Так «не измерено» остаётся
+    отличимо от «измерено и чисто» (инв. #17), а не прячется за зелёным вердиктом.
+    ``fail_scene_published_unreadable=True`` — ВТОРОЙ отрицательный контроль третьей
+    сцены, и он меряет РАЗЛИЧИМОСТЬ исходов У ДВЕРИ. Опубликованная витрина подменяется
+    несуществующим путём ⇒ ворота отвечают «НЕ ИЗМЕРЕНО» (rc=2); контроль НАМЕРЕННО
+    проходит мимо отказа «сцена не поднята» и всё равно зовёт дверь, ожидая от неё код
+    FAIL (3). Исправная дверь отвечает 13 ⇒ проба ОБЯЗАНА сказать `not_satisfied`.
+    Сведи дверь FAIL и «не измерено» в один код снова — контроль ПОЗЕЛЕНЕЕТ, и
+    покраснеет его сторож. Без этого входа третья нога сверялась бы со своей же строкой
+    вердикта (урок ADR-871).
     ``guard_test`` — узел pytest того сторожа, которому этот предмет поручен (ВХОД).
     Нога нужна потому, что предмет и его СТОРОЖ — два разных утверждения: 17.10–23.10
     предмет держался (пушер отказывал верно), а сторож его не мерил, и красный на
@@ -11827,7 +11849,104 @@ def _probe_publication_gate_refuses_an_unsigned_shelf_by_its_own_code(
         if bad:
             return NOT_SATISFIED, " · ".join(bad)
 
-        # ── третья нога: МЕРИТ ЛИ предмет его собственный сторож ──────────────────
+        # ── ТРЕТЬЯ СЦЕНА: ворота дают НАСТОЯЩИЙ FAIL (ADR-872) ────────────────────
+        # Предмет — карточка `inbox-ishod-fail-u-vorot-publikatsii-ne-meryae`: исход
+        # FAIL («витрина схемно-верна, но НЕ ПОДПИСАНА») не мерила ни одна проба, и
+        # сцена выше его не произносит ПО ПОСТРОЕНИЮ — заглушка обрывает ворота на
+        # разборе дат. Здесь витрина собирается ТЕМ ЖЕ сборщиком и на ТЕХ ЖЕ
+        # канонических входах, что живая, поэтому ранние «НЕ ИЗМЕРЕНО» пройдены.
+        #
+        # Литеральной даты в сцене нет НАМЕРЕННО (`.claude/rules/deployment.md`,
+        # § «Время в тестах»): ворота зовутся подпроцессом и судят по СВОИМ часам
+        # (`date.today()` внутри `verify_publication`), инъектировать их нельзя —
+        # значит дата публикации сцены обязана браться у ТЕХ ЖЕ часов, иначе сцена
+        # начала бы краснеть от сдвига календаря, а не от кода.
+        from datetime import date as _date
+
+        fail_doc = None
+        try:
+            import importlib.util as _bu
+            _bspec = _bu.spec_from_file_location(
+                "_bsn_probe_pubgate", root / "scripts" / "build_site_numbers.py")
+            _bsn = _bu.module_from_spec(_bspec)
+            sys.modules[_bspec.name] = _bsn
+            try:
+                _bspec.loader.exec_module(_bsn)
+                fail_doc = _bsn.build(published_at=_date.today().isoformat())
+            finally:
+                sys.modules.pop(_bspec.name, None)
+        except Exception as exc:  # noqa: BLE001
+            return UNMEASURED, (f"сцену FAIL поднять не удалось: сборщик витрины не "
+                                f"ответил ({type(exc).__name__}: {exc}) — отказала бы "
+                                f"дверь исходом ворот или нет, НЕ ИЗМЕРЕНО")
+
+        fail_d = _pathlib.Path(tempfile.mkdtemp(prefix="probe_pubfail_"))
+        try:
+            finit = subprocess.run(["git", "init", "-b", branch, str(fail_d)],
+                                   capture_output=True, text=True)
+            if finit.returncode != 0:
+                return UNMEASURED, (f"сцену FAIL не удалось сделать рабочим деревом: "
+                                    f"git init → {finit.returncode}: "
+                                    f"{(finit.stderr or finit.stdout).strip()[:200]}")
+            fshelf = fail_d / "landing" / "src" / "data" / "site_numbers.json"
+            fshelf.parent.mkdir(parents=True)
+            fshelf.write_text(
+                '{"published_at": "2026-10-07"}' if fail_scene_shelf_stub
+                else json.dumps(fail_doc, ensure_ascii=False, indent=1), encoding="utf-8")
+
+            # ОПУБЛИКОВАННАЯ витрина сцены — та же, но с ДРУГОЙ схемой. Отличие выбрано
+            # не по вкусу: `needs_approval` объявляет «новая схема» первой находкой и не
+            # зависит от того, какие именно числа несёт витрина сегодня, — то есть сцена
+            # переживёт правку состава полок, а «одобрения нет» останется ТЕМ ЖЕ
+            # утверждением. Дата публикации равна дате кандидата: «кандидат старше
+            # живой публикации» — ДРУГАЯ находка, и смешивать их нельзя.
+            import copy as _copy
+            fpub_doc = _copy.deepcopy(fail_doc) if fail_doc else {}
+            prov = dict(fpub_doc.get("_provenance") or {})
+            prov["schema_version"] = f"{_bsn.SCHEMA_VERSION}-previous"
+            fpub_doc["_provenance"] = prov
+            fpub = fail_d / "published_site_numbers.json"
+            fpub.write_text(json.dumps(fpub_doc, ensure_ascii=False), encoding="utf-8")
+
+            fenv = {k: v for k, v in os.environ.items() if k != "SPA_SITE_PUSH_VERIFIED"}
+            fenv.update(SPA_PUSH_ALLOW_CHANGE_EVIDENCE_UNMEASURED="1",
+                        SPA_PUBLISHED_SHELF=str(fail_d / "net-takoi-vitriny.json"
+                                                if fail_scene_published_unreadable else fpub))
+
+            fgrc = subprocess.run(
+                [sys.executable, str(root / "scripts" / "verify_publication.py"),
+                 "--shelf", str(fshelf), "--pages", "", "--find-approval"],
+                capture_output=True, text=True, env=fenv, timeout=600)
+            # Контроль `fail_scene_published_unreadable` ПРОХОДИТ мимо этого отказа
+            # НАМЕРЕННО: его предмет — различает ли ДВЕРЬ исходы ворот, а ответ на это
+            # даёт только настоящий зов двери. Остановись контроль здесь, он мерил бы
+            # собственную ветку «сцена не поднята», а не поведение двери.
+            if fgrc.returncode != 1 and not fail_scene_published_unreadable:
+                return UNMEASURED, (
+                    f"сцена FAIL НЕ ПОДНЯТА: ворота публикации ответили "
+                    f"{fgrc.returncode}, а не 1 (FAIL) — «витрина НЕ ПОДПИСАНА» этой "
+                    f"сценой НЕ ИЗМЕРЕН; ворота сказали: "
+                    f"{(fgrc.stdout or fgrc.stderr).strip()[:300]}")
+
+            for door in doors:
+                cp = subprocess.run(
+                    [sys.executable, str(root / door), "--files", str(fshelf),
+                     "--message", "проба приёмки", "--pat", "dummy"],
+                    capture_output=True, text=True, env=fenv, timeout=180)
+                if cp.returncode != 3:
+                    bad.append(f"{door}: на схемно-верной НЕПОДПИСАННОЙ витрине "
+                               f"ответил {cp.returncode}, а не 3 — кодом исхода FAIL; "
+                               f"ворота на этой сцене дали rc={fgrc.returncode}; "
+                               f"причина: {(cp.stderr or cp.stdout).strip()[-200:]}")
+                elif "publication gate" not in cp.stderr:
+                    bad.append(f"{door}: код 3 есть, а причина не названа словами "
+                               f"`publication gate`")
+        finally:
+            shutil.rmtree(fail_d, ignore_errors=True)
+        if bad:
+            return NOT_SATISFIED, " · ".join(bad)
+
+        # ── четвёртая нога: МЕРИТ ЛИ предмет его собственный сторож ───────────────
         # Предмет и сторож — два разных утверждения, и именно их расхождение есть
         # предмет ADR-789: пушер отказывал верно, а объявленный сторож этого не
         # измерял шесть суток. Вердикт даёт pytest, а не чтение файла глазами.
@@ -11850,15 +11969,18 @@ def _probe_publication_gate_refuses_an_unsigned_shelf_by_its_own_code(
     finally:
         shutil.rmtree(d, ignore_errors=True)
 
-    return SATISFIED, (f"двери {', '.join(doors)}: витрина, которой ворота публикации "
-                       f"не пропустили, — код {expected}, и это КОД ИХ ИСХОДА "
-                       f"({gate_kind}), а не литерал (`publication gate` в причине); "
-                       f"та же витрина под открытым окном прибора — код 10; сцена есть "
-                       f"рабочее дерево (ветка `{branch}` объявлена входом); сторож "
-                       f"предмета `{node}` зелёный. НАЗВАННАЯ ГРАНИЦА: исход ворот на "
-                       f"этой сцене — {gate_kind}, поэтому «витрина НЕ ПОДПИСАНА» "
-                       f"(FAIL) здесь НЕ ИЗМЕРЕН; измерено, что витрина не уезжает и "
-                       f"что два исхода ворот больше не сводятся в один код (ADR-871)")
+    return SATISFIED, (f"двери {', '.join(doors)}, ТРИ сцены: (1) витрина-заглушка — "
+                       f"код {expected}, и это КОД ИСХОДА ворот ({gate_kind}), а не "
+                       f"литерал (`publication gate` в причине); (2) та же витрина под "
+                       f"открытым окном прибора — код 10; (3) витрина, собранная "
+                       f"`scripts/build_site_numbers.py` на канонических входах и НЕ "
+                       f"ПОДПИСАННАЯ владельцем, — ворота отвечают FAIL (rc=1), дверь "
+                       f"кодом 3 (ADR-872: граница ADR-871 снята, исход FAIL ИЗМЕРЕН, "
+                       f"а не назван неизмеренным); каждая сцена есть рабочее дерево "
+                       f"(ветка `{branch}` объявлена входом); сторож предмета "
+                       f"`{node}` зелёный. Три исхода ворот различимы ЗАМЕРОМ: PASS "
+                       f"не наступает ни на одной сцене, FAIL → 3, НЕ ИЗМЕРЕНО → 13, "
+                       f"окно прибора → 10")
 
 
 #: Артефакт, у которого ЕСТЬ производитель, но нет ЗОВА, — и есть предмет ADR-790.
