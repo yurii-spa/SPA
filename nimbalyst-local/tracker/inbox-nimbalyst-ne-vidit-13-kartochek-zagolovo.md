@@ -5,6 +5,7 @@ title: Nimbalyst не видит 13 карточек — заголовок с �
 status: new
 source: nimbalyst
 created: 2026-09-17
+intake_kind: task
 ---
 
 ## Задание

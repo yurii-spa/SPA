@@ -5,6 +5,7 @@ title: Объявленный читатель отчёта экономики �
 status: new
 source: nimbalyst
 created: 2026-10-08
+intake_kind: task
 ---
 
 ## Что случилось и почему это важно

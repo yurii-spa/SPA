@@ -5,6 +5,7 @@ title: Восемь сроков годности без объявленной 
 status: new
 source: nimbalyst
 created: 2026-10-26
+intake_kind: task
 ---
 
 ## Что нашёл шаг 0-офис

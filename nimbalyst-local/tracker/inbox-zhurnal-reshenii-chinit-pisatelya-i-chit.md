@@ -9,6 +9,7 @@ acceptance_probe: decision_journal_keeps_every_run
 status_trail:
   - "2026-09-15T21:16:58.678029+00:00 new -> in-progress · queue.set_status · cycle-10721"
   - "2026-09-15T21:22:55.508780+00:00 in-progress -> done · queue.set_status · cycle-10721"
+intake_kind: task
 ---
 
 ## Что это и откуда

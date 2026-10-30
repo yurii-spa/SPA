@@ -5,6 +5,7 @@ title: Пять спящих процессов притворяются про�
 status: new
 source: nimbalyst
 created: 2026-09-23
+intake_kind: task
 ---
 
 ## Что найдено (замер 2026-09-23, цикл #687)

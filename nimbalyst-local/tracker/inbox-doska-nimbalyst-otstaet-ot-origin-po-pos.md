@@ -5,6 +5,7 @@ title: "Доска Nimbalyst отстаёт от origin по построени�
 status: new
 source: nimbalyst
 created: 2026-09-17
+intake_kind: task
 ---
 
 ## Задание

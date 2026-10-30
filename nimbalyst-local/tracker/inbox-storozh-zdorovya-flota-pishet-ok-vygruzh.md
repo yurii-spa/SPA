@@ -5,6 +5,7 @@ title: Сторож здоровья флота пишет OK выгруженн
 status: new
 source: nimbalyst
 created: 2026-09-29
+intake_kind: task
 ---
 
 ## Что нашли (ежедневный аудит 90 %, 2026-09-29 08:10Z)

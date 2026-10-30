@@ -8,6 +8,7 @@ created: 2026-10-29
 priority: high
 finding_cycle: 976
 finding_adr: ADR-859
+intake_kind: task
 ---
 
 ## Что случилось и почему это важно

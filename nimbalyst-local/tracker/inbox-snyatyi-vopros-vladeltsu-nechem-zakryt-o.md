@@ -7,6 +7,7 @@ source: nimbalyst
 created: 2026-10-30
 priority: high
 finding_adr: ADR-865
+intake_kind: task
 ---
 
 ## Что измерено (цикл #982, ADR-865)

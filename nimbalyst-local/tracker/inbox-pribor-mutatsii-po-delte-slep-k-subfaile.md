@@ -5,6 +5,7 @@ title: Прибор мутаций по дельте слеп к SUBFAILED и н
 status: new
 source: nimbalyst
 created: 2026-10-26
+intake_kind: task
 ---
 
 ## Что случилось и почему это важно

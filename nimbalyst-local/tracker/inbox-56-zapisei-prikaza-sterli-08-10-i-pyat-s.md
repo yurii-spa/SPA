@@ -5,6 +5,7 @@ title: "56 записей приказа стёрли 08.10, и пять сут�
 status: new
 source: nimbalyst
 created: 2026-10-13
+intake_kind: task
 ---
 
 ## Что измерено (цикл #858, ADR-714)

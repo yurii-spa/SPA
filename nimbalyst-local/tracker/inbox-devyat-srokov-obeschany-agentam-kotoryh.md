@@ -5,6 +5,7 @@ title: Девять сроков обещаны агентам, которых �
 status: new
 source: nimbalyst
 created: 2026-10-26
+intake_kind: task
 ---
 
 ## Что измерено

@@ -9,6 +9,7 @@ acceptance_probe: free_move_priced_as_free
 status_trail:
   - "2026-09-15T15:48:52.406171+00:00 new -> in-progress · queue.set_status · cycle-9869"
   - "2026-09-15T16:07:18.145509+00:00 in-progress -> done · queue.set_status · cycle-9869"
+intake_kind: task
 ---
 
 ## Что это и откуда

@@ -8,6 +8,7 @@ acceptance_probe: file_overlap_claim_measures_the_worker
 status_trail:
   - "2026-10-14T17:10:08.635696+00:00 new -> in-progress · queue.set_status · cycle-79433"
   - "2026-10-14T17:29:56.140127+00:00 in-progress -> done · queue.set_status/closed_by:cycle-79433/evidence:ADR-723; проба file_overlap_claim_measures_the_worker = satisfied, на чистом origin/main b726e7b86 = not_satisfied (положительный контроль); батареи test_card_claim_file_overlap_worker.py (17) + test_ · cycle-79433"
+intake_kind: task
 ---
 
 ## Находка (измерена циклом #866, 2026-10-14)

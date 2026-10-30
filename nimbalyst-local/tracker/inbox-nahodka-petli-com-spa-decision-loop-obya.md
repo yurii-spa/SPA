@@ -6,6 +6,7 @@ status: new
 source: nimbalyst
 created: 2026-10-29
 finding_key: "B7:contradiction:com.spa.decision_loop"
+intake_kind: task
 ---
 
 Находка петли ADR-066 (architecture_conformance, WARN, подтверждена 2 прогонами подряд):

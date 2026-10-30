@@ -5,6 +5,7 @@ title: "Перепись падает KeyError, когда файл соседс
 status: new
 source: nimbalyst
 created: 2026-09-24
+intake_kind: task
 ---
 
 ## Что случилось

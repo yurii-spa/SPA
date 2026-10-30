@@ -9,6 +9,7 @@ acceptance_probe: owner_protocols_report_reaches_the_owner
 status_trail:
   - "2026-10-13T02:28:50.268164+00:00 new -> in-progress · queue.set_status · cycle-62018"
   - "2026-10-13T03:24:28.703062+00:00 in-progress -> done · queue.set_status/closed_by:cycle-62018/evidence:проба owner_protocols_report_reaches_the_owner на живом data/ прод-дерева = satisfied (живой вход 46/46 строк, раздутый 80/80 в 2 кусках, по умолчанию 46/46, усечено 0); до работы та же проба давала n · cycle-62018"
+intake_kind: task
 ---
 
 ## Что измерено (цикл #854, ADR-710)

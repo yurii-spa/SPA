@@ -5,6 +5,7 @@ title: Потерю ТЕЛА записи цикла не ловит ничто 
 status: new
 source: nimbalyst
 created: 2026-10-13
+intake_kind: task
 ---
 
 ## Что измерено (цикл #858, ADR-714)

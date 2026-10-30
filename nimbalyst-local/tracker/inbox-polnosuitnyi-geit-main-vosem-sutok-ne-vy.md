@@ -4,6 +4,7 @@ trackerStatus:
 title: "Полносуитный гейт main восемь суток не выносит вердикта вообще: 100 прогонов SPA CI подряд — все cancelled"
 status: new
 created: 2026-10-16
+intake_kind: task
 ---
 
 ## Что случилось и почему это важно

@@ -5,6 +5,7 @@ title: Храповик литеральных дат не видит ТРЕТЬ
 status: new
 source: nimbalyst
 created: 2026-10-18
+intake_kind: task
 ---
 
 ## Что измерено (цикл #897, 2026-10-18)

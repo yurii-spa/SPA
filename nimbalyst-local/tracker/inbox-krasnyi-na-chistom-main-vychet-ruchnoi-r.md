@@ -5,6 +5,7 @@ title: "Красный на чистом main: вычет «ручной R&D» �
 status: new
 source: nimbalyst
 created: 2026-10-13
+intake_kind: task
 ---
 
 ## Что случилось и почему это важно

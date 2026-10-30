@@ -5,6 +5,7 @@ title: Шаг 0-офис идёт 5 минут при пределе 180 с — 
 status: new
 source: nimbalyst
 created: 2026-10-09
+intake_kind: task
 ---
 
 ## Что случилось и почему это важно

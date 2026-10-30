@@ -15,6 +15,7 @@ acceptance_probe: no_regression_record_is_produced_without_a_hand
 status_trail:
   - "2026-10-23T09:50:49.758673+00:00 new -> in-progress · queue.set_status · cycle-84431"
   - "2026-10-23T12:07:09.686243+00:00 in-progress -> done · queue.set_status/closed_by:cycle-84431/evidence:ADR-790 на origin/main 3084bed6. Проба no_regression_record_is_produced_without_a_hand: satisfied (перемерена шагом 0-офис — «🟩 КРИТЕРИЙ ВЫПОЛНЕН»), против ПРОДА ДО доставки была not_satisfied дословн · cycle-84431"
+intake_kind: task
 ---
 
 ## Что случилось и почему это важно

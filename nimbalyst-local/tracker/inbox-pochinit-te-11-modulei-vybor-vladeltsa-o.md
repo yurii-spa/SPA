@@ -5,6 +5,7 @@ title: Починить те 11 модулей — выбор владельца
 status: new
 source: nimbalyst
 created: 2026-09-18
+intake_kind: task
 ---
 
 ## Находка

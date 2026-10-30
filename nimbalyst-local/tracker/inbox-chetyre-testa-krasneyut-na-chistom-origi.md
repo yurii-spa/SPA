@@ -5,6 +5,7 @@ title: Четыре теста краснеют на чистом origin/main bb
 status: new
 source: nimbalyst
 created: 2026-10-08
+intake_kind: task
 ---
 
 ## Замер (цикл #808, 08.10, ДВА дерева)

@@ -5,6 +5,7 @@ title: Объявитель пишет безымянный захват и не
 status: new
 source: nimbalyst
 created: 2026-10-08
+intake_kind: task
 ---
 
 ## Что измерено (цикл #803, ADR-647, 08.10)

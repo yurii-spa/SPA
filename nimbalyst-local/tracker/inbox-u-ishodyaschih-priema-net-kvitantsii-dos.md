@@ -8,6 +8,7 @@ created: 2026-10-29
 priority: medium
 finding_adr: ADR-863
 finding_cycle: 980
+intake_kind: task
 ---
 
 ## Что случилось и почему это важно

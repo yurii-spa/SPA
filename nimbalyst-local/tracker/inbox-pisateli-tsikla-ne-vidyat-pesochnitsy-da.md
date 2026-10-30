@@ -7,6 +7,7 @@ source: nimbalyst
 created: 2026-10-28
 priority: medium
 finding_adr: ADR-850
+intake_kind: task
 ---
 
 ## Что случилось и почему это важно

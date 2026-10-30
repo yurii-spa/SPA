@@ -5,6 +5,7 @@ title: "РЕШЕНИЕ АГЕНТА (не вопрос владельцу): ве
 status: new
 source: nimbalyst
 created: 2026-10-08
+intake_kind: note
 ---
 
 ## Почему это карточка-задание, а не вопрос владельцу

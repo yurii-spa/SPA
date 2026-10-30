@@ -8,6 +8,7 @@ created: 2026-10-01
 acceptance_probe: named_cards_closed_at_origin:inbox-dvenadtsat-otvetov-vladeltsa-stoyat-v-ow
 status_trail:
   - "2026-10-03T03:56:47.054937+00:00 new -> done · queue.set_status · cycle-63205"
+intake_kind: task
 ---
 
 ## Находка (замер цикла #744, 2026-10-01)

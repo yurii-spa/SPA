@@ -8,6 +8,7 @@ created: 2026-09-30
 acceptance_probe: owner_control_plane_reachable
 status_trail:
   - "2026-10-08T18:03:34.335951+00:00 new -> done · queue.set_status/closed_by:cycle-807 (оркестратор)/evidence:машинная проба owner_control_plane_reachable (зарегистрирована этим же циклом, ADR-662) отвечает satisfied: умение alert_actions объявлено, маячок возрастом 0.1 мин при пределе 6 ч; область OWNER_CONT · cycle-53970"
+intake_kind: task
 ---
 
 ## Задание (из Telegram)
