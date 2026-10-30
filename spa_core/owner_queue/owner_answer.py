@@ -174,10 +174,14 @@ def status_for_answer(kind: str, choice_num: str) -> str:
 def _write_answer(path, *, choice_num: str, choice_label: str, answered_by, via: str, kind: str,
                   now: Optional[datetime], verdict_override: Optional[str] = None,
                   source: str = "owner_answer.record_owner_answer",
-                  extra_fields: Optional[dict] = None) -> dict:
+                  extra_fields: Optional[dict] = None,
+                  expected_question_version: Optional[str] = None) -> dict:
     """Общая запись ответа владельца в карточку (поля, статус, раздел, след перехода)."""
     p = Path(path)
     text = p.read_text(encoding="utf-8")
+    # R3: читаем и сверяем под ТОЙ ЖЕ блокировкой, что держит запись (декоратор card_writer).
+    if expected_question_version is not None and question_version(text) != expected_question_version:
+        raise QuestionChanged(f"{p.name}: вопрос изменился после показа владельцу — ответ не записан")
     fm_lines, _body = _split_frontmatter(text)
     if not fm_lines:
         raise ValueError(f"{p}: no frontmatter to update")
@@ -268,8 +272,13 @@ def record_owner_answer(
     via: str = "telegram",
     kind: str = KIND_OPTION,
     now: Optional[datetime] = None,
+    expected_question_version: Optional[str] = None,
 ) -> dict:
     """Записать решение владельца в карточку и перевести её в статус ЕГО ответа.
+
+    ``expected_question_version`` — версия вопроса, ПОКАЗАННОГО владельцу. Задана ⇒ сверяется
+    внутри записи под общей блокировкой; не совпала ⇒ :class:`QuestionChanged`, запись не
+    делается. ``None`` (записи до R3) — сверки нет: названный предел, а не подтверждённая свежесть.
 
     Куда именно — решает :func:`status_for_answer`: выбор варианта и «не надо»
     закрывают карточку (``owner-done``), «принято — беру в работу» переводит её в
@@ -294,7 +303,8 @@ def record_owner_answer(
         )
 
     return _write_answer(path, choice_num=choice_num, choice_label=choice_label,
-                         answered_by=actor_chat_id, via=via, kind=kind, now=now)
+                         answered_by=actor_chat_id, via=via, kind=kind, now=now,
+                         expected_question_version=expected_question_version)
 
 
 SESSION_VIA = "claude-code-session"
@@ -309,6 +319,14 @@ SESSION_REGISTER_SCHEMA = "owner-session-answers/1"
 TRUST_OPERATOR_IMPORT = "operator-import"
 #: Что поле карточки говорит об исполнении выбранной работы: ответ закрывает ВОПРОС, работу — нет.
 EXECUTION_SEPARATE = "separate-task"
+
+
+class QuestionChanged(ValueError):
+    """Вопрос карточки изменился после показа владельцу — ответ НЕ записан (R3, ADR-857).
+
+    Сверка идёт ВНУТРИ транзакции записи (под общей блокировкой карточки, после чтения и до
+    замены): согласие, данное на прежний текст, к новому не применяется.
+    """
 
 
 class SessionAnswerRefused(NotTheOwner):

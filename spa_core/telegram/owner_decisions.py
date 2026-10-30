@@ -2204,11 +2204,22 @@ def register_push(
         "buttons": prep.keyboard is not None,
         # STUDIO-AUTONOMY-01 E3.4 (ADR-857): версия ВОПРОСА, который владелец увидел. Нажатие
         # сверяет её с карточкой в момент записи: вопрос изменился ⇒ старый ответ не пишется.
-        "question_sha256": _question_version_of(p),
+        # R3: версия ПОКАЗАННОГО владельцу текста (``body`` — из него собрано сообщение),
+        # а не нового чтения файла (замер 30.10: на 346 карточках версии совпадают).
+        "question_sha256": _question_version_of_text(body),
         "choice": None,
     })
     _save(doc, path_obj)
     return prep
+
+
+def _question_version_of_text(text) -> Optional[str]:
+    """Версия вопроса по ТЕКСТУ, из которого собрано сообщение; не посчитали — None."""
+    try:
+        from spa_core.owner_queue.owner_answer import question_version
+        return question_version(str(text))
+    except Exception:  # noqa: BLE001 — «не измерено», а не выдуманная версия
+        return None
 
 
 def _question_version_of(card) -> Optional[str]:
@@ -2286,6 +2297,8 @@ class Heal:
     options: List[ParsedOption] = field(default_factory=list)
     #: Досылка — подтверждение поручения, а не выбор варианта.
     ack: bool = False
+    #: R3: версия вопроса, из ТОГО ЖЕ чтения карточки, из которого собран ``text``.
+    question_sha256: Optional[str] = None
 
 
 def _heal_prepare(path: Path, *, now: Optional[datetime],
@@ -2386,7 +2399,8 @@ def buttonless_pushes(
         out.append(Heal(pid=prep.pid, card=str(path),
                         text=HEAL_PREFIX + "\n\n" + prep.text,
                         keyboard=prep.keyboard,
-                        options=list(prep.options), ack=prep.ack))
+                        options=list(prep.options), ack=prep.ack,
+                        question_sha256=_question_version_of_text(card.body or "")))
     return out
 
 
@@ -2529,6 +2543,7 @@ def mark_buttons_delivered(
     ack: Optional[bool] = None,
     now: Optional[datetime] = None,
     state_path: Optional[str | Path] = None,
+    question_sha256: Optional[str] = None,
 ) -> bool:
     """Записать, что кнопки к решению ``pid`` всё-таки доставлены. Идемпотентно.
 
@@ -2555,9 +2570,12 @@ def mark_buttons_delivered(
             if options is not None:
                 rec["options"] = [{"num": o.num, "label": o.label,
                                    "recommended": o.recommended} for o in options]
-            if (options is not None or ack is not None) and rec.get("card"):
-                # Досылка показывает владельцу ТЕКУЩИЙ вопрос — его версия и есть отправленная.
-                rec["question_sha256"] = _question_version_of(rec["card"])
+            if options is not None or ack is not None:
+                # R3: версия ДОСЛАННОГО текста приходит от того, кто его собрал. Нового чтения
+                # карточки здесь нет: оно могло бы увидеть уже изменённый вопрос и привязать
+                # согласие на старый текст к новому. Не передали ⇒ версии нет (сверки нет —
+                # названный предел), а не выдуманная версия.
+                rec["question_sha256"] = question_sha256
             if ack is not None:
                 rec["ack"] = bool(ack)
             _remember_message_id(rec, message_id_of(message_id))
@@ -2593,6 +2611,7 @@ def heal_buttonless(
                 continue  # не отправилось ⇒ отметку не ставим, попробуем в следующий раз
             if mark_buttons_delivered(heal.pid, message_id=message_id_of(ok),
                                       options=heal.options, ack=heal.ack,
+                                      question_sha256=heal.question_sha256,
                                       now=now, state_path=state_path):
                 fixed.append(heal.pid)
     except Exception:  # noqa: BLE001
@@ -2614,7 +2633,8 @@ def record_choice(
     Возвращает словарь с ``ok`` и ``reason``; отказ — это нормальный ответ, а не авария:
     сообщение владельцу должно быть человеческим при любом исходе.
     """
-    from spa_core.owner_queue.owner_answer import NotTheOwner, record_owner_answer
+    from spa_core.owner_queue.owner_answer import (NotTheOwner, QuestionChanged,
+                                                   record_owner_answer)
 
     path_obj = _state_path(state_path)
     doc = _load(path_obj)
@@ -2658,6 +2678,7 @@ def record_choice(
     # E3.4: ответ относится к той версии вопроса, что была отправлена. Записи до правки версию не
     # несут — для них сверка не проводится (названный предел), а не выдумывается.
     sent_version = rec.get("question_sha256")
+    # Быстрый отказ до записи; РЕШАЮЩАЯ сверка — внутри транзакции записи (R3, ниже).
     if sent_version and _question_version_of(card_path) != sent_version:
         return {"ok": False, "reason": "question_changed", "card": str(card_path)}
 
@@ -2670,7 +2691,10 @@ def record_choice(
             owner_chat_id=owner_chat_id,
             kind=kind,
             now=now,
+            expected_question_version=sent_version or None,
         )
+    except QuestionChanged:
+        return {"ok": False, "reason": "question_changed", "card": str(card_path)}
     except NotTheOwner:
         return {"ok": False, "reason": "not_owner", "card": str(card_path)}
     except Exception as exc:  # noqa: BLE001 — сбой записи не имеет права ронять бота

@@ -397,17 +397,50 @@ def test_nested_write_in_the_same_thread_does_not_deadlock(tmp_path):
     assert "status: in-progress" in card.read_text()
 
 
-def test_every_mapped_card_editor_carries_the_shared_lock():
-    import inspect
-    from spa_core.owner_queue import cockpit_loop, intake, owner_answer
+def _hold_lock(card, held, hold_s):
+    import time
+    with q.card_write_lock(card):
+        held.set()
+        time.sleep(hold_s)
+
+
+def test_every_mapped_card_editor_waits_for_the_shared_lock(tmp_path):
+    """ПОВЕДЕНИЕ, а не пометка (R1): пока другой процесс держит общую блокировку карточки,
+    писатель ждёт — запись не происходит раньше, чем блокировка отпущена."""
+    import time
+    from datetime import datetime, timezone
+    from spa_core.owner_queue import cockpit_loop, intake
+    guard = _guard()
+    writers = {
+        "cockpit_loop._set_fields": lambda c: cockpit_loop._set_fields(c, {"dispatch": "taken"}),
+        "intake._stamp_seen": lambda c: intake._stamp_seen(c, datetime(2026, 10, 30, tzinfo=timezone.utc)),
+        "check_card_claim._atomic_write": lambda c: guard._atomic_write(c, Path(c).read_text() + "x\n"),
+        "queue.set_acceptance_probe": lambda c: q.set_acceptance_probe(c, "tier_promotion_loop_closed"),
+    }
+    ctx = mp.get_context("fork")
+    for name, write in writers.items():
+        card = tmp_path / f"agent-{name.replace('.', '-')}.md"
+        card.write_text(_CARD)
+        held = ctx.Event()
+        holder = ctx.Process(target=_hold_lock, args=(str(card), held, 1.0))
+        holder.start()
+        assert held.wait(10)
+        t0 = time.monotonic()
+        before = card.read_bytes()
+        try:
+            write(card)
+        except Exception:  # noqa: BLE001 — предмет теста ожидание, а не принятие правки
+            pass
+        waited = time.monotonic() - t0
+        holder.join(10)
+        assert waited >= 0.7, f"{name} не ждал общую блокировку ({waited:.2f} с)"
+        del before
+    # Писатели, чью запись в изоляции не поднять, держат ту же пометку протокола.
+    from spa_core.owner_queue import owner_answer
     from spa_core.telegram import owner_decisions
-    for fn in (cockpit_loop._set_fields, intake._stamp_seen, owner_answer._write_answer,
-               owner_decisions.refresh_live_copy_from_ref):
+    for fn in (owner_answer._write_answer, owner_decisions.refresh_live_copy_from_ref,
+               owner_decisions.materialize_card):
         assert getattr(fn, "__card_writer__", False), fn.__name__
-    assert "card_write_lock(target)" in inspect.getsource(owner_decisions.materialize_card)
-    src = (REPO / "scripts" / "check_card_claim.py").read_text(encoding="utf-8")
-    assert "with card_write_lock(path):" in src
-    assert "_card_write_lock(path, expected_revision)" in inspect.getsource(q.set_status)
 
 
 # ── E2 (writer_map п. 4): создание карточки — имя занимается одним атомарным шагом ──────────────
@@ -475,6 +508,7 @@ def test_gate_closed_on_the_live_tracker_open_on_a_copy_and_open_at_full_coverag
     monkeypatch.setattr(q, "TRACKER_DIR", live)                         # живой трекер — подменён на tmp
     closed = q.shared_tracker_operation_gate("op", live)
     assert closed["allowed"] is False and "repair_phantom_intake_cards.py::repair" in closed["why"]
+    (tmp_path / "copy").mkdir()
     assert q.shared_tracker_operation_gate("op", tmp_path / "copy")["allowed"] is True
     monkeypatch.setattr(q, "CARD_WRITERS", tuple(w for w in q.CARD_WRITERS
                                                  if not w[0].endswith("repair_phantom_intake_cards.py")))
@@ -536,3 +570,328 @@ def test_create_exclusive_does_not_overwrite_a_name_taken_after_the_check(tmp_pa
     assert q._create_exclusive(target, "мой текст") is False
     assert target.read_text() == "сосед успел первым"
     assert not list(tmp_path.glob("*.tmp"))
+
+
+# ── R1 (ARB 30.10): общий протокол охватывает ЧТЕНИЕ → проверку → запись у claim/release ─────────
+def _guard():
+    import importlib.util
+    spec = importlib.util.spec_from_file_location(
+        "_r1_guard", Path(q.__file__).resolve().parents[2] / "scripts" / "check_card_claim.py")
+    mod = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(mod)
+    return mod
+
+
+class _QuietAnnouncer:
+    """Фиктивный объявитель: общий журнал объявлений в тесте не трогается."""
+    RUN_ID_FIELD = "run_id"
+
+    def record(self, **kw):
+        return None
+
+
+def _pause_after_read(guard, read_done, hold_s=1.0):
+    """Управляемая точка МЕЖДУ чтением карточки и заменой: сигнал соседу и пауза."""
+    import time
+    real = guard._set_claim_fields
+
+    def paused(text, values):
+        read_done.set()
+        time.sleep(hold_s)
+        return real(text, values)
+    guard._set_claim_fields = paused
+
+
+def _protocol_editor(card, read_done, out):
+    """Сторонний писатель на общем протоколе: правит карточку, как только сосед прочитал её."""
+    assert read_done.wait(20)
+    with q.card_write_lock(card):
+        text = Path(card).read_text(encoding="utf-8")
+        Path(card).write_text(text.replace("---\n\n", "owner_note: changed-by-owner\n---\n\n", 1)
+                              if "---\n\n" in text else text + "\nowner_note: changed-by-owner\n",
+                              encoding="utf-8")
+    out.put("edited")
+
+
+_HELD = ("---\ntrackerStatus:\n  type: inbox\ntitle: t\nstatus: in-progress\n"
+         "claimed_by: me\nclaimed_at: 2026-10-30T08:00:00Z\n---\n\nтело\n")
+
+
+def _releaser(card, tracker, log, read_done, out):
+    guard = _guard()
+    _pause_after_read(guard, read_done)
+    res = guard.release_card(card, log=log, session="me", tracker_dir=tracker, self_anchor=None,
+                             announcer=_QuietAnnouncer())
+    out.put("released" if res.get("released") else f"not released {res}")
+
+
+def test_release_card_does_not_overwrite_a_protocol_writer_between_read_and_replace(tmp_path):
+    tracker = tmp_path / "tracker"
+    tracker.mkdir()
+    card = tracker / "inbox-r1.md"
+    card.write_text(_HELD, encoding="utf-8")
+    log = tmp_path / "log.jsonl"
+    log.write_text("")
+    ctx = mp.get_context("fork")
+    read_done, out = ctx.Event(), ctx.Queue()
+    ps = [ctx.Process(target=_releaser, args=(str(card), tracker, log, read_done, out)),
+          ctx.Process(target=_protocol_editor, args=(str(card), read_done, out))]
+    for p in ps:
+        p.start()
+    for p in ps:
+        p.join(60)
+    assert sorted(out.get(timeout=5) for _ in ps) == ["edited", "released"]
+    text = card.read_text(encoding="utf-8")
+    assert "owner_note: changed-by-owner" in text, "правка стороннего писателя затёрта"
+    assert "claimed_by" not in text                                     # и снятие на месте
+
+
+def _claimer(tracker, log, read_done, out):
+    from spa_core.tests import test_card_claim_frontmatter_release as sc
+    guard = _guard()
+    _pause_after_read(guard, read_done)
+    guard.claim_card(tracker / f"{sc.CARD}.md", log=log, tracker_dir=tracker,
+                     sibling=guard.load_sibling(), session="cycle-808", now=sc.NOW,
+                     grace_hours=3.0, ps=sc.DEAD, self_anchor=sc.SELF_ANCHOR,
+                     announcer=_QuietAnnouncer())
+    out.put("claimed")
+
+
+def test_claim_card_does_not_overwrite_a_protocol_writer_between_read_and_replace(tmp_path):
+    from spa_core.tests import test_card_claim_frontmatter_release as sc
+    tracker = tmp_path / "tracker"
+    tracker.mkdir()
+    log = tmp_path / "session_changes.jsonl"
+    sc._scene(tracker, log)
+    card = tracker / f"{sc.CARD}.md"
+    ctx = mp.get_context("fork")
+    read_done, out = ctx.Event(), ctx.Queue()
+    ps = [ctx.Process(target=_claimer, args=(tracker, log, read_done, out)),
+          ctx.Process(target=_protocol_editor, args=(str(card), read_done, out))]
+    for p in ps:
+        p.start()
+    for p in ps:
+        p.join(60)
+    assert sorted(out.get(timeout=5) for _ in ps) == ["claimed", "edited"]
+    text = card.read_text(encoding="utf-8")
+    assert "owner_note: changed-by-owner" in text, "правка стороннего писателя затёрта"
+    assert "claimed_by: cycle-808" in text
+
+
+def test_missing_protocol_refuses_before_any_write(tmp_path, monkeypatch):
+    guard = _guard()
+    tracker = tmp_path / "tracker"
+    tracker.mkdir()
+    card = tracker / "inbox-r1.md"
+    card.write_text(_HELD, encoding="utf-8")
+    before = card.read_bytes()
+    monkeypatch.setitem(sys.modules, "spa_core.owner_queue.queue", None)   # import ⇒ ImportError
+    with pytest.raises(guard.SharedProtocolUnavailable):
+        guard.release_card(card, log=tmp_path / "log.jsonl", session="me", tracker_dir=tracker,
+                           self_anchor=None, announcer=_QuietAnnouncer())
+    with pytest.raises(guard.SharedProtocolUnavailable):
+        guard._atomic_write(card, "затёрто")
+    assert card.read_bytes() == before
+    assert sorted(p.name for p in tracker.iterdir()) == [card.name]     # и временных файлов нет
+
+
+# ── R2 (ARB 30.10): неизвестный корень — не испытательная копия ────────────────────────────────
+def test_unknown_root_outside_temp_is_refused(tmp_path):
+    outside = Path.home() / ".spa_r2_never_created_dir"
+    gate = q.shared_tracker_operation_gate("op", outside)
+    assert gate["allowed"] is False and "вне временного каталога" in gate["why"]
+
+
+def test_changing_the_configured_tracker_does_not_make_the_repo_tracker_a_copy(monkeypatch, tmp_path):
+    monkeypatch.setattr(q, "TRACKER_DIR", tmp_path / "configured")
+    repo_tracker = Path(q.__file__).resolve().parents[2] / "nimbalyst-local" / "tracker"
+    gate = q.shared_tracker_operation_gate("op", repo_tracker)
+    assert gate["allowed"] is False                                     # рабочий корень, охват неполон
+    assert "охват писателей" in gate["why"]
+
+
+def test_symlink_into_a_production_root_is_refused(tmp_path, monkeypatch):
+    prod = tmp_path / "prod_tracker"
+    prod.mkdir()
+    monkeypatch.setattr(q, "TRACKER_DIR", prod)
+    link = tmp_path / "looks_like_a_copy"
+    link.symlink_to(prod)
+    assert q.shared_tracker_operation_gate("op", link)["allowed"] is False
+
+
+def test_copy_containing_a_production_root_is_refused(tmp_path, monkeypatch):
+    outer = tmp_path / "outer"
+    (outer / "inner_prod").mkdir(parents=True)
+    monkeypatch.setattr(q, "TRACKER_DIR", outer / "inner_prod")
+    gate = q.shared_tracker_operation_gate("op", outer)
+    assert gate["allowed"] is False and "пересекается" in gate["why"]
+
+
+def test_card_links_break_isolation(tmp_path):
+    work = tmp_path / "work"
+    work.mkdir()
+    (work / "agent-a.md").write_text(_CARD)
+    copy = tmp_path / "copy"
+    copy.mkdir()
+    import os
+    os.link(work / "agent-a.md", copy / "agent-a.md")                  # жёсткая ссылка на «рабочий» файл
+    gate = q.shared_tracker_operation_gate("op", copy)
+    assert gate["allowed"] is False and "жёсткая ссылка" in gate["why"]
+    copy2 = tmp_path / "copy2"
+    copy2.mkdir()
+    (copy2 / "agent-a.md").symlink_to(work / "agent-a.md")
+    assert q.shared_tracker_operation_gate("op", copy2)["allowed"] is False
+    clean = tmp_path / "clean"
+    clean.mkdir()
+    (clean / "agent-a.md").write_text(_CARD)
+    assert q.shared_tracker_operation_gate("op", clean)["allowed"] is True   # положительный контроль
+
+
+# ── R3 (ARB 30.10): версия вопроса сверяется ВНУТРИ транзакции записи ответа ────────────────────
+_Q_NEW = _Q.replace("X.", "X изменён после показа владельцу.")
+
+
+def test_question_changed_after_the_fast_check_is_refused_inside_the_write(tmp_path, monkeypatch):
+    """Детерминированная гонка: быстрая сверка прошла, вопрос изменён ДО записи."""
+    from spa_core.owner_queue.owner_answer import question_version
+    from spa_core.telegram import owner_decisions as od
+    card = tmp_path / "owner-decision-q.md"
+    card.write_text(_Q)
+    journal = _push_journal(tmp_path, card, question_version(_Q))
+    real = od._question_version_of
+
+    def check_then_change(c):
+        v = real(c)                                                     # быстрая сверка видит старый вопрос
+        with q.card_write_lock(card):                                   # сосед на общем протоколе меняет его
+            card.write_text(_Q_NEW)
+        return v
+    monkeypatch.setattr(od, "_question_version_of", check_then_change)
+    res = od.record_choice("p1", "1", "42", owner_chat_id="42", state_path=journal)
+    assert res == {"ok": False, "reason": "question_changed", "card": str(card)}
+    assert card.read_text() == _Q_NEW                                   # правка соседа цела, ответа нет
+    assert json.loads(journal.read_text())["pushes"][0]["choice"] is None
+
+
+def _change_question_while_press_waits(card, go, out):
+    assert go.wait(20)
+    with q.card_write_lock(card):
+        Path(card).write_text(_Q_NEW)
+    out.put("changed")
+
+
+def _press_after_fast_check(card, journal, go, out):
+    import time
+    from spa_core.telegram import owner_decisions as od
+    real = od._question_version_of
+
+    def check_then_wait(c):
+        v = real(c)
+        go.set()                                                        # сосед меняет вопрос
+        time.sleep(1.0)
+        return v
+    od._question_version_of = check_then_wait
+    out.put(od.record_choice("p1", "1", "42", owner_chat_id="42", state_path=journal)["reason"]
+            if True else None)
+
+
+def test_two_processes_question_change_between_press_and_write_is_not_answered(tmp_path):
+    from spa_core.owner_queue.owner_answer import question_version
+    card = tmp_path / "owner-decision-q.md"
+    card.write_text(_Q)
+    journal = _push_journal(tmp_path, card, question_version(_Q))
+    ctx = mp.get_context("fork")
+    go, out = ctx.Event(), ctx.Queue()
+    ps = [ctx.Process(target=_press_after_fast_check, args=(str(card), journal, go, out)),
+          ctx.Process(target=_change_question_while_press_waits, args=(str(card), go, out))]
+    for p in ps:
+        p.start()
+    for p in ps:
+        p.join(60)
+    assert sorted(out.get(timeout=5) for _ in ps) == ["changed", "question_changed"]
+    assert Path(card).read_text() == _Q_NEW and "owner_choice" not in Path(card).read_text()
+
+
+def test_heal_records_the_version_of_the_text_it_sent_not_a_fresh_read(tmp_path, monkeypatch):
+    """Фиктивный отправитель меняет карточку во время отправки досылки: в журнал уходит
+    версия ОТПРАВЛЕННОГО текста, и нажатие по ней на изменённый вопрос — отказ."""
+    from spa_core.owner_queue.owner_answer import question_version
+    from spa_core.telegram import owner_decisions as od
+    card = tmp_path / "owner-decision-q.md"
+    card.write_text(_Q)
+    journal = _push_journal(tmp_path, card, None)
+    sent_version = question_version(_Q)
+    heal = od.Heal(pid="p1", card=str(card), text="досылка: " + _Q, keyboard={"k": 1},
+                   options=[od.ParsedOption(num="1", label="Да", recommended=False)],
+                   ack=False, question_sha256=sent_version)
+    monkeypatch.setattr(od, "buttonless_pushes", lambda **kw: [heal])
+    sent = []
+
+    def fake_send(text, keyboard):
+        sent.append(text)
+        card.write_text(_Q_NEW)                                         # вопрос изменился ВО ВРЕМЯ отправки
+        return {"message_id": 7}
+    assert od.heal_buttonless(fake_send, state_path=journal) == ["p1"]
+    rec = json.loads(journal.read_text())["pushes"][0]
+    assert rec["question_sha256"] == sent_version != question_version(_Q_NEW)
+    res = od.record_choice("p1", "1", "42", owner_chat_id="42", state_path=journal)
+    assert res["reason"] == "question_changed" and "owner_choice" not in card.read_text()
+
+
+def test_heal_built_from_the_card_body_carries_that_bodys_version(tmp_path):
+    from spa_core.owner_queue.owner_answer import question_version
+    from spa_core.owner_queue.queue import load_card
+    from spa_core.telegram import owner_decisions as od
+    card = tmp_path / "owner-decision-q.md"
+    card.write_text(_Q)
+    assert od._question_version_of_text(load_card(card).body) == question_version(_Q)
+
+
+def test_register_push_versions_the_shown_body(tmp_path, monkeypatch):
+    from spa_core.owner_queue.owner_answer import question_version
+    from spa_core.owner_queue.queue import load_card
+    from spa_core.telegram import owner_decisions as od
+    card = tmp_path / "owner-decision-q.md"
+    card.write_text(_Q)
+    journal = tmp_path / "pushes.json"
+    monkeypatch.setattr(od, "materialize_card", lambda p, live_root=None: Path(p))
+    shown = load_card(card).body
+    card.write_text(_Q_NEW)                                             # файл уже другой, показан — прежний
+    od.register_push(card, "Вопрос", shown, state_path=journal, beacon_path=tmp_path / "no_beacon.json")
+    rec = json.loads(journal.read_text())["pushes"][-1]
+    assert rec["question_sha256"] == question_version(_Q) != question_version(_Q_NEW)
+
+
+def test_legacy_record_without_version_is_a_named_limit_not_invented_consent(tmp_path):
+    from spa_core.telegram import owner_decisions as od
+    card = tmp_path / "owner-decision-q.md"
+    card.write_text(_Q)
+    journal = _push_journal(tmp_path, card, None)
+    rec = json.loads(journal.read_text())["pushes"][0]
+    assert rec["question_sha256"] is None                               # версия не выдумывается
+    res = od.record_choice("p1", "1", "42", owner_chat_id="42", state_path=journal)
+    assert res["ok"] is True                                            # предел: сверки нет (ADR-857)
+    assert json.loads(journal.read_text())["pushes"][0].get("question_sha256") is None
+
+
+def test_claim_with_missing_protocol_is_refused_before_it_is_announced(tmp_path, monkeypatch):
+    from spa_core.tests import test_card_claim_frontmatter_release as sc
+    guard = _guard()
+    tracker = tmp_path / "tracker"
+    tracker.mkdir()
+    log = tmp_path / "session_changes.jsonl"
+    sc._scene(tracker, log)
+    card = tracker / f"{sc.CARD}.md"
+    before = card.read_bytes()
+    calls = []
+
+    class _Recording(_QuietAnnouncer):
+        def record(self, **kw):
+            calls.append(kw)
+    sibling = guard.load_sibling()
+    monkeypatch.setitem(sys.modules, "spa_core.owner_queue.queue", None)
+    with pytest.raises(guard.SharedProtocolUnavailable):
+        guard.claim_card(card, log=log, tracker_dir=tracker, sibling=sibling,
+                         session="cycle-808", now=sc.NOW, grace_hours=3.0, ps=sc.DEAD,
+                         self_anchor=sc.SELF_ANCHOR, announcer=_Recording())
+    assert calls == [], "захват объявлен, хотя записать его нельзя"
+    assert card.read_bytes() == before

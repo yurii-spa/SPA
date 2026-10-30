@@ -1205,19 +1205,75 @@ def card_writer_coverage(writers=CARD_WRITERS) -> dict:
             "complete": not uncovered and not unmeasured}
 
 
+def _production_tracker_roots() -> list:
+    """Корни, которые НИКОГДА не испытательная копия: заданный трекер, трекер этого репозитория
+    и трекер прод-дерева. Смена ``SPA_TRACKER_DIR`` не делает остальные из них безопасными."""
+    roots = [Path(TRACKER_DIR), _REPO_ROOT / "nimbalyst-local" / "tracker",
+             Path.home() / "Documents" / "SPA_Claude" / "nimbalyst-local" / "tracker"]
+    out = []
+    for r in roots:
+        try:
+            out.append(Path(os.path.realpath(r)))
+        except OSError:
+            continue
+    return out
+
+
+def _is_within(child: Path, parent: Path) -> bool:
+    try:
+        child.relative_to(parent)
+        return True
+    except ValueError:
+        return False
+
+
+def tracker_isolation(tracker_dir: str | Path) -> dict:
+    """Подтверждена ли изоляция каталога трекера как ИСПЫТАТЕЛЬНОЙ копии (R2, ADR-857).
+
+    ``isolated`` — только при всех условиях: реальный путь (symlink раскрыт) внутри системного
+    временного каталога; ни один рабочий корень не совпадает с ним и не лежит внутри/снаружи
+    него; ни одна карточка не symlink и не имеет второй жёсткой ссылки (иначе запись по копии
+    меняет рабочий файл). Не смогли проверить ⇒ ``isolated=False`` с названной причиной.
+    """
+    import tempfile as _tempfile
+    try:
+        real = Path(os.path.realpath(tracker_dir))
+        tmp_root = Path(os.path.realpath(_tempfile.gettempdir()))
+    except OSError as exc:
+        return {"isolated": False, "why": f"путь не разобран: {exc}"}
+    if not _is_within(real, tmp_root) or real == tmp_root:
+        return {"isolated": False, "why": f"{real} вне временного каталога {tmp_root} — изоляция не подтверждена"}
+    for root in _production_tracker_roots():
+        if real == root or _is_within(real, root) or _is_within(root, real):
+            return {"isolated": False, "why": f"{real} пересекается с рабочим трекером {root}"}
+    try:
+        for entry in os.scandir(real):
+            if not entry.name.endswith(".md"):
+                continue
+            if entry.is_symlink():
+                return {"isolated": False, "why": f"{entry.name} — symlink"}
+            if entry.stat(follow_symlinks=False).st_nlink != 1:
+                return {"isolated": False, "why": f"{entry.name} — у файла есть другая жёсткая ссылка"}
+    except OSError as exc:
+        return {"isolated": False, "why": f"каталог не прочитан: {exc}"}
+    return {"isolated": True, "why": f"испытательная копия: {real} внутри {tmp_root}, рабочих корней и ссылок нет"}
+
+
 def shared_tracker_operation_gate(operation: str, tracker_dir: str | Path) -> dict:
     """Опасная общая операция над трекером (массовый переход, ремонт ``--apply``).
 
-    Временная копия трекера — испытательный стенд E2.6 и открыта. Живой трекер (``TRACKER_DIR``)
-    открыт только при ПОЛНОМ охвате писателей: неподключённый писатель мог бы потерять её
-    запись молча. Отказ не снимается флагом — снимается переводом писателя на протокол.
+    Три класса каталога (R2): РАБОЧИЙ трекер — открыт только при ПОЛНОМ охвате писателей;
+    ИСПЫТАТЕЛЬНАЯ копия — открыта лишь при подтверждённой изоляции (``tracker_isolation``);
+    всё прочее — НЕИЗВЕСТНЫЙ корень и закрыт. Отказ не снимается флагом.
     """
     try:
-        live = Path(tracker_dir).resolve() == Path(TRACKER_DIR).resolve()
+        real = Path(os.path.realpath(tracker_dir))
+        live = any(real == r for r in _production_tracker_roots())
     except OSError:
-        live = True                                  # не разобрали путь ⇒ считаем живым
+        live = True                                  # не разобрали путь ⇒ считаем рабочим
     if not live:
-        return {"allowed": True, "operation": operation, "why": "временная копия трекера"}
+        iso = tracker_isolation(tracker_dir)
+        return {"allowed": iso["isolated"], "operation": operation, "why": iso["why"]}
     cov = card_writer_coverage()
     if cov["complete"]:
         return {"allowed": True, "operation": operation, "why": "охват писателей полный",

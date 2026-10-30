@@ -108,6 +108,7 @@ worktree (§3.4), а `data/` в `.gitignore` ⇒ журнал объявлени
 from __future__ import annotations
 
 import argparse
+import contextlib
 import importlib.util
 import json
 import os
@@ -228,6 +229,36 @@ class ClaimError(RuntimeError):
 
 class AnnounceError(ClaimError):
     """Захват не объявлен в общем журнале ⇒ карточка НЕ взята (см. `announce_claim`)."""
+
+
+class SharedProtocolUnavailable(ClaimError):
+    """Общий протокол записи карточки (``queue.card_write_lock``) недоступен ⇒ записи НЕТ.
+
+    STUDIO-AUTONOMY-01 R1 (ADR-857): запись без общей блокировки — ровно та гонка «последний
+    пишет», которую протокол закрывает; молча писать без неё значило бы считать писателя
+    покрытым, когда он не покрыт. Отказ — до объявления захвата и до записи.
+    """
+
+
+def _require_shared_protocol() -> None:
+    """Протокол доступен? Нет ⇒ отказ ДО любых побочных эффектов (объявления, записи)."""
+    try:
+        from spa_core.owner_queue.queue import card_write_lock  # noqa: F401
+    except ImportError as exc:
+        raise SharedProtocolUnavailable(
+            f"общий протокол записи карточки недоступен ({exc.__class__.__name__}: {exc}) — "
+            f"захват/снятие НЕ выполняются") from exc
+
+
+def _shared_card_lock(path: Path):
+    """Общая блокировка карточки (та же, что у ``queue.set_status``) — или отказ."""
+    try:
+        from spa_core.owner_queue.queue import card_write_lock
+    except ImportError as exc:
+        raise SharedProtocolUnavailable(
+            f"общий протокол записи карточки недоступен ({exc.__class__.__name__}: {exc}) — "
+            f"{Path(path).name} НЕ записана") from exc
+    return card_write_lock(path)
 
 
 class UnmeasurableClaim(ClaimError):
@@ -1860,15 +1891,11 @@ def gather(card, *, log=DEFAULT_LOG, tracker_dir=DEFAULT_TRACKER, sibling=None,
 # ── взятие / освобождение карточки ───────────────────────────────────────────
 
 def _atomic_write(path: Path, content: str) -> None:
-    # STUDIO-AUTONOMY-01 E2.6 (ADR-857): та же блокировка карточки, что у queue.set_status. Модуль
-    # недоступен (скрипт вне репозитория) ⇒ запись без неё, и это сказано в stderr, а не молча.
-    try:
-        from spa_core.owner_queue.queue import card_write_lock
-    except ImportError:
-        print(f"WARNING: общий протокол записи карточки недоступен — {path.name} пишется без блокировки",
-              file=sys.stderr)
-        return _atomic_write_unlocked(path, content)
-    with card_write_lock(path):
+    # STUDIO-AUTONOMY-01 E2.6/R1 (ADR-857): та же блокировка карточки, что у queue.set_status.
+    # Вызывающие claim_card/release_card берут её РАНЬШЕ — до чтения карточки; здесь она
+    # реентерабельна. Прямой вызов без вызывающего тоже не пишет мимо протокола.
+    # Недоступен ⇒ SharedProtocolUnavailable, запись НЕ делается (R1: отказ, а не запись без замка).
+    with _shared_card_lock(path):
         return _atomic_write_unlocked(path, content)
 
 
@@ -2143,6 +2170,8 @@ def claim_card(card, *, log, session=None, tracker_dir=DEFAULT_TRACKER, now=None
     `log` — ОБЯЗАТЕЛЬНЫЙ аргумент, см. `release_card`."""
     sibling = sibling or load_sibling()
     session = session or self_session_id()
+    # R1: протокол записи доступен — проверяется ДО объявления захвата и до записи.
+    _require_shared_protocol()
     now = now or datetime.now(timezone.utc)
     path = card_path(card, tracker_dir)
     if not path.exists():
@@ -2209,7 +2238,13 @@ def claim_card(card, *, log, session=None, tracker_dir=DEFAULT_TRACKER, now=None
             f"(это и есть дефект, который правило закрывает).") from exc
 
     fd, lock = _acquire_lock(path)
+    # R1: общая блокировка охватывает ЧТЕНИЕ, проверку и запись — иначе писатель на общем
+    # протоколе успевает изменить карточку между чтением и заменой, и старый текст её затирает.
+    # Порядок «.claimlock → общая» без взаимной блокировки: .claimlock НЕ ждёт (занят ⇒ отказ),
+    # а держатели общей блокировки .claimlock не берут.
+    _shared = contextlib.ExitStack()
     try:
+        _shared.enter_context(_shared_card_lock(path))
         text = path.read_text(encoding="utf-8")
         meta = frontmatter(text)
         holder = str(meta.get("claimed_by") or "").strip()
@@ -2275,6 +2310,7 @@ def claim_card(card, *, log, session=None, tracker_dir=DEFAULT_TRACKER, now=None
         new = _set_claim_fields(text, fields)
         _atomic_write(path, new)
     finally:
+        _shared.close()
         _release_lock(fd, lock)
     out = {"card": card_id(path), "path": str(path), "claimed_by": session,
            "claimed_at": _fmt_ts(now),
@@ -2339,6 +2375,8 @@ def release_card(card, *, log, session=None, tracker_dir=DEFAULT_TRACKER, force=
     Порядок здесь обратный захвату — сначала карточка, потом журнал: направление ошибки при
     падении посередине то же самое (карточка выглядит занятой, а не свободной)."""
     session = session or self_session_id()
+    # R1: протокол записи доступен — проверяется ДО объявления захвата и до записи.
+    _require_shared_protocol()
     path = card_path(card, tracker_dir)
     if not path.exists():
         raise ClaimError(f"карточки нет: {path}")
@@ -2354,7 +2392,13 @@ def release_card(card, *, log, session=None, tracker_dir=DEFAULT_TRACKER, force=
     selves = ({session} if not self_anchor
               else self_identities(_log_entries(log, sibling), session, self_anchor))
     fd, lock = _acquire_lock(path)
+    # R1: общая блокировка охватывает ЧТЕНИЕ, проверку и запись — иначе писатель на общем
+    # протоколе успевает изменить карточку между чтением и заменой, и старый текст её затирает.
+    # Порядок «.claimlock → общая» без взаимной блокировки: .claimlock НЕ ждёт (занят ⇒ отказ),
+    # а держатели общей блокировки .claimlock не берут.
+    _shared = contextlib.ExitStack()
     try:
+        _shared.enter_context(_shared_card_lock(path))
         text = path.read_text(encoding="utf-8")
         meta = frontmatter(text)
         holder = str(meta.get("claimed_by") or "").strip()
@@ -2366,6 +2410,7 @@ def release_card(card, *, log, session=None, tracker_dir=DEFAULT_TRACKER, force=
                              f"снять чужой захват можно только с --force")
         _atomic_write(path, _set_claim_fields(text, None))
     finally:
+        _shared.close()
         _release_lock(fd, lock)
     try:
         announce_claim(card_id(path), path, holder, "done", log, announcer)
