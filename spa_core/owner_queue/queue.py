@@ -679,25 +679,6 @@ def _card_lock_path(path: Path) -> Path:
     return d / (_hashlib.sha256(str(Path(path).resolve()).encode("utf-8")).hexdigest()[:24] + ".lock")
 
 
-class StaleCardRevision(ValueError):
-    """Карточка изменилась после того, как писатель её прочитал — запись не сделана (E2.2)."""
-
-
-def card_revision(path: str | Path) -> str:
-    """Ревизия карточки для протокола записи — sha256 её байтов."""
-    import hashlib as _hashlib
-    return _hashlib.sha256(Path(path).read_bytes()).hexdigest()
-
-
-def _card_lock_path(path: Path) -> Path:
-    """Файл блокировки ВНЕ трекера (в трекере не должно появляться посторонних файлов)."""
-    import hashlib as _hashlib
-    import tempfile as _tempfile
-    d = Path(_tempfile.gettempdir()) / "spa_card_locks"
-    d.mkdir(parents=True, exist_ok=True)
-    return d / (_hashlib.sha256(str(Path(path).resolve()).encode("utf-8")).hexdigest()[:24] + ".lock")
-
-
 #: Блокировки карточек, которые ЭТОТ поток уже держит: вложенный писатель (например
 #: ``set_status`` внутри заблокированного редактора) не ждёт сам себя.
 _HELD_CARD_LOCKS = __import__("threading").local()
@@ -1121,11 +1102,6 @@ def create_card(
                  "не плодим дубль", existing.name)
         return existing
 
-    n = 2
-    while path.exists():  # collision guard → readable numeric suffix (-2, -3, …)
-        path = d / f"{base}-{n}.md"
-        n += 1
-
     # Always emit a status line (never a dead-letter card): fall back to the tracker's
     # default when the caller passes none.
     effective_status = status or _DEFAULT_STATUS.get(tracker_type, "new")
@@ -1141,9 +1117,116 @@ def create_card(
     lines.append(body.rstrip("\n") if body else "")
     lines.append("")
 
-    atomic_save_text("\n".join(lines), str(path))
+    # STUDIO-AUTONOMY-01 E2 (ADR-857, writer_map п. 4): имя выбирается и занимается ОДНИМ
+    # атомарным шагом. Прежде «path.exists() → atomic_save_text» оставлял окно: два создателя
+    # выбирали одно имя, второй молча затирал первого (os.replace). Теперь полный текст
+    # пишется во временный файл и ссылается на имя через os.link — EEXIST означает «занято»,
+    # берётся следующий суффикс (-2, -3, …). Пустой или недописанной карточки не бывает.
+    text = "\n".join(lines)
+    n = 2
+    while not _create_exclusive(path, text):
+        path = d / f"{base}-{n}.md"
+        n += 1
     return path
 
+
+def _create_exclusive(path: Path, text: str) -> bool:
+    """Создать ``path`` с текстом, только если его нет. ``False`` — имя уже занято."""
+    import tempfile as _tempfile
+    if path.exists():
+        return False
+    fd, tmp = _tempfile.mkstemp(dir=str(path.parent), suffix=".tmp")
+    try:
+        with os.fdopen(fd, "w", encoding="utf-8") as fh:
+            fh.write(text)
+            fh.flush()
+            os.fsync(fh.fileno())
+        try:
+            os.link(tmp, path)
+        except FileExistsError:
+            return False
+        return True
+    finally:
+        try:
+            os.unlink(tmp)
+        except FileNotFoundError:
+            pass
+
+
+
+# ── E2.6 (ADR-857): охват писателей карточек и ворота опасной общей операции ───────────────
+# Писатели помечены ``__card_writer__`` у самой функции: декоратор ``card_writer`` либо явная
+# пометка у писателя, который держит ту же блокировку внутри (или создаёт карточку атомарно).
+set_status.__card_writer__ = True          # _card_write_lock(path, expected_revision)
+create_card.__card_writer__ = True         # _create_exclusive: имя занимается одним шагом
+set_acceptance_probe = card_writer(set_acceptance_probe)
+
+#: Пишущие пути карты E2.1 (``writer_map.md``): (файл от корня репо, имя функции). Новый
+#: писатель карточек добавляется СЮДА; не помеченный писатель держит ворота закрытыми.
+CARD_WRITERS = (
+    ("spa_core/owner_queue/queue.py", "set_status"),
+    ("spa_core/owner_queue/queue.py", "create_card"),
+    ("spa_core/owner_queue/queue.py", "set_acceptance_probe"),
+    ("spa_core/owner_queue/cockpit_loop.py", "_set_fields"),
+    ("spa_core/owner_queue/intake.py", "_stamp_seen"),
+    ("spa_core/owner_queue/owner_answer.py", "_write_answer"),
+    ("spa_core/telegram/owner_decisions.py", "refresh_live_copy_from_ref"),
+    ("spa_core/telegram/owner_decisions.py", "materialize_card"),
+    ("scripts/check_card_claim.py", "_atomic_write"),
+    ("scripts/repair_phantom_intake_cards.py", "repair"),
+)
+
+
+def _load_writer(rel: str, name: str):
+    import importlib
+    import importlib.util as _ilu
+    if rel.startswith("spa_core/"):
+        mod = importlib.import_module(rel[:-3].replace("/", "."))
+    else:
+        path = _REPO_ROOT / rel
+        spec = _ilu.spec_from_file_location(f"_card_writer_probe_{path.stem}", path)
+        mod = _ilu.module_from_spec(spec)
+        spec.loader.exec_module(mod)
+    return getattr(mod, name)
+
+
+def card_writer_coverage(writers=CARD_WRITERS) -> dict:
+    """Три исхода на писателя: на протоколе · НЕ на протоколе · НЕ ИЗМЕРЕНО (с причиной)."""
+    covered, uncovered, unmeasured = [], [], []
+    for rel, name in writers:
+        ident = f"{rel}::{name}"
+        try:
+            fn = _load_writer(rel, name)
+        except Exception as exc:  # noqa: BLE001 — не прочли ⇒ третий исход, не «покрыт»
+            unmeasured.append({"writer": ident, "why": f"{type(exc).__name__}: {exc}"})
+            continue
+        (covered if getattr(fn, "__card_writer__", False) is True else uncovered).append(ident)
+    return {"covered": covered, "uncovered": uncovered, "unmeasured": unmeasured,
+            "complete": not uncovered and not unmeasured}
+
+
+def shared_tracker_operation_gate(operation: str, tracker_dir: str | Path) -> dict:
+    """Опасная общая операция над трекером (массовый переход, ремонт ``--apply``).
+
+    Временная копия трекера — испытательный стенд E2.6 и открыта. Живой трекер (``TRACKER_DIR``)
+    открыт только при ПОЛНОМ охвате писателей: неподключённый писатель мог бы потерять её
+    запись молча. Отказ не снимается флагом — снимается переводом писателя на протокол.
+    """
+    try:
+        live = Path(tracker_dir).resolve() == Path(TRACKER_DIR).resolve()
+    except OSError:
+        live = True                                  # не разобрали путь ⇒ считаем живым
+    if not live:
+        return {"allowed": True, "operation": operation, "why": "временная копия трекера"}
+    cov = card_writer_coverage()
+    if cov["complete"]:
+        return {"allowed": True, "operation": operation, "why": "охват писателей полный",
+                "coverage": cov}
+    return {"allowed": False, "operation": operation, "coverage": cov,
+            "why": ("охват писателей карточек неполон — не на протоколе: "
+                    + ", ".join(cov["uncovered"] or ["—"])
+                    + ("; не измерено: " + ", ".join(u["writer"] for u in cov["unmeasured"])
+                       if cov["unmeasured"] else ""))}
 
 # Repo-root inbox/ folder for loose Obsidian notes (Этап 6, path 2).
 INBOX_NOTES_DIR = Path(os.environ.get("SPA_INBOX_NOTES_DIR", _REPO_ROOT / "inbox"))

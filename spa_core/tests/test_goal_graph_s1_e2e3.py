@@ -408,3 +408,131 @@ def test_every_mapped_card_editor_carries_the_shared_lock():
     src = (REPO / "scripts" / "check_card_claim.py").read_text(encoding="utf-8")
     assert "with card_write_lock(path):" in src
     assert "_card_write_lock(path, expected_revision)" in inspect.getsource(q.set_status)
+
+
+# ── E2 (writer_map п. 4): создание карточки — имя занимается одним атомарным шагом ──────────────
+def _creator(tracker, i, out):
+    p = q.create_card("inbox", "Одна и та же задача", f"тело {i}",
+                      tracker_dir=tracker, merge_open_twin=False)
+    out.put((str(p), i))
+
+
+def test_concurrent_create_card_never_overwrites_a_sibling(tmp_path):
+    ctx = mp.get_context("fork")
+    out = ctx.Queue()
+    ps = [ctx.Process(target=_creator, args=(tmp_path, i, out)) for i in range(8)]
+    for p in ps:
+        p.start()
+    for p in ps:
+        p.join(30)
+    got = [out.get(timeout=5) for _ in ps]
+    paths = {p for p, _ in got}
+    assert len(paths) == 8                                              # 8 создателей — 8 карточек
+    for path, i in got:
+        assert f"тело {i}" in Path(path).read_text()                    # ни одна не затёрта соседом
+    assert not list(tmp_path.glob("*.tmp"))                             # временные файлы убраны
+
+
+def test_create_card_takes_the_next_suffix_when_the_name_is_taken(tmp_path):
+    first = q.create_card("inbox", "Задача", "a", tracker_dir=tmp_path,
+                          merge_open_twin=False)
+    second = q.create_card("inbox", "Задача", "b", tracker_dir=tmp_path,
+                           merge_open_twin=False)
+    assert first != second and second.stem.endswith("-2")
+    assert "a" in first.read_text() and "b" in second.read_text()
+
+
+# ── E2.6: охват писателей и ворота опасной общей операции ────────────────────────────────────────
+_EXPECTED_COVERED = {
+    "spa_core/owner_queue/queue.py::set_status", "spa_core/owner_queue/queue.py::create_card",
+    "spa_core/owner_queue/queue.py::set_acceptance_probe",
+    "spa_core/owner_queue/cockpit_loop.py::_set_fields", "spa_core/owner_queue/intake.py::_stamp_seen",
+    "spa_core/owner_queue/owner_answer.py::_write_answer",
+    "spa_core/telegram/owner_decisions.py::refresh_live_copy_from_ref",
+    "spa_core/telegram/owner_decisions.py::materialize_card",
+    "scripts/check_card_claim.py::_atomic_write",
+}
+
+
+def test_writer_coverage_names_every_writer_and_the_one_left_outside():
+    cov = q.card_writer_coverage()
+    assert set(cov["covered"]) == _EXPECTED_COVERED
+    assert cov["uncovered"] == ["scripts/repair_phantom_intake_cards.py::repair"]
+    assert cov["unmeasured"] == [] and cov["complete"] is False
+
+
+def test_unreadable_writer_is_unmeasured_not_covered():
+    cov = q.card_writer_coverage((("spa_core/owner_queue/queue.py", "set_status"),
+                                  ("spa_core/owner_queue/no_such_module.py", "write")))
+    assert cov["covered"] == ["spa_core/owner_queue/queue.py::set_status"]
+    assert [u["writer"] for u in cov["unmeasured"]] == ["spa_core/owner_queue/no_such_module.py::write"]
+    assert cov["complete"] is False
+
+
+def test_gate_closed_on_the_live_tracker_open_on_a_copy_and_open_at_full_coverage(tmp_path, monkeypatch):
+    live = tmp_path / "live"
+    live.mkdir()
+    monkeypatch.setattr(q, "TRACKER_DIR", live)                         # живой трекер — подменён на tmp
+    closed = q.shared_tracker_operation_gate("op", live)
+    assert closed["allowed"] is False and "repair_phantom_intake_cards.py::repair" in closed["why"]
+    assert q.shared_tracker_operation_gate("op", tmp_path / "copy")["allowed"] is True
+    monkeypatch.setattr(q, "CARD_WRITERS", tuple(w for w in q.CARD_WRITERS
+                                                 if not w[0].endswith("repair_phantom_intake_cards.py")))
+    monkeypatch.setattr(q.card_writer_coverage, "__defaults__", (q.CARD_WRITERS,))
+    assert q.shared_tracker_operation_gate("op", live)["allowed"] is True   # положительный контроль
+
+
+def test_repair_apply_on_the_live_tracker_is_refused_and_writes_nothing(tmp_path, monkeypatch):
+    import importlib.util
+    spec = importlib.util.spec_from_file_location(
+        "_rp", Path(q.__file__).resolve().parents[2] / "scripts" / "repair_phantom_intake_cards.py")
+    rp = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(rp)
+    card = tmp_path / "owner-decision-x.md"
+    card.write_text(_CARD)
+    before = card.read_bytes()
+    monkeypatch.setattr(q, "TRACKER_DIR", tmp_path)
+    assert rp.main(["--tracker-dir", str(tmp_path), "--apply"]) == 3
+    assert card.read_bytes() == before and sorted(p.name for p in tmp_path.iterdir()) == [card.name]
+
+
+# ── E2 приёмка: SIGKILL держателя блокировки на границе записи ──────────────────────────────────
+def _killed_holder(card, ready):
+    import os
+    import time
+    with q.card_write_lock(card):
+        Path(str(card) + ".partial.tmp").write_text("недописано")      # шаг записи начат
+        ready.set()
+        time.sleep(60)
+        os._exit(0)                                                     # сюда не доходит
+
+
+def test_sigkill_of_the_lock_holder_neither_blocks_nor_corrupts_the_card(tmp_path):
+    import os
+    import signal
+    import time
+    card = tmp_path / "agent-k.md"
+    card.write_text(_CARD)
+    ctx = mp.get_context("fork")
+    ready = ctx.Event()
+    holder = ctx.Process(target=_killed_holder, args=(str(card), ready))
+    holder.start()
+    assert ready.wait(10)
+    os.kill(holder.pid, signal.SIGKILL)
+    holder.join(10)
+    assert card.read_text() == _CARD                                    # карточка цела: старые байты
+    t0 = time.monotonic()
+    q.set_status(card, "in-progress")                                   # блокировка освобождена ОС
+    assert time.monotonic() - t0 < 5
+    assert "status: in-progress" in card.read_text()
+
+
+def test_create_exclusive_does_not_overwrite_a_name_taken_after_the_check(tmp_path, monkeypatch):
+    """Детерминированная гонка: имя занято соседом МЕЖДУ проверкой и записью."""
+    target = tmp_path / "inbox-x.md"
+    target.write_text("сосед успел первым")
+    monkeypatch.setattr(Path, "exists", lambda self: False if self == target else Path.is_file(self)
+                        or Path.is_dir(self))
+    assert q._create_exclusive(target, "мой текст") is False
+    assert target.read_text() == "сосед успел первым"
+    assert not list(tmp_path.glob("*.tmp"))

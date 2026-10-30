@@ -122,7 +122,19 @@ def find_phantoms(tracker_dir: Path) -> list[dict]:
 def repair(tracker_dir: Path, *, apply: bool) -> dict:
     # Правило ретракции берётся У КОНТРАКТА, а не перепечатывается здесь: разойдись
     # строка с гейтом — ремонтник снова стал бы неисполнимым, и МОЛЧА (ADR-807, ADR-220).
-    from spa_core.owner_queue.queue import RETRACTION_RULE_TOKEN, set_status
+    from spa_core.owner_queue.queue import (RETRACTION_RULE_TOKEN, set_status,
+                                            shared_tracker_operation_gate)
+
+    # STUDIO-AUTONOMY-01 E2.6 (ADR-857): запись по ЖИВОМУ трекеру — опасная общая операция.
+    # Она открыта только при полном охвате писателей карточек; этот ремонтник сам пишет тело
+    # фантома мимо протокола, поэтому до своей миграции и своих критериев он закрыт на живом
+    # трекере по построению. Временная копия (стенд, тесты) — открыта.
+    if apply:
+        gate = shared_tracker_operation_gate("repair_phantom_intake_cards --apply", tracker_dir)
+        if not gate["allowed"]:
+            return {"applied": False, "refused": gate["why"], "phantoms_closed": 0,
+                    "sources_reopened": 0, "sources_not_found": 0,
+                    "closed": [], "reopened": [], "orphaned": []}
 
     phantoms = find_phantoms(tracker_dir)
     closed, reopened, orphaned = [], [], []
@@ -175,6 +187,9 @@ def main(argv: list[str] | None = None) -> int:
         return 2
 
     res = repair(tracker, apply=args.apply)
+    if res.get("refused"):
+        print(f"ОТКАЗ: {res['refused']}", file=sys.stderr)
+        return 3
     if args.json:
         print(json.dumps(res, ensure_ascii=False, indent=2))
         return 0

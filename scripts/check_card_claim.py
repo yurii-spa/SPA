@@ -1872,6 +1872,9 @@ def _atomic_write(path: Path, content: str) -> None:
         return _atomic_write_unlocked(path, content)
 
 
+_atomic_write.__card_writer__ = True  # E2.6: та же блокировка карточки, что у set_status
+
+
 def _atomic_write_unlocked(path: Path, content: str) -> None:
     fd, tmp = tempfile.mkstemp(dir=str(path.parent), suffix=".tmp")
     try:

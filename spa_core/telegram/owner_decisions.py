@@ -2062,6 +2062,9 @@ def materialize_card(card_path: Path,
         return card_path
 
 
+materialize_card.__card_writer__ = True  # E2.6: пишет под card_write_lock(target) — см. выше
+
+
 def prepare_push(
     card_path: str | Path,
     title: str,
