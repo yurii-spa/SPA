@@ -8,6 +8,14 @@ site changes; OWNER-GATED classes (yield numbers / tier naming / SPA expansion /
 solicitation / honesty-token removal) route to a needs-owner card and never auto-ship.
 
 Flow:
+  0. If the shelf of site numbers is among the targets, run the PUBLICATION gate first
+     (scripts/verify_publication.py, ADR-630). That gate declares THREE outcomes and this
+     reader now keeps all three apart (ADR-869, inv. #17): PASS (0) → carry on · FAIL (1,
+     named findings) → needs-owner card + exit 2 · NOT MEASURED (2, an input or the gate
+     itself did not answer) → fail CLOSED, do NOT ask the owner (nothing to approve),
+     exit 1. Until 2026-10-30 the last two shared exit 2 and both opened an owner card,
+     so "the gate refused" and "the gate never answered" were one answer, and the owner
+     was asked to sign off on a shelf nobody had checked.
   1. Run the owner-gate guard (scripts/check_owner_gate.py --diff-mode files) on the
      landing/ targets.
   2. CLEAN (exit 0) → set SPA_SITE_PUSH_VERIFIED=1 and delegate to push_to_github_batch.py
@@ -426,6 +434,11 @@ def _route_to_owner_card(site_files: list[str], report: dict, message: str,
 
 _SHELF_REL = "landing/src/data/site_numbers.json"
 _VERIFY = _REPO_ROOT / "scripts" / "verify_publication.py"
+#: Исход ворот «НЕ ИЗМЕРЕНО» (`verify_publication.NOT_MEASURED`). Ворота зовутся
+#: ПОДПРОЦЕССОМ, поэтому их словарь здесь — литерал; что он не разошёлся с самими
+#: воротами, сверяет `spa_core/tests/test_publication_gate_exit_vocabulary.py`
+#: (литерал без сторожа и был бы той самой тихой подменой — ADR-869).
+_GATE_NOT_MEASURED = 2
 
 
 def _find_publication_approval(shelf: Path) -> "str | None":
@@ -453,10 +466,11 @@ def _verify_publication(shelf: Path) -> tuple[int, dict]:
     try:
         cp = subprocess.run(cmd, cwd=str(_REPO_ROOT), capture_output=True, text=True, timeout=180)
         res = json.loads(cp.stdout)
-        return int(res.get("outcome", 2)), res
+        return int(res.get("outcome", _GATE_NOT_MEASURED)), res
     except Exception as exc:  # noqa: BLE001 — a gate that did not answer is NOT a pass
-        return 2, {"outcome": 2, "reason": f"verify_publication did not answer ({type(exc).__name__})",
-                   "findings": []}
+        return _GATE_NOT_MEASURED, {"outcome": _GATE_NOT_MEASURED,
+                                    "reason": f"verify_publication did not answer ({type(exc).__name__})",
+                                    "findings": []}
 
 
 def _publication_card_lines(shelf: Path, res: dict) -> list[str]:
@@ -501,9 +515,21 @@ def main(argv: list[str] | None = None) -> int:
         shelf = Path(shelf_files[0])
         shelf = shelf if shelf.is_absolute() else (_REPO_ROOT / shelf)
         outcome, res = _verify_publication(shelf)
+        if outcome == _GATE_NOT_MEASURED:
+            # ADR-869, инв. #17. Ворота различают ТРИ исхода (`verify_publication`: 0 PASS ·
+            # 1 FAIL · 2 NOT MEASURED), и до этой правки читатель различал ДВА: оба ненулевых
+            # исхода возвращали код 2 и оба звали владельца. Это ровно тот дефект, который
+            # НИЖЕ, в соседней ветке того же `main()`, уже найден и закрыт для owner-гейта:
+            # «одобрять нечего ⇒ владельца не спрашиваем». Ворота, которые НЕ ОТВЕТИЛИ, не
+            # назвали ни одного нарушения — одобрять нечего и здесь, а подпись владельца под
+            # неизмеренной витриной была бы одобрением того, чего никто не проверял.
+            # Отказ остаётся fail-CLOSED (пуша нет); код 1 = ошибка инструмента, НЕ вердикт.
+            print(f"safe_site_push: publication gate NOT MEASURED for {_SHELF_REL} — "
+                  f"{res.get('reason') or 'no reason given'}. Failing CLOSED: NOT pushing, NOT "
+                  f"asking the owner (nothing to approve).", file=sys.stderr)
+            return 1
         if outcome != 0:
-            verdict = "NOT MEASURED" if outcome == 2 else "FAIL"
-            print(f"safe_site_push: publication gate {verdict} for {_SHELF_REL} — NOT pushing.",
+            print(f"safe_site_push: publication gate FAIL for {_SHELF_REL} — NOT pushing.",
                   file=sys.stderr)
             findings = list(res.get("findings") or []) or [str(res.get("reason") or "not measured")]
             report = {"violations": [{"file": _SHELF_REL, "klass": "P", "rule": "publication.gate",

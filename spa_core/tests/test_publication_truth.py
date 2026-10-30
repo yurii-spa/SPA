@@ -672,7 +672,22 @@ class TheApprovedShelfVerifiesAgainstItsOwnInputs(_Scene):
 class BuildRefuseApprovePush(unittest.TestCase):
     """Re-review (B): the whole loop in a sandbox — step (1е) builds, the gate refuses (owner card), the
     owner closes the card with the exact line, the NEXT run of the same step pushes. No network: the
-    batch pusher is a stub that leaves a marker; the owner-gate linter is stubbed (separate gate)."""
+    batch pusher is a stub that leaves a marker; the owner-gate linter is stubbed (separate gate).
+
+    НАМЕРЕННОЕ изменение ожидания (инв. #16, ADR-869, цикл #986). До 2026-10-30 первый прогон
+    ожидался кодом **2**, а второй — кодом **4**, то есть «ворота отказали, карточка заведена
+    СЕЙЧАС» и «карточка заведена РАНЬШЕ, владелец молчит» считались разными ИСХОДАМИ шага. Это и
+    был дефект: код 2 у шага объявлен значением «НЕ ИЗМЕРЕНО (источник не прочитан)», и живой
+    прогон 30.10 отдал его при правде «собрано, измерено, ждёт владельца». Оба прогона ниже —
+    ОДИН класс по объявлению самого шага («собранная витрина ждёт одобрения владельца — ничего
+    не делать, следующий прогон доставит её сам»), и предписание циклу у них дословно одно.
+
+    Проверка НЕ ослаблена: различие «карточка заведена этим прогоном» не потеряно, а перенесено
+    туда, где оно и есть — в НАЗВАННУЮ причину. Утверждение про неё ДОБАВЛЕНО (первый прогон
+    обязан назвать код доставки 2 и перевод в 4, второй — не называть доставку вовсе, потому что
+    доставку он не зовёт), и всё поведение — ни байта не отправлено, ровно одна карточка, строка
+    одобрения выдана — проверяется как прежде.
+    """
 
     def test_build_refuse_approve_push(self):
         import os
@@ -702,22 +717,34 @@ class BuildRefuseApprovePush(unittest.TestCase):
             cards = []
             env = {"SPA_PUBLISHED_SHELF": str(pub), "SPA_TRACKER_DIR": str(tracker)}
 
+            said: list = []
+
             def go():
+                import contextlib
+                import io
+                buf = io.StringIO()
                 with mock.patch.dict(os.environ, env), mock.patch.object(ssp, "_BATCH", stub), \
                         mock.patch.object(ssp, "_run_guard", lambda files, msg: (0, {})), \
                         mock.patch.object(ssp, "_route_to_owner_card",
                                           lambda files, report, msg, extra_lines=None:
-                                          cards.append(extra_lines) or True):
-                    return pubmod.run(published_at=today.isoformat(), published=pub, out=cand, bsn=b, ssp=ssp)
+                                          cards.append(extra_lines) or True), \
+                        contextlib.redirect_stdout(buf):
+                    rc = pubmod.run(published_at=today.isoformat(), published=pub, out=cand, bsn=b, ssp=ssp)
+                said.append(buf.getvalue())
+                return rc
 
             # 1. build → the gate refuses (new schema needs the owner) → one card, nothing pushed
-            self.assertEqual(go(), 2)
+            self.assertEqual(go(), 4)                   # ADR-869: «ждёт владельца», не «не измерено»
+            self.assertRegex(said[-1], r"код доставки 2 → код шага 4",
+                             "перевод кода не НАЗВАН — различие с ожиданием владельца потеряно")
             self.assertFalse(marker.exists())
             line = next(x for x in cards[0] if str(x).startswith("publication-approves:"))
             built = cand.read_bytes()
             # 2. next run, owner silent → waits, no rebuild, nothing pushed
             snap_p.write_text(json.dumps(dict(SNAP, as_of=today.isoformat(), nav_usd=1.0)), encoding="utf-8")
             self.assertEqual(go(), 4)
+            self.assertNotIn("код доставки", said[-1],
+                             "второй прогон доставку НЕ зовёт — называть её код было бы неверно")
             self.assertEqual(cand.read_bytes(), built)
             self.assertFalse(marker.exists())
             # 3. the owner closes the card with the exact line → the next run pushes THIS shelf

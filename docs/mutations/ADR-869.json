@@ -1,0 +1,82 @@
+{
+  "title": "ADR-869 — дельта цикла #986: у ворот публикации три исхода, у их читателя было два (инв. #17); словарь кодов шага 1е стал правдой",
+  "tests": [
+    "spa_core/tests/test_publication_gate_exit_vocabulary.py",
+    "spa_core/tests/test_publication_gate_probe.py",
+    "spa_core/tests/test_publisher_cli_has_no_side_effects.py"
+  ],
+  "mutations": [
+    {
+      "name": "два ненулевых исхода ворот снова схлопнуты: ветка «НЕ ИЗМЕРЕНО» не срабатывает никогда",
+      "file": "scripts/safe_site_push.py",
+      "old": "        if outcome == _GATE_NOT_MEASURED:\n",
+      "new": "        if False:\n"
+    },
+    {
+      "name": "«не измерено» снова возвращает код вердикта GATED — отказы неразличимы по коду",
+      "file": "scripts/safe_site_push.py",
+      "old": "                  f\"asking the owner (nothing to approve).\", file=sys.stderr)\n            return 1\n",
+      "new": "                  f\"asking the owner (nothing to approve).\", file=sys.stderr)\n            return 2\n"
+    },
+    {
+      "name": "литерал словаря ворот уехал от самих ворот (тихая подмена исхода)",
+      "file": "scripts/safe_site_push.py",
+      "old": "_GATE_NOT_MEASURED = 2\n",
+      "new": "_GATE_NOT_MEASURED = 3\n"
+    },
+    {
+      "name": "ворота, не ответившие вовсе, объявлены ОТКАЗОМ — не-наблюдение выдано за находку",
+      "file": "scripts/safe_site_push.py",
+      "old": "        return _GATE_NOT_MEASURED, {\"outcome\": _GATE_NOT_MEASURED,\n",
+      "new": "        return 1, {\"outcome\": 1,\n"
+    },
+    {
+      "name": "код подпроцесса без поля outcome читается как PASS, а не как «не измерено»",
+      "file": "scripts/safe_site_push.py",
+      "old": "        return int(res.get(\"outcome\", _GATE_NOT_MEASURED)), res\n",
+      "new": "        return int(res.get(\"outcome\", 0)), res\n"
+    },
+    {
+      "name": "шаг снова пропускает код доставки наружу дословно — объявленный словарь шага опять ложен",
+      "file": "scripts/publish_site_numbers.py",
+      "old": "    return _translate_push_code(ssp.main([\"--files\", str(shelf), \"-m\", msg]))\n",
+      "new": "    return ssp.main([\"--files\", str(shelf), \"-m\", msg])\n"
+    },
+    {
+      "name": "живая авария 30.10 возвращена: «карточка владельцу открыта» снова читается как «источник не прочитан»",
+      "file": "scripts/publish_site_numbers.py",
+      "old": "    2: (4, \"ждёт владельца: ворота публикации отказали НАЗВАННЫМИ находками, карточка заведена\"),\n",
+      "new": "    2: (2, \"ждёт владельца: ворота публикации отказали НАЗВАННЫМИ находками, карточка заведена\"),\n"
+    },
+    {
+      "name": "инструментальный отказ выдан за «ждёт владельца» — не-измерение продано как решение владельца",
+      "file": "scripts/publish_site_numbers.py",
+      "old": "    1: (2, \"НЕ ИЗМЕРЕНО: доставка отказала инструментально (ворота публикации или owner-гейт \"\n",
+      "new": "    1: (4, \"НЕ ИЗМЕРЕНО: доставка отказала инструментально (ворота публикации или owner-гейт \"\n"
+    },
+    {
+      "name": "незнакомый код доставки тихо объявлен успехом",
+      "file": "scripts/publish_site_numbers.py",
+      "old": "        print(f\"код доставки {rc} в словаре шага НЕ ОБЪЯВЛЕН — отдаю как есть, не угадываю\")\n        return rc\n",
+      "new": "        return 0\n"
+    },
+    {
+      "name": "третий исход перестал быть НАЗВАННЫМ — немое прохождение неотличимо от объявленного",
+      "file": "scripts/publish_site_numbers.py",
+      "old": "        print(f\"код доставки {rc} в словаре шага НЕ ОБЪЯВЛЕН — отдаю как есть, не угадываю\")\n",
+      "new": "        pass\n"
+    },
+    {
+      "name": "перевод молчит о кодах, которые переводит — читателю нечем поверить вердикт",
+      "file": "scripts/publish_site_numbers.py",
+      "old": "    print(f\"код доставки {rc} → код шага {mapped}: {why}\")\n",
+      "new": "    pass\n"
+    },
+    {
+      "name": "DRY-RUN начал доставлять (побочный эффект у команды, объявленной безобидной)",
+      "file": "scripts/publish_site_numbers.py",
+      "old": "    if dry_run:\n        print(f\"DRY-RUN: витрина НЕ публикуется (был бы пуш {shelf} через safe_site_push.py)\")\n        return 0\n",
+      "new": "    if False:\n        print(f\"DRY-RUN: витрина НЕ публикуется (был бы пуш {shelf} через safe_site_push.py)\")\n        return 0\n"
+    }
+  ]
+}

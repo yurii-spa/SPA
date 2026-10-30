@@ -8,8 +8,13 @@ carries an owner-closed approval naming it (`publication-approves: … sha256:�
 waiting is left alone (no daily rebuild); one that no approval can clear (stale, inputs lost) is
 superseded once and rebuilt. Nothing here decides a public number: the gate and the owner do.
 
-Exit: 0 nothing to do / pushed · 2 NOT MEASURED · 3 sequencing gate · 4 waiting for the owner ·
-otherwise the push's own code (safe_site_push: 2 = routed to an owner card).
+Exit (ONE vocabulary, ADR-869): 0 nothing to do / pushed · 2 NOT MEASURED · 3 sequencing gate ·
+4 waiting for the owner. The delivery's own code is TRANSLATED into it (`_PUSH_CODE`), not passed
+through: until 2026-10-30 this line read "otherwise the push's own code (safe_site_push: 2 =
+routed to an owner card)", so `2` meant BOTH "the source was not read" and "measured, built, an
+owner card is open" — and the orchestrator protocol, which reads 2 as the first and 4 as the
+second, was told the wrong one. A code this file does not declare is named and passed through
+(the third outcome), never silently given a meaning.
 """
 from __future__ import annotations
 
@@ -53,7 +58,35 @@ def run(*, published_at=None, published=None, out=None, bsn=None, ssp=None, mess
     if dry_run:
         print(f"DRY-RUN: витрина НЕ публикуется (был бы пуш {shelf} через safe_site_push.py)")
         return 0
-    return ssp.main(["--files", str(shelf), "-m", msg])
+    return _translate_push_code(ssp.main(["--files", str(shelf), "-m", msg]))
+
+
+#: Код доставки → СВОЙ словарь шага (ADR-869). Раньше код пушера уезжал наружу дословно, и
+#: объявленный словарь шага становился ложным: читатель протокола видит `2` как «НЕ ИЗМЕРЕНО
+#: (источник не прочитан) ⇒ карточка», а пушер тем же кодом говорит «собрано, измерено,
+#: заведена карточка владельцу» — то есть исход `4` этого же словаря. Живой прогон 30.10
+#: вернул `2` именно так, и протокол предписал бы завести карточку о непрочитанном
+#: источнике, которого не было. Перевод делает объявление шага ПРАВДОЙ, а не переписывает
+#: объявление под поведение.
+_PUSH_CODE = {
+    0: (0, "витрина доставлена"),
+    1: (2, "НЕ ИЗМЕРЕНО: доставка отказала инструментально (ворота публикации или owner-гейт "
+           "НЕ ОТВЕТИЛИ) — одобрять нечего, владельца не спрашивали"),
+    2: (4, "ждёт владельца: ворота публикации отказали НАЗВАННЫМИ находками, карточка заведена"),
+}
+
+
+def _translate_push_code(rc: int) -> int:
+    """Перевести код доставки в словарь шага. Незнакомый код — ТРЕТИЙ исход, а не догадка:
+    он уезжает наружу как есть и НАЗЫВАЕТСЯ, потому что молча приписать ему смысл значило бы
+    повторить дефект на шаг дальше."""
+    try:
+        mapped, why = _PUSH_CODE[rc]
+    except KeyError:
+        print(f"код доставки {rc} в словаре шага НЕ ОБЪЯВЛЕН — отдаю как есть, не угадываю")
+        return rc
+    print(f"код доставки {rc} → код шага {mapped}: {why}")
+    return mapped
 
 
 def main(argv=None) -> int:
