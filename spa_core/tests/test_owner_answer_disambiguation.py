@@ -137,8 +137,12 @@ def test_picker_builds_one_button_per_question_that_really_offers_that_option(tm
     text, keyboard = picker
     rows = keyboard["inline_keyboard"]
     assert len(rows) == 1, "кнопка досталась и карточке БЕЗ вариантов — она ведёт в никуда"
-    assert rows[0][0]["callback_data"] == od.build_callback(pid_a, "2")
-    assert od.parse_callback(rows[0][0]["callback_data"]) == (pid_a, "2")
+    # R3b (ADR-857, инв. #16 — изменено намеренно): кнопка выбора адресата несёт метку ТЕКУЩЕГО
+    # показанного снимка вопроса A, иначе нажатие не было бы привязано к показанной версии.
+    vtag_a = od.find_push(pid_a, state_path=state)["current_vtag"]
+    assert vtag_a
+    assert rows[0][0]["callback_data"] == od.build_callback(pid_a, "2", vtag_a)
+    assert od.parse_callback(rows[0][0]["callback_data"]) == (pid_a, "2" + od.VERSION_SEP + vtag_a)
     assert pid_b not in rows[0][0]["callback_data"]
     # Пропущенный вопрос НАЗВАН, а не спрятан.
     assert "не предлагают" in text

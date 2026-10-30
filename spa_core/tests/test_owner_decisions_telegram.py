@@ -348,7 +348,7 @@ def test_tap_records_the_choice_end_to_end(tmp_path):
     state = tmp_path / "state.json"
     prep = od.register_push(card, "Деньги лежат в кэше", CARD, now=NOW,
                             state_path=state, beacon_path=_beacon(tmp_path))
-    res = od.record_choice(prep.pid, "1", OWNER, owner_chat_id=OWNER, now=NOW,
+    res = od.record_choice(prep.pid, "1" + od.VERSION_SEP + od.version_tag(prep.question_sha256), OWNER, owner_chat_id=OWNER, now=NOW,
                            state_path=state)
     assert res["ok"] is True
     assert res["label"] == "перезаполнять освободившийся бюджет"
@@ -366,7 +366,7 @@ def test_tap_after_the_question_was_withdrawn_records_nothing(tmp_path):
     prep = od.register_push(card, "t", CARD, now=NOW, state_path=state,
                             beacon_path=_beacon(tmp_path))
     assert od.mark_withdrawn(card, now=NOW, state_path=state) is True
-    res = od.record_choice(prep.pid, "1", OWNER, owner_chat_id=OWNER, now=NOW,
+    res = od.record_choice(prep.pid, "1" + od.VERSION_SEP + od.version_tag(prep.question_sha256), OWNER, owner_chat_id=OWNER, now=NOW,
                            state_path=state)
     assert res == {"ok": False, "reason": "card_withdrawn", "card": str(card)}
     assert "owner_choice" not in card.read_text(encoding="utf-8")
@@ -381,7 +381,7 @@ def test_an_already_answered_question_cannot_be_withdrawn(tmp_path):
     state = tmp_path / "state.json"
     prep = od.register_push(card, "t", CARD, now=NOW, state_path=state,
                             beacon_path=_beacon(tmp_path))
-    od.record_choice(prep.pid, "1", OWNER, owner_chat_id=OWNER, now=NOW, state_path=state)
+    od.record_choice(prep.pid, "1" + od.VERSION_SEP + od.version_tag(prep.question_sha256), OWNER, owner_chat_id=OWNER, now=NOW, state_path=state)
     assert od.mark_withdrawn(card, now=NOW, state_path=state) is False
     assert od.find_push(prep.pid, state_path=state)["choice"] == "1"
 
@@ -403,7 +403,7 @@ def test_tap_on_an_option_that_was_never_offered_is_refused(tmp_path):
     state = tmp_path / "state.json"
     prep = od.register_push(card, "t", CARD, now=NOW, state_path=state,
                             beacon_path=_beacon(tmp_path))
-    res = od.record_choice(prep.pid, "7", OWNER, owner_chat_id=OWNER, now=NOW,
+    res = od.record_choice(prep.pid, "7" + od.VERSION_SEP + od.version_tag(prep.question_sha256), OWNER, owner_chat_id=OWNER, now=NOW,
                            state_path=state)
     assert res == {"ok": False, "reason": "unknown_option", "card": str(card)}
     assert "status: needs-owner" in card.read_text(encoding="utf-8")
@@ -422,7 +422,7 @@ def test_stranger_tap_is_refused_at_the_tap_level_too(tmp_path):
     state = tmp_path / "state.json"
     prep = od.register_push(card, "t", CARD, now=NOW, state_path=state,
                             beacon_path=_beacon(tmp_path))
-    res = od.record_choice(prep.pid, "1", STRANGER, owner_chat_id=OWNER, now=NOW,
+    res = od.record_choice(prep.pid, "1" + od.VERSION_SEP + od.version_tag(prep.question_sha256), STRANGER, owner_chat_id=OWNER, now=NOW,
                            state_path=state)
     assert res["ok"] is False and res["reason"] == "not_owner"
     assert "status: needs-owner" in card.read_text(encoding="utf-8")

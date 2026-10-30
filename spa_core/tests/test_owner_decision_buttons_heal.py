@@ -403,7 +403,7 @@ def test_press_on_a_card_absent_from_the_live_tree_finds_nothing(split_trees):
                             now=FIXED_NOW, state_path=split_trees["state"],
                             beacon_path=split_trees["beacon"])  # переноса нет (pytest)
     split_trees["card"].unlink()  # worktree сессии снят — ровно то, что происходит всегда
-    res = od.record_choice(prep.pid, "1", OWNER_CHAT, owner_chat_id=OWNER_CHAT,
+    res = od.record_choice(prep.pid, "1" + od.VERSION_SEP + od.version_tag(prep.question_sha256), OWNER_CHAT, owner_chat_id=OWNER_CHAT,
                            now=FIXED_NOW, state_path=split_trees["state"])
     assert res["ok"] is False and res["reason"] == "card_gone"
 
@@ -419,7 +419,7 @@ def test_card_is_carried_into_the_live_tree_and_the_press_lands(split_trees):
     assert doc["pushes"][0]["card"] == str(split_trees["live_card"])
 
     split_trees["card"].unlink()  # worktree сессии снят
-    res = od.record_choice(prep.pid, "1", OWNER_CHAT, owner_chat_id=OWNER_CHAT,
+    res = od.record_choice(prep.pid, "1" + od.VERSION_SEP + od.version_tag(prep.question_sha256), OWNER_CHAT, owner_chat_id=OWNER_CHAT,
                            now=FIXED_NOW, state_path=split_trees["state"])
     assert res["ok"] is True, res
     written = split_trees["live_card"].read_text(encoding="utf-8")

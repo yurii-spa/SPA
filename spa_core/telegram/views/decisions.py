@@ -78,12 +78,17 @@ def render_item(arg: str = "", lang: str = "en", page: int = 0,
                 "Карточку закрыли или журнал её уже не помнит.",
                 menus.standard_keyboard("decisions", lang))
 
+    # R3b (ADR-857): кнопки меню несут метку ТЕКУЩЕГО показанного снимка, и варианты берутся
+    # из него же — нажатие привязано к тому, что владелец видит, а не к «последней записи».
+    vtag = rec.get("current_vtag")
+    snap = (rec.get("snapshots") or {}).get(vtag) if vtag else None
+    shown = snap.get("options") if isinstance(snap, dict) else rec.get("options")
     options = [
         owner_decisions.ParsedOption(
             num=str(o.get("num")), label=str(o.get("label") or ""),
             recommended=bool(o.get("recommended")),
         )
-        for o in (rec.get("options") or [])
+        for o in (shown or [])
     ]
     title = str(rec.get("title") or "")
     text = owner_decisions.card_details(pid)
@@ -92,7 +97,8 @@ def render_item(arg: str = "", lang: str = "en", page: int = 0,
                  f" — {rec.get('choice_label') or ''}")
         return text, menus.standard_keyboard("decisions", lang)
 
-    extra = owner_decisions.build_keyboard(pid, options)["inline_keyboard"] if options else []
+    extra = (owner_decisions.build_keyboard(pid, options, vtag)["inline_keyboard"]
+             if options else [])
     if not options:
         text += "\n\n⚠️ Вариантов в карточке не нашёл — реши её в трекере."
     return text, menus.standard_keyboard("decisions", lang, extra_rows=extra)

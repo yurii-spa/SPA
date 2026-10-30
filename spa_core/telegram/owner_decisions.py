@@ -1317,9 +1317,26 @@ def make_pid(card_id: str) -> str:
     return hashlib.sha256(card_id.encode("utf-8")).hexdigest()[:PID_LEN]
 
 
-def build_callback(pid: str, choice: str) -> str:
-    """``act:od:<pid>:<choice>``. Гарантированно в лимите Telegram."""
-    data = f"{CALLBACK_PREFIX}{pid}:{choice}"
+#: Разделитель версии в выборе кнопки: ``<номер>@<версия>`` (R3b, ADR-857). Поле ``choice`` после
+#: ``parse_callback`` проходит маршрутизатор без изменений и разбирается в ``record_choice``.
+VERSION_SEP = "@"
+#: Длина метки версии в кнопке: префикс sha256 ПОКАЗАННОГО вопроса.
+VTAG_LEN = 12
+
+
+def version_tag(question_sha256: Optional[str]) -> Optional[str]:
+    """Метка версии вопроса для кнопки; версии нет — ``None`` (кнопка без метки)."""
+    return str(question_sha256)[:VTAG_LEN] if question_sha256 else None
+
+
+def build_callback(pid: str, choice: str, vtag: Optional[str] = None) -> str:
+    """``act:od:<pid>:<choice>[@<версия>]``. Гарантированно в лимите Telegram.
+
+    Метка версии привязывает нажатие к ТОМУ снимку вопроса и вариантов, который был показан
+    (R3b): ``pid`` стабилен для карточки, и без метки кнопка старого сообщения после повторной
+    отправки изменённого вопроса отвечала бы на НОВЫЕ варианты.
+    """
+    data = f"{CALLBACK_PREFIX}{pid}:{choice}" + (f"{VERSION_SEP}{vtag}" if vtag else "")
     if len(data.encode("utf-8")) > CALLBACK_MAX_BYTES:  # pragma: no cover — защита от будущих правок
         raise ValueError(f"callback_data too long: {data!r}")
     return data
@@ -1540,7 +1557,7 @@ def build_message(title: str, body: str, options: List[ParsedOption],
     return "\n".join(parts)
 
 
-def build_keyboard(pid: str, options: List[ParsedOption]) -> Dict:
+def build_keyboard(pid: str, options: List[ParsedOption], vtag: Optional[str] = None) -> Dict:
     """Inline-клавиатура: по кнопке на вариант (⭐ у рекомендованного) + «Подробнее».
 
     По одной кнопке в ряд: подписи вариантов длинные, в два столбца Telegram их режет.
@@ -1558,7 +1575,7 @@ def build_keyboard(pid: str, options: List[ParsedOption]) -> Dict:
         star = "⭐ " if opt.recommended else ""
         label = f"{star}{opt.num}. {_capitalize(_shorten(_plain(opt.label)))}"
         rows.append([{"text": label,
-                      "callback_data": build_callback(pid, opt.callback_choice)}])
+                      "callback_data": build_callback(pid, opt.callback_choice, vtag)}])
     rows.append([{"text": "📖 Подробнее", "callback_data": build_callback(pid, "more")}])
     return {"inline_keyboard": rows}
 
@@ -1716,13 +1733,13 @@ def ack_allowed(card_path: str | Path, body: str, *,
     return True, ""
 
 
-def build_ack_keyboard(pid: str) -> Dict:
+def build_ack_keyboard(pid: str, vtag: Optional[str] = None) -> Dict:
     """Клавиатура подтверждения: «Принято» / «Не надо» + «Подробнее»."""
     return {"inline_keyboard": [
         [{"text": ACK_BUTTONS[ACK_ACCEPT],
-          "callback_data": build_callback(pid, ACK_ACCEPT)}],
+          "callback_data": build_callback(pid, ACK_ACCEPT, vtag)}],
         [{"text": ACK_BUTTONS[ACK_DECLINE],
-          "callback_data": build_callback(pid, ACK_DECLINE)}],
+          "callback_data": build_callback(pid, ACK_DECLINE, vtag)}],
         [{"text": "📖 Подробнее", "callback_data": build_callback(pid, "more")}],
     ]}
 
@@ -1747,6 +1764,8 @@ class Prepared:
     #: ТОЛЬКО вычитанное из карточки, и всё, что его читает (журнал отправок,
     #: сторожа, текст «Варианты:»), обязано остаться правдой.
     ack: bool = False
+    #: R3b: версия ПОКАЗАННОГО вопроса (тело, из которого собраны текст и кнопки).
+    question_sha256: Optional[str] = None
 
 
 def prepare(
@@ -1780,6 +1799,8 @@ def prepare(
     options = parse_options(body)
     ack = allow_ack and not options and offers_ack(body)
     pid = make_pid(card_id)
+    qsha = _question_version_of_text(body)
+    vtag = version_tag(qsha)
     # Клавиатуру решаем ПЕРВОЙ: текст обязан знать, будет ли кнопка, иначе он пообещает
     # несуществующее (замер 08.08 — решение с «Нажми кнопку» и без кнопок).
     keyboard = None
@@ -1804,8 +1825,8 @@ def prepare(
         ):
             # Маячок гейтит и подтверждение: нажатие «Принято» — тот же глагол
             # `act:od:`, и по старому боту оно точно так же стёрло бы сам вопрос.
-            keyboard = (build_keyboard(pid, options) if options
-                        else build_ack_keyboard(pid))
+            keyboard = (build_keyboard(pid, options, vtag) if options
+                        else build_ack_keyboard(pid, vtag))
     # `ack` — РЕЖИМ карточки (выбора нет, применимо подтверждение), а не «кнопки
     # уехали»: это разные факты, и сторожу нужны оба. Обещать кнопки в ТЕКСТЕ можно
     # только по второму — иначе повторится 08.08 («Нажми кнопку» без единой кнопки).
@@ -1813,7 +1834,8 @@ def prepare(
                          card_name=card_name or card_id,
                          ack_buttons=ack and keyboard is not None,
                          notices=notices)
-    return Prepared(pid=pid, text=text, keyboard=keyboard, options=options, ack=ack)
+    return Prepared(pid=pid, text=text, keyboard=keyboard, options=options, ack=ack,
+                    question_sha256=qsha)
 
 
 def _live_tracker_dir(override: Optional[str | Path] = None) -> Optional[Path]:
@@ -2183,8 +2205,20 @@ def register_push(
         except Exception:  # noqa: BLE001
             send_count = 2
     doc["pushes"] = [r for r in doc["pushes"] if r.get("pid") != prep.pid]
+    # R3b: прежние снимки и прежняя запись отправки НЕ стираются — запись карточки одна, но
+    # каждый показанный вопрос остаётся в ней неизменным снимком, а прошлая отправка — в истории.
+    snapshots = dict(prev.get("snapshots") or {}) if isinstance(prev, dict) else {}
+    history = list(prev.get("history") or []) if isinstance(prev, dict) else []
+    if isinstance(prev, dict):
+        history.append({k: v for k, v in prev.items() if k not in ("history", "snapshots")})
+    vtag = version_tag(prep.question_sha256)
+    if vtag:
+        _add_snapshot(snapshots, vtag, prep.question_sha256, prep.options, prep.ack, dt)
     doc["pushes"].append({
         "pid": prep.pid,
+        "snapshots": snapshots,
+        "current_vtag": vtag,
+        "history": history[-HISTORY_MAX:],
         "send_count": send_count,
         "card": str(live_card),
         "card_id": p.stem,
@@ -2206,11 +2240,42 @@ def register_push(
         # сверяет её с карточкой в момент записи: вопрос изменился ⇒ старый ответ не пишется.
         # R3: версия ПОКАЗАННОГО владельцу текста (``body`` — из него собрано сообщение),
         # а не нового чтения файла (замер 30.10: на 346 карточках версии совпадают).
-        "question_sha256": _question_version_of_text(body),
+        "question_sha256": prep.question_sha256,
         "choice": None,
     })
     _save(doc, path_obj)
     return prep
+
+
+#: Сколько прошлых отправок карточки держит запись (снимки вопросов этим числом не ограничены).
+HISTORY_MAX = 50
+
+
+def _add_snapshot(snapshots: Dict, vtag: str, question_sha256: Optional[str], options,
+                  ack: bool, at: datetime) -> None:
+    """Добавить НЕИЗМЕННЫЙ снимок показанного вопроса; существующий не переписывается."""
+    if vtag in snapshots:
+        return
+    snapshots[vtag] = {
+        "question_sha256": question_sha256,
+        "options": [{"num": o.num, "label": o.label, "recommended": o.recommended}
+                    for o in options or []],
+        "ack": bool(ack),
+        "first_shown_at": at.isoformat(),
+        "message_ids": [],
+    }
+
+
+def _snapshot_for_message(rec: Dict, message_id) -> Optional[str]:
+    """Метка снимка, показанного сообщением ``message_id``; не найдено — ``None``."""
+    try:
+        mid = int(message_id)
+    except (TypeError, ValueError):
+        return None
+    for vtag, snap in (rec.get("snapshots") or {}).items():
+        if isinstance(snap, dict) and mid in (snap.get("message_ids") or []):
+            return vtag
+    return None
 
 
 def _question_version_of_text(text) -> Optional[str]:
@@ -2456,6 +2521,12 @@ def _remember_message_id(rec: Dict, message_id: Optional[int]) -> bool:
             continue
         if iv not in clean:
             clean.append(iv)
+    # R3b: адрес сообщения принадлежит ТОМУ снимку, который это сообщение показало.
+    snap = (rec.get("snapshots") or {}).get(rec.get("current_vtag") or "")
+    if isinstance(snap, dict):
+        ids_s = snap.setdefault("message_ids", [])
+        if int(message_id) not in ids_s:
+            ids_s.append(int(message_id))
     if message_id in clean:
         rec["message_ids"] = clean[-MESSAGE_IDS_MAX:]
         return False
@@ -2576,6 +2647,16 @@ def mark_buttons_delivered(
                 # согласие на старый текст к новому. Не передали ⇒ версии нет (сверки нет —
                 # названный предел), а не выдуманная версия.
                 rec["question_sha256"] = question_sha256
+                vtag = version_tag(question_sha256)
+                if vtag:
+                    _add_snapshot(rec.setdefault("snapshots", {}), vtag, question_sha256,
+                                  options if options is not None else
+                                  [ParsedOption(num=str(o.get("num")), label=str(o.get("label") or ""),
+                                                recommended=bool(o.get("recommended")))
+                                   for o in rec.get("options") or []],
+                                  bool(ack) if ack is not None else bool(rec.get("ack")),
+                                  now or datetime.now(timezone.utc))
+                rec["current_vtag"] = vtag
             if ack is not None:
                 rec["ack"] = bool(ack)
             _remember_message_id(rec, message_id_of(message_id))
@@ -2627,8 +2708,12 @@ def record_choice(
     owner_chat_id: Optional[str] = None,
     now: Optional[datetime] = None,
     state_path: Optional[str | Path] = None,
+    version: Optional[str] = None,
 ) -> Dict:
     """Нажатие владельца: записать выбор в карточку. Никогда не бросает.
+
+    ``version`` — метка показанного снимка (R3b). Кнопка несёт её в ``choice`` как
+    ``<номер>@<версия>``; реплай передаёт метку снимка своего сообщения.
 
     Возвращает словарь с ``ok`` и ``reason``; отказ — это нормальный ответ, а не авария:
     сообщение владельцу должно быть человеческим при любом исходе.
@@ -2652,6 +2737,27 @@ def record_choice(
 
     from spa_core.owner_queue.owner_answer import KIND_ACK, KIND_OPTION
 
+    # R3b: нажатие привязано к СНИМКУ показанного вопроса. Метка — в кнопке (``<номер>@<версия>``)
+    # либо аргументом (реплай — по снимку сообщения). Варианты и ожидаемая версия берутся из
+    # снимка, а не из последней отправки: старая кнопка не получает смысла новых вариантов.
+    choice = str(choice)
+    if VERSION_SEP in choice:
+        choice, version = choice.rsplit(VERSION_SEP, 1)
+    snapshots = rec.get("snapshots") or {}
+    if version is not None:
+        snap = snapshots.get(version)
+        if not isinstance(snap, dict):
+            return {"ok": False, "reason": "version_unknown", "card": rec.get("card")}
+        rec_options = snap.get("options") or []
+        sent_version_of_snapshot = snap.get("question_sha256")
+    elif snapshots:
+        # Запись знает версии, а нажатие версии не несёт — полномочия по legacy-ветке нет.
+        return {"ok": False, "reason": "version_unknown", "card": rec.get("card")}
+    else:
+        snap = None
+        rec_options = rec.get("options") or []
+        sent_version_of_snapshot = rec.get("question_sha256")
+
     # Подтверждение поручения резолвится КОНСТАНТОЙ, а не журналом. Журнал — снимок
     # момента отправки, а «Принято»/«Не надо» не зависят от содержимого карточки
     # вовсе: кнопка либо была нарисована (и тогда её нарисовали мы, по правилу
@@ -2665,7 +2771,7 @@ def record_choice(
         kind = KIND_ACK
     else:
         opt = None
-        for o in rec.get("options") or []:
+        for o in rec_options:
             if str(o.get("num", "")).lower() == str(choice).lower():
                 opt = o
                 break
@@ -2677,7 +2783,7 @@ def record_choice(
         return {"ok": False, "reason": "card_gone", "card": str(card_path)}
     # E3.4: ответ относится к той версии вопроса, что была отправлена. Записи до правки версию не
     # несут — для них сверка не проводится (названный предел), а не выдумывается.
-    sent_version = rec.get("question_sha256")
+    sent_version = sent_version_of_snapshot
     # Быстрый отказ до записи; РЕШАЮЩАЯ сверка — внутри транзакции записи (R3, ниже).
     if sent_version and _question_version_of(card_path) != sent_version:
         return {"ok": False, "reason": "question_changed", "card": str(card_path)}
@@ -2703,6 +2809,9 @@ def record_choice(
     rec["choice"] = str(opt["num"])
     rec["choice_label"] = str(opt.get("label") or "")
     rec["answered_at"] = res.get("answered_at")
+    if snap is not None:
+        rec["answered_vtag"] = version
+        snap.setdefault("choice", str(opt["num"]))
     _save(doc, path_obj)
     return {"ok": True, "already": bool(res.get("already")), "card": str(card_path),
             "choice": str(opt["num"]), "label": str(opt.get("label") or ""),
@@ -2957,6 +3066,11 @@ def _push_by_message_id(
     for rec in reversed(doc.get("pushes") or []):
         if not isinstance(rec, dict):
             continue
+        # R3b: адрес сообщения прежней отправки живёт в её СНИМКЕ — запись карточки после
+        # повторной отправки несёт уже новый список, и без этой проверки реплай на старое
+        # сообщение молча уходил бы к последней версии вопроса.
+        if _snapshot_for_message(rec, mid) is not None:
+            return rec
         ids = rec.get("message_ids")
         if not isinstance(ids, list):
             continue
@@ -3066,6 +3180,7 @@ def resolve_text_answer(
                                    for c in candidates[:5]],
                     "candidates_total": len(candidates),
                     "addressees": [{"pid": c.get("pid"),
+                                    "vtag": c.get("current_vtag"),
                                     "card_id": c.get("card_id"),
                                     "title": c.get("title"),
                                     "offers": _record_offers_option(c, num)}
@@ -3077,8 +3192,14 @@ def resolve_text_answer(
                 "choice": rec.get("choice"), "label": rec.get("choice_label"),
                 "title": rec.get("title")}
 
+    # R3b: реплай отвечает на ТОТ снимок, который показало его сообщение; без реплая — на
+    # текущий показанный. Снимка не нашли при записи с версиями ⇒ record_choice откажет
+    # (``version_unknown``), а не применит ответ к последней отправке.
+    version = (_snapshot_for_message(rec, reply_to_message_id) if resolved_by == "reply_to"
+               else rec.get("current_vtag"))
     result = record_choice(rec["pid"], num, actor_chat_id,
-                           owner_chat_id=owner_chat_id, now=now, state_path=state_path)
+                           owner_chat_id=owner_chat_id, now=now, state_path=state_path,
+                           version=version)
     result.setdefault("card_id", rec.get("card_id"))
     result.setdefault("title", rec.get("title"))
     result["via"] = "text"
@@ -3221,7 +3342,8 @@ def build_answer_addressee_picker(result: Dict) -> Optional[Tuple[str, Dict]]:
             # уникально по построению, а придумывать сокращение заголовка мы не вправе.
             label = _shorten(str(a.get("card_id") or label), PICKER_LABEL_MAX)
         rows.append([{"text": label,
-                      "callback_data": build_callback(str(a["pid"]), num.lower())}])
+                      "callback_data": build_callback(str(a["pid"]), num.lower(),
+                                                      a.get("vtag"))}])
     if not rows:
         return None
 

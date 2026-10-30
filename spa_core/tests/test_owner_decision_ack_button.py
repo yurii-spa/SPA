@@ -478,7 +478,7 @@ def test_accept_records_the_owner_answer_and_leaves_the_card_open(env):
     _commit(env)
     prep, live = _push(env, card, CARD_INSTRUCTION)
 
-    res = od.record_choice(prep.pid, od.ACK_ACCEPT, OWNER, owner_chat_id=OWNER,
+    res = od.record_choice(prep.pid, od.ACK_ACCEPT + od.VERSION_SEP + od.version_tag(prep.question_sha256), OWNER, owner_chat_id=OWNER,
                            now=FIXED_NOW, state_path=env["state"])
 
     assert res["ok"] is True and res["kind"] == "ack"
@@ -499,7 +499,7 @@ def test_decline_is_a_real_answer_too(env):
     _commit(env)
     prep, live = _push(env, card, CARD_INSTRUCTION)
 
-    res = od.record_choice(prep.pid, od.ACK_DECLINE, OWNER, owner_chat_id=OWNER,
+    res = od.record_choice(prep.pid, od.ACK_DECLINE + od.VERSION_SEP + od.version_tag(prep.question_sha256), OWNER, owner_chat_id=OWNER,
                            now=FIXED_NOW, state_path=env["state"])
 
     assert res["ok"] is True
@@ -514,7 +514,7 @@ def test_confirmation_never_calls_it_a_variant(env):
     _commit(env)
     prep, _ = _push(env, card, CARD_INSTRUCTION)
 
-    res = od.record_choice(prep.pid, od.ACK_ACCEPT, OWNER, owner_chat_id=OWNER,
+    res = od.record_choice(prep.pid, od.ACK_ACCEPT + od.VERSION_SEP + od.version_tag(prep.question_sha256), OWNER, owner_chat_id=OWNER,
                            now=FIXED_NOW, state_path=env["state"])
 
     assert "вариант" not in od.confirmation_text(res).lower()
@@ -527,9 +527,9 @@ def test_second_press_is_idempotent(env):
     _commit(env)
     prep, live = _push(env, card, CARD_INSTRUCTION)
 
-    od.record_choice(prep.pid, od.ACK_ACCEPT, OWNER, owner_chat_id=OWNER,
+    od.record_choice(prep.pid, od.ACK_ACCEPT + od.VERSION_SEP + od.version_tag(prep.question_sha256), OWNER, owner_chat_id=OWNER,
                      now=FIXED_NOW, state_path=env["state"])
-    res = od.record_choice(prep.pid, od.ACK_ACCEPT, OWNER, owner_chat_id=OWNER,
+    res = od.record_choice(prep.pid, od.ACK_ACCEPT + od.VERSION_SEP + od.version_tag(prep.question_sha256), OWNER, owner_chat_id=OWNER,
                            now=FIXED_NOW, state_path=env["state"])
 
     assert res["already"] is True
@@ -558,7 +558,7 @@ def test_invariant_14_stranger_press_writes_nothing(env):
     prep, live = _push(env, card, CARD_INSTRUCTION)
     before = live.read_text(encoding="utf-8")
 
-    res = od.record_choice(prep.pid, od.ACK_ACCEPT, STRANGER, owner_chat_id=OWNER,
+    res = od.record_choice(prep.pid, od.ACK_ACCEPT + od.VERSION_SEP + od.version_tag(prep.question_sha256), STRANGER, owner_chat_id=OWNER,
                            now=FIXED_NOW, state_path=env["state"])
 
     assert res["ok"] is False and res["reason"] == "not_owner"
@@ -642,7 +642,12 @@ def test_heal_refreshes_options_so_the_button_leads_somewhere(env):
                               beacon_path=env["alive"]) == [prep.pid]
     assert [o["num"] for o in _rec(env, prep.pid)["options"]] == ["1", "2"]
 
-    res = od.record_choice(prep.pid, "1", OWNER, owner_chat_id=OWNER,
+    # R3b (ADR-857, инв. #16 — изменено намеренно): владелец жмёт ДОСЛАННУЮ кнопку, и она несёт
+    # версию досланного текста. Кнопка исходной отправки (вопрос без вариантов) указывает на свой
+    # снимок и честно отвечает unknown_option — это предмет правки, а не регрессия.
+    healed_cb = next(b["callback_data"] for row in send.sent[-1][1]["inline_keyboard"] for b in row
+                     if od.parse_callback(b["callback_data"])[1].split(od.VERSION_SEP)[0] == "1")
+    res = od.record_choice(*od.parse_callback(healed_cb), OWNER, owner_chat_id=OWNER,
                            now=FIXED_NOW, state_path=env["state"])
     assert res["ok"] is True, "нажатие по досланной кнопке обязано записываться"
     assert "status: owner-done" in live.read_text(encoding="utf-8")
@@ -661,7 +666,7 @@ def test_heal_delivers_ack_buttons_to_an_instruction_card(env):
     assert od.ACK_BUTTONS[od.ACK_ACCEPT] in labels
     assert _rec(env, prep.pid)["ack"] is True
 
-    res = od.record_choice(prep.pid, od.ACK_ACCEPT, OWNER, owner_chat_id=OWNER,
+    res = od.record_choice(prep.pid, od.ACK_ACCEPT + od.VERSION_SEP + od.version_tag(prep.question_sha256), OWNER, owner_chat_id=OWNER,
                            now=FIXED_NOW, state_path=env["state"])
     assert res["ok"] is True
     # ИЗМЕНЕНО НАМЕРЕННО (#350, инв. #16) и УСИЛЕНО: досланная кнопка обязана вести

@@ -199,7 +199,7 @@ def test_answered_card_shows_the_answer_and_no_more_buttons(card, journal, beaco
     monkeypatch.setattr("spa_core.owner_queue.owner_answer._owner_chat_id",
                         lambda explicit=None: OWNER)
     prep = _push(card, journal, beacon)
-    od.record_choice(prep.pid, "1", OWNER, now=FIXED_NOW, state_path=journal)
+    od.record_choice(prep.pid, "1" + od.VERSION_SEP + od.version_tag(prep.question_sha256), OWNER, now=FIXED_NOW, state_path=journal)
 
     text, kb = V.render_item(prep.pid, "ru")
 

@@ -218,9 +218,14 @@ def test_the_press_lands_in_the_card_after_the_repair(env):
     card = _publish(env, _WITH_OPTIONS)
     _live(card, _WITHOUT_OPTIONS)
     prep = _push(env, card, _WITHOUT_OPTIONS)
-    _heal(env)
+    _fixed, send = _heal(env)
 
-    res = od.record_choice(prep.pid, "2", 777, owner_chat_id=777,
+    # R3b (ADR-857, инв. #16 — изменено намеренно): владелец жмёт ДОСЛАННУЮ кнопку, и она несёт
+    # версию досланного текста. Кнопка исходной отправки (вопрос без вариантов) указывает на свой
+    # снимок и честно отвечает unknown_option — это предмет правки, а не регрессия.
+    healed_cb = next(b["callback_data"] for row in send.sent[-1][1]["inline_keyboard"] for b in row
+                     if od.parse_callback(b["callback_data"])[1].split(od.VERSION_SEP)[0] == "2")
+    res = od.record_choice(*od.parse_callback(healed_cb), 777, owner_chat_id=777,
                            now=FIXED_NOW, state_path=env["state"])
 
     assert res["ok"] is True, res

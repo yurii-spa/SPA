@@ -150,7 +150,7 @@ def test_accept_does_not_close_the_instruction_card(env):
     _commit(env)
     prep, live = _push(env, card, CARD_INSTRUCTION)
 
-    res = od.record_choice(prep.pid, od.ACK_ACCEPT, OWNER, owner_chat_id=OWNER,
+    res = od.record_choice(prep.pid, od.ACK_ACCEPT + od.VERSION_SEP + od.version_tag(prep.question_sha256), OWNER, owner_chat_id=OWNER,
                            now=FIXED_NOW, state_path=env["state"])
 
     assert res["ok"] is True and res["kind"] == "ack"
@@ -172,7 +172,7 @@ def test_the_card_body_says_the_card_is_still_open(env):
     _commit(env)
     prep, live = _push(env, card, CARD_INSTRUCTION)
 
-    od.record_choice(prep.pid, od.ACK_ACCEPT, OWNER, owner_chat_id=OWNER,
+    od.record_choice(prep.pid, od.ACK_ACCEPT + od.VERSION_SEP + od.version_tag(prep.question_sha256), OWNER, owner_chat_id=OWNER,
                      now=FIXED_NOW, state_path=env["state"])
 
     text = live.read_text(encoding="utf-8")
@@ -186,7 +186,7 @@ def test_confirmation_to_the_owner_does_not_promise_a_closed_card(env):
     _commit(env)
     prep, _ = _push(env, card, CARD_INSTRUCTION)
 
-    res = od.record_choice(prep.pid, od.ACK_ACCEPT, OWNER, owner_chat_id=OWNER,
+    res = od.record_choice(prep.pid, od.ACK_ACCEPT + od.VERSION_SEP + od.version_tag(prep.question_sha256), OWNER, owner_chat_id=OWNER,
                            now=FIXED_NOW, state_path=env["state"])
     said = od.confirmation_text(res)
 
@@ -204,7 +204,7 @@ def test_decline_still_closes_the_card(env):
     _commit(env)
     prep, live = _push(env, card, CARD_INSTRUCTION)
 
-    res = od.record_choice(prep.pid, od.ACK_DECLINE, OWNER, owner_chat_id=OWNER,
+    res = od.record_choice(prep.pid, od.ACK_DECLINE + od.VERSION_SEP + od.version_tag(prep.question_sha256), OWNER, owner_chat_id=OWNER,
                            now=FIXED_NOW, state_path=env["state"])
 
     assert "status: owner-done" in live.read_text(encoding="utf-8")
@@ -217,7 +217,7 @@ def test_a_chosen_option_still_closes_the_card(env):
     _commit(env)
     prep, live = _push(env, card, CARD_OPTIONS)
 
-    od.record_choice(prep.pid, "1", OWNER, owner_chat_id=OWNER,
+    od.record_choice(prep.pid, "1" + od.VERSION_SEP + od.version_tag(prep.question_sha256), OWNER, owner_chat_id=OWNER,
                      now=FIXED_NOW, state_path=env["state"])
 
     assert "status: owner-done" in live.read_text(encoding="utf-8")
@@ -273,7 +273,7 @@ def test_ingested_is_the_agent_exit_from_accepted(env):
     card = _write(env, CARD_INSTRUCTION)
     _commit(env)
     prep, live = _push(env, card, CARD_INSTRUCTION)
-    od.record_choice(prep.pid, od.ACK_ACCEPT, OWNER, owner_chat_id=OWNER,
+    od.record_choice(prep.pid, od.ACK_ACCEPT + od.VERSION_SEP + od.version_tag(prep.question_sha256), OWNER, owner_chat_id=OWNER,
                      now=FIXED_NOW, state_path=env["state"])
     assert f"status: {qmod.OWNER_ACCEPTED_STATUS}" in live.read_text(encoding="utf-8"), (
         "иначе тест проверяет выход не из того состояния и зелен по совпадению")

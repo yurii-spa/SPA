@@ -833,7 +833,10 @@ def test_heal_records_the_version_of_the_text_it_sent_not_a_fresh_read(tmp_path,
     assert od.heal_buttonless(fake_send, state_path=journal) == ["p1"]
     rec = json.loads(journal.read_text())["pushes"][0]
     assert rec["question_sha256"] == sent_version != question_version(_Q_NEW)
-    res = od.record_choice("p1", "1", "42", owner_chat_id="42", state_path=journal)
+    # R3b: нажатие идёт настоящей меткой досланного снимка (``<номер>@<версия>``);
+    # кнопка без метки на записи со снимками отвергается отдельно (version_unknown).
+    res = od.record_choice("p1", "1" + od.VERSION_SEP + od.version_tag(sent_version), "42",
+                           owner_chat_id="42", state_path=journal)
     assert res["reason"] == "question_changed" and "owner_choice" not in card.read_text()
 
 
