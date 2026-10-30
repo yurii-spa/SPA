@@ -239,6 +239,89 @@ def declared_funded_cap() -> Optional[int]:
         return None
 
 
+#: Сводка о ГИПОТЕТИЧЕСКИХ книгах этого процесса — вместо строки журнала на каждую
+#: пробу (см. ``book_verdict``). Размер ограничен: исходы считаются, предупреждения
+#: и нарушения группируются по КЛАССУ сообщения (не более ``SUMMARY_MAX_CLASSES`` на
+#: вид, у класса — счёт и один усечённый пример); сверх лимита растёт ``overflow``.
+SUMMARY_MAX_CLASSES = 64
+SUMMARY_EXAMPLE_CHARS = 300
+
+
+def _empty_summary() -> dict:
+    return {"checked": 0, "rejected": 0, "approved_with_warnings": 0,
+            "approved_clean": 0,
+            "warnings": {"classes": {}, "overflow": 0},
+            "violations": {"classes": {}, "overflow": 0}}
+
+
+HYPOTHETICAL_CHECKS: dict = _empty_summary()
+
+
+def message_class(text: str) -> str:
+    """Класс сообщения политики без переменной части (протоколы, проценты, суммы).
+
+    ``⚠ TVL_FLOOR_UNCHECKED: живой TVL не предъявлен для …`` → ``TVL_FLOOR_UNCHECKED``;
+    ``Held APY euler_v2 0.7% below minimum 1.0%`` → ``Held APY # #% below minimum #%``.
+    """
+    import re
+    t = str(text).strip().lstrip("⚠✗ ").strip()
+    head = t.split(":", 1)[0]
+    if re.fullmatch(r"[A-Z][A-Z0-9_]{2,}", head):
+        return head
+    t = re.sub(r"\b[a-z][a-z0-9]*(?:_[a-z0-9]+)+\b", "#", t)   # ключи протоколов
+    t = re.sub(r"[$]?\d[\d,]*(?:\.\d+)?", "#", t)
+    return t[:120]
+
+
+def _tally(bucket: dict, messages) -> None:
+    classes = bucket["classes"]
+    for m in messages:
+        key = message_class(m)
+        slot = classes.get(key)
+        if slot is None:
+            if len(classes) >= SUMMARY_MAX_CLASSES:
+                bucket["overflow"] += 1
+                continue
+            slot = classes[key] = {"count": 0,
+                                   "example": str(m)[:SUMMARY_EXAMPLE_CHARS]}
+        slot["count"] += 1
+
+
+def _record_hypothetical_check(result) -> None:
+    """Сток журнала политики для ГИПОТЕТИЧЕСКОЙ книги: сводка вместо строки.
+
+    Первая проба процесса оставляет одну строку INFO — чтобы по логу было видно,
+    что построчные вердикты пробных книг намеренно не печатаются, а не пропали.
+    """
+    summary = HYPOTHETICAL_CHECKS
+    summary["checked"] += 1
+    warnings = list(getattr(result, "warnings", None) or [])
+    if not result.approved:
+        summary["rejected"] += 1
+    elif warnings:
+        summary["approved_with_warnings"] += 1
+    else:
+        summary["approved_clean"] += 1
+    _tally(summary["warnings"], warnings)
+    _tally(summary["violations"], getattr(result, "violations", None) or [])
+    if summary["checked"] == 1:
+        log.info("trim_admissibility: вердикты RiskPolicy о ГИПОТЕТИЧЕСКИХ книгах "
+                 "перебора урезания не печатаются построчно — они в отчёте "
+                 "переписи и в hypothetical_check_summary(); живые проверки "
+                 "логируются как прежде")
+
+
+def hypothetical_check_summary() -> dict:
+    """Копия ограниченной сводки о гипотетических проверках этого процесса."""
+    import copy
+    return copy.deepcopy(HYPOTHETICAL_CHECKS)
+
+
+def reset_hypothetical_check_summary() -> None:
+    HYPOTHETICAL_CHECKS.clear()
+    HYPOTHETICAL_CHECKS.update(_empty_summary())
+
+
 def book_verdict(book: Dict[str, float],
                  apy_pct: Dict[str, float],
                  capital_usd: float,
@@ -275,9 +358,19 @@ def book_verdict(book: Dict[str, float],
         return None, sorted(set(unknown))
     state = PortfolioState(total_capital_usd=float(capital_usd),
                            positions=positions)
-    result = RiskPolicy().check_portfolio_health(state)
+    policy = RiskPolicy()
+    # Книга здесь ГИПОТЕТИЧЕСКАЯ (форма урезания, кандидат перебора), а не живая:
+    # переписи зовут дверь десятки тысяч раз на один прогон (замер 30.10: 60 947
+    # вызовов на один ``shadow_trigger_eval.evaluate_window``), и построчный
+    # WARNING/ERROR о каждой пробной книге за ночь набрал >100 ГБ в
+    # /tmp/spa_decision_loop.log. Вердикт, нарушения и ответ НЕ меняются и уходят
+    # в отчёт переписи; не пишется только строка журнала о книге, которой нет.
+    # Живые вызовы политики (цикл, монитор здоровья) логируют как прежде.
+    policy._log_result = _record_hypothetical_check
+    result = policy.check_portfolio_health(state)
     return ({"approved": bool(result.approved),
              "violations": [str(v) for v in result.violations],
+             "warnings": [str(w) for w in result.warnings],
              "required_response": str(result.required_response),
              "funded": len(positions)},
             [])
