@@ -27,13 +27,17 @@ _APY = {"aave_v3": 4.0, "euler_v2": 0.7}
 _TIERS = {"aave_v3": "T1", "euler_v2": "T1"}
 _CHAINS = {"aave_v3": "ethereum", "euler_v2": "ethereum"}
 
+# Книга в пределах политики, но без живого TVL ⇒ APPROVED with warnings (TVL_FLOOR_UNCHECKED).
+_OK_BOOK = {"aave_v3": 30_000.0, "euler_v2": 30_000.0}
+_OK_APY = {"aave_v3": 4.0, "euler_v2": 5.0}
 
-def _live_state() -> PortfolioState:
+
+def _live_state(book=_BOOK, apy=_APY) -> PortfolioState:
     return PortfolioState(total_capital_usd=100_000.0, positions=[
         Position(protocol_key=k, tier=_TIERS[k], asset="USDC", amount_usd=v,
-                 apy_at_open=_APY[k], current_apy=_APY[k], unrealized_pnl_usd=0.0,
+                 apy_at_open=apy[k], current_apy=apy[k], unrealized_pnl_usd=0.0,
                  days_held=0.0, chain=_CHAINS[k])
-        for k, v in sorted(_BOOK.items())])
+        for k, v in sorted(book.items())])
 
 
 class HypotheticalBookLog(unittest.TestCase):
@@ -56,8 +60,13 @@ class HypotheticalBookLog(unittest.TestCase):
             logger.setLevel(old_level)
         return out, [r for r in records if r.levelno >= logging.WARNING]
 
+    def setUp(self):
+        ta.reset_hypothetical_check_summary()
+
+    def tearDown(self):
+        ta.reset_hypothetical_check_summary()
+
     def test_hypothetical_book_keeps_verdict_and_writes_no_policy_line(self):
-        before = dict(ta.HYPOTHETICAL_CHECKS)
         (verdict, unknown), lines = self._policy_records(lambda: ta.book_verdict(
             _BOOK, _APY, 100_000.0, tiers=_TIERS, chains=_CHAINS))
         self.assertEqual(unknown, [])
@@ -65,11 +74,41 @@ class HypotheticalBookLog(unittest.TestCase):
         # вердикт и нарушения — те же, что у живой двери на той же книге
         self.assertEqual(verdict["approved"], bool(live.approved))
         self.assertEqual(verdict["violations"], [str(v) for v in live.violations])
+        self.assertEqual(verdict["warnings"], [str(w) for w in live.warnings])
         self.assertFalse(verdict["approved"])
         self.assertTrue(any("euler_v2" in v for v in verdict["violations"]))
         self.assertEqual(lines, [], "пробная книга не пишет WARNING/ERROR политики")
-        self.assertEqual(ta.HYPOTHETICAL_CHECKS["checked"], before["checked"] + 1)
-        self.assertEqual(ta.HYPOTHETICAL_CHECKS["rejected"], before["rejected"] + 1)
+        summ = ta.hypothetical_check_summary()
+        self.assertEqual((summ["checked"], summ["rejected"]), (1, 1))
+        self.assertIn("Held APY # #% below minimum #%", summ["violations"]["classes"])
+
+    def test_approved_with_warnings_keeps_warnings_in_result_and_summary(self):
+        (verdict, unknown), lines = self._policy_records(lambda: ta.book_verdict(
+            _OK_BOOK, _OK_APY, 100_000.0, tiers=_TIERS, chains=_CHAINS))
+        live = RiskPolicy().check_portfolio_health(_live_state(_OK_BOOK, _OK_APY))
+        self.assertTrue(live.approved and live.warnings, "предпосылка: живая дверь даёт approved-with-warnings")
+        self.assertEqual(unknown, [])
+        self.assertTrue(verdict["approved"])
+        self.assertEqual(verdict["warnings"], [str(w) for w in live.warnings])
+        self.assertTrue(any("TVL_FLOOR_UNCHECKED" in w for w in verdict["warnings"]))
+        self.assertEqual(lines, [])
+        summ = ta.hypothetical_check_summary()
+        self.assertEqual((summ["checked"], summ["approved_with_warnings"], summ["rejected"]), (1, 1, 0))
+        self.assertEqual(summ["warnings"]["classes"]["TVL_FLOOR_UNCHECKED"]["count"], 1)
+
+    def test_summary_is_bounded_under_many_checks(self):
+        for i in range(ta.SUMMARY_MAX_CLASSES + 50):
+            ta._tally(ta.HYPOTHETICAL_CHECKS["warnings"], [f"CLASS_{i:04d}X: " + "x" * 5000])
+        for _ in range(10_000):
+            ta.book_verdict(_OK_BOOK, _OK_APY, 100_000.0, tiers=_TIERS, chains=_CHAINS)
+        summ = ta.hypothetical_check_summary()
+        self.assertLessEqual(len(summ["warnings"]["classes"]), ta.SUMMARY_MAX_CLASSES)
+        self.assertGreaterEqual(summ["warnings"]["overflow"], 50)
+        self.assertTrue(all(len(c["example"]) <= ta.SUMMARY_EXAMPLE_CHARS
+                            for c in summ["warnings"]["classes"].values()))
+        import json
+        self.assertLess(len(json.dumps(summ)), 64 * 1024)
+        self.assertEqual(summ["checked"], 10_000)
 
     def test_live_policy_call_still_logs(self):
         """Положительный контроль: правка не глушит журнал политики целиком."""
@@ -77,6 +116,14 @@ class HypotheticalBookLog(unittest.TestCase):
             lambda: RiskPolicy().check_portfolio_health(_live_state()))
         self.assertTrue(lines, "живая проверка обязана печатать отказ")
         self.assertTrue(any("euler_v2" in r.getMessage() for r in lines))
+
+    def test_live_approved_with_warnings_still_logs_the_warning(self):
+        _res, lines = self._policy_records(
+            lambda: RiskPolicy().check_portfolio_health(_live_state(_OK_BOOK, _OK_APY)))
+        msgs = [r.getMessage() for r in lines]
+        self.assertTrue(any("APPROVED with warnings" in m for m in msgs))
+        self.assertTrue(any("TVL_FLOOR_UNCHECKED" in m for m in msgs))
+        self.assertEqual(ta.hypothetical_check_summary()["checked"], 0)
 
     def test_hypothetical_sink_does_not_leak_to_later_live_instances(self):
         ta.book_verdict(_BOOK, _APY, 100_000.0, tiers=_TIERS, chains=_CHAINS)
