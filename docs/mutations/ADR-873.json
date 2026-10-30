@@ -1,0 +1,105 @@
+{
+ "title": "ADR-873 — у оси «род записи» появился ПИСАТЕЛЬ и три различимых исхода: каждая мутация снимает ОДНО звено",
+ "tests": [
+  "spa_core/tests/test_inbox_kind_writer.py",
+  "spa_core/tests/test_inbox_kind_probe.py"
+ ],
+ "mutations": [
+  {
+   "name": "вернуть запасной ключ `type` — трекерный тип снова подставляется как род записи (дефект замера #991)",
+   "file": "spa_core/owner_queue/triage.py",
+   "old": "    raw = (fm.get(\"intake_kind\") or \"\").strip()",
+   "new": "    raw = (fm.get(\"intake_kind\") or fm.get(\"type\") or \"\").strip()"
+  },
+  {
+   "name": "«непонятно» свести к «не объявлен» — объявленный третий исход снова неотличим от отсутствия (инв. #17)",
+   "file": "spa_core/owner_queue/triage.py",
+   "old": "    return raw if raw in KINDS_RU else KIND_INVALID",
+   "new": "    return KIND_UNDECLARED if raw == \"unclear\" else (raw if raw in KINDS_RU else KIND_INVALID)"
+  },
+  {
+   "name": "значение вне словаря свести к «не объявлен» — у третьего исхода отбирается своё число",
+   "file": "spa_core/owner_queue/triage.py",
+   "old": "    return raw if raw in KINDS_RU else KIND_INVALID",
+   "new": "    return raw if raw in KINDS_RU else KIND_UNDECLARED"
+  },
+  {
+   "name": "`kind_declared` считает ВСЕ строки — «объявлен» перестаёт отличаться от «есть карточка»",
+   "file": "spa_core/owner_queue/triage.py",
+   "old": "            \"kind_declared\": sum(kind_counts.values()),",
+   "new": "            \"kind_declared\": len(rows),"
+  },
+  {
+   "name": "сводка печатает одно число вместо трёх — возвращается «тип не объявлен N», читавшийся как N недосмотров",
+   "file": "spa_core/owner_queue/triage.py",
+   "old": "        shown = \", \".join(f\"{KINDS_RU[k]} {counts[k]}\" for k in KINDS if counts.get(k))",
+   "new": "        shown = \"\""
+  },
+  {
+   "name": "сводка молчит о значении вне словаря — исход есть, читателя у него нет",
+   "file": "spa_core/owner_queue/triage.py",
+   "old": "        if rep.get(\"kind_invalid\"):",
+   "new": "        if False:"
+  },
+  {
+   "name": "писатель перестаёт спрашивать словарь — род пишется как есть, и приём рождает INVALID",
+   "file": "spa_core/owner_queue/queue.py",
+   "old": "    if k not in KINDS_RU:",
+   "new": "    if False:"
+  },
+  {
+   "name": "меню владельца снова СВОЯ копия словаря и расходится с каноном (три копии до ADR-873)",
+   "file": "spa_core/telegram/inbox_intake.py",
+   "old": "INTAKE_KIND_RU = {k: _KINDS_RU[k] for k in OWNER_LABELS}",
+   "new": "INTAKE_KIND_RU = {\"idea\": \"идея\", \"task\": \"задача\", \"note\": \"пометка\"}"
+  },
+  {
+   "name": "в меню владельца добавлен вердикт разбора «непонятно» — граница «слово владельца / вердикт сессии» стёрта",
+   "file": "spa_core/telegram/inbox_intake.py",
+   "old": "OWNER_LABELS = (\"idea\", \"task\", \"note\")",
+   "new": "OWNER_LABELS = (\"idea\", \"task\", \"note\", \"unclear\")"
+  },
+  {
+   "name": "CLI отказ превращается в успех — команда молча «записывает» род вне словаря",
+   "file": "scripts/orchestrator_queue.py",
+   "old": "        print(f\"REFUSED: intake_kind — {exc}\", file=sys.stderr)\n        return 2",
+   "new": "        print(f\"REFUSED: intake_kind — {exc}\", file=sys.stderr)\n        return 0"
+  },
+  {
+   "name": "проба: звено 1 всегда зелено — подставленный род перестаёт быть находкой",
+   "file": "spa_core/monitoring/card_acceptance.py",
+   "old": "        if rep[\"rows\"][0][\"kind\"] != T.KIND_UNDECLARED or rep[\"kind_declared\"] != 0:",
+   "new": "        if False:"
+  },
+  {
+   "name": "проба: звено 4 снято — трекерный тип снова может стать родом, и проба промолчит",
+   "file": "spa_core/monitoring/card_acceptance.py",
+   "old": "        if kinds.get(\"inbox-c.md\") != T.KIND_UNDECLARED:",
+   "new": "        if False:"
+  },
+  {
+   "name": "проба: пропавшее ПОЛЕ третьего исхода читается как исключение, а не как порванное звено",
+   "file": "spa_core/monitoring/card_acceptance.py",
+   "old": "        if kinds.get(\"inbox-e.md\") != T.KIND_INVALID or rep.get(\"kind_invalid\") != 1:",
+   "new": "        if kinds.get(\"inbox-e.md\") != T.KIND_INVALID or rep[\"kind_invalid\"] != 1:"
+  },
+  {
+   "name": "проба: звено 6 снято — меню писателей вправе разойтись со словарём читателя",
+   "file": "spa_core/monitoring/card_acceptance.py",
+   "old": "        extra = (set(_MENU) | set(_MISSION)) - set(T.KINDS_RU)",
+   "new": "        extra = set()"
+  },
+  {
+   "name": "проба: «нечем измерить» сведено к «не выполнено» — третий исход пробы исчезает (инв. #17)",
+   "file": "spa_core/monitoring/card_acceptance.py",
+   "old": "        return UNMEASURED, f\"ось рода записи не поднимается: {type(exc).__name__}: {exc}\"",
+   "new": "        return NOT_SATISFIED, f\"ось рода записи не поднимается: {type(exc).__name__}: {exc}\""
+  },
+  {
+   "name": "отчёт без счётчиков рода печатается нулями — пустота снова подставляется вместо отсутствия наблюдения (инв. #17)",
+   "file": "spa_core/owner_queue/triage.py",
+   "old": "    if counts is None or declared is None or unknown is None:",
+   "new": "    if False:\n        pass\n    elif False:"
+  }
+ ]
+}

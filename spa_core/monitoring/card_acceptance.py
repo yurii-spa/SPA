@@ -13471,7 +13471,114 @@ def _probe_size_edge_prize_source_is_named(
         f"{census.get('scan_worse')} (обязан быть 0)")
 
 
+def _probe_inbox_record_kind_has_a_writer(arg: str | None) -> tuple[str, str]:
+    """Критерий: у оси «род записи» ЕСТЬ писатель, и три её исхода различимы (ADR-873).
+
+    Карточка `inbox-os-tip-zapisi-v-razbore-vhodyaschih-ne-i`: сводка шага 0a печатала
+    «тип не объявлен 38» при `new 38` — ложная ПОЛНОТА, потому что `intake_kind` не несла
+    НИ ОДНА из 1534 карточек, а запасной ключ `type` отвечал на вопрос «какой это трекер».
+
+    Сцена одноразовая (временный каталог трекера; живая очередь НЕ трогается) и меряет
+    ИСХОД на НАСТОЯЩИХ дверях — читателе `triage.declared_kind` и писателе
+    `queue.set_intake_kind`. Пять звеньев, порвись любое — `not_satisfied` с его номером:
+
+    1. род НЕ объявлен ⇒ `UNKNOWN` и `kind_declared` 0 (подстановки нет);
+    2. писатель объявляет род ⇒ читатель его ВИДИТ, `kind_unknown` падает;
+    3. «непонятно» — ОБЪЯВЛЕННЫЙ род, а не отсутствие (инв. #17);
+    4. трекерный `type` родом НЕ становится;
+    5. значение вне словаря: писатель ОТКАЗЫВАЕТ, а записанное руками имеет СВОЙ исход.
+
+    Плюс звено 6 — меню писателей ⊆ словарь читателя (три копии словаря до ADR-873
+    расходились ровно на третьем исходе).
+
+    Сверяются ПОЛЯ отчёта (`kind`, `kind_declared`, `kind_unknown`, `kind_invalid`), а не
+    подстрока сводки (ADR-333). Время в сцену НЕ входит: ось рода часов не спрашивает.
+    """
+    import shutil
+    import tempfile
+    from pathlib import Path
+
+    try:
+        from spa_core.owner_queue import triage as T
+        from spa_core.owner_queue.queue import IntakeKindRefused, set_intake_kind
+    except Exception as exc:  # noqa: BLE001 — «нечем измерить» ≠ «не выполнено»
+        return UNMEASURED, f"ось рода записи не поднимается: {type(exc).__name__}: {exc}"
+
+    d = Path(tempfile.mkdtemp(prefix="spa_probe_kind_"))
+    try:
+        def card(name: str, *extra: str) -> Path:
+            f = d / name
+            f.write_text("\n".join(["---", "trackerStatus:", "  type: inbox",
+                                    f'title: "{name}"', "status: new",
+                                    "created: 2026-10-30", *extra, "---", "", "тело", ""]),
+                         encoding="utf-8")
+            return f
+
+        a = card("inbox-a.md")
+        rep = T.triage(d)
+        if rep["rows"][0]["kind"] != T.KIND_UNDECLARED or rep["kind_declared"] != 0:
+            return NOT_SATISFIED, (f"звено 1: род НЕ объявлен, а ось говорит "
+                                   f"{rep['rows'][0]['kind']!r} (объявлено {rep['kind_declared']})")
+
+        set_intake_kind(a, "task")
+        rep = T.triage(d)
+        if rep["rows"][0]["kind"] != "task" or rep["kind_unknown"] != 0:
+            return NOT_SATISFIED, (f"звено 2: писатель объявил род `task`, а читатель видит "
+                                   f"{rep['rows'][0]['kind']!r} (не объявлено {rep['kind_unknown']})")
+
+        b = card("inbox-b.md", "intake_kind: unclear")
+        kinds = {r["card"]: r["kind"] for r in T.triage(d)["rows"]}
+        if kinds.get("inbox-b.md") != "unclear":
+            return NOT_SATISFIED, (f"звено 3: «непонятно» — ОБЪЯВЛЕННЫЙ род, а ось свела его "
+                                   f"к {kinds.get('inbox-b.md')!r} (инв. #17)")
+
+        c = d / "inbox-c.md"
+        c.write_text("---\ntype: inbox\nstatus: new\ntitle: c\ncreated: 2026-10-30\n---\n\nтело\n",
+                     encoding="utf-8")
+        kinds = {r["card"]: r["kind"] for r in T.triage(d)["rows"]}
+        if kinds.get("inbox-c.md") != T.KIND_UNDECLARED:
+            return NOT_SATISFIED, (f"звено 4: трекерный `type: inbox` подставлен как род записи "
+                                   f"({kinds.get('inbox-c.md')!r}) — ответ на чужой вопрос")
+
+        refused = False
+        try:
+            set_intake_kind(b, "важное")
+        except IntakeKindRefused:
+            refused = True
+        if not refused:
+            return NOT_SATISFIED, "звено 5: писатель принял род вне словаря — отказа нет"
+        e = card("inbox-e.md", "intake_kind: важное")
+        rep = T.triage(d)
+        kinds = {r["card"]: r["kind"] for r in rep["rows"]}
+        # `.get`, а не `[...]`: ПРОПАВШЕЕ поле — это и есть порванное звено (у исхода не
+        # стало числа), а не «нечем измерить». Исключением третий исход не подменяется.
+        if kinds.get("inbox-e.md") != T.KIND_INVALID or rep.get("kind_invalid") != 1:
+            return NOT_SATISFIED, (f"звено 5: род вне словаря не имеет своего исхода — ось "
+                                   f"говорит {kinds.get('inbox-e.md')!r}, вне словаря "
+                                   f"{rep.get('kind_invalid')}")
+
+        try:
+            from spa_core.studio_os.mission_intake import KINDS as _MISSION
+            from spa_core.telegram.inbox_intake import INTAKE_KIND_RU as _MENU
+        except Exception as exc:  # noqa: BLE001
+            return UNMEASURED, f"меню писателей не поднимается: {type(exc).__name__}: {exc}"
+        extra = (set(_MENU) | set(_MISSION)) - set(T.KINDS_RU)
+        if extra:
+            return NOT_SATISFIED, (f"звено 6: меню писателей шире словаря читателя на "
+                                   f"{sorted(extra)} — вторая копия словаря разошлась")
+        disagree = {k for k, v in _MENU.items() if T.KINDS_RU.get(k) != v}
+        if disagree:
+            return NOT_SATISFIED, (f"звено 6: подпись рода у писателя и читателя расходится: "
+                                   f"{sorted(disagree)}")
+        return SATISFIED, ("ось рода записи имеет писателя: не объявлен · объявлен · «непонятно» · "
+                           "вне словаря различимы, трекерный тип родом не становится, "
+                           f"меню писателей ⊆ словарь читателя ({len(T.KINDS_RU)} рода)")
+    finally:
+        shutil.rmtree(d, ignore_errors=True)
+
+
 PROBES: dict[str, Callable[[str | None], "tuple[str, str]"]] = {
+    "inbox_record_kind_has_a_writer": _probe_inbox_record_kind_has_a_writer,
     "cio_act_fires_and_is_scored": _probe_cio_act_fires_and_is_scored,
     "size_edge_prize_source_is_named": _probe_size_edge_prize_source_is_named,
     "price_door_and_gain_door_judge_one_book":

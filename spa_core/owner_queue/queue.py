@@ -1133,6 +1133,64 @@ def twin_verdict(tracker_type: str, title: str, body: str = "", *,
             "measured": v.measured, "key": twin_key(body)}
 
 
+class IntakeKindRefused(ValueError):
+    """Род записи вне словаря — писать отказываемся (а не записываем как есть)."""
+
+
+def set_intake_kind(path: str | Path, kind: str) -> str | None:
+    """Записать/заменить `intake_kind:` во frontmatter СУЩЕСТВУЮЩЕЙ карточки (ADR-873).
+
+    Зачем дверь. Ось «род записи» в разборе входящих (`owner_queue/triage.py`) читала поле,
+    которое писал ТОЛЬКО приём пульта и Telegram — то есть у рода не было писателя для
+    карточки, уже лежащей в очереди. Замер #990/#991 на origin/main: из 1534 карточек
+    `intake_kind` несли **0**, и `kind_unknown` равнялся `new_total` по построению. Число,
+    на которое нельзя подействовать, — ложная ПОЛНОТА, а не перечень недосмотров.
+
+    Кто зовёт: разбор входящих (шаг 2 протокола) — он и есть тот, кто обязан сказать
+    «задача · идея · замечание · непонятно».
+
+    Почему род, в отличие от `acceptance_probe`, НЕ замораживается у карточки в работе:
+    проба — мерка, которой сессия себя оценивает (меняя её после работы, сессия себя
+    сертифицирует), а род — утверждение О ЗАПИСИ. Разбор, поняв запись иначе, обязан иметь
+    право сказать это вслух; прежнее значение возвращается, чтобы смена была видна.
+
+    Меняется ОДНА строка frontmatter; тело и остальные поля сохраняются побайтно.
+    Возврат — прежнее значение поля (None, если поля не было).
+    """
+    from spa_core.owner_queue.triage import KINDS, KINDS_RU
+    k = (kind or "").strip()
+    if k not in KINDS_RU:
+        raise IntakeKindRefused(
+            f"род записи {kind!r} не из словаря: {', '.join(f'{n} ({KINDS_RU[n]})' for n in KINDS)}. "
+            f"Записать как есть значило бы напечатать род, которого читатель оси не знает")
+    p = Path(path)
+    text = p.read_text(encoding="utf-8")
+    lines = text.splitlines(keepends=True)
+    start = end = None
+    seen = 0
+    for i, ln in enumerate(lines):
+        if ln.strip() == "---":
+            seen += 1
+            if seen == 1:
+                start = i
+            elif seen == 2:
+                end = i
+                break
+    if start is None or end is None:
+        raise ValueError(f"{p}: could not locate frontmatter bounds")
+    previous = None
+    for i in range(start + 1, end):
+        if lines[i].startswith("intake_kind:"):
+            previous = lines[i].split(":", 1)[1].strip()
+            newline = "\n" if lines[i].endswith("\n") else ""
+            lines[i] = f"intake_kind: {k}{newline}"
+            break
+    else:
+        lines.insert(end, f"intake_kind: {k}\n")
+    atomic_save_text("".join(lines), str(p))
+    return previous
+
+
 def set_acceptance_probe(path: str | Path, spec: str) -> str | None:
     """Записать/заменить `acceptance_probe:` во frontmatter СУЩЕСТВУЮЩЕЙ карточки.
 

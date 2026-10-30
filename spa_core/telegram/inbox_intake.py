@@ -22,6 +22,7 @@ import urllib.request
 from pathlib import Path
 
 from spa_core.owner_queue.queue import create_card
+from spa_core.owner_queue.triage import KINDS_RU as _KINDS_RU
 
 log = logging.getLogger(__name__)
 
@@ -57,7 +58,13 @@ def _money_fields(*texts: str | None) -> tuple[dict | None, list[str]]:
 #: ADR-760: the owner cockpit's voice/text intake uses THIS function too (one intake path, one card
 #: format). ``kind`` is the owner's own label (idea/task/note) — a hint for the orchestrator's
 #: classification, never an instruction to execute.
-INTAKE_KIND_RU = {"idea": "идея", "task": "задача", "note": "замечание"}
+#: Меню, которое видит ВЛАДЕЛЕЦ, — ПОДМНОЖЕСТВО канонического словаря рода
+#: (`owner_queue.triage.KINDS_RU`), а не вторая его копия: «непонятно» в меню нет намеренно —
+#: это вердикт разбора, а не слово владельца. Производное, а не переписанное: пропади ключ в
+#: каноне — здесь будет громкий KeyError, а не молчаливое расхождение (ADR-873; до него копий
+#: словаря было три и расходились они ровно на третьем исходе).
+OWNER_LABELS = ("idea", "task", "note")
+INTAKE_KIND_RU = {k: _KINDS_RU[k] for k in OWNER_LABELS}
 
 
 def inbox_tracker_dir() -> Path:

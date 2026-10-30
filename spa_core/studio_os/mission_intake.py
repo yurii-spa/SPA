@@ -54,6 +54,8 @@ from collections import deque
 from pathlib import Path
 from typing import Optional
 
+from spa_core.telegram.inbox_intake import INTAKE_KIND_RU as _INTAKE_KIND_RU
+
 TRANSCRIBE_PATH = "/api/intake/transcribe"
 SUBMIT_PATH = "/api/intake/submit"
 CSRF_PATH = "/api/intake/csrf"
@@ -68,7 +70,9 @@ AUDIO_TYPES = ("audio/mp4", "audio/m4a", "audio/x-m4a", "audio/aac", "audio/webm
 AUDIO_SUFFIX = {"audio/mp4": ".m4a", "audio/m4a": ".m4a", "audio/x-m4a": ".m4a", "audio/aac": ".aac",
                 "audio/webm": ".webm", "audio/ogg": ".ogg", "audio/wav": ".wav", "audio/x-wav": ".wav",
                 "audio/mpeg": ".mp3"}
-KINDS = {"idea": "Идея", "task": "Задача", "note": "Замечание"}
+#: То же меню владельца, что у `telegram/inbox_intake`, РАЗНИЦА только в регистре подписи.
+#: Производное: третьей копии словаря рода в системе нет (ADR-873).
+KINDS = {k: v.capitalize() for k, v in _INTAKE_KIND_RU.items()}
 RATE_LIMITS = {TRANSCRIBE_PATH: (6, 60.0), SUBMIT_PATH: (10, 60.0)}   # (count, per seconds)
 TOKEN_HEADER = "X-Intake-Token"
 

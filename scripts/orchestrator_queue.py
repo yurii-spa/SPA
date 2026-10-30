@@ -53,6 +53,8 @@ from spa_core.owner_queue.queue import (
     first_instruction_line,
     list_cards,
     set_acceptance_probe,
+    set_intake_kind,
+    IntakeKindRefused,
     set_status,
 )
 from spa_core.owner_queue.notify import (
@@ -1164,6 +1166,14 @@ def cmd_create(args) -> int:
     if reason is not None:
         print(f"REFUSED: acceptance_probe — {reason}", file=sys.stderr)
         return 2
+    if "intake_kind" in extra:
+        # Словарь спрашивается у ПИСАТЕЛЯ (одна дверь), а не копируется сюда списком:
+        # вторая копия словаря и есть класс, который ADR-873 закрывает.
+        from spa_core.owner_queue.triage import KINDS_RU
+        if extra["intake_kind"].strip() not in KINDS_RU:
+            print(f"REFUSED: intake_kind {extra['intake_kind']!r} не из словаря: "
+                  f"{', '.join(KINDS_RU)}", file=sys.stderr)
+            return 2
     try:
         path = create_card(
             args.type, args.title, body,
@@ -1214,6 +1224,37 @@ def cmd_probe(args) -> int:
         print(f"    проба сейчас даёт: {verdict} — {detail}")
     except Exception as exc:  # noqa: BLE001 — это справка, а не гейт
         print(f"    [НЕ ИЗМЕРЕНО] пробу не удалось прогнать: {type(exc).__name__}: {exc}")
+    _rebuild_board(tracker_dir=path.resolve().parent)
+    return 0
+
+
+def cmd_kind(args) -> int:
+    """Объявить РОД ЗАПИСИ у существующей карточки (ADR-873, шаг 2 протокола).
+
+    Разбор входящих обязан сказать «задача · идея · замечание · непонятно». До этой двери
+    сказать это было нечем: поле писал только приём пульта/Telegram, и у 1534 карточек
+    трекера род не был объявлен ни у одной. Вердикт печатается сразу — молча записанный род
+    неотличим от записанного не в ту карточку.
+    """
+    from spa_core.owner_queue.triage import KINDS_RU, declared_kind, _fm
+    path = Path(args.path)
+    if not path.is_file():
+        print(f"ERROR: карточки нет: {path}", file=sys.stderr)
+        return 1
+    try:
+        previous = set_intake_kind(path, args.kind)
+    except IntakeKindRefused as exc:
+        print(f"REFUSED: intake_kind — {exc}", file=sys.stderr)
+        return 2
+    except Exception as exc:  # noqa: BLE001
+        print(f"ERROR: {exc}", file=sys.stderr)
+        return 1
+    was = f" (было: {previous})" if previous else ""
+    k = args.kind.strip()
+    print(f"OK: {path} -> intake_kind: {k} ({KINDS_RU[k]}){was}")
+    # Перечитать С ДИСКА тем же читателем, которым считает ось: «записал» и «ось это видит» —
+    # два разных утверждения, и до ADR-873 расходились они молча.
+    print(f"    ось сейчас читает: {declared_kind(_fm(path.read_text(encoding='utf-8')))}")
     _rebuild_board(tracker_dir=path.resolve().parent)
     return 0
 
@@ -1421,6 +1462,11 @@ def build_parser() -> argparse.ArgumentParser:
     pb.add_argument("path", help="путь к карточке")
     pb.add_argument("probe", help="<проба> либо <проба>:<ключ>; незарегистрированное имя ⇒ ОТКАЗ")
     pb.set_defaults(func=cmd_probe)
+
+    pk = sub.add_parser("kind", help="объявить род записи у карточки: задача/идея/замечание/непонятно (ADR-873)")
+    pk.add_argument("path", help="путь к карточке")
+    pk.add_argument("kind", help="task | idea | note | unclear; значение вне словаря ⇒ ОТКАЗ")
+    pk.set_defaults(func=cmd_kind)
 
     pi = sub.add_parser("ingest-notes", help="convert loose Obsidian inbox/ notes → Inbox cards")
     pi.add_argument("--dir", default=None, help="notes dir (default: repo inbox/)")
