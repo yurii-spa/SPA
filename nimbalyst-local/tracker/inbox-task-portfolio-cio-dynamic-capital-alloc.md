@@ -8,12 +8,6 @@ created: 2026-08-13
 priority: critical
 status_trail:
   - "2026-08-26T22:31:36.748790+00:00 new -> in-progress · queue.set_status · cycle-96657"
-claimed_by: cycle-74824
-claimed_at: 2026-10-30T10:09:51Z
-claimed_run_id: orchestrator-74824-EEDC8FB319404C30AC5CB27B065591DA
-claimed_pid: 74824
-claimed_pid_start: Fri Oct 30 11:05:01 2026
-claim_takeover_reason: шаг 0a из своего дерева — код 0: работа #985 ЕСТЬ на origin/main (9f8a217e1 ADR-868 + a84045286 доска + 50cd4a2d8 дополнение), дерево /private/tmp/spa_c9843 снято 09:03:22Z с квитанцией (9 путей: 6 delivered, 3 без расхождения), #985 объявил card_state=done 09:03:00Z; незаявленные деревья в списке — чужие studio-os-scratch, не работа этого приказа; конкурентных захватов 0 — поднимать нечего
 ---
 
 ## УКАЗАНИЕ ВЛАДЕЛЬЦА 2026-08-22 (cloud-сессия): ЗАПУСТИТЬ СЛЕДУЮЩИМ ЦИКЛОМ
