@@ -1,23 +1,25 @@
 {
  "_why": "Храповик класса ADR-869 («у двери ТРИ исхода, у читателя ДВА»). База — читатели, сводящие «не измерено» с «отказано», НА ДЕНЬ ЗАМЕРА. Может только УМЕНЬШАТЬСЯ. Дописывать сюда файл, чтобы погасить падение, ЗАПРЕЩЕНО (инв. #16; тот же порядок, что у frozen_date_baseline.json, design_status_baseline.json, site_numbers_baseline.json) — чинить ЧИТАТЕЛЯ.",
+ "_emptied": "ПУСТА с 2026-10-30 (цикл #988, ADR-871): все ЧЕТЫРЕ читателя из базы ADR-870 ПОЧИНЕНЫ, и база опустела ПОЧИНКОЙ, а не правкой. Пустая база — самый тугой пол храповика: ЛЮБОЙ новый сводящий читатель краснеет сразу, и погасить его дописыванием нельзя. Обратная сторона (test_the_baseline_carries_no_reader_that_is_already_fixed) с этого дня держит достигнутое сама: вернись хоть один читатель к двум исходам — храповик назовёт его НОВЫМ.",
  "_measured_at": "2026-10-30",
  "_measured_by": "python3 -m spa_core.monitoring.three_outcome_reader_census",
- "_cycle": "#987",
+ "_cycle": "#988",
  "_counts_at_baseline": {
   "fail_open": 0,
-  "collapsed": 4,
+  "collapsed": 0,
   "ignored": 0,
-  "distinguishes": 0,
-  "residual_shared": 1,
+  "distinguishes": 3,
+  "residual_shared": 2,
   "other_channel": 1,
   "unmeasured": 0
  },
  "_doors_at_baseline": 14,
  "_readers_at_baseline": 6,
- "collapsing_readers": [
-  "push_to_github.py::enforce_owner_choice_authorship::scripts/check_owner_choice_authorship.py",
-  "push_to_github.py::main::scripts/verify_publication.py",
-  "push_to_github_batch.py::main::scripts/verify_publication.py",
-  "spa_core/monitoring/card_acceptance.py::_probe_mutation_window_restore_refuses_a_live_owner::scripts/delta_mutation_run.py"
- ]
+ "_readers_stayed_six_corrected_by_cycle_989": "ПОПРАВКА цикла #989 (подъём осиротевшей работы #988), перемерено живой переписью в ДВУХ деревьях (/private/tmp/spa_c988 и /private/tmp/spa_c989 — ответ одинаков): читателей 6, а НЕ 5, и residual_shared 2, а НЕ 1. Ровно ОДИН читатель исчез (push_to_github_batch.py::main — вторая дословная копия ветки ворот публикации сведена в push_to_github.publication_gate_verdict, который batch-CLI ИМПОРТИРУЕТ), и ровно ОДИН появился: spa_core/monitoring/card_acceptance.py <- scripts/verify_publication.py, потому что та же правка #988 заставила пробу приёмки ВЫВОДИТЬ ожидаемый код из исхода ворот, то есть ЧИТАТЬ дверь. Число 5 было верно в момент замера и стало ложным от ПОСЛЕДУЮЩЕЙ правки того же цикла — перемера после неё не было. Почему ошибка жила молча: у полей _readers_at_baseline / _counts_at_baseline / _doors_at_baseline НЕТ НИ ОДНОГО читателя (grep по дереву — 0 совпадений вне этого файла); храповик читает только collapsing_readers, и он был и остаётся ВЕРЕН (сводят 0). ГЛАВНЫЕ числа ADR-871 замером ПОДТВЕРЖДЕНЫ: сводят 4 -> 0, различают кодом 0 -> 3, fail-OPEN 0.",
+ "_readers_dropped_superseded": "push_to_github_batch.py::main перестал быть ЧИТАТЕЛЕМ: вторая дословная КОПИЯ ветки ворот публикации сведена в одного читателя push_to_github.publication_gate_verdict, который batch-CLI ИМПОРТИРУЕТ. Это не потеря наблюдения, а исчезновение второй двери (порядок enforce_adr_numbers / enforce_owner_choice_authorship того же файла).",
+ "_not_findings_left_as_they_were": {
+  "push_to_github.py::mutation_window_verdict::scripts/delta_mutation_run.py": "residual_shared — ADR-870 решением объявил его НЕ находкой: читатель выделил 1 явно, а 2/3/4 делят остаточный класс, и достижим ли код 4 для --window-check, статическая ось НЕ ЗНАЕТ. Завысить его до дефекта значило бы выдать неизмеренное за находку.",
+  "scripts/safe_site_push.py::main::scripts/verify_publication.py": "other_channel — это ровно читатель, ПОЧИНЕННЫЙ ADR-869: вердикт едет ПОЛЕМ перехваченного JSON, а не кодом. Объявить его дефектным значило бы опровергнуть ADR-869 его же мерой."
+ },
+ "collapsing_readers": []
 }

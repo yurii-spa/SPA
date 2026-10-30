@@ -3381,6 +3381,16 @@ OWNER_CHOICE_INTERLOCK_EXIT = 8
 CHANGE_EVIDENCE_EXIT = 9
 MUTATION_WINDOW_EXIT = 10
 
+#: Коды возврата доставки, которыми «ДВЕРЬ ОТКАЗАЛА» отличается от «ДВЕРЬ НЕ ОТВЕТИЛА»
+#: (ADR-871, починка находок 1–3 переписи ADR-870). До него оба исхода делили один код
+#: — 3 у ворот публикации, 8 у записи ответа владельца, — и отказ называл ПРИЧИНОЙ ту,
+#: которой дверь не говорила: «нужно одобрение владельца» на «ворота не ответили» и
+#: «подделка записи» на «подделку измерить нечем». Инвариант #2 цел в обоих исходах
+#: (отказ fail-CLOSED), различимой становится ПРИЧИНА (инв. #17).
+PUBLICATION_GATE_EXIT = 3
+PUBLICATION_GATE_UNMEASURED_EXIT = 13
+OWNER_CHOICE_UNMEASURED_EXIT = 14
+
 
 class DeliveredMutant(RuntimeError):
     """Уезжающий файл лежит под ОТКРЫТЫМ окном мутационного прибора.
@@ -3559,6 +3569,18 @@ class OwnerChoiceUnattributed(Exception):
     """Набор доставки пишет ответ владельца, под которым никто не подписан."""
 
 
+class OwnerChoiceUnmeasured(OwnerChoiceUnattributed):
+    """Подпись под ответом владельца НЕ ИЗМЕРЕНА — это не то же, что её отсутствие.
+
+    Подкласс, а не самостоятельное исключение, выбран намеренно: отказ один и тот же
+    (fail-CLOSED, инв. #2), и каждый, кто ловил :class:`OwnerChoiceUnattributed`,
+    продолжает ловить оба исхода — старый вызывающий не станет вдруг пропускать
+    неизмеренное. Различается ПРИЧИНА: своё сообщение и свой код возврата
+    (:data:`OWNER_CHOICE_UNMEASURED_EXIT`), потому что «нашли безымянную запись» и
+    «измерить нечем» чинятся РАЗНЫМИ действиями (ADR-871, инв. #17).
+    """
+
+
 def enforce_owner_choice_authorship(all_files, allow: bool = False,
                                     runner_file: Optional[str] = None) -> bool:
     """Отказать, если пуш ставит ``owner_choice`` без единого признака авторства.
@@ -3608,21 +3630,122 @@ def enforce_owner_choice_authorship(all_files, allow: bool = False,
 
     rc = subprocess.run([sys.executable, guard, "--root", base,
                          "--files", *[str(f) for f in all_files]]).returncode
+    # Словарь сторожа объявлен В КОДЕ: `CLEAN, FINDING, UNMEASURED = 0, 1, 2`
+    # (`scripts/check_owner_choice_authorship.py`). Исходов ТРИ, и до ADR-871 читатель
+    # знал два: любое ненулевое число он называл ПОДДЕЛКОЙ записи ответа владельца —
+    # в том числе тогда, когда сторож сказал «измерить нечем». Отказ был верным
+    # (fail-CLOSED), ПРИЧИНА — нет, а по причине чинят.
     if rc == 0:
         return True
 
-    msg = (f"ОТКАЗ (запись ответа владельца, rc={rc}): набор не доставлен. Ответ владельца "
-           f"пишет ТОЛЬКО владелец — кнопкой, через "
-           f"`owner_answer.record_owner_answer` (инвариант #14). Безымянное значение на "
-           f"origin чинится названным маршрутом "
-           f"(`spa_core/owner_queue/owner_answer.repair_unattributed_choice`), а не правкой "
-           f"файла руками; осознанно продолжить — --allow-owner-choice-write "
-           f"(или SPA_PUSH_ALLOW_OWNER_CHOICE_WRITE=1).")
+    if rc == 1:
+        msg = (f"ОТКАЗ (запись ответа владельца, rc={rc}): НАХОДКА — набор не доставлен. "
+               f"Ответ владельца пишет ТОЛЬКО владелец — кнопкой, через "
+               f"`owner_answer.record_owner_answer` (инвариант #14). Безымянное значение на "
+               f"origin чинится названным маршрутом "
+               f"(`spa_core/owner_queue/owner_answer.repair_unattributed_choice`), а не правкой "
+               f"файла руками; осознанно продолжить — --allow-owner-choice-write "
+               f"(или SPA_PUSH_ALLOW_OWNER_CHOICE_WRITE=1).")
+        if allow:
+            print(msg + "\n(продолжаю: запись owner_choice разрешена явно)", file=sys.stderr)
+            return True
+        print(msg, file=sys.stderr)
+        raise OwnerChoiceUnattributed(msg)
+
+    if rc == 2:
+        why = "сторож ответил «НЕ ИЗМЕРЕНО» своим кодом"
+    else:
+        why = (f"сторож ответил кодом {rc}, которого нет в его словаре "
+               f"(CLEAN, FINDING, UNMEASURED = 0, 1, 2)")
+    msg = (f"ОТКАЗ (запись ответа владельца, rc={rc}): НЕ ИЗМЕРЕНО — {why}. Про подделку "
+           f"записи НЕ СКАЗАНО НИЧЕГО: отказ здесь fail-CLOSED именно потому, что "
+           f"наблюдения нет (инв. #2), а не потому, что найдена безымянная запись. "
+           f"Сперва разобрать, почему сторож не смог измерить (чаще всего — не читается "
+           f"карточка или дерево), и только потом судить о наборе; осознанно продолжить — "
+           f"--allow-owner-choice-write (или SPA_PUSH_ALLOW_OWNER_CHOICE_WRITE=1).")
     if allow:
         print(msg + "\n(продолжаю: запись owner_choice разрешена явно)", file=sys.stderr)
         return True
     print(msg, file=sys.stderr)
-    raise OwnerChoiceUnattributed(msg)
+    raise OwnerChoiceUnmeasured(msg)
+
+
+#: Исходы ЧИТАТЕЛЯ ворот публикации. Перечень ЗАКРЫТ и третий исход ПЕРВОКЛАССНЫЙ:
+#: «ворота отказали» и «ворота не ответили» чинятся разными действиями — первое ждёт
+#: кнопки владельца, второе ждёт разбора, почему гейт не смог измерить (инв. #17).
+PUB_GATE_CLEAN = "clean"
+PUB_GATE_REFUSED = "refused"
+PUB_GATE_UNMEASURED = "unmeasured"
+
+
+def publication_gate_verdict(all_files, runner_file: Optional[str] = None) -> dict:
+    """Спросить у ВОРОТ ПУБЛИКАЦИИ про витрину чисел сайта в наборе (ADR-630).
+
+    Возвращает ``{"kind": …, "rc": int|None, "shelf": str|None, "gate": str|None,
+    "detail": str}``. Ничего не печатает и ничего не решает — решает вызывающий CLI.
+
+    **Читатель ОДИН, а дверей было две (ADR-871, находки 1–2 переписи ADR-870).**
+    Эта ветка жила ДВУМЯ ДОСЛОВНЫМИ КОПИЯМИ — в `push_to_github.py::main` и в
+    `push_to_github_batch.py::main`, — и обе копии сводили исходы одинаково:
+    ``if _vrc != 0`` ⇒ код 3 и печать «витрина уезжает только через
+    `safe_site_push.py` с одобрением владельца». На исходе «ворота НЕ ОТВЕТИЛИ» это
+    ВЕРНЫЙ отказ с НЕВЕРНОЙ причиной: владельца звали подписать витрину, которой
+    никто не мерил, — дословно дефект ADR-869, найденный у соседней двери.
+    Две копии чинить по отдельности значило бы однажды их развести (26.08 вторая
+    дверь уже пропустила то, что первая отклоняла, — см. :func:`enforce_adr_numbers`),
+    поэтому реализация сведена в ОДНУ, и batch-CLI зовёт её же.
+
+    **Словарь берётся у двери, а не из памяти читателя:** `scripts/verify_publication.py`
+    объявляет `PASS, FAIL, NOT_MEASURED = 0, 1, 2`. Код вне словаря — тоже «не
+    измерено», со своей причиной: дверь, ответившая незнакомым числом, не сказала ни
+    «отказываю», ни «пропускаю».
+    """
+    out: dict = {"kind": PUB_GATE_CLEAN, "rc": None, "shelf": None, "gate": None,
+                 "detail": "витрины чисел сайта в наборе нет — ворота не о чем спрашивать"}
+    shelf = [str(f) for f in all_files
+             if str(f).replace("\\", "/").endswith("landing/src/data/site_numbers.json")]
+    if not shelf:
+        return out
+    out["shelf"] = shelf[0]
+
+    # Порядок поиска двери тот же, что у читателя окна (:func:`mutation_window_verdict`):
+    # рядом с ЗАПУЩЕННЫМ CLI · рядом с файлом этого модуля, снятым на импорте. Двери нет
+    # ни там, ни там ⇒ ТРЕТИЙ исход, а не тихий пропуск: витрина публичных чисел уезжает
+    # только через измеренные ворота.
+    candidates = [os.path.dirname(os.path.abspath(runner_file or __file__)),
+                  os.path.dirname(MODULE_FILE)]
+    gate = None
+    for base in candidates:
+        probe = os.path.join(base, "scripts", "verify_publication.py")
+        if os.path.isfile(probe):
+            gate = probe
+            break
+    if gate is None:
+        out.update(kind=PUB_GATE_UNMEASURED, detail=(
+            "ворот публикации нет ни в одном из деревьев (" + ", ".join(candidates)
+            + ") — одобрена ли витрина, НЕ ИЗМЕРЕНО"))
+        return out
+    out["gate"] = gate
+
+    rc = subprocess.run([sys.executable, gate, "--shelf", shelf[0], "--pages", "",
+                         "--find-approval"]).returncode
+    out["rc"] = rc
+    if rc == 0:
+        out["detail"] = "ворота ответили PASS: витрина одобрена владельцем"
+        return out
+    if rc == 1:
+        out.update(kind=PUB_GATE_REFUSED, detail=(
+            "ворота ОТКАЗАЛИ (FAIL): одобрения владельца на эту витрину нет"))
+        return out
+    if rc == 2:
+        out.update(kind=PUB_GATE_UNMEASURED, detail=(
+            "ворота ответили «НЕ ИЗМЕРЕНО» своим кодом — про одобрение витрины НЕ "
+            "СКАЗАНО НИЧЕГО"))
+        return out
+    out.update(kind=PUB_GATE_UNMEASURED, detail=(
+        f"ворота ответили кодом {rc}, которого нет в их словаре "
+        f"(PASS, FAIL, NOT_MEASURED = 0, 1, 2) — ни отказа, ни пропуска"))
+    return out
 
 
 def adr_interlock_payload(all_files):
@@ -3817,6 +3940,11 @@ def main():
     # аварию совершила attended-сессия. Реализация ОДНА, её же зовёт batch-CLI.
     try:
         enforce_owner_choice_authorship(all_files, allow=allow_owner_choice)
+    except OwnerChoiceUnmeasured:
+        # ПЕРВЫМ, потому что это ПОДКЛАСС: поймай сперва базовый — и «не измерено»
+        # навсегда уедет под кодом находки, то есть класс ADR-869 вернётся на выходе
+        # из той же функции, из которой его только что убрали.
+        sys.exit(OWNER_CHOICE_UNMEASURED_EXIT)
     except OwnerChoiceUnattributed:
         sys.exit(OWNER_CHOICE_INTERLOCK_EXIT)
 
@@ -3836,16 +3964,19 @@ def main():
     # ── PUBLICATION GATE (ADR-630) — ANY context: the shelf of public numbers never leaves unverified.
     #    safe_site_push.py runs the same gate and marks SPA_SITE_PUSH_VERIFIED=1; a direct push is checked here.
     if not args.dry_run and os.environ.get("SPA_SITE_PUSH_VERIFIED") != "1":
-        _shelf = [f for f in all_files
-                  if str(f).replace("\\", "/").endswith("landing/src/data/site_numbers.json")]
-        if _shelf:
-            _vp = os.path.join(os.path.dirname(os.path.abspath(__file__)), "scripts", "verify_publication.py")
-            _vrc = subprocess.run([sys.executable, _vp, "--shelf", str(_shelf[0]), "--pages", "",
-                                   "--find-approval"]).returncode
-            if _vrc != 0:
-                print(f"BLOCKED (publication gate rc={_vrc}): the site-numbers shelf goes public only "
-                      f"through scripts/safe_site_push.py with an owner approval. Not pushing.", file=sys.stderr)
-                sys.exit(3)
+        _pub = publication_gate_verdict(all_files, runner_file=__file__)
+        if _pub["kind"] == PUB_GATE_REFUSED:
+            print(f"BLOCKED (publication gate REFUSED, rc={_pub['rc']}): {_pub['detail']}. "
+                  f"The site-numbers shelf goes public only through "
+                  f"scripts/safe_site_push.py with an owner approval. Not pushing.",
+                  file=sys.stderr)
+            sys.exit(PUBLICATION_GATE_EXIT)
+        if _pub["kind"] == PUB_GATE_UNMEASURED:
+            print(f"BLOCKED (publication gate NOT MEASURED, rc={_pub['rc']}): "
+                  f"{_pub['detail']}. Про одобрение витрины НЕ сказано ничего — звать "
+                  f"владельца подписывать неизмеренное нельзя, сперва разобрать, почему "
+                  f"ворота не ответили. Not pushing.", file=sys.stderr)
+            sys.exit(PUBLICATION_GATE_UNMEASURED_EXIT)
 
     if (not args.dry_run and os.environ.get("SPA_AUTONOMOUS") == "1"
             and os.environ.get("SPA_SITE_PUSH_VERIFIED") != "1"):

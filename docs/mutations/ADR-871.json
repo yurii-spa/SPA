@@ -1,0 +1,119 @@
+{
+  "title": "ADR-871 — починка четырёх читателей класса ADR-869/870: каждая мутация восстанавливает ОДНУ форму дефекта «у двери ТРИ исхода, у читателя ДВА»",
+  "tests": [
+    "spa_core/tests/test_three_outcome_readers_distinguish.py",
+    "spa_core/tests/test_three_outcome_reader_census.py",
+    "spa_core/tests/test_publication_gate_probe.py",
+    "spa_core/tests/test_publication_truth.py"
+  ],
+  "mutations": [
+    {
+      "name": "ворота: «отказано» ловится как «любое ненулевое» — класс ADR-869 дословно",
+      "file": "push_to_github.py",
+      "old": "    if rc == 1:\n        out.update(kind=PUB_GATE_REFUSED",
+      "new": "    if rc != 0:\n        out.update(kind=PUB_GATE_REFUSED"
+    },
+    {
+      "name": "ворота: «НЕ ИЗМЕРЕНО» объявлено чистым — fail-OPEN на публичных числах",
+      "file": "push_to_github.py",
+      "old": "    if rc == 2:\n        out.update(kind=PUB_GATE_UNMEASURED, detail=(\n            \"ворота ответили «НЕ ИЗМЕРЕНО» своим кодом",
+      "new": "    if rc == 2:\n        out.update(kind=PUB_GATE_CLEAN, detail=(\n            \"ворота ответили «НЕ ИЗМЕРЕНО» своим кодом"
+    },
+    {
+      "name": "ворота: код вне словаря двери читается как пропуск",
+      "file": "push_to_github.py",
+      "old": "    out.update(kind=PUB_GATE_UNMEASURED, detail=(\n        f\"ворота ответили кодом {rc}",
+      "new": "    out.update(kind=PUB_GATE_CLEAN, detail=(\n        f\"ворота ответили кодом {rc}"
+    },
+    {
+      "name": "ворота: двери нет на диске — объявлено чистым вместо «не измерено»",
+      "file": "push_to_github.py",
+      "old": "        out.update(kind=PUB_GATE_UNMEASURED, detail=(\n            \"ворот публикации нет ни в одном из деревьев",
+      "new": "        out.update(kind=PUB_GATE_CLEAN, detail=(\n            \"ворот публикации нет ни в одном из деревьев"
+    },
+    {
+      "name": "пушер: «ворота не ответили» уезжает под кодом «ворота отказали»",
+      "file": "push_to_github.py",
+      "old": "            sys.exit(PUBLICATION_GATE_UNMEASURED_EXIT)",
+      "new": "            sys.exit(PUBLICATION_GATE_EXIT)"
+    },
+    {
+      "name": "batch-CLI: тот же код на оба исхода (вторая дверь расходится с первой)",
+      "file": "push_to_github_batch.py",
+      "old": "            sys.exit(PUBLICATION_GATE_UNMEASURED_EXIT)",
+      "new": "            sys.exit(PUBLICATION_GATE_EXIT)"
+    },
+    {
+      "name": "запись ответа владельца: находка ловится как «любое ненулевое»",
+      "file": "push_to_github.py",
+      "old": "    if rc == 1:\n        msg = (f\"ОТКАЗ (запись ответа владельца, rc={rc}): НАХОДКА",
+      "new": "    if rc != 0:\n        msg = (f\"ОТКАЗ (запись ответа владельца, rc={rc}): НАХОДКА"
+    },
+    {
+      "name": "запись ответа владельца: «не измерено» бросается как ПОДДЕЛКА",
+      "file": "push_to_github.py",
+      "old": "    raise OwnerChoiceUnmeasured(msg)",
+      "new": "    raise OwnerChoiceUnattributed(msg)"
+    },
+    {
+      "name": "порядок обработчиков: подкласс больше не ловится первым",
+      "file": "push_to_github.py",
+      "old": "    except OwnerChoiceUnmeasured:\n        # ПЕРВЫМ, потому что это ПОДКЛАСС",
+      "new": "    except OwnerChoiceUnattributed:\n        # ПЕРВЫМ, потому что это ПОДКЛАСС"
+    },
+    {
+      "name": "проба окна: словарь двери помнится наизусть вместо чтения у двери",
+      "file": "spa_core/monitoring/card_acceptance.py",
+      "old": "    _rc_alive = _door_rc_for_live_owner(tool)",
+      "new": "    _rc_alive = 4"
+    },
+    {
+      "name": "проба окна: дверь без объявления отдаёт ЧИСЛО вместо третьего исхода",
+      "file": "spa_core/monitoring/card_acceptance.py",
+      "old": "    return int(found.group(1)) if found else None",
+      "new": "    return int(found.group(1)) if found else 4"
+    },
+    {
+      "name": "проба окна: код вне словаря зачитывается за отказ при ЖИВОМ владельце",
+      "file": "spa_core/monitoring/card_acceptance.py",
+      "old": "    if rc_live != _rc_alive:",
+      "new": "    if rc_live == -1:"
+    },
+    {
+      "name": "проба окна: «НЕ ИЗМЕРЕНО» двери снова зачитывается за отказ",
+      "file": "spa_core/monitoring/card_acceptance.py",
+      "old": "    if rc_live == 2:\n        return UNMEASURED, (\n            \"прибор ОТКАЗАЛ возвратом, но своим кодом «НЕ ИЗМЕРЕНО» (2)",
+      "new": "    if rc_live == 2:\n        return SATISFIED, (\n            \"прибор ОТКАЗАЛ возвратом, но своим кодом «НЕ ИЗМЕРЕНО» (2)"
+    },
+    {
+      "name": "шов вердикта сцен: «различны» выдаётся за «различает» в любую сторону",
+      "file": "spa_core/monitoring/three_outcome_reader_census.py",
+      "old": "    if kinds == (\"refused\", \"unmeasured\"):",
+      "new": "    if kinds[0] != kinds[1]:"
+    },
+    {
+      "name": "шов вердикта сцен: совпавшие роды исходов больше не названы склейкой",
+      "file": "spa_core/monitoring/three_outcome_reader_census.py",
+      "old": "    if refused.get(\"kind\") == silent.get(\"kind\"):\n        return {\"kind\": DRIVE_CONFLATES,",
+      "new": "    if refused.get(\"kind\") == silent.get(\"kind\"):\n        return {\"kind\": DRIVE_DISTINGUISHES,"
+    },
+    {
+      "name": "приёмка ворот: ожидаемый код снова вписан литералом 3",
+      "file": "spa_core/monitoring/card_acceptance.py",
+      "old": "        expected = 3 if grc == 1 else 13",
+      "new": "        expected = 3"
+    },
+    {
+      "name": "приёмка ворот: сцена, которую ворота ПРОПУСТИЛИ, объявлена поднятой",
+      "file": "spa_core/monitoring/card_acceptance.py",
+      "old": "        if grc == 0:\n            return UNMEASURED, (\"сцена НЕ ПОДНЯТА",
+      "new": "        if grc == 99:\n            return UNMEASURED, (\"сцена НЕ ПОДНЯТА"
+    },
+    {
+      "name": "база храповика: починенный читатель дописан обратно (инв. #16 наизнанку)",
+      "file": "scripts/three_outcome_reader_baseline.json",
+      "old": " \"collapsing_readers\": []",
+      "new": " \"collapsing_readers\": [\"push_to_github.py::main::scripts/verify_publication.py\"]"
+    }
+  ]
+}

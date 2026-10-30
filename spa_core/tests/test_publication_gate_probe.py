@@ -37,7 +37,12 @@ class TheProbeIsGreenOnTheWholeContour(unittest.TestCase):
         state, detail = ca.PROBES[PROBE_NAME](None)
         self.assertEqual(state, ca.SATISFIED, detail)
         # Вердикт обязан НАЗЫВАТЬ оба кода и сторожа: «satisfied» без них нечем поверить.
-        for token in ("код 3", "код 10", "рабочее дерево", GUARD_NODE):
+        # ADR-871: «код 3» ушёл из токенов НАМЕРЕННО (инв. #16) — проба больше не
+        # вписывает ожидаемый код литералом, а БЕРЁТ ЕГО У ВОРОТ, и на этой сцене
+        # их исход — «НЕ ИЗМЕРЕНО», то есть код 13. Требовать «код 3» значило бы
+        # требовать обратно ту самую склейку двух исходов в один код.
+        for token in ("КОД ИХ ИСХОДА", "код 10", "рабочее дерево",
+                      "НАЗВАННАЯ ГРАНИЦА", GUARD_NODE):
             self.assertIn(token, detail)
 
 
@@ -48,7 +53,7 @@ class TheProbeIsRedOnEachBrokenLink(unittest.TestCase):
         """Звено 1 — предпосылка сцены. Это дословная авария 17.10–23.10."""
         state, detail = ca.PROBES[PROBE_NAME](None, scene_outside_a_tree=True)
         self.assertEqual(state, ca.NOT_SATISFIED, detail)
-        self.assertIn("а не 3", detail)
+        self.assertIn("а не кодом ворот публикации", detail)
 
     def test_a_door_that_is_not_on_disk_is_unmeasured_not_clean(self):
         """Звено 2 — население дверей. Отсутствие двери есть ТРЕТИЙ исход (инв. #17)."""
@@ -69,7 +74,7 @@ class TheProbeIsRedOnEachBrokenLink(unittest.TestCase):
         state, detail = ca.PROBES[PROBE_NAME](
             None, pushers=("scripts/verify_publication.py",))
         self.assertEqual(state, ca.NOT_SATISFIED, detail)
-        self.assertIn("а не 3", detail)
+        self.assertIn("а не кодом ворот публикации", detail)
 
     def test_a_red_guard_reddens_it_even_when_the_subject_itself_holds(self):
         """Звено 5 — САМО открытие ADR-789: предмет и его сторож суть два утверждения.

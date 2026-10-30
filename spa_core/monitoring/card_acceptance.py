@@ -243,6 +243,83 @@ def _probe_three_outcome_reader_population_named(arg: str | None) -> tuple[str, 
         f"{len(report['doors_declared_in_prose_only'])} модулей")
 
 
+def _probe_three_outcome_readers_distinguish_by_code(arg: str | None) -> tuple[str, str]:
+    """Критерий: НИ ОДИН читатель трёхисходной двери не сводит «не измерено» с
+    «отказано», и различение ДОСТИГНУТО, а не только размещено (ADR-871, карточка
+    `inbox-chetyre-chitatelya-svodyat-ne-izmereno-s`).
+
+    Соседняя проба `three_outcome_reader_population_named` отвечает на ДРУГОЙ вопрос —
+    «класс ИЗМЕРЕН» — и её ADR-870 намеренно сделал безразличной к величине населения:
+    предмет той карточки был замер, а не пустота. Эта проба мерит ПОЧИНКУ, и у неё
+    население есть условие прохода.
+
+    ДВА независимых замера, и ни один не заменяет другой:
+
+    1. **население** (`run_census`) — находок класса должно быть НОЛЬ. Статическая ось
+       отвечает «место различения есть», и только она видит ВСЕХ читателей дерева,
+       включая тех, которых не поднять сценой;
+    2. **живая ось** (`drive_publication_gate`) — НАСТОЯЩИЙ починенный читатель
+       `push_to_github.publication_gate_verdict` на двух сценах, отличающихся РОВНО
+       кодом, которым отвечает дверь (1 против 2). Она отвечает на то, чего статическая
+       не знает: что различение ДОСТИЖИМО (урок ADR-674 — «место есть» ≠ «через него
+       ходят»).
+
+    Подстрокой проба не проходит (ADR-333): текст сообщений читателя она не читает
+    вовсе, а судит по РОДУ исхода в его собственном поле вердикта и по поимённому
+    перечню переписи.
+
+    Третий исход СВОЙ: прибор не ввозится, перепись не прочитала дерево либо сцена не
+    поднялась ⇒ `unmeasured` с названной причиной, и НИКОГДА `satisfied` без обоих
+    замеров. Проба, которая на неподнятой сцене сказала бы «выполнено», была бы ровно
+    тем дефектом, который чинит её собственный предмет.
+    """
+    try:
+        from spa_core.monitoring import three_outcome_reader_census as m
+    except Exception as exc:                                        # noqa: BLE001
+        return UNMEASURED, f"прибор переписи не ввозится: {type(exc).__name__}: {exc}"
+
+    try:
+        report = m.run_census()
+    except Exception as exc:                                        # noqa: BLE001
+        return UNMEASURED, f"население НЕ измерено: {type(exc).__name__}: {exc}"
+    if report.get("verdict") == m.UNMEASURED and "reason" in report:
+        return UNMEASURED, f"население НЕ измерено: {report['reason']}"
+
+    findings = report.get("findings") or []
+    if findings:
+        return NOT_SATISFIED, (
+            f"сводят «не измерено» с «отказано» ещё {len(findings)} читателей — "
+            + "; ".join(m.finding_key(r) for r in findings))
+
+    drive = m.drive_publication_gate()
+    kind = drive.get("kind")
+    if kind == m.DRIVE_UNMEASURED:
+        return UNMEASURED, (f"находок нет, но ДОСТИЖИМОСТЬ различения НЕ измерена: "
+                            f"{drive.get('reason')}")
+    if kind == m.DRIVE_CONFLATES:
+        return NOT_SATISFIED, (
+            f"перепись находок не видит, а живой читатель {drive.get('reader')} сводит "
+            f"исходы на сценах, отличающихся РОВНО кодом двери: {drive.get('reason')}")
+
+    counts = report["counts"]
+    nm = report["not_measured_surfaces"]
+    scenes = drive.get("scenes") or {}
+    return SATISFIED, (
+        f"находок класса НОЛЬ при дверях {report['door_count']} и читателях "
+        f"{report['reader_count']}: различают кодом {counts[m.DISTINGUISHES]} · "
+        f"fail-OPEN {counts[m.FAIL_OPEN]} · не читают код {counts[m.IGNORED]} · делят "
+        f"остаточный класс {counts[m.RESIDUAL_SHARED]} (НЕ находка) · вердикт едет не "
+        f"кодом {counts[m.OTHER_CHANNEL]} (НЕ находка). Живая ось: "
+        f"{drive.get('reader')} на двери {drive.get('door')} — дверь отказала (rc="
+        f"{scenes.get('door_refused', {}).get('rc')}) ⇒ "
+        f"«{scenes.get('door_refused', {}).get('kind')}», дверь не ответила (rc="
+        f"{scenes.get('door_did_not_answer', {}).get('rc')}) ⇒ "
+        f"«{scenes.get('door_did_not_answer', {}).get('kind')}». НЕ ИЗМЕРЕНО: оболочка "
+        f"{nm['shell_sites']} · воркфлоу {nm['workflow_sites']} · импорт двери "
+        f"{nm['import_sites']} мест, словарь только прозой у "
+        f"{len(report['doors_declared_in_prose_only'])} модулей")
+
+
 def _probe_owner_task_answer_reaches_the_channel(arg: str | None) -> tuple[str, str]:
     """Критерий: у ЗАКРЫТОГО задания владельца есть машинная запись о судьбе ОТВЕТА,
     и «не измерено» отличимо от «дошло» (ADR-863, карточка
@@ -9493,6 +9570,32 @@ def _probe_card_claim_carries_the_launcher_anchor(
         f"запускателя — вход сцены")
 
 
+_DOOR_RC_LIVE_OWNER = re.compile(r"^RC_WINDOW_OWNER_ALIVE\s*=\s*(\d+)\s*$", re.M)
+
+
+def _door_rc_for_live_owner(tool: str) -> int | None:
+    """Каким числом ДВЕРЬ называет «владелец окна ЖИВ» — спросить У ДВЕРИ (ADR-871).
+
+    Читатель, помнящий словарь двери наизусть, расходится с ней при первой же
+    перенумерации — молча и в опасную сторону: «не измерено» снова станет неотличимо
+    от отказа, только теперь под другим номером. Поэтому число берётся из ОБЪЯВЛЕНИЯ
+    двери (`RC_WINDOW_OWNER_ALIVE` в `scripts/delta_mutation_run.py`), а не из этого
+    файла.
+
+    Это НЕ «проба проходит подстрокой» (ADR-333): судит проба по-прежнему КОДОМ
+    ВОЗВРАТА живого прибора на двух сценах. Отсюда берётся только отображение
+    «имя → число»; найдись объявление, а живой код ответь другим числом — проба
+    покраснеет. Объявления нет ⇒ ``None``, и это ТРЕТИЙ исход у вызывающего, а не
+    подставленное число.
+    """
+    try:
+        with open(tool, encoding="utf-8") as fh:
+            found = _DOOR_RC_LIVE_OWNER.search(fh.read())
+    except OSError:
+        return None
+    return int(found.group(1)) if found else None
+
+
 def _probe_mutation_window_restore_refuses_a_live_owner(
     arg: str | None, *, repo_root: str | None = None,
 ) -> tuple[str, str]:
@@ -9536,6 +9639,13 @@ def _probe_mutation_window_restore_refuses_a_live_owner(
         return NOT_SATISFIED, (
             "прибора мутационного замера нет в дереве (scripts/delta_mutation_run.py) — "
             "спрашивать «отказывает ли возврат при живом владельце окна» не у чего")
+
+    _rc_alive = _door_rc_for_live_owner(tool)
+    if _rc_alive is None:
+        return UNMEASURED, (
+            "дверь не объявляет `RC_WINDOW_OWNER_ALIVE` в коде — каким числом она "
+            "называет «владелец окна ЖИВ», НЕ ИЗМЕРЕНО, и подставить своё число значило "
+            "бы вернуть ровно тот дефект, который чинит ADR-871")
 
     rel = "pkg/mod.py"
     pristine = "VALUE = 1\n\n\ndef answer():\n    return VALUE\n"
@@ -9614,10 +9724,36 @@ def _probe_mutation_window_restore_refuses_a_live_owner(
         if proc is not None and proc.poll() is None:
             proc.kill()
 
+    # ── Классификация кода ЖИВОЙ сцены по словарю ДВЕРИ (ADR-871, находка 4 переписи
+    # ADR-870). До этой правки проба спрашивала только `rc_live == 0`, а всё ненулевое
+    # зачитывала за «отказ при ЖИВОМ владельце». Дверь же (ADR-791) отвечает **4** на
+    # «владелец ЖИВ» и **2** на «живость НЕ ИЗМЕРЕНА» — и на дереве, где живость
+    # неизмерима, проба объявила бы ДОКАЗАННЫМ ровно то, чего никто не измерил, хотя её
+    # собственная печать обещает «две сцены дали ПРОТИВОПОЛОЖНЫЕ ответы». Отказ двери
+    # при этом верен в оба исхода (инв. #2); неверна была КЛАССИФИКАЦИЯ (инв. #17).
     if rc_live == 0:
         return NOT_SATISFIED, (
             "возврат байтов из-под РАБОТАЮЩЕГО прибора прошёл успешно (код 0) — ровно "
             f"авария цикла #906: {out_live.strip()[-200:]}")
+    if rc_live == 2:
+        return UNMEASURED, (
+            "прибор ОТКАЗАЛ возвратом, но своим кодом «НЕ ИЗМЕРЕНО» (2): живость "
+            "владельца окна он не измерил, значит про отказ при ЖИВОМ владельце сцена "
+            f"не доказывает ничего — {out_live.strip()[-200:]}")
+    if rc_live == 3:
+        return UNMEASURED, (
+            "прибор ответил «ЧАСТИЧНО НЕ ИЗМЕРЕНО» (3) — вердикт о владельце окна "
+            f"неполон, судить об отказе при ЖИВОМ владельце нечем: {out_live.strip()[-200:]}")
+    if rc_live == 1:
+        return UNMEASURED, (
+            "прибор ответил кодом НАХОДКИ О ДЕРЕВЕ (1), а спрошен был о ВЛАДЕЛЬЦЕ окна — "
+            f"ответ не на тот вопрос есть «не измерено», а не отказ: {out_live.strip()[-200:]}")
+    if rc_live != _rc_alive:
+        return UNMEASURED, (
+            f"прибор ответил кодом {rc_live}, которого нет в его словаре "
+            f"(RC_WINDOW_OWNER_ALIVE = {_rc_alive}, RC_UNMEASURED = 2, "
+            f"RC_PARTIALLY_UNMEASURED = 3, RC_WINDOW_FINDING = 1, RC_WINDOW_CLEAN = 0) — "
+            f"ни отказа, ни наблюдения: {out_live.strip()[-200:]}")
     if after_live != during:
         return NOT_SATISFIED, (
             "байты файла изменились, пока прибор РАБОТАЛ: возврат отнял у прогона "
@@ -9650,7 +9786,9 @@ def _probe_mutation_window_restore_refuses_a_live_owner(
             "останется «под окном», и пушер не отдаст из него ни одного файла")
     return SATISFIED, (
         f"две сцены дали ПРОТИВОПОЛОЖНЫЕ ответы на один зов `--window-restore`: прибор "
-        f"работает ⇒ код {rc_live}, байты дерева не тронуты ({during[:12]}), запись окна "
+        f"работает ⇒ код {rc_live} = объявленный дверью RC_WINDOW_OWNER_ALIVE (а не "
+        f"«какой-нибудь ненулевой»: «не измерено» = 2 и «частично» = 3 у этой пробы "
+        f"свои исходы, ADR-871), байты дерева не тронуты ({during[:12]}), запись окна "
         f"на месте, обход назван; прибор убит ⇒ код {rc_dead}, байты исходные "
         f"({pristine_digest[:12]}), запись снята")
 
@@ -11526,13 +11664,23 @@ def _probe_publication_gate_refuses_an_unsigned_shelf_by_its_own_code(
     Меряется ИСХОД двух НАСТОЯЩИХ запусков пушера на СВОЕЙ сцене, а не текст теста и
     не текст пушера — подстрокой эта проба не проходит по построению:
 
-      • зелено: в дереве БЕЗ окна прибора каждый пушер отвечает ровно **3** и называет
-        причину словами `publication gate`; в том же дереве с ОТКРЫТЫМ окном прибора,
-        тронувшим эту же витрину, — ровно **10**. Два отказа различимы ЗАМЕРОМ, а не
-        удачей порядка;
+      • зелено: в дереве БЕЗ окна прибора каждый пушер отвечает кодом ТОГО ИСХОДА,
+        который ворота публикации произнесли на этой сцене (**3** на «отказано»,
+        **13** на «НЕ ИЗМЕРЕНО», ADR-871 — исход спрашивается У ВОРОТ, а не вписан
+        литералом), и называет причину словами `publication gate`; в том же дереве с
+        ОТКРЫТЫМ окном прибора, тронувшим эту же витрину, — ровно **10**. Два отказа
+        различимы ЗАМЕРОМ, а не удачей порядка;
       • красно, если: любой пушер пропустил неподписанную витрину · ответил кодом
-        другого отказа · причина не названа · окно прибора перестало отвечать своим
-        кодом (тогда порядок отказов снова держится ни на чём).
+        другого отказа · **свёл «отказано» с «не измерено» в один код** · причина не
+        названа · окно прибора перестало отвечать своим кодом (тогда порядок отказов
+        снова держится ни на чём).
+
+    **НАЗВАННАЯ ГРАНИЦА (ADR-871).** На сцене этой пробы ворота отвечают «НЕ ИЗМЕРЕНО»:
+    витрина сцены — заглушка, и `measured_at/published_at` в ней не разбираются. Значит
+    «витрина НЕ ПОДПИСАНА» (FAIL) этой пробой НЕ ИЗМЕРЕН, и вердикт говорит это вслух.
+    Измерено: витрина не уезжает ни одной дверью, и код отказа следует за ИСХОДОМ
+    ворот. Сцена, на которой ворота дают настоящий FAIL, требует схемно-верной витрины
+    — отдельная работа, названная в карточке, а не умолчанная здесь.
 
     Порядок отказов — РЕШЕНИЕ с названной причиной, и проба его закрепляет: окно
     прибора стоит ВЫШЕ ворот публикации, потому что отвечает на вопрос «те ли это
@@ -11599,15 +11747,38 @@ def _probe_publication_gate_refuses_an_unsigned_shelf_by_its_own_code(
                                    "--message", "проба приёмки", "--pat", "dummy"],
                                   capture_output=True, text=True, env=env, timeout=180)
 
+        # ── Ожидаемый код БЕРЁТСЯ У ВОРОТ, а не вписан литералом (ADR-871) ───────────
+        # НАМЕРЕННОЕ усиление этой ноги, с обоснованием (инв. #16). Здесь стояло
+        # `if cp.returncode != 3`, и нога была зелена ПО ПРИЧИНЕ, которую ADR-870 как
+        # раз и назвал дефектом: на этой сцене ворота отвечают НЕ «отказываю» (FAIL=1),
+        # а «НЕ ИЗМЕРЕНО» (NOT_MEASURED=2) — витрина сцены заведомо не разбирается
+        # («measured_at/published_at not parseable»). Прежний пушер сводил оба исхода в
+        # код 3, поэтому литерал совпадал, и проба подтверждала утверждение своего
+        # заголовка («отказывают ВОРОТА своим кодом») на исходе, которого ворота не
+        # произносили. Теперь исход спрашивается У ВОРОТ и ожидаемый код выводится из
+        # него: сведи пушер эти два исхода снова — нога ПОКРАСНЕЕТ, чего литерал 3 не
+        # умел по построению.
+        grc = subprocess.run([sys.executable, str(root / "scripts" / "verify_publication.py"),
+                              "--shelf", str(shelf), "--pages", "", "--find-approval"],
+                             capture_output=True, text=True, env=env,
+                             timeout=600).returncode
+        if grc == 0:
+            return UNMEASURED, ("сцена НЕ ПОДНЯТА: ворота публикации ПРОПУСТИЛИ витрину "
+                                "сцены (rc=0) — про отказ неподписанной витрине эта "
+                                "сцена не говорит ничего")
+        gate_kind = "отказано (FAIL)" if grc == 1 else f"НЕ ИЗМЕРЕНО (rc={grc})"
+        expected = 3 if grc == 1 else 13
+
         bad: list[str] = []
         for door in doors:
             cp = push(door)
-            if cp.returncode != 3:
-                bad.append(f"{door}: без окна прибора ответил {cp.returncode}, а не 3 "
-                           f"(ворота публикации); причина: "
+            if cp.returncode != expected:
+                bad.append(f"{door}: без окна прибора ответил {cp.returncode}, а не "
+                           f"кодом ворот публикации {expected} (их исход на этой сцене — "
+                           f"{gate_kind}); причина: "
                            f"{(cp.stderr or cp.stdout).strip()[-200:]}")
             elif "publication gate" not in cp.stderr:
-                bad.append(f"{door}: код 3 есть, а причина не названа словами "
+                bad.append(f"{door}: код {expected} есть, а причина не названа словами "
                            f"`publication gate`")
         if bad:
             return NOT_SATISFIED, " · ".join(bad)
@@ -11679,10 +11850,15 @@ def _probe_publication_gate_refuses_an_unsigned_shelf_by_its_own_code(
     finally:
         shutil.rmtree(d, ignore_errors=True)
 
-    return SATISFIED, (f"двери {', '.join(doors)}: неподписанная витрина — код 3 "
-                       f"(`publication gate`), та же витрина под открытым окном "
-                       f"прибора — код 10; сцена есть рабочее дерево (ветка `{branch}` "
-                       f"объявлена входом); сторож предмета `{node}` зелёный")
+    return SATISFIED, (f"двери {', '.join(doors)}: витрина, которой ворота публикации "
+                       f"не пропустили, — код {expected}, и это КОД ИХ ИСХОДА "
+                       f"({gate_kind}), а не литерал (`publication gate` в причине); "
+                       f"та же витрина под открытым окном прибора — код 10; сцена есть "
+                       f"рабочее дерево (ветка `{branch}` объявлена входом); сторож "
+                       f"предмета `{node}` зелёный. НАЗВАННАЯ ГРАНИЦА: исход ворот на "
+                       f"этой сцене — {gate_kind}, поэтому «витрина НЕ ПОДПИСАНА» "
+                       f"(FAIL) здесь НЕ ИЗМЕРЕН; измерено, что витрина не уезжает и "
+                       f"что два исхода ворот больше не сводятся в один код (ADR-871)")
 
 
 #: Артефакт, у которого ЕСТЬ производитель, но нет ЗОВА, — и есть предмет ADR-790.
@@ -13217,6 +13393,8 @@ PROBES: dict[str, Callable[[str | None], "tuple[str, str]"]] = {
         _probe_owner_task_answer_reaches_the_channel,
     "three_outcome_reader_population_named":
         _probe_three_outcome_reader_population_named,
+    "three_outcome_readers_distinguish_by_code":
+        _probe_three_outcome_readers_distinguish_by_code,
     "adapter_status_live_apy": _probe_adapter_status_live_apy,
     "tier_promotion_loop_closed": _probe_tier_promotion_loop,
     "ledger_cut_moves_and_is_measured": _probe_ledger_cut_moves_and_is_measured,

@@ -751,6 +751,101 @@ def drive_exemplar(root: "Path | str | None" = None) -> dict:
     return verdict
 
 
+def publication_scenes_verdict(refused: dict, silent: dict) -> dict:
+    """Вердикт о двух сценах ПОЧИНЕННОГО читателя — ОТДЕЛЬНО от их подъёма (ADR-871).
+
+    Шов здесь по тому же уроку, что у :func:`exemplar_verdict`: подмена живой проверки
+    на «ok = True» выживает мутацию, если утверждение о РОДЕ исхода не проверено
+    напрямую — живые сцены отвечают верно, и проба прошла бы на сводящем читателе.
+    Сцену со СВОДЯЩИМ читателем в живом дереве взять негде (его только что починили),
+    поэтому вердикт обязан быть проверяем без дерева.
+
+    Три исхода взаимно исключающие: «различает» (дверь отказала ⇒ ``refused``, дверь не
+    ответила ⇒ ``unmeasured``) · «сводит» (род исхода совпал) · «не измерено» (роды
+    различны, но НЕ в объявленную сторону).
+    """
+    kinds = (refused.get("kind"), silent.get("kind"))
+    if kinds == ("refused", "unmeasured"):
+        return {"kind": DRIVE_DISTINGUISHES}
+    if refused.get("kind") == silent.get("kind"):
+        return {"kind": DRIVE_CONFLATES,
+                "reason": (f"обе сцены дали один род исхода «{refused.get('kind')}»: "
+                           f"«ворота отказали» и «ворота не ответили» неотличимы")}
+    return {"kind": DRIVE_UNMEASURED,
+            "reason": (f"роды исходов различны, но НЕ в объявленную сторону: "
+                       f"отказ ⇒ «{kinds[0]}», молчание ⇒ «{kinds[1]}»")}
+
+
+def drive_publication_gate(root: "Path | str | None" = None) -> dict:
+    """Различает ли ПОЧИНЕННЫЙ читатель ворот публикации «отказано» от «не ответило»?
+
+    Предмет — находки 1–2 переписи ADR-870, закрытые ADR-871. Эталон тут не сосед, а
+    сам починенный читатель: `push_to_github.publication_gate_verdict`, живая дверь —
+    `scripts/verify_publication.py` (`PASS, FAIL, NOT_MEASURED = 0, 1, 2`).
+
+    Подменяется РОВНО ОДНО — код, которым отвечает дверь (1 против 2). Читатель, его
+    поиск двери и его классификация берутся из дерева как есть. Статическая ось говорит
+    «место есть»; эта отвечает на другой вопрос — что различение ДОСТИЖИМО (урок
+    ADR-674).
+    """
+    root = Path(root) if root is not None else Path(__file__).resolve().parents[2]
+    runner = root / "push_to_github.py"
+    if not runner.is_file():
+        return {"kind": DRIVE_UNMEASURED, "reason": f"починенного читателя нет: {runner}"}
+    sys_path_added = False
+    try:
+        if str(root) not in sys.path:
+            sys.path.insert(0, str(root))
+            sys_path_added = True
+        import importlib.util as _u
+        spec = _u.spec_from_file_location("_p2g_pubgate", runner)
+        module = _u.module_from_spec(spec)
+        spec.loader.exec_module(module)
+    except Exception as exc:  # noqa: BLE001 — читатель, который не ввозится, есть 3-й исход
+        return {"kind": DRIVE_UNMEASURED,
+                "reason": f"читатель не ввозится: {type(exc).__name__}: {exc}"}
+    finally:
+        if sys_path_added:
+            try:
+                sys.path.remove(str(root))
+            except ValueError:
+                pass
+
+    verdict_fn = getattr(module, "publication_gate_verdict", None)
+    if verdict_fn is None:
+        return {"kind": DRIVE_UNMEASURED,
+                "reason": "у читателя нет publication_gate_verdict — ворота публикации "
+                          "читает кто-то другой, и кто именно, ЭТОЙ осью НЕ ИЗМЕРЕНО"}
+
+    scenes: dict[str, dict] = {}
+    with tempfile.TemporaryDirectory(prefix="three_outcome_pubgate_") as tmp:
+        for label, code in (("door_refused", 1), ("door_did_not_answer", 2)):
+            scene = Path(tmp) / label
+            (scene / "scripts").mkdir(parents=True)
+            (scene / "landing" / "src" / "data").mkdir(parents=True)
+            (scene / "scripts" / "verify_publication.py").write_text(
+                _STUB_DOOR.format(code=code), encoding="utf-8")
+            shelf = scene / "landing" / "src" / "data" / "site_numbers.json"
+            shelf.write_text('{"_scene": "витрина сцены"}\n', encoding="utf-8")
+            fake_runner = scene / "push_to_github.py"
+            fake_runner.write_text("# только адрес дерева, код берётся из живого модуля\n",
+                                   encoding="utf-8")
+            try:
+                out = verdict_fn([str(shelf)], runner_file=str(fake_runner))
+            except Exception as exc:  # noqa: BLE001
+                return {"kind": DRIVE_UNMEASURED,
+                        "reason": f"сцена {label} не собралась: {type(exc).__name__}: {exc}"}
+            scenes[label] = {"kind": out.get("kind"), "rc": out.get("rc"),
+                             "detail": out.get("detail")}
+
+    verdict = publication_scenes_verdict(scenes["door_refused"],
+                                         scenes["door_did_not_answer"])
+    verdict.update({"reader": "push_to_github.publication_gate_verdict", "scenes": scenes})
+    if verdict["kind"] == DRIVE_DISTINGUISHES:
+        verdict["door"] = "scripts/verify_publication.py --find-approval"
+    return verdict
+
+
 # ── CLI ──────────────────────────────────────────────────────────────────────
 
 BASELINE_REL = "scripts/three_outcome_reader_baseline.json"

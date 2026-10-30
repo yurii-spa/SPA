@@ -138,7 +138,19 @@ adr_interlock_payload = _root_push.adr_interlock_payload
 # отклоняла. Под этим CLI стоит `safe_site_push.py`.
 enforce_owner_choice_authorship = _root_push.enforce_owner_choice_authorship
 OwnerChoiceUnattributed = _root_push.OwnerChoiceUnattributed
+OwnerChoiceUnmeasured = _root_push.OwnerChoiceUnmeasured
 OWNER_CHOICE_INTERLOCK_EXIT = _root_push.OWNER_CHOICE_INTERLOCK_EXIT
+OWNER_CHOICE_UNMEASURED_EXIT = _root_push.OWNER_CHOICE_UNMEASURED_EXIT
+
+# Ворота публикации витрины чисел сайта (ADR-630) — ОДНА реализация читателя (ADR-871).
+# Здесь она особенно к месту: именно под этим CLI стоит `safe_site_push.py`, то есть
+# витрина уезжает через ЭТУ дверь, и «ворота отказали» против «ворота не ответили»
+# решают, звать ли владельца подписывать или сперва разбирать, почему не измерено.
+publication_gate_verdict = _root_push.publication_gate_verdict
+PUB_GATE_REFUSED = _root_push.PUB_GATE_REFUSED
+PUB_GATE_UNMEASURED = _root_push.PUB_GATE_UNMEASURED
+PUBLICATION_GATE_EXIT = _root_push.PUBLICATION_GATE_EXIT
+PUBLICATION_GATE_UNMEASURED_EXIT = _root_push.PUBLICATION_GATE_UNMEASURED_EXIT
 
 # Интерлок записи изменения (ADR-537) — та же ОДНА реализация: под этим CLI стоит safe_site_push.py.
 enforce_change_evidence = _root_push.enforce_change_evidence
@@ -288,6 +300,10 @@ def main():
     try:
         enforce_owner_choice_authorship(all_files, allow=allow_owner_choice,
                                         runner_file=__file__)
+    except OwnerChoiceUnmeasured:
+        # ПЕРВЫМ, потому что это ПОДКЛАСС (ADR-871) — порядок here тот же, что в
+        # push_to_github.py::main, и по той же причине.
+        sys.exit(OWNER_CHOICE_UNMEASURED_EXIT)
     except OwnerChoiceUnattributed:
         sys.exit(OWNER_CHOICE_INTERLOCK_EXIT)
 
@@ -305,17 +321,24 @@ def main():
     # (SPA_SITE_PUSH_VERIFIED=1). Otherwise re-run the guard and FAIL CLOSED.
     # ── PUBLICATION GATE (ADR-630) — ANY context: the shelf of public numbers never leaves unverified.
     #    safe_site_push.py runs the same gate and marks SPA_SITE_PUSH_VERIFIED=1; a direct push is checked here.
+    # Своей КОПИИ этой ветки здесь больше нет (ADR-871): читатель ворот публикации один
+    # на оба CLI — `_root_push.publication_gate_verdict`. Две дословные копии были
+    # находками 1–2 переписи ADR-870, и чинить их по отдельности значило бы однажды их
+    # развести: ровно так 26.08 вторая дверь пропустила то, что первая отклоняла.
     if not args.dry_run and os.environ.get("SPA_SITE_PUSH_VERIFIED") != "1":
-        _shelf = [f for f in all_files
-                  if str(f).replace("\\", "/").endswith("landing/src/data/site_numbers.json")]
-        if _shelf:
-            _vp = os.path.join(os.path.dirname(os.path.abspath(__file__)), "scripts", "verify_publication.py")
-            _vrc = subprocess.run([sys.executable, _vp, "--shelf", str(_shelf[0]), "--pages", "",
-                                   "--find-approval"]).returncode
-            if _vrc != 0:
-                print(f"BLOCKED (publication gate rc={_vrc}): the site-numbers shelf goes public only "
-                      f"through scripts/safe_site_push.py with an owner approval. Not pushing.", file=sys.stderr)
-                sys.exit(3)
+        _pub = publication_gate_verdict(all_files, runner_file=__file__)
+        if _pub["kind"] == PUB_GATE_REFUSED:
+            print(f"BLOCKED (publication gate REFUSED, rc={_pub['rc']}): {_pub['detail']}. "
+                  f"The site-numbers shelf goes public only through "
+                  f"scripts/safe_site_push.py with an owner approval. Not pushing.",
+                  file=sys.stderr)
+            sys.exit(PUBLICATION_GATE_EXIT)
+        if _pub["kind"] == PUB_GATE_UNMEASURED:
+            print(f"BLOCKED (publication gate NOT MEASURED, rc={_pub['rc']}): "
+                  f"{_pub['detail']}. Про одобрение витрины НЕ сказано ничего — звать "
+                  f"владельца подписывать неизмеренное нельзя, сперва разобрать, почему "
+                  f"ворота не ответили. Not pushing.", file=sys.stderr)
+            sys.exit(PUBLICATION_GATE_UNMEASURED_EXIT)
 
     if (not args.dry_run and os.environ.get("SPA_AUTONOMOUS") == "1"
             and os.environ.get("SPA_SITE_PUSH_VERIFIED") != "1"):

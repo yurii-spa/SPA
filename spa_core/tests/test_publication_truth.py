@@ -579,12 +579,64 @@ class BothPushersRunThePublicationGate(unittest.TestCase):
                                "--message", "x", "--pat", "dummy"],
                               capture_output=True, text=True, env=env, timeout=120)
 
+    def _gate_rc(self, shelf):
+        """What the GATE itself answers on this scene — asked, not assumed (ADR-871).
+
+        DELIBERATE change of this assertion, with its reason (invariant #16). The line
+        here was `assertEqual(cp.returncode, 3)`, and it was green for the reason that
+        ADR-870 named a defect: on this scene the gate does not answer FAIL(1) at all —
+        the stub shelf is not even parseable, so the gate answers NOT_MEASURED(2). Both
+        outcomes used to collapse into pusher code 3, so the literal matched and the
+        test's own name ("blocked by the publication gate") was true about blocking but
+        false about which outcome produced it. Deriving the expected code from the
+        gate's real outcome makes this test RED if the two are ever conflated again —
+        which the literal 3 could not do by construction.
+        """
+        import os
+        import subprocess
+        import sys
+        env = {k: v for k, v in os.environ.items() if k != "SPA_SITE_PUSH_VERIFIED"}
+        env.update(SPA_PUBLISHED_SHELF=str(shelf))
+        return subprocess.run([sys.executable, str(ROOT / "scripts" / "verify_publication.py"),
+                               "--shelf", str(shelf), "--pages", "", "--find-approval"],
+                              capture_output=True, text=True, env=env,
+                              timeout=600).returncode
+
     def test_a_direct_push_of_an_unverified_shelf_is_blocked_by_either_pusher(self):
         _d, shelf = self._scene()
+        grc = self._gate_rc(shelf)
+        self.assertNotEqual(grc, 0, "the scene is not raised: the gate LET the shelf through")
+        expected = 3 if grc == 1 else 13
         for pusher in self.PUSHERS:
             cp = self._push(pusher, shelf)
-            self.assertEqual(cp.returncode, 3, (pusher, cp.stdout[-400:], cp.stderr[-400:]))
+            self.assertEqual(cp.returncode, expected,
+                             (pusher, f"gate rc={grc}", cp.stdout[-400:], cp.stderr[-400:]))
             self.assertIn("publication gate", cp.stderr)
+
+    def test_the_two_outcomes_of_the_gate_do_not_share_one_pusher_code(self):
+        """Positive control for the ADR-871 fix: refused ≠ did not answer, measured.
+
+        The live reader is driven on two scenes differing in EXACTLY the code the door
+        answers. Without this control the test above would pass again the moment the
+        pusher went back to `if rc != 0`.
+        """
+        import tempfile as _tf
+        pg = _load("_p2g_pt02_gate", "push_to_github.py")
+        kinds = {}
+        with _tf.TemporaryDirectory(prefix="spa_pt02_gate_") as tmp:
+            for code in (1, 2):
+                scene = Path(tmp) / f"c{code}"
+                (scene / "scripts").mkdir(parents=True)
+                (scene / "landing" / "src" / "data").mkdir(parents=True)
+                (scene / "scripts" / "verify_publication.py").write_text(
+                    f"import sys\nsys.exit({code})\n", encoding="utf-8")
+                shelf = scene / "landing" / "src" / "data" / "site_numbers.json"
+                shelf.write_text("{}\n", encoding="utf-8")
+                runner = scene / "push_to_github.py"
+                runner.write_text("# tree address only\n", encoding="utf-8")
+                kinds[code] = pg.publication_gate_verdict(
+                    [str(shelf)], runner_file=str(runner))["kind"]
+        self.assertEqual(kinds, {1: "refused", 2: "unmeasured"})
 
     def test_the_window_gate_answers_with_its_own_code_on_its_own_scene(self):
         """Positive control for the OTHER refusal: the same unsigned shelf, but the tree is
