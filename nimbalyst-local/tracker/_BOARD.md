@@ -2,11 +2,11 @@
 
 > Авто-генерится `scripts/build_tracker_board.py` из `nimbalyst-local/tracker/*.md`. НЕ править вручную — правь карточки. Источник правды — карточки, это индекс (bootstrap).
 >
-> Собрана: 2026-10-30T04:50:55Z · сверка с карточками: `python3 scripts/build_tracker_board.py --check` (сторож `spa_core/tests/test_tracker_board_matches_cards.py`).
+> Собрана: 2026-10-30T04:57:28Z · сверка с карточками: `python3 scripts/build_tracker_board.py --check` (сторож `spa_core/tests/test_tracker_board_matches_cards.py`).
 >
-> Сверено с `origin/main` (dcf7c6e72) · у **1** своя правка, кто новее — не измерено.
+> Сверено с `origin/main` (859c22e19) · у **1** своя правка, кто новее — не измерено.
 >
-> Всего карточек: **1522** · ждёт владельца: **5** · занято сессиями: **14**.
+> Всего карточек: **1523** · ждёт владельца: **5** · занято сессиями: **14**.
 
 ## 🔴 ЖДЁТ ВЛАДЕЛЬЦА (needs-owner)
 
@@ -420,7 +420,7 @@
 ### · closed
 - Считать ли верный отказ по правилам допуска неисправностью флота  ·  `owner-decision-schitat-li-vernyi-otkaz-po-pravilam-dopu.md` · 2026-10-08
 
-## 📥 Inbox (задания: Telegram / заметки / голос)  (844)
+## 📥 Inbox (задания: Telegram / заметки / голос)  (845)
 
 ### · in-progress
 - а задача починить все-таки еще раз сообщение которым не пишет нужно твое решени…  ·  `inbox-a-zadacha-pochinit-vse-taki-esche-raz-so.md` · 2026-08-14 · 🔒 `pid43119`
@@ -751,6 +751,8 @@
 - Простой капитала снова НЕ объяснён: 10% при закрытой карточке «объяснён полностью» — нарушение действующего правила ADR-055  ·  `inbox-prostoi-kapitala-snova-ne-obyasnen-10-pr.md` · 2026-08-07
 - Провал доставки карточек некому повторить — и через два часа он сам станет зелёным  ·  `inbox-proval-dostavki-kartochek-nekomu-povtori.md` · 2026-08-12
 - Провенанс ответа выдавался за сам ответ: половина «нужен человек» была о канале и отметке, а не о решении  ·  `inbox-provenans-otveta-vydavalsya-za-sam-otvet.md` · 2026-08-30
+- проверь дашборд  ·  `inbox-prover-dashbord-10.md` · 2026-10-30
+- проверь дашборд  ·  `inbox-prover-dashbord-2.md` · 2026-10-15
 - проверь дашборд  ·  `inbox-prover-dashbord-3.md` · 2026-10-16
 - проверь дашборд  ·  `inbox-prover-dashbord-4.md` · 2026-10-16
 - проверь дашборд  ·  `inbox-prover-dashbord-5.md` · 2026-10-17
@@ -1150,7 +1152,6 @@
 - Происхождение совпадения метки не доезжает до находок шага 0b  ·  `inbox-proishozhdenie-sovpadeniya-metki-ne-doezh.md` · 2026-10-14
 - Проработать расширение whitelist для настоящих ~20% в Aggressive (advisory, владельцу на решение)  ·  `inbox-prorabotat-rasshirenie-whitelist-dlya-na.md` · 2026-08-23
 - Protection Lab фазы 6–8: AI-генератор параметров, перебор adversarial-комбинаций, страница сайта (owner-gated)  ·  `inbox-protection-lab-fazy-6-8-ai-generator-par.md` · 2026-08-22
-- проверь дашборд  ·  `inbox-prover-dashbord-2.md` · 2026-10-15
 - Проверить retro TEST 1 rates_desk на шумном ряду цен LST/ETH  ·  `inbox-proverit-retro-test-1-rates-desk-na-shum.md` · 2026-10-02
 - Проверка мандата автономии падает по 180-секундному сроку чужого шага, а не по коду  ·  `inbox-proverka-mandata-avtonomii-padaet-po-180.md` · 2026-10-11
 - Проверка схемы отчётов судит по дате файла — в свежей копии репозитория это монетка  ·  `inbox-proverka-shemy-otchetov-sudit-po-date-fa.md` · 2026-09-08
