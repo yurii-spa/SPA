@@ -1,0 +1,93 @@
+{
+  "title": "ADR-883 THIRD-OUTCOME — дельта цикла #998: перепись класса ADR-875 различает ПОЛЯРНОСТЬ третьего исхода (эталон ADR-879 перестаёт числиться находкой, авария ADR-875 остаётся находкой)",
+  "tests": [
+    "spa_core/tests/test_presence_census_third_outcome.py",
+    "spa_core/tests/test_presence_as_observation_census.py"
+  ],
+  "mutations": [
+    {
+      "name": "вето снято целиком — эталон ADR-879 снова числится находкой (дословно предмет карточки)",
+      "file": "spa_core/monitoring/presence_as_observation_census.py",
+      "old": "        third = (verdict_is_third_outcome(present, func, pmap)\n                 if func is not None else None)\n",
+      "new": "        third = None\n"
+    },
+    {
+      "name": "УСЛОВИЕ 1 снято: ветка, НАЧИСЛИВШАЯ балл готовности, тоже получает вето",
+      "file": "spa_core/monitoring/presence_as_observation_census.py",
+      "old": "    if _readiness_counters(present):\n        return None\n    pres_status",
+      "new": "    pres_status"
+    },
+    {
+      "name": "УСЛОВИЕ 2 снято: вердикт с другим статусом годится, даже если он тоже стоит на ПРИСУТСТВИИ",
+      "file": "spa_core/monitoring/presence_as_observation_census.py",
+      "old": "    stronger = _verdicts_earned_by_content(others, pres_status, pmap, func)\n",
+      "new": "    stronger = list(others)\n"
+    },
+    {
+      "name": "УСЛОВИЕ 3 снято — ЛАЗЕЙКА: хватит приписать рядом вердикт с другим статусом",
+      "file": "spa_core/monitoring/presence_as_observation_census.py",
+      "old": "    weaker = _verdicts_sharing_status_with_absence(others, pres_status)\n",
+      "new": "    weaker = list(others)\n"
+    },
+    {
+      "name": "три условия сложены через ИЛИ вместо И — любого одного довольно",
+      "file": "spa_core/monitoring/presence_as_observation_census.py",
+      "old": "    if not stronger or not weaker:\n        return None\n",
+      "new": "    if not stronger and not weaker:\n        return None\n"
+    },
+    {
+      "name": "статус-константы в ветке не требуются: сравнивать нечем, а вето срабатывает",
+      "file": "spa_core/monitoring/presence_as_observation_census.py",
+      "old": "    if not pres_status:\n        return None\n",
+      "new": "    pass\n"
+    },
+    {
+      "name": "`_earned_by_content` смотрит ТОЛЬКО ближайший `if` (на настоящем месте чтение стоит двумя ветками выше)",
+      "file": "spa_core/monitoring/presence_as_observation_census.py",
+      "old": "        if isinstance(parent, ast.If):\n            if _called_names([parent.test, *parent.body]) & _CONTENT_READERS:\n                return True\n",
+      "new": "        if isinstance(parent, ast.If):\n            if _called_names([parent.test]) & _CONTENT_READERS:\n                return True\n"
+    },
+    {
+      "name": "вето МОЛЧИТ: место не попадает в поимённый перечень (список исключений)",
+      "file": "spa_core/monitoring/presence_as_observation_census.py",
+      "old": "            elif site[\"outcome\"] == VERDICT_IS_THIRD_OUTCOME:\n                third_outcome.append(site)\n",
+      "new": "            elif site[\"outcome\"] == VERDICT_IS_THIRD_OUTCOME:\n                pass\n"
+    },
+    {
+      "name": "счётчик вето не печатается — читатель вывода о нём не узнаёт",
+      "file": "spa_core/monitoring/presence_as_observation_census.py",
+      "old": "        f\" · вето «вердикт ветки САМ есть третий исход»: \"\n        f\"{counts[VERDICT_IS_THIRD_OUTCOME]}\",",
+      "new": "        ,"
+    },
+    {
+      "name": "звено `third_outcome` снято из живого контроля меры",
+      "file": "spa_core/monitoring/presence_as_observation_census.py",
+      "old": "    if PRESENCE_TO_OBSERVED in kinds[\"third_outcome\"]:\n",
+      "new": "    if False and PRESENCE_TO_OBSERVED in kinds[\"third_outcome\"]:\n"
+    },
+    {
+      "name": "звено `loophole` снято — контроль перестаёт проверять вето с обратной стороны",
+      "file": "spa_core/monitoring/presence_as_observation_census.py",
+      "old": "    if PRESENCE_TO_OBSERVED not in kinds[\"loophole\"]:\n",
+      "new": "    if False and PRESENCE_TO_OBSERVED not in kinds[\"loophole\"]:\n"
+    },
+    {
+      "name": "сцена лазейки подменена сценой эталона — пара перестаёт отличаться полярностью",
+      "file": "spa_core/monitoring/presence_as_observation_census.py",
+      "old": "              \"defect\": SCENE_DEFECT, \"third_outcome\": SCENE_THIRD_OUTCOME,\n              \"loophole\": SCENE_LOOPHOLE}",
+      "new": "              \"defect\": SCENE_DEFECT, \"third_outcome\": SCENE_THIRD_OUTCOME,\n              \"loophole\": SCENE_THIRD_OUTCOME}"
+    },
+    {
+      "name": "проба перестаёт спрашивать НАСТОЯЩЕЕ место и верит сценам",
+      "file": "spa_core/monitoring/card_acceptance.py",
+      "old": "    if m.VERDICT_IS_THIRD_OUTCOME not in kinds:\n",
+      "new": "    if False and m.VERDICT_IS_THIRD_OUTCOME not in kinds:\n"
+    },
+    {
+      "name": "проба принимает МОЛЧАЩЕЕ вето за выполненный критерий",
+      "file": "spa_core/monitoring/card_acceptance.py",
+      "old": "    if not any(\"check_wallet_ready\" in key for key in named):\n",
+      "new": "    if False and not any(\"check_wallet_ready\" in key for key in named):\n"
+    }
+  ]
+}

@@ -65,6 +65,7 @@ ADR-126.
 | `presence_to_observed` | НАБЛЮДЕНИЕ или ГОТОВНОСТЬ (`прочитано`, `measured`, `confirmed`, `работает`) либо **прибавленный балл готовности** (`score += 2`) | **ДА** — присутствие этого не доказывает |
 | `presence_generic_pass` | родовое «прошло» (`PASS`, `ok`, `VERIFIED`, `✓`) | **НЕТ — НЕ ИЗМЕРЕНО** |
 | `presence_restated` | ПОВТОР вопроса (`exists`, `present`, `найден`) | нет — честная тавтология |
+| `verdict_is_third_outcome` | вердикт ветки САМ есть «судить нечем» (ADR-883) | нет — полярность ОБРАТНАЯ аварии |
 
 Средний ярус — не поблажка, а отказ завышать. Критерий объявлен докстрокой зовущего, а не
 кодом ветки: у `pre_paper_checklist._check_d003` («D003: GMX research adapter file
@@ -91,7 +92,7 @@ exists»), `readiness_checker` C011 («push_to_github.py present»),
 стать меньше ни при каком состоянии системы — это механизм под уже объявленным в
 `docs/STATE.md` предупреждением «GoLive 29/29 — инвентарь, НЕ готовность» (ADR-530).
 
-## Два ВЕТО, и каждое снимает свой род ложного срабатывания
+## ТРИ ВЕТО, и каждое снимает свой род ложного срабатывания
 
 * **`content_checked`** — ветка присутствия (или сам тест) ЧИТАЕТ содержимое файла
   (`open`, `read_text`, `json.load`, `_read_json`, …). Тогда вердикт стоит на
@@ -102,6 +103,25 @@ exists»), `readiness_checker` C011 («push_to_github.py present»),
 * **`writer_asked`** — объемлющая функция спрашивает о ПИСАТЕЛЕ или свежести
   (`getmtime`, `st_mtime`, `.stat(`, `generated_at`, `ls-files`, `_writer_evidence`, …).
   Это ЭТАЛОН — починенная ADR-875 форма.
+* **`verdict_is_third_outcome`** (ADR-883) — вердикт ветки присутствия САМ
+  является третьим исходом: «метка лежит, подписи нет — судить нечем».
+  Полярность здесь ОБРАТНАЯ аварии, и мера её не видела: у
+  `checklist.check_wallet_ready` после починки ADR-879 в ветке присутствия стоит
+  `status=_WARN, value="mark_without_signature"`, а словом о готовности мера
+  читала `name="Wallet Ready"` — ИМЯ КРИТЕРИЯ, то есть ВОПРОС, а не ответ.
+  Признак вето СТРУКТУРНЫЙ, не текстовый (текстовый был бы лазейкой: дописать
+  слово «не измерено» умеет каждый) и состоит из ТРЁХ обязательных условий —
+  ветка ничего не НАЧИСЛЯЕТ · в той же функции есть вердикт с ДРУГИМ статусом,
+  недостижимый без чтения СОДЕРЖИМОГО · статус ветки используется в той же
+  функции ещё одним вердиктом, который НАЗЫВАЕТ ОТСУТСТВИЕ. Третье условие
+  закрывает лазейку с другой стороны: присутствие, купившее САМЫЙ СИЛЬНЫЙ
+  статус функции, остаётся НАХОДКОЙ, сколько бы вердиктов ни стояло рядом.
+  Контроль — пара сцен `SCENE_THIRD_OUTCOME` / `SCENE_LOOPHOLE` внутри
+  `drive_both_directions`, отличающихся РОВНО полярностью исхода. Цена вето
+  ИЗМЕРЕНА дифференциально (замер 31.10, `origin/main` ed06f55ad): оно сняло
+  РОВНО ОДНО место из 2276, все прочие счётчики побайтно те же, и снятое место
+  ПЕЧАТАЕТСЯ ПОИМЁННО — вето, о котором прибор молчит, и есть список
+  исключений.
 
 ## Чего перепись НЕ знает (названо, а не умолчано)
 
@@ -150,6 +170,9 @@ CONTENT_CHECKED = "content_checked"
 WRITER_ASKED = "writer_asked"
 NO_OBSERVATION_VERDICT = "no_observation_verdict"
 NO_BRANCH = "no_branch"
+#: ТРЕТЬЕ вето (ADR-883): вердикт ветки присутствия САМ является третьим
+#: исходом — «метка есть, судить нечем». Полярность обратная аварии ADR-875.
+VERDICT_IS_THIRD_OUTCOME = "verdict_is_third_outcome"
 
 #: Полный словарь исходов. Храповик сверяет род находки с ЭТИМ набором, а не с
 #: парой «находка / не находка»: расширение словаря есть УСИЛЕНИЕ проверки.
@@ -162,6 +185,7 @@ OUTCOMES = (
     WRITER_ASKED,
     NO_OBSERVATION_VERDICT,
     NO_BRANCH,
+    VERDICT_IS_THIRD_OUTCOME,
 )
 
 #: Род утверждения у находки. `observation` — назвал наблюдение словом;
@@ -538,10 +562,142 @@ def _governing_branch(call: ast.AST, pmap: dict[ast.AST, ast.AST]):
     return None
 
 
+def _status_constants(nodes: Iterable[ast.AST]) -> set[str]:
+    """Имена-КОНСТАНТЫ в ВЕРХНЕМ регистре, стоящие в ветке.
+
+    Структурная форма объявления СТАТУСА (`status=_WARN`, `return UNMEASURED`).
+    Строковый литерал сюда НЕ входит намеренно: вето ADR-883 сравнивает ветки
+    между собой, а литерал у каждой ветки свой по построению — сравнение по
+    литералам отвечало бы «ветки разные» ВСЕГДА.
+    """
+    out: set[str] = set()
+    for node in nodes:
+        for sub in ast.walk(node):
+            if isinstance(sub, ast.Name) and sub.id.isupper():
+                out.add(sub.id)
+            elif isinstance(sub, ast.Attribute) and sub.attr.isupper():
+                out.add(sub.attr)
+    return out
+
+
+def _earned_by_content(node: ast.AST, pmap: dict[ast.AST, ast.AST],
+                       stop: ast.AST) -> bool:
+    """Доходит ли управление до `node` ТОЛЬКО через чтение СОДЕРЖИМОГО.
+
+    Смотрятся ВСЕ объемлющие `if` до самой функции: вердикт, до которого
+    нельзя добраться, не прочитав файл (или не спросив писателя), присутствием
+    НЕ заработан. Это нижняя граница: объемлющая ветка могла читать содержимое
+    не ради этого вердикта, и мера такое зачтёт — она отвечает «вердикт
+    достижим только за чтением», а не «чтение было именно про него».
+    """
+    cur: ast.AST = node
+    while cur in pmap and cur is not stop:
+        parent = pmap[cur]
+        if isinstance(parent, ast.If):
+            if _called_names([parent.test, *parent.body]) & _CONTENT_READERS:
+                return True
+            if _WRITER_QUESTION.search(ast.unparse(parent.test)):
+                return True
+        cur = parent
+    return False
+
+
+def _verdicts_earned_by_content(others: list[ast.AST], pres_status: set[str],
+                                pmap: dict[ast.AST, ast.AST],
+                                func: ast.AST) -> list[ast.AST]:
+    """УСЛОВИЕ 2 вето ADR-883 отдельным предикатом.
+
+    Вердикты той же функции с ДРУГИМ статусом, до которых не добраться, не
+    прочитав содержимое. Шов намеренный: контроль обязан уметь порвать РОВНО
+    одно условие из трёх и услышать, какое именно.
+    """
+    return [node for node in others
+            if _status_constants([node])
+            and not (_status_constants([node]) & pres_status)
+            and _earned_by_content(node, pmap, func)]
+
+
+def _verdicts_sharing_status_with_absence(others: list[ast.AST],
+                                          pres_status: set[str]) -> list[ast.AST]:
+    """УСЛОВИЕ 3 вето ADR-883 отдельным предикатом — ЗАМОК от лазейки.
+
+    Вердикты той же функции, которые несут ТОТ ЖЕ статус и при этом НАЗЫВАЮТ
+    ОТСУТСТВИЕ: только они и доказывают, что статус ветки присутствия — это
+    «судить нечем» самой функции, а не её утверждение. Без этого условия
+    достаточно было бы приписать рядом вердикт с другим статусом, чтобы выйти
+    из класса (сцена `SCENE_LOOPHOLE`).
+    """
+    return [node for node in others
+            if (_status_constants([node]) & pres_status)
+            and any(_ABSENCE.search(text) for text in branch_tokens([node]))]
+
+
+def verdict_is_third_outcome(present: list[ast.AST],
+                             func: ast.AST,
+                             pmap: dict[ast.AST, ast.AST]) -> dict | None:
+    """ТРЕТЬЕ вето (ADR-883): вердикт ветки присутствия САМ есть третий исход.
+
+    Полярность класса ADR-875 — «присутствие КУПИЛО утверждение». Обратная
+    форма (ADR-878/879) выглядит в исходнике почти так же: ветка присутствия
+    тоже возвращает вердикт, в тексте которого стоит слово о готовности
+    (`name="Wallet Ready"` — ИМЯ КРИТЕРИЯ, то есть ВОПРОС, а не ответ). Но
+    вердикт там — `WARN`/«метка без подписи», то есть «судить нечем», и
+    называть его находкой значит требовать склеить третий исход с отказом,
+    против инв. #17.
+
+    Признак — НЕ текст («не измерено» в строке): текстовый признак и был бы
+    лазейкой, достаточно дописать слово. Признак СТРУКТУРНЫЙ, и все три
+    условия обязательны:
+
+      1. ветка присутствия НЕ НАЧИСЛЯЕТ ничего (`score += 1` в ней нет) —
+         присутствие не покупает балла готовности;
+      2. в той же функции есть вердикт с ДРУГИМ статусом, до которого нельзя
+         добраться, не прочитав СОДЕРЖИМОЕ (или не спросив писателя) —
+         утверждение в этой функции зарабатывается НЕ присутствием;
+      3. статус ветки присутствия используется в той же функции ещё одним
+         вердиктом, который НАЗЫВАЕТ ОТСУТСТВИЕ, — то есть это статус «судить
+         нечем» самой функции, а не её утверждение.
+
+    Условие 3 и закрывает лазейку с другой стороны: ветка, купившая
+    присутствием САМЫЙ сильный статус функции, его не выполняет — и остаётся
+    находкой, даже если рядом стоит сколько угодно других вердиктов.
+
+    Возвращает словарь-улику (чем именно вето обосновано) либо ``None``.
+    """
+    if _readiness_counters(present):
+        return None
+    pres_status = _status_constants(present)
+    # Страж предпосылки, и он НЕ НАГРУЖЕН — измерено, а не предположено:
+    # мутация «снять его» выжила, и выживший ИЗМЕРЕН эквивалентным (замер
+    # 31.10, 2276 мест: отчёт переписи и живой контроль побайтово те же,
+    # md5 3b1c2b94f56a). При пустом `pres_status` условие 3 пусто ПО
+    # ПОСТРОЕНИЮ (`status & set()` ложно у любого вердикта), поэтому обе
+    # редакции отвечают `None`. Строка оставлена как объявление предпосылки,
+    # а не как вето; её «дыра покрытия» была бы выдумкой.
+    if not pres_status:
+        return None
+    present_ids = {id(n) for node in present for n in ast.walk(node)}
+    others = [node for node in ast.walk(func)
+              if isinstance(node, ast.Return) and node.value is not None
+              and id(node) not in present_ids]
+    stronger = _verdicts_earned_by_content(others, pres_status, pmap, func)
+    weaker = _verdicts_sharing_status_with_absence(others, pres_status)
+    if not stronger or not weaker:
+        return None
+    return {
+        "status": sorted(pres_status),
+        "earned_elsewhere": sorted(
+            {name for node in stronger for name in _status_constants([node])}),
+        "earned_at": sorted(node.lineno for node in stronger),
+        "same_status_names_absence_at": sorted(node.lineno for node in weaker),
+    }
+
+
 def classify_site(call: ast.Call,
                   pmap: dict[ast.AST, ast.AST],
                   binds: dict[str, list[ast.AST]],
-                  *, writer_asked: bool) -> dict:
+                  *, writer_asked: bool,
+                  func: ast.AST | None = None) -> dict:
     """Исход ОДНОГО места. Порядок вето объявлен и существен."""
     target = call.args[0] if call.args else (
         call.func.value if isinstance(call.func, ast.Attribute) else None)
@@ -578,6 +734,13 @@ def classify_site(call: ast.Call,
         # Вето 2: дверь спросила ПИСАТЕЛЯ — это эталон ADR-875.
         if writer_asked:
             return {**base, "outcome": WRITER_ASKED, "verdict": evidence}
+        # Вето 3 (ADR-883): вердикт ветки САМ есть третий исход — полярность
+        # обратная аварии, и склеивать её с отказом запрещает инв. #17.
+        third = (verdict_is_third_outcome(present, func, pmap)
+                 if func is not None else None)
+        if third is not None:
+            return {**base, "outcome": VERDICT_IS_THIRD_OUTCOME,
+                    "verdict": evidence, "third_outcome": third}
         return {**base, "outcome": PRESENCE_TO_OBSERVED, "verdict": evidence,
                 "claim": claim}
 
@@ -644,7 +807,8 @@ def measure_module(source: str, *, rel: str) -> dict:
                     else fn.id if isinstance(fn, ast.Name) else None)
             if name not in _PREDICATES:
                 continue
-            verdict = classify_site(node, pmap, binds, writer_asked=writer)
+            verdict = classify_site(node, pmap, binds, writer_asked=writer,
+                                     func=func)
             verdict.update({"file": rel, "line": node.lineno,
                             "col": node.col_offset,
                             "function": func.name, "predicate": name})
@@ -1160,6 +1324,7 @@ def measure(root: str | None = None,
     claims = {claim: 0 for claim in CLAIMS}
     findings: list[dict] = []
     generic_pass: list[dict] = []
+    third_outcome: list[dict] = []
     unmeasured_files: list[str] = []
     for full in files:
         rel = os.path.relpath(full, root).replace(os.sep, "/")
@@ -1179,6 +1344,8 @@ def measure(root: str | None = None,
                 claims[site["claim"]] += 1
             elif site["outcome"] == PRESENCE_GENERIC_PASS:
                 generic_pass.append(site)
+            elif site["outcome"] == VERDICT_IS_THIRD_OUTCOME:
+                third_outcome.append(site)
     # Живая ось — только у НАХОДОК: она отвечает на вопрос «а вердикт тут
     # вообще может стать иным», и задавать его 2277 раз значило бы 2277
     # процессов git ради строк, которые находками не являются.
@@ -1201,6 +1368,9 @@ def measure(root: str | None = None,
         "tracked_kinds": tracked_kinds,
         "findings": sorted(findings, key=finding_key),
         "generic_pass_sites": sorted(generic_pass, key=finding_key),
+        # Вето ПЕЧАТАЕТСЯ ПОИМЁННО: вето, о котором прибор молчит, и есть
+        # список исключений — ровно то, что карточка ADR-883 запретила.
+        "third_outcome_sites": sorted(third_outcome, key=finding_key),
         "unmeasured_files": unmeasured_files,
         "shell_surface": shell_surface(root),
     }
@@ -1257,20 +1427,65 @@ def check():
     return "НЕ ПРОЧИТАН"
 '''
 
+#: Сцена ТРЕТЬЕГО ИСХОДА — присутствие ⇒ «метка есть, подписи нет» (дословная
+#: форма ADR-879, `checklist.check_wallet_ready`). Находкой НЕ является: ветка
+#: НИЧЕГО не начисляет, утверждение функции зарабатывается чтением содержимого,
+#: а статус ветки — тот самый, которым функция говорит «судить нечем».
+#:
+#: Пара со `SCENE_DEFECT` отличается РОВНО полярностью исхода: там присутствие
+#: КУПИЛО утверждение, здесь — не купило ничего.
+SCENE_THIRD_OUTCOME = '''
+import json, os
+PASS, WARN, PENDING = "PASS", "WARN", "PENDING"
+def check(signed, mark):
+    if os.path.exists(signed):
+        record = json.loads(open(signed).read())
+        if record.get("approved_by"):
+            return {"name": "Wallet Ready", "status": PASS, "value": "approved"}
+        return {"name": "Wallet Ready", "status": WARN, "value": "unmeasured"}
+    if os.path.exists(mark):
+        return {"name": "Wallet Ready", "status": WARN,
+                "value": "mark_without_signature"}
+    return {"name": "Wallet Ready", "status": PENDING, "value": "not_verified"}
+'''
+
+#: Сцена ЛАЗЕЙКИ — та же форма, но присутствие покупает САМЫЙ СИЛЬНЫЙ статус
+#: функции, а чтение содержимого зарабатывает слабый. Это дефект ADR-875, и
+#: вето ТРЕТЬЕГО ИСХОДА обязано на ней НЕ срабатывать: иначе достаточно было бы
+#: приписать рядом вердикт с другим статусом, чтобы выйти из класса.
+SCENE_LOOPHOLE = '''
+import json, os
+PASS, WARN = "PASS", "WARN"
+def check(signed, mark):
+    if os.path.exists(signed):
+        record = json.loads(open(signed).read())
+        return {"name": "Wallet Ready", "status": WARN, "value": "unmeasured"}
+    if os.path.exists(mark):
+        return {"name": "Wallet Ready", "status": PASS, "value": "подтверждено"}
+    return {"name": "Wallet Ready", "status": WARN, "value": "не измерено"}
+'''
+
 DRIVE_DISTINGUISHES = "distinguishes"
 DRIVE_BLIND = "blind"
 DRIVE_UNMEASURED = "unmeasured"
 
 
 def drive_both_directions() -> dict:
-    """Положительный контроль ВНУТРИ прибора: две сцены, РАЗНЫЕ вердикты.
+    """Положительный контроль ВНУТРИ прибора: пять сцен, РАЗНЫЕ вердикты.
 
     Отвечает на то, чего население не знает: что различение направлений
     ДОСТИЖИМО, а не только описано. Мера, назвавшая находкой честный отказ
     (или промолчавшая на дефекте), есть ровно тот класс, который она мерит.
+
+    Звеньев ПЯТЬ, и два последних добавлены ADR-883: `third_outcome` —
+    полярность обратная аварии (присутствие НЕ купило ничего) обязана быть
+    зелёной; `loophole` — присутствие, купившее САМЫЙ СИЛЬНЫЙ статус функции,
+    обязано остаться НАХОДКОЙ. Без второго звена первое было бы лазейкой, и
+    проверять надо ОБЕ стороны: сцены отличаются РОВНО полярностью исхода.
     """
     scenes = {"honest": SCENE_HONEST, "negated": SCENE_NEGATED,
-              "defect": SCENE_DEFECT}
+              "defect": SCENE_DEFECT, "third_outcome": SCENE_THIRD_OUTCOME,
+              "loophole": SCENE_LOOPHOLE}
     kinds: dict[str, set[str]] = {}
     for label, source in scenes.items():
         try:
@@ -1297,6 +1512,18 @@ def drive_both_directions() -> dict:
                 "reason": f"дефект ADR-875 мерой НЕ найден (исходы сцены: "
                           f"{sorted(kinds['defect'])}) — перепись слепа к "
                           f"своему предмету"}
+    if PRESENCE_TO_OBSERVED in kinds["third_outcome"]:
+        return {"kind": DRIVE_BLIND, "link": "third_outcome",
+                "reason": "вердикт «метка есть, подписи нет» назван находкой — "
+                          "мера не видит, что ветка НИЧЕГО не купила: "
+                          "полярность обратная аварии ADR-875 (инв. #17)"}
+    if PRESENCE_TO_OBSERVED not in kinds["loophole"]:
+        return {"kind": DRIVE_BLIND, "link": "loophole",
+                "reason": f"присутствие КУПИЛО самый сильный статус функции, а "
+                          f"мера промолчала (исходы сцены: "
+                          f"{sorted(kinds['loophole'])}) — вето третьего исхода "
+                          f"стало лазейкой: хватило приписать рядом вердикт с "
+                          f"другим статусом"}
     return {"kind": DRIVE_DISTINGUISHES,
             **{label: sorted(value) for label, value in kinds.items()}}
 
@@ -1316,7 +1543,9 @@ def render(report: dict) -> list[str]:
         f"{claims['readiness_score']})",
         f"  эталон (отсутствие ⇒ не измерено): {counts[ABSENCE_TO_UNMEASURED]}",
         f"  вето «вердикт на СОДЕРЖИМОМ»: {counts[CONTENT_CHECKED]}"
-        f" · вето «спросил ПИСАТЕЛЯ»: {counts[WRITER_ASKED]}",
+        f" · вето «спросил ПИСАТЕЛЯ»: {counts[WRITER_ASKED]}"
+        f" · вето «вердикт ветки САМ есть третий исход»: "
+        f"{counts[VERDICT_IS_THIRD_OUTCOME]}",
         f"  НЕ ИЗМЕРЕНО (родовое «прошло», предмет критерия не назван): "
         f"{counts[PRESENCE_GENERIC_PASS]}"
         f" · вердикт ПОВТОРЯЕТ вопрос (тавтология, не находка): "
@@ -1337,6 +1566,15 @@ def render(report: dict) -> list[str]:
         lines.append(f"       живая ось: {tracked.get('kind')} — "
                      f"{tracked.get('reason')}"
                      + (f" ({tracked['path']})" if tracked.get("path") else ""))
+    for site in report.get("third_outcome_sites", []):
+        third = site.get("third_outcome") or {}
+        lines.append(
+            f"  ⊘ {finding_key(site)} {site['predicate']}() ⇒ {site['verdict']}"
+            f" — вердикт ветки {third.get('status')} САМ есть третий исход: "
+            f"утверждение {third.get('earned_elsewhere')} заработано чтением "
+            f"содержимого (стр. {third.get('earned_at')}), тот же статус "
+            f"называет ОТСУТСТВИЕ на стр. "
+            f"{third.get('same_status_names_absence_at')}")
     for site in report["generic_pass_sites"]:
         lines.append(f"  ?  {finding_key(site)} {site['predicate']}() ⇒ "
                      f"{site['verdict']} — критерий объявлен не кодом ветки, "

@@ -7062,6 +7062,103 @@ def _probe_owner_control_plane_reachable(
                        "может управлять системой через Telegram")
 
 
+def _probe_presence_census_names_the_third_outcome(
+        arg: str | None) -> tuple[str, str]:
+    """Критерий: перепись ADR-875 различает ПОЛЯРНОСТЬ третьего исхода.
+
+    Предмет — карточка `inbox-perepis-klassa-adr-875-ne-vidit-polyarno`
+    (заказ G880 п. 1 (а), ADR-883). После починки ADR-879 ветка метки
+    `wallet_ready.sentinel` в `checklist.check_wallet_ready` отвечает
+    `WARN`/«метка без подписи», то есть ЭТАЛОН по инв. #17: присутствие метки
+    даёт ТРЕТИЙ ИСХОД, а не вердикт о наблюдении. Перепись числила это
+    НАХОДКОЙ — ложное срабатывание МЕРЫ, и чинить надо меру, а не предмет
+    (склеить «метка есть, подписи нет» с «нет ничего» в один `PENDING`
+    значило бы потерять наблюдение ради зелени сторожа).
+
+    Проба мерит ИСХОД, и у неё ТРИ независимых замера:
+
+    1. **полярность различима в ОБЕ стороны** (`drive_both_directions`): на
+       сцене дословной аварии ADR-875 мера обязана остаться КРАСНОЙ, на сцене
+       обратной полярности — зелёной, а на сцене ЛАЗЕЙКИ (присутствие купило
+       САМЫЙ СИЛЬНЫЙ статус функции, а рядом приписан вердикт с другим
+       статусом) — снова КРАСНОЙ. Любое одно порванное звено ⇒ НЕ выполнено с
+       ИМЕНЕМ звена;
+    2. **настоящее место, а не сцена**: `measure_module` поднимается на
+       ИСХОДНИКЕ `spa_core/golive/checklist.py`, и место
+       `check_wallet_ready` обязано нести род `verdict_is_third_outcome`.
+       Замер на сцене, собранной руками, мерил бы свой же словарь (урок #944
+       и #945), поэтому спрашивается ПРИСУТСТВИЕ рода у настоящего места;
+    3. **вето НАЗВАНО, а не умолчано**: место обязано попасть в поимённый
+       перечень `third_outcome_sites` живой переписи. Вето, о котором прибор
+       молчит, и есть список исключений — ровно то, что карточка запретила.
+
+    Третий исход СВОЙ: прибор не ввозится, исходник не прочитан, сцена не
+    поднялась ⇒ `unmeasured` с названной причиной, и НИКОГДА `satisfied` без
+    всех трёх замеров.
+
+    Подстрокой проба не проходит (ADR-333): текста она не сверяет ни на одном
+    из трёх замеров, а судит по РОДУ исхода в полях замера.
+    """
+    if (arg or "").strip():
+        return UNMEASURED, (f"проба не принимает аргумента (дано {arg!r}): "
+                            "предмет — полярность класса целиком")
+    try:
+        from spa_core.monitoring import presence_as_observation_census as m
+    except Exception as exc:                                        # noqa: BLE001
+        return UNMEASURED, f"прибор переписи не ввозится: {type(exc).__name__}: {exc}"
+
+    drive = m.drive_both_directions()
+    if drive.get("kind") == m.DRIVE_UNMEASURED:
+        return UNMEASURED, f"сцены меры не поднялись: {drive.get('reason')}"
+    if drive.get("kind") == m.DRIVE_BLIND:
+        return NOT_SATISFIED, (f"полярность НЕ различается, порвано звено "
+                               f"«{drive.get('link')}»: {drive.get('reason')}")
+
+    rel = "spa_core/golive/checklist.py"
+    full = os.path.join(REPO_ROOT, rel)
+    try:
+        with open(full, encoding="utf-8") as handle:
+            source = handle.read()
+    except OSError as exc:
+        return UNMEASURED, f"{rel} не прочитан: {exc}"
+    report = m.measure_module(source, rel=rel)
+    if "unmeasured" in report:
+        return UNMEASURED, f"{rel} не разобран: {report['unmeasured']}"
+    sites = [s for s in report["sites"] if s["function"] == "check_wallet_ready"]
+    if not sites:
+        return UNMEASURED, (f"в {rel} ни одного места у check_wallet_ready — "
+                            f"предмет пробы не найден, и это НЕ «выполнено»")
+    kinds = {s["outcome"] for s in sites}
+    if m.VERDICT_IS_THIRD_OUTCOME not in kinds:
+        return NOT_SATISFIED, (
+            f"у check_wallet_ready нет ни одного места с родом "
+            f"{m.VERDICT_IS_THIRD_OUTCOME} (исходы: {sorted(kinds)}) — "
+            f"ветка метки по-прежнему судится как вердикт о наблюдении")
+
+    # Область УЗКАЯ намеренно: предмет пробы — РОД исхода у настоящего места,
+    # а не население дерева (его мерит `presence_as_observation_population_named`).
+    # Обход 2500 модулей внутри пробы однажды уронил шард CI по SIGSEGV
+    # (прогон 41193530395), и платить им за ответ, которого он не даёт,
+    # значило бы вернуть ту аварию.
+    try:
+        live = m.measure(REPO_ROOT, scope=("spa_core/golive",))
+    except Exception as exc:                                        # noqa: BLE001
+        return UNMEASURED, f"перепись не отработала: {type(exc).__name__}: {exc}"
+    if live.get("verdict") == "unmeasured":
+        return UNMEASURED, f"область не разобрана: {live.get('reason')}"
+    named = [m.finding_key(s) for s in live.get("third_outcome_sites", [])]
+    if not any("check_wallet_ready" in key for key in named):
+        return NOT_SATISFIED, (
+            f"вето сработало, но место НЕ НАЗВАНО в перечне "
+            f"third_outcome_sites ({len(named)} записей) — молчащее вето есть "
+            f"список исключений")
+    return SATISFIED, (
+        f"полярность различима во все {len(drive) - 1} сцен(ы); "
+        f"check_wallet_ready несёт род {m.VERDICT_IS_THIRD_OUTCOME} на "
+        f"настоящем исходнике и НАЗВАН поимённо; находок в области "
+        f"spa_core/golive — {len(live.get('findings', []))}")
+
+
 def _probe_presence_as_observation_population_named(
         arg: str | None) -> tuple[str, str]:
     """Критерий: население класса ADR-875 НАЗВАНО переписью И мера НЕ слепа.
@@ -14319,6 +14416,8 @@ PROBES: dict[str, Callable[[str | None], "tuple[str, str]"]] = {
         _probe_owner_task_answer_reaches_the_channel,
     "presence_as_observation_population_named":
         _probe_presence_as_observation_population_named,
+    "presence_census_names_the_third_outcome":
+        _probe_presence_census_names_the_third_outcome,
     "golive_criteria_ask_the_producer":
         _probe_golive_criteria_ask_the_producer,
     "golive_reader_names_the_unmeasured":

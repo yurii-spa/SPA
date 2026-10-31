@@ -2,9 +2,9 @@
 
 > Авто-генерится `scripts/build_tracker_board.py` из `nimbalyst-local/tracker/*.md`. НЕ править вручную — правь карточки. Источник правды — карточки, это индекс (bootstrap).
 >
-> Собрана: 2026-10-31T18:15:13Z · сверка с карточками: `python3 scripts/build_tracker_board.py --check` (сторож `spa_core/tests/test_tracker_board_matches_cards.py`).
+> Собрана: 2026-10-31T20:34:03Z · сверка с карточками: `python3 scripts/build_tracker_board.py --check` (сторож `spa_core/tests/test_tracker_board_matches_cards.py`).
 >
-> Сверено с `origin/main` (7b8b64094).
+> Сверено с `origin/main` (ed06f55ad) · у **1** своя правка, кто новее — не измерено.
 >
 > Всего карточек: **1544** · ждёт владельца: **6** · занято сессиями: **13**.
 
@@ -736,6 +736,7 @@
 - Pendle: 22 модуля доходности отказывают только для него — локализовано поимённо, причина НЕ измерена (батарея оказалась инертной)  ·  `inbox-pendle-22-modulya-dohodnosti-otkazyvayut.md` · 2026-09-08
 - Перенос следа умеет только ДОПИСЫВАТЬ: пустое поле на origin надо заменять на месте (две карточки уже испортили и починили)  ·  `inbox-perenos-sleda-umeet-tolko-dopisyvat-pust.md` · 2026-08-30
 - Перепись читателей журнала слепа к 20 HTTP-маршрутам — ровно к тем, чей ответ видит владелец  ·  `inbox-perepis-chitatelei-zhurnala-slepa-k-20-h.md` · 2026-09-16
+- Перепись класса ADR-875 не видит ПОЛЯРНОСТИ третьего исхода — честный отказ числится находкой  ·  `inbox-perepis-klassa-adr-875-ne-vidit-polyarno.md` · 2026-10-31
 - Перепись порядка списков ответа не называет ЗВАВШЕГО — вторая ось заказа G801 неизмерима по построению  ·  `inbox-perepis-poryadka-spiskov-otveta-ne-nazyv.md` · 2026-10-24
 - Песочница тестов общая на весь хост: пять тестов краснеют, если набор гоняли в последние 6 часов  ·  `inbox-pesochnitsa-testov-obschaya-na-ves-host.md` · 2026-08-20
 - Починить судью: ноль в цене хода и «цену не записали» — одна ветка (ответ владельца, вариант 1)  ·  `inbox-pochinit-sudyu-nol-v-tsene-hoda-i-tsenu.md` · 2026-09-15
@@ -1122,7 +1123,6 @@
 - Перепись cd-перед-git КРАСНА на main: deploy_all.sh берёт каталог из окружения  ·  `inbox-perepis-cd-pered-git-krasna-na-main-depl.md` · 2026-10-07
 - Перепись читателей не укладывается в порог шага: два срока в одной дороге спорят (900 с против 180 с)  ·  `inbox-perepis-chitatelei-ne-ukladyvaetsya-v-po.md` · 2026-10-09
 - Перепись границ данных краснеет на чистом main: населения 39 против зафиксированных 35  ·  `inbox-perepis-granits-dannyh-krasneet-na-chist.md` · 2026-10-23
-- Перепись класса ADR-875 не видит ПОЛЯРНОСТИ третьего исхода — честный отказ числится находкой  ·  `inbox-perepis-klassa-adr-875-ne-vidit-polyarno.md` · 2026-10-31
 - Перепись «куда смотрит git в shell-скрипте» красная на чистом origin/main (2 из 20)  ·  `inbox-perepis-kuda-smotrit-git-v-shell-skripte.md` · 2026-09-29
 - Перепись оси работника написана и не позвана: храповик сирот красен на чистой вершине  ·  `inbox-perepis-osi-rabotnika-napisana-i-ne-pozv.md` · 2026-10-15
 - Перепись падает KeyError, когда файл соседской переписи не разобран: третий исход назван, но читателю не даётся  ·  `inbox-perepis-padaet-keyerror-kogda-fail-sosed.md` · 2026-09-24

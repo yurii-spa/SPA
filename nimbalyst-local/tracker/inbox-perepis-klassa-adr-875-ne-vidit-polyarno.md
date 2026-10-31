@@ -2,11 +2,15 @@
 trackerStatus:
   type: inbox
 title: Перепись класса ADR-875 не видит ПОЛЯРНОСТИ третьего исхода — честный отказ числится находкой
-status: new
+status: done
 source: nimbalyst
 created: 2026-10-31
 priority: medium
 twin_key: "sha256:778b547a44d1e9b552c5a376fa2c2a754185556b5a3f17f684ce4eb10ee12758"
+acceptance_probe: presence_census_names_the_third_outcome
+status_trail:
+  - "2026-10-31T19:53:00.646277+00:00 new -> in-progress · queue.set_status · cycle-75321"
+  - "2026-10-31T20:34:03.198289+00:00 in-progress -> done · queue.set_status/closed_by:цикл #998 (ADR-883)/evidence:проба presence_census_names_the_third_outcome = satisfied: полярность различима во все 5 сцен, check_wallet_ready несёт род verdict_is_third_outcome на НАСТОЯЩЕМ исходнике и НАЗВАН поимённо; находки p · cycle-75321"
 ---
 
 ## Что измерено
