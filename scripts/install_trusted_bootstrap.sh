@@ -120,7 +120,8 @@ materialise_release_dir(){ # $1=releases dir $2=approved sha $3=repo $4=launcher
   fi
   mkdir -p "$RD"
   mkdir "$DEST" || die "cannot reserve $DEST (someone else created it) — nothing replaced"
-  git -C "$RP" archive --format=tar "$SHA" | tar -x -C "$DEST" || die "materialise failed — partial copy KEPT: $DEST"
+  GIT_NO_REPLACE_OBJECTS=1 git --no-replace-objects -C "$RP" archive --format=tar "$SHA" | tar -x -C "$DEST" \
+    || die "materialise failed — partial copy KEPT: $DEST"
   prob=$(launcher_composition "$LF" "$DEST" "$SHA" "$RP") || die "composition check could not run — copy KEPT: $DEST"
   [ -z "$prob" ] || die "release composition != approved commit ($prob) — copy KEPT, no stamp: $DEST"
   if [ "$REQ" = 1 ]; then [ -f "$DEST/spa_core/paper_trading/cycle_runner.py" ] || die "release incomplete: cycle_runner missing — copy KEPT: $DEST"; fi
@@ -143,6 +144,7 @@ if [ -n "$SELF_TEST_ROOT" ]; then
   git -C "$REPO" cat-file -e "${APPROVED}^{commit}" 2>/dev/null || die "approved sha $APPROVED not in local objects at $REPO"
   T_BIN="$SELF_TEST_ROOT/bin/release_launcher-$LSHA.py"; mkdir -p "$SELF_TEST_ROOT/bin"
   [ -f "$T_BIN" ] || { cp "$LAUNCHER" "$T_BIN"; chmod 0444 "$T_BIN"; }
+  [ "$(shasum -a 256 "$T_BIN" | cut -d' ' -f1)" = "$LSHA" ] || die "launcher copy $T_BIN != expected $LSHA — not used as the verifier"
   materialise_release_dir "$SELF_TEST_ROOT/releases" "$APPROVED" "$REPO" "$T_BIN" 0
   printf '{"approved_sha": "%s"}\n' "$APPROVED" > "$SELF_TEST_ROOT/approved_release.json"
   write_runtime_json "$SELF_TEST_ROOT/runtime.json" "${SELF_TEST_APP:-NOT_INSTALLED}" "self-test" "self-test" "self-test" "$REPO"

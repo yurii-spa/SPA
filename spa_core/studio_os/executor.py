@@ -152,7 +152,11 @@ def propose(goal: Dict[str, Any], *, run_dir: Path, scope: Sequence[str], contex
         raise Paused(f"шаг предложения: {st['state']} — новый вызов модели не делается без явного продолжения")
     step = _step_graph(goal, req.context_sha256)
     lease = gg.claim(run_dir, step, PROPOSE_TASK, worker=worker, process=f"pid:{os.getpid()}", now=now, ttl_s=ttl_s)
-    st = proposal_status(run_dir, goal, req.context_sha256)          # перечитать после захвата
+    st = proposal_status(run_dir, goal, req.context_sha256)          # перечитать ПОЛНОЕ состояние после захвата:
+    if st["state"] == STEP_DONE:                                      # прежний исполнитель мог успеть записать исход
+        return {**st, "graph": load_graph(run_dir, st["graph_version"]), "called_model": False}
+    if st["state"].startswith(("paused:", "blocked:", "failed:")):
+        raise Paused(f"шаг предложения: {st['state']} — новый вызов модели не делается без явного продолжения")
     if st["calls"] >= MAX_CALLS:
         raise Paused(f"предел вызовов модели на шаг ({MAX_CALLS}) исчерпан — нужен разбор, не повтор")
     _append_attempt(run_dir, step, lease, now, {"phase": "call_started", "pid": os.getpid(), "provider_id": provider_id,

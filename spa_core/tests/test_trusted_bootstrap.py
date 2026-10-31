@@ -102,7 +102,7 @@ def test_service_allowlist_and_no_arbitrary_command(tmp_path):
     assert LNCH.plan_exec("agent:evil", sha_a, releases, repo)[1] == "AGENT_ROLE_NOT_ALLOWLISTED"
     # fixed services map to a fixed module argv (no command ever comes from the approval file)
     plan, verdict = LNCH.plan_exec("paper-cycle", sha_a, releases, repo)
-    assert verdict == "EXEC_FROM_RELEASE" and "spa_core.paper_trading.cycle_runner" in plan["argv"] and plan["argv"][:2] == ["-E", "-s"]
+    assert verdict == "EXEC_FROM_RELEASE" and "spa_core.paper_trading.cycle_runner" in plan["argv"] and plan["argv"][:3] == ["-B", "-E", "-s"]   # -B добавлен S2 (31.10): байткод в релиз не пишется
 
 
 # ── APPROVAL MUTATION: the launcher never WRITES approval (read-only); OS perms enforce the rest ───

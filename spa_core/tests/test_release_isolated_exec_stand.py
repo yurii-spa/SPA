@@ -40,7 +40,8 @@ def main():
         return 0                       # без каталога сцены — ничего не пишет
     pid = os.getpid()
     hb = {{"version": VERSION, "pid": pid, "cwd": os.getcwd(), "file": os.path.abspath(__file__),
-          "sys_path0": sys.path[0], "flags_ignore_env": sys.flags.ignore_environment}}
+          "sys_path0": sys.path[0], "flags_ignore_env": sys.flags.ignore_environment,
+          "no_bytecode": sys.flags.dont_write_bytecode}}
     tmp = os.path.join(d, ".hb-%d" % pid)
     with open(tmp, "w") as f:
         f.write(json.dumps(hb))
@@ -244,6 +245,8 @@ def _expect_running(st: Stand, step: str, sha: str, version: str):
         problems.append(f"код роли из {hb['file']}, не из релиза")
     if not hb["flags_ignore_env"]:
         problems.append("интерпретатор роли запущен без -E")
+    if not hb["no_bytecode"] or list(rel.rglob("__pycache__")):
+        problems.append("интерпретатор роли пишет байткод в релиз (нет -B)")
     if not (meas["active_verified"] and meas["active_sha"] == sha):
         problems.append(f"замер ACTIVE {meas}")
     if st.active_record() != sha:

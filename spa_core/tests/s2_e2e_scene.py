@@ -39,9 +39,10 @@ FIXTURE_PLAN = json.dumps({"tasks": [{"id": "note", "outcome": "заметка �
                                       "check": {"kind": "file_contains", "path": NOTE, "text": MARK},
                                       "depends_on": []}]}, ensure_ascii=False)
 
-_ROLE = T4._ROLE_SRC.replace('"flags_ignore_env": sys.flags.ignore_environment}}',
-                             '"flags_ignore_env": sys.flags.ignore_environment, '
+_ROLE = T4._ROLE_SRC.replace('"no_bytecode": sys.flags.dont_write_bytecode}}',
+                             '"no_bytecode": sys.flags.dont_write_bytecode, '
                              '"note_present": os.path.exists("' + NOTE + '")}}')
+assert _ROLE != T4._ROLE_SRC, "подстановка в роль не сработала — сцена мерила бы не то"
 
 
 def _iso(dt):

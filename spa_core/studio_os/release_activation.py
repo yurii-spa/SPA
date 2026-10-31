@@ -26,7 +26,7 @@ RELEASE_SHA_FILE = ".release_sha"   # written inside each materialised release d
 #: является: эталон состава — только дерево ОДОБРЕННОГО коммита из локальных git-объектов (S2-01, ARB раунд 5).
 #: Манифест внутри проверяемого каталога больше не пишется и не читается — каталог не может задавать эталон
 #: собственной проверки.
-_IGNORED_DIRS = ("__pycache__",)   # байткод, который пишет сам интерпретатор при исполнении из релиза
+_IGNORED_DIRS = ()   # ничего не исключается: `__pycache__` в релизе — лишний файл (см. release_launcher, ARB-самопроверка S2)
 
 
 def _blob_sha(data: bytes) -> str:
@@ -38,24 +38,14 @@ def _blob_sha(data: bytes) -> str:
 def trusted_tree(sha, repo):
     """ДОВЕРЕННЫЙ эталон состава: дерево коммита ``sha`` из локальных git-объектов ``repo``.
 
-    ``{путь: (режим, blob)}``; объекта нет / репозиторий не указан / дерево не прочитано — ``None``
-    (это «проверить нечем», а не «пусто»)."""
+    Делегирует ЧИТАТЕЛЮ лаунчера (:func:`release_launcher.trusted_tree`): replace-объекты отключены, каждый
+    прочитанный объект перепроверяется по своему sha1. Одно определение «доказано» для материализации и для
+    исполнения (раньше здесь был `git ls-tree`, который принимал `git replace`). ``{путь: (режим, blob)}``;
+    объекта нет / репозиторий не указан / объект не сверился — ``None`` («проверить нечем», а не «пусто»)."""
     if not sha or repo is None:
         return None
-    r = subprocess.run(["git", "ls-tree", "-r", "-z", "--full-tree", f"{sha}^{{commit}}"],
-                       cwd=str(repo), capture_output=True)
-    if r.returncode != 0:
-        return None
-    out = {}
-    for entry in r.stdout.split(b"\0"):
-        if not entry:
-            continue
-        meta, path = entry.split(b"\t", 1)
-        mode, kind, blob = meta.decode().split(" ")
-        if kind != "blob":                       # подмодуль: git archive его не кладёт
-            continue
-        out[path.decode("utf-8", "surrogateescape")] = (mode, blob)
-    return out
+    from spa_core.studio_os import release_launcher as _trusted   # stdlib-only, не импортирует проект
+    return _trusted.trusted_tree(sha, str(repo))
 
 
 def _entry_problem(full: Path, rel: str, mode: str, blob: str):
@@ -191,7 +181,8 @@ def materialise_release(sha, releases_dir: Path, repo: Path):
     except FileExistsError:
         return _existing_verdict(dest, sha, repo)        # успел другой процесс
     keep = f"; незавершённая копия СОХРАНЕНА: {dest}"
-    ar = subprocess.run(["git", "archive", "--format=tar", sha], cwd=str(repo), capture_output=True)
+    ar = subprocess.run(["git", "--no-replace-objects", "archive", "--format=tar", sha], cwd=str(repo),
+                        capture_output=True, env={**os.environ, "GIT_NO_REPLACE_OBJECTS": "1"})
     if ar.returncode != 0:
         return None, "MATERIALISE_FAILED:git archive" + keep
     ex = subprocess.run(["tar", "-x", "-C", str(dest)], input=ar.stdout, capture_output=True)

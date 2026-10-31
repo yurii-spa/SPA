@@ -18,6 +18,7 @@ _LEDGER_ROLE = T4._ROLE_SRC.replace(
     '    with open(os.path.join(d, "ledger.jsonl"), "a") as led:          # изменяемые данные — ВНЕ релиза\n'
     '        led.write(json.dumps({{"version": VERSION, "pid": pid}}) + "\\n")\n'
     '    tmp = os.path.join(d, ".hb-%d" % pid)')
+assert _LEDGER_ROLE != T4._ROLE_SRC, "подстановка в роль не сработала"
 _CRASH_ROLE = '"""Роль, падающая при старте (моделирует неудачную активацию)."""\nimport sys\nsys.exit(7)\n'
 
 

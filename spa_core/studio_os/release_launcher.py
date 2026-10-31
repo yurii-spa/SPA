@@ -30,15 +30,19 @@ RELEASE_SHA_FILE = ".release_sha"    # each materialised release self-identifies
 # so an approval can only ever name a SHA — never a command. `-E -s` = ignore PYTHONPATH + user site (proven: blocks an injected PYTHONPATH) while cwd=<release>
 # keeps the module path = the approved release only. `-I` was rejected: it drops cwd, so `-m` cannot find the release.
 SERVICE_ALLOWLIST = {
-    "paper-cycle":  ["-E", "-s", "-m", "spa_core.paper_trading.cycle_runner", "--verbose", "--live"],
-    "orchestrator": ["-E", "-s", "-m", "spa_core.orchestrator.adapter_orchestrator"],
-    "telegram":     ["-E", "-s", "-m", "spa_core.telegram.bot"],
-    "canary": ["-E", "-s", "-m", "spa_core.monitoring.deployment_acceptance"],  # benign, non-money, exits — the CANARY service
+    "paper-cycle":  ["-B", "-E", "-s", "-m", "spa_core.paper_trading.cycle_runner", "--verbose", "--live"],
+    "orchestrator": ["-B", "-E", "-s", "-m", "spa_core.orchestrator.adapter_orchestrator"],
+    "telegram":     ["-B", "-E", "-s", "-m", "spa_core.telegram.bot"],
+    "canary": ["-B", "-E", "-s", "-m", "spa_core.monitoring.deployment_acceptance"],  # benign, non-money, exits — the CANARY service
 }
 AGENT_ROLE_MANIFEST = "studio_release_agents.json"   # {role: "spa_core.module.path"} committed in the release
 
 
-_IGNORED_DIRS = ("__pycache__",)    # байткод, который пишет само исполнение из релиза
+# Ничего не исключается из сверки (ARB-самопроверка S2, 31.10): `__pycache__` раньше пропускался как «байткод
+# исполнения», но интерпретатор читает его РАНЬШЕ исходника — подложенный .pyc (или ссылка `__pycache__`) исполнялся
+# бы под видом одобренного релиза. Исполнение идёт с `-B` (байткод в релиз не пишется), любой `__pycache__` в
+# каталоге — лишний файл состава.
+_IGNORED_DIRS = ()
 
 # Чтение git-объектов: replace-объекты ОТКЛЮЧЕНЫ (иначе `git replace` в изменяемом репозитории подменил бы эталон),
 # и каждый прочитанный объект ПЕРЕПРОВЕРЯЕТСЯ по своему sha1 — доверие идёт от одобренного sha, а не от репозитория.
@@ -206,7 +210,7 @@ def _agent_argv(release_root: Path, role: str):
     try:
         m = json.loads((Path(release_root) / AGENT_ROLE_MANIFEST).read_text())
         mod = m.get(role)
-        return ["-E", "-s", "-m", mod] if isinstance(mod, str) and mod.startswith("spa_core.") else None
+        return ["-B", "-E", "-s", "-m", mod] if isinstance(mod, str) and mod.startswith("spa_core.") else None
     except Exception:
         return None
 

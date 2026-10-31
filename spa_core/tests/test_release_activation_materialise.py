@@ -135,12 +135,16 @@ def test_exec_root_proves_composition_not_just_the_stamp(repo, tamper):
     assert RA.exec_root(sha, rel, r) == (None, "APPROVED_RELEASE_CORRUPT")
 
 
-def test_bytecode_written_by_execution_does_not_break_the_proof(repo):
+def test_bytecode_in_the_release_is_an_extra_file_not_ignored(repo):
+    """ИЗМЕНЁН НАМЕРЕННО (инв. #16, запись в docs/journal/2026-W44.md, 31.10). Прежняя форма утверждала, что
+    ``__pycache__`` «не ломает доказательство», — это и была дыра: интерпретатор читает байткод РАНЬШЕ исходника,
+    и подложенный .pyc исполнялся бы под видом одобренного релиза (самопроверка S2). Теперь исполнение идёт с
+    ``-B``, а любой байткод в каталоге релиза — лишний файл состава."""
     r, sha, rel = repo
     path, _ = RA.materialise_release(sha, rel, r)
     (path / "pkg" / "__pycache__").mkdir()
     (path / "pkg" / "__pycache__" / "mod.cpython-311.pyc").write_bytes(b"\x00")
-    assert RA.exec_root(sha, rel, r) == (path, "ACTIVATE_OK")
+    assert RA.exec_root(sha, rel, r) == (None, "APPROVED_RELEASE_CORRUPT")
 
 
 # ── A6: два процесса — один создаёт, другой не подменяет ────────────────────────────────────────
