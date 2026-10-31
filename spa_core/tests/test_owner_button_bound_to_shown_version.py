@@ -286,3 +286,67 @@ def test_true_legacy_record_keeps_its_named_limit(scene):
                                          "choice": None}]}), encoding="utf-8")
     res = od.record_choice("p1", "1", "42", owner_chat_id="42", state_path=j)
     assert res["ok"] is True
+
+
+# ── S1-R6-01 (ARB раунд 6): НОВАЯ досылка к старой (legacy) записи — через настоящий heal-путь ──────
+def _legacy_journal(scene, message_ids=(101,), choice=None, history=None):
+    rec = {"pid": od.make_pid(scene["card"].stem), "card": str(scene["card"]),
+           "card_id": scene["card"].stem, "title": "Проверка", "buttons": False, "options": [],
+           "choice": choice, "message_ids": list(message_ids)}
+    if history is not None:
+        rec["old_field"] = history
+    scene["journal"].write_text(json.dumps({"pushes": [rec]}), encoding="utf-8")
+    return rec
+
+
+def _real_heal(scene):
+    sent = []
+
+    def sender(text, keyboard):                                          # фиктивный транспорт
+        sent.append((text, keyboard))
+        return {"message_id": 777}
+    fixed = od.heal_buttonless(sender, state_path=scene["journal"], beacon_path=scene["beacon"])
+    return fixed, sent
+
+
+def test_new_heal_to_a_legacy_record_with_unknown_version_grants_no_authority(scene, monkeypatch):
+    rec = _legacy_journal(scene)
+    monkeypatch.setattr(od, "_question_version_of_text", lambda text: None)   # версия не посчиталась
+    fixed, sent = _real_heal(scene)
+    monkeypatch.undo()
+    monkeypatch.setattr(oa, "record_status_write", lambda *a, **k: None)
+    assert fixed == [rec["pid"]] and len(sent) == 1
+    cb = sent[0][1]["inline_keyboard"][0][0]["callback_data"]
+    scene["card"].write_text(HEADER + NEW, encoding="utf-8")            # вопрос изменился
+    before = scene["card"].read_bytes()
+    res = _press(scene, cb)
+    assert res["ok"] is False and res["reason"] == "version_unknown", res
+    rep = od.resolve_text_answer("1", "42", owner_chat_id="42", reply_to_message_id=777,
+                                 state_path=scene["journal"])
+    assert rep["ok"] is False and rep["reason"] == "version_unknown", rep
+    assert scene["card"].read_bytes() == before                         # побайтно не изменена
+    after = json.loads(scene["journal"].read_text(encoding="utf-8"))["pushes"][0]
+    assert after["message_ids"][:1] == [101] and 777 in after["message_ids"]   # сведения об отправках целы
+
+
+def test_new_heal_to_a_legacy_record_with_a_version_binds_to_the_shown_snapshot(scene):
+    rec = _legacy_journal(scene)
+    fixed, sent = _real_heal(scene)
+    assert fixed == [rec["pid"]]
+    cb = sent[0][1]["inline_keyboard"][0][0]["callback_data"]
+    assert od.VERSION_SEP in cb                                          # кнопка несёт метку показанного
+    scene["card"].write_text(HEADER + NEW, encoding="utf-8")
+    assert _press(scene, cb)["reason"] == "question_changed"            # устаревший — отказ
+    scene["card"].write_text(HEADER + OLD, encoding="utf-8")
+    ok = _press(scene, cb)
+    assert ok["ok"] is True and ok["label"].startswith("Оставить журнал")  # актуальный — принят
+
+
+def test_untouched_legacy_record_keeps_its_named_compatibility_limit(scene):
+    """Без новой досылки запись до R3b остаётся в прежней границе (как названо в ADR-857)."""
+    rec = _legacy_journal(scene)
+    doc = json.loads(scene["journal"].read_text(encoding="utf-8"))
+    doc["pushes"][0]["options"] = [{"num": "1", "label": "Оставить журнал"}]
+    scene["journal"].write_text(json.dumps(doc), encoding="utf-8")
+    res = od.record_choice(rec["pid"], "1", "42", owner_chat_id="42", state_path=scene["journal"])
+    assert res["ok"] is True

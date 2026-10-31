@@ -2658,6 +2658,10 @@ def mark_buttons_delivered(
                 # согласие на старый текст к новому. Не передали ⇒ версии нет (сверки нет —
                 # названный предел), а не выдуманная версия.
                 rec["question_sha256"] = question_sha256
+                # S1-R6-01: досылка — НОВОЕ сообщение текущего кода, даже к записи до R3b. Маркер
+                # протокола ставится ВСЕГДА, независимо от того, посчиталась ли версия: иначе
+                # кнопка без метки к legacy-записи шла бы прежней веткой и получала полномочия.
+                rec["protocol"] = PUSH_PROTOCOL
                 vtag = version_tag(question_sha256)
                 if vtag:
                     _add_snapshot(rec.setdefault("snapshots", {}), vtag, question_sha256,
