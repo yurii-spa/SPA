@@ -559,22 +559,30 @@ class AcceptanceProbe(unittest.TestCase):
         return card_acceptance
 
     @staticmethod
-    def _cached_measure():
-        """`c.measure`, ЗАПОМНЕННАЯ на прогон, а не подменённая смыслом.
+    def _scene_measure():
+        """`c.measure`, отвечающая про ОДНОРАЗОВУЮ сцену, а не про это дерево.
 
         Проба зовёт `m.measure()` — именно эту ссылку модуля, — поэтому
-        проводка «проба → перепись» остаётся предметом проверки; кэшируется
-        только обход 2500 модулей, ответ тот же самый. Без этого один прогон
-        батареи платил бы за один и тот же замер пять раз, а мутационный
-        прибор гонит батарею по разу на мутацию.
+        проводка «проба → перепись» остаётся предметом проверки; подменяется
+        только КОРЕНЬ, о котором спрашивают.
+
+        Почему не настоящее дерево: «satisfied» на нём есть утверждение о
+        ДЕРЕВЕ и об ИНТЕРПРЕТАТОРЕ, а не о пробе. Один файл с f-строкой
+        PEP 701 (законной на 3.13 Мака и SyntaxError на 3.11 в CI — авария
+        `agent-ci-lite-krasen-f-stroka-pep-701-na-311`) сделал бы замер
+        `unmeasured`, проба честно ответила бы `unmeasured`, и тест покраснел
+        бы от ЧУЖОЙ правки. Сцена отвечает на вопрос о пробе на ЛЮБОМ хосте.
         """
-        return lambda *a, **k: real_tree_report()
+        root = LiveAxisIsWiredIntoMeasure._scene(commit_artifact=True)
+        report = c.measure(root, ["scripts"])
+        assert report["verdict"] == "findings", report
+        return lambda *a, **k: report
 
     def test_a_satisfied_verdict_names_both_measurements(self):
         ca = self._probe()
         saved = c.measure
         try:
-            c.measure = self._cached_measure()
+            c.measure = self._scene_measure()
             state, why = ca.PROBES[
                 "presence_as_observation_population_named"](None)
         finally:
@@ -591,7 +599,7 @@ class AcceptanceProbe(unittest.TestCase):
         saved_measure = c.measure
         try:
             c._OBSERVATION_WORDS = _re.compile(r"(?!x)x")
-            c.measure = self._cached_measure()
+            c.measure = lambda *a, **k: real_tree_report()
             state, why = ca.PROBES[
                 "presence_as_observation_population_named"](None)
         finally:
@@ -650,15 +658,36 @@ class RealTree(unittest.TestCase):
             self.assertEqual(report["site_count"],
                              sum(report["counts"].values()))
 
-    def test_the_tree_is_measurable_at_all(self):
-        """Дерево разбирается: НЕ ИЗМЕРЕНО по модулям обязано быть пусто.
+    def test_an_unmeasured_module_of_the_real_tree_is_never_swallowed(self):
+        """Неразобранный модуль ДЕРЕВА обязан быть НАЗВАН, а не проглочен.
 
-        Это и есть сторож сторожа: перепись, которая молча не прочитала
-        половину дерева, ответила бы на свой вопрос, а не на нужный.
+        Утверждение здесь — про ПРЕДСТАВЛЕНИЕ (инв. #17), а не про пустоту
+        списка, и это решение с причиной, а не послабление (инв. #16).
+        Пустота списка — свойство ИНТЕРПРЕТАТОРА, а не прибора: на Маке
+        `python3` 3.13, в CI 3.11.17, и f-строка PEP 701 законна там и
+        SyntaxError здесь (дословная авария `agent-ci-lite-krasen-f-stroka-pep-701-na-311`,
+        цикл #784). Тест, утверждавший `unmeasured_files == []`, краснел бы в
+        CI от КАЛЕНДАРЯ чужих правок, а не от своего предмета — ровно та бомба,
+        про которую § «Время в тестах» в `.claude/rules/deployment.md`.
+        Эмуляция грамматики 3.11 на этом дереве сегодня даёт 0 таких файлов,
+        но это НИЖНЯЯ граница: различие PEP 701 лежит в токенизаторе.
+
+        Пустоту дерева от синтаксиса мерит СВОЯ джоба (`SPA CI-Lite`), и
+        дублировать её вопрос здесь значило бы отвечать не на свой.
         """
         report = real_tree_report()
-        self.assertEqual([], report.get("unmeasured_files", []),
-                         report.get("unmeasured_files"))
+        unmeasured = report.get("unmeasured_files", [])
+        if unmeasured:
+            # Каждый назван ПОИМЁННО и с причиной, и вердикт — «не измерено»,
+            # а не «чисто»: иначе перепись ответила бы на свой вопрос вместо
+            # нужного (ровно авария #207).
+            self.assertEqual("unmeasured", report["verdict"], report["verdict"])
+            self.assertEqual(c.RC_UNMEASURED, c.exit_code(report))
+            for item in unmeasured:
+                self.assertIn(":", item, item)
+                self.assertTrue(item.split(":", 1)[1].strip(), item)
+        else:
+            self.assertIn(report["verdict"], ("findings", "clean"))
 
     def test_every_finding_carries_a_live_axis_verdict(self):
         report = real_tree_report()
