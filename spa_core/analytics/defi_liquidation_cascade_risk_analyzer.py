@@ -332,10 +332,9 @@ class DeFiLiquidationCascadeRiskAnalyzer:
     # ------------------------------------------------------------------
 
     def _append_log(self, result: dict, cfg: dict) -> None:
-        log_path = os.path.abspath(
-            os.path.join(os.path.dirname(__file__), "..", "..", "data",
-                         "liquidation_cascade_log.json")
-        )
+        # CI-ISOLATION-01: путь берётся у модульной константы LOG_FILE (тот же файл, тот же
+        # abspath), а не пересобирается здесь — иначе под тестом журнал нельзя направить в сцену.
+        log_path = os.path.abspath(LOG_FILE)
         try:
             if os.path.exists(log_path):
                 with open(log_path) as f:

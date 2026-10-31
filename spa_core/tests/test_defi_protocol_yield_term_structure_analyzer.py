@@ -741,13 +741,28 @@ def test_many_point_curve(tmp_log):
     assert r["is_inverted"] is False
 
 
-def test_demo_main_runs():
+def test_demo_main_runs(tmp_path):
     import subprocess
     mod = os.path.join(
         _ROOT, "spa_core", "analytics",
         "defi_protocol_yield_term_structure_analyzer.py")
     env = os.environ.copy()
     env["PYTHONPATH"] = str(_ROOT)
+    # CI-ISOLATION-01: демо пишет журнал по пути ПО УМОЛЧАНИЮ в отдельном процессе — направляем его
+    # в сцену через SPA_DATA_DIR (ADR-849 §2) и проверяем, что настоящая запись туда и легла.
+    env["SPA_DATA_DIR"] = str(tmp_path)
     res = subprocess.run([sys.executable, mod], capture_output=True, text=True, env=env)
     assert res.returncode == 0
     assert "term_structure_score" in res.stdout
+    assert (tmp_path / "yield_term_structure_log.json").is_file()
+
+
+# ── CI-ISOLATION-01: журнал анализатора — во временной сцене теста, не в git-tracked data/ ──────────
+import pytest as _scene_pytest  # noqa: E402
+import spa_core.analytics.defi_protocol_yield_term_structure_analyzer as _scene_mod  # noqa: E402
+from spa_core.tests._tracked_log_scene import redirect_log as _scene_redirect  # noqa: E402
+
+
+@_scene_pytest.fixture(autouse=True)
+def _scene_log(tmp_path, monkeypatch):
+    return _scene_redirect(monkeypatch, tmp_path, _scene_mod, "_LOG_PATH", defaults_of=())

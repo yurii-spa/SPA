@@ -75,6 +75,9 @@ _LOG_PATH = os.path.join(
     os.path.dirname(__file__), "..", "..", "data",
     "yield_term_structure_log.json",
 )
+#: Объявленное умолчание, снятое на импорте (CI-ISOLATION-01, приём ADR-849 §2): ``default_file``
+#: уважает ``SPA_DATA_DIR`` ТОЛЬКО для этого умолчания; без переменной путь бит-в-бит прежний.
+_LOG_DEFAULT = _LOG_PATH
 _LOG_CAP = 100
 
 # Small epsilon to guard divisions.
@@ -591,6 +594,9 @@ def analyze(
             analyze(_legacy, config={"log_path": None}), _p)
     cfg = config or {}
     log_path = cfg.get("log_path", _LOG_PATH)
+    if log_path:
+        from spa_core.utils.data_dir import default_file
+        log_path = default_file(log_path, _LOG_DEFAULT)
 
     t = token if isinstance(token, dict) else {}
 

@@ -828,3 +828,14 @@ class TestEdgeCases(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+# ── CI-ISOLATION-01: журнал анализатора — во временной сцене теста, не в git-tracked data/ ──────────
+import pytest as _scene_pytest  # noqa: E402
+import spa_core.analytics.protocol_ponzi_risk_screener as _scene_mod  # noqa: E402
+from spa_core.tests._tracked_log_scene import redirect_log as _scene_redirect  # noqa: E402
+
+
+@_scene_pytest.fixture(autouse=True)
+def _scene_log(tmp_path, monkeypatch):
+    return _scene_redirect(monkeypatch, tmp_path, _scene_mod, "LOG_PATH", defaults_of=())
