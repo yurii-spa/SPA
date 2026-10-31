@@ -1,0 +1,112 @@
+{
+ "title": "ADR-884 CONTENT-VETO — дельта цикла #999: вето СОДЕРЖИМОГО спрашивается у ТРЕТЬЕГО исхода переписи ADR-875 (17 → 12 мест), и НЕ проглатывает честное «не измерено»",
+ "tests": [
+  "spa_core/tests/test_presence_content_veto.py",
+  "spa_core/tests/test_presence_as_observation_census.py",
+  "spa_core/tests/test_presence_census_third_outcome.py"
+ ],
+ "mutations": [
+  {
+   "name": "правка снята целиком: вето НЕ задают третьему исходу (дословно прежнее поведение)",
+   "file": "spa_core/monitoring/presence_as_observation_census.py",
+   "old": "        if _verdict_stands_on_content(present, node.test):\n            return {**base, \"outcome\": CONTENT_CHECKED, \"verdict\": generic}\n        return {**base, \"outcome\": PRESENCE_GENERIC_PASS, \"verdict\": generic}",
+   "new": "        return {**base, \"outcome\": PRESENCE_GENERIC_PASS, \"verdict\": generic}"
+  },
+  {
+   "name": "дверь вето смотрит только ТЕЛО ветки — форма `exists() and read_text()` снова прячется",
+   "file": "spa_core/monitoring/presence_as_observation_census.py",
+   "old": "    return (_called_names(present) | _called_names([test])) & _CONTENT_READERS",
+   "new": "    return _called_names(present) & _CONTENT_READERS"
+  },
+  {
+   "name": "дверь вето смотрит только УСЛОВИЕ — чтение в теле ветки перестаёт быть уликой",
+   "file": "spa_core/monitoring/presence_as_observation_census.py",
+   "old": "    return (_called_names(present) | _called_names([test])) & _CONTENT_READERS",
+   "new": "    return _called_names([test]) & _CONTENT_READERS"
+  },
+  {
+   "name": "дверь вето молчит ВСЕГДА — вето как бы есть, а ответа нет",
+   "file": "spa_core/monitoring/presence_as_observation_census.py",
+   "old": "    return (_called_names(present) | _called_names([test])) & _CONTENT_READERS",
+   "new": "    return set()"
+  },
+  {
+   "name": "дверь вето отвечает ВСЕГДА — третий исход проглочен, тишина выдана за ответ",
+   "file": "spa_core/monitoring/presence_as_observation_census.py",
+   "old": "    return (_called_names(present) | _called_names([test])) & _CONTENT_READERS",
+   "new": "    return {\"open\"}"
+  },
+  {
+   "name": "ось оболочки: вето НЕ задают третьему исходу",
+   "file": "spa_core/monitoring/presence_as_observation_census.py",
+   "old": "        if _shell_verdict_stands_on_content(present_text, cond):\n            return {**base, \"outcome\": CONTENT_CHECKED, \"verdict\": generic}\n        return {**base, \"outcome\": PRESENCE_GENERIC_PASS, \"verdict\": generic}",
+   "new": "        return {**base, \"outcome\": PRESENCE_GENERIC_PASS, \"verdict\": generic}"
+  },
+  {
+   "name": "дверь оболочки смотрит только тело ветки — форма `[ -f L ] && grep -q x L` прячется",
+   "file": "spa_core/monitoring/presence_as_observation_census.py",
+   "old": "    return bool(_SHELL_CONTENT_READERS.search(present_text)\n                or _SHELL_CONTENT_READERS.search(cond))",
+   "new": "    return bool(_SHELL_CONTENT_READERS.search(present_text))"
+  },
+  {
+   "name": "дверь оболочки смотрит только условие",
+   "file": "spa_core/monitoring/presence_as_observation_census.py",
+   "old": "    return bool(_SHELL_CONTENT_READERS.search(present_text)\n                or _SHELL_CONTENT_READERS.search(cond))",
+   "new": "    return bool(_SHELL_CONTENT_READERS.search(cond))"
+  },
+  {
+   "name": "драйвер НЕ проверяет звено «ответ дан» (обе формы) — слепота не называется",
+   "file": "spa_core/monitoring/presence_as_observation_census.py",
+   "old": "        if CONTENT_CHECKED not in kinds[link]:\n            return {\"kind\": DRIVE_BLIND, \"link\": link,",
+   "new": "        if False:\n            return {\"kind\": DRIVE_BLIND, \"link\": link,"
+  },
+  {
+   "name": "драйвер НЕ проверяет звено «третий исход ЦЕЛ» — проглоченная тишина зелена",
+   "file": "spa_core/monitoring/presence_as_observation_census.py",
+   "old": "    if PRESENCE_GENERIC_PASS not in kinds[\"generic_bare\"]:",
+   "new": "    if False:"
+  },
+  {
+   "name": "драйвер НЕ проверяет перерастяжение вето — ЦЕНА меры прячется под вето",
+   "file": "spa_core/monitoring/presence_as_observation_census.py",
+   "old": "    if CONTENT_CHECKED in kinds[\"content_without_verdict\"]:",
+   "new": "    if False:"
+  },
+  {
+   "name": "сцена формы «чтение в УСЛОВИИ» подменена на чтение в теле — вторая форма не проверяется",
+   "file": "spa_core/monitoring/presence_as_observation_census.py",
+   "old": "    for link, src_label in ((\"generic_on_content\", \"в теле ветки\"),\n                            (\"generic_in_condition\", \"в самом условии\")):",
+   "new": "    for link, src_label in ((\"generic_on_content\", \"в теле ветки\"),):"
+  },
+  {
+   "name": "ось оболочки: драйвер не проверяет свою сцену вето вовсе",
+   "file": "spa_core/monitoring/presence_as_observation_census.py",
+   "old": "    veto_seen: list[dict] = []\n    for form, bare_src, content_src in SHELL_CONTENT_VETO_SCENES:",
+   "new": "    veto_seen: list[dict] = []\n    for form, bare_src, content_src in ():"
+  },
+  {
+   "name": "сцены вето дописаны в `forms` — поле означает ДВЕ разные вещи (первая редакция правки)",
+   "file": "spa_core/monitoring/presence_as_observation_census.py",
+   "old": "        veto_seen.append({\"scene\": form, \"bare\": bare[0][\"outcome\"],\n                          \"with_content\": withc[0][\"outcome\"]})",
+   "new": "        seen.append({\"form\": f\"{form}:bare\", \"honest\": bare[0][\"outcome\"],\n                     \"defect\": withc[0][\"outcome\"]})"
+  },
+  {
+   "name": "ось оболочки: звено «третий исход ЦЕЛ» снято",
+   "file": "spa_core/monitoring/presence_as_observation_census.py",
+   "old": "        if bare[0][\"outcome\"] != PRESENCE_GENERIC_PASS:",
+   "new": "        if False:"
+  },
+  {
+   "name": "проба приёмки: замер на НАСТОЯЩЕМ исходнике снят — остаются только сцены",
+   "file": "spa_core/monitoring/card_acceptance.py",
+   "old": "    if m.CONTENT_CHECKED not in kinds:\n        return NOT_SATISFIED, (\n            f\"у materialise_release нет ни одного места с родом \"",
+   "new": "    if False:\n        return NOT_SATISFIED, (\n            f\"у materialise_release нет ни одного места с родом \""
+  },
+  {
+   "name": "проба приёмки: замер «третий исход ЦЕЛ и НАЗВАН» снят",
+   "file": "spa_core/monitoring/card_acceptance.py",
+   "old": "    if not any(\"card_instruction_lint\" in key for key in named):",
+   "new": "    if False:"
+  }
+ ]
+}

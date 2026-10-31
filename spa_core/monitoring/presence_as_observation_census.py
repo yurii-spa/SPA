@@ -63,7 +63,7 @@ ADR-126.
 | ярус | вердикт в ветке присутствия | находка? |
 |---|---|---|
 | `presence_to_observed` | НАБЛЮДЕНИЕ или ГОТОВНОСТЬ (`прочитано`, `measured`, `confirmed`, `работает`) либо **прибавленный балл готовности** (`score += 2`) | **ДА** — присутствие этого не доказывает |
-| `presence_generic_pass` | родовое «прошло» (`PASS`, `ok`, `VERIFIED`, `✓`) | **НЕТ — НЕ ИЗМЕРЕНО** |
+| `presence_generic_pass` | родовое «прошло» (`PASS`, `ok`, `VERIFIED`, `✓`) **и вердикт НЕ стоит на содержимом** (ADR-884) | **НЕТ — НЕ ИЗМЕРЕНО** |
 | `presence_restated` | ПОВТОР вопроса (`exists`, `present`, `найден`) | нет — честная тавтология |
 | `verdict_is_third_outcome` | вердикт ветки САМ есть «судить нечем» (ADR-883) | нет — полярность ОБРАТНАЯ аварии |
 
@@ -94,7 +94,8 @@ exists»), `readiness_checker` C011 («push_to_github.py present»),
 
 ## ТРИ ВЕТО, и каждое снимает свой род ложного срабатывания
 
-* **`content_checked`** — ветка присутствия (или сам тест) ЧИТАЕТ содержимое файла
+* **`content_checked`** (с ADR-884 спрашивается и у ТРЕТЬЕГО исхода, одной
+  дверью `_verdict_stands_on_content`) — ветка присутствия (или сам тест) ЧИТАЕТ содержимое файла
   (`open`, `read_text`, `json.load`, `_read_json`, …). Тогда вердикт стоит на
   СОДЕРЖИМОМ, а не на присутствии, и дверь из класса выходит. Замер: без этого вето в
   находки попадали `kill_switch.check_manual_trigger` (читает `active` из файла) и
@@ -240,6 +241,13 @@ _PRESENCE_WORDS = re.compile(
 #: ВЕРЕН) или про наблюдение (и тогда это дефект), — статическая мера НЕ
 #: знает: критерий объявлен докстрокой зовущего, а не кодом ветки. Поэтому
 #: это ТРЕТИЙ исход, а не находка и не чистота (инв. #17).
+#:
+#: **Поправка ADR-884 (цикл #999).** «Мера НЕ знает» было верно про ярус, но не
+#: про каждое его место: вето содержимого — улика ЭТОЙ двери, и у 5 мест из 17
+#: ответ у него БЫЛ, а вопроса ему не задавали (вето спрашивались только самому
+#: сильному ярусу). Третий исход после правки — 12 мест, и это те, про которые
+#: мера действительно не знает. Два соседних вето не расширены НАМЕРЕННО, и
+#: причина названа в `classify_site`.
 #:
 #: Замер, на котором решение стоит: `pre_paper_checklist._check_d003`
 #: («D003: GMX research adapter file exists»), `readiness_checker` C011
@@ -602,6 +610,24 @@ def _earned_by_content(node: ast.AST, pmap: dict[ast.AST, ast.AST],
     return False
 
 
+def _verdict_stands_on_content(present: list[ast.AST],
+                               test: ast.AST) -> set[str]:
+    """ВЕТО 1 одной дверью: на чём стоит вердикт — на содержимом или на присутствии.
+
+    Улика принадлежит ЭТОЙ двери, а не её функции: читаются ветка присутствия
+    И САМО условие. Форма `if p.exists() and p.read_text() == sha` ставит
+    вердикт на содержимом ничуть не меньше, чем чтение в теле ветки, — так
+    устроены `release_activation.materialise_release` и
+    `release_state.active_from_process`.
+
+    Дверь ОДНА на все ярусы, у которых вердикт ЕСТЬ (ADR-884): вопрос «на чём
+    стоит вердикт» не зависит от того, насколько СИЛЬНО вердикт сформулирован.
+    Разойдись копии — ярус наблюдения и третий исход отвечали бы на один и тот
+    же вопрос по-разному.
+    """
+    return (_called_names(present) | _called_names([test])) & _CONTENT_READERS
+
+
 def _verdicts_earned_by_content(others: list[ast.AST], pres_status: set[str],
                                 pmap: dict[ast.AST, ast.AST],
                                 func: ast.AST) -> list[ast.AST]:
@@ -729,7 +755,7 @@ def classify_site(call: ast.Call,
 
     if claim is not None:
         # Вето 1: вердикт стоит на СОДЕРЖИМОМ, а не на присутствии.
-        if (_called_names(present) | _called_names([node.test])) & _CONTENT_READERS:
+        if _verdict_stands_on_content(present, node.test):
             return {**base, "outcome": CONTENT_CHECKED, "verdict": evidence}
         # Вето 2: дверь спросила ПИСАТЕЛЯ — это эталон ADR-875.
         if writer_asked:
@@ -748,8 +774,28 @@ def classify_site(call: ast.Call,
         return {**base, "outcome": PRESENCE_RESTATED,
                 "verdict": sorted(set(_match(tokens, _PRESENCE_WORDS)))[:3]}
     if _match(tokens, _GENERIC_PASS):
-        return {**base, "outcome": PRESENCE_GENERIC_PASS,
-                "verdict": sorted(set(_match(tokens, _GENERIC_PASS)))[:3]}
+        generic = sorted(set(_match(tokens, _GENERIC_PASS)))[:3]
+        # ADR-884. Третий исход — ЕДИНСТВЕННЫЙ ярус, чей ответ «НЕ ИЗМЕРЕНО»,
+        # и вето содержимого отвечает у него ровно так же, как у яруса
+        # наблюдения: сила СЛОВА вердикта не меняет того, на чём вердикт
+        # СТОИТ. Замер 31.10 (2276 мест): из 17 мест третьего исхода у 5 вето
+        # содержимого ответ уже имело — и ему не задавали вопроса.
+        #
+        # Два соседних вето НЕ расширяются, и это решение с замером, а не
+        # недосмотр:
+        #   • вето ПИСАТЕЛЯ объявлено по ФУНКЦИИ (`_WRITER_QUESTION` по всему
+        #     телу), то есть его улика принадлежит ДРУГОМУ месту той же
+        #     функции. Им «ответили» бы ещё 3 места из 17 — и это было бы
+        #     ровно то завышение, против которого написан класс;
+        #   • вето третьего исхода (ADR-883) судит СТАТУСЫ вердиктов, а
+        #     родовое «прошло» статуса функции не несёт.
+        # Ярус ТАВТОЛОГИИ (`presence_restated`) тоже не трогается: он уже
+        # ОТВЕТ, а не незнание, и переносить его значило бы менять один
+        # ответ на другой. Цена решения названа: 3 места из 32 несут
+        # читателя содержимого, и их вето остаётся неиспользованным.
+        if _verdict_stands_on_content(present, node.test):
+            return {**base, "outcome": CONTENT_CHECKED, "verdict": generic}
+        return {**base, "outcome": PRESENCE_GENERIC_PASS, "verdict": generic}
     if any(_ABSENCE.search(text) for text in branch_tokens(absent)):
         return {**base, "outcome": ABSENCE_TO_UNMEASURED}
     return {**base, "outcome": NO_OBSERVATION_VERDICT}
@@ -862,6 +908,16 @@ _SHELL_CONTENT_READERS = re.compile(
     r"md5sum|sha256sum|sed|awk|diff|cmp|plutil|defaults|source|read|tr|cut|"
     r"sort|uniq|python|python3|node|openssl|base64|gunzip|zcat|xmllint|"
     r"plistbuddy|PlistBuddy)(?![\w-])")
+
+def _shell_verdict_stands_on_content(present_text: str, cond: str) -> bool:
+    """ВЕТО 1 оболочки одной дверью — тот же вопрос, что у python-оси (ADR-884).
+
+    Читаются ветка присутствия И САМО условие: `[ -f "$L" ] && grep -q x "$L"`
+    ставит вердикт на содержимом, а не на присутствии файла.
+    """
+    return bool(_SHELL_CONTENT_READERS.search(present_text)
+                or _SHELL_CONTENT_READERS.search(cond))
+
 
 #: Вопрос о ПИСАТЕЛЕ или свежести в оболочке. Второе вето — эталон ADR-875.
 _SHELL_WRITER_QUESTION = re.compile(
@@ -1111,8 +1167,7 @@ def classify_shell_site(lines: list[str], idx: int, col: int, *,
     base = {"form": form, "verdict": evidence, "claim": None}
 
     if claim is not None:
-        if (_SHELL_CONTENT_READERS.search(present_text)
-                or _SHELL_CONTENT_READERS.search(cond)):
+        if _shell_verdict_stands_on_content(present_text, cond):
             return {**base, "outcome": CONTENT_CHECKED}
         if (_SHELL_WRITER_QUESTION.search(cond)
                 or _SHELL_WRITER_QUESTION.search(present_text)):
@@ -1123,8 +1178,13 @@ def classify_shell_site(lines: list[str], idx: int, col: int, *,
         return {**base, "outcome": PRESENCE_RESTATED,
                 "verdict": sorted(set(_match(tokens, _PRESENCE_WORDS)))[:3]}
     if _match(tokens, _GENERIC_PASS):
-        return {**base, "outcome": PRESENCE_GENERIC_PASS,
-                "verdict": sorted(set(_match(tokens, _GENERIC_PASS)))[:3]}
+        generic = sorted(set(_match(tokens, _GENERIC_PASS)))[:3]
+        # ADR-884, дословно как у python-оси: у третьего исхода вето
+        # содержимого ответ есть. Форма `[ -f "$LOG" ] && grep -q … "$LOG"`
+        # (`check_agent_before_deploy.sh:391`) ставит вердикт на содержимом.
+        if _shell_verdict_stands_on_content(present_text, cond):
+            return {**base, "outcome": CONTENT_CHECKED, "verdict": generic}
+        return {**base, "outcome": PRESENCE_GENERIC_PASS, "verdict": generic}
     if (absent_text.strip()
             and (_ABSENCE.search(absent_text)
                  or _SHELL_REFUSAL.search(absent_text))):
@@ -1269,6 +1329,19 @@ fi
 )
 
 
+#: Сцены ВЕТО СОДЕРЖИМОГО у третьего исхода оболочки (ADR-884). Пара
+#: отличается РОВНО чтением содержимого: `grep` по тому же файлу — дословная
+#: форма `check_agent_before_deploy.sh:391`, где вердикт стоит на СОДЕРЖИМОМ
+#: лога, а не на его присутствии.
+SHELL_CONTENT_VETO_SCENES: tuple[tuple[str, str, str], ...] = (
+    ("content_in_cond", """#!/bin/bash
+[ -f "$LOG" ] && ok "stale lock removed"
+""", """#!/bin/bash
+[ -f "$LOG" ] && grep -qi "already in use" "$LOG" && ok "stale lock removed"
+"""),
+)
+
+
 def drive_shell_both_directions() -> dict:
     """Различает ли мера оболочки ДВА направления — на КАЖДОЙ из трёх форм.
 
@@ -1304,7 +1377,41 @@ def drive_shell_both_directions() -> dict:
                                f"{defect[0]['outcome']!r} вместо находки")}
         seen.append({"form": form, "honest": honest[0]["outcome"],
                      "defect": defect[0]["outcome"]})
-    return {"kind": DRIVE_DISTINGUISHES, "forms": seen}
+    # ADR-884: у третьего исхода оболочки вето содержимого тоже спрашивается, и
+    # звено проверяет ОБЕ стороны — «ответ дан» и «честное не-измерено цело».
+    veto_seen: list[dict] = []
+    for form, bare_src, content_src in SHELL_CONTENT_VETO_SCENES:
+        try:
+            bare = measure_shell_source(bare_src, rel=f"scene_{form}_bare.sh")
+            withc = measure_shell_source(content_src, rel=f"scene_{form}_content.sh")
+        except Exception as exc:                                    # noqa: BLE001
+            return {"kind": DRIVE_UNMEASURED,
+                    "reason": (f"сцена вето содержимого {form!r} не "
+                               f"разобралась: {type(exc).__name__}: {exc}")}
+        if len(bare) != 1 or len(withc) != 1:
+            return {"kind": DRIVE_UNMEASURED,
+                    "reason": (f"сцена вето содержимого {form!r} должна давать "
+                               f"РОВНО одно место, получено без чтения "
+                               f"{len(bare)}, с чтением {len(withc)}")}
+        if bare[0]["outcome"] != PRESENCE_GENERIC_PASS:
+            return {"kind": DRIVE_BLIND, "link": f"shell_{form}_bare",
+                    "reason": (f"родовое «прошло» БЕЗ чтения содержимого "
+                               f"получило исход {bare[0]['outcome']!r} вместо "
+                               f"третьего — вето проглотило «НЕ ИЗМЕРЕНО»")}
+        if withc[0]["outcome"] != CONTENT_CHECKED:
+            return {"kind": DRIVE_BLIND, "link": f"shell_{form}",
+                    "reason": (f"вердикт на СОДЕРЖИМОМ (`grep` по тому же "
+                               f"файлу) остался исходом {withc[0]['outcome']!r} "
+                               f"— вето содержимого задают только самому "
+                               f"сильному ярусу")}
+        veto_seen.append({"scene": form, "bare": bare[0]["outcome"],
+                          "with_content": withc[0]["outcome"]})
+    # Ключ ОТДЕЛЬНЫЙ намеренно: `forms` означает «разобранные ФОРМЫ команды», и
+    # сцена вето формой не является. Склеить их в один список значило бы
+    # заставить одно поле означать две разные вещи — и сторож ADR-877
+    # («проверены все три формы») начал бы считать сцены вето за формы.
+    return {"kind": DRIVE_DISTINGUISHES, "forms": seen,
+            "content_veto": veto_seen}
 
 
 def measure(root: str | None = None,
@@ -1465,6 +1572,53 @@ def check(signed, mark):
     return {"name": "Wallet Ready", "status": WARN, "value": "не измерено"}
 '''
 
+#: Сцена ВЕТО СОДЕРЖИМОГО У ТРЕТЬЕГО ИСХОДА — родовое «прошло», а вердикт
+#: стоит на СОДЕРЖИМОМ (читает ветка присутствия). Третьим исходом НЕ является:
+#: ответ у меры есть, и до ADR-884 ей не задавали вопроса.
+SCENE_GENERIC_ON_CONTENT = '''
+import json, os
+P = "data/office_report.json"
+def step():
+    if os.path.exists(P):
+        payload = json.loads(open(P).read())
+        return "ok" if payload.get("rows") else "FAIL"
+    return "файла нет"
+'''
+
+#: Та же сцена, но содержимое читается В САМОМ УСЛОВИИ. Дословная форма
+#: `release_activation.materialise_release` и `release_state.active_from_process`
+#: — именно она пряталась в третьем исходе: вето смотрело только в тело ветки.
+SCENE_GENERIC_IN_CONDITION = '''
+import os
+from pathlib import Path
+def materialise(dest, sha):
+    if (dest / ".release_sha").exists() and (dest / ".release_sha").read_text().strip() == sha:
+        return dest, "OK"
+    return None, "OBJECT_MISSING"
+'''
+
+#: Сцена ЧИСТОГО третьего исхода — родовое «прошло» БЕЗ чтения содержимого.
+#: Обязана остаться `presence_generic_pass`: вето, проглотившее честное «не
+#: измерено», превратило бы третий исход в тишину — ровно наоборот предмету.
+SCENE_GENERIC_BARE = '''
+import os
+def check(base, name):
+    return "PASS" if os.path.exists(os.path.join(base, name)) else "FAIL"
+'''
+
+#: Сцена ПЕРЕРАСТЯЖЕНИЯ вето — содержимое читается, а вердикта НЕТ ВОВСЕ.
+#: Обязана остаться `no_observation_verdict`: это ЦЕНА меры, и назвать её вето
+#: значило бы сослаться на вето, которого никто не использовал, — счётчик
+#: `content_checked` стал бы означать две разные вещи.
+SCENE_CONTENT_WITHOUT_VERDICT = '''
+import json, os
+P = "data/office_report.json"
+def step(acc):
+    if os.path.exists(P):
+        acc.extend(json.loads(open(P).read()))
+    return acc
+'''
+
 DRIVE_DISTINGUISHES = "distinguishes"
 DRIVE_BLIND = "blind"
 DRIVE_UNMEASURED = "unmeasured"
@@ -1485,7 +1639,11 @@ def drive_both_directions() -> dict:
     """
     scenes = {"honest": SCENE_HONEST, "negated": SCENE_NEGATED,
               "defect": SCENE_DEFECT, "third_outcome": SCENE_THIRD_OUTCOME,
-              "loophole": SCENE_LOOPHOLE}
+              "loophole": SCENE_LOOPHOLE,
+              "generic_on_content": SCENE_GENERIC_ON_CONTENT,
+              "generic_in_condition": SCENE_GENERIC_IN_CONDITION,
+              "generic_bare": SCENE_GENERIC_BARE,
+              "content_without_verdict": SCENE_CONTENT_WITHOUT_VERDICT}
     kinds: dict[str, set[str]] = {}
     for label, source in scenes.items():
         try:
@@ -1524,6 +1682,30 @@ def drive_both_directions() -> dict:
                           f"{sorted(kinds['loophole'])}) — вето третьего исхода "
                           f"стало лазейкой: хватило приписать рядом вердикт с "
                           f"другим статусом"}
+    # ADR-884: четыре звена вето содержимого у ТРЕТЬЕГО исхода. Первые два —
+    # «ответ у меры есть и он дан», вторые два — «вето не перерастянуто».
+    # Проверять только первую пару значило бы разрешить мере проглотить
+    # честное «не измерено», то есть купить зелень тишиной.
+    for link, src_label in (("generic_on_content", "в теле ветки"),
+                            ("generic_in_condition", "в самом условии")):
+        if CONTENT_CHECKED not in kinds[link]:
+            return {"kind": DRIVE_BLIND, "link": link,
+                    "reason": (f"родовое «прошло» при чтении содержимого "
+                               f"{src_label} осталось третьим исходом "
+                               f"(исходы сцены: {sorted(kinds[link])}) — вето "
+                               f"содержимого задают только самому сильному "
+                               f"ярусу")}
+    if PRESENCE_GENERIC_PASS not in kinds["generic_bare"]:
+        return {"kind": DRIVE_BLIND, "link": "generic_bare",
+                "reason": (f"родовое «прошло» БЕЗ чтения содержимого потеряло "
+                           f"третий исход (исходы сцены: "
+                           f"{sorted(kinds['generic_bare'])}) — вето проглотило "
+                           f"честное «НЕ ИЗМЕРЕНО» (инв. #17)")}
+    if CONTENT_CHECKED in kinds["content_without_verdict"]:
+        return {"kind": DRIVE_BLIND, "link": "content_without_verdict",
+                "reason": ("чтение содержимого БЕЗ вердикта названо вето — "
+                           "счётчик content_checked стал означать две разные "
+                           "вещи, а ЦЕНА меры спряталась под вето")}
     return {"kind": DRIVE_DISTINGUISHES,
             **{label: sorted(value) for label, value in kinds.items()}}
 

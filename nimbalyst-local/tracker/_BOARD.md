@@ -2,11 +2,11 @@
 
 > Авто-генерится `scripts/build_tracker_board.py` из `nimbalyst-local/tracker/*.md`. НЕ править вручную — правь карточки. Источник правды — карточки, это индекс (bootstrap).
 >
-> Собрана: 2026-10-31T20:34:03Z · сверка с карточками: `python3 scripts/build_tracker_board.py --check` (сторож `spa_core/tests/test_tracker_board_matches_cards.py`).
+> Собрана: 2026-10-31T23:05:39Z · сверка с карточками: `python3 scripts/build_tracker_board.py --check` (сторож `spa_core/tests/test_tracker_board_matches_cards.py`).
 >
-> Сверено с `origin/main` (ed06f55ad) · у **1** своя правка, кто новее — не измерено.
+> Сверено с `origin/main` (c9686b342).
 >
-> Всего карточек: **1544** · ждёт владельца: **6** · занято сессиями: **13**.
+> Всего карточек: **1546** · ждёт владельца: **6** · занято сессиями: **13**.
 
 ## 🔴 ЖДЁТ ВЛАДЕЛЬЦА (needs-owner)
 
@@ -422,7 +422,7 @@
 ### · closed
 - Считать ли верный отказ по правилам допуска неисправностью флота  ·  `owner-decision-schitat-li-vernyi-otkaz-po-pravilam-dopu.md` · 2026-10-08
 
-## 📥 Inbox (задания: Telegram / заметки / голос)  (864)
+## 📥 Inbox (задания: Telegram / заметки / голос)  (866)
 
 ### · in-progress
 - а задача починить все-таки еще раз сообщение которым не пишет нужно твое решени…  ·  `inbox-a-zadacha-pochinit-vse-taki-esche-raz-so.md` · 2026-08-14 · 🔒 `pid43119`
@@ -876,6 +876,7 @@
 - Tier-B: 19 модулей числятся работающими, но различают протоколы побочными полями — предметных данных у них нет  ·  `inbox-tier-b-19-modulei-chislyatsya-rabotayusc.md` · 2026-08-06
 - Tier-C аналитики (180 модулей) остался протокол-слепым: фаза 2 чинила только A и B  ·  `inbox-tier-c-analitiki-180-modulei-ostalsya-pr.md` · 2026-08-06
 - Tier-C: пять настоящих отказов агрегатора — два чинятся, три требуют фактов, которых нет  ·  `inbox-tier-c-pyat-nastoyaschih-otkazov-agregat.md` · 2026-08-06
+- Третий исход переписи не спрашивает вето содержимого: 5 мест из 17 объявлены «не измерено» при готовом ответе меры  ·  `inbox-tretii-ishod-perepisi-ne-sprashivaet-vet.md` · 2026-10-31
 - Третья ветка держит решение и две карточки владельца, а номер ADR-117 занят дважды  ·  `inbox-tretya-vetka-derzhit-reshenie-i-dve-kart.md` · 2026-08-22
 - Третья запись захвата — пересечение по ФАЙЛАМ — судится мёртвой осью  ·  `inbox-tretya-zapis-zahvata-peresechenie-po-fai.md` · 2026-10-14
 - Три числа из приказа CIO не доходят до владельца — дописать их в выдачу и на страницу  ·  `inbox-tri-chisla-iz-prikaza-cio-ne-dohodyat-do.md` · 2026-09-27
@@ -1265,6 +1266,7 @@
 - У AST-сторожа инварианта №3 нет своей ступени: артефакт есть, наблюдения за ним нет  ·  `inbox-u-ast-storozha-invarianta-3-net-svoei-st.md` · 2026-10-07
 - У фразы «незамеренную половину прогона меряет CI» нет читателя: вердикта полного набора нет с 21 октября  ·  `inbox-u-frazy-nezamerennuyu-polovinu-progona-m.md` · 2026-10-23
 - У исходящих приёма нет квитанции доставки: «отдали каналу» не означает «владелец прочитал»  ·  `inbox-u-ishodyaschih-priema-net-kvitantsii-dos.md` · 2026-10-29
+- У ОБЪЯВЛЕННОГО критерия третьего исхода нет читателя: 12 мест python и 2 оболочки судятся прозой  ·  `inbox-u-obyavlennogo-kriteriya-tretego-ishoda.md` · 2026-10-31
 - У шага 0-офис нет памяти: число CRITICAL выросло с 85 до 87, и какие две — не измерено  ·  `inbox-u-shaga-0-ofis-net-pamyati-chislo-critic.md` · 2026-10-15
 - У журналов агентов в /tmp нет предела размера — один снова вырос до 2,3 ГБ  ·  `inbox-u-zhurnalov-agentov-v-tmp-net-predela-ra.md` · 2026-10-08
 - Убитый прогон переписи оставляет МУТАНТ чужого модуля в рабочем дереве: форсированный исходник пишется сквозь символическую ссылку  ·  `inbox-ubityi-progon-perepisi-ostavlyaet-mutant.md` · 2026-10-09

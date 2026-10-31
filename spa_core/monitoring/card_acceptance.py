@@ -7159,6 +7159,109 @@ def _probe_presence_census_names_the_third_outcome(
         f"spa_core/golive — {len(live.get('findings', []))}")
 
 
+def _probe_presence_census_asks_the_content_veto_of_the_third_outcome(
+        arg: str | None) -> tuple[str, str]:
+    """Критерий: вето СОДЕРЖИМОГО спрашивается у ТРЕТЬЕГО исхода переписи.
+
+    Предмет — карточка `inbox-tretii-ishod-perepisi-ne-sprashivaet-vet`
+    (заказ G881 п. 2 (а), ADR-884). Третий исход класса ADR-875 — родовое
+    «прошло» — объявлялся НЕ ИЗМЕРЕННЫМ целиком: «про что сказано прошло,
+    статическая мера не знает». Замер 31.10 (2276 мест) это ОПРОВЕРГ: из 17
+    мест у **5** ответ был у собственного вето меры (`content_checked`), и
+    вопроса ему не задавали — вето спрашивались ТОЛЬКО самому сильному ярусу.
+    Два из пяти читают содержимое В САМОМ УСЛОВИИ
+    (`release_activation.materialise_release`,
+    `release_state.active_from_process`) — форма, которую вето не видело бы и
+    в ярусе наблюдения, если бы смотрело только тело ветки.
+
+    Проба мерит ИСХОД, и у неё ТРИ независимых замера:
+
+    1. **вето отвечает и НЕ перерастянуто** — `drive_both_directions` (девять
+       сцен: пять прежних + четыре ADR-884) и `drive_shell_both_directions`
+       (три формы + сцена вето). Четыре новых звена проверяют ОБЕ стороны: родовое
+       «прошло» при чтении содержимого в ТЕЛЕ и в УСЛОВИИ обязано стать
+       `content_checked`; родовое «прошло» БЕЗ чтения обязано ОСТАТЬСЯ третьим
+       исходом; чтение БЕЗ вердикта вовсе — остаться ЦЕНОЙ. Без двух последних
+       звеньев вето купило бы зелень тишиной, проглотив честное «не измерено»
+       (инв. #17);
+    2. **настоящее место, а не сцена** — `measure_module` поднимается на
+       ИСХОДНИКЕ `spa_core/studio_os/release_activation.py`, и место
+       `materialise_release` обязано нести род `content_checked`. Сцена,
+       собранная руками, мерила бы свой же словарь (уроки #944/#945);
+    3. **третий исход ЦЕЛ и НАЗВАН** — на настоящей области
+       `spa_core/owner_queue` место `card_instruction_lint.resolve` обязано
+       ОСТАТЬСЯ в поимённом перечне `generic_pass_sites`. Правка, обнулившая
+       третий исход, была бы не ответом, а тишиной.
+
+    Третий исход СВОЙ: прибор не ввозится, исходник не прочитан, сцена не
+    поднялась ⇒ `unmeasured` с названной причиной, и НИКОГДА `satisfied` без
+    всех трёх замеров.
+
+    Подстрокой проба не проходит (ADR-333): текста она не сверяет ни на одном
+    замере — судит по РОДУ исхода и по ПРИСУТСТВИЮ ключа в полях замера.
+    """
+    if (arg or "").strip():
+        return UNMEASURED, (f"проба не принимает аргумента (дано {arg!r}): "
+                            "предмет — вето третьего исхода целиком")
+    try:
+        from spa_core.monitoring import presence_as_observation_census as m
+    except Exception as exc:                                        # noqa: BLE001
+        return UNMEASURED, f"прибор переписи не ввозится: {type(exc).__name__}: {exc}"
+
+    for label, drive in (("python", m.drive_both_directions()),
+                         ("оболочка", m.drive_shell_both_directions())):
+        if drive.get("kind") == m.DRIVE_UNMEASURED:
+            return UNMEASURED, (f"сцены меры ({label}) не поднялись: "
+                                f"{drive.get('reason')}")
+        if drive.get("kind") == m.DRIVE_BLIND:
+            return NOT_SATISFIED, (f"вето третьего исхода НЕ работает ({label}), "
+                                   f"порвано звено «{drive.get('link')}»: "
+                                   f"{drive.get('reason')}")
+
+    rel = "spa_core/studio_os/release_activation.py"
+    full = os.path.join(REPO_ROOT, rel)
+    try:
+        with open(full, encoding="utf-8") as handle:
+            source = handle.read()
+    except OSError as exc:
+        return UNMEASURED, f"{rel} не прочитан: {exc}"
+    report = m.measure_module(source, rel=rel)
+    if "unmeasured" in report:
+        return UNMEASURED, f"{rel} не разобран: {report['unmeasured']}"
+    sites = [s for s in report["sites"] if s["function"] == "materialise_release"]
+    if not sites:
+        return UNMEASURED, (f"в {rel} ни одного места у materialise_release — "
+                            f"предмет пробы не найден, и это НЕ «выполнено»")
+    kinds = {s["outcome"] for s in sites}
+    if m.CONTENT_CHECKED not in kinds:
+        return NOT_SATISFIED, (
+            f"у materialise_release нет ни одного места с родом "
+            f"{m.CONTENT_CHECKED} (исходы: {sorted(kinds)}) — вердикт на "
+            f"СОДЕРЖИМОМ, прочитанном в самом условии, по-прежнему числится "
+            f"третьим исходом")
+
+    # Область УЗКАЯ намеренно (урок пробы ADR-883): обход 2500 модулей внутри
+    # пробы однажды уронил шард CI по SIGSEGV, и платить им за ответ, которого
+    # он не даёт, значило бы вернуть ту аварию.
+    try:
+        live = m.measure(REPO_ROOT, scope=("spa_core/owner_queue",))
+    except Exception as exc:                                        # noqa: BLE001
+        return UNMEASURED, f"перепись не отработала: {type(exc).__name__}: {exc}"
+    if live.get("verdict") == "unmeasured":
+        return UNMEASURED, f"область не разобрана: {live.get('reason')}"
+    named = [m.finding_key(s) for s in live.get("generic_pass_sites", [])]
+    if not any("card_instruction_lint" in key for key in named):
+        return NOT_SATISFIED, (
+            f"третий исход в spa_core/owner_queue ПУСТ или не назван "
+            f"({len(named)} записей) — вето проглотило честное «НЕ ИЗМЕРЕНО», "
+            f"а это тишина, а не ответ")
+    return SATISFIED, (
+        f"вето различимо в обе стороны на девяти сценах python, трёх формах "
+        f"оболочки и её сцене вето; materialise_release несёт род {m.CONTENT_CHECKED} "
+        f"на настоящем исходнике (содержимое читается в условии); третий исход "
+        f"в spa_core/owner_queue цел и назван — {len(named)} мест(о)")
+
+
 def _probe_presence_as_observation_population_named(
         arg: str | None) -> tuple[str, str]:
     """Критерий: население класса ADR-875 НАЗВАНО переписью И мера НЕ слепа.
@@ -14418,6 +14521,8 @@ PROBES: dict[str, Callable[[str | None], "tuple[str, str]"]] = {
         _probe_presence_as_observation_population_named,
     "presence_census_names_the_third_outcome":
         _probe_presence_census_names_the_third_outcome,
+    "presence_census_asks_the_content_veto_of_the_third_outcome":
+        _probe_presence_census_asks_the_content_veto_of_the_third_outcome,
     "golive_criteria_ask_the_producer":
         _probe_golive_criteria_ask_the_producer,
     "golive_reader_names_the_unmeasured":
