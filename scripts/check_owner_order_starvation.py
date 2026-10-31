@@ -27,9 +27,10 @@
 2. Считает возраст маркера от полуночи UTC той даты до `now` (UTC).
 3. Карточка старше `--min-hours` (по умолчанию 24) — находка.
 4. Считает, СКОЛЬКО ЦИКЛОВ прошло мимо этой карточки (карточка просила эту величину дословно:
-   «N циклов мимо»): различимые ярлыки сессий в журнале объявлений `session_changes.jsonl`
-   с момента приказа. Часы и циклы — РАЗНЫЕ величины: сутки простоя при одном прошедшем цикле
-   и сутки при сорока — это две разные аварии, и вторую видно только по циклам.
+   «N циклов мимо») — по журналу объявлений `session_changes.jsonl` с момента приказа, и
+   ТРЕМЯ различимыми осями, а не одним числом (см. `cycles_measure` и ADR-874). Часы и циклы —
+   РАЗНЫЕ величины: сутки простоя при одном прошедшем цикле и сутки при сорока — это две
+   разные аварии, и вторую видно только по циклам.
    Журнала нет / не читается ⇒ `None` = НЕ ИЗМЕРЕНО, а не ноль (fail-CLOSED: «мимо не прошёл
    никто» — самое успокоительное из возможных значений, и выдумывать его запрещено).
 5. Пишет отчёт `<data>/owner_order_starvation.json` — и при находке, и при её отсутствии.
@@ -90,7 +91,7 @@ import re
 import sys
 import traceback
 from datetime import datetime, timezone
-from pathlib import Path
+from pathlib import Path, PurePosixPath
 
 # Бутстрап пути ОБЯЗАН стоять ВЫШЕ любого импорта пакета репозитория. Обёртка
 # `agent_orchestrator.sh` зовёт этот файл ПО ПУТИ (`"$PYTHON" "$STARVE_PY"`), а не модулем
@@ -164,17 +165,58 @@ def age_hours(marker_date: str, now: datetime) -> float | None:
     return (now - marker).total_seconds() / 3600.0
 
 
-def cycles_since(marker_date: str, now: datetime, announce_path) -> int | None:
-    """Сколько РАЗЛИЧИМЫХ сессий объявляли работу с полуночи UTC даты приказа.
+def card_id_of(path) -> str:
+    """Идентификатор карточки из пути либо из уже готового идентификатора.
 
-    Это и есть «N циклов мимо» из карточки-заказчика. Величина считается по журналу
-    объявлений, а не по журналу цикла: объявление обязан оставить КАЖДЫЙ цикл (§3.4), и
-    это единственный след, который переживает смерть сессии.
+    Одна дверь на ОБЕ формы, в которых карточка называется в журнале объявлений: писатель
+    принимает `--card <id>` (`agent-foo`), но прод-записи несут и полный путь
+    (`nimbalyst-local/tracker/inbox-foo.md`). Сверять их подстрокой нельзя — короткий
+    идентификатор содержится в длинном, и «назвали СОСЕДНЮЮ карточку» прочиталось бы как
+    «назвали эту» (ADR-333). Поэтому обе формы приводятся к ОДНОМУ виду и сравниваются
+    РАВЕНСТВОМ.
+    """
+    raw = str(path or "").strip()
+    if not raw:
+        return ""
+    return PurePosixPath(raw.replace("\\", "/")).stem
 
-    ``None`` — измерить не удалось (журнала нет, не читается, дата приказа не разбирается).
-    Ноль возвращается ТОЛЬКО когда журнал прочитан и в нём действительно никого нет:
-    «мимо не прошёл никто» — самое успокоительное из значений, и подставлять его вместо
-    неизмеренного запрещено (тот же fail-OPEN, из-за которого приказ простоял четверо суток).
+
+def cycles_measure(marker_date: str, now: datetime, announce_path,
+                   card_id: str | None = None) -> dict | None:
+    """Три РАЗЛИЧИМЫЕ оси «циклов» с полуночи UTC даты приказа, по журналу объявлений.
+
+    **Почему три, а не одна (ADR-874, цикл #992).** Прежняя мерка считала РАЗЛИЧИМЫЕ
+    ярлыки сессий, объявлявших ЛЮБУЮ работу, и печаталась словами «мимо прошло циклов».
+    Это ответ на СВОЙ вопрос («сколько циклов вообще было»), выданный за нужный («сколько
+    проигнорировало приказ»), и на живом журнале он завышал вдвое: замер 31.10 по
+    `data/session_changes.jsonl` с 22.08 — сессий **880**, а карточку приказа «Portfolio
+    CIO» назвали полем `card` **455** из них, то есть 51.7 %; эта карточка оказалась САМОЙ
+    называемой карточкой всего журнала (следующая — 50). Прибор объявил самый обслуженный
+    приказ проекта полностью брошенным, и объявил это в верхней строке промпта каждого
+    цикла, где меньше всего времени усомниться.
+
+    Ось для честного ответа лежит в ТОМ ЖЕ журнале: поле `card` — объявленный контракт с
+    единственным писателем (`scripts/log_session_change.py`; объявить файл карточки без
+    `--card` там ОТКАЗ, `refuse_card_files_without_card`).
+
+    Возвращает ``{"announced": int, "named_the_card": int | None, "passed_by": int | None}``:
+
+    * ``announced`` — сессии, объявлявшие работу (прежняя величина, названная своим именем);
+    * ``named_the_card`` — из них те, чьё объявление НАЗВАЛО эту карточку. ``None``, когда
+      карточка измерителю не названа (`card_id` пуст): «не спрашивали» не есть «ни одна»;
+    * ``passed_by`` — разность, то есть собственно «мимо». ``None`` следом за ``named_the_card``:
+      подставить сюда ``announced`` значило бы вернуть ровно тот дефект через умолчание.
+
+    ``None`` вместо всего словаря — измерить не удалось (журнала нет, не читается, дата
+    приказа не разбирается). Ноль в любой оси возвращается ТОЛЬКО когда журнал прочитан и
+    в нём действительно никого нет: «мимо не прошёл никто» — самое успокоительное из
+    значений, и подставлять его вместо неизмеренного запрещено (тот же fail-OPEN, из-за
+    которого приказ простоял четверо суток).
+
+    **НЕ ДОКЛАДЫВАЕТ:** сделала ли названная сессия работу ПО СУЩЕСТВУ приказа. Названность
+    есть ОТРИЦАНИЕ «прошёл мимо» (сессия держала карточку в объявленном поле), а не
+    утверждение о пользе; судить пользу по журналу объявлений нечем, и выдумывать её здесь
+    значило бы завести вторую мерку приёмки рядом с `card_acceptance`.
     """
     try:
         since = datetime.strptime(marker_date, "%Y-%m-%d").replace(tzinfo=timezone.utc)
@@ -184,7 +226,9 @@ def cycles_since(marker_date: str, now: datetime, announce_path) -> int | None:
         text = Path(announce_path).read_text(encoding="utf-8", errors="replace")
     except (OSError, ValueError):
         return None
+    wanted = card_id_of(card_id)
     labels: set[str] = set()
+    named: set[str] = set()
     for line in text.splitlines():
         line = line.strip()
         if not line:
@@ -207,9 +251,18 @@ def cycles_since(marker_date: str, now: datetime, announce_path) -> int | None:
             continue
         if when.tzinfo is None:
             when = when.replace(tzinfo=timezone.utc)
-        if when >= since and when <= now:
-            labels.add(label)
-    return len(labels)
+        if not (since <= when <= now):
+            continue
+        labels.add(label)
+        if wanted and card_id_of(rec.get("card")) == wanted:
+            named.add(label)
+    announced = len(labels)
+    if not wanted:
+        return {"announced": announced, "named_the_card": None, "passed_by": None}
+    # Названные ярлыки — ПОДМНОЖЕСТВО объявлявших по построению (оба набора набираются
+    # в одном проходе из одной записи), поэтому разность неотрицательна без max().
+    return {"announced": announced, "named_the_card": len(named),
+            "passed_by": announced - len(named)}
 
 
 def cards_from_ref(tracker_dir=None, ref: str = DEFAULT_REF) -> list[Card]:
@@ -348,6 +401,26 @@ def write_report(report: dict, data_dir=None) -> str | None:
     return str(path)
 
 
+def _cycles_fields(marker_date: str, now: datetime, announce_path,
+                   card_path: str) -> dict:
+    """Три оси «циклов» в поля находки. Журнала не дали ⇒ все три `None`, а не нули.
+
+    Ключ `cycles_passed` сохранён за РАЗНОСТЬЮ намеренно: оба его читателя (печать шага 0a
+    и секция дайджеста владельцу) печатают его словом «мимо», то есть всё это время
+    обещали читателю именно разность. Значение приведено к обещанию ключа — это починка,
+    а не переименование (переименование ключа молча меняет смысл числа: класс T034).
+    """
+    if announce_path is None:
+        return {"cycles_passed": None, "cycles_announced": None,
+                "cycles_named_the_card": None}
+    m = cycles_measure(marker_date, now, announce_path, card_path)
+    if m is None:
+        return {"cycles_passed": None, "cycles_announced": None,
+                "cycles_named_the_card": None}
+    return {"cycles_passed": m["passed_by"], "cycles_announced": m["announced"],
+            "cycles_named_the_card": m["named_the_card"]}
+
+
 def starving_owner_orders(
     cards: list[Card], now: datetime, min_hours: float = DEFAULT_MIN_HOURS,
     announce_path=None, claim_verdict=None, source: str = "дерево",
@@ -397,10 +470,11 @@ def starving_owner_orders(
             "held_check": held_reason,
             "marker_date": marker_date,
             "age_hours": round(hours, 1),
-            # «N циклов мимо» — дословное требование карточки-заказчика.
+            # «N циклов мимо» — дословное требование карточки-заказчика, и с ADR-874 это
+            # РАЗНОСТЬ, а не число прошедших циклов: сессия, назвавшая эту карточку в
+            # объявлении, мимо неё не проходила. Три оси печатаются раздельно (инв. #17);
             # None = НЕ ИЗМЕРЕНО и печатается именно так, а не нулём.
-            "cycles_passed": (cycles_since(marker_date, now, announce_path)
-                              if announce_path is not None else None),
+            **_cycles_fields(marker_date, now, announce_path, str(c.path)),
         })
     out.sort(key=lambda r: r["age_hours"], reverse=True)
     return out
@@ -424,6 +498,23 @@ def merge_findings(tree: list[dict], ref: list[dict]) -> list[dict]:
     return merged
 
 
+def _cycles_context(f: dict) -> str:
+    """Соседние оси «циклов» словами: объявляли работу · называли карточку.
+
+    Печатаются ВСЕГДА, когда измерены, — и отдельной причиной, когда нет. Пустая строка
+    здесь была бы худшим из исходов: читатель дочитал бы «мимо прошло циклов: 393» и
+    решил, что циклов всего и было 393.
+    """
+    announced = f.get("cycles_announced")
+    named = f.get("cycles_named_the_card")
+    if isinstance(announced, int) and isinstance(named, int):
+        return f" (объявляли работу {announced}, карточку называли {named})"
+    if isinstance(announced, int):
+        return (f" (объявляли работу {announced}, "
+                f"сколько называли карточку — НЕ ИЗМЕРЕНО)")
+    return ""
+
+
 def render(findings: list[dict], min_hours: float,
            repeat_groups: list[dict] | None = None,
            repeats_unmeasured: str | None = None,
@@ -445,8 +536,11 @@ def render(findings: list[dict], min_hours: float,
         cycles = f.get("cycles_passed")
         # Ноль циклов и НЕ ИЗМЕРЕНО — разные утверждения, и склеивать их нельзя:
         # «мимо никто не проходил» оправдывает простой, «мерить было нечем» — нет.
-        tail = (f", мимо прошло циклов: {cycles}" if isinstance(cycles, int)
-                else ", циклов мимо: НЕ ИЗМЕРЕНО")
+        # Обе соседние оси печатаются РЯДОМ (ADR-874): без них «мимо 393» неотличимо от
+        # «циклов было 393», а именно эта склейка и завышала число вдвое.
+        tail = (f", мимо прошло циклов: {cycles}"
+                f"{_cycles_context(f)}" if isinstance(cycles, int)
+                else f", циклов мимо: НЕ ИЗМЕРЕНО{_cycles_context(f)}")
         # Копия НАЗЫВАЕТСЯ: у одного приказа две копии расходятся по статусу, приоритету и
         # наличию самого приказа — без источника читатель не найдёт то, что ему показали.
         src = f.get("source")

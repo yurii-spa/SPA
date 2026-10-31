@@ -13471,6 +13471,137 @@ def _probe_size_edge_prize_source_is_named(
         f"{census.get('scan_worse')} (обязан быть 0)")
 
 
+def _probe_starvation_cycles_name_the_order(arg: str | None) -> tuple[str, str]:
+    """Критерий ADR-874 — «циклов мимо» считает ПРИКАЗ, а не календарь.
+
+    Дословно: шаг 0a-ГОЛОД печатал в самой верхней строке промпта каждого цикла
+    «мимо прошло циклов: 880» про приказ владельца «Portfolio CIO». Величину
+    давал ``cycles_since``: РАЗЛИЧИМЫЕ ярлыки сессий, объявлявших ЛЮБУЮ работу
+    с даты приказа, — то есть ответ на СВОЙ вопрос («сколько циклов вообще
+    было»), выданный за нужный. Замер 31.10 по прод-журналу с 22.08: сессий
+    880, а карточку назвали полем ``card`` 455 из них (51.7 %), и она —
+    САМАЯ называемая карточка всего журнала (следующая 50). Завышение 2.07×, и
+    в той строке, где у цикла меньше всего времени усомниться.
+
+    Проба меряет ИСХОД на НАСТОЯЩЕЙ двери — поднимает
+    ``scripts/check_owner_order_starvation.py`` подпроцессом на ОДНОРАЗОВОМ
+    трекере и ОДНОРАЗОВОМ журнале, — и две сцены отличаются РОВНО наличием
+    поля ``card`` у единственной объявившей сессии:
+
+    1. **назвали** — ``cycles_passed`` обязан быть 0 при ``cycles_announced`` 1;
+    2. **не назвали** — тот же журнал без поля: ``cycles_passed`` 1.
+
+    Ответы ПРОТИВОПОЛОЖНЫЕ, поэтому прежний код (одно число на обе сцены) даёт
+    ``not_satisfied``, а не «измерено». Третий вопрос — к ПЕЧАТИ: соседняя ось
+    обязана стоять РЯДОМ с «мимо», иначе читатель дочитает «мимо прошло
+    циклов: N» и решит, что циклов всего и было N.
+
+    Живой ``data/`` и живой трекер не читаются: предмет — арифметика оси, а не
+    то, какой приказ голодает сегодня.
+    """
+    if arg:
+        return UNMEASURED, (f"проба не принимает аргумента (дано {arg!r}): критерий "
+                            "назван целиком")
+    import json as _json
+    import subprocess as _sp
+    import sys as _sys
+    import tempfile as _tf
+    from datetime import datetime as _dt
+    from datetime import timedelta as _td
+    from datetime import timezone as _tz
+    from pathlib import Path as _Path
+
+    guard = _Path(REPO_ROOT) / "scripts" / "check_owner_order_starvation.py"
+    if not guard.exists():
+        return UNMEASURED, f"двери шага 0a нет по пути {guard}"
+
+    now = _dt.now(_tz.utc)
+    # Маркер приказа — ОТНОСИТЕЛЬНЫЙ: литерал протух бы от сдвига календаря, а
+    # порог голодания здесь не предмет (нужен лишь заведомо старый приказ).
+    marker = (now - _td(days=4)).strftime("%Y-%m-%d")
+    card_name = "inbox-prikaz-probniy"
+
+    def _ask(name_the_card: bool):
+        """Настоящая дверь на одноразовой сцене → (находка, человеческая печать)."""
+        try:
+            with _tf.TemporaryDirectory() as tmp:
+                root = _Path(tmp)
+                tracker, data = root / "tracker", root / "data"
+                tracker.mkdir(), data.mkdir()
+                (tracker / f"{card_name}.md").write_text(
+                    "---\ntrackerStatus:\n  type: inbox\n"
+                    "title: приказ владельца (сцена пробы)\nstatus: new\n"
+                    f"priority: critical\ncreated: {marker}\n---\n\n"
+                    f"## УКАЗАНИЕ ВЛАДЕЛЬЦА {marker}: ЗАПУСТИТЬ СЛЕДУЮЩИМ ЦИКЛОМ\n",
+                    encoding="utf-8")
+                rec = {"ts": (now - _td(hours=3)).strftime("%Y-%m-%dT%H:%M:%SZ"),
+                       "session": "cycle-единственный", "summary": "работа"}
+                if name_the_card:
+                    rec["card"] = f"nimbalyst-local/tracker/{card_name}.md"
+                (data / "session_changes.jsonl").write_text(
+                    _json.dumps(rec, ensure_ascii=False) + "\n", encoding="utf-8")
+                argv = [_sys.executable, str(guard), "--tracker-dir", str(tracker),
+                        "--data-dir", str(data), "--ref", "", "--no-write"]
+                human = _sp.run(argv, capture_output=True, text=True, timeout=300)
+                machine = _sp.run([*argv, "--json"], capture_output=True,
+                                  text=True, timeout=300)
+                if not machine.stdout.strip():
+                    return None, f"дверь не напечатала JSON (rc={machine.returncode})"
+                doc = _json.loads(machine.stdout)
+                found = [f for f in (doc.get("findings") or [])
+                         if str(f.get("path", "")).endswith(f"{card_name}.md")]
+                if not found:
+                    return None, ("дверь не нашла приказ на своей же сцене "
+                                  f"(rc={machine.returncode}) — сцена не задана")
+                return (found[0], human.stdout), None
+        except Exception as exc:  # noqa: BLE001 — нечем мерить ≠ критерий не выполнен
+            return None, f"{type(exc).__name__}: {exc}"
+
+    named, err = _ask(True)
+    if err:
+        return UNMEASURED, f"сцена «назвали карточку» НЕ ИЗМЕРЕНА: {err}"
+    missed, err = _ask(False)
+    if err:
+        return UNMEASURED, f"сцена «не назвали» НЕ ИЗМЕРЕНА: {err}"
+    named_f, named_text = named
+    missed_f, _ = missed
+
+    for label, f in (("назвали", named_f), ("не назвали", missed_f)):
+        for key in ("cycles_passed", "cycles_announced", "cycles_named_the_card"):
+            if key not in f:
+                return NOT_SATISFIED, (
+                    f"находка сцены «{label}» не несёт оси `{key}` — читателю нечем "
+                    "отличить «мимо» от «сколько циклов вообще было» (инв. #17)")
+
+    if named_f["cycles_passed"] == missed_f["cycles_passed"]:
+        return NOT_SATISFIED, (
+            f"дверь отвечает одно и то же ({named_f['cycles_passed']}) на сцену, где "
+            "единственная сессия НАЗВАЛА карточку, и на сцену, где не назвала: "
+            "«мимо» по-прежнему считает календарь, а не приказ")
+    if named_f["cycles_passed"] != 0:
+        return NOT_SATISFIED, (
+            f"единственная сессия назвала карточку, а «мимо» = "
+            f"{named_f['cycles_passed']}: работа ПО приказу зачтена как проход мимо него")
+    if missed_f["cycles_passed"] != 1:
+        return NOT_SATISFIED, (
+            f"никто карточку не назвал, а «мимо» = {missed_f['cycles_passed']} вместо 1: "
+            "починка обнулила ось вообще — тот же дефект с другой стороны")
+    if named_f["cycles_announced"] != 1 or named_f["cycles_named_the_card"] != 1:
+        return NOT_SATISFIED, (
+            f"слагаемые разности неверны: объявляли {named_f['cycles_announced']}, "
+            f"называли {named_f['cycles_named_the_card']} при одной записи журнала")
+    if "объявляли работу 1" not in named_text or "карточку называли 1" not in named_text:
+        return NOT_SATISFIED, (
+            "печать шага 0a не называет соседнюю ось рядом с «мимо» — читатель "
+            f"прочтёт одно число как оба: {named_text.strip()[:300]!r}")
+
+    return SATISFIED, (
+        "«мимо» есть РАЗНОСТЬ и измерена на настоящей двери: сцена «сессия назвала "
+        "карточку» даёт мимо 0 при объявлявших 1, сцена «не назвала» — мимо 1; три оси "
+        "объявлены обеими находками, и печать шага 0a называет слагаемые рядом с "
+        "разностью")
+
+
 def _probe_inbox_record_kind_has_a_writer(arg: str | None) -> tuple[str, str]:
     """Критерий: у оси «род записи» ЕСТЬ писатель, и три её исхода различимы (ADR-873).
 
@@ -13578,6 +13709,8 @@ def _probe_inbox_record_kind_has_a_writer(arg: str | None) -> tuple[str, str]:
 
 
 PROBES: dict[str, Callable[[str | None], "tuple[str, str]"]] = {
+    "starvation_cycles_name_the_order":
+        _probe_starvation_cycles_name_the_order,
     "inbox_record_kind_has_a_writer": _probe_inbox_record_kind_has_a_writer,
     "cio_act_fires_and_is_scored": _probe_cio_act_fires_and_is_scored,
     "size_edge_prize_source_is_named": _probe_size_edge_prize_source_is_named,

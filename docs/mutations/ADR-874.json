@@ -1,0 +1,71 @@
+{
+  "title": "ADR-874 — дельта цикла #992: «циклов мимо» считает ПРИКАЗ, а не календарь",
+  "tests": [
+    "spa_core/tests/test_starvation_cycles_name_the_order.py",
+    "spa_core/tests/test_owner_order_starvation_reaches_owner.py",
+    "spa_core/tests/test_owner_order_starvation.py",
+    "spa_core/tests/test_starvation_verdict_classification.py"
+  ],
+  "mutations": [
+    {
+      "name": "ПРЕЖНЕЕ ПОВЕДЕНИЕ: «мимо» = число объявлявших работу (предмет ADR-874)",
+      "file": "scripts/check_owner_order_starvation.py",
+      "old": "    return {\"cycles_passed\": m[\"passed_by\"], \"cycles_announced\": m[\"announced\"],\n",
+      "new": "    return {\"cycles_passed\": m[\"announced\"], \"cycles_announced\": m[\"announced\"],\n"
+    },
+    {
+      "name": "ПЕРЕГИБ: «мимо» всегда ноль — ось снята с другой стороны",
+      "file": "scripts/check_owner_order_starvation.py",
+      "old": "    return {\"cycles_passed\": m[\"passed_by\"], \"cycles_announced\": m[\"announced\"],\n",
+      "new": "    return {\"cycles_passed\": 0, \"cycles_announced\": m[\"announced\"],\n"
+    },
+    {
+      "name": "сверка карточки ПОДСТРОКОЙ — соседняя карточка зачтётся нашей (ADR-333)",
+      "file": "scripts/check_owner_order_starvation.py",
+      "old": "        if wanted and card_id_of(rec.get(\"card\")) == wanted:\n",
+      "new": "        if wanted and wanted in str(rec.get(\"card\") or \"\"):\n"
+    },
+    {
+      "name": "карточка измерителю не названа ⇒ разность ПОДСТАВЛЕНА (дефект через умолчание)",
+      "file": "scripts/check_owner_order_starvation.py",
+      "old": "        return {\"announced\": announced, \"named_the_card\": None, \"passed_by\": None}\n",
+      "new": "        return {\"announced\": announced, \"named_the_card\": 0, \"passed_by\": announced}\n"
+    },
+    {
+      "name": "журнала нет ⇒ нули вместо НЕ ИЗМЕРЕНО (инв. #17)",
+      "file": "scripts/check_owner_order_starvation.py",
+      "old": "    except (OSError, ValueError):\n        return None\n    wanted = card_id_of(card_id)\n",
+      "new": "    except (OSError, ValueError):\n        return {\"announced\": 0, \"named_the_card\": 0, \"passed_by\": 0}\n    wanted = card_id_of(card_id)\n"
+    },
+    {
+      "name": "ось НАЗВАННЫХ не доезжает до находки — читателю нечем отличить",
+      "file": "scripts/check_owner_order_starvation.py",
+      "old": "    return {\"cycles_passed\": m[\"passed_by\"], \"cycles_announced\": m[\"announced\"],\n            \"cycles_named_the_card\": m[\"named_the_card\"]}\n",
+      "new": "    return {\"cycles_passed\": m[\"passed_by\"], \"cycles_announced\": m[\"announced\"]}\n"
+    },
+    {
+      "name": "ПЕЧАТЬ молчит о слагаемых: одно число читается как оба",
+      "file": "scripts/check_owner_order_starvation.py",
+      "old": "    if isinstance(announced, int) and isinstance(named, int):\n        return f\" (объявляли работу {announced}, карточку называли {named})\"\n",
+      "new": "    if isinstance(announced, int) and isinstance(named, int):\n        return \"\"\n"
+    },
+    {
+      "name": "одна сессия в ОБА набора: ярлык, назвавший карточку, не исключён из объявлявших",
+      "file": "scripts/check_owner_order_starvation.py",
+      "old": "        labels.add(label)\n        if wanted and card_id_of(rec.get(\"card\")) == wanted:\n            named.add(label)\n",
+      "new": "        if wanted and card_id_of(rec.get(\"card\")) == wanted:\n            named.add(label)\n        else:\n            labels.add(label)\n"
+    },
+    {
+      "name": "окно приказа снято: объявления ДО приказа считаются обеими осями",
+      "file": "scripts/check_owner_order_starvation.py",
+      "old": "        if not (since <= when <= now):\n            continue\n",
+      "new": "        if False:\n            continue\n"
+    },
+    {
+      "name": "ВЛАДЕЛЬЦУ в дайджесте уезжает одно число без соседнего",
+      "file": "spa_core/analytics/telegram_daily_digest.py",
+      "old": "            if isinstance(named, int):\n                cycles_ru += f\", карточку называли {named}\"\n",
+      "new": "            if False:\n                cycles_ru += f\", карточку называли {named}\"\n"
+    }
+  ]
+}

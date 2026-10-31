@@ -33,7 +33,7 @@ import importlib.util
 import json
 
 # FROZEN-DATE-OK: injected-clock — часы здесь ВХОД, а не окружение. `NOW` передаётся в
-# каждую судящую функцию (`starving_owner_orders(now=)`, `cycles_since(..., now)`), а все
+# каждую судящую функцию (`starving_owner_orders(now=)`, `cycles_measure(..., now)`), а все
 # отметки журнала строятся ОТНОСИТЕЛЬНО него (`NOW - timedelta(...)`). Обе стороны
 # закреплены одним якорем, поэтому сдвиг календаря вердикт изменить не может. Оставшиеся
 # литеральные даты — сам ПРЕДМЕТ проверки: сторож разбирает маркер
@@ -128,6 +128,18 @@ class TestVerdictLeavesATrace:
 # ---------------------------------------------------------------------------
 
 class TestCyclesPassed:
+    """Ось «циклов» — ТРИ различимых числа с ADR-874 (цикл #992).
+
+    **Почему тесты этого класса правлены намеренно (инв. #16).** Утверждения ниже верны
+    и сохранены ДОСЛОВНО — но они верны про ось «сколько сессий объявляло работу», а
+    прежний код печатал её словами «мимо прошло циклов». Поэтому зов перенесён с
+    `cycles_since` на ось `announced` единственной двери `cycles_measure`, а само «мимо»
+    (разность) получило СВОИ сцены в `test_starvation_cycles_name_the_order.py`. Это
+    усиление: прежняя мерка на тех же данных не умела ответить, называл ли кто-нибудь
+    карточку, и на живом журнале завышала «мимо» в 2.07 раза (880 против 455 назвавших).
+    Ни одно утверждение не снято и не сужено; запись — docs/journal/2026-W44.md.
+    """
+
     # ПОЛОЖИТЕЛЬНЫЙ КОНТРОЛЬ: величина, которую карточка просила дословно.
     def test_counts_distinct_sessions_since_the_order(self, guard, tmp_path):
         since = NOW - timedelta(hours=48)
@@ -137,7 +149,7 @@ class TestCyclesPassed:
             _rec(since + timedelta(hours=3), "cycle-2"),
             _rec(since + timedelta(hours=4), "cycle-3"),
         ])
-        assert guard.cycles_since(since.strftime("%Y-%m-%d"), NOW, p) == 3
+        assert guard.cycles_measure(since.strftime("%Y-%m-%d"), NOW, p)["announced"] == 3
 
     # ПОЛОЖИТЕЛЬНЫЙ КОНТРОЛЬ: объявления ДО приказа мимо него не проходили.
     def test_ignores_announcements_before_the_order(self, guard, tmp_path):
@@ -146,11 +158,11 @@ class TestCyclesPassed:
             _rec(NOW - timedelta(days=9), "cycle-old"),
             _rec(NOW - timedelta(hours=5), "cycle-new"),
         ])
-        assert guard.cycles_since(marker, NOW, p) == 1
+        assert guard.cycles_measure(marker, NOW, p)["announced"] == 1
 
     # ПОЛОЖИТЕЛЬНЫЙ КОНТРОЛЬ: НЕТ журнала ⇒ НЕ ИЗМЕРЕНО, и это не ноль.
     def test_missing_journal_is_unmeasured_not_zero(self, guard, tmp_path):
-        got = guard.cycles_since("2026-08-22", NOW, tmp_path / "нет-такого.jsonl")
+        got = guard.cycles_measure("2026-08-22", NOW, tmp_path / "нет-такого.jsonl")
         assert got is None, (
             "неизмеримое выдано числом: ноль означает «мимо не прошёл никто» — самое "
             "успокоительное из значений, и подставлять его вместо замера запрещено")
@@ -161,7 +173,8 @@ class TestCyclesPassed:
         good = _rec(NOW - timedelta(hours=3), "cycle-живой")
         p.write_text("{это не json\n" + json.dumps(good, ensure_ascii=False) + "\n",
                      encoding="utf-8")
-        assert guard.cycles_since((NOW - timedelta(days=1)).strftime("%Y-%m-%d"), NOW, p) == 1
+        assert guard.cycles_measure((NOW - timedelta(days=1)).strftime("%Y-%m-%d"),
+                                   NOW, p)["announced"] == 1
 
     # ПОЛОЖИТЕЛЬНЫЙ КОНТРОЛЬ: величина доезжает до самой находки.
     def test_finding_carries_cycles_passed(self, guard, Card, tmp_path):
@@ -170,7 +183,11 @@ class TestCyclesPassed:
                                  for h in (1, 2, 3)])
         out = guard.starving_owner_orders([_card(Card, marker=marker)], now=NOW,
                                           announce_path=p)
+        # Ни одна сессия сцены карточку не называла ⇒ мимо прошли ВСЕ ТРИ, и соседняя
+        # ось это подтверждает числом, а не умолчанием.
         assert out and out[0]["cycles_passed"] == 3
+        assert out[0]["cycles_announced"] == 3
+        assert out[0]["cycles_named_the_card"] == 0
 
     # ПОЛОЖИТЕЛЬНЫЙ КОНТРОЛЬ: журнал не передан ⇒ поле есть и говорит «не измерено».
     def test_without_journal_field_is_present_and_none(self, guard, Card):

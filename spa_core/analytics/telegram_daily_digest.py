@@ -303,6 +303,12 @@ class TelegramDailyDigest:
             cycles = f.get("cycles_passed")
             cycles_ru = (f"{cycles} циклов мимо" if isinstance(cycles, int)
                          else "циклов мимо: НЕ ИЗМЕРЕНО")
+            # Соседняя ось РЯДОМ (ADR-874): до неё владельцу уезжало «880 циклов мимо»
+            # про карточку, которую назвали 455 из тех же 880 сессий — то есть самый
+            # обслуженный приказ проекта предъявлялся ему как полностью брошенный.
+            named = f.get("cycles_named_the_card")
+            if isinstance(named, int):
+                cycles_ru += f", карточку называли {named}"
             age = f.get("age_hours")
             age_ru = f"{age:.0f}ч" if isinstance(age, (int, float)) else "возраст НЕ ИЗМЕРЕН"
             lines.append(f"⏳ голодает: {f.get('title') or f.get('path') or '(без имени)'} "
