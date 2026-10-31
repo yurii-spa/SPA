@@ -9045,6 +9045,43 @@ def _probe_card_claim_carries_the_launcher_anchor(
         f"запускателя — вход сцены")
 
 
+def _reap_scene_group(proc, *, deadline_s: float = 30.0) -> list:
+    """CI-PROCESS-01: завершить ВСЮ группу процессов собственной сцены и дождаться, пока она опустеет.
+
+    Группа создана самой сценой (``start_new_session=True`` ⇒ номер группы = pid прибора), поэтому
+    сигнал не может задеть ни соседний тест, ни службу. Пока в группе есть хотя бы один процесс, её номер
+    ОС не переиспользует. Возвращает описание выживших: пустой список — группа пуста; непустой — сцену
+    убирать нельзя (вызывающий называет это «НЕ ИЗМЕРЕНО»). Без паузы вместо проверки: ожидание идёт до
+    подтверждённого исчезновения группы или до срока.
+    """
+    import os as _os
+    import signal as _sig
+    import time as _t
+    if proc is None:
+        return []
+    pgid = proc.pid
+    try:
+        _os.killpg(pgid, _sig.SIGKILL)
+    except ProcessLookupError:
+        pass
+    except PermissionError as exc:
+        return [f"группа {pgid}: сигнал не отправлен ({exc})"]
+    try:
+        proc.wait(timeout=deadline_s)
+    except Exception:  # noqa: BLE001 — ждём ниже по группе, а не по одному родителю
+        pass
+    end = _t.monotonic() + deadline_s
+    while _t.monotonic() < end:
+        try:
+            _os.killpg(pgid, 0)
+        except ProcessLookupError:
+            return []
+        except PermissionError as exc:
+            return [f"группа {pgid}: проверка не выполнена ({exc})"]
+        _t.sleep(0.02)
+    return [f"группа {pgid} жива через {deadline_s} с"]
+
+
 def _probe_mutation_window_restore_refuses_a_live_owner(
     arg: str | None, *, repo_root: str | None = None,
 ) -> tuple[str, str]:
@@ -9104,59 +9141,71 @@ def _probe_mutation_window_restore_refuses_a_live_owner(
     proc = None
     try:
         with _tf.TemporaryDirectory(prefix="probe_c913_") as tmp:
-            tree = os.path.join(tmp, "live")
-            os.makedirs(os.path.join(tree, "pkg"))
-            os.makedirs(os.path.join(tree, "t"))
-            target = os.path.join(tree, "pkg", "mod.py")
-            with open(target, "w", encoding="utf-8") as fh:
-                fh.write(pristine)
-            with open(os.path.join(tree, "t", "test_x.py"), "w", encoding="utf-8") as fh:
-                fh.write("import os, sys, time\n"
-                         "sys.path.insert(0, os.path.dirname(os.path.dirname("
-                         "os.path.abspath(__file__))))\n"
-                         "from pkg.mod import answer\n\n\n"
-                         f"def test_answer():\n    time.sleep({sleep_s})\n"
-                         "    assert answer() == 1\n")
-            spec = os.path.join(tree, "spec.json")
-            with open(spec, "w", encoding="utf-8") as fh:
-                _json.dump({"title": "проба окна: живой владелец",
-                            "tests": ["t/test_x.py"],
-                            "mutations": [
-                                {"name": f"ответ подменён {i}", "file": rel,
-                                 "old": "VALUE = 1", "new": f"VALUE = {i + 2}"}
-                                for i in range(2)]}, fh, ensure_ascii=False)
-            record = os.path.join(tree, ".mutation_window", "window.json")
-            pristine_digest = _digest(target)
+            try:
+                tree = os.path.join(tmp, "live")
+                os.makedirs(os.path.join(tree, "pkg"))
+                os.makedirs(os.path.join(tree, "t"))
+                target = os.path.join(tree, "pkg", "mod.py")
+                with open(target, "w", encoding="utf-8") as fh:
+                    fh.write(pristine)
+                with open(os.path.join(tree, "t", "test_x.py"), "w", encoding="utf-8") as fh:
+                    fh.write("import os, sys, time\n"
+                             "sys.path.insert(0, os.path.dirname(os.path.dirname("
+                             "os.path.abspath(__file__))))\n"
+                             "from pkg.mod import answer\n\n\n"
+                             f"def test_answer():\n    time.sleep({sleep_s})\n"
+                             "    assert answer() == 1\n")
+                spec = os.path.join(tree, "spec.json")
+                with open(spec, "w", encoding="utf-8") as fh:
+                    _json.dump({"title": "проба окна: живой владелец",
+                                "tests": ["t/test_x.py"],
+                                "mutations": [
+                                    {"name": f"ответ подменён {i}", "file": rel,
+                                     "old": "VALUE = 1", "new": f"VALUE = {i + 2}"}
+                                    for i in range(2)]}, fh, ensure_ascii=False)
+                record = os.path.join(tree, ".mutation_window", "window.json")
+                pristine_digest = _digest(target)
 
-            proc = _sp.Popen([sys.executable, tool, "--spec", spec,
-                              "--repo-root", tree],
-                             stdout=_sp.PIPE, stderr=_sp.PIPE, text=True)
-            # Ждём не «окно открылось», а «мутант РЕАЛЬНО в файле»: иначе сцена могла
-            # бы застать файл чистым, и ошибочный возврат остался бы невидимым —
-            # байты не изменились бы ни при верном поведении, ни при неверном.
-            deadline = _t.time() + 300.0
-            while _t.time() < deadline:
-                if os.path.exists(record) and _digest(target) != pristine_digest:
-                    break
-                if proc.poll() is not None:
-                    return UNMEASURED, (
-                        f"прибор завершился (код {proc.returncode}) ДО того, как мутант "
-                        f"лёг в дерево — сцена НЕ ПОДНЯТА, судить об отказе нечем")
-                _t.sleep(0.05)
-            else:
-                return UNMEASURED, ("за 300 с мутант не появился в одноразовом дереве — "
-                                    "сцена НЕ ПОДНЯТА")
+                # CI-PROCESS-01: собственная группа процессов сцены — чтобы «владелец умер» и уборка
+                # касались прибора ВМЕСТЕ с его дочерним pytest, и только их.
+                proc = _sp.Popen([sys.executable, tool, "--spec", spec,
+                                  "--repo-root", tree],
+                                 stdout=_sp.PIPE, stderr=_sp.PIPE, text=True,
+                                 start_new_session=True)
+                # Ждём не «окно открылось», а «мутант РЕАЛЬНО в файле»: иначе сцена могла
+                # бы застать файл чистым, и ошибочный возврат остался бы невидимым —
+                # байты не изменились бы ни при верном поведении, ни при неверном.
+                deadline = _t.time() + 300.0
+                while _t.time() < deadline:
+                    if os.path.exists(record) and _digest(target) != pristine_digest:
+                        break
+                    if proc.poll() is not None:
+                        return UNMEASURED, (
+                            f"прибор завершился (код {proc.returncode}) ДО того, как мутант "
+                            f"лёг в дерево — сцена НЕ ПОДНЯТА, судить об отказе нечем")
+                    _t.sleep(0.05)
+                else:
+                    return UNMEASURED, ("за 300 с мутант не появился в одноразовом дереве — "
+                                        "сцена НЕ ПОДНЯТА")
 
-            during = _digest(target)
-            rc_live, out_live = _restore(tree)
-            after_live = _digest(target)
-            record_kept = os.path.exists(record)
+                during = _digest(target)
+                rc_live, out_live = _restore(tree)
+                after_live = _digest(target)
+                record_kept = os.path.exists(record)
 
-            proc.send_signal(_sig.SIGKILL)
-            proc.wait(timeout=300)
-            rc_dead, out_dead = _restore(tree)
-            final = _digest(target)
-            record_gone = not os.path.exists(record)
+                # Владелец умирает ЦЕЛИКОМ: прибор и его дочерний pytest (прежде убивался только родитель,
+                # и ребёнок жил в сцене ещё ≈6 с — диагностика 31.10).
+                survivors = _reap_scene_group(proc)
+                if survivors:
+                    return UNMEASURED, (f"процессы сцены не завершились ({'; '.join(survivors)}) — "
+                                        f"судить о «мёртвом владельце» нельзя, НЕ ИЗМЕРЕНО")
+                rc_dead, out_dead = _restore(tree)
+                final = _digest(target)
+                record_gone = not os.path.exists(record)
+            finally:
+                # CI-PROCESS-01: процессы СВОЕЙ сцены завершены и дождаться их — ДО уборки каталога; ветка
+                # успеха, ранние возвраты, исключение и таймаут проходят здесь одинаково.
+                _reap_scene_group(proc)
     except _sp.TimeoutExpired as exc:
         return UNMEASURED, f"сцена не ответила за отведённое время ({exc}) — НЕ ИЗМЕРЕНО"
     except Exception as exc:                                        # noqa: BLE001
