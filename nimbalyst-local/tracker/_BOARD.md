@@ -2,11 +2,11 @@
 
 > Авто-генерится `scripts/build_tracker_board.py` из `nimbalyst-local/tracker/*.md`. НЕ править вручную — правь карточки. Источник правды — карточки, это индекс (bootstrap).
 >
-> Собрана: 2026-10-31T13:53:31Z · сверка с карточками: `python3 scripts/build_tracker_board.py --check` (сторож `spa_core/tests/test_tracker_board_matches_cards.py`).
+> Собрана: 2026-10-31T18:15:13Z · сверка с карточками: `python3 scripts/build_tracker_board.py --check` (сторож `spa_core/tests/test_tracker_board_matches_cards.py`).
 >
-> Сверено с `origin/main` (0bdcd56d7) · у **1** своя правка, кто новее — не измерено.
+> Сверено с `origin/main` (7b8b64094).
 >
-> Всего карточек: **1541** · ждёт владельца: **6** · занято сессиями: **13**.
+> Всего карточек: **1544** · ждёт владельца: **6** · занято сессиями: **13**.
 
 ## 🔴 ЖДЁТ ВЛАДЕЛЬЦА (needs-owner)
 
@@ -422,7 +422,7 @@
 ### · closed
 - Считать ли верный отказ по правилам допуска неисправностью флота  ·  `owner-decision-schitat-li-vernyi-otkaz-po-pravilam-dopu.md` · 2026-10-08
 
-## 📥 Inbox (задания: Telegram / заметки / голос)  (861)
+## 📥 Inbox (задания: Telegram / заметки / голос)  (864)
 
 ### · in-progress
 - а задача починить все-таки еще раз сообщение которым не пишет нужно твое решени…  ·  `inbox-a-zadacha-pochinit-vse-taki-esche-raz-so.md` · 2026-08-14 · 🔒 `pid43119`
@@ -530,6 +530,7 @@
 - Брифинг считает снимок флота протухшим раньше, чем писатель его переписывает (35 мин против такта 60)  ·  `inbox-brifing-schitaet-snimok-flota-protuhshim.md` · 2026-08-15
 - Чекап ушёл с главной, но остался в МЕНЮ: раздел назван по несуществующему продукту (остаток ADR-089 §5)  ·  `inbox-chekap-ushel-s-glavnoi-no-ostalsya-v-men.md` · 2026-08-20
 - Число «циклов мимо» у голодающего приказа считает КАЛЕНДАРЬ, а не приказ: 880 против 455 назвавших карточку  ·  `inbox-chislo-tsiklov-mimo-u-golodayuschego-pri.md` · 2026-10-31
+- Читатель артефактов go-live склеивает три исхода: «судить нечем» неотличимо от «писателя нет»  ·  `inbox-chitatel-artefaktov-go-live-skleivaet-tr.md` · 2026-10-31
 - CI красный из-за двух строк: RuntimeError вместо SPAError гасит три из четырёх шагов SPA Tests  ·  `inbox-ci-krasnyi-iz-za-dvuh-strok-runtimeerror.md` · 2026-09-08
 - CI-Lite красен шестнадцать суток на ОБРАЗЦЕ кода в строке — правило запрещённых импортов жило в двух копиях  ·  `inbox-ci-lite-krasen-shestnadtsat-sutok-na-obr.md` · 2026-09-23
 - CI main КРАСНЫЙ: сторож rootdir дочернего pytest сторожит механизм, которого больше нет  ·  `inbox-ci-main-krasnyi-storozh-rootdir-docherne.md` · 2026-08-26
@@ -877,6 +878,7 @@
 - Третья ветка держит решение и две карточки владельца, а номер ADR-117 занят дважды  ·  `inbox-tretya-vetka-derzhit-reshenie-i-dve-kart.md` · 2026-08-22
 - Третья запись захвата — пересечение по ФАЙЛАМ — судится мёртвой осью  ·  `inbox-tretya-zapis-zahvata-peresechenie-po-fai.md` · 2026-10-14
 - Три числа из приказа CIO не доходят до владельца — дописать их в выдачу и на страницу  ·  `inbox-tri-chisla-iz-prikaza-cio-ne-dohodyat-do.md` · 2026-09-27
+- Три критерия go-live переписать на настоящую проводку: решение владельца 31.10, вариант 1 (шесть баллов из десяти — константа)  ·  `inbox-tri-kriteriya-go-live-perepisat-na-nasto.md` · 2026-10-31
 - Три рабочих дерева держат недоставленную работу — поднять или осознанно списать  ·  `inbox-tri-rabochih-dereva-derzhat-nedostavlenn.md` · 2026-08-14
 - Контракт в коде и контракт в манифесте разошлись у трёх агентов — один за несколько часов  ·  `inbox-tri-rashozhdeniya-kontrakta-s-manifestom.md` · 2026-08-28
 - У двери ТРИ исхода, у читателя ДВА: население класса ADR-869 измерено — 4 находки из 6 читателей, и три из них в инструменте доставки  ·  `inbox-u-dveri-tri-ishoda-u-chitatelya-dva-nase.md` · 2026-10-30
@@ -1120,6 +1122,7 @@
 - Перепись cd-перед-git КРАСНА на main: deploy_all.sh берёт каталог из окружения  ·  `inbox-perepis-cd-pered-git-krasna-na-main-depl.md` · 2026-10-07
 - Перепись читателей не укладывается в порог шага: два срока в одной дороге спорят (900 с против 180 с)  ·  `inbox-perepis-chitatelei-ne-ukladyvaetsya-v-po.md` · 2026-10-09
 - Перепись границ данных краснеет на чистом main: населения 39 против зафиксированных 35  ·  `inbox-perepis-granits-dannyh-krasneet-na-chist.md` · 2026-10-23
+- Перепись класса ADR-875 не видит ПОЛЯРНОСТИ третьего исхода — честный отказ числится находкой  ·  `inbox-perepis-klassa-adr-875-ne-vidit-polyarno.md` · 2026-10-31
 - Перепись «куда смотрит git в shell-скрипте» красная на чистом origin/main (2 из 20)  ·  `inbox-perepis-kuda-smotrit-git-v-shell-skripte.md` · 2026-09-29
 - Перепись оси работника написана и не позвана: храповик сирот красен на чистой вершине  ·  `inbox-perepis-osi-rabotnika-napisana-i-ne-pozv.md` · 2026-10-15
 - Перепись падает KeyError, когда файл соседской переписи не разобран: третий исход назван, но читателю не даётся  ·  `inbox-perepis-padaet-keyerror-kogda-fail-sosed.md` · 2026-09-24
@@ -1226,6 +1229,7 @@
 - Сторож параллельных прогонов кричит «СТОЛКНОВЕНИЕ» на ОДИН правильный прогон: обёртка и её же дочерний pytest считаются двумя  ·  `inbox-storozh-parallelnyh-progonov-krichit-sto.md` · 2026-08-30
 - Сторож переходов зовёт неатрибутированным переход, записанный ПОСЛЕДНЕЙ строкой следа  ·  `inbox-storozh-perehodov-zovet-neatributirovann.md` · 2026-10-24
 - Сторож публичной цепи ПОДСТАВЛЯЕТ фикстуру вместо настоящего журнала — оба исхода passed  ·  `inbox-storozh-publichnoi-tsepi-podstavlyaet-fi.md` · 2026-09-19
+- Сторож сети называет невиновного: urlopen выбивает ИМПОРТ чужого файла, а в отчёте стоит имя первого теста  ·  `inbox-storozh-seti-nazyvaet-nevinovnogo-urlope.md` · 2026-10-31
 - Сторож сети в тестах снимают ПРИСВОЕНИЕМ: уведомление называет пострадавшего, а не виновника, и размер окна не измерен  ·  `inbox-storozh-seti-v-testah-snimayut-prisvoeni.md` · 2026-10-24
 - Сторож срока годности: сцена кладёт 40 прогонов, а прибор видит «такт не наблюдён» — красный тест, не наш  ·  `inbox-storozh-sroka-godnosti-stsena-kladet-40.md` · 2026-10-12
 - Сторож столкновений прогонов опознаёт pytest ПОДСТРОКОЙ — ложный красный на гейте приёмки  ·  `inbox-storozh-stolknovenii-progonov-opoznaet-p.md` · 2026-10-06
@@ -1253,7 +1257,6 @@
 - Тест судит о каталоге чужой сессии Claude: facts.jsonl-цитаты краснеют на чистом origin/main  ·  `inbox-test-sudit-o-kataloge-chuzhoi-sessii-cla.md` · 2026-10-23
 - Тест тождества капитала КРАСЕН на чистом origin: два читателя одной записи расходятся на сцене с дублем и порчей  ·  `inbox-test-tozhdestva-kapitala-krasen-na-chist.md` · 2026-09-16
 - Тест ворот публикации не доходит до ворот: его заслоняет гейт окна мутаций  ·  `inbox-test-vorot-publikatsii-ne-dohodit-do-vor.md` · 2026-10-18
-- Три критерия go-live переписать на настоящую проводку: решение владельца 31.10, вариант 1 (шесть баллов из десяти — константа)  ·  `inbox-tri-kriteriya-go-live-perepisat-na-nasto.md` · 2026-10-31
 - Три отправителя стоп-крана в обход канонической двери (найдено #313)  ·  `inbox-tri-otpravitelya-stop-krana-v-obhod-kano.md` · 2026-08-20
 - Три прибора написаны и не позваны: храповик непроводки КРАСЕН на чистом origin/main a326d063e  ·  `inbox-tri-pribora-napisany-i-ne-pozvany-hrapov.md` · 2026-10-10
 - Цикл считает покрытие фидов 100% живым, а aave_arbitrum читает круглые константы из adapter_status.json  ·  `inbox-tsikl-schitaet-pokrytie-fidov-100-zhivym.md` · 2026-08-29

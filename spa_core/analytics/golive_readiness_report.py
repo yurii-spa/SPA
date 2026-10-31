@@ -159,28 +159,69 @@ class GoLiveReadinessReport(BaseAnalytics):
         self.data_dir = self.base_dir / "data"
         self.backtest_dir = self.data_dir / "backtest"
         self._categories_cache: Optional[List[CategoryScore]] = None
+        #: Лента исходов КАЖДОГО чтения артефакта: (путь, исход, причина).
+        #: Нужна потому, что `_read_json` обязан вернуть категории тот же пустой
+        #: документ, что и раньше (ставка остаётся fail-CLOSED), но ПРИЧИНА
+        #: пустоты должна дойти до читателя отдельным перечнем — ADR-881.
+        self._read_outcomes: List[tuple] = []
 
     def to_dict(self) -> dict:
         """Returns go-live readiness report as JSON-serializable dict."""
         cats = self._get_categories()
+        est_days, est_unmeasured = self.estimated_days_to_ready_with_outcome()
         return {
             "schema_version": SCHEMA_VERSION,
             "overall_status": self.overall_status(),
             "total_score": self.total_score(),
-            "estimated_days_to_ready": self.estimated_days_to_ready(),
+            "estimated_days_to_ready": est_days,
+            #: Причины «судить было НЕЧЕМ» у слагаемых срока (ADR-881). Пустой
+            #: перечень значит «все три артефакта разобраны», а не «спросить
+            #: было негде»: у неподнятого чтения своя причина и она здесь.
+            "estimated_days_unmeasured": est_unmeasured,
             "categories": [c.to_dict() for c in cats],
             "blocking_items": self.blocking_items(),
         }
 
     # ── helpers ────────────────────────────────────────────────────────────────
 
-    def _read_json(self, path: Path) -> dict:
-        """Read JSON defensively; return {} on any error."""
-        try:
-            with open(path, "r", encoding="utf-8") as fh:
-                return json.load(fh)
-        except Exception:
-            return {}
+    def _read_json(self, path: Path):
+        """Прочитать артефакт. Возвращает документ либо ``{}`` — как и раньше.
+
+        **Ставка не меняется ни на балл.** Пустой документ на месте нечитаемого
+        артефакта оставлен намеренно: он роняет счёт так же, как отсутствующий,
+        то есть дверь остаётся fail-CLOSED, а у шестидесяти её вызовов не
+        появляется ни одной новой ветки.
+
+        Меняется ПРИЧИНА, которую узнаёт читатель. Прежняя редакция отдавала
+        ``{}`` на любую ошибку и этим склеивала три состояния мира в одно —
+        «файла нет» (писатель не писал, это ОТВЕТ), «файл не разобран» (судить
+        нечем, ТРЕТИЙ исход) и «файл говорит нет» (измерено и равно нулю). Теперь
+        исход каждого чтения ложится в ленту `_read_outcomes`, а категория
+        забирает из неё свои неизмеренные через `_unmeasured_since` и печатает их
+        в `items_unmeasured` — отдельным перечнем, а не строкой среди
+        `items_pending` (инвариант #17, ADR-881; канал завёл ADR-878).
+        """
+        outcome, doc, reason = _read_artifact(path)
+        self._read_outcomes.append((str(path), outcome, reason))
+        if outcome == OBSERVED:
+            return doc
+        return {}
+
+    def _read_mark(self) -> int:
+        """Отметка на ленте чтений — «отсюда считать мои»."""
+        return len(self._read_outcomes)
+
+    def _unmeasured_since(self, mark: int) -> List[str]:
+        """Названные причины «судить было НЕЧЕМ» у чтений ПОСЛЕ отметки.
+
+        Отсутствие файла сюда НЕ попадает: это ответ, и его место —
+        `items_pending`. Склейка в любую из двух сторон была бы тем же дефектом.
+        """
+        return [
+            reason
+            for _path, outcome, reason in self._read_outcomes[mark:]
+            if outcome == UNMEASURED
+        ]
 
     def _evidenced_real_days(self, pe_dates: set) -> int:
         """Honest evidenced real-day count (#6) — the gate's own rule.
@@ -218,6 +259,7 @@ class GoLiveReadinessReport(BaseAnalytics):
 
     def assess_gate_status(self) -> CategoryScore:
         """Gate system: Backtest PASS=25pts, Pre-Paper PASS=25pts, Paper PASS=25pts, Live=25pts"""
+        mark = self._read_mark()
         items_done: List[str] = []
         items_pending: List[str] = []
         score = 0.0
@@ -290,10 +332,12 @@ class GoLiveReadinessReport(BaseAnalytics):
         return CategoryScore(
             "gate_status", score, max_score, items_done, items_pending,
             notes=f"{score:.0f}/{max_score:.0f} pts",
+            items_unmeasured=self._unmeasured_since(mark),
         )
 
     def assess_data_quality(self) -> CategoryScore:
         """Source quality: % of sources with status clean_included."""
+        mark = self._read_mark()
         sp = self._read_json(self.backtest_dir / "source_pipeline.json")
         sources: dict = sp.get("sources", {})
 
@@ -305,6 +349,7 @@ class GoLiveReadinessReport(BaseAnalytics):
                 "data_quality", 0.0, 100.0, [],
                 ["source_pipeline.json not found or empty — run source promotion"],
                 "0/0 CLEAN",
+                items_unmeasured=self._unmeasured_since(mark),
             )
 
         clean_states = {"clean_included"}
@@ -323,10 +368,12 @@ class GoLiveReadinessReport(BaseAnalytics):
         return CategoryScore(
             "data_quality", score, 100.0, items_done, items_pending,
             notes=f"{len(clean)}/{total} CLEAN ({pct:.0f}%) — target: 100%",
+            items_unmeasured=self._unmeasured_since(mark),
         )
 
     def assess_evidence_points(self) -> CategoryScore:
         """Evidence accumulation: current_pts / 30 pts target."""
+        mark = self._read_mark()
         ev = self._read_json(self.data_dir / "paper" / "evidence_v2.json")
         items_done: List[str] = []
         items_pending: List[str] = []
@@ -356,10 +403,12 @@ class GoLiveReadinessReport(BaseAnalytics):
         return CategoryScore(
             "evidence_points", score, 100.0, items_done, items_pending,
             notes=f"{current:.1f}/{target:.0f} pts",
+            items_unmeasured=self._unmeasured_since(mark),
         )
 
     def assess_owner_acceptance(self) -> CategoryScore:
         """Is owner_acceptance.json present and signed?"""
+        mark = self._read_mark()
         acc = self._read_json(
             self.data_dir / "backtest" / "owner_paper_acceptance.json"
         )
@@ -389,10 +438,12 @@ class GoLiveReadinessReport(BaseAnalytics):
         return CategoryScore(
             "owner_acceptance", score, 100.0, items_done, items_pending,
             notes="SIGNED" if score == 100.0 else "NOT_SIGNED",
+            items_unmeasured=self._unmeasured_since(mark),
         )
 
     def assess_infrastructure(self) -> CategoryScore:
         """Infrastructure: launchd daemons, kill switch, Gnosis Safe, CI."""
+        mark = self._read_mark()
         gs = self._read_json(self.data_dir / "golive_status.json")
         checks = gs.get("checks", {})
 
@@ -424,10 +475,12 @@ class GoLiveReadinessReport(BaseAnalytics):
         return CategoryScore(
             "infrastructure", score, max_score, items_done, items_pending,
             notes=f"{score:.0f}/{max_score:.0f} pts",
+            items_unmeasured=self._unmeasured_since(mark),
         )
 
     def assess_capital(self) -> CategoryScore:
         """Capital: virtual $100K USDC ready, equity curve populated, portfolio active."""
+        mark = self._read_mark()
         pts_data = self._read_json(self.data_dir / "paper_trading_status.json")
         eq_data = self._read_json(self.data_dir / "equity_curve_daily.json")
         pos_data = self._read_json(self.data_dir / "current_positions.json")
@@ -529,10 +582,12 @@ class GoLiveReadinessReport(BaseAnalytics):
         return CategoryScore(
             "capital", score, max_score, items_done, items_pending,
             notes=f"${capital:,.0f} virtual, is_demo={is_demo}",
+            items_unmeasured=self._unmeasured_since(mark),
         )
 
     def assess_documentation(self) -> CategoryScore:
         """Documentation: key policy, runbook and reference docs present and non-empty."""
+        mark = self._read_mark()
         docs_dir = self.base_dir / "docs"
         adr_dir = docs_dir / "adr"
 
@@ -588,6 +643,7 @@ class GoLiveReadinessReport(BaseAnalytics):
         return CategoryScore(
             "documentation", score, max_score, items_done, items_pending,
             notes=f"{score:.0f}/{max_score:.0f} pts",
+            items_unmeasured=self._unmeasured_since(mark),
         )
 
     # ── v10.41–42 NEW category assessors (max_score directly in pts) ──────────
@@ -605,6 +661,7 @@ class GoLiveReadinessReport(BaseAnalytics):
           +2  Pre-launch validation ≥ 80 % pass
           +2  gate_status.json present
         """
+        mark = self._read_mark()
         items_done: List[str] = []
         items_pending: List[str] = []
         score = 0.0
@@ -748,6 +805,7 @@ class GoLiveReadinessReport(BaseAnalytics):
         return CategoryScore(
             "gates", score, max_score, items_done, items_pending,
             notes=f"{score:.0f}/{max_score:.0f} pts",
+            items_unmeasured=self._unmeasured_since(mark),
         )
 
     def assess_evidence(self) -> CategoryScore:
@@ -768,6 +826,7 @@ class GoLiveReadinessReport(BaseAnalytics):
         of a real cycle day — they bootstrap evidence scoring while real data
         accumulates.  Replace with real data as daily cycles complete.
         """
+        mark = self._read_mark()
         items_done: List[str] = []
         items_pending: List[str] = []
         score = 0.0
@@ -843,12 +902,14 @@ class GoLiveReadinessReport(BaseAnalytics):
                 f"{score:.1f}/{max_score:.0f} pts, "
                 f"{real_days} real days (honest real-only)"
             ),
+            items_unmeasured=self._unmeasured_since(mark),
         )
 
     def assess_infrastructure_v2(self) -> CategoryScore:
         """Infrastructure health. Max 20 pts (10 checks × 2 pts).
         MP-1425 (v10.41)
         """
+        mark = self._read_mark()
         gs = self._read_json(self.data_dir / "golive_status.json")
         checks = gs.get("checks", {})
 
@@ -881,6 +942,7 @@ class GoLiveReadinessReport(BaseAnalytics):
         return CategoryScore(
             "infrastructure", score, max_score, items_done, items_pending,
             notes=f"{score:.0f}/{max_score:.0f} pts",
+            items_unmeasured=self._unmeasured_since(mark),
         )
 
     def assess_financial(self) -> CategoryScore:
@@ -894,6 +956,7 @@ class GoLiveReadinessReport(BaseAnalytics):
           +2  equity_curve >= 7 days (performance reporting ready)
           +2  is_demo = False
         """
+        mark = self._read_mark()
         items_done: List[str] = []
         items_pending: List[str] = []
         score = 0.0
@@ -998,6 +1061,7 @@ class GoLiveReadinessReport(BaseAnalytics):
         return CategoryScore(
             "financial", score, max_score, items_done, items_pending,
             notes=f"{score:.0f}/{max_score:.0f} pts",
+            items_unmeasured=self._unmeasured_since(mark),
         )
 
     def assess_data_sources(self, now: datetime | None = None) -> CategoryScore:
@@ -1045,6 +1109,7 @@ class GoLiveReadinessReport(BaseAnalytics):
 
         items_done: List[str] = []
         items_pending: List[str] = []
+        mark = self._read_mark()
         items_unmeasured: List[str] = []
         score = 0.0
         max_score = 10.0
@@ -1172,6 +1237,10 @@ class GoLiveReadinessReport(BaseAnalytics):
             )
 
         notes = f"{score:.0f}/{max_score:.0f} pts, {len(clean_sources)}/{total} CLEAN"
+        # Своё «не измерено» (три двери писателя, ADR-878) и то, что набрала
+        # общая дверь чтения (ADR-881), СКЛАДЫВАЮТСЯ: выбрать одно значило бы
+        # потерять половину третьего исхода у одной и той же категории.
+        items_unmeasured += self._unmeasured_since(mark)
         if items_unmeasured:
             notes += f", НЕ ИЗМЕРЕНО {len(items_unmeasured)}"
         return CategoryScore(
@@ -1190,6 +1259,9 @@ class GoLiveReadinessReport(BaseAnalytics):
             "documentation", new_score, 10.0,
             old.items_done, old.items_pending,
             notes=f"{new_score:.1f}/10.0 pts",
+            # Делегат уже собрал своё «судить нечем»; не передать его здесь
+            # значило бы погасить третий исход ПЕРЕСЧЁТОМ балла.
+            items_unmeasured=old.items_unmeasured,
         )
 
     # ── aggregation ────────────────────────────────────────────────────────────
@@ -1261,7 +1333,25 @@ class GoLiveReadinessReport(BaseAnalytics):
         return items
 
     def estimated_days_to_ready(self) -> int:
-        """Estimate based on pending items (lower bound)."""
+        """Срок в днях (нижняя граница).
+
+        Само число не говорит, НА ЧЁМ оно посчитано. Если хоть один артефакт
+        оценки не разобран, её слагаемые взяты из подставленной пустоты — и
+        узнать об этом можно только у `estimated_days_to_ready_with_outcome`
+        (ADR-881). Подпись оставлена прежней: у числа есть читатели, и ломать
+        их ради третьего исхода не нужно — исход лежит РЯДОМ.
+        """
+        return self.estimated_days_to_ready_with_outcome()[0]
+
+    def estimated_days_to_ready_with_outcome(self) -> tuple:
+        """→ (срок в днях, названные причины «судить было НЕЧЕМ»).
+
+        Три артефакта оценки читаются общей дверью, а та на неразобранных
+        байтах отдаёт пустой документ (fail-CLOSED по ставке). Поэтому число
+        получается ВСЕГДА, и без второго значения «не измерено» было бы
+        неотличимо от «измерено» — ровно инвариант #17.
+        """
+        mark = self._read_mark()
         gs = self._read_json(self.data_dir / "golive_status.json")
 
         # Days for paper track
@@ -1290,7 +1380,7 @@ class GoLiveReadinessReport(BaseAnalytics):
         owner_days = 1 if owner_acc.get("accepted") is not True else 0
 
         total = max(track_needed, infra_days) + owner_days
-        return max(total, 1)
+        return max(total, 1), self._unmeasured_since(mark)
 
     # ── output ─────────────────────────────────────────────────────────────────
 
@@ -1299,7 +1389,7 @@ class GoLiveReadinessReport(BaseAnalytics):
         cats = self._get_categories()
         status = self.overall_status()
         score = self.total_score()
-        est_days = self.estimated_days_to_ready()
+        est_days, est_unmeasured = self.estimated_days_to_ready_with_outcome()
         today = date.today().isoformat()
 
         lines = [
@@ -1308,7 +1398,13 @@ class GoLiveReadinessReport(BaseAnalytics):
             f"**Generated:** {today}  ",
             f"**Overall Status:** `{status}`  ",
             f"**Total Score:** {score:.1f} / 100  ",
-            f"**Estimated Days to Ready:** {est_days}  ",
+            # Срок печатается ЧИСЛОМ только когда все три его артефакта
+            # разобраны; иначе рядом стоит названная причина, а не молчание
+            # (инвариант #17, ADR-881).
+            (f"**Estimated Days to Ready:** {est_days}  "
+             if not est_unmeasured else
+             f"**Estimated Days to Ready:** {est_days} — НЕ ИЗМЕРЕНО ПОЛНОСТЬЮ: "
+             f"{'; '.join(est_unmeasured)}  "),
             "",
             "---",
             "",

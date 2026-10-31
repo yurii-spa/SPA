@@ -14218,6 +14218,60 @@ def _probe_golive_criteria_ask_the_producer(
         f"присутствии и непустом размере в обеих сценах")
 
 
+def _probe_golive_reader_names_the_unmeasured(
+        arg: str | None) -> tuple[str, str]:
+    """Критерий: отчёт готовности РАЗЛИЧАЕТ «судить нечем» и «писателя нет».
+
+    Предмет — карточка `inbox-chitatel-artefaktov-go-live-skleivaet-tr`
+    (заказ G879 п. 1 (в), остаток ADR-878/879). Общая дверь чтения
+    `GoLiveReadinessReport._read_json` отдавала `{}` **на любую ошибку** и этим
+    склеивала три состояния мира в одно: файла нет (писатель не писал — это
+    ОТВЕТ) · файл есть и не разобран (судить нечем — ТРЕТИЙ исход) · файл есть
+    и говорит «нет» (измерено и равно нулю). Перечень `items_unmeasured`,
+    заведённый ADR-878, ПИСАТЕЛЯ при этом не имел: замер 31.10 — ноль записей
+    во всех 36 сценах.
+
+    Проба мерит ИСХОД, а не наличие модуля, и подстрокой НЕ проходит (ADR-333):
+    текста исходников она не читает вовсе. Замер двусторонний — у каждого
+    артефакта сцены две сцены, различие между которыми РОВНО одно: битые байты
+    против отсутствия файла. Зелень одной стороны доказывала бы только, что
+    перечень непуст; перечень, в который валится ВСЁ, различает исходы не лучше
+    пустого.
+
+    Третий исход СВОЙ: сцена не поднялась ⇒ `unmeasured` с названной причиной, и
+    НИКОГДА `satisfied` без замера.
+    """
+    if (arg or "").strip():
+        return UNMEASURED, (f"проба не принимает аргумента (дано {arg!r}): "
+                            "предмет — дверь чтения целиком, пофайловой формы "
+                            "у него нет")
+    try:
+        from spa_core.monitoring import golive_artifact_outcomes as gao
+    except Exception as exc:                                        # noqa: BLE001
+        return UNMEASURED, f"мера не ввозится: {type(exc).__name__}: {exc}"
+
+    report = gao.drive_three_outcomes()
+    kind = report.get("kind")
+    if kind == gao.THREE_UNMEASURED:
+        return UNMEASURED, f"сцена меры не поднялась: {report.get('reason')}"
+    if kind == gao.THREE_BLIND:
+        return NOT_SATISFIED, (
+            f"исходы всё ещё склеены: {report.get('reason')}")
+    if kind != gao.THREE_OK:
+        return UNMEASURED, f"мера вернула неизвестный исход {kind!r}"
+
+    no_reader = report.get("no_published_reader") or []
+    tail = ""
+    if no_reader:
+        tail = (f"; вне замера НАЗВАНЫ {len(no_reader)} артефакт(а) без читателя "
+                f"в публикуемом отчёте — дверь их не видит, и слепой её это не "
+                f"делает")
+    return SATISFIED, (
+        f"неразобранный артефакт НАЗВАН, а отсутствующий — НЕТ, у "
+        f"{report['distinguished']} из {report['with_published_reader']} "
+        f"артефактов с читателем (всего в сцене {report['artifacts']}){tail}")
+
+
 PROBES: dict[str, Callable[[str | None], "tuple[str, str]"]] = {
     "starvation_cycles_name_the_order":
         _probe_starvation_cycles_name_the_order,
@@ -14267,6 +14321,8 @@ PROBES: dict[str, Callable[[str | None], "tuple[str, str]"]] = {
         _probe_presence_as_observation_population_named,
     "golive_criteria_ask_the_producer":
         _probe_golive_criteria_ask_the_producer,
+    "golive_reader_names_the_unmeasured":
+        _probe_golive_reader_names_the_unmeasured,
     "shell_presence_sites_measured_by_direction":
         _probe_shell_presence_sites_measured_by_direction,
     "three_outcome_reader_population_named":

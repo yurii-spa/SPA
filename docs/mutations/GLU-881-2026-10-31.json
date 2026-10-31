@@ -1,0 +1,104 @@
+{
+  "title": "ADR-881 GLU — дельта цикла #997: третий исход у читателя артефактов go-live (заказ G879 п. 1 (в))",
+  "tests": [
+    "spa_core/tests/test_golive_artifact_outcomes.py"
+  ],
+  "mutations": [
+    {
+      "name": "дверь снова склеивает исходы: пустой документ отдаётся ВСЕГДА",
+      "file": "spa_core/analytics/golive_readiness_report.py",
+      "old": "        if outcome == OBSERVED:\n            return doc\n        return {}\n",
+      "new": "        return {}\n"
+    },
+    {
+      "name": "лента исходов не ведётся — у канала `items_unmeasured` снова нет писателя",
+      "file": "spa_core/analytics/golive_readiness_report.py",
+      "old": "        self._read_outcomes.append((str(path), outcome, reason))\n",
+      "new": "        pass\n"
+    },
+    {
+      "name": "склейка с ДРУГОЙ стороны: ОТСУТСТВИЕ объявлено «не измерено»",
+      "file": "spa_core/analytics/golive_readiness_report.py",
+      "old": "            if outcome == UNMEASURED\n",
+      "new": "            if outcome in (UNMEASURED, NO_WRITER)\n"
+    },
+    {
+      "name": "перечень неизмеренных всегда пуст (канал без писателя, дословно до ADR-881)",
+      "file": "spa_core/analytics/golive_readiness_report.py",
+      "old": "        return [\n            reason\n            for _path, outcome, reason in self._read_outcomes[mark:]\n            if outcome == UNMEASURED\n        ]\n",
+      "new": "        return []\n"
+    },
+    {
+      "name": "отметка категории игнорируется: причину забирает ЧУЖАЯ категория",
+      "file": "spa_core/analytics/golive_readiness_report.py",
+      "old": "            for _path, outcome, reason in self._read_outcomes[mark:]\n",
+      "new": "            for _path, outcome, reason in self._read_outcomes\n"
+    },
+    {
+      "name": "у data_sources половины не складываются, а ВЫТЕСНЯЮТ друг друга",
+      "file": "spa_core/analytics/golive_readiness_report.py",
+      "old": "        items_unmeasured += self._unmeasured_since(mark)\n",
+      "new": "        items_unmeasured = self._unmeasured_since(mark)\n"
+    },
+    {
+      "name": "срок готовности снова отдаёт одно ЧИСЛО без своего третьего исхода",
+      "file": "spa_core/analytics/golive_readiness_report.py",
+      "old": "        return max(total, 1), self._unmeasured_since(mark)\n",
+      "new": "        return max(total, 1), []\n"
+    },
+    {
+      "name": "поверхность отчёта теряет поле «не измерено» у срока",
+      "file": "spa_core/analytics/golive_readiness_report.py",
+      "old": "            \"estimated_days_unmeasured\": est_unmeasured,\n",
+      "new": "            \"estimated_days_unmeasured\": [],\n"
+    },
+    {
+      "name": "markdown печатает срок как измеренный всегда (инв. #17 наизнанку)",
+      "file": "spa_core/analytics/golive_readiness_report.py",
+      "old": "            (f\"**Estimated Days to Ready:** {est_days}  \"\n             if not est_unmeasured else\n",
+      "new": "            (f\"**Estimated Days to Ready:** {est_days}  \"\n             if True else\n"
+    },
+    {
+      "name": "делегат документации теряет собранный перечень (ОЖИДАЕТСЯ ЭКВИВАЛЕНТНЫМ: assess_documentation артефактов дверью не читает)",
+      "file": "spa_core/analytics/golive_readiness_report.py",
+      "old": "            items_unmeasured=old.items_unmeasured,\n",
+      "new": "            items_unmeasured=[],\n"
+    },
+    {
+      "name": "мера односторонняя: «отсутствие названо не измеренным» больше не улика",
+      "file": "spa_core/monitoring/golive_artifact_outcomes.py",
+      "old": "        elif row[\"named_when_absent\"]:\n",
+      "new": "        elif False:\n"
+    },
+    {
+      "name": "у всех артефактов объявлен читатель — слепая дверь спрячется за «нет читателя»",
+      "file": "spa_core/monitoring/golive_artifact_outcomes.py",
+      "old": "                    \"has_published_reader\": _is_read_by(surface, rel),\n",
+      "new": "                    \"has_published_reader\": True,\n"
+    },
+    {
+      "name": "ни у одного артефакта нет читателя — мера объявит чистым ЛЮБОГО читателя",
+      "file": "spa_core/monitoring/golive_artifact_outcomes.py",
+      "old": "    return all(f'\"{seg}\"' in surface for seg in parts)\n",
+      "new": "    return False\n"
+    },
+    {
+      "name": "достаточно ОДНОГО отрезка пути: соседи с общим каталогом спутаны",
+      "file": "spa_core/monitoring/golive_artifact_outcomes.py",
+      "old": "    return all(f'\"{seg}\"' in surface for seg in parts)\n",
+      "new": "    return any(f'\"{seg}\"' in surface for seg in parts)\n"
+    },
+    {
+      "name": "неподнятая сцена выдана за слепоту (третий исход меры склеен)",
+      "file": "spa_core/monitoring/golive_artifact_outcomes.py",
+      "old": "        return {\"kind\": THREE_UNMEASURED,\n                \"reason\": f\"сцена не поднялась: {type(exc).__name__}: {exc}\"}\n",
+      "new": "        return {\"kind\": THREE_BLIND,\n                \"reason\": f\"сцена не поднялась: {type(exc).__name__}: {exc}\"}\n"
+    },
+    {
+      "name": "поверхность достижимости не обходится транзитивно — читатели в вызванных методах не видны",
+      "file": "spa_core/monitoring/golive_artifact_outcomes.py",
+      "old": "                frontier.append(node.func.attr)\n",
+      "new": "                pass\n"
+    }
+  ]
+}
