@@ -18,7 +18,10 @@ FAIL CLOSED before any application code loads on: approval missing · sha invali
 service/role not allow-listed."""
 from __future__ import annotations
 
+import hashlib
 import json
+import os
+import subprocess
 from pathlib import Path
 
 RELEASE_SHA_FILE = ".release_sha"    # each materialised release self-identifies with its own sha
@@ -35,9 +38,133 @@ SERVICE_ALLOWLIST = {
 AGENT_ROLE_MANIFEST = "studio_release_agents.json"   # {role: "spa_core.module.path"} committed in the release
 
 
-def exec_root(approved_sha, releases_dir):
-    """PURE, stdlib-only: the immutable dir a process MUST exec from. Never the mutable tree. Returns
-    (root|None, verdict): ACTIVATE_OK · DEPLOYMENT_APPROVAL_REQUIRED · APPROVED_RELEASE_MISSING · APPROVED_RELEASE_CORRUPT."""
+_IGNORED_DIRS = ("__pycache__",)    # байткод, который пишет само исполнение из релиза
+
+# Чтение git-объектов: replace-объекты ОТКЛЮЧЕНЫ (иначе `git replace` в изменяемом репозитории подменил бы эталон),
+# и каждый прочитанный объект ПЕРЕПРОВЕРЯЕТСЯ по своему sha1 — доверие идёт от одобренного sha, а не от репозитория.
+_GIT_ENV = {"GIT_NO_REPLACE_OBJECTS": "1", "GIT_CONFIG_NOSYSTEM": "1", "LC_ALL": "C"}
+
+
+def _blob_sha(data):
+    return hashlib.sha1(b"blob %d\0" % len(data) + data).hexdigest()
+
+
+class _ObjectReader:
+    """Один процесс `git cat-file --batch`; объект возвращается ТОЛЬКО если его sha1 совпал с запрошенным."""
+
+    def __init__(self, repo):
+        env = {k: v for k, v in os.environ.items() if not k.startswith("GIT_")}
+        env.update(_GIT_ENV)
+        self.p = subprocess.Popen(["git", "--no-replace-objects", "-C", str(repo), "cat-file", "--batch"],
+                                  stdin=subprocess.PIPE, stdout=subprocess.PIPE,
+                                  stderr=subprocess.DEVNULL, env=env)
+
+    def get(self, oid, kind):
+        self.p.stdin.write(oid.encode() + b"\n")
+        self.p.stdin.flush()
+        header = self.p.stdout.readline()
+        parts = header.split()
+        if len(parts) != 3:
+            return None                                        # `<oid> missing` / сбой — объекта нет
+        got_oid, got_kind, size = parts[0].decode(), parts[1].decode(), int(parts[2])
+        data = self.p.stdout.read(size)
+        self.p.stdout.read(1)
+        if got_oid != oid or got_kind != kind:
+            return None
+        if hashlib.sha1(b"%s %d\0" % (kind.encode(), size) + data).hexdigest() != oid:
+            return None                                        # объект не тот, за кого себя выдаёт
+        return data
+
+    def close(self):
+        try:
+            self.p.stdin.close()
+        finally:
+            self.p.wait(timeout=30)
+
+
+def trusted_tree(sha, repo):
+    """ДОВЕРЕННЫЙ эталон состава: дерево коммита ``sha`` из git-объектов ``repo`` с проверкой sha1 каждого объекта.
+
+    ``{путь: (режим, blob)}``; репозиторий не указан / объекта нет / объект не сверился — ``None`` («проверить
+    нечем», а не «пусто»). stdlib + системный git; изменяемого кода проекта не импортирует (TRUST CLOSURE)."""
+    if not sha or not repo or not Path(repo).is_dir():
+        return None
+    try:
+        reader = _ObjectReader(repo)
+    except OSError:
+        return None
+    try:
+        commit = reader.get(sha, "commit")
+        if commit is None or not commit.startswith(b"tree "):
+            return None
+        out = {}
+        todo = [("", commit[5:45].decode())]
+        while todo:
+            prefix, tree_oid = todo.pop()
+            data = reader.get(tree_oid, "tree")
+            if data is None:
+                return None
+            i = 0
+            while i < len(data):
+                sp = data.index(b" ", i)
+                nul = data.index(b"\0", sp)
+                mode = data[i:sp].decode()
+                name = data[sp + 1:nul].decode("utf-8", "surrogateescape")
+                oid = data[nul + 1:nul + 21].hex()
+                i = nul + 21
+                path = prefix + name
+                if mode == "40000":
+                    todo.append((path + "/", oid))
+                elif mode == "160000":                         # подмодуль: git archive его не кладёт
+                    continue
+                else:
+                    out[path] = (mode, oid)
+        return out
+    except (OSError, ValueError, subprocess.SubprocessError):
+        return None
+    finally:
+        try:
+            reader.close()
+        except Exception:                                      # noqa: BLE001 — закрытие не меняет вердикт
+            pass
+
+
+def _composition_problem(root, files):
+    """Каталог против эталона: пути, род (ссылка/файл), бит исполнения, git-blob. ``None`` — совпал."""
+    root = Path(root)
+    seen = set()
+    for dirpath, dirnames, filenames in os.walk(root, followlinks=False):
+        dirnames[:] = [d for d in dirnames if d not in _IGNORED_DIRS]
+        for name in filenames + [d for d in dirnames if os.path.islink(os.path.join(dirpath, d))]:
+            full = Path(dirpath) / name
+            rel = full.relative_to(root).as_posix()
+            if rel == RELEASE_SHA_FILE:
+                continue
+            if rel not in files:
+                return f"лишний файл {rel}"
+            seen.add(rel)
+            mode, blob = files[rel]
+            if mode == "120000":
+                if not full.is_symlink():
+                    return f"{rel}: в коммите ссылка"
+                data = os.readlink(full).encode("utf-8", "surrogateescape")
+            else:
+                if full.is_symlink() or not full.is_file():
+                    return f"{rel}: в коммите обычный файл"
+                if bool(full.stat().st_mode & 0o111) != (mode == "100755"):
+                    return f"{rel}: режим не совпадает с {mode}"
+                data = full.read_bytes()
+            if _blob_sha(data) != blob:
+                return f"{rel}: содержимое не совпадает"
+    missing = set(files) - seen
+    return f"нет файла {sorted(missing)[0]}" if missing else None
+
+
+def exec_root(approved_sha, releases_dir, repo=None):
+    """stdlib-only: the immutable dir a process MUST exec from. Never the mutable tree. Returns (root|None, verdict):
+    ACTIVATE_OK · DEPLOYMENT_APPROVAL_REQUIRED · APPROVED_RELEASE_MISSING · APPROVED_RELEASE_UNVERIFIABLE (no trusted
+    tree of the approved commit) · APPROVED_RELEASE_CORRUPT (stamp or composition does not match that tree).
+    E5.3 (S2 задача 02): штамп больше не доказательство — состав сверяется с деревом одобренного коммита."""
     if not approved_sha:
         return None, "DEPLOYMENT_APPROVAL_REQUIRED"
     root = Path(releases_dir) / approved_sha
@@ -45,6 +172,11 @@ def exec_root(approved_sha, releases_dir):
         return None, "APPROVED_RELEASE_MISSING"
     stamp = root / RELEASE_SHA_FILE
     if not stamp.exists() or stamp.read_text().strip() != approved_sha:
+        return None, "APPROVED_RELEASE_CORRUPT"
+    files = trusted_tree(approved_sha, repo)
+    if files is None:
+        return None, "APPROVED_RELEASE_UNVERIFIABLE"
+    if _composition_problem(root, files) is not None:
         return None, "APPROVED_RELEASE_CORRUPT"
     return root, "ACTIVATE_OK"
 
@@ -58,13 +190,13 @@ def _agent_argv(release_root: Path, role: str):
         return None
 
 
-def plan_exec(service, approved_sha, releases_dir):
+def plan_exec(service, approved_sha, releases_dir, repo=None):
     """PURE: how the trusted launcher must exec `service`, or why it fails CLOSED. Returns (plan|None, verdict).
     plan = {argv, cwd, exec_root, sha} — exec `python <argv>` with cwd=exec_root so imports come from the
     APPROVED release only. The mutable tree is never read here."""
     if service not in SERVICE_ALLOWLIST and not service.startswith("agent:"):
         return None, "SERVICE_NOT_ALLOWLISTED"
-    root, verdict = exec_root(approved_sha, releases_dir)
+    root, verdict = exec_root(approved_sha, releases_dir, repo)
     if verdict != "ACTIVATE_OK":
         return None, verdict
     argv = SERVICE_ALLOWLIST.get(service)
@@ -106,16 +238,24 @@ def _read_app_python(root):
         return None
 
 
+def _read_trusted_repo(root):
+    """Репозиторий с git-объектами — эталон состава. Из ROOT-OWNED runtime manifest (как и интерпретатор), не из
+    файла одобрения. None → APPROVED_RELEASE_UNVERIFIABLE, fail CLOSED."""
+    try:
+        return json.loads((Path(root) / "runtime.json").read_text()).get("trusted_repo")
+    except Exception:
+        return None
+
+
 def main(service_id, *, root=None, python=None, active_path=None):
     """The installed launcher's exec: resolve the approved release, record ACTIVE, exec from the release with the
     FIXED trusted 3.13 app runtime (root-owned runtime manifest), isolated (`-E -s`, cwd=release). FAIL CLOSED
     (exit 3) before any application code loads. Never touches the mutable tree; the application is ALWAYS exec'd
     with `app_py` (the trusted 3.13 from runtime.json) — NEVER sys.executable (which would be the 3.9 bootstrap).
     Returns a verdict string in test mode (python is a list sink) or execs for real."""
-    import os
     root = Path(root or TRUSTED_ROOT)
     approved = _read_approved(root / "approved_release.json")
-    plan, verdict = plan_exec(service_id, approved, root / "releases")
+    plan, verdict = plan_exec(service_id, approved, root / "releases", _read_trusted_repo(root))
     if verdict != "EXEC_FROM_RELEASE":
         return ("FAIL_CLOSED", verdict)
     # resolve the trusted APP runtime BEFORE recording anything — fail CLOSED if the runtime manifest is absent

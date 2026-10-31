@@ -11,15 +11,36 @@ from spa_core.studio_os import release_activation as RA
 PY = sys.executable
 
 
-def _mk_release(releases, sha, printed):
-    """A minimal immutable release: releases/<sha>/spa_core/probe.py prints `printed`, + role manifest + stamp."""
-    root = releases / sha
-    (root / "spa_core").mkdir(parents=True)
-    (root / "spa_core" / "__init__.py").write_text("")
-    (root / "spa_core" / "probe.py").write_text(f"print({printed!r})\n")
-    (root / LNCH.AGENT_ROLE_MANIFEST).write_text(json.dumps({"prober": "spa_core.probe"}))
-    (root / RA.RELEASE_SHA_FILE).write_text(sha)
-    return root
+# S2 задача 02 (E5.3, инв. #16 — изменено намеренно): релиз прежде был каталогом «A»*40 с одним штампом, то есть
+# ровно тем доверием к штампу, которое задача отменяет. Теперь релиз — НАСТОЯЩИЙ коммит одноразового репозитория,
+# материализованный настоящим `materialise_release`; лаунчер сверяет его состав с деревом коммита. Утверждения
+# тестов (что исполняется, что отказывает и почему) не менялись.
+def _git(args, cwd):
+    return subprocess.run(["git", *args], cwd=str(cwd), capture_output=True, text=True)
+
+
+def _repo(tmp_path):
+    repo = tmp_path / "trusted_repo"
+    if not repo.exists():
+        repo.mkdir(parents=True)
+        _git(["init", "-q", "-b", "main"], repo)
+        _git(["config", "user.email", "t@t"], repo)
+        _git(["config", "user.name", "t"], repo)
+    return repo
+
+
+def _mk_release(releases, repo, printed):
+    """A minimal immutable release of a REAL commit: spa_core/probe.py prints `printed`, + role manifest."""
+    (repo / "spa_core").mkdir(parents=True, exist_ok=True)
+    (repo / "spa_core" / "__init__.py").write_text("")
+    (repo / "spa_core" / "probe.py").write_text(f"print({printed!r})\n")
+    (repo / LNCH.AGENT_ROLE_MANIFEST).write_text(json.dumps({"prober": "spa_core.probe"}))
+    _git(["add", "-A"], repo)
+    _git(["commit", "-q", "-m", printed], repo)
+    sha = _git(["rev-parse", "HEAD"], repo).stdout.strip()
+    root, verdict = RA.materialise_release(sha, releases, repo)
+    assert verdict == "OK", verdict
+    return root, sha
 
 
 def _mk_malicious_tree(tree):
@@ -43,12 +64,14 @@ def _run(argv, cwd):
 def test_tamper_staged_tree_never_executes(tmp_path):
     releases = tmp_path / "Library" / "StudioOS" / "releases"
     releases.mkdir(parents=True)
-    a = _mk_release(releases, "A" * 40, "RELEASE_A")
+    repo = _repo(tmp_path)
+    a, sha_a = _mk_release(releases, repo, "RELEASE_A")
     tree = _mk_malicious_tree(tmp_path / "SPA_Claude")             # STAGED=B, malicious
 
     # every start path — daily cycle / restart / self-heal / reboot — enters the same trusted launcher:
     for _startpath in ("daily-cycle", "restart", "self-heal", "reboot"):
-        plan, verdict = LNCH.plan_exec("agent:prober", approved_sha="A" * 40, releases_dir=releases)
+        plan, verdict = LNCH.plan_exec("agent:prober", approved_sha=sha_a, releases_dir=releases,
+                                       repo=repo)
         assert verdict == "EXEC_FROM_RELEASE"
         # the plan's exec root is the immutable release, and the malicious tree is NOWHERE in it
         assert plan["exec_root"] == str(a) and str(tree) not in plan["exec_root"]
@@ -72,12 +95,13 @@ def test_no_approval_fails_closed_before_app_load(tmp_path):
 # ── the launcher never reaches arbitrary shell / non-allow-listed service ──────────────────────────
 def test_service_allowlist_and_no_arbitrary_command(tmp_path):
     releases = tmp_path / "releases"; releases.mkdir()
-    _mk_release(releases, "A" * 40, "RELEASE_A")
+    repo = _repo(tmp_path)
+    _a, sha_a = _mk_release(releases, repo, "RELEASE_A")
     # a service that is not allow-listed is refused, even with a valid approved release
-    assert LNCH.plan_exec("rm -rf /", "A" * 40, releases)[1] == "SERVICE_NOT_ALLOWLISTED"
-    assert LNCH.plan_exec("agent:evil", "A" * 40, releases)[1] == "AGENT_ROLE_NOT_ALLOWLISTED"
+    assert LNCH.plan_exec("rm -rf /", sha_a, releases, repo)[1] == "SERVICE_NOT_ALLOWLISTED"
+    assert LNCH.plan_exec("agent:evil", sha_a, releases, repo)[1] == "AGENT_ROLE_NOT_ALLOWLISTED"
     # fixed services map to a fixed module argv (no command ever comes from the approval file)
-    plan, verdict = LNCH.plan_exec("paper-cycle", "A" * 40, releases)
+    plan, verdict = LNCH.plan_exec("paper-cycle", sha_a, releases, repo)
     assert verdict == "EXEC_FROM_RELEASE" and "spa_core.paper_trading.cycle_runner" in plan["argv"] and plan["argv"][:2] == ["-E", "-s"]
 
 
@@ -95,14 +119,16 @@ def test_launcher_never_writes_approval():
 def test_main_execs_from_approved_release(tmp_path):
     root = tmp_path / "StudioOS"
     (root / "releases").mkdir(parents=True)
-    _mk_release(root / "releases", "A" * 40, "RELEASE_A")
-    (root / "approved_release.json").write_text(json.dumps({"approved_sha": "A" * 40}))
+    repo = _repo(tmp_path)
+    _a, sha_a = _mk_release(root / "releases", repo, "RELEASE_A")
+    (root / "approved_release.json").write_text(json.dumps({"approved_sha": sha_a}))
+    (root / "runtime.json").write_text(json.dumps({"trusted_repo": str(repo)}))   # root-owned manifest
     active = tmp_path / "active.json"
     sink = []
     verdict, argv, cwd = LNCH.main("agent:prober", root=root, python=sink, active_path=active)
     assert verdict == "EXEC_FROM_RELEASE"
-    assert cwd == str(root / "releases" / ("A" * 40)) and "spa_core.probe" in argv
-    assert json.loads(active.read_text())["active_sha"] == "A" * 40      # ACTIVE recorded = what was execed
+    assert cwd == str(root / "releases" / sha_a) and "spa_core.probe" in argv
+    assert json.loads(active.read_text())["active_sha"] == sha_a           # ACTIVE recorded = what was execed
     # and it really runs A, not the tree
     assert _run(argv[1:], cwd) == "RELEASE_A"
 
@@ -118,9 +144,11 @@ def test_main_fails_closed_without_approval(tmp_path):
 def test_main_fails_closed_without_app_runtime(tmp_path):
     """Approved + release present but NO root-owned runtime.json → FAIL_CLOSED (never sys.executable/bootstrap)."""
     root = tmp_path / "StudioOS"; (root / "releases").mkdir(parents=True)
-    _mk_release(root / "releases", "A" * 40, "RELEASE_A")
-    (root / "approved_release.json").write_text(json.dumps({"approved_sha": "A" * 40}))
-    # python=None → reads runtime.json which is absent → APP_RUNTIME_MISSING before any exec
+    repo = _repo(tmp_path)
+    _a, sha_a = _mk_release(root / "releases", repo, "RELEASE_A")
+    (root / "approved_release.json").write_text(json.dumps({"approved_sha": sha_a}))
+    # runtime.json names the trusted repo but NO app_python → APP_RUNTIME_MISSING before any exec
+    (root / "runtime.json").write_text(json.dumps({"trusted_repo": str(repo)}))
     r = LNCH.main("agent:prober", root=root, python=None, active_path=tmp_path / "a.json")
     assert r[0] == "FAIL_CLOSED" and r[1] == "APP_RUNTIME_MISSING"
     assert not (tmp_path / "a.json").exists()
@@ -138,8 +166,10 @@ def test_app_runtime_read_from_root_manifest(tmp_path):
 # ── ROLLBACK: approve A → approve B → B bad → approve A again → next start runs A (no history rewrite) ──
 def test_rollback_reapprove_prior(tmp_path):
     releases = tmp_path / "releases"; releases.mkdir()
-    _mk_release(releases, "A" * 40, "RELEASE_A")
-    _mk_release(releases, "B" * 40, "RELEASE_B")
+    repo = _repo(tmp_path)
+    _a, sha_a = _mk_release(releases, repo, "RELEASE_A")
+    _b, sha_b = _mk_release(releases, repo, "RELEASE_B")
+    assert sha_a != sha_b
     # active was B; rollback = re-approve A
-    plan, _ = LNCH.plan_exec("agent:prober", approved_sha="A" * 40, releases_dir=releases)
+    plan, _ = LNCH.plan_exec("agent:prober", approved_sha=sha_a, releases_dir=releases, repo=repo)
     assert _run(plan["argv"], plan["cwd"]) == "RELEASE_A"          # runs A, not B; no git rewrite, no network
