@@ -2,11 +2,11 @@
 
 > Авто-генерится `scripts/build_tracker_board.py` из `nimbalyst-local/tracker/*.md`. НЕ править вручную — правь карточки. Источник правды — карточки, это индекс (bootstrap).
 >
-> Собрана: 2026-10-31T00:49:22Z · сверка с карточками: `python3 scripts/build_tracker_board.py --check` (сторож `spa_core/tests/test_tracker_board_matches_cards.py`).
+> Собрана: 2026-10-31T06:53:31Z · сверка с карточками: `python3 scripts/build_tracker_board.py --check` (сторож `spa_core/tests/test_tracker_board_matches_cards.py`).
 >
-> Сверено с `origin/main` (027ccedf2) · у **1** своя правка, кто новее — не измерено.
+> Сверено с `origin/main` (39f2308c3).
 >
-> Всего карточек: **1534** · ждёт владельца: **6** · занято сессиями: **13**.
+> Всего карточек: **1536** · ждёт владельца: **6** · занято сессиями: **13**.
 
 ## 🔴 ЖДЁТ ВЛАДЕЛЬЦА (needs-owner)
 
@@ -421,7 +421,7 @@
 ### · closed
 - Считать ли верный отказ по правилам допуска неисправностью флота  ·  `owner-decision-schitat-li-vernyi-otkaz-po-pravilam-dopu.md` · 2026-10-08
 
-## 📥 Inbox (задания: Telegram / заметки / голос)  (855)
+## 📥 Inbox (задания: Telegram / заметки / голос)  (857)
 
 ### · in-progress
 - а задача починить все-таки еще раз сообщение которым не пишет нужно твое решени…  ·  `inbox-a-zadacha-pochinit-vse-taki-esche-raz-so.md` · 2026-08-14 · 🔒 `pid43119`
@@ -836,6 +836,7 @@
 - Сторож кнопок зовёт сломать ВЕРНЫЙ отказ: многовыборная карточка объявлена «наш дефект разбора»  ·  `inbox-storozh-knopok-zovet-slomat-vernyi-otkaz.md` · 2026-08-30
 - Сторож недоставляемых зависимостей краснеет на docs/research/cio_g4_repro.py — второй нарушитель за первым  ·  `inbox-storozh-nedostavlyaemyh-zavisimostei-kra.md` · 2026-08-20
 - Сторож очереди владельца верит прод-копии карточки: три карточки, ЗАКРЫТЫЕ на origin, предъявлены как поручение агенту и как живой вопрос владельцу  ·  `inbox-storozh-ocheredi-vladeltsa-verit-prod-ko.md` · 2026-09-03
+- Сторож «офис НЕ ИЗМЕРЕН» обойдён git-tracked артефактом — 140 ложных находок из любого worktree  ·  `inbox-storozh-ofisa-obmanut-git-tracked-artefa.md` · 2026-10-31
 - Сторож ответа владельца не знает слова «расхождение уже разобрано» — кричит «нужен человек» на закрытом вопросе  ·  `inbox-storozh-otveta-vladeltsa-ne-znaet-slova.md` · 2026-08-29
 - Сторож приёмки карточек читает только своё дерево — в проде он видит 583 карточки из 865  ·  `inbox-storozh-priemki-kartochek-chitaet-tolko.md` · 2026-09-02
 - Сторож R&D-исключения упёрся в порог: любой новый edge-скрипт краснит main  ·  `inbox-storozh-r-d-isklyucheniya-upersya-v-poro.md` · 2026-10-02
@@ -1068,6 +1069,7 @@
 - Мост 41 сутки печатает «нужен человек» на карточке, у которой на origin копия богаче и уже терминальна  ·  `inbox-most-41-sutki-pechataet-nuzhen-chelovek.md` · 2026-10-15
 - Мост доставки 402 часа не может довезти карточку: обе копии терминальны, спорит только status_trail  ·  `inbox-most-dostavki-402-chasa-ne-mozhet-dovezt.md` · 2026-09-20
 - Мост находок 75 часов упирался в одно и то же: расхождение ТЕЛА карточки он сводить не умеет  ·  `inbox-most-nahodok-75-chasov-upiralsya-v-odno.md` · 2026-10-28
+- Мост находок без писателя 45 часов — агент com.spa.decision_loop НЕ ЗАГРУЖЕН во флоте, и CRITICAL шага 0-офис никому не достаются  ·  `inbox-most-nahodok-bez-pisatelya-45-chasov-agen.md` · 2026-10-31
 - Мост отказывает ВЕРНО, но долг доставки НЕПОГАСИМ: следы карточки разошлись двумя ЗАКОННЫМИ переходами из одного статуса  ·  `inbox-most-otkazyvaet-verno-no-dolg-dostavki-n.md` · 2026-09-04
 - На Linux принадлежность процесса всегда OWNERSHIP_UNKNOWN: 19 красных тестов и, возможно, инертный клин  ·  `inbox-na-linux-prinadlezhnost-protsessa-vsegda.md` · 2026-09-26
 - Находка петли: com.spa.decision_loop: объявлено PRODUCES (data/adapter_feed_divergenc  ·  `inbox-nahodka-petli-com-spa-decision-loop-obya.md` · 2026-10-29

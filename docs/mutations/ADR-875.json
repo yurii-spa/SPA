@@ -1,0 +1,79 @@
+{
+ "title": "ADR-875 — признак сторожа «офис НЕ ИЗМЕРЕН»: доказательство ПИСАТЕЛЯ вместо существования пути",
+ "tests": [
+  "spa_core/tests/test_consume_office_reports.py::test_tracked_artifact_alone_is_NOT_evidence_of_a_live_fleet",
+  "spa_core/tests/test_consume_office_reports.py::test_untracked_artifact_IS_evidence_and_real_absence_stays_named",
+  "spa_core/tests/test_consume_office_reports.py::test_tracked_but_rewritten_artifact_IS_evidence_of_a_writer",
+  "spa_core/tests/test_consume_office_reports.py::test_writer_evidence_distinguishes_three_outcomes",
+  "spa_core/tests/test_consume_office_reports.py::test_git_silence_is_not_a_zero",
+  "spa_core/tests/test_consume_office_reports.py::test_writer_evidence_is_asked_of_the_tree_whose_artifacts_we_read",
+  "spa_core/tests/test_consume_office_reports.py::test_office_absent_wholesale_is_ONE_finding_not_twenty",
+  "spa_core/tests/test_consume_office_reports.py::test_missing_artifact_among_present_siblings_is_STILL_named",
+  "spa_core/tests/test_consume_office_reports.py::test_data_dir_reads_the_foreign_tree_and_names_whose",
+  "spa_core/tests/test_office_absence_guard_probe.py"
+ ],
+ "mutations": [
+  {
+   "name": "дословная авария #993: признак снова «хоть один СУЩЕСТВУЕТ»",
+   "file": "scripts/consume_office_reports.py",
+   "old": "    witnesses = [r for r in present if evidence.get(r) != _WRITER_CONST]",
+   "new": "    witnesses = list(present)"
+  },
+  {
+   "name": "сторож ослеп: срабатывает всегда и глотает настоящие пропажи",
+   "file": "scripts/consume_office_reports.py",
+   "old": "    witnesses = [r for r in present if evidence.get(r) != _WRITER_CONST]",
+   "new": "    witnesses = []"
+  },
+  {
+   "name": "неответ git подставлен КОНСТАНТОЙ — сторож срабатывает на неизвестном дереве",
+   "file": "scripts/consume_office_reports.py",
+   "old": "        return {rel: _WRITER_UNMEASURED for rel in present}",
+   "new": "        return {rel: _WRITER_CONST for rel in present}"
+  },
+  {
+   "name": "неответ git подставлен ПИСАТЕЛЕМ — третий исход слит со вторым (инв. #17)",
+   "file": "scripts/consume_office_reports.py",
+   "old": "        return {rel: _WRITER_UNMEASURED for rel in present}",
+   "new": "        return {rel: _WRITER_YES for rel in present}"
+  },
+  {
+   "name": "untracked объявлен константой — живое дерево станет неизмеримым",
+   "file": "scripts/consume_office_reports.py",
+   "old": "            out[rel] = _WRITER_YES          # untracked ⇒ его писал кто-то",
+   "new": "            out[rel] = _WRITER_CONST          # untracked ⇒ его писал кто-то"
+  },
+  {
+   "name": "перезаписанный флотом owner-gated артефакт прочитан константой",
+   "file": "scripts/consume_office_reports.py",
+   "old": "        elif rel in changed_set:\n            out[rel] = _WRITER_YES          # tracked и ПЕРЕПИСАН ⇒ писатель был",
+   "new": "        elif rel in changed_set:\n            out[rel] = _WRITER_CONST          # tracked и ПЕРЕПИСАН ⇒ писатель был"
+  },
+  {
+   "name": "неответ git выдан за пустой успех — «неизвестно» становится «ничего не отслеживается»",
+   "file": "scripts/consume_office_reports.py",
+   "old": "    if res.returncode != 0:\n        return None",
+   "new": "    if res.returncode != 0:\n        return []"
+  },
+  {
+   "name": "та же подмена на уровне вызывающего",
+   "file": "scripts/consume_office_reports.py",
+   "old": "    tracked = _git_lines([\"ls-files\", \"-z\", \"--\"] + present, cwd=tree)\n    if tracked is None:\n        return {rel: _WRITER_UNMEASURED for rel in present}",
+   "new": "    tracked = _git_lines([\"ls-files\", \"-z\", \"--\"] + present, cwd=tree)\n    if tracked is None:\n        tracked = []"
+  },
+  {
+   "name": "происхождение спрашивается не у того дерева, чьи артефакты читаем",
+   "file": "scripts/consume_office_reports.py",
+   "old": "    tree = os.path.dirname(os.path.abspath(data_dir)) if data_dir else root",
+   "new": "    tree = root"
+  },
+  {
+   "name": "присутствующие константы не названы — вердикт противоречит ls молча",
+   "file": "scripts/consume_office_reports.py",
+   "old": "    ] if present else [])",
+   "new": "    ] if False else [])"
+  }
+ ],
+ "battery_note": "Батарея СУЖЕНА до предмета ADR-875 поимённо, и это ЗАМЕР, а не удобство: полный файл test_consume_office_reports.py идёт 12 мин на прогон (15 сцен по ~45 с поднимают настоящий main() на одноразовом дереве), то есть 11 прогонов прибора стоили бы 2 ч 45 мин. Сужение может дать только БОЛЬШЕ выживших, а не меньше — мера от него строже, не слабее. Полный файл проверен ОТДЕЛЬНО и ЦЕЛИКОМ в дереве доставки: 212 passed (четырьмя группами, суммарно ~12 мин).",
+ "rerun_note": "ПЕРВЫЙ прогон: применено 10 · убито 9 · ВЫЖИЛА 1 — мутация «происхождение спрашивается не у того дерева, чьи артефакты читаем» (tree = root вместо dirname(data_dir)). Выживание было НАСТОЯЩЕЙ дырой батареи, а не эквивалентностью: обе прежние сцены про --data-dir спрашивали происхождение у дерева, где ответ СОВПАДАЛ, то есть сцены ЧЕРЕЗ ГРАНИЦУ области не было вовсе. Дыра закрыта сценой test_writer_evidence_is_asked_of_the_tree_whose_artifacts_we_read (чужое дерево — репозиторий с tracked-константой, своё — НЕ репозиторий ⇒ ответы расходятся по построению). ПОВТОРНЫЙ прогон РОВНО выжившей — отдельной спецификацией, вердикт записан в ADR-875."
+}

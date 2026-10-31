@@ -7062,6 +7062,214 @@ def _probe_owner_control_plane_reachable(
                        "может управлять системой через Telegram")
 
 
+def _probe_office_absence_guard_not_fooled_by_tracked(
+        arg: str | None) -> tuple[str, str]:
+    """Сторож «офис НЕ ИЗМЕРЕН» не обманывается git-tracked артефактом.
+
+    Предмет карточки `inbox-storozh-ofisa-obmanut-git-tracked-artefa` (замер
+    цикла #993, ADR-875). Шаг 1 приказа («ОБЯЗАТЕЛЬНО
+    `scripts/consume_office_reports.py`»), исполненный из изолированного
+    worktree — того дерева, которое требует §3.4 протокола, — дал «прочитано
+    3, не прочитано 140» при ЖИВОМ прод-офисе (тот же прибор с `--data-dir`:
+    «прочитано 143, не прочитано 0»). Сто сорок строк «❌ НЕ ПРОЧИТАН» под
+    подписью «действовать (карточки)» — это авария #207 в семикратном размере.
+
+    Сторож `_office_absent_wholesale` существовал и НЕ сработал: его признак
+    был «хоть один артефакт СУЩЕСТВУЕТ ⇒ дерево производящее», а существовали
+    ровно две цели из 142, и обе git-tracked — то есть выложенные
+    `git checkout`, а не написанные флотом. Присутствие файла наблюдением не
+    является; это метка «живое» на КОНСТАНТЕ, дословный класс ADR-126.
+
+    Меряется ИСХОД — ЗАПУСКОМ настоящего шага на одноразовых РЕПОЗИТОРИЯХ, а
+    не подстрокой в исходнике (ADR-333). Три звена, любое одно порванное даёт
+    `not_satisfied` с ИМЕНЕМ звена:
+
+    1. **сторож СРАБАТЫВАЕТ на вывезенной константе** — дерево, где
+       единственная присутствующая цель git-tracked и равна HEAD: код 3,
+       «ОФИС НЕ ИЗМЕРЕН», НОЛЬ строк «НЕ ПРОЧИТАН»;
+    2. **и ПО-ПРЕЖНЕМУ не глотает настоящую пропажу** — дерево, где
+       присутствующий сосед untracked (его писал кто-то): код 0, пропажа
+       НАЗВАНА по имени. Без этого звена проба зеленела бы и у сторожа,
+       срабатывающего ВСЕГДА, то есть у слепого: ложная тишина тише ложной
+       находки и потому опаснее исходной аварии;
+    3. **три исхода происхождения различимы ЗНАЧЕНИЕМ** — константа, писатель
+       и «git не ответил» суть три разных значения `_writer_evidence`, а не
+       два плюс подстановка (инв. #17).
+
+    Имя ветки одноразовых сцен — ВХОД (`git init -b`), а не умолчание хоста:
+    `init.defaultBranch` на Маке `main`, на `ubuntu-latest` `master`
+    (§ GIT-ОКРУЖЕНИЕ, `.claude/rules/deployment.md`).
+
+    Третий исход назван: нет исходника шага, не грузится модуль, git
+    недоступен ⇒ `unmeasured` с причиной, никогда не «чисто».
+    """
+    if (arg or "").strip():
+        return UNMEASURED, (f"проба не принимает аргумента (дано {arg!r}): "
+                            "предмет — признак сторожа целиком, пофайловой "
+                            "формы у него нет")
+    import contextlib as _ctx
+    import importlib.util as _ilu
+    import io as _io
+    import json as _json
+    import subprocess as _sp
+    import tempfile as _tf
+
+    office_src = os.path.join(REPO_ROOT, "scripts", "consume_office_reports.py")
+    if not os.path.isfile(office_src):
+        return UNMEASURED, (f"исходника шага {office_src} нет в дереве — "
+                            "признак сторожа НЕ ИЗМЕРЕН")
+    try:
+        spec = _ilu.spec_from_file_location("_office_guard_probe", office_src)
+        office = _ilu.module_from_spec(spec)
+        spec.loader.exec_module(office)
+    except Exception as exc:                                   # noqa: BLE001
+        return UNMEASURED, (f"шаг не ввозится ({type(exc).__name__}: {exc}) — "
+                            "признак сторожа НЕ ИЗМЕРЕН")
+    for attr in ("_office_absent_wholesale", "_writer_evidence",
+                 "_WRITER_CONST", "_WRITER_YES", "_WRITER_UNMEASURED"):
+        if not hasattr(office, attr):
+            return NOT_SATISFIED, (f"звено 3: у шага нет {attr} — признака "
+                                   "«доказательство писателя» в приборе нет "
+                                   "вовсе, сторож судит по существованию пути")
+
+    def _git(root: str, *args: str) -> bool:
+        try:
+            return _sp.run(["git", "-C", root, *args], capture_output=True,
+                           text=True, timeout=60).returncode == 0
+        except Exception:                                      # noqa: BLE001
+            return False
+
+    def _scene(box: str, name: str, targets: list[str], *,
+               committed: dict, untracked: dict) -> str | None:
+        root = os.path.join(box, name)
+        os.makedirs(os.path.join(root, "architecture"), exist_ok=True)
+        with open(os.path.join(root, "architecture", "manifest.json"), "w",
+                  encoding="utf-8") as fh:
+            _json.dump({"artifacts": [
+                {"path": t, "status": "active",
+                 "consumers": ["orchestrator_protocol"]} for t in targets]}, fh)
+        if not _git(root, "init", "-b", "main"):
+            return None
+        _git(root, "config", "user.email", "probe@spa.local")
+        _git(root, "config", "user.name", "probe")
+        for rel, body in committed.items():
+            full = os.path.join(root, rel)
+            os.makedirs(os.path.dirname(full), exist_ok=True)
+            with open(full, "w", encoding="utf-8") as fh:
+                _json.dump(body, fh)
+        if not _git(root, "add", "-A"):
+            return None
+        if not _git(root, "commit", "-m", "scene"):
+            return None
+        for rel, body in untracked.items():
+            full = os.path.join(root, rel)
+            os.makedirs(os.path.dirname(full), exist_ok=True)
+            with open(full, "w", encoding="utf-8") as fh:
+                _json.dump(body, fh)
+        return root
+
+    def _run(root: str) -> tuple[int, str]:
+        buf = _io.StringIO()
+        with _ctx.redirect_stdout(buf):
+            rc = office.main(["--root", root, "--no-receipts"])
+        return rc, buf.getvalue()
+
+    stamp = {"generated_at": "2026-08-09T04:44:00+00:00"}
+    with _tf.TemporaryDirectory() as box:
+        # ── звено 1: вывезенная git-ом константа НЕ есть живой флот ──────────
+        targets = ["data/uptime_status.json"] + [
+            f"data/investment_os/a{i}.json" for i in range(20)]
+        root = _scene(box, "tracked_only", targets,
+                      committed={"data/uptime_status.json": stamp},
+                      untracked={})
+        if root is None:
+            return UNMEASURED, ("одноразовый репозиторий не создан (git "
+                                "недоступен) — признак сторожа НЕ ИЗМЕРЕН")
+        try:
+            rc, out = _run(root)
+        except Exception as exc:                               # noqa: BLE001
+            return UNMEASURED, (f"шаг не исполнился на сцене константы "
+                                f"({type(exc).__name__}: {exc}) — НЕ ИЗМЕРЕНО")
+        if rc != 3 or "ОФИС НЕ ИЗМЕРЕН" not in out:
+            return NOT_SATISFIED, (
+                f"звено 1: единственная присутствующая цель git-tracked и равна "
+                f"HEAD, а шаг вернул код {rc} вместо 3 и "
+                f"{'не назвал' if 'ОФИС НЕ ИЗМЕРЕН' not in out else 'назвал'} "
+                f"«ОФИС НЕ ИЗМЕРЕН» — присутствие пути прочитано как "
+                f"наблюдение")
+        if out.count("НЕ ПРОЧИТАН") != 0:
+            return NOT_SATISFIED, (
+                f"звено 1: сторож назвался, но шаг всё равно напечатал "
+                f"{out.count('НЕ ПРОЧИТАН')} строк «НЕ ПРОЧИТАН» под подписью "
+                f"«действовать (карточки)» — ложные находки доезжают до сессии")
+
+        # ── звено 2: обратная сторона — слепой сторож тоже не годится ────────
+        root2 = _scene(box, "live_writer",
+                       ["data/house_view_gap.json",
+                        "data/investment_os/_health.json",
+                        "data/investment_os/chief_investment.json"],
+                       committed={"data/house_view_gap.json": {
+                           "generated_at": stamp["generated_at"], "gaps": []}},
+                       untracked={"data/investment_os/_health.json": {
+                           "generated_at": stamp["generated_at"]}})
+        if root2 is None:
+            return UNMEASURED, ("вторая сцена не создана (git недоступен) — "
+                                "кусается ли сторож в обратную сторону, "
+                                "НЕ ИЗМЕРЕНО")
+        try:
+            rc2, out2 = _run(root2)
+        except Exception as exc:                               # noqa: BLE001
+            return UNMEASURED, (f"шаг не исполнился на сцене живого писателя "
+                                f"({type(exc).__name__}: {exc}) — НЕ ИЗМЕРЕНО")
+        if rc2 != 0 or "ОФИС НЕ ИЗМЕРЕН" in out2:
+            return NOT_SATISFIED, (
+                f"звено 2: присутствующий сосед UNTRACKED (его писал кто-то), "
+                f"а шаг вернул код {rc2} и объявил офис неизмеримым — сторож "
+                f"срабатывает на ЖИВОМ дереве и глотает настоящие пропажи")
+        if "chief_investment.json" not in out2:
+            return NOT_SATISFIED, ("звено 2: настоящая пропажа "
+                                   "chief_investment.json не НАЗВАНА — "
+                                   "правка купила тишину ценой слепоты")
+
+        # ── звено 3: три исхода происхождения различимы ЗНАЧЕНИЕМ ────────────
+        try:
+            ev = office._writer_evidence(
+                ["data/house_view_gap.json", "data/investment_os/_health.json"],
+                tree=root2)
+        except Exception as exc:                               # noqa: BLE001
+            return UNMEASURED, (f"происхождение не измерено "
+                                f"({type(exc).__name__}: {exc})")
+        plain = os.path.join(box, "plain")
+        os.makedirs(os.path.join(plain, "data"), exist_ok=True)
+        with open(os.path.join(plain, "data", "x.json"), "w",
+                  encoding="utf-8") as fh:
+            fh.write("{}")
+        ev_plain = office._writer_evidence(["data/x.json"], tree=plain)
+
+    if ev.get("data/house_view_gap.json") != office._WRITER_CONST:
+        return NOT_SATISFIED, (
+            f"звено 3: tracked и равный HEAD артефакт назван "
+            f"{ev.get('data/house_view_gap.json')!r}, а не константой")
+    if ev.get("data/investment_os/_health.json") != office._WRITER_YES:
+        return NOT_SATISFIED, (
+            f"звено 3: untracked артефакт назван "
+            f"{ev.get('data/investment_os/_health.json')!r}, а не писателем")
+    if ev_plain.get("data/x.json") != office._WRITER_UNMEASURED:
+        return NOT_SATISFIED, (
+            f"звено 3: вне репозитория происхождение названо "
+            f"{ev_plain.get('data/x.json')!r} вместо «НЕ ИЗМЕРЕНО» — "
+            f"неизвестное выдано за один из двух ответов (инв. #17)")
+    if len({office._WRITER_CONST, office._WRITER_YES,
+            office._WRITER_UNMEASURED}) != 3:
+        return NOT_SATISFIED, ("звено 3: три исхода происхождения не РАЗНЫЕ "
+                               "значения — различить их нечем")
+    return SATISFIED, (
+        "сторож ADR-875 судит по доказательству ПИСАТЕЛЯ: вывезенная git-ом "
+        "константа даёт «ОФИС НЕ ИЗМЕРЕН» (код 3, НОЛЬ ложных «НЕ ПРОЧИТАН»), "
+        "untracked сосед оставляет настоящую пропажу НАЗВАННОЙ (код 0), три "
+        "исхода происхождения различимы значением")
+
+
 def _probe_office_hollow_counter_means_harm(arg: str | None) -> tuple[str, str]:
     """Счётчик «ПРОЧИТАН ВХОЛОСТУЮ» шага 0-офис снова значит ВРЕД, а не порядок.
 
@@ -13842,6 +14050,8 @@ PROBES: dict[str, Callable[[str | None], "tuple[str, str]"]] = {
     "owner_control_plane_reachable": _probe_owner_control_plane_reachable,
     "office_hollow_counter_means_harm":
         _probe_office_hollow_counter_means_harm,
+    "office_absence_guard_not_fooled_by_tracked":
+        _probe_office_absence_guard_not_fooled_by_tracked,
     "delta_mutation_instrument_is_re_measurable":
         _probe_delta_mutation_instrument_is_re_measurable,
     "mutation_window_restore_refuses_a_live_owner":

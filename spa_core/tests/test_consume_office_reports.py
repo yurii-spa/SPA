@@ -1839,3 +1839,234 @@ def test_the_office_dispatches_to_the_instrument_of_order_552() -> None:
     assert "[CRITICAL]" in out, out
     assert "[НЕ ИЗМЕРЕНО]" in out, out
     assert "СХЕМА РАЗОШЛАСЬ" not in out, out
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# ADR-875 · сторож #207 против git-tracked артефакта
+#
+# Авария #993: сторож `_office_absent_wholesale` НЕ сработал на настоящем
+# worktree, и 140 из 142 целей офиса уехали строками «❌ НЕ ПРОЧИТАН» под
+# подписью «действовать (карточки)». Признак был «хоть один артефакт
+# СУЩЕСТВУЕТ ⇒ дерево производящее», а существовали ровно два — и оба
+# git-tracked, то есть выложенные `git checkout`, а не написанные флотом.
+#
+# ПОЧЕМУ ПРЕЖНЯЯ БАТАРЕЯ ЭТОГО НЕ ВИДЕЛА. Обратный контроль
+# `test_missing_artifact_among_present_siblings_is_STILL_named` создаёт
+# присутствующих соседей `write_text` в `tmp_path`: такой сосед НИКОГДА не
+# git-tracked. Сцены, где присутствующий артефакт есть вывезенная git-ом
+# КОНСТАНТА, в батарее не было вовсе — а в жизни это ЕДИНСТВЕННАЯ форма
+# worktree. Тест проверял намерение на том входе, которого не бывает.
+#
+# Имя ветки — ВХОД СЦЕНЫ (`git init -b main`), а не умолчание хоста:
+# `init.defaultBranch` на Маке `main`, на `ubuntu-latest` `master`
+# (§ GIT-ОКРУЖЕНИЕ, `.claude/rules/deployment.md`). Сцена ниже про HEAD, а не
+# про имя ветки, но объявить его всё равно обязана — иначе тест судил бы о
+# том, на каком хосте идёт прогон.
+_SCENE_BRANCH = "main"
+
+
+def _git(root: Path, *args: str) -> None:
+    import subprocess
+    res = subprocess.run(["git", "-C", str(root), *args],
+                         capture_output=True, text=True)
+    assert res.returncode == 0, f"git {args}: {res.stderr}"
+
+
+def _git_scene(root: Path, artifacts: list[str], *, committed: dict[str, str],
+               untracked: dict[str, str] | None = None,
+               modified: dict[str, str] | None = None) -> None:
+    """Одноразовый РЕПОЗИТОРИЙ со объявленным происхождением каждого файла.
+
+    `committed` — лежит в HEAD и равен ему (КОНСТАНТА, вывез git);
+    `untracked` — git про него не знает (писал кто-то);
+    `modified` — лежит в HEAD и ПЕРЕПИСАН после коммита (писал кто-то).
+    """
+    root.mkdir(parents=True, exist_ok=True)
+    _tree_with_manifest(root, artifacts)
+    _git(root, "init", "-b", _SCENE_BRANCH)
+    _git(root, "config", "user.email", "scene@spa.local")
+    _git(root, "config", "user.name", "scene")
+    for rel, body in {**committed, **(modified or {})}.items():
+        p = root / rel
+        p.parent.mkdir(parents=True, exist_ok=True)
+        p.write_text(body, encoding="utf-8")
+    _git(root, "add", "-A")
+    _git(root, "commit", "-m", "scene base")
+    for rel, body in (modified or {}).items():
+        (root / rel).write_text(body + "\n", encoding="utf-8")
+    for rel, body in (untracked or {}).items():
+        p = root / rel
+        p.parent.mkdir(parents=True, exist_ok=True)
+        p.write_text(body, encoding="utf-8")
+
+
+def test_tracked_artifact_alone_is_NOT_evidence_of_a_live_fleet(tmp_path) -> None:
+    """ПОЛОЖИТЕЛЬНЫЙ КОНТРОЛЬ аварии #993 — дословная форма worktree.
+
+    Присутствует ровно один артефакт офиса, и он git-tracked и равен HEAD.
+    На НЕИСПРАВЛЕННОМ файле тест краснеет: там `present` непуст, сторож
+    возвращает None, и соседи печатаются двадцатью «НЕ ПРОЧИТАН» при rc 0.
+    """
+    root = tmp_path / "wt"
+    targets = ["data/uptime_status.json"] + [
+        f"data/investment_os/a{i}.json" for i in range(20)]
+    _git_scene(root, targets,
+               # Отметка ЛИТЕРАЛЬНА и привязана к инъектированному `NOW`
+               # (час до него): закреплены обе стороны — преференция #1
+               # `.claude/rules/deployment.md`. Стенные часы здесь сделали бы
+               # вердикт теста функцией календаря машины.
+               committed={"data/uptime_status.json": json.dumps(
+                   {"generated_at": "2026-08-09T04:44:00+00:00"})})
+
+    rc, out = _run(["--root", str(root), "--no-receipts"])
+
+    assert rc == 3, out
+    assert "ОФИС НЕ ИЗМЕРЕН" in out, out
+    assert out.count("НЕ ПРОЧИТАН") == 0, out
+    assert "заводить НЕЛЬЗЯ" in out, out
+    # Присутствие НАЗВАНО: вердикт «ни один не несёт доказательства писателя»
+    # обязан не противоречить `ls`, иначе читается как поломка прибора.
+    assert "наблюдением НЕ являются" in out, out
+    assert "uptime_status.json" in out, out
+
+
+def test_writer_evidence_is_asked_of_the_tree_whose_artifacts_we_read(tmp_path) -> None:
+    """Происхождение спрашивается у ЧУЖОГО дерева, когда артефакты оттуда.
+
+    **Сцена дописана по ВЫЖИВШЕМУ мутанту (прибор дельты, мутация 9/10
+    «происхождение спрашивается не у того дерева, чьи артефакты читаем»).**
+    Выживание было НАСТОЯЩЕЙ дырой батареи, а не эквивалентностью: сцены
+    ЧЕРЕЗ ГРАНИЦУ `--data-dir` у признака писателя не было вовсе, и обе
+    прежние сцены про `--data-dir` спрашивали происхождение у дерева, где
+    ответ случайно совпадал.
+
+    Здесь ответы РАСХОДЯТСЯ по построению: артефакт лежит в ЧУЖОМ репозитории
+    и там он tracked-константа (⇒ сторож ОБЯЗАН сработать), а наше дерево
+    репозиторием не является вовсе (⇒ git молчит, исход `unmeasured`, и он
+    трактуется как ПИСАТЕЛЬ). Спроси прибор не то дерево — и он объявит
+    чужой офис живым, вернув аварию #993 с другой стороны.
+    """
+    foreign = tmp_path / "foreign"
+    targets = ["data/uptime_status.json"] + [
+        f"data/investment_os/a{i}.json" for i in range(20)]
+    _git_scene(foreign, targets,
+               # Отметка ЛИТЕРАЛЬНА и привязана к инъектированному `NOW`
+               # (час до него) — преференция #1 `.claude/rules/deployment.md`.
+               committed={"data/uptime_status.json": json.dumps(
+                   {"generated_at": "2026-08-09T04:44:00+00:00"})})
+
+    # Наше дерево — НЕ репозиторий: у него git-ответа нет вовсе.
+    wt = tmp_path / "wt"
+    _tree_with_manifest(wt, targets)
+    assert not (wt / ".git").exists()
+
+    rc, out = _run(["--root", str(wt), "--no-receipts",
+                    "--data-dir", str(foreign / "data")])
+
+    assert rc == 3, out
+    assert "ОФИС НЕ ИЗМЕРЕН" in out, out
+    assert out.count("НЕ ПРОЧИТАН") == 0, out
+    assert "наблюдением НЕ являются" in out, out
+    assert "uptime_status.json" in out, out
+    # И вслух сказано, ЧЕЙ это каталог — иначе вердикт нечем проверить.
+    assert str(foreign / "data") in out, out
+
+
+def test_untracked_artifact_IS_evidence_and_real_absence_stays_named(tmp_path) -> None:
+    """ОБРАТНЫЙ контроль: untracked сосед ⇒ писатель был ⇒ пропажа — находка.
+
+    Без этого контроля правка купила бы тишину ценой слепоты: сторож,
+    срабатывающий на ЖИВОМ дереве, глотал бы настоящие пропажи, а ложная
+    тишина тише ложной находки и потому опаснее исходной аварии.
+    """
+    root = tmp_path / "prod"
+    _git_scene(root, ["data/house_view_gap.json",
+                      "data/investment_os/_health.json",
+                      "data/investment_os/chief_investment.json"],
+               committed={"data/house_view_gap.json":
+                          json.dumps(HOUSE_VIEW_GAP_REAL)},
+               untracked={"data/investment_os/_health.json":
+                          json.dumps(HEALTH_REAL)})
+    # chief_investment.json НЕ создан — настоящая пропажа у живого писателя.
+
+    rc, out = _run(["--root", str(root), "--no-receipts"])
+
+    assert rc == 0, out
+    assert "ОФИС НЕ ИЗМЕРЕН" not in out, out
+    assert "НЕ ПРОЧИТАН" in out, out
+    assert "chief_investment.json" in out, out
+
+
+def test_tracked_but_rewritten_artifact_IS_evidence_of_a_writer(tmp_path) -> None:
+    """Вторая форма доказательства: tracked, но РАСХОДИТСЯ с HEAD.
+
+    Это и есть прод-дерево по owner-gated артефактам: файл в git, и флот его
+    перезаписывает. Признак «не tracked» в одиночку объявил бы такое дерево
+    неизмеримым и проглотил бы настоящие находки прода — отдельная сцена
+    именно поэтому, а не ради счёта тестов.
+    """
+    root = tmp_path / "prod"
+    _git_scene(root, ["data/house_view_gap.json",
+                      "data/investment_os/chief_investment.json"],
+               committed={},
+               modified={"data/house_view_gap.json":
+                         json.dumps(HOUSE_VIEW_GAP_REAL)})
+
+    rc, out = _run(["--root", str(root), "--no-receipts"])
+
+    assert rc == 0, out
+    assert "ОФИС НЕ ИЗМЕРЕН" not in out, out
+    assert "chief_investment.json" in out, out
+
+
+def test_writer_evidence_distinguishes_three_outcomes(tmp_path) -> None:
+    """Три исхода РАЗЛИЧИМЫ значением, а не словами (инв. #17).
+
+    И отдельно — направление умолчания: git не ответил ⇒ `unmeasured`, и
+    трактуется как ПИСАТЕЛЬ. Обратное умолчание заставило бы сторожа
+    срабатывать на дереве, про которое ничего не известно.
+    """
+    root = tmp_path / "prod"
+    _git_scene(root, [],
+               committed={"data/const.json": "{}"},
+               untracked={"data/fresh.json": "{}"},
+               modified={"data/rewritten.json": "{}"})
+
+    ev = MOD._writer_evidence(
+        ["data/const.json", "data/fresh.json", "data/rewritten.json"],
+        tree=str(root))
+    assert ev["data/const.json"] == MOD._WRITER_CONST, ev
+    assert ev["data/fresh.json"] == MOD._WRITER_YES, ev
+    assert ev["data/rewritten.json"] == MOD._WRITER_YES, ev
+
+    # Не репозиторий вовсе ⇒ НЕ ИЗМЕРЕНО, и это ОТДЕЛЬНОЕ значение, а не
+    # подстановка одного из двух ответов.
+    plain = tmp_path / "plain"
+    (plain / "data").mkdir(parents=True)
+    (plain / "data" / "x.json").write_text("{}", encoding="utf-8")
+    ev2 = MOD._writer_evidence(["data/x.json"], tree=str(plain))
+    assert ev2["data/x.json"] == MOD._WRITER_UNMEASURED, ev2
+    assert MOD._WRITER_UNMEASURED != MOD._WRITER_CONST
+    assert MOD._WRITER_UNMEASURED != MOD._WRITER_YES
+
+
+def test_git_silence_is_not_a_zero(tmp_path) -> None:
+    """Пустой вывод git и НЕОТВЕТ git — разные вещи.
+
+    `_git_lines` обязан вернуть `[]` на пустом успехе и `None` на отказе:
+    свести их значило бы выдать «про отслеживание неизвестно» за «ничего не
+    отслеживается», а это ровно fail-OPEN, которым жила авария.
+    """
+    root = tmp_path / "repo"
+    _git_scene(root, [], committed={"data/const.json": "{}"})
+
+    assert _run_lines_empty(root) == [], "пустой успех обязан быть списком"
+    assert MOD._git_lines(["cat-file", "-e", "deadbeef" * 5],
+                          cwd=str(root)) is None
+    assert MOD._git_lines(["ls-files"], cwd=str(tmp_path / "nope")) is None
+
+
+def _run_lines_empty(root: Path) -> list[str] | None:
+    # `ls-files` по заведомо неотслеживаемому пути: успех, вывод пуст.
+    return MOD._git_lines(["ls-files", "-z", "--", "data/never_added.json"],
+                          cwd=str(root))

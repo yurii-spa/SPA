@@ -38,6 +38,7 @@ import datetime as dt
 import json
 import os
 import re
+import subprocess
 import sys
 
 _HERE = os.path.dirname(os.path.abspath(__file__))
@@ -5599,6 +5600,84 @@ def _absent_verdict(rel: str, *, root: str, data_dir: str | None,
     return True, plain + [f"   {v.reason}"]
 
 
+# Доказательство ПИСАТЕЛЯ против вывезенной git-ом КОНСТАНТЫ (ADR-875).
+#
+# Присутствие файла наблюдением НЕ является. `data/` объявлен в `CLAUDE.md`
+# как «runtime-only в .gitignore, ЧАСТЬ owner-gated tracked», и вторая
+# половина этой фразы и была дырой: git-tracked артефакт лежит в ЛЮБОМ
+# worktree потому, что его туда выложил `git checkout`, а не потому, что его
+# написал живой флот. Замер цикла #993 на свежем дереве от origin/main: из 142
+# целей офиса присутствуют 2, и обе git-tracked ⇒ прежний признак «хоть один
+# есть» объявлял дерево производящим и отдавал 140 ложных «НЕ ПРОЧИТАН» под
+# подписью «действовать (карточки)» — ровно авария #207, только в семь раз
+# крупнее. Это метка «живое» на КОНСТАНТЕ, дословный класс ADR-126.
+_WRITER_YES = "writer"            # untracked либо расходится с HEAD
+_WRITER_CONST = "constant"        # tracked и равен HEAD — вывезен git-ом
+_WRITER_UNMEASURED = "unmeasured"  # git не ответил; НЕ выдаём за ответ
+
+
+def _git_lines(args: list[str], *, cwd: str) -> list[str] | None:
+    """Строки вывода git либо None — «не измерено», а не пустой список.
+
+    Пустой список и неответ обязаны быть различимы (инв. #17): пустой `git
+    ls-files` значит «ни один путь не отслеживается», а упавший git — «про
+    отслеживание НЕ ИЗВЕСТНО», и свести их значило бы выдать неизвестное за
+    ноль.
+    """
+    try:
+        res = subprocess.run(["git"] + args, cwd=cwd, capture_output=True,
+                             text=True, timeout=60)
+    except Exception:                                          # noqa: BLE001
+        return None
+    if res.returncode != 0:
+        return None
+    return [ln for ln in res.stdout.splitlines() if ln.strip()]
+
+
+def _writer_evidence(present: list[str], *, tree: str) -> dict[str, str]:
+    """Для каждого присутствующего артефакта — откуда он в дереве взялся.
+
+    Спрашивается ДВУМЯ пакетными зовами, а не зовом на файл: целей офиса 142,
+    и в прод-дереве присутствуют почти все — 142 процесса git превратили бы
+    советующий шаг в минутную паузу.
+
+    Три исхода РАЗЛИЧИМЫ и ни один не подставляется вместо другого. Неответ
+    git трактуется как `_WRITER_YES` — осознанно, fail-CLOSED в сторону ШУМА:
+    обратное умолчание заставило бы сторожа срабатывать на дереве, про которое
+    ничего не известно, и ГЛОТАТЬ настоящие пропажи, а это хуже исходной
+    аварии (ложная тишина тише ложной находки).
+    """
+    if not present:
+        return {}
+    tracked = _git_lines(["ls-files", "-z", "--"] + present, cwd=tree)
+    if tracked is None:
+        return {rel: _WRITER_UNMEASURED for rel in present}
+    tracked_set = set()
+    for ln in tracked:
+        tracked_set.update(x for x in ln.split("\0") if x)
+    # Расхождение с HEAD — тоже доказательство писателя: tracked-артефакт,
+    # который флот ПЕРЕПИСАЛ, несёт наблюдение, а не константу.
+    changed = _git_lines(["diff", "--name-only", "-z", "HEAD", "--"] + present,
+                         cwd=tree)
+    if changed is None:
+        changed_set: set[str] | None = None
+    else:
+        changed_set = set()
+        for ln in changed:
+            changed_set.update(x for x in ln.split("\0") if x)
+    out: dict[str, str] = {}
+    for rel in present:
+        if rel not in tracked_set:
+            out[rel] = _WRITER_YES          # untracked ⇒ его писал кто-то
+        elif changed_set is None:
+            out[rel] = _WRITER_UNMEASURED   # tracked, но «правлен ли» не спросить
+        elif rel in changed_set:
+            out[rel] = _WRITER_YES          # tracked и ПЕРЕПИСАН ⇒ писатель был
+        else:
+            out[rel] = _WRITER_CONST        # tracked и равен HEAD ⇒ константа
+    return out
+
+
 def _office_absent_wholesale(targets: list[str], *, root: str,
                              data_dir: str | None) -> list[str] | None:
     """НИ ОДНОГО артефакта офиса в этом дереве — это ОДНА находка, а не двадцать.
@@ -5614,10 +5693,19 @@ def _office_absent_wholesale(targets: list[str], *, root: str,
 
     Разделяющий признак ИЗМЕРЕН, а не угадан: в worktree каталог `data/` есть
     (326 файлов, git-tracked), нет именно РАНТАЙМНЫХ артефактов офиса — поэтому
-    признак «нет каталога data/» не годится, а годится «ни один из целевых
-    артефактов под data/ не существует». Если хоть один есть — дерево
-    производящее, и пропажа соседа это НАСТОЯЩАЯ находка, её печатаем как
-    прежде, по одной строке на артефакт.
+    признак «нет каталога data/» не годится.
+
+    **Поправка ADR-875 (цикл #993).** Не годится и признак «ни один из целевых
+    артефактов не СУЩЕСТВУЕТ»: часть `data/` git-tracked (так объявлено в
+    `CLAUDE.md`), и такой артефакт лежит в ЛЮБОМ worktree по построению. Замер
+    на свежем дереве от `origin/main`: присутствуют 2 цели из 142, и обе
+    git-tracked ⇒ прежний признак объявлял дерево производящим и возвращал
+    аварию #207 в семикратном размере — 140 строк «❌ НЕ ПРОЧИТАН» под подписью
+    «действовать (карточки)». Признак теперь — **доказательство ПИСАТЕЛЯ**
+    (`_writer_evidence`): untracked либо расходящийся с HEAD артефакт писал
+    кто-то, tracked и равный HEAD — вывез `git checkout`. Хоть один СВИДЕТЕЛЬ ⇒
+    дерево производящее, и пропажа соседа это НАСТОЯЩАЯ находка, её печатаем
+    как прежде, по одной строке на артефакт.
 
     Возвращает строки вердикта либо None (обычный ход).
     """
@@ -5626,9 +5714,24 @@ def _office_absent_wholesale(targets: list[str], *, root: str,
         return None
     present = [t for t in data_targets
                if os.path.exists(_resolve(t, root=root, data_dir=data_dir))]
-    if present:
+    # Вопрос НЕ «существует ли путь», а «есть ли доказательство ПИСАТЕЛЯ»
+    # (ADR-875). Спрашивается у того дерева, чьи артефакты мы читаем: с
+    # `--data-dir` это чужое (обычно прод) дерево, без него — своё.
+    tree = os.path.dirname(os.path.abspath(data_dir)) if data_dir else root
+    evidence = _writer_evidence(present, tree=tree)
+    witnesses = [r for r in present if evidence.get(r) != _WRITER_CONST]
+    if witnesses:
         return None
     where = data_dir or os.path.join(root, "data")
+    # Присутствующие-но-константы НАЗЫВАЮТСЯ поимённо: без этого вердикт
+    # «ни одного артефакта нет» противоречил бы `ls` и читался бы как ошибка
+    # прибора. Их присутствие — факт, оно просто не является наблюдением.
+    const_clause = ([
+        f"   ПРИСУТСТВУЮТ, но наблюдением НЕ являются ({len(present)}): "
+        + ", ".join(sorted(present)),
+        "   — они git-tracked и равны HEAD, то есть их выложил `git checkout`, "
+        "а не написал флот. Присутствие файла наблюдением не является.",
+    ] if present else [])
     main_tree = _main_worktree(root)
     # НЕ подставлять сюда REPO_ROOT: он вычисляется от расположения САМОГО
     # скрипта, то есть из worktree указывает на worktree — совет «гоняйте из
@@ -5642,11 +5745,13 @@ def _office_absent_wholesale(targets: list[str], *, root: str,
            "передать --data-dir <прод>/data; какое дерево главное — здесь НЕ "
            "измерено (`git worktree list` недоступен), путь не выдумываю")
     return [
-        f"⚠️ ОФИС НЕ ИЗМЕРЕН: ни одного из {len(data_targets)} артефактов офиса нет "
-        f"в этом дереве ({where}).",
+        f"⚠️ ОФИС НЕ ИЗМЕРЕН: ни один из {len(data_targets)} артефактов офиса "
+        f"в этом дереве ({where}) не несёт доказательства ПИСАТЕЛЯ.",
         "   Это ОДНА находка, а не "
-        f"{len(data_targets)}: артефакты пишет живой флот в прод-дерево, они в "
-        "`.gitignore`, и в git-worktree их нет по построению.",
+        f"{len(data_targets) - len(present)}: артефакты пишет живой флот в "
+        "прод-дерево, они в `.gitignore`, и в git-worktree их нет по "
+        "построению.",
+    ] + const_clause + [
         "   Карточек о «мёртвом инвест-офисе» по этому выводу заводить НЕЛЬЗЯ — "
         "офис не опровергнут, он не измерен.",
         f"   Что сделать: {how}.",

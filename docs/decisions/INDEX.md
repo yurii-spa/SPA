@@ -741,6 +741,7 @@
 | ADR-872 | ADR-872 — Исход FAIL ворот публикации ИЗМЕРЕН: «витрина схемно-верна, но НЕ ПОДПИСАНА» перестал быть границей, названной вслух и не закрытой | Accepted | [ADR-872](ADR-872-the-fail-outcome-of-the-publication-gate-is-measured.md) |
 | ADR-873 | ADR-873 — У оси «род записи» появился ПИСАТЕЛЬ: «тип не объявлен 38 из 38» было ложной ПОЛНОТОЙ, а не перечнем недосмотров | Accepted | [ADR-873](ADR-873-the-record-kind-axis-gets-a-writer.md) |
 | ADR-874 | ADR-874 — «Циклов мимо» обязано считать ПРИКАЗ, а не календарь: 880 против 455 назвавших карточку | Accepted | [ADR-874](ADR-874-passed-by-counts-the-order-not-the-calendar.md) |
+| ADR-875 | ADR-875 — Сторож «офис НЕ ИЗМЕРЕН» обойдён git-tracked артефактом: присутствие файла наблюдением не является (140 ложных находок из любого worktree) | Accepted | [ADR-875](ADR-875-office-absence-guard-fooled-by-a-tracked-artefact.md) |
 
 ## Соглашения
 
