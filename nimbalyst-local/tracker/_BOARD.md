@@ -2,9 +2,9 @@
 
 > Авто-генерится `scripts/build_tracker_board.py` из `nimbalyst-local/tracker/*.md`. НЕ править вручную — правь карточки. Источник правды — карточки, это индекс (bootstrap).
 >
-> Собрана: 2026-10-31T00:41:34Z · сверка с карточками: `python3 scripts/build_tracker_board.py --check` (сторож `spa_core/tests/test_tracker_board_matches_cards.py`).
+> Собрана: 2026-10-31T00:49:22Z · сверка с карточками: `python3 scripts/build_tracker_board.py --check` (сторож `spa_core/tests/test_tracker_board_matches_cards.py`).
 >
-> Сверено с `origin/main` (d04a9c06a).
+> Сверено с `origin/main` (027ccedf2) · у **1** своя правка, кто новее — не измерено.
 >
 > Всего карточек: **1534** · ждёт владельца: **6** · занято сессиями: **13**.
 
@@ -426,7 +426,6 @@
 ### · in-progress
 - а задача починить все-таки еще раз сообщение которым не пишет нужно твое решени…  ·  `inbox-a-zadacha-pochinit-vse-taki-esche-raz-so.md` · 2026-08-14 · 🔒 `pid43119`
 - Четыре читателя сводят «не измерено» с «отказано» — ПОЧИНИТЬ (население измерено ADR-870; три находки в инструменте доставки)  ·  `inbox-chetyre-chitatelya-svodyat-ne-izmereno-s.md` · 2026-10-30
-- Число «циклов мимо» у голодающего приказа считает КАЛЕНДАРЬ, а не приказ: 880 против 455 назвавших карточку  ·  `inbox-chislo-tsiklov-mimo-u-golodayuschego-pri.md` · 2026-10-31
 - Читатель считает население по ВСЕМ записям, а не по несущим новое поле — класс шире одного экземпляра (ADR-851)  ·  `inbox-chitatel-schitaet-naselenie-po-vsem-zapi.md` · 2026-10-28
 - CI на main красный 12 прогонов подряд: measure() переписи идёт 335 с при пороге 180 с на тест  ·  `inbox-ci-na-main-krasnyi-12-progonov-podryad-m.md` · 2026-09-24
 - CI на main: вердикт впервые измерен — tests/ зелено, scripts/tests/ красно ОДНИМ названным (lsof), spa_core/tests/ НЕ ИЗМЕРЕНО (клин 120 мин на 80 %)  ·  `inbox-ci-na-main-verdikt-vpervye-izmeren-tests.md` · 2026-09-25
@@ -529,6 +528,7 @@
 - автономный аркестратор должен был быть раз в 1 час а не раз в 3 часа  ·  `inbox-avtonomnyi-arkestrator-dolzhen-byl-byt-r.md` · 2026-07-16
 - Брифинг считает снимок флота протухшим раньше, чем писатель его переписывает (35 мин против такта 60)  ·  `inbox-brifing-schitaet-snimok-flota-protuhshim.md` · 2026-08-15
 - Чекап ушёл с главной, но остался в МЕНЮ: раздел назван по несуществующему продукту (остаток ADR-089 §5)  ·  `inbox-chekap-ushel-s-glavnoi-no-ostalsya-v-men.md` · 2026-08-20
+- Число «циклов мимо» у голодающего приказа считает КАЛЕНДАРЬ, а не приказ: 880 против 455 назвавших карточку  ·  `inbox-chislo-tsiklov-mimo-u-golodayuschego-pri.md` · 2026-10-31
 - CI красный из-за двух строк: RuntimeError вместо SPAError гасит три из четырёх шагов SPA Tests  ·  `inbox-ci-krasnyi-iz-za-dvuh-strok-runtimeerror.md` · 2026-09-08
 - CI-Lite красен шестнадцать суток на ОБРАЗЦЕ кода в строке — правило запрещённых импортов жило в двух копиях  ·  `inbox-ci-lite-krasen-shestnadtsat-sutok-na-obr.md` · 2026-09-23
 - CI main КРАСНЫЙ: сторож rootdir дочернего pytest сторожит механизм, которого больше нет  ·  `inbox-ci-main-krasnyi-storozh-rootdir-docherne.md` · 2026-08-26

@@ -2,7 +2,7 @@
 trackerStatus:
   type: inbox
 title: "Число «циклов мимо» у голодающего приказа считает КАЛЕНДАРЬ, а не приказ: 880 против 455 назвавших карточку"
-status: in-progress
+status: done
 source: nimbalyst
 created: 2026-10-31
 priority: high
@@ -10,6 +10,7 @@ twin_key: "sha256:6e1b07ab788dabc61d61543017fcffc6f6fe78b904364127a2add50dcab964
 acceptance_probe: starvation_cycles_name_the_order
 status_trail:
   - "2026-10-31T00:41:33.711415+00:00 new -> in-progress · queue.set_status · cycle-21136"
+  - "2026-10-31T00:46:54.900821+00:00 in-progress -> done · queue.set_status/closed_by:cycle-21136/evidence:ADR-874 доставлен на origin/main коммитом 027ccedf; проба starvation_cycles_name_the_order = satisfied (две сцены на настоящей двери, ответы противоположные: мимо 0 при назвавшей сессии против мимо 1  · cycle-21136"
 ---
 
 ## Что случилось и почему это важно
