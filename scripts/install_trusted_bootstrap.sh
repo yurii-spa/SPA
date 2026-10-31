@@ -226,6 +226,8 @@ APPROVAL="$ROOT/approved_release.json"
 run mkdir -p "$ROOT/bin" "$ROOT/releases"
 run cp "$LAUNCHER" "$DST_BIN"
 run chown root:wheel "$DST_BIN"; run chmod 0444 "$DST_BIN"
+# the verifier that proves the release IS this copy — check the copy itself, not only its source (S2 review)
+if [ "$DRY" = 0 ]; then [ "$(shasum -a 256 "$DST_BIN" | cut -d' ' -f1)" = "$LSHA" ] || die "installed launcher copy $DST_BIN != $LSHA"; fi
 say "launcher installed: $DST_BIN (root:wheel 0444)"
 
 # 4) materialise the approved release (S2 T08): reserve → git archive → composition PROVEN by the installed

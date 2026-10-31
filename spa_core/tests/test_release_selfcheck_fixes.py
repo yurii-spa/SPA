@@ -168,3 +168,23 @@ def test_outcome_written_between_status_read_and_claim_is_honoured(tmp_path, mon
     else:
         assert ex.propose(goal, adapters={"fixture": counting}, worker="w2", now=later, **kw)["called_model"] is False
     assert hit["n"] == 0
+
+
+def test_manifest_tree_id_ignores_replace_refs(repo):
+    """Остаток ревью (повторная проверка 31.10): id дерева манифеста — из перепроверенного объекта коммита."""
+    r, sha, _ = repo
+    real_tree = _git(["rev-parse", f"{sha}^{{tree}}"], r)
+    (r / "pkg" / "evil.py").write_text("print('EVIL')\n")
+    _git(["add", "-A"], r)
+    forged_commit = _git(["commit-tree", _git(["write-tree"], r), "-m", "forged"], r)
+    _git(["replace", sha, forged_commit], r)
+    assert _git(["rev-parse", f"{sha}^{{tree}}"], r) != real_tree                # наивный git видит подмену коммита
+    man = RA.artifact_manifest(sha, r, base=None, criterion={}, environment={})
+    assert man["tree"] == real_tree and RA.manifest_matches(man, sha, r) == (True, "")
+
+
+def test_real_install_checks_the_installed_launcher_copy_itself():
+    """Остаток ревью: реальная установка сверяет sha256 КОПИИ лаунчера после cp, а не только источника."""
+    src = (REPO / "scripts" / "install_trusted_bootstrap.sh").read_text()
+    step3 = src[src.index("# 3) install launcher"):src.index("# 4) materialise the approved release")]
+    assert 'shasum -a 256 "$DST_BIN"' in step3 and step3.index('cp "$LAUNCHER" "$DST_BIN"') < step3.index('shasum -a 256 "$DST_BIN"')

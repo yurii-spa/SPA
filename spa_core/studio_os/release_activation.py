@@ -120,7 +120,7 @@ def verify_release(root: Path, sha, repo) -> tuple:
     """Каталог релиза ДОКАЗАННО равен дереву коммита ``sha``? ``(True, '')`` либо ``(False, причина)``.
 
     Эталон — :func:`trusted_tree` (локальные git-объекты ``repo``), а не что-либо внутри ``root``. Штамп
-    проверяется только как признак завершённой материализации. ``__pycache__`` не учитывается. Только чтение."""
+    проверяется только как признак завершённой материализации. Байткод (``__pycache__``) — лишний файл состава. Только чтение."""
     root = Path(root)
     stamp = root / RELEASE_SHA_FILE
     if not stamp.exists():
@@ -232,12 +232,26 @@ def artifact_manifest(sha, repo, *, base, criterion: dict, environment: dict) ->
     files = trusted_tree(sha, repo)
     if files is None:
         return None
-    tree = subprocess.run(["git", "rev-parse", f"{sha}^{{tree}}"], cwd=str(repo), capture_output=True, text=True)
-    if tree.returncode != 0:
+    tree = _verified_tree_id(sha, repo)        # тот же перепроверяющий читатель, что у состава (без replace)
+    if tree is None:
         return None
-    return {"schema": "studio-release-manifest/1", "sha": sha, "tree": tree.stdout.strip(), "base": base,
+    return {"schema": "studio-release-manifest/1", "sha": sha, "tree": tree, "base": base,
             "files": {k: list(v) for k, v in sorted(files.items())}, "criterion": dict(criterion),
             "environment": dict(environment)}
+
+
+def _verified_tree_id(sha, repo):
+    """id дерева коммита ``sha`` из перепроверенного по sha1 объекта коммита (replace-объекты отключены)."""
+    from spa_core.studio_os import release_launcher as _trusted
+    try:
+        reader = _trusted._ObjectReader(str(repo))
+    except OSError:
+        return None
+    try:
+        commit = reader.get(sha, "commit")
+        return commit[5:45].decode() if commit and commit.startswith(b"tree ") else None
+    finally:
+        reader.close()
 
 
 def manifest_matches(manifest: dict, sha, repo) -> tuple:
