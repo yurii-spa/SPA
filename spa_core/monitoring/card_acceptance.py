@@ -66,6 +66,16 @@ from datetime import datetime, timezone
 from typing import Callable
 
 from spa_core.utils.observation import observed
+from spa_core.utils.errors import SPAError
+
+
+class ProbeSceneError(SPAError, RuntimeError):
+    """Отказ инструмента ОДНОРАЗОВОЙ сцены пробы (git/бегун в tmp-дереве).
+
+    Наследует и ``SPAError`` (правило проекта: в ``spa_core/`` — свои ошибки, сторож
+    ``tests/test_spaerror_complete.py``), и ``RuntimeError`` — поэтому любой, кто ловил прежний
+    ``RuntimeError``, ловит её так же: поведение проб не меняется.
+    """
 
 SATISFIED = "satisfied"
 NOT_SATISFIED = "not_satisfied"
@@ -7187,14 +7197,14 @@ def _probe_queue_reader_names_record_memory_loss(
                   ["config", "user.name", "probe"]):
             r = _git(rroot if a[0] != "init" else tmp, *a)
             if r.returncode != 0:
-                raise RuntimeError(f"git {' '.join(a)}: {r.stderr.strip()}")
+                raise ProbeSceneError(f"git {' '.join(a)}: {r.stderr.strip()}")
         for name, text in cards_before.items():
             with open(os.path.join(tracker, f"{name}.md"), "w", encoding="utf-8") as fh:
                 fh.write(text)
         for a in (["add", "-A"], ["commit", "-q", "-m", "ref"]):
             r = _git(rroot, *a)
             if r.returncode != 0:
-                raise RuntimeError(f"git {' '.join(a)}: {r.stderr.strip()}")
+                raise ProbeSceneError(f"git {' '.join(a)}: {r.stderr.strip()}")
         for name, text in cards_after.items():
             with open(os.path.join(tracker, f"{name}.md"), "w", encoding="utf-8") as fh:
                 fh.write(text)
@@ -7370,19 +7380,19 @@ def _probe_queue_reader_names_unmeasured_memory(
             os.makedirs(tracker)
             r = _git(tmp, "init", "-q", "-b", ref, rroot)
             if r.returncode != 0:
-                raise RuntimeError(f"git init: {r.stderr.strip()}")
+                raise ProbeSceneError(f"git init: {r.stderr.strip()}")
             for a in (["config", "user.email", "probe@example.com"],
                       ["config", "user.name", "probe"]):
                 r = _git(rroot, *a)
                 if r.returncode != 0:
-                    raise RuntimeError(f"git {' '.join(a)}: {r.stderr.strip()}")
+                    raise ProbeSceneError(f"git {' '.join(a)}: {r.stderr.strip()}")
             card = os.path.join(tracker, "inbox-order.md")
             with open(card, "w", encoding="utf-8") as fh:
                 fh.write(_notebook([716, 717, 718]))
             for a in (["add", "-A"], ["commit", "-q", "-m", "ref"]):
                 r = _git(rroot, *a)
                 if r.returncode != 0:
-                    raise RuntimeError(f"git {' '.join(a)}: {r.stderr.strip()}")
+                    raise ProbeSceneError(f"git {' '.join(a)}: {r.stderr.strip()}")
             with open(card, "w", encoding="utf-8") as fh:
                 fh.write(_notebook([716]))          # дереву не хватает #717 и #718
             refused, refused_err = _ask(tracker, missing_ref)
@@ -7550,12 +7560,12 @@ def _probe_queue_reader_names_uncompared_order(
             os.makedirs(tracker)
             r = _git(tmp, "init", "-q", "-b", ref, rroot)
             if r.returncode != 0:
-                raise RuntimeError(f"git init: {r.stderr.strip()}")
+                raise ProbeSceneError(f"git init: {r.stderr.strip()}")
             for a in (["config", "user.email", "probe@example.com"],
                       ["config", "user.name", "probe"]):
                 r = _git(rroot, *a)
                 if r.returncode != 0:
-                    raise RuntimeError(f"git {' '.join(a)}: {r.stderr.strip()}")
+                    raise ProbeSceneError(f"git {' '.join(a)}: {r.stderr.strip()}")
             card = os.path.join(tracker, "inbox-order.md")
             with open(card, "w", encoding="utf-8") as fh:
                 fh.write(_card([716, 717, 718], "new",
@@ -7563,7 +7573,7 @@ def _probe_queue_reader_names_uncompared_order(
             for a in (["add", "-A"], ["commit", "-q", "-m", "ref"]):
                 r = _git(rroot, *a)
                 if r.returncode != 0:
-                    raise RuntimeError(f"git {' '.join(a)}: {r.stderr.strip()}")
+                    raise ProbeSceneError(f"git {' '.join(a)}: {r.stderr.strip()}")
             with open(card, "w", encoding="utf-8") as fh:
                 fh.write(_card([716], "in-progress",
                                [f"{earlier} new -> new · queue.set_status · cycle-1",
@@ -7787,19 +7797,19 @@ def _queue_order_basis_outcome(_drift, reader, bases: set) -> tuple[str, str]:
                 os.makedirs(tracker)
                 r = _git(tmp, "init", "-q", "-b", ref, rroot)
                 if r.returncode != 0:
-                    raise RuntimeError(f"git init: {r.stderr.strip()}")
+                    raise ProbeSceneError(f"git init: {r.stderr.strip()}")
                 for a in (["config", "user.email", "probe@example.com"],
                           ["config", "user.name", "probe"]):
                     r = _git(rroot, *a)
                     if r.returncode != 0:
-                        raise RuntimeError(f"git {' '.join(a)}: {r.stderr.strip()}")
+                        raise ProbeSceneError(f"git {' '.join(a)}: {r.stderr.strip()}")
                 card_path = os.path.join(tracker, "inbox-order.md")
                 with open(card_path, "w", encoding="utf-8") as fh:
                     fh.write(origin_text)
                 for a in (["add", "-A"], ["commit", "-q", "-m", "ref"]):
                     r = _git(rroot, *a)
                     if r.returncode != 0:
-                        raise RuntimeError(f"git {' '.join(a)}: {r.stderr.strip()}")
+                        raise ProbeSceneError(f"git {' '.join(a)}: {r.stderr.strip()}")
                 with open(card_path, "w", encoding="utf-8") as fh:
                     fh.write(tree_text)
                 got, err = _ask(tracker, ref)
@@ -11832,7 +11842,7 @@ def _alo_caller_scene(runner_name: str) -> dict:
         proc = subprocess.run([sys.executable, str(runner)], cwd=str(repo),
                               capture_output=True, text=True, timeout=180)
     if proc.returncode != 0:
-        raise RuntimeError(f"бегун {runner_name} вышел {proc.returncode}: "
+        raise ProbeSceneError(f"бегун {runner_name} вышел {proc.returncode}: "
                            f"{(proc.stderr or '').strip()[:300]}")
     return json.loads(proc.stdout.strip().splitlines()[-1])
 
