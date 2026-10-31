@@ -90,17 +90,39 @@ def _release_files(root: Path):
 
 def _composition_problem(root: Path, files: dict):
     """Сверка каталога с ДОВЕРЕННЫМ составом: ``None`` — совпал; иначе причина (первое расхождение)."""
-    seen = set()
+    seen = {}
     for rel, full in _release_files(root):
         if rel not in files:
             return f"лишний файл {rel}"
-        seen.add(rel)
+        seen[rel] = full
         problem = _entry_problem(full, rel, *files[rel])
         if problem:
             return problem
-    missing = sorted(set(files) - seen)
+    missing = []
+    for rel in sorted(set(files) - set(seen)):
+        partner = _case_partner(root, rel, seen)
+        if partner is None:
+            missing.append(rel)
+        elif files[partner] != files[rel]:
+            return f"коллизия регистра {rel} ↔ {partner}: в коммите разные режим или содержимое"
     if missing:
         return f"нет файла {missing[0]} (всего недостаёт {len(missing)})"
+    return None
+
+
+def _case_partner(root: Path, rel: str, seen: dict):
+    """S2 задача 03: путь эталона, которого нет среди путей обхода, на ФС без различия регистра может быть тем же
+    объектом, что уже проверенный путь (``docs/API_REFERENCE.md`` ↔ ``docs/api_reference.md``). Отвечает САМА ФС
+    (тот же ``st_dev``/``st_ino`` по ``lstat``), не сравнение строк. Партнёр или ``None`` (пути на диске нет)."""
+    try:
+        st = os.lstat(Path(root) / rel)
+    except OSError:
+        return None
+    for other, full in seen.items():
+        if other.lower() == rel.lower():
+            o = os.lstat(full)
+            if (o.st_dev, o.st_ino) == (st.st_dev, st.st_ino):
+                return other
     return None
 
 

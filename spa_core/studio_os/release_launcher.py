@@ -132,7 +132,7 @@ def trusted_tree(sha, repo):
 def _composition_problem(root, files):
     """Каталог против эталона: пути, род (ссылка/файл), бит исполнения, git-blob. ``None`` — совпал."""
     root = Path(root)
-    seen = set()
+    seen = {}
     for dirpath, dirnames, filenames in os.walk(root, followlinks=False):
         dirnames[:] = [d for d in dirnames if d not in _IGNORED_DIRS]
         for name in filenames + [d for d in dirnames if os.path.islink(os.path.join(dirpath, d))]:
@@ -142,7 +142,7 @@ def _composition_problem(root, files):
                 continue
             if rel not in files:
                 return f"лишний файл {rel}"
-            seen.add(rel)
+            seen[rel] = full
             mode, blob = files[rel]
             if mode == "120000":
                 if not full.is_symlink():
@@ -156,8 +156,29 @@ def _composition_problem(root, files):
                 data = full.read_bytes()
             if _blob_sha(data) != blob:
                 return f"{rel}: содержимое не совпадает"
-    missing = set(files) - seen
-    return f"нет файла {sorted(missing)[0]}" if missing else None
+    missing = []
+    for rel in sorted(set(files) - set(seen)):
+        partner = _case_partner(root, rel, seen)       # S2 задача 03: отвечает ФС (inode), не строки
+        if partner is None:
+            missing.append(rel)
+        elif files[partner] != files[rel]:
+            return f"коллизия регистра {rel} ↔ {partner}: разные режим или содержимое"
+    return f"нет файла {missing[0]}" if missing else None
+
+
+def _case_partner(root, rel, seen):
+    """Путь эталона, которого нет в обходе, на ФС без различия регистра — тот же объект (lstat inode), что
+    уже проверенный путь каталога? Партнёр или ``None``. Копия правила ``release_activation`` (TRUST CLOSURE)."""
+    try:
+        st = os.lstat(Path(root) / rel)
+    except OSError:
+        return None
+    for other, full in seen.items():
+        if other.lower() == rel.lower():
+            o = os.lstat(full)
+            if (o.st_dev, o.st_ino) == (st.st_dev, st.st_ino):
+                return other
+    return None
 
 
 def exec_root(approved_sha, releases_dir, repo=None):
