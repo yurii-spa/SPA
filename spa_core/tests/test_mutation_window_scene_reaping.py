@@ -18,7 +18,9 @@ _PROBE = "mutation_window_restore_refuses_a_live_owner"
 
 
 def _group_members(pgid: int) -> list:
-    out = subprocess.run(["ps", "-A", "-o", "pid=,pgid=,command="], capture_output=True,
+    # `-ww`: без терминала Linux-ps обрезает колонку command (CI 41198597497: «-m pytest t/t»), и
+    # положительный контроль по имени ребёнка промахивался при живом ребёнке в группе.
+    out = subprocess.run(["ps", "-A", "-ww", "-o", "pid=,pgid=,command="], capture_output=True,
                          text=True).stdout
     rows = []
     for line in out.splitlines():
