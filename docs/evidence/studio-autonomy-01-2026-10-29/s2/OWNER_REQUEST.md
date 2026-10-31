@@ -23,9 +23,9 @@
 ```bash
 # 0. Переменные (не секреты). APPROVED — итоговый SHA отчёта ARB.
 WT=~/Documents/SPA_worktrees/s2_release
-APPROVED=97b90fe3e1627a6613c1f5bf966e6fa242195551
+APPROVED=<итоговый SHA из отчёта ARB, 40 символов>
 LAUNCHER=$WT/spa_core/studio_os/release_launcher.py
-LSHA=$(shasum -a 256 "$LAUNCHER" | cut -d' ' -f1)      # для 97b90fe3e: 7e778f2b33494a601413f69d4d90e491fc7632d172ff916e4a0d39685b432aed
+LSHA=$(shasum -a 256 "$LAUNCHER" | cut -d' ' -f1)      # значение для итогового SHA приведено в отчёте ARB
 git -C "$WT" rev-parse HEAD                              # должно совпасть с APPROVED
 
 # 1. Собрать бандл runtime (без root; ничего не устанавливает)
