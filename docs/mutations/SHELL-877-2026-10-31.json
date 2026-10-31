@@ -1,0 +1,80 @@
+{
+  "title": "ADR-877 SHELL — дельта цикла #995: оболочка и воркфлоу измерены по НАПРАВЛЕНИЮ (вторая половина класса ADR-875)",
+  "tests": [
+    "spa_core/tests/test_presence_as_observation_census.py"
+  ],
+  "mutations": [
+    {
+      "name": "отрицание `[ ! -f ]` снова не видно: полярность всегда положительная",
+      "file": "spa_core/monitoring/presence_as_observation_census.py",
+      "old": "                                          negated=bool(m.group(1)))\n",
+      "new": "                                          negated=False)\n"
+    },
+    {
+      "name": "операторная форма: `&&` и `||` поменяны местами (ветки наоборот)",
+      "file": "spa_core/monitoring/presence_as_observation_census.py",
+      "old": "    if and_pos >= 0 and (or_pos < 0 or and_pos < or_pos):\n        tail = joined[and_pos + 4:]\n        nxt = _split_top(tail, (\" || \",))\n        if nxt >= 0:\n            return {\"cond\": cond, \"present\": tail[:nxt],\n                    \"absent\": tail[nxt + 4:], \"last\": last}\n        return {\"cond\": cond, \"present\": tail, \"absent\": \"\", \"last\": last}\n",
+      "new": "    if and_pos >= 0 and (or_pos < 0 or and_pos < or_pos):\n        tail = joined[and_pos + 4:]\n        nxt = _split_top(tail, (\" || \",))\n        if nxt >= 0:\n            return {\"cond\": cond, \"present\": tail[nxt + 4:],\n                    \"absent\": tail[:nxt], \"last\": last}\n        return {\"cond\": cond, \"present\": \"\", \"absent\": tail, \"last\": last}\n"
+    },
+    {
+      "name": "третий исход склеен со «вердикта нет»: неразобранная форма выдана за измеренную (инв. #17)",
+      "file": "spa_core/monitoring/presence_as_observation_census.py",
+      "old": "            return {\"outcome\": SHELL_FORM_UNPARSED, \"form\": \"неизвестна\",\n                    \"reason\": f\"{branches['unparsed']}; \"\n                              f\"{operator['unparsed']}\",\n                    \"verdict\": []}\n",
+      "new": "            return {\"outcome\": NO_OBSERVATION_VERDICT, \"form\": \"неизвестна\",\n                    \"reason\": f\"{branches['unparsed']}; \"\n                              f\"{operator['unparsed']}\",\n                    \"verdict\": []}\n"
+    },
+    {
+      "name": "код возврата снова молчит о находке в оболочке (fail-OPEN у читателя, судящего по коду)",
+      "file": "spa_core/monitoring/presence_as_observation_census.py",
+      "old": "    if report.get(\"findings\") or shell.get(\"findings\"):\n",
+      "new": "    if report.get(\"findings\"):\n"
+    },
+    {
+      "name": "ось оболочки НЕ ИЗМЕРЕНА выдана за «чисто» кодом возврата",
+      "file": "spa_core/monitoring/presence_as_observation_census.py",
+      "old": "    shell = report.get(\"shell_surface\") or {}\n    if shell.get(\"verdict\") == \"unmeasured\":\n        return RC_UNMEASURED\n",
+      "new": "    shell = report.get(\"shell_surface\") or {}\n"
+    },
+    {
+      "name": "ноль мест при живых файлах оболочки объявлен чистотой, а не уликой против меры",
+      "file": "spa_core/monitoring/presence_as_observation_census.py",
+      "old": "    if not total:\n        return {\"verdict\": \"unmeasured\", \"sites\": 0, \"files\": 0,\n                \"reason\": (f\"файлов оболочки {len(files)}, а мест предиката \"\n                           \"НОЛЬ — это улика против меры, а не «чисто»\"),\n",
+      "new": "    if False:\n        return {\"verdict\": \"unmeasured\", \"sites\": 0, \"files\": 0,\n                \"reason\": (f\"файлов оболочки {len(files)}, а мест предиката \"\n                           \"НОЛЬ — это улика против меры, а не «чисто»\"),\n"
+    },
+    {
+      "name": "дерево без файлов оболочки объявлено измеренным нулём вместо третьего исхода",
+      "file": "spa_core/monitoring/presence_as_observation_census.py",
+      "old": "    if not files:\n        return {\"verdict\": \"unmeasured\", \"sites\": 0, \"files\": 0,\n",
+      "new": "    if False:\n        return {\"verdict\": \"unmeasured\", \"sites\": 0, \"files\": 0,\n"
+    },
+    {
+      "name": "подстановка переменной снова считается объявленным вердиктом (счётчик `$pass` = «PASS»)",
+      "file": "spa_core/monitoring/presence_as_observation_census.py",
+      "old": "            if piece and not _SHELL_VALUE_ONLY.match(piece):\n",
+      "new": "            if piece:\n"
+    },
+    {
+      "name": "мера объявлена зрячей по ОДНОЙ форме из трёх (проверка обрывается после первой)",
+      "file": "spa_core/monitoring/presence_as_observation_census.py",
+      "old": "        seen.append({\"form\": form, \"honest\": honest[0][\"outcome\"],\n                     \"defect\": defect[0][\"outcome\"]})\n    return {\"kind\": DRIVE_DISTINGUISHES, \"forms\": seen}\n",
+      "new": "        seen.append({\"form\": form, \"honest\": honest[0][\"outcome\"],\n                     \"defect\": defect[0][\"outcome\"]})\n        return {\"kind\": DRIVE_DISTINGUISHES, \"forms\": seen}\n    return {\"kind\": DRIVE_DISTINGUISHES, \"forms\": seen}\n"
+    },
+    {
+      "name": "вето содержимого снято: вердикт на содержимом снова числится находкой",
+      "file": "spa_core/monitoring/presence_as_observation_census.py",
+      "old": "        if (_SHELL_CONTENT_READERS.search(present_text)\n                or _SHELL_CONTENT_READERS.search(cond)):\n            return {**base, \"outcome\": CONTENT_CHECKED}\n",
+      "new": "        if False:\n            return {**base, \"outcome\": CONTENT_CHECKED}\n"
+    },
+    {
+      "name": "вето писателя снято: починенная ADR-875 форма снова числится дефектом",
+      "file": "spa_core/monitoring/presence_as_observation_census.py",
+      "old": "        if (_SHELL_WRITER_QUESTION.search(cond)\n                or _SHELL_WRITER_QUESTION.search(present_text)):\n            return {**base, \"outcome\": WRITER_ASKED}\n",
+      "new": "        if False:\n            return {**base, \"outcome\": WRITER_ASKED}\n"
+    },
+    {
+      "name": "предикат сужен до флагов ADR-876: `-s` и отрицание снова невидимы (население тихо падает)",
+      "file": "spa_core/monitoring/presence_as_observation_census.py",
+      "old": "_SHELL_PREDICATE = re.compile(\n    r\"(?:\\btest\\s+|\\[\\[?\\s+)(!\\s+)?-([fedsLhxrw])\\s+\")\n",
+      "new": "_SHELL_PREDICATE = re.compile(\n    r\"(?:\\btest\\s+|\\[\\[?\\s+)()-([fed])\\s+\")\n"
+    }
+  ]
+}

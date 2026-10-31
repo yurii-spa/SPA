@@ -17,6 +17,7 @@ from __future__ import annotations
 
 import functools
 import os
+import re
 import shutil
 import subprocess
 import sys
@@ -535,6 +536,17 @@ class ThirdOutcome(unittest.TestCase):
         self.assertEqual(c.RC_UNMEASURED, c.exit_code(report))
 
     def test_a_clean_scope_returns_zero_and_findings_return_one(self):
+        """Чисто ⇒ 0, находка ⇒ 1 — на дереве, где измерены ОБЕ оси.
+
+        Честный файл оболочки в сцене появился с ADR-877 и assert'ы не
+        ослабляет: с этого дня код возврата отвечает по ДВУМ осям, и дерево
+        без единого `*.sh` даёт честный третий исход (ось оболочки НЕ
+        ИЗМЕРЕНА), а не ноль. «Чисто» обязано означать чисто ВЕЗДЕ, поэтому
+        починена СЦЕНА, а не сторож (§ «Время в тестах»,
+        `.claude/rules/deployment.md`: предпочтение — обеспечить предпосылку).
+        Третий исход этой же оси проверяет
+        `ShellThirdOutcome.test_a_tree_without_shell_files_is_unmeasured_not_clean`.
+        """
         with tempfile.TemporaryDirectory() as root:
             os.makedirs(os.path.join(root, "scripts"))
             clean = os.path.join(root, "scripts", "clean.py")
@@ -544,6 +556,8 @@ class ThirdOutcome(unittest.TestCase):
                 "    if not os.path.exists(p):\n"
                 "        return 'НЕ ИЗМЕРЕНО'\n"
                 "    return parse(p)\n")
+            open(os.path.join(root, "scripts", "clean.sh"), "w").write(
+                '[ -f "$R" ] || die "НЕ ИЗМЕРЕНО: файла нет"\n')
             self.assertEqual(c.RC_CLEAN, c.exit_code(c.measure(root, ["scripts"])))
             open(os.path.join(root, "scripts", "defect.py"), "w").write(
                 "import os\n"
@@ -556,8 +570,17 @@ class ThirdOutcome(unittest.TestCase):
                              c.exit_code(c.measure(root, ["scripts"])))
 
     def test_the_shell_surface_is_reported_as_unmeasured_not_zero(self):
+        """Ось оболочки на дереве БЕЗ `*.sh` — «не измерено», а не ноль.
+
+        До ADR-877 этот тест закреплял, что разбора оболочки нет ВОВСЕ и число
+        честно печатается как НЕ ИЗМЕРЕНО. Разбор появился, а утверждение
+        осталось верным и стало УЖЕ: у дерева-сцены ни одного файла оболочки,
+        и вердикт обязан называть ПРИЧИНУ, а не выдавать пустоту за чистоту.
+        """
         report = scene_report()
-        self.assertEqual("unmeasured", report["shell_surface"]["verdict"])
+        shell = report["shell_surface"]
+        self.assertEqual("unmeasured", shell["verdict"])
+        self.assertIn("НЕ «чисто»", shell["reason"])
 
 
 class DriveAxis(unittest.TestCase):
@@ -766,6 +789,410 @@ class WholeReport(unittest.TestCase):
         text = "\n".join(c.render(report))
         self.assertIn("НЕ ИЗМЕРЕНО: оболочка/воркфлоу", text)
 
+
+
+def shell_outcomes(source: str) -> list[str]:
+    return [s["outcome"] for s in c.measure_shell_source(source, rel="s.sh")]
+
+
+def shell_sites(source: str) -> list[dict]:
+    return c.measure_shell_source(source, rel="s.sh")
+
+
+def shell_tree(files: dict[str, str]) -> str:
+    """Одноразовое дерево с НАЗВАННЫМ составом файлов оболочки.
+
+    Настоящее дерево батарея не обходит — та же причина, что у
+    `_REAL_TREE_IS_NOT_THE_BATTERY_SUBJECT` (SIGSEGV шарда 2, #994).
+    """
+    root = tempfile.mkdtemp(prefix="spa_presence_shell_")
+    for rel, body in files.items():
+        full = os.path.join(root, rel)
+        os.makedirs(os.path.dirname(full), exist_ok=True)
+        open(full, "w", encoding="utf-8").write(body)
+    return root
+
+
+class ShellDirection(unittest.TestCase):
+    """Ось оболочки — то же НАПРАВЛЕНИЕ, и мера обязана его различать (ADR-877).
+
+    До ADR-877 эти 124 места (мерой ADR-876) печатались числом с вердиктом
+    «НЕ ИЗМЕРЕНО» — честно, но нулём работы. Каждая сцена ниже —
+    положительный контроль: дефект ОБЯЗАН найтись, честная форма обязана НЕ
+    найтись, и обе формы различаются РОВНО направлением.
+    """
+
+    def test_the_defect_of_adr_875_is_found_in_the_if_form(self):
+        self.assertEqual([c.PRESENCE_TO_OBSERVED], shell_outcomes(
+            'if [ -f "$R" ]; then\n  echo "офис прочитан — писатель был"\nfi\n'))
+
+    def test_the_honest_refusal_in_the_if_form_is_not_a_finding(self):
+        got = shell_outcomes(
+            'if [ -f "$R" ]; then\n  echo "дальше"\nelse\n'
+            '  echo "НЕ ИЗМЕРЕНО: файла нет"\nfi\n')
+        self.assertEqual([c.ABSENCE_TO_UNMEASURED], got)
+
+    def test_the_defect_is_found_in_the_operator_form(self):
+        self.assertEqual([c.PRESENCE_TO_OBSERVED], shell_outcomes(
+            '[ -f "$R" ] && echo "офис прочитан — писатель был"\n'))
+
+    def test_the_honest_refusal_in_the_operator_form_is_not_a_finding(self):
+        self.assertEqual([c.ABSENCE_TO_UNMEASURED], shell_outcomes(
+            '[ -f "$R" ] || die "НЕ ИЗМЕРЕНО: файла нет"\n'))
+
+    def test_negation_flips_the_branch_and_the_verdict_with_it(self):
+        """`!` внутри скобок — та самая полярность, которой мера ADR-876 не видела.
+
+        Два исходника отличаются РОВНО отрицанием и порядком ветвей; вердикт
+        обязан смениться. Сцена без этого контроля пропустила бы инверсию
+        молча — население выросло бы, а не покраснело.
+        """
+        defect = ('if [ ! -f "$R" ]; then\n  echo "НЕ ИЗМЕРЕНО: файла нет"\n'
+                  'else\n  echo "офис прочитан — писатель был"\nfi\n')
+        honest = ('if [ ! -f "$R" ]; then\n  echo "НЕ ИЗМЕРЕНО: файла нет"\n'
+                  'fi\n')
+        self.assertEqual([c.PRESENCE_TO_OBSERVED], shell_outcomes(defect))
+        self.assertNotIn(c.PRESENCE_TO_OBSERVED, shell_outcomes(honest))
+
+    def test_test_minus_f_without_brackets_is_the_same_door(self):
+        self.assertEqual([c.PRESENCE_TO_OBSERVED], shell_outcomes(
+            'if test -f "$R"; then\n  echo "артефакт свежий, писатель был"\nfi\n'))
+
+    def test_a_size_predicate_is_the_same_defect_as_presence(self):
+        """`-s` («файл непуст») — дословная находка `cycle_dry_run` (ADR-876).
+
+        Размер наблюдением не является так же, как присутствие: `git checkout`
+        выкладывает tracked-файл со всем его содержимым И размером.
+        """
+        self.assertEqual([c.PRESENCE_TO_OBSERVED], shell_outcomes(
+            'if [ -s "$R" ]; then\n  echo "офис работает"\nfi\n'))
+
+    def test_a_readiness_counter_is_a_claim_even_without_a_word(self):
+        site, = shell_sites(
+            'if [ -f "$R" ]; then\n  score=$((score + 2))\nfi\n')
+        self.assertEqual(c.PRESENCE_TO_OBSERVED, site["outcome"])
+        self.assertEqual("readiness_score", site["claim"])
+
+    def test_a_comment_is_never_a_door(self):
+        """Подстрокой мера не проходит (ADR-333): комментарий дверью не является."""
+        self.assertEqual([], shell_outcomes('# if [ -f "$R" ]; then ready\n'))
+
+
+class ShellVetoes(unittest.TestCase):
+    """Те же ДВА вето, что у python-оси, и каждое снимает свой род ложного."""
+
+    def test_a_verdict_standing_on_content_leaves_the_class(self):
+        self.assertEqual([c.CONTENT_CHECKED], shell_outcomes(
+            'if [ -f "$R" ] && grep -q ready "$R"; then\n'
+            '  echo "офис прочитан"\nfi\n'))
+
+    def test_a_door_that_asked_the_writer_is_the_reference_form(self):
+        self.assertEqual([c.WRITER_ASKED], shell_outcomes(
+            'if [ -f "$R" ] && [ -n "$(stat -f%m "$R")" ]; then\n'
+            '  echo "офис прочитан — писатель был"\nfi\n'))
+
+    def test_a_tautology_is_not_a_finding(self):
+        self.assertEqual([c.PRESENCE_RESTATED], shell_outcomes(
+            'if [ -f "$R" ]; then\n  echo "файл найден"\nfi\n'))
+
+    def test_a_generic_pass_is_the_third_outcome_not_a_finding(self):
+        """Родовое «прошло» — НЕ ИЗМЕРЕНО: критерий объявлен не кодом ветки."""
+        self.assertEqual([c.PRESENCE_GENERIC_PASS], shell_outcomes(
+            'if [ -f "$R" ]; then\n  ok "готово"\nfi\n'))
+
+    def test_a_variable_substitution_is_not_a_declared_verdict(self):
+        """`"$pass"` — ЗНАЧЕНИЕ, а не вердикт (замер: счётчик проходов цикла).
+
+        Пока подстановка считалась формой вердикта, счётчик `$pass` в
+        `scripts/agent_inbox_intake.sh` читался как «PASS», то есть мера
+        подтверждала себя значением переменной.
+        """
+        self.assertNotIn(c.PRESENCE_GENERIC_PASS, shell_outcomes(
+            'if [ -f "$R" ]; then\n'
+            '  if [ "$pass" -ge "$MAX_PASSES" ]; then break; fi\nfi\n'))
+
+
+class ShellThirdOutcome(unittest.TestCase):
+    """«Форму не разобрал» — СВОЙ исход, не ноль и не «вердикта нет» (инв. #17)."""
+
+    def test_an_unparsed_form_is_named_with_its_reason(self):
+        site, = shell_sites('case x in\n  *) [ -f "$R" ] ;;\nesac\n')
+        self.assertEqual(c.SHELL_FORM_UNPARSED, site["outcome"])
+        self.assertTrue(site["reason"].strip(), site)
+
+    def test_the_unparsed_outcome_is_not_the_no_verdict_outcome(self):
+        """Два разных незнания обязаны быть различимы (инв. #17).
+
+        «Я не понял команду» и «команда ничего не утверждает» — разные
+        ответы; склеить их значило бы выдать незнание за замер.
+        """
+        self.assertIn(c.SHELL_FORM_UNPARSED, c.SHELL_OUTCOMES)
+        self.assertNotEqual(c.SHELL_FORM_UNPARSED, c.NO_OBSERVATION_VERDICT)
+
+    def test_a_tree_without_shell_files_is_unmeasured_not_clean(self):
+        root = shell_tree({"scripts/x.py": "pass\n"})
+        self.addCleanup(shutil.rmtree, root, True)
+        report = c.shell_surface(root)
+        self.assertEqual("unmeasured", report["verdict"], report)
+        self.assertIn("НЕ «чисто»", report["reason"])
+        self.assertEqual(0, report["sites"])
+
+    def test_a_missing_root_is_unmeasured_with_its_reason(self):
+        report = c.shell_surface("/nonexistent/spa_adr877")
+        self.assertEqual("unmeasured", report["verdict"], report)
+        self.assertIn("не прочитан", report["reason"])
+
+    def test_shell_files_without_a_single_site_accuse_the_measure(self):
+        """Ноль мест при живых файлах оболочки — улика против МЕРЫ, не «чисто»."""
+        root = shell_tree({"scripts/a.sh": "echo hi\n",
+                           "scripts/b.sh": "ls -la\n"})
+        self.addCleanup(shutil.rmtree, root, True)
+        report = c.shell_surface(root)
+        self.assertEqual("unmeasured", report["verdict"], report)
+        self.assertIn("улика против меры", report["reason"])
+
+
+class ShellDriveAxis(unittest.TestCase):
+    """Мера оболочки обязана различать направление на КАЖДОЙ из трёх форм."""
+
+    def test_the_measure_distinguishes_both_directions(self):
+        drive = c.drive_shell_both_directions()
+        self.assertEqual(c.DRIVE_DISTINGUISHES, drive["kind"], drive)
+        self.assertEqual({"if", "operator", "negated"},
+                         {row["form"] for row in drive["forms"]})
+
+    def test_every_scene_pair_differs_only_by_direction(self):
+        """Пара сцен обязана давать РАЗНЫЕ исходы — иначе контроль пустой."""
+        for form, honest_src, defect_src in c.SHELL_SCENES:
+            with self.subTest(form=form):
+                honest = shell_outcomes(honest_src)
+                defect = shell_outcomes(defect_src)
+                self.assertEqual([c.PRESENCE_TO_OBSERVED], defect, form)
+                self.assertNotEqual(honest, defect, form)
+
+    def test_a_blind_measure_is_named_blind_and_not_clean(self):
+        """Положительный контроль самого контроля: инверсия обязана краснеть.
+
+        Подменяется РОВНО словарь наблюдения — то есть ослепляется мера, а не
+        сцена; `drive` обязан сказать `blind` с названной формой, а не
+        промолчать «находок нет».
+        """
+        saved = c._OBSERVATION_WORDS
+        try:
+            c._OBSERVATION_WORDS = re.compile(r"(?!x)x")
+            drive = c.drive_shell_both_directions()
+        finally:
+            c._OBSERVATION_WORDS = saved
+        self.assertEqual(c.DRIVE_BLIND, drive["kind"], drive)
+        self.assertIn("форма", drive["reason"])
+
+
+class ShellAxisIsWiredIntoTheReport(unittest.TestCase):
+    """Проводка: ось оболочки доходит до отчёта, кода возврата и печати."""
+
+    def test_a_shell_only_finding_still_changes_the_exit_code(self):
+        """Находка ТОЛЬКО в оболочке обязана менять код возврата.
+
+        Читатель прибора — шаг цикла — судит по КОДУ. Промолчать о находке
+        `*.sh` кодом возврата значило бы вернуть тот же дефект с другой
+        стороны: «чисто» при названной находке.
+        """
+        report = {"verdict": "clean", "findings": [],
+                  "shell_surface": {"verdict": "findings",
+                                    "findings": [{"file": "a.sh"}]}}
+        self.assertEqual(c.RC_FINDINGS, c.exit_code(report))
+
+    def test_an_unmeasured_shell_axis_is_the_third_outcome(self):
+        report = {"verdict": "clean", "findings": [],
+                  "shell_surface": {"verdict": "unmeasured",
+                                    "reason": "корень не прочитан"}}
+        self.assertEqual(c.RC_UNMEASURED, c.exit_code(report))
+
+    def test_a_clean_report_on_both_axes_is_still_clean(self):
+        report = {"verdict": "clean", "findings": [],
+                  "shell_surface": {"verdict": "measured", "findings": []}}
+        self.assertEqual(c.RC_CLEAN, c.exit_code(report))
+
+    def test_the_shell_counts_cover_every_site_and_only_declared_kinds(self):
+        root = shell_tree({
+            "scripts/defect.sh":
+                'if [ -f "$R" ]; then\n  echo "офис прочитан"\nfi\n',
+            "scripts/honest.sh": '[ -f "$R" ] || die "файла нет"\n',
+            "scripts/odd.sh": 'case x in\n  *) [ -f "$R" ] ;;\nesac\n',
+        })
+        self.addCleanup(shutil.rmtree, root, True)
+        report = c.shell_surface(root)
+        self.assertEqual("findings", report["verdict"], report)
+        self.assertEqual(set(c.SHELL_OUTCOMES), set(report["counts"]))
+        self.assertEqual(report["sites"], sum(report["counts"].values()))
+        self.assertEqual(1, len(report["findings"]))
+        self.assertEqual(1, len(report["unparsed"]))
+
+    def test_the_adr876_number_is_reported_beside_the_new_one(self):
+        """Прежнее число печатается РЯДОМ — чтобы «выросло» было отличимо от «мера другая».
+
+        Мера ADR-876 не видела отрицания и `-s`; население от этого
+        ПЕРЕМЕРЕНО, а не переписано, и сверять его есть чем.
+        """
+        root = shell_tree({
+            "scripts/a.sh": 'if [ -f "$R" ]; then echo "прочитан"; fi\n',
+            "scripts/b.sh": 'if [ ! -f "$R" ]; then echo "нет файла"; fi\n',
+        })
+        self.addCleanup(shutil.rmtree, root, True)
+        report = c.shell_surface(root)
+        self.assertEqual(2, report["sites"])
+        self.assertEqual(1, report["adr876_sites"],
+                         "прежняя мера по построению не видела `[ ! -f`")
+
+    def test_render_names_the_shell_axis_and_never_a_bare_zero(self):
+        root = shell_tree({
+            "scripts/defect.sh":
+                'if [ -f "$R" ]; then\n  echo "офис прочитан"\nfi\n'})
+        self.addCleanup(shutil.rmtree, root, True)
+        shell = c.shell_surface(root)
+        text = "\n".join(c.render({
+            "verdict": "clean", "counts": {o: 0 for o in c.OUTCOMES},
+            "claims": {"observation": 0, "readiness_score": 0},
+            "tracked_kinds": {c.TRACKED_CONSTANT: 0, c.TRACKED_WRITER: 0,
+                              c.TRACKED_ABSENT: 0, c.TRACKED_UNMEASURED: 0},
+            "module_count": 0, "site_count": 0, "findings": [],
+            "generic_pass_sites": [], "unmeasured_files": [],
+            "shell_surface": shell}))
+        self.assertIn("оболочка и воркфлоу (ADR-877)", text)
+        self.assertIn("ПЕРЕМЕРЕНО", text)
+        self.assertIn("scripts/defect.sh", text)
+
+
+class ShellAcceptanceProbe(unittest.TestCase):
+    """У пробы `shell_presence_sites_measured_by_direction` ТРИ звена и ТРИ исхода.
+
+    Каждое звено рвётся ПОДМЕНОЙ в настоящем приборе, а не описывается: проба,
+    у которой отказ не поднят сценой, и есть fail-OPEN сторожа приёмки —
+    дословный урок двух выживших мутантов #994.
+
+    Население здесь НЕ подменяется: проба зовёт `shell_surface` на дереве
+    прибора, и это её предмет. Дерево отвечает за 171 место само; подмена
+    населения проверяется отдельным звеном ниже.
+    """
+
+    @staticmethod
+    def _probe():
+        from spa_core.monitoring import card_acceptance
+        return card_acceptance
+
+    _NAME = "shell_presence_sites_measured_by_direction"
+
+    def test_the_whole_circuit_is_satisfied(self):
+        ca = self._probe()
+        state, why = ca.PROBES[self._NAME](None)
+        self.assertEqual(ca.SATISFIED, state, why)
+        self.assertIn("население НАЗВАНО", why)
+        self.assertIn("ВСЕХ трёх формах", why)
+
+    def test_link_one_broken_a_blind_measure_is_not_satisfied(self):
+        """Звено 1: ослепить словарь наблюдения ⇒ `not_satisfied` со словом «СЛЕПА»."""
+        ca = self._probe()
+        saved = c._OBSERVATION_WORDS
+        try:
+            c._OBSERVATION_WORDS = re.compile(r"(?!x)x")
+            state, why = ca.PROBES[self._NAME](None)
+        finally:
+            c._OBSERVATION_WORDS = saved
+        self.assertEqual(ca.NOT_SATISFIED, state, why)
+        self.assertIn("СЛЕПА", why)
+
+    def test_link_one_broken_part_of_the_forms_is_not_satisfied(self):
+        """Звено 1b: проверить ОДНУ форму из трёх — завышение силы утверждения."""
+        ca = self._probe()
+        saved = c.SHELL_SCENES
+        try:
+            c.SHELL_SCENES = saved[:1]
+            state, why = ca.PROBES[self._NAME](None)
+        finally:
+            c.SHELL_SCENES = saved
+        self.assertEqual(ca.NOT_SATISFIED, state, why)
+        self.assertIn("формы", why)
+
+    def test_link_two_broken_an_unmeasured_population_is_unmeasured(self):
+        """Звено 2: население НЕ измерено ⇒ `unmeasured` с причиной, не «чисто»."""
+        ca = self._probe()
+        saved = c.shell_surface
+        try:
+            c.shell_surface = lambda *a, **k: {
+                "verdict": "unmeasured", "reason": "корень не прочитан: /nope"}
+            state, why = ca.PROBES[self._NAME](None)
+        finally:
+            c.shell_surface = saved
+        self.assertEqual(ca.UNMEASURED, state, why)
+        self.assertIn("корень не прочитан", why)
+
+    def test_link_two_broken_an_unparsed_site_without_a_reason(self):
+        """Звено 2b: «не измерено» без причины неотличимо от «вердикта нет»."""
+        ca = self._probe()
+        saved = c.shell_surface
+        try:
+            c.shell_surface = lambda *a, **k: {
+                "verdict": "measured", "sites": 1, "files": 1,
+                "file_count": 1, "adr876_sites": 1,
+                "counts": {o: (1 if o == c.SHELL_FORM_UNPARSED else 0)
+                           for o in c.SHELL_OUTCOMES},
+                "findings": [], "generic_pass_sites": [], "unreadable": [],
+                "unparsed": [{"file": "a.sh", "line": 1, "col": 0,
+                              "function": "-f", "reason": "  "}]}
+            state, why = ca.PROBES[self._NAME](None)
+        finally:
+            c.shell_surface = saved
+        self.assertEqual(ca.NOT_SATISFIED, state, why)
+        self.assertIn("не несёт причины", why)
+
+    def test_link_two_broken_lost_sites_are_not_satisfied(self):
+        """Звено 2c: сумма исходов меньше числа мест — часть потеряна молча."""
+        ca = self._probe()
+        saved = c.shell_surface
+        try:
+            c.shell_surface = lambda *a, **k: {
+                "verdict": "measured", "sites": 9, "files": 1,
+                "file_count": 1, "adr876_sites": 1,
+                "counts": {o: 0 for o in c.SHELL_OUTCOMES},
+                "findings": [], "generic_pass_sites": [], "unreadable": [],
+                "unparsed": []}
+            state, why = ca.PROBES[self._NAME](None)
+        finally:
+            c.shell_surface = saved
+        self.assertEqual(ca.NOT_SATISFIED, state, why)
+        self.assertIn("потеряна молча", why)
+
+    def test_link_three_broken_an_unwired_exit_code_is_not_satisfied(self):
+        """Звено 3: прежний `exit_code` (без оси оболочки) ⇒ `not_satisfied`.
+
+        Это ровно та редакция, что жила до ADR-877: находка в `*.sh`
+        называлась текстом, а код возврата отвечал «чисто». Проба обязана
+        отказать, иначе проводка остаётся недоказанной.
+        """
+        ca = self._probe()
+        saved = c.exit_code
+
+        def pre_adr877(report):
+            if report.get("verdict") == "unmeasured":
+                return c.RC_UNMEASURED
+            return c.RC_FINDINGS if report.get("findings") else c.RC_CLEAN
+
+        try:
+            c.exit_code = pre_adr877
+            state, why = ca.PROBES[self._NAME](None)
+        finally:
+            c.exit_code = saved
+        self.assertEqual(ca.NOT_SATISFIED, state, why)
+        self.assertIn("услышал бы «чисто»", why)
+
+    def test_the_probe_refuses_an_argument(self):
+        ca = self._probe()
+        state, why = ca.PROBES[self._NAME]("scripts/a.sh")
+        self.assertEqual(ca.UNMEASURED, state, why)
+        self.assertIn("не принимает аргумента", why)
+
+    def test_the_probe_is_registered_under_its_declared_name(self):
+        self.assertIn(self._NAME, self._probe().PROBES)
 
 if __name__ == "__main__":
     unittest.main()

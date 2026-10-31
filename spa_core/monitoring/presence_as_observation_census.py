@@ -659,36 +659,488 @@ def finding_key(site: dict) -> str:
     return f"{site['file']}:{where} [{site['function']}]"
 
 
-def shell_surface(root: str) -> dict:
-    """Сколько мест того же вопроса живёт в оболочке и воркфлоу.
+# ── оболочка и воркфлоу: та же ось НАПРАВЛЕНИЯ, свой разбор (ADR-877) ────────
 
-    Разбор НЕ сделан, поэтому число печатается как НЕ ИЗМЕРЕНО — не как ноль.
-    Читается `test -f` / `test -e` / `[ -f` в `*.sh` и `*.yml` воркфлоу.
-    """
-    rx = re.compile(r"(test\s+-[fed]\s|\[\s+-[fed]\s|\[\[\s+-[fed]\s)")
-    sites = 0
-    files = 0
-    unreadable: list[str] = []
-    for rel in ("scripts", ".github/workflows", "launchd"):
+#: Исход, которого у python-оси нет и быть не может: форма команды не разобрана.
+#: Он ОТДЕЛЬНЫЙ от «вердикта нет» намеренно (инв. #17) — «я не понял команду»
+#: и «команда ничего не утверждает» это разные ответы, и склеить их значило бы
+#: выдать незнание за замер.
+SHELL_FORM_UNPARSED = "shell_form_unparsed"
+
+#: Словарь исходов оболочки. Храповик сверяет род с ЭТИМ набором, а не с парой
+#: «находка / не находка»: расширение словаря есть УСИЛЕНИЕ проверки.
+SHELL_OUTCOMES = OUTCOMES + (SHELL_FORM_UNPARSED,)
+
+#: Предикат существования в оболочке — `test -f` / `[ -f` / `[[ -f`.
+#:
+#: **Набор флагов ШИРЕ, чем у регекса ADR-876, и число от этого перемерено, а
+#: не переписано.** Прежняя форма читала только `-f`/`-e`/`-d` и по построению
+#: не видела `[ ! -f X ]` (после `[ ` у неё сразу шёл дефис), то есть ОТРИЦАНИЕ
+#: — ровно ту полярность, на которой стоит вся ось класса. Здесь добавлены
+#: отрицание и `-s` («файл непуст»): размер наблюдением не является так же, как
+#: присутствие, — дословно находка `cycle_dry_run.check_files` (ADR-876).
+_SHELL_PREDICATE = re.compile(
+    r"(?:\btest\s+|\[\[?\s+)(!\s+)?-([fedsLhxrw])\s+")
+
+#: Та же мера, что у ADR-876, — чтобы «население выросло» было отличимо от
+#: «мера другая». Служит ТОЛЬКО сверке числа, вердиктов по ней не выносится.
+_SHELL_PREDICATE_ADR876 = re.compile(
+    r"(test\s+-[fed]\s|\[\s+-[fed]\s|\[\[\s+-[fed]\s)")
+
+#: Где ищем оболочку. `launchd` входит: plist зовёт обёртку, а обёртка и есть
+#: дверь.
+SHELL_SCOPE = ("scripts", ".github/workflows", "launchd")
+
+#: Чтение СОДЕРЖИМОГО в оболочке. Первое вето: вердикт на содержимом из класса
+#: выходит ровно так же, как у python-оси.
+_SHELL_CONTENT_READERS = re.compile(
+    r"(?<![\w./-])(cat|wc|grep|egrep|fgrep|rg|head|tail|jq|yq|shasum|md5|"
+    r"md5sum|sha256sum|sed|awk|diff|cmp|plutil|defaults|source|read|tr|cut|"
+    r"sort|uniq|python|python3|node|openssl|base64|gunzip|zcat|xmllint|"
+    r"plistbuddy|PlistBuddy)(?![\w-])")
+
+#: Вопрос о ПИСАТЕЛЕ или свежести в оболочке. Второе вето — эталон ADR-875.
+_SHELL_WRITER_QUESTION = re.compile(
+    r"(?<![\w./-])(stat|mtime|getmtime|ls-files)(?![\w-])|date\s+-r|"
+    r"-newer|--newer|%Sm|%m\b")
+
+#: Накопитель готовности в оболочке: `((score+=2))`, `PASS=$((PASS+1))`,
+#: `n_pass=$((n_pass+1))`. Та же форма, что `score += 2` у python-оси.
+_SHELL_READINESS_COUNTER = re.compile(
+    r"(?i)(?<![\w-])(score|points|pts|n_pass|passed|ok_count|checks_ok|ready|"
+    r"readiness|criteria_met|met|done|log_ok)\s*(?:\+\+|\+=|=\s*\$\(\(|"
+    r"=\s*\$\(\s*expr)")
+
+#: ОТКАЗ в терминах оболочки: `die`, `exit 1`, `continue`, `skip`, `::error::`.
+#: Дополняет `_ABSENCE` (тот писан для python-прозы) — без него честнейшая
+#: форма класса, `[ -f X ] || die "missing"`, читалась бы как «вердикта нет».
+_SHELL_REFUSAL = re.compile(
+    r"(?i)(?<![\w-])(die|exit\s+[1-9]|return\s+[1-9]|continue|break|skip|"
+    r"refus|отказ|пропус|usage)(?![\w-])|::error::|>&2")
+
+#: Строки оболочки, которые к вердикту отношения не имеют: комментарий.
+_SHELL_COMMENT = re.compile(r"^\s*#")
+
+#: Сколько логических строк склеиваем, идя за продолжением команды.
+_SHELL_JOIN_LIMIT = 12
+#: Сколько строк тела ветки читаем, ища `else`/`fi`.
+_SHELL_BODY_LIMIT = 60
+
+
+def _shell_files(root: str, scope: Iterable[str] = SHELL_SCOPE) -> list[str]:
+    found: list[str] = []
+    for rel in scope:
         base = os.path.join(root, rel)
         if not os.path.isdir(base):
             continue
-        for dirpath, _dirnames, filenames in os.walk(base):
+        for dirpath, dirnames, filenames in os.walk(base):
+            marker = dirpath.replace(os.sep, "/") + "/"
+            if any(part in marker for part in _SKIP_PARTS):
+                dirnames[:] = []
+                continue
             for name in sorted(filenames):
-                if not name.endswith((".sh", ".yml", ".yaml", ".bash")):
-                    continue
-                full = os.path.join(dirpath, name)
-                try:
-                    text = open(full, encoding="utf-8", errors="replace").read()
-                except OSError as exc:
-                    unreadable.append(f"{os.path.relpath(full, root)}: {exc}")
-                    continue
-                hits = len(rx.findall(text))
-                if hits:
-                    files += 1
-                    sites += hits
-    return {"sites": sites, "files": files, "unreadable": unreadable,
-            "verdict": "unmeasured"}
+                if name.endswith((".sh", ".bash", ".yml", ".yaml")):
+                    found.append(os.path.join(dirpath, name))
+    return sorted(found)
+
+
+def _shell_join(lines: list[str], idx: int) -> tuple[str, int]:
+    """Логическая строка с `idx` и номер последней съеденной строки.
+
+    Команда оболочки переносится обратным слешем и висящим `&&`/`||`/`|`;
+    читать только физическую строку значило бы объявлять форму неразобранной
+    там, где она разобрана переносом.
+    """
+    out: list[str] = []
+    last = idx
+    for step in range(_SHELL_JOIN_LIMIT):
+        cur = idx + step
+        if cur >= len(lines):
+            break
+        raw = lines[cur].rstrip()
+        last = cur
+        stripped = raw.rstrip()
+        if stripped.endswith("\\"):
+            out.append(stripped[:-1].strip())
+            continue
+        out.append(stripped.strip())
+        tail = stripped.strip()
+        if tail.endswith(("&&", "||", "|", "(")):
+            continue
+        break
+    return " ".join(part for part in out if part), last
+
+
+def _split_top(text: str, needles: tuple[str, ...], start: int = 0) -> int:
+    """Позиция первого из `needles` ВНЕ кавычек и вне `$(...)`, иначе −1."""
+    depth = 0
+    quote = ""
+    i = start
+    while i < len(text):
+        ch = text[i]
+        if quote:
+            if ch == quote:
+                quote = ""
+            i += 1
+            continue
+        if ch in "'\"":
+            quote = ch
+            i += 1
+            continue
+        if text.startswith("$(", i) or text.startswith("$((", i):
+            depth += 1
+            i += 2
+            continue
+        if ch == ")" and depth:
+            depth -= 1
+            i += 1
+            continue
+        if depth == 0:
+            for needle in needles:
+                if text.startswith(needle, i):
+                    return i
+        i += 1
+    return -1
+
+
+#: Токен-значение, а не токен-вердикт: `"$pass"`, `"${LOG}"`, `"3"`, `""`.
+#: Вычеркиваются по той же причине, по которой python-ось вычеркнула простой
+#: строчный идентификатор (замер ADR-876: `ok.append(absolute)`): подстановка
+#: переменной — это ЗНАЧЕНИЕ, а не объявленный вердикт. Без этого вычерка
+#: счётчик проходов `$pass` в `agent_inbox_intake.sh` читался как «PASS».
+_SHELL_VALUE_ONLY = re.compile(r"^[\s]*\$?\{?[\w./:-]*\}?[\s]*$")
+
+#: Начало простой команды: начало строки либо один из разделителей.
+_SHELL_COMMAND_HEAD = re.compile(
+    r"(?:^|[\n;]|&&|\|\||\bthen\b|\bdo\b|\{)\s*([\w./-]+)")
+
+
+def _shell_tokens(text: str) -> list[str]:
+    """Что ветка ОБЪЯВЛЯЕТ вердиктом — две формы, и обе из python-оси.
+
+    Доказательством считаются (1) строка в КАВЫЧКАХ и (2) ИМЯ КОМАНДЫ — прямые
+    аналоги «строковой константы» и «имени вызываемой функции» у
+    `branch_tokens`. Голая подстановка переменной формой НЕ является
+    (`_SHELL_VALUE_ONLY`): иначе значение читалось бы как вердикт.
+
+    Кавычки идут ОТДЕЛЬНЫМИ токенами ради вето отрицания: `_match` смотрит
+    `_ABSENCE` в ПРЕДЕЛАХ токена, и склеенная строка
+    `echo "ok" || echo "not found"` иначе отменила бы сама себя.
+    """
+    tokens: list[str] = []
+    for pair in re.findall(r"'([^']*)'|\"([^\"]*)\"", text):
+        for piece in pair:
+            if piece and not _SHELL_VALUE_ONLY.match(piece):
+                tokens.append(piece)
+    for match in _SHELL_COMMAND_HEAD.finditer(text):
+        word = match.group(1)
+        if word and not word.isdigit():
+            tokens.append(word)
+    return tokens
+
+
+def _shell_if_branches(lines: list[str], idx: int) -> dict:
+    """Ветки формы `if … ; then … else … fi`. Не разобралось ⇒ причина."""
+    joined, last = _shell_join(lines, idx)
+    head = joined.strip()
+    if not re.match(r"^(el)?if\b", head):
+        return {"unparsed": "строка не начинается с `if`/`elif`"}
+    pos = _split_top(head, ("; then", ";then", " then"))
+    if pos < 0:
+        return {"unparsed": "у `if` не найдено `then` в пределах "
+                            f"{_SHELL_JOIN_LIMIT} строк"}
+    cond = head[:pos]
+    rest = head[pos:].split("then", 1)[1] if "then" in head[pos:] else ""
+    fi_pos = _split_top(rest, (" fi", ";fi", "\tfi"))
+    if fi_pos >= 0 or rest.strip().endswith("fi"):
+        body = rest[:fi_pos] if fi_pos >= 0 else rest.strip()[:-2]
+        else_pos = _split_top(body, (" else ", ";else", " else;"))
+        if else_pos >= 0:
+            return {"cond": cond, "present": body[:else_pos],
+                    "absent": body[else_pos:], "last": last}
+        return {"cond": cond, "present": body, "absent": "", "last": last}
+    present: list[str] = []
+    absent: list[str] = []
+    depth = 0
+    bucket = present
+    closed = False
+    for cur in range(last + 1, min(last + 1 + _SHELL_BODY_LIMIT, len(lines))):
+        probe = lines[cur].strip()
+        if re.match(r"^if\b", probe):
+            depth += 1
+        if depth == 0 and re.match(r"^(else|elif)\b", probe):
+            bucket = absent
+            continue
+        if re.match(r"^fi\b", probe) or probe == "fi":
+            if depth == 0:
+                closed = True
+                break
+            depth -= 1
+        bucket.append(probe)
+    if not closed:
+        return {"unparsed": "у `if` не найдено `fi` в пределах "
+                            f"{_SHELL_BODY_LIMIT} строк"}
+    return {"cond": cond, "present": "\n".join(present),
+            "absent": "\n".join(absent), "last": last}
+
+
+def _shell_operator_branches(lines: list[str], idx: int,
+                             col: int) -> dict:
+    """Ветки формы `<тест> && <присутствие> || <отсутствие>`."""
+    joined, last = _shell_join(lines, idx)
+    # Позиция предиката в СКЛЕЕННОЙ строке: ищем её заново, потому что
+    # склейка сдвигает столбцы. Берём первое вхождение не раньше `col`.
+    anchor = -1
+    for m in _SHELL_PREDICATE.finditer(joined):
+        anchor = m.start()
+        if m.start() >= min(col, len(joined) - 1):
+            break
+    if anchor < 0:
+        return {"unparsed": "предикат не нашёлся в склеенной строке"}
+    and_pos = _split_top(joined, (" && ",), anchor)
+    or_pos = _split_top(joined, (" || ",), anchor)
+    if and_pos < 0 and or_pos < 0:
+        return {"unparsed": "после теста нет ни `&&`, ни `||` — куда пошёл "
+                            "ответ, мера не знает"}
+    cond = joined[:anchor + 1]
+    if and_pos >= 0 and (or_pos < 0 or and_pos < or_pos):
+        tail = joined[and_pos + 4:]
+        nxt = _split_top(tail, (" || ",))
+        if nxt >= 0:
+            return {"cond": cond, "present": tail[:nxt],
+                    "absent": tail[nxt + 4:], "last": last}
+        return {"cond": cond, "present": tail, "absent": "", "last": last}
+    tail = joined[or_pos + 4:]
+    nxt = _split_top(tail, (" && ",))
+    if nxt >= 0:
+        return {"cond": cond, "present": tail[nxt + 4:],
+                "absent": tail[:nxt], "last": last}
+    return {"cond": cond, "present": "", "absent": tail, "last": last}
+
+
+def classify_shell_site(lines: list[str], idx: int, col: int, *,
+                        negated: bool) -> dict:
+    """Исход ОДНОГО места оболочки. Порядок вето тот же, что у python-оси."""
+    branches = _shell_if_branches(lines, idx)
+    form = "if"
+    if "unparsed" in branches:
+        operator = _shell_operator_branches(lines, idx, col)
+        if "unparsed" not in operator:
+            branches, form = operator, "operator"
+        else:
+            return {"outcome": SHELL_FORM_UNPARSED, "form": "неизвестна",
+                    "reason": f"{branches['unparsed']}; "
+                              f"{operator['unparsed']}",
+                    "verdict": []}
+    present_text = branches["present"]
+    absent_text = branches["absent"]
+    if negated:
+        present_text, absent_text = absent_text, present_text
+    cond = branches["cond"]
+
+    tokens = _shell_tokens(present_text)
+    observed = _match(tokens, _OBSERVATION_WORDS)
+    counter = _SHELL_READINESS_COUNTER.search(present_text)
+    claim = ("observation" if observed
+             else "readiness_score" if counter else None)
+    evidence = sorted(set(observed or ([counter.group(0)] if counter else [])))[:3]
+    base = {"form": form, "verdict": evidence, "claim": None}
+
+    if claim is not None:
+        if (_SHELL_CONTENT_READERS.search(present_text)
+                or _SHELL_CONTENT_READERS.search(cond)):
+            return {**base, "outcome": CONTENT_CHECKED}
+        if (_SHELL_WRITER_QUESTION.search(cond)
+                or _SHELL_WRITER_QUESTION.search(present_text)):
+            return {**base, "outcome": WRITER_ASKED}
+        return {**base, "outcome": PRESENCE_TO_OBSERVED, "claim": claim}
+
+    if _match(tokens, _PRESENCE_WORDS):
+        return {**base, "outcome": PRESENCE_RESTATED,
+                "verdict": sorted(set(_match(tokens, _PRESENCE_WORDS)))[:3]}
+    if _match(tokens, _GENERIC_PASS):
+        return {**base, "outcome": PRESENCE_GENERIC_PASS,
+                "verdict": sorted(set(_match(tokens, _GENERIC_PASS)))[:3]}
+    if (absent_text.strip()
+            and (_ABSENCE.search(absent_text)
+                 or _SHELL_REFUSAL.search(absent_text))):
+        return {**base, "outcome": ABSENCE_TO_UNMEASURED}
+    # Вето содержимого НЕ применяется там, где вердикта о наблюдении нет
+    # вовсе: это была бы ссылка на вето, которого никто не использовал, и
+    # счётчик `content_checked` начал бы означать ДВЕ разные вещи. Порядок
+    # исходов здесь дословно повторяет `classify_site` python-оси.
+    return {**base, "outcome": NO_OBSERVATION_VERDICT}
+
+
+def measure_shell_source(source: str, *, rel: str) -> list[dict]:
+    """Исходы всех мест ОДНОГО файла оболочки или воркфлоу."""
+    lines = source.splitlines()
+    sites: list[dict] = []
+    for idx, raw in enumerate(lines):
+        if _SHELL_COMMENT.match(raw):
+            continue
+        for m in _SHELL_PREDICATE.finditer(raw):
+            verdict = classify_shell_site(lines, idx, m.start(),
+                                          negated=bool(m.group(1)))
+            target = raw[m.end():].strip().split()[:1]
+            verdict.update({"file": rel, "line": idx + 1, "col": m.start(),
+                            "function": f"-{m.group(2)}",
+                            "predicate": f"test -{m.group(2)}",
+                            "negated": bool(m.group(1)),
+                            "target": target[0] if target else "",
+                            "artefact": bool(_ARTEFACT_HINT.search(raw))})
+            sites.append(verdict)
+    return sites
+
+
+def shell_surface(root: str, scope: Iterable[str] = SHELL_SCOPE) -> dict:
+    """Перепись мест того же вопроса в оболочке и воркфлоу (ADR-877).
+
+    До ADR-877 эта функция только СЧИТАЛА места и печатала их число с
+    вердиктом `unmeasured` — честно, но нулём работы. Теперь у каждого места
+    свой исход по той же оси НАПРАВЛЕНИЯ, что у python-оси, и третий исход
+    СВОЙ: форма команды не разобрана ⇒ `shell_form_unparsed` с причиной, а не
+    «вердикта нет» и не «чисто».
+
+    Корня нет / ни одного файла / ни одного места ⇒ вердикт `unmeasured` с
+    названной причиной. Ноль мест в дереве, где есть `scripts/`, — это не
+    «чисто», а улика против самой меры.
+    """
+    if not os.path.isdir(root):
+        return {"verdict": "unmeasured", "sites": 0, "files": 0,
+                "reason": f"корень дерева не прочитан: {root}",
+                "counts": {o: 0 for o in SHELL_OUTCOMES},
+                "findings": [], "unparsed": [], "unreadable": [],
+                "adr876_sites": 0}
+    files = _shell_files(root, scope)
+    if not files:
+        return {"verdict": "unmeasured", "sites": 0, "files": 0,
+                "reason": (f"в {root} ни одного файла оболочки по областям "
+                           f"{tuple(scope)} — мерить нечего, и это НЕ «чисто»"),
+                "counts": {o: 0 for o in SHELL_OUTCOMES},
+                "findings": [], "unparsed": [], "unreadable": [],
+                "adr876_sites": 0}
+    counts = {outcome: 0 for outcome in SHELL_OUTCOMES}
+    findings: list[dict] = []
+    generic: list[dict] = []
+    unparsed: list[dict] = []
+    unreadable: list[str] = []
+    touched = 0
+    total = 0
+    adr876 = 0
+    for full in files:
+        rel = os.path.relpath(full, root).replace(os.sep, "/")
+        try:
+            source = open(full, encoding="utf-8", errors="strict").read()
+        except (OSError, UnicodeDecodeError) as exc:
+            unreadable.append(f"{rel}: не прочитан ({type(exc).__name__}: {exc})")
+            continue
+        adr876 += len(_SHELL_PREDICATE_ADR876.findall(source))
+        sites = measure_shell_source(source, rel=rel)
+        if sites:
+            touched += 1
+        total += len(sites)
+        for site in sites:
+            counts[site["outcome"]] += 1
+            if site["outcome"] == PRESENCE_TO_OBSERVED:
+                findings.append(site)
+            elif site["outcome"] == PRESENCE_GENERIC_PASS:
+                generic.append(site)
+            elif site["outcome"] == SHELL_FORM_UNPARSED:
+                unparsed.append(site)
+    if not total:
+        return {"verdict": "unmeasured", "sites": 0, "files": 0,
+                "reason": (f"файлов оболочки {len(files)}, а мест предиката "
+                           "НОЛЬ — это улика против меры, а не «чисто»"),
+                "counts": counts, "findings": [], "unparsed": [],
+                "unreadable": unreadable, "adr876_sites": adr876}
+    return {
+        "verdict": "findings" if findings else "measured",
+        "sites": total,
+        "files": touched,
+        "file_count": len(files),
+        "adr876_sites": adr876,
+        "counts": counts,
+        "findings": sorted(findings, key=finding_key),
+        "generic_pass_sites": sorted(generic, key=finding_key),
+        "unparsed": sorted(unparsed, key=finding_key),
+        "unreadable": unreadable,
+    }
+
+
+#: Сцены оболочки — пары, отличающиеся РОВНО направлением, по ОДНОЙ на каждую
+#: разбираемую ФОРМУ. Форм три, и проверять одну значило бы отвечать за три:
+#: у `if`-формы полярность читается из тела, у операторной — из `&&`/`||`, у
+#: отрицания — из `!` внутри скобок. Инверсия в любой ОДНОЙ даёт молчаливо
+#: неверное население, а не красный тест, — ровно тот класс, который мерит
+#: весь прибор.
+SHELL_SCENES: tuple[tuple[str, str, str], ...] = (
+    ("if", """#!/bin/bash
+if [ -f "$REPORT" ]; then
+  echo "продолжаем"
+else
+  echo "НЕ ИЗМЕРЕНО: файла нет"
+fi
+""", """#!/bin/bash
+if [ -f "$REPORT" ]; then
+  echo "офис прочитан — писатель был"
+fi
+"""),
+    ("operator", """#!/bin/bash
+[ -f "$REPORT" ] || die "НЕ ИЗМЕРЕНО: файла нет"
+""", """#!/bin/bash
+[ -f "$REPORT" ] && echo "офис прочитан — писатель был"
+"""),
+    ("negated", """#!/bin/bash
+if [ ! -f "$REPORT" ]; then
+  echo "НЕ ИЗМЕРЕНО: файла нет"
+fi
+""", """#!/bin/bash
+if [ ! -f "$REPORT" ]; then
+  echo "НЕ ИЗМЕРЕНО: файла нет"
+else
+  echo "офис прочитан — писатель был"
+fi
+"""),
+)
+
+
+def drive_shell_both_directions() -> dict:
+    """Различает ли мера оболочки ДВА направления — на КАЖДОЙ из трёх форм.
+
+    Сцены одноразовые и живут в этом же модуле. Без этого звена «в оболочке
+    находок нет» было бы утверждением о слепоте меры, а не о дереве —
+    дословный урок ADR-876 для python-оси. Проверяются ВСЕ формы, а вердикт
+    называет ту, что подвела: «мера видит» по одной форме из трёх есть ровно
+    то завышение силы утверждения, против которого написан класс.
+    """
+    seen: list[dict] = []
+    for form, honest_src, defect_src in SHELL_SCENES:
+        try:
+            honest = measure_shell_source(honest_src, rel=f"scene_{form}_ok.sh")
+            defect = measure_shell_source(defect_src, rel=f"scene_{form}_bad.sh")
+        except Exception as exc:                                    # noqa: BLE001
+            return {"kind": DRIVE_UNMEASURED,
+                    "reason": (f"сцена формы {form!r} не разобралась: "
+                               f"{type(exc).__name__}: {exc}")}
+        if len(honest) != 1 or len(defect) != 1:
+            return {"kind": DRIVE_UNMEASURED,
+                    "reason": (f"сцена формы {form!r} должна давать РОВНО одно "
+                               f"место, получено эталон {len(honest)}, "
+                               f"авария {len(defect)}")}
+        if honest[0]["outcome"] == PRESENCE_TO_OBSERVED:
+            return {"kind": DRIVE_BLIND,
+                    "reason": (f"форма {form!r}: честный отказ «файла нет ⇒ не "
+                               "измерено» назван находкой — мера читает "
+                               "полярность наоборот")}
+        if defect[0]["outcome"] != PRESENCE_TO_OBSERVED:
+            return {"kind": DRIVE_BLIND,
+                    "reason": (f"форма {form!r}: дословная авария ADR-875 в "
+                               f"оболочке получила исход "
+                               f"{defect[0]['outcome']!r} вместо находки")}
+        seen.append({"form": form, "honest": honest[0]["outcome"],
+                     "defect": defect[0]["outcome"]})
+    return {"kind": DRIVE_DISTINGUISHES, "forms": seen}
 
 
 def measure(root: str | None = None,
@@ -755,9 +1207,22 @@ def measure(root: str | None = None,
 
 
 def exit_code(report: dict) -> int:
+    """Код возврата по ОБЕИМ осям: python и оболочка (ADR-877).
+
+    Находка в оболочке — такая же находка класса, и промолчать о ней кодом
+    возврата значило бы вернуть дефект с другой стороны: читатель, судящий по
+    КОДУ (а именно так прибор зовёт шаг цикла), услышал бы «чисто» при
+    названной находке в `*.sh`. Ось оболочки НЕ ИЗМЕРЕНА ⇒ третий исход, а не
+    «чисто» (инв. #17).
+    """
     if report.get("verdict") == "unmeasured":
         return RC_UNMEASURED
-    return RC_FINDINGS if report.get("findings") else RC_CLEAN
+    shell = report.get("shell_surface") or {}
+    if shell.get("verdict") == "unmeasured":
+        return RC_UNMEASURED
+    if report.get("findings") or shell.get("findings"):
+        return RC_FINDINGS
+    return RC_CLEAN
 
 
 # ── живая ось: различает ли мера ДВА направления ─────────────────────────────
@@ -877,8 +1342,36 @@ def render(report: dict) -> list[str]:
                      f"{site['verdict']} — критерий объявлен не кодом ветки, "
                      f"предмет НЕ ИЗМЕРЕН")
     shell = report["shell_surface"]
-    lines.append(f"  НЕ ИЗМЕРЕНО: оболочка/воркфлоу — {shell['sites']} мест в "
-                 f"{shell['files']} файлах (разбор не сделан, это НЕ ноль)")
+    if shell.get("verdict") == "unmeasured":
+        lines.append(f"  НЕ ИЗМЕРЕНО: оболочка/воркфлоу — {shell['reason']}")
+    else:
+        sc = shell["counts"]
+        lines.append(
+            f"  оболочка и воркфлоу (ADR-877) — мест {shell['sites']} в "
+            f"{shell['files']} файлах из {shell['file_count']} просмотренных; "
+            f"мерой ADR-876 их было {shell['adr876_sites']} (та не видела "
+            f"отрицания и `-s`), число ПЕРЕМЕРЕНО, а не переписано")
+        lines.append(
+            f"    НАХОДКИ presence_to_observed: {sc[PRESENCE_TO_OBSERVED]}"
+            f" · эталон (отсутствие ⇒ отказ): {sc[ABSENCE_TO_UNMEASURED]}"
+            f" · вето содержимого: {sc[CONTENT_CHECKED]}"
+            f" · вето писателя: {sc[WRITER_ASKED]}")
+        lines.append(
+            f"    НЕ ИЗМЕРЕНО: родовое «прошло» {sc[PRESENCE_GENERIC_PASS]}"
+            f" · ФОРМА не разобрана {sc[SHELL_FORM_UNPARSED]}"
+            f"; тавтология {sc[PRESENCE_RESTATED]}"
+            f" · ЦЕНА (вердикта нет) {sc[NO_OBSERVATION_VERDICT]}")
+        for site in shell["findings"]:
+            lines.append(f"  ❌ {finding_key(site)} {site['predicate']} "
+                         f"⇒ {site['claim']}: {site['verdict']}")
+        for site in shell["generic_pass_sites"]:
+            lines.append(f"  ?  {finding_key(site)} {site['predicate']} ⇒ "
+                         f"{site['verdict']} — предмет критерия НЕ ИЗМЕРЕН")
+        for site in shell["unparsed"]:
+            lines.append(f"  ?  {finding_key(site)} {site['predicate']} — "
+                         f"НЕ ИЗМЕРЕНО: {site['reason']}")
+        for item in shell["unreadable"]:
+            lines.append(f"  НЕ ИЗМЕРЕНО: {item}")
     for item in report["unmeasured_files"]:
         lines.append(f"  НЕ ИЗМЕРЕНО: {item}")
     lines.append("ADVISORY: прибор только ЧИТАЕТ исходники — RiskPolicy v1.0, "

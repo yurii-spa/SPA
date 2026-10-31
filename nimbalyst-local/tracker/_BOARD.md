@@ -2,11 +2,11 @@
 
 > Авто-генерится `scripts/build_tracker_board.py` из `nimbalyst-local/tracker/*.md`. НЕ править вручную — правь карточки. Источник правды — карточки, это индекс (bootstrap).
 >
-> Собрана: 2026-10-31T10:41:07Z · сверка с карточками: `python3 scripts/build_tracker_board.py --check` (сторож `spa_core/tests/test_tracker_board_matches_cards.py`).
+> Собрана: 2026-10-31T13:53:31Z · сверка с карточками: `python3 scripts/build_tracker_board.py --check` (сторож `spa_core/tests/test_tracker_board_matches_cards.py`).
 >
-> Сверено с `origin/main` (9a2566b66).
+> Сверено с `origin/main` (0bdcd56d7) · у **1** своя правка, кто новее — не измерено.
 >
-> Всего карточек: **1538** · ждёт владельца: **7** · занято сессиями: **13**.
+> Всего карточек: **1541** · ждёт владельца: **6** · занято сессиями: **13**.
 
 ## 🔴 ЖДЁТ ВЛАДЕЛЬЦА (needs-owner)
 
@@ -16,7 +16,6 @@
 - **Сайт: site_numbers.json — автономная правка задела owner-gated область, нужно решение**  ·  `owner-decision-sait-site-numbers-json-avtonomnaya-pravk.md`
 - **Сайт: track_snapshot.json — автономная правка задела owner-gated область, нужно решение**  ·  `owner-decision-sait-track-snapshot-json-avtonomnaya-pra-3.md`
 - **Считать ли портфель по-настоящему оптимально — или оставить сегодняшнюю приближённую раскладку** · _high_  ·  `owner-decision-schitat-li-portfel-po-nastoyaschemu-opti.md`
-- **Шесть баллов готовности к живым деньгам из десяти начисляются за то, что файлы просто лежат в репозитории — распространить ли на них твоё прежнее решение** · _high_  ·  `owner-decision-shest-ballov-gotovnosti-k-zhivym-dengam.md`
 
 ## 🔒 ЗАНЯТЫ СЕССИЯМИ (claimed_by)
 
@@ -45,7 +44,6 @@
 - Сайт: site_numbers.json — автономная правка задела owner-gated область, нужно решение  ·  `owner-decision-sait-site-numbers-json-avtonomnaya-pravk.md` · 2026-10-28
 - Сайт: track_snapshot.json — автономная правка задела owner-gated область, нужно решение  ·  `owner-decision-sait-track-snapshot-json-avtonomnaya-pra-3.md` · 2026-10-29
 - Считать ли портфель по-настоящему оптимально — или оставить сегодняшнюю приближённую раскладку  ·  `owner-decision-schitat-li-portfel-po-nastoyaschemu-opti.md` · 2026-10-30
-- Шесть баллов готовности к живым деньгам из десяти начисляются за то, что файлы просто лежат в репозитории — распространить ли на них твоё прежнее решение  ·  `owner-decision-shest-ballov-gotovnosti-k-zhivym-dengam.md` · 2026-10-31
 ### · ingested
 - Ключ Etherscan уже работает — задача была «фантомной» (петля исправлена)  ·  `own-06-etherscan-prod-key.md` · 2026-07-15
 - Включить письма-подтверждения для подписки — добавить два ключа на сервер  ·  `own-07-retention-secrets.md` · 2026-07-15
@@ -278,6 +276,7 @@
 - Считать ли дописанные задним числом ставки наравне с живыми в проверке готовности  ·  `owner-decision-schitat-li-dopisannye-zadnim-chislom-sta.md` · 2026-09-10
 - Security-скан risk-гейта нашёл два расхождения между ADR и реальным кодом: оси риска не подключены, тир протокола не сверяется  ·  `owner-decision-security-skan-risk-geita-nashel-dva-rash.md` · 2026-08-29
 - Сегодняшний цикл трека не запускался: Мак был выключен в 08:00  ·  `owner-decision-segodnyashnii-tsikl-treka-ne-zapuskalsya.md` · 2026-09-17
+- Шесть баллов готовности к живым деньгам из десяти начисляются за то, что файлы просто лежат в репозитории — распространить ли на них твоё прежнее решение  ·  `owner-decision-shest-ballov-gotovnosti-k-zhivym-dengam.md` · 2026-10-31
 - Шесть модулей выдумывают остаток на кошельке вместо отказа — чинить сейчас или записать условием go-live?  ·  `owner-decision-shest-modulei-vydumyvayut-ostatok-na-kos.md` · 2026-09-07
 - Шесть находок за день оказались ОДНОЙ болезнью: где наблюдения нет, система говорит «всё хорошо» вместо «не знаю»  ·  `owner-decision-shest-nahodok-za-den-okazalis-odnoi-bole.md` · 2026-08-18
 - Система не спрашивает, продержится ли выгода — и по факту она не продержалась ни разу  ·  `owner-decision-sistema-ne-sprashivaet-proderzhitsya-li.md` · 2026-09-26
@@ -423,7 +422,7 @@
 ### · closed
 - Считать ли верный отказ по правилам допуска неисправностью флота  ·  `owner-decision-schitat-li-vernyi-otkaz-po-pravilam-dopu.md` · 2026-10-08
 
-## 📥 Inbox (задания: Telegram / заметки / голос)  (858)
+## 📥 Inbox (задания: Telegram / заметки / голос)  (861)
 
 ### · in-progress
 - а задача починить все-таки еще раз сообщение которым не пишет нужно твое решени…  ·  `inbox-a-zadacha-pochinit-vse-taki-esche-raz-so.md` · 2026-08-14 · 🔒 `pid43119`
@@ -707,6 +706,7 @@
 - Номера ADR сталкиваются: два раза за день, у нумерации нет распределителя  ·  `inbox-nomera-adr-stalkivayutsya-dva-raza-za-de.md` · 2026-08-08
 - новая задача которую нужно решить мне сейчас в telegram пишется спамится одно и…  ·  `inbox-novaya-zadacha-kotoruyu-nuzhno-reshit-mn.md` · 2026-08-13
 - Обход owner-gate по трейлеру Owner-Approved не работал никогда: опечатка в имени аргумента, спрятанная слепым except  ·  `inbox-obhod-owner-gate-po-treileru-owner-appro.md` · 2026-08-07
+- Оболочка и воркфлоу: 124 места того же вопроса печатались числом с вердиктом «НЕ ИЗМЕРЕНО» — вторая половина класса ADR-875  ·  `inbox-obolochka-i-vorkflou-124-mesta-togo-zhe.md` · 2026-10-31
 - Объявление агента не умеет сказать «намеренно выключен» — и поэтому 46 суток CRITICAL советует отменить решение владельца  ·  `inbox-obyavlenie-agenta-ne-umeet-skazat-namere.md` · 2026-10-15
 - Объявление с пустым списком файлов рождает в шаге 0a находку, которую нельзя снять никогда  ·  `inbox-obyavlenie-s-pustym-spiskom-failov-rozhd.md` · 2026-08-30
 - Обязательное правило design-docs недостижимо по ссылкам — сторож связности красный на main  ·  `inbox-obyazatelnoe-pravilo-design-docs-nedostizhimo.md` · 2026-08-28
@@ -1253,6 +1253,7 @@
 - Тест судит о каталоге чужой сессии Claude: facts.jsonl-цитаты краснеют на чистом origin/main  ·  `inbox-test-sudit-o-kataloge-chuzhoi-sessii-cla.md` · 2026-10-23
 - Тест тождества капитала КРАСЕН на чистом origin: два читателя одной записи расходятся на сцене с дублем и порчей  ·  `inbox-test-tozhdestva-kapitala-krasen-na-chist.md` · 2026-09-16
 - Тест ворот публикации не доходит до ворот: его заслоняет гейт окна мутаций  ·  `inbox-test-vorot-publikatsii-ne-dohodit-do-vor.md` · 2026-10-18
+- Три критерия go-live переписать на настоящую проводку: решение владельца 31.10, вариант 1 (шесть баллов из десяти — константа)  ·  `inbox-tri-kriteriya-go-live-perepisat-na-nasto.md` · 2026-10-31
 - Три отправителя стоп-крана в обход канонической двери (найдено #313)  ·  `inbox-tri-otpravitelya-stop-krana-v-obhod-kano.md` · 2026-08-20
 - Три прибора написаны и не позваны: храповик непроводки КРАСЕН на чистом origin/main a326d063e  ·  `inbox-tri-pribora-napisany-i-ne-pozvany-hrapov.md` · 2026-10-10
 - Цикл считает покрытие фидов 100% живым, а aave_arbitrum читает круглые константы из adapter_status.json  ·  `inbox-tsikl-schitaet-pokrytie-fidov-100-zhivym.md` · 2026-08-29
@@ -1267,6 +1268,7 @@
 - Убрать два пустых артефакта из корня прод-дерева после починки контракта переписей  ·  `inbox-ubrat-dva-pustyh-artefakta-iz-kornya-pro.md` · 2026-09-11
 - Вердикт деска по sUSDS стоит на СНЯТОЙ причине — а книга этот актив держит  ·  `inbox-verdikt-deska-po-susds-stoit-na-snyatoi.md` · 2026-08-25
 - Вердикт памяти копий не доходит до читателя очереди: шаг 1 печатает origin_check и молчит про 94 пропавшие записи  ·  `inbox-verdikt-pamyati-kopii-ne-dohodit-do-chit.md` · 2026-10-13
+- Вердикт прогона 41197602899 ИЗМЕРЕН: починка #994 сняла 8 имён, вклад цикла ноль — но +1 против базы не из его диффа и локально зелен  ·  `inbox-verdikt-progona-41197602899-izmeren-poch.md` · 2026-10-31
 - Вердикт сторожа архитектуры относится к манифесту, которого больше нет — а 492 строки нового лежат в прод-дереве незакоммиченными  ·  `inbox-verdikt-storozha-arhitektury-otnositsya.md` · 2026-08-30
 - Вернуть разделы, потерянные доставкой 07.10 с шести карточек владельца  ·  `inbox-vernut-razdely-poteryannye-dostavkoi-07.md` · 2026-10-15
 - Ветка сверки по mtime срабатывает на свежем worktree всегда — у неё СВОЙ дефект, тактом не лечится (остаток ADR-264)  ·  `inbox-vetka-sverki-po-mtime-srabatyvaet-na-sve.md` · 2026-09-08

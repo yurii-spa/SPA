@@ -743,6 +743,8 @@
 | ADR-874 | ADR-874 — «Циклов мимо» обязано считать ПРИКАЗ, а не календарь: 880 против 455 назвавших карточку | Accepted | [ADR-874](ADR-874-passed-by-counts-the-order-not-the-calendar.md) |
 | ADR-875 | ADR-875 — Сторож «офис НЕ ИЗМЕРЕН» обойдён git-tracked артефактом: присутствие файла наблюдением не является (140 ложных находок из любого worktree) | Accepted | [ADR-875](ADR-875-office-absence-guard-fooled-by-a-tracked-artefact.md) |
 | ADR-876 | ADR-876 — Население класса «присутствие файла выдано за доказательство ПИСАТЕЛЯ» ИЗМЕРЕНО: 7 находок, у четырёх вердикт КОНСТАНТА, и шесть баллов go-live из десяти стоят на tracked-исходниках | Accepted | [ADR-876](ADR-876-presence-as-observation-population.md) |
+| ADR-877 | Вторая половина класса ADR-875 измерена: 171 место оболочки/воркфлоу разобрано по НАПРАВЛЕНИЮ, находок 0, шесть мест НЕ ИЗМЕРЕНЫ поимённо | Accepted | [ADR-877](ADR-877-shell-presence-sites-measured-by-direction.md) |
+| ADR-878 | Решение владельца 31.10 (вариант 1): шесть баллов go-live и «confirmed by owner» переписать на НАСТОЯЩУЮ проводку | Accepted | [ADR-878](ADR-878-honest-wiring-for-golive-readiness-criteria.md) |
 
 ## Соглашения
 

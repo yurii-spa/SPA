@@ -7141,8 +7141,125 @@ def _probe_presence_as_observation_population_named(
         f"{counts[m.ABSENCE_TO_UNMEASURED]}, вето содержимого "
         f"{counts[m.CONTENT_CHECKED]}, вето писателя "
         f"{counts[m.WRITER_ASKED]}; НЕ ИЗМЕРЕНО: родовое «прошло» "
-        f"{counts[m.PRESENCE_GENERIC_PASS]} мест · оболочка/воркфлоу "
-        f"{shell['sites']} мест в {shell['files']} файлах")
+        f"{counts[m.PRESENCE_GENERIC_PASS]} мест; оболочка и воркфлоу "
+        f"ИЗМЕРЕНЫ с ADR-877 — "
+        + (f"НЕ ИЗМЕРЕНО: {shell.get('reason')}"
+           if shell.get("verdict") == "unmeasured"
+           else (f"мест {shell['sites']} в {shell['files']} файлах, находок "
+                 f"{shell['counts'][m.PRESENCE_TO_OBSERVED]}, форма не "
+                 f"разобрана у {shell['counts'][m.SHELL_FORM_UNPARSED]}")))
+
+
+
+def _probe_shell_presence_sites_measured_by_direction(
+        arg: str | None) -> tuple[str, str]:
+    """Критерий: 124 места оболочки ИЗМЕРЕНЫ по направлению, а не посчитаны.
+
+    Предмет — карточка `inbox-obolochka-i-vorkflou-sto-dvadtsat-chety` (заказ
+    G877 п. 1 (в), ADR-877). Перепись ADR-876 честно назвала эту поверхность
+    НЕ ИЗМЕРЕННОЙ и напечатала её числом:
+
+    > «`*.sh` и `.github/workflows/*.yml` спрашивают `test -f` тем же
+    > вопросом; их разбор здесь НЕ сделан.»
+
+    Честное «не измерено» — верный ответ, но нулём работы: число 124 не
+    говорит, сколько из них ЭТАЛОН (`[ -f X ] || die`), а сколько дефект
+    ADR-875 (`[ -f X ] && echo "офис жив"`). Проба мерит ИСХОД, и у неё ТРИ
+    независимых звена; любое одно порванное даёт `not_satisfied` с ИМЕНЕМ
+    звена:
+
+    1. **мера оболочки не слепа** — `drive_shell_both_directions` поднимает
+       ТРИ пары одноразовых сцен (формы `if` · `&&`/`||` · отрицание), в
+       каждой паре различие РОВНО направление. Инверсия в любой ОДНОЙ форме
+       даёт молчаливо неверное население, а не красный тест, — поэтому
+       проверяются все три, и вердикт называет подведшую;
+    2. **население НАЗВАНО** — у каждого места свой исход из объявленного
+       словаря `SHELL_OUTCOMES`, сумма исходов равна числу мест, а места с
+       НЕРАЗОБРАННОЙ формой перечислены ПОИМЁННО с причиной. Население НЕ
+       является условием прохода (та же граница, что у
+       `presence_as_observation_population_named`): предмет — чтобы
+       поверхность была ИЗМЕРЕНА, а не чтобы она была пуста;
+    3. **ось доходит до КОДА ВОЗВРАТА** — находка только в оболочке обязана
+       давать `RC_FINDINGS`. Без этого звена прибор называл бы находку в
+       тексте и отвечал «чисто» тому читателю, который судит по коду, то есть
+       шагу цикла.
+
+    Третий исход СВОЙ: прибор не ввозится, корень не прочитан либо сцена не
+    поднялась ⇒ `unmeasured` с названной причиной, и НИКОГДА `satisfied` без
+    всех трёх замеров.
+
+    Подстрокой проба не проходит (ADR-333): исходников она не читает вовсе, а
+    судит по РОДУ исхода в полях замера и по КОДУ возврата настоящей функции.
+    """
+    if (arg or "").strip():
+        return UNMEASURED, (f"проба не принимает аргумента (дано {arg!r}): "
+                            "предмет — поверхность целиком, пофайловой формы "
+                            "у неё нет")
+    try:
+        from spa_core.monitoring import presence_as_observation_census as m
+    except Exception as exc:                                        # noqa: BLE001
+        return UNMEASURED, f"прибор переписи не ввозится: {type(exc).__name__}: {exc}"
+
+    # Звено 1 — мера не слепа ни к одной из трёх форм.
+    drive = m.drive_shell_both_directions()
+    if drive.get("kind") == m.DRIVE_UNMEASURED:
+        return UNMEASURED, f"сцены оболочки не поднялись: {drive.get('reason')}"
+    if drive.get("kind") == m.DRIVE_BLIND:
+        return NOT_SATISFIED, (f"мера оболочки СЛЕПА: {drive.get('reason')} — "
+                               "населению такой переписи верить нельзя")
+    forms = {row["form"] for row in drive.get("forms", [])}
+    if forms != {"if", "operator", "negated"}:
+        return NOT_SATISFIED, (f"проверены формы {sorted(forms)}, а разбираются "
+                               "три (`if` · `&&`/`||` · отрицание): «мера "
+                               "видит» по части форм есть завышение силы "
+                               "утверждения")
+
+    # Звено 3 — ось доходит до кода возврата. Проверяется ДО похода в дерево:
+    # это свойство проводки, а не замера, и измеряется подставным отчётом.
+    wired = m.exit_code({"verdict": "clean", "findings": [],
+                         "shell_surface": {"verdict": "findings",
+                                           "findings": [{"file": "probe.sh"}]}})
+    if wired != m.RC_FINDINGS:
+        return NOT_SATISFIED, (f"находка ТОЛЬКО в оболочке даёт код {wired} "
+                               f"вместо {m.RC_FINDINGS}: читатель, судящий по "
+                               "коду, услышал бы «чисто» при названной находке")
+
+    # Звено 2 — население названо на НАСТОЯЩЕМ дереве прибора.
+    try:
+        shell = m.shell_surface(os.path.dirname(os.path.dirname(
+            os.path.dirname(os.path.abspath(m.__file__)))))
+    except Exception as exc:                                        # noqa: BLE001
+        return UNMEASURED, (f"мера различает направления, но население "
+                            f"оболочки НЕ измерено: {type(exc).__name__}: {exc}")
+    if shell.get("verdict") == "unmeasured":
+        return UNMEASURED, f"население оболочки НЕ измерено: {shell.get('reason')}"
+    counts = shell["counts"]
+    if set(counts) != set(m.SHELL_OUTCOMES):
+        return NOT_SATISFIED, (f"исходы разошлись со словарём: "
+                               f"{sorted(set(counts) ^ set(m.SHELL_OUTCOMES))}")
+    if sum(counts.values()) != shell["sites"]:
+        return NOT_SATISFIED, (f"сумма исходов {sum(counts.values())} не равна "
+                               f"числу мест {shell['sites']} — часть мест "
+                               "потеряна молча")
+    for site in shell["unparsed"]:
+        if not (site.get("reason") or "").strip():
+            return NOT_SATISFIED, (f"место {m.finding_key(site)} с неразобранной "
+                                   "формой не несёт причины — «не измерено» без "
+                                   "причины неотличимо от «вердикта нет»")
+    return SATISFIED, (
+        f"мера оболочки различает направление на ВСЕХ трёх формах "
+        f"{sorted(forms)}; ось доходит до кода возврата; население НАЗВАНО: "
+        f"мест {shell['sites']} в {shell['files']} файлах из "
+        f"{shell['file_count']} просмотренных (мерой ADR-876 было "
+        f"{shell['adr876_sites']} — та не видела отрицания и `-s`), находок "
+        f"{counts[m.PRESENCE_TO_OBSERVED]}, эталон «отсутствие ⇒ отказ» "
+        f"{counts[m.ABSENCE_TO_UNMEASURED]}, вето содержимого "
+        f"{counts[m.CONTENT_CHECKED]}, вето писателя "
+        f"{counts[m.WRITER_ASKED]}; НЕ ИЗМЕРЕНО поимённо: родовое «прошло» "
+        f"{counts[m.PRESENCE_GENERIC_PASS]} · ФОРМА не разобрана "
+        f"{counts[m.SHELL_FORM_UNPARSED]}; ЦЕНА меры (вердикта нет) "
+        f"{counts[m.NO_OBSERVATION_VERDICT]}, тавтология "
+        f"{counts[m.PRESENCE_RESTATED]}")
 
 
 def _probe_office_absence_guard_not_fooled_by_tracked(
@@ -14046,6 +14163,8 @@ PROBES: dict[str, Callable[[str | None], "tuple[str, str]"]] = {
         _probe_owner_task_answer_reaches_the_channel,
     "presence_as_observation_population_named":
         _probe_presence_as_observation_population_named,
+    "shell_presence_sites_measured_by_direction":
+        _probe_shell_presence_sites_measured_by_direction,
     "three_outcome_reader_population_named":
         _probe_three_outcome_reader_population_named,
     "three_outcome_readers_distinguish_by_code":

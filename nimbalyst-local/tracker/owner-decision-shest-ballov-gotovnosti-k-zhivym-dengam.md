@@ -2,11 +2,19 @@
 trackerStatus:
   type: owner-decision
 title: Шесть баллов готовности к живым деньгам из десяти начисляются за то, что файлы просто лежат в репозитории — распространить ли на них твоё прежнее решение
-status: needs-owner
+status: ingested
 source: nimbalyst
 created: 2026-10-31
 priority: high
 twin_key: "sha256:c7d7f55cf19e8070ff6169a56c858bdce2772503e5357675d2a9a0754c83467d"
+owner_choice: 1
+owner_answered_at: 2026-10-31T11:20:15.221901+00:00
+owner_answer_via: telegram
+owner_answered_by: 258651137
+owner_answer_kind: option
+status_trail:
+  - "2026-10-31T11:20:15.222444+00:00 needs-owner -> owner-done · owner_answer.record_owner_answer"
+  - "2026-10-31T13:53:31.377274+00:00 owner-done -> ingested · queue.set_status · cycle-2589"
 ---
 
 ## Что случилось и почему это важно
@@ -79,3 +87,11 @@ twin_key: "sha256:c7d7f55cf19e8070ff6169a56c858bdce2772503e5357675d2a9a0754c8346
 
 В любом из трёх случаев я не меняю ни RiskPolicy, ни стоп-кран, ни живой трек, и реальный
 капитал остаётся $0.
+
+---
+
+## Решение владельца
+
+**Вариант 1** — да, то же решение, переписать все три на настоящую проводку
+
+_Ответ владельца получен 2026-10-31T11:20:15.221901+00:00 (telegram). Карточка закрыта самим владельцем, не агентом (инвариант #14)._
