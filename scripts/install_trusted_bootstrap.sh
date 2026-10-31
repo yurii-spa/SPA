@@ -19,12 +19,13 @@
 set -euo pipefail
 ROOT="/Library/Application Support/StudioOS"
 USER_NAME="${SUDO_USER:-$(id -un)}"   # under sudo: the real invoking user; else the current (non-root) user
-DRY=0; LAUNCHER=""; LSHA=""; REPO=""; APPROVED=""; RUNTIME=""; RDIGEST=""; VERIFY_ONLY=""
+DRY=0; LAUNCHER=""; LSHA=""; REPO=""; APPROVED=""; RUNTIME=""; RDIGEST=""; VERIFY_ONLY=""; SELF_TEST_ROOT=""; SELF_TEST_APP=""
 while [ $# -gt 0 ]; do case "$1" in
   --launcher) LAUNCHER="$2"; shift 2;; --launcher-sha256) LSHA="$2"; shift 2;;
   --repo) REPO="$2"; shift 2;; --approved) APPROVED="$2"; shift 2;;
   --runtime) RUNTIME="$2"; shift 2;; --runtime-digest) RDIGEST="$2"; shift 2;;
   --verify-runtime) VERIFY_ONLY="$2"; shift 2;;
+  --self-test-root) SELF_TEST_ROOT="$2"; shift 2;; --self-test-app-python) SELF_TEST_APP="$2"; shift 2;;
   --dry-run) DRY=1; shift;; *) echo "unknown arg $1" >&2; exit 2;; esac; done
 say(){ echo "[trusted-bootstrap] $*"; }
 die(){ echo "[trusted-bootstrap] FAIL-CLOSED: $*" >&2; exit 1; }
@@ -91,6 +92,63 @@ PYV
   se=$(runas "$D/bin/python3" -E -s -S -c "import sys,os;assert os.path.realpath(sys.prefix)==os.path.realpath('$D');assert not [p for p in sys.path if p and ('miniconda' in p or os.path.expanduser('~/Library') in p)]" 2>&1) \
     || die "runtime $D: relocation/isolation as $WHO failed — $(printf '%s' "$se" | tail -1)"
 }
+
+# ── RELEASE MATERIALISATION (S2 T08, E5.3) — ONE code path for the real install AND the isolated self-test ──
+# No rm: a new release dir is RESERVED with mkdir (an existing one is never replaced), extracted from LOCAL git
+# objects, its composition proven by the INSTALLED launcher's own inline verifier (the sha256-checked artifact —
+# no second trust mechanism), and the stamp is written LAST. Failure keeps the copy for inspection, FAIL-CLOSED.
+launcher_composition(){ # $1=launcher file $2=release dir $3=sha $4=repo → prints "" (proven) or the problem
+  "$BOOTSTRAP_PY" -I - "$1" "$2" "$3" "$4" <<'PYL'
+import importlib.util, sys
+spec = importlib.util.spec_from_file_location("installed_release_launcher", sys.argv[1])
+m = importlib.util.module_from_spec(spec); spec.loader.exec_module(m)
+files = m.trusted_tree(sys.argv[3], sys.argv[4])
+if files is None:
+    print("UNVERIFIABLE: no trusted tree of the approved commit"); sys.exit(0)
+print(m._composition_problem(sys.argv[2], files) or "")
+PYL
+}
+
+materialise_release_dir(){ # $1=releases dir $2=approved sha $3=repo $4=launcher file $5=require cycle_runner (1/0)
+  local RD="$1" SHA="$2" RP="$3" LF="$4" REQ="$5" DEST="$1/$2" prob
+  if [ -e "$DEST" ] || [ -L "$DEST" ]; then
+    prob=$(launcher_composition "$LF" "$DEST" "$SHA" "$RP") || die "composition check could not run for $DEST"
+    [ -z "$prob" ] && [ "$(cat "$DEST/.release_sha" 2>/dev/null)" = "$SHA" ] \
+      || die "existing release dir is NOT proven ($prob${prob:+; }stamp=$(cat "$DEST/.release_sha" 2>/dev/null || echo none)) — KEPT untouched: $DEST"
+    say "release dir already present and PROVEN against the approved commit — reused untouched: $DEST"
+    MATERIALISED_NEW=0; return 0
+  fi
+  mkdir -p "$RD"
+  mkdir "$DEST" || die "cannot reserve $DEST (someone else created it) — nothing replaced"
+  git -C "$RP" archive --format=tar "$SHA" | tar -x -C "$DEST" || die "materialise failed — partial copy KEPT: $DEST"
+  prob=$(launcher_composition "$LF" "$DEST" "$SHA" "$RP") || die "composition check could not run — copy KEPT: $DEST"
+  [ -z "$prob" ] || die "release composition != approved commit ($prob) — copy KEPT, no stamp: $DEST"
+  if [ "$REQ" = 1 ]; then [ -f "$DEST/spa_core/paper_trading/cycle_runner.py" ] || die "release incomplete: cycle_runner missing — copy KEPT: $DEST"; fi
+  printf '%s' "$SHA" > "$DEST/.release_sha"                    # stamp LAST
+  MATERIALISED_NEW=1
+  say "release materialised + composition PROVEN by the installed launcher: $DEST"
+}
+
+write_runtime_json(){ # $1=path $2=app_python $3=version $4=runtime_id $5=digest $6=trusted repo
+  printf '{"app_python": "%s", "app_python_version": "%s", "runtime_id": "%s", "runtime_digest": "%s", "trusted_repo": "%s"}\n' \
+    "$2" "$3" "$4" "$5" "$6" > "$1"
+}
+
+# ISOLATED SELF-TEST of the two functions above (S2 T08): a temporary root, never as root, never the real root.
+if [ -n "$SELF_TEST_ROOT" ]; then
+  [ "$(id -u)" != 0 ] || die "--self-test-root refuses to run as root"
+  case "$(cd "$SELF_TEST_ROOT" 2>/dev/null && pwd -P)" in ""|"$ROOT"|"$ROOT"/*) die "--self-test-root must be an existing directory outside $ROOT";; esac
+  [ -n "$LAUNCHER" ] && [ -n "$LSHA" ] && [ -n "$REPO" ] && [ -n "$APPROVED" ] || die "missing required arg"
+  [ "$(shasum -a 256 "$LAUNCHER" | cut -d' ' -f1)" = "$LSHA" ] || die "launcher sha256 != expected $LSHA"
+  git -C "$REPO" cat-file -e "${APPROVED}^{commit}" 2>/dev/null || die "approved sha $APPROVED not in local objects at $REPO"
+  T_BIN="$SELF_TEST_ROOT/bin/release_launcher-$LSHA.py"; mkdir -p "$SELF_TEST_ROOT/bin"
+  [ -f "$T_BIN" ] || { cp "$LAUNCHER" "$T_BIN"; chmod 0444 "$T_BIN"; }
+  materialise_release_dir "$SELF_TEST_ROOT/releases" "$APPROVED" "$REPO" "$T_BIN" 0
+  printf '{"approved_sha": "%s"}\n' "$APPROVED" > "$SELF_TEST_ROOT/approved_release.json"
+  write_runtime_json "$SELF_TEST_ROOT/runtime.json" "${SELF_TEST_APP:-NOT_INSTALLED}" "self-test" "self-test" "self-test" "$REPO"
+  say "SELF-TEST done (user-owned root, nothing root-owned, nothing outside $SELF_TEST_ROOT): new=$MATERIALISED_NEW"
+  exit 0
+fi
 
 # read-only diagnostic mode: verify a runtime tree and exit (no install, no root needed)
 if [ -n "$VERIFY_ONLY" ]; then
@@ -168,16 +226,15 @@ run cp "$LAUNCHER" "$DST_BIN"
 run chown root:wheel "$DST_BIN"; run chmod 0444 "$DST_BIN"
 say "launcher installed: $DST_BIN (root:wheel 0444)"
 
-# 4) materialise the approved release: git archive → temp → verify → atomic rename → read-only root-owned
-if [ "$DRY" = 1 ]; then echo "  [dry] git archive $APPROVED | tar -x -C <tmp>; stamp; rename → $REL; chmod -R a-w"; else
-  TMP="$ROOT/releases/.tmp-$APPROVED"; rm -rf "$TMP"; mkdir -p "$TMP"
-  git -C "$REPO" archive --format=tar "$APPROVED" | tar -x -C "$TMP" || die "materialise failed"
-  printf '%s' "$APPROVED" > "$TMP/.release_sha"
-  [ -f "$TMP/spa_core/paper_trading/cycle_runner.py" ] || die "release incomplete: cycle_runner missing"
-  rm -rf "$REL"; mv "$TMP" "$REL"
-  chown -R root:wheel "$REL"; chmod -R a-w "$REL"; chmod -R o+rX,g+rX "$REL"
+# 4) materialise the approved release (S2 T08): reserve → git archive → composition PROVEN by the installed
+#    launcher → stamp last; an existing dir is reused only if proven, otherwise KEPT and the install fails closed.
+if [ "$DRY" = 1 ]; then echo "  [dry] materialise_release_dir $ROOT/releases $APPROVED (mkdir reservation; git archive | tar; launcher composition proof; stamp last; NO rm)"; else
+  materialise_release_dir "$ROOT/releases" "$APPROVED" "$REPO" "$DST_BIN" 1
+  if [ "$MATERIALISED_NEW" = 1 ]; then
+    chown -R root:wheel "$REL"; chmod -R a-w "$REL"; chmod -R o+rX,g+rX "$REL"
+  fi
   [ "$(cat "$REL/.release_sha")" = "$APPROVED" ] || die "release stamp mismatch after install"
-  say "release materialised + verified: $REL (root:wheel, read-only)"
+  say "release ready: $REL (root:wheel, read-only)"
 fi
 
 # 5) approval file → root:wheel 0644 (user READS, only root WRITES). Only a SHA, never a command.
@@ -190,10 +247,10 @@ fi
 # 5b) runtime.json → root:wheel 0644. The launcher reads app_python from HERE (root-owned), never
 #     sys.executable (=3.9 bootstrap) and never the approval file. Points at the installed trusted bundle.
 RUNTIME_JSON="$ROOT/runtime.json"
-if [ "$DRY" = 1 ]; then echo "  [dry] write $RUNTIME_JSON = {app_python:$APP_PYTHON, runtime_id:$RID, runtime_digest:$RDIGEST}; chown root:wheel; chmod 0644"; else
-  printf '{"app_python": "%s", "app_python_version": "%s", "runtime_id": "%s", "runtime_digest": "%s"}\n' "$APP_PYTHON" "$APP_VER" "$RID" "$RDIGEST" > "$RUNTIME_JSON"
+if [ "$DRY" = 1 ]; then echo "  [dry] write $RUNTIME_JSON = {app_python:$APP_PYTHON, runtime_id:$RID, runtime_digest:$RDIGEST, trusted_repo:$REPO}; chown root:wheel; chmod 0644"; else
+  write_runtime_json "$RUNTIME_JSON" "$APP_PYTHON" "$APP_VER" "$RID" "$RDIGEST" "$REPO"
   chown root:wheel "$RUNTIME_JSON"; chmod 0644 "$RUNTIME_JSON"
-  say "runtime.json written: $RUNTIME_JSON (app_python=$APP_PYTHON $APP_VER digest $RDIGEST root:wheel 0644)"
+  say "runtime.json written: $RUNTIME_JSON (app_python=$APP_PYTHON $APP_VER digest $RDIGEST trusted_repo=$REPO root:wheel 0644)"
 fi
 
 # 6) prove the ordinary user CANNOT modify launcher / approval / release / runtime manifest
