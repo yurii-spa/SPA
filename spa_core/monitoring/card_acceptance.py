@@ -7062,6 +7062,89 @@ def _probe_owner_control_plane_reachable(
                        "может управлять системой через Telegram")
 
 
+def _probe_presence_as_observation_population_named(
+        arg: str | None) -> tuple[str, str]:
+    """Критерий: население класса ADR-875 НАЗВАНО переписью И мера НЕ слепа.
+
+    Предмет — карточка `inbox-prisutstvie-faila-kak-dokazatelstvo-pisat` (заказ
+    G876 п. 1, ADR-876). ADR-875 закрыл РОВНО ОДИН сторож — шага 0-офис — и сам
+    запретил считать класс закрытым по находке из одного:
+
+    > «сколько ещё дверей читают присутствие файла как доказательство живого
+    > писателя, не спрашивал никто.»
+
+    Проба мерит ИСХОД, а не наличие модуля, и у неё ДВА независимых замера:
+
+    1. **мера не слепа** (`drive_both_directions`) — две одноразовые сцены,
+       отличающиеся РОВНО направлением: «отсутствие ⇒ не измерено» (эталон,
+       инв. #17) против «присутствие ⇒ прочитано» (дословная авария ADR-875).
+       Один и тот же род исхода на обеих сценах есть ровно тот дефект, который
+       перепись мерит, и тогда проба НЕ выполнена. Без этого звена «население
+       пусто» было бы утверждением о слепоте, а не о дереве;
+    2. **население** (`measure`) — поимённый перечень мест, где присутствие
+       пути становится вердиктом о наблюдении, у КАЖДОЙ находки вердикт живой
+       оси (КОНСТАНТА · писатель · на диске нет · не измерено), и число у
+       каждой НЕ ИЗМЕРЕННОЙ поверхности (родовое «прошло», оболочка,
+       воркфлоу). Население НЕ является условием прохода: предмет карточки —
+       чтобы класс был ИЗМЕРЕН, а не чтобы он был пуст (та же граница, что у
+       `three_outcome_reader_population_named`, ADR-870); чинить двери —
+       отдельная работа с отдельной пробой.
+
+    Третий исход СВОЙ: прибор не ввозится, дерево не разобрано либо сцена не
+    поднялась ⇒ `unmeasured` с названной причиной, и НИКОГДА `satisfied` без
+    обоих замеров. Проба, которая на неподнятой сцене сказала бы «выполнено»,
+    была бы ровно тем дефектом, который чинит её собственный предмет.
+
+    Подстрокой проба не проходит (ADR-333): текста исходников она не читает
+    вовсе, а судит по РОДУ исхода в полях замера.
+    """
+    if (arg or "").strip():
+        return UNMEASURED, (f"проба не принимает аргумента (дано {arg!r}): "
+                            "предмет — класс целиком, пофайловой формы у него "
+                            "нет")
+    try:
+        from spa_core.monitoring import presence_as_observation_census as m
+    except Exception as exc:                                        # noqa: BLE001
+        return UNMEASURED, f"прибор переписи не ввозится: {type(exc).__name__}: {exc}"
+
+    drive = m.drive_both_directions()
+    if drive.get("kind") == m.DRIVE_UNMEASURED:
+        return UNMEASURED, f"сцены меры не поднялись: {drive.get('reason')}"
+    if drive.get("kind") == m.DRIVE_BLIND:
+        return NOT_SATISFIED, (f"мера СЛЕПА к своему предмету: "
+                               f"{drive.get('reason')} — населению такой "
+                               f"переписи верить нельзя")
+
+    try:
+        report = m.measure()
+    except Exception as exc:                                        # noqa: BLE001
+        return UNMEASURED, (f"мера различает направления, но население НЕ "
+                            f"измерено: {type(exc).__name__}: {exc}")
+    if report.get("verdict") == "unmeasured":
+        reason = report.get("reason") or "; ".join(
+            report.get("unmeasured_files", [])[:3]) or "причина не названа"
+        return UNMEASURED, f"население НЕ измерено: {reason}"
+
+    counts = report["counts"]
+    tracked = report["tracked_kinds"]
+    shell = report["shell_surface"]
+    return SATISFIED, (
+        f"мера различает направления (честный отказ НЕ находка, авария "
+        f"ADR-875 находка); население НАЗВАНО: модулей "
+        f"{report['module_count']}, мест {report['site_count']} — находок "
+        f"{counts[m.PRESENCE_TO_OBSERVED]} (словом о наблюдении "
+        f"{report['claims']['observation']} · баллом готовности "
+        f"{report['claims']['readiness_score']}); у находок вердикт КОНСТАНТА "
+        f"{tracked[m.TRACKED_CONSTANT]} · писатель {tracked[m.TRACKED_WRITER]}"
+        f" · на диске нет {tracked[m.TRACKED_ABSENT]} · не измерено "
+        f"{tracked[m.TRACKED_UNMEASURED]}; эталон «отсутствие ⇒ не измерено» "
+        f"{counts[m.ABSENCE_TO_UNMEASURED]}, вето содержимого "
+        f"{counts[m.CONTENT_CHECKED]}, вето писателя "
+        f"{counts[m.WRITER_ASKED]}; НЕ ИЗМЕРЕНО: родовое «прошло» "
+        f"{counts[m.PRESENCE_GENERIC_PASS]} мест · оболочка/воркфлоу "
+        f"{shell['sites']} мест в {shell['files']} файлах")
+
+
 def _probe_office_absence_guard_not_fooled_by_tracked(
         arg: str | None) -> tuple[str, str]:
     """Сторож «офис НЕ ИЗМЕРЕН» не обманывается git-tracked артефактом.
@@ -13961,6 +14044,8 @@ PROBES: dict[str, Callable[[str | None], "tuple[str, str]"]] = {
         _probe_twin_guard_survives_the_intake_stamp,
     "owner_task_answer_reaches_the_channel":
         _probe_owner_task_answer_reaches_the_channel,
+    "presence_as_observation_population_named":
+        _probe_presence_as_observation_population_named,
     "three_outcome_reader_population_named":
         _probe_three_outcome_reader_population_named,
     "three_outcome_readers_distinguish_by_code":

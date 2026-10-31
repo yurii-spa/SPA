@@ -2,11 +2,11 @@
 
 > Авто-генерится `scripts/build_tracker_board.py` из `nimbalyst-local/tracker/*.md`. НЕ править вручную — правь карточки. Источник правды — карточки, это индекс (bootstrap).
 >
-> Собрана: 2026-10-31T06:53:31Z · сверка с карточками: `python3 scripts/build_tracker_board.py --check` (сторож `spa_core/tests/test_tracker_board_matches_cards.py`).
+> Собрана: 2026-10-31T10:35:06Z · сверка с карточками: `python3 scripts/build_tracker_board.py --check` (сторож `spa_core/tests/test_tracker_board_matches_cards.py`).
 >
-> Сверено с `origin/main` (39f2308c3).
+> Сверено с `origin/main` (018b2bb68).
 >
-> Всего карточек: **1536** · ждёт владельца: **6** · занято сессиями: **13**.
+> Всего карточек: **1537** · ждёт владельца: **6** · занято сессиями: **13**.
 
 ## 🔴 ЖДЁТ ВЛАДЕЛЬЦА (needs-owner)
 
@@ -421,7 +421,7 @@
 ### · closed
 - Считать ли верный отказ по правилам допуска неисправностью флота  ·  `owner-decision-schitat-li-vernyi-otkaz-po-pravilam-dopu.md` · 2026-10-08
 
-## 📥 Inbox (задания: Telegram / заметки / голос)  (857)
+## 📥 Inbox (задания: Telegram / заметки / голос)  (858)
 
 ### · in-progress
 - а задача починить все-таки еще раз сообщение которым не пишет нужно твое решени…  ·  `inbox-a-zadacha-pochinit-vse-taki-esche-raz-so.md` · 2026-08-14 · 🔒 `pid43119`
@@ -749,6 +749,7 @@
 - Приказ: следующий цикл начинает с inbox-task-portfolio-cio-dynamic-capital-allo…  ·  `inbox-prikaz-sleduyuschii-tsikl-nachinaet-s-in.md` · 2026-08-26
 - Приказ владельца ускользнул от сторожа, написанного РАДИ него: прод-копия закрыта однострочником 31.08, на origin она critical/in-progress с блоком «ЗАПУСТИТЬ СЛЕДУЮЩИМ ЦИКЛОМ»  ·  `inbox-prikaz-vladeltsa-uskolznul-ot-storozha-n.md` · 2026-09-04
 - прислыай задчи для меня будем разбирать  ·  `inbox-prislyai-zadchi-dlya-menya-budem-razbira.md` · 2026-08-19
+- Присутствие файла выдано за доказательство писателя: население класса ADR-875 измерено — 7 находок, у четырёх вердикт КОНСТАНТА, и шесть баллов go-live из десяти стоят на tracked-исходниках  ·  `inbox-prisutstvie-faila-vydano-za-dokazatelstv.md` · 2026-10-31
 - Проба одного критерия §49 объявлена на карточке всего стоячего приказа — офис прочтёт её как «приказ исполнен»  ·  `inbox-proba-odnogo-kriteriya-49-obyavlena-na-k.md` · 2026-09-28
 - Проба переписи считает построчное «не измерено» за оценённое — зелёный критерий возможен при ненаблюдённом предмете  ·  `inbox-proba-perepisi-schitaet-postrochnoe-ne-i.md` · 2026-10-16
 - Прод-сторож архитектуры читает файл, который синхронизация не обновляет  ·  `inbox-prod-storozh-arhitektury-chitaet-fail-ko.md` · 2026-08-08

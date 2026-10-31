@@ -742,6 +742,7 @@
 | ADR-873 | ADR-873 — У оси «род записи» появился ПИСАТЕЛЬ: «тип не объявлен 38 из 38» было ложной ПОЛНОТОЙ, а не перечнем недосмотров | Accepted | [ADR-873](ADR-873-the-record-kind-axis-gets-a-writer.md) |
 | ADR-874 | ADR-874 — «Циклов мимо» обязано считать ПРИКАЗ, а не календарь: 880 против 455 назвавших карточку | Accepted | [ADR-874](ADR-874-passed-by-counts-the-order-not-the-calendar.md) |
 | ADR-875 | ADR-875 — Сторож «офис НЕ ИЗМЕРЕН» обойдён git-tracked артефактом: присутствие файла наблюдением не является (140 ложных находок из любого worktree) | Accepted | [ADR-875](ADR-875-office-absence-guard-fooled-by-a-tracked-artefact.md) |
+| ADR-876 | ADR-876 — Население класса «присутствие файла выдано за доказательство ПИСАТЕЛЯ» ИЗМЕРЕНО: 7 находок, у четырёх вердикт КОНСТАНТА, и шесть баллов go-live из десяти стоят на tracked-исходниках | Accepted | [ADR-876](ADR-876-presence-as-observation-population.md) |
 
 ## Соглашения
 

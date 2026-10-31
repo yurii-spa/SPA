@@ -1,0 +1,116 @@
+{
+ "title": "ADR-876 — перепись «присутствие выдано за доказательство ПИСАТЕЛЯ»: направление, три яруса силы, живая ось",
+ "tests": [
+  "spa_core/tests/test_presence_as_observation_census.py"
+ ],
+ "mutations": [
+  {
+   "name": "класс снят с НАПРАВЛЕНИЯ: честный отказ «файла нет ⇒ не измерено» снова становится находкой",
+   "file": "spa_core/monitoring/presence_as_observation_census.py",
+   "old": "    present, absent = ((true_branch, false_branch) if polarity\n                       else (false_branch, true_branch))",
+   "new": "    present, absent = (true_branch, false_branch)"
+  },
+  {
+   "name": "вето отрицания снято: «не прочитан» читается утверждением",
+   "file": "spa_core/monitoring/presence_as_observation_census.py",
+   "old": "    for text in tokens:\n        if _ABSENCE.search(text):\n            continue",
+   "new": "    for text in tokens:\n        if False:\n            continue"
+  },
+  {
+   "name": "вето содержимого снято: вердикт на прочитанном файле объявлен находкой",
+   "file": "spa_core/monitoring/presence_as_observation_census.py",
+   "old": "        if (_called_names(present) | _called_names([node.test])) & _CONTENT_READERS:",
+   "new": "        if False:"
+  },
+  {
+   "name": "вето писателя снято: починенная ADR-875 форма объявлена дефектом",
+   "file": "spa_core/monitoring/presence_as_observation_census.py",
+   "old": "        if writer_asked:\n            return {**base, \"outcome\": WRITER_ASKED, \"verdict\": evidence}",
+   "new": "        if False:\n            return {**base, \"outcome\": WRITER_ASKED, \"verdict\": evidence}"
+  },
+  {
+   "name": "сила утверждения ЗАВЫШЕНА: родовое «PASS» объявлено находкой",
+   "file": "spa_core/monitoring/presence_as_observation_census.py",
+   "old": "    if _match(tokens, _GENERIC_PASS):\n        return {**base, \"outcome\": PRESENCE_GENERIC_PASS,",
+   "new": "    if _match(tokens, _GENERIC_PASS):\n        return {**base, \"outcome\": PRESENCE_TO_OBSERVED, \"claim\": \"observation\",\n                \"_was\": PRESENCE_GENERIC_PASS,"
+  },
+  {
+   "name": "балл готовности перестал быть утверждением: `score += 2` за присутствие проходит молча",
+   "file": "spa_core/monitoring/presence_as_observation_census.py",
+   "old": "    claim = (\"observation\" if observed\n             else \"readiness_score\" if counters else None)",
+   "new": "    claim = (\"observation\" if observed else None)"
+  },
+  {
+   "name": "имя предиката снова считается своим вердиктом — мера подтверждает себя собой",
+   "file": "spa_core/monitoring/presence_as_observation_census.py",
+   "old": "                if name and name not in _PREDICATES:\n                    out.append(name)",
+   "new": "                if name:\n                    out.append(name)"
+  },
+  {
+   "name": "строчный локальный идентификатор снова улика — `ok.append()` станет находкой",
+   "file": "spa_core/monitoring/presence_as_observation_census.py",
+   "old": "            elif isinstance(sub, ast.Name) and sub.id.isupper():\n                out.append(sub.id)",
+   "new": "            elif isinstance(sub, ast.Name):\n                out.append(sub.id)"
+  },
+  {
+   "name": "живая ось: окно сегментов больше не предпочитается — ответ придёт про КАТАЛОГ вместо файла",
+   "file": "spa_core/monitoring/presence_as_observation_census.py",
+   "old": "    for length in range(len(segments), 0, -1):",
+   "new": "    for length in range(1, len(segments) + 1):"
+  },
+  {
+   "name": "живая ось: неответ git подставлен КОНСТАНТОЙ (инв. #17 наизнанку)",
+   "file": "spa_core/monitoring/presence_as_observation_census.py",
+   "old": "    if tracked is None:\n        return {\"kind\": TRACKED_UNMEASURED, \"path\": rel,\n                \"reason\": \"git не ответил о tracked-состоянии\"}",
+   "new": "    if tracked is None:\n        return {\"kind\": TRACKED_CONSTANT, \"path\": rel,\n                \"reason\": \"git не ответил о tracked-состоянии\"}"
+  },
+  {
+   "name": "живая ось: переписанный tracked-файл объявлен константой — писателя перестали видеть",
+   "file": "spa_core/monitoring/presence_as_observation_census.py",
+   "old": "    if changed:\n        return {\"kind\": TRACKED_WRITER, \"path\": rel,\n                \"reason\": \"tracked и ПЕРЕПИСАН ⇒ писатель был\"}",
+   "new": "    if changed:\n        return {\"kind\": TRACKED_CONSTANT, \"path\": rel,\n                \"reason\": \"tracked и ПЕРЕПИСАН ⇒ писатель был\"}"
+  },
+  {
+   "name": "живая ось: «на диске нет» слито с «не измерено»",
+   "file": "spa_core/monitoring/presence_as_observation_census.py",
+   "old": "        if file_shaped:\n            return {\"kind\": TRACKED_ABSENT, \"path\": file_shaped[0],",
+   "new": "        if False:\n            return {\"kind\": TRACKED_ABSENT, \"path\": file_shaped[0],"
+  },
+  {
+   "name": "третий исход прибора: неразобранный модуль проглочен, вердикт станет «чисто»",
+   "file": "spa_core/monitoring/presence_as_observation_census.py",
+   "old": "    verdict = (\"unmeasured\" if unmeasured_files\n               else \"findings\" if findings else \"clean\")",
+   "new": "    verdict = (\"findings\" if findings else \"clean\")"
+  },
+  {
+   "name": "пустая область объявлена чистотой, а не «мерить нечего»",
+   "file": "spa_core/monitoring/presence_as_observation_census.py",
+   "old": "    if not files:\n        return {\"verdict\": \"unmeasured\",",
+   "new": "    if False:\n        return {\"verdict\": \"unmeasured\","
+  },
+  {
+   "name": "поверхность оболочки объявлена измеренной — 124 места станут нулём",
+   "file": "spa_core/monitoring/presence_as_observation_census.py",
+   "old": "    return {\"sites\": sites, \"files\": files, \"unreadable\": unreadable,\n            \"verdict\": \"unmeasured\"}",
+   "new": "    return {\"sites\": sites, \"files\": files, \"unreadable\": unreadable,\n            \"verdict\": \"measured\"}"
+  },
+  {
+   "name": "живая ось выключена у находок — сила утверждения перестанет меряться",
+   "file": "spa_core/monitoring/presence_as_observation_census.py",
+   "old": "    for site in findings:\n        axis = tracked_constant_axis(site, root=root)\n        site[\"tracked\"] = axis\n        tracked_kinds[axis[\"kind\"]] += 1",
+   "new": "    for site in findings:\n        site[\"tracked\"] = {\"kind\": TRACKED_UNMEASURED, \"reason\": \"не спрошено\"}\n        tracked_kinds[TRACKED_UNMEASURED] += 1"
+  },
+  {
+   "name": "проба приёмки: слепая мера объявлена выполненным критерием (fail-OPEN у самой пробы)",
+   "file": "spa_core/monitoring/card_acceptance.py",
+   "old": "    if drive.get(\"kind\") == m.DRIVE_BLIND:\n        return NOT_SATISFIED, (f\"мера СЛЕПА к своему предмету: \"",
+   "new": "    if False:\n        return NOT_SATISFIED, (f\"мера СЛЕПА к своему предмету: \""
+  },
+  {
+   "name": "проба приёмки: «население НЕ измерено» выдано за выполненный критерий",
+   "file": "spa_core/monitoring/card_acceptance.py",
+   "old": "    if report.get(\"verdict\") == \"unmeasured\":\n        reason = report.get(\"reason\") or \"; \".join(\n            report.get(\"unmeasured_files\", [])[:3]) or \"причина не названа\"\n        return UNMEASURED, f\"население НЕ измерено: {reason}\"",
+   "new": "    if False:\n        reason = report.get(\"reason\") or \"; \".join(\n            report.get(\"unmeasured_files\", [])[:3]) or \"причина не названа\"\n        return UNMEASURED, f\"население НЕ измерено: {reason}\""
+  }
+ ]
+}
