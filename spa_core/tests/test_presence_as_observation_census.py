@@ -17,6 +17,7 @@ from __future__ import annotations
 
 import functools
 import os
+import shutil
 import subprocess
 import sys
 import tempfile
@@ -28,14 +29,65 @@ sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)),
 from spa_core.monitoring import presence_as_observation_census as c  # noqa: E402
 
 
-@functools.lru_cache(maxsize=1)
-def real_tree_report() -> dict:
-    """Замер НАСТОЯЩЕГО дерева — один раз на прогон.
+#: НАСТОЯЩЕЕ дерево батарея НЕ обходит — и это решение с ЗАМЕРОМ, а не
+#: удобство (инв. #16, причина записана в журнале цикла #994).
+#:
+#: Первая редакция звала `c.measure()` без корня, то есть парсила 2517 модулей
+#: репозитория внутри модульного теста. В CI (`python 3.11.17`, прогон
+#: 41193530395 на `9a2566b66`) шард 2 упал с **pytest exit -11 (SIGSEGV)** на
+#: `AcceptanceProbe::test_a_satisfied_verdict_names_both_measurements`, сессия
+#: кончилась без сводки, и ВСЕ семь тестов, обходивших дерево, стали красными —
+#: класс набора вырос 75 -> 84, и девять из прибавки мои. Локально на 3.13 то
+#: же место зелено: батарея отвечала на вопрос «как устроен ХОСТ», а не «верна
+#: ли мера».
+#:
+#: Настоящее дерево мерит тот, кому это положено: проба приёмки
+#: `presence_as_observation_population_named` (её зовёт шаг цикла) и CLI
+#: прибора. Батарея мерит МЕРУ — на одноразовых сценах, где ответ известен.
+_REAL_TREE_IS_NOT_THE_BATTERY_SUBJECT = True
 
-    Обход 2500 модулей стоит секунды; четыре теста, зовущие `measure()`
-    по отдельности, платили бы за один и тот же ответ четырежды.
+
+@functools.lru_cache(maxsize=1)
+def scene_tree() -> str:
+    """Одноразовое ДЕРЕВО-сцена: один честный отказ и один дефект.
+
+    Корень живёт до конца прогона намеренно (`lru_cache`): его обходят
+    несколько тестов, и платить за `git init` каждому незачем. Каталог —
+    временный, его снимает ОС.
     """
-    return c.measure()
+    root = tempfile.mkdtemp(prefix="spa_presence_tree_")
+    subprocess.run(["git", "init", "-b", "main", root],
+                   check=True, capture_output=True)
+    subprocess.run(["git", "config", "user.email", "t@example.com"],
+                   cwd=root, check=True, capture_output=True)
+    subprocess.run(["git", "config", "user.name", "t"],
+                   cwd=root, check=True, capture_output=True)
+    os.makedirs(os.path.join(root, "scripts"))
+    os.makedirs(os.path.join(root, "data"))
+    open(os.path.join(root, "scripts", "honest.py"), "w").write(
+        "import os\n"
+        "def f(p):\n"
+        "    if not os.path.exists(p):\n"
+        "        return 'НЕ ИЗМЕРЕНО'\n"
+        "    return parse(p)\n")
+    open(os.path.join(root, "scripts", "defect.py"), "w").write(
+        "import os\n"
+        "P = 'data/office_report.json'\n"
+        "def f():\n"
+        "    if os.path.exists(P):\n"
+        "        return 'прочитано: писатель был'\n"
+        "    return 'НЕ ПРОЧИТАН'\n")
+    open(os.path.join(root, "data", "office_report.json"), "w").write("{}")
+    subprocess.run(["git", "add", "-A"], cwd=root, check=True,
+                   capture_output=True)
+    subprocess.run(["git", "commit", "-m", "scene"], cwd=root, check=True,
+                   capture_output=True)
+    return root
+
+
+@functools.lru_cache(maxsize=1)
+def scene_report() -> dict:
+    return c.measure(scene_tree(), ["scripts"])
 
 
 def outcomes(source: str) -> list[str]:
@@ -319,9 +371,10 @@ def _target(source: str):
 class TrackedConstantAxis(unittest.TestCase):
     """Живая ось — настоящий git на одноразовом репозитории, три исхода."""
 
-    @staticmethod
-    def _repo() -> str:
+    def _repo(self) -> str:
+        # Тот же порядок, что у сцены выше: стенд убирается за собой.
         root = tempfile.mkdtemp(prefix="spa_presence_axis_")
+        self.addCleanup(shutil.rmtree, root, ignore_errors=True)
         # Имя ветки — ВХОД сцены, а не умолчание хоста (§ GIT-ОКРУЖЕНИЕ).
         subprocess.run(["git", "init", "-b", "main", root],
                        check=True, capture_output=True)
@@ -398,8 +451,13 @@ class LiveAxisIsWiredIntoMeasure(unittest.TestCase):
     """
 
     @staticmethod
-    def _scene(commit_artifact: bool) -> str:
+    def _scene(commit_artifact: bool, *, cleanup=None) -> str:
+        # Одноразовый стенд УБИРАЕТСЯ за собой: брошенные `mkdtemp` — named
+        # класс (`inbox-pribory-brosayut-odnorazovyi-stend-87-gb`), и новых
+        # его членов батарея заводить не вправе.
         root = tempfile.mkdtemp(prefix="spa_presence_wiring_")
+        if cleanup is not None:
+            cleanup(shutil.rmtree, root, ignore_errors=True)
         # Имя ветки — ВХОД сцены, не умолчание хоста (§ GIT-ОКРУЖЕНИЕ).
         subprocess.run(["git", "init", "-b", "main", root],
                        check=True, capture_output=True)
@@ -425,7 +483,8 @@ class LiveAxisIsWiredIntoMeasure(unittest.TestCase):
         return root
 
     def test_a_tracked_artifact_makes_the_verdict_a_constant(self):
-        report = c.measure(self._scene(commit_artifact=True), ["scripts"])
+        report = c.measure(self._scene(commit_artifact=True,
+                                       cleanup=self.addCleanup), ["scripts"])
         self.assertEqual(1, len(report["findings"]), report["findings"])
         self.assertEqual(c.TRACKED_CONSTANT,
                          report["findings"][0]["tracked"]["kind"],
@@ -433,7 +492,8 @@ class LiveAxisIsWiredIntoMeasure(unittest.TestCase):
         self.assertEqual(1, report["tracked_kinds"][c.TRACKED_CONSTANT])
 
     def test_an_untracked_artifact_makes_the_verdict_a_writer(self):
-        report = c.measure(self._scene(commit_artifact=False), ["scripts"])
+        report = c.measure(self._scene(commit_artifact=False,
+                                       cleanup=self.addCleanup), ["scripts"])
         self.assertEqual(1, len(report["findings"]), report["findings"])
         self.assertEqual(c.TRACKED_WRITER,
                          report["findings"][0]["tracked"]["kind"],
@@ -442,9 +502,8 @@ class LiveAxisIsWiredIntoMeasure(unittest.TestCase):
 
     def test_the_live_axis_is_asked_once_per_finding(self):
         """Сумма родов живой оси РАВНА числу находок — ни одна не пропущена."""
-        report = real_tree_report()
-        if report["verdict"] == "unmeasured":
-            self.skipTest("дерево не измерено — предмет не поднят")
+        report = scene_report()
+        self.assertEqual("findings", report["verdict"], report["verdict"])
         self.assertEqual(len(report["findings"]),
                          sum(report["tracked_kinds"].values()))
 
@@ -497,7 +556,7 @@ class ThirdOutcome(unittest.TestCase):
                              c.exit_code(c.measure(root, ["scripts"])))
 
     def test_the_shell_surface_is_reported_as_unmeasured_not_zero(self):
-        report = real_tree_report()
+        report = scene_report()
         self.assertEqual("unmeasured", report["shell_surface"]["verdict"])
 
 
@@ -558,8 +617,7 @@ class AcceptanceProbe(unittest.TestCase):
         from spa_core.monitoring import card_acceptance
         return card_acceptance
 
-    @staticmethod
-    def _scene_measure():
+    def _scene_measure(self):
         """`c.measure`, отвечающая про ОДНОРАЗОВУЮ сцену, а не про это дерево.
 
         Проба зовёт `m.measure()` — именно эту ссылку модуля, — поэтому
@@ -573,8 +631,7 @@ class AcceptanceProbe(unittest.TestCase):
         `unmeasured`, проба честно ответила бы `unmeasured`, и тест покраснел
         бы от ЧУЖОЙ правки. Сцена отвечает на вопрос о пробе на ЛЮБОМ хосте.
         """
-        root = LiveAxisIsWiredIntoMeasure._scene(commit_artifact=True)
-        report = c.measure(root, ["scripts"])
+        report = scene_report()
         assert report["verdict"] == "findings", report
         return lambda *a, **k: report
 
@@ -599,7 +656,7 @@ class AcceptanceProbe(unittest.TestCase):
         saved_measure = c.measure
         try:
             c._OBSERVATION_WORDS = _re.compile(r"(?!x)x")
-            c.measure = lambda *a, **k: real_tree_report()
+            c.measure = lambda *a, **k: scene_report()
             state, why = ca.PROBES[
                 "presence_as_observation_population_named"](None)
         finally:
@@ -647,19 +704,21 @@ class AcceptanceProbe(unittest.TestCase):
         self.assertIn("не принимает аргумента", why)
 
 
-class RealTree(unittest.TestCase):
-    """Перепись читает НАСТОЯЩЕЕ дерево, и её исходы — из объявленного словаря."""
+class WholeReport(unittest.TestCase):
+    """Отчёт целиком: исходы из объявленного словаря, отсутствие ПРЕДСТАВЛЕНО.
+
+    Мерится на ДЕРЕВЕ-СЦЕНЕ, а не на этом репозитории: почему — в комментарии
+    к `_REAL_TREE_IS_NOT_THE_BATTERY_SUBJECT` (SIGSEGV шарда 2 в CI, #994).
+    """
 
     def test_every_outcome_is_from_the_declared_dictionary(self):
-        report = real_tree_report()
-        self.assertIn(report["verdict"], ("findings", "clean", "unmeasured"))
-        if report["verdict"] != "unmeasured":
-            self.assertEqual(set(c.OUTCOMES), set(report["counts"]))
-            self.assertEqual(report["site_count"],
-                             sum(report["counts"].values()))
+        report = scene_report()
+        self.assertEqual("findings", report["verdict"], report["verdict"])
+        self.assertEqual(set(c.OUTCOMES), set(report["counts"]))
+        self.assertEqual(report["site_count"], sum(report["counts"].values()))
 
-    def test_an_unmeasured_module_of_the_real_tree_is_never_swallowed(self):
-        """Неразобранный модуль ДЕРЕВА обязан быть НАЗВАН, а не проглочен.
+    def test_an_unmeasured_module_is_never_swallowed(self):
+        """Неразобранный модуль обязан быть НАЗВАН, а не проглочен.
 
         Утверждение здесь — про ПРЕДСТАВЛЕНИЕ (инв. #17), а не про пустоту
         списка, и это решение с причиной, а не послабление (инв. #16).
@@ -675,8 +734,13 @@ class RealTree(unittest.TestCase):
         Пустоту дерева от синтаксиса мерит СВОЯ джоба (`SPA CI-Lite`), и
         дублировать её вопрос здесь значило бы отвечать не на свой.
         """
-        report = real_tree_report()
+        root = scene_tree()
+        broken = os.path.join(root, "scripts", "broken_scene.py")
+        open(broken, "w").write("def f(:\n    pass\n")
+        self.addCleanup(os.unlink, broken)
+        report = c.measure(root, ["scripts"])
         unmeasured = report.get("unmeasured_files", [])
+        self.assertTrue(unmeasured, report)
         if unmeasured:
             # Каждый назван ПОИМЁННО и с причиной, и вердикт — «не измерено»,
             # а не «чисто»: иначе перепись ответила бы на свой вопрос вместо
@@ -690,16 +754,15 @@ class RealTree(unittest.TestCase):
             self.assertIn(report["verdict"], ("findings", "clean"))
 
     def test_every_finding_carries_a_live_axis_verdict(self):
-        report = real_tree_report()
-        if report["verdict"] == "unmeasured":
-            self.skipTest("дерево не измерено — предмет не поднят")
+        report = scene_report()
+        self.assertTrue(report["findings"], report)
         for site in report["findings"]:
             self.assertIn(site["tracked"]["kind"],
                           (c.TRACKED_CONSTANT, c.TRACKED_WRITER,
                            c.TRACKED_ABSENT, c.TRACKED_UNMEASURED), site)
 
     def test_render_never_prints_a_bare_zero_for_the_shell_surface(self):
-        report = real_tree_report()
+        report = scene_report()
         text = "\n".join(c.render(report))
         self.assertIn("НЕ ИЗМЕРЕНО: оболочка/воркфлоу", text)
 
