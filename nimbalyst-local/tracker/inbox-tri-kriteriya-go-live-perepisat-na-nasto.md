@@ -2,11 +2,20 @@
 trackerStatus:
   type: inbox
 title: "Три критерия go-live переписать на настоящую проводку: решение владельца 31.10, вариант 1 (шесть баллов из десяти — константа)"
-status: new
+status: done
 source: nimbalyst
 created: 2026-10-31
 priority: high
 twin_key: "sha256:eaa4f5c2753151da7aae93533cee76f8e768198d9c1407b69d4dcdc0d90b5a88"
+claimed_by: cycle-50145
+claimed_at: 2026-10-31T15:10:15Z
+claimed_run_id: orchestrator-50145-F5765D1FF43C4AA6A35AC38D3AB00D8E
+claimed_pid: 50145
+claimed_pid_start: Sat Oct 31 16:01:15 2026
+acceptance_probe: golive_criteria_ask_the_producer
+status_trail:
+  - "2026-10-31T15:21:54.244806+00:00 new -> in-progress · queue.set_status · cycle-50145"
+  - "2026-10-31T15:50:15.241055+00:00 in-progress -> done · queue.set_status/closed_by:cycle-50145/evidence:проба golive_criteria_ask_the_producer = satisfied (6/6 баллов писателя против 0/6, PASS/approved против WARN/mark_without_signature, 4 PASS против 0 при одинаковом присутствии); ADR-879; батарея 20 p · cycle-50145"
 ---
 
 ## Что решено владельцем

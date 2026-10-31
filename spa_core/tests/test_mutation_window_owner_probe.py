@@ -27,6 +27,7 @@
 """
 from __future__ import annotations
 
+import json
 import os
 import shutil
 import sys
@@ -181,3 +182,73 @@ def test_a_refusal_that_also_blocks_a_dead_owner_is_caught(tmp_path):
     verdict, why = _probe()(None, repo_root=stand)
     assert verdict == ca.NOT_SATISFIED
     assert "путь" in why and "наследство" in why
+
+
+# ───── причина, НАЗВАННАЯ дверью, обязана доехать до читателя (ADR-874, цикл #992) ─────
+
+
+class TestTheDoorsReasonReachesTheReader:
+    """`_door_named_reason` — третий исход без причины неотличим от «нечем проверить».
+
+    Замер 30.10, прогон 41126290008 на `ubuntu-latest`: все шесть проб этого файла дали
+    `unmeasured` ВЕРНО — дверь там действительно не измеряет живость владельца окна, и
+    ужесточение ADR-871 (цикл #989) это вскрыло: до него `rc_live != 0` зачитывалось за
+    отказ, и проба объявляла `satisfied` на хосте, где не измерено НИЧЕГО. Но ПОЧЕМУ
+    дверь не измерила — вердикт не сказал: печатались последние 200 символов её `--json`,
+    то есть ХВОСТ (`"restored": [], "already_clean": [] …`), а причина лежит в ГОЛОВЕ,
+    в `owner.detail`. Инв. #17 требует не только отдельного значения для «не измерено»,
+    но и его ПРЕДСТАВЛЕНИЯ; представление без причины — не представление.
+
+    Контроль в обе стороны: причина есть ⇒ доезжает; документ не разбирается ⇒ это свой
+    НАЗВАННЫЙ исход, а не тихий возврат к прежнему поведению.
+    """
+
+    def test_the_named_reason_travels_and_the_tail_does_not_replace_it(self):
+        out = json.dumps({
+            "measured": True, "refused": True,
+            "owner": {"verdict": "unmeasured", "pid": 4242,
+                      "command": "/usr/bin/python3 -c нечто-чужое",
+                      "hostname": "runner-xyz", "run_label": "прогон-7",
+                      "detail": "номер 4242 занят живым процессом, и наш прибор в его "
+                                "команде не назван"},
+                      "reason": "ВЛАДЕЛЕЦ ОКНА не признан мёртвым (unmeasured)",
+            "restored": [], "already_clean": [], "failed": [], "closed": False,
+        }, ensure_ascii=False, indent=2)
+        said = ca._door_named_reason(out)
+        assert "наш прибор в его команде не назван" in said, said
+        assert "unmeasured" in said and "4242" in said, said
+        assert "не разобрать" not in said, said
+
+    def test_a_null_owner_is_named_and_not_passed_off_as_a_reason(self):
+        out = json.dumps({"measured": True, "refused": False, "owner": None,
+                          "reason": "записи окна нет — возвращать нечего"},
+                         ensure_ascii=False)
+        said = ca._door_named_reason(out)
+        assert "owner: null" in said or "о владельце не сказано" in said, said
+
+    def test_an_unparsable_document_is_its_own_named_outcome(self):
+        """ОБРАТНАЯ сторона: разобрать не вышло ⇒ сказать это ВСЛУХ.
+
+        Молчаливый возврат к хвосту текста сделал бы «причину не прочитали»
+        неотличимым от «причины нет» — тот же дефект на шаг короче.
+        """
+        said = ca._door_named_reason("дверь упала до JSON-а, вот её stderr: Traceback …")
+        assert "не разобрать" in said, said
+        assert "stderr" in said, said
+
+    def test_the_probe_carries_the_reason_into_its_unmeasured_verdict(self, tmp_path):
+        """ЗВЕНО целиком: дверь, отвечающая «НЕ ИЗМЕРЕНО» (2), обязана отдать пробе
+        свою причину — иначе красный на чужом хосте не диагностируем ничем.
+
+        Рвём у настоящего прибора РОВНО распознавание живого прибора в команде номера:
+        это и есть та ветка, которой `ubuntu-latest` отвечает `unmeasured`.
+        """
+        stand = _stand(tmp_path)
+        _patch(stand, '_TOOL_IN_COMMAND = re.compile(r"delta_mutation_run")',
+               '_TOOL_IN_COMMAND = re.compile(r"ЭТОГО-НЕТ-НИ-В-ОДНОЙ-КОМАНДЕ")')
+        verdict, why = _probe()(None, repo_root=stand)
+        assert verdict == ca.UNMEASURED, (verdict, why)
+        assert "НЕ ИЗМЕРЕНО" in why
+        assert "наш прибор в его команде не назван" in why, (
+            "вердикт `unmeasured` приехал БЕЗ причины двери — ровно дефект ADR-874: "
+            f"{why}")

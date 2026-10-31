@@ -1,0 +1,118 @@
+{
+  "title": "ADR-879 GOLIVE — дельта цикла #996: три критерия go-live спрашивают ПИСАТЕЛЯ, а не присутствие файла",
+  "tests": [
+    "spa_core/tests/test_golive_producer_criteria.py",
+    "spa_core/tests/test_golive_readiness_report.py",
+    "tests/test_evidence_infrastructure.py"
+  ],
+  "mutations": [
+    {
+      "name": "фид снова судится ПРИСУТСТВИЕМ исходника (авария ADR-876 дословно)",
+      "file": "spa_core/analytics/golive_readiness_report.py",
+      "old": "                if fresh:\n                    score += 2.0\n",
+      "new": "                if True:\n                    score += 2.0\n"
+    },
+    {
+      "name": "верификатор T1: отсутствие артефакта прогона снова даёт балл",
+      "file": "spa_core/analytics/golive_readiness_report.py",
+      "old": "        if kind is NO_WRITER:\n            items_pending.append(\n                f\"Верификатор T1: прогона НЕ БЫЛО — {why} (сам модуль \"\n                f\"`t1_data_verifier.py` в дереве лежит, но дерево не прогон)\")\n",
+      "new": "        if kind is NO_WRITER:\n            score += 2.0\n            items_done.append(\"Верификатор T1: модуль на месте\")\n"
+    },
+    {
+      "name": "промоутер: отсутствие журнала решений снова даёт балл",
+      "file": "spa_core/analytics/golive_readiness_report.py",
+      "old": "        if kind is NO_WRITER:\n            items_pending.append(\n                f\"Промоутер стратегий: запуска НЕ БЫЛО — {why} (кольцевой журнал \"\n                f\"решений пуст по построению: его пишет только сам прогон)\")\n",
+      "new": "        if kind is NO_WRITER:\n            score += 2.0\n            items_done.append(\"Промоутер стратегий: файл на месте\")\n"
+    },
+    {
+      "name": "стухший прогон верификатора приравнен к свежему (окно не проверяется)",
+      "file": "spa_core/analytics/golive_readiness_report.py",
+      "old": "            elif 0.0 <= age <= SOURCE_OBSERVATION_WINDOW_H:\n                score += 2.0\n                items_done.append(\n                    f\"Верификатор T1: артефакт ЕГО прогона свежий — {age:.1f}ч \"\n",
+      "new": "            elif True:\n                score += 2.0\n                items_done.append(\n                    f\"Верификатор T1: артефакт ЕГО прогона свежий — {age:.1f}ч \"\n"
+    },
+    {
+      "name": "третий исход склеен с «не выполнено»: items_unmeasured больше не отдаётся читателю (инв. #17)",
+      "file": "spa_core/analytics/golive_readiness_report.py",
+      "old": "            notes=notes, items_unmeasured=items_unmeasured,\n",
+      "new": "            notes=notes,\n"
+    },
+    {
+      "name": "отсутствующая отметка выдана за НОЛЬ часов — самую свежую из возможных",
+      "file": "spa_core/analytics/golive_readiness_report.py",
+      "old": "    if not isinstance(stamp, str) or not stamp.strip():\n        return None\n    try:\n        when = datetime.fromisoformat(stamp.strip().replace(\"Z\", \"+00:00\"))\n    except ValueError:\n        return None\n",
+      "new": "    if not isinstance(stamp, str) or not stamp.strip():\n        return 0.0\n    try:\n        when = datetime.fromisoformat(stamp.strip().replace(\"Z\", \"+00:00\"))\n    except ValueError:\n        return 0.0\n"
+    },
+    {
+      "name": "«писателя нет» склеено с «судить нечем»: два разных исхода стали одним",
+      "file": "spa_core/analytics/golive_readiness_report.py",
+      "old": "    if not path.exists():\n        return NO_WRITER, None, f\"{path.name} не писал никто — артефакта нет на диске\"\n",
+      "new": "    if not path.exists():\n        return UNMEASURED, None, f\"{path.name} не писал никто — артефакта нет на диске\"\n"
+    },
+    {
+      "name": "метка wallet_ready.sentinel снова «confirmed by owner» (обход инв. #14 дословно)",
+      "file": "spa_core/golive/checklist.py",
+      "old": "            status    = _WARN,\n            value     = \"mark_without_signature\",\n",
+      "new": "            status    = _PASS,\n            value     = \"verified\",\n"
+    },
+    {
+      "name": "approved=true без подписи снова проходит (умолчания «operator»/«unknown» вернулись)",
+      "file": "spa_core/golive/checklist.py",
+      "old": "            if signed_by and signed_at:\n",
+      "new": "            if True:\n"
+    },
+    {
+      "name": "обязательные артефакты снова судятся присутствием и РАЗМЕРОМ",
+      "file": "scripts/cycle_dry_run.py",
+      "old": "        age_h, why = _writer_stamp_age_h(doc, spec, at)\n        if age_h is None:\n",
+      "new": "        age_h, why = (0.0, \"\") if os.path.getsize(abs_path) > 0 else (None, \"пусто\")\n        if age_h is None:\n"
+    },
+    {
+      "name": "молчащий писатель приравнен к живому: окно свежести не проверяется",
+      "file": "scripts/cycle_dry_run.py",
+      "old": "        elif age_h > WRITER_FRESHNESS_WINDOW_H:\n",
+      "new": "        elif False:\n"
+    },
+    {
+      "name": "«НЕ ИЗМЕРЕНО» засчитано как PASS — третий исход исчез",
+      "file": "scripts/cycle_dry_run.py",
+      "old": "                 f\"и это НЕ PASS\")\n            n_unmeasured += 1\n",
+      "new": "                 f\"и это НЕ PASS\")\n            n_pass += 1\n"
+    },
+    {
+      "name": "код возврата снова двузначен: «не измерено» выдано за чистый прогон",
+      "file": "scripts/cycle_dry_run.py",
+      "old": "    return 2 if f_unmeasured else 0\n",
+      "new": "    return 0\n"
+    },
+    {
+      "name": "отметка в БУДУЩЕМ принимается как свежая (часам писателя верят на слово)",
+      "file": "scripts/cycle_dry_run.py",
+      "old": "        elif age_h < -1.0:\n",
+      "new": "        elif False:\n"
+    },
+    {
+      "name": "сцена перестаёт различать направление: мёртвая сцена тоже получает артефакты прогона",
+      "file": "spa_core/monitoring/golive_producer_criteria.py",
+      "old": "    if writer_alive:\n        # Артефакты СВОИХ прогонов — их не бывает от `git checkout`.\n",
+      "new": "    if True:\n        # Артефакты СВОИХ прогонов — их не бывает от `git checkout`.\n"
+    },
+    {
+      "name": "мера объявляет себя измеренной, не сверив ни одной двери (fail-OPEN у пробы)",
+      "file": "spa_core/monitoring/golive_producer_criteria.py",
+      "old": "    verdict = {\"kind\": DRIVE_BLIND if same else DRIVE_OK,\n",
+      "new": "    verdict = {\"kind\": DRIVE_OK,\n"
+    },
+    {
+      "name": "«сцену не поднял» выдано за «мера слепа» — третий исход меры исчез",
+      "file": "spa_core/monitoring/golive_producer_criteria.py",
+      "old": "        return {\"kind\": DRIVE_UNMEASURED,\n",
+      "new": "        return {\"kind\": DRIVE_BLIND,\n"
+    },
+    {
+      "name": "мёртвая сцена перестаёт нести git-tracked исходники — мерилось бы «кода нет», а не «писателя нет»",
+      "file": "spa_core/monitoring/golive_producer_criteria.py",
+      "old": "    for rel in _TRACKED_SOURCES:\n        _write(root, rel, \"# git-tracked источник: его выкладывает `git checkout`\\n\")\n",
+      "new": "    for rel in _TRACKED_SOURCES:\n        if writer_alive:\n            _write(root, rel, \"# git-tracked источник\\n\")\n"
+    }
+  ]
+}

@@ -10004,6 +10004,51 @@ def _door_rc_for_live_owner(tool: str) -> int | None:
     return int(found.group(1)) if found else None
 
 
+def _door_named_reason(out: str) -> str:
+    """НАЗВАННАЯ дверью причина из её `--json`, а не хвост текста (ADR-874, цикл #992).
+
+    Проба печатала `out.strip()[-200:]` — ПОСЛЕДНИЕ 200 символов, то есть хвост
+    JSON-документа (`"restored": [], "already_clean": [] …`), а причина лежит в его
+    ГОЛОВЕ. Замер 30.10 на прогоне 41126290008 (`ubuntu-latest`, 6 красных этого файла):
+    вердикт честно сказал «живость владельца окна НЕ ИЗМЕРЕНА», и ПОЧЕМУ — не сказал
+    ничем, потому что `owner.detail` обрезался. Третий исход без причины неотличим от
+    «нечем проверить сегодня» и глохнет ровно так же, как молчание (инв. #17: отсутствие
+    наблюдения обязано быть ПРЕДСТАВЛЕНО, а представление без причины не представление).
+
+    Разобрать не вышло ⇒ отдаём хвост текста и ГОВОРИМ об этом: «причину двери не
+    разобрать» — свой исход, а не тихая подстановка прежнего поведения.
+    """
+    import json as _json
+    text = (out or "").strip()
+    start = text.find("{")
+    if start >= 0:
+        try:
+            doc = _json.loads(text[start:])
+        except (ValueError, TypeError):
+            doc = None
+        if isinstance(doc, dict):
+            owner = doc.get("owner")
+            bits = []
+            if isinstance(owner, dict):
+                if owner.get("verdict"):
+                    bits.append(f"вердикт двери о владельце: `{owner['verdict']}`")
+                for key, label in (("detail", "причина"), ("pid", "pid"),
+                                   ("command", "команда номера"),
+                                   ("hostname", "хост записи"),
+                                   ("run_label", "прогон")):
+                    value = owner.get(key)
+                    if value not in (None, ""):
+                        bits.append(f"{label}: {value}")
+            elif owner is None and "owner" in doc:
+                bits.append("дверь вернула `owner: null` — о владельце не сказано НИЧЕГО")
+            if doc.get("reason"):
+                bits.append(f"сводка двери: {doc['reason']}")
+            if bits:
+                return " · ".join(str(b) for b in bits)
+    return (f"причину двери не разобрать (её `--json` не прочитан), остаётся хвост "
+            f"вывода: {text[-200:]}")
+
+
 def _probe_mutation_window_restore_refuses_a_live_owner(
     arg: str | None, *, repo_root: str | None = None,
 ) -> tuple[str, str]:
@@ -10147,11 +10192,12 @@ def _probe_mutation_window_restore_refuses_a_live_owner(
         return UNMEASURED, (
             "прибор ОТКАЗАЛ возвратом, но своим кодом «НЕ ИЗМЕРЕНО» (2): живость "
             "владельца окна он не измерил, значит про отказ при ЖИВОМ владельце сцена "
-            f"не доказывает ничего — {out_live.strip()[-200:]}")
+            f"не доказывает ничего — {_door_named_reason(out_live)}")
     if rc_live == 3:
         return UNMEASURED, (
             "прибор ответил «ЧАСТИЧНО НЕ ИЗМЕРЕНО» (3) — вердикт о владельце окна "
-            f"неполон, судить об отказе при ЖИВОМ владельце нечем: {out_live.strip()[-200:]}")
+            f"неполон, судить об отказе при ЖИВОМ владельце нечем: "
+            f"{_door_named_reason(out_live)}")
     if rc_live == 1:
         return UNMEASURED, (
             "прибор ответил кодом НАХОДКИ О ДЕРЕВЕ (1), а спрошен был о ВЛАДЕЛЬЦЕ окна — "
@@ -10161,7 +10207,7 @@ def _probe_mutation_window_restore_refuses_a_live_owner(
             f"прибор ответил кодом {rc_live}, которого нет в его словаре "
             f"(RC_WINDOW_OWNER_ALIVE = {_rc_alive}, RC_UNMEASURED = 2, "
             f"RC_PARTIALLY_UNMEASURED = 3, RC_WINDOW_FINDING = 1, RC_WINDOW_CLEAN = 0) — "
-            f"ни отказа, ни наблюдения: {out_live.strip()[-200:]}")
+            f"ни отказа, ни наблюдения: {_door_named_reason(out_live)}")
     if after_live != during:
         return NOT_SATISFIED, (
             "байты файла изменились, пока прибор РАБОТАЛ: возврат отнял у прогона "
@@ -14116,6 +14162,62 @@ def _probe_inbox_record_kind_has_a_writer(arg: str | None) -> tuple[str, str]:
         shutil.rmtree(d, ignore_errors=True)
 
 
+def _probe_golive_criteria_ask_the_producer(
+        arg: str | None) -> tuple[str, str]:
+    """Критерий: три критерия go-live спрашивают ПИСАТЕЛЯ, а не присутствие файла.
+
+    Предмет — карточка `inbox-tri-kriteriya-go-live-perepisat-na-nasto`: решение
+    ВЛАДЕЛЬЦА 31.10, вариант 1 (ADR-878) по находке ADR-876. Баллы готовности к
+    живым деньгам начислялись за присутствие git-tracked ИСХОДНИКОВ, «confirmed
+    by owner» — за присутствие файла-метки, а `n_pass` обязательных артефактов —
+    за присутствие И РАЗМЕР.
+
+    Проба мерит ИСХОД, а не наличие модуля, и судит по ЧИСЛАМ, а не подстрокой
+    (ADR-333): текста исходников она не читает вовсе. Замер один и двусторонний —
+    две одноразовые сцены, различие между которыми РОВНО наличие писателя
+    (`golive_producer_criteria.drive_both_directions`). Зелень одной сцены
+    доказывала бы только, что код работает на хорошем входе; предмет карточки в
+    другом — чтобы на ПЛОХОМ он отвечал ИНАЧЕ.
+
+    Все три двери обязаны различить направление ОДНОВРЕМЕННО: мера, считающая
+    починенными три двери по зелени двух, и есть тот дефект, ради которого у
+    каждой двери в сцене свой счёт.
+
+    Третий исход СВОЙ: сцена не поднялась ⇒ `unmeasured` с названной причиной, и
+    НИКОГДА `satisfied` без замера. Проба, которая на неподнятой сцене сказала бы
+    «выполнено», была бы ровно тем дефектом, который чинит её собственный предмет.
+    """
+    if (arg or "").strip():
+        return UNMEASURED, (f"проба не принимает аргумента (дано {arg!r}): "
+                            "предмет — все три двери разом, пофайловой формы у "
+                            "него нет")
+    try:
+        from spa_core.monitoring import golive_producer_criteria as gpc
+    except Exception as exc:                                        # noqa: BLE001
+        return UNMEASURED, f"мера не ввозится: {type(exc).__name__}: {exc}"
+
+    report = gpc.drive_both_directions()
+    kind = report.get("kind")
+    if kind == gpc.DRIVE_UNMEASURED:
+        return UNMEASURED, f"сцены меры не поднялись: {report.get('reason')}"
+    if kind == gpc.DRIVE_BLIND:
+        return NOT_SATISFIED, (
+            f"присутствие файла всё ещё читается как наблюдение: "
+            f"{report.get('reason')}")
+    if kind != gpc.DRIVE_OK:
+        return UNMEASURED, f"мера вернула неизвестный исход {kind!r}"
+
+    live, dead = report["live"], report["dead"]
+    return SATISFIED, (
+        f"все три двери различают ПИСАТЕЛЯ: баллы за писателя "
+        f"{live['writer_points']:.0f} против {dead['writer_points']:.0f} из 6 · "
+        f"вердикт кошелька {live['wallet_status']}/{live['wallet_value']} против "
+        f"{dead['wallet_status']}/{dead['wallet_value']} (метка подписью не "
+        f"является, инв. #14) · PASS обязательных артефактов "
+        f"{live['files_pass']} против {dead['files_pass']} при одинаковом "
+        f"присутствии и непустом размере в обеих сценах")
+
+
 PROBES: dict[str, Callable[[str | None], "tuple[str, str]"]] = {
     "starvation_cycles_name_the_order":
         _probe_starvation_cycles_name_the_order,
@@ -14163,6 +14265,8 @@ PROBES: dict[str, Callable[[str | None], "tuple[str, str]"]] = {
         _probe_owner_task_answer_reaches_the_channel,
     "presence_as_observation_population_named":
         _probe_presence_as_observation_population_named,
+    "golive_criteria_ask_the_producer":
+        _probe_golive_criteria_ask_the_producer,
     "shell_presence_sites_measured_by_direction":
         _probe_shell_presence_sites_measured_by_direction,
     "three_outcome_reader_population_named":

@@ -13,6 +13,7 @@ Tests:
 from __future__ import annotations
 
 import json
+from datetime import datetime, timedelta, timezone
 import sys
 from pathlib import Path
 
@@ -84,6 +85,23 @@ def scaffold_minimal(tmp_dir: Path, completed_days: int = 0) -> None:
 
     # promotion engine
     (tmp_dir / "promotion_engine.py").write_text("# stub\n")
+
+    # ── артефакты ПИСАТЕЛЕЙ (ADR-878, решение владельца 31.10, вариант 1) ──────
+    # Присутствие исходников выше баллов больше НЕ даёт: их выкладывает
+    # `git checkout`. Балл даёт только след прогона, поэтому сцена «всё хорошо»
+    # обязана эти следы НЕСТИ, иначе она описывает мёртвую систему.
+    _fresh = (datetime.now(timezone.utc) - timedelta(hours=1)).isoformat()
+    (data / "adapter_status.json").write_text(json.dumps({
+        "generated_at": _fresh, "feed_reachable": True, "live_apy_enabled": True,
+        "adapters": {"aave_v3": {"live_apy": 5.39, "live_apy_fresh": True,
+                                 "live_apy_as_of": _fresh}},
+    }))
+    (data / "t1_verification.json").write_text(json.dumps({
+        "verified_at": _fresh, "results": [], "all_pass": True,
+    }))
+    (data / "promotion_decisions.json").write_text(json.dumps([
+        {"strategy_id": "S7", "decision": "HOLD", "timestamp": _fresh},
+    ]))
 
     # source pipeline
     clean = {f"src_{i}": "clean_included" for i in range(8)}
@@ -275,55 +293,95 @@ class TestAssessDataSources:
         s = r.assess_data_sources()
         assert s.name == "data_sources"
 
-    @_needs_live("source_pipeline.json")
-    def test_assess_data_sources_ge_8(self):
-        """After MP-1426 verification: score >= 8/10."""
-        r = GoLiveReadinessReport(base_dir=str(REPO_ROOT))
-        s = r.assess_data_sources()
-        assert s.score >= 8.0, \
-            f"Data sources score must be >= 8 after MP-1426 verification, got {s.score}"
+    @_needs_live("source_pipeline.json", "adapter_status.json")
+    def test_assess_data_sources_names_every_point_it_withholds(self):
+        """Порог «>= 8» снят НАМЕРЕННО (ADR-878, инв. #16; журнал W44).
 
-    def test_defillama_client_gives_2pts(self):
-        """defillama.py existence gives +2 pts."""
+        Он держался на присутствии git-tracked исходников и поэтому был верен по
+        построению — утверждение о дереве, а не о системе. Замер 31.10 на боевом
+        дереве после правки: 4.0 из 10 вместо 8.0, и разница целиком в двух
+        артефактах, которых НЕ СУЩЕСТВУЕТ (`data/t1_verification.json`,
+        `data/promotion_decisions.json`) — то есть прогонов не было.
+
+        Числовой порог заменён на проверяемое свойство: каждый НЕ начисленный
+        балл обязан быть НАЗВАН, и ни один не прячется в тишину. Это и есть
+        условие, из-за которого число стало полезным.
+        """
+        s = GoLiveReadinessReport(base_dir=str(REPO_ROOT)).assess_data_sources()
+        withheld = int(round((s.max_score - s.score) / 2.0))
+        named = len(s.items_pending) + len(s.items_unmeasured)
+        assert named >= withheld, (
+            f"не начислено баллов: {s.max_score - s.score} (то есть {withheld} "
+            f"пунктов), названо {named} — молчащий недобор и есть тот дефект, "
+            f"из-за которого число читалось как готовность")
+        assert len(s.items_done) * 2.0 == pytest.approx(s.score)
+
+    # ── ТРИ балла теперь даёт ПИСАТЕЛЬ, а не присутствие исходника ────────────
+    #
+    # Эти три теста НАМЕРЕННО переписаны (инвариант #16, запись в журнале W44):
+    # решение ВЛАДЕЛЬЦА 31.10, вариант 1 — ADR-878 по находке ADR-876. Прежняя
+    # редакция удаляла ИСХОДНИК (`spa_core/utils/defillama.py` и соседей) и
+    # требовала −2 балла, то есть ровно ПОДТВЕРЖДАЛА дефект: все три пути
+    # git-tracked, их выкладывает `git checkout`, и шесть баллов из десяти не
+    # могли стать меньше ни при каком состоянии системы. Проверка не ослаблена —
+    # она стала СТРОЖЕ: удаляется артефакт ПРОГОНА, а исходник остаётся на месте.
+
+    def test_live_feed_rate_gives_2pts_and_the_source_file_alone_gives_none(self):
+        """Балл даёт свежая ЖИВАЯ ставка; присутствие исходника фида — ноль."""
         with tempfile.TemporaryDirectory() as tmp:
             tmp_p = Path(tmp)
             scaffold_minimal(tmp_p)
-            r_with = make_report(tmp_p)
-            s_with = r_with.assess_data_sources()
+            s_with = make_report(tmp_p).assess_data_sources()
+
+            (tmp_p / "data" / "adapter_status.json").unlink()
+            s_without = make_report(tmp_p).assess_data_sources()
+            assert s_with.score - s_without.score == pytest.approx(2.0)
+
+            # Исходники фида на месте в ОБЕИХ сценах — балл их присутствием
+            # не восстанавливается.
+            assert (tmp_p / "spa_core" / "utils" / "defillama.py").exists()
+
+    def test_t1_verifier_run_gives_2pts_and_the_module_alone_gives_none(self):
+        """Балл даёт свежий артефакт ПРОГОНА верификатора, а не его модуль."""
+        with tempfile.TemporaryDirectory() as tmp:
+            tmp_p = Path(tmp)
+            scaffold_minimal(tmp_p)
+            s_with = make_report(tmp_p).assess_data_sources()
+
+            (tmp_p / "data" / "t1_verification.json").unlink()
+            s_without = make_report(tmp_p).assess_data_sources()
+            assert s_with.score - s_without.score == pytest.approx(2.0)
+            assert (tmp_p / "spa_core" / "analytics" / "t1_data_verifier.py").exists()
+
+    def test_promoter_run_record_gives_2pts_and_the_module_alone_gives_none(self):
+        """Балл даёт запись о РЕАЛЬНОМ запуске промоутера, а не его файл."""
+        with tempfile.TemporaryDirectory() as tmp:
+            tmp_p = Path(tmp)
+            scaffold_minimal(tmp_p)
+            s_with = make_report(tmp_p).assess_data_sources()
+
+            (tmp_p / "data" / "promotion_decisions.json").unlink()
+            s_without = make_report(tmp_p).assess_data_sources()
+            assert s_with.score - s_without.score == pytest.approx(2.0)
+            assert (tmp_p / "promotion_engine.py").exists()
+
+    def test_deleting_every_source_file_changes_nothing(self):
+        """Дословный предмет ADR-878: присутствие ИСХОДНИКОВ баллов не решает.
+
+        Положительный контроль наоборот: три пути, за которые начислялись шесть
+        баллов, удаляются ЦЕЛИКОМ — и счёт не двигается ни на балл.
+        """
+        with tempfile.TemporaryDirectory() as tmp:
+            tmp_p = Path(tmp)
+            scaffold_minimal(tmp_p)
+            before = make_report(tmp_p).assess_data_sources().score
 
             (tmp_p / "spa_core" / "utils" / "defillama.py").unlink()
-            r_without = make_report(tmp_p)
-            s_without = r_without.assess_data_sources()
-
-            assert s_with.score - s_without.score == pytest.approx(2.0)
-
-    def test_t1_verifier_gives_2pts(self):
-        """t1_data_verifier.py existence gives +2 pts."""
-        with tempfile.TemporaryDirectory() as tmp:
-            tmp_p = Path(tmp)
-            scaffold_minimal(tmp_p)
-            r_with = make_report(tmp_p)
-            s_with = r_with.assess_data_sources()
-
             (tmp_p / "spa_core" / "analytics" / "t1_data_verifier.py").unlink()
-            r_without = make_report(tmp_p)
-            s_without = r_without.assess_data_sources()
-
-            assert s_with.score - s_without.score == pytest.approx(2.0)
-
-    def test_promotion_engine_gives_2pts(self):
-        """promotion_engine.py gives +2 pts."""
-        with tempfile.TemporaryDirectory() as tmp:
-            tmp_p = Path(tmp)
-            scaffold_minimal(tmp_p)
-            r_with = make_report(tmp_p)
-            s_with = r_with.assess_data_sources()
-
             (tmp_p / "promotion_engine.py").unlink()
-            r_without = make_report(tmp_p)
-            s_without = r_without.assess_data_sources()
+            after = make_report(tmp_p).assess_data_sources().score
 
-            assert s_with.score - s_without.score == pytest.approx(2.0)
+            assert after == before, (before, after)
 
     def test_5_clean_sources_gives_2pts(self):
         """≥5 CLEAN sources → +2 pts."""

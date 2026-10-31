@@ -16,17 +16,69 @@ import json
 import os
 import re
 import tempfile
-from datetime import date, datetime
+from datetime import date, datetime, timezone
 from pathlib import Path
 from typing import List, Optional
 
 from spa_core.base import BaseAnalytics
+from spa_core.utils.observation import observed, observed_number
 
 
 # ── Constants ──────────────────────────────────────────────────────────────────
 
 SCHEMA_VERSION = "1.0"
 EVIDENCE_TARGET = 30.0   # points needed for paper gate
+
+#: Окно, в котором ЖИВОЕ наблюдение источника данных ещё считается свежим (ч).
+#: Сутки — тот же такт, которым цикл опрашивает адаптеры (08:00 local, daily_cycle);
+#: окно короче такта объявило бы исправный фид молчащим между прогонами.
+SOURCE_OBSERVATION_WINDOW_H = 24.0
+
+#: Три исхода чтения артефакта — и ни один не склеен с другим (инвариант #17).
+OBSERVED = "observed"
+NO_WRITER = "no_writer"
+UNMEASURED = "unmeasured"
+
+
+def _read_artifact(path: Path) -> tuple[str, object | None, str]:
+    """Прочитать артефакт писателя. → (исход, документ, причина).
+
+    ``NO_WRITER`` — файла на диске НЕТ, то есть писатель не писал (это ответ, а не
+    «нечем судить»). ``UNMEASURED`` — файл есть, но прочитать или разобрать его не
+    вышло: судить нечем, и это ТРЕТИЙ исход, а не отказ. ``OBSERVED`` — документ
+    разобран; говорит ли он то, что нужно, решает уже вызывающий.
+
+    ``self._read_json`` для этого НЕ годится: он отдаёт ``{}`` на любую ошибку, то
+    есть склеивает «файла нет» с «файл битый» и с «файл пуст» — ровно тот дефект,
+    против которого написан инвариант #17.
+    """
+    if not path.exists():
+        return NO_WRITER, None, f"{path.name} не писал никто — артефакта нет на диске"
+    try:
+        text = path.read_text(encoding="utf-8")
+    except OSError as exc:                                          # noqa: BLE001
+        return UNMEASURED, None, f"{path.name} не прочитан: {type(exc).__name__}: {exc}"
+    try:
+        return OBSERVED, json.loads(text), ""
+    except ValueError as exc:                                       # noqa: BLE001
+        return UNMEASURED, None, f"{path.name} не разобран как JSON: {exc}"
+
+
+def _age_hours(stamp: object, now: datetime) -> float | None:
+    """Возраст отметки в часах — или ``None``, если ОТМЕТКИ НЕТ.
+
+    ``None`` здесь значит «наблюдения нет», а не «ноль часов назад»: подставить
+    ноль значило бы объявить отсутствующую отметку самой свежей из возможных.
+    """
+    if not isinstance(stamp, str) or not stamp.strip():
+        return None
+    try:
+        when = datetime.fromisoformat(stamp.strip().replace("Z", "+00:00"))
+    except ValueError:
+        return None
+    if when.tzinfo is None:
+        when = when.replace(tzinfo=timezone.utc)
+    return (now - when).total_seconds() / 3600.0
 
 READINESS_CATEGORIES = [
     "gate_status",        # 4-state gate (Backtest/Pre-Paper/Paper/Live)
@@ -51,12 +103,17 @@ class CategoryScore:
         items_done: List[str],
         items_pending: List[str],
         notes: str = "",
+        items_unmeasured: Optional[List[str]] = None,
     ) -> None:
         self.name = str(name)
         self.score = float(score)
         self.max_score = float(max_score)
         self.items_done = list(items_done)
         self.items_pending = list(items_pending)
+        #: «Судить было НЕЧЕМ» — отдельный перечень, а не строка в `items_pending`
+        #: (инвариант #17, ADR-878). Умолчание пустое: у категорий, которые своё
+        #: «не измерено» не различают, поведение не меняется ни на байт.
+        self.items_unmeasured = list(items_unmeasured or [])
         self.notes = str(notes)
 
     @property
@@ -74,6 +131,7 @@ class CategoryScore:
             "pct": round(self.pct, 1),
             "items_done": self.items_done,
             "items_pending": self.items_pending,
+            "items_unmeasured": self.items_unmeasured,
             "notes": self.notes,
         }
 
@@ -942,40 +1000,123 @@ class GoLiveReadinessReport(BaseAnalytics):
             notes=f"{score:.0f}/{max_score:.0f} pts",
         )
 
-    def assess_data_sources(self) -> CategoryScore:
-        """Data source quality. Max 10 pts.
-        MP-1426 (v10.42)
-          +2  spa_core/utils/defillama.py exists
-          +2  spa_core/analytics/t1_data_verifier.py exists
-          +2  source_pipeline.json has ≥5 CLEAN sources
-          +2  promotion_engine.py present
-          +2  CLEAN source % ≥ 50%
+    def assess_data_sources(self, now: datetime | None = None) -> CategoryScore:
+        """Качество источников данных. Максимум 10 баллов.
+
+        **Шесть баллов из десяти здесь были КОНСТАНТОЙ (находка ADR-876), и это
+        переписано решением ВЛАДЕЛЬЦА 31.10 — вариант 1, ADR-878.** Прежняя
+        разметка (MP-1426, v10.42) начисляла:
+
+          +2  ``spa_core/utils/defillama.py`` СУЩЕСТВУЕТ
+          +2  ``spa_core/analytics/t1_data_verifier.py`` СУЩЕСТВУЕТ
+          +2  ``promotion_engine.py`` / ``strategy_promoter.py`` СУЩЕСТВУЕТ
+
+        Все четыре пути git-tracked: их выкладывает ``git checkout``, а не пишет
+        живая система. Шесть баллов поэтому не могли стать меньше ни при каком
+        состоянии системы — ровно тот механизм, под который уже объявлен ADR-530
+        («инвентарь, НЕ готовность»). Присутствие ИСХОДНИКА наблюдением не
+        является; метка «готово» на константе — дословный класс ADR-126/875.
+
+        Теперь каждый из трёх баллов спрашивает ПИСАТЕЛЯ:
+
+          +2  фид отдал свежую ЖИВУЮ ставку — ``data/adapter_status.json``,
+              хотя бы один адаптер с ``live_apy_fresh`` и ``live_apy_as_of``
+              в окне ``SOURCE_OBSERVATION_WINDOW_H``
+          +2  верификатор T1 оставил свежий артефакт СВОЕГО прогона —
+              ``data/t1_verification.json``, ``verified_at`` в том же окне
+          +2  промоутер оставил запись о РЕАЛЬНОМ запуске —
+              ``data/promotion_decisions.json``, хотя бы одна запись с отметкой
+
+        Два балла за ``source_pipeline.json`` (≥5 CLEAN и ≥50 % CLEAN) НЕ тронуты:
+        они и раньше судили СОДЕРЖИМОЕ, а не присутствие.
+
+        Исходов у каждого замера ТРИ и они различимы (инв. #17): наблюдение есть ·
+        писателя нет · НЕ ИЗМЕРЕНО (артефакт нечитаем, не того рода, либо отметки
+        в нём нет). «Не измерено» баллов не даёт и в ``items_pending`` НЕ прячется
+        — у него свой перечень ``items_unmeasured``: иначе «судить было нечем»
+        выглядело бы как «судили и не дали».
+
+        Часы — ВХОД (``now``), а не стенные: иначе проверка свежести краснела бы от
+        сдвига календаря, а не от кода (``.claude/rules/deployment.md``).
         """
+        at = now or datetime.now(timezone.utc)
+        if at.tzinfo is None:
+            at = at.replace(tzinfo=timezone.utc)
+
         items_done: List[str] = []
         items_pending: List[str] = []
+        items_unmeasured: List[str] = []
         score = 0.0
         max_score = 10.0
 
-        # DeFiLlama utils client: +2
-        defillama_utils = self.base_dir / "spa_core" / "utils" / "defillama.py"
-        defillama_adapter = (
-            self.base_dir / "spa_core" / "adapters" / "defillama_feed.py"
-        )
-        if defillama_utils.exists() or defillama_adapter.exists():
-            score += 2.0
-            items_done.append("DeFiLlama client (utils/defillama.py or adapters/defillama_feed.py): ✓")
+        # ── (1) живая ставка фида: +2 ─────────────────────────────────────────
+        kind, doc, why = _read_artifact(self.data_dir / "adapter_status.json")
+        if kind is NO_WRITER:
+            items_pending.append(f"Живая ставка фида: писателя НЕТ — {why}")
+        elif kind is UNMEASURED:
+            items_unmeasured.append(f"Живая ставка фида: НЕ ИЗМЕРЕНО — {why}")
         else:
-            items_pending.append("DeFiLlama client: missing")
+            adapters = observed(doc, "adapters", kind=dict)
+            if adapters is None:
+                items_unmeasured.append(
+                    "Живая ставка фида: НЕ ИЗМЕРЕНО — в adapter_status.json нет "
+                    "раздела `adapters`, судить о ставках нечем")
+            else:
+                fresh: list[tuple[str, float]] = []
+                stamped = 0
+                for key, row in adapters.items():
+                    if observed(row, "live_apy_fresh", kind=bool) is not True:
+                        continue
+                    if observed_number(row, "live_apy") is None:
+                        continue
+                    age = _age_hours(observed(row, "live_apy_as_of", kind=str), at)
+                    if age is None:
+                        continue
+                    stamped += 1
+                    if 0.0 <= age <= SOURCE_OBSERVATION_WINDOW_H:
+                        fresh.append((str(key), age))
+                if fresh:
+                    score += 2.0
+                    youngest = min(a for _k, a in fresh)
+                    items_done.append(
+                        f"Живая ставка фида: {len(fresh)} адаптер(ов) со свежим "
+                        f"`live_apy`, самая свежая {youngest:.1f}ч назад "
+                        f"(окно {SOURCE_OBSERVATION_WINDOW_H:.0f}ч) ✓")
+                elif stamped:
+                    items_pending.append(
+                        f"Живая ставка фида: отметку несут {stamped} адаптер(ов), "
+                        f"но ни одна не в окне {SOURCE_OBSERVATION_WINDOW_H:.0f}ч "
+                        f"— фид молчит")
+                else:
+                    items_pending.append(
+                        "Живая ставка фида: ни одного адаптера с `live_apy_fresh` "
+                        "и отметкой `live_apy_as_of` — живого числа нет ни одного")
 
-        # T1 data verifier: +2
-        t1_verifier = self.base_dir / "spa_core" / "analytics" / "t1_data_verifier.py"
-        if t1_verifier.exists():
-            score += 2.0
-            items_done.append("T1 data verifier (t1_data_verifier.py): ✓")
+        # ── (2) свежий артефакт верификатора T1: +2 ───────────────────────────
+        kind, doc, why = _read_artifact(self.data_dir / "t1_verification.json")
+        if kind is NO_WRITER:
+            items_pending.append(
+                f"Верификатор T1: прогона НЕ БЫЛО — {why} (сам модуль "
+                f"`t1_data_verifier.py` в дереве лежит, но дерево не прогон)")
+        elif kind is UNMEASURED:
+            items_unmeasured.append(f"Верификатор T1: НЕ ИЗМЕРЕНО — {why}")
         else:
-            items_pending.append("T1 data verifier: missing")
+            age = _age_hours(observed(doc, "verified_at", kind=str), at)
+            if age is None:
+                items_unmeasured.append(
+                    "Верификатор T1: НЕ ИЗМЕРЕНО — в t1_verification.json нет "
+                    "разбираемой отметки `verified_at`, возраст прогона неизвестен")
+            elif 0.0 <= age <= SOURCE_OBSERVATION_WINDOW_H:
+                score += 2.0
+                items_done.append(
+                    f"Верификатор T1: артефакт ЕГО прогона свежий — {age:.1f}ч "
+                    f"назад (окно {SOURCE_OBSERVATION_WINDOW_H:.0f}ч) ✓")
+            else:
+                items_pending.append(
+                    f"Верификатор T1: последний прогон {age:.1f}ч назад — вне окна "
+                    f"{SOURCE_OBSERVATION_WINDOW_H:.0f}ч")
 
-        # Source pipeline CLEAN count: +2 if ≥5 CLEAN sources
+        # ── (3) ≥5 CLEAN источников: +2 (судит СОДЕРЖИМОЕ, не тронуто) ────────
         sp = self._read_json(self.backtest_dir / "source_pipeline.json")
         sources: dict = sp.get("sources", {})
         clean_sources = [k for k, v in sources.items() if v == "clean_included"]
@@ -990,16 +1131,35 @@ class GoLiveReadinessReport(BaseAnalytics):
                 f"(need ≥5 for +2 pts)"
             )
 
-        # Promotion engine: +2
-        promo_root = self.base_dir / "promotion_engine.py"
-        promo_spa = self.base_dir / "spa_core" / "analytics" / "strategy_promoter.py"
-        if promo_root.exists() or promo_spa.exists():
-            score += 2.0
-            items_done.append("Promotion engine: present ✓")
+        # ── (4) запись о РЕАЛЬНОМ запуске промоутера: +2 ──────────────────────
+        kind, doc, why = _read_artifact(self.data_dir / "promotion_decisions.json")
+        if kind is NO_WRITER:
+            items_pending.append(
+                f"Промоутер стратегий: запуска НЕ БЫЛО — {why} (кольцевой журнал "
+                f"решений пуст по построению: его пишет только сам прогон)")
+        elif kind is UNMEASURED:
+            items_unmeasured.append(f"Промоутер стратегий: НЕ ИЗМЕРЕНО — {why}")
+        elif not isinstance(doc, list):
+            items_unmeasured.append(
+                f"Промоутер стратегий: НЕ ИЗМЕРЕНО — promotion_decisions.json не "
+                f"список решений, а {type(doc).__name__}")
         else:
-            items_pending.append("Promotion engine: missing")
+            stamps = [a for a in (_age_hours(observed(row, "timestamp", kind=str), at)
+                                  for row in doc) if a is not None]
+            if stamps:
+                score += 2.0
+                items_done.append(
+                    f"Промоутер стратегий: записей о запусках {len(stamps)} из "
+                    f"{len(doc)}, самая свежая {min(stamps):.1f}ч назад ✓")
+            elif doc:
+                items_unmeasured.append(
+                    f"Промоутер стратегий: НЕ ИЗМЕРЕНО — записей {len(doc)}, но ни "
+                    f"одна не несёт разбираемой отметки `timestamp`")
+            else:
+                items_pending.append(
+                    "Промоутер стратегий: журнал решений ПУСТ — ни одного запуска")
 
-        # CLEAN % ≥ 50%: +2
+        # ── (5) CLEAN % ≥ 50%: +2 (судит СОДЕРЖИМОЕ, не тронуто) ──────────────
         total = len(sources)
         clean_pct = len(clean_sources) / total * 100.0 if total > 0 else 0.0
         if clean_pct >= 50.0:
@@ -1011,9 +1171,12 @@ class GoLiveReadinessReport(BaseAnalytics):
                 f"(promote more sources to clean_included)"
             )
 
+        notes = f"{score:.0f}/{max_score:.0f} pts, {len(clean_sources)}/{total} CLEAN"
+        if items_unmeasured:
+            notes += f", НЕ ИЗМЕРЕНО {len(items_unmeasured)}"
         return CategoryScore(
             "data_sources", score, max_score, items_done, items_pending,
-            notes=f"{score:.0f}/{max_score:.0f} pts, {len(clean_sources)}/{total} CLEAN",
+            notes=notes, items_unmeasured=items_unmeasured,
         )
 
     def assess_documentation_v2(self) -> CategoryScore:

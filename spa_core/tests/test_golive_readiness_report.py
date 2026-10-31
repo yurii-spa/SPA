@@ -92,12 +92,20 @@ def test_pct_negative_max_returns_zero():
 
 
 def test_to_dict_shape_and_rounding():
+    """`items_unmeasured` добавлен ADR-878 — третий исход нужен ЧИТАТЕЛЮ.
+
+    Тест правлен НАМЕРЕННО (инв. #16, журнал W44): проверка сравнивает словарь
+    ЦЕЛИКОМ, поэтому аддитивное поле её краснит. Утверждение не ослаблено — оно
+    расширено: умолчание поля ПУСТОЙ список, и это тоже проверяется (ниже), то
+    есть «не измерено» никогда не рождается само.
+    """
     d = CategoryScore("gates", 6.666, 20.0, ["a"], ["b"], notes="n").to_dict()
     assert d == {
         "name": "gates",
         "score": 6.67,      # round(_, 2)
         "max_score": 20.0,
         "pct": 33.3,        # round(_, 1)
+        "items_unmeasured": [],
         "items_done": ["a"],
         "items_pending": ["b"],
         "notes": "n",
@@ -496,13 +504,38 @@ def test_data_sources_four_clean_awards_pct_only(report, tmp_path):
     assert report.assess_data_sources().score == 2.0
 
 
-def test_data_sources_defillama_and_promotion_engine_award_2_each(report, tmp_path):
+def test_data_sources_source_stubs_award_nothing(report, tmp_path):
+    """Переписано НАМЕРЕННО (ADR-878, инв. #16; журнал W44).
+
+    Здесь стояло «два исходника-заглушки ⇒ 4.0 балла»: присутствие git-tracked
+    файла начисляло готовность к живым деньгам. Решение владельца 31.10 (вариант
+    1) — спрашивать ПИСАТЕЛЯ, поэтому те же две заглушки теперь дают НОЛЬ, а
+    балл приходит от артефакта прогона (см. ниже). Проверка стала строже: она
+    требует, чтобы присутствие НЕ считалось.
+    """
     for rel in ["spa_core/adapters/defillama_feed.py",
                 "spa_core/analytics/strategy_promoter.py"]:
         p = tmp_path / rel
         p.parent.mkdir(parents=True, exist_ok=True)
         p.write_text("# stub\n", encoding="utf-8")
-    assert report.assess_data_sources().score == 4.0
+    cat = report.assess_data_sources()
+    assert cat.score == 0.0, cat.items_done
+    assert cat.items_done == []
+
+
+def test_data_sources_award_follows_the_writer_not_the_file(report, tmp_path):
+    """Обратная сцена к тесту выше: артефакт ПРОГОНА — и балл приходит.
+
+    Часы инъектированы: отметка ставится относительно `now`, который тут же
+    передаётся двери, поэтому сдвиг календаря вердикт не двигает.
+    """
+    from datetime import datetime, timedelta, timezone
+    now = datetime(2026, 10, 31, 12, 0, tzinfo=timezone.utc)
+    # FROZEN-DATE-OK: injected-clock — якорь передаётся в assess_data_sources(now=)
+    fresh = (now - timedelta(hours=1)).isoformat()
+    _w(tmp_path, "data/promotion_decisions.json",
+       [{"strategy_id": "S7", "decision": "HOLD", "timestamp": fresh}])
+    assert report.assess_data_sources(now=now).score == 2.0
 
 
 # ══ assess_documentation_v2 (max 10) ═══════════════════════════════════════════

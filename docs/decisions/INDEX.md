@@ -745,6 +745,7 @@
 | ADR-876 | ADR-876 — Население класса «присутствие файла выдано за доказательство ПИСАТЕЛЯ» ИЗМЕРЕНО: 7 находок, у четырёх вердикт КОНСТАНТА, и шесть баллов go-live из десяти стоят на tracked-исходниках | Accepted | [ADR-876](ADR-876-presence-as-observation-population.md) |
 | ADR-877 | Вторая половина класса ADR-875 измерена: 171 место оболочки/воркфлоу разобрано по НАПРАВЛЕНИЮ, находок 0, шесть мест НЕ ИЗМЕРЕНЫ поимённо | Accepted | [ADR-877](ADR-877-shell-presence-sites-measured-by-direction.md) |
 | ADR-878 | Решение владельца 31.10 (вариант 1): шесть баллов go-live и «confirmed by owner» переписать на НАСТОЯЩУЮ проводку | Accepted | [ADR-878](ADR-878-honest-wiring-for-golive-readiness-criteria.md) |
+| ADR-879 | ADR-878 ИСПОЛНЕН: три критерия go-live спрашивают ПИСАТЕЛЯ — 8.0 → 4.0 балла из 10, total 96.0 → 92.0, перепись 7 → 1 находка | Accepted | [ADR-879](ADR-879-golive-criteria-ask-the-producer.md) |
 
 ## Соглашения
 

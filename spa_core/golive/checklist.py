@@ -535,13 +535,31 @@ def check_wallet_ready(data_dir: str | None = None) -> dict:
     """
     Criterion 9: Gnosis Safe and hot wallet infrastructure is set up.
 
-    PASS when ANY of the following exist:
-      (a) data/wallet_ready_approved.json  with {"approved": true, ...}
-          — created by  python -m spa_core.golive.approve_wallet  (SPA-F003)
-      (b) data/wallet_ready.sentinel
-          — written by activate.py on full go-live activation
+    **Присутствие файла подписью владельца не является (ADR-878, решение
+    владельца 31.10, вариант 1; находка ADR-876).** Здесь стояло «PASS, если
+    СУЩЕСТВУЕТ ЛЮБОЙ из двух файлов», и ветка (b) печатала дословно «wallet
+    infrastructure confirmed by owner» за присутствие ``data/wallet_ready.sentinel``
+    — то есть за одну команду ``touch``. Это обход инварианта #14: подписаться за
+    владельца не вправе ни агент, ни файловая система. Замер 31.10 на боевом
+    дереве: ни ``wallet_ready.sentinel``, ни ``wallet_ready_approved.json`` не
+    существуют и ни один из них не git-tracked, поэтому класс был ЛАТЕНТНЫМ —
+    вердикт criterion 9 сегодня не меняется ни на байт, меняется то, ЧТО его может
+    перевернуть.
 
-    Returns PENDING when neither file is present — manual setup required.
+    Три исхода, и они различимы (инвариант #17):
+
+      PASS      — ``data/wallet_ready_approved.json`` несёт ЗАПИСАННУЮ подпись:
+                  ``approved: true`` И ``approved_by`` И разбираемый ``approved_at``
+                  (ровно то, что пишет ``python -m spa_core.golive.approve_wallet``)
+      WARN      — НЕ ИЗМЕРЕНО: запись есть, а подписи в ней нет (или она нечитаема);
+                  либо лежит ``wallet_ready.sentinel`` — МЕТКА активации, не ответ
+                  владельца. «Нечем судить» и «владелец подтвердил» — не одно и то же
+      PENDING   — ни одного из файлов нет: ручная настройка не делалась
+
+    Ветка WARN намеренно НЕ ставит ``PENDING``: ``PENDING`` читается соседним кодом
+    как «не делали» (``advisory`` в ``activate.py``, перечень в ``daily_check.py``),
+    а здесь состояние другое — делали, но подписи нет. Порогов и поведения гейта
+    исполнения правка не касается.
 
     Severity: WARN (not FAIL) — wallet setup is a deployment prerequisite, not
     a performance criterion. It does NOT block the READY verdict on its own.
@@ -560,31 +578,75 @@ def check_wallet_ready(data_dir: str | None = None) -> dict:
     if approved_json.exists():
         try:
             record = json.loads(approved_json.read_text(encoding="utf-8"))
-            if record.get("approved") is True:
-                approved_at = record.get("approved_at", "unknown")
-                approved_by = record.get("approved_by", "operator")
+        except Exception as exc:                                    # noqa: BLE001
+            return _criterion(
+                name      = "Wallet Ready",
+                status    = _WARN,
+                value     = "unmeasured",
+                threshold = "manual_setup",
+                note      = (
+                    f"wallet_ready_approved.json НЕ ПРОЧИТАН "
+                    f"({type(exc).__name__}: {exc}) — подпись владельца не измерена; "
+                    f"это не «подтверждено» и не «не делали»"
+                ),
+            )
+        if record.get("approved") is True:
+            # Подпись = КТО и КОГДА. Умолчания «operator» / «unknown» здесь стояли
+            # ровно до ADR-878 и превращали запись `{"approved": true}` без автора и
+            # без даты в «approved by 'operator' at unknown» — подпись, которой никто
+            # не ставил.
+            approved_by = record.get("approved_by")
+            approved_at = record.get("approved_at")
+            signed_by   = isinstance(approved_by, str) and approved_by.strip() != ""
+            signed_at   = False
+            if isinstance(approved_at, str) and approved_at.strip():
+                try:
+                    _parse_iso(approved_at)
+                    signed_at = True
+                except Exception:                                    # noqa: BLE001
+                    signed_at = False
+            if signed_by and signed_at:
                 return _criterion(
                     name      = "Wallet Ready",
                     status    = _PASS,
                     value     = "approved",
                     threshold = "manual_setup",
                     note      = (
-                        f"wallet_ready_approved.json present — "
+                        f"wallet_ready_approved.json несёт подпись — "
                         f"approved by '{approved_by}' at {approved_at}"
                     ),
                 )
-        except Exception:
-            pass  # fall through to sentinel check
+            missing = ", ".join(
+                n for n, ok in (("approved_by", signed_by),
+                                ("approved_at (разбираемый ISO)", signed_at)) if not ok)
+            return _criterion(
+                name      = "Wallet Ready",
+                status    = _WARN,
+                value     = "unmeasured",
+                threshold = "manual_setup",
+                note      = (
+                    f"wallet_ready_approved.json говорит approved=true, но ПОДПИСИ "
+                    f"в нём нет (не хватает: {missing}) — подписаться за владельца "
+                    f"нельзя (инв. #14). Поставить подпись: "
+                    f"python -m spa_core.golive.approve_wallet"
+                ),
+            )
 
     # ── (b) Legacy sentinel (written by activate.py) ──────────────────────────
     sentinel = (base / "wallet_ready.sentinel") if base else _WALLET_SENTINEL
     if sentinel.exists():
         return _criterion(
             name      = "Wallet Ready",
-            status    = _PASS,
-            value     = "verified",
+            status    = _WARN,
+            value     = "mark_without_signature",
             threshold = "manual_setup",
-            note      = "wallet_ready.sentinel present — wallet infrastructure confirmed by owner",
+            note      = (
+                "wallet_ready.sentinel ЛЕЖИТ — но это МЕТКА активации (её пишет "
+                "activate.py), а не ответ владельца: присутствие файла подписью не "
+                "является и `touch` подписаться за владельца не вправе (инв. #14, "
+                "ADR-878). Подпись ставится так: "
+                "python -m spa_core.golive.approve_wallet"
+            ),
         )
 
     # ── Neither present ───────────────────────────────────────────────────────

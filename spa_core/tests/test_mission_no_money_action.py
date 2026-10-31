@@ -16,6 +16,7 @@ Three layers, each checked by its own means (no layer's green answers for anothe
 from __future__ import annotations
 
 import ast
+from collections.abc import Mapping
 import re
 from pathlib import Path
 
@@ -102,9 +103,22 @@ class TestServerRefusesWrites:
             if isinstance(node, ast.Import):
                 names |= {a.name for a in node.names}
         spa = {n for n in names if n.startswith("spa_core")}
+        # Перечень ИМЕННОЙ намеренно, а не модульный: у `inbox_intake` есть и ДРУГИЕ
+        # писатели (`save_unapplied_owner_answer`, `save_inbox_document`), и разрешение
+        # «что угодно из этого модуля» сняло бы ровно ту проверку, ради которой тест
+        # написан. `INTAKE_KIND_RU` добавлен ADR-874 (цикл #992): ADR-873 свёл словарь
+        # рода записи к ОДНОЙ копии, и пульт берёт его оттуда (`KINDS` в
+        # `mission_intake`) вместо второй копии рядом. Это ЧТЕНИЕ константы, а не новый
+        # писатель, и следующая строка это ИЗМЕРЯЕТ, а не обещает: перевяжи кто-нибудь
+        # имя на функцию — тест покраснеет. Инв. #16: запись в журнале W44.
         assert spa <= {"spa_core.telegram.inbox_intake.transcribe_voice",
                        "spa_core.telegram.inbox_intake.save_inbox_task",
+                       "spa_core.telegram.inbox_intake.INTAKE_KIND_RU",
                        "spa_core.telegram.inbox_intake"}, spa
+        from spa_core.telegram.inbox_intake import INTAKE_KIND_RU
+        assert isinstance(INTAKE_KIND_RU, Mapping) and not callable(INTAKE_KIND_RU), (
+            "`INTAKE_KIND_RU` разрешён в перечне как СЛОВАРЬ-константа; стань он "
+            "вызываемым — это новый писатель, и разрешение перестаёт быть верным")
         for tok in ("record_owner_answer", "set_status", "kill", "execution", "send_message", "act:"):
             assert tok not in src, tok
 

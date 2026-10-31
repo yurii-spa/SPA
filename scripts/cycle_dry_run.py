@@ -8,15 +8,19 @@ Usage:
     python3 scripts/cycle_dry_run.py
 
 Exit code:
-    0  — все проверки прошли
+    0  — все проверки прошли и ВСЁ измерено
     1  — есть FAIL (адаптер, стратегия или файл)
+    2  — FAIL нет, но что-то НЕ ИЗМЕРЕНО (ADR-878, инв. #17): «судить было нечем»
+         обязано отличаться и от «прошло», и от «упало» — иначе третий исход
+         неотличим от чистого прогона и глохнет так же, как молчание
 """
 
 import sys
 import os
 import importlib
+import json
 import traceback
-from datetime import date
+from datetime import date, datetime, timezone
 
 # Путь к корню проекта (scripts/ → ..)
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
@@ -71,12 +75,34 @@ STRATEGY_MAP = [
 
 # ─── Требуемые файлы данных ───────────────────────────────────────────────────
 
-REQUIRED_FILES = [
-    "data/golive_status.json",
-    "data/paper_evidence.json",
-    "data/tournament_ranking.json",
-    "data/adapter_status.json",
-]
+#: Окно, в котором отметка ПИСАТЕЛЯ ещё считается свежей (ч). Такт цикла суточный
+#: (daily_cycle 08:00 local), поэтому 48 ч = «один пропущенный прогон ещё терпим, два
+#: уже нет». Окно короче такта краснело бы на исправной системе между прогонами.
+WRITER_FRESHNESS_WINDOW_H = 48.0
+
+#: Обязательные артефакты и ОТМЕТКА ПИСАТЕЛЯ у каждого (ADR-878, решение владельца
+#: 31.10, вариант 1; находка ADR-876).
+#:
+#: Здесь был простой список путей, а проверка ниже начисляла `n_pass` за
+#: `os.path.isfile()` и печатала рядом РАЗМЕР. Ни то, ни другое наблюдением не
+#: является: размер — свойство байтов, а не свидетельство о том, что артефакт кто-то
+#: СЕГОДНЯ написал; пустой словарь `{}` весит 2 байта и проходил. Теперь у каждого
+#: артефакта ОБЪЯВЛЕНО, где лежит отметка его писателя:
+#:
+#:   ``keys``   — отметка в корне документа (первый найденный ключ из кортежа)
+#:   ``series`` — (имя списка, имя поля с датой): отметка = САМАЯ ПОЗДНЯЯ запись
+#:                (у `paper_evidence.json` отметки в корне нет вовсе, а `days[].date`
+#:                пишет `cycle_runner` — это и есть след писателя)
+WRITER_STAMP: dict[str, dict] = {
+    "data/golive_status.json":      {"keys": ("timestamp", "generated_at")},
+    "data/paper_evidence.json":     {"series": ("days", "date")},
+    "data/tournament_ranking.json": {"keys": ("timestamp", "generated_at")},
+    "data/adapter_status.json":     {"keys": ("generated_at",)},
+}
+
+#: Прежнее имя сохранено: на него ссылается внешний читатель, а порядок обхода —
+#: порядок объявления выше.
+REQUIRED_FILES = list(WRITER_STAMP)
 
 
 # ══════════════════════════════════════════════════════════════════════════════
@@ -241,25 +267,112 @@ def check_evidence_tracker() -> tuple[int, int]:
 # 4. Проверка наличия data/*.json файлов
 # ══════════════════════════════════════════════════════════════════════════════
 
-def check_files() -> tuple[int, int]:
-    """Проверяет наличие обязательных data/ файлов."""
+def _writer_stamp_age_h(doc, spec: dict, now: datetime) -> tuple[float | None, str]:
+    """Возраст отметки ПИСАТЕЛЯ в часах — или ``None`` с названной причиной.
+
+    ``None`` значит «отметки нет», а не «ноль часов назад»: подстановка нуля
+    объявила бы артефакт без отметки самым свежим из возможных (инв. #17).
+    """
+    stamp = None
+    if "keys" in spec:
+        if not isinstance(doc, dict):
+            return None, f"документ не словарь, а {type(doc).__name__}"
+        for key in spec["keys"]:
+            value = doc.get(key)
+            if isinstance(value, str) and value.strip():
+                stamp = value
+                break
+        if stamp is None:
+            return None, f"ни одного объявленного ключа отметки {spec['keys']}"
+    else:
+        list_key, date_key = spec["series"]
+        rows = doc.get(list_key) if isinstance(doc, dict) else None
+        if not isinstance(rows, list):
+            return None, f"`{list_key}` не список записей"
+        dates = [r.get(date_key) for r in rows if isinstance(r, dict)]
+        dates = [d for d in dates if isinstance(d, str) and d.strip()]
+        if not dates:
+            return None, f"в `{list_key}` нет ни одной записи с `{date_key}`"
+        stamp = max(dates)
+
+    raw = stamp.strip().replace("Z", "+00:00")
+    try:
+        when = datetime.fromisoformat(raw)
+    except ValueError:
+        try:
+            when = datetime.fromisoformat(raw + "T00:00:00+00:00")
+        except ValueError:
+            return None, f"отметка {stamp!r} не разбирается как ISO-8601"
+    if when.tzinfo is None:
+        when = when.replace(tzinfo=timezone.utc)
+    return (now - when).total_seconds() / 3600.0, ""
+
+
+def check_files(now: datetime | None = None) -> tuple[int, int, int]:
+    """Спрашивает у обязательных data/-артефактов их ПИСАТЕЛЯ. → (pass, fail, не измерено).
+
+    **Присутствие файла и его размер наблюдением не являются (ADR-878, решение
+    владельца 31.10, вариант 1; находка ADR-876).** Прежняя проверка начисляла
+    `n_pass` за `os.path.isfile()` и печатала рядом число байтов — то есть отвечала
+    на вопрос «лежит ли файл», а читалась как «цикл свои артефакты пишет». Между
+    этими двумя вопросами и живёт класс: `git checkout`, старый бэкап и пустой `{}`
+    проходят первый и ничего не говорят про второй.
+
+    Три исхода различимы (инв. #17):
+
+      PASS           — документ разобран И отметка его писателя в окне
+                       ``WRITER_FRESHNESS_WINDOW_H``
+      FAIL           — файла НЕТ · документ не разбирается · отметка СТАРШЕ окна
+                       (писатель молчит — это ответ, а не «нечем судить»)
+      НЕ ИЗМЕРЕНО    — файл есть и читается, а объявленной отметки в нём нет:
+                       возраст неизвестен, и выдавать это за PASS нельзя
+
+    Часы — ВХОД (``now``): иначе проверка краснела бы от сдвига календаря
+    (``.claude/rules/deployment.md``).
+    """
+    at = now or datetime.now(timezone.utc)
+    if at.tzinfo is None:
+        at = at.replace(tzinfo=timezone.utc)
+
     print(f"\n{'─'*60}")
-    print("DATA FILES — проверка существования")
+    print("DATA FILES — спрашиваем ПИСАТЕЛЯ (отметка в окне "
+          f"{WRITER_FRESHNESS_WINDOW_H:.0f}ч), а не присутствие файла")
     print(f"{'─'*60}")
 
-    n_pass = n_fail = 0
+    n_pass = n_fail = n_unmeasured = 0
 
-    for rel_path in REQUIRED_FILES:
+    for rel_path, spec in WRITER_STAMP.items():
         abs_path = os.path.join(ROOT, rel_path)
-        if os.path.isfile(abs_path):
-            size = os.path.getsize(abs_path)
-            ok(f"{rel_path}  ({size:,} bytes)")
-            n_pass += 1
-        else:
-            fail(f"{rel_path}  — файл НЕ СУЩЕСТВУЕТ")
+        if not os.path.isfile(abs_path):
+            fail(f"{rel_path}  — файл НЕ СУЩЕСТВУЕТ: писатель не писал")
             n_fail += 1
+            continue
+        try:
+            with open(abs_path, "r", encoding="utf-8") as fh:
+                doc = json.load(fh)
+        except (OSError, ValueError) as exc:
+            fail(f"{rel_path}  — не разбирается ({type(exc).__name__}: {exc})")
+            n_fail += 1
+            continue
 
-    return n_pass, n_fail
+        age_h, why = _writer_stamp_age_h(doc, spec, at)
+        if age_h is None:
+            warn(f"{rel_path}  — НЕ ИЗМЕРЕНО: {why}; возраст записи неизвестен, "
+                 f"и это НЕ PASS")
+            n_unmeasured += 1
+        elif age_h > WRITER_FRESHNESS_WINDOW_H:
+            fail(f"{rel_path}  — писатель МОЛЧИТ: отметка {age_h:.1f}ч назад, "
+                 f"окно {WRITER_FRESHNESS_WINDOW_H:.0f}ч")
+            n_fail += 1
+        elif age_h < -1.0:
+            fail(f"{rel_path}  — отметка в БУДУЩЕМ на {-age_h:.1f}ч: часам писателя "
+                 f"верить нельзя")
+            n_fail += 1
+        else:
+            ok(f"{rel_path}  (писатель отметился {age_h:.1f}ч назад)")
+            n_pass += 1
+
+    return n_pass, n_fail, n_unmeasured
 
 
 # ══════════════════════════════════════════════════════════════════════════════
@@ -275,7 +388,7 @@ def main() -> int:
     a_pass, a_fail = check_adapters()
     s_pass, s_fail = check_strategies()
     e_pass, e_fail = check_evidence_tracker()
-    f_pass, f_fail = check_files()
+    f_pass, f_fail, f_unmeasured = check_files()
 
     total_pass = a_pass + s_pass + e_pass + f_pass
     total_fail = a_fail + s_fail + e_fail + f_fail
@@ -287,17 +400,23 @@ def main() -> int:
     print(f"  Адаптеры:      {a_pass:2d} PASS  {a_fail:2d} FAIL  (из {a_pass+a_fail})")
     print(f"  Стратегии:     {s_pass:2d} PASS  {s_fail:2d} FAIL  (из {s_pass+s_fail})")
     print(f"  EvidenceTrack: {e_pass:2d} PASS  {e_fail:2d} FAIL")
-    print(f"  Data files:    {f_pass:2d} PASS  {f_fail:2d} FAIL  (из {f_pass+f_fail})")
+    print(f"  Data files:    {f_pass:2d} PASS  {f_fail:2d} FAIL  "
+          f"{f_unmeasured:2d} НЕ ИЗМЕРЕНО  (из {f_pass+f_fail+f_unmeasured})")
     print(f"{'─'*60}")
     print(f"  ИТОГО:         {total_pass:2d} PASS  {total_fail:2d} FAIL")
 
-    if overall_ok:
-        print(f"\n{GREEN}  ✅ ALL CHECKS PASSED — система готова к первому launchd-запуску 2026-06-13{RESET}")
-    else:
+    if not overall_ok:
         print(f"\n{RED}  ❌ ЕСТЬ ОШИБКИ — см. FAIL выше{RESET}")
+    elif f_unmeasured:
+        print(f"\n{YELLOW}  ⚠️  FAIL нет, но НЕ ИЗМЕРЕНО {f_unmeasured} — "
+              f"см. WARN выше. Это НЕ «все проверки прошли»{RESET}")
+    else:
+        print(f"\n{GREEN}  ✅ ALL CHECKS PASSED — всё измерено{RESET}")
 
     print("=" * 60)
-    return 0 if overall_ok else 1
+    if not overall_ok:
+        return 1
+    return 2 if f_unmeasured else 0
 
 
 if __name__ == "__main__":
