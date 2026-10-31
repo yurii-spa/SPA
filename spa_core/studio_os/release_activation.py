@@ -229,3 +229,36 @@ def activation_plan(approved_sha, staged_sha, releases_dir: Path, repo: Path):
                 "sha": approved_sha, "recoverable": can, "verdict": verdict}
     return {"action": "FAIL_CLOSED", "verdict": verdict, "sha": approved_sha,
             "note": "execute NOTHING; never fall back to the staged tree"}
+
+
+def artifact_manifest(sha, repo, *, base, criterion: dict, environment: dict) -> dict:
+    """E5.1 (S2 T07): связь проверенного артефакта с результатом проверки — машинный документ.
+
+    ``sha`` и его дерево берутся из доверенных git-объектов; ``files`` — тот же эталон, по которому
+    :func:`verify_release` судит каталог. ``criterion`` — какой критерий и какой ревизии мерился и с каким
+    исходом; ``environment`` — где мерился. Хранится РЯДОМ с релизом, никогда внутри него (внутри это был
+    бы лишний файл состава). Нет доверенного дерева — ``None``."""
+    files = trusted_tree(sha, repo)
+    if files is None:
+        return None
+    tree = subprocess.run(["git", "rev-parse", f"{sha}^{{tree}}"], cwd=str(repo), capture_output=True, text=True)
+    if tree.returncode != 0:
+        return None
+    return {"schema": "studio-release-manifest/1", "sha": sha, "tree": tree.stdout.strip(), "base": base,
+            "files": {k: list(v) for k, v in sorted(files.items())}, "criterion": dict(criterion),
+            "environment": dict(environment)}
+
+
+def manifest_matches(manifest: dict, sha, repo) -> tuple:
+    """Засчитывается ли манифест ЭТОМУ sha: тот же коммит, то же дерево и тот же состав. Прогон на другой
+    ревизии не засчитывается. ``(True, '')`` либо ``(False, причина)``."""
+    if not isinstance(manifest, dict) or manifest.get("sha") != sha:
+        return False, "манифест относится к другому sha"
+    fresh = artifact_manifest(sha, repo, base=manifest.get("base"), criterion=manifest.get("criterion") or {},
+                              environment=manifest.get("environment") or {})
+    if fresh is None:
+        return False, "НЕ ПРОВЕРЕНО: доверенного дерева коммита нет"
+    if fresh["tree"] != manifest.get("tree") or fresh["files"] != manifest.get("files"):
+        return False, "дерево или состав манифеста не совпадает с коммитом"
+    return True, ""
+

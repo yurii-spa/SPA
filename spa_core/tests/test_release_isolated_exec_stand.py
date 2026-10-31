@@ -140,11 +140,11 @@ class Stand:
     def approve(self, sha):
         (self.root / "approved_release.json").write_text(json.dumps({"approved_sha": sha}))
 
-    def launch(self):
+    def launch(self, service=SERVICE):
         env = dict(os.environ, STUDIO_PROBE_STATE=str(self.state),
                    PYTHONPATH=str(self.repo))            # D2: путь к рабочему дереву — должен игнорироваться
         p = subprocess.Popen([sys.executable, "-I", "-c", _BOOT, str(self.launcher), str(self.root),
-                              str(self.active), SERVICE], cwd=str(self.repo), env=env,
+                              str(self.active), service], cwd=str(self.repo), env=env,
                              stdout=subprocess.PIPE, stderr=subprocess.PIPE, start_new_session=True)
         self.procs.append(p)
         deadline = time.time() + 30

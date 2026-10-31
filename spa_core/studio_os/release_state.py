@@ -97,6 +97,23 @@ def active_from_process(releases_root, *, procs=None):
             "active_evidence": "no running process has cwd in a verified releases/<sha> (launcher not wired or nothing running)"}
 
 
+def active_processes(releases_root, *, procs=None):
+    """E5.5 (S2 T07): КАЖДЫЙ процесс, исполняющийся из проверенного релиза, а не первый попавшийся.
+
+    Тот же признак, что у :func:`active_from_process` (cwd — прямой потомок ``releases_root`` и каталог сам
+    себя называет штампом), но список всех совпавших: ``[{"pid", "sha", "cwd"}]``. Пустой список — ни один
+    процесс из релиза не измерен (это «ACTIVE UNKNOWN», а не «ничего не работает»)."""
+    releases_root = Path(releases_root)
+    procs = procs if procs is not None else _default_release_procs()
+    out = []
+    for who, cwd in procs:
+        p = Path(cwd)
+        stamp_file = p / RELEASE_SHA_FILE
+        if p.parent == releases_root and stamp_file.exists() and stamp_file.read_text().strip() == p.name:
+            out.append({"pid": who, "sha": p.name, "cwd": cwd})
+    return out
+
+
 def approved_sha(prod: Path = PROD):
     """The Owner-approved activation SHA. None => no approved release recorded (fail-CLOSED on restart)."""
     d = _read_json(prod / APPROVED_MARKER)
