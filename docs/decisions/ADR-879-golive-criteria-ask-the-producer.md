@@ -102,7 +102,11 @@ git-tracked исходники и ВСЕ обязательные `data/*.json` 
 положительных контроля (каждая дверь, возвращённая к присутствию, даёт `blind` и НАЗЫВАЕТСЯ
 поимённо) и отдельный исход «сцену не поднял» ⇒ `unmeasured`, а не `blind`.
 Связанные батареи: **248 passed, 2 skipped** (census · card_acceptance · evidence_infrastructure ·
-golive_readiness_report · новая).
+golive_readiness_report · новая). Шире: весь каталог `tests/` — **14 364 passed, 41 skipped, 5 failed**,
+и все пять падают ОДИНАКОВО на чистом `origin/main` (сверены не nodeid, а тексты `E`-строк:
+`test_07_production_total_score_at_target_77` даёт «74.0 < 75.0» в ОБОИХ деревьях) ⇒ вклад цикла **0**.
+Голивные тесты `spa_core/tests/` по ключам golive/readiness/wallet/dry_run/checklist/cutover —
+**1002 passed, 6 skipped**.
 
 ### Мутации по дельте — 18/18, и ДВА выживших были НАСТОЯЩИМИ дырами
 
@@ -135,6 +139,7 @@ golive_readiness_report · новая).
 | `spa_core/tests/…::test_data_sources_defillama_and_promotion_engine_award_2_each` | две заглушки-исходника ⇒ 4.0 | те же заглушки ⇒ **0.0**, а балл приходит от артефакта прогона (обратная сцена рядом) |
 | `spa_core/tests/…::test_to_dict_shape_and_rounding` | словарь сравнивается ЦЕЛИКОМ | + `items_unmeasured: []` (аддитивно) |
 | новый `test_deleting_every_source_file_changes_nothing` | — | три пути, за которые давали шесть баллов, удаляются ЦЕЛИКОМ, и счёт не двигается |
+| `tests/test_golive_readiness_report.py::_make_ready_env` | сцена READY была READY отчасти ЗА ПРИСУТСТВИЕ исходников-заглушек | сцена несёт СЛЕДЫ ПРОГОНОВ (живая ставка фида · артефакт верификатора · запись промоутера), отметки ОТНОСИТЕЛЬНЫЕ — литеральная дата при окне 24 ч была бы бомбой |
 
 ## Чего это НЕ закрывает
 

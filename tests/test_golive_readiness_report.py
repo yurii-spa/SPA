@@ -12,6 +12,7 @@ import os
 import sys
 import tempfile
 import unittest
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
 # Ensure repo root is on path
@@ -174,11 +175,36 @@ def _make_ready_env(base: Path) -> None:
     _write(data / "paper_evidence.json", {"days": real_days})
 
     # ── Data Sources ──────────────────────────────────────────────────────────
+    #
+    # Сцена правлена НАМЕРЕННО (ADR-879, инв. #16; журнал W44). Исходники-заглушки
+    # ниже баллов больше НЕ дают: решением ВЛАДЕЛЬЦА 31.10 (вариант 1, ADR-878) три
+    # балла этой категории спрашивают ПИСАТЕЛЯ, а не присутствие файла. Прежняя
+    # сцена объявляла себя READY отчасти ЗА ПРИСУТСТВИЕ этих файлов — то есть за
+    # то, что в ней их кто-то выложил. Чтобы «READY» снова означало READY, сцена
+    # обязана нести СЛЕДЫ ПРОГОНОВ, а не только модули.
+    #
+    # Отметки ОТНОСИТЕЛЬНЫЕ (`datetime.now()`): литеральная дата здесь стала бы
+    # бомбой замедленного действия — окно свежести у кода 24 ч, и фикстура
+    # краснела бы от сдвига календаря (`.claude/rules/deployment.md`).
     utils = spa / "utils"
     utils.mkdir(parents=True, exist_ok=True)
     (utils / "__init__.py").write_text("")
     (utils / "defillama.py").write_text("# defillama stub\n")
     (base / "promotion_engine.py").write_text("# promotion engine stub\n")
+
+    _fresh = (datetime.now(timezone.utc) - timedelta(hours=1)).isoformat()
+    # живая ставка фида — её даёт только прогон адаптеров
+    _write(data / "adapter_status.json", {
+        "generated_at": _fresh, "feed_reachable": True, "live_apy_enabled": True,
+        "adapters": {"aave_v3": {"live_apy": 5.39, "live_apy_fresh": True,
+                                 "live_apy_as_of": _fresh}},
+    })
+    # артефакт ПРОГОНА верификатора T1
+    _write(data / "t1_verification.json",
+           {"verified_at": _fresh, "results": [], "all_pass": True})
+    # запись о РЕАЛЬНОМ запуске промоутера
+    _write(data / "promotion_decisions.json",
+           [{"strategy_id": "S7", "decision": "HOLD", "timestamp": _fresh}])
 
     # ── Risk policy ───────────────────────────────────────────────────────────
     risk = spa / "risk"
