@@ -2078,14 +2078,26 @@ def report_line_observation(door, module_name: str, path: Path, *,
         return {"as_line": None, "anywhere": None, "asked": None,
                 "why": f"носитель не разобран как JSON ({type(exc).__name__}) — "
                        f"отрисовать его дверью нечем"}
+    # CI-SLO-01 (ARB раунд 6): исходное состояние снимается ДО ввоза. Прежде ``previous`` брался ПОСЛЕ
+    # ``import_module``, и у исходно отсутствующего модуля «прежним» становился только что ввезённый —
+    # наблюдение оставляло его в ``sys.modules`` (CI 41129520224, шард 10).
+    had_module = module_name in sys.modules
+    previous = sys.modules.get(module_name)
+
+    def _restore():
+        if had_module:
+            sys.modules[module_name] = previous
+        else:
+            sys.modules.pop(module_name, None)
+
     try:
         real = importlib.import_module(module_name)
     except Exception as exc:  # чужой модуль — его отказ не наш вердикт
+        _restore()
         return {"as_line": None, "anywhere": None, "asked": None,
                 "why": f"модуль производителя `{module_name}` не ввозится "
                        f"({type(exc).__name__}: {exc})"}
     spy = _RenderingSpy(real, probe)
-    previous = sys.modules.get(module_name)
     sys.modules[module_name] = spy
     try:
         out = door._summarize_json(str(path), doc, now=now, root=str(root),
@@ -2094,10 +2106,7 @@ def report_line_observation(door, module_name: str, path: Path, *,
         return {"as_line": None, "anywhere": None, "asked": None,
                 "why": f"дверь отказала на отрисовке ({type(exc).__name__}: {exc})"}
     finally:
-        if previous is None:
-            sys.modules.pop(module_name, None)
-        else:
-            sys.modules[module_name] = previous
+        _restore()
     lines = [str(line) for line in out]
     return {"as_line": any(probe in line for line in lines),
             "anywhere": probe in "".join(lines),
