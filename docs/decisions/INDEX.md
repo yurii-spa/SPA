@@ -737,7 +737,7 @@
 | ADR-868 | ADR-868 — Ручное сведение карточки сделало долг доставки НЕПОГАСИМЫМ: четвёртое основание «везти нечего» и его слабая мера | Accepted | [ADR-868](ADR-868-a-hand-merged-card-made-the-delivery-debt-unpayable.md) |
 | ADR-869 | ADR-869 — У ворот публикации ТРИ исхода, у их читателя было ДВА: «гейт отказал» и «гейт не ответил» были одним ответом (инв. #17) | Accepted | [ADR-869](ADR-869-the-publication-gate-had-three-outcomes-its-reader-had-two.md) |
 | ADR-880 | ADR-880 — STUDIO-AUTONOMY-01: S1 принят ARB как завершённый инженерный этап (a172b79d4, CI 41205228032); production release не разрешён | Accepted | [ADR-880](ADR-880-studio-autonomy-s1-accepted-as-engineering-stage.md) |
-| ADR-882 | ADR-882 — STUDIO-AUTONOMY-01: пакет проверки релиза S2 принят ARB ограниченно (E5.3; E5.1–E5.4 в объёме резолвера, 93876bdac); E4 не реализован, живой запуск/откат не измерены, production activation не разрешена | Accepted | [ADR-882](ADR-882-studio-autonomy-s2-release-verification-accepted-limited.md) |
+| ADR-882 | ADR-882 — STUDIO-AUTONOMY-01: пакет проверки релиза S2 принят ARB в ограниченном объёме; E4 не реализован, живой запуск и откат не измерены, production activation не разрешена | Accepted | [ADR-882](ADR-882-studio-autonomy-s2-release-verification-accepted-limited.md) |
 
 ## Соглашения
 
