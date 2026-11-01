@@ -1,5 +1,5 @@
 {
- "title": "ADR-886 SYNTAX — дельта цикла #1001: доставка спрашивает «а эти байты вообще Python». Третья ось того же пина, fail-CLOSED со своим кодом 15, положительный контроль на дословных байтах аварии f4612d8e9 (blob b65010a2)",
+ "title": "ADR-886 SYNTAX — дельта цикла #1001: доставка спрашивает «а эти байты вообще Python». Третья ось того же пина, fail-CLOSED со своим кодом 15, положительный контроль на дословных байтах аварии f4612d8e9 (blob b65010a2) + ПОПРАВКА того же цикла (два исхода пустого перечня)",
  "tests": [
   "spa_core/tests/test_delivery_syntax_gate.py",
   "spa_core/tests/test_delivery_bytes_pin.py"
@@ -102,9 +102,30 @@
   {
    "name": "перечень вердиктов не очищается на сбросе — исходы накапливаются между прогонами",
    "file": "push_to_github.py",
-   "old": "    _PIN_VERDICTS.clear()\n    _MODE_VERDICTS.clear()\n    _SYNTAX_VERDICTS.clear()\n    _TREE_VERDICTS.clear()",
-   "new": "    _PIN_VERDICTS.clear()\n    _MODE_VERDICTS.clear()\n    _TREE_VERDICTS.clear()",
+   "old": "    _PIN_VERDICTS.clear()\n    _MODE_VERDICTS.clear()\n    _SYNTAX_VERDICTS.clear()\n    _SYNTAX_GATE[\"called\"] = False\n    _TREE_VERDICTS.clear()",
+   "new": "    _PIN_VERDICTS.clear()\n    _MODE_VERDICTS.clear()\n    _SYNTAX_GATE[\"called\"] = False\n    _TREE_VERDICTS.clear()",
    "note": "ВЕРДИКТ #1001: НАСТОЯЩАЯ ДЫРА, закрыта тестом `test_the_reset_returns_the_axis_to_never_asked` — сам гейт чистит перечень на входе, поэтому забытая чистка в сбросе невидима любому прогону, который гейт ЗОВЁТ"
+  },
+  {
+   "name": "отметка «гейт зван» не ставится — два состояния снова под одной строкой (дословно дефект пуша 71777e28)",
+   "file": "push_to_github.py",
+   "old": "    _SYNTAX_VERDICTS.clear()\n    _SYNTAX_GATE[\"called\"] = True\n",
+   "new": "    _SYNTAX_VERDICTS.clear()\n",
+   "note": "ПОПРАВКА того же цикла #1001: прогон 3/3 убито, 0 выжило"
+  },
+  {
+   "name": "отметка не возвращается в «не зван» на сбросе — «судить нечего» липнет к следующей сцене",
+   "file": "push_to_github.py",
+   "old": "    _SYNTAX_VERDICTS.clear()\n    _SYNTAX_GATE[\"called\"] = False\n    _TREE_VERDICTS.clear()",
+   "new": "    _SYNTAX_VERDICTS.clear()\n    _TREE_VERDICTS.clear()",
+   "note": "ПОПРАВКА того же цикла #1001: прогон 3/3 убито, 0 выжило"
+  },
+  {
+   "name": "строка «судить нечего» подменена строкой «не зван» — различие печатается, но ложно",
+   "file": "push_to_github.py",
+   "old": "        if _SYNTAX_GATE[\"called\"]:\n            return (\"разбор уезжающего Python: в наборе нет ни одного `*.py` — \"\n                    \"судить нечего\")",
+   "new": "        if False:\n            return (\"разбор уезжающего Python: в наборе нет ни одного `*.py` — \"\n                    \"судить нечего\")",
+   "note": "ПОПРАВКА того же цикла #1001: прогон 3/3 убито, 0 выжило"
   }
  ]
 }

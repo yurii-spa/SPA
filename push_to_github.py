@@ -482,6 +482,7 @@ def reset_delivery_pin() -> None:
     _PIN_VERDICTS.clear()
     _MODE_VERDICTS.clear()
     _SYNTAX_VERDICTS.clear()
+    _SYNTAX_GATE["called"] = False
     _TREE_VERDICTS.clear()
 
 
@@ -1062,6 +1063,14 @@ class DeliveredBytesAreNotPython(RuntimeError):
 #: кто спрашивал» (тот же довод, что у `_MODE_VERDICTS`).
 _SYNTAX_VERDICTS: list = []
 
+#: БЫЛ ЛИ ГЕЙТ ЗВАН — отдельное наблюдение, и список вердиктов на этот вопрос
+#: НЕ отвечает. ПОПРАВКА того же цикла #1001, найденная чтением своего же
+#: вывода: пуш из двух `.md` печатал «гейт не зван НИ РАЗУ», хотя гейт был
+#: ЗВАН и судить ему было нечего. Два РАЗНЫХ состояния под одной строкой —
+#: ровно тот класс, против которого написан ADR-886; «пустой перечень» значит
+#: либо «не спрашивали», либо «спросили, и Python в наборе не было».
+_SYNTAX_GATE: dict = {"called": False}
+
 
 def _syntax_reason(exc: BaseException) -> str:
     """Причина отказа одной строкой: сообщение + МЕСТО, если оно известно."""
@@ -1085,6 +1094,7 @@ def enforce_delivery_compiles(file_args: list, allow: bool = False) -> list:
     либо НАЗВАННЫЙ обход `--allow-not-python`: молчания нет ни в одной ветке.
     """
     _SYNTAX_VERDICTS.clear()
+    _SYNTAX_GATE["called"] = True
     for fa in file_args:
         key = _delivery_abs(fa)
         if not key.endswith(".py"):
@@ -1155,8 +1165,18 @@ def enforce_delivery_compiles(file_args: list, allow: bool = False) -> list:
 
 
 def delivery_syntax_summary() -> str:
-    """Одна строка итога по третьей оси. Своя строка, а не слагаемое первой."""
+    """Одна строка итога по третьей оси. Своя строка, а не слагаемое первой.
+
+    Пустой перечень вердиктов НЕ ЕСТЬ один исход: он значит либо «гейта не
+    звали» (библиотечный вызов `batch_push` минуя CLI), либо «звали, и `*.py`
+    в наборе не было». Склеить их — тот же дефект, что и склеить «не измерено»
+    со «сверено»: читатель увидел бы «не зван» у работающего гейта и пошёл бы
+    искать несуществующую поломку проводки.
+    """
     if not _SYNTAX_VERDICTS:
+        if _SYNTAX_GATE["called"]:
+            return ("разбор уезжающего Python: в наборе нет ни одного `*.py` — "
+                    "судить нечего")
         return "разбор уезжающего Python: гейт не зван НИ РАЗУ"
     states: dict = {}
     for v in _SYNTAX_VERDICTS:

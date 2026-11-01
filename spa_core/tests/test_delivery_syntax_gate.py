@@ -262,6 +262,32 @@ def test_the_gate_was_never_called_is_said_out_loud(ptg):
     assert "не зван" in ptg.delivery_syntax_summary()
 
 
+def test_not_called_and_nothing_to_judge_are_two_different_lines(ptg, tmp_path):
+    """«Гейта не звали» и «звали, а `*.py` в наборе не было» — РАЗНЫЕ исходы.
+
+    ПОПРАВКА того же цикла #1001, найденная чтением СВОЕГО ЖЕ вывода: второй
+    пуш цикла везло два `.md`, гейт был ЗВАН, судить ему было нечего — и вывод
+    сказал «гейт не зван НИ РАЗУ». Два разных состояния под одной строкой есть
+    ровно тот класс, против которого написан ADR-886: читатель увидел бы «не
+    зван» у работающего гейта и пошёл бы искать несуществующую поломку
+    проводки.
+
+    Мерится ДИФФЕРЕНЦИАЛЬНО — две сцены, отличающиеся РОВНО тем, звали гейт или
+    нет; «в строке есть слово» прошло бы и у меры, которая печатает одно и то же.
+    """
+    not_called = ptg.delivery_syntax_summary()
+
+    only_md = tmp_path / "note.md"
+    only_md.write_text("текст\n", encoding="utf-8")
+    ptg.pin_delivery_bytes([str(only_md)])
+    ptg.enforce_delivery_compiles([str(only_md)])
+    nothing_to_judge = ptg.delivery_syntax_summary()
+
+    assert not_called != nothing_to_judge, (
+        f"оба состояния печатаются одной строкой: {not_called!r}")
+    assert "не зван" in not_called and "нет ни одного" in nothing_to_judge
+
+
 def test_the_reset_returns_the_axis_to_never_asked(ptg, tmp_path):
     """После `reset_delivery_pin()` третья ось снова говорит «не зван».
 
@@ -301,8 +327,10 @@ def test_a_non_python_extension_is_not_counted_as_verified(ptg, tmp_path):
     verdicts = ptg.enforce_delivery_compiles([str(broken_json)])
 
     assert verdicts == [], verdicts
-    assert "не зван" in ptg.delivery_syntax_summary(), (
-        "файл без вопроса учтён как измеренный")
+    said = ptg.delivery_syntax_summary()
+    assert "сверено" not in said, f"файл без вопроса учтён как измеренный: {said}"
+    assert "нет ни одного" in said, (
+        f"итог не говорит, что судить было НЕЧЕГО: {said}")
 
 
 def test_a_null_byte_source_is_refused_under_the_gate_own_name(ptg, tmp_path):
