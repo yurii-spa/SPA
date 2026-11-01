@@ -31177,11 +31177,20 @@ RiskPolicy v1.0, стоп-кран, аллокатор, живой трек `dat
    перепись «сколько не-Python расширений вообще уезжает пушами» по истории доставки, и только
    потом решение, у каких из них есть дешёвый разборщик в stdlib (`json`, `plistlib`), а у каких
    нет (Astro, YAML — вне stdlib, инв. #4).
-3. **Восемь красных храповиков на чистом `origin/main` — долг, который растёт** (три у #956,
-   восемь у #957, этот цикл сверил `test_inbox_acceptance_ratchet` поимённо: 10 карточек, те же
-   на базе). Отдельная работа с отдельной пробой, а не прицеп: красный храповик на `main`
-   обесценивает КАЖДЫЙ следующий дифференциальный замер, потому что «было красно и стало красно»
-   перестаёт быть сигналом.
+3. **ДВЕНАДЦАТЬ красных на чистом `origin/main` — число ПЕРЕМЕРЕНО этим циклом, и долг растёт**
+   (три у #956, восемь у #957, **12** у #1001). Замер дифференциальный, в двух отдельных деревьях
+   на `origin/main` `4058aafe6`, пакет `-k "ratchet or guard"`: **12 failed / 2475 passed / 9
+   skipped / 172 subtests** в ОБОИХ, и списки упавших имён СОВПАЛИ ПОЛНОСТЬЮ. Поимённо:
+   `test_absent_path_probe` ×2 · `test_copy_independence_probe` ×1 ·
+   `test_decision_journal_coverage` ×1 · `test_fixture_schema_gap_ratchet` ×3 ·
+   `test_frozen_date_ratchet` (называет `test_edge_carry3_vs_quiet.py`) ·
+   `test_inbox_acceptance_ratchet` (10 карточек) · `test_python_git_ref_provenance` ·
+   `test_script_path_launch_imports` · `test_unwired_guard_modules_ratchet` (называет
+   `spa_core/monitoring/step_time_drift.py`). Отдельная работа с отдельной пробой, а не прицеп:
+   красный храповик на `main` обесценивает КАЖДЫЙ следующий дифференциальный замер, потому что
+   «было красно и стало красно» перестаёт быть сигналом. Начинать с `test_fixture_schema_gap_ratchet`
+   (три падения одного предмета) и `test_unwired_guard_modules_ratchet` (сирота НАЗВАН — подключить
+   или вывести карточкой, в `KNOWN_UNWIRED` не дописывать).
 4. **Служба `com.spa.decision_loop` во флоте ОТСУТСТВУЕТ** (G883 п. 8) — у карточек моста
    находок нет ЕДИНСТВЕННОГО писателя. Возврат агента — деплой, вне мандата; вопрос владельцу
    доставлен (`owner-decision-disk-pochinku-ya-dostavil-ot-tebya-nuzhn`, `message_ids=[11175]`).
