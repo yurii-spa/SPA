@@ -340,6 +340,7 @@ class TheOfficeStepReadsIt(unittest.TestCase):
                "arming_blockade": {"verdict": STE.BLOCKADE_NO_SINGLE, "reason": "—"},
                "trial_grant_reach": {"verdict": STE.REACH_BLOCKED, "reason": "—"},
                "admissible_size_reach": _reach([_rec(1)])}
+        # SCHEMA-GAP-OK: предмет сцены — читает ли шаг 0-офис РАЗДЕЛ ЭТОГО прибора (`admissible_size_reach`, ADR-850, цикл #969); пять переписей урезания (`live_trim_census`, `trim_shape_census`, `trim_admissibility_census`, `trim_optimum_census`, `trim_size_edge_census`) родились ПОЗЖЕ (ADR-855…ADR-861), и привязка этой сцены к пяти чужим производителям её предмета не усиливает
         text = "\n".join(cor._summarize_json(
             str(_REPO / "data" / "shadow_trigger_evaluation.json"), doc,
             root=str(_REPO), artifact_root=str(_REPO)))

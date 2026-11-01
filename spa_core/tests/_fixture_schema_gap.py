@@ -1538,3 +1538,94 @@ def operand_verdict(census: Census, baseline: dict) -> OperandVerdict:
                 f"ведро `{name}`: объявлено {was}, измерено {now} ⇒ площадка "
                 f"{moved} ({now - was:+d})")
     return verdict
+
+
+@dataclass
+class ClassVerdict:
+    """Вердикт о КЛАССЕ (а не об операнде): три исхода РАЗЛИЧИМЫ (инв. #17).
+
+    Операнд (`operand_verdict` выше) отвечает на вопрос «не ПРОПАЛА ли площадка
+    двери». Это ДРУГОЙ вопрос, и смешивать их нельзя: операнд сходится и при
+    живом населении класса — ровно так и стоял `origin/main` с цикла #966 по
+    #1002 (операнд 136 против 128 И население 12 одновременно, но причины у
+    чисел разные и лечение тоже).
+
+    * `unmeasured` непуст — у замера или у объявления нет предмета;
+    * `problems` непуст — класс жив ЛИБО база выросла ЛИБО освобождение без
+      причины;
+    * оба пусты — класс пуст, и это СЛОЖЕНО из трёх ответов, а не из одного.
+    """
+
+    population: int
+    exempt: int
+    declared_keys: int | None = None
+    unmeasured: str | None = None
+    problems: list = field(default_factory=list)
+
+
+def class_verdict(census: Census, baseline: dict) -> ClassVerdict:
+    """Пуст ли КЛАСС — и не погашен ли он дописыванием в базу.
+
+    Три вопроса, и согласие нужно по ВСЕМ трём. Почему три, а не один:
+
+    1. **население класса пусто.** Площадка, у которой объявленный путь
+       `_READ_SCHEMA` не несёт фикстура и освобождения нет, — это и есть класс.
+    2. **каждое освобождение несёт ПРИЧИНУ.** Без этого вопроса остаётся выход
+       наружу тише красного теста: приписать `# SCHEMA-GAP-OK` без причины
+       двенадцати площадкам, и население станет нулём, не объяснив ни одной.
+       Тот же порядок, что у `FROZEN-DATE-OK` (`.claude/rules/deployment.md`).
+    3. **база НЕ ВЫРОСЛА.** Замер ADR-705 поставил население в НОЛЬ, и с нуля
+       «только вниз» означает ровно «остаётся нулём»: `keys` обязан быть ПУСТ.
+       Без этого вопроса первые два закрываются одним ходом — дописать шесть
+       имён в `keys`, и главный храповик зелен при живом вреде. Именно этот ход
+       база запрещает ПРОЗОЙ («дописывать ЗАПРЕЩЕНО»), а прозу не читает ни один
+       код — тот же дефект, который ADR-803 нашёл у пяти слагаемых операнда.
+
+    Вопрос задаёт ПРИБОР, а не тест и не проба: сверка, живущая только в
+    храповике, читающем ЖИВУЮ базу, не закреплена ничем — мутационный замер
+    первой редакции ADR-803 показал это числом (три выживших из четырнадцати).
+    У обоих читателей одна копия.
+    """
+    population = len(census.population)
+    exempt = len(census.exempt)
+    if not isinstance(baseline, dict):
+        return ClassVerdict(
+            population, exempt,
+            unmeasured=(f"объявление подано не документом, а "
+                        f"`{type(baseline).__name__}` — читать нечего"))
+    keys = baseline.get("keys")
+    if not isinstance(keys, dict):
+        return ClassVerdict(
+            population, exempt,
+            unmeasured=("в базе нет перечня `keys` словарём — «население 0» без "
+                        "объявления, с которым его сверять, есть подделка "
+                        "доказательства"))
+    verdict = ClassVerdict(population, exempt, len(keys))
+    if not census.files_scanned:
+        verdict.unmeasured = (
+            f"ни один тест-файл не зовёт дверь `{DOOR}` — предмета у замера "
+            f"нет, и нулём это не считается")
+        return verdict
+    if not census.sites:
+        verdict.unmeasured = (
+            "ни одна площадка двери не разрешена до документа — «не несомых "
+            "путей 0» на нуле сравнений есть подделка доказательства")
+        return verdict
+
+    if keys:
+        verdict.problems.append(
+            f"база храповика НЕ ПУСТА: в `keys` объявлено {len(keys)} "
+            f"имён ({', '.join(sorted(keys))}) — замер ADR-705 поставил "
+            f"население в НОЛЬ, и дописывание в базу запрещено (инв. #16)")
+    if census.marker_without_reason:
+        verdict.problems.append(
+            "освобождение без причины (записка освобождением не является): "
+            + " · ".join(f"{where}:{line}"
+                         for where, line in census.marker_without_reason))
+    if census.population:
+        verdict.problems.append(
+            f"население класса {population}: объявленный путь не несёт фикстура "
+            f"того же производителя — " + " · ".join(
+                f"{s.file}:{s.line}::{s.artifact} не несёт {len(s.missing)}"
+                for s in census.population))
+    return verdict

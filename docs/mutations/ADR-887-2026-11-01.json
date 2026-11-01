@@ -1,0 +1,105 @@
+{
+  "title": "ADR-887 — дельта цикла #1002: класс зазора фикстур ПУСТ и база НЕ ВЫРОСЛА. Новый вердикт прибора `class_verdict`, проба приёмки `fixture_gap_class_is_empty` с контролем в обе стороны, 12 освобождений с причиной, операнд перемерен 128 → 136 с атрибуцией каждой площадки",
+  "tests": [
+    "spa_core/tests/test_fixture_gap_class_probe.py",
+    "spa_core/tests/test_fixture_schema_gap_ratchet.py"
+  ],
+  "mutations": [
+    {
+      "name": "вопрос «база не выросла» снят — остаётся ровно то состояние, в котором класс гасится дописыванием в keys",
+      "file": "spa_core/tests/_fixture_schema_gap.py",
+      "old": "    if keys:\n        verdict.problems.append(\n            f\"база храповика НЕ ПУСТА: в `keys` объявлено {len(keys)} \"",
+      "new": "    if False:\n        verdict.problems.append(\n            f\"база храповика НЕ ПУСТА: в `keys` объявлено {len(keys)} \""
+    },
+    {
+      "name": "вопрос «освобождение несёт причину» снят — записка становится освобождением",
+      "file": "spa_core/tests/_fixture_schema_gap.py",
+      "old": "    if census.marker_without_reason:\n        verdict.problems.append(\n            \"освобождение без причины (записка освобождением не является): \"",
+      "new": "    if False:\n        verdict.problems.append(\n            \"освобождение без причины (записка освобождением не является): \""
+    },
+    {
+      "name": "вопрос «население пусто» снят — живой класс читается как согласие",
+      "file": "spa_core/tests/_fixture_schema_gap.py",
+      "old": "    if census.population:\n        verdict.problems.append(\n            f\"население класса {population}: объявленный путь не несёт фикстура \"",
+      "new": "    if False:\n        verdict.problems.append(\n            f\"население класса {population}: объявленный путь не несёт фикстура \""
+    },
+    {
+      "name": "третий исход «у замера нет предмета» снят — ноль площадок читается как чистота",
+      "file": "spa_core/tests/_fixture_schema_gap.py",
+      "old": "    if not census.sites:\n        verdict.unmeasured = (\n            \"ни одна площадка двери не разрешена до документа — «не несомых \"\n            \"путей 0» на нуле сравнений есть подделка доказательства\")\n        return verdict",
+      "new": "    if not census.sites:\n        pass"
+    },
+    {
+      "name": "третий исход «ни один файл не зовёт дверь» снят",
+      "file": "spa_core/tests/_fixture_schema_gap.py",
+      "old": "    if not census.files_scanned:\n        verdict.unmeasured = (\n            f\"ни один тест-файл не зовёт дверь `{DOOR}` — предмета у замера \"\n            f\"нет, и нулём это не считается\")\n        return verdict",
+      "new": "    if not census.files_scanned:\n        pass"
+    },
+    {
+      "name": "база без перечня `keys` перестаёт быть третьим исходом — «нечем измерить» выдаётся за согласие",
+      "file": "spa_core/tests/_fixture_schema_gap.py",
+      "old": "    keys = baseline.get(\"keys\")\n    if not isinstance(keys, dict):\n        return ClassVerdict(\n            population, exempt,\n            unmeasured=(\"в базе нет перечня `keys` словарём — «население 0» без \"\n                        \"объявления, с которым его сверять, есть подделка \"\n                        \"доказательства\"))",
+      "new": "    keys = baseline.get(\"keys\") or {}\n    if False:\n        return ClassVerdict(\n            population, exempt,\n            unmeasured=(\"в базе нет перечня `keys` словарём — «население 0» без \"\n                        \"объявления, с которым его сверять, есть подделка \"\n                        \"доказательства\"))"
+    },
+    {
+      "name": "база, поданная не документом, перестаёт быть третьим исходом",
+      "file": "spa_core/tests/_fixture_schema_gap.py",
+      "old": "    if not isinstance(baseline, dict):\n        return ClassVerdict(\n            population, exempt,\n            unmeasured=(f\"объявление подано не документом, а \"\n                        f\"`{type(baseline).__name__}` — читать нечего\"))",
+      "new": "    if not isinstance(baseline, dict):\n        baseline = {\"keys\": {}}"
+    },
+    {
+      "name": "население читается НЕ у прибора, а у длины всех площадок — освобождённая начинает считаться населением",
+      "file": "spa_core/tests/_fixture_schema_gap.py",
+      "old": "    population = len(census.population)\n    exempt = len(census.exempt)",
+      "new": "    population = len(census.sites)\n    exempt = len(census.exempt)"
+    },
+    {
+      "name": "согласие пробы печатает ПОСТОЯННУЮ строку вместо измеренных чисел — «проходит подстрокой»",
+      "file": "spa_core/monitoring/card_acceptance.py",
+      "old": "    return SATISFIED, (\n        f\"класс пуст: население {verdict.population}, освобождено с причиной \"\n        f\"{verdict.exempt}, имён в базе {verdict.declared_keys}\")",
+      "new": "    return SATISFIED, \"класс пуст\""
+    },
+    {
+      "name": "третий исход пробы схлопнут в отказ — «нечем измерить» неотличимо от «класс жив»",
+      "file": "spa_core/monitoring/card_acceptance.py",
+      "old": "    verdict = gap.class_verdict(census, baseline)\n    if verdict.unmeasured:\n        return UNMEASURED, verdict.unmeasured\n    if verdict.problems:\n        return NOT_SATISFIED, \" · \".join(verdict.problems)\n    return SATISFIED, (\n        f\"класс пуст: население {verdict.population}, освобождено с причиной \"\n        f\"{verdict.exempt}, имён в базе {verdict.declared_keys}\")",
+      "new": "    verdict = gap.class_verdict(census, baseline)\n    if verdict.unmeasured:\n        return NOT_SATISFIED, verdict.unmeasured\n    if verdict.problems:\n        return NOT_SATISFIED, \" · \".join(verdict.problems)\n    return SATISFIED, (\n        f\"класс пуст: население {verdict.population}, освобождено с причиной \"\n        f\"{verdict.exempt}, имён в базе {verdict.declared_keys}\")"
+    },
+    {
+      "name": "отказы перестают называться ВСЕ — печатается только первый, и остальные два невидимы",
+      "file": "spa_core/monitoring/card_acceptance.py",
+      "old": "    if verdict.problems:\n        return NOT_SATISFIED, \" · \".join(verdict.problems)\n    return SATISFIED, (\n        f\"класс пуст: население {verdict.population}, освобождено с причиной \"\n        f\"{verdict.exempt}, имён в базе {verdict.declared_keys}\")",
+      "new": "    if verdict.problems:\n        return NOT_SATISFIED, verdict.problems[0]\n    return SATISFIED, (\n        f\"класс пуст: население {verdict.population}, освобождено с причиной \"\n        f\"{verdict.exempt}, имён в базе {verdict.declared_keys}\")"
+    },
+    {
+      "name": "проба перестаёт быть зарегистрированной под объявленным именем",
+      "file": "spa_core/monitoring/card_acceptance.py",
+      "old": "    \"fixture_gap_class_is_empty\": _probe_fixture_gap_class_is_empty,",
+      "new": "    \"fixture_gap_class_is_empty_OTHER\": _probe_fixture_gap_class_is_empty,"
+    },
+    {
+      "name": "новый тест храповика снят — ход «дописать в базу» снова не ловит никто",
+      "file": "spa_core/tests/test_fixture_schema_gap_ratchet.py",
+      "old": "    verdict = gap.class_verdict(_census(), _baseline())\n    assert verdict.unmeasured is None, verdict.unmeasured\n    assert not verdict.problems, \"\\n\".join(\"  \" + row for row in verdict.problems)",
+      "new": "    verdict = gap.class_verdict(_census(), _baseline())\n    assert verdict is not None"
+    },
+    {
+      "name": "одно освобождение лишается ПРИЧИНЫ — записка выдаётся за освобождение (отрицательный контроль на живом дереве)",
+      "file": "spa_core/tests/test_trim_optimum.py",
+      "old": "        # SCHEMA-GAP-OK: ОТРИЦАТЕЛЬНЫЙ контроль: запись СТАРШЕ прибора, раздела в ней НЕТ по предмету сцены — значение отменило бы сам контроль",
+      "new": "        # SCHEMA-GAP-OK:"
+    },
+    {
+      "name": "пометка освобождения заменена ОБЫЧНЫМ комментарием — население класса становится 1 (отрицательный контроль на живом дереве)",
+      "file": "spa_core/tests/test_trim_size_edge.py",
+      "old": "        # SCHEMA-GAP-OK: ОТРИЦАТЕЛЬНЫЙ контроль: запись СТАРШЕ прибора, раздела в ней НЕТ по предмету сцены — значение отменило бы сам контроль",
+      "new": "        # просто комментарий без пометки освобождения"
+    },
+    {
+      "name": "объявленное слагаемое `sites` возвращено к прежнему числу — операнд разошёлся бы и ведро названо",
+      "file": "spa_core/tests/fixture_schema_gap_baseline.json",
+      "old": "    \"sites\": 73,",
+      "new": "    \"sites\": 61,"
+    }
+  ]
+}

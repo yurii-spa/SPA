@@ -566,6 +566,7 @@ class TheCensusIsWiredIntoTheArtifactNotJustWritten(unittest.TestCase):
         doc = {"status": "NOT_READY", "ready_to_arm": False,
                "observation_days": 1, "generated_at": _NOW.isoformat(),
                "trim_optimum_census": census}
+        # SCHEMA-GAP-OK: предмет сцены — читает ли шаг 0-офис РАЗДЕЛ ЭТОГО прибора (`trim_optimum_census`, ADR-859, цикл #976); девять прочих разделов артефакта — чужие производители. Замер цикла #1002: собрать документ ПРОИЗВОДИТЕЛЕМ (`evaluate_window`) лечения НЕ даёт — у `dict(ВЫЗОВ, ключ=…)` разбор видит только ключевое слово, и площадка начинает НЕ НЕСТИ 12 путей вместо 9
         text = "\n".join(
             office._summarize_json("shadow_trigger_evaluation.json", doc))
         self.assertIn("приз ограниченного поиска", text)
@@ -575,6 +576,7 @@ class TheCensusIsWiredIntoTheArtifactNotJustWritten(unittest.TestCase):
         """Отрицательный контроль: запись СТАРШЕ прибора звучит, а не молчит."""
         import importlib
         office = importlib.import_module("scripts.consume_office_reports")
+        # SCHEMA-GAP-OK: ОТРИЦАТЕЛЬНЫЙ контроль: запись СТАРШЕ прибора, раздела в ней НЕТ по предмету сцены — значение отменило бы сам контроль
         text = "\n".join(office._summarize_json(
             "shadow_trigger_evaluation.json",
             {"status": "NOT_READY", "ready_to_arm": False,

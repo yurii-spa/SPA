@@ -2,11 +2,11 @@
 
 > Авто-генерится `scripts/build_tracker_board.py` из `nimbalyst-local/tracker/*.md`. НЕ править вручную — правь карточки. Источник правды — карточки, это индекс (bootstrap).
 >
-> Собрана: 2026-11-01T04:11:03Z · сверка с карточками: `python3 scripts/build_tracker_board.py --check` (сторож `spa_core/tests/test_tracker_board_matches_cards.py`).
+> Собрана: 2026-11-01T06:56:36Z · сверка с карточками: `python3 scripts/build_tracker_board.py --check` (сторож `spa_core/tests/test_tracker_board_matches_cards.py`).
 >
-> Сверено с `origin/main` (c81b40076).
+> Сверено с `origin/main` (126a2ec2a) · у **1** своя правка, кто новее — не измерено.
 >
-> Всего карточек: **1552** · ждёт владельца: **6** · занято сессиями: **14**.
+> Всего карточек: **1554** · ждёт владельца: **6** · занято сессиями: **13**.
 
 ## 🔴 ЖДЁТ ВЛАДЕЛЬЦА (needs-owner)
 
@@ -33,7 +33,6 @@
 - **Прогон тестов переписывает СОРОК git-tracked файлов в data/ (карточка #225/#226 считает, что их три) — среди них журнал исполнения** — держит `cycle-352` · с 2026-08-23T03:25:59Z  ·  `inbox-progon-testov-perepisyvaet-sorok-otslezhivaemyh-failov-data.md`
 - **Производители устаревших чисел сайта: дата go-live из API, сверка NAV до цикла, протухшие артефакты, молчащие стражи сайта** — держит `pid20023` · с 2026-09-08T21:15:05Z  ·  `inbox-proizvoditeli-ustarevshih-chisel-saita-d.md`
 - **Сторож ответа владельца зовёт человека на не-спор: 1 и "1" — одно решение, а сравниваются байты** — держит `cycle-84821` · с 2026-08-30T00:50:53Z  ·  `inbox-storozh-otveta-vladeltsa-zovet-cheloveka.md`
-- **TASK — Portfolio CIO: Dynamic Capital Allocation & Rebalancing** — держит `cycle-25368` · с 2026-11-01T02:59:46Z  ·  `inbox-task-portfolio-cio-dynamic-capital-alloc.md`
 - **Замок цикла оркестратора доставлен, но в проде не работает: обёртка агента синкается раз в сутки, а голос о пропавшей защите живёт в самом пропавшем файле** — держит `cycle-81141` · с 2026-08-08T01:59:06Z  ·  `inbox-zamok-tsikla-orkestratora-dostavlen-no-v.md`
 
 ## 🧑‍⚖️ Owner Decisions (что нужно от владельца)  (380)
@@ -423,7 +422,7 @@
 ### · closed
 - Считать ли верный отказ по правилам допуска неисправностью флота  ·  `owner-decision-schitat-li-vernyi-otkaz-po-pravilam-dopu.md` · 2026-10-08
 
-## 📥 Inbox (задания: Telegram / заметки / голос)  (870)
+## 📥 Inbox (задания: Telegram / заметки / голос)  (872)
 
 ### · in-progress
 - а задача починить все-таки еще раз сообщение которым не пишет нужно твое решени…  ·  `inbox-a-zadacha-pochinit-vse-taki-esche-raz-so.md` · 2026-08-14 · 🔒 `pid43119`
@@ -444,7 +443,7 @@
 - Расширить опрашиваемый набор адаптеров шагами (второй шаг варианта A, после ADR-138)  ·  `inbox-rasshirit-oprashivaemyi-nabor-adapterov.md` · 2026-08-26
 - Сторож кнопок нарушает границу, которую сам объявил соблюдённой: метка-БУКВА принималась где угодно, и слово в прозе = «наш дефект разбора» с лекарством чинить НЕСУЩЕСТВУЮЩУЮ форму (перемер #484: ложная ОДНА из 21, не пять; п.1 исполнен)  ·  `inbox-storozh-knopok-narushaet-granitsu-kotoru.md` · 2026-09-04
 - Сторож переходов статусов ждёт первого улова: назвать немого писателя и встроить прогон в агента  ·  `inbox-storozh-perehodov-statusov-zhdet-pervogo.md` · 2026-08-09
-- TASK — Portfolio CIO: Dynamic Capital Allocation & Rebalancing  ·  `inbox-task-portfolio-cio-dynamic-capital-alloc.md` · 2026-08-13 · 🔒 `cycle-25368`
+- TASK — Portfolio CIO: Dynamic Capital Allocation & Rebalancing  ·  `inbox-task-portfolio-cio-dynamic-capital-alloc.md` · 2026-08-13
 - Tier-C: 171 из 180 модулей не отвечают, 9 отвечающих — константы. Подключить или честно списать  ·  `inbox-tier-c-171-iz-180-modulei-ne-otvechayut.md` · 2026-08-06
 - Целостность трека SPA: подключить сторож, пересчёт из сырых входов, commit-reveal книги (перенос из earn-defi)  ·  `inbox-tselostnost-treka-spa-podklyuchit-storoz.md` · 2026-09-08
 - Цена класса «две сессии на одном предмете»: G38 п. 3 лежит остатком пятьдесят заказов  ·  `inbox-tsena-klassa-dve-sessii-na-odnom-predmet.md` · 2026-09-28
@@ -582,6 +581,7 @@
 - Храповик неподключённых скриптов считает УПОМИНАНИЕ В КОММЕНТАРИИ за проводку — слепота стоит трёх скриптов  ·  `inbox-hrapovik-nepodklyuchennyh-skriptov-schit.md` · 2026-08-12
 - Храповик «отсутствие наблюдения» краснеет на СДВИГЕ строк и зовёт это новым местом класса  ·  `inbox-hrapovik-otsutstvie-nablyudeniya-krasnee.md` · 2026-08-24
 - Храповик замороженных дат КРАСЕН на чистом main: test_studio_os.py принёс шесть литеральных дат  ·  `inbox-hrapovik-zamorozhennyh-dat-krasen-na-chi.md` · 2026-09-28
+- Храповик зазора фикстур красен тремя тестами на чистом origin/main: население класса 12 площадок и операнд двери 136 против 128  ·  `inbox-hrapovik-zazora-fikstur-krasen-tremya-te.md` · 2026-11-01
 - Хвост ADR-564: пять дефектов фабрики исследований после повторного разбора  ·  `inbox-hvost-adr-564-pyat-defektov-fabriki-issl.md` · 2026-10-04
 - Имена 41 упавшего теста на main не существуют нигде: reports/ не выгружается, а печать режет 61 до 20  ·  `inbox-imena-upavshih-testov-na-main-zhivut-tol.md` · 2026-09-28
 - Исход FAIL у ворот публикации не меряет ни одна проба — на сцене ADR-789 ворота отвечают «НЕ ИЗМЕРЕНО»  ·  `inbox-ishod-fail-u-vorot-publikatsii-ne-meryae.md` · 2026-10-30
@@ -1261,6 +1261,7 @@
 - Тест ссылок на факты читает семя из каталога чужой сессии — падает предпосылкой, а не утверждением  ·  `inbox-test-ssylok-na-fakty-chitaet-semya-iz-ka.md` · 2026-10-24
 - На чистом origin/main красный храповик литеральных дат — test_studio_os.py вошёл в класс без разбора  ·  `inbox-test-studio-os-frozen-date-ratchet.md` · 2026-09-29
 - Тест судит о каталоге чужой сессии Claude: facts.jsonl-цитаты краснеют на чистом origin/main  ·  `inbox-test-sudit-o-kataloge-chuzhoi-sessii-cla.md` · 2026-10-23
+- Тест судит о своей уборке глобом по ОБЩЕМУ временному каталогу — и краснеет от соседнего прогона того же кода  ·  `inbox-test-sudit-o-svoei-uborke-globom-po-obsc.md` · 2026-11-01
 - Тест тождества капитала КРАСЕН на чистом origin: два читателя одной записи расходятся на сцене с дублем и порчей  ·  `inbox-test-tozhdestva-kapitala-krasen-na-chist.md` · 2026-09-16
 - Тест ворот публикации не доходит до ворот: его заслоняет гейт окна мутаций  ·  `inbox-test-vorot-publikatsii-ne-dohodit-do-vor.md` · 2026-10-18
 - Три отправителя стоп-крана в обход канонической двери (найдено #313)  ·  `inbox-tri-otpravitelya-stop-krana-v-obhod-kano.md` · 2026-08-20

@@ -601,6 +601,7 @@ class TheCensusIsWiredIntoTheArtifactNotJustWritten(unittest.TestCase):
         doc = {"status": "NOT_READY", "ready_to_arm": False,
                "observation_days": 1, "generated_at": _NOW.isoformat(),
                "trim_admissibility_census": census}
+        # SCHEMA-GAP-OK: предмет сцены — читает ли шаг 0-офис РАЗДЕЛ ЭТОГО прибора (`trim_admissibility_census`, ADR-855, цикл #973); девять прочих разделов артефакта — чужие производители, и привязка к ним предмета не усиливает
         lines = office._summarize_json("shadow_trigger_evaluation.json", doc)
         text = "\n".join(lines)
         self.assertIn("допустимость формы", text)
@@ -609,6 +610,7 @@ class TheCensusIsWiredIntoTheArtifactNotJustWritten(unittest.TestCase):
     def test_an_artifact_without_the_block_is_named_not_silently_zero(self):
         import importlib
         office = importlib.import_module("scripts.consume_office_reports")
+        # SCHEMA-GAP-OK: ОТРИЦАТЕЛЬНЫЙ контроль: запись СТАРШЕ прибора, раздела в ней НЕТ по предмету сцены — значение отменило бы сам контроль
         lines = office._summarize_json(
             "shadow_trigger_evaluation.json",
             {"status": "NOT_READY", "ready_to_arm": False,

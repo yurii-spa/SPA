@@ -318,6 +318,7 @@ class TheReaderOfTheCensus(unittest.TestCase):
                "counts": {"act": 0}, "criteria": [],
                "arming_blockade": {"verdict": STE.BLOCKADE_UNREACHABLE, "reason": "—"},
                "trial_grant_reach": _reach([_rec(1, gates={"payback_within_horizon": False})])}
+        # SCHEMA-GAP-OK: предмет сцены — читает ли шаг 0-офис РАЗДЕЛ ЭТОГО прибора (`trial_grant_reach`, ADR-846, цикл #966); шесть позже родившихся разделов семьи сцена не несёт НАМЕРЕННО — её вопрос про свой блок, а не про форму отчёта целиком
         lines = cor._summarize_json(
             str(_REPO / "data" / "shadow_trigger_evaluation.json"), doc,
             root=str(_REPO), artifact_root=str(_REPO))

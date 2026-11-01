@@ -13299,6 +13299,75 @@ def _probe_door_sites_operand_agrees(
         "них: " + " + ".join(f"{n} {v}" for n, v in verdict.measured.items()))
 
 
+def _probe_fixture_gap_class_is_empty(
+        arg: str | None = None, *, census=None,
+        baseline=None) -> tuple[str, str]:
+    """Критерий карточки `inbox-hrapovik-zazora-fikstur-krasen-tremya-te`:
+    класс «объявленный путь без ЗНАЧЕНИЯ в фикстуре» ПУСТ, и база не выросла.
+
+    Предмет — не «тест зелен», а ИСХОД, и он ДРУГОЙ, чем у соседней пробы
+    `door_sites_operand_agrees`. Та отвечает «не ПРОПАЛА ли площадка двери»;
+    эта — «жив ли сам класс». Одновременно красными они стояли с цикла #966 по
+    #1002, и числа у них разные по происхождению: операнд вырос 128 → 136
+    ПОЯВЛЕНИЯМИ (лечится перемером базы по ведрам), а население 0 → 12 — тем,
+    что каждый новый прибор объявлял свой раздел читаемым, а фикстуры СОСЕДЕЙ
+    того же артефакта о нём не знали. Свернуть два вопроса в один значило бы
+    получить зелёный ответ на один из них и выдать его за оба.
+
+    Три вопроса, и согласие нужно по всем трём (их задаёт прибор,
+    `_fixture_schema_gap.class_verdict` — у храповика и у пробы ОДНА копия):
+
+    1. население класса пусто;
+    2. каждое освобождение несёт ПРИЧИНУ — иначе класс гасится припиской
+       `# SCHEMA-GAP-OK` без объяснения, и это тише красного теста;
+    3. база храповика (`keys`) ПУСТА — иначе первые два вопроса закрываются
+       одним ходом: дописать имена в базу. Прозой это уже запрещено в самой
+       базе, но прозу не читает ни один код (урок ADR-803 про пять слагаемых).
+
+    Три исхода различимы (инв. #17): `unmeasured` — прибор не импортируется,
+    база не читается, в базе нет `keys` словарём, у замера нет предмета (ни
+    одного файла двери или ни одной разрешённой площадки); `not_satisfied` —
+    хоть один из трёх вопросов отвечен отрицательно, и строка НАЗЫВАЕТ, какой;
+    `satisfied` — все три, и печатаются ИЗМЕРЕННЫЕ числа (население,
+    освобождений, имён в базе), а не постоянная строка.
+
+    `census` / `baseline` инъектируются ТОЛЬКО контрольной батареей: проба,
+    никогда не видевшая настоящей поломки, остаётся украшением
+    (`.claude/rules/acceptance.md` п. 3).
+    """
+    gap = None
+    if census is None:
+        try:
+            gap, census = _dso_measure()
+        except Exception as exc:  # noqa: BLE001 — третий исход, а не согласие
+            return UNMEASURED, (f"прибор двери не измерил: "
+                                f"{type(exc).__name__}: {exc}")
+    if gap is None:
+        import importlib  # noqa: PLC0415
+        try:
+            gap = importlib.import_module("spa_core.tests._fixture_schema_gap")
+        except Exception as exc:  # noqa: BLE001 — третий исход, а не согласие
+            return UNMEASURED, (f"прибор двери не импортируется: "
+                                f"{type(exc).__name__}: {exc}")
+
+    if baseline is None:
+        path = _pathlib.Path(__file__).resolve().parents[2].joinpath(*_DSO_BASELINE)
+        try:
+            baseline = json.loads(path.read_text(encoding="utf-8"))
+        except (OSError, ValueError) as exc:
+            return UNMEASURED, (f"база храповика не прочитана ({path}): "
+                                f"{type(exc).__name__}: {exc}")
+
+    verdict = gap.class_verdict(census, baseline)
+    if verdict.unmeasured:
+        return UNMEASURED, verdict.unmeasured
+    if verdict.problems:
+        return NOT_SATISFIED, " · ".join(verdict.problems)
+    return SATISFIED, (
+        f"класс пуст: население {verdict.population}, освобождено с причиной "
+        f"{verdict.exempt}, имён в базе {verdict.declared_keys}")
+
+
 #: Сцена пробы «звавший назван»: ОДИН бегун, чьё ИМЯ — переменная сцены. Лента
 #: намеренно не существует: предмет пробы — запись о ЗВАВШЕМ, а она ставится при
 #: сборке документа и обязана быть в документе ЛЮБОГО исхода, включая третий.
@@ -14747,6 +14816,7 @@ PROBES: dict[str, Callable[[str | None], "tuple[str, str]"]] = {
     "tact_stage_names_its_caller":
         _probe_tact_stage_names_its_caller,
     "door_sites_operand_agrees": _probe_door_sites_operand_agrees,
+    "fixture_gap_class_is_empty": _probe_fixture_gap_class_is_empty,
     "answer_list_order_names_its_caller":
         _probe_answer_list_order_names_its_caller,
     "bridge_stage_declaration_agrees":

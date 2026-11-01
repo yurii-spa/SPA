@@ -341,6 +341,7 @@ class WiredIntoTheMandatoryOfficeStep(unittest.TestCase):
     def test_office_step_says_the_blockade_out_loud(self) -> None:
         b = STE.arming_blockade(_real_shape(17), observed_days=30, min_days=30,
                                 acts_scored=0)
+        # SCHEMA-GAP-OK: предмет сцены — блокада взвода (`arming_blockade`, ADR-764, цикл #880); семь разделов семьи, объявленных позже (ADR-846…ADR-861), документ не несёт НАМЕРЕННО — вопрос сцены про СВОЙ блок, а не про форму отчёта целиком
         out = "\n".join(self._office()._summarize_json(
             "data/shadow_trigger_evaluation.json", self._doc(b)))
         self.assertIn(STE.BLOCKADE_UNREACHABLE, out)
@@ -359,6 +360,7 @@ class WiredIntoTheMandatoryOfficeStep(unittest.TestCase):
         b = STE.arming_blockade(_long_window_shape(115), observed_days=71,
                                 min_days=30, acts_scored=0)
         self.assertEqual(b["necessary_blockers"], [])      # предпосылка теста
+        # SCHEMA-GAP-OK: та же куцая фикстура того же предмета (покрытие тишины внутри `arming_blockade`); позже родившиеся разделы семьи сцена не несёт НАМЕРЕННО
         out = "\n".join(self._office()._summarize_json(
             "data/shadow_trigger_evaluation.json", self._doc(b)))
         self.assertIn(STE.BLOCKADE_UNREACHABLE, out)
@@ -372,6 +374,7 @@ class WiredIntoTheMandatoryOfficeStep(unittest.TestCase):
         recs.append(_record(99, reasons=["reversal_of_recent_move:['aave_v3']"]))
         b = STE.arming_blockade(recs, observed_days=71, min_days=30, acts_scored=0)
         self.assertEqual(len(b["act_able_days"]), 1)       # предпосылка теста
+        # SCHEMA-GAP-OK: та же куцая фикстура того же предмета (необъяснённые дни внутри `arming_blockade`); позже родившиеся разделы семьи сцена не несёт НАМЕРЕННО
         out = "\n".join(self._office()._summarize_json(
             "data/shadow_trigger_evaluation.json", self._doc(b)))
         self.assertIn("НЕ ОБЪЯСНЕНО", out)
@@ -380,6 +383,7 @@ class WiredIntoTheMandatoryOfficeStep(unittest.TestCase):
         """Отчёт старого образца молчал бы так же, как здоровый, — третий исход."""
         doc = self._doc(None)
         doc.pop("arming_blockade")
+        # SCHEMA-GAP-OK: ОТРИЦАТЕЛЬНЫЙ контроль: документ есть отчёт СТАРОГО ОБРАЗЦА, у которого раздела НЕТ по предмету сцены — значение отменило бы сам контроль
         out = "\n".join(self._office()._summarize_json(
             "data/shadow_trigger_evaluation.json", doc))
         self.assertIn("НЕ ИЗМЕРЕНА", out)
