@@ -1,0 +1,124 @@
+{
+  "title": "ADR-891 CAUSE — дельта цикла #1005: у падения контрольного прогона есть ПРИЧИНА, а не только место (ось у производителя, единственная дверь опознания, три исхода)",
+  "tests": [
+    "spa_core/tests/test_ci_cause_axis.py",
+    "spa_core/tests/test_ci_cause_axis_probe.py",
+    "spa_core/tests/test_ci_control_verdict_wiring.py"
+  ],
+  "mutations": [
+    {
+      "name": "свод не кладёт ось в отчёт — состояние origin/main дословно",
+      "file": "scripts/ci_control.py",
+      "old": "                  cause_axis=axis)\n",
+      "new": "                  )\n"
+    },
+    {
+      "name": "строки падений остаются без причины: ось есть, а поимённый читатель видит одно место",
+      "file": "scripts/ci_control.py",
+      "old": "        row[\"cause\"] = _cause_of(failure)\n",
+      "new": "        row.pop(\"cause\", None)\n"
+    },
+    {
+      "name": "fail-OPEN: записи нет, а ось отвечает «измерено» (ноль причин выдан за ответ)",
+      "file": "scripts/ci_control.py",
+      "old": "    if not read_ok and failures:\n",
+      "new": "    if False:\n"
+    },
+    {
+      "name": "падение без записи теряет ИМЯ — «не опознали» становится неотличимо от нуля",
+      "file": "scripts/ci_control.py",
+      "old": "            unattributed.append(nodeid if isinstance(nodeid, str) else repr(nodeid))\n",
+      "new": "            pass\n"
+    },
+    {
+      "name": "края вилки дефектов перепутаны: «не меньше» стало «не больше»",
+      "file": "scripts/ci_control.py",
+      "old": "        \"fork\": {\"population\": fork.population, \"lower\": fork.lower, \"upper\": fork.upper,\n",
+      "new": "        \"fork\": {\"population\": fork.population, \"lower\": fork.upper, \"upper\": fork.lower,\n"
+    },
+    {
+      "name": "читается ОДНО имя записи вместо образца — причины доигранного шарда исчезают молча",
+      "file": "scripts/ci_control.py",
+      "old": "        paths = sorted(d.glob(JUNIT_GLOB), key=_attempt_of)\n",
+      "new": "        paths = [p for p in [d / JUNIT_FILE] if p.exists()]\n"
+    },
+    {
+      "name": "тождество учёта считается СУММОЙ счётчика (неопровержимо), а не по объявленному перечню",
+      "file": "scripts/ci_control.py",
+      "old": "        \"phases\": sum(phases.get(k, 0) for k in door.PHASES) == n,\n",
+      "new": "        \"phases\": sum(phases.values()) == n,\n"
+    },
+    {
+      "name": "падение, известное только записи, не называется — две записи спорят молча",
+      "file": "scripts/ci_control.py",
+      "old": "    record_only = sorted(set(found) - declared)\n",
+      "new": "    record_only = []\n"
+    },
+    {
+      "name": "ось, павшая на записи, уносит с собой весь отчёт прогона",
+      "file": "scripts/ci_control.py",
+      "old": "            except Exception as exc:                                # noqa: BLE001\n                unreadable.append([i, path.name, f\"{type(exc).__name__}: {exc}\"])\n                continue\n",
+      "new": "            except KeyboardInterrupt:\n                raise\n"
+    },
+    {
+      "name": "третий исход печатается НУЛЁМ: «не измерено» неотличимо от «причин нет»",
+      "file": "scripts/ci_control.py",
+      "old": "    if axis.get(\"status\") != \"measured\":\n        return (f\"ось причин НЕ ИЗМЕРЕНА: {axis.get('why') or 'причина не названа'}\")\n",
+      "new": "    if axis.get(\"status\") != \"measured\":\n        return \"причины: опознано 0\"\n"
+    },
+    {
+      "name": "читатель не проносит ось: перепись красного о причинах молчит",
+      "file": "scripts/ci_control_verdict.py",
+      "old": "        \"cause_axis\": (rep.get(\"cause_axis\")\n                       if isinstance(rep.get(\"cause_axis\"), dict) else None),\n",
+      "new": "        \"cause_axis\": None,\n"
+    },
+    {
+      "name": "читатель не печатает ось — шаг 0-офис идёт через report() и прочёл бы прежнее одно число",
+      "file": "scripts/ci_control_verdict.py",
+      "old": "    out.append(\"   \" + (\"ось причин НЕ ИЗМЕРЕНА: переписи красного в документе нет \"\n                        \"ВОВСЕ — у оси нет носителя\"\n                        if not isinstance(cen, dict)\n                        else _load_cause_line()(cen.get(\"cause_axis\"))))\n",
+      "new": "    pass\n"
+    },
+    {
+      "name": "читатель молчит о неизмеренной оси: молчание читается как «с причинами всё в порядке»",
+      "file": "scripts/ci_control_verdict.py",
+      "old": "            out.append(f\"ПРИЧИНА {named} падени(й) НЕ ИЗМЕРЕНА: \"\n",
+      "new": "            out.append(f\"\" or f\"про причины ничего: \"\n"
+    },
+    {
+      "name": "оба третьих исхода читателя получают ОДНУ причину (чинятся разным)",
+      "file": "scripts/ci_control_verdict.py",
+      "old": "            why = ((axis or {}).get(\"why\") if isinstance(axis, dict)\n                   else \"блока `cause_axis` в отчёте нет вовсе — свод старше ADR-891\")\n",
+      "new": "            why = \"причина не измерена\"\n"
+    },
+    {
+      "name": "правило строки о причинах переписано ВТОРОЙ копией у читателя (класс ADR-220)",
+      "file": "scripts/ci_control_verdict.py",
+      "old": "    path = ROOT / \"scripts\" / \"ci_control.py\"\n",
+      "new": "    return lambda axis: \"причины: опознано 79 из 79; дефектов НЕ МЕНЬШЕ 54 и НЕ БОЛЬШЕ 78\"\n    path = ROOT / \"scripts\" / \"ci_control.py\"\n"
+    },
+    {
+      "name": "перевод nodeid → имя junit заведён ВТОРОЙ копией: причина уедет к ЧУЖОМУ падению",
+      "file": "scripts/ci_control.py",
+      "old": "        failure = found.get(door.junit_name(nodeid)) if isinstance(nodeid, str) else None\n",
+      "new": "        failure = found.get(nodeid.replace(\"/\", \".\")) if isinstance(nodeid, str) else None\n"
+    },
+    {
+      "name": "у неизмеренной оси строки сохраняют «причина = None»: «не мерили» записано как «не опознали»",
+      "file": "scripts/ci_control.py",
+      "old": "    for row in failures:\n        row.pop(\"cause\", None)\n    return {\"schema\": CAUSE_SCHEMA, \"status\": \"unmeasured\", \"why\": why,\n",
+      "new": "    for row in failures:\n        row[\"cause\"] = None\n    return {\"schema\": CAUSE_SCHEMA, \"status\": \"unmeasured\", \"why\": why,\n"
+    },
+    {
+      "name": "население падений УМЕНЬШАЕТСЯ неизмеренной осью (не измеренная причина не вправе этого)",
+      "file": "scripts/ci_control.py",
+      "old": "                \"population\": len(failures),\n                \"shards_read\": [], \"shards_absent\": absent,\n",
+      "new": "                \"population\": 0,\n                \"shards_read\": [], \"shards_absent\": absent,\n"
+    },
+    {
+      "name": "порядок попыток задан алфавитом: причина БЕРЁТСЯ У ПЕРВОЙ попытки, а не у последней",
+      "file": "scripts/ci_control.py",
+      "old": "        paths = sorted(d.glob(JUNIT_GLOB), key=_attempt_of)\n",
+      "new": "        paths = sorted(d.glob(JUNIT_GLOB), reverse=True)\n"
+    }
+  ]
+}

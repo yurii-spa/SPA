@@ -2,11 +2,11 @@
 
 > Авто-генерится `scripts/build_tracker_board.py` из `nimbalyst-local/tracker/*.md`. НЕ править вручную — правь карточки. Источник правды — карточки, это индекс (bootstrap).
 >
-> Собрана: 2026-11-01T12:42:54Z · сверка с карточками: `python3 scripts/build_tracker_board.py --check` (сторож `spa_core/tests/test_tracker_board_matches_cards.py`).
+> Собрана: 2026-11-01T14:17:46Z · сверка с карточками: `python3 scripts/build_tracker_board.py --check` (сторож `spa_core/tests/test_tracker_board_matches_cards.py`).
 >
-> Сверено с `origin/main` (95727f8d0) · у **3** своя правка, кто новее — не измерено.
+> Сверено с `origin/main` (feff8523a) · у **1** своя правка, кто новее — не измерено.
 >
-> Всего карточек: **1558** · ждёт владельца: **6** · занято сессиями: **13**.
+> Всего карточек: **1559** · ждёт владельца: **6** · занято сессиями: **13**.
 
 ## 🔴 ЖДЁТ ВЛАДЕЛЬЦА (needs-owner)
 
@@ -422,7 +422,7 @@
 ### · closed
 - Считать ли верный отказ по правилам допуска неисправностью флота  ·  `owner-decision-schitat-li-vernyi-otkaz-po-pravilam-dopu.md` · 2026-10-08
 
-## 📥 Inbox (задания: Telegram / заметки / голос)  (876)
+## 📥 Inbox (задания: Telegram / заметки / голос)  (877)
 
 ### · in-progress
 - а задача починить все-таки еще раз сообщение которым не пишет нужно твое решени…  ·  `inbox-a-zadacha-pochinit-vse-taki-esche-raz-so.md` · 2026-08-14 · 🔒 `pid43119`
@@ -901,6 +901,7 @@
 - У ответа владельца НЕТ своего пути на origin: видим его теперь из любого дерева, но не доставляем  ·  `inbox-u-otveta-vladeltsa-net-svoego-puti-na-or.md` · 2026-08-15
 - У outcomes.jsonl спрашивают возраст файла, а честный вопрос — полнота по закрытым дням  ·  `inbox-u-outcomes-jsonl-sprashivayut-vozrast-fa.md` · 2026-08-16
 - У own-34 остался ЖИВОЙ вопрос владельцу, и он не доехал: измерить остаток и отправить по §2.4  ·  `inbox-u-own-34-ostalsya-zhivoi-vopros-vladelts.md` · 2026-08-10
+- У падения контрольного прогона нет ПРИЧИНЫ в отчёте — только место  ·  `inbox-u-padeniya-kontrolnogo-progona-net-prich.md` · 2026-11-01
 - У ПЕРВОЙ доставки вопроса владельцу нет маршрута: карточка, рождённая на ветке, не доезжает до него ничем  ·  `inbox-u-pervoi-dostavki-voprosa-vladeltsu-net.md` · 2026-08-22
 - У прибора переписи разборов ленты нет читателя — срок пробоя бюджета узнаёт только тот, кто наберёт команду руками  ·  `inbox-u-pribora-perepisi-razborov-lenty-net-ch.md` · 2026-10-22
 - Уборщик деревьев судит «доставлено?» по БАЗЕ дерева, а не по origin — и отказывает на верно доставленном  ·  `inbox-uborschik-derevev-sudit-dostavleno-po-ba.md` · 2026-08-17

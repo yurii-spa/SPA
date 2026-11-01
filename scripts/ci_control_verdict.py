@@ -239,6 +239,33 @@ def report_of_run(run_id: str, *, fetch, grab) -> dict:
     return doc
 
 
+def _load_cause_line():
+    """`cause_line` свода ПО ПУТИ — ЕДИНСТВЕННАЯ копия правила про ось причин (ADR-891).
+
+    Своя копия здесь означала бы два ответа на один вопрос: одна строка сказала бы
+    «причин нет», другая «НЕ ИЗМЕРЕНО», и расхождение было бы молчаливым (класс
+    ADR-220). Дверь не нашлась ⇒ НАЗВАННЫЙ третий исход, а не выдуманная строка.
+    """
+    path = ROOT / "scripts" / "ci_control.py"
+    if not path.is_file():
+        return lambda _axis: ("ось причин НЕ ИЗМЕРЕНА: свода "
+                              f"`{path}` нет — правило чтения оси живёт у него, и "
+                              "выдумывать второе запрещено")
+    import importlib.util
+    spec = importlib.util.spec_from_file_location("_civ_ci_control", path)
+    if spec is None or spec.loader is None:
+        return lambda _axis: ("ось причин НЕ ИЗМЕРЕНА: "
+                              f"`{path}` не загружается (загрузчика нет)")
+    module = importlib.util.module_from_spec(spec)
+    try:
+        spec.loader.exec_module(module)
+        line = module.cause_line
+    except Exception as exc:                                        # noqa: BLE001
+        return lambda _axis, _why=f"{type(exc).__name__}: {exc}": (
+            f"ось причин НЕ ИЗМЕРЕНА: свод не ввезён ({_why})")
+    return line
+
+
 def red_census(rep: dict) -> dict:
     """ПЕРЕПИСЬ красного населения ОДНОГО отчёта: из ЧЕГО состоит число упавших.
 
@@ -272,9 +299,14 @@ def red_census(rep: dict) -> dict:
     """
     raw = rep.get("failures")
     if not isinstance(raw, list):
-        return {"status": "unmeasured",
-                "why": (f"перечня `failures` у отчёта нет (там "
-                        f"{type(raw).__name__}) — это НЕ «красного нет»")}
+        why = (f"перечня `failures` у отчёта нет (там {type(raw).__name__}) — "
+               f"это НЕ «красного нет»")
+        # Ось причин получает СВОЮ причину, а не чужую: без перечня падений у неё нет
+        # НОСИТЕЛЯ, и сказать «отчёт собран сводом старше оси» было бы неверным
+        # объяснением верного исхода — ровно тот дефект, против которого ось заведена.
+        return {"status": "unmeasured", "why": why,
+                "cause_axis": {"status": "unmeasured",
+                               "why": f"у оси нет носителя: {why}"}}
     rows = [r for r in raw if isinstance(r, dict)]
     names, nameless = [], len(raw) - len(rows)
     for row in rows:
@@ -313,6 +345,12 @@ def red_census(rep: dict) -> dict:
         "shards_total": len(shards),
         "outcomes": dict(sorted(collections.Counter(
             str(r.get("outcome")) for r in rows).items())),
+        # Ось ПРИЧИН (ADR-891) приезжает ГОТОВОЙ от свода: опознаёт её единственная
+        # дверь `failure_cause_census`, и переопознавать её здесь было бы вторым
+        # ответом на один вопрос. Блока нет ⇒ `None`, и строка скажет «НЕ ИЗМЕРЕНО:
+        # отчёт собран сводом старше оси» — не ноль (инв. #17).
+        "cause_axis": (rep.get("cause_axis")
+                       if isinstance(rep.get("cause_axis"), dict) else None),
     }
 
 
@@ -373,6 +411,29 @@ def census_findings(cen, verdict) -> list:
     if cen.get("nameless_rows"):
         out.append(f"{cen['nameless_rows']} строк(и) перечня падений без разбираемого "
                    f"`nodeid`: падение есть, имени у него нет")
+    # Ось ПРИЧИН (ADR-891). Население названо — а ПОЧЕМУ оно упало, у отчёта могло не
+    # оказаться вовсе; «79 красных» читается как «79 поломок», и это разные числа.
+    axis = cen.get("cause_axis")
+    if not isinstance(axis, dict) or axis.get("status") != "measured":
+        if named:
+            why = ((axis or {}).get("why") if isinstance(axis, dict)
+                   else "блока `cause_axis` в отчёте нет вовсе — свод старше ADR-891")
+            out.append(f"ПРИЧИНА {named} падени(й) НЕ ИЗМЕРЕНА: "
+                       f"{why or 'причина не названа'} — население названо, а свести "
+                       f"его к числу ДЕФЕКТОВ нечем")
+    else:
+        miss = axis.get("unattributed_n") or 0
+        if miss:
+            out.append(f"у {miss} из {axis.get('population')} падени(й) причина НЕ "
+                       f"ОПОЗНАНА (поимённо в `cause_axis.unattributed`): junit-запись "
+                       f"их не несёт, и это свойство ЗАПИСИ, а не отсутствие причины")
+        if axis.get("record_only_n"):
+            out.append(f"{axis['record_only_n']} падени(й) есть в junit-записи и НЕ "
+                       f"числятся упавшими в отчёте: две записи одного прогона спорят")
+        bad = [k for k, ok in (axis.get("identities_hold") or {}).items() if not ok]
+        if bad:
+            out.append(f"тождество учёта оси причин НАРУШЕНО у {', '.join(sorted(bad))}: "
+                       f"род вне объявленного перечня исчезает из печатаемой строки молча")
     return out
 
 
@@ -553,6 +614,10 @@ def report(doc: dict) -> list:
                f"не измерено шардами {_n('not_obtained')}")
     cen = observed(doc, "red_census", kind=dict)
     out.append(f"   {census_line(cen)}")
+    out.append("   " + ("ось причин НЕ ИЗМЕРЕНА: переписи красного в документе нет "
+                        "ВОВСЕ — у оси нет носителя"
+                        if not isinstance(cen, dict)
+                        else _load_cause_line()(cen.get("cause_axis"))))
     if cen is not None and cen.get("status") == "measured":
         worst = cen.get("worst") or []
         out.append("   с чего начинать (худшие файлы): " + (" · ".join(

@@ -83,9 +83,35 @@ def _run_row(rid="40640339909", *, status="completed", conclusion="failure",
             "html_url": f"https://github.com/yurii-spa/SPA/actions/runs/{rid}"}
 
 
+def _cause_axis(population: int) -> dict:
+    """Ось причин ЗДОРОВОГО отчёта (ADR-891).
+
+    Сцена дописана, а НЕ ослаблено утверждение (инв. #16): с 01.11 свод кладёт в отчёт
+    ось причин, и отчёт БЕЗ неё законно даёт читателю вторую находку («ПРИЧИНА N
+    падени(й) НЕ ИЗМЕРЕНА»). Тесты ниже считают находки ТОЧНО, и правильный ответ на
+    их падение — привести сцену к тому, что производит сегодняшний свод, а не разрешить
+    им не замечать лишнюю находку. Отсутствие оси проверяется ОТДЕЛЬНО и нарочно
+    (`TheCauseAxisOfRedIsCarriedToTheReader`).
+    """
+    return {"schema": "spa-ci-control-cause-axis/1", "status": "measured",
+            "population": population, "attributed": population,
+            "unattributed": [], "unattributed_n": 0,
+            "record_only": [], "record_only_n": 0,
+            "kinds": {"AssertionError": population} if population else {},
+            "cause_classes": {"cause_named": population} if population else {},
+            "identities_hold": {"phases": True, "cause_classes": True,
+                                "site_classes": True},
+            "fork": {"population": population, "lower": population,
+                     "upper": population, "cause_groups": population,
+                     "coarse_groups": population, "merged_by_evidence": 0,
+                     "largest_component": 1 if population else 0},
+            "top": ([["AssertionError", "# != #", population]] if population else [])}
+
+
 def _report(verdict="GREEN", *, sha="01dcead102aa1fae9c0287e8c6cab788de0a88e6",
             failures=0, incomplete=(), shards=12):
     return {"schema": "spa-ci-control-report/1", "verdict": verdict, "sha": sha,
+            "cause_axis": _cause_axis(failures),
             "env": {"python": "3.11.17", "pytest": "9.1.1", "SPA_ENV": "ci",
                     "PYTHONHASHSEED": "0", "roots": ["tests"] * 6},
             "incomplete": list(incomplete),
@@ -848,6 +874,7 @@ def _red_report(rows, *, declared=None, non_passed=None, verdict="RED",
         doc.pop("failures", None)
     else:
         doc["failures"] = failures
+    doc["cause_axis"] = _cause_axis(len(rows))
     counts = {"failed": sum(1 for _, o, _ in rows if o == "failed"),
               "error": sum(1 for _, o, _ in rows if o == "error")}
     doc["totals"] = {**doc["totals"], **counts, **(declared or {})}
@@ -1078,6 +1105,74 @@ class TheCensusKeysComeFromTheProducer(unittest.TestCase):
         «названо не всё» заговорила бы о своей же арифметике."""
         src = (_REPO / "scripts" / "ci_control.py").read_text(encoding="utf-8")
         self.assertIn("outcomes.get(n) in (FAILED, ERROR)", src)
+
+
+class TheCauseAxisOfRedIsCarriedToTheReader(unittest.TestCase):
+    """Ось ПРИЧИН доходит до шага 0-офис, а её отсутствие НАЗЫВАЕТСЯ (ADR-891).
+
+    Читатель ось не переопознаёт: опознаёт её единственная дверь
+    (`spa_core/monitoring/failure_cause_census.py`) у свода, а читатель ПРОНОСИТ готовое
+    и говорит словами, когда нести нечего. Поэтому здесь проверяется ПРОВОДКА и три
+    исхода, а не арифметика причин (её контроль — `test_ci_cause_axis.py`).
+    """
+
+    def _doc(self, report):
+        return _Net([_run_row()], report=report).doc()
+
+    def test_a_measured_axis_reaches_the_rendered_lines(self):
+        doc = self._doc(_red_report(rows=[("tests/test_a.py::t1", "failed", 1),
+                                          ("tests/test_a.py::t2", "failed", 1)]))
+        axis = doc["red_census"]["cause_axis"]
+        self.assertEqual(axis["status"], "measured", axis)
+        lines = "\n".join(ccv.report(doc))
+        self.assertIn("опознано 2 из 2", lines)
+        self.assertEqual([f for f in doc["findings"] if "ПРИЧИНА" in f], [])
+
+    def test_a_report_without_the_axis_is_named_not_zeroed(self):
+        rep = _red_report(rows=[("tests/test_a.py::t1", "failed", 1)])
+        rep.pop("cause_axis")
+        doc = self._doc(rep)
+        self.assertIsNone(doc["red_census"]["cause_axis"])
+        lines = "\n".join(ccv.report(doc))
+        self.assertIn("НЕ ИЗМЕРЕНА", lines)
+        self.assertTrue([f for f in doc["findings"]
+                         if "ПРИЧИНА" in f and "НЕ ИЗМЕРЕНА" in f], doc["findings"])
+
+    def test_a_green_report_without_the_axis_is_not_a_finding(self):
+        """У зелёного отчёта падений нет ПО ПОСТРОЕНИЮ — требовать причин было бы
+        красным на здоровом прогоне."""
+        rep = _report()
+        rep.pop("cause_axis")
+        doc = self._doc(rep)
+        self.assertEqual([f for f in doc["findings"] if "ПРИЧИНА" in f], [])
+
+    def test_an_unattributed_failure_is_a_finding_of_its_own(self):
+        rep = _red_report(rows=[("tests/test_a.py::t1", "failed", 1),
+                                ("tests/test_a.py::t2", "failed", 1)])
+        rep["cause_axis"] = {**rep["cause_axis"], "attributed": 1,
+                             "unattributed": ["tests/test_a.py::t2"],
+                             "unattributed_n": 1}
+        doc = self._doc(rep)
+        self.assertTrue([f for f in doc["findings"] if "НЕ\u00a0ОПОЗНАНА" in f
+                         or "НЕ ОПОЗНАНА" in f], doc["findings"])
+
+    def test_a_broken_identity_of_the_axis_is_a_finding(self):
+        rep = _red_report(rows=[("tests/test_a.py::t1", "failed", 1)])
+        rep["cause_axis"] = {**rep["cause_axis"],
+                             "identities_hold": {"phases": False,
+                                                 "cause_classes": True,
+                                                 "site_classes": True}}
+        doc = self._doc(rep)
+        self.assertTrue([f for f in doc["findings"] if "тождество учёта" in f],
+                        doc["findings"])
+
+    def test_the_rule_of_the_line_has_exactly_one_copy(self):
+        """Правило чтения оси живёт у свода; читатель БЕРЁТ его, а не пишет второе."""
+        src = (_REPO / "scripts" / "ci_control_verdict.py").read_text(encoding="utf-8")
+        self.assertIn("_load_cause_line", src)
+        self.assertNotIn("дефектов НЕ МЕНЬШЕ", src,
+                         "вторая копия строки про вилку: разойдись она с первой — "
+                         "два читателя сказали бы о причинах разное молча")
 
 
 if __name__ == "__main__":

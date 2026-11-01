@@ -91,6 +91,16 @@ STREAM_FILE = "stream.jsonl"
 COLLECTED_FILE = "collected.jsonl"
 EXIT_FILE = "exit.json"
 SHARD_FILE = "shard.json"
+#: junit-запись шарда. Пишется В КОНЦЕ сессии; доигранная попытка (`run_shard`) кладёт
+#: свою под `junit-resume-<k>.xml`, поэтому читать надо ОБРАЗЕЦ, а не одно имя: прочти
+#: только `junit.xml` — и у доигранного шарда причины падений исчезли бы молча.
+JUNIT_FILE = "junit.xml"
+JUNIT_GLOB = "junit*.xml"
+
+#: Ось причин красного (ADR-891). Схема объявлена ОТДЕЛЬНО от схемы отчёта: читатель,
+#: встретивший отчёт БЕЗ этого блока, обязан сказать «НЕ ИЗМЕРЕНО: отчёт старше оси»,
+#: а не показать ноль (инв. #17).
+CAUSE_SCHEMA = "spa-ci-control-cause-axis/1"
 
 
 def _load_plugin_reader():
@@ -170,6 +180,226 @@ def load_stream(path: str) -> dict:
         wall[file_of(n)] = wall.get(file_of(n), 0.0) + max(0.0, float(nxt) - t)
     out["file_wall"] = {k: round(v, 3) for k, v in wall.items()}
     return out
+
+
+# ── ось причин красного (ADR-891) ────────────────────────────────────────────
+
+class CauseDoorAbsent(Exception):
+    """Дверь опознания причины не ввезена. Это НЕ «причин нет» и НЕ «причин ноль»."""
+
+
+def _load_cause_door():
+    """`failure_cause_census` по ПУТИ — та же причина, что у :func:`_load_plugin_reader`.
+
+    Свод зовут из джобы, где `spa_core` в `sys.path` не объявлен; ввоз по имени пакета
+    ответил бы «причин нет» там, где дверь просто не нашлась.
+    """
+    import importlib.util
+    path = (Path(__file__).resolve().parents[1] / "spa_core" / "monitoring"
+            / "failure_cause_census.py")
+    if not path.is_file():
+        raise CauseDoorAbsent(f"двери опознания причины нет по пути {path}")
+    spec = importlib.util.spec_from_file_location("_ctl_failure_cause", path)
+    if spec is None or spec.loader is None:
+        raise CauseDoorAbsent(f"{path} не загружается: загрузчика нет")
+    module = importlib.util.module_from_spec(spec)
+    try:
+        spec.loader.exec_module(module)
+    except Exception as exc:                                        # noqa: BLE001
+        raise CauseDoorAbsent(f"{path} не ввезён "
+                              f"({type(exc).__name__}: {exc})") from exc
+    for need in ("census_from_path", "fork_of", "junit_name", "READ_OK",
+                 "PHASES", "CAUSE_CLASSES", "SITE_CLASSES"):
+        if not hasattr(module, need):
+            raise CauseDoorAbsent(f"{path} не несёт `{need}` — это не та дверь")
+    return module
+
+
+def _attempt_of(path: Path) -> tuple:
+    """Номер попытки по имени junit-записи: `junit.xml` — нулевая, `junit-resume-<k>` — k-я."""
+    stem = path.stem
+    if stem == "junit":
+        return (0, stem)
+    tail = stem.rsplit("-", 1)[-1]
+    return ((int(tail) if tail.isdigit() else 10 ** 6), stem)
+
+
+def _cause_of(failure) -> dict:
+    """Причина ОДНОГО падения в виде, который уедет в отчёт. Копии правила нет."""
+    return {"kind": failure.kind, "skeleton": failure.skeleton,
+            "coarse": failure.coarse, "site": failure.site,
+            "class": failure.cause_class, "phase": failure.phase,
+            "site_class": failure.site_class}
+
+
+def cause_axis(plan: list[dict], shards_dir: Path, failures: list[dict],
+               *, door=None, top: int = 12) -> dict:
+    """Ось причин, которая НЕ ВПРАВЕ уронить отчёт прогона (ADR-891).
+
+    Ось ДОБАВОЧНАЯ: вердикт, население и имена упавших от неё не зависят. Поэтому
+    любая её немочь — третий исход С НАЗВАННОЙ ПРИЧИНОЙ, а не исключение наружу: свод
+    зовут один раз в конце прогона, и павший на оси свод отдал бы ПУСТОЙ отчёт, то есть
+    потерял бы и те имена, что уже измерены. Это дороже отсутствия причин.
+
+    Найдено СВОИМ контролем до доставки (`test_ci_cause_axis.py`): дверь, переданная
+    входом и павшая ПОЗЖЕ ввоза, проходила мимо охраны ввоза и улетала из `aggregate`.
+
+    Строки падений на третьем исходе остаются БЕЗ ключа `cause`: «причину не опознали»
+    (`cause = None`) и «причину не мерили» — разные состояния, и записать второе первым
+    значило бы соврать ровно тем способом, против которого ось и заведена (инв. #17).
+    """
+    try:
+        return _cause_axis_measured(plan, shards_dir, failures, door=door, top=top)
+    except CauseDoorAbsent as exc:
+        why = str(exc)
+    except Exception as exc:                                        # noqa: BLE001
+        why = (f"ось причин не снята ({type(exc).__name__}: {exc}) — вердикт, население "
+               f"и имена упавших этим НЕ отменяются")
+    for row in failures:
+        row.pop("cause", None)
+    return {"schema": CAUSE_SCHEMA, "status": "unmeasured", "why": why,
+            "population": len(failures)}
+
+
+def _cause_axis_measured(plan: list[dict], shards_dir: Path, failures: list[dict],
+                         *, door=None, top: int = 12) -> dict:
+    """ПРИЧИНА каждого падения — ось, которой у отчёта свода не было (ADR-891).
+
+    **Зачем (заказ G887 п. 3 карточки приказа «Portfolio CIO»).** До 01.11 строка
+    `failures` отчёта несла `nodeid`, исход, шард и `msg` — а `msg` есть ПЕРВАЯ строка
+    потоковой записи, то есть `файл:строка: in <тест>`. Это МЕСТО, а не причина.
+    Замер на прогоне 41280181541 (`126a2ec2a`, 79 падений в 50 файлах): причина
+    восстановима у **79 из 79** — она лежала в `junit.xml` ТОГО ЖЕ артефакта шарда,
+    который свод уже скачивает и читает ради потоковой записи, и выбрасывалась.
+    Вред не косметический: «79 красных» читается как «79 поломок», и по этому числу
+    решают, брать ли набор в работу. Тот же замер даёт вилку дефектов **54…78**, то
+    есть множитель 1,01…1,46× — слабый, но крупнейшее семейство несёт **10** падений,
+    и без причины его не видно ВОВСЕ: десять лежат в пяти РАЗНЫХ файлах, а перепись
+    по файлам показывает пять одиночек и одну тройку.
+
+    **Опознаёт ЕДИНСТВЕННАЯ дверь** — `spa_core/monitoring/failure_cause_census.py`
+    (ADR-675). Своя копия разбора здесь означала бы два ответа на один вопрос и
+    расхождение молча (класс ADR-220); поэтому и перевод `nodeid` → имя junit берётся
+    у неё же (`junit_name`), а не пишется рядом.
+
+    **ТРИ ИСХОДА РАЗЛИЧИМЫ (инв. #17).** `measured` — ось снята (в том числе снята и
+    population равна нулю: зелёный прогон опознавать нечего) · `unmeasured` — дверь не
+    ввезена ИЛИ junit-записи нет ни у одного шарда, и у исхода НАЗВАНА причина.
+    «Причину не опознали» НИКОГДА не записывается нулём: падение без причины ложится
+    в `unattributed` ПОИМЕННО, а шард без записи — в `shards_without_record`.
+
+    **Запись шарда может не дойти, и это свойство записи, а не причины.** junit пишется
+    В КОНЦЕ сессии (ADR-474): снятый шард своей записи не оставляет. Поэтому читается
+    ОБРАЗЕЦ ``junit*.xml`` — доигранная попытка кладёт свою запись отдельным файлом, —
+    а отсутствие записи у шарда называется своим именем и не уменьшает население.
+    """
+    door = door or _load_cause_door()
+
+    read_ok: list[int] = []
+    absent: list[int] = []
+    without_record: list[int] = []
+    unreadable: list[list] = []
+    found: dict[str, object] = {}
+    records = 0
+    agreed = disagreed = stream_absent = 0
+    for sh in plan:
+        i = sh.get("shard")
+        d = shards_dir / f"{SHARD_DIR_PREFIX}{i}"
+        if not d.is_dir():
+            absent.append(i)
+            continue
+        paths = sorted(d.glob(JUNIT_GLOB), key=_attempt_of)
+        if not paths:
+            without_record.append(i)
+            continue
+        stream = d / STREAM_FILE
+        shard_read = False
+        for path in paths:
+            records += 1
+            try:
+                census = door.census_from_path(
+                    path, stream=stream if stream.exists() else None)
+            except Exception as exc:                                # noqa: BLE001
+                unreadable.append([i, path.name, f"{type(exc).__name__}: {exc}"])
+                continue
+            if census.read != door.READ_OK:
+                unreadable.append([i, path.name, census.reason])
+                continue
+            shard_read = True
+            agreed += census.stream_agreed
+            disagreed += census.stream_disagreed
+            stream_absent += census.stream_absent_for
+            for failure in census.failures:
+                # ПОСЛЕДНЯЯ попытка главнее: доигранная сессия (`run_shard`) гоняет
+                # тест заново, и её причина — та, что стои́т. Порядок задаётся
+                # `_attempt_of`, а не алфавитом: по алфавиту `junit-resume-1.xml`
+                # оказывается РАНЬШЕ `junit.xml` (дефис меньше точки), и правило
+                # «кто первый» случайно совпало бы с нужным, не будучи им.
+                found[failure.nodeid] = failure
+        if shard_read:
+            read_ok.append(i)
+    if not read_ok and failures:
+        return {"schema": CAUSE_SCHEMA, "status": "unmeasured",
+                "why": (f"ни один шард плана не отдал читаемой junit-записи "
+                        f"(шардов {len(plan)}: без каталога {len(absent)}, без записи "
+                        f"{len(without_record)}, нечитаемых записей {len(unreadable)}) — "
+                        f"причины {len(failures)} падений НЕ ИЗМЕРЕНЫ, это не ноль"),
+                "population": len(failures),
+                "shards_read": [], "shards_absent": absent,
+                "shards_without_record": without_record, "shards_unreadable": unreadable}
+
+    attributed: list = []
+    unattributed: list[str] = []
+    for row in failures:
+        nodeid = row.get("nodeid")
+        failure = found.get(door.junit_name(nodeid)) if isinstance(nodeid, str) else None
+        if failure is None:
+            row["cause"] = None
+            unattributed.append(nodeid if isinstance(nodeid, str) else repr(nodeid))
+            continue
+        row["cause"] = _cause_of(failure)
+        attributed.append(failure)
+
+    declared = {door.junit_name(r.get("nodeid")) for r in failures
+                if isinstance(r.get("nodeid"), str)}
+    record_only = sorted(set(found) - declared)
+
+    from collections import Counter
+    kinds = Counter((f.kind or "«тип не назван»") for f in attributed)
+    classes = Counter(f.cause_class for f in attributed)
+    phases = Counter(f.phase for f in attributed)
+    sites = Counter(f.site_class for f in attributed)
+    fork = door.fork_of(attributed)
+    # Тождество учёта считается по ОБЪЯВЛЕННОМУ перечню имён, а не суммой счётчика:
+    # сумма значений счётчика равна населению ВСЕГДА, то есть неопровержима, и род вне
+    # перечня исчезал бы из печатаемой строки молча (урок ADR-675).
+    n = len(attributed)
+    identities = {
+        "phases": sum(phases.get(k, 0) for k in door.PHASES) == n,
+        "cause_classes": sum(classes.get(k, 0) for k in door.CAUSE_CLASSES) == n,
+        "site_classes": sum(sites.get(k, 0) for k in door.SITE_CLASSES) == n,
+    }
+    return {
+        "schema": CAUSE_SCHEMA, "status": "measured",
+        "population": len(failures), "attributed": n,
+        "unattributed": unattributed[:50], "unattributed_n": len(unattributed),
+        "record_only": record_only[:50], "record_only_n": len(record_only),
+        "shards_read": read_ok, "shards_absent": absent,
+        "shards_without_record": without_record, "shards_unreadable": unreadable,
+        "records_read": records,
+        "kinds": dict(kinds.most_common()),
+        "cause_classes": dict(sorted(classes.items())),
+        "phases": dict(sorted(phases.items())),
+        "site_classes": dict(sorted(sites.items())),
+        "identities_hold": identities,
+        "stream_agreed": agreed, "stream_disagreed": disagreed,
+        "stream_absent_for": stream_absent,
+        "fork": {"population": fork.population, "lower": fork.lower, "upper": fork.upper,
+                 "cause_groups": fork.cause_groups, "coarse_groups": fork.coarse_groups,
+                 "merged_by_evidence": fork.merged_by_evidence,
+                 "largest_component": fork.largest_component},
+        "top": [[kind, skeleton, count] for (kind, skeleton), count in fork.groups[:top]],
+    }
 
 
 # ── веса ─────────────────────────────────────────────────────────────────────
@@ -333,7 +563,11 @@ def aggregate(manifest: dict | None, shards_dir: Path, needs_result: str | None 
         incomplete.append({"shard": None, "reason": "манифеста населения нет или он не того вида — "
                                                     "сравнивать результаты шардов не с чем"})
         report.update(verdict=INCOMPLETE, totals=None, failures=[], collect_errors=[],
-                      not_obtained=[], population=[], non_passed={}, shards=[], file_wall_s={})
+                      not_obtained=[], population=[], non_passed={}, shards=[], file_wall_s={},
+                      cause_axis={"schema": CAUSE_SCHEMA, "status": "unmeasured",
+                                  "why": "плана шардов нет — чьи записи читать, "
+                                         "неизвестно; причины НЕ ИЗМЕРЕНЫ",
+                                  "population": 0})
         return report
 
     population: list[str] = list(manifest.get("collected") or [])
@@ -496,11 +730,60 @@ def aggregate(manifest: dict | None, shards_dir: Path, needs_result: str | None 
         verdict = RED
     else:
         verdict = GREEN
+    # Ось причин (ADR-891): `cause_axis` ДОПИСЫВАЕТ `cause` в сами строки `failures`,
+    # поэтому зовётся до `report.update` — иначе в отчёт уехал бы прежний список.
+    axis = cause_axis(plan, shards_dir, failures)
     report.update(verdict=verdict, totals=totals, failures=failures, collect_errors=uniq_ce,
                   not_obtained=not_obtained, population=population,
                   non_passed={n: o for n, o in outcomes.items() if o != PASSED},
-                  shards=shard_rows, file_wall_s=dict(sorted(file_wall.items())))
+                  shards=shard_rows, file_wall_s=dict(sorted(file_wall.items())),
+                  cause_axis=axis)
     return report
+
+
+def cause_line(axis) -> str:
+    """ОДНА строка про ось причин — ЕДИНСТВЕННАЯ копия этого правила.
+
+    Её читают и `report.md` свода, и перепись читателя вердикта (`ci_control_verdict.py`
+    берёт эту функцию ПО ПУТИ, а не пишет свою): две копии разошлись бы молча — одна
+    сказала бы «причин нет», другая «не измерено», и спорящие строки хуже отсутствия
+    строки. НЕ ИЗМЕРЕНО ⇒ СЛОВА с причиной, никогда ноль (инв. #17).
+    """
+    if not isinstance(axis, dict):
+        return ("ось причин НЕ ИЗМЕРЕНА: блока `cause_axis` в отчёте нет ВОВСЕ — "
+                "отчёт собран сводом старше ADR-891, и «причин нет» здесь НЕ "
+                "утверждается")
+    if axis.get("status") != "measured":
+        return (f"ось причин НЕ ИЗМЕРЕНА: {axis.get('why') or 'причина не названа'}")
+    pop = axis.get("population")
+    if not pop:
+        return "причин опознавать нечего: падений не объявлено (измерено и равно нулю)"
+    fork = axis.get("fork") or {}
+    kinds = axis.get("kinds") or {}
+    top = axis.get("top") or []
+    parts = [f"причины: опознано {axis.get('attributed')} из {pop}"]
+    if axis.get("unattributed_n"):
+        parts.append(f"БЕЗ причины {axis['unattributed_n']} "
+                     f"(поимённо: {', '.join(axis.get('unattributed') or [])[:200]})")
+    if axis.get("record_only_n"):
+        parts.append(f"в junit есть, а отчёт не числит упавшими {axis['record_only_n']}")
+    if kinds:
+        parts.append("типы: " + " · ".join(f"{k} {v}" for k, v in list(kinds.items())[:6]))
+    if fork.get("population"):
+        parts.append(f"дефектов НЕ МЕНЬШЕ {fork.get('lower')} и НЕ БОЛЬШЕ "
+                     f"{fork.get('upper')} (крупнейшее семейство "
+                     f"{fork.get('largest_component')})")
+    if top:
+        kind, skeleton, count = top[0]
+        parts.append(f"крупнейшая причина ×{count}: {kind}: {str(skeleton)[:120]}")
+    bad = [k for k, ok in (axis.get("identities_hold") or {}).items() if not ok]
+    if bad:
+        parts.append(f"ТОЖДЕСТВО УЧЁТА НАРУШЕНО у {', '.join(sorted(bad))} — род вне "
+                     f"объявленного перечня исчезает из этой строки молча")
+    if axis.get("shards_without_record") or axis.get("shards_unreadable"):
+        parts.append(f"шардов без junit-записи {len(axis.get('shards_without_record') or [])}, "
+                     f"нечитаемых записей {len(axis.get('shards_unreadable') or [])}")
+    return "; ".join(parts)
 
 
 def render_md(report: dict, limit: int = 200) -> str:
@@ -528,11 +811,16 @@ def render_md(report: dict, limit: int = 200) -> str:
         for item in report["incomplete"]:
             where = "global" if item["shard"] is None else f"shard {item['shard']}"
             lines.append(f"- [{where}] {item['reason']}")
+    lines += ["", "## Cause axis (ADR-891)", "", f"- {cause_line(report.get('cause_axis'))}"]
     if report.get("failures"):
         lines += ["", f"## Failed / error ({len(report['failures'])})", ""]
         for f in report["failures"][:limit]:
+            cause = f.get("cause")
+            why = ("" if "cause" not in f else
+                   (f" — ПРИЧИНА НЕ ОПОЗНАНА" if cause is None else
+                    f" — {cause.get('kind') or '«тип не назван»'}: {cause.get('skeleton')}"))
             lines.append(f"- `{f['nodeid']}` — {f['outcome']} (shard {f['shard']})"
-                         + (f" — {f['msg']}" if f.get("msg") else ""))
+                         + (f" — {f['msg']}" if f.get("msg") else "") + why)
         if len(report["failures"]) > limit:
             lines.append(f"- … and {len(report['failures']) - limit} more (full list in JSON)")
     if report.get("collect_errors"):

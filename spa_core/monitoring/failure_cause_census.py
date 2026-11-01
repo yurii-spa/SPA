@@ -437,6 +437,12 @@ def _junit_name(nodeid: str) -> str:
     return f"{classname}::{parts[-1]}"
 
 
+#: ПУБЛИЧНОЕ имя той же двери: перевод `nodeid` pytest → имя junit-записи. Читатели
+#: берут ЕЁ, а не пишут свою копию: вторая копия перевода разошлась бы с первой молча
+#: (класс ADR-220), и причина уехала бы к ЧУЖОМУ падению, что хуже отсутствия причины.
+junit_name = _junit_name
+
+
 def fork_of(failures: Iterable[Failure]) -> Fork:
     """Вилка числа дефектов: компоненты графа … ключи «причина+место»."""
     items = list(failures)

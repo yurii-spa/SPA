@@ -79,17 +79,20 @@ class TheProbeIsRedOnEveryBrokenLink(unittest.TestCase):
 
     def test_the_third_outcome_collapsed_into_a_measured_zero(self):
         """Дословный fail-OPEN инв. #17: «красное не названо» выдано за «красного нет»."""
+        # Якорь обновлён под ADR-891: третий исход переписи теперь несёт и СВОЮ
+        # причину для оси причин (у неё нет НОСИТЕЛЯ без перечня падений). Звено то же —
+        # «unmeasured выдан за measured с нулём», — и утверждение не ослаблено.
         status, detail = _Scene(self, swap=(
-            '        return {"status": "unmeasured",\n',
-            '        return {"status": "measured", "named": 0,\n')).verdict()
+            '        return {"status": "unmeasured", "why": why,\n',
+            '        return {"status": "measured", "named": 0, "why": why,\n')).verdict()
         self.assertEqual(status, NOT_SATISFIED, detail)
         self.assertIn("третьего исхода", detail)
 
     def test_the_third_outcome_without_a_reason(self):
         status, detail = _Scene(self, swap=(
-            '                "why": (f"перечня `failures` у отчёта нет (там "\n'
-            '                        f"{type(raw).__name__}) — это НЕ «красного нет»")}\n',
-            '                "why": ""}\n')).verdict()
+            '        why = (f"перечня `failures` у отчёта нет (там '
+            '{type(raw).__name__}) — "\n               f"это НЕ «красного нет»")\n',
+            '        why = ""\n')).verdict()
         self.assertEqual(status, NOT_SATISFIED, detail)
         self.assertIn("ПРИЧИНЫ", detail)
 
