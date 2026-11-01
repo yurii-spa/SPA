@@ -25,6 +25,10 @@
   контракта, usage как его ДОЛОЖИЛ транспорт (иначе ``UNKNOWN``) и хеш контекста. Повторов шага не больше
   :data:`MAX_CALLS`, и предел действует через смену сессий. ``quota`` — пауза до явного продолжения;
   ``ownership_unresolved`` — повтор запрещён ЛЮБЫМ исполнителем до записи разбора.
+* **Гибель посреди вызова (S2, 01.11).** Метка запуска CLI (``SPA_RUN_ID`` помощника срока) выбирается ДО вызова
+  и записывается в журнал вместе с pid, временем старта процесса и хостом. Новый исполнитель, захватив шаг, сперва
+  разбирает незавершённый вызов: живого предшественника не трогает; мёртвого — убирает существующим
+  ``probe.sweep_run_id`` только по доказанной метке; недоказанное владение — блок без сигнала и без повтора.
 """
 from __future__ import annotations
 
@@ -32,11 +36,14 @@ import hashlib
 import json
 import os
 import re
+import socket
 import time
+import uuid
 from pathlib import Path
 from typing import Any, Callable, Dict, List, Mapping, Optional, Sequence
 
 from spa_core.studio_os import goal_graph as gg
+from spa_core.studio_os.model_roles import adapters as ad
 from spa_core.studio_os.model_roles import contract as mr
 
 ROLE = "worker"
@@ -103,6 +110,8 @@ def proposal_status(run_dir: Path, goal: Dict[str, Any], context_sha: str) -> Di
             state = PAUSING[st]
         elif ph == "resume" and state == PAUSING.get("quota"):
             state = "new"
+        elif ph == "orphan_unresolved":                    # осиротевший вызов не разобран — тот же запрет повтора
+            state = PAUSING["ownership_unresolved"]
         elif ph == "ownership_resolved" and state == PAUSING.get("ownership_unresolved"):
             state = "new"
     if state == "new" and len(started) > len(results):
@@ -138,7 +147,7 @@ def render_request(goal: Dict[str, Any], *, scope: Sequence[str], context: str) 
 
 def propose(goal: Dict[str, Any], *, run_dir: Path, scope: Sequence[str], context: str, provider_id: str,
             adapters: Mapping[str, Callable[..., mr.AdapterOutput]], worker: str, now: str, ttl_s: int,
-            config: Optional[Mapping[str, Any]] = None) -> Dict[str, Any]:
+            config: Optional[Mapping[str, Any]] = None, sweep=None, alive=None, started=None) -> Dict[str, Any]:
     """Получить и проверить план модели, сохранив попытку ДО использования ответа.
 
     Сохранённый годный план — возвращается без вызова модели (E4.5). Пауза/блок/предел — ``Paused``.
@@ -157,12 +166,20 @@ def propose(goal: Dict[str, Any], *, run_dir: Path, scope: Sequence[str], contex
         return {**st, "graph": load_graph(run_dir, st["graph_version"]), "called_model": False}
     if st["state"].startswith(("paused:", "blocked:", "failed:")):
         raise Paused(f"шаг предложения: {st['state']} — новый вызов модели не делается без явного продолжения")
+    _settle_unfinished_calls(run_dir, step, lease, now, sweep=sweep, alive=alive, started=started)
     if st["calls"] >= MAX_CALLS:
         raise Paused(f"предел вызовов модели на шаг ({MAX_CALLS}) исчерпан — нужен разбор, не повтор")
+    run_id = f"executor-{step['version'][9:21]}-g{lease['generation']}-{uuid.uuid4().hex[:12]}"
     _append_attempt(run_dir, step, lease, now, {"phase": "call_started", "pid": os.getpid(), "provider_id": provider_id,
-                                                "context_sha256": req.context_sha256})
-    res = mr.execute(req, config=config or mr.load_config(), provider_id=provider_id, adapters=adapters)
-    row: Dict[str, Any] = {"phase": "result", "status": res.status, "provider_id": res.provider_id,
+                                                "context_sha256": req.context_sha256, "run_id": run_id,
+                                                "pid_started": (started or _start_time)(os.getpid()),
+                                                "host": socket.gethostname(), "started_epoch": time.time()})
+    token = ad.CALL_RUN_ID.set(run_id)              # помощник срока пометит этой меткой ВСЕХ потомков вызова
+    try:
+        res = mr.execute(req, config=config or mr.load_config(), provider_id=provider_id, adapters=adapters)
+    finally:
+        ad.CALL_RUN_ID.reset(token)
+    row: Dict[str, Any] = {"phase": "result", "run_id": run_id, "status": res.status, "provider_id": res.provider_id,
                            "provider_kind": res.provider_kind, "real_provider": res.real_provider,
                            "model": res.model, "contract_attempts": res.attempts, "elapsed_s": res.elapsed_s,
                            "usage": res.usage, "context_sha256": res.context_sha256, "error": (res.reason or "")[:300],
@@ -188,6 +205,58 @@ def propose(goal: Dict[str, Any], *, run_dir: Path, scope: Sequence[str], contex
     if st["state"] == STEP_DONE:
         return {**st, "graph": load_graph(run_dir, st["graph_version"]), "called_model": True}
     raise Paused(f"шаг предложения: исход {row['status']} ({row.get('error') or row.get('plan_refusals')}) → {st['state']}")
+
+
+def _start_time(pid: int):
+    from spa_core.utils import heavy_job
+    return heavy_job.start_time(pid)
+
+
+def _alive(pid: int) -> bool:
+    from spa_core.utils import heavy_job
+    return heavy_job.pid_alive(pid)
+
+
+def _sweep(run_id: str, run_age_s: float) -> Dict[str, Any]:
+    from spa_core.studio_os.model_roles import probe
+    return probe.sweep_run_id(run_id, run_age_s)
+
+
+def _settle_unfinished_calls(run_dir: Path, step: Dict[str, Any], lease: Dict[str, Any], now: str, *,
+                             sweep=None, alive=None, started=None) -> None:
+    """Вызов модели, начатый прежним исполнителем и не получивший исхода (S2, 01.11).
+
+    Исполнитель погиб посреди вызова ⇒ его дочерний CLI мог остаться жить (помощник срока жил в погибшем
+    процессе). Перед новым вызовом — разбор КАЖДОГО такого вызова, и только по доказательствам:
+
+    * прежний исполнитель ЖИВ (тот же pid и то же время старта, тот же хост) — его вызов не наш: отказ, ни сигнала,
+      ни повтора;
+    * мёртв — уборка СУЩЕСТВУЮЩИМ ``probe.sweep_run_id`` по записанной метке ``SPA_RUN_ID`` (цели не старше вызова;
+      pid 1, сам себя и своя сессия исключены; принадлежность перепроверяется перед каждым сигналом); ``closed`` —
+      запись ``orphan_swept``, иначе ``orphan_unresolved`` ⇒ шаг заблокирован, как при ``ownership_unresolved``:
+      ни слепого убийства, ни повторного запуска до записи разбора (:func:`resolve_ownership`);
+    * метки нет / другой хост / замер не удался — ``orphan_unresolved``.
+    Ответ погибшего вызова не читается никогда: он писал во временный каталог погибшего процесса."""
+    sweep, alive, started = sweep or _sweep, alive or _alive, started or _start_time
+    rows = _attempts(run_dir, step["version"])
+    finished = {r.get("run_id") for r in rows if r.get("phase") in ("result", "orphan_swept", "orphan_unresolved")}
+    for row in [r for r in rows if r.get("phase") == "call_started" and r.get("run_id") not in finished]:
+        pid, run_id = row.get("pid"), row.get("run_id")
+        if row.get("host") and row["host"] != socket.gethostname():
+            verdict = {"closed": None, "reason": f"вызов шёл на другой машине ({row['host']})"}
+        elif pid and pid != os.getpid() and alive(pid) and started(pid) == row.get("pid_started"):
+            raise Paused(f"вызов {run_id} ещё ведёт живой исполнитель pid {pid} — не трогаю и не повторяю")
+        elif not run_id or not row.get("started_epoch"):
+            verdict = {"closed": None, "reason": "у вызова нет метки запуска — владение не доказуемо"}
+        else:
+            verdict = sweep(run_id, max(0.0, time.time() - float(row["started_epoch"])) + 5.0)
+        phase = "orphan_swept" if verdict.get("closed") is True else "orphan_unresolved"
+        _append_attempt(run_dir, step, lease, now, {"phase": phase, "run_id": run_id, "of_pid": pid,
+                                                    "sweep": {k: verdict.get(k) for k in ("closed", "swept", "left",
+                                                                                          "reason")}})
+        if phase == "orphan_unresolved":
+            raise Paused(f"blocked:ownership_unresolved — осиротевший вызов {run_id} не разобран "
+                         f"({verdict.get('reason') or 'остались процессы: %s' % verdict.get('left')})")
 
 
 def resume_after_quota(run_dir: Path, goal: Dict[str, Any], context_sha: str, *, by: str, now: str) -> None:
