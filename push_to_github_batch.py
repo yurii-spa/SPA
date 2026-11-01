@@ -190,6 +190,17 @@ delivery_syntax_summary = _root_push.delivery_syntax_summary
 DeliveredBytesAreNotPython = _root_push.DeliveredBytesAreNotPython
 NOT_PYTHON_EXIT = _root_push.NOT_PYTHON_EXIT
 
+# Четвёртая ось того же пина (ADR-889) — «а эта строка реестра является
+# ЗАГОЛОВКОМ». Та же ОДНА реализация и тот же один store, по той же причине:
+# своя копия означала бы, что одна дверь отказывает, а вторая молча везёт
+# толстую строку, которая покрасит `test_adr_index_titles` на `main`. Замер:
+# из 38 строк, добавленных после ADR-840, ЧЕТЫРЕ были толстыми при добавлении.
+enforce_delivery_adr_titles = _root_push.enforce_delivery_adr_titles
+delivery_adr_title_summary = _root_push.delivery_adr_title_summary
+DeliveredAdrTitleIsFat = _root_push.DeliveredAdrTitleIsFat
+FAT_ADR_TITLE_EXIT = _root_push.FAT_ADR_TITLE_EXIT
+ADR_REGISTER_REL = _root_push.ADR_REGISTER_REL
+
 # Дверь «дерево, из которого читаются байты, НАЗВАНО» (ADR-796) — та же ОДНА
 # реализация и то же согласие на модуле канона. Своей копии здесь нет по той же
 # причине, что у пина: две копии означали бы, что одна дверь отказывает, а
@@ -234,6 +245,10 @@ def main():
     parser.add_argument("--allow-not-python", action="store_true",
                         help="ОСОЗНАННО доставить *.py, который НЕ РАЗБИРАЕТСЯ "
                              "интерпретатором (по умолчанию такой пуш отклоняется)")
+    parser.add_argument("--allow-fat-adr-title", action="store_true",
+                        help="ОСОЗНАННО доставить реестр решений с колонкой "
+                             "«Заголовок» длиннее предела (по умолчанию такой пуш "
+                             "отклоняется; починка — `adr_number.py titles --write`)")
     parser.add_argument("--allow-prod-root-relative", action="store_true",
                         help="ОСОЗНАННО читать ОТНОСИТЕЛЬНЫЕ пути от ПРОД-дерева, даже "
                              "когда позвали из другого дерева; по умолчанию такой путь "
@@ -321,6 +336,23 @@ def main():
         enforce_adr_numbers(all_files, allow=allow_adr, runner_file=__file__)
     except AdrNumberCollision:
         sys.exit(ADR_INTERLOCK_EXIT)
+
+    # ── КОЛОНКА «ЗАГОЛОВОК» РЕЕСТРА (ADR-889) — тот же вызов и тот же порядок ──
+    # Сразу за интерлоком номеров: оба гейта судят ОДИН файл INDEX.md, а вопросы
+    # у них разные («номер свободен» против «вторая ячейка есть ЗАГОЛОВОК»), и
+    # первый о длине не знает ничего. Реализация одна, дверей две.
+    allow_fat_title = bool(getattr(args, "allow_fat_adr_title", False)) or \
+        os.environ.get("SPA_PUSH_ALLOW_FAT_ADR_TITLE") == "1"
+    try:
+        enforce_delivery_adr_titles(all_files, allow=allow_fat_title,
+                                    runner_file=__file__)
+    except DeliveredAdrTitleIsFat as e:
+        print(f"\nОТКАЗ (заголовок строки реестра длиннее предела): {e}",
+              file=sys.stderr)
+        sys.exit(FAT_ADR_TITLE_EXIT)
+    except DeliveryBytesDrifted as e:
+        print(f"\nОТКАЗ (байты разошлись со слепком): {e}", file=sys.stderr)
+        sys.exit(BYTES_DRIFT_EXIT)
 
     # ── ИНТЕРЛОК ЗАПИСИ ОТВЕТА ВЛАДЕЛЬЦА — тот же вызов, что и в push_to_github.py ──
     # Реализация одна, дверей две. `runner_file` — дерево ЗАПУЩЕННОГО CLI, а не модуля,

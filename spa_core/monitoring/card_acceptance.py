@@ -14983,6 +14983,202 @@ def _probe_ci_red_census_names_the_population(arg: str | None = None,
         f"{worst[0][1]}) и доходит до отрисованных строк; сцена без перечня даёт "
         f"третий исход с причиной («{quiet.get('why')}»)")
 
+def _probe_adr_title_gate_refuses_a_fat_register(arg: str | None = None,
+                                                 *, repo_root: str | None = None
+                                                 ) -> tuple[str, str]:
+    """Критерий: толстая строка реестра решений НЕ УЕДЕТ на `main` молча (ADR-889).
+
+    Предмет — заказ G886 п. 2 карточки приказа «Portfolio CIO»: `test_adr_index_titles`
+    стоял красен ДВУМЯ строками реестра (`ADR-886` · 201 символ, `ADR-887` · 283 при
+    пределе 200), и сторож САМ называл команду выхода. Класс при этом ПОВТОРЯЮЩИЙСЯ, и
+    это ЗАМЕР: из 38 строк, добавленных в реестр после ADR-840, ЧЕТЫРЕ были толстыми В
+    МОМЕНТ ДОБАВЛЕНИЯ (ADR-853 · 854 · 886 · 887) — каждая уезжала на `main` молча.
+
+    Поэтому проба мерит не «сегодня чисто», а ИСХОД в обе стороны, на НАСТОЯЩЕМ гейте
+    доставки и через НАСТОЯЩУЮ дверь байтов:
+
+    1. **ЖИВОЙ реестр проходит гейт** — состояние убрано, и убрано прибором, а не
+       правкой базы сторожа. Одного этого мало: «сегодня чисто» было правдой и 28.10,
+       за два дня до ADR-853;
+    2. **ДОСЛОВНЫЕ байты аварии ОТКЛОНЕНЫ** своим кодом (16) с номером, длиной и
+       строкой каждой толстой ячейки. Байты берутся из истории репозитория (blob
+       ``f404cfbd6…``, реестр из коммита `fa5bfcbd9`), а не изображаются похожим
+       файлом: проверка, не видевшая настоящей поломки, — украшение;
+    3. **гейт зван ОБЕИМИ дверями доставки** и ПОСЛЕ пина байтов — у класса интерлока
+       номеров ADR-145 блок жил в одной двери, а вторая молча везла находку.
+
+    Третий исход у пробы СВОЙ: пушер не ввозится, блоба аварии нет в объектной базе
+    (предпосылка ХАРНЕССА — `fetch-depth: 0`) ⇒ `unmeasured` с названной причиной, а не
+    «не выполнено»: про предмет тогда не измерено ничего (инв. #17).
+    """
+    import ast as _ast
+    import importlib.util as _ilu
+    import subprocess as _sp
+    import tempfile as _tf
+
+    #: Реестр из коммита `fa5bfcbd9` — тот, где толстыми стояли ОДНОВРЕМЕННО 886 и 887.
+    incident_blob = "f404cfbd6dfe0134592f9165f26b1e779b21b876"
+    incident_fat = {"886": 201, "887": 283}
+
+    root = repo_root or REPO_ROOT
+    pusher = os.path.join(root, "push_to_github.py")
+    batch = os.path.join(root, "push_to_github_batch.py")
+    for path in (pusher, batch):
+        if not os.path.exists(path):
+            return UNMEASURED, f"{path} не найден — гейт доставки НЕ ИЗМЕРЕН"
+    try:
+        spec = _ilu.spec_from_file_location("_probe_c1004_title_gate", pusher)
+        ptg = _ilu.module_from_spec(spec)
+        spec.loader.exec_module(ptg)
+    except Exception as exc:                                        # noqa: BLE001
+        return UNMEASURED, (f"пушер не ввезён ({type(exc).__name__}: {exc}) — "
+                            f"НЕ ИЗМЕРЕНО")
+    for need in ("enforce_delivery_adr_titles", "DeliveredAdrTitleIsFat",
+                 "FAT_ADR_TITLE_EXIT", "pin_delivery_bytes",
+                 "reset_delivery_pin", "ADR_REGISTER_REL"):
+        if not hasattr(ptg, need):
+            return NOT_SATISFIED, (
+                f"у гейта нет `{need}` — доставка по-прежнему не спрашивает, "
+                f"является ли строка реестра заголовком")
+
+    register_rel = ptg.ADR_REGISTER_REL
+    live_path = os.path.join(root, register_rel)
+    try:
+        with open(live_path, encoding="utf-8") as fh:
+            live_text = fh.read()
+    except OSError as exc:
+        return UNMEASURED, f"живой реестр не прочитан ({exc}) — НЕ ИЗМЕРЕНО"
+
+    try:
+        out = _sp.run(["git", "cat-file", "blob", incident_blob],
+                      cwd=root, capture_output=True, timeout=120)
+    except (OSError, _sp.SubprocessError) as exc:
+        return UNMEASURED, (f"git не ответил ({type(exc).__name__}: {exc}) — "
+                            f"байты аварии мерить не на чем")
+    if out.returncode != 0:
+        return UNMEASURED, (
+            f"блоба {incident_blob[:12]} нет в объектной базе {root} — это "
+            f"предпосылка ХАРНЕССА (`fetch-depth: 0`), а не предмет пробы")
+    incident_text = out.stdout.decode("utf-8", "replace")
+
+    def _scene(tmp: str, text: str) -> str:
+        p = os.path.join(tmp, *register_rel.split("/"))
+        os.makedirs(os.path.dirname(p), exist_ok=True)
+        with open(p, "w", encoding="utf-8") as fh:
+            fh.write(text)
+        return p
+
+    # СЦЕНЫ СУДЯТСЯ ОДНИМ ПУТЁМ — ровно одна копия правила «род вердикта гейта →
+    # род ответа пробы». Две копии у этой развилки уже были, и мутация №18 своего
+    # же прибора показала цену: ветка «не измерено» во ВТОРОЙ копии недостижима ни
+    # одной честной сценой (сцена, отнимающая прибор разбора, срабатывает на ПЕРВОЙ),
+    # то есть её снятие не меняло ни одного вердикта. Копия, которую нельзя
+    # проверить, и есть fail-OPEN на будущее: завтра в неё добавят условие, и
+    # «не измерено» снова уедет под именем «не выполнено».
+    scenes = (
+        ("ЖИВОЙ реестр", live_text, "within_limit"),
+        (f"дословные байты аварии {incident_blob[:12]}", incident_text, "refused"),
+    )
+    live_rows = 0
+    for label, text, expect in scenes:
+        with _tf.TemporaryDirectory() as tmp:
+            target = _scene(tmp, text)
+            refusal = ""
+            try:
+                ptg.pin_delivery_bytes([target])
+                verdicts = ptg.enforce_delivery_adr_titles([target])
+            except ptg.DeliveredAdrTitleIsFat as exc:
+                got, refusal, verdicts = "refused", str(exc), ptg._ADR_TITLE_VERDICTS
+            except Exception as exc:                                # noqa: BLE001
+                return UNMEASURED, (f"гейт не отработал на «{label}» "
+                                    f"({type(exc).__name__}: {exc})")
+            else:
+                # «Вердикт говорит ТОЛСТАЯ, а отказа нет» — отдельное состояние, и
+                # это fail-OPEN ВНУТРИ гейта: назвать его «толстая» значило бы
+                # счесть находку за реакцию на неё.
+                got = (verdicts[0].get("state") if verdicts else "нет вердикта")
+                if got == "fat":
+                    got = "ТОЛСТАЯ названа, но отказа НЕТ"
+            finally:
+                ptg.reset_delivery_pin()
+
+            if got == "unmeasured":
+                # «Прибора нет» и «гейта нет» требуют РАЗНОЙ починки, и склеить их
+                # значило бы вернуть fail-OPEN, против которого написан инв. #17.
+                # НАХОДКА СВОЕГО КОНТРОЛЯ до доставки: первая редакция отвечала
+                # здесь `not_satisfied`.
+                return UNMEASURED, (f"гейт не измерил «{label}»: "
+                                    f"{verdicts[0].get('reason')}")
+            if got != expect:
+                if expect == "within_limit":
+                    return NOT_SATISFIED, (
+                        f"«{label}» не проходит свой же гейт доставки "
+                        f"({got}): {refusal or verdicts} — позови "
+                        f"`python3 scripts/adr_number.py titles --write`")
+                return NOT_SATISFIED, (
+                    f"гейт ПРОПУСТИЛ «{label}» ({got}) — толстая строка уехала "
+                    f"бы на main молча, как 01.11")
+
+            if expect == "within_limit":
+                live_rows = verdicts[0].get("rows", 0)
+                if live_rows < 500:
+                    return NOT_SATISFIED, (
+                        f"в живом реестре измерено всего {live_rows} строк — "
+                        f"столько не бывает, значит разбор формы сломан и "
+                        f"«толстых нет» ничего не значит")
+            else:
+                for key, chars in incident_fat.items():
+                    if f"ADR-{key}" not in refusal or str(chars) not in refusal:
+                        return NOT_SATISFIED, (
+                            f"отказ не назвал ADR-{key} ({chars} символов) — "
+                            f"читатель пошёл бы искать строку глазами среди "
+                            f"{live_rows} строк")
+                if "titles --write" not in refusal:
+                    return NOT_SATISFIED, (
+                        "отказ не назвал команду починки — сторож, не назвавший "
+                        "выход, учит обходить себя, а не чинить предмет")
+
+    # 3. ПРОВОДКА — гейт зван в main() ОБЕИХ дверей и ПОСЛЕ пина байтов.
+    for label, path in (("push_to_github.py", pusher),
+                        ("push_to_github_batch.py", batch)):
+        try:
+            with open(path, encoding="utf-8") as fh:
+                tree = _ast.parse(fh.read())
+        except (OSError, SyntaxError) as exc:
+            return UNMEASURED, f"{label} не разобран: {type(exc).__name__}: {exc}"
+        mains = [n for n in _ast.walk(tree)
+                 if isinstance(n, _ast.FunctionDef) and n.name == "main"]
+        if not mains:
+            return UNMEASURED, f"{label}: функции `main` нет — порядок мерить негде"
+        calls = [c.func.id for c in _ast.walk(mains[0])
+                 if isinstance(c, _ast.Call) and isinstance(c.func, _ast.Name)]
+        for need in ("pin_delivery_bytes", "enforce_delivery_adr_titles"):
+            if need not in calls:
+                return NOT_SATISFIED, (
+                    f"{label}: `main()` не зовёт `{need}` — вторая дверь доставки "
+                    f"пропускает класс целиком (дословный ADR-145)")
+        if not (calls.index("pin_delivery_bytes")
+                < calls.index("enforce_delivery_adr_titles")):
+            return NOT_SATISFIED, (
+                f"{label}: гейт колонки стоит ДО пина — он судил бы байты, про "
+                f"которые неизвестно, те ли это, что уедут")
+
+    if ptg.FAT_ADR_TITLE_EXIT in {ptg.NOT_PYTHON_EXIT, ptg.BYTES_DRIFT_EXIT,
+                                  ptg.DELIVERY_TREE_EXIT,
+                                  ptg.MUTATION_WINDOW_EXIT,
+                                  ptg.ADR_INTERLOCK_EXIT,
+                                  ptg.CHANGE_EVIDENCE_EXIT}:
+        return NOT_SATISFIED, (
+            f"код отказа {ptg.FAT_ADR_TITLE_EXIT} совпал с кодом соседнего "
+            f"интерлока — читатель лечил бы не ту болезнь")
+
+    return SATISFIED, (
+        f"живой реестр ({live_rows} строк) проходит гейт доставки; дословные байты "
+        f"аварии {incident_blob[:12]} ОТКЛОНЕНЫ кодом {ptg.FAT_ADR_TITLE_EXIT} с "
+        f"номером и длиной каждой толстой ячейки (ADR-886 · 201, ADR-887 · 283); "
+        f"гейт зван в main() обеих дверей доставки после пина байтов")
+
+
 PROBES: dict[str, Callable[[str | None], "tuple[str, str]"]] = {
     "ci_red_census_names_the_population":
         _probe_ci_red_census_names_the_population,
@@ -15156,6 +15352,8 @@ PROBES: dict[str, Callable[[str | None], "tuple[str, str]"]] = {
         _probe_auditability_decision_carries_snapshot_and_explanation,
     "shadow_verification_replay_was_conducted":
         _probe_shadow_verification_replay_was_conducted,
+    "adr_title_gate_refuses_a_fat_register":
+        _probe_adr_title_gate_refuses_a_fat_register,
 }
 
 

@@ -1192,6 +1192,229 @@ def delivery_syntax_summary() -> str:
 
 
 # ══════════════════════════════════════════════════════════════════════════════
+# ЧЕТВЁРТАЯ ОСЬ ПИНА: КОЛОНКА «ЗАГОЛОВОК» РЕЕСТРА РЕШЕНИЙ (ADR-889)
+#
+# ЗАЧЕМ. ADR-838 поставил предел на колонку (200 символов), ADR-840 убрал
+# состояние (675 толстых строк → 0) и назвал прибору выход: один вызов
+# `python3 scripts/adr_number.py titles --write` берёт заголовок из `H1` файла
+# решения. Сторож у класса ЕСТЬ — `spa_core/tests/test_adr_index_titles.py`.
+# Чего не было — ВОПРОСА В МОМЕНТ ДОСТАВКИ, и цена этого ИЗМЕРЕНА на живой
+# истории: из 38 строк, добавленных в реестр после ADR-840 (замер 01.11 по
+# зеркалу, 39 коммитов `docs/decisions/INDEX.md`), ЧЕТЫРЕ были толстыми В
+# МОМЕНТ ДОБАВЛЕНИЯ — ADR-853 (205), ADR-854 (365), ADR-886 (201), ADR-887
+# (283). Каждая уехала на `main` МОЛЧА и красила там чужой прогон до тех пор,
+# пока следующий цикл не позовёт прибор руками; два из четырёх так и ждали
+# двое суток (заказ G886 п. 2 назвал их «самым дешёвым из девяти красных»).
+#
+# ПОЧЕМУ ИМЕННО ЗДЕСЬ. Это пятый член семейства «доставка не спрашивает»
+# (`.claude/rules/deployment.md`): окно прибора · окно доставки · дерево байтов
+# · байты не Python — и теперь строка реестра. Все предыдущие сторожа отвечают
+# верно и мимо: пин сверяет байты С САМИМИ СОБОЙ (толстая строка не
+# подменилась), гейт разбора судит только `*.py` (`INDEX.md` им не Python), а
+# интерлок номеров спрашивает об УНИКАЛЬНОСТИ номера, а не о длине заголовка.
+#
+# ОДНА ДВЕРЬ РАЗБОРА. Колонку парсит `scripts/adr_number.py::register_title_rows`
+# и ничто больше — ровно потому, что ВТОРОЙ разбор у этого реестра уже был и
+# ЗАНИЖАЛ длину: `\|` внутри ячейки наивный `split("|")` считает разделителем,
+# и у `ADR-831` он отвечал 163 символа против 2 089 канонических (замер ADR-840).
+# Своя копия правила здесь означала бы, что гейт пускает через предел ровно те
+# строки, из-за которых предел и понадобился.
+#
+# ТРИ ИСХОДА РАЗЛИЧИМЫ (инв. #17): в пределе · ТОЛСТАЯ (отказ, код 16, с
+# номером, длиной и строкой файла) · НЕ ИЗМЕРЕНО с названной причиной (байты не
+# прочитаны · не декодируются · разбор не ввезён · ни одной строки в объявленной
+# форме). Пустой перечень вердиктов тоже НЕ один исход: «гейта не звали» и
+# «звали, а реестра в наборе не было» — разные состояния, и слить их значило бы
+# показать «не зван» у исправной проводки (поправка цикла #1001 к ADR-886).
+# ══════════════════════════════════════════════════════════════════════════════
+
+FAT_ADR_TITLE_EXIT = 16
+
+#: Путь реестра решений ОТНОСИТЕЛЬНО корня дерева. Вопрос задаётся ТОЛЬКО ему:
+#: «колонка заголовка» есть свойство ЭТОЙ таблицы, и спрашивать его у любого
+#: markdown значило бы выдумать колонку там, где её нет.
+ADR_REGISTER_REL = "docs/decisions/INDEX.md"
+
+
+class DeliveredAdrTitleIsFat(RuntimeError):
+    """Уезжающий реестр решений несёт заголовок длиннее объявленного предела.
+
+    Отдельный тип (а не общий ``RuntimeError``), чтобы `main()` отличил эту
+    находку от «пушер сломался» и вышел СВОИМ кодом: отказ здесь означает, что
+    починка известна и стоит один вызов прибора, а не разбирательство.
+    """
+
+
+#: Вердикты четвёртой оси. Список ОТДЕЛЬНЫЙ от `_SYNTAX_VERDICTS` и
+#: `_PIN_VERDICTS` намеренно, по тому же доводу, что у них: смешай — и «сверено
+#: у N чтений» перестало бы отвечать на вопрос «а колонку кто спрашивал».
+_ADR_TITLE_VERDICTS: list = []
+
+#: БЫЛ ЛИ ГЕЙТ ЗВАН — отдельное наблюдение; перечень вердиктов на этот вопрос
+#: не отвечает (см. `_SYNTAX_GATE` и поправку цикла #1001).
+_ADR_TITLE_GATE: dict = {"called": False}
+
+
+def _register_parser(runner_file: Optional[str] = None):
+    """Ввозит ЕДИНСТВЕННУЮ дверь разбора строки реестра (ADR-840).
+
+    Прибор берётся из дерева ЗАПУЩЕННОГО CLI, а не из `PROJECT_ROOT`: по
+    ADR-796 дерево доставки обязано быть НАЗВАННЫМ, и инструмент, судящий
+    байты, приходит оттуда же, откуда пришёл сам судья. `runner_file` — тот же
+    приём и тот же довод, что у :func:`enforce_adr_numbers`: batch-CLI обязан
+    мерить СВОЁ дерево, а не дерево модуля, который он загрузил.
+
+    Возвращает ``(модуль, None)`` либо ``(None, причина)`` — третий исход у
+    ввоза СВОЙ, потому что «прибора нет» и «реестр чист» это разные ответы.
+    """
+    import importlib.util as _ilu
+
+    base = Path(os.path.abspath(runner_file or __file__)).parent
+    path = base / "scripts" / "adr_number.py"
+    try:
+        spec = _ilu.spec_from_file_location("_adr_number_for_title_gate", path)
+        mod = _ilu.module_from_spec(spec)
+        spec.loader.exec_module(mod)
+    except Exception as exc:                                        # noqa: BLE001
+        return None, (f"{path} не ввезён ({type(exc).__name__}: {exc}) — "
+                      f"разбор колонки НЕ ИЗМЕРЕН")
+    for need in ("register_title_rows", "TITLE_MAX_CHARS"):
+        if not hasattr(mod, need):
+            return None, (f"{path} не несёт `{need}` — единственной двери "
+                          f"разбора нет, свою здесь заводить ЗАПРЕЩЕНО")
+    return mod, None
+
+
+def enforce_delivery_adr_titles(file_args: list, allow: bool = False,
+                                runner_file: Optional[str] = None) -> list:
+    """Уезжающий `docs/decisions/INDEX.md` обязан держать предел колонки.
+
+    Байты берутся ЕДИНСТВЕННОЙ дверью :func:`read_delivery_bytes`: судится
+    ровно то содержимое, которое уедет, и оно же сверено со слепком. Своё
+    чтение здесь было бы ровно дефектом ADR-774 — гейт судил бы ОДНО чтение, а
+    уехало бы ДРУГОЕ.
+
+    Возвращает перечень вердиктов. Отказ fail-CLOSED либо НАЗВАННЫЙ обход
+    ``--allow-fat-adr-title``: молчания нет ни в одной ветке.
+    """
+    _ADR_TITLE_VERDICTS.clear()
+    _ADR_TITLE_GATE["called"] = True
+    for fa in file_args:
+        key = _delivery_abs(fa)
+        if not key.replace(os.sep, "/").endswith(ADR_REGISTER_REL):
+            # Не реестр — это «не спрашивали», а не «прошёл»: иначе число
+            # «сверено» росло бы от молчания соседних файлов набора.
+            continue
+        try:
+            data = read_delivery_bytes(key)
+        except OSError as e:
+            _ADR_TITLE_VERDICTS.append({
+                "path": key, "state": "unmeasured",
+                "reason": f"байты не прочитаны ({type(e).__name__}: {e})"})
+            continue
+        try:
+            text = data.decode("utf-8")
+        except UnicodeDecodeError as e:
+            _ADR_TITLE_VERDICTS.append({
+                "path": key, "state": "unmeasured",
+                "reason": f"байты не декодируются как UTF-8 ({e})"})
+            continue
+        mod, why = _register_parser(runner_file)
+        if mod is None:
+            _ADR_TITLE_VERDICTS.append({"path": key, "state": "unmeasured",
+                                        "reason": why})
+            continue
+        rows = mod.register_title_rows(text)
+        if not rows:
+            # Fail-CLOSED: ни одной строки в объявленной форме ⇒ неизвестно,
+            # какая ячейка является заголовком. «Толстых нет» здесь было бы
+            # утверждением о замере, которого не было.
+            _ADR_TITLE_VERDICTS.append({
+                "path": key, "state": "unmeasured",
+                "reason": "ни одной строки в объявленной форме "
+                          "`| ADR | Заголовок | Статус | Файл |` — "
+                          "колонка заголовка НЕ ИЗМЕРЕНА"})
+            continue
+        limit = mod.TITLE_MAX_CHARS
+        fat = [{"key": k, "chars": len(t), "row": n}
+               for k, t, n in rows if len(t) > limit]
+        _ADR_TITLE_VERDICTS.append({
+            "path": key, "state": "fat" if fat else "within_limit",
+            "limit": limit, "rows": len(rows), "fat": fat})
+
+    print(f"  {delivery_adr_title_summary()}")
+    for v in _ADR_TITLE_VERDICTS:
+        if v["state"] == "fat":
+            for f in v["fat"]:
+                print(f"    ТОЛСТАЯ СТРОКА ADR-{f['key']} — {f['chars']} "
+                      f"символов при пределе {v['limit']} "
+                      f"({_display_path(v['path'])}:{f['row']})")
+        elif v["state"] == "unmeasured":
+            print(f"    НЕ ИЗМЕРЕНО   {_display_path(v['path'])} — "
+                  f"{v['reason']}")
+
+    offenders = [v for v in _ADR_TITLE_VERDICTS if v["state"] == "fat"]
+    if offenders and allow:
+        print("    ⚠️  --allow-fat-adr-title: заголовок строки реестра длиннее "
+              "предела, это НАЗВАНО, но доставку не остановит")
+        return list(_ADR_TITLE_VERDICTS)
+    if offenders:
+        names = "; ".join(
+            f"ADR-{f['key']} ({f['chars']} символов, строка {f['row']})"
+            for v in offenders for f in v["fat"])
+        raise DeliveredAdrTitleIsFat(
+            f"колонка «Заголовок» уезжающего реестра длиннее предела: "
+            f"{names}.\n"
+            f"Пин байтов при этом ЗЕЛЁН и правдив — он отвечает «байты не "
+            f"подменились», а не «строка является заголовком»; гейт разбора "
+            f"молчит верно — `INDEX.md` не Python; интерлок номеров спрашивает "
+            f"об УНИКАЛЬНОСТИ номера, а не о длине.\n"
+            f"ЗАМЕР, из-за которого гейт появился: из 38 строк, добавленных в "
+            f"реестр после ADR-840, ЧЕТЫРЕ были толстыми в момент добавления "
+            f"(ADR-853 · 854 · 886 · 887) — каждая уехала молча и красила "
+            f"`test_adr_index_titles` на `main` до прихода следующего цикла.\n"
+            f"Что делать: `python3 scripts/adr_number.py titles --write` — "
+            f"прибор возьмёт заголовок из `H1` файла решения, перепишет РОВНО "
+            f"ячейку заголовка и повторит пуш. Правь прибором, а не руками: "
+            f"наивный разбор `|` занижает длину (у ADR-831 — 163 против 2 089).\n"
+            f"Осознанно продолжить: --allow-fat-adr-title (или "
+            f"SPA_PUSH_ALLOW_FAT_ADR_TITLE=1) — тогда отказ станет НАЗВАННЫМ "
+            f"предупреждением, а красный тест уедет на `main` вместе с байтами.")
+    return list(_ADR_TITLE_VERDICTS)
+
+
+def delivery_adr_title_summary() -> str:
+    """Одна строка итога по четвёртой оси. Своя строка, а не слагаемое чужой.
+
+    Пустой перечень НЕ ЕСТЬ один исход: он значит либо «гейта не звали»
+    (библиотечный вызов `batch_push` минуя CLI), либо «звали, и реестра в
+    наборе не было». Склеить их — тот же дефект, что склеить «не измерено» со
+    «сверено».
+    """
+    if not _ADR_TITLE_VERDICTS:
+        if _ADR_TITLE_GATE["called"]:
+            return ("колонка «Заголовок» реестра: реестра в наборе нет — "
+                    "судить нечего")
+        return "колонка «Заголовок» реестра: гейт не зван НИ РАЗУ"
+    states: dict = {}
+    for v in _ADR_TITLE_VERDICTS:
+        states[v["state"]] = states.get(v["state"], 0) + 1
+    if states.get("fat"):
+        fat_rows = sum(len(v["fat"]) for v in _ADR_TITLE_VERDICTS
+                       if v["state"] == "fat")
+        return (f"колонка «Заголовок» реестра: ТОЛСТЫХ строк {fat_rows} — "
+                f"предел нарушен")
+    if states.get("unmeasured"):
+        return (f"колонка «Заголовок» реестра: НЕ ИЗМЕРЕНО у "
+                f"{states['unmeasured']} файл(ов)")
+    measured = [v for v in _ADR_TITLE_VERDICTS if v["state"] == "within_limit"]
+    rows = sum(v["rows"] for v in measured)
+    return (f"колонка «Заголовок» реестра: в пределе "
+            f"{measured[0]['limit'] if measured else '?'} символов все "
+            f"{rows} строк(и)")
+
+
+# ══════════════════════════════════════════════════════════════════════════════
 # СВЕРКА ДОСТАВЛЕННОГО
 #
 # ЗАЧЕМ (карточка `agent-pusher-does-not-verify-what-it-delivered`, найдено
@@ -4046,6 +4269,12 @@ def main():
     parser.add_argument("--allow-adr-collision", action="store_true",
                         help="ОСОЗНАННО доставить решение под номером, уже занятым на origin, "
                              "или вне реестра INDEX.md (по умолчанию такой пуш отклоняется)")
+    parser.add_argument("--allow-fat-adr-title", action="store_true",
+                        help="ОСОЗНАННО доставить реестр решений, у которого колонка "
+                             "«Заголовок» длиннее предела (по умолчанию такой пуш "
+                             "отклоняется: толстая строка молча красит "
+                             "test_adr_index_titles на main, а починка стои́т один "
+                             "вызов `adr_number.py titles --write`)")
     args = parser.parse_args()
 
     allow_overwrite = bool(args.allow_overwrite) or \
@@ -4064,6 +4293,8 @@ def main():
         os.environ.get("SPA_PUSH_ALLOW_BYTES_DRIFT") == "1"
     allow_not_python = bool(args.allow_not_python) or \
         os.environ.get("SPA_PUSH_ALLOW_NOT_PYTHON") == "1"
+    allow_fat_title = bool(args.allow_fat_adr_title) or \
+        os.environ.get("SPA_PUSH_ALLOW_FAT_ADR_TITLE") == "1"
     allow_owner_choice = bool(args.allow_owner_choice_write) or \
         os.environ.get("SPA_PUSH_ALLOW_OWNER_CHOICE_WRITE") == "1"
     allow_ce_unmeasured = bool(args.allow_change_evidence_unmeasured) or \
@@ -4160,6 +4391,26 @@ def main():
         enforce_adr_numbers(all_files, allow=allow_adr)
     except AdrNumberCollision:
         sys.exit(ADR_INTERLOCK_EXIT)
+
+    # ── КОЛОНКА «ЗАГОЛОВОК» РЕЕСТРА (ADR-889) — сразу за интерлоком номеров ──────
+    # Порядок не вкусовой: оба гейта судят ОДИН файл `docs/decisions/INDEX.md`, и
+    # вопросы у них разные — «номер свободен и строка в реестре есть» против
+    # «вторая ячейка этой строки есть ЗАГОЛОВОК, а не пересказ». Интерлок номеров
+    # отвечает на первый верно и о длине не знает ничего, поэтому четыре толстые
+    # строки (ADR-853 · 854 · 886 · 887) прошли через него молча. Гейт идёт и в
+    # `--dry-run`: превью обязано показывать тот же отказ. Реализация ОДНА, её же
+    # зовёт batch-CLI — иначе вторая дверь доставки пропускала бы класс целиком.
+    try:
+        enforce_delivery_adr_titles(all_files, allow=allow_fat_title)
+    except DeliveredAdrTitleIsFat as e:
+        print(f"\nОТКАЗ (заголовок строки реестра длиннее предела): {e}",
+              file=sys.stderr)
+        sys.exit(FAT_ADR_TITLE_EXIT)
+    except DeliveryBytesDrifted as e:
+        # Дверь байтов отказала внутри четвёртой оси: это ЕЁ отказ и её код, а не
+        # «толстый заголовок». Подменить имя здесь значило бы потерять ответ ADR-774.
+        print(f"\nОТКАЗ (байты разошлись со слепком): {e}", file=sys.stderr)
+        sys.exit(BYTES_DRIFT_EXIT)
 
     # ── ИНТЕРЛОК ЗАПИСИ ОТВЕТА ВЛАДЕЛЬЦА — до сети, для ЛЮБОГО контекста ─────────
     # `owner_choice` — запись ОТВЕТА ВЛАДЕЛЬЦА, и до цикла #439 написать в неё мог кто

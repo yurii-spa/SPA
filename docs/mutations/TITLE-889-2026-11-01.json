@@ -1,0 +1,136 @@
+{
+ "title": "ADR-889 TITLE — дельта цикла #1004: толстая строка реестра решений не уедет молча; разбор колонки ОДНОЙ дверью; три исхода различимы у гейта И у пробы (редакция 2: сцены судятся ОДНИМ путём, три дыры батареи закрыты)",
+ "tests": [
+  "spa_core/tests/test_delivery_adr_title_gate.py",
+  "spa_core/tests/test_adr_title_gate_probe.py",
+  "spa_core/tests/test_adr_index_titles.py"
+ ],
+ "mutations": [
+  {
+   "name": "гейт НЕ ОТКАЗЫВАЕТ: толстая строка уезжает молча (состояние main до ADR-889)",
+   "file": "push_to_github.py",
+   "old": "        raise DeliveredAdrTitleIsFat(",
+   "new": "        _unused_refusal = DeliveredAdrTitleIsFat("
+  },
+  {
+   "name": "предел съехал вверх — 201 символ снова «в пределе» (дословно ADR-886)",
+   "file": "push_to_github.py",
+   "old": "        fat = [{\"key\": k, \"chars\": len(t), \"row\": n}\n               for k, t, n in rows if len(t) > limit]",
+   "new": "        fat = [{\"key\": k, \"chars\": len(t), \"row\": n}\n               for k, t, n in rows if len(t) > limit + 1000]"
+  },
+  {
+   "name": "граница перестала быть включительной: ровно predel теперь ТОЛСТАЯ",
+   "file": "push_to_github.py",
+   "old": "               for k, t, n in rows if len(t) > limit]",
+   "new": "               for k, t, n in rows if len(t) >= limit]"
+  },
+  {
+   "name": "«ни одной строки в форме» выдано за «толстых нет» (fail-OPEN инв. #17)",
+   "file": "push_to_github.py",
+   "old": "            _ADR_TITLE_VERDICTS.append({\n                \"path\": key, \"state\": \"unmeasured\",\n                \"reason\": \"ни одной строки в объявленной форме \"",
+   "new": "            _ADR_TITLE_VERDICTS.append({\n                \"path\": key, \"state\": \"within_limit\", \"limit\": 200, \"rows\": 0,\n                \"fat\": [],\n                \"reason\": \"ни одной строки в объявленной форме \""
+  },
+  {
+   "name": "байты не прочитаны выдано за «прошло» — третий исход снят у чтения",
+   "file": "push_to_github.py",
+   "old": "        except OSError as e:\n            _ADR_TITLE_VERDICTS.append({\n                \"path\": key, \"state\": \"unmeasured\",\n                \"reason\": f\"байты не прочитаны ({type(e).__name__}: {e})\"})\n            continue",
+   "new": "        except OSError:\n            continue"
+  },
+  {
+   "name": "байты не декодируются выдано за «прошло»",
+   "file": "push_to_github.py",
+   "old": "        except UnicodeDecodeError as e:\n            _ADR_TITLE_VERDICTS.append({\n                \"path\": key, \"state\": \"unmeasured\",\n                \"reason\": f\"байты не декодируются как UTF-8 ({e})\"})\n            continue",
+   "new": "        except UnicodeDecodeError:\n            continue"
+  },
+  {
+   "name": "прибора разбора нет — гейт молчит ВМЕСТО третьего исхода (тише красного)",
+   "file": "push_to_github.py",
+   "old": "        if mod is None:\n            _ADR_TITLE_VERDICTS.append({\"path\": key, \"state\": \"unmeasured\",\n                                        \"reason\": why})\n            continue",
+   "new": "        if mod is None:\n            continue"
+  },
+  {
+   "name": "отказ не называет НОМЕР и ДЛИНУ — искать строку глазами среди 739",
+   "file": "push_to_github.py",
+   "old": "        names = \"; \".join(\n            f\"ADR-{f['key']} ({f['chars']} символов, строка {f['row']})\"\n            for v in offenders for f in v[\"fat\"])",
+   "new": "        names = \"строки реестра\""
+  },
+  {
+   "name": "отказ не называет команду починки — учит обходить себя",
+   "file": "push_to_github.py",
+   "old": "            f\"Что делать: `python3 scripts/adr_number.py titles --write` — \"",
+   "new": "            f\"Что делать: разобраться. \""
+  },
+  {
+   "name": "осознанный обход МОЛЧИТ — fail-OPEN вместо названного решения",
+   "file": "push_to_github.py",
+   "old": "        print(\"    ⚠️  --allow-fat-adr-title: заголовок строки реестра длиннее \"\n              \"предела, это НАЗВАНО, но доставку не остановит\")",
+   "new": "        pass"
+  },
+  {
+   "name": "вопрос задаётся ЛЮБОМУ markdown — колонка выдумана там, где её нет",
+   "file": "push_to_github.py",
+   "old": "        if not key.replace(os.sep, \"/\").endswith(ADR_REGISTER_REL):",
+   "new": "        if not key.endswith(\".md\"):"
+  },
+  {
+   "name": "«гейт не зван» слито с «реестра в наборе нет» (поправка #1001 снята)",
+   "file": "push_to_github.py",
+   "old": "        if _ADR_TITLE_GATE[\"called\"]:\n            return (\"колонка «Заголовок» реестра: реестра в наборе нет — \"\n                    \"судить нечего\")\n        return \"колонка «Заголовок» реестра: гейт не зван НИ РАЗУ\"",
+   "new": "        return \"колонка «Заголовок» реестра: гейт не зван НИ РАЗУ\""
+  },
+  {
+   "name": "итог «НЕ ИЗМЕРЕНО» слит с итогом «в пределе» — fail-OPEN в отрисовке",
+   "file": "push_to_github.py",
+   "old": "    if states.get(\"unmeasured\"):\n        return (f\"колонка «Заголовок» реестра: НЕ ИЗМЕРЕНО у \"\n                f\"{states['unmeasured']} файл(ов)\")",
+   "new": "    if False:\n        return \"\""
+  },
+  {
+   "name": "код отказа совпал с соседним интерлоком — лечили бы не ту болезнь",
+   "file": "push_to_github.py",
+   "old": "FAT_ADR_TITLE_EXIT = 16",
+   "new": "FAT_ADR_TITLE_EXIT = 15"
+  },
+  {
+   "name": "прибор берётся НЕ из дерева запущенного CLI (ADR-796 наизнанку)",
+   "file": "push_to_github.py",
+   "old": "    base = Path(os.path.abspath(runner_file or __file__)).parent\n    path = base / \"scripts\" / \"adr_number.py\"",
+   "new": "    path = Path(PROJECT_ROOT) / \"scripts\" / \"adr_number.py\""
+  },
+  {
+   "name": "вторая дверь доставки не зовёт гейт (дословный класс ADR-145)",
+   "file": "push_to_github_batch.py",
+   "old": "        enforce_delivery_adr_titles(all_files, allow=allow_fat_title,\n                                    runner_file=__file__)",
+   "new": "        _ = (all_files, allow_fat_title)"
+  },
+  {
+   "name": "проба выдаёт «не измерено» за «не выполнено» (ЕДИНСТВЕННАЯ копия развилки снята)",
+   "file": "spa_core/monitoring/card_acceptance.py",
+   "old": "            if got == \"unmeasured\":",
+   "new": "            if False:"
+  },
+  {
+   "name": "проба судит сцену аварии по ВЕРДИКТУ, а не по ОТКАЗУ — находка счтена за реакцию",
+   "file": "spa_core/monitoring/card_acceptance.py",
+   "old": "                if got == \"fat\":\n                    got = \"ТОЛСТАЯ названа, но отказа НЕТ\"",
+   "new": "                if False:\n                    got = \"ТОЛСТАЯ названа, но отказа НЕТ\""
+  },
+  {
+   "name": "проба не спрашивает про ПРОВОДКУ — гейт без вызывающего сошёл бы за закрытый класс",
+   "file": "spa_core/monitoring/card_acceptance.py",
+   "old": "        for need in (\"pin_delivery_bytes\", \"enforce_delivery_adr_titles\"):\n            if need not in calls:",
+   "new": "        for need in ():\n            if need not in calls:"
+  },
+  {
+   "name": "проба не спрашивает про ПОРЯДОК — гейт до пина судил бы неизвестные байты",
+   "file": "spa_core/monitoring/card_acceptance.py",
+   "old": "        if not (calls.index(\"pin_delivery_bytes\")\n                < calls.index(\"enforce_delivery_adr_titles\")):",
+   "new": "        if False:"
+  },
+  {
+   "name": "проба довольствуется ЛЮБЫМ числом строк живого реестра — сломанный разбор сошёл бы за чистый",
+   "file": "spa_core/monitoring/card_acceptance.py",
+   "old": "        if live_rows < 500:",
+   "new": "        if live_rows < 0:"
+  }
+ ]
+}
