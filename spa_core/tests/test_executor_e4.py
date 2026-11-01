@@ -349,3 +349,45 @@ def test_sessions_dying_mid_call_still_count_against_the_call_limit(tmp_path):
     assert third.calls == 0
     started = [r for r in _rows(run) if r.get("phase") == "call_started"]
     assert [r["worker"] for r in started] == ["w1", "w2"]
+
+
+# ── граница --admission-policy (ревью ARB 01.11, п. 4) ───────────────────────────────────────────────
+_BASE_POL = {"registry_dir": "~/.spa_heavy_jobs", "max_concurrent": {"full_suite": 2, "default": 3},
+             "min_free_disk_gb": 20, "refuse_at_pressure_level": 4, "nice": 10}
+
+
+def test_admission_override_may_tighten_anywhere_but_loosen_only_in_a_disposable_scene(tmp_path, monkeypatch):
+    monkeypatch.setattr(ex, "_scene_root", lambda: (tmp_path / "scenes").resolve())
+    (tmp_path / "scenes").mkdir()
+    prod_like_run, prod_like_stand = tmp_path / "work" / "run", tmp_path / "work" / "stand"
+    for k, v in (("min_free_disk_gb", 0), ("refuse_at_pressure_level", 9), ("nice", 0),
+                 ("max_concurrent", {"executor_check": 50}), ("registry_dir", str(tmp_path / "own"))):
+        with pytest.raises(gg.Refused, match="только одноразовой сцене"):
+            ex.admission_policy(_BASE_POL, {k: v}, run_dir=prod_like_run, stand=prod_like_stand)
+    strict = ex.admission_policy(_BASE_POL, {"min_free_disk_gb": 500, "refuse_at_pressure_level": 2,
+                                             "max_concurrent": {"executor_check": 1}},
+                                 run_dir=prod_like_run, stand=prod_like_stand)
+    assert strict["min_free_disk_gb"] == 500 and strict["max_concurrent"]["executor_check"] == 1
+    with pytest.raises(gg.Refused, match="не перекрывается"):
+        ex.admission_policy(_BASE_POL, {"anything": 1}, run_dir=prod_like_run, stand=prod_like_stand)
+    scene = tmp_path / "scenes" / "s1"
+    loose = ex.admission_policy(_BASE_POL, {"min_free_disk_gb": 0, "registry_dir": str(scene / "leases")},
+                                run_dir=scene / "run", stand=scene / "stand")
+    assert loose["min_free_disk_gb"] == 0
+    with pytest.raises(gg.Refused, match="только одноразовой сцене"):     # стенд вне сцены — тоже отказ
+        ex.admission_policy(_BASE_POL, {"min_free_disk_gb": 0}, run_dir=scene / "run", stand=prod_like_stand)
+
+
+def test_executor_cli_refuses_a_loosened_policy_outside_a_scene_and_executes_nothing(tmp_path, monkeypatch, capsys):
+    """Отрицательный контроль через штатную дверь: CLI с ослабляющей политикой вне сцены — отказ ДО исполнения."""
+    stand, run = _scene(tmp_path)
+    g = _propose(run, Counting(PLAN))["graph"]
+    _approve(run, g)
+    monkeypatch.setattr(ex, "_scene_root", lambda: (tmp_path / "elsewhere").resolve())
+    pol = tmp_path / "loose.json"
+    pol.write_text(json.dumps({"min_free_disk_gb": 0}))
+    rc = ex.main(["run", "--run-dir", str(run), "--stand", str(stand), "--graph-version", g["version"],
+                  "--worker", "w9", "--admission-policy", str(pol)])
+    out = capsys.readouterr().out
+    assert rc == 3 and "ослабление admission" in out
+    assert gg.task_state(run, g["version"], "t1") == "new" and not (stand / "docs").exists()

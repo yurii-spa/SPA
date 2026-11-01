@@ -381,6 +381,62 @@ def run_until_blocked(graph: Dict[str, Any], *, run_dir: Path, stand: Path, work
     return log
 
 
+#: Ключи политики heavy_jobs (ADR-551) и направление, в котором значение СТРОЖЕ.
+_STRICTER = {"min_free_disk_gb": "higher", "refuse_at_pressure_level": "lower", "nice": "higher",
+             "max_concurrent": "lower"}
+
+
+def _scene_root() -> Path:
+    """Корень одноразовых сцен: временный каталог системы. Вынесен функцией, чтобы тест мог назвать другой."""
+    import tempfile
+    return Path(tempfile.gettempdir()).resolve()
+
+
+def _is_disposable_scene(*paths: Path) -> bool:
+    root = _scene_root()
+    return all(root in Path(x).resolve().parents for x in paths)
+
+
+def admission_policy(base: Mapping[str, Any], override: Mapping[str, Any], *, run_dir: Path, stand: Path) -> Dict[str, Any]:
+    """Граница перекрытия политики admission для ОДНОГО запуска исполнителя (ревью ARB 01.11).
+
+    * ужесточение (порог строже, лимит меньше) — разрешено везде;
+    * ослабление любого порога и собственный ``registry_dir`` (выводит аренду из общего учёта одновременных
+      заданий) — ТОЛЬКО для одноразовой сцены: каталог прогона И стенд лежат во временном каталоге системы;
+    * неизвестный ключ — отказ.
+    Admission ADR-551 кооперативен (процесс того же пользователя может его просто не звать); граница не делает его
+    принуждением — она не даёт ослабить рабочие лимиты штатной дверью исполнителя молча."""
+    pol = dict(base)
+    loosened = []
+    for k, v in override.items():
+        if k == "registry_dir":
+            if str(v) != str(base.get("registry_dir")):
+                loosened.append("registry_dir")
+            pol[k] = v
+            continue
+        if k not in _STRICTER:
+            raise gg.Refused(f"ключ политики admission {k!r} не перекрывается")
+        cur, way = base.get(k), _STRICTER[k]
+        if k == "max_concurrent":
+            if not isinstance(v, dict):
+                raise gg.Refused("max_concurrent перекрывается только словарём")
+            merged = dict(cur or {})
+            for kind, n in v.items():
+                ref = (cur or {}).get(kind, (cur or {}).get("default"))
+                if ref is None or n > ref:
+                    loosened.append(f"max_concurrent.{kind}")
+                merged[kind] = n
+            pol[k] = merged
+            continue
+        if cur is None or (v < cur if way == "higher" else v > cur):
+            loosened.append(k)
+        pol[k] = v
+    if loosened and not _is_disposable_scene(run_dir, stand):
+        raise gg.Refused(f"ослабление admission {sorted(set(loosened))} разрешено только одноразовой сцене во "
+                         f"временном каталоге ({_scene_root()}); каталог прогона/стенд вне него")
+    return pol
+
+
 def _now_iso() -> str:
     return time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime())
 
@@ -420,11 +476,10 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
         admit = None
         if a.admission_registry or a.admission_policy:
             from spa_core.utils import heavy_job
-            pol = dict(heavy_job._policy())
-            if a.admission_policy:
-                pol.update(json.loads(Path(a.admission_policy).read_text(encoding="utf-8")))
+            override = json.loads(Path(a.admission_policy).read_text(encoding="utf-8")) if a.admission_policy else {}
             if a.admission_registry:
-                pol["registry_dir"] = a.admission_registry
+                override["registry_dir"] = a.admission_registry
+            pol = admission_policy(heavy_job._policy(), override, run_dir=run_dir, stand=Path(a.stand))
             admit = lambda: heavy_job.admit("executor_check", a.stand, policy=pol, renice=False)  # noqa: E731
         log = run_until_blocked(graph, run_dir=run_dir, stand=Path(a.stand), worker=a.worker, now=_now_iso,
                                 ttl_s=a.ttl_s, admit=admit, barrier=barrier if a.stop_at else None)
