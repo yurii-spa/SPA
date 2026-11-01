@@ -8,12 +8,6 @@ created: 2026-08-13
 priority: critical
 status_trail:
   - "2026-08-26T22:31:36.748790+00:00 new -> in-progress · queue.set_status · cycle-96657"
-claimed_by: cycle-39285
-claimed_at: 2026-11-01T00:30:39Z
-claimed_run_id: orchestrator-39285-1F698FD7C72F4F54B0F8077CA300C41F
-claimed_pid: 39285
-claimed_pid_start: Sun Nov  1 01:14:49 2026
-claim_takeover_reason: шаг 0a из своего дерева /private/tmp/spa_c1000 (origin/main 3c609a2df): работа #999 (ADR-884) ЕСТЬ на origin/main, находок «объявил → не доставил» у объявивших 0, расхождения только в ЧУЖИХ деревьях и НЕ ИЗМЕРЕНЫ; поднимать нечего — приказ стоячий (инв. #14)
 ---
 
 ## УКАЗАНИЕ ВЛАДЕЛЬЦА 2026-08-22 (cloud-сессия): ЗАПУСТИТЬ СЛЕДУЮЩИМ ЦИКЛОМ
