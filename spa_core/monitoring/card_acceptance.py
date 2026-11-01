@@ -378,7 +378,8 @@ def _probe_owner_task_answer_reaches_the_channel(arg: str | None) -> tuple[str, 
 
     now = datetime(2026, 1, 2, 3, 4, 5, tzinfo=timezone.utc)
     card = ("---\ntrackerStatus:\n  type: inbox\ntitle: проверь дашборд\n"
-            "status: {status}\nsource: voice\n{extra}---\n\n## ОТВЕТ\n\nпроверено\n")
+            "status: {status}\nsource: voice\nauthor: owner\nauthor_basis: сцена — чат владельца\n"
+            "{extra}---\n\n## ОТВЕТ\n\nпроверено\n")
     try:
         with tempfile.TemporaryDirectory() as td:
             d = _Path(td)
@@ -587,7 +588,10 @@ def _probe_twin_guard_survives_the_intake_stamp(arg: str | None) -> tuple[str, s
 
     def _legacy(d: _Path, name: str, body: str) -> None:
         (d / name).write_text("---\ntrackerStatus:\n  type: inbox\n"
-                              f"title: {TITLE}\nstatus: new\nsource: voice\n---\n\n"
+                              f"title: {TITLE}\nstatus: new\nsource: voice\n"
+                              # сцена — НАСТОЯЩИЕ просьбы владельца: автор установлен входом
+                              # (с P0 01.11 без него шаг 0a честно не называет повтор владельца)
+                              "author: owner\nauthor_basis: сцена — чат владельца\n---\n\n"
                               + body, encoding="utf-8")
 
     try:
@@ -772,6 +776,7 @@ def _probe_owner_repeat_named_by_the_hunger_step(arg: str | None) -> tuple[str, 
                     (_Path(tmp) / f"inbox-probe-{i}.md").write_text(
                         "---\ntrackerStatus:\n  type: inbox\n"
                         f"title: \"{title}\"\nstatus: new\nsource: voice\n"
+                        "author: owner\nauthor_basis: сцена — чат владельца\n"
                         f"created: 2026-10-1{i}\n---\n\nтело\n", encoding="utf-8")
                 buf = StringIO()
                 with redirect_stdout(buf):

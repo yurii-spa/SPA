@@ -518,7 +518,8 @@ def _cycles_context(f: dict) -> str:
 def render(findings: list[dict], min_hours: float,
            repeat_groups: list[dict] | None = None,
            repeats_unmeasured: str | None = None,
-           show_repeats: bool = False) -> str:
+           show_repeats: bool = False,
+           unconfirmed_groups: list[dict] | None = None) -> str:
     """Вердикт словами. Две оси печатаются ОДНОЙ строкой-вердиктом, но не смешиваются.
 
     ``show_repeats`` — печатать ли вторую ось вообще. Умолчание ``False`` сохраняет
@@ -527,6 +528,11 @@ def render(findings: list[dict], min_hours: float,
     """
     repeat_text = (repeats.render(repeat_groups, unmeasured_reason=repeats_unmeasured)
                    if show_repeats else "")
+    # Третий исход (P0, 01.11): одинаковые карточки канала владельца БЕЗ установленного автора
+    # называются неопределённостью рядом, а не повтором владельца.
+    _unconf = repeats.render_unconfirmed(unconfirmed_groups) if show_repeats else ""
+    if _unconf:
+        repeat_text = f"{repeat_text}\n{_unconf}" if repeat_text else _unconf
     if not findings:
         head = f"✅ голодающих critical-приказов владельца (>{min_hours:g}ч) не найдено"
         return f"{head}\n{repeat_text}" if repeat_text else head
@@ -593,6 +599,7 @@ def main(argv=None) -> int:
     # нулю, сколько бы раз владелец ни повторил. Замер 29.10: пять «проверь дашборд»
     # за десять суток при 37 карточках `new`.
     tree_repeats = repeats.repeated_requests(cards, now=now, source="дерево")
+    unconfirmed = repeats.unconfirmed_repeats(cards, now=now, source="дерево")
     ref_repeats: list[dict] = []
     ref_findings: list[dict] = []
     ref_error = None
@@ -606,6 +613,8 @@ def main(argv=None) -> int:
                 ref_cards, now=now, min_hours=args.min_hours, announce_path=announce,
                 claim_verdict=claim_verdict, source=args.ref)
             ref_repeats = repeats.repeated_requests(ref_cards, now=now, source=args.ref)
+            unconfirmed = repeats.merge_groups(
+                unconfirmed, repeats.unconfirmed_repeats(ref_cards, now=now, source=args.ref))
     findings = merge_findings(tree_findings, ref_findings)
     repeat_groups = repeats.merge_groups(tree_repeats, ref_repeats)
     # Половина оси может быть неизмерима, и это НЕ «повторов нет»: ответ по дереву
@@ -644,7 +653,8 @@ def main(argv=None) -> int:
                           ensure_ascii=False, indent=2))
     else:
         print(render(findings, args.min_hours, repeat_groups=repeat_groups,
-                     repeats_unmeasured=repeats_unmeasured, show_repeats=True))
+                     repeats_unmeasured=repeats_unmeasured, show_repeats=True,
+                     unconfirmed_groups=unconfirmed))
     # Находка по ЛЮБОЙ из двух осей — находка: повтор просьбы владельца есть голод под
     # другим именем, и прятать его за кодом 0 значило бы вернуть ровно тот молчаливый
     # ноль, которым десять суток держалась просьба «проверь дашборд».
