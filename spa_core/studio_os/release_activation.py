@@ -173,6 +173,11 @@ def materialise_release(sha, releases_dir: Path, repo: Path):
     files = trusted_tree(sha, repo)
     if files is None:
         return None, "OBJECT_MISSING"
+    stamp = dest / RELEASE_SHA_FILE
+    # «OK» стоит на СОДЕРЖИМОМ, прочитанном в самом условии (ADR-884), И на составе, доказанном против доверенного
+    # дерева (E5.3): штамп сам по себе доказательством не является. Интеграция S2 × main, 01.11.
+    if stamp.exists() and stamp.read_text().strip() == sha and verify_release(dest, sha, repo)[0]:
+        return dest, "OK"
     if dest.exists() or dest.is_symlink():
         return _existing_verdict(dest, sha, repo)
     releases_dir.mkdir(parents=True, exist_ok=True)
