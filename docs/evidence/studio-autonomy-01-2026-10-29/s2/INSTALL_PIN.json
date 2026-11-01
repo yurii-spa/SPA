@@ -1,0 +1,24 @@
+{
+ "schema": "studio-install-pin/1",
+ "note": "sha256 файлов установочного пакета в ЭТОМ коммите и закреплённый digest runtime. Источник доверия — SHA коммита из отчёта ARB и значения отчёта; этот файл — второй, независимый от отчёта, источник.",
+ "files": {
+  "scripts/install_trusted_bootstrap.sh": {
+   "sha256": "1802ce4337bea3a105b0e6e9816f7d8b98f4bb05ebeacac5dcf760881351318f"
+  },
+  "scripts/build_trusted_runtime.sh": {
+   "sha256": "73a7ea352f126833eafeb17054e5f77f16d0f644830ac59ccb2ca30300694b6b"
+  },
+  "spa_core/studio_os/release_launcher.py": {
+   "sha256": "7e778f2b33494a601413f69d4d90e491fc7632d172ff916e4a0d39685b432aed"
+  },
+  "spa_core/studio_os/trusted_install_bundle.py": {
+   "sha256": "d7ced956e2d358ac6ff9858544d33af25572b0416147cfc05f3a831bfd23e05a"
+  }
+ },
+ "runtime": {
+  "digest": "09eecca2da07a58156dff27ee5e904620675e05ffd60e31c08a7866cd10390b2",
+  "runtime_id": "python-3.13-09eecca2da07a581",
+  "src": "~/miniconda3/bin/python3.13 (3.13.11)",
+  "measured": "2026-11-01: build_trusted_runtime.sh без root; совпадает с установленным toolchains/python-3.13-09eecca2da07a581"
+ }
+}
