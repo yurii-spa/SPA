@@ -755,6 +755,9 @@
 | ADR-888 | Население красного НАЗВАНО переписью, а не сведено к одному числу: 79 падений в 50 файлах, три записи одного прогона сверены, третий исход отличим | Accepted | [ADR-888](ADR-888-the-population-of-red-is-named.md) |
 | ADR-889 | Доставка не спрашивала, является ли строка реестра ЗАГОЛОВКОМ: четвёртая ось пина, код 16, замер 4 толстых из 38 добавленных после ADR-840 | Accepted | [ADR-889](ADR-889-delivery-does-not-ask-whether-the-register-row-is-a-title.md) |
 
+| ADR-880 | ADR-880 — STUDIO-AUTONOMY-01: S1 принят ARB как завершённый инженерный этап (a172b79d4, CI 41205228032); production release не разрешён | Accepted | [ADR-880](ADR-880-studio-autonomy-s1-accepted-as-engineering-stage.md) |
+| ADR-882 | ADR-882 — STUDIO-AUTONOMY-01: пакет проверки релиза S2 принят ARB в ограниченном объёме; E4 не реализован, живой запуск и откат не измерены, production activation не разрешена | Accepted | [ADR-882](ADR-882-studio-autonomy-s2-release-verification-accepted-limited.md) |
+
 ## Соглашения
 
 - Нумерация: `ADR-NNN` (сквозная) либо `ADR-YL-NNN` (Yield Lab слой), `ADR-OWN-YYYY-MM` (пакеты owner-решений).

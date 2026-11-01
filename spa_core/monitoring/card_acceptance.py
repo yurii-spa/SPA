@@ -66,6 +66,16 @@ from datetime import datetime, timezone
 from typing import Callable
 
 from spa_core.utils.observation import observed
+from spa_core.utils.errors import SPAError
+
+
+class ProbeSceneError(SPAError, RuntimeError):
+    """Отказ инструмента ОДНОРАЗОВОЙ сцены пробы (git/бегун в tmp-дереве).
+
+    Наследует и ``SPAError`` (правило проекта: в ``spa_core/`` — свои ошибки, сторож
+    ``tests/test_spaerror_complete.py``), и ``RuntimeError`` — поэтому любой, кто ловил прежний
+    ``RuntimeError``, ловит её так же: поведение проб не меняется.
+    """
 
 SATISFIED = "satisfied"
 NOT_SATISFIED = "not_satisfied"
@@ -8423,14 +8433,14 @@ def _probe_queue_reader_names_record_memory_loss(
                   ["config", "user.name", "probe"]):
             r = _git(rroot if a[0] != "init" else tmp, *a)
             if r.returncode != 0:
-                raise RuntimeError(f"git {' '.join(a)}: {r.stderr.strip()}")
+                raise ProbeSceneError(f"git {' '.join(a)}: {r.stderr.strip()}")
         for name, text in cards_before.items():
             with open(os.path.join(tracker, f"{name}.md"), "w", encoding="utf-8") as fh:
                 fh.write(text)
         for a in (["add", "-A"], ["commit", "-q", "-m", "ref"]):
             r = _git(rroot, *a)
             if r.returncode != 0:
-                raise RuntimeError(f"git {' '.join(a)}: {r.stderr.strip()}")
+                raise ProbeSceneError(f"git {' '.join(a)}: {r.stderr.strip()}")
         for name, text in cards_after.items():
             with open(os.path.join(tracker, f"{name}.md"), "w", encoding="utf-8") as fh:
                 fh.write(text)
@@ -8606,19 +8616,19 @@ def _probe_queue_reader_names_unmeasured_memory(
             os.makedirs(tracker)
             r = _git(tmp, "init", "-q", "-b", ref, rroot)
             if r.returncode != 0:
-                raise RuntimeError(f"git init: {r.stderr.strip()}")
+                raise ProbeSceneError(f"git init: {r.stderr.strip()}")
             for a in (["config", "user.email", "probe@example.com"],
                       ["config", "user.name", "probe"]):
                 r = _git(rroot, *a)
                 if r.returncode != 0:
-                    raise RuntimeError(f"git {' '.join(a)}: {r.stderr.strip()}")
+                    raise ProbeSceneError(f"git {' '.join(a)}: {r.stderr.strip()}")
             card = os.path.join(tracker, "inbox-order.md")
             with open(card, "w", encoding="utf-8") as fh:
                 fh.write(_notebook([716, 717, 718]))
             for a in (["add", "-A"], ["commit", "-q", "-m", "ref"]):
                 r = _git(rroot, *a)
                 if r.returncode != 0:
-                    raise RuntimeError(f"git {' '.join(a)}: {r.stderr.strip()}")
+                    raise ProbeSceneError(f"git {' '.join(a)}: {r.stderr.strip()}")
             with open(card, "w", encoding="utf-8") as fh:
                 fh.write(_notebook([716]))          # дереву не хватает #717 и #718
             refused, refused_err = _ask(tracker, missing_ref)
@@ -8786,12 +8796,12 @@ def _probe_queue_reader_names_uncompared_order(
             os.makedirs(tracker)
             r = _git(tmp, "init", "-q", "-b", ref, rroot)
             if r.returncode != 0:
-                raise RuntimeError(f"git init: {r.stderr.strip()}")
+                raise ProbeSceneError(f"git init: {r.stderr.strip()}")
             for a in (["config", "user.email", "probe@example.com"],
                       ["config", "user.name", "probe"]):
                 r = _git(rroot, *a)
                 if r.returncode != 0:
-                    raise RuntimeError(f"git {' '.join(a)}: {r.stderr.strip()}")
+                    raise ProbeSceneError(f"git {' '.join(a)}: {r.stderr.strip()}")
             card = os.path.join(tracker, "inbox-order.md")
             with open(card, "w", encoding="utf-8") as fh:
                 fh.write(_card([716, 717, 718], "new",
@@ -8799,7 +8809,7 @@ def _probe_queue_reader_names_uncompared_order(
             for a in (["add", "-A"], ["commit", "-q", "-m", "ref"]):
                 r = _git(rroot, *a)
                 if r.returncode != 0:
-                    raise RuntimeError(f"git {' '.join(a)}: {r.stderr.strip()}")
+                    raise ProbeSceneError(f"git {' '.join(a)}: {r.stderr.strip()}")
             with open(card, "w", encoding="utf-8") as fh:
                 fh.write(_card([716], "in-progress",
                                [f"{earlier} new -> new · queue.set_status · cycle-1",
@@ -9023,19 +9033,19 @@ def _queue_order_basis_outcome(_drift, reader, bases: set) -> tuple[str, str]:
                 os.makedirs(tracker)
                 r = _git(tmp, "init", "-q", "-b", ref, rroot)
                 if r.returncode != 0:
-                    raise RuntimeError(f"git init: {r.stderr.strip()}")
+                    raise ProbeSceneError(f"git init: {r.stderr.strip()}")
                 for a in (["config", "user.email", "probe@example.com"],
                           ["config", "user.name", "probe"]):
                     r = _git(rroot, *a)
                     if r.returncode != 0:
-                        raise RuntimeError(f"git {' '.join(a)}: {r.stderr.strip()}")
+                        raise ProbeSceneError(f"git {' '.join(a)}: {r.stderr.strip()}")
                 card_path = os.path.join(tracker, "inbox-order.md")
                 with open(card_path, "w", encoding="utf-8") as fh:
                     fh.write(origin_text)
                 for a in (["add", "-A"], ["commit", "-q", "-m", "ref"]):
                     r = _git(rroot, *a)
                     if r.returncode != 0:
-                        raise RuntimeError(f"git {' '.join(a)}: {r.stderr.strip()}")
+                        raise ProbeSceneError(f"git {' '.join(a)}: {r.stderr.strip()}")
                 with open(card_path, "w", encoding="utf-8") as fh:
                     fh.write(tree_text)
                 got, err = _ask(tracker, ref)
@@ -10341,6 +10351,42 @@ def _door_named_reason(out: str) -> str:
     return (f"причину двери не разобрать (её `--json` не прочитан), остаётся хвост "
             f"вывода: {text[-200:]}")
 
+def _reap_scene_group(proc, *, deadline_s: float = 30.0) -> list:
+    """CI-PROCESS-01: завершить ВСЮ группу процессов собственной сцены и дождаться, пока она опустеет.
+
+    Группа создана самой сценой (``start_new_session=True`` ⇒ номер группы = pid прибора), поэтому
+    сигнал не может задеть ни соседний тест, ни службу. Пока в группе есть хотя бы один процесс, её номер
+    ОС не переиспользует. Возвращает описание выживших: пустой список — группа пуста; непустой — сцену
+    убирать нельзя (вызывающий называет это «НЕ ИЗМЕРЕНО»). Без паузы вместо проверки: ожидание идёт до
+    подтверждённого исчезновения группы или до срока.
+    """
+    import os as _os
+    import signal as _sig
+    import time as _t
+    if proc is None:
+        return []
+    pgid = proc.pid
+    try:
+        _os.killpg(pgid, _sig.SIGKILL)
+    except ProcessLookupError:
+        pass
+    except PermissionError as exc:
+        return [f"группа {pgid}: сигнал не отправлен ({exc})"]
+    try:
+        proc.wait(timeout=deadline_s)
+    except Exception:  # noqa: BLE001 — ждём ниже по группе, а не по одному родителю
+        pass
+    end = _t.monotonic() + deadline_s
+    while _t.monotonic() < end:
+        try:
+            _os.killpg(pgid, 0)
+        except ProcessLookupError:
+            return []
+        except PermissionError as exc:
+            return [f"группа {pgid}: проверка не выполнена ({exc})"]
+        _t.sleep(0.02)
+    return [f"группа {pgid} жива через {deadline_s} с"]
+
 
 def _probe_mutation_window_restore_refuses_a_live_owner(
     arg: str | None, *, repo_root: str | None = None,
@@ -10408,59 +10454,71 @@ def _probe_mutation_window_restore_refuses_a_live_owner(
     proc = None
     try:
         with _tf.TemporaryDirectory(prefix="probe_c913_") as tmp:
-            tree = os.path.join(tmp, "live")
-            os.makedirs(os.path.join(tree, "pkg"))
-            os.makedirs(os.path.join(tree, "t"))
-            target = os.path.join(tree, "pkg", "mod.py")
-            with open(target, "w", encoding="utf-8") as fh:
-                fh.write(pristine)
-            with open(os.path.join(tree, "t", "test_x.py"), "w", encoding="utf-8") as fh:
-                fh.write("import os, sys, time\n"
-                         "sys.path.insert(0, os.path.dirname(os.path.dirname("
-                         "os.path.abspath(__file__))))\n"
-                         "from pkg.mod import answer\n\n\n"
-                         f"def test_answer():\n    time.sleep({sleep_s})\n"
-                         "    assert answer() == 1\n")
-            spec = os.path.join(tree, "spec.json")
-            with open(spec, "w", encoding="utf-8") as fh:
-                _json.dump({"title": "проба окна: живой владелец",
-                            "tests": ["t/test_x.py"],
-                            "mutations": [
-                                {"name": f"ответ подменён {i}", "file": rel,
-                                 "old": "VALUE = 1", "new": f"VALUE = {i + 2}"}
-                                for i in range(2)]}, fh, ensure_ascii=False)
-            record = os.path.join(tree, ".mutation_window", "window.json")
-            pristine_digest = _digest(target)
+            try:
+                tree = os.path.join(tmp, "live")
+                os.makedirs(os.path.join(tree, "pkg"))
+                os.makedirs(os.path.join(tree, "t"))
+                target = os.path.join(tree, "pkg", "mod.py")
+                with open(target, "w", encoding="utf-8") as fh:
+                    fh.write(pristine)
+                with open(os.path.join(tree, "t", "test_x.py"), "w", encoding="utf-8") as fh:
+                    fh.write("import os, sys, time\n"
+                             "sys.path.insert(0, os.path.dirname(os.path.dirname("
+                             "os.path.abspath(__file__))))\n"
+                             "from pkg.mod import answer\n\n\n"
+                             f"def test_answer():\n    time.sleep({sleep_s})\n"
+                             "    assert answer() == 1\n")
+                spec = os.path.join(tree, "spec.json")
+                with open(spec, "w", encoding="utf-8") as fh:
+                    _json.dump({"title": "проба окна: живой владелец",
+                                "tests": ["t/test_x.py"],
+                                "mutations": [
+                                    {"name": f"ответ подменён {i}", "file": rel,
+                                     "old": "VALUE = 1", "new": f"VALUE = {i + 2}"}
+                                    for i in range(2)]}, fh, ensure_ascii=False)
+                record = os.path.join(tree, ".mutation_window", "window.json")
+                pristine_digest = _digest(target)
 
-            proc = _sp.Popen([sys.executable, tool, "--spec", spec,
-                              "--repo-root", tree],
-                             stdout=_sp.PIPE, stderr=_sp.PIPE, text=True)
-            # Ждём не «окно открылось», а «мутант РЕАЛЬНО в файле»: иначе сцена могла
-            # бы застать файл чистым, и ошибочный возврат остался бы невидимым —
-            # байты не изменились бы ни при верном поведении, ни при неверном.
-            deadline = _t.time() + 300.0
-            while _t.time() < deadline:
-                if os.path.exists(record) and _digest(target) != pristine_digest:
-                    break
-                if proc.poll() is not None:
-                    return UNMEASURED, (
-                        f"прибор завершился (код {proc.returncode}) ДО того, как мутант "
-                        f"лёг в дерево — сцена НЕ ПОДНЯТА, судить об отказе нечем")
-                _t.sleep(0.05)
-            else:
-                return UNMEASURED, ("за 300 с мутант не появился в одноразовом дереве — "
-                                    "сцена НЕ ПОДНЯТА")
+                # CI-PROCESS-01: собственная группа процессов сцены — чтобы «владелец умер» и уборка
+                # касались прибора ВМЕСТЕ с его дочерним pytest, и только их.
+                proc = _sp.Popen([sys.executable, tool, "--spec", spec,
+                                  "--repo-root", tree],
+                                 stdout=_sp.PIPE, stderr=_sp.PIPE, text=True,
+                                 start_new_session=True)
+                # Ждём не «окно открылось», а «мутант РЕАЛЬНО в файле»: иначе сцена могла
+                # бы застать файл чистым, и ошибочный возврат остался бы невидимым —
+                # байты не изменились бы ни при верном поведении, ни при неверном.
+                deadline = _t.time() + 300.0
+                while _t.time() < deadline:
+                    if os.path.exists(record) and _digest(target) != pristine_digest:
+                        break
+                    if proc.poll() is not None:
+                        return UNMEASURED, (
+                            f"прибор завершился (код {proc.returncode}) ДО того, как мутант "
+                            f"лёг в дерево — сцена НЕ ПОДНЯТА, судить об отказе нечем")
+                    _t.sleep(0.05)
+                else:
+                    return UNMEASURED, ("за 300 с мутант не появился в одноразовом дереве — "
+                                        "сцена НЕ ПОДНЯТА")
 
-            during = _digest(target)
-            rc_live, out_live = _restore(tree)
-            after_live = _digest(target)
-            record_kept = os.path.exists(record)
+                during = _digest(target)
+                rc_live, out_live = _restore(tree)
+                after_live = _digest(target)
+                record_kept = os.path.exists(record)
 
-            proc.send_signal(_sig.SIGKILL)
-            proc.wait(timeout=300)
-            rc_dead, out_dead = _restore(tree)
-            final = _digest(target)
-            record_gone = not os.path.exists(record)
+                # Владелец умирает ЦЕЛИКОМ: прибор и его дочерний pytest (прежде убивался только родитель,
+                # и ребёнок жил в сцене ещё ≈6 с — диагностика 31.10).
+                survivors = _reap_scene_group(proc)
+                if survivors:
+                    return UNMEASURED, (f"процессы сцены не завершились ({'; '.join(survivors)}) — "
+                                        f"судить о «мёртвом владельце» нельзя, НЕ ИЗМЕРЕНО")
+                rc_dead, out_dead = _restore(tree)
+                final = _digest(target)
+                record_gone = not os.path.exists(record)
+            finally:
+                # CI-PROCESS-01: процессы СВОЕЙ сцены завершены и дождаться их — ДО уборки каталога; ветка
+                # успеха, ранние возвраты, исключение и таймаут проходят здесь одинаково.
+                _reap_scene_group(proc)
     except _sp.TimeoutExpired as exc:
         return UNMEASURED, f"сцена не ответила за отведённое время ({exc}) — НЕ ИЗМЕРЕНО"
     except Exception as exc:                                        # noqa: BLE001
@@ -13404,7 +13462,7 @@ def _alo_caller_scene(runner_name: str) -> dict:
         proc = subprocess.run([sys.executable, str(runner)], cwd=str(repo),
                               capture_output=True, text=True, timeout=180)
     if proc.returncode != 0:
-        raise RuntimeError(f"бегун {runner_name} вышел {proc.returncode}: "
+        raise ProbeSceneError(f"бегун {runner_name} вышел {proc.returncode}: "
                            f"{(proc.stderr or '').strip()[:300]}")
     return json.loads(proc.stdout.strip().splitlines()[-1])
 

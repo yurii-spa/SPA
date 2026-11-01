@@ -300,6 +300,72 @@ class SpyRecordsWhatTheDoorAsked(unittest.TestCase):
         self.assertIs(sys.modules.get(name), before)
 
 
+
+class ImportStateIsRestoredExactly(unittest.TestCase):
+    """CI-SLO-01 (ARB раунд 6): наблюдение возвращает ``sys.modules`` к состоянию ДО вызова.
+
+    Дефект: ``previous`` снимался ПОСЛЕ ``importlib.import_module`` — у исходно отсутствующего модуля
+    «прежним» становился только что ввезённый, и он оставался в ``sys.modules`` (CI 41129520224, шард 10).
+    Оба начальных состояния × успешное наблюдение и отказ двери; утверждения прежних тестов не тронуты.
+    """
+
+    NAME = "spa_core.monitoring.list_identity_census"
+
+    def setUp(self):
+        self._saved = (self.NAME in sys.modules, sys.modules.get(self.NAME))
+
+    def tearDown(self):
+        had, obj = self._saved
+        if had:
+            sys.modules[self.NAME] = obj
+        else:
+            sys.modules.pop(self.NAME, None)
+
+    def _observe(self, door):
+        with tempfile.TemporaryDirectory() as folder:
+            path = Path(folder) / _ASKED_ARTIFACT
+            path.write_text(json.dumps(_doc()), encoding="utf-8")
+            return keep.report_line_observation(door, self.NAME, path, root=_REPO,
+                                                artifact_root=Path(folder), now=_ANCHOR)
+
+    @staticmethod
+    def _refusing():
+        class Refusing:
+            @staticmethod
+            def _summarize_json(*args, **kwargs):
+                raise RuntimeError("дверь отказала")
+        return Refusing
+
+    def _real_door(self):
+        door, why = keep.stamp_reader_door(_REPO)
+        self.assertIsNotNone(door, why)
+        return door
+
+    def test_initially_absent_module_is_absent_again_after_a_successful_observation(self):
+        door = self._real_door()
+        sys.modules.pop(self.NAME, None)
+        self._observe(door)
+        self.assertFalse(self.NAME in sys.modules, "модуль остался в sys.modules после наблюдения")
+
+    def test_initially_absent_module_is_absent_again_after_the_door_refuses(self):
+        sys.modules.pop(self.NAME, None)
+        obs = self._observe(self._refusing())
+        self.assertIn("дверь отказала", obs["why"])
+        self.assertFalse(self.NAME in sys.modules, "модуль остался в sys.modules после наблюдения")
+
+    def test_initially_loaded_module_keeps_its_identity_after_a_successful_observation(self):
+        import importlib
+        door = self._real_door()
+        loaded = importlib.import_module(self.NAME)
+        self._observe(door)
+        self.assertIs(sys.modules.get(self.NAME), loaded)
+
+    def test_initially_loaded_module_keeps_its_identity_after_the_door_refuses(self):
+        import importlib
+        loaded = importlib.import_module(self.NAME)
+        self._observe(self._refusing())
+        self.assertIs(sys.modules.get(self.NAME), loaded)
+
 class ProducerComesFromTheDoorsOwnMap(unittest.TestCase):
     """Своя копия карты «артефакт → модуль» разошлась бы с дверью молча."""
 

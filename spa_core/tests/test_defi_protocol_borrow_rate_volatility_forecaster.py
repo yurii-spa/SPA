@@ -1458,3 +1458,14 @@ def test_never_raises_farm_sweep(farm):
 
 if __name__ == "__main__":
     sys.exit(pytest.main([__file__, "-q"]))
+
+
+# ── CI-ISOLATION (S2, CI 41239177882 шард 2): журнал анализатора — во временной сцене теста, не в git-tracked data/ ──
+import pytest as _scene_pytest  # noqa: E402
+import spa_core.analytics.defi_protocol_borrow_rate_volatility_forecaster as _scene_mod  # noqa: E402
+from spa_core.tests._tracked_log_scene import redirect_log as _scene_redirect  # noqa: E402
+
+
+@_scene_pytest.fixture(autouse=True)
+def _scene_log(tmp_path, monkeypatch):
+    return _scene_redirect(monkeypatch, tmp_path, _scene_mod, "_LOG_PATH", defaults_of=())
