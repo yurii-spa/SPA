@@ -759,6 +759,8 @@
 | ADR-880 | ADR-880 — STUDIO-AUTONOMY-01: S1 принят ARB как завершённый инженерный этап (a172b79d4, CI 41205228032); production release не разрешён | Accepted | [ADR-880](ADR-880-studio-autonomy-s1-accepted-as-engineering-stage.md) |
 | ADR-882 | ADR-882 — STUDIO-AUTONOMY-01: пакет проверки релиза S2 принят ARB в ограниченном объёме; E4 не реализован, живой запуск и откат не измерены, production activation не разрешена | Accepted | [ADR-882](ADR-882-studio-autonomy-s2-release-verification-accepted-limited.md) |
 
+| ADR-891 | Причина падения контрольного прогона — ось у ПРОИЗВОДИТЕЛЯ: `msg` был МЕСТОМ, junit шарда свод уже держал; замер 79/79, вилка дефектов 54…78, множитель 1,01…1,46× | Accepted | [ADR-891](ADR-891-the-cause-of-a-red-control-run.md) |
+
 ## Соглашения
 
 - Нумерация: `ADR-NNN` (сквозная) либо `ADR-YL-NNN` (Yield Lab слой), `ADR-OWN-YYYY-MM` (пакеты owner-решений).

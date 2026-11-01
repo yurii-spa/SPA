@@ -15046,6 +15046,325 @@ def _probe_ci_red_census_names_the_population(arg: str | None = None,
         f"{worst[0][1]}) и доходит до отрисованных строк; сцена без перечня даёт "
         f"третий исход с причиной («{quiet.get('why')}»)")
 
+class _CauseProbeUnmeasured(Exception):
+    """Сцену пробы оси причин поднять не удалось — это НЕ «критерий не выполнен»."""
+
+
+#: Имя junit-записи шарда. Литерал здесь НАМЕРЕННЫЙ: это контракт сцены с воркфлоу
+#: (`ci-control.yml` зовёт `--junit ctl-out/junit.xml`), а не константа проверяемого
+#: кода. Первая редакция пробы брала его у свода (`ctl.JUNIT_FILE`) — и на дереве БЕЗ
+#: оси причин падала с `AttributeError`, то есть отвечала `unmeasured` там, где верный
+#: ответ `not_satisfied`: «я не умею мерить» выдавалось за «измерено, не выполнено».
+#: Поймано своим же контролем на пристойной копии `origin/main` ДО доставки.
+_CAUSE_JUNIT_NAME = "junit.xml"
+
+
+#: Сцена пробы оси причин (ADR-891). Три падения, и состав выбран НЕ для красоты:
+#: два первых несут ОДИН грубый скелет (`# != #`) и обязаны слиться в одну причину,
+#: третий — другой тип. Поэтому вилка дефектов на сцене НЕ ВЫРОЖДЕНА (2…3): сцена из
+#: трёх разных причин дала бы lower == upper == 3, и любой перепутанный край прошёл бы.
+_CAUSE_SCENE = (
+    ("spa_core/tests/test_cause_a.py", "TheFirst", "test_one",
+     "AssertionError", "1 != 2", "spa_core/tests/test_cause_a.py:11: in test_one"),
+    ("spa_core/tests/test_cause_a.py", "TheFirst", "test_two",
+     "AssertionError", "3 != 4", "spa_core/tests/test_cause_a.py:22: in test_two"),
+    ("spa_core/tests/test_cause_b.py", "TheSecond", "test_three",
+     "KeyError", "'identity'", "spa_core/tests/test_cause_b.py:33: in test_three"),
+)
+
+
+def _probe_ci_red_cause_axis_names_the_cause(arg: str | None = None,
+                                             *, repo_root: str | None = None
+                                             ) -> tuple[str, str]:
+    """Критерий: у падения контрольного прогона в отчёте есть ПРИЧИНА, а не только МЕСТО.
+
+    Предмет — заказ G887 п. 3 карточки приказа «Portfolio CIO». Контрольный прогон
+    41280181541 (`126a2ec2a`) дал **79** падений; строка `failures` отчёта несла
+    `nodeid`, исход, шард и `msg`, а `msg` есть ПЕРВАЯ строка потоковой записи, то есть
+    `файл:строка: in <тест>`. Это МЕСТО. ПОЧЕМУ упало — лежало в `junit.xml` ТОГО ЖЕ
+    артефакта шарда, который свод уже читает ради потоковой записи, и выбрасывалось.
+    Вред не косметический: «79 красных» читается как «79 поломок», и по этому числу
+    решают, брать ли набор в работу; замер того же прогона даёт вилку **54…78** и
+    крупнейшее семейство **10** падений в ПЯТИ разных файлах — по переписи файлов оно
+    выглядит как пять одиночек и одна тройка, то есть не видно ВОВСЕ.
+
+    Проба мерит ИСХОД на НАСТОЯЩИХ дверях и через НАСТОЯЩУЮ проводку: свод
+    (`scripts/ci_control.py::aggregate`) зовётся на одноразовой сцене из настоящих
+    файлов шарда, а его отчёт отдаётся настоящему читателю вердикта
+    (`scripts/ci_control_verdict.py`), у которого двери к сети — ВХОДЫ. Словарь,
+    собранный пробой вручную, мерил бы свой же словарь, а не проводку (урок карточки
+    `hand-built-doc-tests-your-dict-not-the-wiring`).
+
+    ЧЕТЫРЕ сцены, и каждая отличается РОВНО одним звеном:
+
+    1. **весь контур** — junit шарда на месте ⇒ у каждой строки `failures` обязана
+       быть `cause` с типом и скелетом, у отчёта — блок `cause_axis` со снятой осью и
+       вилкой дефектов, а у ОТРИСОВАННЫХ строк читателя — эта ось словами. Доходить
+       обязана именно отрисовка: шаг 0-офис идёт через `report()`;
+    2. **junit-записи у шарда НЕТ** ⇒ ось обязана ответить ТРЕТЬИМ исходом с названной
+       причиной, а население падений — остаться прежним. Ноль причин при трёх падениях
+       есть ровно тот дефект, против которого проба написана (инв. #17);
+    3. **отчёт БЕЗ блока `cause_axis`** (собран сводом старше ADR-891) ⇒ у читателя
+       СВОЙ третий исход со СВОЕЙ причиной, и он обязан отличаться от причины сцены 2:
+       «свод не умеет» и «записи не было» чинятся разным;
+    4. **падение есть в отчёте и НЕТ в junit** ⇒ оно обязано быть названо ПОИМЁННО в
+       `unattributed`, а не исчезнуть из населения и не стать нулём.
+
+    Третий исход у пробы СВОЙ: дверь не ввезена либо сцена не поднялась ⇒ `unmeasured`,
+    а не «не выполнено» — про предмет тогда не измерено ничего.
+    """
+    import datetime as _dt
+    import importlib.util as _ilu
+    import io as _io
+    import json as _json
+    import shutil as _shutil
+    import tempfile as _tempfile
+    import xml.etree.ElementTree as _ET
+    import zipfile as _zip
+    from pathlib import Path as _Path
+
+    root = repo_root or REPO_ROOT
+
+    def _module(rel: str, alias: str):
+        path = os.path.join(root, *rel.split("/"))
+        if not os.path.exists(path):
+            raise _CauseProbeUnmeasured(f"{path} не найден")
+        spec = _ilu.spec_from_file_location(alias, path)
+        if spec is None or spec.loader is None:
+            raise _CauseProbeUnmeasured(f"{path} не загружается")
+        mod = _ilu.module_from_spec(spec)
+        spec.loader.exec_module(mod)
+        return mod
+
+    try:
+        ctl = _module("scripts/ci_control.py", "_probe_c1005_ctl")
+        reader = _module("scripts/ci_control_verdict.py", "_probe_c1005_reader")
+    except _CauseProbeUnmeasured as exc:
+        return UNMEASURED, f"{exc} — ось причин НЕ ИЗМЕРЕНА"
+    except Exception as exc:                                        # noqa: BLE001
+        return UNMEASURED, (f"дверь не ввезена ({type(exc).__name__}: {exc}) — "
+                            f"НЕ ИЗМЕРЕНО")
+
+    nodeids = [f"{f}::{cls}::{name}" for f, cls, name, *_ in _CAUSE_SCENE]
+    files = sorted({f for f, *_ in _CAUSE_SCENE})
+    sha = "0123456789abcdef0123456789abcdef01234567"
+    manifest = {
+        "schema": ctl.MANIFEST_SCHEMA, "sha": sha,
+        "env": {"python": "3.11.17", "pytest": "9.1.1", "SPA_ENV": "ci",
+                "PYTHONHASHSEED": "0", "roots": ["spa_core/tests"]},
+        "collected": nodeids, "files": files, "collect_errors": [],
+        "shards": [{"shard": 0, "files": files, "tests": len(nodeids), "est_s": 1.0}],
+    }
+
+    def _junit(include) -> str:
+        suite = _ET.Element("testsuite", {"name": "pytest", "tests": str(len(_CAUSE_SCENE))})
+        for f, cls, name, kind, msg, frame in _CAUSE_SCENE:
+            node = f"{f}::{cls}::{name}"
+            case = _ET.SubElement(suite, "testcase", {
+                "classname": f"{f[:-3].replace('/', '.')}.{cls}", "name": name,
+                "time": "0.01"})
+            if node not in include:
+                continue
+            fail = _ET.SubElement(case, "failure", {"message": f"{kind}: {msg}"})
+            fail.text = f"{frame}\nE       {kind}: {msg}\n"
+        return _ET.tostring(_ET.ElementTree(suite).getroot(), encoding="unicode")
+
+    def _scene(tmp: str, *, junit_for) -> "tuple[dict, dict]":
+        """Собрать сцену шарда и СВЕСТИ её настоящим сводом. Возвращает (отчёт, ось)."""
+        shards = os.path.join(tmp, "shards")
+        d = os.path.join(shards, f"{ctl.SHARD_DIR_PREFIX}0")
+        os.makedirs(d, exist_ok=True)
+        with open(os.path.join(d, ctl.SHARD_FILE), "w", encoding="utf-8") as fh:
+            _json.dump({"shard": 0}, fh)
+        with open(os.path.join(d, ctl.COLLECTED_FILE), "w", encoding="utf-8") as fh:
+            fh.write(_json.dumps({"e": "collected", "count": len(nodeids),
+                                  "nodeids": nodeids}) + "\n")
+        with open(os.path.join(d, ctl.EXIT_FILE), "w", encoding="utf-8") as fh:
+            _json.dump({"exit": 1, "attempts": [{"attempt": 0, "exit": 1}],
+                        "crashes": []}, fh)
+        with open(os.path.join(d, ctl.STREAM_FILE), "w", encoding="utf-8") as fh:
+            t = 1793514000.0
+            for i, (node, (_f, _c, _n, kind, msg, frame)) in enumerate(
+                    zip(nodeids, _CAUSE_SCENE)):
+                fh.write(_json.dumps({"e": "start", "n": node, "t": t + i}) + "\n")
+                fh.write(_json.dumps({"e": "fail", "n": node, "t": t + i + 0.1,
+                                      "w": "call", "d": 0.1, "msg": frame}) + "\n")
+            fh.write(_json.dumps({"e": "end", "status": 1, "started": len(nodeids),
+                                  "finished": len(nodeids), "t": t + 99}) + "\n")
+        if junit_for is not None:
+            with open(os.path.join(d, _CAUSE_JUNIT_NAME), "w", encoding="utf-8") as fh:
+                fh.write(_junit(junit_for))
+        rep = ctl.aggregate(manifest, _Path(shards), needs_result="failure",
+                            run={"id": "1", "html_url": "https://x/1"})
+        return rep, rep.get("cause_axis")
+
+    def _drive_reader(scene: dict) -> dict:
+        ended = _dt.datetime(2026, 11, 1, 7, 0, tzinfo=_dt.timezone.utc)
+        row = {"id": "1", "status": "completed", "conclusion": "failure",
+               "event": "schedule", "head_sha": sha, "head_branch": "main",
+               "created_at": ended.isoformat(), "updated_at": ended.isoformat(),
+               "html_url": "https://x/1"}
+        buf = _io.BytesIO()
+        with _zip.ZipFile(buf, "w") as zf:
+            zf.writestr(reader.REPORT_MEMBER, _json.dumps(scene))
+        payload = buf.getvalue()
+
+        def fetch(path: str):
+            if "/artifacts" in path:
+                return {"artifacts": [{"name": reader.REPORT_ARTIFACT, "expired": False,
+                                       "id": 7, "archive_download_url": "https://x/z"}]}
+            return {"workflow_runs": [row]}
+
+        return reader.run(root=root, now=ended + _dt.timedelta(hours=1),
+                          fetch=fetch, grab=lambda _u: payload)
+
+    tmp = _tempfile.mkdtemp(prefix="cause_axis_probe_")
+    try:
+        whole, axis = _scene(os.path.join(tmp, "whole"), junit_for=set(nodeids))
+        no_rec, axis_no_rec = _scene(os.path.join(tmp, "norec"), junit_for=None)
+        partial, axis_partial = _scene(os.path.join(tmp, "part"),
+                                       junit_for=set(nodeids[:2]))
+        aged = _json.loads(_json.dumps(whole))
+        aged.pop("cause_axis", None)
+        for frow in aged.get("failures") or []:
+            frow.pop("cause", None)
+        doc_whole = _drive_reader(whole)
+        doc_aged = _drive_reader(aged)
+        doc_no_rec = _drive_reader(no_rec)
+    except Exception as exc:                                        # noqa: BLE001
+        return UNMEASURED, (f"сцена не поднялась ({type(exc).__name__}: {exc}) — "
+                            f"НЕ ИЗМЕРЕНО")
+    finally:
+        _shutil.rmtree(tmp, ignore_errors=True)
+
+    # ── сцена 1: весь контур ────────────────────────────────────────────────
+    if not isinstance(axis, dict):
+        return NOT_SATISFIED, (
+            "отчёт свода не несёт блока `cause_axis` ВОВСЕ: про падение он говорит "
+            "`msg` = `файл:строка: in <тест>`, то есть МЕСТО, и ПОЧЕМУ оно упало не "
+            "знает ни один читатель, хотя junit шарда свод уже держит в руках")
+    if axis.get("status") != "measured":
+        return NOT_SATISFIED, (
+            f"на сцене С junit-записью ось ответила «{axis.get('status')}» "
+            f"({axis.get('why')}) — запись есть, а причина не измерена")
+    want = {"population": len(nodeids), "attributed": len(nodeids),
+            "unattributed_n": 0, "record_only_n": 0}
+    wrong = {k: (axis.get(k), v) for k, v in want.items() if axis.get(k) != v}
+    if wrong:
+        return NOT_SATISFIED, "ось разошлась со сценой: " + "; ".join(
+            f"{k} = {got!r}, а на сцене {exp!r}" for k, (got, exp) in sorted(wrong.items()))
+    if axis.get("kinds") != {"AssertionError": 2, "KeyError": 1}:
+        return NOT_SATISFIED, (
+            f"типы исключений разошлись со сценой: {axis.get('kinds')!r}, а на сцене "
+            f"две AssertionError и один KeyError")
+    fork = axis.get("fork") or {}
+    if (fork.get("lower"), fork.get("upper")) != (2, 3):
+        return NOT_SATISFIED, (
+            f"вилка дефектов разошлась со сценой: НЕ МЕНЬШЕ {fork.get('lower')} и НЕ "
+            f"БОЛЬШЕ {fork.get('upper')}, а на сцене два падения несут ОДИН грубый "
+            f"скелет (`# != #`) и обязаны слиться ⇒ 2…3")
+    if not all((axis.get("identities_hold") or {}).values()):
+        return NOT_SATISFIED, (
+            f"тождество учёта оси НЕ держится: {axis.get('identities_hold')!r} — род "
+            f"вне объявленного перечня исчезает из печатаемой строки молча")
+    rows = {r.get("nodeid"): r for r in whole.get("failures") or []}
+    bare = [n for n in nodeids if not isinstance((rows.get(n) or {}).get("cause"), dict)]
+    if bare:
+        return NOT_SATISFIED, (
+            f"ось снята, а САМИ строки падений причины не несут: {bare} — читатель, "
+            f"берущий `failures` поимённо, по-прежнему видит одно место")
+    first = rows[nodeids[0]]["cause"]
+    if first.get("kind") != "AssertionError" or not str(first.get("skeleton") or "").strip():
+        return NOT_SATISFIED, (
+            f"причина у строки падения пуста или не того рода: {first!r}")
+
+    lines_whole = "\n".join(reader.report(doc_whole))
+    missing = [what for what, token in (
+        ("число опознанных", f"опознано {len(nodeids)} из {len(nodeids)}"),
+        ("типы исключений", "AssertionError 2"),
+        ("вилку дефектов", "НЕ МЕНЬШЕ 2 и НЕ БОЛЬШЕ 3"),
+    ) if token not in lines_whole]
+    if missing:
+        return NOT_SATISFIED, (
+            f"ось есть в документе, а в ОТРИСОВАННЫХ строках читателя нет "
+            f"{', '.join(missing)}: шаг 0-офис идёт через `report()` и прочёл бы "
+            f"прежнее «упавших N» без причины")
+
+    # ── сцена 2: записи у шарда НЕТ ─────────────────────────────────────────
+    if not isinstance(axis_no_rec, dict) or axis_no_rec.get("status") == "measured":
+        return NOT_SATISFIED, (
+            f"сцена БЕЗ junit-записи дала «{(axis_no_rec or {}).get('status')}» вместо "
+            f"третьего исхода: «причину не измерили» неотличимо от «причин нет» "
+            f"(инв. #17)")
+    why_no_rec = str(axis_no_rec.get("why") or "").strip()
+    if not why_no_rec:
+        return NOT_SATISFIED, ("третий исход у сцены без записи есть, а ПРИЧИНЫ у него "
+                               "нет — «НЕ ИЗМЕРЕНО» без причины не отличить от отговорки")
+    if axis_no_rec.get("population") != len(nodeids):
+        return NOT_SATISFIED, (
+            f"сцена без записи ПОТЕРЯЛА население: ось говорит "
+            f"{axis_no_rec.get('population')!r} при {len(nodeids)} падениях в отчёте — "
+            f"не измеренная причина не вправе уменьшать число упавших")
+    found_no_rec = [f for f in (doc_no_rec.get("findings") or [])
+                    if "ПРИЧИНА" in f and "НЕ ИЗМЕРЕНА" in f]
+    if not found_no_rec:
+        return NOT_SATISFIED, (
+            "ось не измерена, а НАХОДКИ у читателя нет: молчание читается как "
+            "«про причины всё в порядке»")
+
+    # ── сцена 3: отчёт старше оси ───────────────────────────────────────────
+    cen_aged = (doc_aged.get("red_census") or {})
+    if cen_aged.get("cause_axis") is not None:
+        return NOT_SATISFIED, (
+            f"отчёт БЕЗ блока `cause_axis` дал у читателя "
+            f"{cen_aged.get('cause_axis')!r} вместо отсутствия: «блока нет» обязано "
+            f"быть различимо")
+    found_aged = [f for f in (doc_aged.get("findings") or [])
+                  if "ПРИЧИНА" in f and "НЕ ИЗМЕРЕНА" in f]
+    if not found_aged:
+        return NOT_SATISFIED, (
+            "у отчёта старше ADR-891 причин нет ВОВСЕ, а находки у читателя нет: "
+            "старый отчёт читался бы как «причины в порядке»")
+    lines_aged = "\n".join(reader.report(doc_aged))
+    if "НЕ ИЗМЕРЕНА" not in lines_aged:
+        return NOT_SATISFIED, (
+            "у отчёта старше ADR-891 отрисованные строки о причинах молчат")
+    if found_aged[0] == found_no_rec[0]:
+        return NOT_SATISFIED, (
+            f"причина третьего исхода ОДНА на два разных состояния: «свод старше оси» "
+            f"и «junit-записи не было» чинятся разным, а читатель говорит о них "
+            f"дословно одно: {found_aged[0]!r}")
+
+    # ── сцена 4: падение есть в отчёте и нет в записи ───────────────────────
+    if not isinstance(axis_partial, dict) or axis_partial.get("status") != "measured":
+        return NOT_SATISFIED, (
+            f"сцена с НЕПОЛНОЙ записью дала «{(axis_partial or {}).get('status')}»: "
+            f"часть причин опознана, и выдавать это за «не измерено» значило бы "
+            f"терять опознанное")
+    if axis_partial.get("unattributed") != [nodeids[2]]:
+        return NOT_SATISFIED, (
+            f"падение, которого нет в junit-записи, НЕ НАЗВАНО поимённо: ось отдала "
+            f"{axis_partial.get('unattributed')!r}, а на сцене записи нет у "
+            f"{nodeids[2]}; безымянное «причину не опознали» ничем не отличается от "
+            f"нуля")
+    if axis_partial.get("population") != len(nodeids):
+        return NOT_SATISFIED, (
+            f"неполная запись УМЕНЬШИЛА население: {axis_partial.get('population')!r} "
+            f"при {len(nodeids)} падениях отчёта")
+
+    return SATISFIED, (
+        f"причина падения НАЗВАНА и доходит до читателя: на целом контуре опознано "
+        f"{axis['attributed']} из {axis['population']} "
+        f"({', '.join(f'{k} {v}' for k, v in axis['kinds'].items())}), вилка дефектов "
+        f"НЕ МЕНЬШЕ {fork['lower']} и НЕ БОЛЬШЕ {fork['upper']} при слиянии двух "
+        f"падений одного грубого скелета, тождество учёта держится, причина лежит и в "
+        f"самих строках `failures`, и в ОТРИСОВАННЫХ строках читателя; записи у шарда "
+        f"нет ⇒ третий исход с причиной («{why_no_rec[:120]}») при нетронутом населении "
+        f"и находкой у читателя; отчёт старше оси ⇒ СВОЙ третий исход, дословно ОТЛИЧНЫЙ "
+        f"от предыдущего; падение без записи названо поимённо "
+        f"({axis_partial['unattributed'][0]})")
+
+
 def _probe_adr_title_gate_refuses_a_fat_register(arg: str | None = None,
                                                  *, repo_root: str | None = None
                                                  ) -> tuple[str, str]:
@@ -15417,6 +15736,8 @@ PROBES: dict[str, Callable[[str | None], "tuple[str, str]"]] = {
         _probe_shadow_verification_replay_was_conducted,
     "adr_title_gate_refuses_a_fat_register":
         _probe_adr_title_gate_refuses_a_fat_register,
+    "ci_red_cause_axis_names_the_cause":
+        _probe_ci_red_cause_axis_names_the_cause,
 }
 
 
