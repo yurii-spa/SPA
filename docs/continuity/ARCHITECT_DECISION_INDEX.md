@@ -1,6 +1,6 @@
 # ARCHITECT_DECISION_INDEX — generated index over canonical decisions (not a decision store)
 
-> Generated 2026-10-07T21:55:25Z by ADR-610's generator from `docs/decisions/`. The class is declared per topic and OVERRIDDEN by the canon: a cited ADR that is superseded, not accepted, missing or ambiguous cannot stay CURRENT. Read the cited ADR in full before acting; this table is navigation.
+> Generated 2026-11-01T13:32:53Z by ADR-610's generator from `docs/decisions/`. The class is declared per topic and OVERRIDDEN by the canon: a cited ADR that is superseded, not accepted, missing or ambiguous cannot stay CURRENT. Read the cited ADR in full before acting; this table is navigation.
 
 ## CURRENT
 
@@ -18,7 +18,7 @@
 | shadow-execution | Shadow execution; automated live execution PROHIBITED; a real-capital pilot is owner-gated | [ADR-556](../../docs/decisions/ADR-556-shadow-execution-and-pilot-readiness.md) ACCEPTED · 2026-10-04 | Unsigned intents, keyless quorum simulation. |
 | three-paper-portfolios | Conservative / Balanced / Aggressive = three PAPER portfolios with different mechanics | [ADR-533](../../docs/decisions/ADR-533-three-defi-paper-portfolios.md) ACCEPTED · 2026-10-01<br>[ADR-548](../../docs/decisions/ADR-548-three-portfolios-owner-gate-applied.md) ACCEPTED · 2026-10-03 | docs/ROADMAP.md item 3 cites ADR-537 for the owner gate; the gate decision itself is ADR-548. |
 | public-internal-naming | Public tiers Conservative/Balanced/Aggressive; Conservative = the evidenced book; naming is owner subject №2 | [ADR-593](../../docs/decisions/ADR-593-conservative-is-the-evidenced-book-backfill.md) ACCEPTED · 2026-07-11<br>[ADR-285](../../docs/decisions/ADR-285-owner-decision-boundary-by-subject.md) ACCEPTED · 2026-09-09 | Alt names Preserve/Core/Max Yield are «owner choice #6» (landing/src/lib/tier_bands.json); Core is ambiguous. |
-| published-rate-rounds-down | The published yield rate rounds DOWN | [ADR-563](../../docs/decisions/ADR-563-published-rate-rounds-down.md) ACCEPTED · 2026-10-04 | Owner option 1, 2026-10-04. |
+| owner-presentation-policy | Every user-visible percentage: two decimals, ROUND_HALF_UP; owner-facing time: Europe/Madrid | [ADR-660](../../docs/decisions/ADR-660-owner-presentation-policy-pct-two-decimals-madrid-time.md) ACCEPTED · 2026-10-08 | One formatter per runtime (spa_core/utils/presentation.py, site_numbers.js::fmtPct2); public site via the owner publication gate. |
 | single-roadmap-and-memory-v1 | Memory & Context Architecture v1; docs/ROADMAP.md is the single roadmap | [ADR-527](../../docs/decisions/ADR-527-memory-and-context-architecture-v1.md) ACCEPTED · 2026-10-01 | Five memory layers; chat is never canonical. |
 | memory-hybrid | Memory = HYBRID_BORROW_COMPONENTS (stdlib FTS5 + two borrowed ideas) | [ADR-591](../../docs/decisions/ADR-591-memory-hybrid-borrow-components.md) ACCEPTED · 2026-10-05<br>[ADR-527](../../docs/decisions/ADR-527-memory-and-context-architecture-v1.md) ACCEPTED · 2026-10-01 | — |
 | backup-offsite | DR: typed archive classes FULL / CRITICAL (never chosen by age across classes) + verified off-device copy to iCloud Drive | [ADR-580](../../docs/decisions/ADR-580-company-truth-contracts-rm-truth-01.md) ACCEPTED · 2026-10-05<br>[ADR-611](../../docs/decisions/ADR-611-backup-archive-classes.md) ACCEPTED · 2026-10-07 | C10 DR coverage; ADR-611 archive classes; commits 1c5445d3 (iCloud default) and fe0534b5 (CIO *.json.gz). Upload to Apple servers is NOT_MEASURED from the Mac. |
@@ -38,6 +38,7 @@
 |---|---|---|---|
 | director-os-v1-cockpits | Director OS :8788, Studio Shell :8778, repo dashboard :8767 as owner cockpits | [ADR-592](../../docs/decisions/ADR-592-director-os-v2-mission-control.md) ACCEPTED · 2026-10-05 | Presentation superseded by ADR-592; unloading their agents is an owner action. |
 | older-btc-engines | research/btc_cycle and btc_nav (older SPA BTC systems) | [ADR-590](../../docs/decisions/ADR-590-canonical-trading-research-lineage.md) ACCEPTED · 2026-10-05 | SUPERSEDED_HISTORY; the earn-defi BTC Signal Engine is a SEPARATE_PRODUCT, not superseded. |
+| published-rate-rounds-down | The published yield rate rounds DOWN (one decimal) | [ADR-563](../../docs/decisions/ADR-563-published-rate-rounds-down.md) SUPERSEDED · 2026-10-04 | Owner option 1, 2026-10-04; presentation rule superseded by ADR-660 (owner, 2026-10-08). |
 | openclaw | OpenClaw third-party AI gateway (Telegram + local model, shell access) (REMOVED_RETIRED) | [ADR-599](../../docs/decisions/ADR-599-openclaw-removed.md) ACCEPTED · 2026-10-07 | Removed by explicit owner decision 2026-10-07; no SPA component depended on it. |
 
 ## REJECTED

@@ -47,6 +47,10 @@ ROADMAP_RU = {
 
 UNKNOWN_STAGE = "Этап плана (название только на английском — см. подробности)"
 
+#: «Сдано, ждёт приёмки» — НЕ «в работе» (ADR-890). ОДНА копия: её читают и пульт (``mission_control._roadmap``),
+#: и генератор контекст-пакета (``memory.continuity.roadmap_view``); две копии правила уже разошлись однажды.
+AWAITING_REVIEW = re.compile(r"awaiting ARB|handed to ARB|NOT ARB-accepted|ждёт приёмки|ждёт ARB", re.I)
+
 
 def _key(title: str) -> tuple:
     m = _CODE.match(title)

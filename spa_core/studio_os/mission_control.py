@@ -762,7 +762,7 @@ def decision_item(name: str, card: dict, prod: Optional[dict], bot: Optional[str
 
 # ── sections ───────────────────────────────────────────────────────────────────────────────────
 #: Эпик сдан и ждёт приёмки — отдельное состояние, а не «в работе» и не «сделано».
-_AWAITING_REVIEW = re.compile(r"awaiting ARB|handed to ARB|NOT ARB-accepted|ждёт приёмки|ждёт ARB", re.I)
+from spa_core.studio_os.owner_dictionary import AWAITING_REVIEW as _AWAITING_REVIEW  # noqa: E402 — одна копия
 #: Строка шага цели под пунктом roadmap:
 #: ``   - step S3 · Paper-конвейер — BLOCKED: причина · executor: кто · last: что подтверждено``
 _ROADMAP_STEP = re.compile(r"^\s+-\s+step\s+(\S+)\s+·\s+(.+?)\s+—\s+(DONE|IN_PROGRESS|READY|WAITING|BLOCKED)"

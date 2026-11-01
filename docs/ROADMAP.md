@@ -189,6 +189,9 @@
     - step S2+S3 · Интеграционный кандидат — IN_PROGRESS: полный CI объединённого состава идёт · executor: агент · last: integration/s2-s3 04d2c994a на main feff8523a
     - step S4 · Управление владельца с телефона — IN_PROGRESS · executor: агент (ветка s4/owner-control) · last: K1 — намерение владельца только по проверенному входу (72842a5af)
     - step S5 · Доказательство работы — BLOCKED: начинается после приёмки S2–S4 · executor: — · last: —
+    Owner gates: root-установка и канарейка S2; merge интеграционного кандидата и S4 в main; перезапуск бота;
+    решение по новой forward-серии (E6.6). Next safe action: ARB-приёмка интеграционного кандидата S2+S3 и
+    кандидата S4 по их полным CI, затем единый запрос разрешений владельцу.
 
 ## Director OS backlog — the 34 items of 2026-10-15, reconciled 2026-10-16 (ADR-763)
 

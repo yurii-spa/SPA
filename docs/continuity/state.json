@@ -319,22 +319,41 @@
   },
   {
    "basis": "declared",
-   "cls": "CURRENT",
-   "declared": "CURRENT",
+   "cls": "SUPERSEDED",
+   "declared": "SUPERSEDED",
    "disposition": null,
-   "note": "Owner option 1, 2026-10-04.",
+   "note": "Owner option 1, 2026-10-04; presentation rule superseded by ADR-660 (owner, 2026-10-08).",
    "refs": [
     {
      "adr": "ADR-563",
      "effective": "2026-10-04",
      "number_collision": null,
      "path": "docs/decisions/ADR-563-published-rate-rounds-down.md",
+     "status": "SUPERSEDED",
+     "superseded_by": null
+    }
+   ],
+   "title": "The published yield rate rounds DOWN (one decimal)",
+   "topic": "published-rate-rounds-down"
+  },
+  {
+   "basis": "declared",
+   "cls": "CURRENT",
+   "declared": "CURRENT",
+   "disposition": null,
+   "note": "One formatter per runtime (spa_core/utils/presentation.py, site_numbers.js::fmtPct2); public site via the owner publication gate.",
+   "refs": [
+    {
+     "adr": "ADR-660",
+     "effective": "2026-10-08",
+     "number_collision": null,
+     "path": "docs/decisions/ADR-660-owner-presentation-policy-pct-two-decimals-madrid-time.md",
      "status": "ACCEPTED",
      "superseded_by": null
     }
    ],
-   "title": "The published yield rate rounds DOWN",
-   "topic": "published-rate-rounds-down"
+   "title": "Every user-visible percentage: two decimals, ROUND_HALF_UP; owner-facing time: Europe/Madrid",
+   "topic": "owner-presentation-policy"
   },
   {
    "basis": "declared",
@@ -522,39 +541,38 @@
   }
  ],
  "header": {
-  "adr_listing_sha256": "98606bc1a55c8cb79fa18df1ed652cf864ebc47283211f230cbe10851e22188f",
-  "adr_max_considered": 642,
+  "adr_listing_sha256": "232d1e0c818a48642e40e91110a0f84a8139efbd28204b06df65ec50043aed09",
+  "adr_max_considered": 890,
   "authority": "DERIVED",
   "context_version": "arb-continuity/2",
   "copy_role": "COMMITTED_SNAPSHOT",
-  "generated_at": "2026-10-07T21:55:25Z",
-  "generator_version": "arb-continuity/2+8cd366e83d35",
+  "generated_at": "2026-11-01T13:32:53Z",
+  "generator_version": "arb-continuity/2+6e0d348b378b",
   "latest_accepted_epic": "RM-TRUTH-01 · Company truth reconciliation + Director OS recovery",
-  "origin_commit": "b263d032c82f5d9524dce4ef1106a286f9c35fe3",
-  "production_release": "f1ab7165060fa65bffdd783dc021b42c05944b64",
-  "production_release_verified_at": "2026-10-07T21:46:59Z",
-  "repo_commit": "b263d032c82f5d9524dce4ef1106a286f9c35fe3",
+  "origin_commit": "feff8523a09748455d8f9658063438f2ecd6f941",
+  "production_release": "UNKNOWN",
+  "production_release_verified_at": null,
+  "repo_commit": "0c399b97ac6b9e83755231df03f5e3edaa2237d4",
   "root_dirty_inputs": [],
-  "runtime_truth_computed_at": "2026-10-07T21:48:03Z",
+  "runtime_truth_computed_at": "2026-11-01T13:29:28Z",
   "source_snapshot_ids": [
-   "inputs:1142ac0f91703e21c18a5cce611b95c6b8223758564046fa34bb88911d005a50",
-   "mission:8a20f61d5bd1f1616de182ad47edfb9049a021d132f5d78efe81db9b45430950",
-   "receipt:7b1efdbef8a2f4ca15e43c8eba42ed5b0b9e2e4465a9e107f4cacad6aff3acba"
+   "inputs:89e4806dff6d176d890970d5b208c39245cef8f38e67a41d7bdbf3df1e993802",
+   "mission:838ba23a7937a0890e0d44082ebdf4f2ec86099acc34f28af6c69542e187eb8c"
   ],
-  "verdict_at_generation": "CONTEXT_FRESH"
+  "verdict_at_generation": "CONTEXT_PARTIAL"
  },
  "inputs": {
   "CLAUDE.md": "abdb0ebd8371969eb9abd5220f2dce269c880029472023ea3e6364cbc2c4c5c2",
   "architecture/memory_truth.json": "62b2c3c4de89a17fc03b45b00a05c2bf36d041ad667adbaa6358b827fc9a7702",
   "architecture/roles.json": "a170823dd247fa34db2942bfc2541539dd480c98e1f9d4e22d021187f1076f0c",
-  "derived:adr_registry_listing": "98606bc1a55c8cb79fa18df1ed652cf864ebc47283211f230cbe10851e22188f",
-  "derived:supersession_of_cited_adrs": "d0053278d515c63ff1934fbd65f3c75d8b9776c1faa2edd7defa959ed7658f08",
-  "docs/ROADMAP.md": "07f2134982514dfc9ef86ff77ea1f0609e24909f1b4a410e16b884ecf7b3d538",
-  "docs/STATE.md": "92895a1509912c31ff6a8931c1f97a4de2e7c807ed157cd83bb4518845b97a37",
+  "derived:adr_registry_listing": "232d1e0c818a48642e40e91110a0f84a8139efbd28204b06df65ec50043aed09",
+  "derived:supersession_of_cited_adrs": "9ec0973e5a7bfcdab0561b80e29543eded94bbefa2b3905145f43cd8d9feda8b",
+  "docs/ROADMAP.md": "2ae501d99e6610b1f9e24ad565e8932de40ddfae2c4038e171485706bc168d5e",
+  "docs/STATE.md": "abfd1d9a4f8a25d66d269829b4ac900c9c54ccd3819c73a8768772296f6ae4e0",
   "docs/continuity/ARCHITECT_CONTEXT.md": "61a52614a233b8226b3133e0b7e47afb1b53dbc508e88fb842881566c2fa33c6",
   "docs/continuity/BOOTSTRAP.md": "f3457d2cf7f3e64671fb63f8a0a84b4e5984675366b87183dc0cc4eb266fd944",
   "docs/continuity/CURRENT_STATE.schema.json": "bf01263ab95a63fc781dc8d40a32825d261b448765a42f010d69d1121b0f3459",
-  "docs/continuity/OWNER_INTENT_LEDGER.md": "c457f2cd6d142da6b1659703514dab3b3d9e6bebe5e274ea081ca847e996e88f",
+  "docs/continuity/OWNER_INTENT_LEDGER.md": "7389b05df5ae818e9f0c0d629af7a970e6f2ef4455a33c6ff78b04eae27c7c99",
   "docs/decisions/ADR-084-routine-selfheal-does-not-call-the-owner.md": "bc231b35dea65a27fd73de1565f5839858a5a4776a22dc88d7bc9a96a1165136",
   "docs/decisions/ADR-285-owner-decision-boundary-by-subject.md": "e65fa7ed1abdeadb0f2b39a073eeedd74567d39970babf94e8c9dad59a7f031a",
   "docs/decisions/ADR-521-telegram-owner-control-plane.md": "918cad9a74731b4f94e99e103f47bc5bf46e0844162ec221b149cb2069d55cf5",
@@ -566,7 +584,7 @@
   "docs/decisions/ADR-554-investment-cio-capital-allocation-v1.md": "310060cb50efb13aafda148194d988c26fa3cd15372971a82a20a156e5221a55",
   "docs/decisions/ADR-556-shadow-execution-and-pilot-readiness.md": "fc1aaea5675aa7dbe6e23ba6f292cb73d77f5873e1c6084f55fbbdb51424b7e0",
   "docs/decisions/ADR-560-research-factory-capital-universe-expansion.md": "35471bd0d007841fa8e452a5255340bef2112f25c7a0645e61b8ce6d7f34ad3c",
-  "docs/decisions/ADR-563-published-rate-rounds-down.md": "e97ecff204a17a659ed74a3d637c84e258f0982bb62ed3a06a51a41b2e624c72",
+  "docs/decisions/ADR-563-published-rate-rounds-down.md": "b9b151e40238dce187eb4495ee5b3db723a8c0efde222dde2bd5b74a20e9d1af",
   "docs/decisions/ADR-564-research-evidence-and-paper-admission.md": "ca582a3779eb62eb97539c99b2c2c6e5bc344a293a6a06aceefa2fce6829a680",
   "docs/decisions/ADR-580-company-truth-contracts-rm-truth-01.md": "97a110d60f190ce2365aaa413149689ea88f28d6e4e72cbbf224b2a7bfef1db7",
   "docs/decisions/ADR-590-canonical-trading-research-lineage.md": "82b8541198a2df723f3ca5e3acc92200947d63d3261e93572716365fbc5820c8",
@@ -577,12 +595,19 @@
   "docs/decisions/ADR-610-arb-continuity.md": "ea3d6e36d16780d38597bbcc3a6851433d00b43c86724ada515c109771a29958",
   "docs/decisions/ADR-611-backup-archive-classes.md": "721231c836139a2c7ae635960dbc55564d178facf5d16ddff13b7490f517c9db",
   "docs/decisions/ADR-612-telegram-capital-surface-and-plain-owner-language.md": "daa100eb8a22bef76827a0d9409a3ac810794ca646e06422ca387030f64af9b2",
-  "docs/decisions/INDEX.md": "fa44c0950b0b6e3f11649fb0344403ccce4824afe1088746d27b459a3907b10b",
-  "spa_core/studio_os/memory/continuity.py": "8cd366e83d35bf5a4f236d453700745ccf96435f305f650b5a762818e76411d6"
+  "docs/decisions/ADR-660-owner-presentation-policy-pct-two-decimals-madrid-time.md": "a96ec8c48d474285f1c488a632e460a5ca600e317873a0b56dad9451eea9437b",
+  "docs/decisions/ADR-760-cockpit-voice-and-text-intake-only-write-action.md": "b99343cf5d1ada3fa77e09aa3c8159cdee8ac89df4a6b2791f8c51c78963a249",
+  "docs/decisions/ADR-762-director-os-owner-view-model-and-version-bound-confirmation.md": "833d1b7427fb373f58a8fe004e7aa2074ffc0eb3f491483b83b964d394a0616b",
+  "docs/decisions/ADR-763-studio-os-next-stage-owner-directive-2026-10-16.md": "0088bfbe7bf31ce840f246df4cd4039be9a20562c6cf2178d067a782afdc2ab2",
+  "docs/decisions/ADR-880-studio-autonomy-s1-accepted-as-engineering-stage.md": "7a6547ead6a3ed6422099d662676485e0041bb7913f2956595afe86fc1e59e41",
+  "docs/decisions/ADR-882-studio-autonomy-s2-release-verification-accepted-limited.md": "3d22de1f664b0bcbde99f8d18508d6b6cce2c5eed7f9dab238e3de5c28eebd10",
+  "docs/decisions/ADR-890-owner-intent-needs-a-verified-author-and-the-cockpit-shows-goal-steps.md": "0541042517f34474a4fecca3e83261f28253bd5aa13b02fd5c18ac9c82843828",
+  "docs/decisions/INDEX.md": "f7848bc0eabb7e1d1db5298584cf94230e9ea8796875cb985d882da8c5c5bcd2",
+  "spa_core/studio_os/memory/continuity.py": "6e0d348b378bceaff8fafd73657ba08b1a57f8fc0976c0445a64486fd1251d81"
  },
  "intents": [
   {
-   "curated_status": "DELIVERED (ADR-592, 2026-10-06); owner iPhone acceptance through Cloudflare Access NOT YET done by the owner.",
+   "curated_status": "DELIVERED (ADR-592, 2026-10-06); new cockpit on the owner's mockup published 2026-10-15 (`2df987cec`, docs/ROADMAP.md item 16), awaiting ARB; owner opened it on the iPhone through Cloudflare Access on…",
    "decision_status": "DECISIONS_CURRENT",
    "decisions": [
     "ADR-552",
@@ -658,14 +683,17 @@
   },
   {
    "curated_status": "publication candidate `rmtruth/pubtruth` waits for the owner (Owner Gate).",
-   "decision_status": "DECISIONS_CURRENT",
+   "decision_status": "SUPERSEDED_DECISION",
    "decisions": [
     "ADR-285",
     "ADR-563",
     "ADR-580",
-    "ADR-593"
+    "ADR-593",
+    "ADR-660"
    ],
-   "flags": [],
+   "flags": [
+    "ADR-563 is SUPERSEDED by None"
+   ],
    "intent_id": "INT-07",
    "last_verified": "2026-10-07",
    "title": "Public product semantics — numbers the visitor can trust"
@@ -746,6 +774,48 @@
    "intent_id": "INT-13",
    "last_verified": "2026-10-07",
    "title": "ARB continuity — architecture survives a fresh session"
+  },
+  {
+   "curated_status": "owner surfaces DELIVERED in the change that introduced ADR-660; public-site switch PREPARED, waits for the owner publication gate (public numbers = ADR-285 subject №2).",
+   "decision_status": "SUPERSEDED_DECISION",
+   "decisions": [
+    "ADR-285",
+    "ADR-563",
+    "ADR-660"
+   ],
+   "flags": [
+    "ADR-563 is SUPERSEDED by None"
+   ],
+   "intent_id": "INT-14",
+   "last_verified": "2026-10-08",
+   "title": "Owner presentation policy — how numbers and times are shown to the owner"
+  },
+  {
+   "curated_status": "IN PROGRESS (docs/ROADMAP.md item 17).",
+   "decision_status": "DECISIONS_CURRENT",
+   "decisions": [
+    "ADR-611",
+    "ADR-760",
+    "ADR-762",
+    "ADR-763"
+   ],
+   "flags": [],
+   "intent_id": "INT-15",
+   "last_verified": "2026-10-16",
+   "title": "STUDIO-OS-NEXT-01 — next stage under the ARB plan"
+  },
+  {
+   "curated_status": "IN PROGRESS — S2 live steps wait for the owner (root), S3 E6.6 open (ARB), S4 candidate not merged, S5 not started.",
+   "decision_status": "DECISIONS_CURRENT",
+   "decisions": [
+    "ADR-880",
+    "ADR-882",
+    "ADR-890"
+   ],
+   "flags": [],
+   "intent_id": "INT-16",
+   "last_verified": "2026-11-01",
+   "title": "STUDIO-AUTONOMY-01 — the owner manages the studio from the phone"
   }
  ],
  "profiles": [
@@ -754,17 +824,17 @@
    "alt_name": "Preserve",
    "decision": "ADR-593",
    "effective": "2026-07-11",
-   "evidenced_days": 106,
+   "evidenced_days": 131,
    "internal_book": "main cycle_runner book (RiskPolicy v1.0)",
    "metric_type": "REALIZED_PAPER_RETURN",
    "profile": "Conservative",
    "reportable": true,
    "runtime_state": "MEASURED",
    "track_source": "data/equity_curve_daily.json",
-   "value": "4.9 %"
+   "value": "4,92 %"
   },
   {
-   "accumulating_days": 6,
+   "accumulating_days": "UNKNOWN",
    "alt_name": "Core (ambiguous)",
    "decision": "ADR-533",
    "effective": "2026-10-01",
@@ -772,13 +842,13 @@
    "internal_book": "fixed-rate PT sleeve (balanced-fixed-carry-v1)",
    "metric_type": "REALIZED_PAPER_RETURN",
    "profile": "Balanced",
-   "reportable": false,
-   "runtime_state": "NOT_ENOUGH_HISTORY",
+   "reportable": true,
+   "runtime_state": "MEASURED",
    "track_source": "data/hy_paper_trading.json",
-   "value": "UNKNOWN"
+   "value": "3,41 %"
   },
   {
-   "accumulating_days": 6,
+   "accumulating_days": "UNKNOWN",
    "alt_name": "Max Yield",
    "decision": "ADR-533",
    "effective": "2026-10-01",
@@ -786,10 +856,10 @@
    "internal_book": "SIMULATED sUSDe/PYUSD loop sleeve",
    "metric_type": "REALIZED_PAPER_RETURN",
    "profile": "Aggressive",
-   "reportable": false,
-   "runtime_state": "NOT_ENOUGH_HISTORY",
+   "reportable": true,
+   "runtime_state": "MEASURED",
    "track_source": "data/lp_paper_trading.json",
-   "value": "UNKNOWN"
+   "value": "4,66 %"
   },
   {
    "accumulating_days": "UNKNOWN",
@@ -803,109 +873,108 @@
    "reportable": "n/a (target, not a result)",
    "runtime_state": "MEASURED",
    "track_source": "landing/src/lib/tier_bands.json",
-   "value": "Консервативный 6.0 % · Сбалансированный 12.0 % · Агрессивный 20.0 %"
+   "value": "Консервативный 0,00 % · Сбалансированный 0,00 % · Агрессивный 0,00 %"
   }
  ],
  "runtime": {
   "mission": {
-   "age_h_at_generation": 0.12,
-   "bundle": "b-20261007T214803Z-62ceeb78",
-   "computed_at": "2026-10-07T21:48:03Z",
+   "age_h_at_generation": 0.06,
+   "bundle": "b-20261101T132928Z-301b5162",
+   "computed_at": "2026-11-01T13:29:28Z",
    "reason": "read",
-   "sha256": "8a20f61d5bd1f1616de182ad47edfb9049a021d132f5d78efe81db9b45430950"
+   "sha256": "838ba23a7937a0890e0d44082ebdf4f2ec86099acc34f28af6c69542e187eb8c"
   },
   "receipt": {
-   "reason": "code sync IN_SYNC",
-   "sha256": "7b1efdbef8a2f4ca15e43c8eba42ed5b0b9e2e4465a9e107f4cacad6aff3acba"
+   "reason": "receipt absent",
+   "sha256": null
   }
  },
  "sections": {
   "active_epic": {
    "as_of": null,
    "authority": "CANONICAL",
-   "display": "ARB-CONTINUITY-01 · Architecture continuity + owner control & recovery hardening · Claude announced (as of 2026-10-07T21:48:03Z): ARB-CONTINUITY-01 · Architecture continuity + owner control & recovery hardening",
+   "display": "ARB-CONTINUITY-01 · Architecture continuity + owner control & recovery hardening · Claude announced (as of 2026-11-01T13:29:28Z): ARB-CONTINUITY-01 · Architecture continuity + owner control & recovery hardening",
    "source": "docs/ROADMAP.md «Order of the next epics» (+ runtime truth.studio.claude_work, DONE epics dropped)",
    "status": "MEASURED",
    "value": "ARB-CONTINUITY-01 · Architecture continuity + owner control & recovery hardening"
   },
   "active_problems": {
-   "as_of": "2026-10-07T21:43:49.733574+00:00",
+   "as_of": "2026-11-01T13:07:40.236020+00:00",
    "authority": "RUNTIME",
-   "display": "открыто: 4 · утихли без причины: 4 · закрыто за неделю: 0 · open: com.spa.resource_guard.exit_nonzero_1, com.spa.swarm_health.exit_nonzero_1, fleet.retired_but_loaded, system_health.domains_degraded",
+   "display": "открыто: 3 · утихли без причины: 3 · закрыто за неделю: 4 · open: com.spa.site_freshness.exit_nonzero_1, system_health.domains_degraded, site_freshness.SHELF_NOT_DELIVERED",
    "source": "runtime: mission.json truth.studio.problems (canon: data/problems.json)",
    "status": "MEASURED",
    "value": {
-    "closed_recent": 0,
-    "mitigated": 4,
+    "closed_recent": 4,
+    "mitigated": 3,
     "open": [
-     "com.spa.resource_guard.exit_nonzero_1",
-     "com.spa.swarm_health.exit_nonzero_1",
-     "fleet.retired_but_loaded",
-     "system_health.domains_degraded"
+     "com.spa.site_freshness.exit_nonzero_1",
+     "system_health.domains_degraded",
+     "site_freshness.SHELF_NOT_DELIVERED"
     ],
-    "open_count": 4
+    "open_count": 3
    }
   },
   "btc": {
-   "as_of": "2026-10-07T21:48:49Z",
+   "as_of": "2026-11-01T13:22:24Z",
    "authority": "RUNTIME",
-   "display": "research signal only, not an order: Консенсус сигналов по таймфреймам: 1D лонг, 1h нейтрально, 4h нейтрально",
+   "display": "research signal only, not an order: Консенсус сигналов по таймфреймам: 1D нейтрально, 1h лонг, 4h нейтрально",
    "source": "runtime: mission.json truth.capital.btc (canon: spa_core.trading_research.read_model.trading_lab_view.btc_signal_consensus_by_timeframe)",
    "status": "MEASURED",
    "value": {
     "1D": {
-     "flat": 7,
-     "long": 38,
-     "short": 1
+     "flat": 18,
+     "long": 16,
+     "short": 12
     },
     "1h": {
-     "flat": 19,
-     "long": 8,
-     "short": 19
+     "flat": 17,
+     "long": 18,
+     "short": 11
     },
     "4h": {
-     "flat": 19,
-     "long": 13,
-     "short": 14
+     "flat": 22,
+     "long": 4,
+     "short": 20
     }
    }
   },
   "capital_summary": {
-   "as_of": "2026-10-07T06:00:15Z",
+   "as_of": "2026-11-01T07:00:15Z",
    "authority": "RUNTIME",
-   "display": "Консервативный: 4.8 % годовых · худшая просадка -0.04 % · 106 дн. (бумага) Копится: Сбалансированный 6 из 30, Агрессивный 6 из 30.",
+   "display": "Консервативный: +1,75 % за 132 дн. (бумага) · оценочный годовой эквивалент 4,92 % (ACT/365 Fixed по датам оценки; время начальной оценки не записано; не прогноз) · худшая просадка -0,04 %",
    "source": "runtime: mission.json truth.home.strip[yield] (canon: data/equity_curve_daily.json)",
    "status": "MEASURED",
    "value": null
   },
   "current_origin": {
-   "as_of": "2026-10-07T21:55:25Z",
+   "as_of": "2026-11-01T13:32:53Z",
    "authority": "CANONICAL",
-   "display": "canonical root HEAD b263d032c82f · origin main on the server b263d032c82f",
+   "display": "canonical root HEAD 0c399b97ac6b · origin main on the server feff8523a097 — the root is NOT at the origin head",
    "source": "git rev-parse HEAD in the canonical root + git ls-remote origin (asked at generation)",
    "status": "MEASURED",
-   "value": "b263d032c82f5d9524dce4ef1106a286f9c35fe3"
+   "value": "feff8523a09748455d8f9658063438f2ecd6f941"
   },
   "defi_paper": {
-   "as_of": "2026-10-07T06:00:15Z",
+   "as_of": "2026-11-01T07:00:15Z",
    "authority": "RUNTIME",
-   "display": "Conservative: 4.9 % (MEASURED, evidenced 106 d, accumulating UNKNOWN d) · Balanced: rate not reportable (NOT_ENOUGH_HISTORY, evidenced UNKNOWN d, accumulating 6 d) · Aggressive: rate not reportable (NOT_ENOUGH_HISTORY, evidenced UNKNOWN d, accumulating 6 d)",
+   "display": "Conservative: 4,92 % (MEASURED, evidenced 131 d, accumulating UNKNOWN d) · Balanced: 3,41 % (MEASURED, evidenced UNKNOWN d, accumulating UNKNOWN d) · Aggressive: 4,66 % (MEASURED, evidenced UNKNOWN d, accumulating UNKNOWN d)",
    "source": "runtime: mission.json truth.product.profiles.* (canon per row in «Public profile mapping»)",
    "status": "MEASURED",
    "value": null
   },
   "director_os": {
-   "as_of": "2026-10-07T21:48:03Z",
+   "as_of": "2026-11-01T13:29:28Z",
    "authority": "RUNTIME",
-   "display": "Mission Control bundle b-20261007T214803Z-62ceeb78, Company Truth computed 2026-10-07T21:48:03Z (age 0.12 h at generation); read model only (ADR-592)",
+   "display": "Mission Control bundle b-20261101T132928Z-301b5162, Company Truth computed 2026-11-01T13:29:28Z (age 0.06 h at generation); read model only (ADR-592)",
    "source": "runtime: published Mission Control bundle (current.json → mission.json)",
    "status": "MEASURED",
-   "value": "b-20261007T214803Z-62ceeb78"
+   "value": "b-20261101T132928Z-301b5162"
   },
   "last_verification": {
-   "as_of": "2026-10-07T21:55:25Z",
+   "as_of": "2026-11-01T13:32:53Z",
    "authority": "DERIVED",
-   "display": "generated 2026-10-07T21:55:25Z · code-sync receipt 2026-10-07T21:46:59Z · Company Truth 2026-10-07T21:48:03Z",
+   "display": "generated 2026-11-01T13:32:53Z · code-sync receipt None · Company Truth 2026-11-01T13:29:28Z",
    "source": "this generator (freshness: `python -m spa_core.studio_os.memory continuity check`)",
    "status": "MEASURED",
    "value": null
@@ -919,7 +988,7 @@
    "value": "RM-TRUTH-01 · Company truth reconciliation + Director OS recovery"
   },
   "live_execution": {
-   "as_of": "2026-10-07T05:15:00.575022+00:00",
+   "as_of": "2026-11-01T06:15:04.862856+00:00",
    "authority": "RUNTIME",
    "display": "NOT ENABLED — paper only; investment-engine readiness NOT_READY, open go-live conditions 4",
    "source": "runtime: mission.json truth.capital.readiness (canon: data/execution_readiness.json ∧ data/owner_blockers.json (readiness_scopes.INVESTMENT_ENGINE_READINESS); data/capital_shadow/ledger.jsonl); policy ADR-556",
@@ -927,30 +996,30 @@
    "value": "LIVE_DISABLED"
   },
   "memory": {
-   "as_of": "2026-10-07T21:47:22Z",
+   "as_of": "2026-11-01T13:06:37Z",
    "authority": "RUNTIME",
-   "display": "index lag 0 ADRs · newest indexed 642 · truth overrides 12",
+   "display": "index lag 0 ADRs · newest indexed 889 · truth overrides 12",
    "source": "runtime: mission.json truth.studio.memory (canon: architecture/memory_truth.json + data/memory/index.db)",
    "status": "MEASURED_ZERO",
    "value": {
     "lag": 0,
-    "newest_indexed": 642,
-    "newest_origin": 642,
+    "newest_indexed": 889,
+    "newest_origin": 889,
     "truth_overrides": 12
    }
   },
   "next_safe_action": {
    "as_of": null,
    "authority": "CANONICAL",
-   "display": "ARB review of the ARB-CONTINUITY-01 closeout, then the owner gates",
+   "display": "ARB review of the ARB-CONTINUITY-01 closeout, then the owner gates; current execution work is item 17 (STUDIO-OS-NEXT-01, ADR-763)",
    "source": "docs/ROADMAP.md «Next safe action:» of the active epic",
    "status": "MEASURED",
    "value": null
   },
   "oracle": {
-   "as_of": "2026-10-07T07:30:05Z",
+   "as_of": "2026-11-01T08:30:03Z",
    "authority": "RUNTIME",
-   "display": "stance INSUFFICIENT_EVIDENCE · {\"confidence\": \"LOW\", \"date\": \"2026-10-07\", \"stance\": \"INSUFFICIENT_EVIDENCE\"} · advisory/paper, no execution authority (ADR-554)",
+   "display": "stance INSUFFICIENT_EVIDENCE · {\"confidence\": \"LOW\", \"date\": \"2026-11-01\", \"stance\": \"INSUFFICIENT_EVIDENCE\"} · advisory/paper, no execution authority (ADR-554)",
    "source": "runtime: mission.json truth.capital.oracle (canon: data/investment_cio/ledger.jsonl + latest.json (ADR-554))",
    "status": "MEASURED",
    "value": "INSUFFICIENT_EVIDENCE"
@@ -967,32 +1036,32 @@
      "the six RM-TRUTH-01 gates above are frozen, not executed; plus applying the prepared LOGOS reliability patch to the live project. Wave D `b58f63b1`: observation times on the runtime cells; production `continuity check` = CONTEXT_FRESH (05:43Z 07.10); fresh-session run 2 PASS (34 correct, 2 honest UNKNOWN, 0 wrong; `docs/continuity/acceptance/2026-10-07-fresh-session.md`)"
     ],
     "queue": {
-     "accepted": 5,
-     "answered": 4,
-     "owner": 3,
+     "accepted": 0,
+     "answered": 10,
+     "owner": 2,
      "prod_only": 9,
-     "undeclared": 11
+     "undeclared": 4
     }
    }
   },
   "product_publication": {
-   "as_of": "2026-10-07T17:04:04+00:00",
+   "as_of": "2026-11-01T11:00:19+00:00",
    "authority": "RUNTIME",
-   "display": "published 2026-10-07 (measured 2026-10-07), next 2026-10-14 · site health сайт: данные от 2026-10-07 · publication candidate is an Owner Gate (see owner_gates)",
+   "display": "published 2026-10-22 (measured 2026-10-21), next 2026-10-29 · site health сайт: проверка не прошла: SHELF_NOT_DELIVERED · publication candidate is an Owner Gate (see owner_gates)",
    "source": "runtime: mission.json truth.product.{public_release,website_health}",
    "status": "MEASURED",
    "value": null
   },
   "production_code": {
-   "as_of": "2026-10-07T21:46:59Z",
+   "as_of": null,
    "authority": "RUNTIME",
-   "display": "production code = origin f1ab7165060f (code sync IN_SYNC, at 2026-10-07T21:46:59Z)",
+   "display": "not proven: receipt absent",
    "source": "runtime: data/code_sync_status.json (code-sync scope only, not every service's live memory)",
-   "status": "MEASURED",
-   "value": "f1ab7165060fa65bffdd783dc021b42c05944b64"
+   "status": "UNKNOWN",
+   "value": "UNKNOWN"
   },
   "real_capital": {
-   "as_of": "2026-10-07T06:00:15Z",
+   "as_of": "2026-11-01T07:00:15Z",
    "authority": "RUNTIME",
    "display": "real capital $0 (policy baseline $0; owner subject №1)",
    "source": "runtime: mission.json truth.home.money_chip (canon: paper_trading_status.execution_mode)",
@@ -1000,7 +1069,7 @@
    "value": 0
   },
   "sherlock": {
-   "as_of": "2026-10-07T07:05:05Z",
+   "as_of": "2026-11-01T08:05:05Z",
    "authority": "RUNTIME",
    "display": "usable curated facts 1 · total facts не измерено · evidence-ready 1 · paper-active 1 · CIO-eligible 0 · no capital authority (ADR-564)",
    "source": "runtime: mission.json truth.capital.sherlock (canon: data/research_factory/ledger.jsonl (sherlock, ADR-564))",
@@ -1008,9 +1077,9 @@
    "value": null
   },
   "studio_os": {
-   "as_of": "2026-10-07T21:43:43Z",
+   "as_of": "2026-11-01T13:07:25Z",
    "authority": "RUNTIME",
-   "display": "в норме 87 из 92 объявленных · аварий 0 · предупреждений 5 · вне учёта (не в манифесте): 3 · в очереди: 350 · в статусе «в работе»: 38 (залежались: 33) · self-heal: последний запуск только что · провалов: 0",
+   "display": "в норме 91 из 91 объявленных · аварий 0 · предупреждений 1 · вне учёта (не в манифесте): 3 · намеренно выключено владельцем: 1 · в очереди: 480 · в статусе «в работе»: 40 (залежались: 12) · self-heal: последний запуск только что · провалов: 0",
    "source": "runtime: mission.json truth.studio.{fleet,tasks,self_heal}",
    "status": "MEASURED",
    "value": null
@@ -1032,9 +1101,9 @@
    "value": null
   },
   "trading_lab": {
-   "as_of": "2026-10-07T21:48:49Z",
+   "as_of": "2026-11-01T13:22:24Z",
    "authority": "RUNTIME",
-   "display": "candidates researched 138 · in forward paper 5 · champions 0 · evidence chain intact · data age -0.8 min",
+   "display": "candidates researched 138 · in forward paper 5 · champions 0 · evidence chain intact · data age 7.1 min",
    "source": "runtime: mission.json truth.capital.trading_lab (canon: spa_core.trading_research.read_model.trading_lab_view)",
    "status": "MEASURED",
    "value": {
