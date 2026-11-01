@@ -1,0 +1,9 @@
+real 390 OK {"page_overflow": false, "viewport": 390, "cards": ["spa_trading_research", "earn_defi"], "card_overflow": [], "empty": false, "summed_text": false}
+real 430 OK {"page_overflow": false, "viewport": 430, "cards": ["spa_trading_research", "earn_defi"], "card_overflow": [], "empty": false, "summed_text": false}
+long_texts 390 FAIL {"page_overflow": false, "viewport": 390, "cards": ["spa_trading_research", "earn_defi"], "card_overflow": ["spa_trading_research"], "empty": false, "summed_text": false}
+long_texts 430 FAIL {"page_overflow": false, "viewport": 430, "cards": ["spa_trading_research", "earn_defi"], "card_overflow": ["spa_trading_research"], "empty": false, "summed_text": false}
+missing_data 390 OK {"page_overflow": false, "viewport": 390, "cards": ["spa_trading_research", "earn_defi"], "card_overflow": [], "empty": false, "summed_text": false}
+missing_data 430 OK {"page_overflow": false, "viewport": 430, "cards": ["spa_trading_research", "earn_defi"], "card_overflow": [], "empty": false, "summed_text": false}
+network_error 390 OK {"page_overflow": false, "viewport": 390, "cards": [], "card_overflow": [], "empty": true, "summed_text": false}
+network_error 430 OK {"page_overflow": false, "viewport": 430, "cards": [], "card_overflow": [], "empty": true, "summed_text": false}
+эмуляция ширины в Chrome ≠ реальный iPhone (Safari, safe-area, шрифты) — на устройстве НЕ ИЗМЕРЕНО

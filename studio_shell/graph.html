@@ -49,9 +49,9 @@
   .tb-btn:hover{color:var(--ink)} .kbd{font-size:9px;color:var(--ink3);margin-left:6px}
   .content{flex:1;min-height:0;position:relative}
   /* stages */
-  #stage,#whystage,#homeview,#decisionsview,#capitalview,#strategiesview,#voiceview,#sliceview,#compareview,#projectsview,#memoryview,#workview,#researchview{position:absolute;inset:0} #whystage,#homeview,#decisionsview,#capitalview,#strategiesview,#voiceview,#sliceview,#compareview,#projectsview,#memoryview,#workview,#researchview{display:none}
+  #stage,#whystage,#homeview,#decisionsview,#capitalview,#tradingview,#strategiesview,#voiceview,#sliceview,#compareview,#projectsview,#memoryview,#workview,#researchview{position:absolute;inset:0} #whystage,#homeview,#decisionsview,#capitalview,#tradingview,#strategiesview,#voiceview,#sliceview,#compareview,#projectsview,#memoryview,#workview,#researchview{display:none}
   body.view-home #homeview,body.view-decisions #decisionsview,body.view-why #whystage{display:block}
-  body.view-capital #capitalview,body.view-strategies #strategiesview,body.view-voice #voiceview,body.view-slice #sliceview,body.view-slicep #sliceview,body.view-compare #compareview,body.view-projects #projectsview,body.view-memory #memoryview,body.view-work #workview,body.view-research #researchview{display:block;overflow:auto}
+  body.view-capital #capitalview,body.view-trading #tradingview,body.view-strategies #strategiesview,body.view-voice #voiceview,body.view-slice #sliceview,body.view-slicep #sliceview,body.view-compare #compareview,body.view-projects #projectsview,body.view-memory #memoryview,body.view-work #workview,body.view-research #researchview{display:block;overflow:auto}
   body:not(.mode-graph) #stage{display:none}
   .gnode text,.gnode{transition:opacity .3s var(--ease)} body.rm .gnode,body.rm .gnode text{transition:none}
   /* context sub-bar (chips) */
@@ -60,13 +60,13 @@
   .chip{border:1px solid var(--line);background:rgba(10,14,24,.6);color:var(--ink2);font-size:10.5px;letter-spacing:.08em;text-transform:uppercase;padding:6px 11px;border-radius:999px}
   .chip.on{border-color:var(--accent-line);color:#dfe8f7;background:var(--accent-soft)}
   .subbar .sb-right{margin-left:auto;pointer-events:auto;display:flex;gap:8px}
-  body.view-system .subbar,body.view-why .subbar,body.view-home .subbar,body.view-decisions .subbar,body.view-capital .subbar,body.view-strategies .subbar,body.view-voice .subbar,body.view-slice .subbar,body.view-slicep .subbar,body.view-compare .subbar,body.view-projects .subbar,body.view-memory .subbar{display:none}
+  body.view-system .subbar,body.view-why .subbar,body.view-home .subbar,body.view-decisions .subbar,body.view-capital .subbar,body.view-trading .subbar,body.view-strategies .subbar,body.view-voice .subbar,body.view-slice .subbar,body.view-slicep .subbar,body.view-compare .subbar,body.view-projects .subbar,body.view-memory .subbar{display:none}
   body.view-slice #directory,body.view-slicep #directory,body.view-compare #directory,body.view-projects #directory,body.view-memory #directory,body.view-work #directory,body.view-research #directory{display:none}
   body.view-work .subbar,body.view-research .subbar{display:none}
   body.view-work .panel{right:28px}   /* closed-panel translateX(24px) must not exceed the viewport */
   /* directory + inspector (reused) */
   #directory{position:absolute;top:56px;right:16px;z-index:5;width:206px;background:var(--surf);border:1px solid var(--line);border-radius:12px;padding:12px;backdrop-filter:blur(10px)}
-  body.view-system #directory,body.view-why #directory,body.view-home #directory,body.view-decisions #directory,body.view-capital #directory,body.view-strategies #directory,body.view-voice #directory{display:none}
+  body.view-system #directory,body.view-why #directory,body.view-home #directory,body.view-decisions #directory,body.view-capital #directory,body.view-trading #directory,body.view-strategies #directory,body.view-voice #directory{display:none}
   .dhead{font-size:9.5px;letter-spacing:.22em;color:var(--ink3);text-transform:uppercase;margin-bottom:8px}
   .drow{display:flex;align-items:center;gap:9px;padding:5px 4px;border-radius:7px;cursor:pointer;font-size:11.5px;color:var(--ink2)} .drow:hover{background:var(--accent-soft);color:var(--ink)}
   .dmark{width:8px;height:8px;border-radius:2px;flex:none;transform:rotate(45deg)} .dnm{flex:1;letter-spacing:.03em} .dct{color:var(--ink3);font-size:10.5px}
@@ -119,6 +119,13 @@
   .surf-hbar{display:flex;align-items:center;gap:10px;justify-content:space-between} .surf-hbar .surf-h{margin:18px 0 10px}
   .surf-count{color:var(--ink);font-size:12px;letter-spacing:.04em;background:var(--accent-soft);border:1px solid var(--accent-line);border-radius:999px;padding:1px 8px}
   .surf-foot{margin-top:16px;padding-top:12px;border-top:1px solid var(--line);display:flex;flex-wrap:wrap;gap:8px;align-items:center}
+  .tr-card{border:1px solid var(--line);border-radius:12px;padding:14px 14px 10px;margin:12px 0;min-width:0;overflow-wrap:anywhere}
+  .tr-head{display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin-bottom:10px} .tr-title{font-size:15px;color:var(--ink);letter-spacing:.04em;flex:1 1 auto;min-width:0}
+  .tr-kv{display:flex;flex-wrap:wrap;gap:4px 12px;justify-content:space-between;padding:6px 0;border-top:1px solid var(--line);font-size:12.5px} .tr-k{color:var(--ink2)} .tr-v{color:var(--ink);text-align:right;min-width:0;overflow-wrap:break-word;word-break:break-word}
+  .tr-why,.tr-sub,.tr-note{font-size:12px;color:var(--ink2);padding:6px 0;overflow-wrap:anywhere} .tr-why.warn,.tr-kv.warn .tr-v{color:#d6a94a}
+  .tr-block{font-size:12.5px;color:#d66a6a;border:1px solid rgba(214,106,106,.45);border-radius:8px;padding:8px 10px;margin-bottom:8px;overflow-wrap:anywhere}
+  .tr-empty{font-size:14px;color:var(--ink2);letter-spacing:.08em;padding:8px 0} .tr-rows{display:flex;flex-direction:column;gap:4px}
+  .tr-row{display:flex;gap:10px;justify-content:space-between;font-size:12px;min-width:0} .tr-id{color:var(--ink2);min-width:0;overflow-wrap:anywhere} .tr-row b{white-space:nowrap;flex:none}
   .surf-badge{font-size:9.5px;letter-spacing:.1em;color:var(--ink2);border:1px solid var(--line);border-radius:999px;padding:3px 9px}
   .surf-badge.fr-LIVE{color:#5aa17a;border-color:rgba(90,161,122,.4)} .surf-badge.fr-RECENT{color:#7aa2d8} .surf-badge.fr-STALE{color:#d6a94a;border-color:rgba(214,169,74,.4)} .surf-badge.fr-UNKNOWN{color:var(--ink3)}
   .surf-prov{font-size:9.5px;color:var(--ink3);word-break:break-all;flex:1;min-width:120px;text-align:right}
@@ -299,6 +306,7 @@
       <div id="homeview"></div>
       <div id="decisionsview"></div>
       <div id="capitalview"></div>
+      <div id="tradingview"></div>
       <div id="strategiesview"></div>
       <div id="voiceview"></div>
       <div id="sliceview"></div>
