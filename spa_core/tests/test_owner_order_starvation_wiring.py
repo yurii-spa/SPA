@@ -227,7 +227,9 @@ def test_the_real_guard_reaches_a_verdict_when_launched_the_way_the_wrapper_laun
     assert proc.returncode != 1, (
         "сторож НЕ ДОШЁЛ до вердикта при запуске по пути — ровно авария 12.09.\n"
         f"stderr: {proc.stderr[-2000:]}")
-    assert proc.returncode in (0, 3), (
+    # 4 — тоже ВЕРДИКТ (измерено: голода нет, повторы с неустановленным автором, ADR-890), а не сбой;
+    # без него тест краснел бы на исправном стороже, как только такие повторы появятся в трекере.
+    assert proc.returncode in (0, 3, 4), (
         f"неожиданный код {proc.returncode}; stdout={proc.stdout[-800:]!r} "
         f"stderr={proc.stderr[-800:]!r}")
     assert "ГОЛОДА" in proc.stdout.upper() or "ГОЛОДАЮЩ" in proc.stdout, proc.stdout[:300]
