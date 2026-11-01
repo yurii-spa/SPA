@@ -2427,3 +2427,17 @@ details.mk-devfold[open] > summary::after { content: "▾"; }
 .ux-record-prep > p { margin: 4px 0; overflow-wrap: anywhere; }
 .ux-record-prep-head { font-weight: 700; }
 .ux-prewrap { white-space: pre-wrap; }
+
+/* S4 K3 — два раздельных paper-движка (перенос вёрстки вкладки S3; длинные id/причины переносятся, числа — нет) */
+.eng-wrap-all{display:flex;flex-direction:column;gap:12px;margin-top:12px;min-width:0}
+.eng-card{min-width:0;overflow-wrap:anywhere}
+.eng-head{display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin-bottom:8px}
+.eng-title{flex:1 1 auto;min-width:0;font-weight:600}
+.eng-kv{display:flex;flex-wrap:wrap;gap:4px 12px;justify-content:space-between;padding:6px 0;border-top:1px solid rgba(127,127,127,.2)}
+.eng-v{text-align:right;min-width:0;overflow-wrap:break-word;word-break:break-word}
+.eng-kv.warn .eng-v{color:#d6a94a}
+.eng-block{color:#e07a6a;border:1px solid rgba(224,122,106,.45);border-radius:8px;padding:8px 10px;margin-bottom:8px}
+.eng-wrap{overflow-wrap:anywhere;min-width:0}
+.eng-row{display:flex;gap:10px;justify-content:space-between;min-width:0}
+.eng-id{min-width:0;overflow-wrap:anywhere;opacity:.8}
+.eng-num{white-space:nowrap;flex:none}

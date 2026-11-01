@@ -87,6 +87,9 @@ CONTRACT: list[dict] = [
      "stale_after_min": 120, "unknown": "NOT_MEASURED", "redaction": "public_view scrub", "mobile": True, "alert": False},
     {"path": "capital.trading_research", "source": "data/trading_research/status.json",
      "stale_after_min": 60, "unknown": "NOT_MEASURED", "redaction": "no shortlist free text", "mobile": True, "alert": True},
+    {"path": "capital.trading_engines", "source": "spa_core.studio_os.trading_engines.build_trading — SPA TR status.json+evidence.db (ro) and earn-defi earn_defi.db (ro), two separate blocks",
+     "stale_after_min": None, "unknown": "per-block present=false + why_no_result", "redaction": "candidate ids, engine reasons as written",
+     "mobile": True, "alert": False},
     {"path": "capital.live_readiness", "source": "spa_core.capital_shadow.read.latest — the separate read-only verifier (ADR-556)",
      "stale_after_min": 1800, "unknown": "NOT_MEASURED (no shadow run yet); BROKEN ledger ⇒ CRITICAL", "redaction": "safe_text on every string",
      "mobile": True, "alert": True},
@@ -368,6 +371,40 @@ def _meta(state: str, sources: list, observed_at: Optional[datetime], now: datet
 
 def _nm(sources: list, now: datetime, reason: str) -> dict:
     return {"_meta": _meta("NOT_MEASURED", sources, None, now, reason=reason)}
+
+
+def _trading_engines_section(data: Path, now: datetime) -> dict:
+    """Два раздельных paper-движка (S3 E7.4 → S4 K3) — тот же проектор, что вкладка S3, без второй копии.
+
+    Доходности не суммируются; совокупный допуск ``capital_shadow/aggregate`` здесь как защита НЕ
+    заявляется (доказан только в shadow-модуле, к рабочему циклу не подключён). Сбой проектора — не
+    падение пульта, а NOT_MEASURED с причиной."""
+    src = ["spa_core.studio_os.trading_engines.build_trading"]
+    try:
+        from spa_core.studio_os import trading_engines as te
+        doc = te.build_trading(now=now, data_dir=Path(data) / "trading_research")
+    except Exception as exc:  # noqa: BLE001 — a broken projector is a named gap, not a crashed cockpit
+        return _nm(src, now, f"trading engines projector failed: {type(exc).__name__}: {exc}")
+    blocks = []
+    for b in doc.get("blocks") or []:
+        if not isinstance(b, dict):
+            continue
+        b = dict(b)
+        # Первый уровень пульта показывает только признак («свежо/устарело»); источник, момент и правило
+        # свежести — в ящике доказательств (правило пульта: canon/as_of/freshness только там).
+        b["recency"] = b.get("freshness") or "UNKNOWN"
+        b["evidence"] = {"canon": b.get("provenance"), "as_of": b.get("as_of"),
+                         "freshness": {"rule": ("такт движка: SPA — 15 мин, earn-defi — сутки"),
+                                       "age_min": None, "stale_after_min": None}}
+        blocks.append(b)
+    present = [b for b in blocks if b.get("present")]
+    state = "HEALTHY" if len(present) == 2 else ("DEGRADED" if present else "NOT_MEASURED")
+    return {"_meta": _meta(state, src, now, now,
+                           reason=None if state == "HEALTHY" else
+                           "; ".join(f"{b.get('engine')}: {b.get('why_no_result')}" for b in blocks
+                                     if isinstance(b, dict) and not b.get("present"))),
+            "blocks": blocks, "summed": False, "note": doc.get("note"),
+            "aggregate_admission": "shadow-only, not wired to the working cycle (S3 E6.3) — not a live protection"}
 
 
 # ── virtual capital per paper package (DIRECTOR-OS-UX-03, owner 13.10: «сколько виртуальных денег на каждом
@@ -1413,6 +1450,7 @@ def build(inp: Optional[MCInputs] = None) -> dict:
     research_universe = _research_universe_section(data, now)
     capital_sources = _capital_sources_section(data, now)
     package_values = _package_values_section(data, now)
+    trading_engines = _trading_engines_section(data, now)
     capital = {"_meta": _meta(cap_state,
                               ["package_status.public_view", "data/trading_research/status.json",
                                "data/paper_trading_status.json"], now, now),
@@ -1422,6 +1460,7 @@ def build(inp: Optional[MCInputs] = None) -> dict:
                "research_universe": research_universe,
                "capital_sources": capital_sources,
                "package_values": package_values,
+               "trading_engines": trading_engines,
                "boundary": "SPA / Capital — research and paper only; no execution path is exposed here"}
 
     # ── STUDIO ─────────────────────────────────────────────────────────────────────────────────

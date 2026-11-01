@@ -650,6 +650,63 @@
     });
   }
 
+  // ── S4 K3 (S3 E7.4): два РАЗДЕЛЬНЫХ paper-движка — тот же проектор, что вкладка S3; суммы нет ──────────
+  function pctText(v) { return (typeof v === "number") ? ((v >= 0 ? "+" : "") + (v * 100).toFixed(1) + "%") : "—"; }
+  function engKv(k, v, warn) {
+    return h("div", { class: "eng-kv" + (warn ? " warn" : "") }, [h("span", { class: "eng-k" }, [k]),
+      h("span", { class: "eng-v" }, [(v === null || v === undefined || v === "") ? "—" : String(v)])]);
+  }
+  function renderEngineBlock(b) {
+    var card = h("section", { class: "card eng-card", "data-engine": (b && b.engine) || "unknown" });
+    var fr = (b && b.recency) || "UNKNOWN";
+    card.appendChild(h("div", { class: "eng-head" }, [h("span", { class: "eng-title" }, [(b && b.title) || "—"]),
+      h("span", { class: "chip eng-fr eng-fr-" + fr }, [t("capital.eng.fresh." + fr)]), h("span", { class: "chip" }, ["PAPER"])]));
+    if (!b || !b.present) {
+      card.appendChild(h("p", { class: "note warning-chip" }, [t("capital.eng.no_data")]));
+      card.appendChild(h("p", { class: "note eng-wrap" }, [(b && b.why_no_result) || t("capital.eng.source_unavailable")]));
+      return card;
+    }
+    if (b.active_block) card.appendChild(h("div", { class: "eng-block eng-wrap" }, [t("capital.eng.blocked") + " " + b.active_block]));
+    var d = b.last_decision;
+    if (d) {
+      var acts = d.actions ? Object.keys(d.actions).map(function (k) { return k + " ×" + d.actions[k]; }).join(", ") : d.action;
+      card.appendChild(engKv(t("capital.eng.last_decision"), acts + " · " + String(d.at || d.date || "").replace("T", " ").slice(0, 16) + (d.config_version ? " · v" + d.config_version : "")));
+    } else card.appendChild(engKv(t("capital.eng.last_decision"), t("capital.eng.not_recorded"), true));
+    if (b.why_hold) card.appendChild(h("p", { class: "note eng-wrap" }, [t("capital.eng.why_hold") + " " + b.why_hold]));
+    var hs = b.history || {};
+    var hist = [];
+    if (hs.calendar_days !== undefined && hs.calendar_days !== null) hist.push(tf("capital.eng.calendar_days", { n: hs.calendar_days }));
+    if (hs.observed_days !== undefined && hs.observed_days !== null) hist.push(tf("capital.eng.observed_days", { n: hs.observed_days }));
+    if (hs.since) hist.push(tf("capital.eng.since", { d: hs.since }));
+    card.appendChild(engKv(t("capital.eng.history"), hist.join(" · ")));
+    var r = b.paper_result;
+    if (b.why_no_result) card.appendChild(h("p", { class: "note warning-chip eng-wrap" }, [t("capital.eng.no_result") + " " + b.why_no_result]));
+    else if (r && r.kind === "nav") {
+      card.appendChild(engKv(t("capital.eng.nav"), (r.nav_usdt !== null && r.nav_usdt !== undefined ? "$" + Math.round(r.nav_usdt).toLocaleString() : "—") +
+        " · " + pctText(r.cum_return) + " · " + t("capital.eng.dd") + " " + pctText(r.max_drawdown) + (r.date ? " · " + r.date : "")));
+    } else if (r && r.rows) {
+      card.appendChild(h("p", { class: "note" }, [t("capital.eng.per_candidate")]));
+      r.rows.forEach(function (x) { card.appendChild(h("div", { class: "eng-row" }, [h("span", { class: "eng-id" }, [x.id]), h("b", { class: "eng-num" }, [pctText(x.forward_net)])])); });
+    }
+    var ev = evidenceDrawer(b.evidence);
+    if (ev) card.appendChild(ev);
+    return card;
+  }
+  function renderTradingEngines(sec) {
+    var wrap = h("div", { class: "eng-wrap-all" });
+    wrap.appendChild(h("h3", { class: "card-title" }, [t("capital.eng.title")]));
+    if (!sec || !Array.isArray(sec.blocks)) {
+      wrap.appendChild(h("p", { class: "note warning-chip" }, [t("capital.eng.unavailable")]));
+      return wrap;
+    }
+    var by = {};
+    sec.blocks.forEach(function (b) { if (b && b.engine) by[b.engine] = b; });
+    ["spa_trading_research", "earn_defi"].forEach(function (e) { wrap.appendChild(renderEngineBlock(by[e] || { engine: e, title: e, present: false })); });
+    wrap.appendChild(h("p", { class: "note eng-wrap" }, [t("capital.eng.not_summed")]));
+    wrap.appendChild(h("p", { class: "note eng-wrap" }, [t("capital.eng.aggregate_shadow_only")]));
+    return wrap;
+  }
+
   function renderBtc(cell) {
     return cellCard("capital.tab.btc", cell, function (c, cell) {
       if (cell.no_canon) c.appendChild(h("div", { class: "warning-chip" }, [t("capital.btc.no_canon")]));
@@ -2188,6 +2245,8 @@
       root.appendChild(c3);
       root.appendChild(snapshotLine());
     }
+    // S4 K3: два раздельных paper-движка — на первом экране «Денег», не за «Подробно»
+    root.appendChild(renderTradingEngines(get(currentModel, "capital.trading_engines", null)));
     root.appendChild(legacyDetails(t("ux.legacy_capital"), function (b) { renderCapital(b); }));
   }
 
