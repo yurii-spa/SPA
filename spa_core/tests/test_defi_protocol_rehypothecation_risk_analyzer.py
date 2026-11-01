@@ -362,3 +362,15 @@ class TestLog(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+# ── CI-изоляция (как CI-ISOLATION-01 в S1, 5824c32fa): журнал анализатора — во временной сцене теста ──────────────
+import pytest as _scene_pytest  # noqa: E402
+import spa_core.analytics.defi_protocol_rehypothecation_risk_analyzer as _scene_mod  # noqa: E402
+from spa_core.tests._tracked_log_scene import redirect_log as _scene_redirect  # noqa: E402
+
+
+@_scene_pytest.fixture(autouse=True)
+def _scene_log(tmp_path, monkeypatch):
+    return _scene_redirect(monkeypatch, tmp_path, _scene_mod, "LOG_PATH", defaults_of=(_scene_mod._append_log,))
+

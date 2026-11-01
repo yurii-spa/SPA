@@ -239,3 +239,19 @@ def test_pipeline_failure_alert_not_triggered_when_healthy():
 
     assert result is False, "No alert should fire for a healthy pipeline"
     mock_sender.send.assert_not_called()
+
+
+# ── CI-изоляция (S2, CI 41268466953 шард 0): fetch_pools пишет chains_status.json по пути от __file__ модуля ──────
+import pytest as _scene_pytest  # noqa: E402
+
+
+@_scene_pytest.fixture(autouse=True)
+def _scene_fetcher_root(tmp_path, monkeypatch):
+    """Путь записи `data/chains_status.json` строится от ``__file__`` модуля В МОМЕНТ ВЫЗОВА; подмена ``__file__`` на
+    файл во временной сцене направляет запись туда. ``sys.path`` (конструктор дописывает в него каталог) возвращается."""
+    import data_pipeline.defillama_fetcher as _m
+    fake = tmp_path / "scene_repo" / "spa_core" / "data_pipeline" / "defillama_fetcher.py"
+    monkeypatch.setattr(_m, "__file__", str(fake))
+    monkeypatch.setattr(sys, "path", list(sys.path))
+    return fake.parents[2] / "data"
+
