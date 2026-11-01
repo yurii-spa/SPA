@@ -8,12 +8,6 @@ created: 2026-08-13
 priority: critical
 status_trail:
   - "2026-08-26T22:31:36.748790+00:00 new -> in-progress · queue.set_status · cycle-96657"
-claimed_by: cycle-25368
-claimed_at: 2026-11-01T02:59:46Z
-claimed_run_id: orchestrator-25368-3DEC9F341E574223852D72611FA733F6
-claimed_pid: 25368
-claimed_pid_start: Sun Nov  1 03:47:47 2026
-claim_takeover_reason: шаг 0a из своего дерева /tmp/spa_c1001 (origin/main 4058aafe6) — код 1, но ВСЕ находки чужие: работа #1000 (ADR-885) на origin/main ЕСТЬ (ADR-885-*.md, closed_without_answer.py, спецификация TRACE-885, починка 15490573b в истории, card_acceptance.py компилируется и _GBC_REC=0); расхождения лежат только в ЧУЖИХ деревьях (studio-os-scratch/*), у них свои сессии. Поднимать нечего; 148 записей захвата осиротели, старейшая 1376ч
 ---
 
 ## УКАЗАНИЕ ВЛАДЕЛЬЦА 2026-08-22 (cloud-сессия): ЗАПУСТИТЬ СЛЕДУЮЩИМ ЦИКЛОМ
