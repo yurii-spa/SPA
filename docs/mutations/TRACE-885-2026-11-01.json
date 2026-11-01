@@ -1,0 +1,135 @@
+{
+ "title": "ADR-885 TRACE — дельта цикла #1000: «ответа не записано ничем» разложено по СЛЕДУ ответа; признак структурный, а не словарный; ослеплённый корпус даёт НЕ ИЗМЕРЕНО, а не обвинение",
+ "tests": [
+  "spa_core/tests/test_closed_without_answer.py",
+  "spa_core/tests/test_owner_task_answer_channel.py"
+ ],
+ "mutations": [
+  {
+   "name": "правка снята целиком: признак снова СЛОВАРЬ заголовков (дословно ADR-863)",
+   "file": "spa_core/owner_queue/answer_channel.py",
+   "old": "    sections = work_sections(body)\n    if sections:\n        return EV_SECTION, sections[0]\n    return None",
+   "new": "    import re as _re\n    if body and _re.search(r\"(?mi)^\\#{2,}\\s*(?:[^\\n]*\\b)?(ОТВЕТ|ОТВЕЧАЮ|ЗАМЕР|РЕЗУЛЬТАТ|РАЗОБРАНО)\\b\", body):\n        return EV_SECTION, \"\"\n    return None"
+  },
+  {
+   "name": "перечень приёмных заголовков ПУСТ — штамп приёма засчитан за работу (fail-OPEN)",
+   "file": "spa_core/owner_queue/answer_channel.py",
+   "old": "TEMPLATE_HEADINGS: tuple[re.Pattern[str], ...] = (\n    re.compile(r\"^Задание \\(из [^)]*\\)$\"),",
+   "new": "TEMPLATE_HEADINGS: tuple[re.Pattern[str], ...] = (\n    re.compile(r\"^НИКОГДА-НЕ-СОВПАДЁТ$\"),\n    re.compile(r\"^(?!x)x$\"),"
+  },
+  {
+   "name": "перечень приёмных заголовков совпадает со ВСЕМ — работы не видно нигде",
+   "file": "spa_core/owner_queue/answer_channel.py",
+   "old": "        if any(p.match(head) for p in TEMPLATE_HEADINGS):\n            continue",
+   "new": "        if True:\n            continue"
+  },
+  {
+   "name": "основание не НАЗЫВАЕТ раздел — «ответ в теле» снова обещание без адреса",
+   "file": "spa_core/owner_queue/answer_channel.py",
+   "old": "        return EV_SECTION, sections[0]",
+   "new": "        return EV_SECTION, \"\""
+  },
+  {
+   "name": "текст владельцу не называет раздел, хотя он известен",
+   "file": "spa_core/owner_queue/answer_channel.py",
+   "old": "    elif detail:\n        why = f\"ответ записан в теле карточки, раздел «{html.escape(str(detail))}»\"",
+   "new": "    elif False:\n        why = \"\""
+  },
+  {
+   "name": "ослеплённый корпус ОБВИНЯЕТ: ветки «корпус не прочитан» больше нет",
+   "file": "spa_core/owner_queue/closed_without_answer.py",
+   "old": "    if refs is None:\n        return UNMEASURED, (\"в теле следа работы нет, а корпус ссылок НЕ ПРОЧИТАН — \"\n                            \"НЕ ИЗМЕРЕНО, а не «следа нет»\"), []",
+   "new": "    if refs is None:\n        refs = {}"
+  },
+  {
+   "name": "авто-индекс больше не исключён — `_BOARD.md` оправдывает КАЖДУЮ карточку",
+   "file": "spa_core/owner_queue/closed_without_answer.py",
+   "old": "CORPUS_EXCLUDED: frozenset[str] = frozenset({\"_BOARD.md\"})",
+   "new": "CORPUS_EXCLUDED: frozenset[str] = frozenset()"
+  },
+  {
+   "name": "соседние карточки стали ГРУППОЙ — признак, оправдывающий всё население",
+   "file": "spa_core/owner_queue/closed_without_answer.py",
+   "old": "CORPUS_GLOBS: tuple[str, ...] = (\n    \"docs/journal/*.md\",\n    \"docs/decisions/*.md\",\n)",
+   "new": "CORPUS_GLOBS: tuple[str, ...] = (\n    \"docs/journal/*.md\",\n    \"docs/decisions/*.md\",\n    \"nimbalyst-local/tracker/*.md\",\n)"
+  },
+  {
+   "name": "самоссылка считается следом — карточка оправдывает себя сама",
+   "file": "spa_core/owner_queue/closed_without_answer.py",
+   "old": "                if token == own:\n                    continue",
+   "new": "                if False:\n                    continue"
+  },
+  {
+   "name": "население считается по ПОЛНОМУ телу — группа «след в карточке» исчезает",
+   "file": "spa_core/owner_queue/closed_without_answer.py",
+   "old": "        if ac.answer_evidence(fm, \"\") is not None:\n            continue",
+   "new": "        if ac.answer_evidence(fm, body) is not None:\n            continue"
+  },
+  {
+   "name": "непрочитанная карточка молча выбрасывается вместо третьего исхода",
+   "file": "spa_core/owner_queue/closed_without_answer.py",
+   "old": "            counts[UNMEASURED] += 1\n            rows.append({\"card\": p.name, \"group\": UNMEASURED, \"title\": \"\",",
+   "new": "            continue\n            rows.append({\"card\": p.name, \"group\": UNMEASURED, \"title\": \"\","
+  },
+  {
+   "name": "корпус «прочитан», если ничего не упало — отсутствующий каталог читается как ответ",
+   "file": "spa_core/owner_queue/closed_without_answer.py",
+   "old": "    corpus_read = cstat[\"files\"] > 0",
+   "new": "    corpus_read = cstat[\"failed\"] == 0"
+  },
+  {
+   "name": "две группы склеены: «след только в журнале» объявлен «следа нет»",
+   "file": "spa_core/owner_queue/closed_without_answer.py",
+   "old": "    if where:\n        return RECORD_OUTSIDE, (\"в теле следа работы нет; карточку называет журнал/ADR — \"\n                                \"это СЛЕД, но не ответ владельцу\"), where",
+   "new": "    if where:\n        return NO_TRACE, \"склеено\", where"
+  },
+  {
+   "name": "адрес следа не отдаётся — «след есть» на честном слове",
+   "file": "spa_core/owner_queue/closed_without_answer.py",
+   "old": "    where = sorted(set(refs.get(stem, []) + refs.get(p.name, [])))",
+   "new": "    where = []\n    _ = sorted(set(refs.get(stem, []) + refs.get(p.name, [])))"
+  },
+  {
+   "name": "близнец по заголовку не считается — факт для человека пропал",
+   "file": "spa_core/owner_queue/closed_without_answer.py",
+   "old": "        same = [c for c in by_title.get(t, []) if c != r[\"card\"]]\n        r[\"twin_title\"] = same or None",
+   "new": "        r[\"twin_title\"] = None"
+  },
+  {
+   "name": "поимённый список сузился до NO_TRACE — пять карточек без записи в теле исчезли",
+   "file": "spa_core/owner_queue/closed_without_answer.py",
+   "old": "            if r.get(\"group\") in (NO_TRACE, RECORD_OUTSIDE)]",
+   "new": "            if r.get(\"group\") == NO_TRACE]"
+  },
+  {
+   "name": "эталон НЕ проверяет ослеплённую сцену — обвинение из незнания зелено",
+   "file": "spa_core/owner_queue/closed_without_answer.py",
+   "old": "    blind_ok = (blind.get(\"inbox-no_trace.md\") == UNMEASURED\n                and blind.get(\"inbox-outside.md\") == UNMEASURED\n                and blind.get(\"inbox-body_record.md\") == RECORD_IN_BODY)",
+   "new": "    blind_ok = True"
+  },
+  {
+   "name": "проба НЕ спрашивает структурность — возврат словаря проходит молча",
+   "file": "spa_core/monitoring/card_acceptance.py",
+   "old": "    if ac.work_sections(stamp):\n        return NOT_SATISFIED, (\n            f\"приёмный штамп засчитан за запись работы: {ac.work_sections(stamp)} — \"\n            \"мера оправдала бы карточку, в которой работы нет\")",
+   "new": "    if False:\n        return NOT_SATISFIED, (\"\")"
+  },
+  {
+   "name": "проба НЕ спрашивает обратную сторону — пустой словарь проходит",
+   "file": "spa_core/monitoring/card_acceptance.py",
+   "old": "    if ac.work_sections(unknown) != [\"Резолюция (цикл #1)\"]:",
+   "new": "    if False:"
+  },
+  {
+   "name": "проба не называет дерево и корпус рядом с числом",
+   "file": "spa_core/monitoring/card_acceptance.py",
+   "old": "            where = (f\"живое население {rep['population']} (трекер {rep['tracker_dir']}, \"\n                     f\"корпус журнал+ADR {rep['corpus']['files']} файл(ов) из \"\n                     f\"{rep['repo_root']}): след в карточке {c[cwa.RECORD_IN_BODY]} · \"",
+   "new": "            where = (f\"живое население {rep['population']}: \"\n                     f\"след в карточке {c[cwa.RECORD_IN_BODY]} · \""
+  },
+  {
+   "name": "проба проглатывает третий исход эталона — «не собралось» выдано за провал",
+   "file": "spa_core/monitoring/card_acceptance.py",
+   "old": "    if kind == cwa.DRIVE_UNMEASURED:\n        return UNMEASURED, f\"эталон не собрался: {drive.get('reason')}\"",
+   "new": "    if kind == cwa.DRIVE_UNMEASURED:\n        return NOT_SATISFIED, f\"эталон не собрался: {drive.get('reason')}\""
+  }
+ ]
+}

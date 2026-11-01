@@ -108,7 +108,7 @@ def _probe_contract_manifest_parity(arg: str | None) -> tuple[str, str]:
     res = m.audit()
     verdict = res.get("verdict")
     detail = f"вердикт {verdict}, сопоставимо {res.get('compared')}, расхождений {len(res.get('findings') or [])}"
-    return (SATISFIED if verdict == m.AGREES else NOT_SATISFIED), detail
+    return (SATISFIED if _GBC_REC("_probe_contract_manifest_parity:111:25", (verdict == m.AGREES)) else NOT_SATISFIED), detail
 
 
 def _probe_artifact_contract(arg: str | None) -> tuple[str, str]:
@@ -123,16 +123,16 @@ def _probe_artifact_contract(arg: str | None) -> tuple[str, str]:
     «Не выполнено» здесь было бы такой же неправдой: про эти семь не измерено
     НИЧЕГО, и сказать надо именно это.
     """
-    if not arg:
+    if _GBC_REC("_probe_artifact_contract:126:7", (not arg)):
         return UNMEASURED, "пробе нужен агент (acceptance_probe: artifact_contract_confirmed:<label>)"
     from spa_core.monitoring import artifact_contract as m
     rows = m.audit_fleet().get("rows") or []
     for row in rows:
-        if row.get("label") == arg:
+        if _GBC_REC("_probe_artifact_contract:131:11", (row.get("label") == arg)):
             v = row.get("verdict")
-            if v == m.CONFIRMED:
+            if _GBC_REC("_probe_artifact_contract:133:15", (v == m.CONFIRMED)):
                 return SATISFIED, f"{arg}: {v}"
-            if v == m.PARTIAL:
+            if _GBC_REC("_probe_artifact_contract:135:15", (v == m.PARTIAL)):
                 cov = row.get("coverage") or {}
                 unseen = cov.get("unmeasured") or []
                 return UNMEASURED, (
@@ -160,16 +160,16 @@ def _probe_additive_field_reader_distinguishes(arg: str | None) -> tuple[str, st
         return UNMEASURED, f"прибор переписи не ввозится: {type(exc).__name__}: {exc}"
     drive = m.drive_exemplar()
     kind = drive.get("kind")
-    if kind == m.DRIVE_UNMEASURED:
+    if _GBC_REC("_probe_additive_field_reader_distinguishes:163:7", (kind == m.DRIVE_UNMEASURED)):
         return UNMEASURED, f"эталон класса не измерен: {drive.get('reason')}"
-    if kind == m.DRIVE_CONFLATES:
+    if _GBC_REC("_probe_additive_field_reader_distinguishes:165:7", (kind == m.DRIVE_CONFLATES)):
         return NOT_SATISFIED, (
             f"эталон {drive.get('door')} отвечает одно и то же на обе сцены "
             f"(«{drive['scene_nobody_carries']['outcome']}») — «шага не звали» "
             f"от «замера нуля» он не отличает")
     nobody = drive["scene_nobody_carries"]["outcome"]
     zero = drive["scene_measured_zero"]["outcome"]
-    if (nobody, zero) != ("unmeasured", "measured_zero"):
+    if _GBC_REC("_probe_additive_field_reader_distinguishes:172:7", ((nobody, zero) != ("unmeasured", "measured_zero"))):
         return NOT_SATISFIED, (
             f"исходы различны, но НЕ в ту сторону: сцена без поля дала "
             f"«{nobody}», сцена замера нуля — «{zero}»")
@@ -216,9 +216,9 @@ def _probe_three_outcome_reader_population_named(arg: str | None) -> tuple[str, 
         return UNMEASURED, f"прибор переписи не ввозится: {type(exc).__name__}: {exc}"
     drive = m.drive_exemplar()
     kind = drive.get("kind")
-    if kind == m.DRIVE_UNMEASURED:
+    if _GBC_REC("_probe_three_outcome_reader_population_named:219:7", (kind == m.DRIVE_UNMEASURED)):
         return UNMEASURED, f"живой эталон не измерен: {drive.get('reason')}"
-    if kind == m.DRIVE_CONFLATES:
+    if _GBC_REC("_probe_three_outcome_reader_population_named:221:7", (kind == m.DRIVE_CONFLATES)):
         return NOT_SATISFIED, (
             f"эталон {drive.get('reader')} отвечает один и тот же род исхода на «дверь "
             f"отказала» и «дверь не ответила» — различение в этом дереве НЕ достигнуто")
@@ -227,7 +227,7 @@ def _probe_three_outcome_reader_population_named(arg: str | None) -> tuple[str, 
     except Exception as exc:                                        # noqa: BLE001
         return UNMEASURED, (f"эталон различает, но население НЕ измерено: "
                             f"{type(exc).__name__}: {exc}")
-    if report.get("verdict") == m.UNMEASURED and "reason" in report:
+    if _GBC_REC("_probe_three_outcome_reader_population_named:230:7", (report.get("verdict") == m.UNMEASURED and "reason" in report)):
         return UNMEASURED, f"население НЕ измерено: {report['reason']}"
     counts = report["counts"]
     nm = report["not_measured_surfaces"]
@@ -282,21 +282,21 @@ def _probe_three_outcome_readers_distinguish_by_code(arg: str | None) -> tuple[s
         report = m.run_census()
     except Exception as exc:                                        # noqa: BLE001
         return UNMEASURED, f"население НЕ измерено: {type(exc).__name__}: {exc}"
-    if report.get("verdict") == m.UNMEASURED and "reason" in report:
+    if _GBC_REC("_probe_three_outcome_readers_distinguish_by_code:285:7", (report.get("verdict") == m.UNMEASURED and "reason" in report)):
         return UNMEASURED, f"население НЕ измерено: {report['reason']}"
 
     findings = report.get("findings") or []
-    if findings:
+    if _GBC_REC("_probe_three_outcome_readers_distinguish_by_code:289:7", (findings)):
         return NOT_SATISFIED, (
             f"сводят «не измерено» с «отказано» ещё {len(findings)} читателей — "
             + "; ".join(m.finding_key(r) for r in findings))
 
     drive = m.drive_publication_gate()
     kind = drive.get("kind")
-    if kind == m.DRIVE_UNMEASURED:
+    if _GBC_REC("_probe_three_outcome_readers_distinguish_by_code:296:7", (kind == m.DRIVE_UNMEASURED)):
         return UNMEASURED, (f"находок нет, но ДОСТИЖИМОСТЬ различения НЕ измерена: "
                             f"{drive.get('reason')}")
-    if kind == m.DRIVE_CONFLATES:
+    if _GBC_REC("_probe_three_outcome_readers_distinguish_by_code:299:7", (kind == m.DRIVE_CONFLATES)):
         return NOT_SATISFIED, (
             f"перепись находок не видит, а живой читатель {drive.get('reader')} сводит "
             f"исходы на сценах, отличающихся РОВНО кодом двери: {drive.get('reason')}")
@@ -359,9 +359,9 @@ def _probe_owner_task_answer_reaches_the_channel(arg: str | None) -> tuple[str, 
         return UNMEASURED, f"канал ответа не ввозится: {type(exc).__name__}: {exc}"
 
     drive = ac.drive_exemplar()
-    if drive.get("kind") == ac.DRIVE_UNMEASURED:
+    if _GBC_REC("_probe_owner_task_answer_reaches_the_channel:362:7", (drive.get("kind") == ac.DRIVE_UNMEASURED)):
         return UNMEASURED, f"эталон класса не измерен: {drive.get('reason')}"
-    if drive.get("kind") != ac.DRIVE_DISTINGUISHES:
+    if _GBC_REC("_probe_owner_task_answer_reaches_the_channel:364:7", (drive.get("kind") != ac.DRIVE_DISTINGUISHES)):
         return NOT_SATISFIED, (
             f"эталон НЕ различает три исхода, вердикты {drive.get('verdicts')} — "
             f"«закрыто до канала», «ещё не отдано» и «отдано» он смешивает")
@@ -385,7 +385,7 @@ def _probe_owner_task_answer_reaches_the_channel(arg: str | None) -> tuple[str, 
 
             _q.set_status(live, "done", closed_by="probe", evidence="ответ в теле")
             fm, _ = ac.split_frontmatter(live.read_text(encoding="utf-8"))
-            if str(fm.get("owner_notice") or "") != ac.ANSWER_PENDING:
+            if _GBC_REC("_probe_owner_task_answer_reaches_the_channel:388:15", (str(fm.get("owner_notice") or "") != ac.ANSWER_PENDING)):
                 return NOT_SATISFIED, (
                     f"закрытие задания владельца НЕ оставило следа для канала "
                     f"(owner_notice={fm.get('owner_notice')!r}) — уведомить его нечем")
@@ -393,22 +393,22 @@ def _probe_owner_task_answer_reaches_the_channel(arg: str | None) -> tuple[str, 
             queued = cl.sweep_notices(tracker_dir=d, outbox_path=ob, now=now)
             keys = [i.get("key") for i in
                     _json.loads(ob.read_text(encoding="utf-8")).get("pending", [])]
-            if f"{live.name}#{ac.EVENT_ANSWER}" not in keys:
+            if _GBC_REC("_probe_owner_task_answer_reaches_the_channel:396:15", (f"{live.name}#{ac.EVENT_ANSWER}" not in keys)):
                 return NOT_SATISFIED, (
                     f"дочистка не положила ответ в исходящие: очередь={keys}, "
                     f"поставлено={queued}")
-            if hist.name in queued:
+            if _GBC_REC("_probe_owner_task_answer_reaches_the_channel:400:15", (hist.name in queued)):
                 return NOT_SATISFIED, (
                     "АНТИ-ШТОРМ ПРОБИТ: карточка, закрытая до появления канала, "
                     "отправлена владельцу — это рассылка о работе недельной давности")
             ob.write_text(_json.dumps({"schema": 1, "pending": []}), encoding="utf-8")
             after = ac.delivery_verdict(live, outbox_path=ob)[0]
             hist_verdict = ac.delivery_verdict(hist, outbox_path=ob)[0]
-            if (before, after) != (False, True):
+            if _GBC_REC("_probe_owner_task_answer_reaches_the_channel:407:15", ((before, after) != (False, True))):
                 return NOT_SATISFIED, (
                     f"вердикт двери не сменился проводкой: до дочистки {before!r}, "
                     f"после {after!r} (ожидалось False -> True)")
-            if hist_verdict is not None:
+            if _GBC_REC("_probe_owner_task_answer_reaches_the_channel:411:15", (hist_verdict is not None)):
                 return NOT_SATISFIED, (
                     f"историческая карточка получила вердикт {hist_verdict!r} вместо "
                     f"«НЕ ИЗМЕРЕНО» — молчание выдано за ответ")
@@ -430,6 +430,99 @@ def _probe_owner_task_answer_reaches_the_channel(arg: str | None) -> tuple[str, 
         f"(закрытие -> метка -> исходящие под ключом «#{ac.EVENT_ANSWER}» -> вердикт "
         f"False->True); анти-шторм держит (карточка без метки не отправлена, вердикт "
         f"«НЕ ИЗМЕРЕНО»); {where}")
+
+
+def _probe_closed_owner_requests_split_by_the_trace(arg: str | None) -> tuple[str, str]:
+    """Критерий: «ответа не записано ничем» РАЗЛОЖЕНО замером, и «не измерено» отличимо
+    от «следа нет» (ADR-885, карточка `inbox-pyatdesyat-pyat-zakrytyh-prosb-vladeltsa`,
+    заказ G882 п. 9(б)).
+
+    Проба мерит ИСХОД живой меры, а не наличие модуля, и у неё ТРИ замера:
+
+    1. **эталон класса** (`closed_without_answer.drive_exemplar`) — НАСТОЯЩИЙ `measure`
+       на одноразовом дереве из трёх сцен, отличающихся РОВНО одним наблюдением: след в
+       теле · след только в журнале · следа нет. Одинаковый род исхода на этих трёх и
+       есть дословный дефект, из-за которого число 55 выдавалось за однородное;
+    2. **ослеплённый корпус** — то же дерево БЕЗ журнала: карточка без следа в теле
+       обязана стать `unmeasured`, а НЕ остаться обвинением. Мера, выводящая «следа
+       нет» из своего незнания, опаснее отсутствующей (инв. #17), и проверяется это
+       обратной сценой, а не обещанием в документе;
+    3. **живое население НАЗВАНО числом** — перепись на настоящем трекере печатает
+       размер населения, четыре группы и ПОИМЁННО карточки, у которых следа в теле нет.
+       Население НЕ является условием прохода: предмет карточки в том, чтобы три
+       объяснения стали различимы, а не в том, чтобы какая-то группа была пуста.
+
+    Структурность признака проверяется отдельно: словарь заголовков (`ОТВЕТ|ЗАМЕР|…`),
+    стоявший здесь до ADR-885, отвечал на СВОЙ вопрос — «названо ли это ответом таким
+    словом». Проба требует, чтобы приёмный штамп работой НЕ считался, а раздел с ЛЮБЫМ
+    незнакомым заголовком — считался: иначе расширение словаря снова стало бы лазейкой.
+
+    Третий исход СВОЙ: модуль не ввозится или сцену не удалось собрать ⇒ `unmeasured`,
+    а не «не выполнено».
+    """
+    try:
+        from spa_core.owner_queue import answer_channel as ac
+        from spa_core.owner_queue import closed_without_answer as cwa
+    except Exception as exc:  # noqa: BLE001
+        return UNMEASURED, f"перепись следа ответа не ввозится: {type(exc).__name__}: {exc}"
+
+    # ПОРЯДОК ЗВЕНЬЕВ ВЫБРАН, А НЕ СЛУЧИЛСЯ. Структурность признака спрашивается ПЕРВОЙ:
+    # ослепи её — и эталон тоже перестанет различать исходы, то есть проба покраснела бы
+    # с ВЕРНЫМ вердиктом и НЕВЕРНЫМ ИМЕНЕМ («мера не различает» вместо «вернулся
+    # словарь»). Нашёл это собственный контроль батареи, а не разбор.
+    #
+    # Обе стороны обязательны: приёмный штамп — не работа, незнакомый заголовок — работа.
+    # Проверь только первую — и пустой словарь прошёл бы; только вторую — и штамп
+    # оправдал бы карточку, в которой работы нет.
+    stamp = "## Задание (из Telegram)\n\nсделай\n\n## Как понять, что готово\n\nготово\n"
+    if _GBC_REC("_probe_closed_owner_requests_split_by_the_trace:478:7", (ac.work_sections(stamp))):
+        return NOT_SATISFIED, (
+            f"приёмный штамп засчитан за запись работы: {ac.work_sections(stamp)} — "
+            "мера оправдала бы карточку, в которой работы нет")
+    unknown = stamp + "\n## Резолюция (цикл #1)\n\nсделано\n"
+    if _GBC_REC("_probe_closed_owner_requests_split_by_the_trace:483:7", (ac.work_sections(unknown) != ["Резолюция (цикл #1)"])):
+        return NOT_SATISFIED, (
+            "раздел с незнакомым заголовком НЕ засчитан за запись работы: "
+            f"{ac.work_sections(unknown)} — это СЛОВАРЬ, а не структурный признак")
+
+    drive = cwa.drive_exemplar()
+    kind = drive.get("kind")
+    if _GBC_REC("_probe_closed_owner_requests_split_by_the_trace:490:7", (kind == cwa.DRIVE_UNMEASURED)):
+        return UNMEASURED, f"эталон не собрался: {drive.get('reason')}"
+    if _GBC_REC("_probe_closed_owner_requests_split_by_the_trace:492:7", (kind != cwa.DRIVE_DISTINGUISHES)):
+        return NOT_SATISFIED, (
+            "живая мера НЕ различает исходы на сценах, отличающихся РОВНО одним "
+            f"наблюдением: с корпусом {drive.get('with_corpus')} · без корпуса "
+            f"{drive.get('without_corpus')}")
+
+    where = "живое население НЕ измерено"
+    try:
+        from spa_core.owner_queue import queue as _q
+        rep = cwa.measure(_q.TRACKER_DIR)
+        if _GBC_REC("_probe_closed_owner_requests_split_by_the_trace:502:11", (rep["population"] is None)):
+            where = f"живое население НЕ измерено: {rep['unmeasured_reason']}"
+        else:
+            c = rep["counts"]
+            named = ", ".join(r["card"] for r in cwa.needs_human_judgement(rep)) or "—"
+            # ДЕРЕВО И РАЗМЕР КОРПУСА — часть числа, а не украшение. Замер 01.11: тот же
+            # прибор на прод-дереве даёт `no_trace` 11, а на worktree от origin/main —
+            # 0, и расходится вердикт у 6 карточек из 63 общих, ВСЕГДА в сторону
+            # обвинения: прод-копии карточек усечены, а `docs/` в прод-дерево не
+            # синхронизируется вовсе (ADR-152) — корпус там 51 файл против 759.
+            where = (f"живое население {rep['population']} (трекер {rep['tracker_dir']}, "
+                     f"корпус журнал+ADR {rep['corpus']['files']} файл(ов) из "
+                     f"{rep['repo_root']}): след в карточке {c[cwa.RECORD_IN_BODY]} · "
+                     f"только в журнале/ADR {c[cwa.RECORD_OUTSIDE]} · следа нет "
+                     f"{c[cwa.NO_TRACE]} · НЕ ИЗМЕРЕНО {c[cwa.UNMEASURED]}; "
+                     f"без записи в теле: {named}")
+    except Exception as exc:  # noqa: BLE001
+        where = f"живое население НЕ измерено: {type(exc).__name__}: {exc}"
+
+    return SATISFIED, (
+        f"эталон различает три группы {drive.get('with_corpus')}; ослеплённый корпус "
+        f"даёт НЕ ИЗМЕРЕНО вместо обвинения {drive.get('without_corpus')}; признак "
+        f"структурный (приёмный штамп — не работа, незнакомый заголовок — работа); "
+        f"{where}")
 
 
 def _probe_twin_guard_survives_the_intake_stamp(arg: str | None) -> tuple[str, str]:
@@ -472,7 +565,7 @@ def _probe_twin_guard_survives_the_intake_stamp(arg: str | None) -> tuple[str, s
     except Exception as exc:  # noqa: BLE001
         return UNMEASURED, f"дверь рождения карточек не ввозится: {type(exc).__name__}: {exc}"
     for need in ("twin_key", "twin_verdict", "TWIN_UNMEASURED", "TWIN_KEY_FIELD"):
-        if not hasattr(Q, need):
+        if _GBC_REC("_probe_twin_guard_survives_the_intake_stamp:568:11", (not hasattr(Q, need))):
             return UNMEASURED, (f"у двери рождения нет `{need}` — ключ близнеца "
                                 "НЕ ИЗМЕРИТЬ (проводка ADR-866 отсутствует)")
 
@@ -521,23 +614,23 @@ def _probe_twin_guard_survives_the_intake_stamp(arg: str | None) -> tuple[str, s
         return UNMEASURED, (f"сцена не собралась — {type(exc).__name__}: {exc}; "
                             "исход НЕ ИЗМЕРЕН")
 
-    if again != first:
+    if _GBC_REC("_probe_twin_guard_survives_the_intake_stamp:617:7", (again != first)):
         return NOT_SATISFIED, (
             "дописка тела приёмом снова отключает защиту: та же просьба родила вторую "
             f"карточку {born_after_stamp} — ключ близнеца опять ИЗМЕНЯЕМЫЙ")
-    if o2 == o1:
+    if _GBC_REC("_probe_twin_guard_survives_the_intake_stamp:621:7", (o2 == o1)):
         return NOT_SATISFIED, (
             "защита стала глухотой: ДРУГАЯ просьба под тем же заголовком слилась в "
             f"{o1.name} — разные задания владельца съедаются")
-    if third.get("kind") != Q.TWIN_UNMEASURED:
+    if _GBC_REC("_probe_twin_guard_survives_the_intake_stamp:625:7", (third.get("kind") != Q.TWIN_UNMEASURED)):
         return NOT_SATISFIED, (
             f"кандидат БЕЗ ключа рождения получил род {third.get('kind')!r} вместо "
             "«НЕ ИЗМЕРЕНО» — молчание выдано за измеренный ответ (инв. #17)")
-    if heir_key != Q.twin_key(BODY):
+    if _GBC_REC("_probe_twin_guard_survives_the_intake_stamp:629:7", (heir_key != Q.twin_key(BODY))):
         return NOT_SATISFIED, (
             "карточка, рождённая после НЕИЗМЕРЕННОГО близнеца, ключа не несёт "
             f"({heir_key!r}) — размножение не остановится и на следующем повторе")
-    if heir_again != heir:
+    if _GBC_REC("_probe_twin_guard_survives_the_intake_stamp:633:7", (heir_again != heir)):
         return NOT_SATISFIED, (
             "следующий повтор не слился в наследника — размножение продолжается: "
             f"{sorted(x.name for x in heir.parent.glob('inbox-*.md'))}")
@@ -550,10 +643,10 @@ def _probe_twin_guard_survives_the_intake_stamp(arg: str | None) -> tuple[str, s
             out = _sp.run([_sys.executable, str(starv), "--tracker-dir", str(d),
                            "--ref", "", "--no-write", "--json"],
                           capture_output=True, text=True, timeout=300)
-            if not out.stdout.strip():
+            if _GBC_REC("_probe_twin_guard_survives_the_intake_stamp:646:15", (not out.stdout.strip())):
                 return f"шаг 0a не напечатал JSON (rc={out.returncode})"
             doc = _json.loads(out.stdout)
-            if "repeated_cards" not in doc:
+            if _GBC_REC("_probe_twin_guard_survives_the_intake_stamp:649:15", ("repeated_cards" not in doc)):
                 return "шаг 0a не публикует ключ `repeated_cards` — оси повтора НЕТ"
             return doc["repeated_cards"]
         except Exception as exc:  # noqa: BLE001
@@ -561,13 +654,13 @@ def _probe_twin_guard_survives_the_intake_stamp(arg: str | None) -> tuple[str, s
 
     axis_merged, axis_bred = _axis(merged), _axis(bred)
     for label, value in (("слитой", axis_merged), ("расплодившейся", axis_bred)):
-        if isinstance(value, str):
+        if _GBC_REC("_probe_twin_guard_survives_the_intake_stamp:657:11", (isinstance(value, str))):
             return UNMEASURED, f"ось повтора на сцене «{label}» НЕ ИЗМЕРЕНА: {value}"
-    if axis_bred == axis_merged:
+    if _GBC_REC("_probe_twin_guard_survives_the_intake_stamp:659:7", (axis_bred == axis_merged)):
         return NOT_SATISFIED, (
             f"ось повтора шага 0a отвечает одно и то же ({axis_merged}) на слитую и на "
             "расплодившуюся очередь — повтор она не различает, и критерий нечем поверить")
-    if axis_merged != 0:
+    if _GBC_REC("_probe_twin_guard_survives_the_intake_stamp:663:7", (axis_merged != 0)):
         return NOT_SATISFIED, (
             f"просьба слита в одну карточку, а ось повтора шага 0a даёт "
             f"{axis_merged} — читатель всё равно потребует «возьми эту карточку первой»")
@@ -580,9 +673,9 @@ def _probe_twin_guard_survives_the_intake_stamp(arg: str | None) -> tuple[str, s
                 c = Q.load_card(f)
             except Exception:  # noqa: BLE001
                 continue
-            if (c.status or "") not in Q._OPEN_STATUSES:
+            if _GBC_REC("_probe_twin_guard_survives_the_intake_stamp:676:15", ((c.status or "") not in Q._OPEN_STATUSES)):
                 continue
-            if str((c.fields or {}).get(Q.TWIN_KEY_FIELD) or "").strip():
+            if _GBC_REC("_probe_twin_guard_survives_the_intake_stamp:678:15", (str((c.fields or {}).get(Q.TWIN_KEY_FIELD) or "").strip())):
                 keyed += 1
             else:
                 keyless += 1
@@ -637,14 +730,14 @@ def _probe_owner_repeat_named_by_the_hunger_step(arg: str | None) -> tuple[str, 
         return UNMEASURED, f"прибор переписи повторов не ввозится: {type(exc).__name__}: {exc}"
 
     drive = m.drive_exemplar(now=datetime(2026, 10, 29, tzinfo=timezone.utc))
-    if drive.get("kind") == m.DRIVE_UNMEASURED:
+    if _GBC_REC("_probe_owner_repeat_named_by_the_hunger_step:733:7", (drive.get("kind") == m.DRIVE_UNMEASURED)):
         return UNMEASURED, f"эталон класса не измерен: {drive.get('reason')}"
-    if drive.get("kind") == m.DRIVE_CONFLATES:
+    if _GBC_REC("_probe_owner_repeat_named_by_the_hunger_step:735:7", (drive.get("kind") == m.DRIVE_CONFLATES)):
         return NOT_SATISFIED, (
             "эталон отвечает одно и то же на сцену с повтором и на сцену без него "
             f"(«{drive['scene_repeated']['outcome']}») — повтор он не различает")
     pair = (drive["scene_repeated"]["outcome"], drive["scene_single"]["outcome"])
-    if pair != (m.REPEATED, m.MEASURED_ZERO):
+    if _GBC_REC("_probe_owner_repeat_named_by_the_hunger_step:740:7", (pair != (m.REPEATED, m.MEASURED_ZERO))):
         return NOT_SATISFIED, (
             f"исходы различны, но НЕ в ту сторону: сцена с повтором дала «{pair[0]}», "
             f"сцена без повтора — «{pair[1]}»")
@@ -679,24 +772,24 @@ def _probe_owner_repeat_named_by_the_hunger_step(arg: str | None) -> tuple[str, 
             return f"{type(exc).__name__}: {exc}"
 
     with_repeat = _scene(["проверь дашборд", "проверь дашборд"])
-    if isinstance(with_repeat, str):
+    if _GBC_REC("_probe_owner_repeat_named_by_the_hunger_step:775:7", (isinstance(with_repeat, str))):
         return UNMEASURED, f"сцена проводки «с повтором» не собралась: {with_repeat}"
     without = _scene(["проверь дашборд"])
-    if isinstance(without, str):
+    if _GBC_REC("_probe_owner_repeat_named_by_the_hunger_step:778:7", (isinstance(without, str))):
         return UNMEASURED, f"сцена проводки «без повтора» не собралась: {without}"
     rc_rep, doc_rep = with_repeat
     rc_one, doc_one = without
     missing = [k for k in ("repeated_groups", "repeated_cards", "repeat_groups")
-               if k not in doc_rep]
-    if missing:
+               if _GBC_REC("_probe_owner_repeat_named_by_the_hunger_step:783:18", (k not in doc_rep))]
+    if _GBC_REC("_probe_owner_repeat_named_by_the_hunger_step:784:7", (missing)):
         return NOT_SATISFIED, ("шаг 0a не публикует ключи оси повтора: нет "
                                f"{', '.join(missing)} — числа у повтора НЕТ")
-    if doc_rep.get("repeated_cards") != 2 or doc_one.get("repeated_cards") != 0:
+    if _GBC_REC("_probe_owner_repeat_named_by_the_hunger_step:787:7", (doc_rep.get("repeated_cards") != 2 or doc_one.get("repeated_cards") != 0)):
         return NOT_SATISFIED, (
             "шаг 0a назвал повтор НЕ ТЕМ числом: сцена с повтором дала "
             f"repeated_cards={doc_rep.get('repeated_cards')} (ожидалось 2), "
             f"сцена без повтора — {doc_one.get('repeated_cards')} (ожидалось 0)")
-    if rc_rep == rc_one:
+    if _GBC_REC("_probe_owner_repeat_named_by_the_hunger_step:792:7", (rc_rep == rc_one)):
         return NOT_SATISFIED, (
             f"код возврата одинаков на обеих сценах ({rc_rep}) — повтор назван в JSON, "
             "но вердикта шага 0a не меняет: обёртка его не увидит")
@@ -709,7 +802,7 @@ def _probe_owner_repeat_named_by_the_hunger_step(arg: str | None) -> tuple[str, 
                             f"{type(exc).__name__}: {exc} — население не измерено")
     live = m.repeated_requests(cards, now=datetime.now(timezone.utc),
                                source=str(TRACKER_DIR))
-    if live:
+    if _GBC_REC("_probe_owner_repeat_named_by_the_hunger_step:805:7", (live)):
         loud = live[0]
         return NOT_SATISFIED, (
             f"мера работает (эталон различает «{pair[0]}»/«{pair[1]}», коды {rc_rep}≠"
@@ -733,9 +826,9 @@ def _probe_lead_channel_wiring(arg: str | None) -> tuple[str, str]:
     res = m.probe_wiring()
     status = getattr(res, "status", None)
     detail = getattr(res, "detail", "") or str(status)
-    if status == m.OK:
+    if _GBC_REC("_probe_lead_channel_wiring:829:7", (status == m.OK)):
         return SATISFIED, detail
-    if status == m.UNCHECKED:
+    if _GBC_REC("_probe_lead_channel_wiring:831:7", (status == m.UNCHECKED)):
         return UNMEASURED, detail
     return NOT_SATISFIED, detail
 
@@ -763,7 +856,7 @@ def _probe_adapter_status_live_apy(arg: str | None, *, now: "datetime | None" = 
 
     Время — вход (`now`), а не окружение: обе стороны сравнения закрепляются в тесте.
     """
-    if not arg:
+    if _GBC_REC("_probe_adapter_status_live_apy:859:7", (not arg)):
         return UNMEASURED, "пробе нужен ключ адаптера (acceptance_probe: adapter_status_live_apy:<key>)"
     path = os.path.join(REPO_ROOT, "data", "adapter_status.json")
     rel = os.path.relpath(path, REPO_ROOT)
@@ -774,42 +867,42 @@ def _probe_adapter_status_live_apy(arg: str | None, *, now: "datetime | None" = 
         return UNMEASURED, f"{rel} нет в этом дереве — предмет не измерен"
     except (OSError, ValueError) as exc:
         return UNMEASURED, f"{rel} не разобран: {type(exc).__name__}: {exc}"
-    if not isinstance(doc, dict):
+    if _GBC_REC("_probe_adapter_status_live_apy:870:7", (not isinstance(doc, dict))):
         return UNMEASURED, f"форма {rel} не разобрана ({type(doc).__name__})"
 
     stamp = doc.get("generated_at")
-    if not stamp:
+    if _GBC_REC("_probe_adapter_status_live_apy:874:7", (not stamp)):
         return UNMEASURED, f"{rel} без generated_at — возраст не измерен, судить нечем"
     try:
         made = datetime.fromisoformat(str(stamp).replace("Z", "+00:00"))
     except ValueError:
         return UNMEASURED, f"{rel}: generated_at {stamp!r} не разобран — возраст не измерен"
-    if made.tzinfo is None:
+    if _GBC_REC("_probe_adapter_status_live_apy:880:7", (made.tzinfo is None)):
         made = made.replace(tzinfo=timezone.utc)
     age_h = ((now or datetime.now(timezone.utc)) - made).total_seconds() / 3600.0
-    if age_h > ADAPTER_STATUS_MAX_AGE_H:
+    if _GBC_REC("_probe_adapter_status_live_apy:883:7", (age_h > ADAPTER_STATUS_MAX_AGE_H)):
         return UNMEASURED, (f"{rel} протух: возраст {age_h:.1f}ч при пределе "
                             f"{ADAPTER_STATUS_MAX_AGE_H:.0f}ч (снимок, не наблюдение) — "
                             f"мерить надо из дерева с живым data/")
 
     rows = doc.get("adapters")
-    if rows is None:
+    if _GBC_REC("_probe_adapter_status_live_apy:889:7", (rows is None)):
         rows = doc
-    if not isinstance(rows, (dict, list)):
+    if _GBC_REC("_probe_adapter_status_live_apy:891:7", (not isinstance(rows, (dict, list)))):
         return UNMEASURED, f"форма {rel} не разобрана ({type(rows).__name__})"
-    keys = [k for k in arg.split("+") if k]
+    keys = [k for k in arg.split("+") if _GBC_REC("_probe_adapter_status_live_apy:893:41", (k))]
     verdicts, details = [], []
     for key in keys:
-        if isinstance(rows, dict):
+        if _GBC_REC("_probe_adapter_status_live_apy:896:11", (isinstance(rows, dict))):
             row = rows.get(key)
         else:
-            row = next((r for r in rows if isinstance(r, dict) and r.get("key") == key), None)
-        if not isinstance(row, dict):
+            row = next((r for r in rows if _GBC_REC("_probe_adapter_status_live_apy:899:43", (isinstance(r, dict) and r.get("key") == key))), None)
+        if _GBC_REC("_probe_adapter_status_live_apy:900:11", (not isinstance(row, dict))):
             verdicts.append(UNMEASURED)
             details.append(f"{key}: ключа нет в {rel} — предмет не измерен")
             continue
         live = row.get("live_apy")
-        if live is None:
+        if _GBC_REC("_probe_adapter_status_live_apy:905:11", (live is None)):
             verdicts.append(NOT_SATISFIED)
             details.append(f"{key}: live_apy=null, предъявляется запасной литерал "
                            f"{row.get('fallback_apy')} (tvl_source={row.get('tvl_source')})")
@@ -821,9 +914,9 @@ def _probe_adapter_status_live_apy(arg: str | None, *, now: "datetime | None" = 
     # «выполнено» (нельзя объявить критерий закрытым, не проверив вторую половину), а
     # «не выполнено» съедает всё остальное. Критерий из двух ключей выполнен ТОЛЬКО
     # когда выполнены оба.
-    if NOT_SATISFIED in verdicts:
+    if _GBC_REC("_probe_adapter_status_live_apy:917:7", (NOT_SATISFIED in verdicts)):
         return NOT_SATISFIED, detail
-    if UNMEASURED in verdicts:
+    if _GBC_REC("_probe_adapter_status_live_apy:919:7", (UNMEASURED in verdicts)):
         return UNMEASURED, detail
     return SATISFIED, detail
 
@@ -899,7 +992,7 @@ def _probe_owner_protocols_report_carries_every_record(
     """
     root = data_dir or os.path.join(REPO_ROOT, "data")
     path = os.path.join(root, "adapter_status.json")
-    rel = os.path.relpath(path, REPO_ROOT) if path.startswith(REPO_ROOT) else path
+    rel = os.path.relpath(path, REPO_ROOT) if _GBC_REC("_probe_owner_protocols_report_carries_every_record:995:46", (path.startswith(REPO_ROOT))) else path
     try:
         with open(path, encoding="utf-8") as fh:
             doc = json.load(fh)
@@ -907,20 +1000,20 @@ def _probe_owner_protocols_report_carries_every_record(
         return UNMEASURED, f"{rel} нет в этом дереве — предмет не измерен"
     except (OSError, ValueError) as exc:
         return UNMEASURED, f"{rel} не разобран: {type(exc).__name__}: {exc}"
-    if not isinstance(doc, dict):
+    if _GBC_REC("_probe_owner_protocols_report_carries_every_record:1003:7", (not isinstance(doc, dict))):
         return UNMEASURED, f"форма {rel} не разобрана ({type(doc).__name__})"
 
     stamp = doc.get("generated_at")
-    if not stamp:
+    if _GBC_REC("_probe_owner_protocols_report_carries_every_record:1007:7", (not stamp)):
         return UNMEASURED, f"{rel} без generated_at — возраст не измерен, судить нечем"
     try:
         made = datetime.fromisoformat(str(stamp).replace("Z", "+00:00"))
     except ValueError:
         return UNMEASURED, f"{rel}: generated_at {stamp!r} не разобран — возраст не измерен"
-    if made.tzinfo is None:
+    if _GBC_REC("_probe_owner_protocols_report_carries_every_record:1013:7", (made.tzinfo is None)):
         made = made.replace(tzinfo=timezone.utc)
     age_h = ((now or datetime.now(timezone.utc)) - made).total_seconds() / 3600.0
-    if age_h > ADAPTER_STATUS_MAX_AGE_H:
+    if _GBC_REC("_probe_owner_protocols_report_carries_every_record:1016:7", (age_h > ADAPTER_STATUS_MAX_AGE_H)):
         return UNMEASURED, (
             f"{rel} протух: возраст {age_h:.1f}ч при пределе "
             f"{ADAPTER_STATUS_MAX_AGE_H:.0f}ч (замороженный канон, не наблюдение) — "
@@ -929,21 +1022,21 @@ def _probe_owner_protocols_report_carries_every_record(
 
     # ── знаменатель: СЫРОЙ артефакт, без участия измеряемого читателя ──────
     section = doc.get("adapters")
-    if isinstance(section, dict):
+    if _GBC_REC("_probe_owner_protocols_report_carries_every_record:1025:7", (isinstance(section, dict))):
         members: list[object] = list(section.values())
         section_ids = {
             str(k).strip().lower().replace("-", "_")
             for k, v in section.items()
-            if isinstance(v, dict)
+            if _GBC_REC("_probe_owner_protocols_report_carries_every_record:1030:15", (isinstance(v, dict)))
         }
-    elif isinstance(section, list):
+    elif _GBC_REC("_probe_owner_protocols_report_carries_every_record:1032:9", (isinstance(section, list))):
         members = list(section)
         section_ids = {
             str(
                 v.get("protocol_key") or v.get("adapter_id") or v.get("name") or ""
             ).strip().lower().replace("-", "_")
             for v in section
-            if isinstance(v, dict)
+            if _GBC_REC("_probe_owner_protocols_report_carries_every_record:1039:15", (isinstance(v, dict)))
         }
     else:
         return UNMEASURED, (
@@ -951,19 +1044,19 @@ def _probe_owner_protocols_report_carries_every_record(
             f"({type(section).__name__}) — население не измерено"
         )
 
-    section_records = [m for m in members if isinstance(m, dict)]
+    section_records = [m for m in members if _GBC_REC("_probe_owner_protocols_report_carries_every_record:1047:45", (isinstance(m, dict)))]
     dropped = len(members) - len(section_records)
 
     legacy_ids: set[str] = set()
     for key, value in doc.items():
-        if key == "adapters" or not isinstance(value, dict):
+        if _GBC_REC("_probe_owner_protocols_report_carries_every_record:1052:11", (key == "adapters" or not isinstance(value, dict))):
             continue
-        if "tier" not in value and "apy" not in value and "apy_pct" not in value:
+        if _GBC_REC("_probe_owner_protocols_report_carries_every_record:1054:11", ("tier" not in value and "apy" not in value and "apy_pct" not in value)):
             continue
         ident = str(
             value.get("adapter_id") or value.get("protocol_key") or key
         ).strip().lower().replace("-", "_")
-        if ident not in section_ids:
+        if _GBC_REC("_probe_owner_protocols_report_carries_every_record:1059:11", (ident not in section_ids)):
             legacy_ids.add(ident)
     expected = len(section_records) + len(legacy_ids)
 
@@ -979,21 +1072,21 @@ def _probe_owner_protocols_report_carries_every_record(
             f"{reporter.__name__}.format_protocols_message упал: "
             f"{type(exc).__name__}: {exc} — отчёт не измерен"
         )
-    shown = sum(1 for line in str(message).splitlines() if line.startswith("•"))
+    shown = sum(1 for line in str(message).splitlines() if _GBC_REC("_probe_owner_protocols_report_carries_every_record:1075:59", (line.startswith("•"))))
 
     detail = (
         f"{rel} (возраст {age_h:.1f}ч): записей раздела {len(section_records)} + "
         f"легаси без близнеца {len(legacy_ids)} = ждём {expected}; "
         f"отчёт печатает {shown}; уронено разделом {dropped}"
     )
-    if dropped:
+    if _GBC_REC("_probe_owner_protocols_report_carries_every_record:1082:7", (dropped)):
         return NOT_SATISFIED, (
             f"{detail} — члены раздела, не являющиеся записями, не доходят до владельца"
         )
-    if shown != expected:
+    if _GBC_REC("_probe_owner_protocols_report_carries_every_record:1086:7", (shown != expected)):
         return NOT_SATISFIED, (
             f"{detail} — отчёт владельцу теряет {expected - shown} запис(ей)"
-            if shown < expected
+            if _GBC_REC("_probe_owner_protocols_report_carries_every_record:1089:15", (shown < expected))
             else f"{detail} — отчёт владельцу печатает лишние {shown - expected} строк(и)"
         )
     return SATISFIED, detail
@@ -1146,7 +1239,7 @@ def _probe_owner_protocols_report_reaches_the_owner(
     Проба только ЧИТАЕТ: ни файла, ни сети, ни состояния бота она не меняет.
     """
     doc, age_h, rel = _live_adapter_status_for_the_door(now, data_dir)
-    if doc is None:
+    if _GBC_REC("_probe_owner_protocols_report_reaches_the_owner:1242:7", (doc is None)):
         return UNMEASURED, rel
 
     try:
@@ -1159,9 +1252,9 @@ def _probe_owner_protocols_report_reaches_the_owner(
         return UNMEASURED, f"дверь (бот) не ввезена: {type(exc).__name__}: {exc}"
 
     door_cls = getattr(bot_mod, "TelegramBot", None)
-    if door_cls is None:
+    if _GBC_REC("_probe_owner_protocols_report_reaches_the_owner:1255:7", (door_cls is None)):
         return UNMEASURED, "в модуле бота нет класса TelegramBot — дверь не измерена"
-    if not hasattr(door_cls, "cmd_protocols"):
+    if _GBC_REC("_probe_owner_protocols_report_reaches_the_owner:1257:7", (not hasattr(door_cls, "cmd_protocols"))):
         return NOT_SATISFIED, (
             "у бота НЕТ обработчика cmd_protocols: типизированная команда вне "
             "COMMAND_TO_PATH открывает домашнюю панель, то есть отчёт не доезжает "
@@ -1183,7 +1276,7 @@ def _probe_owner_protocols_report_reaches_the_owner(
 
         door.send_message = _capture  # type: ignore[method-assign]
         try:
-            if payload is None:
+            if _GBC_REC("_probe_owner_protocols_report_reaches_the_owner:1279:15", (payload is None)):
                 door.cmd_protocols("probe")
             else:
                 door.cmd_protocols("probe", data=payload)
@@ -1200,7 +1293,7 @@ def _probe_owner_protocols_report_reaches_the_owner(
     # указывать на другое дерево — и тогда «потеряно 14 строк» означало бы лишь,
     # что сравнили два разных файла. Дефект найден контролем этой же пробы.
     grown, population, why = _grown_adapter_doc(doc, reporter)
-    if grown is None:
+    if _GBC_REC("_probe_owner_protocols_report_reaches_the_owner:1296:7", (grown is None)):
         return UNMEASURED, f"испытание населением не поставлено: {why}"
     try:
         own = reporter.load_adapter_data(bot_mod.DATA_DIR)
@@ -1221,27 +1314,27 @@ def _probe_owner_protocols_report_reaches_the_owner(
         produced = reporter.format_protocols_message(source_doc)
 
         parts, failure = _deliver(payload_doc)
-        if failure:
+        if _GBC_REC("_probe_owner_protocols_report_reaches_the_owner:1317:11", (failure)):
             return UNMEASURED, f"дверь упала на {label} входе: {failure}"
         want = _lines(produced)
         got = sum(_lines(p) for p in parts)
-        clipped = sum(1 for p in parts if p.endswith("… (сокращено)"))
+        clipped = sum(1 for p in parts if _GBC_REC("_probe_owner_protocols_report_reaches_the_owner:1321:42", (p.endswith("… (сокращено)"))))
         rows.append(
             f"{label} вход ({pop_note}, {len(produced)} симв.): дверь отдала "
             f"{len(parts)} куск(ов), строк {got} из {want}, усечено куск(ов) {clipped}"
         )
-        if not parts:
+        if _GBC_REC("_probe_owner_protocols_report_reaches_the_owner:1326:11", (not parts)):
             verdicts.append(f"{label}: дверь не отдала НИ ОДНОГО куска")
-        elif clipped:
+        elif _GBC_REC("_probe_owner_protocols_report_reaches_the_owner:1328:13", (clipped)):
             verdicts.append(f"{label}: усечено куск(ов) {clipped} — сводка не доживает")
-        elif got != want:
+        elif _GBC_REC("_probe_owner_protocols_report_reaches_the_owner:1330:13", (got != want)):
             verdicts.append(
-                f"{label}: потеряно строк {want - got}" if got < want
+                f"{label}: потеряно строк {want - got}" if _GBC_REC("_probe_owner_protocols_report_reaches_the_owner:1332:72", (got < want))
                 else f"{label}: лишних строк {got - want}"
             )
 
     detail = f"{rel} (возраст {age_h:.1f}ч) · " + " · ".join(rows)
-    if verdicts:
+    if _GBC_REC("_probe_owner_protocols_report_reaches_the_owner:1337:7", (verdicts)):
         return NOT_SATISFIED, f"{detail} — {'; '.join(verdicts)}"
     return SATISFIED, detail
 
@@ -1292,7 +1385,7 @@ def _probe_second_artifact_tvl_agrees(arg: str | None, *,
         return UNMEASURED, f"перепись упала: {type(exc).__name__}: {exc}"
 
     stamp = res.get("as_of")
-    if not stamp:
+    if _GBC_REC("_probe_second_artifact_tvl_agrees:1388:7", (not stamp)):
         return UNMEASURED, ("у снимка книги нет `generated_at` — возраст не измерен, "
                             "судить о споре двух снимков нечем")
     try:
@@ -1300,35 +1393,35 @@ def _probe_second_artifact_tvl_agrees(arg: str | None, *,
     except ValueError:
         return UNMEASURED, (f"снимок книги: generated_at {stamp!r} не разобран — "
                             f"возраст не измерен")
-    if made.tzinfo is None:
+    if _GBC_REC("_probe_second_artifact_tvl_agrees:1396:7", (made.tzinfo is None)):
         made = made.replace(tzinfo=timezone.utc)
     age_h = ((now or datetime.now(timezone.utc)) - made).total_seconds() / 3600.0
-    if age_h > CENSUS_MAX_AGE_H:
+    if _GBC_REC("_probe_second_artifact_tvl_agrees:1399:7", (age_h > CENSUS_MAX_AGE_H)):
         return UNMEASURED, (f"снимок книги протух: возраст {age_h:.1f}ч при пределе "
                             f"{CENSUS_MAX_AGE_H:.0f}ч (замороженный канон, не наблюдение) — "
                             f"мерить надо из дерева с живым data/")
 
     second = res.get("second_artifact") or {}
-    if not second.get("read"):
+    if _GBC_REC("_probe_second_artifact_tvl_agrees:1405:7", (not second.get("read"))):
         return UNMEASURED, ("сверка со вторым артефактом НЕ СОСТОЯЛАСЬ: "
                             f"{second.get('reason') or 'причина не названа'}")
 
     rows = [r for r in (second.get("disagreements") or [])
-            if r.get("axis") == "tvl" or r.get("kind") == "absent_from_second_artifact"]
-    if not rows:
+            if _GBC_REC("_probe_second_artifact_tvl_agrees:1410:15", (r.get("axis") == "tvl" or r.get("kind") == "absent_from_second_artifact"))]
+    if _GBC_REC("_probe_second_artifact_tvl_agrees:1411:7", (not rows)):
         return SATISFIED, (f"спора по оси TVL нет: развёрнуто ${res['deployed_usd']:,.2f} "
                            f"в {res['protocols']} протокол(ах), второй артефакт согласен "
                            f"по каждому (снимок {str(stamp)[:19]}, возраст {age_h:.1f}ч)")
 
     details = []
     for r in rows:
-        if r.get("kind") == "absent_from_second_artifact":
+        if _GBC_REC("_probe_second_artifact_tvl_agrees:1418:11", (r.get("kind") == "absent_from_second_artifact")):
             details.append(f"{r['protocol']} (${r['usd']:,.2f}): протокола нет во втором "
                            f"артефакте вовсе")
             continue
         sv, tv = r.get("surface_value"), r.get("second_value")
         extra = ""
-        if isinstance(sv, (int, float)) and isinstance(tv, (int, float)) and sv:
+        if _GBC_REC("_probe_second_artifact_tvl_agrees:1424:11", (isinstance(sv, (int, float)) and isinstance(tv, (int, float)) and sv)):
             extra = f" — ${tv:,.0f} против ${sv:,.0f}, ×{tv / sv:,.1f}"
         details.append(f"{r['protocol']} (${r['usd']:,.2f}): поверхность — {r['surface']}, "
                        f"adapter_status.json — {r['second']}{extra}")
@@ -1394,21 +1487,21 @@ def _probe_apy_provenance_declared_in_the_door(arg: str | None) -> tuple[str, st
         return UNMEASURED, f"перепись упала: {type(exc).__name__}: {exc}"
 
     door = rep.get("door") or {}
-    if rep.get("door_refused"):
+    if _GBC_REC("_probe_apy_provenance_declared_in_the_door:1490:7", (rep.get("door_refused"))):
         return UNMEASURED, f"дверь не прочитана: {rep['door_refused']}"
-    if not door.get("population"):
+    if _GBC_REC("_probe_apy_provenance_declared_in_the_door:1492:7", (not door.get("population"))):
         return UNMEASURED, ("в двери НИ ОДНОГО адаптера — опрашиваемый набор не "
                             "прочитан, и доля у нуля не существует")
     rows = rep.get("door_rows") or []
-    if door.get("unmeasured"):
+    if _GBC_REC("_probe_apy_provenance_declared_in_the_door:1496:7", (door.get("unmeasured"))):
         names = ", ".join(
             f"{r['class']}: {'; '.join(r['notes'])[:120]}"
-            for r in rows if r.get("verdict") == "unmeasured")
+            for r in rows if _GBC_REC("_probe_apy_provenance_declared_in_the_door:1499:29", (r.get("verdict") == "unmeasured")))
         return UNMEASURED, f"выражение ставки НЕ РАЗОБРАНО у {door['unmeasured']}: {names}"
-    if door.get("can_substitute"):
+    if _GBC_REC("_probe_apy_provenance_declared_in_the_door:1501:7", (door.get("can_substitute"))):
         names = ", ".join(
             f"{r['class']} ({'; '.join(r['notes'])[:80]})"
-            for r in rows if r.get("verdict") == "can_substitute")
+            for r in rows if _GBC_REC("_probe_apy_provenance_declared_in_the_door:1504:29", (r.get("verdict") == "can_substitute")))
         return NOT_SATISFIED, (
             f"постоянная может ранжировать капитал под ярлыком наблюдения у "
             f"{door['can_substitute']} из {door['population']}: {names}")
@@ -1492,25 +1585,25 @@ def _probe_adapter_status_number_has_a_writer(arg: str | None) -> tuple[str, str
 
     c = rep.get("counts") or {}
     cl = rep.get("ceilings") or {}
-    if not c.get("writers"):
+    if _GBC_REC("_probe_adapter_status_number_has_a_writer:1588:7", (not c.get("writers"))):
         return UNMEASURED, ("писателей не найдено ВОВСЕ — у артефакта есть "
                             "`generated_by`, значит писатель существует; ноль "
                             "здесь есть отказ меры, а не чистота")
     for key, label in (("writer_unmeasured", "цель записи не раскрыта"),
                        ("literal_unmeasured", "значение числа не разобрано"),
                        ("caller_supplied", "цель приходит от вызывающего")):
-        if c.get(key, 0) > cl.get(key, 0):
+        if _GBC_REC("_probe_adapter_status_number_has_a_writer:1595:11", (c.get(key, 0) > cl.get(key, 0))):
             return UNMEASURED, (f"НЕ ИЗМЕРЕНО ({label}): {c[key]} > потолок "
                                 f"{cl.get(key)}")
 
-    if c.get("literal_substitution", 0) > cl.get("literal_substitution", 0):
+    if _GBC_REC("_probe_adapter_status_number_has_a_writer:1599:7", (c.get("literal_substitution", 0) > cl.get("literal_substitution", 0))):
         names = " · ".join(
             f"{s['file']}:{s['line']} поле {s['field']} = .get({s['source_key']!r}, "
             f"{s['literal']})" for s in (rep.get("substitutions") or [])[:4])
         return NOT_SATISFIED, (
             f"ЛИТЕРАЛ производителя доезжает до опубликованного числа у "
             f"{c['literal_substitution']} площадки(ок): {names}")
-    if c.get("provenance_absent", 0) > cl.get("provenance_absent", 0):
+    if _GBC_REC("_probe_adapter_status_number_has_a_writer:1606:7", (c.get("provenance_absent", 0) > cl.get("provenance_absent", 0))):
         names = " · ".join(
             f"{s['file']}:{s['line']} поле {s.get('field')} "
             f"(ждали {s.get('want')})"
@@ -1611,7 +1704,7 @@ def _probe_economics_net_return_dominates_keep(
     # подстрока совпала бы и с чужой заметкой, и объявление стало бы украшением.
     anchor = "§49 Economics"
     declared = str(getattr(census, "CRITERION", "") or "")
-    if not declared.startswith(anchor):
+    if _GBC_REC("_probe_economics_net_return_dominates_keep:1707:7", (not declared.startswith(anchor))):
         return UNMEASURED, (f"перепись не объявляет себя мерой {anchor!r} "
                             f"(её CRITERION: {declared[:80]!r}) — привязка не сходится, "
                             f"и считать её мерой этого критерия нельзя")
@@ -1623,13 +1716,13 @@ def _probe_economics_net_return_dominates_keep(
         return UNMEASURED, (f"перепись доминирования KEEP упала: "
                             f"{type(exc).__name__}: {exc}")
 
-    if not report.get("measured"):
+    if _GBC_REC("_probe_economics_net_return_dominates_keep:1719:7", (not report.get("measured"))):
         return UNMEASURED, (f"перепись отказалась мерить: "
                             f"{report.get('reason') or 'причина не названа'}")
 
-    books = [b for b in (report.get("books") or []) if b.get("measured")]
-    dates = [b.get("latest_cycle_date") for b in books if b.get("latest_cycle_date")]
-    if not dates:
+    books = [b for b in (report.get("books") or []) if _GBC_REC("_probe_economics_net_return_dominates_keep:1723:55", (b.get("measured")))]
+    dates = [b.get("latest_cycle_date") for b in books if _GBC_REC("_probe_economics_net_return_dominates_keep:1724:58", (b.get("latest_cycle_date")))]
+    if _GBC_REC("_probe_economics_net_return_dominates_keep:1725:7", (not dates)):
         return UNMEASURED, ("ни у одной измеренной книги нет `latest_cycle_date` — "
                             "возраст журнала вердиктов не измерен, и судить о живой "
                             "системе нечем")
@@ -1640,7 +1733,7 @@ def _probe_economics_net_return_dominates_keep(
     except ValueError:
         return UNMEASURED, (f"`latest_cycle_date` {newest!r} не разобран как дата — "
                             f"возраст журнала вердиктов НЕ ИЗМЕРЕН")
-    if age_d > DECISION_JOURNAL_MAX_AGE_D:
+    if _GBC_REC("_probe_economics_net_return_dominates_keep:1736:7", (age_d > DECISION_JOURNAL_MAX_AGE_D)):
         return UNMEASURED, (f"журнал вердиктов протух: свежайшая дата цикла {newest} — "
                             f"{age_d} дн назад при пределе "
                             f"{DECISION_JOURNAL_MAX_AGE_D:.0f} (замороженный канон "
@@ -1654,18 +1747,18 @@ def _probe_economics_net_return_dominates_keep(
              f"без гейта окупаемости {report.get('net_gate_unchecked', 0)}")
 
     status = report.get("status")
-    if status == census.STATUS_OK:
+    if _GBC_REC("_probe_economics_net_return_dominates_keep:1750:7", (status == census.STATUS_OK)):
         return SATISFIED, (f"находок нет ни в одной книге: предъявленный оптимум нигде "
                            f"не проигрывает решению ничего не делать, и ни один "
                            f"отрицательный чистый исход не прошёл мимо гейта "
                            f"окупаемости ({where}; {blind})")
-    if status in (census.STATUS_CRITICAL, census.STATUS_WARNING):
+    if _GBC_REC("_probe_economics_net_return_dominates_keep:1755:7", (status in (census.STATUS_CRITICAL, census.STATUS_WARNING))):
         fresh = report.get("fresh_findings", 0)
         kinds = {}
         for f in report.get("findings") or []:
             kinds[f.get("kind")] = kinds.get(f.get("kind"), 0) + 1
         by_kind = ", ".join(f"{k}: {v}" for k, v in sorted(kinds.items())) or "порода не названа"
-        when = ("в свежайшем цикле" if fresh else
+        when = ("в свежайшем цикле" if _GBC_REC("_probe_economics_net_return_dominates_keep:1761:54", (fresh)) else
                 "только в истории — в свежайшем цикле находок нет")
         return NOT_SATISFIED, (f"решения НЕ ранжируются по чистой ожидаемой "
                                f"доходности: материальных находок "
@@ -1790,7 +1883,7 @@ def _probe_persistence_advantage_outlives_horizon(
     # чужой заметкой про устойчивость ставки, и объявление стало бы украшением.
     anchor = "§49 Persistence"
     declared = str(getattr(census, "CRITERION", "") or "")
-    if not declared.startswith(anchor):
+    if _GBC_REC("_probe_persistence_advantage_outlives_horizon:1886:7", (not declared.startswith(anchor))):
         return UNMEASURED, (f"перепись не объявляет себя мерой {anchor!r} "
                             f"(её CRITERION: {declared[:80]!r}) — привязка не сходится, "
                             f"и считать её мерой этого критерия нельзя")
@@ -1802,13 +1895,13 @@ def _probe_persistence_advantage_outlives_horizon(
         return UNMEASURED, (f"перепись сроков жизни преимущества упала: "
                             f"{type(exc).__name__}: {exc}")
 
-    if not report.get("measured"):
+    if _GBC_REC("_probe_persistence_advantage_outlives_horizon:1898:7", (not report.get("measured"))):
         return UNMEASURED, (f"перепись отказалась мерить: "
                             f"{report.get('reason') or 'причина не названа'}")
 
     series = report.get("series") or {}
     last_day = series.get("last_day")
-    if not last_day:
+    if _GBC_REC("_probe_persistence_advantage_outlives_horizon:1904:7", (not last_day)):
         return UNMEASURED, ("у ряда наблюдённых ставок нет последнего дня — возраст "
                             "материала НЕ ИЗМЕРЕН, и судить о живой системе нечем")
     ref = (now or datetime.now(timezone.utc)).date()
@@ -1817,7 +1910,7 @@ def _probe_persistence_advantage_outlives_horizon(
     except ValueError:
         return UNMEASURED, (f"последний день ряда {last_day!r} не разобран как дата — "
                             f"возраст материала НЕ ИЗМЕРЕН")
-    if age_d > OBSERVED_SERIES_MAX_AGE_D:
+    if _GBC_REC("_probe_persistence_advantage_outlives_horizon:1913:7", (age_d > OBSERVED_SERIES_MAX_AGE_D)):
         return UNMEASURED, (f"ряд наблюдённых ставок протух: последний день {last_day} — "
                             f"{age_d} дн назад при пределе "
                             f"{OBSERVED_SERIES_MAX_AGE_D:.0f} (накопитель ряда молчит "
@@ -1837,16 +1930,16 @@ def _probe_persistence_advantage_outlives_horizon(
              f"отсутствует, поэтому §-тест 2 приказа целиком не воспроизводим")
 
     status = report.get("status")
-    if status == census.STATUS_OK:
+    if _GBC_REC("_probe_persistence_advantage_outlives_horizon:1933:7", (status == census.STATUS_OK)):
         return SATISFIED, (f"каждый измеримый ход пережил горизонт владельца: ходов с "
                            f"умершим преимуществом нет ни одного, пережили горизонт "
                            f"{counts.get('outlived_horizon', 0)} ({where}; {blind})")
-    if status in (census.STATUS_CRITICAL, census.STATUS_WARNING):
+    if _GBC_REC("_probe_persistence_advantage_outlives_horizon:1937:7", (status in (census.STATUS_CRITICAL, census.STATUS_WARNING))):
         dead = (counts.get("died_before_min_hold", 0)
                 + counts.get("died_within_payback_horizon", 0))
         recent = counts.get("recent_dead_within_horizon", 0)
         when = (f"внутри горизонта владельца от now таких ходов {recent}"
-                if recent else
+                if _GBC_REC("_probe_persistence_advantage_outlives_horizon:1942:19", (recent)) else
                 "в свежайшем горизонте таких ходов нет — только в истории, и это НЕ "
                 "«такого не бывало»")
         return NOT_SATISFIED, (
@@ -2091,7 +2184,7 @@ def _probe_book_does_not_oscillate_between_opportunities(
     # объявление стало бы украшением (ADR-333).
     anchor = "§49 Anti-churn"
     declared = str(getattr(census, "CRITERION", "") or "")
-    if not declared.startswith(anchor):
+    if _GBC_REC("_probe_book_does_not_oscillate_between_opportunities:2187:7", (not declared.startswith(anchor))):
         return UNMEASURED, (f"перепись не объявляет себя мерой {anchor!r} "
                             f"(её CRITERION: {declared[:80]!r}) — привязка не сходится, "
                             f"и считать её мерой этого критерия нельзя")
@@ -2103,17 +2196,17 @@ def _probe_book_does_not_oscillate_between_opportunities(
         return UNMEASURED, (f"перепись прыжков книги упала: "
                             f"{type(exc).__name__}: {exc}")
 
-    if not report.get("measured"):
+    if _GBC_REC("_probe_book_does_not_oscillate_between_opportunities:2199:7", (not report.get("measured"))):
         return UNMEASURED, (f"перепись отказалась мерить: "
                             f"{report.get('reason') or 'причина не названа'}")
 
     verdict, why = _standing_book_agrees_with_journal_tail(
         report, _pathlib.Path(data), census, now=now)
-    if verdict is not None:
+    if _GBC_REC("_probe_book_does_not_oscillate_between_opportunities:2205:7", (verdict is not None)):
         return verdict, why
 
     counts = observed(report, "counts", kind=dict)
-    if counts is None:
+    if _GBC_REC("_probe_book_does_not_oscillate_between_opportunities:2209:7", (counts is None)):
         return UNMEASURED, ("перепись объявила себя измеренной, но сводки `counts` в "
                             "отчёте нет — считать нечего, и подставить нули здесь "
                             "значило бы выдать НЕ ИЗМЕРЕНО за измеренный ноль")
@@ -2132,14 +2225,14 @@ def _probe_book_does_not_oscillate_between_opportunities(
              f"знает ничего; верность каждого возврата он не пересчитывает")
 
     status = report.get("status")
-    if status == census.STATUS_OK:
+    if _GBC_REC("_probe_book_does_not_oscillate_between_opportunities:2228:7", (status == census.STATUS_OK)):
         return SATISFIED, (f"книга не возвращалась в состояние, которое сама покинула, "
                            f"ни разу за весь журнал: возвратов {counts.get('returns_total', 0)} "
                            f"({where}; {blind})")
-    if status in (census.STATUS_CRITICAL, census.STATUS_WARNING):
+    if _GBC_REC("_probe_book_does_not_oscillate_between_opportunities:2232:7", (status in (census.STATUS_CRITICAL, census.STATUS_WARNING))):
         recent = counts.get("recent_within_window_from_now", 0)
         when = (f"внутри окна разворота от now таких возвратов {recent}"
-                if recent else
+                if _GBC_REC("_probe_book_does_not_oscillate_between_opportunities:2235:19", (recent)) else
                 "внутри окна разворота от now возвратов нет — только в истории, и это "
                 "НЕ «такого не бывало»")
         return NOT_SATISFIED, (
@@ -2275,7 +2368,7 @@ def _probe_risk_policy_unbypassable_in_executed_states(
     # заметкой про риск, и объявление стало бы украшением.
     anchor = "§49 `Risk`"
     declared = str(getattr(census, "CRITERION", "") or "")
-    if not declared.startswith(anchor):
+    if _GBC_REC("_probe_risk_policy_unbypassable_in_executed_states:2371:7", (not declared.startswith(anchor))):
         return UNMEASURED, (f"перепись не объявляет себя мерой {anchor!r} "
                             f"(её CRITERION: {declared[:80]!r}) — привязка не сходится, "
                             f"и считать её мерой этого критерия нельзя")
@@ -2288,17 +2381,17 @@ def _probe_risk_policy_unbypassable_in_executed_states(
         return UNMEASURED, (f"перепись связывающих потолков упала: "
                             f"{type(exc).__name__}: {exc}")
 
-    if not report.get("measured"):
+    if _GBC_REC("_probe_risk_policy_unbypassable_in_executed_states:2384:7", (not report.get("measured"))):
         return UNMEASURED, (f"перепись отказалась мерить: "
                             f"{report.get('reason') or 'причина не названа'}")
 
     verdict, why = _standing_book_agrees_with_present(
         report, _pathlib.Path(data), now=now)
-    if verdict is not None:
+    if _GBC_REC("_probe_risk_policy_unbypassable_in_executed_states:2390:7", (verdict is not None)):
         return verdict, why
 
     counts = observed(report, "counts", kind=dict)
-    if counts is None:
+    if _GBC_REC("_probe_risk_policy_unbypassable_in_executed_states:2394:7", (counts is None)):
         return UNMEASURED, ("перепись объявила себя измеренной, но сводки `counts` "
                             "в отчёте нет — считать нечего, и подставить нули здесь "
                             "значило бы выдать НЕ ИЗМЕРЕНО за измеренный ноль")
@@ -2317,18 +2410,18 @@ def _probe_risk_policy_unbypassable_in_executed_states(
              f"и о сделках вне журнала прибор не знает ничего")
 
     status = report.get("status")
-    if status == census.STATUS_OK:
+    if _GBC_REC("_probe_risk_policy_unbypassable_in_executed_states:2413:7", (status == census.STATUS_OK)):
         return SATISFIED, (f"ни одно исполненное состояние книги не нарушало потолка, "
                            f"который на тот день существовал, и ни один ярлык тира не "
                            f"спорит между копиями: чисто {counts.get('clean', 0)} "
                            f"({where}; {blind})")
-    if status in (census.STATUS_CRITICAL, census.STATUS_WARNING):
+    if _GBC_REC("_probe_risk_policy_unbypassable_in_executed_states:2418:7", (status in (census.STATUS_CRITICAL, census.STATUS_WARNING))):
         disputed = sorted(report.get("label_disagreement") or {})
         unknown = sorted(report.get("tier_unknown") or [])
         gate = report.get("gate_binding") or {}
         when = ("книга, которая СТОИТ сейчас, сама нарушает потолок либо её вердикт "
                 "не определён"
-                if status == census.STATUS_CRITICAL else
+                if _GBC_REC("_probe_risk_policy_unbypassable_in_executed_states:2424:19", (status == census.STATUS_CRITICAL)) else
                 "сегодняшнее состояние чисто, но это НЕ «такого не бывало» — находка "
                 "лежит в истории и/или копии ярлыка спорят")
         return NOT_SATISFIED, (
@@ -2548,7 +2641,7 @@ def _probe_trade_is_rechecked_immediately_before_execution(
     # бы с любой заметкой о предпусковых проверках (ADR-333).
     anchor = "§49 Pre-trade safety"
     declared = str(getattr(census, "CRITERION", "") or "")
-    if not declared.startswith(anchor):
+    if _GBC_REC("_probe_trade_is_rechecked_immediately_before_execution:2644:7", (not declared.startswith(anchor))):
         return UNMEASURED, (f"перепись не объявляет себя мерой {anchor!r} "
                             f"(её CRITERION: {declared[:80]!r}) — привязка не сходится, "
                             f"и считать её мерой этого критерия нельзя")
@@ -2562,14 +2655,14 @@ def _probe_trade_is_rechecked_immediately_before_execution(
         return UNMEASURED, (f"перепись повторной проверки упала: "
                             f"{type(exc).__name__}: {exc}")
 
-    if not report.get("measured"):
+    if _GBC_REC("_probe_trade_is_rechecked_immediately_before_execution:2658:7", (not report.get("measured"))):
         return UNMEASURED, (f"перепись отказалась мерить: "
                             f"{report.get('reason') or 'причина не названа'}")
 
     gate = report.get("gate_readers") or {}
     money = gate.get("money_path_callers")
     today = (f"читателей модуля повторной проверки на денежном пути "
-             f"{len(money)} (по замеру ЭТОГО дерева)" if isinstance(money, list)
+             f"{len(money)} (по замеру ЭТОГО дерева)" if _GBC_REC("_probe_trade_is_rechecked_immediately_before_execution:2665:76", (isinstance(money, list)))
              else f"читатели модуля повторной проверки НЕ измерены: "
                   f"{gate.get('reason') or 'причина не названа'}")
     where = (f"исполнений {report.get('executions')} (измеримых "
@@ -2580,12 +2673,12 @@ def _probe_trade_is_rechecked_immediately_before_execution(
     blind = ("прибор судит ЗАПИСАННЫЕ исполнения, а не пути кода; верность самих "
              "проверок и восемь из девяти предметов §27 по отдельности он не "
              "докладывает")
-    if not report.get("freshness_judgeable"):
+    if _GBC_REC("_probe_trade_is_rechecked_immediately_before_execution:2676:7", (not report.get("freshness_judgeable"))):
         blind += (f"; вопрос «вход был слишком стар» НЕ ИЗМЕРЕН — "
                   f"{report.get('freshness_unjudgeable_reason')}")
 
     status = report.get("status")
-    if status in (census.STATUS_CRITICAL, census.STATUS_WARNING):
+    if _GBC_REC("_probe_trade_is_rechecked_immediately_before_execution:2681:7", (status in (census.STATUS_CRITICAL, census.STATUS_WARNING))):
         return NOT_SATISFIED, (
             f"ход перед исполнением заново не пересчитывается: без второго "
             f"наблюдения входов {report.get('no_recheck')} исполнени(й) из "
@@ -2594,15 +2687,15 @@ def _probe_trade_is_rechecked_immediately_before_execution(
             f"владельцем допуска {report.get('stale_beyond_tolerance')}; вопрос о "
             f"полноте записи здесь НЕ задаётся — находка существования от неё не "
             f"зависит ({where}; {blind})")
-    if status == census.STATUS_OK:
+    if _GBC_REC("_probe_trade_is_rechecked_immediately_before_execution:2690:7", (status == census.STATUS_OK)):
         verdict, why = _standing_book_liveness(
             _pathlib.Path(data), now=now,
             tail="«ни одного исполнения без второго наблюдения» отсюда было бы "
                  "тишиной мёртвого дерева, а не ответом о системе")
-        if verdict is not None:
+        if _GBC_REC("_probe_trade_is_rechecked_immediately_before_execution:2695:11", (verdict is not None)):
             return verdict, str(why)
         verdict, why = _chain_covers_the_books_moves(report, _pathlib.Path(data))
-        if verdict is not None:
+        if _GBC_REC("_probe_trade_is_rechecked_immediately_before_execution:2698:11", (verdict is not None)):
             return verdict, why
         return SATISFIED, (
             f"у каждого записанного исполнения входы наблюдались ЗАНОВО: без "
@@ -2692,7 +2785,7 @@ def _probe_costs_are_accounted_for_in_the_decision(
     # любой заметкой о стоимости (ADR-333).
     anchor = "§49 Costs"
     declared = str(getattr(meter, "CRITERION", "") or "")
-    if not declared.startswith(anchor):
+    if _GBC_REC("_probe_costs_are_accounted_for_in_the_decision:2788:7", (not declared.startswith(anchor))):
         return UNMEASURED, (f"прибор не объявляет себя мерой {anchor!r} "
                             f"(его CRITERION: {declared[:80]!r}) — привязка не "
                             f"сходится, и считать его мерой этого критерия нельзя")
@@ -2706,7 +2799,7 @@ def _probe_costs_are_accounted_for_in_the_decision(
                             f"{type(exc).__name__}: {exc}")
 
     block = observed(report, "criterion", kind=dict)
-    if block is None:
+    if _GBC_REC("_probe_costs_are_accounted_for_in_the_decision:2802:7", (block is None)):
         return UNMEASURED, ("прибор не вынес вердикта о критерии (поля `criterion` "
                             "в отчёте нет) — переносить нечего, и молчать об этом "
                             "нельзя")
@@ -2722,18 +2815,18 @@ def _probe_costs_are_accounted_for_in_the_decision(
              "сверяется МОДЕЛЬЮ над наблюдённым TVL и выше допущения не "
              "поднимается, комиссии не наблюдаются вовсе")
     unjudged = block.get("unjudged")
-    if isinstance(unjudged, dict):
+    if _GBC_REC("_probe_costs_are_accounted_for_in_the_decision:2818:7", (isinstance(unjudged, dict))):
         blind += (f"; ИЗМЕРЕНО, НО НЕ СУЖДЕНО: заряженный газ ×"
                   f"{unjudged.get('gas_ratio_charged_over_observed')} от "
                   f"наблюдённого — {unjudged.get('reason')}")
 
     status = block.get("status")
     reason = block.get("reason") or "причина не названа"
-    if status == meter.CRITERION_NOT_SATISFIED:
+    if _GBC_REC("_probe_costs_are_accounted_for_in_the_decision:2825:7", (status == meter.CRITERION_NOT_SATISFIED)):
         return NOT_SATISFIED, f"{reason} ({where}; {blind})"
-    if status == meter.CRITERION_UNMEASURED:
+    if _GBC_REC("_probe_costs_are_accounted_for_in_the_decision:2827:7", (status == meter.CRITERION_UNMEASURED)):
         return UNMEASURED, f"{reason} ({where}; {blind})"
-    if status == meter.CRITERION_SATISFIED:
+    if _GBC_REC("_probe_costs_are_accounted_for_in_the_decision:2829:7", (status == meter.CRITERION_SATISFIED)):
         return SATISFIED, f"{reason} ({where}; {blind})"
     return UNMEASURED, (f"прибор вернул вердикт критерия {status!r}, который не "
                         f"переносится — молчать об этом нельзя")
@@ -2822,7 +2915,7 @@ def _probe_marginal_return_size_changes_expected_yield(
     # бы с любой заметкой о предельной доходности (ADR-333).
     anchor = "§49 Marginal return"
     declared = str(getattr(meter, "CRITERION", "") or "")
-    if not declared.startswith(anchor):
+    if _GBC_REC("_probe_marginal_return_size_changes_expected_yield:2918:7", (not declared.startswith(anchor))):
         return UNMEASURED, (f"прибор не объявляет себя мерой {anchor!r} "
                             f"(его CRITERION: {declared[:80]!r}) — привязка не "
                             f"сходится, и считать его мерой этого критерия нельзя")
@@ -2835,13 +2928,13 @@ def _probe_marginal_return_size_changes_expected_yield(
                             f"{type(exc).__name__}: {exc}")
 
     block = observed(report, "criterion", kind=dict)
-    if block is None:
+    if _GBC_REC("_probe_marginal_return_size_changes_expected_yield:2931:7", (block is None)):
         return UNMEASURED, ("прибор не вынес вердикта о критерии (поля `criterion` "
                             "в отчёте нет) — переносить нечего, и молчать об этом "
                             "нельзя")
 
     sens = block.get("sensitivity") or {}
-    if sens.get("measured"):
+    if _GBC_REC("_probe_marginal_return_size_changes_expected_yield:2937:7", (sens.get("measured"))):
         asked = (f"целевую функцию спросили дважды ({sens.get('objective')}): "
                  f"{sens.get('rate_at_small_pp')} пп при ${sens.get('small_usd')} "
                  f"против {sens.get('rate_at_large_pp')} пп при "
@@ -2862,11 +2955,11 @@ def _probe_marginal_return_size_changes_expected_yield(
 
     status = block.get("status")
     reason = block.get("reason") or "причина не названа"
-    if status == meter.CRITERION_NOT_SATISFIED:
+    if _GBC_REC("_probe_marginal_return_size_changes_expected_yield:2958:7", (status == meter.CRITERION_NOT_SATISFIED)):
         return NOT_SATISFIED, f"{reason} ({where}; {blind})"
-    if status == meter.CRITERION_UNMEASURED:
+    if _GBC_REC("_probe_marginal_return_size_changes_expected_yield:2960:7", (status == meter.CRITERION_UNMEASURED)):
         return UNMEASURED, f"{reason} ({where}; {blind})"
-    if status == meter.CRITERION_SATISFIED:
+    if _GBC_REC("_probe_marginal_return_size_changes_expected_yield:2962:7", (status == meter.CRITERION_SATISFIED)):
         return SATISFIED, f"{reason} ({where}; {blind})"
     return UNMEASURED, (f"прибор вернул вердикт критерия {status!r}, который не "
                         f"переносится — молчать об этом нельзя")
@@ -2967,7 +3060,7 @@ def _probe_determinism_recomputation_is_reproducible(
     # подстрока совпала бы с любой заметкой о детерминизме (ADR-333).
     anchor = "§49 Determinism"
     declared = str(getattr(meter, "CRITERION", "") or "")
-    if not declared.startswith(anchor):
+    if _GBC_REC("_probe_determinism_recomputation_is_reproducible:3063:7", (not declared.startswith(anchor))):
         return UNMEASURED, (f"прибор не объявляет себя мерой {anchor!r} "
                             f"(его CRITERION: {declared[:80]!r}) — привязка не "
                             f"сходится, и считать его мерой этого критерия нельзя")
@@ -2975,7 +3068,7 @@ def _probe_determinism_recomputation_is_reproducible(
     root = repo_root or REPO_ROOT
     data = data_dir or os.path.join(root, "data")
     rel = str(getattr(meter, "REPORT_REL", "") or "")
-    if not rel:
+    if _GBC_REC("_probe_determinism_recomputation_is_reproducible:3071:7", (not rel)):
         return UNMEASURED, ("прибор не называет адрес своего артефакта "
                             "(`REPORT_REL`) — читать нечего")
     path = os.path.join(data, os.path.basename(rel))
@@ -2989,7 +3082,7 @@ def _probe_determinism_recomputation_is_reproducible(
     except (OSError, ValueError) as exc:
         return UNMEASURED, (f"артефакт {path} не прочитан ({exc}) — о "
                             f"воспроизводимости НЕ СКАЗАНО НИЧЕГО")
-    if not isinstance(doc, dict):
+    if _GBC_REC("_probe_determinism_recomputation_is_reproducible:3085:7", (not isinstance(doc, dict))):
         return UNMEASURED, (f"артефакт {path} — не объект "
                             f"({type(doc).__name__}), вердикта в нём нет")
 
@@ -3004,17 +3097,17 @@ def _probe_determinism_recomputation_is_reproducible(
         made = datetime.fromisoformat(str(stamp).replace("Z", "+00:00"))
     except (TypeError, ValueError):
         made = None
-    if made is not None and made.tzinfo is None:
+    if _GBC_REC("_probe_determinism_recomputation_is_reproducible:3100:7", (made is not None and made.tzinfo is None)):
         made = made.replace(tzinfo=timezone.utc)
-    if made is None:
+    if _GBC_REC("_probe_determinism_recomputation_is_reproducible:3102:7", (made is None)):
         return UNMEASURED, (f"артефакт не пишет разбираемый `generated_at` "
                             f"({stamp!r}) — возраст НЕ ИЗМЕРЕН, и `slo_hours` при "
                             f"нём украшение")
     age = ((now or datetime.now(timezone.utc)) - made).total_seconds() / 3600.0
-    if slo is None:
+    if _GBC_REC("_probe_determinism_recomputation_is_reproducible:3107:7", (slo is None)):
         return UNMEASURED, (f"артефакту {age:.1f} ч, а срок годности взять неоткуда: "
                             f"{slo_prov} — свежесть НЕ СУЖДЕНА")
-    if age > float(slo):
+    if _GBC_REC("_probe_determinism_recomputation_is_reproducible:3110:7", (age > float(slo))):
         return UNMEASURED, (f"артефакт протух: {age:.1f} ч при объявленном пределе "
                             f"{float(slo):g} ч ({slo_prov}) — сегодняшнего ответа "
                             f"прибора нет, а вчерашний за него не выдаётся")
@@ -3033,7 +3126,7 @@ def _probe_determinism_recomputation_is_reproducible(
                             f"{type(exc).__name__}: {exc}")
 
     cov = block.get("coverage") or {}
-    if cov.get("measured"):
+    if _GBC_REC("_probe_determinism_recomputation_is_reproducible:3129:7", (cov.get("measured"))):
         where = (f"спрошена целиком решающая поверхность "
                  f"${cov['fully_asked_usd']:,.2f} из ${cov['total_capital_usd']:,.2f} "
                  f"(частично ${cov['partly_asked_usd']:,.2f} · не спрошена "
@@ -3055,11 +3148,11 @@ def _probe_determinism_recomputation_is_reproducible(
 
     status = block.get("status")
     reason = block.get("reason") or "причина не названа"
-    if status == meter.CRITERION_NOT_SATISFIED:
+    if _GBC_REC("_probe_determinism_recomputation_is_reproducible:3151:7", (status == meter.CRITERION_NOT_SATISFIED)):
         return NOT_SATISFIED, f"{reason} ({where}; {blind})"
-    if status == meter.CRITERION_UNMEASURED:
+    if _GBC_REC("_probe_determinism_recomputation_is_reproducible:3153:7", (status == meter.CRITERION_UNMEASURED)):
         return UNMEASURED, f"{reason} ({where}; {blind})"
-    if status == meter.CRITERION_SATISFIED:
+    if _GBC_REC("_probe_determinism_recomputation_is_reproducible:3155:7", (status == meter.CRITERION_SATISFIED)):
         return SATISFIED, f"{reason} ({where}; {blind})"
     return UNMEASURED, (f"прибор вернул вердикт критерия {status!r}, который не "
                         f"переносится — молчать об этом нельзя")
@@ -3152,12 +3245,12 @@ def _probe_tier_promotion_loop(arg: str | None, *, now: "datetime | None" = None
             v = ({"current_tier": "T3", "verdict": "PROMOTE_CANDIDATE", "target_tier": "T2",
                   "owner_gated": False, "reasons": ["проба: синтетический кандидат"],
                   "evidence": {"tvl_usd": 31_000_000.0, "tvl_live": True, "apy_days": 21}}
-                 if candidate else
+                 if _GBC_REC("_probe_tier_promotion_loop:3248:20", (candidate)) else
                  {"current_tier": "T3", "verdict": "KEEP", "reasons": ["проба: кандидат исчез"],
                   "evidence": {}})
             doc = {"generated_at": at.isoformat(), "curator_version": "tier_curator_v1",
                    "verdicts": {proto: v},
-                   "summary": {"total": 1, "promote_candidate": 1 if candidate else 0,
+                   "summary": {"total": 1, "promote_candidate": 1 if _GBC_REC("_probe_tier_promotion_loop:3253:69", (candidate)) else 0,
                                "held_flagged": []}}
             with open(os.path.join(data, "tier_curator_report.json"), "w", encoding="utf-8") as fh:
                 json.dump(doc, fh)
@@ -3166,8 +3259,8 @@ def _probe_tier_promotion_loop(arg: str | None, *, now: "datetime | None" = None
 
         def create(_root, finding):
             critical = finding.get("severity") == "CRITICAL"
-            kind = "owner-decision" if critical else "inbox"
-            status = "needs-owner" if critical else "new"
+            kind = "owner-decision" if _GBC_REC("_probe_tier_promotion_loop:3262:39", (critical)) else "inbox"
+            status = "needs-owner" if _GBC_REC("_probe_tier_promotion_loop:3263:38", (critical)) else "new"
             path = os.path.join(tracker, f"card-{len(created) + 1}.md")
             with open(path, "w", encoding="utf-8") as fh:
                 fh.write(f"---\ntrackerStatus:\n  type: {kind}\nstatus: {status}\n"
@@ -3176,7 +3269,7 @@ def _probe_tier_promotion_loop(arg: str | None, *, now: "datetime | None" = None
             return path
 
         def close(_root, path):
-            if not fb.card_is_untouched(path):
+            if _GBC_REC("_probe_tier_promotion_loop:3272:15", (not fb.card_is_untouched(path))):
                 return False
             text = open(path, encoding="utf-8").read()
             text = text.replace("status: new", "status: done").replace("status: needs-owner", "status: done")
@@ -3195,16 +3288,16 @@ def _probe_tier_promotion_loop(arg: str | None, *, now: "datetime | None" = None
         for i in range(n_sight):
             put_curator(True, t0 + i * step)
             run(t0 + i * step)
-        mine = [c for c in created if c["key"] == key]
-        if not mine:
+        mine = [c for c in created if _GBC_REC("_probe_tier_promotion_loop:3291:38", (c["key"] == key))]
+        if _GBC_REC("_probe_tier_promotion_loop:3292:11", (not mine)):
             keys = sorted(c["key"] for c in created)
             return NOT_SATISFIED, (f"контур разомкнут: после {n_sight} замеров подряд с PROMOTE_CANDIDATE "
                                    f"мост НЕ родил карточку с finding_key={key!r} (рождены: {keys or '—'})")
         card = mine[0]
         fm = parse_frontmatter(open(card["path"], encoding="utf-8").read())
-        if fm.get("finding_key") != key:
+        if _GBC_REC("_probe_tier_promotion_loop:3298:11", (fm.get("finding_key") != key)):
             return NOT_SATISFIED, f"карточка родилась, но её finding_key={fm.get('finding_key')!r} ≠ {key!r}"
-        if fm.get("status") != "new":
+        if _GBC_REC("_probe_tier_promotion_loop:3300:11", (fm.get("status") != "new")):
             return NOT_SATISFIED, (f"карточка кандидата родилась со статусом {fm.get('status')!r}, а не `new`: "
                                    f"подъём — вопрос агенту (ADR-285), не владельцу")
 
@@ -3215,7 +3308,7 @@ def _probe_tier_promotion_loop(arg: str | None, *, now: "datetime | None" = None
             put_curator(False, t + i * step)
             run(t + i * step)
         status_after = fb.card_status(card["path"])
-        if status_after != "done":
+        if _GBC_REC("_probe_tier_promotion_loop:3311:11", (status_after != "done")):
             return NOT_SATISFIED, (f"кандидат исчез, прошло {n_abs} молчаливых замера, а карточка "
                                    f"всё ещё {status_after!r} — авто-закрытие не сработало")
 
@@ -3233,13 +3326,13 @@ def _probe_tier_promotion_loop(arg: str | None, *, now: "datetime | None" = None
             mod.DATA_DIR = saved
         row = None
         for line in (section or "").splitlines():
-            cells = [c.strip() for c in line.strip().strip("|").split("|")] if line.strip().startswith("|") else []
-            if cells and cells[0] == proto:
+            cells = [c.strip() for c in line.strip().strip("|").split("|")] if _GBC_REC("_probe_tier_promotion_loop:3329:79", (line.strip().startswith("|"))) else []
+            if _GBC_REC("_probe_tier_promotion_loop:3330:15", (cells and cells[0] == proto)):
                 row = cells
                 break
-        if row is None:
+        if _GBC_REC("_probe_tier_promotion_loop:3333:11", (row is None)):
             return NOT_SATISFIED, f"секция брифинга не несёт строки таблицы для {proto!r} — второй читатель выпал"
-        if row[1:3] != ["T3", "T2"]:
+        if _GBC_REC("_probe_tier_promotion_loop:3335:11", (row[1:3] != ["T3", "T2"])):
             return NOT_SATISFIED, f"строка брифинга для {proto!r} несёт тиры {row[1:3]}, ожидалось ['T3', 'T2']"
         return SATISFIED, (f"карточка {key} родилась через {n_sight} замера, закрылась через {n_abs} "
                            f"молчаливых; секция брифинга несёт строку {proto} T3→T2")
@@ -3296,15 +3389,15 @@ def _probe_candidate_discovery_loop(arg: str | None, *, now: "datetime | None" =
         os.makedirs(data)
         # 1. шаг цикла с инъектированным фидом
         res = ds.run_discovery_step(data, fetch_fn=lambda: list(pools), now_ts=now_ts)
-        if res.get("status") != ds.OK:
+        if _GBC_REC("_probe_candidate_discovery_loop:3392:11", (res.get("status") != ds.OK)):
             return NOT_SATISFIED, f"шаг не дал `ok` на пригодном фиде: {res.get('status')} — {res.get('reason')}"
         reg_path = os.path.join(data, ds.REGISTRY_FILENAME)
         try:
             reg = json.load(open(reg_path, encoding="utf-8"))
         except (OSError, ValueError) as exc:
             return NOT_SATISFIED, f"реестр не записан/нечитаем после `ok`: {type(exc).__name__}"
-        got = sorted({str(c.get("protocol")) for c in (reg.get("candidates") or []) if isinstance(c, dict)})
-        if got != [proto]:
+        got = sorted({str(c.get("protocol")) for c in (reg.get("candidates") or []) if _GBC_REC("_probe_candidate_discovery_loop:3399:87", (isinstance(c, dict)))})
+        if _GBC_REC("_probe_candidate_discovery_loop:3400:11", (got != [proto])):
             return NOT_SATISFIED, (f"реестр несёт протоколы {got}, ожидался ровно [{proto!r}] — "
                                    f"покрытие или пороги сканера порваны")
         # 2. настоящий читатель — alpha scan на том же дереве
@@ -3314,10 +3407,10 @@ def _probe_candidate_discovery_loop(arg: str | None, *, now: "datetime | None" =
             alpha = json.load(open(os.path.join(data, aa.ALPHA_CANDIDATES_FILENAME), encoding="utf-8"))
         except (OSError, ValueError) as exc:
             return NOT_SATISFIED, f"alpha_candidates.json не записан читателем: {type(exc).__name__}"
-        if alpha.get("candidates_measured") is not True:
+        if _GBC_REC("_probe_candidate_discovery_loop:3410:11", (alpha.get("candidates_measured") is not True)):
             return NOT_SATISFIED, (f"читатель говорит «не измерено» ({alpha.get('candidates_reason')!r}) "
                                    f"при записанном реестре — связка писатель→читатель порвана")
-        if not (alpha.get("candidates") or []):
+        if _GBC_REC("_probe_candidate_discovery_loop:3413:11", (not (alpha.get("candidates") or []))):
             return NOT_SATISFIED, "читатель измерил реестр, но кандидатов у него ноль — оценка порвана"
         # 3. секция брифинга — строка таблицы
         try:
@@ -3332,11 +3425,11 @@ def _probe_candidate_discovery_loop(arg: str | None, *, now: "datetime | None" =
             mod.DATA_DIR = saved
         row = None
         for line in (section or "").splitlines():
-            cells = [c.strip() for c in line.strip().strip("|").split("|")] if line.strip().startswith("|") else []
-            if cells and cells[0] == proto:
+            cells = [c.strip() for c in line.strip().strip("|").split("|")] if _GBC_REC("_probe_candidate_discovery_loop:3428:79", (line.strip().startswith("|"))) else []
+            if _GBC_REC("_probe_candidate_discovery_loop:3429:15", (cells and cells[0] == proto)):
                 row = cells
                 break
-        if row is None:
+        if _GBC_REC("_probe_candidate_discovery_loop:3432:11", (row is None)):
             return NOT_SATISFIED, f"секция брифинга не несёт строки таблицы для {proto!r} — читатель выпал"
         # 4. отказ фида: реестр не тронут, статус записан
         before = hashlib.sha256(open(reg_path, "rb").read()).hexdigest()
@@ -3348,15 +3441,15 @@ def _probe_candidate_discovery_loop(arg: str | None, *, now: "datetime | None" =
 
         res2 = ds.run_discovery_step(data, fetch_fn=boom, now_ts=now_ts + 86400)
         after = hashlib.sha256(open(reg_path, "rb").read()).hexdigest()
-        if res2.get("status") != ds.REFUSED:
+        if _GBC_REC("_probe_candidate_discovery_loop:3444:11", (res2.get("status") != ds.REFUSED)):
             return NOT_SATISFIED, f"недоступный фид дал {res2.get('status')!r}, а не `refused`"
-        if before != after:
+        if _GBC_REC("_probe_candidate_discovery_loop:3446:11", (before != after)):
             return NOT_SATISFIED, "недоступный фид ПЕРЕПИСАЛ реестр — fake-fallback или затирание прошлого замера"
         try:
             stt = json.load(open(os.path.join(data, ds.STATUS_FILENAME), encoding="utf-8"))
         except (OSError, ValueError):
             return NOT_SATISFIED, "исход отказа не записан в статус шага — отказ проглочен"
-        if stt.get("status") != ds.REFUSED:
+        if _GBC_REC("_probe_candidate_discovery_loop:3452:11", (stt.get("status") != ds.REFUSED)):
             return NOT_SATISFIED, f"статус шага после отказа {stt.get('status')!r}, а не `refused`"
         return SATISFIED, (f"шаг записал реестр с {proto} (наш и не-стейбл отсеяны), alpha_scan измерил "
                            f"кандидатов, секция брифинга несёт строку; отказ фида — `refused`, реестр не тронут")
@@ -3452,10 +3545,10 @@ def _probe_free_move_priced_as_free(arg: str | None) -> tuple[str, str]:
         except Exception as exc:  # noqa: BLE001 — нечем мерить ≠ критерий не выполнен
             return UNMEASURED, f"прибор `zero_is_absent` не отработал: {type(exc).__name__}: {exc}"
         net_zero, net_cent = zero.get("best_net_usd_zero"), zero.get("best_net_usd_one_cent")
-        if net_zero is None or net_cent is None:
+        if _GBC_REC("_probe_free_move_priced_as_free:3548:11", (net_zero is None or net_cent is None)):
             return UNMEASURED, ("прибор не назвал один из счётов "
                                 f"(ноль={net_zero!r}, цент={net_cent!r}) — сравнивать нечего")
-        if zero.get("collides"):
+        if _GBC_REC("_probe_free_move_priced_as_free:3551:11", (zero.get("collides"))):
             return NOT_SATISFIED, (
                 f"ветки СЛИТЫ: лучший счёт при нулевой цене ${net_zero:,.2f}, при цене в цент "
                 f"${net_cent:,.2f} (ACT-дней {zero.get('act_days_zero')} против "
@@ -3466,16 +3559,16 @@ def _probe_free_move_priced_as_free(arg: str | None) -> tuple[str, str]:
         try:
             _free_move_journal(absent_root, cost_usd=None)
             history, _bad = ste.load_history(Path(absent_root))
-            if not history:
+            if _GBC_REC("_probe_free_move_priced_as_free:3562:15", (not history)):
                 return UNMEASURED, "синтетический журнал без цены не прочитался судьёй"
             row = ste._evaluate_verdict(history[0], history[1:], ste.DEFAULT_HORIZON_DAYS)
             source = str(row.get("cost_source") or "")
             used = row.get("cost_usd_used")
-            if not source.startswith("assumption:"):
+            if _GBC_REC("_probe_free_move_priced_as_free:3567:15", (not source.startswith("assumption:"))):
                 return NOT_SATISFIED, (
                     f"строка БЕЗ записанной цены получила источник {source!r} (цена ${used!r}) — "
                     "отсутствие наблюдения снова слито с нулём, только в другую сторону (инв. #17)")
-            if not isinstance(used, (int, float)) or used <= 0.0:
+            if _GBC_REC("_probe_free_move_priced_as_free:3571:15", (not isinstance(used, (int, float)) or used <= 0.0)):
                 return NOT_SATISFIED, (
                     f"допущение при отсутствующей цене дало ${used!r} — ход без записанной цены "
                     "оценён как бесплатный")
@@ -3584,16 +3677,16 @@ def _probe_decision_journal_keeps_every_run(arg: str | None) -> tuple[str, str]:
         # утверждение о правиле замены, а не о разнице контуров.
         try:
             for root, early in ((collapsed, False), (both, True)):
-                if early:
+                if _GBC_REC("_probe_decision_journal_keeps_every_run:3680:19", (early)):
                     append_rationale_history(
                         _run_keep_record(0, 9, "ACT"), Path(root))
                 for day in range(_RUN_KEEP_DAYS):
                     append_rationale_history(
                         _run_keep_record(day, 23, "HOLD"), Path(root))
             lines_both = [ln for ln in (Path(both) / history_filename(None))
-                          .read_text(encoding="utf-8").splitlines() if ln.strip()]
+                          .read_text(encoding="utf-8").splitlines() if _GBC_REC("_probe_decision_journal_keeps_every_run:3687:71", (ln.strip()))]
             lines_one = [ln for ln in (Path(collapsed) / history_filename(None))
-                         .read_text(encoding="utf-8").splitlines() if ln.strip()]
+                         .read_text(encoding="utf-8").splitlines() if _GBC_REC("_probe_decision_journal_keeps_every_run:3689:70", (ln.strip()))]
             # п.3 — повтор ТОГО ЖЕ прогона поверх готового стенда
             after_rewrite = append_rationale_history(
                 _run_keep_record(0, 9, "ACT"), Path(both))
@@ -3618,21 +3711,21 @@ def _probe_decision_journal_keeps_every_run(arg: str | None) -> tuple[str, str]:
                                 f"{type(exc).__name__}: {exc}")
 
         # ── звено 1: писатель ─────────────────────────────────────────────────
-        if len(lines_both) != len(lines_one) + 1:
+        if _GBC_REC("_probe_decision_journal_keeps_every_run:3714:11", (len(lines_both) != len(lines_one) + 1)):
             return NOT_SATISFIED, (
                 f"писатель СТЁР прогон дня: строк со вторым прогоном {len(lines_both)}, "
                 f"без него {len(lines_one)} — ожидалось ровно на одну больше "
                 f"(ключ замены снова выведен из одной `cycle_date`, ADR-383)")
 
         # ── звено 3: идемпотентность ──────────────────────────────────────────
-        if after_rewrite != len(lines_both):
+        if _GBC_REC("_probe_decision_journal_keeps_every_run:3721:11", (after_rewrite != len(lines_both))):
             return NOT_SATISFIED, (
                 f"повторная запись ТОГО ЖЕ прогона дала {after_rewrite} строк(и) вместо "
                 f"{len(lines_both)} — писатель дописывает всегда, и каждый ручной повтор "
                 f"прогона удвоится в знаменателе критерия")
 
         # ── звено 2: читатель отдаёт НОВОЕ значение ───────────────────────────
-        if len(read_both) != len(read_one) + 1:
+        if _GBC_REC("_probe_decision_journal_keeps_every_run:3728:11", (len(read_both) != len(read_one) + 1)):
             return NOT_SATISFIED, (
                 f"читатель СХЛОПНУЛ день: `load_history` отдала {len(read_both)} записей "
                 f"против {len(read_one)} — вторая копия правила замены жива у читателя, и "
@@ -3641,10 +3734,10 @@ def _probe_decision_journal_keeps_every_run(arg: str | None) -> tuple[str, str]:
                             (eval_one.get("counts") or {}).get("act")
         scored_both, scored_one = (eval_both.get("counts") or {}).get("scored"), \
                                   (eval_one.get("counts") or {}).get("scored")
-        if act_both is None or act_one is None:
+        if _GBC_REC("_probe_decision_journal_keeps_every_run:3737:11", (act_both is None or act_one is None)):
             return UNMEASURED, ("судья не назвал число ACT ни на одном стенде — "
                                 "сравнивать нечего")
-        if act_both == act_one or scored_both == scored_one:
+        if _GBC_REC("_probe_decision_journal_keeps_every_run:3740:11", (act_both == act_one or scored_both == scored_one)):
             return NOT_SATISFIED, (
                 f"вердикт критерия НЕ ИЗМЕНИЛСЯ от возвращённого прогона: ACT "
                 f"{act_one} → {act_both}, scored {scored_one} → {scored_both}. Строка в "
@@ -3654,7 +3747,7 @@ def _probe_decision_journal_keeps_every_run(arg: str | None) -> tuple[str, str]:
         # ── звено 4: горизонт в ДНЯХ, а не в прогонах ─────────────────────────
         days_both, days_one = (eval_both.get("observation_days"),
                                eval_one.get("observation_days"))
-        if days_both != days_one:
+        if _GBC_REC("_probe_decision_journal_keeps_every_run:3750:11", (days_both != days_one)):
             return NOT_SATISFIED, (
                 f"лишний ПРОГОН сдвинул счёт ДНЕЙ: observation_days {days_one} → "
                 f"{days_both}. Ось дней и ось прогонов слиты, и горизонт судьи "
@@ -3662,17 +3755,17 @@ def _probe_decision_journal_keeps_every_run(arg: str | None) -> tuple[str, str]:
 
         def _earliest_act(doc: dict) -> dict | None:
             rows = [r for r in (doc.get("per_verdict") or [])
-                    if str(r.get("verdict")).upper() == "ACT"]
-            return rows[0] if rows else None
+                    if _GBC_REC("_probe_decision_journal_keeps_every_run:3758:23", (str(r.get("verdict")).upper() == "ACT"))]
+            return rows[0] if _GBC_REC("_probe_decision_journal_keeps_every_run:3759:30", (rows)) else None
 
         act_row_both, act_row_sib = _earliest_act(eval_both), _earliest_act(eval_sib)
-        if act_row_both is None or act_row_sib is None:
+        if _GBC_REC("_probe_decision_journal_keeps_every_run:3762:11", (act_row_both is None or act_row_sib is None)):
             return UNMEASURED, ("стенд звена 4 не дал ACT-строки ни на одном из двух "
                                 "журналов — горизонт сравнивать не на чем")
         fw_both = act_row_both.get("forward_days_available")
         fw_sib = act_row_sib.get("forward_days_available")
         net_both, net_sib = act_row_both.get("net_usd"), act_row_sib.get("net_usd")
-        if fw_both != fw_sib or net_both != net_sib:
+        if _GBC_REC("_probe_decision_journal_keeps_every_run:3768:11", (fw_both != fw_sib or net_both != net_sib)):
             return NOT_SATISFIED, (
                 f"ПОЗДНИЙ ПРОГОН ТОГО ЖЕ ДНЯ вошёл в форвардное окно: у раннего ACT "
                 f"форвардных дней {fw_sib} → {fw_both}, счёт ${net_sib} → ${net_both}. "
@@ -3759,25 +3852,25 @@ def _probe_absent_observation_class_closed(arg: str | None) -> tuple[str, str]:
     файле» при выросшем соседе есть зелёный ответ на свой вопрос, выданный за
     ответ на нужный. Переданный аргумент отвергается вслух, а не глотается.
     """
-    if (arg or "").strip():
+    if _GBC_REC("_probe_absent_observation_class_closed:3855:7", ((arg or "").strip())):
         return UNMEASURED, (f"проба не принимает аргумента (дано {arg!r}): "
                             "критерий — о ВСЁМ дереве, и пофайловой формы у "
                             "него нет намеренно")
     got = measure_absent_observation_class()
-    if not got.get("measured"):
+    if _GBC_REC("_probe_absent_observation_class_closed:3860:7", (not got.get("measured"))):
         return UNMEASURED, got.get("reason", "причина не названа")
     over = got.get("over_ceiling") or {}
-    if over:
+    if _GBC_REC("_probe_absent_observation_class_closed:3863:7", (over)):
         names = " · ".join(f"{sig}: в базе {n} при потолке {c}"
                            for sig, (n, c) in sorted(over.items()))
         return NOT_SATISFIED, (
             f"база класса ВЫРОСЛА ({names}) — падение погашено дописыванием, "
             "а не починкой писателя (инв. #16)")
     new = got.get("new") or []
-    if new:
+    if _GBC_REC("_probe_absent_observation_class_closed:3870:7", (new)):
         return NOT_SATISFIED, (
             f"новых мест класса {len(new)}: {', '.join(new[:6])}"
-            + (" …" if len(new) > 6 else "")
+            + (" …" if _GBC_REC("_probe_absent_observation_class_closed:3873:25", (len(new) > 6)) else "")
             + " — отсутствие наблюдения по-прежнему выходит наружу нулём "
               "или пустотой (инв. #17)")
     counts = " · ".join(f"{sig}: дерево {got['tree'][sig]}, база "
@@ -3812,7 +3905,7 @@ def _probe_rnd_carve_out_narrows_the_class(
     сразу; пофайловой формы у него не существует, и переданный аргумент
     отвергается вслух, а не глотается.
     """
-    if (arg or "").strip():
+    if _GBC_REC("_probe_rnd_carve_out_narrows_the_class:3908:7", ((arg or "").strip())):
         return UNMEASURED, (f"проба не принимает аргумента (дано {arg!r}): "
                             "критерий — о ПРАВИЛЕ, пофайловой формы у него нет")
     try:
@@ -3832,7 +3925,7 @@ def _probe_rnd_carve_out_narrows_the_class(
         _unwired.CARVE_OUT_BROKEN: NOT_SATISFIED,
         _unwired.CARVE_OUT_UNMEASURED: UNMEASURED,
     }[verdict]
-    if out is not SATISFIED:
+    if _GBC_REC("_probe_rnd_carve_out_narrows_the_class:3928:7", (out is not SATISFIED)):
         return out, why
     # Вторая нога — ДОСЛОВНЫЙ критерий карточки: «новый `scripts/edge_*.py` с
     # записью в реестре не краснит сторожа». Спрашивается контрфактом у ТОГО ЖЕ
@@ -3842,7 +3935,7 @@ def _probe_rnd_carve_out_narrows_the_class(
             _unwired.carve_out_with_one_more_rnd_record(got))
     except Exception as exc:  # noqa: BLE001
         return UNMEASURED, f"контрфакт нового R&D-замера не посчитан: {exc}"
-    if after != _unwired.CARVE_OUT_OK:
+    if _GBC_REC("_probe_rnd_carve_out_narrows_the_class:3938:7", (after != _unwired.CARVE_OUT_OK)):
         return NOT_SATISFIED, (
             "вердикт сторожа двигается от САМОГО ФАКТА нового R&D-замера с "
             f"записью в реестре ({why_after}) — значит судит снова население, "
@@ -4043,7 +4136,7 @@ def _probe_ledger_census_artifact_reaches_the_cycle(arg: str | None) -> tuple[st
 
     Живой ``data/`` не открывается: лента стенда синтетическая, её строит сама проба.
     """
-    if arg:
+    if _GBC_REC("_probe_ledger_census_artifact_reaches_the_cycle:4139:7", (arg)):
         return UNMEASURED, (f"проба не принимает аргумента (дано {arg!r}): критерий "
                             "карточки про ОДИН артефакт и назван целиком")
     try:
@@ -4051,7 +4144,7 @@ def _probe_ledger_census_artifact_reaches_the_cycle(arg: str | None) -> tuple[st
     except Exception as exc:  # noqa: BLE001 — предпосылка не обеспечена ⇒ третий исход
         return UNMEASURED, (f"проводку не измерили ({type(exc).__name__}: {exc}) — "
                             "вердикта это не даёт")
-    if broken:
+    if _GBC_REC("_probe_ledger_census_artifact_reaches_the_cycle:4147:7", (broken)):
         return NOT_SATISFIED, "; ".join(broken)
     return SATISFIED, ("читатель есть и измерен ИСХОДОМ: срок годности объявлен в "
                        "конституции, шаг 0-офис знает артефакт всеми тремя реестрами, "
@@ -4213,7 +4306,7 @@ def _probe_ledger_cut_moves_and_is_measured(arg: str | None) -> tuple[str, str]:
 
     Живой ``data/`` не открывается: обе сцены синтетические и строятся самой пробой.
     """
-    if arg:
+    if _GBC_REC("_probe_ledger_cut_moves_and_is_measured:4309:7", (arg)):
         return UNMEASURED, (f"проба не принимает аргумента (дано {arg!r}): критерий "
                             "назван целиком")
     try:
@@ -4221,7 +4314,7 @@ def _probe_ledger_cut_moves_and_is_measured(arg: str | None) -> tuple[str, str]:
     except Exception as exc:  # noqa: BLE001 — предпосылка не обеспечена ⇒ третий исход
         return UNMEASURED, (f"отрезание не измерили ({type(exc).__name__}: {exc}) — "
                             "вердикта это не даёт")
-    if broken:
+    if _GBC_REC("_probe_ledger_cut_moves_and_is_measured:4317:7", (broken)):
         return NOT_SATISFIED, "; ".join(broken)
     return SATISFIED, ("окно строго больше такта писателя; молчаливое усечение ломает "
                        "цепь; объявленный перенос проверяем от якоря; архив + горячий "
@@ -4260,7 +4353,7 @@ def _probe_journal_reader_census_reaches_http_routes(arg: str | None) -> tuple[s
 
     from spa_core.monitoring import run_identity_key_price as census
 
-    if arg:
+    if _GBC_REC("_probe_journal_reader_census_reaches_http_routes:4356:7", (arg)):
         # Пофайловой формы у критерия нет намеренно: «у моего роутера чисто» при
         # слепом соседе — зелёный ответ на свой вопрос, выданный за нужный.
         return UNMEASURED, (f"проба не принимает аргумента (дано {arg!r}): критерий "
@@ -4292,23 +4385,23 @@ def _probe_journal_reader_census_reaches_http_routes(arg: str | None) -> tuple[s
             (src / "tier1_verdict.json").write_text(
                 _json.dumps({"probe_marker": "g27-stand-reached"}), encoding="utf-8")
             stands, why = census.build_stands(src, root / "stands")
-            if stands is None:
+            if _GBC_REC("_probe_journal_reader_census_reaches_http_routes:4388:15", (stands is None)):
                 return UNMEASURED, f"стенды не построены: {why}"
             tree = _Path(census.__file__).resolve().parents[2]
             answers, meta = census.http_probe_batch(stands, names, tree)
     except BaseException as exc:  # noqa: BLE001 — причина обязана быть названа
         return UNMEASURED, f"контур не отработал: {type(exc).__name__}: {exc}"
 
-    if not answers:
+    if _GBC_REC("_probe_journal_reader_census_reaches_http_routes:4395:7", (not answers)):
         return NOT_SATISFIED, (f"звено 1: партия зова маршрутов пуста — "
                                f"{meta.get('reason') or 'причина не названа'}")
-    rows_out = {n: census.classify_http_reader(n, answers[n]) for n in names if n in answers}
+    rows_out = {n: census.classify_http_reader(n, answers[n]) for n in names if _GBC_REC("_probe_journal_reader_census_reaches_http_routes:4398:80", (n in answers))}
     live = rows_out.get("spa_core.api.routers.tier1") or {}
-    if not (live.get("routes") or {}):
+    if _GBC_REC("_probe_journal_reader_census_reaches_http_routes:4400:7", (not (live.get("routes") or {}))):
         return NOT_SATISFIED, ("звено 2: у живого роутера нет разбора по маршрутам — "
                                f"вердикт {live.get('outcome')} / {live.get('cause')}")
-    reached = [p for p, v in (live.get("routes") or {}).items() if v.get("reaches_stand")]
-    if not reached:
+    reached = [p for p, v in (live.get("routes") or {}).items() if _GBC_REC("_probe_journal_reader_census_reaches_http_routes:4403:67", (v.get("reaches_stand")))]
+    if _GBC_REC("_probe_journal_reader_census_reaches_http_routes:4404:7", (not reached)):
         return NOT_SATISFIED, ("звено 3: ни один маршрут не доказал, что стенд до него "
                                "дошёл — «нечувствителен» было бы утверждением ни о чём")
     return SATISFIED, (f"маршрутов у tier1 {len(live['routes'])}, стенда достигли "
@@ -4353,7 +4446,7 @@ def _probe_journal_reader_census_verdict_under_injected_clock(
 
     from spa_core.monitoring import run_identity_key_price as census
 
-    if arg:
+    if _GBC_REC("_probe_journal_reader_census_verdict_under_injected_clock:4449:7", (arg)):
         return UNMEASURED, (f"проба не принимает аргумента (дано {arg!r}): критерий "
                             "про класс целиком, а не про один модуль")
 
@@ -4407,30 +4500,30 @@ def _probe_journal_reader_census_verdict_under_injected_clock(
                 import importlib
                 deaf = importlib.import_module("g28probe_deaf")
                 _entry, call = census.module_driver(deaf, now=now)
-                if call is None:
+                if _GBC_REC("_probe_journal_reader_census_verdict_under_injected_clock:4503:19", (call is None)):
                     return NOT_SATISFIED, "звено 1: прибор не умеет привести читателя"
                 got = call(stands["s1"]).get("age_s")
-                if got != int(now.timestamp()):
+                if _GBC_REC("_probe_journal_reader_census_verdict_under_injected_clock:4506:19", (got != int(now.timestamp()))):
                     return NOT_SATISFIED, (f"звено 1: часы до читателя не дошли — "
                                            f"он ответил {got!r}, а ждали "
                                            f"{int(now.timestamp())!r}")
                 bare = census.classify_reader("g28probe_deaf", stands)
-                if bare.get("cause") != census.CAUSE_RESTS_ON_UNSTABLE:
+                if _GBC_REC("_probe_journal_reader_census_verdict_under_injected_clock:4511:19", (bare.get("cause") != census.CAUSE_RESTS_ON_UNSTABLE)):
                     return NOT_SATISFIED, (
                         "звено 2: БЕЗ часов тот же читатель получил вердикт "
                         f"{bare.get('outcome')}/{bare.get('cause')} — значит зелёное "
                         "звено 3 ничего про инъекцию не доказывает")
                 lit = census.classify_reader("g28probe_deaf", stands, now=now)
-                if lit.get("outcome") == census.READER_UNMEASURED:
+                if _GBC_REC("_probe_journal_reader_census_verdict_under_injected_clock:4517:19", (lit.get("outcome") == census.READER_UNMEASURED)):
                     return NOT_SATISFIED, (
                         f"звено 3: с часами вердикта всё равно нет — "
                         f"{lit.get('cause')}: {lit.get('reason')}")
-                if lit.get("clock_injected") is not True:
+                if _GBC_REC("_probe_journal_reader_census_verdict_under_injected_clock:4521:19", (lit.get("clock_injected") is not True)):
                     return NOT_SATISFIED, ("звено 3: строка не признаёт, что часы "
                                            "проведены — улучшение было бы неотличимо "
                                            "от везения")
                 coll = census.classify_reader("g28probe_last", stands, now=now)
-                if coll.get("outcome") != census.READER_LAST:
+                if _GBC_REC("_probe_journal_reader_census_verdict_under_injected_clock:4526:19", (coll.get("outcome") != census.READER_LAST)):
                     return NOT_SATISFIED, (
                         "звено 4: схлопывающий читатель под проведёнными часами "
                         f"стал {coll.get('outcome')} — инъекция гасит РАЗНИЦУ, а не "
@@ -4438,7 +4531,7 @@ def _probe_journal_reader_census_verdict_under_injected_clock(
             finally:
                 sys.path.remove(str(pkg))
                 for name in list(sys.modules):
-                    if name.startswith("g28probe_"):
+                    if _GBC_REC("_probe_journal_reader_census_verdict_under_injected_clock:4534:23", (name.startswith("g28probe_"))):
                         del sys.modules[name]
     except BaseException as exc:  # noqa: BLE001 — причина обязана быть названа
         return UNMEASURED, f"контур не отработал: {type(exc).__name__}: {exc}"
@@ -4461,9 +4554,9 @@ def _probe_journal_reader_census_verdict_under_injected_clock(
     except BaseException:  # noqa: BLE001 — население тут РИДЕР, а не гейт
         doc = None
     rows = ((doc or {}).get("readers") or {}).get("modules") or []
-    if not rows:
+    if _GBC_REC("_probe_journal_reader_census_verdict_under_injected_clock:4557:7", (not rows)):
         tail = " · население НЕ ИЗМЕРЕНО: артефакт переписи не прочитан"
-    elif not any("clock_injected" in r for r in rows):
+    elif _GBC_REC("_probe_journal_reader_census_verdict_under_injected_clock:4559:9", (not any("clock_injected" in r for r in rows))):
         tail = (" · население НЕ ИЗМЕРЕНО: артефакт написан ещё СТАРЫМ кодом "
                 "(строки не несут clock_injected) — счётчик обновит ближайший "
                 "прогон переписи в дневном цикле")
@@ -4471,7 +4564,7 @@ def _probe_journal_reader_census_verdict_under_injected_clock(
         now_n = int(((doc.get("readers") or {}).get("unmeasured_causes")
                      or {}).get(census.CAUSE_RESTS_ON_UNSTABLE, 0))
         tail = (f" · население: {now_n} против {baseline} на замере 16.09 "
-                f"({'убыло' if now_n < baseline else 'НЕ убыло'})")
+                f"({'убыло' if _GBC_REC("_probe_journal_reader_census_verdict_under_injected_clock:4567:36", (now_n < baseline)) else 'НЕ убыло'})")
     return SATISFIED, ("контур переписи доказан исходом: без часов "
                        "verdict_rests_on_unstable_coords, с часами вердикт есть, "
                        "схлопывающий читатель схлопывающим и остался" + tail)
@@ -4520,9 +4613,9 @@ def _probe_earn_defi_own_realized_price(arg: str | None, *, root: str | None = N
 
     root = root or os.environ.get("EARN_DEFI_ROOT") or _EARN_DEFI_DEFAULT_ROOT
     db_path = os.path.join(root, "data", "earn_defi.db")
-    if not os.path.isdir(root):
+    if _GBC_REC("_probe_earn_defi_own_realized_price:4616:7", (not os.path.isdir(root))):
         return UNMEASURED, f"репозитория earn-defi нет по адресу {root} — предмет не измерен"
-    if not os.path.isfile(db_path):
+    if _GBC_REC("_probe_earn_defi_own_realized_price:4618:7", (not os.path.isfile(db_path))):
         return UNMEASURED, f"базы движка нет: {db_path} — предмет не измерен"
     now = now or datetime.now(timezone.utc)
     try:
@@ -4549,7 +4642,7 @@ def _probe_earn_defi_own_realized_price(arg: str | None, *, root: str | None = N
         conn.close()
 
     # звено 1 — серия есть
-    if not own:
+    if _GBC_REC("_probe_earn_defi_own_realized_price:4645:7", (not own)):
         return NOT_SATISFIED, (f"звено 1: своей серии нет — в market_data ноль строк "
                                f"{OWN_REALIZED_SOURCE}/{OWN_REALIZED_METRIC}")
 
@@ -4557,39 +4650,39 @@ def _probe_earn_defi_own_realized_price(arg: str | None, *, root: str | None = N
     ref: dict = {}
     for d, parts in ref_parts.items():
         mc, mv, sp = parts.get("CapMrktCurUSD"), parts.get("CapMVRVCur"), parts.get("SplyCur")
-        if mc and mv and sp and mv > 0 and sp > 0:
+        if _GBC_REC("_probe_earn_defi_own_realized_price:4653:11", (mc and mv and sp and mv > 0 and sp > 0)):
             ref[d] = mc / mv / sp
-    common = sorted(d for d in own if d in ref and own[d] and own[d] > 0)
-    if not ref:
+    common = sorted(d for d in own if _GBC_REC("_probe_earn_defi_own_realized_price:4655:38", (d in ref and own[d] and own[d] > 0)))
+    if _GBC_REC("_probe_earn_defi_own_realized_price:4656:7", (not ref)):
         return UNMEASURED, "эталона нет: в базе ни одного полного дня поставщика — сверять не с чем"
-    if len(common) < OWN_REALIZED_MIN_DAYS:
+    if _GBC_REC("_probe_earn_defi_own_realized_price:4658:7", (len(common) < OWN_REALIZED_MIN_DAYS)):
         return NOT_SATISFIED, (f"звено 2: общих с эталоном дней {len(common)} "
                                f"< {OWN_REALIZED_MIN_DAYS}")
     window = common[-OWN_REALIZED_MIN_DAYS:]
     span = (_date.fromisoformat(window[-1]) - _date.fromisoformat(window[0])).days + 1
-    if span - len(window) > OWN_REALIZED_MAX_HOLE_DAYS:
+    if _GBC_REC("_probe_earn_defi_own_realized_price:4663:7", (span - len(window) > OWN_REALIZED_MAX_HOLE_DAYS)):
         return NOT_SATISFIED, (f"звено 2: окно {window[0]}…{window[-1]} с дырами — "
                                f"{len(window)} точек на {span} календарных дней")
     diffs = {d: abs(own[d] / ref[d] - 1.0) * 100.0 for d in window}
     worst_day = max(diffs, key=lambda d: diffs[d])
     worst = diffs[worst_day]
-    if worst > OWN_REALIZED_MAX_DIFF_PCT:
-        over = sum(1 for v in diffs.values() if v > OWN_REALIZED_MAX_DIFF_PCT)
+    if _GBC_REC("_probe_earn_defi_own_realized_price:4669:7", (worst > OWN_REALIZED_MAX_DIFF_PCT)):
+        over = sum(1 for v in diffs.values() if _GBC_REC("_probe_earn_defi_own_realized_price:4670:48", (v > OWN_REALIZED_MAX_DIFF_PCT)))
         return NOT_SATISFIED, (f"звено 2: расхождение {worst:.2f} % > {OWN_REALIZED_MAX_DIFF_PCT} % "
                                f"({worst_day}); дней выше порога {over} из {len(window)}")
-    if worst < OWN_REALIZED_COPY_EPS_PCT:
+    if _GBC_REC("_probe_earn_defi_own_realized_price:4673:7", (worst < OWN_REALIZED_COPY_EPS_PCT)):
         return NOT_SATISFIED, ("звено 2: серия побайтно равна эталону на всём окне — это копия "
                                "поставщика, а не расчёт из блокчейна")
 
     # звено 3 — свежесть
     own_last = max(own)
     age = (now.date() - _date.fromisoformat(own_last)).days
-    if age > OWN_REALIZED_MAX_AGE_DAYS:
+    if _GBC_REC("_probe_earn_defi_own_realized_price:4680:7", (age > OWN_REALIZED_MAX_AGE_DAYS)):
         return NOT_SATISFIED, (f"звено 3: своя серия кончается {own_last} — {age} сут. назад "
                                f"(> {OWN_REALIZED_MAX_AGE_DAYS}); расчёт не идёт")
 
     # звено 4 — движок читает своё
-    if last_signal is None:
+    if _GBC_REC("_probe_earn_defi_own_realized_price:4685:7", (last_signal is None)):
         return NOT_SATISFIED, "звено 4: у движка нет ни одной записи сигналов"
     sig_date, payload_raw = last_signal
     try:
@@ -4597,12 +4690,12 @@ def _probe_earn_defi_own_realized_price(arg: str | None, *, root: str | None = N
     except (TypeError, ValueError) as exc:
         return UNMEASURED, f"последняя запись сигналов не разобралась: {exc}"
     src = str(((payload.get("inputs") or {}).get("source")) or "")
-    if OWN_REALIZED_SOURCE not in src.split("+"):
+    if _GBC_REC("_probe_earn_defi_own_realized_price:4693:7", (OWN_REALIZED_SOURCE not in src.split("+"))):
         return NOT_SATISFIED, (f"звено 4: последняя запись сигналов ({sig_date}) считана из "
                                f"{src or '—'!s} — движок всё ещё читает поставщика")
     sig_rp = (payload.get("signals") or {}).get("realized_price_usd")
     own_at = own.get(sig_date)
-    if sig_rp is None or own_at is None or abs(float(sig_rp) / own_at - 1.0) > 1e-6:
+    if _GBC_REC("_probe_earn_defi_own_realized_price:4698:7", (sig_rp is None or own_at is None or abs(float(sig_rp) / own_at - 1.0) > 1e-6)):
         return NOT_SATISFIED, (f"звено 4: запись сигналов {sig_date} называет источник "
                                f"{OWN_REALIZED_SOURCE}, но несёт {sig_rp} при своей серии {own_at}")
     return SATISFIED, (f"своя серия {len(own)} дн., окно {window[0]}…{window[-1]}: макс. "
@@ -4645,16 +4738,16 @@ def _probe_named_cards_closed_at_origin(arg: str | None, *, tracker_dir: str | N
     * хоть одно названное имя открыто на origin (или его там нет вовсе) ⇒ ``not_satisfied``
       с перечнем.
     """
-    if not arg:
+    if _GBC_REC("_probe_named_cards_closed_at_origin:4741:7", (not arg)):
         return UNMEASURED, ("пробе нужна карточка-находка "
                             "(acceptance_probe: named_cards_closed_at_origin:<имя-карточки>)")
     tracker = tracker_dir or os.path.join(REPO_ROOT, TRACKER_REL)
     root = _repo_root_for(tracker)
-    if not _is_git_repo(root):
+    if _GBC_REC("_probe_named_cards_closed_at_origin:4746:7", (not _is_git_repo(root))):
         return UNMEASURED, f"в {root} нет репозитория — закрытость на origin НЕ ИЗМЕРЕНА"
-    card_id = arg[:-3] if arg.endswith(".md") else arg
+    card_id = arg[:-3] if _GBC_REC("_probe_named_cards_closed_at_origin:4748:26", (arg.endswith(".md"))) else arg
     card_path = os.path.join(tracker, f"{card_id}.md")
-    if not os.path.isfile(card_path):
+    if _GBC_REC("_probe_named_cards_closed_at_origin:4750:7", (not os.path.isfile(card_path))):
         return UNMEASURED, f"карточки {card_id} нет в дереве — предмет НЕ ИЗМЕРЕН"
     try:
         body = _pathlib.Path(card_path).read_text(encoding="utf-8")
@@ -4662,7 +4755,7 @@ def _probe_named_cards_closed_at_origin(arg: str | None, *, tracker_dir: str | N
         return UNMEASURED, f"карточка {card_id} не прочитана ({exc}) — НЕ ИЗМЕРЕНО"
 
     names = sorted(set(_NAMED_CARD_RE.findall(body)))
-    if not names:
+    if _GBC_REC("_probe_named_cards_closed_at_origin:4758:7", (not names)):
         return UNMEASURED, (f"в теле {card_id} не названо ни одной карточки решения — "
                             f"пустое множество НЕ читается как «всё закрыто»")
 
@@ -4677,20 +4770,20 @@ def _probe_named_cards_closed_at_origin(arg: str | None, *, tracker_dir: str | N
                                   capture_output=True, text=True, timeout=30)
         except (OSError, _subprocess.SubprocessError) as exc:
             return UNMEASURED, f"git не ответил про {name} ({exc}) — НЕ ИЗМЕРЕНО"
-        if out.returncode != 0:
+        if _GBC_REC("_probe_named_cards_closed_at_origin:4773:11", (out.returncode != 0)):
             opened.append(f"{name}: на {use_ref} файла нет")
             continue
         status = ""
         for line in out.stdout.splitlines():
-            if line.startswith("status:"):
+            if _GBC_REC("_probe_named_cards_closed_at_origin:4778:15", (line.startswith("status:"))):
                 status = line.split(":", 1)[1].strip()
                 break
-        if status not in _CLOSED_AT_ORIGIN:
+        if _GBC_REC("_probe_named_cards_closed_at_origin:4781:11", (status not in _CLOSED_AT_ORIGIN)):
             shown = status or "не прочитан"
             opened.append(f"{name}: на {use_ref} статус '{shown}'")
 
     where = f"названо {len(names)}, ref {use_ref}"
-    if opened:
+    if _GBC_REC("_probe_named_cards_closed_at_origin:4786:7", (opened)):
         return NOT_SATISFIED, (f"НЕ закрыты на {use_ref}: {len(opened)} из {len(names)} — "
                                + "; ".join(opened[:6]) + f" ({where})")
     return SATISFIED, (f"все {len(names)} названных карточек закрыты на {use_ref} "
@@ -4721,32 +4814,32 @@ def _probe_card_copies_agree(arg: str | None, *, tracker_dir: str | None = None,
     worktree ОТ ``origin/main``, сравнивает копию саму с собой и зеленеет ни о чём,
     и зелёный из worktree не должен читаться как зелёный в проде.
     """
-    if not arg:
+    if _GBC_REC("_probe_card_copies_agree:4817:7", (not arg)):
         return UNMEASURED, ("пробе нужна карточка "
                             "(acceptance_probe: card_copies_agree:<имя-карточки>)")
     tracker = tracker_dir or os.path.join(REPO_ROOT, TRACKER_REL)
     root = _repo_root_for(tracker)
-    if not _is_git_repo(root):
+    if _GBC_REC("_probe_card_copies_agree:4822:7", (not _is_git_repo(root))):
         return UNMEASURED, f"в {root} нет репозитория — расхождение копий НЕ ИЗМЕРЕНО"
     scripts_dir = os.path.join(root, "scripts")
-    if scripts_dir not in sys.path:
+    if _GBC_REC("_probe_card_copies_agree:4825:7", (scripts_dir not in sys.path)):
         sys.path.insert(0, scripts_dir)
     try:
         import check_tracker_drift as drift
     except ImportError as exc:                       # pragma: no cover — защита ввоза
         return UNMEASURED, f"сторож расхождения не ввезён ({exc}) — НЕ ИЗМЕРЕНО"
-    card_id = arg[:-3] if arg.endswith(".md") else arg
+    card_id = arg[:-3] if _GBC_REC("_probe_card_copies_agree:4831:26", (arg.endswith(".md"))) else arg
     try:
         report = drift.analyze(_pathlib.Path(tracker), ref or drift.DEFAULT_REF)
     except Exception as exc:                         # noqa: BLE001
         return UNMEASURED, f"сверка с origin не удалась ({exc}) — НЕ ИЗМЕРЕНО"
     where = (f"дерево {root}, ref {report.ref} {(report.ref_sha or '?')[:9]}, "
              f"в дереве {report.tree_count} / на ref {report.origin_count}")
-    if not report.origin_count:
+    if _GBC_REC("_probe_card_copies_agree:4838:7", (not report.origin_count)):
         return UNMEASURED, f"копия трекера на ref не прочитана — НЕ ИЗМЕРЕНО ({where})"
-    mine = [f for f in report.findings if f.card_id == card_id]
-    if not mine:
-        if not os.path.isfile(os.path.join(tracker, f"{card_id}.md")):
+    mine = [f for f in report.findings if _GBC_REC("_probe_card_copies_agree:4840:42", (f.card_id == card_id))]
+    if _GBC_REC("_probe_card_copies_agree:4841:7", (not mine)):
+        if _GBC_REC("_probe_card_copies_agree:4842:11", (not os.path.isfile(os.path.join(tracker, f"{card_id}.md")))):
             return UNMEASURED, (f"карточки {card_id} нет ни в дереве, ни среди "
                                 f"разошедшихся — предмет НЕ ИЗМЕРЕН ({where})")
         # Пустая находка бывает НАБЛЮДЕНИЕМ и бывает СВОЙСТВОМ ДЕРЕВА, и спрашивать
@@ -4754,10 +4847,10 @@ def _probe_card_copies_agree(arg: str | None, *, tracker_dir: str | None = None,
         # содержательность собой, и тавтологию мерить незачем (ADR-504, заказ G38 п. 1).
         taut, why = _tracker_comparison_tautological(
             root, os.path.join(tracker, f"{card_id}.md"), report.ref_sha)
-        if taut is None:
+        if _GBC_REC("_probe_card_copies_agree:4850:11", (taut is None)):
             return UNMEASURED, (f"содержательность сверки НЕ УСТАНОВЛЕНА ({why}) — "
                                 f"пустая находка не читается как «сошлись» ({where})")
-        if taut:
+        if _GBC_REC("_probe_card_copies_agree:4853:11", (taut)):
             return UNMEASURED, (f"сверка ТАВТОЛОГИЧНА ({why}) — расхождение копий "
                                 f"НЕ ИЗМЕРЕНО; мерить из прод-дерева ({where})")
         return SATISFIED, f"копии сошлись: расхождения по {card_id} нет ({where})"
@@ -4776,7 +4869,7 @@ def _probe_card_copies_agree(arg: str | None, *, tracker_dir: str | None = None,
     detail = (f"{card_id}: здесь `{f.tree_status or '?'}`, на {report.ref} "
               f"`{f.origin_status or '?'}`, класс {f.kind}/"
               f"{f.order or 'порядок не мерился'} ({where})")
-    if closed_here_only:
+    if _GBC_REC("_probe_card_copies_agree:4872:7", (closed_here_only)):
         return NOT_SATISFIED, "ЗАКРЫТО ТОЛЬКО ЗДЕСЬ — " + detail
     return SATISFIED, "закрытия только здесь нет — " + detail
 
@@ -4805,14 +4898,14 @@ def _probe_forbidden_import_gate_single_instrument(arg: str | None) -> tuple[str
     названные живут в `scripts/forbidden_import_baseline.json`, и их число
     печатается в detail, чтобы «ноль» и «один известный» не выглядели одинаково.
     """
-    if (arg or "").strip():
+    if _GBC_REC("_probe_forbidden_import_gate_single_instrument:4901:7", ((arg or "").strip())):
         return UNMEASURED, (f"проба не принимает аргумента (дано {arg!r}): "
                             "предмет — гейт целиком, пофайловой формы у него нет")
     import subprocess as _sp
     import tempfile as _tf
     script = os.path.join(REPO_ROOT, "scripts", "lint_forbidden_imports.py")
     workflow = os.path.join(REPO_ROOT, ".github", "workflows", "ci-lite.yml")
-    if not os.path.isfile(script):
+    if _GBC_REC("_probe_forbidden_import_gate_single_instrument:4908:7", (not os.path.isfile(script))):
         return UNMEASURED, f"прибора {script} нет в дереве — гейт НЕ ИЗМЕРЕН"
 
     def _run(root: str):
@@ -4823,14 +4916,14 @@ def _probe_forbidden_import_gate_single_instrument(arg: str | None) -> tuple[str
             return exc
 
     live = _run(REPO_ROOT)
-    if not hasattr(live, "returncode"):
+    if _GBC_REC("_probe_forbidden_import_gate_single_instrument:4919:7", (not hasattr(live, "returncode"))):
         return UNMEASURED, f"прибор не запустился ({live}) — гейт НЕ ИЗМЕРЕН"
-    if live.returncode == 2:
+    if _GBC_REC("_probe_forbidden_import_gate_single_instrument:4921:7", (live.returncode == 2)):
         return NOT_SATISFIED, ("прибор НЕ ИЗМЕРИЛ живое дерево (код 2): "
                                + (live.stdout or live.stderr or "").strip()[:200])
     try:
         known = sum(1 for v in json.loads(live.stdout or "{}").get("violations", [])
-                    if v.get("known"))
+                    if _GBC_REC("_probe_forbidden_import_gate_single_instrument:4926:23", (v.get("known"))))
     except ValueError:
         return UNMEASURED, "машинный вывод прибора не разобран — гейт НЕ ИЗМЕРЕН"
 
@@ -4858,11 +4951,11 @@ def _probe_forbidden_import_gate_single_instrument(arg: str | None) -> tuple[str
             fh.write('SAMPLES = {"sdk": "import anthropic\\n"}\n')
         on_sample = _run(tmp)
 
-    if getattr(bites, "returncode", None) != 1:
+    if _GBC_REC("_probe_forbidden_import_gate_single_instrument:4954:7", (getattr(bites, "returncode", None) != 1)):
         return NOT_SATISFIED, ("прибор НЕ КУСАЕТСЯ: на дереве с настоящим "
                                f"`import anthropic` код {getattr(bites, 'returncode', '?')}, "
                                "ожидался 1")
-    if getattr(on_sample, "returncode", None) != 0:
+    if _GBC_REC("_probe_forbidden_import_gate_single_instrument:4958:7", (getattr(on_sample, "returncode", None) != 0)):
         return NOT_SATISFIED, ("прибор краснеет на ОБРАЗЦЕ кода в строке "
                                f"(код {getattr(on_sample, 'returncode', '?')}) — "
                                "авария 23.09 не закрыта")
@@ -4871,9 +4964,9 @@ def _probe_forbidden_import_gate_single_instrument(arg: str | None) -> tuple[str
             wf = fh.read()
     except OSError as exc:
         return UNMEASURED, f"{workflow} не прочитан ({exc}) — зовущий НЕ ИЗМЕРЕН"
-    if "python3 scripts/lint_forbidden_imports.py" not in wf:
+    if _GBC_REC("_probe_forbidden_import_gate_single_instrument:4967:7", ("python3 scripts/lint_forbidden_imports.py" not in wf)):
         return NOT_SATISFIED, "CI-Lite не зовёт прибор — отчёт без читателя"
-    if "FORBIDDEN_LIBS" in wf:
+    if _GBC_REC("_probe_forbidden_import_gate_single_instrument:4969:7", ("FORBIDDEN_LIBS" in wf)):
         return NOT_SATISFIED, ("в ci-lite.yml вернулась своя копия правила "
                                "(FORBIDDEN_LIBS) — правило снова в двух местах")
     return SATISFIED, (f"гейт замкнут: прибор измерил дерево (код {live.returncode}, "
@@ -5007,32 +5100,32 @@ def _probe_ci_main_verdict_green(arg: str | None, *, repo_root: str | None = Non
     # отвечал бы на вопрос «что сегодня на origin», а не на вопрос теста — ровно то,
     # что запрещает `.claude/rules/adapters.md`. Предмет пробы меряется из ПРОД-дерева
     # шагом 0-офис, где `SPA_ENV` не выставлен; с инъекцией (`fetch=`) отказа нет.
-    if fetch is None and os.environ.get("SPA_ENV") == "ci":
+    if _GBC_REC("_probe_ci_main_verdict_green:5103:7", (fetch is None and os.environ.get("SPA_ENV") == "ci")):
         return UNMEASURED, ("сеть в тестовом окружении не опрашивается (SPA_ENV=ci) — "
                             "вердикт CI меряется из прод-дерева шагом 0-офис")
     get = fetch or _github_json
-    if not _is_git_repo(root):
+    if _GBC_REC("_probe_ci_main_verdict_green:5107:7", (not _is_git_repo(root))):
         return UNMEASURED, f"в {root} нет репозитория — вердикт CI НЕ ИЗМЕРЕН"
     slug = _github_slug(root)
-    if not slug:
+    if _GBC_REC("_probe_ci_main_verdict_green:5110:7", (not slug)):
         return UNMEASURED, "адрес origin не разобран как GitHub — вердикт НЕ ИЗМЕРЕН"
     run, note = _ci_latest_verdict(slug, fetch=get)
-    if run is None:
+    if _GBC_REC("_probe_ci_main_verdict_green:5113:7", (run is None)):
         return UNMEASURED, f"{note} ({slug})"
     sha = str(run.get("head_sha") or "")
     concl = str(run.get("conclusion"))
     when = str(run.get("created_at") or "?")
     where = f"{slug} {CI_WORKFLOW_FILE}@{CI_BRANCH}, прогон {sha[:9]} от {when}, {note}"
     head, why = get(f"https://api.github.com/repos/{slug}/commits/{CI_BRANCH}")
-    if head is None:
+    if _GBC_REC("_probe_ci_main_verdict_green:5120:7", (head is None)):
         return UNMEASURED, f"вершина {CI_BRANCH} не прочитана ({why}) — {where}"
     head_sha = str(head.get("sha") or "")
-    if not head_sha:
+    if _GBC_REC("_probe_ci_main_verdict_green:5123:7", (not head_sha)):
         return UNMEASURED, f"ответ о вершине {CI_BRANCH} без sha — {where}"
-    if concl != "success":
+    if _GBC_REC("_probe_ci_main_verdict_green:5125:7", (concl != "success")):
         return NOT_SATISFIED, (f"вердикт `{concl}`: {where}. "
                                f"Вершина сейчас {head_sha[:9]}")
-    if sha != head_sha:
+    if _GBC_REC("_probe_ci_main_verdict_green:5128:7", (sha != head_sha)):
         return UNMEASURED, (f"последний вердикт `success`, но он о {sha[:9]}, "
                             f"а вершина {CI_BRANCH} — {head_sha[:9]}: о ВЕРШИНЕ "
                             f"вердикта ещё нет — НЕ ИЗМЕРЕНО ({where})")
@@ -5099,7 +5192,7 @@ def _probe_pr_work_arrived_on_main(arg: str | None, *, repo_root: str | None = N
     root = repo_root or REPO_ROOT
     # Сеть НЕ опрашивается из тестового окружения — названный третий исход, а не
     # молчаливая попытка (та же причина, что у `_probe_ci_main_verdict_green`).
-    if fetch is None and os.environ.get("SPA_ENV") == "ci":
+    if _GBC_REC("_probe_pr_work_arrived_on_main:5195:7", (fetch is None and os.environ.get("SPA_ENV") == "ci")):
         return UNMEASURED, ("сеть в тестовом окружении не опрашивается (SPA_ENV=ci) — "
                             "доставка PR меряется из прод-дерева шагом 0-офис")
     try:
@@ -5108,21 +5201,21 @@ def _probe_pr_work_arrived_on_main(arg: str | None, *, repo_root: str | None = N
         return UNMEASURED, f"прибор переписи не загружен: {type(exc).__name__}: {exc}"
 
     max_age = M.DEFAULT_MAX_AGE_DAYS
-    if (arg or "").strip():
+    if _GBC_REC("_probe_pr_work_arrived_on_main:5204:7", ((arg or "").strip())):
         try:
             max_age = float(arg.strip())
         except ValueError:
             return UNMEASURED, f"порог {arg!r} не число — доставка НЕ ИЗМЕРЕНА"
 
-    if not _is_git_repo(root):
+    if _GBC_REC("_probe_pr_work_arrived_on_main:5210:7", (not _is_git_repo(root))):
         return UNMEASURED, f"в {root} нет репозитория — доставка PR НЕ ИЗМЕРЕНА"
     slug = _github_slug(root)
-    if not slug:
+    if _GBC_REC("_probe_pr_work_arrived_on_main:5213:7", (not slug)):
         return UNMEASURED, "адрес origin не разобран как GitHub — НЕ ИЗМЕРЕНО"
 
     def _fetch(url):
         data, why = (fetch or _github_json)(url)
-        if data is None:
+        if _GBC_REC("_probe_pr_work_arrived_on_main:5218:11", (data is None)):
             # Специфичный класс, не generic Exception/RuntimeError (gate #1/7
             # `scripts/pre_commit_check.sh`, «No bare exceptions»). Поведение не
             # меняется: единственные читатели — `open_pulls`/`added_paths`
@@ -5134,19 +5227,19 @@ def _probe_pr_work_arrived_on_main(arg: str | None, *, repo_root: str | None = N
     when = now or datetime.now(timezone.utc)
     report = M.census(slug, _fetch, door, when, max_age)
 
-    bad = [v for v in report["pulls"] if v["state"] == M.NOT_ARRIVED]
-    if bad:
+    bad = [v for v in report["pulls"] if _GBC_REC("_probe_pr_work_arrived_on_main:5230:41", (v["state"] == M.NOT_ARRIVED))]
+    if _GBC_REC("_probe_pr_work_arrived_on_main:5231:7", (bad)):
         named = "; ".join(f"PR #{v['pr']} ({v['age_days']:g} дн): "
                           + ", ".join(v["missing"][:3])
-                          + (f" … ещё {len(v['missing']) - 3}" if len(v["missing"]) > 3 else "")
+                          + (f" … ещё {len(v['missing']) - 3}" if _GBC_REC("_probe_pr_work_arrived_on_main:5234:71", (len(v["missing"]) > 3)) else "")
                           for v in bad)
         return NOT_SATISFIED, f"работа не доехала у {len(bad)} PR — {named}"
-    blind = [v for v in report["pulls"] if v["state"] == M.UNMEASURED]
-    if blind or report["state"] == M.UNMEASURED and not any(
-            v["state"] == M.UNMEASURED_SCOPE for v in report["pulls"]):
-        why = blind[0]["reason"] if blind else report.get("reason") or "причина не названа"
+    blind = [v for v in report["pulls"] if _GBC_REC("_probe_pr_work_arrived_on_main:5237:43", (v["state"] == M.UNMEASURED))]
+    if _GBC_REC("_probe_pr_work_arrived_on_main:5238:7", (blind or report["state"] == M.UNMEASURED and not any(
+            v["state"] == M.UNMEASURED_SCOPE for v in report["pulls"]))):
+        why = blind[0]["reason"] if _GBC_REC("_probe_pr_work_arrived_on_main:5240:36", (blind)) else report.get("reason") or "причина не названа"
         return UNMEASURED, f"{len(blind) or 1} PR не измерен(ы): {why}"
-    out_of_reach = sum(1 for v in report["pulls"] if v["state"] == M.UNMEASURED_SCOPE)
+    out_of_reach = sum(1 for v in report["pulls"] if _GBC_REC("_probe_pr_work_arrived_on_main:5242:53", (v["state"] == M.UNMEASURED_SCOPE)))
     return SATISFIED, (f"не доехавших нет: открытых PR {len(report['pulls'])}, "
                        f"порог {max_age:g} дн, вне досягаемости прибора {out_of_reach} "
                        f"(PR без добавляемых файлов)")
@@ -5217,18 +5310,18 @@ def _probe_owner_visibility_numbers_delivered(
     except BaseException as exc:  # noqa: BLE001
         return UNMEASURED, f"перепись упала: {type(exc).__name__}: {exc}"
 
-    if not report.get("measured"):
+    if _GBC_REC("_probe_owner_visibility_numbers_delivered:5313:7", (not report.get("measured"))):
         return UNMEASURED, f"перепись не измерила: {report.get('reason')}"
 
     # Возраст записи — часть вопроса. Мерится у КАЖДОЙ книги, чья доставка
     # попала в вердикт: протухла одна — утверждение о ней уже не наблюдение.
     when = now or datetime.now(timezone.utc)
     books = report.get("books") or {}
-    if not books:
+    if _GBC_REC("_probe_owner_visibility_numbers_delivered:5320:7", (not books)):
         return UNMEASURED, "перепись не вернула ни одной книги — мерить нечего"
     for book, data in sorted(books.items()):
         stamp = (data or {}).get("generated_at")
-        if not stamp:
+        if _GBC_REC("_probe_owner_visibility_numbers_delivered:5324:11", (not stamp)):
             return UNMEASURED, (f"у записи книги {book} нет `generated_at` — возраст "
                                 f"не измерен, судить о доставке нечем")
         try:
@@ -5236,10 +5329,10 @@ def _probe_owner_visibility_numbers_delivered(
         except ValueError:
             return UNMEASURED, (f"книга {book}: generated_at {stamp!r} не разобран — "
                                 f"возраст НЕ измерен")
-        if made.tzinfo is None:
+        if _GBC_REC("_probe_owner_visibility_numbers_delivered:5332:11", (made.tzinfo is None)):
             made = made.replace(tzinfo=timezone.utc)
         age_h = (when - made).total_seconds() / 3600.0
-        if age_h > OWNER_VISIBILITY_MAX_AGE_H:
+        if _GBC_REC("_probe_owner_visibility_numbers_delivered:5335:11", (age_h > OWNER_VISIBILITY_MAX_AGE_H)):
             return UNMEASURED, (
                 f"журнал решений книги {book} протух: возраст {age_h:.1f}ч при "
                 f"пределе {OWNER_VISIBILITY_MAX_AGE_H:.0f}ч — это замороженный "
@@ -5254,28 +5347,28 @@ def _probe_owner_visibility_numbers_delivered(
     surfaces = report.get("surfaces") or {}
     callers = list(surfaces.get("callers") or [])
 
-    if report.get("status") == census.STATUS_UNMEASURED:
+    if _GBC_REC("_probe_owner_visibility_numbers_delivered:5350:7", (report.get("status") == census.STATUS_UNMEASURED)):
         sfields = report.get("surface_fields") or {}
-        why = (surfaces.get("reason") if not surfaces.get("measured")
+        why = (surfaces.get("reason") if _GBC_REC("_probe_owner_visibility_numbers_delivered:5352:41", (not surfaces.get("measured")))
                else sfields.get("reason")) or "причина не названа"
         return UNMEASURED, f"ось поверхностей владельца не измерена: {why}"
-    if lost:
+    if _GBC_REC("_probe_owner_visibility_numbers_delivered:5355:7", (lost)):
         return NOT_SATISFIED, (
             f"записано, но НЕ доставлено {lost} предмет(ов) из {total}: журнал "
             f"несёт число, выдача слоя отображения его роняет")
-    if not_rendered:
+    if _GBC_REC("_probe_owner_visibility_numbers_delivered:5359:7", (not_rendered)):
         return NOT_SATISFIED, (
             f"доставлено полем, но поверхность владельца НЕ читает "
             f"{len(not_rendered)} пол(е/я): {', '.join(not_rendered)} — до выдачи "
             f"предмет дошёл, до владельца нет")
-    if blind:
+    if _GBC_REC("_probe_owner_visibility_numbers_delivered:5364:7", (blind)):
         return UNMEASURED, (
             f"{blind} предмет(ов) из {total} НЕ записаны журналом решений — "
             f"доставка не измерена, и это не «владелец их видит»")
-    if not callers:
+    if _GBC_REC("_probe_owner_visibility_numbers_delivered:5368:7", (not callers)):
         return UNMEASURED, ("поверхностей-читателей эндпоинта выдачи не найдено — "
                             "полю некуда доходить")
-    if total == 0 or as_field != total:
+    if _GBC_REC("_probe_owner_visibility_numbers_delivered:5371:7", (total == 0 or as_field != total)):
         return UNMEASURED, (f"перепись дала нечитаемый расклад: предметов {total}, "
                             f"полем {as_field} — вердикт не выводится")
     return SATISFIED, (
@@ -5331,7 +5424,7 @@ def _probe_portfolio_decision_owner_covers_capital(
     except BaseException as exc:  # noqa: BLE001
         return UNMEASURED, f"перепись упала: {type(exc).__name__}: {exc}"
 
-    if not report.get("measured"):
+    if _GBC_REC("_probe_portfolio_decision_owner_covers_capital:5427:7", (not report.get("measured"))):
         return UNMEASURED, f"перепись не измерила: {report.get('reason')}"
 
     widest = report["widest_share"]
@@ -5339,7 +5432,7 @@ def _probe_portfolio_decision_owner_covers_capital(
               f"${report['widest_covered_usd']:,.2f} = {widest * 100:.2f}% из "
               f"${report['total_capital_usd']:,.2f}; книг {len(report['books'])}, "
               f"межкнижных решателей {len(report['cross_book_deciders'])}")
-    if report["verdict"] == census.OWNER_EXISTS:
+    if _GBC_REC("_probe_portfolio_decision_owner_covers_capital:5435:7", (report["verdict"] == census.OWNER_EXISTS)):
         return SATISFIED, "владелец решения покрывает весь портфель: " + detail
     out_of_scope = report.get("books_out_of_scope") or []
     return NOT_SATISFIED, (
@@ -5406,15 +5499,15 @@ def _probe_shadow_brief_names_the_unweighed_hold(
         report = census.run_census(_pathlib.Path(root), brief_fn=brief_fn)
     except BaseException as exc:  # noqa: BLE001
         return UNMEASURED, f"перепись упала: {type(exc).__name__}: {exc}"
-    if not report.get("measured"):
+    if _GBC_REC("_probe_shadow_brief_names_the_unweighed_hold:5502:7", (not report.get("measured"))):
         return UNMEASURED, f"перепись не измерила: {report.get('reason')}"
 
     when = now or datetime.now(timezone.utc)
     for book, data in sorted((report.get("books") or {}).items()):
-        if not data.get("brief_available"):
+        if _GBC_REC("_probe_shadow_brief_names_the_unweighed_hold:5507:11", (not data.get("brief_available"))):
             continue
         stamp = (data.get("tape") or {}).get("latest_generated_at")
-        if not stamp:
+        if _GBC_REC("_probe_shadow_brief_names_the_unweighed_hold:5510:11", (not stamp)):
             return UNMEASURED, (f"у последней записи ленты {book} нет "
                                 f"`generated_at` — возраст НЕ измерен, судить "
                                 f"о том, что владелец видит СЕГОДНЯ, нечем")
@@ -5423,10 +5516,10 @@ def _probe_shadow_brief_names_the_unweighed_hold(
         except ValueError:
             return UNMEASURED, (f"лента {book}: generated_at {stamp!r} не "
                                 f"разобран — возраст НЕ измерен")
-        if made.tzinfo is None:
+        if _GBC_REC("_probe_shadow_brief_names_the_unweighed_hold:5519:11", (made.tzinfo is None)):
             made = made.replace(tzinfo=timezone.utc)
         age_h = (when - made).total_seconds() / 3600.0
-        if age_h > _VACUOUS_ADVICE_MAX_AGE_H:
+        if _GBC_REC("_probe_shadow_brief_names_the_unweighed_hold:5522:11", (age_h > _VACUOUS_ADVICE_MAX_AGE_H)):
             return UNMEASURED, (
                 f"лента вердиктов книги {book} протухла: возраст {age_h:.1f}ч "
                 f"при пределе {_VACUOUS_ADVICE_MAX_AGE_H:.0f}ч — это замороженный "
@@ -5437,7 +5530,7 @@ def _probe_shadow_brief_names_the_unweighed_hold(
     shape = ("книг измерено {}, записей {}, пустых {}"
              .format(report.get("books_measured"), report.get("records_total"),
                      report.get("vacuous_records")))
-    if findings:
+    if _GBC_REC("_probe_shadow_brief_names_the_unweighed_hold:5533:7", (findings)):
         return NOT_SATISFIED, (
             "исход совета назван не у каждой книги ({}): ".format(len(findings))
             + "; ".join("[{}] {}: {}".format(f["finding"], f["book"], f["detail"])
@@ -5526,7 +5619,7 @@ def _probe_ledger_day_unit_census_names_the_unit(
     Часы, корень дерева, каталог данных и сам отчёт — ВХОДЫ, не окружение:
     иначе красную сторону проверки закрепить нечем.
     """
-    if (arg or "").strip():
+    if _GBC_REC("_probe_ledger_day_unit_census_names_the_unit:5622:7", ((arg or "").strip())):
         return UNMEASURED, (f"проба не принимает аргумента (дано {arg!r}): "
                             "предмет — ВСЁ население читателей ленты, пофайловой "
                             "формы у него нет намеренно")
@@ -5536,7 +5629,7 @@ def _probe_ledger_day_unit_census_names_the_unit(
         return UNMEASURED, f"перепись не импортируется: {type(exc).__name__}: {exc}"
 
     root = repo_root or REPO_ROOT
-    if report is None:
+    if _GBC_REC("_probe_ledger_day_unit_census_names_the_unit:5632:7", (report is None)):
         path = os.path.join(data_dir or os.path.join(root, "data"), census.ARTIFACT)
         try:
             with open(path, encoding="utf-8") as fh:
@@ -5545,8 +5638,8 @@ def _probe_ledger_day_unit_census_names_the_unit(
             return UNMEASURED, (f"артефакта переписи нет или он не прочитан "
                                 f"({census.ARTIFACT}): {type(exc).__name__}: {exc} — "
                                 f"единица у читателей НЕ наблюдена")
-    if not isinstance(report, dict) or not report.get("measured"):
-        reason = (report or {}).get("reason") if isinstance(report, dict) else "не словарь"
+    if _GBC_REC("_probe_ledger_day_unit_census_names_the_unit:5641:7", (not isinstance(report, dict) or not report.get("measured"))):
+        reason = (report or {}).get("reason") if _GBC_REC("_probe_ledger_day_unit_census_names_the_unit:5642:49", (isinstance(report, dict))) else "не словарь"
         return UNMEASURED, f"перепись не измерила: {reason}"
 
     stamp = report.get("generated_at")
@@ -5555,10 +5648,10 @@ def _probe_ledger_day_unit_census_names_the_unit(
     except (TypeError, ValueError):
         return UNMEASURED, (f"у отчёта переписи нет читаемой отметки времени "
                             f"(generated_at={stamp!r}) — возраст записи НЕ ИЗМЕРЕН")
-    if made.tzinfo is None:
+    if _GBC_REC("_probe_ledger_day_unit_census_names_the_unit:5651:7", (made.tzinfo is None)):
         made = made.replace(tzinfo=timezone.utc)
     age = ((now or datetime.now(timezone.utc)) - made).total_seconds() / 3600.0
-    if age > _LEDGER_DAY_UNIT_MAX_AGE_H:
+    if _GBC_REC("_probe_ledger_day_unit_census_names_the_unit:5654:7", (age > _LEDGER_DAY_UNIT_MAX_AGE_H)):
         return UNMEASURED, (f"перепись старше предела: {age:.1f}ч при пределе "
                             f"{_LEDGER_DAY_UNIT_MAX_AGE_H:.0f}ч — читатели и их код "
                             f"менялись, а запись говорит о дереве, которого уже нет")
@@ -5570,7 +5663,7 @@ def _probe_ledger_day_unit_census_names_the_unit(
                             f"{type(exc).__name__}: {exc}")
     graded = {str(r.get("module")) for r in (report.get("readers") or [])}
     missing = sorted(set(roads) - graded)
-    if missing:
+    if _GBC_REC("_probe_ledger_day_unit_census_names_the_unit:5666:7", (missing)):
         return UNMEASURED, (f"у {len(missing)} читател(я/ей) живого дерева исхода в "
                             f"переписи НЕТ: " + ", ".join(missing[:4])
                             + " — зачесть их чистыми значило бы судить по слепоте")
@@ -5581,7 +5674,7 @@ def _probe_ledger_day_unit_census_names_the_unit(
              .format(len(graded),
                      " ".join(f"{k}={v}" for k, v in sorted(tally.items())),
                      report.get("factor")))
-    if findings:
+    if _GBC_REC("_probe_ledger_day_unit_census_names_the_unit:5677:7", (findings)):
         return NOT_SATISFIED, (
             "записи считаются под словом «день» у {} читател(я/ей): ".format(len(findings))
             + "; ".join("{} :: {}".format(f.get("module"),
@@ -5595,7 +5688,7 @@ def _probe_ledger_day_unit_census_names_the_unit(
     # где живёт её смысл.
     parts = census.partition_unmeasured(report.get("readers") or [])
     unknown = parts[census.PARTITION_UNCLASSIFIED]
-    if unknown:
+    if _GBC_REC("_probe_ledger_day_unit_census_names_the_unit:5691:7", (unknown)):
         return UNMEASURED, (
             "у {} строк(и) переписи причина `unmeasured` НЕ НАЗВАНА ни отказом "
             "звать, ни неответом на предмете: ".format(len(unknown))
@@ -5604,7 +5697,7 @@ def _probe_ledger_day_unit_census_names_the_unit(
             + " — словарь пробы отстал от прибора, и отнести строку к любой из "
               f"куч по умолчанию значило бы решить за замер · {shape}")
     blind = parts[census.PARTITION_UNOBSERVED]
-    if blind:
+    if _GBC_REC("_probe_ledger_day_unit_census_names_the_unit:5700:7", (blind)):
         return UNMEASURED, (
             "предмет НЕ НАБЛЮДЁН у {} читател(я/ей) — «записи не считаются как "
             "дни» о них не сказано, сказано «судить было нечем»: ".format(len(blind))
@@ -5615,11 +5708,11 @@ def _probe_ledger_day_unit_census_names_the_unit(
             + f" · {shape}")
 
     reading = report.get("needs_reading") or []
-    tail = ("" if not reading else
+    tail = ("" if _GBC_REC("_probe_ledger_day_unit_census_names_the_unit:5711:18", (not reading)) else
             f"; чувствительны к плотности, но единицу не назвали {len(reading)} "
             f"(перечень к чтению, не находка)")
     refused = parts[census.PARTITION_REFUSED]
-    tail += ("" if not refused else
+    tail += ("" if _GBC_REC("_probe_ledger_day_unit_census_names_the_unit:5715:19", (not refused)) else
              f"; не позваны по РЕШЕНИЮ {len(refused)} "
              f"({', '.join(sorted({str(r.get('cause')) for r in refused}))}) — "
              f"осознанный отказ, а не неответ")
@@ -5661,7 +5754,7 @@ def _probe_census_probe_refuses_unobserved_subject(
 
     Часы и корень дерева — ВХОДЫ, не окружение.
     """
-    if (arg or "").strip():
+    if _GBC_REC("_probe_census_probe_refuses_unobserved_subject:5757:7", ((arg or "").strip())):
         return UNMEASURED, (f"проба не принимает аргумента (дано {arg!r}): "
                             "предмет — поведение пробы переписи, пофайловой "
                             "формы у него нет")
@@ -5670,7 +5763,7 @@ def _probe_census_probe_refuses_unobserved_subject(
     except BaseException as exc:  # noqa: BLE001 — причина обязана быть названа
         return UNMEASURED, f"перепись не импортируется: {type(exc).__name__}: {exc}"
     under = PROBES.get("ledger_day_unit_census_names_the_unit")
-    if under is None:
+    if _GBC_REC("_probe_census_probe_refuses_unobserved_subject:5766:7", (under is None)):
         return UNMEASURED, ("пробы `ledger_day_unit_census_names_the_unit` в "
                             "реестре нет — предмет этой проверки отсутствует")
 
@@ -5682,7 +5775,7 @@ def _probe_census_probe_refuses_unobserved_subject(
         return UNMEASURED, (f"население живого дерева не разобрано: "
                             f"{type(exc).__name__}: {exc}")
     names = sorted(roads)
-    if len(names) < 2:
+    if _GBC_REC("_probe_census_probe_refuses_unobserved_subject:5778:7", (len(names) < 2)):
         return UNMEASURED, (f"населения мало ({len(names)}): отчёт, где ОДНА "
                             "строка отличается причиной, на нём не построить")
 
@@ -5690,7 +5783,7 @@ def _probe_census_probe_refuses_unobserved_subject(
         """Отчёт, чистый во всём, кроме причины у ОДНОГО читателя."""
         rows = [{"module": m, "outcome": census.OUT_DAY_INVARIANT}
                 for m in names]
-        if cause is not None:
+        if _GBC_REC("_probe_census_probe_refuses_unobserved_subject:5786:11", (cause is not None)):
             rows[0] = {"module": names[0], "outcome": census.OUT_UNMEASURED,
                        "cause": cause, "reason": "стенд проверки"}
         return {"measured": True, "generated_at": moment.isoformat(),
@@ -5703,7 +5796,7 @@ def _probe_census_probe_refuses_unobserved_subject(
     # строки — он мог бы приходить от самого отчёта.
     base, base_detail = under(None, now=moment, repo_root=root,
                               report=_with(None))
-    if base != SATISFIED:
+    if _GBC_REC("_probe_census_probe_refuses_unobserved_subject:5799:7", (base != SATISFIED)):
         return UNMEASURED, ("контрольный отчёт БЕЗ строк «не измерено» не зелен "
                             f"({base}): {base_detail} — на таком стенде вердикты "
                             "трёх проб не относятся к причине строки")
@@ -5725,12 +5818,12 @@ def _probe_census_probe_refuses_unobserved_subject(
         verdict, detail = under(None, now=moment, repo_root=root,
                                 report=_with(cause))
         seen.append(f"{label} ⇒ {verdict}")
-        if verdict != want:
+        if _GBC_REC("_probe_census_probe_refuses_unobserved_subject:5821:11", (verdict != want)):
             broken.append(
                 "{} ({}): критерий {}, а обязан был быть {} — {}".format(
                     label, cause, verdict, want, detail[:160]))
     shape = "население {} · ".format(len(names)) + " · ".join(seen)
-    if broken:
+    if _GBC_REC("_probe_census_probe_refuses_unobserved_subject:5826:7", (broken)):
         return NOT_SATISFIED, "; ".join(broken) + f" · {shape}"
     return SATISFIED, ("строка «не измерено» судится ПО ПРЕДМЕТУ: неответ "
                        "критерий зелёным не оставляет, осознанный отказ "
@@ -5784,7 +5877,7 @@ def _probe_no_regression_tests_pass(
     бы переменная среды, а положительный контроль не мог бы закрепить обе
     стороны сравнения (`.claude/rules/deployment.md`).
     """
-    if (arg or "").strip():
+    if _GBC_REC("_probe_no_regression_tests_pass:5880:7", ((arg or "").strip())):
         return UNMEASURED, (f"проба не принимает аргумента (дано {arg!r}): "
                             "критерий — о ТРЁХ поверхностях целиком, и пофайловой "
                             "формы у него нет намеренно")
@@ -5794,7 +5887,7 @@ def _probe_no_regression_tests_pass(
         return UNMEASURED, f"перепись не импортируется: {type(exc).__name__}: {exc}"
 
     root = repo_root or REPO_ROOT
-    if report is None:
+    if _GBC_REC("_probe_no_regression_tests_pass:5890:7", (report is None)):
         path = os.path.join(root, census.REPORT_REL)
         try:
             with open(path, encoding="utf-8") as fh:
@@ -5803,8 +5896,8 @@ def _probe_no_regression_tests_pass(
             return UNMEASURED, (f"отчёта переписи нет или он не прочитан "
                                 f"({census.REPORT_REL}): {type(exc).__name__}: {exc} — "
                                 f"исход тестов не наблюдён")
-    if not isinstance(report, dict) or not report.get("measured"):
-        reason = (report or {}).get("reason") if isinstance(report, dict) else "не словарь"
+    if _GBC_REC("_probe_no_regression_tests_pass:5899:7", (not isinstance(report, dict) or not report.get("measured"))):
+        reason = (report or {}).get("reason") if _GBC_REC("_probe_no_regression_tests_pass:5900:49", (isinstance(report, dict))) else "не словарь"
         return UNMEASURED, f"перепись не измерила: {reason}"
 
     stamp = report.get("generated_at")
@@ -5814,10 +5907,10 @@ def _probe_no_regression_tests_pass(
         return UNMEASURED, (f"у отчёта переписи нет читаемой отметки времени "
                             f"(generated_at={stamp!r}) — возраст записи НЕ ИЗМЕРЕН, "
                             f"а старая запись говорит о дереве, которого уже нет")
-    if made.tzinfo is None:
+    if _GBC_REC("_probe_no_regression_tests_pass:5910:7", (made.tzinfo is None)):
         made = made.replace(tzinfo=timezone.utc)
     age = ((now or datetime.now(timezone.utc)) - made).total_seconds() / 3600.0
-    if age > _NO_REGRESSION_MAX_AGE_H:
+    if _GBC_REC("_probe_no_regression_tests_pass:5913:7", (age > _NO_REGRESSION_MAX_AGE_H)):
         return UNMEASURED, (f"запись прогона старше предела: {age:.1f}ч при пределе "
                             f"{_NO_REGRESSION_MAX_AGE_H:.0f}ч — население могло не "
                             f"измениться, а код под ним измениться")
@@ -5826,13 +5919,13 @@ def _probe_no_regression_tests_pass(
         live = census.population(root)
     except BaseException as exc:  # noqa: BLE001
         return UNMEASURED, f"население живого дерева не разобрано: {type(exc).__name__}: {exc}"
-    if live["unparsed"]:
+    if _GBC_REC("_probe_no_regression_tests_pass:5922:7", (live["unparsed"])):
         return UNMEASURED, (f"{len(live['unparsed'])} тест-файл(ов) живого дерева не "
                             f"разобран(ы) — принадлежность НЕИЗВЕСТНА: "
                             + ", ".join(u["file"] for u in live["unparsed"][:4]))
 
     surfaces = report.get("surfaces") or {}
-    if set(surfaces) != set(live["surfaces"]):
+    if _GBC_REC("_probe_no_regression_tests_pass:5928:7", (set(surfaces) != set(live["surfaces"]))):
         return UNMEASURED, (f"поверхности отчёта {sorted(surfaces)} разошлись с "
                             f"объявленными {sorted(live['surfaces'])} — отчёт отвечает "
                             f"на другой вопрос")
@@ -5845,7 +5938,7 @@ def _probe_no_regression_tests_pass(
         green = set(got.get("files_passed") or [])
         bad = {row.get("file") for row in (got.get("files_failed") or [])}
         unknown = {row.get("file") for row in (got.get("files_unmeasured") or [])}
-        if not live_surface["files"]:
+        if _GBC_REC("_probe_no_regression_tests_pass:5941:11", (not live_surface["files"])):
             return UNMEASURED, (f"население поверхности {name!r} ПУСТО — сторож без "
                                 f"населения зелен по построению, и эта зелень ничего "
                                 f"не значит")
@@ -5856,15 +5949,15 @@ def _probe_no_regression_tests_pass(
             # зелёную значило бы сделать пробу fail-OPEN на испорченной записи.
             where = [bucket for bucket, names in
                      (("упал", bad), ("зелен", green), ("без вердикта", unknown))
-                     if rel in names]
-            if len(where) > 1:
+                     if _GBC_REC("_probe_no_regression_tests_pass:5952:24", (rel in names))]
+            if _GBC_REC("_probe_no_regression_tests_pass:5953:15", (len(where) > 1)):
                 missing.append(f"{name}:{rel} (отчёт противоречит сам себе: "
                                f"{', '.join(where)})")
-            elif rel in bad:
+            elif _GBC_REC("_probe_no_regression_tests_pass:5956:17", (rel in bad)):
                 failed.append(f"{name}:{rel}")
-            elif rel in green:
+            elif _GBC_REC("_probe_no_regression_tests_pass:5958:17", (rel in green)):
                 continue
-            elif rel in unknown:
+            elif _GBC_REC("_probe_no_regression_tests_pass:5960:17", (rel in unknown)):
                 missing.append(f"{name}:{rel} (вердикта не получил)")
             else:
                 missing.append(f"{name}:{rel} (в отчёте отсутствует — появился "
@@ -5877,15 +5970,15 @@ def _probe_no_regression_tests_pass(
     tail = (f"население {total} тест-файл(ов), запись о {head}, снята на {where}, "
             f"возраст {age:.1f}ч")
 
-    if failed:
+    if _GBC_REC("_probe_no_regression_tests_pass:5973:7", (failed)):
         return NOT_SATISFIED, (
             f"существующие тесты объявленных поверхностей НЕ проходят: "
             f"{len(failed)} файл(ов) — " + " · ".join(failed[:6])
-            + (" …" if len(failed) > 6 else "") + f"; {tail}")
-    if missing:
+            + (" …" if _GBC_REC("_probe_no_regression_tests_pass:5977:25", (len(failed) > 6)) else "") + f"; {tail}")
+    if _GBC_REC("_probe_no_regression_tests_pass:5978:7", (missing)):
         return UNMEASURED, (
             f"вердикт получили не все члены населения: {len(missing)} без исхода — "
-            + " · ".join(missing[:6]) + (" …" if len(missing) > 6 else "")
+            + " · ".join(missing[:6]) + (" …" if _GBC_REC("_probe_no_regression_tests_pass:5981:52", (len(missing) > 6)) else "")
             + f"; {tail}")
     return SATISFIED, (f"каждый член населения получил вердикт, и все вердикты "
                        f"зелёные: {tail}")
@@ -5971,7 +6064,7 @@ def _probe_auditability_decision_carries_snapshot_and_explanation(
       трейла, схемы событий, фразы владельцу, RiskPolicy, стоп-крана или живого
       трека. Дописать поле в запись решения — money-path и решение владельца.
     """
-    if (arg or "").strip():
+    if _GBC_REC("_probe_auditability_decision_carries_snapshot_and_explanation:6067:7", ((arg or "").strip())):
         return UNMEASURED, (f"проба не принимает аргумента (дано {arg!r}): критерий "
                             "о ДВУХ половинах целиком, и пофайловой формы у него нет")
 
@@ -6002,14 +6095,14 @@ def _probe_auditability_decision_carries_snapshot_and_explanation(
         # Объявление читается ДО артефакта: прибор, не сказавший, что он мера
         # ЭТОГО критерия, мерой его не становится от того, что файл на месте.
         declared = str(getattr(meter, "CRITERION", "") or "")
-        if not declared.startswith(anchor):
+        if _GBC_REC("_probe_auditability_decision_carries_snapshot_and_explanation:6098:11", (not declared.startswith(anchor))):
             verdicts[half] = (UNMEASURED,
                               f"прибор половины «{half}» не объявляет себя мерой "
                               f"{anchor!r} (его CRITERION: {declared[:70]!r})")
             continue
 
         rel = str(getattr(meter, "REPORT_REL", "") or "")
-        if not rel:
+        if _GBC_REC("_probe_auditability_decision_carries_snapshot_and_explanation:6105:11", (not rel)):
             verdicts[half] = (UNMEASURED, f"прибор половины «{half}» не называет "
                                           f"адрес своего артефакта (`REPORT_REL`)")
             continue
@@ -6020,7 +6113,7 @@ def _probe_auditability_decision_carries_snapshot_and_explanation(
             verdicts[half] = (UNMEASURED, f"артефакт половины «{half}» {rel} не "
                                           f"прочитан ({exc})")
             continue
-        if not isinstance(doc, dict):
+        if _GBC_REC("_probe_auditability_decision_carries_snapshot_and_explanation:6116:11", (not isinstance(doc, dict))):
             verdicts[half] = (UNMEASURED, f"артефакт половины «{half}» {rel} — не "
                                           f"объект ({type(doc).__name__})")
             continue
@@ -6036,19 +6129,19 @@ def _probe_auditability_decision_carries_snapshot_and_explanation(
             made = datetime.fromisoformat(str(stamp).replace("Z", "+00:00"))
         except (TypeError, ValueError):
             made = None
-        if made is None:
+        if _GBC_REC("_probe_auditability_decision_carries_snapshot_and_explanation:6132:11", (made is None)):
             verdicts[half] = (UNMEASURED, f"артефакт половины «{half}» не пишет "
                                           f"разбираемый `generated_at` ({stamp!r}) — "
                                           f"возраст НЕ ИЗМЕРЕН")
             continue
-        if made.tzinfo is None:
+        if _GBC_REC("_probe_auditability_decision_carries_snapshot_and_explanation:6137:11", (made.tzinfo is None)):
             made = made.replace(tzinfo=timezone.utc)
         age = ((now or datetime.now(timezone.utc)) - made).total_seconds() / 3600.0
-        if slo is None:
+        if _GBC_REC("_probe_auditability_decision_carries_snapshot_and_explanation:6140:11", (slo is None)):
             verdicts[half] = (UNMEASURED, f"артефакту половины «{half}» {age:.1f} ч, а "
                                           f"срок годности взять неоткуда: {slo_prov}")
             continue
-        if age > float(slo):
+        if _GBC_REC("_probe_auditability_decision_carries_snapshot_and_explanation:6144:11", (age > float(slo))):
             verdicts[half] = (UNMEASURED, f"артефакт половины «{half}» протух: "
                                           f"{age:.1f} ч при объявленном пределе "
                                           f"{float(slo):g} ч ({slo_prov})")
@@ -6060,7 +6153,7 @@ def _probe_auditability_decision_carries_snapshot_and_explanation(
             verdicts[half] = (UNMEASURED, f"вердикт половины «{half}» не вынесен: "
                                           f"{type(exc).__name__}: {exc}")
             continue
-        if not isinstance(block, dict):
+        if _GBC_REC("_probe_auditability_decision_carries_snapshot_and_explanation:6156:11", (not isinstance(block, dict))):
             verdicts[half] = (UNMEASURED, f"вердикт половины «{half}» — не объект "
                                           f"({type(block).__name__})")
             continue
@@ -6068,11 +6161,11 @@ def _probe_auditability_decision_carries_snapshot_and_explanation(
         reason = block.get("reason") or "причина не названа"
         where.append(f"«{half}»: артефакт снят {stamp} ({age:.1f} ч при пределе "
                      f"{float(slo):g} ч, {slo_prov})")
-        if status == getattr(meter, "CRITERION_NOT_SATISFIED", None):
+        if _GBC_REC("_probe_auditability_decision_carries_snapshot_and_explanation:6164:11", (status == getattr(meter, "CRITERION_NOT_SATISFIED", None))):
             verdicts[half] = (NOT_SATISFIED, reason)
-        elif status == getattr(meter, "CRITERION_UNMEASURED", None):
+        elif _GBC_REC("_probe_auditability_decision_carries_snapshot_and_explanation:6166:13", (status == getattr(meter, "CRITERION_UNMEASURED", None))):
             verdicts[half] = (UNMEASURED, reason)
-        elif status == getattr(meter, "CRITERION_SATISFIED", None):
+        elif _GBC_REC("_probe_auditability_decision_carries_snapshot_and_explanation:6168:13", (status == getattr(meter, "CRITERION_SATISFIED", None))):
             verdicts[half] = (SATISFIED, reason)
         else:
             verdicts[half] = (UNMEASURED, f"прибор половины «{half}» вернул вердикт "
@@ -6082,19 +6175,19 @@ def _probe_auditability_decision_carries_snapshot_and_explanation(
              "(перекладка не в трейле, книга не в перечне) · правдив ли снимок, а не "
              "только отдан ли он данными; дописать поле в запись решения или факт во "
              "фразу владельцу — money-path и решение владельца")
-    tail = ("; ".join(where) + "; " if where else "") + blind
+    tail = ("; ".join(where) + "; " if _GBC_REC("_probe_auditability_decision_carries_snapshot_and_explanation:6178:39", (where)) else "") + blind
 
     broken = [f"половина «{half}» — {reason}"
               for half, (status, reason) in verdicts.items()
-              if status == NOT_SATISFIED]
-    if broken:
+              if _GBC_REC("_probe_auditability_decision_carries_snapshot_and_explanation:6182:17", (status == NOT_SATISFIED))]
+    if _GBC_REC("_probe_auditability_decision_carries_snapshot_and_explanation:6183:7", (broken)):
         return NOT_SATISFIED, ("критерий есть конъюнкция «snapshot И explanation», и "
                                "хотя бы один член ИЗМЕРЕН невыполненным: "
                                + " || ".join(broken) + f" ({tail})")
     unknown = [f"половина «{half}» — {reason}"
                for half, (status, reason) in verdicts.items()
-               if status != SATISFIED]
-    if unknown:
+               if _GBC_REC("_probe_auditability_decision_carries_snapshot_and_explanation:6189:18", (status != SATISFIED))]
+    if _GBC_REC("_probe_auditability_decision_carries_snapshot_and_explanation:6190:7", (unknown)):
         return UNMEASURED, ("конъюнкция, у которой член неизвестен, НЕИЗВЕСТНА: "
                             + " || ".join(unknown) + f" ({tail})")
     return SATISFIED, ("обе половины критерия владельца ИЗМЕРЕНЫ выполненными: "
@@ -6164,7 +6257,7 @@ def _probe_shadow_verification_replay_was_conducted(
       истории ADR-060, модели стоимости, гейтов, RiskPolicy, стоп-крана или
       живого трека.
     """
-    if (arg or "").strip():
+    if _GBC_REC("_probe_shadow_verification_replay_was_conducted:6260:7", ((arg or "").strip())):
         return UNMEASURED, (f"проба не принимает аргумента (дано {arg!r}): "
                             "критерий о прогоне целиком, и пофайловой формы у "
                             "него нет")
@@ -6191,13 +6284,13 @@ def _probe_shadow_verification_replay_was_conducted(
     # Объявление читается ДО артефакта: прибор, не сказавший, что он мера ЭТОГО
     # критерия, мерой его не становится от того, что файл на месте.
     declared = str(getattr(meter, "CRITERION", "") or "")
-    if not declared.startswith(SHADOW_REPLAY_ANCHOR):
+    if _GBC_REC("_probe_shadow_verification_replay_was_conducted:6287:7", (not declared.startswith(SHADOW_REPLAY_ANCHOR))):
         return UNMEASURED, (f"прибор не объявляет себя мерой "
                             f"{SHADOW_REPLAY_ANCHOR!r} (его CRITERION: "
                             f"{declared[:70]!r})")
 
     rel = str(getattr(meter, "REPORT_REL", "") or "")
-    if not rel:
+    if _GBC_REC("_probe_shadow_verification_replay_was_conducted:6293:7", (not rel)):
         return UNMEASURED, ("прибор не называет адрес своего артефакта "
                             "(`REPORT_REL`)")
     path = os.path.join(data, os.path.basename(rel))
@@ -6205,7 +6298,7 @@ def _probe_shadow_verification_replay_was_conducted(
         doc = _read(path)
     except (OSError, ValueError) as exc:
         return UNMEASURED, f"артефакт {rel} не прочитан ({exc})"
-    if not isinstance(doc, dict):
+    if _GBC_REC("_probe_shadow_verification_replay_was_conducted:6301:7", (not isinstance(doc, dict))):
         return UNMEASURED, f"артефакт {rel} — не объект ({type(doc).__name__})"
 
     try:
@@ -6218,16 +6311,16 @@ def _probe_shadow_verification_replay_was_conducted(
         made = datetime.fromisoformat(str(stamp).replace("Z", "+00:00"))
     except (TypeError, ValueError):
         made = None
-    if made is None:
+    if _GBC_REC("_probe_shadow_verification_replay_was_conducted:6314:7", (made is None)):
         return UNMEASURED, (f"артефакт не пишет разбираемый `generated_at` "
                             f"({stamp!r}) — возраст НЕ ИЗМЕРЕН")
-    if made.tzinfo is None:
+    if _GBC_REC("_probe_shadow_verification_replay_was_conducted:6317:7", (made.tzinfo is None)):
         made = made.replace(tzinfo=timezone.utc)
     age = ((now or datetime.now(timezone.utc)) - made).total_seconds() / 3600.0
-    if slo is None:
+    if _GBC_REC("_probe_shadow_verification_replay_was_conducted:6320:7", (slo is None)):
         return UNMEASURED, (f"артефакту {age:.1f} ч, а срок годности взять "
                             f"неоткуда: {slo_prov}")
-    if age > float(slo):
+    if _GBC_REC("_probe_shadow_verification_replay_was_conducted:6323:7", (age > float(slo))):
         return UNMEASURED, (f"артефакт протух: {age:.1f} ч при объявленном "
                             f"пределе {float(slo):g} ч ({slo_prov})")
 
@@ -6235,7 +6328,7 @@ def _probe_shadow_verification_replay_was_conducted(
         block = meter.criterion_verdict(doc)
     except BaseException as exc:  # noqa: BLE001
         return UNMEASURED, (f"вердикт не вынесен: {type(exc).__name__}: {exc}")
-    if not isinstance(block, dict):
+    if _GBC_REC("_probe_shadow_verification_replay_was_conducted:6331:7", (not isinstance(block, dict))):
         return UNMEASURED, f"вердикт — не объект ({type(block).__name__})"
 
     blind = ("мера НЕ отвечает: прав ли сам прогон (три руки, модель стоимости, "
@@ -6247,11 +6340,11 @@ def _probe_shadow_verification_replay_was_conducted(
             f"{slo_prov}); {blind}")
 
     status = block.get("status")
-    if status == getattr(meter, "CRITERION_NOT_SATISFIED", None):
+    if _GBC_REC("_probe_shadow_verification_replay_was_conducted:6343:7", (status == getattr(meter, "CRITERION_NOT_SATISFIED", None))):
         return NOT_SATISFIED, f"{reason} ({tail})"
-    if status == getattr(meter, "CRITERION_UNMEASURED", None):
+    if _GBC_REC("_probe_shadow_verification_replay_was_conducted:6345:7", (status == getattr(meter, "CRITERION_UNMEASURED", None))):
         return UNMEASURED, f"{reason} ({tail})"
-    if status == getattr(meter, "CRITERION_SATISFIED", None):
+    if _GBC_REC("_probe_shadow_verification_replay_was_conducted:6347:7", (status == getattr(meter, "CRITERION_SATISFIED", None))):
         return SATISFIED, f"{reason} ({tail})"
     return UNMEASURED, (f"прибор вернул вердикт {status!r}, который не "
                         f"переносится ({tail})")
@@ -6287,16 +6380,16 @@ def _probe_no_single_criterion_probe_on_a_multi_criterion_order(
     ни локально, ни на `ref`, либо чтение `ref` прервалось.
     """
     key = (arg or "").strip()
-    if not key:
+    if _GBC_REC("_probe_no_single_criterion_probe_on_a_multi_criterion_order:6383:7", (not key)):
         return UNMEASURED, "проба требует ключ карточки аргументом"
-    name = key if key.endswith(".md") else key + ".md"
+    name = key if _GBC_REC("_probe_no_single_criterion_probe_on_a_multi_criterion_order:6385:18", (key.endswith(".md"))) else key + ".md"
 
     tracker_dir = tracker_dir or os.path.join(REPO_ROOT, TRACKER_REL)
     root = repo_root or _repo_root_for(tracker_dir)
 
     copies: list[tuple[str, str]] = []
     local = os.path.join(tracker_dir, name)
-    if os.path.isfile(local):
+    if _GBC_REC("_probe_no_single_criterion_probe_on_a_multi_criterion_order:6392:7", (os.path.isfile(local))):
         try:
             copies.append((f"дерево {tracker_dir}", open(
                 local, encoding="utf-8", errors="replace").read()))
@@ -6304,25 +6397,25 @@ def _probe_no_single_criterion_probe_on_a_multi_criterion_order(
             return UNMEASURED, f"локальная копия не прочитана: {exc}"
 
     ref_unmeasured = ""
-    if _is_git_repo(root):
+    if _GBC_REC("_probe_no_single_criterion_probe_on_a_multi_criterion_order:6400:7", (_is_git_repo(root))):
         blob = _git(["show", f"{ref}:{TRACKER_REL}/{name}"], repo_root=root)
-        if blob is None:
+        if _GBC_REC("_probe_no_single_criterion_probe_on_a_multi_criterion_order:6402:11", (blob is None)):
             ref_unmeasured = f"копия на `{ref}` не прочитана"
         else:
             copies.append((ref, blob))
 
-    if not copies:
+    if _GBC_REC("_probe_no_single_criterion_probe_on_a_multi_criterion_order:6407:7", (not copies)):
         return UNMEASURED, (f"карточка {name} не найдена ни локально, ни на `{ref}`"
-                            + (f"; {ref_unmeasured}" if ref_unmeasured else ""))
+                            + (f"; {ref_unmeasured}" if _GBC_REC("_probe_no_single_criterion_probe_on_a_multi_criterion_order:6409:56", (ref_unmeasured)) else ""))
 
     carrying = [where for where, text in copies
-                if (parse_frontmatter(text).get("acceptance_probe") or "").strip()]
-    if carrying:
+                if _GBC_REC("_probe_no_single_criterion_probe_on_a_multi_criterion_order:6412:19", ((parse_frontmatter(text).get("acceptance_probe") or "").strip()))]
+    if _GBC_REC("_probe_no_single_criterion_probe_on_a_multi_criterion_order:6413:7", (carrying)):
         return NOT_SATISFIED, (
             f"{name}: проба одного критерия объявлена у многокритериального приказа "
             f"в копи(и/ях) " + ", ".join(carrying)
             + " — офис напечатает вердикт одного критерия как вердикт приказа")
-    if ref_unmeasured:
+    if _GBC_REC("_probe_no_single_criterion_probe_on_a_multi_criterion_order:6418:7", (ref_unmeasured)):
         return UNMEASURED, (f"{name}: прочитанные копии чисты, но {ref_unmeasured} — "
                             f"«чисто» и «не измерено» смешивать запрещено")
     return SATISFIED, (f"{name}: ни одна из {len(copies)} копи(и/й) пробы не объявляет "
@@ -6361,7 +6454,7 @@ def _probe_subject_taking_leaves_a_guard_receipt(
 
     Часы, корень дерева и сам отчёт — ВХОДЫ, не окружение.
     """
-    if (arg or "").strip():
+    if _GBC_REC("_probe_subject_taking_leaves_a_guard_receipt:6457:7", ((arg or "").strip())):
         return UNMEASURED, (f"проба не принимает аргумента (дано {arg!r}): предмет — "
                             "порядок взятия работы целиком, пофайловой формы у него нет")
     try:
@@ -6371,7 +6464,7 @@ def _probe_subject_taking_leaves_a_guard_receipt(
 
     root = repo_root or REPO_ROOT
     rel = os.path.join("data", census.ARTIFACT_NAME)
-    if report is None:
+    if _GBC_REC("_probe_subject_taking_leaves_a_guard_receipt:6467:7", (report is None)):
         try:
             with open(os.path.join(root, rel), encoding="utf-8") as fh:
                 report = json.load(fh)
@@ -6379,8 +6472,8 @@ def _probe_subject_taking_leaves_a_guard_receipt(
             return UNMEASURED, (f"артефакта переписи нет или он не прочитан ({rel}): "
                                 f"{type(exc).__name__}: {exc} — порядок взятия работы "
                                 f"НЕ НАБЛЮДЁН")
-    if not isinstance(report, dict) or not report.get("measured"):
-        reason = (report or {}).get("reason") if isinstance(report, dict) else "не словарь"
+    if _GBC_REC("_probe_subject_taking_leaves_a_guard_receipt:6475:7", (not isinstance(report, dict) or not report.get("measured"))):
+        reason = (report or {}).get("reason") if _GBC_REC("_probe_subject_taking_leaves_a_guard_receipt:6476:49", (isinstance(report, dict))) else "не словарь"
         return UNMEASURED, f"перепись не измерила: {reason}"
 
     stamp = report.get("generated_at")
@@ -6389,39 +6482,39 @@ def _probe_subject_taking_leaves_a_guard_receipt(
     except (TypeError, ValueError):
         return UNMEASURED, (f"у артефакта нет читаемой отметки времени "
                             f"(generated_at={stamp!r}) — возраст записи НЕ ИЗМЕРЕН")
-    if made.tzinfo is None:
+    if _GBC_REC("_probe_subject_taking_leaves_a_guard_receipt:6485:7", (made.tzinfo is None)):
         made = made.replace(tzinfo=timezone.utc)
     age = ((now or datetime.now(timezone.utc)) - made).total_seconds() / 3600.0
-    if age > _SUBJECT_RECEIPT_MAX_AGE_H:
+    if _GBC_REC("_probe_subject_taking_leaves_a_guard_receipt:6488:7", (age > _SUBJECT_RECEIPT_MAX_AGE_H)):
         return UNMEASURED, (f"артефакт старше предела: {age:.1f}ч при пределе "
                             f"{_SUBJECT_RECEIPT_MAX_AGE_H:.0f}ч — за это время в журнале "
                             f"появились взятия, о которых запись не говорит")
 
     receipts = report.get("receipts")
-    if not isinstance(receipts, dict):
+    if _GBC_REC("_probe_subject_taking_leaves_a_guard_receipt:6494:7", (not isinstance(receipts, dict))):
         return UNMEASURED, "в артефакте нет раздела `receipts` — проводка не измерена"
     takings = receipts.get("window_takings")
     without = receipts.get("window_takings_without_receipt")
-    if not isinstance(takings, int) or not isinstance(without, int):
+    if _GBC_REC("_probe_subject_taking_leaves_a_guard_receipt:6498:7", (not isinstance(takings, int) or not isinstance(without, int))):
         return UNMEASURED, ("в артефакте нет чисел взятий — измерено это или нет, "
                             "сказать нечем")
-    if takings == 0:
+    if _GBC_REC("_probe_subject_taking_leaves_a_guard_receipt:6501:7", (takings == 0)):
         return UNMEASURED, (f"в окне {receipts.get('window_days')} дн. ни одного взятия "
                             f"предмета: «квитанция есть у всех» верно по построению")
-    price = report.get("price") if isinstance(report.get("price"), dict) else {}
+    price = report.get("price") if _GBC_REC("_probe_subject_taking_leaves_a_guard_receipt:6504:35", (isinstance(report.get("price"), dict))) else {}
     # Вердикт пробы НЕ меняется (инв. #16) — к нему добавляется то, что число
     # `without` РЕАЛЬНО меряет. Заказ G110 п. 2: «не оставили квитанции» есть
     # замер ДВЕРИ объявления, а не вопроса «спрашивали ли сторожа» — read-only
     # `check` следа не оставляет вовсе. Без этой приписки проба обвиняет сессии
     # в том, что предписывает им инструкция.
-    doors = report.get("doors") if isinstance(report.get("doors"), dict) else {}
+    doors = report.get("doors") if _GBC_REC("_probe_subject_taking_leaves_a_guard_receipt:6510:35", (isinstance(report.get("doors"), dict))) else {}
     instruction = (report.get("instruction_doors")
-                   if isinstance(report.get("instruction_doors"), dict) else {})
-    if doors.get("measured"):
+                   if _GBC_REC("_probe_subject_taking_leaves_a_guard_receipt:6512:22", (isinstance(report.get("instruction_doors"), dict))) else {})
+    if _GBC_REC("_probe_subject_taking_leaves_a_guard_receipt:6513:7", (doors.get("measured"))):
         prompt = ((instruction.get("surfaces") or {}).get("prompt_orchestrator")
-                  if isinstance(instruction.get("surfaces"), dict) else None)
-        if isinstance(prompt, dict) and prompt.get("measured"):
-            named = ("НАЗЫВАЕТ" if prompt.get("names_guard_claim") else "НЕ НАЗЫВАЕТ")
+                  if _GBC_REC("_probe_subject_taking_leaves_a_guard_receipt:6515:21", (isinstance(instruction.get("surfaces"), dict))) else None)
+        if _GBC_REC("_probe_subject_taking_leaves_a_guard_receipt:6516:11", (isinstance(prompt, dict) and prompt.get("measured"))):
+            named = ("НАЗЫВАЕТ" if _GBC_REC("_probe_subject_taking_leaves_a_guard_receipt:6517:43", (prompt.get("names_guard_claim"))) else "НЕ НАЗЫВАЕТ")
             instruction_note = (f"; промпт цикла ({prompt.get('path')}) дверь-квитанцию "
                                 f"`claim` {named}")
         else:
@@ -6434,7 +6527,7 @@ def _probe_subject_taking_leaves_a_guard_receipt(
     else:
         door_note = (f" (какой ДВЕРЬЮ объявлены взятия — НЕ ИЗМЕРЕНО: "
                      f"{doors.get('reason')})")
-    if without > 0:
+    if _GBC_REC("_probe_subject_taking_leaves_a_guard_receipt:6530:7", (without > 0)):
         return NOT_SATISFIED, (
             f"{without} из {takings} взятий предмета за {receipts.get('window_days')} дн. "
             f"не оставили квитанции сторожа захвата{door_note}; цена класса на сегодня — "
@@ -6474,7 +6567,7 @@ def _probe_g17_subject_state_is_measured(
 
     Часы, корень дерева и сам отчёт — ВХОДЫ, не окружение.
     """
-    if (arg or "").strip():
+    if _GBC_REC("_probe_g17_subject_state_is_measured:6570:7", ((arg or "").strip())):
         return UNMEASURED, (f"проба не принимает аргумента (дано {arg!r}): предмет — "
                             "ответ прибора о самом себе, пофайловой формы у него нет")
     try:
@@ -6484,7 +6577,7 @@ def _probe_g17_subject_state_is_measured(
 
     root = repo_root or REPO_ROOT
     rel = os.path.join("data", g17.ARTIFACT)
-    if report is None:
+    if _GBC_REC("_probe_g17_subject_state_is_measured:6580:7", (report is None)):
         try:
             with open(os.path.join(root, rel), encoding="utf-8") as fh:
                 report = json.load(fh)
@@ -6492,7 +6585,7 @@ def _probe_g17_subject_state_is_measured(
             return UNMEASURED, (f"артефакта прибора нет или он не прочитан ({rel}): "
                                 f"{type(exc).__name__}: {exc} — про предмет НЕ "
                                 f"ИЗМЕРЕНО ничего")
-    if not isinstance(report, dict):
+    if _GBC_REC("_probe_g17_subject_state_is_measured:6588:7", (not isinstance(report, dict))):
         return UNMEASURED, "артефакт прибора не словарь — судить нечем"
 
     stamp = report.get("generated_at")
@@ -6501,35 +6594,35 @@ def _probe_g17_subject_state_is_measured(
     except (TypeError, ValueError):
         return UNMEASURED, (f"у артефакта нет читаемой отметки времени "
                             f"(generated_at={stamp!r}) — возраст записи НЕ ИЗМЕРЕН")
-    if made.tzinfo is None:
+    if _GBC_REC("_probe_g17_subject_state_is_measured:6597:7", (made.tzinfo is None)):
         made = made.replace(tzinfo=timezone.utc)
     age = ((now or datetime.now(timezone.utc)) - made).total_seconds() / 3600.0
-    if age > _G17_MAX_AGE_H:
+    if _GBC_REC("_probe_g17_subject_state_is_measured:6600:7", (age > _G17_MAX_AGE_H)):
         return UNMEASURED, (f"артефакт старше предела: {age:.1f}ч при пределе "
                             f"{_G17_MAX_AGE_H:.0f}ч — сегодняшнего ответа прибора нет")
 
     subject = report.get("subject")
-    if not isinstance(subject, dict) or not subject.get("state"):
+    if _GBC_REC("_probe_g17_subject_state_is_measured:6605:7", (not isinstance(subject, dict) or not subject.get("state"))):
         return NOT_SATISFIED, ("в артефакте нет раздела `subject`: у ИСТОЧНИКА не "
                                "спрашивали, схлопывает ли он день, и молчание "
                                "наследников неотличимо от их отсутствия")
     state = str(subject.get("state"))
-    if state == g17.SUBJECT_UNMEASURED:
+    if _GBC_REC("_probe_g17_subject_state_is_measured:6610:7", (state == g17.SUBJECT_UNMEASURED)):
         return UNMEASURED, (f"состояние источника само не измерено: "
                             f"{subject.get('reason')}")
-    if state not in (g17.SUBJECT_COLLAPSES, g17.SUBJECT_NO_COLLAPSE):
+    if _GBC_REC("_probe_g17_subject_state_is_measured:6613:7", (state not in (g17.SUBJECT_COLLAPSES, g17.SUBJECT_NO_COLLAPSE))):
         return UNMEASURED, (f"состояние источника названо словом вне закрытого "
                             f"перечня ({state!r}) — что оно значит, сказать нечем")
     status = str(report.get("status"))
     pop = report.get("heirs_population")
-    if pop == 0 and status == g17.STATUS_UNMEASURED:
+    if _GBC_REC("_probe_g17_subject_state_is_measured:6618:7", (pop == 0 and status == g17.STATUS_UNMEASURED)):
         return NOT_SATISFIED, (
             f"источник измерен ({state}), а пустое население всё равно объявлено "
             f"неизмеренным: {report.get('unmeasured_reason')} — это возврат к "
             f"слитой форме, ради которой писан ADR-499")
     measured = report.get("census_measured")
     unmeasured = report.get("census_unmeasured")
-    if not isinstance(measured, int) or not isinstance(unmeasured, int):
+    if _GBC_REC("_probe_g17_subject_state_is_measured:6625:7", (not isinstance(measured, int) or not isinstance(unmeasured, int))):
         return NOT_SATISFIED, ("разбора переписи в артефакте нет: «наследников "
                                "ноль» напечатан без того, у скольких читателей "
                                "это вообще измерено")
@@ -6567,11 +6660,11 @@ def _probe_carried_release_is_one_condition(
                               f"{exc}) — про предмет НЕ ИЗМЕРЕНО ничего")
 
     # 1. Одна ли это функция у обоих читателей — вопрос о ПРОВОДКЕ, не о зелени.
-    if _ratchet.carried_release is not carried_release:
+    if _GBC_REC("_probe_carried_release_is_one_condition:6663:7", (_ratchet.carried_release is not carried_release)):
         return "not_satisfied", "сторож читает НЕ ту функцию, что исполнитель — снова две копии"
     try:
         import inspect
-        if "carried_release(" not in inspect.getsource(set_status):
+        if _GBC_REC("_probe_carried_release_is_one_condition:6667:11", ("carried_release(" not in inspect.getsource(set_status))):
             return "not_satisfied", "исполнитель завёл свою редакцию условия — возврат к двум копиям"
     except OSError as exc:
         return "unmeasured", f"исходник set_status не прочитан ({exc}) — проводка НЕ ИЗМЕРЕНА"
@@ -6589,11 +6682,11 @@ def _probe_carried_release_is_one_condition(
         fake, why = carried_release("nimbalyst-local/tracker/net-takoi.md", card,
                                     repo_root=tmp, tracker_dir=tracker)
         itself, _ = carried_release(card, card, repo_root=tmp, tracker_dir=tracker)
-    if legit is None:
+    if _GBC_REC("_probe_carried_release_is_one_condition:6685:7", (legit is None)):
         return "not_satisfied", "законный носитель НЕ освобождён — условие строже правила"
-    if fake is not None:
+    if _GBC_REC("_probe_carried_release_is_one_condition:6687:7", (fake is not None)):
         return "not_satisfied", "обещанный путь освободил носителя — это опт-аут, а не приёмка"
-    if itself is not None:
+    if _GBC_REC("_probe_carried_release_is_one_condition:6689:7", (itself is not None)):
         return "not_satisfied", "карточка освободила сама себя — тавтологичное освобождение"
     return "satisfied", ("одна копия условия у исполнителя и сторожа; законный носитель "
                          f"освобождён, обещанный отклонён ({why[:60]}…), тавтологичный отклонён")
@@ -6664,7 +6757,7 @@ def _probe_research_evidence_tail_closed(arg: str | None, *, now: "datetime | No
                                        {"decision": ec.NEEDS_MORE_EVIDENCE, "rationale": ["probe: evidence lapsed"],
                                         "failed_gates": ["fees_measured"], "unknowns": []}, False, t2)
         after = forward.forward_periods(tmp, cid)
-        if not (before >= 2 and after == before - 1):
+        if _GBC_REC("_probe_research_evidence_tail_closed:6760:11", (not (before >= 2 and after == before - 1))):
             broken.append(f"lapse_period(before={before}, after={after})")
 
         # 2. reviewer_allow_list
@@ -6684,7 +6777,7 @@ def _probe_research_evidence_tail_closed(arg: str | None, *, now: "datetime | No
                        "method": "probe", "evidence": "probe", "issue": None}]}))
         usable = registry_loader.load_facts(reg / "facts.jsonl",
                                             origins={"issuer:acme": {"group": "g", "hosts": ["acme.example"]}})
-        if usable:
+        if _GBC_REC("_probe_research_evidence_tail_closed:6780:11", (usable)):
             broken.append("reviewer_allow_list(unlisted reviewer accepted)")
 
         # 3. observed_role_binding
@@ -6721,7 +6814,7 @@ def _probe_research_evidence_tail_closed(arg: str | None, *, now: "datetime | No
             http_client.fetch("https://usyc.hashnote.com/api/../admin", now=t0, transport=_transport)
             broken.append("initial_url_normalised(fetch returned)")
         except http_client.HttpRefused:
-            if calls:
+            if _GBC_REC("_probe_research_evidence_tail_closed:6817:15", (calls)):
                 broken.append("initial_url_normalised(transport reached before refusal)")
         except Exception as exc:  # noqa: BLE001 — anything but a refusal BEFORE the transport is a broken link
             broken.append(f"initial_url_normalised({type(exc).__name__}, transport_calls={len(calls)})")
@@ -6730,13 +6823,13 @@ def _probe_research_evidence_tail_closed(arg: str | None, *, now: "datetime | No
         # re-review M2: recompute the hash INDEPENDENTLY over the required fields only — a fact without the
         # optional field must hash exactly as it did before the field existed in the contract
         import hashlib as _hashlib
-        body = {k: fact[k] for k in ec.FACT_FIELDS if k not in ec.FACT_HASH_EXCLUDED_FIELDS}
+        body = {k: fact[k] for k in ec.FACT_FIELDS if _GBC_REC("_probe_research_evidence_tail_closed:6826:54", (k not in ec.FACT_HASH_EXCLUDED_FIELDS))}
         independent = _hashlib.sha256(_json.dumps(body, sort_keys=True, separators=(",", ":"),
                                                   ensure_ascii=False).encode("utf-8")).hexdigest()
         ended = dict(fact, effective_until=(t0 - timedelta(days=1)).isoformat())
-        if ec.fact_content_sha256(fact) != independent:
+        if _GBC_REC("_probe_research_evidence_tail_closed:6830:11", (ec.fact_content_sha256(fact) != independent)):
             broken.append("effective_until(hash of a fact without the field changed)")
-        if registry_loader.facts_for([ended], "c1", now=t0):
+        if _GBC_REC("_probe_research_evidence_tail_closed:6832:11", (registry_loader.facts_for([ended], "c1", now=t0))):
             broken.append("effective_until(ended fact still usable)")
 
         # 6. contract_computed_return
@@ -6747,13 +6840,13 @@ def _probe_research_evidence_tail_closed(arg: str | None, *, now: "datetime | No
                                              source_root="chain:1", as_of=t0.isoformat(), now=t0)}
         lend = grades.grade_return(cand_rate, "LENDING", v2, t0, registry=greg)
         tsy = grades.grade_return(cand_rate, "TOKENISED_TREASURY", v2, t0, registry=greg)
-        if lend != ec.STRONG or tsy == ec.STRONG:
+        if _GBC_REC("_probe_research_evidence_tail_closed:6843:11", (lend != ec.STRONG or tsy == ec.STRONG)):
             broken.append(f"contract_computed_return(LENDING={lend}, TOKENISED_TREASURY={tsy})")
     except Exception as exc:  # noqa: BLE001 — a scene that cannot even run is NOT MEASURED, named
         return UNMEASURED, f"сцена не исполнилась: {type(exc).__name__}: {str(exc)[:160]}"
     finally:
         shutil.rmtree(root, ignore_errors=True)
-    if broken:
+    if _GBC_REC("_probe_research_evidence_tail_closed:6849:7", (broken)):
         return NOT_SATISFIED, "разорваны звенья: " + "; ".join(broken)
     return SATISFIED, ("хвост ADR-564 закрыт: период дня истечения не засчитан; непрописанный проверяющий "
                        "отвергнут; OBSERVED связан с ролью; начальный URL нормализуется; effective_until "
@@ -6766,13 +6859,13 @@ def _probe_curated_facts_usable(arg: str | None, *, facts_path: "str | None" = N
     привязанная к хэшу содержимого; издатель ссылки совпадает с источником; не истёк). Не «строка есть в
     файле»: факт без записи проверяющего, с правкой после проверки или с чужим хостом — не годен, и
     причина отказа загрузчика названа. Сравнение id — точное, не подстрокой."""
-    if not arg:
+    if _GBC_REC("_probe_curated_facts_usable:6862:7", (not arg)):
         return UNMEASURED, "не названо ни одного id факта (arg пуст)"
-    wanted = [w for w in arg.split("+") if w]
+    wanted = [w for w in arg.split("+") if _GBC_REC("_probe_curated_facts_usable:6864:43", (w))]
     try:
         from pathlib import Path as _Path
         from spa_core.research_factory import registry_loader
-        path = _Path(facts_path) if facts_path else None
+        path = _Path(facts_path) if _GBC_REC("_probe_curated_facts_usable:6868:36", (facts_path)) else None
         refused: list = []
         usable = registry_loader.load_facts(path, origins=registry_loader.load_origins(), refused_out=refused)
     except Exception as exc:  # noqa: BLE001 — a registry that cannot be loaded is NOT MEASURED, named
@@ -6783,24 +6876,24 @@ def _probe_curated_facts_usable(arg: str | None, *, facts_path: "str | None" = N
     # must exist as exactly one fact — a gap or a duplicate is named, never skipped
     import re as _re
     rng = _re.fullmatch(r"fact-(\d{3})\.\.fact-(\d{3})", arg)
-    if rng:
+    if _GBC_REC("_probe_curated_facts_usable:6879:7", (rng)):
         lo, hi = int(rng.group(1)), int(rng.group(2))
-        if lo > hi:
+        if _GBC_REC("_probe_curated_facts_usable:6881:11", (lo > hi)):
             return UNMEASURED, f"диапазон {arg!r} пуст"
         all_ids = usable_ids | set(refused_by_id)
         wanted = []
         for n in range(lo, hi + 1):
-            hits = sorted(i for i in all_ids if i and i.startswith(f"fact-{n:03d}-"))
-            wanted.extend(hits if len(hits) == 1 else [f"fact-{n:03d}-<{len(hits)} в реестре>"])
+            hits = sorted(i for i in all_ids if _GBC_REC("_probe_curated_facts_usable:6886:48", (i and i.startswith(f"fact-{n:03d}-"))))
+            wanted.extend(hits if _GBC_REC("_probe_curated_facts_usable:6887:34", (len(hits) == 1)) else [f"fact-{n:03d}-<{len(hits)} в реестре>"])
     missing = []
     for fid in wanted:
-        if fid in usable_ids:
+        if _GBC_REC("_probe_curated_facts_usable:6890:11", (fid in usable_ids)):
             continue
-        if fid in refused_by_id:
+        if _GBC_REC("_probe_curated_facts_usable:6892:11", (fid in refused_by_id)):
             missing.append(f"{fid}: {str(refused_by_id[fid])[:90]}")
         else:
             missing.append(f"{fid}: нет в реестре")
-    if missing:
+    if _GBC_REC("_probe_curated_facts_usable:6896:7", (missing)):
         return NOT_SATISFIED, "не годны: " + "; ".join(missing)
     return SATISFIED, f"годны все {len(wanted)} названных фактов (проверены независимо, привязаны к содержимому)"
 
@@ -6820,25 +6913,25 @@ def _probe_problem_absent(arg: str | None, *, data_dir: str | None = None) -> tu
 
     Сравнение id — точное (поиск по `problem_id`, не подстрокой, ADR-333).
     """
-    if not arg:
+    if _GBC_REC("_probe_problem_absent:6916:7", (not arg)):
         return UNMEASURED, ("пробе нужен id проблемы "
                             "(acceptance_probe: problem_absent:<problem_id>)")
     try:
         from spa_core.monitoring import problem_store
     except Exception as exc:  # noqa: BLE001 — нечем измерить ≠ «закрыто»
         return UNMEASURED, f"problem_store не импортирован: {type(exc).__name__}: {exc}"
-    base = _pathlib.Path(data_dir) if data_dir else _pathlib.Path(REPO_ROOT) / "data"
+    base = _pathlib.Path(data_dir) if _GBC_REC("_probe_problem_absent:6923:38", (data_dir)) else _pathlib.Path(REPO_ROOT) / "data"
     store = problem_store.load_store(base)
-    problems = store.get("problems") if isinstance(store, dict) else None
-    if not isinstance(problems, dict):
+    problems = store.get("problems") if _GBC_REC("_probe_problem_absent:6925:40", (isinstance(store, dict))) else None
+    if _GBC_REC("_probe_problem_absent:6926:7", (not isinstance(problems, dict))):
         return UNMEASURED, f"{base / problem_store.OUTPUT_FILENAME} не прочитан — НЕ ИЗМЕРЕНО"
     entry = next((p for p in problems.values()
-                 if isinstance(p, dict) and p.get("problem_id") == arg), None)
-    if entry is None:
+                 if _GBC_REC("_probe_problem_absent:6929:20", (isinstance(p, dict) and p.get("problem_id") == arg))), None)
+    if _GBC_REC("_probe_problem_absent:6930:7", (entry is None)):
         return UNMEASURED, (f"проблема {arg!r} не найдена в "
                             f"{base / problem_store.OUTPUT_FILENAME} — НЕ ИЗМЕРЕНО")
     status = entry.get("status")
-    if status == problem_store.STATUS_CLOSED:
+    if _GBC_REC("_probe_problem_absent:6934:7", (status == problem_store.STATUS_CLOSED)):
         return SATISFIED, (f"проблема {arg!r} CLOSED: rca записан, условие отсутствовало "
                            f"{entry.get('consecutive_absences')} прогон(ов) подряд")
     return NOT_SATISFIED, f"проблема {arg!r} в статусе {status!r} — не закрыта"
@@ -6917,44 +7010,44 @@ def _probe_series_denominator_measured(arg: str | None) -> tuple[str, str]:
     Аргумента у пробы НЕТ намеренно: поправка — о ВСЁМ населении, и пофайловой
     формы у неё не существует. Переданный аргумент отвергается вслух.
     """
-    if (arg or "").strip():
+    if _GBC_REC("_probe_series_denominator_measured:7013:7", ((arg or "").strip())):
         return UNMEASURED, (f"проба не принимает аргумента (дано {arg!r}): "
                             "критерий — о ВСЁМ населении ряда, пофайловой "
                             "формы у него нет")
     got = measure_series_denominator()
-    if not got.get("measured"):
+    if _GBC_REC("_probe_series_denominator_measured:7018:7", (not got.get("measured"))):
         return UNMEASURED, got.get("reason", "причина не названа")
     live = got["live"]
-    if not live.get("coordinates_agree_with_the_neighbour"):
+    if _GBC_REC("_probe_series_denominator_measured:7021:7", (not live.get("coordinates_agree_with_the_neighbour"))):
         return NOT_SATISFIED, ("координаты населения разошлись с соседними — "
                               "знаменатель считается не по тому населению")
     own = live.get("own_sites") or {}
-    if own.get("in_the_false_cell"):
+    if _GBC_REC("_probe_series_denominator_measured:7025:7", (own.get("in_the_false_cell"))):
         return NOT_SATISFIED, (
             f"в ГОЛОВНОЙ клетке стои́т {own['in_the_false_cell']} счётчик(ов) "
             f"самого прибора ({own.get('producer')}) — головное число зависит "
             f"от того, доставлен прибор или нет (ADR-566)")
     least, most = live.get("correction_at_least"), live.get("correction_at_most")
-    if not isinstance(least, int) or not isinstance(most, int) or least > most:
+    if _GBC_REC("_probe_series_denominator_measured:7031:7", (not isinstance(least, int) or not isinstance(most, int) or least > most)):
         return NOT_SATISFIED, (
             f"поправка объявлена промежутком {least}…{most} — границы не "
             "числа или нижняя больше верхней, и такой промежуток ничего не "
             "ограничивает")
     shelf = got.get("shelf")
-    if shelf is None:
+    if _GBC_REC("_probe_series_denominator_measured:7037:7", (shelf is None)):
         return NOT_SATISFIED, (
             f"артефакта {got.get('artifact')} нет — число посчитано и до "
             "читателя не доехало (шаг 0-офис читает артефакт, а не функцию)")
-    if not shelf:
+    if _GBC_REC("_probe_series_denominator_measured:7041:7", (not shelf)):
         return NOT_SATISFIED, (
             "в артефакте шага нет вовсе: число посчитано живым прогоном и до "
             "читателя не доехало — ровно форма ADR-208")
-    if str(shelf.get("status")) != "MEASURED":
+    if _GBC_REC("_probe_series_denominator_measured:7045:7", (str(shelf.get("status")) != "MEASURED")):
         return NOT_SATISFIED, (
             f"в артефакте шаг стои́т со статусом {shelf.get('status')!r} "
             f"[{shelf.get('unmeasured_class')}] — читатель видит отказ, а не "
             f"поправку")
-    if shelf.get("population") != live.get("population"):
+    if _GBC_REC("_probe_series_denominator_measured:7050:7", (shelf.get("population") != live.get("population"))):
         return NOT_SATISFIED, (
             f"читатель держит население {shelf.get('population')}, живой "
             f"прогон даёт {live.get('population')} — артефакт старее кода, и "
@@ -7013,9 +7106,9 @@ def _probe_owner_control_plane_reachable(
         from spa_core.telegram import alert_actions
     except Exception as exc:  # noqa: BLE001 — нечем измерить ≠ «кнопки есть»
         return UNMEASURED, f"alert_actions не импортирован: {type(exc).__name__}: {exc}"
-    if beacon_path:
+    if _GBC_REC("_probe_owner_control_plane_reachable:7109:7", (beacon_path)):
         path = _pathlib.Path(beacon_path)
-    elif data_dir:
+    elif _GBC_REC("_probe_owner_control_plane_reachable:7111:9", (data_dir)):
         path = _pathlib.Path(data_dir) / "telegram_bot_capabilities.json"
     else:
         path = _pathlib.Path(alert_actions.BEACON_PATH)
@@ -7023,36 +7116,36 @@ def _probe_owner_control_plane_reachable(
         doc = json.loads(path.read_text())
     except Exception as exc:  # noqa: BLE001
         return UNMEASURED, f"маячок {path} не прочитан: {type(exc).__name__}: {exc}"
-    if not isinstance(doc, dict):
+    if _GBC_REC("_probe_owner_control_plane_reachable:7119:7", (not isinstance(doc, dict))):
         return UNMEASURED, f"маячок {path} не объект — НЕ ИЗМЕРЕНО"
     stamp = doc.get("updated_at")
-    if not stamp:
+    if _GBC_REC("_probe_owner_control_plane_reachable:7122:7", (not stamp)):
         return UNMEASURED, (f"у маячка {path} нет отметки `updated_at` — возраст "
                             "НЕ ИЗМЕРЕН, и это не «свежо»")
     try:
         stamped = datetime.fromisoformat(str(stamp))
     except ValueError as exc:
         return UNMEASURED, f"отметка маячка не разобрана: {stamp!r} ({exc})"
-    if stamped.tzinfo is None:
+    if _GBC_REC("_probe_owner_control_plane_reachable:7129:7", (stamped.tzinfo is None)):
         stamped = stamped.replace(tzinfo=timezone.utc)
     moment = now or datetime.now(timezone.utc)
     age = (moment - stamped).total_seconds()
     declared = doc.get("capabilities")
-    declared = list(declared) if isinstance(declared, list) else []
+    declared = list(declared) if _GBC_REC("_probe_owner_control_plane_reachable:7134:33", (isinstance(declared, list))) else []
     gate = alert_actions.handler_available(
         capability=capability, now=moment, beacon_path=path)
     window = (-alert_actions.BEACON_FUTURE_TOLERANCE_S
               <= age <= alert_actions.BEACON_MAX_AGE_S)
     mine = bool(capability in declared and window)
-    if mine != gate:
+    if _GBC_REC("_probe_owner_control_plane_reachable:7140:7", (mine != gate)):
         return UNMEASURED, (f"проба и гейт кнопок расходятся (проба {mine}, "
                             f"handler_available {gate}) — неизвестно, какой ответ "
                             "верен, и выдавать один из них за замер нельзя")
-    if capability not in declared:
+    if _GBC_REC("_probe_owner_control_plane_reachable:7144:7", (capability not in declared)):
         return NOT_SATISFIED, (f"умение {capability!r} в маячке НЕ объявлено "
                                f"(объявлены: {declared or '—'}) — кнопок этого "
                                "класса владельцу не предложат")
-    if not window:
+    if _GBC_REC("_probe_owner_control_plane_reachable:7148:7", (not window)):
         return NOT_SATISFIED, (f"маячок вне окна: возраст {age / 3600:.2f} ч при "
                                f"пределе {alert_actions.BEACON_MAX_AGE_S / 3600:.0f} ч "
                                f"(порог кнопок, НЕ 300-секундный порог сторожа)")
@@ -7099,7 +7192,7 @@ def _probe_presence_census_names_the_third_outcome(
     Подстрокой проба не проходит (ADR-333): текста она не сверяет ни на одном
     из трёх замеров, а судит по РОДУ исхода в полях замера.
     """
-    if (arg or "").strip():
+    if _GBC_REC("_probe_presence_census_names_the_third_outcome:7195:7", ((arg or "").strip())):
         return UNMEASURED, (f"проба не принимает аргумента (дано {arg!r}): "
                             "предмет — полярность класса целиком")
     try:
@@ -7108,9 +7201,9 @@ def _probe_presence_census_names_the_third_outcome(
         return UNMEASURED, f"прибор переписи не ввозится: {type(exc).__name__}: {exc}"
 
     drive = m.drive_both_directions()
-    if drive.get("kind") == m.DRIVE_UNMEASURED:
+    if _GBC_REC("_probe_presence_census_names_the_third_outcome:7204:7", (drive.get("kind") == m.DRIVE_UNMEASURED)):
         return UNMEASURED, f"сцены меры не поднялись: {drive.get('reason')}"
-    if drive.get("kind") == m.DRIVE_BLIND:
+    if _GBC_REC("_probe_presence_census_names_the_third_outcome:7206:7", (drive.get("kind") == m.DRIVE_BLIND)):
         return NOT_SATISFIED, (f"полярность НЕ различается, порвано звено "
                                f"«{drive.get('link')}»: {drive.get('reason')}")
 
@@ -7122,14 +7215,14 @@ def _probe_presence_census_names_the_third_outcome(
     except OSError as exc:
         return UNMEASURED, f"{rel} не прочитан: {exc}"
     report = m.measure_module(source, rel=rel)
-    if "unmeasured" in report:
+    if _GBC_REC("_probe_presence_census_names_the_third_outcome:7218:7", ("unmeasured" in report)):
         return UNMEASURED, f"{rel} не разобран: {report['unmeasured']}"
-    sites = [s for s in report["sites"] if s["function"] == "check_wallet_ready"]
-    if not sites:
+    sites = [s for s in report["sites"] if _GBC_REC("_probe_presence_census_names_the_third_outcome:7220:43", (s["function"] == "check_wallet_ready"))]
+    if _GBC_REC("_probe_presence_census_names_the_third_outcome:7221:7", (not sites)):
         return UNMEASURED, (f"в {rel} ни одного места у check_wallet_ready — "
                             f"предмет пробы не найден, и это НЕ «выполнено»")
     kinds = {s["outcome"] for s in sites}
-    if m.VERDICT_IS_THIRD_OUTCOME not in kinds:
+    if _GBC_REC("_probe_presence_census_names_the_third_outcome:7225:7", (m.VERDICT_IS_THIRD_OUTCOME not in kinds)):
         return NOT_SATISFIED, (
             f"у check_wallet_ready нет ни одного места с родом "
             f"{m.VERDICT_IS_THIRD_OUTCOME} (исходы: {sorted(kinds)}) — "
@@ -7144,10 +7237,10 @@ def _probe_presence_census_names_the_third_outcome(
         live = m.measure(REPO_ROOT, scope=("spa_core/golive",))
     except Exception as exc:                                        # noqa: BLE001
         return UNMEASURED, f"перепись не отработала: {type(exc).__name__}: {exc}"
-    if live.get("verdict") == "unmeasured":
+    if _GBC_REC("_probe_presence_census_names_the_third_outcome:7240:7", (live.get("verdict") == "unmeasured")):
         return UNMEASURED, f"область не разобрана: {live.get('reason')}"
     named = [m.finding_key(s) for s in live.get("third_outcome_sites", [])]
-    if not any("check_wallet_ready" in key for key in named):
+    if _GBC_REC("_probe_presence_census_names_the_third_outcome:7243:7", (not any("check_wallet_ready" in key for key in named))):
         return NOT_SATISFIED, (
             f"вето сработало, но место НЕ НАЗВАНО в перечне "
             f"third_outcome_sites ({len(named)} записей) — молчащее вето есть "
@@ -7200,7 +7293,7 @@ def _probe_presence_census_asks_the_content_veto_of_the_third_outcome(
     Подстрокой проба не проходит (ADR-333): текста она не сверяет ни на одном
     замере — судит по РОДУ исхода и по ПРИСУТСТВИЮ ключа в полях замера.
     """
-    if (arg or "").strip():
+    if _GBC_REC("_probe_presence_census_asks_the_content_veto_of_the_third_outcome:7296:7", ((arg or "").strip())):
         return UNMEASURED, (f"проба не принимает аргумента (дано {arg!r}): "
                             "предмет — вето третьего исхода целиком")
     try:
@@ -7210,10 +7303,10 @@ def _probe_presence_census_asks_the_content_veto_of_the_third_outcome(
 
     for label, drive in (("python", m.drive_both_directions()),
                          ("оболочка", m.drive_shell_both_directions())):
-        if drive.get("kind") == m.DRIVE_UNMEASURED:
+        if _GBC_REC("_probe_presence_census_asks_the_content_veto_of_the_third_outcome:7306:11", (drive.get("kind") == m.DRIVE_UNMEASURED)):
             return UNMEASURED, (f"сцены меры ({label}) не поднялись: "
                                 f"{drive.get('reason')}")
-        if drive.get("kind") == m.DRIVE_BLIND:
+        if _GBC_REC("_probe_presence_census_asks_the_content_veto_of_the_third_outcome:7309:11", (drive.get("kind") == m.DRIVE_BLIND)):
             return NOT_SATISFIED, (f"вето третьего исхода НЕ работает ({label}), "
                                    f"порвано звено «{drive.get('link')}»: "
                                    f"{drive.get('reason')}")
@@ -7226,14 +7319,14 @@ def _probe_presence_census_asks_the_content_veto_of_the_third_outcome(
     except OSError as exc:
         return UNMEASURED, f"{rel} не прочитан: {exc}"
     report = m.measure_module(source, rel=rel)
-    if "unmeasured" in report:
+    if _GBC_REC("_probe_presence_census_asks_the_content_veto_of_the_third_outcome:7322:7", ("unmeasured" in report)):
         return UNMEASURED, f"{rel} не разобран: {report['unmeasured']}"
-    sites = [s for s in report["sites"] if s["function"] == "materialise_release"]
-    if not sites:
+    sites = [s for s in report["sites"] if _GBC_REC("_probe_presence_census_asks_the_content_veto_of_the_third_outcome:7324:43", (s["function"] == "materialise_release"))]
+    if _GBC_REC("_probe_presence_census_asks_the_content_veto_of_the_third_outcome:7325:7", (not sites)):
         return UNMEASURED, (f"в {rel} ни одного места у materialise_release — "
                             f"предмет пробы не найден, и это НЕ «выполнено»")
     kinds = {s["outcome"] for s in sites}
-    if m.CONTENT_CHECKED not in kinds:
+    if _GBC_REC("_probe_presence_census_asks_the_content_veto_of_the_third_outcome:7329:7", (m.CONTENT_CHECKED not in kinds)):
         return NOT_SATISFIED, (
             f"у materialise_release нет ни одного места с родом "
             f"{m.CONTENT_CHECKED} (исходы: {sorted(kinds)}) — вердикт на "
@@ -7247,10 +7340,10 @@ def _probe_presence_census_asks_the_content_veto_of_the_third_outcome(
         live = m.measure(REPO_ROOT, scope=("spa_core/owner_queue",))
     except Exception as exc:                                        # noqa: BLE001
         return UNMEASURED, f"перепись не отработала: {type(exc).__name__}: {exc}"
-    if live.get("verdict") == "unmeasured":
+    if _GBC_REC("_probe_presence_census_asks_the_content_veto_of_the_third_outcome:7343:7", (live.get("verdict") == "unmeasured")):
         return UNMEASURED, f"область не разобрана: {live.get('reason')}"
     named = [m.finding_key(s) for s in live.get("generic_pass_sites", [])]
-    if not any("card_instruction_lint" in key for key in named):
+    if _GBC_REC("_probe_presence_census_asks_the_content_veto_of_the_third_outcome:7346:7", (not any("card_instruction_lint" in key for key in named))):
         return NOT_SATISFIED, (
             f"третий исход в spa_core/owner_queue ПУСТ или не назван "
             f"({len(named)} записей) — вето проглотило честное «НЕ ИЗМЕРЕНО», "
@@ -7298,7 +7391,7 @@ def _probe_presence_as_observation_population_named(
     Подстрокой проба не проходит (ADR-333): текста исходников она не читает
     вовсе, а судит по РОДУ исхода в полях замера.
     """
-    if (arg or "").strip():
+    if _GBC_REC("_probe_presence_as_observation_population_named:7394:7", ((arg or "").strip())):
         return UNMEASURED, (f"проба не принимает аргумента (дано {arg!r}): "
                             "предмет — класс целиком, пофайловой формы у него "
                             "нет")
@@ -7308,9 +7401,9 @@ def _probe_presence_as_observation_population_named(
         return UNMEASURED, f"прибор переписи не ввозится: {type(exc).__name__}: {exc}"
 
     drive = m.drive_both_directions()
-    if drive.get("kind") == m.DRIVE_UNMEASURED:
+    if _GBC_REC("_probe_presence_as_observation_population_named:7404:7", (drive.get("kind") == m.DRIVE_UNMEASURED)):
         return UNMEASURED, f"сцены меры не поднялись: {drive.get('reason')}"
-    if drive.get("kind") == m.DRIVE_BLIND:
+    if _GBC_REC("_probe_presence_as_observation_population_named:7406:7", (drive.get("kind") == m.DRIVE_BLIND)):
         return NOT_SATISFIED, (f"мера СЛЕПА к своему предмету: "
                                f"{drive.get('reason')} — населению такой "
                                f"переписи верить нельзя")
@@ -7320,7 +7413,7 @@ def _probe_presence_as_observation_population_named(
     except Exception as exc:                                        # noqa: BLE001
         return UNMEASURED, (f"мера различает направления, но население НЕ "
                             f"измерено: {type(exc).__name__}: {exc}")
-    if report.get("verdict") == "unmeasured":
+    if _GBC_REC("_probe_presence_as_observation_population_named:7416:7", (report.get("verdict") == "unmeasured")):
         reason = report.get("reason") or "; ".join(
             report.get("unmeasured_files", [])[:3]) or "причина не названа"
         return UNMEASURED, f"население НЕ измерено: {reason}"
@@ -7344,7 +7437,7 @@ def _probe_presence_as_observation_population_named(
         f"{counts[m.PRESENCE_GENERIC_PASS]} мест; оболочка и воркфлоу "
         f"ИЗМЕРЕНЫ с ADR-877 — "
         + (f"НЕ ИЗМЕРЕНО: {shell.get('reason')}"
-           if shell.get("verdict") == "unmeasured"
+           if _GBC_REC("_probe_presence_as_observation_population_named:7440:14", (shell.get("verdict") == "unmeasured"))
            else (f"мест {shell['sites']} в {shell['files']} файлах, находок "
                  f"{shell['counts'][m.PRESENCE_TO_OBSERVED]}, форма не "
                  f"разобрана у {shell['counts'][m.SHELL_FORM_UNPARSED]}")))
@@ -7391,7 +7484,7 @@ def _probe_shell_presence_sites_measured_by_direction(
     Подстрокой проба не проходит (ADR-333): исходников она не читает вовсе, а
     судит по РОДУ исхода в полях замера и по КОДУ возврата настоящей функции.
     """
-    if (arg or "").strip():
+    if _GBC_REC("_probe_shell_presence_sites_measured_by_direction:7487:7", ((arg or "").strip())):
         return UNMEASURED, (f"проба не принимает аргумента (дано {arg!r}): "
                             "предмет — поверхность целиком, пофайловой формы "
                             "у неё нет")
@@ -7402,13 +7495,13 @@ def _probe_shell_presence_sites_measured_by_direction(
 
     # Звено 1 — мера не слепа ни к одной из трёх форм.
     drive = m.drive_shell_both_directions()
-    if drive.get("kind") == m.DRIVE_UNMEASURED:
+    if _GBC_REC("_probe_shell_presence_sites_measured_by_direction:7498:7", (drive.get("kind") == m.DRIVE_UNMEASURED)):
         return UNMEASURED, f"сцены оболочки не поднялись: {drive.get('reason')}"
-    if drive.get("kind") == m.DRIVE_BLIND:
+    if _GBC_REC("_probe_shell_presence_sites_measured_by_direction:7500:7", (drive.get("kind") == m.DRIVE_BLIND)):
         return NOT_SATISFIED, (f"мера оболочки СЛЕПА: {drive.get('reason')} — "
                                "населению такой переписи верить нельзя")
     forms = {row["form"] for row in drive.get("forms", [])}
-    if forms != {"if", "operator", "negated"}:
+    if _GBC_REC("_probe_shell_presence_sites_measured_by_direction:7504:7", (forms != {"if", "operator", "negated"})):
         return NOT_SATISFIED, (f"проверены формы {sorted(forms)}, а разбираются "
                                "три (`if` · `&&`/`||` · отрицание): «мера "
                                "видит» по части форм есть завышение силы "
@@ -7419,7 +7512,7 @@ def _probe_shell_presence_sites_measured_by_direction(
     wired = m.exit_code({"verdict": "clean", "findings": [],
                          "shell_surface": {"verdict": "findings",
                                            "findings": [{"file": "probe.sh"}]}})
-    if wired != m.RC_FINDINGS:
+    if _GBC_REC("_probe_shell_presence_sites_measured_by_direction:7515:7", (wired != m.RC_FINDINGS)):
         return NOT_SATISFIED, (f"находка ТОЛЬКО в оболочке даёт код {wired} "
                                f"вместо {m.RC_FINDINGS}: читатель, судящий по "
                                "коду, услышал бы «чисто» при названной находке")
@@ -7431,18 +7524,18 @@ def _probe_shell_presence_sites_measured_by_direction(
     except Exception as exc:                                        # noqa: BLE001
         return UNMEASURED, (f"мера различает направления, но население "
                             f"оболочки НЕ измерено: {type(exc).__name__}: {exc}")
-    if shell.get("verdict") == "unmeasured":
+    if _GBC_REC("_probe_shell_presence_sites_measured_by_direction:7527:7", (shell.get("verdict") == "unmeasured")):
         return UNMEASURED, f"население оболочки НЕ измерено: {shell.get('reason')}"
     counts = shell["counts"]
-    if set(counts) != set(m.SHELL_OUTCOMES):
+    if _GBC_REC("_probe_shell_presence_sites_measured_by_direction:7530:7", (set(counts) != set(m.SHELL_OUTCOMES))):
         return NOT_SATISFIED, (f"исходы разошлись со словарём: "
                                f"{sorted(set(counts) ^ set(m.SHELL_OUTCOMES))}")
-    if sum(counts.values()) != shell["sites"]:
+    if _GBC_REC("_probe_shell_presence_sites_measured_by_direction:7533:7", (sum(counts.values()) != shell["sites"])):
         return NOT_SATISFIED, (f"сумма исходов {sum(counts.values())} не равна "
                                f"числу мест {shell['sites']} — часть мест "
                                "потеряна молча")
     for site in shell["unparsed"]:
-        if not (site.get("reason") or "").strip():
+        if _GBC_REC("_probe_shell_presence_sites_measured_by_direction:7538:11", (not (site.get("reason") or "").strip())):
             return NOT_SATISFIED, (f"место {m.finding_key(site)} с неразобранной "
                                    "формой не несёт причины — «не измерено» без "
                                    "причины неотличимо от «вердикта нет»")
@@ -7503,7 +7596,7 @@ def _probe_office_absence_guard_not_fooled_by_tracked(
     Третий исход назван: нет исходника шага, не грузится модуль, git
     недоступен ⇒ `unmeasured` с причиной, никогда не «чисто».
     """
-    if (arg or "").strip():
+    if _GBC_REC("_probe_office_absence_guard_not_fooled_by_tracked:7599:7", ((arg or "").strip())):
         return UNMEASURED, (f"проба не принимает аргумента (дано {arg!r}): "
                             "предмет — признак сторожа целиком, пофайловой "
                             "формы у него нет")
@@ -7515,7 +7608,7 @@ def _probe_office_absence_guard_not_fooled_by_tracked(
     import tempfile as _tf
 
     office_src = os.path.join(REPO_ROOT, "scripts", "consume_office_reports.py")
-    if not os.path.isfile(office_src):
+    if _GBC_REC("_probe_office_absence_guard_not_fooled_by_tracked:7611:7", (not os.path.isfile(office_src))):
         return UNMEASURED, (f"исходника шага {office_src} нет в дереве — "
                             "признак сторожа НЕ ИЗМЕРЕН")
     try:
@@ -7527,7 +7620,7 @@ def _probe_office_absence_guard_not_fooled_by_tracked(
                             "признак сторожа НЕ ИЗМЕРЕН")
     for attr in ("_office_absent_wholesale", "_writer_evidence",
                  "_WRITER_CONST", "_WRITER_YES", "_WRITER_UNMEASURED"):
-        if not hasattr(office, attr):
+        if _GBC_REC("_probe_office_absence_guard_not_fooled_by_tracked:7623:11", (not hasattr(office, attr))):
             return NOT_SATISFIED, (f"звено 3: у шага нет {attr} — признака "
                                    "«доказательство писателя» в приборе нет "
                                    "вовсе, сторож судит по существованию пути")
@@ -7548,7 +7641,7 @@ def _probe_office_absence_guard_not_fooled_by_tracked(
             _json.dump({"artifacts": [
                 {"path": t, "status": "active",
                  "consumers": ["orchestrator_protocol"]} for t in targets]}, fh)
-        if not _git(root, "init", "-b", "main"):
+        if _GBC_REC("_probe_office_absence_guard_not_fooled_by_tracked:7644:11", (not _git(root, "init", "-b", "main"))):
             return None
         _git(root, "config", "user.email", "probe@spa.local")
         _git(root, "config", "user.name", "probe")
@@ -7557,9 +7650,9 @@ def _probe_office_absence_guard_not_fooled_by_tracked(
             os.makedirs(os.path.dirname(full), exist_ok=True)
             with open(full, "w", encoding="utf-8") as fh:
                 _json.dump(body, fh)
-        if not _git(root, "add", "-A"):
+        if _GBC_REC("_probe_office_absence_guard_not_fooled_by_tracked:7653:11", (not _git(root, "add", "-A"))):
             return None
-        if not _git(root, "commit", "-m", "scene"):
+        if _GBC_REC("_probe_office_absence_guard_not_fooled_by_tracked:7655:11", (not _git(root, "commit", "-m", "scene"))):
             return None
         for rel, body in untracked.items():
             full = os.path.join(root, rel)
@@ -7582,7 +7675,7 @@ def _probe_office_absence_guard_not_fooled_by_tracked(
         root = _scene(box, "tracked_only", targets,
                       committed={"data/uptime_status.json": stamp},
                       untracked={})
-        if root is None:
+        if _GBC_REC("_probe_office_absence_guard_not_fooled_by_tracked:7678:11", (root is None)):
             return UNMEASURED, ("одноразовый репозиторий не создан (git "
                                 "недоступен) — признак сторожа НЕ ИЗМЕРЕН")
         try:
@@ -7590,14 +7683,14 @@ def _probe_office_absence_guard_not_fooled_by_tracked(
         except Exception as exc:                               # noqa: BLE001
             return UNMEASURED, (f"шаг не исполнился на сцене константы "
                                 f"({type(exc).__name__}: {exc}) — НЕ ИЗМЕРЕНО")
-        if rc != 3 or "ОФИС НЕ ИЗМЕРЕН" not in out:
+        if _GBC_REC("_probe_office_absence_guard_not_fooled_by_tracked:7686:11", (rc != 3 or "ОФИС НЕ ИЗМЕРЕН" not in out)):
             return NOT_SATISFIED, (
                 f"звено 1: единственная присутствующая цель git-tracked и равна "
                 f"HEAD, а шаг вернул код {rc} вместо 3 и "
-                f"{'не назвал' if 'ОФИС НЕ ИЗМЕРЕН' not in out else 'назвал'} "
+                f"{'не назвал' if _GBC_REC("_probe_office_absence_guard_not_fooled_by_tracked:7690:42", ('ОФИС НЕ ИЗМЕРЕН' not in out)) else 'назвал'} "
                 f"«ОФИС НЕ ИЗМЕРЕН» — присутствие пути прочитано как "
                 f"наблюдение")
-        if out.count("НЕ ПРОЧИТАН") != 0:
+        if _GBC_REC("_probe_office_absence_guard_not_fooled_by_tracked:7693:11", (out.count("НЕ ПРОЧИТАН") != 0)):
             return NOT_SATISFIED, (
                 f"звено 1: сторож назвался, но шаг всё равно напечатал "
                 f"{out.count('НЕ ПРОЧИТАН')} строк «НЕ ПРОЧИТАН» под подписью "
@@ -7612,7 +7705,7 @@ def _probe_office_absence_guard_not_fooled_by_tracked(
                            "generated_at": stamp["generated_at"], "gaps": []}},
                        untracked={"data/investment_os/_health.json": {
                            "generated_at": stamp["generated_at"]}})
-        if root2 is None:
+        if _GBC_REC("_probe_office_absence_guard_not_fooled_by_tracked:7708:11", (root2 is None)):
             return UNMEASURED, ("вторая сцена не создана (git недоступен) — "
                                 "кусается ли сторож в обратную сторону, "
                                 "НЕ ИЗМЕРЕНО")
@@ -7621,12 +7714,12 @@ def _probe_office_absence_guard_not_fooled_by_tracked(
         except Exception as exc:                               # noqa: BLE001
             return UNMEASURED, (f"шаг не исполнился на сцене живого писателя "
                                 f"({type(exc).__name__}: {exc}) — НЕ ИЗМЕРЕНО")
-        if rc2 != 0 or "ОФИС НЕ ИЗМЕРЕН" in out2:
+        if _GBC_REC("_probe_office_absence_guard_not_fooled_by_tracked:7717:11", (rc2 != 0 or "ОФИС НЕ ИЗМЕРЕН" in out2)):
             return NOT_SATISFIED, (
                 f"звено 2: присутствующий сосед UNTRACKED (его писал кто-то), "
                 f"а шаг вернул код {rc2} и объявил офис неизмеримым — сторож "
                 f"срабатывает на ЖИВОМ дереве и глотает настоящие пропажи")
-        if "chief_investment.json" not in out2:
+        if _GBC_REC("_probe_office_absence_guard_not_fooled_by_tracked:7722:11", ("chief_investment.json" not in out2)):
             return NOT_SATISFIED, ("звено 2: настоящая пропажа "
                                    "chief_investment.json не НАЗВАНА — "
                                    "правка купила тишину ценой слепоты")
@@ -7646,21 +7739,21 @@ def _probe_office_absence_guard_not_fooled_by_tracked(
             fh.write("{}")
         ev_plain = office._writer_evidence(["data/x.json"], tree=plain)
 
-    if ev.get("data/house_view_gap.json") != office._WRITER_CONST:
+    if _GBC_REC("_probe_office_absence_guard_not_fooled_by_tracked:7742:7", (ev.get("data/house_view_gap.json") != office._WRITER_CONST)):
         return NOT_SATISFIED, (
             f"звено 3: tracked и равный HEAD артефакт назван "
             f"{ev.get('data/house_view_gap.json')!r}, а не константой")
-    if ev.get("data/investment_os/_health.json") != office._WRITER_YES:
+    if _GBC_REC("_probe_office_absence_guard_not_fooled_by_tracked:7746:7", (ev.get("data/investment_os/_health.json") != office._WRITER_YES)):
         return NOT_SATISFIED, (
             f"звено 3: untracked артефакт назван "
             f"{ev.get('data/investment_os/_health.json')!r}, а не писателем")
-    if ev_plain.get("data/x.json") != office._WRITER_UNMEASURED:
+    if _GBC_REC("_probe_office_absence_guard_not_fooled_by_tracked:7750:7", (ev_plain.get("data/x.json") != office._WRITER_UNMEASURED)):
         return NOT_SATISFIED, (
             f"звено 3: вне репозитория происхождение названо "
             f"{ev_plain.get('data/x.json')!r} вместо «НЕ ИЗМЕРЕНО» — "
             f"неизвестное выдано за один из двух ответов (инв. #17)")
-    if len({office._WRITER_CONST, office._WRITER_YES,
-            office._WRITER_UNMEASURED}) != 3:
+    if _GBC_REC("_probe_office_absence_guard_not_fooled_by_tracked:7755:7", (len({office._WRITER_CONST, office._WRITER_YES,
+            office._WRITER_UNMEASURED}) != 3)):
         return NOT_SATISFIED, ("звено 3: три исхода происхождения не РАЗНЫЕ "
                                "значения — различить их нечем")
     return SATISFIED, (
@@ -7702,7 +7795,7 @@ def _probe_office_hollow_counter_means_harm(arg: str | None) -> tuple[str, str]:
     грузится модуль, не читается форма ⇒ `unmeasured` с причиной, никогда не
     «чисто».
     """
-    if (arg or "").strip():
+    if _GBC_REC("_probe_office_hollow_counter_means_harm:7798:7", ((arg or "").strip())):
         return UNMEASURED, (f"проба не принимает аргумента (дано {arg!r}): "
                             "предмет — счётчик шага целиком, пофайловой формы "
                             "у него нет")
@@ -7712,7 +7805,7 @@ def _probe_office_hollow_counter_means_harm(arg: str | None) -> tuple[str, str]:
 
     office_src_path = os.path.join(REPO_ROOT, "scripts",
                                    "consume_office_reports.py")
-    if not os.path.isfile(office_src_path):
+    if _GBC_REC("_probe_office_hollow_counter_means_harm:7808:7", (not os.path.isfile(office_src_path))):
         return UNMEASURED, (f"исходника шага {office_src_path} нет в дереве — "
                             "счётчик НЕ ИЗМЕРЕН")
     try:
@@ -7747,19 +7840,19 @@ def _probe_office_hollow_counter_means_harm(arg: str | None) -> tuple[str, str]:
     except Exception as exc:                                  # noqa: BLE001
         return UNMEASURED, (f"разбор не выполнен ({type(exc).__name__}: {exc}) "
                             "— счётчик НЕ ИЗМЕРЕН")
-    if any(str(ln).startswith(whole._HOLLOW_MARK) for ln in lines):
+    if _GBC_REC("_probe_office_hollow_counter_means_harm:7843:7", (any(str(ln).startswith(whole._HOLLOW_MARK) for ln in lines))):
         return NOT_SATISFIED, (f"звено 1: {name} читается ВХОЛОСТУЮ — ни ветки "
                                "в `_summarize_json`, ни строки в `_READ_SCHEMA`; "
                                "квитанция не пишется, и проверка B3 считает "
                                "артефакт непрочитанным")
-    if not any("находок" in str(ln) for ln in lines):
+    if _GBC_REC("_probe_office_hollow_counter_means_harm:7848:7", (not any("находок" in str(ln) for ln in lines))):
         return NOT_SATISFIED, ("звено 1: разбор не вхолостую, но числа находок "
                                "в контекст не попали — читать было нечего")
 
     # ── звено 2: а счётчик вообще кусается? ──────────────────────────────────
     head = office_src.find(f'    elif name == "{name}":')
-    tail = office_src.find("    elif name == ", head + 10) if head >= 0 else -1
-    if head < 0 or tail < 0:
+    tail = office_src.find("    elif name == ", head + 10) if _GBC_REC("_probe_office_hollow_counter_means_harm:7854:62", (head >= 0)) else -1
+    if _GBC_REC("_probe_office_hollow_counter_means_harm:7855:7", (head < 0 or tail < 0)):
         return UNMEASURED, ("ветку не удалось вырезать из копии исходника — "
                             "кусается ли счётчик, НЕ ИЗМЕРЕНО")
     try:
@@ -7769,7 +7862,7 @@ def _probe_office_hollow_counter_means_harm(arg: str | None) -> tuple[str, str]:
     except Exception as exc:                                  # noqa: BLE001
         return UNMEASURED, (f"копия без ветки не загрузилась "
                             f"({type(exc).__name__}: {exc}) — НЕ ИЗМЕРЕНО")
-    if not any(str(ln).startswith(torn._HOLLOW_MARK) for ln in torn_lines):
+    if _GBC_REC("_probe_office_hollow_counter_means_harm:7865:7", (not any(str(ln).startswith(torn._HOLLOW_MARK) for ln in torn_lines))):
         return NOT_SATISFIED, ("звено 2: ветку вырезали, а счётчик промолчал — "
                                "«вхолостую 0» значит «проверка снята», а не "
                                "«порядок»")
@@ -7777,22 +7870,22 @@ def _probe_office_hollow_counter_means_harm(arg: str | None) -> tuple[str, str]:
     # ── звено 3: дорога ОДНА ─────────────────────────────────────────────────
     import ast as _ast
     roads = [n for n in _ast.walk(_ast.parse(office_src))
-             if isinstance(n, _ast.Call) and isinstance(n.func, _ast.Name)
-             and n.func.id in ("_ascd_report", "office_section")]
-    if len(roads) != 1:
+             if _GBC_REC("_probe_office_hollow_counter_means_harm:7873:16", (isinstance(n, _ast.Call) and isinstance(n.func, _ast.Name)
+             and n.func.id in ("_ascd_report", "office_section")))]
+    if _GBC_REC("_probe_office_hollow_counter_means_harm:7875:7", (len(roads) != 1)):
         return NOT_SATISFIED, (f"звено 3: дорог отрисовки {len(roads)}, а не "
                                f"одна ({[n.func.id for n in roads]}) — счёт "
                                "снова значит и вред, и порядок")
 
     # ── звено 4: схема объявлена правдиво ────────────────────────────────────
     declared = tuple(whole._READ_SCHEMA.get(name, ()))
-    if not declared:
+    if _GBC_REC("_probe_office_hollow_counter_means_harm:7882:7", (not declared)):
         return NOT_SATISFIED, (f"звено 4: {name} не объявлен в `_READ_SCHEMA` — "
                                "переименование ключа пройдёт молча")
     carried = set(_doors.build_report({"rows": [], "counts": {}, "planned": 0},
                                       now))
-    invented = [k for k in declared if k not in carried]
-    if invented:
+    invented = [k for k in declared if _GBC_REC("_probe_office_hollow_counter_means_harm:7887:39", (k not in carried))]
+    if _GBC_REC("_probe_office_hollow_counter_means_harm:7888:7", (invented)):
         return NOT_SATISFIED, (f"звено 4: объявлены ключи, которых отчёт не "
                                f"несёт ({', '.join(invented)}) — расхождение "
                                "схемы выдумано, а не измерено")
@@ -7848,10 +7941,10 @@ def _probe_owner_command_surfaces_declared_once(
     from spa_core.monitoring import owner_command_surfaces as ocs
 
     measurement = ocs.measure(REPO_ROOT)
-    if measurement.get("unmeasured"):
+    if _GBC_REC("_probe_owner_command_surfaces_declared_once:7944:7", (measurement.get("unmeasured"))):
         return UNMEASURED, f"перепись поверхностей не состоялась: {measurement['unmeasured']}"
     found = ocs.findings(measurement)
-    if found:
+    if _GBC_REC("_probe_owner_command_surfaces_declared_once:7947:7", (found)):
         return NOT_SATISFIED, "; ".join(found)
     return SATISFIED, (
         f"объявлений-копий 0 · мёртвых дверей 0 · достижимо "
@@ -7904,7 +7997,7 @@ def _probe_owner_protocols_report_groups_by_canonical_tier(
     не полученным из пустого артефакта. Время и каталог — входы.
     """
     doc, age_h, rel = _live_adapter_status_for_the_door(now, data_dir)
-    if doc is None:
+    if _GBC_REC("_probe_owner_protocols_report_groups_by_canonical_tier:8000:7", (doc is None)):
         return UNMEASURED, rel
 
     population, population_detail = (
@@ -7912,7 +8005,7 @@ def _probe_owner_protocols_report_groups_by_canonical_tier(
             arg, data_dir=data_dir, now=now
         )
     )
-    if population != SATISFIED:
+    if _GBC_REC("_probe_owner_protocols_report_groups_by_canonical_tier:8008:7", (population != SATISFIED)):
         return UNMEASURED, (
             f"население отчёта не подтверждено ({population}): {population_detail}"
             f" — группировку записей, которые до владельца не доехали, судить нечем"
@@ -7939,45 +8032,45 @@ def _probe_owner_protocols_report_groups_by_canonical_tier(
     counted = 0
     for line in message.splitlines():
         stripped = line.strip()
-        if len(stripped) > 2 and stripped.startswith("*") and stripped.endswith("*"):
+        if _GBC_REC("_probe_owner_protocols_report_groups_by_canonical_tier:8035:11", (len(stripped) > 2 and stripped.startswith("*") and stripped.endswith("*"))):
             heading = stripped[1:-1]
-            if heading == "System":
+            if _GBC_REC("_probe_owner_protocols_report_groups_by_canonical_tier:8037:15", (heading == "System")):
                 current = None
                 continue
             tier = tier_of_label.get(heading)
-            if tier is None:
+            if _GBC_REC("_probe_owner_protocols_report_groups_by_canonical_tier:8041:15", (tier is None)):
                 outside.append((heading, 0))
                 current = None
             else:
                 canonical_seen.append(tier)
                 current = tier
             continue
-        if not stripped.startswith("•"):
+        if _GBC_REC("_probe_owner_protocols_report_groups_by_canonical_tier:8048:11", (not stripped.startswith("•"))):
             continue
         counted += 1
-        if current is None and outside:
+        if _GBC_REC("_probe_owner_protocols_report_groups_by_canonical_tier:8051:11", (current is None and outside)):
             heading, count = outside[-1]
             outside[-1] = (heading, count + 1)
 
     outside_records = sum(count for _heading, count in outside)
-    order_expected = [t for t in reporter._TIER_ORDER if t in set(canonical_seen)]
+    order_expected = [t for t in reporter._TIER_ORDER if _GBC_REC("_probe_owner_protocols_report_groups_by_canonical_tier:8056:57", (t in set(canonical_seen)))]
     detail = (
         f"{rel} (возраст {age_h:.1f}ч): записей в отчёте {counted}; "
         f"канонических разделов {len(canonical_seen)} "
         f"({', '.join(canonical_seen) or 'нет'}); вне канона записей "
         f"{outside_records} в {len(outside)} раздел(ах)"
     )
-    if counted == 0:
+    if _GBC_REC("_probe_owner_protocols_report_groups_by_canonical_tier:8063:7", (counted == 0)):
         return UNMEASURED, (
             f"{detail} — записей нет вовсе, ноль вне канона НЕ ИЗМЕРЕН"
         )
-    if outside_records or outside:
+    if _GBC_REC("_probe_owner_protocols_report_groups_by_canonical_tier:8067:7", (outside_records or outside)):
         forms = ", ".join(f"{h!r}:{c}" for h, c in outside)
         return NOT_SATISFIED, (
             f"{detail} — заголовки вне канона: {forms}; владелец читает ярлык-сырьё "
             f"вместо названия тира, и канонический порядок на эти разделы не действует"
         )
-    if canonical_seen != order_expected:
+    if _GBC_REC("_probe_owner_protocols_report_groups_by_canonical_tier:8073:7", (canonical_seen != order_expected)):
         return NOT_SATISFIED, (
             f"{detail} — порядок разделов {canonical_seen} не равен каноническому "
             f"{order_expected}"
@@ -8023,7 +8116,7 @@ def _probe_delivery_door_refuses_cycle_record_loss(
 
     root = repo_root or REPO_ROOT
     pusher_path = os.path.join(root, "push_to_github.py")
-    if not os.path.exists(pusher_path):
+    if _GBC_REC("_probe_delivery_door_refuses_cycle_record_loss:8119:7", (not os.path.exists(pusher_path))):
         return UNMEASURED, f"{pusher_path} не найден — дверь доставки НЕ ИЗМЕРЕНА"
     try:
         spec = _ilu.spec_from_file_location("_probe_pusher", pusher_path)
@@ -8042,11 +8135,11 @@ def _probe_delivery_door_refuses_cycle_record_loss(
                      capture_output=True, timeout=30)
         r1 = _sp.run(["git", "-C", root, "cat-file", "blob", f"{incident}:{card}"],
                      capture_output=True, timeout=30)
-        if r0.returncode == 0 and r1.returncode == 0 and r0.stdout and r1.stdout:
+        if _GBC_REC("_probe_delivery_door_refuses_cycle_record_loss:8138:11", (r0.returncode == 0 and r1.returncode == 0 and r0.stdout and r1.stdout)):
             before, after, source = r0.stdout, r1.stdout, "история git"
     except Exception:                               # noqa: BLE001 — источник не единственный
         before = after = None
-    if before is None:
+    if _GBC_REC("_probe_delivery_door_refuses_cycle_record_loss:8142:7", (before is None)):
         fix = os.path.join(root, "spa_core", "tests", "fixtures", "cycle_record_loss")
         try:
             with open(os.path.join(fix, f"order_{incident}_before.md"), "rb") as fh:
@@ -8065,7 +8158,7 @@ def _probe_delivery_door_refuses_cycle_record_loss(
     except AttributeError as exc:
         return NOT_SATISFIED, (f"у пушера нет меры записей цикла ({exc}): дверь не может "
                                f"отказать тому, чего не умеет мерить — источник {source}")
-    if len(lost) != 56:
+    if _GBC_REC("_probe_delivery_door_refuses_cycle_record_loss:8161:7", (len(lost) != 56)):
         return UNMEASURED, (f"в паре байт {incident} потеряно {len(lost)} записей, а авария "
                             f"была на 56 — предпосылка пробы НЕ ОБЕСПЕЧЕНА (источник {source})")
 
@@ -8076,7 +8169,7 @@ def _probe_delivery_door_refuses_cycle_record_loss(
                                f"(нота: {note or 'пусто'}; источник {source})")
     except Exception as exc:                        # noqa: BLE001 — любой отказ двери
         refused = str(exc)
-    if "#716" not in refused:
+    if _GBC_REC("_probe_delivery_door_refuses_cycle_record_loss:8172:7", ("#716" not in refused)):
         return NOT_SATISFIED, (f"дверь отказала, но НЕ НАЗВАЛА пропавшие записи — по такому "
                                f"отказу не рассудить, потеря это или переименование "
                                f"(источник {source})")
@@ -8089,7 +8182,7 @@ def _probe_delivery_door_refuses_cycle_record_loss(
         return NOT_SATISFIED, (f"дверь отказывает и ЧИСТОМУ ДОПИСЫВАНИЮ "
                                f"({type(exc).__name__}: {str(exc)[:160]}) — сторож, который "
                                f"говорит «нет» всему, не отличает потерю от работы")
-    if back:
+    if _GBC_REC("_probe_delivery_door_refuses_cycle_record_loss:8185:7", (back)):
         return NOT_SATISFIED, (f"на чистом дописывании дверь не молчит: {back[:200]}")
     return SATISFIED, (f"дверь ОТКАЗЫВАЕТ доставке, стирающей 56 записей цикла "
                        f"(названы поимённо), и МОЛЧИТ на возврате тех же записей "
@@ -8131,12 +8224,12 @@ def _probe_drift_names_direction_of_record_loss(
 
     root = repo_root or REPO_ROOT
     tool = os.path.join(root, "scripts", "check_tracker_drift.py")
-    if not os.path.exists(tool):
+    if _GBC_REC("_probe_drift_names_direction_of_record_loss:8227:7", (not os.path.exists(tool))):
         return UNMEASURED, f"{tool} не найден — прибор расхождения НЕ ИЗМЕРЕН"
-    if root not in sys.path:
+    if _GBC_REC("_probe_drift_names_direction_of_record_loss:8229:7", (root not in sys.path)):
         sys.path.insert(0, root)
     scripts_dir = os.path.join(root, "scripts")
-    if scripts_dir not in sys.path:
+    if _GBC_REC("_probe_drift_names_direction_of_record_loss:8232:7", (scripts_dir not in sys.path)):
         sys.path.insert(0, scripts_dir)
     # Имя уникально по дереву НАМЕРЕННО: проба обязана мерить прибор ИЗ `repo_root`,
     # иначе на двух деревьях она дала бы один и тот же вердикт и ничего не
@@ -8155,7 +8248,7 @@ def _probe_drift_names_direction_of_record_loss(
     except Exception as exc:                        # noqa: BLE001
         return UNMEASURED, f"прибор не ввезён ({type(exc).__name__}: {exc}) — НЕ ИЗМЕРЕНО"
 
-    if not hasattr(drift, "record_memory"):
+    if _GBC_REC("_probe_drift_names_direction_of_record_loss:8251:7", (not hasattr(drift, "record_memory"))):
         return NOT_SATISFIED, ("у прибора расхождения нет оси памяти (`record_memory`): "
                                "о потере записей цикла он сказать не может, и на тетради с "
                                "94 пропавшими записями печатает «кто новее — не измерено»")
@@ -8170,13 +8263,13 @@ def _probe_drift_names_direction_of_record_loss(
                      capture_output=True, timeout=30)
         r1 = _sp.run(["git", "-C", root, "cat-file", "blob", f"{incident}:{card}"],
                      capture_output=True, timeout=30)
-        if r0.returncode == 0 and r1.returncode == 0 and r0.stdout and r1.stdout:
+        if _GBC_REC("_probe_drift_names_direction_of_record_loss:8266:11", (r0.returncode == 0 and r1.returncode == 0 and r0.stdout and r1.stdout)):
             before = r0.stdout.decode("utf-8", "replace")
             after = r1.stdout.decode("utf-8", "replace")
             source = "история git"
     except Exception:                               # noqa: BLE001 — источник не единственный
         before = after = None
-    if before is None:
+    if _GBC_REC("_probe_drift_names_direction_of_record_loss:8272:7", (before is None)):
         fix = os.path.join(root, "spa_core", "tests", "fixtures", "cycle_record_loss")
         try:
             with open(os.path.join(fix, f"order_{incident}_before.md"), encoding="utf-8") as fh:
@@ -8190,15 +8283,15 @@ def _probe_drift_names_direction_of_record_loss(
 
     # Копия дерева здесь — АМПУТИРОВАННАЯ (`after`): именно её принесла доставка.
     lost = drift.record_memory(after, before, "origin/main")
-    if lost.missing_tree != 56:
+    if _GBC_REC("_probe_drift_names_direction_of_record_loss:8286:7", (lost.missing_tree != 56)):
         return UNMEASURED, (f"в паре байт {incident} копии дерева не хватает "
                             f"{lost.missing_tree} записей, а авария была на 56 — предпосылка "
                             f"пробы НЕ ОБЕСПЕЧЕНА (источник {source})")
-    if lost.verdict not in getattr(drift, "MEMORY_FINDINGS", frozenset()):
+    if _GBC_REC("_probe_drift_names_direction_of_record_loss:8290:7", (lost.verdict not in getattr(drift, "MEMORY_FINDINGS", frozenset()))):
         return NOT_SATISFIED, (f"прибор не считает потерю 56 записей расхождением памяти: "
                                f"вердикт `{lost.verdict}` — {lost.detail[:200]} "
                                f"(источник {source})")
-    if "#716" not in lost.detail:
+    if _GBC_REC("_probe_drift_names_direction_of_record_loss:8294:7", ("#716" not in lost.detail)):
         return NOT_SATISFIED, (f"прибор назвал расхождение, но НЕ НАЗВАЛ пропавшие записи — "
                                f"по такой строке читатель не отличит её от сотни других в "
                                f"списке `РАЗОШЛИСЬ` (источник {source})")
@@ -8206,11 +8299,11 @@ def _probe_drift_names_direction_of_record_loss(
     # Обратная сторона: штатная переписка тела карточки памятью НЕ является.
     kept = drift.record_memory(before + "\nштатная приписка к телу карточки\n",
                                before, "origin/main")
-    if kept.verdict in getattr(drift, "MEMORY_FINDINGS", frozenset()):
+    if _GBC_REC("_probe_drift_names_direction_of_record_loss:8302:7", (kept.verdict in getattr(drift, "MEMORY_FINDINGS", frozenset()))):
         return NOT_SATISFIED, (f"прибор объявляет потерю памяти на ЧИСТОЙ ПРИПИСКЕ к телу "
                                f"(`{kept.verdict}`) — сторож, который говорит «нет» всему, "
                                f"не отличает потерю от работы")
-    if kept.verdict != getattr(drift, "MEMORY_EQUAL", "records_equal"):
+    if _GBC_REC("_probe_drift_names_direction_of_record_loss:8306:7", (kept.verdict != getattr(drift, "MEMORY_EQUAL", "records_equal"))):
         return NOT_SATISFIED, (f"на чистой приписке вердикт `{kept.verdict}`, а обязан быть "
                                f"«память совпала»: {kept.detail[:200]}")
     return SATISFIED, (f"прибор НАЗЫВАЕТ направление потери: `{lost.verdict}`, дереву не "
@@ -8284,10 +8377,10 @@ def _probe_queue_reader_names_record_memory_loss(
 
     root = repo_root or REPO_ROOT
     reader_path = os.path.join(root, "scripts", "orchestrator_queue.py")
-    if not os.path.exists(reader_path):
+    if _GBC_REC("_probe_queue_reader_names_record_memory_loss:8380:7", (not os.path.exists(reader_path))):
         return UNMEASURED, f"{reader_path} не найден — читателя очереди НЕ ИЗМЕРИТЬ"
     for _p in (root, os.path.join(root, "scripts")):
-        if _p not in sys.path:
+        if _GBC_REC("_probe_queue_reader_names_record_memory_loss:8383:11", (_p not in sys.path)):
             sys.path.insert(0, _p)
     mod_name = "_probe_queue_" + _hl.sha256(root.encode()).hexdigest()[:12]
     try:
@@ -8328,15 +8421,15 @@ def _probe_queue_reader_names_record_memory_loss(
         for a in (["init", "-q", "-b", ref, rroot],
                   ["config", "user.email", "t@example.com"],
                   ["config", "user.name", "probe"]):
-            r = _git(rroot if a[0] != "init" else tmp, *a)
-            if r.returncode != 0:
+            r = _git(rroot if _GBC_REC("_probe_queue_reader_names_record_memory_loss:8424:30", (a[0] != "init")) else tmp, *a)
+            if _GBC_REC("_probe_queue_reader_names_record_memory_loss:8425:15", (r.returncode != 0)):
                 raise RuntimeError(f"git {' '.join(a)}: {r.stderr.strip()}")
         for name, text in cards_before.items():
             with open(os.path.join(tracker, f"{name}.md"), "w", encoding="utf-8") as fh:
                 fh.write(text)
         for a in (["add", "-A"], ["commit", "-q", "-m", "ref"]):
             r = _git(rroot, *a)
-            if r.returncode != 0:
+            if _GBC_REC("_probe_queue_reader_names_record_memory_loss:8432:15", (r.returncode != 0)):
                 raise RuntimeError(f"git {' '.join(a)}: {r.stderr.strip()}")
         for name, text in cards_after.items():
             with open(os.path.join(tracker, f"{name}.md"), "w", encoding="utf-8") as fh:
@@ -8365,39 +8458,39 @@ def _probe_queue_reader_names_record_memory_loss(
                             f"вердикт читателя очереди НЕ ИЗМЕРЕН")
 
     card = lost.get("inbox-order")
-    if card is None:
+    if _GBC_REC("_probe_queue_reader_names_record_memory_loss:8461:7", (card is None)):
         return UNMEASURED, ("читатель не вернул карточку-тетрадь вовсе — предпосылка пробы "
                             "НЕ ОБЕСПЕЧЕНА, об оси памяти судить нечем")
-    if "origin_memory" not in card:
+    if _GBC_REC("_probe_queue_reader_names_record_memory_loss:8464:7", ("origin_memory" not in card)):
         return NOT_SATISFIED, (
             "у читателя очереди (шаг 1) НЕТ оси памяти: в вердикте карточки только "
             f"`origin_check={card.get('origin_check')}` / "
             f"`origin_order={card.get('origin_order')}` — о пропавших записях цикла он "
             "молчит, как молчал 13.10 на тетради с 94 потерянными записями")
-    if card["origin_memory"] not in getattr(_drift, "MEMORY_FINDINGS", frozenset()):
+    if _GBC_REC("_probe_queue_reader_names_record_memory_loss:8470:7", (card["origin_memory"] not in getattr(_drift, "MEMORY_FINDINGS", frozenset()))):
         return NOT_SATISFIED, (
             f"читатель не считает потерю двух записей расхождением памяти: "
             f"`{card['origin_memory']}` — {str(card.get('origin_memory_detail'))[:200]}")
-    if card.get("origin_memory_missing_tree") != 2:
+    if _GBC_REC("_probe_queue_reader_names_record_memory_loss:8474:7", (card.get("origin_memory_missing_tree") != 2)):
         return NOT_SATISFIED, (
             f"читатель не несёт ЧИСЛО пропавших записей: "
             f"`origin_memory_missing_tree={card.get('origin_memory_missing_tree')}` при "
             f"двух пропавших — выпарсивать его из прозы значит завести вторую мерку")
-    if "#717" not in str(card.get("origin_memory_detail", "")):
+    if _GBC_REC("_probe_queue_reader_names_record_memory_loss:8479:7", ("#717" not in str(card.get("origin_memory_detail", "")))):
         return NOT_SATISFIED, ("читатель назвал потерю, но НЕ НАЗВАЛ пропавшие записи "
                                "поимённо — такую строку не отличить от сотни других")
-    if "inbox-order" not in lost_err or "ПАМЯТЬ КОПИЙ РАЗОШЛАСЬ" not in lost_err:
+    if _GBC_REC("_probe_queue_reader_names_record_memory_loss:8482:7", ("inbox-order" not in lost_err or "ПАМЯТЬ КОПИЙ РАЗОШЛАСЬ" not in lost_err)):
         return NOT_SATISFIED, ("вердикт есть в JSON, но человек у терминала его не видит: "
                                "в stderr нет ни раздела памяти, ни имени карточки — два "
                                "выхода одного читателя разошлись")
 
     other = kept.get("inbox-order") or {}
-    if other.get("origin_memory") in getattr(_drift, "MEMORY_FINDINGS", frozenset()):
+    if _GBC_REC("_probe_queue_reader_names_record_memory_loss:8488:7", (other.get("origin_memory") in getattr(_drift, "MEMORY_FINDINGS", frozenset()))):
         return NOT_SATISFIED, (
             f"читатель объявляет потерю памяти на ЧИСТОЙ ПЕРЕПИСКЕ ТЕЛА "
             f"(`{other.get('origin_memory')}`) — сторож, говорящий «нет» всему, не "
             f"отличает потерю от работы (538 отказов из 2133 на живой популяции)")
-    if "origin_memory_note" in other or "ПАМЯТЬ КОПИЙ РАЗОШЛАСЬ" in kept_err:
+    if _GBC_REC("_probe_queue_reader_names_record_memory_loss:8493:7", ("origin_memory_note" in other or "ПАМЯТЬ КОПИЙ РАЗОШЛАСЬ" in kept_err)):
         return NOT_SATISFIED, ("на штатной переписке тела читатель обязан МОЛЧАТЬ, а он "
                                "печатает раздел памяти — раздел утонет в шуме")
     return SATISFIED, (
@@ -8459,10 +8552,10 @@ def _probe_queue_reader_names_unmeasured_memory(
 
     root = repo_root or REPO_ROOT
     reader_path = os.path.join(root, "scripts", "orchestrator_queue.py")
-    if not os.path.exists(reader_path):
+    if _GBC_REC("_probe_queue_reader_names_unmeasured_memory:8555:7", (not os.path.exists(reader_path))):
         return UNMEASURED, f"{reader_path} не найден — читателя очереди НЕ ИЗМЕРИТЬ"
     for _p in (root, os.path.join(root, "scripts")):
-        if _p not in sys.path:
+        if _GBC_REC("_probe_queue_reader_names_unmeasured_memory:8558:11", (_p not in sys.path)):
             sys.path.insert(0, _p)
     mod_name = "_probe_queue_unmeas_" + _hl.sha256(root.encode()).hexdigest()[:12]
     try:
@@ -8512,19 +8605,19 @@ def _probe_queue_reader_names_unmeasured_memory(
             tracker = os.path.join(rroot, _drift.TRACKER_REL)
             os.makedirs(tracker)
             r = _git(tmp, "init", "-q", "-b", ref, rroot)
-            if r.returncode != 0:
+            if _GBC_REC("_probe_queue_reader_names_unmeasured_memory:8608:15", (r.returncode != 0)):
                 raise RuntimeError(f"git init: {r.stderr.strip()}")
             for a in (["config", "user.email", "probe@example.com"],
                       ["config", "user.name", "probe"]):
                 r = _git(rroot, *a)
-                if r.returncode != 0:
+                if _GBC_REC("_probe_queue_reader_names_unmeasured_memory:8613:19", (r.returncode != 0)):
                     raise RuntimeError(f"git {' '.join(a)}: {r.stderr.strip()}")
             card = os.path.join(tracker, "inbox-order.md")
             with open(card, "w", encoding="utf-8") as fh:
                 fh.write(_notebook([716, 717, 718]))
             for a in (["add", "-A"], ["commit", "-q", "-m", "ref"]):
                 r = _git(rroot, *a)
-                if r.returncode != 0:
+                if _GBC_REC("_probe_queue_reader_names_unmeasured_memory:8620:19", (r.returncode != 0)):
                     raise RuntimeError(f"git {' '.join(a)}: {r.stderr.strip()}")
             with open(card, "w", encoding="utf-8") as fh:
                 fh.write(_notebook([716]))          # дереву не хватает #717 и #718
@@ -8535,10 +8628,10 @@ def _probe_queue_reader_names_unmeasured_memory(
                             f"вердикт читателя очереди НЕ ИЗМЕРЕН")
 
     card = refused.get("inbox-order")
-    if card is None:
+    if _GBC_REC("_probe_queue_reader_names_unmeasured_memory:8631:7", (card is None)):
         return UNMEASURED, ("читатель не вернул карточку-тетрадь вовсе — предпосылка пробы "
                             "НЕ ОБЕСПЕЧЕНА, об оси памяти судить нечем")
-    if "origin_memory" not in card:
+    if _GBC_REC("_probe_queue_reader_names_unmeasured_memory:8634:7", ("origin_memory" not in card)):
         return NOT_SATISFIED, (
             "при ОТКАЗЕ сверки у читателя очереди НЕТ оси памяти: в вердикте только "
             f"`origin_check={card.get('origin_check')}` — «спросили и не узнали» "
@@ -8546,26 +8639,26 @@ def _probe_queue_reader_names_unmeasured_memory(
     measured_verdicts = set(getattr(_drift, "MEMORY_FINDINGS", frozenset())) | {
         getattr(_drift, "MEMORY_EQUAL", "records_equal"),
         getattr(_drift, "MEMORY_NOT_A_NOTEBOOK", "not_a_notebook")}
-    if card["origin_memory"] in measured_verdicts:
+    if _GBC_REC("_probe_queue_reader_names_unmeasured_memory:8642:7", (card["origin_memory"] in measured_verdicts)):
         return NOT_SATISFIED, (
             f"при отказе сверки читатель выдаёт ИЗМЕРЕННЫЙ вердикт "
             f"`{card['origin_memory']}` — самое успокоительное из значений выдумано, "
             f"а мерить было нечем")
     why = str(card.get("origin_memory_detail") or "")
-    if "ЗАПИСЕЙ ЦИКЛА" not in why and "ЗАПИСИ ЦИКЛА" not in why:
+    if _GBC_REC("_probe_queue_reader_names_unmeasured_memory:8648:7", ("ЗАПИСЕЙ ЦИКЛА" not in why and "ЗАПИСИ ЦИКЛА" not in why)):
         return NOT_SATISFIED, (
             f"у оси памяти нет СВОЕЙ причины — она пересказывает соседа и о записях "
             f"цикла не говорит: {why[:200] or '(причины нет вовсе)'}")
-    if "НЕ ИЗМЕРЕНО" not in why:
+    if _GBC_REC("_probe_queue_reader_names_unmeasured_memory:8652:7", ("НЕ ИЗМЕРЕНО" not in why)):
         return NOT_SATISFIED, (
             f"причина не называет третий исход словами: {why[:200]}")
-    if "ось ПАМЯТИ" not in refused_err:
+    if _GBC_REC("_probe_queue_reader_names_unmeasured_memory:8655:7", ("ось ПАМЯТИ" not in refused_err)):
         return NOT_SATISFIED, (
             "вердикт есть в JSON, но человек у терминала его не видит: в stderr нет ни "
             "строки про ось памяти — два выхода одного читателя разошлись")
 
     other = measured.get("inbox-order") or {}
-    if other.get("origin_memory") not in measured_verdicts:
+    if _GBC_REC("_probe_queue_reader_names_unmeasured_memory:8661:7", (other.get("origin_memory") not in measured_verdicts)):
         return NOT_SATISFIED, (
             f"на СОСТОЯВШЕЙСЯ сверке читатель тоже отвечает «не измерено» "
             f"(`{other.get('origin_memory')}`) — сторож, штампующий третий исход на всё, "
@@ -8626,10 +8719,10 @@ def _probe_queue_reader_names_uncompared_order(
 
     root = repo_root or REPO_ROOT
     reader_path = os.path.join(root, "scripts", "orchestrator_queue.py")
-    if not os.path.exists(reader_path):
+    if _GBC_REC("_probe_queue_reader_names_uncompared_order:8722:7", (not os.path.exists(reader_path))):
         return UNMEASURED, f"{reader_path} не найден — читателя очереди НЕ ИЗМЕРИТЬ"
     for _p in (root, os.path.join(root, "scripts")):
-        if _p not in sys.path:
+        if _GBC_REC("_probe_queue_reader_names_uncompared_order:8725:11", (_p not in sys.path)):
             sys.path.insert(0, _p)
     mod_name = "_probe_queue_order_" + _hl.sha256(root.encode()).hexdigest()[:12]
     try:
@@ -8652,8 +8745,8 @@ def _probe_queue_reader_names_uncompared_order(
     #: Полный набор имён порядка У ПРИБОРА — собирается обходом, а не парой из головы:
     #: заведут четвёртое имя, и проба увидит его без правки.
     asked = {v for k, v in vars(_drift).items()
-             if k.startswith("ORDER_") and isinstance(v, str)}
-    if not asked:
+             if _GBC_REC("_probe_queue_reader_names_uncompared_order:8748:16", (k.startswith("ORDER_") and isinstance(v, str)))}
+    if _GBC_REC("_probe_queue_reader_names_uncompared_order:8749:7", (not asked)):
         return UNMEASURED, ("вокабуляр порядка у прибора не найден — предпосылка пробы "
                             "НЕ ОБЕСПЕЧЕНА, об оси порядка судить нечем")
 
@@ -8692,12 +8785,12 @@ def _probe_queue_reader_names_uncompared_order(
             tracker = os.path.join(rroot, _drift.TRACKER_REL)
             os.makedirs(tracker)
             r = _git(tmp, "init", "-q", "-b", ref, rroot)
-            if r.returncode != 0:
+            if _GBC_REC("_probe_queue_reader_names_uncompared_order:8788:15", (r.returncode != 0)):
                 raise RuntimeError(f"git init: {r.stderr.strip()}")
             for a in (["config", "user.email", "probe@example.com"],
                       ["config", "user.name", "probe"]):
                 r = _git(rroot, *a)
-                if r.returncode != 0:
+                if _GBC_REC("_probe_queue_reader_names_uncompared_order:8793:19", (r.returncode != 0)):
                     raise RuntimeError(f"git {' '.join(a)}: {r.stderr.strip()}")
             card = os.path.join(tracker, "inbox-order.md")
             with open(card, "w", encoding="utf-8") as fh:
@@ -8705,7 +8798,7 @@ def _probe_queue_reader_names_uncompared_order(
                                [f"{earlier} new -> new · queue.set_status · cycle-1"]))
             for a in (["add", "-A"], ["commit", "-q", "-m", "ref"]):
                 r = _git(rroot, *a)
-                if r.returncode != 0:
+                if _GBC_REC("_probe_queue_reader_names_uncompared_order:8801:19", (r.returncode != 0)):
                     raise RuntimeError(f"git {' '.join(a)}: {r.stderr.strip()}")
             with open(card, "w", encoding="utf-8") as fh:
                 fh.write(_card([716], "in-progress",
@@ -8718,36 +8811,36 @@ def _probe_queue_reader_names_uncompared_order(
                             f"вердикт читателя очереди НЕ ИЗМЕРЕН")
 
     card = refused.get("inbox-order")
-    if card is None:
+    if _GBC_REC("_probe_queue_reader_names_uncompared_order:8814:7", (card is None)):
         return UNMEASURED, ("читатель не вернул карточку вовсе — предпосылка пробы НЕ "
                             "ОБЕСПЕЧЕНА, об оси порядка судить нечем")
     other = measured.get("inbox-order") or {}
-    if other.get("origin_order") not in asked:
+    if _GBC_REC("_probe_queue_reader_names_uncompared_order:8818:7", (other.get("origin_order") not in asked)):
         return UNMEASURED, (
             f"на СОСТОЯВШЕЙСЯ сверке порядок не устанавливается вовсе "
             f"(`{other.get('origin_order')}`) — предпосылка пробы НЕ ОБЕСПЕЧЕНА: "
             f"контроль в обратную сторону был бы пустым")
-    if "origin_order" not in card:
+    if _GBC_REC("_probe_queue_reader_names_uncompared_order:8823:7", ("origin_order" not in card)):
         return NOT_SATISFIED, (
             "при ОТКАЗЕ сверки у читателя очереди НЕТ оси порядка: в вердикте только "
             f"`origin_check={card.get('origin_check')}` — «упорядочить было что, да "
             "спросить не удалось» неотличимо от «упорядочивать нечего»")
-    if card["origin_order"] in asked:
+    if _GBC_REC("_probe_queue_reader_names_uncompared_order:8828:7", (card["origin_order"] in asked)):
         return NOT_SATISFIED, (
             f"при отказе сверки читатель выдаёт имя ПРИБОРА `{card['origin_order']}` — "
             f"потребитель прочтёт «спросили и не решили» вместо «не спрашивали вовсе»")
     why = str(card.get("origin_order_detail") or "")
-    if "ДАЛЬШЕ ПРОДВИНУЛАСЬ" not in why:
+    if _GBC_REC("_probe_queue_reader_names_uncompared_order:8833:7", ("ДАЛЬШЕ ПРОДВИНУЛАСЬ" not in why)):
         return NOT_SATISFIED, (
             f"у оси порядка нет СВОЕЙ причины — она не говорит о своём вопросе: "
             f"{why[:200] or '(причины нет вовсе)'}")
-    if "НЕ ИЗМЕРЕНО" not in why:
+    if _GBC_REC("_probe_queue_reader_names_uncompared_order:8837:7", ("НЕ ИЗМЕРЕНО" not in why)):
         return NOT_SATISFIED, f"причина не называет третий исход словами: {why[:200]}"
-    if "ось ПОРЯДКА" not in refused_err:
+    if _GBC_REC("_probe_queue_reader_names_uncompared_order:8839:7", ("ось ПОРЯДКА" not in refused_err)):
         return NOT_SATISFIED, (
             "вердикт есть в JSON, но человек у терминала его не видит: в stderr нет ни "
             "строки про ось порядка — два выхода одного читателя разошлись")
-    if why == str(card.get("origin_memory_detail") or ""):
+    if _GBC_REC("_probe_queue_reader_names_uncompared_order:8843:7", (why == str(card.get("origin_memory_detail") or ""))):
         return NOT_SATISFIED, (
             "причина оси порядка дословно совпала с причиной оси памяти — это и есть "
             "наследование от соседа, только теперь с текстом")
@@ -8805,13 +8898,13 @@ def _probe_queue_reader_names_which_order_axis_spoke(
 
     root = repo_root or REPO_ROOT
     reader_path = os.path.join(root, "scripts", "orchestrator_queue.py")
-    if not os.path.exists(reader_path):
+    if _GBC_REC("_probe_queue_reader_names_which_order_axis_spoke:8901:7", (not os.path.exists(reader_path))):
         return UNMEASURED, f"{reader_path} не найден — читателя очереди НЕ ИЗМЕРИТЬ"
     drift_path = os.path.join(root, "scripts", "check_tracker_drift.py")
-    if not os.path.exists(drift_path):
+    if _GBC_REC("_probe_queue_reader_names_which_order_axis_spoke:8904:7", (not os.path.exists(drift_path))):
         return UNMEASURED, f"{drift_path} не найден — прибор расхождения НЕ ИЗМЕРИТЬ"
     for _p in (root, os.path.join(root, "scripts")):
-        if _p not in sys.path:
+        if _GBC_REC("_probe_queue_reader_names_which_order_axis_spoke:8907:11", (_p not in sys.path)):
             sys.path.insert(0, _p)
     mod_name = "_probe_queue_basis_" + _hl.sha256(root.encode()).hexdigest()[:12]
 
@@ -8854,15 +8947,15 @@ def _probe_queue_reader_names_which_order_axis_spoke(
         #: Полный вокабуляр БАЗИСА у прибора — обходом, а не парой из головы: заведут
         #: шестое слово, и проба увидит его без правки.
         bases = {v for k, v in vars(_drift).items()
-                 if k.startswith("BASIS_") and isinstance(v, str)}
-        if not bases:
+                 if _GBC_REC("_probe_queue_reader_names_which_order_axis_spoke:8950:20", (k.startswith("BASIS_") and isinstance(v, str)))}
+        if _GBC_REC("_probe_queue_reader_names_which_order_axis_spoke:8951:11", (not bases)):
             return NOT_SATISFIED, (
                 "у прибора расхождения НЕТ вокабуляра базиса (`BASIS_*`) — значит ответ на "
                 "«какая из двух осей говорила» не производит никто, и читателю его взять "
                 "негде: ровно замер до ADR-719")
         return _queue_order_basis_outcome(_drift, reader, bases)
     finally:
-        if _saved_drift is None:
+        if _GBC_REC("_probe_queue_reader_names_which_order_axis_spoke:8958:11", (_saved_drift is None)):
             sys.modules.pop("check_tracker_drift", None)
         else:
             sys.modules["check_tracker_drift"] = _saved_drift
@@ -9071,10 +9164,10 @@ def _probe_card_claim_measures_the_worker(
 
     root = repo_root or REPO_ROOT
     guard_path = os.path.join(root, "scripts", "check_card_claim.py")
-    if not os.path.exists(guard_path):
+    if _GBC_REC("_probe_card_claim_measures_the_worker:9167:7", (not os.path.exists(guard_path))):
         return UNMEASURED, f"{guard_path} не найден — шаг 0b НЕ ИЗМЕРИТЬ"
     lock_path = os.path.join(root, "scripts", "orchestrator_cycle_lock.py")
-    if not os.path.exists(lock_path):
+    if _GBC_REC("_probe_card_claim_measures_the_worker:9170:7", (not os.path.exists(lock_path))):
         return UNMEASURED, f"{lock_path} не найден — бюджет работника НЕ ИЗМЕРИТЬ"
     try:
         spec = _ilu.spec_from_file_location("_probe_c865_card_claim", guard_path)
@@ -9090,8 +9183,8 @@ def _probe_card_claim_measures_the_worker(
     #: Вокабуляр оси — ОБХОДОМ у читателя, а не парой из головы: заведут пятое слово,
     #: и проба увидит его без правки.
     axes = {v for k, v in vars(guard).items()
-            if k.startswith("W_") and isinstance(v, str)}
-    if not axes:
+            if _GBC_REC("_probe_card_claim_measures_the_worker:9186:15", (k.startswith("W_") and isinstance(v, str)))}
+    if _GBC_REC("_probe_card_claim_measures_the_worker:9187:7", (not axes)):
         return NOT_SATISFIED, (
             "у шага 0b НЕТ вокабуляра оси РАБОТНИКА (`W_*`) — значит ответ «кто именно "
             "жив, запускатель или работник» не производит никто: ровно замер до ADR-721")
@@ -9101,7 +9194,7 @@ def _probe_card_claim_measures_the_worker(
         return UNMEASURED, (f"сосед шага 0a не ввезён ({type(exc).__name__}: {exc}) — "
                             f"НЕ ИЗМЕРЕНО")
     ttl = float(getattr(lock, "DEFAULT_WORKER_TTL_SEC", 0.0) or 0.0)
-    if ttl <= 0.0:
+    if _GBC_REC("_probe_card_claim_measures_the_worker:9197:7", (ttl <= 0.0)):
         return NOT_SATISFIED, ("бюджет работника у замка не объявлен — без срока ось "
                                "РАБОТНИКА стала бы вечным замком, а не защитой")
 
@@ -9115,7 +9208,7 @@ def _probe_card_claim_measures_the_worker(
 
     def _ask(axis):
         def _probe(run_id):
-            if not str(run_id or "").strip():
+            if _GBC_REC("_probe_card_claim_measures_the_worker:9211:15", (not str(run_id or "").strip())):
                 return "not_declared", "метки нет", None
             return axis, _SCENE_WHY, ttl
         return _probe
@@ -9133,7 +9226,7 @@ def _probe_card_claim_measures_the_worker(
                 rows = ["---\n", "trackerStatus:\n", "  type: inbox\n",
                         "title: сцена приёмки\n", "status: in-progress\n",
                         f"claimed_by: {label}\n", f"claimed_at: {at}\n"]
-                if with_mark:
+                if _GBC_REC("_probe_card_claim_measures_the_worker:9229:19", (with_mark)):
                     rows.append(f"claimed_run_id: {mark}\n")
                 rows += ["---\n", "\nтело\n"]
                 with open(os.path.join(tracker, "inbox-scene.md"), "w",
@@ -9161,52 +9254,52 @@ def _probe_card_claim_measures_the_worker(
 
     def _front(report):
         rows = [c for c in report.get("claims") or []
-                if c.get("source") == "frontmatter"]
-        return rows[0] if len(rows) == 1 else None
+                if _GBC_REC("_probe_card_claim_measures_the_worker:9257:19", (c.get("source") == "frontmatter"))]
+        return rows[0] if _GBC_REC("_probe_card_claim_measures_the_worker:9258:26", (len(rows) == 1)) else None
 
     rec = _front(alive)
-    if rec is None:
+    if _GBC_REC("_probe_card_claim_measures_the_worker:9261:7", (rec is None)):
         return NOT_SATISFIED, ("шаг 0b не выдал ровно одной находки по frontmatter на "
                                "сцене «держатель мёртв» — предмет пробы не найден")
-    if alive["verdict"] != guard.CLAIMED:
+    if _GBC_REC("_probe_card_claim_measures_the_worker:9264:7", (alive["verdict"] != guard.CLAIMED)):
         return NOT_SATISFIED, (
             f"ЖИВОЙ работник не держит карточку: вердикт `{alive['verdict']}` вместо "
             f"`{guard.CLAIMED}` — живая работа снова отдаётся второй сессии (замер 14.10)")
-    if gone["verdict"] != guard.STALE:
+    if _GBC_REC("_probe_card_claim_measures_the_worker:9268:7", (gone["verdict"] != guard.STALE)):
         return NOT_SATISFIED, (
             f"работника измеренно НЕТ, а карточка не отдаётся: вердикт "
             f"`{gone['verdict']}` вместо `{guard.STALE}` — это вечный замок, а не защита")
-    if unmeas["verdict"] != guard.UNCHECKED:
+    if _GBC_REC("_probe_card_claim_measures_the_worker:9272:7", (unmeas["verdict"] != guard.UNCHECKED)):
         return NOT_SATISFIED, (
             f"ось НЕ ИЗМЕРЕНА, а вердикт `{unmeas['verdict']}` вместо "
             f"`{guard.UNCHECKED}` — неизмеримость выдана за ответ (инв. #17)")
-    if over["verdict"] != guard.STALE:
+    if _GBC_REC("_probe_card_claim_measures_the_worker:9276:7", (over["verdict"] != guard.STALE)):
         return NOT_SATISFIED, (
             f"повисший работник держит карточку дольше своего бюджета "
             f"({ttl / 3600.0:.2f}ч): вердикт `{over['verdict']}` — очередь заморожена")
-    if plain["verdict"] != guard.STALE:
+    if _GBC_REC("_probe_card_claim_measures_the_worker:9280:7", (plain["verdict"] != guard.STALE)):
         return NOT_SATISFIED, (
             f"карточка БЕЗ метки работника ведёт себя иначе, чем до правки: вердикт "
             f"`{plain['verdict']}` вместо `{guard.STALE}` — правка не дополняющая")
     axis_value = rec.get("worker_axis")
-    if axis_value not in axes:
+    if _GBC_REC("_probe_card_claim_measures_the_worker:9285:7", (axis_value not in axes)):
         return NOT_SATISFIED, (
             f"поле `worker_axis` несёт {axis_value!r} — вне вокабуляра читателя "
             f"{sorted(axes)}: ответ есть только в прозе, а разбор подстрокой запрещён")
-    if str(axis_value) in str(rec.get("worker_detail") or ""):
+    if _GBC_REC("_probe_card_claim_measures_the_worker:9289:7", (str(axis_value) in str(rec.get("worker_detail") or ""))):
         return NOT_SATISFIED, (
             "слово оси содержится в прозе того же вердикта — проба прошла бы подстрокой, "
             "то есть не проверяла бы поле (ADR-333)")
-    if rec.get("worker_run_id") != mark:
+    if _GBC_REC("_probe_card_claim_measures_the_worker:9293:7", (rec.get("worker_run_id") != mark)):
         return NOT_SATISFIED, (
             f"метка держателя не доехала до находки: `worker_run_id`="
             f"{rec.get('worker_run_id')!r} при объявленной {mark!r}")
     writer = _front(plain)
-    if writer is None or writer.get("worker_axis") != guard.W_NOT_DECLARED:
+    if _GBC_REC("_probe_card_claim_measures_the_worker:9298:7", (writer is None or writer.get("worker_axis") != guard.W_NOT_DECLARED)):
         return NOT_SATISFIED, (
             "карточка без метки не помечена `not_declared` — «ось не мерилась» "
             "неотличима от «спросили и работника нет»")
-    if "claimed_run_id" not in tuple(getattr(guard, "_CLAIM_KEYS", ())):
+    if _GBC_REC("_probe_card_claim_measures_the_worker:9302:7", ("claimed_run_id" not in tuple(getattr(guard, "_CLAIM_KEYS", ())))):
         return NOT_SATISFIED, (
             "метка не объявлена строкой захвата (`_CLAIM_KEYS`) — она переживёт подъём, "
             "и мёртвый работник прежнего держателя будет читаться живым")
@@ -9278,7 +9371,7 @@ def _probe_journal_claim_measures_the_worker(
              "lock": os.path.join(root, "scripts", "orchestrator_cycle_lock.py"),
              "writer": os.path.join(root, "scripts", "log_session_change.py")}
     for name, pth in paths.items():
-        if not os.path.exists(pth):
+        if _GBC_REC("_probe_journal_claim_measures_the_worker:9374:11", (not os.path.exists(pth))):
             return UNMEASURED, f"{pth} не найден — ось журнального захвата НЕ ИЗМЕРИТЬ"
     mods = {}
     try:
@@ -9294,18 +9387,18 @@ def _probe_journal_claim_measures_the_worker(
     #: Имя поля — у ПИСАТЕЛЯ схемы. Своей копии строки у пробы нет по той же причине,
     #: по которой её нет у читателя.
     field = str(getattr(writer, "RUN_ID_FIELD", "") or "").strip()
-    if not field:
+    if _GBC_REC("_probe_journal_claim_measures_the_worker:9390:7", (not field)):
         return NOT_SATISFIED, ("писатель журнала не объявил имя поля метки работника "
                                "(`RUN_ID_FIELD`) — журнальный захват мерить нечем")
     reader_field, reader_why = guard.run_id_field(announcer=writer)
-    if reader_field != field:
+    if _GBC_REC("_probe_journal_claim_measures_the_worker:9394:7", (reader_field != field)):
         return NOT_SATISFIED, (
             f"читатель и писатель называют поле по-разному: {reader_field!r} против "
             f"{field!r} ({reader_why}) — вторая копия строки переживёт переименование молча")
 
     axes = {v for k, v in vars(guard).items()
-            if k.startswith("W_") and isinstance(v, str)}
-    if not axes:
+            if _GBC_REC("_probe_journal_claim_measures_the_worker:9400:15", (k.startswith("W_") and isinstance(v, str)))}
+    if _GBC_REC("_probe_journal_claim_measures_the_worker:9401:7", (not axes)):
         return NOT_SATISFIED, (
             "у шага 0b НЕТ вокабуляра оси РАБОТНИКА (`W_*`) — ответ «кто именно жив, "
             "запускатель или работник» не производит никто")
@@ -9315,7 +9408,7 @@ def _probe_journal_claim_measures_the_worker(
         return UNMEASURED, (f"сосед шага 0a не ввезён ({type(exc).__name__}: {exc}) — "
                             f"НЕ ИЗМЕРЕНО")
     ttl = float(getattr(lock, "DEFAULT_WORKER_TTL_SEC", 0.0) or 0.0)
-    if ttl <= 0.0:
+    if _GBC_REC("_probe_journal_claim_measures_the_worker:9411:7", (ttl <= 0.0)):
         return NOT_SATISFIED, ("бюджет работника у замка не объявлен — без срока ось "
                                "РАБОТНИКА стала бы вечным замком, а не защитой")
 
@@ -9325,7 +9418,7 @@ def _probe_journal_claim_measures_the_worker(
 
     def _ask(axis):
         def _probe(run_id):
-            if not str(run_id or "").strip():
+            if _GBC_REC("_probe_journal_claim_measures_the_worker:9421:15", (not str(run_id or "").strip())):
                 return "not_declared", "метки нет", None
             return axis, _SCENE_WHY, ttl
         return _probe
@@ -9346,7 +9439,7 @@ def _probe_journal_claim_measures_the_worker(
                          "files": [], "verified": "", "card": "inbox-scene",
                          "card_state": "claim", "session_pid": 27063,
                          "session_pid_start": "Wed Oct 14 00:00:00 2026"}
-                if with_mark:
+                if _GBC_REC("_probe_journal_claim_measures_the_worker:9442:19", (with_mark)):
                     entry[field] = mark
                 log = os.path.join(tmp, f"log_{axis}_{int(age_sec)}_{with_mark}.jsonl")
                 with open(log, "w", encoding="utf-8") as fh:
@@ -9380,7 +9473,7 @@ def _probe_journal_claim_measures_the_worker(
                 foreign = writer.record("проба приёмки: чужая запись", [], "", log=wlog,
                                         session="cycle-SOMEBODY-ELSE")
             finally:
-                if _saved is None:
+                if _GBC_REC("_probe_journal_claim_measures_the_worker:9476:19", (_saved is None)):
                     os.environ.pop(writer.RUN_ID_VAR, None)
                 else:
                     os.environ[writer.RUN_ID_VAR] = _saved
@@ -9390,57 +9483,57 @@ def _probe_journal_claim_measures_the_worker(
 
     def _row(report):
         rows = [c for c in report.get("claims") or []
-                if c.get("source") == "announce-log"]
-        return rows[0] if len(rows) == 1 else None
+                if _GBC_REC("_probe_journal_claim_measures_the_worker:9486:19", (c.get("source") == "announce-log"))]
+        return rows[0] if _GBC_REC("_probe_journal_claim_measures_the_worker:9487:26", (len(rows) == 1)) else None
 
     rec = _row(alive)
-    if rec is None:
+    if _GBC_REC("_probe_journal_claim_measures_the_worker:9490:7", (rec is None)):
         return NOT_SATISFIED, ("шаг 0b не выдал ровно одной находки по журналу на сцене "
                                "«захват только в журнале» — предмет пробы не найден")
-    if alive["verdict"] != guard.CLAIMED:
+    if _GBC_REC("_probe_journal_claim_measures_the_worker:9493:7", (alive["verdict"] != guard.CLAIMED)):
         return NOT_SATISFIED, (
             f"ЖИВОЙ работник не держит карточку, взятую ОБЪЯВЛЕНИЕМ: вердикт "
             f"`{alive['verdict']}` вместо `{guard.CLAIMED}` — идущая работа отдаётся "
             f"второй сессии ровно так же, как до ADR-721 отдавалась по frontmatter")
-    if gone["verdict"] != guard.STALE:
+    if _GBC_REC("_probe_journal_claim_measures_the_worker:9498:7", (gone["verdict"] != guard.STALE)):
         return NOT_SATISFIED, (
             f"работника измеренно НЕТ, а карточка не отдаётся: вердикт "
             f"`{gone['verdict']}` вместо `{guard.STALE}` — это вечный замок, а не защита")
-    if unmeas["verdict"] != guard.UNCHECKED:
+    if _GBC_REC("_probe_journal_claim_measures_the_worker:9502:7", (unmeas["verdict"] != guard.UNCHECKED)):
         return NOT_SATISFIED, (
             f"ось НЕ ИЗМЕРЕНА, а вердикт `{unmeas['verdict']}` вместо "
             f"`{guard.UNCHECKED}` — неизмеримость выдана за ответ (инв. #17)")
-    if over["verdict"] != guard.STALE:
+    if _GBC_REC("_probe_journal_claim_measures_the_worker:9506:7", (over["verdict"] != guard.STALE)):
         return NOT_SATISFIED, (
             f"повисший работник держит карточку дольше своего бюджета "
             f"({ttl / 3600.0:.2f}ч): вердикт `{over['verdict']}` — очередь заморожена")
-    if plain["verdict"] != guard.STALE:
+    if _GBC_REC("_probe_journal_claim_measures_the_worker:9510:7", (plain["verdict"] != guard.STALE)):
         return NOT_SATISFIED, (
             f"запись БЕЗ метки ведёт себя иначе, чем до правки: вердикт "
             f"`{plain['verdict']}` вместо `{guard.STALE}` — правка не дополняющая")
     axis_value = rec.get("worker_axis")
-    if axis_value not in axes:
+    if _GBC_REC("_probe_journal_claim_measures_the_worker:9515:7", (axis_value not in axes)):
         return NOT_SATISFIED, (
             f"поле `worker_axis` несёт {axis_value!r} — вне вокабуляра читателя "
             f"{sorted(axes)}: ответ есть только в прозе, а разбор подстрокой запрещён")
-    if str(axis_value) in str(rec.get("worker_detail") or ""):
+    if _GBC_REC("_probe_journal_claim_measures_the_worker:9519:7", (str(axis_value) in str(rec.get("worker_detail") or ""))):
         return NOT_SATISFIED, (
             "слово оси содержится в прозе того же вердикта — проба прошла бы подстрокой, "
             "то есть не проверяла бы поле (ADR-333)")
-    if rec.get("worker_run_id") != mark:
+    if _GBC_REC("_probe_journal_claim_measures_the_worker:9523:7", (rec.get("worker_run_id") != mark)):
         return NOT_SATISFIED, (
             f"метка из ЗАПИСИ ЖУРНАЛА не доехала до находки: `worker_run_id`="
             f"{rec.get('worker_run_id')!r} при объявленной {mark!r}")
     writer_row = _row(plain)
-    if writer_row is None or writer_row.get("worker_axis") != guard.W_NOT_DECLARED:
+    if _GBC_REC("_probe_journal_claim_measures_the_worker:9528:7", (writer_row is None or writer_row.get("worker_axis") != guard.W_NOT_DECLARED)):
         return NOT_SATISFIED, (
             "запись без метки не помечена `not_declared` — «ось не мерилась» неотличима "
             "от «спросили и работника нет»")
-    if own.get(field) != mark:
+    if _GBC_REC("_probe_journal_claim_measures_the_worker:9532:7", (own.get(field) != mark)):
         return NOT_SATISFIED, (
             f"ПИСАТЕЛЬ не поставил метку на свою запись (`{field}`={own.get(field)!r}) — "
             f"читать будет нечего, и ось журнальных записей останется `not_declared`")
-    if field in foreign:
+    if _GBC_REC("_probe_journal_claim_measures_the_worker:9536:7", (field in foreign)):
         return NOT_SATISFIED, (
             f"писатель поставил метку на запись от имени ЧУЖОЙ сессии "
             f"(`{field}`={foreign.get(field)!r}) — читатель верит личности, а не ярлыку, "
@@ -9516,7 +9609,7 @@ def _probe_file_overlap_claim_measures_the_worker(
              "lock": os.path.join(root, "scripts", "orchestrator_cycle_lock.py"),
              "writer": os.path.join(root, "scripts", "log_session_change.py")}
     for name, pth in paths.items():
-        if not os.path.exists(pth):
+        if _GBC_REC("_probe_file_overlap_claim_measures_the_worker:9612:11", (not os.path.exists(pth))):
             return UNMEASURED, f"{pth} не найден — ось пересечения по файлам НЕ ИЗМЕРИТЬ"
     mods = {}
     try:
@@ -9532,18 +9625,18 @@ def _probe_file_overlap_claim_measures_the_worker(
     #: Имя поля — у ПИСАТЕЛЯ схемы, своей копии строки у пробы нет (та же причина, что
     #: у читателя: вторая копия переживёт переименование и молча вернёт `not_declared`).
     field = str(getattr(writer, "RUN_ID_FIELD", "") or "").strip()
-    if not field:
+    if _GBC_REC("_probe_file_overlap_claim_measures_the_worker:9628:7", (not field)):
         return NOT_SATISFIED, ("писатель журнала не объявил имя поля метки работника "
                                "(`RUN_ID_FIELD`) — пересечение по файлам мерить нечем")
     reader_field, reader_why = guard.run_id_field(announcer=writer)
-    if reader_field != field:
+    if _GBC_REC("_probe_file_overlap_claim_measures_the_worker:9632:7", (reader_field != field)):
         return NOT_SATISFIED, (
             f"читатель и писатель называют поле по-разному: {reader_field!r} против "
             f"{field!r} ({reader_why}) — вторая копия строки переживёт переименование молча")
 
     axes = {v for k, v in vars(guard).items()
-            if k.startswith("W_") and isinstance(v, str)}
-    if not axes:
+            if _GBC_REC("_probe_file_overlap_claim_measures_the_worker:9638:15", (k.startswith("W_") and isinstance(v, str)))}
+    if _GBC_REC("_probe_file_overlap_claim_measures_the_worker:9639:7", (not axes)):
         return NOT_SATISFIED, (
             "у шага 0b НЕТ вокабуляра оси РАБОТНИКА (`W_*`) — ответ «кто именно жив, "
             "запускатель или работник» не производит никто")
@@ -9553,7 +9646,7 @@ def _probe_file_overlap_claim_measures_the_worker(
         return UNMEASURED, (f"сосед шага 0a не ввезён ({type(exc).__name__}: {exc}) — "
                             f"НЕ ИЗМЕРЕНО")
     ttl = float(getattr(lock, "DEFAULT_WORKER_TTL_SEC", 0.0) or 0.0)
-    if ttl <= 0.0:
+    if _GBC_REC("_probe_file_overlap_claim_measures_the_worker:9649:7", (ttl <= 0.0)):
         return NOT_SATISFIED, ("бюджет работника у замка не объявлен — без срока ось "
                                "РАБОТНИКА стала бы вечным замком, а не защитой")
 
@@ -9564,7 +9657,7 @@ def _probe_file_overlap_claim_measures_the_worker(
 
     def _ask(axis):
         def _probe(run_id):
-            if not str(run_id or "").strip():
+            if _GBC_REC("_probe_file_overlap_claim_measures_the_worker:9660:15", (not str(run_id or "").strip())):
                 return "not_declared", "метки нет", None
             return axis, _SCENE_WHY, ttl
         return _probe
@@ -9589,10 +9682,10 @@ def _probe_file_overlap_claim_measures_the_worker(
                 entry = {"ts": at, "session": label, "summary": "сцена приёмки: файлы",
                          "files": [mine], "verified": "", "session_pid": 31337,
                          "session_pid_start": "Wed Oct 14 00:00:00 2026"}
-                if with_mark and not mark_on_kin:
+                if _GBC_REC("_probe_file_overlap_claim_measures_the_worker:9685:19", (with_mark and not mark_on_kin)):
                     entry[field] = mark
                 rows = [entry]
-                if mark_on_kin:
+                if _GBC_REC("_probe_file_overlap_claim_measures_the_worker:9688:19", (mark_on_kin)):
                     # Родственная запись ТОГО ЖЕ ярлыка с ЖИВОЙ меткой, но БЕЗ файлов.
                     kin_row = dict(entry)
                     kin_row["files"] = []
@@ -9604,7 +9697,7 @@ def _probe_file_overlap_claim_measures_the_worker(
                 with open(log, "w", encoding="utf-8") as fh:
                     for row in rows:
                         fh.write(_json.dumps(row, ensure_ascii=False) + "\n")
-                kw = ({} if grace_hours is None else {"grace_hours": grace_hours})
+                kw = ({} if _GBC_REC("_probe_file_overlap_claim_measures_the_worker:9700:28", (grace_hours is None)) else {"grace_hours": grace_hours})
                 return guard.gather("inbox-scene", log=log, tracker_dir=tracker,
                                     sibling=sibling, self_session="probe-c867", now=now,
                                     ps=lambda _pid: (1, ""), self_anchor=(41867, ""),
@@ -9637,14 +9730,14 @@ def _probe_file_overlap_claim_measures_the_worker(
 
     def _row(report):
         rows = report.get("overlaps") or []
-        return rows[0] if len(rows) == 1 else None
+        return rows[0] if _GBC_REC("_probe_file_overlap_claim_measures_the_worker:9733:26", (len(rows) == 1)) else None
 
     def _no_claims(report):
         """Находок-ЗАХВАТОВ на сцене быть не должно: иначе предмет пробы подменён."""
         return not (report.get("claims") or [])
 
     rec = _row(alive)
-    if rec is None:
+    if _GBC_REC("_probe_file_overlap_claim_measures_the_worker:9740:7", (rec is None)):
         return NOT_SATISFIED, ("шаг 0b не выдал ровно одного пересечения по файлам на "
                                "сцене «объявлены файлы, карточка не взята» — предмет "
                                "пробы не найден")
@@ -9652,16 +9745,16 @@ def _probe_file_overlap_claim_measures_the_worker(
                          ("не измерено", unmeas), ("за бюджетом", over),
                          ("в бюджете", under), ("без метки", plain),
                          ("метка у родни", kin_only)):
-        if not _no_claims(report):
+        if _GBC_REC("_probe_file_overlap_claim_measures_the_worker:9748:11", (not _no_claims(report))):
             return NOT_SATISFIED, (
                 f"на сцене «{name}» появилась находка-ЗАХВАТ — вердикт пришёл бы от "
                 f"записи захвата (предмет ADR-721/722), а не от пересечения по файлам")
-    if alive["verdict"] != guard.CLAIMED:
+    if _GBC_REC("_probe_file_overlap_claim_measures_the_worker:9752:7", (alive["verdict"] != guard.CLAIMED)):
         return NOT_SATISFIED, (
             f"ЖИВОЙ работник не держит ОБЪЯВЛЕННЫЕ ИМ ФАЙЛЫ: вердикт "
             f"`{alive['verdict']}` вместо `{guard.CLAIMED}` — две сессии правят одни "
             f"файлы, и шаг 0b об этом не говорит")
-    if rec.get("orphaned") is not False:
+    if _GBC_REC("_probe_file_overlap_claim_measures_the_worker:9757:7", (rec.get("orphaned") is not False)):
         return NOT_SATISFIED, (
             f"пересечение живого работника помечено `orphaned`={rec.get('orphaned')!r} — "
             f"вердикт читает именно это поле, и через него «ЗАНЯТА» не доедет")
@@ -9672,29 +9765,29 @@ def _probe_file_overlap_claim_measures_the_worker(
     # закрытого перечня, а не слово в тексте» (ADR-333), и сказать это обязана та
     # сцена, которая и есть главный исход.
     axis_value = rec.get("worker_axis")
-    if axis_value not in axes:
+    if _GBC_REC("_probe_file_overlap_claim_measures_the_worker:9768:7", (axis_value not in axes)):
         return NOT_SATISFIED, (
             f"поле `worker_axis` несёт {axis_value!r} — вне вокабуляра читателя "
             f"{sorted(axes)}: ответ есть только в прозе, а разбор подстрокой запрещён")
-    if str(axis_value) in str(rec.get("worker_detail") or ""):
+    if _GBC_REC("_probe_file_overlap_claim_measures_the_worker:9772:7", (str(axis_value) in str(rec.get("worker_detail") or ""))):
         return NOT_SATISFIED, (
             "слово оси содержится в прозе того же вердикта — проба прошла бы подстрокой, "
             "то есть не проверяла бы поле (ADR-333)")
-    if gone["verdict"] != guard.STALE or (_row(gone) or {}).get("orphaned") is not True:
+    if _GBC_REC("_probe_file_overlap_claim_measures_the_worker:9776:7", (gone["verdict"] != guard.STALE or (_row(gone) or {}).get("orphaned") is not True)):
         return NOT_SATISFIED, (
             f"работника измеренно НЕТ, а пересечение не осиротевшее: вердикт "
             f"`{gone['verdict']}`, orphaned={(_row(gone) or {}).get('orphaned')!r} — "
             f"это вечный замок на чужих файлах, а не защита")
-    if unmeas["verdict"] != guard.UNCHECKED:
+    if _GBC_REC("_probe_file_overlap_claim_measures_the_worker:9781:7", (unmeas["verdict"] != guard.UNCHECKED)):
         return NOT_SATISFIED, (
             f"ось НЕ ИЗМЕРЕНА, а вердикт `{unmeas['verdict']}` вместо "
             f"`{guard.UNCHECKED}` — неизмеримость выдана за ответ (инв. #17)")
-    if over["verdict"] != guard.STALE:
+    if _GBC_REC("_probe_file_overlap_claim_measures_the_worker:9785:7", (over["verdict"] != guard.STALE)):
         return NOT_SATISFIED, (
             f"повисший работник держит чужие файлы дольше своего бюджета "
             f"({ttl / 3600.0:.2f}ч) при поднятом окне: вердикт `{over['verdict']}` — "
             f"очередь заморожена")
-    if under["verdict"] != guard.CLAIMED:
+    if _GBC_REC("_probe_file_overlap_claim_measures_the_worker:9790:7", (under["verdict"] != guard.CLAIMED)):
         return NOT_SATISFIED, (
             f"в ТОМ ЖЕ поднятом окне работник ВНУТРИ бюджета файлы не держит: вердикт "
             f"`{under['verdict']}` вместо `{guard.CLAIMED}` — «за бюджетом ⇒ stale» "
@@ -9702,33 +9795,33 @@ def _probe_file_overlap_claim_measures_the_worker(
     # Запись БЕЗ метки судится осью ЗАПУСКАТЕЛЯ: ярлык сцены объявил якорь, `ps` его не
     # нашёл ⇒ пересечение ОСИРОТЕВШЕЕ ⇒ вердикт `stale`, и это ровно поведение до правки.
     plain_row = _row(plain)
-    if plain_row is None or plain_row.get("worker_axis") != guard.W_NOT_DECLARED:
+    if _GBC_REC("_probe_file_overlap_claim_measures_the_worker:9798:7", (plain_row is None or plain_row.get("worker_axis") != guard.W_NOT_DECLARED)):
         return NOT_SATISFIED, (
             "пересечение без метки не помечено `not_declared` — «ось не мерилась» "
             "неотличима от «спросили и работника нет»")
-    if plain_row.get("orphaned") is not True or plain["verdict"] != guard.STALE:
+    if _GBC_REC("_probe_file_overlap_claim_measures_the_worker:9802:7", (plain_row.get("orphaned") is not True or plain["verdict"] != guard.STALE)):
         return NOT_SATISFIED, (
             f"запись БЕЗ метки ведёт себя иначе, чем до правки: вердикт "
             f"`{plain['verdict']}`, orphaned={plain_row.get('orphaned')!r} вместо "
             f"`{guard.STALE}`/True — правка не дополняющая")
     kin_row = _row(kin_only)
-    if kin_row is None or kin_row.get("orphaned") is not True:
+    if _GBC_REC("_probe_file_overlap_claim_measures_the_worker:9808:7", (kin_row is None or kin_row.get("orphaned") is not True)):
         return NOT_SATISFIED, (
             f"метка лежит на РОДСТВЕННОЙ записи, а пересечение прочиталось живым "
-            f"(orphaned={None if kin_row is None else kin_row.get('orphaned')!r}): "
+            f"(orphaned={None if _GBC_REC("_probe_file_overlap_claim_measures_the_worker:9811:33", (kin_row is None)) else kin_row.get('orphaned')!r}): "
             f"метка заимствуется у соседней записи, а сужения «процесс стартовал не "
             f"позже» у неё нет — переиспользованный ярлык отдаст живую метку мёртвой "
             f"сессии (fail-OPEN внутри fail-CLOSED-сторожа)")
-    if kin_row.get("worker_axis") != guard.W_NOT_DECLARED:
+    if _GBC_REC("_probe_file_overlap_claim_measures_the_worker:9815:7", (kin_row.get("worker_axis") != guard.W_NOT_DECLARED)):
         return NOT_SATISFIED, (
             f"ось пересечения при метке у родни — `{kin_row.get('worker_axis')}` вместо "
             f"`{guard.W_NOT_DECLARED}`: решение «метка берётся из ТОЙ ЖЕ записи» не "
             f"объявлено полем, и читателю нечем проверить, чью метку спросили")
-    if rec.get("worker_run_id") != mark:
+    if _GBC_REC("_probe_file_overlap_claim_measures_the_worker:9820:7", (rec.get("worker_run_id") != mark)):
         return NOT_SATISFIED, (
             f"метка из ЗАПИСИ С ФАЙЛАМИ не доехала до пересечения: `worker_run_id`="
             f"{rec.get('worker_run_id')!r} при объявленной {mark!r}")
-    if rec.get("launcher_orphaned") is not True:
+    if _GBC_REC("_probe_file_overlap_claim_measures_the_worker:9824:7", (rec.get("launcher_orphaned") is not True)):
         return NOT_SATISFIED, (
             f"вывод оси РАБОТНИКА затёр ИЗМЕРЕНИЕ оси запускателя "
             f"(`launcher_orphaned`={rec.get('launcher_orphaned')!r}) — отчёт выдал бы "
@@ -9801,10 +9894,10 @@ def _probe_card_claim_absent_worker_reaches_the_verdict(
 
     root = repo_root or REPO_ROOT
     guard_path = os.path.join(root, "scripts", "check_card_claim.py")
-    if not os.path.exists(guard_path):
+    if _GBC_REC("_probe_card_claim_absent_worker_reaches_the_verdict:9897:7", (not os.path.exists(guard_path))):
         return UNMEASURED, f"{guard_path} не найден — шаг 0b НЕ ИЗМЕРИТЬ"
     lock_path = os.path.join(root, "scripts", "orchestrator_cycle_lock.py")
-    if not os.path.exists(lock_path):
+    if _GBC_REC("_probe_card_claim_absent_worker_reaches_the_verdict:9900:7", (not os.path.exists(lock_path))):
         return UNMEASURED, f"{lock_path} не найден — бюджет работника НЕ ИЗМЕРИТЬ"
     try:
         spec = _ilu.spec_from_file_location("_probe_c868_card_claim", guard_path)
@@ -9818,8 +9911,8 @@ def _probe_card_claim_absent_worker_reaches_the_verdict(
                             f"НЕ ИЗМЕРЕНО")
     #: Вокабуляр оси — ОБХОДОМ у читателя, а не парой из головы.
     axes = {v for k, v in vars(guard).items()
-            if k.startswith("W_") and isinstance(v, str)}
-    if not axes:
+            if _GBC_REC("_probe_card_claim_absent_worker_reaches_the_verdict:9914:15", (k.startswith("W_") and isinstance(v, str)))}
+    if _GBC_REC("_probe_card_claim_absent_worker_reaches_the_verdict:9915:7", (not axes)):
         return NOT_SATISFIED, (
             "у шага 0b НЕТ вокабуляра оси РАБОТНИКА (`W_*`) — ответ «кто именно жив» не "
             "производит никто: замер до ADR-721")
@@ -9829,11 +9922,11 @@ def _probe_card_claim_absent_worker_reaches_the_verdict(
         return UNMEASURED, (f"сосед шага 0a не ввезён ({type(exc).__name__}: {exc}) — "
                             f"НЕ ИЗМЕРЕНО")
     ttl = float(getattr(lock, "DEFAULT_WORKER_TTL_SEC", 0.0) or 0.0)
-    if ttl <= 0.0:
+    if _GBC_REC("_probe_card_claim_absent_worker_reaches_the_verdict:9925:7", (ttl <= 0.0)):
         return NOT_SATISFIED, ("бюджет работника у замка не объявлен — без срока ось "
                                "РАБОТНИКА стала бы вечным замком, а не защитой")
     grace_h = float(getattr(guard, "DEFAULT_GRACE_HOURS", 0.0) or 0.0)
-    if grace_h <= 0.0:
+    if _GBC_REC("_probe_card_claim_absent_worker_reaches_the_verdict:9929:7", (grace_h <= 0.0)):
         return NOT_SATISFIED, ("окно свежести шага 0b не объявлено — сцену «внутри окна» "
                                "задать нечем, а она и есть предмет пробы")
 
@@ -9847,7 +9940,7 @@ def _probe_card_claim_absent_worker_reaches_the_verdict(
 
     def _ask(axis):
         def _probe(run_id):
-            if not str(run_id or "").strip():
+            if _GBC_REC("_probe_card_claim_absent_worker_reaches_the_verdict:9943:15", (not str(run_id or "").strip())):
                 return "not_declared", "метки нет", None
             return axis, _SCENE_WHY, ttl
         return _probe
@@ -9862,7 +9955,7 @@ def _probe_card_claim_absent_worker_reaches_the_verdict(
                 rows = ["---\n", "trackerStatus:\n", "  type: inbox\n",
                         "title: сцена приёмки\n", "status: in-progress\n",
                         f"claimed_by: {label}\n", f"claimed_at: {at}\n"]
-                if with_mark:
+                if _GBC_REC("_probe_card_claim_absent_worker_reaches_the_verdict:9958:19", (with_mark)):
                     rows.append(f"claimed_run_id: {mark}\n")
                 rows += ["---\n", "\nтело\n"]
                 with open(os.path.join(tracker, "inbox-scene.md"), "w",
@@ -9870,7 +9963,7 @@ def _probe_card_claim_absent_worker_reaches_the_verdict(
                     fh.write("".join(rows))
                 log = os.path.join(tmp, f"log_{int(age_sec)}_{int(anchored)}.jsonl")
                 with open(log, "w", encoding="utf-8") as fh:
-                    if anchored:
+                    if _GBC_REC("_probe_card_claim_absent_worker_reaches_the_verdict:9966:23", (anchored)):
                         # Личность ЗАПУСКАТЕЛЯ объявлена и ЖИВА (`ps` ниже подтвердит):
                         # эта сцена проверяет, что измеренная жизнь сильнее измеренного
                         # отсутствия соседней оси.
@@ -9885,7 +9978,7 @@ def _probe_card_claim_absent_worker_reaches_the_verdict(
                 log = _scene(age_sec, with_mark, anchored)
                 return guard.gather("inbox-scene", log=log, tracker_dir=tracker,
                                     sibling=sibling, self_session="probe-c868", now=now,
-                                    ps=(lambda _pid: (0, live_start)) if anchored
+                                    ps=(lambda _pid: (0, live_start)) if _GBC_REC("_probe_card_claim_absent_worker_reaches_the_verdict:9981:73", (anchored))
                                     else (lambda _pid: (1, "")),
                                     self_anchor=(41868, ""), shared_trees=(),
                                     worker=_ask(axis))
@@ -9904,63 +9997,63 @@ def _probe_card_claim_absent_worker_reaches_the_verdict(
 
     def _front(report):
         rows = [c for c in report.get("claims") or []
-                if c.get("source") == "frontmatter"]
-        return rows[0] if len(rows) == 1 else None
+                if _GBC_REC("_probe_card_claim_absent_worker_reaches_the_verdict:10000:19", (c.get("source") == "frontmatter"))]
+        return rows[0] if _GBC_REC("_probe_card_claim_absent_worker_reaches_the_verdict:10001:26", (len(rows) == 1)) else None
 
     rec = _front(gone)
-    if rec is None:
+    if _GBC_REC("_probe_card_claim_absent_worker_reaches_the_verdict:10004:7", (rec is None)):
         return NOT_SATISFIED, ("шаг 0b не выдал ровно одной находки по frontmatter на "
                                "сцене «работника измеренно нет» — предмет пробы не найден")
-    if gone["verdict"] != guard.STALE:
+    if _GBC_REC("_probe_card_claim_absent_worker_reaches_the_verdict:10007:7", (gone["verdict"] != guard.STALE)):
         return NOT_SATISFIED, (
             f"работника ИЗМЕРЕННО НЕТ, а карточка внутри окна не отдаётся: вердикт "
             f"`{gone['verdict']}` вместо `{guard.STALE}` — снятый замер не доезжает до "
             f"вердикта, и мёртвый держатель держит приказ владельца все {grace_h}ч "
             f"(живой замер 14.10 19:45Z на `cycle-79433`)")
-    if gone["verdict"] == guard.FREE:
+    if _GBC_REC("_probe_card_claim_absent_worker_reaches_the_verdict:10013:7", (gone["verdict"] == guard.FREE)):
         return NOT_SATISFIED, (
             "сцена «работника нет» отдала `free` — это АВТО-захват, а не находка: подъём "
             "обязан требовать письменной причины (`claim --takeover`)")
-    if alive["verdict"] != guard.CLAIMED:
+    if _GBC_REC("_probe_card_claim_absent_worker_reaches_the_verdict:10017:7", (alive["verdict"] != guard.CLAIMED)):
         return NOT_SATISFIED, (
             f"ЖИВОЙ работник не держит карточку: вердикт `{alive['verdict']}` вместо "
             f"`{guard.CLAIMED}` — живая работа отдаётся второй сессии (замер 14.10)")
-    if unmeas["verdict"] != guard.UNCHECKED:
+    if _GBC_REC("_probe_card_claim_absent_worker_reaches_the_verdict:10021:7", (unmeas["verdict"] != guard.UNCHECKED)):
         return NOT_SATISFIED, (
             f"ось НЕ ИЗМЕРЕНА, а вердикт `{unmeas['verdict']}` вместо "
             f"`{guard.UNCHECKED}` — неизмеримость выдана за ответ (инв. #17)")
-    if plain["verdict"] != guard.CLAIMED:
+    if _GBC_REC("_probe_card_claim_absent_worker_reaches_the_verdict:10025:7", (plain["verdict"] != guard.CLAIMED)):
         return NOT_SATISFIED, (
             f"захват БЕЗ метки работника внутри окна ведёт себя иначе, чем до правки: "
             f"вердикт `{plain['verdict']}` вместо `{guard.CLAIMED}` — правка не "
             f"дополняющая, а меняет поведение 138 из 192 захватов живого трекера")
-    if gone_live_launcher["verdict"] != guard.CLAIMED:
+    if _GBC_REC("_probe_card_claim_absent_worker_reaches_the_verdict:10030:7", (gone_live_launcher["verdict"] != guard.CLAIMED)):
         return NOT_SATISFIED, (
             f"ось ЗАПУСКАТЕЛЯ измерила ЖИЗНЬ, а карточка отдана: вердикт "
             f"`{gone_live_launcher['verdict']}` вместо `{guard.CLAIMED}` — измеренная "
             f"жизнь обязана быть сильнее измеренного отсутствия соседней оси")
     axis_value = rec.get("worker_axis")
-    if axis_value not in axes:
+    if _GBC_REC("_probe_card_claim_absent_worker_reaches_the_verdict:10036:7", (axis_value not in axes)):
         return NOT_SATISFIED, (
             f"поле `worker_axis` несёт {axis_value!r} — вне вокабуляра читателя "
             f"{sorted(axes)}: ответ есть только в прозе, а разбор подстрокой запрещён")
-    if axis_value != guard.W_GONE:
+    if _GBC_REC("_probe_card_claim_absent_worker_reaches_the_verdict:10040:7", (axis_value != guard.W_GONE)):
         return NOT_SATISFIED, (
             f"находка сцены «работника нет» помечена осью {axis_value!r}, а не "
             f"{guard.W_GONE!r} — вердикт пришёл не от того измерения")
-    if str(axis_value) in str(rec.get("worker_detail") or ""):
+    if _GBC_REC("_probe_card_claim_absent_worker_reaches_the_verdict:10044:7", (str(axis_value) in str(rec.get("worker_detail") or ""))):
         return NOT_SATISFIED, (
             "слово оси содержится в прозе того же вердикта — проба прошла бы подстрокой, "
             "то есть не проверяла бы поле (ADR-333)")
-    if rec.get("worker_run_id") != mark:
+    if _GBC_REC("_probe_card_claim_absent_worker_reaches_the_verdict:10048:7", (rec.get("worker_run_id") != mark)):
         return NOT_SATISFIED, (
             f"метка держателя не доехала до находки: `worker_run_id`="
             f"{rec.get('worker_run_id')!r} при объявленной {mark!r}")
-    if rec.get("fresh") is not True:
+    if _GBC_REC("_probe_card_claim_absent_worker_reaches_the_verdict:10052:7", (rec.get("fresh") is not True)):
         return NOT_SATISFIED, (
             f"сцена оказалась СНАРУЖИ окна свежести (`fresh`={rec.get('fresh')!r}) — "
             f"тогда проба отвечает на вопрос, уже закрытый ADR-721, а не на свой")
-    if rec.get("orphaned") is not False:
+    if _GBC_REC("_probe_card_claim_absent_worker_reaches_the_verdict:10056:7", (rec.get("orphaned") is not False)):
         return NOT_SATISFIED, (
             f"ось ЗАПУСКАТЕЛЯ на сцене измерила смерть (`orphaned`="
             f"{rec.get('orphaned')!r}) — вердикт `stale` пришёл бы от неё, и предмет "
@@ -10035,7 +10128,7 @@ def _probe_card_claim_carries_the_launcher_anchor(
 
     root = repo_root or REPO_ROOT
     guard_path = os.path.join(root, "scripts", "check_card_claim.py")
-    if not os.path.exists(guard_path):
+    if _GBC_REC("_probe_card_claim_carries_the_launcher_anchor:10131:7", (not os.path.exists(guard_path))):
         return UNMEASURED, f"{guard_path} не найден — шаг 0b НЕ ИЗМЕРИТЬ"
     try:
         spec = _ilu.spec_from_file_location("_probe_c869_card_claim", guard_path)
@@ -10050,16 +10143,16 @@ def _probe_card_claim_carries_the_launcher_anchor(
                             f"НЕ ИЗМЕРЕНО")
     #: Вокабуляр якоря — у ЧИТАТЕЛЯ (`DURABLE_KEYS`), а не парой из головы.
     durable_keys = tuple(getattr(sibling, "DURABLE_KEYS", ()) or ())
-    if len(durable_keys) != 2:
+    if _GBC_REC("_probe_card_claim_carries_the_launcher_anchor:10146:7", (len(durable_keys) != 2)):
         return NOT_SATISFIED, (
             f"у шага 0a НЕТ вокабуляра якоря (`DURABLE_KEYS` = {durable_keys!r}) — "
             f"«кто запускатель» не производит никто, и сцену задать нечем")
     grace_h = float(getattr(guard, "DEFAULT_GRACE_HOURS", 0.0) or 0.0)
-    if grace_h <= 0.0:
+    if _GBC_REC("_probe_card_claim_carries_the_launcher_anchor:10151:7", (grace_h <= 0.0)):
         return NOT_SATISFIED, ("окно свежести шага 0b не объявлено — сцену «внутри окна» "
                                "задать нечем, а она и есть предмет пробы")
     for attr in ("claim_card", "gather", "frontmatter", "STALE", "CLAIMED", "FREE"):
-        if not hasattr(guard, attr):
+        if _GBC_REC("_probe_card_claim_carries_the_launcher_anchor:10155:11", (not hasattr(guard, attr))):
             return UNMEASURED, f"у шага 0b нет {attr!r} — проводку НЕ ИЗМЕРИТЬ"
 
     now = _dt.now(_tz.utc).replace(microsecond=0)
@@ -10101,14 +10194,14 @@ def _probe_card_claim_carries_the_launcher_anchor(
             fresh = {k: str(after_meta.get(k) or "") for k in set(after_meta) - before}
             #: Адрес якоря ИЗМЕРЕН: поле, чьё значение несёт измеренный pid, и поле,
             #: несущее его verbatim-старт. Литерала имени у пробы нет.
-            pid_field = next((k for k, v in fresh.items() if v.strip() == str(ALIVE_PID)), None)
-            start_field = next((k for k, v in fresh.items() if v.strip() == START), None)
-            if pid_field is None or start_field is None:
+            pid_field = next((k for k, v in fresh.items() if _GBC_REC("_probe_card_claim_carries_the_launcher_anchor:10197:61", (v.strip() == str(ALIVE_PID)))), None)
+            start_field = next((k for k, v in fresh.items() if _GBC_REC("_probe_card_claim_carries_the_launcher_anchor:10198:63", (v.strip() == START))), None)
+            if _GBC_REC("_probe_card_claim_carries_the_launcher_anchor:10199:15", (pid_field is None or start_field is None)):
                 return NOT_SATISFIED, (
                     f"писатель захвата ИЗМЕРИЛ якорь запускателя (pid{ALIVE_PID}, старт "
                     f"{START!r}) — и ВЫБРОСИЛ его: во frontmatter появились только "
-                    f"{sorted(fresh)}, поля с pid{'' if pid_field else ' НЕТ'}"
-                    f"{'' if start_field else ', поля со стартом НЕТ'}. Читателю остаётся "
+                    f"{sorted(fresh)}, поля с pid{'' if _GBC_REC("_probe_card_claim_carries_the_launcher_anchor:10203:61", (pid_field)) else ' НЕТ'}"
+                    f"{'' if _GBC_REC("_probe_card_claim_carries_the_launcher_anchor:10204:29", (start_field)) else ', поля со стартом НЕТ'}. Читателю остаётся "
                     f"заём из журнала, а журнал на origin не уезжает — замер 14.10: якорь "
                     f"не доезжает до 48 из 192 захватов (25.0 %), на открытых карточках — "
                     f"6 из 15")
@@ -10145,25 +10238,25 @@ def _probe_card_claim_carries_the_launcher_anchor(
         return UNMEASURED, (f"сцена захвата не собралась ({type(exc).__name__}: {exc}) — "
                             f"НЕ ИЗМЕРЕНО")
 
-    if gone["verdict"] != guard.STALE:
+    if _GBC_REC("_probe_card_claim_carries_the_launcher_anchor:10241:7", (gone["verdict"] != guard.STALE)):
         return NOT_SATISFIED, (
             f"запускатель ИЗМЕРЕННО МЁРТВ, а его якорь объявлен В КАРТОЧКЕ — и вердикт "
             f"всё равно `{gone['verdict']}` вместо `{guard.STALE}`: из карточки ось "
             f"запускателя не измеряется, карточка заперта все {grace_h}ч (цена #868)")
-    if gone["verdict"] == guard.FREE:
+    if _GBC_REC("_probe_card_claim_carries_the_launcher_anchor:10246:7", (gone["verdict"] == guard.FREE)):
         return NOT_SATISFIED, ("измеренная смерть запускателя отдала карточку как "
                                "`free` — это новая дверь к авто-захвату, а не подъём")
-    if live["verdict"] != guard.CLAIMED:
+    if _GBC_REC("_probe_card_claim_carries_the_launcher_anchor:10249:7", (live["verdict"] != guard.CLAIMED)):
         return NOT_SATISFIED, (
             f"запускатель ЖИВ (якорь в карточке, старт сошёлся), а карточка отдаётся: "
             f"вердикт `{live['verdict']}` вместо `{guard.CLAIMED}` — измеренная жизнь "
             f"обязана быть сильнее")
-    if bare["verdict"] != guard.CLAIMED:
+    if _GBC_REC("_probe_card_claim_carries_the_launcher_anchor:10254:7", (bare["verdict"] != guard.CLAIMED)):
         return NOT_SATISFIED, (
             f"захват БЕЗ якоря в карточке изменил вердикт: `{bare['verdict']}` вместо "
             f"`{guard.CLAIMED}` — правка обязана быть дополняющей, а это 190+ "
             f"существующих захватов живого трекера")
-    if reused["verdict"] != guard.STALE:
+    if _GBC_REC("_probe_card_claim_carries_the_launcher_anchor:10259:7", (reused["verdict"] != guard.STALE)):
         return NOT_SATISFIED, (
             f"pid запускателя ПЕРЕИСПОЛЬЗОВАН (старт {LATER!r} позже захвата), а вердикт "
             f"`{reused['verdict']}` вместо `{guard.STALE}` — защита выдана чужому живому "
@@ -10288,13 +10381,13 @@ def _probe_mutation_window_restore_refuses_a_live_owner(
 
     root = repo_root or REPO_ROOT
     tool = os.path.join(root, "scripts", "delta_mutation_run.py")
-    if not os.path.exists(tool):
+    if _GBC_REC("_probe_mutation_window_restore_refuses_a_live_owner:10384:7", (not os.path.exists(tool))):
         return NOT_SATISFIED, (
             "прибора мутационного замера нет в дереве (scripts/delta_mutation_run.py) — "
             "спрашивать «отказывает ли возврат при живом владельце окна» не у чего")
 
     _rc_alive = _door_rc_for_live_owner(tool)
-    if _rc_alive is None:
+    if _GBC_REC("_probe_mutation_window_restore_refuses_a_live_owner:10390:7", (_rc_alive is None)):
         return UNMEASURED, (
             "дверь не объявляет `RC_WINDOW_OWNER_ALIVE` в коде — каким числом она "
             "называет «владелец окна ЖИВ», НЕ ИЗМЕРЕНО, и подставить своё число значило "
@@ -10347,9 +10440,9 @@ def _probe_mutation_window_restore_refuses_a_live_owner(
             # байты не изменились бы ни при верном поведении, ни при неверном.
             deadline = _t.time() + 300.0
             while _t.time() < deadline:
-                if os.path.exists(record) and _digest(target) != pristine_digest:
+                if _GBC_REC("_probe_mutation_window_restore_refuses_a_live_owner:10443:19", (os.path.exists(record) and _digest(target) != pristine_digest)):
                     break
-                if proc.poll() is not None:
+                if _GBC_REC("_probe_mutation_window_restore_refuses_a_live_owner:10445:19", (proc.poll() is not None)):
                     return UNMEASURED, (
                         f"прибор завершился (код {proc.returncode}) ДО того, как мутант "
                         f"лёг в дерево — сцена НЕ ПОДНЯТА, судить об отказе нечем")
@@ -10374,7 +10467,7 @@ def _probe_mutation_window_restore_refuses_a_live_owner(
         return UNMEASURED, (f"сцену прибора не поднять ({type(exc).__name__}: {exc}) — "
                             f"НЕ ИЗМЕРЕНО")
     finally:
-        if proc is not None and proc.poll() is None:
+        if _GBC_REC("_probe_mutation_window_restore_refuses_a_live_owner:10470:11", (proc is not None and proc.poll() is None)):
             proc.kill()
 
     # ── Классификация кода ЖИВОЙ сцены по словарю ДВЕРИ (ADR-871, находка 4 переписи
@@ -10384,57 +10477,57 @@ def _probe_mutation_window_restore_refuses_a_live_owner(
     # неизмерима, проба объявила бы ДОКАЗАННЫМ ровно то, чего никто не измерил, хотя её
     # собственная печать обещает «две сцены дали ПРОТИВОПОЛОЖНЫЕ ответы». Отказ двери
     # при этом верен в оба исхода (инв. #2); неверна была КЛАССИФИКАЦИЯ (инв. #17).
-    if rc_live == 0:
+    if _GBC_REC("_probe_mutation_window_restore_refuses_a_live_owner:10480:7", (rc_live == 0)):
         return NOT_SATISFIED, (
             "возврат байтов из-под РАБОТАЮЩЕГО прибора прошёл успешно (код 0) — ровно "
             f"авария цикла #906: {out_live.strip()[-200:]}")
-    if rc_live == 2:
+    if _GBC_REC("_probe_mutation_window_restore_refuses_a_live_owner:10484:7", (rc_live == 2)):
         return UNMEASURED, (
             "прибор ОТКАЗАЛ возвратом, но своим кодом «НЕ ИЗМЕРЕНО» (2): живость "
             "владельца окна он не измерил, значит про отказ при ЖИВОМ владельце сцена "
             f"не доказывает ничего — {_door_named_reason(out_live)}")
-    if rc_live == 3:
+    if _GBC_REC("_probe_mutation_window_restore_refuses_a_live_owner:10489:7", (rc_live == 3)):
         return UNMEASURED, (
             "прибор ответил «ЧАСТИЧНО НЕ ИЗМЕРЕНО» (3) — вердикт о владельце окна "
             f"неполон, судить об отказе при ЖИВОМ владельце нечем: "
             f"{_door_named_reason(out_live)}")
-    if rc_live == 1:
+    if _GBC_REC("_probe_mutation_window_restore_refuses_a_live_owner:10494:7", (rc_live == 1)):
         return UNMEASURED, (
             "прибор ответил кодом НАХОДКИ О ДЕРЕВЕ (1), а спрошен был о ВЛАДЕЛЬЦЕ окна — "
             f"ответ не на тот вопрос есть «не измерено», а не отказ: {out_live.strip()[-200:]}")
-    if rc_live != _rc_alive:
+    if _GBC_REC("_probe_mutation_window_restore_refuses_a_live_owner:10498:7", (rc_live != _rc_alive)):
         return UNMEASURED, (
             f"прибор ответил кодом {rc_live}, которого нет в его словаре "
             f"(RC_WINDOW_OWNER_ALIVE = {_rc_alive}, RC_UNMEASURED = 2, "
             f"RC_PARTIALLY_UNMEASURED = 3, RC_WINDOW_FINDING = 1, RC_WINDOW_CLEAN = 0) — "
             f"ни отказа, ни наблюдения: {_door_named_reason(out_live)}")
-    if after_live != during:
+    if _GBC_REC("_probe_mutation_window_restore_refuses_a_live_owner:10504:7", (after_live != during)):
         return NOT_SATISFIED, (
             "байты файла изменились, пока прибор РАБОТАЛ: возврат отнял у прогона "
             "мутанта, и остальные его вердикты недостоверны "
             f"({during[:12]} → {after_live[:12]})")
-    if not record_kept:
+    if _GBC_REC("_probe_mutation_window_restore_refuses_a_live_owner:10509:7", (not record_kept)):
         return NOT_SATISFIED, (
             "отказ снял запись окна — вернуть мутанта работающего прибора стало нечем; "
             "отказ, уносящий слепок, хуже отсутствия отказа")
-    if "--allow-live-owner" not in out_live:
+    if _GBC_REC("_probe_mutation_window_restore_refuses_a_live_owner:10513:7", ("--allow-live-owner" not in out_live)):
         return NOT_SATISFIED, (
             "отказ не называет осознанного обхода — сторож без пути наверх учит себя "
             f"обходить руками: {out_live.strip()[-200:]}")
-    if rc_dead != 0:
+    if _GBC_REC("_probe_mutation_window_restore_refuses_a_live_owner:10517:7", (rc_dead != 0)):
         return NOT_SATISFIED, (
             f"владелец окна УБИТ, а возврат всё равно отказал (код {rc_dead}) — путь "
             f"наверх для дерева, доставшегося в наследство, закрыт: "
             f"{out_dead.strip()[-200:]}")
-    if rc_dead == rc_live:
+    if _GBC_REC("_probe_mutation_window_restore_refuses_a_live_owner:10522:7", (rc_dead == rc_live)):
         return NOT_SATISFIED, (
             f"живой и мёртвый владелец дают ОДИН код {rc_live} — различия, ради которого "
             f"проба написана, нет")
-    if final != pristine_digest:
+    if _GBC_REC("_probe_mutation_window_restore_refuses_a_live_owner:10526:7", (final != pristine_digest)):
         return NOT_SATISFIED, (
             f"после возврата при мёртвом владельце байты НЕ исходные "
             f"({final[:12]} ≠ {pristine_digest[:12]}) — мутант остался в дереве")
-    if not record_gone:
+    if _GBC_REC("_probe_mutation_window_restore_refuses_a_live_owner:10530:7", (not record_gone)):
         return NOT_SATISFIED, (
             "возврат при мёртвом владельце не снял запись окна — дерево навсегда "
             "останется «под окном», и пушер не отдаст из него ни одного файла")
@@ -10490,7 +10583,7 @@ def _probe_delta_mutation_instrument_is_re_measurable(
 
     root = repo_root or REPO_ROOT
     tool = os.path.join(root, "scripts", "delta_mutation_run.py")
-    if not os.path.exists(tool):
+    if _GBC_REC("_probe_delta_mutation_instrument_is_re_measurable:10586:7", (not os.path.exists(tool))):
         return NOT_SATISFIED, (
             "прибора мутационного замера по дельте нет в дереве "
             "(scripts/delta_mutation_run.py) — «убито N» из ADR не перемерит никто: "
@@ -10520,7 +10613,7 @@ def _probe_delta_mutation_instrument_is_re_measurable(
         proc = _sp.run([sys.executable, tool, "--spec", spec, "--repo-root", tree,
                         "--json"], capture_output=True, text=True, timeout=600)
         after = _hl.sha256(open(mod, "rb").read()).hexdigest()
-        if before != after:
+        if _GBC_REC("_probe_delta_mutation_instrument_is_re_measurable:10616:11", (before != after)):
             raise AssertionError(f"сцена {name}: дерево НЕ восстановлено после прогона")
         try:
             verdict = _json.loads(proc.stdout)
@@ -10545,28 +10638,28 @@ def _probe_delta_mutation_instrument_is_re_measurable(
         return UNMEASURED, (f"сцену прибора не поднять ({type(exc).__name__}: {exc}) — "
                             f"НЕ ИЗМЕРЕНО")
 
-    if not seen or not blind or not none_doc:
+    if _GBC_REC("_probe_delta_mutation_instrument_is_re_measurable:10641:7", (not seen or not blind or not none_doc)):
         return UNMEASURED, ("прибор не отдал машинного вердикта — измерять нечем "
                             f"(видимая: {out_seen.strip()[-200:]!r})")
-    if rc_seen != 0:
+    if _GBC_REC("_probe_delta_mutation_instrument_is_re_measurable:10644:7", (rc_seen != 0)):
         return NOT_SATISFIED, (
             f"мутация, которую батарея ВИДИТ, не объявлена измеренной и чистой "
             f"(код {rc_seen}): {out_seen.strip()[-200:]}")
-    if rc_blind == rc_seen:
+    if _GBC_REC("_probe_delta_mutation_instrument_is_re_measurable:10648:7", (rc_blind == rc_seen)):
         return NOT_SATISFIED, (
             f"выжившая мутация даёт ТОТ ЖЕ код {rc_blind}, что убитая — находка цикла "
             f"неотличима от чистого замера")
-    if rc_none == 0:
+    if _GBC_REC("_probe_delta_mutation_instrument_is_re_measurable:10652:7", (rc_none == 0)):
         return NOT_SATISFIED, (
             "мутация, НЕ НАШЕДШАЯ якоря, даёт код 0 — «не измерено» выдаётся за "
             "«убито» (инв. #17); ровно этот дефект был у всех 25 одноразовых приборов")
     counts = none_doc.get("counts") or {}
-    if not isinstance(counts, dict) or sum(
-            v for v in counts.values() if isinstance(v, int)) != 1:
+    if _GBC_REC("_probe_delta_mutation_instrument_is_re_measurable:10657:7", (not isinstance(counts, dict) or sum(
+            v for v in counts.values() if isinstance(v, int)) != 1))utation_instrument_is_re_measurable:10658:42", (isinstance(v, int)))) != 1:
         return NOT_SATISFIED, (
             f"перечень исходов не ЗАКРЫТ: при населении 1 сумма исходов {counts!r} — "
             f"мутация исчезла из вердикта либо посчитана дважды")
-    if none_doc.get("applied") != 0:
+    if _GBC_REC("_probe_delta_mutation_instrument_is_re_measurable:10662:7", (none_doc.get("applied") != 0)):
         return NOT_SATISFIED, (
             f"не применённая мутация вошла в знаменатель «применено» "
             f"({none_doc.get('applied')!r}) — «убито 1 из 1» врёт о том, что измерено")
@@ -10623,7 +10716,7 @@ def _probe_card_claim_anchored_reports_the_write(
 
     root = repo_root or REPO_ROOT
     guard_path = os.path.join(root, "scripts", "check_card_claim.py")
-    if not os.path.exists(guard_path):
+    if _GBC_REC("_probe_card_claim_anchored_reports_the_write:10719:7", (not os.path.exists(guard_path))):
         return UNMEASURED, f"{guard_path} не найден — шаг 0b НЕ ИЗМЕРИТЬ"
     try:
         spec = _ilu.spec_from_file_location("_probe_c872_card_claim", guard_path)
@@ -10637,12 +10730,12 @@ def _probe_card_claim_anchored_reports_the_write(
         return UNMEASURED, (f"сосед шага 0a не ввезён ({type(exc).__name__}: {exc}) — "
                             f"НЕ ИЗМЕРЕНО")
     for attr in ("claim_card", "frontmatter", "CLAIM_ANCHOR_KEYS"):
-        if not hasattr(guard, attr):
+        if _GBC_REC("_probe_card_claim_anchored_reports_the_write:10733:11", (not hasattr(guard, attr))):
             return UNMEASURED, f"у шага 0b нет {attr!r} — проводку НЕ ИЗМЕРИТЬ"
     #: Вокабуляр ВТОРОЙ формы якоря берётся у соседа, а не парой из головы: сцена
     #: «вход вне контракта» обязана быть той самой формой, что живёт рядом в коде.
     durable_keys = tuple(getattr(sibling, "DURABLE_KEYS", ()) or ())
-    if len(durable_keys) != len(tuple(guard.CLAIM_ANCHOR_KEYS or ())) or not durable_keys:
+    if _GBC_REC("_probe_card_claim_anchored_reports_the_write:10738:7", (len(durable_keys) != len(tuple(guard.CLAIM_ANCHOR_KEYS or ())) or not durable_keys)):
         return UNMEASURED, (f"вокабуляры якоря разошлись (`DURABLE_KEYS`={durable_keys!r} "
                             f"против {tuple(guard.CLAIM_ANCHOR_KEYS or ())!r}) — сцену "
                             f"«вход вне контракта» задать нечем, НЕ ИЗМЕРЕНО")
@@ -10681,17 +10774,17 @@ def _probe_card_claim_anchored_reports_the_write(
 
             # ── (1) ГРАНИЦА и АДРЕС: правильная пара, поля ИЗМЕРЯЮТСЯ у писателя ──
             ok_res, ok_err, ok_fresh = _scene("pair", (PID, START))
-            if ok_err is not None or not isinstance(ok_res, dict):
+            if _GBC_REC("_probe_card_claim_anchored_reports_the_write:10777:15", (ok_err is not None or not isinstance(ok_res, dict))):
                 return UNMEASURED, (f"писатель захвата не отработал на ПРАВИЛЬНОЙ паре "
                                     f"({type(ok_err).__name__}: {ok_err}) — НЕ ИЗМЕРЕНО")
-            pid_field = next((k for k, v in ok_fresh.items() if v.strip() == str(PID)), None)
-            start_field = next((k for k, v in ok_fresh.items() if v.strip() == START), None)
-            if pid_field is None or start_field is None:
+            pid_field = next((k for k, v in ok_fresh.items() if _GBC_REC("_probe_card_claim_anchored_reports_the_write:10780:64", (v.strip() == str(PID)))), None)
+            start_field = next((k for k, v in ok_fresh.items() if _GBC_REC("_probe_card_claim_anchored_reports_the_write:10781:66", (v.strip() == START))), None)
+            if _GBC_REC("_probe_card_claim_anchored_reports_the_write:10782:15", (pid_field is None or start_field is None)):
                 return NOT_SATISFIED, (
                     f"писатель не кладёт измеренную пару в карточку вовсе (появились "
                     f"{sorted(ok_fresh)}) — предмет ADR-725 не выполнен, судить о честности "
                     f"отчёта не о чем")
-            if ok_res.get("anchored") is not True:
+            if _GBC_REC("_probe_card_claim_anchored_reports_the_write:10787:15", (ok_res.get("anchored") is not True)):
                 return NOT_SATISFIED, (
                     f"пара ИЗМЕРЕНА и ЗАПИСАНА (`{pid_field}`/`{start_field}`), а ответ "
                     f"говорит `anchored: {ok_res.get('anchored')!r}` — правка обязана быть "
@@ -10702,7 +10795,7 @@ def _probe_card_claim_anchored_reports_the_write(
                 "dict", {durable_keys[0]: PID, durable_keys[1]: START})
             wrote = bool(str(bad_fresh.get(pid_field) or "").strip()
                          and str(bad_fresh.get(start_field) or "").strip())
-            if bad_err is None and not wrote:
+            if _GBC_REC("_probe_card_claim_anchored_reports_the_write:10798:15", (bad_err is None and not wrote)):
                 return NOT_SATISFIED, (
                     f"вход вне контракта ({dict.__name__} в вокабуляре "
                     f"{list(durable_keys)} — ВТОРАЯ форма якоря из того же файла) принят "
@@ -10713,14 +10806,14 @@ def _probe_card_claim_anchored_reports_the_write(
 
             # ── (3) ПАРА НЕ ЦЕЛИКОМ: третий исход вместо тихого успеха (инв. #17) ──
             half_res, half_err, half_fresh = _scene("half", (PID, ""))
-            if half_err is None:
-                if any(str(half_fresh.get(k) or "").strip()
-                       for k in (pid_field, start_field)):
+            if _GBC_REC("_probe_card_claim_anchored_reports_the_write:10809:15", (half_err is None)):
+                if _GBC_REC("_probe_card_claim_anchored_reports_the_write:10810:19", (any(str(half_fresh.get(k) or "").strip()
+                       for k in (pid_field, start_field)))):
                     return NOT_SATISFIED, (
                         f"половина пары УЕХАЛА в карточку ({ {k: half_fresh.get(k) for k in (pid_field, start_field)} }) "
                         f"— `{pid_field}` без старта личностью не является, pid "
                         f"переиспользуется ОС")
-                if (half_res or {}).get("anchored") is not False:
+                if _GBC_REC("_probe_card_claim_anchored_reports_the_write:10816:19", ((half_res or {}).get("anchored") is not False)):
                     return NOT_SATISFIED, (
                         f"пара измерена НЕ ЦЕЛИКОМ, в карточку не записана — а ответ всё "
                         f"равно говорит `anchored: {(half_res or {}).get('anchored')!r}`. "
@@ -10734,9 +10827,9 @@ def _probe_card_claim_anchored_reports_the_write(
         f"`anchored` меряет ЗАПИСЬ: адрес пары измерен у писателя "
         f"(`{pid_field}`/`{start_field}`, литерала у пробы нет) · правильная пара ⇒ "
         f"запись + `anchored: True` · вход вне контракта (словарь {list(durable_keys)}) ⇒ "
-        f"{'ОТКАЗ ' + type(bad_err).__name__ if bad_err is not None else 'якорь всё равно записан'} "
+        f"{'ОТКАЗ ' + type(bad_err).__name__ if _GBC_REC("_probe_card_claim_anchored_reports_the_write:10830:53", (bad_err is not None)) else 'якорь всё равно записан'} "
         f"· пара не целиком ⇒ "
-        f"{'ОТКАЗ ' + type(half_err).__name__ if half_err is not None else 'ни одной строки якоря и `anchored: False`'}")
+        f"{'ОТКАЗ ' + type(half_err).__name__ if _GBC_REC("_probe_card_claim_anchored_reports_the_write:10832:54", (half_err is not None)) else 'ни одной строки якоря и `anchored: False`'}")
 
 
 def _probe_card_claim_anchor_contract_guards_every_reader(
@@ -10786,7 +10879,7 @@ def _probe_card_claim_anchor_contract_guards_every_reader(
 
     root = repo_root or REPO_ROOT
     guard_path = os.path.join(root, "scripts", "check_card_claim.py")
-    if not os.path.exists(guard_path):
+    if _GBC_REC("_probe_card_claim_anchor_contract_guards_every_reader:10882:7", (not os.path.exists(guard_path))):
         return UNMEASURED, f"{guard_path} не найден — шаг 0b НЕ ИЗМЕРИТЬ"
     try:
         spec = _ilu.spec_from_file_location("_probe_c873_card_claim", guard_path)
@@ -10800,12 +10893,12 @@ def _probe_card_claim_anchor_contract_guards_every_reader(
         return UNMEASURED, (f"сосед шага 0a не ввезён ({type(exc).__name__}: {exc}) — "
                             f"НЕ ИЗМЕРЕНО")
     for attr in ("gather", "release_card", "CLAIM_ANCHOR_KEYS"):
-        if not hasattr(guard, attr):
+        if _GBC_REC("_probe_card_claim_anchor_contract_guards_every_reader:10896:11", (not hasattr(guard, attr))):
             return UNMEASURED, f"у шага 0b нет {attr!r} — проводку НЕ ИЗМЕРИТЬ"
     #: Вокабуляр ВТОРОЙ формы якоря берётся у соседа, а не парой из головы: сцена «вход
     #: вне контракта» обязана быть той самой формой, что живёт рядом в коде.
     durable_keys = tuple(getattr(sibling, "DURABLE_KEYS", ()) or ())
-    if len(durable_keys) != len(tuple(guard.CLAIM_ANCHOR_KEYS or ())) or not durable_keys:
+    if _GBC_REC("_probe_card_claim_anchor_contract_guards_every_reader:10901:7", (len(durable_keys) != len(tuple(guard.CLAIM_ANCHOR_KEYS or ())) or not durable_keys)):
         return UNMEASURED, (f"вокабуляры якоря разошлись (`DURABLE_KEYS`={durable_keys!r} "
                             f"против {tuple(guard.CLAIM_ANCHOR_KEYS or ())!r}) — сцену "
                             f"«вход вне контракта» задать нечем, НЕ ИЗМЕРЕНО")
@@ -10896,7 +10989,7 @@ def _probe_card_claim_anchor_contract_guards_every_reader(
             # этой ветки такой случай ушёл бы в `not_satisfied` — то есть «не
             # измерено» было бы выдано за измеренный дефект (инв. #17).
             pair_verdict, pair_selves = _read("read_pair", PAIR)
-            if pair_selves is None or HOLDER not in pair_selves:
+            if _GBC_REC("_probe_card_claim_anchor_contract_guards_every_reader:10992:15", (pair_selves is None or HOLDER not in pair_selves)):
                 return UNMEASURED, (
                     f"сцена не способна двигать вердикт: с ПРАВИЛЬНОЙ парой "
                     f"`self_sessions`={pair_selves!r} не содержит ярлык захвата "
@@ -10921,7 +11014,7 @@ def _probe_card_claim_anchor_contract_guards_every_reader(
             # не приведённый, обязан дать ТОТ ЖЕ исход». Одна поломка трогает оба, но
             # поломки бывают и по отдельности.
             dict_verdict, dict_selves = _read("read_dict", DICT)
-            if dict_verdict == none_verdict and dict_selves == none_selves:
+            if _GBC_REC("_probe_card_claim_anchor_contract_guards_every_reader:11017:15", (dict_verdict == none_verdict and dict_selves == none_selves)):
                 return NOT_SATISFIED, (
                     f"`gather`: вход вне контракта ({dict.__name__} в вокабуляре "
                     f"{list(durable_keys)} — ВТОРАЯ форма якоря из того же файла) принят "
@@ -10941,7 +11034,7 @@ def _probe_card_claim_anchor_contract_guards_every_reader(
             # прежней. Замер #873 на УЖЕ ИСПРАВЛЕННЫХ дверях: `[pid, старт]` ⇒ `stale`
             # при `(pid, старт)` ⇒ `free`.
             list_verdict, list_selves = _read("read_list", list(PAIR))
-            if (list_verdict, list_selves) != (pair_verdict, pair_selves):
+            if _GBC_REC("_probe_card_claim_anchor_contract_guards_every_reader:11037:15", ((list_verdict, list_selves) != (pair_verdict, pair_selves))):
                 return NOT_SATISFIED, (
                     f"`gather`: СПИСОК контрактной длины сторож пропускает, но пáрой не "
                     f"делает — исход расходится с туплом: список ⇒ {list_verdict!r} при "
@@ -10953,14 +11046,14 @@ def _probe_card_claim_anchor_contract_guards_every_reader(
 
             # ── (3) ПИШУЩАЯ ДВЕРЬ `release_card` — тот же вход, свой исход ──
             pair_release = _free("free_pair", PAIR)
-            if not pair_release.startswith("ОТПУЩЕНА"):
+            if _GBC_REC("_probe_card_claim_anchor_contract_guards_every_reader:11049:15", (not pair_release.startswith("ОТПУЩЕНА"))):
                 return UNMEASURED, (
                     f"сцена снятия не способна двигать исход: с КОНТРАКТНОЙ парой "
                     f"`release_card` дал {pair_release!r} вместо снятия — опознание не "
                     f"работает и с контрактным входом, судить о двери НЕ О ЧЕМ")
             none_release = _free("free_none", None)
             dict_release = _free("free_dict", DICT)
-            if dict_release == none_release:
+            if _GBC_REC("_probe_card_claim_anchor_contract_guards_every_reader:11056:15", (dict_release == none_release)):
                 return NOT_SATISFIED, (
                     f"`release_card`: вход вне контракта принят МОЛЧА и НЕОТЛИЧИМ от "
                     f"объявленного отключения `None` — оба дают {dict_release!r}, тогда "
@@ -10969,7 +11062,7 @@ def _probe_card_claim_anchor_contract_guards_every_reader(
                     f"единственный выход — `--force`, который снимает и НАСТОЯЩИЙ чужой")
 
             # ── (4) ГРАНИЦА: объявленное отключение обязано работать как прежде ──
-            if none_selves != [MINE]:
+            if _GBC_REC("_probe_card_claim_anchor_contract_guards_every_reader:11065:15", (none_selves != [MINE])):
                 return NOT_SATISFIED, (
                     f"`self_anchor=None` — ОБЪЯВЛЕННОЕ отключение опознания (им зовут "
                     f"герметичные тесты), а `self_sessions`={none_selves!r} вместо "
@@ -11036,7 +11129,7 @@ def _probe_delivery_door_refuses_card_section_loss(
 
     root = repo_root or REPO_ROOT
     pusher_path = os.path.join(root, "push_to_github.py")
-    if not os.path.exists(pusher_path):
+    if _GBC_REC("_probe_delivery_door_refuses_card_section_loss:11132:7", (not os.path.exists(pusher_path))):
         return UNMEASURED, f"{pusher_path} не найден — дверь доставки НЕ ИЗМЕРЕНА"
     try:
         spec = _ilu.spec_from_file_location("_probe_pusher_c874", pusher_path)
@@ -11050,7 +11143,7 @@ def _probe_delivery_door_refuses_card_section_loss(
     #: измеряется прямо — дверь зовётся и потерю ПРОПУСКАЕТ. Это ровно подмена,
     #: против которой написан инв. #17 (урок цикла #465).
     for attr in ("guard_content_loss", "CYCLE_RECORD_RE", "classify_missing_entries"):
-        if not hasattr(pusher, attr):
+        if _GBC_REC("_probe_delivery_door_refuses_card_section_loss:11146:11", (not hasattr(pusher, attr))):
             return UNMEASURED, (f"у пушера нет {attr!r} — исход у двери НЕ ИЗМЕРИТЬ")
 
     card = ("nimbalyst-local/tracker/"
@@ -11063,11 +11156,11 @@ def _probe_delivery_door_refuses_card_section_loss(
                      capture_output=True, timeout=30)
         r1 = _sp.run(["git", "-C", root, "cat-file", "blob", f"{incident}:{card}"],
                      capture_output=True, timeout=30)
-        if r0.returncode == 0 and r1.returncode == 0 and r0.stdout and r1.stdout:
+        if _GBC_REC("_probe_delivery_door_refuses_card_section_loss:11159:11", (r0.returncode == 0 and r1.returncode == 0 and r0.stdout and r1.stdout)):
             before, after, source = r0.stdout, r1.stdout, "история git"
     except Exception:                               # noqa: BLE001 — источник не единственный
         before = after = None
-    if before is None:
+    if _GBC_REC("_probe_delivery_door_refuses_card_section_loss:11163:7", (before is None)):
         fix = os.path.join(root, "spa_core", "tests", "fixtures", "card_section_loss")
         try:
             with open(os.path.join(fix, f"owner_{incident}_before.md"), "rb") as fh:
@@ -11084,11 +11177,11 @@ def _probe_delivery_door_refuses_card_section_loss(
     # предмет самой пробы, и вердикт о нём выносится ниже, у двери.
     has_measure = hasattr(pusher, "CARD_SECTION_RE")
     lost = []
-    if has_measure:
+    if _GBC_REC("_probe_delivery_door_refuses_card_section_loss:11180:7", (has_measure)):
         lost, _renamed = pusher.classify_missing_entries(before, after,
                                                          pusher.CARD_SECTION_RE)
     delta = after.count(b"\n") - before.count(b"\n")
-    if delta >= 0 or (has_measure and len(lost) != 4):
+    if _GBC_REC("_probe_delivery_door_refuses_card_section_loss:11184:7", (delta >= 0 or (has_measure and len(lost) != 4))):
         return UNMEASURED, (f"в паре байт {incident} пропало {len(lost)} раздел(ов) при "
                             f"{delta:+d} строк(и) — потеря 07.10 была на 4 разделах и "
                             f"-75 строках; предпосылка пробы НЕ ОБЕСПЕЧЕНА "
@@ -11096,14 +11189,14 @@ def _probe_delivery_door_refuses_card_section_loss(
     # Предпосылка №2 (обратная сторона предпосылки): прежняя мера эту сцену НЕ видит.
     # Иначе зелёный говорил бы «класс виден», не отвечая, НОВОЙ ли мерой.
     old_lost, _ = pusher.classify_missing_entries(before, after, pusher.CYCLE_RECORD_RE)
-    if old_lost:
+    if _GBC_REC("_probe_delivery_door_refuses_card_section_loss:11192:7", (old_lost)):
         return UNMEASURED, (f"сцену {incident} видит и ПРЕЖНЯЯ мера (записей цикла "
                             f"пропало {len(old_lost)}) — новый класс на ней НЕ ИЗМЕРИТЬ "
                             f"(источник {source})")
 
     try:
         note = pusher.guard_content_loss(card, before, after, f"{incident}aa")
-        measure = ("мера разделов у пушера ЕСТЬ" if has_measure
+        measure = ("мера разделов у пушера ЕСТЬ" if _GBC_REC("_probe_delivery_door_refuses_card_section_loss:11199:75", (has_measure))
                    else "меры разделов у пушера НЕТ ВОВСЕ")
         return NOT_SATISFIED, (f"дверь доставки ПРОПУСКАЕТ потерю разделов карточки "
                                f"ВЛАДЕЛЬЦА при {delta:+d} строк(и) — {measure} "
@@ -11113,22 +11206,22 @@ def _probe_delivery_door_refuses_card_section_loss(
         #: падение двери за её защиту. Класс отказов у пушера объявлен
         #: (`DivergenceRefused`); всё прочее — дверь УПАЛА, ничего не рассудив.
         refusal_class = getattr(pusher, "DivergenceRefused", None)
-        if refusal_class is None or not isinstance(exc, refusal_class):
+        if _GBC_REC("_probe_delivery_door_refuses_card_section_loss:11209:11", (refusal_class is None or not isinstance(exc, refusal_class))):
             return NOT_SATISFIED, (f"дверь УПАЛА, а не отказала "
                                    f"({type(exc).__name__}: {str(exc)[:160]}) — "
                                    f"поломка защитой не является (источник {source})")
         refused = str(exc)
-    if not has_measure:
+    if _GBC_REC("_probe_delivery_door_refuses_card_section_loss:11214:7", (not has_measure)):
         return NOT_SATISFIED, (f"дверь отказала, но меры РАЗДЕЛОВ у пушера нет — отказ "
                                f"пришёл от другого сторожа, и класс {incident} закрыт не "
                                f"им: {refused[:200]}")
-    if not hasattr(pusher, "GENERATED_TRACKER_DOCS"):
+    if _GBC_REC("_probe_delivery_door_refuses_card_section_loss:11218:7", (not hasattr(pusher, "GENERATED_TRACKER_DOCS"))):
         return NOT_SATISFIED, ("у пушера нет перечня производных индексов трекера — "
                                "исключение доски объявлено НИГДЕ, и отказ наступал бы на "
                                "каждой её перегенерации")
     #: Имя пропавшего раздела берётся ИЗ ЗАМЕРА, а не литералом (ADR-333).
     named = lost[0].decode("utf-8", "replace").lstrip("# ").strip()[:40]
-    if named not in refused:
+    if _GBC_REC("_probe_delivery_door_refuses_card_section_loss:11224:7", (named not in refused)):
         return NOT_SATISFIED, (f"дверь отказала, но НЕ НАЗВАЛА пропавшие разделы "
                                f"(ожидался «{named}») — по такому отказу не рассудить, "
                                f"потеря это или переименование (источник {source})")
@@ -11141,7 +11234,7 @@ def _probe_delivery_door_refuses_card_section_loss(
         return NOT_SATISFIED, (f"дверь отказывает и ЧИСТОМУ ДОПИСЫВАНИЮ "
                                f"({type(exc).__name__}: {str(exc)[:160]}) — сторож, "
                                f"который говорит «нет» всему, не отличает потерю от работы")
-    if back:
+    if _GBC_REC("_probe_delivery_door_refuses_card_section_loss:11237:7", (back)):
         return NOT_SATISFIED, f"на чистом дописывании дверь не молчит: {back[:200]}"
 
     # Обратная сторона 2: переписанный заголовок при ВЫРОСШЕМ файле — нота, не отказ.
@@ -11165,7 +11258,7 @@ def _probe_delivery_door_refuses_card_section_loss(
                                f"истории это 7 случаев из 14, пять из них на стоячем "
                                f"приказе: такой отказ означает `--allow-overwrite` "
                                f"каждый цикл, то есть лазейку под рукой")
-    if not rewritten.strip():
+    if _GBC_REC("_probe_delivery_door_refuses_card_section_loss:11261:7", (not rewritten.strip())):
         return NOT_SATISFIED, ("переписанный заголовок при выросшей карточке дверь "
                                "ПРОМОЛЧАЛА — «не блокирует» не значит «не называть» "
                                "(инв. #17)")
@@ -11179,7 +11272,7 @@ def _probe_delivery_door_refuses_card_section_loss(
         return NOT_SATISFIED, (f"дверь ОТКАЗЫВАЕТ производной доске {board} "
                                f"({type(exc).__name__}) — её заголовки несут живой "
                                f"счётчик, и отказ наступал бы на каждой перегенерации")
-    if board_note.strip():
+    if _GBC_REC("_probe_delivery_door_refuses_card_section_loss:11275:7", (board_note.strip())):
         return NOT_SATISFIED, (f"производная доска не исключена: дверь о ней говорит "
                                f"{board_note[:160]}")
 
@@ -11257,7 +11350,7 @@ def _probe_tier_guard_judges_code_not_prose(
     `repo_root` — вход: контроль в обе стороны подаёт одноразовое дерево и рвёт звенья
     поимённо. Живое дерево ничем не трогается: проба только ЧИТАЕТ.
     """
-    if (arg or "").strip():
+    if _GBC_REC("_probe_tier_guard_judges_code_not_prose:11353:7", ((arg or "").strip())):
         return UNMEASURED, (f"проба не принимает аргумента (дано {arg!r}): предмет — "
                             "сторож канона целиком, пофайловой формы у него нет")
     import ast as _ast
@@ -11278,13 +11371,13 @@ def _probe_tier_guard_judges_code_not_prose(
     # 1. живые читатели
     for rel in TIER_REPORT_READERS:
         text, why = _read(rel)
-        if text is None:
+        if _GBC_REC("_probe_tier_guard_judges_code_not_prose:11374:11", (text is None)):
             return UNMEASURED, f"{why} — чистота читателя НЕ ИЗМЕРЕНА"
         try:
             touches = tt.tier_touches(text)
         except tt.TierTouchUnmeasured as exc:
             return UNMEASURED, f"{rel}: {exc} — чистота читателя НЕ ИЗМЕРЕНА"
-        if touches:
+        if _GBC_REC("_probe_tier_guard_judges_code_not_prose:11380:11", (touches)):
             return NOT_SATISFIED, (f"разрешённый читатель ТРОГАЕТ канон тира — "
                                    f"{tt.describe(rel, touches)}")
 
@@ -11294,7 +11387,7 @@ def _probe_tier_guard_judges_code_not_prose(
             touches = tt.tier_touches(source)
         except tt.TierTouchUnmeasured as exc:
             return UNMEASURED, f"форма «{label}» не разобрана ({exc}) — прибор НЕ ИЗМЕРЕН"
-        if not touches:
+        if _GBC_REC("_probe_tier_guard_judges_code_not_prose:11390:11", (not touches)):
             return NOT_SATISFIED, (f"прибор НЕ КУСАЕТСЯ на форме «{label}»: "
                                    f"{source.strip()!r} прошло как чистое — это та же "
                                    "подстрока, только с разбором")
@@ -11304,7 +11397,7 @@ def _probe_tier_guard_judges_code_not_prose(
         prose = tt.tier_touches(TIER_PROSE_SCENE)
     except tt.TierTouchUnmeasured as exc:
         return UNMEASURED, f"сцена прозы не разобрана ({exc}) — ложный красный НЕ ИЗМЕРЕН"
-    if prose:
+    if _GBC_REC("_probe_tier_guard_judges_code_not_prose:11400:7", (prose)):
         return NOT_SATISFIED, ("прибор краснеет на ПРОЗЕ — сцена 02.10 не закрыта: "
                                + tt.describe("<проза>", prose))
 
@@ -11319,7 +11412,7 @@ def _probe_tier_guard_judges_code_not_prose(
 
     # 5. сторож зовёт прибор и не держит своей копии правила
     guard, why = _read(TIER_GUARD_FILE)
-    if guard is None:
+    if _GBC_REC("_probe_tier_guard_judges_code_not_prose:11415:7", (guard is None)):
         return UNMEASURED, f"{why} — зовущий НЕ ИЗМЕРЕН"
     try:
         tree = _ast.parse(guard)
@@ -11327,26 +11420,26 @@ def _probe_tier_guard_judges_code_not_prose(
         return UNMEASURED, f"{TIER_GUARD_FILE} не разобран ({exc}) — зовущий НЕ ИЗМЕРЕН"
     calls_instrument = False
     for node in _ast.walk(tree):
-        if isinstance(node, _ast.ImportFrom) and (node.module or "").endswith(
-                "monitoring.tier_touch"):
+        if _GBC_REC("_probe_tier_guard_judges_code_not_prose:11423:11", (isinstance(node, _ast.ImportFrom) and (node.module or "").endswith(
+                "monitoring.tier_touch"))):
             calls_instrument = True
-        elif isinstance(node, _ast.ImportFrom) and (node.module or "").endswith(
-                "monitoring") and any(a.name == "tier_touch" for a in node.names):
+        elif _GBC_REC("_probe_tier_guard_judges_code_not_prose:11426:13", (isinstance(node, _ast.ImportFrom) and (node.module or "").endswith(
+                "monitoring") and any(a.name == "tier_touch" for a in node.names))):
             calls_instrument = True
-        elif isinstance(node, _ast.Import) and any(
-                a.name.endswith("monitoring.tier_touch") for a in node.names):
+        elif _GBC_REC("_probe_tier_guard_judges_code_not_prose:11429:13", (isinstance(node, _ast.Import) and any(
+                a.name.endswith("monitoring.tier_touch") for a in node.names))):
             calls_instrument = True
-    if not calls_instrument:
+    if _GBC_REC("_probe_tier_guard_judges_code_not_prose:11432:7", (not calls_instrument)):
         return NOT_SATISFIED, (f"{TIER_GUARD_FILE} не ЗОВЁТ прибор — признак снова "
                                "живёт у сторожа своей копией, и прибор есть украшение")
     canon = set(tt.TIER_CANON_NAMES) | set(tt.TIER_CANON_MODULES)
     for node in _ast.walk(tree):
-        if not isinstance(node, (_ast.Tuple, _ast.List, _ast.Set)):
+        if _GBC_REC("_probe_tier_guard_judges_code_not_prose:11437:11", (not isinstance(node, (_ast.Tuple, _ast.List, _ast.Set)))):
             continue
         literal = {e.value for e in node.elts
-                   if isinstance(e, _ast.Constant) and isinstance(e.value, str)}
+                   if _GBC_REC("_probe_tier_guard_judges_code_not_prose:11440:22", (isinstance(e, _ast.Constant) and isinstance(e.value, str)))}
         shared = literal & canon
-        if len(shared) >= 2:
+        if _GBC_REC("_probe_tier_guard_judges_code_not_prose:11442:11", (len(shared) >= 2)):
             return NOT_SATISFIED, (f"{TIER_GUARD_FILE}:{node.lineno} держит свою копию "
                                    f"перечня канона ({sorted(shared)}) — правило снова "
                                    "в двух местах, и разъедутся они молча")
@@ -11382,9 +11475,9 @@ def _probe_director_os_owner_view_section(arg: str | None, *,
        в канон метка-сумма видна в тексте, а убранный канон даёт «Не измерено», а не «$0».
     """
     sec = (arg or "").strip()
-    if sec == "scenarios":
+    if _GBC_REC("_probe_director_os_owner_view_section:11478:7", (sec == "scenarios")):
         return _probe_owner_view_scenarios(fixture=fixture)
-    if sec not in OWNER_VIEW_SECTIONS:
+    if _GBC_REC("_probe_director_os_owner_view_section:11480:7", (sec not in OWNER_VIEW_SECTIONS)):
         return UNMEASURED, (f"проба меряет раздел из {OWNER_VIEW_SECTIONS} или «scenarios», дано "
                             f"{arg!r} — вердикт без названного раздела был бы о чём-то другом")
     path = fixture or OWNER_VIEW_FIXTURE
@@ -11403,58 +11496,58 @@ def _probe_director_os_owner_view_section(arg: str | None, *,
         return (ov.build(model, _OWNER_VIEW_NOW).get("sections") or {}).get(sec)
 
     view = _section(copy.deepcopy(scene))
-    if not isinstance(view, dict):
+    if _GBC_REC("_probe_director_os_owner_view_section:11499:7", (not isinstance(view, dict))):
         return NOT_SATISFIED, f"раздел «{sec}» не построен"
     ms = ov.metrics(view)
-    if not ms:
+    if _GBC_REC("_probe_director_os_owner_view_section:11502:7", (not ms)):
         return NOT_SATISFIED, f"в разделе «{sec}» нет ни одного показателя"
     need = ("source", "measured_at", "updated_at", "unit", "confidence")
-    bad = [m.get("label") for m in ms if any(k not in m for k in need) or m.get("confidence") not in ov.CONFIDENCE]
-    if bad:
+    bad = [m.get("label") for m in ms if _GBC_REC("_probe_director_os_owner_view_section:11505:41", (any(k not in m for k in need) or m.get("confidence") not in ov.CONFIDENCE))]
+    if _GBC_REC("_probe_director_os_owner_view_section:11506:7", (bad)):
         return NOT_SATISFIED, f"показатели без источника/времени/единиц/достоверности: {bad[:5]}"
-    jar = [(p, ov.jargon_hits(t)) for p, t in ov.main_texts(view) if ov.jargon_hits(t)]
-    if jar:
+    jar = [(p, ov.jargon_hits(t)) for p, t in ov.main_texts(view) if _GBC_REC("_probe_director_os_owner_view_section:11508:69", (ov.jargon_hits(t)))]
+    if _GBC_REC("_probe_director_os_owner_view_section:11509:7", (jar)):
         return NOT_SATISFIED, f"жаргон в основных текстах: {jar[:3]}"
     # 4 — unknown never becomes a number: blank the book/tasks cells and look at the words
     sc = copy.deepcopy(scene)
     truth = sc.get("truth") or {}
     for cell in ((truth.get("capital") or {}).get("defi") or {}).get("books", {}).values():
-        if isinstance(cell, dict):
+        if _GBC_REC("_probe_director_os_owner_view_section:11515:11", (isinstance(cell, dict))):
             cell["state"] = "NOT_MEASURED"
     tasks = (truth.get("studio") or {}).get("tasks")
-    if isinstance(tasks, dict):
+    if _GBC_REC("_probe_director_os_owner_view_section:11518:7", (isinstance(tasks, dict))):
         tasks["state"] = "NOT_MEASURED"
     for key in ("fleet", "machine", "problems"):          # protection reads these
         cell = (truth.get("studio") or {}).get(key)
-        if isinstance(cell, dict):
+        if _GBC_REC("_probe_director_os_owner_view_section:11522:11", (isinstance(cell, dict))):
             cell["state"] = "NOT_MEASURED"
-    if sec == "decisions":                                  # decisions reads the queue itself
+    if _GBC_REC("_probe_director_os_owner_view_section:11524:7", (sec == "decisions")):                                  # decisions reads the queue itself
         (truth.get("decisions") or {}).pop("groups", None)
     v2 = _section(sc) or {}
-    unk = [m for m in ov.metrics(v2) if m.get("confidence") == ov.NOT_MEASURED]
-    if not unk or any(not str(m.get("text", "")).startswith("Не измерено") or re.search(r"\d+[,.]\d\d", str(m.get("text")))
-                      for m in unk):
+    unk = [m for m in ov.metrics(v2) if _GBC_REC("_probe_director_os_owner_view_section:11527:40", (m.get("confidence") == ov.NOT_MEASURED))]
+    if _GBC_REC("_probe_director_os_owner_view_section:11528:7", (not unk or any(not str(m.get("text", "")).startswith("Не измерено") or re.search(r"\d+[,.]\d\d", str(m.get("text")))
+                      for m in unk))):
         return NOT_SATISFIED, "объявленное «не измерено» не дошло словами (или стало числом)"
-    if sec in ("overview", "money"):
+    if _GBC_REC("_probe_director_os_owner_view_section:11531:7", (sec in ("overview", "money"))):
         sc = copy.deepcopy(scene)
         sc.setdefault("capital", {})["real_capital"] = {"state": "LIVE_NOT_APPROVED", "usd": 4242,
                                                        "basis": "probe", "observed_at": "2026-10-09T06:00:00Z"}
         real = (_section(sc) or {}).get("real") or ((_section(sc) or {}).get("money") or {}).get("real") or {}
-        if "4\u00a0242" not in str(real.get("text")):
+        if _GBC_REC("_probe_director_os_owner_view_section:11536:11", ("4\u00a0242" not in str(real.get("text")))):
             return NOT_SATISFIED, "сумма реальных денег не взята из capital.real_capital"
         sc = copy.deepcopy(scene)
         sc.get("capital", {}).pop("real_capital", None)
         (sc.get("overview") or {}).get("capital", {}).pop("real_capital", None)
         real = (_section(sc) or {}).get("real") or ((_section(sc) or {}).get("money") or {}).get("real") or {}
-        if real.get("confidence") != ov.NOT_MEASURED or "$" in str(real.get("text")):
+        if _GBC_REC("_probe_director_os_owner_view_section:11542:11", (real.get("confidence") != ov.NOT_MEASURED or "$" in str(real.get("text")))):
             return NOT_SATISFIED, "без канона реальных денег показана сумма, а не «не измерено»"
-    if sec == "decisions":
+    if _GBC_REC("_probe_director_os_owner_view_section:11544:7", (sec == "decisions")):
         bad = _owner_view_decisions_contour(ov, scene, _section)
-        if bad:
+        if _GBC_REC("_probe_director_os_owner_view_section:11546:11", (bad)):
             return NOT_SATISFIED, bad
-    if sec == "protection":
+    if _GBC_REC("_probe_director_os_owner_view_section:11548:7", (sec == "protection")):
         bad = _owner_view_protection_contour(ov, scene, _section)
-        if bad:
+        if _GBC_REC("_probe_director_os_owner_view_section:11550:11", (bad)):
             return NOT_SATISFIED, bad
     extra = {"overview": "; реальные деньги только из capital.real_capital",
              "money": "; реальные деньги только из capital.real_capital",
@@ -11481,7 +11574,7 @@ def _probe_owner_view_scenarios(*, fixture: str | None = None) -> tuple[str, str
         return UNMEASURED, f"owner_view не импортируется ({type(exc).__name__})"
     sections = ov.build(scene, _OWNER_VIEW_NOW).get("sections") or {}
     bad = owner_view_scenarios_contour(ov, sections)
-    if bad:
+    if _GBC_REC("_probe_owner_view_scenarios:11577:7", (bad)):
         return NOT_SATISFIED, bad
     return SATISFIED, ("пять сценариев выполнимы: состояние студии и следующий шаг; вопрос владельцу "
                        "с последствиями и версией; реальные деньги отдельно от модели; причина остановки "
@@ -11693,7 +11786,7 @@ def _probe_agent_health_reboot_false_alarm(arg: str | None, *,
     for lbl in (REBOOT_PROBE_RECEIPT_AGENT, REBOOT_PROBE_CALENDAR_AGENT,
                 REBOOT_PROBE_HOURLY_AGENT):
         short = lbl[len("com.spa."):]
-        if os.path.exists(f"/tmp/spa_{short}.log"):
+        if _GBC_REC("_probe_agent_health_reboot_false_alarm:11789:11", (os.path.exists(f"/tmp/spa_{short}.log"))):
             return (UNMEASURED, f"предпосылка НЕ ОБЕСПЕЧЕНА: на хосте есть /tmp/spa_{short}.log "
                                 "— сцена читала бы чужой лог")
     root = tempfile.mkdtemp(prefix="spa_reboot_probe_")
@@ -11723,7 +11816,7 @@ def _probe_agent_health_reboot_false_alarm(arg: str | None, *,
             # запись в чужое дерево. Цель строится от `root`, поэтому и
             # перепись писателей видит, ЧТО это за файл (ADR-707).
             rel = os.path.relpath(path, root)
-            if rel == os.pardir or rel.startswith(os.pardir + os.sep):
+            if _GBC_REC("_probe_agent_health_reboot_false_alarm:11819:15", (rel == os.pardir or rel.startswith(os.pardir + os.sep))):
                 raise ValueError(f"сцена пробы пишет только внутри себя: {path}")
             target = os.path.join(root, rel)
             with open(target, "a", encoding="utf-8"):
@@ -11732,7 +11825,7 @@ def _probe_agent_health_reboot_false_alarm(arg: str | None, *,
 
         def clear_scene_logs():
             for name in os.listdir(root):
-                if name.endswith((".launchd.out", ".launchd.err")):
+                if _GBC_REC("_probe_agent_health_reboot_false_alarm:11828:19", (name.endswith((".launchd.out", ".launchd.err")))):
                     os.remove(os.path.join(root, name))
 
         # Домиграционный журнал: 110 суток — та самая цифра тревоги.
@@ -11755,19 +11848,19 @@ def _probe_agent_health_reboot_false_alarm(arg: str | None, *,
                 REBOOT_PROBE_CALENDAR_AGENT: ahm.EVIDENCE_AWAITING_FIRST_RUN,
                 REBOOT_PROBE_HOURLY_AGENT: ahm.EVIDENCE_AWAITING_FIRST_RUN}
         for lbl, h in got.items():
-            if h.status != ahm.OK or h.evidence != want[lbl]:
+            if _GBC_REC("_probe_agent_health_reboot_false_alarm:11851:15", (h.status != ahm.OK or h.evidence != want[lbl])):
                 return (NOT_SATISFIED,
                         f"перезагрузка: {lbl} → status={h.status}, evidence={h.evidence!r}, "
                         f"issue={h.issue!r}; ожидалось OK/{want[lbl]} — "
-                        + ("квитанция не читается вердиктом" if lbl == REBOOT_PROBE_RECEIPT_AGENT
+                        + ("квитанция не читается вердиктом" if _GBC_REC("_probe_agent_health_reboot_false_alarm:11855:92", (lbl == REBOOT_PROBE_RECEIPT_AGENT))
                            else "окно после загрузки не применено"))
         rep = ahm.build_report(list(got.values()), {}, ahm.OK, [], t0)
-        if rep["overall_status"] == ahm.CRITICAL:
+        if _GBC_REC("_probe_agent_health_reboot_false_alarm:11858:11", (rep["overall_status"] == ahm.CRITICAL)):
             return (NOT_SATISFIED, "перезагрузка: сводный статус CRITICAL")
 
         # ── 2. загрузка не измерена: решает квитанция ───────────────────────
         h = judge(REBOOT_PROBE_RECEIPT_AGENT, p_receipt, t0, None)
-        if h.status != ahm.OK or h.evidence != ahm.EVIDENCE_RECEIPT:
+        if _GBC_REC("_probe_agent_health_reboot_false_alarm:11863:11", (h.status != ahm.OK or h.evidence != ahm.EVIDENCE_RECEIPT)):
             return (NOT_SATISFIED,
                     f"загрузка не измерена: {REBOOT_PROBE_RECEIPT_AGENT} → status={h.status}, "
                     f"evidence={h.evidence!r}, issue={h.issue!r} — квитанция успешного "
@@ -11778,7 +11871,7 @@ def _probe_agent_health_reboot_false_alarm(arg: str | None, *,
         missed = {lbl: judge(lbl, pl, late, boot) for lbl, pl in (
             (REBOOT_PROBE_RECEIPT_AGENT, p_receipt), (REBOOT_PROBE_CALENDAR_AGENT, p_cal))}
         for lbl, h in missed.items():
-            if h.status != ahm.CRITICAL:
+            if _GBC_REC("_probe_agent_health_reboot_false_alarm:11874:15", (h.status != ahm.CRITICAL)):
                 return (NOT_SATISFIED,
                         f"пропуск: {lbl} через 3 сут. после загрузки без работы → "
                         f"status={h.status}, issue={h.issue!r}; ожидалось CRITICAL — "
@@ -11793,12 +11886,12 @@ def _probe_agent_health_reboot_false_alarm(arg: str | None, *,
                 data_dir=_pathlib.Path(tg), now=late, send=False))
 
         rep3 = ahm.build_report(list(missed.values()), {}, ahm.OK, [], late)
-        if rep3["overall_status"] != ahm.CRITICAL or not push(rep3):
+        if _GBC_REC("_probe_agent_health_reboot_false_alarm:11889:11", (rep3["overall_status"] != ahm.CRITICAL or not push(rep3))):
             return (NOT_SATISFIED, "пропуск: тревога владельцу не ушла")
         extra = ahm.AgentHealth(label="com.spa.zz_arb_probe_warn", status=ahm.WARNING,
                                 issue="last_exit=1")
         rep3b = ahm.build_report(list(missed.values()) + [extra], {}, ahm.OK, [], late)
-        if push(rep3b):
+        if _GBC_REC("_probe_agent_health_reboot_false_alarm:11894:11", (push(rep3b))):
             return (NOT_SATISFIED, "повтор: новое ПРЕДУПРЕЖДЕНИЕ при тех же критичных "
                                    "пунктах снова отправило ту же тревогу")
 
@@ -11807,7 +11900,7 @@ def _probe_agent_health_reboot_false_alarm(arg: str | None, *,
         set_receipt(far - timedelta(hours=20))
         touch(p_receipt["StandardOutPath"], far - timedelta(minutes=1))
         h = judge(REBOOT_PROBE_RECEIPT_AGENT, p_receipt, far, boot, pid=4242)
-        if h.status == ahm.OK:
+        if _GBC_REC("_probe_agent_health_reboot_false_alarm:11903:11", (h.status == ahm.OK)):
             return (NOT_SATISFIED,
                     "процесс без результата: живой PID и свежий журнал при квитанции "
                     "20 ч приняты за успех — квитанция не главнее журнала")
@@ -11871,22 +11964,22 @@ def _probe_paused_agent_is_not_a_dead_agent(arg: str | None, *,
     except (OSError, ValueError) as exc:
         return (UNMEASURED, f"предпосылка НЕ ОБЕСПЕЧЕНА: architecture/manifest.json "
                             f"не прочитан ({type(exc).__name__}: {exc})")
-    if manifest_path:
+    if _GBC_REC("_probe_paused_agent_is_not_a_dead_agent:11967:7", (manifest_path)):
         # сцена контроля: своя копия конституции и есть доставленная
         manifest, curation_src = local, "сцена"
     else:
         origin, why = ac.origin_manifest()
-        if origin is None:
+        if _GBC_REC("_probe_paused_agent_is_not_a_dead_agent:11972:11", (origin is None)):
             return (UNMEASURED, f"предпосылка НЕ ОБЕСПЕЧЕНА: конституция на "
                                 f"{ac.CURATION_REF} не прочитана ({why}) — доставлено "
                                 f"объявление или нет, НЕ ИЗМЕРЕНО")
         manifest, _prov = ac.reconcile_curation(local, origin, reason=why)
         curation_src = ac.CURATION_REF
-    agents = [a for a in manifest.get("agents") or [] if isinstance(a, dict)]
-    row = next((a for a in agents if a.get("label") == label), None)
-    if row is None:
+    agents = [a for a in manifest.get("agents") or [] if _GBC_REC("_probe_paused_agent_is_not_a_dead_agent:11978:57", (isinstance(a, dict)))]
+    row = next((a for a in agents if _GBC_REC("_probe_paused_agent_is_not_a_dead_agent:11979:37", (a.get("label") == label))), None)
+    if _GBC_REC("_probe_paused_agent_is_not_a_dead_agent:11980:7", (row is None)):
         return (UNMEASURED, f"предпосылка НЕ ОБЕСПЕЧЕНА: {label} в манифесте нет")
-    if row.get("intent") != "paused":
+    if _GBC_REC("_probe_paused_agent_is_not_a_dead_agent:11982:7", (row.get("intent") != "paused")):
         return (NOT_SATISFIED,
                 f"{label}: intent={row.get('intent')!r}, а не 'paused' (курация прочитана "
                 f"с `{curation_src}`) — объявление, которое читает прод, по-прежнему спорит "
@@ -11896,34 +11989,34 @@ def _probe_paused_agent_is_not_a_dead_agent(arg: str | None, *,
         rep = ac.run_checks(man, fleet, lambda rel: None, {}, t0,
                             disabled_labels=disabled)
         return ({(f["key"], f["severity"]) for f in rep["findings"]
-                 if f["check"] == "B1" and f["key"].endswith(label)},
+                 if _GBC_REC("_probe_paused_agent_is_not_a_dead_agent:11992:20", (f["check"] == "B1" and f["key"].endswith(label)))},
                 {u["check"] for u in rep["unchecked"]
-                 if str(u.get("check")).startswith("B1")})
+                 if _GBC_REC("_probe_paused_agent_is_not_a_dead_agent:11994:20", (str(u.get("check")).startswith("B1")))})
 
     # 1. как есть: пауза измерена, агента во флоте нет
     seen, unchecked = verdict(manifest, set(), frozenset({label}))
-    if seen or unchecked:
+    if _GBC_REC("_probe_paused_agent_is_not_a_dead_agent:11998:7", (seen or unchecked)):
         return (NOT_SATISFIED, f"пауза подтверждена замером, а вердикт не пуст: "
                                f"находки={sorted(seen)} не измерено={sorted(unchecked)}")
 
     # 2. ОБРАТНАЯ СТОРОНА: ярлык снят ⇒ сторож обязан краснеть как прежде
     as_active = copy.deepcopy(manifest)
-    next(a for a in as_active["agents"] if a.get("label") == label)["intent"] = "active"
+    next(a for a in as_active["agents"] if _GBC_REC("_probe_paused_agent_is_not_a_dead_agent:12004:43", (a.get("label") == label)))["intent"] = "active"
     seen, _ = verdict(as_active, set(), frozenset({label}))
-    if seen != {(f"B1:dead:{label}", "CRITICAL")}:
+    if _GBC_REC("_probe_paused_agent_is_not_a_dead_agent:12006:7", (seen != {(f"B1:dead:{label}", "CRITICAL")})):
         return (NOT_SATISFIED, f"сторож ОСЛАБЛЕН: {label} с intent=active и без флота дал "
                                f"{sorted(seen)}, ожидалось ровно B1:dead/CRITICAL")
 
     # 3. ОБРАТНАЯ СТОРОНА: агента оживили против решения владельца
     seen, _ = verdict(manifest, {label}, frozenset({label}))
-    if seen != {(f"B1:revived:{label}", "CRITICAL")}:
+    if _GBC_REC("_probe_paused_agent_is_not_a_dead_agent:12012:7", (seen != {(f"B1:revived:{label}", "CRITICAL")})):
         return (NOT_SATISFIED, f"освобождение режет в одну сторону: {label} ЗАГРУЖЕН при "
                                f"intent=paused и дал {sorted(seen)}, ожидалось "
                                f"B1:revived/CRITICAL")
 
     # 4. ОБРАТНАЯ СТОРОНА: притязание паузы опровергнуто замером
     seen, _ = verdict(manifest, set(), frozenset())
-    if seen != {(f"B1:pause_unproven:{label}", "CRITICAL")}:
+    if _GBC_REC("_probe_paused_agent_is_not_a_dead_agent:12019:7", (seen != {(f"B1:pause_unproven:{label}", "CRITICAL")})):
         return (NOT_SATISFIED, f"пауза принята НА СЛОВО: {label} вне списка отключённых "
                                f"дал {sorted(seen)}, ожидалось B1:pause_unproven/CRITICAL")
 
@@ -12049,24 +12142,24 @@ def _probe_cockpit_voice_loop(arg: str | None, *, now: "datetime | None" = None)
             rec = mc.cockpit_records(mc._cards(_pathlib.Path(tracker)), t0, source="сцена пробы")
             view = ov.my_records({"intake": {"my_records": rec}}, None) or {}
             return next((r for r in view.get("rows") or []
-                         if (r.get("technical") or {}).get("карточка") == name), None)
+                         if _GBC_REC("_probe_cockpit_voice_loop:12145:28", ((r.get("technical") or {}).get("карточка") == name))), None)
 
         # ── 1. пульт → карточка ─────────────────────────────────────────────────────────────
         body = json.dumps({"text": COCKPIT_LOOP_TEXT, "kind": "task",
                            "submission_id": "cockpit-loop-probe-0001"}).encode("utf-8")
         r1 = mi.submit(body, actor="probe", tracker_dir=tracker, now=t0)
         r2 = mi.submit(body, actor="probe", tracker_dir=tracker, now=t0)
-        cards = sorted(n for n in os.listdir(tracker) if n.startswith("inbox-"))
-        if len(cards) != 1 or not r2.get("duplicate") or r2.get("card") != r1.get("card"):
+        cards = sorted(n for n in os.listdir(tracker) if _GBC_REC("_probe_cockpit_voice_loop:12152:57", (n.startswith("inbox-"))))
+        if _GBC_REC("_probe_cockpit_voice_loop:12153:11", (len(cards) != 1 or not r2.get("duplicate") or r2.get("card") != r1.get("card"))):
             return NOT_SATISFIED, (f"звено 1 (пульт → карточка): повтор отправки с тем же "
                                    f"submission_id дал карточек {len(cards)} ({cards}) — "
                                    f"идемпотентности нет")
         name = cards[0]
         card = os.path.join(tracker, name)
-        if not fm_of(card).get("author"):        # старый пульт поля не пишет: сцена — запись владельца
+        if _GBC_REC("_probe_cockpit_voice_loop:12159:11", (not fm_of(card).get("author"))):        # старый пульт поля не пишет: сцена — запись владельца
             cl._set_fields(_pathlib.Path(card), {"author": "owner"})
         fm = fm_of(card)
-        if fm.get("source") not in mi.COCKPIT_SOURCES or fm.get("status") != "new":
+        if _GBC_REC("_probe_cockpit_voice_loop:12162:11", (fm.get("source") not in mi.COCKPIT_SOURCES or fm.get("status") != "new")):
             return NOT_SATISFIED, (f"звено 1: карточка пульта родилась с source={fm.get('source')!r}, "
                                    f"status={fm.get('status')!r} — ожидались cockpit* и new")
         title = fm.get("title") or name
@@ -12074,18 +12167,18 @@ def _probe_cockpit_voice_loop(arg: str | None, *, now: "datetime | None" = None)
         # ── 2. приём ────────────────────────────────────────────────────────────────────────
         intake_run(t0)
         fm = fm_of(card)
-        if fm.get("status") != "new":
+        if _GBC_REC("_probe_cockpit_voice_loop:12170:11", (fm.get("status") != "new")):
             return NOT_SATISFIED, (f"звено 2 (приём): приём перевёл карточку в {fm.get('status')!r} — "
                                    f"приём не есть исполнение, карточка обязана остаться new")
-        if not fm.get(oi._INTAKE_SEEN_FIELD):
+        if _GBC_REC("_probe_cockpit_voice_loop:12173:11", (not fm.get(oi._INTAKE_SEEN_FIELD))):
             return NOT_SATISFIED, "звено 2 (приём): метки intake_seen нет — следующий прогон примет заново"
-        accepted = [t for t in sent if _html.escape(title) in t]
-        if len(sent) != 1 or len(accepted) != 1:
+        accepted = [t for t in sent if _GBC_REC("_probe_cockpit_voice_loop:12175:39", (_html.escape(title) in t))]
+        if _GBC_REC("_probe_cockpit_voice_loop:12176:11", (len(sent) != 1 or len(accepted) != 1)):
             return NOT_SATISFIED, (f"звено 2 (приём): уведомление о приёме не дошло владельцу "
                                    f"(отправлено {len(sent)}, о карточке {len(accepted)}) — "
                                    f"потеряно между отметкой и отправкой")
         intake_run(t0 + timedelta(minutes=1))
-        if len(sent) != 1:
+        if _GBC_REC("_probe_cockpit_voice_loop:12181:11", (len(sent) != 1)):
             return NOT_SATISFIED, (f"звено 2 (приём): повторный прогон приёма прислал ещё "
                                    f"{len(sent) - 1} сообщ. — повторная доставка не дедуплицирована")
 
@@ -12103,8 +12196,8 @@ def _probe_cockpit_voice_loop(arg: str | None, *, now: "datetime | None" = None)
         except cl.TakeRefused as exc:
             return NOT_SATISFIED, f"звено 3 (исполнитель): свободную карточку взять не удалось — {exc}"
         fm = fm_of(card)
-        if (not ta.get("taken") or fm.get("status") != "in-progress"
-                or fm.get("claimed_by") != "executor-a" or fm.get("acceptance_probe") != spec):
+        if (_GBC_REC("_probe_cockpit_voice_loop:12199:12", (not ta.get("taken") or fm.get("status") != "in-progress"
+                or fm.get("claimed_by") != "executor-a" or fm.get("acceptance_probe") != spec))):
             return NOT_SATISFIED, (f"звено 3 (исполнитель): после взятия статус {fm.get('status')!r}, "
                                    f"захват {fm.get('claimed_by')!r}, проба {fm.get('acceptance_probe')!r}")
         second = []
@@ -12113,16 +12206,16 @@ def _probe_cockpit_voice_loop(arg: str | None, *, now: "datetime | None" = None)
                 res = cl.take_card(card, spec, executor=ex, claim=claim)
             except cl.TakeRefused:
                 continue
-            if res.get("taken"):
+            if _GBC_REC("_probe_cockpit_voice_loop:12209:15", (res.get("taken"))):
                 second.append(ex)
-        if second:
+        if _GBC_REC("_probe_cockpit_voice_loop:12211:11", (second)):
             return NOT_SATISFIED, (f"звено 3 (исполнитель): повторная доставка запустила второе "
                                    f"исполнение той же карточки ({', '.join(second)}) — захват не "
                                    f"исключает исполнителей")
         r3 = mi.submit(body, actor="probe", tracker_dir=tracker, now=t0)
         intake_run(t0 + timedelta(minutes=2))
-        if (not r3.get("duplicate") or len([n for n in os.listdir(tracker) if n.startswith("inbox-")]) != 1
-                or fm_of(card).get("status") != "in-progress" or len(sent) != 1):
+        if (_GBC_REC("_probe_cockpit_voice_loop:12217:12", (not r3.get("duplicate") or len([n for n in os.listdir(tracker) if n.startswith("inbox-")]) != 1
+                or fm_of(card).get("status") != "in-progress" or len(sent) != 1))).get("status") != "in-progress" or len(sent) != 1):
             return NOT_SATISFIED, ("звено 3: повтор отправки/приёма после взятия создал карточку, "
                                    "сбросил статус или прислал сообщение")
 
@@ -12130,21 +12223,21 @@ def _probe_cockpit_voice_loop(arg: str | None, *, now: "datetime | None" = None)
         t4 = t0 + timedelta(minutes=3)
         cl.close_verified(card, now=t4, runner=runner, outbox_path=obox, notify=notify)
         fm = fm_of(card)
-        if fm.get("status") == "done" or fm.get("verified_by_probe"):
+        if _GBC_REC("_probe_cockpit_voice_loop:12226:11", (fm.get("status") == "done" or fm.get("verified_by_probe"))):
             return NOT_SATISFIED, (f"звено 4 (проверка): «сделано» поставлено до того, как проба "
                                    f"подтвердила результат (проба: {runner(spec)[0]}, статус "
                                    f"{fm.get('status')!r})")
         row = row_of(name)
-        if (not row or row.get("state_kind") != "not_accepted" or row.get("verified")
-                or not str(row.get("reason") or "").strip() or not str(row.get("next_step") or "").strip()):
+        if (_GBC_REC("_probe_cockpit_voice_loop:12231:12", (not row or row.get("state_kind") != "not_accepted" or row.get("verified")
+                or not str(row.get("reason") or "").strip() or not str(row.get("next_step") or "").strip()))):
             return NOT_SATISFIED, (f"звено 5 («Мои записи»): непринятый результат показан без причины "
                                    f"или без следующего шага: {row and {k: row.get(k) for k in ('state_kind', 'reason', 'next_step', 'verified')}}")
-        if len(sent) != 2:
+        if _GBC_REC("_probe_cockpit_voice_loop:12235:11", (len(sent) != 2)):
             return NOT_SATISFIED, (f"звено 5 (уведомление): на «не принято» отправлено "
                                    f"{len(sent) - 1} сообщ. вместо одного")
         cl.close_verified(card, now=t4 + timedelta(minutes=1), runner=runner, outbox_path=obox,
                           notify=notify)
-        if len(sent) != 2:
+        if _GBC_REC("_probe_cockpit_voice_loop:12240:11", (len(sent) != 2)):
             return NOT_SATISFIED, ("звено 5 (уведомление): перемер без смены состояния прислал "
                                    "сообщение ещё раз — спам владельцу")
 
@@ -12153,25 +12246,25 @@ def _probe_cockpit_voice_loop(arg: str | None, *, now: "datetime | None" = None)
         t5 = t0 + timedelta(minutes=5)
         rc = cl.close_verified(card, now=t5, runner=runner, outbox_path=obox, notify=notify)
         fm = fm_of(card)
-        if fm.get("status") != "done" or fm.get("verified_by_probe") != spec or not rc.get("verified"):
+        if _GBC_REC("_probe_cockpit_voice_loop:12249:11", (fm.get("status") != "done" or fm.get("verified_by_probe") != spec or not rc.get("verified"))):
             return NOT_SATISFIED, (f"звено 4 (проверка): проба выполнена, а карточка {fm.get('status')!r}, "
                                    f"verified_by_probe={fm.get('verified_by_probe')!r}")
         done_msgs = sent[2:]
-        if len(done_msgs) != 1 or _html.escape(title) not in done_msgs[0] or spec not in done_msgs[0]:
+        if _GBC_REC("_probe_cockpit_voice_loop:12253:11", (len(done_msgs) != 1 or _html.escape(title) not in done_msgs[0] or spec not in done_msgs[0])):
             return NOT_SATISFIED, (f"звено 5 (уведомление): «сделано и проверено» дошло "
                                    f"{len(done_msgs)} раз(а) или без названия записи и пробы")
         cl.close_verified(card, now=t5, runner=runner, outbox_path=obox, notify=notify)
         cl.sweep_notices(tracker_dir=tracker, outbox_path=obox, now=t5)
         intake_run(t5 + timedelta(minutes=1))
-        if len(sent) != 3:
+        if _GBC_REC("_probe_cockpit_voice_loop:12259:11", (len(sent) != 3)):
             return NOT_SATISFIED, (f"звено 5 (уведомление): повторное закрытие/дочистка/приём прислали "
                                    f"ещё {len(sent) - 3} сообщ. «сделано»")
         row = row_of(name)
-        if not row or row.get("state_kind") != "done_verified" or row.get("verified") is not True:
+        if _GBC_REC("_probe_cockpit_voice_loop:12263:11", (not row or row.get("state_kind") != "done_verified" or row.get("verified") is not True)):
             return NOT_SATISFIED, (f"звено 5 («Мои записи»): проверенный результат показан как "
                                    f"{row and row.get('state_kind')!r}")
         left = oi._outbox_load(obox)
-        if left:
+        if _GBC_REC("_probe_cockpit_voice_loop:12267:11", (left)):
             return NOT_SATISFIED, f"звено 5: в исходящих осталось {[i.get('key') for i in left]}"
     except Exception as exc:  # noqa: BLE001 — сцена не собралась = не измерено, не вердикт
         return UNMEASURED, f"сцена сквозного пути не собралась ({type(exc).__name__}: {exc}) — НЕ ИЗМЕРЕНО"
@@ -12223,7 +12316,7 @@ def _probe_read_only_view_parses_the_ledger_once(arg: str | None, *,
     except Exception as exc:  # noqa: BLE001
         return UNMEASURED, f"звенья пути не ввезены ({type(exc).__name__}: {exc}) — НЕ ИЗМЕРЕНО"
 
-    if hasattr(hl, "enable_read_cache"):
+    if _GBC_REC("_probe_read_only_view_parses_the_ledger_once:12319:7", (hasattr(hl, "enable_read_cache"))):
         return NOT_SATISFIED, ("вечный процессный выключатель кэша вернулся "
                                "(`hash_ledger.enable_read_cache`) — у правила снова две копии")
 
@@ -12251,13 +12344,13 @@ def _probe_read_only_view_parses_the_ledger_once(arg: str | None, *,
         calls = {"latest": lambda: rf_read.latest(data),
                  "cio_view": lambda: rf_read.cio_view(data, now)}
         declared = set(getattr(rf_read, "VIEW_ENTRY_POINTS", ()))
-        if declared != set(calls):
+        if _GBC_REC("_probe_read_only_view_parses_the_ledger_once:12347:11", (declared != set(calls))):
             return (UNMEASURED, f"объявленное население видов {sorted(declared)} не совпало с "
                                 f"проверяемым {sorted(calls)} — НЕ ИЗМЕРЕНО, а не «чисто»")
 
         orig_parse = hl.HashLedger._parse
         orig_scope = rf_read.read_cache
-        if scope_removed:
+        if _GBC_REC("_probe_read_only_view_parses_the_ledger_once:12353:11", (scope_removed)):
             rf_read.read_cache = contextlib.nullcontext
         bad = []
         try:
@@ -12273,9 +12366,9 @@ def _probe_read_only_view_parses_the_ledger_once(arg: str | None, *,
                     call()
                 finally:
                     hl.HashLedger._parse = staticmethod(orig_parse)
-                if n["p"] != allowed:
+                if _GBC_REC("_probe_read_only_view_parses_the_ledger_once:12369:19", (n["p"] != allowed)):
                     bad.append(f"{name}: разборов {n['p']} при допустимых {allowed}")
-                if hl._READ_CACHE_ENABLED:
+                if _GBC_REC("_probe_read_only_view_parses_the_ledger_once:12371:19", (hl._READ_CACHE_ENABLED)):
                     bad.append(f"{name}: кэш остался включён на весь процесс")
         finally:
             hl.HashLedger._parse = staticmethod(orig_parse)
@@ -12291,7 +12384,7 @@ def _probe_read_only_view_parses_the_ledger_once(arg: str | None, *,
     finally:
         shutil.rmtree(tmp, ignore_errors=True)
 
-    if bad:
+    if _GBC_REC("_probe_read_only_view_parses_the_ledger_once:12387:7", (bad)):
         return NOT_SATISFIED, "; ".join(bad)
     return (SATISFIED, f"каждая из {len(calls)} объявленных точек входа читающей модели "
                        f"разбирает ленту {allowed} раз(а) (свежий verify отдаёт разобранное "
@@ -12383,17 +12476,17 @@ def _probe_publication_gate_refuses_an_unsigned_shelf_by_its_own_code(
     import tempfile
 
     root = _pathlib.Path(__file__).resolve().parents[2]
-    doors = tuple(pushers) if pushers is not None \
+    doors = tuple(pushers) if _GBC_REC("_probe_publication_gate_refuses_an_unsigned_shelf_by_its_own_code:12479:30", (pushers is not None)) \
         else ("push_to_github.py", "push_to_github_batch.py")
-    if not doors:
+    if _GBC_REC("_probe_publication_gate_refuses_an_unsigned_shelf_by_its_own_code:12481:7", (not doors)):
         return UNMEASURED, "население дверей доставки пусто — НЕ ИЗМЕРЕНО, а не «чисто»"
-    missing = [d for d in doors if not (root / d).is_file()]
-    if missing:
+    missing = [d for d in doors if _GBC_REC("_probe_publication_gate_refuses_an_unsigned_shelf_by_its_own_code:12483:35", (not (root / d).is_file()))]
+    if _GBC_REC("_probe_publication_gate_refuses_an_unsigned_shelf_by_its_own_code:12484:7", (missing)):
         return UNMEASURED, (f"двери доставки нет на диске: {', '.join(missing)} — "
                             f"отказала бы она или нет, НЕ ИЗМЕРЕНО")
 
     reader = root / "scripts" / "delta_mutation_run.py"
-    if not reader.is_file():
+    if _GBC_REC("_probe_publication_gate_refuses_an_unsigned_shelf_by_its_own_code:12489:7", (not reader.is_file())):
         return UNMEASURED, (f"читателя окна прибора нет ({reader}) — вторую половину "
                             f"замера сделать нечем")
 
@@ -12403,10 +12496,10 @@ def _probe_publication_gate_refuses_an_unsigned_shelf_by_its_own_code(
     branch = "main"
     d = _pathlib.Path(tempfile.mkdtemp(prefix="probe_pubgate_"))
     try:
-        if not scene_outside_a_tree:
+        if _GBC_REC("_probe_publication_gate_refuses_an_unsigned_shelf_by_its_own_code:12499:11", (not scene_outside_a_tree)):
             init = subprocess.run(["git", "init", "-b", branch, str(d)],
                                   capture_output=True, text=True)
-            if init.returncode != 0:
+            if _GBC_REC("_probe_publication_gate_refuses_an_unsigned_shelf_by_its_own_code:12502:15", (init.returncode != 0)):
                 return UNMEASURED, (f"сцену не удалось сделать рабочим деревом: "
                                     f"git init → {init.returncode}: "
                                     f"{(init.stderr or init.stdout).strip()[:200]}")
@@ -12414,7 +12507,7 @@ def _probe_publication_gate_refuses_an_unsigned_shelf_by_its_own_code(
         shelf.parent.mkdir(parents=True)
         shelf.write_text('{"published_at": "2026-10-07"}', encoding="utf-8")
 
-        env = {k: v for k, v in os.environ.items() if k != "SPA_SITE_PUSH_VERIFIED"}
+        env = {k: v for k, v in os.environ.items() if _GBC_REC("_probe_publication_gate_refuses_an_unsigned_shelf_by_its_own_code:12510:54", (k != "SPA_SITE_PUSH_VERIFIED"))}
         env.update(SPA_PUSH_ALLOW_CHANGE_EVIDENCE_UNMEASURED="1",
                    SPA_PUBLISHED_SHELF=str(shelf))
 
@@ -12438,25 +12531,25 @@ def _probe_publication_gate_refuses_an_unsigned_shelf_by_its_own_code(
                               "--shelf", str(shelf), "--pages", "", "--find-approval"],
                              capture_output=True, text=True, env=env,
                              timeout=600).returncode
-        if grc == 0:
+        if _GBC_REC("_probe_publication_gate_refuses_an_unsigned_shelf_by_its_own_code:12534:11", (grc == 0)):
             return UNMEASURED, ("сцена НЕ ПОДНЯТА: ворота публикации ПРОПУСТИЛИ витрину "
                                 "сцены (rc=0) — про отказ неподписанной витрине эта "
                                 "сцена не говорит ничего")
-        gate_kind = "отказано (FAIL)" if grc == 1 else f"НЕ ИЗМЕРЕНО (rc={grc})"
-        expected = 3 if grc == 1 else 13
+        gate_kind = "отказано (FAIL)" if _GBC_REC("_probe_publication_gate_refuses_an_unsigned_shelf_by_its_own_code:12538:49", (grc == 1)) else f"НЕ ИЗМЕРЕНО (rc={grc})"
+        expected = 3 if _GBC_REC("_probe_publication_gate_refuses_an_unsigned_shelf_by_its_own_code:12539:24", (grc == 1)) else 13
 
         bad: list[str] = []
         for door in doors:
             cp = push(door)
-            if cp.returncode != expected:
+            if _GBC_REC("_probe_publication_gate_refuses_an_unsigned_shelf_by_its_own_code:12544:15", (cp.returncode != expected)):
                 bad.append(f"{door}: без окна прибора ответил {cp.returncode}, а не "
                            f"кодом ворот публикации {expected} (их исход на этой сцене — "
                            f"{gate_kind}); причина: "
                            f"{(cp.stderr or cp.stdout).strip()[-200:]}")
-            elif "publication gate" not in cp.stderr:
+            elif _GBC_REC("_probe_publication_gate_refuses_an_unsigned_shelf_by_its_own_code:12549:17", ("publication gate" not in cp.stderr)):
                 bad.append(f"{door}: код {expected} есть, а причина не названа словами "
                            f"`publication gate`")
-        if bad:
+        if _GBC_REC("_probe_publication_gate_refuses_an_unsigned_shelf_by_its_own_code:12552:11", (bad)):
             return NOT_SATISFIED, " · ".join(bad)
 
         # ── вторая половина: тот же набор под ОТКРЫТЫМ окном прибора ──────────────
@@ -12492,15 +12585,15 @@ def _probe_publication_gate_refuses_an_unsigned_shelf_by_its_own_code(
                         pid=0, label="probe-adr-789")
         shelf.write_text('{"published_at": "2026-10-07", "мутант": true}',
                          encoding="utf-8")
-        if window_bypass:
+        if _GBC_REC("_probe_publication_gate_refuses_an_unsigned_shelf_by_its_own_code:12588:11", (window_bypass)):
             env["SPA_PUSH_ALLOW_OPEN_MUTATION_WINDOW"] = "1"
         for door in doors:
             cp = push(door)
-            if cp.returncode != 10:
+            if _GBC_REC("_probe_publication_gate_refuses_an_unsigned_shelf_by_its_own_code:12592:15", (cp.returncode != 10)):
                 bad.append(f"{door}: под ОТКРЫТЫМ окном прибора ответил "
                            f"{cp.returncode}, а не 10 — два отказа снова неразличимы; "
                            f"причина: {(cp.stderr or cp.stdout).strip()[-200:]}")
-        if bad:
+        if _GBC_REC("_probe_publication_gate_refuses_an_unsigned_shelf_by_its_own_code:12596:11", (bad)):
             return NOT_SATISFIED, " · ".join(bad)
 
         # ── ТРЕТЬЯ СЦЕНА: ворота дают НАСТОЯЩИЙ FAIL (ADR-872) ────────────────────
@@ -12538,14 +12631,14 @@ def _probe_publication_gate_refuses_an_unsigned_shelf_by_its_own_code(
         try:
             finit = subprocess.run(["git", "init", "-b", branch, str(fail_d)],
                                    capture_output=True, text=True)
-            if finit.returncode != 0:
+            if _GBC_REC("_probe_publication_gate_refuses_an_unsigned_shelf_by_its_own_code:12634:15", (finit.returncode != 0)):
                 return UNMEASURED, (f"сцену FAIL не удалось сделать рабочим деревом: "
                                     f"git init → {finit.returncode}: "
                                     f"{(finit.stderr or finit.stdout).strip()[:200]}")
             fshelf = fail_d / "landing" / "src" / "data" / "site_numbers.json"
             fshelf.parent.mkdir(parents=True)
             fshelf.write_text(
-                '{"published_at": "2026-10-07"}' if fail_scene_shelf_stub
+                '{"published_at": "2026-10-07"}' if _GBC_REC("_probe_publication_gate_refuses_an_unsigned_shelf_by_its_own_code:12641:52", (fail_scene_shelf_stub))
                 else json.dumps(fail_doc, ensure_ascii=False, indent=1), encoding="utf-8")
 
             # ОПУБЛИКОВАННАЯ витрина сцены — та же, но с ДРУГОЙ схемой. Отличие выбрано
@@ -12555,17 +12648,17 @@ def _probe_publication_gate_refuses_an_unsigned_shelf_by_its_own_code(
             # утверждением. Дата публикации равна дате кандидата: «кандидат старше
             # живой публикации» — ДРУГАЯ находка, и смешивать их нельзя.
             import copy as _copy
-            fpub_doc = _copy.deepcopy(fail_doc) if fail_doc else {}
+            fpub_doc = _copy.deepcopy(fail_doc) if _GBC_REC("_probe_publication_gate_refuses_an_unsigned_shelf_by_its_own_code:12651:51", (fail_doc)) else {}
             prov = dict(fpub_doc.get("_provenance") or {})
             prov["schema_version"] = f"{_bsn.SCHEMA_VERSION}-previous"
             fpub_doc["_provenance"] = prov
             fpub = fail_d / "published_site_numbers.json"
             fpub.write_text(json.dumps(fpub_doc, ensure_ascii=False), encoding="utf-8")
 
-            fenv = {k: v for k, v in os.environ.items() if k != "SPA_SITE_PUSH_VERIFIED"}
+            fenv = {k: v for k, v in os.environ.items() if _GBC_REC("_probe_publication_gate_refuses_an_unsigned_shelf_by_its_own_code:12658:59", (k != "SPA_SITE_PUSH_VERIFIED"))}
             fenv.update(SPA_PUSH_ALLOW_CHANGE_EVIDENCE_UNMEASURED="1",
                         SPA_PUBLISHED_SHELF=str(fail_d / "net-takoi-vitriny.json"
-                                                if fail_scene_published_unreadable else fpub))
+                                                if _GBC_REC("_probe_publication_gate_refuses_an_unsigned_shelf_by_its_own_code:12661:51", (fail_scene_published_unreadable)) else fpub))
 
             fgrc = subprocess.run(
                 [sys.executable, str(root / "scripts" / "verify_publication.py"),
@@ -12575,7 +12668,7 @@ def _probe_publication_gate_refuses_an_unsigned_shelf_by_its_own_code(
             # НАМЕРЕННО: его предмет — различает ли ДВЕРЬ исходы ворот, а ответ на это
             # даёт только настоящий зов двери. Остановись контроль здесь, он мерил бы
             # собственную ветку «сцена не поднята», а не поведение двери.
-            if fgrc.returncode != 1 and not fail_scene_published_unreadable:
+            if _GBC_REC("_probe_publication_gate_refuses_an_unsigned_shelf_by_its_own_code:12671:15", (fgrc.returncode != 1 and not fail_scene_published_unreadable)):
                 return UNMEASURED, (
                     f"сцена FAIL НЕ ПОДНЯТА: ворота публикации ответили "
                     f"{fgrc.returncode}, а не 1 (FAIL) — «витрина НЕ ПОДПИСАНА» этой "
@@ -12587,17 +12680,17 @@ def _probe_publication_gate_refuses_an_unsigned_shelf_by_its_own_code(
                     [sys.executable, str(root / door), "--files", str(fshelf),
                      "--message", "проба приёмки", "--pat", "dummy"],
                     capture_output=True, text=True, env=fenv, timeout=180)
-                if cp.returncode != 3:
+                if _GBC_REC("_probe_publication_gate_refuses_an_unsigned_shelf_by_its_own_code:12683:19", (cp.returncode != 3)):
                     bad.append(f"{door}: на схемно-верной НЕПОДПИСАННОЙ витрине "
                                f"ответил {cp.returncode}, а не 3 — кодом исхода FAIL; "
                                f"ворота на этой сцене дали rc={fgrc.returncode}; "
                                f"причина: {(cp.stderr or cp.stdout).strip()[-200:]}")
-                elif "publication gate" not in cp.stderr:
+                elif _GBC_REC("_probe_publication_gate_refuses_an_unsigned_shelf_by_its_own_code:12688:21", ("publication gate" not in cp.stderr)):
                     bad.append(f"{door}: код 3 есть, а причина не названа словами "
                                f"`publication gate`")
         finally:
             shutil.rmtree(fail_d, ignore_errors=True)
-        if bad:
+        if _GBC_REC("_probe_publication_gate_refuses_an_unsigned_shelf_by_its_own_code:12693:11", (bad)):
             return NOT_SATISFIED, " · ".join(bad)
 
         # ── четвёртая нога: МЕРИТ ЛИ предмет его собственный сторож ───────────────
@@ -12611,10 +12704,10 @@ def _probe_publication_gate_refuses_an_unsigned_shelf_by_its_own_code(
         guard = subprocess.run(
             [sys.executable, "-m", "pytest", "-q", "-p", "no:randomly", "--tb=line", node],
             cwd=str(root), capture_output=True, text=True, env=genv, timeout=900)
-        if guard.returncode == 5 or "no tests ran" in (guard.stdout or ""):
+        if _GBC_REC("_probe_publication_gate_refuses_an_unsigned_shelf_by_its_own_code:12707:11", (guard.returncode == 5 or "no tests ran" in (guard.stdout or ""))):
             return UNMEASURED, (f"сторож предмета не найден по узлу `{node}` — мерит он "
                                 f"предмет или нет, НЕ ИЗМЕРЕНО, а не «чисто»")
-        if guard.returncode != 0:
+        if _GBC_REC("_probe_publication_gate_refuses_an_unsigned_shelf_by_its_own_code:12710:11", (guard.returncode != 0)):
             return NOT_SATISFIED, (f"предмет держится, а его сторож `{node}` КРАСЕН "
                                    f"(pytest → {guard.returncode}): "
                                    f"{(guard.stdout or guard.stderr).strip()[-300:]}")
@@ -12701,21 +12794,21 @@ def _probe_no_regression_record_is_produced_without_a_hand(
     import tempfile
     from datetime import timedelta as _timedelta
 
-    if (arg or "").strip():
+    if _GBC_REC("_probe_no_regression_record_is_produced_without_a_hand:12797:7", ((arg or "").strip())):
         return UNMEASURED, (f"проба не принимает аргумента (дано {arg!r}): предмет — "
                             f"проводка ОДНОГО производителя, пофайловой формы у него нет")
 
     root = repo_root or REPO_ROOT
-    rel = producer_rel if producer_rel is not None \
+    rel = producer_rel if _GBC_REC("_probe_no_regression_record_is_produced_without_a_hand:12802:26", (producer_rel is not None)) \
         else os.path.join("scripts", "refresh_no_regression_census.py")
     producer = os.path.join(root, rel)
-    if not os.path.isfile(producer):
+    if _GBC_REC("_probe_no_regression_record_is_produced_without_a_hand:12805:7", (not os.path.isfile(producer))):
         return UNMEASURED, (f"производителя нет на диске ({producer}) — отказал бы он "
                             f"или сработал, НЕ ИЗМЕРЕНО")
 
     # --- 1. конституция называет производителя (иначе такт не измерит никто) ---
     doc = manifest
-    if doc is None:
+    if _GBC_REC("_probe_no_regression_record_is_produced_without_a_hand:12811:7", (doc is None)):
         try:
             with open(os.path.join(root, "architecture", "manifest.json"),
                       encoding="utf-8") as fh:
@@ -12724,11 +12817,11 @@ def _probe_no_regression_record_is_produced_without_a_hand(
             return UNMEASURED, (f"конституция не прочитана: {type(exc).__name__}: {exc} — "
                                 f"объявлен производитель или нет, НЕ ИЗМЕРЕНО")
     entry = next((a for a in (doc.get("artifacts") or [])
-                  if isinstance(a, dict) and a.get("path") == _NO_REGRESSION_ARTIFACT), None)
-    if entry is None:
+                  if _GBC_REC("_probe_no_regression_record_is_produced_without_a_hand:12820:21", (isinstance(a, dict) and a.get("path") == _NO_REGRESSION_ARTIFACT))), None)
+    if _GBC_REC("_probe_no_regression_record_is_produced_without_a_hand:12821:7", (entry is None)):
         return UNMEASURED, (f"{_NO_REGRESSION_ARTIFACT} в конституции не объявлен вовсе — "
                             f"ни SLO, ни производителя спросить не у кого")
-    if not entry.get("producer"):
+    if _GBC_REC("_probe_no_regression_record_is_produced_without_a_hand:12824:7", (not entry.get("producer"))):
         return NOT_SATISFIED, (f"{_NO_REGRESSION_ARTIFACT}: `producer` в конституции "
                                f"{entry.get('producer')!r} — такт артефакта не способен "
                                f"проверить ни один сторож, и молчание производителя "
@@ -12753,15 +12846,15 @@ def _probe_no_regression_record_is_produced_without_a_hand(
 
     statuses = {code: _fb.no_regression_step(root, runner=_spy(code)).get("status")
                 for code in (0, 1, 2)}
-    if statuses != {0: "ok", 1: "regression", 2: "unmeasured"}:
+    if _GBC_REC("_probe_no_regression_record_is_produced_without_a_hand:12849:7", (statuses != {0: "ok", 1: "regression", 2: "unmeasured"})):
         return NOT_SATISFIED, (f"исходы ступени НЕ различимы (инв. #17): {statuses} — "
                                f"ожидалось 0→ok, 1→regression, 2→unmeasured")
-    if not seen:
+    if _GBC_REC("_probe_no_regression_record_is_produced_without_a_hand:12852:7", (not seen)):
         return NOT_SATISFIED, ("ступень моста не позвала производителя ни одного раза — "
                                "проводки нет, а артефакт объявил её конституцией")
     cmd = " ".join(seen[0])
-    missing = [t for t in (rel, "--if-due", "--make-tree", root) if t not in cmd]
-    if missing:
+    missing = [t for t in (rel, "--if-due", "--make-tree", root) if _GBC_REC("_probe_no_regression_record_is_produced_without_a_hand:12856:68", (t not in cmd))]
+    if _GBC_REC("_probe_no_regression_record_is_produced_without_a_hand:12857:7", (missing)):
         return NOT_SATISFIED, (f"зов ступени не несёт: {', '.join(missing)} — "
                                f"команда была {cmd!r}")
 
@@ -12773,7 +12866,7 @@ def _probe_no_regression_record_is_produced_without_a_hand(
         #: `main` на Маке и `master` на `ubuntu-latest`).
         init = subprocess.run(["git", "init", "-b", "main", str(scene)],
                               capture_output=True, text=True)
-        if init.returncode != 0:
+        if _GBC_REC("_probe_no_regression_record_is_produced_without_a_hand:12869:11", (init.returncode != 0)):
             return UNMEASURED, (f"сцену не удалось сделать рабочим деревом: git init → "
                                 f"{init.returncode}: "
                                 f"{(init.stderr or init.stdout).strip()[:200]}")
@@ -12796,17 +12889,17 @@ def _probe_no_regression_record_is_produced_without_a_hand(
 
         _say(scene_fresh_hours)
         fresh = _producer()
-        if fresh.returncode != 0 or "не срок" not in (fresh.stdout or ""):
+        if _GBC_REC("_probe_no_regression_record_is_produced_without_a_hand:12892:11", (fresh.returncode != 0 or "не срок" not in (fresh.stdout or ""))):
             return NOT_SATISFIED, (f"внутри такта производитель ответил не «не срок»: код "
                                    f"{fresh.returncode}, вывод "
                                    f"{(fresh.stdout + fresh.stderr).strip()[-300:]!r}")
-        if tree.exists():
+        if _GBC_REC("_probe_no_regression_record_is_produced_without_a_hand:12896:11", (tree.exists())):
             return NOT_SATISFIED, (f"внутри такта дерево прогона всё равно собрано "
                                    f"({tree}) — срок решает не ФАЙЛ, а зов")
 
         _say(scene_stale_hours)
         stale = _producer()
-        if stale.returncode != 2 or "НЕ ИЗМЕРЕНО" not in (stale.stdout or ""):
+        if _GBC_REC("_probe_no_regression_record_is_produced_without_a_hand:12902:11", (stale.returncode != 2 or "НЕ ИЗМЕРЕНО" not in (stale.stdout or ""))):
             return NOT_SATISFIED, (f"на сроке производитель не пошёл за деревом или выдал "
                                    f"не третий исход: код {stale.returncode}, вывод "
                                    f"{(stale.stdout + stale.stderr).strip()[-300:]!r}")
@@ -12818,19 +12911,19 @@ def _probe_no_regression_record_is_produced_without_a_hand(
     slo = entry.get("slo_hours")
     try:
         live = live_report
-        if live is None:
+        if _GBC_REC("_probe_no_regression_record_is_produced_without_a_hand:12914:11", (live is None)):
             with open(os.path.join(root, _NO_REGRESSION_ARTIFACT), encoding="utf-8") as fh:
                 live = json.load(fh)
         made = datetime.fromisoformat(str(live.get("generated_at")).replace("Z", "+00:00"))
     except BaseException as exc:  # noqa: BLE001
         return UNMEASURED, (f"возраст живого артефакта НЕ ИЗМЕРЕН: "
                             f"{type(exc).__name__}: {exc}")
-    if made.tzinfo is None:
+    if _GBC_REC("_probe_no_regression_record_is_produced_without_a_hand:12921:7", (made.tzinfo is None)):
         made = made.replace(tzinfo=timezone.utc)
     age = (moment - made).total_seconds() / 3600.0
-    if not isinstance(slo, (int, float)):
+    if _GBC_REC("_probe_no_regression_record_is_produced_without_a_hand:12924:7", (not isinstance(slo, (int, float)))):
         return UNMEASURED, f"SLO артефакта не объявлен числом ({slo!r}) — сравнивать нечем"
-    if age > float(slo):
+    if _GBC_REC("_probe_no_regression_record_is_produced_without_a_hand:12926:7", (age > float(slo))):
         return NOT_SATISFIED, (f"живой артефакт старше своего SLO: {age:.1f}ч при "
                                f"{float(slo):.0f}ч — производитель объявлен, а записи нет")
     return SATISFIED, (f"производитель `{rel}` объявлен конституцией "
@@ -12882,7 +12975,7 @@ def _probe_delivery_refuses_an_unnamed_tree(
 
     root = repo_root or REPO_ROOT
     pusher = os.path.join(root, "push_to_github.py")
-    if not os.path.exists(pusher):
+    if _GBC_REC("_probe_delivery_refuses_an_unnamed_tree:12978:7", (not os.path.exists(pusher))):
         return NOT_SATISFIED, (
             f"пушера нет в дереве ({pusher}) — спрашивать «отказывает ли он "
             f"относительному пути от прод-дерева» не у чего")
@@ -12946,25 +13039,25 @@ def _probe_delivery_refuses_an_unnamed_tree(
                             f"НЕ ИЗМЕРЕНО")
 
     prod_blob, mine_blob = _blob(prod_bytes), _blob(mine_bytes)
-    if rc_refused == 0:
+    if _GBC_REC("_probe_delivery_refuses_an_unnamed_tree:13042:7", (rc_refused == 0)):
         return NOT_SATISFIED, (
             f"относительный путь, указывающий на РАЗНЫЕ байты в двух деревьях, прошёл "
             f"с кодом 0 — ровно замер #918: уедут байты прод-дерева ({prod_blob[:8]}) "
             f"вместо работы цикла ({mine_blob[:8]}), и ни одной строки об этом не "
             f"напечатано")
-    if prod_blob not in out_refused or mine_blob not in out_refused:
+    if _GBC_REC("_probe_delivery_refuses_an_unnamed_tree:13048:7", (prod_blob not in out_refused or mine_blob not in out_refused)):
         return NOT_SATISFIED, (
             f"отказ есть (код {rc_refused}), а blob-ов в нём нет: напечатан "
-            f"{'прод' if prod_blob in out_refused else 'не прод'}/"
-            f"{'своё' if mine_blob in out_refused else 'не своё'} — «не тот файл» "
+            f"{'прод' if _GBC_REC("_probe_delivery_refuses_an_unnamed_tree:13051:29", (prod_blob in out_refused)) else 'не прод'}/"
+            f"{'своё' if _GBC_REC("_probe_delivery_refuses_an_unnamed_tree:13052:29", (mine_blob in out_refused)) else 'не своё'} — «не тот файл» "
             f"неотличимо от «файла нет», и следующий шаг читателю не назван")
-    if rc_declared == rc_refused:
+    if _GBC_REC("_probe_delivery_refuses_an_unnamed_tree:13054:7", (rc_declared == rc_refused)):
         return NOT_SATISFIED, (
             f"объявленное согласие дало ТОТ ЖЕ код {rc_declared}: либо обход не "
             f"работает (и сторож учит снимать строгость целиком), либо дверь не меряет "
             f"ничего — две сцены с противоположными правильными ответами обязаны "
             f"отвечать по-разному")
-    if "ОБХОД ОБЪЯВЛЕН" not in out_declared:
+    if _GBC_REC("_probe_delivery_refuses_an_unnamed_tree:13060:7", ("ОБХОД ОБЪЯВЛЕН" not in out_declared)):
         return NOT_SATISFIED, (
             "вторая сцена прошла дверь МОЛЧА — «объявил прод-дерево» неотличимо от "
             "«никто не спрашивал», то есть подмена снова невидима")
@@ -13062,10 +13155,10 @@ def _probe_bridge_stage_declaration_agrees(
     звеном нужна, чтобы проба, никогда не видевшая настоящей поломки, не
     осталась украшением (`.claude/rules/acceptance.md` п. 3).
     """
-    if bridge is None:
+    if _GBC_REC("_probe_bridge_stage_declaration_agrees:13158:7", (bridge is None)):
         from spa_core.monitoring import findings_bridge as bridge  # noqa: PLC0415
     src_path = getattr(bridge, "__file__", None)
-    if not src_path:
+    if _GBC_REC("_probe_bridge_stage_declaration_agrees:13161:7", (not src_path)):
         return UNMEASURED, "у модуля моста нет `__file__` — исходник читать нечем"
     try:
         source = _pathlib.Path(src_path).read_text(encoding="utf-8")
@@ -13073,34 +13166,34 @@ def _probe_bridge_stage_declaration_agrees(
         return UNMEASURED, f"исходник моста не прочитан: {type(exc).__name__}: {exc}"
 
     names, why = _bsd_stages_in_entry(source)
-    if why:
+    if _GBC_REC("_probe_bridge_stage_declaration_agrees:13169:7", (why)):
         return UNMEASURED, why
 
     declared = observed(vars(bridge), "CENSUS_STAGE", kind=(list, tuple, set))
     product = observed(vars(bridge), "CENSUS_PRODUCT", kind=dict)
-    if declared is None:
+    if _GBC_REC("_probe_bridge_stage_declaration_agrees:13174:7", (declared is None)):
         return UNMEASURED, "`CENSUS_STAGE` в модуле моста не объявлен — сверять не с чем"
-    if product is None:
+    if _GBC_REC("_probe_bridge_stage_declaration_agrees:13176:7", (product is None)):
         return UNMEASURED, "`CENSUS_PRODUCT` в модуле моста не объявлен — сверять не с чем"
 
     run, decl, prod = set(names), set(declared), set(product)
     problems: list[str] = []
-    if len(names) != len(run):
-        dup = sorted({n for n in names if names.count(n) > 1})
+    if _GBC_REC("_probe_bridge_stage_declaration_agrees:13181:7", (len(names) != len(run))):
+        dup = sorted({n for n in names if _GBC_REC("_probe_bridge_stage_declaration_agrees:13182:42", (names.count(n) > 1))})
         problems.append(f"ступень названа в теле дважды: {dup}")
-    if run - decl:
+    if _GBC_REC("_probe_bridge_stage_declaration_agrees:13184:7", (run - decl)):
         problems.append(f"мост ЗАПУСКАЕТ, а `CENSUS_STAGE` не объявляет: "
                         f"{sorted(run - decl)}")
-    if decl - run:
+    if _GBC_REC("_probe_bridge_stage_declaration_agrees:13187:7", (decl - run)):
         problems.append(f"`CENSUS_STAGE` объявляет, а тело `{_BSD_ENTRY}()` НЕ "
                         f"запускает: {sorted(decl - run)}")
-    if decl - prod:
+    if _GBC_REC("_probe_bridge_stage_declaration_agrees:13190:7", (decl - prod)):
         problems.append(f"объявлено ступенью, а в `CENSUS_PRODUCT` нет: "
                         f"{sorted(decl - prod)}")
-    if prod - decl:
+    if _GBC_REC("_probe_bridge_stage_declaration_agrees:13193:7", (prod - decl)):
         problems.append(f"есть в `CENSUS_PRODUCT`, а ступенью не объявлено: "
                         f"{sorted(prod - decl)}")
-    if problems:
+    if _GBC_REC("_probe_bridge_stage_declaration_agrees:13196:7", (problems)):
         return NOT_SATISFIED, ("состав ступени разошёлся с объявлением: "
                                + " · ".join(problems))
     return SATISFIED, (f"три объявления согласны: тело `{_BSD_ENTRY}()` запускает "
@@ -13174,13 +13267,13 @@ def _probe_door_sites_operand_agrees(
     (`.claude/rules/acceptance.md` п. 3).
     """
     gap = None
-    if census is None:
+    if _GBC_REC("_probe_door_sites_operand_agrees:13270:7", (census is None)):
         try:
             gap, census = _dso_measure()
         except Exception as exc:  # noqa: BLE001 — третий исход, а не согласие
             return UNMEASURED, (f"прибор двери не измерил: "
                                 f"{type(exc).__name__}: {exc}")
-    if gap is None:
+    if _GBC_REC("_probe_door_sites_operand_agrees:13276:7", (gap is None)):
         import importlib  # noqa: PLC0415
         try:
             gap = importlib.import_module("spa_core.tests._fixture_schema_gap")
@@ -13188,7 +13281,7 @@ def _probe_door_sites_operand_agrees(
             return UNMEASURED, (f"прибор двери не импортируется: "
                                 f"{type(exc).__name__}: {exc}")
 
-    if baseline is None:
+    if _GBC_REC("_probe_door_sites_operand_agrees:13284:7", (baseline is None)):
         path = _pathlib.Path(__file__).resolve().parents[2].joinpath(*_DSO_BASELINE)
         try:
             baseline = json.loads(path.read_text(encoding="utf-8"))
@@ -13197,9 +13290,9 @@ def _probe_door_sites_operand_agrees(
                                 f"{type(exc).__name__}: {exc}")
 
     verdict = gap.operand_verdict(census, baseline)
-    if verdict.unmeasured:
+    if _GBC_REC("_probe_door_sites_operand_agrees:13293:7", (verdict.unmeasured)):
         return UNMEASURED, verdict.unmeasured
-    if verdict.problems:
+    if _GBC_REC("_probe_door_sites_operand_agrees:13295:7", (verdict.problems)):
         return NOT_SATISFIED, " · ".join(verdict.problems)
     return SATISFIED, (
         f"операнд двери {verdict.declared_total} сошёлся ПО ВЕДРАМ и СЛОЖЕН из "
@@ -13282,49 +13375,49 @@ def _probe_answer_list_order_names_its_caller(
     п. 3).
     """
     names = ("alo_caller_scene_one.py", "alo_caller_scene_two.py")
-    if scenes is None:
+    if _GBC_REC("_probe_answer_list_order_names_its_caller:13378:7", (scenes is None)):
         try:
             scenes = [_alo_caller_scene(n) for n in names]
         except Exception as exc:  # noqa: BLE001 — третий исход, а не согласие
             return UNMEASURED, (f"сцену звавшего измерить не удалось: "
                                 f"{type(exc).__name__}: {exc}")
-    if len(scenes) != 2:
+    if _GBC_REC("_probe_answer_list_order_names_its_caller:13384:7", (len(scenes) != 2)):
         return UNMEASURED, f"сцен должно быть две, получено {len(scenes)}"
 
     records = [observed(s, "invoked_by", kind=dict) for s in scenes]
     for name, rec in zip(names, records):
-        if rec is None:
+        if _GBC_REC("_probe_answer_list_order_names_its_caller:13389:11", (rec is None)):
             return NOT_SATISFIED, (f"прогон через `{name}` не записал о звавшем "
                                    "НИЧЕГО — поля `invoked_by` в документе нет")
-        if not rec.get("measured"):
+        if _GBC_REC("_probe_answer_list_order_names_its_caller:13392:11", (not rec.get("measured"))):
             return NOT_SATISFIED, (
                 f"прогон через `{name}` звавшего НЕ ИЗМЕРИЛ: "
                 f"{rec.get('reason', 'причина не названа')}")
 
     entries = [rec.get("entry") for rec in records]
-    if entries[0] == entries[1]:
+    if _GBC_REC("_probe_answer_list_order_names_its_caller:13398:7", (entries[0] == entries[1])):
         return NOT_SATISFIED, (
             f"две РАЗНЫЕ точки входа назвались одинаково (`{entries[0]}`) — "
             "запись не различает зов ступени от зова рукой, то есть отвечает "
             "не на вопрос заказа")
     for name, entry in zip(names, entries):
-        if entry != name:
+        if _GBC_REC("_probe_answer_list_order_names_its_caller:13404:11", (entry != name)):
             return NOT_SATISFIED, (f"прогон через `{name}` назвал точкой входа "
                                    f"`{entry}` — запись не о звавшем")
 
     rendered = []
     for name, scene in zip(names, scenes):
         lines = observed(scene, "lines", kind=list)
-        if lines is None:
+        if _GBC_REC("_probe_answer_list_order_names_its_caller:13411:11", (lines is None)):
             return UNMEASURED, (f"строк отчёта прогона `{name}` нет вовсе — "
                                 "читателя записи измерить нечем")
-        said = [ln for ln in lines if isinstance(ln, str) and name in ln]
-        if not said:
+        said = [ln for ln in lines if _GBC_REC("_probe_answer_list_order_names_its_caller:13414:38", (isinstance(ln, str) and name in ln))]
+        if _GBC_REC("_probe_answer_list_order_names_its_caller:13415:11", (not said)):
             return NOT_SATISFIED, (
                 f"ни одна строка отчёта не называет звавшего `{name}`: запись "
                 "есть, а читателя у неё нет (класс ADR-345)")
         rendered.append(said[0])
-    if rendered[0] == rendered[1]:
+    if _GBC_REC("_probe_answer_list_order_names_its_caller:13420:7", (rendered[0] == rendered[1])):
         return NOT_SATISFIED, ("строки отчёта о звавшем совпали при РАЗНЫХ "
                                f"точках входа: `{rendered[0]}`")
     return SATISFIED, (
@@ -13423,7 +13516,7 @@ def _probe_tact_stage_names_its_caller(
     выводится из другого: «подстрока не считается записью» и «подстрока не
     считается тактом» рвутся разными правками прибора.
     """
-    scenes = _crg_scene if scenes is None else scenes
+    scenes = _crg_scene if _GBC_REC("_probe_tact_stage_names_its_caller:13519:27", (scenes is None)) else scenes
     try:
         from spa_core.tests import _caller_record_gap as crg  # noqa: PLC0415
     except ImportError as exc:
@@ -13442,9 +13535,9 @@ def _probe_tact_stage_names_its_caller(
         return UNMEASURED, f"база не прочитана ({base_path}): {exc}"
     live = crg.measure(root=root)
     live_verdict = crg.verdict(live, baseline)
-    if live_verdict.unmeasured:
+    if _GBC_REC("_probe_tact_stage_names_its_caller:13538:7", (live_verdict.unmeasured)):
         return UNMEASURED, f"замер на живом дереве: {live_verdict.unmeasured}"
-    if live_verdict.problems:
+    if _GBC_REC("_probe_tact_stage_names_its_caller:13540:7", (live_verdict.problems)):
         return NOT_SATISFIED, ("замер разошёлся с объявлением: "
                                  + "; ".join(live_verdict.problems).strip())
     lost = sorted(set(live_verdict.declared_missing) - set(live.names("missing")))
@@ -13452,11 +13545,11 @@ def _probe_tact_stage_names_its_caller(
     # 2 — ступень с тактом и без записи НАЗВАНА
     census, verdict = scenes({"alpha": _CRG_TACT_NO_RECORD,
                               "beta": _CRG_WITH_RECORD})
-    if census.names("missing") != ("alpha",):
+    if _GBC_REC("_probe_tact_stage_names_its_caller:13548:7", (census.names("missing") != ("alpha",))):
         return NOT_SATISFIED, (
             f"ступень с тактом и без записи в класс не попала: "
             f"missing={census.names('missing')}, carries={census.names('carries')}")
-    if not any("alpha" in p for p in verdict.problems):
+    if _GBC_REC("_probe_tact_stage_names_its_caller:13552:7", (not any("alpha" in p for p in verdict.problems))):
         return NOT_SATISFIED, (
             "класс измерен, но вердикт ступень НЕ НАЗЫВАЕТ — находка без имени "
             f"не адресуема: problems={verdict.problems}")
@@ -13464,7 +13557,7 @@ def _probe_tact_stage_names_its_caller(
     # 3 — подстрока записью не является (ADR-333)
     census, _ = scenes({"gamma": _CRG_RECORD_AS_SUBSTRING,
                         "delta": _CRG_RECORD_AS_PARAMETER})
-    if sorted(census.names("missing")) != ["delta", "gamma"]:
+    if _GBC_REC("_probe_tact_stage_names_its_caller:13560:7", (sorted(census.names("missing")) != ["delta", "gamma"])):
         return NOT_SATISFIED, (
             "запись, названная ПОДСТРОКОЙ или объявленная ПАРАМЕТРОМ, закрыла "
             f"класс: missing={census.names('missing')}, "
@@ -13473,7 +13566,7 @@ def _probe_tact_stage_names_its_caller(
 
     # 4 — такт в прозе в класс не затягивает
     census, _ = scenes({"epsilon": _CRG_TACT_IN_PROSE})
-    if census.names("no_tact") != ("epsilon",) or census.missing:
+    if _GBC_REC("_probe_tact_stage_names_its_caller:13569:7", (census.names("no_tact") != ("epsilon",) or census.missing)):
         return NOT_SATISFIED, (
             "такт, названный ПОДСТРОКОЙ в прозе, затянул ступень в население: "
             f"missing={census.names('missing')}, no_tact={census.names('no_tact')} "
@@ -13481,11 +13574,11 @@ def _probe_tact_stage_names_its_caller(
 
     # 5 — отсутствующий модуль есть третий исход со своей причиной
     census, verdict = scenes({"zeta": None})
-    if census.names("unmeasured") != ("zeta",):
+    if _GBC_REC("_probe_tact_stage_names_its_caller:13577:7", (census.names("unmeasured") != ("zeta",))):
         return NOT_SATISFIED, (
             f"модуль, которого нет, не стал третьим исходом: "
             f"{crg.operand(census)} — «не прочитан» неотличим от «записи нет»")
-    if not verdict.unmeasured:
+    if _GBC_REC("_probe_tact_stage_names_its_caller:13581:7", (not verdict.unmeasured)):
         return NOT_SATISFIED, (
             "ступень НЕ ИЗМЕРЕНА, а вердикт об этом молчит — fail-OPEN тише "
             "красного теста (инв. #17)")
@@ -13496,7 +13589,7 @@ def _probe_tact_stage_names_its_caller(
         f"{' + '.join(f'{k} {v}' for k, v in measured.items())} = "
         f"{sum(measured.values())} объявленных ступеней; население класса "
         f"{len(live_verdict.declared_missing)}"
-        + (f", из них ПОЧИНЕНО {len(lost)} ({', '.join(lost)})" if lost else "")
+        + (f", из них ПОЧИНЕНО {len(lost)} ({', '.join(lost)})" if _GBC_REC("_probe_tact_stage_names_its_caller:13592:80", (lost)) else "")
         + "; подстрока ни записью, ни тактом не считается, отсутствующий модуль "
           "даёт НЕ ИЗМЕРЕНО со своей причиной")
 
@@ -13532,7 +13625,7 @@ def _probe_cio_act_fires_and_is_scored(arg: str | None, *,
     Время и каталог — ВХОДЫ (``now``, ``data_dir``), а не окружение: иначе
     вердикт решала бы переменная среды, а не предмет. Проба только ЧИТАЕТ.
     """
-    if arg:
+    if _GBC_REC("_probe_cio_act_fires_and_is_scored:13628:7", (arg)):
         return UNMEASURED, (f"проба не принимает аргумента (дано {arg!r}): критерий "
                             "назван целиком")
     path = os.path.join(data_dir or os.path.join(REPO_ROOT, "data"),
@@ -13544,27 +13637,27 @@ def _probe_cio_act_fires_and_is_scored(arg: str | None, *,
         return UNMEASURED, f"артефакт оценки не прочитан ({type(exc).__name__}): {path}"
     except ValueError as exc:
         return UNMEASURED, f"артефакт оценки не разобран: {type(exc).__name__}: {exc}"
-    if not isinstance(doc, dict):
+    if _GBC_REC("_probe_cio_act_fires_and_is_scored:13640:7", (not isinstance(doc, dict))):
         return UNMEASURED, "артефакт оценки не документ — судить нечем"
 
     stamp = doc.get("generated_at")
-    if not stamp:
+    if _GBC_REC("_probe_cio_act_fires_and_is_scored:13644:7", (not stamp)):
         return UNMEASURED, ("у артефакта оценки нет `generated_at` — возраст не "
                             "измерен, о живом производителе не известно ничего")
     try:
         made = datetime.fromisoformat(str(stamp).replace("Z", "+00:00"))
     except ValueError:
         return UNMEASURED, f"generated_at {stamp!r} не разобран — возраст не измерен"
-    if made.tzinfo is None:
+    if _GBC_REC("_probe_cio_act_fires_and_is_scored:13651:7", (made.tzinfo is None)):
         made = made.replace(tzinfo=timezone.utc)
     age_h = ((now or datetime.now(timezone.utc)) - made).total_seconds() / 3600.0
-    if age_h > _SHADOW_EVAL_MAX_AGE_H:
+    if _GBC_REC("_probe_cio_act_fires_and_is_scored:13654:7", (age_h > _SHADOW_EVAL_MAX_AGE_H)):
         return UNMEASURED, (f"артефакт оценки протух: возраст {age_h:.1f}ч при пределе "
                             f"{_SHADOW_EVAL_MAX_AGE_H:.0f}ч — это замороженный канон, "
                             "а не наблюдение; мерить из дерева с живым data/")
 
     counts = doc.get("counts")
-    if not isinstance(counts, dict) or "act" not in counts:
+    if _GBC_REC("_probe_cio_act_fires_and_is_scored:13660:7", (not isinstance(counts, dict) or "act" not in counts)):
         return UNMEASURED, "число ACT в артефакте не записано — критерий не измерен"
     try:
         acts = int(counts["act"])
@@ -13572,8 +13665,8 @@ def _probe_cio_act_fires_and_is_scored(arg: str | None, *,
         return UNMEASURED, f"число ACT не разобрано: {counts.get('act')!r}"
 
     records = [r for r in (doc.get("per_verdict") or [])
-               if isinstance(r, dict) and str(r.get("verdict")) == "ACT"]
-    if acts <= 0:
+               if _GBC_REC("_probe_cio_act_fires_and_is_scored:13668:18", (isinstance(r, dict) and str(r.get("verdict")) == "ACT"))]
+    if _GBC_REC("_probe_cio_act_fires_and_is_scored:13669:7", (acts <= 0)):
         # ADR-851: прежняя редакция дописывала сюда «и урезание хода до
         # допустимого ещё ни раз не сработало», НИЧЕГО про урезание не
         # прочитав — вывод делался из `acts <= 0`. Замер 28.10: шага не звали
@@ -13585,14 +13678,14 @@ def _probe_cio_act_fires_and_is_scored(arg: str | None, *,
             LIVE_UNMEASURED, live_trim_outcome)
         _kind, _why = live_trim_outcome(doc.get("live_trim_census"))
         trim = (f"про урезание хода НЕ ИЗМЕРЕНО — {_why}"
-                if _kind == LIVE_UNMEASURED else f"урезание хода: {_why}")
+                if _GBC_REC("_probe_cio_act_fires_and_is_scored:13681:19", (_kind == LIVE_UNMEASURED)) else f"урезание хода: {_why}")
         return NOT_SATISFIED, (
             f"ни одного вердикта ACT за {doc.get('observation_days')} дн. наблюдения "
             f"(записей {len(doc.get('per_verdict') or [])}) — советнику нечего "
             f"оценивать; {trim}")
     scored = [r for r in records
-              if str(r.get("outcome") or "UNCHECKED").lower() in ("hit", "miss")]
-    if not scored:
+              if _GBC_REC("_probe_cio_act_fires_and_is_scored:13687:17", (str(r.get("outcome") or "UNCHECKED").lower() in ("hit", "miss")))]
+    if _GBC_REC("_probe_cio_act_fires_and_is_scored:13688:7", (not scored)):
         return NOT_SATISFIED, (
             f"ACT есть ({acts}), но ни один НЕ ОЦЕНЁН: outcome="
             f"{sorted({str(r.get('outcome')) for r in records}) or ['нет записи']} — "
@@ -13660,7 +13753,7 @@ def _probe_price_door_and_gain_door_judge_one_book(arg: str | None) -> tuple[str
     словарь — «измерено и равно нулю» (инв. #17), и его отсутствие есть
     ``not_satisfied``, а не мелочь.
     """
-    if arg:
+    if _GBC_REC("_probe_price_door_and_gain_door_judge_one_book:13756:7", (arg)):
         return UNMEASURED, (f"проба не принимает аргумента (дано {arg!r}): критерий "
                             "назван целиком")
     try:
@@ -13671,7 +13764,7 @@ def _probe_price_door_and_gain_door_judge_one_book(arg: str | None) -> tuple[str
 
     params = TriggerParams.for_mode("paper")
     min_leg_usd = float(params.min_leg_frac) * _ONE_BOOK_CAPITAL
-    if min_leg_usd <= 0.02:
+    if _GBC_REC("_probe_price_door_and_gain_door_judge_one_book:13767:7", (min_leg_usd <= 0.02)):
         return UNMEASURED, (f"порог ноги ${min_leg_usd:,.2f} — сцены «на цент ниже» и "
                             "«на цент выше» им не различаются, мерить нечем")
     evidenced = set(_ONE_BOOK_APY)
@@ -13692,18 +13785,18 @@ def _probe_price_door_and_gain_door_judge_one_book(arg: str | None) -> tuple[str
         return d, scored, None
 
     torn, torn_scored, err = _ask(min_leg_usd - 0.01)
-    if err:
+    if _GBC_REC("_probe_price_door_and_gain_door_judge_one_book:13788:7", (err)):
         return UNMEASURED, f"рваная сцена не посчиталась ({err})"
     whole, whole_scored, err = _ask(min_leg_usd + 0.01)
-    if err:
+    if _GBC_REC("_probe_price_door_and_gain_door_judge_one_book:13791:7", (err)):
         return UNMEASURED, f"целая сцена не посчиталась ({err})"
     zero, zero_scored, err = _ask(0.0)
-    if err:
+    if _GBC_REC("_probe_price_door_and_gain_door_judge_one_book:13794:7", (err)):
         return UNMEASURED, f"нулевая сцена не посчиталась ({err})"
 
     _AXIS = "unexecuted_legs"
     for name, dec in (("рваная", torn), ("целая", whole), ("нулевая", zero)):
-        if not isinstance(dec.evidence, dict) or _AXIS not in dec.evidence:
+        if _GBC_REC("_probe_price_door_and_gain_door_judge_one_book:13799:11", (not isinstance(dec.evidence, dict) or _AXIS not in dec.evidence)):
             return NOT_SATISFIED, (
                 f"у сцены «{name}» нет оси `{_AXIS}` в evidence — отсутствие "
                 "неисполнимых ног неотличимо от того, что их не искали (инв. #17)")
@@ -13713,40 +13806,40 @@ def _probe_price_door_and_gain_door_judge_one_book(arg: str | None) -> tuple[str
     def _refused(dec) -> bool:
         return any(str(r).startswith(_REASON) for r in (dec.reasons or []))
 
-    if not _refused(torn):
+    if _GBC_REC("_probe_price_door_and_gain_door_judge_one_book:13809:7", (not _refused(torn))):
         return NOT_SATISFIED, (
             f"РВАНАЯ сцена не отказана: дельта ${min_leg_usd - 0.01:,.2f} при пороге "
             f"${min_leg_usd:,.2f} в ноги не попала, а вердикт {torn.decision} с "
             f"выигрышем {torn.gain_pp} pp — выигрыш отдан БЕСПЛАТНО "
             f"(причины: {list(torn.reasons or [])})")
-    if "aave_v3" not in str(torn.reasons):
+    if _GBC_REC("_probe_price_door_and_gain_door_judge_one_book:13815:7", ("aave_v3" not in str(torn.reasons))):
         return NOT_SATISFIED, ("отказ рваной сцены не НАЗЫВАЕТ протокол: "
                                f"{list(torn.reasons or [])}")
-    if not torn.evidence.get(_AXIS):
+    if _GBC_REC("_probe_price_door_and_gain_door_judge_one_book:13818:7", (not torn.evidence.get(_AXIS))):
         return NOT_SATISFIED, ("рваная сцена отказана, но ось "
                                f"`{_AXIS}` пуста — причина отказа не предъявлена числом")
-    if torn_scored is not None:
+    if _GBC_REC("_probe_price_door_and_gain_door_judge_one_book:13821:7", (torn_scored is not None)):
         return NOT_SATISFIED, (
             "перебор размеров ПОСЧИТАЛ книгу с неисполнимой ногой "
             f"({torn_scored.get('payback_days')} дн.) — щель, которой он сползал к "
             "`min_leg_usd − $0.01`, осталась открытой")
 
-    if _refused(whole):
+    if _GBC_REC("_probe_price_door_and_gain_door_judge_one_book:13827:7", (_refused(whole))):
         return NOT_SATISFIED, (
             f"ЦЕЛАЯ сцена отказана: дельта ${min_leg_usd + 0.01:,.2f} ВЫШЕ порога "
             f"${min_leg_usd:,.2f} и обязана исполняться "
             f"(причины: {list(whole.reasons or [])})")
-    if whole.evidence.get(_AXIS):
+    if _GBC_REC("_probe_price_door_and_gain_door_judge_one_book:13832:7", (whole.evidence.get(_AXIS))):
         return NOT_SATISFIED, (f"у целой сцены ось `{_AXIS}` не пуста: "
                                f"{whole.evidence.get(_AXIS)!r}")
-    if whole_scored is None:
+    if _GBC_REC("_probe_price_door_and_gain_door_judge_one_book:13835:7", (whole_scored is None)):
         return NOT_SATISFIED, ("перебор размеров отказал ЦЕЛОЙ книге — отказ съел "
                                "исполнимый ход")
-    if _refused(zero):
+    if _GBC_REC("_probe_price_door_and_gain_door_judge_one_book:13838:7", (_refused(zero))):
         return NOT_SATISFIED, (
             "НУЛЕВАЯ сцена отказана: ноль есть ОТСУТСТВИЕ хода, а не пыль; так отказ "
             f"съел бы подмножество без протокола (причины: {list(zero.reasons or [])})")
-    if zero_scored is None:
+    if _GBC_REC("_probe_price_door_and_gain_door_judge_one_book:13842:7", (zero_scored is None)):
         return NOT_SATISFIED, ("перебор размеров отказал книге БЕЗ дельты — рычаг "
                                "«меньше ног, меньше газа» закрыт")
 
@@ -13841,7 +13934,7 @@ def _probe_shape_comparison_judges_one_book(arg: str | None) -> tuple[str, str]:
     ``not_satisfied``, а не мелочь. Живой ``data/`` не читается: предмет — про
     арифметику двери, а не про то, какая книга стоит сегодня.
     """
-    if arg:
+    if _GBC_REC("_probe_shape_comparison_judges_one_book:13937:7", (arg)):
         return UNMEASURED, (f"проба не принимает аргумента (дано {arg!r}): критерий "
                             "назван целиком")
     try:
@@ -13861,7 +13954,7 @@ def _probe_shape_comparison_judges_one_book(arg: str | None) -> tuple[str, str]:
     except Exception as exc:  # noqa: BLE001
         return UNMEASURED, f"потолок размера не прочитан ({type(exc).__name__}): {exc}"
     leg_usd = float(params.min_leg_frac) * capital
-    if not (0.0 < leg_usd < cap_usd):
+    if _GBC_REC("_probe_shape_comparison_judges_one_book:13957:7", (not (0.0 < leg_usd < cap_usd))):
         return UNMEASURED, (f"порог ноги ${leg_usd:,.2f} и потолок размера "
                             f"${cap_usd:,.2f} сцену не задают — мерить нечем")
     base_move = 1.2 * cap_usd
@@ -13880,13 +13973,13 @@ def _probe_shape_comparison_judges_one_book(arg: str | None) -> tuple[str, str]:
             return None, f"{type(exc).__name__}: {exc}"
 
     torn, err = _ask(boundary - step)
-    if err:
+    if _GBC_REC("_probe_shape_comparison_judges_one_book:13976:7", (err)):
         return UNMEASURED, f"рваная сцена не посчиталась ({err})"
     whole, err = _ask(boundary + step)
-    if err:
+    if _GBC_REC("_probe_shape_comparison_judges_one_book:13979:7", (err)):
         return UNMEASURED, f"целая сцена не посчиталась ({err})"
     zero, err = _ask(0.0)
-    if err:
+    if _GBC_REC("_probe_shape_comparison_judges_one_book:13982:7", (err)):
         return UNMEASURED, f"нулевая сцена не посчиталась ({err})"
 
     def _ask_subset(room_best: float):
@@ -13901,10 +13994,10 @@ def _probe_shape_comparison_judges_one_book(arg: str | None) -> tuple[str, str]:
 
     # Остаток добора подмножества: `cap − room_best`. Ниже порога ⇒ пыль.
     torn_s, err = _ask_subset(cap_usd - leg_usd / 2.0)
-    if err:
+    if _GBC_REC("_probe_shape_comparison_judges_one_book:13997:7", (err)):
         return UNMEASURED, f"рваная сцена подмножества не посчиталась ({err})"
     whole_s, err = _ask_subset(cap_usd - 2.0 * leg_usd)
-    if err:
+    if _GBC_REC("_probe_shape_comparison_judges_one_book:14000:7", (err)):
         return UNMEASURED, f"целая сцена подмножества не посчиталась ({err})"
 
     _AXIS = "unexecuted_legs"
@@ -13913,19 +14006,19 @@ def _probe_shape_comparison_judges_one_book(arg: str | None) -> tuple[str, str]:
                       ("целая-подмножество", whole_s)):
         for side in ("interpolated", "subset"):
             block = rec.get(side)
-            if not isinstance(block, dict):
+            if _GBC_REC("_probe_shape_comparison_judges_one_book:14009:15", (not isinstance(block, dict))):
                 return NOT_SATISFIED, (
                     f"у сцены «{name}» нет блока формы `{side}` "
                     f"(исход {rec.get('kind')!r}) — сцена не задала предмет либо "
                     "дверь перестала печатать форму")
-            if _AXIS not in block:
+            if _GBC_REC("_probe_shape_comparison_judges_one_book:14014:15", (_AXIS not in block)):
                 return NOT_SATISFIED, (
                     f"у сцены «{name}», форма `{side}`: оси `{_AXIS}` нет — "
                     "отсутствие неисполнимых ног неотличимо от того, что их не "
                     "искали (инв. #17)")
 
     # ── рваная: отказ, НАЗВАННЫЙ протоколом, и ни одного числа выигрыша ────
-    if str(torn.get("kind")) != SHAPE_REFUSED:
+    if _GBC_REC("_probe_shape_comparison_judges_one_book:14021:7", (str(torn.get("kind")) != SHAPE_REFUSED)):
         return NOT_SATISFIED, (
             f"РВАНАЯ сцена не отказана (исход {torn.get('kind')!r}): остаток ноги в "
             f"книге интерполяции ${(torn.get('interpolated') or {}).get('turnover_usd')} "
@@ -13933,56 +14026,56 @@ def _probe_shape_comparison_judges_one_book(arg: str | None) -> tuple[str, str]:
             f"{(torn.get('interpolated') or {}).get('gain_pp')!r} пп — он посчитан "
             "по книге, которой ход держать не будет")
     torn_legs = (torn.get("interpolated") or {}).get(_AXIS) or {}
-    if not torn_legs:
+    if _GBC_REC("_probe_shape_comparison_judges_one_book:14029:7", (not torn_legs)):
         return NOT_SATISFIED, ("рваная сцена отказана, но ось "
                                f"`{_AXIS}` формы интерполяции пуста — причина "
                                "отказа не предъявлена числом")
-    if "aave_v3" not in torn_legs:
+    if _GBC_REC("_probe_shape_comparison_judges_one_book:14033:7", ("aave_v3" not in torn_legs)):
         return NOT_SATISFIED, (f"отказ рваной сцены не НАЗЫВАЕТ протокол: {torn_legs}")
     for field in ("gain_pp", "payback_days", "cost_usd"):
-        if field in (torn.get("interpolated") or {}):
+        if _GBC_REC("_probe_shape_comparison_judges_one_book:14036:11", (field in (torn.get("interpolated") or {}))):
             return NOT_SATISFIED, (
                 f"отказанная форма всё равно печатает `{field}` — выигрыш по книге, "
                 "которой мы держать не будем, остался читаемым")
     for field in ("gain_delta_pp", "cost_delta_usd", "payback_delta_days"):
-        if field in torn:
+        if _GBC_REC("_probe_shape_comparison_judges_one_book:14041:11", (field in torn)):
             return NOT_SATISFIED, (
                 f"отказанная запись печатает дельту форм `{field}`={torn[field]!r} — "
                 "сравнение измеренной формы с отказанной есть сравнение разных "
                 "вопросов")
-    if not str(torn.get("why") or "").strip():
+    if _GBC_REC("_probe_shape_comparison_judges_one_book:14046:7", (not str(torn.get("why") or "").strip())):
         return NOT_SATISFIED, "отказ рваной сцены без причины — исход не НАЗВАН"
 
     # ── вторая половина двери: пыль у ПОДМНОЖЕСТВА ───────────────────────
-    if str(torn_s.get("kind")) != SHAPE_REFUSED:
+    if _GBC_REC("_probe_shape_comparison_judges_one_book:14050:7", (str(torn_s.get("kind")) != SHAPE_REFUSED)):
         return NOT_SATISFIED, (
             f"сцена с пылью у ПОДМНОЖЕСТВА не отказана (исход "
             f"{torn_s.get('kind')!r}): дверь спрошена только у одной формы, а на "
             "прод-истории подпороговую ногу несёт подмножество у десяти записей "
             "из тринадцати")
-    if torn_s.get("refused_sides") != ["subset"]:
+    if _GBC_REC("_probe_shape_comparison_judges_one_book:14056:7", (torn_s.get("refused_sides") != ["subset"])):
         return NOT_SATISFIED, (
             f"отказ не назвал ФОРМУ: refused_sides={torn_s.get('refused_sides')!r} "
             "при пыли у подмножества")
-    if not (torn_s.get("subset") or {}).get(_AXIS):
+    if _GBC_REC("_probe_shape_comparison_judges_one_book:14060:7", (not (torn_s.get("subset") or {}).get(_AXIS))):
         return NOT_SATISFIED, ("отказ подмножества не предъявлен числом: ось "
                                f"`{_AXIS}` пуста")
 
     # ── целая и нулевая: отказ НЕ съел исполнимое сравнение ───────────────
     for name, rec in (("ЦЕЛАЯ", whole), ("НУЛЕВАЯ", zero),
                       ("ЦЕЛАЯ-ПОДМНОЖЕСТВО", whole_s)):
-        if str(rec.get("kind")) != SHAPE_MEASURED:
+        if _GBC_REC("_probe_shape_comparison_judges_one_book:14067:11", (str(rec.get("kind")) != SHAPE_MEASURED)):
             return NOT_SATISFIED, (
                 f"{name} сцена не измерена (исход {rec.get('kind')!r}, "
                 f"причина {rec.get('why')!r}): отказ съел сравнение, у которого все "
                 "ноги исполнимы — так «починка» просто запретила бы прибор ADR-854")
         for side in ("interpolated", "subset"):
-            if (rec.get(side) or {}).get(_AXIS):
+            if _GBC_REC("_probe_shape_comparison_judges_one_book:14073:15", ((rec.get(side) or {}).get(_AXIS))):
                 return NOT_SATISFIED, (
                     f"у {name} сцены форма `{side}` несёт неисполнимые ноги "
                     f"{(rec.get(side) or {}).get(_AXIS)!r} — сцена подобрана неверно "
                     "либо дверь считает порог иначе")
-        if (rec.get("interpolated") or {}).get("gain_pp") is None:
+        if _GBC_REC("_probe_shape_comparison_judges_one_book:14078:11", ((rec.get("interpolated") or {}).get("gain_pp") is None)):
             return NOT_SATISFIED, (f"у {name} сцены выигрыш формы интерполяции не "
                                    "посчитан — считать его здесь честно")
 
@@ -14005,19 +14098,19 @@ def _probe_shape_comparison_judges_one_book(arg: str | None) -> tuple[str, str]:
     except Exception as exc:  # noqa: BLE001
         return UNMEASURED, f"перепись форм не посчиталась ({type(exc).__name__}): {exc}"
     ref = census.get("refused")
-    if not isinstance(ref, dict):
+    if _GBC_REC("_probe_shape_comparison_judges_one_book:14101:7", (not isinstance(ref, dict))):
         return NOT_SATISFIED, (
             "перепись форм не несёт блока `refused` — «дверь спрошена, таких ног "
             "нет» стало бы неотличимо от «дверь не спрашивали» (инв. #17)")
-    if int(ref.get("population") or 0) != 2:
+    if _GBC_REC("_probe_shape_comparison_judges_one_book:14105:7", (int(ref.get("population") or 0) != 2)):
         return NOT_SATISFIED, (
             f"перепись считает отказов {ref.get('population')!r} на сцене, где их "
             "РОВНО два (по одному на форму) — отказ не стал населением")
-    if int(ref.get("only_interpolated") or 0) != 1 or int(ref.get("only_subset") or 0) != 1:
+    if _GBC_REC("_probe_shape_comparison_judges_one_book:14109:7", (int(ref.get("only_interpolated") or 0) != 1 or int(ref.get("only_subset") or 0) != 1)):
         return NOT_SATISFIED, (
             f"перепись не разложила отказ по формам: {ref!r} — ось «нога РОВНО у "
             "одной формы» и есть та, на которой менялся вердикт сравнения")
-    if int(census.get("population") or 0) != 3:
+    if _GBC_REC("_probe_shape_comparison_judges_one_book:14113:7", (int(census.get("population") or 0) != 3)):
         return NOT_SATISFIED, (
             f"сравнимых записей {census.get('population')!r} при трёх исполнимых "
             "сценах — отказ вычел из населения не то, что отказал")
@@ -14063,7 +14156,7 @@ def _probe_size_edge_prize_source_is_named(
 
     Время и каталог — ВХОДЫ, а не окружение. Проба только ЧИТАЕТ.
     """
-    if arg:
+    if _GBC_REC("_probe_size_edge_prize_source_is_named:14159:7", (arg)):
         return UNMEASURED, (f"проба не принимает аргумента (дано {arg!r}): критерий "
                             "назван целиком")
     path = os.path.join(data_dir or os.path.join(REPO_ROOT, "data"),
@@ -14075,20 +14168,20 @@ def _probe_size_edge_prize_source_is_named(
         return UNMEASURED, f"артефакт оценки не прочитан ({type(exc).__name__}): {path}"
     except ValueError as exc:
         return UNMEASURED, f"артефакт оценки не разобран: {type(exc).__name__}: {exc}"
-    if not isinstance(doc, dict):
+    if _GBC_REC("_probe_size_edge_prize_source_is_named:14171:7", (not isinstance(doc, dict))):
         return UNMEASURED, "артефакт оценки не документ — судить нечем"
     stamp = doc.get("generated_at")
-    if not stamp:
+    if _GBC_REC("_probe_size_edge_prize_source_is_named:14174:7", (not stamp)):
         return UNMEASURED, ("у артефакта оценки нет `generated_at` — возраст не "
                             "измерен, о живом производителе не известно ничего")
     try:
         made = datetime.fromisoformat(str(stamp).replace("Z", "+00:00"))
     except ValueError:
         return UNMEASURED, f"generated_at {stamp!r} не разобран — возраст не измерен"
-    if made.tzinfo is None:
+    if _GBC_REC("_probe_size_edge_prize_source_is_named:14181:7", (made.tzinfo is None)):
         made = made.replace(tzinfo=timezone.utc)
     age_h = ((now or datetime.now(timezone.utc)) - made).total_seconds() / 3600.0
-    if age_h > _SHADOW_EVAL_MAX_AGE_H:
+    if _GBC_REC("_probe_size_edge_prize_source_is_named:14184:7", (age_h > _SHADOW_EVAL_MAX_AGE_H)):
         return UNMEASURED, (f"артефакт оценки протух: возраст {age_h:.1f}ч при пределе "
                             f"{_SHADOW_EVAL_MAX_AGE_H:.0f}ч — это замороженный канон, "
                             "а не наблюдение; мерить из дерева с живым data/")
@@ -14098,22 +14191,22 @@ def _probe_size_edge_prize_source_is_named(
     from spa_core.paper_trading.trim_size_edge import (CENSUS_MEASURED,
                                                        trim_size_edge_outcome)
     kind, why = trim_size_edge_outcome(doc.get("trim_size_edge_census"))
-    if kind != CENSUS_MEASURED:
+    if _GBC_REC("_probe_size_edge_prize_source_is_named:14194:7", (kind != CENSUS_MEASURED)):
         return UNMEASURED, f"блок цены размера: [{kind}] {why}"
     census = doc.get("trim_size_edge_census") or {}
     src = census.get("prize_source")
-    if not isinstance(src, dict):
+    if _GBC_REC("_probe_size_edge_prize_source_is_named:14198:7", (not isinstance(src, dict))):
         return NOT_SATISFIED, ("блок измерен, а оси ИСТОЧНИКА приза в нём нет: "
                                "«строго лучше на N» без разложения читается как "
                                "экономический приз")
     missing = [k for k in ("strictly_better", "from_dust_band", "economic")
-               if not isinstance(src.get(k), int)]
-    if missing:
+               if _GBC_REC("_probe_size_edge_prize_source_is_named:14203:18", (not isinstance(src.get(k), int)))]
+    if _GBC_REC("_probe_size_edge_prize_source_is_named:14204:7", (missing)):
         return NOT_SATISFIED, (f"ось источника неполна — нет чисел {missing}: "
                                "разложение объявлено и не предъявлено")
     whole = int(src["strictly_better"])
     parts = int(src["from_dust_band"]) + int(src["economic"])
-    if whole != parts:
+    if _GBC_REC("_probe_size_edge_prize_source_is_named:14209:7", (whole != parts)):
         return NOT_SATISFIED, (f"части не сходятся с целым: строго лучше {whole}, "
                                f"пыль {src['from_dust_band']} + экономика "
                                f"{src['economic']} = {parts}")
@@ -14153,7 +14246,7 @@ def _probe_starvation_cycles_name_the_order(arg: str | None) -> tuple[str, str]:
     Живой ``data/`` и живой трекер не читаются: предмет — арифметика оси, а не
     то, какой приказ голодает сегодня.
     """
-    if arg:
+    if _GBC_REC("_probe_starvation_cycles_name_the_order:14249:7", (arg)):
         return UNMEASURED, (f"проба не принимает аргумента (дано {arg!r}): критерий "
                             "назван целиком")
     import json as _json
@@ -14166,7 +14259,7 @@ def _probe_starvation_cycles_name_the_order(arg: str | None) -> tuple[str, str]:
     from pathlib import Path as _Path
 
     guard = _Path(REPO_ROOT) / "scripts" / "check_owner_order_starvation.py"
-    if not guard.exists():
+    if _GBC_REC("_probe_starvation_cycles_name_the_order:14262:7", (not guard.exists())):
         return UNMEASURED, f"двери шага 0a нет по пути {guard}"
 
     now = _dt.now(_tz.utc)
@@ -14190,7 +14283,7 @@ def _probe_starvation_cycles_name_the_order(arg: str | None) -> tuple[str, str]:
                     encoding="utf-8")
                 rec = {"ts": (now - _td(hours=3)).strftime("%Y-%m-%dT%H:%M:%SZ"),
                        "session": "cycle-единственный", "summary": "работа"}
-                if name_the_card:
+                if _GBC_REC("_probe_starvation_cycles_name_the_order:14286:19", (name_the_card)):
                     rec["card"] = f"nimbalyst-local/tracker/{card_name}.md"
                 (data / "session_changes.jsonl").write_text(
                     _json.dumps(rec, ensure_ascii=False) + "\n", encoding="utf-8")
@@ -14199,12 +14292,12 @@ def _probe_starvation_cycles_name_the_order(arg: str | None) -> tuple[str, str]:
                 human = _sp.run(argv, capture_output=True, text=True, timeout=300)
                 machine = _sp.run([*argv, "--json"], capture_output=True,
                                   text=True, timeout=300)
-                if not machine.stdout.strip():
+                if _GBC_REC("_probe_starvation_cycles_name_the_order:14295:19", (not machine.stdout.strip())):
                     return None, f"дверь не напечатала JSON (rc={machine.returncode})"
                 doc = _json.loads(machine.stdout)
                 found = [f for f in (doc.get("findings") or [])
-                         if str(f.get("path", "")).endswith(f"{card_name}.md")]
-                if not found:
+                         if _GBC_REC("_probe_starvation_cycles_name_the_order:14299:28", (str(f.get("path", "")).endswith(f"{card_name}.md")))]
+                if _GBC_REC("_probe_starvation_cycles_name_the_order:14300:19", (not found)):
                     return None, ("дверь не нашла приказ на своей же сцене "
                                   f"(rc={machine.returncode}) — сцена не задана")
                 return (found[0], human.stdout), None
@@ -14212,39 +14305,39 @@ def _probe_starvation_cycles_name_the_order(arg: str | None) -> tuple[str, str]:
             return None, f"{type(exc).__name__}: {exc}"
 
     named, err = _ask(True)
-    if err:
+    if _GBC_REC("_probe_starvation_cycles_name_the_order:14308:7", (err)):
         return UNMEASURED, f"сцена «назвали карточку» НЕ ИЗМЕРЕНА: {err}"
     missed, err = _ask(False)
-    if err:
+    if _GBC_REC("_probe_starvation_cycles_name_the_order:14311:7", (err)):
         return UNMEASURED, f"сцена «не назвали» НЕ ИЗМЕРЕНА: {err}"
     named_f, named_text = named
     missed_f, _ = missed
 
     for label, f in (("назвали", named_f), ("не назвали", missed_f)):
         for key in ("cycles_passed", "cycles_announced", "cycles_named_the_card"):
-            if key not in f:
+            if _GBC_REC("_probe_starvation_cycles_name_the_order:14318:15", (key not in f)):
                 return NOT_SATISFIED, (
                     f"находка сцены «{label}» не несёт оси `{key}` — читателю нечем "
                     "отличить «мимо» от «сколько циклов вообще было» (инв. #17)")
 
-    if named_f["cycles_passed"] == missed_f["cycles_passed"]:
+    if _GBC_REC("_probe_starvation_cycles_name_the_order:14323:7", (named_f["cycles_passed"] == missed_f["cycles_passed"])):
         return NOT_SATISFIED, (
             f"дверь отвечает одно и то же ({named_f['cycles_passed']}) на сцену, где "
             "единственная сессия НАЗВАЛА карточку, и на сцену, где не назвала: "
             "«мимо» по-прежнему считает календарь, а не приказ")
-    if named_f["cycles_passed"] != 0:
+    if _GBC_REC("_probe_starvation_cycles_name_the_order:14328:7", (named_f["cycles_passed"] != 0)):
         return NOT_SATISFIED, (
             f"единственная сессия назвала карточку, а «мимо» = "
             f"{named_f['cycles_passed']}: работа ПО приказу зачтена как проход мимо него")
-    if missed_f["cycles_passed"] != 1:
+    if _GBC_REC("_probe_starvation_cycles_name_the_order:14332:7", (missed_f["cycles_passed"] != 1)):
         return NOT_SATISFIED, (
             f"никто карточку не назвал, а «мимо» = {missed_f['cycles_passed']} вместо 1: "
             "починка обнулила ось вообще — тот же дефект с другой стороны")
-    if named_f["cycles_announced"] != 1 or named_f["cycles_named_the_card"] != 1:
+    if _GBC_REC("_probe_starvation_cycles_name_the_order:14336:7", (named_f["cycles_announced"] != 1 or named_f["cycles_named_the_card"] != 1)):
         return NOT_SATISFIED, (
             f"слагаемые разности неверны: объявляли {named_f['cycles_announced']}, "
             f"называли {named_f['cycles_named_the_card']} при одной записи журнала")
-    if "объявляли работу 1" not in named_text or "карточку называли 1" not in named_text:
+    if _GBC_REC("_probe_starvation_cycles_name_the_order:14340:7", ("объявляли работу 1" not in named_text or "карточку называли 1" not in named_text)):
         return NOT_SATISFIED, (
             "печать шага 0a не называет соседнюю ось рядом с «мимо» — читатель "
             f"прочтёт одно число как оба: {named_text.strip()[:300]!r}")
@@ -14301,19 +14394,19 @@ def _probe_inbox_record_kind_has_a_writer(arg: str | None) -> tuple[str, str]:
 
         a = card("inbox-a.md")
         rep = T.triage(d)
-        if rep["rows"][0]["kind"] != T.KIND_UNDECLARED or rep["kind_declared"] != 0:
+        if _GBC_REC("_probe_inbox_record_kind_has_a_writer:14397:11", (rep["rows"][0]["kind"] != T.KIND_UNDECLARED or rep["kind_declared"] != 0)):
             return NOT_SATISFIED, (f"звено 1: род НЕ объявлен, а ось говорит "
                                    f"{rep['rows'][0]['kind']!r} (объявлено {rep['kind_declared']})")
 
         set_intake_kind(a, "task")
         rep = T.triage(d)
-        if rep["rows"][0]["kind"] != "task" or rep["kind_unknown"] != 0:
+        if _GBC_REC("_probe_inbox_record_kind_has_a_writer:14403:11", (rep["rows"][0]["kind"] != "task" or rep["kind_unknown"] != 0)):
             return NOT_SATISFIED, (f"звено 2: писатель объявил род `task`, а читатель видит "
                                    f"{rep['rows'][0]['kind']!r} (не объявлено {rep['kind_unknown']})")
 
         b = card("inbox-b.md", "intake_kind: unclear")
         kinds = {r["card"]: r["kind"] for r in T.triage(d)["rows"]}
-        if kinds.get("inbox-b.md") != "unclear":
+        if _GBC_REC("_probe_inbox_record_kind_has_a_writer:14409:11", (kinds.get("inbox-b.md") != "unclear")):
             return NOT_SATISFIED, (f"звено 3: «непонятно» — ОБЪЯВЛЕННЫЙ род, а ось свела его "
                                    f"к {kinds.get('inbox-b.md')!r} (инв. #17)")
 
@@ -14321,7 +14414,7 @@ def _probe_inbox_record_kind_has_a_writer(arg: str | None) -> tuple[str, str]:
         c.write_text("---\ntype: inbox\nstatus: new\ntitle: c\ncreated: 2026-10-30\n---\n\nтело\n",
                      encoding="utf-8")
         kinds = {r["card"]: r["kind"] for r in T.triage(d)["rows"]}
-        if kinds.get("inbox-c.md") != T.KIND_UNDECLARED:
+        if _GBC_REC("_probe_inbox_record_kind_has_a_writer:14417:11", (kinds.get("inbox-c.md") != T.KIND_UNDECLARED)):
             return NOT_SATISFIED, (f"звено 4: трекерный `type: inbox` подставлен как род записи "
                                    f"({kinds.get('inbox-c.md')!r}) — ответ на чужой вопрос")
 
@@ -14330,14 +14423,14 @@ def _probe_inbox_record_kind_has_a_writer(arg: str | None) -> tuple[str, str]:
             set_intake_kind(b, "важное")
         except IntakeKindRefused:
             refused = True
-        if not refused:
+        if _GBC_REC("_probe_inbox_record_kind_has_a_writer:14426:11", (not refused)):
             return NOT_SATISFIED, "звено 5: писатель принял род вне словаря — отказа нет"
         e = card("inbox-e.md", "intake_kind: важное")
         rep = T.triage(d)
         kinds = {r["card"]: r["kind"] for r in rep["rows"]}
         # `.get`, а не `[...]`: ПРОПАВШЕЕ поле — это и есть порванное звено (у исхода не
         # стало числа), а не «нечем измерить». Исключением третий исход не подменяется.
-        if kinds.get("inbox-e.md") != T.KIND_INVALID or rep.get("kind_invalid") != 1:
+        if _GBC_REC("_probe_inbox_record_kind_has_a_writer:14433:11", (kinds.get("inbox-e.md") != T.KIND_INVALID or rep.get("kind_invalid") != 1)):
             return NOT_SATISFIED, (f"звено 5: род вне словаря не имеет своего исхода — ось "
                                    f"говорит {kinds.get('inbox-e.md')!r}, вне словаря "
                                    f"{rep.get('kind_invalid')}")
@@ -14348,11 +14441,11 @@ def _probe_inbox_record_kind_has_a_writer(arg: str | None) -> tuple[str, str]:
         except Exception as exc:  # noqa: BLE001
             return UNMEASURED, f"меню писателей не поднимается: {type(exc).__name__}: {exc}"
         extra = (set(_MENU) | set(_MISSION)) - set(T.KINDS_RU)
-        if extra:
+        if _GBC_REC("_probe_inbox_record_kind_has_a_writer:14444:11", (extra)):
             return NOT_SATISFIED, (f"звено 6: меню писателей шире словаря читателя на "
                                    f"{sorted(extra)} — вторая копия словаря разошлась")
-        disagree = {k for k, v in _MENU.items() if T.KINDS_RU.get(k) != v}
-        if disagree:
+        disagree = {k for k, v in _MENU.items() if _GBC_REC("_probe_inbox_record_kind_has_a_writer:14447:51", (T.KINDS_RU.get(k) != v))}
+        if _GBC_REC("_probe_inbox_record_kind_has_a_writer:14448:11", (disagree)):
             return NOT_SATISFIED, (f"звено 6: подпись рода у писателя и читателя расходится: "
                                    f"{sorted(disagree)}")
         return SATISFIED, ("ось рода записи имеет писателя: не объявлен · объявлен · «непонятно» · "
@@ -14387,7 +14480,7 @@ def _probe_golive_criteria_ask_the_producer(
     НИКОГДА `satisfied` без замера. Проба, которая на неподнятой сцене сказала бы
     «выполнено», была бы ровно тем дефектом, который чинит её собственный предмет.
     """
-    if (arg or "").strip():
+    if _GBC_REC("_probe_golive_criteria_ask_the_producer:14483:7", ((arg or "").strip())):
         return UNMEASURED, (f"проба не принимает аргумента (дано {arg!r}): "
                             "предмет — все три двери разом, пофайловой формы у "
                             "него нет")
@@ -14398,13 +14491,13 @@ def _probe_golive_criteria_ask_the_producer(
 
     report = gpc.drive_both_directions()
     kind = report.get("kind")
-    if kind == gpc.DRIVE_UNMEASURED:
+    if _GBC_REC("_probe_golive_criteria_ask_the_producer:14494:7", (kind == gpc.DRIVE_UNMEASURED)):
         return UNMEASURED, f"сцены меры не поднялись: {report.get('reason')}"
-    if kind == gpc.DRIVE_BLIND:
+    if _GBC_REC("_probe_golive_criteria_ask_the_producer:14496:7", (kind == gpc.DRIVE_BLIND)):
         return NOT_SATISFIED, (
             f"присутствие файла всё ещё читается как наблюдение: "
             f"{report.get('reason')}")
-    if kind != gpc.DRIVE_OK:
+    if _GBC_REC("_probe_golive_criteria_ask_the_producer:14500:7", (kind != gpc.DRIVE_OK)):
         return UNMEASURED, f"мера вернула неизвестный исход {kind!r}"
 
     live, dead = report["live"], report["dead"]
@@ -14441,7 +14534,7 @@ def _probe_golive_reader_names_the_unmeasured(
     Третий исход СВОЙ: сцена не поднялась ⇒ `unmeasured` с названной причиной, и
     НИКОГДА `satisfied` без замера.
     """
-    if (arg or "").strip():
+    if _GBC_REC("_probe_golive_reader_names_the_unmeasured:14537:7", ((arg or "").strip())):
         return UNMEASURED, (f"проба не принимает аргумента (дано {arg!r}): "
                             "предмет — дверь чтения целиком, пофайловой формы "
                             "у него нет")
@@ -14452,17 +14545,17 @@ def _probe_golive_reader_names_the_unmeasured(
 
     report = gao.drive_three_outcomes()
     kind = report.get("kind")
-    if kind == gao.THREE_UNMEASURED:
+    if _GBC_REC("_probe_golive_reader_names_the_unmeasured:14548:7", (kind == gao.THREE_UNMEASURED)):
         return UNMEASURED, f"сцена меры не поднялась: {report.get('reason')}"
-    if kind == gao.THREE_BLIND:
+    if _GBC_REC("_probe_golive_reader_names_the_unmeasured:14550:7", (kind == gao.THREE_BLIND)):
         return NOT_SATISFIED, (
             f"исходы всё ещё склеены: {report.get('reason')}")
-    if kind != gao.THREE_OK:
+    if _GBC_REC("_probe_golive_reader_names_the_unmeasured:14553:7", (kind != gao.THREE_OK)):
         return UNMEASURED, f"мера вернула неизвестный исход {kind!r}"
 
     no_reader = report.get("no_published_reader") or []
     tail = ""
-    if no_reader:
+    if _GBC_REC("_probe_golive_reader_names_the_unmeasured:14558:7", (no_reader)):
         tail = (f"; вне замера НАЗВАНЫ {len(no_reader)} артефакт(а) без читателя "
                 f"в публикуемом отчёте — дверь их не видит, и слепой её это не "
                 f"делает")
@@ -14489,6 +14582,8 @@ PROBES: dict[str, Callable[[str | None], "tuple[str, str]"]] = {
         _probe_answer_list_order_names_its_caller,
     "bridge_stage_declaration_agrees":
         _probe_bridge_stage_declaration_agrees,
+    "closed_owner_requests_split_by_the_trace":
+        _probe_closed_owner_requests_split_by_the_trace,
     "cockpit_voice_loop_closed": _probe_cockpit_voice_loop,
     "card_claim_measures_the_worker": _probe_card_claim_measures_the_worker,
     "card_claim_absent_worker_reaches_the_verdict":
@@ -15110,3 +15205,12 @@ def main(argv=None) -> int:
 
 if __name__ == "__main__":
     sys.exit(main())
+
+
+# --- перепись green_by_construction: запись достижимости (временно) ----------
+_GBC_SEEN: set = set()
+
+
+def _GBC_REC(_gbc_id, _gbc_value):
+    _GBC_SEEN.add(_gbc_id)
+    return _gbc_value
