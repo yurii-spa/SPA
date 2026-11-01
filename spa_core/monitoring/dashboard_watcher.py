@@ -323,6 +323,8 @@ def _norm_agents(data: Dict[str, Any]) -> Tuple[str, List[Dict[str, Any]]]:
             "healthy": healthy,
             "issues": issues,
             "log_age_min": ag.get("log_age_min"),
+            # S4 K5 / TELEGRAM-OWNER-UX-01: статус монитора едет дальше — «предупреждение» ≠ «остановлен»
+            "status": str(ag.get("status") or "").upper() or None,
         })
     return overall, out
 
@@ -555,9 +557,12 @@ def check_agent_health(data: Optional[Dict[str, Any]]) -> List[Dict[str, Any]]:
         if ag["healthy"]:
             continue
         is_critical = _short_label(ag["label"]) in CRITICAL_AGENTS
+        # Ключ находки НЕ меняется: по нему push_policy узнаёт уже открытый инцидент; смена ключа сделала бы
+        # старый инцидент «новым» (E7.3). Меняется только слово владельцу: WARNING — не остановка агента.
         findings.append({
-            "kind": "agent", "subtype": "down",
+            "kind": "agent", "subtype": "warning" if ag.get("status") == "WARNING" else "down",
             "key": f"agent:down:{ag['label']}",
+            "status": ag.get("status"),
             "label": ag["label"],
             "issues": ag["issues"],
             "log_age_min": ag["log_age_min"],
@@ -705,7 +710,11 @@ def format_agent_alert(finding: Dict[str, Any], ctx: Dict[str, Any]) -> str:
     else:
         icon = "🔴" if finding.get("critical") else "⚠️"
         suffix = " (CRITICAL agent)" if finding.get("critical") else ""
-        body = f"{icon} Agent DOWN: {finding['label']}{suffix}"
+        if finding["subtype"] == "warning":
+            # монитор сказал WARNING (например, код выхода 1 по договору агента) — это не остановка
+            body = f"⚠️ Agent WARNING (not stopped): {finding['label']}{suffix}"
+        else:
+            body = f"{icon} Agent DOWN: {finding['label']}{suffix}"
         age = finding.get("log_age_min")
         if isinstance(age, (int, float)):
             body += f"\nLast seen: {age:.1f} мин назад"
