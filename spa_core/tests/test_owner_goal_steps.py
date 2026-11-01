@@ -81,3 +81,14 @@ def test_unknown_step_state_is_named_not_dropped(tmp_path):
     g = ow.goal({"overview": {"now": {}}}, _truth(_rm(tmp_path, text)))
     s3 = next(s for s in g["steps"] if s["id"] == "S3")
     assert s3["state_ru"] == "Состояние не распознано"
+
+
+def test_goal_is_labelled_as_a_recorded_plan_summary_not_a_measurement(tmp_path):
+    """ARB 01.11 (п. 2в): шаги из ROADMAP — сохранённая сводка с источником и датой записи."""
+    r = _rm(tmp_path)
+    assert r["recorded_at"]
+    truth = {"studio": {"roadmap": {"value": {"items": r["items"], "recorded_at": r["recorded_at"]}}}}
+    g = ow.goal({"overview": {"now": {}}}, truth)
+    assert "не автоматический замер" in g["summary_kind"] and "записана" in g["recorded_ru"]
+    g2 = ow.goal({"overview": {"now": {}}}, _truth(r))
+    assert g2["recorded_ru"] == "дата записи сводки неизвестна"

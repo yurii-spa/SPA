@@ -1252,10 +1252,14 @@ def goal(model: dict, truth: dict) -> dict:
                       "state": st, "state_ru": STEP_STATE_RU.get(st, "Состояние не распознано"),
                       "waiting": plain(s.get("reason")) if st in ("WAITING", "BLOCKED") else None,
                       "reason": plain(s.get("reason")),
-                      "executor": plain(s.get("executor")) or "исполнитель не указан",
+                      "executor": plain(s.get("executor")) or "исполнитель в плане не указан",
                       "last_confirmed": plain(s.get("last_confirmed")) or "подтверждённых действий не записано"})
     counts = {k: sum(1 for x in steps if x["state"] == k) for k in STEP_STATE_RU}
-    return {"title": "Цель", "declared": True, "text": stage_title(ep.get("epic")).get("text") or ep.get("epic"),
+    rec = _get(truth, "studio.roadmap.value.recorded_at")
+    return {"title": "Цель", "declared": True,
+            # ARB 01.11: шаги — СОХРАНЁННАЯ СВОДКА из плана, а не автоматический замер исполнителя
+            "summary_kind": "Сводка из плана, записанная вручную — не автоматический замер состояния исполнителя",
+            "recorded_ru": (f"сводка записана {_madrid(rec)}" if rec else "дата записи сводки неизвестна"), "text": stage_title(ep.get("epic")).get("text") or ep.get("epic"),
             "technical": {"исходное название": ep.get("epic"), "заметка плана": plain(ep.get("note"))},
             "steps": steps, "counts": counts,
             "steps_declared": bool(steps),

@@ -2125,6 +2125,7 @@
     var c = uxCard(t("work.goal.title"), "goal-card");
     if (!g.declared) { c.appendChild(h("p", { class: "ux-metric-text" }, [g.text || t("state.NOT_MEASURED")])); return c; }
     c.appendChild(h("p", { class: "ux-item-title goal-name" }, [g.text]));
+    if (g.summary_kind) c.appendChild(h("p", { class: "ux-note goal-kind" }, [g.summary_kind + " · " + (g.recorded_ru || "")]));
     if (!g.steps_declared) { c.appendChild(h("p", { class: "ux-note" }, [g.steps_missing_text])); return c; }
     var ul = h("ul", { class: "ux-list goal-steps" });
     (g.steps || []).forEach(function (x) {

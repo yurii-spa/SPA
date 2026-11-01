@@ -141,3 +141,18 @@ def test_dispatch_records_the_gate_pass_only_when_it_passed(scene, monkeypatch):
     monkeypatch.setattr(cd, "approval_gate", lambda *a, **k: None)
     res = cd.dispatch(executor="executor-a", tracker_dir=scene.tracker, claim=scene.claim, now=NOW, flush=False)
     assert res["taken"] and _fm(card).get("approval_passed_at") and _fm(card).get("approval_passed_by")
+
+
+def test_an_unversioned_telegram_answer_is_not_a_permission_for_an_owner_subject_operation(scene):
+    """ARB 01.11 (п. 2б): ответ в Telegram не привязан к версии вопроса — он НЕ разрешение на опасную операцию.
+
+    Защита уже есть (ADR-839): граница исполнения требует одобрения ТЕКУЩЕЙ версии плана из известного источника
+    (`work_packet.approve`/`readiness`); ответ бота пишет только поля карточки и файла одобрения не создаёт.
+    Сцена: запись с предметом `money`, владелец «ответил» на неё кнопкой (owner_choice в карточке) — граница
+    по-прежнему отказывает, и запись не берётся."""
+    from spa_core.studio_os import work_packet as wp
+    card = _submit(scene, sid="cockpitloop-0006")
+    cl._set_fields(card, {"owner_subject": "money", "owner_choice": "1", "owner_answer_via": "telegram",
+                          "owner_answered_by": OWNER})
+    assert cd.approval_gate(card, SPEC), "ответ без версии открыл границу допуска"
+    assert wp.SOURCES == (wp.SOURCE_OPERATOR_IMPORT,), "Telegram не является источником одобрения версии плана"
