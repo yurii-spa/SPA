@@ -21,7 +21,7 @@ TRP05 = ROOT / "trp05-sizing-band-2026-11-01.json"
 EARN = ROOT / "earn-defi-btc-engine-v0.3-forward-2026-11-01.json"
 CTRL = "ma_cross@v1:BTC:1D:spot_long:3479f26323"
 D = 86_400_000
-T0 = 1_500_000_000_000 - (1_500_000_000_000 % D)  # FROZEN-DATE-OK: injected-clock — every bar derives from T0
+T0 = 1_500_000_000_000 - (1_500_000_000_000 % D)  # синтетическое время сцены: каждый бар выводится из T0
 
 
 def _bars(n=1600, seed=0.0):
@@ -160,3 +160,29 @@ def test_verdict_requires_both_cost_levels_and_no_deeper_drawdown():
     v = sx.verdict(copy.deepcopy(out))
     assert v == {"win": "лучше контроля", "only1x": "не подтверждено", "deeper": "не подтверждено",
                  "unk": "UNKNOWN: Calmar не измерен"}
+
+
+def test_contract_with_only_research_only_refs_verifies_nothing_and_says_so(tmp_path):
+    c = json.loads(TRP05.read_text())
+    c["ledger_refs"]["candidates"] = [x for x in c["ledger_refs"]["candidates"] if x["role"] == "research_only"]
+    db = tmp_path / "ev.db"
+    sqlite3.connect(db).execute("CREATE TABLE candidates (candidate_id TEXT, def_hash TEXT)")
+    assert rc.check_ledgers(c, {"evidence": db})["status"] == rc.INCOMPLETE
+
+
+def test_oos_window_is_read_from_the_contract(tmp_path):
+    c = json.loads(TRP05.read_text())
+    c["scope"]["periods"]["oos"] = "2024-01-01T00:00:00Z .. 2026-09-30T21:22:52Z"
+    p = tmp_path / "c.json"
+    p.write_text(json.dumps(c))
+    db = tmp_path / "m.db"
+    conn = md.connect(db)
+    for b in _bars(3200):
+        for h in range(24):
+            conn.execute("INSERT INTO candles VALUES (?,?,?,?,?,?,?,?,?,?)",
+                         ("BTCUSDT", "1h", b.open_time + h * 3_600_000, b.open, b.high, b.low, b.close, 1.0, "t", T0))
+    conn.commit()
+    conn.close()
+    out = sx.run(p, db)
+    assert out["oos"][0] == 1704067200000            # 2024-01-01, а не зашитое 2023-01-01
+    assert out["configs"]["control"]["1x"]["oos"]["first_bar"] >= 1704067200000

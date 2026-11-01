@@ -16,7 +16,7 @@ from spa_core.trading_research import replay as R
 from spa_core.trading_research.strategies import by_id
 
 H = 3_600_000
-T0 = 1_700_000_000_000 - (1_700_000_000_000 % H)   # FROZEN-DATE-OK: injected-clock — every bar and now derive from T0
+T0 = 1_700_000_000_000 - (1_700_000_000_000 % H)   # синтетическое время сцены: каждый бар и now выводятся из T0
 SPOT = "ma_cross@v1:BTC:1h:spot_long:98ea5fbfb4"
 PERP = "ma_cross@v1:BTC:1h:perp_ls_1x:5325e16301"
 

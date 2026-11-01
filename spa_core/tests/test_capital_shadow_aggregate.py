@@ -103,3 +103,45 @@ def test_withdraw_beyond_position_plus_reserves_is_refused():
 def test_order_of_arrival_does_not_change_the_verdict():
     a, b = _intent("a", "aave", 30_000), _intent("b", "morpho", 20_000)
     assert ag.admit(_book(), [a, b], now=NOW) == ag.admit(_book(), [b, a], now=NOW)
+
+
+# ── находки ревью S3 (каждая — сценарий ревьюера, воспроизведённый на настоящих admit/apply_fill) ──
+
+def test_two_versions_of_one_intent_in_one_set_cannot_both_be_admitted():
+    book = _book(cash=100_000.0)
+    v = ag.admit(book, [_intent("a", "p1", 30_000, strategy="s"), _intent("b", "p2", 30_000, strategy="s")], now=NOW)
+    assert v["a"]["verdict"] == ag.ADMIT and v["b"]["verdict"] == ag.REFUSE
+    assert list(book.reservations) == ["a"]                  # допущенное держит свой резерв
+    assert ag.apply_fill(book, "a", 30_000)["remaining_reserved"] == 0.0
+
+
+def test_unobserved_policy_or_book_state_is_not_a_match():
+    book = ag.Book(nav_usd=100_000.0, cash_usd=50_000.0, positions_usd={}, policy_version=None, book_state_digest=None)
+    one = _intent("a", "aave", 1_000, policy=None, digest=None)
+    assert ag.admit(book, [one], now=NOW)["a"]["verdict"] == ag.REFUSE
+
+
+def test_pending_withdraw_does_not_free_room_under_the_protocol_cap():
+    book = _book(cash=60_000.0, positions={"aave": 40_000})
+    v = ag.admit(book, [_intent("a_w", "aave", 10_000, action=contract.ACTION_WITHDRAW),
+                        _intent("b_buy", "aave", 10_000, strategy="o")], now=NOW)
+    assert v["a_w"]["verdict"] == ag.ADMIT and v["b_buy"]["verdict"] == ag.REFUSE   # 50% > 40%, если вывод отменят
+
+
+def test_withdraw_is_not_admitted_against_an_unfilled_buy():
+    book = _book()
+    ag.admit(book, [_intent("buy", "aave", 10_000)], now=NOW)
+    v = ag.admit(book, [_intent("w", "aave", 10_000, action=contract.ACTION_WITHDRAW, strategy="o")], now=NOW)
+    assert v["w"]["verdict"] == ag.REFUSE
+
+
+def test_fill_amount_must_be_positive():
+    book = _book()
+    ag.admit(book, [_intent("a", "aave", 10_000)], now=NOW)
+    for bad in (-5_000, 0):
+        try:
+            ag.apply_fill(book, "a", bad)
+        except ValueError:
+            continue
+        raise AssertionError(f"исполнение {bad} принято")
+    assert book.reservations["a"]["usd"] == 10_000 and book.cash_usd == 50_000

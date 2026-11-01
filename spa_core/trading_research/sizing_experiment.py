@@ -8,7 +8,6 @@ Research-only. Новая модель исполнения ``spot_frac@v1`` ж�
 копия ``market.db`` (открывается на чтение). Ни одна книга, кандидат или ledger не меняется."""
 from __future__ import annotations
 
-import calendar
 import hashlib
 import json
 import sqlite3
@@ -123,8 +122,8 @@ def run(contract_path: Path, market_db: Path) -> Dict[str, Any]:
     if errs:
         raise ValueError(f"контракт не годен: {errs}")
     per = contract["scope"]["periods"]
-    oos_lo = calendar.timegm((2023, 1, 1, 0, 0, 0)) * 1000
-    oos_hi = _ms(per["oos"].split("..")[1].strip().split(" ")[0])
+    lo_s, hi_s = (x.strip().split(" ")[0] for x in per["oos"].split(".."))
+    oos_lo, oos_hi = _ms(lo_s), _ms(hi_s)             # обе границы — из контракта, не из кода
     control_ref = next(x for x in contract["ledger_refs"]["candidates"] if x["role"] == "control")
     cand = by_id()[control_ref["id"]]
     if cand.def_hash != control_ref["def_hash"]:

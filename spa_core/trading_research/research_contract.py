@@ -105,6 +105,8 @@ def check_ledgers(c: Mapping[str, Any], ledgers: Mapping[str, Path]) -> Dict[str
     finally:
         conn.close()
     sts = {x["status"] for x in out["checked"]}
+    if not sts & {OK, MISMATCH, INCOMPLETE}:          # все ссылки «вне ledger по устройству» — сверено НИЧЕГО
+        return {**out, "status": INCOMPLETE, "why": "ни одной ссылки, которую можно сверить с ledger"}
     out["status"] = MISMATCH if MISMATCH in sts else INCOMPLETE if INCOMPLETE in sts else OK
     return out
 

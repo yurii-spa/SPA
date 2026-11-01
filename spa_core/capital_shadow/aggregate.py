@@ -66,7 +66,8 @@ def _release_dead(book: Book, now: datetime, cancelled: set) -> List[str]:
 def _shares_after(book: Book, protocol: str, delta: float) -> tuple:
     assert book.cash_usd is not None and book.nav_usd       # admit() отказывает раньше, если не наблюдены
     reserved_buy = sum(r["usd"] for r in book.reservations.values() if r["usd"] > 0)
-    reserved_on = sum(r["usd"] for r in book.reservations.values() if r["protocol"] == protocol)
+    # для ПОТОЛКА — только покупки: незавершённый вывод долю ещё не снизил (его могут отменить)
+    reserved_on = sum(r["usd"] for r in book.reservations.values() if r["protocol"] == protocol and r["usd"] > 0)
     cash = book.cash_usd - reserved_buy - max(delta, 0.0)
     held = book.positions_usd.get(protocol, 0.0) + reserved_on + delta
     return cash / book.nav_usd, held / book.nav_usd
@@ -80,8 +81,13 @@ def admit(book: Book, intents: List[dict], *, now: datetime, cancelled: tuple = 
         return {i["intent_id"]: {"verdict": REFUSE, "why": "NAV или кэш книги не наблюдены — отказ, не ноль"}
                 for i in intents}
     released = _release_dead(book, now, set(cancelled))
+    keys_in_set: Dict[tuple, str] = {}
     for i in sorted(intents, key=lambda x: x["intent_id"]):
         iid = i["intent_id"]
+        if None in (book.policy_version, book.book_state_digest, i.get("policy_version"), _digest(i)):
+            out[iid] = {"verdict": REFUSE, "state": contract.S_RISK_BLOCKED,
+                        "why": "версия политики или состояние книги не наблюдены — совпадение не доказано"}
+            continue
         if i.get("policy_version") != book.policy_version or _digest(i) != book.book_state_digest:
             out[iid] = {"verdict": REFUSE, "state": contract.S_RISK_BLOCKED,
                         "why": "намерение построено на другой версии политики или другом состоянии книги"}
@@ -90,6 +96,12 @@ def admit(book: Book, intents: List[dict], *, now: datetime, cancelled: tuple = 
             out[iid] = {"verdict": REFUSE, "state": contract.S_EXPIRED, "why": "TTL истёк"}
             continue
         key = (i.get("sleeve_id"), i.get("strategy_id"))
+        if key in keys_in_set:          # две версии одного намерения В ОДНОМ наборе — какая действует, не известно
+            out[iid] = {"verdict": REFUSE, "state": contract.S_INVALID,
+                        "why": f"в наборе уже есть намерение той же книги и стратегии ({keys_in_set[key]})"}
+            continue
+        keys_in_set[key] = iid
+        # замена — только резервов, оставшихся от ПРЕЖНИХ вызовов
         for old in [o for o, r in book.reservations.items() if r["key"] == key and o != iid]:
             del book.reservations[old]
             released.append(old)
@@ -104,8 +116,9 @@ def admit(book: Book, intents: List[dict], *, now: datetime, cancelled: tuple = 
             out[iid] = {"verdict": REFUSE, "state": contract.S_INVALID, "why": "протокол или нотионал не названы"}
             continue
         delta = usd if at in _BUYS else -usd
+        # вывод — только из ИСПОЛНЕННОЙ позиции за вычетом уже зарезервированных выводов (покупка ещё не исполнена)
         if delta < 0 and book.positions_usd.get(proto, 0.0) + sum(
-                r["usd"] for r in book.reservations.values() if r["protocol"] == proto) + delta < -1e-9:
+                r["usd"] for r in book.reservations.values() if r["protocol"] == proto and r["usd"] < 0) + delta < -1e-9:
             out[iid] = {"verdict": REFUSE, "state": contract.S_RISK_BLOCKED,
                         "why": f"вывод {usd} больше позиции {proto} с учётом резервов"}
             continue
@@ -130,7 +143,9 @@ def apply_fill(book: Book, intent_id: str, filled_usd: float) -> dict:
     r = book.reservations.get(intent_id)
     if r is None:
         raise KeyError(f"резерва {intent_id} нет — исполнение без допуска")
-    if abs(filled_usd) > abs(r["usd"]) + 1e-9:
+    if not filled_usd > 0:
+        raise ValueError("исполненный объём — положительная величина (знак задаёт резерв)")
+    if filled_usd > abs(r["usd"]) + 1e-9:
         raise ValueError("исполнено больше, чем зарезервировано")
     if book.cash_usd is None:
         raise ValueError("кэш книги не наблюдён — исполнение не учитывается вслепую")
