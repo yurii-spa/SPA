@@ -131,8 +131,9 @@ def test_repeated_fixtures_are_not_an_owner_repeat_in_the_real_step(tracker):
     for _ in range(2):
         ii.save_inbox_task(PHRASE, source="telegram", merge_open_twin=False)
     rc, doc = _step0a(tracker)
-    # не «владелец повторил» (код 3), а неопределённость (код 2) — ревью S4: третий исход не выдаётся за «чисто»
-    assert doc["repeated_groups"] == 0 and rc == 2, "фикстура не есть «владелец повторил просьбу»"
+    # не «владелец повторил» (код 3), а неопределённость происхождения (код 4) — ревью S4: не «чисто»;
+    # и не код 2 — его оркестратор читает «не измерено» (ARB 01.11, разбор поставки R1)
+    assert doc["repeated_groups"] == 0 and rc == 4, "фикстура не есть «владелец повторил просьбу»"
     cards = q.list_cards(tracker_dir=tracker)
     assert len(census.unconfirmed_repeats(cards, now=NOW)) == 1, "неопределённость названа, а не потеряна"
 
@@ -174,4 +175,23 @@ def test_unconfirmed_repeats_are_reported_and_not_a_clean_exit(tracker):
     for _ in range(2):
         ii.save_inbox_task(PHRASE, source="telegram", merge_open_twin=False)
     rc, doc = _step0a(tracker)
-    assert doc["repeated_groups"] == 0 and doc["unconfirmed_cards"] == 2 and rc == 2
+    assert doc["repeated_groups"] == 0 and doc["unconfirmed_cards"] == 2 and rc == 4
+
+
+def test_unconfirmed_repeats_do_not_tell_the_orchestrator_the_guard_is_broken(tracker):
+    """ARB 01.11 (разбор поставки R1): исход шага 0a идёт в промпт цикла через НАСТОЯЩИЙ классификатор
+    `scripts/lib/starvation_verdict.sh`. Неподтверждённые повторы не должны читаться там как «ГОЛОД НЕ
+    ИЗМЕРЕН — заведи карточку на сторожа». Обратный контроль: прежний код 2 тем же классификатором
+    читается именно так — то есть тест различает исходы, а не принимает любой."""
+    import subprocess
+    lib = Path(__file__).resolve().parents[2] / "scripts" / "lib" / "starvation_verdict.sh"
+    for _ in range(2):
+        ii.save_inbox_task(PHRASE, source="telegram", merge_open_twin=False)
+    rc, _doc = _step0a(tracker)
+
+    def prefix(code):
+        return subprocess.run(["/bin/bash", "-c", f'. "{lib}"\nstarvation_prefix "$1" "$2"\n', "bash",
+                               str(code), "вывод"], capture_output=True, text=True, check=True).stdout
+    got = prefix(rc)
+    assert "НЕ ИЗМЕРЕН" not in got and "НАХОДКА" not in got and "НЕ повтор просьбы владельца" in got
+    assert "НЕ ИЗМЕРЕН" in prefix(2)

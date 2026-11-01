@@ -103,6 +103,15 @@ class TestThreeOutcomesStayDistinct(unittest.TestCase):
         self.assertIn("НЕ ИЗМЕРЕН", prefix)
         self.assertNotIn("НАХОДКА", prefix)
 
+    def test_unconfirmed_provenance_repeats_are_neither_finding_nor_unmeasured(self):
+        """Код 4 (ADR-890): голода нет, есть повторы с неустановленным автором — свой текст, не «чисто» и не
+        «не измерено» (иначе цикл заводил бы карточку на исправный сторож)."""
+        prefix = classify(4, "повторы с неустановленным автором: 1 группа")
+        self.assertNotIn("НЕ ИЗМЕРЕН", prefix)
+        self.assertNotIn("НАХОДКА", prefix)
+        self.assertIn("НЕ повтор просьбы владельца", prefix)
+        self.assertNotEqual(prefix, classify(0, self.CLEAN))
+
     def test_missing_guard_is_unmeasured(self):
         """Прод-дерево отстало от origin ⇒ скрипта нет ⇒ тоже «не измерено»."""
         prefix = classify(127, "нет .../check_owner_order_starvation.py")
