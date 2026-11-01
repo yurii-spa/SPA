@@ -430,3 +430,94 @@ class StreamSilenceIsNotAgreement(TempTree):
         self.assertEqual((census.stream_agreed, census.stream_disagreed,
                           census.stream_absent_for), (1, 0, 1))
         self.assertIn("в потоковой записи нет 1", fcc.format_census(census))
+
+
+class ASessionDeathIsAKindOfItsOwn(TempTree):
+    """Обморок САМОЙ сессии (ADR-892) — РОД, а не провал теста с безымянной фазой.
+
+    Положительный контроль настоящий: форма записи и хвост трассы воспроизводят шард 7
+    контрольного прогона **41318580149** (`9ebe92509`, 01.11), где pytest упал в своей
+    же отрисовке провала (`exit 3`), не дописав `<testcase>` тесту, под которым это
+    случилось. До ADR-892 эта запись получала `phase_unnamed` и садилась среди провалов
+    тестов, а «тип не назван» у неё читалось как «причину не нашли».
+    """
+
+    #: Хвост трассы — дословный из прогона. ГОЛОВА тела это кадры pluggy, то есть не
+    #: причина; потому `exception_tail` и берёт последнюю строку, а не первую.
+    TAIL = "TypeError: unsupported operand type(s) for -: 'NoneType' and 'int'"
+    BODY = ("Traceback (most recent call last):\n"
+            "  File \"/opt/hostedtoolcache/Python/3.11.17/x64/lib/python3.11/"
+            "site-packages/_pytest/main.py\", line 330, in wrap_session\n"
+            "    session.exitstatus = doit(config, session) or 0\n"
+            "  File \"/opt/hostedtoolcache/Python/3.11.17/x64/lib/python3.11/"
+            "site-packages/_pytest/_code/code.py\", line 214, in lineno\n"
+            "    return self._rawentry.tb_lineno - 1\n"
+            f"{TAIL}\n")
+    VICTIM = ("spa_core/tests/test_run_identity_key_price.py::BatteryHoleTests::"
+              "test_the_instrument_excludes_itself_by_naming_the_reason")
+
+    def record(self) -> Path:
+        return self.write("j.xml", junit([
+            case("spa_core.tests.test_x.Klass", "test_one", tag="failure",
+                 message="KeyError: 'identity'", text=REPO_TB),
+            case("pytest", "internal", tag="error", message="internal error",
+                 text=self.BODY)]))
+
+    def stream(self, *, mark: bool) -> Path:
+        path = self.root / "stream.jsonl"
+        rows = [{"e": "fail", "w": "call",
+                 "n": "spa_core/tests/test_x.py::Klass::test_one"},
+                {"e": "fail", "w": ("internal" if mark else "call"), "n": self.VICTIM}]
+        path.write_text("".join(json.dumps(r, ensure_ascii=False) + "\n" for r in rows),
+                        encoding="utf-8")
+        return path
+
+    def test_the_phase_of_a_session_death_is_named_not_unnamed(self):
+        census = fcc.census_from_path(self.record())
+        death = census.session_record
+        self.assertIsNotNone(death, "запись `pytest::internal` не опознана вовсе")
+        self.assertEqual(death.phase, fcc.PHASE_SESSION)
+        self.assertEqual(census.by_phase().get(fcc.PHASE_SESSION), 1)
+        self.assertEqual(census.by_phase().get(fcc.PHASE_UNNAMED, 0), 0,
+                         "обморок сел среди провалов с безымянной фазой")
+        self.assertIn(fcc.PHASE_SESSION, fcc.PHASES,
+                      "род вне ОБЪЯВЛЕННОГО перечня исчезает из печатаемой строки молча")
+
+    def test_the_exception_type_comes_from_the_tail_not_the_message(self):
+        """`message` обморока есть литерал `internal error` и типа не несёт ВОВСЕ."""
+        death = fcc.census_from_path(self.record()).session_record
+        self.assertEqual(death.message, "internal error")
+        self.assertIsNone(fcc.kind_of(death.message))
+        self.assertEqual(death.kind, "TypeError")
+        self.assertIn("unsupported operand", death.skeleton)
+
+    def test_the_death_is_printed_as_its_own_kind(self):
+        printed = fcc.format_census(fcc.census_from_path(self.record()))
+        self.assertIn("ОБМОРОК СЕССИИ", printed)
+        self.assertIn("TypeError", printed)
+
+    def test_the_victim_is_named_by_the_machine_mark_only(self):
+        marked = fcc.census_from_path(self.record(), stream=self.stream(mark=True))
+        self.assertEqual(list(marked.session_victims),
+                         [fcc.junit_name(self.VICTIM)])
+        plain = fcc.census_from_path(self.record(), stream=self.stream(mark=False))
+        self.assertEqual(list(plain.session_victims), [],
+                         "жертва опознана без машинной метки — это догадка")
+
+    def test_the_death_is_out_of_the_phase_agreement(self):
+        """Потоковой строки у обморока НЕТ по построению — это не дыра записи."""
+        census = fcc.census_from_path(self.record(), stream=self.stream(mark=True))
+        self.assertEqual(census.stream_absent_for, 0)
+        self.assertEqual(census.stream_agreed, 1)
+
+    def test_victims_are_unmeasured_without_a_stream_rather_than_zero(self):
+        census = fcc.census_from_path(self.record())
+        self.assertIsNone(census.stream_read)
+        self.assertEqual(list(census.session_victims), [])
+        self.assertIn("НЕ СПРОШЕНЫ", fcc.format_census(census))
+
+    def test_the_death_does_not_enter_the_defect_fork(self):
+        census = fcc.census_from_path(self.record())
+        self.assertEqual(fcc.fork_of(census.call).population, 1,
+                         "обморок инструмента попал в вилку дефектов набора")
+        self.assertTrue(census.identities_hold())

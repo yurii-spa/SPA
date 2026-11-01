@@ -113,10 +113,17 @@ class TheProbeIsRedOnEveryBrokenLink(unittest.TestCase):
         self.assertIn("вместо третьего исхода", detail)
 
     def test_red_when_an_unrecorded_failure_loses_its_name(self):
-        """Звено: падение без записи перестаёт называться поимённо."""
+        """Звено: падение без записи перестаёт называться поимённо.
+
+        Отступ якоря — 8 пробелов с ADR-892: ветка «причины нет» вышла из-под
+        `if failure is None` наружу, когда у атрибуции появился третий род (жертва
+        обморока сессии). Якорь перенаправлен, а не ослаблен: сцена отказала ГРОМКО
+        («предпосылка не обеспечена»), и это ровно то поведение, ради которого в ней
+        стои́т `assert src.count(old) == 1`.
+        """
         status, detail = _Scene(self, producer=(
-            '            unattributed.append(nodeid if isinstance(nodeid, str) '
-            'else repr(nodeid))', '            pass')).verdict()
+            '        unattributed.append(nodeid if isinstance(nodeid, str) '
+            'else repr(nodeid))', '        pass')).verdict()
         self.assertEqual(status, NOT_SATISFIED, detail)
         self.assertIn("НЕ НАЗВАНО поимённо", detail)
 

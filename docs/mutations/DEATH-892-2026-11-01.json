@@ -1,0 +1,101 @@
+{
+ "title": "ADR-892 DEATH — дельта цикла #1006: обморок САМОЙ сессии pytest назван РОДОМ, а не выдан за дефект теста; ложная находка «две записи спорят» снята; перечень родов атрибуции сверяется с населением",
+ "tests": [
+  "spa_core/tests/test_ci_session_death_axis.py",
+  "spa_core/tests/test_ci_cause_axis.py",
+  "spa_core/tests/test_ci_cause_axis_probe.py",
+  "spa_core/tests/test_failure_cause_census.py"
+ ],
+ "mutations": [
+  {
+   "name": "свод НЕ собирает род обморока — дословное состояние main до ADR-892",
+   "file": "scripts/ci_control.py",
+   "old": "            death = census.session_record\n            if death is not None:",
+   "new": "            death = None\n            if death is not None:"
+  },
+  {
+   "name": "жертва обморока перестаёт называться ПОИМЁННО",
+   "file": "scripts/ci_control.py",
+   "old": "            victim_rows.append(nodeid)\n            continue",
+   "new": "            continue"
+  },
+  {
+   "name": "запись обморока снова идёт в `found` — возвращается ЛОЖНЫЙ спор записей",
+   "file": "scripts/ci_control.py",
+   "old": "            for failure in census.failures:\n                if failure.is_session_death:\n                    continue\n",
+   "new": "            for failure in census.failures:\n"
+  },
+  {
+   "name": "жертва учтена как опознанный провал теста и попала в вилку дефектов",
+   "file": "scripts/ci_control.py",
+   "old": "                            \"skeleton\": death.get(\"skeleton\")}\n            victim_rows.append(nodeid)",
+   "new": "                            \"skeleton\": death.get(\"skeleton\")}\n            attributed.append(next(iter(found.values())))\n            victim_rows.append(nodeid)"
+  },
+  {
+   "name": "САМА строка жертвы причины не несёт — читатель `failures` видит пустоту",
+   "file": "scripts/ci_control.py",
+   "old": "            row[\"cause\"] = {\"session_death\": True, \"shard\": shard,\n                            \"kind\": death.get(\"kind\"),\n                            \"skeleton\": death.get(\"skeleton\")}",
+   "new": "            row[\"cause\"] = None"
+  },
+  {
+   "name": "перечень РОДОВ атрибуции с населением не сверяется (тождество снято)",
+   "file": "scripts/ci_control.py",
+   "old": "        \"roster\": n + len(victim_rows) + len(unattributed) == len(failures),",
+   "new": "        \"roster\": True,"
+  },
+  {
+   "name": "строка `cause_line` об обмороке молчит — отрисовка теряет род",
+   "file": "scripts/ci_control.py",
+   "old": "        parts.append(f\"СЕССИЯ УМЕРЛА внутренне у шард(ов) {who} \"",
+   "new": "        parts.append(f\"\" \"\""
+  },
+  {
+   "name": "«метка без записи» получает слова самого обморока — два состояния слиты",
+   "file": "scripts/ci_control.py",
+   "old": "        parts.append(f\"ЖЕРТВ обморока {axis['session_victims_n']}, а самой записи \"",
+   "new": "        parts.append(f\"СЕССИЯ УМЕРЛА внутренне {axis['session_victims_n']}, а записи \""
+  },
+  {
+   "name": "род присвоен ДОГАДКОЙ: жертвой считается любой провал потоковой записи",
+   "file": "spa_core/monitoring/failure_cause_census.py",
+   "old": "        victims = tuple(sorted(n for n, w in phases.items() if w == STREAM_INTERNAL))",
+   "new": "        victims = tuple(sorted(phases))"
+  },
+  {
+   "name": "тип исключения обморока берётся у `message` («internal error» типа не несёт)",
+   "file": "spa_core/monitoring/failure_cause_census.py",
+   "old": "    source = exception_tail(text) if session else (message or \"\")",
+   "new": "    source = message or \"\""
+  },
+  {
+   "name": "обморок снова входит в сверку фаз — ожидаемое отсутствие стало дырой записи",
+   "file": "spa_core/monitoring/failure_cause_census.py",
+   "old": "            if failure.is_session_death:\n                continue\n            observed = phases.get(failure.nodeid)",
+   "new": "            observed = phases.get(failure.nodeid)"
+  },
+  {
+   "name": "фаза обморока не объявлена родом — событие садится среди провалов тестов",
+   "file": "spa_core/monitoring/failure_cause_census.py",
+   "old": "        phase=(PHASE_SESSION if session else phase_of(tag, message)),",
+   "new": "        phase=phase_of(tag, message),"
+  },
+  {
+   "name": "читатель об обмороке НЕ находит — молчание читается как «всё в порядке»",
+   "file": "scripts/ci_control_verdict.py",
+   "old": "            out.append(f\"СЕССИЯ pytest УМЕРЛА внутренне у шард(ов) {who} \"",
+   "new": "            out.append(f\"про причины ничего {who} \""
+  },
+  {
+   "name": "у читателя «метка без записи» и «сессия умерла» получают ОДНИ слова",
+   "file": "scripts/ci_control_verdict.py",
+   "old": "            out.append(f\"{axis['session_victims_n']} падени(й) помечены потоковой \"",
+   "new": "            out.append(f\"СЕССИЯ pytest УМЕРЛА {axis['session_victims_n']} помечены \""
+  },
+  {
+   "name": "здоровый прогон обвинён в смерти сессии (fail-OPEN наизнанку)",
+   "file": "scripts/ci_control.py",
+   "old": "            death = census.session_record\n            if death is not None:\n                deaths.append(",
+   "new": "            death = census.session_record or (census.failures[0] if census.failures else None)\n            if death is not None:\n                deaths.append("
+  }
+ ]
+}
