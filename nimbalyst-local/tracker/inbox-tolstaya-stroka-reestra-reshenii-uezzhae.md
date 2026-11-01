@@ -2,13 +2,14 @@
 trackerStatus:
   type: inbox
 title: Толстая строка реестра решений уезжает на main молча — у доставки нет вопроса про колонку «Заголовок»
-status: in-progress
+status: done
 source: nimbalyst
 created: 2026-11-01
 acceptance_probe: adr_title_gate_refuses_a_fat_register
 twin_key: "sha256:98e4d9ae75bd5c2867918b7e9def3d3760c469a6ac58108d4aea2aba9403ed31"
 status_trail:
   - "2026-11-01T11:15:28.529357+00:00 new -> in-progress · queue.set_status · cycle-65667"
+  - "2026-11-01T11:45:45.886205+00:00 in-progress -> done · queue.set_status/closed_by:cycle-1004 (ADR-889)/evidence:проба adr_title_gate_refuses_a_fat_register = satisfied на origin/main 0404970c6: живой реестр 739 строк проходит гейт доставки, 0 толстых; дословные байты аварии f404cfbd6dfe (реестр из fa5bfcbd9) ОТ · cycle-65667"
 ---
 
 ## Что случилось и почему это важно
