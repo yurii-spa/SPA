@@ -7,7 +7,7 @@
 import { forceSimulation, forceCollide, forceX, forceY } from './vendor/d3-force.js';
 import { radialRestLayout, hexPts, edgeArc, responsiveRingR } from './vendor/founderos_layout.js';
 import { renderSystem, renderWhy, renderHome, renderDecisions } from './syswhy.js';
-import { renderCapital, renderStrategies, renderVoice, renderSlice, renderCompare } from './surfaces.js';
+import { renderCapital, renderStrategies, renderVoice, renderSlice, renderCompare, renderTrading } from './surfaces.js';
 import { renderProjects, renderSearch, renderWork, renderResearch, openCommand } from './studio_core.js';
 
 const SVGNS = 'http://www.w3.org/2000/svg';
@@ -54,7 +54,7 @@ async function load() {
   [STATE.model, STATE.rm, STATE.why, STATE.capital, STATE.strategies, STATE.slice, STATE.slicePendle, STATE.compare, STATE.context, STATE.projects] = await Promise.all([
     j('./universe.json'), j('./read_model.json'), j('./why_aave.json'), j('./capital.json'), j('./strategies.json'),
     j('./slice_aave.json'), j('./slice_pendle.json'), j('./compare.json'), j('./project_context.json'), j('./projects.json')]);
-  [STATE.research, STATE.repoStatus, STATE.taskLinks] = await Promise.all([j('./research.json'), j('./repo_status.json'), j('./task_links.json')]);
+  [STATE.research, STATE.repoStatus, STATE.taskLinks, STATE.trading] = await Promise.all([j('./research.json'), j('./repo_status.json'), j('./task_links.json'), j('./trading.json')]);
 }
 // ── OS navigation model ──────────────────────────────────────────────────────────────
 const GRAPH_VIEWS = new Set(['universe', 'opportunities', 'risk', 'research']);
@@ -68,6 +68,7 @@ const VIEWS = [
   { id: 'system', grp: 'os', icon: '❖', mode: 'system' },
   { id: 'capital', grp: 'defi', icon: '▤', mode: 'capital' },        // read-only financial surface (Owner Remote)
   { id: 'strategies', grp: 'defi', icon: '⑃', mode: 'strategies' },
+  { id: 'trading', grp: 'defi', icon: '⇅', mode: 'trading' },       // S3 E7.4: SPA TR + earn-defi, separate blocks
   { id: 'slice', grp: 'defi', icon: '▦', mode: 'slice' },
   { id: 'compare', grp: 'defi', icon: '⚖', mode: 'compare' },
   { id: 'voice', grp: 'defi', icon: '◉', mode: 'voice' },
@@ -80,8 +81,8 @@ const VIEWS = [
   { id: 'evidence', grp: 'intel', icon: '⊹', mode: 'why' },
 ];
 const VIEW_LABEL = {
-  ru: { os: 'СТУДИЯ OS', defi: 'EARN DEFI', graph: 'ГРАФ', intel: 'ТРАССА', home: 'Обзор', projects: 'Проекты', work: 'Работа', memory: 'Память', universe: 'Вселенная', opportunities: 'Возможности', capital: 'Капитал', strategies: 'Стратегии', voice: 'Голос', risk: 'Риск', system: 'Система', decisions: 'Решения', research: 'Исследования', rnd: 'R&D', why: 'Почему?', slice: 'Срез Aave', slicep: 'Срез Pendle', compare: 'Сравнение', evidence: 'Доказательства', search: 'поиск' },
-  en: { os: 'STUDIO OS', defi: 'EARN DEFI', graph: 'GRAPH', intel: 'TRACE', home: 'Overview', projects: 'Projects', work: 'Work', memory: 'Memory', universe: 'Universe', opportunities: 'Opportunities', capital: 'Capital', strategies: 'Strategies', voice: 'Voice', risk: 'Risk', system: 'System', decisions: 'Decisions', research: 'Research', rnd: 'R&D', why: 'Why?', slice: 'Aave Slice', slicep: 'Pendle Slice', compare: 'Compare', evidence: 'Evidence', search: 'search' },
+  ru: { os: 'СТУДИЯ OS', defi: 'EARN DEFI', graph: 'ГРАФ', intel: 'ТРАССА', home: 'Обзор', projects: 'Проекты', work: 'Работа', memory: 'Память', universe: 'Вселенная', opportunities: 'Возможности', capital: 'Капитал', strategies: 'Стратегии', trading: 'Торговля', voice: 'Голос', risk: 'Риск', system: 'Система', decisions: 'Решения', research: 'Исследования', rnd: 'R&D', why: 'Почему?', slice: 'Срез Aave', slicep: 'Срез Pendle', compare: 'Сравнение', evidence: 'Доказательства', search: 'поиск' },
+  en: { os: 'STUDIO OS', defi: 'EARN DEFI', graph: 'GRAPH', intel: 'TRACE', home: 'Overview', projects: 'Projects', work: 'Work', memory: 'Memory', universe: 'Universe', opportunities: 'Opportunities', capital: 'Capital', strategies: 'Strategies', trading: 'Trading', voice: 'Voice', risk: 'Risk', system: 'System', decisions: 'Decisions', research: 'Research', rnd: 'R&D', why: 'Why?', slice: 'Aave Slice', slicep: 'Pendle Slice', compare: 'Compare', evidence: 'Evidence', search: 'search' },
 };
 const vlabel = (k) => (VIEW_LABEL[STATE.lang] || VIEW_LABEL.en)[k] || k;
 // MOBILE Owner Remote bottom nav: OVERVIEW · CAPITAL · VOICE(central) · STRATEGIES · SYSTEM
@@ -96,6 +97,7 @@ function applyView(viewId) {
   if (v.mode === 'home') { renderHome(document.getElementById('homeview'), STATE.rm || {}, STATE.lang); chrome(); }
   else if (v.mode === 'decisions') { renderDecisions(document.getElementById('decisionsview'), STATE.rm || {}, STATE.lang); chrome(); }
   else if (v.mode === 'capital') { renderCapital(document.getElementById('capitalview'), STATE.capital, STATE.lang, navBridge()); chrome(); }
+  else if (v.mode === 'trading') { renderTrading(document.getElementById('tradingview'), STATE.trading, STATE.lang); chrome(); }
   else if (v.mode === 'strategies') { renderStrategies(document.getElementById('strategiesview'), STATE.strategies, STATE.lang, navBridge()); chrome(); }
   else if (v.mode === 'voice') { renderVoice(document.getElementById('voiceview'), { lang: STATE.lang, nav: navBridge() }); chrome(); }
   else if (v.mode === 'slice') { renderSlice(document.getElementById('sliceview'), STATE.slice, STATE.lang); chrome(); }

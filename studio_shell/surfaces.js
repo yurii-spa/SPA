@@ -102,6 +102,65 @@ export function renderCapital(mount, cap, lang, nav) {
   mount.append(wrap);
 }
 
+// ── TRADING (S3 E7.4): two SEPARATE engines, own ledgers; returns are NEVER summed ───────────────
+const FR_RU = { LIVE: 'СВЕЖО', RECENT: 'НЕДАВНО', STALE: 'УСТАРЕЛО', UNKNOWN: 'НЕИЗВЕСТНО' };
+const pctTxt = (v) => (typeof v === 'number' ? (v >= 0 ? '+' : '') + (v * 100).toFixed(1) + '%' : '—');
+function trKv(k, v, cls) {
+  return H('div', { class: 'tr-kv' + (cls ? ' ' + cls : '') }, H('span', { class: 'tr-k' }, k), H('span', { class: 'tr-v' }, v == null || v === '' ? '—' : String(v)));
+}
+function trBlock(b, lang) {
+  const fr = (b && b.freshness) || 'UNKNOWN';
+  const card = H('section', { class: 'tr-card', 'data-engine': (b && b.engine) || 'unknown' });
+  card.append(H('div', { class: 'tr-head' },
+    H('div', { class: 'tr-title' }, (b && b.title) || L(lang, 'ДВИЖОК', 'ENGINE')),
+    H('span', { class: 'surf-badge fr-' + fr }, L(lang, FR_RU[fr] || fr, fr)),
+    H('span', { class: 'surf-badge' }, 'PAPER')));
+  if (!b || !b.present) {
+    card.append(H('div', { class: 'tr-empty' }, L(lang, 'ДАННЫХ НЕТ', 'NO DATA')),
+      H('div', { class: 'tr-why' }, (b && b.why_no_result) || L(lang, 'источник недоступен', 'source unavailable')));
+    return card;
+  }
+  if (b.active_block) card.append(H('div', { class: 'tr-block' }, L(lang, 'БЛОКИРОВКА: ', 'BLOCKED: ') + b.active_block));
+  const d = b.last_decision;
+  if (d) {
+    const acts = d.actions ? Object.entries(d.actions).map(([a, n]) => a + ' ×' + n).join(', ') : d.action;
+    card.append(trKv(L(lang, 'Последнее решение', 'Last decision'), acts + ' · ' + String(d.at || d.date || '').replace('T', ' ').slice(0, 16) + (d.config_version ? ' · v' + d.config_version : '')));
+  } else card.append(trKv(L(lang, 'Последнее решение', 'Last decision'), L(lang, 'не записано', 'not recorded'), 'warn'));
+  if (b.why_hold) card.append(H('div', { class: 'tr-why' }, L(lang, 'Почему HOLD: ', 'Why HOLD: ') + b.why_hold));
+  const h = b.history || {};
+  card.append(trKv(L(lang, 'Доказанная история', 'Proven history'),
+    (h.calendar_days != null ? h.calendar_days + L(lang, ' календ. дн.', ' calendar d') : '') +
+    (h.observed_days != null ? (h.calendar_days != null ? ' · ' : '') + h.observed_days + L(lang, ' набл. дн.', ' observed d') : '') +
+    (h.since ? L(lang, ' с ', ' since ') + h.since : '') + (h.backfilled_days ? ' · backfill ' + h.backfilled_days : '')));
+  const r = b.paper_result;
+  if (b.why_no_result) card.append(H('div', { class: 'tr-why warn' }, L(lang, 'Результата нет: ', 'No result: ') + b.why_no_result));
+  else if (r && r.kind === 'nav') {
+    card.append(trKv(L(lang, 'Бумажный NAV', 'Paper NAV'), (r.nav_usdt != null ? '$' + Math.round(r.nav_usdt).toLocaleString() : '—') + ' · ' + pctTxt(r.cum_return) + ' · ' + L(lang, 'просадка ', 'DD ') + pctTxt(r.max_drawdown) + (r.date ? ' · ' + r.date : '')));
+  } else if (r && r.rows) {
+    card.append(H('div', { class: 'tr-sub' }, L(lang, 'Бумажный результат по каждому кандидату (не суммируется):', 'Paper result per candidate (not summed):')));
+    const list = H('div', { class: 'tr-rows' });
+    r.rows.forEach(x => list.append(H('div', { class: 'tr-row' }, H('span', { class: 'tr-id' }, x.id), H('b', {}, pctTxt(x.forward_net)))));
+    card.append(list);
+  }
+  card.append(H('div', { class: 'surf-foot' }, H('span', { class: 'surf-prov' }, b.provenance || '')));
+  return card;
+}
+export function renderTrading(mount, t, lang) {
+  mount.replaceChildren();
+  const wrap = H('div', { class: 'surf tr' });
+  wrap.append(H('div', { class: 'surf-h' }, L(lang, 'ТОРГОВЛЯ — ДВА ОТДЕЛЬНЫХ ДВИЖКА', 'TRADING — TWO SEPARATE ENGINES')));
+  if (!t || !Array.isArray(t.blocks)) {
+    wrap.append(H('div', { class: 'surf-empty' }, L(lang, 'СОСТОЯНИЕ ТОРГОВЛИ НЕДОСТУПНО', 'TRADING STATE NOT AVAILABLE'),
+      H('div', { class: 'surf-sub' }, L(lang, 'trading.json не загружен (сеть или файл) — это не «всё спокойно»', 'trading.json not loaded (network or file) — not «all quiet»'))));
+    mount.append(wrap);
+    return;
+  }
+  const byEngine = Object.fromEntries(t.blocks.map(b => [b.engine, b]));
+  ['spa_trading_research', 'earn_defi'].forEach(e => wrap.append(trBlock(byEngine[e] || { engine: e, title: e, present: false }, lang)));
+  wrap.append(H('div', { class: 'tr-note' }, t.note || ''));
+  mount.append(wrap);
+}
+
 // ── STRATEGIES ─────────────────────────────────────────────────────────────────────────
 let _stratFilter = null;
 export function renderStrategies(mount, strat, lang, nav) {

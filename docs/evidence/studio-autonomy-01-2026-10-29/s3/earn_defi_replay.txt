@@ -1,0 +1,49 @@
+{
+  "tables": {
+    "signals": {
+      "live": 59,
+      "replayed": 59,
+      "missing": [],
+      "extra": [],
+      "changed": [],
+      "diffs": 0
+    },
+    "decisions": {
+      "live": 59,
+      "replayed": 59,
+      "missing": [],
+      "extra": [],
+      "changed": [],
+      "diffs": 0
+    },
+    "trades": {
+      "live": 2,
+      "replayed": 2,
+      "missing": [],
+      "extra": [],
+      "changed": [],
+      "diffs": 0
+    },
+    "nav_daily": {
+      "live": 59,
+      "replayed": 59,
+      "missing": [],
+      "extra": [],
+      "changed": [],
+      "diffs": 0
+    }
+  },
+  "diffs": 0,
+  "nav_max_abs_diff": 0.0,
+  "config_versions": [
+    "0.1",
+    "0.2",
+    "0.3"
+  ],
+  "inputs": {
+    "rows": 51240,
+    "visible_to_last_record": 51237,
+    "arrived_after_last_record": 3
+  },
+  "deterministic": true
+}
