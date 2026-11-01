@@ -81,7 +81,7 @@ def wired(monkeypatch, sandbox):
     from spa_core.telegram import inbox_intake as II
 
     monkeypatch.setattr(II, "save_inbox_task",
-                        lambda text, source="telegram", transcript=None:
+                        lambda text, source="telegram", transcript=None, extra_fields=None:
                         (cards.append(("task", text)), (sandbox / "c.md", "Заголовок"))[1])
     # raising=False: на НЕИСПРАВЛЕННОМ origin такой функции нет вовсе — и тест обязан
     # краснеть на ЧИСЛЕ карточек (7 против 1), а не на отсутствии атрибута.

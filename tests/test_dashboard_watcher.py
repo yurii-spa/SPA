@@ -79,10 +79,12 @@ def test_agent_health_unhealthy_agent_real_shape():
         {"label": "com.spa.uptime_monitor", "status": "WARNING", "issue": "log stale"},
     ]}
     findings = dw.check_agent_health(data)
-    downs = [f for f in findings if f["subtype"] == "down"]
-    assert len(downs) == 1
-    assert downs[0]["label"] == "com.spa.uptime_monitor"
-    assert downs[0]["critical"] is False
+    # ADR-890 / TELEGRAM-OWNER-UX-01: статус WARNING — предупреждение, не остановка; ключ инцидента прежний
+    warns = [f for f in findings if f["subtype"] == "warning"]
+    assert len(warns) == 1 and not [f for f in findings if f["subtype"] == "down"]
+    assert warns[0]["label"] == "com.spa.uptime_monitor"
+    assert warns[0]["critical"] is False
+    assert warns[0]["key"] == "agent:down:com.spa.uptime_monitor"
 
 
 def test_agent_health_unhealthy_documented_shape():
