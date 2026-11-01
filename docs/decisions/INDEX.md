@@ -754,6 +754,7 @@
 | ADR-887 | ADR-887 — класс зазора фикстур гасился ДОПИСЫВАНИЕМ В СВОЮ ЖЕ БАЗУ, и этого не ловил никто | Accepted | [ADR-887](ADR-887-the-fixture-gap-class-was-silenceable-by-writing-into-its-own-base.md) |
 | ADR-888 | Население красного НАЗВАНО переписью, а не сведено к одному числу: 79 падений в 50 файлах, три записи одного прогона сверены, третий исход отличим | Accepted | [ADR-888](ADR-888-the-population-of-red-is-named.md) |
 | ADR-889 | Доставка не спрашивала, является ли строка реестра ЗАГОЛОВКОМ: четвёртая ось пина, код 16, замер 4 толстых из 38 добавленных после ADR-840 | Accepted | [ADR-889](ADR-889-delivery-does-not-ask-whether-the-register-row-is-a-title.md) |
+| ADR-890 | Намерение владельца — только по проверенному автору; пульт показывает цель, шаги, движки и роли (S4) | Proposed | [ADR-890](ADR-890-owner-intent-needs-a-verified-author-and-the-cockpit-shows-goal-steps.md) |
 
 | ADR-880 | ADR-880 — STUDIO-AUTONOMY-01: S1 принят ARB как завершённый инженерный этап (a172b79d4, CI 41205228032); production release не разрешён | Accepted | [ADR-880](ADR-880-studio-autonomy-s1-accepted-as-engineering-stage.md) |
 | ADR-882 | ADR-882 — STUDIO-AUTONOMY-01: пакет проверки релиза S2 принят ARB в ограниченном объёме; E4 не реализован, живой запуск и откат не измерены, production activation не разрешена | Accepted | [ADR-882](ADR-882-studio-autonomy-s2-release-verification-accepted-limited.md) |

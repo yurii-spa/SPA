@@ -172,3 +172,15 @@
 - **relevant_decisions:** ADR-763, ADR-762, ADR-760, ADR-611
 - **superseded_implementations:** none.
 - **last_verified:** 2026-10-16
+
+## INT-16 · STUDIO-AUTONOMY-01 — the owner manages the studio from the phone
+- **owner_intent:** «я управляю студией через существующий пульт с телефона, вижу реальную работу и принимаю необходимые решения, а не передаю промежуточные сообщения между моделями» (owner order 2026-11-01, S4).
+- **why_it_matters:** the owner was the dispatcher between models; the cockpit named a stale epic as the current goal and test fixtures were counted as the owner's repeated requests (P0 incident 2026-11-01).
+- **first_known_evidence:** docs/tasks/studio-autonomy-01-2026-10-29.md @ 976862fb0 (branch autonomy/s1); docs/ROADMAP.md item 19.
+- **current_implementation:** S1 accepted (ADR-880); S2 candidate 92b75ff85 and S3 candidate e8706130c verified, integration candidate integration/s2-s3; S4 candidate on branch s4/owner-control (ADR-890): owner intent only by a verified author, goal/steps, two paper engines, record ladder, roles on Director OS.
+- **current_status:** IN PROGRESS — S2 live steps wait for the owner (root), S3 E6.6 open (ARB), S4 candidate not merged, S5 not started.
+- **known_gaps:** Telegram answer not bound to the question version (ADR-762 OFF); aggregate admission shadow-only; real iPhone check of the new blocks not done; bot restart needed for author stamping.
+- **relevant_decisions:** ADR-880, ADR-882, ADR-890
+- **superseded_implementations:** none recorded.
+- **last_verified:** 2026-11-01
+
