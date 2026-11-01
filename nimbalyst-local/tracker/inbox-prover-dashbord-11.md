@@ -2,11 +2,16 @@
 trackerStatus:
   type: inbox
 title: проверь дашборд
-status: new
+status: done
 source: voice
 created: 2026-10-30
 intake_kind: task
 intake_seen: 2026-10-30T22:58:18Z
+carried_to: nimbalyst-local/tracker/inbox-task-portfolio-cio-dynamic-capital-alloc.md
+owner_notice: "suppressed-test-fixture"
+status_trail:
+  - "2026-11-01T12:41:26.669350+00:00 new -> done · queue.set_status/closed_by:STUDIO-AUTONOMY-01 session (P0, owner-authorized)/evidence:Закрыто как тестовая фикстура; пользовательская задача не выполнялась и владельцем не ставилась. Фикстура spa_core/tests/test_inbox_intake.py (ADR-874); разбор: docs/evidence/studio-autonomy-01-2026-1"
+owner_notice_reason: "закрыто как тестовая фикстура по P0 2026-11-01 — владельцу НЕ сообщать: это не его задание"
 ---
 
 ## Задание (из Telegram)
