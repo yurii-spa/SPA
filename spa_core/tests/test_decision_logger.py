@@ -41,6 +41,19 @@ for _name, _mod in (("database.init_db", _mock_init_db), ("database", _mock_db))
     if sys.modules.get(_name) is _mod:
         del sys.modules[_name]
 
+# Тот же объект модуля, с которым связан DecisionLogger выше. Если при сборе настоящего `database` ещё не было,
+# модуль связал get_connection с ПОДДЕЛКОЙ — и, оставшись в общем sys.modules, отдавал её всем следующим
+# импортёрам того же процесса (CI 41288814108 шард 0: test_investor_report получил пустой журнал аудита, потому
+# что этот файл впервые оказался в одном шарде раньше него; воспроизведено принудительно, S2 01.11). Модуль,
+# связанный с подделкой, из общего sys.modules убирается; тесты этого файла подменяют get_connection по ссылке.
+import spa_core.agents.decision_logger as _dl_mod  # noqa: E402
+if getattr(_dl_mod, "get_connection", None) is _mock_init_db.get_connection:
+    if sys.modules.get("spa_core.agents.decision_logger") is _dl_mod:
+        del sys.modules["spa_core.agents.decision_logger"]
+    import spa_core.agents as _agents_pkg  # noqa: E402
+    if getattr(_agents_pkg, "decision_logger", None) is _dl_mod:
+        delattr(_agents_pkg, "decision_logger")
+
 
 # ─── Context-manager mock connection factory ──────────────────────────────────
 
@@ -104,25 +117,25 @@ class TestDecisionLoggerLog(unittest.TestCase):
 
     def test_log_returns_row_id(self):
         dl, conn = self._make_dl(lastrowid=7)
-        with patch(f"{_DL_MOD}.get_connection", return_value=conn):
+        with patch.object(_dl_mod, "get_connection", return_value=conn):
             result = dl.log("ALLOCATE", "Test reasoning")
         self.assertEqual(result, 7)
 
     def test_log_never_raises_on_db_error(self):
         dl, _ = self._make_dl()
-        with patch(f"{_DL_MOD}.get_connection", side_effect=RuntimeError("DB down")):
+        with patch.object(_dl_mod, "get_connection", side_effect=RuntimeError("DB down")):
             result = dl.log("ALLOCATE", "reasoning")
         self.assertEqual(result, -1)
 
     def test_log_with_protocol_key(self):
         dl, conn = self._make_dl(lastrowid=3)
-        with patch(f"{_DL_MOD}.get_connection", return_value=conn):
+        with patch.object(_dl_mod, "get_connection", return_value=conn):
             result = dl.log("ALLOCATE", "OK", protocol_key="aave-v3")
         self.assertEqual(result, 3)
 
     def test_log_with_all_params(self):
         dl, conn = self._make_dl(lastrowid=5)
-        with patch(f"{_DL_MOD}.get_connection", return_value=conn):
+        with patch.object(_dl_mod, "get_connection", return_value=conn):
             result = dl.log(
                 "ALLOCATE",
                 "Good APY",
@@ -136,7 +149,7 @@ class TestDecisionLoggerLog(unittest.TestCase):
 
     def test_log_calls_execute_with_insert(self):
         dl, conn = self._make_dl()
-        with patch(f"{_DL_MOD}.get_connection", return_value=conn):
+        with patch.object(_dl_mod, "get_connection", return_value=conn):
             dl.log("PASS", "Too low APY")
         # verify INSERT was called
         conn.execute.assert_called_once()
@@ -145,21 +158,21 @@ class TestDecisionLoggerLog(unittest.TestCase):
 
     def test_log_params_include_agent_name(self):
         dl, conn = self._make_dl()
-        with patch(f"{_DL_MOD}.get_connection", return_value=conn):
+        with patch.object(_dl_mod, "get_connection", return_value=conn):
             dl.log("HOLD", "No action needed")
         params = conn.execute.call_args[0][1]
         self.assertIn("TestAgent", params)
 
     def test_log_params_include_policy_version(self):
         dl, conn = self._make_dl()
-        with patch(f"{_DL_MOD}.get_connection", return_value=conn):
+        with patch.object(_dl_mod, "get_connection", return_value=conn):
             dl.log("ALLOCATE", "reasons")
         params = conn.execute.call_args[0][1]
         self.assertIn(POLICY_VERSION, params)
 
     def test_log_params_include_decision_type(self):
         dl, conn = self._make_dl()
-        with patch(f"{_DL_MOD}.get_connection", return_value=conn):
+        with patch.object(_dl_mod, "get_connection", return_value=conn):
             dl.log("REBALANCE", "drift detected")
         params = conn.execute.call_args[0][1]
         self.assertIn("REBALANCE", params)
@@ -167,7 +180,7 @@ class TestDecisionLoggerLog(unittest.TestCase):
     def test_log_snapshot_serialized_to_str(self):
         dl, conn = self._make_dl()
         snapshot = {"protocol": "aave", "apy": 5.0}
-        with patch(f"{_DL_MOD}.get_connection", return_value=conn):
+        with patch.object(_dl_mod, "get_connection", return_value=conn):
             dl.log("ALLOCATE", "ok", data_snapshot=snapshot)
         params = conn.execute.call_args[0][1]
         # snapshot should be a JSON string in params
@@ -187,61 +200,61 @@ class TestDecisionLoggerTypedMethods(unittest.TestCase):
 
     def test_log_allocate_returns_positive_id(self):
         dl, conn = self._make_dl()
-        with patch(f"{_DL_MOD}.get_connection", return_value=conn):
+        with patch.object(_dl_mod, "get_connection", return_value=conn):
             result = dl.log_allocate("aave-v3", 40_000.0, 4.2, "T1", "APY OK",
                                      risk_approved=True)
         self.assertGreater(result, 0)
 
     def test_log_allocate_risk_rejected(self):
         dl, conn = self._make_dl()
-        with patch(f"{_DL_MOD}.get_connection", return_value=conn):
+        with patch.object(_dl_mod, "get_connection", return_value=conn):
             result = dl.log_allocate("euler-v2", 10_000.0, 8.0, "T2",
                                      "High APY", risk_approved=False)
         self.assertGreater(result, 0)
 
     def test_log_pass_returns_positive_id(self):
         dl, conn = self._make_dl()
-        with patch(f"{_DL_MOD}.get_connection", return_value=conn):
+        with patch.object(_dl_mod, "get_connection", return_value=conn):
             result = dl.log_pass("euler-v2", "APY too low")
         self.assertGreater(result, 0)
 
     def test_log_pass_with_optional_apy(self):
         dl, conn = self._make_dl()
-        with patch(f"{_DL_MOD}.get_connection", return_value=conn):
+        with patch.object(_dl_mod, "get_connection", return_value=conn):
             result = dl.log_pass("euler-v2", "APY too low", apy=0.5)
         self.assertGreater(result, 0)
 
     def test_log_rebalance_returns_positive_id(self):
         dl, conn = self._make_dl()
-        with patch(f"{_DL_MOD}.get_connection", return_value=conn):
+        with patch.object(_dl_mod, "get_connection", return_value=conn):
             # log_rebalance(from_protocol, to_protocol, amount_usd, reasoning)
             result = dl.log_rebalance("aave-v3", "morpho-blue", 5_000.0, "APY gap")
         self.assertGreater(result, 0)
 
     def test_log_alert_returns_positive_id(self):
         dl, conn = self._make_dl()
-        with patch(f"{_DL_MOD}.get_connection", return_value=conn):
+        with patch.object(_dl_mod, "get_connection", return_value=conn):
             # log_alert(alert_type, severity, details)
             result = dl.log_alert("TVL_DROP", "WARNING", {"message": "TVL -35%"})
         self.assertGreater(result, 0)
 
     def test_log_hold_returns_positive_id(self):
         dl, conn = self._make_dl()
-        with patch(f"{_DL_MOD}.get_connection", return_value=conn):
+        with patch.object(_dl_mod, "get_connection", return_value=conn):
             # log_hold(protocol_key, reasoning, current_apy)
             result = dl.log_hold("aave-v3", "No rebalance needed", 4.2)
         self.assertGreater(result, 0)
 
     def test_log_allocate_never_raises(self):
         dl, _ = self._make_dl()
-        with patch(f"{_DL_MOD}.get_connection", side_effect=RuntimeError("crash")):
+        with patch.object(_dl_mod, "get_connection", side_effect=RuntimeError("crash")):
             result = dl.log_allocate("aave-v3", 40_000.0, 4.2, "T1", "test",
                                      risk_approved=True)
         self.assertEqual(result, -1)
 
     def test_log_pass_never_raises(self):
         dl, _ = self._make_dl()
-        with patch(f"{_DL_MOD}.get_connection", side_effect=RuntimeError("crash")):
+        with patch.object(_dl_mod, "get_connection", side_effect=RuntimeError("crash")):
             result = dl.log_pass("aave-v3", "reason")
         self.assertEqual(result, -1)
 
@@ -259,25 +272,25 @@ class TestDecisionLoggerQueries(unittest.TestCase):
 
     def test_get_recent_returns_list(self):
         dl, conn = self._make_dl()
-        with patch(f"{_DL_MOD}.get_connection", return_value=conn):
+        with patch.object(_dl_mod, "get_connection", return_value=conn):
             result = dl.get_recent()
         self.assertIsInstance(result, list)
 
     def test_get_recent_never_raises(self):
         dl, _ = self._make_dl()
-        with patch(f"{_DL_MOD}.get_connection", side_effect=RuntimeError("db")):
+        with patch.object(_dl_mod, "get_connection", side_effect=RuntimeError("db")):
             result = dl.get_recent()
         self.assertIsInstance(result, list)
 
     def test_get_by_protocol_returns_list(self):
         dl, conn = self._make_dl()
-        with patch(f"{_DL_MOD}.get_connection", return_value=conn):
+        with patch.object(_dl_mod, "get_connection", return_value=conn):
             result = dl.get_by_protocol("aave-v3")
         self.assertIsInstance(result, list)
 
     def test_get_by_protocol_never_raises(self):
         dl, _ = self._make_dl()
-        with patch(f"{_DL_MOD}.get_connection", side_effect=RuntimeError("db")):
+        with patch.object(_dl_mod, "get_connection", side_effect=RuntimeError("db")):
             result = dl.get_by_protocol("aave-v3")
         self.assertIsInstance(result, list)
 
