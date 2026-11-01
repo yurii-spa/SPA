@@ -1,50 +1,80 @@
-# S2 — один запрос владельцу: обновить доверенный корень и запустить одну безвредную канарейку
+# S2 — запрос владельцу: установить доверенный корень из проверенного пакета и измерить канарейку B → A
 
-**Статус:** подготовлено, НЕ выполнено. Агент root/sudo не использует и службы не переключает.
-**Версия кода:** кандидат `s2/release-materialise`; одобряемый SHA ниже — итоговый SHA отчёта ARB.
-Если ARB примет другой SHA, во всех командах ниже меняется только `APPROVED`, а sha256 лаунчера
-пересчитывается шагом 0.
+**Статус:** подготовлено и отрепетировано на пользовательском корне (см. «Репетиция»), НЕ выполнено. Агент root/sudo
+не использует, службы не создаёт и не переключает. Пароль в чат не нужен — команды набирает владелец.
 
 ## Зачем
-Последний обязательный критерий S2 — «до разрешённой активации» (план `976862fb0`, «Пять поставок», S2), а вместе
-с ним E5.5/E5.6 на живой системе: «запущено из проверенного артефакта» и откат должны быть измерены на настоящей
-службе launchd, а не на стенде. Агенту для этого не хватает двух действий: установки от root и запуска одной
-службы. Наблюдение ≥ 3 штатных циклов (E8.4) — поставка S5, сюда не входит.
-Денег, ставок, рисков, сайта и `data/` это не касается. Пароль в чат не нужен.
+Последний обязательный критерий S2 — «разрешённая активация» (план `976862fb0`, «Пять поставок», S2) вместе с
+E5.5/E5.6 на живой системе. Нужно измерить на настоящей службе launchd: запуск из проверенного артефакта B, возврат
+к предыдущему проверенному A и восстановление изменённой конфигурации доверенного корня. Наблюдение ≥ 3 штатных
+циклов — E8.4, поставка S5, сюда не входит. Денег, ставок, рисков, сайта и `data/` это не касается.
 
-## Что уже стоит на машине (замер 31.10, только чтение)
-- `/Library/Application Support/StudioOS/` установлен 28–30.09: лаунчер `bin/release_launcher-eec1ae58…f696.py`
-  (прежняя версия — доверяет штампу), `approved_release.json` = `4cb68535…`, `runtime.json` без `trusted_repo`,
-  runtime `toolchains/python-3.13-09eecca2da07a581`, релизы `4cb68535…`, `5b652577…`.
-- **Ни один plist в `~/Library/LaunchAgents` на эту плоскость не указывает** — канарейка будет первой службой.
+## Версии (основания допуска)
+| | SHA | Основание |
+|---|---|---|
+| **Пакет установки** | итоговый SHA отчёта ARB (`BUNDLE`) | установщик, лаунчер, сборщик runtime и верификатор берутся из ЭТОГО коммита; их sha256 — в отчёте ARB и в `INSTALL_PIN.json` того же коммита |
+| **Лаунчер** (и для A, и для B) | из пакета, sha256 `7e778f2b33494a601413f69d4d90e491fc7632d172ff916e4a0d39685b432aed` | проверка состава по перепроверенному дереву, `-B -E -s`, байткод = лишний файл. Прежний лаунчер `eec1ae58…` (доверял штампу) в проверке НЕ участвует |
+| **A** — предыдущий проверенный релиз | `63b96a1e73e518803a91b96ac7ded94598a9820a` | база `origin/main`, полный ci-control `41120767445` (12/12, 68 известных падений базы); состав доказывает лаунчер при установке |
+| **B** — кандидат | итоговый SHA отчёта ARB (= `BUNDLE`) | полный ci-control итогового SHA (отчёт ARB); состав доказывает лаунчер |
 
-## Шаги (набирает владелец в своём терминале)
+## Что уже стоит на машине (замер 31.10–01.11, только чтение)
+`/Library/Application Support/StudioOS/`: лаунчер `bin/release_launcher-eec1ae58…f696.py` (старый), одобрение
+`4cb68535…`, `runtime.json` без `trusted_repo`, runtime `toolchains/python-3.13-09eecca2da07a581`, релизы
+`4cb68535…`, `5b652577…`. **Ни один plist на эту плоскость не указывает.** Runtime, собранный 01.11 без root из
+`~/miniconda3/bin/python3.13`, даёт digest `09eecca2da07a58156dff27ee5e904620675e05ffd60e31c08a7866cd10390b2` —
+тот же, установленный runtime будет переиспользован без изменений.
 
+## Шаг 0 — без root
+В zsh (оболочка macOS) переменные перед `:` и `^` пишутся в фигурных скобках — `"${BUNDLE}:путь"`: без них
+zsh разбирает `:s…` как модификатор параметра (найдено проверкой этих команд 01.11).
 ```bash
-# 0. Переменные (не секреты). APPROVED — итоговый SHA отчёта ARB.
-WT=~/Documents/SPA_worktrees/s2_release
-APPROVED=<итоговый SHA из отчёта ARB, 40 символов>
-LAUNCHER=$WT/spa_core/studio_os/release_launcher.py
-LSHA=$(shasum -a 256 "$LAUNCHER" | cut -d' ' -f1)      # значение для итогового SHA приведено в отчёте ARB
-git -C "$WT" rev-parse HEAD                              # должно совпасть с APPROVED
+BUNDLE=<итоговый SHA из отчёта ARB, 40 hex>          # он же B
+A=63b96a1e73e518803a91b96ac7ded94598a9820a
+REPO=~/Documents/SPA_Claude
+STAGE=~/StudioOS_install_$(date +%Y%m%d)              # не должен существовать
+SNAP=~/StudioOS_config_before_$(date +%Y%m%d)         # не должен существовать
+ROOT="/Library/Application Support/StudioOS"
+git -C "$REPO" cat-file -e "${BUNDLE}^{commit}" && git -C "$REPO" cat-file -e "${A}^{commit}"
+# 0.1 верификатор берётся из коммита BUNDLE, а не из рабочего дерева
+git --no-replace-objects -C "$REPO" show "${BUNDLE}:spa_core/studio_os/trusted_install_bundle.py" > /tmp/tib.py
+shasum -a 256 /tmp/tib.py        # обязан = d7ced956e2d358ac6ff9858544d33af25572b0416147cfc05f3a831bfd23e05a (отчёт ARB)
+# 0.2 пакет: каждый файл сверяется со ЗНАЧЕНИЯМИ ОТЧЁТА и с пином коммита; при расхождении — REFUSED, пакета нет
+/usr/bin/python3 -I /tmp/tib.py stage --repo "$REPO" --sha "$BUNDLE" --stage "$STAGE" \
+  --expect=scripts/install_trusted_bootstrap.sh=1802ce4337bea3a105b0e6e9816f7d8b98f4bb05ebeacac5dcf760881351318f \
+  --expect=scripts/build_trusted_runtime.sh=73a7ea352f126833eafeb17054e5f77f16d0f644830ac59ccb2ca30300694b6b \
+  --expect=spa_core/studio_os/release_launcher.py=7e778f2b33494a601413f69d4d90e491fc7632d172ff916e4a0d39685b432aed \
+  --expect=spa_core/studio_os/trusted_install_bundle.py=d7ced956e2d358ac6ff9858544d33af25572b0416147cfc05f3a831bfd23e05a
+# 0.3 снимок исходной конфигурации: содержимое, sha256, uid/gid, режим, перечни bin/releases/toolchains
+/usr/bin/python3 -I "$STAGE/spa_core/studio_os/trusted_install_bundle.py" snapshot --root "$ROOT" --snapshot "$SNAP"
+/usr/bin/python3 -I "$STAGE/spa_core/studio_os/trusted_install_bundle.py" verify --root "$ROOT" --snapshot "$SNAP"   # MATCH
+# 0.4 runtime: digest ОБЯЗАН совпасть с закреплённым; иначе стоп (новое значение не принимается)
+bash "$STAGE/scripts/build_trusted_runtime.sh" --src ~/miniconda3/bin/python3.13 --stage /tmp/studioos-python313-runtime --print-digest
+RDIGEST=09eecca2da07a58156dff27ee5e904620675e05ffd60e31c08a7866cd10390b2
+LAUNCHER="$STAGE/spa_core/studio_os/release_launcher.py"
+LSHA=7e778f2b33494a601413f69d4d90e491fc7632d172ff916e4a0d39685b432aed
+# 0.5 сухой прогон и изолированный прогон тех же функций (без root)
+bash "$STAGE/scripts/install_trusted_bootstrap.sh" --dry-run --launcher "$LAUNCHER" --launcher-sha256 "$LSHA" --repo "$REPO" --approved "$BUNDLE" --runtime /tmp/studioos-python313-runtime --runtime-digest "$RDIGEST"
+mkdir -p /tmp/studioos-selftest && bash "$STAGE/scripts/install_trusted_bootstrap.sh" --self-test-root /tmp/studioos-selftest --launcher "$LAUNCHER" --launcher-sha256 "$LSHA" --repo "$REPO" --approved "$BUNDLE" --self-test-app-python ~/miniconda3/bin/python3.13
+# 0.6 база «до»
+python3 -m spa_core.monitoring.deployment_acceptance; echo "rc=$?"       # из прод-дерева, записать код
+launchctl list | grep com.spa > ~/StudioOS_fleet_before.txt
+git -C "$REPO" status --short data/ | shasum -a 256 > ~/StudioOS_data_before.txt
+df -g / | tail -1                                                         # ≥ 20 ГБ свободно
+```
+Любой `REFUSED`, `FAIL-CLOSED`, несовпадение digest или хеша — стоп, дальше не идти.
 
-# 1. Собрать бандл runtime (без root; ничего не устанавливает)
-bash $WT/scripts/build_trusted_runtime.sh --src ~/miniconda3/bin/python3.13 --stage /tmp/studioos-python313-runtime --print-digest
-RDIGEST=<число RUNTIME_DIGEST из вывода>                # если = 09eecca2…, установленный runtime будет переиспользован
+## Шаг 1 — root: установка A, затем B (только из пакета `$STAGE`)
+```bash
+sudo bash "$STAGE/scripts/install_trusted_bootstrap.sh" --launcher "$LAUNCHER" --launcher-sha256 "$LSHA" --repo "$REPO" --approved "$A" --runtime /tmp/studioos-python313-runtime --runtime-digest "$RDIGEST"
+sudo bash "$STAGE/scripts/install_trusted_bootstrap.sh" --launcher "$LAUNCHER" --launcher-sha256 "$LSHA" --repo "$REPO" --approved "$BUNDLE" --runtime /tmp/studioos-python313-runtime --runtime-digest "$RDIGEST"
+cat "$ROOT/approved_release.json"     # = BUNDLE (B); оба релиза доказаны установленным лаунчером, root:wheel, a-w
+```
+Установщик сверяет sha256 и источника, и установленной копии лаунчера. Он проверяет, что обычный пользователь не
+может писать лаунчер, одобрение, runtime.json и релиз (на этом держится остаток R4: байткод в релиз не пишется), и
+ничего не удаляет.
 
-# 2. Сухой прогон установщика (без root) и изолированный прогон тех же функций на временном корне
-bash $WT/scripts/install_trusted_bootstrap.sh --dry-run --launcher "$LAUNCHER" --launcher-sha256 "$LSHA" \
-  --repo ~/Documents/SPA_Claude --approved "$APPROVED" --runtime /tmp/studioos-python313-runtime --runtime-digest "$RDIGEST"
-mkdir -p /tmp/studioos-selftest && bash $WT/scripts/install_trusted_bootstrap.sh --self-test-root /tmp/studioos-selftest \
-  --launcher "$LAUNCHER" --launcher-sha256 "$LSHA" --repo ~/Documents/SPA_Claude --approved "$APPROVED" \
-  --self-test-app-python ~/miniconda3/bin/python3.13
-
-# 3. Установка (root). Существующие релизы и прежний лаунчер не удаляются; перезаписываются
-#    approved_release.json и runtime.json (их не читает ни одна служба).
-sudo bash $WT/scripts/install_trusted_bootstrap.sh --launcher "$LAUNCHER" --launcher-sha256 "$LSHA" \
-  --repo ~/Documents/SPA_Claude --approved "$APPROVED" --runtime /tmp/studioos-python313-runtime --runtime-digest "$RDIGEST"
-
-# 4. Канарейка: ОДИН новый plist, существующие plist флота не меняются
+## Шаг 2 — одна канарейка (новый plist; существующие plist флота не меняются)
+```bash
 cat > ~/Library/LaunchAgents/com.spa.release_canary.plist <<PL
 <?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
@@ -63,53 +93,64 @@ PL
 plutil -lint ~/Library/LaunchAgents/com.spa.release_canary.plist
 launchctl bootstrap gui/$(id -u) ~/Library/LaunchAgents/com.spa.release_canary.plist
 ```
+Служба одна — `canary` → `deployment_acceptance` (только чтение). `SPA_DATA_DIR` намеренно не задаётся: из
+неизменяемого релиза она ничего не пишет (ожидаемый код 1 — «живое состояние не измерено»).
 
-`SPA_DATA_DIR` в plist намеренно НЕ задаётся: `deployment_acceptance`, запущенная из неизменяемого релиза без
-`SPA_DATA_DIR`, ничего не пишет (квитанция отказывает) — **ноль записей в `data/`**; проверки свежести живого
-состояния она честно назовёт «не измерено». Минимальная затрагиваемая служба — эта одна.
+## Шаг 3 — измерения (агент, без root)
+- **B:** пока процесс работает, `python3 -c "from spa_core.studio_os import release_state as R; print(R.active_processes('$ROOT/releases'))"`
+  называет процесс канарейки с SHA = B; в `/tmp/spa_release_canary.err` нет `trusted-launcher FAIL_CLOSED`; код в
+  `launchctl list com.spa.release_canary` — 0 или 1. Не успели замерить — `launchctl kickstart gui/$(id -u)/com.spa.release_canary`
+  и замер повторяется (успехом не объявляется).
+- **Возврат к A (E5.6):** `sudo bash "$STAGE/scripts/install_trusted_bootstrap.sh" … --approved "$A" …` (та же строка, что в
+  шаге 1): каталог A переиспользуется доказанным, переписывается только одобрение; затем
+  `launchctl kickstart gui/$(id -u)/com.spa.release_canary`; замер называет процесс с SHA = A. Это доказательство
+  запуска ПРЕДЫДУЩЕГО ПРОВЕРЕННОГО релиза тем же новым лаунчером.
+- На каждом шаге: `git -C "$REPO" status --short data/ | shasum -a 256` = до; `launchctl list | grep com.spa` — коды
+  остальных агентов не изменились.
 
-## Проверки до выполнения (агент, по просьбе владельца — без root)
-1. `python3 -m spa_core.monitoring.deployment_acceptance` в прод-дереве — записать код возврата (база «до»).
-2. `launchctl list | grep com.spa` — снимок кодов выхода флота.
-3. Шаг 2 выше — оба прогона без `FAIL-CLOSED`; на временном корне `release_launcher.exec_root` = `ACTIVATE_OK`.
-4. Свободно на диске ≥ 20 ГБ (материализация SPA ≈ 230 МБ).
+## Условия остановки (любое — сразу (а), затем (б))
+`REFUSED`/`FAIL-CLOSED` установщика · `trusted-launcher FAIL_CLOSED` · код канарейки 2/3/126 · ACTIVE не
+подтверждён после повторного `kickstart` · изменение `data/` · изменение кода выхода любого другого `com.spa.*` ·
+рост ошибок `agent_health`.
 
-## Проверка успеха (агент, после шага 4)
-- `/tmp/spa_release_canary.err` не содержит `trusted-launcher FAIL_CLOSED`; код выхода канарейки в
-  `launchctl list com.spa.release_canary` записан (0 или 1 «предупреждение» `deployment_acceptance` без живого
-  состояния — оба ожидаемы; 2/3/126 — отказ);
-- во время работы `release_state.active_processes("/Library/Application Support/StudioOS/releases")` называет
-  процесс с одобренным SHA (если процесс успел завершиться до замера — «не измерено», запуск повторяется
-  `launchctl kickstart gui/$(id -u)/com.spa.release_canary`, а не объявляется успехом);
-- `git -C ~/Documents/SPA_Claude status --short data/` до и после — одинаково; коды выхода остальных `com.spa.*` не
-  изменились; `deployment_acceptance` прод-дерева после — тот же код, что до.
-
-## Условия остановки (любое — сразу откат)
-`FAIL-CLOSED` установщика · `trusted-launcher FAIL_CLOSED` канарейки · код 2/3/126 · ACTIVE не подтверждён после
-повторного запуска · изменение `data/` · изменение кода выхода любого другого агента · рост ошибок `agent_health`.
-
-## Откат
+## Восстановление
+**(а) Аварийная остановка канарейки:**
 ```bash
 launchctl bootout gui/$(id -u)/com.spa.release_canary
 mkdir -p ~/Library/LaunchAgents/_archive && mv ~/Library/LaunchAgents/com.spa.release_canary.plist ~/Library/LaunchAgents/_archive/
-# прежнее одобрение (для лаунчера eec1ae58, который никем не запускается) — только если нужно вернуть файл как был:
-# sudo sh -c 'printf "{\"approved_sha\": \"4cb68535329b2b09cb86d3a863aba6536e3f6c77\"}\n" > "/Library/Application Support/StudioOS/approved_release.json"'
+python3 -c "from spa_core.studio_os import release_state as R; print(R.active_processes('$ROOT/releases'))"   # []
 ```
-Ничего не удаляется: релизы, прежний лаунчер и runtime остаются. Данные не затрагиваются.
+**(б) Восстановление конфигурации доверенного корня** — approved_release.json и runtime.json (содержимое, владелец,
+режим) из снимка шага 0.3; нужен root, т. к. файлы root:wheel:
+```bash
+sudo /usr/bin/python3 -I "$STAGE/spa_core/studio_os/trusted_install_bundle.py" restore --root "$ROOT" --snapshot "$SNAP"
+/usr/bin/python3 -I "$STAGE/spa_core/studio_os/trusted_install_bundle.py" verify --root "$ROOT" --snapshot "$SNAP"
+```
+`restore` отказывает на подменённом снимке и сам перепроверяет файлы. `verify` после восстановления назовёт только
+перечни `bin/` и `releases/`: новый лаунчер и релизы A/B остаются (ничего не удаляется), а после (а) ни одна служба
+на них не указывает.
 
-## Риски
-- Шаги установщика с правами root:wheel и `sudo -u` вне root НЕ проверены (проверены функции материализации и
-  записи `runtime.json` на временном корне). Первая настоящая проверка — шаг 3; при `FAIL-CLOSED` ничего не
-  публикуется.
-- `trusted_repo = ~/Documents/SPA_Claude` — репозиторий пользователя: удаление его git-объектов даст отказ
-  `APPROVED_RELEASE_UNVERIFIABLE` (доступность, не целостность: каждый объект перепроверяется по sha1).
-- `deployment_acceptance` проверяет импорты ДОЧЕРНИМИ процессами интерпретатора флота без `-B` (замер 31.10 на
-  релизе в каталоге пользователя: появилось 40 каталогов `__pycache__`, код выхода 1). В root-owned релизе
-  (`root:wheel`, `a-w`, проверка прав установщика) запись невозможна; если бы она прошла, следующий запуск
-  отказал бы `APPROVED_RELEASE_CORRUPT` — fail-closed, а не исполнение подменённого кода.
-- Одобряемый SHA — ветка, не `main`: канарейка исполняет код кандидата. Это не доставка в `main` и не переключение
-  флота.
+**(в) Доказательство запуска предыдущего проверенного релиза** — это измерение «Возврат к A» шага 3 (новый лаунчер,
+A = `63b96a1e7`). Восстановление (б) возвращает исходную конфигурацию, но доказательством безопасного отката не
+является: прежний лаунчер `eec1ae58…` для этого не используется.
+
+## Репетиция (выполнено агентом 01.11, без root)
+`~/Documents/SPA_worktrees/arb_s2_evidence_2026-10-31/rehearsal_canary_AB/`:
+- пакет из коммита `5c4a9549b` (4 хеша = пин);
+- снимок копии настоящей конфигурации; A и B материализованы и доказаны; релизы `a-w`;
+- канарейка B — pid 70489 в `releases/5c4a9549b`, код 1; возврат к A — pid 71505 в `releases/63b96a1e7`, код 1;
+- `__pycache__` в релизах нет; `restore` — файлы совпали; `data/` прод-дерева и настоящий корень не изменились.
+
+Подмены: корень пользователя вместо root:wheel, `--self-test-root` вместо `sudo`, скрипт вместо launchd.
+
+## Риски и что остаётся НЕ ИЗМЕРЕННЫМ до этих шагов
+- Шаги установщика под root (`chown root:wheel`, проверка прав `sudo -u`, сверка установленной копии) ни разу не
+  исполнялись — первая проверка и есть шаг 1; при отказе ничего не публикуется.
+- Запуск канарейки через launchd, её работа от обычного пользователя в gui-домене и попытка записи байткода в
+  root-owned релиз (R4) — измеряются только шагами 2–3.
+- `trusted_repo = ~/Documents/SPA_Claude` — репозиторий пользователя: удаление его объектов даёт отказ, а не подмену.
+- B — коммит ветки, не `main`; это не доставка в `main` и не переключение флота.
 
 ## Что агент сделает после ответа
-Проведёт проверки «до», после шагов 3–4 снимет замер успеха, запишет исход в `S2_STATUS.md` и ADR; при условии
-остановки — откат по разделу выше и немедленное сообщение владельцу.
+Проведёт шаг 0 (если поручено), после шагов 1–2 — измерения шага 3; при условии остановки — (а) и (б) и сразу
+сообщение владельцу. Исход запишет в `S2_STATUS.md` и ADR.
