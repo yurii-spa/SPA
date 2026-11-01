@@ -2142,6 +2142,20 @@
     return c;
   }
 
+  // S4 K6 (E7.5): роли, провайдер, права, квота (UNKNOWN честно), фактические исполнители
+  function renderRoles(r) {
+    var c = uxCard(r.title, "ux-card--quiet roles-card");
+    if (!r.rows) { c.appendChild(h("p", { class: "ux-note" }, [r.text || t("state.NOT_MEASURED")])); return c; }
+    r.rows.forEach(function (x) {
+      c.appendChild(h("p", { class: "ux-item-title" }, [x.title]));
+      [x.text, x.rights, x.quota].forEach(function (line) { c.appendChild(h("p", { class: "ux-note eng-wrap" }, [line])); });
+    });
+    c.appendChild(h("p", { class: "ux-metric-text eng-wrap" }, [r.executors]));
+    (r.business || []).forEach(function (b) { c.appendChild(h("p", { class: "ux-note eng-wrap" }, [b])); });
+    c.appendChild(h("p", { class: "ux-note" }, [r.rule]));
+    return c;
+  }
+
   function renderWorkArea(root) {
     var s = ov();
     var w = s && s.work;
@@ -2152,6 +2166,7 @@
       ((w.now && w.now.items) || []).forEach(function (m) { c1.appendChild(metricRow(m)); });
       root.appendChild(c1);
       if (w.my_records) root.appendChild(renderMyRecords(w.my_records));
+      if (w.roles) root.appendChild(renderRoles(w.roles));
       var c2 = uxCard(w.blocking && w.blocking.title, w.blocking && !w.blocking.known_reason ? "ux-card--quiet" : "");
       c2.appendChild(h("p", { class: "ux-metric-text" }, [(w.blocking && w.blocking.text) || t("state.NOT_MEASURED")]));
       // ARB 09.10: WHICH tasks are stopped and what their card says — reason / next step in words,

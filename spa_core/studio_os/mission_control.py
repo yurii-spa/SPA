@@ -87,6 +87,9 @@ CONTRACT: list[dict] = [
      "stale_after_min": 120, "unknown": "NOT_MEASURED", "redaction": "public_view scrub", "mobile": True, "alert": False},
     {"path": "capital.trading_research", "source": "data/trading_research/status.json",
      "stale_after_min": 60, "unknown": "NOT_MEASURED", "redaction": "no shortlist free text", "mobile": True, "alert": True},
+    {"path": "studio.roles", "source": "architecture/model_roles.json + architecture/roles.json + tracker claimed_by (read-only)",
+     "stale_after_min": None, "unknown": "quota UNKNOWN (no provider quota artifact); executors None when the tracker is unread",
+     "redaction": "safe_text on descriptions", "mobile": True, "alert": False},
     {"path": "capital.trading_engines", "source": "spa_core.studio_os.trading_engines.build_trading — SPA TR status.json+evidence.db (ro) and earn-defi earn_defi.db (ro), two separate blocks",
      "stale_after_min": None, "unknown": "per-block present=false + why_no_result", "redaction": "candidate ids, engine reasons as written",
      "mobile": True, "alert": False},
@@ -371,6 +374,43 @@ def _meta(state: str, sources: list, observed_at: Optional[datetime], now: datet
 
 def _nm(sources: list, now: datetime, reason: str) -> dict:
     return {"_meta": _meta("NOT_MEASURED", sources, None, now, reason=reason)}
+
+
+def _roles_section(root: Path, cards: Optional[dict], now: datetime) -> dict:
+    """S4 K6 (E7.5): роли · назначенный провайдер · права · квота · фактические исполнители. Только чтение.
+
+    Права принадлежат РОЛИ (``architecture/model_roles.json``): провайдер их не объявляет, поэтому смена модели
+    прав не добавляет. Квот как артефакта нет — UNKNOWN с причиной, а не ноль и не «в норме»."""
+    src = ["architecture/model_roles.json", "architecture/roles.json", "tracker claimed_by (in-progress)"]
+    try:
+        mr = json.loads((root / "architecture" / "model_roles.json").read_text(encoding="utf-8"))
+        br = json.loads((root / "architecture" / "roles.json").read_text(encoding="utf-8"))
+    except (OSError, ValueError) as exc:
+        return _nm(src, now, f"role files not readable: {type(exc).__name__}")
+    assign = mr.get("assignments") or {}
+    model_roles = [{"role": rid, "description": safe_text(r.get("description"), 160),
+                    "permissions": list(r.get("permissions") or []), "tools": list(r.get("tools") or []),
+                    "provider": assign.get(rid),
+                    "provider_state": "ASSIGNED" if assign.get(rid) else "NOT_ASSIGNED",
+                    "quota": "UNKNOWN", "quota_reason": "артефакта квот провайдера нет"}
+                   for rid, r in (mr.get("roles") or {}).items() if isinstance(r, dict)]
+    business = [{"role_id": r.get("role_id"), "display_name": r.get("display_name"), "title": r.get("title"),
+                 "implemented": r.get("implemented"),
+                 "authority": sorted({c.get("authority") for c in r.get("components") or [] if isinstance(c, dict)
+                                      and c.get("authority")})}
+                for r in br.get("roles") or [] if isinstance(r, dict)]
+    executors: dict = {}
+    if cards is not None:
+        for name, c in cards.items():
+            fm = c.get("fm") or {}
+            if str(fm.get("status") or "") == "in-progress" and fm.get("claimed_by"):
+                executors.setdefault(str(fm.get("claimed_by"))[:80], []).append(name)
+    return {"_meta": _meta("HEALTHY", src, now, now),
+            "model_roles": model_roles, "business_roles": business,
+            "routing_enabled": any(assign.values()),
+            "executors": None if cards is None else
+            [{"executor": k, "cards": len(v)} for k, v in sorted(executors.items(), key=lambda kv: -len(kv[1]))][:12],
+            "rule": safe_text(mr.get("note"), 300)}
 
 
 def _trading_engines_section(data: Path, now: datetime) -> dict:
@@ -1542,7 +1582,8 @@ def build(inp: Optional[MCInputs] = None) -> dict:
                              MIRROR_STALE_MIN),
               "epics": {"items": roadmap["items"], "current": roadmap["current"], "roadmap_confirmed": roadmap["confirmed"]},
               "board": board, "lineage": lineage, "agents": agents, "orphans": orphans,
-              "sessions": {"claude_workers": rep.get("claude_sessions")}}
+              "sessions": {"claude_workers": rep.get("claude_sessions")},
+              "roles": _roles_section(Path(inp.mirror), prod_cards if prod_cards is not None else cards, now)}
 
     # ── DECISIONS ──────────────────────────────────────────────────────────────────────────────
     bot = os.environ.get("SPA_TELEGRAM_BOT_USERNAME") or TELEGRAM_BOT

@@ -1173,6 +1173,7 @@ def work(model: dict, updated: Optional[str]) -> dict:
                      "technical": {} if blocking else blocked_tech},
         "next": {"title": "Что дальше", "text": nxt or "Следующий шаг в журнале работы не записан"},
         "goal": goal(model, truth),
+        "roles": roles(model),
         "plan": _plan(truth),
         "done": recent_releases(model, updated),
         "my_records": my_records(model, updated),
@@ -1197,6 +1198,32 @@ def _stopped_tasks(items: list) -> list:
                     "technical": {"карточка": it.get("card"), "blocked_by": it.get("reason"),
                                   "последний переход статуса": it.get("last_transition")}})
     return out
+
+def roles(model: dict) -> dict:
+    """S4 K6 (E7.5) — роли и исполнители словами владельца. Неизвестное — сказано."""
+    sec = _get(model, "studio.roles")
+    if not isinstance(sec, dict) or "model_roles" not in sec:
+        return {"title": "Роли и исполнители", "text": "Сведения о ролях в пульт не переданы"}
+    rows = []
+    for r in sec.get("model_roles") or []:
+        rows.append({"title": {"architect": "Архитектор", "worker": "Исполнитель"}.get(r.get("role"), r.get("role")),
+                     "text": ("провайдер: " + r["provider"]) if r.get("provider") else
+                             "провайдер не назначен — автоматическая маршрутизация выключена",
+                     "rights": "права роли: " + (", ".join(r.get("permissions") or []) or "нет"),
+                     "quota": "квота: неизвестно (" + (r.get("quota_reason") or "нет данных") + ")"})
+    ex = sec.get("executors")
+    ex_text = ("трекер не прочитан — неизвестно" if ex is None else
+               ("сейчас никто не держит карточку в работе" if not ex else
+                "; ".join(f"{e['executor']} — карточек в работе: {e['cards']}" for e in ex)))
+    return {"title": "Роли и исполнители", "rows": rows, "executors": ex_text,
+            "rule": "Смена модели прав не добавляет: права принадлежат роли, провайдер их не объявляет.",
+            "business": [f"{b.get('display_name') or b.get('title')}: "
+                         + ("работает, полномочий на деньги нет" if b.get("implemented") and
+                            set(b.get("authority") or []) <= {"NONE"} else
+                            ("работает" if b.get("implemented") else "не реализована"))
+                         for b in sec.get("business_roles") or []],
+            "technical": {"источник": "architecture/model_roles.json, architecture/roles.json, трекер (claimed_by)"}}
+
 
 def goal(model: dict, truth: dict) -> dict:
     """S4 K2 (E7.1): текущая цель, её шаги, причина ожидания, исполнитель и последнее подтверждённое действие.
