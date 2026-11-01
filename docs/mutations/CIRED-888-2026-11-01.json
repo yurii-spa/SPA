@@ -1,0 +1,93 @@
+{
+  "title": "ADR-888 CIRED — дельта цикла #1003: население красного НАЗВАНО переписью (офис знал одно число)",
+  "tests": [
+    "spa_core/tests/test_ci_control_verdict_wiring.py",
+    "spa_core/tests/test_ci_red_census_probe.py"
+  ],
+  "mutations": [
+    {
+      "name": "третий исход выдан за ноль: перечня `failures` нет — перепись отвечает «измерено, 0» (fail-OPEN, инв. #17)",
+      "file": "scripts/ci_control_verdict.py",
+      "old": "        return {\"status\": \"unmeasured\",\n                \"why\": (f\"перечня `failures` у отчёта нет (там \"\n",
+      "new": "        return {\"status\": \"measured\", \"named\": 0, \"files\": 0,\n                \"why\": (f\"перечня `failures` у отчёта нет (там \"\n"
+    },
+    {
+      "name": "объявленный операнд снова ОДИН ключ (`failed`): находка заговорит о своей арифметике на отчёте с ошибками",
+      "file": "scripts/ci_control_verdict.py",
+      "old": "DECLARED_RED_KEYS = (\"failed\", \"error\")\n",
+      "new": "DECLARED_RED_KEYS = (\"failed\",)\n"
+    },
+    {
+      "name": "сверка со вторым перечнем сравнивает названное САМО С СОБОЙ — согласие по построению",
+      "file": "scripts/ci_control_verdict.py",
+      "old": "    cross = (sum(1 for v in non_passed.values() if v in RED_OUTCOMES)\n",
+      "new": "    cross = (len(names)\n"
+    },
+    {
+      "name": "«одна работа на несколько падений» стёрта: многократные файлы считаются как все",
+      "file": "scripts/ci_control_verdict.py",
+      "old": "        \"subjects_multi\": len(multi),\n",
+      "new": "        \"subjects_multi\": len(files),\n"
+    },
+    {
+      "name": "в многократных файлах считаются ФАЙЛЫ, а не падения — два разных числа слиты",
+      "file": "scripts/ci_control_verdict.py",
+      "old": "        \"in_multi\": sum(multi.values()),\n",
+      "new": "        \"in_multi\": len(multi),\n"
+    },
+    {
+      "name": "худшие файлы не называются: число есть, имени нет — «с чего начинать» снова вкусом",
+      "file": "scripts/ci_control_verdict.py",
+      "old": "        \"worst\": [[f, c] for f, c in files.most_common(WORST_FILES)],\n",
+      "new": "        \"worst\": [],\n"
+    },
+    {
+      "name": "безымянная строка перечня списана в ноль молча",
+      "file": "scripts/ci_control_verdict.py",
+      "old": "        else:\n            nameless += 1\n",
+      "new": "        else:\n            pass\n"
+    },
+    {
+      "name": "отсутствие второго перечня объявлено РАСХОЖДЕНИЕМ — «не измерено» выдано за находку",
+      "file": "scripts/ci_control_verdict.py",
+      "old": "    if cross is not None and cross != named:\n",
+      "new": "    if cross != named:\n"
+    },
+    {
+      "name": "перепись в отчёт не печатается: шаг 0-офис читает прежнее одно число",
+      "file": "scripts/ci_control_verdict.py",
+      "old": "    out.append(f\"   {census_line(cen)}\")\n",
+      "new": "    pass\n"
+    },
+    {
+      "name": "находка о красном снова отсылает к артефакту, которого не читает никто",
+      "file": "scripts/ci_control_verdict.py",
+      "old": "                   + census_line(rep.get(\"red_census\")))\n",
+      "new": "                   + \"упавшие НАЗВАНЫ поимённо в `report.json` артефакта\")\n"
+    },
+    {
+      "name": "отсутствие переписи при НЕ-зелёном вердикте перестало быть находкой",
+      "file": "scripts/ci_control_verdict.py",
+      "old": "        if verdict != GREEN:\n",
+      "new": "        if False:\n"
+    },
+    {
+      "name": "проба перестала спрашивать ОТРИСОВАННЫЕ строки: перепись в документе есть, читателю не видна",
+      "file": "spa_core/monitoring/card_acceptance.py",
+      "old": "    if missing:\n        return NOT_SATISFIED, (\n            f\"перепись в документе есть, а в ОТРИСОВАННЫХ строках нет \"\n",
+      "new": "    if False:\n        return NOT_SATISFIED, (\n            f\"перепись в документе есть, а в ОТРИСОВАННЫХ строках нет \"\n"
+    },
+    {
+      "name": "проба перестала требовать ТРЕТИЙ исход на сцене без перечня (инв. #17 внутри самой пробы)",
+      "file": "spa_core/monitoring/card_acceptance.py",
+      "old": "    if not isinstance(quiet, dict) or quiet.get(\"status\") != \"unmeasured\":\n",
+      "new": "    if False:\n"
+    },
+    {
+      "name": "проба довольствуется ЛЮБЫМ населением: сверки со сценой нет",
+      "file": "spa_core/monitoring/card_acceptance.py",
+      "old": "    wrong = {k: (cen.get(k), v) for k, v in want.items() if cen.get(k) != v}\n",
+      "new": "    wrong = {}\n"
+    }
+  ]
+}

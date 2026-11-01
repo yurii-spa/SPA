@@ -58,6 +58,7 @@
 from __future__ import annotations
 
 import argparse
+import collections
 import datetime as dt
 import io
 import json
@@ -87,6 +88,20 @@ WORKFLOW_FILE = "ci-control.yml"
 REPORT_ARTIFACT = "ci-control-report"
 REPORT_MEMBER = "report.json"
 DEFAULT_BRANCH = "main"
+
+#: Что в отчёте считается КРАСНЫМ. `ci_control.aggregate` кладёт в `failures` И упавшие, И
+#: ошибочные (`outcomes.get(n) in (FAILED, ERROR)`), а в `totals` разводит их по ДВУМ
+#: ключам. Поэтому объявленный операнд — СУММА двух, а не `failed`: взять один ключ значило
+#: бы кричать «названо не всё» на здоровом отчёте, у которого есть ошибки, и находка
+#: говорила бы о своей же арифметике. Литералы — те же, что у производителя (`ci_control`
+#: PASSED/SKIPPED/FAILED/ERROR), и их парность с ним держит тест батареи.
+RED_OUTCOMES = ("failed", "error")
+DECLARED_RED_KEYS = ("failed", "error")
+
+#: Сколько худших файлов НАЗЫВАТЬ в отчёте. Перечень обрезан намеренно: полное население
+#: живёт в документе (`red_census.worst` — тот же порог) и в самом `report.json`, а строка
+#: отчёта обязана отвечать на вопрос «с чего начинать», а не воспроизводить артефакт.
+WORST_FILES = 8
 
 #: Репозиторий — ОДНА константа: второй литерал того же пути разошёлся бы с первым молча
 #: (класс ADR-220). Корень API живёт у `github_fetch`, и здесь его копии нет.
@@ -224,6 +239,143 @@ def report_of_run(run_id: str, *, fetch, grab) -> dict:
     return doc
 
 
+def red_census(rep: dict) -> dict:
+    """ПЕРЕПИСЬ красного населения ОДНОГО отчёта: из ЧЕГО состоит число упавших.
+
+    ЗАЧЕМ (заказ G885 п. 4). До 01.11 читатель вердикта отдавал про красное РОВНО одно
+    число и приписку «упавшие НАЗВАНЫ поимённо в `report.json` артефакта». Имена там и
+    лежали — и не брал их НИ ОДИН читатель. Замер 01.11 на `126a2ec2a`: **79** падений в
+    **50** файлах, из них **13** файлов несут по два и больше (42 падения) и **37** —
+    одиночки. Девять разобранных храповиков (заказ G885 п. 1) есть подмножество, доля
+    которого в населении до этой переписи не измерялась ни разу, то есть «с чего начинать»
+    выбиралось вкусом.
+
+    ЧТО СЧИТАЕТСЯ, и ни одна ось не отвечает на вопрос другой:
+
+    * **названных** — строк `failures` с разбираемым `nodeid`;
+    * **объявленных** — `totals.failed + totals.error` (см. :data:`DECLARED_RED_KEYS`);
+    * **второй перечень того же прогона** — `non_passed`, независимая запись исходов.
+      Три числа у здорового отчёта равны, и расхождение любой пары есть находка:
+      красное, которое объявлено и не названо, нечем ни разобрать, ни починить;
+    * **файлы** — и отдельно те, что несут ≥2 падения: у такого файла это ОДНА работа,
+      а не несколько (урок #1002 на `test_fixture_schema_gap_ratchet` — три красных
+      теста оказались одной правкой).
+
+    ТРИ ИСХОДА РАЗЛИЧИМЫ (инв. #17): перепись измерена · измерена и население ПУСТО
+    (зелёный отчёт) · **НЕ ИЗМЕРЕНА** — перечня `failures` в отчёте нет вовсе. Третий
+    исход отдаётся словом и причиной, а НЕ нулём: «красное не названо» и «красного нет»
+    чинятся разным, и свести их значило бы вернуть предмет на шаг дальше.
+
+    Строка `failures`, у которой `nodeid` не строка или пуст, в ноль не списывается — она
+    ложится в `nameless_rows`: безымянное падение есть падение, о котором не известно
+    ничего, и молча терять его хуже, чем назвать.
+    """
+    raw = rep.get("failures")
+    if not isinstance(raw, list):
+        return {"status": "unmeasured",
+                "why": (f"перечня `failures` у отчёта нет (там "
+                        f"{type(raw).__name__}) — это НЕ «красного нет»")}
+    rows = [r for r in raw if isinstance(r, dict)]
+    names, nameless = [], len(raw) - len(rows)
+    for row in rows:
+        nodeid = row.get("nodeid")
+        if isinstance(nodeid, str) and nodeid.strip():
+            names.append(nodeid.strip())
+        else:
+            nameless += 1
+    files = collections.Counter(n.split("::")[0] for n in names)
+    roots = collections.Counter(f.split("/")[0] for f in files.elements())
+    multi = {f: c for f, c in files.items() if c > 1}
+
+    totals = rep.get("totals") if isinstance(rep.get("totals"), dict) else {}
+    parts = {k: totals.get(k) for k in DECLARED_RED_KEYS}
+    declared = (sum(parts.values()) if all(isinstance(v, int) for v in parts.values())
+                else None)
+    non_passed = rep.get("non_passed")
+    cross = (sum(1 for v in non_passed.values() if v in RED_OUTCOMES)
+             if isinstance(non_passed, dict) else None)
+    shards = rep.get("shards") if isinstance(rep.get("shards"), list) else []
+    return {
+        "status": "measured",
+        "named": len(names),
+        "nameless_rows": nameless,
+        "declared": declared,
+        "declared_parts": parts,
+        "cross_named": cross,
+        "files": len(files),
+        "subjects_multi": len(multi),
+        "subjects_single": sum(1 for c in files.values() if c == 1),
+        "in_multi": sum(multi.values()),
+        "roots": dict(sorted(roots.items())),
+        "worst": [[f, c] for f, c in files.most_common(WORST_FILES)],
+        "shards_with_red": len({r.get("shard") for r in rows
+                                if r.get("shard") is not None}),
+        "shards_total": len(shards),
+        "outcomes": dict(sorted(collections.Counter(
+            str(r.get("outcome")) for r in rows).items())),
+    }
+
+
+def census_line(cen) -> str:
+    """ОДНА строка про население красного — ЕДИНСТВЕННАЯ копия этого правила.
+
+    Её читают и находка о красном наборе, и блок отчёта: вторая копия разошлась бы с
+    первой молча (класс ADR-220). Не измерено ⇒ СЛОВА с причиной, а не ноль.
+    """
+    if not isinstance(cen, dict):
+        return ("перепись красного НЕ ИЗМЕРЕНА: её в документе нет вовсе — "
+                "из ЧЕГО состоит это число, не знает никто")
+    if cen.get("status") != "measured":
+        return (f"перепись красного НЕ ИЗМЕРЕНА: {cen.get('why') or 'причина не названа'}")
+    roots = cen.get("roots") or {}
+    worst = cen.get("worst") or []
+    return (f"перепись: названных {cen.get('named')} в {cen.get('files')} файл(ах) — "
+            f"{cen.get('subjects_multi')} файл(а) несут ≥2 ({cen.get('in_multi')} "
+            f"падени(я), одна работа каждый), одиночек {cen.get('subjects_single')}"
+            + (f"; корни " + " · ".join(f"{k} {v}" for k, v in roots.items()) if roots else "")
+            + (f"; худший {worst[0][0]} ({worst[0][1]})" if worst else ""))
+
+
+def census_findings(cen, verdict) -> list:
+    """Находки О ПЕРЕПИСИ — утверждения, которые чинятся отдельно от самих красных.
+
+    Расхождение двух независимых записей одного прогона (`failures` против `non_passed`)
+    и расхождение названного с объявленным (`totals.failed + totals.error`) — это НЕ
+    «набор красен», а «про красное известно не всё», и смешивать их с вердиктом нельзя:
+    первое чинится в наборе, второе — у производителя отчёта.
+
+    Отсутствие переписи при НЕ-зелёном вердикте есть находка; при зелёном — нет: у
+    зелёного отчёта перечень падений пуст ПО ПОСТРОЕНИЮ, и требовать его значило бы
+    краснеть на здоровом прогоне.
+    """
+    out = []
+    if not isinstance(cen, dict) or cen.get("status") != "measured":
+        if verdict != GREEN:
+            why = ((cen or {}).get("why") if isinstance(cen, dict)
+                   else "переписи в документе нет вовсе")
+            out.append(f"население красного НЕ ИЗМЕРЕНО: {why or 'причина не названа'} — "
+                       f"число упавших есть, а из чего оно состоит, не знает никто")
+        return out
+    named = cen.get("named")
+    declared, cross = cen.get("declared"), cen.get("cross_named")
+    if declared is None:
+        out.append("объявленное число красного НЕ ИЗМЕРЕНО: в итогах нет ключей "
+                   f"{' + '.join(DECLARED_RED_KEYS)} — названное сверить не с чем")
+    elif declared != named:
+        out.append(f"красное НАЗВАНО не всё: объявлено {declared} "
+                   f"({' + '.join(f'{k}={v}' for k, v in (cen.get('declared_parts') or {}).items())}), "
+                   f"названо {named} — разница {declared - named} падени(й) существует и "
+                   f"не имеет имени, то есть разобрать её нечем")
+    if cross is not None and cross != named:
+        out.append(f"две независимые записи ОДНОГО прогона не сходятся: `failures` "
+                   f"называет {named}, `non_passed` — {cross}; какая из них полна, по "
+                   f"отчёту не видно")
+    if cen.get("nameless_rows"):
+        out.append(f"{cen['nameless_rows']} строк(и) перечня падений без разбираемого "
+                   f"`nodeid`: падение есть, имени у него нет")
+    return out
+
+
 def census(*, fetch, grab, branch: str = DEFAULT_BRANCH, runs: int = DEFAULT_RUNS,
            now=None) -> dict:
     """ОДИН замер: вердикт последнего завершённого прогона, его возраст и его коммит.
@@ -265,6 +417,7 @@ def census(*, fetch, grab, branch: str = DEFAULT_BRANCH, runs: int = DEFAULT_RUN
         "head_sha": latest.get("head_sha"),
         "verdict_age_h": age_h,
         "failed": len(doc.get("failures") or []),
+        "red_census": red_census(doc),
         "incomplete_reasons": [str(x) for x in (doc.get("incomplete") or [])][:5],
         "not_obtained": len(doc.get("not_obtained") or []),
         "shards": len(doc.get("shards") or []),
@@ -295,11 +448,12 @@ def findings(rep: dict) -> list:
     elif verdict == RED:
         out.append(f"набор КРАСЕН: прогон {run.get('id')} на {str(rep.get('measured_sha'))[:9]} "
                    f"дал failed={rep.get('failed')} при shards={rep.get('shards')} и "
-                   f"not_obtained={rep.get('not_obtained')} — упавшие НАЗВАНЫ поимённо "
-                   f"в `report.json` артефакта")
+                   f"not_obtained={rep.get('not_obtained')} — "
+                   + census_line(rep.get("red_census")))
     elif verdict != GREEN:
         out.append(f"вердикт прогона {run.get('id')} не опознан: {verdict!r} — "
                    f"это не «зелено»")
+    out.extend(census_findings(rep.get("red_census"), verdict))
     measured, head = rep.get("measured_sha"), rep.get("head_sha")
     if measured and head and measured != head:
         out.append(f"прогон {run.get('id')} числится на {str(head)[:9]}, а мерил "
@@ -347,6 +501,7 @@ def document(rep: dict, found: list, *, root=ROOT, now=None,
         "head_sha": rep["head_sha"],
         "run": rep["run"],
         "failed": rep["failed"],
+        "red_census": rep["red_census"],
         "shards": rep["shards"],
         "not_obtained": rep["not_obtained"],
         "incomplete_reasons": rep["incomplete_reasons"],
@@ -396,6 +551,18 @@ def report(doc: dict) -> list:
                f"числится на {_short('head_sha')}")
     out.append(f"   упавших {_n('failed')} · шардов {_n('shards')} · "
                f"не измерено шардами {_n('not_obtained')}")
+    cen = observed(doc, "red_census", kind=dict)
+    out.append(f"   {census_line(cen)}")
+    if cen is not None and cen.get("status") == "measured":
+        worst = cen.get("worst") or []
+        out.append("   с чего начинать (худшие файлы): " + (" · ".join(
+            f"{f} ×{c}" for f, c in worst) or "НЕ ИЗМЕРЕНО — имён в перечне нет"))
+        out.append(f"   сверка перечней: названных {cen.get('named')} · объявлено "
+                   f"{'НЕ ИЗМЕРЕНО' if cen.get('declared') is None else cen['declared']}"
+                   f" · второй перечень прогона "
+                   f"{'НЕ ИЗМЕРЕНО' if cen.get('cross_named') is None else cen['cross_named']}"
+                   f" · шардов с красным {cen.get('shards_with_red')} из "
+                   f"{cen.get('shards_total')}")
     totals = observed(doc, "totals", kind=dict)
     if totals is None:
         out.append("   итоги прогона: НЕ ИЗМЕРЕНО")

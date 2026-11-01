@@ -831,5 +831,254 @@ class TheOfficeStepReadsItNotJustOpensIt(unittest.TestCase):
         self.assertFalse(clean[0].startswith("⚠️"))
 
 
+# ─── 12. ПЕРЕПИСЬ красного населения (ADR-888, заказ G885 п. 4) ───────────────
+
+def _red_report(rows, *, declared=None, non_passed=None, verdict="RED",
+                shards=12, drop_failures=False):
+    """Отчёт со СЦЕНОЙ красного населения. Сцена — ВХОД, а не словарь пробы.
+
+    ``rows`` — пары «nodeid, шард»; ``declared`` подменяет итоги, чтобы сцена могла
+    РАЗОЙТИСЬ с названным; ``non_passed`` — второй, независимый перечень исходов того
+    же прогона. ``drop_failures`` снимает перечень целиком: это сцена третьего исхода,
+    и она обязана быть отличима от зелёного отчёта.
+    """
+    doc = _report(verdict, shards=shards)
+    failures = [{"nodeid": n, "outcome": o, "shard": sh} for n, o, sh in rows]
+    if drop_failures:
+        doc.pop("failures", None)
+    else:
+        doc["failures"] = failures
+    counts = {"failed": sum(1 for _, o, _ in rows if o == "failed"),
+              "error": sum(1 for _, o, _ in rows if o == "error")}
+    doc["totals"] = {**doc["totals"], **counts, **(declared or {})}
+    if non_passed is not None:
+        doc["non_passed"] = non_passed
+    return doc
+
+
+#: Сцена разной кратности: один файл несёт три падения, один — два, два — по одному.
+#: Сцена из одних одиночек не отличила бы «50 работ» от «14 работ», то есть не
+#: отвечала бы на вопрос, ради которого перепись написана (замер 01.11: 79 падений,
+#: 50 файлов, 14 из них несут 43 падения).
+_SCENE = [("spa_core/tests/test_a.py::T::test_one", "failed", 1),
+          ("spa_core/tests/test_a.py::T::test_two", "failed", 1),
+          ("spa_core/tests/test_a.py::T::test_three", "failed", 2),
+          ("scripts/tests/test_b.py::test_one", "failed", 3),
+          ("scripts/tests/test_b.py::test_two", "failed", 3),
+          ("tests/test_c.py::test_one", "failed", 4),
+          ("spa_core/tests/test_d.py::test_one", "failed", 5)]
+
+_SCENE_NAMES = {n: "failed" for n, _, _ in _SCENE}
+
+
+class ThePopulationOfRedIsNamedNotOnlyCounted(unittest.TestCase):
+    """Порванное звено: до 01.11 читатель отдавал про красное РОВНО одно число.
+
+    Замер того дня на `126a2ec2a`: **79** падений, и шаг 0-офис знал про них только
+    «упавших 79» плюс приписку «названы поимённо в `report.json` артефакта». Имена там
+    и лежали; не брал их НИ ОДИН читатель, поэтому девять разобранных храповиков были
+    подмножеством, доля которого в населении не измерялась ни разу.
+    """
+
+    def setUp(self):
+        self.doc = _Net([_run_row()], report=_red_report(
+            _SCENE, non_passed={**_SCENE_NAMES, "tests/test_z.py::t": "skipped"})).doc()
+        self.cen = self.doc["red_census"]
+
+    def test_the_document_carries_the_census(self):
+        self.assertEqual(self.cen["status"], "measured")
+
+    def test_the_files_under_the_number_are_counted(self):
+        self.assertEqual(self.cen["named"], 7)
+        self.assertEqual(self.cen["files"], 4)
+
+    def test_a_file_with_several_failures_is_one_work_not_several(self):
+        """Урок #1002: три красных теста `test_fixture_schema_gap_ratchet` оказались
+        ОДНОЙ правкой. Число работ и число падений — разные числа."""
+        self.assertEqual(self.cen["subjects_multi"], 2)
+        self.assertEqual(self.cen["in_multi"], 5)
+        self.assertEqual(self.cen["subjects_single"], 2)
+
+    def test_the_worst_file_is_named_so_there_is_a_place_to_start(self):
+        self.assertEqual(self.cen["worst"][0], ["spa_core/tests/test_a.py", 3])
+
+    def test_the_roots_are_split(self):
+        self.assertEqual(self.cen["roots"],
+                         {"scripts": 2, "spa_core": 4, "tests": 1})
+
+    def test_the_rendered_lines_name_the_file_because_the_office_reads_them(self):
+        """Шаг 0-офис идёт через `report()`: перепись в документе и перепись в
+        строках — два разных наблюдения, и второе и есть то, что читают."""
+        lines = "\n".join(ccv.format_report(self.doc))
+        self.assertIn("spa_core/tests/test_a.py", lines)
+        self.assertIn("с чего начинать", lines)
+
+    def test_the_red_finding_itself_carries_the_population(self):
+        """Находка остаётся ОДНА — но она больше не отсылает к артефакту,
+        которого не читает никто."""
+        self.assertEqual(len(self.doc["findings"]), 1)
+        self.assertIn("перепись", self.doc["findings"][0])
+        self.assertIn("файл", self.doc["findings"][0])
+        self.assertNotIn("в `report.json` артефакта", self.doc["findings"][0],
+                         "находка по-прежнему отсылает к артефакту, которого не "
+                         "читает ни один читатель — предмет заказа G885 п. 4")
+
+
+class AnAbsentPopulationIsNotZero(unittest.TestCase):
+    """Третий исход (инв. #17): «красное не названо» ≠ «красного нет».
+
+    Чинятся они разным: первое — у производителя отчёта, второе — ничем. Свести их
+    значило бы вернуть предмет на шаг дальше, уже внутри переписи.
+    """
+
+    def test_a_report_without_the_failures_list_is_unmeasured(self):
+        doc = _Net([_run_row()], report=_red_report(
+            _SCENE, drop_failures=True)).doc()
+        self.assertEqual(doc["red_census"]["status"], "unmeasured")
+        self.assertIn("failures", doc["red_census"]["why"])
+
+    def test_that_absence_is_a_finding_of_its_own(self):
+        doc = _Net([_run_row()], report=_red_report(
+            _SCENE, drop_failures=True)).doc()
+        self.assertIn("население красного НЕ ИЗМЕРЕНО", " ".join(doc["findings"]))
+
+    def test_the_rendering_says_words_not_zero(self):
+        doc = _Net([_run_row()], report=_red_report(
+            _SCENE, drop_failures=True)).doc()
+        lines = "\n".join(ccv.format_report(doc))
+        self.assertIn("НЕ ИЗМЕРЕНА", lines)
+        self.assertNotIn("с чего начинать", lines,
+                         "перечень «с чего начинать» напечатан у НЕ ИЗМЕРЕННОЙ "
+                         "переписи — пустая строка читается как «начинать не с чего»")
+
+    def test_an_incomplete_verdict_still_carries_the_population_in_the_lines(self):
+        """Отдельная строка отчёта НЕ избыточна, и это ИЗМЕРЕНО, а не объявлено.
+
+        У красного вердикта перепись едет ДВУМЯ носителями — строкой отчёта и самой
+        находкой. У `INCOMPLETE` находки о красном нет ВОВСЕ, поэтому носителем
+        остаётся одна строка; сними её — и население, которое уже измерено, читателю
+        не достанется.
+        """
+        rep = _red_report(_SCENE, verdict="INCOMPLETE", shards=0,
+                          non_passed=_SCENE_NAMES)
+        rep["incomplete"] = [{"shard": 3, "reason": "шард снят"}]
+        doc = _Net([_run_row()], report=rep).doc()
+        self.assertEqual(doc["verdict"], "INCOMPLETE")
+        self.assertNotIn("КРАСЕН", " ".join(doc["findings"]))
+        lines = "\n".join(ccv.format_report(doc))
+        self.assertIn("перепись: названных 7", lines)
+        self.assertIn("spa_core/tests/test_a.py", lines)
+
+    def test_a_green_report_is_measured_and_empty_not_unmeasured(self):
+        """Обратная половина: у зелёного отчёта перечень пуст ПО ПОСТРОЕНИЮ, и
+        требовать его значило бы краснеть на здоровом прогоне."""
+        doc = _Net([_run_row(conclusion="success")],
+                   report=_report("GREEN")).doc()
+        self.assertEqual(doc["red_census"]["status"], "measured")
+        self.assertEqual(doc["red_census"]["named"], 0)
+        self.assertEqual(doc["findings"], [])
+
+
+class TheThreeRecordsOfOneRunAreCompared(unittest.TestCase):
+    """Порванное звено: красное, которое ОБЪЯВЛЕНО и не НАЗВАНО, разобрать нечем.
+
+    У одного отчёта три независимые записи красного — перечень `failures`, итоги
+    (`failed` + `error`) и второй перечень исходов `non_passed`. У здорового отчёта
+    они равны; расхождение любой пары чинится не в наборе, а у производителя отчёта,
+    поэтому это СВОЯ находка, а не «набор красен».
+    """
+
+    def test_declared_more_than_named_is_a_finding_with_both_numbers(self):
+        doc = _Net([_run_row()], report=_red_report(
+            _SCENE, declared={"failed": 9}, non_passed=_SCENE_NAMES)).doc()
+        found = " ".join(doc["findings"])
+        self.assertIn("НАЗВАНО не всё", found)
+        self.assertIn("9", found)
+        self.assertIn("7", found)
+
+    def test_an_error_outcome_counts_as_declared_red(self):
+        """Обратная половина, и она про АРИФМЕТИКУ находки: производитель кладёт в
+        `failures` И `failed`, И `error`, а в итоги разводит их по двум ключам.
+        Операнд из одного ключа кричал бы «названо не всё» на здоровом отчёте."""
+        rows = _SCENE[:-1] + [("spa_core/tests/test_d.py::test_one", "error", 5)]
+        doc = _Net([_run_row()], report=_red_report(
+            rows, non_passed={n: o for n, o, _ in rows})).doc()
+        cen = doc["red_census"]
+        self.assertEqual(cen["declared_parts"], {"failed": 6, "error": 1})
+        self.assertEqual((cen["declared"], cen["named"], cen["cross_named"]), (7, 7, 7))
+        self.assertNotIn("НАЗВАНО не всё", " ".join(doc["findings"]))
+
+    def test_the_second_list_disagreeing_is_its_own_finding(self):
+        short = dict(list(_SCENE_NAMES.items())[:4])
+        doc = _Net([_run_row()], report=_red_report(
+            _SCENE, non_passed=short)).doc()
+        self.assertIn("две независимые записи", " ".join(doc["findings"]))
+
+    def test_an_absent_second_list_is_not_a_disagreement(self):
+        """Отсутствие второго перечня — НЕ расхождение: «не измерено» нельзя
+        выдавать за находку, иначе находка говорит о форме отчёта, а не о красном."""
+        doc = _Net([_run_row()], report=_red_report(_SCENE)).doc()
+        self.assertIsNone(doc["red_census"]["cross_named"])
+        self.assertNotIn("две независимые записи", " ".join(doc["findings"]))
+        self.assertIn("второй перечень прогона НЕ ИЗМЕРЕНО",
+                      "\n".join(ccv.format_report(doc)))
+
+    def test_absent_totals_keys_are_unmeasured_not_zero(self):
+        rep = _red_report(_SCENE, non_passed=_SCENE_NAMES)
+        rep["totals"] = {k: v for k, v in rep["totals"].items()
+                         if k not in ("failed", "error")}
+        doc = _Net([_run_row()], report=rep).doc()
+        self.assertIsNone(doc["red_census"]["declared"])
+        self.assertIn("объявленное число красного НЕ ИЗМЕРЕНО",
+                      " ".join(doc["findings"]))
+
+    def test_a_failure_row_without_a_nodeid_is_counted_not_dropped(self):
+        rep = _red_report(_SCENE, non_passed=_SCENE_NAMES)
+        rep["failures"] = rep["failures"] + [{"outcome": "failed", "shard": 7}]
+        doc = _Net([_run_row()], report=rep).doc()
+        self.assertEqual(doc["red_census"]["nameless_rows"], 1)
+        self.assertIn("без разбираемого", " ".join(doc["findings"]))
+
+
+class TheCensusKeysComeFromTheProducer(unittest.TestCase):
+    """Тот же порванный провод, что у секции 8, но на ключах ПЕРЕПИСИ.
+
+    Первая редакция соседа спрашивала итог `no_outcome`, которого
+    `ci_control.aggregate` не пишет вовсе, и о здоровом отчёте говорила «НЕ
+    ИЗМЕРЕНО» — жаловалась на свою опечатку. У переписи дверей больше: перечень
+    `failures`, поля его строк и второй перечень `non_passed`.
+    """
+
+    @classmethod
+    def setUpClass(cls):
+        src = (_REPO / "scripts" / "ci_control.py").read_text(encoding="utf-8")
+        cls.literals = {n.value for n in ast.walk(ast.parse(src))
+                        if isinstance(n, ast.Constant) and isinstance(n.value, str)}
+
+    def test_every_key_the_census_asks_is_written_by_ci_control(self):
+        for key in ("failures", "non_passed", "nodeid", "outcome", "shard", "totals"):
+            self.assertIn(key, self.literals,
+                          f"перепись спрашивает {key!r}, которого производитель "
+                          f"отчёта не пишет: о здоровом отчёте она скажет «НЕ ИЗМЕРЕНО»")
+
+    def test_the_red_outcome_literals_are_the_producers_own(self):
+        for outcome in ccv.RED_OUTCOMES:
+            self.assertIn(outcome, self.literals)
+        for key in ccv.DECLARED_RED_KEYS:
+            self.assertIn(key, self.literals)
+
+    def test_control_a_fabricated_key_is_caught(self):
+        self.assertNotIn("non_passed_rows", self.literals,
+                         "проверка выше ничего не стоит: выдуманный ключ она "
+                         "признала бы написанным производителем")
+
+    def test_the_producer_really_puts_both_outcomes_into_the_failures_list(self):
+        """Операнд-сумма держится НЕ на прозе: производитель отбирает в `failures`
+        строки, чей исход попал в `(FAILED, ERROR)`. Разойдись это — находка
+        «названо не всё» заговорила бы о своей же арифметике."""
+        src = (_REPO / "scripts" / "ci_control.py").read_text(encoding="utf-8")
+        self.assertIn("outcomes.get(n) in (FAILED, ERROR)", src)
+
+
 if __name__ == "__main__":
     unittest.main()

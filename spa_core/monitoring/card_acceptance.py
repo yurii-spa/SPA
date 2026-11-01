@@ -14803,7 +14803,189 @@ def _probe_delivery_refuses_bytes_that_are_not_python(arg: str | None) -> tuple[
         f"{said['not_python']} · {said['unmeasured']}); гейт зван в main() обеих "
         f"дверей после пина и до прочих гейтов")
 
+
+#: Сцена переписи красного: файлы НАМЕРЕННО разной кратности — два файла несут
+#: по несколько падений (у такого файла это ОДНА работа, урок #1002 на
+#: `test_fixture_schema_gap_ratchet`), два — по одному. Сцена, где все файлы
+#: одиночные, не отличила бы «50 работ» от «13 работ», то есть не отвечала бы на
+#: вопрос, ради которого перепись и нужна.
+_RED_SCENE_FAILURES = (
+    ("spa_core/tests/test_a.py::T::test_one", 1),
+    ("spa_core/tests/test_a.py::T::test_two", 1),
+    ("spa_core/tests/test_a.py::T::test_three", 1),
+    ("scripts/tests/test_b.py::test_one", 2),
+    ("scripts/tests/test_b.py::test_two", 2),
+    ("tests/test_c.py::test_one", 3),
+    ("spa_core/tests/test_d.py::test_one", 4),
+)
+
+
+def _probe_ci_red_census_names_the_population(arg: str | None = None,
+                                              *, repo_root: str | None = None
+                                              ) -> tuple[str, str]:
+    """Критерий: читатель вердикта CI НАЗЫВАЕТ население красного, а не одно число.
+
+    Предмет — заказ G885 п. 4 карточки приказа «Portfolio CIO». Контрольный прогон на
+    `main` 01.11 дал **79** упавших, шаг 0-офис читал про них РОВНО одно число
+    («упавших 79») и приписку «названы поимённо в `report.json` артефакта». Имена там
+    и лежали — и не брал их НИ ОДИН читатель, поэтому «из чего состоят 79» не знал
+    никто, а девять разобранных храповиков были подмножеством, доля которого в
+    населении НЕ ИЗМЕРЕНА.
+
+    Проба мерит ИСХОД на НАСТОЯЩЕМ приборе и через НАСТОЯЩУЮ проводку: двери к сети у
+    него ВХОДЫ (`fetch`/`grab`), поэтому сцена подаётся туда, а документ собирают
+    `census` → `document` → `report` своими руками. Словарь, собранный пробой
+    вручную, мерил бы свой же словарь, а не проводку.
+
+    Две сцены, отличающиеся РОВНО тем, есть ли в отчёте перечень `failures`:
+
+    1. **перечень есть** ⇒ перепись обязана НАЗВАТЬ население: названных, файлов,
+       сколько файлов несут ≥2 падения (одна работа каждая) и сколько одиночек;
+       названное обязано сойтись с ОБЪЯВЛЕННЫМ (`failed`+`error` — производитель
+       кладёт в `failures` оба исхода, а в итоги разводит по двум ключам) и со ВТОРЫМ
+       перечнем того же прогона (`non_passed`); отрисованные строки обязаны нести ИМЯ
+       худшего файла. Одно число пробу не удовлетворяет: оно у офиса было и до работы;
+    2. **перечня нет** ⇒ перепись обязана ответить ТРЕТЬИМ исходом с названной
+       причиной (инв. #17), а не нулём. «Красное не названо» и «красного нет» — разные
+       состояния, и слить их значило бы вернуть предмет на шаг дальше.
+
+    Третий исход у пробы СВОЙ: прибор не ввозится либо сцена не поднялась ⇒
+    `unmeasured`, а не «не выполнено» — про предмет тогда не измерено ничего.
+    """
+    import datetime as _dt
+    import importlib.util as _ilu
+    import io as _io
+    import json as _json
+    import zipfile as _zip
+
+    root = repo_root or REPO_ROOT
+    reader_path = os.path.join(root, "scripts", "ci_control_verdict.py")
+    if not os.path.exists(reader_path):
+        return UNMEASURED, f"{reader_path} не найден — читатель вердикта НЕ ИЗМЕРЕН"
+    try:
+        spec = _ilu.spec_from_file_location("_probe_c1003_ci_verdict", reader_path)
+        m = _ilu.module_from_spec(spec)
+        spec.loader.exec_module(m)
+    except Exception as exc:                                        # noqa: BLE001
+        return UNMEASURED, (f"читатель вердикта не ввезён ({type(exc).__name__}: "
+                            f"{exc}) — НЕ ИЗМЕРЕНО")
+
+    ended = _dt.datetime(2026, 11, 1, 1, 0, tzinfo=_dt.timezone.utc)
+    now = ended + _dt.timedelta(hours=1)
+    sha = "0123456789abcdef0123456789abcdef01234567"
+
+    def _scene(*, with_failures: bool) -> dict:
+        rows = [{"nodeid": n, "outcome": "failed", "shard": sh, "msg": ""}
+                for n, sh in _RED_SCENE_FAILURES]
+        doc = {
+            "schema": "spa-ci-control-report/1", "verdict": "RED", "sha": sha,
+            "env": {"python": "3.11.17", "pytest": "9.1.1", "SPA_ENV": "ci",
+                    "PYTHONHASHSEED": "0", "roots": ["tests"]},
+            "incomplete": [], "not_obtained": [],
+            "shards": [{"shard": i} for i in range(5)],
+            "non_passed": {**{n: "failed" for n, _ in _RED_SCENE_FAILURES},
+                           "tests/test_z.py::test_skipped": "skipped"},
+            "totals": {"population": 1000, "files": 40, "passed": 992,
+                       "skipped": 1, "failed": len(rows), "error": 0,
+                       "not_obtained": 0, "collect_errors": 0,
+                       "shards_planned": 5, "shards_complete": 5},
+        }
+        if with_failures:
+            doc["failures"] = rows
+        return doc
+
+    def _drive(scene: dict):
+        run_row = {"id": "41280181541", "status": "completed",
+                   "conclusion": "failure", "event": "schedule", "head_sha": sha,
+                   "head_branch": "main", "created_at": ended.isoformat(),
+                   "updated_at": ended.isoformat(),
+                   "html_url": "https://github.com/yurii-spa/SPA/actions/runs/1"}
+        buf = _io.BytesIO()
+        with _zip.ZipFile(buf, "w") as zf:
+            zf.writestr(m.REPORT_MEMBER, _json.dumps(scene))
+        payload = buf.getvalue()
+
+        def fetch(path: str):
+            if "/artifacts" in path:
+                return {"artifacts": [{"name": m.REPORT_ARTIFACT, "expired": False,
+                                       "id": 7,
+                                       "archive_download_url": "https://x/zip"}]}
+            return {"workflow_runs": [run_row]}
+
+        return m.run(root=root, now=now, fetch=fetch, grab=lambda _url: payload)
+
+    try:
+        named_doc = _drive(_scene(with_failures=True))
+        silent_doc = _drive(_scene(with_failures=False))
+    except Exception as exc:                                        # noqa: BLE001
+        return UNMEASURED, (f"сцена не поднялась ({type(exc).__name__}: {exc}) — "
+                            f"НЕ ИЗМЕРЕНО")
+
+    cen = named_doc.get("red_census")
+    if not isinstance(cen, dict):
+        return NOT_SATISFIED, (
+            "документ вердикта переписи красного не несёт ВОВСЕ: о населении "
+            f"падений читатель говорит одним числом (упавших {named_doc.get('failed')}) "
+            "и отсылкой к `report.json`, которую не берёт ни один читатель")
+    if cen.get("status") != "measured":
+        return NOT_SATISFIED, (
+            f"на сцене С перечнем перепись ответила «{cen.get('status')}» "
+            f"({cen.get('why')}) — названные имена есть, а население не измерено")
+
+    want = {"named": len(_RED_SCENE_FAILURES), "files": 4,
+            "subjects_multi": 2, "subjects_single": 2,
+            "declared": len(_RED_SCENE_FAILURES),
+            "cross_named": len(_RED_SCENE_FAILURES)}
+    wrong = {k: (cen.get(k), v) for k, v in want.items() if cen.get(k) != v}
+    if wrong:
+        return NOT_SATISFIED, "перепись населения разошлась со сценой: " + "; ".join(
+            f"{k} = {got!r}, а на сцене {exp!r}" for k, (got, exp) in sorted(wrong.items()))
+
+    worst = cen.get("worst") or []
+    if not worst or worst[0][0] != "spa_core/tests/test_a.py":
+        return NOT_SATISFIED, (
+            f"худший файл не НАЗВАН: перепись отдала {worst!r}, а на сцене три "
+            f"падения несёт spa_core/tests/test_a.py — число без имени не говорит, "
+            f"с чего начинать")
+
+    # Отрисовка несёт перепись ДВУМЯ носителями — сводкой населения и перечнем худших
+    # файлов, — и спрашивать их надо ПОРОЗНЬ. Первая редакция пробы искала в строках
+    # только имя файла и объявила ВЫПОЛНЕННОЙ сцену, где сводка населения снята вовсе:
+    # имя приезжало вторым носителем, и «перепись дошла» было верно наполовину. Поймано
+    # своим же контролем (`test_ci_red_census_probe.py`) ДО доставки.
+    lines = "\n".join(m.report(named_doc))
+    missing = [what for what, token in (
+        ("имя худшего файла", "spa_core/tests/test_a.py"),
+        ("сводка населения", f"{cen['files']} файл"),
+        ("число названных", f"названных {cen['named']}"),
+    ) if token not in lines]
+    if missing:
+        return NOT_SATISFIED, (
+            f"перепись в документе есть, а в ОТРИСОВАННЫХ строках нет "
+            f"{', '.join(missing)}: шаг 0-офис идёт через `report()` и прочёл бы "
+            f"прежнее одно число")
+
+    quiet = silent_doc.get("red_census")
+    if not isinstance(quiet, dict) or quiet.get("status") != "unmeasured":
+        return NOT_SATISFIED, (
+            f"сцена БЕЗ перечня `failures` дала «{(quiet or {}).get('status')}» вместо "
+            f"третьего исхода: «красное не названо» неотличимо от «красного нет» "
+            f"(инв. #17)")
+    if not str(quiet.get("why") or "").strip():
+        return NOT_SATISFIED, ("третий исход есть, а ПРИЧИНЫ у него нет — "
+                               "«НЕ ИЗМЕРЕНО» без причины не отличить от отговорки")
+    return SATISFIED, (
+        f"население красного НАЗВАНО переписью: названных {cen['named']} "
+        f"в {cen['files']} файл(ах), ≥2 несут {cen['subjects_multi']} файл(а) "
+        f"({cen.get('in_multi')} падени(я)), одиночек {cen['subjects_single']}; "
+        f"названное сошлось с объявленным ({cen['declared']}) и со вторым перечнем "
+        f"прогона ({cen['cross_named']}); худший файл назван ({worst[0][0]}, "
+        f"{worst[0][1]}) и доходит до отрисованных строк; сцена без перечня даёт "
+        f"третий исход с причиной («{quiet.get('why')}»)")
+
 PROBES: dict[str, Callable[[str | None], "tuple[str, str]"]] = {
+    "ci_red_census_names_the_population":
+        _probe_ci_red_census_names_the_population,
     "starvation_cycles_name_the_order":
         _probe_starvation_cycles_name_the_order,
     "inbox_record_kind_has_a_writer": _probe_inbox_record_kind_has_a_writer,
