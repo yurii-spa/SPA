@@ -15365,6 +15365,376 @@ def _probe_ci_red_cause_axis_names_the_cause(arg: str | None = None,
         f"({axis_partial['unattributed'][0]})")
 
 
+#: Сцена обморока: ДВА обычных провала и ЖЕРТВА — тест, под которым умерла сессия.
+#: Имя жертвы и хвост трассы — ДОСЛОВНО из прогона 41318580149 (шард 7, `9ebe92509`):
+#: проверка, не видевшая настоящей поломки, есть украшение.
+_DEATH_SCENE = (
+    ("spa_core/tests/test_death_a.py", "TheFirst", "test_one",
+     "AssertionError", "1 != 2", "spa_core/tests/test_death_a.py:11: in test_one"),
+    ("spa_core/tests/test_death_a.py", "TheFirst", "test_two",
+     "KeyError", "'identity'", "spa_core/tests/test_death_a.py:22: in test_two"),
+)
+_DEATH_VICTIM = ("spa_core/tests/test_run_identity_key_price.py", "BatteryHoleTests",
+                 "test_the_instrument_excludes_itself_by_naming_the_reason")
+#: Хвост трассы обморока — настоящий: pytest упал В СВОЕЙ ЖЕ отрисовке провала.
+_DEATH_TAIL = "TypeError: unsupported operand type(s) for -: 'NoneType' and 'int'"
+_DEATH_MSG = ("pytest internal error (pytest exit 3) while this test was running or "
+              "being reported — not re-run")
+
+
+def _probe_ci_cause_axis_names_a_session_death(arg: str | None = None,
+                                               *, repo_root: str | None = None
+                                               ) -> tuple[str, str]:
+    """Критерий: обморок САМОЙ сессии pytest назван РОДОМ, а не выдан за дефект теста.
+
+    Предмет — заказ G888 п. 5 карточки приказа «Portfolio CIO»: проверить ось причин
+    (ADR-891) на ЖИВОМ отчёте после первого же контрольного прогона на `main`. Прогон
+    41318580149 (`9ebe92509`, 72 падения) ось снял — и на нём же показал слепоту к
+    роду. Шард 7 умер ВНУТРЕННЕ на попытке 0 (`exit 3`): pytest упал в своей же
+    отрисовке провала (`TypeError` в `_pytest/_code/code.py:214`), не дописав
+    `<testcase>` тесту, под которым это случилось, и оставив вместо него запись
+    `pytest::internal`.
+
+    Про ОДНО это событие отчёт говорил ДВЕ неверные вещи, и ни одной верной:
+
+    1. жертва уходила в `unattributed` с причиной «junit-запись их не несёт» — при
+       том, что причина лежит в ДВУХ записях ТОГО ЖЕ артефакта, которые свод уже
+       читает: потоковая строка несёт `w = "internal"` и дословное сообщение, а
+       `exit.json` — `crashes[].tests` (свод их даже печатает в `shards[].crashed_on`);
+    2. запись `pytest::internal` уходила в `record_only` с утверждением «две записи
+       одного прогона СПОРЯТ» — ЛОЖНЫМ: записи согласны, просто одна из них не про
+       тест вовсе;
+    3. а то, что СЕССИЯ УМЕРЛА (и 1048 тестов попытки остались неизмеренными до
+       доигровки), не было названо НИГДЕ — ни строкой, ни находкой.
+
+    Вред прямой: обморок инструмента нельзя починить в тесте, а «причина не опознана»
+    приглашает именно туда. Для вилки дефектов ADR-891 это тоже разные числа: обморок
+    не есть дефект набора, и класть его в тот же мешок значит мерить ХОСТ под именем
+    КОДА (вопрос, который G888 п. 1 хочет мерить ОТДЕЛЬНО).
+
+    Проба мерит ИСХОД на НАСТОЯЩИХ дверях и через НАСТОЯЩУЮ проводку: свод
+    (`scripts/ci_control.py::aggregate`) зовётся на одноразовой сцене из настоящих
+    файлов шарда, отчёт отдаётся настоящему читателю (`ci_control_verdict.py`), двери
+    которого к сети — ВХОДЫ, и спрашиваются ОТРИСОВАННЫЕ строки: шаг 0-офис идёт через
+    `report()`. Словарь, собранный пробой вручную, мерил бы свой же словарь.
+
+    ЧЕТЫРЕ сцены, и каждая отличается РОВНО одним звеном:
+
+    1. **весь контур** — запись обморока есть И жертва помечена потоковой записью ⇒
+       род назван (`session_deaths` с шардом и настоящим типом исключения), жертва
+       названа ПОИМЁННО и несёт причину В САМОЙ СТРОКЕ, `unattributed` и `record_only`
+       ПУСТЫ, вилка считается БЕЗ жертвы, тождество `roster` (опознано + жертвы +
+       неопознанные = население) держится, и всё это доходит до читателя словами;
+    2. **жертва НЕ помечена** (`w = "call"`) ⇒ она обязана уйти в `unattributed`
+       поимённо: опознание жертвы стои́т на МАШИННОЙ метке, а не на «рядом с обмороком
+       кого-то не хватает». Иначе род присваивался бы догадкой;
+    3. **обморока нет вовсе** ⇒ `session_deaths_n = 0`, и читатель об обмороке МОЛЧИТ:
+       здоровый прогон не вправе получить обвинение в падении сессии;
+    4. **метка есть, а записи обморока НЕТ** ⇒ СВОЙ исход со СВОИМИ словами («две
+       записи знают о событии РАЗНОЕ»), дословно отличный от сцены 1: «сессия умерла»
+       и «записи об этом нет» чинятся разным.
+
+    Третий исход у пробы СВОЙ: дверь не ввезена либо сцена не поднялась ⇒ `unmeasured`,
+    а не «не выполнено» — про предмет тогда не измерено ничего (инв. #17).
+    """
+    import datetime as _dt
+    import importlib.util as _ilu
+    import io as _io
+    import json as _json
+    import shutil as _shutil
+    import tempfile as _tempfile
+    import xml.etree.ElementTree as _ET
+    import zipfile as _zip
+    from pathlib import Path as _Path
+
+    root = repo_root or REPO_ROOT
+
+    def _module(rel: str, alias: str):
+        path = os.path.join(root, *rel.split("/"))
+        if not os.path.exists(path):
+            raise _CauseProbeUnmeasured(f"{path} не найден")
+        spec = _ilu.spec_from_file_location(alias, path)
+        if spec is None or spec.loader is None:
+            raise _CauseProbeUnmeasured(f"{path} не загружается")
+        mod = _ilu.module_from_spec(spec)
+        spec.loader.exec_module(mod)
+        return mod
+
+    try:
+        ctl = _module("scripts/ci_control.py", "_probe_c1006_ctl")
+        reader = _module("scripts/ci_control_verdict.py", "_probe_c1006_reader")
+    except _CauseProbeUnmeasured as exc:
+        return UNMEASURED, f"{exc} — обморок сессии НЕ ИЗМЕРЕН"
+    except Exception as exc:                                        # noqa: BLE001
+        return UNMEASURED, (f"дверь не ввезена ({type(exc).__name__}: {exc}) — "
+                            f"НЕ ИЗМЕРЕНО")
+
+    victim = "::".join(_DEATH_VICTIM)
+    normal = [f"{f}::{cls}::{name}" for f, cls, name, *_ in _DEATH_SCENE]
+    nodeids = normal + [victim]
+    files = sorted({f for f, *_ in _DEATH_SCENE} | {_DEATH_VICTIM[0]})
+    sha = "9ebe92509ebe92509ebe92509ebe92509ebe9250"
+    manifest = {
+        "schema": ctl.MANIFEST_SCHEMA, "sha": sha,
+        "env": {"python": "3.11.17", "pytest": "9.1.1", "SPA_ENV": "ci",
+                "PYTHONHASHSEED": "0", "roots": ["spa_core/tests"]},
+        "collected": nodeids, "files": files, "collect_errors": [],
+        "shards": [{"shard": 7, "files": files, "tests": len(nodeids), "est_s": 1.0}],
+    }
+
+    def _cls(f: str, cls: str) -> str:
+        return f"{f[:-3].replace('/', '.')}.{cls}"
+
+    def _junit(*, death: bool) -> str:
+        suite = _ET.Element("testsuite", {"name": "pytest", "tests": str(len(nodeids))})
+        for f, cls, name, kind, msg, frame in _DEATH_SCENE:
+            case = _ET.SubElement(suite, "testcase", {
+                "classname": _cls(f, cls), "name": name, "time": "0.01"})
+            fail = _ET.SubElement(case, "failure", {"message": f"{kind}: {msg}"})
+            fail.text = f"{frame}\nE       {kind}: {msg}\n"
+        # Жертва <testcase> НЕ получает: сессия умерла, не дописав её запись.
+        if death:
+            case = _ET.SubElement(suite, "testcase", {
+                "classname": "pytest", "name": "internal", "time": "0.000"})
+            err = _ET.SubElement(case, "error", {"message": "internal error"})
+            err.text = ("Traceback (most recent call last):\n"
+                        "  File \"/opt/hostedtoolcache/Python/3.11.17/x64/lib/"
+                        "python3.11/site-packages/_pytest/main.py\", line 330, in "
+                        "wrap_session\n    session.exitstatus = doit(config, session)\n"
+                        "  File \"/opt/hostedtoolcache/Python/3.11.17/x64/lib/"
+                        "python3.11/site-packages/_pytest/_code/code.py\", line 214, "
+                        "in lineno\n    return self._rawentry.tb_lineno - 1\n"
+                        f"{_DEATH_TAIL}\n")
+        return _ET.tostring(_ET.ElementTree(suite).getroot(), encoding="unicode")
+
+    def _scene(tmp: str, *, death: bool, mark: bool) -> "tuple[dict, dict]":
+        """Сцена шарда, СВЕДЁННАЯ настоящим сводом. Возвращает (отчёт, ось)."""
+        shards = os.path.join(tmp, "shards")
+        d = os.path.join(shards, f"{ctl.SHARD_DIR_PREFIX}7")
+        os.makedirs(d, exist_ok=True)
+        with open(os.path.join(d, ctl.SHARD_FILE), "w", encoding="utf-8") as fh:
+            _json.dump({"shard": 7}, fh)
+        with open(os.path.join(d, ctl.COLLECTED_FILE), "w", encoding="utf-8") as fh:
+            fh.write(_json.dumps({"e": "collected", "count": len(nodeids),
+                                  "nodeids": nodeids}) + "\n")
+        with open(os.path.join(d, ctl.EXIT_FILE), "w", encoding="utf-8") as fh:
+            _json.dump({"exit": 1,
+                        "attempts": [{"attempt": 0, "exit": 3, "session_end": True},
+                                     {"attempt": 1, "exit": 0, "session_end": True}],
+                        "crashes": [{"attempt": 0, "exit": 3, "tests": [victim]}],
+                        "resumed": True, "remaining": 1048}, fh)
+        with open(os.path.join(d, ctl.STREAM_FILE), "w", encoding="utf-8") as fh:
+            t = 1793548900.0
+            for i, (node, (_f, _c, _n, kind, msg, frame)) in enumerate(
+                    zip(normal, _DEATH_SCENE)):
+                fh.write(_json.dumps({"e": "start", "n": node, "t": t + i}) + "\n")
+                fh.write(_json.dumps({"e": "fail", "n": node, "t": t + i + 0.1,
+                                      "w": "call", "d": 0.1, "msg": frame}) + "\n")
+            fh.write(_json.dumps({"e": "start", "n": victim, "t": t + 9}) + "\n")
+            fh.write(_json.dumps({
+                "e": "fail", "n": victim, "t": t + 10, "d": 0.0,
+                "w": ("internal" if mark else "call"),
+                "msg": (_DEATH_MSG if mark else
+                        f"{_DEATH_VICTIM[0]}:7: in {_DEATH_VICTIM[2]}")}) + "\n")
+            fh.write(_json.dumps({"e": "end", "status": 1, "started": len(nodeids),
+                                  "finished": len(nodeids), "t": t + 99}) + "\n")
+        with open(os.path.join(d, _CAUSE_JUNIT_NAME), "w", encoding="utf-8") as fh:
+            fh.write(_junit(death=death))
+        rep = ctl.aggregate(manifest, _Path(shards), needs_result="failure",
+                            run={"id": "41318580149", "html_url": "https://x/1"})
+        return rep, rep.get("cause_axis")
+
+    def _drive_reader(scene: dict) -> dict:
+        ended = _dt.datetime(2026, 11, 1, 16, 0, tzinfo=_dt.timezone.utc)
+        row = {"id": "41318580149", "status": "completed", "conclusion": "failure",
+               "event": "workflow_dispatch", "head_sha": sha, "head_branch": "main",
+               "created_at": ended.isoformat(), "updated_at": ended.isoformat(),
+               "html_url": "https://x/1"}
+        buf = _io.BytesIO()
+        with _zip.ZipFile(buf, "w") as zf:
+            zf.writestr(reader.REPORT_MEMBER, _json.dumps(scene))
+        payload = buf.getvalue()
+
+        def fetch(path: str):
+            if "/artifacts" in path:
+                return {"artifacts": [{"name": reader.REPORT_ARTIFACT, "expired": False,
+                                       "id": 7, "archive_download_url": "https://x/z"}]}
+            return {"workflow_runs": [row]}
+
+        return reader.run(root=root, now=ended + _dt.timedelta(hours=1),
+                          fetch=fetch, grab=lambda _u: payload)
+
+    tmp = _tempfile.mkdtemp(prefix="session_death_probe_")
+    try:
+        whole, axis = _scene(os.path.join(tmp, "whole"), death=True, mark=True)
+        no_mark, axis_no_mark = _scene(os.path.join(tmp, "nomark"),
+                                       death=True, mark=False)
+        healthy, axis_healthy = _scene(os.path.join(tmp, "healthy"),
+                                       death=False, mark=False)
+        no_rec, axis_no_rec = _scene(os.path.join(tmp, "norec"),
+                                     death=False, mark=True)
+        doc_whole = _drive_reader(whole)
+        doc_healthy = _drive_reader(healthy)
+        doc_no_rec = _drive_reader(no_rec)
+    except Exception as exc:                                        # noqa: BLE001
+        return UNMEASURED, (f"сцена не поднялась ({type(exc).__name__}: {exc}) — "
+                            f"НЕ ИЗМЕРЕНО")
+    finally:
+        _shutil.rmtree(tmp, ignore_errors=True)
+
+    # ── сцена 1: весь контур ────────────────────────────────────────────────
+    if not isinstance(axis, dict) or axis.get("status") != "measured":
+        return NOT_SATISFIED, (
+            f"ось на сцене с обмороком ответила «{(axis or {}).get('status')}» "
+            f"({(axis or {}).get('why')}) — обморок обязан быть РОДОМ, а не отказом "
+            f"мерить")
+    if not axis.get("session_deaths_n"):
+        return NOT_SATISFIED, (
+            "запись `pytest::internal` есть в junit, а РОДА «сессия умерла» у оси нет "
+            "вовсе: обморок инструмента остаётся неотличим от провала теста, и чинить "
+            "его пошли бы в тест")
+    death = (axis.get("session_deaths") or [{}])[0]
+    if death.get("shard") != 7 or death.get("kind") != "TypeError":
+        return NOT_SATISFIED, (
+            f"род назван, а ЧЕЙ обморок и ПОЧЕМУ — нет: {death!r}; на сцене умер шард "
+            f"7 с `{_DEATH_TAIL}` (у `message` обморока тип не стои́т ВОВСЕ — он в "
+            f"хвосте трассы)")
+    if axis.get("session_victims") != [victim]:
+        return NOT_SATISFIED, (
+            f"жертва обморока НЕ НАЗВАНА поимённо: ось отдала "
+            f"{axis.get('session_victims')!r}, а на сцене сессия умерла под {victim}; "
+            f"безымянная жертва ничем не отличается от нуля")
+    # `stream_absent_for = 0` здесь не украшение: потоковой строки у записи обморока
+    # НЕТ по построению, и считать это «провалом, которого во второй записи нет»
+    # значило бы смешать ожидаемое отсутствие с настоящей дырой записи.
+    want = {"population": len(nodeids), "attributed": len(normal),
+            "unattributed_n": 0, "record_only_n": 0, "session_victims_n": 1,
+            "stream_absent_for": 0}
+    wrong = {k: (axis.get(k), v) for k, v in want.items() if axis.get(k) != v}
+    if wrong:
+        return NOT_SATISFIED, "ось разошлась со сценой: " + "; ".join(
+            f"{k} = {got!r}, а на сцене {exp!r}" for k, (got, exp) in sorted(wrong.items()))
+    if not all((axis.get("identities_hold") or {}).values()):
+        return NOT_SATISFIED, (
+            f"тождество учёта оси НЕ держится: {axis.get('identities_hold')!r} — род "
+            f"вне объявленного перечня исчезает из печатаемой строки молча")
+    if "roster" not in (axis.get("identities_hold") or {}):
+        return NOT_SATISFIED, (
+            "перечня РОДОВ исхода атрибуции у оси нет: «опознано + жертвы + "
+            "неопознанные = население» никем не сверяется, и четвёртый род уехал бы "
+            "молча")
+    fork = axis.get("fork") or {}
+    if fork.get("population") != len(normal):
+        return NOT_SATISFIED, (
+            f"вилка дефектов считана по {fork.get('population')!r} провал(ам) при "
+            f"{len(normal)} настоящих: жертва обморока не есть дефект набора, и "
+            f"включать её в вилку значит мерить ХОСТ под именем КОДА")
+    rows = {r.get("nodeid"): r for r in whole.get("failures") or []}
+    cause = (rows.get(victim) or {}).get("cause")
+    if not isinstance(cause, dict) or not cause.get("session_death"):
+        return NOT_SATISFIED, (
+            f"ось род назвала, а САМА СТРОКА жертвы причины не несёт: {cause!r} — "
+            f"читатель, берущий `failures` поимённо, по-прежнему видит падение без "
+            f"причины")
+    if cause.get("kind") != "TypeError" or cause.get("shard") != 7:
+        return NOT_SATISFIED, (
+            f"причина в строке жертвы не называет ни шарда, ни типа: {cause!r}")
+
+    lines_whole = "\n".join(reader.report(doc_whole))
+    found_whole = doc_whole.get("findings") or []
+    if "СЕССИЯ УМЕРЛА внутренне у шард(ов) 7" not in lines_whole:
+        return NOT_SATISFIED, (
+            "род есть в документе, а в ОТРИСОВАННЫХ строках читателя обморока нет: "
+            "шаг 0-офис идёт через `report()` и прочёл бы прежнее «причина не "
+            "опознана»")
+    if not any("СЕССИЯ pytest УМЕРЛА" in f for f in found_whole):
+        return NOT_SATISFIED, (
+            f"обморок сессии не стал НАХОДКОЙ читателя: находки {found_whole!r}; "
+            f"молчание о смерти сессии читается как «про причины всё в порядке»")
+    liars = [f for f in found_whole if "не числятся упавшими" in f
+             or "записи одного прогона спорят" in f]
+    if liars:
+        return NOT_SATISFIED, (
+            f"читатель по-прежнему утверждает СПОР двух записей: {liars!r} — запись "
+            f"обморока и потоковая запись СОГЛАСНЫ, одна из них просто не про тест, и "
+            f"это ложная находка, а не находка")
+    if any("причина НЕ ОПОЗНАНА" in f for f in found_whole):
+        return NOT_SATISFIED, (
+            f"жертва обморока по-прежнему числится падением без причины: "
+            f"{found_whole!r} — причина названа ДВАЖДЫ в том же артефакте")
+
+    # ── сцена 2: жертва НЕ помечена потоковой записью ───────────────────────
+    if not isinstance(axis_no_mark, dict) or axis_no_mark.get("status") != "measured":
+        return NOT_SATISFIED, (
+            f"сцена без метки дала «{(axis_no_mark or {}).get('status')}» вместо "
+            f"замера")
+    if axis_no_mark.get("unattributed") != [victim]:
+        return NOT_SATISFIED, (
+            f"без МАШИННОЙ метки `w = internal` жертва всё равно получила род: ось "
+            f"отдала session_victims={axis_no_mark.get('session_victims')!r}, "
+            f"unattributed={axis_no_mark.get('unattributed')!r}. Род, присвоенный по "
+            f"соседству с обмороком, а не по метке, есть догадка")
+    if axis_no_mark.get("session_victims_n"):
+        return NOT_SATISFIED, (
+            f"жертв без метки насчиталось {axis_no_mark['session_victims_n']} — "
+            f"опознание обязано стоять на записи, а не на отсутствии <testcase>")
+
+    # ── сцена 3: обморока нет вовсе ─────────────────────────────────────────
+    if axis_healthy.get("session_deaths_n") or axis_healthy.get("session_victims_n"):
+        return NOT_SATISFIED, (
+            f"на сцене БЕЗ обморока ось насчитала обмороков "
+            f"{axis_healthy.get('session_deaths_n')!r} и жертв "
+            f"{axis_healthy.get('session_victims_n')!r}: здоровый прогон получил "
+            f"обвинение в смерти сессии")
+    if any("УМЕРЛА" in f for f in (doc_healthy.get("findings") or [])):
+        return NOT_SATISFIED, (
+            f"читатель говорит об обмороке там, где его не было: "
+            f"{doc_healthy.get('findings')!r}")
+
+    # ── сцена 4: метка есть, записи обморока НЕТ ────────────────────────────
+    if not axis_no_rec.get("session_victims_n"):
+        return NOT_SATISFIED, (
+            f"метка `w = internal` есть, а жертва не названа: "
+            f"{axis_no_rec.get('session_victims')!r} — метку читает та же дверь, что "
+            f"и запись, и терять её нельзя")
+    if axis_no_rec.get("session_deaths_n"):
+        return NOT_SATISFIED, (
+            f"запись обморока выдумана там, где её нет: "
+            f"{axis_no_rec.get('session_deaths')!r}")
+    said = [f for f in (doc_no_rec.get("findings") or []) if "обморок" in f]
+    if not said:
+        return NOT_SATISFIED, (
+            f"жертва помечена, записи обморока НЕТ, а читатель молчит: "
+            f"{doc_no_rec.get('findings')!r} — расхождение двух записей о СОБЫТИИ "
+            f"обязано быть названо")
+    if any("СЕССИЯ pytest УМЕРЛА" in f for f in said):
+        return NOT_SATISFIED, (
+            f"«сессия умерла» и «записи об этом нет» получили ОДНИ слова: {said!r}; "
+            f"чинятся они разным")
+    # То же — у ОТРИСОВАННОЙ строки, а не только у находки: `cause_line` одна на
+    # `report.md` свода и на шаг 0-офис, и если её вторая ветка повторит слова первой,
+    # читатель строки двух состояний не различит (мутант #8 замера ADR-892).
+    lines_no_rec = "\n".join(reader.report(doc_no_rec))
+    if "СЕССИЯ УМЕРЛА внутренне" in lines_no_rec:
+        return NOT_SATISFIED, (
+            "ОТРИСОВАННАЯ строка говорит «СЕССИЯ УМЕРЛА» там, где записи обморока нет "
+            "вовсе: у двух состояний ОДНИ слова, и починка выбиралась бы вслепую")
+    if "ЖЕРТВ обморока" not in lines_no_rec:
+        return NOT_SATISFIED, (
+            "расхождение записей о событии есть в документе, а в ОТРИСОВАННЫХ строках "
+            "читателя его нет: шаг 0-офис идёт через `report()` и промолчал бы")
+
+    return SATISFIED, (
+        f"обморок сессии назван РОДОМ и доходит до читателя: на целом контуре шард "
+        f"{death['shard']} умер с `{death['kind']}: {str(death['skeleton'])[:60]}`, "
+        f"жертва названа поимённо ({victim.split('::')[-1]}) и несёт причину в самой "
+        f"строке `failures`, `unattributed` и `record_only` ПУСТЫ (ложная находка «две "
+        f"записи спорят» снята), вилка дефектов считана по {fork['population']} "
+        f"провал(ам) теста БЕЗ жертвы, тождество `roster` держится; без машинной метки "
+        f"жертва уходит в `unattributed` поимённо; без обморока читатель о нём МОЛЧИТ; "
+        f"метка без записи даёт СВОЙ исход, дословно отличный от обморока")
+
+
 def _probe_adr_title_gate_refuses_a_fat_register(arg: str | None = None,
                                                  *, repo_root: str | None = None
                                                  ) -> tuple[str, str]:
@@ -15738,6 +16108,8 @@ PROBES: dict[str, Callable[[str | None], "tuple[str, str]"]] = {
         _probe_adr_title_gate_refuses_a_fat_register,
     "ci_red_cause_axis_names_the_cause":
         _probe_ci_red_cause_axis_names_the_cause,
+    "ci_cause_axis_names_a_session_death":
+        _probe_ci_cause_axis_names_a_session_death,
 }
 
 

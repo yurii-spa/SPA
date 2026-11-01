@@ -760,6 +760,7 @@
 | ADR-882 | ADR-882 — STUDIO-AUTONOMY-01: пакет проверки релиза S2 принят ARB в ограниченном объёме; E4 не реализован, живой запуск и откат не измерены, production activation не разрешена | Accepted | [ADR-882](ADR-882-studio-autonomy-s2-release-verification-accepted-limited.md) |
 
 | ADR-891 | Причина падения контрольного прогона — ось у ПРОИЗВОДИТЕЛЯ: `msg` был МЕСТОМ, junit шарда свод уже держал; замер 79/79, вилка дефектов 54…78, множитель 1,01…1,46× | Accepted | [ADR-891](ADR-891-the-cause-of-a-red-control-run.md) |
+| ADR-892 | Обморок САМОЙ сессии pytest — РОД, а не падение без причины: ложная находка «две записи спорят» снята, род стои́т на машинной метке, тождество `roster` сверяет перечень родов с населением | Accepted | [ADR-892](ADR-892-the-cause-axis-is-blind-to-a-session-death.md) |
 
 ## Соглашения
 

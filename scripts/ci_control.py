@@ -300,6 +300,8 @@ def _cause_axis_measured(plan: list[dict], shards_dir: Path, failures: list[dict
     without_record: list[int] = []
     unreadable: list[list] = []
     found: dict[str, object] = {}
+    deaths: list[dict] = []
+    victims: dict[str, int] = {}
     records = 0
     agreed = disagreed = stream_absent = 0
     for sh in plan:
@@ -329,7 +331,21 @@ def _cause_axis_measured(plan: list[dict], shards_dir: Path, failures: list[dict
             agreed += census.stream_agreed
             disagreed += census.stream_disagreed
             stream_absent += census.stream_absent_for
+            # ОБМОРОК СЕССИИ (ADR-892) — РОД, а не провал теста. У события две
+            # стороны, и обе лежат в этом же артефакте: junit несёт сам обморок
+            # (`pytest::internal`), потоковая запись — ЖЕРТВУ (поле `w`). Берём обе
+            # ЗДЕСЬ, а не у `exit.json`: его читает `aggregate`, и второй читатель
+            # того же файла разошёлся бы с первым молча (класс ADR-220).
+            death = census.session_record
+            if death is not None:
+                deaths.append({"shard": i, "kind": death.kind,
+                               "skeleton": death.skeleton, "message": death.message})
+            for name in census.session_victims:
+                victims.setdefault(name, i)
             for failure in census.failures:
+                if failure.is_session_death:
+                    continue
+
                 # ПОСЛЕДНЯЯ попытка главнее: доигранная сессия (`run_shard`) гоняет
                 # тест заново, и её причина — та, что стои́т. Порядок задаётся
                 # `_attempt_of`, а не алфавитом: по алфавиту `junit-resume-1.xml`
@@ -350,18 +366,38 @@ def _cause_axis_measured(plan: list[dict], shards_dir: Path, failures: list[dict
 
     attributed: list = []
     unattributed: list[str] = []
+    victim_rows: list[str] = []
     for row in failures:
         nodeid = row.get("nodeid")
-        failure = found.get(door.junit_name(nodeid)) if isinstance(nodeid, str) else None
-        if failure is None:
-            row["cause"] = None
-            unattributed.append(nodeid if isinstance(nodeid, str) else repr(nodeid))
+        jname = door.junit_name(nodeid) if isinstance(nodeid, str) else None
+        failure = found.get(jname) if jname is not None else None
+        if failure is not None:
+            row["cause"] = _cause_of(failure)
+            attributed.append(failure)
             continue
-        row["cause"] = _cause_of(failure)
-        attributed.append(failure)
+        if jname is not None and jname in victims:
+            # ЖЕРТВА ОБМОРОКА (ADR-892): junit-записи у неё нет не потому, что
+            # запись неполна, а потому, что сессия умерла, НЕ ДОПИСАВ её. Причина
+            # названа — и это причина ДРУГОГО РОДА: обморок инструмента, а не
+            # дефект теста. Поэтому строка причину несёт, а в `attributed` и в
+            # вилку дефектов жертва НЕ идёт.
+            shard = victims[jname]
+            death = next((d for d in deaths if d.get("shard") == shard),
+                         deaths[0] if deaths else {})
+            row["cause"] = {"session_death": True, "shard": shard,
+                            "kind": death.get("kind"),
+                            "skeleton": death.get("skeleton")}
+            victim_rows.append(nodeid)
+            continue
+        row["cause"] = None
+        unattributed.append(nodeid if isinstance(nodeid, str) else repr(nodeid))
 
     declared = {door.junit_name(r.get("nodeid")) for r in failures
                 if isinstance(r.get("nodeid"), str)}
+    # Запись обморока в `found` не попадает ВОВСЕ (выше), поэтому `record_only`
+    # отвечает на свой вопрос — «чьё падение junit числит, а отчёт нет». До ADR-892
+    # сюда падал `pytest::internal`, и читатель говорил «две записи одного прогона
+    # СПОРЯТ»: утверждение ЛОЖНОЕ — записи СОГЛАСНЫ, просто одна из них не про тест.
     record_only = sorted(set(found) - declared)
 
     from collections import Counter
@@ -378,10 +414,17 @@ def _cause_axis_measured(plan: list[dict], shards_dir: Path, failures: list[dict
         "phases": sum(phases.get(k, 0) for k in door.PHASES) == n,
         "cause_classes": sum(classes.get(k, 0) for k in door.CAUSE_CLASSES) == n,
         "site_classes": sum(sites.get(k, 0) for k in door.SITE_CLASSES) == n,
+        # Перечень РОДОВ исхода атрибуции (ADR-892): опознано · жертва обморока ·
+        # не опознано. Сумма обязана равняться населению падений; род, забытый в
+        # этом перечне, исчезал бы из печатаемой строки молча — ровно тот дефект,
+        # что ADR-675 нашёл у фаз.
+        "roster": n + len(victim_rows) + len(unattributed) == len(failures),
     }
     return {
         "schema": CAUSE_SCHEMA, "status": "measured",
         "population": len(failures), "attributed": n,
+        "session_deaths": deaths, "session_deaths_n": len(deaths),
+        "session_victims": victim_rows[:50], "session_victims_n": len(victim_rows),
         "unattributed": unattributed[:50], "unattributed_n": len(unattributed),
         "record_only": record_only[:50], "record_only_n": len(record_only),
         "shards_read": read_ok, "shards_absent": absent,
@@ -762,6 +805,26 @@ def cause_line(axis) -> str:
     kinds = axis.get("kinds") or {}
     top = axis.get("top") or []
     parts = [f"причины: опознано {axis.get('attributed')} из {pop}"]
+    # ОБМОРОК СЕССИИ печатается ПЕРЕД «без причины» намеренно: это РОД, а не остаток.
+    # Жертва обморока причину имеет, и причина у неё НЕ ДЕФЕКТ ТЕСТА — читатель,
+    # увидевший её среди «без причины», пошёл бы чинить тест (ADR-892).
+    if axis.get("session_deaths_n"):
+        deaths = axis.get("session_deaths") or []
+        who = ", ".join(str(d.get("shard")) for d in deaths)
+        first = deaths[0] if deaths else {}
+        parts.append(f"СЕССИЯ УМЕРЛА внутренне у шард(ов) {who} "
+                     f"({first.get('kind') or '«тип не назван»'}: "
+                     f"{str(first.get('skeleton') or '«сообщения нет»')[:80]}); "
+                     f"под обмороком падени(й) {axis.get('session_victims_n') or 0} — "
+                     f"это обморок ИНСТРУМЕНТА, а не дефекты теста, и в вилку они "
+                     f"не входят"
+                     + (f" (поимённо: "
+                        f"{', '.join(axis.get('session_victims') or [])[:200]})"
+                        if axis.get("session_victims") else ""))
+    elif axis.get("session_victims_n"):
+        parts.append(f"ЖЕРТВ обморока {axis['session_victims_n']}, а самой записи "
+                     f"обморока ни у одного шарда НЕТ — потоковая запись и junit "
+                     f"расходятся, и это находка о ЗАПИСИ")
     if axis.get("unattributed_n"):
         parts.append(f"БЕЗ причины {axis['unattributed_n']} "
                      f"(поимённо: {', '.join(axis.get('unattributed') or [])[:200]})")
@@ -772,7 +835,8 @@ def cause_line(axis) -> str:
     if fork.get("population"):
         parts.append(f"дефектов НЕ МЕНЬШЕ {fork.get('lower')} и НЕ БОЛЬШЕ "
                      f"{fork.get('upper')} (крупнейшее семейство "
-                     f"{fork.get('largest_component')})")
+                     f"{fork.get('largest_component')}; считано по "
+                     f"{fork.get('population')} опознанн(ым) провал(ам) теста)")
     if top:
         kind, skeleton, count = top[0]
         parts.append(f"крупнейшая причина ×{count}: {kind}: {str(skeleton)[:120]}")

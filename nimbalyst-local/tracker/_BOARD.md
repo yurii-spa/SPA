@@ -2,11 +2,11 @@
 
 > Авто-генерится `scripts/build_tracker_board.py` из `nimbalyst-local/tracker/*.md`. НЕ править вручную — правь карточки. Источник правды — карточки, это индекс (bootstrap).
 >
-> Собрана: 2026-11-01T14:17:46Z · сверка с карточками: `python3 scripts/build_tracker_board.py --check` (сторож `spa_core/tests/test_tracker_board_matches_cards.py`).
+> Собрана: 2026-11-01T19:03:38Z · сверка с карточками: `python3 scripts/build_tracker_board.py --check` (сторож `spa_core/tests/test_tracker_board_matches_cards.py`).
 >
-> Сверено с `origin/main` (feff8523a) · у **1** своя правка, кто новее — не измерено.
+> Сверено с `origin/main` (9ebe92509).
 >
-> Всего карточек: **1559** · ждёт владельца: **6** · занято сессиями: **13**.
+> Всего карточек: **1560** · ждёт владельца: **6** · занято сессиями: **13**.
 
 ## 🔴 ЖДЁТ ВЛАДЕЛЬЦА (needs-owner)
 
@@ -422,7 +422,7 @@
 ### · closed
 - Считать ли верный отказ по правилам допуска неисправностью флота  ·  `owner-decision-schitat-li-vernyi-otkaz-po-pravilam-dopu.md` · 2026-10-08
 
-## 📥 Inbox (задания: Telegram / заметки / голос)  (877)
+## 📥 Inbox (задания: Telegram / заметки / голос)  (878)
 
 ### · in-progress
 - а задача починить все-таки еще раз сообщение которым не пишет нужно твое решени…  ·  `inbox-a-zadacha-pochinit-vse-taki-esche-raz-so.md` · 2026-08-14 · 🔒 `pid43119`
@@ -720,6 +720,7 @@
 - Офис зовёт артефакт прочитанным ВХОЛОСТУЮ и тут же печатает его числа — счётчик перестал отвечать на свой вопрос  ·  `inbox-ofis-zovet-artefakt-prochitannym-vholost.md` · 2026-10-05
 - Операнд «сумма исходов двери» разошёлся с объявленным: 126 против 121, и сторож красен — +3 измерены по именам, остаток +2 нет  ·  `inbox-operand-summa-ishodov-dveri-razoshelsya.md` · 2026-10-24
 - Оркестратор ведом каноническим реестром + ALLOC-002-осознанный отбор (иначе больше кандидатов = хуже книга)  ·  `inbox-orkestrator-vedom-kanonicheskim-reestrom.md` · 2026-08-08
+- Ось причин не знает рода «сессия умерла» — и говорит о нём две неверные вещи  ·  `inbox-os-prichin-ne-znaet-roda-sessiya-umerla.md` · 2026-11-01
 - Ось «тип записи» в разборе входящих не имеет писателя: 38 из 38 «не объявлен» — ложная ПОЛНОТА, а не 38 недосмотров  ·  `inbox-os-tip-zapisi-v-razbore-vhodyaschih-ne-i.md` · 2026-10-30
 - Осиротела R&D-итерация #73 ACL: скрипт и тест лежат в /private/tmp/spa_rnd73, замеров и записи реестра нет — сессия умерла ПОСРЕДИ работы  ·  `inbox-osirotela-r-d-iteratsiya-73-acl-skript-i.md` · 2026-08-23
 - Осиротевшая работа cycle-13765: второй артефакт TVL (остаток G1) лежит в /private/tmp/spa-cio-14737, и её номер ADR уже занят  ·  `inbox-osirotevshaya-rabota-cycle-13765-vtoroi.md` · 2026-09-16

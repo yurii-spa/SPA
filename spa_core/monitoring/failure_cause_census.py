@@ -83,7 +83,24 @@ PHASE_SETUP = "setup"
 PHASE_TEARDOWN = "teardown"
 PHASE_COLLECT = "collect"
 PHASE_UNNAMED = "phase_unnamed"
-PHASES = (PHASE_CALL, PHASE_SETUP, PHASE_TEARDOWN, PHASE_COLLECT, PHASE_UNNAMED)
+#: Обморок САМОЙ сессии pytest — не фаза теста, а его отсутствие: тест не доигран ни
+#: в одной фазе, потому что сессия, которая его гоняла, умерла. Род объявлен ОТДЕЛЬНЫМ
+#: именем ровно поэтому: до ADR-892 запись обморока получала `phase_unnamed` и стояла
+#: среди провалов тестов, а «тип не назван» у неё читалось как «причину не нашли».
+PHASE_SESSION = "session_death"
+PHASES = (PHASE_CALL, PHASE_SETUP, PHASE_TEARDOWN, PHASE_COLLECT, PHASE_SESSION,
+          PHASE_UNNAMED)
+
+#: Имя, которым писатель junit (`_pytest/junitxml.py`) называет ВНУТРЕННЮЮ смерть
+#: сессии: `<testcase classname="pytest" name="internal">`. Литерал ЧУЖОГО кода, не
+#: проза отчёта. Тестом эта запись не является вовсе, и считать её «падением, которого
+#: отчёт не числит упавшим» значит утверждать спор там, где записи СОГЛАСНЫ.
+SESSION_RECORD = "pytest::internal"
+
+#: Метка, которой `run_shard` (`scripts/ci_control.py`) помечает поле `w` потоковой
+#: записи у теста, ПОД КОТОРЫМ сессия умерла. Это вторая, МАШИННАЯ дверь к тому же
+#: событию: она называет ЖЕРТВУ, тогда как junit называет сам обморок.
+STREAM_INTERNAL = "internal"
 
 # Префиксы, которые печатает САМ писатель junit у элемента <error>. Это литералы
 # чужого кода, не проза отчёта; несовпадение даёт PHASE_UNNAMED, а не догадку.
@@ -169,6 +186,11 @@ class Failure(NamedTuple):
         return f"{self.classname}::{self.name}" if self.classname else self.name
 
     @property
+    def is_session_death(self) -> bool:
+        """Эта запись — обморок САМОЙ сессии, а не провал теста (ADR-892)."""
+        return self.nodeid == SESSION_RECORD
+
+    @property
     def cause_class(self) -> str:
         if not self.message.strip():
             return CAUSE_NO_MESSAGE
@@ -206,11 +228,24 @@ class Census(NamedTuple):
     stream_disagreed: int
     stream_absent_for: int
     stream_read: str | None
+    #: junit-имена тестов, под которыми СЕССИЯ умерла (поле `w` == STREAM_INTERNAL).
+    #: Пустой набор при прочитанной потоковой записи есть «измерено и равно нулю»;
+    #: при `stream_read is None` — «не спрошено», и различает их `stream_read`.
+    session_victims: tuple[str, ...] = ()
 
     # --- тождества учёта (инв. #17) ---
     @property
     def population(self) -> int:
         return len(self.failures)
+
+    @property
+    def session_record(self) -> "Failure | None":
+        """Запись обморока сессии, если она в этом junit есть. Свойство, не поле:
+        второе поле с тем же содержимым разошлось бы с `failures` молча."""
+        for failure in self.failures:
+            if failure.is_session_death:
+                return failure
+        return None
 
     def by_phase(self) -> Counter:
         return Counter(f.phase for f in self.failures)
@@ -336,16 +371,44 @@ def evidence_of(message: str) -> frozenset[str]:
     return frozenset(_EVIDENCE.findall(message or ""))
 
 
+def exception_tail(text: str) -> str:
+    """Последняя строка тела записи, несущая тип исключения. Нет такой ⇒ ``""``.
+
+    Нужна РОВНО одному роду — обмороку сессии (ADR-892). У него атрибут ``message``
+    есть литерал ``internal error`` и типа не несёт ВОВСЕ, а настоящее исключение
+    стои́т в ХВОСТЕ трассы (замер прогона 41318580149, шард 7: ``TypeError:
+    unsupported operand type(s) for -: 'NoneType' and 'int'`` в ``_pytest/_code/
+    code.py:214``). Брать ГОЛОВУ тела нельзя: голова — кадры `pluggy`, а не причина;
+    отсюда и «последняя», а не «первая».
+
+    Строка текста исключения (`E ...`) отбрасывается той же мерой, что в
+    :func:`frames_of`: у обморока её не бывает, но правило одно на оба читателя.
+    """
+    for line in reversed((text or "").splitlines()):
+        line = line.strip()
+        if not line or _ERROR_TEXT_LINE.match(line):
+            continue
+        if _EXC_HEAD.match(line):
+            return line
+    return ""
+
+
 def _failure_from(classname: str, name: str, tag: str, message: str, text: str) -> Failure:
     mine, foreign = frames_of(text)
+    nodeid = f"{classname}::{name}" if classname else name
+    # Обморок сессии: причину несёт ХВОСТ тела, а не `message` (см. exception_tail).
+    # Фаза ему тоже не присваивается разбором префикса — у события нет фазы теста.
+    session = nodeid == SESSION_RECORD
+    source = exception_tail(text) if session else (message or "")
     return Failure(
         classname=classname, name=name, tag=tag,
-        phase=phase_of(tag, message), message=message or "",
-        kind=kind_of(message), skeleton=skeleton_of(message),
-        coarse=skeleton_of(message, erase_literals=True),
+        phase=(PHASE_SESSION if session else phase_of(tag, message)),
+        message=message or "",
+        kind=kind_of(source), skeleton=skeleton_of(source),
+        coarse=skeleton_of(source, erase_literals=True),
         site=(f"{mine[-1][0]}:{mine[-1][1]}" if mine else None),
         frames=len(mine), foreign_frames=foreign,
-        evidence=evidence_of(message),
+        evidence=evidence_of(source),
     )
 
 
@@ -376,9 +439,17 @@ def census_from_path(path: Path, *, stream: Path | None = None) -> Census:
         return _unreadable(READ_NO_CASES, "в записи нет ни одного <testcase>", str(path))
     agreed = disagreed = absent_for = 0
     stream_read: str | None = None
+    victims: tuple[str, ...] = ()
     if stream is not None:
         phases, stream_read = stream_phases(stream)
+        victims = tuple(sorted(n for n, w in phases.items() if w == STREAM_INTERNAL))
         for failure in failures:
+            # Обморок сессии в сверку фаз НЕ входит: потоковой строки у него нет ПО
+            # ПОСТРОЕНИЮ (он не тест, и `run_shard` строки `fail` ему не пишет).
+            # Считать его «провалом, которого во второй записи нет» значило бы
+            # смешать ожидаемое отсутствие с настоящей дырой записи.
+            if failure.is_session_death:
+                continue
             observed = phases.get(failure.nodeid)
             if observed is None:
                 absent_for += 1
@@ -389,7 +460,8 @@ def census_from_path(path: Path, *, stream: Path | None = None) -> Census:
     return Census(read=READ_OK, reason="запись прочитана", path=str(path),
                   collected=collected, failures=tuple(failures),
                   stream_agreed=agreed, stream_disagreed=disagreed,
-                  stream_absent_for=absent_for, stream_read=stream_read)
+                  stream_absent_for=absent_for, stream_read=stream_read,
+                  session_victims=victims)
 
 
 def stream_phases(path: Path) -> tuple[dict[str, str], str]:
@@ -519,6 +591,17 @@ def format_census(census: Census, *, shown: int = 12) -> str:
         lines.append(f"   сверка фазы со второй записью: согласие {census.stream_agreed} · "
                      f"расхождение {census.stream_disagreed} · "
                      f"в потоковой записи нет {census.stream_absent_for}")
+    death = census.session_record
+    if death is not None:
+        lines.append(f"   ОБМОРОК СЕССИИ: запись `{SESSION_RECORD}` есть — "
+                     f"{death.kind or '«тип не назван»'}: {death.skeleton or '«сообщения нет»'}")
+    if census.stream_read is None:
+        lines.append("   жертвы обморока: НЕ СПРОШЕНЫ (--stream не передан)")
+    elif census.session_victims:
+        lines.append(f"   жертвы обморока ({len(census.session_victims)}) НАЗВАНЫ "
+                     f"потоковой записью: {', '.join(census.session_victims[:5])}")
+    else:
+        lines.append("   жертв обморока нет — измерено и равно нулю")
     fork = fork_of(census.call)
     if fork.population == 0:
         lines.append("   фаза `call`: провалов нет — вилка не считается")
@@ -551,6 +634,12 @@ def as_json(census: Census) -> dict:
         "stream_agreed": census.stream_agreed,
         "stream_disagreed": census.stream_disagreed,
         "stream_absent_for": census.stream_absent_for,
+        "session_record": (None if census.session_record is None else {
+            "kind": census.session_record.kind,
+            "skeleton": census.session_record.skeleton,
+            "message": census.session_record.message,
+        }),
+        "session_victims": list(census.session_victims),
     }
     if census.measured:
         fork = fork_of(census.call)
