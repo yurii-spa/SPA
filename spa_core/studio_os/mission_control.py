@@ -596,6 +596,7 @@ def cockpit_records(prod_cards: Optional[dict], now: datetime, *, source: str,
                      "acceptance_reason": fm.get("acceptance_reason") or None,
                      "acceptance_next": fm.get("acceptance_next") or None,
                      "owner_subject": fm.get("owner_subject") or None,
+                     "approval_passed_at": fm.get("approval_passed_at") or None,
                      **({"preparation": _record_preparation(name, c, task_prep_root, code_root, code_now)}
                         if task_prep_root is not None else {})})
     rows.sort(key=lambda r: (str(r["created_at"] or ""), r["card"]), reverse=True)
@@ -762,10 +763,10 @@ def decision_item(name: str, card: dict, prod: Optional[dict], bot: Optional[str
 
 # ── sections ───────────────────────────────────────────────────────────────────────────────────
 #: Эпик сдан и ждёт приёмки — отдельное состояние, а не «в работе» и не «сделано».
-from spa_core.studio_os.owner_dictionary import AWAITING_REVIEW as _AWAITING_REVIEW  # noqa: E402 — одна копия
+from spa_core.studio_os.owner_dictionary import roadmap_item_state as _roadmap_item_state  # noqa: E402 — одна копия
 #: Строка шага цели под пунктом roadmap:
 #: ``   - step S3 · Paper-конвейер — BLOCKED: причина · executor: кто · last: что подтверждено``
-_ROADMAP_STEP = re.compile(r"^\s+-\s+step\s+(\S+)\s+·\s+(.+?)\s+—\s+(DONE|IN_PROGRESS|READY|WAITING|BLOCKED)"
+_ROADMAP_STEP = re.compile(r"^\s+-\s+step\s+(\S+)\s+·\s+(.+?)\s+—\s+([A-Z_]+|\S+?)"
                            r"(?::\s*(.*?))?(?:\s+·\s+executor:\s*(.*?))?(?:\s+·\s+last:\s*(.*?))?\s*$")
 
 
@@ -798,14 +799,7 @@ def _roadmap(mirror: Path) -> dict:
         note = raw.split("—", 1)[1].strip() if "—" in raw else ""
         # «сдано, ждёт приёмки ARB» — НЕ «идёт работа»: иначе пульт называл текущей целью эпик, который ждёт
         # чужого решения (замер 01.11: «ARB-CONTINUITY-01» показывался как текущий при идущем STUDIO-AUTONOMY-01)
-        if done:
-            state = "DONE"
-        elif _AWAITING_REVIEW.search(note):
-            state = "REVIEW"
-        elif re.search(r"in progress|в работе", note, re.I):
-            state = "IN_PROGRESS"
-        else:
-            state = "QUEUED"
+        state = _roadmap_item_state(raw)
         items.append({"n": int(mm.group(1)), "epic": safe_text(name, 120), "state": state, "note": safe_text(note, 200)})
     # RM-TRUTH-01 C1 (ADR-580 → Director OS v2 design §0): `current` means IN_PROGRESS, and ONLY
     # that — never the first QUEUED item. The live defect this fixes: with no epic actually

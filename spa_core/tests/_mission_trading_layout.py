@@ -24,7 +24,9 @@ from functools import partial
 from http.server import SimpleHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 
-REPO = Path(__file__).resolve().parents[1]
+REPO = Path(__file__).resolve().parents[2]
+# Ручной инструмент QA (не агент и не шаг цикла): `python3 -m spa_core.tests._mission_trading_layout --model <mission.json>
+# --shots <каталог>`. Лежит в тестовой инфраструктуре, потому что вызывается руками и тестом, а не по расписанию.
 UI = REPO / "spa_core" / "studio_os" / "mission_ui"
 CHROME = "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome"
 LONG = "очень-длинный-идентификатор-без-пробелов-" * 6

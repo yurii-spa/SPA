@@ -114,8 +114,21 @@ def build_strategies():
 import sys  # noqa: E402
 if str(REPO) not in sys.path:  # запуск скриптом: корень репозитория для spa_core
     sys.path.insert(0, str(REPO))
-from spa_core.studio_os.trading_engines import (  # noqa: E402 — одна копия проектора (S4 K3)
-    MATURITY_DAYS, build_earn_defi, build_spa_trading, build_trading)
+try:  # одна копия проектора (S4 K3); studio_shell вне автосинка — импорт мягкий, отсутствие названо
+    from spa_core.studio_os.trading_engines import (  # noqa: E402
+        MATURITY_DAYS, build_earn_defi, build_spa_trading, build_trading)
+except ImportError as _exc:  # pragma: no cover — дерево без spa_core
+    _WHY = f"проектор движков недоступен: {_exc}"
+    MATURITY_DAYS = 30
+
+    def build_spa_trading(*a, **k):
+        return {"engine": "spa_trading_research", "present": False, "freshness": "UNKNOWN", "why_no_result": _WHY}
+
+    def build_earn_defi(*a, **k):
+        return {"engine": "earn_defi", "present": False, "freshness": "UNKNOWN", "why_no_result": _WHY}
+
+    def build_trading(*a, **k):
+        return {"schema": "earn-defi/trading/1", "blocks": [build_spa_trading(), build_earn_defi()], "note": _WHY}
 
 
 def main():

@@ -821,6 +821,10 @@ def maybe_send(finding: Dict[str, Any], ctx: Dict[str, Any]) -> bool:
     """
     key = finding["key"]
     kind = finding["kind"]
+    # Ключ ИНЦИДЕНТА прежний (finding["key"]); ключ ДЕДУПА различает предупреждение и остановку, иначе
+    # остановка через минуты после предупреждения глушилась бы на 2 ч (ревью S4).
+    if finding.get("subtype") == "warning":
+        key = key + ":warning"
     if _is_seen(key):
         log.info("Duplicate alert skipped: %s", key)
         return False

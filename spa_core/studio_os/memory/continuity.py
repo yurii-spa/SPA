@@ -485,9 +485,8 @@ def roadmap_view(text: str, resolved_status) -> Dict[str, Any]:
         m = re.match(r"~~(.+?)~~\s*—\s*DONE\b.*?\((ADR-\d+)\)", body)
         if m:
             latest = (n, m.group(1).strip(), m.group(2), body)
-    from spa_core.studio_os.owner_dictionary import AWAITING_REVIEW   # та же копия, что у пульта (ADR-890)
-    active = next(((n, b) for n, b in items if not b.startswith("~~") and re.search(r"\bin progress\b", b)
-                   and not AWAITING_REVIEW.search(b.split("—", 1)[-1])), None)
+    from spa_core.studio_os.owner_dictionary import roadmap_item_state   # та же функция, что у пульта (ADR-890)
+    active = next(((n, b) for n, b in items if roadmap_item_state(b) == "IN_PROGRESS"), None)
     out: Dict[str, Any] = dict(latest=None, active=None)
     if latest:
         n, name, aid, body = latest

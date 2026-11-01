@@ -131,7 +131,8 @@ def test_repeated_fixtures_are_not_an_owner_repeat_in_the_real_step(tracker):
     for _ in range(2):
         ii.save_inbox_task(PHRASE, source="telegram", merge_open_twin=False)
     rc, doc = _step0a(tracker)
-    assert doc["repeated_groups"] == 0 and rc == 0, "фикстура не есть «владелец повторил просьбу»"
+    # не «владелец повторил» (код 3), а неопределённость (код 2) — ревью S4: третий исход не выдаётся за «чисто»
+    assert doc["repeated_groups"] == 0 and rc == 2, "фикстура не есть «владелец повторил просьбу»"
     cards = q.list_cards(tracker_dir=tracker)
     assert len(census.unconfirmed_repeats(cards, now=NOW)) == 1, "неопределённость названа, а не потеряна"
 
@@ -166,3 +167,11 @@ def test_control_the_old_source_only_rule_would_call_fixtures_an_owner_repeat(mo
                         else (ac.INTENT_NONE, ""))
     rc, doc = _step0a(tracker)
     assert doc["repeated_groups"] == 1 and rc == 3
+
+
+def test_unconfirmed_repeats_are_reported_and_not_a_clean_exit(tracker):
+    """Ревью S4: повторы без установленного автора — третий исход в JSON и коде возврата, а не «0 / чисто»."""
+    for _ in range(2):
+        ii.save_inbox_task(PHRASE, source="telegram", merge_open_twin=False)
+    rc, doc = _step0a(tracker)
+    assert doc["repeated_groups"] == 0 and doc["unconfirmed_cards"] == 2 and rc == 2

@@ -27,3 +27,18 @@ def test_incident_identity_is_unchanged_between_warning_and_down():
     (w,) = dw.check_agent_health(_data("WARNING"))
     (c,) = dw.check_agent_health(_data("CRITICAL"))
     assert w["key"] == c["key"]
+
+
+def test_down_after_a_warning_is_not_swallowed_by_the_warning_dedup(monkeypatch):
+    """Ревью S4: остановка через минуты после предупреждения не должна глушиться 2-часовым дедупом."""
+    seen = set()
+    monkeypatch.setattr(dw, "_is_seen", lambda k: k in seen)
+    monkeypatch.setattr(dw, "_mark_seen", lambda k: seen.add(k))
+    monkeypatch.setattr(dw, "_is_in_cooldown", lambda kind: False)
+    sent = []
+    monkeypatch.setattr(dw, "send_telegram", lambda text: sent.append(text) or True)
+    (w,) = dw.check_agent_health(_data("WARNING"))
+    (c,) = dw.check_agent_health(_data("CRITICAL"))
+    dw.maybe_send(w, {})
+    dw.maybe_send(c, {})
+    assert any("DOWN" in t for t in sent) and any("WARNING" in t for t in sent)

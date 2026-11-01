@@ -1051,7 +1051,9 @@ def _record_preparation_ru(p: Any) -> Optional[dict]:
 #: S4 K4 (E7.2): четыре РАЗНЫХ события, которые нельзя склеивать в одно «сделано».
 LADDER = (("recorded", "Запись принята"), ("permission", "Допуск"), ("taken", "Работа взята"),
           ("verified", "Результат проверен"))
-_OWNER_SUBJECTS = ("money", "public", "irreversible")
+def _owner_subjects() -> tuple:
+    from spa_core.studio_os.work_packet import SUBJECTS_OWNER     # одна копия перечня предметов (ревью S4)
+    return tuple(SUBJECTS_OWNER)
 
 
 def record_stages(r: dict) -> list:
@@ -1064,12 +1066,18 @@ def record_stages(r: dict) -> list:
     subj = str(r.get("owner_subject") or "").strip()
     taken, verified = bool(r.get("claimed_by")), bool(r.get("verified_by_probe"))
     verdict = str(r.get("acceptance_verdict") or "")
-    perm = ("не требуется (нет предмета владельца)" if subj not in _OWNER_SUBJECTS else
-            ("граница пройдена при взятии" if taken else "требуется: проверяется перед исполнением"))
+    needs = subj in _owner_subjects()
+    # «Взята» НЕ доказывает пройденную границу: claimed_by пишут и пути мимо dispatch (ревью S4). Поэтому для
+    # записи с предметом владельца допуск «не подтверждён», пока в карточке нет записи о прохождении границы.
+    perm_done = (not needs) or bool(r.get("approval_passed_at"))
+    perm = ("не требуется (нет предмета владельца)" if not needs else
+            ("граница допуска пройдена" if perm_done else
+             ("взята, но прохождение границы допуска в карточке НЕ записано — не подтверждено" if taken
+              else "требуется: проверяется перед исполнением")))
     return [
         {"key": "recorded", "title": "Запись принята", "done": bool(r.get("card")),
          "text": "в трекере" + (" и разобрана" if r.get("intake_seen") else ", ещё не разобрана")},
-        {"key": "permission", "title": "Допуск", "done": subj not in _OWNER_SUBJECTS or taken, "text": perm},
+        {"key": "permission", "title": "Допуск", "done": perm_done, "text": perm},
         {"key": "taken", "title": "Работа взята", "done": taken,
          "text": f"исполнитель: {r.get('claimed_by')}" if taken else "никем не взята"},
         {"key": "verified", "title": "Результат проверен", "done": verified,

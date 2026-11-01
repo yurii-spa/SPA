@@ -65,3 +65,19 @@ def test_real_roadmap_has_the_program_as_current_goal():
     r = mc._roadmap(Path(__file__).resolve().parents[2])
     assert r["current"] and "STUDIO-AUTONOMY-01" in r["current"]["epic"]
     assert {s["id"] for s in r["current"].get("steps", [])} >= {"S1", "S2", "S3", "S4", "S5"}
+
+
+def test_step_reason_mentioning_arb_does_not_change_the_item_state_for_either_reader(tmp_path):
+    """Ревью S4: «ждёт ARB» в причине ШАГА роняло активный эпик у генератора контекста, но не у пульта."""
+    from spa_core.studio_os.memory import continuity as c
+    text = RM.replace("ждёт допуска владельца", "ждёт ARB")
+    assert _rm(tmp_path, text)["current"]["epic"] == "The goal"
+    assert c.roadmap_view(text, lambda a: "ACCEPTED")["active"]["name"] == "The goal"
+
+
+def test_unknown_step_state_is_named_not_dropped(tmp_path):
+    text = RM.replace("    - step S3 · Третий — BLOCKED: после S2 · executor: — · last: —",
+                      "    - step S3 · Третий — QUEUED · executor: — · last: —")
+    g = ow.goal({"overview": {"now": {}}}, _truth(_rm(tmp_path, text)))
+    s3 = next(s for s in g["steps"] if s["id"] == "S3")
+    assert s3["state_ru"] == "Состояние не распознано"

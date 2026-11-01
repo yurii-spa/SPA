@@ -11,7 +11,6 @@
 Чего стенд НЕ закрывает (назван пробелом в S4_STATUS): ответ через Telegram не привязан к ВЕРСИИ вопроса
 («старый экран») — это механизм ADR-762, он выключен решением владельца и здесь не включается.
 """
-# FROZEN-DATE-OK: injected-clock — NOW передаётся в take_card/close_verified/mi.submit/record_owner_answer через now=
 from __future__ import annotations
 
 import importlib
@@ -117,3 +116,28 @@ def test_answer_from_a_stranger_creates_no_permission(tmp_path):
         oa.record_owner_answer(card, choice_num="1", choice_label="Да", actor_chat_id=STRANGER,
                                owner_chat_id=OWNER, now=NOW)
     assert ca.parse_frontmatter(card.read_text(encoding="utf-8")).get("status") == "needs-owner"
+
+
+# ── находки ревью S4 ────────────────────────────────────────────────────────────────────────────────────────
+
+def test_taken_without_a_recorded_gate_pass_is_not_called_permitted(scene):
+    """claimed_by пишут и пути мимо dispatch — «взята» не доказывает пройденную границу допуска."""
+    from spa_core.studio_os import owner_view as ow
+    st = {s["key"]: s for s in ow.record_stages({"card": "x", "owner_subject": "money", "claimed_by": "session-x"})}
+    assert st["permission"]["done"] is False and "НЕ записано" in st["permission"]["text"]
+    st = {s["key"]: s for s in ow.record_stages({"card": "x", "owner_subject": "money", "claimed_by": "s",
+                                                  "approval_passed_at": "2026-11-01T12:00:00Z"})}
+    assert st["permission"]["done"] is True
+
+
+def test_dispatch_records_the_gate_pass_only_when_it_passed(scene, monkeypatch):
+    card = _submit(scene, sid="cockpitloop-0005")
+    cl._set_fields(card, {"owner_subject": "money", "acceptance_probe": SPEC})
+    monkeypatch.setattr(cd, "candidates", lambda tracker_dir=None: [card])
+    monkeypatch.setattr(cd, "probe_for", lambda p: (SPEC, None))
+    monkeypatch.setattr(cd, "approval_gate", lambda *a, **k: "одобрения нет")
+    res = cd.dispatch(executor="executor-a", tracker_dir=scene.tracker, claim=scene.claim, now=NOW, flush=False)
+    assert res["taken"] is None and not _fm(card).get("approval_passed_at")
+    monkeypatch.setattr(cd, "approval_gate", lambda *a, **k: None)
+    res = cd.dispatch(executor="executor-a", tracker_dir=scene.tracker, claim=scene.claim, now=NOW, flush=False)
+    assert res["taken"] and _fm(card).get("approval_passed_at") and _fm(card).get("approval_passed_by")

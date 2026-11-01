@@ -360,7 +360,8 @@ def _held_but_free(card: Card, claim_verdict) -> tuple[bool, str]:
 
 def build_report(findings: list[dict], min_hours: float, now: datetime,
                  repeat_groups: list[dict] | None = None,
-                 repeats_unmeasured: str | None = None) -> dict:
+                 repeats_unmeasured: str | None = None,
+                 unconfirmed_groups: list[dict] | None = None) -> dict:
     """Отчёт для читателя, который в момент замера не работал (владелец через дайджест).
 
     ``repeat_groups`` — вторая ось вердикта (ADR-860): ОДНА и та же просьба владельца,
@@ -383,6 +384,11 @@ def build_report(findings: list[dict], min_hours: float, now: datetime,
                            else sum(g["count"] for g in repeat_groups)),
         "repeat_groups": repeat_groups,
         "repeats_unmeasured": repeats_unmeasured,
+        # Третий исход (ADR-890): одинаковые карточки канала владельца БЕЗ установленного автора — не «повторов
+        # нет» и не «владелец повторил»; поле отдельное, чтобы дайджест не прочёл ноль.
+        "unconfirmed_groups": unconfirmed_groups,
+        "unconfirmed_cards": (None if unconfirmed_groups is None
+                              else sum(g["count"] for g in unconfirmed_groups)),
     }
 
 
@@ -629,7 +635,8 @@ def main(argv=None) -> int:
         # «голода нет» от «измерять было некому» — без него тишина означала бы и то, и другое.
         report = build_report(findings, args.min_hours, now,
                               repeat_groups=repeat_groups,
-                              repeats_unmeasured=repeats_unmeasured)
+                              repeats_unmeasured=repeats_unmeasured,
+                              unconfirmed_groups=unconfirmed)
         report["ref"] = args.ref or None
         # Третий исход отдельным полем: «ref не прочитан» ≠ «на ref голода нет».
         report["ref_unmeasured"] = ref_error
@@ -649,7 +656,9 @@ def main(argv=None) -> int:
                           "repeated_groups": len(repeat_groups),
                           "repeated_cards": sum(g["count"] for g in repeat_groups),
                           "repeat_groups": repeat_groups,
-                          "repeats_unmeasured": repeats_unmeasured},
+                          "repeats_unmeasured": repeats_unmeasured,
+                          "unconfirmed_groups": unconfirmed,
+                          "unconfirmed_cards": sum(g["count"] for g in unconfirmed)},
                           ensure_ascii=False, indent=2))
     else:
         print(render(findings, args.min_hours, repeat_groups=repeat_groups,
@@ -662,7 +671,8 @@ def main(argv=None) -> int:
         return _RC_FINDING
     # Голода не увидели — но если вторую копию очереди прочитать не удалось, «не найдено»
     # означает «не искали там, где приказ и живёт». Это не 0.
-    return _RC_PARTIAL if ref_error is not None else _RC_CLEAN
+    # Повторы с НЕустановленным автором — неопределённость, а не «чисто» (инв. #17, ADR-890).
+    return _RC_PARTIAL if (ref_error is not None or unconfirmed) else _RC_CLEAN
 
 
 if __name__ == "__main__":

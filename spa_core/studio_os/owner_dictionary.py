@@ -50,6 +50,20 @@ UNKNOWN_STAGE = "Этап плана (название только на анг�
 #: «Сдано, ждёт приёмки» — НЕ «в работе» (ADR-890). ОДНА копия: её читают и пульт (``mission_control._roadmap``),
 #: и генератор контекст-пакета (``memory.continuity.roadmap_view``); две копии правила уже разошлись однажды.
 AWAITING_REVIEW = re.compile(r"awaiting ARB|handed to ARB|NOT ARB-accepted|ждёт приёмки|ждёт ARB", re.I)
+_IN_PROGRESS = re.compile(r"\bin progress\b|в работе", re.I)
+
+
+def roadmap_item_state(raw: str) -> str:
+    """Состояние пункта roadmap — ОДНА функция для пульта и генератора контекста, на ОДНОМ тексте:
+    заголовок пункта до первой строки шага (``- step``). Шаги и их причины состояния пункта не меняют
+    (ревью S4: «ждёт ARB» в причине шага роняло активный эпик у одного читателя и не у другого)."""
+    head = re.split(r"\s-\s+step\s", raw or "", maxsplit=1)[0]
+    if head.strip().startswith("~~"):
+        return "DONE"
+    note = head.split("—", 1)[1] if "—" in head else ""
+    if AWAITING_REVIEW.search(note):
+        return "REVIEW"
+    return "IN_PROGRESS" if _IN_PROGRESS.search(note) else "QUEUED"
 
 
 def _key(title: str) -> tuple:
