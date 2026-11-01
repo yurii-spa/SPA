@@ -236,3 +236,23 @@ def test_live_predecessor_with_unmeasured_start_time_is_not_treated_as_dead(scen
     assert again.calls == 0 and not swept and p.poll() is None and _alive(child["pid"])
     rows = [r for r in gg._journal(scene["run"]) if r.get("phase") == "orphan_unresolved"]
     assert len(rows) == 1 and "не измерено" in rows[0]["sweep"]["reason"]
+
+
+def test_legacy_rows_without_run_id_do_not_hide_an_unfinished_call(tmp_path):
+    """Ревью 01.11: строки прежнего формата без метки сопоставляются один к одному; лишний начатый вызов без
+    метки — orphan_unresolved (владение не доказуемо), а не «закрыт»."""
+    run = tmp_path / "run"
+    goal = _goal()
+    sha = ex.render_request(goal, scope=["docs/"], context="c").context_sha256
+    step = ex._step_graph(goal, sha)
+    lease = gg.claim(run, step, ex.PROPOSE_TASK, worker="w0", process="p0", now=T0, ttl_s=600)
+    for row in ({"phase": "call_started"}, {"phase": "result", "status": "timeout"},
+                {"phase": "call_started"}):
+        ex._append_attempt(run, step, lease, T0, row)
+    again = Counting()
+    with pytest.raises(ex.Paused, match="нет метки"):
+        ex.propose(goal, run_dir=run, scope=["docs/"], context="c", provider_id="fixture_test_adapter",
+                   adapters={"fixture": again}, worker="w2", now=T_LATER, ttl_s=600,
+                   sweep=lambda run_id, age: {"closed": True})
+    assert again.calls == 0
+    assert len([r for r in gg._journal(run) if r.get("phase") == "orphan_unresolved"]) == 1

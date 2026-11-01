@@ -237,3 +237,14 @@ def test_file_absent_in_snapshot_is_named_not_silently_matched(tmp_path):
     (rt / "runtime.json").write_text("{}\n")
     out = TB.restore(str(rt), str(tmp_path / "snap"), TB.snapshot_digest(str(tmp_path / "snap")))
     assert out and "не удаляется" in out[0] and (rt / "runtime.json").exists()
+
+
+def test_under_root_a_non_root_owner_in_the_snapshot_is_refused(root, tmp_path, monkeypatch):
+    """Под root восстанавливается только владелец root: снимок с uid ≠ 0 отказывает ещё до записи."""
+    TB.snapshot(str(root), str(tmp_path / "snap"))
+    digest = TB.snapshot_digest(str(tmp_path / "snap"))
+    monkeypatch.setattr(TB, "_owner_problem", lambda snap, euid: None)   # сцена: снимок «root-owned»
+    before = (root / "approved_release.json").read_text()
+    with pytest.raises(TB.Refused, match="только root"):
+        TB.restore(str(root), str(tmp_path / "snap"), digest, euid=0)
+    assert (root / "approved_release.json").read_text() == before
