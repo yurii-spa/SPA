@@ -5,18 +5,18 @@
  "authority": "DERIVED",
  "context_version": "arb-continuity/2",
  "copy_role": "COMMITTED_SNAPSHOT",
- "generated_at": "2026-11-01T13:32:53Z",
- "generator_version": "arb-continuity/2+6e0d348b378b",
+ "generated_at": "2026-11-01T13:38:47Z",
+ "generator_version": "arb-continuity/2+3523361b9cbc",
  "latest_accepted_epic": "RM-TRUTH-01 · Company truth reconciliation + Director OS recovery",
  "origin_commit": "feff8523a09748455d8f9658063438f2ecd6f941",
  "production_release": "UNKNOWN",
  "production_release_verified_at": null,
- "repo_commit": "0c399b97ac6b9e83755231df03f5e3edaa2237d4",
+ "repo_commit": "05cb329698d069594685ad9629b884e1935ba5f0",
  "root_dirty_inputs": [],
- "runtime_truth_computed_at": "2026-11-01T13:29:28Z",
+ "runtime_truth_computed_at": "2026-11-01T13:35:12Z",
  "source_snapshot_ids": [
-  "inputs:89e4806dff6d176d890970d5b208c39245cef8f38e67a41d7bdbf3df1e993802",
-  "mission:838ba23a7937a0890e0d44082ebdf4f2ec86099acc34f28af6c69542e187eb8c"
+  "inputs:db8ef44db7314b569430c004306d0b80bb105be3036f44341f61266fdc02adaa",
+  "mission:ff6f0b93f0274fb8d7333cd3b9ba01540fbab579e2f8f88db68b351a2083cd77"
  ],
  "verdict_at_generation": "CONTEXT_PARTIAL"
 }
@@ -30,7 +30,7 @@
 ## Active epic / current wave
 - **status:** MEASURED · **as of:** — · **authority:** CANONICAL
 - **source:** docs/ROADMAP.md «Order of the next epics» (+ runtime truth.studio.claude_work, DONE epics dropped)
-- ARB-CONTINUITY-01 · Architecture continuity + owner control & recovery hardening · Claude announced (as of 2026-11-01T13:29:28Z): ARB-CONTINUITY-01 · Architecture continuity + owner control & recovery hardening
+- STUDIO-AUTONOMY-01 · owner manages the studio from the phone; agents work inside proven permissions · Claude announced (as of 2026-11-01T13:35:12Z): ARB-CONTINUITY-01 · Architecture continuity + owner control & recovery hardening
 
 ## Latest accepted epic
 - **status:** MEASURED · **as of:** — · **authority:** CANONICAL
@@ -38,9 +38,9 @@
 - RM-TRUTH-01 · Company truth reconciliation + Director OS recovery (ADR-580, ACCEPTED)
 
 ## Current origin
-- **status:** MEASURED · **as of:** 2026-11-01T13:32:53Z · **authority:** CANONICAL
+- **status:** MEASURED · **as of:** 2026-11-01T13:38:47Z · **authority:** CANONICAL
 - **source:** git rev-parse HEAD in the canonical root + git ls-remote origin (asked at generation)
-- canonical root HEAD 0c399b97ac6b · origin main on the server feff8523a097 — the root is NOT at the origin head
+- canonical root HEAD 05cb329698d0 · origin main on the server feff8523a097 — the root is NOT at the origin head
 
 ## Production code identity
 - **status:** UNKNOWN · **as of:** — · **authority:** RUNTIME
@@ -65,7 +65,7 @@
 ## Trading Lab
 - **status:** MEASURED · **as of:** 2026-11-01T13:22:24Z · **authority:** RUNTIME
 - **source:** runtime: mission.json truth.capital.trading_lab (canon: spa_core.trading_research.read_model.trading_lab_view)
-- candidates researched 138 · in forward paper 5 · champions 0 · evidence chain intact · data age 7.1 min
+- candidates researched 138 · in forward paper 5 · champions 0 · evidence chain intact · data age 12.8 min
 
 ## BTC (directional research)
 - **status:** MEASURED · **as of:** 2026-11-01T13:22:24Z · **authority:** RUNTIME
@@ -93,9 +93,9 @@
 - в норме 91 из 91 объявленных · аварий 0 · предупреждений 1 · вне учёта (не в манифесте): 3 · намеренно выключено владельцем: 1 · в очереди: 480 · в статусе «в работе»: 40 (залежались: 12) · self-heal: последний запуск только что · провалов: 0
 
 ## Director OS / Mission Control
-- **status:** MEASURED · **as of:** 2026-11-01T13:29:28Z · **authority:** RUNTIME
+- **status:** MEASURED · **as of:** 2026-11-01T13:35:12Z · **authority:** RUNTIME
 - **source:** runtime: published Mission Control bundle (current.json → mission.json)
-- Mission Control bundle b-20261101T132928Z-301b5162, Company Truth computed 2026-11-01T13:29:28Z (age 0.06 h at generation); read model only (ADR-592)
+- Mission Control bundle b-20261101T133512Z-41027519, Company Truth computed 2026-11-01T13:35:12Z (age 0.06 h at generation); read model only (ADR-592)
 
 ## Memory
 - **status:** MEASURED_ZERO · **as of:** 2026-11-01T13:06:37Z · **authority:** RUNTIME
@@ -120,7 +120,7 @@
 ## Pending Owner Gates
 - **status:** MEASURED · **as of:** — · **authority:** CANONICAL
 - **source:** docs/ROADMAP.md «Owner gates:» of the latest/active epic + runtime truth.decisions (one owner queue, ADR-580 C5)
-- epic gates: publish or reject the publication candidate `rmtruth/pubtruth` (subject №2); clear the earn-defi INCIDENT by hand (earn-defi ADR-006 K3); LOGOS — legal/business choice on Polymarket access or KILL; turn on iCloud Advanced Data Protection; optional Codex sign-out/sign-in; open the cockpit on iPhone through Cloudflare Access / the six RM-TRUTH-01 gates above are frozen, not executed; plus applying the prepared LOGOS reliability patch to the live project. Wave D `b58f63b1`: observation times on the runtime cells; production `continuity check` = CONTEXT_FRESH (05:43Z 07.10); fresh-sess…
+- epic gates: publish or reject the publication candidate `rmtruth/pubtruth` (subject №2); clear the earn-defi INCIDENT by hand (earn-defi ADR-006 K3); LOGOS — legal/business choice on Polymarket access or KILL; turn on iCloud Advanced Data Protection; optional Codex sign-out/sign-in; open the cockpit on iPhone through Cloudflare Access / root-установка и канарейка S2; merge интеграционного кандидата и S4 в main; перезапуск бота; решение по новой forward-серии (E6.6) · owner queue: {"accepted": 0, "answered": 10, "owner": 2, "prod_only": 9, "undeclared": 4} · owner cards: Диск снова съел один жу…
 
 ## Known technical debt
 - **status:** MEASURED · **as of:** — · **authority:** CANONICAL
@@ -130,12 +130,12 @@
 ## Next safe architectural action
 - **status:** MEASURED · **as of:** — · **authority:** CANONICAL
 - **source:** docs/ROADMAP.md «Next safe action:» of the active epic
-- ARB review of the ARB-CONTINUITY-01 closeout, then the owner gates; current execution work is item 17 (STUDIO-OS-NEXT-01, ADR-763)
+- ARB-приёмка интеграционного кандидата S2+S3 и кандидата S4 по их полным CI, затем единый запрос разрешений владельцу
 
 ## Last verification evidence
-- **status:** MEASURED · **as of:** 2026-11-01T13:32:53Z · **authority:** DERIVED
+- **status:** MEASURED · **as of:** 2026-11-01T13:38:47Z · **authority:** DERIVED
 - **source:** this generator (freshness: `python -m spa_core.studio_os.memory continuity check`)
-- generated 2026-11-01T13:32:53Z · code-sync receipt None · Company Truth 2026-11-01T13:29:28Z
+- generated 2026-11-01T13:38:47Z · code-sync receipt None · Company Truth 2026-11-01T13:35:12Z
 
 ## Public profile mapping (public ↔ internal ↔ decision ↔ track ↔ metric type)
 
