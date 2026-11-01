@@ -165,3 +165,14 @@
 | шарды | 12/12, `error` 0, `not_obtained` 0, `collect_errors` 0, повторов шардов 0 |
 | сторож записи | новых 0 · прежних 65 · устранённых 12 (все измерены) · не удалось сравнить 0 |
 | новые имена | `test_tracker_board_matches_cards` — внешний дрейф `origin/main` (парное сравнение, `tracker_paired.txt`); `test_investor_report::test_audit_trail_from_temp_db` — порядок сбора: `test_decision_logger` оставлял в общем `sys.modules` модуль, связанный с подделкой `get_connection`; впервые в одном шарде (перетасовка); механизм воспроизведён принудительно (`investor_mechanism.txt`); исправление — только тест |
+
+### CI `41292542116` (код `134e5dcf4`) — полный 12/12; `investor_report` исчез; одно новое имя разобрано → исправление теста
+| Итог | Значение |
+|---|---|
+| шарды | 12/12 измерены, `incomplete` 0, `error` 0, `not_obtained` 0, `collect_errors` 0, упавших/незавершённых шардов 0; шард 0 впервые `success` |
+| тесты | база `63b96a1e7`: 68 failed · кандидат: 68 failed; причины общих имён не изменились (0); skips 719 = 719; добавлено 143 теста, все прошли |
+| сторож записи | новых 0 · прежних 65 · устранённых 12 · не измерено 0 (`ci_41292542116_compare_guard.txt`) |
+| ушло | `test_card_acceptance::…test_every_registered_probe_returns_a_known_verdict` (проба окна мутаций, перенос S1 `256e2ab6a`) · `test_investor_report::test_audit_trail_from_temp_db` (исправление `134e5dcf4`) |
+| новое | `test_tracker_board_matches_cards::test_live_board_matches_live_cards`: 3 расхождения. 1 — внешнее (карточка закрыта на `main` 01.11; тест сверяет доску со статусами `origin/main` на момент прогона) — при ФИКСИРОВАННОМ ref у базы и кандидата одно и то же (`tracker_paired_origin_ref.txt`). 2 — карточки «купить зонт в пятницу»/«проверь дашборд», которых нет ни в одном коммите: их пишет `test_inbox_intake` (впервые в одном шарде с тестом доски: позиции 129 и 212 шарда 6; в базе — шарды 11 и 2) |
+| причина | обёртка теста `setdefault("tracker_dir", tmp_path)` не срабатывала: `save_inbox_task` передаёт `tracker_dir=None` ЯВНО ⇒ карточка шла в `queue.TRACKER_DIR` — в CI в дерево прогона, на Маке — в ПРОД-трекер (копии `-2…-8` и `-2…-12` там — следы прежних прогонов, `-8`/`-12` — локальный прогон этой сессии 01.11 11:08) |
+| исправление | только тест: `None` тоже заменяется на `tmp_path` + утверждение `path.parent == tmp_path`; контроль с ловушкой `SPA_TRACKER_DIR`: прежний тест — 2 карточки в ловушке, новый — 0; прод-трекер 905 → 905 (`inbox_intake_leak_control.txt`) |

@@ -20,6 +20,7 @@ def test_title_from_text_first_nonempty_line():
 def test_save_inbox_task_text(tmp_path, monkeypatch):
     monkeypatch.setattr(inbox_intake, "create_card", _card_into(tmp_path))
     path, title = inbox_intake.save_inbox_task("купить зонт в пятницу", source="telegram")
+    assert path.parent == tmp_path  # карточка в песочнице, а не в живом/прод-трекере
     assert title == "купить зонт в пятницу"
     c = load_card(path)
     assert c.tracker_type == "inbox"
@@ -33,6 +34,7 @@ def test_save_inbox_task_voice_includes_transcript(tmp_path, monkeypatch):
     monkeypatch.setattr(inbox_intake, "create_card", _card_into(tmp_path))
     path, _title = inbox_intake.save_inbox_task(
         "проверь дашборд", source="voice", transcript="проверь дашборд на телефоне")
+    assert path.parent == tmp_path
     c = load_card(path)
     assert c.fields.get("source") == "voice"
     assert "Расшифровка голосового" in c.body
@@ -40,11 +42,16 @@ def test_save_inbox_task_voice_includes_transcript(tmp_path, monkeypatch):
 
 
 def _card_into(tmp_path):
-    """Wrap create_card to force the tracker_dir into tmp_path (isolates the test)."""
+    """Wrap create_card to force the tracker_dir into tmp_path (isolates the test).
+
+    ``save_inbox_task`` passes ``tracker_dir=None`` EXPLICITLY, so ``setdefault`` never fired: the card
+    went to ``queue.TRACKER_DIR`` — the live prod tracker on the Mac, the run's own tree in CI (where
+    it then broke ``test_live_board_matches_live_cards`` in the same shard). Replace ``None`` too."""
     from spa_core.owner_queue.queue import create_card as _real
 
     def _wrapped(*args, **kwargs):
-        kwargs.setdefault("tracker_dir", tmp_path)
+        if kwargs.get("tracker_dir") is None:
+            kwargs["tracker_dir"] = tmp_path
         return _real(*args, **kwargs)
 
     return _wrapped
