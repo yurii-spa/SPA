@@ -555,6 +555,7 @@ def cockpit_records(prod_cards: Optional[dict], now: datetime, *, source: str,
                      "acceptance_verdict": fm.get("acceptance_verdict") or None,
                      "acceptance_reason": fm.get("acceptance_reason") or None,
                      "acceptance_next": fm.get("acceptance_next") or None,
+                     "owner_subject": fm.get("owner_subject") or None,
                      **({"preparation": _record_preparation(name, c, task_prep_root, code_root, code_now)}
                         if task_prep_root is not None else {})})
     rows.sort(key=lambda r: (str(r["created_at"] or ""), r["card"]), reverse=True)

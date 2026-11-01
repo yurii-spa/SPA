@@ -1048,6 +1048,37 @@ def _record_preparation_ru(p: Any) -> Optional[dict]:
     return out
 
 
+#: S4 K4 (E7.2): четыре РАЗНЫХ события, которые нельзя склеивать в одно «сделано».
+LADDER = (("recorded", "Запись принята"), ("permission", "Допуск"), ("taken", "Работа взята"),
+          ("verified", "Результат проверен"))
+_OWNER_SUBJECTS = ("money", "public", "irreversible")
+
+
+def record_stages(r: dict) -> list:
+    """Лестница записи: ответ/запись → допуск → взята → проверена. Каждая ступень — из поля карточки.
+
+    Допуск не выдумывается: у записи без предмета владельца он «не требуется»; с предметом — его
+    проверяет граница исполнения (``cockpit_dispatch.approval_gate``) ДО взятия, поэтому «работа взята»
+    у такой записи и есть доказательство пройденной границы, а до взятия — «проверяется перед
+    исполнением», а не «выдан»."""
+    subj = str(r.get("owner_subject") or "").strip()
+    taken, verified = bool(r.get("claimed_by")), bool(r.get("verified_by_probe"))
+    verdict = str(r.get("acceptance_verdict") or "")
+    perm = ("не требуется (нет предмета владельца)" if subj not in _OWNER_SUBJECTS else
+            ("граница пройдена при взятии" if taken else "требуется: проверяется перед исполнением"))
+    return [
+        {"key": "recorded", "title": "Запись принята", "done": bool(r.get("card")),
+         "text": "в трекере" + (" и разобрана" if r.get("intake_seen") else ", ещё не разобрана")},
+        {"key": "permission", "title": "Допуск", "done": subj not in _OWNER_SUBJECTS or taken, "text": perm},
+        {"key": "taken", "title": "Работа взята", "done": taken,
+         "text": f"исполнитель: {r.get('claimed_by')}" if taken else "никем не взята"},
+        {"key": "verified", "title": "Результат проверен", "done": verified,
+         "text": ("проверено пробой" if verified else
+                  ("не принято: " + (plain(r.get("acceptance_reason")) or verdict)) if verdict and not verified
+                  else "проверки ещё не было")},
+    ]
+
+
 def my_records(model: dict, updated: Optional[str]) -> Optional[dict]:
     """«Мои записи» — the latest cockpit records from the production tracker, read-only."""
     mr = _get(model, "intake.my_records")
@@ -1080,6 +1111,7 @@ def my_records(model: dict, updated: Optional[str]) -> Optional[dict]:
                      "state_kind": o["kind"], "verified": o["verified"],
                      "reason": o["reason"], "next_step": o["next_step"],
                      "voice": bool(r.get("voice")),
+                     "stages": record_stages(r),
                      **({"preparation": prep} if prep is not None else {}),
                      "technical": {**(prep["technical"] if prep is not None else {}),
                                    "карточка": r.get("card"), "статус в трекере": r.get("status"),

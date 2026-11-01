@@ -2449,3 +2449,7 @@ details.mk-devfold[open] > summary::after { content: "▾"; }
 .goal-waiting{border-left-color:#d6a94a}.goal-blocked{border-left-color:#e07a6a}
 .goal-step-state{font-weight:600}
 .goal-wait{color:#d6a94a}
+
+/* S4 K4 — лестница записи */
+.rec-ladder{list-style:none;padding:0;margin:6px 0 0;display:flex;flex-direction:column;gap:2px;font-size:12.5px;min-width:0;overflow-wrap:anywhere}
+.rec-stage{opacity:.75}.rec-stage.done{opacity:1}

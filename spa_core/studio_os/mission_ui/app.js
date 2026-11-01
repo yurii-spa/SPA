@@ -2079,6 +2079,15 @@
         if (r.provenance) li.appendChild(h("p", { class: "ux-note" }, [r.provenance]));
         if (r.provenance_note) li.appendChild(h("p", { class: "ux-note ux-metric--alert" }, [r.provenance_note]));
         if (r.authority_ru) li.appendChild(h("p", { class: "ux-note" }, [r.authority_ru]));
+        // S4 K4 (E7.2): записано → допуск → взята → проверена — четыре разных события, не одно «сделано»
+        if (r.stages && r.stages.length) {
+          var lad = h("ol", { class: "rec-ladder" });
+          r.stages.forEach(function (st) {
+            lad.appendChild(h("li", { class: "rec-stage" + (st.done ? " done" : "") }, [
+              h("b", {}, [(st.done ? "✓ " : "· ") + st.title + ": "]), st.text]));
+          });
+          li.appendChild(lad);
+        }
         // ARB 26.10: the record's PREPARATION (a proposal for review) — separate from the execution state above.
         // Model text arrives as plain strings and is placed as text nodes by h(); nothing is parsed as HTML.
         if (r.preparation) li.appendChild(renderRecordPreparation(r.preparation));
