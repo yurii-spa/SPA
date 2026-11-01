@@ -1,0 +1,110 @@
+{
+ "title": "ADR-886 SYNTAX — дельта цикла #1001: доставка спрашивает «а эти байты вообще Python». Третья ось того же пина, fail-CLOSED со своим кодом 15, положительный контроль на дословных байтах аварии f4612d8e9 (blob b65010a2)",
+ "tests": [
+  "spa_core/tests/test_delivery_syntax_gate.py",
+  "spa_core/tests/test_delivery_bytes_pin.py"
+ ],
+ "mutations": [
+  {
+   "name": "гейт снят из main() КАНОНИЧЕСКОЙ двери — вопрос не задаёт никто (состояние до ADR-886)",
+   "file": "push_to_github.py",
+   "old": "    try:\n        enforce_delivery_compiles(all_files, allow=allow_not_python)\n    except DeliveredBytesAreNotPython as e:\n        print(f\"\\nОТКАЗ (уезжающее не является Python): {e}\", file=sys.stderr)\n        sys.exit(NOT_PYTHON_EXIT)",
+   "new": "    try:\n        pass\n    except DeliveredBytesAreNotPython as e:\n        print(f\"\\nОТКАЗ (уезжающее не является Python): {e}\", file=sys.stderr)\n        sys.exit(NOT_PYTHON_EXIT)"
+  },
+  {
+   "name": "гейт снят из main() ВТОРОЙ двери — одна дверь отказывает, вторая молча везёт (урок номеров ADR)",
+   "file": "push_to_github_batch.py",
+   "old": "    try:\n        enforce_delivery_compiles(all_files, allow=allow_not_python)\n    except DeliveredBytesAreNotPython as e:",
+   "new": "    try:\n        pass\n    except DeliveredBytesAreNotPython as e:"
+  },
+  {
+   "name": "гейт НИКОГДА не отказывает: перечень нарушителей всегда пуст (fail-OPEN)",
+   "file": "push_to_github.py",
+   "old": "    offenders = [v for v in _SYNTAX_VERDICTS if v[\"state\"] == \"not_python\"]",
+   "new": "    offenders = []"
+  },
+  {
+   "name": "гейт отказывает ВСЕГДА: разбор не спрашивается вовсе",
+   "file": "push_to_github.py",
+   "old": "        try:\n            compile(data, key, \"exec\")\n        except (SyntaxError, ValueError) as e:",
+   "new": "        try:\n            raise SyntaxError(\"всегда\")\n        except (SyntaxError, ValueError) as e:"
+  },
+  {
+   "name": "третий исход выдан за «компилируется»: непрочитанные байты становятся зелёными (инв. #17 наизнанку)",
+   "file": "push_to_github.py",
+   "old": "                \"path\": key, \"state\": \"unmeasured\",\n                \"reason\": f\"байты не прочитаны ({type(e).__name__}: {e})\"})",
+   "new": "                \"path\": key, \"state\": \"compiles\",\n                \"reason\": f\"байты не прочитаны ({type(e).__name__}: {e})\"})"
+  },
+  {
+   "name": "итог третьей оси одинаков у всех исходов — «не измерено» неотличимо от «сверено»",
+   "file": "push_to_github.py",
+   "old": "    if states.get(\"not_python\"):\n        return (f\"разбор уезжающего Python: НЕ РАЗБИРАЕТСЯ \"\n                f\"{states['not_python']} файл(ов)\")\n    if states.get(\"unmeasured\"):",
+   "new": "    if False:\n        return (f\"разбор уезжающего Python: НЕ РАЗБИРАЕТСЯ \"\n                f\"{states['not_python']} файл(ов)\")\n    if False:"
+  },
+  {
+   "name": "гейт читает байты САМ, мимо двери пина — судит ОДНО чтение, уедет ДРУГОЕ (предмет ADR-774 на новом месте)",
+   "file": "push_to_github.py",
+   "old": "        try:\n            data = read_delivery_bytes(key)\n        except OSError as e:",
+   "new": "        try:\n            data = Path(key).read_bytes()\n        except OSError as e:"
+  },
+  {
+   "name": "отказ не называет МЕСТО — читателю искать строку глазами в десяти тысячах строк",
+   "file": "push_to_github.py",
+   "old": "    if isinstance(exc, SyntaxError) and exc.lineno:\n        where = f\"строка {exc.lineno}\"",
+   "new": "    if False:\n        where = f\"строка {exc.lineno}\"",
+   "note": "ВЕРДИКТ #1001: мутант ЭКВИВАЛЕНТЕН — `exc.msg` сам несёт «detected at line N», а `str(exc)` добавляет «(файл, line N)», поэтому МЕСТО названо и без этой ветки. Ветка добавляет только СТОЛБЕЦ, и ни одна претензия на нём не стои́т; придумывать тест под столбец значило бы поднять украшение до контракта"
+  },
+  {
+   "name": "ValueError не ловится: нулевой байт в исходнике уедет под именем «пушер сломался»",
+   "file": "push_to_github.py",
+   "old": "        except (SyntaxError, ValueError) as e:\n            # ЗАМЕР (цикл #1001, python 3.13.11)",
+   "new": "        except (SyntaxError,) as e:\n            # ЗАМЕР (цикл #1001, python 3.13.11)",
+   "note": "ВЕРДИКТ #1001: мутант ЭКВИВАЛЕНТЕН — на python 3.13.11 нулевой байт приходит SyntaxError'ом, и снятие ValueError не меняет ни одного наблюдаемого исхода. Выживание нашло ЛОЖНУЮ ПОСЫЛКУ комментария, а не дыру покрытия; ветка оставлена как ЗАЩИТНАЯ и претензии «измерена» не несёт"
+  },
+  {
+   "name": "код отказа общий (1) — отказ читается как «пушер сломался», а не как находка",
+   "file": "push_to_github.py",
+   "old": "NOT_PYTHON_EXIT = 15",
+   "new": "NOT_PYTHON_EXIT = 1"
+  },
+  {
+   "name": "не-Python засчитан за «сверено» — число растёт от молчания",
+   "file": "push_to_github.py",
+   "old": "        if not key.endswith(\".py\"):\n            # Вопрос задаётся только тому, кто объявил себя Python.",
+   "new": "        if False:\n            # Вопрос задаётся только тому, кто объявил себя Python.",
+   "note": "фильтр снят: не-Python уходит в compile() и либо «сверен», либо отклонён не тем вопросом"
+  },
+  {
+   "name": "обход срабатывает МОЛЧА — необъявленный обход хуже отсутствующего гейта",
+   "file": "push_to_github.py",
+   "old": "        print(\"    ⚠️  --allow-not-python: уезжающий файл не разбирается \"\n              \"интерпретатором, это НАЗВАНО, но доставку не остановит\")",
+   "new": "        pass"
+  },
+  {
+   "name": "гейт переставлен ПОСЛЕ гейтов о СМЫСЛЕ уезжающего — смысла у неразбираемых байтов нет вовсе",
+   "file": "push_to_github.py",
+   "old": "    try:\n        enforce_delivery_compiles(all_files, allow=allow_not_python)\n    except DeliveredBytesAreNotPython as e:\n        print(f\"\\nОТКАЗ (уезжающее не является Python): {e}\", file=sys.stderr)\n        sys.exit(NOT_PYTHON_EXIT)\n    except DeliveryBytesDrifted as e:\n        # Дверь байтов отказала внутри третьей оси: это ЕЁ отказ и её код, а не\n        # «не Python». Подменить имя здесь значило бы потерять ответ ADR-774.\n        print(f\"\\nОТКАЗ (байты разошлись со слепком): {e}\", file=sys.stderr)\n        sys.exit(BYTES_DRIFT_EXIT)\n\n    # ── СВЕРКА ИНСТРУМЕНТА ДОСТАВКИ — ДО owner-gate и до сети ────────────────",
+   "new": "    # ── СВЕРКА ИНСТРУМЕНТА ДОСТАВКИ — ДО owner-gate и до сети ────────────────"
+  },
+  {
+   "name": "отказ двери байтов приезжает под именем третьей оси — ответ ADR-774 потерян",
+   "file": "push_to_github.py",
+   "old": "    offenders = [v for v in _SYNTAX_VERDICTS if v[\"state\"] == \"not_python\"]\n    if offenders and allow:",
+   "new": "    offenders = [v for v in _SYNTAX_VERDICTS if v[\"state\"] != \"compiles\"]\n    if offenders and allow:",
+   "note": "третий исход слит с находкой: непрочитанные байты становятся отказом «не Python»"
+  },
+  {
+   "name": "третья ось МОЛЧИТ в одной из ветк итога — автор прочтёт «слепок сверен» как «сверено всё»",
+   "file": "push_to_github.py",
+   "old": "            print(f\"\\nOK: 1 коммит {result['commit'][:8]} — {result['count']} файл(ов) \"\n                  f\"(skipped={result['skipped']})\")\n        print(f\"  {delivery_pin_summary()}\")\n        print(f\"  {delivery_mode_summary()}\")\n        print(f\"  {delivery_syntax_summary()}\")",
+   "new": "            print(f\"\\nOK: 1 коммит {result['commit'][:8]} — {result['count']} файл(ов) \"\n                  f\"(skipped={result['skipped']})\")\n        print(f\"  {delivery_pin_summary()}\")\n        print(f\"  {delivery_mode_summary()}\")"
+  },
+  {
+   "name": "перечень вердиктов не очищается на сбросе — исходы накапливаются между прогонами",
+   "file": "push_to_github.py",
+   "old": "    _PIN_VERDICTS.clear()\n    _MODE_VERDICTS.clear()\n    _SYNTAX_VERDICTS.clear()\n    _TREE_VERDICTS.clear()",
+   "new": "    _PIN_VERDICTS.clear()\n    _MODE_VERDICTS.clear()\n    _TREE_VERDICTS.clear()",
+   "note": "ВЕРДИКТ #1001: НАСТОЯЩАЯ ДЫРА, закрыта тестом `test_the_reset_returns_the_axis_to_never_asked` — сам гейт чистит перечень на входе, поэтому забытая чистка в сбросе невидима любому прогону, который гейт ЗОВЁТ"
+  }
+ ]
+}

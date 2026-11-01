@@ -2,11 +2,11 @@
 
 > Авто-генерится `scripts/build_tracker_board.py` из `nimbalyst-local/tracker/*.md`. НЕ править вручную — правь карточки. Источник правды — карточки, это индекс (bootstrap).
 >
-> Собрана: 2026-10-31T23:05:39Z · сверка с карточками: `python3 scripts/build_tracker_board.py --check` (сторож `spa_core/tests/test_tracker_board_matches_cards.py`).
+> Собрана: 2026-11-01T03:47:23Z · сверка с карточками: `python3 scripts/build_tracker_board.py --check` (сторож `spa_core/tests/test_tracker_board_matches_cards.py`).
 >
-> Сверено с `origin/main` (c9686b342).
+> Сверено с `origin/main` (4058aafe6) · у **2** своя правка, кто новее — не измерено.
 >
-> Всего карточек: **1546** · ждёт владельца: **6** · занято сессиями: **13**.
+> Всего карточек: **1552** · ждёт владельца: **6** · занято сессиями: **14**.
 
 ## 🔴 ЖДЁТ ВЛАДЕЛЬЦА (needs-owner)
 
@@ -33,6 +33,7 @@
 - **Прогон тестов переписывает СОРОК git-tracked файлов в data/ (карточка #225/#226 считает, что их три) — среди них журнал исполнения** — держит `cycle-352` · с 2026-08-23T03:25:59Z  ·  `inbox-progon-testov-perepisyvaet-sorok-otslezhivaemyh-failov-data.md`
 - **Производители устаревших чисел сайта: дата go-live из API, сверка NAV до цикла, протухшие артефакты, молчащие стражи сайта** — держит `pid20023` · с 2026-09-08T21:15:05Z  ·  `inbox-proizvoditeli-ustarevshih-chisel-saita-d.md`
 - **Сторож ответа владельца зовёт человека на не-спор: 1 и "1" — одно решение, а сравниваются байты** — держит `cycle-84821` · с 2026-08-30T00:50:53Z  ·  `inbox-storozh-otveta-vladeltsa-zovet-cheloveka.md`
+- **TASK — Portfolio CIO: Dynamic Capital Allocation & Rebalancing** — держит `cycle-25368` · с 2026-11-01T02:59:46Z  ·  `inbox-task-portfolio-cio-dynamic-capital-alloc.md`
 - **Замок цикла оркестратора доставлен, но в проде не работает: обёртка агента синкается раз в сутки, а голос о пропавшей защите живёт в самом пропавшем файле** — держит `cycle-81141` · с 2026-08-08T01:59:06Z  ·  `inbox-zamok-tsikla-orkestratora-dostavlen-no-v.md`
 
 ## 🧑‍⚖️ Owner Decisions (что нужно от владельца)  (380)
@@ -422,7 +423,7 @@
 ### · closed
 - Считать ли верный отказ по правилам допуска неисправностью флота  ·  `owner-decision-schitat-li-vernyi-otkaz-po-pravilam-dopu.md` · 2026-10-08
 
-## 📥 Inbox (задания: Telegram / заметки / голос)  (866)
+## 📥 Inbox (задания: Telegram / заметки / голос)  (870)
 
 ### · in-progress
 - а задача починить все-таки еще раз сообщение которым не пишет нужно твое решени…  ·  `inbox-a-zadacha-pochinit-vse-taki-esche-raz-so.md` · 2026-08-14 · 🔒 `pid43119`
@@ -431,6 +432,7 @@
 - CI на main красный 12 прогонов подряд: measure() переписи идёт 335 с при пороге 180 с на тест  ·  `inbox-ci-na-main-krasnyi-12-progonov-podryad-m.md` · 2026-09-24
 - CI на main: вердикт впервые измерен — tests/ зелено, scripts/tests/ красно ОДНИМ названным (lsof), spa_core/tests/ НЕ ИЗМЕРЕНО (клин 120 мин на 80 %)  ·  `inbox-ci-na-main-verdikt-vpervye-izmeren-tests.md` · 2026-09-25
 - CRITICAL сторожа фидов мигает: aave_v3 разошёлся на 1.69 пп в 01:14Z и сошёлся к 05:27Z — истории расхождений нет  ·  `inbox-critical-storozha-fidov-migaet-aave-v3-r.md` · 2026-08-27 · 🔒 `cycle-63347`
+- Доставка не спрашивает, компилируется ли уезжающий Python: сломанный card_acceptance.py уехал на main мимо трёх сторожей  ·  `inbox-dostavka-ne-sprashivaet-kompiliruetsya-l.md` · 2026-11-01
 - earn-defi: свой расчёт realized price вместо лицензии Coin Metrics (ADR-286 §6, решение 09.09 без задачи)  ·  `inbox-earn-defi-svoi-raschet-realized-price-vm.md` · 2026-09-16
 - Храповик считает упоминание в докстринге за проводку — и это лишь одна из трёх слепот  ·  `inbox-hrapovik-schitaet-upominanie-v-dokstring.md` · 2026-08-14 · 🔒 `pid66130`
 - Храповик STATE.md снова красный на main: 164 строки при собственном пределе 150 — разовое сокращение классом не лечится  ·  `inbox-hrapovik-state-md-snova-krasnyi-na-main.md` · 2026-08-28
@@ -442,7 +444,7 @@
 - Расширить опрашиваемый набор адаптеров шагами (второй шаг варианта A, после ADR-138)  ·  `inbox-rasshirit-oprashivaemyi-nabor-adapterov.md` · 2026-08-26
 - Сторож кнопок нарушает границу, которую сам объявил соблюдённой: метка-БУКВА принималась где угодно, и слово в прозе = «наш дефект разбора» с лекарством чинить НЕСУЩЕСТВУЮЩУЮ форму (перемер #484: ложная ОДНА из 21, не пять; п.1 исполнен)  ·  `inbox-storozh-knopok-narushaet-granitsu-kotoru.md` · 2026-09-04
 - Сторож переходов статусов ждёт первого улова: назвать немого писателя и встроить прогон в агента  ·  `inbox-storozh-perehodov-statusov-zhdet-pervogo.md` · 2026-08-09
-- TASK — Portfolio CIO: Dynamic Capital Allocation & Rebalancing  ·  `inbox-task-portfolio-cio-dynamic-capital-alloc.md` · 2026-08-13
+- TASK — Portfolio CIO: Dynamic Capital Allocation & Rebalancing  ·  `inbox-task-portfolio-cio-dynamic-capital-alloc.md` · 2026-08-13 · 🔒 `cycle-25368`
 - Tier-C: 171 из 180 модулей не отвечают, 9 отвечающих — константы. Подключить или честно списать  ·  `inbox-tier-c-171-iz-180-modulei-ne-otvechayut.md` · 2026-08-06
 - Целостность трека SPA: подключить сторож, пересчёт из сырых входов, commit-reveal книги (перенос из earn-defi)  ·  `inbox-tselostnost-treka-spa-podklyuchit-storoz.md` · 2026-09-08
 - Цена класса «две сессии на одном предмете»: G38 п. 3 лежит остатком пятьдесят заказов  ·  `inbox-tsena-klassa-dve-sessii-na-odnom-predmet.md` · 2026-09-28
@@ -781,6 +783,7 @@
 - Пульт UX-02 · E: проверка сценариев и отчёт для ARB  ·  `inbox-pult-ux-02-e-proverka-stsenariev-i-otche.md` · 2026-10-09
 - Пушер разрешает относительный путь от ПРОД-дерева, и когда файл там есть — молча везёт чужие байты  ·  `inbox-pusher-razreshaet-otnositelnyi-put-ot-pr.md` · 2026-10-24
 - py: числа скриншота → approved:False (не DN); та же позиция с is_delta_neutral=…  ·  `inbox-py-chisla-skrinshota-approved-false-ne-d.md` · 2026-08-05
+- Пятьдесят пять закрытых просьб владельца не несут ответа ничем — три объяснения сегодня неотличимы  ·  `inbox-pyatdesyat-pyat-zakrytyh-prosb-vladeltsa.md` · 2026-10-29
 - PYTHONPATH=/home/user/SPA pytest spa_core/tests/test_s{76,41,73,77,22}*.py -q →…  ·  `inbox-pythonpath-home-user-spa-pytest-spa-core.md` · 2026-08-05
 - Работа двух PR не доехала до main: 50 и 42 дня, среди потерянного — восемь ADR решений владельца  ·  `inbox-rabota-dvuh-pr-ne-doehala-do-main-50-i-4.md` · 2026-09-25
 - Расширить lint_llm_forbidden.py на дверь-subprocess: запуск claude из каталогов риска/исполнения/наблюдения  ·  `inbox-rasshirit-lint-llm-forbidden-py-na-dver.md` · 2026-09-09
@@ -1064,6 +1067,7 @@
 - Красный на чистом main: вычет «ручной R&D» съел 68 из 131 скриптов — сторож храповика больше не мерит  ·  `inbox-krasnyi-na-chistom-main-vychet-ruchnoi-r.md` · 2026-10-13
 - Шаг 0b даёт НЕОБРАТИМЫЙ `unchecked` на критическом приказе владельца: четыре записи журнала без pid не стареют никогда  ·  `inbox-kriticheskii-prikaz-vladeltsa-nelzya-vzy.md` · 2026-09-12
 - Крупнейшая позиция книги стоит на константе: у aave_v3 (Ethereum, 40%) TVL «не измерено», а пул в фиде есть  ·  `inbox-krupneishaya-pozitsiya-knigi-stoit-na-ko.md` · 2026-08-09
+- купить зонт в пятницу  ·  `inbox-kupit-zont-v-pyatnitsu-7.md` · 2026-10-29
 - Квитанция мутаций ADR-871 заработана РАННЕЙ редакцией батареи — доставленная НЕ ИЗМЕРЕНА, и перемер в оболочке цикла невозможен (прибор рестартует)  ·  `inbox-kvitantsiya-mutatsii-adr-871-zarabotana.md` · 2026-10-30
 - «Лежит 8 служб» — но три строки из шести это НЕ ИЗМЕРЕНО: проверке не назвали файл вывода  ·  `inbox-lezhit-8-sluzhb-no-tri-stroki-iz-shesti.md` · 2026-10-10
 - live_registry_scene_census — сирота, вскрытая ужесточением детектора: её «вызывающим» был путь её же теста  ·  `inbox-live-registry-scene-census-sirota-vskryt.md` · 2026-10-27
@@ -1169,17 +1173,18 @@
 - Проба приёмки объявляет карточку закрытой, не проверив, что подмена применилась  ·  `inbox-proba-priemki-obyavlyaet-kartochku-zakry.md` · 2026-10-04
 - Проба провенанса TVL отвечает «не измерено»: население 27 против потолка 26 (красное на origin/main, замер #973)  ·  `inbox-proba-provenansa-tvl-otvechaet-ne-izmere.md` · 2026-10-29
 - Прод-копии двух карточек-тетрадей беднее origin на 94 и 6 записей цикла — восстановить объединением  ·  `inbox-prod-kopii-dvuh-kartochek-tetradei-bedne.md` · 2026-10-13
+- Прогноз перекладки расходится с фактом ЗНАКОМ на 32 днях из 142, и завышение ×26.65 переворачивает гейт движения капитала  ·  `inbox-prognoz-perekladki-rashoditsya-s-faktom.md` · 2026-11-01
 - Прогон тестов переписывает СОРОК git-tracked файлов в data/ (карточка #225/#226 считает, что их три) — среди них журнал исполнения  ·  `inbox-progon-testov-perepisyvaet-sorok-otslezhivaemyh-failov-data.md` · 2026-08-20 · 🔒 `cycle-352`
 - Происхождение совпадения метки не доезжает до находок шага 0b  ·  `inbox-proishozhdenie-sovpadeniya-metki-ne-doezh.md` · 2026-10-14
 - Проработать расширение whitelist для настоящих ~20% в Aggressive (advisory, владельцу на решение)  ·  `inbox-prorabotat-rasshirenie-whitelist-dlya-na.md` · 2026-08-23
 - Protection Lab фазы 6–8: AI-генератор параметров, перебор adversarial-комбинаций, страница сайта (owner-gated)  ·  `inbox-protection-lab-fazy-6-8-ai-generator-par.md` · 2026-08-22
+- проверь дашборд  ·  `inbox-prover-dashbord-11.md` · 2026-10-30
 - Проверить retro TEST 1 rates_desk на шумном ряду цен LST/ETH  ·  `inbox-proverit-retro-test-1-rates-desk-na-shum.md` · 2026-10-02
 - Проверка мандата автономии падает по 180-секундному сроку чужого шага, а не по коду  ·  `inbox-proverka-mandata-avtonomii-padaet-po-180.md` · 2026-10-11
 - Проверка схемы отчётов судит по дате файла — в свежей копии репозитория это монетка  ·  `inbox-proverka-shemy-otchetov-sudit-po-date-fa.md` · 2026-09-08
 - Проводка приборов переписи не проверяется: мост может перестать запускать прибор молча  ·  `inbox-provodka-priborov-perepisi-ne-proveryaet.md` · 2026-09-10
 - Пульт UX-02 · A: аудит и словарь интерфейса  ·  `inbox-pult-ux-02-a-audit-i-slovar-interfeisa.md` · 2026-10-09
 - Пять спящих процессов притворяются прогоном тестов — любой pgrep по имени pytest врёт сутки  ·  `inbox-pyat-spyaschih-protsessov-pritvoryayutsy.md` · 2026-09-23
-- Пятьдесят пять закрытых просьб владельца не несут ответа ничем — три объяснения сегодня неотличимы  ·  `inbox-pyatdesyat-pyat-zakrytyh-prosb-vladeltsa.md` · 2026-10-29
 - Работа мёртвого цикла лежит недоставленной, и это неотличимо от «цикл ещё ждёт замер»  ·  `inbox-rabota-mertvogo-tsikla-lezhit-nedostavle.md` · 2026-10-04
 - Работа мёртвой сессии cycle-4362 (ADR-857, доставка карточек) не на origin — поднять из дерева или патча  ·  `inbox-rabota-mertvoi-sessii-cycle-4362-adr-857.md` · 2026-10-29
 - Работа уезжает в ветвь rescue/* на origin и не доходит до main — пять циклов подряд, и ни один сторож об этом не сказал  ·  `inbox-rabota-uezzhaet-v-vetv-rescue-na-origin.md` · 2026-09-27
@@ -1296,7 +1301,7 @@
 - Зазор гейта оправдывает любую ошибку стоимости, когда гейт уже отказывает  ·  `inbox-zazor-geita-opravdyvaet-lyubuyu-oshibku.md` · 2026-10-28
 - Журнал одного агента вырос до 4,85 ГБ и заполнил диск на 100 % — свободное место не меряет никто  ·  `inbox-zhurnal-odnogo-agenta-vyros-do-4-85-gb-i.md` · 2026-10-02
 
-## 🤖 Agent Tasks (что делает агент)  (220)
+## 🤖 Agent Tasks (что делает агент)  (222)
 
 ### · in-progress
 - 🅰🅰🅰 Продуктовый слой агентов (супер-студия)  ·  `agent-aaa-product-layer.md` · 2026-07-16
@@ -1358,6 +1363,7 @@
 - Напоминание о снятии стоп-крана: реализовать политику А1 (ADR-097)  ·  `agent-task-napominanie-o-snyatii-stop-krana-realizo.md` · 2026-08-20
 - Повторяющийся сбой com.spa.cmo_editorial: stale_log  ·  `agent-task-povtoryayuschiisya-sboi-com-spa-cmo-edit.md` · 2026-10-19
 - Повторяющийся сбой com.spa.daily_cycle: exit_nonzero:5  ·  `agent-task-povtoryayuschiisya-sboi-com-spa-daily-cy-2.md` · 2026-10-19
+- Повторяющийся сбой com.spa.decision_loop: exit_nonzero:-15  ·  `agent-task-povtoryayuschiisya-sboi-com-spa-decision-2.md` · 2026-10-30
 - Повторяющийся сбой com.spa.decision_loop: exit_nonzero:137  ·  `agent-task-povtoryayuschiisya-sboi-com-spa-decision.md` · 2026-10-13
 - Повторяющийся сбой com.spa.digest_weekly: no_run_since_reboot_(>_)_—_missed_first  ·  `agent-task-povtoryayuschiisya-sboi-com-spa-digest-w.md` · 2026-10-22
 - Повторяющийся сбой com.spa.io_health: stale_log  ·  `agent-task-povtoryayuschiisya-sboi-com-spa-io-healt.md` · 2026-10-19
@@ -1392,6 +1398,7 @@
 - Повторяющийся сбой site_freshness: MISSING_ASOF  ·  `agent-task-povtoryayuschiisya-sboi-site-freshness-m.md` · 2026-10-08
 - Повторяющийся сбой site_freshness: PUBLISHED_SNAPSHOT_STALE  ·  `agent-task-povtoryayuschiisya-sboi-site-freshness-p-2.md` · 2026-10-07
 - Повторяющийся сбой site_freshness: publication_behind  ·  `agent-task-povtoryayuschiisya-sboi-site-freshness-p.md` · 2026-10-06
+- Повторяющийся сбой site_freshness: SHELF_NOT_DELIVERED  ·  `agent-task-povtoryayuschiisya-sboi-site-freshness-s.md` · 2026-10-30
 - Повторяющийся сбой site_freshness: UNAVAILABLE  ·  `agent-task-povtoryayuschiisya-sboi-site-freshness-u.md` · 2026-10-21
 - Повторяющийся сбой system_health: domains_degraded  ·  `agent-task-povtoryayuschiisya-sboi-system-health-do.md` · 2026-10-06
 - Права на origin нечем починить: пушер по построению сохраняет режим remote, а правило требует чинить режим на origin  ·  `agent-task-prava-na-origin-nechem-pochinit-pusher-p.md` · 2026-08-07

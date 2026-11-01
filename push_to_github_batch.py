@@ -180,6 +180,16 @@ DeliveryBytesDrifted = _root_push.DeliveryBytesDrifted
 DeliveryModeDrifted = _root_push.DeliveryModeDrifted
 BYTES_DRIFT_EXIT = _root_push.BYTES_DRIFT_EXIT
 
+# Третья ось того же пина (ADR-886) — «а эти байты вообще Python». Та же ОДНА
+# реализация и тот же один store, по той же причине: своя копия гейта означала
+# бы, что одна дверь отказывает, а вторая молча везёт файл, который не
+# разбирается интерпретатором. Авария 01.11 (f4612d8e9) приехала через ПЕРВУЮ
+# дверь — и ровно поэтому вторая не вправе её пропустить.
+enforce_delivery_compiles = _root_push.enforce_delivery_compiles
+delivery_syntax_summary = _root_push.delivery_syntax_summary
+DeliveredBytesAreNotPython = _root_push.DeliveredBytesAreNotPython
+NOT_PYTHON_EXIT = _root_push.NOT_PYTHON_EXIT
+
 # Дверь «дерево, из которого читаются байты, НАЗВАНО» (ADR-796) — та же ОДНА
 # реализация и то же согласие на модуле канона. Своей копии здесь нет по той же
 # причине, что у пина: две копии означали бы, что одна дверь отказывает, а
@@ -221,6 +231,9 @@ def main():
                         help="ОСОЗНАННО доставить байты, разошедшиеся со слепком, "
                              "снятым в момент решения «отправляю это» (по умолчанию "
                              "такой пуш отклоняется)")
+    parser.add_argument("--allow-not-python", action="store_true",
+                        help="ОСОЗНАННО доставить *.py, который НЕ РАЗБИРАЕТСЯ "
+                             "интерпретатором (по умолчанию такой пуш отклоняется)")
     parser.add_argument("--allow-prod-root-relative", action="store_true",
                         help="ОСОЗНАННО читать ОТНОСИТЕЛЬНЫЕ пути от ПРОД-дерева, даже "
                              "когда позвали из другого дерева; по умолчанию такой путь "
@@ -264,6 +277,21 @@ def main():
     except AmbiguousDeliveryTree as e:
         print(f"\nОТКАЗ (дерево доставки не названо): {e}", file=sys.stderr)
         sys.exit(DELIVERY_TREE_EXIT)
+
+    # ── А ЭТИ БАЙТЫ ВООБЩЕ PYTHON? (ADR-886) — тот же вызов и тот же порядок ──
+    # Сразу за пином и ДО всех прочих гейтов: смысла у неразбираемых байтов нет,
+    # поэтому вопрос «являются ли они кодом» стоит раньше любого вопроса о том,
+    # что этот код делает. Реализация одна, дверей две.
+    allow_not_python = bool(getattr(args, "allow_not_python", False)) or \
+        os.environ.get("SPA_PUSH_ALLOW_NOT_PYTHON") == "1"
+    try:
+        enforce_delivery_compiles(all_files, allow=allow_not_python)
+    except DeliveredBytesAreNotPython as e:
+        print(f"\nОТКАЗ (уезжающее не является Python): {e}", file=sys.stderr)
+        sys.exit(NOT_PYTHON_EXIT)
+    except DeliveryBytesDrifted as e:
+        print(f"\nОТКАЗ (байты разошлись со слепком): {e}", file=sys.stderr)
+        sys.exit(BYTES_DRIFT_EXIT)
 
     # ── СВЕРКА ИНСТРУМЕНТА ДОСТАВКИ (карточка `agent-host-pusher-copy-is-stale`) ──
     # Реализация — одна, в каноническом модуле; здесь только вызов. Про `__file__`:
@@ -409,6 +437,7 @@ def main():
               f" (skipped={result['skipped']})")
     print(f"  {delivery_pin_summary()}")
     print(f"  {delivery_mode_summary()}")
+    print(f"  {delivery_syntax_summary()}")
     sys.exit(0)
 
 

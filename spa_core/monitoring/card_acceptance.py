@@ -14565,6 +14565,175 @@ def _probe_golive_reader_names_the_unmeasured(
         f"артефактов с читателем (всего в сцене {report['artifacts']}){tail}")
 
 
+def _probe_delivery_refuses_bytes_that_are_not_python(arg: str | None) -> tuple[str, str]:
+    """Критерий: доставка ОТКАЗЫВАЕТ увезти `*.py`, который не разбирается
+    интерпретатором, своим кодом возврата — и «не измерено» отличимо от «не
+    компилируется» и от «компилируется» (ADR-886, карточка
+    `inbox-dostavka-ne-sprashivaet-kompiliruetsya-l`, авария цикла #1000).
+
+    Проба мерит ИСХОД живого гейта, а не наличие функции, и у неё ЧЕТЫРЕ замера:
+
+    1. **положительный контроль на ДОСЛОВНЫХ байтах аварии** — blob
+       ``b65010a27dca7ee59713c2e9defc976cf9513c8b`` (`card_acceptance.py` из
+       коммита `f4612d8e9`, `unterminated string literal` на строке 10658)
+       берётся из истории репозитория и подаётся НАСТОЯЩЕМУ гейту. Отказа нет
+       ⇒ критерий не выполнен; блоба нет в объектной базе ⇒ `unmeasured` с
+       названной причиной, а не «выполнено» (предпосылка ХАРНЕССА: глубина
+       клона, `.claude/rules/deployment.md` § «GIT-ОКРУЖЕНИЕ в тестах»);
+    2. **обратная сторона** — исправный Python тем же гейтом НЕ отклоняется.
+       Без неё критерий был бы выполнен и у гейта, который отказывает ВСЕГДА;
+    3. **три исхода РАЗЛИЧИМЫ** — три сцены, отличающиеся РОВНО одним
+       наблюдением (компилируется · не компилируется · байты не прочитаны),
+       обязаны дать три РАЗНЫЕ строки итога. Склеенные исходы и есть fail-OPEN,
+       который тише красного теста (инв. #17);
+    4. **проводка в ОБЕ двери** — гейт зовётся в `main()` обоих CLI, ПОСЛЕ
+       пина и ДО всех прочих гейтов, и у отказа СВОЙ код возврата. Гейт без
+       вызывающего — ровно тот класс, против которого написано правило приёмки.
+
+    Подстрокой проба НЕ проходит (ADR-333): отказ спрашивается у НАСТОЯЩЕГО
+    исключения, обратная сторона — у НАСТОЯЩЕГО вердикта, порядок — у AST
+    `main()`, а не у текста файла.
+
+    Третий исход СВОЙ: пушер не ввозится, байты аварии недоступны или сцену не
+    удалось собрать ⇒ `UNMEASURED`, а не «не выполнено».
+    """
+    import ast as _ast
+    import importlib.util as _ilu
+    import subprocess as _sp
+    import sys as _sys
+    import tempfile as _tf
+    from pathlib import Path as _Path
+
+    incident_blob = "b65010a27dca7ee59713c2e9defc976cf9513c8b"
+    incident_line = "10658"
+    root = _Path(__file__).resolve().parents[2]
+    pusher, batch = root / "push_to_github.py", root / "push_to_github_batch.py"
+
+    try:
+        spec = _ilu.spec_from_file_location("_probe_ptg_syntax", pusher)
+        ptg = _ilu.module_from_spec(spec)
+        _sys.modules["_probe_ptg_syntax"] = ptg
+        spec.loader.exec_module(ptg)
+    except Exception as exc:  # noqa: BLE001
+        return UNMEASURED, f"пушер не ввозится: {type(exc).__name__}: {exc}"
+
+    try:
+        got = _sp.run(["git", "cat-file", "blob", incident_blob], cwd=root,
+                      capture_output=True, timeout=120)
+    except (OSError, _sp.SubprocessError) as exc:
+        return UNMEASURED, f"git не ответил: {type(exc).__name__}: {exc}"
+    if got.returncode != 0:
+        return UNMEASURED, (
+            f"байтов аварии {incident_blob[:12]} нет в объектной базе {root} — "
+            f"положительный контроль мерить не на чем (глубина клона — вход "
+            f"харнесса, `fetch-depth: 0`)")
+    incident = got.stdout
+
+    said: dict[str, str] = {}
+    try:
+        with _tf.TemporaryDirectory(prefix="probe_syntax_") as td:
+            scene = _Path(td)
+
+            # 1. ПОЛОЖИТЕЛЬНЫЙ КОНТРОЛЬ — дословные байты аварии.
+            bad = scene / "card_acceptance.py"
+            bad.write_bytes(incident)
+            if ptg.git_blob_sha(incident) != incident_blob:
+                return UNMEASURED, "взяты НЕ байты аварии: слепок не совпал"
+            ptg.reset_delivery_pin()
+            ptg.pin_delivery_bytes([str(bad)])
+            try:
+                ptg.enforce_delivery_compiles([str(bad)])
+            except ptg.DeliveredBytesAreNotPython as exc:
+                refusal = str(exc)
+            else:
+                return NOT_SATISFIED, (
+                    "дословные байты аварии f4612d8e9 гейт ПРОПУСТИЛ — пушер "
+                    "по-прежнему не спрашивает, является ли уезжающее Python")
+            if "card_acceptance.py" not in refusal or incident_line not in refusal:
+                return NOT_SATISFIED, (
+                    f"отказ не называет файл и МЕСТО ({incident_line}): "
+                    f"{refusal[:200]}")
+            said["not_python"] = ptg.delivery_syntax_summary()
+
+            # 2. ОБРАТНАЯ СТОРОНА — исправный Python не отклоняется.
+            good = scene / "ok.py"
+            good.write_text("x = 1\n", encoding="utf-8")
+            ptg.reset_delivery_pin()
+            ptg.pin_delivery_bytes([str(good)])
+            try:
+                ok_verdicts = ptg.enforce_delivery_compiles([str(good)])
+            except Exception as exc:  # noqa: BLE001
+                return NOT_SATISFIED, (
+                    f"исправный Python отклонён — ложный отказ: "
+                    f"{type(exc).__name__}: {exc}")
+            if [v["state"] for v in ok_verdicts] != ["compiles"]:
+                return NOT_SATISFIED, f"исправный файл не признан кодом: {ok_verdicts}"
+            said["compiles"] = ptg.delivery_syntax_summary()
+
+            # 3. ТРЕТИЙ ИСХОД — байты не прочитаны.
+            gone = scene / "gone.py"
+            gone.write_text("x = 1\n", encoding="utf-8")
+            ptg.reset_delivery_pin()
+            ptg.pin_delivery_bytes([str(gone)])
+            gone.unlink()
+            lost = ptg.enforce_delivery_compiles([str(gone)])
+            if [v["state"] for v in lost] != ["unmeasured"]:
+                return NOT_SATISFIED, (
+                    f"непрочитанные байты не стали третьим исходом: {lost}")
+            said["unmeasured"] = ptg.delivery_syntax_summary()
+    except Exception as exc:  # noqa: BLE001
+        return UNMEASURED, f"сцену собрать не удалось: {type(exc).__name__}: {exc}"
+    finally:
+        try:
+            ptg.reset_delivery_pin()
+        except Exception:  # noqa: BLE001
+            pass
+
+    if len(set(said.values())) != 3:
+        return NOT_SATISFIED, (
+            f"три исхода слиплись в одной строке итога: {said} — «не измерено» "
+            f"неотличимо от «сверено», то есть вернулся fail-OPEN")
+
+    # 4. ПРОВОДКА — у гейта есть вызывающий в ОБЕИХ дверях, и порядок назван.
+    for label, path in (("push_to_github.py", pusher),
+                        ("push_to_github_batch.py", batch)):
+        try:
+            tree = _ast.parse(path.read_text(encoding="utf-8"))
+        except (OSError, SyntaxError) as exc:
+            return UNMEASURED, f"{label} не разобран: {type(exc).__name__}: {exc}"
+        mains = [n for n in _ast.walk(tree)
+                 if isinstance(n, _ast.FunctionDef) and n.name == "main"]
+        if not mains:
+            return UNMEASURED, f"{label}: функции `main` нет — порядок мерить негде"
+        calls = [c.func.id for c in _ast.walk(mains[0])
+                 if isinstance(c, _ast.Call) and isinstance(c.func, _ast.Name)]
+        for need in ("pin_delivery_bytes", "enforce_delivery_compiles",
+                     "enforce_delivery_toolchain"):
+            if need not in calls:
+                return NOT_SATISFIED, (
+                    f"{label}: `main()` не зовёт `{need}` — гейт без "
+                    f"вызывающего либо перечень гейтов устарел")
+        if not (calls.index("pin_delivery_bytes")
+                < calls.index("enforce_delivery_compiles")
+                < calls.index("enforce_delivery_toolchain")):
+            return NOT_SATISFIED, (
+                f"{label}: порядок нарушен — гейт разбора обязан стоять ПОСЛЕ "
+                f"пина и ДО гейтов о СМЫСЛЕ уезжающего")
+
+    neighbours = {ptg.NOT_PYTHON_EXIT, ptg.BYTES_DRIFT_EXIT,
+                  ptg.DELIVERY_TREE_EXIT, ptg.MUTATION_WINDOW_EXIT,
+                  ptg.ADR_INTERLOCK_EXIT, ptg.CHANGE_EVIDENCE_EXIT}
+    if len(neighbours) != 6:
+        return NOT_SATISFIED, (
+            f"код отказа совпал с кодом соседнего интерлока: {sorted(neighbours)}")
+
+    return SATISFIED, (
+        f"дословные байты аварии {incident_blob[:12]} ОТКЛОНЕНЫ с кодом "
+        f"{ptg.NOT_PYTHON_EXIT} и названной строкой {incident_line}; исправный "
+        f"Python не отклонён; три исхода различимы ({said['compiles']} · "
+        f"{said['not_python']} · {said['unmeasured']}); гейт зван в main() обеих "
+        f"дверей после пина и до прочих гейтов")
+
 PROBES: dict[str, Callable[[str | None], "tuple[str, str]"]] = {
     "starvation_cycles_name_the_order":
         _probe_starvation_cycles_name_the_order,
@@ -14584,6 +14753,8 @@ PROBES: dict[str, Callable[[str | None], "tuple[str, str]"]] = {
         _probe_bridge_stage_declaration_agrees,
     "closed_owner_requests_split_by_the_trace":
         _probe_closed_owner_requests_split_by_the_trace,
+    "delivery_refuses_bytes_that_are_not_python":
+        _probe_delivery_refuses_bytes_that_are_not_python,
     "cockpit_voice_loop_closed": _probe_cockpit_voice_loop,
     "card_claim_measures_the_worker": _probe_card_claim_measures_the_worker,
     "card_claim_absent_worker_reaches_the_verdict":

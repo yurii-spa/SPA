@@ -481,6 +481,7 @@ def reset_delivery_pin() -> None:
                           "mode_unreadable": {}, "allow_drift": False})
     _PIN_VERDICTS.clear()
     _MODE_VERDICTS.clear()
+    _SYNTAX_VERDICTS.clear()
     _TREE_VERDICTS.clear()
 
 
@@ -985,6 +986,189 @@ def delivery_pin_summary() -> str:
                 f"— слепок не снимался")
     return f"слепок байтов сверен у {states.get('match', 0)} чтени(я/й)"
 
+
+# ══════════════════════════════════════════════════════════════════════════════
+# ТРЕТЬЯ ОСЬ ТОГО ЖЕ ПИНА: А ЭТИ БАЙТЫ ВООБЩЕ PYTHON? (ADR-886)
+#
+# Пин выше отвечает «те ли это байты» (ADR-774), дверь режима — «тот ли это
+# x-бит» (ADR-776), дверь дерева — «байты КАКОГО файла» (ADR-796). Ни один из
+# трёх вопросов не про то, ЯВЛЯЕТСЯ ли уезжающее содержимое кодом.
+#
+# АВАРИЯ, КОТОРУЮ ЭТА ОСЬ ВОСПРОИЗВОДИТ (цикл #1000, ADR-885). Коммит
+# `f4612d8e9` увёз на `main` `spa_core/monitoring/card_acceptance.py`,
+# СЛОМАННЫЙ СИНТАКСИЧЕСКИ: `unterminated string literal` на строке 10658. Файл
+# не импортируется ВОВСЕ — вместе с ним на `main` умер весь реестр проб
+# приёмки. Причина измерена: файл в дереве доставки переписал не мутационный
+# прибор, а ТЕСТ (`spa_core/tests/test_green_by_construction_census.py`
+# инструментирует исходники НА МЕСТЕ, перепись ADR-543; в испорченной копии
+# 1065 вставок `_GBC_REC`), и строка вышла битой наложением двух перезаписей.
+#
+# ТРИ СУЩЕСТВУЮЩИХ СТОРОЖА ОТВЕТИЛИ ВЕРНО И МИМО:
+#
+#   * окно мутационного прибора (`--window-check`, ADR-772) → «ОКНА НЕТ», код 0.
+#     Запись `.mutation_window/window.json` есть только у `delta_mutation_run.py`;
+#     у инструментирующего ТЕСТА её нет ПО ПОСТРОЕНИЮ;
+#   * слепок байтов (ADR-774) → «сверено у 28 чтений». Он пинует байты ТОГО ЖЕ
+#     файла и сверил испорченные с испорченными — сверять одно с самим собой
+#     уже знакомый класс;
+#   * дерево доставки названо (ADR-796) → названо ВЕРНО. Испорчено было именно
+#     названное дерево.
+#
+# Этот вопрос НЕ ДУБЛИРУЕТ пин: пин отвечает «байты не подменились», а эта ось —
+# «байты вообще являются Python». У аварии #1000 пин был зелёным и правдивым.
+#
+# Три исхода, как велит инв. #17, и они РАЗЛИЧИМЫ:
+#   * компилируется                    → доставка измерена по третьей оси;
+#   * НЕ компилируется                 → `DeliveredBytesAreNotPython`, код 15,
+#                                        с именем файла, строкой и причиной;
+#   * слепок байтов НЕ ПРОЧИТАН        → `unmeasured` с НАЗВАННОЙ причиной.
+#     (файла нет / не читается)          Отказывать здесь было бы неверно: про
+#                                        отсутствующий файл внятнее отказывает
+#                                        `resolve_files` ниже по стеку
+#                                        («Файл не найден»), и два отказа на
+#                                        одно наблюдение спорили бы именами.
+#                                        МОЛЧАТЬ тоже нельзя — тогда «не
+#                                        измерено» стало бы неотличимо от
+#                                        «компилируется».
+#
+# ЧЕГО ЭТА ОСЬ НЕ ЗАКРЫВАЕТ, и это сказано вслух:
+#   * вопрос задаётся только тому, кто ОБЪЯВИЛ себя Python (`*.py`). Сломанный
+#     JSON, YAML или Astro этой дверью не судится — у каждого языка свой
+#     разборщик, и выдумывать их здесь значило бы завести ещё одну меру,
+#     которая отвечает «я не умею» под видом «чисто»;
+#   * «компилируется» НЕ значит «работает»: `compile()` не исполняет модуль и
+#     об импортах не знает. Это ответ на вопрос «байты являются кодом», а не на
+#     вопрос «код верен» — последний остаётся у предписанного прогона;
+#   * библиотечный вызов `batch_push` минуя CLI гейта не проходит (как и все
+#     соседние гейты этой семьи — сверка инструмента, окно прибора, номера
+#     ADR). Это видно: итог третьей оси печатается рядом с первыми двумя и в
+#     таком вызове честно говорит «гейт не зван».
+# ══════════════════════════════════════════════════════════════════════════════
+
+NOT_PYTHON_EXIT = 15
+
+
+class DeliveredBytesAreNotPython(RuntimeError):
+    """Уезжающий `*.py` не разбирается интерпретатором.
+
+    Это НЕ «тесты не прошли» и НЕ «байты подменились»: это «того, что уезжает,
+    интерпретатор не примет вообще». Направление ошибки выбрано осознанно —
+    отказ, а не доставка под зелёной печатью трёх чужих вопросов.
+    """
+
+
+#: Вердикты третьей оси. Список ОТДЕЛЬНЫЙ от `_PIN_VERDICTS` намеренно: смешай
+#: их, и «сверено у 28 чтений» перестало бы отвечать на вопрос «а компиляцию
+#: кто спрашивал» (тот же довод, что у `_MODE_VERDICTS`).
+_SYNTAX_VERDICTS: list = []
+
+
+def _syntax_reason(exc: BaseException) -> str:
+    """Причина отказа одной строкой: сообщение + МЕСТО, если оно известно."""
+    if isinstance(exc, SyntaxError) and exc.lineno:
+        where = f"строка {exc.lineno}"
+        if exc.offset:
+            where += f", столбец {exc.offset}"
+        return f"{type(exc).__name__}: {exc.msg} ({where})"
+    return f"{type(exc).__name__}: {exc}"
+
+
+def enforce_delivery_compiles(file_args: list, allow: bool = False) -> list:
+    """Третья ось пина: уезжающий `*.py` обязан разбираться интерпретатором.
+
+    Байты берутся ЕДИНСТВЕННОЙ дверью :func:`read_delivery_bytes` — то есть
+    судится ровно то содержимое, которое уедет, и оно же сверено со слепком.
+    Читать файл своим `read_bytes` здесь было бы ровно тем дефектом, против
+    которого написан ADR-774: гейт судил бы ОДНО чтение, а уехало бы ДРУГОЕ.
+
+    Возвращает перечень вердиктов (по одному на `*.py`). Отказ fail-CLOSED,
+    либо НАЗВАННЫЙ обход `--allow-not-python`: молчания нет ни в одной ветке.
+    """
+    _SYNTAX_VERDICTS.clear()
+    for fa in file_args:
+        key = _delivery_abs(fa)
+        if not key.endswith(".py"):
+            # Вопрос задаётся только тому, кто объявил себя Python. Прочие
+            # расширения — не «прошли», а «не спрашивали», и в итоге они
+            # считаются отдельно, чтобы число «сверено» не росло от молчания.
+            continue
+        try:
+            data = read_delivery_bytes(key)
+        except OSError as e:
+            _SYNTAX_VERDICTS.append({
+                "path": key, "state": "unmeasured",
+                "reason": f"байты не прочитаны ({type(e).__name__}: {e})"})
+            continue
+        try:
+            compile(data, key, "exec")
+        except (SyntaxError, ValueError) as e:
+            # ЗАМЕР (цикл #1001, python 3.13.11): нулевой байт в исходнике
+            # приходит `SyntaxError`-ом («source code string cannot contain
+            # null bytes»), а НЕ `ValueError`. Первая редакция этого
+            # комментария утверждала обратное, и выживший мутант №9
+            # спецификации ADR-886 нашёл именно ложную посылку, а не дыру
+            # покрытия: снятие `ValueError` на этом интерпретаторе не меняет
+            # НИ ОДНОГО наблюдаемого исхода.
+            # `ValueError` оставлен НАМЕРЕННО и как ЗАЩИТНАЯ ветка: `compile()`
+            # документирован как поднимающий его на исходнике с нулевыми
+            # байтами, и ветки хватает, чтобы такой файл был отклонён под
+            # именем «уезжающее не является Python», а не улетел
+            # необработанным исключением с кодом 1 («пушер сломался»).
+            # Претензии «эта ветка измерена» здесь НЕТ — она защитная.
+            _SYNTAX_VERDICTS.append({"path": key, "state": "not_python",
+                                     "reason": _syntax_reason(e)})
+        else:
+            _SYNTAX_VERDICTS.append({"path": key, "state": "compiles"})
+
+    print(f"  {delivery_syntax_summary()}")
+    for v in _SYNTAX_VERDICTS:
+        if v["state"] == "not_python":
+            print(f"    НЕ PYTHON     {_display_path(v['path'])} — {v['reason']}")
+        elif v["state"] == "unmeasured":
+            print(f"    НЕ ИЗМЕРЕНО   {_display_path(v['path'])} — {v['reason']}")
+
+    offenders = [v for v in _SYNTAX_VERDICTS if v["state"] == "not_python"]
+    if offenders and allow:
+        print("    ⚠️  --allow-not-python: уезжающий файл не разбирается "
+              "интерпретатором, это НАЗВАНО, но доставку не остановит")
+        return list(_SYNTAX_VERDICTS)
+    if offenders:
+        names = "; ".join(f"{_display_path(v['path'])} — {v['reason']}"
+                          for v in offenders)
+        raise DeliveredBytesAreNotPython(
+            f"уезжающий Python не разбирается интерпретатором: {names}.\n"
+            f"Пин байтов при этом ЗЕЛЁН и правдив — он отвечает «байты не "
+            f"подменились», а не «байты являются кодом»: 2026-11-01 коммит "
+            f"f4612d8e9 так увёз на main card_acceptance.py с unterminated "
+            f"string literal, и вместе с ним умер весь реестр проб приёмки.\n"
+            f"Что делать: спросить, КТО переписал файл в дереве доставки — "
+            f"мутационный прибор (`python3 scripts/delta_mutation_run.py "
+            f"--window-check`) или ПРОГОН, инструментирующий исходники на "
+            f"месте (`spa_core/tests/test_green_by_construction_census.py`, "
+            f"вставки `_GBC_REC`; `pgrep -f <дерево>` назовёт живой pytest), — "
+            f"вернуть байты и повторить пуш.\n"
+            f"Осознанно продолжить: --allow-not-python (или "
+            f"SPA_PUSH_ALLOW_NOT_PYTHON=1) — тогда отказ станет НАЗВАННЫМ "
+            f"предупреждением. Это почти никогда не то, что нужно: файл, "
+            f"который не разбирается, не импортируется ВООБЩЕ.")
+    return list(_SYNTAX_VERDICTS)
+
+
+def delivery_syntax_summary() -> str:
+    """Одна строка итога по третьей оси. Своя строка, а не слагаемое первой."""
+    if not _SYNTAX_VERDICTS:
+        return "разбор уезжающего Python: гейт не зван НИ РАЗУ"
+    states: dict = {}
+    for v in _SYNTAX_VERDICTS:
+        states[v["state"]] = states.get(v["state"], 0) + 1
+    if states.get("not_python"):
+        return (f"разбор уезжающего Python: НЕ РАЗБИРАЕТСЯ "
+                f"{states['not_python']} файл(ов)")
+    if states.get("unmeasured"):
+        return (f"разбор уезжающего Python: НЕ ИЗМЕРЕНО у "
+                f"{states['unmeasured']} файл(ов) — байты не прочитаны")
+    return (f"разбор уезжающего Python: сверено {states.get('compiles', 0)} "
+            f"файл(ов)")
 
 
 # ══════════════════════════════════════════════════════════════════════════════
@@ -3825,6 +4009,11 @@ def main():
                         help="ОСОЗНАННО доставить байты, разошедшиеся со слепком, "
                              "снятым в момент решения «отправляю это» (по умолчанию "
                              "такой пуш отклоняется: все гейты судили бы ДРУГИЕ байты)")
+    parser.add_argument("--allow-not-python", action="store_true",
+                        help="ОСОЗНАННО доставить *.py, который НЕ РАЗБИРАЕТСЯ "
+                             "интерпретатором (по умолчанию такой пуш отклоняется: "
+                             "01.11 так уехал card_acceptance.py с unterminated "
+                             "string literal, и реестр проб приёмки умер целиком)")
     parser.add_argument("--allow-open-mutation-window", action="store_true",
                         help="ОСОЗНАННО доставить файл из дерева, где открыто окно "
                              "мутационного прибора (по умолчанию такой пуш отклоняется: "
@@ -3853,6 +4042,8 @@ def main():
         os.environ.get("SPA_PUSH_ALLOW_OPEN_MUTATION_WINDOW") == "1"
     allow_bytes_drift = bool(args.allow_bytes_drift) or \
         os.environ.get("SPA_PUSH_ALLOW_BYTES_DRIFT") == "1"
+    allow_not_python = bool(args.allow_not_python) or \
+        os.environ.get("SPA_PUSH_ALLOW_NOT_PYTHON") == "1"
     allow_owner_choice = bool(args.allow_owner_choice_write) or \
         os.environ.get("SPA_PUSH_ALLOW_OWNER_CHOICE_WRITE") == "1"
     allow_ce_unmeasured = bool(args.allow_change_evidence_unmeasured) or \
@@ -3893,6 +4084,25 @@ def main():
     except AmbiguousDeliveryTree as e:
         print(f"\nОТКАЗ (дерево доставки не названо): {e}", file=sys.stderr)
         sys.exit(DELIVERY_TREE_EXIT)
+
+    # ── А ЭТИ БАЙТЫ ВООБЩЕ PYTHON? (ADR-886) — сразу за пином, до всех гейтов ─
+    # Порядок здесь тоже не вкусовой. Вопрос «являются ли байты кодом» стоит
+    # РАНЬШЕ каждого вопроса о том, что именно этот код делает: сверка
+    # инструмента доставки, окно прибора, номера ADR, запись ответа владельца и
+    # owner-gate сайта судят СМЫСЛ уезжающего, а смысла у неразбираемых байтов
+    # нет вовсе. Байты берутся дверью `read_delivery_bytes`, то есть сверяются
+    # со слепком тем же чтением — своего чтения у гейта нет намеренно (ADR-774).
+    # Идёт и в `--dry-run`: превью обязано показывать тот же отказ.
+    try:
+        enforce_delivery_compiles(all_files, allow=allow_not_python)
+    except DeliveredBytesAreNotPython as e:
+        print(f"\nОТКАЗ (уезжающее не является Python): {e}", file=sys.stderr)
+        sys.exit(NOT_PYTHON_EXIT)
+    except DeliveryBytesDrifted as e:
+        # Дверь байтов отказала внутри третьей оси: это ЕЁ отказ и её код, а не
+        # «не Python». Подменить имя здесь значило бы потерять ответ ADR-774.
+        print(f"\nОТКАЗ (байты разошлись со слепком): {e}", file=sys.stderr)
+        sys.exit(BYTES_DRIFT_EXIT)
 
     # ── СВЕРКА ИНСТРУМЕНТА ДОСТАВКИ — ДО owner-gate и до сети ────────────────
     # Стоит первой намеренно: owner-gate ниже зовёт `check_owner_gate.py`,
@@ -4062,6 +4272,7 @@ def main():
                   f"(skipped={result['skipped']})")
         print(f"  {delivery_pin_summary()}")
         print(f"  {delivery_mode_summary()}")
+        print(f"  {delivery_syntax_summary()}")
         sys.exit(0)
 
     results = []
@@ -4113,6 +4324,7 @@ def main():
               f"skipped={len(skipped)}{tail})")
         print(f"  {delivery_pin_summary()}")
         print(f"  {delivery_mode_summary()}")
+        print(f"  {delivery_syntax_summary()}")
         sys.exit(0)
 
 

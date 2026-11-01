@@ -2,7 +2,7 @@
 trackerStatus:
   type: inbox
 title: "Доставка не спрашивает, компилируется ли уезжающий Python: сломанный card_acceptance.py уехал на main мимо трёх сторожей"
-status: new
+status: in-progress
 source: nimbalyst
 created: 2026-11-01
 finding_adr: ADR-885
@@ -10,6 +10,9 @@ finding_cycle: 1000
 intake_kind: note
 priority: critical
 twin_key: "sha256:d444942bd01bf37f9a5916ea4217778d1205e550f45a4dba2fbe6b86ea136f8a"
+acceptance_probe: delivery_refuses_bytes_that_are_not_python
+status_trail:
+  - "2026-11-01T03:08:01.630073+00:00 new -> in-progress · queue.set_status · cycle-25368"
 ---
 
 ## Что случилось и почему это важно

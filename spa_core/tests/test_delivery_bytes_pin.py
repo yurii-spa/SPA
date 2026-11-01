@@ -691,7 +691,15 @@ def test_a_full_batch_push_carries_the_x_bit_when_nothing_moved(wired, repo):
 # ═════════════════════════════════════════════════════════════════════════════
 
 #: Функции пушера, которые читают байты, предназначенные к отправке.
-BYTE_READERS = ("push_file", "create_blob", "split_unchanged", "build_entries")
+#:
+#: НАМЕРЕННОЕ ИЗМЕНЕНИЕ ПРОВЕРКИ (инв. #16), цикл #1001, ADR-886: перечень
+#: ВЫРОС на `enforce_delivery_compiles` — третью ось того же пина («а эти байты
+#: вообще Python»). Это УСИЛЕНИЕ: гейт, читающий уезжающие байты, но не
+#: названный здесь, остался бы вне меры замкнутости, то есть мог бы завести
+#: пятое независимое чтение МОЛЧА — ровно предмет ADR-774. Обоснование
+#: дублируется в `docs/journal/2026-W44.md` и в ADR-886.
+BYTE_READERS = ("push_file", "create_blob", "split_unchanged", "build_entries",
+                "enforce_delivery_compiles")
 
 #: Единственная дверь к этим байтам.
 BYTES_DOOR = "read_delivery_bytes"
@@ -832,6 +840,7 @@ def test_both_delivery_doors_report_the_mode_axis():
         calls = calls_in(path.read_text(encoding="utf-8"), "main")
         bytes_axis = calls.count("delivery_pin_summary")
         mode_axis = calls.count("delivery_mode_summary")
+        syntax_axis = calls.count("delivery_syntax_summary")
         assert bytes_axis, (
             f"{label}: `main()` не печатает итог оси БАЙТОВ — мерить равенство "
             f"не от чего (перечень веток итога устарел)")
@@ -839,6 +848,13 @@ def test_both_delivery_doors_report_the_mode_axis():
             f"{label}: ветки итога разошлись — ось байтов печатается "
             f"{bytes_axis} раз(а), ось режима {mode_axis}. Значит есть ветка "
             f"вывода, где вторая ось МОЛЧИТ")
+        # ТРЕТЬЯ ось (ADR-886) мерится тем же равенством и по той же причине:
+        # «имя есть хоть раз» пережило бы молчащую ветку итога.
+        assert syntax_axis == bytes_axis, (
+            f"{label}: ветки итога разошлись — ось байтов печатается "
+            f"{bytes_axis} раз(а), ось РАЗБОРА {syntax_axis}. Значит есть "
+            f"ветка вывода, где третья ось МОЛЧИТ, и автор прочитал бы "
+            f"«слепок сверен» как «сверено всё»")
 
 
 def test_the_wiring_measure_goes_red_on_a_bypass():
