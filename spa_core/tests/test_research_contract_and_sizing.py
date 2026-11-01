@@ -142,7 +142,7 @@ def test_full_run_on_a_scene_spends_one_attempt_and_reports_every_field(tmp_path
     assert out["equivalence_k1_vs_control_max_abs"] < 1e-9
     assert set(out["configs"]) == {x["name"] for x in c["strategy"]["configs"]}
     oos = out["configs"]["k075_band05"]["1x"]["oos"]
-    for k in ("net_return", "max_drawdown", "calmar", "cost_paid", "turnover_weight_per_year",
+    for k in ("net_return", "max_drawdown", "calmar", "cost_paid", "cost_share_of_start_equity", "turnover_weight_per_year",
               "cash_share_mean", "funding", "rebalances"):
         assert k in oos
     assert out["configs"]["k075_band05"]["2x"]["oos"]["cost_paid"] > oos["cost_paid"]

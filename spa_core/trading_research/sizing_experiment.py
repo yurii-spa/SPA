@@ -99,7 +99,8 @@ def _metrics(r, bars, lo, hi, tf, frac: FracResult) -> Dict[str, Any]:
     m = evaluate(eq, pos, trades, tf)
     m["first_bar"], m["last_bar"] = bars[a].open_time, bars[z].open_time
     m["cash_share_mean"] = 1 - sum(frac.weight[a:z + 1]) / (z - a + 1)
-    m["cost_paid"] = sum(frac.bar_cost[a + 1:z + 1])          # издержки баров периода (кроме первого — он база)
+    m["cost_paid"] = sum(frac.bar_cost[a + 1:z + 1])          # издержки баров периода, в единицах капитала 2017 г.
+    m["cost_share_of_start_equity"] = m["cost_paid"] / eq[0] if eq[0] > 0 else None   # сравнимо между конфигурациями
     m["turnover_weight_per_year"] = sum(frac.bar_turn[a + 1:z + 1]) / m["years"] if m.get("years") else None
     m["rebalances"] = sum(frac.bar_rebalance[a + 1:z + 1])
     m["funding"] = 0.0                                         # спот: по устройству модели
@@ -112,7 +113,8 @@ def _hold(bars, lo, hi, c, tf) -> Dict[str, Any]:
         return {"bars": 0, "measured": False}
     qty = (1 - c) / bars[a].open
     eq = [1.0] + [qty * bars[i].close for i in range(a, z + 1)]
-    return {**evaluate(eq, [0] + [1] * (z - a + 1), [], tf), "cost_paid": c}
+    return {**evaluate(eq, [0] + [1] * (z - a + 1), [], tf), "cost_share_of_start_equity": c, "funding": 0.0,
+            "cash_share_mean": 0.0, "turnover_weight_per_year": None, "rebalances": 0}
 
 
 def run(contract_path: Path, market_db: Path) -> Dict[str, Any]:
