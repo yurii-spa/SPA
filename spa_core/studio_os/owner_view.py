@@ -1255,12 +1255,20 @@ def goal(model: dict, truth: dict) -> dict:
                       "executor": plain(s.get("executor")) or "исполнитель в плане не указан",
                       "last_confirmed": plain(s.get("last_confirmed")) or "подтверждённых действий не записано"})
     counts = {k: sum(1 for x in steps if x["state"] == k) for k in STEP_STATE_RU}
-    rec = _get(truth, "studio.roadmap.value.recorded_at")
+    # ARB 01.11 п. 1: даты подтверждённого происхождения у сводки шагов НЕТ — так и говорим. Отдельно — дата
+    # подтверждения ПЛАНА владельцем (строка канона), отдельно и только в подробностях — время файла.
+    confirmed = plain(_get(truth, "studio.roadmap.value.confirmed"))
+    mtime = _get(truth, "studio.roadmap.value.file_mtime")
     return {"title": "Цель", "declared": True,
             # ARB 01.11: шаги — СОХРАНЁННАЯ СВОДКА из плана, а не автоматический замер исполнителя
             "summary_kind": "Сводка из плана, записанная вручную — не автоматический замер состояния исполнителя",
-            "recorded_ru": (f"сводка записана {_madrid(rec)}" if rec else "дата записи сводки неизвестна"), "text": stage_title(ep.get("epic")).get("text") or ep.get("epic"),
-            "technical": {"исходное название": ep.get("epic"), "заметка плана": plain(ep.get("note"))},
+            "recorded_ru": "дата записи сводки неизвестна",
+            "plan_confirmed_ru": (f"план подтверждён владельцем {confirmed} (строка «Last confirmed by the owner» в ROADMAP)"
+                                  if confirmed else "дата подтверждения плана владельцем в ROADMAP не записана"),
+            "text": stage_title(ep.get("epic")).get("text") or ep.get("epic"),
+            "technical": {"исходное название": ep.get("epic"), "заметка плана": plain(ep.get("note")),
+                          "время изменения файла ROADMAP (свойство файла, не дата записи и не подтверждение плана)":
+                              _madrid(mtime) if mtime else "не прочитано"},
             "steps": steps, "counts": counts,
             "steps_declared": bool(steps),
             "steps_missing_text": None if steps else "Шаги цели в плане не расписаны",

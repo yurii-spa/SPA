@@ -1114,7 +1114,7 @@ def studio_roadmap(roadmap: dict) -> dict:
     text_ru = f"сейчас: {cur['epic']}" if cur else "эпик в работе не объявлен"
     confirmed = roadmap.get("confirmed")
     return cell(value={"items": items, "current": cur, "confirmed": confirmed,
-                       "recorded_at": roadmap.get("recorded_at")},
+                       "file_mtime": roadmap.get("file_mtime")},
                display_ru=text_ru, display_en=text_ru, metric_type="DECISION", state=MEASURED, as_of=None,
                canon=canon, fresh=freshness(None, None, "n/a"), unknown_ru="Дорожная карта не прочитана",
                confirmed_date=confirmed)

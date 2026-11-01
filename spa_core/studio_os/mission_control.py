@@ -808,11 +808,14 @@ def _roadmap(mirror: Path) -> dict:
     # QUEUED" shown as current). Absence of an announced epic is now its own value — the caller
     # renders "эпик в работе не объявлен" — never a guessed QUEUED item standing in for it.
     cur = next((i for i in items if i["state"] == "IN_PROGRESS"), None)
-    try:   # когда сводка в плане записана последний раз — актуальность сводки, а не замер исполнителя (ARB 01.11)
-        recorded = datetime.fromtimestamp(p.stat().st_mtime, timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
+    # ARB 01.11 п. 1: время ФАЙЛА — не дата записи сводки и не подтверждение плана (его меняет любая копия,
+    # синхронизация или checkout). Оно отдаётся отдельно названным техническим свойством; содержательная дата —
+    # только `confirmed` из строки самого канона «Last confirmed by the owner».
+    try:
+        file_mtime = datetime.fromtimestamp(p.stat().st_mtime, timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
     except OSError:
-        recorded = None
-    return {"items": items, "current": cur, "confirmed": m.group(1) if m else None, "recorded_at": recorded}
+        file_mtime = None
+    return {"items": items, "current": cur, "confirmed": m.group(1) if m else None, "file_mtime": file_mtime}
 
 
 def _git_feed(inp: MCInputs, hours: int = 48, limit: int = 25) -> Optional[list]:
