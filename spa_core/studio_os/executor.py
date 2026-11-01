@@ -239,13 +239,26 @@ def _settle_unfinished_calls(run_dir: Path, step: Dict[str, Any], lease: Dict[st
     Ответ погибшего вызова не читается никогда: он писал во временный каталог погибшего процесса."""
     sweep, alive, started = sweep or _sweep, alive or _alive, started or _start_time
     rows = _attempts(run_dir, step["version"])
-    finished = {r.get("run_id") for r in rows if r.get("phase") in ("result", "orphan_swept", "orphan_unresolved")}
-    for row in [r for r in rows if r.get("phase") == "call_started" and r.get("run_id") not in finished]:
+    # строка без метки (прежний формат) НЕ закрывает ничьих вызовов: иначе None в множестве погасил бы разбор
+    finished = {r["run_id"] for r in rows
+                if r.get("run_id") and r.get("phase") in ("result", "orphan_swept", "orphan_unresolved")}
+    n_results = sum(1 for r in rows if r.get("phase") == "result" and not r.get("run_id"))
+    unfinished = [r for r in rows if r.get("phase") == "call_started" and r.get("run_id") not in finished]
+    unfinished = [r for r in unfinished if r.get("run_id")] + [r for r in unfinished if not r.get("run_id")][n_results:]
+    for row in unfinished:
         pid, run_id = row.get("pid"), row.get("run_id")
         if row.get("host") and row["host"] != socket.gethostname():
             verdict = {"closed": None, "reason": f"вызов шёл на другой машине ({row['host']})"}
-        elif pid and pid != os.getpid() and alive(pid) and started(pid) == row.get("pid_started"):
-            raise Paused(f"вызов {run_id} ещё ведёт живой исполнитель pid {pid} — не трогаю и не повторяю")
+        elif pid and pid != os.getpid() and alive(pid):
+            cur, rec = started(pid), row.get("pid_started")
+            if cur is None or rec is None:
+                # жив, но тот ли это процесс — НЕ ИЗМЕРЕНО: третий исход, а не «мёртв» (ни сигнала, ни повтора)
+                verdict = {"closed": None, "reason": f"pid {pid} жив, время его старта не измерено — владение не доказуемо"}
+            elif cur == rec:
+                raise Paused(f"вызов {run_id} ещё ведёт живой исполнитель pid {pid} — не трогаю и не повторяю")
+            else:                                           # номер переиспользован ОС — прежний исполнитель мёртв
+                verdict = sweep(run_id, max(0.0, time.time() - float(row["started_epoch"])) + 5.0) \
+                    if run_id and row.get("started_epoch") else {"closed": None, "reason": "у вызова нет метки запуска"}
         elif not run_id or not row.get("started_epoch"):
             verdict = {"closed": None, "reason": "у вызова нет метки запуска — владение не доказуемо"}
         else:

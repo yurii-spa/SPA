@@ -82,7 +82,8 @@ def run(base: Path, bundle_sha: str, sha_a: str, sha_b: str) -> dict:
         if (REAL_ROOT / n).is_file():
             shutil.copyfile(REAL_ROOT / n, root / n)
     TB.snapshot(str(root), str(base / "snapshot_before"))
-    log.append({"step": "snapshot_before", "verify": TB.verify(str(root), str(base / "snapshot_before"))})
+    log.append({"step": "snapshot_before", "snapshot_sha256": TB.snapshot_digest(str(base / "snapshot_before")),
+                "verify": TB.verify(str(root), str(base / "snapshot_before"))})
     inst = stage / "scripts" / "install_trusted_bootstrap.sh"
     lnch = stage / "spa_core" / "studio_os" / "release_launcher.py"
     lsha = expect["spa_core/studio_os/release_launcher.py"]
@@ -103,9 +104,10 @@ def run(base: Path, bundle_sha: str, sha_a: str, sha_b: str) -> dict:
     b = _canary(root, installed, base, "B", log)
     install(sha_a)                                                       # откат: одобрение A (каталог A переиспользуется)
     a = _canary(root, installed, base, "A_after_rollback", log)
-    diffs = TB.restore(str(root), str(base / "snapshot_before"))
+    recorded = log[1]["snapshot_sha256"]                                  # записан «владельцем» при создании
+    diffs = TB.restore(str(root), str(base / "snapshot_before"), recorded)
     log.append({"step": "restore_config", "file_diffs_after_restore": diffs,
-                "verify_after": TB.verify(str(root), str(base / "snapshot_before"))})
+                "verify_after": TB.verify(str(root), str(base / "snapshot_before"), recorded)})
     after = _prod_footprint()
     verdict = {
         "B_measured": [x["sha"] for x in b["measured"]] == [sha_b] and b["rc"] in (0, 1),

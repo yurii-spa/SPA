@@ -215,3 +215,24 @@ def test_repeated_mid_call_deaths_stop_at_the_call_limit(scene):
     assert not _alive(child2["pid"])
     swept = [r for r in gg._journal(scene["run"]) if r.get("phase") == "orphan_swept"]
     assert len(swept) == 2
+
+
+def test_live_predecessor_with_unmeasured_start_time_is_not_treated_as_dead(scene):
+    """Ревью 01.11: предшественник жив, а `ps` не отдал время старта (None) — это «не измерено», не «мёртв»:
+    ни уборки, ни повтора, запись orphan_unresolved."""
+    env = dict(os.environ, FAKE_CLI_MARK_DIR=str(scene["mark"]), FAKE_CLI_SLEEP="120")
+    p = subprocess.Popen([sys.executable, "-c", RUN_EXECUTOR, str(scene["run"]), str(scene["fake"]), str(scene["cfg"])],
+                         cwd=str(REPO), env=env, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+    scene["procs"].append(p)
+    end = time.time() + 60
+    while time.time() < end and not list(scene["mark"].glob("cli-*.json")):
+        time.sleep(0.05)
+    child = json.loads(next(scene["mark"].glob("cli-*.json")).read_text())
+    scene["procs"].append(child["pid"])
+    again, swept = Counting(), []
+    with pytest.raises(ex.Paused, match="blocked:ownership_unresolved"):
+        _propose_again(scene, again, started=lambda pid: None,
+                       sweep=lambda run_id, age: swept.append(run_id) or {"closed": True})
+    assert again.calls == 0 and not swept and p.poll() is None and _alive(child["pid"])
+    rows = [r for r in gg._journal(scene["run"]) if r.get("phase") == "orphan_unresolved"]
+    assert len(rows) == 1 and "не измерено" in rows[0]["sweep"]["reason"]

@@ -14,7 +14,10 @@ TRUST CLOSURE: только stdlib, ни одного импорта проек�
 ``snapshot`` / ``verify`` / ``restore`` — конфигурация доверенного корня до изменения: содержимое, sha256, uid/gid,
 режим каждого управляемого файла и перечень ``bin/``, ``releases/``. ``verify`` сверяет текущее состояние со
 снимком (код 1 при расхождении); ``restore`` возвращает файлы снимка (атомарно, с владельцем и режимом) и сам
-перепроверяет результат. Снимок защищён собственным манифестом: подменённый снимок не восстанавливается.
+перепроверяет результат. Защита снимка (ревью 01.11): (1) хеш снимка печатается при создании и ОБЯЗАТЕЛЕН в restore —
+владелец записывает его вне снимка, поэтому переписать снимок «вместе с хешем» бесполезно; (2) под root снимок обязан
+принадлежать root и не быть доступным на запись группе/прочим; (3) копии читаются без перехода по ссылкам;
+(4) под root восстанавливается только владелец root. Ничего не удаляется.
 """
 from __future__ import annotations
 
@@ -162,44 +165,91 @@ def snapshot(root: str, out: str) -> dict:
     return doc
 
 
-def _load_snapshot(snap: str) -> dict:
+def _read_nofollow(path: Path) -> bytes:
+    """Чтение без перехода по ссылке: копия в снимке, подменённая ссылкой на чужой файл, — отказ, а не раскрытие."""
+    fd = os.open(str(path), os.O_RDONLY | getattr(os, "O_NOFOLLOW", 0))
+    with os.fdopen(fd, "rb") as fh:
+        return fh.read()
+
+
+def _owner_problem(snap: Path, euid: int):
+    """Под root снимок обязан принадлежать root и не быть доступным на запись группе/прочим (каталог и файлы):
+    иначе обычный пользователь мог бы переписать его вместе с хешем, а root — установить подменённое."""
+    if euid != 0:
+        return None
+    for q in [snap] + [snap / n for n in ("SNAPSHOT.json", "SNAPSHOT.sha256", *CONFIG_FILES)]:
+        if not q.exists() and not q.is_symlink():
+            continue
+        st = os.lstat(q)
+        if os.path.islink(q) or st.st_uid != 0 or st.st_mode & 0o022:
+            return f"{q}: не принадлежит root или доступен на запись не только root — восстановление под root запрещено"
+    return None
+
+
+def snapshot_digest(snap: str) -> str:
+    """Хеш снимка, который владелец ЗАПИСЫВАЕТ вне снимка (печатается при создании) и передаёт в restore."""
+    return _sha256((Path(snap) / "SNAPSHOT.json").read_bytes())
+
+
+def _load_snapshot(snap: str, expect_sha256=None, euid=None) -> dict:
     s = Path(snap)
-    body = (s / "SNAPSHOT.json").read_text()
-    if _sha256(body.encode()) != (s / "SNAPSHOT.sha256").read_text().strip():
+    euid = os.geteuid() if euid is None else euid
+    owner = _owner_problem(s, euid)
+    if owner:
+        raise Refused(owner)
+    body = _read_nofollow(s / "SNAPSHOT.json").decode("utf-8")
+    if _sha256(body.encode()) != _read_nofollow(s / "SNAPSHOT.sha256").decode().strip():
         raise Refused("снимок изменён после создания (SNAPSHOT.sha256 не сходится)")
+    if expect_sha256 is not None and _sha256(body.encode()) != expect_sha256:
+        raise Refused("хеш снимка не совпадает с записанным владельцем при создании — снимок подменён")
     doc = json.loads(body)
     for n, rec in doc["state"]["files"].items():
-        if rec is not None and _sha256((s / n).read_bytes()) != rec["sha256"]:
+        if rec is not None and _sha256(_read_nofollow(s / n)) != rec["sha256"]:
             raise Refused(f"копия {n} в снимке не сходится со своим sha256")
     return doc
 
 
-def verify(root: str, snap: str) -> list:
+def verify(root: str, snap: str, expect_sha256=None) -> list:
     """Расхождения текущего состояния со снимком (пусто — совпало)."""
-    doc = _load_snapshot(snap)
+    doc = _load_snapshot(snap, expect_sha256)
     cur, want = _state(Path(root)), doc["state"]
     diffs = [f"{n}: {want['files'][n]} → {cur['files'][n]}" for n in CONFIG_FILES if cur["files"][n] != want["files"][n]]
     diffs += [f"{d}/: {want['dirs'][d]} → {cur['dirs'][d]}" for d in LISTED_DIRS if cur["dirs"][d] != want["dirs"][d]]
     return diffs
 
 
-def restore(root: str, snap: str) -> list:
-    """Вернуть управляемые файлы снимка (содержимое, владелец, режим); перечни каталогов НЕ правятся (ничего не
-    удаляется). Возвращает расхождения ПОСЛЕ восстановления по управляемым файлам (пусто — восстановлено)."""
-    doc, root_p, s = _load_snapshot(snap), Path(root), Path(snap)
+def restore(root: str, snap: str, expect_sha256: str, euid=None) -> list:
+    """Вернуть управляемые файлы снимка (содержимое, владелец, режим). Хеш снимка, записанный владельцем при
+    создании, ОБЯЗАТЕЛЕН; под root снимок обязан быть root-owned, а восстанавливаемый владелец — root. Перечни
+    каталогов НЕ правятся (ничего не удаляется). Возвращает расхождения ПОСЛЕ восстановления (пусто — восстановлено);
+    файл, которого в снимке не было, не создаётся и не удаляется — и это называется расхождением."""
+    if not expect_sha256:
+        raise Refused("restore без хеша снимка, записанного при создании, не выполняется")
+    euid = os.geteuid() if euid is None else euid
+    doc, root_p, s = _load_snapshot(snap, expect_sha256, euid), Path(root), Path(snap)
+    for n, rec in doc["state"]["files"].items():
+        if rec is not None and euid == 0 and rec["uid"] != 0:
+            raise Refused(f"{n}: в снимке владелец uid {rec['uid']}, под root восстанавливается только root")
     for n, rec in doc["state"]["files"].items():
         target = root_p / n
         if rec is None:
-            continue                       # файла не было — новый не удаляется (удаление вне полномочий)
+            continue
         tmp = target.with_name(target.name + ".restore-tmp")
-        tmp.write_bytes((s / n).read_bytes())
+        if tmp.is_symlink() or tmp.exists():
+            raise Refused(f"{tmp} уже существует — восстановление не продолжается")
+        fd = os.open(str(tmp), os.O_WRONLY | os.O_CREAT | os.O_EXCL | getattr(os, "O_NOFOLLOW", 0), 0o600)
+        with os.fdopen(fd, "wb") as fh:
+            fh.write(_read_nofollow(s / n))
         os.chmod(tmp, int(rec["mode"], 8))
         if (os.lstat(tmp).st_uid, os.lstat(tmp).st_gid) != (rec["uid"], rec["gid"]):
             os.chown(tmp, rec["uid"], rec["gid"])
         os.replace(tmp, target)
     cur = _state(root_p)
-    return [f"{n}: {doc['state']['files'][n]} → {cur['files'][n]}" for n in CONFIG_FILES
-            if doc["state"]["files"][n] is not None and cur["files"][n] != doc["state"]["files"][n]]
+    out = [f"{n}: {doc['state']['files'][n]} → {cur['files'][n]}" for n in CONFIG_FILES
+           if doc["state"]["files"][n] is not None and cur["files"][n] != doc["state"]["files"][n]]
+    out += [f"{n}: в снимке отсутствовал, сейчас есть — не удаляется (вне полномочий)" for n in CONFIG_FILES
+            if doc["state"]["files"][n] is None and cur["files"][n] is not None]
+    return out
 
 
 def main(argv=None) -> int:
@@ -214,6 +264,9 @@ def main(argv=None) -> int:
         b = sub.add_parser(name)
         b.add_argument("--root", required=True)
         b.add_argument("--snapshot", required=True)
+        if name != "snapshot":
+            b.add_argument("--expect-snapshot-sha256", required=(name == "restore"),
+                           help="хеш, напечатанный при создании снимка и записанный владельцем вне снимка")
     ns = ap.parse_args(argv)
     try:
         if ns.cmd == "stage":
@@ -223,8 +276,10 @@ def main(argv=None) -> int:
         if ns.cmd == "snapshot":
             snapshot(ns.root, ns.snapshot)
             print(f"snapshot: {ns.snapshot}")
+            print(f"SNAPSHOT_SHA256={snapshot_digest(ns.snapshot)}   # ЗАПИСАТЬ вне снимка: нужен для restore")
             return 0
-        diffs = verify(ns.root, ns.snapshot) if ns.cmd == "verify" else restore(ns.root, ns.snapshot)
+        exp = ns.expect_snapshot_sha256
+        diffs = verify(ns.root, ns.snapshot, exp) if ns.cmd == "verify" else restore(ns.root, ns.snapshot, exp)
         for d in diffs:
             print("DIFF", d)
         print("MATCH" if not diffs else f"{len(diffs)} difference(s)")

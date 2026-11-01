@@ -154,8 +154,9 @@ def test_snapshot_change_restore_roundtrip(root, tmp_path):
     (root / "releases" / ("b" * 40)).mkdir()
     diffs = TB.verify(str(root), str(tmp_path / "snap"))
     assert len(diffs) == 3                                            # два файла + новый релиз в перечне
-    assert TB.restore(str(root), str(tmp_path / "snap")) == []
-    after = TB.verify(str(root), str(tmp_path / "snap"))
+    digest = TB.snapshot_digest(str(tmp_path / "snap"))
+    assert TB.restore(str(root), str(tmp_path / "snap"), digest) == []
+    after = TB.verify(str(root), str(tmp_path / "snap"), digest)
     assert after == [f"releases/: {['a' * 40]} → {sorted(['a' * 40, 'b' * 40])}"]   # каталоги не удаляются — названо
     assert oct((root / "runtime.json").stat().st_mode & 0o777) == "0o640"
     assert json.loads((root / "approved_release.json").read_text())["approved_sha"] == "a" * 40
@@ -165,8 +166,9 @@ def test_tampered_snapshot_is_not_restored(root, tmp_path):
     TB.snapshot(str(root), str(tmp_path / "snap"))
     (root / "approved_release.json").write_text(json.dumps({"approved_sha": "b" * 40}) + "\n")
     (tmp_path / "snap" / "approved_release.json").write_text(json.dumps({"approved_sha": "e" * 40}) + "\n")
+    digest = TB.snapshot_digest(str(tmp_path / "snap"))
     with pytest.raises(TB.Refused, match="копия"):
-        TB.restore(str(root), str(tmp_path / "snap"))
+        TB.restore(str(root), str(tmp_path / "snap"), digest)
     assert json.loads((root / "approved_release.json").read_text())["approved_sha"] == "b" * 40   # не тронут
     (tmp_path / "snap" / "SNAPSHOT.json").write_text("{}")
     with pytest.raises(TB.Refused, match="SNAPSHOT.sha256"):
@@ -179,5 +181,59 @@ def test_snapshot_cli_exit_codes(root, tmp_path):
     assert run("verify", "--root", str(root), "--snapshot", str(tmp_path / "s")).returncode == 0
     (root / "approved_release.json").write_text("{}\n")
     assert run("verify", "--root", str(root), "--snapshot", str(tmp_path / "s")).returncode == 1
-    assert run("restore", "--root", str(root), "--snapshot", str(tmp_path / "s")).returncode == 0
+    digest = TB.snapshot_digest(str(tmp_path / "s"))
+    assert run("restore", "--root", str(root), "--snapshot", str(tmp_path / "s")).returncode == 2   # без хеша — нет
+    assert run("restore", "--root", str(root), "--snapshot", str(tmp_path / "s"),
+               "--expect-snapshot-sha256", digest).returncode == 0
     assert run("snapshot", "--root", str(root), "--snapshot", str(tmp_path / "s")).returncode == 2   # уже есть
+
+
+def test_snapshot_rewritten_together_with_its_hash_is_refused_by_the_owner_record(root, tmp_path):
+    """Ревью 01.11 (критическое): злоумышленник переписывает копию, SNAPSHOT.json и SNAPSHOT.sha256 согласованно.
+    Восстановление идёт по хешу, ЗАПИСАННОМУ владельцем при создании, — подмена не проходит."""
+    snap = tmp_path / "snap"
+    TB.snapshot(str(root), str(snap))
+    recorded = TB.snapshot_digest(str(snap))
+    evil = json.dumps({"app_python": "/Users/u/evil", "trusted_repo": "/x"}) + "\n"
+    (snap / "runtime.json").write_text(evil)
+    doc = json.loads((snap / "SNAPSHOT.json").read_text())
+    doc["state"]["files"]["runtime.json"].update(sha256=_sha(evil.encode()), mode="0o666")
+    body = json.dumps(doc, sort_keys=True, ensure_ascii=False)
+    (snap / "SNAPSHOT.json").write_text(body)
+    (snap / "SNAPSHOT.sha256").write_text(_sha(body.encode()))
+    with pytest.raises(TB.Refused, match="записанным владельцем"):
+        TB.restore(str(root), str(snap), recorded)
+    assert "evil" not in (root / "runtime.json").read_text()
+    with pytest.raises(TB.Refused, match="без хеша"):
+        TB.restore(str(root), str(snap), "")
+
+
+def test_under_root_a_user_owned_snapshot_is_refused(root, tmp_path):
+    """Под root (euid 0) снимок, принадлежащий пользователю или доступный ему на запись, не восстанавливается."""
+    TB.snapshot(str(root), str(tmp_path / "snap"))
+    digest = TB.snapshot_digest(str(tmp_path / "snap"))
+    with pytest.raises(TB.Refused, match="не принадлежит root"):
+        TB.restore(str(root), str(tmp_path / "snap"), digest, euid=0)
+
+
+def test_symlinked_copy_in_the_snapshot_is_not_followed(root, tmp_path):
+    TB.snapshot(str(root), str(tmp_path / "snap"))
+    digest = TB.snapshot_digest(str(tmp_path / "snap"))
+    secret = tmp_path / "root_only_secret"
+    secret.write_text("SECRET\n")
+    os.remove(tmp_path / "snap" / "approved_release.json")
+    os.symlink(secret, tmp_path / "snap" / "approved_release.json")
+    with pytest.raises(OSError):
+        TB.restore(str(root), str(tmp_path / "snap"), digest)
+    assert "SECRET" not in (root / "approved_release.json").read_text()
+
+
+def test_file_absent_in_snapshot_is_named_not_silently_matched(tmp_path):
+    rt = tmp_path / "R"
+    for d in TB.LISTED_DIRS:
+        (rt / d).mkdir(parents=True)
+    (rt / "approved_release.json").write_text("{}\n")
+    TB.snapshot(str(rt), str(tmp_path / "snap"))                    # runtime.json отсутствует
+    (rt / "runtime.json").write_text("{}\n")
+    out = TB.restore(str(rt), str(tmp_path / "snap"), TB.snapshot_digest(str(tmp_path / "snap")))
+    assert out and "не удаляется" in out[0] and (rt / "runtime.json").exists()
