@@ -401,6 +401,8 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
     r.add_argument("--ttl-s", type=int, default=600)
     r.add_argument("--stop-at", choices=("started", "applied"))
     r.add_argument("--admission-registry", help="каталог аренд admission (политика чисел — прежняя, ADR-551)")
+    r.add_argument("--admission-policy", help="JSON-файл, ПЕРЕКРЫВАЮЩИЙ ключи heavy_jobs политики ADR-551 для этого "
+                                              "запуска (стенд/тест); без него — политика репозитория как есть")
     a = ap.parse_args(argv)
     run_dir = Path(a.run_dir)
     graph = load_graph(run_dir, a.graph_version)
@@ -416,9 +418,13 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
 
     try:
         admit = None
-        if a.admission_registry:
+        if a.admission_registry or a.admission_policy:
             from spa_core.utils import heavy_job
-            pol = {**heavy_job._policy(), "registry_dir": a.admission_registry}
+            pol = dict(heavy_job._policy())
+            if a.admission_policy:
+                pol.update(json.loads(Path(a.admission_policy).read_text(encoding="utf-8")))
+            if a.admission_registry:
+                pol["registry_dir"] = a.admission_registry
             admit = lambda: heavy_job.admit("executor_check", a.stand, policy=pol, renice=False)  # noqa: E731
         log = run_until_blocked(graph, run_dir=run_dir, stand=Path(a.stand), worker=a.worker, now=_now_iso,
                                 ttl_s=a.ttl_s, admit=admit, barrier=barrier if a.stop_at else None)

@@ -47,7 +47,10 @@ def _prod_footprint():
 def _canary(root: Path, launcher: Path, base: Path, label: str, log: list) -> dict:
     out, err = base / f"canary_{label}.out", base / f"canary_{label}.err"
     env = {k: v for k, v in os.environ.items() if k != "SPA_DATA_DIR"}     # как в plist: SPA_DATA_DIR не задаётся
-    with open(out, "w") as fo, open(err, "w") as fe:
+    # потоковые логи дочернего процесса (не файлы состояния): дескрипторы отдаются процессу напрямую
+    flags = os.O_WRONLY | os.O_CREAT | os.O_TRUNC
+    fo, fe = os.open(str(out), flags, 0o644), os.open(str(err), flags, 0o644)
+    try:
         p = subprocess.Popen(["/usr/bin/python3", "-I", "-c", BOOT, str(launcher), str(root), str(base / "active.json"),
                               "canary"], stdout=fo, stderr=fe, env=env, cwd="/", start_new_session=True)
         seen, t0 = [], time.time()
@@ -57,6 +60,9 @@ def _canary(root: Path, launcher: Path, base: Path, label: str, log: list) -> di
                 seen.append(procs)
             time.sleep(0.2)
         rc = p.wait(timeout=60)
+    finally:
+        os.close(fo)
+        os.close(fe)
     rec = {"step": f"canary_{label}", "pid": p.pid, "rc": rc, "measured": seen[0] if seen else [],
            "samples": len(seen), "stderr_tail": err.read_text()[-300:], "active_record":
                json.loads((base / "active.json").read_text()) if (base / "active.json").exists() else None,

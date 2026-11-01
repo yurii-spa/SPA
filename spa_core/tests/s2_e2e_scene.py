@@ -49,9 +49,20 @@ def _iso(dt):
     return dt.astimezone(timezone.utc).isoformat()
 
 
+def _stand_policy(run):
+    """Политика admission стенда (CI 41262589788): реестр аренд — свой; порог свободного диска не предмет сцены,
+    поэтому 0 — иначе исход сцены зависел бы от диска раннера (там проверку честно отказывал ADR-551 при < 20 ГБ).
+    Сам admission и его отказ проверяются отдельно (F9) — здесь не ослаблены."""
+    p = Path(run) / "admission_policy.json"
+    if not p.exists():
+        p.parent.mkdir(parents=True, exist_ok=True)
+        p.write_text(json.dumps({"registry_dir": str(Path(run) / "leases"), "min_free_disk_gb": 0}))
+    return p
+
+
 def _spawn(run, stand, gv, worker, stop_at=None, ttl=3):
     cmd = [sys.executable, "-m", "spa_core.studio_os.executor", "run", "--run-dir", str(run), "--stand", str(stand),
-           "--graph-version", gv, "--worker", worker, "--ttl-s", str(ttl), "--admission-registry", str(run / "leases")]
+           "--graph-version", gv, "--worker", worker, "--ttl-s", str(ttl), "--admission-policy", str(_stand_policy(run))]
     if stop_at:
         cmd += ["--stop-at", stop_at]
     return subprocess.Popen(cmd, cwd=str(REPO), stdout=subprocess.PIPE, stderr=subprocess.PIPE, start_new_session=True)
