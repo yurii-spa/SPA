@@ -180,6 +180,15 @@
     two-tier test idea (not promoted), restart of long-runners started before the candidate. Real capital $0.
     Handover: `HANDOVER_FOR_ARB_FINAL.md`, `START_HERE.md` in the same folder.
 18. **Later engines:** traditional markets, volatility / options (scope decided inside RM-EXPAND-01)
+19. **STUDIO-AUTONOMY-01 · owner manages the studio from the phone; agents work inside proven permissions** — in progress
+    (owner directive 2026-10-29; requirements `docs/tasks/studio-autonomy-01-2026-10-29.md` @ `976862fb0`). Five deliveries;
+    statuses below are what is MEASURED, not what is planned. Real capital $0; nothing here moves money.
+    - step S1 · Управляемое исполнение и изоляция — DONE · executor: ARB · last: принято ARB (ADR-880), ветка autonomy/s1
+    - step S2 · Проверенный выпуск и откат — WAITING: кандидат 92b75ff85 проверен полным CI 41296474076, установка под root и живая канарейка B→A ждут допуска владельца (первый пункт единого запроса разрешений) · executor: владелец (root) · last: пакет установки привязан к 92b75ff85 (f13b64693)
+    - step S3 · Paper-конвейер и состояние торговли — WAITING: кандидат e8706130c проверен CI 41298334381; E6.6 открыт (новая серия не запущена), E6.3 только в shadow, iPhone не проверен — решение ARB · executor: ARB · last: приёмочный пакет a00a90cca
+    - step S2+S3 · Интеграционный кандидат — IN_PROGRESS: полный CI объединённого состава идёт · executor: агент · last: integration/s2-s3 04d2c994a на main feff8523a
+    - step S4 · Управление владельца с телефона — IN_PROGRESS · executor: агент (ветка s4/owner-control) · last: K1 — намерение владельца только по проверенному входу (72842a5af)
+    - step S5 · Доказательство работы — BLOCKED: начинается после приёмки S2–S4 · executor: — · last: —
 
 ## Director OS backlog — the 34 items of 2026-10-15, reconciled 2026-10-16 (ADR-763)
 

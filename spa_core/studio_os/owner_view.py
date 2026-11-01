@@ -66,7 +66,11 @@ SUBJECT_RU = {
     "PHYSICAL_ACTION": "Нужно ваше действие руками",
 }
 
-ROADMAP_STATE_RU = {"DONE": "Сделано", "IN_PROGRESS": "Идёт", "QUEUED": "В очереди", "BLOCKED": "Остановлено"}
+ROADMAP_STATE_RU = {"DONE": "Сделано", "IN_PROGRESS": "Идёт", "QUEUED": "В очереди", "BLOCKED": "Остановлено",
+                    "REVIEW": "Сдано, ждёт приёмки"}
+#: Состояния шага текущей цели (S4 K2, E7.1) — слова владельцу; неизвестное состояние не угадывается.
+STEP_STATE_RU = {"DONE": "Сделано", "IN_PROGRESS": "Идёт", "READY": "Готов к работе", "WAITING": "Ждёт",
+                 "BLOCKED": "Заблокирован"}
 
 # Upper bound of the release feed (mission_control._git_feed(limit=…)): a count equal to it is
 # «не меньше N», never «ровно N» (AUDIT §3.6).
@@ -722,7 +726,7 @@ def overview(model: dict, updated: Optional[str]) -> dict:
 
 # Plan rows fall into four owner groups; a «queued» row whose own note says it is done is a
 # CONTRADICTION in the plan (shown as such), never silently resolved either way (ARB 09.10).
-PLAN_GROUPS = (("done", "Сделано"), ("active", "Идёт"), ("queued", "В очереди"),
+PLAN_GROUPS = (("done", "Сделано"), ("active", "Идёт"), ("review", "Ждёт приёмки"), ("queued", "В очереди"),
                ("conflict", "Противоречие в плане"), ("unknown", "Состояние не распознано"))
 
 
@@ -736,7 +740,8 @@ def _roadmap_rows(truth: dict) -> list:
         if st == "QUEUED" and note_says_done(it.get("note")):
             group, state = "conflict", "Противоречие: в плане «в очереди», а в заметке — «сделано»"
         elif st in ROADMAP_STATE_RU:
-            group = {"DONE": "done", "IN_PROGRESS": "active", "QUEUED": "queued", "BLOCKED": "active"}[st]
+            group = {"DONE": "done", "IN_PROGRESS": "active", "QUEUED": "queued", "BLOCKED": "active",
+                     "REVIEW": "review"}[st]
             state = ROADMAP_STATE_RU[st]
         else:
             group, state = "unknown", "Состояние не распознано — проблема отображения"
@@ -1135,6 +1140,7 @@ def work(model: dict, updated: Optional[str]) -> dict:
                      "stopped": stopped or [],
                      "technical": {} if blocking else blocked_tech},
         "next": {"title": "Что дальше", "text": nxt or "Следующий шаг в журнале работы не записан"},
+        "goal": goal(model, truth),
         "plan": _plan(truth),
         "done": recent_releases(model, updated),
         "my_records": my_records(model, updated),
@@ -1159,6 +1165,36 @@ def _stopped_tasks(items: list) -> list:
                     "technical": {"карточка": it.get("card"), "blocked_by": it.get("reason"),
                                   "последний переход статуса": it.get("last_transition")}})
     return out
+
+def goal(model: dict, truth: dict) -> dict:
+    """S4 K2 (E7.1): текущая цель, её шаги, причина ожидания, исполнитель и последнее подтверждённое действие.
+
+    Источник один — единый roadmap (``docs/ROADMAP.md``, ADR-527): пункт «в работе» и его строки
+    ``- step …``. Процента нет: у шагов нет общего знаменателя. Нет цели в работе или нет шагов — сказано,
+    а не подставлено."""
+    ep = _current_epic(model, truth)
+    if not ep:
+        return {"title": "Цель", "declared": False,
+                "text": "Цель в работе в плане не объявлена (docs/ROADMAP.md: нет пункта «in progress»)"}
+    steps = []
+    for s in ep.get("steps") or []:
+        if not isinstance(s, dict):
+            continue
+        st = s.get("state")
+        steps.append({"id": s.get("id"), "title": plain(s.get("title")) or "Шаг без названия",
+                      "state": st, "state_ru": STEP_STATE_RU.get(st, "Состояние не распознано"),
+                      "waiting": plain(s.get("reason")) if st in ("WAITING", "BLOCKED") else None,
+                      "reason": plain(s.get("reason")),
+                      "executor": plain(s.get("executor")) or "исполнитель не указан",
+                      "last_confirmed": plain(s.get("last_confirmed")) or "подтверждённых действий не записано"})
+    counts = {k: sum(1 for x in steps if x["state"] == k) for k in STEP_STATE_RU}
+    return {"title": "Цель", "declared": True, "text": stage_title(ep.get("epic")).get("text") or ep.get("epic"),
+            "technical": {"исходное название": ep.get("epic"), "заметка плана": plain(ep.get("note"))},
+            "steps": steps, "counts": counts,
+            "steps_declared": bool(steps),
+            "steps_missing_text": None if steps else "Шаги цели в плане не расписаны",
+            "source": "docs/ROADMAP.md (единый roadmap, ADR-527)", "no_percent": True}
+
 
 def _plan(truth: dict) -> dict:
     rows = _roadmap_rows(truth)

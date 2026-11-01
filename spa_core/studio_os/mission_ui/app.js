@@ -2110,11 +2110,35 @@
     return box;
   }
 
+  // S4 K2 (E7.1): цель → шаги (готов/идёт/ждёт/заблокирован) → причина ожидания → исполнитель → последнее
+  // подтверждённое действие. Без процента: у шагов нет общего знаменателя.
+  function renderGoal(g) {
+    var c = uxCard(t("work.goal.title"), "goal-card");
+    if (!g.declared) { c.appendChild(h("p", { class: "ux-metric-text" }, [g.text || t("state.NOT_MEASURED")])); return c; }
+    c.appendChild(h("p", { class: "ux-item-title goal-name" }, [g.text]));
+    if (!g.steps_declared) { c.appendChild(h("p", { class: "ux-note" }, [g.steps_missing_text])); return c; }
+    var ul = h("ul", { class: "ux-list goal-steps" });
+    (g.steps || []).forEach(function (x) {
+      var li = h("li", { class: "goal-step goal-" + String(x.state || "UNKNOWN").toLowerCase(), "data-step": x.id }, [
+        h("p", { class: "goal-step-head" }, [h("b", {}, [x.id + " · "]), x.title]),
+        h("p", { class: "goal-step-state" }, [x.state_ru])]);
+      if (x.waiting) li.appendChild(h("p", { class: "ux-metric-text goal-wait" }, [t("work.goal.waiting") + " " + x.waiting]));
+      else if (x.reason) li.appendChild(h("p", { class: "ux-metric-text" }, [x.reason]));
+      li.appendChild(h("p", { class: "ux-note" }, [t("work.goal.executor") + " " + x.executor]));
+      li.appendChild(h("p", { class: "ux-note" }, [t("work.goal.last") + " " + x.last_confirmed]));
+      ul.appendChild(li);
+    });
+    c.appendChild(ul);
+    c.appendChild(h("p", { class: "ux-note" }, [t("work.goal.no_percent")]));
+    return c;
+  }
+
   function renderWorkArea(root) {
     var s = ov();
     var w = s && s.work;
     if (!w) { viewMissing(root); }
     else {
+      if (w.goal) root.appendChild(renderGoal(w.goal));
       var c1 = uxCard((w.now && w.now.title) || "");
       ((w.now && w.now.items) || []).forEach(function (m) { c1.appendChild(metricRow(m)); });
       root.appendChild(c1);

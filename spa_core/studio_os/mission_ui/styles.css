@@ -2441,3 +2441,11 @@ details.mk-devfold[open] > summary::after { content: "▾"; }
 .eng-row{display:flex;gap:10px;justify-content:space-between;min-width:0}
 .eng-id{min-width:0;overflow-wrap:anywhere;opacity:.8}
 .eng-num{white-space:nowrap;flex:none}
+
+/* S4 K2 — цель и шаги */
+.goal-steps{display:flex;flex-direction:column;gap:10px;margin-top:8px}
+.goal-step{border-left:3px solid rgba(127,127,127,.4);padding:4px 0 4px 10px;min-width:0;overflow-wrap:anywhere}
+.goal-done{border-left-color:#5aa17a}.goal-in_progress{border-left-color:#7aa2d8}.goal-ready{border-left-color:#5fb8ac}
+.goal-waiting{border-left-color:#d6a94a}.goal-blocked{border-left-color:#e07a6a}
+.goal-step-state{font-weight:600}
+.goal-wait{color:#d6a94a}

@@ -720,6 +720,14 @@ def decision_item(name: str, card: dict, prod: Optional[dict], bot: Optional[str
 
 
 # ── sections ───────────────────────────────────────────────────────────────────────────────────
+#: Эпик сдан и ждёт приёмки — отдельное состояние, а не «в работе» и не «сделано».
+_AWAITING_REVIEW = re.compile(r"awaiting ARB|handed to ARB|NOT ARB-accepted|ждёт приёмки|ждёт ARB", re.I)
+#: Строка шага цели под пунктом roadmap:
+#: ``   - step S3 · Paper-конвейер — BLOCKED: причина · executor: кто · last: что подтверждено``
+_ROADMAP_STEP = re.compile(r"^\s+-\s+step\s+(\S+)\s+·\s+(.+?)\s+—\s+(DONE|IN_PROGRESS|READY|WAITING|BLOCKED)"
+                           r"(?::\s*(.*?))?(?:\s+·\s+executor:\s*(.*?))?(?:\s+·\s+last:\s*(.*?))?\s*$")
+
+
 def _roadmap(mirror: Path) -> dict:
     p = mirror / "docs" / "ROADMAP.md"
     try:
@@ -730,6 +738,16 @@ def _roadmap(mirror: Path) -> dict:
     items = []
     sect = text.split("## Order of the next epics", 1)[-1].split("\n## ", 1)[0]
     for ln in sect.splitlines():
+        st = _ROADMAP_STEP.match(ln)
+        if st and items:
+            # S4 K2 (E7.1): шаги текущей цели — построчно в самом едином roadmap (ADR-527), а не во второй базе
+            sid, title, sstate, why, who, last = st.groups()
+            items[-1].setdefault("steps", []).append({
+                "id": sid, "title": safe_text(title.strip(), 160), "state": sstate,
+                "reason": safe_text((why or "").strip(), 240) or None,
+                "executor": safe_text((who or "").strip(), 120) or None,
+                "last_confirmed": safe_text((last or "").strip(), 200) or None})
+            continue
         mm = re.match(r"\s*(\d+)\.\s+(.*)", ln)
         if not mm:
             continue
@@ -737,7 +755,16 @@ def _roadmap(mirror: Path) -> dict:
         done = raw.strip().startswith("~~")
         name = re.sub(r"[~*`]", "", raw.split("—")[0]).strip()
         note = raw.split("—", 1)[1].strip() if "—" in raw else ""
-        state = "DONE" if done else ("IN_PROGRESS" if re.search(r"in progress|в работе", note, re.I) else "QUEUED")
+        # «сдано, ждёт приёмки ARB» — НЕ «идёт работа»: иначе пульт называл текущей целью эпик, который ждёт
+        # чужого решения (замер 01.11: «ARB-CONTINUITY-01» показывался как текущий при идущем STUDIO-AUTONOMY-01)
+        if done:
+            state = "DONE"
+        elif _AWAITING_REVIEW.search(note):
+            state = "REVIEW"
+        elif re.search(r"in progress|в работе", note, re.I):
+            state = "IN_PROGRESS"
+        else:
+            state = "QUEUED"
         items.append({"n": int(mm.group(1)), "epic": safe_text(name, 120), "state": state, "note": safe_text(note, 200)})
     # RM-TRUTH-01 C1 (ADR-580 → Director OS v2 design §0): `current` means IN_PROGRESS, and ONLY
     # that — never the first QUEUED item. The live defect this fixes: with no epic actually
