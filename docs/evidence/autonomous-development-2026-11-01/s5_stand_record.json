@@ -1,0 +1,140 @@
+{
+ "scenarios": {
+  "A_product": {
+   "scenario": "A_product",
+   "synthetic": true,
+   "provider_id": "fixture_test_adapter",
+   "steps": [
+    {
+     "step": "plan",
+     "graph_version": "dcd9d0f841b9a0bdd7a7598ee8e2d3ad90d087fd236a739466fb7a589b388020",
+     "tasks": [
+      "risk_text"
+     ]
+    }
+   ],
+   "unapproved": {
+    "rc": 0,
+    "state": "new",
+    "why": "[{\"step\": \"await_approval\", \"task_id\": \"risk_text\", \"state\": \"new\", \"lease\": null}]\n",
+    "refused": true
+   },
+   "killed_at": "applied",
+   "resume": {
+    "rc": 0,
+    "states": [
+     "started",
+     "applied",
+     "checked:satisfied"
+    ],
+    "done": true,
+    "out": "[{\"step\": \"checked\", \"task_id\": \"risk_text\", \"state\": \"checked:satisfied\", \"detail\": \"текст найден\", \"lease\": 2}, {\"step\": \"done\", \"task_id\": null, \"state\": \"all satisfied\", \"lease\": null}]\n"
+   },
+   "no_double_effect": true,
+   "model_calls": 1,
+   "model_calls_limit": 2,
+   "role": {
+    "role": "none"
+   },
+   "owner_interventions": 0,
+   "time_to_result_s": 6.97,
+   "owner_text": "Пункт о заблокированном выводе добавлен в объяснение рисков (стенд, не опубликовано).",
+   "verdict": "OK"
+  },
+  "B_defect": {
+   "scenario": "B_defect",
+   "synthetic": true,
+   "provider_id": "fixture_test_adapter",
+   "steps": [
+    {
+     "step": "plan",
+     "graph_version": "77c3c464caa026e5c45356874f9e01808a90f960a0f3263c86dcd3940a71e5db",
+     "tasks": [
+      "fix"
+     ]
+    }
+   ],
+   "defect_reproduced": true,
+   "unapproved": {
+    "rc": 0,
+    "state": "new",
+    "why": "[{\"step\": \"await_approval\", \"task_id\": \"fix\", \"state\": \"new\", \"lease\": null}]\n",
+    "refused": true
+   },
+   "killed_at": "applied",
+   "resume": {
+    "rc": 0,
+    "states": [
+     "started",
+     "applied",
+     "checked:satisfied"
+    ],
+    "done": true,
+    "out": "[{\"step\": \"checked\", \"task_id\": \"fix\", \"state\": \"checked:satisfied\", \"detail\": \"текст найден\", \"lease\": 2}, {\"step\": \"done\", \"task_id\": null, \"state\": \"all satisfied\", \"lease\": null}]\n"
+   },
+   "no_double_effect": true,
+   "model_calls": 1,
+   "model_calls_limit": 2,
+   "role": {
+    "role": "reviewer",
+    "regression_rc": 0,
+    "summary": "1 passed in 0.72s"
+   },
+   "owner_interventions": 0,
+   "time_to_result_s": 8.86,
+   "owner_text": "Исправлена конвертация APY: тест падал до исправления и проходит после.",
+   "verdict": "OK"
+  },
+  "C_research": {
+   "scenario": "C_research",
+   "synthetic": true,
+   "provider_id": "fixture_test_adapter",
+   "steps": [
+    {
+     "step": "plan",
+     "graph_version": "b1946af2bd99a14ef57fa4a0c665999fcf6184a967ba8e41b8e9896988bd308c",
+     "tasks": [
+      "prereg"
+     ]
+    }
+   ],
+   "unapproved": {
+    "rc": 0,
+    "state": "new",
+    "why": "[{\"step\": \"await_approval\", \"task_id\": \"prereg\", \"state\": \"new\", \"lease\": null}]\n",
+    "refused": true
+   },
+   "killed_at": "applied",
+   "resume": {
+    "rc": 0,
+    "states": [
+     "started",
+     "applied",
+     "checked:satisfied"
+    ],
+    "done": true,
+    "out": "[{\"step\": \"checked\", \"task_id\": \"prereg\", \"state\": \"checked:satisfied\", \"detail\": \"текст найден\", \"lease\": 2}, {\"step\": \"done\", \"task_id\": null, \"state\": \"all satisfied\", \"lease\": null}]\n"
+   },
+   "no_double_effect": true,
+   "model_calls": 1,
+   "model_calls_limit": 2,
+   "role": {
+    "role": "researcher",
+    "prereg_sha256": "17c0132efe918099f50694c8449bb49d7aaf36b231362fadc83c24bba151bfa4",
+    "attempts_used": 1,
+    "strategy_net": -0.1865,
+    "hold_net": 0.0326,
+    "excess_after_costs": -0.2191,
+    "synthetic": true,
+    "verdict": "гипотеза НЕ подтверждена"
+   },
+   "owner_interventions": 0,
+   "time_to_result_s": 7.01,
+   "owner_text": "Исследование проведено по предрегистрации (1 попытка из 1): гипотеза НЕ подтверждена; разница с HOLD после издержек -0.2191. Данные синтетические.",
+   "verdict": "OK"
+  }
+ },
+ "synthetic": true,
+ "note": "стенд + тестовый провайдер; живые критерии E8.4 (наблюдение канарейки) — отдельно",
+ "verdict": "OK"
+}
