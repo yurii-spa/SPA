@@ -65,6 +65,7 @@
 | §4 надёжность | `7874da567` | журнал W44 | — |
 | S4 регрессии | `922a2462`, `e3f0a019` | журнал W44 | — |
 | §5 DeFi Checkup | `yurii-spa/defi-checkup` ветка `claude/refusal-next-step` @ `30fd52a` | vitest 271/272 (1 — прежний эталон после обновления APY) | отказы RP-EXIT-003/RP-DATA-002 получили шаг «что проверить»; не опубликовано |
+| §4 DeFi Checkup — красный `master` | `yurii-spa/defi-checkup` ветка `claude/apy-refresh-regenerates-golden` @ `eab8a58` | эталон пересобран штатным `build:sample`: 269/269 | еженедельный workflow APY теперь пересобирает эталон в том же коммите (иначе `master` краснел после каждого обновления) |
 
 ## Блокеры и зависимости
 - E6.6 (новая forward-серия), E8.4 (наблюдение канарейки) — требуют живых решений (R5/R7).
@@ -75,8 +76,5 @@
 ## Следующий шаг (для новой сессии)
 1. Дождаться/разобрать CI 41389731916 (`e3f0a019`) против прогона `main` 41388193352 (`7df4aae72`) — сверять ПОЛНЫЕ
    E-строки, не только имена (так найдены регрессии 02.11).
-2. DeFi Checkup: эталон `fixtures/expected/sample-report.json` разошёлся после еженедельного обновления APY
-   (`estimated_yield`, `protocol_yield`, `proof`) — тест A7 красен на `master`; пересборка штатным
-   `npm run build:sample` — отдельная правка. Локальное дерево `~/Documents/Claude/Projects/DeFi Checkup` несёт
-   ЧУЖИЕ незакоммиченные правки (июль) — не трогать; работать в клоне `~/Documents/SPA_worktrees/dc_s5`.
+2. DeFi Checkup: две ветки на `origin` ждут merge владельцем (`claude/refusal-next-step`, `claude/apy-refresh-regenerates-golden`); локальное дерево `~/Documents/Claude/Projects/DeFi Checkup` несёт ЧУЖИЕ незакоммиченные правки — не трогать, работать в клоне `~/Documents/SPA_worktrees/dc_s5`.
 3. При изменении `main` — сверка, слияние, полный CI; разрешение на прежний SHA не переносится.
