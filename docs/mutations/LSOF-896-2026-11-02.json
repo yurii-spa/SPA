@@ -1,0 +1,38 @@
+{
+ "title": "ADR-896 LSOF — вторая половина дельты цикла #1009 (заказ G891 п. 2): метка, которую разбор ЧИТАЕТ, обязана стоять в списке, который argv ПРОСИТ; механизм слепой оси на Linux назван уликой, а не угадан",
+ "tests": [
+  "scripts/tests/test_check_concurrent_pytest.py"
+ ],
+ "mutations": [
+  {
+   "name": "дефект ВОЗВРАЩЁН дословно: argv снова не просит `f` (состояние main до ADR-896)",
+   "file": "scripts/check_concurrent_pytest.py",
+   "old": "LSOF_FIELDS = \"fntia\"",
+   "new": "LSOF_FIELDS = \"tnia\""
+  },
+  {
+   "name": "объявление читаемых меток потеряло `f` — argv попросит не всё",
+   "file": "scripts/check_concurrent_pytest.py",
+   "old": "LSOF_PARSED_TAGS = (\"f\", \"a\", \"t\", \"n\", \"i\")",
+   "new": "LSOF_PARSED_TAGS = (\"a\", \"t\", \"n\", \"i\", \"f\")"
+  },
+  {
+   "name": "разбор НАЧИНАЕТ запись по метке процесса, а не дескриптора",
+   "file": "scripts/check_concurrent_pytest.py",
+   "old": "        if tag == \"f\":\n            if cur is not None:\n                out.append(cur)",
+   "new": "        if tag == \"p\":\n            if cur is not None:\n                out.append(cur)"
+  },
+  {
+   "name": "улика снова несёт СВОЙ список полей — описывает не тот зов, что вынес вердикт",
+   "file": "scripts/tests/test_check_concurrent_pytest.py",
+   "old": "    argv = [\"lsof\", \"-a\", \"-p\", str(os.getpid()), \"-d\", \"0-255\",\n            \"-F\" + ccp.LSOF_FIELDS]",
+   "new": "    argv = [\"lsof\", \"-a\", \"-p\", str(os.getpid()), \"-d\", \"0-255\", \"-Ftnia\"]"
+  },
+  {
+   "name": "запись собирается и БЕЗ открывающей метки — сцена ubuntu даёт «запись есть»",
+   "file": "scripts/check_concurrent_pytest.py",
+   "old": "        elif cur is None:\n            continue",
+   "new": "        elif cur is None:\n            cur = {\"fd\": \"?\", \"mode\": \"\", \"type\": None,\n                   \"path\": None, \"inode\": None}"
+  }
+ ]
+}

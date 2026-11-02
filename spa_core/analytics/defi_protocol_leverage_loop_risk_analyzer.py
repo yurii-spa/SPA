@@ -47,6 +47,8 @@ LOG_PATH = os.path.join(
     "data",
     "leverage_loop_risk_log.json",
 )
+_LOG_PATH_AT_IMPORT = LOG_PATH
+from spa_core.utils.data_dir import default_file as _default_file  # ADR-849 §2: SPA_DATA_DIR сильнее умолчания
 LOG_MAX_ENTRIES = 100
 
 # Risk-label thresholds on margin_of_safety_pct (percentage points)
@@ -371,6 +373,7 @@ def _init_log(path: str) -> list:
 
 def _append_log(result: dict, log_path: str = LOG_PATH) -> None:
     """Append a snapshot of *result* to the ring-buffer log (≤ LOG_MAX_ENTRIES)."""
+    log_path = _default_file(log_path, _LOG_PATH_AT_IMPORT)
     entries = _init_log(log_path)
     ts = result.get("analyzed_at") or _iso_now()
     snapshot = {

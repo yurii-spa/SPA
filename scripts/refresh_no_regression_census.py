@@ -51,6 +51,9 @@ junit-записью прогона, а записи прогона на хос�
 * записи после прогона нет или в ней ноль случаев ⇒ НЕ ИЗМЕРЕНО. Это НЕ редкость:
   `--timeout-method=thread` зовёт `os._exit(1)` и снимает сессию, тогда junit-файла
   не остаётся вовсе (ADR-474). Пустая запись не записывается как «всё прошло»;
+* `--now` подан и не разобран ⇒ НЕ ИЗМЕРЕНО. Момент замера — ВХОД (`--now`,
+  ADR-897): иначе инъекция часов кончается на границе подпроцесса, и сцена сравнивает
+  закреплённую отметку со стенным календарём;
 * перепись не измерила (население не разобрано, поверхность пуста) ⇒ её собственная
   причина, дословно.
 
@@ -162,6 +165,43 @@ def artifact_age_hours(repo_root: Path, *, now: datetime | None = None) -> tuple
     age = ((now or datetime.now(timezone.utc)) - made).total_seconds() / 3600.0
     return age, (f"возраст действующего отчёта {age:.1f}ч, вердикт "
                  f"{doc.get('verdict')!r}, измерено={doc.get('measured')!r}")
+
+
+def parse_now(raw: str | None) -> datetime | None:
+    """Момент, относительно которого судится срок, — ВХОД, и он переходит ГРАНИЦУ ПРОЦЕССА.
+
+    ``None`` — входа не было, судят стенные часы. Это БОЕВОЙ путь и он верен: ступень
+    моста и рука цикла спрашивают «сколько сейчас» у машины.
+
+    **Зачем вход (ADR-897).** `artifact_age_hours` принимал `now=` с рождения, но до
+    CLI этот шов не доходил, и за границей ПОДПРОЦЕССА инъекция кончалась: сцена
+    закрепляла ОДНУ сторону сравнения (отметку отчёта — от своего якоря), а вторую
+    (судью времени) спрашивал этот скрипт у календаря. 31.10 якорь сцены ушёл от
+    «сегодня» дальше, чем предел такта, и «внутри такта» молча стало «на сроке»:
+    пять проверок `test_no_regression_producer_wiring` и проба приёмки
+    `no_regression_record_is_produced_without_a_hand` покраснели от КАЛЕНДАРЯ, а не
+    от кода — ровно бомба из `.claude/rules/deployment.md` § «Время в тестах», но за
+    дверью, которой у того раздела не было: ПОДПРОЦЕСС. Претензия
+    `FROZEN-DATE-OK: injected-clock` в том файле была при этом ЛОЖНОЙ, и сторож
+    претензии (`test_injected_clock_claim.py`) этого не видел по построению — он
+    меряет AST ОДНОГО файла, а вторая половина сравнения жила в другом процессе.
+
+    Неразбираемое значение — ОТКАЗ, а не молчаливый возврат к стенным часам:
+    подстановка календаря вместо названного момента и есть тот самый дефект, против
+    которого вход написан. Третий исход обязан быть различим (инв. #17).
+    """
+    if raw is None:
+        return None
+    text = str(raw).strip()
+    if not text:
+        raise NotMeasured("--now дан пустым: момент НЕ НАЗВАН, а подставить стенные "
+                          "часы значило бы ответить про календарь")
+    try:
+        moment = datetime.fromisoformat(text.replace("Z", "+00:00"))
+    except ValueError as exc:
+        raise NotMeasured(f"--now не разобран ({text!r}): {exc} — ожидается ISO-8601; "
+                          f"стенные часы вместо названного момента не подставляются") from exc
+    return moment if moment.tzinfo is not None else moment.replace(tzinfo=timezone.utc)
 
 
 def population_files(repo_root: Path) -> list[str]:
@@ -415,7 +455,22 @@ def _lines(out: dict) -> list[str]:
                      f"{run['cases_in_record']} случа(й/ев) в записи, код pytest "
                      f"{run['returncode']}; запись оставлена на хосте: {run['record']}")
     report = out.get("report") or {}
-    lines += census._lines(report) if report else ["отчёта нет"]
+    if not report:
+        lines.append("отчёта нет")
+    else:
+        # ПЕЧАТНИК НЕ ВПРАВЕ РЕШАТЬ КОД ВОЗВРАТА (находка цикла #1010, ADR-897).
+        # Прежняя редакция звала `census._lines(report)` в лоб, и отчёт не той формы
+        # (например прежний отчёт, которому печатник переписи не нашёл ключа
+        # `population_total`) обрывал скрипт `KeyError` — трассировкой с кодом 1,
+        # то есть «регрессия НАЗВАНА». Вердикт считается НИЖЕ, по полям отчёта;
+        # у печати своего права на вердикт нет, а «не разобрал» — свой исход
+        # и обязан быть НАЗВАН, а не обменян на чужой код (инв. #17).
+        try:
+            lines += census._lines(report)
+        except BaseException as exc:  # noqa: BLE001 — печать не вправе менять вердикт
+            lines.append(f"[НЕ ИЗМЕРЕНО: печать] прежний отчёт не разобран печатником "
+                         f"переписи: {type(exc).__name__}: {exc} — вердикт ниже считается "
+                         f"по полям отчёта, не по этой строке")
     lines.append(f"[ИСТОЧНИК ВЕРДИКТА] {out.get('source')}")
     if out.get("allow_prod_tree"):
         lines.append("[ОБХОД] --allow-prod-tree: отказ «дерево боевое» снят ОСОЗНАННО — "
@@ -432,6 +487,10 @@ def _main(argv: list[str] | None = None) -> int:
                     help=f"прогонять только если отчёт старше --max-age-h "
                          f"(по умолчанию {DEFAULT_MAX_AGE_H:.0f}ч)")
     ap.add_argument("--max-age-h", type=float, default=DEFAULT_MAX_AGE_H)
+    ap.add_argument("--now", default=None,
+                    help="момент замера (ISO-8601) ВХОДОМ вместо стенных часов — так "
+                         "инъекция часов переходит границу подпроцесса (ADR-897); "
+                         "неразбираемое значение = НЕ ИЗМЕРЕНО, код 2")
     ap.add_argument("--junit", action="append", default=[],
                     help="взять ГОТОВУЮ запись (например выгрузку CI) вместо прогона")
     ap.add_argument("--allow-prod-tree", action="store_true",
@@ -461,11 +520,14 @@ def _main(argv: list[str] | None = None) -> int:
     made: Path | None = run_tree if args.make_tree else None
     built: dict | None = None
     try:
+        # Момент — ВХОД, и читается он ДО любого вердикта: неразбираемый `--now` обязан
+        # дать третий исход, а не тихо уехать на стенные часы (ADR-897).
+        moment = parse_now(args.now)
         if made is not None:
             # Срок решает ФАЙЛ, и спрашивается он ДО сборки дерева: собрать дерево,
             # чтобы тут же узнать «не срок», значило бы платить за ответ, который
             # лежал на диске (цена зова названа у соседа — ADR-414).
-            age, why = artifact_age_hours(repo_root)
+            age, why = artifact_age_hours(repo_root, now=moment)
             if args.if_due and age is not None and age <= args.max_age_h:
                 print(f"не срок: {why} при пределе {args.max_age_h:.0f}ч — "
                       f"одноразовое дерево НЕ собиралось")
@@ -477,7 +539,7 @@ def _main(argv: list[str] | None = None) -> int:
                       junit=args.junit, allow_prod_tree=args.allow_prod_tree,
                       write=not args.no_write, timeout_s=args.timeout_s,
                       records_root=Path(args.records_root) if args.records_root else None,
-                      run_tree=run_tree)
+                      run_tree=run_tree, now=moment)
     except NotMeasured as exc:
         print(f"критерий §49 `No regression`: НЕ ИЗМЕРЕНО — {exc}")
         return 2

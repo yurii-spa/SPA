@@ -13,6 +13,8 @@ from typing import Optional
 LOG_PATH = os.path.join(
     os.path.dirname(__file__), "..", "..", "data", "validator_economics_log.json"
 )
+_LOG_PATH_AT_IMPORT = LOG_PATH
+from spa_core.utils.data_dir import default_file as _default_file  # ADR-849 §2: SPA_DATA_DIR сильнее умолчания
 LOG_CAP = 100
 
 # Economics labels
@@ -245,7 +247,7 @@ def _compute_aggregates(results: list) -> dict:
 
 def _write_log(entry: dict) -> None:
     """Append entry to ring-buffer log (atomic write, cap LOG_CAP)."""
-    log_path = os.path.normpath(LOG_PATH)
+    log_path = os.path.normpath(_default_file(LOG_PATH, _LOG_PATH_AT_IMPORT))
     os.makedirs(os.path.dirname(log_path), exist_ok=True)
 
     existing: list = []

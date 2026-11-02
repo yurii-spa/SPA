@@ -1,0 +1,14 @@
+{
+ "title": "ADR-897 CLOCK-3 — вопрос о способности производителя принять якорь задан ОТДЕЛЬНО: рассогласование версий больше не доклад о проводке (ПОВТОР по выжившему: третий исход вопроса о способности)",
+ "tests": [
+  "spa_core/tests/test_no_regression_producer_wiring.py"
+ ],
+ "mutations": [
+  {
+   "name": "ненулевой --help читается как «умеет» — отсутствие ответа выдано за ответ",
+   "file": "spa_core/monitoring/card_acceptance.py",
+   "old": "    if _help.returncode != 0:\n        return UNMEASURED, (f\"производитель вышел {_help.returncode} на --help — умеет он \"\n                            f\"принять якорь или нет, НЕ ИЗМЕРЕНО: \"\n                            f\"{(_help.stdout + _help.stderr).strip()[-200:]!r}\")",
+   "new": "    if False:\n        return UNMEASURED, \"\""
+  }
+ ]
+}

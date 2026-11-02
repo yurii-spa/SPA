@@ -30,9 +30,17 @@
 входом в пробу). Поэтому сдвиг календаря не меняет здесь ни одного вердикта.
 
 # FROZEN-DATE-OK: injected-clock — якорь `NOW` уезжает входом `now=` в
-# `_probe_no_regression_record_is_produced_without_a_hand`, а отметки отчётов-сцен
-# считаются от него же (`_report` = NOW − timedelta); обе стороны сравнения закреплены
-# одним якорем, стенных часов в файле нет ни у одного вердикта.
+# `_probe_no_regression_record_is_produced_without_a_hand` И входом `--now` в
+# ПОДПРОЦЕСС производителя (`_run`), а отметки отчётов-сцен считаются от него же
+# (`_report` = NOW − timedelta); обе стороны сравнения закреплены одним якорем,
+# стенных часов в файле нет ни у одного вердикта.
+#
+# ⚠️ До ADR-897 эта претензия была ЛОЖНОЙ, и ложной её не видел никто: сторож
+# претензии (`test_injected_clock_claim.py`) меряет AST ОДНОГО файла, а вторая
+# сторона сравнения жила в ДРУГОМ ПРОЦЕССЕ — `subprocess.run` есть такая же дверь
+# к стенным часам, как `datetime.now()`, только AST за неё не видит. Контроль
+# именно на это свойство — `test_the_verdict_is_decided_by_the_anchor_not_the_calendar`
+# ниже: он краснеет, если `--now` из `_run` убрать.
 """
 # LLM_FORBIDDEN
 from __future__ import annotations
@@ -206,10 +214,16 @@ class TactIsDecidedByTheFile(unittest.TestCase):
         (self.scene / ARTIFACT).write_text(json.dumps(_report(age_h)), encoding="utf-8")
 
     def _run(self, *extra):
+        # `--now` — ВТОРАЯ сторона сравнения, и до ADR-897 её здесь не было: отметку
+        # отчёта считал `_report` от якоря `NOW`, а «сколько сейчас» производитель
+        # спрашивал у стенных часов УЖЕ В ДРУГОМ ПРОЦЕССЕ. 31.10 разрыв между якорем
+        # и календарём перевалил предел такта, и все пять проверок этого файла
+        # покраснели от ДАТЫ ПРОГОНА. Якорь переходит границу процесса — иначе
+        # претензия `injected-clock` в шапке файла остаётся ложной.
         return subprocess.run(
             [sys.executable, str(_REPO / PRODUCER_REL), "--if-due", "--make-tree",
              "--repo-root", str(self.scene), "--run-tree", str(self.tree),
-             "--records-root", str(self.scene), *extra],
+             "--records-root", str(self.scene), "--now", NOW.isoformat(), *extra],
             capture_output=True, text=True, timeout=300)
 
     def test_inside_the_tact_no_tree_is_built_at_all(self):
@@ -220,6 +234,102 @@ class TactIsDecidedByTheFile(unittest.TestCase):
         self.assertIn("не срок", cp.stdout)
         self.assertFalse(self.tree.exists(),
                          "внутри такта дерево прогона собрано — срок решает зов, не файл")
+
+    def test_the_verdict_is_decided_by_the_anchor_not_the_calendar(self):
+        """Порванное звено: якорь не переходит границу процесса (бомба 31.10, ADR-897).
+
+        Контроль ДИФФЕРЕНЦИАЛЬНЫЙ и потому не проходит подстрокой: отчёт на диске
+        ОДИН И ТОТ ЖЕ, меняется ровно `--now`, и вердикт обязан меняться вместе с ним.
+        Урони `--now` из `_run` — и оба зова ответят одно и то же про календарь, то
+        есть этот тест покраснеет, а остальные снова станут бомбой.
+        """
+        stamp = (NOW - timedelta(hours=1.0)).isoformat()
+        (self.scene / ARTIFACT).write_text(json.dumps(
+            {"generated_at": stamp, "measured": True, "verdict": "OK"}), encoding="utf-8")
+
+        inside = self._run()
+        self.assertEqual(inside.returncode, 0, (inside.stdout + inside.stderr)[-400:])
+        self.assertIn("не срок", inside.stdout)
+
+        # ТОТ ЖЕ отчёт, момент сдвинут за предел такта — вердикт обязан стать другим.
+        late = subprocess.run(
+            [sys.executable, str(_REPO / PRODUCER_REL), "--if-due", "--make-tree",
+             "--repo-root", str(self.scene), "--run-tree", str(self.tree),
+             "--records-root", str(self.scene),
+             "--now", (NOW + timedelta(hours=400.0)).isoformat()],
+            capture_output=True, text=True, timeout=300)
+        self.assertNotIn("не срок", late.stdout,
+                         "момент сдвинут за предел такта, а вердикт не изменился — "
+                         "якорь границу процесса НЕ переходит, судит календарь")
+
+    def test_the_tact_is_judged_by_the_anchor_even_WITHOUT_make_tree(self):
+        """Порванное звено: якорь доходит до предсборочного вопроса и НЕ доходит до `refresh`.
+
+        Дыра НАЙДЕНА мутацией (`now=moment` снят у зова `refresh`) и мутант её пережил:
+        все сцены батареи шли с `--make-tree`, а на этом пути срок решается ДО сборки
+        дерева, и второй вопрос о сроке уже недостижим. Без `--make-tree` решает он —
+        то есть у зова `--if-due` без сборки дерева якорь обходился календарём.
+
+        Население прогона здесь НЕ гоняется намеренно: `--junit` с несуществующей
+        записью уводит ветку мимо `pytest` (иначе тест прогнал бы весь набор сцены).
+        """
+        missing = str(self.scene / "нет-такой-записи.xml")
+        self._say(1.0)
+        inside = subprocess.run(
+            [sys.executable, str(_REPO / PRODUCER_REL), "--if-due", "--no-write",
+             "--repo-root", str(self.scene), "--records-root", str(self.scene),
+             "--junit", missing, "--now", NOW.isoformat()],
+            capture_output=True, text=True, timeout=300)
+        self.assertEqual(inside.returncode, 0, (inside.stdout + inside.stderr)[-400:])
+        self.assertIn("не срок", inside.stdout)
+
+        late = subprocess.run(
+            [sys.executable, str(_REPO / PRODUCER_REL), "--if-due", "--no-write",
+             "--repo-root", str(self.scene), "--records-root", str(self.scene),
+             "--junit", missing, "--now", (NOW + timedelta(hours=400.0)).isoformat()],
+            capture_output=True, text=True, timeout=300)
+        self.assertNotIn("не срок", late.stdout,
+                         "без --make-tree момент сдвинут за предел такта, а вердикт тот "
+                         "же — второй вопрос о сроке судит календарь, не якорь")
+        self.assertFalse(self.tree.exists(), "без --make-tree дерево прогона собрано")
+
+    def test_a_zoneless_now_is_read_as_UTC_and_not_as_a_naive_moment(self):
+        """Порванное звено: момент без зоны объявляется как есть.
+
+        Дыра НАЙДЕНА мутацией (`return moment` вместо приведения к UTC) и мутант её
+        пережил: батарея подавала только `NOW.isoformat()`, то есть момент С зоной.
+        А отметка отчёта зону несёт всегда, и вычитание naive из aware рушится
+        `TypeError` — не отказом с причиной, а трассировкой.
+        """
+        self._say(1.0)
+        cp = self._run("--now", NOW.replace(tzinfo=None).isoformat())
+        self.assertEqual(cp.returncode, 0, (cp.stdout + cp.stderr)[-400:])
+        self.assertIn("не срок", cp.stdout)
+        self.assertNotIn("Traceback", cp.stderr,
+                         "момент без зоны уронил производитель трассировкой — "
+                         "у этого исхода нет ни причины, ни кода возврата")
+
+    def test_an_unparsable_now_is_a_third_outcome_and_not_the_wall_clock(self):
+        """Порванное звено: неразбираемый момент тихо уезжает на стенные часы.
+
+        Молчаливая подстановка календаря вместо названного момента и есть тот дефект,
+        ради которого вход появился: «не измерено» стало бы неотличимо от «измерено».
+        """
+        self._say(1.0)
+        cp = self._run("--now", "вчера")
+        self.assertEqual(cp.returncode, 2, (cp.stdout + cp.stderr)[-400:])
+        self.assertIn("НЕ ИЗМЕРЕНО", cp.stdout)
+        self.assertIn("--now не разобран", cp.stdout)
+        self.assertNotIn("не срок", cp.stdout,
+                         "неразобранный момент прочитан как «внутри такта» — fail-OPEN")
+
+        # ПУСТОЕ значение — своя сторона того же отказа, и мутант «пустой `--now`
+        # читается как момента не подали» прежнюю редакцию ПЕРЕЖИЛ: «не названо»
+        # становилось неотличимо от «не спрошено».
+        empty = self._run("--now", "")
+        self.assertEqual(empty.returncode, 2, (empty.stdout + empty.stderr)[-400:])
+        self.assertIn("момент НЕ НАЗВАН", empty.stdout)
+        self.assertNotIn("не срок", empty.stdout)
 
     def test_past_the_tact_it_really_goes_for_the_tree(self):
         """Порванное звено: ветка срока ведёт в никуда и молча выходит нулём.
@@ -412,6 +522,47 @@ class TheProbeMeasuresTheOutcome(unittest.TestCase):
         st, why = self._probe(producer_rel=os.path.join("scripts", "нет-такого.py"))
         self.assertEqual(st, ca.UNMEASURED, why)
         self.assertIn("нет на диске", why)
+
+    def test_unmeasured_when_the_producer_on_disk_does_not_know_the_anchor(self):
+        """Порванное звено: РАССОГЛАСОВАНИЕ ВЕРСИЙ доложено как находка о проводке.
+
+        Найдено сразу после ADR-897 на живом прод-дереве: проба передаёт `--now`, а
+        производитель той версии входа не знает и отвечает argparse-ошибкой с кодом 2 —
+        тем же кодом, которым он сам говорит «НЕ ИЗМЕРЕНО». Прежняя редакция читала это
+        как `not_satisfied` «внутри такта ответил не «не срок»».
+
+        Предмет подаётся ВХОДОМ и это НАСТОЯЩИЙ файл дерева, а не заглушка: любой
+        соседний скрипт входа `--now` не знает, и этим сцена отличается от исправной
+        ровно одним свойством — умением производителя принять якорь.
+        """
+        st, why = self._probe(producer_rel=os.path.join("scripts", "book_second_record.py"))
+        self.assertEqual(st, ca.UNMEASURED, why)
+        self.assertIn("НЕ ЗНАЕТ входа --now", why)
+        self.assertIn("РАССОГЛАСОВАНИЕ ВЕРСИЙ", why)
+
+    def test_unmeasured_when_the_producer_does_not_answer_help_at_all(self):
+        """Порванное звено: «не ответил» читается как «умеет».
+
+        Дыра НАЙДЕНА мутацией (ветка ненулевого кода снята) и мутант её пережил: без этой
+        сцены оба состояния давали `unmeasured`, но по РАЗНЫМ причинам, а причину не
+        спрашивал никто. Три исхода у вопроса о способности обязаны быть различимы
+        (инв. #17): умеет · не умеет · НЕ ОТВЕТИЛ.
+
+        Производитель подаётся ВХОДОМ и падает намеренно — `--help` у него не доходит до
+        разбора вовсе; `repo_root` при этом тоже входной, потому что проба спрашивает о
+        способности ДО конституции и до ступени моста.
+        """
+        import tempfile
+        root = pathlib.Path(tempfile.mkdtemp(prefix="nrw_noanswer_"))
+        (root / "scripts").mkdir()
+        (root / "scripts" / "molchun.py").write_text(
+            "raise SystemExit(3)\n", encoding="utf-8")
+        st, why = self._probe(repo_root=str(root),
+                              producer_rel=os.path.join("scripts", "molchun.py"))
+        self.assertEqual(st, ca.UNMEASURED, why)
+        self.assertIn("на --help", why)
+        self.assertNotIn("НЕ ЗНАЕТ входа --now", why,
+                         "«не ответил» подменено «не умеет» — причины неразличимы")
 
     def test_unmeasured_when_the_live_artifact_has_no_readable_stamp(self):
         st, why = self._probe(live_report={"generated_at": "вчера"})

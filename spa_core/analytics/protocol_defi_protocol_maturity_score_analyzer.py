@@ -41,6 +41,8 @@ LOG_PATH = os.path.join(
     "data",
     "protocol_maturity_score_log.json",
 )
+_LOG_PATH_AT_IMPORT = LOG_PATH
+from spa_core.utils.data_dir import default_file as _default_file  # ADR-849 §2: SPA_DATA_DIR сильнее умолчания
 LOG_MAX_ENTRIES = 100
 
 # Composite weights (must sum to 1.0)
@@ -427,6 +429,7 @@ def _init_log(path: str) -> list:
 
 def _append_log(result: dict, log_path: str = LOG_PATH) -> None:
     """Append a snapshot of *result* to the ring-buffer log (≤ LOG_MAX_ENTRIES)."""
+    log_path = _default_file(log_path, _LOG_PATH_AT_IMPORT)
     entries = _init_log(log_path)
     ts = result.get("analyzed_at") or _iso_now()
     snapshot = {

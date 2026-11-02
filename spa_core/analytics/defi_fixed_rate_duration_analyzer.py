@@ -72,6 +72,8 @@ from spa_core.utils.atomic import atomic_save
 _LOG_PATH = os.path.join(
     os.path.dirname(__file__), "..", "..", "data", "fixed_rate_duration_log.json"
 )
+_LOG_PATH_AT_IMPORT = _LOG_PATH
+from spa_core.utils.data_dir import default_file as _default_file  # ADR-849 §2: SPA_DATA_DIR сильнее умолчания
 _LOG_CAP = 100
 
 _DAYS_PER_YEAR = 365.0
@@ -373,7 +375,7 @@ class DeFiFixedRateDurationAnalyzer:
         # -- Ring-buffer log --------------------------------------------
         write_log = config.get("write_log", True)
         if write_log:
-            log_path = config.get("log_path", _LOG_PATH)
+            log_path = config.get("log_path", _default_file(_LOG_PATH, _LOG_PATH_AT_IMPORT))
             try:
                 _atomic_log(
                     log_path,

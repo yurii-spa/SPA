@@ -17,6 +17,7 @@ from concurrent.futures import ThreadPoolExecutor, as_completed
 from datetime import datetime, timezone
 from pathlib import Path
 from spa_core.utils import clock
+from spa_core.utils.data_dir import own_data_dir as _own_data_dir  # ADR-849 §2: SPA_DATA_DIR сильнее умолчания
 
 # ─── Конфигурация ───────────────────────────────────────────────────────────────
 
@@ -637,7 +638,8 @@ class DeFiLlamaFetcher:
                 "total_pools_skipped": len(skipped),
                 "chains": chain_stats,
             }
-            output_dir = Path(__file__).parent.parent.parent / "data"
+            output_dir = _own_data_dir(
+                Path(__file__).parent.parent.parent / "data")
             output_dir.mkdir(parents=True, exist_ok=True)
             (output_dir / "chains_status.json").write_text(
                 __import__("json").dumps(chains_status, indent=2), encoding="utf-8"
