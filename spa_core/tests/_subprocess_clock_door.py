@@ -468,7 +468,10 @@ def _run_pytest(tree_root: Path, files: list[str], *, shift_days: float | None,
     env["SPA_SANDBOX"] = "1"
     env["SPA_LIVE_ROOT"] = str(tree_root)
     env["SPA_DATA_DIR"] = str(tree_root / "data")
-    argv = [sys.executable, "-u", "-m", "pytest", "-v", "-p", "no:randomly", *files]
+    # якорь rootdir (класс test_child_pytest_rootdir.py): РАЗРЕШЁННЫЙ корень дерева — `/var/folders` есть ссылка на
+    # `/private/var`, и неразрешённый якорь ронял сбор целиком (замер 02.11 на live_registry_scene_census)
+    argv = [sys.executable, "-u", "-m", "pytest", "-v", "-p", "no:randomly", *files,
+            "--rootdir", str(Path(tree_root).resolve())]
     if shift_days is not None:
         shim_dir, plugin = materialise_shim(workdir, shift_days=shift_days)
         env["SPA_CLOCK_SHIM_DIR"] = str(shim_dir)
