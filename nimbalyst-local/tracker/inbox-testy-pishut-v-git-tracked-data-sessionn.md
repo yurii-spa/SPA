@@ -2,7 +2,7 @@
 trackerStatus:
   type: inbox
 title: Тесты пишут в git-tracked data/ — сессионный сторож отказывает в КАЖДОМ прогоне CI (12 из 12 шардов), и зелёный контрольный прогон недостижим
-status: in-progress
+status: done
 source: nimbalyst
 created: 2026-11-02
 finding_adr: ADR-899
@@ -18,6 +18,7 @@ status_trail:
   - "2026-11-02T15:02:14.207499+00:00 new -> in-progress · queue.set_status · cycle-95431"
   - "2026-11-02T16:20:01.272683+00:00 in-progress -> new · queue.set_status · cycle-95431"
   - "2026-11-02T16:20:48.479968+00:00 new -> in-progress · queue.set_status · cycle-95431"
+  - "2026-11-02T16:58:04.077087+00:00 in-progress -> done · queue.set_status/closed_by:цикл #1013 (ADR-900)/evidence:проба tracked_data_untouched_by_declared_runs:run на доставленном origin/main df6a24a07 = satisfied: прогон 50 объявленных модулей (6008 passed) не тронул ни одного из 407 git-tracked файлов data/ сце · cycle-95431"
 ---
 
 ## Что измерено
@@ -107,3 +108,15 @@ status_trail:
 та же проба, тот же исход, но тяжёлый замер идёт ТОЛЬКО по явному аргументу. Без
 аргумента проба отвечает «НЕ ИЗМЕРЕНО» с названной причиной — не «чисто».
 Предмет критерия не ослаблен: `:run` мерит то же и тем же.
+
+## Приёмка ИЗМЕРЕНА на доставленном origin/main
+
+Коммит `df6a24a07`. Проба `tracked_data_untouched_by_declared_runs:run`, сцена
+`git archive origin/main`:
+
+> **satisfied** — прогон 50 объявленных модулей (6008 passed, 26 subtests) не тронул
+> ни одного из 407 git-tracked файлов `data/` сцены — измерено и равно нулю.
+
+Предмет карточки (семь модулей) закрыт. Часть 2 карточки (виновник в канале сторожа)
+и остаток класса (18 модулей, из них 4 — денежный путь) живут в
+`inbox-ostatok-klassa-test-pishet-v-git-tracked` и в заказе G896.
