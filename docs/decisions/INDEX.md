@@ -770,6 +770,7 @@
 | ADR-898 | Девятая дверь: поверхность ИЗМЕРЕНА (30 из 273, шов у 2), а КЛАСС — НЕ ИЗМЕРЕН, и причина названа прибором | Accepted | [ADR-898](ADR-898-the-subprocess-clock-door-class-is-measured.md) |
 | ADR-899 | Шард, сказавший «упало» без имён — РОД: сессионный сторож поднял код над ЗЕЛЁНОЙ сессией; у вопроса четыре исхода, шард ИЗМЕРЕН, отказ сам держит RED | Accepted | [ADR-899](ADR-899-shard-exit-raised-by-a-session-guard.md) |
 | ADR-900 | Писатель журнала состояния спрашивает дверь песочницы, а не свой `__file__`: класс «тест пишет в git-tracked `data/`» ИЗМЕРЕН (68, не 7) и закрыт на 50 | Accepted | [ADR-900](ADR-900-tracked-data-writers-ask-the-sandbox-door.md) |
+| ADR-901 | Решения владельца 02.11 по пакету автономного мандата (девять вопросов) | Accepted | [ADR-901](ADR-901-owner-decisions-2026-11-02-on-the-autonomous-package.md) |
 
 ## Соглашения
 
