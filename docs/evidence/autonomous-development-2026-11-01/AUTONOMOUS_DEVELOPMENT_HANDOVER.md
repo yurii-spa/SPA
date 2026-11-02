@@ -63,6 +63,7 @@
 | §2.5 серия E6.6 (подготовка) | см. `git log` | `forward_series.py` + `docs/research_contracts/series-spot-frac-k075-band05.json` (PREPARED); 5 тестов, мутанты 2/2 убиты | запуск — ARB (вариант «а») + владелец |
 | §3 S5 стенд | `9f17c679c` | `S5_STAND.md`, `s5_stand_record.json` | S5 НЕ завершён |
 | §4 надёжность | `7874da567` | журнал W44 | — |
+| §4 сторож прод-трекера | см. `git log` | `utils/atomic`: под pytest запись в НАСТОЯЩИЙ трекер владельца — `LiveTrackerWriteInTest`; 4 теста, мутант убит; широкий пакет 7551 passed, ни одного падения от сторожа (оставшиеся красны и на `main`) | журнал W44 |
 | S4 регрессии | `922a2462`, `e3f0a019` | журнал W44 | — |
 | §5 DeFi Checkup | `yurii-spa/defi-checkup` ветка `claude/refusal-next-step` @ `30fd52a` | vitest 271/272 (1 — прежний эталон после обновления APY) | отказы RP-EXIT-003/RP-DATA-002 получили шаг «что проверить»; не опубликовано |
 | §4 DeFi Checkup — красный `master` | `yurii-spa/defi-checkup` ветка `claude/apy-refresh-regenerates-golden` @ `eab8a58` | эталон пересобран штатным `build:sample`: 269/269 | еженедельный workflow APY теперь пересобирает эталон в том же коммите (иначе `master` краснел после каждого обновления) |
