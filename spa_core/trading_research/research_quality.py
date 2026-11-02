@@ -169,3 +169,42 @@ def deflated_sharpe(results: List[Dict], ids: Iterable[str], *, n_trials: Option
         out[cid] = {"state": MEASURED, "daily_sharpe": round(sr, 5), "observations": T, "dsr": round(p, 4),
                     "distinguishable_from_luck": p >= 0.95}
     return {**base, "state": MEASURED, "sr_threshold_daily": round(sr_star, 5), "candidates": out}
+
+
+_CLOSED_WINDOWS = ("in_sample", "out_of_sample", "gating")
+_CLOSED_FIELDS = ("bars", "net_return", "sharpe", "max_drawdown", "trades")
+
+
+def closed_window_stability(history_files: Iterable) -> Dict:
+    """Не переписывает ли обновление данных ЗАКРЫТОЕ прошлое: для каждой пары версий бэктеста с ОДНОЙ версией кода
+    метрики закрытых окон (IS, OOS, срез до старта forward) обязаны совпадать. Смена кода — новая версия, а не
+    переписывание: прежний файл истории остаётся. Ни одной сравнимой пары — ``UNKNOWN``, а не «стабильно»."""
+    import json as _json
+    from pathlib import Path as _P
+    prev: Dict[tuple, tuple] = {}
+    compared, changed, unreadable = 0, [], []
+    files = sorted(_P(f) for f in history_files)
+    for f in files:
+        try:
+            doc = _json.loads(f.read_text(encoding="utf-8"))
+            code = doc["manifest"]["code_version"]
+            results = doc["results"]
+        except (OSError, ValueError, KeyError, TypeError) as exc:
+            unreadable.append(f"{f.name}: {type(exc).__name__}")
+            continue
+        for r in results:
+            for w in _CLOSED_WINDOWS:
+                m = r.get(w) or {}
+                sig = tuple(m.get(k) for k in _CLOSED_FIELDS)
+                key = (code, r.get("id"), w)
+                if key in prev:
+                    compared += 1
+                    if prev[key][1] != sig:
+                        changed.append({"candidate": r.get("id"), "window": w, "code_version": code,
+                                        "before": prev[key][0], "after": f.name})
+                prev[key] = (f.name, sig)
+    base = {"files": len(files), "compared": compared, "changed": changed[:20], "changed_count": len(changed),
+            "unreadable": unreadable}
+    if compared == 0:
+        return {**base, "state": UNKNOWN, "why": "нет двух версий с одной версией кода — сравнивать нечего"}
+    return {**base, "state": "STABLE" if not changed else "REWRITTEN"}

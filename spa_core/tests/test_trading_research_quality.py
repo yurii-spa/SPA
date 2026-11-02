@@ -104,3 +104,23 @@ def test_cockpit_card_names_hypothesis_control_trust_and_never_sums():
     assert te._vs_hold(None)["state"] == "UNKNOWN"
     m = te._vs_hold({"state": "MEASURED", "forward_net": -0.04, "hold_net": -0.07, "excess_vs_hold": 0.03, "bars": 31})
     assert m["text"].startswith("лучше HOLD на 3.0 п.п.")
+
+
+def _bt(tmp, name, code, sharpe):
+    import json as _j
+    p = tmp / name
+    p.write_text(_j.dumps({"manifest": {"code_version": code}, "results": [
+        {"id": "c1", "in_sample": {"bars": 10, "net_return": 0.1, "sharpe": sharpe, "max_drawdown": -0.1, "trades": 3},
+         "out_of_sample": {}, "gating": {}}]}))
+    return p
+
+
+def test_closed_windows_are_stable_across_data_updates_and_a_rewrite_is_named(tmp_path):
+    a = _bt(tmp_path, "backtest_1.json", "v1", 0.5)
+    b = _bt(tmp_path, "backtest_2.json", "v1", 0.5)
+    assert rq.closed_window_stability([a, b])["state"] == "STABLE"
+    c = _bt(tmp_path, "backtest_3.json", "v1", 0.9)                       # то же прошлое, другое число
+    r = rq.closed_window_stability([a, b, c])
+    assert r["state"] == "REWRITTEN" and r["changed"][0]["window"] == "in_sample"
+    d = _bt(tmp_path, "backtest_4.json", "v2", 0.9)                       # смена кода — не переписывание
+    assert rq.closed_window_stability([a, d])["state"] == rq.UNKNOWN
