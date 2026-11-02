@@ -26,6 +26,7 @@ from . import evidence as ev
 from . import lifecycle as lc
 from . import market_data as md
 from . import ranking as rk
+from . import research_quality as rq
 from .execution import EXEC_MODELS, State, funding_in_bar, step
 from .metrics import evaluate
 from .strategies import ASSETS, by_id, registry
@@ -303,6 +304,17 @@ def _bt_manifest(p: Path) -> Optional[Dict]:
         return None
 
 
+def _research_quality(mconn, res, fwd_ids, now_ms) -> Dict:
+    """Ничего не решает: только называет, насколько отобранному результату можно верить."""
+    results = res.get("results") or []
+    n_eff = rq.effective_trials(results)
+    return {"market_data": rq.market_freshness(mconn, now_ms),
+            "selection": {"all_trials": rq.deflated_sharpe(results, fwd_ids),
+                          "effective_trials": (rq.deflated_sharpe(results, fwd_ids, n_trials=n_eff)
+                                               if n_eff else {"state": rq.UNKNOWN,
+                                                              "why": "корреляцию испытаний измерить не удалось"})}}
+
+
 def write_status(econn, mconn, res, quals, short, bms, *, now_ms, code, release) -> Dict:
     from collections import Counter
     from spa_core.utils.atomic import atomic_save
@@ -333,6 +345,8 @@ def write_status(econn, mconn, res, quals, short, bms, *, now_ms, code, release)
             "full_max_drawdown": r["full"].get("max_drawdown"),
             "forward_observations": ev.observation_count(econn, cid),   # fix D1: real COUNT(*), no +1 seed
             "forward_net": fm.get("net_return"),
+            # мандат 01.11 §2.3: HOLD BTC за ТО ЖЕ окно наблюдений, после издержек; пропуски ⇒ INCOMPLETE
+            "vs_hold": rq.forward_vs_hold(econn, cid, r["definition"]["timeframe"]),
         })
     forward_candidates.sort(key=lambda c: (c["oos_sharpe"] is None, -(c["oos_sharpe"] or 0)))
     top = []
@@ -368,6 +382,8 @@ def write_status(econn, mconn, res, quals, short, bms, *, now_ms, code, release)
         # "what is the engine's live forward state" must use this one, not shortlist.
         "shortlist": top,
         "forward_candidates": forward_candidates,
+        # мандат 01.11 §2.3: свежесть рыночных данных и поправка на отбор (DSR) — отдельно от вердиктов движка
+        "research_quality": _research_quality(mconn, res, fwd_ids, now_ms),
     }
     atomic_save(status, str(data_dir() / "status.json"))
     return status

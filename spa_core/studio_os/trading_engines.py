@@ -56,6 +56,49 @@ def _ro(path):
     return sqlite3.connect(f'file:{path}?mode=ro', uri=True)
 
 
+def _vs_hold(v):
+    if not isinstance(v, dict):
+        return {'state': 'UNKNOWN', 'text': 'сравнение с HOLD не посчитано (статус старой версии)'}
+    if v.get('state') != 'MEASURED':
+        return {'state': v.get('state') or 'UNKNOWN', 'text': v.get('why') or 'сравнение с HOLD не измерено'}
+    ex = v['excess_vs_hold']
+    return {'state': 'MEASURED', 'forward_net': v['forward_net'], 'hold_net': v['hold_net'], 'excess': ex,
+            'text': f"{'лучше' if ex > 0 else 'хуже' if ex < 0 else 'наравне с'} HOLD на {abs(ex) * 100:.1f} п.п. "
+                    f"за то же окно ({v['bars']} баров), после издержек"}
+
+
+def _research_card(st, fwd):
+    """Что исследуется, против чего, насколько верить — словами, без суммы доходностей разных стратегий."""
+    rq = st.get('research_quality') if isinstance(st.get('research_quality'), dict) else {}
+    md = rq.get('market_data') if isinstance(rq.get('market_data'), dict) else {}
+    sel = (rq.get('selection') or {}) if isinstance(rq.get('selection'), dict) else {}
+    a, e = sel.get('all_trials') or {}, sel.get('effective_trials') or {}
+    dsr = {}
+    for k, blk in (('all', a), ('eff', e)):
+        for cid, v in (blk.get('candidates') or {}).items():
+            if isinstance(v, dict) and v.get('state') == 'MEASURED':
+                dsr.setdefault(cid, {})[k] = v.get('dsr')
+    luck = [c for c, v in dsr.items() if (v.get('eff') if v.get('eff') is not None else v.get('all', 0)) >= 0.95]
+    if not dsr:
+        trust = 'поправка на отбор не посчитана — достоверность отбора НЕ ИЗМЕРЕНА'
+    elif luck:
+        trust = f'с поправкой на отбор отличимы от удачи: {len(luck)} из {len(dsr)}'
+    else:
+        trust = (f"с поправкой на отбор ({a.get('trials_tested')} испытаний; эффективно ≈{e.get('trials_used')}) ни один "
+                 f"из {len(dsr)} не отличим от удачи (DSR < 0.95)")
+    return {
+        'hypothesis': 'правила тренда/импульса/возврата на BTC (10 семейств, 1h/4h/1D) лучше, чем держать BTC, после издержек',
+        'control': 'HOLD BTC за то же окно, с издержками входа',
+        'selection': {'trials_tested': a.get('trials_tested'), 'trials_effective': e.get('trials_used'),
+                      'dsr': dsr, 'text': trust},
+        'data': {'state': md.get('state') or 'UNKNOWN',
+                 'text': (f"рыночные данные свежие ({md.get('age_minutes')} мин)" if md.get('state') == 'FRESH' else
+                          f"рыночные данные УСТАРЕЛИ ({md.get('age_minutes')} мин)" if md.get('state') == 'STALE' else
+                          md.get('why') or 'свежесть рыночных данных не измерена')},
+        'next_check': 'зрелость forward (30 дн.), затем — повторный отбор только с предрегистрацией и бюджетом попыток',
+    }
+
+
 def build_spa_trading(data_dir=None, now=None):
     """SPA Trading Research block — status.json (derived) + evidence.db (the ledger) for the last decision."""
     now = now or datetime.now(timezone.utc)
@@ -100,7 +143,10 @@ def build_spa_trading(data_dir=None, now=None):
     # paper result PER candidate — five different strategies are never added into one number
     out['paper_result'] = {'kind': 'per_candidate_forward_net', 'summed': False,
                            'rows': [{'id': c['id'], 'forward_net': c.get('forward_net'),
-                                     'observations': c.get('forward_observations')} for c in fwd]}
+                                     'observations': c.get('forward_observations'),
+                                     # мандат 01.11 §2.6: тот же forward против HOLD BTC за ТО ЖЕ окно, после издержек
+                                     'vs_hold': _vs_hold(c.get('vs_hold'))} for c in fwd]}
+    out['research'] = _research_card(st, fwd)
     days = out['history']['calendar_days']
     blocks = []
     if st.get('evidence_verified') is False:
