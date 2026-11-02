@@ -523,6 +523,47 @@ class TheProbeMeasuresTheOutcome(unittest.TestCase):
         self.assertEqual(st, ca.UNMEASURED, why)
         self.assertIn("нет на диске", why)
 
+    def test_unmeasured_when_the_producer_on_disk_does_not_know_the_anchor(self):
+        """Порванное звено: РАССОГЛАСОВАНИЕ ВЕРСИЙ доложено как находка о проводке.
+
+        Найдено сразу после ADR-897 на живом прод-дереве: проба передаёт `--now`, а
+        производитель той версии входа не знает и отвечает argparse-ошибкой с кодом 2 —
+        тем же кодом, которым он сам говорит «НЕ ИЗМЕРЕНО». Прежняя редакция читала это
+        как `not_satisfied` «внутри такта ответил не «не срок»».
+
+        Предмет подаётся ВХОДОМ и это НАСТОЯЩИЙ файл дерева, а не заглушка: любой
+        соседний скрипт входа `--now` не знает, и этим сцена отличается от исправной
+        ровно одним свойством — умением производителя принять якорь.
+        """
+        st, why = self._probe(producer_rel=os.path.join("scripts", "book_second_record.py"))
+        self.assertEqual(st, ca.UNMEASURED, why)
+        self.assertIn("НЕ ЗНАЕТ входа --now", why)
+        self.assertIn("РАССОГЛАСОВАНИЕ ВЕРСИЙ", why)
+
+    def test_unmeasured_when_the_producer_does_not_answer_help_at_all(self):
+        """Порванное звено: «не ответил» читается как «умеет».
+
+        Дыра НАЙДЕНА мутацией (ветка ненулевого кода снята) и мутант её пережил: без этой
+        сцены оба состояния давали `unmeasured`, но по РАЗНЫМ причинам, а причину не
+        спрашивал никто. Три исхода у вопроса о способности обязаны быть различимы
+        (инв. #17): умеет · не умеет · НЕ ОТВЕТИЛ.
+
+        Производитель подаётся ВХОДОМ и падает намеренно — `--help` у него не доходит до
+        разбора вовсе; `repo_root` при этом тоже входной, потому что проба спрашивает о
+        способности ДО конституции и до ступени моста.
+        """
+        import tempfile
+        root = pathlib.Path(tempfile.mkdtemp(prefix="nrw_noanswer_"))
+        (root / "scripts").mkdir()
+        (root / "scripts" / "molchun.py").write_text(
+            "raise SystemExit(3)\n", encoding="utf-8")
+        st, why = self._probe(repo_root=str(root),
+                              producer_rel=os.path.join("scripts", "molchun.py"))
+        self.assertEqual(st, ca.UNMEASURED, why)
+        self.assertIn("на --help", why)
+        self.assertNotIn("НЕ ЗНАЕТ входа --now", why,
+                         "«не ответил» подменено «не умеет» — причины неразличимы")
+
     def test_unmeasured_when_the_live_artifact_has_no_readable_stamp(self):
         st, why = self._probe(live_report={"generated_at": "вчера"})
         self.assertEqual(st, ca.UNMEASURED, why)
