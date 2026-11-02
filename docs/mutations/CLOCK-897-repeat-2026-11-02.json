@@ -1,0 +1,32 @@
+{
+ "title": "ADR-897 CLOCK-2 — ПОВТОРНЫЙ прогон РОВНО трёх выживших первого замера плюс мутация нового печатника (цикл #1010)",
+ "tests": [
+  "spa_core/tests/test_no_regression_producer_wiring.py"
+ ],
+ "mutations": [
+  {
+   "name": "ПОВТОР: производитель ИГНОРИРУЕТ --now внутри refresh (путь без --make-tree)",
+   "file": "scripts/refresh_no_regression_census.py",
+   "old": "                      run_tree=run_tree, now=moment)",
+   "new": "                      run_tree=run_tree)"
+  },
+  {
+   "name": "ПОВТОР: пустой --now читается как «момента не подали»",
+   "file": "scripts/refresh_no_regression_census.py",
+   "old": "    if not text:\n        raise NotMeasured(\"--now дан пустым: момент НЕ НАЗВАН, а подставить стенные \"\n                          \"часы значило бы ответить про календарь\")",
+   "new": "    if not text:\n        return None"
+  },
+  {
+   "name": "ПОВТОР: момент без зоны объявляется как есть (naive против aware)",
+   "file": "scripts/refresh_no_regression_census.py",
+   "old": "    return moment if moment.tzinfo is not None else moment.replace(tzinfo=timezone.utc)",
+   "new": "    return moment"
+  },
+  {
+   "name": "НОВОЕ: печатник снова обменивает «не разобрал» на чужой код возврата",
+   "file": "scripts/refresh_no_regression_census.py",
+   "old": "        try:\n            lines += census._lines(report)\n        except BaseException as exc:  # noqa: BLE001 — печать не вправе менять вердикт\n            lines.append(f\"[НЕ ИЗМЕРЕНО: печать] прежний отчёт не разобран печатником \"\n                         f\"переписи: {type(exc).__name__}: {exc} — вердикт ниже считается \"\n                         f\"по полям отчёта, не по этой строке\")",
+   "new": "        lines += census._lines(report)"
+  }
+ ]
+}

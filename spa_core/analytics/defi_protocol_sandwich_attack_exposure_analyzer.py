@@ -40,6 +40,8 @@ from spa_core.utils.atomic import atomic_save
 _LOG_FILENAME = "sandwich_attack_exposure_log.json"
 _LOG_CAP = 100
 _DEFAULT_DATA_DIR = os.path.join(os.path.dirname(__file__), "..", "..", "data")
+_DEFAULT_DATA_DIR_AT_IMPORT = _DEFAULT_DATA_DIR
+from spa_core.utils.data_dir import own_data_dir as _own_data_dir  # ADR-849 §2: SPA_DATA_DIR сильнее умолчания
 
 # Scoring weights
 _MEMPOOL_FEASIBILITY_BONUS = 40.0
@@ -120,7 +122,10 @@ class DeFiProtocolSandwichAttackExposureAnalyzer:
     LOG_CAP = _LOG_CAP
 
     def __init__(self, data_dir: str | None = None) -> None:
-        self.data_dir = data_dir or _DEFAULT_DATA_DIR
+        self.data_dir = data_dir or (
+            _DEFAULT_DATA_DIR if _DEFAULT_DATA_DIR != _DEFAULT_DATA_DIR_AT_IMPORT
+            else os.fspath(_own_data_dir(_DEFAULT_DATA_DIR_AT_IMPORT))
+        )
 
     # ------------------------------------------------------------------
     # Scoring sub-components

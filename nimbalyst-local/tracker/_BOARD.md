@@ -2,11 +2,11 @@
 
 > Авто-генерится `scripts/build_tracker_board.py` из `nimbalyst-local/tracker/*.md`. НЕ править вручную — правь карточки. Источник правды — карточки, это индекс (bootstrap).
 >
-> Собрана: 2026-11-02T01:36:28Z · сверка с карточками: `python3 scripts/build_tracker_board.py --check` (сторож `spa_core/tests/test_tracker_board_matches_cards.py`).
+> Собрана: 2026-11-02T16:58:05Z · сверка с карточками: `python3 scripts/build_tracker_board.py --check` (сторож `spa_core/tests/test_tracker_board_matches_cards.py`).
 >
-> Сверено с `origin/main` (3705a3c81).
+> Сверено с `origin/main` (df6a24a07) · у **1** своя правка, кто новее — не измерено.
 >
-> Всего карточек: **1562** · ждёт владельца: **6** · занято сессиями: **13**.
+> Всего карточек: **1567** · ждёт владельца: **6** · занято сессиями: **13**.
 
 ## 🔴 ЖДЁТ ВЛАДЕЛЬЦА (needs-owner)
 
@@ -422,7 +422,7 @@
 ### · closed
 - Считать ли верный отказ по правилам допуска неисправностью флота  ·  `owner-decision-schitat-li-vernyi-otkaz-po-pravilam-dopu.md` · 2026-10-08
 
-## 📥 Inbox (задания: Telegram / заметки / голос)  (880)
+## 📥 Inbox (задания: Telegram / заметки / голос)  (885)
 
 ### · in-progress
 - а задача починить все-таки еще раз сообщение которым не пишет нужно твое решени…  ·  `inbox-a-zadacha-pochinit-vse-taki-esche-raz-so.md` · 2026-08-14 · 🔒 `pid43119`
@@ -882,6 +882,7 @@
 - Тест очереди читает ЖИВОЕ прод-дерево: разбор ответов владельца красит CI  ·  `inbox-test-ocheredi-chitaet-zhivoe-prod-derevo.md` · 2026-08-21
 - РЕЦИДИВ 28.08: тест судит о ХОСТЕ по литеральному pid — 98535 (siriactionsd), теперь 999 (NetFS) в test_card_claim_takeover  ·  `inbox-test-sudit-o-hoste-literalnyi-pid-98535.md` · 2026-08-22
 - Тестовые chat_id попали в живые настройки Телеграм-бота  ·  `inbox-testovye-chat-id-popali-v-zhivye-nastroi.md` · 2026-08-08
+- Тесты пишут в git-tracked data/ — сессионный сторож отказывает в КАЖДОМ прогоне CI (12 из 12 шардов), и зелёный контрольный прогон недостижим  ·  `inbox-testy-pishut-v-git-tracked-data-sessionn.md` · 2026-11-02
 - Tier-B: 19 модулей числятся работающими, но различают протоколы побочными полями — предметных данных у них нет  ·  `inbox-tier-b-19-modulei-chislyatsya-rabotayusc.md` · 2026-08-06
 - Tier-C аналитики (180 модулей) остался протокол-слепым: фаза 2 чинила только A и B  ·  `inbox-tier-c-analitiki-180-modulei-ostalsya-pr.md` · 2026-08-06
 - Tier-C: пять настоящих отказов агрегатора — два чинятся, три требуют фактов, которых нет  ·  `inbox-tier-c-pyat-nastoyaschih-otkazov-agregat.md` · 2026-08-06
@@ -1063,6 +1064,7 @@
 - Храповик замороженных дат КРАСЕН на чистом origin/main: test_record_survival_census.py принёс литеральную дату  ·  `inbox-hrapovik-zamorozhennyh-dat-krasen-na-chi-2.md` · 2026-10-10
 - Храповик замороженных дат красный на main: тесту витрины чисел не хватает пометки  ·  `inbox-hrapovik-zamorozhennyh-dat-krasnyi-na-ma.md` · 2026-09-13
 - Храповик зашитых дат КРАСНЫЙ на origin/main: 7 файлов за пять дней, четыре — сегодняшние  ·  `inbox-hrapovik-zashityh-dat-krasnyi-na-origin.md` · 2026-09-10
+- Инъекция часов кончается на границе подпроцесса: претензия injected-clock подтверждается AST, а вторая половина сравнения живёт в другом процессе (поверхность 32 файла, класс НЕ ИЗМЕРЕН)  ·  `inbox-inektsiya-chasov-konchaetsya-na-granitse.md` · 2026-11-02
 - Исчерпание лимитов Claude невидимо: цех молча стоит, владелец гадает «работает ли» — нужен явный сигнал «нет топлива»  ·  `inbox-ischerpanie-limitov-claude-nevidimo-tsehu.md` · 2026-08-22
 - Исполнить Вариант 2 владельца: дописать 38 ставок и подключить их к hit_rate со СМЕШАННОЙ пробой  ·  `inbox-ispolnit-variant-2-vladeltsa-dopisat-38.md` · 2026-09-10
 - Карточка, рождённая через 4 ч 54 мин ПОСЛЕ починки ADR-866, ключа близнеца не несёт — и три дешёвые гипотезы опровергнуты  ·  `inbox-kartochka-rozhdennaya-cherez-4-ch-54-min.md` · 2026-10-30
@@ -1095,6 +1097,7 @@
 - НЕ ПРОЧИТАН артефакт ступени: офис не отличает «код приехал внутрь прогона» от «ступень не зовёт никто»  ·  `inbox-ne-prochitan-artefakt-stupeni-ofis-ne-ot.md` · 2026-10-02
 - Недельный такт витрины сайта считает недели по своей копии, а читатель читает origin  ·  `inbox-nedelnyi-takt-vitriny-saita-schitaet-ned.md` · 2026-09-20
 - Nimbalyst не видит 13 карточек — заголовок с двоеточием без кавычек ломает разбор frontmatter  ·  `inbox-nimbalyst-ne-vidit-13-kartochek-zagolovo.md` · 2026-09-17
+- Нога py3.11 суточного прогона умирает на 776 случаях из 113 тысяч — вердикт о 0,7 % набора  ·  `inbox-noga-py3-11-sutochnogo-progona-umiraet-n.md` · 2026-11-02
 - Новый тест бэктеста покраснил храповик литеральных дат на main — починка это пометка с причиной, а не правка фикстуры  ·  `inbox-novyi-test-bektesta-pokrasnil-hrapovik-l.md` · 2026-10-30
 - Обещанная перепроверка DNS checkup осталась без исполнителя: карточку закрыли, критерий не выполнен  ·  `inbox-obeschannaya-pereproverka-dns-checkup-os.md` · 2026-08-22
 - Общий читатель сроков годности видит один дом из двух — 65 файлов без срока, включая живой трек  ·  `inbox-obschii-chitatel-srokov-godnosti-vidit-o.md` · 2026-09-29
@@ -1125,7 +1128,9 @@
 - Остаток F: устаревшие храповики и ожидания тестов (26 падений, 19 групп)  ·  `inbox-ostatok-f-ustarevshie-hrapoviki-i-ozhida.md` · 2026-10-18
 - Остаток G: тесты зависят от хоста CI (11 падений)  ·  `inbox-ostatok-g-testy-zavisyat-ot-hosta-ci-11.md` · 2026-10-18
 - Остаток H: тесты зависят от сегодняшней даты (3 падения)  ·  `inbox-ostatok-h-testy-zavisyat-ot-segodnyashne.md` · 2026-10-18
+- Остаток класса «тест пишет в git-tracked data/»: население 68, закрыто 50, писатель каждого остатка НАЗВАН замером  ·  `inbox-ostatok-klassa-test-pishet-v-git-tracked.md` · 2026-11-02
 - Отбор лучших восьми протоколов не бережёт T1-якорь: два хороших кандидата вместе ухудшают книгу  ·  `inbox-otbor-luchshih-vosmi-protokolov-ne-berez.md` · 2026-08-29
+- Отчёт о доставке карточек судит байты, которых уже нет: производитель просрочил перемер на 98 часов при такте 6  ·  `inbox-otchet-o-dostavke-kartochek-sudit-baity.md` · 2026-11-02
 - Отчёт объявлен мерой критерия приёмки, которого владелец не писал  ·  `inbox-otchet-obyavlen-meroi-kriteriya-priemki.md` · 2026-09-29
 - Отсутствие оценки TVL публикуется НУЛЁМ у 4 записей — инв. #17 на вложенном пути  ·  `inbox-otsutstvie-otsenki-tvl-publikuetsya-nule.md` · 2026-10-12
 - Paper-модули #39 CDR и #36 dwell обязаны логировать концентрацию и duty — иначе форвард будет неатрибутируем  ·  `inbox-paper-moduli-39-cdr-i-36-dwell-obyazany.md` · 2026-08-08

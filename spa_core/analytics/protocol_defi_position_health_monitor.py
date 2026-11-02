@@ -17,6 +17,8 @@ LOG_FILE = os.path.join(
     os.path.dirname(__file__), "..", "..", "data",
     "position_health_monitor_log.json"
 )
+_LOG_FILE_AT_IMPORT = LOG_FILE
+from spa_core.utils.data_dir import default_file as _default_file  # ADR-849 §2: SPA_DATA_DIR сильнее умолчания
 LOG_CAP = 100
 
 VALID_POSITION_TYPES = {"lending", "lp", "staking", "vault"}
@@ -316,7 +318,7 @@ class ProtocolDeFiPositionHealthMonitor:
 
     def monitor(self, data: dict, config: dict | None = None) -> dict:
         cfg = config or {}
-        log_path = cfg.get("log_path", LOG_FILE)
+        log_path = _default_file(cfg.get("log_path", LOG_FILE), _LOG_FILE_AT_IMPORT)
         write_log = cfg.get("write_log", True)
 
         if not isinstance(data, dict):

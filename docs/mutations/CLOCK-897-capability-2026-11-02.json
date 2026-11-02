@@ -1,0 +1,20 @@
+{
+ "title": "ADR-897 CLOCK-3 — вопрос о способности производителя принять якорь задан ОТДЕЛЬНО: рассогласование версий больше не доклад о проводке",
+ "tests": [
+  "spa_core/tests/test_no_regression_producer_wiring.py"
+ ],
+ "mutations": [
+  {
+   "name": "вопрос о способности СНЯТ — производитель старой версии снова читается как находка о проводке",
+   "file": "spa_core/monitoring/card_acceptance.py",
+   "old": "    if \"--now\" not in (_help.stdout or \"\") + (_help.stderr or \"\"):\n        return UNMEASURED, (f\"производитель на диске НЕ ЗНАЕТ входа --now ({producer}) — \"\n                            f\"дерево старше пробы (ADR-897). Закреплён ли якорь у сцены, \"\n                            f\"НЕ ИЗМЕРЕНО; это РАССОГЛАСОВАНИЕ ВЕРСИЙ, а не находка о \"\n                            f\"проводке\")",
+   "new": "    if False:\n        return UNMEASURED, \"\""
+  },
+  {
+   "name": "ненулевой --help читается как «умеет» — отсутствие ответа выдано за ответ",
+   "file": "spa_core/monitoring/card_acceptance.py",
+   "old": "    if _help.returncode != 0:\n        return UNMEASURED, (f\"производитель вышел {_help.returncode} на --help — умеет он \"\n                            f\"принять якорь или нет, НЕ ИЗМЕРЕНО: \"\n                            f\"{(_help.stdout + _help.stderr).strip()[-200:]!r}\")",
+   "new": "    if False:\n        return UNMEASURED, \"\""
+  }
+ ]
+}

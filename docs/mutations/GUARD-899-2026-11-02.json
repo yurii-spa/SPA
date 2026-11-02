@@ -1,0 +1,76 @@
+{
+ "title": "ADR-899 GUARD — дельта цикла #1012: у вопроса «шард вернул 1, имён нет» ЧЕТЫРЕ исхода, а ветка была на два; род сессионного сторожа делает шард ИЗМЕРЕННЫМ и САМ держит вердикт RED",
+ "tests": [
+  "spa_core/tests/test_ci_session_guard_exit_axis.py",
+  "scripts/tests/test_ci_control.py",
+  "spa_core/tests/test_ci_cause_axis_probe.py"
+ ],
+ "mutations": [
+  {
+   "name": "четвёртый исход СНЯТ: любое «вернул 1 без имён» снова INCOMPLETE (состояние main до ADR-899) — шард 11 прогона 41410492012 опять уносит весь прогон",
+   "file": "scripts/ci_control.py",
+   "old": "            kind, why = exit_without_names(rec)\n            row[\"exit_without_names\"] = kind\n            if kind == GUARD_EXIT:\n                guard_exits.append({\"shard\": i, \"why\": why})\n            else:",
+   "new": "            kind, why = exit_without_names(rec)\n            row[\"exit_without_names\"] = kind\n            if False:\n                guard_exits.append({\"shard\": i, \"why\": why})\n            else:"
+  },
+  {
+   "name": "канал СНЯТ из вердикта: прогон, где упал ТОЛЬКО сессионный сторож, объявляется GREEN — ровно то ослабление, которого правка не имеет права сделать (инв. #16)",
+   "file": "scripts/ci_control.py",
+   "old": "    elif failures or uniq_ce or guard_exits:",
+   "new": "    elif failures or uniq_ce:"
+  },
+  {
+   "name": "дверь не спрашивает про КОНЕЦ сессии: обморок ADR-892 снова читается как «сторож поднял» — fail-OPEN на том самом роде, который этот файл отличает",
+   "file": "scripts/ci_control.py",
+   "old": "    end = rec.get(\"end\")\n    if end is None:\n        return SESSION_BROKEN, (\"записи конца сессии нет: pytest не дошёл до конца, \"\n                                \"имена и не могли быть записаны\")",
+   "new": "    end = rec.get(\"end\")\n    if end is None:\n        return GUARD_EXIT, \"конца нет, но сойдёт за сторожа\"\n    if False:\n        return SESSION_BROKEN, \"\""
+  },
+  {
+   "name": "дверь не смотрит на СОБСТВЕННЫЙ вердикт pytest: `status != 0` тоже объявляется отказом сторожа — потерянные имена стали бы «измерено»",
+   "file": "scripts/ci_control.py",
+   "old": "    if status != 0:\n        return NAMES_LOST, (f\"pytest сам сказал «упало» (status {status}), \"\n                            \"а ни одного упавшего имени в записи нет\")",
+   "new": "    if False:\n        return NAMES_LOST, (f\"pytest сам сказал «упало» (status {status}), \"\n                            \"а ни одного упавшего имени в записи нет\")"
+  },
+  {
+   "name": "третий исход схлопнут: запись БЕЗ машинного поля status объявляется отказом сторожа — «не измерено» выдаётся за «измерено» (инв. #17)",
+   "file": "scripts/ci_control.py",
+   "old": "    if isinstance(status, bool) or not isinstance(status, int):\n        return EXIT_UNMEASURED, (\"в записи конца нет машинного поля status \"\n                                 f\"(встречено {status!r}) — запись старше поля\")",
+   "new": "    if isinstance(status, bool) or not isinstance(status, int):\n        return GUARD_EXIT, \"поля нет, сойдёт за сторожа\""
+  },
+  {
+   "name": "`bool` больше не исключается: «status: true» проходит за код выхода 1 молча",
+   "file": "scripts/ci_control.py",
+   "old": "    if isinstance(status, bool) or not isinstance(status, int):",
+   "new": "    if not isinstance(status, int):"
+  },
+  {
+   "name": "противоречие записи игнорируется: сессия сказала «зелено», но тесты остались незакрытыми — всё равно «сторож» вместо fail-CLOSED",
+   "file": "scripts/ci_control.py",
+   "old": "    unfinished = rec.get(\"unfinished\") or []\n    if unfinished:\n        return EXIT_UNMEASURED, (f\"сессия сказала «зелено», но {len(unfinished)} тестов \"\n                                 f\"начались и не кончились: {unfinished[:5]}\")",
+   "new": "    unfinished = rec.get(\"unfinished\") or []\n    if False:\n        return EXIT_UNMEASURED, \"\""
+  },
+  {
+   "name": "отсутствие записи вовсе объявляется отказом сторожа: шард без потоковой записи становится «измеренным»",
+   "file": "scripts/ci_control.py",
+   "old": "    if not rec.get(\"present\"):\n        return EXIT_UNMEASURED, \"потоковой записи нет — чей это код, спросить не у чего\"",
+   "new": "    if not rec.get(\"present\"):\n        return GUARD_EXIT, \"записи нет, сойдёт за сторожа\""
+  },
+  {
+   "name": "канал не доезжает до отчёта: `guard_exits` не записывается, и читатель отчёта не узнает об отказе сторожа ничего",
+   "file": "scripts/ci_control.py",
+   "old": "                  guard_exits={\"schema\": GUARD_EXIT_SCHEMA, \"shards\": guard_exits,\n                               \"n\": len(guard_exits)},",
+   "new": "                  guard_exits={\"schema\": GUARD_EXIT_SCHEMA, \"shards\": [], \"n\": 0},"
+  },
+  {
+   "name": "отчёт МОЛЧИТ про отказ сторожа: секция не печатается, и в md отказ невидим — тот самый дефект, которым свод не назвал ни одного из 12 отказов прогона 41435243848",
+   "file": "scripts/ci_control.py",
+   "old": "    guard = report.get(\"guard_exits\") or {}\n    if guard.get(\"n\"):",
+   "new": "    guard = report.get(\"guard_exits\") or {}\n    if False:"
+  },
+  {
+   "name": "у рода сторожа пропадает ПРИЧИНА: «почему» становится пустой строкой, и шард назван без улики",
+   "file": "scripts/ci_control.py",
+   "old": "    return GUARD_EXIT, (\"сессия ДОШЛА до конца и сказала «зелено» (status 0, \"\n                        \"ни одного незакрытого теста) — код выхода поднял сессионный \"\n                        \"сторож ПОСЛЕ прогона; КАКОЙ именно, прибор не измеряет \"\n                        \"(смотреть лог шарда)\")",
+   "new": "    return GUARD_EXIT, \"\""
+  }
+ ]
+}

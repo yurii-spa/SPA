@@ -22,6 +22,18 @@
 * ``INCOMPLETE`` — хоть один шард отсутствует / снят / отменён / без записи, или союз ≠
   населению, или у какого-то теста нет исхода. Никогда не зелёный (инв. #17).
 
+**Ненулевой код шарда при НУЛЕ упавших имён — не одно состояние, а четыре (ADR-899).**
+Шард может вернуть 1, не назвав ни одного имени, по четырём РАЗНЫМ причинам, и только
+три из них суть незавершённость: сессия не дошла до конца (род ADR-892) · pytest сам
+сказал «упало», а имён нет · запись не отвечает (третий исход). Четвёртая — сессия
+ДОШЛА до конца и сказала «зелено», а код выхода ей поднял СЕССИОННЫЙ СТОРОЖ
+(``trylast``-хук ``pytest_sessionfinish``: так устроен, например,
+``spa_core/tests/tracked_write_guard.py``). Такой шард ИЗМЕРЕН полностью, и объявлять
+прогон незавершённым из-за него — ложь в сторону осторожности: на прогоне 41410492012
+(`539bccdd4`) она стоила циклу #1011 всей дельты, которую он мерил. Отказ сторожа при
+этом не теряется — он уходит в канал ``guard_exits`` и САМ держит вердикт RED (иначе
+правка была бы ослаблением гейта, инв. #16). Дверь — ``exit_without_names``.
+
 Подкоманды::
 
     plan      --collected F --weights W --shards N --budget-min M --sha S --out-dir D
@@ -101,6 +113,64 @@ JUNIT_GLOB = "junit*.xml"
 #: встретивший отчёт БЕЗ этого блока, обязан сказать «НЕ ИЗМЕРЕНО: отчёт старше оси»,
 #: а не показать ноль (инв. #17).
 CAUSE_SCHEMA = "spa-ci-control-cause-axis/1"
+
+# ── РОД кода выхода при НУЛЕ названных имён (ADR-899) ────────────────────────
+#: Вопрос «pytest вернул 1, а упавших имён нет — почему» имеет ЧЕТЫРЕ ответа, и до
+#: ADR-899 у ветки их было два («что-то потерялось» ⇒ INCOMPLETE). Цена измерена на
+#: прогоне 41410492012 (`539bccdd4`): шард 11 прошёл 11 095 тестов, junit сказал
+#: `failures=0 errors=0`, потоковая запись — `status: 0` и конец сессии, а код выхода
+#: был 1, потому что его поднял СЕССИОННЫЙ СТОРОЖ (`tracked_write_guard`, 7 модулей
+#: вне базы). Весь прогон стал INCOMPLETE, и цикл #1011 из-за этого объявил свою
+#: дельту НЕ ДОКАЗАННОЙ — при том что измерено было ВСЁ.
+GUARD_EXIT = "raised_by_session_guard"      # сессия ДОШЛА до конца и сказала «зелено»
+NAMES_LOST = "names_lost"                   # pytest сам сказал «упало», имён нет
+SESSION_BROKEN = "session_did_not_finish"   # конца записи нет (род ADR-892)
+EXIT_UNMEASURED = "unmeasured"              # запись не отвечает — третий исход, fail-CLOSED
+
+#: Схема канала сторожевых выходов — ОТДЕЛЬНО от схемы отчёта, по той же причине,
+#: что у оси причин: отчёт без блока обязан читаться как «старше канала», а не как ноль.
+GUARD_EXIT_SCHEMA = "spa-ci-control-guard-exits/1"
+
+
+def exit_without_names(rec: dict) -> tuple[str, str]:
+    """Почему шард вернул 1, не назвав ни одного упавшего имени: ЧЕТЫРЕ исхода.
+
+    Улика уже лежит в артефакте, который свод и так читает, — в потоковой записи:
+    её запись конца несёт МАШИННОЕ поле ``status`` (``int(exitstatus)`` в
+    ``pytest_sessionfinish`` плагина). Это ответ pytest про ТЕСТЫ, а
+    ``exit.json`` — код, которым кончился ПРОЦЕСС. Два числа отвечают на РАЗНЫЕ
+    вопросы, и их расхождение само есть наблюдение, а не порча записи: сторож
+    поднимает ``session.exitstatus`` хуком ``trylast``, то есть ПОСЛЕ того, как
+    писатель записи уже назвал нуль.
+
+    Возвращает ``(род, почему)``. Только ``GUARD_EXIT`` означает, что шард ИЗМЕРЕН
+    полностью; остальные три — незавершённость с НАЗВАННОЙ причиной (инв. #17).
+    Разбора прозы здесь нет ни одной строкой: КАКОЙ сторож поднял код, прибор не
+    знает и не выдумывает — это следующий вопрос, и он назван вслух.
+    """
+    if not rec.get("present"):
+        return EXIT_UNMEASURED, "потоковой записи нет — чей это код, спросить не у чего"
+    end = rec.get("end")
+    if end is None:
+        return SESSION_BROKEN, ("записи конца сессии нет: pytest не дошёл до конца, "
+                                "имена и не могли быть записаны")
+    status = end.get("status")
+    # `bool` исключается явно: `True` есть `int` по устройству языка, и «status: true»
+    # прошло бы за код выхода 1 молча.
+    if isinstance(status, bool) or not isinstance(status, int):
+        return EXIT_UNMEASURED, ("в записи конца нет машинного поля status "
+                                 f"(встречено {status!r}) — запись старше поля")
+    if status != 0:
+        return NAMES_LOST, (f"pytest сам сказал «упало» (status {status}), "
+                            "а ни одного упавшего имени в записи нет")
+    unfinished = rec.get("unfinished") or []
+    if unfinished:
+        return EXIT_UNMEASURED, (f"сессия сказала «зелено», но {len(unfinished)} тестов "
+                                 f"начались и не кончились: {unfinished[:5]}")
+    return GUARD_EXIT, ("сессия ДОШЛА до конца и сказала «зелено» (status 0, "
+                        "ни одного незакрытого теста) — код выхода поднял сессионный "
+                        "сторож ПОСЛЕ прогона; КАКОЙ именно, прибор не измеряет "
+                        "(смотреть лог шарда)")
 
 
 def _load_plugin_reader():
@@ -649,6 +719,10 @@ def aggregate(manifest: dict | None, shards_dir: Path, needs_result: str | None 
     owner: dict[str, int] = {}
     msgs: dict[str, str] = {}
     collect_errors = [dict(e, shard=None) for e in manifest.get("collect_errors") or []]
+    #: Шарды, чей код выхода поднял СЕССИОННЫЙ СТОРОЖ после зелёной сессии (ADR-899).
+    #: Это не незавершённость — но и не «ничего не случилось»: канал держит вердикт
+    #: не-зелёным, иначе отказ сторожа исчезал бы на зелёном наборе молча.
+    guard_exits: list[dict] = []
     shard_rows: list[dict] = []
     file_wall: dict[str, float] = {}
     present_dirs = {p.name for p in shards_dir.iterdir()} if shards_dir.is_dir() else set()
@@ -729,7 +803,18 @@ def aggregate(manifest: dict | None, shards_dir: Path, needs_result: str | None 
         elif code not in (0, 1):
             problems.append(f"pytest вернул {code} — прогон прерван, а не измерен")
         elif code == 1 and shard_fails == 0 and not got["collect_errors"]:
-            problems.append("pytest сказал «упало», а ни одного упавшего имени в записи нет")
+            # ADR-899: у этого вопроса ЧЕТЫРЕ ответа, и только один из них —
+            # незавершённость. Шард, чья сессия дошла до конца и сказала «зелено»,
+            # ИЗМЕРЕН полностью: код выхода ему поднял сессионный сторож. Его отказ
+            # при этом НЕ ТЕРЯЕТСЯ — он уходит в свой канал и сам по себе держит
+            # вердикт не-зелёным (ниже), иначе правка была бы ослаблением (инв. #16).
+            kind, why = exit_without_names(rec)
+            row["exit_without_names"] = kind
+            if kind == GUARD_EXIT:
+                guard_exits.append({"shard": i, "why": why})
+            else:
+                problems.append("pytest сказал «упало», а ни одного упавшего имени "
+                                f"в записи нет — {why}")
         elif code == 0 and shard_fails:
             problems.append(f"pytest сказал «зелёно», а запись называет {shard_fails} упавших")
     for name in sorted(present_dirs):
@@ -769,7 +854,11 @@ def aggregate(manifest: dict | None, shards_dir: Path, needs_result: str | None 
               "shards_complete": sum(1 for r in shard_rows if not r["problems"])}
     if incomplete:
         verdict = INCOMPLETE
-    elif failures or uniq_ce:
+    elif failures or uniq_ce or guard_exits:
+        # `guard_exits` стои́т ЗДЕСЬ, а не вне вердикта, намеренно (ADR-899): отказ
+        # сессионного сторожа есть отказ прогона, а не его незавершённость. Убери
+        # его отсюда — и набор, где упал ТОЛЬКО сторож, объявился бы GREEN, то есть
+        # правка «шард измерен» превратилась бы в ослабление гейта (инв. #16).
         verdict = RED
     else:
         verdict = GREEN
@@ -780,6 +869,8 @@ def aggregate(manifest: dict | None, shards_dir: Path, needs_result: str | None 
                   not_obtained=not_obtained, population=population,
                   non_passed={n: o for n, o in outcomes.items() if o != PASSED},
                   shards=shard_rows, file_wall_s=dict(sorted(file_wall.items())),
+                  guard_exits={"schema": GUARD_EXIT_SCHEMA, "shards": guard_exits,
+                               "n": len(guard_exits)},
                   cause_axis=axis)
     return report
 
@@ -875,6 +966,16 @@ def render_md(report: dict, limit: int = 200) -> str:
         for item in report["incomplete"]:
             where = "global" if item["shard"] is None else f"shard {item['shard']}"
             lines.append(f"- [{where}] {item['reason']}")
+    guard = report.get("guard_exits") or {}
+    if guard.get("n"):
+        # Печатается ОТДЕЛЬНОЙ секцией, а не строкой в «problems» шарда: отказ сторожа
+        # не есть незавершённость шарда, но и прятать его нельзя — до ADR-899 свод не
+        # назвал ни одного такого отказа НИ В ОДНОМ прогоне (замер: 12 из 12 шардов
+        # прогона 41435243848 подняли код сторожем, отчёт промолчал про все 12).
+        lines += ["", f"## Код выхода поднял сессионный сторож ({guard['n']} shard(s)) "
+                      "— ADR-899", ""]
+        for item in guard.get("shards") or []:
+            lines.append(f"- [shard {item.get('shard')}] {item.get('why')}")
     lines += ["", "## Cause axis (ADR-891)", "", f"- {cause_line(report.get('cause_axis'))}"]
     if report.get("failures"):
         lines += ["", f"## Failed / error ({len(report['failures'])})", ""]
@@ -936,6 +1037,8 @@ def cmd_aggregate(args) -> int:
     for item in report["incomplete"][:30]:
         where = "global" if item["shard"] is None else f"shard {item['shard']}"
         print(f"  INCOMPLETE [{where}] {item['reason']}")
+    for item in (report.get("guard_exits") or {}).get("shards") or []:
+        print(f"  СТОРОЖ ПОДНЯЛ КОД [shard {item.get('shard')}] {item.get('why')}")
     for f in report.get("failures", [])[:50]:
         print(f"  {f['outcome'].upper()} [shard {f['shard']}] {f['nodeid']}")
     return EXIT[report["verdict"]]

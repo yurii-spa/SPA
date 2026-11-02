@@ -1,0 +1,94 @@
+{
+ "title": "ADR-896 WIRE — дельта цикла #1009: сирота step_time_drift получает производителя, ступень и читателя; составной прогон складывается по ФАЙЛУ; три исхода различимы у кода возврата, у ступени и у контроля среды",
+ "tests": [
+  "spa_core/tests/test_step_time_drift_wiring.py",
+  "spa_core/tests/test_step_time_drift.py",
+  "spa_core/tests/test_unwired_guard_modules_ratchet.py"
+ ],
+ "mutations": [
+  {
+   "name": "ступень НЕ ЗОВЁТСЯ из main моста — артефакт не обновится никогда (состояние main до ADR-896)",
+   "file": "spa_core/monitoring/findings_bridge.py",
+   "old": "        print(step_time_drift_line(step_time_drift_step(args.root)))",
+   "new": "        pass  # ступень снята мутацией"
+  },
+  {
+   "name": "ступень ПИШЕТ отчёт и при НЕ ИЗМЕРЕНО — артефакт лгал бы ещё и возрастом",
+   "file": "spa_core/monitoring/findings_bridge.py",
+   "old": "    if code not in (0, 1):\n        tail = \"\\n\".join((err or out).strip().splitlines()[-3:])\n        return {\"status\": \"unmeasured\", \"code\": code,\n                \"reason\": tail or \"прибор не назвал ни числа, ни причины\"}",
+   "new": "    if code not in (0, 1):\n        tail = \"\\n\".join((err or out).strip().splitlines()[-3:])\n        atomic_save({\"verdict\": \"measured\"}, target)\n        return {\"status\": \"ok\", \"code\": code,\n                \"reason\": tail or \"прибор не назвал ни числа, ни причины\"}"
+  },
+  {
+   "name": "гейт такта снят: прибор зовётся КАЖДЫЙ раз, 15 МБ за зов",
+   "file": "spa_core/monitoring/findings_bridge.py",
+   "old": "    due, why = measurement_due(Path(target), now=now, tact_days=tact_days)\n    if not due:\n        return {\"status\": \"within_tact\", \"code\": None, \"reason\": why}\n\n    cmd = [sys.executable, producer, \"--json\", \"--repo-root\", str(root)]\n    run = runner if runner is not None else subprocess.run\n    try:\n        cp = run(cmd, capture_output=True, text=True, timeout=timeout_s)\n    except subprocess.TimeoutExpired as exc:\n        return {\"status\": \"unmeasured\", \"code\": None,\n                \"reason\": f\"прибор снят по сроку {timeout_s:.0f}с: {exc}\"}\n    except OSError as exc:\n        return {\"status\": \"unmeasured\", \"code\": None,\n                \"reason\": f\"прибор не запущен: {type(exc).__name__}: {exc}\"}\n    code = getattr(cp, \"returncode\", None)\n    out = getattr(cp, \"stdout\", \"\") or \"\"\n    err = (getattr(cp, \"stderr\", \"\") or \"\").strip()\n    if code not in (0, 1):\n        tail = \"\\n\".join((err or out).strip().splitlines()[-3:])\n        return {\"status\": \"unmeasured\", \"code\": code,\n                \"reason\": tail or \"прибор не назвал ни числа, ни причины\"}",
+   "new": "    due, why = measurement_due(Path(target), now=now, tact_days=tact_days)\n    if False:\n        return {\"status\": \"within_tact\", \"code\": None, \"reason\": why}\n\n    cmd = [sys.executable, producer, \"--json\", \"--repo-root\", str(root)]\n    run = runner if runner is not None else subprocess.run\n    try:\n        cp = run(cmd, capture_output=True, text=True, timeout=timeout_s)\n    except subprocess.TimeoutExpired as exc:\n        return {\"status\": \"unmeasured\", \"code\": None,\n                \"reason\": f\"прибор снят по сроку {timeout_s:.0f}с: {exc}\"}\n    except OSError as exc:\n        return {\"status\": \"unmeasured\", \"code\": None,\n                \"reason\": f\"прибор не запущен: {type(exc).__name__}: {exc}\"}\n    code = getattr(cp, \"returncode\", None)\n    out = getattr(cp, \"stdout\", \"\") or \"\"\n    err = (getattr(cp, \"stderr\", \"\") or \"\").strip()\n    if code not in (0, 1):\n        tail = \"\\n\".join((err or out).strip().splitlines()[-3:])\n        return {\"status\": \"unmeasured\", \"code\": code,\n                \"reason\": tail or \"прибор не назвал ни числа, ни причины\"}"
+  },
+  {
+   "name": "подмена исходов ВОЗВРАЩЕНА: «род НЕ ИЗМЕРЕН» снова идёт за находку (инв. #17)",
+   "file": "spa_core/monitoring/step_time_drift.py",
+   "old": "    kind = result.get(\"kind\")\n    if isinstance(kind, str) and kind.startswith(\"unmeasured\"):\n        return CODE_UNMEASURED",
+   "new": "    kind = result.get(\"kind\")\n    if False:\n        return CODE_UNMEASURED"
+  },
+  {
+   "name": "непрочитанная часть МОЛЧИТ: профиль теряет файлы без следа",
+   "file": "spa_core/monitoring/step_time_drift.py",
+   "old": "        if census.read != READ_OK:\n            unread.append((str(label), census.reason))\n            ended = False\n            continue",
+   "new": "        if census.read != READ_OK:\n            continue"
+  },
+  {
+   "name": "сумма размахов 12 частей объявлена СТЕНОЙ — ложь в двенадцать раз",
+   "file": "spa_core/monitoring/step_time_drift.py",
+   "old": "                   n_cases=n_cases, span_s=span, ended=ended, span_is_wall=False,",
+   "new": "                   n_cases=n_cases, span_s=span, ended=ended, span_is_wall=True,"
+  },
+  {
+   "name": "файл из ДВУХ частей складывается молча — секунды двух раннеров в одном числе",
+   "file": "spa_core/monitoring/step_time_drift.py",
+   "old": "            if owner.setdefault(case.file, label) != label and case.file not in twice:\n                twice.append(case.file)",
+   "new": "            owner.setdefault(case.file, label)"
+  },
+  {
+   "name": "ДОИГРЫВАНИЕ не считается: рост населения читается как рост работы",
+   "file": "spa_core/monitoring/step_time_drift.py",
+   "old": "        sessions += census.sessions_in_record",
+   "new": "        sessions += 1"
+  },
+  {
+   "name": "сопоставимость больше не требует равного числа случаев — оба рода в одном числе",
+   "file": "spa_core/monitoring/step_time_drift.py",
+   "old": "    return {f for f, n in base.cases.items() if later.cases.get(f) == n}",
+   "new": "    return {f for f in base.cases if f in later.cases}"
+  },
+  {
+   "name": "отсутствующий контроль среды подменён единицей — любое отличие станет находкой",
+   "file": "scripts/step_time_drift_run.py",
+   "old": "    runs = _runs(fetch, MATRIX_WORKFLOW, branch)\n    if not runs:\n        return None, (f\"у `{MATRIX_WORKFLOW}` нет ни одного завершённого прогона \"\n                      f\"на ветке {branch}\")",
+   "new": "    runs = _runs(fetch, MATRIX_WORKFLOW, branch)\n    if not runs:\n        return 1.0, \"контроля нет — подставил единицу\""
+  },
+  {
+   "name": "одного прогона довольно: пара больше не требуется, сравнивать нечего с чем",
+   "file": "scripts/step_time_drift_run.py",
+   "old": "        if len(found) == 2:\n            break\n    if len(found) < 2:",
+   "new": "        if len(found) == 2:\n            break\n    if len(found) < 1:"
+  },
+  {
+   "name": "мёртвая сеть выдана за измерение: исключение проглочено",
+   "file": "scripts/step_time_drift_run.py",
+   "old": "        doc.update({\"status\": \"unmeasured\", \"verdict\": \"unmeasured:runs_not_listed\",\n                    \"kind\": \"unmeasured:runs_not_listed\", \"findings\": [],\n                    \"reason\": f\"перечень прогонов не прочитан: \"\n                              f\"{type(exc).__name__}: {exc}\"})",
+   "new": "        doc.update({\"status\": \"measured\", \"verdict\": \"measured\",\n                    \"kind\": \"within_runner_spread\", \"findings\": [],\n                    \"reason\": \"сеть молчит — считаю, что всё в порядке\"})"
+  },
+  {
+   "name": "именная ветка шага 0-офис снята — артефакт читается ВХОЛОСТУЮ",
+   "file": "scripts/consume_office_reports.py",
+   "old": "    elif name == \"step_time_drift.json\":",
+   "new": "    elif name == \"step_time_drift.json.never\":"
+  },
+  {
+   "name": "SLO приравнен такту — артефакт протухает в минуту, когда ему только мериться",
+   "file": "architecture/manifest.json",
+   "old": "      \"path\": \"data/step_time_drift.json\",\n      \"producer\": \"com.spa.decision_loop\",\n      \"consumers\": [\n        \"orchestrator_protocol\"\n      ],\n      \"slo_hours\": 48,",
+   "new": "      \"path\": \"data/step_time_drift.json\",\n      \"producer\": \"com.spa.decision_loop\",\n      \"consumers\": [\n        \"orchestrator_protocol\"\n      ],\n      \"slo_hours\": 24,"
+  }
+ ]
+}
