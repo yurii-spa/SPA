@@ -130,3 +130,31 @@ def test_next_step_follows_the_real_forward_age():
     assert "ждать зрелости" in te._research_card({}, [], 12.0)["next_check"]
     assert "forward зрелый (32.8 дн." in te._research_card({}, [], 32.8)["next_check"]
     assert "ждать зрелости" in te._research_card({}, [], None)["next_check"]      # срок неизвестен — не «зрелый»
+
+
+def _kl(ot, c):
+    return [ot, "1", "2", "0.5", str(c), "10", ot + 3_600_000 - 1]
+
+
+def test_market_recheck_names_a_backdated_revision_and_does_not_write():
+    now = 200 * H
+    m = sqlite3.connect(":memory:")
+    m.execute("CREATE TABLE candles (symbol TEXT, tf TEXT, open_time INT, open REAL, high REAL, low REAL, close REAL, "
+              "volume REAL)")
+    for i in range(190, 199):
+        m.execute("INSERT INTO candles VALUES ('BTCUSDT','1h',?,1,2,0.5,?,10)", (i * H, 100.0 + i))
+
+    def same(sym, t, limit):
+        return [_kl(i * H, 100.0 + i) for i in range(190, 200) if i * H >= t]
+    r = rq.market_recheck(m, now_ms=now, days=1, fetch=same)
+    assert r["state"] == "CONSISTENT" and r["compared"] == 9 and r["revised_count"] == 0
+
+    def revised(sym, t, limit):
+        return [_kl(i * H, 100.0 + i + (5 if i == 195 else 0)) for i in range(190, 200) if i * H >= t]
+    r2 = rq.market_recheck(m, now_ms=now, days=1, fetch=revised)
+    assert r2["state"] == "REVISED" and r2["revised"][0]["open_time"] == 195 * H
+    assert m.execute("SELECT close FROM candles WHERE open_time=?", (195 * H,)).fetchone()[0] == 295.0   # не тронуто
+
+    def down(sym, t, limit):
+        raise OSError("network")
+    assert rq.market_recheck(m, now_ms=now, days=1, fetch=down)["state"] == rq.UNKNOWN

@@ -208,3 +208,42 @@ def closed_window_stability(history_files: Iterable) -> Dict:
     if compared == 0:
         return {**base, "state": UNKNOWN, "why": "нет двух версий с одной версией кода — сравнивать нечего"}
     return {**base, "state": "STABLE" if not changed else "REWRITTEN"}
+
+
+def market_recheck(mconn, *, now_ms: int, days: int = 7, symbol: str = "BTCUSDT", fetch=None) -> Dict:
+    """Не поправил ли источник ЗАДНИМ ЧИСЛОМ уже сохранённые закрытые свечи (late/backfill на стороне источника).
+
+    Детектор движка (`data_conflicts`) видит пересмотр только при повторной загрузке ТОЙ ЖЕ свечи, а движок
+    догружает лишь новые — поэтому пересмотр прошлого оставался невидимым. Здесь — ПОВТОРНЫЙ запрос того же
+    публичного источника за последние ``days`` суток и сравнение OHLCV (до 8 знаков). Ничего не пишет.
+    Исходы: ``CONSISTENT`` · ``REVISED`` (с перечнем) · ``UNKNOWN`` (источник не ответил / сравнивать нечего)."""
+    from spa_core.trading_research import market_data as md
+    fetch = fetch or md.fetch_klines_binance
+    start = now_ms - days * 86_400_000
+    start -= start % 3_600_000
+    got: Dict[int, tuple] = {}
+    t = start
+    try:
+        while t < now_ms:
+            rows = fetch(symbol, t, limit=1000)
+            if not rows:
+                break
+            for k in rows:
+                if int(k[6]) + md.CLOSE_GRACE_MS <= now_ms:
+                    got[int(k[0])] = tuple(round(float(x), 8) for x in k[1:6])
+            nxt = int(rows[-1][0]) + 3_600_000
+            if nxt <= t:
+                break
+            t = nxt
+    except Exception as exc:                       # сеть/источник — это «не измерено», а не «совпало»
+        return {"state": UNKNOWN, "why": f"источник не ответил: {type(exc).__name__}"}
+    stored = {r[0]: tuple(round(float(x), 8) for x in r[1:]) for r in mconn.execute(
+        "SELECT open_time, open, high, low, close, volume FROM candles WHERE symbol=? AND tf='1h' AND open_time>=?",
+        (symbol, start))}
+    common = sorted(set(got) & set(stored))
+    revised = [{"open_time": ot, "stored": stored[ot], "source_now": got[ot]} for ot in common if stored[ot] != got[ot]]
+    base = {"window_days": days, "compared": len(common), "revised_count": len(revised), "revised": revised[:20],
+            "stored_not_in_source": len(set(stored) - set(got)), "source_not_stored": len(set(got) - set(stored))}
+    if not common:
+        return {**base, "state": UNKNOWN, "why": "нет общих закрытых свечей для сравнения"}
+    return {**base, "state": "REVISED" if revised else "CONSISTENT"}
