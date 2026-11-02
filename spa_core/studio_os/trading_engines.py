@@ -68,7 +68,7 @@ def _vs_hold(v):
                     f"за то же окно ({v['bars']} баров), после издержек"}
 
 
-def _research_card(st, fwd):
+def _research_card(st, fwd, days=None):
     """Что исследуется, против чего, насколько верить — словами, без суммы доходностей разных стратегий."""
     rq = st.get('research_quality') if isinstance(st.get('research_quality'), dict) else {}
     md = rq.get('market_data') if isinstance(rq.get('market_data'), dict) else {}
@@ -96,7 +96,10 @@ def _research_card(st, fwd):
                  'text': (f"рыночные данные свежие ({md.get('age_minutes')} мин)" if md.get('state') == 'FRESH' else
                           f"рыночные данные УСТАРЕЛИ ({md.get('age_minutes')} мин)" if md.get('state') == 'STALE' else
                           md.get('why') or 'свежесть рыночных данных не измерена')},
-        'next_check': 'зрелость forward (30 дн.), затем — повторный отбор только с предрегистрацией и бюджетом попыток',
+        'next_check': (f'forward {days} дн. < {MATURITY_DAYS}: ждать зрелости; затем — повторный отбор только с '
+                       f'предрегистрацией и бюджетом попыток' if days is None or days < MATURITY_DAYS else
+                       f'forward зрелый ({days} дн. ≥ {MATURITY_DAYS}): решение о кандидатах — по сравнению с HOLD и '
+                       f'поправке на отбор выше; новый отбор — только с предрегистрацией и бюджетом попыток'),
     }
 
 
@@ -147,7 +150,7 @@ def build_spa_trading(data_dir=None, now=None):
                                      'observations': c.get('forward_observations'),
                                      # мандат 01.11 §2.6: тот же forward против HOLD BTC за ТО ЖЕ окно, после издержек
                                      'vs_hold': _vs_hold(c.get('vs_hold'))} for c in fwd]}
-    out['research'] = _research_card(st, fwd)
+    out['research'] = _research_card(st, fwd, (out.get('history') or {}).get('calendar_days'))
     days = out['history']['calendar_days']
     blocks = []
     if st.get('evidence_verified') is False:

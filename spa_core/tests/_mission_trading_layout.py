@@ -78,6 +78,17 @@ def scenes(model: dict) -> dict:
         b["title"] = (b.get("title") or "") + " " + LONG
         b["active_block"] = "Блокировка с очень длинной причиной " + LONG
         b["why_hold"] = LONG
+        # мандат 01.11 §2.6: новые строки блока — сравнение с HOLD и карточка исследования — тоже длинные
+        for r in (b.get("paper_result") or {}).get("rows") or []:
+            if isinstance(r.get("vs_hold"), dict):
+                r["vs_hold"]["text"] = (r["vs_hold"].get("text") or "") + " " + LONG
+        rc = b.get("research")
+        if isinstance(rc, dict):
+            for k in ("hypothesis", "control", "next_check"):
+                rc[k] = (rc.get(k) or "") + " " + LONG
+            for k in ("selection", "data"):
+                if isinstance(rc.get(k), dict):
+                    rc[k]["text"] = (rc[k].get("text") or "") + " " + LONG
     goal = ((long.get("owner_view", {}).get("sections", {}).get("work", {}) or {}).get("goal", {}) or {})
     for st in goal.get("steps", []) or []:
         st["title"] = st["title"] + " " + LONG

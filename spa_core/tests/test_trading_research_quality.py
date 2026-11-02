@@ -124,3 +124,9 @@ def test_closed_windows_are_stable_across_data_updates_and_a_rewrite_is_named(tm
     assert r["state"] == "REWRITTEN" and r["changed"][0]["window"] == "in_sample"
     d = _bt(tmp_path, "backtest_4.json", "v2", 0.9)                       # смена кода — не переписывание
     assert rq.closed_window_stability([a, d])["state"] == rq.UNKNOWN
+
+
+def test_next_step_follows_the_real_forward_age():
+    assert "ждать зрелости" in te._research_card({}, [], 12.0)["next_check"]
+    assert "forward зрелый (32.8 дн." in te._research_card({}, [], 32.8)["next_check"]
+    assert "ждать зрелости" in te._research_card({}, [], None)["next_check"]      # срок неизвестен — не «зрелый»
