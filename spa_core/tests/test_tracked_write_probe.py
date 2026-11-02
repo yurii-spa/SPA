@@ -181,8 +181,47 @@ class ThreeOutcomesAreDistinguishable(unittest.TestCase):
         self.assertEqual(status, ca.UNMEASURED)
         self.assertIn("нет каталога data/", detail)
 
-    def test_five_unmeasured_reasons_are_five_different_strings(self):
-        """Склеенные исходы и есть fail-OPEN — он тише красного теста."""
+    def test_red_scene_run_is_unmeasured_not_satisfied(self):
+        """ADR-904: у КРАСНОГО прогона «ноль записей» не есть ответ.
+
+        Упавший тест мог не ДОЙТИ до строки, которая пишет, поэтому «никто не
+        тронул `data/`» измеряет меньше, чем читается. Замер, из которого взялась
+        ветка: на доставленном `origin/main` проба отвечала `satisfied` при
+        **4 failed, 7641 passed** внутри сцены, и падения были свойством
+        ПАРТИАЛЬНОЙ сцены (в ней не было `scripts/`).
+        """
+        out = ("FAILED spa_core/tests/test_redteam_infra.py::test_rotation_all_surfaces_sweep\n"
+               "4 failed, 7641 passed, 1 skipped in 38.24s\n")
+        with TemporaryDirectory() as td:
+            status, detail = self._judge(_scene(Path(td)), lambda s, r: (1, out))
+        self.assertEqual(status, ca.UNMEASURED,
+                         "красный прогон сцены ⇒ НЕ ИЗМЕРЕНО; `satisfied` здесь "
+                         "был бы fail-OPEN — тише красного теста, потому опаснее")
+        self.assertIn("НЕ ЗЕЛЁН", detail)
+        self.assertIn("test_rotation_all_surfaces_sweep", detail,
+                      "имя упавшего обязано быть НАЗВАНО, иначе вердикт не проверить")
+
+    def test_error_only_summary_is_also_unmeasured(self):
+        """`errors` — тот же исход: до писателя не дошли, причина другая."""
+        with TemporaryDirectory() as td:
+            status, detail = self._judge(
+                _scene(Path(td)), lambda s, r: (1, "3 errors, 10 passed in 1.0s\n"))
+        self.assertEqual(status, ca.UNMEASURED)
+        self.assertIn("НЕ ЗЕЛЁН", detail)
+
+    def test_a_green_run_is_still_satisfied(self):
+        """Обратная сторона той же ветки: зелёный прогон вердикта не теряет."""
+        with TemporaryDirectory() as td:
+            status, _ = self._judge(_scene(Path(td)),
+                                    lambda s, r: (0, "7645 passed, 1 skipped in 38.4s\n"))
+        self.assertEqual(status, ca.SATISFIED)
+
+    def test_six_unmeasured_reasons_are_six_different_strings(self):
+        """Склеенные исходы и есть fail-OPEN — он тише красного теста.
+
+        ADR-904 добавил ШЕСТОЙ исход (красный прогон сцены) — порог поднят, а не
+        переписан: каждая причина обязана остаться СВОЕЙ строкой.
+        """
         def _boom(_s, _r):
             raise OSError("x")
         seen = []
@@ -198,7 +237,10 @@ class ThreeOutcomesAreDistinguishable(unittest.TestCase):
             seen.append(self._judge(Path(td), lambda s, r: (0, "1 passed\n"))[1])
         with TemporaryDirectory() as td:
             seen.append(self._judge(Path(td), lambda s, r: (0, "1 passed\n"))[1])
-        self.assertEqual(len(set(seen)), 5, seen)
+        with TemporaryDirectory() as td:
+            seen.append(self._judge(_scene(Path(td)),
+                                    lambda s, r: (1, "2 failed, 3 passed in 1.0s\n"))[1])
+        self.assertEqual(len(set(seen)), 6, seen)
 
 
 class DeclaredSurfaceIsTheSubject(unittest.TestCase):
@@ -276,6 +318,18 @@ class DeclaredSurfaceIsTheSubject(unittest.TestCase):
 
 class LiveSceneBuilderAnswersOrNamesWhyNot(unittest.TestCase):
     """Боевая сборка сцены обязана отдать ОБЪЯВЛЕННУЮ поверхность."""
+
+    def test_scene_carries_scripts_because_the_surface_needs_it(self):
+        """ADR-904, ЗАМЕР: без `scripts/` в сцене `test_redteam_infra.py` даёт
+        **4 failed, 21 passed**, с ним — **25 passed**. Путь ввезён не «на
+        всякий случай»: модуль, которому в сцене не хватает пути, падает ДО
+        своего писателя, и «ноль записей» перестаёт быть ответом.
+        """
+        self.assertIn("scripts", ca.TRACKED_WRITE_SCENE_PATHS,
+                      "сцена без scripts/ красит объявленную поверхность, и до "
+                      "ADR-904 проба эти падения пропускала молча")
+        self.assertIn("spa_core/tests/test_redteam_infra.py", ca.TRACKED_WRITE_RUNS,
+                      "предмет этой проверки — модуль, которому путь и нужен")
 
     def test_archive_scene_either_carries_the_surface_or_names_the_reason(self):
         with TemporaryDirectory() as td:

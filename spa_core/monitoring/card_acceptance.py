@@ -16000,8 +16000,14 @@ TRACKED_WRITE_RUNS: tuple[str, ...] = (
 
 
 #: Что ввозится в сцену. Меньше нельзя: `pytest.ini` задаёт корень и маркеры,
-#: `tests/` несёт второй conftest, `data/` и есть измеряемое множество.
-TRACKED_WRITE_SCENE_PATHS: tuple[str, ...] = ("spa_core", "data", "tests", "pytest.ini")
+#: `tests/` несёт второй conftest, `data/` и есть измеряемое множество, а
+#: `scripts/` нужен объявленным модулям (ADR-904, ЗАМЕР: без него
+#: `test_redteam_infra.py` даёт **4 failed, 21 passed** в сцене и **25 passed**
+#: с ним — и ровно эти четыре падения проба молча пропускала, отвечая
+#: `satisfied`). Список — предмет: модуль, которому в сцене не хватает пути,
+#: падает ДО своего писателя, и «ноль записей» перестаёт быть ответом.
+TRACKED_WRITE_SCENE_PATHS: tuple[str, ...] = ("spa_core", "data", "tests", "pytest.ini",
+                                              "scripts")
 
 
 def _tracked_write_scene(ref: str, dest):
@@ -16117,6 +16123,21 @@ def tracked_write_judge(scene, runs, runner, ref="?", ref_note=""):
         return UNMEASURED, (
             f"прогон собрал ноль тестов — «чисто» без прогона не есть ответ; "
             f"сводка: {summary[-1].strip()}")
+    # ПРОГОН СЦЕНЫ ОБЯЗАН БЫТЬ ЗЕЛЁНЫМ, иначе «ноль записей» не есть ответ
+    # (ADR-904). Упавший тест мог не ДОЙТИ до строки, которая пишет: замер
+    # «никто не тронул data/» у красного прогона измеряет МЕНЬШЕ, чем читается,
+    # и до этой ветки проба отвечала `satisfied` при 4 упавших из 7645 — падения
+    # были свойством ПАРТИАЛЬНОЙ сцены (в ней не было `scripts/`). Это четвёртый
+    # различимый исход, а не ослабление: fail-CLOSED, с числом и именами.
+    broken = re.findall(r"(\d+) (failed|error(?:s)?)", summary[-1])
+    if broken:
+        named = [ln for ln in out.splitlines()
+                 if ln.startswith(("FAILED", "ERROR"))][:12]
+        shown = "; ".join(ln.strip()[:120] for ln in named) or "имён в выводе нет"
+        return UNMEASURED, (
+            f"прогон сцены {ref}{ref_note} НЕ ЗЕЛЁН ({summary[-1].strip()}) — "
+            f"упавший тест мог не дойти до своего писателя, поэтому «ноль "
+            f"записей» не есть ответ: {shown}")
 
     after = _tracked_write_snapshot(data_dir)
     touched = sorted(k for k, v in before.items() if after.get(k) != v)

@@ -1,0 +1,38 @@
+{
+ "title": "ADR-904 SCENE — дельта цикла #1015 (вторая находка): у КРАСНОГО прогона сцены «ноль записей» не есть ответ; сцена обязана нести scripts/",
+ "tests": [
+  "spa_core/tests/test_tracked_write_probe.py"
+ ],
+ "mutations": [
+  {
+   "name": "ветка снята: красный прогон сцены снова даёт `satisfied` — ровно состояние main до ADR-904, когда проба ответила «чисто» при 4 упавших из 7645",
+   "file": "spa_core/monitoring/card_acceptance.py",
+   "old": "    broken = re.findall(r\"(\\d+) (failed|error(?:s)?)\", summary[-1])",
+   "new": "    broken = []"
+  },
+  {
+   "name": "ветка узка: `errors` не считается непорядком — прогон, где тесты не дошли до писателя по ошибке сбора, снова читался бы как «чисто»",
+   "file": "spa_core/monitoring/card_acceptance.py",
+   "old": "    broken = re.findall(r\"(\\d+) (failed|error(?:s)?)\", summary[-1])",
+   "new": "    broken = re.findall(r\"(\\d+) (failed)\", summary[-1])"
+  },
+  {
+   "name": "ветка ШИРОКА: любой прогон объявляется НЕ ИЗМЕРЕННЫМ — вердикт потерян и у зелёного прогона (ложное усиление, инв. #16 наизнанку)",
+   "file": "spa_core/monitoring/card_acceptance.py",
+   "old": "    broken = re.findall(r\"(\\d+) (failed|error(?:s)?)\", summary[-1])",
+   "new": "    broken = [(\"1\", \"failed\")]"
+  },
+  {
+   "name": "имена упавших выброшены из вердикта: «НЕ ЗЕЛЁН» без имени нечем проверить, и причина перестаёт быть названной (инв. #17)",
+   "file": "spa_core/monitoring/card_acceptance.py",
+   "old": "        shown = \"; \".join(ln.strip()[:120] for ln in named) or \"имён в выводе нет\"",
+   "new": "        shown = \"имён в выводе нет\""
+  },
+  {
+   "name": "`scripts/` убран из сцены: объявленная поверхность снова падает ДО своего писателя (4 failed вместо 25 passed), и до ADR-904 это было молча",
+   "file": "spa_core/monitoring/card_acceptance.py",
+   "old": "TRACKED_WRITE_SCENE_PATHS: tuple[str, ...] = (\"spa_core\", \"data\", \"tests\", \"pytest.ini\",\n                                              \"scripts\")",
+   "new": "TRACKED_WRITE_SCENE_PATHS: tuple[str, ...] = (\"spa_core\", \"data\", \"tests\", \"pytest.ini\")"
+  }
+ ]
+}
