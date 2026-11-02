@@ -13,6 +13,8 @@ LOG_PATH = os.path.join(
     os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))),
     "data", "yield_authenticity_log.json"
 )
+_LOG_PATH_AT_IMPORT = LOG_PATH
+from spa_core.utils.data_dir import default_file as _default_file  # ADR-849 §2: SPA_DATA_DIR сильнее умолчания
 LOG_CAP = 100
 
 
@@ -225,7 +227,7 @@ class ProtocolYieldSourceAuthenticityChecker:
 
     def _append_log(self, result: dict) -> None:
         """Ring-buffer append to yield_authenticity_log.json (cap 100)."""
-        log_path = LOG_PATH
+        log_path = _default_file(LOG_PATH, _LOG_PATH_AT_IMPORT)
         os.makedirs(os.path.dirname(log_path), exist_ok=True)
 
         existing = []

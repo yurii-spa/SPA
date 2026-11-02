@@ -2,11 +2,11 @@
 
 > Авто-генерится `scripts/build_tracker_board.py` из `nimbalyst-local/tracker/*.md`. НЕ править вручную — правь карточки. Источник правды — карточки, это индекс (bootstrap).
 >
-> Собрана: 2026-11-02T13:03:29Z · сверка с карточками: `python3 scripts/build_tracker_board.py --check` (сторож `spa_core/tests/test_tracker_board_matches_cards.py`).
+> Собрана: 2026-11-02T16:20:49Z · сверка с карточками: `python3 scripts/build_tracker_board.py --check` (сторож `spa_core/tests/test_tracker_board_matches_cards.py`).
 >
-> Сверено с `origin/main` (8f34a8894).
+> Сверено с `origin/main` (bd15c004c) · у **4** своя правка, кто новее — не измерено.
 >
-> Всего карточек: **1566** · ждёт владельца: **6** · занято сессиями: **13**.
+> Всего карточек: **1567** · ждёт владельца: **6** · занято сессиями: **14**.
 
 ## 🔴 ЖДЁТ ВЛАДЕЛЬЦА (needs-owner)
 
@@ -33,6 +33,7 @@
 - **Прогон тестов переписывает СОРОК git-tracked файлов в data/ (карточка #225/#226 считает, что их три) — среди них журнал исполнения** — держит `cycle-352` · с 2026-08-23T03:25:59Z  ·  `inbox-progon-testov-perepisyvaet-sorok-otslezhivaemyh-failov-data.md`
 - **Производители устаревших чисел сайта: дата go-live из API, сверка NAV до цикла, протухшие артефакты, молчащие стражи сайта** — держит `pid20023` · с 2026-09-08T21:15:05Z  ·  `inbox-proizvoditeli-ustarevshih-chisel-saita-d.md`
 - **Сторож ответа владельца зовёт человека на не-спор: 1 и "1" — одно решение, а сравниваются байты** — держит `cycle-84821` · с 2026-08-30T00:50:53Z  ·  `inbox-storozh-otveta-vladeltsa-zovet-cheloveka.md`
+- **Тесты пишут в git-tracked data/ — сессионный сторож отказывает в КАЖДОМ прогоне CI (12 из 12 шардов), и зелёный контрольный прогон недостижим** — держит `cycle-95431` · с 2026-11-02T15:02:14Z  ·  `inbox-testy-pishut-v-git-tracked-data-sessionn.md`
 - **Замок цикла оркестратора доставлен, но в проде не работает: обёртка агента синкается раз в сутки, а голос о пропавшей защите живёт в самом пропавшем файле** — держит `cycle-81141` · с 2026-08-08T01:59:06Z  ·  `inbox-zamok-tsikla-orkestratora-dostavlen-no-v.md`
 
 ## 🧑‍⚖️ Owner Decisions (что нужно от владельца)  (380)
@@ -422,7 +423,7 @@
 ### · closed
 - Считать ли верный отказ по правилам допуска неисправностью флота  ·  `owner-decision-schitat-li-vernyi-otkaz-po-pravilam-dopu.md` · 2026-10-08
 
-## 📥 Inbox (задания: Telegram / заметки / голос)  (884)
+## 📥 Inbox (задания: Telegram / заметки / голос)  (885)
 
 ### · in-progress
 - а задача починить все-таки еще раз сообщение которым не пишет нужно твое решени…  ·  `inbox-a-zadacha-pochinit-vse-taki-esche-raz-so.md` · 2026-08-14 · 🔒 `pid43119`
@@ -444,6 +445,7 @@
 - Сторож кнопок нарушает границу, которую сам объявил соблюдённой: метка-БУКВА принималась где угодно, и слово в прозе = «наш дефект разбора» с лекарством чинить НЕСУЩЕСТВУЮЩУЮ форму (перемер #484: ложная ОДНА из 21, не пять; п.1 исполнен)  ·  `inbox-storozh-knopok-narushaet-granitsu-kotoru.md` · 2026-09-04
 - Сторож переходов статусов ждёт первого улова: назвать немого писателя и встроить прогон в агента  ·  `inbox-storozh-perehodov-statusov-zhdet-pervogo.md` · 2026-08-09
 - TASK — Portfolio CIO: Dynamic Capital Allocation & Rebalancing  ·  `inbox-task-portfolio-cio-dynamic-capital-alloc.md` · 2026-08-13
+- Тесты пишут в git-tracked data/ — сессионный сторож отказывает в КАЖДОМ прогоне CI (12 из 12 шардов), и зелёный контрольный прогон недостижим  ·  `inbox-testy-pishut-v-git-tracked-data-sessionn.md` · 2026-11-02 · 🔒 `cycle-95431`
 - Tier-C: 171 из 180 модулей не отвечают, 9 отвечающих — константы. Подключить или честно списать  ·  `inbox-tier-c-171-iz-180-modulei-ne-otvechayut.md` · 2026-08-06
 - Целостность трека SPA: подключить сторож, пересчёт из сырых входов, commit-reveal книги (перенос из earn-defi)  ·  `inbox-tselostnost-treka-spa-podklyuchit-storoz.md` · 2026-09-08
 - Цена класса «две сессии на одном предмете»: G38 п. 3 лежит остатком пятьдесят заказов  ·  `inbox-tsena-klassa-dve-sessii-na-odnom-predmet.md` · 2026-09-28
@@ -1127,6 +1129,7 @@
 - Остаток F: устаревшие храповики и ожидания тестов (26 падений, 19 групп)  ·  `inbox-ostatok-f-ustarevshie-hrapoviki-i-ozhida.md` · 2026-10-18
 - Остаток G: тесты зависят от хоста CI (11 падений)  ·  `inbox-ostatok-g-testy-zavisyat-ot-hosta-ci-11.md` · 2026-10-18
 - Остаток H: тесты зависят от сегодняшней даты (3 падения)  ·  `inbox-ostatok-h-testy-zavisyat-ot-segodnyashne.md` · 2026-10-18
+- Остаток класса «тест пишет в git-tracked data/»: население 68, закрыто 50, писатель каждого остатка НАЗВАН замером  ·  `inbox-ostatok-klassa-test-pishet-v-git-tracked.md` · 2026-11-02
 - Отбор лучших восьми протоколов не бережёт T1-якорь: два хороших кандидата вместе ухудшают книгу  ·  `inbox-otbor-luchshih-vosmi-protokolov-ne-berez.md` · 2026-08-29
 - Отчёт о доставке карточек судит байты, которых уже нет: производитель просрочил перемер на 98 часов при такте 6  ·  `inbox-otchet-o-dostavke-kartochek-sudit-baity.md` · 2026-11-02
 - Отчёт объявлен мерой критерия приёмки, которого владелец не писал  ·  `inbox-otchet-obyavlen-meroi-kriteriya-priemki.md` · 2026-09-29
@@ -1274,7 +1277,6 @@
 - Тест судит о своей уборке глобом по ОБЩЕМУ временному каталогу — и краснеет от соседнего прогона того же кода  ·  `inbox-test-sudit-o-svoei-uborke-globom-po-obsc.md` · 2026-11-01
 - Тест тождества капитала КРАСЕН на чистом origin: два читателя одной записи расходятся на сцене с дублем и порчей  ·  `inbox-test-tozhdestva-kapitala-krasen-na-chist.md` · 2026-09-16
 - Тест ворот публикации не доходит до ворот: его заслоняет гейт окна мутаций  ·  `inbox-test-vorot-publikatsii-ne-dohodit-do-vor.md` · 2026-10-18
-- Тесты пишут в git-tracked data/ — сессионный сторож отказывает в КАЖДОМ прогоне CI (12 из 12 шардов), и зелёный контрольный прогон недостижим  ·  `inbox-testy-pishut-v-git-tracked-data-sessionn.md` · 2026-11-02
 - Три отправителя стоп-крана в обход канонической двери (найдено #313)  ·  `inbox-tri-otpravitelya-stop-krana-v-obhod-kano.md` · 2026-08-20
 - Три прибора написаны и не позваны: храповик непроводки КРАСЕН на чистом origin/main a326d063e  ·  `inbox-tri-pribora-napisany-i-ne-pozvany-hrapov.md` · 2026-10-10
 - Цикл считает покрытие фидов 100% живым, а aave_arbitrum читает круглые константы из adapter_status.json  ·  `inbox-tsikl-schitaet-pokrytie-fidov-100-zhivym.md` · 2026-08-29

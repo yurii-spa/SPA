@@ -25,6 +25,8 @@ _LOG_PATH = os.path.join(
     "data",
     "yield_sustainability_rank_log.json",
 )
+_LOG_PATH_AT_IMPORT = _LOG_PATH
+from spa_core.utils.data_dir import default_file as _default_file  # ADR-849 §2: SPA_DATA_DIR сильнее умолчания
 _LOG_CAP = 100
 
 # Competitive advantage weights for sustainability scoring
@@ -434,7 +436,7 @@ class ProtocolDeFiYieldSourceSustainabilityRanker:
     # ------------------------------------------------------------------
     def _append_log(self, output: dict) -> None:
         """Append compressed record to ring-buffer log (atomic write)."""
-        log_path = os.path.abspath(_LOG_PATH)
+        log_path = os.path.abspath(_default_file(_LOG_PATH, _LOG_PATH_AT_IMPORT))
         os.makedirs(os.path.dirname(log_path), exist_ok=True)
 
         record = {

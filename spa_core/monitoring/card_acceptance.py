@@ -15908,7 +15908,301 @@ def _probe_adr_title_gate_refuses_a_fat_register(arg: str | None = None,
         f"гейт зван в main() обеих дверей доставки после пина байтов")
 
 
+#: Корень репозитория, из которого проба ниже собирает одноразовую сцену.
+_TRACKED_WRITE_ROOT = _pathlib.Path(__file__).resolve().parents[2]
+
+#: Объявленная ПОВЕРХНОСТЬ пробы ниже — тест-модули, у которых класс ЗАКРЫТ и
+#: обязан остаться закрытым. Население класса ИЗМЕРЕНО по логам контрольного
+#: прогона `41435243848` (`8f34a8894`, 12 шардов из 12): **68** тест-модулей,
+#: 71 файл `data/`. Цикл #1013 закрыл **50**; остаток 18 назван поимённо в
+#: карточке `inbox-ostatok-klassa-test-pishet-v-git-tracked` — из них ЧЕТЫРЕ файла
+#: суть денежный путь и живой трек (`adapter_status` · `apy_milestone_log` ·
+#: `gap_monitor`+`risk_alerts` · `golive_status`), то есть вне автономного мандата.
+#:
+#: Список здесь, а не в теле пробы, потому что он и есть предмет: модуль,
+#: выпавший из него, перестаёт измеряться, и это обязано быть видно в одном месте.
+#: Зелёная проба отвечает про ЭТИ модули, а НЕ про весь класс — читать её как
+#: «класс закрыт» было бы ровно тем дефектом, из которого вырос весь набор правил.
+TRACKED_WRITE_RUNS: tuple[str, ...] = (
+    "spa_core/tests/test_airdrop_farming_value_estimator.py",
+    "spa_core/tests/test_concurrent_fetch.py",
+    "spa_core/tests/test_defi_borrow_cost_optimizer.py",
+    "spa_core/tests/test_defi_fixed_rate_duration_analyzer.py",
+    "spa_core/tests/test_defi_impermanent_loss_hedging_analyzer.py",
+    "spa_core/tests/test_defi_liquidation_cascade_risk_analyzer.py",
+    "spa_core/tests/test_defi_points_to_token_conversion_analyzer.py",
+    "spa_core/tests/test_defi_protocol_admin_key_control_risk_analyzer.py",
+    "spa_core/tests/test_defi_protocol_borrow_rate_volatility_forecaster.py",
+    "spa_core/tests/test_defi_protocol_borrowing_power_utilization_analyzer.py",
+    "spa_core/tests/test_defi_protocol_gas_cost_breakeven_analyzer.py",
+    "spa_core/tests/test_defi_protocol_gauge_emission_decay_forecaster.py",
+    "spa_core/tests/test_defi_protocol_leverage_loop_risk_analyzer.py",
+    "spa_core/tests/test_defi_protocol_net_interest_margin_analyzer.py",
+    "spa_core/tests/test_defi_protocol_points_to_token_conversion_risk_analyzer.py",
+    "spa_core/tests/test_defi_protocol_rebase_token_yield_normalizer.py",
+    "spa_core/tests/test_defi_protocol_rehypothecation_risk_analyzer.py",
+    "spa_core/tests/test_defi_protocol_reserve_factor_economics_analyzer.py",
+    "spa_core/tests/test_defi_protocol_reward_claim_timing_optimizer.py",
+    "spa_core/tests/test_defi_protocol_reward_dilution_velocity_tracker.py",
+    "spa_core/tests/test_defi_protocol_risk_adjusted_yield_hurdle_analyzer.py",
+    "spa_core/tests/test_defi_protocol_stablecoin_basket_composition_risk_analyzer.py",
+    "spa_core/tests/test_defi_protocol_stablecoin_peg_arbitrage_analyzer.py",
+    "spa_core/tests/test_defi_protocol_stablecoin_yield_basis_spread_analyzer.py",
+    "spa_core/tests/test_defi_protocol_treasury_diversification_analyzer.py",
+    "spa_core/tests/test_defi_protocol_tvl_yield_elasticity_analyzer.py",
+    "spa_core/tests/test_defi_protocol_yield_after_tax_drag_analyzer.py",
+    "spa_core/tests/test_defi_protocol_yield_term_structure_analyzer.py",
+    "spa_core/tests/test_protocol_community_sentiment_scorer.py",
+    "spa_core/tests/test_protocol_defi_collateral_health_factor_simulator.py",
+    "spa_core/tests/test_protocol_defi_interest_rate_kink_proximity_analyzer.py",
+    "spa_core/tests/test_protocol_defi_liquidity_mining_dilution_analyzer.py",
+    "spa_core/tests/test_protocol_defi_mercenary_capital_risk_analyzer.py",
+    "spa_core/tests/test_protocol_defi_position_health_monitor.py",
+    "spa_core/tests/test_protocol_defi_protocol_maturity_score_analyzer.py",
+    "spa_core/tests/test_protocol_defi_reward_token_lockup_discount_analyzer.py",
+    "spa_core/tests/test_protocol_defi_validator_slashing_exposure_analyzer.py",
+    "spa_core/tests/test_protocol_defi_wrapped_asset_backing_verifier.py",
+    "spa_core/tests/test_protocol_defi_yield_farming_exit_timing_advisor.py",
+    "spa_core/tests/test_protocol_defi_yield_source_dependency_graph_analyzer.py",
+    "spa_core/tests/test_protocol_defi_yield_source_sustainability_ranker.py",
+    "spa_core/tests/test_protocol_fee_structure_analyzer.py",
+    "spa_core/tests/test_protocol_ponzi_risk_screener.py",
+    "spa_core/tests/test_protocol_real_yield_vs_paper_yield_analyzer.py",
+    "spa_core/tests/test_protocol_validator_economics_analyzer.py",
+    "spa_core/tests/test_protocol_vetoken_bribe_efficiency_analyzer.py",
+    "spa_core/tests/test_protocol_yield_source_authenticity_checker.py",
+    "spa_core/tests/test_retry_logic.py",
+    "spa_core/tests/test_signal_aggregator_entrypoint_typing.py",
+    "spa_core/tests/test_yield_aggregator_strategy_scorer.py",
+)
+
+
+#: Что ввозится в сцену. Меньше нельзя: `pytest.ini` задаёт корень и маркеры,
+#: `tests/` несёт второй conftest, `data/` и есть измеряемое множество.
+TRACKED_WRITE_SCENE_PATHS: tuple[str, ...] = ("spa_core", "data", "tests", "pytest.ini")
+
+
+def _tracked_write_scene(ref: str, dest):
+    """Одноразовая сцена из `git archive <ref>`: ровно git-tracked содержимое ref.
+
+    Почему архив, а не worktree: `git worktree add` пишет в gitdir боевого клона,
+    а проба обязана быть read-only для дерева, из которого её позвали. Почему
+    `origin/main`, а не `HEAD`: прод-клон отстаёт от origin по построению
+    (`CLAUDE.md`, ADR-152), и проба на его `HEAD` отвечала бы о коде, которого
+    на `main` уже нет.
+
+    Возвращает `(ok, причина)`.
+    """
+    import subprocess as _sp
+    import tarfile as _tar
+
+    # Пути объявлены ПОИМЁННО, а не «весь ref»: полный архив — 229 МБ, из них
+    # `docs/` 71 МБ и `nimbalyst-local/` 16 МБ прогону объявленных модулей не нужны
+    # (карточка `inbox-pribory-brosayut-odnorazovyi-stend-87-gb` — про ровно эту цену).
+    # Поток без промежуточного tar-файла: иначе пик диска вдвое больше сцены.
+    cmd = ["git", "archive", "--format=tar", ref, "--", *TRACKED_WRITE_SCENE_PATHS]
+    try:
+        proc = _sp.Popen(cmd, cwd=_TRACKED_WRITE_ROOT, stdout=_sp.PIPE,
+                         stderr=_sp.PIPE)
+    except (OSError, _sp.SubprocessError) as exc:
+        return False, f"git archive не ответил: {type(exc).__name__}: {exc}"
+    try:
+        with _tar.open(fileobj=proc.stdout, mode="r|") as th:
+            # `filter="data"` объявлен ЯВНО: умолчание меняется в 3.14, и
+            # «как сегодня распаковывает tarfile» вердиктом быть не должно.
+            th.extractall(dest, filter="data")   # noqa: S202 — архив своего репо
+    except (OSError, _tar.TarError) as exc:
+        proc.kill()
+        proc.communicate()
+        return False, f"архив не распаковался: {type(exc).__name__}: {exc}"
+    err = proc.communicate()[1] or b""
+    if proc.returncode != 0:
+        return False, (f"git archive {ref} отказал (код {proc.returncode}): "
+                       f"{err.decode('utf-8', 'replace').strip()[:200]}")
+    return True, ""
+
+
+def _tracked_write_snapshot(data_dir):
+    """`{относительный путь: (mtime_ns, size)}` по всем файлам каталога.
+
+    Мерка та же, что у сессионного сторожа `tracked_write_guard` — иначе проба
+    отвечала бы на свой вопрос, а шард CI падал бы по своему.
+    """
+    snap = {}
+    for item in sorted(data_dir.rglob("*")):
+        if item.is_file():
+            st = item.stat()
+            snap[str(item.relative_to(data_dir))] = (st.st_mtime_ns, st.st_size)
+    return snap
+
+
+
+def _tracked_write_pytest(scene, runs):
+    """Боевой прогон сцены. Возвращает `(код, stdout)`; исключение — наверх.
+
+    `SPA_DATA_DIR` снимается НАМЕРЕННО: сцена обязана отвечать о СВОЁМ `data/`,
+    а не о чужой песочнице, иначе проба зеленела бы от окружения зовущего.
+    """
+    import subprocess as _sp
+    import sys as _sys
+
+    env = dict(os.environ, SPA_ENV="ci", PYTHONHASHSEED="0")
+    env.pop("SPA_DATA_DIR", None)
+    run = _sp.run([_sys.executable, "-m", "pytest", *runs,
+                   "-q", "--tb=no", "-p", "no:randomly"],
+                  cwd=scene, capture_output=True, text=True, timeout=1800, env=env)
+    return run.returncode, (run.stdout or "")
+
+
+def tracked_write_judge(scene, runs, runner, ref="?", ref_note=""):
+    """Вердикт по ИСХОДУ прогона сцены: тронут ли хоть один файл `scene/data/`.
+
+    Прогон подаётся параметром (`runner(scene, runs) -> (код, stdout)`), чтобы
+    контроль в обе стороны мерился на НАСТОЯЩЕМ вердикте, а не на подстроке:
+    сцена, чей тест пишет в `data/`, обязана давать `not_satisfied` с именем
+    файла, а сцена, чей тест не пишет, — `satisfied`.
+
+    Три исхода различимы (инв. #17): измерено · измерено и равно нулю ·
+    НЕ ИЗМЕРЕНО с названной причиной (прогон не ответил · сводки нет вовсе ·
+    собрано ноль тестов · в `data/` сцены пусто).
+    """
+    import subprocess as _sp
+    from pathlib import Path as _Path
+
+    scene = _Path(scene)
+    data_dir = scene / "data"
+    if not data_dir.is_dir():
+        return UNMEASURED, f"в сцене {ref} нет каталога data/ — мерить нечего"
+    before = _tracked_write_snapshot(data_dir)
+    if not before:
+        return UNMEASURED, f"в data/ сцены {ref} ни одного файла — мерить нечего"
+
+    try:
+        code, out = runner(scene, runs)
+    except (OSError, _sp.SubprocessError) as exc:
+        return UNMEASURED, f"прогон не ответил: {type(exc).__name__}: {exc}"
+
+    tail = out[-400:].replace("\n", " ⏎ ")
+    summary = [ln for ln in out.splitlines()
+               if re.search(r"\d+ (passed|failed|error)", ln)]
+    if not summary:
+        return UNMEASURED, (
+            f"прогон не дал сводки (код {code}) — НЕ ИЗМЕРЕНО, а не «чисто»; "
+            f"хвост вывода: {tail}")
+    collected = sum(int(n) for n in
+                    re.findall(r"(\d+) (?:passed|failed|error)", summary[-1]))
+    if collected <= 0:
+        return UNMEASURED, (
+            f"прогон собрал ноль тестов — «чисто» без прогона не есть ответ; "
+            f"сводка: {summary[-1].strip()}")
+
+    after = _tracked_write_snapshot(data_dir)
+    touched = sorted(k for k, v in before.items() if after.get(k) != v)
+    if touched:
+        shown = ", ".join(touched[:12]) + ("…" if len(touched) > 12 else "")
+        return NOT_SATISFIED, (
+            f"прогон {len(runs)} объявленных модулей ТРОНУЛ {len(touched)} из "
+            f"{len(before)} git-tracked файлов data/ сцены {ref}{ref_note}: "
+            f"{shown}. Сессионный сторож поднимает код выхода ⇒ шард "
+            f"контрольного прогона кончается 1 по построению")
+    return SATISFIED, (
+        f"прогон {len(runs)} объявленных модулей ({summary[-1].strip()}) не тронул "
+        f"ни одного из {len(before)} git-tracked файлов data/ сцены {ref}{ref_note} "
+        f"— измерено и равно нулю. ОБЛАСТЬ ОТВЕТА: эти {len(runs)} модуля, а НЕ весь "
+        f"класс — население класса по логам прогона 41435243848 было 68, остаток "
+        f"назван в карточке `inbox-ostatok-klassa-test-pishet-v-git-tracked`")
+
+
+def _probe_tracked_data_untouched_by_declared_runs(arg: str | None) -> tuple[str, str]:
+    """Критерий: прогон ОБЪЯВЛЕННЫХ тест-модулей не трогает ни одного git-tracked
+    файла `data/` (карточка `inbox-testy-pishut-v-git-tracked-data-sessionn`,
+    заказ G895 п. 1; замер #1012 / ADR-899).
+
+    Проба мерит ИСХОД, а не структуру: она НЕ спрашивает, зовёт ли писатель
+    `utils.data_dir.default_file`, и не ищет подстрок в исходниках (ADR-333).
+    Она собирает одноразовую сцену из `git archive origin/main`, снимает
+    `(mtime_ns, size)` КАЖДОГО файла `data/` сцены, прогоняет в ней настоящий
+    pytest по объявленным модулям и перемеряет. Изменился хоть один файл —
+    критерий не выполнен, и файлы НАЗВАНЫ.
+
+    Почему именно этот исход. Сессионный сторож `spa_core/tests/tracked_write_guard.py`
+    поднимает `exitstatus` сессии, поэтому при живом дефекте КАЖДЫЙ шард
+    контрольного прогона кончается кодом 1 ПО ПОСТРОЕНИЮ: замер по логам 12 из 12
+    шардов прогона `41435243848` (`8f34a8894`), 68 нарушений, и свод не назвал ни
+    одного. «Набор зелёный» в проекте нечем предъявить, пока исход не нулевой.
+
+    Снимок берётся ТОЛЬКО по файлам, уже существующим в сцене: сцена = архив
+    ref'а, то есть её `data/` и есть git-tracked множество. Созданный прогоном
+    новый файл предметом НЕ является (замер: `strategy_rebalancing_cost_log.json`
+    в `.gitignore` — он рождается в прогоне и к храповику отношения не имеет);
+    судить его значило бы красить пробу на том, что git не отслеживает.
+
+    Три исхода различимы (инв. #17):
+
+    * **выполнено** — ни один файл сцены не тронут, и число файлов НАЗВАНО;
+    * **не выполнено** — тронутые файлы перечислены;
+    * **НЕ ИЗМЕРЕНО** с названной причиной — `git`/архив не ответили · объявленного
+      модуля нет в сцене (переименование молча сузило бы поверхность) · pytest не
+      дал сводки вовсе. Последнее — дословный урок `pyflakes`
+      (`.claude/rules/deployment.md`): «инструмент не ответил» никогда не выдаётся
+      за «чисто», и ноль собранных тестов — тоже не «чисто».
+    """
+    import shutil as _shutil
+    import subprocess as _sp
+    import sys as _sys
+    import tempfile as _tf
+    from pathlib import Path as _Path
+
+    if not TRACKED_WRITE_RUNS:
+        return UNMEASURED, "объявленная поверхность пуста — мерить нечего"
+
+    # ТЯЖЁЛАЯ часть по умолчанию НЕ запускается, и это не уловка, а цена, которую
+    # нельзя платить дважды. Сцена есть архив ref'а (~156 МБ) плюс вложенный pytest
+    # по 50 модулям (~40 с); `test_card_acceptance.py::TestRegisteredProbesAreReal`
+    # зовёт КАЖДУЮ пробу реестра, то есть на каждом из 12 шардов CI эта цена
+    # заплатилась бы заново — ровно класс карточки
+    # `inbox-pribory-brosayut-odnorazovyi-stend-87-gb`. Поэтому замер идёт только
+    # по явному аргументу, и карточка объявляет критерий КАК
+    # `tracked_data_untouched_by_declared_runs:run`. Третий исход честный: без
+    # аргумента вердикт «НЕ ИЗМЕРЕНО» с названной причиной, а не «чисто».
+    if (arg or "").strip() != "run":
+        return UNMEASURED, (
+            f"тяжёлый замер по умолчанию не запускается (сцена ~156 МБ + вложенный "
+            f"pytest по {len(TRACKED_WRITE_RUNS)} модулям); позвать как "
+            f"`tracked_data_untouched_by_declared_runs:run`")
+
+    ref, ref_note = "origin/main", ""
+    try:
+        seen = _sp.run(["git", "rev-parse", "--verify", "--quiet", ref],
+                       cwd=_TRACKED_WRITE_ROOT, capture_output=True, timeout=120)
+    except (OSError, _sp.SubprocessError) as exc:
+        return UNMEASURED, f"git не ответил: {type(exc).__name__}: {exc}"
+    if seen.returncode != 0:
+        ref, ref_note = "HEAD", " (ссылки origin/main нет — мерен HEAD дерева)"
+
+    scene = _Path(_tf.mkdtemp(prefix="spa_tracked_write_"))
+    try:
+        ok, why = _tracked_write_scene(ref, scene)
+        if not ok:
+            return UNMEASURED, why
+        missing = [f for f in TRACKED_WRITE_RUNS if not (scene / f).is_file()]
+        if missing:
+            return UNMEASURED, (
+                f"в сцене {ref} нет объявленных модулей: {', '.join(missing)} — "
+                f"поверхность сузилась бы молча")
+        data_dir = scene / "data"
+        if not data_dir.is_dir():
+            return UNMEASURED, f"в сцене {ref} нет каталога data/ — мерить нечего"
+
+        return tracked_write_judge(scene, TRACKED_WRITE_RUNS,
+                                   _tracked_write_pytest, ref, ref_note)
+    finally:
+        _shutil.rmtree(scene, ignore_errors=True)
+
+
 PROBES: dict[str, Callable[[str | None], "tuple[str, str]"]] = {
+    "tracked_data_untouched_by_declared_runs":
+        _probe_tracked_data_untouched_by_declared_runs,
     "ci_red_census_names_the_population":
         _probe_ci_red_census_names_the_population,
     "starvation_cycles_name_the_order":

@@ -16,6 +16,8 @@ _LOG_FILE = os.path.join(
     os.path.dirname(__file__), "..", "..", "data", "protocol_revenue_share_log.json"
 )
 _LOG_FILE = os.path.normpath(_LOG_FILE)
+_LOG_FILE_AT_IMPORT = _LOG_FILE
+from spa_core.utils.data_dir import default_file as _default_file  # ADR-849 §2: SPA_DATA_DIR сильнее умолчания
 _RING_CAP = 100
 
 DISTRIBUTION_HOLDER_FRIENDLY = "HOLDER_FRIENDLY"
@@ -63,7 +65,7 @@ class ProtocolRevenueShareAnalyzer:
     """
 
     def __init__(self, log_path: Optional[str] = None):
-        self._log_path = log_path or _LOG_FILE
+        self._log_path = log_path or _default_file(_LOG_FILE, _LOG_FILE_AT_IMPORT)
         self._last_result: Optional[dict] = None
 
     # ── public API ─────────────────────────────────────────────────────────────

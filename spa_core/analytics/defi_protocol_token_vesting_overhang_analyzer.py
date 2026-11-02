@@ -24,6 +24,8 @@ from spa_core.utils.atomic import atomic_save
 _LOG_PATH = os.path.join(
     os.path.dirname(__file__), "..", "..", "data", "token_vesting_overhang_log.json"
 )
+_LOG_PATH_AT_IMPORT = _LOG_PATH
+from spa_core.utils.data_dir import default_file as _default_file  # ADR-849 §2: SPA_DATA_DIR сильнее умолчания
 _LOG_CAP = 100
 
 # Recipient type → expected sell-pressure weight (1.0 = highest pressure).
@@ -279,7 +281,7 @@ class DeFiProtocolTokenVestingOverhangAnalyzer:
     """
 
     def __init__(self, log_path: str = _LOG_PATH, log_cap: int = _LOG_CAP) -> None:
-        self._log_path = log_path
+        self._log_path = _default_file(log_path, _LOG_PATH_AT_IMPORT)
         self._log_cap = log_cap
 
     # ------------------------------------------------------------------

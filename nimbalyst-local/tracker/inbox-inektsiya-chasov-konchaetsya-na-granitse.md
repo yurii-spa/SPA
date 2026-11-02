@@ -6,6 +6,7 @@ status: new
 source: nimbalyst
 created: 2026-11-02
 twin_key: "sha256:1599f7958350718ec1d15cab511f0b67b03932041feb41e06807bec59dd643f6"
+intake_kind: task
 ---
 
 ## Что измерено

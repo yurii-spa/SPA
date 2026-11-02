@@ -14,6 +14,8 @@ from typing import Any
 # ── constants ────────────────────────────────────────────────────────────────
 LOG_FILE = os.path.join(os.path.dirname(__file__), "..", "..", "data",
                         "liquidation_cascade_log.json")
+_LOG_FILE_AT_IMPORT = LOG_FILE
+from spa_core.utils.data_dir import default_file as _default_file  # ADR-849 §2: SPA_DATA_DIR сильнее умолчания
 LOG_CAP = 100
 
 LABEL_SAFE = "SAFE"
@@ -333,8 +335,7 @@ class DeFiLiquidationCascadeRiskAnalyzer:
 
     def _append_log(self, result: dict, cfg: dict) -> None:
         log_path = os.path.abspath(
-            os.path.join(os.path.dirname(__file__), "..", "..", "data",
-                         "liquidation_cascade_log.json")
+            _default_file(LOG_FILE, _LOG_FILE_AT_IMPORT)
         )
         try:
             if os.path.exists(log_path):

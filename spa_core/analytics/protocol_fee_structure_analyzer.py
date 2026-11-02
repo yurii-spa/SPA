@@ -12,6 +12,12 @@ from typing import Any
 
 # ── constants ────────────────────────────────────────────────────────────────
 LOG_CAP = 100
+#: Умолчание пути журнала — объявлено ОДИН раз на уровне модуля (было собрано
+#: заново внутри `_append_log`, то есть мимо любой подмены и мимо SPA_DATA_DIR).
+_LOG_PATH = os.path.join(os.path.dirname(__file__), "..", "..", "data",
+                        "fee_structure_log.json")
+_LOG_PATH_AT_IMPORT = _LOG_PATH
+from spa_core.utils.data_dir import default_file as _default_file  # ADR-849 §2: SPA_DATA_DIR сильнее умолчания
 
 LABEL_VERY_COMPETITIVE = "VERY_COMPETITIVE"
 LABEL_COMPETITIVE = "COMPETITIVE"
@@ -303,8 +309,7 @@ class ProtocolFeeStructureAnalyzer:
 
     def _append_log(self, result: dict, cfg: dict) -> None:
         log_path = os.path.abspath(
-            os.path.join(os.path.dirname(__file__), "..", "..", "data",
-                         "fee_structure_log.json")
+            _default_file(_LOG_PATH, _LOG_PATH_AT_IMPORT)
         )
         try:
             if os.path.exists(log_path):

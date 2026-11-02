@@ -44,6 +44,8 @@ LOG_PATH = os.path.join(
     "data",
     "stablecoin_basket_composition_log.json",
 )
+_LOG_PATH_AT_IMPORT = LOG_PATH
+from spa_core.utils.data_dir import default_file as _default_file  # ADR-849 §2: SPA_DATA_DIR сильнее умолчания
 LOG_MAX_ENTRIES = 100
 
 VALID_BACKING_TYPES = frozenset({
@@ -425,6 +427,7 @@ def _init_log(path: str) -> list:
 
 def _append_log(result: dict, log_path: str = LOG_PATH) -> None:
     """Append a snapshot to the ring-buffer log (capped at LOG_MAX_ENTRIES)."""
+    log_path = _default_file(log_path, _LOG_PATH_AT_IMPORT)
     entries = _init_log(log_path)
     snapshot = {
         "ts": result.get("analyzed_at", _iso_now()),

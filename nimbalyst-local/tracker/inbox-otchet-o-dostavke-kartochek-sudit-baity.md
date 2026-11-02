@@ -6,6 +6,7 @@ status: new
 source: nimbalyst
 created: 2026-11-02
 twin_key: "sha256:a307bba4bb03a44f42fe9b9f26140e7942cab0abd73985d1330afe4ff98d7c07"
+intake_kind: task
 ---
 
 ## Что сказал шаг 0-офис

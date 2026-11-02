@@ -762,6 +762,7 @@
 | ADR-897 | Инъекция часов кончается на границе ПОДПРОЦЕССА — девятая дверь того же семейства; претензия `injected-clock` была ложной, и AST одного файла этого не видит | Accepted | [ADR-897](ADR-897-the-clock-stops-at-the-subprocess-boundary.md) |
 | ADR-898 | Девятая дверь: поверхность ИЗМЕРЕНА (30 из 273, шов у 2), а КЛАСС — НЕ ИЗМЕРЕН, и причина названа прибором | Accepted | [ADR-898](ADR-898-the-subprocess-clock-door-class-is-measured.md) |
 | ADR-899 | Шард, сказавший «упало» без имён — РОД: сессионный сторож поднял код над ЗЕЛЁНОЙ сессией; у вопроса четыре исхода, шард ИЗМЕРЕН, отказ сам держит RED | Accepted | [ADR-899](ADR-899-shard-exit-raised-by-a-session-guard.md) |
+| ADR-900 | Писатель журнала состояния спрашивает дверь песочницы, а не свой `__file__`: класс «тест пишет в git-tracked `data/`» ИЗМЕРЕН (68, не 7) и закрыт на 50 | Accepted | [ADR-900](ADR-900-tracked-data-writers-ask-the-sandbox-door.md) |
 
 ## Соглашения
 
