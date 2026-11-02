@@ -25,6 +25,8 @@ LOG_PATH = os.path.join(
     "data",
     "funding_rate_arb_log.json",
 )
+_LOG_PATH_AT_IMPORT = LOG_PATH
+from spa_core.utils.data_dir import default_file as _default_file  # ADR-849 §2: SPA_DATA_DIR сильнее умолчания
 LOG_MAX_ENTRIES = 100
 
 
@@ -208,13 +210,14 @@ def analyze(opportunities: list, config: dict = None) -> dict:
 
 def _append_log(entry: dict) -> None:
     """Atomically append a result entry to the ring-buffer log (max 100)."""
-    log_dir = os.path.dirname(LOG_PATH)
+    _path = _default_file(LOG_PATH, _LOG_PATH_AT_IMPORT)
+    log_dir = os.path.dirname(_path)
     os.makedirs(log_dir, exist_ok=True)
 
     existing = []
-    if os.path.exists(LOG_PATH):
+    if os.path.exists(_path):
         try:
-            with open(LOG_PATH, "r") as fh:
+            with open(_path, "r") as fh:
                 existing = json.load(fh)
             if not isinstance(existing, list):
                 existing = []
@@ -226,13 +229,14 @@ def _append_log(entry: dict) -> None:
     existing = existing[-LOG_MAX_ENTRIES:]
 
     # atomic write
-    atomic_save(existing, str(LOG_PATH))
+    atomic_save(existing, str(_path))
 def init_log() -> None:
     """Initialize the log file as an empty list if it doesn't exist."""
-    log_dir = os.path.dirname(LOG_PATH)
+    _path = _default_file(LOG_PATH, _LOG_PATH_AT_IMPORT)
+    log_dir = os.path.dirname(_path)
     os.makedirs(log_dir, exist_ok=True)
-    if not os.path.exists(LOG_PATH):
-        atomic_save([], str(LOG_PATH))
+    if not os.path.exists(_path):
+        atomic_save([], str(_path))
 
 
 # ---------------------------------------------------------------------------

@@ -44,6 +44,8 @@ _HERE = os.path.dirname(os.path.abspath(__file__))
 _REPO_ROOT = os.path.dirname(os.path.dirname(_HERE))
 
 LOG_PATH = os.path.join(_REPO_ROOT, "data", "airdrop_eligibility_log.json")
+_LOG_PATH_AT_IMPORT = LOG_PATH
+from spa_core.utils.data_dir import default_file as _default_file  # ADR-849 §2: SPA_DATA_DIR сильнее умолчания
 LOG_MAX_ENTRIES = 100
 
 # Flag thresholds
@@ -352,7 +354,7 @@ class ProtocolAirdropEligibilityOptimizer:
             config = {}
 
         write_log = config.get("write_log", True)
-        log_path = config.get("log_path", LOG_PATH)
+        log_path = _default_file(config.get("log_path", LOG_PATH), _LOG_PATH_AT_IMPORT)
         programs = config.get("airdrop_programs", [])
 
         timestamp = time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime())

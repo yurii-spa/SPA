@@ -13,6 +13,8 @@ LOG_PATH = os.path.join(
     os.path.dirname(os.path.dirname(os.path.dirname(__file__))),
     "data", "cross_chain_arbitrage_log.json"
 )
+_LOG_PATH_AT_IMPORT = LOG_PATH
+from spa_core.utils.data_dir import default_file as _default_file  # ADR-849 §2: SPA_DATA_DIR сильнее умолчания
 LOG_CAP = 100
 
 _OPPORTUNITY_THRESHOLDS = [
@@ -216,7 +218,7 @@ class ProtocolCrossChainYieldArbitrageDetector:
             "average_net_spread": entry["aggregates"].get("average_net_spread"),
         }
         try:
-            log_path = LOG_PATH
+            log_path = _default_file(LOG_PATH, _LOG_PATH_AT_IMPORT)
             if os.path.exists(log_path):
                 with open(log_path, "r") as f:
                     buf = json.load(f)

@@ -15914,28 +15914,40 @@ _TRACKED_WRITE_ROOT = _pathlib.Path(__file__).resolve().parents[2]
 #: Объявленная ПОВЕРХНОСТЬ пробы ниже — тест-модули, у которых класс ЗАКРЫТ и
 #: обязан остаться закрытым. Население класса ИЗМЕРЕНО по логам контрольного
 #: прогона `41435243848` (`8f34a8894`, 12 шардов из 12): **68** тест-модулей,
-#: 71 файл `data/`. Цикл #1013 закрыл **50**; остаток 18 назван поимённо в
-#: карточке `inbox-ostatok-klassa-test-pishet-v-git-tracked` — из них ЧЕТЫРЕ файла
-#: суть денежный путь и живой трек (`adapter_status` · `apy_milestone_log` ·
-#: `gap_monitor`+`risk_alerts` · `golive_status`), то есть вне автономного мандата.
+#: 71 файл `data/`. Цикл #1013 закрыл 50 (ADR-900), цикл #1014 — остальные 18
+#: (ADR-901), поэтому с этой правки поверхность пробы РАВНА населению класса:
+#: **68 из 68**, и «зелено на срезе» больше не может читаться как «класс закрыт»,
+#: потому что среза нет.
+#:
+#: ЧЕГО ЭТО НЕ ЗНАЧИТ. Поверхность есть перечень ИЗМЕРЕННЫХ модулей, а не
+#: доказательство, что писателей в наборе больше нет: следующий добавленный
+#: тест-модуль в неё не попадёт сам, и его запись сторож `tracked_write_guard`
+#: поймает кодом выхода, а не эта проба. Население мерится ЛОГАМИ прогона, не
+#: этим списком.
 #:
 #: Список здесь, а не в теле пробы, потому что он и есть предмет: модуль,
 #: выпавший из него, перестаёт измеряться, и это обязано быть видно в одном месте.
-#: Зелёная проба отвечает про ЭТИ модули, а НЕ про весь класс — читать её как
-#: «класс закрыт» было бы ровно тем дефектом, из которого вырос весь набор правил.
 TRACKED_WRITE_RUNS: tuple[str, ...] = (
     "spa_core/tests/test_airdrop_farming_value_estimator.py",
+    "spa_core/tests/test_alerts.py",
+    "spa_core/tests/test_borrowing_cost_optimizer.py",
     "spa_core/tests/test_concurrent_fetch.py",
+    "spa_core/tests/test_cycle_write_interlock.py",
     "spa_core/tests/test_defi_borrow_cost_optimizer.py",
     "spa_core/tests/test_defi_fixed_rate_duration_analyzer.py",
+    "spa_core/tests/test_defi_funding_rate_arbitrage_detector.py",
     "spa_core/tests/test_defi_impermanent_loss_hedging_analyzer.py",
+    "spa_core/tests/test_defi_lending_rate_spread_analyzer.py",
     "spa_core/tests/test_defi_liquidation_cascade_risk_analyzer.py",
+    "spa_core/tests/test_defi_perpetual_funding_rate_analyzer.py",
     "spa_core/tests/test_defi_points_to_token_conversion_analyzer.py",
     "spa_core/tests/test_defi_protocol_admin_key_control_risk_analyzer.py",
     "spa_core/tests/test_defi_protocol_borrow_rate_volatility_forecaster.py",
     "spa_core/tests/test_defi_protocol_borrowing_power_utilization_analyzer.py",
+    "spa_core/tests/test_defi_protocol_cross_asset_correlation_risk_analyzer.py",
     "spa_core/tests/test_defi_protocol_gas_cost_breakeven_analyzer.py",
     "spa_core/tests/test_defi_protocol_gauge_emission_decay_forecaster.py",
+    "spa_core/tests/test_defi_protocol_lending_rate_spread_analyzer.py",
     "spa_core/tests/test_defi_protocol_leverage_loop_risk_analyzer.py",
     "spa_core/tests/test_defi_protocol_net_interest_margin_analyzer.py",
     "spa_core/tests/test_defi_protocol_points_to_token_conversion_risk_analyzer.py",
@@ -15952,7 +15964,9 @@ TRACKED_WRITE_RUNS: tuple[str, ...] = (
     "spa_core/tests/test_defi_protocol_tvl_yield_elasticity_analyzer.py",
     "spa_core/tests/test_defi_protocol_yield_after_tax_drag_analyzer.py",
     "spa_core/tests/test_defi_protocol_yield_term_structure_analyzer.py",
+    "spa_core/tests/test_protocol_airdrop_eligibility_optimizer.py",
     "spa_core/tests/test_protocol_community_sentiment_scorer.py",
+    "spa_core/tests/test_protocol_cross_chain_yield_arbitrage_detector.py",
     "spa_core/tests/test_protocol_defi_collateral_health_factor_simulator.py",
     "spa_core/tests/test_protocol_defi_interest_rate_kink_proximity_analyzer.py",
     "spa_core/tests/test_protocol_defi_liquidity_mining_dilution_analyzer.py",
@@ -15963,17 +15977,25 @@ TRACKED_WRITE_RUNS: tuple[str, ...] = (
     "spa_core/tests/test_protocol_defi_validator_slashing_exposure_analyzer.py",
     "spa_core/tests/test_protocol_defi_wrapped_asset_backing_verifier.py",
     "spa_core/tests/test_protocol_defi_yield_farming_exit_timing_advisor.py",
+    "spa_core/tests/test_protocol_defi_yield_smoothing_analyzer.py",
     "spa_core/tests/test_protocol_defi_yield_source_dependency_graph_analyzer.py",
     "spa_core/tests/test_protocol_defi_yield_source_sustainability_ranker.py",
+    "spa_core/tests/test_protocol_economic_attack_simulator.py",
+    "spa_core/tests/test_protocol_fee_revenue_sustainability_analyzer.py",
     "spa_core/tests/test_protocol_fee_structure_analyzer.py",
+    "spa_core/tests/test_protocol_insider_activity_monitor.py",
     "spa_core/tests/test_protocol_ponzi_risk_screener.py",
     "spa_core/tests/test_protocol_real_yield_vs_paper_yield_analyzer.py",
     "spa_core/tests/test_protocol_validator_economics_analyzer.py",
     "spa_core/tests/test_protocol_vetoken_bribe_efficiency_analyzer.py",
     "spa_core/tests/test_protocol_yield_source_authenticity_checker.py",
+    "spa_core/tests/test_redteam_infra.py",
+    "spa_core/tests/test_restaking_risk_analyzer.py",
     "spa_core/tests/test_retry_logic.py",
     "spa_core/tests/test_signal_aggregator_entrypoint_typing.py",
+    "spa_core/tests/test_token_price_volatility_tracker.py",
     "spa_core/tests/test_yield_aggregator_strategy_scorer.py",
+    "spa_core/tests/test_yield_source_concentration_risk.py",
 )
 
 

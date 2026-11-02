@@ -26,6 +26,8 @@ from typing import Dict, List, Optional
 
 _REPO_ROOT = Path(__file__).resolve().parents[2]
 DATA_FILE = _REPO_ROOT / "data" / "insider_activity_log.json"
+_DATA_FILE_AT_IMPORT = DATA_FILE
+from spa_core.utils.data_dir import default_file as _default_file  # ADR-849 §2: SPA_DATA_DIR сильнее умолчания
 MAX_ENTRIES = 100
 
 # ---------------------------------------------------------------------------
@@ -256,7 +258,7 @@ def _analyze_protocol(protocol: dict) -> dict:
 def _append_log(result: dict, log_file: Path = None) -> None:
     """Append result snapshot to ring-buffer log (atomic write, max 100 entries)."""
     if log_file is None:
-        log_file = DATA_FILE
+        log_file = _default_file(DATA_FILE, _DATA_FILE_AT_IMPORT)
 
     try:
         if log_file.exists():

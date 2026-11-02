@@ -21,6 +21,8 @@ from typing import Any
 _LOG_PATH = os.path.join(
     os.path.dirname(__file__), "..", "..", "data", "lending_rate_spread_log.json"
 )
+_LOG_PATH_AT_IMPORT = _LOG_PATH
+from spa_core.utils.data_dir import default_file as _default_file  # ADR-849 §2: SPA_DATA_DIR сильнее умолчания
 _LOG_CAP = 100
 
 _DEFAULT_RISK_FREE_RATE = 4.5   # % — approximate T-bill / RWA benchmark
@@ -320,7 +322,7 @@ class DeFiProtocolLendingRateSpreadAnalyzer:
     # ------------------------------------------------------------------
     def _append_log(self, output: dict) -> None:
         """Append compressed record to ring-buffer log (atomic write)."""
-        log_path = os.path.abspath(_LOG_PATH)
+        log_path = os.path.abspath(_default_file(_LOG_PATH, _LOG_PATH_AT_IMPORT))
         os.makedirs(os.path.dirname(log_path), exist_ok=True)
 
         record = {

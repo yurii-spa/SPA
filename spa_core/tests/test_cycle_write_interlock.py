@@ -50,9 +50,18 @@ def fake_canonical(tmp_path, monkeypatch):
     canon.mkdir()
     monkeypatch.setattr(_cycle_io, "_DEFAULT_DATA_DIR", canon, raising=True)
     monkeypatch.setattr(cr, "_DEFAULT_DATA_DIR", canon, raising=True)
-    # Ensure no ambient opt-in / sandbox override leaks in from the environment.
+    # Ensure no ambient opt-in leaks in from the environment.
     monkeypatch.delenv(LIVE_WRITE_ENV, raising=False)
-    monkeypatch.delenv(DATA_DIR_ENV, raising=False)
+    # ADR-901: sandbox door ARMED at a dir that is NOT `canon`, instead of removed.
+    # Deleting SPA_DATA_DIR used to disarm the one door the cycle's SIDE-writers
+    # (adapter_status_generator, gap_monitor, cycle_reporting → apy_milestone_tracker)
+    # ask at call time (ADR-849 §2): with no variable they honestly resolved their own
+    # module default and the flagged run wrote four git-tracked files into the TREE's
+    # data/ (measured stacks in ADR-901). It must differ from `canon`, or
+    # `test_env_falsey_is_still_denied` — whose subject is "sandbox != canonical" —
+    # would compare a dir with itself. Tests that own this variable still set it
+    # themselves; monkeypatch.setenv is overridden by a later setenv, never shadowed.
+    monkeypatch.setenv(DATA_DIR_ENV, str(tmp_path / "sbx_default"))
     return canon
 
 

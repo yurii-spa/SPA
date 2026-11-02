@@ -2,9 +2,9 @@
 
 > Авто-генерится `scripts/build_tracker_board.py` из `nimbalyst-local/tracker/*.md`. НЕ править вручную — правь карточки. Источник правды — карточки, это индекс (bootstrap).
 >
-> Собрана: 2026-11-02T16:58:05Z · сверка с карточками: `python3 scripts/build_tracker_board.py --check` (сторож `spa_core/tests/test_tracker_board_matches_cards.py`).
+> Собрана: 2026-11-02T20:55:03Z · сверка с карточками: `python3 scripts/build_tracker_board.py --check` (сторож `spa_core/tests/test_tracker_board_matches_cards.py`).
 >
-> Сверено с `origin/main` (df6a24a07) · у **1** своя правка, кто новее — не измерено.
+> Сверено с `origin/main` (74c9a2570) · у **3** своя правка, кто новее — не измерено.
 >
 > Всего карточек: **1567** · ждёт владельца: **6** · занято сессиями: **13**.
 
@@ -436,6 +436,7 @@
 - Храповик считает упоминание в докстринге за проводку — и это лишь одна из трёх слепот  ·  `inbox-hrapovik-schitaet-upominanie-v-dokstring.md` · 2026-08-14 · 🔒 `pid66130`
 - Храповик STATE.md снова красный на main: 164 строки при собственном пределе 150 — разовое сокращение классом не лечится  ·  `inbox-hrapovik-state-md-snova-krasnyi-na-main.md` · 2026-08-28
 - Критерий §49 «Architecture»: существует ли владелец решения на уровне ВСЕГО портфеля — не мерил никто  ·  `inbox-kriterii-49-architecture-suschestvuet-li.md` · 2026-09-28
+- Остаток класса «тест пишет в git-tracked data/»: население 68, закрыто 50, писатель каждого остатка НАЗВАН замером  ·  `inbox-ostatok-klassa-test-pishet-v-git-tracked.md` · 2026-11-02
 - Полные прогоны мёртвой сессии продолжают жить и морят машину — третий случай за сутки, а сторож этого класса сам осиротел  ·  `inbox-polnye-progony-mertvoi-sessii-zhivut-i-morya.md` · 2026-08-28 · 🔒 `pid87687`
 - Порог свежести артефакта живёт в ДВУХ местах и они не пересекаются — расхождение никем не проверяется  ·  `inbox-porog-svezhesti-zhivet-v-dvuh-mestah.md` · 2026-08-28 · 🔒 `cycle-42991`
 - Пробный ход сверх бюджета оборота — реализовать решение владельца (вариант 1, ADR-334)  ·  `inbox-probnyi-hod-sverh-byudzheta-oborota.md` · 2026-09-11
@@ -1128,7 +1129,6 @@
 - Остаток F: устаревшие храповики и ожидания тестов (26 падений, 19 групп)  ·  `inbox-ostatok-f-ustarevshie-hrapoviki-i-ozhida.md` · 2026-10-18
 - Остаток G: тесты зависят от хоста CI (11 падений)  ·  `inbox-ostatok-g-testy-zavisyat-ot-hosta-ci-11.md` · 2026-10-18
 - Остаток H: тесты зависят от сегодняшней даты (3 падения)  ·  `inbox-ostatok-h-testy-zavisyat-ot-segodnyashne.md` · 2026-10-18
-- Остаток класса «тест пишет в git-tracked data/»: население 68, закрыто 50, писатель каждого остатка НАЗВАН замером  ·  `inbox-ostatok-klassa-test-pishet-v-git-tracked.md` · 2026-11-02
 - Отбор лучших восьми протоколов не бережёт T1-якорь: два хороших кандидата вместе ухудшают книгу  ·  `inbox-otbor-luchshih-vosmi-protokolov-ne-berez.md` · 2026-08-29
 - Отчёт о доставке карточек судит байты, которых уже нет: производитель просрочил перемер на 98 часов при такте 6  ·  `inbox-otchet-o-dostavke-kartochek-sudit-baity.md` · 2026-11-02
 - Отчёт объявлен мерой критерия приёмки, которого владелец не писал  ·  `inbox-otchet-obyavlen-meroi-kriteriya-priemki.md` · 2026-09-29

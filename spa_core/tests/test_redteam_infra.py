@@ -161,9 +161,13 @@ class _MutatingScenario(RedTeamScenario):
     surface = Surface.PROOF
     description = "a scenario that mutates a live watched file — the live-data guard must FAIL the run"
 
+    #: ADR-901: дерево, у которого сторож спрашивает наблюдаемую поверхность. ``None`` ⇒ прежнее
+    #: поведение (настоящее ``_ROOT``) — умолчание не меняется, меняется возможность его назвать.
+    watch_root: Path | None = None
+
     def attack(self, sandbox: Path) -> Finding:
-        # write to a watched live file (then we clean it up after, so the test never leaves dirt).
-        live = runner._ROOT / runner._WATCHED_LIVE_FILES[-1]  # data/golive_status.json
+        root = self.watch_root if self.watch_root is not None else runner._ROOT
+        live = root / runner._WATCHED_LIVE_FILES[-1]  # data/golive_status.json
         self._scratch = live
         self._orig = live.read_bytes() if live.exists() else None
         live.parent.mkdir(parents=True, exist_ok=True)
@@ -174,22 +178,29 @@ class _MutatingScenario(RedTeamScenario):
 def test_live_data_mutation_canary_fails_the_run(tmp_path):
     """A scenario that mutates a watched LIVE file → run_all reports live_data_untouched=False and
     ok=False, EVEN THOUGH the scenario itself claimed 'caught'. The guardrail is enforced, not
-    promised. The canary restores the file so the live tree is left pristine."""
+    promised.
+
+    ADR-901: наблюдаемая поверхность берётся у ОДНОРАЗОВОГО дерева (вход ``root``), а не у
+    рабочего. Прежняя редакция мутировала настоящий ``data/golive_status.json`` и возвращала
+    байты в ``finally``: для git дерево оставалось чистым, а сессионный сторож
+    ``tracked_write_guard`` видел ЗАПИСЬ и поднимал код выхода шарда — то есть «набор зелёный»
+    было нечем предъявить. Предмет теста не ослаблен, а усилен: те же три утверждения плюс
+    проверка, что вход ``root`` действительно читается (на настоящем дереве файла с такими
+    байтами не существует, и подмена не прошла бы незамеченной).
+    """
+    tree = tmp_path / "tree"
+    (tree / "data").mkdir(parents=True)
+    watched = tree / runner._WATCHED_LIVE_FILES[-1]
+    watched.write_bytes(b'{"canary": "before"}')
+
     scen = _MutatingScenario()
-    try:
-        verdict = runner.run_all([scen], check_live_untouched=True)
-        assert verdict["live_data_untouched"] is False
-        assert verdict["ok"] is False
-        assert "data/golive_status.json" in verdict["live_data_mutated_files"]
-    finally:
-        # restore the watched file to its original bytes (or remove if we created it).
-        live = getattr(scen, "_scratch", None)
-        orig = getattr(scen, "_orig", None)
-        if live is not None:
-            if orig is None:
-                live.unlink(missing_ok=True)
-            else:
-                live.write_bytes(orig)
+    scen.watch_root = tree
+    verdict = runner.run_all([scen], check_live_untouched=True, root=tree)
+    assert verdict["live_data_untouched"] is False
+    assert verdict["ok"] is False
+    assert "data/golive_status.json" in verdict["live_data_mutated_files"]
+    # the mutation landed in the disposable tree, not in the working one
+    assert watched.read_bytes() != b'{"canary": "before"}'
 
 
 # ════════════════════════════════════════════════════════════════════════════════════════════════

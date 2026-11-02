@@ -29,6 +29,26 @@ _PROJECT_ROOT = Path(__file__).resolve().parents[2]
 if str(_PROJECT_ROOT) not in sys.path:
     sys.path.insert(0, str(_PROJECT_ROOT))
 
+from spa_core.utils.data_dir import DATA_DIR_ENV  # ADR-849 §2 / ADR-901
+
+
+def _empty_env_keeping_the_sandbox() -> dict:
+    """Пустое окружение, в котором дверь песочницы (``SPA_DATA_DIR``) СОХРАНЕНА.
+
+    ``mock.patch.dict(os.environ, {}, clear=True)`` снимал и её, а её выставляет
+    autouse-фикстура герметичности на КАЖДЫЙ тест. Писатель журнала
+    (``alert_dispatcher``) спрашивает дверь в момент вызова (ADR-849 §2), поэтому
+    со снятой переменной он честно разрешал своё умолчание — ``data/alert_log.json``
+    СВОЕГО дерева — и прогон менял git-tracked состояние (замер ADR-901: стек
+    ``run_alerts.run`` → ``dispatch_alerts`` → ``_append_ring_buffer``).
+
+    Предмет тестов не меняется: SMTP/Telegram-переменные по-прежнему удаляются,
+    а ``SPA_DATA_DIR`` конфигурацией алертов не является ни в одной ветке кода.
+    Переменной нет ⇒ отдаём пустой словарь, то есть прежнее поведение бит-в-бит.
+    """
+    sandbox = os.environ.get(DATA_DIR_ENV, "")
+    return {DATA_DIR_ENV: sandbox} if sandbox else {}
+
 from spa_core.alerts.alert_config import (  # noqa: E402
     AlertConfig,
     SEVERITY_CRITICAL,
@@ -71,7 +91,7 @@ def _crit(cid, name, weight, status, detail="") -> dict:
 class TestAlertConfig(unittest.TestCase):
     def test_alert_config_env_fallback(self):
         """No SMTP env vars → dry_run=True automatically."""
-        with mock.patch.dict(os.environ, {}, clear=True):
+        with mock.patch.dict(os.environ, _empty_env_keeping_the_sandbox(), clear=True):
             cfg = AlertConfig.from_env()
         self.assertTrue(cfg.dry_run)
         self.assertFalse(cfg.smtp_configured)
@@ -456,7 +476,7 @@ class TestRunAlertsCli(unittest.TestCase):
     def test_run_returns_summary_dict(self):
         from spa_core.alerts import run_alerts
 
-        with mock.patch.dict(os.environ, {}, clear=True):
+        with mock.patch.dict(os.environ, _empty_env_keeping_the_sandbox(), clear=True):
             result = run_alerts.run(dry_run=True, verbose=False)
         self.assertIn("counts", result)
         self.assertIn("total", result)
@@ -465,7 +485,7 @@ class TestRunAlertsCli(unittest.TestCase):
     def test_main_exit_code_zero_on_dry_run(self):
         from spa_core.alerts import run_alerts
 
-        with mock.patch.dict(os.environ, {}, clear=True):
+        with mock.patch.dict(os.environ, _empty_env_keeping_the_sandbox(), clear=True):
             code = run_alerts.main(["--dry-run"])
         self.assertEqual(code, 0)
 

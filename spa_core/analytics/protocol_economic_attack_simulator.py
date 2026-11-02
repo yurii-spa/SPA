@@ -24,6 +24,8 @@ _LOG_PATH = os.path.join(
     os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))),
     "data", "attack_simulation_log.json"
 )
+_LOG_PATH_AT_IMPORT = _LOG_PATH
+from spa_core.utils.data_dir import default_file as _default_file  # ADR-849 §2: SPA_DATA_DIR сильнее умолчания
 _LOG_CAP = 100
 
 
@@ -144,6 +146,7 @@ def _build_recommendation(
 
 def _atomic_log(entry: dict, log_path: str = _LOG_PATH) -> None:
     """Append entry to ring-buffer JSON log (capped at _LOG_CAP). Atomic write."""
+    log_path = _default_file(log_path, _LOG_PATH_AT_IMPORT)
     try:
         os.makedirs(os.path.dirname(log_path), exist_ok=True)
         if os.path.exists(log_path):

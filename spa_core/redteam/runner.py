@@ -101,18 +101,28 @@ def run_scenario(scenario: RedTeamScenario) -> Finding:
 
 
 def run_all(scenarios: Optional[List[RedTeamScenario]] = None,
-            *, check_live_untouched: bool = True) -> dict:
+            *, check_live_untouched: bool = True, root: Optional[Path] = None) -> dict:
     """Run every scenario (or the supplied subset) against fresh sandboxes and return the verdict.
 
     fail-CLOSED: ok is True iff every scenario ok AND (when check_live_untouched) the live data/
-    surface files are byte-identical before and after."""
+    surface files are byte-identical before and after.
+
+    ``root`` — ДЕРЕВО, у которого спрашивают наблюдаемую поверхность (ADR-901). Умолчание
+    ``None`` ⇒ ``_ROOT``, то есть прод-поведение бит-в-бит прежнее. Параметр нужен тому, кто
+    проверяет САМ сторож: положительный контроль обязан МУТИРОВАТЬ наблюдаемый файл, а делать
+    это в git-tracked ``data/`` рабочего дерева значит менять состояние дерева (замер ADR-901:
+    ``test_redteam_infra`` писал ``data/golive_status.json`` и восстанавливал байты — для git
+    чисто, для сессионного сторожа запись). Тот же приём, что у часов и у живости процесса
+    (`.claude/rules/deployment.md`): наблюдение — ВХОД, а не окружение.
+    """
     scens = list(scenarios if scenarios is not None else REGISTRY)
-    before = _snapshot_live() if check_live_untouched else {}
+    watch_root = Path(root) if root is not None else _ROOT
+    before = _snapshot_live(watch_root) if check_live_untouched else {}
 
     with _quiet_expected_rejections():
         findings: List[Finding] = [run_scenario(s) for s in scens]
 
-    after = _snapshot_live() if check_live_untouched else {}
+    after = _snapshot_live(watch_root) if check_live_untouched else {}
     mutated = [rel for rel in before if before.get(rel) != after.get(rel)]
     live_untouched = (not mutated)
 

@@ -23,6 +23,8 @@ _HERE = os.path.dirname(os.path.abspath(__file__))
 _REPO_ROOT = os.path.dirname(os.path.dirname(_HERE))
 _DATA_DIR = os.path.join(_REPO_ROOT, "data")
 _LOG_FILE = os.path.join(_DATA_DIR, "token_volatility_log.json")
+_LOG_FILE_AT_IMPORT = _LOG_FILE
+from spa_core.utils.data_dir import default_file as _default_file  # ADR-849 §2: SPA_DATA_DIR сильнее умолчания
 
 _RING_BUFFER_CAP = 100
 
@@ -221,10 +223,11 @@ def _var(daily_returns: List[float], var_confidence: float) -> float:
 # ── Log persistence (ring-buffer, atomic) ────────────────────────────────────
 
 def _load_log() -> list:
-    if not os.path.exists(_LOG_FILE):
+    _path = _default_file(_LOG_FILE, _LOG_FILE_AT_IMPORT)
+    if not os.path.exists(_path):
         return []
     try:
-        with open(_LOG_FILE, "r") as fh:
+        with open(_path, "r") as fh:
             data = json.load(fh)
         return data if isinstance(data, list) else []
     except (json.JSONDecodeError, OSError):
@@ -233,7 +236,8 @@ def _load_log() -> list:
 
 def _append_log(entry: dict) -> None:
     """Append *entry* to the ring-buffer log, capped at _RING_BUFFER_CAP."""
-    os.makedirs(_DATA_DIR, exist_ok=True)
+    _path = _default_file(_LOG_FILE, _LOG_FILE_AT_IMPORT)
+    os.makedirs(os.path.dirname(_path), exist_ok=True)
     log = _load_log()
     # Serialisable copy — strip large daily_returns lists to keep log compact
     compact = {k: v for k, v in entry.items() if k != "daily_returns"}
@@ -241,7 +245,7 @@ def _append_log(entry: dict) -> None:
     log.append(compact)
     if len(log) > _RING_BUFFER_CAP:
         log = log[-_RING_BUFFER_CAP:]
-    _atomic_write(_LOG_FILE, log)
+    _atomic_write(_path, log)
 
 
 def _atomic_write(path: str, obj) -> None:

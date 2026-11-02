@@ -203,6 +203,31 @@ class ThreeOutcomesAreDistinguishable(unittest.TestCase):
 
 class DeclaredSurfaceIsTheSubject(unittest.TestCase):
 
+    #: Население класса «тест пишет в git-tracked `data/`», ИЗМЕРЕННОЕ по логам
+    #: КОНТРОЛЬНОГО прогона `41435243848` (`8f34a8894`, 12 шардов из 12, 68
+    #: нарушений — ADR-899/900): **68 тест-модулей · 71 файл `data/`**. Это замер,
+    #: а не выбор: заказ G895 называл семь, и семь были срезом ОДНОГО шарда.
+    MEASURED_POPULATION = 68
+
+    def test_surface_covers_the_measured_population_and_can_only_grow(self):
+        """Поверхность не вправе сузиться — ни молча, ни с объяснением.
+
+        ADR-901: до этой проверки `test_surface_is_not_empty_and_every_module_exists`
+        спрашивало только «список непуст и файлы на месте», поэтому модуль, УБРАННЫЙ
+        из списка, переставал измеряться и ни один тест этого не говорил — ровно тот
+        дефект, которого боялся заказ G896 п. 3. Порог — ИЗМЕРЕННОЕ население, и
+        храповик ходит только вверх: нашлось больше ⇒ расширить список И это число
+        (замером, не памятью); стало меньше ⇒ красный.
+        """
+        self.assertGreaterEqual(
+            len(ca.TRACKED_WRITE_RUNS), self.MEASURED_POPULATION,
+            f"объявленная поверхность {len(ca.TRACKED_WRITE_RUNS)} МЕНЬШЕ "
+            f"измеренного населения класса {self.MEASURED_POPULATION}: "
+            f"модуль, выпавший из списка, перестаёт измеряться МОЛЧА")
+        self.assertEqual(
+            len(set(ca.TRACKED_WRITE_RUNS)), len(ca.TRACKED_WRITE_RUNS),
+            "в поверхности есть дубль — он завышает её размер, ничего не измеряя")
+
     def test_surface_is_not_empty_and_every_module_exists(self):
         root = Path(ca.__file__).resolve().parents[2]
         self.assertTrue(ca.TRACKED_WRITE_RUNS, "пустая поверхность мерит ничто")

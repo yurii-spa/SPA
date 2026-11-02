@@ -2,12 +2,15 @@
 trackerStatus:
   type: inbox
 title: "Остаток класса «тест пишет в git-tracked data/»: население 68, закрыто 50, писатель каждого остатка НАЗВАН замером"
-status: new
+status: in-progress
 source: nimbalyst
 created: 2026-11-02
 finding_adr: ADR-900
 twin_key: "sha256:372631d70c0361d27c57abf318319212ba7d07214a80b2ecb77376a110729acf"
 intake_kind: task
+acceptance_probe: tracked_data_untouched_by_declared_runs:run
+status_trail:
+  - "2026-11-02T18:10:06.655043+00:00 new -> in-progress · queue.set_status · cycle-96831"
 ---
 
 ## Что измерено

@@ -48,6 +48,9 @@ DEFAULT_LOG_PATH = _PROJECT_ROOT / "data" / "alert_log.json"
 # run is a NEW process so the old in-memory _title_last_sent dict was always
 # empty, making the 300-second cooldown completely ineffective.
 DEFAULT_DEDUP_STATE_PATH = _PROJECT_ROOT / "data" / "alert_dispatcher_dedup.json"
+_DEFAULT_LOG_PATH_AT_IMPORT = DEFAULT_LOG_PATH
+_DEFAULT_DEDUP_STATE_PATH_AT_IMPORT = DEFAULT_DEDUP_STATE_PATH
+from spa_core.utils.data_dir import default_file as _default_file  # ADR-849 §2: SPA_DATA_DIR сильнее умолчания
 RING_BUFFER_MAX = 1000  # new dispatcher uses 1000; legacy used 100
 
 # Telegram API base
@@ -232,7 +235,7 @@ class AlertDispatcher:
         dedup_state_path: Optional[str | Path] = None,
     ) -> None:
         self._log_path: Path = (
-            Path(log_path) if log_path else DEFAULT_LOG_PATH
+            Path(_default_file(log_path or DEFAULT_LOG_PATH, _DEFAULT_LOG_PATH_AT_IMPORT))
         )
         self.suppress_duplicates: bool = suppress_duplicates
         self.cooldown_seconds: int = cooldown_seconds
@@ -240,8 +243,8 @@ class AlertDispatcher:
         # BUG FIX (TELEGRAM_AUDIT 2026-06-18): persist dedup state to disk so
         # it survives process restarts (launchd starts a new process every 5 min).
         self._dedup_state_path: Path = (
-            Path(dedup_state_path) if dedup_state_path
-            else DEFAULT_DEDUP_STATE_PATH
+            Path(_default_file(dedup_state_path or DEFAULT_DEDUP_STATE_PATH,
+                               _DEFAULT_DEDUP_STATE_PATH_AT_IMPORT))
         )
 
         # title → UTC POSIX timestamp of last successful dispatch
@@ -556,7 +559,7 @@ try:
         Legacy V390 SMTP-based alert dispatch. Preserved for backwards compat.
         Persist alerts to ring buffer (100 entries) and optionally send via SMTP.
         """
-        path = Path(log_path) if log_path else DEFAULT_LOG_PATH
+        path = Path(_default_file(log_path or DEFAULT_LOG_PATH, _DEFAULT_LOG_PATH_AT_IMPORT))
         counts = {"CRITICAL": 0, "WARNING": 0, "INFO": 0}
         for a in alerts:
             if a.severity in counts:
