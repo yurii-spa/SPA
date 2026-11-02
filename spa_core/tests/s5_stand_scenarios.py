@@ -34,6 +34,7 @@ from pathlib import Path
 from spa_core.studio_os import executor as ex
 from spa_core.studio_os import goal_graph as gg
 from spa_core.studio_os.model_roles import adapters as ad
+from spa_core.tests import _child_pytest as _cp
 
 REPO = Path(__file__).resolve().parents[2]
 TTL_S = 3
@@ -120,7 +121,7 @@ SCENARIOS = {
 def _role_step(name, stand):
     """Шаг своей роли ПОСЛЕ машинного исхода (не исполнитель): регрессия / эксперимент."""
     if name == "B_defect":
-        r = subprocess.run([sys.executable, "-m", "pytest", "-q", "-p", "no:cacheprovider", "lib/test_apy.py"],
+        r = subprocess.run(_cp.child_pytest_argv(stand / "lib" / "test_apy.py", "-q", "-p", "no:cacheprovider"),
                            cwd=str(stand), capture_output=True, text=True, timeout=120)
         return {"role": "reviewer", "regression_rc": r.returncode, "summary": (r.stdout.strip().splitlines() or [""])[-1]}
     if name == "C_research":
@@ -176,7 +177,7 @@ def run_one(base: Path, name: str) -> dict:
     _git(["commit", "-q", "-m", "base"], stand)
     (stand / ".studio_stand").write_text("")
     if name == "B_defect":                                    # дефект подтверждён ДО исправления
-        r = subprocess.run([sys.executable, "-m", "pytest", "-q", "-p", "no:cacheprovider", "lib/test_apy.py"],
+        r = subprocess.run(_cp.child_pytest_argv(stand / "lib" / "test_apy.py", "-q", "-p", "no:cacheprovider"),
                            cwd=str(stand), capture_output=True, text=True, timeout=120)
         rec["defect_reproduced"] = r.returncode != 0
     now0 = datetime.now(timezone.utc)
