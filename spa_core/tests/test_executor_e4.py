@@ -5,6 +5,7 @@
 отдельный процесс ОС ``python -m spa_core.studio_os.executor run``, убитый ``SIGKILL`` на известной границе;
 продолжение — НОВЫЙ процесс по одним файлам прогона. Реальный провайдер проверяется в сквозном сценарии T09."""
 import json
+from datetime import datetime, timedelta, timezone
 import os
 import signal
 import subprocess
@@ -59,7 +60,11 @@ def _propose(run, adapter, *, worker="w1", now=T0, context="ctx-1"):
 
 
 def _approve(run, graph, task="t1", approver="operator-test"):
-    a = gg.approve_task(graph, task, approver=approver, role="agent", at=T0, expires_at="2026-11-01T20:00:00+00:00")
+    # Срок допуска — от НАСТОЯЩИХ часов: исполнитель в отдельном процессе (тест убийства) судит допуск по своим часам,
+    # а не по инъектированному T0. Литерал «2026-11-01T20:00» был бомбой: с 20:00 UTC 01.11 тест краснел на любом коде
+    # (CI 41389731916: «срок допуска истёк»). Внутрипроцессные проверки идут на T0…T_LATER — раньше этого срока.
+    expires = (datetime.now(timezone.utc) + timedelta(days=1)).isoformat()
+    a = gg.approve_task(graph, task, approver=approver, role="agent", at=T0, expires_at=expires)
     (Path(run) / f"approval-{task}.json").write_text(json.dumps(a))
     return a
 
