@@ -1,0 +1,51 @@
+{
+ "title": "ADR-897 CLOCK — дельта цикла #1010: момент замера становится ВХОДОМ производителя и переходит границу ПОДПРОЦЕССА; неразбираемый момент — третий исход; срок §49 сверяется ПАРИТЕТОМ с объявлением, а не литералом",
+ "tests": [
+  "spa_core/tests/test_no_regression_producer_wiring.py",
+  "spa_core/tests/test_s49_every_criterion_is_bound.py"
+ ],
+ "mutations": [
+  {
+   "name": "производитель ИГНОРИРУЕТ --now у предсборочного вопроса о сроке — состояние main до ADR-897",
+   "file": "scripts/refresh_no_regression_census.py",
+   "old": "            age, why = artifact_age_hours(repo_root, now=moment)",
+   "new": "            age, why = artifact_age_hours(repo_root)"
+  },
+  {
+   "name": "производитель ИГНОРИРУЕТ --now внутри refresh — вторая половина той же двери",
+   "file": "scripts/refresh_no_regression_census.py",
+   "old": "                      run_tree=run_tree, now=moment)",
+   "new": "                      run_tree=run_tree)"
+  },
+  {
+   "name": "неразбираемый --now ТИХО уезжает на стенные часы — «не измерено» выдано за ответ (инв. #17)",
+   "file": "scripts/refresh_no_regression_census.py",
+   "old": "    except ValueError as exc:\n        raise NotMeasured(f\"--now не разобран ({text!r}): {exc} — ожидается ISO-8601; \"\n                          f\"стенные часы вместо названного момента не подставляются\") from exc",
+   "new": "    except ValueError:\n        return None"
+  },
+  {
+   "name": "пустой --now читается как «момента не подали» — молчаливый возврат к календарю",
+   "file": "scripts/refresh_no_regression_census.py",
+   "old": "    if not text:\n        raise NotMeasured(\"--now дан пустым: момент НЕ НАЗВАН, а подставить стенные \"\n                          \"часы значило бы ответить про календарь\")",
+   "new": "    if not text:\n        return None"
+  },
+  {
+   "name": "ПРОБА не передаёт якорь в подпроцесс — ровно та бомба, что покрасила критерий §49 31.10",
+   "file": "spa_core/monitoring/card_acceptance.py",
+   "old": "                 \"--records-root\", str(scene), \"--now\", moment.isoformat()],",
+   "new": "                 \"--records-root\", str(scene)],"
+  },
+  {
+   "name": "сводка §49 ПРИДУМЫВАЕТ срок вместо объявленного конституцией",
+   "file": "spa_core/monitoring/s49_tally_tact.py",
+   "old": "                     \"slo_hours\": float(best[\"slo_hours\"]),",
+   "new": "                     \"slo_hours\": float(best[\"slo_hours\"]) + 1.0,"
+  },
+  {
+   "name": "момент без зоны объявляется как есть — сравнение naive с aware рухнет молча",
+   "file": "scripts/refresh_no_regression_census.py",
+   "old": "    return moment if moment.tzinfo is not None else moment.replace(tzinfo=timezone.utc)",
+   "new": "    return moment"
+  }
+ ]
+}

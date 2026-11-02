@@ -12788,7 +12788,11 @@ def _probe_no_regression_record_is_produced_without_a_hand(
     нечем.
     ``scene_fresh_hours`` / ``scene_stale_hours`` — обе стороны сравнения срока
     закреплены ВХОДОМ, часы инъектируются: иначе проба отвечала бы про календарь
-    (`.claude/rules/deployment.md`, § «Время в тестах»).
+    (`.claude/rules/deployment.md`, § «Время в тестах»). **Закрепление держится на
+    входе `--now` у производителя (ADR-897), а не на самом факте, что `now` есть у
+    пробы:** судья времени живёт в ПОДПРОЦЕССЕ, и до этого входа вторую сторону
+    сравнения он спрашивал у календаря. Претензия «обе стороны закреплены» была здесь
+    написана раньше, чем стала правдой, и ровно это 31.10 покрасило пробу.
     """
     import subprocess
     import tempfile
@@ -12881,10 +12885,16 @@ def _probe_no_regression_record_is_produced_without_a_hand(
                 encoding="utf-8")
 
         def _producer():
+            # ЯКОРЬ ПЕРЕХОДИТ ГРАНИЦУ ПРОЦЕССА (ADR-897). До этого входа инъекция
+            # кончалась здесь: отметку отчёта проба считала от `moment`, а судью
+            # времени производитель спрашивал у стенного календаря — и 31.10, когда
+            # `moment` сцены ушёл от «сегодня» дальше предела такта, «внутри такта»
+            # молча стало «на сроке». Проба отвечала `not_satisfied` про КАЛЕНДАРЬ,
+            # а докстринг выше утверждал, что обе стороны закреплены входом.
             return subprocess.run(
                 [sys.executable, producer, "--if-due", "--make-tree",
                  "--repo-root", str(scene), "--run-tree", str(tree),
-                 "--records-root", str(scene)],
+                 "--records-root", str(scene), "--now", moment.isoformat()],
                 capture_output=True, text=True, timeout=300)
 
         _say(scene_fresh_hours)

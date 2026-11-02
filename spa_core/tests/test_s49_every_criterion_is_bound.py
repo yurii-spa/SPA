@@ -76,12 +76,47 @@ class EveryCriterionIsBound(unittest.TestCase):
                          f"привязка есть, а `slo_hours` при ней нет: {no_slo}")
 
     def test_the_subject_of_ADR_811_is_bound_by_name(self):
-        """Повод храповика — поимённо, иначе сцена потеряет предмет молча."""
+        """Повод храповика — поимённо, иначе сцена потеряет предмет молча.
+
+        **Число срока здесь НЕ литерал, и это поправка ADR-897, а не ослабление
+        (инв. #16).** В редакции ADR-811 стояло `assertEqual(7.0, row["slo_hours"])`,
+        и 7 было верно: своего такта у ступени нет, значит срок задавал период бегуна
+        `com.spa.decision_loop` (расписание 21600 с) плюс запас. Затем срок стал
+        ВЫВОДИТЬСЯ ИЗ НАБЛЮДЕНИЯ (`slo_proposal.observed_floor`, ADR-506: база —
+        наблюдённая медиана такта, не расписание), конституция понесла **9.28**, и
+        литерал покраснел от НАБЛЮДЁННОГО ТАКТА БЕГУНА — то есть от явления, к
+        предмету сторожа («привязка не потеряна») не относящегося вовсе. Литеральная
+        копия числа, у которого ЕСТЬ производитель, — ровно тот дефект, против
+        которого написано `.claude/rules/site-numbers.md`: число не расходится, оно
+        молча перестаёт быть правдой.
+
+        Поэтому срок проверяется ПАРИТЕТОМ с объявлением: сводка обязана нести
+        РОВНО то число, которое объявила конституция, и оно обязано быть
+        положительным. Утверждение сильнее литерала в одну сторону (сводка,
+        придумавшая или потерявшая число, краснеет на ЛЮБОМ его значении) и слабее
+        ровно на том, чем литерал и был неправ, — на величине, которой тут никто не
+        решает.
+        """
         row = self.rows.get("Architecture")
         self.assertIsNotNone(row, "критерий `Architecture` ушёл из реестра проб")
         self.assertEqual(tact.TACT_BOUND, row["state"])
         self.assertEqual("data/cio_decision_owner.json", row["artifact"])
-        self.assertEqual(7.0, row["slo_hours"])
+        # ВТОРОЙ, независимый читатель конституции: сравнивать сводку с самой собой
+        # значило бы не проверить ничего (знакомый класс — ADR-774).
+        doc = json.loads((REPO / "architecture" / "manifest.json").read_text(encoding="utf-8"))
+        entry = next((a for a in (doc.get("artifacts") or [])
+                      if isinstance(a, dict) and a.get("path") == row["artifact"]), None)
+        self.assertIsNotNone(entry, f"{row['artifact']} ушёл из конституции — "
+                                    f"срок объявлять стало негде")
+        declared = entry.get("slo_hours")
+        self.assertIsInstance(declared, (int, float),
+                              f"`slo_hours` в конституции {declared!r} — не число, "
+                              f"и тогда «привязка со сроком» НЕ ИЗМЕРЕНА")
+        self.assertGreater(declared, 0, "срок объявлен неположительным — привязка "
+                                        "есть, а такта у неё нет")
+        self.assertEqual(float(declared), float(row["slo_hours"]),
+                         "сводка несёт НЕ тот срок, что объявила конституция — "
+                         "число придумано или потеряно по дороге")
 
 
 class TheRatchetItself(unittest.TestCase):

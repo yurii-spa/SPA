@@ -2,11 +2,11 @@
 
 > Авто-генерится `scripts/build_tracker_board.py` из `nimbalyst-local/tracker/*.md`. НЕ править вручную — правь карточки. Источник правды — карточки, это индекс (bootstrap).
 >
-> Собрана: 2026-11-02T05:00:12Z · сверка с карточками: `python3 scripts/build_tracker_board.py --check` (сторож `spa_core/tests/test_tracker_board_matches_cards.py`).
+> Собрана: 2026-11-02T08:03:03Z · сверка с карточками: `python3 scripts/build_tracker_board.py --check` (сторож `spa_core/tests/test_tracker_board_matches_cards.py`).
 >
-> Сверено с `origin/main` (7df4aae72).
+> Сверено с `origin/main` (54de9c2fe) · у **3** своя правка, кто новее — не измерено.
 >
-> Всего карточек: **1563** · ждёт владельца: **6** · занято сессиями: **13**.
+> Всего карточек: **1564** · ждёт владельца: **6** · занято сессиями: **13**.
 
 ## 🔴 ЖДЁТ ВЛАДЕЛЬЦА (needs-owner)
 
@@ -422,7 +422,7 @@
 ### · closed
 - Считать ли верный отказ по правилам допуска неисправностью флота  ·  `owner-decision-schitat-li-vernyi-otkaz-po-pravilam-dopu.md` · 2026-10-08
 
-## 📥 Inbox (задания: Telegram / заметки / голос)  (881)
+## 📥 Inbox (задания: Telegram / заметки / голос)  (882)
 
 ### · in-progress
 - а задача починить все-таки еще раз сообщение которым не пишет нужно твое решени…  ·  `inbox-a-zadacha-pochinit-vse-taki-esche-raz-so.md` · 2026-08-14 · 🔒 `pid43119`
@@ -1063,6 +1063,7 @@
 - Храповик замороженных дат КРАСЕН на чистом origin/main: test_record_survival_census.py принёс литеральную дату  ·  `inbox-hrapovik-zamorozhennyh-dat-krasen-na-chi-2.md` · 2026-10-10
 - Храповик замороженных дат красный на main: тесту витрины чисел не хватает пометки  ·  `inbox-hrapovik-zamorozhennyh-dat-krasnyi-na-ma.md` · 2026-09-13
 - Храповик зашитых дат КРАСНЫЙ на origin/main: 7 файлов за пять дней, четыре — сегодняшние  ·  `inbox-hrapovik-zashityh-dat-krasnyi-na-origin.md` · 2026-09-10
+- Инъекция часов кончается на границе подпроцесса: претензия injected-clock подтверждается AST, а вторая половина сравнения живёт в другом процессе (поверхность 32 файла, класс НЕ ИЗМЕРЕН)  ·  `inbox-inektsiya-chasov-konchaetsya-na-granitse.md` · 2026-11-02
 - Исчерпание лимитов Claude невидимо: цех молча стоит, владелец гадает «работает ли» — нужен явный сигнал «нет топлива»  ·  `inbox-ischerpanie-limitov-claude-nevidimo-tsehu.md` · 2026-08-22
 - Исполнить Вариант 2 владельца: дописать 38 ставок и подключить их к hit_rate со СМЕШАННОЙ пробой  ·  `inbox-ispolnit-variant-2-vladeltsa-dopisat-38.md` · 2026-09-10
 - Карточка, рождённая через 4 ч 54 мин ПОСЛЕ починки ADR-866, ключа близнеца не несёт — и три дешёвые гипотезы опровергнуты  ·  `inbox-kartochka-rozhdennaya-cherez-4-ch-54-min.md` · 2026-10-30
