@@ -760,6 +760,7 @@
 | ADR-895 | Пометка живёт в КОММЕНТАРИИ, а отказ несёт УЛИКУ: красный храповик замороженных дат снят на чистом `origin/main` без дописки базы; три красных `lsof` — ОДНА работа, ось вердикта СЛЕПА на Linux | Accepted | [ADR-895](ADR-895-a-refusal-must-carry-its-evidence.md) |
 | ADR-896 | Прибор подорожания шага был СИРОТОЙ: лечит проводка, а не строка в базе | Accepted | [ADR-896](ADR-896-wiring-the-step-time-drift-orphan.md) |
 | ADR-897 | Инъекция часов кончается на границе ПОДПРОЦЕССА — девятая дверь того же семейства; претензия `injected-clock` была ложной, и AST одного файла этого не видит | Accepted | [ADR-897](ADR-897-the-clock-stops-at-the-subprocess-boundary.md) |
+| ADR-898 | Девятая дверь: поверхность ИЗМЕРЕНА (30 из 273, шов у 2), а КЛАСС — НЕ ИЗМЕРЕН, и причина названа прибором | Accepted | [ADR-898](ADR-898-the-subprocess-clock-door-class-is-measured.md) |
 
 ## Соглашения
 
