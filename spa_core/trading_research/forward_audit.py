@@ -18,7 +18,8 @@ DAY = 86_400_000
 
 
 def _ro(p: Path) -> sqlite3.Connection:
-    return sqlite3.connect(f"file:{Path(p)}?mode=ro", uri=True)
+    from .read_model import open_ro   # одна дверь read-only (migrate_callsites)
+    return open_ro(p)
 
 
 def audit(evidence_db: Path, market_db: Path, *, as_of_ms: int, days: int = 7,

@@ -126,7 +126,7 @@ def test_taken_without_a_recorded_gate_pass_is_not_called_permitted(scene):
     st = {s["key"]: s for s in ow.record_stages({"card": "x", "owner_subject": "money", "claimed_by": "session-x"})}
     assert st["permission"]["done"] is False and "НЕ записано" in st["permission"]["text"]
     st = {s["key"]: s for s in ow.record_stages({"card": "x", "owner_subject": "money", "claimed_by": "s",
-                                                  "approval_passed_at": "2026-11-01T12:00:00Z"})}
+                                                  "approval_passed_at": NOW.isoformat()})}   # от инъектированных часов, не литерал
     assert st["permission"]["done"] is True
 
 

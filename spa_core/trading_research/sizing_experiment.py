@@ -10,7 +10,6 @@ from __future__ import annotations
 
 import hashlib
 import json
-import sqlite3
 from dataclasses import dataclass
 from datetime import datetime, timezone
 from pathlib import Path
@@ -131,7 +130,8 @@ def run(contract_path: Path, market_db: Path) -> Dict[str, Any]:
     attempt = rc.spend_attempt(contract_path, {"started_at": datetime.now(timezone.utc).isoformat(),
                                                "code_version": code_version(),
                                                "market_sha256": hashlib.sha256(Path(market_db).read_bytes()).hexdigest()})
-    conn = sqlite3.connect(f"file:{Path(market_db)}?mode=ro", uri=True)
+    from .read_model import open_ro   # одна дверь read-only (migrate_callsites)
+    conn = open_ro(market_db)
     try:
         bars = md.aggregate(md.load_1h(conn, "BTCUSDT"), cand.timeframe)
     finally:

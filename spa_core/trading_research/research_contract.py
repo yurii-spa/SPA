@@ -77,7 +77,8 @@ def validate(c: Mapping[str, Any]) -> List[str]:
 
 
 def _ro(path: Path) -> sqlite3.Connection:
-    return sqlite3.connect(f"file:{Path(path)}?mode=ro", uri=True)
+    from .read_model import open_ro   # одна дверь read-only (migrate_callsites)
+    return open_ro(path)
 
 
 def check_ledgers(c: Mapping[str, Any], ledgers: Mapping[str, Path]) -> Dict[str, Any]:

@@ -29,7 +29,8 @@ REPRODUCED = ("bar_open", "bar_close", "position_before", "fill_price", "fill_co
 
 
 def _ro(path: Path) -> sqlite3.Connection:
-    return sqlite3.connect(f"file:{Path(path)}?mode=ro", uri=True)
+    from .read_model import open_ro   # одна дверь read-only (migrate_callsites)
+    return open_ro(path)
 
 
 def _sha256(path: Path) -> str:
