@@ -69,6 +69,9 @@
 | §4 сторож прод-трекера | см. `git log` | `utils/atomic`: под pytest запись в НАСТОЯЩИЙ трекер владельца — `LiveTrackerWriteInTest`; 4 теста, мутант убит; широкий пакет 7551 passed, ни одного падения от сторожа (оставшиеся красны и на `main`) | журнал W44 |
 | §4 якорь `_subprocess_clock_door` | см. `git log` | пришёл из `main` (цикл #1011) без `--rootdir`; линт класса зелёный, перепись 29 passed | журнал W44 |
 | Решение владельца 8 (A) — потолок позиций | `risk/book-position-ceiling` @ `09d2f5cd7` (от `main` `74c9a2570`) | ADR-902; 5 тестов + мутант; пакет RiskPolicy 6100 passed (4 красны и на `main`); живые книги 5/4/2 — эффект ноль | в `main` — разрешением владельца (денежный путь) |
+| TRP-06 | `ops/trp06-exposure` @ `60318c6bc` | депег несёт бумажную экспозицию held/planned/none/unknown, устойчивый ID; фильтр не прячет планируемую сделку и неизмеренные данные; 5 тестов + мутант, соседи 2467 passed | — |
+| Гейт деплоя — сирота по тайм-ауту | `fix/deploy-gate-kills-the-group` @ `e64984a09` | тайм-аут снимает всю группу; тест с контролем | — |
+| decision_loop (решение 5) | — | НЕ включён: гейт отказал (> 2 ч CPU); карточка `inbox-most-nahodok-decision-loop-ne-ukladyvaet` | ADR-901 |
 | S4 регрессии | `922a2462`, `e3f0a019` | журнал W44 | — |
 | §5 DeFi Checkup | `yurii-spa/defi-checkup` ветка `claude/refusal-next-step` @ `30fd52a` | vitest 271/272 (1 — прежний эталон после обновления APY) | отказы RP-EXIT-003/RP-DATA-002 получили шаг «что проверить»; не опубликовано |
 | §4 DeFi Checkup — красный `master` | `yurii-spa/defi-checkup` ветка `claude/apy-refresh-regenerates-golden` @ `eab8a58` | эталон пересобран штатным `build:sample`: 269/269 | еженедельный workflow APY теперь пересобирает эталон в том же коммите (иначе `master` краснел после каждого обновления) |
