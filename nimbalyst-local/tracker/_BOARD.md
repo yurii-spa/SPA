@@ -2,11 +2,11 @@
 
 > Авто-генерится `scripts/build_tracker_board.py` из `nimbalyst-local/tracker/*.md`. НЕ править вручную — правь карточки. Источник правды — карточки, это индекс (bootstrap).
 >
-> Собрана: 2026-11-02T01:36:28Z · сверка с карточками: `python3 scripts/build_tracker_board.py --check` (сторож `spa_core/tests/test_tracker_board_matches_cards.py`).
+> Собрана: 2026-11-02T05:00:12Z · сверка с карточками: `python3 scripts/build_tracker_board.py --check` (сторож `spa_core/tests/test_tracker_board_matches_cards.py`).
 >
-> Сверено с `origin/main` (3705a3c81).
+> Сверено с `origin/main` (7df4aae72).
 >
-> Всего карточек: **1562** · ждёт владельца: **6** · занято сессиями: **13**.
+> Всего карточек: **1563** · ждёт владельца: **6** · занято сессиями: **13**.
 
 ## 🔴 ЖДЁТ ВЛАДЕЛЬЦА (needs-owner)
 
@@ -422,7 +422,7 @@
 ### · closed
 - Считать ли верный отказ по правилам допуска неисправностью флота  ·  `owner-decision-schitat-li-vernyi-otkaz-po-pravilam-dopu.md` · 2026-10-08
 
-## 📥 Inbox (задания: Telegram / заметки / голос)  (880)
+## 📥 Inbox (задания: Telegram / заметки / голос)  (881)
 
 ### · in-progress
 - а задача починить все-таки еще раз сообщение которым не пишет нужно твое решени…  ·  `inbox-a-zadacha-pochinit-vse-taki-esche-raz-so.md` · 2026-08-14 · 🔒 `pid43119`
@@ -1095,6 +1095,7 @@
 - НЕ ПРОЧИТАН артефакт ступени: офис не отличает «код приехал внутрь прогона» от «ступень не зовёт никто»  ·  `inbox-ne-prochitan-artefakt-stupeni-ofis-ne-ot.md` · 2026-10-02
 - Недельный такт витрины сайта считает недели по своей копии, а читатель читает origin  ·  `inbox-nedelnyi-takt-vitriny-saita-schitaet-ned.md` · 2026-09-20
 - Nimbalyst не видит 13 карточек — заголовок с двоеточием без кавычек ломает разбор frontmatter  ·  `inbox-nimbalyst-ne-vidit-13-kartochek-zagolovo.md` · 2026-09-17
+- Нога py3.11 суточного прогона умирает на 776 случаях из 113 тысяч — вердикт о 0,7 % набора  ·  `inbox-noga-py3-11-sutochnogo-progona-umiraet-n.md` · 2026-11-02
 - Новый тест бэктеста покраснил храповик литеральных дат на main — починка это пометка с причиной, а не правка фикстуры  ·  `inbox-novyi-test-bektesta-pokrasnil-hrapovik-l.md` · 2026-10-30
 - Обещанная перепроверка DNS checkup осталась без исполнителя: карточку закрыли, критерий не выполнен  ·  `inbox-obeschannaya-pereproverka-dns-checkup-os.md` · 2026-08-22
 - Общий читатель сроков годности видит один дом из двух — 65 файлов без срока, включая живой трек  ·  `inbox-obschii-chitatel-srokov-godnosti-vidit-o.md` · 2026-09-29

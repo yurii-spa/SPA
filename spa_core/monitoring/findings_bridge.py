@@ -219,6 +219,18 @@ PRODUCES = (
     # производителей в двух плечах (ADR-562), поэтому такт недельный и решает
     # его ФАЙЛ (`artifact_stamp_clock_doors.run` → `measurement_due`), SLO 192ч.
     "data/artifact_stamp_clock_doors.json",
+    # Заказ G891 п. 7 (ADR-896). Прибор `step_time_drift` написан 02.10 (хвост
+    # ADR-534, заказ G87 п. 3) и не был позван НИ РАЗУ: храповик
+    # `test_unwired_guard_modules_ratchet` держал его в красном одним именем.
+    # Вход у него был, и в этом вся соль: записи двенадцати шардов контрольного
+    # прогона выгружаются артефактами (`ctl-shard-<N>/stream.jsonl`, 30 дней),
+    # и ходить за ними было НЕКОМУ. Такт СУТОЧНЫЙ и решает его ФАЙЛ
+    # (`measurement_due` по отметке артефакта): вопрос здесь о ЦЕНЕ шага, а не
+    # о вердикте набора, цена за шесть часов не меняется, а каждый замер стои́т
+    # 24 загрузки ≈15 МБ (измерено 02.11: 39 с на пару прогонов). SLO 48ч —
+    # ВДВОЕ больше такта, иначе артефакт числился бы протухшим в ту минуту,
+    # когда ему только предстоит перемериться (класс `no_margin`, ADR-646).
+    "data/step_time_drift.json",
     # Заказ G39 п. 3 (ADR-415). Перепись гейтов такта: у скольких производителей
     # решение «пора ли производить» лежит ВНЕ производящей функции, так что
     # второй звавший обязан завести свою копию правила (класс ADR-220). Такта у
@@ -615,6 +627,11 @@ CENSUS_STAGE: tuple[str, ...] = (
     # (`ci-control.yml`) — единственная достижимая приёмка полного набора
     # (ADR-844) — жил артефактом GitHub и не спрашивался ни одним шагом цикла.
     "ci_control_verdict",
+    # (ADR-896, цикл #1009, заказ G891 п. 7) Прибор «подорожание шага: работа
+    # или среда» (`step_time_drift`, хвост ADR-534) был написан 02.10 и не
+    # звался НИОТКУДА — его имя держало красным храповик сирот
+    # `test_unwired_guard_modules_ratchet`. Чинит ПРОВОДКА, не строка в базе.
+    "step_time_drift",
     "outcomes",
     "loop_retro",
     "loop_health",
@@ -663,6 +680,20 @@ CI_CONTROL_VERDICT_PRODUCER = os.path.join("scripts", "ci_control_verdict.py")
 #: Форма пути — `os.path.join("data", "<имя>.json")`, чтобы сканер записи
 #: (`artifact_io_scan`) узнал писателя по имени.
 CI_CONTROL_VERDICT_ARTIFACT = os.path.join("data", "ci_control_verdict.json")
+
+#: Производитель отчёта «подорожание шага: РАБОТА или СРЕДА» — тоже СКРИПТ, и по
+#: тем же двум доводам, что у соседа выше: (1) он ходит в СЕТЬ за записями
+#: двенадцати шардов ДВУХ прогонов, и держать это чтение в процессе моста значило
+#: бы ронять мост всем, что упадёт в сокете; (2) писателя артефакта сторож
+#: достижимости ищет среди точек входа и импортированного кода, а подпроцессный
+#: зов по константе пути ему не виден — поэтому ПИШЕТ ступень. Сам прибор
+#: (`spa_core/monitoring/step_time_drift.py`) остаётся библиотекой решения: вся
+#: мера живёт в нём, скрипт только добывает вход и печатает.
+STEP_TIME_DRIFT_PRODUCER = os.path.join("scripts", "step_time_drift_run.py")
+
+#: Форма пути — `os.path.join("data", "<имя>.json")`, чтобы сканер записи
+#: (`artifact_io_scan`) узнал писателя по имени.
+STEP_TIME_DRIFT_ARTIFACT = os.path.join("data", "step_time_drift.json")
 
 #: Определение стоит ВЫШЕ `CENSUS_PRODUCT` намеренно: карта ступеней ссылается
 #: на эту константу, и второй литерал того же пути разошёлся бы с первым молча
@@ -903,6 +934,11 @@ CENSUS_PRODUCT: dict[str, dict[str, str]] = {
     "ci_control_verdict": {
         "module": CI_CONTROL_VERDICT_PRODUCER,
         "artifact": CI_CONTROL_VERDICT_ARTIFACT},
+    #: Производитель — СКРИПТ, и путь берётся у ОДНОЙ константы тем же порядком,
+    #: что у соседа: второй литерал того же пути разошёлся бы с первым молча.
+    "step_time_drift": {
+        "module": STEP_TIME_DRIFT_PRODUCER,
+        "artifact": STEP_TIME_DRIFT_ARTIFACT},
     "no_regression_producer": {
         "module": NO_REGRESSION_PRODUCER,
         "artifact": "data/no_regression_census.json"},
@@ -1782,6 +1818,106 @@ def ci_control_verdict_line(out: dict) -> str:
         return f"ci_control_verdict: такт не истёк, замера не было — {out.get('reason')}"
     return (f"ci_control_verdict: {out.get('status')} (код {out.get('code')}), "
             f"вердикт {out.get('verdict')}, находок {out.get('findings')} — "
+            f"{out.get('reason')}")
+
+
+#: Предел на ВЕСЬ зов прибора подорожания. Он ходит в сеть 25 раз (перечни
+#: прогонов + 24 zip-а записей шардов ≈15 МБ) и на живом замере 02.11 уложился в
+#: 39 с; предел щедрый, потому что дрожание сети — не вердикт. Снятие по сроку —
+#: НЕ ИЗМЕРЕНО с названной причиной, а не «подорожания нет».
+STEP_TIME_DRIFT_TIMEOUT_S = 900.0
+
+#: Такт замера — СУТКИ. Выбран по ЦЕНЕ и по предмету, а не по удобству: предмет
+#: здесь ЦЕНА шага, а не вердикт набора, и за шесть часов она не меняется;
+#: каждый замер стои́т 24 загрузки ≈15 МБ. Объявлен в СУТКАХ потому, что гейт
+#: такта ВЗЯТ у соседа (`python_reader_clock_doors.measurement_due`), а не
+#: скопирован: вторая копия правила «пора ли мерить» разошлась бы с первой молча.
+STEP_TIME_DRIFT_TACT_DAYS = 1.0
+
+
+def step_time_drift_step(root: str = REPO_ROOT, *, runner=None,
+                         timeout_s: float = STEP_TIME_DRIFT_TIMEOUT_S,
+                         now=None, tact_days: float = STEP_TIME_DRIFT_TACT_DAYS,
+                         writer=None) -> dict:
+    """Позвать прибор подорожания шага и ЗАПИСАТЬ его отчёт (ADR-896).
+
+    Ступень ничего не измеряет сама — она ЗОВЁТ, сверяет СРОК и ПИШЕТ; устроено
+    РОВНО как у соседа `ci_control_verdict_step`, и это не копия ради копии:
+    третий исход, гейт такта и причина «писать ступенью» у них буквально одни и
+    те же, а разойдись они — мост получил бы два разных правила на один вопрос.
+
+    Исходы РАЗЛИЧИМЫ (инв. #17) и ни один не выдаётся за другой:
+
+    * ``ok`` — подорожание измерено, находок нет (код 0), отчёт записан;
+    * ``finding`` — измерено, находка НАЗВАНА (код 1), отчёт записан;
+    * ``within_tact`` — срок не пришёл, замера НЕ БЫЛО, и это ЗАМЕР СРОКА;
+    * ``unmeasured`` — НЕ ИЗМЕРЕНО (прибора нет на диске · не запустился · снят
+      по сроку · код 2: нет токена, сеть, нет пары прогонов с читаемой записью).
+      Отчёт при этом НЕ пишется: артефакт с выдуманным числом лгал бы ещё и
+      своим возрастом.
+    """
+    producer = os.path.join(root, STEP_TIME_DRIFT_PRODUCER)
+    target = os.path.join(root, STEP_TIME_DRIFT_ARTIFACT)
+    if not os.path.isfile(producer):
+        return {"status": "unmeasured", "code": None, "reason":
+                f"прибора нет на диске: {producer} — подорожание НЕ СПРОШЕНО, "
+                f"и это не «шаг не дорожал»"}
+    due, why = measurement_due(Path(target), now=now, tact_days=tact_days)
+    if not due:
+        return {"status": "within_tact", "code": None, "reason": why}
+
+    cmd = [sys.executable, producer, "--json", "--repo-root", str(root)]
+    run = runner if runner is not None else subprocess.run
+    try:
+        cp = run(cmd, capture_output=True, text=True, timeout=timeout_s)
+    except subprocess.TimeoutExpired as exc:
+        return {"status": "unmeasured", "code": None,
+                "reason": f"прибор снят по сроку {timeout_s:.0f}с: {exc}"}
+    except OSError as exc:
+        return {"status": "unmeasured", "code": None,
+                "reason": f"прибор не запущен: {type(exc).__name__}: {exc}"}
+    code = getattr(cp, "returncode", None)
+    out = getattr(cp, "stdout", "") or ""
+    err = (getattr(cp, "stderr", "") or "").strip()
+    if code not in (0, 1):
+        tail = "\n".join((err or out).strip().splitlines()[-3:])
+        return {"status": "unmeasured", "code": code,
+                "reason": tail or "прибор не назвал ни числа, ни причины"}
+    try:
+        doc = json.loads(out)
+    except (ValueError, TypeError) as exc:
+        return {"status": "unmeasured", "code": code,
+                "reason": f"документ прибора не разобран ({type(exc).__name__}) — "
+                          f"отчёта не пишу: его возраст читался бы как свежий замер"}
+    if not isinstance(doc, dict) or "findings" not in doc or not doc.get("verdict"):
+        return {"status": "unmeasured", "code": code,
+                "reason": "документ прибора не несёт ни вердикта, ни перечня находок"}
+    try:
+        # Зов ИМЕНЕМ, а не через переменную: сканер записи узнаёт писателя по
+        # имени вызова, и `save(doc, target)` через переменную не узнаётся.
+        if writer is not None:
+            writer(doc, target)
+        else:
+            atomic_save(doc, target)
+    except OSError as exc:
+        return {"status": "unmeasured", "code": code,
+                "reason": f"отчёт не записан ({type(exc).__name__}: {exc}) — "
+                          f"читателю читать нечего"}
+    found = doc.get("findings") or []
+    return {"status": "finding" if found else "ok", "code": code,
+            "artifact": target, "verdict": doc.get("verdict"),
+            "kind": doc.get("kind"), "findings": len(found),
+            "reason": "; ".join(str(f) for f in found[:2]) or "находок нет"}
+
+
+def step_time_drift_line(out: dict) -> str:
+    """Строка ступени для читателя лога. «Не измерено» не выглядит вердиктом."""
+    if out.get("status") == "unmeasured":
+        return f"step_time_drift: НЕ ИЗМЕРЕНО — {out.get('reason')}"
+    if out.get("status") == "within_tact":
+        return f"step_time_drift: такт не истёк, замера не было — {out.get('reason')}"
+    return (f"step_time_drift: {out.get('status')} (код {out.get('code')}), "
+            f"род — {out.get('kind')}, находок {out.get('findings')} — "
             f"{out.get('reason')}")
 
 
@@ -3207,6 +3343,17 @@ def main(argv=None) -> int:
         print(ci_control_verdict_line(ci_control_verdict_step(args.root)))
     except Exception as e:  # noqa: BLE001 — перепись не смеет валить мост
         census_skipped(_skipped, "ci_control_verdict", e)
+    # (ADR-896, заказ G891 п. 7) ВТОРОЙ вопрос к тем же прогонам, и он НЕ
+    # дублирует первый: сосед выше спрашивает «какой у набора ВЕРДИКТ», этот —
+    # «подорожал ли ШАГ, и от работы или от среды» (заказ G87 п. 3, переоткрыт).
+    # Прибор ответа существовал с 02.10 и не звался НИ РАЗУ; вход у него был всё
+    # это время — записи двенадцати шардов выгружаются артефактами на 30 дней.
+    # Такт СУТОЧНЫЙ и решает его ФАЙЛ, поэтому в большинстве зовов ступень стоит
+    # одного чтения отметки и в сеть не ходит.
+    try:
+        print(step_time_drift_line(step_time_drift_step(args.root)))
+    except Exception as e:  # noqa: BLE001 — перепись не смеет валить мост
+        census_skipped(_skipped, "step_time_drift", e)
     # (G97 п. 3, ADR-562) ТРЕТЬЕ плечо семейства «часы как вход». Сосед выше
     # спрашивает, закрывается ли дверь ЧИТАТЕЛЯ пином класса; этот — доходит ли
     # инъектированный `now` до САМОЙ отметки `generated_at` у ПРОИЗВОДИТЕЛЯ.

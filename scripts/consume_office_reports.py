@@ -930,6 +930,12 @@ _READ_SCHEMA: dict[str, tuple[str, ...]] = {
                                 "not_obtained", "incomplete_reasons", "totals",
                                 "env", "runs_scanned", "in_progress",
                                 "findings", "advisory"),
+    # (ADR-896) `kind` и `control` стоят РЯДОМ намеренно: род подорожания без
+    # контроля среды не решается вовсе, и документ, несущий только первое,
+    # прочёлся бы как вердикт. `base`/`later` — ОБА, потому что ответ есть
+    # утверждение о ПАРЕ прогонов, и назвать один значило бы не назвать пару.
+    "step_time_drift.json": ("status", "invoked_by", "verdict", "kind", "base",
+                             "later", "control", "drift", "findings", "applied"),
     "python_reader_clock_doors.json": ("status", "invoked_by", "counts",
                                        "import_bound_doors", "other_doors",
                                        "run_provenance", "provenance_unmeasured",
@@ -1619,6 +1625,8 @@ _PRODUCER: dict[str, str] = {
         "scripts/worker_axis_census.py",
     "ci_control_verdict.json":
         "scripts/ci_control_verdict.py",
+    "step_time_drift.json":
+        "scripts/step_time_drift_run.py",
     "python_reader_clock_doors.json":
         "spa_core/monitoring/python_reader_clock_doors.py",
     "tact_gate_census.json":
@@ -4003,6 +4011,22 @@ def _summarize_json(path: str, data, *, now: dt.datetime | None = None,
         sys.path.insert(0, os.path.join(REPO_ROOT, "scripts"))
         from ci_control_verdict import format_report as _ccv_report
         out.extend(_ccv_report(data))
+    elif name == "step_time_drift.json":
+        # (ADR-896, заказ G891 п. 7) ЗАЧЕМ ЭТА ВЕТКА: без неё артефакт читается
+        # ВХОЛОСТУЮ (`_HOLLOW_MARK`) — файл открылся, квитанция не пишется, и в
+        # контекст оркестратора не попадает ни одно число, то есть «подорожал ли
+        # шаг» снова некому спросить. Тот же класс, что у соседа выше, и то же
+        # лекарство: правило отрисовки делегируется ПРОИЗВОДИТЕЛЮ, а не
+        # переписывается здесь — вторая копия расходится с первой молча
+        # (ADR-220). Производитель живёт в `scripts/` — это НЕ пакет, поэтому
+        # путь добавляется в `sys.path`, ровно как у двух соседей. Форма ввоза
+        # ОДНОСТРОЧНАЯ намеренно: сторож достижимости
+        # (`test_declared_producer_is_reachable`) вырезает ввозы двух
+        # объявленных форм, и скобочная многострочная ни одной из них не
+        # является (замер #627).
+        sys.path.insert(0, os.path.join(REPO_ROOT, "scripts"))
+        from step_time_drift_run import format_report as _std_report
+        out.extend(_std_report(data))
     elif name == "python_reader_clock_doors.json":
         # Заказ G37 п. 2 (ADR-414). ЗАЧЕМ ЭТА ВЕТКА: без неё артефакт читается
         # ВХОЛОСТУЮ (`_HOLLOW_MARK`) — файл открылся, ресит не пишется, и в

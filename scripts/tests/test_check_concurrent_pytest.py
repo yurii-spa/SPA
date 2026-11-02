@@ -574,7 +574,11 @@ def _lsof_evidence(recs=None) -> str:
     записи передаются аргументом (`recs`) — они из ПЕРВОГО наблюдения, — а сырой
     ответ снимается заново и назван сырым.
     """
-    argv = ["lsof", "-a", "-p", str(os.getpid()), "-d", "0-255", "-Ftnia"]
+    # Список полей берётся У ПРЕДМЕТА, а не повторяется литералом: улика,
+    # снятая ДРУГИМ вызовом, описывала бы не тот зов, который вынес вердикт,
+    # — и ровно эта вторая копия прятала дефект буквы `f` (ADR-896).
+    argv = ["lsof", "-a", "-p", str(os.getpid()), "-d", "0-255",
+            "-F" + ccp.LSOF_FIELDS]
     parsed = ("не передано" if recs is None
               else f"{len(recs)} записей, роды: "
                    + (", ".join(sorted({(r.get("type") or "«нет рода»") for r in recs}))
@@ -613,7 +617,11 @@ class TestOpenFilesParsesRealLsof(unittest.TestCase):
     """
 
     def setUp(self):
-        if ccp._run(["lsof", "-a", "-p", str(os.getpid()), "-d", "0-3", "-Ftnia"]) is None:
+        # Список полей — у предмета (ADR-896): зов живости и зов вердикта
+        # обязаны просить ОДНО И ТО ЖЕ, иначе «разница ровно в диапазоне»
+        # снова окажется неверной уликой, как в разборе ADR-895.
+        if ccp._run(["lsof", "-a", "-p", str(os.getpid()), "-d", "0-3",
+                     "-F" + ccp.LSOF_FIELDS]) is None:
             # Инструмента нет ⇒ ТРЕТИЙ ИСХОД, а не тихий зелёный: «не измерено»
             # обязано быть отличимо от «прошло» (инв. #17).
             self.fail("lsof недоступен — разбор НЕ ИЗМЕРЕН, и зелёным это считать нельзя\n"
@@ -696,7 +704,7 @@ class TestLsofEvidenceCarriesTheMeasurement(unittest.TestCase):
         with mock.patch.object(subprocess, "run",
                                return_value=self._Done(0, "", "")):
             txt = _lsof_evidence([])
-        self.assertIn("-Ftnia", txt, "улика не назвала argv")
+        self.assertIn("-F" + ccp.LSOF_FIELDS, txt, "улика не назвала argv")
         self.assertIn("код возврата 0", txt, "улика не назвала код возврата")
         self.assertIn("строк 0", txt, "улика не назвала, сколько строк пришло")
         self.assertIn("0 записей", txt, "улика не назвала, сколько записей разобралось")
@@ -764,6 +772,83 @@ class TestTheUbuntuRedIsReproducibleAnywhere(unittest.TestCase):
                 self.assertIn("улика", msg,
                               f"отказ {name} не несёт улики — следующий прогон CI "
                               f"скажет ровно то же «не измерено»")
-                self.assertIn("-Ftnia", msg, f"отказ {name} не назвал argv")
+                self.assertIn("-F" + ccp.LSOF_FIELDS, msg,
+                              f"отказ {name} не назвал argv")
                 self.assertIn("разбор ПЕРВОГО наблюдения", msg,
                               f"отказ {name} не назвал, сколько записей разобралось")
+
+
+class TestEveryParsedFieldIsActuallyRequested(unittest.TestCase):
+    """Метка, которую разбор ЧИТАЕТ, обязана стоять в списке, который argv ПРОСИТ.
+
+    Это сторож класса, пойманного ДВАЖДЫ на одном файле:
+
+    | когда | не просили | что выродилось |
+    |---|---|---|
+    | первая редакция | `a` (режим доступа) | режим пуст у каждой записи ⇒ ни `READABLE`, ни `UNREADABLE` |
+    | ADR-896 (заказ G891 п. 2) | **`f`** (номер дескриптора) | запись не НАЧИНАЕТСЯ ⇒ **ноль записей**, ось слепа целиком |
+
+    **Почему этого не видел ни один тест.** Оба раза разбор был прав, а argv —
+    беден, и на macOS lsof печатает `f` независимо от списка: замер 02.11 на этом
+    хосте дал ПОБАЙТНО одинаковый вывод у `-Ftnia` и `-Ffntia` (24 строки, метки
+    `a f i n p t`). Поэтому тесты настоящего `lsof` были зелены здесь и красны на
+    `ubuntu-latest`, где lsof печатает ТОЛЬКО запрошенное: улика прогона
+    41388193352 (шард 11) назвала метки `['a', 'i', 'n', 'p', 't']` — без `f`, —
+    при коде возврата 0 и 65 строках.
+
+    Проверка не ходит ни в сеть, ни к `lsof`: она сверяет ДВА ОБЪЯВЛЕНИЯ одного
+    файла, поэтому краснеет на ЛЮБОМ хосте в ту секунду, когда они разойдутся.
+    """
+
+    def test_every_tag_the_parser_branches_on_is_in_the_requested_list(self):
+        missing = [t for t in ccp.LSOF_PARSED_TAGS if t not in ccp.LSOF_FIELDS]
+        self.assertEqual(missing, [], (
+            f"разбор читает метки {missing}, а argv их НЕ ПРОСИТ. На macOS lsof "
+            f"допечатает их сам, и дефект будет не виден; на Linux он печатает "
+            f"только запрошенное — и ось вырождается в «не измерено» целиком"))
+
+    def test_the_record_opening_tag_is_requested_first_of_all(self):
+        """`f` — не одно из полей, а то, по которому запись НАЧИНАЕТСЯ."""
+        self.assertEqual(ccp.LSOF_PARSED_TAGS[0], "f")
+        self.assertIn("f", ccp.LSOF_FIELDS)
+
+    def test_the_declared_tags_are_the_ones_the_parser_really_handles(self):
+        """Объявление сверяется с КОДОМ, а не принимается на слово (урок #477).
+
+        Иначе `LSOF_PARSED_TAGS` стал бы запиской: метка, добавленная в разбор и
+        забытая в объявлении, снова просилась бы у argv не полностью.
+        """
+        import ast
+        import inspect
+        tree = ast.parse(inspect.getsource(ccp._open_files))
+        handled = set()
+        for node in ast.walk(tree):
+            if not isinstance(node, ast.Compare) or len(node.comparators) != 1:
+                continue
+            left, right = node.left, node.comparators[0]
+            if (isinstance(left, ast.Name) and left.id == "tag"
+                    and isinstance(right, ast.Constant)
+                    and isinstance(right.value, str)):
+                handled.add(right.value)
+        self.assertTrue(handled, "разбор меток не найден — мера смотрит не туда")
+        self.assertEqual(handled, set(ccp.LSOF_PARSED_TAGS), (
+            f"объявление и код разошлись: в коде {sorted(handled)}, "
+            f"объявлено {sorted(ccp.LSOF_PARSED_TAGS)}"))
+
+    def test_a_record_stream_without_the_opening_tag_parses_to_nothing(self):
+        """Положительный контроль: сцена ubuntu ДОСЛОВНО, строки из улики CI.
+
+        Без этого плеча проверки выше были бы рассуждением о списках: здесь
+        спрашивается САМ разбор, и ответ «ноль записей» воспроизводится на любом
+        хосте.
+        """
+        without_f = "p2402\nar\ntCHR\ni5\nn/dev/null\nau\n"
+        with mock.patch.object(ccp, "_run", return_value=without_f):
+            self.assertEqual(ccp._open_files(2402), [])
+        with_f = "p2402\nf0\nar\ntREG\ni5\nn/tmp/x\n"
+        with mock.patch.object(ccp, "_run", return_value=with_f):
+            recs = ccp._open_files(2402)
+        self.assertEqual(len(recs), 1, "разбор не собрал запись и ПРИ метке `f`")
+        self.assertEqual(recs[0]["fd"], "0")
+        self.assertEqual(recs[0]["mode"], "r")
+        self.assertEqual(recs[0]["type"], "REG")
