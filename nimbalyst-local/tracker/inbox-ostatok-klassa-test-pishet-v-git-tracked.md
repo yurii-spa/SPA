@@ -2,7 +2,7 @@
 trackerStatus:
   type: inbox
 title: "Остаток класса «тест пишет в git-tracked data/»: население 68, закрыто 50, писатель каждого остатка НАЗВАН замером"
-status: in-progress
+status: done
 source: nimbalyst
 created: 2026-11-02
 finding_adr: ADR-900
@@ -11,6 +11,7 @@ intake_kind: task
 acceptance_probe: tracked_data_untouched_by_declared_runs:run
 status_trail:
   - "2026-11-02T18:10:06.655043+00:00 new -> in-progress · queue.set_status · cycle-96831"
+  - "2026-11-02T23:00:02.747642+00:00 in-progress -> done · queue.set_status/closed_by:цикл #1015 (ADR-903 доставлен d55738d38, ADR-904 доставлен 29f8a4f9c)/evidence:объявленная ДО работы проба tracked_data_untouched_by_declared_runs:run на ДОСТАВЛЕННОМ origin/main 29f8a4f9c = satisfied: поверхность ПОЛНАЯ (68 из 68 измеренного населения), прогон 68 модулей 7645 p · cycle-68501"
 ---
 
 ## Что измерено
