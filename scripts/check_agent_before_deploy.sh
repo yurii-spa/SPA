@@ -109,14 +109,19 @@ echo "=== PRE-DEPLOY GATE: ${LABEL} ==="
 # Pure bash 3.2: launch in background, a watchdog sleeps then kills the group.
 run_with_timeout() {
     local secs="$1"; shift
+    # The command gets its OWN process group (job control on for this one launch), and the watchdog kills the
+    # WHOLE group. Killing only $cmd_pid left the agent's python child orphaned (PPID 1) and running: measured
+    # 02.11 — a sandboxed findings_bridge kept one core at 99 % for 72 min after the gate had reported «hang».
+    set -m
     "$@" &
     local cmd_pid=$!
+    set +m
     (
         sleep "$secs"
-        # still alive? kill it (and let the parent report 124)
-        kill -0 "$cmd_pid" 2>/dev/null && kill -TERM "$cmd_pid" 2>/dev/null
+        # still alive? kill the whole group (and let the parent report 124)
+        kill -0 "$cmd_pid" 2>/dev/null && kill -TERM -- "-$cmd_pid" 2>/dev/null
         sleep 2
-        kill -0 "$cmd_pid" 2>/dev/null && kill -KILL "$cmd_pid" 2>/dev/null
+        kill -0 -- "-$cmd_pid" 2>/dev/null && kill -KILL -- "-$cmd_pid" 2>/dev/null
     ) &
     local wd_pid=$!
     wait "$cmd_pid" 2>/dev/null
