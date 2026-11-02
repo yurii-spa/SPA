@@ -2,11 +2,11 @@
 
 > Авто-генерится `scripts/build_tracker_board.py` из `nimbalyst-local/tracker/*.md`. НЕ править вручную — правь карточки. Источник правды — карточки, это индекс (bootstrap).
 >
-> Собрана: 2026-11-02T08:03:03Z · сверка с карточками: `python3 scripts/build_tracker_board.py --check` (сторож `spa_core/tests/test_tracker_board_matches_cards.py`).
+> Собрана: 2026-11-02T13:03:29Z · сверка с карточками: `python3 scripts/build_tracker_board.py --check` (сторож `spa_core/tests/test_tracker_board_matches_cards.py`).
 >
-> Сверено с `origin/main` (54de9c2fe) · у **3** своя правка, кто новее — не измерено.
+> Сверено с `origin/main` (8f34a8894).
 >
-> Всего карточек: **1564** · ждёт владельца: **6** · занято сессиями: **13**.
+> Всего карточек: **1566** · ждёт владельца: **6** · занято сессиями: **13**.
 
 ## 🔴 ЖДЁТ ВЛАДЕЛЬЦА (needs-owner)
 
@@ -422,7 +422,7 @@
 ### · closed
 - Считать ли верный отказ по правилам допуска неисправностью флота  ·  `owner-decision-schitat-li-vernyi-otkaz-po-pravilam-dopu.md` · 2026-10-08
 
-## 📥 Inbox (задания: Telegram / заметки / голос)  (882)
+## 📥 Inbox (задания: Telegram / заметки / голос)  (884)
 
 ### · in-progress
 - а задача починить все-таки еще раз сообщение которым не пишет нужно твое решени…  ·  `inbox-a-zadacha-pochinit-vse-taki-esche-raz-so.md` · 2026-08-14 · 🔒 `pid43119`
@@ -1128,6 +1128,7 @@
 - Остаток G: тесты зависят от хоста CI (11 падений)  ·  `inbox-ostatok-g-testy-zavisyat-ot-hosta-ci-11.md` · 2026-10-18
 - Остаток H: тесты зависят от сегодняшней даты (3 падения)  ·  `inbox-ostatok-h-testy-zavisyat-ot-segodnyashne.md` · 2026-10-18
 - Отбор лучших восьми протоколов не бережёт T1-якорь: два хороших кандидата вместе ухудшают книгу  ·  `inbox-otbor-luchshih-vosmi-protokolov-ne-berez.md` · 2026-08-29
+- Отчёт о доставке карточек судит байты, которых уже нет: производитель просрочил перемер на 98 часов при такте 6  ·  `inbox-otchet-o-dostavke-kartochek-sudit-baity.md` · 2026-11-02
 - Отчёт объявлен мерой критерия приёмки, которого владелец не писал  ·  `inbox-otchet-obyavlen-meroi-kriteriya-priemki.md` · 2026-09-29
 - Отсутствие оценки TVL публикуется НУЛЁМ у 4 записей — инв. #17 на вложенном пути  ·  `inbox-otsutstvie-otsenki-tvl-publikuetsya-nule.md` · 2026-10-12
 - Paper-модули #39 CDR и #36 dwell обязаны логировать концентрацию и duty — иначе форвард будет неатрибутируем  ·  `inbox-paper-moduli-39-cdr-i-36-dwell-obyazany.md` · 2026-08-08
@@ -1273,6 +1274,7 @@
 - Тест судит о своей уборке глобом по ОБЩЕМУ временному каталогу — и краснеет от соседнего прогона того же кода  ·  `inbox-test-sudit-o-svoei-uborke-globom-po-obsc.md` · 2026-11-01
 - Тест тождества капитала КРАСЕН на чистом origin: два читателя одной записи расходятся на сцене с дублем и порчей  ·  `inbox-test-tozhdestva-kapitala-krasen-na-chist.md` · 2026-09-16
 - Тест ворот публикации не доходит до ворот: его заслоняет гейт окна мутаций  ·  `inbox-test-vorot-publikatsii-ne-dohodit-do-vor.md` · 2026-10-18
+- Тесты пишут в git-tracked data/ — сессионный сторож отказывает в КАЖДОМ прогоне CI (12 из 12 шардов), и зелёный контрольный прогон недостижим  ·  `inbox-testy-pishut-v-git-tracked-data-sessionn.md` · 2026-11-02
 - Три отправителя стоп-крана в обход канонической двери (найдено #313)  ·  `inbox-tri-otpravitelya-stop-krana-v-obhod-kano.md` · 2026-08-20
 - Три прибора написаны и не позваны: храповик непроводки КРАСЕН на чистом origin/main a326d063e  ·  `inbox-tri-pribora-napisany-i-ne-pozvany-hrapov.md` · 2026-10-10
 - Цикл считает покрытие фидов 100% живым, а aave_arbitrum читает круглые константы из adapter_status.json  ·  `inbox-tsikl-schitaet-pokrytie-fidov-100-zhivym.md` · 2026-08-29
