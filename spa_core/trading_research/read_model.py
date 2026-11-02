@@ -78,11 +78,21 @@ def _ro_connect(path: Path):
     `conn` is None, naming "not found" vs. a real sqlite error opening read-only."""
     p = Path(path)
     if not p.exists():
-        return None, f"evidence.db не найден по пути {p}"
+        return None, f"{p.name} не найден по пути {p}"
     try:
         return sqlite3.connect(f"file:{p.as_posix()}?mode=ro", uri=True), None
     except sqlite3.Error as e:
-        return None, f"evidence.db не открывается в режиме mode=ro ({type(e).__name__}: {e})"
+        return None, f"{p.name} не открывается в режиме mode=ro ({type(e).__name__}: {e})"
+
+
+def open_ro(path) -> sqlite3.Connection:
+    """ЕДИНСТВЕННАЯ дверь read-only к базам Trading Research для кода, которому нужно исключение, а не пара:
+    нет файла или ошибка открытия ⇒ ``sqlite3.OperationalError`` с названной причиной (как у прямого
+    ``sqlite3.connect(..., mode=ro)``, но без второго прямого подключения в дереве — `migrate_callsites`)."""
+    conn, why = _ro_connect(path)
+    if conn is None:
+        raise sqlite3.OperationalError(why)
+    return conn
 
 
 def trading_lab_view(data_dir, *, now_ms: Optional[int] = None,

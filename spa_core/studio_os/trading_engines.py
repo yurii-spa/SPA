@@ -53,7 +53,8 @@ def _fresh(age_s, cadence_s=900):
 
 
 def _ro(path):
-    return sqlite3.connect(f'file:{path}?mode=ro', uri=True)
+    from spa_core.trading_research.read_model import open_ro   # одна дверь read-only (migrate_callsites)
+    return open_ro(path)
 
 
 def _vs_hold(v):

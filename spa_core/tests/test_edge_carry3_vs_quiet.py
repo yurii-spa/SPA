@@ -4,12 +4,26 @@ Every test here is a positive control: it either verifies the instrument's core
 invariant, or it breaks one named wire and confirms the instrument notices.
 None asserts on a printed substring (ADR-333) — each calls the real internal
 functions of `scripts/edge_carry3_vs_quiet.py` on a deterministic input scene.
-
-FROZEN-DATE-OK: synthetic-axis — all dates come from the fixture (_BACKTEST_START
-is 2024-07-01, _BACKTEST_END is 2026-05-31, both constants in the fixture module
-itself). The script imports no time/datetime clock and takes no `now` argument;
-no verdict can change because the calendar moved.
 """
+# The exemption below used to live INSIDE the docstring above, i.e. without a
+# leading `#`, and the ratchet looks for a comment — so it was not an exemption
+# at all and `test_frozen_date_ratchet` was red on a clean `origin/main` from the
+# moment this file landed (1952e214b). Moving it here is the whole fix; adding
+# the file to `frozen_date_baseline.json` would have been invariant #16 in
+# reverse (the baseline only ever shrinks).
+#
+# The reason is not prose: it was measured (ADR-895). Every date on the axis of
+# this test comes from a literal anchor, and all three modules on the path hold
+# ZERO wall-clock doors — no `.now()`, `.today()`, `.utcnow()`, `time.time()` or
+# `time.monotonic()` in `scripts/edge_carry3_vs_quiet.py`, in
+# `spa_core/strategy_lab/aggressive_lab/fixtures.py`, or here. The script takes
+# no `now` argument because it has nothing to pass it to. The word the detector
+# matched on is "window" in the comment on line ~123 below — a backtest period,
+# not a freshness window.
+# FROZEN-DATE-OK: synthetic-axis — all dates come from the fixture
+# (_BACKTEST_START is 2024-07-01, _BACKTEST_END is 2026-05-31, both constants in
+# the fixture module itself). No module on this path reads the clock, so no
+# verdict can change because the calendar moved.
 from __future__ import annotations
 
 import datetime

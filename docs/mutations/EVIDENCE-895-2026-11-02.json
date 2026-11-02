@@ -1,0 +1,63 @@
+{
+ "title": "ADR-895 EVIDENCE — дельта цикла #1008: пометка замороженной даты живёт в КОММЕНТАРИИ (красный храповик на чистом origin/main снят), а три отказа класса настоящего lsof несут УЛИКУ, по которой следующий прогон назовёт механизм вместо «не измерено»",
+ "tests": [
+  "spa_core/tests/test_frozen_date_ratchet.py",
+  "scripts/tests/test_check_concurrent_pytest.py"
+ ],
+ "mutations": [
+  {
+   "name": "пометка вернулась в докстроку (БЕЗ `#`) — дословно состояние main до ADR-895",
+   "file": "spa_core/tests/test_edge_carry3_vs_quiet.py",
+   "old": "# FROZEN-DATE-OK: synthetic-axis — all dates come from the fixture",
+   "new": "# FROZEN-DATE-NOT-THE-MARKER: synthetic-axis — all dates come from the fixture"
+  },
+  {
+   "name": "пометка есть, но БЕЗ причины — тихое вето вместо решения на записи",
+   "file": "spa_core/tests/test_edge_carry3_vs_quiet.py",
+   "old": "# FROZEN-DATE-OK: synthetic-axis — all dates come from the fixture",
+   "new": "# FROZEN-DATE-OK"
+  },
+  {
+   "name": "улика не называет argv — отказ снова не говорит, ЧЕМ мерили",
+   "file": "scripts/tests/test_check_concurrent_pytest.py",
+   "old": "    return (\"   улика сырого lsof (ВТОРОЕ наблюдение): \"\n            f\"{' '.join(argv)}\\n\"",
+   "new": "    return (\"   улика сырого lsof (ВТОРОЕ наблюдение): \"\n            f\"{''}\\n\""
+  },
+  {
+   "name": "улика не называет код возврата — «инструмент есть» неотличимо от «инструмент ответил ошибкой»",
+   "file": "scripts/tests/test_check_concurrent_pytest.py",
+   "old": "            f\"   код возврата {out.returncode} · строк {len(lines)} · \"",
+   "new": "            f\"   строк {len(lines)} · \""
+  },
+  {
+   "name": "улика не называет stderr — жалоба инструмента теряется молча",
+   "file": "scripts/tests/test_check_concurrent_pytest.py",
+   "old": "            f\"метки полей {tags or 'ни одной'} · stderr: {err}\\n\"",
+   "new": "            f\"метки полей {tags or 'ни одной'}\\n\""
+  },
+  {
+   "name": "мёртвый инструмент выдан за снятую улику (fail-OPEN, инв. #17)",
+   "file": "scripts/tests/test_check_concurrent_pytest.py",
+   "old": "        return (f\"   улика НЕ СНЯТА: {' '.join(argv)} не запустился: \"\n                f\"{type(exc).__name__}: {exc}\\n   разбор ПЕРВОГО наблюдения: {parsed}\")",
+   "new": "        return f\"   разбор ПЕРВОГО наблюдения: {parsed}\""
+  },
+  {
+   "name": "отсутствие ПЕРВОГО наблюдения выдано за ноль записей (инв. #17, второй исход вместо третьего)",
+   "file": "scripts/tests/test_check_concurrent_pytest.py",
+   "old": "    parsed = (\"не передано\" if recs is None",
+   "new": "    parsed = (\"0 записей, роды: ни одной\" if recs is None"
+  },
+  {
+   "name": "запись без рода пропущена молча — «нет рода» больше не называется",
+   "file": "scripts/tests/test_check_concurrent_pytest.py",
+   "old": "                   + (\", \".join(sorted({(r.get(\"type\") or \"«нет рода»\") for r in recs}))",
+   "new": "                   + (\", \".join(sorted({r[\"type\"] for r in recs if r.get(\"type\")}))"
+  },
+  {
+   "name": "улика сорвана с отказа «разбор не нашёл собственный файл» — состояние main до ADR-895",
+   "file": "scripts/tests/test_check_concurrent_pytest.py",
+   "old": "            self.assertTrue(mine, f\"разбор не нашёл собственный открытый файл {path}\\n\"\n                                  + _lsof_evidence(recs))",
+   "new": "            self.assertTrue(mine, f\"разбор не нашёл собственный открытый файл {path}\")"
+  }
+ ]
+}
