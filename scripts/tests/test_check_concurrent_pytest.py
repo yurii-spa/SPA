@@ -9,11 +9,18 @@ Covers the two documented hazards separately (journal, cycle #352 / #377):
   * ps enumeration failure -> fail-CLOSED 'unmeasured', exit 2 (never silently
     reads as 'clear').
 
-All subprocess calls are mocked — no real ps/lsof dependency, deterministic.
+Почти все subprocess-вызовы подменены. ОДИН класс — НЕТ, и это намеренно:
+`TestOpenFilesParsesRealLsof` зовёт настоящий `lsof` на своём процессе, потому
+что подменённая проба проверяет РАССУЖДЕНИЕ о записях, а не то, что записи
+вообще добываются. Строка «все вызовы подменены» стояла здесь до ADR-895 и была
+ЛОЖНОЙ: ровно этот класс даёт три падения на `ubuntu-latest` при 48 зелёных на
+Маке, и прочитанная буквально она уводила разбор мимо единственного места в
+файле, которое спрашивает ХОСТ.
 """
 from __future__ import annotations
 
 import os
+import subprocess
 import sys
 import tempfile
 import unittest
@@ -546,6 +553,48 @@ class TestVerdictAxisIsActuallyWiredIntoCheck(unittest.TestCase):
         self.assertNotEqual(report["other_cwd"][0]["orphan"], ccp.ORPHAN)
 
 
+def _lsof_evidence(recs=None) -> str:
+    """Чем ответил НАСТОЯЩИЙ `lsof` — улика ПРИ отказе, а не замена отказу.
+
+    Зачем она появилась (ADR-895). Три теста ниже красны на `ubuntu-latest` и
+    зелены на Маке, и из отчёта CI было видно ровно одно: разбор не нашёл
+    собственный открытый файл, а вердикт выродился в «обычных файлов среди
+    дескрипторов нет (только ?)». Инструмент при этом ПРИСУТСТВУЕТ и выходит
+    нулём — `setUp` зовёт его и не падает, а `_open_files` возвращает список, а
+    не ``None``. Дальше этого замер не шёл: отказ не нёс ни argv, ни кода
+    возврата, ни того, сколько записей разобралось, — то есть «не измерено» без
+    причины, и следующий прогон сказал бы ровно то же самое.
+
+    Улика НИЧЕГО не утверждает и ни одной проверки не ослабляет: ни один assert
+    не снят и не сужен, добавлен только текст, который печатается, когда
+    проверка УЖЕ провалилась.
+
+    ⚠️ Зов здесь — ВТОРОЕ наблюдение, отдельное от того, по которому вынесен
+    вердикт; состояние процесса между ними могло измениться. Поэтому разобранные
+    записи передаются аргументом (`recs`) — они из ПЕРВОГО наблюдения, — а сырой
+    ответ снимается заново и назван сырым.
+    """
+    argv = ["lsof", "-a", "-p", str(os.getpid()), "-d", "0-255", "-Ftnia"]
+    parsed = ("не передано" if recs is None
+              else f"{len(recs)} записей, роды: "
+                   + (", ".join(sorted({(r.get("type") or "«нет рода»") for r in recs}))
+                      or "ни одной"))
+    try:
+        out = subprocess.run(argv, capture_output=True, text=True, timeout=10)
+    except (OSError, subprocess.SubprocessError) as exc:
+        return (f"   улика НЕ СНЯТА: {' '.join(argv)} не запустился: "
+                f"{type(exc).__name__}: {exc}\n   разбор ПЕРВОГО наблюдения: {parsed}")
+    lines = [ln for ln in (out.stdout or "").splitlines() if ln]
+    tags = sorted({ln[:1] for ln in lines})
+    err = " | ".join((out.stderr or "").strip().splitlines()[:3]) or "(пусто)"
+    return ("   улика сырого lsof (ВТОРОЕ наблюдение): "
+            f"{' '.join(argv)}\n"
+            f"   код возврата {out.returncode} · строк {len(lines)} · "
+            f"метки полей {tags or 'ни одной'} · stderr: {err}\n"
+            f"   первые строки: {lines[:6]}\n"
+            f"   разбор ПЕРВОГО наблюдения: {parsed}")
+
+
 class TestOpenFilesParsesRealLsof(unittest.TestCase):
     """Разбор `lsof` меряется БЕЗ подмены — на настоящем процессе и настоящем `lsof`.
 
@@ -567,7 +616,8 @@ class TestOpenFilesParsesRealLsof(unittest.TestCase):
         if ccp._run(["lsof", "-a", "-p", str(os.getpid()), "-d", "0-3", "-Ftnia"]) is None:
             # Инструмента нет ⇒ ТРЕТИЙ ИСХОД, а не тихий зелёный: «не измерено»
             # обязано быть отличимо от «прошло» (инв. #17).
-            self.fail("lsof недоступен — разбор НЕ ИЗМЕРЕН, и зелёным это считать нельзя")
+            self.fail("lsof недоступен — разбор НЕ ИЗМЕРЕН, и зелёным это считать нельзя\n"
+                      + _lsof_evidence())
 
     def test_a_real_file_open_for_writing_is_parsed_with_its_mode_and_inode(self):
         with tempfile.NamedTemporaryFile("w", suffix=".ccp-probe", delete=False) as fh:
@@ -579,7 +629,8 @@ class TestOpenFilesParsesRealLsof(unittest.TestCase):
             self.assertIsNotNone(recs, "lsof не прочитан — разбор не измерен")
             mine = [r for r in recs
                     if r.get("path") and os.path.realpath(r["path"]) == path]
-            self.assertTrue(mine, f"разбор не нашёл собственный открытый файл {path}")
+            self.assertTrue(mine, f"разбор не нашёл собственный открытый файл {path}\n"
+                                  + _lsof_evidence(recs))
             rec = mine[0]
             # Ровно то, что первая редакция теряла молча.
             self.assertIn(rec["mode"], ("w", "u", "W"),
@@ -595,7 +646,8 @@ class TestOpenFilesParsesRealLsof(unittest.TestCase):
             fh.write("x")
             fh.flush()
             verdict, why = ccp.verdict_readable(os.getpid())
-            self.assertEqual(verdict, ccp.READABLE, why)
+            self.assertEqual(verdict, ccp.READABLE,
+                             why + "\n" + _lsof_evidence(ccp._open_files(os.getpid())))
         os.unlink(fh.name)
 
     def test_a_live_process_whose_only_write_target_is_unlinked_reads_UNREADABLE(self):
@@ -618,8 +670,100 @@ class TestOpenFilesParsesRealLsof(unittest.TestCase):
             self.assertIsNotNone(recs, "lsof не прочитан — разбор не измерен")
             gone = [r for r in recs
                     if r.get("path", "").endswith(".gone") and r["mode"] in ("w", "u", "W")]
-            self.assertTrue(gone, "разбор не увидел отвязанный файл, открытый на запись")
+            self.assertTrue(gone, "разбор не увидел отвязанный файл, открытый на запись\n"
+                                  + _lsof_evidence(recs))
             self.assertFalse(ccp._alive_on_disk(gone[0]),
                              "отвязанный файл прочитан как достижимый по своему пути")
         finally:
             doomed.close()
+
+
+class TestLsofEvidenceCarriesTheMeasurement(unittest.TestCase):
+    """Положительный контроль на улику: она обязана НАЗВАТЬ то, чего не хватило.
+
+    Контроль нужен в обе стороны, иначе улика — украшение: текст, который никто
+    не читал и который на чужом хосте мог бы оказаться пустым. Сцены здесь
+    подменяют ТОЛЬКО сырой зов (`subprocess.run`), потому что предмет контроля —
+    форма улики, а не поведение `lsof`.
+    """
+
+    class _Done:
+        def __init__(self, rc, stdout, stderr=""):
+            self.returncode, self.stdout, self.stderr = rc, stdout, stderr
+
+    def test_it_names_argv_returncode_and_that_nothing_parsed(self):
+        # Ровно состояние ubuntu-latest из ADR-895: код 0, записей ноль.
+        with mock.patch.object(subprocess, "run",
+                               return_value=self._Done(0, "", "")):
+            txt = _lsof_evidence([])
+        self.assertIn("-Ftnia", txt, "улика не назвала argv")
+        self.assertIn("код возврата 0", txt, "улика не назвала код возврата")
+        self.assertIn("строк 0", txt, "улика не назвала, сколько строк пришло")
+        self.assertIn("0 записей", txt, "улика не назвала, сколько записей разобралось")
+        self.assertIn("ни одной", txt, "улика не назвала, что родов нет")
+
+    def test_it_names_the_kinds_it_did_parse(self):
+        with mock.patch.object(subprocess, "run",
+                               return_value=self._Done(0, "f1\naw\ntREG\n", "")):
+            txt = _lsof_evidence([{"type": "REG"}, {"type": None}])
+        self.assertIn("2 записей", txt)
+        self.assertIn("REG", txt)
+        self.assertIn("«нет рода»", txt, "запись без рода обязана быть НАЗВАНА, а не пропущена")
+        self.assertIn("'f'", txt, "улика не назвала метки полей")
+
+    def test_a_dead_tool_is_said_to_be_NOT_MEASURED_not_silently_empty(self):
+        with mock.patch.object(subprocess, "run",
+                               side_effect=OSError("no such file")):
+            txt = _lsof_evidence([])
+        self.assertIn("улика НЕ СНЯТА", txt)
+        self.assertIn("OSError", txt)
+
+    def test_it_never_claims_a_first_observation_it_was_not_given(self):
+        with mock.patch.object(subprocess, "run",
+                               return_value=self._Done(1, "", "lsof: boom")):
+            txt = _lsof_evidence()
+        self.assertIn("не передано", txt,
+                      "улика выдала бы отсутствие первого наблюдения за пустой разбор")
+        self.assertIn("код возврата 1", txt)
+        self.assertIn("lsof: boom", txt, "улика не назвала stderr инструмента")
+
+
+class TestTheUbuntuRedIsReproducibleAnywhere(unittest.TestCase):
+    """Сцена `ubuntu-latest` из ADR-895, разыгранная на ЛЮБОМ хосте.
+
+    Почему она понадобилась. Три теста класса выше красны только там, где
+    `_open_files` ничего не разбирает, то есть на Маке их сообщения не
+    печатаются НИКОГДА — и значит снять улику с любого из них можно было
+    молча: набор остался бы зелёным, а следующий прогон CI снова сказал бы
+    «не измерено». Мера, живущая на другом хосте, мерой не является.
+
+    Сцена поэтому подменяет РОВНО одну дверь — разбор дескрипторов, — и
+    воспроизводит измеренное состояние прогона 41355517825: инструмент
+    присутствует, выходит нулём, записей НОЛЬ. Утверждение одно: отказ в этом
+    состоянии несёт улику. Ни один assert проверяемых тестов не ослаблен —
+    они вызываются целиком, настоящими.
+    """
+
+    def _failure_message_of(self, name: str) -> str:
+        case = TestOpenFilesParsesRealLsof(name)
+        with mock.patch.object(ccp, "_open_files", return_value=[]):
+            try:
+                case.setUp()
+                getattr(case, name)()
+            except AssertionError as exc:
+                return str(exc)
+        self.fail(f"{name} прошёл при НУЛЕ разобранных записей — "
+                  f"ровно то состояние, в котором ось слепа")
+
+    def test_every_refusal_of_the_real_lsof_class_carries_the_evidence(self):
+        names = [n for n in dir(TestOpenFilesParsesRealLsof) if n.startswith("test_")]
+        self.assertEqual(len(names), 3, f"класс изменился в составе: {names}")
+        for name in names:
+            with self.subTest(name):
+                msg = self._failure_message_of(name)
+                self.assertIn("улика", msg,
+                              f"отказ {name} не несёт улики — следующий прогон CI "
+                              f"скажет ровно то же «не измерено»")
+                self.assertIn("-Ftnia", msg, f"отказ {name} не назвал argv")
+                self.assertIn("разбор ПЕРВОГО наблюдения", msg,
+                              f"отказ {name} не назвал, сколько записей разобралось")

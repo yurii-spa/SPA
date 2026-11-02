@@ -2,11 +2,11 @@
 
 > Авто-генерится `scripts/build_tracker_board.py` из `nimbalyst-local/tracker/*.md`. НЕ править вручную — правь карточки. Источник правды — карточки, это индекс (bootstrap).
 >
-> Собрана: 2026-11-01T19:03:38Z · сверка с карточками: `python3 scripts/build_tracker_board.py --check` (сторож `spa_core/tests/test_tracker_board_matches_cards.py`).
+> Собрана: 2026-11-02T01:36:28Z · сверка с карточками: `python3 scripts/build_tracker_board.py --check` (сторож `spa_core/tests/test_tracker_board_matches_cards.py`).
 >
-> Сверено с `origin/main` (9ebe92509).
+> Сверено с `origin/main` (3705a3c81).
 >
-> Всего карточек: **1560** · ждёт владельца: **6** · занято сессиями: **13**.
+> Всего карточек: **1562** · ждёт владельца: **6** · занято сессиями: **13**.
 
 ## 🔴 ЖДЁТ ВЛАДЕЛЬЦА (needs-owner)
 
@@ -422,7 +422,7 @@
 ### · closed
 - Считать ли верный отказ по правилам допуска неисправностью флота  ·  `owner-decision-schitat-li-vernyi-otkaz-po-pravilam-dopu.md` · 2026-10-08
 
-## 📥 Inbox (задания: Telegram / заметки / голос)  (878)
+## 📥 Inbox (задания: Telegram / заметки / голос)  (880)
 
 ### · in-progress
 - а задача починить все-таки еще раз сообщение которым не пишет нужно твое решени…  ·  `inbox-a-zadacha-pochinit-vse-taki-esche-raz-so.md` · 2026-08-14 · 🔒 `pid43119`
@@ -1118,6 +1118,7 @@
 - Окно до 6 часов: ответ владельца между нажатием кнопки и прогоном моста живёт в одном экземпляре  ·  `inbox-okno-do-6-chasov-otvet-vladeltsa-mezhdu.md` · 2026-08-15
 - Окно свежести КОРОЧЕ бюджета работника — два порога одного вопроса без общего источника  ·  `inbox-okno-svezhesti-koroche-byudzheta-rabotni.md` · 2026-10-14
 - origin/main красен ещё восемью тестами: три из них — сторожа сторожей, и их вердикты недействительны  ·  `inbox-origin-main-krasen-esche-vosemyu-testami.md` · 2026-10-07
+- Ось достижимости вердикта СЛЕПА на Linux: lsof есть и выходит нулём, а разбор не отдаёт ни одной записи — три красных есть ОДНА работа  ·  `inbox-os-dostizhimosti-verdikta-slepa-na-linux.md` · 2026-11-02
 - Осиротевшая работа cycle-74714 (05.09): наблюдение есть, но не в том артефакте, куда смотрит гейт — $14 210 снято с цели  ·  `inbox-osirotevshaya-rabota-cycle-74714-05-09-n.md` · 2026-09-05
 - Объявление владения называет ПРОД-пути, поэтому привязать прогон к его дереву нечем даже при абсолютных путях  ·  `inbox-osirotevshii-polnyi-progon-est-yadra-a-e.md` · 2026-09-18
 - Остатки инжеста 21.08: гейт доказанности APY в аварийной книге и якорь архива исходов — сначала ЗАМЕР  ·  `inbox-ostatki-inzhesta-21-08-geit-dokazannosti.md` · 2026-08-21
@@ -1289,6 +1290,7 @@
 - Вердикт сторожа архитектуры относится к манифесту, которого больше нет — а 492 строки нового лежат в прод-дереве незакоммиченными  ·  `inbox-verdikt-storozha-arhitektury-otnositsya.md` · 2026-08-30
 - Вернуть разделы, потерянные доставкой 07.10 с шести карточек владельца  ·  `inbox-vernut-razdely-poteryannye-dostavkoi-07.md` · 2026-10-15
 - Ветка сверки по mtime срабатывает на свежем worktree всегда — у неё СВОЙ дефект, тактом не лечится (остаток ADR-264)  ·  `inbox-vetka-sverki-po-mtime-srabatyvaet-na-sve.md` · 2026-09-08
+- Вето храповика замороженных дат держится ТЕКСТОМ, а не формой: 311 комментариев против 71 докстроки, случайная форма пуста ТОЛЬКО сегодня  ·  `inbox-veto-hrapovika-zamorozhennyh-dat-derzhit.md` · 2026-11-02
 - Внести артефакт в манифест «без срока» нельзя: B5 требует положительный slo_hours — предпосылка замера #426 верна только для B2  ·  `inbox-vnesti-artefakt-v-manifest-bez-sroka-nel.md` · 2026-08-30
 - Восемь блоков публикуют число отсутствия, и не читает его никто (ADR-856, замер #974)  ·  `inbox-vosem-blokov-publikuyut-chislo-otsutstvi.md` · 2026-10-29
 - Восемь карточек: машинный критерий приёмки выполнен, а статус держит их открытыми  ·  `inbox-vosem-kartochek-mashinnyi-kriterii-priem.md` · 2026-10-21
