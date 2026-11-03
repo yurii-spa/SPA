@@ -1,0 +1,35 @@
+{
+  "contract_id": "earn-defi-btc-engine-v0.3-forward-2026-11-01",
+  "engine": "earn_defi",
+  "registered_at": "2026-11-01T09:40:00Z",
+  "registration_note": "Описание УЖЕ идущего paper-наблюдения earn-defi в общей форме контракта. История до registered_at — дорегистрационная (выводы по ней не переквалифицируются этим контрактом); forward-оценка по контракту — только с registered_at. Ledger earn-defi отдельный, общий ledger не создаётся.",
+  "hypothesis": "BTC signal engine v0.3 (режим MVRV/realized price, k=0.75, полоса ребаланса 5%) при paper-исполнении удерживает NAV в рамках своих kill-conditions и не хуже пассивного BTC с той же долей k на forward-периоде.",
+  "scope": {
+    "universe": ["BTC (спот) + стабильная нога earn-defi"],
+    "timeframe": "1D",
+    "periods": {
+      "train": "по конфигу earn-defi (дорегистрационно, не переоценивается)",
+      "oos": "по конфигу earn-defi (дорегистрационно)",
+      "forward_from": "2026-11-01T09:40:00Z"
+    }
+  },
+  "strategy": {
+    "config_version": "0.3 (config/active.json btc_engine)",
+    "configs": [
+      {"name": "btc_engine_v0.3", "role": "control", "note": "действующая версия, без изменений"}
+    ],
+    "hold_benchmark": "пассивный BTC с долей k=0.75 без сигнала"
+  },
+  "data_source": "earn-defi data/earn_defi.db (market_data, signals, decisions, trades, nav_daily, refusal_ledger — hash-chained), копия через SQLite backup API с WAL",
+  "cost_model": {"fee_bps_per_side": 10, "slippage_bps_per_side": 5, "source": "allocation.cost_bps_per_side в конфиге 0.3"},
+  "attempt_budget": 1,
+  "criteria": {
+    "primary_metric": "forward NAV против пассивного BTC k=0.75 на одних и тех же днях",
+    "decision_rule": "до 30 наблюдённых дней forward — «не измерено» (порог зрелости), выводы не делаются",
+    "replay": "earn-defi replay.py на копии: 0 расхождений (doc S3 evidence earn_defi_replay.txt)"
+  },
+  "ledger_refs": {
+    "config_version": {"version": "0.3", "hash": "566a9cdface35eea5f3723bcc92a6540a2cc79e4935df12758cb7f93135ab9d1"},
+    "tables": ["signals", "decisions", "trades", "nav_daily", "refusal_ledger", "config_versions"]
+  }
+}

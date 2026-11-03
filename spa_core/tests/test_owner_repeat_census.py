@@ -229,12 +229,15 @@ def _load_guard():
     return mod
 
 
-def _write_cards(where: Path, titles, *, source="voice", status="new"):
+def _write_cards(where: Path, titles, *, source="voice", status="new", author="owner"):
+    """Сцена ПРОСЬБЫ ВЛАДЕЛЬЦА: автор установлен входом (с P0 01.11 без него мера честно
+    отвечает «происхождение не установлено»). ``author=None`` — сцена фикстуры."""
     where.mkdir(parents=True, exist_ok=True)
+    auth = (f"author: {author}\nauthor_basis: сцена — чат владельца\n" if author else "")
     for i, title in enumerate(titles, 1):
         (where / f"inbox-scene-{i}.md").write_text(
             "---\ntrackerStatus:\n  type: inbox\n"
-            f"title: \"{title}\"\nstatus: {status}\nsource: {source}\n"
+            f"title: \"{title}\"\nstatus: {status}\nsource: {source}\n{auth}"
             f"created: {day(-14)}\n---\n\nтело\n", encoding="utf-8")
 
 

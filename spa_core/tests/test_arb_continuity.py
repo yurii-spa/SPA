@@ -9,6 +9,7 @@ first shown FRESH on the intact scene, then the one named link is broken and the
 from __future__ import annotations
 
 import json
+import re
 from pathlib import Path
 
 import pytest
@@ -540,13 +541,17 @@ def test_committed_snapshot_refuses_a_dirty_root_and_writes_nothing(env):
 def test_header_names_the_highest_adr_considered_and_the_listing_hash(env):
     """Finding 3: «newer than the newest CITED ADR» fired forever on uncited ADRs; the reader needs the
     highest ADR the generator SAW."""
-    (env["root"] / "docs/decisions/ADR-777-uncited-but-present.md").write_text("# ADR-777 x\n", encoding="utf-8")
+    # Предмет: НЕцитируемый ADR старше всех цитируемых всё равно учитывается. Номер берётся ВЫШЕ старшего в сцене —
+    # литерал 777 перестал быть старшим, когда контракт начал цитировать ADR-880+ (S4, INT-16; журнал W44).
+    top = 1 + max(int(re.match(r"ADR-(\d+)", p.name).group(1))
+                  for p in (env["root"] / "docs/decisions").glob("ADR-*.md"))
+    (env["root"] / f"docs/decisions/ADR-{top}-uncited-but-present.md").write_text(f"# ADR-{top} x\n", encoding="utf-8")
     scene.git(env["root"], "add", "-A")
-    scene.git(env["root"], "commit", "-q", "-m", "adr 777")
+    scene.git(env["root"], "commit", "-q", "-m", f"adr {top}")
     scene.publish(env["root"])
     st = _build(env)
     h = st["header"]
-    assert h["adr_max_considered"] == 777
+    assert h["adr_max_considered"] == top
     assert h["adr_listing_sha256"] == st["inputs"]["derived:adr_registry_listing"]
     assert c.adr_max_considered(["docs/decisions/ADR-012-a.md", "docs/adr/ADR-31-b.md"]) == 31
     assert c.adr_max_considered([]) is None

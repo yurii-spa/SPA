@@ -58,6 +58,13 @@ def load_timeout_helper(path: Path = TIMEOUT_HELPER):
     return mod
 
 
+#: S2 (01.11): the CALLER may name the helper's run id before the call (``CALL_RUN_ID.set(...)``) and record it
+#: durably — so that if the caller dies mid-call, a NEW process can find the orphaned CLI by that run id with the
+#: helper's own census (``probe.sweep_run_id``). Unset ⇒ the helper generates one, exactly as before.
+import contextvars as _contextvars
+CALL_RUN_ID: "_contextvars.ContextVar[Optional[str]]" = _contextvars.ContextVar("model_roles_call_run_id", default=None)
+
+
 def helper_runner(*, grace_s: float = DEFAULT_GRACE_S, helper_path: Path = TIMEOUT_HELPER):
     """``runner(cmd, timeout_s, log_path, out_path) -> rc`` through the existing deadline helper."""
 
@@ -72,7 +79,7 @@ def helper_runner(*, grace_s: float = DEFAULT_GRACE_S, helper_path: Path = TIMEO
         wrapped = ["/bin/sh", "-c", 'cd "$1" || exit 97; out="$2"; shift 2; exec "$@" > "$out"', "sh",
                    str(cwd or out_path.parent), str(out_path), *cmd]
         return int(helper.run(wrapped, timeout_s=timeout_s, grace_s=grace_s, log_path=str(log_path),
-                              label="model-roles-claude"))
+                              label="model-roles-claude", run_id=CALL_RUN_ID.get()))
 
     return run
 

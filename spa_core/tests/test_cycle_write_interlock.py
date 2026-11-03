@@ -176,8 +176,13 @@ def test_default_run_does_not_write_canonical_equity(fake_canonical, tmp_path, m
     assert (tmp_path / "sbx" / EQUITY_FILENAME).exists()
 
 
-def test_flagged_run_writes_canonical_equity(fake_canonical):
+def test_flagged_run_writes_canonical_equity(fake_canonical, monkeypatch):
     """An opt-in cycle DOES advance the canonical equity curve."""
+    # CI-изоляция (S2, CI 41268466953 шард 0): вложенные писатели цикла (gap_monitor, apy_milestone_tracker,
+    # adapter_status, risk_alerts) берут каталог по SPA_DATA_DIR (ADR-849), а не по подменённой константе — без
+    # этого опт-ин прогон теста писал в git-tracked data/. Решение интерлока от SPA_DATA_DIR при опт-ине не зависит
+    # (resolve_data_dir возвращает канон); канон и SPA_DATA_DIR — один и тот же временный каталог.
+    monkeypatch.setenv(DATA_DIR_ENV, str(fake_canonical))
     canon_equity = fake_canonical / EQUITY_FILENAME
     assert not canon_equity.exists()
 

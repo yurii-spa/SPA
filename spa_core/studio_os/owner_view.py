@@ -66,7 +66,11 @@ SUBJECT_RU = {
     "PHYSICAL_ACTION": "Нужно ваше действие руками",
 }
 
-ROADMAP_STATE_RU = {"DONE": "Сделано", "IN_PROGRESS": "Идёт", "QUEUED": "В очереди", "BLOCKED": "Остановлено"}
+ROADMAP_STATE_RU = {"DONE": "Сделано", "IN_PROGRESS": "Идёт", "QUEUED": "В очереди", "BLOCKED": "Остановлено",
+                    "REVIEW": "Сдано, ждёт приёмки"}
+#: Состояния шага текущей цели (S4 K2, E7.1) — слова владельцу; неизвестное состояние не угадывается.
+STEP_STATE_RU = {"DONE": "Сделано", "IN_PROGRESS": "Идёт", "READY": "Готов к работе", "WAITING": "Ждёт",
+                 "BLOCKED": "Заблокирован"}
 
 # Upper bound of the release feed (mission_control._git_feed(limit=…)): a count equal to it is
 # «не меньше N», never «ровно N» (AUDIT §3.6).
@@ -722,7 +726,7 @@ def overview(model: dict, updated: Optional[str]) -> dict:
 
 # Plan rows fall into four owner groups; a «queued» row whose own note says it is done is a
 # CONTRADICTION in the plan (shown as such), never silently resolved either way (ARB 09.10).
-PLAN_GROUPS = (("done", "Сделано"), ("active", "Идёт"), ("queued", "В очереди"),
+PLAN_GROUPS = (("done", "Сделано"), ("active", "Идёт"), ("review", "Ждёт приёмки"), ("queued", "В очереди"),
                ("conflict", "Противоречие в плане"), ("unknown", "Состояние не распознано"))
 
 
@@ -736,7 +740,8 @@ def _roadmap_rows(truth: dict) -> list:
         if st == "QUEUED" and note_says_done(it.get("note")):
             group, state = "conflict", "Противоречие: в плане «в очереди», а в заметке — «сделано»"
         elif st in ROADMAP_STATE_RU:
-            group = {"DONE": "done", "IN_PROGRESS": "active", "QUEUED": "queued", "BLOCKED": "active"}[st]
+            group = {"DONE": "done", "IN_PROGRESS": "active", "QUEUED": "queued", "BLOCKED": "active",
+                     "REVIEW": "review"}[st]
             state = ROADMAP_STATE_RU[st]
         else:
             group, state = "unknown", "Состояние не распознано — проблема отображения"
@@ -1043,6 +1048,45 @@ def _record_preparation_ru(p: Any) -> Optional[dict]:
     return out
 
 
+#: S4 K4 (E7.2): четыре РАЗНЫХ события, которые нельзя склеивать в одно «сделано».
+LADDER = (("recorded", "Запись принята"), ("permission", "Допуск"), ("taken", "Работа взята"),
+          ("verified", "Результат проверен"))
+def _owner_subjects() -> tuple:
+    from spa_core.studio_os.work_packet import SUBJECTS_OWNER     # одна копия перечня предметов (ревью S4)
+    return tuple(SUBJECTS_OWNER)
+
+
+def record_stages(r: dict) -> list:
+    """Лестница записи: ответ/запись → допуск → взята → проверена. Каждая ступень — из поля карточки.
+
+    Допуск не выдумывается: у записи без предмета владельца он «не требуется»; с предметом — его
+    проверяет граница исполнения (``cockpit_dispatch.approval_gate``) ДО взятия, поэтому «работа взята»
+    у такой записи и есть доказательство пройденной границы, а до взятия — «проверяется перед
+    исполнением», а не «выдан»."""
+    subj = str(r.get("owner_subject") or "").strip()
+    taken, verified = bool(r.get("claimed_by")), bool(r.get("verified_by_probe"))
+    verdict = str(r.get("acceptance_verdict") or "")
+    needs = subj in _owner_subjects()
+    # «Взята» НЕ доказывает пройденную границу: claimed_by пишут и пути мимо dispatch (ревью S4). Поэтому для
+    # записи с предметом владельца допуск «не подтверждён», пока в карточке нет записи о прохождении границы.
+    perm_done = (not needs) or bool(r.get("approval_passed_at"))
+    perm = ("не требуется (нет предмета владельца)" if not needs else
+            ("граница допуска пройдена" if perm_done else
+             ("взята, но прохождение границы допуска в карточке НЕ записано — не подтверждено" if taken
+              else "требуется: проверяется перед исполнением")))
+    return [
+        {"key": "recorded", "title": "Запись принята", "done": bool(r.get("card")),
+         "text": "в трекере" + (" и разобрана" if r.get("intake_seen") else ", ещё не разобрана")},
+        {"key": "permission", "title": "Допуск", "done": perm_done, "text": perm},
+        {"key": "taken", "title": "Работа взята", "done": taken,
+         "text": f"исполнитель: {r.get('claimed_by')}" if taken else "никем не взята"},
+        {"key": "verified", "title": "Результат проверен", "done": verified,
+         "text": ("проверено пробой" if verified else
+                  ("не принято: " + (plain(r.get("acceptance_reason")) or verdict)) if verdict and not verified
+                  else "проверки ещё не было")},
+    ]
+
+
 def my_records(model: dict, updated: Optional[str]) -> Optional[dict]:
     """«Мои записи» — the latest cockpit records from the production tracker, read-only."""
     mr = _get(model, "intake.my_records")
@@ -1075,6 +1119,7 @@ def my_records(model: dict, updated: Optional[str]) -> Optional[dict]:
                      "state_kind": o["kind"], "verified": o["verified"],
                      "reason": o["reason"], "next_step": o["next_step"],
                      "voice": bool(r.get("voice")),
+                     "stages": record_stages(r),
                      **({"preparation": prep} if prep is not None else {}),
                      "technical": {**(prep["technical"] if prep is not None else {}),
                                    "карточка": r.get("card"), "статус в трекере": r.get("status"),
@@ -1135,6 +1180,8 @@ def work(model: dict, updated: Optional[str]) -> dict:
                      "stopped": stopped or [],
                      "technical": {} if blocking else blocked_tech},
         "next": {"title": "Что дальше", "text": nxt or "Следующий шаг в журнале работы не записан"},
+        "goal": goal(model, truth),
+        "roles": roles(model),
         "plan": _plan(truth),
         "done": recent_releases(model, updated),
         "my_records": my_records(model, updated),
@@ -1159,6 +1206,74 @@ def _stopped_tasks(items: list) -> list:
                     "technical": {"карточка": it.get("card"), "blocked_by": it.get("reason"),
                                   "последний переход статуса": it.get("last_transition")}})
     return out
+
+def roles(model: dict) -> dict:
+    """S4 K6 (E7.5) — роли и исполнители словами владельца. Неизвестное — сказано."""
+    sec = _get(model, "studio.roles")
+    if not isinstance(sec, dict) or "model_roles" not in sec:
+        return {"title": "Роли и исполнители", "text": "Сведения о ролях в пульт не переданы"}
+    rows = []
+    for r in sec.get("model_roles") or []:
+        rows.append({"title": {"architect": "Архитектор", "worker": "Исполнитель"}.get(r.get("role"), r.get("role")),
+                     "text": ("провайдер: " + r["provider"]) if r.get("provider") else
+                             "провайдер не назначен — автоматическая маршрутизация выключена",
+                     "rights": "права роли: " + (", ".join(r.get("permissions") or []) or "нет"),
+                     "quota": "квота: неизвестно (" + (r.get("quota_reason") or "нет данных") + ")"})
+    ex = sec.get("executors")
+    ex_text = ("трекер не прочитан — неизвестно" if ex is None else
+               ("сейчас никто не держит карточку в работе" if not ex else
+                "; ".join(f"{e['executor']} — карточек в работе: {e['cards']}" for e in ex)))
+    return {"title": "Роли и исполнители", "rows": rows, "executors": ex_text,
+            "rule": "Смена модели прав не добавляет: права принадлежат роли, провайдер их не объявляет.",
+            "business": [f"{b.get('display_name') or b.get('title')}: "
+                         + ("работает, полномочий на деньги нет" if b.get("implemented") and
+                            set(b.get("authority") or []) <= {"NONE"} else
+                            ("работает" if b.get("implemented") else "не реализована"))
+                         for b in sec.get("business_roles") or []],
+            "technical": {"источник": "architecture/model_roles.json, architecture/roles.json, трекер (claimed_by)"}}
+
+
+def goal(model: dict, truth: dict) -> dict:
+    """S4 K2 (E7.1): текущая цель, её шаги, причина ожидания, исполнитель и последнее подтверждённое действие.
+
+    Источник один — единый roadmap (``docs/ROADMAP.md``, ADR-527): пункт «в работе» и его строки
+    ``- step …``. Процента нет: у шагов нет общего знаменателя. Нет цели в работе или нет шагов — сказано,
+    а не подставлено."""
+    ep = _current_epic(model, truth)
+    if not ep:
+        return {"title": "Цель", "declared": False,
+                "text": "Цель в работе в плане не объявлена (docs/ROADMAP.md: нет пункта «in progress»)"}
+    steps = []
+    for s in ep.get("steps") or []:
+        if not isinstance(s, dict):
+            continue
+        st = s.get("state")
+        steps.append({"id": s.get("id"), "title": plain(s.get("title")) or "Шаг без названия",
+                      "state": st, "state_ru": STEP_STATE_RU.get(st, "Состояние не распознано"),
+                      "waiting": plain(s.get("reason")) if st in ("WAITING", "BLOCKED") else None,
+                      "reason": plain(s.get("reason")),
+                      "executor": plain(s.get("executor")) or "исполнитель в плане не указан",
+                      "last_confirmed": plain(s.get("last_confirmed")) or "подтверждённых действий не записано"})
+    counts = {k: sum(1 for x in steps if x["state"] == k) for k in STEP_STATE_RU}
+    # ARB 01.11 п. 1: даты подтверждённого происхождения у сводки шагов НЕТ — так и говорим. Отдельно — дата
+    # подтверждения ПЛАНА владельцем (строка канона), отдельно и только в подробностях — время файла.
+    confirmed = plain(_get(truth, "studio.roadmap.value.confirmed"))
+    mtime = _get(truth, "studio.roadmap.value.file_mtime")
+    return {"title": "Цель", "declared": True,
+            # ARB 01.11: шаги — СОХРАНЁННАЯ СВОДКА из плана, а не автоматический замер исполнителя
+            "summary_kind": "Сводка из плана, записанная вручную — не автоматический замер состояния исполнителя",
+            "recorded_ru": "дата записи сводки неизвестна",
+            "plan_confirmed_ru": (f"план подтверждён владельцем {confirmed} (строка «Last confirmed by the owner» в ROADMAP)"
+                                  if confirmed else "дата подтверждения плана владельцем в ROADMAP не записана"),
+            "text": stage_title(ep.get("epic")).get("text") or ep.get("epic"),
+            "technical": {"исходное название": ep.get("epic"), "заметка плана": plain(ep.get("note")),
+                          "время изменения файла ROADMAP (свойство файла, не дата записи и не подтверждение плана)":
+                              _madrid(mtime) if mtime else "не прочитано"},
+            "steps": steps, "counts": counts,
+            "steps_declared": bool(steps),
+            "steps_missing_text": None if steps else "Шаги цели в плане не расписаны",
+            "source": "docs/ROADMAP.md (единый roadmap, ADR-527)", "no_percent": True}
+
 
 def _plan(truth: dict) -> dict:
     rows = _roadmap_rows(truth)

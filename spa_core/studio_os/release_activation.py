@@ -17,72 +17,203 @@ This module is pure resolution + materialisation. It performs NO production side
 nothing, moves no capital, and is imported by no money-path module. stdlib only; all paths injectable."""
 from __future__ import annotations
 
+import os
 import subprocess
 from pathlib import Path
 
 RELEASE_SHA_FILE = ".release_sha"   # written inside each materialised release dir = its own identity
+#: Штамп пишется ПОСЛЕДНИМ и отличает завершённую материализацию от прерванной. Доказательством состава он НЕ
+#: является: эталон состава — только дерево ОДОБРЕННОГО коммита из локальных git-объектов (S2-01, ARB раунд 5).
+#: Манифест внутри проверяемого каталога больше не пишется и не читается — каталог не может задавать эталон
+#: собственной проверки.
+_IGNORED_DIRS = ()   # ничего не исключается: `__pycache__` в релизе — лишний файл (см. release_launcher, ARB-самопроверка S2)
 
 
-def exec_root(approved_sha, releases_dir: Path):
-    """PURE: the immutable directory a process MUST exec from, given the approved sha. Never returns the
-    shared tree. Returns (root_path | None, verdict):
-      (releases/<A>, 'ACTIVATE_OK')          — approved release present and self-identifies as A
-      (None, 'DEPLOYMENT_APPROVAL_REQUIRED')  — no approved release recorded → execute nothing
-      (None, 'APPROVED_RELEASE_MISSING')      — approved set but not materialised → recover, do NOT run the tree
-      (None, 'APPROVED_RELEASE_CORRUPT')      — dir exists but does not self-identify as A → refuse
+def _blob_sha(data: bytes) -> str:
+    """git-blob sha1 содержимого — тот же хеш, что у объекта в дереве коммита."""
+    import hashlib
+    return hashlib.sha1(b"blob %d\0" % len(data) + data).hexdigest()
+
+
+def trusted_tree(sha, repo):
+    """ДОВЕРЕННЫЙ эталон состава: дерево коммита ``sha`` из локальных git-объектов ``repo``.
+
+    Делегирует ЧИТАТЕЛЮ лаунчера (:func:`release_launcher.trusted_tree`): replace-объекты отключены, каждый
+    прочитанный объект перепроверяется по своему sha1. Одно определение «доказано» для материализации и для
+    исполнения (раньше здесь был `git ls-tree`, который принимал `git replace`). ``{путь: (режим, blob)}``;
+    объекта нет / репозиторий не указан / объект не сверился — ``None`` («проверить нечем», а не «пусто»)."""
+    if not sha or repo is None:
+        return None
+    from spa_core.studio_os import release_launcher as _trusted   # stdlib-only, не импортирует проект
+    return _trusted.trusted_tree(sha, str(repo))
+
+
+def _entry_problem(full: Path, rel: str, mode: str, blob: str):
+    """Один путь против эталона: род (ссылка / файл), исполняемость, содержимое."""
+    is_link = full.is_symlink()
+    if mode == "120000":
+        if not is_link:
+            return f"{rel}: в коммите ссылка, в каталоге — не ссылка"
+        data = os.readlink(full).encode("utf-8", "surrogateescape")
+    else:
+        if is_link or not full.is_file():
+            return f"{rel}: в коммите обычный файл, в каталоге — нет"
+        executable = bool(full.stat().st_mode & 0o111)
+        if executable != (mode == "100755"):
+            return f"{rel}: режим не совпадает с {mode}"
+        data = full.read_bytes()
+    if _blob_sha(data) != blob:
+        return f"{rel}: содержимое не совпадает с {blob[:12]}"
+    return None
+
+
+def _release_files(root: Path):
+    for dirpath, dirnames, filenames in os.walk(root, followlinks=False):
+        dirnames[:] = [d for d in dirnames if d not in _IGNORED_DIRS]
+        for name in filenames + [d for d in dirnames if os.path.islink(os.path.join(dirpath, d))]:
+            full = Path(dirpath) / name
+            rel = full.relative_to(root).as_posix()
+            if rel == RELEASE_SHA_FILE:
+                continue
+            yield rel, full
+
+
+def _composition_problem(root: Path, files: dict):
+    """Сверка каталога с ДОВЕРЕННЫМ составом: ``None`` — совпал; иначе причина (первое расхождение)."""
+    seen = {}
+    for rel, full in _release_files(root):
+        if rel not in files:
+            return f"лишний файл {rel}"
+        seen[rel] = full
+        problem = _entry_problem(full, rel, *files[rel])
+        if problem:
+            return problem
+    missing = []
+    for rel in sorted(set(files) - set(seen)):
+        partner = _case_partner(root, rel, seen)
+        if partner is None:
+            missing.append(rel)
+        elif files[partner] != files[rel]:
+            return f"коллизия регистра {rel} ↔ {partner}: в коммите разные режим или содержимое"
+    if missing:
+        return f"нет файла {missing[0]} (всего недостаёт {len(missing)})"
+    return None
+
+
+def _case_partner(root: Path, rel: str, seen: dict):
+    """S2 задача 03: путь эталона, которого нет среди путей обхода, на ФС без различия регистра может быть тем же
+    объектом, что уже проверенный путь (``docs/API_REFERENCE.md`` ↔ ``docs/api_reference.md``). Отвечает САМА ФС
+    (тот же ``st_dev``/``st_ino`` по ``lstat``), не сравнение строк. Партнёр или ``None`` (пути на диске нет)."""
+    try:
+        st = os.lstat(Path(root) / rel)
+    except OSError:
+        return None
+    for other, full in seen.items():
+        if other.lower() == rel.lower():
+            o = os.lstat(full)
+            if (o.st_dev, o.st_ino) == (st.st_dev, st.st_ino):
+                return other
+    return None
+
+
+def verify_release(root: Path, sha, repo) -> tuple:
+    """Каталог релиза ДОКАЗАННО равен дереву коммита ``sha``? ``(True, '')`` либо ``(False, причина)``.
+
+    Эталон — :func:`trusted_tree` (локальные git-объекты ``repo``), а не что-либо внутри ``root``. Штамп
+    проверяется только как признак завершённой материализации. Байткод (``__pycache__``) — лишний файл состава. Только чтение."""
+    root = Path(root)
+    stamp = root / RELEASE_SHA_FILE
+    if not stamp.exists():
+        return False, "нет штампа .release_sha (резерв не завершён)"
+    if stamp.read_text().strip() != sha:
+        return False, "штамп указывает на другой sha"
+    files = trusted_tree(sha, repo)
+    if files is None:
+        return False, "НЕ ПРОВЕРЕНО: доверенного дерева коммита нет (объекты/репозиторий недоступны)"
+    problem = _composition_problem(root, files)
+    return (False, problem) if problem else (True, "")
+
+
+def exec_root(approved_sha, releases_dir: Path, repo=None):
+    """The immutable directory a process MUST exec from, given the approved sha. Never returns the shared
+    tree. Reads the release dir and the LOCAL git objects of ``repo`` (the trusted reference). Returns
+    (root_path | None, verdict):
+      (releases/<A>, 'ACTIVATE_OK')            — release PROVEN equal to the tree of commit A (S2-01)
+      (None, 'DEPLOYMENT_APPROVAL_REQUIRED')    — no approved release recorded → execute nothing
+      (None, 'APPROVED_RELEASE_MISSING')        — approved set but not materialised → recover, do NOT run the tree
+      (None, 'APPROVED_RELEASE_UNVERIFIABLE')   — no trusted tree of A available (no repo / object) → refuse
+      (None, 'APPROVED_RELEASE_CORRUPT')        — dir does not match the trusted tree of A → refuse
     """
     if not approved_sha:
         return None, "DEPLOYMENT_APPROVAL_REQUIRED"
     root = Path(releases_dir) / approved_sha
     if not root.is_dir():
         return None, "APPROVED_RELEASE_MISSING"
-    stamp = root / RELEASE_SHA_FILE
-    if not stamp.exists() or stamp.read_text().strip() != approved_sha:
+    if trusted_tree(approved_sha, repo) is None:
+        return None, "APPROVED_RELEASE_UNVERIFIABLE"
+    ok, _why = verify_release(root, approved_sha, repo)
+    if not ok:
         return None, "APPROVED_RELEASE_CORRUPT"
     return root, "ACTIVATE_OK"
 
 
 def materialise_release(sha, releases_dir: Path, repo: Path):
-    """Create the immutable `releases/<sha>/` from LOCAL git objects, atomically (temp dir + os.replace).
-    No network for a known local sha. Returns (path, 'OK') or (None, reason). Idempotent: if the release
-    already self-identifies as `sha`, returns it unchanged. On any failure the partial temp dir is removed
-    and the existing active release is left untouched (never a half-written release)."""
+    """Create the immutable `releases/<sha>/` from LOCAL git objects. Returns (path, 'OK') or (None, reason).
+
+    E5.3 (STUDIO-AUTONOMY-01): ничего не удаляется — ни временного каталога, ни чужого релиза.
+      * каталог релиза РЕЗЕРВИРУЕТСЯ атомарным ``os.mkdir`` — второй претендент получает отказ, а не подмену;
+      * извлечение из ``git archive`` → сверка с ДОВЕРЕННЫМ деревом коммита (состав, режимы, ссылки, git-blob)
+        → штамп ``.release_sha`` ПОСЛЕДНИМ: каталог без штампа = незавершённый и исполнению не подлежит;
+      * существующий каталог: доказанно равен дереву ``sha`` — возвращается без изменений; иначе он
+        СОХРАНЯЕТСЯ и возвращается названный отказ (`RELEASE_DIR_INCOMPLETE` / `RELEASE_DIR_CORRUPT`);
+      * сбой посередине оставляет незавершённую копию на месте и называет её в отказе.
+    No network for a known local sha."""
     releases_dir = Path(releases_dir)
     dest = releases_dir / sha
-    if (dest / RELEASE_SHA_FILE).exists() and (dest / RELEASE_SHA_FILE).read_text().strip() == sha:
-        return dest, "OK"
-    # object must be present locally (fail CLOSED, never fetch silently under an agent)
-    if subprocess.run(["git", "cat-file", "-e", f"{sha}^{{commit}}"], cwd=str(repo),
-                      capture_output=True).returncode != 0:
+    files = trusted_tree(sha, repo)
+    if files is None:
         return None, "OBJECT_MISSING"
-    releases_dir.mkdir(parents=True, exist_ok=True)
-    tmp = releases_dir / f".tmp-{sha}"
-    if tmp.exists():
-        subprocess.run(["rm", "-rf", str(tmp)])
-    tmp.mkdir()
-    try:
-        # git archive → tar → extract: an exact, read-only snapshot of the commit tree, no working-tree state
-        ar = subprocess.run(["git", "archive", "--format=tar", sha], cwd=str(repo), capture_output=True)
-        if ar.returncode != 0:
-            raise RuntimeError("git archive failed")
-        ex = subprocess.run(["tar", "-x", "-C", str(tmp)], input=ar.stdout, capture_output=True)
-        if ex.returncode != 0:
-            raise RuntimeError("tar extract failed")
-        (tmp / RELEASE_SHA_FILE).write_text(sha)
-        # atomic publish: rename temp → releases/<sha> (dest must not pre-exist as a dir)
-        if dest.exists():
-            subprocess.run(["rm", "-rf", str(dest)])
-        tmp.rename(dest)
+    stamp = dest / RELEASE_SHA_FILE
+    # «OK» стоит на СОДЕРЖИМОМ, прочитанном в самом условии (ADR-884), И на составе, доказанном против доверенного
+    # дерева (E5.3): штамп сам по себе доказательством не является. Интеграция S2 × main, 01.11.
+    if stamp.exists() and stamp.read_text().strip() == sha and verify_release(dest, sha, repo)[0]:
         return dest, "OK"
-    except Exception as e:
-        subprocess.run(["rm", "-rf", str(tmp)])
-        return None, f"MATERIALISE_FAILED:{e}"
+    if dest.exists() or dest.is_symlink():
+        return _existing_verdict(dest, sha, repo)
+    releases_dir.mkdir(parents=True, exist_ok=True)
+    try:
+        os.mkdir(dest)                                   # уникальное резервирование
+    except FileExistsError:
+        return _existing_verdict(dest, sha, repo)        # успел другой процесс
+    keep = f"; незавершённая копия СОХРАНЕНА: {dest}"
+    ar = subprocess.run(["git", "--no-replace-objects", "archive", "--format=tar", sha], cwd=str(repo),
+                        capture_output=True, env={**os.environ, "GIT_NO_REPLACE_OBJECTS": "1"})
+    if ar.returncode != 0:
+        return None, "MATERIALISE_FAILED:git archive" + keep
+    ex = subprocess.run(["tar", "-x", "-C", str(dest)], input=ar.stdout, capture_output=True)
+    if ex.returncode != 0:
+        return None, "MATERIALISE_FAILED:tar extract" + keep
+    problem = _composition_problem(dest, files)
+    if problem:
+        return None, f"MATERIALISE_FAILED:состав не совпал ({problem})" + keep
+    (dest / RELEASE_SHA_FILE).write_text(sha)            # штамп — последним
+    return dest, "OK"
+
+
+def _existing_verdict(dest: Path, sha, repo):
+    """Каталог уже есть: доказан против дерева ``sha`` — ``OK`` без изменений; иначе СОХРАНЯЕТСЯ и отказ."""
+    ok, why = verify_release(dest, sha, repo)
+    if ok:
+        return dest, "OK"
+    if not (dest / RELEASE_SHA_FILE).exists():
+        return None, f"RELEASE_DIR_INCOMPLETE:{why}; каталог сохранён: {dest}"
+    return None, f"RELEASE_DIR_CORRUPT:{why}; каталог сохранён: {dest}"
 
 
 def activation_plan(approved_sha, staged_sha, releases_dir: Path, repo: Path):
     """What a restart/self-heal/reboot/scheduled-cycle MUST do to guarantee it runs APPROVED, not STAGED.
     Deterministic, side-effect-free (only reads); the caller performs materialise/exec. Never selects the tree."""
-    root, verdict = exec_root(approved_sha, releases_dir)
+    root, verdict = exec_root(approved_sha, releases_dir, repo)
     if verdict == "ACTIVATE_OK":
         return {"action": "EXEC_FROM_RELEASE", "root": str(root), "sha": approved_sha,
                 "note": "exec with this dir at module-path front; the shared tree (staged=%s) is NOT on the path" % (staged_sha or "?")}
@@ -94,3 +225,50 @@ def activation_plan(approved_sha, staged_sha, releases_dir: Path, repo: Path):
                 "sha": approved_sha, "recoverable": can, "verdict": verdict}
     return {"action": "FAIL_CLOSED", "verdict": verdict, "sha": approved_sha,
             "note": "execute NOTHING; never fall back to the staged tree"}
+
+
+def artifact_manifest(sha, repo, *, base, criterion: dict, environment: dict) -> dict:
+    """E5.1 (S2 T07): связь проверенного артефакта с результатом проверки — машинный документ.
+
+    ``sha`` и его дерево берутся из доверенных git-объектов; ``files`` — тот же эталон, по которому
+    :func:`verify_release` судит каталог. ``criterion`` — какой критерий и какой ревизии мерился и с каким
+    исходом; ``environment`` — где мерился. Хранится РЯДОМ с релизом, никогда внутри него (внутри это был
+    бы лишний файл состава). Нет доверенного дерева — ``None``."""
+    files = trusted_tree(sha, repo)
+    if files is None:
+        return None
+    tree = _verified_tree_id(sha, repo)        # тот же перепроверяющий читатель, что у состава (без replace)
+    if tree is None:
+        return None
+    return {"schema": "studio-release-manifest/1", "sha": sha, "tree": tree, "base": base,
+            "files": {k: list(v) for k, v in sorted(files.items())}, "criterion": dict(criterion),
+            "environment": dict(environment)}
+
+
+def _verified_tree_id(sha, repo):
+    """id дерева коммита ``sha`` из перепроверенного по sha1 объекта коммита (replace-объекты отключены)."""
+    from spa_core.studio_os import release_launcher as _trusted
+    try:
+        reader = _trusted._ObjectReader(str(repo))
+    except OSError:
+        return None
+    try:
+        commit = reader.get(sha, "commit")
+        return commit[5:45].decode() if commit and commit.startswith(b"tree ") else None
+    finally:
+        reader.close()
+
+
+def manifest_matches(manifest: dict, sha, repo) -> tuple:
+    """Засчитывается ли манифест ЭТОМУ sha: тот же коммит, то же дерево и тот же состав. Прогон на другой
+    ревизии не засчитывается. ``(True, '')`` либо ``(False, причина)``."""
+    if not isinstance(manifest, dict) or manifest.get("sha") != sha:
+        return False, "манифест относится к другому sha"
+    fresh = artifact_manifest(sha, repo, base=manifest.get("base"), criterion=manifest.get("criterion") or {},
+                              environment=manifest.get("environment") or {})
+    if fresh is None:
+        return False, "НЕ ПРОВЕРЕНО: доверенного дерева коммита нет"
+    if fresh["tree"] != manifest.get("tree") or fresh["files"] != manifest.get("files"):
+        return False, "дерево или состав манифеста не совпадает с коммитом"
+    return True, ""
+

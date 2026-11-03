@@ -30,17 +30,21 @@ trackerStatus:
 title: {title}
 status: {status}
 source: {source}
-{extra}---
+{auth}{extra}---
 
 {body}
 """
 
 
 def write_card(d: Path, name: str, *, title="проверь дашборд", status="in-progress",
-               source="voice", extra='acceptance_probe: "problem_absent:x"\n', body="## ОТВЕТ\n\nдашборд проверен, числа сошлись"):
+               source="voice", extra='acceptance_probe: "problem_absent:x"\n', body="## ОТВЕТ\n\nдашборд проверен, числа сошлись",
+               author="owner"):
+    """Сцена ЗАДАНИЯ ВЛАДЕЛЬЦА — с автором, установленным входом (P0 01.11, E3.4).
+    ``author=None`` — та же карточка без установленного автора (фикстура)."""
     p = d / f"inbox-{name}.md"
+    auth = (f"author: {author}\nauthor_basis: сцена — чат владельца\n" if author else "")
     p.write_text(CARD.format(title=title, status=status, source=source, extra=extra,
-                             body=body), encoding="utf-8")
+                             body=body, auth=auth), encoding="utf-8")
     return p
 
 

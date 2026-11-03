@@ -878,7 +878,10 @@ def set_status(path: str | Path, new_status: str,
             _fm_now["carried_to"] = _carried_record
         # Тело берётся из ИСХОДНОГО текста: правки выше касаются только frontmatter.
         _body_now = _ac.split_frontmatter(text)[1]
-        if (_ac.is_owner_task(_fm_now)
+        # Владельцу пишем только о ЕГО задании: канал (`source`) не доказательство автора —
+        # иначе закрытие фикстуры с `source: telegram` слало бы «вот ответ на твою просьбу»
+        # (инцидент 01.11, P0). Происхождение не установлено ⇒ метки нет ⇒ сообщения нет.
+        if (_ac.owner_intent(_fm_now)[0] == _ac.INTENT_OWNER
                 and _ac.answer_evidence(_fm_now, _body_now) is not None
                 # Уже сказанного не переписываем: путь пульта ставит свою метку сам, и
                 # перебить её значило бы послать владельцу второе сообщение об одном

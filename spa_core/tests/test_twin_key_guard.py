@@ -196,10 +196,12 @@ def test_the_key_discriminates_exactly_as_the_old_body_compare_did(tmp_path):
 # ---------------------------------------------------------------------------
 
 def _legacy_card(d: Path, name: str, body: str, status: str = "new") -> Path:
-    """Карточка СТАРОГО населения: ключа нет, тело уже дописано работой."""
+    """Карточка СТАРОГО населения: ключа нет, тело уже дописано работой. Сцена — настоящая просьба владельца,
+    поэтому автор установлен (ADR-890: без него шаг 0a честно не называет её повтором владельца)."""
     p = d / name
     p.write_text("---\ntrackerStatus:\n  type: inbox\n"
-                 f"title: {TITLE}\nstatus: {status}\nsource: voice\n---\n\n"
+                 f"title: {TITLE}\nstatus: {status}\nsource: voice\nauthor: owner\n"
+                 "author_basis: сцена — чат владельца\n---\n\n"
                  + body, encoding="utf-8")
     return p
 

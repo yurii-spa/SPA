@@ -87,6 +87,12 @@ CONTRACT: list[dict] = [
      "stale_after_min": 120, "unknown": "NOT_MEASURED", "redaction": "public_view scrub", "mobile": True, "alert": False},
     {"path": "capital.trading_research", "source": "data/trading_research/status.json",
      "stale_after_min": 60, "unknown": "NOT_MEASURED", "redaction": "no shortlist free text", "mobile": True, "alert": True},
+    {"path": "studio.roles", "source": "architecture/model_roles.json + architecture/roles.json + tracker claimed_by (read-only)",
+     "stale_after_min": None, "unknown": "quota UNKNOWN (no provider quota artifact); executors None when the tracker is unread",
+     "redaction": "safe_text on descriptions", "mobile": True, "alert": False},
+    {"path": "capital.trading_engines", "source": "spa_core.studio_os.trading_engines.build_trading — SPA TR status.json+evidence.db (ro) and earn-defi earn_defi.db (ro), two separate blocks",
+     "stale_after_min": None, "unknown": "per-block present=false + why_no_result", "redaction": "candidate ids, engine reasons as written",
+     "mobile": True, "alert": False},
     {"path": "capital.live_readiness", "source": "spa_core.capital_shadow.read.latest — the separate read-only verifier (ADR-556)",
      "stale_after_min": 1800, "unknown": "NOT_MEASURED (no shadow run yet); BROKEN ledger ⇒ CRITICAL", "redaction": "safe_text on every string",
      "mobile": True, "alert": True},
@@ -370,6 +376,77 @@ def _nm(sources: list, now: datetime, reason: str) -> dict:
     return {"_meta": _meta("NOT_MEASURED", sources, None, now, reason=reason)}
 
 
+def _roles_section(root: Path, cards: Optional[dict], now: datetime) -> dict:
+    """S4 K6 (E7.5): роли · назначенный провайдер · права · квота · фактические исполнители. Только чтение.
+
+    Права принадлежат РОЛИ (``architecture/model_roles.json``): провайдер их не объявляет, поэтому смена модели
+    прав не добавляет. Квот как артефакта нет — UNKNOWN с причиной, а не ноль и не «в норме»."""
+    src = ["architecture/model_roles.json", "architecture/roles.json", "tracker claimed_by (in-progress)"]
+    try:
+        mr = json.loads((root / "architecture" / "model_roles.json").read_text(encoding="utf-8"))
+        br = json.loads((root / "architecture" / "roles.json").read_text(encoding="utf-8"))
+    except (OSError, ValueError) as exc:
+        return _nm(src, now, f"role files not readable: {type(exc).__name__}")
+    assign = mr.get("assignments") or {}
+    model_roles = [{"role": rid, "description": safe_text(r.get("description"), 160),
+                    "permissions": list(r.get("permissions") or []), "tools": list(r.get("tools") or []),
+                    "provider": assign.get(rid),
+                    "provider_state": "ASSIGNED" if assign.get(rid) else "NOT_ASSIGNED",
+                    "quota": "UNKNOWN", "quota_reason": "артефакта квот провайдера нет"}
+                   for rid, r in (mr.get("roles") or {}).items() if isinstance(r, dict)]
+    business = [{"role_id": r.get("role_id"), "display_name": r.get("display_name"), "title": r.get("title"),
+                 "implemented": r.get("implemented"),
+                 "authority": sorted({c.get("authority") for c in r.get("components") or [] if isinstance(c, dict)
+                                      and c.get("authority")})}
+                for r in br.get("roles") or [] if isinstance(r, dict)]
+    executors: dict = {}
+    if cards is not None:
+        for name, c in cards.items():
+            fm = c.get("fm") or {}
+            if str(fm.get("status") or "") == "in-progress" and fm.get("claimed_by"):
+                executors.setdefault(str(fm.get("claimed_by"))[:80], []).append(name)
+    return {"_meta": _meta("HEALTHY", src, now, now),
+            "model_roles": model_roles, "business_roles": business,
+            "routing_enabled": any(assign.values()),
+            "executors": None if cards is None else
+            [{"executor": k, "cards": len(v)} for k, v in sorted(executors.items(), key=lambda kv: -len(kv[1]))][:12],
+            "rule": safe_text(mr.get("note"), 300)}
+
+
+def _trading_engines_section(data: Path, now: datetime) -> dict:
+    """Два раздельных paper-движка (S3 E7.4 → S4 K3) — тот же проектор, что вкладка S3, без второй копии.
+
+    Доходности не суммируются; совокупный допуск ``capital_shadow/aggregate`` здесь как защита НЕ
+    заявляется (доказан только в shadow-модуле, к рабочему циклу не подключён). Сбой проектора — не
+    падение пульта, а NOT_MEASURED с причиной."""
+    src = ["spa_core.studio_os.trading_engines.build_trading"]
+    try:
+        from spa_core.studio_os import trading_engines as te
+        doc = te.build_trading(now=now, data_dir=Path(data) / "trading_research")
+    except Exception as exc:  # noqa: BLE001 — a broken projector is a named gap, not a crashed cockpit
+        return _nm(src, now, f"trading engines projector failed: {type(exc).__name__}: {exc}")
+    blocks = []
+    for b in doc.get("blocks") or []:
+        if not isinstance(b, dict):
+            continue
+        b = dict(b)
+        # Первый уровень пульта показывает только признак («свежо/устарело»); источник, момент и правило
+        # свежести — в ящике доказательств (правило пульта: canon/as_of/freshness только там).
+        b["recency"] = b.get("freshness") or "UNKNOWN"
+        b["evidence"] = {"canon": b.get("provenance"), "as_of": b.get("as_of"),
+                         "freshness": {"rule": ("такт движка: SPA — 15 мин, earn-defi — сутки"),
+                                       "age_min": None, "stale_after_min": None}}
+        blocks.append(b)
+    present = [b for b in blocks if b.get("present")]
+    state = "HEALTHY" if len(present) == 2 else ("DEGRADED" if present else "NOT_MEASURED")
+    return {"_meta": _meta(state, src, now, now,
+                           reason=None if state == "HEALTHY" else
+                           "; ".join(f"{b.get('engine')}: {b.get('why_no_result')}" for b in blocks
+                                     if isinstance(b, dict) and not b.get("present"))),
+            "blocks": blocks, "summed": False, "note": doc.get("note"),
+            "aggregate_admission": "shadow-only, not wired to the working cycle (S3 E6.3) — not a live protection"}
+
+
 # ── virtual capital per paper package (DIRECTOR-OS-UX-03, owner 13.10: «сколько виртуальных денег на каждом
 # пакете и общий результат»). Read-only projection of files the engines already write — no new formula: the
 # NAV is the engine's own ``nav_usd``; the seed is the sleeve's own ``seed_equity`` (reseeded at the v2
@@ -518,6 +595,8 @@ def cockpit_records(prod_cards: Optional[dict], now: datetime, *, source: str,
                      "acceptance_verdict": fm.get("acceptance_verdict") or None,
                      "acceptance_reason": fm.get("acceptance_reason") or None,
                      "acceptance_next": fm.get("acceptance_next") or None,
+                     "owner_subject": fm.get("owner_subject") or None,
+                     "approval_passed_at": fm.get("approval_passed_at") or None,
                      **({"preparation": _record_preparation(name, c, task_prep_root, code_root, code_now)}
                         if task_prep_root is not None else {})})
     rows.sort(key=lambda r: (str(r["created_at"] or ""), r["card"]), reverse=True)
@@ -683,6 +762,14 @@ def decision_item(name: str, card: dict, prod: Optional[dict], bot: Optional[str
 
 
 # ── sections ───────────────────────────────────────────────────────────────────────────────────
+#: Эпик сдан и ждёт приёмки — отдельное состояние, а не «в работе» и не «сделано».
+from spa_core.studio_os.owner_dictionary import roadmap_item_state as _roadmap_item_state  # noqa: E402 — одна копия
+#: Строка шага цели под пунктом roadmap:
+#: ``   - step S3 · Paper-конвейер — BLOCKED: причина · executor: кто · last: что подтверждено``
+_ROADMAP_STEP = re.compile(r"^\s+-\s+step\s+(\S+)\s+·\s+(.+?)\s+—\s+([A-Z_]+|\S+?)"
+                           r"(?::\s*(.*?))?(?:\s+·\s+executor:\s*(.*?))?(?:\s+·\s+last:\s*(.*?))?\s*$")
+
+
 def _roadmap(mirror: Path) -> dict:
     p = mirror / "docs" / "ROADMAP.md"
     try:
@@ -693,6 +780,16 @@ def _roadmap(mirror: Path) -> dict:
     items = []
     sect = text.split("## Order of the next epics", 1)[-1].split("\n## ", 1)[0]
     for ln in sect.splitlines():
+        st = _ROADMAP_STEP.match(ln)
+        if st and items:
+            # S4 K2 (E7.1): шаги текущей цели — построчно в самом едином roadmap (ADR-527), а не во второй базе
+            sid, title, sstate, why, who, last = st.groups()
+            items[-1].setdefault("steps", []).append({
+                "id": sid, "title": safe_text(title.strip(), 160), "state": sstate,
+                "reason": safe_text((why or "").strip(), 240) or None,
+                "executor": safe_text((who or "").strip(), 120) or None,
+                "last_confirmed": safe_text((last or "").strip(), 200) or None})
+            continue
         mm = re.match(r"\s*(\d+)\.\s+(.*)", ln)
         if not mm:
             continue
@@ -700,7 +797,9 @@ def _roadmap(mirror: Path) -> dict:
         done = raw.strip().startswith("~~")
         name = re.sub(r"[~*`]", "", raw.split("—")[0]).strip()
         note = raw.split("—", 1)[1].strip() if "—" in raw else ""
-        state = "DONE" if done else ("IN_PROGRESS" if re.search(r"in progress|в работе", note, re.I) else "QUEUED")
+        # «сдано, ждёт приёмки ARB» — НЕ «идёт работа»: иначе пульт называл текущей целью эпик, который ждёт
+        # чужого решения (замер 01.11: «ARB-CONTINUITY-01» показывался как текущий при идущем STUDIO-AUTONOMY-01)
+        state = _roadmap_item_state(raw)
         items.append({"n": int(mm.group(1)), "epic": safe_text(name, 120), "state": state, "note": safe_text(note, 200)})
     # RM-TRUTH-01 C1 (ADR-580 → Director OS v2 design §0): `current` means IN_PROGRESS, and ONLY
     # that — never the first QUEUED item. The live defect this fixes: with no epic actually
@@ -709,7 +808,14 @@ def _roadmap(mirror: Path) -> dict:
     # QUEUED" shown as current). Absence of an announced epic is now its own value — the caller
     # renders "эпик в работе не объявлен" — never a guessed QUEUED item standing in for it.
     cur = next((i for i in items if i["state"] == "IN_PROGRESS"), None)
-    return {"items": items, "current": cur, "confirmed": m.group(1) if m else None}
+    # ARB 01.11 п. 1: время ФАЙЛА — не дата записи сводки и не подтверждение плана (его меняет любая копия,
+    # синхронизация или checkout). Оно отдаётся отдельно названным техническим свойством; содержательная дата —
+    # только `confirmed` из строки самого канона «Last confirmed by the owner».
+    try:
+        file_mtime = datetime.fromtimestamp(p.stat().st_mtime, timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
+    except OSError:
+        file_mtime = None
+    return {"items": items, "current": cur, "confirmed": m.group(1) if m else None, "file_mtime": file_mtime}
 
 
 def _git_feed(inp: MCInputs, hours: int = 48, limit: int = 25) -> Optional[list]:
@@ -1413,6 +1519,7 @@ def build(inp: Optional[MCInputs] = None) -> dict:
     research_universe = _research_universe_section(data, now)
     capital_sources = _capital_sources_section(data, now)
     package_values = _package_values_section(data, now)
+    trading_engines = _trading_engines_section(data, now)
     capital = {"_meta": _meta(cap_state,
                               ["package_status.public_view", "data/trading_research/status.json",
                                "data/paper_trading_status.json"], now, now),
@@ -1422,6 +1529,7 @@ def build(inp: Optional[MCInputs] = None) -> dict:
                "research_universe": research_universe,
                "capital_sources": capital_sources,
                "package_values": package_values,
+               "trading_engines": trading_engines,
                "boundary": "SPA / Capital — research and paper only; no execution path is exposed here"}
 
     # ── STUDIO ─────────────────────────────────────────────────────────────────────────────────
@@ -1475,7 +1583,8 @@ def build(inp: Optional[MCInputs] = None) -> dict:
                              MIRROR_STALE_MIN),
               "epics": {"items": roadmap["items"], "current": roadmap["current"], "roadmap_confirmed": roadmap["confirmed"]},
               "board": board, "lineage": lineage, "agents": agents, "orphans": orphans,
-              "sessions": {"claude_workers": rep.get("claude_sessions")}}
+              "sessions": {"claude_workers": rep.get("claude_sessions")},
+              "roles": _roles_section(Path(inp.mirror), prod_cards if prod_cards is not None else cards, now)}
 
     # ── DECISIONS ──────────────────────────────────────────────────────────────────────────────
     bot = os.environ.get("SPA_TELEGRAM_BOT_USERNAME") or TELEGRAM_BOT
