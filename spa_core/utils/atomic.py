@@ -16,6 +16,10 @@ class LiveTrackerWriteInTest(PermissionError):
     """Тест попытался записать в НАСТОЯЩИЙ прод-трекер владельца (мандат 01.11 §4)."""
 
 
+class LaunchAgentsWriteInTest(PermissionError):
+    """Тест попытался записать в НАСТОЯЩИЙ ``~/Library/LaunchAgents`` (инцидент 01.11, ARB-мандат 02 п. 1)."""
+
+
 def _reject_live_tracker_write_under_pytest(path: str) -> None:
     """Под pytest запись в настоящий прод-трекер (``~/Documents/SPA_Claude/nimbalyst-local/tracker``) — отказ.
 
@@ -30,6 +34,12 @@ def _reject_live_tracker_write_under_pytest(path: str) -> None:
     from spa_core.utils.live_paths import DEFAULT_LIVE_ROOT
     live = os.path.realpath(os.path.join(str(DEFAULT_LIVE_ROOT), "nimbalyst-local", "tracker"))
     target = os.path.realpath(os.path.abspath(path))
+    # Инцидент 01.11: диагностика перезаписала два живых plist флота (`plutil -extract … json` без `-o -`).
+    # Ни один тест не вправе писать в настоящий каталог LaunchAgents — копия plist пишется во временный каталог.
+    agents = os.path.realpath(os.path.join(os.path.expanduser("~"), "Library", "LaunchAgents"))
+    if target == agents or target.startswith(agents + os.sep):
+        raise LaunchAgentsWriteInTest(
+            f"тест пишет в НАСТОЯЩИЙ каталог LaunchAgents: {target} — пиши копию во временный каталог")
     if target == live or target.startswith(live + os.sep):
         raise LiveTrackerWriteInTest(
             f"тест пишет в НАСТОЯЩИЙ трекер владельца: {target} — задай SPA_TRACKER_DIR / tracker_dir во "
