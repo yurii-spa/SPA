@@ -12,6 +12,40 @@ from typing import Any, Callable, Iterator, Optional
 _MISSING = object()  # sentinel to distinguish "no default" from "default=None"
 
 
+class LiveTrackerWriteInTest(PermissionError):
+    """Тест попытался записать в НАСТОЯЩИЙ прод-трекер владельца (мандат 01.11 §4)."""
+
+
+class LaunchAgentsWriteInTest(PermissionError):
+    """Тест попытался записать в НАСТОЯЩИЙ ``~/Library/LaunchAgents`` (инцидент 01.11, ARB-мандат 02 п. 1)."""
+
+
+def _reject_live_tracker_write_under_pytest(path: str) -> None:
+    """Под pytest запись в настоящий прод-трекер (``~/Documents/SPA_Claude/nimbalyst-local/tracker``) — отказ.
+
+    Класс дефекта (память сессий, замер 22.08 и позже): тест приёма заданий без ``SPA_TRACKER_DIR`` создавал
+    карточки ВЛАДЕЛЬЦУ в живом трекере — ``owner_queue.TRACKER_DIR`` по умолчанию указывает на прод-дерево, и
+    явный ``tracker_dir=None`` побеждал ``setdefault``. Чтение не трогается (храповики читают трекер дерева
+    намеренно); сравнение — с РЕАЛЬНЫМ путём по умолчанию, поэтому тесты, подставившие свой временный
+    ``SPA_LIVE_ROOT``, не задеваются. В CI прод-дерева нет — проверка ничего не делает.
+    """
+    if not os.environ.get("PYTEST_CURRENT_TEST"):
+        return
+    from spa_core.utils.live_paths import DEFAULT_LIVE_ROOT
+    live = os.path.realpath(os.path.join(str(DEFAULT_LIVE_ROOT), "nimbalyst-local", "tracker"))
+    target = os.path.realpath(os.path.abspath(path))
+    # Инцидент 01.11: диагностика перезаписала два живых plist флота (`plutil -extract … json` без `-o -`).
+    # Ни один тест не вправе писать в настоящий каталог LaunchAgents — копия plist пишется во временный каталог.
+    agents = os.path.realpath(os.path.join(os.path.expanduser("~"), "Library", "LaunchAgents"))
+    if target == agents or target.startswith(agents + os.sep):
+        raise LaunchAgentsWriteInTest(
+            f"тест пишет в НАСТОЯЩИЙ каталог LaunchAgents: {target} — пиши копию во временный каталог")
+    if target == live or target.startswith(live + os.sep):
+        raise LiveTrackerWriteInTest(
+            f"тест пишет в НАСТОЯЩИЙ трекер владельца: {target} — задай SPA_TRACKER_DIR / tracker_dir во "
+            f"временный каталог (живые карточки владельцу из тестов не рождаются)")
+
+
 def _reject_repr_junk_path(path: Any) -> str:
     """Fail-CLOSED guard against the 'junk file in repo root' bug.
 
@@ -51,6 +85,7 @@ def atomic_save(data: Any, path: str, indent: int = 2) -> None:
     Fail-CLOSED: rejects a repr-junk / non-string path (the 'junk file in repo root' bug).
     """
     path = _reject_repr_junk_path(path)
+    _reject_live_tracker_write_under_pytest(path)
     os.makedirs(os.path.dirname(os.path.abspath(path)), exist_ok=True)
     dir_ = os.path.dirname(os.path.abspath(path)) or "."
     fd, tmp = tempfile.mkstemp(dir=dir_, suffix=".tmp")
@@ -145,6 +180,7 @@ def atomic_save_text(text: str, path: str, encoding: str = "utf-8", fsync: bool 
         fsync:    If True (default), flushes OS buffers before rename.
     """
     path = _reject_repr_junk_path(path)
+    _reject_live_tracker_write_under_pytest(path)
     os.makedirs(os.path.dirname(os.path.abspath(path)), exist_ok=True)
     dir_ = os.path.dirname(os.path.abspath(path)) or "."
     fd, tmp = tempfile.mkstemp(dir=dir_, suffix=".tmp")

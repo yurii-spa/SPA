@@ -113,8 +113,12 @@ LLM запрещён. Только stdlib. Детерминированно: о�
 # LLM_FORBIDDEN
 from __future__ import annotations
 
+import contextlib
+import copy
+import functools
+import json
 import logging
-from typing import Dict, List, Optional, Tuple
+from typing import Dict, List, NamedTuple, Optional, Tuple
 
 log = logging.getLogger("spa.paper_trading.trim_admissibility")
 
@@ -257,6 +261,7 @@ def _empty_summary() -> dict:
 HYPOTHETICAL_CHECKS: dict = _empty_summary()
 
 
+@functools.lru_cache(maxsize=4096)   # чистая функция текста; повтор классов — миллионы раз за прогон
 def message_class(text: str) -> str:
     """Класс сообщения политики без переменной части (протоколы, проценты, суммы).
 
@@ -276,7 +281,7 @@ def message_class(text: str) -> str:
 def _tally(bucket: dict, messages) -> None:
     classes = bucket["classes"]
     for m in messages:
-        key = message_class(m)
+        key = message_class(str(m))
         slot = classes.get(key)
         if slot is None:
             if len(classes) >= SUMMARY_MAX_CLASSES:
@@ -322,6 +327,98 @@ def reset_hypothetical_check_summary() -> None:
     HYPOTHETICAL_CHECKS.update(_empty_summary())
 
 
+#: Память вердиктов ОДНОЙ переписи (perf/decision-loop, замер 03.11). Перебор
+#: размеров и подмножеств спрашивает дверь книги о ТОЙ ЖЕ книге многократно: в
+#: одном прогоне моста решений — 1 080 786 вызовов ``check_portfolio_health``,
+#: и большинство повторяет уже заданный вопрос. Вердикт есть чистая функция
+#: (позиции, тиры, сети, ставки, капитал): ни часов, ни файлов, ни сети —
+#: ``tvl_map`` и цены стейблов дверь здесь не получает. Память живёт ТОЛЬКО
+#: внутри ``book_verdict_memo()`` и снимается на выходе, поэтому подмена
+#: политики между двумя переписями (тест, мутант) видна следующей переписи.
+#: Сводка гипотетических проверок ведётся и на повторе — ``checked`` и классы
+#: сообщений совпадают с прогоном без памяти до единицы.
+_VERDICT_MEMO: Optional[dict] = None
+VERDICT_MEMO_MAX = 100_000
+
+#: Вторая ступень той же памяти — ОТВЕТ сравнения форм на ОДНОЙ записи
+#: (``compare_trim_*``). Судья (``shadow_trigger_eval.evaluate_window``) на каждом
+#: прогоне заново ищет оптимум урезания по ВСЕЙ истории предложений, а приборы
+#: цены (``adapter_repair_price``, ``judge_alone_price``) зовут судью по разу на
+#: день журнала: замер 03.11 — 19 366 сравнений на 726 разных записей за 330 с.
+#: Сравнение — чистая функция своих аргументов (книги, ставки, капитал,
+#: ``TriggerParams``, тиры, сети; проверено чтением: ни файлов, ни часов, ни
+#: окружения), ключ — канонический JSON входов, на выход отдаётся КОПИЯ.
+#: Вход, который не сериализуется однозначно, памятью не пользуется вовсе.
+#: Повтор из этой ступени дверь книги НЕ спрашивает, поэтому сводка
+#: гипотетических проверок считает проверки, которые реально выполнены.
+_COMPARE_MEMO: Optional[dict] = None
+COMPARE_MEMO_MAX = 20_000
+
+
+@contextlib.contextmanager
+def book_verdict_memo():
+    """Включить память вердиктов книги на время одной переписи (вложение — та же память)."""
+    global _VERDICT_MEMO, _COMPARE_MEMO
+    outer = _VERDICT_MEMO
+    if outer is None:
+        _VERDICT_MEMO = {}
+        _COMPARE_MEMO = {}
+    try:
+        yield
+    finally:
+        if outer is None:
+            _VERDICT_MEMO = None
+            _COMPARE_MEMO = None
+
+
+def remember_comparison(fn):
+    """Декоратор сравнения ОДНОЙ записи: внутри ``book_verdict_memo()`` ответ помнится."""
+    @functools.wraps(fn)
+    def wrapper(*args, **kwargs):
+        memo = _COMPARE_MEMO
+        if memo is None:
+            return fn(*args, **kwargs)
+        try:
+            key = (fn.__qualname__,
+                   json.dumps([args, kwargs], sort_keys=True, default=repr,
+                              allow_nan=True))
+        except (TypeError, ValueError):
+            return fn(*args, **kwargs)
+        if key in memo:
+            return copy.deepcopy(memo[key])
+        out = fn(*args, **kwargs)
+        if len(memo) >= COMPARE_MEMO_MAX:
+            memo.clear()
+        memo[key] = copy.deepcopy(out)
+        return out
+    return wrapper
+
+
+def with_book_verdict_memo(fn):
+    """Декоратор переписи: вся перепись идёт под одной памятью вердиктов."""
+    @functools.wraps(fn)
+    def wrapper(*args, **kwargs):
+        with book_verdict_memo():
+            return fn(*args, **kwargs)
+    return wrapper
+
+
+class _Remembered(NamedTuple):
+    """Ровно то, что читают ответ двери и сводка проверок, — без тяжёлых полей."""
+    approved: bool
+    violations: Tuple[str, ...]
+    warnings: Tuple[str, ...]
+    required_response: str
+
+
+def _verdict_doc(result, funded: int) -> dict:
+    return {"approved": bool(result.approved),
+            "violations": [str(v) for v in result.violations],
+            "warnings": [str(w) for w in result.warnings],
+            "required_response": str(result.required_response),
+            "funded": funded}
+
+
 def book_verdict(book: Dict[str, float],
                  apy_pct: Dict[str, float],
                  capital_usd: float,
@@ -356,6 +453,16 @@ def book_verdict(book: Dict[str, float],
             chain=str((chains or {}).get(str(proto)) or "ethereum")))
     if unknown:
         return None, sorted(set(unknown))
+    memo = _VERDICT_MEMO
+    key = None
+    if memo is not None:
+        key = (float(capital_usd),
+               tuple((p.protocol_key, p.tier, p.amount_usd, p.current_apy, p.chain)
+                     for p in positions))
+        hit = memo.get(key)
+        if hit is not None:
+            _record_hypothetical_check(hit)
+            return _verdict_doc(hit, len(positions)), []
     state = PortfolioState(total_capital_usd=float(capital_usd),
                            positions=positions)
     policy = RiskPolicy()
@@ -368,14 +475,17 @@ def book_verdict(book: Dict[str, float],
     # Живые вызовы политики (цикл, монитор здоровья) логируют как прежде.
     policy._log_result = _record_hypothetical_check
     result = policy.check_portfolio_health(state)
-    return ({"approved": bool(result.approved),
-             "violations": [str(v) for v in result.violations],
-             "warnings": [str(w) for w in result.warnings],
-             "required_response": str(result.required_response),
-             "funded": len(positions)},
-            [])
+    if key is not None:
+        if len(memo) >= VERDICT_MEMO_MAX:
+            memo.clear()
+        memo[key] = _Remembered(bool(result.approved),
+                                tuple(str(v) for v in result.violations),
+                                tuple(str(w) for w in result.warnings),
+                                str(result.required_response))
+    return _verdict_doc(result, len(positions)), []
 
 
+@remember_comparison
 def compare_trim_admissibility(current: Dict[str, float],
                                target: Dict[str, float],
                                apy_pct: Dict[str, float],
@@ -466,6 +576,7 @@ CENSUS_MEASURED_ZERO = "measured_zero"
 CENSUS_UNMEASURED = "unmeasured"
 
 
+@with_book_verdict_memo
 def trim_admissibility_census(records: List[dict], *, params,
                               tiers: Dict[str, str],
                               tiers_measured: bool,
