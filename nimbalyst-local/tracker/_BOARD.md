@@ -2,11 +2,11 @@
 
 > Авто-генерится `scripts/build_tracker_board.py` из `nimbalyst-local/tracker/*.md`. НЕ править вручную — правь карточки. Источник правды — карточки, это индекс (bootstrap).
 >
-> Собрана: 2026-11-02T23:00:07Z · сверка с карточками: `python3 scripts/build_tracker_board.py --check` (сторож `spa_core/tests/test_tracker_board_matches_cards.py`).
+> Собрана: 2026-11-03T02:46:16Z · сверка с карточками: `python3 scripts/build_tracker_board.py --check` (сторож `spa_core/tests/test_tracker_board_matches_cards.py`).
 >
-> Сверено с `origin/main` (29f8a4f9c) · у **1** своя правка, кто новее — не измерено.
+> Сверено с `origin/main` (908bc7c78) · у **1** своя правка, кто новее — не измерено.
 >
-> Всего карточек: **1567** · ждёт владельца: **6** · занято сессиями: **13**.
+> Всего карточек: **1568** · ждёт владельца: **6** · занято сессиями: **13**.
 
 ## 🔴 ЖДЁТ ВЛАДЕЛЬЦА (needs-owner)
 
@@ -422,7 +422,7 @@
 ### · closed
 - Считать ли верный отказ по правилам допуска неисправностью флота  ·  `owner-decision-schitat-li-vernyi-otkaz-po-pravilam-dopu.md` · 2026-10-08
 
-## 📥 Inbox (задания: Telegram / заметки / голос)  (885)
+## 📥 Inbox (задания: Telegram / заметки / голос)  (886)
 
 ### · in-progress
 - а задача починить все-таки еще раз сообщение которым не пишет нужно твое решени…  ·  `inbox-a-zadacha-pochinit-vse-taki-esche-raz-so.md` · 2026-08-14 · 🔒 `pid43119`
@@ -1292,6 +1292,7 @@
 - Вердикт деска по sUSDS стоит на СНЯТОЙ причине — а книга этот актив держит  ·  `inbox-verdikt-deska-po-susds-stoit-na-snyatoi.md` · 2026-08-25
 - Вердикт памяти копий не доходит до читателя очереди: шаг 1 печатает origin_check и молчит про 94 пропавшие записи  ·  `inbox-verdikt-pamyati-kopii-ne-dohodit-do-chit.md` · 2026-10-13
 - Вердикт прогона 41197602899 ИЗМЕРЕН: починка #994 сняла 8 имён, вклад цикла ноль — но +1 против базы не из его диффа и локально зелен  ·  `inbox-verdikt-progona-41197602899-izmeren-poch.md` · 2026-10-31
+- Вердикт пятнадцати тестов зависит от СОДЕРЖИМОГО дерева, а не от кода — класс измерен, шов не заведён  ·  `inbox-verdikt-pyatnadtsati-testov-zavisit-ot-s.md` · 2026-11-03
 - Вердикт сторожа архитектуры относится к манифесту, которого больше нет — а 492 строки нового лежат в прод-дереве незакоммиченными  ·  `inbox-verdikt-storozha-arhitektury-otnositsya.md` · 2026-08-30
 - Вернуть разделы, потерянные доставкой 07.10 с шести карточек владельца  ·  `inbox-vernut-razdely-poteryannye-dostavkoi-07.md` · 2026-10-15
 - Ветка сверки по mtime срабатывает на свежем worktree всегда — у неё СВОЙ дефект, тактом не лечится (остаток ADR-264)  ·  `inbox-vetka-sverki-po-mtime-srabatyvaet-na-sve.md` · 2026-09-08
