@@ -168,6 +168,12 @@ SCENES = (SCENE_EMPTY, SCENE_NO_CRITERION)
 _VERDICTS = {"PASSED", "FAILED", "ERROR", "SKIPPED", "XFAIL", "XPASS",
              "SUBFAILED", "SUBFAIL"}
 
+#: Схема файла объявления класса (`spa_core/tests/tree_content_class_baseline.json`,
+#: ADR-907). Строка живёт У ПИСАТЕЛЯ, а читатель (`test_tree_content_class_ratchet`)
+#: её ИМПОРТИРУЕТ: две копии одной схемы и есть то расхождение писателя с читателем,
+#: о котором читатель обязан отказать.
+DECLARATION_SCHEMA = "tree-content-class/1"
+
 
 # --------------------------------------------------------------------------- #
 # Поверхность
@@ -547,8 +553,70 @@ def refuse_if_live(tracker: Path) -> str | None:
     return None
 
 
+#: Сколько путей печатать в отказе о грязном дереве. Перечень обязан НАЗЫВАТЬ
+#: виновника, а не только его число: «дерево грязное» без имени не чинится.
+DIRTY_PATHS_SHOWN = 10
+
+
+def refuse_if_dirty(tree_root: Path, *, runner=None) -> str | None:
+    """Отказ, если дерево замера НЕ СОВПАДАЕТ со своей вершиной. Причина — строкой.
+
+    **Зачем это отдельная дверь (замер цикла #1021).** Предмет этого прибора —
+    вердикт как свойство СОДЕРЖИМОГО дерева. Значит, содержимое дерева, в котором
+    идёт замер, есть ВХОД прибора, а не его обстановка: незакоммиченная правка
+    мерящей сессии попадает в БАЗОВУЮ сцену и меняет СОСТАВ класса.
+
+    Это не рассуждение, а измеренный случай. Сироты циклов #1019/#1020 мерили класс
+    в дереве, где лежала их собственная правка карточки
+    (`status: new` → `in-progress`), и их замер назвал членом класса
+    `test_tracker_board_matches_cards::test_live_board_matches_live_cards` с
+    направлением ``FAILED→PASSED``: тест был красен ОТ ИХ ПРАВКИ (доска говорит
+    `new`, карточка — `in-progress`), а на пустой очереди краснеть переставал.
+    Замер #1018 того же класса этого имени не назвал вовсе. Иначе говоря, два
+    «воспроизведённых» замера расходились составом по причине, не имеющей
+    отношения ни к коду, ни к `origin/main`.
+
+    Поэтому: грязное дерево ⇒ **НЕ ИЗМЕРЕНО** с НАЗВАННЫМИ путями, а не ответ о
+    классе. Невозможность спросить git — тот же третий исход, а не разрешение
+    (инв. #17): «git не ответил» и «дерево чисто» суть разные утверждения.
+
+    Осознанный обход — ``--allow-dirty-tree``, и он ПЕЧАТАЕТСЯ: мерить класс на
+    заведомо правленом дереве бывает нужно (сторона «ПОСЛЕ» у ещё не доставленной
+    правки — ровно так мерили #1017/#1018), но тогда это объявленный вход замера, а
+    не его молчаливое свойство.
+
+    ``runner`` инъектируется контролем: вопрос к git есть дверь к ОКРУЖЕНИЮ, и
+    контроль, спрашивающий настоящий git, мерил бы состояние машины, а не проводку.
+    """
+    if runner is None:
+        def runner(cmd: list[str]):  # noqa: ANN202 — локальная дверь к подпроцессу
+            return subprocess.run(cmd, capture_output=True, text=True, timeout=120)
+    # `core.quotepath=false` — чтобы НЕРУССКИЙ путь не приехал восьмеричными
+    # escape-последовательностями: отказ обязан НАЗЫВАТЬ виновника читаемо.
+    cmd = ["git", "-C", str(tree_root), "-c", "core.quotepath=false",
+           "status", "--porcelain"]
+    try:
+        proc = runner(cmd)
+    except Exception as exc:  # noqa: BLE001 — третий исход, а не разрешение
+        return (f"НЕ ИЗМЕРЕНО: не удалось спросить git о чистоте дерева {tree_root}: "
+                f"{type(exc).__name__}: {exc}")
+    if proc.returncode != 0:
+        return (f"НЕ ИЗМЕРЕНО: git ответил кодом {proc.returncode} о чистоте дерева "
+                f"{tree_root}: {(proc.stderr or '').strip()[:300]}")
+    dirty = [ln for ln in (proc.stdout or "").splitlines() if ln.strip()]
+    if dirty:
+        shown = ", ".join(ln.strip() for ln in dirty[:DIRTY_PATHS_SHOWN])
+        more = f" … ещё {len(dirty) - DIRTY_PATHS_SHOWN}" if len(dirty) > DIRTY_PATHS_SHOWN else ""
+        return (f"дерево замера НЕ ЧИСТО ({len(dirty)} путь(ей)): {shown}{more}. "
+                f"Содержимое дерева есть ВХОД этого прибора: правка мерящей сессии "
+                f"попадает в базовую сцену и меняет СОСТАВ класса (замер #1021). "
+                f"Осознанно мерить правленое дерево — `--allow-dirty-tree`")
+    return None
+
+
 def differential(tree_root: Path, files: list[str], *, timeout_s: int,
-                 scenes: tuple[str, ...] = SCENES) -> dict:
+                 scenes: tuple[str, ...] = SCENES,
+                 allow_dirty: bool = False) -> dict:
     """База → сцены содержимого → перемер базы. Смена вердикта = КАНДИДАТ класса."""
     tree_root = tree_root.resolve()
     tracker = tree_root.joinpath(*TRACKER_REL)
@@ -558,6 +626,10 @@ def differential(tree_root: Path, files: list[str], *, timeout_s: int,
     refusal = refuse_if_live(tracker)
     if refusal:
         return {"verdict": "unmeasured", "reason": refusal}
+    if not allow_dirty:
+        dirty = refuse_if_dirty(tree_root)
+        if dirty:
+            return {"verdict": "unmeasured", "reason": dirty}
     if not files:
         return {"verdict": "unmeasured", "reason": "поверхность пуста — мерить нечего"}
 
@@ -721,6 +793,92 @@ def _print_differential(res: dict) -> None:
         print(f"  [ПРЕДМЕТ] {row['nodeid']}: база {row['base']} → {scenes}")
 
 
+
+# --------------------------------------------------------------------------- #
+# Объявление класса: проекция ЗАМЕРА, а не список из головы
+# --------------------------------------------------------------------------- #
+def declaration_from_measurement(doc: dict, *, sha: str, minutes_per_side: int,
+                                 instrument: str) -> dict:
+    """ЗАМЕР (`--differential --json`) → документ объявления класса (ADR-907).
+
+    Зачем это код, а не руки. ADR-905 опубликовал СЧЁТЧИКИ и не опубликовал ИМЕНА,
+    поэтому сторону «ДО» нельзя было взять иначе как повторным прогоном, и цикл
+    #1018 заплатил ~1 ч 25 мин ДВАЖДЫ. Объявление, набранное руками, вернуло бы
+    ту же беду с другой стороны: имя без замера неотличимо от имени из головы, а
+    сторож объявления по построению не умеет перемерять класс. Поэтому писатель
+    один, и он ЗАПОЛНЯЕТ поле ``measured_in`` сам — из того же документа, из
+    которого берёт имя.
+
+    Отказывает (``ValueError``) на всём, что сделало бы объявление ложным:
+
+    * замер не состоялся (``verdict != "measured"``) — объявлять нечего;
+    * в замере есть ШУМ: имя, чей вердикт не вернулся на перемере базы, членом
+      класса не является, и тихо выбросить его значило бы объявить замер чище,
+      чем он есть;
+    * класс ПУСТ — «пустое объявление» и «класс пуст» суть разные утверждения
+      (второе доказывается прибором и записывается решением, а не пустым файлом);
+    * не названы sha дерева замера, цена стороны или прибор — ровно те три поля,
+      незнание которых и стои́ло #1018 второго прогона.
+
+    Дверь к очереди берётся из ПОВЕРХНОСТИ того же замера: она отвечает на вопрос
+    «чьё содержимое переворачивает вердикт» — своего дерева (``tree_literal``) или
+    дерева, которого прогон даже не видит (``live_tracker_dir``).
+    """
+    if doc.get("verdict") != "measured":
+        raise ValueError(
+            f"НЕ ИЗМЕРЕНО: замер не состоялся (verdict={doc.get('verdict')!r}) — "
+            f"объявлять нечего: {doc.get('reason')}")
+    noisy = doc.get("noisy") or []
+    if noisy:
+        raise ValueError(
+            "НЕ ИЗМЕРЕНО: в замере ШУМ — вердикт не вернулся на перемере базы у "
+            f"{len(noisy)} имён ({', '.join(sorted(r.get('nodeid', '?') for r in noisy))}); "
+            "шумное имя членом класса не является, и выбросить его молча нельзя")
+    candidates = doc.get("candidates") or []
+    if not candidates:
+        raise ValueError(
+            "НЕ ИЗМЕРЕНО: класс ПУСТ по этому замеру — «класс пуст» записывается "
+            "решением, а не пустым файлом объявления")
+    if not sha:
+        raise ValueError("НЕ ИЗМЕРЕНО: не названа sha дерева замера")
+    if not minutes_per_side:
+        raise ValueError("НЕ ИЗМЕРЕНО: не названа цена стороны замера в минутах")
+    if not instrument:
+        raise ValueError("НЕ ИЗМЕРЕНО: не назван прибор")
+
+    doors: dict[str, list[str]] = {}
+    for f in (doc.get("surface") or {}).get("files", []):
+        doors[f.get("path", "")] = f.get("doors") or []
+
+    members = []
+    for row in sorted(candidates, key=lambda r: r["nodeid"]):
+        nodeid = row["nodeid"]
+        rel = nodeid.split("::", 1)[0]
+        member_doors = doors.get(rel) or []
+        members.append({
+            "nodeid": nodeid,
+            "base": row["base"],
+            "scenes": dict(sorted(row["scenes"].items())),
+            # Дверь — свойство ФАЙЛА, поэтому их может быть и две; пустой список
+            # значил бы «поверхность о файле молчит», и это не то же, что «двери нет».
+            "door": ", ".join(sorted(member_doors)) or "НЕ ИЗМЕРЕНО: поверхность о файле молчит",
+            "measured_in": (f"{instrument} на {sha}: база {doc.get('base_verdicts')} "
+                            f"вердиктов, сцены "
+                            + ", ".join(f"{s['scene']}={s['changed']}"
+                                        for s in doc.get("scenes", []))
+                            + f", шум {len(noisy)}"),
+        })
+
+    return {
+        "schema": DECLARATION_SCHEMA,
+        "upper_bound": len(members),
+        "instrument": instrument,
+        "wall_clock_minutes_per_side": int(minutes_per_side),
+        "measured_on_sha": sha,
+        "members": members,
+    }
+
+
 def main(argv: list[str] | None = None) -> int:
     ap = argparse.ArgumentParser(description=__doc__,
                                  formatter_class=argparse.RawDescriptionHelpFormatter)
@@ -737,9 +895,52 @@ def main(argv: list[str] | None = None) -> int:
                     help="через запятую: каталоги поверхности (умолчание — канон)")
     ap.add_argument("--timeout", type=int, default=3600, help="предел одного прогона, с")
     ap.add_argument("--json", action="store_true", help="машинный вывод")
+    ap.add_argument("--emit-declaration", default=None, metavar="ЗАМЕР.json",
+                    help="превратить вывод `--differential --json` в файл объявления "
+                         "класса (ADR-907); требует --measured-on-sha и "
+                         "--minutes-per-side")
+    ap.add_argument("--measured-on-sha", default=None,
+                    help="sha дерева, на котором снят замер (часть объявления)")
+    ap.add_argument("--minutes-per-side", type=int, default=None,
+                    help="цена ОДНОЙ стороны замера в минутах (часть объявления)")
+    ap.add_argument("--out", default=None,
+                    help="куда писать объявление (умолчание — stdout)")
+    ap.add_argument("--allow-dirty-tree", action="store_true",
+                    help="осознанно мерить ПРАВЛЕНОЕ дерево (сторона «ПОСЛЕ» ещё не "
+                         "доставленной правки); обход ПЕЧАТАЕТСЯ")
     args = ap.parse_args(argv)
 
     roots = tuple(r.strip() for r in args.roots.split(",")) if args.roots else CANON_ROOTS
+
+    if args.emit_declaration:
+        measurement = Path(args.emit_declaration)
+        try:
+            raw = measurement.read_text(encoding="utf-8")
+        except OSError as exc:
+            print(f"НЕ ИЗМЕРЕНО: замер не прочитан: {measurement}: {exc}", file=sys.stderr)
+            return 2
+        try:
+            doc = json.loads(raw)
+        except json.JSONDecodeError as exc:
+            print(f"НЕ ИЗМЕРЕНО: замер не разбирается: {measurement}: {exc}",
+                  file=sys.stderr)
+            return 2
+        try:
+            decl = declaration_from_measurement(
+                doc, sha=args.measured_on_sha or "",
+                minutes_per_side=args.minutes_per_side or 0,
+                instrument="python3 -m spa_core.tests._tracker_content_door --differential")
+        except ValueError as exc:
+            print(str(exc), file=sys.stderr)
+            return 2
+        text = json.dumps(decl, ensure_ascii=False, indent=2) + "\n"
+        if args.out:
+            Path(args.out).write_text(text, encoding="utf-8")
+            print(f"объявление записано: {args.out} — членов {len(decl['members'])}, "
+                  f"граница {decl['upper_bound']}, sha {decl['measured_on_sha']}")
+        else:
+            print(text, end="")
+        return 0
 
     if args.observe and not args.differential:
         if not args.run_root:
@@ -782,9 +983,13 @@ def main(argv: list[str] | None = None) -> int:
         if not tree.is_dir():
             print(f"НЕ ИЗМЕРЕНО: дерева нет: {tree}", file=sys.stderr)
             return 2
+        if args.allow_dirty_tree:
+            print("ОБХОД: --allow-dirty-tree — дерево замера может быть правленым, "
+                  "и его содержимое объявлено ВХОДОМ замера", file=sys.stderr)
         surface = measure_surface(tree, roots)
         files = [f["path"] for f in surface["files"] if f["doors"]]
-        res = differential(tree, files, timeout_s=args.timeout)
+        res = differential(tree, files, timeout_s=args.timeout,
+                           allow_dirty=args.allow_dirty_tree)
         res["surface"] = surface
         if args.json:
             print(json.dumps(res, ensure_ascii=False, indent=2))

@@ -13408,6 +13408,110 @@ def _probe_fixture_gap_class_is_empty(
         f"{verdict.exempt}, имён в базе {verdict.declared_keys}")
 
 
+def _probe_tree_content_class_declaration_holds(
+        arg: str | None = None, *, declaration=None,
+        module=None) -> tuple[str, str]:
+    """Критерий карточки `inbox-verdikt-pyatnadtsati-testov-zavisit-ot-s`:
+    ОБЪЯВЛЕНИЕ класса десятой двери (СОДЕРЖИМОЕ ДЕРЕВА) держится — имена
+    опубликованы, каждое добыто ЗАМЕРОМ и каждое ещё существует в дереве.
+
+    Предмет — ИСХОД решения ADR-907, а не «тест зелен». Класс мерит только
+    дифференциальный прогон `spa_core.tests._tracker_content_door`
+    (~1 ч 25 мин за сторону), и в наборе, который обязан проходить за минуты,
+    ему места нет. Поэтому проба спрашивает не «каков класс сегодня», а
+    «не развалилось ли ОБЪЯВЛЕНИЕ, которым следующий цикл берёт сторону ДО
+    бесплатно»: именно отсутствие имён у ADR-905 заставило цикл #1018
+    заплатить за замер ДВАЖДЫ.
+
+    Три вопроса, и согласие нужно по всем трём:
+
+    1. объявление читается, схема та, перечень НЕ ПУСТ (пустое объявление и
+       «класс пуст» — разные утверждения; второе доказывается прибором);
+    2. у каждого члена стои́т `measured_in` — то есть имя добыто замером, а не
+       дописано рукой (защита инв. #16 на уровне данных, а не прозы);
+    3. каждый названный член ещё СУЩЕСТВУЕТ в дереве, перечень не длиннее
+       верхней границы `CEILING`, и объявленная граница равна длине перечня.
+
+    Читатель объявления — ЕДИНСТВЕННЫЙ
+    (`spa_core.tests.test_tree_content_class_ratchet.load_declaration` /
+    `verdict_for_member`): своя копия разбора здесь означала бы, что проба и
+    храповик судят РАЗНЫЕ файлы под одним именем.
+
+    Три исхода различимы (инв. #17): `unmeasured` — сторож не импортируется,
+    объявление не прочитано, не разбирается, чужая схема; `not_satisfied` —
+    хоть один вопрос отвечен отрицательно, и строка НАЗЫВАЕТ какой и чем;
+    `satisfied` — все три, и печатаются ИЗМЕРЕННЫЕ числа, а не постоянная
+    строка.
+
+    Проба ОЧЕРЕДЬ КАРТОЧЕК НЕ ЧИТАЕТ намеренно: её предмет — файл объявления в
+    дереве кода. Проба, читающая конкретную карточку, сама стала бы членом того
+    класса, о котором докладывает (шесть из пятнадцати членов замера ADR-905
+    ровно такой формы).
+
+    `declaration` / `module` инъектируются ТОЛЬКО контрольной батареей: проба,
+    никогда не видевшая настоящей поломки, остаётся украшением
+    (`.claude/rules/acceptance.md` п. 3).
+    """
+    if module is None:
+        import importlib  # noqa: PLC0415
+        try:
+            module = importlib.import_module(
+                "spa_core.tests.test_tree_content_class_ratchet")
+        except Exception as exc:  # noqa: BLE001 — третий исход, а не согласие
+            return UNMEASURED, (f"сторож объявления не импортируется: "
+                                f"{type(exc).__name__}: {exc}")
+
+    if declaration is None:
+        try:
+            declaration = module.load_declaration()
+        except Exception as exc:  # noqa: BLE001 — третий исход, а не согласие
+            return UNMEASURED, f"{type(exc).__name__}: {exc}"
+
+    members = declaration.get("members")
+    if not isinstance(members, list):
+        return UNMEASURED, ("в объявлении нет перечня `members` списком: "
+                            f"{type(members).__name__}")
+    if not members:
+        return NOT_SATISFIED, ("объявление ПУСТО: «класс пуст» доказывается "
+                               "прибором `_tracker_content_door --differential`, "
+                               "а не пустым файлом")
+
+    problems: list[str] = []
+
+    naked = [m.get("nodeid", "<без имени>") for m in members
+             if not m.get("measured_in")]
+    if naked:
+        problems.append("член(ы) без поля `measured_in` (имя дописано рукой, "
+                        f"а не измерено): {', '.join(sorted(naked))}")
+
+    broken: list[str] = []
+    for m in members:
+        try:
+            got, detail = module.verdict_for_member(m)
+        except Exception as exc:  # noqa: BLE001 — третий исход, а не согласие
+            return UNMEASURED, (f"разбор члена не удался: "
+                                f"{type(exc).__name__}: {exc}")
+        if got != module.PRESENT:
+            broken.append(f"[{got}] {detail}")
+    if broken:
+        problems.append("объявление разошлось с деревом: " + " · ".join(broken))
+
+    ceiling = module.CEILING
+    if len(members) > ceiling:
+        problems.append(f"членов {len(members)} при верхней границе {ceiling} — "
+                        "рост класса есть отдельное решение с замером")
+    bound = declaration.get("upper_bound")
+    if bound != len(members):
+        problems.append(f"объявленная граница {bound!r} не равна длине перечня "
+                        f"{len(members)}")
+
+    if problems:
+        return NOT_SATISFIED, " · ".join(problems)
+    return SATISFIED, (
+        f"объявление держится: членов {len(members)} при границе {ceiling}, "
+        f"каждый назвал замер и найден в дереве")
+
+
 #: Сцена пробы «звавший назван»: ОДИН бегун, чьё ИМЯ — переменная сцены. Лента
 #: намеренно не существует: предмет пробы — запись о ЗВАВШЕМ, а она ставится при
 #: сборке документа и обязана быть в документе ЛЮБОГО исхода, включая третий.
@@ -16261,6 +16365,8 @@ PROBES: dict[str, Callable[[str | None], "tuple[str, str]"]] = {
         _probe_tact_stage_names_its_caller,
     "door_sites_operand_agrees": _probe_door_sites_operand_agrees,
     "fixture_gap_class_is_empty": _probe_fixture_gap_class_is_empty,
+    "tree_content_class_declaration_holds":
+        _probe_tree_content_class_declaration_holds,
     "answer_list_order_names_its_caller":
         _probe_answer_list_order_names_its_caller,
     "bridge_stage_declaration_agrees":

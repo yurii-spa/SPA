@@ -1,0 +1,138 @@
+{
+  "schema": "tree-content-class/1",
+  "upper_bound": 14,
+  "instrument": "python3 -m spa_core.tests._tracker_content_door --differential",
+  "wall_clock_minutes_per_side": 97,
+  "measured_on_sha": "76c050ab4",
+  "members": [
+    {
+      "nodeid": "spa_core/tests/test_absent_worker_probe.py::test_the_probe_is_the_declared_criterion_of_its_card",
+      "base": "PASSED",
+      "scenes": {
+        "empty": "FAILED",
+        "no_criterion": "FAILED"
+      },
+      "door": "tree_literal",
+      "measured_in": "python3 -m spa_core.tests._tracker_content_door --differential на 76c050ab4: база 920 вердиктов, сцены empty=13, no_criterion=4, шум 0"
+    },
+    {
+      "nodeid": "spa_core/tests/test_acceptance_probe_writer.py::TheProbeIsDeclaredOnARealOpenCard::test_at_least_one_open_card_declares_a_registered_probe",
+      "base": "PASSED",
+      "scenes": {
+        "no_criterion": "FAILED"
+      },
+      "door": "tree_literal",
+      "measured_in": "python3 -m spa_core.tests._tracker_content_door --differential на 76c050ab4: база 920 вердиктов, сцены empty=13, no_criterion=4, шум 0"
+    },
+    {
+      "nodeid": "spa_core/tests/test_ai1_audit_matches_cards.py::test_audit_table_matches_every_card",
+      "base": "PASSED",
+      "scenes": {
+        "empty": "FAILED"
+      },
+      "door": "tree_literal",
+      "measured_in": "python3 -m spa_core.tests._tracker_content_door --differential на 76c050ab4: база 920 вердиктов, сцены empty=13, no_criterion=4, шум 0"
+    },
+    {
+      "nodeid": "spa_core/tests/test_bridge_stage_declaration_probe.py::TheProbeIsReachableByName::test_the_card_declares_this_probe",
+      "base": "PASSED",
+      "scenes": {
+        "empty": "FAILED"
+      },
+      "door": "tree_literal",
+      "measured_in": "python3 -m spa_core.tests._tracker_content_door --differential на 76c050ab4: база 920 вердиктов, сцены empty=13, no_criterion=4, шум 0"
+    },
+    {
+      "nodeid": "spa_core/tests/test_card_instruction_lint.py::test_frozen_fixture_still_matches_the_real_card",
+      "base": "PASSED",
+      "scenes": {
+        "empty": "FAILED"
+      },
+      "door": "tree_literal",
+      "measured_in": "python3 -m spa_core.tests._tracker_content_door --differential на 76c050ab4: база 920 вердиктов, сцены empty=13, no_criterion=4, шум 0"
+    },
+    {
+      "nodeid": "spa_core/tests/test_delta_mutation_probe.py::test_the_criterion_is_declared_on_the_card_before_the_work",
+      "base": "PASSED",
+      "scenes": {
+        "empty": "FAILED",
+        "no_criterion": "FAILED"
+      },
+      "door": "tree_literal",
+      "measured_in": "python3 -m spa_core.tests._tracker_content_door --differential на 76c050ab4: база 920 вердиктов, сцены empty=13, no_criterion=4, шум 0"
+    },
+    {
+      "nodeid": "spa_core/tests/test_economics_criterion_probe.py::TestDeclarationIsWiredIntoTheRollup::test_the_declared_criterion_is_in_the_s49_population_of_the_order",
+      "base": "PASSED",
+      "scenes": {
+        "empty": "FAILED"
+      },
+      "door": "tree_literal",
+      "measured_in": "python3 -m spa_core.tests._tracker_content_door --differential на 76c050ab4: база 920 вердиктов, сцены empty=13, no_criterion=4, шум 0"
+    },
+    {
+      "nodeid": "spa_core/tests/test_inbox_acceptance_ratchet.py::test_baseline_holds_no_ghosts",
+      "base": "PASSED",
+      "scenes": {
+        "empty": "FAILED"
+      },
+      "door": "tree_literal",
+      "measured_in": "python3 -m spa_core.tests._tracker_content_door --differential на 76c050ab4: база 920 вердиктов, сцены empty=13, no_criterion=4, шум 0"
+    },
+    {
+      "nodeid": "spa_core/tests/test_inbox_acceptance_ratchet.py::test_no_new_card_is_in_work_without_a_criterion",
+      "base": "FAILED",
+      "scenes": {
+        "empty": "PASSED"
+      },
+      "door": "tree_literal",
+      "measured_in": "python3 -m spa_core.tests._tracker_content_door --differential на 76c050ab4: база 920 вердиктов, сцены empty=13, no_criterion=4, шум 0"
+    },
+    {
+      "nodeid": "spa_core/tests/test_memory_in_git.py::test_exclusion_registry_is_traceable_and_not_stale",
+      "base": "PASSED",
+      "scenes": {
+        "empty": "FAILED"
+      },
+      "door": "tree_literal",
+      "measured_in": "python3 -m spa_core.tests._tracker_content_door --differential на 76c050ab4: база 920 вердиктов, сцены empty=13, no_criterion=4, шум 0"
+    },
+    {
+      "nodeid": "spa_core/tests/test_memory_in_git.py::test_live_memory_scan_is_not_silently_empty",
+      "base": "PASSED",
+      "scenes": {
+        "empty": "FAILED"
+      },
+      "door": "tree_literal",
+      "measured_in": "python3 -m spa_core.tests._tracker_content_door --differential на 76c050ab4: база 920 вердиктов, сцены empty=13, no_criterion=4, шум 0"
+    },
+    {
+      "nodeid": "spa_core/tests/test_tracked_write_probe.py::DeclaredSurfaceIsTheSubject::test_the_card_declares_the_heavy_spec",
+      "base": "PASSED",
+      "scenes": {
+        "empty": "FAILED",
+        "no_criterion": "FAILED"
+      },
+      "door": "tree_literal",
+      "measured_in": "python3 -m spa_core.tests._tracker_content_door --differential на 76c050ab4: база 920 вердиктов, сцены empty=13, no_criterion=4, шум 0"
+    },
+    {
+      "nodeid": "spa_core/tests/test_tracker_board_matches_cards.py::test_live_board_states_a_build_time",
+      "base": "PASSED",
+      "scenes": {
+        "empty": "FAILED"
+      },
+      "door": "live_tracker_dir, tree_literal",
+      "measured_in": "python3 -m spa_core.tests._tracker_content_door --differential на 76c050ab4: база 920 вердиктов, сцены empty=13, no_criterion=4, шум 0"
+    },
+    {
+      "nodeid": "spa_core/tests/test_tracker_card_forms.py::test_live_tracker_positive_control_flat_owner_decision_is_visible",
+      "base": "PASSED",
+      "scenes": {
+        "empty": "FAILED"
+      },
+      "door": "live_tracker_dir",
+      "measured_in": "python3 -m spa_core.tests._tracker_content_door --differential на 76c050ab4: база 920 вердиктов, сцены empty=13, no_criterion=4, шум 0"
+    }
+  ]
+}

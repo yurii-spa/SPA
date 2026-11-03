@@ -30,6 +30,7 @@ from __future__ import annotations
 
 import os
 import shutil
+import subprocess
 import sys
 import tempfile
 import unittest
@@ -96,6 +97,22 @@ def _card(tracker: Path, name: str, *, probe: str | None) -> Path:
         fm.append(f"acceptance_probe: {probe}")
     return _write(tracker, f"{name}.md",
                   "---\n" + "\n".join(fm) + "\n---\n\n## тело\n\nстрока\n")
+
+
+
+def _make_working_tree(root: Path) -> None:
+    """Превратить одноразовый каталог в РАБОЧЕЕ ДЕРЕВО и зафиксировать содержимое.
+
+    Урок ADR-789 (`.claude/rules/deployment.md`): сцена, которая не является
+    рабочим деревом, получает от прибора отказ ЧУЖОГО гейта, и чинить надо СЦЕНУ,
+    а не гейт. Прибор с замера #1021 спрашивает дерево о чистоте (содержимое есть
+    его ВХОД), поэтому сцена обязана иметь вершину, с которой себя сверять.
+    """
+    subprocess.run(["git", "init", "-b", "main", str(root)],
+                   capture_output=True, check=True)
+    subprocess.run(["git", "-C", str(root), "add", "-A"], capture_output=True, check=True)
+    subprocess.run(["git", "-C", str(root), "-c", "user.email=t@t", "-c", "user.name=t",
+                    "commit", "-m", "сцена"], capture_output=True, check=True)
 
 
 class SurfaceNamesTheRealReadersAndOnlyThem(unittest.TestCase):
@@ -250,6 +267,8 @@ class TheLiveQueueIsRefusedAndADisposableOneIsNot(unittest.TestCase):
         with tempfile.TemporaryDirectory() as tmp:
             root = Path(tmp)
             (root / "nimbalyst-local" / "tracker").mkdir(parents=True)
+            (root / "nimbalyst-local" / "tracker" / ".gitkeep").write_text("", encoding="utf-8")
+            _make_working_tree(root)
             res = d.differential(root, [], timeout_s=30)
             self.assertEqual(res["verdict"], "unmeasured")
             self.assertIn("поверхность пуста", res["reason"])
@@ -274,6 +293,7 @@ class TheDifferentialNamesThePredicateAndSparesTheToucher(unittest.TestCase):
         _write(cls.root, "t_dep.py", _DEP)
         _write(cls.root, "t_touch.py", _TOUCH)
         _write(cls.root, "t_skip.py", _SKIP)
+        _make_working_tree(cls.root)
         cls.before = d.fingerprint(tracker)
         # SPA_LIVE_ROOT своего прогона убираем: иначе кандидат живой очереди
         # зависел бы от того, под какой песочницей идёт САМА батарея.
@@ -358,6 +378,176 @@ class TheDifferentialNamesThePredicateAndSparesTheToucher(unittest.TestCase):
         by_scene = {s["scene"]: s for s in self.res["scenes"]}
         self.assertEqual(by_scene[d.SCENE_EMPTY]["cards_touched"], 2)
         self.assertEqual(by_scene[d.SCENE_NO_CRITERION]["cards_touched"], 1)
+
+
+class TheDeclarationWriterIsAProjectionOfAMeasurement(unittest.TestCase):
+    """ОБЪЯВЛЕНИЕ класса (ADR-907) обязано быть проекцией ЗАМЕРА, а не списком из головы.
+
+    Писатель один (`declaration_from_measurement`), и каждый его отказ ниже
+    воспроизводит состояние, при котором объявление стало бы ЛОЖНЫМ. Контроль в
+    обратную сторону — последний тест: исправный замер превращается в объявление
+    молча, и `measured_in` у каждого имени заполняет ПИСАТЕЛЬ, а не рука.
+    """
+
+    #: Исправный замер в той же форме, что печатает `--differential --json`.
+    GOOD = {
+        "verdict": "measured",
+        "class_empty": False,
+        "base_verdicts": 920,
+        "noisy": [],
+        "scenes": [{"scene": "empty", "changed": 2}, {"scene": "no_criterion", "changed": 1}],
+        "candidates": [
+            {"nodeid": "spa_core/tests/test_b.py::test_two", "base": "FAILED",
+             "scenes": {"empty": "PASSED"}, "base_again": "FAILED"},
+            {"nodeid": "spa_core/tests/test_a.py::test_one", "base": "PASSED",
+             "scenes": {"empty": "FAILED"}, "base_again": "PASSED"},
+        ],
+        "surface": {"files": [
+            {"path": "spa_core/tests/test_a.py", "doors": ["tree_literal"]},
+            {"path": "spa_core/tests/test_b.py", "doors": ["live_tracker_dir"]},
+        ]},
+    }
+
+    def _emit(self, **over):
+        doc = dict(self.GOOD)
+        doc.update(over)
+        kw = {"sha": "76c050ab4", "minutes_per_side": 85, "instrument": "прибор"}
+        kw.update({k: v for k, v in over.items() if k in kw})
+        for k in kw:
+            doc.pop(k, None)
+        return d.declaration_from_measurement(doc, **kw)
+
+    def test_an_unmeasured_run_cannot_become_a_declaration(self) -> None:
+        with self.assertRaises(ValueError) as ctx:
+            self._emit(verdict="unmeasured", reason="дерева нет")
+        self.assertIn("не состоялся", str(ctx.exception))
+
+    def test_noise_in_the_measurement_is_refused_not_dropped(self) -> None:
+        # Шумное имя членом класса не является; выбросить его молча означало бы
+        # объявить замер чище, чем он есть.
+        with self.assertRaises(ValueError) as ctx:
+            self._emit(noisy=[{"nodeid": "spa_core/tests/test_x.py::test_shum"}])
+        self.assertIn("ШУМ", str(ctx.exception))
+        self.assertIn("test_shum", str(ctx.exception))
+
+    def test_an_empty_class_is_refused_because_an_empty_file_is_not_a_proof(self) -> None:
+        with self.assertRaises(ValueError) as ctx:
+            self._emit(candidates=[])
+        self.assertIn("ПУСТ", str(ctx.exception))
+
+    def test_a_declaration_without_the_sha_is_refused(self) -> None:
+        with self.assertRaises(ValueError) as ctx:
+            self._emit(sha="")
+        self.assertIn("sha", str(ctx.exception))
+
+    def test_a_declaration_without_the_price_is_refused(self) -> None:
+        # Именно незнание цены заставило цикл #1018 перемерять базу заново.
+        with self.assertRaises(ValueError) as ctx:
+            self._emit(minutes_per_side=0)
+        self.assertIn("цена", str(ctx.exception))
+
+    def test_a_good_measurement_becomes_a_declaration_with_filled_provenance(self) -> None:
+        decl = self._emit()
+        self.assertEqual(decl["schema"], d.DECLARATION_SCHEMA)
+        self.assertEqual(decl["upper_bound"], 2)
+        self.assertEqual(decl["measured_on_sha"], "76c050ab4")
+        self.assertEqual(decl["wall_clock_minutes_per_side"], 85)
+        names = [m["nodeid"] for m in decl["members"]]
+        self.assertEqual(names, sorted(names), "перечень обязан быть устойчив к порядку")
+        for m in decl["members"]:
+            self.assertTrue(m["measured_in"], "писатель обязан заполнить замер сам")
+            self.assertIn("76c050ab4", m["measured_in"])
+        doors = {m["nodeid"]: m["door"] for m in decl["members"]}
+        self.assertEqual(doors["spa_core/tests/test_a.py::test_one"], "tree_literal")
+        self.assertEqual(doors["spa_core/tests/test_b.py::test_two"], "live_tracker_dir")
+
+    def test_a_file_the_surface_is_silent_about_is_not_called_doorless(self) -> None:
+        # Третий исход (инв. #17): «поверхность молчит» не равно «двери нет».
+        decl = self._emit(surface={"files": []})
+        self.assertTrue(all("НЕ ИЗМЕРЕНО" in m["door"] for m in decl["members"]))
+
+
+class TheMeasuringTreeMustBeCleanOrTheClassIsUnmeasured(unittest.TestCase):
+    """Содержимое дерева замера есть ВХОД этого прибора, а не его обстановка.
+
+    Авария, которую воспроизводят эти контроли (замер #1021): сироты #1019/#1020
+    мерили класс в дереве со своей незакоммиченной правкой карточки, и их замер
+    назвал членом класса `test_live_board_matches_live_cards` с направлением
+    `FAILED→PASSED` — тест был красен ОТ ПРАВКИ, а не от `origin/main`. Замер
+    #1018 того же класса этого имени не назвал вовсе: два «воспроизведённых»
+    замера расходились СОСТАВОМ по причине, не имеющей отношения к коду.
+    """
+
+    @staticmethod
+    def _runner(stdout: str = "", rc: int = 0, stderr: str = "", boom=None):
+        def run(cmd):
+            if boom is not None:
+                raise boom
+            return subprocess.CompletedProcess(cmd, rc, stdout, stderr)
+        return run
+
+    def test_a_clean_tree_is_not_refused(self) -> None:
+        self.assertIsNone(d.refuse_if_dirty(Path("/нет/дерева"),
+                                            runner=self._runner(stdout="")))
+
+    def test_a_dirty_tree_is_refused_and_the_culprit_is_NAMED(self) -> None:
+        reason = d.refuse_if_dirty(
+            Path("/дерево"),
+            runner=self._runner(stdout=" M nimbalyst-local/tracker/inbox-карточка.md\n"))
+        self.assertIsNotNone(reason)
+        self.assertIn("inbox-карточка.md", reason)
+        self.assertIn("--allow-dirty-tree", reason)
+
+    def test_a_long_dirty_list_is_truncated_but_counted(self) -> None:
+        many = "".join(f" M файл-{i}.py\n" for i in range(d.DIRTY_PATHS_SHOWN + 5))
+        reason = d.refuse_if_dirty(Path("/дерево"), runner=self._runner(stdout=many))
+        self.assertIn(f"{d.DIRTY_PATHS_SHOWN + 5} путь(ей)", reason)
+        self.assertIn("ещё 5", reason)
+
+    def test_git_failing_is_unmeasured_not_clean(self) -> None:
+        # «git не ответил» и «дерево чисто» — РАЗНЫЕ утверждения (инв. #17).
+        reason = d.refuse_if_dirty(Path("/дерево"),
+                                   runner=self._runner(rc=128, stderr="not a git repository"))
+        self.assertIn("НЕ ИЗМЕРЕНО", reason)
+        self.assertIn("128", reason)
+
+    def test_an_exploding_runner_is_unmeasured_not_clean(self) -> None:
+        reason = d.refuse_if_dirty(Path("/дерево"),
+                                   runner=self._runner(boom=OSError("git не найден")))
+        self.assertIn("НЕ ИЗМЕРЕНО", reason)
+        self.assertIn("git не найден", reason)
+
+    def test_the_differential_refuses_a_really_dirty_tree(self) -> None:
+        # Контроль на НАСТОЯЩЕМ читателе: настоящий git, настоящее дерево, настоящая
+        # правка. Сцена на собранном руками словаре мерила бы свой словарь (#944/#945).
+        root = Path(tempfile.mkdtemp(prefix="tcd_dirty_"))
+        try:
+            subprocess.run(["git", "init", "-b", "main", str(root)],
+                           capture_output=True, check=True)
+            tracker = root.joinpath(*d.TRACKER_REL)
+            tracker.mkdir(parents=True)
+            card = tracker / "inbox-проба.md"
+            card.write_text("---\nstatus: new\n---\n", encoding="utf-8")
+            subprocess.run(["git", "-C", str(root), "add", "-A"],
+                           capture_output=True, check=True)
+            subprocess.run(["git", "-C", str(root), "-c", "user.email=t@t",
+                            "-c", "user.name=t", "commit", "-m", "скамья"],
+                           capture_output=True, check=True)
+            # ЧИСТО: отказа этой двери нет (замер идёт дальше и упирается в другое).
+            clean = d.differential(root, files=[], timeout_s=5)
+            self.assertNotIn("НЕ ЧИСТО", clean.get("reason", ""))
+            # ГРЯЗНО: та же сцена, одна правка — и дверь отказывает ИМЕНЕМ.
+            card.write_text("---\nstatus: in-progress\n---\n", encoding="utf-8")
+            dirty = d.differential(root, files=[], timeout_s=5)
+            self.assertEqual(dirty["verdict"], "unmeasured")
+            self.assertIn("НЕ ЧИСТО", dirty["reason"])
+            self.assertIn("inbox-проба.md", dirty["reason"])
+            # ОБХОД объявлен: та же грязь, но отказ уже НЕ про чистоту.
+            allowed = d.differential(root, files=[], timeout_s=5, allow_dirty=True)
+            self.assertEqual(allowed["verdict"], "unmeasured")
+            self.assertNotIn("НЕ ЧИСТО", allowed["reason"])
+        finally:
+            shutil.rmtree(root, ignore_errors=True)
 
 
 if __name__ == "__main__":
