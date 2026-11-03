@@ -2,17 +2,18 @@
 
 > Авто-генерится `scripts/build_tracker_board.py` из `nimbalyst-local/tracker/*.md`. НЕ править вручную — правь карточки. Источник правды — карточки, это индекс (bootstrap).
 >
-> Собрана: 2026-11-03T10:05:50Z · сверка с карточками: `python3 scripts/build_tracker_board.py --check` (сторож `spa_core/tests/test_tracker_board_matches_cards.py`).
+> Собрана: 2026-11-03T10:11:55Z · сверка с карточками: `python3 scripts/build_tracker_board.py --check` (сторож `spa_core/tests/test_tracker_board_matches_cards.py`).
 >
-> Сверено с `origin/main` (ee6b4d5af) · у **2** своя правка, кто новее — не измерено.
+> Сверено с `origin/main` (88f5f0c58).
 >
-> Всего карточек: **1571** · ждёт владельца: **6** · занято сессиями: **13**.
+> Всего карточек: **1572** · ждёт владельца: **7** · занято сессиями: **13**.
 
 ## 🔴 ЖДЁТ ВЛАДЕЛЬЦА (needs-owner)
 
 - **Диск: починку я доставил — от тебя нужны усечение журнала на 123 ГиБ и включение агента** · _critical_  ·  `owner-decision-disk-pochinku-ya-dostavil-ot-tebya-nuzhn.md`
 - **Диск снова съел один журнал агента: 9,82 ГБ из 9,91 ГБ всех логов — выбрать починку из трёх** · _critical_  ·  `owner-decision-disk-snova-sel-odin-zhurnal-agenta-9-82.md`
 - **Можно ли книге иметь больше 8 позиций: потолок объявлен, а проверка книги его не спрашивает**  ·  `owner-decision-mozhno-li-knige-imet-bolshe-8-pozitsii-p.md`
+- **Сайт: site_numbers.json — автономная правка задела owner-gated область, нужно решение**  ·  `owner-decision-sait-site-numbers-json-avtonomnaya-pravk-2.md`
 - **Сайт: site_numbers.json — автономная правка задела owner-gated область, нужно решение**  ·  `owner-decision-sait-site-numbers-json-avtonomnaya-pravk.md`
 - **Сайт: track_snapshot.json — автономная правка задела owner-gated область, нужно решение**  ·  `owner-decision-sait-track-snapshot-json-avtonomnaya-pra-3.md`
 - **Считать ли портфель по-настоящему оптимально — или оставить сегодняшнюю приближённую раскладку** · _high_  ·  `owner-decision-schitat-li-portfel-po-nastoyaschemu-opti.md`
@@ -35,12 +36,13 @@
 - **Сторож ответа владельца зовёт человека на не-спор: 1 и "1" — одно решение, а сравниваются байты** — держит `cycle-84821` · с 2026-08-30T00:50:53Z  ·  `inbox-storozh-otveta-vladeltsa-zovet-cheloveka.md`
 - **Замок цикла оркестратора доставлен, но в проде не работает: обёртка агента синкается раз в сутки, а голос о пропавшей защите живёт в самом пропавшем файле** — держит `cycle-81141` · с 2026-08-08T01:59:06Z  ·  `inbox-zamok-tsikla-orkestratora-dostavlen-no-v.md`
 
-## 🧑‍⚖️ Owner Decisions (что нужно от владельца)  (380)
+## 🧑‍⚖️ Owner Decisions (что нужно от владельца)  (381)
 
 ### · needs-owner
 - Диск: починку я доставил — от тебя нужны усечение журнала на 123 ГиБ и включение агента  ·  `owner-decision-disk-pochinku-ya-dostavil-ot-tebya-nuzhn.md` · 2026-10-30
 - Диск снова съел один журнал агента: 9,82 ГБ из 9,91 ГБ всех логов — выбрать починку из трёх  ·  `owner-decision-disk-snova-sel-odin-zhurnal-agenta-9-82.md` · 2026-10-29
 - Можно ли книге иметь больше 8 позиций: потолок объявлен, а проверка книги его не спрашивает  ·  `owner-decision-mozhno-li-knige-imet-bolshe-8-pozitsii-p.md` · 2026-10-30
+- Сайт: site_numbers.json — автономная правка задела owner-gated область, нужно решение  ·  `owner-decision-sait-site-numbers-json-avtonomnaya-pravk-2.md` · 2026-11-03
 - Сайт: site_numbers.json — автономная правка задела owner-gated область, нужно решение  ·  `owner-decision-sait-site-numbers-json-avtonomnaya-pravk.md` · 2026-10-28
 - Сайт: track_snapshot.json — автономная правка задела owner-gated область, нужно решение  ·  `owner-decision-sait-track-snapshot-json-avtonomnaya-pra-3.md` · 2026-10-29
 - Считать ли портфель по-настоящему оптимально — или оставить сегодняшнюю приближённую раскладку  ·  `owner-decision-schitat-li-portfel-po-nastoyaschemu-opti.md` · 2026-10-30
