@@ -85,3 +85,34 @@ def test_a_fast_command_keeps_its_exit_code():
     out = subprocess.run(["bash", "-c", f'{_real_function()}\nrun_with_timeout 5 bash -c "exit 3"\necho "rc=$?"\n'],
                          capture_output=True, text=True, timeout=30).stdout
     assert "rc=3" in out, out
+
+
+def test_a_foreign_process_and_the_gate_itself_survive(tmp_path):
+    """Сторож убивает ТОЛЬКО группу команды: посторонний процесс (запущен до гейта, своя группа) и сама оболочка
+    гейта переживают тайм-аут; внук команды — нет."""
+    foreign = subprocess.Popen(["sleep", "60"], start_new_session=True)
+    gc = tmp_path / "gc.pid"
+    script = (f'{_real_function()}\n'
+              f'run_with_timeout 1 bash -c \'sleep 60 >/dev/null 2>&1 & echo $! > "{gc}"; wait\'\n'
+              'echo "rc=$?"; echo "gate_alive=$$"\n')
+    try:
+        out = subprocess.run(["bash", "-c", script], capture_output=True, text=True, timeout=30).stdout
+        assert "rc=124" in out and "gate_alive=" in out                     # оболочка гейта дожила до конца
+        time.sleep(0.3)
+        assert _alive(foreign.pid), "посторонний процесс убит сторожем гейта"
+        assert not _alive(int(gc.read_text().strip()))
+    finally:
+        foreign.kill()
+        foreign.wait()
+
+
+def test_kill_attempts_are_bounded_term_then_one_kill():
+    """Повторы ограничены: процесс, игнорирующий TERM, снимается KILL ровно один раз; гейт не зацикливается."""
+    script = (f'{_real_function()}\n'
+              'start=$(date +%s)\n'
+              'run_with_timeout 1 bash -c \'trap "" TERM; while :; do sleep 0.2; done\'\n'
+              'rc=$?; echo "rc=$rc took=$(( $(date +%s) - start ))"\n')
+    out = subprocess.run(["bash", "-c", script], capture_output=True, text=True, timeout=30).stdout
+    rc = re.search(r"rc=(\d+) took=(\d+)", out)
+    assert rc and rc.group(1) == "124", out
+    assert int(rc.group(2)) <= 6, out                                       # 1 с срок + 2 с между TERM и KILL + запас
