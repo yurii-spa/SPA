@@ -650,6 +650,63 @@
     });
   }
 
+  // ── S4 K3 (S3 E7.4): два РАЗДЕЛЬНЫХ paper-движка — тот же проектор, что вкладка S3; суммы нет ──────────
+  function pctText(v) { return (typeof v === "number") ? ((v >= 0 ? "+" : "") + (v * 100).toFixed(1) + "%") : "—"; }
+  function engKv(k, v, warn) {
+    return h("div", { class: "eng-kv" + (warn ? " warn" : "") }, [h("span", { class: "eng-k" }, [k]),
+      h("span", { class: "eng-v" }, [(v === null || v === undefined || v === "") ? "—" : String(v)])]);
+  }
+  function renderEngineBlock(b) {
+    var card = h("section", { class: "card eng-card", "data-engine": (b && b.engine) || "unknown" });
+    var fr = (b && b.recency) || "UNKNOWN";
+    card.appendChild(h("div", { class: "eng-head" }, [h("span", { class: "eng-title" }, [(b && b.title) || "—"]),
+      h("span", { class: "chip eng-fr eng-fr-" + fr }, [t("capital.eng.fresh." + fr)]), h("span", { class: "chip" }, ["PAPER"])]));
+    if (!b || !b.present) {
+      card.appendChild(h("p", { class: "note warning-chip" }, [t("capital.eng.no_data")]));
+      card.appendChild(h("p", { class: "note eng-wrap" }, [(b && b.why_no_result) || t("capital.eng.source_unavailable")]));
+      return card;
+    }
+    if (b.active_block) card.appendChild(h("div", { class: "eng-block eng-wrap" }, [t("capital.eng.blocked") + " " + b.active_block]));
+    var d = b.last_decision;
+    if (d) {
+      var acts = d.actions ? Object.keys(d.actions).map(function (k) { return k + " ×" + d.actions[k]; }).join(", ") : d.action;
+      card.appendChild(engKv(t("capital.eng.last_decision"), acts + " · " + String(d.at || d.date || "").replace("T", " ").slice(0, 16) + (d.config_version ? " · v" + d.config_version : "")));
+    } else card.appendChild(engKv(t("capital.eng.last_decision"), t("capital.eng.not_recorded"), true));
+    if (b.why_hold) card.appendChild(h("p", { class: "note eng-wrap" }, [t("capital.eng.why_hold") + " " + b.why_hold]));
+    var hs = b.history || {};
+    var hist = [];
+    if (hs.calendar_days !== undefined && hs.calendar_days !== null) hist.push(tf("capital.eng.calendar_days", { n: hs.calendar_days }));
+    if (hs.observed_days !== undefined && hs.observed_days !== null) hist.push(tf("capital.eng.observed_days", { n: hs.observed_days }));
+    if (hs.since) hist.push(tf("capital.eng.since", { d: hs.since }));
+    card.appendChild(engKv(t("capital.eng.history"), hist.join(" · ")));
+    var r = b.paper_result;
+    if (b.why_no_result) card.appendChild(h("p", { class: "note warning-chip eng-wrap" }, [t("capital.eng.no_result") + " " + b.why_no_result]));
+    else if (r && r.kind === "nav") {
+      card.appendChild(engKv(t("capital.eng.nav"), (r.nav_usdt !== null && r.nav_usdt !== undefined ? "$" + Math.round(r.nav_usdt).toLocaleString() : "—") +
+        " · " + pctText(r.cum_return) + " · " + t("capital.eng.dd") + " " + pctText(r.max_drawdown) + (r.date ? " · " + r.date : "")));
+    } else if (r && r.rows) {
+      card.appendChild(h("p", { class: "note" }, [t("capital.eng.per_candidate")]));
+      r.rows.forEach(function (x) { card.appendChild(h("div", { class: "eng-row" }, [h("span", { class: "eng-id" }, [x.id]), h("b", { class: "eng-num" }, [pctText(x.forward_net)])])); });
+    }
+    var ev = evidenceDrawer(b.evidence);
+    if (ev) card.appendChild(ev);
+    return card;
+  }
+  function renderTradingEngines(sec) {
+    var wrap = h("div", { class: "eng-wrap-all" });
+    wrap.appendChild(h("h3", { class: "card-title" }, [t("capital.eng.title")]));
+    if (!sec || !Array.isArray(sec.blocks)) {
+      wrap.appendChild(h("p", { class: "note warning-chip" }, [t("capital.eng.unavailable")]));
+      return wrap;
+    }
+    var by = {};
+    sec.blocks.forEach(function (b) { if (b && b.engine) by[b.engine] = b; });
+    ["spa_trading_research", "earn_defi"].forEach(function (e) { wrap.appendChild(renderEngineBlock(by[e] || { engine: e, title: e, present: false })); });
+    wrap.appendChild(h("p", { class: "note eng-wrap" }, [t("capital.eng.not_summed")]));
+    wrap.appendChild(h("p", { class: "note eng-wrap" }, [t("capital.eng.aggregate_shadow_only")]));
+    return wrap;
+  }
+
   function renderBtc(cell) {
     return cellCard("capital.tab.btc", cell, function (c, cell) {
       if (cell.no_canon) c.appendChild(h("div", { class: "warning-chip" }, [t("capital.btc.no_canon")]));
@@ -2022,6 +2079,15 @@
         if (r.provenance) li.appendChild(h("p", { class: "ux-note" }, [r.provenance]));
         if (r.provenance_note) li.appendChild(h("p", { class: "ux-note ux-metric--alert" }, [r.provenance_note]));
         if (r.authority_ru) li.appendChild(h("p", { class: "ux-note" }, [r.authority_ru]));
+        // S4 K4 (E7.2): записано → допуск → взята → проверена — четыре разных события, не одно «сделано»
+        if (r.stages && r.stages.length) {
+          var lad = h("ol", { class: "rec-ladder" });
+          r.stages.forEach(function (st) {
+            lad.appendChild(h("li", { class: "rec-stage" + (st.done ? " done" : "") }, [
+              h("b", {}, [(st.done ? "✓ " : "· ") + st.title + ": "]), st.text]));
+          });
+          li.appendChild(lad);
+        }
         // ARB 26.10: the record's PREPARATION (a proposal for review) — separate from the execution state above.
         // Model text arrives as plain strings and is placed as text nodes by h(); nothing is parsed as HTML.
         if (r.preparation) li.appendChild(renderRecordPreparation(r.preparation));
@@ -2053,15 +2119,55 @@
     return box;
   }
 
+  // S4 K2 (E7.1): цель → шаги (готов/идёт/ждёт/заблокирован) → причина ожидания → исполнитель → последнее
+  // подтверждённое действие. Без процента: у шагов нет общего знаменателя.
+  function renderGoal(g) {
+    var c = uxCard(t("work.goal.title"), "goal-card");
+    if (!g.declared) { c.appendChild(h("p", { class: "ux-metric-text" }, [g.text || t("state.NOT_MEASURED")])); return c; }
+    c.appendChild(h("p", { class: "ux-item-title goal-name" }, [g.text]));
+    if (g.summary_kind) c.appendChild(h("p", { class: "ux-note goal-kind" }, [[g.summary_kind, g.recorded_ru, g.plan_confirmed_ru].filter(Boolean).join(" · ")]));
+    if (!g.steps_declared) { c.appendChild(h("p", { class: "ux-note" }, [g.steps_missing_text])); return c; }
+    var ul = h("ul", { class: "ux-list goal-steps" });
+    (g.steps || []).forEach(function (x) {
+      var li = h("li", { class: "goal-step goal-" + String(x.state || "UNKNOWN").toLowerCase(), "data-step": x.id }, [
+        h("p", { class: "goal-step-head" }, [h("b", {}, [x.id + " · "]), x.title]),
+        h("p", { class: "goal-step-state" }, [x.state_ru])]);
+      if (x.waiting) li.appendChild(h("p", { class: "ux-metric-text goal-wait" }, [t("work.goal.waiting") + " " + x.waiting]));
+      else if (x.reason) li.appendChild(h("p", { class: "ux-metric-text" }, [x.reason]));
+      li.appendChild(h("p", { class: "ux-note" }, [t("work.goal.executor") + " " + x.executor]));
+      li.appendChild(h("p", { class: "ux-note" }, [t("work.goal.last") + " " + x.last_confirmed]));
+      ul.appendChild(li);
+    });
+    c.appendChild(ul);
+    c.appendChild(h("p", { class: "ux-note" }, [t("work.goal.no_percent")]));
+    return c;
+  }
+
+  // S4 K6 (E7.5): роли, провайдер, права, квота (UNKNOWN честно), фактические исполнители
+  function renderRoles(r) {
+    var c = uxCard(r.title, "ux-card--quiet roles-card");
+    if (!r.rows) { c.appendChild(h("p", { class: "ux-note" }, [r.text || t("state.NOT_MEASURED")])); return c; }
+    r.rows.forEach(function (x) {
+      c.appendChild(h("p", { class: "ux-item-title" }, [x.title]));
+      [x.text, x.rights, x.quota].forEach(function (line) { c.appendChild(h("p", { class: "ux-note eng-wrap" }, [line])); });
+    });
+    c.appendChild(h("p", { class: "ux-metric-text eng-wrap" }, [r.executors]));
+    (r.business || []).forEach(function (b) { c.appendChild(h("p", { class: "ux-note eng-wrap" }, [b])); });
+    c.appendChild(h("p", { class: "ux-note" }, [r.rule]));
+    return c;
+  }
+
   function renderWorkArea(root) {
     var s = ov();
     var w = s && s.work;
     if (!w) { viewMissing(root); }
     else {
+      if (w.goal) root.appendChild(renderGoal(w.goal));
       var c1 = uxCard((w.now && w.now.title) || "");
       ((w.now && w.now.items) || []).forEach(function (m) { c1.appendChild(metricRow(m)); });
       root.appendChild(c1);
       if (w.my_records) root.appendChild(renderMyRecords(w.my_records));
+      if (w.roles) root.appendChild(renderRoles(w.roles));
       var c2 = uxCard(w.blocking && w.blocking.title, w.blocking && !w.blocking.known_reason ? "ux-card--quiet" : "");
       c2.appendChild(h("p", { class: "ux-metric-text" }, [(w.blocking && w.blocking.text) || t("state.NOT_MEASURED")]));
       // ARB 09.10: WHICH tasks are stopped and what their card says — reason / next step in words,
@@ -2188,6 +2294,8 @@
       root.appendChild(c3);
       root.appendChild(snapshotLine());
     }
+    // S4 K3: два раздельных paper-движка — на первом экране «Денег», не за «Подробно»
+    root.appendChild(renderTradingEngines(get(currentModel, "capital.trading_engines", null)));
     root.appendChild(legacyDetails(t("ux.legacy_capital"), function (b) { renderCapital(b); }));
   }
 

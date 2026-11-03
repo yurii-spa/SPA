@@ -1445,18 +1445,20 @@ class TelegramBot:
         if kind == "question":
             self.send_message(html.escape(resp) or "(пустой ответ)", chat_id)
         elif kind == "task":
-            from spa_core.telegram.inbox_intake import save_inbox_task
+            from spa_core.telegram.inbox_intake import owner_chat_provenance, save_inbox_task
 
-            _p, title = save_inbox_task(message, source=source)
+            _p, title = save_inbox_task(message, source=source,
+                                        extra_fields=owner_chat_provenance(source))
             self.send_message(
                 f"📥 Понял как задачу, добавил в inbox: <b>{html.escape(title)}</b>", chat_id)
         elif kind == ask_router.UNAVAILABLE:
             # Классификатор лежит — разобрать сообщение НЕЧЕМ. Раньше владелец получал «🤔»
             # (как будто его не поняли), а сообщение НИГДЕ не сохранялось: поручение,
             # присланное в такую минуту, исчезало молча. Сохраняем вход и говорим правду.
-            from spa_core.telegram.inbox_intake import save_inbox_task
+            from spa_core.telegram.inbox_intake import owner_chat_provenance, save_inbox_task
 
-            _p, title = save_inbox_task(message, source=source)
+            _p, title = save_inbox_task(message, source=source,
+                                        extra_fields=owner_chat_provenance(source))
             self.send_message(
                 f"⚠️ Разборщик сейчас недоступен — не понял, вопрос это или задача, но "
                 f"сообщение НЕ потерял: сохранил в inbox как <b>{html.escape(title)}</b> "
@@ -1520,9 +1522,10 @@ class TelegramBot:
                         asked_with_buttons=picker is not None,
                         source="telegram")
                 else:
-                    from spa_core.telegram.inbox_intake import save_inbox_task
+                    from spa_core.telegram.inbox_intake import owner_chat_provenance, save_inbox_task
 
-                    save_inbox_task(text, source="telegram")
+                    save_inbox_task(text, source="telegram",
+                                    extra_fields=owner_chat_provenance("telegram"))
             except Exception as exc:  # noqa: BLE001 — не сохранили ⇒ скажем правду ниже
                 log.warning("save_inbox_task after refused answer failed: %s", exc)
         if picker is not None:
@@ -1788,8 +1791,9 @@ class TelegramBot:
                 # хвосты — обычным текстом. Придерживаем голову, хвосты приклеятся ниже.
                 if self._handle_long_document(task_text, chat_id):
                     return True
-                from spa_core.telegram.inbox_intake import save_inbox_task
-                _path, title = save_inbox_task(task_text, source="telegram")
+                from spa_core.telegram.inbox_intake import owner_chat_provenance, save_inbox_task
+                _path, title = save_inbox_task(task_text, source="telegram",
+                                               extra_fields=owner_chat_provenance("telegram"))
                 self.send_message(
                     f"📥 Добавил в inbox: <b>{html.escape(title)}</b>\n"
                     "Оркестратор разберёт в следующем цикле.", chat_id)

@@ -34,7 +34,9 @@ def wired(monkeypatch, tmp_path):
 
     from spa_core.telegram import inbox_intake as II
 
-    def _save(text, source="telegram", transcript=None):
+    def _save(text, source="telegram", transcript=None, extra_fields=None):
+        # ADR-890: путь бота ПОСЛЕ проверки чата ставит автора — подставка это требует, а не терпит
+        assert (extra_fields or {}).get("author") == "owner", "карточка из чата владельца без установленного автора"
         saved.append(text)
         return (tmp_path / "card.md", "Заголовок задания")
 

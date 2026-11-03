@@ -180,6 +180,12 @@ def dispatch(*, executor: str, tracker_dir=None, claim: Optional[Callable] = Non
             res["refused"].append(f"{path.name}: {exc}")
             continue
         if out.get("taken"):
+            # Граница допуска пройдена ИМЕННО здесь — пишется отметка, которую пульт читает как доказательство
+            # (S4 K4, ADR-890); «взята» без неё допуском не считается (claimed_by пишут и пути мимо dispatch).
+            from spa_core.studio_os import work_packet as _wp
+            if _s(_fm(Path(path)), "owner_subject") in _wp.SUBJECTS_OWNER:
+                cl._set_fields(path, {"approval_passed_at": cl._ts(now),
+                                      "approval_passed_by": "cockpit_dispatch.approval_gate"})
             res.update(taken=str(path), probe=spec)
             break
     if flush and res["no_probe"]:

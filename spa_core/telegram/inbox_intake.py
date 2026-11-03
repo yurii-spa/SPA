@@ -74,6 +74,18 @@ def inbox_tracker_dir() -> Path:
     return Path(_q.TRACKER_DIR)
 
 
+def owner_chat_provenance(source: str) -> dict:
+    """Поля происхождения карточки, принятой ботом ИЗ ЧАТА ВЛАДЕЛЬЦА.
+
+    Звать ТОЛЬКО после ``router.is_owner(chat_id)`` (fail-closed, чат из Keychain) — это
+    существующий проверенный вход, нового канала подтверждения здесь нет (E3.4, ADR-762 не
+    включается). Схема полей та же, что у пульта (``mission_intake.Provenance.fields``), поэтому
+    у вопроса «это намерение владельца?» один читатель — ``answer_channel.owner_intent``.
+    """
+    return {"channel": source, "author": "owner",
+            "author_basis": "telegram: чат владельца (router.is_owner, chat id из Keychain)"}
+
+
 def save_inbox_task(text: str, source: str = "telegram", transcript: str | None = None, *,
                     kind: str | None = None, origin_label: str = "Telegram",
                     tracker_dir=None, extra_fields: dict | None = None,

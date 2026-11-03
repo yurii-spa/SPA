@@ -754,6 +754,11 @@
 | ADR-887 | ADR-887 — класс зазора фикстур гасился ДОПИСЫВАНИЕМ В СВОЮ ЖЕ БАЗУ, и этого не ловил никто | Accepted | [ADR-887](ADR-887-the-fixture-gap-class-was-silenceable-by-writing-into-its-own-base.md) |
 | ADR-888 | Население красного НАЗВАНО переписью, а не сведено к одному числу: 79 падений в 50 файлах, три записи одного прогона сверены, третий исход отличим | Accepted | [ADR-888](ADR-888-the-population-of-red-is-named.md) |
 | ADR-889 | Доставка не спрашивала, является ли строка реестра ЗАГОЛОВКОМ: четвёртая ось пина, код 16, замер 4 толстых из 38 добавленных после ADR-840 | Accepted | [ADR-889](ADR-889-delivery-does-not-ask-whether-the-register-row-is-a-title.md) |
+| ADR-890 | Намерение владельца — только по проверенному автору; пульт показывает цель, шаги, движки и роли (S4) | Proposed | [ADR-890](ADR-890-owner-intent-needs-a-verified-author-and-the-cockpit-shows-goal-steps.md) |
+
+| ADR-880 | ADR-880 — STUDIO-AUTONOMY-01: S1 принят ARB как завершённый инженерный этап (a172b79d4, CI 41205228032); production release не разрешён | Accepted | [ADR-880](ADR-880-studio-autonomy-s1-accepted-as-engineering-stage.md) |
+| ADR-882 | ADR-882 — STUDIO-AUTONOMY-01: пакет проверки релиза S2 принят ARB в ограниченном объёме; E4 не реализован, живой запуск и откат не измерены, production activation не разрешена | Accepted | [ADR-882](ADR-882-studio-autonomy-s2-release-verification-accepted-limited.md) |
+
 | ADR-891 | Причина падения контрольного прогона — ось у ПРОИЗВОДИТЕЛЯ: `msg` был МЕСТОМ, junit шарда свод уже держал; замер 79/79, вилка дефектов 54…78, множитель 1,01…1,46× | Accepted | [ADR-891](ADR-891-the-cause-of-a-red-control-run.md) |
 | ADR-892 | Обморок САМОЙ сессии pytest — РОД, а не падение без причины: ложная находка «две записи спорят» снята, род стои́т на машинной метке, тождество `roster` сверяет перечень родов с населением | Accepted | [ADR-892](ADR-892-the-cause-axis-is-blind-to-a-session-death.md) |
 | ADR-894 | Обморок шарда есть ТАЙМАУТ ПО СТЕННЫМ ЧАСАМ (433 с против предела 180 с), а премиса `compile()` опровергнута замером: кадр без номера строки даёт пустая таблица строк, и в дереве её не делает никто | Accepted | [ADR-894](ADR-894-shard-faint-is-a-wallclock-timeout.md) |

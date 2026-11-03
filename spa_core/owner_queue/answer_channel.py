@@ -172,8 +172,42 @@ def work_sections(body: str | None) -> list[str]:
 
 
 def is_owner_task(fm: dict | None) -> bool:
-    """Задание ли это САМОГО владельца — по объявленному каналу прихода."""
+    """Пришла ли карточка по КАНАЛУ владельца (`source`). Это НЕ доказательство авторства —
+    для вопроса «это намерение владельца?» спрашивать :func:`owner_intent`."""
     return str((fm or {}).get("source") or "") in OWNER_TASK_SOURCES
+
+
+#: Три исхода вопроса «это намерение владельца?» (инв. #17, E3.4).
+INTENT_OWNER = "owner"                    # автор установлен проверяющим входом
+INTENT_UNKNOWN = "provenance-unknown"     # канал владельца, автор НЕ установлен
+INTENT_NONE = "not-owner-channel"         # не канал владельца вовсе
+
+#: Значение поля ``author``, которое ставят ТОЛЬКО серверные пути с проверкой: пульт
+#: (``mission_intake.provenance_for`` по проверенному JWT) и бот Telegram (``router.is_owner``
+#: по чату из Keychain). Схема полей одна — ``channel``/``author``/``author_basis``.
+AUTHOR_OWNER = "owner"
+
+
+def owner_intent(fm: dict | None) -> tuple[str, str]:
+    """Намерение ли это владельца — ``(исход, причина)``. ОДНА копия правила.
+
+    Инцидент 01.11 (ADR-874, P0): фикстура ``test_inbox_intake`` с ``source: telegram`` попала в
+    прод-трекер, перепись повторов назвала её «повтором просьбы владельца», а закрытие едва не
+    отправило владельцу «вот ответ на твою просьбу». ``source`` — объявление канала, его пишет
+    любой вызывающий ``save_inbox_task``; авторство устанавливает только проверяющий вход. Ни
+    поле, ни текст, ни повторное появление намерения не доказывают — без ``author: owner``
+    исход «происхождение не установлено», а не «владелец».
+    """
+    fm = fm or {}
+    if not is_owner_task(fm):
+        return INTENT_NONE, f"источник «{fm.get('source') or '(нет)'}» не из каналов владельца"
+    author = str(fm.get("author") or "").strip()
+    if author == AUTHOR_OWNER:
+        return INTENT_OWNER, (f"автор установлен входом: {fm.get('author_basis') or 'основание не записано'}")
+    if author:
+        return INTENT_UNKNOWN, f"автор «{author}» — не владелец либо не установлен"
+    return INTENT_UNKNOWN, ("канал владельца объявлен, но автор входом не установлен — "
+                            "происхождение НЕ УСТАНОВЛЕНО (поле source доказательством не является)")
 
 
 def is_closed(fm: dict | None) -> bool:
@@ -287,6 +321,9 @@ def delivery_verdict(path, *, outbox_path=None) -> tuple[bool | None, str]:
     if not is_owner_task(fm):
         return None, (f"источник «{fm.get('source') or '(нет)'}» не из каналов владельца "
                       f"{OWNER_TASK_SOURCES} — предмета нет")
+    _intent, _why = owner_intent(fm)
+    if _intent != INTENT_OWNER:
+        return None, f"намерение владельца не установлено ({_why}) — НЕ ИЗМЕРЕНО"
     mark = str(fm.get("owner_notice") or "").strip()
     if not mark:
         ev = answer_evidence(fm, body)
@@ -398,6 +435,7 @@ def drive_exemplar() -> dict:
             "title: проверь дашборд\n"
             "status: done\n"
             "source: voice\n"
+            "author: owner\nauthor_basis: сцена эталона — чат владельца\n"
             "carried_to: nimbalyst-local/tracker/inbox-anchor.md\n"
             "{mark}"
             "---\n\n## ОТВЕТ\n\nдашборд проверен\n")

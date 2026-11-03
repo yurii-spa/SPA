@@ -1,0 +1,27 @@
+{
+ "taken_at_utc": "2026-11-01T09:29:00Z",
+ "method": "sqlite3 backup API (source opened read-only, mode=ro)",
+ "files": {
+  "spa_market": {
+   "source": "/Users/yuriikulieshov/Documents/SPA_Claude/data/trading_research/market.db",
+   "journal_mode": "delete",
+   "sha256": "a679b8acf42f8428c7ee5eb61cbeef4600940b0b87f674caf997ad4170e379ce",
+   "bytes": 9908224,
+   "integrity": "ok"
+  },
+  "spa_evidence": {
+   "source": "/Users/yuriikulieshov/Documents/SPA_Claude/data/trading_research/evidence.db",
+   "journal_mode": "delete",
+   "sha256": "f4a3e8cb5ac54e00b5fedb45031f00d73d5da614b2bab29ddcabe9af8475483c",
+   "bytes": 34074624,
+   "integrity": "ok"
+  },
+  "earn_defi": {
+   "source": "/Users/yuriikulieshov/Documents/earn-defi/data/earn_defi.db",
+   "journal_mode": "wal",
+   "sha256": "063f9f7f94b75f7653f4deeb925b46d9376c920af7d09f48d595fcc6de2b5efe",
+   "bytes": 13774848,
+   "integrity": "ok"
+  }
+ }
+}

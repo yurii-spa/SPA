@@ -1,0 +1,494 @@
+"""Сменяемый исполнитель задач графа с сохраняемыми попытками (STUDIO-AUTONOMY-01, поставка S2, эпик E4).
+
+# LLM_FORBIDDEN — этот модуль решений не принимает; модель зовётся только через контракт ролей.
+
+Звенья (всё детерминированное; права роли не расширяются):
+
+* **E4.1 граница модели.** Модель зовётся ТОЛЬКО через :func:`spa_core.studio_os.model_roles.contract.execute`
+  ролью ``worker`` (инструментов нет — так объявлена роль). Её ответ — ВХОД :func:`goal_graph.validate_plan`,
+  а не действие. Действует только доверенный механизм S1 (:func:`goal_graph.execute_on_stand`) по допуску,
+  который исполнитель выдать себе не может.
+* **E4.2 изоляция.** Эффекты — только на стенде (каталог с меткой ``.studio_stand``) и только операциями
+  словаря S1; у самой модели инструментов нет. Техническая песочница процесса НЕ заявляется: режим исполнителя
+  остаётся «патч для разбора», граница — словарь операций, scope плана и стенд.
+* **E4.3 провайдер.** Провайдер — явный ``provider_id`` из ``architecture/model_roles.json``; запасного нет.
+  Реальный — ``claude_subscription_cli`` (CLI на подписке); ``fixture_test_adapter`` — тестовый, не провайдер.
+* **E4.4 бюджет.** Тяжёлый шаг (проверка результата) берёт аренду существующего admission
+  (:func:`spa_core.utils.heavy_job.admit`, ADR-551). Отказ — пауза с сохранённой задачей, не обход.
+* **E4.5 продолжение.** Всё состояние — в каталоге прогона: попытки и захваты — строки ``kind: "attempt"`` /
+  ``kind: "claim"`` в журнале S1 ``goal_journal.jsonl`` (тот же протокол: flock → перечитать → дописать),
+  ответ модели и граф — файлы рядом. Новый процесс определяет следующий шаг по файлам (:func:`next_step`);
+  сохранённый ответ модели не запрашивается повторно; ``applied``/``checked:*`` не исполняются повторно.
+  Конфликтующее исполнение исключает захват S1 с поколением: живой чужой захват — отказ, после срока —
+  перехват с поколением +1, прежний исполнитель писать не может.
+* **E4.6 учёт и предел.** Каждая попытка записывает провайдера, ``real_provider``, длительность, число попыток
+  контракта, usage как его ДОЛОЖИЛ транспорт (иначе ``UNKNOWN``) и хеш контекста. Повторов шага не больше
+  :data:`MAX_CALLS`, и предел действует через смену сессий. ``quota`` — пауза до явного продолжения;
+  ``ownership_unresolved`` — повтор запрещён ЛЮБЫМ исполнителем до записи разбора.
+* **Гибель посреди вызова (S2, 01.11).** Метка запуска CLI (``SPA_RUN_ID`` помощника срока) выбирается ДО вызова
+  и записывается в журнал вместе с pid, временем старта процесса и хостом. Новый исполнитель, захватив шаг, сперва
+  разбирает незавершённый вызов: живого предшественника не трогает; мёртвого — убирает существующим
+  ``probe.sweep_run_id`` только по доказанной метке; недоказанное владение — блок без сигнала и без повтора.
+"""
+from __future__ import annotations
+
+import hashlib
+import json
+import os
+import re
+import socket
+import time
+import uuid
+from pathlib import Path
+from typing import Any, Callable, Dict, List, Mapping, Optional, Sequence
+
+from spa_core.studio_os import goal_graph as gg
+from spa_core.studio_os.model_roles import adapters as ad
+from spa_core.studio_os.model_roles import contract as mr
+
+ROLE = "worker"
+#: Сколько вызовов модели на ОДИН шаг предложения допускается всего, через все сессии (E4.6).
+MAX_CALLS = 2
+ATTEMPT = "attempt"
+PROPOSE_TASK = "propose"
+#: Исходы шага предложения, после которых новый вызов модели НЕ делается без явной записи.
+PAUSING = {"quota": "paused:quota", "ownership_unresolved": "blocked:ownership_unresolved"}
+STEP_DONE = "proposed"
+
+
+class Paused(gg.Refused):
+    """Шаг остановлен с сохранённой задачей (квота, admission, неразобранное владение, предел попыток)."""
+
+
+def _sha(text: str) -> str:
+    return hashlib.sha256(text.encode("utf-8")).hexdigest()
+
+
+def _atomic_write(path: Path, data: str) -> None:
+    path.parent.mkdir(parents=True, exist_ok=True)
+    tmp = path.with_name(path.name + ".tmp-executor")
+    tmp.write_text(data, encoding="utf-8")
+    os.replace(tmp, path)
+
+
+def _step_graph(goal: Dict[str, Any], context_sha: str) -> Dict[str, Any]:
+    """Шаг предложения как «граф» из одной задачи — чтобы его захват и журнал шли ТЕМ ЖЕ протоколом S1.
+    Хеш контекста — часть версии: новый контекст — новый шаг, старый ответ к нему не применяется (F5)."""
+    return {"version": f"propose:{goal['version']}:{context_sha}", "tasks": {PROPOSE_TASK: {}}}
+
+
+def _attempts(run_dir: Path, step_version: str) -> List[Dict[str, Any]]:
+    return [r for r in gg._journal(run_dir) if r.get("kind") == ATTEMPT and r.get("graph_version") == step_version]
+
+
+def _append_attempt(run_dir: Path, step: Dict[str, Any], lease: Dict[str, Any], now: str, row: Dict[str, Any],
+                    files: Optional[Dict[str, str]] = None) -> None:
+    """Дописать строку попытки (и её файлы), если захват ещё текущий. Иначе ``Conflict``: прежнее поколение
+    не пишет НИЧЕГО — ни строки, ни файлов ответа и графа (проверка и запись — под одной блокировкой)."""
+    with gg._locked(run_dir):
+        rows = gg._journal(run_dir)
+        gg._check_lease(rows, step["version"], PROPOSE_TASK, lease, now)
+        for name, data in (files or {}).items():
+            _atomic_write(run_dir / name, data)
+        gg._raw_append(run_dir, {"kind": ATTEMPT, "graph_version": step["version"], "task_id": PROPOSE_TASK,
+                                 "generation": lease["generation"], "worker": lease["worker"], "at": now, **row})
+
+
+def proposal_status(run_dir: Path, goal: Dict[str, Any], context_sha: str) -> Dict[str, Any]:
+    """Где шаг предложения сейчас — ТОЛЬКО по файлам прогона. ``state``: new · proposed · paused:quota ·
+    blocked:ownership_unresolved · in_flight · failed:limit; плюс сохранённые числа."""
+    step = _step_graph(goal, context_sha)
+    rows = _attempts(Path(run_dir), step["version"])
+    results = [r for r in rows if r.get("phase") == "result"]
+    started = [r for r in rows if r.get("phase") == "call_started"]
+    state = "new"                                          # последняя пауза без последующего «продолжить» держит шаг
+    for r in rows:
+        ph, st = r.get("phase"), r.get("status")
+        if ph == "result" and st == "ok" and r.get("plan_ok"):
+            state = STEP_DONE
+        elif ph == "result" and st in PAUSING:
+            state = PAUSING[st]
+        elif ph == "resume" and state == PAUSING.get("quota"):
+            state = "new"
+        elif ph == "orphan_unresolved":                    # осиротевший вызов не разобран — тот же запрет повтора
+            state = PAUSING["ownership_unresolved"]
+        elif ph == "ownership_resolved" and state == PAUSING.get("ownership_unresolved"):
+            state = "new"
+    if state == "new" and len(started) > len(results):
+        state = "in_flight"
+    if state in ("new", "in_flight") and len(started) >= MAX_CALLS and len(started) == len(results):
+        state = "failed:limit"
+    last_ok = next((r for r in reversed(results) if r.get("status") == "ok" and r.get("plan_ok")), None)
+    return {"state": state, "step_version": step["version"], "calls": len(started), "results": len(results),
+            "graph_version": (last_ok or {}).get("graph_version_out"), "answer_file": (last_ok or {}).get("answer_file")}
+
+
+def _extract_plan(text: str) -> Optional[dict]:
+    m = re.search(r"\{.*\}", text or "", re.S)
+    if not m:
+        return None
+    try:
+        doc = json.loads(m.group(0))
+    except ValueError:
+        return None
+    return doc if isinstance(doc, dict) else None
+
+
+def render_request(goal: Dict[str, Any], *, scope: Sequence[str], context: str) -> mr.Request:
+    """Запрос роли worker: вернуть план в формате, который понимает ``goal_graph.validate_plan``."""
+    instruction = (
+        "Return ONLY one JSON object, no prose. Schema: {\"tasks\": [{\"id\": str, \"outcome\": str, "
+        "\"operations\": [{\"op\": \"write_file\", \"path\": <relative path>, \"content\": <full file text>}], "
+        "\"check\": {\"kind\": \"file_contains\", \"path\": <same path>, \"text\": <text that proves the outcome>}, "
+        "\"depends_on\": []}]}. Allowed paths: only under " + ", ".join(scope) + ". "
+        "Goal: " + goal["text"] + " Expected outcome: " + goal["outcome"])
+    return mr.Request(role=ROLE, task_id=goal["goal_id"], instruction=instruction, context=context)
+
+
+def propose(goal: Dict[str, Any], *, run_dir: Path, scope: Sequence[str], context: str, provider_id: str,
+            adapters: Mapping[str, Callable[..., mr.AdapterOutput]], worker: str, now: str, ttl_s: int,
+            config: Optional[Mapping[str, Any]] = None, sweep=None, alive=None, started=None) -> Dict[str, Any]:
+    """Получить и проверить план модели, сохранив попытку ДО использования ответа.
+
+    Сохранённый годный план — возвращается без вызова модели (E4.5). Пауза/блок/предел — ``Paused``.
+    Захват шага — протоколом S1; при перехвате ответ прежнего поколения в журнал не попадает."""
+    run_dir = Path(run_dir)
+    req = render_request(goal, scope=scope, context=context)
+    st = proposal_status(run_dir, goal, req.context_sha256)
+    if st["state"] == STEP_DONE:
+        return {**st, "graph": load_graph(run_dir, st["graph_version"]), "called_model": False}
+    if st["state"].startswith(("paused:", "blocked:", "failed:")):
+        raise Paused(f"шаг предложения: {st['state']} — новый вызов модели не делается без явного продолжения")
+    step = _step_graph(goal, req.context_sha256)
+    lease = gg.claim(run_dir, step, PROPOSE_TASK, worker=worker, process=f"pid:{os.getpid()}", now=now, ttl_s=ttl_s)
+    st = proposal_status(run_dir, goal, req.context_sha256)          # перечитать ПОЛНОЕ состояние после захвата:
+    if st["state"] == STEP_DONE:                                      # прежний исполнитель мог успеть записать исход
+        return {**st, "graph": load_graph(run_dir, st["graph_version"]), "called_model": False}
+    if st["state"].startswith(("paused:", "blocked:", "failed:")):
+        raise Paused(f"шаг предложения: {st['state']} — новый вызов модели не делается без явного продолжения")
+    _settle_unfinished_calls(run_dir, step, lease, now, sweep=sweep, alive=alive, started=started)
+    if st["calls"] >= MAX_CALLS:
+        raise Paused(f"предел вызовов модели на шаг ({MAX_CALLS}) исчерпан — нужен разбор, не повтор")
+    run_id = f"executor-{step['version'][9:21]}-g{lease['generation']}-{uuid.uuid4().hex[:12]}"
+    _append_attempt(run_dir, step, lease, now, {"phase": "call_started", "pid": os.getpid(), "provider_id": provider_id,
+                                                "context_sha256": req.context_sha256, "run_id": run_id,
+                                                "pid_started": (started or _start_time)(os.getpid()),
+                                                "host": socket.gethostname(), "started_epoch": time.time()})
+    token = ad.CALL_RUN_ID.set(run_id)              # помощник срока пометит этой меткой ВСЕХ потомков вызова
+    try:
+        res = mr.execute(req, config=config or mr.load_config(), provider_id=provider_id, adapters=adapters)
+    finally:
+        ad.CALL_RUN_ID.reset(token)
+    row: Dict[str, Any] = {"phase": "result", "run_id": run_id, "status": res.status, "provider_id": res.provider_id,
+                           "provider_kind": res.provider_kind, "real_provider": res.real_provider,
+                           "model": res.model, "contract_attempts": res.attempts, "elapsed_s": res.elapsed_s,
+                           "usage": res.usage, "context_sha256": res.context_sha256, "error": (res.reason or "")[:300],
+                           "attempt_log": res.attempt_log,
+                           "permissions": res.permissions, "tools": res.tools, "plan_ok": False}
+    files: Dict[str, str] = {}
+    if res.status == "ok":
+        answer_file = f"answer-{_sha(res.text)[:16]}.txt"
+        files[answer_file] = res.text
+        row.update(answer_file=answer_file, answer_sha256=_sha(res.text))
+        plan = _extract_plan(res.text)
+        if plan is None:
+            row.update(status="malformed", error="в ответе нет JSON-плана")
+        else:
+            v = gg.validate_plan(goal, plan, scope=scope)
+            row["plan_refusals"] = v["refusals"]
+            if v["ok"]:
+                files[f"graph-{v['graph']['version'][:16]}.json"] = json.dumps(v["graph"], ensure_ascii=False,
+                                                                              sort_keys=True)
+                row.update(plan_ok=True, graph_version_out=v["graph"]["version"])
+    _append_attempt(run_dir, step, lease, now, row, files)
+    st = proposal_status(run_dir, goal, req.context_sha256)
+    if st["state"] == STEP_DONE:
+        return {**st, "graph": load_graph(run_dir, st["graph_version"]), "called_model": True}
+    raise Paused(f"шаг предложения: исход {row['status']} ({row.get('error') or row.get('plan_refusals')}) → {st['state']}")
+
+
+def _start_time(pid: int):
+    from spa_core.utils import heavy_job
+    return heavy_job.start_time(pid)
+
+
+def _alive(pid: int) -> bool:
+    from spa_core.utils import heavy_job
+    return heavy_job.pid_alive(pid)
+
+
+def _sweep(run_id: str, run_age_s: float) -> Dict[str, Any]:
+    from spa_core.studio_os.model_roles import probe
+    return probe.sweep_run_id(run_id, run_age_s)
+
+
+def _settle_unfinished_calls(run_dir: Path, step: Dict[str, Any], lease: Dict[str, Any], now: str, *,
+                             sweep=None, alive=None, started=None) -> None:
+    """Вызов модели, начатый прежним исполнителем и не получивший исхода (S2, 01.11).
+
+    Исполнитель погиб посреди вызова ⇒ его дочерний CLI мог остаться жить (помощник срока жил в погибшем
+    процессе). Перед новым вызовом — разбор КАЖДОГО такого вызова, и только по доказательствам:
+
+    * прежний исполнитель ЖИВ (тот же pid и то же время старта, тот же хост) — его вызов не наш: отказ, ни сигнала,
+      ни повтора;
+    * мёртв — уборка СУЩЕСТВУЮЩИМ ``probe.sweep_run_id`` по записанной метке ``SPA_RUN_ID`` (цели не старше вызова;
+      pid 1, сам себя и своя сессия исключены; принадлежность перепроверяется перед каждым сигналом); ``closed`` —
+      запись ``orphan_swept``, иначе ``orphan_unresolved`` ⇒ шаг заблокирован, как при ``ownership_unresolved``:
+      ни слепого убийства, ни повторного запуска до записи разбора (:func:`resolve_ownership`);
+    * метки нет / другой хост / замер не удался — ``orphan_unresolved``.
+    Ответ погибшего вызова не читается никогда: он писал во временный каталог погибшего процесса."""
+    sweep, alive, started = sweep or _sweep, alive or _alive, started or _start_time
+    rows = _attempts(run_dir, step["version"])
+    # строка без метки (прежний формат) НЕ закрывает ничьих вызовов: иначе None в множестве погасил бы разбор
+    finished = {r["run_id"] for r in rows
+                if r.get("run_id") and r.get("phase") in ("result", "orphan_swept", "orphan_unresolved")}
+    n_results = sum(1 for r in rows if r.get("phase") == "result" and not r.get("run_id"))
+    unfinished = [r for r in rows if r.get("phase") == "call_started" and r.get("run_id") not in finished]
+    unfinished = [r for r in unfinished if r.get("run_id")] + [r for r in unfinished if not r.get("run_id")][n_results:]
+    for row in unfinished:
+        pid, run_id = row.get("pid"), row.get("run_id")
+        if row.get("host") and row["host"] != socket.gethostname():
+            verdict = {"closed": None, "reason": f"вызов шёл на другой машине ({row['host']})"}
+        elif pid and pid != os.getpid() and alive(pid):
+            cur, rec = started(pid), row.get("pid_started")
+            if cur is None or rec is None:
+                # жив, но тот ли это процесс — НЕ ИЗМЕРЕНО: третий исход, а не «мёртв» (ни сигнала, ни повтора)
+                verdict = {"closed": None, "reason": f"pid {pid} жив, время его старта не измерено — владение не доказуемо"}
+            elif cur == rec:
+                raise Paused(f"вызов {run_id} ещё ведёт живой исполнитель pid {pid} — не трогаю и не повторяю")
+            else:                                           # номер переиспользован ОС — прежний исполнитель мёртв
+                verdict = sweep(run_id, max(0.0, time.time() - float(row["started_epoch"])) + 5.0) \
+                    if run_id and row.get("started_epoch") else {"closed": None, "reason": "у вызова нет метки запуска"}
+        elif not run_id or not row.get("started_epoch"):
+            verdict = {"closed": None, "reason": "у вызова нет метки запуска — владение не доказуемо"}
+        else:
+            verdict = sweep(run_id, max(0.0, time.time() - float(row["started_epoch"])) + 5.0)
+        phase = "orphan_swept" if verdict.get("closed") is True else "orphan_unresolved"
+        _append_attempt(run_dir, step, lease, now, {"phase": phase, "run_id": run_id, "of_pid": pid,
+                                                    "sweep": {k: verdict.get(k) for k in ("closed", "swept", "left",
+                                                                                          "reason")}})
+        if phase == "orphan_unresolved":
+            raise Paused(f"blocked:ownership_unresolved — осиротевший вызов {run_id} не разобран "
+                         f"({verdict.get('reason') or 'остались процессы: %s' % verdict.get('left')})")
+
+
+def resume_after_quota(run_dir: Path, goal: Dict[str, Any], context_sha: str, *, by: str, now: str) -> None:
+    """Явное продолжение после квоты — отдельная запись, а не молчаливый повтор."""
+    _note(run_dir, goal, context_sha, {"phase": "resume", "by": by, "at": now})
+
+
+def resolve_ownership(run_dir: Path, goal: Dict[str, Any], context_sha: str, *, by: str, now: str, evidence: str) -> None:
+    """Запись разбора неразобранного владения (кто убедился, что процессов прежнего прогона нет, и чем)."""
+    if not evidence.strip():
+        raise gg.Refused("разбор владения без доказательства не принимается")
+    _note(run_dir, goal, context_sha, {"phase": "ownership_resolved", "by": by, "evidence": evidence, "at": now})
+
+
+def _note(run_dir: Path, goal, context_sha, row) -> None:
+    step = _step_graph(goal, context_sha)
+    with gg._locked(Path(run_dir)):
+        gg._raw_append(Path(run_dir), {"kind": ATTEMPT, "graph_version": step["version"], "task_id": PROPOSE_TASK, **row})
+
+
+def load_graph(run_dir: Path, version: Optional[str]) -> Optional[Dict[str, Any]]:
+    if not version:
+        return None
+    p = Path(run_dir) / f"graph-{version[:16]}.json"
+    if not p.is_file():
+        return None
+    g = json.loads(p.read_text(encoding="utf-8"))
+    return g if g.get("version") == version else None
+
+
+def load_approval(run_dir: Path, task_id: str) -> Optional[Dict[str, Any]]:
+    p = Path(run_dir) / f"approval-{task_id}.json"
+    return json.loads(p.read_text(encoding="utf-8")) if p.is_file() else None
+
+
+def next_step(run_dir: Path, graph: Dict[str, Any]) -> Dict[str, Any]:
+    """Следующий шаг задач графа — по журналу и файлам прогона (никакой памяти сессии)."""
+    done = set(gg.done_tasks(Path(run_dir), graph["version"]))
+    for tid in graph["order"]:
+        st = gg.task_state(Path(run_dir), graph["version"], tid)
+        if st == f"checked:{gg.SATISFIED}":
+            continue
+        if st.startswith("checked:") or st.startswith("aborted:revoked"):
+            return {"step": "stopped", "task_id": tid, "state": st}
+        if tid not in gg.ready_tasks(graph, done):
+            return {"step": "waiting_dependency", "task_id": tid, "state": st}
+        if st == "started":
+            return {"step": "recover", "task_id": tid, "state": st}
+        if st == "applied":
+            return {"step": "check", "task_id": tid, "state": st}
+        if load_approval(run_dir, tid) is None:
+            return {"step": "await_approval", "task_id": tid, "state": st}
+        return {"step": "execute", "task_id": tid, "state": st}
+    return {"step": "done", "task_id": None, "state": "all satisfied"}
+
+
+def advance(graph: Dict[str, Any], *, run_dir: Path, stand: Path, worker: str, now: str, ttl_s: int,
+            admit: Optional[Callable[[], Any]] = None, barrier: Optional[Callable[[str], None]] = None,
+            revoked: Sequence[str] = ()) -> Dict[str, Any]:
+    """Сделать СЛЕДУЮЩИЙ шаг одной задачи графа под захватом. Повтор безопасен: сделанное не повторяется.
+
+    ``admit`` — аренда admission для проверки результата (по умолчанию — существующий ``heavy_job.admit``).
+    ``barrier`` — вызывается на известной границе ('started', 'applied'); нужен только для доказательства
+    прерывания (тест убивает процесс на этой границе)."""
+    run_dir, stand = Path(run_dir), Path(stand)
+    nxt = next_step(run_dir, graph)
+    tid = nxt["task_id"]
+    if nxt["step"] in ("done", "stopped", "waiting_dependency", "await_approval"):
+        return nxt
+    lease = gg.claim(run_dir, graph, tid, worker=worker, process=f"pid:{os.getpid()}", now=now, ttl_s=ttl_s)
+    if nxt["step"] == "recover":
+        out = gg.recover(graph, tid, stand=stand, run_dir=run_dir, now=now, author=worker, lease=lease)
+        return {"step": "recovered", "task_id": tid, "state": out["state"], "lease": lease["generation"]}
+    if nxt["step"] == "execute":
+        hook = (lambda: (barrier("started"), False)[1]) if barrier else None
+        out = gg.execute_on_stand(graph, tid, load_approval(run_dir, tid), stand=stand, run_dir=run_dir, now=now,
+                                  author=worker, lease=lease, revoked=revoked, revoked_now=hook, entry="stand_api")
+        if barrier:
+            barrier("applied")
+        return {"step": "executed", "task_id": tid, "state": out["state"], "lease": lease["generation"]}
+    # check — тяжёлый шаг под admission (E4.4)
+    if admit is None:
+        from spa_core.utils import heavy_job
+        admit = lambda: heavy_job.admit("executor_check", str(stand), note=f"{graph['version'][:12]}:{tid}")  # noqa: E731
+    try:
+        hold = admit()
+    except Exception as exc:  # noqa: BLE001 — отказ admission — пауза с сохранённой задачей
+        return {"step": "paused:admission", "task_id": tid, "state": nxt["state"], "why": str(exc)[:300]}
+    try:
+        out = gg.machine_result(graph, tid, stand=stand, run_dir=run_dir, now=now, lease=lease, author=worker)
+    finally:
+        rel = getattr(hold, "release", None)
+        if callable(rel):
+            rel()
+    return {"step": "checked", "task_id": tid, "state": f"checked:{out['verdict']}", "detail": out["detail"],
+            "lease": lease["generation"]}
+
+
+def run_until_blocked(graph: Dict[str, Any], *, run_dir: Path, stand: Path, worker: str, now: Callable[[], str],
+                      ttl_s: int, admit=None, barrier=None, max_steps: int = 20) -> List[Dict[str, Any]]:
+    """Шагать, пока граф не выполнен или не остановлен (ожидание допуска, пауза, отказ)."""
+    log = []
+    for _ in range(max_steps):
+        r = advance(graph, run_dir=run_dir, stand=stand, worker=worker, now=now(), ttl_s=ttl_s, admit=admit,
+                    barrier=barrier)
+        log.append({k: v for k, v in r.items() if k != "lease"} | {"lease": r.get("lease")})
+        if r["step"] in ("done", "stopped", "waiting_dependency", "await_approval") or r["step"].startswith("paused:"):
+            break
+    return log
+
+
+#: Ключи политики heavy_jobs (ADR-551) и направление, в котором значение СТРОЖЕ.
+_STRICTER = {"min_free_disk_gb": "higher", "refuse_at_pressure_level": "lower", "nice": "higher",
+             "max_concurrent": "lower"}
+
+
+def _scene_root() -> Path:
+    """Корень одноразовых сцен: временный каталог системы. Вынесен функцией, чтобы тест мог назвать другой."""
+    import tempfile
+    return Path(tempfile.gettempdir()).resolve()
+
+
+def _is_disposable_scene(*paths: Path) -> bool:
+    root = _scene_root()
+    return all(root in Path(x).resolve().parents for x in paths)
+
+
+def admission_policy(base: Mapping[str, Any], override: Mapping[str, Any], *, run_dir: Path, stand: Path) -> Dict[str, Any]:
+    """Граница перекрытия политики admission для ОДНОГО запуска исполнителя (ревью ARB 01.11).
+
+    * ужесточение (порог строже, лимит меньше) — разрешено везде;
+    * ослабление любого порога и собственный ``registry_dir`` (выводит аренду из общего учёта одновременных
+      заданий) — ТОЛЬКО для одноразовой сцены: каталог прогона И стенд лежат во временном каталоге системы;
+    * неизвестный ключ — отказ.
+    Admission ADR-551 кооперативен (процесс того же пользователя может его просто не звать); граница не делает его
+    принуждением — она не даёт ослабить рабочие лимиты штатной дверью исполнителя молча."""
+    pol = dict(base)
+    loosened = []
+    for k, v in override.items():
+        if k == "registry_dir":
+            if str(v) != str(base.get("registry_dir")):
+                loosened.append("registry_dir")
+            pol[k] = v
+            continue
+        if k not in _STRICTER:
+            raise gg.Refused(f"ключ политики admission {k!r} не перекрывается")
+        cur, way = base.get(k), _STRICTER[k]
+        if k == "max_concurrent":
+            if not isinstance(v, dict):
+                raise gg.Refused("max_concurrent перекрывается только словарём")
+            merged = dict(cur or {})
+            for kind, n in v.items():
+                ref = (cur or {}).get(kind, (cur or {}).get("default"))
+                if ref is None or n > ref:
+                    loosened.append(f"max_concurrent.{kind}")
+                merged[kind] = n
+            pol[k] = merged
+            continue
+        if cur is None or (v < cur if way == "higher" else v > cur):
+            loosened.append(k)
+        pol[k] = v
+    if loosened and not _is_disposable_scene(run_dir, stand):
+        raise gg.Refused(f"ослабление admission {sorted(set(loosened))} разрешено только одноразовой сцене во "
+                         f"временном каталоге ({_scene_root()}); каталог прогона/стенд вне него")
+    return pol
+
+
+def _now_iso() -> str:
+    return time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime())
+
+
+def main(argv: Optional[Sequence[str]] = None) -> int:
+    """``python -m spa_core.studio_os.executor run --run-dir R --stand S --graph-version V --worker W``.
+
+    Продолжает задачи графа по файлам прогона. ``--stop-at started|applied`` — дождаться внешней остановки
+    на этой границе (только для доказательства прерывания: процесс пишет ``at_<граница>`` и ждёт сигнала)."""
+    import argparse
+    ap = argparse.ArgumentParser(prog="executor")
+    sub = ap.add_subparsers(dest="cmd", required=True)
+    r = sub.add_parser("run")
+    r.add_argument("--run-dir", required=True)
+    r.add_argument("--stand", required=True)
+    r.add_argument("--graph-version", required=True)
+    r.add_argument("--worker", required=True)
+    r.add_argument("--ttl-s", type=int, default=600)
+    r.add_argument("--stop-at", choices=("started", "applied"))
+    r.add_argument("--admission-registry", help="каталог аренд admission (политика чисел — прежняя, ADR-551)")
+    r.add_argument("--admission-policy", help="JSON-файл, ПЕРЕКРЫВАЮЩИЙ ключи heavy_jobs политики ADR-551 для этого "
+                                              "запуска (стенд/тест); без него — политика репозитория как есть")
+    a = ap.parse_args(argv)
+    run_dir = Path(a.run_dir)
+    graph = load_graph(run_dir, a.graph_version)
+    if graph is None:
+        print(json.dumps({"step": "refused", "why": "граф этой версии в каталоге прогона не найден"}))
+        return 2
+
+    def barrier(at: str) -> None:
+        if a.stop_at == at:
+            _atomic_write(run_dir / f"at_{at}-{os.getpid()}", str(os.getpid()))
+            while True:                                      # ждать SIGKILL владельца теста
+                time.sleep(0.2)
+
+    try:
+        admit = None
+        if a.admission_registry or a.admission_policy:
+            from spa_core.utils import heavy_job
+            override = json.loads(Path(a.admission_policy).read_text(encoding="utf-8")) if a.admission_policy else {}
+            if a.admission_registry:
+                override["registry_dir"] = a.admission_registry
+            pol = admission_policy(heavy_job._policy(), override, run_dir=run_dir, stand=Path(a.stand))
+            admit = lambda: heavy_job.admit("executor_check", a.stand, policy=pol, renice=False)  # noqa: E731
+        log = run_until_blocked(graph, run_dir=run_dir, stand=Path(a.stand), worker=a.worker, now=_now_iso,
+                                ttl_s=a.ttl_s, admit=admit, barrier=barrier if a.stop_at else None)
+    except gg.Refused as exc:
+        print(json.dumps({"step": "refused", "why": str(exc)}, ensure_ascii=False))
+        return 3
+    print(json.dumps(log, ensure_ascii=False))
+    return 0
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())

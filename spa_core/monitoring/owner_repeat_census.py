@@ -119,9 +119,43 @@ def _owner_channel(card) -> str | None:
     return src if src in OWNER_CHANNELS else None
 
 
+def _intent(card) -> str:
+    """Исход ``answer_channel.owner_intent`` для карточки — ОДНА копия правила (E3.4).
+
+    Инцидент 01.11 (P0): четыре фикстуры ``test_inbox_intake`` с ``source: telegram|voice``
+    эта мера назвала «владелец повторил просьбу», и ложное основание доехало до приказа
+    (G887 п. 7). Канал — объявление, его пишет любой вызывающий; повтором ВЛАДЕЛЬЦА считается
+    только группа карточек с установленным автором."""
+    from spa_core.owner_queue.answer_channel import owner_intent
+    fields = dict(getattr(card, "fields", None) or {})
+    return owner_intent(fields)[0]
+
+
+def _groups(cards, *, now: datetime, min_repeats: int, source: str, want: str) -> list[dict]:
+    from spa_core.owner_queue.answer_channel import INTENT_OWNER
+    picked = [c for c in cards if _owner_channel(c) is not None
+              and ((_intent(c) == INTENT_OWNER) == (want == "owner"))]
+    return _repeated(picked, now=now, min_repeats=min_repeats, source=source)
+
+
 def repeated_requests(cards, *, now: datetime, min_repeats: int = DEFAULT_MIN_REPEATS,
                       source: str = "дерево") -> list[dict]:
-    """Группы ОДИНАКОВЫХ непринятых просьб владельца, от самой многочисленной.
+    """Группы ОДИНАКОВЫХ непринятых просьб владельца, у которых автор УСТАНОВЛЕН входом.
+
+    Карточки канала владельца без установленного автора сюда не попадают — их называет
+    :func:`unconfirmed_repeats` отдельной строкой неопределённости, а не повтором владельца."""
+    return _groups(cards, now=now, min_repeats=min_repeats, source=source, want="owner")
+
+
+def unconfirmed_repeats(cards, *, now: datetime, min_repeats: int = DEFAULT_MIN_REPEATS,
+                        source: str = "дерево") -> list[dict]:
+    """Одинаковые карточки КАНАЛА владельца, чей автор входом НЕ установлен (третий исход)."""
+    return _groups(cards, now=now, min_repeats=min_repeats, source=source, want="unknown")
+
+
+def _repeated(cards, *, now: datetime, min_repeats: int = DEFAULT_MIN_REPEATS,
+              source: str = "дерево") -> list[dict]:
+    """Группы ОДИНАКОВЫХ непринятых карточек каналов владельца, от самой многочисленной.
 
     ``cards`` — карточки очереди (`queue.Card`). ``now`` — часы ВХОДОМ: без этого мера
     отвечала бы про календарь прогона, а не про предмет (`.claude/rules/deployment.md`,
@@ -146,8 +180,6 @@ def repeated_requests(cards, *, now: datetime, min_repeats: int = DEFAULT_MIN_RE
     for c in cards:
         status = (getattr(c, "status", "") or "").strip().lower()
         if status not in UNTAKEN_STATUSES:
-            continue
-        if _owner_channel(c) is None:
             continue
         key = normalise_request(getattr(c, "title", None))
         if key is None:
@@ -242,6 +274,22 @@ def render(groups: list[dict] | None, *, unmeasured_reason: str | None = None) -
     return "\n".join(lines)
 
 
+def render_unconfirmed(groups: list[dict] | None) -> str:
+    """Строка неопределённости: одинаковые карточки канала владельца без установленного автора.
+    Это НЕ «владелец повторил»: подтверждения намерения нет, вопроса владельцу из неё не следует."""
+    if not groups:
+        return ""
+    total = sum(g["count"] for g in groups)
+    lines = [f"❔ одинаковые карточки каналов владельца с НЕУСТАНОВЛЕННЫМ автором: групп {len(groups)}, "
+             f"карточек {total} — повтором просьбы владельца НЕ считаются (поле source "
+             f"доказательством не является; возможны тестовые фикстуры):"]
+    for g in groups:
+        lines.append(f"  - «{g['title']}» × {g['count']} [копия: {g['source']}]")
+        for p in g["cards"]:
+            lines.append(f"      ↳ {Path(p).name if p else '(без пути)'}")
+    return "\n".join(lines)
+
+
 # ── эталон класса: контроль в ОБЕ стороны, на настоящей мере ──────────────────
 #: Сцены эталона отличаются РОВНО одним: во второй у просьбы нет второй карточки.
 #: Мера, отвечающая на них одинаково, и есть дефект, против которого модуль написан.
@@ -267,7 +315,10 @@ class _Card:
         self.status = status
         self.priority = priority
         self.body = body
-        self.fields = {"source": source, "created": created}
+        # Сцена изображает НАСТОЯЩУЮ просьбу владельца — значит, с автором, установленным
+        # входом (без него мера с 01.11 честно отвечает «происхождение не установлено»).
+        self.fields = {"source": source, "created": created, "author": "owner",
+                       "author_basis": "сцена эталона: чат владельца"}
 
 
 def drive_exemplar(*, now: datetime | None = None) -> dict:

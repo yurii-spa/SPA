@@ -72,6 +72,8 @@
 * **2** — измерено НЕ ПОЛНОСТЬЮ: очередь на `--ref` не прочитана (и argparse-отказ);
 * **3** — **НАХОДКА** (fail-CLOSED: голодом считается и карточка, чей возраст не удалось
   измерить как заведомо свежий).
+* **4** — измерено, голода нет, но есть повторы карточек с НЕустановленным автором
+  (ADR-890): не «чисто» и не «не измерено» — у оркестратора свой текст, без карточки на сторожа.
 
 Тройку не может подделать никто, кроме явного `return _RC_FINDING` ниже: у интерпретатора
 такого кода нет. Перекос версий между обёрткой и скриптом (прод-дерево отстаёт от origin
@@ -134,6 +136,10 @@ _RC_CLEAN = 0
 _RC_CRASHED = 1
 _RC_PARTIAL = 2
 _RC_FINDING = 3
+#: Измерено, голода нет, но есть повторы карточек с НЕустановленным автором (ADR-890). Не 0 — это не
+#: «чисто»; и не 2 — двойку оркестратор читает «ГОЛОД НЕ ИЗМЕРЕН, заведи карточку на сторож»
+#: (`scripts/lib/starvation_verdict.sh`), а здесь измерено всё. Свой код — свой текст в промпте.
+_RC_UNCONFIRMED = 4
 
 #: Отчёт сторожа. Имя фиксировано: его читает дневной дайджест (владелец) — единственный
 #: канал, который смерть сессии не выключает.
@@ -360,7 +366,8 @@ def _held_but_free(card: Card, claim_verdict) -> tuple[bool, str]:
 
 def build_report(findings: list[dict], min_hours: float, now: datetime,
                  repeat_groups: list[dict] | None = None,
-                 repeats_unmeasured: str | None = None) -> dict:
+                 repeats_unmeasured: str | None = None,
+                 unconfirmed_groups: list[dict] | None = None) -> dict:
     """Отчёт для читателя, который в момент замера не работал (владелец через дайджест).
 
     ``repeat_groups`` — вторая ось вердикта (ADR-860): ОДНА и та же просьба владельца,
@@ -383,6 +390,11 @@ def build_report(findings: list[dict], min_hours: float, now: datetime,
                            else sum(g["count"] for g in repeat_groups)),
         "repeat_groups": repeat_groups,
         "repeats_unmeasured": repeats_unmeasured,
+        # Третий исход (ADR-890): одинаковые карточки канала владельца БЕЗ установленного автора — не «повторов
+        # нет» и не «владелец повторил»; поле отдельное, чтобы дайджест не прочёл ноль.
+        "unconfirmed_groups": unconfirmed_groups,
+        "unconfirmed_cards": (None if unconfirmed_groups is None
+                              else sum(g["count"] for g in unconfirmed_groups)),
     }
 
 
@@ -518,7 +530,8 @@ def _cycles_context(f: dict) -> str:
 def render(findings: list[dict], min_hours: float,
            repeat_groups: list[dict] | None = None,
            repeats_unmeasured: str | None = None,
-           show_repeats: bool = False) -> str:
+           show_repeats: bool = False,
+           unconfirmed_groups: list[dict] | None = None) -> str:
     """Вердикт словами. Две оси печатаются ОДНОЙ строкой-вердиктом, но не смешиваются.
 
     ``show_repeats`` — печатать ли вторую ось вообще. Умолчание ``False`` сохраняет
@@ -527,6 +540,11 @@ def render(findings: list[dict], min_hours: float,
     """
     repeat_text = (repeats.render(repeat_groups, unmeasured_reason=repeats_unmeasured)
                    if show_repeats else "")
+    # Третий исход (P0, 01.11): одинаковые карточки канала владельца БЕЗ установленного автора
+    # называются неопределённостью рядом, а не повтором владельца.
+    _unconf = repeats.render_unconfirmed(unconfirmed_groups) if show_repeats else ""
+    if _unconf:
+        repeat_text = f"{repeat_text}\n{_unconf}" if repeat_text else _unconf
     if not findings:
         head = f"✅ голодающих critical-приказов владельца (>{min_hours:g}ч) не найдено"
         return f"{head}\n{repeat_text}" if repeat_text else head
@@ -593,6 +611,7 @@ def main(argv=None) -> int:
     # нулю, сколько бы раз владелец ни повторил. Замер 29.10: пять «проверь дашборд»
     # за десять суток при 37 карточках `new`.
     tree_repeats = repeats.repeated_requests(cards, now=now, source="дерево")
+    unconfirmed = repeats.unconfirmed_repeats(cards, now=now, source="дерево")
     ref_repeats: list[dict] = []
     ref_findings: list[dict] = []
     ref_error = None
@@ -606,6 +625,8 @@ def main(argv=None) -> int:
                 ref_cards, now=now, min_hours=args.min_hours, announce_path=announce,
                 claim_verdict=claim_verdict, source=args.ref)
             ref_repeats = repeats.repeated_requests(ref_cards, now=now, source=args.ref)
+            unconfirmed = repeats.merge_groups(
+                unconfirmed, repeats.unconfirmed_repeats(ref_cards, now=now, source=args.ref))
     findings = merge_findings(tree_findings, ref_findings)
     repeat_groups = repeats.merge_groups(tree_repeats, ref_repeats)
     # Половина оси может быть неизмерима, и это НЕ «повторов нет»: ответ по дереву
@@ -620,7 +641,8 @@ def main(argv=None) -> int:
         # «голода нет» от «измерять было некому» — без него тишина означала бы и то, и другое.
         report = build_report(findings, args.min_hours, now,
                               repeat_groups=repeat_groups,
-                              repeats_unmeasured=repeats_unmeasured)
+                              repeats_unmeasured=repeats_unmeasured,
+                              unconfirmed_groups=unconfirmed)
         report["ref"] = args.ref or None
         # Третий исход отдельным полем: «ref не прочитан» ≠ «на ref голода нет».
         report["ref_unmeasured"] = ref_error
@@ -640,11 +662,14 @@ def main(argv=None) -> int:
                           "repeated_groups": len(repeat_groups),
                           "repeated_cards": sum(g["count"] for g in repeat_groups),
                           "repeat_groups": repeat_groups,
-                          "repeats_unmeasured": repeats_unmeasured},
+                          "repeats_unmeasured": repeats_unmeasured,
+                          "unconfirmed_groups": unconfirmed,
+                          "unconfirmed_cards": sum(g["count"] for g in unconfirmed)},
                           ensure_ascii=False, indent=2))
     else:
         print(render(findings, args.min_hours, repeat_groups=repeat_groups,
-                     repeats_unmeasured=repeats_unmeasured, show_repeats=True))
+                     repeats_unmeasured=repeats_unmeasured, show_repeats=True,
+                     unconfirmed_groups=unconfirmed))
     # Находка по ЛЮБОЙ из двух осей — находка: повтор просьбы владельца есть голод под
     # другим именем, и прятать его за кодом 0 значило бы вернуть ровно тот молчаливый
     # ноль, которым десять суток держалась просьба «проверь дашборд».
@@ -652,7 +677,11 @@ def main(argv=None) -> int:
         return _RC_FINDING
     # Голода не увидели — но если вторую копию очереди прочитать не удалось, «не найдено»
     # означает «не искали там, где приказ и живёт». Это не 0.
-    return _RC_PARTIAL if ref_error is not None else _RC_CLEAN
+    if ref_error is not None:
+        return _RC_PARTIAL
+    # Повторы с НЕустановленным автором — измеренная неопределённость происхождения, а не «чисто» и не
+    # «не измерено» (инв. #17, ADR-890): у неё свой код, чтобы оркестратор не завёл карточку на сторожа.
+    return _RC_UNCONFIRMED if unconfirmed else _RC_CLEAN
 
 
 if __name__ == "__main__":

@@ -1,0 +1,14 @@
+no_reserved_cash KILLED 1 failed, 1 passed in 0.18s
+no_reserved_proto KILLED 1 failed, 2 passed in 0.18s
+cap_counts_sells KILLED 1 failed, 13 passed in 0.19s
+partial_releases_all KILLED 1 failed, 3 passed in 0.18s
+no_policy_check KILLED 1 failed, 6 passed in 0.18s
+none_matches KILLED 1 failed, 12 passed in 0.19s
+no_expiry_release KILLED 1 failed, 4 passed in 0.19s
+no_supersede KILLED 1 failed, 5 passed in 0.18s
+dup_in_set_ok KILLED 1 failed, 11 passed in 0.19s
+no_ttl KILLED 1 failed, 7 passed in 0.18s
+unobserved_ok KILLED 1 failed, 8 passed in 0.18s
+withdraw_unchecked KILLED 1 failed, 9 passed in 0.19s
+withdraw_counts_buys KILLED 1 failed, 14 passed in 0.19s
+negative_fill_ok KILLED 1 failed, 15 passed in 0.19s
