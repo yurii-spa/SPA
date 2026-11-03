@@ -86,6 +86,9 @@ from __future__ import annotations
 import itertools
 from typing import Dict, List, Optional, Tuple
 
+from spa_core.paper_trading.trim_admissibility import remember_comparison as _remember_comparison
+from spa_core.paper_trading.trim_admissibility import with_book_verdict_memo as _with_book_verdict_memo
+
 _EPS = 1e-9
 
 #: Шагов деления отрезка при поиске наибольшего допустимого размера хода.
@@ -319,6 +322,7 @@ def search_admissible_optimum(current: Dict[str, float],
                       "оборота отсекает ногу ниже min_leg_frac)")}
 
 
+@_remember_comparison
 def compare_trim_optimum(current: Dict[str, float],
                          proposal: Dict[str, float],
                          apy_pct: Dict[str, float],
@@ -415,6 +419,7 @@ def compare_trim_optimum(current: Dict[str, float],
     return out
 
 
+@_with_book_verdict_memo
 def trim_optimum_census(records: List[dict], *, params,
                         tiers: Dict[str, str],
                         tiers_measured: bool,

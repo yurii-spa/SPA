@@ -370,6 +370,18 @@ def _called_names(node: ast.AST | None, binds: dict[str, ast.AST],
     return names
 
 
+_WRITERS = ("atomic_save", "write_text", "dump", "dumps")
+
+
+def _writer_name(node: ast.AST) -> str | None:
+    """Имя вызываемого у узла-вызова (``None`` — не вызов или имя не простое)."""
+    if not isinstance(node, ast.Call):
+        return None
+    f = node.func
+    return f.attr if isinstance(f, ast.Attribute) else (
+        f.id if isinstance(f, ast.Name) else None)
+
+
 def _book_shaped_writes(rel: str, tree: ast.AST,
                         literals: set[str]) -> list[dict]:
     """Сайты записи, чья нагрузка имеет ФОРМУ книги, с приговором о происхождении.
@@ -395,18 +407,22 @@ def _book_shaped_writes(rel: str, tree: ast.AST,
                   делает перепись частичной ВСЛУХ, а не выдаёт себя за находку.
     """
     out: list[dict] = []
+    # Сайт записи ищется только там, где вызов писателя ВООБЩЕ есть
+    # (perf/decision-loop, замер 03.11: 2 530 модулей, 15.7 млн шагов `ast.walk`
+    # на один прогон). Модуль без единого писателя даёт пустой список без обхода
+    # каждой функции; функция без писателя — без разбора связываний. Порядок и
+    # состав сайтов не меняются: пропущенные области кандидатов не содержат.
+    if not any(_writer_name(n) in _WRITERS for n in ast.walk(tree)):
+        return []
     for fn in ast.walk(tree):
         if not isinstance(fn, (ast.FunctionDef, ast.AsyncFunctionDef, ast.Module)):
             continue
+        calls = [n for n in ast.walk(fn) if _writer_name(n) in _WRITERS]
+        if not calls:
+            continue
         binds = _assignments(fn)
-        for node in ast.walk(fn):
-            if not isinstance(node, ast.Call):
-                continue
-            f = node.func
-            name = f.attr if isinstance(f, ast.Attribute) else (
-                f.id if isinstance(f, ast.Name) else None)
-            if name not in ("atomic_save", "write_text", "dump", "dumps"):
-                continue
+        for node in calls:
+            name = _writer_name(node)
             payload = _resolve(node.args[0] if node.args else None, binds)
             if not isinstance(payload, ast.Dict):
                 continue
