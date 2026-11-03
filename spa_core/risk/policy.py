@@ -854,6 +854,21 @@ class RiskPolicy:
                 f"limit {self.config.max_total_t3_allocation:.1%}"
             )
 
+        # Число профинансированных протоколов (ALLOC-002, ``max_protocols``) — решение владельца 02.11, вариант A
+        # (ADR-901 п. 8, ADR-902). Порог тот же, что зеркалит тюнер (``allocation_tuner._P_MAX_PROTOCOLS``), и читается
+        # отсюда, из ОДНОГО поля — копии порога расходятся (класс ADR-340). Книга нарушает его БЕЗ сделки (замер
+        # карточки: 1 запись из 106 выше 8), поэтому место ему в этом блоке и ответ — HALT_NEW, не распродажа.
+        # Позиция с нечисловой суммой считается профинансированной: «не измерено» не уменьшает число (инв. #17).
+        _funded = {
+            p.protocol_key for p in state.positions
+            if not (isinstance(p.amount_usd, (int, float)) and not isinstance(p.amount_usd, bool)
+                    and math.isfinite(p.amount_usd) and p.amount_usd <= 0)
+        }
+        if len(_funded) > self.config.max_protocols:
+            violations.append(
+                f"Funded protocols {len(_funded)} exceed ALLOC-002 limit {self.config.max_protocols}"
+            )
+
         # L2 суммарно (блок 10 входной проверки).
         _l2_total = state.l2_allocation_pct()
         if _l2_total > self.config.max_l2_total_allocation:

@@ -771,6 +771,7 @@
 | ADR-899 | Шард, сказавший «упало» без имён — РОД: сессионный сторож поднял код над ЗЕЛЁНОЙ сессией; у вопроса четыре исхода, шард ИЗМЕРЕН, отказ сам держит RED | Accepted | [ADR-899](ADR-899-shard-exit-raised-by-a-session-guard.md) |
 | ADR-900 | Писатель журнала состояния спрашивает дверь песочницы, а не свой `__file__`: класс «тест пишет в git-tracked `data/`» ИЗМЕРЕН (68, не 7) и закрыт на 50 | Accepted | [ADR-900](ADR-900-tracked-data-writers-ask-the-sandbox-door.md) |
 | ADR-901 | Решения владельца 02.11 по пакету автономного мандата (девять вопросов) | Accepted | [ADR-901](ADR-901-owner-decisions-2026-11-02-on-the-autonomous-package.md) |
+| ADR-902 | Проверка книги спрашивает потолок числа профинансированных протоколов (ALLOC-002) | Accepted | [ADR-902](ADR-902-book-health-asks-the-position-ceiling.md) |
 | ADR-903 | Остаток класса «тест пишет в git-tracked `data/`» закрыт: 68 из 68; у двух модулей денежного пути дверь СНИМАЛ ТЕСТ, а не отсутствовала | Accepted | [ADR-903](ADR-903-tracked-data-write-remainder.md) |
 | ADR-904 | Проба ответила «чисто» при ЧЕТЫРЁХ упавших внутри сцены: у красного прогона «ноль записей» не есть ответ | Accepted | [ADR-904](ADR-904-scene-run-must-be-green.md) |
 | ADR-905 | Десятая дверь семейства: вердикт теста как свойство СОДЕРЖИМОГО дерева — класс ИЗМЕРЕН, 15 предметов в 13 файлах | Accepted | [ADR-905](ADR-905-tracker-content-door-measured.md) |
