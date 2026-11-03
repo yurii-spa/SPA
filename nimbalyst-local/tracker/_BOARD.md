@@ -2,11 +2,11 @@
 
 > Авто-генерится `scripts/build_tracker_board.py` из `nimbalyst-local/tracker/*.md`. НЕ править вручную — правь карточки. Источник правды — карточки, это индекс (bootstrap).
 >
-> Собрана: 2026-11-03T10:11:55Z · сверка с карточками: `python3 scripts/build_tracker_board.py --check` (сторож `spa_core/tests/test_tracker_board_matches_cards.py`).
+> Собрана: 2026-11-03T10:15:07Z · сверка с карточками: `python3 scripts/build_tracker_board.py --check` (сторож `spa_core/tests/test_tracker_board_matches_cards.py`).
 >
-> Сверено с `origin/main` (88f5f0c58).
+> Сверено с `origin/main` (1d557fb8a).
 >
-> Всего карточек: **1572** · ждёт владельца: **7** · занято сессиями: **13**.
+> Всего карточек: **1575** · ждёт владельца: **7** · занято сессиями: **13**.
 
 ## 🔴 ЖДЁТ ВЛАДЕЛЬЦА (needs-owner)
 
@@ -424,7 +424,7 @@
 ### · closed
 - Считать ли верный отказ по правилам допуска неисправностью флота  ·  `owner-decision-schitat-li-vernyi-otkaz-po-pravilam-dopu.md` · 2026-10-08
 
-## 📥 Inbox (задания: Telegram / заметки / голос)  (889)
+## 📥 Inbox (задания: Telegram / заметки / голос)  (890)
 
 ### · in-progress
 - а задача починить все-таки еще раз сообщение которым не пишет нужно твое решени…  ·  `inbox-a-zadacha-pochinit-vse-taki-esche-raz-so.md` · 2026-08-14 · 🔒 `pid43119`
@@ -1098,6 +1098,7 @@
 - На Linux принадлежность процесса всегда OWNERSHIP_UNKNOWN: 19 красных тестов и, возможно, инертный клин  ·  `inbox-na-linux-prinadlezhnost-protsessa-vsegda.md` · 2026-09-26
 - Находка петли: com.spa.decision_loop: объявлено PRODUCES (data/adapter_feed_divergenc  ·  `inbox-nahodka-petli-com-spa-decision-loop-obya.md` · 2026-10-29
 - Находки третьего шага не доходят до судьи достижимости — ряд считает девять вместо десяти  ·  `inbox-nahodki-tretego-shaga-ne-dohodyat-do-sud.md` · 2026-09-30
+- Настоящий lsof на машине CI не отвечает — три проверки красны по построению  ·  `inbox-nastoyaschii-lsof-na-mashine-ci-ne-otvec.md` · 2026-11-01
 - НЕ ПРОЧИТАН артефакт ступени: офис не отличает «код приехал внутрь прогона» от «ступень не зовёт никто»  ·  `inbox-ne-prochitan-artefakt-stupeni-ofis-ne-ot.md` · 2026-10-02
 - Недельный такт витрины сайта считает недели по своей копии, а читатель читает origin  ·  `inbox-nedelnyi-takt-vitriny-saita-schitaet-ned.md` · 2026-09-20
 - Nimbalyst не видит 13 карточек — заголовок с двоеточием без кавычек ломает разбор frontmatter  ·  `inbox-nimbalyst-ne-vidit-13-kartochek-zagolovo.md` · 2026-09-17
@@ -1321,7 +1322,7 @@
 - Зазор гейта оправдывает любую ошибку стоимости, когда гейт уже отказывает  ·  `inbox-zazor-geita-opravdyvaet-lyubuyu-oshibku.md` · 2026-10-28
 - Журнал одного агента вырос до 4,85 ГБ и заполнил диск на 100 % — свободное место не меряет никто  ·  `inbox-zhurnal-odnogo-agenta-vyros-do-4-85-gb-i.md` · 2026-10-02
 
-## 🤖 Agent Tasks (что делает агент)  (222)
+## 🤖 Agent Tasks (что делает агент)  (224)
 
 ### · in-progress
 - 🅰🅰🅰 Продуктовый слой агентов (супер-студия)  ·  `agent-aaa-product-layer.md` · 2026-07-16
@@ -1381,6 +1382,7 @@
 - Сторож чисел сайта: тихий проход только по двум условиям сразу (решение владельца 19.08, вариант 1)  ·  `agent-storozh-chisel-tihii-prohod-po-dvum-usloviyam.md` · 2026-08-20
 - Сторож паспортов агентов краснеет НА УСПЕХЕ: он требует, чтобы курация оставалась незаконченной  ·  `agent-storozh-pasportov-krasneet-na-uspehe.md` · 2026-09-10
 - Напоминание о снятии стоп-крана: реализовать политику А1 (ADR-097)  ·  `agent-task-napominanie-o-snyatii-stop-krana-realizo.md` · 2026-08-20
+- Повторяющийся сбой com.spa.capital_shadow: malformed_plist  ·  `agent-task-povtoryayuschiisya-sboi-com-spa-capital-2.md` · 2026-11-01
 - Повторяющийся сбой com.spa.cmo_editorial: stale_log  ·  `agent-task-povtoryayuschiisya-sboi-com-spa-cmo-edit.md` · 2026-10-19
 - Повторяющийся сбой com.spa.daily_cycle: exit_nonzero:5  ·  `agent-task-povtoryayuschiisya-sboi-com-spa-daily-cy-2.md` · 2026-10-19
 - Повторяющийся сбой com.spa.decision_loop: exit_nonzero:-15  ·  `agent-task-povtoryayuschiisya-sboi-com-spa-decision-2.md` · 2026-10-30
@@ -1402,6 +1404,7 @@
 - Повторяющийся сбой com.spa.orchestrator: exit_nonzero:124  ·  `agent-task-povtoryayuschiisya-sboi-com-spa-orchestr-2.md` · 2026-10-13
 - Повторяющийся сбой com.spa.orchestrator: exit_nonzero:1  ·  `agent-task-povtoryayuschiisya-sboi-com-spa-orchestr-3.md` · 2026-10-14
 - Повторяющийся сбой com.spa.orchestrator: stale_log  ·  `agent-task-povtoryayuschiisya-sboi-com-spa-orchestr.md` · 2026-10-07
+- Повторяющийся сбой com.spa.research_factory: malformed_plist  ·  `agent-task-povtoryayuschiisya-sboi-com-spa-research-2.md` · 2026-11-01
 - Повторяющийся сбой com.spa.resource_guard: exit_nonzero:2  ·  `agent-task-povtoryayuschiisya-sboi-com-spa-resource-2.md` · 2026-10-14
 - Повторяющийся сбой com.spa.resource_guard: ресурсы_мака:_измерено_warn_(память/своп  ·  `agent-task-povtoryayuschiisya-sboi-com-spa-resource-4.md` · 2026-10-27
 - Повторяющийся сбой com.spa.resource_guard: exit_nonzero:1  ·  `agent-task-povtoryayuschiisya-sboi-com-spa-resource.md` · 2026-10-06
