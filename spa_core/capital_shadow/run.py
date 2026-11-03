@@ -448,7 +448,12 @@ def _run_forward_reconciliation(data_dir: Path, now: datetime, *, rpc_mod: Any, 
 
 def run_cycle(data_dir: Path, now: Optional[datetime] = None, *, scenario: Optional[str] = None,
              live_rpc: bool = False, simulate_mod: Any = None, rpc_mod: Any = None, client: Any = None,
-             dispatcher: Any = None, run_lock_timeout_s: float = 2.0) -> dict:
+             dispatcher: Any = None, run_lock_timeout_s: float = 2.0, aggregate_mode: str = "off") -> dict:
+    # E6.3 кандидат подключения (Proposed ADR, мандат 01.11 §2.2): "off" — поведение прежнее побайтно; "shadow" —
+    # совокупные вердикты только в сводке; "enforce" — отказанные совокупностью не идут в симуляцию.
+    from spa_core.capital_shadow import aggregate_wiring as _aw
+    if aggregate_mode not in _aw.MODES:
+        raise ValueError(f"aggregate_mode {aggregate_mode!r} не из {_aw.MODES}")
     data_dir = Path(data_dir)
     now = now or datetime.now(timezone.utc)
     if now.tzinfo is None:
@@ -510,8 +515,14 @@ def run_cycle(data_dir: Path, now: Optional[datetime] = None, *, scenario: Optio
                       dispatcher=dispatcher, escalated=escalated)
 
         current_intents = intent_mod.build_current_intents(data_dir, now, pin)
+        aggregate = _aw.verdicts(data_dir, current_intents, now) if aggregate_mode != "off" else None
+        agg_refused = _aw.refused_ids(aggregate) if (aggregate and aggregate_mode == "enforce") else set()
         per_intent_reports = []
         for an_intent in current_intents:
+            if an_intent["intent_id"] in agg_refused:
+                per_intent_reports.append({"intent_id": an_intent["intent_id"], "sleeve_id": an_intent["sleeve_id"],
+                                           "outcome": "AGGREGATE_REFUSED"})
+                continue
             if not _validate(data_dir, an_intent, now):
                 per_intent_reports.append({"intent_id": an_intent["intent_id"], "outcome": "INVALID_OR_EXPIRED"})
                 continue
@@ -558,6 +569,8 @@ def run_cycle(data_dir: Path, now: Optional[datetime] = None, *, scenario: Optio
             "readiness_states": {sid: r["readiness_state"] for sid, r in reports.items()},
             "authorization": contract.AUTHORIZATION_TEXT,
         }
+        if aggregate is not None:
+            summary["aggregate"] = {"mode": aggregate_mode, "books": aggregate}
         return summary
 
 
@@ -573,6 +586,8 @@ def main(argv=None) -> int:
     parser.add_argument("--data-dir", default=None, help="defaults to SPA_DATA_DIR, else this code tree's own data/ dir")
     parser.add_argument("--now", default=None)
     parser.add_argument("--scenario", default=None)
+    parser.add_argument("--aggregate", choices=("off", "shadow", "enforce"), default="off",
+                        help="E6.3 совокупный допуск (кандидат, по умолчанию выключен; включение — решение владельца)")
     rpc_group = parser.add_mutually_exclusive_group()
     rpc_group.add_argument("--live-rpc", action="store_true", default=False)
     rpc_group.add_argument("--no-rpc", action="store_true", default=False)
@@ -591,7 +606,8 @@ def main(argv=None) -> int:
 
     now = datetime.fromisoformat(args.now.replace("Z", "+00:00")) if args.now else datetime.now(timezone.utc)
     try:
-        summary = run_cycle(data_dir, now, scenario=args.scenario, live_rpc=bool(args.live_rpc))
+        summary = run_cycle(data_dir, now, scenario=args.scenario, live_rpc=bool(args.live_rpc),
+                            aggregate_mode=args.aggregate)
     except (ledger.LockBusy, RunLocked) as exc:
         print(f"capital_shadow: LOCKED: {exc}")
         return contract.EXIT_LOCKED

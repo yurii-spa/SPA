@@ -16,7 +16,11 @@
   другой ``intent_id``) освобождает старый резерв прежде, чем допускается новое;
 * смена версии политики или состояния книги (``policy_version``, ``book_state_digest``) делает все резервы,
   построенные на старом, недействительными: допуск отказывает целиком, пока набор не перестроен;
-* неизвестное значение (нет NAV, нет кэша, нет протокола) — отказ, а не ноль (инв. #2, #17).
+* неизвестное значение (нет NAV, нет кэша, нет позиций, нет протокола) — отказ, а не ноль (инв. #2, #17);
+* потолки по тирам — те же поля ``RiskConfig``, что у ``RiskPolicy`` (``max_concentration_t1/_t2`` на протокол,
+  ``max_total_t2_allocation``, ``max_total_t3_allocation`` совокупно), если вызывающий передал карту тиров;
+  протокол вне карты — отказ. Без карты ось тиров НЕ проверена и это сказано в каждом допуске (``unchecked``),
+  а не подразумевается молча.
 
 Ничего не исполняет и ничего не пишет; LLM запрещён.
 
@@ -29,7 +33,7 @@ from datetime import datetime, timezone
 from typing import Dict, List, Optional
 
 from spa_core.capital_shadow import contract
-from spa_core.risk.policy import RiskConfig
+from spa_core.risk.policy import KNOWN_TIERS, RiskConfig
 
 ADMIT, REFUSE = "ADMIT", "REFUSE"
 _BUYS = (contract.ACTION_SUPPLY, contract.ACTION_DEPOSIT_4626, contract.ACTION_SPOT_ORDER)
@@ -53,7 +57,9 @@ class Book:
     positions_usd: Dict[str, float]
     policy_version: Optional[str]
     book_state_digest: Optional[str]
-    reservations: Dict[str, dict] = field(default_factory=dict)   # intent_id → {protocol, usd, expires_at, key}
+    reservations: Dict[str, dict] = field(default_factory=dict)   # intent_id → {protocol, usd, expires_at, key, policy_version}
+    #: протокол → "T1"/"T2"/"T3"; ``None`` — тиры не переданы, ось потолков по тирам НЕ проверяется (и это называется)
+    tiers: Optional[Dict[str, str]] = None
 
 
 def _release_dead(book: Book, now: datetime, cancelled: set) -> List[str]:
@@ -61,6 +67,30 @@ def _release_dead(book: Book, now: datetime, cancelled: set) -> List[str]:
     for i in gone:
         del book.reservations[i]
     return gone
+
+
+def _tier_breach(book: Book, protocol: str, delta: float, config: RiskConfig) -> Optional[str]:
+    """Потолки по тирам после всех резервов — зеркало ``RiskPolicy`` (п. 8/8b), без новых порогов."""
+    tier = (book.tiers or {}).get(protocol)
+    if tier not in KNOWN_TIERS:
+        return f"тир {protocol} не известен ({tier!r}) — отказ, а не потолок по умолчанию"
+    nav = book.nav_usd
+
+    def exposure(pred) -> float:
+        held = sum(v for p, v in book.positions_usd.items() if pred(p))
+        res = sum(r["usd"] for r in book.reservations.values() if r["usd"] > 0 and pred(r["protocol"]))
+        return held + res
+
+    one = (exposure(lambda p: p == protocol) + delta) / nav
+    cap = config.max_concentration_t1 if tier == "T1" else config.max_concentration_t2
+    if one > cap + 1e-12:
+        return f"доля {protocol} ({tier}) после всех резервов {one:.2%} > потолка тира {cap:.0%}"
+    for t, cap_total in (("T2", config.max_total_t2_allocation), ("T3", config.max_total_t3_allocation)):
+        if tier == t:
+            total = (exposure(lambda p, t=t: (book.tiers or {}).get(p) == t) + delta) / nav
+            if total > cap_total + 1e-12:
+                return f"{t} совокупно после всех резервов {total:.2%} > потолка {cap_total:.0%}"
+    return None
 
 
 def _shares_after(book: Book, protocol: str, delta: float) -> tuple:
@@ -80,7 +110,17 @@ def admit(book: Book, intents: List[dict], *, now: datetime, cancelled: tuple = 
     if None in (book.nav_usd, book.cash_usd) or not book.nav_usd or book.nav_usd <= 0:
         return {i["intent_id"]: {"verdict": REFUSE, "why": "NAV или кэш книги не наблюдены — отказ, не ноль"}
                 for i in intents}
+    if not isinstance(book.positions_usd, dict):
+        return {i["intent_id"]: {"verdict": REFUSE, "why": "позиции книги не наблюдены — отказ, а не «позиций нет»"}
+                for i in intents}
     released = _release_dead(book, now, set(cancelled))
+    # Резерв, построенный на ДРУГОЙ версии политики, недействителен: он мог быть допущен по иным лимитам. Пока он
+    # не отменён и не истёк, весь набор отказывает — молча пересчитывать чужой резерв по новым правилам нельзя.
+    foreign = sorted(i for i, r in book.reservations.items() if r.get("policy_version") != book.policy_version)
+    if foreign:
+        return {i["intent_id"]: {"verdict": REFUSE, "state": contract.S_RISK_BLOCKED,
+                                 "why": f"резервы {foreign} построены на другой версии политики — перестроить набор "
+                                        f"(отменить или дождаться TTL), затем допускать"} for i in intents}
     keys_in_set: Dict[tuple, str] = {}
     for i in sorted(intents, key=lambda x: x["intent_id"]):
         iid = i["intent_id"]
@@ -131,8 +171,15 @@ def admit(book: Book, intents: List[dict], *, now: datetime, cancelled: tuple = 
             out[iid] = {"verdict": REFUSE, "state": contract.S_RISK_BLOCKED,
                         "why": f"доля {proto} после всех резервов {proto_share:.2%} > потолка {config.max_single_protocol:.0%}"}
             continue
-        book.reservations[iid] = {"protocol": proto, "usd": delta, "expires_at": i["expires_at"], "key": key}
-        out[iid] = {"verdict": ADMIT, "cash_share_after": cash_share, "protocol_share_after": proto_share}
+        if delta > 0 and book.tiers is not None:
+            why = _tier_breach(book, proto, delta, config)
+            if why:
+                out[iid] = {"verdict": REFUSE, "state": contract.S_RISK_BLOCKED, "why": why}
+                continue
+        book.reservations[iid] = {"protocol": proto, "usd": delta, "expires_at": i["expires_at"], "key": key,
+                                  "policy_version": book.policy_version}
+        out[iid] = {"verdict": ADMIT, "cash_share_after": cash_share, "protocol_share_after": proto_share,
+                    "unchecked": [] if (book.tiers is not None or delta < 0) else ["tier_caps"]}
     if released:
         out["_released"] = {"verdict": "INFO", "ids": sorted(set(released))}
     return out
