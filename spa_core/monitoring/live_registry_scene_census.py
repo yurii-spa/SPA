@@ -463,7 +463,10 @@ def _run_pytest(root: Path, files: Sequence[str], *, mode: str, out: Path,
     # СЕССИЮ целиком. Первая редакция замера на этом и встала: один такой файл
     # (`test_named_cards_closed_at_origin_probe.py`) обнулял весь прогон, то есть
     # самая сильная находка класса делала класс НЕИЗМЕРИМЫМ.
-    cmd = [sys.executable, "-m", "pytest", *files, "-q", "--tb=no",
+    # `--rootdir` — якорь (класс `test_child_pytest_rootdir.py`): без него rootdir выбирается по ini-файлам
+    # ПРЕДКОВ дерева, и пути ошибок сбора зависели от того, что лежит в `$TMPDIR` раннера (CI 41333952013:
+    # `tmpXXX/tests/...` вместо `tests/...`; замер: TMPDIR с pyproject.toml краснил тест на любом коде).
+    cmd = [sys.executable, "-m", "pytest", *files, "-q", "--tb=no", "--rootdir", str(Path(root).resolve()),
            "-p", "no:randomly", "-p", "lrs_plugin", "--basetemp", str(basetemp),
            "--continue-on-collection-errors"]
     try:

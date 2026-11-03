@@ -148,7 +148,7 @@ def _run_scene(tmp_path: Path, name: str, extra_args: tuple[str, ...]) -> tuple[
             textwrap.dedent(_SCENE_CONFTEST[name])
         )
     proc = subprocess.run(
-        [sys.executable, "-m", "pytest", f"test_{name}.py",
+        [sys.executable, "-m", "pytest", f"test_{name}.py", "--rootdir", str(scene_dir),
          "-p", "no:cacheprovider", *extra_args],
         cwd=str(scene_dir), capture_output=True, text=True, timeout=300,
     )

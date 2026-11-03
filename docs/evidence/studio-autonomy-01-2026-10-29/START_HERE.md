@@ -1,5 +1,8 @@
 # START_HERE · STUDIO-AUTONOMY-01 (состояние на 2026-11-01, конец S4-пакета)
 
+> **Checkpoint 2026-11-02 (автономный мандат):** актуальное состояние, SHA, решения владельца и следующий шаг — `docs/evidence/autonomous-development-2026-11-01/AUTONOMOUS_DEVELOPMENT_HANDOVER.md` (ветка `tr/research-v1`). S4-кандидат заменён: `connect/s4-main` @ `e3f0a019`.
+
+
 Для новой сессии или архитектора: прочитать этот файл, затем `docs/continuity/BOOTSTRAP.md`. История чатов не нужна.
 
 ## Цель

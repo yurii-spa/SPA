@@ -1,0 +1,16 @@
+{
+  "series_id": "spot_frac-k075-band05-forward",
+  "status": "PREPARED — не запущена. Запуск = первый tick в боевом каталоге; это решение ARB (E6.6, вариант «а») и владельца (изменение расписания агента).",
+  "model": "spot_frac@v1",
+  "k": 0.75,
+  "band": 0.05,
+  "signal_and_control": "сигнал контроля TRP-05; контроль — существующий forward-кандидат живого движка, НЕ переписывается",
+  "control_id": "ma_cross@v1:BTC:1D:spot_long:3479f26323",
+  "control_def_hash": "3479f2632365d07607a142d6ee834ca3546285b1ad85a5acc584b8506d437980",
+  "registration": "собственная дата = момент первого tick (строка registration журнала); бары до неё в серию не попадают",
+  "cost_model": "spot: 10 bps комиссия + 5 bps проскальзывание на сторону, включая ребаланс внутри позиции; доход кэша — UNKNOWN (0 по допущению)",
+  "maturity_days": 30,
+  "acceptance": "E6.6: своя дата; контроль не переписан; аудит closed/gap/late; ≥7 суток наблюдений; новая попытка оптимизации НЕ является (TRP-05 бюджет 2/2 исчерпан)",
+  "launch_command": "python -c \"from spa_core.trading_research import forward_series as fs; ...\" — см. tick(series_dir, contract, market_db, now_ms) в spa_core/trading_research/forward_series.py",
+  "isolated_dry_run": "spa_core/tests/test_trading_research_forward_series.py (синтетическая рыночная база, одноразовый каталог)"
+}

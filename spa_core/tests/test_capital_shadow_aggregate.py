@@ -145,3 +145,68 @@ def test_fill_amount_must_be_positive():
             continue
         raise AssertionError(f"исполнение {bad} принято")
     assert book.reservations["a"]["usd"] == 10_000 and book.cash_usd == 50_000
+
+
+# ── доработка (Autonomous mandate 01.11, §2.2): версия политики у резерва, позиции, тиры ────────────────────────
+def test_reservation_from_an_older_policy_blocks_the_whole_set_until_rebuilt():
+    """Докстринг обещал: смена версии политики делает резервы недействительными. Резерв теперь помнит версию;
+    чужой резерв отказывает весь набор, отмена — открывает. Контроль: без смены версии тот же набор допускается."""
+    book = _book()
+    assert ag.admit(book, [_intent("a", "aave", 10_000)], now=NOW)["a"]["verdict"] == ag.ADMIT
+    book.policy_version = "v1.1"
+    v = ag.admit(book, [_intent("b", "morpho", 1_000, policy="v1.1")], now=NOW)["b"]
+    assert v["verdict"] == ag.REFUSE and "другой версии политики" in v["why"]
+    v2 = ag.admit(book, [_intent("b", "morpho", 1_000, policy="v1.1")], now=NOW, cancelled=("a",))["b"]
+    assert v2["verdict"] == ag.ADMIT
+    ctrl = _book()
+    ag.admit(ctrl, [_intent("a", "aave", 10_000)], now=NOW)
+    assert ag.admit(ctrl, [_intent("b", "morpho", 1_000)], now=NOW)["b"]["verdict"] == ag.ADMIT
+
+
+def test_unobserved_positions_refuse_not_crash():
+    book = ag.Book(nav_usd=100_000.0, cash_usd=50_000.0, positions_usd=None, policy_version="v1.0",
+                   book_state_digest="d1")
+    v = ag.admit(book, [_intent("a", "aave", 1)], now=NOW)["a"]
+    assert v["verdict"] == ag.REFUSE and "позиции" in v["why"]
+
+
+def test_tier_caps_mirror_riskpolicy_fields_without_new_thresholds():
+    """T2 на протокол — max_concentration_t2 (20 %), T2 совокупно — 50 %, T3 совокупно — 15 %. Контроль: тот же
+    объём в T1 допускается (потолок T1 — 40 %)."""
+    tiers = {"aave": "T1", "morpho": "T2", "euler": "T2", "maple": "T3", "goldfinch": "T3"}
+
+    def book(**pos):
+        b = _book(cash=90_000.0, positions=pos)
+        b.tiers = dict(tiers)
+        return b
+    v = ag.admit(book(), [_intent("a", "morpho", 25_000)], now=NOW)["a"]
+    assert v["verdict"] == ag.REFUSE and "потолка тира 20%" in v["why"]
+    assert ag.admit(book(), [_intent("a", "aave", 25_000)], now=NOW)["a"]["verdict"] == ag.ADMIT
+    # T2 совокупно: 2×19 % уже держится + резерв 15 % → 53 % > 50 %
+    b = _book(cash=40_000.0, positions={"morpho": 19_000.0, "euler": 19_000.0, "x": 2_000.0})
+    b.tiers = dict(tiers, x="T1", y="T2")
+    v = ag.admit(b, [_intent("a", "y", 15_000)], now=NOW)["a"]
+    assert v["verdict"] == ag.REFUSE and "T2 совокупно" in v["why"]
+    # T3 совокупно: 10 % + 6 % > 15 %
+    b3 = book(maple=10_000.0)
+    v = ag.admit(b3, [_intent("a", "goldfinch", 6_000)], now=NOW)["a"]
+    assert v["verdict"] == ag.REFUSE and "T3 совокупно" in v["why"]
+
+
+def test_tier_caps_count_reservations_of_the_same_set():
+    """Две T2-заявки по 15 % в одном наборе: каждая сама по себе ≤20 %, вместе на одном протоколе — 30 %."""
+    b = _book(cash=90_000.0)
+    b.tiers = {"morpho": "T2"}
+    out = ag.admit(b, [_intent("a", "morpho", 15_000), _intent("b", "morpho", 15_000, strategy="other")], now=NOW)
+    assert out["a"]["verdict"] == ag.ADMIT and out["b"]["verdict"] == ag.REFUSE
+
+
+def test_unknown_tier_is_a_refusal_and_missing_tier_map_is_named_unchecked():
+    b = _book()
+    b.tiers = {"aave": "T1"}
+    v = ag.admit(b, [_intent("a", "mystery", 1_000)], now=NOW)["a"]
+    assert v["verdict"] == ag.REFUSE and "тир mystery не известен" in v["why"]
+    v2 = ag.admit(_book(), [_intent("a", "aave", 1_000)], now=NOW)["a"]
+    assert v2["verdict"] == ag.ADMIT and v2["unchecked"] == ["tier_caps"]
+    b.tiers["mystery"] = "T1"
+    assert ag.admit(b, [_intent("a", "mystery", 1_000)], now=NOW)["a"]["unchecked"] == []

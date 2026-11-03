@@ -55,6 +55,7 @@ _META_KEYS = frozenset({
 # ===========================================================================
 
 @dataclass
+
 class PegStatus:
     """Состояние привязки одного адаптера."""
     adapter_id: str
@@ -616,16 +617,52 @@ class PegStabilityMonitor:
         except Exception:  # noqa: BLE001 — fail-safe: unknown ⇒ not held ⇒ no push
             return False
 
+    def _exposure(self, adapter_id: str):
+        """Затронутая экспозиция книги: ``("held", usd)`` · ``("planned", usd)`` (целевая раскладка цикла,
+        ``allocation_rationale.admissible_trim.target_after``) · ``("none", 0.0)`` · ``("unknown", None)``.
+
+        «Не измерено» — отдельный исход (инв. #17), а не «не удерживается»: прежде нечитаемый файл позиций молча
+        уводил депег удерживаемого протокола в дайджест."""
+        data_dir = Path(getattr(self, "_data_dir", None) or _DEFAULT_DATA_DIR)
+        aid = str(adapter_id).lower().replace("-", "_")
+
+        def match(keys):
+            return [k for k in keys if k and (str(k).lower().replace("-", "_") in aid or aid in str(k).lower().replace("-", "_"))]
+        try:
+            doc = json.loads((data_dir / "current_positions.json").read_text(encoding="utf-8"))
+            positions = doc.get("positions") if isinstance(doc, dict) else None
+            if not isinstance(positions, dict):
+                return "unknown", None
+        except (OSError, ValueError):
+            return "unknown", None
+        hit = match(positions)
+        if hit:
+            return "held", sum(float(positions[k] or 0) for k in hit)
+        try:
+            rat = json.loads((data_dir / "allocation_rationale.json").read_text(encoding="utf-8"))
+            target = ((rat.get("admissible_trim") or {}).get("target_after")) if isinstance(rat, dict) else None
+        except (OSError, ValueError):
+            target = None
+        if isinstance(target, dict):
+            hit = [k for k in match(target) if (target.get(k) or 0) > 0]
+            if hit:
+                return "planned", sum(float(target[k]) for k in hit)
+        return "none", 0.0
+
     def _push_peg_break(self, status, title: str, message: str) -> None:
         """Route a CRITICAL peg break through push_policy (held-scoped, edge)."""
         try:
             from spa_core.telegram import push_policy
+            kind, usd = self._exposure(status.adapter_id)
+            # TRP-06: фильтр по позиции не прячет ни ПЛАНИРУЕМУЮ сделку, ни угрозу данным — экспозиция «не измерена»
+            # тоже пушится. Устойчивый ID события — отпечаток адаптера и статуса: повтор молчит, смена причины пушит.
             push_policy.push_critical(
                 "peg_break",
                 "CRITICAL",
                 title,
-                message,
-                held_protocol=self._is_held_protocol(status.adapter_id),
+                message + "\n" + _exposure_line(kind, usd) + "\nИсточник: peg_monitor (котировки стейблкоинов).",
+                held_protocol=kind in ("held", "planned", "unknown"),
+                dedup_key=f"peg:{str(status.adapter_id).lower()}:{status.status}",
             )
         except Exception as exc:  # noqa: BLE001 — alerts must never crash the monitor
             log.warning("peg_monitor: push_policy routing failed: %s", exc)
@@ -891,3 +928,14 @@ def _main(argv=None) -> int:
 if __name__ == "__main__":
     import sys
     sys.exit(_main())
+
+
+def _exposure_line(kind: str, usd) -> str:
+    """Строка экспозиции для уведомления. Бумажный нотионал не выдаётся за реальные деньги (TRP-06)."""
+    if kind == "held":
+        return f"Экспозиция: удерживается в бумажной книге ${usd:,.0f} (не реальные деньги)."
+    if kind == "planned":
+        return f"Экспозиция: ПЛАНИРУЕТСЯ в целевой раскладке ${usd:,.0f} (бумага) — риск планируемой сделки."
+    if kind == "unknown":
+        return "Экспозиция: НЕ ИЗМЕРЕНА (позиции не прочитаны) — уведомление не подавлено."
+    return "Экспозиция: книги не затронуты."

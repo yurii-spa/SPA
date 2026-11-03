@@ -686,7 +686,19 @@
         " · " + pctText(r.cum_return) + " · " + t("capital.eng.dd") + " " + pctText(r.max_drawdown) + (r.date ? " · " + r.date : "")));
     } else if (r && r.rows) {
       card.appendChild(h("p", { class: "note" }, [t("capital.eng.per_candidate")]));
-      r.rows.forEach(function (x) { card.appendChild(h("div", { class: "eng-row" }, [h("span", { class: "eng-id" }, [x.id]), h("b", { class: "eng-num" }, [pctText(x.forward_net)])])); });
+      r.rows.forEach(function (x) {
+        card.appendChild(h("div", { class: "eng-row" }, [h("span", { class: "eng-id" }, [x.id]), h("b", { class: "eng-num" }, [pctText(x.forward_net)])]));
+        // мандат 01.11 §2.6: тот же результат против HOLD BTC за то же окно, после издержек — словами
+        if (x.vs_hold && x.vs_hold.text) card.appendChild(h("p", { class: "note eng-wrap eng-vs-hold" }, [x.vs_hold.text]));
+      });
+    }
+    var rc = b.research;
+    if (rc) {
+      [["capital.eng.hypothesis", rc.hypothesis], ["capital.eng.control", rc.control],
+       ["capital.eng.trust", rc.selection && rc.selection.text], ["capital.eng.data", rc.data && rc.data.text],
+       ["capital.eng.next", rc.next_check]].forEach(function (kv) {
+        if (kv[1]) card.appendChild(h("p", { class: "note eng-wrap eng-research" }, [h("b", {}, [t(kv[0]) + " "]), kv[1]]));
+      });
     }
     var ev = evidenceDrawer(b.evidence);
     if (ev) card.appendChild(ev);
