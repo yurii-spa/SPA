@@ -2,11 +2,11 @@
 
 > Авто-генерится `scripts/build_tracker_board.py` из `nimbalyst-local/tracker/*.md`. НЕ править вручную — правь карточки. Источник правды — карточки, это индекс (bootstrap).
 >
-> Собрана: 2026-11-03T10:15:07Z · сверка с карточками: `python3 scripts/build_tracker_board.py --check` (сторож `spa_core/tests/test_tracker_board_matches_cards.py`).
+> Собрана: 2026-11-03T17:24:52Z · сверка с карточками: `python3 scripts/build_tracker_board.py --check` (сторож `spa_core/tests/test_tracker_board_matches_cards.py`).
 >
-> Сверено с `origin/main` (1d557fb8a).
+> Сверено с `origin/main` (76c050ab4) · у **1** своя правка, кто новее — не измерено.
 >
-> Всего карточек: **1575** · ждёт владельца: **7** · занято сессиями: **13**.
+> Всего карточек: **1576** · ждёт владельца: **7** · занято сессиями: **13**.
 
 ## 🔴 ЖДЁТ ВЛАДЕЛЬЦА (needs-owner)
 
@@ -424,7 +424,7 @@
 ### · closed
 - Считать ли верный отказ по правилам допуска неисправностью флота  ·  `owner-decision-schitat-li-vernyi-otkaz-po-pravilam-dopu.md` · 2026-10-08
 
-## 📥 Inbox (задания: Telegram / заметки / голос)  (890)
+## 📥 Inbox (задания: Telegram / заметки / голос)  (891)
 
 ### · in-progress
 - а задача починить все-таки еще раз сообщение которым не пишет нужно твое решени…  ·  `inbox-a-zadacha-pochinit-vse-taki-esche-raz-so.md` · 2026-08-14 · 🔒 `pid43119`
@@ -916,6 +916,7 @@
 - Уборщик зовёт «недоставленной работой» ОТСУТСТВУЮЩИЙ файл — после переноса HEAD на свежий origin  ·  `inbox-uborschik-zovet-nedostavlennoi-rabotoi-otsutstvuyuschii-fail.md` · 2026-08-25
 - Упавший классификатор превратился в 44 вопроса владельцу, а 44 задания — в done  ·  `inbox-upavshii-klassifikator-prevratilsya-v-44.md` · 2026-08-12
 - usual_usd0pp отдаёт число ЧУЖОГО актива: отбор по подстроке приземляется на BUSD0, а пула USD0++ в фиде нет  ·  `inbox-usual-usd0pp-otdaet-chislo-chuzhogo-akti.md` · 2026-08-29
+- Вердикт пятнадцати тестов зависит от СОДЕРЖИМОГО дерева, а не от кода — класс измерен, шов не заведён  ·  `inbox-verdikt-pyatnadtsati-testov-zavisit-ot-s.md` · 2026-11-03
 - Вердикт WIRABLE подделываем: 22 из 23 «пригодных» модулей читают РОВНО ОДИН ключ  ·  `inbox-verdikt-wirable-poddelyvaem-22-iz-23-pri.md` · 2026-08-06
 - Весь поддомен checkup.earn-defi.com отдаёт 404 — с главной публично ведут битые ссылки, и job site-freshness красный всегда  ·  `inbox-ves-poddomen-checkup-earn-defi-com-otdae.md` · 2026-08-14
 - Ветка unreadable-description-ltyucb СНОВА несёт вопросы владельца, хотя карточка о ней закрыта: 3 ADR + 4 карточки  ·  `inbox-vetka-unreadable-description-ltyucb-snov.md` · 2026-08-21
@@ -1221,6 +1222,7 @@
 - Шаг 0-офис: три артефакта несут не те поля, что объявлены — «СХЕМА РАЗОШЛАСЬ» без карточки  ·  `inbox-shag-0-ofis-tri-artefakta-nesut-ne-te-po.md` · 2026-10-11
 - Шаг 0a мерит дерево ЗАПУСКАТЕЛЯ, а не работника: недоставленную работу он назвал вердиктом «поднимать нечего»  ·  `inbox-shag-0a-merit-derevo-zapuskatelya-a-ne-r.md` · 2026-10-16
 - Шаг 0a МОЛЧИТ о дереве по живому якорю-хосту — так 28.08 была скрыта недоставленная работа  ·  `inbox-shag-0a-molchit-o-dereve-po-zhivomu-yako.md` · 2026-08-28
+- Шаг 0a не отличает НЕЗАКОНЧЕННУЮ работу от недоставленной — три цикла подряд «поднимали» то, у чего не было центрального артефакта  ·  `inbox-shag-0a-ne-otlichaet-nezakonchennuyu-rab.md` · 2026-11-03
 - Шаг 0a предлагает поднять МУТАНТА как недоставленную работу — читателя окна он не зовёт  ·  `inbox-shag-0a-predlagaet-podnyat-mutanta-kak-n.md` · 2026-10-17
 - Шаг 0a зовёт поднять файл, который в прод-дереве ОТСТАЁТ на 1672 строки — подъём стёр бы 14 записей реестра  ·  `inbox-shag-0a-zovet-podnyat-fail-kotoryi-v-pro.md` · 2026-08-21
 - Шторм повторов одного решения владельцу (200+ копий за ночь) — анти-шторм доставлен, корень (слепой предикат «отправлено») остаётся  ·  `inbox-shtorm-povtorov-odnogo-resheniya-vladeltsu.md` · 2026-08-20
@@ -1298,7 +1300,6 @@
 - Вердикт деска по sUSDS стоит на СНЯТОЙ причине — а книга этот актив держит  ·  `inbox-verdikt-deska-po-susds-stoit-na-snyatoi.md` · 2026-08-25
 - Вердикт памяти копий не доходит до читателя очереди: шаг 1 печатает origin_check и молчит про 94 пропавшие записи  ·  `inbox-verdikt-pamyati-kopii-ne-dohodit-do-chit.md` · 2026-10-13
 - Вердикт прогона 41197602899 ИЗМЕРЕН: починка #994 сняла 8 имён, вклад цикла ноль — но +1 против базы не из его диффа и локально зелен  ·  `inbox-verdikt-progona-41197602899-izmeren-poch.md` · 2026-10-31
-- Вердикт пятнадцати тестов зависит от СОДЕРЖИМОГО дерева, а не от кода — класс измерен, шов не заведён  ·  `inbox-verdikt-pyatnadtsati-testov-zavisit-ot-s.md` · 2026-11-03
 - Вердикт сторожа архитектуры относится к манифесту, которого больше нет — а 492 строки нового лежат в прод-дереве незакоммиченными  ·  `inbox-verdikt-storozha-arhitektury-otnositsya.md` · 2026-08-30
 - Вернуть разделы, потерянные доставкой 07.10 с шести карточек владельца  ·  `inbox-vernut-razdely-poteryannye-dostavkoi-07.md` · 2026-10-15
 - Ветка сверки по mtime срабатывает на свежем worktree всегда — у неё СВОЙ дефект, тактом не лечится (остаток ADR-264)  ·  `inbox-vetka-sverki-po-mtime-srabatyvaet-na-sve.md` · 2026-09-08
