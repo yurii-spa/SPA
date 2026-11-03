@@ -107,6 +107,9 @@ from __future__ import annotations
 import itertools
 from typing import Dict, List, Optional, Tuple
 
+from spa_core.paper_trading.trim_admissibility import remember_comparison as _remember_comparison
+from spa_core.paper_trading.trim_admissibility import with_book_verdict_memo as _with_book_verdict_memo
+
 _EPS = 1e-9
 
 #: Шаг пробы по обе стороны порога участка. ЦЕНТ — квант самой книги
@@ -428,6 +431,7 @@ def search_with_size_scan(current: Dict[str, float],
                       "оптимум (ЛП), и он money-path")}
 
 
+@_remember_comparison
 def compare_trim_size_edge(current: Dict[str, float],
                            proposal: Dict[str, float],
                            apy_pct: Dict[str, float], *,
@@ -526,6 +530,7 @@ def compare_trim_size_edge(current: Dict[str, float],
     }
 
 
+@_with_book_verdict_memo
 def trim_size_edge_census(records: List[dict], *, params,
                           tiers: Dict[str, str],
                           tiers_measured: bool,

@@ -1,0 +1,70 @@
+{
+ "scenario": "B_defect",
+ "synthetic": false,
+ "provider_id": "claude_subscription_cli",
+ "steps": [
+  {
+   "step": "plan",
+   "graph_version": "2ef6a56f21a714889cef87e3fe93afa5ba4a4f85daae201906781dae17b962a2",
+   "tasks": [
+    "fix-apy-to-decimal"
+   ]
+  }
+ ],
+ "defect_reproduced": true,
+ "unapproved": {
+  "rc": 3,
+  "state": "new",
+  "why": "{\"step\": \"refused\", \"why\": \"ослабление admission ['min_free_disk_gb', 'registry_dir'] разрешено только одноразовой сцене во временном каталоге (/private/var/folders/6q/78j7h2557tx6hkbkw3cmrsc00000gn/T); каталог прогона/стенд вне него\"}\n",
+  "refused": false
+ },
+ "killed_at": "new",
+ "resume": {
+  "rc": 3,
+  "states": [],
+  "done": false,
+  "out": ""
+ },
+ "no_double_effect": false,
+ "model_calls": 1,
+ "model_calls_limit": 2,
+ "role": {
+  "role": "skipped"
+ },
+ "owner_interventions": 0,
+ "time_to_result_s": 22.1,
+ "owner_text": "Исправление не прошло регрессию.",
+ "verdict": "FAILED",
+ "wall_s": 22.1,
+ "attempt_rows": [
+  {
+   "phase": "call_started",
+   "status": null,
+   "provider_id": "claude_subscription_cli",
+   "provider_kind": null,
+   "real_provider": null,
+   "duration_s": null,
+   "usage": null,
+   "contract_attempts": null,
+   "context_sha256": "04586f0400746b6342a3fba3c0ca73b04beafa2438533e808f8ccd276a451f05"
+  },
+  {
+   "phase": "result",
+   "status": "ok",
+   "provider_id": "claude_subscription_cli",
+   "provider_kind": "claude_cli",
+   "real_provider": true,
+   "duration_s": null,
+   "usage": {
+    "cache_creation_input_tokens": 44570,
+    "cache_read_input_tokens": 0,
+    "cost_reported_usd": 0.47223499999999996,
+    "input_tokens": 2,
+    "output_tokens": 1013,
+    "quota_remaining": "UNKNOWN"
+   },
+   "contract_attempts": 1,
+   "context_sha256": "04586f0400746b6342a3fba3c0ca73b04beafa2438533e808f8ccd276a451f05"
+  }
+ ]
+}
