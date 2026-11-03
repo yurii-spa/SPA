@@ -1,0 +1,95 @@
+{
+ "schema_version": 1,
+ "adr": "ADR-908",
+ "order": "G900 п. 1 (карточка inbox-shag-0a-ne-otlichaet-nezakonchennuyu-rab)",
+ "instrument": "scripts/unfinished_work_census.py",
+ "measured_in": "цикл #1023, 2026-11-03: журнал объявлений прод-дерева 3306 записей (разобраны все, нечитаемых 0), история имён origin/main взята у объявленного полного клона ~/Documents/SPA_mirror через единственную дверь history_door_price.resolve_history_root (18738 имён), вторая дверь записи — трекер worktree на origin/main 138c26117",
+ "base_sha": "138c26117",
+ "measured_at": "2026-11-03T19:28:04Z",
+ "journal_records": 3306,
+ "history_names": "18738 имён из истории origin/main в /Users/yuriikulieshov/Documents/SPA_mirror",
+ "axis_one": {
+  "members_total": 150,
+  "strong_sign": 5,
+  "weak_sign": 145,
+  "judged_paths": 2260,
+  "unmeasured_paths": 12037,
+  "class_members": 3,
+  "sign_false_positives": 2,
+  "sign_precision": "3/5",
+  "subjects_of_class": [
+   "tree_content_class_baseline.json"
+  ],
+  "rows": [
+   {
+    "session": "cycle-48282",
+    "ts": "2026-11-02T09:21:00Z",
+    "path": "/Users/yuriikulieshov/Documents/SPA_wt_c1011/scripts/subprocess_clock_door_census.py",
+    "tree": "/Users/yuriikulieshov/Documents/SPA_wt_c1011",
+    "card": "inbox-task-portfolio-cio-dynamic-capital-alloc.md",
+    "verdict": "rename",
+    "evidence": "работа #1011 ДОСТАВЛЕНА коммитом 9e27fa0e9 под ДРУГИМ именем — spa_core/tests/_subprocess_clock_door.py (проверено git log origin/main в зеркале); перенос из scripts/ потребовал храповик «скрипт без вызывающего», и об этом сказано в самом сообщении коммита. Объявленное имя не создавалось НИКОГДА, но работа не была незаконченной — сессия не умирала"
+   },
+   {
+    "session": "cycle-48282",
+    "ts": "2026-11-02T09:59:00Z",
+    "path": "/Users/yuriikulieshov/Documents/SPA_wt_c1011/scripts/subprocess_clock_door_census.py",
+    "tree": "/Users/yuriikulieshov/Documents/SPA_wt_c1011",
+    "card": "inbox-task-portfolio-cio-dynamic-capital-alloc.md",
+    "verdict": "rename",
+    "evidence": "работа #1011 ДОСТАВЛЕНА коммитом 9e27fa0e9 под ДРУГИМ именем — spa_core/tests/_subprocess_clock_door.py (проверено git log origin/main в зеркале); перенос из scripts/ потребовал храповик «скрипт без вызывающего», и об этом сказано в самом сообщении коммита. Объявленное имя не создавалось НИКОГДА, но работа не была незаконченной — сессия не умирала"
+   },
+   {
+    "session": "cycle-20600",
+    "ts": "2026-11-03T11:27:52Z",
+    "path": "/private/tmp/spa_c1019/spa_core/tests/tree_content_class_baseline.json",
+    "tree": "/private/tmp/spa_c1019",
+    "card": "",
+    "verdict": "class",
+    "evidence": "сессия умерла (pid20600 измерен мёртвым #1020 через kill -0), объявленного центрального артефакта ADR-907 нет НИ В ОДНОМ из её деревьев (прямой ls: spa_c1019, spa_c1019_door — оба существуют, файла нет); шаг 0a назвал находку «надо поднять», и поднимать было нечего — работу ДОДЕЛАЛ #1022"
+   },
+   {
+    "session": "cycle-55577",
+    "ts": "2026-11-03T12:51:49Z",
+    "path": "/private/tmp/spa_c1020/spa_core/tests/tree_content_class_baseline.json",
+    "tree": "/private/tmp/spa_c1020",
+    "card": "inbox-verdikt-pyatnadtsati-testov-zavisit-ot-s.md",
+    "verdict": "class",
+    "evidence": "сессия умерла (pid55577 измерен мёртвым #1021), дерево spa_c1020 существует, объявленного артефакта в нём нет (прямой ls); это ВТОРОЙ подъём того же незаконченного предмета"
+   },
+   {
+    "session": "cycle-29295",
+    "ts": "2026-11-03T15:09:03Z",
+    "path": "/private/tmp/spa_c1021/spa_core/tests/tree_content_class_baseline.json",
+    "tree": "/private/tmp/spa_c1021",
+    "card": "inbox-verdikt-pyatnadtsati-testov-zavisit-ot-s.md",
+    "verdict": "class",
+    "evidence": "сессия умерла (pid29295 измерен мёртвым #1022), деревья spa_c1021 и spa_c1021_run существуют, объявленного артефакта нет ни в одном (прямой ls); ТРЕТИЙ подъём того же предмета"
+   }
+  ]
+ },
+ "axis_two": {
+  "supply_on_disk": 1472,
+  "named_by_the_record": 14,
+  "named_of_supply": 14,
+  "unmeasured_while_walking": 0
+ },
+ "seam": {
+  "chosen": "в — порядок ПОДЪЁМА дописывается в правило, прибор НЕ учится судить законченность",
+  "why": "Точность сильного признака ИЗМЕРЕНА и равна 3/5: из пяти его срабатываний два (cycle-48282) есть ПЕРЕИМЕНОВАНИЕ при доставке, а не незаконченная работа. Отказ или вердикт прибора на таком признаке ошибался бы в двух случаях из пяти, то есть вернул бы ровно тот дефект, против которого карточка написана — догадку о законченности. Поэтому шов есть ВОПРОС поднимающей сессии («назван ли центральный артефакт и есть ли он в дереве»), а не вердикт сторожа: вопрос при ошибке стои́т один ls, а ложный отказ стои́т цикл.",
+  "refused": [
+   {
+    "option": "а — объявление ОБЯЗАНО называть свой центральный артефакт, и шаг 0a спрашивает его отдельно",
+    "price": "Новое обязательное поле у log_session_change.py действует только на объявления ПОСЛЕ правки, то есть класс остаётся неизмеримым на всей наблюдаемой истории (12037 путей из 14313 уже НЕ ИЗМЕРЕНЫ: дерево снято либо не названо). На замере 03.11 поле не помогло бы и вперёд: #1011 назвал бы ровно то имя, которого не создал, и получил бы вердикт «не закончено» при доставленной работе."
+   },
+   {
+    "option": "б — третий исход НЕ ЗАКОНЧЕНО рядом с НЕ ДОСТАВЛЕНО у самого шага 0a",
+    "price": "Исход считался бы по тому же признаку точности 3/5, то есть шаг 0a начал бы называть доставленную работу незаконченной в 40 % своих срабатываний на этой поверхности. Цена ошибки асимметрична: «не доставлено» ведёт к ручной сверке, «не закончено» — к переделке с нуля."
+   },
+   {
+    "option": "г — учить прибор искать артефакт замера ВНЕ дерева, чтобы подъём не платил заново",
+    "price": "Ось 2 измерена и говорит, что искать нечего: предложение на диске 1470 артефактов, названо записью 14 (0.95 %), и ровно ОДИН из названных есть вывод замера мёртвой сессии (/private/tmp/c1020_diff_base.log) — он назван только потому, что #1022 вписал его в карточку РУКОЙ. Поиск по записи вернул бы 13 стоячих логов живых агентов, то есть шум."
+   }
+  ]
+ }
+}

@@ -13408,6 +13408,120 @@ def _probe_fixture_gap_class_is_empty(
         f"{verdict.exempt}, имён в базе {verdict.declared_keys}")
 
 
+def _probe_unfinished_work_class_population_named(
+        arg: str | None = None, *, declaration=None, module=None) -> tuple[str, str]:
+    """Критерий карточки `inbox-shag-0a-ne-otlichaet-nezakonchennuyu-rab` (ADR-908).
+
+    Предмет — ИСХОД, а не «тест зелен»: карточка требует, чтобы население ОБЕИХ осей
+    было измерено и названо ЧИСЛОМ С ДАТОЙ, а выбранный шов (или осознанный отказ от
+    шва) записан вместе с ЦЕНОЙ альтернатив. Проба спрашивает ровно это у объявления,
+    которое пишет КОД (`scripts/unfinished_work_census.py --emit-declaration`).
+
+    Четыре вопроса, и согласие нужно по всем четырём:
+
+    1. объявление читается, схема та, и названы ADR · заказ · прибор · замер · sha базы
+       (замер без своей цены-происхождения есть проза, а не число);
+    2. ось 1 названа числом, и у КАЖДОЙ сильной строки стои́т вердикт из словаря плюс
+       ДОКАЗАТЕЛЬСТВО — потому что признак ошибается: его точность измерена и объявлена,
+       и строка без разбора превратила бы ложное срабатывание в член класса;
+    3. ось 2 названа ДВУМЯ числами (предложение на диске · названо записью): одно без
+       другого не значит ничего — ровно та форма «зелёный ответ своему вопросу»;
+    4. шов назван, у него есть причина, и у каждого отвергнутого пути названа ЦЕНА.
+
+    Проба НЕ перемеряет класс и не зовёт прибор: замер стои́т полного обхода журнала и
+    диска, а в наборе, который обязан проходить за минуты, ему места нет. Она
+    спрашивает, не развалилось ли ОБЪЯВЛЕНИЕ, которым следующий цикл берёт замер даром.
+
+    Очередь карточек проба НЕ читает намеренно: её предмет — файл объявления в дереве
+    кода. Проба, читающая свою карточку, сама стала бы членом класса ADR-905.
+
+    Три исхода различимы (инв. #17): `unmeasured` — прибор не импортируется, объявление
+    не прочитано или не разбирается; `not_satisfied` — хоть один вопрос отвечен
+    отрицательно, и строка НАЗЫВАЕТ какой; `satisfied` — все четыре, и печатаются
+    ИЗМЕРЕННЫЕ числа, а не постоянная строка.
+
+    `declaration` / `module` инъектируются ТОЛЬКО контрольной батареей.
+    """
+    if module is None:
+        import importlib  # noqa: PLC0415
+        try:
+            module = importlib.import_module("scripts.unfinished_work_census")
+        except Exception as exc:  # noqa: BLE001 — третий исход, а не согласие
+            return UNMEASURED, f"прибор замера не импортируется: {type(exc).__name__}: {exc}"
+
+    if declaration is None:
+        from pathlib import Path as _Path  # noqa: PLC0415
+        path = _Path(module.PROJECT_ROOT) / module.DECLARATION_REL
+        try:
+            declaration = json.loads(path.read_text(encoding="utf-8"))
+        except Exception as exc:  # noqa: BLE001 — третий исход
+            return UNMEASURED, f"объявление {path} не прочитано: {type(exc).__name__}: {exc}"
+
+    if not isinstance(declaration, dict) or declaration.get("schema_version") != 1:
+        return UNMEASURED, (f"схема объявления не та: "
+                            f"{declaration.get('schema_version') if isinstance(declaration, dict) else type(declaration).__name__}")
+
+    problems: list[str] = []
+
+    missing = [f for f in ("adr", "order", "instrument", "measured_in", "base_sha",
+                           "measured_at")
+               if not str(declaration.get(f) or "").strip()]
+    if missing:
+        problems.append("не названы поля замера: " + ", ".join(missing))
+
+    axis_one = declaration.get("axis_one")
+    if not isinstance(axis_one, dict):
+        return UNMEASURED, "в объявлении нет `axis_one` объектом"
+    rows = axis_one.get("rows")
+    if not isinstance(rows, list) or not rows:
+        problems.append("ось 1 не назвала ни одной разобранной строки — «класс пуст» "
+                        "доказывается прибором, а не пустым перечнем")
+        rows = []
+    for row in rows:
+        if row.get("verdict") not in module.VERDICTS:
+            problems.append(f"у строки {row.get('path')} вердикт "
+                            f"{row.get('verdict')!r} не из словаря прибора")
+        if not str(row.get("evidence") or "").strip():
+            problems.append(f"у строки {row.get('path')} вердикт без доказательства")
+    for field in ("class_members", "strong_sign", "judged_paths", "unmeasured_paths"):
+        if not isinstance(axis_one.get(field), int):
+            problems.append(f"ось 1 не названа числом по полю `{field}`")
+
+    axis_two = declaration.get("axis_two")
+    if not isinstance(axis_two, dict):
+        return UNMEASURED, "в объявлении нет `axis_two` объектом"
+    for field in ("supply_on_disk", "named_by_the_record"):
+        if not isinstance(axis_two.get(field), int):
+            problems.append(f"ось 2 не названа числом по полю `{field}` — "
+                            "одна половина без другой не значит ничего")
+
+    seam = declaration.get("seam")
+    if not isinstance(seam, dict):
+        return UNMEASURED, "в объявлении нет `seam` объектом"
+    if not str(seam.get("chosen") or "").strip():
+        problems.append("шов не назван — ни выбранный, ни осознанный отказ")
+    if not str(seam.get("why") or "").strip():
+        problems.append("у выбора шва нет причины")
+    refused = seam.get("refused") or []
+    if not refused:
+        problems.append("цена отвергнутых путей не названа — выбор без альтернатив есть жест")
+    for item in refused:
+        if not str((item or {}).get("price") or "").strip():
+            problems.append(f"у отвергнутого пути {(item or {}).get('option')!r} "
+                            "не названа ЦЕНА")
+
+    if problems:
+        return NOT_SATISFIED, " · ".join(problems)
+    return SATISFIED, (
+        f"население названо замером {declaration['measured_at']}: ось 1 — членов "
+        f"{axis_one['class_members']} из {axis_one['strong_sign']} срабатываний "
+        f"сильного признака (точность {axis_one.get('sign_precision')}), судимых путей "
+        f"{axis_one['judged_paths']} при НЕ ИЗМЕРЕНО {axis_one['unmeasured_paths']}; "
+        f"ось 2 — предложение на диске {axis_two['supply_on_disk']}, названо записью "
+        f"{axis_two['named_by_the_record']}; шов: {seam['chosen']} "
+        f"(отвергнуто путей {len(refused)}, у каждого названа цена)")
+
+
 def _probe_tree_content_class_declaration_holds(
         arg: str | None = None, *, declaration=None,
         module=None) -> tuple[str, str]:
@@ -16367,6 +16481,8 @@ PROBES: dict[str, Callable[[str | None], "tuple[str, str]"]] = {
     "fixture_gap_class_is_empty": _probe_fixture_gap_class_is_empty,
     "tree_content_class_declaration_holds":
         _probe_tree_content_class_declaration_holds,
+    "unfinished_work_class_population_named":
+        _probe_unfinished_work_class_population_named,
     "answer_list_order_names_its_caller":
         _probe_answer_list_order_names_its_caller,
     "bridge_stage_declaration_agrees":
