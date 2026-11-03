@@ -37,6 +37,7 @@ if str(_REPO_ROOT) not in sys.path:
     sys.path.insert(0, str(_REPO_ROOT))
 
 from spa_core.monitoring import owner_answer_delivery as oad  # noqa: E402
+from spa_core.tests._tree_content_observation import require_tree_content
 
 
 def _load(path: Path, name: str):
@@ -427,9 +428,8 @@ class TestTheLivePopulationIsNotRed:
     """
 
     def test_every_card_of_the_tree_agrees_with_origin_or_is_signed(self):
-        tracker = _REPO_ROOT / "nimbalyst-local" / "tracker"
-        if not tracker.is_dir():
-            pytest.skip(f"трекера нет в этом дереве: {tracker}")
+        tracker = require_tree_content(_REPO_ROOT / "nimbalyst-local" / "tracker",
+                                       "очередь карточек этого дерева", kind="каталог")
         if subprocess.run(["git", "rev-parse", "--verify", "origin/main"],
                           capture_output=True, cwd=str(_REPO_ROOT)).returncode != 0:
             pytest.skip("origin/main в этом дереве не разрешается — сравнивать не с чем")

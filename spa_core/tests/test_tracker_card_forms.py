@@ -33,6 +33,7 @@ from spa_core.owner_queue.queue import (
 )
 from spa_core.owner_queue.notify import build_message
 from spa_core.owner_queue.status_audit import TRAIL_KEY, read_trail
+from spa_core.tests._tree_content_observation import require_tree_content
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
 
@@ -95,9 +96,8 @@ def test_live_tracker_positive_control_flat_owner_decision_is_visible() -> None:
     ``own-rnd-xsd-rank-demotion-allocator`` — реальная плоская карточка решения владельца.
     Она была одной из трёх, которых CLI не показывал вовсе (#143–#145).
     """
-    card_path = TRACKER_DIR / "own-rnd-xsd-rank-demotion-allocator.md"
-    if not card_path.exists():
-        pytest.skip("живая карточка положительного контроля отсутствует в этом дереве")
+    require_tree_content(TRACKER_DIR / "own-rnd-xsd-rank-demotion-allocator.md",
+                         "живая плоская карточка положительного контроля")
     ids = {c.id for c in list_cards(tracker_type="owner-decision", tracker_dir=TRACKER_DIR)}
     assert "own-rnd-xsd-rank-demotion-allocator" in ids
 
@@ -158,8 +158,7 @@ def test_every_live_needs_owner_card_shows_the_owner_a_human_name() -> None:
     Ждущая ответа карточка без читаемого названия — это вопрос, который владелец не
     узнаёт в списке; ровно так девять плоских карточек выглядели до #183.
     """
-    if not TRACKER_DIR.exists():
-        pytest.skip("трекера нет в этом дереве")
+    require_tree_content(TRACKER_DIR, "очередь карточек этого дерева", kind="каталог")
     faceless = [c.id for c in list_cards(status="needs-owner", tracker_dir=TRACKER_DIR)
                 if not c.title or c.title == c.id]
     assert faceless == [], f"карточки ждут владельца без названия: {faceless}"

@@ -37,6 +37,7 @@ from spa_core.owner_queue import origin_view
 from spa_core.owner_queue.origin_view import (DROPPED_MARKER, branch_only_cards,
                                               dropped_registry,
                                               parse_dropped_declarations)
+from spa_core.tests._tree_content_observation import require_member, require_tree_content
 
 ROOT = Path(__file__).resolve().parents[2]
 BRANCH = "claude/work-status-check-xfnbew"
@@ -332,12 +333,19 @@ TRIAGE_CARD = "inbox-razobrat-52-kartochki-s-vetki-work-statu"
 
 
 def _real_cards():
-    """Карточки ЭТОГО дерева. Каталога нет ⇒ `skip`: `nimbalyst-local/` не возит ни
-    автосинк, ни CI-чекаут (урок #193), и «файла нет» здесь — свойство дерева, а не
-    системы. Судить о системе по нему значит красить прод по построению."""
-    tracker = ROOT / origin_view.TRACKER_REL
-    if not tracker.is_dir():
-        pytest.skip("каталога очереди нет в этом дереве")
+    """Карточки ЭТОГО дерева. Каталога нет ⇒ ГРОМКИЙ третий исход «НЕ ИЗМЕРЕНО».
+
+    Здесь стоял `pytest.skip` с оправданием «`nimbalyst-local/` не возит ни автосинк,
+    ни CI-чекаут (урок #193)». Половина про автосинк верна (ADR-152), половина про
+    CI-чекаут ОПРОВЕРГНУТА замером ADR-906: очередь git-tracked (1569 файлов),
+    `sparse-checkout` не объявлен ни в одном воркфлоу ⇒ в CI содержимое есть всегда,
+    и скип там не срабатывал НИ РАЗУ. Срабатывал он на НЕПОЛНОМ дереве — то есть
+    ровно там, где о неполноте надо сказать вслух, а не исчезнуть (инв. #17, урок #465).
+    «Судить о системе по отсутствию файла» отказ и не предлагает: он судит о ДЕРЕВЕ
+    и называет это вслух.
+    """
+    tracker = require_tree_content(ROOT / origin_view.TRACKER_REL,
+                                   "очередь карточек этого дерева", kind="каталог")
     return sorted(tracker.glob("*.md"))
 
 
@@ -357,8 +365,7 @@ def test_no_real_card_produces_a_broken_declaration():
 def test_the_triage_card_declares_the_three_branch_cards():
     """Приёмка карточки: три вердикта пачки 3 записаны машиночитаемо и с провенансом."""
     cards = {c.stem: c for c in _real_cards()}
-    if TRIAGE_CARD not in cards:
-        pytest.skip(f"карточки {TRIAGE_CARD} нет в этом дереве (урок #193)")
+    require_member(TRIAGE_CARD, cards, "карточка разбора пачки 3 в очереди этого дерева")
     rows, bad = parse_dropped_declarations(
         cards[TRIAGE_CARD].read_text(encoding="utf-8"), TRIAGE_CARD)
     assert bad == []

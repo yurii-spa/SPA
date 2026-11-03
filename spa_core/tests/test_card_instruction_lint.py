@@ -30,6 +30,7 @@ from pathlib import Path
 import pytest
 
 from spa_core.owner_queue import card_instruction_lint as L
+from spa_core.tests._tree_content_observation import require_tree_content
 
 # ── Замороженная копия инструкции из карточки 22.08 ────────────────────────────────────
 # FROZEN-TEXT-OK: это исторический артефакт (текст, реально ушедший владельцу 22.08.2026),
@@ -133,9 +134,9 @@ def test_frozen_fixture_still_matches_the_real_card():
 
     Иначе положительный контроль однажды начнёт проверять текст, которого не было.
     """
-    real = L.repo_root() / "nimbalyst-local" / "tracker" / f"{ACCIDENT_CARD_ID}.md"
-    if not real.exists():
-        pytest.skip(f"карточки {ACCIDENT_CARD_ID} нет в этом дереве — сверять не с чем")
+    real = require_tree_content(
+        L.repo_root() / "nimbalyst-local" / "tracker" / f"{ACCIDENT_CARD_ID}.md",
+        f"настоящая карточка {ACCIDENT_CARD_ID} (эталон замороженной фикстуры)")
     section = L.instruction_section(real.read_text(encoding="utf-8"))
     assert section is not None, "у настоящей карточки пропала секция «Что от тебя нужно»"
     for token in ("notify_channel", "/api/pilot/requests/count"):

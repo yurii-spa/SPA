@@ -17,6 +17,7 @@ import re
 from pathlib import Path
 
 import pytest
+from spa_core.tests._tree_content_observation import require_tree_content
 
 _ROOT = Path(__file__).resolve().parents[2]
 _AUDIT = _ROOT / "docs" / "AI1_AUDIT.md"
@@ -74,8 +75,8 @@ def test_a_planted_drift_is_caught():
 
 # ── живой слой ───────────────────────────────────────────────────────────
 def test_audit_table_matches_every_card():
-    if not _AUDIT.exists() or not _TRACKER.exists():
-        pytest.skip("документ или трекер недоступны в этом дереве")
+    require_tree_content(_AUDIT, "документ аудита AI1 — окно в карточки")
+    require_tree_content(_TRACKER, "очередь карточек этого дерева", kind="каталог")
     rows = audit_rows(_AUDIT.read_text(encoding="utf-8"))
     assert len(rows) >= 7, f"в таблице задач всего {len(rows)} строк — сверка ослабла"
 

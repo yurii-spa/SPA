@@ -31,6 +31,7 @@ from datetime import datetime, timezone
 from pathlib import Path
 
 import pytest
+from spa_core.tests._tree_content_observation import require_tree_content
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
 TRACKER_DIR = REPO_ROOT / "nimbalyst-local" / "tracker"
@@ -213,8 +214,7 @@ def test_board_states_its_own_build_time(sandbox: Path) -> None:
 
 def test_live_board_states_a_build_time() -> None:
     """Живая доска обязана нести отметку сборки — читателю нужен её возраст."""
-    if not (TRACKER_DIR / "_BOARD.md").exists():
-        pytest.skip("трекера нет в этом дереве")
+    require_tree_content(TRACKER_DIR / "_BOARD.md", "живая доска очереди")
     board = _load_builder()
     text = (TRACKER_DIR / "_BOARD.md").read_text(encoding="utf-8")
     assert board.BUILT_AT_PREFIX in text, "доска не называет собственную дату сборки"
@@ -231,8 +231,7 @@ def test_live_board_matches_live_cards() -> None:
     правкой статусов карточек под доску (инвариант 14) и не отключением сторожа
     (инвариант 16).
     """
-    if not TRACKER_DIR.exists():
-        pytest.skip("трекера нет в этом дереве")
+    require_tree_content(TRACKER_DIR, "очередь карточек этого дерева", kind="каталог")
     board = _load_builder()
     drift = board.board_drift(TRACKER_DIR)
     assert drift == [], (

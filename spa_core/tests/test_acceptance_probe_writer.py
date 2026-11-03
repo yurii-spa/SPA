@@ -29,9 +29,11 @@ import sys
 import tempfile
 import unittest
 from datetime import datetime, timedelta, timezone
+from pathlib import Path
 
 from spa_core.monitoring import card_acceptance as ca
 from spa_core.owner_queue.queue import set_acceptance_probe
+from spa_core.tests._tree_content_observation import require_tree_content
 
 _REPO = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 _CLI = os.path.join(_REPO, "scripts", "orchestrator_queue.py")
@@ -336,10 +338,10 @@ class TheProbeIsDeclaredOnARealOpenCard(unittest.TestCase):
     предмет в самом репозитории, иначе правило снова превращается в мёртвую букву."""
 
     def test_at_least_one_open_card_declares_a_registered_probe(self):
-        tracker = os.path.join(_REPO, "nimbalyst-local", "tracker")
-        if not os.path.isdir(tracker):
-            self.skipTest("трекера нет в этом дереве")
-        res = ca.audit(tracker)
+        tracker = require_tree_content(
+            Path(_REPO) / "nimbalyst-local" / "tracker",
+            "очередь карточек этого дерева", kind="каталог")
+        res = ca.audit(str(tracker))
         self.assertGreaterEqual(
             res["counts"]["declared_open"], 1,
             "ни одна открытая карточка не объявляет пробу — сторож ADR-208 снова без предмета")

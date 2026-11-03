@@ -2,11 +2,11 @@
 
 > Авто-генерится `scripts/build_tracker_board.py` из `nimbalyst-local/tracker/*.md`. НЕ править вручную — правь карточки. Источник правды — карточки, это индекс (bootstrap).
 >
-> Собрана: 2026-11-03T02:46:16Z · сверка с карточками: `python3 scripts/build_tracker_board.py --check` (сторож `spa_core/tests/test_tracker_board_matches_cards.py`).
+> Собрана: 2026-11-03T10:05:50Z · сверка с карточками: `python3 scripts/build_tracker_board.py --check` (сторож `spa_core/tests/test_tracker_board_matches_cards.py`).
 >
-> Сверено с `origin/main` (908bc7c78) · у **1** своя правка, кто новее — не измерено.
+> Сверено с `origin/main` (ee6b4d5af) · у **2** своя правка, кто новее — не измерено.
 >
-> Всего карточек: **1568** · ждёт владельца: **6** · занято сессиями: **13**.
+> Всего карточек: **1571** · ждёт владельца: **6** · занято сессиями: **13**.
 
 ## 🔴 ЖДЁТ ВЛАДЕЛЬЦА (needs-owner)
 
@@ -422,7 +422,7 @@
 ### · closed
 - Считать ли верный отказ по правилам допуска неисправностью флота  ·  `owner-decision-schitat-li-vernyi-otkaz-po-pravilam-dopu.md` · 2026-10-08
 
-## 📥 Inbox (задания: Telegram / заметки / голос)  (886)
+## 📥 Inbox (задания: Telegram / заметки / голос)  (889)
 
 ### · in-progress
 - а задача починить все-таки еще раз сообщение которым не пишет нужно твое решени…  ·  `inbox-a-zadacha-pochinit-vse-taki-esche-raz-so.md` · 2026-08-14 · 🔒 `pid43119`
@@ -1091,6 +1091,7 @@
 - Мост доставки 402 часа не может довезти карточку: обе копии терминальны, спорит только status_trail  ·  `inbox-most-dostavki-402-chasa-ne-mozhet-dovezt.md` · 2026-09-20
 - Мост находок 75 часов упирался в одно и то же: расхождение ТЕЛА карточки он сводить не умеет  ·  `inbox-most-nahodok-75-chasov-upiralsya-v-odno.md` · 2026-10-28
 - Мост находок без писателя 45 часов — агент com.spa.decision_loop НЕ ЗАГРУЖЕН во флоте, и CRITICAL шага 0-офис никому не достаются  ·  `inbox-most-nahodok-bez-pisatelya-45-chasov-agen.md` · 2026-10-31
+- Мост находок (decision_loop) не укладывается в 2 ч — перепись покрытия журнала решений гоняет вложенные симуляции окна на каждого читателя  ·  `inbox-most-nahodok-decision-loop-ne-ukladyvaet.md` · 2026-11-02
 - Мост отказывает ВЕРНО, но долг доставки НЕПОГАСИМ: следы карточки разошлись двумя ЗАКОННЫМИ переходами из одного статуса  ·  `inbox-most-otkazyvaet-verno-no-dolg-dostavki-n.md` · 2026-09-04
 - На Linux принадлежность процесса всегда OWNERSHIP_UNKNOWN: 19 красных тестов и, возможно, инертный клин  ·  `inbox-na-linux-prinadlezhnost-protsessa-vsegda.md` · 2026-09-26
 - Находка петли: com.spa.decision_loop: объявлено PRODUCES (data/adapter_feed_divergenc  ·  `inbox-nahodka-petli-com-spa-decision-loop-obya.md` · 2026-10-29
@@ -1206,6 +1207,7 @@
 - Ремонт карточек-фантомов применяется наполовину: запрет на закрытие решения срабатывает после записи  ·  `inbox-remont-kartochek-fantomov-primenyaetsya.md` · 2026-10-18
 - РЕШЕНИЕ АГЕНТА (не вопрос владельцу): верный отказ по правилам допуска перестаёт быть неисправностью флота — исполнить  ·  `inbox-reshenie-politicheskii-otkaz-ne-neispravnost.md` · 2026-10-08
 - resource_health.json объявлен consumer_required, а шаг 0-офис не упоминает его ни разу (ADR-858)  ·  `inbox-resource-health-json-obyavlen-consumer-r.md` · 2026-10-29
+- «Род записи НЕ ОБЪЯВЛЕН у 4» — утверждение о дрейфе прод-копии очереди, а не о сессиях: 668 карточек из 1569 в проде нет вовсе  ·  `inbox-rod-zapisi-obyavlyaetsya-polem-kind-a-ch.md` · 2026-11-03
 - Рост ленты лечится только строкой УПЛОТНЕНИЯ — накапливающие списки причин переснять нельзя  ·  `inbox-rost-lenty-lechitsya-tolko-strokoi-uplot.md` · 2026-10-23
 - scripts/system_health_check.py заменён монитором два месяца назад, но остался в дереве  ·  `inbox-scripts-system-health-check-py-zamenen-m.md` · 2026-08-25
 - Семь мутационных подмен в батареях не спрашивают, применились ли они  ·  `inbox-sem-mutatsionnyh-podmen-v-batareyah-ne-s.md` · 2026-10-04
@@ -1278,6 +1280,7 @@
 - Тест ворот публикации не доходит до ворот: его заслоняет гейт окна мутаций  ·  `inbox-test-vorot-publikatsii-ne-dohodit-do-vor.md` · 2026-10-18
 - Три отправителя стоп-крана в обход канонической двери (найдено #313)  ·  `inbox-tri-otpravitelya-stop-krana-v-obhod-kano.md` · 2026-08-20
 - Три прибора написаны и не позваны: храповик непроводки КРАСЕН на чистом origin/main a326d063e  ·  `inbox-tri-pribora-napisany-i-ne-pozvany-hrapov.md` · 2026-10-10
+- Три вопроса владельцу живут только на ветке: карточка-разбор числит работу done, а ветка жива и объявлений в ней ноль  ·  `inbox-tri-voprosa-vladeltsu-zhivut-tolko-na-ve.md` · 2026-11-03
 - Цикл считает покрытие фидов 100% живым, а aave_arbitrum читает круглые константы из adapter_status.json  ·  `inbox-tsikl-schitaet-pokrytie-fidov-100-zhivym.md` · 2026-08-29
 - Цикл заканчивается раньше своего прогона — вердикт теряется, а работа лежит недоставленной  ·  `inbox-tsikl-zakanchivaetsya-ranshe-svoego-prog.md` · 2026-10-06
 - Тяжёлый прогон из необъявленного дерева занимает слот допуска, и заказчика назвать нечем  ·  `inbox-tyazhelyi-progon-iz-neobyavlennogo-derev.md` · 2026-10-07
