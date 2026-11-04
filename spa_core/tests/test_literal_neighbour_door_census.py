@@ -548,12 +548,155 @@ def test_the_probe_refuses_todays_declaration_on_purpose():
 
     Критерий объявлен ДО работы и мерит её ИСХОД. Зелёный ответ здесь был бы
     самосертификацией (`.claude/rules/acceptance.md` п. 1–2).
+
+    **Что изменилось на цикле #1034 (заказ G909 п. 2) и почему это не
+    ослабление** (инв. #16): жалобы «не называет ТАКТ» здесь БОЛЬШЕ НЕТ, и это
+    ЗАМЕР, а не правка под зелёный. Прежняя редакция критерия требовала
+    непустой ``max_age_h``, то есть КАЛЕНДАРНЫЙ такт, — одну из трёх форм,
+    которые заказ G908 п. 6 поставил на выбор. ADR-920 выбрал другую
+    (событие ``surface_divergence``) и назвал цену отвергнутых, а критерий
+    остался спрашивать про календарь: сторож объявления и проба судили одно
+    объявление ПРОТИВОПОЛОЖНО. Теперь вопрос у них ОДИН
+    (`ratchet.tact_verdict` → прибор), форма ``trigger`` признана
+    равноправной и проверена ПРИБОРОМ, а не словом. Отказ остался — по
+    ВТОРОЙ, настоящей причине: бомба накрывает не весь ряд шагов.
     """
     got, why = ca._probe_literal_neighbour_class_declaration_holds(
         declaration=ratchet.load_declaration(), module=ratchet)
     assert got == ca.NOT_SATISFIED, why
-    assert "не называет ТАКТ" in why
+    assert "не называет ТАКТ" not in why, why
     assert "не у всех шагов ряда" in why
+
+
+@pytest.mark.parametrize("tact,expect", [
+    ({"reader": ratchet.__name__, "trigger": "kogda_nastroenie",
+      "max_age_h_rejected_because": "названа"},
+     "дверью прибора не является"),
+    ({"reader": "spa_core/tests/t_nikogda_ne_bylo.py::R", "max_age_h": 192},
+     "файла читателя нет"),
+    ({"reader": ("spa_core/tests/"
+                 "test_literal_neighbour_class_ratchet.py::SurfaceTactTest"),
+      "trigger": "surface_divergence", "max_age_h": None},
+     "БЕЗ названной цены"),
+])
+def test_the_probe_refuses_a_tact_that_is_only_a_note(tact, expect):
+    """Форма ``trigger`` признана равноправной — но НЕ на слово.
+
+    Записка («событие», которого в приборе нет; читатель, которого нет в
+    дереве; отказ от календаря без названной цены) обязана быть НАЙДЕНА, иначе
+    правка #1034 была бы не признанием второй формы, а снятием вопроса.
+    """
+    doc = _whole_declaration()
+    doc["tact"] = tact
+    got, why = ca._probe_literal_neighbour_class_declaration_holds(
+        declaration=doc, module=ratchet)
+    assert got == ca.NOT_SATISFIED, (got, why)
+    assert "не называет ТАКТ" in why and expect in why, why
+
+
+def test_the_probe_accepts_the_trigger_form_with_its_anchors():
+    """ПРОМАХ-половина: полная форма ``trigger`` проходит, и календарь тоже.
+
+    `_whole_declaration` несёт календарную форму и остаётся `satisfied`
+    (см. соседний тест) — правка ради события не вправе объявить календарь
+    поломкой: у класса ADR-913 поверхность в дереве не живёт, и другого
+    вопроса для него нет.
+    """
+    doc = _whole_declaration()
+    doc["tact"] = {
+        "reader": ("spa_core/tests/test_literal_neighbour_class_ratchet.py"
+                   "::SurfaceTactTest"),
+        "trigger": "surface_divergence", "max_age_h": None,
+        "max_age_h_rejected_because": "ADR-920: класс меняется от правки дерева",
+    }
+    doc.update(surface_sha="deadbeefcafe",
+               surface_measured_at="2026-11-04T00:00:00Z", surface_sites=[])
+    got, why = ca._probe_literal_neighbour_class_declaration_holds(
+        declaration=doc, module=ratchet)
+    assert got == ca.SATISFIED, why
+    assert "surface_divergence" in why, why
+
+
+def test_the_probe_answers_unmeasured_when_the_tact_door_cannot_judge():
+    """Третий исход у ВОПРОСА О ТАКТЕ (инв. #17): судить нечем ≠ «такта нет».
+
+    Слить это с `not_satisfied` значило бы выдать неразобранный файл читателя
+    за измеренную поломку.
+    """
+    class Door:
+        TACT_FORM_OK = ratchet.TACT_FORM_OK
+        TACT_FORM_UNMEASURED = ratchet.TACT_FORM_UNMEASURED
+        PRESENT = ratchet.PRESENT
+        load_declaration = staticmethod(ratchet.load_declaration)
+        verdict_for_member = staticmethod(ratchet.verdict_for_member)
+
+        @staticmethod
+        def tact_verdict(doc):
+            return {"status": ratchet.TACT_FORM_UNMEASURED,
+                    "reader_check": "unparsable",
+                    "reason": "файл читателя не разобран: SyntaxError"}
+
+    got, why = ca._probe_literal_neighbour_class_declaration_holds(
+        declaration=_whole_declaration(), module=Door)
+    assert got == ca.UNMEASURED, (got, why)
+    assert "судить нечем" in why and "SyntaxError" in why, why
+
+
+def test_the_probe_answers_unmeasured_when_the_tact_door_raises():
+    """Дверь, упавшая исключением, — тоже НЕ ИЗМЕРЕНО, а не согласие."""
+    class Door:
+        TACT_FORM_OK = ratchet.TACT_FORM_OK
+        TACT_FORM_UNMEASURED = ratchet.TACT_FORM_UNMEASURED
+        PRESENT = ratchet.PRESENT
+        load_declaration = staticmethod(ratchet.load_declaration)
+        verdict_for_member = staticmethod(ratchet.verdict_for_member)
+
+        @staticmethod
+        def tact_verdict(doc):
+            raise RuntimeError("дверь не ответила")
+
+    got, why = ca._probe_literal_neighbour_class_declaration_holds(
+        declaration=_whole_declaration(), module=Door)
+    assert got == ca.UNMEASURED, (got, why)
+    assert "RuntimeError" in why, why
+
+
+def test_the_tact_question_has_exactly_one_reader():
+    """Сторож объявления и проба приёмки обязаны звать ОДНУ дверь.
+
+    Расхождение двух копий этого вопроса и было предметом заказа G909 п. 2:
+    своя копия у пробы объявляла «без такта» то объявление, которое сторож
+    считал верным. Мера — не проза: у обоих читателей единственный путь к
+    ответу — `door.tact_form`, и сверяется это РАЗБОРОМ, а не глазами.
+    """
+    tree = ast.parse(Path(ca.__file__).read_text(encoding="utf-8"))
+    want = "_probe_literal_neighbour_class_declaration_holds"
+    fn = next((n for n in tree.body
+               if isinstance(n, ast.FunctionDef) and n.name == want), None)
+    assert fn is not None, f"пробы {want} в разборе файла нет"
+    # Вопрос ЗАДАЁТСЯ дверью — это присутствие зова.
+    calls = {node.func.attr for node in ast.walk(fn)
+             if isinstance(node, ast.Call)
+             and isinstance(node.func, ast.Attribute)}
+    assert "tact_verdict" in calls, (
+        f"проба не зовёт единственную дверь вопроса: {sorted(calls)}")
+    # А отсутствие СВОЕЙ копии мерится ПРЕДМЕТОМ — строковыми ключами, которые
+    # проба читала бы сама, — а НЕ подстрокой по тексту функции: докстрока
+    # называет поля, объясняя правило, и запрет по подстроке краснел бы от
+    # объяснения. Ровно этот дефект («правило спрашивает о ФОРМЕ, а не о
+    # ПРЕДМЕТЕ») разобран в #1029, причина C.
+    body = fn.body[1:] if (fn.body and isinstance(fn.body[0], ast.Expr)
+                           and isinstance(fn.body[0].value, ast.Constant)
+                           ) else fn.body
+    literals = {node.value for stmt in body for node in ast.walk(stmt)
+                if isinstance(node, ast.Constant) and isinstance(node.value, str)}
+    for own_copy in ("max_age_h", "trigger", "surface_divergence"):
+        assert own_copy not in literals, (
+            f"у пробы снова своя копия вопроса о такте: ключ {own_copy!r} "
+            f"читается ею самой")
+    ratchet_src = Path(ratchet.__file__).read_text(encoding="utf-8")
+    assert "def tact_verdict" in ratchet_src
+    assert "door.tact_form" in ratchet_src
 
 
 def test_the_row_of_steps_is_read_from_the_producer():
