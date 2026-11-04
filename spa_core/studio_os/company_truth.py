@@ -813,8 +813,9 @@ def _defi_books(packages_section: Optional[dict], hy_doc: Optional[dict], lp_doc
             last_at = doc.get("last_cycle_at") if isinstance(doc, dict) else None
             age = _age_min_iso(last_at, now or datetime.now(timezone.utc))
             out[book] = cell(value=view, display_ru=None, display_en=None, metric_type="REALIZED_PAPER",
-                             state=(STALE if age is not None and age > BOOK_STALE_AFTER_MIN else MEASURED)
-                             if last_at else NOT_MEASURED,
+                             # отметка есть, но не разбирается ⇒ свежесть НЕ измерена, а не «измерено» (ревью 04.11)
+                             state=(NOT_MEASURED if age is None else
+                                    STALE if age > BOOK_STALE_AFTER_MIN else MEASURED),
                              as_of=last_at, canon=canon,
                              fresh=freshness(age, BOOK_STALE_AFTER_MIN, "дневной цикл книги: устарело через 26 ч"),
                              unknown_ru="Книга не прочитана — состояние неизвестно",
@@ -1673,6 +1674,7 @@ def decisions_triage(cards: Optional[dict], prod_cards: Optional[dict], now: dat
         return None if v in (None, "UNKNOWN") else v
 
     owner_rows, undeclared_rows, answered_rows, accepted_rows, closed_rows = [], [], [], [], []
+    fixtures_origin = []
     superseded = superseded_ids(cards)
     for name, c in sorted(cards.items()):
         fm = c.get("fm") or {}
@@ -1707,6 +1709,9 @@ def decisions_triage(cards: Optional[dict], prod_cards: Optional[dict], now: dat
               "title": title, "subject": s, "status": status}
         if status == "owner-accepted":
             accepted_rows.append(row)
+        elif status == "needs-owner" and test_or_fixture_reason(fm):
+            fixtures_origin.append({"id": card_id, "title_ru": title, "title_en": title,
+                                    "why_ru": test_or_fixture_reason(fm)})
         elif status == "needs-owner":
             # находка F1: вопрос ОТКРЫТ только если его не закрыл ответ/снятие в рабочем дереве (v1 уже наложил
             # прод-ответы) и его не заменила более новая карточка (`supersedes`). Иначе он виден аудитору
@@ -1728,7 +1733,7 @@ def decisions_triage(cards: Optional[dict], prod_cards: Optional[dict], now: dat
         answered_rows.append({"id": d.get("id"), "title_ru": title, "title_en": title,
                               "owner_answer_ru": _na(d.get("owner_answer")), "owner_answer_en": _na(d.get("owner_answer")),
                               "answered_at": _na(d.get("answered_at"))})
-    prod_only, fixtures = [], []
+    prod_only, fixtures = [], list(fixtures_origin)
     if prod_cards is not None and cards is not None:
         for pname in sorted(set(prod_cards) - set(cards)):
             pfm = (prod_cards.get(pname) or {}).get("fm") or {}

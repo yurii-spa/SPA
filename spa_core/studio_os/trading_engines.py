@@ -248,13 +248,18 @@ def investment_engine_modes(earn_dir=None, now=None):
         try:
             state = dict(con.execute('SELECT key, value FROM system_state').fetchall())
             ts = dict(con.execute('SELECT key, updated_at_utc FROM system_state').fetchall()) if _has_col(con, 'system_state', 'updated_at_utc') else {}
-            inc = con.execute("SELECT id, ts_utc, payload FROM incidents WHERE state='OPEN' ORDER BY id DESC LIMIT 1").fetchone() \
-                if _has_col(con, 'incidents', 'ts_utc') else None
-            # дневной цикл earn-defi перепроверяет KC-1 на КАЖДЫЙ день NAV и открыл бы новый инцидент при новом
-            # срабатывании: поэтому «последний день данных» и «срабатываний после открытия» измеримы из ledger
-            last_day = con.execute('SELECT MAX(date) FROM nav_daily').fetchone()[0] if _has_col(con, 'nav_daily', 'date') else None
-            later = (con.execute("SELECT COUNT(*) FROM incidents WHERE kc=? AND id>?", (json.loads(inc[2]).get('kc'), inc[0])).fetchone()[0]
-                     if inc and _has_col(con, 'incidents', 'kc') else None)
+            # Таблица incidents только дописывается: каждое срабатывание — новая строка OPEN, снятие — строка CLEARED.
+            # Текущий инцидент = ПЕРВЫЙ OPEN после последнего CLEARED; «срабатываний после открытия» — остальные OPEN
+            # (ревью 04.11: прежний «последний OPEN» делал это число нулём по построению, а не по замеру).
+            rows = con.execute("SELECT id, ts_utc, payload, state FROM incidents ORDER BY id").fetchall() \
+                if _has_col(con, 'incidents', 'ts_utc') and _has_col(con, 'incidents', 'state') else []
+            last_clear = max((r[0] for r in rows if r[3] == 'CLEARED'), default=0)
+            opens = [r for r in rows if r[3] == 'OPEN' and r[0] > last_clear]
+            inc = opens[0] if opens else None
+            later = len(opens) - 1 if opens else None
+            # дневной цикл оценивает KC-1 на каждый день NAV: последний день данных и момент записи — из ledger
+            last_day, last_ts = (con.execute('SELECT MAX(date), MAX(ts_utc) FROM nav_daily').fetchone()
+                                 if _has_col(con, 'nav_daily', 'date') and _has_col(con, 'nav_daily', 'ts_utc') else (None, None))
         finally:
             con.close()
     except sqlite3.Error as e:
@@ -262,15 +267,21 @@ def investment_engine_modes(earn_dir=None, now=None):
         return {'observed_at': now.isoformat(), 'engines': [eng]}
     eng['mode'] = state.get('system_mode')
     eng['mode_since'] = ts.get('system_mode')
+    eng['ledger_last_write'] = last_ts
     if inc:
-        p = json.loads(inc[2]) if inc[2] else {}
+        try:
+            p = json.loads(inc[2]) if inc[2] else {}
+        except (TypeError, ValueError):   # битая запись не прячет известный режим (ревью 04.11)
+            p = {'detail': 'запись инцидента не разбирается'}
+        p = p if isinstance(p, dict) else {}
         eng['incident'] = {'id': inc[0], 'opened_at': inc[1], 'kc': p.get('kc'), 'data_date': p.get('date'),
                            'detail': p.get('detail'), 'latched': True,
                            # день данных, на котором дневной цикл последний раз оценивал условие (None — не измерено)
                            'last_condition_check': last_day, 'later_triggers': later,
                            'clear_by': 'владелец (earn-defi CLI incident-clear --reason …)',
                            'effect': 'новые позиции запрещены, уменьшение разрешено'}
-    return {'observed_at': now.isoformat(), 'engines': [eng]}
+    # момент наблюдения — последняя запись дневного цикла в ledger, а не время чтения (ревью 04.11, F14)
+    return {'observed_at': last_ts or None, 'engines': [eng]}
 
 
 def _has_col(con, table, col):

@@ -1285,8 +1285,13 @@ SITE_ALERT_STATE = "site_custodian_alert_state.json"
 
 
 def _alert_state_path():
-    """Файл отпечатка тревоги — в живом data/ (та же дверь, что у журнала канала). В CI дерева живого
-    состояния нет ⇒ ``None``: там дедупа нет, как и раньше (остаток класса назван в QA_FINDINGS_MATRIX)."""
+    """Файл отпечатка тревоги — в живом data/ (та же дверь, что у журнала канала).
+
+    GitHub Actions — каждый прогон в свежем checkout: отпечаток не переживёт прогон, поэтому там ``None``
+    и честное «дедуп не измерен», а не видимость дедупа (ревью 04.11; остаток T14 — в QA_FINDINGS_MATRIX)."""
+    import os
+    if os.environ.get("GITHUB_ACTIONS") == "true":
+        return None
     try:
         from spa_core.utils.live_paths import live_data_dir
         return Path(live_data_dir(_ROOT)) / SITE_ALERT_STATE
@@ -1311,7 +1316,7 @@ def _unchanged_gate(report, exclude, *, now=None, path=None):
     fp = _fail_fingerprint(report, exclude)
     p = path if path is not None else _alert_state_path()
     if p is None:
-        return {"skip": False, "prefix": None, "fingerprint": fp, "path": None}
+        return {"skip": False, "prefix": None, "fingerprint": fp, "path": None, "dedup": "not_measured"}
     try:
         st = json.loads(Path(p).read_text(encoding="utf-8"))
     except (OSError, ValueError):
@@ -1461,7 +1466,7 @@ def _alert(report):
                     pass
             journaled = _journal(True, message_id=message_id)
             _unchanged_gate_commit(gate)
-            return {"attempted": True, "sent": True, "journaled": journaled,
+            return {"attempted": True, "sent": True, "journaled": journaled, "dedup": gate.get("dedup", "measured"),
                     "message_id": message_id, "off_journal_note": client is None}
         except Exception as e:
             print(f"site_freshness_monitor: raw telegram alert failed ({e})", file=sys.stderr)

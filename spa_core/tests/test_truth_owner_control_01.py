@@ -26,6 +26,8 @@ def _earn_db(root: Path, mode: str, with_incident: bool):
     con.execute("CREATE TABLE incidents(id INTEGER PRIMARY KEY, ts_utc TEXT NOT NULL, prev_hash TEXT NOT NULL, "
                 "record_hash TEXT NOT NULL, payload TEXT NOT NULL, date TEXT, kc TEXT, state TEXT)")
     con.execute("INSERT INTO system_state VALUES ('system_mode', ?, ?)", (mode, (NOW - timedelta(days=46)).isoformat()))
+    con.execute("CREATE TABLE nav_daily(id INTEGER PRIMARY KEY, ts_utc TEXT, date TEXT)")
+    con.execute("INSERT INTO nav_daily(ts_utc, date) VALUES (?, ?)", ((NOW - timedelta(hours=2)).isoformat(), "2026-11-03"))
     if with_incident:
         con.execute("INSERT INTO incidents(ts_utc, prev_hash, record_hash, payload, date, kc, state) VALUES (?,?,?,?,?,?,?)",
                     ((NOW - timedelta(days=46)).isoformat(), "", "h",
@@ -60,11 +62,38 @@ class InvestmentAxis(unittest.TestCase):
         self.assertTrue(eng["blocked"])
         self.assertEqual(eng["incident"]["kc"], "KC-1")
         self.assertTrue(eng["incident"]["latched"])
-        self.assertIsNone(eng["incident"]["last_condition_check"])     # в фикстуре nav_daily нет ⇒ не измерено
+        self.assertEqual(eng["incident"]["last_condition_check"], "2026-11-03")
+        self.assertEqual(eng["incident"]["later_triggers"], 0)
         self.assertIn("владелец", eng["incident"]["clear_by"])
 
     def test_normal_mode_is_healthy(self):
         self.assertEqual(self._section("NORMAL", incident=False)["_meta"]["state"], "HEALTHY")
+
+    def test_latch_is_measured_from_the_last_clear_not_the_last_open(self):
+        with tempfile.TemporaryDirectory() as d:
+            _earn_db(Path(d), "INCIDENT", True)
+            con = sqlite3.connect(Path(d) / "data" / "earn_defi.db")
+            ins = "INSERT INTO incidents(ts_utc, prev_hash, record_hash, payload, date, kc, state) VALUES (?,?,?,?,?,?,?)"
+            con.execute(ins, ("2026-10-01T10:00:00Z", "", "h", json.dumps({"kc": "KC-1"}), "2026-09-30", "KC-1", "OPEN"))
+            con.execute(ins, ("2026-10-02T10:00:00Z", "", "h", json.dumps({"kc": "KC-1"}), "2026-10-01", "KC-1", "OPEN"))
+            con.commit(); con.close()
+            eng = te.investment_engine_modes(earn_dir=d, now=NOW)["engines"][0]
+            self.assertEqual(eng["incident"]["later_triggers"], 2)          # повторы видны, не «0 по построению»
+            con = sqlite3.connect(Path(d) / "data" / "earn_defi.db")
+            con.execute(ins, ("2026-10-03T10:00:00Z", "", "h", json.dumps({"kc": "MANUAL"}), "2026-10-03", "MANUAL", "CLEARED"))
+            con.execute("UPDATE system_state SET value='NORMAL'")
+            con.commit(); con.close()
+            eng = te.investment_engine_modes(earn_dir=d, now=NOW)["engines"][0]
+            self.assertIsNone(eng["incident"])                               # снятый KC-1 к движку не цепляется
+
+    def test_broken_incident_payload_does_not_hide_the_mode(self):
+        with tempfile.TemporaryDirectory() as d:
+            _earn_db(Path(d), "INCIDENT", True)
+            con = sqlite3.connect(Path(d) / "data" / "earn_defi.db")
+            con.execute("UPDATE incidents SET payload='{broken'")
+            con.commit(); con.close()
+            eng = te.investment_engine_modes(earn_dir=d, now=NOW)["engines"][0]
+            self.assertEqual(eng["mode"], "INCIDENT")
 
     def test_missing_ledger_is_not_measured_never_ok(self):
         sec = self._section("NORMAL", present=False)
@@ -87,7 +116,7 @@ class InvestmentAxis(unittest.TestCase):
         self.assertIn("ждут вашего решения: 2", h["next"])
         probs = ov._system_problems(model, {}, None)
         self.assertEqual(probs[0]["label"], "Инвестиционный движок заблокирован")
-        self.assertIn("до ручного снятия", probs[0]["text"])     # актуальность не измерена — сказано словами
+        self.assertIn("новых срабатываний не дала", probs[0]["text"])
 
 
 class RecordOutcomeIsNotSelfContradictory(unittest.TestCase):
@@ -259,21 +288,24 @@ class HealEditsTheOriginal(unittest.TestCase):
 
     def _run(self, edit_result):
         from spa_core.telegram import owner_decisions as od
-        heal = od.Heal(pid="p1", card="c", text="t", keyboard={"inline_keyboard": []}, original_message_id=42)
+        heal = od.Heal(pid="p1", card="c", text="PREFIX t", keyboard={"inline_keyboard": []}, original_message_id=42,
+                       body="t")
         sent, edited, marked = [], [], []
         orig_bp, orig_mark = od.buttonless_pushes, od.mark_buttons_delivered
         od.buttonless_pushes = lambda **k: [heal]
         od.mark_buttons_delivered = lambda pid, **k: marked.append((pid, k.get("message_id"))) or True
         try:
             od.heal_buttonless(lambda t, k: sent.append(t) or {"message_id": 99},
-                               edit=lambda mid, t, k: edited.append(mid) or edit_result)
+                               edit=lambda mid, t, k: edited.append((mid, t)) or edit_result)
         finally:
             od.buttonless_pushes, od.mark_buttons_delivered = orig_bp, orig_mark
         return sent, edited, marked
 
-    def test_successful_edit_sends_nothing_new(self):
+    def test_successful_edit_sends_only_a_short_note(self):
+        from spa_core.telegram import owner_decisions as od
         sent, edited, marked = self._run({"message_id": 42})
-        self.assertEqual((sent, edited), ([], [42]))
+        self.assertEqual(edited, [(42, "t")])                 # без вводной «уже приходило текстом»
+        self.assertEqual(sent, [od.HEAL_EDITED_NOTE])         # полная карточка не повторяется
         self.assertEqual(marked, [("p1", 42)])
 
     def test_failed_edit_falls_back_to_a_new_message(self):

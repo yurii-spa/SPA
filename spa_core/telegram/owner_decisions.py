@@ -2248,6 +2248,8 @@ def mark_withdrawn(
 
 HEAL_MAX_PER_RUN = 5  # подъём бота не должен превращаться в очередь из сообщений
 
+HEAL_EDITED_NOTE = ("🔘 К вопросу выше добавлены кнопки — его можно решить нажатием "
+                    "(полная карточка не повторяется).")
 HEAL_PREFIX = ("🔘 <b>Кнопки подъехали.</b> Это решение уже приходило текстом — тогда бот "
                "не мог обработать нажатие. Теперь может, жми кнопку.")
 
@@ -2269,6 +2271,8 @@ class Heal:
     #: id ИСХОДНОГО сообщения без кнопок (последнее из журнала): кнопки сначала пытаются
     #: прикрепиться к нему правкой, а не новым сообщением (STUDIO-TRUTH-AND-OWNER-CONTROL-01 C4).
     original_message_id: Optional[int] = None
+    #: текст вопроса БЕЗ вводной «уже приходило текстом» — для правки исходного сообщения
+    body: Optional[str] = None
 
 
 def _heal_prepare(path: Path, *, now: Optional[datetime],
@@ -2371,7 +2375,7 @@ def buttonless_pushes(
                         text=HEAL_PREFIX + "\n\n" + prep.text,
                         keyboard=prep.keyboard,
                         options=list(prep.options), ack=prep.ack,
-                        original_message_id=_mids[-1] if _mids else None))
+                        original_message_id=_mids[-1] if _mids else None, body=prep.text))
     return out
 
 
@@ -2573,11 +2577,18 @@ def heal_buttonless(
             # правка не удалась / id нет / ``edit`` не передан — прежний путь, новое сообщение.
             if edit is not None and heal.original_message_id is not None:
                 try:
-                    res = edit(heal.original_message_id, heal.text, heal.keyboard)
+                    res = edit(heal.original_message_id, heal.body or heal.text, heal.keyboard)
                     # бот возвращает развёрнутый result либо None; явный {"ok": False} — тоже провал
                     ok = res if (res and not (isinstance(res, dict) and res.get("ok") is False)) else None
                     if ok is not None and not message_id_of(ok):
                         ok = {"ok": True, "result": {"message_id": heal.original_message_id}}
+                    if ok is not None:
+                        # правка не звенит, а исходное сообщение может быть далеко вверху (ревью 04.11):
+                        # короткая строка-уведомление вместо второй полной карточки
+                        try:
+                            send(HEAL_EDITED_NOTE, None)
+                        except Exception:  # noqa: BLE001 — уведомление не отменяет починку
+                            pass
                 except Exception:  # noqa: BLE001
                     ok = None
             if ok is None:

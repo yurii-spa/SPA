@@ -94,13 +94,13 @@ CONTRACT: list[dict] = [
      "stale_after_min": None, "unknown": "per-block present=false + why_no_result", "redaction": "candidate ids, engine reasons as written",
      "mobile": True, "alert": False},
     {"path": "system.investment", "source": "spa_core.studio_os.trading_engines.investment_engine_modes — earn-defi earn_defi.db#system_state,incidents (ro)",
-     "stale_after_min": 30, "unknown": "NOT_MEASURED with reason (ledger absent/unreadable)", "redaction": "safe_text on every string",
+     "stale_after_min": 1560, "unknown": "NOT_MEASURED with reason (ledger absent/unreadable)", "redaction": "safe_text on every string",
      "mobile": True, "alert": True},
     {"path": "system.features", "source": "launchctl list + scripts/agent_capital_shadow.sh + data/trading_research/series (ro)",
      "stale_after_min": None, "unknown": "UNKNOWN per feature with reason", "redaction": "none (fixed vocabulary)",
      "mobile": True, "alert": False},
     {"path": "overview.investment", "source": "system.investment (composition only)",
-     "stale_after_min": 30, "unknown": "NOT_MEASURED", "redaction": "safe_text", "mobile": True, "alert": True},
+     "stale_after_min": 1560, "unknown": "NOT_MEASURED", "redaction": "safe_text", "mobile": True, "alert": True},
     {"path": "overview.freshness", "source": "every section _meta of this model (composition only)",
      "stale_after_min": None, "unknown": "a section without observed_at is listed as such", "redaction": "none",
      "mobile": True, "alert": False},
@@ -463,7 +463,11 @@ def _investment_section(now: datetime) -> dict:
         [f"{b['engine']} {b['mode']}" + (f" ({b['incident']['kc']}, с {str(b['incident']['opened_at'])[:10]})"
                                          if b.get("incident") else "") + ": новые позиции запрещены" for b in blocked]
         + [f"{u['engine']}: режим не измерен — {u['reason']}" for u in unknown]) or None
-    return {"_meta": _meta(state, src, _ts(doc.get("observed_at")), now, 30, reason=reason), "engines": engines,
+    # дневной цикл earn-defi пишет ledger раз в сутки (12:10/22:10): старше 26 ч — режим может быть устаревшим
+    obs = _ts(doc.get("observed_at"))
+    if state == "HEALTHY" and obs is None:
+        state, reason = "NOT_MEASURED", "время последней записи ledger не прочитано"
+    return {"_meta": _meta(state, src, obs, now, 26 * 60, reason=reason), "engines": engines,
             "note": "режим движка — ось финансового контура; здоровье служб считается отдельно (system.*)"}
 
 
@@ -508,14 +512,15 @@ def feature_states(repo: Path, launchctl_map: Optional[dict], now: datetime) -> 
         loaded = "com.spa.decision_loop" in launchctl_map
         out["decision_loop"] = {"state": "ON" if loaded else "OFF",
                                 "why": ("служба загружена в launchd" if loaded else
-                                        "служба не загружена: полный прогон моста не укладывается в 7800 с "
-                                        "(ADR-909, замер 03.11)")}
+                                        "служба не загружена (замер launchctl); причина по ADR-909: полный прогон "
+                                        "моста не укладывается в 7800 с")}
     try:
         wrapper = (Path(repo) / "scripts" / "agent_capital_shadow.sh").read_text(encoding="utf-8")
     except OSError:
         out["aggregate_mode"] = {"state": "UNKNOWN", "why": "обёртка capital_shadow не прочитана"}
     else:
-        m = re.search(r"--aggregate[ =](\w+)", wrapper)
+        live = "\n".join(l for l in wrapper.splitlines() if not l.lstrip().startswith("#"))
+        m = re.search(r"--aggregate[ =](\w+)", live)
         out["aggregate_mode"] = {"state": (m.group(1) if m else "off"),
                                  "why": ("флаг в обёртке" if m else "обёртка флаг не передаёт — умолчание off")}
     ser = Path(repo) / "data" / "trading_research" / "series"
@@ -523,7 +528,8 @@ def feature_states(repo: Path, launchctl_map: Optional[dict], now: datetime) -> 
     out["e6_6_series"] = {"state": "RUNNING" if started else "PREPARED",
                           "why": ("боевой журнал серии найден" if started else
                                   "модуль в main, серия не запущена: нет расписания tick (запрос владельцу 04.11)")}
-    out["s5"] = {"state": "TEST_STAND_ONLY", "why": "стенд S5 живёт в тестах; живой эксплуатации не записано"}
+    out["s5"] = {"state": "TEST_STAND_ONLY",
+                 "why": "по записи программы (ADR-909), не замер: стенд S5 живёт в тестах, живой эксплуатации не записано"}
     return {"_meta": _meta("HEALTHY", ["launchctl list", "scripts/agent_capital_shadow.sh",
                                        "data/trading_research/series"], now, now), "items": out}
 
@@ -584,6 +590,7 @@ def _trading_engines_section(data: Path, now: datetime) -> dict:
     # устаревший источник делает раздел STALE (порог — суточный такт earn-defi с запасом)
     # Состояние секции по-прежнему отвечает «оба движка на месте?» (свежесть КАЖДОГО — в `recency` блока);
     # меняется только момент: не время сборки, а момент данных (нечитаемая отметка ⇒ None, не «сейчас»).
+    # Порога у секции нет намеренно — устаревание движка видно на уровне блока (`recency`), не здесь.
     as_ofs = [t for t in (_ts(b.get("as_of")) for b in present) if t]
     observed = min(as_ofs) if as_ofs else None
     return {"_meta": _meta(state, src, observed, now,
@@ -1923,6 +1930,17 @@ def build(inp: Optional[MCInputs] = None) -> dict:
     # находка D2/F14: «снимок свежий» ≠ «источники свежие» — сводка по КАЖДОМУ разделу, у которого
     # момент наблюдения не совпадает с временем сборки (или не назван вовсе)
     overview["freshness"] = source_freshness(model, now)
+    # находка T04: сводный счётчик сохраняет определение, общее с Bridge /needs и «Мои решения» SPA-бота
+    # (открытые карточки минус ответы на Mac — контракт test_owner_queue_count_matches_the_telegram_director);
+    # рядом — те же вопросы по теме ADR-285, чтобы «2 здесь» и «0 + 2 без темы» в «Решениях» не спорили
+    _groups = ((truth or {}).get("decisions") or {}).get("groups") if isinstance(truth, dict) else None
+    if isinstance(_groups, dict) and isinstance(overview.get("needs_owner"), dict) \
+            and overview["needs_owner"].get("count") is not None:      # «не измерено» остаётся None
+        overview["needs_owner"].update(
+            subject_declared=len(_groups.get("owner") or []), subject_undeclared=len(_groups.get("undeclared") or []),
+            closed_elsewhere=len(_groups.get("closed_elsewhere") or []),
+            definition=("count: открытые карточки решений на origin минус ответы на Mac (как Bridge /needs и бот); "
+                        "subject_declared: из них с темой ADR-285 — это вопросы владельцу"))
     # ADR-762: the owner view is derived from the model above and nothing else; a failure to derive
     # it is named (NOT_MEASURED) instead of breaking the bundle or showing a stale view.
     try:
