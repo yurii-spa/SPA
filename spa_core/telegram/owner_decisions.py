@@ -2370,12 +2370,15 @@ def buttonless_pushes(
                 card, prep = got
         if prep.keyboard is None:
             continue  # обработчика всё ещё нет — чинить нечем, молчим
-        _mids = [m for m in (rec.get("message_ids") or []) if isinstance(m, int)]
+        # инв. #17: нет списка id — это «исходное сообщение не известно» (None), а не пустой список
+        from spa_core.utils.observation import observed as _observed
+        _ids = _observed(rec, "message_ids", kind=list)
+        _mids = [m for m in _ids if isinstance(m, int)] if _ids is not None else None
         out.append(Heal(pid=prep.pid, card=str(path),
                         text=HEAL_PREFIX + "\n\n" + prep.text,
                         keyboard=prep.keyboard,
                         options=list(prep.options), ack=prep.ack,
-                        original_message_id=_mids[-1] if _mids else None, body=prep.text))
+                        original_message_id=(_mids[-1] if _mids else None), body=prep.text))
     return out
 
 

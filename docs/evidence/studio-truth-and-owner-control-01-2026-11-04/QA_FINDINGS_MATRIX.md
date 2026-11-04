@@ -23,7 +23,7 @@ Studio Bridge (локальный репо) `b19.7-truth-owner-control`. Ста�
 | ID | Sev | Root cause | Fix (ветка) | Тест | Статус |
 |---|---|---|---|---|---|
 | F1 | P1 | R2: v1-ответ на Mac и `supersedes` игнорировались; `top` без фильтра | `company_truth.question_closed_reason`, `superseded_ids`, группа `closed_elsewhere`; `top` = только NEEDS_OWNER | `OpenQuestions.*` | FIXED — на живых данных обе дисковые карточки ушли в `closed_elsewhere` (одна — ответ на Mac, вторая — заменена) |
-| F2 | P1 | R1 | ось `system.investment` + `overview.investment`; `owner_view.investment_blocks` первым пунктом проблем и в «Главное сейчас» | `InvestmentAxis.*` | FIXED (отображение); **снятие инцидента — OWNER** |
+| F2 | P1 | R1 | ось `system.investment` + `overview.investment`; `owner_view.investment_blocks` первым пунктом проблем и в «Главное сейчас» | `InvestmentAxis.*` (вкл. защёлку от последнего CLEARED, битый payload) | FIXED (отображение); **снятие инцидента — OWNER** (перепроверка 04.11: из 62 дней срабатывание одно — 18.09; 02.11 расхождение 0,005 %) |
 | F3 | P1 | R3: `as_of` книги = 02.10; «34 и 62 дня» — разные определения без подписи | `as_of` = `last_cycle_at`, STALE через 26 ч; `window_from`, `days_definition_ru`; текст «за N дн. с ДД.ММ» | `FreshnessAndTime.test_book_as_of…` | FIXED. 62 дня earn-defi = `COUNT(DISTINCT date) nav_daily` с 02.09 (вкл. v1) — подписано в блоке движка как «наблюдённых дней» |
 | F4 | P1 | R4: SHELF_NOT_DELIVERED не распознан, следующий шаг не назван | `PROBLEM_RU["SHELF_NOT_DELIVERED"]`: публикация — решение владельца, ничего не публикуется автоматически | `StatusWords.test_known_codes…` | FIXED. Витрину 28.10 владелец отклонил (ADR-901 п. 9); открытая карточка `site_numbers…-2` — в «Решениях» |
 | F5 | P2 | R4: 29/29 = «готов» | GoLive: «критерии пройдены · live НЕ разрешён — решения владельца нет» | `StatusWords.test_golive…` | FIXED |
@@ -45,7 +45,7 @@ Studio Bridge (локальный репо) `b19.7-truth-owner-control`. Ста�
 | T01 | P1 | R1+R5: earn-defi шлёт через Keychain SPA сырым POST, 92 доставки `system.mode` (замер `earn_defi.db#alerts`, 19.09–03.11, 2/сутки) | earn-defi D-62: по состоянию, напоминание раз в 72 ч с датой начала | earn-defi `test_unchanged_incident_is_reminded…` | FIXED (ветка earn-defi) |
 | T02 | P1 | R1+R4 | главный экран бота: строка «Движки» + честный флот | `StatusWords.test_fleet…` | FIXED |
 | T03 | P1 | R2+R5. Замер журнала решений: 200 записей, Σ send_count 303, 10 упёрлись в потолок 5. Цифры аудита 1672/1463 старше кольцевых журналов — НЕ ИЗМЕРИМЫ локально | досылка кнопок правит исходное сообщение | `HealEditsTheOriginal.*` | PARTIAL — исторические повторы до введения 6-ч окна не воспроизводятся; повтор по ответу «что на мне?» (`owner_requested`) оставлен — это запрос владельца |
-| T04 | P1 | R2 + Bridge: `owner_only` всегда OWNER_BLOCKED, одобренное считалось «ждёт» | Bridge: `owner_approved_awaiting_execution`; SPA: одно определение; карточки без темы (ADR-285) не в счёте, их число печатается рядом — пульт «0 + 2 без темы» = бот «2» | Bridge `ApprovedIsNotAwaitingDecision`, SPA `test_triage…` | FIXED. «0» — старое сообщение `/decisions` (маршрута нет) — NOT A DEFECT сегодняшнего состояния |
+| T04 | P1 | R2 + Bridge: `owner_only` всегда OWNER_BLOCKED, одобренное считалось «ждёт» | Bridge: `owner_approved_awaiting_execution`; SPA: одно определение; сводный счётчик пульта сохранил контракт «= Bridge /needs = бот» (2), раздел «Решения» показывает «0 с темой + 2 без темы» (ADR-285), оба числа подписаны | Bridge `ApprovedIsNotAwaitingDecision`, SPA `test_triage…` | FIXED. «0» — старое сообщение `/decisions` (маршрута нет) — NOT A DEFECT сегодняшнего состояния |
 | T05 | P2 | R2 | как F7 | как F7 | FIXED |
 | T06 | P2 | push сигналов не существует | лента read-only; архитектура push — RFC в OWNER_TRUTH_CONTRACT §6, **OFF** | — | FIXED (лента) · push — OWNER |
 | T07 | P2 | `director_report.py:779` `fwd[:3]` | все, «N из M» | `TradingCandidatesShownInFull` | FIXED |
@@ -55,5 +55,13 @@ Studio Bridge (локальный репо) `b19.7-truth-owner-control`. Ста�
 | T11 | HYP | $103 182,82 | — | — | **ЧАСТИЧНО ВЕРНО**: законный NAV earn-defi за 18.09 по coinmetrics (`nav_daily` id=17, записан 19.09 10:10:01Z, той же секундой, что инцидент); KC-1 сравнил его с NAV по незакрытой свече Coinbase 78 084,36 → $100 681,99 |
 | T12 | P3 | R4 | подписанные знаменатели | — | FIXED |
 | T13 | P3 | — | — | — | NOT REPRODUCED в окне замера: 500 сообщений `alert_history` (24.09–04.11) — 0 сырого HTML, 0 Python-словарей, 0 JSON; «live» только в «Go-Live». Старее окна измерить нечем |
-| T14 | P3 | R5: 113 сообщений сторожа за 41 день | отпечаток набора кодов, напоминание раз в 24 ч | `SiteWatchdogRepeats.*` | PARTIAL — копия сторожа в GitHub Actions живого состояния не имеет и дедупа не получает (решение — в пакете вопросов) |
+| T14 | P3 | R5: 113 сообщений сторожа за 41 день | отпечаток набора кодов, напоминание раз в 24 ч | `SiteWatchdogRepeats.*` | PARTIAL — на Mac закрыто; в GitHub Actions (cron `15 */6`, свежий checkout) отпечаток не живёт — исход называет `dedup: not_measured`; решение (actions/cache или отключить отправку из CI) — в пакете вопросов |
 | T15 | P3 | Bridge `dr:` всегда новое сообщение, нет «Домой» | правка на месте + «🏛 Домой» | Bridge `NavigationEditsInPlace` | FIXED |
+
+## Независимое ревью ветки (04.11) и что сделано
+Найдено 6 дефектов в собственном коде программы, все исправлены и закреплены тестами/мутантами: защёлка KC-1 считалась
+от последнего OPEN («0 срабатываний» по построению) → от последнего CLEARED · битый payload прятал режим · `observed_at`
+оси движков был временем чтения → момент последней записи ledger, порог 26 ч · тестовые карточки отсекались только
+на Mac → и на origin · правка исходного сообщения без звонка → короткое уведомление · дедуп сторожа в CI выдавался за
+работающий → `not_measured`. Попытка свести сводный счётчик к «вопросам с темой» сломала действующий контракт паритета
+с Bridge (`test_owner_queue_count_matches_the_telegram_director`) — откачена, вместо неё подписанная разбивка.
