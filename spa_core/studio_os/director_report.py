@@ -185,6 +185,19 @@ def count_claude_sessions(ps_text: Optional[str]) -> Optional[int]:
     return n
 
 
+def count_interactive_claude(ps_text: Optional[str]) -> Optional[int]:
+    """Интерактивные сессии Claude (без ``-p``) — находка F9: они работают, но журнал задач не пишут,
+    поэтому «никто не работает» по журналу и «идёт сессия» по процессам — два разных измерения."""
+    if ps_text is None:
+        return None
+    n = 0
+    for line in ps_text.splitlines():
+        cmd = line.strip()
+        if re.search(r"(^|/)claude(\s|$)", cmd) and " -p " not in f" {cmd} " and "claude_run_with_timeout" not in cmd:
+            n += 1
+    return n
+
+
 # ── the report model ───────────────────────────────────────────────────────────────────────────
 @dataclass
 class Inputs:
@@ -289,6 +302,7 @@ def collect(inp: Inputs) -> dict:
     if ps_text is None and inp.measure_host:
         ps_text = _run(["ps", "-axo", "command"])
     rep["claude_sessions"] = count_claude_sessions(ps_text)
+    rep["claude_interactive"] = count_interactive_claude(ps_text)
 
     pts = _read_json(repo / "data" / "paper_trading_status.json")
     cyc = _parse_ts((pts or {}).get("last_cycle_ts"))
@@ -781,6 +795,12 @@ def _pct_or_nm(v) -> str:
     return fmt_pct(v, "ru", input="fraction", unknown=NOT_MEASURED)
 
 
+def _bars_ru(n: int) -> str:
+    """«1 бар · 3 бара · 34 бара · 206 баров» — находка F6 («34 баров/бар.»)."""
+    from spa_core.utils.presentation import ru_plural
+    return ru_plural(n, "бар", "бара", "баров")
+
+
 #: сколько forward-кандидатов печатает раздел TRADING; сейчас их 5 — показываются все
 FORWARD_SHOWN_MAX = 10
 
@@ -804,7 +824,7 @@ def render_trading(rep: dict) -> List[str]:
         for s in fwd[:FORWARD_SHOWN_MAX]:
             name = s["id"].split(":")[0] + " " + s["id"].split(":")[2] + " " + s["id"].split(":")[3]
             fo = s.get("forward_observations") or 0
-            net = (f" · forward {s['forward_net']:+.1%} за {fo} бар." if fo and s.get("forward_net") is not None
+            net = (f" · forward {s['forward_net']:+.1%} за {fo} {_bars_ru(fo)}" if fo and s.get("forward_net") is not None
                    else " · forward только начался")
             # fix D7: full-history MDD is the binding gate; show it next to the shallower OOS number
             # instead of printing OOS alone as "просадка".

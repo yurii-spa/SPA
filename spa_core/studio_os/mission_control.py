@@ -93,6 +93,17 @@ CONTRACT: list[dict] = [
     {"path": "capital.trading_engines", "source": "spa_core.studio_os.trading_engines.build_trading — SPA TR status.json+evidence.db (ro) and earn-defi earn_defi.db (ro), two separate blocks",
      "stale_after_min": None, "unknown": "per-block present=false + why_no_result", "redaction": "candidate ids, engine reasons as written",
      "mobile": True, "alert": False},
+    {"path": "system.investment", "source": "spa_core.studio_os.trading_engines.investment_engine_modes — earn-defi earn_defi.db#system_state,incidents (ro)",
+     "stale_after_min": 30, "unknown": "NOT_MEASURED with reason (ledger absent/unreadable)", "redaction": "safe_text on every string",
+     "mobile": True, "alert": True},
+    {"path": "system.features", "source": "launchctl list + scripts/agent_capital_shadow.sh + data/trading_research/series (ro)",
+     "stale_after_min": None, "unknown": "UNKNOWN per feature with reason", "redaction": "none (fixed vocabulary)",
+     "mobile": True, "alert": False},
+    {"path": "overview.investment", "source": "system.investment (composition only)",
+     "stale_after_min": 30, "unknown": "NOT_MEASURED", "redaction": "safe_text", "mobile": True, "alert": True},
+    {"path": "overview.freshness", "source": "every section _meta of this model (composition only)",
+     "stale_after_min": None, "unknown": "a section without observed_at is listed as such", "redaction": "none",
+     "mobile": True, "alert": False},
     {"path": "capital.live_readiness", "source": "spa_core.capital_shadow.read.latest — the separate read-only verifier (ADR-556)",
      "stale_after_min": 1800, "unknown": "NOT_MEASURED (no shadow run yet); BROKEN ledger ⇒ CRITICAL", "redaction": "safe_text on every string",
      "mobile": True, "alert": True},
@@ -421,7 +432,7 @@ def _investment_section(now: datetime) -> dict:
     """Ось «инвестиционный контур»: режим каждого движка из ЕГО ledger (только чтение).
 
     Не смешивается с ``system._meta`` (здоровье служб): служба жива ≠ движку разрешены новые позиции.
-    Защёлкнутый инцидент показывает дату открытия и честное «условие не перепроверялось» (инв. #17)."""
+    Защёлкнутый инцидент показывает дату открытия, последний оценённый день и число срабатываний после открытия (инв. #17)."""
     src = ["spa_core.studio_os.trading_engines.investment_engine_modes"]
     try:
         from spa_core.studio_os import trading_engines as te
@@ -438,7 +449,8 @@ def _investment_section(now: datetime) -> dict:
                 "incident": ({"kc": safe_text(inc.get("kc"), 20), "opened_at": safe_text(inc.get("opened_at"), 40),
                               "data_date": safe_text(inc.get("data_date"), 20), "detail": safe_text(inc.get("detail"), 300),
                               "effect": safe_text(inc.get("effect"), 120), "clear_by": safe_text(inc.get("clear_by"), 120),
-                              "latched": inc.get("latched"), "last_condition_check": inc.get("last_condition_check")}
+                              "latched": inc.get("latched"), "last_condition_check": inc.get("last_condition_check"),
+                              "later_triggers": inc.get("later_triggers")}
                              if inc else None),
                 "reason": safe_text(e.get("reason"), 200), "source": safe_text(e.get("source"), 200)}
         engines.append(item)
@@ -570,11 +582,11 @@ def _trading_engines_section(data: Path, now: datetime) -> dict:
     state = "HEALTHY" if len(present) == 2 else ("DEGRADED" if present else "NOT_MEASURED")
     # находка F14: момент раздела — САМЫЙ СТАРЫЙ момент данных движков, а не время сборки снимка;
     # устаревший источник делает раздел STALE (порог — суточный такт earn-defi с запасом)
+    # Состояние секции по-прежнему отвечает «оба движка на месте?» (свежесть КАЖДОГО — в `recency` блока);
+    # меняется только момент: не время сборки, а момент данных (нечитаемая отметка ⇒ None, не «сейчас»).
     as_ofs = [t for t in (_ts(b.get("as_of")) for b in present) if t]
     observed = min(as_ofs) if as_ofs else None
-    if any(str(b.get("freshness")).upper() in ("STALE", "OLD") for b in present):
-        state = "STALE" if state == "HEALTHY" else state
-    return {"_meta": _meta(state, src, observed, now, 26 * 60,
+    return {"_meta": _meta(state, src, observed, now,
                            reason=None if state == "HEALTHY" else
                            "; ".join(f"{b.get('engine')}: {b.get('why_no_result')}" for b in blocks
                                      if isinstance(b, dict) and not b.get("present"))),
@@ -1799,6 +1811,7 @@ def build(inp: Optional[MCInputs] = None) -> dict:
                 "in_progress": (bcounts.get("in-progress", 0) if bcounts is not None else None),
                 "blocked": (bcounts.get("blocked", 0) if bcounts is not None else None),
                 "claude_workers": rep.get("claude_sessions"),
+                "claude_interactive": rep.get("claude_interactive"),
                 "heavy_jobs": len(leases) if isinstance(leases, list) else None},
         "capital": {"real_capital": real,
                     "investment_cio": ({"stance": investment_cio.get("stance"), "confidence": investment_cio.get("confidence"),

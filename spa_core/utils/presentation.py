@@ -181,3 +181,19 @@ def fmt_owner_time(ts: Any, lang: str = "ru", *, with_date: bool = True, label: 
         return body
     city = "Мадрид" if lang == "ru" else "Madrid"
     return f"{body} {city} ({local.tzname()})"
+
+
+def ru_plural(n: Any, one: str, few: str, many: str) -> str:
+    """Русское склонение по числу: ``ru_plural(34, "бар", "бара", "баров")`` → ``"бара"``.
+
+    Одна функция для всех поверхностей владельца (STUDIO-TRUTH-AND-OWNER-CONTROL-01 F6: «34 баров»,
+    «34 бар.»). Нечисло ⇒ форма «many» — текст не падает."""
+    try:
+        k = abs(int(n))
+    except (TypeError, ValueError):
+        return many
+    if k % 10 == 1 and k % 100 != 11:
+        return one
+    if 2 <= k % 10 <= 4 and not 12 <= k % 100 <= 14:
+        return few
+    return many

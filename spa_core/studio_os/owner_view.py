@@ -117,6 +117,12 @@ _PATH = re.compile(r"(?<![\w/])[\w.\-]*(?:/[\w.\-]+)+\.(?:py|json|jsonl|md|js|sh
 _SNAKE = re.compile(r"\b[a-z][a-z0-9]*(?:_[a-z0-9]+)+\b")
 
 
+#: файлы, которые владелец встречает в вопросах, — человеческими словами (оригинал остаётся в «подробностях»)
+KNOWN_FILES_RU = {"site_numbers.json": "витрина чисел сайта",
+                  "track_snapshot.json": "снимок трека для сайта",
+                  "constitution.json": "пороги сайта"}
+
+
 def plain(s: Any) -> Optional[str]:
     """Human text from canon free text: markdown stripped, codes translated or removed.
 
@@ -137,8 +143,15 @@ def plain(s: Any) -> Optional[str]:
     s = re.sub(r"\bAPY\b", "годовая ставка", s)
     s = re.sub(r"\blaunchctl\b", "служебная команда", s)
     s = _MACHINE.sub("(служебный код)", s)
+    # находка F6: известные файлы — их смыслом, а не «(служебное имя).json»
+    for name, ru in KNOWN_FILES_RU.items():
+        s = re.sub(r"(?<![\w/.-])" + re.escape(name) + r"(?![\w-])", ru, s)
+    # находка F6: шаблонные заглушки вида <path>, <id>, <файл> — не текст для владельца
+    s = re.sub(r"<(?:path|id|файл|file|sha|n|карточка|card|имя|name)>", "…", s)
     s = _PATH.sub("(файл — в подробностях)", s)
     s = _SNAKE.sub("(служебное имя)", s)
+    # находка F6: «проверен полным CI» → не «полным автотесты»
+    s = re.sub(r"\bполн(ым|ый|ого) CI\b", "полным прогоном автотестов", s)
     for tok in ("P1", "CI", "E2E", "READY", "BLOCKED"):
         s = re.sub(r"\b" + tok + r"\b", {"P1": "срочное", "CI": "автотесты", "E2E": "сквозная проверка",
                                        "READY": "готово", "BLOCKED": "остановлено"}[tok], s)
@@ -473,7 +486,7 @@ def trading_tile(model: dict, updated: Optional[str]) -> dict:
     if isinstance(fwd, int):
         stages.append(f"{fwd} на бумажной проверке")
     if isinstance(champ, int):
-        stages.append(f"{champ} готовых")
+        stages.append(f"прошли все проверки (чемпионы): {champ}")
     bar = None
     if days and isinstance(need, int):
         d = int(max(days))
@@ -496,10 +509,10 @@ def owner_questions(truth: dict, updated: Optional[str]) -> dict:
                                   updated_at=updated, reason=plain(dec.get("unknown_ru")) or "очередь не прочитана"),
                 "items": []}
     items = [d for d in (groups.get("owner") or []) if isinstance(d, dict)]
-    # находка T04: открытые карточки БЕЗ объявленного предмета тоже стоят в очереди владельца (их шлёт
-    # Телеграм) — показываются тут же, с честной подписью, иначе пульт говорит 0, а бот 2.
+    # находка T04: открытые карточки БЕЗ объявленного предмета вопросами владельцу НЕ считаются (ADR-285: их
+    # сначала разбирает агент), но и не исчезают — их число печатается рядом, чтобы «0 здесь и 2 в Телеграме»
+    # читалось как два определения, а не как противоречие.
     undeclared = [d for d in (groups.get("undeclared") or []) if isinstance(d, dict)]
-    items = items + undeclared
 
     def order(d):
         sk = d.get("subject_key")
@@ -517,10 +530,11 @@ def owner_questions(truth: dict, updated: Optional[str]) -> dict:
                      "why": plain(d.get("reason_ru")), "link_area": "decisions"})
     n = len(rows)
     nu = len(undeclared)
-    text = ("Вопросов к вам нет" if n == 0 else f"Ждут вашего ответа: {n}"
-            + (f" (у {nu} предмет не объявлен — по ADR-285 их сначала разбирает агент)" if nu else ""))
+    text = ("Вопросов к вам нет" if n == 0 else f"Ждут вашего ответа: {n}") + \
+        (f"; ещё {nu} без названной темы — их сначала разбирает ассистент, в Телеграме они видны как вопросы"
+         if nu else "")
     counts = dec.get("counts") if isinstance(dec.get("counts"), dict) else {}
-    return {"title": "Нужно ваше решение", "count": n, "subject_declared": n - nu, "subject_undeclared": nu,
+    return {"title": "Нужно ваше решение", "count": n, "subject_undeclared": nu,
             "definition": ("открытые карточки решений владельца на origin (needs-owner), минус закрытые ответом на Mac "
                            "и заменённые (supersedes); тестовые записи не считаются"),
             "excluded": {"closed_elsewhere": counts.get("closed_elsewhere"), "test_or_fixture": counts.get("test_or_fixture")},
@@ -613,6 +627,19 @@ def _current_epic(model: dict, truth: dict) -> Optional[dict]:
     return None
 
 
+def _latch_text(inc: dict) -> str:
+    """Защёлкнутый инцидент: что известно о его условии СЕЙЧАС — словами, без догадок."""
+    if not inc.get("latched"):
+        return ""
+    day, later = _ddmmyyyy(inc.get("last_condition_check")), inc.get("later_triggers")
+    if day and later == 0:
+        return (f". Ежедневная проверка условия (последний оценённый день {day}) новых срабатываний не дала — "
+                "блокировка держится, потому что снимается только вручную")
+    if day and isinstance(later, int) and later > 0:
+        return f". После открытия условие срабатывало ещё {later} раз(а), последний оценённый день {day}"
+    return ". Актуальность условия не измерена — блокировка действует до ручного снятия"
+
+
 def investment_blocks(model: dict) -> list:
     """Заблокированные инвестиционные движки из ``overview.investment`` — словами, с датой и тем, кто снимает.
 
@@ -628,8 +655,7 @@ def investment_blocks(model: dict) -> list:
                + (f" ({inc.get('kc')})" if inc.get("kc") else "") + f" с {since}"
                + (f" — {inc.get('effect')}" if inc.get("effect") else " — новые позиции запрещены")
                + (". Причина: " + plain(inc.get("detail")) if inc.get("detail") else "")
-               + (". Условие после открытия не перепроверялось — блокировка действует до ручного снятия"
-                  if inc.get("latched") else "")
+               + _latch_text(inc)
                + (f". Снимает: {inc.get('clear_by')}" if inc.get("clear_by") else "") + ".")
         out.append({"engine": e.get("engine"), "text": txt, "opened_at": inc.get("opened_at"),
                     "technical": {"mode": e.get("mode"), "kc": inc.get("kc"), "data_date": inc.get("data_date"),
@@ -646,8 +672,10 @@ def headline(model: dict, truth: dict, questions: dict, problems: list, updated:
     elif blocks:
         names = ", ".join(str(b["engine"]) for b in blocks)
         main = f"Инвестиционный движок заблокирован: {names} — новые позиции запрещены"
+        nu = questions.get("subject_undeclared") or 0
         nxt = ("Решить, снимать ли блокировку (подробности в «Существенных проблемах»)"
-               + (f"; кроме того ждут вашего решения: {questions['count']}" if questions.get("count") else ""))
+               + (f"; кроме того ждут вашего решения: {questions['count']}" if questions.get("count") else "")
+               + (f"; ещё {nu} вопрос(а) без темы разбирает ассистент" if nu else ""))
     elif questions.get("count"):
         first = questions["items"][0]
         main = f"Ждут вашего решения: {questions['count']}"
@@ -711,7 +739,13 @@ def active_work(model: dict, truth: dict, updated: Optional[str]) -> dict:
             txt = "Сейчас работает: " + "; ".join(plain(a.get("card_title_ru") or a.get("epic") or a.get("card"))
                                                   or "задача без названия" for a in active)
         else:
-            txt = "Сейчас никто не работает"
+            # находка F9: журнал задач и процессы — разные измерения; «никто» только если пусты ОБА
+            nw, ni = _get(model, "overview.now.claude_workers"), _get(model, "overview.now.claude_interactive")
+            run = [f"фоновых {nw}" if isinstance(nw, int) and nw else None,
+                   f"интерактивных {ni}" if isinstance(ni, int) and ni else None]
+            run = [x for x in run if x]
+            txt = ("По журналу задач активной работы нет; запущено сессий ассистента: " + ", ".join(run)
+                   + " — их работа в журнал задач не записывается") if run else "Сейчас никто не работает"
         c = metric("Работа ассистента", txt, confidence=MEASURED, source=cw.get("canon"),
                    measured_at=cw.get("as_of"), updated_at=updated)
     else:

@@ -52,6 +52,11 @@ def _fresh(age_s, cadence_s=900):
     return 'LIVE' if age_s < cadence_s else 'RECENT' if age_s < 2 * cadence_s + 3600 else 'STALE'
 
 
+def _ru_bars(n):
+    from spa_core.utils.presentation import ru_plural
+    return ru_plural(n, "бар", "бара", "баров")
+
+
 def _ro(path):
     from spa_core.trading_research.read_model import open_ro   # одна дверь read-only (migrate_callsites)
     return open_ro(path)
@@ -65,7 +70,7 @@ def _vs_hold(v):
     ex = v['excess_vs_hold']
     return {'state': 'MEASURED', 'forward_net': v['forward_net'], 'hold_net': v['hold_net'], 'excess': ex,
             'text': f"{'лучше' if ex > 0 else 'хуже' if ex < 0 else 'наравне с'} HOLD на {abs(ex) * 100:.1f} п.п. "
-                    f"за то же окно ({v['bars']} баров), после издержек"}
+                    f"за то же окно ({v['bars']} {_ru_bars(v['bars'])}), после издержек"}
 
 
 def _research_card(st, fwd, days=None):
@@ -226,9 +231,9 @@ def investment_engine_modes(earn_dir=None, now=None):
 
     Только чтение собственного ledger движка. Блокировка движка (INCIDENT) — это факт о финансовом контуре,
     а не о том, живы ли службы: службы могут честно быть OK, пока движку запрещены новые позиции.
-    Инцидент earn-defi ЗАЩЁЛКНУТ: условие после открытия не перепроверяется, снимается только вручную
-    (`earn_defi.risk.kill_conditions.clear_incident`, CLI `incident-clear`), поэтому «последнее подтверждение
-    условия» честно НЕ ИЗМЕРЕНО, а не «подтверждено сегодня».
+    Инцидент earn-defi ЗАЩЁЛКНУТ: снимается только вручную (`earn_defi.risk.kill_conditions.clear_incident`,
+    CLI `incident-clear`). Само условие дневной цикл перепроверяет каждый день и при новом срабатывании открыл бы
+    новую запись — поэтому видны «последний оценённый день» и «срабатываний после открытия».
     Возвращает ``{"observed_at", "engines": [...]}``; нечитаемый ledger — ``mode=None`` с причиной (инв. #17)."""
     now = now or datetime.now(timezone.utc)
     root = Path(earn_dir or os.environ.get('EARN_DEFI_DIR') or Path.home() / 'Documents' / 'earn-defi')
@@ -245,6 +250,11 @@ def investment_engine_modes(earn_dir=None, now=None):
             ts = dict(con.execute('SELECT key, updated_at_utc FROM system_state').fetchall()) if _has_col(con, 'system_state', 'updated_at_utc') else {}
             inc = con.execute("SELECT id, ts_utc, payload FROM incidents WHERE state='OPEN' ORDER BY id DESC LIMIT 1").fetchone() \
                 if _has_col(con, 'incidents', 'ts_utc') else None
+            # дневной цикл earn-defi перепроверяет KC-1 на КАЖДЫЙ день NAV и открыл бы новый инцидент при новом
+            # срабатывании: поэтому «последний день данных» и «срабатываний после открытия» измеримы из ledger
+            last_day = con.execute('SELECT MAX(date) FROM nav_daily').fetchone()[0] if _has_col(con, 'nav_daily', 'date') else None
+            later = (con.execute("SELECT COUNT(*) FROM incidents WHERE kc=? AND id>?", (json.loads(inc[2]).get('kc'), inc[0])).fetchone()[0]
+                     if inc and _has_col(con, 'incidents', 'kc') else None)
         finally:
             con.close()
     except sqlite3.Error as e:
@@ -255,7 +265,9 @@ def investment_engine_modes(earn_dir=None, now=None):
     if inc:
         p = json.loads(inc[2]) if inc[2] else {}
         eng['incident'] = {'id': inc[0], 'opened_at': inc[1], 'kc': p.get('kc'), 'data_date': p.get('date'),
-                           'detail': p.get('detail'), 'latched': True, 'last_condition_check': None,
+                           'detail': p.get('detail'), 'latched': True,
+                           # день данных, на котором дневной цикл последний раз оценивал условие (None — не измерено)
+                           'last_condition_check': last_day, 'later_triggers': later,
                            'clear_by': 'владелец (earn-defi CLI incident-clear --reason …)',
                            'effect': 'новые позиции запрещены, уменьшение разрешено'}
     return {'observed_at': now.isoformat(), 'engines': [eng]}
