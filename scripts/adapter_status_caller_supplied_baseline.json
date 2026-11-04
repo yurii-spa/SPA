@@ -1,0 +1,40 @@
+{
+  "schema": "adapter-status-caller-supplied/1",
+  "зачем": "ГРАНИЦА меры переписи писателей `adapter_status.json`: площадки, у которых цель записи приходит от ВЫЗЫВАЮЩЕГО (параметр без умолчания), поэтому модуль сам не объявляет, какой артефакт пишет. Это не находка и не дефект — это то, чего прибор про эти площадки НЕ ЗНАЕТ. База перечисляет их ИМЕНАМИ, потому что счётный потолок (ADR-707, `CALLER_SUPPLIED_MAX = 26`) рост ЗАМЕЧАЛ, но назвать пришедшее не мог ПО ПОСТРОЕНИЮ — и устарел на день своей доставки (ADR-912).",
+  "правило": "База может только УБЫВАТЬ. Файл, которого здесь нет, либо файл с числом площадок больше объявленного — НЕ ИЗМЕРЕНО с именем, код возврата 2. Дописывать сюда, чтобы погасить падение, ЗАПРЕЩЕНО (инв. #16): пришедшую площадку сперва проверяют на то, не пишет ли она артефакт на самом деле.",
+  "единица": "файл → сколько площадок с целью от вызывающего он несёт",
+  "измерено_на": {
+    "коммит": "901be6789f6c8da33adff1daf93c5502351138c0",
+    "дата": "2026-11-04",
+    "файлов": 25,
+    "площадок": 32,
+    "прибор": "scripts/adapter_status_writer_census.py::measure"
+  },
+  "файлы": {
+    "scripts/archive/fix_adapter_tiers.py": 1,
+    "scripts/preflight_day1.py": 1,
+    "scripts/simulate_day.py": 1,
+    "spa_core/adapters/apy_aggregator.py": 1,
+    "spa_core/analytics/analytics_pipeline.py": 1,
+    "spa_core/analytics/apy_anomaly_detector.py": 1,
+    "spa_core/analytics/apy_momentum.py": 1,
+    "spa_core/analytics/golive_readiness_report.py": 2,
+    "spa_core/analytics/tvl_trend_monitor.py": 1,
+    "spa_core/data_trust/integrity.py": 1,
+    "spa_core/governance/kill_switch.py": 1,
+    "spa_core/monitoring/adapter_feed_divergence.py": 3,
+    "spa_core/monitoring/apy_composition.py": 1,
+    "spa_core/monitoring/bts_monitor.py": 2,
+    "spa_core/monitoring/card_acceptance.py": 3,
+    "spa_core/monitoring/decision_journal_coverage.py": 1,
+    "spa_core/monitoring/decision_record_verdict_sensitivity.py": 1,
+    "spa_core/monitoring/golive_producer_criteria.py": 2,
+    "spa_core/monitoring/peg_monitor.py": 1,
+    "spa_core/monitoring/rules_watchdog.py": 1,
+    "spa_core/monitoring/series_anomaly_detector.py": 1,
+    "spa_core/paper_trading/golive_checker.py": 1,
+    "spa_core/reporting/strategy_summary.py": 1,
+    "spa_core/risk/position_validator.py": 1,
+    "spa_core/telegram/reports/daily.py": 1
+  }
+}

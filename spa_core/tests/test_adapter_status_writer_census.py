@@ -44,6 +44,10 @@ if str(REPO_ROOT) not in sys.path:
 
 CENSUS_PATH = REPO_ROOT / "scripts" / "adapter_status_writer_census.py"
 
+#: «Файла нет вовсе» — ОТДЕЛЬНОЕ состояние сцены, не пустая строка и не
+#: пустой словарь: именно его читатель базы обязан отличить от «база пуста».
+_ABSENT = object()
+
 
 def _load_census(name: str = "_g851_census"):
     spec = importlib.util.spec_from_file_location(name, str(CENSUS_PATH))
@@ -432,6 +436,140 @@ class TestCensusRegressions(unittest.TestCase):
         self.assertEqual(code, 0, f"{lines}\n{rep['counts']}")
         self.assertEqual(rep["counts"]["literal_substitution"], 0)
 
+
+# ───── 3б. ГРАНИЦА «цель от вызывающего» объявлена ИМЕНАМИ (ADR-912) ────────
+
+
+class CallerSuppliedBoundaryIsNamed(unittest.TestCase):
+    """Контроли границы в ОБЕ стороны.
+
+    Предмет: до ADR-912 граница объявлялась ЧИСЛОМ (`CALLER_SUPPLIED_MAX = 26`).
+    Счёт рост замечал, но назвать пришедшее не мог ПО ПОСТРОЕНИЮ, и сам потолок
+    устарел НА ДЕНЬ СВОЕЙ ДОСТАВКИ: на коммите `9d985516a`, которым он приехал
+    на `main`, замер давал уже 27. Эти проверки держат ровно то, чего счёт не
+    умел: ПРИШЕДШЕЕ НАЗВАНО, а отсутствие базы отличимо от «в пределах».
+    """
+
+    @classmethod
+    def setUpClass(cls) -> None:
+        cls.c = _load_census("_g912_boundary")
+        # Один живой замер на класс: обход 2538 файлов стои́т секунды, и для
+        # вопросов про БАЗУ дерево не меняется — меняется только база.
+        cls.live = cls.c.measure()
+
+    def _boundary(self, baseline_doc, sites=None):
+        """Граница на объявленной базе и объявленных площадках."""
+        import json
+        import tempfile
+        if sites is None:
+            sites = self.live["caller_supplied"]
+        with tempfile.TemporaryDirectory() as tmp:
+            path = os.path.join(tmp, "base.json")
+            if baseline_doc is not _ABSENT:
+                with open(path, "w", encoding="utf-8") as fh:
+                    if isinstance(baseline_doc, str):
+                        fh.write(baseline_doc)
+                    else:
+                        json.dump(baseline_doc, fh, ensure_ascii=False)
+            return self.c._caller_supplied_boundary(
+                sites, self.c._read_caller_supplied_baseline(path))
+
+    # ── сторона «зелено» ───────────────────────────────────────────────────
+
+    def test_the_live_baseline_declares_exactly_the_live_tree(self):
+        """ХРАПОВИК: объявленное и найденное совпадают ИМЕНАМИ, а не числом."""
+        b = self.live["caller_supplied_boundary"]
+        self.assertEqual(b["status"], "within",
+                         f"{b.get('reason')}\n{b.get('new')}")
+        self.assertEqual(b["found_sites"], b["declared_sites"])
+        self.assertEqual(b["found_files"], b["declared_files"])
+        self.assertEqual(b["new"], [])
+
+    def test_a_shrunken_population_stays_within_and_is_printed(self):
+        """База УБЫЛА — это не находка (база обязана уметь убывать), но видно."""
+        b = self._boundary(
+            {"файлы": {s["file"]: 9 for s in self.live["caller_supplied"]}})
+        self.assertEqual(b["status"], "within", b)
+        self.assertTrue(b["gone"], "убыль обязана быть названа")
+        self.assertIn("поджать", self.c._boundary_line(
+            {"caller_supplied_boundary": b}))
+
+    # ── сторона «красно», по звену на проверку ─────────────────────────────
+
+    def test_a_file_absent_from_the_baseline_is_named_not_counted(self):
+        """Пришёл НОВЫЙ файл ⇒ код 2, и в строке стои́т его ИМЯ."""
+        files = {s["file"]: 1 for s in self.live["caller_supplied"]}
+        victim = sorted(files)[0]
+        del files[victim]
+        b = self._boundary({"файлы": files})
+        self.assertEqual(b["status"], "grew", b)
+        self.assertIn(victim, [r["file"] for r in b["new"]])
+        code, lines = self.c.verdict({**self.live,
+                                      "caller_supplied_boundary": b})
+        self.assertEqual(code, 2, lines)
+        self.assertTrue(any(victim in ln for ln in lines),
+                        f"имя пришедшего файла не названо: {lines}")
+
+    def test_growth_inside_one_file_is_caught_by_its_declared_number(self):
+        """Та же площадка числом больше объявленного ⇒ находка с ИМЕНЕМ."""
+        sites = self.live["caller_supplied"]
+        victim = sorted({s["file"] for s in sites})[0]
+        b = self._boundary(
+            {"файлы": {s["file"]: 1 for s in sites}},
+            sites=list(sites) + [{"file": victim, "line": 999_001}])
+        self.assertEqual(b["status"], "grew", b)
+        row = [r for r in b["new"] if r["file"] == victim]
+        self.assertEqual(len(row), 1, b["new"])
+        self.assertIn(999_001, row[0]["lines"])
+
+    def test_an_absent_baseline_is_unmeasured_not_within(self):
+        """Базы НЕТ ⇒ третий исход с причиной, а не «границы нет» и не ноль."""
+        b = self._boundary(_ABSENT)
+        self.assertEqual(b["status"], "unmeasured", b)
+        self.assertIn("не прочитана", b["reason"])
+        code, lines = self.c.verdict({**self.live,
+                                      "caller_supplied_boundary": b})
+        self.assertEqual(code, 2, lines)
+
+    def test_an_unparsable_baseline_is_unmeasured(self):
+        b = self._boundary("{это не json")
+        self.assertEqual(b["status"], "unmeasured", b)
+        self.assertIn("не прочитана", b["reason"])
+
+    def test_an_empty_baseline_is_unmeasured_not_a_clean_sheet(self):
+        """Пустая база НЕ означает «границы нет» — иначе ноль стал бы ответом."""
+        for doc in ({"файлы": {}}, {"схема": 1}):
+            with self.subTest(doc=doc):
+                b = self._boundary(doc)
+                self.assertEqual(b["status"], "unmeasured", b)
+
+    def test_a_baseline_whose_numbers_are_not_counts_is_unmeasured(self):
+        for bad in ("два", 0, -1, None):
+            with self.subTest(bad=bad):
+                b = self._boundary({"файлы": {"a.py": bad}})
+                self.assertEqual(b["status"], "unmeasured", b)
+
+    def test_a_missing_boundary_section_is_unmeasured_not_within(self):
+        """Инв. #17 у ЧИТАТЕЛЯ: раздела нет ⇒ код 2, а не молчаливое «чисто»."""
+        rep = {k: v for k, v in self.live.items()
+               if k != "caller_supplied_boundary"}
+        code, lines = self.c.verdict(rep)
+        self.assertEqual(code, 2, lines)
+        self.assertTrue(any("caller_supplied_boundary" in ln for ln in lines),
+                        lines)
+
+    def test_the_count_ceiling_is_gone_from_the_report(self):
+        """Два ответа на один вопрос запрещены: числа границы в `ceilings` НЕТ."""
+        self.assertNotIn("caller_supplied", self.live["ceilings"])
+        self.assertFalse(hasattr(self.c, "CALLER_SUPPLIED_MAX"),
+                         "счётный потолок вернулся — граница снова нечитаема "
+                         "по именам")
+
+    def test_the_baseline_path_is_an_input_not_a_constant(self):
+        """База объявлена ВХОДОМ — иначе отказ при росте не проверить."""
+        sig = __import__("inspect").signature(self.c.measure)
+        self.assertIn("baseline_path", sig.parameters)
+
     def test_the_live_writer_declares_itself(self):
         """Один писатель из пяти объявляется — и это тот, кого зовёт цикл."""
         rep = self.c.measure()
@@ -496,8 +634,11 @@ class TestProbe(unittest.TestCase):
                        "literal_unmeasured": 0, "caller_supplied": 0,
                        "undeclared": 0},
             "ceilings": {"literal_substitution": 0, "provenance_absent": 1,
-                         "writer_unmeasured": 1, "literal_unmeasured": 0,
-                         "caller_supplied": 26},
+                         "writer_unmeasured": 1, "literal_unmeasured": 0},
+            # Граница «цель от вызывающего» спрашивается ИМЕНАМИ (ADR-912), и
+            # раздел ОБЯЗАН быть: его отсутствие есть третий исход, а не
+            # «в пределах». Поэтому фейки объявляют его явно.
+            "caller_supplied_boundary": {"status": "within", "reason": ""},
             "substitutions": [{"file": "f.py", "line": 1, "field": "apy",
                                "source_key": "apy", "literal": 4.1}],
         })
@@ -528,8 +669,11 @@ class TestProbe(unittest.TestCase):
                        "literal_unmeasured": 0, "caller_supplied": 0,
                        "undeclared": 0},
             "ceilings": {"literal_substitution": 0, "provenance_absent": 1,
-                         "writer_unmeasured": 1, "literal_unmeasured": 0,
-                         "caller_supplied": 26},
+                         "writer_unmeasured": 1, "literal_unmeasured": 0},
+            # Граница «цель от вызывающего» спрашивается ИМЕНАМИ (ADR-912), и
+            # раздел ОБЯЗАН быть: его отсутствие есть третий исход, а не
+            # «в пределах». Поэтому фейки объявляют его явно.
+            "caller_supplied_boundary": {"status": "within", "reason": ""},
             "provenance_absent": [{"file": "f.py", "line": 9}],
         })
         verdict, detail = self._run()
@@ -543,8 +687,11 @@ class TestProbe(unittest.TestCase):
                        "literal_unmeasured": 0, "caller_supplied": 0,
                        "undeclared": 0},
             "ceilings": {"literal_substitution": 0, "provenance_absent": 1,
-                         "writer_unmeasured": 1, "literal_unmeasured": 0,
-                         "caller_supplied": 26},
+                         "writer_unmeasured": 1, "literal_unmeasured": 0},
+            # Граница «цель от вызывающего» спрашивается ИМЕНАМИ (ADR-912), и
+            # раздел ОБЯЗАН быть: его отсутствие есть третий исход, а не
+            # «в пределах». Поэтому фейки объявляют его явно.
+            "caller_supplied_boundary": {"status": "within", "reason": ""},
             "substitutions": [], "provenance_absent": [],
         })
         verdict, detail = self._run()
@@ -558,8 +705,11 @@ class TestProbe(unittest.TestCase):
                        "literal_unmeasured": 0, "caller_supplied": 26,
                        "undeclared": 4},
             "ceilings": {"literal_substitution": 0, "provenance_absent": 1,
-                         "writer_unmeasured": 1, "literal_unmeasured": 0,
-                         "caller_supplied": 26},
+                         "writer_unmeasured": 1, "literal_unmeasured": 0},
+            # Граница «цель от вызывающего» спрашивается ИМЕНАМИ (ADR-912), и
+            # раздел ОБЯЗАН быть: его отсутствие есть третий исход, а не
+            # «в пределах». Поэтому фейки объявляют его явно.
+            "caller_supplied_boundary": {"status": "within", "reason": ""},
         })
         verdict, detail = self._run()
         self.assertEqual(verdict, self.ca.SATISFIED, detail)

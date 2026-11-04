@@ -1605,11 +1605,26 @@ def _probe_adapter_status_number_has_a_writer(arg: str | None) -> tuple[str, str
                             "`generated_by`, значит писатель существует; ноль "
                             "здесь есть отказ меры, а не чистота")
     for key, label in (("writer_unmeasured", "цель записи не раскрыта"),
-                       ("literal_unmeasured", "значение числа не разобрано"),
-                       ("caller_supplied", "цель приходит от вызывающего")):
+                       ("literal_unmeasured", "значение числа не разобрано")):
         if c.get(key, 0) > cl.get(key, 0):
             return UNMEASURED, (f"НЕ ИЗМЕРЕНО ({label}): {c[key]} > потолок "
                                 f"{cl.get(key)}")
+
+    # ГРАНИЦА «цель приходит от вызывающего» спрашивается ИМЕНАМИ, а не числом
+    # (ADR-912). Счётный потолок этого класса рост замечал, но назвать пришедшее
+    # не мог ПО ПОСТРОЕНИЮ, и устарел на день своей доставки: 26 объявленных
+    # против 27 на том же коммите и 32 к 04.11. Вердикт границы приезжает ГОТОВЫМ
+    # из переписи — своя копия правила здесь означала бы два ответа на один
+    # вопрос. Раздела нет ⇒ третий исход с названной причиной, а не «в пределах».
+    boundary = rep.get("caller_supplied_boundary")
+    if not isinstance(boundary, dict):
+        return UNMEASURED, ("НЕ ИЗМЕРЕНО: перепись не отдала раздел "
+                            "`caller_supplied_boundary` — граница «цель от "
+                            "вызывающего» не судима (ADR-912)")
+    if boundary.get("status") != "within":
+        return UNMEASURED, (f"НЕ ИЗМЕРЕНО (цель приходит от вызывающего, "
+                            f"{boundary.get('status')}): "
+                            f"{boundary.get('reason')}")
 
     if c.get("literal_substitution", 0) > cl.get("literal_substitution", 0):
         names = " · ".join(

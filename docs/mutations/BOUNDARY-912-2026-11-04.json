@@ -1,0 +1,38 @@
+{
+ "title": "ADR-912 BOUNDARY — дельта цикла #1026: граница «цель от вызывающего» переписи писателей adapter_status объявляется ИМЕНАМИ, а не счётным потолком; отсутствие базы отличимо от «в пределах»",
+ "tests": [
+  "spa_core/tests/test_adapter_status_writer_census.py"
+ ],
+ "mutations": [
+  {
+   "name": "база, которой НЕТ, читается как ПУСТАЯ и измеренная — fail-OPEN: любое население объявляется «в пределах»",
+   "file": "scripts/adapter_status_writer_census.py",
+   "old": "    except (OSError, ValueError) as exc:\n        return {\"status\": \"unmeasured\",\n                \"reason\": f\"база `{os.path.basename(p)}` не прочитана \"\n                          f\"({type(exc).__name__}: {exc})\",\n                \"files\": {}}",
+   "new": "    except (OSError, ValueError) as exc:\n        return {\"status\": \"measured\", \"reason\": \"\", \"files\": {}}"
+  },
+  {
+   "name": "сверка по ЧИСЛУ, а не по именам — состояние ДО ADR-912: файл подменяется файлом молча",
+   "file": "scripts/adapter_status_writer_census.py",
+   "old": "    new = [{\"file\": f, \"declared\": declared.get(f, 0), \"found\": len(lines),\n            \"lines\": sorted(lines)}\n           for f, lines in sorted(found.items())\n           if len(lines) > declared.get(f, 0)]",
+   "new": "    new = ([{\"file\": \"<итого>\", \"declared\": sum(declared.values()),\n             \"found\": len(sites), \"lines\": []}]\n           if len(sites) > sum(declared.values()) else [])"
+  },
+  {
+   "name": "пустая база объявлена «границы нет» — ноль выдан за ответ (инв. #17)",
+   "file": "scripts/adapter_status_writer_census.py",
+   "old": "    if not isinstance(files, dict) or not files:\n        return {\"status\": \"unmeasured\",",
+   "new": "    if not isinstance(files, dict):\n        return {\"status\": \"unmeasured\","
+  },
+  {
+   "name": "раздел границы отсутствует, а вердикт молчит — «не измерено» снова неотличимо от «чисто»",
+   "file": "scripts/adapter_status_writer_census.py",
+   "old": "    if not isinstance(boundary, dict):\n        return 2, [\"НЕ ИЗМЕРЕНО: перепись не отдала раздел \"",
+   "new": "    if False:\n        return 2, [\"НЕ ИЗМЕРЕНО: перепись не отдала раздел \""
+  },
+  {
+   "name": "убыль базы объявлена находкой — храповик запретил бы САМ СЕБЯ поджать",
+   "file": "scripts/adapter_status_writer_census.py",
+   "old": "        \"status\": \"grew\" if new else \"within\",",
+   "new": "        \"status\": \"grew\" if (new or gone) else \"within\","
+  }
+ ]
+}

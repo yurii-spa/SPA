@@ -156,10 +156,27 @@ WRITER_UNMEASURED_MAX = 1
 LITERAL_UNMEASURED_MAX = 0
 
 #: Цель, приходящая от вызывающего (параметр без умолчания): модуль сам НЕ
-#: объявляет, какой артефакт пишет. Это ГРАНИЦА меры, а не находка и не
-#: «не измерено» — поэтому у неё свой потолок, равный замеру (26). Рост числа
-#: означает новую запись с необъявленной целью и обязан быть замечен.
-CALLER_SUPPLIED_MAX = 26
+#: объявляет, какой артефакт пишет. Это ГРАНИЦА меры, а не находка.
+#:
+#: **Объявляется ИМЕНАМИ, а не числом (ADR-912).** Здесь стоял счётный потолок
+#: `CALLER_SUPPLIED_MAX = 26` — «замер 2026-10-12». Счёт рост ЗАМЕЧАЛ и назвать
+#: пришедшее не мог ПО ПОСТРОЕНИЮ, а сам потолок устарел НА ДЕНЬ СВОЕЙ ДОСТАВКИ:
+#: на коммите `9d985516a` (29.10), которым он приехал на `main`, прибор давал
+#: уже **27**. К 04.11 замер дал **32**, и шесть лишних числом не отличались от
+#: шести дефектов — тогда как по именам это РОВНО пять пришедших площадок в трёх
+#: файлах (`analytics/golive_readiness_report.py` ×2 ·
+#: `monitoring/golive_producer_criteria.py` ×2 · `monitoring/card_acceptance.py`
+#: +1), и ни одна из них артефакт не пишет: это родовые помощники
+#: (`_atomic_write_json(path, data)`, `_write(root, rel, payload)`) и писатели
+#: одноразовых СЦЕН внутри `TemporaryDirectory`.
+#:
+#: Единица базы — ФАЙЛ, а не строка: номер строки дрейфует от любой соседней
+#: правки (`peg_monitor.py:128 → :129` между теми же двумя замерами), и база на
+#: строках краснела бы от форматирования. Файл устойчив, а рост ВНУТРИ файла
+#: ловится объявленным числом площадок.
+CALLER_SUPPLIED_BASELINE = os.path.join(
+    os.path.dirname(os.path.abspath(__file__)),
+    "adapter_status_caller_supplied_baseline.json")
 
 #: Писатель, который пишет артефакт и НЕ ставит `generated_by`: для его выхода
 #: само-объявление документа врёт. Замер 4 из 5: `execution/adapter_status.py`
@@ -209,6 +226,84 @@ LITERAL_SUBSTITUTION_MAX = 0
 #:     прежняя мера не могла её увидеть, потому что не смотрела эту ось вовсе.
 #: Любая ТРЕТЬЯ запись краснит прибор. Дописывать сюда ЗАПРЕЩЕНО.
 PROVENANCE_ABSENT_MAX = 2
+
+
+# ────────────────── ГРАНИЦА «цель от вызывающего» — ПО ИМЕНАМ ───────────────
+
+
+def _read_caller_supplied_baseline(path: Optional[str] = None) -> dict[str, Any]:
+    """Объявленная база границы: ``{файл: сколько площадок}``.
+
+    Третий исход обязателен (инв. #17): базы нет / не разбирается / не несёт
+    раздела `файлы` — это **НЕ ИЗМЕРЕНО с названной причиной**, а не пустая база.
+    Пустая база означала бы «границы нет вовсе» и покрасила бы прибор на всём
+    населении; отсутствующая база, прочитанная как ноль, наоборот объявила бы
+    любое население «в пределах». Ни то, ни другое не есть ответ.
+    """
+    p = path or CALLER_SUPPLIED_BASELINE
+    try:
+        with open(p, encoding="utf-8") as fh:
+            doc = json.load(fh)
+    except (OSError, ValueError) as exc:
+        return {"status": "unmeasured",
+                "reason": f"база `{os.path.basename(p)}` не прочитана "
+                          f"({type(exc).__name__}: {exc})",
+                "files": {}}
+    files = doc.get("файлы")
+    if not isinstance(files, dict) or not files:
+        return {"status": "unmeasured",
+                "reason": f"база `{os.path.basename(p)}` не несёт раздела "
+                          f"`файлы` — пустая база не есть «границы нет»",
+                "files": {}}
+    bad = {k: v for k, v in files.items() if not isinstance(v, int) or v < 1}
+    if bad:
+        return {"status": "unmeasured",
+                "reason": f"в базе {len(bad)} запис(ь/ей) не является числом "
+                          f"площадок ≥1: {sorted(bad)[:4]}",
+                "files": {}}
+    return {"status": "measured", "reason": "", "files": dict(files)}
+
+
+def _caller_supplied_boundary(sites: list[dict[str, Any]],
+                              baseline: dict[str, Any]) -> dict[str, Any]:
+    """Сверка найденных площадок с ОБЪЯВЛЕННЫМИ — по файлам, не по числу.
+
+    Исходы: ``within`` (всё объявлено) · ``grew`` (есть файл, которого в базе
+    нет, либо площадок в файле больше объявленного — НАЗВАННЫЙ) ·
+    ``unmeasured`` (база не прочитана; наследуется от читателя базы).
+
+    Убыль базы (``gone``) находкой НЕ является и кода не меняет — база обязана
+    уметь только убывать, — но ПЕЧАТАЕТСЯ: это и есть приглашение её поджать.
+    """
+    found: dict[str, list[int]] = {}
+    for s in sites:
+        found.setdefault(s["file"], []).append(s["line"])
+
+    if baseline["status"] != "measured":
+        return {"status": "unmeasured", "reason": baseline["reason"],
+                "declared_files": 0, "declared_sites": 0,
+                "found_files": len(found), "found_sites": len(sites),
+                "new": [], "gone": []}
+
+    declared = baseline["files"]
+    new = [{"file": f, "declared": declared.get(f, 0), "found": len(lines),
+            "lines": sorted(lines)}
+           for f, lines in sorted(found.items())
+           if len(lines) > declared.get(f, 0)]
+    gone = [{"file": f, "declared": n, "found": len(found.get(f, []))}
+            for f, n in sorted(declared.items()) if len(found.get(f, [])) < n]
+
+    return {
+        "status": "grew" if new else "within",
+        "reason": "" if not new else (
+            f"{sum(r['found'] - r['declared'] for r in new)} площадк(а/и) с целью "
+            f"от вызывающего НЕ ОБЪЯВЛЕН(а/ы) в "
+            f"`{os.path.basename(CALLER_SUPPLIED_BASELINE)}`"),
+        "declared_files": len(declared),
+        "declared_sites": sum(declared.values()),
+        "found_files": len(found), "found_sites": len(sites),
+        "new": new, "gone": gone,
+    }
 
 
 # ───────────────────────────── обход дерева ─────────────────────────────────
@@ -765,12 +860,17 @@ def _literal_axis(path: str, tree: ast.Module,
 # ───────────────────────────────── замер ────────────────────────────────────
 
 
-def measure(root_dir: Optional[str] = None) -> dict[str, Any]:
+def measure(root_dir: Optional[str] = None,
+            baseline_path: Optional[str] = None) -> dict[str, Any]:
     """Полный замер обеих осей. Только чтение исходников.
 
     ``root_dir`` — дерево, которое мерим (по умолчанию своё). Дверь объявлена
     входом ради контролей: положительный контроль кладёт крафтовый модуль в
     одноразовый стенд, а не в живой код.
+
+    ``baseline_path`` — та же дверь для базы границы «цель от вызывающего»
+    (ADR-912): контроль обязан уметь показать прибору ДРУГУЮ базу, иначе
+    проверить отказ при росте можно было бы только правкой живой базы.
     """
     root = root_dir or REPO_ROOT
     writers: list[dict[str, Any]] = []
@@ -888,6 +988,11 @@ def measure(root_dir: Optional[str] = None) -> dict[str, Any]:
         "writer_unmeasured": writer_unmeasured,
         "literal_unmeasured": lit_unmeasured,
         "caller_supplied": caller_supplied,
+        # ГРАНИЦА «цель от вызывающего» живёт ЗДЕСЬ и только здесь (ADR-912).
+        # В `ceilings` её числа НЕТ намеренно: счёт и имена — два ответа на один
+        # вопрос, и расхождение между ними было бы молчаливым (класс ADR-220).
+        "caller_supplied_boundary": _caller_supplied_boundary(
+            caller_supplied, _read_caller_supplied_baseline(baseline_path)),
         "stand": stands,
         "name_from_elsewhere": name_from_elsewhere,
         "ceilings": {
@@ -898,7 +1003,6 @@ def measure(root_dir: Optional[str] = None) -> dict[str, Any]:
             "provenance_absent": PROVENANCE_ABSENT_MAX,
             "writer_unmeasured": WRITER_UNMEASURED_MAX,
             "literal_unmeasured": LITERAL_UNMEASURED_MAX,
-            "caller_supplied": CALLER_SUPPLIED_MAX,
         },
     }
 
@@ -916,11 +1020,24 @@ def verdict(rep: dict[str, Any]) -> tuple[int, list[str]]:
         return 2, ["НЕ ИЗМЕРЕНО: писателей не найдено ВОВСЕ — у артефакта есть "
                    "`generated_by`, значит писатель существует; ноль здесь есть "
                    "отказ меры, а не чистота"]
-    if c["caller_supplied"] > cl["caller_supplied"]:
-        lines.append(f"НЕ ИЗМЕРЕНО (цель приходит от вызывающего) "
-                     f"{c['caller_supplied']} > потолок {cl['caller_supplied']}")
-        for r in rep["caller_supplied"][:6]:
-            lines.append(f"  [от вызывающего] {r['file']}:{r['line']}")
+    boundary = rep.get("caller_supplied_boundary")
+    if not isinstance(boundary, dict):
+        return 2, ["НЕ ИЗМЕРЕНО: перепись не отдала раздел "
+                   "`caller_supplied_boundary` — граница «цель от вызывающего» "
+                   "не судима, а её отсутствие не есть «в пределах» (ADR-912)"]
+    if boundary["status"] == "unmeasured":
+        return 2, [f"НЕ ИЗМЕРЕНО (граница «цель от вызывающего»): "
+                   f"{boundary['reason']}"]
+    if boundary["status"] == "grew":
+        lines.append(f"НЕ ИЗМЕРЕНО (цель приходит от вызывающего): "
+                     f"{boundary['reason']}")
+        for r in boundary["new"]:
+            lines.append(f"  [НЕ ОБЪЯВЛЕНО] {r['file']}: объявлено "
+                         f"{r['declared']}, найдено {r['found']} "
+                         f"(стр. {', '.join(str(n) for n in r['lines'])})")
+        lines.append("  починка: проверить, не пишет ли площадка артефакт на "
+                     "самом деле; НЕ пишет ⇒ объявить её в "
+                     f"`{os.path.basename(CALLER_SUPPLIED_BASELINE)}` с причиной")
         return 2, lines
     if c["writer_unmeasured"] > cl["writer_unmeasured"]:
         lines.append(f"НЕ ИЗМЕРЕНО (цель записи не раскрыта) "
@@ -950,6 +1067,27 @@ def verdict(rep: dict[str, Any]) -> tuple[int, list[str]]:
     return code, lines
 
 
+def _boundary_line(rep: dict[str, Any]) -> str:
+    """Одна строка про границу: объявлено ли найденное — и чем, если нет.
+
+    Три исхода различимы в самой строке (инв. #17): «объявлено N/M» ·
+    «НЕ ОБЪЯВЛЕНО k» · «база НЕ ИЗМЕРЕНА».
+    """
+    b = rep.get("caller_supplied_boundary")
+    if not isinstance(b, dict):
+        return "граница НЕ ИЗМЕРЕНА: раздела нет"
+    if b["status"] == "unmeasured":
+        return f"база НЕ ИЗМЕРЕНА: {b['reason']}"
+    if b["status"] == "grew":
+        return (f"НЕ ОБЪЯВЛЕНО "
+                f"{sum(r['found'] - r['declared'] for r in b['new'])} в "
+                f"{len(b['new'])} файл(ах)")
+    gone = sum(r["declared"] - r["found"] for r in b["gone"])
+    tail = f", база убыла на {gone} — можно поджать" if gone else ""
+    return (f"объявлено {b['declared_sites']} в {b['declared_files']} "
+            f"файл(ах){tail}")
+
+
 def report(rep: dict[str, Any]) -> str:
     c = rep["counts"]
     out = [
@@ -964,7 +1102,7 @@ def report(rep: dict[str, Any]) -> str:
         f"  НЕ ИЗМЕРЕНО: целей {c['writer_unmeasured']} "
         f"· значений {c['literal_unmeasured']}",
         f"  ГРАНИЦЫ (не находки): цель от вызывающего {c['caller_supplied']} "
-        f"(потолок {rep['ceilings']['caller_supplied']}) "
+        f"({_boundary_line(rep)}) "
         f"· запись в одноразовый стенд {c['stand']} "
         f"· имя из чужого модуля {c['name_from_elsewhere']}",
         "",
