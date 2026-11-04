@@ -1,0 +1,34 @@
+{
+  "order": "G907.2",
+  "sha": "1549c91fa333170433b1c56dd31a0f4696a84759",
+  "measured_at": "2026-11-04T14:38:06Z",
+  "tree_root": "/private/tmp/spa_c1032_run",
+  "scene": "spa_core/monitoring/_literal_neighbour_grown_scene.py",
+  "canary": {
+    "base_sites": 290,
+    "grown_sites": 291,
+    "delta": 1
+  },
+  "positive_control": {
+    "status": "MEASURED",
+    "declared": 104,
+    "flipped": [
+      "spa_core/tests/test_literal_neighbour_positive_control.py::test_the_bomb_is_green_until_the_tree_grows"
+    ]
+  },
+  "surface_files": [
+    "spa_core/tests/test_counter_field_step.py",
+    "spa_core/tests/test_document_field_reader.py",
+    "spa_core/tests/test_escaped_counter_one_step.py"
+  ],
+  "surface_count": 3,
+  "differential_files": [
+    "spa_core/tests/test_counter_field_step.py",
+    "spa_core/tests/test_document_field_reader.py",
+    "spa_core/tests/test_escaped_counter_one_step.py"
+  ],
+  "member_files": [],
+  "members": [],
+  "member_count": 0,
+  "upper_bound": 0
+}
