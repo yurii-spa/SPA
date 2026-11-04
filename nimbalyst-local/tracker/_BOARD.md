@@ -2,11 +2,11 @@
 
 > Авто-генерится `scripts/build_tracker_board.py` из `nimbalyst-local/tracker/*.md`. НЕ править вручную — правь карточки. Источник правды — карточки, это индекс (bootstrap).
 >
-> Собрана: 2026-11-04T00:56:17Z · сверка с карточками: `python3 scripts/build_tracker_board.py --check` (сторож `spa_core/tests/test_tracker_board_matches_cards.py`).
+> Собрана: 2026-11-04T08:28:01Z · сверка с карточками: `python3 scripts/build_tracker_board.py --check` (сторож `spa_core/tests/test_tracker_board_matches_cards.py`).
 >
-> Сверено с `origin/main` (c634593d2) · у **1** своя правка, кто новее — не измерено.
+> Сверено с `origin/main` (eed54a7a0).
 >
-> Всего карточек: **1577** · ждёт владельца: **7** · занято сессиями: **13**.
+> Всего карточек: **1579** · ждёт владельца: **7** · занято сессиями: **13**.
 
 ## 🔴 ЖДЁТ ВЛАДЕЛЬЦА (needs-owner)
 
@@ -424,7 +424,7 @@
 ### · closed
 - Считать ли верный отказ по правилам допуска неисправностью флота  ·  `owner-decision-schitat-li-vernyi-otkaz-po-pravilam-dopu.md` · 2026-10-08
 
-## 📥 Inbox (задания: Telegram / заметки / голос)  (892)
+## 📥 Inbox (задания: Telegram / заметки / голос)  (894)
 
 ### · in-progress
 - а задача починить все-таки еще раз сообщение которым не пишет нужно твое решени…  ·  `inbox-a-zadacha-pochinit-vse-taki-esche-raz-so.md` · 2026-08-14 · 🔒 `pid43119`
@@ -1036,6 +1036,7 @@
 - Два артефакта наблюдают РАЗНЫЕ пулы aave_v3 и compound_v3 — TVL расходится в 206 и 80 раз  ·  `inbox-dva-artefakta-nablyudayut-raznye-puly-aa.md` · 2026-09-15
 - Два красных на main: население двух переписей разошлось с опубликованным числом и с соседней дорогой  ·  `inbox-dva-krasnyh-na-main-naselenie-perepisei-razoshlos.md` · 2026-09-13
 - Два прибора написаны и не позваны: храповики проводки красны на чистой вершине  ·  `inbox-dva-pribora-napisany-i-ne-pozvany-hrapov.md` · 2026-10-02
+- Два счётных потолка dead-code переросли дерево и не могут назвать пришедшее  ·  `inbox-dva-schetnyh-potolka-dead-code-pererosli.md` · 2026-11-04
 - Два сторожа никто не зовёт, а вычет сторожа сторожей перевалил половину — оба красные на чистом origin/main  ·  `inbox-dva-storozha-nikto-ne-zovet-a-vychet-sto.md` · 2026-10-11
 - Два теста краснеют оттого, что владелец ОТВЕТИЛ: очередь CLI судит о главном дереве  ·  `inbox-dva-testa-krasneyut-ottogo-chto-vladelet.md` · 2026-08-19
 - Два теста падают на чистой главной ветке: перепись кодов возврата и три исхода выполнимости сроков  ·  `inbox-dva-testa-padayut-na-chistoi-glavnoi-vet.md` · 2026-10-09
@@ -1065,6 +1066,7 @@
 - Храповик населения читателей журнала решений красен на чистом origin/main: keep_dominance_census читает apy_evidenced_pct и не измеряется  ·  `inbox-hrapovik-naseleniya-chitatelei-zhurnala.md` · 2026-09-28
 - Храповик приёмки КРАСЕН на origin/main: две карточки закрыты без машинного критерия  ·  `inbox-hrapovik-priemki-krasen-na-origin-main-d.md` · 2026-10-25
 - Храповик приёмки красен о закрытиях 22-суточной давности: у него часы ДОСТАВКИ, а не закрытия  ·  `inbox-hrapovik-priemki-krasen-o-zakrytiyah-22.md` · 2026-10-27
+- Храповик провенанса git-ref красен верно: предмет вырос на 28 площадок  ·  `inbox-hrapovik-provenansa-git-ref-krasen-verno.md` · 2026-11-04
 - Храповик shell-git-cd красен на чистом main: прибор честно говорит «не измерено», а тест такого исхода не ждёт  ·  `inbox-hrapovik-shell-git-cd-krasen-na-chistom.md` · 2026-10-04
 - Храповик замороженных дат КРАСЕН на чистом origin/main: test_record_survival_census.py принёс литеральную дату  ·  `inbox-hrapovik-zamorozhennyh-dat-krasen-na-chi-2.md` · 2026-10-10
 - Храповик замороженных дат красный на main: тесту витрины чисел не хватает пометки  ·  `inbox-hrapovik-zamorozhennyh-dat-krasnyi-na-ma.md` · 2026-09-13

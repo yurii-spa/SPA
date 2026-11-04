@@ -14,6 +14,7 @@ from __future__ import annotations
 
 import ast
 import os
+import re
 import tempfile
 import textwrap
 import unittest
@@ -465,31 +466,123 @@ class WiringTest(unittest.TestCase):
                 return node
         raise AssertionError("в переписи нет функции `measure`")
 
+    #: Имя ключа и имя шага совпадают по замыслу переписи — но спрашиваются
+    #: порознь: ключ есть адрес в документе, имя — адрес в коде.
+    _STEP = "tail_value_divergence"
+
+    @staticmethod
+    def _step_binding(fn, step: str):
+        """Имя, которому присвоен результат шага, либо ``None``."""
+        bound = None
+        for node in ast.walk(fn):
+            if (isinstance(node, ast.Assign) and isinstance(node.value, ast.Call)
+                    and isinstance(node.value.func, ast.Name)
+                    and node.value.func.id == step
+                    and len(node.targets) == 1
+                    and isinstance(node.targets[0], ast.Name)):
+                bound = node.targets[0].id
+        return bound
+
+    @staticmethod
+    def _returned_document(fn):
+        """Ключ → имя-значение у документа, который функция ВОЗВРАЩАЕТ.
+
+        **Правило знало ОДНУ форму `return` из двух (ADR-916).** Прежняя
+        редакция искала только ``return {… "ключ": имя …}``. `measure`
+        переписи собирает документ ИМЕНЕМ (``doc = {…}``), потом дописывает
+        один ключ (``doc[SUBJECT_OWN_STEP] = …``) и возвращает ``return doc``
+        — иначе дописывать было бы некуда. Проводка при этом ЦЕЛА, а сторож
+        краснел, то есть отвечал о ФОРМЕ, а не о предмете: дословно тот же
+        род, что «вызов, среди аргументов которого есть наша строка».
+
+        Отказ остаётся fail-CLOSED: форму, которую правило не разбирает,
+        оно объявляет пустым документом, а не «ключ на месте».
+        """
+        def pairs(dict_node):
+            out = {}
+            for key, value in zip(dict_node.keys, dict_node.values):
+                if isinstance(key, ast.Constant) and isinstance(value, ast.Name):
+                    out[key.value] = value.id
+            return out
+
+        returns = [n for n in ast.walk(fn) if isinstance(n, ast.Return)]
+        document = {}
+        for node in returns:
+            # Форма 1 — словарь прямо в `return`.
+            if isinstance(node.value, ast.Dict):
+                document.update(pairs(node.value))
+                continue
+            # Форма 2 — `return имя`, где имя связано словарём выше.
+            if not isinstance(node.value, ast.Name):
+                continue
+            target = node.value.id
+            for other in ast.walk(fn):
+                if (isinstance(other, ast.Assign)
+                        and isinstance(other.value, ast.Dict)
+                        and len(other.targets) == 1
+                        and isinstance(other.targets[0], ast.Name)
+                        and other.targets[0].id == target):
+                    document.update(pairs(other.value))
+        return document
+
     def test_measure_binds_the_step_and_returns_that_binding(self):
         # Проверка по ФОРМЕ ЗОВА, а не по подстроке: тест на вхождение имени
         # пережил бы любое расцепление — вызов остался бы, а ключ уехал бы
         # пустым (или наоборот).
         fn = self._measure_fn()
-        bound = None
-        for node in ast.walk(fn):
-            if (isinstance(node, ast.Assign) and isinstance(node.value, ast.Call)
-                    and isinstance(node.value.func, ast.Name)
-                    and node.value.func.id == "tail_value_divergence"
-                    and len(node.targets) == 1
-                    and isinstance(node.targets[0], ast.Name)):
-                bound = node.targets[0].id
+        bound = self._step_binding(fn, self._STEP)
         self.assertIsNotNone(bound, "шаг не позван из `measure`")
-        returned = False
-        for node in ast.walk(fn):
-            if not isinstance(node, ast.Return) or not isinstance(node.value, ast.Dict):
-                continue
-            for key, value in zip(node.value.keys, node.value.values):
-                if (isinstance(key, ast.Constant)
-                        and key.value == "tail_value_divergence"
-                        and isinstance(value, ast.Name) and value.id == bound):
-                    returned = True
-        self.assertTrue(returned,
-                        "результат шага не уехал в документ переписи")
+        document = self._returned_document(fn)
+        self.assertEqual(document.get(self._STEP), bound,
+                         "результат шага не уехал в документ переписи")
+
+    def test_the_wiring_rule_reads_both_return_forms_and_still_refuses(self):
+        """Контроль правила проводки: ДВЕ формы × ДВА исхода (ADR-916).
+
+        Расширение правила на вторую форму обязано сохранить его силу: сцена
+        с ОТЦЕПЛЕННЫМ ключом краснеет в КАЖДОЙ из двух форм. Без этой половины
+        правку нельзя было бы отличить от ослабления (инв. #16).
+        """
+        scenes = {
+            "форма 1 · словарь в return": (
+                "def measure():\n"
+                "    v = tail_value_divergence(n)\n"
+                "    return {'tail_value_divergence': v}\n"),
+            "форма 2 · документ именем": (
+                "def measure():\n"
+                "    v = tail_value_divergence(n)\n"
+                "    doc = {'tail_value_divergence': v}\n"
+                "    doc['other'] = 1\n"
+                "    return doc\n"),
+        }
+        broken = {
+            "форма 1 · ключ отцеплен": (
+                "def measure():\n"
+                "    v = tail_value_divergence(n)\n"
+                "    return {'something_else': v}\n"),
+            "форма 2 · ключ отцеплен": (
+                "def measure():\n"
+                "    v = tail_value_divergence(n)\n"
+                "    doc = {'something_else': v}\n"
+                "    return doc\n"),
+            "форма 2 · возвращён ДРУГОЙ документ": (
+                "def measure():\n"
+                "    v = tail_value_divergence(n)\n"
+                "    doc = {'tail_value_divergence': v}\n"
+                "    return other\n"),
+        }
+
+        def verdict(src):
+            fn = ast.parse(src).body[0]
+            return self._returned_document(fn).get(self._STEP) == \
+                self._step_binding(fn, self._STEP)
+
+        for name, src in scenes.items():
+            with self.subTest(целая=name):
+                self.assertTrue(verdict(src), name)
+        for name, src in broken.items():
+            with self.subTest(порванная=name):
+                self.assertFalse(verdict(src), name)
 
     def test_the_step_is_fed_by_the_neighbour_not_by_a_second_road(self):
         fn = self._measure_fn()
@@ -721,9 +814,33 @@ class WholeContourTest(unittest.TestCase):
         self.assertTrue(any(i["kinds_differ"] for i in diverging))
 
     def test_reach_is_measured_for_every_costed_read(self):
+        # Перечень — ДОСТИЖЕНИЯ ДОКУМЕНТА (`_DOC_REACH_OUTCOMES`), и это
+        # вторая половина починки, сделанной у соседа ниже
+        # (`test_every_declared_class_is_still_countable`) и ЗДЕСЬ забытой.
+        # Имя `_REACH_OUTCOMES` после снятия затенения означает перечень
+        # достижимости РАСКОЛА — другой предмет с другими значениями, и
+        # спрашивать у него про `item["reach"]` значило бы судить ответ по
+        # ЧУЖОМУ словарю (ADR-916).
         _, row = self._row()
         for item in row["costed_all"]:
-            self.assertIn(item["reach"], C._REACH_OUTCOMES)
+            self.assertIn(item["reach"], C._DOC_REACH_OUTCOMES)
+
+    def test_the_two_reach_rosters_are_different_subjects(self):
+        """Положительный контроль подмены словаря: перечни обязаны не пересекаться.
+
+        До ADR-916 тест выше спрашивал у `_REACH_OUTCOMES`, то есть у перечня
+        достижимости РАСКОЛА, и покраснел лишь потому, что значения разошлись.
+        Совпади хоть одно — тест был бы ЗЕЛЕНЫМ и ВАКУУМНЫМ, а это опаснее
+        красного. Пустое пересечение и есть то свойство, на котором стои́т
+        «спрошено у своего словаря».
+        """
+        doc = set(C._DOC_REACH_OUTCOMES)
+        split = set(C._REACH_OUTCOMES)
+        self.assertTrue(doc, "перечень достижения документа пуст")
+        self.assertTrue(split, "перечень достижимости раскола пуст")
+        self.assertEqual(doc & split, set(),
+                         "перечни ДВУХ предметов пересеклись — вопрос к "
+                         "одному словарю стал бы зелен по другому")
 
     def test_the_aggregate_reads_this_contour_end_to_end(self):
         got, _ = self._row()
@@ -808,6 +925,14 @@ class AbsentReachIsNotAnOutcome(unittest.TestCase):
         self.assertEqual(measured_miss["status"], "MEASURED")
         self.assertEqual(measured_miss["verdict"], C.DIVERGENCE_ARTIFACT_ONLY)
 
+    #: Отставленное имя спрашивается ПО ГРАНИЦЕ СЛОВА, а не подстрокой.
+    #: Подстрока `reach_outcome` входит в ЖИВОЕ имя `reach_outcomes`
+    #: (`rule_second_copy_census` пишет этот ключ у шага достижимости), и
+    #: сторож краснел от законного соседа, а не от возвращённого второго
+    #: имени. Это та же ошибка рода, что «вызов, среди аргументов которого
+    #: есть наша строка» — ответ о ФОРМЕ, выданный за ответ о ПРЕДМЕТЕ.
+    _RETIRED_REACH_NAME = re.compile(r"\breach_outcome\b")
+
     def test_the_second_name_for_reach_is_gone_from_the_code(self):
         # Ветка была мертва СЕГОДНЯ — по одному вызывающему, а не по коду.
         # Сторож смотрит на исходник, потому что поведением мёртвую ветку
@@ -815,7 +940,23 @@ class AbsentReachIsNotAnOutcome(unittest.TestCase):
         src = Path(C.__file__).read_text(encoding="utf-8")
         code = "\n".join(l for l in src.splitlines()
                           if not l.lstrip().startswith("#"))
-        self.assertNotIn("reach_outcome", code)
+        found = self._RETIRED_REACH_NAME.findall(code)
+        self.assertEqual(found, [], "отставленное имя `reach_outcome` вернулось")
+
+    def test_the_retired_name_rule_tells_the_plural_from_the_singular(self):
+        """Положительный контроль правила В ОБЕ СТОРОНЫ (ADR-916).
+
+        Правило по границе слова обязано ЛОВИТЬ отставленное имя и НЕ ловить
+        живого соседа. Без второй половины правило можно было бы ослабить до
+        «никогда ничего не находит», и сторож стал бы украшением.
+        """
+        rule = self._RETIRED_REACH_NAME
+        self.assertTrue(rule.search('x.get("reach_outcome")'),
+                        "отставленное имя обязано ловиться")
+        self.assertTrue(rule.search("reach_outcome = 1"))
+        self.assertIsNone(rule.search('"reach_outcomes": outcomes'),
+                          "живой ключ `reach_outcomes` отставленным не является")
+        self.assertIsNone(rule.search('observed(step, "reach_outcomes")'))
 
     def test_a_reach_class_nobody_declared_refuses_too(self):
         # Та же дыра с другой стороны: незнакомый класс не есть REACH_LIVE и

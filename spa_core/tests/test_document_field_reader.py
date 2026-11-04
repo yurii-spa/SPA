@@ -22,6 +22,7 @@ ADR-463 ответил на заказ G79 нулём и назвал ГЛАВН
 from __future__ import annotations
 
 import ast
+import functools
 from pathlib import Path
 
 from spa_core.monitoring import rule_second_copy_census as census
@@ -89,9 +90,63 @@ def caller(rows):
 
 
 def _neighbour(never_read: int = 1, unbound: int = 0) -> dict:
+    """Сосед, СОБРАННЫЙ РУКАМИ, — для сцен с ОБЪЯВЛЕННЫМ населением.
+
+    На СВОЕЙ сцене (``tmp_path``, ``DOC_READER_CONTROL_CLEAN``) литерал
+    законен: население сцены задаёт сама сцена, и оно не дрейфует. На ЖИВОМ
+    дереве литерал — бомба, и для него есть ``_live_neighbour`` ниже.
+    """
     return {"status": "MEASURED",
             "unresolved_reasons": {FIELD_GAP_FIELD_NEVER_READ: never_read,
                                    STEP_GAP_RESULT_UNBOUND: unbound}}
+
+
+def _repo_root() -> Path:
+    return Path(__file__).resolve().parents[2]
+
+
+@functools.lru_cache(maxsize=4)
+def _live_neighbour(root: Path) -> dict:
+    """Сосед ЖИВОГО дерева берётся у ПРОИЗВОДИТЕЛЯ, а не литералом.
+
+    **Почему не литерал (замер цикла #1029, ADR-916).** Здесь стояло
+    ``_neighbour(16, 10)`` — снимок населения на день написания теста. Шаг
+    сверяет объявленное соседом население со СВОИМ обходом и при расхождении
+    отказывает fail-CLOSED (``UNMEASURED_DOC_POPULATION``) — это верное
+    поведение. Дерево выросло, свой обход стал находить **47** счётчиков
+    против объявленных литералом **26**, и ЧЕТЫРЕ теста этого файла покраснели
+    от РОСТА ДЕРЕВА, а не от кода: ``AssertionError: свой обход нашёл 47 …
+    сосед — 26``, затем ``KeyError: 'resolved_by_document_step'`` и
+    ``KeyError: 'blind'`` — ключей у отказавшего шага нет вовсе.
+
+    Это ровно тот класс, что у литеральной даты (`.claude/rules/deployment.md`,
+    § «Время в тестах») и у счётного потолка: число живёт в тесте и ни с чем не
+    сверяется, поэтому устаревает молча и взрывается от календаря дерева.
+    Лечение то же, что у ADR-913 — **ПАРИТЕТ С ПРОИЗВОДИТЕЛЕМ**: сосед
+    собирается тем же ходом цепочки, каким его собирает ``measure``.
+
+    Цепочка — дословно `measure` (``rule_second_copy_census.measure``):
+    открытые счётчики → их читатель → шаг одного вызова → шаг переноса полем.
+    Обход дерева стои́т секунды, поэтому ответ кэшируется: четыре теста
+    спрашивают ОДНО население, и платить за него четыре раза значило бы
+    покупать повтор работы, а не ответ.
+    """
+    open_counters = census.open_class_counter_census(root)
+    reader_harm = census.open_counter_reader_harm(root, open_counters)
+    one_step = census.escaped_counter_one_step(root, reader_harm)
+    return census.container_counter_field_step(root, one_step)
+
+
+def _declared_population(neighbour: dict) -> int:
+    """Сколько сосед ОБЪЯВИЛ — тем же правилом, каким читает шаг.
+
+    Своей копии правила тест не держит: разойдись она с шагом, тест сверял бы
+    паритет с собственной выдумкой (дословный урок ADR-913 — сторож сравнивал
+    свои константы САМ С СОБОЙ).
+    """
+    reasons = neighbour["unresolved_reasons"]
+    return (int(reasons[FIELD_GAP_FIELD_NEVER_READ])
+            + int(reasons[STEP_GAP_RESULT_UNBOUND]))
 
 
 # --- половины контроля ------------------------------------------------------
@@ -494,22 +549,68 @@ def test_gap_names_are_distinct():
 
 
 def test_live_measurement_reports_both_liveness_numbers():
-    """Ноль от живой проводки и ноль от непроведённого шага выглядят одинаково."""
-    root = Path(__file__).resolve().parents[2]
-    out = document_field_reader_in_file(root, _neighbour(16, 10))
+    """Ноль от живой проводки и ноль от непроведённого шага выглядят одинаково.
+
+    **Числа здесь не литеральны намеренно (ADR-916).** Население живого дерева
+    дрейфует (26 на день написания → 47 на 04.11), и литерал краснел бы от
+    РОСТА ДЕРЕВА. Точные числа держит сцена с ЗАКРЕПЛЁННЫМ населением —
+    ``test_whole_step_on_a_controlled_tree_reports_each_number_separately``
+    (5 · 4 · 3 · 1 · 4): там они не дрейфуют и потому бессмертны. Здесь
+    проверяется то, что ТОЛЬКО живое дерево и может доказать — что шаг
+    ПРОВЕДЁН и отвечает числами, а не отсутствием ключей.
+    """
+    root = _repo_root()
+    neighbour = _live_neighbour(root)
+    out = document_field_reader_in_file(root, neighbour)
     assert out["status"] == "MEASURED", out.get("reason")
-    assert out["population"] == 26
-    assert out["field_name_unique_in_file"] == 26
-    assert out["reader_of_that_field_found"] == 20
+    # ПАРИТЕТ, а не литерал: население обязано быть ровно тем, что объявил
+    # сосед. Разойдясь, шаг отвечал бы на другой вопрос — и это ровно тот
+    # отказ, которым он покраснел до ADR-916.
+    assert out["population"] == _declared_population(neighbour)
+    # Отношения, которые ломает НАСТОЯЩАЯ поломка правила: имя поля
+    # однозначно не более чем у всего населения, читателя ищут только там,
+    # где имя однозначно. Ноль различается от «не измерено» ключом выше.
+    assert 0 < out["field_name_unique_in_file"] <= out["population"]
+    assert 0 < out["reader_of_that_field_found"] <= out[
+        "field_name_unique_in_file"]
+
+
+def test_a_shifted_neighbour_still_makes_the_live_step_refuse():
+    """Положительный контроль ПАРИТЕТА: фитиль бомбы — под тестом.
+
+    Тест выше сверяет население с объявлением соседа. Если бы шаг перестал
+    сверять их сам, паритет выполнялся бы тождественно и проверка стала бы
+    украшением. Здесь соседу приписывается население, отличающееся РОВНО НА
+    ОДИН, и шаг обязан отказать ИМЕНОВАННЫМ классом — то есть ровно так, как
+    он отказывал на устаревшем литерале.
+    """
+    root = _repo_root()
+    declared = _declared_population(_live_neighbour(root))
+    out = document_field_reader_in_file(root, _neighbour(declared + 1, 0))
+    assert out["status"] == "UNMEASURED"
+    assert out["unmeasured_class"] == UNMEASURED_DOC_POPULATION
+    assert "resolved_by_document_step" not in out
 
 
 def test_live_measurement_answers_with_a_pair_of_numbers():
-    root = Path(__file__).resolve().parents[2]
-    out = document_field_reader_in_file(root, _neighbour(16, 10))
-    assert out["resolved_by_document_step"] == 3
-    assert out["still_unmeasured"] == 23
-    assert (out["resolved_by_document_step"] + out["still_unmeasured"]
-            == out["population"])
+    """Ответ обязан быть ПАРОЙ, и вторая половина — не остаток первой.
+
+    Тождество учёта и есть предмет (заказ G80 п. 1); литеральные 3 и 23 были
+    снимком дрейфующего дерева и к предмету не относились (ADR-916).
+    """
+    root = _repo_root()
+    neighbour = _live_neighbour(root)
+    out = document_field_reader_in_file(root, neighbour)
+    resolved = out["resolved_by_document_step"]
+    still = out["still_unmeasured"]
+    assert isinstance(resolved, int) and resolved >= 0
+    assert isinstance(still, int) and still > 0, (
+        "остаток третьим исходом исчерпан — это НАХОДКА, а не зелёный тест: "
+        "перемерить и назвать числом, а не гасить проверку")
+    assert resolved + still == out["population"]
+    # Разрешить можно только того, у кого читатель НАЙДЕН: раскол без
+    # читателя был бы вердиктом о ненаблюдённом.
+    assert resolved <= out["reader_of_that_field_found"]
 
 
 def test_the_named_case_of_adr_463_is_read_in_its_own_module():
@@ -532,21 +633,28 @@ def test_the_named_case_of_adr_463_is_read_in_its_own_module():
 
 
 def test_the_step_is_advisory():
-    root = Path(__file__).resolve().parents[2]
-    out = document_field_reader_in_file(root, _neighbour(16, 10))
+    """Спрашивается у ИЗМЕРЕННОГО шага: у отказавшего `applied` тоже False.
+
+    До ADR-916 здесь стоял устаревший литерал соседа, шаг отказывал, и тест
+    был ЗЕЛЁН — он читал поле из шапки отказа. Зелёный ответ на вопрос о
+    непроведённом шаге ответом о шаге не является.
+    """
+    root = _repo_root()
+    out = document_field_reader_in_file(root, _live_neighbour(root))
+    assert out["status"] == "MEASURED", out.get("reason")
     assert out["applied"] is False
 
 
 def test_blind_spots_name_the_one_sidedness_aloud():
-    root = Path(__file__).resolve().parents[2]
-    out = document_field_reader_in_file(root, _neighbour(16, 10))
+    root = _repo_root()
+    out = document_field_reader_in_file(root, _live_neighbour(root))
     assert any(DOC_GAP_FIELD_WRITTEN_TWICE in b for b in out["blind"])
     assert any(DOC_GAP_NO_READER_IN_FILE in b for b in out["blind"])
 
 
 def test_report_prints_the_pair_and_the_refusal_names():
-    root = Path(__file__).resolve().parents[2]
-    out = document_field_reader_in_file(root, _neighbour(16, 10))
+    root = _repo_root()
+    out = document_field_reader_in_file(root, _live_neighbour(root))
     lines = census.report({"document_field_reader_in_file": out})
     body = "\n".join(lines)
     assert "[ПО ИМЕНИ ПОЛЯ]" in body
