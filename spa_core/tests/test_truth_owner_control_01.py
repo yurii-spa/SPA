@@ -135,6 +135,15 @@ class SignalEvents(unittest.TestCase):
         self.assertEqual(buy["fill_price"], 100.0)
         self.assertFalse(buy["real_trade"])
 
+    def test_next_bar_without_a_fill_is_not_executed(self):
+        con, c = self._db()
+        con.execute("INSERT INTO observations VALUES (4,?,?,?,30,40,40,1,0,'HOLD',98.0,NULL,0,0.98,1)", (c, "BTC", "1D"))
+        sell = rm.signal_events(con, [c], now_ms=50)[0]
+        self.assertEqual(sell["signal"], "SELL")
+        self.assertEqual(sell["virtual_execution"], "NOT_EXECUTED")
+        self.assertFalse(sell["executed"])
+        self.assertIsNone(sell["fill_price"])
+
     def test_hold_rows_are_not_events_and_unknown_candidates_empty(self):
         con, c = self._db()
         self.assertEqual(rm.signal_events(con, ["other"]), [])
