@@ -60,17 +60,29 @@ def arrow(value: Any) -> str:
         return ""
 
 
-def short_ts(ts: Any) -> str:
-    """``2026-06-26T06:00:02+00:00`` → ``08:00 Мадрид``. Tolerant.
+def short_ts(ts: Any, now: Any = None) -> str:
+    """``2026-06-26T06:00:02+00:00`` → ``08:00 Мадрид`` (сегодня) или ``26.06 08:00 Мадрид``. Tolerant.
 
     Owner-facing time is Europe/Madrid (ADR-660, CET/CEST automatic); the machine stamp
-    stays UTC in the data. Unparseable ⇒ shown as is, never a guessed time."""
-    from spa_core.utils.presentation import fmt_owner_time
+    stays UTC in the data. Unparseable ⇒ shown as is, never a guessed time.
+
+    Находка T08/D3: время БЕЗ даты читалось как сегодняшнее — отметка 1 июля 09:11Z выглядела как
+    «обновлено 11:11» в 10:50 4 ноября («из будущего»). Дата печатается всегда, когда отметка не
+    сегодняшняя по Мадриду; отметка позже ``now`` помечается явно."""
+    from datetime import datetime, timezone
+    from spa_core.utils.presentation import to_owner_time
     s = str(ts or "")
     if "T" in s and len(s) >= 16:
-        local = fmt_owner_time(s, "ru", with_date=False, label=False)
+        local = to_owner_time(s)
         if local is not None:
-            return local + " Мадрид"
+            now_utc = now if isinstance(now, datetime) else datetime.now(timezone.utc)
+            today = to_owner_time(now_utc.isoformat())
+            if today is not None and local > today:
+                return local.strftime("%d.%m %H:%M") + " Мадрид (позже текущего времени — проверить часы источника)"
+            if today is not None and local.date() == today.date():
+                return local.strftime("%H:%M") + " Мадрид"
+            fmt = "%d.%m %H:%M" if today is not None and local.year == today.year else "%d.%m.%Y %H:%M"
+            return local.strftime(fmt) + " Мадрид"
         return s[11:16] + " UTC"
     return s[:16] if s else "—"
 

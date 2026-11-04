@@ -23,6 +23,31 @@ def _criteria(gl: Dict) -> List[Dict]:
     return out
 
 
+def _gl_ts(gl: Dict):
+    """Момент замера GoLive: производитель пишет ``timestamp`` (находка T08: экран искал только
+    ``generated_at``/``ts`` и печатал «обновлено —»)."""
+    return gl.get("generated_at") or gl.get("ts") or gl.get("timestamp")
+
+
+def golive_verdict(gl: Dict, lang: str) -> str:
+    """Вердикт словами, где «критерии пройдены» ≠ «live разрешён» (находка F5/E1).
+
+    ``ready`` у ``golive_checker`` значит «все критерии инвентаря PASS»; разрешение на настоящие деньги
+    даёт только владелец, и пока его нет, ``go_live_state`` = ``gate_passed_owner_decision_pending``."""
+    state = gl.get("go_live_state")
+    if gl.get("ready") and state == "gate_passed_owner_decision_pending":
+        return ("✅ критерии пройдены · ⛔ live НЕ разрешён — решения владельца нет (бумага, капитал $0)"
+                if lang == "ru" else
+                "✅ criteria pass · ⛔ live NOT authorised — no owner decision (paper, capital $0)")
+    if gl.get("ready") and state not in (None, "gate_passed_owner_decision_pending"):
+        return ("⚠️ критерии пройдены, состояние «{}» не распознано — live не разрешён".format(state)
+                if lang == "ru" else "⚠️ criteria pass, state «{}» unknown — live not authorised".format(state))
+    if gl.get("ready"):
+        return ("✅ критерии пройдены · live разрешает только владелец" if lang == "ru"
+                else "✅ criteria pass · only the owner authorises live")
+    return "⛔ " + t("lbl.not_ready", lang)
+
+
 def render_summary(arg: str = "", lang: str = "en", page: int = 0,
                    prefs: Dict = None) -> Tuple[str, Dict]:
     gl = B.read_json("golive_status.json", {})
@@ -33,8 +58,7 @@ def render_summary(arg: str = "", lang: str = "en", page: int = 0,
 
     passed = gl.get("passed", "?")
     total = gl.get("total", "?")
-    ready = gl.get("ready", False)
-    verdict = ("✅ " + t("lbl.ready", lang)) if ready else ("⛔ " + t("lbl.not_ready", lang))
+    verdict = golive_verdict(gl, lang)
     open_crit = [c for c in _criteria(gl) if c.get("status") != "PASS"]
     body = [
         "🎯  {}".format(t("ttl.golive", lang)),
@@ -53,7 +77,7 @@ def render_summary(arg: str = "", lang: str = "en", page: int = 0,
         body.append("")
         body.append("{}  ~{} more real track-days".format(t("w.eta", lang), eta_days))
     text = B.screen("golive", "gate v6.0 · honest", body,
-                    B.freshness(gl.get("generated_at") or gl.get("ts"), lang), lang)
+                    B.freshness(_gl_ts(gl), lang), lang)
     return text, menus.standard_keyboard("golive", lang)
 
 
@@ -87,5 +111,5 @@ def render_open(arg: str = "", lang: str = "en", page: int = 0,
         if msg:
             body.append("    → {}".format(msg))
     text = B.screen("golive.open", t("lbl.time_gated", lang), body,
-                    B.freshness(gl.get("generated_at") or gl.get("ts"), lang), lang)
+                    B.freshness(_gl_ts(gl), lang), lang)
     return text, menus.standard_keyboard("golive.open", lang)

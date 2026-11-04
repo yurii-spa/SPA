@@ -9,6 +9,48 @@ from spa_core.telegram.i18n import t
 from spa_core.telegram.views import _base as B
 
 
+def fleet_line(ah: Dict, lang: str) -> str:
+    """Здоровье ФЛОТА словами по его собственному вердикту (находка T02/T12): «✅ OK» печаталось ВСЕГДА,
+    кроме случая critical > 0, — и при WARNING тоже. Это строка о процессах, не об инвестиционном контуре."""
+    if not isinstance(ah, dict) or not ah:
+        return "❔ " + ("здоровье агентов не измерено" if lang == "ru" else "agent health not measured")
+    ov = str(ah.get("overall_status") or "").upper()
+    crit, warn = ah.get("critical_count") or 0, ah.get("warning_count") or 0
+    tot = ah.get("total_agents")
+    tail = (f" ({tot} агентов)" if lang == "ru" else f" ({tot} agents)") if tot else ""
+    if crit or ov == "CRITICAL":
+        return f"⛔ агенты: критично {crit}, предупреждений {warn}{tail}" if lang == "ru" else \
+            f"⛔ agents: critical {crit}, warnings {warn}{tail}"
+    if warn or ov == "WARNING":
+        return f"🟠 агенты: предупреждений {warn}{tail}" if lang == "ru" else f"🟠 agents: {warn} warnings{tail}"
+    if ov == "OK":
+        return "✅ " + t("w.system_ok", lang) + tail
+    return "❔ " + (f"здоровье агентов: «{ov or '—'}» не распознано" if lang == "ru" else f"agent health «{ov}» unknown")
+
+
+def investment_line(lang: str) -> str:
+    """Режим инвестиционных движков — отдельной строкой от здоровья процессов (находка F2/T01/T02)."""
+    try:
+        from spa_core.studio_os.trading_engines import investment_engine_modes
+        doc = investment_engine_modes()
+    except Exception as exc:  # noqa: BLE001 — экран не падает, а называет пробел
+        return ("Движки   ❔ режим не прочитан: " if lang == "ru" else "Engines  ❔ mode unreadable: ") + type(exc).__name__
+    parts = []
+    for e in doc.get("engines") or []:
+        mode, inc = e.get("mode"), e.get("incident") or {}
+        if mode is None:
+            parts.append(f"❔ {e.get('engine')}: " + ("режим не измерен" if lang == "ru" else "mode not measured"))
+        elif mode == "NORMAL":
+            parts.append(f"✅ {e.get('engine')}: NORMAL")
+        else:
+            since = str(inc.get("opened_at") or e.get("mode_since") or "")[:10]
+            parts.append(f"⛔ {e.get('engine')}: {mode}" + (f" {inc.get('kc')}" if inc.get("kc") else "")
+                         + (f" с {since}" if since and lang == "ru" else f" since {since}" if since else "")
+                         + (" — новые позиции запрещены, снимает владелец" if lang == "ru"
+                            else " — no new positions, owner clears"))
+    return ("{:<8} ".format("Движки" if lang == "ru" else "Engines")) + ("   ·   ".join(parts) or "—")
+
+
 def render(arg: str = "", lang: str = "en", page: int = 0,
            prefs: Dict = None) -> Tuple[str, Dict]:
     st = B.read_json("paper_trading_status.json", {})
@@ -31,11 +73,8 @@ def render(arg: str = "", lang: str = "en", page: int = 0,
     passed = gl.get("passed", "?")
     total = gl.get("total", "?")
 
-    crit = ah.get("critical_count", 0) if isinstance(ah, dict) else 0
-    sys_line = "✅ {}".format(t("w.system_ok", lang))
-    health_line = sys_line
-    if crit:
-        health_line = "{}   ·   ⛔ {} {}".format(sys_line, crit, t("w.agents", lang))
+    health_line = fleet_line(ah, lang)
+    invest_line = investment_line(lang)
 
     label = t("lbl.paper_readonly", lang)
     lines = [
@@ -49,8 +88,9 @@ def render(arg: str = "", lang: str = "en", page: int = 0,
             t("w.real", lang), passed, total),
         "{:<8} {}   ·   APY {}   ·   {} {}".format(
             t("w.today", lang), B.fmt_usd(daily_yield, signed=True),
-            B.fmt_pct(apy, signed=False), t("w.regime", lang), regime),
+            B.fmt_pct(apy, signed=False), ("режим рынка" if lang == "ru" else "market regime"), regime),
         "{:<8} {}".format(t("w.health", lang), health_line),
+        invest_line,
     ]
     footer = B.freshness(last_ts, lang)
     text = "{}\n{}\n{}\n{}".format(

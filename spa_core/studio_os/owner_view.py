@@ -288,8 +288,12 @@ def _book_metric(key: str, book: Any, updated: Optional[str]) -> dict:
                               "Показывать ли его на сайте — ваше решение.")
         m["data_date_ru"] = f"Данные на {end}" if end else "Дата данных не передана"
         return m
-    text = f"годовая ставка {rate} (метод — в подробностях) · худшая просадка {dd or 'не измерена'}"
+    wf = _ddmmyyyy(book.get("window_from"))
+    span = (f" за {days} дн. с {wf}" if isinstance(days, int) and wf else "")
+    text = (f"годовая ставка {rate}{span} (пересчёт окна на год — оценка, не прогноз) · "
+            f"худшая просадка {dd or 'не измерена'}")
     tech = {"metric_type": book.get("metric_type"), "method": "годовая ставка рукава (sleeve_track)",
+            "дни": book.get("days_definition_ru"),
             "mechanism": v.get("mechanism_ru"), "position": v.get("position_ru"),
             "live": v.get("live_reason_ru"), "version": v.get("version")}
     return metric(label, text, confidence=conf, source=src, measured_at=book.get("as_of"), updated_at=updated,
@@ -531,7 +535,11 @@ def _system_problems(model: dict, truth: dict, updated: Optional[str]) -> list:
     sysv = _get(model, "overview.system") or {}
     st = sysv.get("state")
     reasons = {"resources": "мало ресурсов на Mac (диск, память)", "agents": "часть фоновых задач с предупреждениями",
-               "guard": "сторож данных устарел", "packages": "сбой бумажного портфеля"}
+               "guard": "сторож данных устарел", "packages": "сбой бумажного портфеля",
+               # находка F10: каждая ось system.* названа, иначе «с ограничениями» без причины
+               "backups": "резервные копии с замечаниями", "code": "доставка кода на Mac с замечаниями",
+               "services": "часть служб не запущена", "kill switch not measured": "состояние стоп-крана не измерено",
+               "soft de-risk": "мягкое снижение риска: новые входы остановлены"}
     if st in ("DEGRADED", "CRITICAL"):
         parts = [reasons[k] for k in reasons if isinstance(sysv.get("reason"), str) and k in sysv["reason"]]
         txt = ("Система работает с ограничениями" if st == "DEGRADED" else "Авария системы") + \
@@ -539,6 +547,11 @@ def _system_problems(model: dict, truth: dict, updated: Optional[str]) -> list:
         out.append(metric("Состояние системы", txt, confidence=MEASURED, source="overview.system",
                           measured_at=None, updated_at=updated, tone="warn" if st == "DEGRADED" else "problem",
                           technical={"state": st, "reason": sysv.get("reason")}))
+    elif st in ("STALE", "NOT_MEASURED"):
+        out.append(metric("Состояние системы", None, confidence=NOT_MEASURED if st == "NOT_MEASURED" else STALE,
+                          source="overview.system", measured_at=None, updated_at=updated,
+                          reason=("часть проверок системы не измерена" if st == "NOT_MEASURED"
+                                  else "часть проверок системы устарела") + (f": {sysv.get('reason')}" if sysv.get("reason") else "")))
     elif st not in ("HEALTHY", None):
         out.append(metric("Состояние системы", None, confidence=INTERPRETATION_PROBLEM, source="overview.system",
                           measured_at=None, updated_at=updated, reason=f"не удалось понять статус «{st}»"))
@@ -554,6 +567,16 @@ def _system_problems(model: dict, truth: dict, updated: Optional[str]) -> list:
     if inv.get("state") == "NOT_MEASURED":
         out.append(metric("Инвестиционные движки", None, confidence=NOT_MEASURED, source="overview.investment",
                           measured_at=None, updated_at=updated, reason=inv.get("reason") or "режим движков не прочитан"))
+    fr = _get(model, "overview.freshness") or {}
+    stale = [r for r in (fr.get("stale_or_unmeasured") or []) if isinstance(r, dict)]
+    if stale:
+        out.append(metric("Устаревшие или не измеренные источники",
+                          f"Источников без свежих данных: {len(stale)} — снимок собран недавно, но эти данные старше "
+                          "своего срока или не измерены", confidence=MEASURED, source="overview.freshness",
+                          measured_at=fr.get("snapshot_at"), updated_at=updated, tone="warn", unit="шт.",
+                          technical={"items": [f"{r['path']}: {r['state']}"
+                                               + (f", наблюдение {r['observed_at']}" if r.get("observed_at") else "")
+                                               + (f" — {r['reason']}" if r.get("reason") else "") for r in stale]}))
     pr = _get(truth, "studio.problems")
     conf, reason = _cell_confidence(pr)
     if conf == MEASURED and isinstance(pr, dict):
@@ -569,8 +592,13 @@ def _system_problems(model: dict, truth: dict, updated: Optional[str]) -> list:
                           measured_at=_get(pr, "as_of"), updated_at=updated, reason=reason))
     inc = _get(truth, "studio.incidents")
     if isinstance(inc, dict) and isinstance(inc.get("open"), int) and inc["open"] > 0:
-        out.append(metric("Тревоги", f"Открытых тревог: {inc['open']}", confidence=MEASURED,
-                          source=inc.get("canon"), measured_at=inc.get("as_of"), updated_at=updated, tone="problem"))
+        nc = inc.get("not_confirmed") if isinstance(inc.get("not_confirmed"), int) else 0
+        txt = f"Открытых тревог: {inc['open']}" + (f" (из них {nc} с тех пор не подтверждались — открыты, но не закрыты)" if nc else "")
+        out.append(metric("Тревоги", txt, confidence=MEASURED,
+                          source=inc.get("canon"), measured_at=inc.get("as_of"), updated_at=updated,
+                          tone="warn" if nc == inc["open"] else "problem",
+                          technical={"items": [f"{i.get('title_ru')}: с {i.get('since_ru')} — {i.get('actuality_ru')}"
+                                               for i in inc.get("items") or [] if isinstance(i, dict)]}))
     return out
 
 
@@ -1370,8 +1398,7 @@ def money(model: dict, updated: Optional[str]) -> dict:
         txt = None
         if key == "oracle" and conf == MEASURED:
             stance = _get(cell, "value.stance")
-            txt = {"INSUFFICIENT_EVIDENCE": "доказательств недостаточно — рекомендации нет",
-                   "RECOMMEND": "есть рекомендация (бумага)"}.get(stance)
+            txt = ORACLE_STANCE_RU.get(stance)
             if txt is None:
                 conf, reason = INTERPRETATION_PROBLEM, f"не удалось понять позицию «{stance}»"
         if key == "trading_lab" and conf == MEASURED:
@@ -1625,7 +1652,18 @@ PROBLEM_RU = {
     "MISSING_ASOF": ("У числа на сайте нет даты замера", "Исправление сайта идёт отдельной задачей"),
     "COMPARISON_NOT_MEASURED": ("Сайт не удалось сверить с живыми данными",
                                 "Не измерено — не значит «расходится»; сверка будет повторена"),
+    # находки F4/F11/E3/E4: известные коды сторожа сайта — детерминированно, без LLM
+    "SHELF_NOT_DELIVERED": ("Новая витрина чисел собрана, но на сайте её нет",
+                            "Публикация чисел — решение владельца (предмет №2 ADR-285); вопрос — в разделе «Решения», "
+                            "если карточка про site_numbers открыта. Автоматически ничего не публикуется"),
+    "PUBLISHER_STUCK": ("Публикация сайта застряла", "Ассистент разбирает причину; от вас ничего не нужно"),
 }
+
+#: позиции советника по инвестициям (investment_cio.contract.STANCES) — словами владельца
+ORACLE_STANCE_RU = {"INSUFFICIENT_EVIDENCE": "доказательств недостаточно — рекомендации нет",
+                    "RECOMMEND": "есть рекомендация (бумага)",
+                    "HOLD": "держать текущую раскладку — менять нечего (бумага, не распоряжение)",
+                    "NO_RECOMMENDATION": "рекомендации нет"}
 _SNAPSHOT_STALE_MIN = 30
 
 # Severity is a deterministic reading of WHAT broke, not of how loud it is (owner 13.10: «насколько они
@@ -1703,6 +1741,29 @@ def _age_minutes(ts: Any, now: datetime) -> Optional[float]:
 def protection(model: dict, updated: Optional[str], now: datetime) -> dict:
     truth = model.get("truth") if isinstance(model.get("truth"), dict) else {}
     checks = []
+    feats = _get(model, "system.features.items")
+    if isinstance(feats, dict):
+        ru = {"decision_loop": "Мост находок (decision_loop)", "aggregate_mode": "Совокупный допуск (aggregate_mode)",
+              "e6_6_series": "Серия E6.6 (spot_frac)", "s5": "S5 (проверка исполнителя)"}
+        st_ru = {"ON": "включено", "OFF": "выключено", "off": "выключено", "shadow": "только тень",
+                 "enforce": "ВКЛЮЧЕНО (enforce)", "RUNNING": "запущена", "PREPARED": "подготовлена, не запущена",
+                 "TEST_STAND_ONLY": "только тестовый стенд", "UNKNOWN": "не измерено"}
+        rows = [f"{ru.get(k, k)}: {st_ru.get(v.get('state'), v.get('state'))} — {v.get('why')}"
+                for k, v in feats.items() if isinstance(v, dict)]
+        checks.append(metric("Что реализовано, но не работает", "; ".join(rows), confidence=MEASURED,
+                             source="system.features", measured_at=None, updated_at=updated, tone="neutral",
+                             technical=feats))
+    # находка F13/T09: какая версия реально работает — подписанными строками, без константы в коде
+    ver = _get(model, "system.code.versions")
+    if isinstance(ver, dict):
+        fc, tr = ver.get("fleet_code") or {}, ver.get("trusted_root") or {}
+        txt = (f"Работает код {fc.get('commit') or 'не измерен'} (синхронизирован {_madrid(fc.get('synced_at')) or 'время не записано'})"
+               + f"; пульт собран из него же; доверенный корень S2 одобрил {tr.get('approved') or '—'}, "
+               "но флот на него не переключён")
+        checks.append(metric("Версия системы", txt, confidence=MEASURED if fc.get("commit") else NOT_MEASURED,
+                             source="data/code_sync_status.json", measured_at=fc.get("synced_at"), updated_at=updated,
+                             reason=None if fc.get("commit") else "квитанции синхронизации нет",
+                             technical={k: v for k, v in ver.items()}))
     # 1 — the snapshot itself: is what the owner reads fresh?
     age = _age_minutes(updated, now)
     if age is None:
@@ -1772,7 +1833,7 @@ def protection(model: dict, updated: Optional[str], now: datetime) -> dict:
     if conf == MEASURED and status == "OK":
         checks.append(metric("Проверка сайта", "Прошла", confidence=MEASURED, source=_get(wh, "canon"),
                              measured_at=_get(wh, "as_of"), updated_at=updated))
-    elif conf == MEASURED and status in ("WARN", "FAIL"):
+    elif conf == MEASURED and status in ("WARN", "FAIL", "CRITICAL"):
         codes = [c for c in PROBLEM_RU if c.isupper() and c in str(_get(wh, "display_ru") or "")]
         txt = "Проверка не прошла" + (": " + "; ".join(PROBLEM_RU[c][0].lower() for c in codes) if codes else "")
         checks.append(metric("Проверка сайта", txt, confidence=MEASURED, source=_get(wh, "canon"),

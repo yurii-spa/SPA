@@ -245,6 +245,13 @@ def collect(inp: Inputs) -> dict:
     rep["runtime_digest"] = (rt or {}).get("runtime_digest")
     rep["release_present"] = bool(rep["approved_release"]) and (
         Path(inp.trusted_root) / "releases" / str(rep["approved_release"])).is_dir()
+    # находка T09/F13: код, который РЕАЛЬНО исполняет флот, — прод-дерево, синхронизированное с origin/main
+    # (`code_sync_from_origin.sh`, квитанция data/code_sync_status.json). Доверенный корень StudioOS —
+    # отдельная плоскость S2: ни один plist флота на неё не указывает, поэтому её «одобренный релиз» не есть
+    # «версия, которая работает».
+    cs = _read_json(Path(inp.repo) / "data" / "code_sync_status.json")
+    rep["fleet_code"] = ({"commit": cs.get("origin_main"), "synced_at": cs.get("timestamp"), "result": cs.get("result")}
+                         if isinstance(cs, dict) else None)
 
     # SYSTEM — fleet health (stale-aware reader; a dead monitor must not keep saying «healthy»)
     try:
@@ -552,7 +559,9 @@ def render_summary(rep: dict) -> str:
         works.append(f"службы {up}/{len(svc)}")
     if rep.get("cycle_age_h") is not None:
         works.append(f"цикл {rep['cycle_age_h']:.1f} ч назад")
-    works.append(f"релиз {_short(rep.get('approved_release'))}")
+    fc = rep.get("fleet_code") or {}
+    works.append(f"код флота {_short(fc.get('commit'))} (синхр. {_hm(fc.get('synced_at'))})" if fc.get("commit")
+                 else f"код флота: {NOT_MEASURED}")
     L.append("РАБОТАЕТ: " + " · ".join(works))
     w, g = rep.get("work"), rep.get("git")
     basis = ("с прошлого отчёта " + _hm(rep["previous_report_at"])) if rep.get("previous_report_at") \
@@ -590,8 +599,13 @@ def render_summary(rep: dict) -> str:
 
 def render_system(rep: dict) -> str:
     L = ["🛰 СИСТЕМА"]
-    L.append(f"Одобренный релиз: {_short(rep.get('approved_release'))}"
-             + ("" if rep.get("release_present") else " (каталог релиза НЕ найден)"))
+    fc = rep.get("fleet_code") or {}
+    L.append(("Код флота (исполняется сейчас): " + _short(fc.get("commit")) + f" — прод-дерево = origin/main, "
+              f"синхронизация {_hm(fc.get('synced_at'))}, итог {fc.get('result')}") if fc.get("commit")
+             else "Код флота: " + NOT_MEASURED + " (квитанции синхронизации нет)")
+    L.append(f"Доверенный корень StudioOS (S2): одобрен {_short(rep.get('approved_release'))}"
+             + ("" if rep.get("release_present") else " (каталог релиза НЕ найден)")
+             + " — флот на него НЕ переключён; это не версия, которая работает (R5 не выполнен)")
     L.append(f"Доверенный runtime: {_short(rep.get('runtime_digest'))}")
     f = rep.get("fleet")
     if f is None:

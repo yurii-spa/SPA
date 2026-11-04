@@ -85,6 +85,18 @@ STAGE_RU = {
 
 
 # ── cell contract ─────────────────────────────────────────────────────────────────────────────
+#: книга считается за дневной цикл; замер старше 26 ч — устаревший (не «измерено»)
+BOOK_STALE_AFTER_MIN = 26 * 60
+
+
+def _age_min_iso(ts: Any, now: datetime) -> Optional[float]:
+    """Возраст ISO-отметки в минутах; нечитаемая/отсутствующая — None. Отметка из будущего — 0, а не минус."""
+    t = _parse_ts(ts) if isinstance(ts, str) else None
+    if t is None:
+        return None
+    return round(max(0.0, (now - t).total_seconds() / 60.0), 1)
+
+
 def freshness(age_min: Optional[float], stale_after_min: Optional[float], rule: str) -> dict:
     return {"age_min": age_min, "stale_after_min": stale_after_min, "rule": rule}
 
@@ -740,7 +752,7 @@ def home(*, fleet: dict, yield_cell: dict, defi_books: dict, publication_scope: 
 
 # ── §2.2 CAPITAL ─────────────────────────────────────────────────────────────────────────────────
 def _defi_books(packages_section: Optional[dict], hy_doc: Optional[dict], lp_doc: Optional[dict],
-                yield_cell: dict) -> dict:
+                yield_cell: dict, now: Optional[datetime] = None) -> dict:
     """``renderDefiBook`` reads ``rate_ru``/``dd_ru``/``evidenced_days`` (mature) or
     ``accumulating_days`` (NOT_ENOUGH_HISTORY) RAW, composing the sentence itself via
     ``tf("home.tile.yield.value"/".accumulating", …)`` — no ``display_ru`` on these three cells
@@ -791,13 +803,22 @@ def _defi_books(packages_section: Optional[dict], hy_doc: Optional[dict], lp_doc
         else:
             rate_ru = fmt_pct(view.get("apy_pct"), "ru")   # ADR-660; absent ⇒ None, never «None %»
             dd_ru = fmt_pct(view.get("dd_pct"), "ru")
+            # находка F3/F14: ``as_of`` — момент ПОСЛЕДНЕГО цикла книги (когда снят замер), а не дата начала
+            # окна; начало окна и определение дней — отдельными полями, чтобы 34 и 62 дня были подписаны.
+            last_at = doc.get("last_cycle_at") if isinstance(doc, dict) else None
+            age = _age_min_iso(last_at, now or datetime.now(timezone.utc))
             out[book] = cell(value=view, display_ru=None, display_en=None, metric_type="REALIZED_PAPER",
-                             state=MEASURED, as_of=view.get("observed_accrual_since"), canon=canon,
-                             fresh=freshness(None, None, "n/a"),
+                             state=(STALE if age is not None and age > BOOK_STALE_AFTER_MIN else MEASURED)
+                             if last_at else NOT_MEASURED,
+                             as_of=last_at, canon=canon,
+                             fresh=freshness(age, BOOK_STALE_AFTER_MIN, "дневной цикл книги: устарело через 26 ч"),
                              unknown_ru="Книга не прочитана — состояние неизвестно",
                              rate_ru=rate_ru, rate_en=fmt_pct(view.get("apy_pct"), "en"), dd_ru=dd_ru,
                              dd_en=fmt_pct(view.get("dd_pct"), "en"),
-                             evidenced_days=view.get("evidenced_days"))
+                             window_from=view.get("observed_accrual_since"),
+                             evidenced_days=view.get("days_funded"),
+                             days_definition_ru=("дней с позициями с начала окна sleeve-econ-v2 "
+                                                 f"({view.get('observed_accrual_since') or 'дата не записана'})"))
     return out
 
 
@@ -837,13 +858,13 @@ def _defi_targets(mirror: Path) -> dict:
 
 
 def capital_defi(packages_section: Optional[dict], hy_doc: Optional[dict], lp_doc: Optional[dict],
-                 mirror: Path, yield_cell: dict) -> dict:
+                 mirror: Path, yield_cell: dict, now: Optional[datetime] = None) -> dict:
     """design §2.2 — ``{"books": {conservative, balanced, aggressive}, "targets": …}``. The
     integration defect this module was rewritten for (2026-10-06): the real producer used to
     return ``{conservative, balanced, aggressive}`` directly, with a nested ``value`` object the
     UI never reads — every Capital DeFi card rendered «не измерено» on real data even though the
     public home page showed a real Conservative rate."""
-    return {"books": _defi_books(packages_section, hy_doc, lp_doc, yield_cell), "targets": _defi_targets(mirror)}
+    return {"books": _defi_books(packages_section, hy_doc, lp_doc, yield_cell, now), "targets": _defi_targets(mirror)}
 
 
 def capital_trading_lab(data_dir: Path, now: datetime) -> dict:
@@ -1094,7 +1115,7 @@ def capital_cards(*, packages_section, hy_doc, lp_doc, data_dir: Path, mirror: P
                   investment_cio, live_readiness, investment_scope, current_positions=None,
                   yield_cell: dict, now: datetime, capital_sources: Optional[dict] = None) -> dict:
     tl = capital_trading_lab(data_dir, now)
-    defi = capital_defi(packages_section, hy_doc, lp_doc, mirror, yield_cell)
+    defi = capital_defi(packages_section, hy_doc, lp_doc, mirror, yield_cell, now)
     return {"defi": defi, "trading_lab": tl,
            "btc": capital_btc(tl), "basis": capital_basis(research_universe),
            "treasury_rwa": capital_treasury(research_universe, current_positions),
@@ -1146,6 +1167,10 @@ def studio_tasks(board: Optional[dict], orphans: Optional[dict]) -> dict:
                blocked_items=blocked_items)
 
 
+ACTUALITY_RU = {"ACTIVE": "условие подтверждается и сейчас", "NOT_CONFIRMED": "с тех пор не подтверждалось",
+                "UNKNOWN": "актуальность не измерена"}
+
+
 def studio_incidents(push_state_section: Optional[dict], now: Optional[datetime] = None) -> dict:
     canon = "data/telegram/push_state.json"
     if push_state_section is None or push_state_section.get("_meta", {}).get("state") == "NOT_MEASURED":
@@ -1162,8 +1187,15 @@ def studio_incidents(push_state_section: Optional[dict], now: Optional[datetime]
                       "since_ru": it.get("since"), "since_en": it.get("since"),
                       # ADR-612 owner layer; the raw event key + ISO time above are the evidence layer
                       "plain_ru": plain["text"], "plain_tone": plain["tone"],
-                      "since_plain_ru": owner_language.age_ru((now - since).total_seconds() / 60.0) if since else None})
+                      "since_plain_ru": owner_language.age_ru((now - since).total_seconds() / 60.0) if since else None,
+                      # находка E2/F10: подтверждена ли тревога после открытия — отдельно от «открыта»
+                      "actuality": it.get("actuality") or "UNKNOWN",
+                      "actuality_ru": ACTUALITY_RU.get(it.get("actuality") or "UNKNOWN", ACTUALITY_RU["UNKNOWN"])
+                      + (f": {it['actuality_reason']}" if it.get("actuality_reason") else ""),
+                      "last_check": it.get("last_check")})
+    active = sum(1 for i in items if i["actuality"] == "ACTIVE")
     return cell(value={"open": len(open_)}, display_ru=f"открыто: {len(open_)}", display_en=f"open: {len(open_)}",
+               active=active, not_confirmed=sum(1 for i in items if i["actuality"] == "NOT_CONFIRMED"),
                metric_type="OPERATIONAL", state=(MEASURED_ZERO if not open_ else MEASURED), as_of=None,
                canon=canon, fresh=freshness(None, None, "n/a"), unknown_ru="Состояние тревог не прочитано",
                # bare ``open``/``items`` — ``renderIncidents`` reads ``cell.open`` for the chip and

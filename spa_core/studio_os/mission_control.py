@@ -455,6 +455,93 @@ def _investment_section(now: datetime) -> dict:
             "note": "режим движка — ось финансового контура; здоровье служб считается отдельно (system.*)"}
 
 
+#: события тревог, чью актуальность можно сверить с последним исходом дневного цикла (тот же производитель)
+CYCLE_EVENTS = ("cycle_failed",)
+
+
+def incident_row(event: str, rec: dict, paper_status: Optional[dict]) -> dict:
+    """Открытая тревога push_state — с датой открытия и ЧЕСТНОЙ актуальностью (находка E2/F10).
+
+    push_state хранит момент ПОСЛЕДНЕГО пуша, а не последнего подтверждения условия. Для ``cycle_failed``
+    условие сверяется с последним исходом дневного цикла: успешный цикл ПОСЛЕ тревоги ⇒ ``NOT_CONFIRMED``
+    (тревогу никто не закрыл, но условие с тех пор не повторялось); провал ⇒ ``ACTIVE``; сверить нечем ⇒
+    ``UNKNOWN``. Сама тревога здесь НЕ закрывается — модель только читает."""
+    since = (rec or {}).get("last_ts") or (rec or {}).get("since")
+    row = {"event": safe_text(event, 80), "since": safe_text(since, 40), "actuality": "UNKNOWN",
+           "actuality_reason": "условие этой тревоги после открытия не перепроверялось", "last_check": None}
+    if event in CYCLE_EVENTS and isinstance(paper_status, dict):
+        lts, lst = paper_status.get("last_cycle_ts"), str(paper_status.get("last_cycle_status") or "").lower()
+        t_since, t_last = _ts(since), _ts(lts)
+        row["last_check"] = safe_text(lts, 40)
+        if t_since and t_last and t_last > t_since and lst == "ok":
+            row.update(actuality="NOT_CONFIRMED",
+                       actuality_reason=f"после тревоги дневной цикл прошёл успешно ({str(lts)[:16]}Z); "
+                                        "тревогу никто не закрыл — она висит без подтверждения")
+        elif t_last and lst and lst != "ok":
+            row.update(actuality="ACTIVE", actuality_reason=f"последний цикл {str(lts)[:16]}Z: {lst}")
+    return row
+
+
+def feature_states(repo: Path, launchctl_map: Optional[dict], now: datetime) -> dict:
+    """Включено ли то, что реализовано: только чтение конфигурации и launchd, ничего не включает.
+
+    * decision_loop — загружена ли служба ``com.spa.decision_loop`` в launchd;
+    * aggregate_mode — какой ``--aggregate`` передаёт обёртка ``capital_shadow`` (нет флага ⇒ умолчание ``off``);
+    * E6.6 — есть ли боевой журнал серии ``spot_frac`` (каталог ``data/trading_research/series``);
+    * S5 — только стенд в тестах: живой эксплуатации нет, пока нет записи о ней."""
+    out = {}
+    if launchctl_map is None:
+        out["decision_loop"] = {"state": "UNKNOWN", "why": "launchctl list не прочитан"}
+    else:
+        loaded = "com.spa.decision_loop" in launchctl_map
+        out["decision_loop"] = {"state": "ON" if loaded else "OFF",
+                                "why": ("служба загружена в launchd" if loaded else
+                                        "служба не загружена: полный прогон моста не укладывается в 7800 с "
+                                        "(ADR-909, замер 03.11)")}
+    try:
+        wrapper = (Path(repo) / "scripts" / "agent_capital_shadow.sh").read_text(encoding="utf-8")
+    except OSError:
+        out["aggregate_mode"] = {"state": "UNKNOWN", "why": "обёртка capital_shadow не прочитана"}
+    else:
+        m = re.search(r"--aggregate[ =](\w+)", wrapper)
+        out["aggregate_mode"] = {"state": (m.group(1) if m else "off"),
+                                 "why": ("флаг в обёртке" if m else "обёртка флаг не передаёт — умолчание off")}
+    ser = Path(repo) / "data" / "trading_research" / "series"
+    started = ser.is_dir() and any(p.name == "series.jsonl" for p in ser.rglob("series.jsonl"))
+    out["e6_6_series"] = {"state": "RUNNING" if started else "PREPARED",
+                          "why": ("боевой журнал серии найден" if started else
+                                  "модуль в main, серия не запущена: нет расписания tick (запрос владельцу 04.11)")}
+    out["s5"] = {"state": "TEST_STAND_ONLY", "why": "стенд S5 живёт в тестах; живой эксплуатации не записано"}
+    return {"_meta": _meta("HEALTHY", ["launchctl list", "scripts/agent_capital_shadow.sh",
+                                       "data/trading_research/series"], now, now), "items": out}
+
+
+def source_freshness(model: dict, now: datetime) -> dict:
+    """Каждый раздел модели с конвертом ``_meta``: путь, состояние, момент наблюдения, возраст, порог.
+
+    Раздел, чей момент наблюдения РАВЕН времени сборки, помечается ``observed_is_build_time=True``: это
+    снимок, посчитанный сейчас (например ``launchctl list``), а не возраст первичного источника. Сводка ничего
+    не пересчитывает — только собирает уже объявленные конверты."""
+    rows = []
+
+    def walk(node, path):
+        if isinstance(node, dict):
+            m = node.get("_meta")
+            if isinstance(m, dict) and "state" in m and path:
+                obs = m.get("observed_at")
+                rows.append({"path": path, "state": m.get("state"), "observed_at": obs, "age_min": m.get("age_min"),
+                             "stale_after_min": m.get("stale_after_min"),
+                             "observed_is_build_time": obs == now.strftime("%Y-%m-%dT%H:%M:%SZ"),
+                             "reason": m.get("reason")})
+            for k, v in node.items():
+                if k not in ("_meta", "truth", "owner_view") and isinstance(v, dict):
+                    walk(v, f"{path}.{k}" if path else k)
+    walk(model, "")
+    stale = [r for r in rows if r["state"] in ("STALE", "NOT_MEASURED")]
+    return {"snapshot_at": now.strftime("%Y-%m-%dT%H:%M:%SZ"), "sections": len(rows), "stale_or_unmeasured": stale,
+            "rule": "возраст снимка — время сборки; возраст данных — observed_at каждого раздела"}
+
+
 def _trading_engines_section(data: Path, now: datetime) -> dict:
     """Два раздельных paper-движка (S3 E7.4 → S4 K3) — тот же проектор, что вкладка S3, без второй копии.
 
@@ -481,7 +568,13 @@ def _trading_engines_section(data: Path, now: datetime) -> dict:
         blocks.append(b)
     present = [b for b in blocks if b.get("present")]
     state = "HEALTHY" if len(present) == 2 else ("DEGRADED" if present else "NOT_MEASURED")
-    return {"_meta": _meta(state, src, now, now,
+    # находка F14: момент раздела — САМЫЙ СТАРЫЙ момент данных движков, а не время сборки снимка;
+    # устаревший источник делает раздел STALE (порог — суточный такт earn-defi с запасом)
+    as_ofs = [t for t in (_ts(b.get("as_of")) for b in present) if t]
+    observed = min(as_ofs) if as_ofs else None
+    if any(str(b.get("freshness")).upper() in ("STALE", "OLD") for b in present):
+        state = "STALE" if state == "HEALTHY" else state
+    return {"_meta": _meta(state, src, observed, now, 26 * 60,
                            reason=None if state == "HEALTHY" else
                            "; ".join(f"{b.get('engine')}: {b.get('why_no_result')}" for b in blocks
                                      if isinstance(b, dict) and not b.get("present"))),
@@ -1427,7 +1520,21 @@ def build(inp: Optional[MCInputs] = None) -> dict:
                                reason=None if cst == "HEALTHY" else f"code-sync result {cs.get('result')}"),
                 "production_commit": str(cs.get("origin_main") or "")[:9] or None, "sync_result": cs.get("result"),
                 "deployment_acceptance": (da or {}).get("status") if isinstance(da, dict) else None,
-                "approved_release": (str(rep.get("approved_release"))[:8] if rep.get("approved_release") else None)}
+                "approved_release": (str(rep.get("approved_release"))[:8] if rep.get("approved_release") else None),
+                # находка F13/T09: подписи, а не одна «версия» — у компонентов РАЗНЫЕ SHA, и это нормально
+                "versions": {
+                    "fleet_code": {"commit": str(cs.get("origin_main") or "")[:9] or None,
+                                   "synced_at": safe_text(cs.get("timestamp"), 40),
+                                   "what": "код, который исполняет флот агентов: прод-дерево = origin/main"},
+                    "ui_bundle": {"commit": str(cs.get("origin_main") or "")[:9] or None,
+                                  "built_at": now.strftime("%Y-%m-%dT%H:%M:%SZ"),
+                                  "what": "этот пульт собран из того же прод-дерева в момент сборки снимка"},
+                    "mission_server": {"commit": None, "state": "UNKNOWN",
+                                       "what": "процесс-раздатчик пульта живёт долго; какой код у него в памяти, "
+                                               "здесь не измеряется (сторож agent_code_freshness)"},
+                    "trusted_root": {"approved": (str(rep.get("approved_release"))[:9] if rep.get("approved_release") else None),
+                                     "what": "доверенный корень StudioOS (S2); флот на него НЕ переключён — "
+                                             "не версия, которая работает"}}}
     else:
         code = _nm(["data/code_sync_status.json"], now, "no code-sync receipt")
 
@@ -1440,8 +1547,8 @@ def build(inp: Optional[MCInputs] = None) -> dict:
     ps = _read_json(data / "telegram" / "push_state.json")
     if isinstance(ps, dict):
         ev = ps.get("events") or {}
-        bad = [{"event": safe_text(k, 80), "since": safe_text((v or {}).get("last_ts") or (v or {}).get("since"), 40)}
-               for k, v in sorted(ev.items()) if isinstance(v, dict) and v.get("state") == "bad"]
+        pts = _read_json(data / "paper_trading_status.json")
+        bad = [incident_row(k, v, pts) for k, v in sorted(ev.items()) if isinstance(v, dict) and v.get("state") == "bad"]
         incidents = {"_meta": _meta("DEGRADED" if bad else "HEALTHY", ["data/telegram/push_state.json"],
                                     _ts(ps.get("updated_at")), now, None), "open": bad}
     else:
@@ -1740,6 +1847,8 @@ def build(inp: Optional[MCInputs] = None) -> dict:
     else:
         lc_full_text = None
     launchctl_map = dr.parse_launchctl_list(lc_full_text) if lc_full_text is not None else None
+    # находка G (Epic G): «реализовано» ≠ «работает» — состояние выключенных функций по РЕАЛЬНОЙ конфигурации
+    system["features"] = feature_states(Path(inp.repo), launchctl_map, now)
 
     log_rows: Optional[list] = None
     log_bad = 0
@@ -1798,6 +1907,9 @@ def build(inp: Optional[MCInputs] = None) -> dict:
                            "colour_rule": "colour follows HEALTH only — never profit, risk or approval for real money"},
             "contract": CONTRACT, "overview": overview, "capital": capital, "studio": studio,
             "decisions": decisions, "system": system, "release_feed": feed, "truth": truth}
+    # находка D2/F14: «снимок свежий» ≠ «источники свежие» — сводка по КАЖДОМУ разделу, у которого
+    # момент наблюдения не совпадает с временем сборки (или не назван вовсе)
+    overview["freshness"] = source_freshness(model, now)
     # ADR-762: the owner view is derived from the model above and nothing else; a failure to derive
     # it is named (NOT_MEASURED) instead of breaking the bundle or showing a stale view.
     try:
