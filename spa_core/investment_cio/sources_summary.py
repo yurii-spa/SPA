@@ -166,6 +166,33 @@ def _since(row_or_window: Dict, lang: str, start_key: str = "evidence_start", en
     return (f" from {a}" if a else " since inception (start date not recorded)") + (f" to {b}" if b else "")
 
 
+def _window_days(row_or_window: Dict, start_key: str = "evidence_start", end_key: str = "as_of") -> Optional[int]:
+    """Календарных дней в окне, по которому посчитана ставка; None — даты окна не записаны."""
+    from datetime import date
+    def _d(v):
+        v = v.get("value") if isinstance(v, dict) else v
+        try:
+            return date.fromisoformat(v[:10]) if isinstance(v, str) else None
+        except ValueError:
+            return None
+    a, b = _d(row_or_window.get(start_key)), _d(row_or_window.get(end_key))
+    return (b - a).days if a and b and b >= a else None
+
+
+def _ann_text(ann: float, lang: str, days: Optional[int]) -> str:
+    """Годовая ставка ВСЕГДА с объяснением, что это пересчёт окна на год (находка F12/F5).
+
+    Ставка не запрещается: она остаётся тем же числом (ADR-660, сложный процент по календарным дням), но
+    рядом печатается длина окна и что это экстраполяция, а не прогноз — короткое окно, растянутое на год,
+    иначе читается как обещание."""
+    base = _fmt_pct(ann, lang, digits=1, signed=False, floor=True)
+    if lang == "ru":
+        span = f"{days} дн." if days is not None else "окно не записано"
+        return base + f" годовых (пересчёт {span} на год — оценка, не прогноз)"
+    span = f"{days} d" if days is not None else "window not recorded"
+    return base + f" annualised ({span} extrapolated to a year — estimate, not a forecast)"
+
+
 def _state_text(cell: Dict, lang: str) -> str:
     return _STATE_TEXT[lang].get(cell.get("state") or _ABSENT, _STATE_TEXT[lang]["NOT_MEASURED"])
 
@@ -186,9 +213,9 @@ def row_text(row: Dict, lang: str) -> Dict[str, str]:
     elif net is not None:
         net_t = _fmt_pct(net, lang) + _since(row, lang)
         if ann is not None:
-            net_t += " · " + _fmt_pct(ann, lang, digits=1, signed=False, floor=True) + (" годовых" if lang == "ru" else " annualised")
+            net_t += " · " + _ann_text(ann, lang, _window_days(row))
     elif ann is not None:
-        net_t = _fmt_pct(ann, lang, digits=1, signed=False, floor=True) + (" годовых" if lang == "ru" else " annualised")
+        net_t = _ann_text(ann, lang, _window_days(row))
     else:
         net_t = _state_text(row["net_return"] if row["net_return"].get("state") != _ABSENT else row["annualized_return"], lang)
     dd = _measured(row["drawdown"])
@@ -240,7 +267,7 @@ def portfolio_text(pf: Dict, lang: str) -> Dict[str, str]:
     if net is not None:
         parts.append(_fmt_pct(net, lang) + _since(pf.get("window") or {}, lang, "from", "to"))
     if ann is not None:
-        parts.append(_fmt_pct(ann, lang, digits=1, signed=False, floor=True) + (" годовых" if lang == "ru" else " annualised"))
+        parts.append(_ann_text(ann, lang, _window_days(pf.get("window") or {}, "from", "to")))
     if dd is not None:
         parts.append(("просадка " if lang == "ru" else "max DD ") + _fmt_pct(dd, lang, signed=dd < 0))
     head = " · ".join(parts) or _STATE_TEXT[lang]["NOT_MEASURED"]

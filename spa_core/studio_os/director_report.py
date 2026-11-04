@@ -761,6 +761,10 @@ def _pct_or_nm(v) -> str:
     return fmt_pct(v, "ru", input="fraction", unknown=NOT_MEASURED)
 
 
+#: сколько forward-кандидатов печатает раздел TRADING; сейчас их 5 — показываются все
+FORWARD_SHOWN_MAX = 10
+
+
 def render_trading(rep: dict) -> List[str]:
     t = rep.get("trading")
     if t is None:
@@ -775,8 +779,9 @@ def render_trading(rep: dict) -> List[str]:
     # "shortlist" (backtest top-5 after de-dup) — they coincide today but are different sets.
     fwd = t.get("forward_candidates")
     if fwd:
-        L.append("Forward-кандидаты (лестница лифецикла, не shortlist):")
-        for s in fwd[:3]:
+        # находка T07: показывается ВЕСЬ forward-набор; при большом наборе — явное «показано N из M»
+        L.append(f"Forward-кандидаты ({min(len(fwd), FORWARD_SHOWN_MAX)} из {len(fwd)}; лестница лифецикла, не shortlist):")
+        for s in fwd[:FORWARD_SHOWN_MAX]:
             name = s["id"].split(":")[0] + " " + s["id"].split(":")[2] + " " + s["id"].split(":")[3]
             fo = s.get("forward_observations") or 0
             net = (f" · forward {s['forward_net']:+.1%} за {fo} бар." if fo and s.get("forward_net") is not None

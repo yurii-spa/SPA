@@ -1555,6 +1555,62 @@ def product_cards(*, mirror: Path, defi_books: dict, publication_scope: Optional
 
 
 # ── §2.6 Решения triage ─────────────────────────────────────────────────────────────────────────
+#: Признаки тестовой / демонстрационной карточки — ТОЛЬКО то, что уже записано в frontmatter при рождении
+#: (находка F7/T05, замер 04.11: шесть таких карточек в рабочем дереве, ни одна не помечена отдельным полем).
+#: Явное поле ``fixture: true`` / ``test: true`` побеждает всегда; остальное — названные следы сквозных прогонов.
+TEST_SUBMISSION_PREFIXES = ("demo-e2e-", "auto-e2e-", "test-", "fixture-")
+TEST_ACTORS = ("arb-demo", "arb-autonomy-check")
+
+
+def test_or_fixture_reason(fm: dict) -> Optional[str]:
+    """Почему карточка — тест/демо/фикстура (русской фразой) или ``None``, если признаков нет.
+
+    Не догадка по словам заголовка («купить зонт» — так мог бы написать и владелец): только поля."""
+    if not isinstance(fm, dict):
+        return None
+    for k in ("fixture", "test"):
+        if str(fm.get(k)).strip().lower() in ("true", "1", "yes"):
+            return f"помечена полем «{k}»"
+    sid = str(fm.get("submission_id") or "")
+    if sid.startswith(TEST_SUBMISSION_PREFIXES):
+        return f"сквозной тест/демонстрация (submission_id {sid[:40]})"
+    for k in ("claimed_by", "author_identity"):
+        v = str(fm.get(k) or "")
+        if v.startswith(TEST_ACTORS):
+            return f"создана проверочным прогоном ({k}: {v[:40]})"
+    return None
+
+
+def superseded_ids(cards: dict) -> set:
+    """Имена карточек, которые ЗАМЕНЕНЫ более новой (поле ``supersedes`` у заменяющей)."""
+    out = set()
+    for c in (cards or {}).values():
+        sup = ((c or {}).get("fm") or {}).get("supersedes")
+        for x in (sup if isinstance(sup, list) else [sup] if sup else []):
+            x = str(x).strip()
+            out.add(x[:-3] if x.endswith(".md") else x)
+    return out
+
+
+def question_closed_reason(card_id: str, v1: dict, superseded: set) -> Optional[str]:
+    """Закрыт ли вопрос, хотя на origin он ещё ``needs-owner`` — и чем (русской фразой) или ``None``.
+
+    ``v1`` — запись ``mission_control.decision_item`` с уже наложенным ответом из рабочего дерева на Mac
+    (там вопрос переходит в ``ingested``/ответ раньше, чем на origin). Возраст карточки причиной не является."""
+    if card_id in superseded:
+        return "заменён более новой карточкой (supersedes)"
+    st = (v1 or {}).get("state")
+    if st in ("ANSWERED", "INGESTED", "REJECTED", "EXPIRED"):
+        return {"ANSWERED": "ответ уже записан на Mac, на origin ещё не доставлен",
+                "INGESTED": "ответ уже принят в работу на Mac", "REJECTED": "отклонён",
+                "EXPIRED": "истёк"}[st]
+    return None
+
+
+def _is_owner_card(card_id: str, fm: dict) -> bool:
+    return (fm or {}).get("type") == "owner-decision" or card_id.startswith(("owner-decision-", "own-"))
+
+
 def decisions_triage(cards: Optional[dict], prod_cards: Optional[dict], now: datetime,
                      decisions_v1: Optional[dict] = None) -> dict:
     """ADR-285/ADR-580 C5/C6 — declared ``subject:`` only, never guessed. Groups: owner subject,
@@ -1579,7 +1635,8 @@ def decisions_triage(cards: Optional[dict], prod_cards: Optional[dict], now: dat
     def _na(v: Any) -> Optional[Any]:
         return None if v in (None, "UNKNOWN") else v
 
-    owner_rows, undeclared_rows, answered_rows, accepted_rows = [], [], [], []
+    owner_rows, undeclared_rows, answered_rows, accepted_rows, closed_rows = [], [], [], [], []
+    superseded = superseded_ids(cards)
     for name, c in sorted(cards.items()):
         fm = c.get("fm") or {}
         t = fm.get("type") or ""
@@ -1614,7 +1671,14 @@ def decisions_triage(cards: Optional[dict], prod_cards: Optional[dict], now: dat
         if status == "owner-accepted":
             accepted_rows.append(row)
         elif status == "needs-owner":
-            (owner_rows if s != subj.UNKNOWN else undeclared_rows).append(row)
+            # находка F1: вопрос ОТКРЫТ только если его не закрыл ответ/снятие в рабочем дереве (v1 уже наложил
+            # прод-ответы) и его не заменила более новая карточка (`supersedes`). Иначе он виден аудитору
+            # в группе «закрыт вне origin», но не считается и не становится «следующим шагом».
+            closed_why = question_closed_reason(card_id, v1, superseded)
+            if closed_why:
+                closed_rows.append({**row, "closed_reason_ru": closed_why})
+            else:
+                (owner_rows if s != subj.UNKNOWN else undeclared_rows).append(row)
     # ADR-285 order inside the owner group: money → public numbers/naming/legal → irreversible →
     # physical action, oldest first within a subject (was: alphabetical by file name, 2026-10-08).
     _rank = {subj.MONEY: 0, subj.PUBLIC_NUMBERS_NAMING_LEGAL: 1, subj.IRREVERSIBLE: 2, subj.PHYSICAL_ACTION: 3}
@@ -1627,18 +1691,27 @@ def decisions_triage(cards: Optional[dict], prod_cards: Optional[dict], now: dat
         answered_rows.append({"id": d.get("id"), "title_ru": title, "title_en": title,
                               "owner_answer_ru": _na(d.get("owner_answer")), "owner_answer_en": _na(d.get("owner_answer")),
                               "answered_at": _na(d.get("answered_at"))})
-    prod_only = []
+    prod_only, fixtures = [], []
     if prod_cards is not None and cards is not None:
         for pname in sorted(set(prod_cards) - set(cards)):
             pfm = (prod_cards.get(pname) or {}).get("fm") or {}
             pid = pname[:-3] if pname.endswith(".md") else pname
             ptitle = _redact(pfm.get("title")) or pid
+            # находка F7/T05: только ОТКРЫТЫЕ карточки решений владельца; тест/демо — отдельной группой
+            if test_or_fixture_reason(pfm):
+                fixtures.append({"id": pid, "title_ru": ptitle, "title_en": ptitle,
+                                 "why_ru": test_or_fixture_reason(pfm)})
+                continue
+            if not _is_owner_card(pid, pfm) or str(pfm.get("status") or "") not in ("needs-owner", "owner-accepted"):
+                continue
             prod_only.append({"id": pid, "title_ru": ptitle, "title_en": ptitle})
     return {"state": MEASURED, "counts": {"owner": len(owner_rows), "undeclared": len(undeclared_rows),
                                           "answered": len(answered_rows), "accepted": len(accepted_rows),
-                                          "prod_only": len(prod_only)},
+                                          "prod_only": len(prod_only), "closed_elsewhere": len(closed_rows),
+                                          "test_or_fixture": len(fixtures)},
            "groups": {"owner": owner_rows, "undeclared": undeclared_rows, "answered": answered_rows,
-                     "accepted": accepted_rows, "prod_only": prod_only},
+                     "accepted": accepted_rows, "prod_only": prod_only, "closed_elsewhere": closed_rows,
+                     "test_or_fixture": fixtures},
            "unknown_ru": "Очередь решений не измерена — трекер не прочитан",
            "unknown_en": "Decision queue not measured — tracker unreadable"}
 

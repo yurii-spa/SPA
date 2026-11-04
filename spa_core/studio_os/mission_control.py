@@ -413,6 +413,48 @@ def _roles_section(root: Path, cards: Optional[dict], now: datetime) -> dict:
             "rule": safe_text(mr.get("note"), 300)}
 
 
+#: режимы движка, при которых новые позиции разрешены (всё прочее — блокировка или не измерено)
+INVESTMENT_OPEN_MODES = ("NORMAL",)
+
+
+def _investment_section(now: datetime) -> dict:
+    """Ось «инвестиционный контур»: режим каждого движка из ЕГО ledger (только чтение).
+
+    Не смешивается с ``system._meta`` (здоровье служб): служба жива ≠ движку разрешены новые позиции.
+    Защёлкнутый инцидент показывает дату открытия и честное «условие не перепроверялось» (инв. #17)."""
+    src = ["spa_core.studio_os.trading_engines.investment_engine_modes"]
+    try:
+        from spa_core.studio_os import trading_engines as te
+        doc = te.investment_engine_modes(now=now)
+    except Exception as exc:  # noqa: BLE001 — сломанный читатель — названный пробел, не упавший пульт
+        return _nm(src, now, f"investment modes reader failed: {type(exc).__name__}: {exc}")
+    engines, blocked, unknown = [], [], []
+    for e in doc.get("engines") or []:
+        mode = e.get("mode")
+        inc = e.get("incident") or {}
+        item = {"engine": safe_text(e.get("engine"), 40), "title": safe_text(e.get("title"), 80),
+                "mode": safe_text(mode, 20) if mode else None, "mode_since": safe_text(e.get("mode_since"), 40),
+                "blocked": bool(mode) and mode not in INVESTMENT_OPEN_MODES,
+                "incident": ({"kc": safe_text(inc.get("kc"), 20), "opened_at": safe_text(inc.get("opened_at"), 40),
+                              "data_date": safe_text(inc.get("data_date"), 20), "detail": safe_text(inc.get("detail"), 300),
+                              "effect": safe_text(inc.get("effect"), 120), "clear_by": safe_text(inc.get("clear_by"), 120),
+                              "latched": inc.get("latched"), "last_condition_check": inc.get("last_condition_check")}
+                             if inc else None),
+                "reason": safe_text(e.get("reason"), 200), "source": safe_text(e.get("source"), 200)}
+        engines.append(item)
+        if item["blocked"]:
+            blocked.append(item)
+        elif mode is None:
+            unknown.append(item)
+    state = "CRITICAL" if blocked else ("NOT_MEASURED" if unknown or not engines else "HEALTHY")
+    reason = "; ".join(
+        [f"{b['engine']} {b['mode']}" + (f" ({b['incident']['kc']}, с {str(b['incident']['opened_at'])[:10]})"
+                                         if b.get("incident") else "") + ": новые позиции запрещены" for b in blocked]
+        + [f"{u['engine']}: режим не измерен — {u['reason']}" for u in unknown]) or None
+    return {"_meta": _meta(state, src, _ts(doc.get("observed_at")), now, 30, reason=reason), "engines": engines,
+            "note": "режим движка — ось финансового контура; здоровье служб считается отдельно (system.*)"}
+
+
 def _trading_engines_section(data: Path, now: datetime) -> dict:
     """Два раздельных paper-движка (S3 E7.4 → S4 K3) — тот же проектор, что вкладка S3, без второй копии.
 
@@ -597,11 +639,22 @@ def cockpit_records(prod_cards: Optional[dict], now: datetime, *, source: str,
                      "acceptance_next": fm.get("acceptance_next") or None,
                      "owner_subject": fm.get("owner_subject") or None,
                      "approval_passed_at": fm.get("approval_passed_at") or None,
+                     # находка F7/T05: тест/демо помечается по полям рождения и не считается поручением
+                     "test_or_fixture": _test_reason(fm),
                      **({"preparation": _record_preparation(name, c, task_prep_root, code_root, code_now)}
                         if task_prep_root is not None else {})})
     rows.sort(key=lambda r: (str(r["created_at"] or ""), r["card"]), reverse=True)
-    return {"state": "MEASURED", "reason": None, "items": rows[:limit], "total": len(rows),
+    real = [r for r in rows if not r["test_or_fixture"]]
+    tests = [r for r in rows if r["test_or_fixture"]]
+    return {"state": "MEASURED", "reason": None, "items": real[:limit], "total": len(real),
+            "test_or_fixture": {"total": len(tests), "items": tests[:limit],
+                                "note": "тестовые и демонстрационные записи — история для аудита, не поручения"},
             "source": source, "measured_at": measured_at}
+
+
+def _test_reason(fm: dict):
+    from spa_core.studio_os.company_truth import test_or_fixture_reason
+    return test_or_fixture_reason(fm)
 
 
 def _record_preparation(name: str, card: dict, prep_root: Path, code_root: Optional[Path],
@@ -1394,6 +1447,8 @@ def build(inp: Optional[MCInputs] = None) -> dict:
     else:
         incidents = _nm(["data/telegram/push_state.json"], now, "alert state not readable")
 
+    investment = _investment_section(now)
+
     fleet = rep.get("fleet")
     if isinstance(fleet, dict):
         fst = {"OK": "HEALTHY", "WARNING": "DEGRADED", "CRITICAL": "CRITICAL"}.get(fleet.get("overall"), "NOT_MEASURED")
@@ -1411,7 +1466,7 @@ def build(inp: Optional[MCInputs] = None) -> dict:
         agents = _nm(["data/agent_health.json"], now, "agent health not readable or stale")
 
     system = {"_meta": None, "resources": resources, "heavy_jobs": leases, "cleanup": cleanup, "backups": backups,
-              "code": code, "services": services, "incidents": incidents, "agents": agents,
+              "code": code, "services": services, "incidents": incidents, "agents": agents, "investment": investment,
               "kill_switch": rep.get("kill_switch_active"), "derisk": rep.get("derisk_active")}
     parts = [resources, backups, code, services, agents]
     states = [p["_meta"]["state"] for p in parts]
@@ -1624,8 +1679,13 @@ def build(inp: Optional[MCInputs] = None) -> dict:
         "system": {"state": system["_meta"]["state"], "reason": system["_meta"]["reason"],
                    "counts": system["_meta"]["counts"], "critical_alerts": crit,
                    "alerts": alerts[:8], "kill_switch": rep.get("kill_switch_active"), "derisk": rep.get("derisk_active")},
+        # находка F2/T02: режим инвестиционных движков — ОТДЕЛЬНО от здоровья служб; блокировка видна наверху
+        "investment": {"state": investment["_meta"]["state"], "reason": investment["_meta"]["reason"],
+                       "blocked": [e for e in investment.get("engines") or [] if e.get("blocked")]},
         "needs_owner": ({"count": decisions["counts"]["needs_owner"], "accepted_in_work": decisions["counts"]["accepted_in_work"],
-                         "top": [{"id": d["id"], "title": d["title"], "created_at": d["created_at"]} for d in decisions["pending"][:3]]}
+                         # находка F1: «top» — только ОТКРЫТЫЕ вопросы, тот же фильтр, что у count
+                         "top": [{"id": d["id"], "title": d["title"], "created_at": d["created_at"]}
+                                 for d in decisions["pending"] if d.get("state") == "NEEDS_OWNER"][:3]}
                         if "pending" in decisions else {"count": None}),
         # a status absent from measured board counts is a measured zero; no counts at all is «not measured»
         "now": {"current_epic": roadmap["current"],

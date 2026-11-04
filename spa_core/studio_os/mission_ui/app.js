@@ -656,6 +656,32 @@
     return h("div", { class: "eng-kv" + (warn ? " warn" : "") }, [h("span", { class: "eng-k" }, [k]),
       h("span", { class: "eng-v" }, [(v === null || v === undefined || v === "") ? "—" : String(v)])]);
   }
+  // «donchian@v1:BTC:1D:spot_long:0facf75089» → «donchian · BTC 1D · spot_long»; полный id — во всплывающей подсказке
+  function shortCandidate(id) {
+    var p = String(id || "").split(":");
+    if (p.length < 4) return String(id || "—");
+    return p[0].replace(/@v\d+$/, "") + " · " + p[1] + " " + p[2] + " · " + p[3];
+  }
+  function fmtUtcMinute(ms) {
+    if (typeof ms !== "number") return "—";
+    return new Date(ms).toISOString().replace("T", " ").slice(0, 16) + " UTC";
+  }
+  function renderSignalEvents(card, b) {
+    var evs = b.signal_events;
+    card.appendChild(h("p", { class: "note" }, [h("b", {}, [t("capital.eng.events")])]));
+    if (!evs.length) { card.appendChild(h("p", { class: "note eng-wrap" }, [t("capital.eng.events_none")])); return; }
+    evs.slice(0, 10).forEach(function (e) {
+      var exec = e.virtual_execution === "EXECUTED"
+        ? tf("capital.eng.event_exec", { px: "$" + Math.round(e.fill_price).toLocaleString(), cost: pctText(e.fill_cost) })
+        : (e.virtual_execution === "PENDING" ? t("capital.eng.event_pending") : t("capital.eng.event_not_exec"));
+      card.appendChild(h("div", { class: "eng-row eng-event", "data-signal": e.signal }, [
+        h("span", { class: "eng-id", title: e.candidate_id }, [shortCandidate(e.candidate_id) + " · " + fmtUtcMinute(e.bar_close_time)]),
+        h("b", { class: "eng-num" }, [e.signal + " " + e.position_before + "→" + e.target_after])]));
+      card.appendChild(h("p", { class: "note eng-wrap" }, [exec + (e.nav_after !== null && e.nav_after !== undefined ? " · NAV " + e.nav_after.toFixed(4) : "")]));
+    });
+    if (evs.length > 10) card.appendChild(h("p", { class: "note" }, [tf("capital.eng.shown_of", { n: 10, m: evs.length })]));
+    card.appendChild(h("p", { class: "note eng-wrap" }, [t("capital.eng.events_legend")]));
+  }
   function renderEngineBlock(b) {
     var card = h("section", { class: "card eng-card", "data-engine": (b && b.engine) || "unknown" });
     var fr = (b && b.recency) || "UNKNOWN";
@@ -681,17 +707,19 @@
     card.appendChild(engKv(t("capital.eng.history"), hist.join(" · ")));
     var r = b.paper_result;
     if (b.why_no_result) card.appendChild(h("p", { class: "note warning-chip eng-wrap" }, [t("capital.eng.no_result") + " " + b.why_no_result]));
-    else if (r && r.kind === "nav") {
+    // находка F12: незрелый результат — предупреждение РЯДОМ с числами, а не вместо них (строки по кандидатам видны всегда)
+    if (r && r.kind === "nav") {
       card.appendChild(engKv(t("capital.eng.nav"), (r.nav_usdt !== null && r.nav_usdt !== undefined ? "$" + Math.round(r.nav_usdt).toLocaleString() : "—") +
         " · " + pctText(r.cum_return) + " · " + t("capital.eng.dd") + " " + pctText(r.max_drawdown) + (r.date ? " · " + r.date : "")));
     } else if (r && r.rows) {
       card.appendChild(h("p", { class: "note" }, [t("capital.eng.per_candidate")]));
       r.rows.forEach(function (x) {
-        card.appendChild(h("div", { class: "eng-row" }, [h("span", { class: "eng-id" }, [x.id]), h("b", { class: "eng-num" }, [pctText(x.forward_net)])]));
+        card.appendChild(h("div", { class: "eng-row" }, [h("span", { class: "eng-id", title: x.id }, [shortCandidate(x.id)]), h("b", { class: "eng-num" }, [pctText(x.forward_net)])]));
         // мандат 01.11 §2.6: тот же результат против HOLD BTC за то же окно, после издержек — словами
         if (x.vs_hold && x.vs_hold.text) card.appendChild(h("p", { class: "note eng-wrap eng-vs-hold" }, [x.vs_hold.text]));
       });
     }
+    if (Array.isArray(b.signal_events)) renderSignalEvents(card, b);
     var rc = b.research;
     if (rc) {
       [["capital.eng.hypothesis", rc.hypothesis], ["capital.eng.control", rc.control],

@@ -492,6 +492,10 @@ def owner_questions(truth: dict, updated: Optional[str]) -> dict:
                                   updated_at=updated, reason=plain(dec.get("unknown_ru")) or "очередь не прочитана"),
                 "items": []}
     items = [d for d in (groups.get("owner") or []) if isinstance(d, dict)]
+    # находка T04: открытые карточки БЕЗ объявленного предмета тоже стоят в очереди владельца (их шлёт
+    # Телеграм) — показываются тут же, с честной подписью, иначе пульт говорит 0, а бот 2.
+    undeclared = [d for d in (groups.get("undeclared") or []) if isinstance(d, dict)]
+    items = items + undeclared
 
     def order(d):
         sk = d.get("subject_key")
@@ -508,8 +512,14 @@ def owner_questions(truth: dict, updated: Optional[str]) -> dict:
                      "subject_known": sk in SUBJECT_RU, "age_days": d.get("age_days"),
                      "why": plain(d.get("reason_ru")), "link_area": "decisions"})
     n = len(rows)
-    text = ("Вопросов к вам нет" if n == 0 else f"Ждут вашего ответа: {n}")
-    return {"title": "Нужно ваше решение", "count": n,
+    nu = len(undeclared)
+    text = ("Вопросов к вам нет" if n == 0 else f"Ждут вашего ответа: {n}"
+            + (f" (у {nu} предмет не объявлен — по ADR-285 их сначала разбирает агент)" if nu else ""))
+    counts = dec.get("counts") if isinstance(dec.get("counts"), dict) else {}
+    return {"title": "Нужно ваше решение", "count": n, "subject_declared": n - nu, "subject_undeclared": nu,
+            "definition": ("открытые карточки решений владельца на origin (needs-owner), минус закрытые ответом на Mac "
+                           "и заменённые (supersedes); тестовые записи не считаются"),
+            "excluded": {"closed_elsewhere": counts.get("closed_elsewhere"), "test_or_fixture": counts.get("test_or_fixture")},
             "summary": metric("Вопросы владельцу", text, confidence=MEASURED, source=src, measured_at=None,
                               updated_at=updated, unit="шт."),
             "items": rows,
@@ -535,6 +545,15 @@ def _system_problems(model: dict, truth: dict, updated: Optional[str]) -> list:
     if sysv.get("kill_switch"):
         out.insert(0, metric("Стоп-кран", "Стоп-кран взведён: исполнение остановлено", confidence=MEASURED,
                              source="overview.system", measured_at=None, updated_at=updated, tone="problem"))
+    # находка F2/T02: блокировка инвестиционного движка — отдельная от здоровья служб и стоп-крана SPA
+    for b in investment_blocks(model):
+        out.insert(0, metric("Инвестиционный движок заблокирован", b["text"], confidence=MEASURED,
+                             source="overview.investment", measured_at=b.get("opened_at"), updated_at=updated,
+                             tone="problem", technical=b.get("technical")))
+    inv = _get(model, "overview.investment") or {}
+    if inv.get("state") == "NOT_MEASURED":
+        out.append(metric("Инвестиционные движки", None, confidence=NOT_MEASURED, source="overview.investment",
+                          measured_at=None, updated_at=updated, reason=inv.get("reason") or "режим движков не прочитан"))
     pr = _get(truth, "studio.problems")
     conf, reason = _cell_confidence(pr)
     if conf == MEASURED and isinstance(pr, dict):
@@ -566,11 +585,41 @@ def _current_epic(model: dict, truth: dict) -> Optional[dict]:
     return None
 
 
+def investment_blocks(model: dict) -> list:
+    """Заблокированные инвестиционные движки из ``overview.investment`` — словами, с датой и тем, кто снимает.
+
+    Защёлкнутый инцидент говорит, что условие после открытия НЕ перепроверялось: это не «подтверждено
+    сегодня» и не «решено», а честное «действует до ручного снятия»."""
+    out = []
+    for e in (_get(model, "overview.investment.blocked") or []):
+        if not isinstance(e, dict):
+            continue
+        inc = e.get("incident") or {}
+        since = _madrid(inc.get("opened_at") or e.get("mode_since")) or "дата не записана"
+        txt = (f"{e.get('title') or e.get('engine')}: режим {e.get('mode')}"
+               + (f" ({inc.get('kc')})" if inc.get("kc") else "") + f" с {since}"
+               + (f" — {inc.get('effect')}" if inc.get("effect") else " — новые позиции запрещены")
+               + (". Причина: " + plain(inc.get("detail")) if inc.get("detail") else "")
+               + (". Условие после открытия не перепроверялось — блокировка действует до ручного снятия"
+                  if inc.get("latched") else "")
+               + (f". Снимает: {inc.get('clear_by')}" if inc.get("clear_by") else "") + ".")
+        out.append({"engine": e.get("engine"), "text": txt, "opened_at": inc.get("opened_at"),
+                    "technical": {"mode": e.get("mode"), "kc": inc.get("kc"), "data_date": inc.get("data_date"),
+                                  "source": e.get("source")}})
+    return out
+
+
 def headline(model: dict, truth: dict, questions: dict, problems: list, updated: Optional[str]) -> dict:
     """«Главное сейчас» + следующий шаг — deterministic priority, every branch named."""
     sysv = _get(model, "overview.system") or {}
+    blocks = investment_blocks(model)
     if sysv.get("kill_switch"):
         main, nxt = "Стоп-кран взведён — исполнение остановлено", "Разобрать причину в разделе «Защита»"
+    elif blocks:
+        names = ", ".join(str(b["engine"]) for b in blocks)
+        main = f"Инвестиционный движок заблокирован: {names} — новые позиции запрещены"
+        nxt = ("Решить, снимать ли блокировку (подробности в «Существенных проблемах»)"
+               + (f"; кроме того ждут вашего решения: {questions['count']}" if questions.get("count") else ""))
     elif questions.get("count"):
         first = questions["items"][0]
         main = f"Ждут вашего решения: {questions['count']}"
@@ -581,7 +630,7 @@ def headline(model: dict, truth: dict, questions: dict, problems: list, updated:
             else "Активной работы не видно"
         cw = _get(truth, "studio.claude_work") or {}
         nxt = plain(cw.get("next_step_ru")) or "Ваших действий не требуется"
-    if problems and not questions.get("count") and not sysv.get("kill_switch"):
+    if problems and not questions.get("count") and not sysv.get("kill_switch") and not blocks:
         nxt = nxt + " · есть проблемы — см. ниже"
     return {"title": "Главное сейчас", "main": main, "next": nxt, "updated_at": updated,
             "updated_at_ru": _madrid(updated), **_money_mode(model)}
@@ -825,10 +874,19 @@ def _record_outcome(r: dict) -> dict:
     st = r.get("status")
     verdict = r.get("acceptance_verdict")
     if st == "done":
-        if r.get("verified_by_probe") and verdict in (None, "satisfied"):
+        # находка F8: «сделано» · «итог записан» · «автоматическая проверка пройдена» — РАЗНЫЕ факты. Если у
+        # записи есть блок исполнения и он говорит «запуск проверки к итогу не привязан», то записанный
+        # вердикт пробы не делает запись проверенной (один источник истины — тот же, что у блока подготовки).
+        exe = ((r.get("preparation") or {}).get("execution") or {}) if isinstance(r.get("preparation"), dict) else {}
+        exe_verified = exe.get("verified") if isinstance(exe, dict) else None
+        if r.get("verified_by_probe") and verdict in (None, "satisfied") and exe_verified is not False:
             when = _madrid(r.get("verified_at"))
             return out("done_verified", "сделано и проверено автоматической проверкой"
                        + (f" ({when})" if when else ""), verified=True)
+        if r.get("verified_by_probe") and verdict in (None, "satisfied"):
+            why = plain(exe.get("reason")) if isinstance(exe, dict) else None
+            return out("done_recorded_unverified", "сделано, итог записан, но запуск проверки к нему не привязан — "
+                       "не считается проверенным" + (f" ({why})" if why else ""), reason=why)
         return out("done_unverified", "закрыто без проверки результата — не считается проверенным")
     if st in ("in-progress", "blocked"):
         head = "в работе" if st == "in-progress" else "остановлено"

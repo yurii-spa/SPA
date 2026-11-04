@@ -135,6 +135,9 @@ def build_spa_trading(data_dir=None, now=None):
                 if r:
                     last.append({'id': c['id'], 'bar_close': datetime.fromtimestamp(r[0] / 1000, timezone.utc).isoformat(),
                                  'action': r[1], 'position': r[2]})
+            # находка F12/T06: лента BUY/SELL — пары «сигнал → виртуальное исполнение» из ledger, только чтение
+            from spa_core.trading_research.read_model import signal_events
+            out['signal_events'] = signal_events(con, [c['id'] for c in fwd], now_ms=int(nowms))
         finally:
             con.close()
     except sqlite3.Error as e:
@@ -216,6 +219,53 @@ def build_earn_defi(earn_dir=None, now=None):
     act = (out.get('last_decision') or {}).get('action')
     out['why_hold'] = ((out['last_decision']['reasons'] or ['причина не записана'])[-1] if act == 'HOLD' else None)
     return out
+
+
+def investment_engine_modes(earn_dir=None, now=None):
+    """Режим каждого инвестиционного движка — ОТДЕЛЬНАЯ ось от здоровья процессов (находки F2/T01/T02).
+
+    Только чтение собственного ledger движка. Блокировка движка (INCIDENT) — это факт о финансовом контуре,
+    а не о том, живы ли службы: службы могут честно быть OK, пока движку запрещены новые позиции.
+    Инцидент earn-defi ЗАЩЁЛКНУТ: условие после открытия не перепроверяется, снимается только вручную
+    (`earn_defi.risk.kill_conditions.clear_incident`, CLI `incident-clear`), поэтому «последнее подтверждение
+    условия» честно НЕ ИЗМЕРЕНО, а не «подтверждено сегодня».
+    Возвращает ``{"observed_at", "engines": [...]}``; нечитаемый ledger — ``mode=None`` с причиной (инв. #17)."""
+    now = now or datetime.now(timezone.utc)
+    root = Path(earn_dir or os.environ.get('EARN_DEFI_DIR') or Path.home() / 'Documents' / 'earn-defi')
+    db = root / 'data' / 'earn_defi.db'
+    eng = {'engine': 'earn_defi', 'title': 'earn-defi (BTC + стабильная нога, paper)', 'source': f'{db}#system_state,incidents',
+           'mode': None, 'incident': None, 'reason': None}
+    if not db.exists():
+        eng['reason'] = f'ledger earn-defi не найден ({db})'
+        return {'observed_at': now.isoformat(), 'engines': [eng]}
+    try:
+        con = _ro(db)
+        try:
+            state = dict(con.execute('SELECT key, value FROM system_state').fetchall())
+            ts = dict(con.execute('SELECT key, updated_at_utc FROM system_state').fetchall()) if _has_col(con, 'system_state', 'updated_at_utc') else {}
+            inc = con.execute("SELECT id, ts_utc, payload FROM incidents WHERE state='OPEN' ORDER BY id DESC LIMIT 1").fetchone() \
+                if _has_col(con, 'incidents', 'ts_utc') else None
+        finally:
+            con.close()
+    except sqlite3.Error as e:
+        eng['reason'] = f'ledger не читается: {e}'
+        return {'observed_at': now.isoformat(), 'engines': [eng]}
+    eng['mode'] = state.get('system_mode')
+    eng['mode_since'] = ts.get('system_mode')
+    if inc:
+        p = json.loads(inc[2]) if inc[2] else {}
+        eng['incident'] = {'id': inc[0], 'opened_at': inc[1], 'kc': p.get('kc'), 'data_date': p.get('date'),
+                           'detail': p.get('detail'), 'latched': True, 'last_condition_check': None,
+                           'clear_by': 'владелец (earn-defi CLI incident-clear --reason …)',
+                           'effect': 'новые позиции запрещены, уменьшение разрешено'}
+    return {'observed_at': now.isoformat(), 'engines': [eng]}
+
+
+def _has_col(con, table, col):
+    try:
+        return any(r[1] == col for r in con.execute(f'PRAGMA table_info({table})').fetchall())
+    except sqlite3.Error:
+        return False
 
 
 def build_trading(now=None, data_dir=None, earn_dir=None):

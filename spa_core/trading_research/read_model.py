@@ -350,3 +350,65 @@ def trading_lab_view(data_dir, *, now_ms: Optional[int] = None,
             reason=(None if sys_mode is not None else "earn-defi track.json не содержит system_mode"))
 
     return out
+
+
+#: сколько событий отдаёт лента по умолчанию — витрине нужны последние, история целиком лежит в ledger
+EVENTS_DEFAULT_LIMIT = 20
+
+
+def signal_events(conn: sqlite3.Connection, candidate_ids, *, limit: int = EVENTS_DEFAULT_LIMIT,
+                  now_ms: Optional[int] = None) -> list:
+    """Лента BUY/SELL/… событий forward-кандидатов — ТОЛЬКО чтение уже записанных строк ledger.
+
+    Семантика движка (`forward.advance_candidate`): строка закрытого бара *t* несёт СИГНАЛ (`action` —
+    переход held→target на закрытии), а виртуальное исполнение происходит по открытию бара *t+1* и
+    записывается в СЛЕДУЮЩЕЙ строке (`fill_price`, `fill_cost`), где `action` уже снова `HOLD`, потому
+    что считается после исполнения. Поэтому пара «сигнал → исполнение» ищется по реальной строке
+    исполнения (`bar_open_time` = закрытие бара сигнала и `fill_price IS NOT NULL`), а не по `action`.
+
+    Ничего не выводится задним числом: нет строки исполнения ⇒ ``executed=False`` и ``state`` говорит
+    почему (``PENDING`` — следующий бар ещё не закрыт; ``NOT_EXECUTED`` — следующая строка есть, но без
+    исполнения). Реальных сделок не бывает: ``real_trade`` всегда ``False``.
+    """
+    ids = [c for c in candidate_ids if c]
+    if not ids:
+        return []
+    marks = ",".join("?" * len(ids))
+    rows = conn.execute(
+        f"SELECT seq, candidate_id, asset, timeframe, bar_open_time, bar_close_time, signal_ts_ms, "
+        f"position_before, target, action, bar_close FROM observations "
+        f"WHERE candidate_id IN ({marks}) AND action != 'HOLD' "
+        f"ORDER BY bar_close_time DESC, seq DESC LIMIT ?", (*ids, int(limit))).fetchall()
+    now_ms = int(now_ms if now_ms is not None else time.time() * 1000)
+    out = []
+    for (seq, cid, asset, tf, bopen, bclose, sig_ts, pos_before, target, action, close_px) in rows:
+        nxt = conn.execute(
+            "SELECT seq, fill_price, fill_cost, equity, position_held FROM observations "
+            "WHERE candidate_id=? AND bar_open_time=? ORDER BY seq LIMIT 1", (cid, bclose)).fetchone()
+        if nxt is None:
+            state, fill = "PENDING", None
+        elif nxt[1] is None:
+            state, fill = "NOT_EXECUTED", nxt
+        else:
+            state, fill = "EXECUTED", nxt
+        parts = cid.split(":")
+        out.append({
+            "candidate_id": cid,
+            "strategy": parts[0] if parts else cid,
+            "asset": asset, "timeframe": tf,
+            "exec_model": parts[3] if len(parts) > 3 else None,
+            "bar_open_time": bopen, "bar_close_time": bclose, "signal_ts_ms": sig_ts,
+            "signal": action, "close_price": close_px,
+            "position_before": pos_before, "target_after": target,
+            "virtual_execution": state,
+            "executed": state == "EXECUTED",
+            "fill_price": fill[1] if state == "EXECUTED" else None,
+            "fill_cost": fill[2] if state == "EXECUTED" else None,
+            "nav_after": fill[3] if state == "EXECUTED" else None,
+            "nav_unit": "доля стартового капитала (старт = 1.0)",
+            "evidence": {"signal_seq": seq, "fill_seq": fill[0] if fill else None,
+                         "source": "data/trading_research/evidence.db#observations"},
+            "age_h": round((now_ms - bclose) / 3_600_000, 1) if bclose else None,
+            "real_trade": False,
+        })
+    return out
