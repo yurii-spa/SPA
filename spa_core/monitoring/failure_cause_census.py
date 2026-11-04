@@ -375,6 +375,143 @@ class Census(NamedTuple):
         return self.read == READ_OK
 
 
+# --- РОД «ОКРУЖЕНИЕ РАННЕРА» (ADR-915, заказ G905 п. 1) ------------------------
+# Второй род того же семейства, что и род стенных часов выше, и заводится он по той
+# же причине и тем же способом. Замер #1027 (ADR-913) прогнал дефектную часть
+# (56 имён) ПОИМЁННО на чистом дереве того же коммита: **19 из 56 ЗЕЛЕНЫ у себя**,
+# двумя независимыми наблюдениями, 19 из 19. Эти имена дефектами кода не являются —
+# их краснота есть свойство МАШИНЫ (PID-пространство, `ps`, права, контейнер, набор
+# инструментов), и держать их в вилке дефектов значит завышать её.
+#
+# **Опубликованная вилка противоречила САМА СЕБЕ, и это измерено.** Прибор печатал
+# «дефектов НЕ МЕНЬШЕ 42 и НЕ БОЛЬШЕ 56», а дефектная часть после вычета
+# девятнадцати — 37: `42 > 37`. Нижний край считан по ВСЕМУ набору, и девятнадцать
+# имён, падающих от свойств машины, дали прибору девятнадцать «причин дефекта».
+# Лечение — то же, что у ADR-910: вывод рода стои́т у ЕДИНСТВЕННОЙ двери `fork_of`,
+# а не у каждого из трёх читателей вилки.
+#
+# **Чем этот род отличается от рода часов — своим источником.** Род часов опознаётся
+# по СООБЩЕНИЮ самого провала (литерал производителя срока). Здесь сообщения не
+# хватает: «зелен на своём дереве» не написано в тексте исключения и не может быть
+# там написано — это вердикт ЗАМЕРА, а не свойство строки. Поэтому источник — ВНЕШНЕЕ
+# ОБЪЯВЛЕНИЕ, то самое, которое доставил ADR-913 и которое держит сторож
+# `spa_core/tests/test_ci_only_red_class_ratchet.py`.
+#
+# **Отсюда третий исход, и он fail-CLOSED (дословно правило ADR-910).** Объявления
+# нет / не разбирается / схема чужая / имя члена не строка ⇒ род НЕ ИЗМЕРЕН, и
+# НИ ОДНО падение из вилки не выносится. Недоказанный род не вправе уменьшать число
+# дефектов: иначе «объявление потерялось» работало бы как оправдание (инв. #17).
+
+#: Файл ОБЪЯВЛЕНИЯ класса. Одна копия пути на всю систему.
+ENV_DECLARATION = (Path(__file__).resolve().parents[2]
+                   / "spa_core" / "tests" / "ci_only_red_class_baseline.json")
+
+#: Схема объявления. Писателя-модуля у неё нет (замер делается разовым прибором
+#: цикла, ADR-913 §5); читателей ДВА — этот и сторож объявления, — и их согласие
+#: закреплено проверкой паритета, а не надеждой (`test_runner_env_rod_subtraction`).
+ENV_SCHEMA = "ci-only-red-class/1"
+
+ENV_READ_OK = "env_declaration_read"
+ENV_ABSENT = "env_declaration_absent"
+ENV_UNREADABLE = "env_declaration_unreadable"
+ENV_BAD_SCHEMA = "env_declaration_foreign_schema"
+ENV_NO_MEMBERS = "env_declaration_without_members"
+ENV_BAD_MEMBER = "env_declaration_member_without_name"
+ENV_NAME_COLLISION = "env_declaration_names_collapsed"
+#: Рода НЕ СПРАШИВАЛИ вовсе — состояние руками собранной :class:`Fork`. Отличается
+#: от «спросили и объявления не нашли» и от «вычли»: три разных ответа, три имени.
+ENV_NOT_ASKED = "env_declaration_not_asked"
+ENV_CLASSES = (ENV_READ_OK, ENV_ABSENT, ENV_UNREADABLE, ENV_BAD_SCHEMA,
+               ENV_NO_MEMBERS, ENV_BAD_MEMBER, ENV_NAME_COLLISION, ENV_NOT_ASKED)
+
+
+class EnvDeclaration(NamedTuple):
+    """Прочитанное объявление класса «красен в CI, зелен на своём дереве».
+
+    ``names`` — имена В ФОРМЕ junit-записи, то есть уже приведённые единственной
+    дверью :func:`junit_name`. Объявление пишет `nodeid` в форме pytest
+    (`путь/к/файлу.py::Класс::тест`), а провал записи несёт форму junit
+    (`путь.к.файлу.Класс::тест`); сверка двух форм без канонизации дала бы ПУСТОЕ
+    пересечение и прочиталась бы как «класса в наборе нет» (дословный урок цикла
+    #1026: артефакт канонизатора подделал дельту «пришло 47 / ушло 43» вместо 1 и 2).
+    """
+
+    read: str
+    reason: str
+    path: str
+    names: frozenset[str] = frozenset()
+    declared: int = 0
+
+    @property
+    def measured(self) -> bool:
+        return self.read == ENV_READ_OK
+
+
+def env_declaration(path: Path | None = None) -> EnvDeclaration:
+    """Прочитать объявление рода «окружение раннера». Только ЧИТАЕТ.
+
+    Путь берётся аргументом, а умолчание разрешается ВНУТРИ, а не значением по
+    умолчанию в подписи: значение по умолчанию привязывается в момент определения
+    функции, поэтому подмена модульного :data:`ENV_DECLARATION` на него НЕ
+    ДЕЙСТВОВАЛА БЫ — сцена контроля молча мерила бы боевой файл и зеленела бы,
+    ничего не проверив (дословно урок `load_declaration` сторожа объявления).
+
+    Любая невозможность прочитать даёт НАЗВАННЫЙ исход и ПУСТОЙ набор имён, и
+    этого достаточно для fail-CLOSED: пустой набор не выносит из вилки ничего.
+    Пустое объявление при этом НЕ выдаётся за «класс пуст» — на это отвечает поле
+    :attr:`EnvDeclaration.read`, а не размер набора.
+    """
+    path = ENV_DECLARATION if path is None else path
+    try:
+        raw = path.read_text(encoding="utf-8")
+    except FileNotFoundError:
+        return EnvDeclaration(read=ENV_ABSENT, path=str(path),
+                              reason=f"файла объявления нет: {path}")
+    except OSError as exc:
+        return EnvDeclaration(read=ENV_UNREADABLE, path=str(path),
+                              reason=f"объявление не прочитано: {path}: {exc}")
+    try:
+        doc = json.loads(raw)
+    except ValueError as exc:
+        return EnvDeclaration(read=ENV_UNREADABLE, path=str(path),
+                              reason=f"объявление не разбирается: {path}: {exc}")
+    if not isinstance(doc, dict):
+        return EnvDeclaration(read=ENV_BAD_SCHEMA, path=str(path),
+                              reason=f"объявление не словарь: {type(doc).__name__}")
+    if doc.get("schema") != ENV_SCHEMA:
+        return EnvDeclaration(
+            read=ENV_BAD_SCHEMA, path=str(path),
+            reason=(f"схема объявления {doc.get('schema')!r} != {ENV_SCHEMA!r} — "
+                    "читатель и писатель разошлись, и молчать об этом нельзя"))
+    members = doc.get("members")
+    if not isinstance(members, list):
+        return EnvDeclaration(
+            read=ENV_NO_MEMBERS, path=str(path),
+            reason=(f"поля `members` нет или оно не список: "
+                    f"{type(members).__name__}"))
+    raw_names = []
+    for member in members:
+        nodeid = member.get("nodeid") if isinstance(member, dict) else None
+        if not isinstance(nodeid, str) or not nodeid.strip():
+            return EnvDeclaration(
+                read=ENV_BAD_MEMBER, path=str(path),
+                reason=("у члена объявления нет поля `nodeid` строкой — объявление "
+                        "разобрано НЕ ЦЕЛИКОМ, и вычитать по его части нельзя"))
+        raw_names.append(junit_name(nodeid.strip()))
+    names = frozenset(raw_names)
+    # Предпосылка сверки объявлена: имён обязано выйти столько, сколько членов.
+    # Схлопнулись два имени в одно ⇒ канонизатор или объявление неисправны, и
+    # вычитать по такому набору значило бы вынести из вилки неизвестно что.
+    if len(names) != len(raw_names):
+        return EnvDeclaration(
+            read=ENV_NAME_COLLISION, path=str(path),
+            reason=(f"объявлено членов {len(raw_names)}, а различных имён вышло "
+                    f"{len(names)} — предпосылка сверки НЕ ВЫПОЛНЕНА"))
+    return EnvDeclaration(read=ENV_READ_OK, path=str(path),
+                          reason="объявление прочитано", names=names,
+                          declared=len(raw_names))
+
+
 class Fork(NamedTuple):
     """Вилка числа дефектов по населению одной фазы. Края НАЗВАНЫ, не выведены."""
 
@@ -394,9 +531,34 @@ class Fork(NamedTuple):
     #: вправе выносить провал из вилки, иначе «не измерено» работало бы как
     #: оправдание (инв. #17).
     rod_unmeasured: int = 0
+    # --- род окружения раннера (ADR-915): выведен из вилки и НАЗВАН ----------
+    #: Провалов, вынесенных из вилки по ОБЪЯВЛЕНИЮ одиннадцатой двери (ADR-913):
+    #: имя красно в контрольном прогоне CI и ЗЕЛЕНО на своём дереве той же вершины.
+    runner_environment: int = 0
+    runner_environment_names: tuple[str, ...] = ()
+    #: Исход чтения объявления — один из :data:`ENV_CLASSES`. Умолчание —
+    #: ``ENV_NOT_ASKED``, то есть «род НЕ ИЗМЕРЕН»: руками собранная вилка не
+    #: вправе утверждать вычитание, которого не делала (инв. #17).
+    runner_env_read: str = ENV_NOT_ASKED
+    runner_env_reason: str = "род окружения раннера не спрашивали"
+
+    @property
+    def measured_runner_env(self) -> bool:
+        """Объявление рода окружения прочитано. Нет ⇒ род НЕ ИЗМЕРЕН (fail-CLOSED)."""
+        return self.runner_env_read == ENV_READ_OK
+
+    @property
+    def accounting_holds(self) -> bool:
+        """``population + wallclock_timeouts + runner_environment == given``.
+
+        Тождество печатается читателями, а не считается ими: род, забытый одним из
+        трёх печатающих мест, исчезал бы из его строки молча (класс ADR-220).
+        """
+        return (self.population + self.wallclock_timeouts
+                + self.runner_environment == self.given)
     #: Сколько провалов ПОДАНО на вход. Тождество учёта:
-    #: ``population + wallclock_timeouts == given``. Без него род, забытый
-    #: читателем, исчезал бы из печатаемой строки молча (урок ADR-675).
+    #: ``population + wallclock_timeouts + runner_environment == given``. Без него
+    #: род, забытый читателем, исчезал бы из печатаемой строки молча (урок ADR-675).
     given: int = 0
 
 
@@ -623,7 +785,9 @@ def _junit_name(nodeid: str) -> str:
 junit_name = _junit_name
 
 
-def fork_of(failures: Iterable[Failure]) -> Fork:
+
+def fork_of(failures: Iterable[Failure], *,
+             env: "EnvDeclaration | None" = None) -> Fork:
     """Вилка числа дефектов: компоненты графа … ключи «причина+место».
 
     **Род стенных часов в вилку НЕ ВХОДИТ (ADR-910).** Провал по `pytest-timeout`
@@ -633,13 +797,36 @@ def fork_of(failures: Iterable[Failure]) -> Fork:
     (`format_census`, json-полезная нагрузка, `ci_control.cause_line`), и
     забывший вычесть род читатель разошёлся бы с остальными молча (класс ADR-220).
 
-    Выброшенное население НАЗВАНО полем, а не потеряно: ``wallclock_timeouts``,
-    ``wallclock_names`` и тождество ``population + wallclock_timeouts == given``.
+    **Род ОКРУЖЕНИЯ РАННЕРА в вилку тоже НЕ ВХОДИТ (ADR-915).** Источник у него не
+    сообщение провала, а ВНЕШНЕЕ объявление (:func:`env_declaration`): «зелен на
+    своём дереве» есть вердикт замера, а не свойство строки. Объявление не
+    прочитано ⇒ род НЕ ИЗМЕРЕН и из вилки НЕ ВЫЧИТАЕТСЯ НИЧЕГО — fail-CLOSED.
+
+    **Порядок вычитания объявлен, и он существен.** Род часов снимается ПЕРВЫМ;
+    среди оставшихся снимается род окружения. Имя, попавшее под оба (род часов в CI
+    и зелень у себя), учитывается РОВНО ОДИН раз — в роде часов, — иначе тождество
+    учёта сломалось бы двойным счётом, а читатель получил бы два объяснения одному
+    падению.
+
+    Выброшенное население НАЗВАНО полями, а не потеряно: ``wallclock_timeouts`` /
+    ``wallclock_names``, ``runner_environment`` / ``runner_environment_names``, и
+    тождество ``population + wallclock_timeouts + runner_environment == given``.
+
+    ``env`` — ВХОД, а не окружение: умолчание ``None`` разрешается ВНУТРИ зовом
+    :func:`env_declaration`, поэтому боевой путь не меняется ни одним вызовом, а
+    сцена контроля подменяет объявление, не трогая боевой файл.
     """
     given = list(failures)
     rods = [f for f in given if f.timeout_rod == ROD_TIMEOUT]
     unmeasured = sum(1 for f in given if f.timeout_rod == ROD_UNMEASURED)
-    items = [f for f in given if f.timeout_rod != ROD_TIMEOUT]
+    rest = [f for f in given if f.timeout_rod != ROD_TIMEOUT]
+    decl = env_declaration() if env is None else env
+    if decl.measured:
+        env_hits = [f for f in rest if f.nodeid in decl.names]
+        items = [f for f in rest if f.nodeid not in decl.names]
+    else:
+        env_hits = []
+        items = rest
     n = len(items)
     cause_groups = Counter(f.cause_key for f in items)
     upper = len({f.cause_site_key for f in items})
@@ -685,10 +872,14 @@ def fork_of(failures: Iterable[Failure]) -> Fork:
         wallclock_timeouts=len(rods),
         wallclock_names=tuple(f.nodeid for f in rods),
         rod_unmeasured=unmeasured, given=len(given),
+        runner_environment=len(env_hits),
+        runner_environment_names=tuple(f.nodeid for f in env_hits),
+        runner_env_read=decl.read, runner_env_reason=decl.reason,
     )
 
 
-def format_census(census: Census, *, shown: int = 12) -> str:
+def format_census(census: Census, *, shown: int = 12,
+                  env: "EnvDeclaration | None" = None) -> str:
     if not census.measured:
         return (f"НЕ ИЗМЕРЕНО · {census.path}\n"
                 f"   причина: {census.reason}\n"
@@ -727,7 +918,7 @@ def format_census(census: Census, *, shown: int = 12) -> str:
                      f"потоковой записью: {', '.join(census.session_victims[:5])}")
     else:
         lines.append("   жертв обморока нет — измерено и равно нулю")
-    fork = fork_of(census.call)
+    fork = fork_of(census.call, env=env)
     # Род стенных часов печатается ДО раннего возврата намеренно: набор, у которого
     # ВСЕ провалы фазы `call` суть род часов, даёт `population == 0`, и строка
     # «провалов нет» без этой печати прочиталась бы как зелёная фаза.
@@ -740,6 +931,21 @@ def format_census(census: Census, *, shown: int = 12) -> str:
     if fork.rod_unmeasured:
         lines.append(f"   род часов НЕ ИЗМЕРЕН у {fork.rod_unmeasured} провал(ов) "
                      f"(сообщения нет вовсе) — они ОСТАЮТСЯ в вилке дефектов")
+    # РОД ОКРУЖЕНИЯ РАННЕРА печатается по тому же праву, что и род часов выше:
+    # у жертвы причина ЕСТЬ, и причина эта — не дефект предмета теста. Печатается
+    # ВСЕГДА, в том числе исход «НЕ ИЗМЕРЕН»: молчание выдало бы «объявления не
+    # нашли» за «измерено и равно нулю» (инв. #17).
+    if not fork.measured_runner_env:
+        lines.append(f"   род ОКРУЖЕНИЯ РАННЕРА НЕ ИЗМЕРЕН ({fork.runner_env_read}): "
+                     f"{fork.runner_env_reason} — из вилки НЕ вычтено НИ ОДНО "
+                     f"падение, и «рода здесь нет» НЕ утверждается")
+    elif fork.runner_environment:
+        lines.append(f"   ОКРУЖЕНИЕ РАННЕРА: {fork.runner_environment} провал(ов) — "
+                     f"род `runner_environment` (ADR-913/915), красны в CI и ЗЕЛЕНЫ "
+                     f"на своём дереве, в ВИЛКУ ДЕФЕКТОВ НЕ входят. Поимённо: "
+                     f"{', '.join(fork.runner_environment_names[:5])}")
+    else:
+        lines.append("   рода окружения раннера в наборе нет — измерено и равно нулю")
     if fork.population == 0:
         lines.append("   фаза `call`: провалов вне рода часов нет — вилка не считается")
         return "\n".join(lines)
@@ -750,7 +956,9 @@ def format_census(census: Census, *, shown: int = 12) -> str:
                  f" · грубых ключей {fork.coarse_groups}")
     lines.append(f"   ВИЛКА ДЕФЕКТОВ: НЕ МЕНЬШЕ {fork.lower} и НЕ БОЛЬШЕ {fork.upper}"
                  f" (склеено ребром следа {fork.merged_by_evidence} · "
-                 f"крупнейший компонент {fork.largest_component})")
+                 f"крупнейший компонент {fork.largest_component} · "
+                 + ("род окружения раннера ВЫЧТЕН)" if fork.measured_runner_env
+                    else "БЕЗ вычитания рода окружения раннера — он НЕ ИЗМЕРЕН)"))
     for (kind, skel), count in fork.groups[:shown]:
         mark = "✖" if count > 1 else "·"
         lines.append(f"   {mark} {count:3d}  {kind}: {skel}")
@@ -759,7 +967,7 @@ def format_census(census: Census, *, shown: int = 12) -> str:
     return "\n".join(lines)
 
 
-def as_json(census: Census) -> dict:
+def as_json(census: Census, *, env: "EnvDeclaration | None" = None) -> dict:
     payload = {
         "read": census.read, "reason": census.reason, "path": census.path,
         "collected": census.collected, "population": census.population,
@@ -779,7 +987,7 @@ def as_json(census: Census) -> dict:
         "session_victims": list(census.session_victims),
     }
     if census.measured:
-        fork = fork_of(census.call)
+        fork = fork_of(census.call, env=env)
         payload["call"] = {
             "population": fork.population, "cause_groups": fork.cause_groups,
             "coarse_groups": fork.coarse_groups,
@@ -790,6 +998,13 @@ def as_json(census: Census) -> dict:
             "wallclock_timeouts": fork.wallclock_timeouts,
             "wallclock_names": list(fork.wallclock_names),
             "rod_unmeasured": fork.rod_unmeasured, "given": fork.given,
+            # Род окружения раннера (ADR-915): выведен из вилки и НАЗВАН, не
+            # потерян. Исход чтения объявления кладётся ВСЕГДА — ключ, а не
+            # значение, отвечает на вопрос «спрашивали ли вообще» (урок ADR-911).
+            "runner_environment": fork.runner_environment,
+            "runner_environment_names": list(fork.runner_environment_names),
+            "runner_env_read": fork.runner_env_read,
+            "runner_env_reason": fork.runner_env_reason,
             "groups": [{"kind": k, "skeleton": s, "failures": c}
                        for (k, s), c in fork.groups],
         }

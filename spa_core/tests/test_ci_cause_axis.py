@@ -316,10 +316,10 @@ class _Door:
             raise self._reading
         return self._real.census_from_path(path, stream=stream)
 
-    def fork_of(self, failures):
+    def fork_of(self, failures, **kwargs):
         if self._forking is not None:
             raise self._forking
-        return self._real.fork_of(failures)
+        return self._real.fork_of(failures, **kwargs)
 
 
 class TheLineIsTheOnlyCopyOfTheRule(unittest.TestCase):
@@ -351,7 +351,15 @@ def _axis_with_rod(n_rod: int, names: list[str], *, unmeasured: int = 0) -> dict
             "fork": {"population": 61, "lower": 44, "upper": 61,
                      "largest_component": 8, "wallclock_timeouts": n_rod,
                      "wallclock_names": names, "rod_unmeasured": unmeasured,
-                     "given": 61 + n_rod},
+                     "given": 61 + n_rod,
+                     # Род окружения раннера (ADR-915) объявлен и равен нулю: это
+                     # свод, собранный цензом ПОСЛЕ шва. Сцена «ключа нет вовсе»
+                     # заведена отдельно, своей парой контролей, — смешивать два
+                     # состояния в одной сцене значило бы проверять текст, а не
+                     # различение.
+                     "runner_environment": 0, "runner_environment_names": [],
+                     "runner_env_read": "env_declaration_read",
+                     "runner_env_reason": "объявление прочитано"},
             "top": [["AssertionError", "# != #", 8]],
             "identities_hold": {"phases": True, "cause_classes": True,
                                 "site_classes": True, "roster": True}}

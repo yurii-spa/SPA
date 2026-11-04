@@ -1,0 +1,101 @@
+{
+ "title": "ADR-915 FORK — дельта цикла #1028: род ОКРУЖЕНИЯ РАННЕРА вычитается из вилки дефектов у ЕДИНСТВЕННОЙ двери fork_of по ВНЕШНЕМУ объявлению; третий исход fail-CLOSED у каждой двери чтения; три печатающих места говорят об этом",
+ "tests": [
+  "spa_core/tests/test_runner_env_rod_subtraction.py",
+  "spa_core/tests/test_failure_cause_census.py",
+  "spa_core/tests/test_ci_cause_axis.py",
+  "spa_core/tests/test_ci_only_red_class_ratchet.py"
+ ],
+ "mutations": [
+  {
+   "name": "род НЕ ВЫЧИТАЕТСЯ вовсе — состояние main до ADR-915 (вилка противоречит сама себе: 42 > 37)",
+   "file": "spa_core/monitoring/failure_cause_census.py",
+   "old": "    if decl.measured:\n        env_hits = [f for f in rest if f.nodeid in decl.names]\n        items = [f for f in rest if f.nodeid not in decl.names]\n    else:\n        env_hits = []\n        items = rest",
+   "new": "    env_hits = []\n    items = rest"
+  },
+  {
+   "name": "fail-OPEN: отсутствующее объявление объявлено ПРОЧИТАННЫМ — «не измерено» выдано за «измерено и равно нулю»",
+   "file": "spa_core/monitoring/failure_cause_census.py",
+   "old": "    except FileNotFoundError:\n        return EnvDeclaration(read=ENV_ABSENT, path=str(path),\n                              reason=f\"файла объявления нет: {path}\")",
+   "new": "    except FileNotFoundError:\n        return EnvDeclaration(read=ENV_READ_OK, path=str(path),\n                              reason=f\"файла объявления нет: {path}\")"
+  },
+  {
+   "name": "канонизация имени СНЯТА — сверка молча опустеет (артефакт канонизатора, урок #1026)",
+   "file": "spa_core/monitoring/failure_cause_census.py",
+   "old": "        raw_names.append(junit_name(nodeid.strip()))",
+   "new": "        raw_names.append(nodeid.strip())"
+  },
+  {
+   "name": "предпосылка сверки снята: имена схлопнулись — вычитаем неизвестно что",
+   "file": "spa_core/monitoring/failure_cause_census.py",
+   "old": "    if len(names) != len(raw_names):",
+   "new": "    if False:"
+  },
+  {
+   "name": "член без имени ПРОПУСКАЕТСЯ молча — объявление разобрано НЕ ЦЕЛИКОМ, а вычет идёт",
+   "file": "spa_core/monitoring/failure_cause_census.py",
+   "old": "        if not isinstance(nodeid, str) or not nodeid.strip():\n            return EnvDeclaration(\n                read=ENV_BAD_MEMBER, path=str(path),\n                reason=(\"у члена объявления нет поля `nodeid` строкой — объявление \"\n                        \"разобрано НЕ ЦЕЛИКОМ, и вычитать по его части нельзя\"))",
+   "new": "        if not isinstance(nodeid, str) or not nodeid.strip():\n            continue"
+  },
+  {
+   "name": "ДВОЙНОЙ СЧЁТ: род окружения считается по ВСЕМУ входу, а не по остатку после рода часов",
+   "file": "spa_core/monitoring/failure_cause_census.py",
+   "old": "        env_hits = [f for f in rest if f.nodeid in decl.names]",
+   "new": "        env_hits = [f for f in given if f.nodeid in decl.names]"
+  },
+  {
+   "name": "тождество учёта слепо ко второму роду — пропажа рода станет невидимой",
+   "file": "spa_core/monitoring/failure_cause_census.py",
+   "old": "        return (self.population + self.wallclock_timeouts\n                + self.runner_environment == self.given)",
+   "new": "        return self.population + self.wallclock_timeouts == self.given"
+  },
+  {
+   "name": "умолчание руками собранной вилки fail-OPEN: вычитание утверждается без замера",
+   "file": "spa_core/monitoring/failure_cause_census.py",
+   "old": "    runner_env_read: str = ENV_NOT_ASKED",
+   "new": "    runner_env_read: str = ENV_READ_OK"
+  },
+  {
+   "name": "печать рода у format_census снята — читатель пойдёт чинить код",
+   "file": "spa_core/monitoring/failure_cause_census.py",
+   "old": "    elif fork.runner_environment:\n        lines.append(f\"   ОКРУЖЕНИЕ РАННЕРА: {fork.runner_environment} провал(ов) — \"",
+   "new": "    elif False:\n        lines.append(f\"   ОКРУЖЕНИЕ РАННЕРА: {fork.runner_environment} провал(ов) — \""
+  },
+  {
+   "name": "json-полезная нагрузка рода не несёт — третий из трёх читателей ослеп",
+   "file": "spa_core/monitoring/failure_cause_census.py",
+   "old": "            \"runner_environment\": fork.runner_environment,\n            \"runner_environment_names\": list(fork.runner_environment_names),\n            \"runner_env_read\": fork.runner_env_read,\n            \"runner_env_reason\": fork.runner_env_reason,",
+   "new": "            \"runner_env_reason\": fork.runner_env_reason,"
+  },
+  {
+   "name": "свод СТАРШЕ шва утверждает вычитание, которого не делал (урок ADR-911, врало 1 из 1)",
+   "file": "scripts/ci_control.py",
+   "old": "    if fork and \"runner_environment\" not in fork:",
+   "new": "    if False:"
+  },
+  {
+   "name": "непрочитанное объявление в своде выдано за вычет — fail-OPEN у строки читателя",
+   "file": "scripts/ci_control.py",
+   "old": "    elif fork and fork.get(\"runner_env_read\") != _ENV_READ_OK:",
+   "new": "    elif False:"
+  },
+  {
+   "name": "копия литерала исхода в своде разошлась с цензом — класс ADR-220 вживую",
+   "file": "scripts/ci_control.py",
+   "old": "_ENV_READ_OK = \"env_declaration_read\"",
+   "new": "_ENV_READ_OK = \"env_declaration_ok\""
+  },
+  {
+   "name": "хвост вилки утверждает вычет безусловно — оговорка снята у всех",
+   "file": "scripts/ci_control.py",
+   "old": "                     + (\"; род окружения раннера ВЫЧТЕН)\"\n                        if fork.get(\"runner_env_read\") == _ENV_READ_OK\n                        else \"; БЕЗ вычитания рода окружения раннера — он НЕ \"\n                             \"ИЗМЕРЕН)\"))",
+   "new": "                     + \"; род окружения раннера ВЫЧТЕН)\")"
+  },
+  {
+   "name": "имена рода режутся ПО СИМВОЛАМ — половина nodeid не починится",
+   "file": "scripts/ci_control.py",
+   "old": "        names = list(fork.get(\"runner_environment_names\") or [])\n        shown = names[:_ROD_NAMES_SHOWN]\n        rest = len(names) - len(shown)",
+   "new": "        names = [\", \".join(fork.get(\"runner_environment_names\") or [])[:60]]\n        shown = names\n        rest = 0"
+  }
+ ]
+}

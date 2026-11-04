@@ -489,6 +489,10 @@ def _cause_axis_measured(plan: list[dict], shards_dir: Path, failures: list[dict
         # этом перечне, исчезал бы из печатаемой строки молча — ровно тот дефект,
         # что ADR-675 нашёл у фаз.
         "roster": n + len(victim_rows) + len(unattributed) == len(failures),
+        # Тождество УЧЁТА ВИЛКИ (ADR-915): дефектное население плюс оба выведенных
+        # рода равно поданному. Второй род, забытый в этом перечне, исчез бы из
+        # печатаемой строки молча — ровно тот дефект, что ADR-675 нашёл у фаз.
+        "fork_accounting": fork.accounting_holds,
     }
     return {
         "schema": CAUSE_SCHEMA, "status": "measured",
@@ -517,7 +521,16 @@ def _cause_axis_measured(plan: list[dict], shards_dir: Path, failures: list[dict
                  # другими молча (класс ADR-220).
                  "wallclock_timeouts": fork.wallclock_timeouts,
                  "wallclock_names": list(fork.wallclock_names),
-                 "rod_unmeasured": fork.rod_unmeasured, "given": fork.given},
+                 "rod_unmeasured": fork.rod_unmeasured, "given": fork.given,
+                 # РОД ОКРУЖЕНИЯ РАННЕРА (ADR-915) — тем же порядком и у той же
+                 # ЕДИНСТВЕННОЙ двери `door.fork_of`: объявление читает она, этот
+                 # свод только переписывает её ответ. Исход чтения кладётся ВСЕГДА,
+                 # в том числе «НЕ ИЗМЕРЕН»: ключ, а не значение, отвечает на
+                 # вопрос «спрашивали ли вообще» (урок ADR-911).
+                 "runner_environment": fork.runner_environment,
+                 "runner_environment_names": list(fork.runner_environment_names),
+                 "runner_env_read": fork.runner_env_read,
+                 "runner_env_reason": fork.runner_env_reason},
         "top": [[kind, skeleton, count] for (kind, skeleton), count in fork.groups[:top]],
     }
 
@@ -886,6 +899,13 @@ def aggregate(manifest: dict | None, shards_dir: Path, needs_result: str | None 
 #: числом: половина `nodeid` не починится, а молчание об остатке скрыло бы размер.
 _ROD_NAMES_SHOWN = 5
 
+#: Исход «объявление рода окружения прочитано». Литерал ДУБЛИРУЕТ `ENV_READ_OK`
+#: ценза намеренно: `cause_line` судит СЛОВАРЬ из отчёта, собранного ЧУЖИМ
+#: коммитом, и импортировать ради одной строки дверь, которой у того коммита могло
+#: не быть, значило бы падать на старых отчётах. Расхождение двух копий краснит
+#: паритет (`test_runner_env_rod_subtraction.py`), а не живёт молча.
+_ENV_READ_OK = "env_declaration_read"
+
 
 def cause_line(axis) -> str:
     """ОДНА строка про ось причин — ЕДИНСТВЕННАЯ копия этого правила.
@@ -969,13 +989,39 @@ def cause_line(axis) -> str:
     if fork.get("rod_unmeasured"):
         parts.append(f"род часов НЕ ИЗМЕРЕН у {fork['rod_unmeasured']} падени(й) "
                      f"(сообщения нет вовсе) — они ОСТАЮТСЯ в вилке дефектов")
+    # РОД ОКРУЖЕНИЯ РАННЕРА (ADR-915). Печатается ПЕРЕД вилкой по тому же праву,
+    # что и два рода выше. Четыре состояния различимы: ключа нет ВОВСЕ (свод старше
+    # ADR-915) · объявление не прочитано · вычтено · измерено и равно нулю.
+    if fork and "runner_environment" not in fork:
+        parts.append("род ОКРУЖЕНИЯ РАННЕРА этим сводом НЕ ИЗМЕРЕН: поля "
+                     "`runner_environment` в оси нет ВОВСЕ — свод собран цензом "
+                     "старше ADR-915, из вилки не вычтено НИ ОДНО падение, и "
+                     "«рода здесь нет» НЕ утверждается")
+    elif fork and fork.get("runner_env_read") != _ENV_READ_OK:
+        parts.append(f"род ОКРУЖЕНИЯ РАННЕРА НЕ ИЗМЕРЕН "
+                     f"({fork.get('runner_env_read')}): "
+                     f"{fork.get('runner_env_reason') or 'причина не названа'} — из "
+                     f"вилки не вычтено НИ ОДНО падение")
+    elif fork.get("runner_environment"):
+        names = list(fork.get("runner_environment_names") or [])
+        shown = names[:_ROD_NAMES_SHOWN]
+        rest = len(names) - len(shown)
+        parts.append(f"ОКРУЖЕНИЕ РАННЕРА {fork['runner_environment']} — род "
+                     f"`runner_environment` (ADR-913/915): красны в CI и ЗЕЛЕНЫ на "
+                     f"своём дереве той же вершины, в вилку дефектов НЕ входят"
+                     + (f" (поимённо: {', '.join(shown)}"
+                        + (f" и ещё {rest}" if rest > 0 else "") + ")" if shown else ""))
     if fork.get("population"):
         parts.append(f"дефектов НЕ МЕНЬШЕ {fork.get('lower')} и НЕ БОЛЬШЕ "
                      f"{fork.get('upper')} (крупнейшее семейство "
                      f"{fork.get('largest_component')}; считано по "
                      f"{fork.get('population')} опознанн(ым) провал(ам) теста "
-                     + ("вне рода стенных часов)" if rod_declared
-                        else "БЕЗ вычитания рода стенных часов — он не измерен)"))
+                     + ("вне рода стенных часов" if rod_declared
+                        else "БЕЗ вычитания рода стенных часов — он не измерен")
+                     + ("; род окружения раннера ВЫЧТЕН)"
+                        if fork.get("runner_env_read") == _ENV_READ_OK
+                        else "; БЕЗ вычитания рода окружения раннера — он НЕ "
+                             "ИЗМЕРЕН)"))
     if top:
         kind, skeleton, count = top[0]
         parts.append(f"крупнейшая причина ×{count}: {kind}: {str(skeleton)[:120]}")

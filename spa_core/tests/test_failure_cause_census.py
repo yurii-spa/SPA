@@ -544,8 +544,18 @@ TIMEOUT_SETUP = ('failed on setup with '
 class TheWallclockRodIsNamedAndNotAFork(TempTree):
     """Род стенных часов: выведен из вилки, НАЗВАН поимённо, тождество держится."""
 
+    #: Объявление рода ОКРУЖЕНИЯ (ADR-915) здесь ПУСТО и при этом ПРОЧИТАНО: сцены
+    #: этого класса про род ЧАСОВ, и вердикт их обязан не зависеть от содержимого
+    #: боевого `ci_only_red_class_baseline.json` (десятая дверь семейства, ADR-905 —
+    #: «вердикт как свойство СОДЕРЖИМОГО дерева»). Инъекция входом, не подменой
+    #: модуля: боевой путь при этом не трогается ни одним вызовом.
+    EMPTY_ENV = fcc.EnvDeclaration(read=fcc.ENV_READ_OK, path="<сцена>",
+                                   reason="сцена: объявление пусто", names=frozenset())
+
     def fork(self, cases):
-        return fcc.fork_of(fcc.census_from_path(self.write("j.xml", junit(cases))).call)
+        return fcc.fork_of(
+            fcc.census_from_path(self.write("j.xml", junit(cases))).call,
+            env=self.EMPTY_ENV)
 
     def test_the_timeout_does_not_enter_the_defect_fork(self):
         """Предмет ADR-910: четыре часовых провала стояли среди дефектов кода."""
@@ -566,7 +576,14 @@ class TheWallclockRodIsNamedAndNotAFork(TempTree):
         self.assertEqual(list(fork.wallclock_names), ["m::slow"])
 
     def test_the_accounting_identity_holds(self):
-        """`population + wallclock == given` — род не вправе исчезнуть молча."""
+        """`population + wallclock + окружение == given` — род не вправе исчезнуть.
+
+        Тождество РАСШИРЕНО третьим слагаемым (ADR-915, инв. #16 — намеренно и с
+        обоснованием): родов, выведенных из вилки, стало два, и прежняя форма
+        `population + wallclock == given` после второго вычитания стала бы ЛОЖНОЙ
+        там, где он срабатывает. Проверка от этого только усиливается — она
+        перестаёт быть слепой к пропаже второго рода.
+        """
         fork = self.fork([
             case("m", "defect", tag="failure", message="KeyError: 'identity'",
                  text=REPO_TB),
@@ -574,7 +591,9 @@ class TheWallclockRodIsNamedAndNotAFork(TempTree):
             case("m", "slow2", tag="failure", message=TIMEOUT_CALL, text=DEEP_TB),
         ])
         self.assertEqual(fork.given, 3)
-        self.assertEqual(fork.population + fork.wallclock_timeouts, fork.given)
+        self.assertEqual(fork.population + fork.wallclock_timeouts
+                         + fork.runner_environment, fork.given)
+        self.assertTrue(fork.accounting_holds)
 
     def test_a_set_WITHOUT_the_rod_is_left_exactly_as_before(self):
         """Обратная сторона: без рода вилка не двигается ни на единицу."""
