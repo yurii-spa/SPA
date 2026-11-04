@@ -1083,6 +1083,15 @@ _READ_SCHEMA: dict[str, tuple[str, ...]] = {
     "acceptance_tree_capability.json": ("status", "counts", "rows",
                                         "trees_measured", "acceptance_tree",
                                         "answered_by_tree", "findings"),
+    # ADR-918. `repo_root` и `repo_history` в схеме ОБЯЗАТЕЛЬНЫ: вердикт о
+    # происхождении коммита есть утверждение о КОНКРЕТНОМ клоне, и усечённый
+    # клон отвечает на него неверно МОЛЧА (замер #1031: прод-клон держит 252
+    # коммита из 28 011). Отсутствие поля прочлось бы как «спросили у полной
+    # истории», то есть ровно как та ложь, против которой прибор написан.
+    "acceptance_tree_lineage.json": ("status", "counts", "rows", "repo_root",
+                                     "repo_history", "trees_declared",
+                                     "measure_carriers", "invoked_by",
+                                     "findings"),
     # Заказ G93 п. 3 (ADR-547). `tact_floor_hours` в схеме обязателен: ТАЛЛИ
     # без такта-пола читается как вердикт о сегодняшнем мире, а он вердикт о
     # мире НА МОМЕНТ прогона — и момент этот обязан иметь срок. `verdict` и
@@ -1651,6 +1660,8 @@ _PRODUCER: dict[str, str] = {
         "spa_core/monitoring/green_by_construction_census.py",
     "acceptance_tree_capability.json":
         "spa_core/monitoring/acceptance_tree_capability.py",
+    "acceptance_tree_lineage.json":
+        "spa_core/monitoring/acceptance_tree_lineage.py",
     "s49_tally_tact.json":
         "spa_core/monitoring/s49_tally_tact.py",
     "slo_keepability.json":
@@ -4078,6 +4089,15 @@ def _summarize_json(path: str, data, *, now: dt.datetime | None = None,
         # двух объявленных форм, скобочная многострочная — ни одна из них).
         from spa_core.monitoring.acceptance_tree_capability import format_report as _atc_report
         out.extend(_atc_report(data))
+    elif name == "acceptance_tree_lineage.json":
+        # ADR-918. Без этой ветки артефакт читается ВХОЛОСТУЮ — файл открыт, а в
+        # контекст не попадает ни одно число, и место приёмки §49 так и осталось
+        # бы «объявленным»: каталог на диске есть, читателя нет ни одного.
+        # Правило отрисовки делегируется ПРОИЗВОДИТЕЛЮ; ввоз ОДНОСТРОЧНЫЙ
+        # (сторож достижимости вырезает ввозы двух объявленных форм, скобочная
+        # многострочная — ни одна из них).
+        from spa_core.monitoring.acceptance_tree_lineage import format_report as _atl_report
+        out.extend(_atl_report(data))
     elif name == "s49_tally_tact.json":
         # Заказ G93 п. 3 (ADR-547). Без этой ветки артефакт читается ВХОЛОСТУЮ, и
         # ТАЛЛИ §49 — единственное число, которого приказ владельца просит прямо, —

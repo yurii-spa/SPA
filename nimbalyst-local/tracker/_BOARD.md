@@ -2,11 +2,11 @@
 
 > Авто-генерится `scripts/build_tracker_board.py` из `nimbalyst-local/tracker/*.md`. НЕ править вручную — правь карточки. Источник правды — карточки, это индекс (bootstrap).
 >
-> Собрана: 2026-11-04T08:28:01Z · сверка с карточками: `python3 scripts/build_tracker_board.py --check` (сторож `spa_core/tests/test_tracker_board_matches_cards.py`).
+> Собрана: 2026-11-04T12:08:12Z · сверка с карточками: `python3 scripts/build_tracker_board.py --check` (сторож `spa_core/tests/test_tracker_board_matches_cards.py`).
 >
-> Сверено с `origin/main` (eed54a7a0).
+> Сверено с `origin/main` (4c317f64a).
 >
-> Всего карточек: **1579** · ждёт владельца: **7** · занято сессиями: **13**.
+> Всего карточек: **1581** · ждёт владельца: **7** · занято сессиями: **13**.
 
 ## 🔴 ЖДЁТ ВЛАДЕЛЬЦА (needs-owner)
 
@@ -424,7 +424,7 @@
 ### · closed
 - Считать ли верный отказ по правилам допуска неисправностью флота  ·  `owner-decision-schitat-li-vernyi-otkaz-po-pravilam-dopu.md` · 2026-10-08
 
-## 📥 Inbox (задания: Telegram / заметки / голос)  (894)
+## 📥 Inbox (задания: Telegram / заметки / голос)  (896)
 
 ### · in-progress
 - а задача починить все-таки еще раз сообщение которым не пишет нужно твое решени…  ·  `inbox-a-zadacha-pochinit-vse-taki-esche-raz-so.md` · 2026-08-14 · 🔒 `pid43119`
@@ -1074,6 +1074,7 @@
 - Инъекция часов кончается на границе подпроцесса: претензия injected-clock подтверждается AST, а вторая половина сравнения живёт в другом процессе (поверхность 32 файла, класс НЕ ИЗМЕРЕН)  ·  `inbox-inektsiya-chasov-konchaetsya-na-granitse.md` · 2026-11-02
 - Исчерпание лимитов Claude невидимо: цех молча стоит, владелец гадает «работает ли» — нужен явный сигнал «нет топлива»  ·  `inbox-ischerpanie-limitov-claude-nevidimo-tsehu.md` · 2026-08-22
 - Исполнить Вариант 2 владельца: дописать 38 ставок и подключить их к hit_rate со СМЕШАННОЙ пробой  ·  `inbox-ispolnit-variant-2-vladeltsa-dopisat-38.md` · 2026-09-10
+- Измерить население класса: усечённый клон отвечает о происхождении коммита молча и НЕВЕРНО  ·  `inbox-izmerit-naselenie-klassa-usechennyi-klon.md` · 2026-11-04
 - Карточка, рождённая через 4 ч 54 мин ПОСЛЕ починки ADR-866, ключа близнеца не несёт — и три дешёвые гипотезы опровергнуты  ·  `inbox-kartochka-rozhdennaya-cherez-4-ch-54-min.md` · 2026-10-30
 - Карточку моста закрыли руками — живая находка осиротела: мост считает её открытой и новую не заведёт  ·  `inbox-kartochku-mosta-zakryli-rukami-zhivaya-n.md` · 2026-08-17
 - Каталог доставки берётся из окружения: 15 зовов git, включая checkout origin/main в прод-дерево  ·  `inbox-katalog-dostavki-beretsya-iz-okruzheniya.md` · 2026-09-12
@@ -1158,6 +1159,7 @@
 - Перепись: сколько адаптеров путают мёртвый фид с верным отказом (остаток ADR-671)  ·  `inbox-perepis-skolko-adapterov-putayut-mertvyi.md` · 2026-10-08
 - Перепись вердиктов по коду выхода красна на origin/main: у агента com.spa.mission_tick нет обёртки, и сайт остаётся неразобранным  ·  `inbox-perepis-verdiktov-po-kodu-vyhoda-krasna.md` · 2026-10-08
 - Перепись закончена: опрошены все 36 адаптеров своими фидами — доступная доходность из нашего набора исчерпана, кроме трёх статических меток  ·  `inbox-perepis-zakonchena-oprosheny-vse-36-adap.md` · 2026-08-29
+- Пересобрать дерево-приёмку §49 закоммиченным сборщиком и дать ему место в дифференциале  ·  `inbox-peresobrat-derevo-priemku-49-zakommichen.md` · 2026-11-04
 - Первичный источник fluid_usdc МЁРТВ: оба endpoint'а Fluid отвечают 404, а докстринг обещает слой «кто первый»  ·  `inbox-pervichnyi-istochnik-fluid-usdc-mertv-ob.md` · 2026-09-06
 - Писатели цикла не видят песочницы data_dir — прогон тестов меняет git-tracked data/ (пять модулей, четыре файла)  ·  `inbox-pisateli-tsikla-ne-vidyat-pesochnitsy-da.md` · 2026-10-28
 - Починить писателей живого data/ по карте замера — класс обнесён храповиком, но не закрыт  ·  `inbox-pochinit-pisatelei-zhivogo-data-po-karte.md` · 2026-08-23

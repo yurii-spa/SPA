@@ -294,6 +294,12 @@ PRODUCES = (
     # ответом «читателя нет» без читателя. Гейт такта 6ч < пола, SLO 14ч
     # (гейт 6ч + наблюдённый период бегуна, ADR-506).
     "data/s49_tally_tact.json",
+    # Заказ G93 п. 2 продолжен (ADR-918) — РОДОСЛОВНАЯ объявленного места
+    # приёмки §49: на чьём коде оно стои́т, та ли это мерка и чем его
+    # пересобрать. Сосед выше спрашивает, СПОСОБНО ли дерево вынести вердикт,
+    # и «ответило» у него значит «проба отработала» — проба отрабатывает и на
+    # коде двадцатидневной давности. Такт 7 дн: предмет — КОНФИГУРАЦИЯ дерева.
+    "data/acceptance_tree_lineage.json",
     # Заказ G94 (ADR-549) — выдерживает ли производитель ОБЪЯВЛЕННЫЙ `slo_hours`
     # по НАБЛЮДЁННОМУ такту. ADR-506 измерил этот класс РУКОЙ у одного агента
     # (объявлено 7ч, наблюдено до 7.84ч — семь периодов из восьми длиннее срока)
@@ -583,6 +589,7 @@ CENSUS_STAGE: tuple[str, ...] = (
     "ledger_day_unit_census",
     "green_by_construction_census",
     "acceptance_tree_capability",
+    "acceptance_tree_lineage",
     "s49_tally_tact",
     "slo_keepability",
     "prose_binding_census",
@@ -978,6 +985,9 @@ CENSUS_PRODUCT: dict[str, dict[str, str]] = {
     "acceptance_tree_capability": {
         "module": "spa_core/monitoring/acceptance_tree_capability.py",
         "artifact": "data/acceptance_tree_capability.json"},
+    "acceptance_tree_lineage": {
+        "module": "spa_core/monitoring/acceptance_tree_lineage.py",
+        "artifact": "data/acceptance_tree_lineage.json"},
     "s49_tally_tact": {
         "module": "spa_core/monitoring/s49_tally_tact.py",
         "artifact": "data/s49_tally_tact.json"},
@@ -3743,6 +3753,29 @@ def main(argv=None) -> int:
                   f"{_atcr.get('reason')}")
     except Exception as e:  # noqa: BLE001 — перепись не смеет валить мост
         census_skipped(_skipped, "acceptance_tree_capability", e)
+    # Родословная места приёмки §49 (ADR-918): имеет ли объявленное дерево ПРАВО
+    # быть местом приёмки. Клон для вопроса о происхождении прибор ВЫБИРАЕТ, а
+    # не берёт: прод-клон усечён (252 коммита из 28 011), и на таком графе
+    # `merge-base --is-ancestor` зовёт предка «не предком» молча.
+    try:
+        from spa_core.monitoring import acceptance_tree_lineage as _atl
+        _atlr = _atl.run(root=args.root)
+        if _atlr.get("measured"):
+            _ldoc = _atlr["doc"]
+            if str(_ldoc.get("status")) != "OK":
+                print(f"acceptance_tree_lineage: НЕ ИЗМЕРЕНО — "
+                      f"{_ldoc.get('reason')}")
+            else:
+                _lcounts = observed(_ldoc, "counts", kind=dict) or {}
+                print(f"acceptance_tree_lineage: место приёмки §49 — "
+                      + " · ".join(f"{v} {_lcounts.get(v, 0)}"
+                                   for v in _atl.VERDICTS)
+                      + f"; спрошен клон {_ldoc.get('repo_root')}")
+        else:
+            print(f"acceptance_tree_lineage: внутри такта, НЕ мерили — "
+                  f"{_atlr.get('reason')}")
+    except Exception as e:  # noqa: BLE001 — перепись не смеет валить мост
+        census_skipped(_skipped, "acceptance_tree_lineage", e)
     # Такт сводки §49 (G93 п. 3, ADR-547): такт ВЫЧИСЛЕН из входов вердикта,
     # а не объявлен; ступень несёт и само ТАЛЛИ §49, потому что вердикт сводки
     # доходит до читателя ТОЛЬКО артефактом.
