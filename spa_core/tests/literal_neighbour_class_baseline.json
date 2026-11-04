@@ -30,5 +30,68 @@
   "member_files": [],
   "members": [],
   "member_count": 0,
-  "upper_bound": 0
+  "upper_bound": 0,
+  "surface_sites": [
+    {
+      "key": "spa_core/tests/test_counter_field_step.py::container_counter_field_step(1)",
+      "file": "spa_core/tests/test_counter_field_step.py",
+      "callee": "container_counter_field_step",
+      "declared": [
+        1
+      ],
+      "count": 1,
+      "lines": [
+        165
+      ]
+    },
+    {
+      "key": "spa_core/tests/test_counter_field_step.py::container_counter_field_step(999999)",
+      "file": "spa_core/tests/test_counter_field_step.py",
+      "callee": "container_counter_field_step",
+      "declared": [
+        999999
+      ],
+      "count": 1,
+      "lines": [
+        463
+      ]
+    },
+    {
+      "key": "spa_core/tests/test_document_field_reader.py::document_field_reader_in_file(1,0)",
+      "file": "spa_core/tests/test_document_field_reader.py",
+      "callee": "document_field_reader_in_file",
+      "declared": [
+        1,
+        0
+      ],
+      "count": 1,
+      "lines": [
+        589
+      ]
+    },
+    {
+      "key": "spa_core/tests/test_escaped_counter_one_step.py::escaped_counter_one_step(1)",
+      "file": "spa_core/tests/test_escaped_counter_one_step.py",
+      "callee": "escaped_counter_one_step",
+      "declared": [
+        1
+      ],
+      "count": 1,
+      "lines": [
+        474
+      ]
+    }
+  ],
+  "surface_site_count": 4,
+  "surface_unmeasured": 0,
+  "surface_sha": "e57e5897774b146687bb4459fc643a005990ed32",
+  "surface_measured_at": "2026-11-04T17:49:39Z",
+  "tact": {
+    "reader": "spa_core/tests/test_literal_neighbour_class_ratchet.py::SurfaceTactTest",
+    "trigger": "surface_divergence",
+    "max_age_h": null,
+    "max_age_h_rejected_because": "ADR-920: класс меняется от правки дерева, а не от хода календаря; за 30 дней до 04.11 в набор пришло 359 новых тест-файлов при 4 площадках поверхности — почти каждый такт периода заплатил бы 23 мин впустую",
+    "price_s": 25,
+    "adr": "ADR-920"
+  }
 }

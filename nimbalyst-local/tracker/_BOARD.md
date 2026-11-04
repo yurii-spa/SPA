@@ -2,11 +2,11 @@
 
 > Авто-генерится `scripts/build_tracker_board.py` из `nimbalyst-local/tracker/*.md`. НЕ править вручную — правь карточки. Источник правды — карточки, это индекс (bootstrap).
 >
-> Собрана: 2026-11-04T17:15:08Z · сверка с карточками: `python3 scripts/build_tracker_board.py --check` (сторож `spa_core/tests/test_tracker_board_matches_cards.py`).
+> Собрана: 2026-11-04T20:22:01Z · сверка с карточками: `python3 scripts/build_tracker_board.py --check` (сторож `spa_core/tests/test_tracker_board_matches_cards.py`).
 >
-> Сверено с `origin/main` (e57e58977).
+> Сверено с `origin/main` (01b144031).
 >
-> Всего карточек: **1583** · ждёт владельца: **8** · занято сессиями: **13**.
+> Всего карточек: **1584** · ждёт владельца: **8** · занято сессиями: **13**.
 
 ## 🔴 ЖДЁТ ВЛАДЕЛЬЦА (needs-owner)
 
@@ -426,7 +426,7 @@
 ### · closed
 - Считать ли верный отказ по правилам допуска неисправностью флота  ·  `owner-decision-schitat-li-vernyi-otkaz-po-pravilam-dopu.md` · 2026-10-08
 
-## 📥 Inbox (задания: Telegram / заметки / голос)  (897)
+## 📥 Inbox (задания: Telegram / заметки / голос)  (898)
 
 ### · in-progress
 - а задача починить все-таки еще раз сообщение которым не пишет нужно твое решени…  ·  `inbox-a-zadacha-pochinit-vse-taki-esche-raz-so.md` · 2026-08-14 · 🔒 `pid43119`
@@ -1086,6 +1086,7 @@
 - Контрольное дерево приёмки объявить НЕЧЕМ: словарь объявлений файловый, а у контрольного дерева правок нет по определению  ·  `inbox-kontrolnoe-derevo-priemki-obyavit-nechem.md` · 2026-08-29
 - Край отрезка размеров ОПТИМАЛЕН: цена ПРИЧИНЫ 2 нижней границы — ноль по экономике (ADR-861, замер #978)  ·  `inbox-krai-otrezka-razmerov-tsena-prichiny-2.md` · 2026-10-29
 - Красный на чистом main: вычет «ручной R&D» съел 68 из 131 скриптов — сторож храповика больше не мерит  ·  `inbox-krasnyi-na-chistom-main-vychet-ruchnoi-r.md` · 2026-10-13
+- Критерий приёмки спрашивает о ФОРМЕ, а не о ПРЕДМЕТЕ — население класса не измерено  ·  `inbox-kriterii-priemki-sprashivaet-o-forme-a-n.md` · 2026-11-04
 - Шаг 0b даёт НЕОБРАТИМЫЙ `unchecked` на критическом приказе владельца: четыре записи журнала без pid не стареют никогда  ·  `inbox-kriticheskii-prikaz-vladeltsa-nelzya-vzy.md` · 2026-09-12
 - Крупнейшая позиция книги стоит на константе: у aave_v3 (Ethereum, 40%) TVL «не измерено», а пул в фиде есть  ·  `inbox-krupneishaya-pozitsiya-knigi-stoit-na-ko.md` · 2026-08-09
 - Квитанция мутаций ADR-871 заработана РАННЕЙ редакцией батареи — доставленная НЕ ИЗМЕРЕНА, и перемер в оболочке цикла невозможен (прибор рестартует)  ·  `inbox-kvitantsiya-mutatsii-adr-871-zarabotana.md` · 2026-10-30

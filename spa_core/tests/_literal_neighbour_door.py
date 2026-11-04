@@ -59,9 +59,20 @@
     python3 -m spa_core.tests._literal_neighbour_door --surface
     python3 -m spa_core.tests._literal_neighbour_door --canary --tree-root <дерево>
     python3 -m spa_core.tests._literal_neighbour_door --differential --tree-root <дерево>
+    python3 -m spa_core.tests._literal_neighbour_door --surface-tact <объявление>
+    python3 -m spa_core.tests._literal_neighbour_door --declare-surface <объявление>
 
-Коды возврата: 0 — измерено · 1 — найдены члены класса · 2 — НЕ ИЗМЕРЕНО
-с названной причиной.
+Коды возврата: 0 — измерено · 1 — найдены члены класса (или ПОВЕРХНОСТЬ
+разошлась с объявлением) · 2 — НЕ ИЗМЕРЕНО с названной причиной.
+
+**ТАКТ прибора принадлежит ПОВЕРХНОСТИ, а не календарю** (ADR-920, заказ G908
+п. 6). Дешёвая половина (`--surface`, обход AST) стои́т 24.6 с против ≈23 мин у
+дифференциала — в ≈56 раз меньше, — поэтому её перемеряет САМ сторож объявления
+(`test_literal_neighbour_class_ratchet.py::SurfaceTactTest`) на каждом прогоне, и
+расхождение поверхности есть НАЗВАННЫЙ третий исход. Календарный такт отвергнут
+замером: за 30 дней до 04.11 в набор пришло 359 новых тест-файлов при 4
+площадках поверхности, то есть такт периода P либо пропускает рост на P−1 дней,
+либо платит 23 мин за наблюдение, в котором ничего не двинулось.
 """
 
 from __future__ import annotations
@@ -847,6 +858,331 @@ def _print_differential(res: dict) -> None:
 # Объявление
 # --------------------------------------------------------------------------- #
 
+# --------------------------------------------------------------------------- #
+# ТАКТ ПОВЕРХНОСТИ (ADR-920, заказ G908 п. 6)
+# --------------------------------------------------------------------------- #
+
+#: Исходы сверки «поверхность дерева ↔ поверхность объявления». Третий — НЕ
+#: «совпало»: объявление, не несущее площадок, ответа о поверхности не имеет.
+TACT_AGREES = "AGREES"
+TACT_DIVERGED = "DIVERGED"
+TACT_UNMEASURED = "UNMEASURED"
+
+
+def site_key(file: str, callee: str, declared) -> str:
+    """Личность площадки. **Строка НЕ входит в ключ — и это несущее решение.**
+
+    Площадка переезжает на другую строку от любой правки выше неё, и ключ,
+    включивший ``lineno``, краснел бы от сдвига строк — то есть был бы ровно
+    тем литералом, устаревающим молча, против которого написан весь прибор.
+    Личность площадки задают ТРИ вещи, не меняющиеся от переформатирования:
+    файл, зовомый шаг и ЧИСЛА, которыми подан сосед.
+    """
+    nums = ",".join(str(int(n)) for n in (declared or []))
+    return f"{file}::{callee}({nums})"
+
+
+def surface_sites(surface: dict) -> list[dict]:
+    """Площадки ЖИВОГО корня из замера поверхности — перечнем с кратностью.
+
+    Кратность несётся ЧИСЛОМ (``count``), а не повтором ключа: 30.09 одна и
+    та же площадка ``document_field_reader_in_file([16, 10])`` стояла в файле
+    ПЯТЬ раз, и перечень без кратности назвал бы «8 площадок» и «4 площадки»
+    одинаковым множеством.
+
+    ``lines`` несётся для ЧЕЛОВЕКА и в ключ не входит (см. :func:`site_key`).
+    """
+    if surface.get("status") != "MEASURED":
+        return []
+    rows: dict[str, dict] = {}
+    for entry in surface.get("files") or []:
+        path = entry.get("file")
+        for site in entry.get("sites") or []:
+            if site.get("door") != DOOR_LITERAL_LIVE:
+                continue
+            key = site_key(path, site.get("callee", ""), site.get("declared"))
+            row = rows.setdefault(key, {"key": key, "file": path,
+                                        "callee": site.get("callee", ""),
+                                        "declared": list(site.get("declared")
+                                                         or []),
+                                        "count": 0, "lines": []})
+            row["count"] += 1
+            if site.get("line") is not None:
+                row["lines"].append(int(site["line"]))
+    for row in rows.values():
+        row["lines"].sort()
+    return [rows[k] for k in sorted(rows)]
+
+
+def surface_divergence(declaration: dict, surface: dict) -> dict:
+    """Расходится ли ПОВЕРХНОСТЬ дерева с той, о которой объявление отвечало.
+
+    Это и есть ТАКТ класса (ADR-920): объявление перестаёт отвечать не когда
+    сдвинулся календарь, а когда сдвинулась поверхность. Замер 04.11 показал,
+    почему вопрос задаётся ПЛОЩАДКАМ, а не файлам: за 30 дней перечень файлов
+    не изменился (3 и 3), а площадок стало **8 → 4**, и исчезнувший ключ
+    ``document_field_reader_in_file([16, 10])`` — ровно бомба ADR-916.
+    Файловая сверка на этом окне ответила бы «поверхность не менялась».
+
+    Три исхода различимы (инв. #17):
+
+    * :data:`TACT_AGREES` — совпало (в том числе «совпало и пусто»);
+    * :data:`TACT_DIVERGED` — названы ПОЯВИВШИЕСЯ и ИСЧЕЗНУВШИЕ ключи;
+    * :data:`TACT_UNMEASURED` — поверхность не измерена ЛИБО объявление
+      площадок не несёт (объявление старше этого правила). «Площадок нет» и
+      «поля нет» — разные утверждения, и второе ответом не является.
+    """
+    if surface.get("status") != "MEASURED":
+        return {"status": TACT_UNMEASURED,
+                "unmeasured_class": "surface_not_measured",
+                "reason": surface.get("reason")
+                or f"замер поверхности дал {surface.get('status')!r}"}
+    if "surface_sites" not in declaration:
+        return {"status": TACT_UNMEASURED,
+                "unmeasured_class": "declaration_has_no_sites",
+                "reason": "объявление не несёт поля 'surface_sites' — оно "
+                          "старше такта поверхности (ADR-920) и о площадках "
+                          "не отвечало; перемерить "
+                          "`--declare-surface <объявление>`"}
+    declared_sites = declaration.get("surface_sites")
+    if not isinstance(declared_sites, list):
+        return {"status": TACT_UNMEASURED,
+                "unmeasured_class": "declaration_sites_not_a_list",
+                "reason": f"'surface_sites' не перечень: "
+                          f"{type(declared_sites).__name__}"}
+    was = {str(r.get("key")): int(r.get("count") or 0)
+           for r in declared_sites if isinstance(r, dict)}
+    now = {r["key"]: r["count"] for r in surface_sites(surface)}
+    # Кратность печатается РЯДОМ с ключом: 30.09 исчезнувшая площадка стояла
+    # в файле ПЯТЬ раз, и ключ без числа назвал бы её одной.
+    appeared = sorted(f"{k} ×{now[k]}" for k in now if k not in was)
+    vanished = sorted(f"{k} ×{was[k]}" for k in was if k not in now)
+    recounted = sorted(f"{k}: {was[k]} → {now[k]}"
+                       for k in set(was) & set(now) if was[k] != now[k])
+    status = (TACT_DIVERGED if (appeared or vanished or recounted)
+              else TACT_AGREES)
+    return {"status": status, "appeared": appeared, "vanished": vanished,
+            "recounted": recounted,
+            "declared_site_count": sum(was.values()),
+            "measured_site_count": sum(now.values())}
+
+
+#: Исходы вопроса «объявление назвало ТАКТ». Третий — НЕ «такта нет»:
+#: читателя, чей файл не разобрался, судить нечем.
+TACT_FORM_OK = "OK"
+TACT_FORM_ABSENT = "ABSENT"
+TACT_FORM_UNMEASURED = "UNMEASURED"
+
+#: Формы такта, и они РАВНОПРАВНЫ. Календарь отвечает «прошло ли N часов»,
+#: триггер — «сдвинулось ли то, о чём объявление отвечало». Второе и есть
+#: предмет ADR-920; первое остаётся законным для объявления, чья поверхность
+#: в дереве не живёт (так устроен класс ADR-913: его поверхность — дефектная
+#: часть прогона CI, спросить её из набора нельзя).
+TACT_FORM_CALENDAR = "calendar"
+TACT_FORM_TRIGGER = "trigger"
+
+
+def _reader_check(reader: str, repo_root: Path) -> tuple[str, str]:
+    """Существует ли НАЗВАННЫЙ читатель такта. Урок ADR-918 дословно.
+
+    Там маркером был назван сборщик, которого не существовало НИКОГДА, и
+    объявление всё это время было запиской. Поэтому читателя в форме
+    ``<путь>::<имя>`` проверяет РАЗБОР файла, а не подстрока.
+
+    Четыре ответа, и они разные:
+
+    * ``verified`` — файл на месте, имя найдено разбором;
+    * ``missing`` — файла нет либо имени в нём нет: читатель есть ЗАПИСКА;
+    * ``unparsable`` — файл не прочитан / не разобран ⇒ судить нечем
+      (третий исход, инв. #17);
+    * ``unverifiable_form`` — читатель назван не путём, а именем шага цикла
+      («шаг 0-офис»). Это законно и подделкой не является, но и проверкой
+      НЕ ЯВЛЯЕТСЯ: ответ несётся наружу, чтобы «не проверено» не читалось
+      как «проверено».
+    """
+    parts = reader.split("::")
+    if len(parts) != 2 or not parts[0].endswith(".py") or not parts[1].strip():
+        return "unverifiable_form", (
+            f"читатель назван не путём `<файл.py>::<имя>`, а свободным "
+            f"именем {reader!r} — существование не проверялось")
+    relpath, attr = parts[0].strip(), parts[1].strip()
+    path = repo_root / relpath
+    if not path.is_file():
+        return "missing", f"файла читателя нет в дереве: {relpath}"
+    try:
+        tree = ast.parse(path.read_text(encoding="utf-8"))
+    except (OSError, UnicodeDecodeError, SyntaxError) as exc:
+        return "unparsable", (f"файл читателя не разобран: "
+                              f"{type(exc).__name__}: {exc}")
+    wanted = attr.split(".")[0]
+    found = any(isinstance(node, (ast.ClassDef, ast.FunctionDef,
+                                  ast.AsyncFunctionDef))
+                and node.name == wanted
+                for node in tree.body)
+    if not found:
+        return "missing", (f"имя {attr!r} в {relpath} разбором не найдено — "
+                           f"читатель есть ЗАПИСКА, а не механизм")
+    return "verified", f"{relpath}::{attr}"
+
+
+def tact_form(declaration: dict, repo_root: Path | None = None) -> dict:
+    """Назвало ли объявление ТАКТ — и назвало ли его МЕХАНИЗМОМ.
+
+    **Единственная дверь этого вопроса** (ADR-920, заказ G909 п. 2). До неё
+    копий было ДВЕ и они РАСХОДИЛИСЬ: сторож объявления требовал
+    ``trigger == "surface_divergence"`` и ``max_age_h is None``, а проба
+    приёмки — непустой ``max_age_h``; одно и то же объявление было у одной
+    копии верным, а у другой — «без такта». Это ровно тот второй экземпляр
+    числа, против которого написан ADR-912: мерка, которой сторож мерит сам
+    себя.
+
+    **Формы такта равноправны, и выбор между ними — ЗАМЕР, а не вкус.**
+    Календарь отвечает на вопрос «прошло ли N часов», и для класса, чья
+    поверхность в дереве не живёт, другого вопроса нет. Триггер отвечает
+    «сдвинулось ли то, о чём объявление отвечало», и замер 04.11 (359 новых
+    тест-файлов за 30 дней против 4 площадок поверхности) показал, что для
+    класса, живущего в дереве, календарный такт либо пропускает рост на P−1
+    дней, либо платит 23 мин за наблюдение, в котором ничего не двинулось.
+
+    **Триггер проверяется ПРИБОРОМ, а не словом.** Названное событие обязано
+    быть настоящей дверью этого модуля, читатель — существовать (разбором,
+    :func:`_reader_check`), а у объявления обязаны быть СВОИ якоря сверки
+    (``surface_sha`` · ``surface_measured_at`` · ``surface_sites``): триггеру
+    без якорей сверять не с чем, и это записка, а не такт.
+
+    **Отказ от календаря обязан назвать ЦЕНУ** (``max_age_h_rejected_because``).
+    Поле, пропущенное молча, и поле, объявленное пустым с причиной, — разные
+    утверждения (инв. #17); второе есть решение, первое — недосмотр.
+
+    Три исхода различимы: :data:`TACT_FORM_OK` · :data:`TACT_FORM_ABSENT`
+    (с НАЗВАННОЙ причиной) · :data:`TACT_FORM_UNMEASURED` (файл читателя не
+    разобран — судить нечем).
+    """
+    root = Path(repo_root) if repo_root is not None else _repo_root()
+    tact = declaration.get("tact")
+    if not isinstance(tact, dict):
+        return {"status": TACT_FORM_ABSENT, "form": None,
+                "reason": f"поля `tact` нет либо оно не словарь: "
+                          f"{type(tact).__name__}"}
+    reader = str(tact.get("reader") or "").strip()
+    if not reader:
+        return {"status": TACT_FORM_ABSENT, "form": None,
+                "reason": "такт не назвал ЧИТАТЕЛЯ (`tact.reader`)"}
+    check, detail = _reader_check(reader, root)
+    if check == "unparsable":
+        return {"status": TACT_FORM_UNMEASURED, "form": None,
+                "reader_check": check, "reason": detail}
+
+    trigger = str(tact.get("trigger") or "").strip()
+    max_age = tact.get("max_age_h")
+    calendar_named = isinstance(max_age, (int, float)) and max_age > 0
+
+    if trigger:
+        problems = []
+        if not callable(globals().get(trigger)):
+            problems.append(f"событие {trigger!r} дверью прибора не является "
+                            f"— такого имени в {__name__} нет")
+        missing_anchors = [name for name in
+                           ("surface_sha", "surface_measured_at")
+                           if not str(declaration.get(name) or "").strip()]
+        if not isinstance(declaration.get("surface_sites"), list):
+            missing_anchors.append("surface_sites")
+        if missing_anchors:
+            problems.append("у триггера нет СВОИХ якорей сверки "
+                            f"({', '.join(missing_anchors)}) — сверять не с "
+                            "чем, и это записка, а не такт")
+        if check != "verified":
+            problems.append(f"читатель триггера не подтверждён: {detail}")
+        if not calendar_named and not str(
+                tact.get("max_age_h_rejected_because") or "").strip():
+            problems.append("календарный такт отвергнут БЕЗ названной цены "
+                            "(`max_age_h_rejected_because`) — тогда это не "
+                            "решение, а пропущенное поле")
+        if problems:
+            return {"status": TACT_FORM_ABSENT, "form": None,
+                    "reader_check": check, "reason": " · ".join(problems)}
+        return {"status": TACT_FORM_OK, "form": TACT_FORM_TRIGGER,
+                "reader_check": check, "reader": reader, "trigger": trigger,
+                "reason": (f"такт — событие {trigger!r}, читатель {detail}, "
+                           f"цена {tact.get('price_s')} с")}
+
+    if calendar_named:
+        if check == "missing":
+            return {"status": TACT_FORM_ABSENT, "form": None,
+                    "reader_check": check, "reason": detail}
+        return {"status": TACT_FORM_OK, "form": TACT_FORM_CALENDAR,
+                "reader_check": check, "reader": reader,
+                "reason": (f"такт — календарный предел {max_age} ч, читатель "
+                           f"{reader}"
+                           + ("" if check == "verified"
+                              else f" (НЕ ПРОВЕРЕН: {detail})"))}
+
+    return {"status": TACT_FORM_ABSENT, "form": None, "reader_check": check,
+            "reason": ("такт не назвал НИ события (`tact.trigger`), НИ "
+                       "календарного предела (`tact.max_age_h`) — замер "
+                       "устареет МОЛЧА")}
+
+
+def surface_half(surface: dict, *, sha: str, measured_at: str) -> dict:
+    """Половина объявления, которую мерит ДЕШЁВАЯ дверь — со своим замером.
+
+    У половины СВОИ ``sha`` и момент: цена замера различается в ~56 раз
+    (24.6 с против 23 мин, замер 04.11), и общий момент на оба замера
+    утверждал бы, что дорогая половина перемерена тогда же.
+    """
+    counts = surface.get("counts") or {}
+    sites = surface_sites(surface)
+    return {
+        # ТАКТ объявления — ИМЕНЕМ читателя и СОБЫТИЕМ, а не часами.
+        # `max_age_h` объявлен `None` НАМЕРЕННО и с причиной: замер 04.11
+        # показал, что календарь отвечает на другой вопрос (класс меняется от
+        # правки дерева, не от хода времени), а такт периода P либо пропускает
+        # рост на P−1 дней, либо платит 23 мин за наблюдение, в котором ничего
+        # не двинулось. Пустое поле и ОБЪЯВЛЕННОЕ пустым — разные вещи
+        # (инв. #17): здесь второе, и рядом названа цена отвергнутого пути.
+        "tact": {
+            "reader": ("spa_core/tests/test_literal_neighbour_class_ratchet.py"
+                       "::SurfaceTactTest"),
+            "trigger": "surface_divergence",
+            "max_age_h": None,
+            "max_age_h_rejected_because": (
+                "ADR-920: класс меняется от правки дерева, а не от хода "
+                "календаря; за 30 дней до 04.11 в набор пришло 359 новых "
+                "тест-файлов при 4 площадках поверхности — почти каждый такт "
+                "периода заплатил бы 23 мин впустую"),
+            "price_s": 25,
+            "adr": "ADR-920",
+        },
+        "surface_files": list(surface.get("surface_files") or []),
+        "surface_count": int(counts.get("on_live_root", 0)),
+        "surface_sites": sites,
+        "surface_site_count": sum(r["count"] for r in sites),
+        "surface_unmeasured": int(counts.get("unmeasured", 0)),
+        "surface_sha": sha,
+        "surface_measured_at": measured_at,
+    }
+
+
+def _print_tact(target: Path, tact: dict) -> None:
+    """Печать такта. «НЕ ИЗМЕРЕНО» никогда не выдаётся за «совпало»."""
+    status = tact.get("status")
+    if status == TACT_UNMEASURED:
+        print(f"❌ ТАКТ НЕ ИЗМЕРЕН ({target}): "
+              f"{tact.get('unmeasured_class')} — {tact.get('reason')}")
+        return
+    head = ("✅ поверхность совпала с объявлением"
+            if status == TACT_AGREES else
+            "⚠️  ПОВЕРХНОСТЬ РАСХОДИТСЯ с объявлением")
+    print(f"{head} ({target}): объявлено площадок "
+          f"{tact.get('declared_site_count')}, измерено "
+          f"{tact.get('measured_site_count')}")
+    for label, rows in (("ПОЯВИЛИСЬ", tact.get("appeared")),
+                        ("ИСЧЕЗЛИ", tact.get("vanished")),
+                        ("СМЕНИЛИ КРАТНОСТЬ", tact.get("recounted"))):
+        for row in rows or []:
+            print(f"    [{label}] {row}")
+
+
 def declaration_from_measurement(surface: dict, diff: dict, *, sha: str,
                                  measured_at: str,
                                  positive_control: Optional[dict] = None) -> dict:
@@ -875,8 +1211,9 @@ def declaration_from_measurement(surface: dict, diff: dict, *, sha: str,
             "flipped": [c["nodeid"] for c in (positive_control or {}).get(
                 "changed") or []],
         },
-        "surface_files": list(surface.get("surface_files") or []),
-        "surface_count": int((surface.get("counts") or {}).get("on_live_root", 0)),
+        # Половина объявления, которую мерит ДЕШЁВАЯ дверь, — вместе со
+        # своим sha и моментом: у неё СВОЙ такт (ADR-920).
+        **surface_half(surface, sha=sha, measured_at=measured_at),
         # Что РЕАЛЬНО прогнано. Совпадать с поверхностью не обязано: правило
         # поверхности уточнялось ПОСЛЕ запуска прогона, и надмножество
         # прогнанного — замер, а не описка. Молчаливое равенство двух полей
@@ -924,13 +1261,21 @@ def main(argv: Optional[list[str]] = None) -> int:
     ap.add_argument("--json", dest="as_json", action="store_true")
     ap.add_argument("--declare", default=None,
                     help="записать объявление класса в указанный файл")
+    ap.add_argument("--surface-tact", default=None, metavar="ОБЪЯВЛЕНИЕ",
+                    help="спросить ТАКТ: расходится ли поверхность дерева с "
+                         "поверхностью указанного объявления (ADR-920)")
+    ap.add_argument("--declare-surface", default=None, metavar="ОБЪЯВЛЕНИЕ",
+                    help="перемерить ДЕШЁВУЮ половину существующего "
+                         "объявления (площадки поверхности) и записать её "
+                         "обратно; дорогая половина (члены) не трогается")
     args = ap.parse_args(argv)
 
     repo_root = Path(args.repo_root).resolve() if args.repo_root else _repo_root()
     out: dict = {}
     rc = 0
 
-    if args.surface or args.differential or args.declare:
+    if (args.surface or args.differential or args.declare
+            or args.surface_tact or args.declare_surface):
         surface = measure_surface(repo_root)
         out["surface"] = surface
         if args.surface and not args.as_json:
@@ -984,6 +1329,50 @@ def main(argv: Optional[list[str]] = None) -> int:
         elif diff["counts"]["member_files"]:
             rc = 1
 
+    if args.surface_tact:
+        target = Path(args.surface_tact)
+        try:
+            doc = json.loads(target.read_text(encoding="utf-8"))
+        except (OSError, ValueError) as exc:
+            print(f"❌ НЕ ИЗМЕРЕНО: объявление {target} не прочитано — "
+                  f"{type(exc).__name__}: {exc}")
+            return 2
+        tact = surface_divergence(doc, surface)
+        out["surface_tact"] = tact
+        if not args.as_json:
+            _print_tact(target, tact)
+        if tact["status"] == TACT_UNMEASURED:
+            return 2
+        if tact["status"] == TACT_DIVERGED:
+            rc = 1
+
+    if args.declare_surface:
+        target = Path(args.declare_surface)
+        try:
+            doc = json.loads(target.read_text(encoding="utf-8"))
+        except (OSError, ValueError) as exc:
+            print(f"❌ половина НЕ записана: объявление {target} не прочитано "
+                  f"— {type(exc).__name__}: {exc}")
+            return 2
+        if not isinstance(doc, dict) or "members" not in doc:
+            # Создавать объявление с нуля этот режим ПРАВА НЕ ИМЕЕТ: дорогая
+            # половина мерится только дифференциалом, и пустые «члены»,
+            # написанные дешёвой дверью, читались бы как «класс пуст».
+            print("❌ половина НЕ записана: это не объявление класса "
+                  "(нет поля 'members') — дорогую половину дешёвая дверь "
+                  "не мерит и выдумывать не вправе")
+            return 2
+        sha = subprocess.run(["git", "rev-parse", "HEAD"], cwd=str(repo_root),
+                             capture_output=True, text=True).stdout.strip()
+        doc.update(surface_half(
+            surface, sha=sha,
+            measured_at=time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime())))
+        target.write_text(json.dumps(doc, ensure_ascii=False, indent=2) + "\n",
+                          encoding="utf-8")
+        print(f"дешёвая половина объявления перемерена и записана: {target} "
+              f"(файлов {doc['surface_count']}, площадок "
+              f"{doc['surface_site_count']})")
+
     if args.declare:
         diff = out.get("differential") or {}
         if diff.get("status") != "MEASURED":
@@ -1010,7 +1399,8 @@ def main(argv: Optional[list[str]] = None) -> int:
     if args.as_json:
         print(json.dumps(out, ensure_ascii=False, indent=2))
     if not (args.surface or args.canary or args.differential or args.declare
-            or args.positive_control):
+            or args.positive_control or args.surface_tact
+            or args.declare_surface):
         ap.print_help()
         return 2
     return rc
