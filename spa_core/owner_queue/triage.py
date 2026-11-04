@@ -15,6 +15,23 @@
   человек или сессия, отчёт ничего не сливает);
 * ``age_days`` — от `created`/`submitted_at`; нет даты ⇒ ``None`` (не измерено), не ноль.
 
+Почему отчёт НАЗЫВАЕТ дерево, в котором мерил (ADR-914, замер цикла #1027). Шаг цикла зовут
+с ``--tracker-dir`` ПРОД-дерева (``scripts/agent_orchestrator.sh``, ``REPO_ROOT`` — константа), а
+прод-копия трекера дрейфует от ``origin`` по построению: пуши идут в origin через API, минуя
+индекс. Замер 04.11: inbox-карточек на ``origin/main`` **881**, в прод-дереве **349** (541 в проде
+НЕТ вовсе); ``new`` — **342** против **40**. Строка сводки печатала «new 40, род записи НЕ ОБЪЯВЛЕН
+4» и читалась как утверждение О ПРОЕКТЕ. Хуже: все ЧЕТЫРЕ названных карточки род ОБЪЯВЛЯЮТ
+(``intake_kind: task``) — на ``origin/main``; прод-копии застали их до объявления. То есть находка
+была свойством ДЕРЕВА ЧТЕНИЯ, а не производителя карточек, и опровергала собственный заказ
+(G904 п. 8: «поле не пишет ПРОИЗВОДИТЕЛЬ»).
+
+Отчёт поэтому несёт ``tracker`` — путь, в котором мерено, и ``cards_total`` (все ``inbox-*`` любого
+статуса) рядом с ``new_total``: знаменатель обязан быть виден, иначе доля «объявлен / не объявлен»
+говорит о подмножестве, не называя его. Третий исход различим (инв. #17): каталога нет ⇒
+``cards_total = None`` и ``tracker_unmeasured`` с причиной, а не ноль. Дерево это делает ВИДИМЫМ, а
+не верным: указать шаг на worktree от ``origin/main`` — отдельное решение с ценой (своё дерево на
+каждый цикл), и здесь оно не принимается.
+
 Почему у рода ОДИН ключ и ни одного запасного (ADR-873, замер #990/#991). Строка читалась
 ``fm.get("intake_kind") or fm.get("type") or "UNKNOWN"``, и запасной ключ отвечал НЕ НА ТОТ
 вопрос: ``type`` верхним уровнем несут 43 карточки из 1534, и все 43 значения — ТРЕКЕРНЫЙ тип
@@ -93,10 +110,33 @@ def declared_kind(fm: Dict[str, str]) -> str:
     return raw if raw in KINDS_RU else KIND_INVALID
 
 
+def _tracker_provenance(tracker_dir: Path) -> tuple:
+    """ГДЕ мерено и СКОЛЬКО там inbox-карточек ВСЕГО. Три исхода (инв. #17).
+
+    Возвращает ``(путь, cards_total, причина_НЕ_ИЗМЕРЕНО)``. Каталога нет или он не
+    читается ⇒ ``cards_total is None`` и причина названа: ноль здесь совпал бы с
+    «карточек нет вовсе», то есть выдал бы ненаблюдение за наблюдение.
+
+    Путь отдаётся РАЗРЕШЁННЫМ (``resolve``): шаг зовут относительным путём от
+    ``REPO_ROOT``, и без разрешения отчёт назвал бы не то дерево, в котором мерил.
+    """
+    try:
+        d = Path(tracker_dir).resolve()
+    except OSError as exc:
+        return str(tracker_dir), None, f"путь не разрешается: {exc}"
+    if not d.is_dir():
+        return str(d), None, "каталога трекера нет"
+    try:
+        return str(d), sum(1 for _ in d.glob("inbox-*.md")), None
+    except OSError as exc:
+        return str(d), None, f"каталог не перечисляется: {exc}"
+
+
 def triage(tracker_dir: Path, *, now: Optional[datetime] = None) -> Dict:
     now = now or datetime.now(timezone.utc)
     rows: List[Dict] = []
     by_title = defaultdict(list)
+    tracker, cards_total, tracker_unmeasured = _tracker_provenance(tracker_dir)
     for p in sorted(Path(tracker_dir).glob("inbox-*.md")):
         try:
             text = p.read_text(encoding="utf-8")
@@ -116,7 +156,12 @@ def triage(tracker_dir: Path, *, now: Optional[datetime] = None) -> Dict:
     dups = sorted([sorted(v) for k, v in by_title.items() if k and len(v) > 1], key=len, reverse=True)
     ages = [r["age_days"] for r in rows if r["age_days"] is not None]
     kind_counts = {k: sum(r["kind"] == k for r in rows) for k in KINDS}
-    return {"schema": SCHEMA, "generated_at": now.isoformat(), "new_total": len(rows),
+    return {"schema": SCHEMA, "generated_at": now.isoformat(),
+            # ГДЕ мерено и СКОЛЬКО там карточек всего: без этих двух полей `new_total`
+            # читается как утверждение о проекте, а оно про одно дерево (ADR-914).
+            "tracker": tracker, "cards_total": cards_total,
+            "tracker_unmeasured": tracker_unmeasured,
+            "new_total": len(rows),
             "ready": sum(r["ready"] for r in rows), "no_priority": sum(r["priority"] is None for r in rows),
             # ТРИ исхода оси рода различимы и каждый несёт своё число (инв. #17):
             # объявлен (`kind_counts`) · объявлен значением вне словаря (`kind_invalid`) ·
@@ -159,7 +204,27 @@ def summary_line(rep: Dict) -> str:
             kind += f", вне словаря {rep['kind_invalid']}"
     return (f"РАЗБОР ВХОДЯЩИХ (детерминированный, до сессии): new {rep['new_total']}, готовы к исполнению "
             f"(объявлена проверка) {rep['ready']}, без приоритета {rep['no_priority']}, {kind}"
-            f", групп-кандидатов в дубли {len(rep['dup_groups'])}; отчёт data/inbox_triage.json. ")
+            f", групп-кандидатов в дубли {len(rep['dup_groups'])}; {tracker_line(rep)}"
+            f" отчёт data/inbox_triage.json. ")
+
+
+def tracker_line(rep: Dict) -> str:
+    """ОДНА фраза о том, ГДЕ мерено и каков знаменатель. Четыре исхода различимы.
+
+    Отчёт старой схемы поля не несёт вовсе — тогда это «дерево НЕ НАЗВАНО», а не
+    подстановка прод-пути: подставить известный ответ значило бы утверждать о дереве,
+    которого замер не видел (инв. #17, тот же урок, что у `summary_line` выше).
+    """
+    if "tracker" not in rep:
+        return "дерево замера НЕ НАЗВАНО (отчёт старой схемы);"
+    why = rep.get("tracker_unmeasured")
+    if why:
+        return f"мерено в {rep['tracker']}, карточек ВСЕГО НЕ ИЗМЕРЕНО ({why});"
+    total = rep.get("cards_total")
+    if total is None:
+        return f"мерено в {rep['tracker']}, карточек ВСЕГО НЕ ИЗМЕРЕНО (причина не названа);"
+    return (f"мерено в {rep['tracker']} — inbox-карточек там ВСЕГО {total}, "
+            f"и это утверждение ОБ ЭТОМ дереве, не о проекте;")
 
 
 def main(argv=None) -> int:

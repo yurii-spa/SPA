@@ -1,0 +1,57 @@
+{
+  "title": "ADR-913/914 — дельта цикла #1027: класс «красен в CI, зелен на своём дереве» объявлен ИМЕНАМИ (19 из 56); разбор входящих НАЗЫВАЕТ дерево, в котором мерил, и знаменатель",
+  "tests": [
+    "spa_core/tests/test_ci_only_red_class_ratchet.py",
+    "spa_core/tests/test_inbox_triage.py"
+  ],
+  "mutations": [
+    {
+      "name": "граница класса ПОДНЯТА, чтобы погасить рост — инв. #16 наизнанку",
+      "file": "spa_core/tests/test_ci_only_red_class_ratchet.py",
+      "old": "CEILING = 19",
+      "new": "CEILING = 999"
+    },
+    {
+      "name": "член с СОВПАДАЮЩИМИ вердиктами пропускается — класс разбавлен обычными дефектами",
+      "file": "spa_core/tests/test_ci_only_red_class_ratchet.py",
+      "old": "            if ci != \"failed\" or local != \"passed\":\n                wrong.append(f\"{m.get('nodeid')}: CI={ci!r}, своё дерево={local!r}\")",
+      "new": "            if False:\n                wrong.append(f\"{m.get('nodeid')}: CI={ci!r}, своё дерево={local!r}\")"
+    },
+    {
+      "name": "чужая схема объявления читается МОЛЧА — читатель и писатель расходятся без звука",
+      "file": "spa_core/tests/test_ci_only_red_class_ratchet.py",
+      "old": "    if doc.get(\"schema\") != SCHEMA:\n        raise Unmeasured(\n            f\"НЕ ИЗМЕРЕНО: схема объявления {doc.get('schema')!r} != {SCHEMA!r} — \"\n            \"читатель и писатель разошлись, и молчать об этом нельзя\")",
+      "new": "    if False:\n        raise Unmeasured(\n            f\"НЕ ИЗМЕРЕНО: схема объявления {doc.get('schema')!r} != {SCHEMA!r} — \"\n            \"читатель и писатель разошлись, и молчать об этом нельзя\")"
+    },
+    {
+      "name": "исчезнувший член молча считается на месте — объявление фоссилизируется",
+      "file": "spa_core/tests/test_ci_only_red_class_ratchet.py",
+      "old": "    if not target.is_file():\n        return FILE_MISSING, f\"{nodeid}: файла {rel} в дереве нет\"",
+      "new": "    if not target.is_file():\n        return PRESENT, f\"{nodeid}: файла {rel} в дереве нет\""
+    },
+    {
+      "name": "член без поля measured_in проходит — объявление становится списком из головы",
+      "file": "spa_core/tests/test_ci_only_red_class_ratchet.py",
+      "old": "REQUIRED_MEMBER_FIELDS = (\"nodeid\", \"ci_outcome\", \"local_outcome\", \"ci_cause\",\n                          \"door\", \"measured_in\")",
+      "new": "REQUIRED_MEMBER_FIELDS = (\"nodeid\",)"
+    },
+    {
+      "name": "разбор входящих НЕ НАЗЫВАЕТ дерево — число снова читается как утверждение о проекте (состояние main до ADR-914)",
+      "file": "spa_core/owner_queue/triage.py",
+      "old": "            f\", групп-кандидатов в дубли {len(rep['dup_groups'])}; {tracker_line(rep)}\"\n            f\" отчёт data/inbox_triage.json. \")",
+      "new": "            f\", групп-кандидатов в дубли {len(rep['dup_groups'])};\"\n            f\" отчёт data/inbox_triage.json. \")"
+    },
+    {
+      "name": "отсутствующий каталог трекера даёт НОЛЬ карточек вместо «НЕ ИЗМЕРЕНО» — инв. #17",
+      "file": "spa_core/owner_queue/triage.py",
+      "old": "    if not d.is_dir():\n        return str(d), None, \"каталога трекера нет\"",
+      "new": "    if not d.is_dir():\n        return str(d), 0, None"
+    },
+    {
+      "name": "отчёт старой схемы получает ПОДСТАВЛЕННЫЙ прод-путь вместо «дерево НЕ НАЗВАНО»",
+      "file": "spa_core/owner_queue/triage.py",
+      "old": "    if \"tracker\" not in rep:\n        return \"дерево замера НЕ НАЗВАНО (отчёт старой схемы);\"",
+      "new": "    if \"tracker\" not in rep:\n        return \"мерено в /Users/yuriikulieshov/Documents/SPA_Claude/nimbalyst-local/tracker;\""
+    }
+  ]
+}
