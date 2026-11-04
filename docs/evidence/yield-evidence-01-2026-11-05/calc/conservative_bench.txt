@@ -1,0 +1,8 @@
+rows 166 keys ['date', 'open_equity', 'close_equity', 'high_equity', 'low_equity', 'snapshots', 'daily_return_pct', 'cumulative_return_pct', 'drawdown_pct', 'equity', 'apy_today', 'apy_expected_pct', 'daily_yield_usd', 'cost_usd', 'turnover_usd', 'net_pnl_usd', 'unobservable_pools', 'yield_forgone_usd', 'positions', 'source']
+Conservative 2026-10-01→2026-11-04 equity 101476.69→101939.23 ret 0.4558% ann 5.003%
+aave_v3            n=34 mean_apy=7.43% hold_return_34d=0.664% ann=7.36%
+compound_v3        n=34 mean_apy=4.78% hold_return_34d=0.435% ann=4.77%
+spark_susds        n=34 mean_apy=2.70% hold_return_34d=0.248% ann=2.70%
+morpho_steakhouse  n=34 mean_apy=4.70% hold_return_34d=0.429% ann=4.70%
+maple              n=34 mean_apy=5.16% hold_return_34d=0.470% ann=5.16%
+fluid_fusdc        n=34 mean_apy=6.12% hold_return_34d=0.554% ann=6.11%
