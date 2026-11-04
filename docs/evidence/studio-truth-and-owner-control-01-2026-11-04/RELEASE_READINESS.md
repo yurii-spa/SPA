@@ -12,13 +12,13 @@ decision_loop OFF · E6.6 OFF · push BUY/SELL OFF · без root/sudo.
 | | |
 |---|---|
 | PR | `truth/owner-control-01` → `main`: https://github.com/yurii-spa/SPA/compare/main...truth/owner-control-01 (токен не умеет создавать PR — создаёт владелец кнопкой «Create pull request») |
-| Измеренный код | `239bad0a3` = вершина `main` `e57e58977` + ветка; CI — см. HANDOVER. Всё после `239bad0a3` — только `docs/` и `nimbalyst-local/` |
+| Измеренный код | `6f902ebed` = вершина `main` `01b144031` + ветка; CI 41923432402 (NEW 0) — см. HANDOVER, ревизия 3. Всё после `6f902ebed` — только `docs/` |
 | Способ слияния | **«Create a merge commit»** (не squash/rebase): дерево merge-коммита = дереву измеренного кандидата, если `main` не ушёл; если ушёл — сначала обновить ветку и повторить CI |
 | Production-компоненты | read models пульта (`mission_control`, `company_truth`, `owner_view`, `trading_engines`, `director_report`, `mission_ui`), экраны SPA-бота (`views/home`, `views/golive`, `views/_base`), досылка кнопок (`owner_decisions`, `bot.py`), сторож сайта (`scripts/site_freshness_monitor.py`), `investment_cio/sources_summary`, `trading_research/read_model`, `utils/presentation` |
 | Рестарты | `mission_control` пересоберёт пульт сам (5 мин), `mission_server` не меняется; `telegram_bot` — долгожитель: сторож `telegram_health` сам перезапускает его при устаревшем коде (наблюдалось 03.11, ADR-117). Ручной рестарт не нужен |
 | Один poller | после рестарта: `ps -axo pid,command \| grep "[-]m spa_core.telegram.bot"` — ровно 1 строка; `/tmp/spa_telegram_health.log` — «поллеры: ровно один»; 0 строк `409` в `/tmp/spa_telegram_bot.log` |
 | Источники финансовых статусов | пульт: `overview.investment` = `earn_defi.db#system_state` (INCIDENT, KC-1 с 19.09); бот «Движки» — та же функция `trading_engines.investment_engine_modes`; книги — `last_cycle_at` из `data/*_paper_trading.json` |
-| Проверка после доставки | `data/code_sync_status.json` = merge-SHA, байты 18 файлов кода = origin; `deployment_acceptance` OK; коды `launchctl` = до; новая сборка `~/studio-os-serve/mission/current.json` после синка; в ней `overview.investment.state=CRITICAL`, `owner_view…questions.count=0`, `subject_undeclared=2`; бот `/start` — строка «Движки ⛔» |
+| Проверка после доставки | `data/code_sync_status.json` = merge-SHA, байты 19 файлов кода = origin; `deployment_acceptance` OK; коды `launchctl` = до; новая сборка `~/studio-os-serve/mission/current.json` после синка; в ней `overview.investment.state=CRITICAL`, `owner_view…questions.count=0`, `subject_undeclared=2`; бот `/start` — строка «Движки ⛔» |
 | Стоп | `deployment_acceptance` ≠ OK · `mission_control` код ≠ 0 два раза подряд · бот молчит > 5 мин или 2 поллера · пульт показывает «система OK» при INCIDENT |
 | Откат | revert-PR на GitHub (кнопка «Revert» у слитого PR) ⇒ для merge-коммита это `git revert -m 1 <merge>`; синк вернёт изменённые файлы за ≤10 мин. Добавленные тест-файлы (`test_truth_owner_control_01.py`, `test_company_truth_open_questions.py`) синк НЕ удаляет (называет в `retired_code`) — безвредно, их не импортирует ни один агент. Бот получит старый код через `telegram_health` |
 
