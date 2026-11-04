@@ -510,7 +510,14 @@ def _cause_axis_measured(plan: list[dict], shards_dir: Path, failures: list[dict
         "fork": {"population": fork.population, "lower": fork.lower, "upper": fork.upper,
                  "cause_groups": fork.cause_groups, "coarse_groups": fork.coarse_groups,
                  "merged_by_evidence": fork.merged_by_evidence,
-                 "largest_component": fork.largest_component},
+                 "largest_component": fork.largest_component,
+                 # РОД СТЕННЫХ ЧАСОВ (ADR-910). Выводит его из вилки ЕДИНСТВЕННАЯ
+                 # дверь `door.fork_of`, а не этот свод: вилку печатают три разных
+                 # места, и вычитающий род у себя читатель разошёлся бы с двумя
+                 # другими молча (класс ADR-220).
+                 "wallclock_timeouts": fork.wallclock_timeouts,
+                 "wallclock_names": list(fork.wallclock_names),
+                 "rod_unmeasured": fork.rod_unmeasured, "given": fork.given},
         "top": [[kind, skeleton, count] for (kind, skeleton), count in fork.groups[:top]],
     }
 
@@ -875,6 +882,11 @@ def aggregate(manifest: dict | None, shards_dir: Path, needs_result: str | None 
     return report
 
 
+#: Сколько имён рода стенных часов печатать ЦЕЛИКОМ (ADR-910). Остаток называется
+#: числом: половина `nodeid` не починится, а молчание об остатке скрыло бы размер.
+_ROD_NAMES_SHOWN = 5
+
+
 def cause_line(axis) -> str:
     """ОДНА строка про ось причин — ЕДИНСТВЕННАЯ копия этого правила.
 
@@ -893,6 +905,11 @@ def cause_line(axis) -> str:
     if not pop:
         return "причин опознавать нечего: падений не объявлено (измерено и равно нулю)"
     fork = axis.get("fork") or {}
+    # ОБЪЯВЛЕН ли род вообще — отдельный вопрос от «сколько его» (инв. #17, ADR-911).
+    # Свод, собранный цензом СТАРШЕ ADR-910, поля не несёт вовсе; `.get()` отдал бы
+    # у него тот же `None`, что и у настоящего нуля, и строка утверждала бы вычитание,
+    # которого не было. Ключ, а не значение: новый ценз кладёт его ВСЕГДА (пусть и 0).
+    rod_declared = "wallclock_timeouts" in fork
     kinds = axis.get("kinds") or {}
     top = axis.get("top") or []
     parts = [f"причины: опознано {axis.get('attributed')} из {pop}"]
@@ -923,11 +940,42 @@ def cause_line(axis) -> str:
         parts.append(f"в junit есть, а отчёт не числит упавшими {axis['record_only_n']}")
     if kinds:
         parts.append("типы: " + " · ".join(f"{k} {v}" for k, v in list(kinds.items())[:6]))
+    # ОБМОРОК ПО СТЕННЫМ ЧАСАМ печатается ПЕРЕД вилкой по тому же праву, что и
+    # обморок сессии выше: у жертвы причина ЕСТЬ, и причина эта — не дефект
+    # предмета теста. Читатель, увидевший её ВНУТРИ вилки, пошёл бы чинить код,
+    # тогда как состав этого рода ротируется от загрузки машины (ADR-910).
+    if fork.get("wallclock_timeouts"):
+        # Имена режутся ПО СЧЁТУ, а не по символам: обрезанный посередине `nodeid`
+        # нечем починить, а весь смысл рода — чтобы его можно было взять в работу.
+        # Остаток НАЗЫВАЕТСЯ числом, иначе «названо всё» и «названо не всё» выглядели
+        # бы одинаково.
+        names = list(fork.get("wallclock_names") or [])
+        shown, rest = names[:_ROD_NAMES_SHOWN], len(names) - len(names[:_ROD_NAMES_SHOWN])
+        parts.append(f"ОБМОРОК ПО СТЕННЫМ ЧАСАМ {fork['wallclock_timeouts']} — род "
+                     f"`pytest-timeout`, в вилку дефектов НЕ входит; состав этого "
+                     f"рода РОТИРУЕТСЯ при постоянном числе, поэтому дельту по нему "
+                     f"нетто-числом мерить нельзя"
+                     + (f" (поимённо: {', '.join(shown)}"
+                        + (f" и ещё {rest}" if rest > 0 else "") + ")" if shown else ""))
+    if fork and not rod_declared:
+        # Четвёртое состояние, которого шов ADR-910 не назвал: род НЕ СПРАШИВАЛИ.
+        # Оно будет у КАЖДОГО прогона, чей коммит шва не несёт, — то есть у всех
+        # отчётов, живущих сегодня (артефакты хранятся 90 дней), и молчание о нём
+        # выдаёт «не измерено» за «измерено и равно нулю».
+        parts.append("род стенных часов этим сводом НЕ ИЗМЕРЕН: поля "
+                     "`wallclock_timeouts` в оси нет ВОВСЕ — свод собран цензом "
+                     "старше ADR-910, из вилки не вычтено НИ ОДНО падение, и «рода "
+                     "здесь нет» НЕ утверждается")
+    if fork.get("rod_unmeasured"):
+        parts.append(f"род часов НЕ ИЗМЕРЕН у {fork['rod_unmeasured']} падени(й) "
+                     f"(сообщения нет вовсе) — они ОСТАЮТСЯ в вилке дефектов")
     if fork.get("population"):
         parts.append(f"дефектов НЕ МЕНЬШЕ {fork.get('lower')} и НЕ БОЛЬШЕ "
                      f"{fork.get('upper')} (крупнейшее семейство "
                      f"{fork.get('largest_component')}; считано по "
-                     f"{fork.get('population')} опознанн(ым) провал(ам) теста)")
+                     f"{fork.get('population')} опознанн(ым) провал(ам) теста "
+                     + ("вне рода стенных часов)" if rod_declared
+                        else "БЕЗ вычитания рода стенных часов — он не измерен)"))
     if top:
         kind, skeleton, count = top[0]
         parts.append(f"крупнейшая причина ×{count}: {kind}: {str(skeleton)[:120]}")

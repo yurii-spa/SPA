@@ -2,11 +2,11 @@
 
 > Авто-генерится `scripts/build_tracker_board.py` из `nimbalyst-local/tracker/*.md`. НЕ править вручную — правь карточки. Источник правды — карточки, это индекс (bootstrap).
 >
-> Собрана: 2026-11-03T19:38:50Z · сверка с карточками: `python3 scripts/build_tracker_board.py --check` (сторож `spa_core/tests/test_tracker_board_matches_cards.py`).
+> Собрана: 2026-11-04T00:56:17Z · сверка с карточками: `python3 scripts/build_tracker_board.py --check` (сторож `spa_core/tests/test_tracker_board_matches_cards.py`).
 >
-> Сверено с `origin/main` (138c26117) · у **2** своя правка, кто новее — не измерено.
+> Сверено с `origin/main` (c634593d2) · у **1** своя правка, кто новее — не измерено.
 >
-> Всего карточек: **1576** · ждёт владельца: **7** · занято сессиями: **13**.
+> Всего карточек: **1577** · ждёт владельца: **7** · занято сессиями: **13**.
 
 ## 🔴 ЖДЁТ ВЛАДЕЛЬЦА (needs-owner)
 
@@ -424,7 +424,7 @@
 ### · closed
 - Считать ли верный отказ по правилам допуска неисправностью флота  ·  `owner-decision-schitat-li-vernyi-otkaz-po-pravilam-dopu.md` · 2026-10-08
 
-## 📥 Inbox (задания: Telegram / заметки / голос)  (891)
+## 📥 Inbox (задания: Telegram / заметки / голос)  (892)
 
 ### · in-progress
 - а задача починить все-таки еще раз сообщение которым не пишет нужно твое решени…  ·  `inbox-a-zadacha-pochinit-vse-taki-esche-raz-so.md` · 2026-08-14 · 🔒 `pid43119`
@@ -1139,6 +1139,7 @@
 - Отчёт о доставке карточек судит байты, которых уже нет: производитель просрочил перемер на 98 часов при такте 6  ·  `inbox-otchet-o-dostavke-kartochek-sudit-baity.md` · 2026-11-02
 - Отчёт объявлен мерой критерия приёмки, которого владелец не писал  ·  `inbox-otchet-obyavlen-meroi-kriteriya-priemki.md` · 2026-09-29
 - Отсутствие оценки TVL публикуется НУЛЁМ у 4 записей — инв. #17 на вложенном пути  ·  `inbox-otsutstvie-otsenki-tvl-publikuetsya-nule.md` · 2026-10-12
+- Отсутствие поля в чужом своде читается как измеренный ноль — население класса НЕ ИЗМЕРЕНО  ·  `inbox-otsutstvie-polya-v-chuzhom-svode-chitaet.md` · 2026-11-03
 - Paper-модули #39 CDR и #36 dwell обязаны логировать концентрацию и duty — иначе форвард будет неатрибутируем  ·  `inbox-paper-moduli-39-cdr-i-36-dwell-obyazany.md` · 2026-08-08
 - Печать ступени переписей убивает третий исход прибора: 78 жёстких индексов по counts  ·  `inbox-pechat-stupeni-perepisei-ubivaet-tretii.md` · 2026-09-11
 - Перечень видов ленты research_factory не имеет читателя и расходится с самой лентой в обе стороны  ·  `inbox-perechen-vidov-lenty-research-factory-ne.md` · 2026-10-24

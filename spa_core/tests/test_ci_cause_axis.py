@@ -339,5 +339,118 @@ class TheLineIsTheOnlyCopyOfTheRule(unittest.TestCase):
         self.assertIn("ТОЖДЕСТВО УЧЁТА НАРУШЕНО", ctl.cause_line(axis))
 
 
+# ── ADR-910 (цикл #1024): род стенных часов печатается ПЕРЕД вилкой ──────────
+# Прецедент — обморок СЕССИИ (ADR-892): у жертвы причина ЕСТЬ, и причина эта не
+# дефект предмета теста. Род `pytest-timeout` до ADR-910 оставался единственным из
+# трёх родов ВНУТРИ вилки, и его состав ротируется от загрузки машины: замер
+# #1024 на двух живых прогонах дал 65 = 65 нетто при РАЗНОМ составе.
+
+def _axis_with_rod(n_rod: int, names: list[str], *, unmeasured: int = 0) -> dict:
+    return {"status": "measured", "population": 61 + n_rod, "attributed": 61 + n_rod,
+            "kinds": {"AssertionError": 54, "Failed": n_rod},
+            "fork": {"population": 61, "lower": 44, "upper": 61,
+                     "largest_component": 8, "wallclock_timeouts": n_rod,
+                     "wallclock_names": names, "rod_unmeasured": unmeasured,
+                     "given": 61 + n_rod},
+            "top": [["AssertionError", "# != #", 8]],
+            "identities_hold": {"phases": True, "cause_classes": True,
+                                "site_classes": True, "roster": True}}
+
+
+class TheWallclockRodIsPrintedBeforeTheFork(unittest.TestCase):
+    """Читатель вердикта обязан увидеть род ДО вилки, иначе пойдёт чинить код."""
+
+    def test_the_rod_is_named_and_the_fork_says_it_is_excluded(self):
+        line = ctl.cause_line(_axis_with_rod(4, ["m::slow1", "m::slow2"]))
+        self.assertIn("ОБМОРОК ПО СТЕННЫМ ЧАСАМ 4", line)
+        self.assertIn("в вилку дефектов НЕ входит", line)
+        self.assertIn("вне рода стенных часов", line)
+        self.assertLess(line.index("ОБМОРОК ПО СТЕННЫМ ЧАСАМ"),
+                        line.index("дефектов НЕ МЕНЬШЕ"),
+                        "род напечатан ПОСЛЕ вилки — читатель уже решил, что это поломки")
+
+    def test_the_names_are_WHOLE_and_the_rest_is_named_by_number(self):
+        """Порванное звено: обрезка по символам рубила `nodeid` посередине.
+
+        Половина имени не починится, а молчание об остатке сделало бы «названо всё»
+        неотличимым от «названо не всё».
+        """
+        names = [f"spa_core/tests/test_{i}.py::K::test_a_name_long_enough_to_cut_{i}"
+                 for i in range(7)]
+        line = ctl.cause_line(_axis_with_rod(7, names))
+        for whole in names[:ctl._ROD_NAMES_SHOWN]:
+            self.assertIn(whole, line, "имя рода обрезано — починить его нечем")
+        self.assertIn(f"и ещё {7 - ctl._ROD_NAMES_SHOWN}", line)
+
+    def test_an_absent_rod_prints_no_rod_line_at_all(self):
+        """Обратная сторона: род пуст ⇒ строки нет, и вилка не оговаривается зря."""
+        line = ctl.cause_line(_axis_with_rod(0, []))
+        self.assertNotIn("ОБМОРОК ПО СТЕННЫМ ЧАСАМ", line)
+        self.assertIn("дефектов НЕ МЕНЬШЕ 44", line)
+
+    def test_the_unmeasured_rod_is_said_to_STAY_in_the_fork(self):
+        """Третий исход (инв. #17) печатается, и печатается как fail-CLOSED."""
+        line = ctl.cause_line(_axis_with_rod(0, [], unmeasured=3))
+        self.assertIn("род часов НЕ ИЗМЕРЕН у 3", line)
+        self.assertIn("ОСТАЮТСЯ в вилке дефектов", line)
+
+
+class TheSummaryOlderThanTheShimIsNamed(unittest.TestCase):
+    """ЧЕТВЁРТОЕ состояние: род НЕ СПРАШИВАЛИ вовсе (ADR-911, замер цикла #1025).
+
+    Шов ADR-910 назвал три исхода у ПАДЕНИЯ (род · не род · сообщения нет), и у всех
+    трёх поле `wallclock_timeouts` в оси ЕСТЬ. Состояние, в котором поля нет ВОВСЕ,
+    принадлежит не падению, а СВОДУ: `cause_axis` приезжает к читателю готовым из
+    артефакта прогона и собран цензом ТОГО коммита, который мерили. Пока шов не на
+    `main`, таково КАЖДОЕ живое показание — замер 04.11: единственный читаемый
+    контрольный прогон (41707593049 на 7cb79c8c6) ровно в этом состоянии, то есть
+    строка врала в 1 случае из 1.
+
+    Контроли идут ПАРОЙ и отвечают ПРОТИВОПОЛОЖНО на осях, отличающихся РОВНО
+    наличием ключа: иначе проверялся бы текст, а не различение.
+    """
+
+    @staticmethod
+    def _axis_without_rod() -> dict:
+        axis = _axis_with_rod(0, [])
+        fork = dict(axis["fork"])
+        for key in ("wallclock_timeouts", "wallclock_names", "rod_unmeasured", "given"):
+            fork.pop(key, None)
+        # Свод старше шва знает вилку ПО ВСЕМ опознанным — 65, а не 61.
+        fork.update(population=65, lower=45, upper=65)
+        return {**axis, "fork": fork}
+
+    def test_a_summary_without_the_field_says_NOT_MEASURED(self):
+        line = ctl.cause_line(self._axis_without_rod())
+        self.assertIn("род стенных часов этим сводом НЕ ИЗМЕРЕН", line)
+        self.assertIn("старше ADR-910", line)
+        self.assertIn("не вычтено НИ ОДНО падение", line)
+
+    def test_a_summary_without_the_field_does_NOT_claim_an_exclusion(self):
+        """Порванное звено ADR-910: хвост вилки утверждал вычитание безусловно."""
+        line = ctl.cause_line(self._axis_without_rod())
+        self.assertIn("БЕЗ вычитания рода стенных часов — он не измерен", line)
+        self.assertNotIn("вне рода стенных часов", line)
+
+    def test_a_declared_ZERO_still_claims_the_exclusion(self):
+        """Обратная сторона: ноль ОБЪЯВЛЕН — вычитание спрашивали, и это правда.
+
+        Без этой проверки правку можно было бы «починить», сняв оговорку у всех, и
+        «измерено и равно нулю» стало бы неотличимо от «не измерено» с другой стороны.
+        """
+        line = ctl.cause_line(_axis_with_rod(0, []))
+        self.assertIn("вне рода стенных часов", line)
+        self.assertNotIn("НЕ ИЗМЕРЕН", line)
+
+    def test_the_two_axes_differ_by_exactly_one_key(self):
+        """Предпосылка пары: сцены отличаются РОВНО объявлением рода, не числами."""
+        with_rod = _axis_with_rod(0, [])["fork"]
+        without = self._axis_without_rod()["fork"]
+        self.assertEqual(set(with_rod) - set(without),
+                         {"wallclock_timeouts", "wallclock_names",
+                          "rod_unmeasured", "given"})
+        self.assertNotIn("wallclock_timeouts", without)
+
+
 if __name__ == "__main__":
     unittest.main()

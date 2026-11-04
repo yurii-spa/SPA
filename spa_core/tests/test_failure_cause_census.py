@@ -521,3 +521,136 @@ class ASessionDeathIsAKindOfItsOwn(TempTree):
         self.assertEqual(fcc.fork_of(census.call).population, 1,
                          "обморок инструмента попал в вилку дефектов набора")
         self.assertTrue(census.identities_hold())
+
+
+# ── ADR-910 (цикл #1024, заказ G901 п. 1) ────────────────────────────────────
+# Положительный контроль у класса ОДИН и настоящий: два живых прогона
+# контрольного набора — 41707593049 (`7cb79c8c6`) и 41653552215 (`76c050ab4`).
+# Оба дали `failed=65`, то есть нетто-число НЕ ИЗМЕНИЛОСЬ, а по ИМЕНАМ дельта
+# есть: одно имя пришло, одно ушло, и ОБА лежат в роде стенных часов. Дефектная
+# часть в обоих прогонах — 61 имя, симметричная разность ПУСТА в обе стороны.
+# До ADR-910 род стоял ВНУТРИ вилки (`population=65`, `upper=65`), и лотерея
+# загрузки машины читалась как четыре поломки кода.
+
+#: Дословное сообщение, которое печатает САМ pytest-timeout в фазе `call`. Литерал
+#: ЧУЖОГО кода, снятый с живого артефакта прогона 41707593049 (все четыре жертвы
+#: несут его байт в байт, `kind=Failed`, `phase=call`).
+TIMEOUT_CALL = "Failed: Timeout (>180.0s) from pytest-timeout."
+#: Та же фраза под ДВОЙНОЙ обёрткой писателя junit — фаза `setup`.
+TIMEOUT_SETUP = ('failed on setup with '
+                 '"Failed: Timeout (>180.0s) from pytest-timeout."')
+
+
+class TheWallclockRodIsNamedAndNotAFork(TempTree):
+    """Род стенных часов: выведен из вилки, НАЗВАН поимённо, тождество держится."""
+
+    def fork(self, cases):
+        return fcc.fork_of(fcc.census_from_path(self.write("j.xml", junit(cases))).call)
+
+    def test_the_timeout_does_not_enter_the_defect_fork(self):
+        """Предмет ADR-910: четыре часовых провала стояли среди дефектов кода."""
+        fork = self.fork([
+            case("m", "defect", tag="failure", message="KeyError: 'identity'",
+                 text=REPO_TB),
+            case("m", "slow", tag="failure", message=TIMEOUT_CALL, text=DEEP_TB),
+        ])
+        self.assertEqual(fork.population, 1,
+                         "обморок по стенным часам попал в вилку дефектов набора")
+        self.assertEqual(fork.wallclock_timeouts, 1)
+        self.assertEqual(fork.upper, 1, "верхний край вилки всё ещё считает род часов")
+
+    def test_the_rod_is_named_by_nodeid_not_merely_counted(self):
+        """Счётчик без имён не даёт починить: ротацию видно только по именам."""
+        fork = self.fork([case("m", "slow", tag="failure", message=TIMEOUT_CALL,
+                               text=DEEP_TB)])
+        self.assertEqual(list(fork.wallclock_names), ["m::slow"])
+
+    def test_the_accounting_identity_holds(self):
+        """`population + wallclock == given` — род не вправе исчезнуть молча."""
+        fork = self.fork([
+            case("m", "defect", tag="failure", message="KeyError: 'identity'",
+                 text=REPO_TB),
+            case("m", "slow1", tag="failure", message=TIMEOUT_CALL, text=DEEP_TB),
+            case("m", "slow2", tag="failure", message=TIMEOUT_CALL, text=DEEP_TB),
+        ])
+        self.assertEqual(fork.given, 3)
+        self.assertEqual(fork.population + fork.wallclock_timeouts, fork.given)
+
+    def test_a_set_WITHOUT_the_rod_is_left_exactly_as_before(self):
+        """Обратная сторона: без рода вилка не двигается ни на единицу."""
+        cases = [
+            case("m", "a", tag="failure", message="KeyError: 'identity'", text=REPO_TB),
+            case("m", "b", tag="failure", message="KeyError: 'verdict'", text=REPO_TB),
+        ]
+        fork = self.fork(cases)
+        self.assertEqual((fork.population, fork.lower, fork.upper), (2, 1, 2))
+        self.assertEqual(fork.wallclock_timeouts, 0)
+        self.assertEqual(list(fork.wallclock_names), [])
+        self.assertEqual(fork.population, fork.given)
+
+    def test_the_rule_is_EQUALITY_and_not_a_substring(self):
+        """Порванное звено, и самое дорогое: правило вхождения ОСЛАБИЛО бы вердикт.
+
+        Тест, чей предмет — сам сторож зависаний, цитирует фразу производителя
+        внутри своего же утверждения. Правило «фраза встречается» вынесло бы
+        НАСТОЯЩИЙ дефект из вилки, прикрывшись усилением (инв. #16, ADR-333).
+        """
+        fork = self.fork([
+            case("m", "quoting", tag="failure",
+                 message=("AssertionError: сторож обязан печатать "
+                          "'Failed: Timeout (>180.0s) from pytest-timeout.', "
+                          "а напечатал иное"),
+                 text=REPO_TB)])
+        self.assertEqual(fork.wallclock_timeouts, 0,
+                         "цитата фразы объявлена родом часов — дефект вынесен из вилки")
+        self.assertEqual(fork.population, 1)
+
+    def test_the_DOUBLE_wrapper_of_the_junit_writer_is_unwrapped(self):
+        """Порванное звено: фаза `setup` оборачивает фразу ДВАЖДЫ.
+
+        `<error>`-префикс писателя junit плюс голова `Failed:` самого pytest. Мера,
+        снявшая одну обёртку из двух, назвала бы настоящий срок дефектом кода.
+        """
+        self.assertEqual(fcc.timeout_rod_of(TIMEOUT_SETUP), fcc.ROD_TIMEOUT)
+        self.assertEqual(fcc.timeout_rod_of(TIMEOUT_CALL), fcc.ROD_TIMEOUT)
+
+    def test_an_absent_message_is_UNMEASURED_and_STAYS_in_the_fork(self):
+        """Третий исход (инв. #17), и он fail-CLOSED.
+
+        Сообщения нет ⇒ род НЕ ОТВЕЧЕН. Выносить такой провал из вилки значило бы
+        дать «не измерено» работать оправданием, поэтому он остаётся дефектом и
+        при этом СЧИТАЕТСЯ отдельно.
+        """
+        self.assertEqual(fcc.timeout_rod_of(""), fcc.ROD_UNMEASURED)
+        fork = self.fork([case("m", "silent", tag="failure", message="",
+                               text=REPO_TB)])
+        self.assertEqual(fork.rod_unmeasured, 1)
+        self.assertEqual(fork.population, 1, "«род не измерен» вынесло провал из вилки")
+        self.assertEqual(fork.wallclock_timeouts, 0)
+
+    def test_the_rod_class_set_is_closed(self):
+        self.assertEqual(fcc.ROD_CLASSES,
+                         (fcc.ROD_TIMEOUT, fcc.ROD_NONE, fcc.ROD_UNMEASURED))
+
+    def test_the_rod_is_PRINTED_even_when_it_is_the_whole_red_set(self):
+        """Порванное звено: ранний возврат по нулевой вилке съедал печать рода.
+
+        Набор, у которого ВСЕ провалы фазы `call` суть род часов, даёт
+        `population == 0`. Строка «провалов нет» без печати рода прочиталась бы
+        как зелёная фаза — то есть четыре часовых обморока исчезли бы совсем.
+        """
+        census = fcc.census_from_path(self.write("j.xml", junit([
+            case("m", "slow", tag="failure", message=TIMEOUT_CALL, text=DEEP_TB)])))
+        out = fcc.format_census(census)
+        self.assertEqual(fcc.fork_of(census.call).population, 0)
+        self.assertIn("ОБМОРОК ПО СТЕННЫМ ЧАСАМ", out)
+        self.assertIn("m::slow", out)
+
+    def test_the_absence_of_the_rod_is_printed_as_MEASURED_ZERO(self):
+        """Обратная сторона печати: «нет рода» сказано словом, а не молчанием."""
+        census = fcc.census_from_path(self.write("j.xml", junit([
+            case("m", "a", tag="failure", message="KeyError: 'identity'",
+                 text=REPO_TB)])))
+        out = fcc.format_census(census)
+        self.assertIn("обморока по стенным часам нет — измерено и равно нулю", out)
+        self.assertNotIn("ОБМОРОК ПО СТЕННЫМ ЧАСАМ", out)

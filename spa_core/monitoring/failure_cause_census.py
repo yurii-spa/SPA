@@ -119,6 +119,92 @@ CAUSE_NO_TYPE = "cause_no_exception_type"
 CAUSE_NO_MESSAGE = "cause_no_message"
 CAUSE_CLASSES = (CAUSE_NAMED, CAUSE_NO_TYPE, CAUSE_NO_MESSAGE)
 
+# --- РОД «обморок по стенным часам» (ADR-910) ---------------------------------
+# Провал по `pytest-timeout` НЕ ЕСТЬ дефект предмета теста — это свойство СТЕННЫХ
+# ЧАСОВ, и его состав РОТИРУЕТСЯ при постоянном числе. Замер цикла #1024 на двух
+# живых прогонах контрольного набора:
+#
+#   | прогон                      | всего | род часов | дефектная часть |
+#   |-----------------------------|-------|-----------|-----------------|
+#   | 41707593049 (`7cb79c8c6`)   |  65   |     4     |       61        |
+#   | 41653552215 (`76c050ab4`)   |  65   |     4     |       61        |
+#
+# Нетто-число не изменилось, а ПО ИМЕНАМ дельта есть: одно имя пришло, одно ушло,
+# и ОБА лежат в роде часов. У дефектной части симметричная разность ПУСТА в обе
+# стороны — то есть весь наблюдаемый сдвиг красного набора произвела загрузка
+# машины, а не код. До ADR-910 эти четыре имени стояли ВНУТРИ вилки дефектов
+# (`population=65`, `upper=65`), и читатель, решающий «брать ли набор в работу»,
+# считал лотерею загрузки четырьмя поломками.
+#
+# Род объявлен ОТДЕЛЬНЫМ именем по тому же праву, что и обморок сессии (ADR-892):
+# у жертвы причина ЕСТЬ, и причина эта — не дефект теста. Это НЕ значит «не
+# дефект вовсе»: ADR-894 измерил случай, идущий 433.46 с против предела 180 с, —
+# он не может пройти на шарде ПО ПОСТРОЕНИЮ, и это дефект ДЛИТЕЛЬНОСТИ. Поэтому
+# род не выбрасывается, а НАЗЫВАЕТСЯ ПОИМЁННО рядом с вилкой: смешивать его с
+# дефектами предмета значит отвечать одним числом на два разных вопроса.
+#
+#: Дословный шаблон САМОГО pytest-timeout: `pytest_timeout.PYTEST_FAILURE_MESSAGE
+#: = "Timeout (>%ss) from pytest-timeout."`. Литерал ЧУЖОГО кода, а не проза
+#: отчёта: его печатает производитель срока, и совпадение с ним есть улика, а не
+#: догадка по слову «timeout».
+_TIMEOUT_SENTENCE = re.compile(r"Timeout \(>\d+(?:\.\d+)?s\) from pytest-timeout\.")
+
+#: Обёртки, которыми ЧУЖОЙ текст оборачивают писатель junit и сам pytest. Перечень
+#: ЗАКРЫТ намеренно: снимается ровно то, что печатает чужой код, — иначе правило
+#: превратилось бы в «всё до двоеточия», и `AssertionError: …` с фразой внутри
+#: стал бы родом часов.
+_ROD_UNWRAPS = (
+    re.compile(r'^failed on (?:setup|teardown) with "(?P<inner>.*)"$'),
+    re.compile(r'^test (?:setup|teardown) failure:?\s*(?P<inner>.*)$'),
+    re.compile(r"^Failed:\s*(?P<inner>.*)$"),
+)
+
+ROD_TIMEOUT = "wallclock_timeout"
+ROD_NONE = "not_wallclock"
+#: Сообщения нет вовсе ⇒ вопрос «это род часов?» НЕ ОТВЕЧЕН. Записать здесь
+#: `ROD_NONE` значило бы выдать «не измерено» за «измерено и нет» (инв. #17), а
+#: это ровно та подмена, против которой заведён сам род.
+ROD_UNMEASURED = "rod_unmeasured"
+ROD_CLASSES = (ROD_TIMEOUT, ROD_NONE, ROD_UNMEASURED)
+
+
+def timeout_rod_of(message: str) -> str:
+    """Род провала по стенным часам — один из :data:`ROD_CLASSES`.
+
+    Правило — РАВЕНСТВО остатка предложению производителя, а НЕ вхождение
+    подстроки (ADR-333). Разница существенна и измерена: в этом наборе есть тесты,
+    чей предмет — сам сторож зависаний, и их собственные сообщения фразу
+    упоминают. Проверка на вхождение объявила бы их родом часов и вынесла
+    настоящий дефект из вилки — то есть ослабила бы вердикт, прикрывшись
+    усилением (инв. #16).
+
+    Обёртки снимаются по ЗАКРЫТОМУ перечню (:data:`_ROD_UNWRAPS`) и до неподвижной
+    точки: писатель junit у фазы `setup` оборачивает текст дважды
+    (``failed on setup with "Failed: Timeout (>180.0s) from pytest-timeout."``).
+
+    **Чего мера НЕ различает, и это сказано вслух.** Случай, который сам зовёт
+    ``pytest.fail`` с ДОСЛОВНЫМ предложением производителя, неотличим от
+    настоящего срока: сообщение байт в байт одно. Замер цикла #1024 по всему
+    дереву (`spa_core`, `scripts`, `tests`, `studio_shell`, `research`): таких
+    вызовов **НОЛЬ** — фраза встречается только в комментариях и в фикстурах
+    этой же батареи. Цена правила сегодня измерена и равна нулю.
+    """
+    text = (message or "").strip()
+    head = text.splitlines()[0] if text else ""
+    if not head:
+        return ROD_UNMEASURED
+    body = head.strip()
+    for _ in range(len(_ROD_UNWRAPS) + 1):
+        for pattern in _ROD_UNWRAPS:
+            hit = pattern.match(body)
+            if hit:
+                body = hit.group("inner").strip()
+                break
+        else:
+            break
+    return ROD_TIMEOUT if _TIMEOUT_SENTENCE.fullmatch(body) else ROD_NONE
+
+
 # --- закрытый набор исходов опознания места ------------------------------------
 SITE_REPO = "site_repo_frame"
 SITE_FOREIGN = "site_only_foreign_frames"
@@ -189,6 +275,16 @@ class Failure(NamedTuple):
     def is_session_death(self) -> bool:
         """Эта запись — обморок САМОЙ сессии, а не провал теста (ADR-892)."""
         return self.nodeid == SESSION_RECORD
+
+    @property
+    def timeout_rod(self) -> str:
+        """Род «обморок по стенным часам» (ADR-910) — один из :data:`ROD_CLASSES`.
+
+        Стои́т рядом с :attr:`is_session_death` по тому же праву: оба отвечают не
+        «какая причина», а «причина КАКОГО РОДА», и оба выводят своё население из
+        вилки дефектов предмета.
+        """
+        return timeout_rod_of(self.message)
 
     @property
     def cause_class(self) -> str:
@@ -282,7 +378,7 @@ class Census(NamedTuple):
 class Fork(NamedTuple):
     """Вилка числа дефектов по населению одной фазы. Края НАЗВАНЫ, не выведены."""
 
-    population: int
+    population: int             # ДЕФЕКТНОЕ население: род стенных часов СЮДА НЕ ВХОДИТ
     cause_groups: int           # ключей «тип + точный скелет»
     coarse_groups: int          # ключей «тип + грубый скелет» (кавычки стёрты)
     lower: int                  # связные компоненты (слияние)
@@ -290,6 +386,18 @@ class Fork(NamedTuple):
     merged_by_evidence: int     # провалов, склеенных ребром следа сверх равенства причин
     largest_component: int
     groups: tuple[tuple[tuple[str, str], int], ...]
+    # --- род стенных часов (ADR-910): выведен из вилки и НАЗВАН ----------------
+    wallclock_timeouts: int = 0
+    wallclock_names: tuple[str, ...] = ()
+    #: Провалов, у которых вопрос о роде НЕ ОТВЕЧЕН (сообщения нет вовсе). Они
+    #: остаются В ДЕФЕКТНОМ населении — fail-CLOSED: недоказанный род часов не
+    #: вправе выносить провал из вилки, иначе «не измерено» работало бы как
+    #: оправдание (инв. #17).
+    rod_unmeasured: int = 0
+    #: Сколько провалов ПОДАНО на вход. Тождество учёта:
+    #: ``population + wallclock_timeouts == given``. Без него род, забытый
+    #: читателем, исчезал бы из печатаемой строки молча (урок ADR-675).
+    given: int = 0
 
 
 def _unreadable(kind: str, reason: str, path: str) -> Census:
@@ -516,8 +624,22 @@ junit_name = _junit_name
 
 
 def fork_of(failures: Iterable[Failure]) -> Fork:
-    """Вилка числа дефектов: компоненты графа … ключи «причина+место»."""
-    items = list(failures)
+    """Вилка числа дефектов: компоненты графа … ключи «причина+место».
+
+    **Род стенных часов в вилку НЕ ВХОДИТ (ADR-910).** Провал по `pytest-timeout`
+    есть свойство загрузки машины, и его состав ротируется при постоянном числе
+    (замер — у :data:`_TIMEOUT_SENTENCE`). Вывод рода стои́т ЗДЕСЬ, у единственной
+    двери, а не у каждого читателя: вилку печатают три разных места
+    (`format_census`, json-полезная нагрузка, `ci_control.cause_line`), и
+    забывший вычесть род читатель разошёлся бы с остальными молча (класс ADR-220).
+
+    Выброшенное население НАЗВАНО полем, а не потеряно: ``wallclock_timeouts``,
+    ``wallclock_names`` и тождество ``population + wallclock_timeouts == given``.
+    """
+    given = list(failures)
+    rods = [f for f in given if f.timeout_rod == ROD_TIMEOUT]
+    unmeasured = sum(1 for f in given if f.timeout_rod == ROD_UNMEASURED)
+    items = [f for f in given if f.timeout_rod != ROD_TIMEOUT]
     n = len(items)
     cause_groups = Counter(f.cause_key for f in items)
     upper = len({f.cause_site_key for f in items})
@@ -560,6 +682,9 @@ def fork_of(failures: Iterable[Failure]) -> Fork:
         lower=len(components), upper=upper, merged_by_evidence=merged,
         largest_component=(max(components.values()) if components else 0),
         groups=tuple(cause_groups.most_common()),
+        wallclock_timeouts=len(rods),
+        wallclock_names=tuple(f.nodeid for f in rods),
+        rod_unmeasured=unmeasured, given=len(given),
     )
 
 
@@ -603,8 +728,20 @@ def format_census(census: Census, *, shown: int = 12) -> str:
     else:
         lines.append("   жертв обморока нет — измерено и равно нулю")
     fork = fork_of(census.call)
+    # Род стенных часов печатается ДО раннего возврата намеренно: набор, у которого
+    # ВСЕ провалы фазы `call` суть род часов, даёт `population == 0`, и строка
+    # «провалов нет» без этой печати прочиталась бы как зелёная фаза.
+    if fork.wallclock_timeouts:
+        lines.append(f"   ОБМОРОК ПО СТЕННЫМ ЧАСАМ: {fork.wallclock_timeouts} "
+                     f"провал(ов) — род `pytest-timeout`, в ВИЛКУ ДЕФЕКТОВ НЕ входит "
+                     f"(ADR-910). Поимённо: {', '.join(fork.wallclock_names[:5])}")
+    else:
+        lines.append("   обморока по стенным часам нет — измерено и равно нулю")
+    if fork.rod_unmeasured:
+        lines.append(f"   род часов НЕ ИЗМЕРЕН у {fork.rod_unmeasured} провал(ов) "
+                     f"(сообщения нет вовсе) — они ОСТАЮТСЯ в вилке дефектов")
     if fork.population == 0:
-        lines.append("   фаза `call`: провалов нет — вилка не считается")
+        lines.append("   фаза `call`: провалов вне рода часов нет — вилка не считается")
         return "\n".join(lines)
     call_cause = Counter(f.cause_class for f in census.call)
     lines.append("   из них опознание причины: " + " · ".join(
@@ -649,6 +786,10 @@ def as_json(census: Census) -> dict:
             "defects_not_less_than": fork.lower, "defects_not_more_than": fork.upper,
             "merged_by_evidence": fork.merged_by_evidence,
             "largest_component": fork.largest_component,
+            # Род стенных часов (ADR-910): выведен из вилки и НАЗВАН, не потерян.
+            "wallclock_timeouts": fork.wallclock_timeouts,
+            "wallclock_names": list(fork.wallclock_names),
+            "rod_unmeasured": fork.rod_unmeasured, "given": fork.given,
             "groups": [{"kind": k, "skeleton": s, "failures": c}
                        for (k, s), c in fork.groups],
         }
