@@ -26,3 +26,12 @@ _largest_admissible_turnover/ok/_fill` → `risk.policy.check_portfolio_health`.
 `~/Documents/SPA_worktrees/arb_s4_evidence_2026-11-01/decision_loop_diag/` (стеки, вывод гейта).
 Отдельно найден и исправлен в ветке `fix/deploy-gate-kills-the-group` дефект гейта: по тайм-ауту он оставлял python
 агента сиротой (дважды снят вручную).
+
+## Замер 2026-11-03 на коде r1 (`199e60ec8`, уже в `main`) — всё ещё НЕ укладывается
+
+Изолированный полный `findings_bridge --run` (копия `data/`, `SPA_TRACKER_DIR` — ловушка, Keychain недоступен,
+`timeout 7800`): старт 20:12:44Z, **код 124**. Пройдено: все переписи до `judge_alone_price`
+(`run_identity_key_price` ≈ 40 мин, WARNING); не завершён `adapter_repair_price`. Пик RSS ≈ 664 МБ, одно ядро ~99 %.
+Ускорение ×61 прибора цены адаптеров (perf/decision-loop) полную ступень не уложило. Служба `com.spa.decision_loop`
+НЕ загружена (условие владельца 03.11 не выполнено). Evidence: `~/Documents/SPA_worktrees/release_evidence_2026-11-03b/dl_*`.
+Следующий шаг: сэмплер ступеней на коде `main`, бюджет времени ступени переписей или вынос дорогих переписей из моста.
