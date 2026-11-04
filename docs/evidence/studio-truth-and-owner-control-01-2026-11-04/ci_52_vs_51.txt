@@ -1,0 +1,7 @@
+base 41802006336 @50558c956 failures 52 cand 41828977029 @0271cf33b failures 53
+IN BOTH: 52
+ONLY CAND: spa_core/tests/test_list_identity_census.py::MeasureRefusesInsteadOfGuessing::test_a_measured_population_with_a_candidate_outside_is_a_finding ('error', '')
+same name, different outcome/reason: 1
+   spa_core/tests/test_run_identity_key_price.py::BatteryHoleTests::test_the_instrument_excludes_itself_by_naming_the_reason 
+     base: ('error', '') 
+     cand: ('failed', '')
