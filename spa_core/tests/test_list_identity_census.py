@@ -392,14 +392,42 @@ class MeasureRefusesInsteadOfGuessing(unittest.TestCase):
         этой подмены все сцены ниже упирались бы в «стенд не построен» — то
         есть проверяли бы не то звено, которое названо в их имени.
         """
-        real_stand, real_probe = census.build_stands, census.run_probe
-        try:
-            census.build_stands = lambda src, dest, day=None: (
-                {"s1": str(dest), "day": "-", "donor_day": "-"}, "")
-            census.run_probe = lambda *a, **k: (answer, why)
-            return census.measure(Path(ROOT) / "data", ROOT, now=_now())
-        finally:
-            census.build_stands, census.run_probe = real_stand, real_probe
+        # Дерево для осей РОДА и ОПЕРАНДА — маленькое и фиксированное (ARB 04.11, TRUTH01 release gate): вердикт
+        # этих сцен решают ТОЛЬКО строки ответа зонда (`finding_rows`/`readers_measured` считаются из `rows`
+        # до осей дерева), а перепись реального дерева (2540 модулей, ~70 с локально, до >180 с на раннере)
+        # делала цену теста функцией размера репозитория — первый тест класса платил её целиком и падал по
+        # таймауту на любом подросшем дереве (4 из 21 прогона main, 3 из 3 кандидата). Эквивалентность
+        # вердикта на реальном и маленьком дереве ИЗМЕРЕНА (QA_FINDINGS_MATRIX, раздел CI) и держится
+        # сторожем `test_tally_verdict_does_not_depend_on_the_tree` ниже; оси дерева проверяют свои тесты.
+        real_stand, real_probe, real_pop = census.build_stands, census.run_probe, census.population
+        with tempfile.TemporaryDirectory(prefix="census_tiny_tree_") as tmp:
+            tiny = Path(tmp)
+            (tiny / "m.py").write_text("X = 1\n", encoding="utf-8")
+            try:
+                census.build_stands = lambda src, dest, day=None: (
+                    {"s1": str(dest), "day": "-", "donor_day": "-"}, "")
+                census.run_probe = lambda *a, **k: (answer, why)
+                census.population = lambda root: (["m"], {"python_branch": 1})
+                return census.measure(Path(ROOT) / "data", tiny, now=_now())
+            finally:
+                census.build_stands, census.run_probe, census.population = real_stand, real_probe, real_pop
+
+    def test_tally_verdict_does_not_depend_on_the_tree(self):
+        """Сторож эквивалентности маленького дерева в `_with_stand`: поля вердикта `tally` одинаковы при любом
+        `tree_root`. Если вердикт когда-нибудь начнёт зависеть от осей дерева — этот тест краснеет первым,
+        и сценам выше снова понадобится реальное дерево."""
+        with tempfile.TemporaryDirectory(prefix="census_tiny_tree_") as tmp:
+            self._tally_equal_on(Path(tmp))
+
+    def _tally_equal_on(self, tiny: Path):
+        (tiny / "m.py").write_text("X = 1\n", encoding="utf-8")
+        for rows in ({"m": {"cause": "no_entry_point", "reason": "-"}},
+                     {"m": {"entry": "measure", "lists": [{"coord": ".a", "n": 2, "outcome": "named", "field": "code"}]}},
+                     {"m": {"entry": "measure", "lists": [{"coord": ".a", "n": 2, "outcome": "unnamed_candidate_outside",
+                                                          "candidates": ["label"]}]}}):
+            with_tree, without = census.tally(rows, tree_root=tiny), census.tally(rows)
+            for key in ("finding_rows", "readers_measured", "denominator_of_finding"):
+                self.assertEqual(with_tree[key], without[key], key)
 
     def test_probe_failure_is_unmeasured_not_clean(self):
         doc = self._with_stand(None, "зонд вышел кодом 1")
