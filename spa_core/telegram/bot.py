@@ -1981,7 +1981,10 @@ class TelegramBot:
 
             fixed = heal_buttonless(
                 lambda text, keyboard: self.send_message(
-                    text, parse_mode="HTML", reply_markup=keyboard)
+                    text, parse_mode="HTML", reply_markup=keyboard),
+                # C4: кнопки — правкой исходного сообщения, без второго сообщения в чате
+                edit=lambda mid, text, keyboard: self.edit_message_text(
+                    self.chat_id, mid, text, reply_markup=keyboard),
             )
             if fixed:
                 log.warning("дослал кнопки к %d решению(ям) владельца: %s",

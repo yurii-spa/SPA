@@ -1279,6 +1279,67 @@ def alert_lines(report, *, exclude_codes=()):
     return lines
 
 
+#: неизменный набор FAIL-кодов напоминается не чаще этого (часы); новый или изменившийся — сразу
+SITE_ALERT_REMINDER_H = 24.0
+SITE_ALERT_STATE = "site_custodian_alert_state.json"
+
+
+def _alert_state_path():
+    """Файл отпечатка тревоги — в живом data/ (та же дверь, что у журнала канала). В CI дерева живого
+    состояния нет ⇒ ``None``: там дедупа нет, как и раньше (остаток класса назван в QA_FINDINGS_MATRIX)."""
+    try:
+        from spa_core.utils.live_paths import live_data_dir
+        return Path(live_data_dir(_ROOT)) / SITE_ALERT_STATE
+    except Exception:  # noqa: BLE001 — CI без spa_core на sys.path
+        return None
+
+
+def _fail_fingerprint(report, exclude) -> str:
+    fails = report.get("fails")
+    if not isinstance(fails, list):
+        fails = report.get("failures") or []
+    keys = sorted({(str(f.get("code")), str(f.get("severity") or report.get("severity") or "FAIL"))
+                   for f in fails if f.get("code") not in exclude})
+    extra = ("degrade" if report.get("degrade_triggered") else "") + \
+            ("inert" if report.get("degrade_reaches_public") is False else "")
+    return json.dumps([keys, extra], ensure_ascii=False)
+
+
+def _unchanged_gate(report, exclude, *, now=None, path=None):
+    """``{"skip": bool, "prefix": str|None, "fingerprint", "path", "state"}`` — решает ТОЛЬКО про повтор."""
+    now = now or datetime.datetime.now(datetime.timezone.utc)
+    fp = _fail_fingerprint(report, exclude)
+    p = path if path is not None else _alert_state_path()
+    if p is None:
+        return {"skip": False, "prefix": None, "fingerprint": fp, "path": None}
+    try:
+        st = json.loads(Path(p).read_text(encoding="utf-8"))
+    except (OSError, ValueError):
+        st = {}
+    if st.get("fingerprint") == fp and st.get("last_sent_at"):
+        try:
+            last = datetime.datetime.fromisoformat(str(st["last_sent_at"]).replace("Z", "+00:00"))
+        except ValueError:
+            last = None
+        if last is not None and (now - last).total_seconds() < SITE_ALERT_REMINDER_H * 3600:
+            return {"skip": True, "fingerprint": fp, "path": p}
+        return {"skip": False, "prefix": f"🔁 напоминание: без изменений с {str(st.get('first_at'))[:16]}Z",
+                "fingerprint": fp, "path": p, "state": {**st, "last_sent_at": now.isoformat()}}
+    return {"skip": False, "prefix": None, "fingerprint": fp, "path": p,
+            "state": {"fingerprint": fp, "first_at": now.isoformat(), "last_sent_at": now.isoformat()}}
+
+
+def _unchanged_gate_commit(gate):
+    """Записать отпечаток ПОСЛЕ доставки (недоставленная тревога не должна заглушить следующую)."""
+    if gate.get("path") is None or not gate.get("state"):
+        return
+    try:
+        from spa_core.utils.atomic import atomic_save
+        atomic_save(gate["state"], str(gate["path"]))
+    except Exception:  # noqa: BLE001 — запись отпечатка не роняет доставку
+        pass
+
+
 def _alert(report):
     """Тревога Site Custodian владельцу — через ЕДИНСТВЕННЫЙ заслон канала.
 
@@ -1331,7 +1392,15 @@ def _alert(report):
     # (публично видно завышенное число) не уходила владельцу НИ РАЗУ.
     # Тест 09.08 этого не видел: он подменял сам `_alert` и проверял, что его ПОЗВАЛИ, —
     # тот же класс «сторож отвечает не на тот вопрос», только уровнем ниже.
+    # STUDIO-TRUTH-AND-OWNER-CONTROL-01 T14: тот же набор FAIL-кодов уходил КАЖДЫЕ 6 ч (113 сообщений за 41 день);
+    # метка времени в заголовке делала каждое сообщение «новым» для дедупа заслона. Отпечаток — набор
+    # (код, тяжесть) без времени и деталей: тот же набор молчит до напоминания, другой — уходит сразу.
+    gate = _unchanged_gate(report, exclude)
+    if gate.get("skip"):
+        return {"attempted": False, "reason": "unchanged_within_reminder", "fingerprint": gate.get("fingerprint")}
     msg = "\n".join(alert_lines(report, exclude_codes=exclude))
+    if gate.get("prefix"):
+        msg = gate["prefix"] + "\n" + msg
     # Владельцу — простым русским (owner-задание 2026-07-20, повторено 2026-08-04).
     # Перевод чисто текстовый: нераспознанная строка проходит вербатим, технический
     # detail сохраняется, сбой перевода отдаёт исходный текст (алерт обязан дойти).
@@ -1391,6 +1460,7 @@ def _alert(report):
                 except Exception:  # noqa: BLE001 — разбор тела best-effort
                     pass
             journaled = _journal(True, message_id=message_id)
+            _unchanged_gate_commit(gate)
             return {"attempted": True, "sent": True, "journaled": journaled,
                     "message_id": message_id, "off_journal_note": client is None}
         except Exception as e:

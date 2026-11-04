@@ -323,6 +323,11 @@ def typed_fleet(manifest: Optional[dict], launchctl_map: Optional[dict], agent_h
             extra.append(f"вне учёта (выведено, но запущено): {len(retired_loaded)}")
         if unknown_orphans:
             extra.append(f"вне учёта (не в манифесте): {len(unknown_orphans)}")
+        # находка F10/T12: предупреждение агента ВНЕ манифеста не исчезает из счёта «в норме N из N»
+        off_manifest_warn = sorted(lbl for lbl, a in ah_by_label.items()
+                                   if lbl not in declared_labels and (a or {}).get("status") in ("WARNING", "CRITICAL"))
+        if off_manifest_warn:
+            extra.append(f"с предупреждением вне манифеста: {len(off_manifest_warn)} ({', '.join(off_manifest_warn[:3])})")
         if paused_labels:
             extra.append(f"намеренно выключено владельцем: {len(paused_labels)}")
         suffix = ""

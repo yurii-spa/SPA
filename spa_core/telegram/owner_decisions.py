@@ -2266,6 +2266,9 @@ class Heal:
     options: List[ParsedOption] = field(default_factory=list)
     #: Досылка — подтверждение поручения, а не выбор варианта.
     ack: bool = False
+    #: id ИСХОДНОГО сообщения без кнопок (последнее из журнала): кнопки сначала пытаются
+    #: прикрепиться к нему правкой, а не новым сообщением (STUDIO-TRUTH-AND-OWNER-CONTROL-01 C4).
+    original_message_id: Optional[int] = None
 
 
 def _heal_prepare(path: Path, *, now: Optional[datetime],
@@ -2363,10 +2366,12 @@ def buttonless_pushes(
                 card, prep = got
         if prep.keyboard is None:
             continue  # обработчика всё ещё нет — чинить нечем, молчим
+        _mids = [m for m in (rec.get("message_ids") or []) if isinstance(m, int)]
         out.append(Heal(pid=prep.pid, card=str(path),
                         text=HEAL_PREFIX + "\n\n" + prep.text,
                         keyboard=prep.keyboard,
-                        options=list(prep.options), ack=prep.ack))
+                        options=list(prep.options), ack=prep.ack,
+                        original_message_id=_mids[-1] if _mids else None))
     return out
 
 
@@ -2547,6 +2552,7 @@ def mark_buttons_delivered(
 def heal_buttonless(
     send,
     *,
+    edit=None,
     now: Optional[datetime] = None,
     state_path: Optional[str | Path] = None,
     beacon_path: Optional[str | Path] = None,
@@ -2562,10 +2568,23 @@ def heal_buttonless(
     try:
         for heal in buttonless_pushes(now=now, state_path=state_path,
                                       beacon_path=beacon_path, limit=limit):
-            try:
-                ok = send(heal.text, heal.keyboard)
-            except Exception:  # noqa: BLE001 — одна неудача не прячет остальные
-                ok = None
+            ok = None
+            # C4: сначала прикрепить кнопки к ИСХОДНОМУ сообщению правкой (одно сообщение на вопрос);
+            # правка не удалась / id нет / ``edit`` не передан — прежний путь, новое сообщение.
+            if edit is not None and heal.original_message_id is not None:
+                try:
+                    res = edit(heal.original_message_id, heal.text, heal.keyboard)
+                    # бот возвращает развёрнутый result либо None; явный {"ok": False} — тоже провал
+                    ok = res if (res and not (isinstance(res, dict) and res.get("ok") is False)) else None
+                    if ok is not None and not message_id_of(ok):
+                        ok = {"ok": True, "result": {"message_id": heal.original_message_id}}
+                except Exception:  # noqa: BLE001
+                    ok = None
+            if ok is None:
+                try:
+                    ok = send(heal.text, heal.keyboard)
+                except Exception:  # noqa: BLE001 — одна неудача не прячет остальные
+                    ok = None
             if not ok:
                 continue  # не отправилось ⇒ отметку не ставим, попробуем в следующий раз
             if mark_buttons_delivered(heal.pid, message_id=message_id_of(ok),

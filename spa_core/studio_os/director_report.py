@@ -552,7 +552,10 @@ def render_summary(rep: dict) -> str:
     f = rep.get("fleet")
     works = []
     if f:
-        works.append(f"агенты {f['ok']}/{f['total']} в норме")
+        # находка T12/F10: знаменатель назван — это сторож agent_health (все com.spa.*), а не манифест
+        works.append(f"агенты по сторожу: в норме {f['ok']} из {f['total']}"
+                     + (f", предупр. {f['warning']}" if f.get("warning") else "")
+                     + (f", крит. {f['critical']}" if f.get("critical") else ""))
     svc = rep.get("services")
     if svc is not None:
         up = sum(1 for s in svc if s["running"])
@@ -743,8 +746,11 @@ def render_defi(rep: dict, short: bool = False) -> List[str]:
             continue
         dec = p.get("decision") if isinstance(p.get("decision"), dict) else {}
         mode = p.get("mode") if isinstance(p.get("mode"), dict) else {}
+        da_at = da.get("as_of") or da.get("observed_at") or da.get("last_ok_at")
+        # находка T08: «данные в норме» без даты — непроверяемое утверждение; дата замера рядом
         line = (f"• {name}: {_DEFI_WORD.get(w.get('state'), w.get('state'))} · "
-                f"{_DEFI_WORD.get(da.get('state'), da.get('state'))} · "
+                f"{_DEFI_WORD.get(da.get('state'), da.get('state'))}"
+                f"{(' (на ' + _hm(da_at) + ')') if da_at else ' (дата замера не передана)'} · "
                 f"{_DEFI_WORD.get(dec.get('state'), dec.get('state') or NOT_MEASURED)} · "
                 f"{_DEFI_WORD.get(h.get('state'), h.get('state'))} {h.get('valid_periods')} дн · "
                 f"{p.get('running_version')} · "
