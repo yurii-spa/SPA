@@ -13600,6 +13600,164 @@ def _probe_unfinished_work_class_population_named(
         f"(отвергнуто путей {len(refused)}, у каждого названа цена)")
 
 
+def _probe_literal_neighbour_class_declaration_holds(
+        arg: str | None = None, *, declaration=None,
+        module=None) -> tuple[str, str]:
+    """Критерий карточки `inbox-klass-literal-soseda-v-teste-zhivogo-zam`:
+    ОБЪЯВЛЕНИЕ класса «литерал соседа на ЖИВОМ корне» (ADR-919) держится.
+
+    Предмет — ИСХОД решения, а не «тест зелен». Класс мерит только
+    дифференциальный прогон `spa_core.tests._literal_neighbour_door
+    --differential` (две стороны по несколько минут плюс канарейка), и в
+    наборе, который обязан проходить за минуты, ему места нет. Поэтому проба
+    спрашивает не «каков класс сегодня», а «не развалилось ли ОБЪЯВЛЕНИЕ,
+    которым следующий цикл берёт сторону ДО бесплатно».
+
+    **Шесть вопросов**, и согласие нужно по всем. Первые четыре — про то, не
+    развалилось ли уже снятое; последние два — про РАБОТУ КАРТОЧКИ, и сегодня
+    они отвечены отрицательно НАМЕРЕННО: критерий объявлен ДО работы и мерит
+    её ИСХОД, а не факт существования объявления
+    (`.claude/rules/acceptance.md` п. 1 и п. 3).
+
+    1. объявление читается, схема та (пустой перечень членов НЕ есть ошибка:
+       «класс пуст» — законный ответ прибора, и доказывается он канарейкой
+       со сдвинутым населением, а не пустым файлом);
+    2. замер снят СЦЕНОЙ прибора, и его канарейка сдвинула население
+       (``delta >= 1``) — иначе объявление говорит о другом возмущении
+       (дословный урок ADR-898);
+    3. у каждого члена стои́т ``measured_in``, и каждый член ещё СУЩЕСТВУЕТ
+       в дереве (файл на месте, имя найдено РАЗБОРОМ, а не подстрокой);
+    4. потолок равен длине перечня, и ВТОРОЙ его копии в коде нет — своя
+       копия числа и есть счётный потолок, устаревающий на день доставки
+       (ADR-912);
+    5. объявление называет ТАКТ (`tact`): кто и как часто его перемеряет.
+       Без такта замер устареет МОЛЧА — ровно то, против чего весь ряд;
+    6. положительный контроль накрывает **КАЖДЫЙ** шаг ряда
+       `UNMEASURED_*_POPULATION`, а не только тот один, на котором бомба
+       собрана впервые. Перечень шагов читается У ПРОИЗВОДИТЕЛЯ
+       (`rule_second_copy_census`), не литералом: своя копия числа была бы
+       меркой, которой сторож мерит сам себя (ADR-913). Шаг, у которого
+       бомба не проверена, означает «членов 0 НЕ ИЗМЕРЕНО для него», а не
+       ответ.
+
+    Читатель объявления — ЕДИНСТВЕННЫЙ
+    (`spa_core.tests.test_literal_neighbour_class_ratchet.load_declaration` /
+    `verdict_for_member`): своя копия разбора здесь означала бы, что проба и
+    храповик судят РАЗНЫЕ файлы под одним именем.
+
+    Три исхода различимы (инв. #17): `unmeasured` — сторож не импортируется,
+    объявление не прочитано / не разбирается / чужая схема; `not_satisfied` —
+    хоть один вопрос отвечен отрицательно, и строка НАЗЫВАЕТ какой;
+    `satisfied` — все четыре, и печатаются ИЗМЕРЕННЫЕ числа.
+
+    `declaration` / `module` инъектируются ТОЛЬКО контрольной батареей: проба,
+    никогда не видевшая настоящей поломки, остаётся украшением
+    (`.claude/rules/acceptance.md` п. 3).
+    """
+    if module is None:
+        import importlib  # noqa: PLC0415
+        try:
+            module = importlib.import_module(
+                "spa_core.tests.test_literal_neighbour_class_ratchet")
+        except Exception as exc:  # noqa: BLE001 — третий исход, а не согласие
+            return UNMEASURED, (f"сторож объявления не импортируется: "
+                                f"{type(exc).__name__}: {exc}")
+
+    if declaration is None:
+        try:
+            declaration = module.load_declaration()
+        except Exception as exc:  # noqa: BLE001 — третий исход, а не согласие
+            return UNMEASURED, f"{type(exc).__name__}: {exc}"
+
+    members = declaration.get("members")
+    if not isinstance(members, list):
+        return UNMEASURED, ("в объявлении нет перечня `members` списком: "
+                            f"{type(members).__name__}")
+    surface = declaration.get("surface_files")
+    if not isinstance(surface, list):
+        return UNMEASURED, ("в объявлении нет перечня `surface_files` списком: "
+                            f"{type(surface).__name__}")
+
+    problems: list[str] = []
+
+    canary = declaration.get("canary") or {}
+    try:
+        delta = int(canary.get("delta"))
+    except (TypeError, ValueError):
+        return UNMEASURED, (f"канарейка замера не назвала сдвиг числом: "
+                            f"{canary!r}")
+    if delta < 1:
+        problems.append(f"канарейка замера НЕ сдвинула население (delta={delta}) "
+                        "— объявление говорит о другом возмущении")
+
+    naked = [m.get("nodeid", "<без имени>") for m in members
+             if not m.get("measured_in")]
+    if naked:
+        problems.append("член(ы) без поля `measured_in` (имя дописано рукой, "
+                        f"а не измерено): {', '.join(sorted(naked))}")
+
+    broken: list[str] = []
+    for m in members:
+        try:
+            got, detail = module.verdict_for_member(m)
+        except Exception as exc:  # noqa: BLE001 — третий исход, а не согласие
+            return UNMEASURED, (f"разбор члена не удался: "
+                                f"{type(exc).__name__}: {exc}")
+        if got != module.PRESENT:
+            broken.append(f"[{got}] {detail}")
+    if broken:
+        problems.append("объявление разошлось с деревом: " + " · ".join(broken))
+
+    bound = declaration.get("upper_bound")
+    if bound != len(members):
+        problems.append(f"объявленная граница {bound!r} не равна длине перечня "
+                        f"{len(members)}")
+    if declaration.get("surface_count") != len(surface):
+        problems.append(f"объявленная поверхность {declaration.get('surface_count')!r} "
+                        f"не равна длине перечня {len(surface)}")
+
+    tact = declaration.get("tact")
+    if not (isinstance(tact, dict) and str(tact.get("reader") or "").strip()
+            and tact.get("max_age_h")):
+        problems.append("объявление не называет ТАКТ (`tact.reader` + "
+                        "`tact.max_age_h`): замер устареет МОЛЧА")
+
+    try:
+        import importlib  # noqa: PLC0415
+        census = importlib.import_module(
+            "spa_core.monitoring.rule_second_copy_census")
+    except Exception as exc:  # noqa: BLE001 — третий исход, а не согласие
+        return UNMEASURED, (f"перечень шагов ряда не прочитан у производителя: "
+                            f"{type(exc).__name__}: {exc}")
+    row = sorted(n for n in dir(census)
+                 if n.startswith("UNMEASURED_") and n.endswith("_POPULATION"))
+    if not row:
+        return UNMEASURED, ("у производителя нет ни одного шага ряда "
+                            "`UNMEASURED_*_POPULATION` — перечень не прочитан, "
+                            "а не пуст")
+    covered = ((declaration.get("positive_control") or {}).get("steps_covered")
+               or [])
+    if not isinstance(covered, list):
+        return UNMEASURED, (f"`positive_control.steps_covered` не список: "
+                            f"{type(covered).__name__}")
+    uncovered = [n for n in row if n not in covered]
+    if uncovered:
+        problems.append(f"бомба проверена не у всех шагов ряда: накрыто "
+                        f"{len(covered)} из {len(row)}, без контроля "
+                        f"{', '.join(uncovered[:4])}"
+                        f"{' …' if len(uncovered) > 4 else ''}")
+
+    if problems:
+        return NOT_SATISFIED, " · ".join(problems)
+    return SATISFIED, (
+        f"объявление держится и работа карточки сделана: поверхность "
+        f"{len(surface)} файл(ов), членов {len(members)} при границе {bound}, "
+        f"канарейка сдвинула население на {delta}, бомба накрывает {len(row)} "
+        f"шаг(ов) ряда, такт — {tact.get('reader')} при пределе "
+        f"{tact.get('max_age_h')} ч; замер {declaration.get('measured_at')} на "
+        f"{str(declaration.get('sha'))[:12]}")
+
+
 def _probe_tree_content_class_declaration_holds(
         arg: str | None = None, *, declaration=None,
         module=None) -> tuple[str, str]:
@@ -16559,6 +16717,8 @@ PROBES: dict[str, Callable[[str | None], "tuple[str, str]"]] = {
     "fixture_gap_class_is_empty": _probe_fixture_gap_class_is_empty,
     "tree_content_class_declaration_holds":
         _probe_tree_content_class_declaration_holds,
+    "literal_neighbour_class_declaration_holds":
+        _probe_literal_neighbour_class_declaration_holds,
     "unfinished_work_class_population_named":
         _probe_unfinished_work_class_population_named,
     "answer_list_order_names_its_caller":
