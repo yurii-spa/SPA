@@ -1,0 +1,8 @@
+runs 795 from 2026-10-02 00:55:51 to 2026-11-04 23:02:55
+morpho_ok true 761 false 34
+interval h: median 1.00 max 11.24; gaps >2h: 4
+missing reasons [('collateral share price', 7), ('oracle price', 6), ('borrow APY sources disagree (8.288 vs 4.197 pp)', 1), ('borrow APY sources disagree (4.204 vs 8.287 pp)', 1), ('market params', 1), ('market state', 1)]
+implied USDe/PYUSD: n=782 min 0.994499 max 0.999997 last 0.999573
+actions [('None', 761), ('none — inputs unmeasured (borrow APY sou', 21), ('none — inputs unmeasured (collateral sha', 6), ('none — inputs unmeasured (oracle price: ', 6), ('none — inputs unmeasured (market params:', 1)]
+longest unmeasured streak (runs): 11
+keys sample ['slot', 'book', 'run_ts', 'strategy_version', 'experiment_id', 'accounting_row', 'equity_usd', 'floating_equity_usd', 'loop_status', 'loop_valuation']
