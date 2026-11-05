@@ -1,0 +1,74 @@
+{
+ "title": "ADR-926 OFFICE-PRICE — дельта цикла #1039: цена КАЖДОГО сегмента шага 0-офис снимается монотонными часами, печатается поимённо выше порога, остаток такта назван отдельным слагаемым; обёрнутость переписей мерится паритетом с исходником (AST), три исхода различимы",
+ "tests": [
+  "spa_core/tests/test_office_census_price.py"
+ ],
+ "mutations": [
+  {
+   "name": "обёртка часов СНЯТА у крупнейшего вклада (membership_reach_census, 11 из 37 семплов) — перепись завёрнута в `if True:` и выпадает из знаменателя",
+   "file": "scripts/consume_office_reports.py",
+   "old": "    with _SEG.timed(\"односторонность правила принадлежности §49 (ADR-529, заказ G87 п. \"\n                    \"2)\"):",
+   "new": "    if True:"
+  },
+  {
+   "name": "цена ИЗМЕРЕНА и ВЫБРОШЕНА: строки не печатаются (состояние main до ADR-926)",
+   "file": "scripts/consume_office_reports.py",
+   "old": "    for _ln in segment_price_lines(_SEG, blocks=census_block_census()):\n        print(_ln)",
+   "new": "    segment_price_lines(_SEG, blocks=census_block_census())"
+  },
+  {
+   "name": "сегмент без цены объявлен бесплатным: «БЕЗ ЦЕНЫ ещё N» исчезает (инв. #17 наизнанку)",
+   "file": "scripts/consume_office_reports.py",
+   "old": "    blind = len(rows) - len(priced)",
+   "new": "    blind = 0"
+  },
+  {
+   "name": "граница порога стала ИСКЛЮЧАЮЩЕЙ — сегмент ровно в порог молчит",
+   "file": "scripts/consume_office_reports.py",
+   "old": "    loud = sorted((r for r in priced if float(r[\"seconds\"]) >= CENSUS_PRICE_LOUD_S),",
+   "new": "    loud = sorted((r for r in priced if float(r[\"seconds\"]) > CENSUS_PRICE_LOUD_S),"
+  },
+  {
+   "name": "доля мерится СУММОЙ НАЗВАННЫХ, а не полным тактом — доли всегда сложатся в 100 % и спрячут остаток",
+   "file": "scripts/consume_office_reports.py",
+   "old": "        share = 100.0 * float(r[\"seconds\"]) / total_tact if total_tact else 0.0",
+   "new": "        share = 100.0 * float(r[\"seconds\"]) / named if named else 0.0"
+  },
+  {
+   "name": "нулевой остаток такта МОЛЧИТ: «такт разложен ПОЛНОСТЬЮ» неотличимо от «остаток не считали»",
+   "file": "scripts/consume_office_reports.py",
+   "old": "    if rest < 0.05:",
+   "new": "    if False:"
+  },
+  {
+   "name": "пустой журнал отдаёт ПУСТО вместо НЕ ИЗМЕРЕНО — молчание читается как «шаг бесплатен»",
+   "file": "scripts/consume_office_reports.py",
+   "old": "    if not rows:\n        return [f\"   [{_UNMEASURED}] цена сегментов: журнал пуст — ни один \"\n                f\"сегмент не обёрнут часами. Это НЕ «шаг бесплатен»\"]",
+   "new": "    if not rows:\n        return []"
+  },
+  {
+   "name": "цена ПАДЕНИЯ теряется: упавший сегмент выходит без секунд и без метки",
+   "file": "scripts/consume_office_reports.py",
+   "old": "        except BaseException as exc:  # noqa: BLE001 — цена падения тоже цена\n            row[\"seconds\"] = round(self._clock() - t0, 1)\n            row[\"raised\"] = type(exc).__name__\n            raise",
+   "new": "        except BaseException:  # noqa: BLE001\n            raise"
+  },
+  {
+   "name": "ЛЮБОЙ `with` признан часами — обёрнутым объявляется то, что не измеряется",
+   "file": "scripts/consume_office_reports.py",
+   "old": "    if not isinstance(node, ast.With):\n        return False\n    for item in node.items:",
+   "new": "    if not isinstance(node, ast.With):\n        return False\n    return True\n    for item in node.items:"
+  },
+  {
+   "name": "неразобранный исходник выдаётся за «объявлений нет» вместо третьего исхода",
+   "file": "scripts/consume_office_reports.py",
+   "old": "    except Exception:  # noqa: BLE001\n        return None\n    for node in tree.body:\n        if not (isinstance(node, ast.FunctionDef) and node.name == \"main\"):",
+   "new": "    except Exception:  # noqa: BLE001\n        return {\"path\": path, \"declared\": 0, \"clocked\": [], \"unclocked\": []}\n    for node in tree.body:\n        if not (isinstance(node, ast.FunctionDef) and node.name == \"main\"):"
+  },
+  {
+   "name": "обход снова ПОВЕРХНОСТНЫЙ: перепись внутри чужого блока исчезает из обоих списков",
+   "file": "scripts/consume_office_reports.py",
+   "old": "                for field in (\"body\", \"orelse\", \"finalbody\"):\n                    _walk(getattr(st, field, []) or [], here)\n                for handler in getattr(st, \"handlers\", []) or []:\n                    _walk(handler.body or [], here)",
+   "new": "                if _is_timed_with(st):\n                    for inner in st.body:\n                        _walk([inner], True)"
+  }
+ ]
+}

@@ -1,0 +1,64 @@
+{
+ "title": "ADR-926 CONTENT-DOOR — дельта цикла #1039: четвёртая дверь переписи сирот спрашивает о БАЙТАХ («содержимое доставлено ИНЫМ путём»); три исхода различимы, «НЕ ИЗМЕРЕНО» доставленным не считается, решение доходит до кода возврата",
+ "tests": [
+  "spa_core/tests/test_orphan_sweep_content.py",
+  "spa_core/tests/test_orphan_sweep.py",
+  "spa_core/tests/test_orphan_sweep_flight.py"
+ ],
+ "mutations": [
+  {
+   "name": "четвёртая дверь НЕ ДОХОДИТ до кода возврата — следующий цикл снова зовут поднимать доставленное (состояние прибора до ADR-926)",
+   "file": "spa_core/monitoring/orphan_sweep.py",
+   "old": "    return 1 if doc[\"fresh_to_raise\"] else 0",
+   "new": "    return 1 if doc[\"fresh_candidates\"] else 0"
+  },
+  {
+   "name": "расхождение байтов объявлено доставкой: один непохожий путь больше не держит кандидата",
+   "file": "spa_core/monitoring/orphan_sweep.py",
+   "old": "    if counts[\"differs\"] or counts[\"absent_on_ref\"]:",
+   "new": "    if False:"
+  },
+  {
+   "name": "«пути на ref нет вовсе» склеено с «есть, но другой» — теряется самый частый вид настоящей сироты",
+   "file": "spa_core/monitoring/orphan_sweep.py",
+   "old": "            if why_theirs == \"absent\":\n                per[\"absent_on_ref\"].append(rel)\n            else:\n                per[\"unmeasured\"].append(f\"{rel}: на {ref} {why_theirs}\")",
+   "new": "            per[\"differs\"].append(rel)"
+  },
+  {
+   "name": "НЕ ИЗМЕРЕНО идёт за доставку (инв. #17 наизнанку): непрочитанный путь больше не держит кандидата",
+   "file": "spa_core/monitoring/orphan_sweep.py",
+   "old": "    if counts[\"unmeasured\"]:\n        return {**door, \"state\": \"unmeasured\", \"paths\": counts,",
+   "new": "    if False:\n        return {**door, \"state\": \"unmeasured\", \"paths\": counts,"
+  },
+  {
+   "name": "коммиты, не тронувшие ни одного пути, объявлены доставленными — пустота читается как работа на main",
+   "file": "spa_core/monitoring/orphan_sweep.py",
+   "old": "    if not paths:\n        return {**door, \"state\": \"unmeasured\",\n                \"reason\": (\"невлитые коммиты не тронули НИ ОДНОГО пути — о байтах \"\n                           \"спрашивать нечего, и «доставлено» из этого не следует\"),\n                \"paths\": {}}",
+   "new": "    if not paths:\n        return {**door, \"state\": \"delivered\", \"reason\": \"путей нет\", \"paths\": {}}"
+  },
+  {
+   "name": "молчание git'а о пути выдано за «пути нет» — недочитанное дерево объявляется доставленным",
+   "file": "spa_core/monitoring/orphan_sweep.py",
+   "old": "    code, out = _git(repo, \"ls-tree\", rev, \"--\", path)\n    if code != 0:\n        return None, f\"git не ответил о {path} в {rev}: код {code}\"",
+   "new": "    code, out = _git(repo, \"ls-tree\", rev, \"--\", path)\n    if code != 0:\n        return None, \"absent\""
+  },
+  {
+   "name": "о `ref` спрашивают РАБОЧИЙ клон вместо полного (ADR-918) — усечённый отвечает молча и неверно",
+   "file": "spa_core/monitoring/orphan_sweep.py",
+   "old": "        theirs, why_theirs = _blob(lineage, ref, rel)",
+   "new": "        theirs, why_theirs = _blob(Path(tree), ref, rel)"
+  },
+  {
+   "name": "отсутствие базы объявлено доставкой — спросить было нечем, а ответ дан",
+   "file": "spa_core/monitoring/orphan_sweep.py",
+   "old": "    if not base or not head:\n        return {**door, \"state\": \"unmeasured\",",
+   "new": "    if not base or not head:\n        return {**door, \"state\": \"delivered\","
+  },
+  {
+   "name": "строка отчёта о содержимом СНЯТА — вердикт живёт только в поле json",
+   "file": "spa_core/monitoring/orphan_sweep.py",
+   "old": "        lines.append(f\"      содержимое ({r.get('content')}): {r.get('content_reason')}\")",
+   "new": "        pass"
+  }
+ ]
+}

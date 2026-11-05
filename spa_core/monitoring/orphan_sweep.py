@@ -231,6 +231,41 @@ FLIGHT_STATES = ("in_flight", "unmeasured")
 #: слепую дверь источником вердикта.
 DOOR_STATES = ("affirms", "silent", "blind")
 
+# ── ЧЕТВЁРТАЯ ДВЕРЬ: «содержимое доставлено ИНЫМ ПУТЁМ» (заказ G913 п. 2) ──
+#
+# Три двери выше спрашивают о КОММИТЕ («уезжал ли он»), о РАЗМЕРЕ работы и о
+# ЧЕЛОВЕКЕ за деревом. Ни одна не умеет спросить о БАЙТАХ, и у этой слепоты
+# есть живой предмет, найденный самим прибором.
+#
+# Замер #1038 поднял `~/Documents/SPA_worktrees/yield01` ФАЙЛАМИ: 21 файл,
+# 1646 строк, только добавления. Доставка шла файлами, а не `cherry-pick`, —
+# значит БАЙТЫ на `origin/main` есть, а КОММИТОВ дерева там нет и не будет
+# никогда. Прибор #1039 назвал то же дерево кандидатом СНОВА, и был прав по
+# своей мерке и неверен по предмету: поднимать там нечего.
+#
+# Цена молчания — не лишняя строка отчёта, а приглашение к ОШИБКЕ: заказ
+# следующему циклу велит «поднять кандидата», а подъём уже доставленного есть
+# либо пустой пуш, либо — если база дерева отстала — доставка УДАЛЕНИЙ под
+# видом работы (от вершины те же коммиты выглядят как −3298 строк, замер #1038).
+#
+# Вопрос измерим дёшево и без сети: совпадают ли блобы путей, добавленных
+# невлитыми коммитами, с блобами на `ref` у ПОЛНОГО клона.
+
+#: Исходы четвёртой двери. Перечень ЗАМКНУТ.
+#:
+#: ``delivered`` — у КАЖДОГО пути байты на `ref` совпали: дерево не сирота.
+#: ``pending`` — хоть один путь расходится или на `ref` отсутствует: кандидат
+#: настоящий. ``unmeasured`` — спросить не вышло (базы нет, git не ответил,
+#: невлитые коммиты не тронули ни одного пути), и это ТРЕТИЙ исход, а не
+#: «доставлено»: ошибаться обязано в сторону ОТКАЗА считать работу доставленной.
+CONTENT_STATES = ("delivered", "pending", "unmeasured")
+
+#: Исходы ОДНОГО пути. ``absent_on_ref`` держится отдельно от ``differs``
+#: намеренно: «на `ref` этого файла нет вовсе» и «есть, но другой» —
+#: разные состояния, и склеить их значило бы потерять самый частый вид
+#: настоящей сироты (новый файл, которого на `main` нет).
+PATH_STATES = ("same", "differs", "absent_on_ref", "unmeasured")
+
 #: Журнал объявлений — единственная дверь к живости сессии (`CLAUDE.md`,
 #: шаги 0a/0b). Он живёт в ДАННЫХ переписываемого клона, а правило живости — в
 #: КОДЕ своего дерева: это два разных вопроса к двум разным деревьям, и путать
@@ -460,6 +495,94 @@ def declaration_door(tree: str, entries: Optional[Sequence[dict]], cuw,
                        f"брошенность этим НЕ доказана")}
 
 
+def _blob(repo: Path, rev: str, path: str) -> tuple[Optional[str], Optional[str]]:
+    """Блоб пути в ревизии. `(sha, None)` · `(None, "absent")` · `(None, причина)`.
+
+    Спрашивается `ls-tree`, а НЕ `rev-parse <rev>:<path>`, и это не вкус:
+    `rev-parse` отвечает кодом **128** И на «такого пути в этой ревизии нет»,
+    И на «это не репозиторий», И на «нет такой ревизии». Склеив их, дверь
+    объявила бы НЕПРОЧИТАННОЕ дерево доставленным — ровно fail-OPEN, против
+    которого написан инв. #17. `ls-tree` различает три исхода сам: код 0 с
+    выводом · код 0 с ПУСТЫМ выводом (пути нет) · ненулевой код (не ответил).
+    """
+    code, out = _git(repo, "ls-tree", rev, "--", path)
+    if code != 0:
+        return None, f"git не ответил о {path} в {rev}: код {code}"
+    line = out.strip()
+    if not line:
+        return None, "absent"
+    parts = line.split()
+    if len(parts) < 3:
+        return None, f"git ответил о {path} формой, которой нет в объявлении: {line[:60]!r}"
+    return parts[2], None
+
+
+def content_door(tree: str, lineage: Path, ref: str, *,
+                 base: Optional[str], head: Optional[str]) -> dict:
+    """Доставлено ли СОДЕРЖИМОЕ невлитых коммитов ИНЫМ путём.
+
+    Вопрос СВОЙ и к трём соседним дверям не сводится: они отвечают о коммите, о
+    размере работы и о живости автора, а этот — о БАЙТАХ. Дерево, чьи файлы
+    уже лежат на `ref` (доставлены файлами, а не `cherry-pick`), кандидатом не
+    является, сколько бы невлитых коммитов оно ни несло.
+
+    Ссылка `ref` спрашивается у ПОЛНОГО клона (ADR-918): усечённый отвечает о
+    родословной молча и неверно, и «пути на `main` нет» он сказал бы о половине
+    репозитория.
+    """
+    door = {"door": "content"}
+    if not base or not head:
+        return {**door, "state": "unmeasured",
+                "reason": ("база невлитых коммитов НЕ ИЗМЕРЕНА — спросить о байтах "
+                           "нечем (это НЕ «доставлено»)"),
+                "paths": {}}
+    code, out = _git(Path(tree), "diff", "--name-only", base, head)
+    if code != 0:
+        return {**door, "state": "unmeasured",
+                "reason": f"git не перечислил пути {base[:9]}..{head[:9]}: код {code}",
+                "paths": {}}
+    paths = [ln.strip() for ln in out.splitlines() if ln.strip()]
+    if not paths:
+        return {**door, "state": "unmeasured",
+                "reason": ("невлитые коммиты не тронули НИ ОДНОГО пути — о байтах "
+                           "спрашивать нечего, и «доставлено» из этого не следует"),
+                "paths": {}}
+    per = {s: [] for s in PATH_STATES}
+    for rel in paths:
+        mine, why_mine = _blob(Path(tree), head, rel)
+        if mine is None:
+            per["unmeasured"].append(f"{rel}: в дереве {why_mine}")
+            continue
+        theirs, why_theirs = _blob(lineage, ref, rel)
+        if theirs is None:
+            if why_theirs == "absent":
+                per["absent_on_ref"].append(rel)
+            else:
+                per["unmeasured"].append(f"{rel}: на {ref} {why_theirs}")
+            continue
+        (per["same"] if mine == theirs else per["differs"]).append(rel)
+    counts = {s: len(per[s]) for s in PATH_STATES}
+    assert sum(counts.values()) == len(paths), "учёт путей не сошёлся"
+    if counts["unmeasured"]:
+        return {**door, "state": "unmeasured", "paths": counts,
+                "reason": (f"о {counts['unmeasured']} пут(и) из {len(paths)} байты НЕ "
+                           f"ИЗМЕРЕНЫ ({per['unmeasured'][0]}) — «доставлено» не "
+                           f"утверждается"),
+                "examples": per["unmeasured"][:3]}
+    if counts["differs"] or counts["absent_on_ref"]:
+        example = (per["differs"] or per["absent_on_ref"])[0]
+        return {**door, "state": "pending", "paths": counts,
+                "reason": (f"на {ref} расходится {counts['differs']} и отсутствует "
+                           f"{counts['absent_on_ref']} пут(и) из {len(paths)} "
+                           f"(например {example}) — кандидат НАСТОЯЩИЙ"),
+                "examples": (per["differs"] + per["absent_on_ref"])[:3]}
+    return {**door, "state": "delivered", "paths": counts,
+            "reason": (f"все {counts['same']} пут(и) невлитых коммитов побайтово "
+                       f"СОВПАЛИ с {ref} — содержимое доставлено ИНЫМ путём, "
+                       f"поднимать нечего"),
+            "examples": per["same"][:3]}
+
+
 def flight_verdict(doors: Sequence[dict]) -> dict:
     """Свести ответы дверей в один исход. «Брошена» не возвращается НИКОГДА.
 
@@ -666,9 +789,24 @@ def sweep(repo_root: str | Path = _REPO_ROOT, *, ref: str = REF_DEFAULT,
             movement_door(row["tree"], row.get("head"), previous, previous_blind_reason),
         ]
         row.update(flight_verdict(doors))
+        # Четвёртая дверь (заказ G913 п. 2) — о БАЙТАХ, и она ОТДЕЛЬНАЯ от
+        # полёта: «кто-то работает» и «работа уже на `ref`» — разные причины
+        # не поднимать, и склеить их значило бы не отличить живого автора от
+        # доставленной работы.
+        cd = content_door(row["tree"], lineage, ref,
+                          base=row.get("base"), head=row.get("head"))
+        if cd["state"] not in CONTENT_STATES:  # перечень замкнут
+            raise Unmeasured(f"исход четвёртой двери вне перечня: {cd['state']!r}")
+        row["content"] = cd["state"]
+        row["content_reason"] = cd.get("reason")
+        row["content_paths"] = cd.get("paths") or {}
+        row["content_examples"] = cd.get("examples") or []
     flight_tally = {s: sum(1 for r in candidates if r.get("flight") == s)
                     for s in FLIGHT_STATES}
     assert sum(flight_tally.values()) == len(candidates), "учёт полёта не сошёлся"
+    content_tally = {s: sum(1 for r in candidates if r.get("content") == s)
+                     for s in CONTENT_STATES}
+    assert sum(content_tally.values()) == len(candidates), "учёт содержимого не сошёлся"
 
     fresh = [r for r in candidates
              if r.get("base_lag_state") == "measured"
@@ -682,6 +820,13 @@ def sweep(repo_root: str | Path = _REPO_ROOT, *, ref: str = REF_DEFAULT,
                 r for r in candidates if r.get("span_state") == "measured"],
             "fresh_candidates": fresh,
             "flight_tally": flight_tally,
+            "content_tally": content_tally,
+            # Что реально ПРЕДЛАГАЕТСЯ поднять: свежие кандидаты, у которых
+            # содержимое НЕ доставлено иным путём. Дерево с `delivered`
+            # остаётся в `fresh_candidates` намеренно — замер его видел, — но
+            # в заказ следующему циклу не попадает.
+            "fresh_delivered": [r for r in fresh if r.get("content") == "delivered"],
+            "fresh_to_raise": [r for r in fresh if r.get("content") != "delivered"],
             "journal": str(journal_path),
             "previous_generated_at": (previous or {}).get("generated_at"),
             "previous_blind_reason": None if previous else (
@@ -708,10 +853,17 @@ def report(doc: dict) -> list[str]:
                  f"{len(measured)}, база СВЕЖАЯ (отстаёт ≤ "
                  f"{doc['fresh_base_lag_max']}) у {len(fresh)}")
     for r in sorted(fresh, key=lambda x: x["span"]):
-        head = ("🛫 НЕ ПОДНИМАТЬ (В ПОЛЁТЕ)" if r.get("flight") == "in_flight"
-                else "🔶 ПОДНЯТЬ")
+        if r.get("content") == "delivered":
+            head = "✅ НЕ ПОДНИМАТЬ (СОДЕРЖИМОЕ УЖЕ ДОСТАВЛЕНО)"
+        elif r.get("flight") == "in_flight":
+            head = "🛫 НЕ ПОДНИМАТЬ (В ПОЛЁТЕ)"
+        else:
+            head = "🔶 ПОДНЯТЬ"
         lines.append(f"   {head}: {r['tree']} · {r['head'][:9]} · пролёт {r['span']} "
                      f"коммит(ов) · база отстаёт {r['base_lag']} · грязных файлов {r['dirty']}")
+        # Четвёртая дверь печатается ВСЕГДА: «байты сверены и совпали» и «байты
+        # не сверялись» обязаны выглядеть по-разному (инв. #17).
+        lines.append(f"      содержимое ({r.get('content')}): {r.get('content_reason')}")
         if r.get("flight") == "in_flight":
             lines.append(f"      улика работы ({', '.join(r.get('flight_evidence') or ())}): "
                          f"{r.get('flight_reason')}")
@@ -730,6 +882,14 @@ def report(doc: dict) -> list[str]:
             lines.append(f"   ▫️ пролёт НЕ ИЗМЕРЕН: {r['tree']} · {r.get('reason', '')[:90]}")
     if not fresh:
         lines.append("   ✅ поднимать нечего: ни одного кандидата со свежей базой")
+    elif not doc.get("fresh_to_raise"):
+        lines.append(f"   ✅ поднимать нечего: все {len(fresh)} свежих кандидат(а) "
+                     f"несут содержимое, УЖЕ доставленное на {doc['ref']} иным путём")
+    ct = doc.get("content_tally")
+    if ct:
+        lines.append("   содержимое у кандидатов: "
+                     + " · ".join(f"{k} {ct.get(k, 0)}" for k in CONTENT_STATES)
+                     + " — «НЕ ИЗМЕРЕНО» доставленным не считается")
     ft = doc.get("flight_tally")
     if ft:
         lines.append("   полёт у кандидатов: " + " · ".join(f"{k} {ft.get(k, 0)}" for k in FLIGHT_STATES)
@@ -819,7 +979,10 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
         print("\n".join(report(doc)))
     if doc.get("state") != "measured":
         return 2
-    return 1 if doc["fresh_candidates"] else 0
+    # Код 1 обязан значить «есть что поднимать», а не «есть кандидат по
+    # родословной»: дерево, чьи БАЙТЫ уже на `ref`, звало бы следующий цикл
+    # поднимать пустоту — и звало, пока дверь содержимого не появилась.
+    return 1 if doc["fresh_to_raise"] else 0
 
 
 if __name__ == "__main__":

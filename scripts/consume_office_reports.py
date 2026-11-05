@@ -34,12 +34,14 @@ from __future__ import annotations
 import argparse
 import ast
 import collections
+import contextlib
 import datetime as dt
 import json
 import os
 import re
 import subprocess
 import sys
+import time
 
 _HERE = os.path.dirname(os.path.abspath(__file__))
 REPO_ROOT = os.path.dirname(_HERE)
@@ -53,6 +55,209 @@ CONSUMER = "orchestrator_protocol"
 STALE_HOURS = 24.0
 
 _UNMEASURED = "НЕ ИЗМЕРЕНО"
+
+# ── ЦЕНА СЕГМЕНТОВ ШАГА 0-ОФИС (ADR-926, заказ G913 п. 3) ────────────────────
+#
+# Вопрос, на который отвечает этот аппарат: **из чего складывается такт шага
+# 0-офис**. Четыре наблюдения цены подряд — 1022 · 1086 · ≥960 · 1120,3 с, —
+# и три из четырёх снимались СЕКУНДОМЕРОМ СНАРУЖИ, который по построению не
+# умеет назвать СОСТАВ: он видит только итог. Семплирующий зонд цикла #1038
+# назвал состав за 60 с и нашёл главное: **30 из 37 семплов (≈81 %, ≈910 с) —
+# СОБСТВЕННЫЕ переписи этого шага**, а не пробы приёмки внутри `audit()`
+# (7 из 37, ≈19 %; их цену назвал ADR-925 внутри `card_acceptance`).
+# Крупнейший одиночный вклад — `membership_reach_census`, 11 из 37 (≈330 с).
+#
+# Поэтому цена снимается ЗДЕСЬ, у каждого сегмента, а не чужим зондом и не
+# секундомером: зонд надо не забыть запустить, а секундомер четыре раза подряд
+# не смог ответить на вопрос, ради которого его брали.
+#
+# Часы МОНОТОННЫЕ намеренно: стенные прыгают от NTP, и отрицательная «цена»
+# выглядела бы как находка о проводке (тот же выбор, что у ADR-925).
+
+# Порог, выше которого сегмент НАЗЫВАЕТСЯ поимённо. Не вкус: шаг печатает 87 %
+# своих строк за первые 6 с, а остаток такта — ~1016 с (замеры #1034/#1036/
+# #1037), то есть предмет вопроса живёт в десятках секунд и выше. Порог общий с
+# `card_acceptance.PROBE_PRICE_LOUD_S` намеренно: одно и то же слово «дорого» в
+# двух отчётах одного шага обязано значить одно и то же.
+CENSUS_PRICE_LOUD_S = 30.0
+
+
+class SegmentLedger:
+    """Журнал цены сегментов одного прогона шага 0-офис.
+
+    Часы — ВХОД, а не окружение (`.claude/rules/deployment.md`, приём №1):
+    тест передаёт свои и закрепляет обе стороны сравнения, боевой путь берёт
+    `time.monotonic`.
+
+    `seconds is None` — ТРЕТИЙ ИСХОД (инв. #17): сегмент НАЧАЛСЯ и не
+    завершился. Нулём это не считается и «бесплатно» не читается.
+    """
+
+    def __init__(self, clock=None):
+        self._clock = clock or time.monotonic
+        self.rows: list[dict] = []
+        self._t_open = self._clock()
+
+    @contextlib.contextmanager
+    def timed(self, name: str, *, kind: str = "census"):
+        row = {"segment": name, "kind": kind, "seconds": None, "raised": None}
+        self.rows.append(row)
+        t0 = self._clock()
+        try:
+            yield row
+        except BaseException as exc:  # noqa: BLE001 — цена падения тоже цена
+            row["seconds"] = round(self._clock() - t0, 1)
+            row["raised"] = type(exc).__name__
+            raise
+        else:
+            row["seconds"] = round(self._clock() - t0, 1)
+
+    def elapsed(self) -> float:
+        """Полный такт шага с момента создания журнала."""
+        return round(self._clock() - self._t_open, 1)
+
+
+def _is_timed_with(node: ast.stmt) -> bool:
+    """`with _SEG.timed(...)` — и только он. Проверка по ФОРМЕ ВЫЗОВА, а не по
+    подстроке (ADR-333): комментарий со словом `timed` обёрткой не является."""
+    if not isinstance(node, ast.With):
+        return False
+    for item in node.items:
+        call = item.context_expr
+        if (isinstance(call, ast.Call)
+                and isinstance(call.func, ast.Attribute)
+                and call.func.attr == "timed"
+                and isinstance(call.func.value, ast.Name)
+                and call.func.value.id == "_SEG"):
+            return True
+    return False
+
+
+def census_block_census(path: str | None = None) -> dict | None:
+    """Сколько переписей ОБЪЯВЛЕНО в `main()` и сколько из них обёрнуто часами.
+
+    Число берётся ПАРИТЕТОМ С ИСХОДНИКОМ (AST своего же файла), а не литералом
+    рядом: литерал был бы меркой, которой сторож мерит сам себя, — ровно тот
+    дефект, который измерен у счётных потолков (`CALLER_SUPPLIED_MAX` приехал
+    на `main` в дерево, где замер уже был другим).
+
+    Объявлением считается ЛЮБОЙ `try`-блок внутри `main()` — такую форму имеет
+    каждая перепись этого шага. Новая перепись, добавленная без часов, попадает
+    в `unclocked` НОМЕРОМ СТРОКИ и обязана быть названа вслух, а не пропущена
+    молча.
+
+    **Глубина обхода — не вкус, а закрытая слепота.** Первая редакция считала
+    только `try` на ВЕРХНЕМ уровне тела `main()`, и у такой мерки была дыра
+    ровно в ту сторону, против которой она написана: перепись, завёрнутая в
+    любой другой блок (`if True:`, `for`, чужой `with`), выпадала из обоих
+    списков — ни «обёрнута», ни «без часов», а просто ИСЧЕЗАЛА из знаменателя.
+    Мутация «заменить обёртку часов на `if True:`» пережила бы такую мерку
+    молча. Теперь обход идёт по всему телу, а «обёрнута» значит «у блока ЕСТЬ
+    предок-обёртка `with _SEG.timed(...)`».
+
+    `None` — разобрать не вышло (третий исход, инв. #17): «объявлений нет» и
+    «не прочитали исходник» не одно и то же.
+    """
+    path = path or os.path.abspath(__file__)
+    try:
+        tree = ast.parse(open(path, encoding="utf-8").read())
+    except Exception:  # noqa: BLE001
+        return None
+    for node in tree.body:
+        if not (isinstance(node, ast.FunctionDef) and node.name == "main"):
+            continue
+        clocked, unclocked = [], []
+
+        def _walk(stmts, under: bool) -> None:
+            for st in stmts:
+                here = under or _is_timed_with(st)
+                if isinstance(st, ast.Try):
+                    (clocked if here else unclocked).append(st.lineno)
+                for field in ("body", "orelse", "finalbody"):
+                    _walk(getattr(st, field, []) or [], here)
+                for handler in getattr(st, "handlers", []) or []:
+                    _walk(handler.body or [], here)
+
+        _walk(node.body, False)
+        clocked.sort()
+        unclocked.sort()
+        return {"path": path, "declared": len(clocked) + len(unclocked),
+                "clocked": clocked, "unclocked": unclocked}
+    return None
+
+
+def segment_price_lines(ledger: SegmentLedger, *,
+                        blocks: dict | None = None) -> list[str]:
+    """Строки о ЦЕНЕ сегментов шага 0-офис.
+
+    Три исхода различимы (инв. #17):
+
+    * **измерено** — цена названа у каждого сегмента, напечатан итог, остаток
+      такта и поимённо всё, что дороже `CENSUS_PRICE_LOUD_S`;
+    * **измерено и ни один не дорог** — итог напечатан, и сказано ВСЛУХ, что
+      порога не достиг ни один (молчание здесь читалось бы как «цену не мерили»);
+    * **НЕ ИЗМЕРЕНО** с названной причиной — журнал пуст, либо у сегментов нет
+      цены вовсе. Смешанный случай тоже назван обоими числами: итог по тем, у
+      кого цена есть, И число тех, у кого её нет.
+
+    ОСТАТОК ТАКТА печатается отдельным слагаемым и не прячется: сумма названных
+    сегментов меньше полного такта, и выдать первую за второй значило бы
+    объявить такт разложенным, когда разложена его часть.
+    """
+    rows = list(ledger.rows)
+    total_tact = ledger.elapsed()
+    if not rows:
+        return [f"   [{_UNMEASURED}] цена сегментов: журнал пуст — ни один "
+                f"сегмент не обёрнут часами. Это НЕ «шаг бесплатен»"]
+    priced = [r for r in rows if isinstance(r.get("seconds"), (int, float))]
+    blind = len(rows) - len(priced)
+    if not priced:
+        return [f"   [{_UNMEASURED}] цена сегментов: начато {len(rows)}, "
+                f"цены нет НИ У ОДНОГО (ни один не завершился). Это НЕ «бесплатно»"]
+    named = sum(float(r["seconds"]) for r in priced)
+    head = (f"   цена сегментов шага: названо {named:.1f} с по {len(priced)} "
+            f"сегмент{'у' if len(priced) == 1 else 'ам'} из полного такта "
+            f"{total_tact:.1f} с")
+    if blind:
+        head += (f" · БЕЗ ЦЕНЫ ещё {blind} (начат и не завершён — "
+                 f"{_UNMEASURED}, не ноль)")
+    out = [head]
+    rest = total_tact - named
+    if rest < 0.05:
+        # Сказать это ВСЛУХ обязательно: молчание о нулевом остатке неотличимо
+        # от «остаток не считали», а это разные утверждения (инв. #17).
+        out.append("   остаток такта вне названных сегментов: 0.0 с — "
+                   "такт разложен ПОЛНОСТЬЮ")
+    else:
+        out.append(f"   остаток такта вне названных сегментов: {rest:.1f} с "
+                   f"({(100.0 * rest / total_tact) if total_tact else 0.0:.0f} %) — "
+                   f"это НЕ «ничего»: разложена ЧАСТЬ такта, а не весь")
+    if blocks is None:
+        out.append(f"   [{_UNMEASURED}] сколько переписей ОБЪЯВЛЕНО в `main()` — "
+                   f"исходник не разобран; «все обёрнуты» не утверждается")
+    elif blocks.get("unclocked"):
+        where = ", ".join(f"стр. {n}" for n in blocks["unclocked"])
+        out.append(f"   ⚠️ переписей объявлено {blocks.get('declared')}, БЕЗ ЧАСОВ "
+                   f"{len(blocks['unclocked'])} ({where}) — их цена "
+                   f"{_UNMEASURED}, и это НЕ ноль")
+    else:
+        n = blocks.get("declared") or 0
+        word = ("объявленная перепись" if n % 10 == 1 and n % 100 != 11
+                else "объявленных переписей")
+        out.append(f"   часами обёрнуты ВСЕ {n} {word} `main()`")
+    loud = sorted((r for r in priced if float(r["seconds"]) >= CENSUS_PRICE_LOUD_S),
+                  key=lambda r: -float(r["seconds"]))
+    if not loud:
+        out.append(f"   ни один сегмент не достиг {CENSUS_PRICE_LOUD_S:.0f} с — "
+                   f"хвост такта складывается НЕ из названных сегментов")
+        return out
+    for r in loud:
+        share = 100.0 * float(r["seconds"]) / total_tact if total_tact else 0.0
+        mark = f" · ПАДЕНИЕ {r['raised']}" if r.get("raised") else ""
+        out.append(f"   ⏱ {float(r['seconds']):.1f} с ({share:.0f} % такта) · "
+                   f"{r['segment']}{mark}")
+    return out
+
 
 # Исходы §42 (`cio_kill_switch_controls`). Имена держатся здесь строками, а не
 # импортом из модуля-производителя: шаг 0-офис читает ОТЧЁТ, а не код, и должен
@@ -5857,6 +6062,12 @@ def main(argv=None, *, now: dt.datetime | None = None) -> int:
     args = ap.parse_args(argv)
     now = now or dt.datetime.now(dt.timezone.utc)
 
+    # Журнал цены сегментов открывается ПЕРВЫМ делом (ADR-926, заказ G913 п. 3):
+    # полный такт шага мерится от входа в `main()`, иначе «остаток такта» молча
+    # не включал бы то, что шаг сделал до первого сегмента, и сумма названных
+    # сегментов выглядела бы полнее, чем она есть.
+    _SEG = SegmentLedger()
+
     # ── Ширина собственных полномочий — ПЕРВОЙ строкой шага (ADR-101) ────────
     # Печатается ДО манифеста намеренно: «как мне сегодня работать» не должно
     # зависеть от того, читаются ли артефакты офиса. При `return 1` (нет
@@ -5870,11 +6081,12 @@ def main(argv=None, *, now: dt.datetime | None = None) -> int:
     from spa_core.monitoring.consumption_receipts import write_receipt
 
     manifest_path = os.path.join(args.root, "architecture", "manifest.json")
-    try:
-        manifest = json.load(open(manifest_path))
-    except Exception as e:  # noqa: BLE001
-        print(f"❌ манифест не прочитан ({manifest_path}): {e} — шаг НЕ выполнен")
-        return 1
+    with _SEG.timed("чтение манифеста конституции (ADR-066)"):
+        try:
+            manifest = json.load(open(manifest_path))
+        except Exception as e:  # noqa: BLE001
+            print(f"❌ манифест не прочитан ({manifest_path}): {e} — шаг НЕ выполнен")
+            return 1
 
     targets = office_targets(manifest, args.consumer)
     if not targets:
@@ -5904,52 +6116,53 @@ def main(argv=None, *, now: dt.datetime | None = None) -> int:
 
     consumed = failed = hollow = 0
     not_yet = 0
-    for rel in sorted(targets):
-        full = _resolve(rel, root=args.root, data_dir=data_dir)
-        lines: list[str]
-        ok = False
-        pending = False
-        if not os.path.exists(full):
-            # Пропажа соседа при живых соседях — НЕ автоматически находка
-            # (#524). Различает `_absent_verdict`, и различает объявлением
-            # бегуна, а не догадкой.
-            is_finding, lines = _absent_verdict(rel, root=args.root,
-                                                data_dir=data_dir, now=now)
-            pending = not is_finding
-        elif rel.endswith(".json"):
-            try:
-                lines = _summarize_json(rel, json.load(open(full)), now=now,
-                                        artifact_root=receipt_root)
-                ok = True
-            except Exception as e:  # noqa: BLE001
-                lines = [f"   JSON не прочитан: {e}"]
-        else:
-            lines = _summarize_md(full, now=now)
-            ok = bool(lines) and not any(
-                ln.startswith("   (md не прочитан") for ln in lines)
-        if ok and any(ln.startswith(_HOLLOW_MARK) for ln in lines):
-            # Ресит НЕ пишется: см. `_HOLLOW_MARK`. Файл открылся и разобрался
-            # как JSON — но прочитано из него не было ничего, и утверждать
-            # обратное значит кормить проверку B3 собственным эхом.
-            mark = "⚠️ ПРОЧИТАН ВХОЛОСТУЮ (ресит НЕ пишется)"
-            hollow += 1
-        elif ok:
-            receipted = True if args.no_receipts else write_receipt(
-                rel, args.consumer, root=receipt_root)
-            mark = "✅" if receipted else "⚠️ (ресит НЕ записан)"
-            consumed += 1
-        elif pending:
-            # Третий исход, и он ОТДЕЛЬНОЕ слагаемое итога: складывать его с
-            # «прочитано» значило бы объявить измеренным то, чего никто не
-            # мерил, а с «не прочитано» — вернуть ту самую ложную находку.
-            mark = "⏳ ЕЩЁ НЕ ПРОИЗВОДИЛСЯ"
-            not_yet += 1
-        else:
-            mark = "❌ НЕ ПРОЧИТАН"
-            failed += 1
-        print(f"{mark} {rel}")
-        for ln in lines:
-            print(ln)
+    with _SEG.timed("чтение артефактов офиса в контекст (ADR-066)", kind="read"):
+        for rel in sorted(targets):
+            full = _resolve(rel, root=args.root, data_dir=data_dir)
+            lines: list[str]
+            ok = False
+            pending = False
+            if not os.path.exists(full):
+                # Пропажа соседа при живых соседях — НЕ автоматически находка
+                # (#524). Различает `_absent_verdict`, и различает объявлением
+                # бегуна, а не догадкой.
+                is_finding, lines = _absent_verdict(rel, root=args.root,
+                                                    data_dir=data_dir, now=now)
+                pending = not is_finding
+            elif rel.endswith(".json"):
+                try:
+                    lines = _summarize_json(rel, json.load(open(full)), now=now,
+                                            artifact_root=receipt_root)
+                    ok = True
+                except Exception as e:  # noqa: BLE001
+                    lines = [f"   JSON не прочитан: {e}"]
+            else:
+                lines = _summarize_md(full, now=now)
+                ok = bool(lines) and not any(
+                    ln.startswith("   (md не прочитан") for ln in lines)
+            if ok and any(ln.startswith(_HOLLOW_MARK) for ln in lines):
+                # Ресит НЕ пишется: см. `_HOLLOW_MARK`. Файл открылся и разобрался
+                # как JSON — но прочитано из него не было ничего, и утверждать
+                # обратное значит кормить проверку B3 собственным эхом.
+                mark = "⚠️ ПРОЧИТАН ВХОЛОСТУЮ (ресит НЕ пишется)"
+                hollow += 1
+            elif ok:
+                receipted = True if args.no_receipts else write_receipt(
+                    rel, args.consumer, root=receipt_root)
+                mark = "✅" if receipted else "⚠️ (ресит НЕ записан)"
+                consumed += 1
+            elif pending:
+                # Третий исход, и он ОТДЕЛЬНОЕ слагаемое итога: складывать его с
+                # «прочитано» значило бы объявить измеренным то, чего никто не
+                # мерил, а с «не прочитано» — вернуть ту самую ложную находку.
+                mark = "⏳ ЕЩЁ НЕ ПРОИЗВОДИЛСЯ"
+                not_yet += 1
+            else:
+                mark = "❌ НЕ ПРОЧИТАН"
+                failed += 1
+            print(f"{mark} {rel}")
+            for ln in lines:
+                print(ln)
     # ── критерии открытых карточек (ADR-208) ────────────────────────────────
     # Печатается ДО итоговой строки намеренно: «красные строки выше = действовать»
     # обязано покрывать и эту находку. Карточка, чей собственный критерий уже
@@ -5957,15 +6170,16 @@ def main(argv=None, *, now: dt.datetime | None = None) -> int:
     # нет `finding_key`), НИ петля: её находил только тот, кто случайно брал
     # карточку в работу и перемерял (замер #450: 3 из 6).
     print()
-    try:
-        from spa_core.monitoring import card_acceptance
-        _tracker = os.path.join(receipt_root, "nimbalyst-local", "tracker")
-        for _ln in card_acceptance.report_lines(card_acceptance.audit(_tracker)):
-            print(_ln)
-    except Exception as _exc:  # noqa: BLE001 — молчание здесь = fail-OPEN
-        print("— критерии открытых карточек —")
-        print(f"   [{_UNMEASURED}] сверка критериев не выполнена: "
-              f"{type(_exc).__name__}: {_exc}")
+    with _SEG.timed("критерии открытых карточек (ADR-208)"):
+        try:
+            from spa_core.monitoring import card_acceptance
+            _tracker = os.path.join(receipt_root, "nimbalyst-local", "tracker")
+            for _ln in card_acceptance.report_lines(card_acceptance.audit(_tracker)):
+                print(_ln)
+        except Exception as _exc:  # noqa: BLE001 — молчание здесь = fail-OPEN
+            print("— критерии открытых карточек —")
+            print(f"   [{_UNMEASURED}] сверка критериев не выполнена: "
+                  f"{type(_exc).__name__}: {_exc}")
     print()
 
     # ── пины против гейта финансирования (ADR-236) ──────────────────────────
@@ -5974,18 +6188,19 @@ def main(argv=None, *, now: dt.datetime | None = None) -> int:
     # `TVL unverified (missing)` при любом пине и любом живом TVL, то есть
     # решение владельца о смысле ключа невидимо тому, кто решает о деньгах.
     # Дёшево — два файла, без сети и без прогона аллокатора.
-    try:
-        from scripts.measure_pin_placement_effect import (
-            gate_visibility_report_lines as _pin_lines,
-            pins_invisible_to_the_gate as _pins_vs_gate,
-        )
-        _pin_ddir = data_dir or os.path.join(receipt_root, "data")
-        for _ln in _pin_lines(_pins_vs_gate(_pin_ddir)):
-            print(_ln)
-    except Exception as _exc:  # noqa: BLE001 — молчание здесь = fail-OPEN
-        print("— пины против гейта финансирования (ADR-236) —")
-        print(f"   [{_UNMEASURED}] сверка не выполнена: "
-              f"{type(_exc).__name__}: {_exc}")
+    with _SEG.timed("пины против гейта финансирования (ADR-236)"):
+        try:
+            from scripts.measure_pin_placement_effect import (
+                gate_visibility_report_lines as _pin_lines,
+                pins_invisible_to_the_gate as _pins_vs_gate,
+            )
+            _pin_ddir = data_dir or os.path.join(receipt_root, "data")
+            for _ln in _pin_lines(_pins_vs_gate(_pin_ddir)):
+                print(_ln)
+        except Exception as _exc:  # noqa: BLE001 — молчание здесь = fail-OPEN
+            print("— пины против гейта финансирования (ADR-236) —")
+            print(f"   [{_UNMEASURED}] сверка не выполнена: "
+                  f"{type(_exc).__name__}: {_exc}")
     print()
 
     # ── власть пина у гейта финансирования (ADR-520) ────────────────────────
@@ -5995,18 +6210,19 @@ def main(argv=None, *, now: dt.datetime | None = None) -> int:
     # ТОТ пул, который пин объявил. Замер 30.09: `aave_v3` и `morpho_blue_base`
     # видны и судятся по ДРУГИМ пулам, `compound_v3` виден и не назвал пула
     # вовсе — $55 000 из $95 000 развёрнутых. Оба артефакта при этом зелены.
-    try:
-        from scripts.pin_identity_authority_census import (
-            census as _pin_authority,
-            report_lines as _pin_authority_lines,
-        )
-        _auth_ddir = data_dir or os.path.join(receipt_root, "data")
-        for _ln in _pin_authority_lines(_pin_authority(_auth_ddir)):
-            print(_ln)
-    except Exception as _exc:  # noqa: BLE001 — молчание здесь = fail-OPEN
-        print("— власть пина у гейта финансирования (ADR-520) —")
-        print(f"   [{_UNMEASURED}] сверка не выполнена: "
-              f"{type(_exc).__name__}: {_exc}")
+    with _SEG.timed("власть пина у гейта финансирования (ADR-520)"):
+        try:
+            from scripts.pin_identity_authority_census import (
+                census as _pin_authority,
+                report_lines as _pin_authority_lines,
+            )
+            _auth_ddir = data_dir or os.path.join(receipt_root, "data")
+            for _ln in _pin_authority_lines(_pin_authority(_auth_ddir)):
+                print(_ln)
+        except Exception as _exc:  # noqa: BLE001 — молчание здесь = fail-OPEN
+            print("— власть пина у гейта финансирования (ADR-520) —")
+            print(f"   [{_UNMEASURED}] сверка не выполнена: "
+                  f"{type(_exc).__name__}: {_exc}")
     print()
 
     # ── операнд «предыдущий прогон» из git-tracked артефакта (ADR-524, заказ G86 п. 3) ──
@@ -6027,17 +6243,19 @@ def main(argv=None, *, now: dt.datetime | None = None) -> int:
     #   · перекрёстная (G104 п. 1, ADR-623) — пары «читает и НЕ пишет»: сторож, читающий
     #     прошлый вывод ЧУЖОГО производителя. Односторонность главной оси, названную
     #     ADR-524 вслух; с главной осью население не пересекается по построению.
-    try:
-        from spa_core.monitoring.prior_run_operand_census import (
-            measure as _prior_measure,
-            format_report as _prior_report,
-        )
-        print("— операнд «предыдущий прогон» из git-tracked артефакта (ADR-524) —")
-        print("   " + _prior_report(_prior_measure(receipt_root)).replace("\n", "\n   "))
-    except Exception as _exc:  # noqa: BLE001 — молчание здесь = fail-OPEN
-        print("— операнд «предыдущий прогон» из git-tracked артефакта (ADR-524) —")
-        print(f"   [{_UNMEASURED}] перепись не выполнена: "
-              f"{type(_exc).__name__}: {_exc}")
+    with _SEG.timed("операнд «предыдущий прогон» из git-tracked артефакта (ADR-524, "
+                    "заказ G86 п. 3)"):
+        try:
+            from spa_core.monitoring.prior_run_operand_census import (
+                measure as _prior_measure,
+                format_report as _prior_report,
+            )
+            print("— операнд «предыдущий прогон» из git-tracked артефакта (ADR-524) —")
+            print("   " + _prior_report(_prior_measure(receipt_root)).replace("\n", "\n   "))
+        except Exception as _exc:  # noqa: BLE001 — молчание здесь = fail-OPEN
+            print("— операнд «предыдущий прогон» из git-tracked артефакта (ADR-524) —")
+            print(f"   [{_UNMEASURED}] перепись не выполнена: "
+                  f"{type(_exc).__name__}: {_exc}")
     print()
 
     # ── находка без читателя внутри цикла (ADR-526, заказ G86 п. 4) ────────
@@ -6047,20 +6265,21 @@ def main(argv=None, *, now: dt.datetime | None = None) -> int:
     # а шаг 0-офис его не читал — находка `PUBLISHER_STUCK` доходила только
     # тревогой и красной джобой, то есть мимо цикла. Ноги в объявленном
     # порядке: сначала ПИСАТЕЛЬ (наблюдением, а не объявлением), потом читатель.
-    try:
-        from spa_core.monitoring.finding_reader_census import (
-            measure as _reader_measure,
-            format_report as _reader_report,
-        )
-        print("— находка без читателя внутри цикла (ADR-526) —")
-        _rc = _reader_measure(receipt_root,
-                              data_dir=data_dir or os.path.join(receipt_root, "data"),
-                              now=now)
-        print("   " + _reader_report(_rc).replace("\n", "\n   "))
-    except Exception as _exc:  # noqa: BLE001 — молчание здесь = fail-OPEN
-        print("— находка без читателя внутри цикла (ADR-526) —")
-        print(f"   [{_UNMEASURED}] перепись не выполнена: "
-              f"{type(_exc).__name__}: {_exc}")
+    with _SEG.timed("находка без читателя внутри цикла (ADR-526, заказ G86 п. 4)"):
+        try:
+            from spa_core.monitoring.finding_reader_census import (
+                measure as _reader_measure,
+                format_report as _reader_report,
+            )
+            print("— находка без читателя внутри цикла (ADR-526) —")
+            _rc = _reader_measure(receipt_root,
+                                  data_dir=data_dir or os.path.join(receipt_root, "data"),
+                                  now=now)
+            print("   " + _reader_report(_rc).replace("\n", "\n   "))
+        except Exception as _exc:  # noqa: BLE001 — молчание здесь = fail-OPEN
+            print("— находка без читателя внутри цикла (ADR-526) —")
+            print(f"   [{_UNMEASURED}] перепись не выполнена: "
+                  f"{type(_exc).__name__}: {_exc}")
     print()
 
     # ── переживают ли имена упавших тестов раннер (ADR-528, заказ G87 п. 1) ──
@@ -6071,17 +6290,19 @@ def main(argv=None, *, now: dt.datetime | None = None) -> int:
     # внутри раннера и был уничтожен вместе с ним; в логе осталось 20. Ноги в
     # объявленном порядке: сначала ПИСАТЕЛЬ (покидает ли запись раннер), и только
     # потом читатель — на мёртвой записи перепись читателей отвечала бы мимо.
-    try:
-        from spa_core.monitoring.failed_name_survival_census import (
-            measure as _names_measure,
-            format_report as _names_report,
-        )
-        print("— имена упавших тестов переживают раннер (ADR-528) —")
-        print("   " + _names_report(_names_measure(receipt_root)).replace("\n", "\n   "))
-    except Exception as _exc:  # noqa: BLE001 — молчание здесь = fail-OPEN
-        print("— имена упавших тестов переживают раннер (ADR-528) —")
-        print(f"   [{_UNMEASURED}] перепись не выполнена: "
-              f"{type(_exc).__name__}: {_exc}")
+    with _SEG.timed("переживают ли имена упавших тестов раннер (ADR-528, заказ G87 п. "
+                    "1)"):
+        try:
+            from spa_core.monitoring.failed_name_survival_census import (
+                measure as _names_measure,
+                format_report as _names_report,
+            )
+            print("— имена упавших тестов переживают раннер (ADR-528) —")
+            print("   " + _names_report(_names_measure(receipt_root)).replace("\n", "\n   "))
+        except Exception as _exc:  # noqa: BLE001 — молчание здесь = fail-OPEN
+            print("— имена упавших тестов переживают раннер (ADR-528) —")
+            print(f"   [{_UNMEASURED}] перепись не выполнена: "
+                  f"{type(_exc).__name__}: {_exc}")
     print()
 
     # ── односторонность правила принадлежности §49 (ADR-529, заказ G87 п. 2) ──
@@ -6098,18 +6319,20 @@ def main(argv=None, *, now: dt.datetime | None = None) -> int:
     # Платить за один и тот же граф дважды значило бы ухудшить измеренный срок
     # ради удобства кода.
     _reach_doc = None
-    try:
-        from spa_core.monitoring.membership_reach_census import (
-            measure as _reach_measure,
-            format_report as _reach_report,
-        )
-        _reach_doc = _reach_measure(receipt_root)
-        print("— односторонность правила принадлежности §49 (ADR-529) —")
-        print("   " + _reach_report(_reach_doc).replace("\n", "\n   "))
-    except Exception as _exc:  # noqa: BLE001 — молчание здесь = fail-OPEN
-        print("— односторонность правила принадлежности §49 (ADR-529) —")
-        print(f"   [{_UNMEASURED}] перепись не выполнена: "
-              f"{type(_exc).__name__}: {_exc}")
+    with _SEG.timed("односторонность правила принадлежности §49 (ADR-529, заказ G87 п. "
+                    "2)"):
+        try:
+            from spa_core.monitoring.membership_reach_census import (
+                measure as _reach_measure,
+                format_report as _reach_report,
+            )
+            _reach_doc = _reach_measure(receipt_root)
+            print("— односторонность правила принадлежности §49 (ADR-529) —")
+            print("   " + _reach_report(_reach_doc).replace("\n", "\n   "))
+        except Exception as _exc:  # noqa: BLE001 — молчание здесь = fail-OPEN
+            print("— односторонность правила принадлежности §49 (ADR-529) —")
+            print(f"   [{_UNMEASURED}] перепись не выполнена: "
+                  f"{type(_exc).__name__}: {_exc}")
     print()
 
     # ── тот же вопрос — ДРУГОМУ правилу принадлежности (заказ G107 п. 3) ──
@@ -6119,18 +6342,19 @@ def main(argv=None, *, now: dt.datetime | None = None) -> int:
     # самом файле. Цена ошибки здесь не «вердикт звучит шире замера», а
     # ПРОПУЩЕННОЕ нарушение инварианта, поэтому перепись читается каждый цикл:
     # новая дорога через помощника обязана быть названа в тот же день.
-    try:
-        sys.path.insert(0, os.path.join(receipt_root, "scripts"))
-        from forbidden_reach_census import (
-            measure as _forbidden_measure,
-            format_report as _forbidden_report,
-        )
-        print("— правило, видящее только прямой импорт (ADR-529 → заказ G107 п. 3) —")
-        print("   " + _forbidden_report(_forbidden_measure(receipt_root)).replace("\n", "\n   "))
-    except Exception as _exc:  # noqa: BLE001 — молчание здесь = fail-OPEN
-        print("— правило, видящее только прямой импорт (ADR-529 → заказ G107 п. 3) —")
-        print(f"   [{_UNMEASURED}] перепись не выполнена: "
-              f"{type(_exc).__name__}: {_exc}")
+    with _SEG.timed("тот же вопрос — ДРУГОМУ правилу принадлежности (заказ G107 п. 3)"):
+        try:
+            sys.path.insert(0, os.path.join(receipt_root, "scripts"))
+            from forbidden_reach_census import (
+                measure as _forbidden_measure,
+                format_report as _forbidden_report,
+            )
+            print("— правило, видящее только прямой импорт (ADR-529 → заказ G107 п. 3) —")
+            print("   " + _forbidden_report(_forbidden_measure(receipt_root)).replace("\n", "\n   "))
+        except Exception as _exc:  # noqa: BLE001 — молчание здесь = fail-OPEN
+            print("— правило, видящее только прямой импорт (ADR-529 → заказ G107 п. 3) —")
+            print(f"   [{_UNMEASURED}] перепись не выполнена: "
+                  f"{type(_exc).__name__}: {_exc}")
     print()
 
     # ── меняет ли расширение населения вердикт §49 (заказ G107 п. 1) ──
@@ -6142,17 +6366,18 @@ def main(argv=None, *, now: dt.datetime | None = None) -> int:
     # вердикт §49 у какой-нибудь поверхности держится на слепоте правила.
     # Записи прогона на хосте не держит никто (заказы G106/G150) — тогда секция
     # честно говорит «НЕ ИЗМЕРЕНО» с НАЗВАННОЙ причиной и графа не строит вовсе.
-    try:
-        from spa_core.monitoring.verdict_population_shift import (
-            measure as _shift_measure,
-            format_report as _shift_report,
-        )
-        print("— меняет ли расширение населения вердикт §49 (заказ G107 п. 1) —")
-        print("   " + _shift_report(_shift_measure(receipt_root)).replace("\n", "\n   "))
-    except Exception as _exc:  # noqa: BLE001 — молчание здесь = fail-OPEN
-        print("— меняет ли расширение населения вердикт §49 (заказ G107 п. 1) —")
-        print(f"   [{_UNMEASURED}] перепись не выполнена: "
-              f"{type(_exc).__name__}: {_exc}")
+    with _SEG.timed("меняет ли расширение населения вердикт §49 (заказ G107 п. 1)"):
+        try:
+            from spa_core.monitoring.verdict_population_shift import (
+                measure as _shift_measure,
+                format_report as _shift_report,
+            )
+            print("— меняет ли расширение населения вердикт §49 (заказ G107 п. 1) —")
+            print("   " + _shift_report(_shift_measure(receipt_root)).replace("\n", "\n   "))
+        except Exception as _exc:  # noqa: BLE001 — молчание здесь = fail-OPEN
+            print("— меняет ли расширение населения вердикт §49 (заказ G107 п. 1) —")
+            print(f"   [{_UNMEASURED}] перепись не выполнена: "
+                  f"{type(_exc).__name__}: {_exc}")
     print()
 
     # ── дорога есть достижимость, а не ИСПОЛНЕНИЕ (ADR-674, заказ G107 п. 2) ──
@@ -6167,21 +6392,23 @@ def main(argv=None, *, now: dt.datetime | None = None) -> int:
     # достижимостью без исполнения. Цена «ввоз исполняет тело модуля» требует
     # ВТОРОГО графа и здесь НЕ спрашивается: такт шага 0-офис дороже ответа,
     # а не спрошенная ось говорит это вслух (`not_asked`), а не нулём.
-    try:
-        from spa_core.monitoring.helper_execution_census import (
-            measure as _exec_measure,
-            format_report as _exec_report,
-        )
-        print("— дорога есть достижимость, а не исполнение (заказ G107 п. 2) —")
-        # Находки соседа подаются ВХОДОМ, если он их уже посчитал: тогда эта
-        # секция стои́т разбор тест-файлов, а не второй граф. Не посчитал ⇒
-        # считаем сами, и это НАЗВАНО входом, а не умолчанием.
-        print("   " + _exec_report(_exec_measure(
-            receipt_root, reach_doc=_reach_doc)).replace("\n", "\n   "))
-    except Exception as _exc:  # noqa: BLE001 — молчание здесь = fail-OPEN
-        print("— дорога есть достижимость, а не исполнение (заказ G107 п. 2) —")
-        print(f"   [{_UNMEASURED}] перепись не выполнена: "
-              f"{type(_exc).__name__}: {_exc}")
+    with _SEG.timed("дорога есть достижимость, а не ИСПОЛНЕНИЕ (ADR-674, заказ G107 п. "
+                    "2)"):
+        try:
+            from spa_core.monitoring.helper_execution_census import (
+                measure as _exec_measure,
+                format_report as _exec_report,
+            )
+            print("— дорога есть достижимость, а не исполнение (заказ G107 п. 2) —")
+            # Находки соседа подаются ВХОДОМ, если он их уже посчитал: тогда эта
+            # секция стои́т разбор тест-файлов, а не второй граф. Не посчитал ⇒
+            # считаем сами, и это НАЗВАНО входом, а не умолчанием.
+            print("   " + _exec_report(_exec_measure(
+                receipt_root, reach_doc=_reach_doc)).replace("\n", "\n   "))
+        except Exception as _exc:  # noqa: BLE001 — молчание здесь = fail-OPEN
+            print("— дорога есть достижимость, а не исполнение (заказ G107 п. 2) —")
+            print(f"   [{_UNMEASURED}] перепись не выполнена: "
+                  f"{type(_exc).__name__}: {_exc}")
     print()
 
     # ── кто спрашивает «та ли это книга» (ADR-561, заказ G97 п. 2) ──
@@ -6195,23 +6422,24 @@ def main(argv=None, *, now: dt.datetime | None = None) -> int:
     # ступени моста, ни `slo_hours` ему не положено (та же развилка, что у
     # ADR-559). Секция краснеет ровно тогда, когда в дереве появляется НОВЫЙ
     # прибор, судящий о настоящем по журналу и никем не спрошенный.
-    try:
-        from spa_core.monitoring.judged_state_identity_census import (
-            measure as _identity_measure,
-            format_report as _identity_report,
-        )
-        print("— кто спрашивает «та ли это книга» (ADR-561) —")
-        # Дерево НЕ `receipt_root`, и это намеренно (урок ADR-559): предмет —
-        # КОД, поэтому мерить надо то дерево, из которого прибор исполняется.
-        # `receipt_root` при `--data-dir` указывает на ПРОД-дерево, и ответ стал
-        # бы «приборы одного дерева × приёмка другого» — ровно та развилка, из-за
-        # которой сводка §49 читает род по `card_acceptance.__file__`.
-        print("   " + _identity_report(
-            _identity_measure()).replace("\n", "\n   "))
-    except Exception as _exc:  # noqa: BLE001 — молчание здесь = fail-OPEN
-        print("— кто спрашивает «та ли это книга» (ADR-561) —")
-        print(f"   [{_UNMEASURED}] перепись не выполнена: "
-              f"{type(_exc).__name__}: {_exc}")
+    with _SEG.timed("кто спрашивает «та ли это книга» (ADR-561, заказ G97 п. 2)"):
+        try:
+            from spa_core.monitoring.judged_state_identity_census import (
+                measure as _identity_measure,
+                format_report as _identity_report,
+            )
+            print("— кто спрашивает «та ли это книга» (ADR-561) —")
+            # Дерево НЕ `receipt_root`, и это намеренно (урок ADR-559): предмет —
+            # КОД, поэтому мерить надо то дерево, из которого прибор исполняется.
+            # `receipt_root` при `--data-dir` указывает на ПРОД-дерево, и ответ стал
+            # бы «приборы одного дерева × приёмка другого» — ровно та развилка, из-за
+            # которой сводка §49 читает род по `card_acceptance.__file__`.
+            print("   " + _identity_report(
+                _identity_measure()).replace("\n", "\n   "))
+        except Exception as _exc:  # noqa: BLE001 — молчание здесь = fail-OPEN
+            print("— кто спрашивает «та ли это книга» (ADR-561) —")
+            print(f"   [{_UNMEASURED}] перепись не выполнена: "
+                  f"{type(_exc).__name__}: {_exc}")
     print()
 
     # ── вторая дорога отрисовки ADR-562 СНЯТА (ADR-683) ────────────────────
@@ -6242,20 +6470,21 @@ def main(argv=None, *, now: dt.datetime | None = None) -> int:
     # срока годности, поэтому ни ступени моста, ни `slo_hours` этой секции не
     # положено. Секция краснеет ровно тогда, когда в дереве появляется НОВЫЙ
     # порог ниже такта своего предмета.
-    try:
-        from spa_core.monitoring.sensor_tact_census import (
-            measure as _tact_measure,
-            format_report as _tact_report,
-        )
-        print("— порог сенсора против такта предмета (ADR-646) —")
-        # Дерево — то, из которого исполняется прибор, а НЕ `receipt_root`:
-        # предмет здесь код, и ответ «приборы одного дерева × конституция
-        # другого» был бы вердиктом ни о чём (урок ADR-559).
-        print("   " + _tact_report(_tact_measure()).replace("\n", "\n   "))
-    except Exception as _exc:  # noqa: BLE001 — молчание здесь = fail-OPEN
-        print("— порог сенсора против такта предмета (ADR-646) —")
-        print(f"   [{_UNMEASURED}] перепись не выполнена: "
-              f"{type(_exc).__name__}: {_exc}")
+    with _SEG.timed("порог сенсора против ТАКТА предмета (ADR-646, заказ G146 п. 2)"):
+        try:
+            from spa_core.monitoring.sensor_tact_census import (
+                measure as _tact_measure,
+                format_report as _tact_report,
+            )
+            print("— порог сенсора против такта предмета (ADR-646) —")
+            # Дерево — то, из которого исполняется прибор, а НЕ `receipt_root`:
+            # предмет здесь код, и ответ «приборы одного дерева × конституция
+            # другого» был бы вердиктом ни о чём (урок ADR-559).
+            print("   " + _tact_report(_tact_measure()).replace("\n", "\n   "))
+        except Exception as _exc:  # noqa: BLE001 — молчание здесь = fail-OPEN
+            print("— порог сенсора против такта предмета (ADR-646) —")
+            print(f"   [{_UNMEASURED}] перепись не выполнена: "
+                  f"{type(_exc).__name__}: {_exc}")
     print()
 
     # Население класса ADR-851 (ADR-856, заказ G855 п. 4). Вопрос секции —
@@ -6267,20 +6496,30 @@ def main(argv=None, *, now: dt.datetime | None = None) -> int:
     # Читателя-АРТЕФАКТА тут нет по построению — ровно та же развилка, что у
     # соседней секции выше: предмет есть КОД, у него нет такта и нет срока
     # годности. Поэтому ни ступени моста, ни `slo_hours` секции не положено.
-    try:
-        from spa_core.monitoring.additive_field_reader_census import (
-            run_census as _afc_census,
-            format_report as _afc_report,
-        )
-        print("— читатель аддитивного поля: население класса ADR-851 (ADR-856) —")
-        # Дерево — то, из которого исполняется прибор, а НЕ `receipt_root`:
-        # предмет здесь код (урок ADR-559, та же причина, что у секции выше).
-        for _line in _afc_report(_afc_census()):
-            print(f"   {_line}")
-    except Exception as _exc:  # noqa: BLE001 — молчание здесь = fail-OPEN
-        print("— читатель аддитивного поля: население класса ADR-851 (ADR-856) —")
-        print(f"   [{_UNMEASURED}] перепись не выполнена: "
-              f"{type(_exc).__name__}: {_exc}")
+    with _SEG.timed("различает ли дерево «шага не звали» от «замера нуля» (ADR-856)"):
+        try:
+            from spa_core.monitoring.additive_field_reader_census import (
+                run_census as _afc_census,
+                format_report as _afc_report,
+            )
+            print("— читатель аддитивного поля: население класса ADR-851 (ADR-856) —")
+            # Дерево — то, из которого исполняется прибор, а НЕ `receipt_root`:
+            # предмет здесь код (урок ADR-559, та же причина, что у секции выше).
+            for _line in _afc_report(_afc_census()):
+                print(f"   {_line}")
+        except Exception as _exc:  # noqa: BLE001 — молчание здесь = fail-OPEN
+            print("— читатель аддитивного поля: население класса ADR-851 (ADR-856) —")
+            print(f"   [{_UNMEASURED}] перепись не выполнена: "
+                  f"{type(_exc).__name__}: {_exc}")
+    print()
+
+    # ── цена сегментов этого прогона (ADR-926, заказ G913 п. 3) ─────────────
+    # Печатается ДО итоговой строки намеренно: «из чего складывается такт» —
+    # находка о САМОМ ШАГЕ, и следующая сессия обязана прочитать её там же, где
+    # читает остальные находки, а не искать секундомер. Число ОБЪЯВЛЕННЫХ
+    # переписей берётся паритетом с исходником (AST), а не литералом.
+    for _ln in segment_price_lines(_SEG, blocks=census_block_census()):
+        print(_ln)
     print()
 
     # Клауза о вхолостую ДОПИСЫВАЕТСЯ, а не переписывает итог: в здоровом
