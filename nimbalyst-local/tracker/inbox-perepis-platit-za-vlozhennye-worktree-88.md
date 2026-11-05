@@ -2,9 +2,13 @@
 trackerStatus:
   type: inbox
 title: "Перепись платит за вложенные worktree: 88,7 % прод-дерева — чужие клоны"
-status: new
+status: in-progress
 created: 2026-11-05
+intake_kind: task
 twin_key: "sha256:a942d22eeca3f04b5c83c9875c89c755e2bdc3e669295e9bfedc4343673fb0f5"
+acceptance_probe: reach_census_boundary_stops_at_nested_repos
+status_trail:
+  - "2026-11-05T11:50:21.300221+00:00 new -> in-progress · queue.set_status · cycle-81699"
 ---
 
 ## Что случилось и почему это важно

@@ -1175,6 +1175,183 @@ def test_premise_json_output_is_parsed_not_compared_as_text(tmp_path, capsys):
         "surface_not_reached": 3}
 
 
+# ──────────── граница репозитория: чужое дерево не предмет переписи ──────────
+
+def _nested_repo(root: pathlib.Path, rel: str, *, dot_git: str | None) -> None:
+    """Вложенное дерево со СВОИМ кодом. ``dot_git`` задаёт ФОРМУ метки.
+
+    Формы две, и обе настоящие: у worktree ``.git`` — ФАЙЛ со строкой
+    ``gitdir: …``, у обычного клона — КАТАЛОГ. ``None`` = метки нет вовсе, то
+    есть обычный наш подкаталог, который предметом ОСТАЁТСЯ.
+    """
+    base = root / rel
+    base.mkdir(parents=True, exist_ok=True)
+    (base / "spa_core").mkdir(parents=True, exist_ok=True)
+    (base / "spa_core" / "__init__.py").write_text("", encoding="utf-8")
+    (base / "spa_core" / "tests").mkdir(parents=True, exist_ok=True)
+    (base / "spa_core" / "tests" / "test_alien.py").write_text(
+        "import spa_core.risk.policy\n", encoding="utf-8")
+    (base / "alien_name_only.py").write_text(
+        "import a_module_no_tree_has\n", encoding="utf-8")
+    if dot_git == "file":
+        (base / ".git").write_text("gitdir: /elsewhere/.git/worktrees/x\n",
+                                   encoding="utf-8")
+    elif dot_git == "dir":
+        (base / ".git").mkdir(exist_ok=True)
+
+
+def test_nested_worktree_is_not_part_of_this_trees_census(tmp_path):
+    """Авария ADR-927 §3 дословно: 88,7 % прод-дерева — ЧУЖИЕ клоны.
+
+    Порви границу — и файлы чужой сессии вернутся в население, а ось ИМЕНИ
+    наполнится именами, которых в НАШЕМ дереве нет вовсе (замер: завышение
+    8,6× по `name_outside_tree` и 11,2× по третьему исходу `name_unresolved`).
+    """
+    root = pathlib.Path(_tree(tmp_path, {
+        "spa_core/tests/test_mine.py": "import spa_core.risk.policy\n",
+    }))
+    _nested_repo(root, ".claude/worktrees/other", dot_git="file")
+    _nested_repo(root, "vendored/clone", dot_git="dir")
+    graph = build_graph(str(root))
+
+    assert "spa_core/tests/test_mine.py" in graph["files"]
+    alien = [rel for rel in graph["files"]
+             if rel.startswith((".claude/", "vendored/"))]
+    assert alien == [], f"чужое дерево попало в предмет: {alien}"
+    # Сужение НАЗВАНО, а не умолчано: пустой перечень здесь был бы молчаливым
+    # сужением дерева — тем же, чем сужение прогона «до своего набора».
+    assert graph["nested_repos_excluded"] == [
+        ".claude/worktrees/other", "vendored/clone"]
+
+
+def test_the_boundary_is_the_dot_git_mark_and_not_the_directory_name(tmp_path):
+    """Контроль в ДРУГУЮ сторону: литерал имени был бы догадкой, а не замером.
+
+    Каталог с тем же именем ``.claude/worktrees/…``, но БЕЗ ``.git``, —
+    обычный наш подкаталог. Замени границу литералом ``.claude`` в
+    ``_SKIP_DIRS``, и этот файл пропадёт из переписи молча.
+    """
+    root = pathlib.Path(_tree(tmp_path, {}))
+    _nested_repo(root, ".claude/worktrees/plain", dot_git=None)
+    graph = build_graph(str(root))
+
+    assert ".claude/worktrees/plain/spa_core/tests/test_alien.py" in graph["files"]
+    assert graph["nested_repos_excluded"] == []
+
+
+def test_an_empty_dot_git_file_still_marks_a_tree(tmp_path):
+    """``exists``, а не ``is_dir`` и не «непустой файл».
+
+    Все тринадцать вложенных деревьев прод-клона — worktree, то есть
+    ``.git``-ФАЙЛЫ. Спроси про каталог — и граница пропустит ровно тот класс,
+    ради которого написана.
+    """
+    root = pathlib.Path(_tree(tmp_path, {}))
+    _nested_repo(root, "sibling", dot_git=None)
+    (root / "sibling" / ".git").write_text("", encoding="utf-8")
+    graph = build_graph(str(root))
+
+    assert graph["nested_repos_excluded"] == ["sibling"]
+    assert not [rel for rel in graph["files"] if rel.startswith("sibling/")]
+
+
+def test_the_root_itself_is_a_tree_and_stays_the_subject(tmp_path):
+    """Вопрос задаётся ПОТОМКАМ. Спроси его корню — перепись измерит ПУСТОТУ.
+
+    Форма отказа названа поимённо: `Unmeasured`, а не ноль файлов (инв. #17).
+    """
+    root = pathlib.Path(_tree(tmp_path, {
+        "spa_core/tests/test_mine.py": "import json\n",
+    }))
+    (root / ".git").mkdir()
+    graph = build_graph(str(root))
+    assert "spa_core/tests/test_mine.py" in graph["files"]
+    assert graph["nested_repos_excluded"] == []
+
+
+def test_the_name_axis_loses_exactly_the_alien_names(tmp_path):
+    """Предмет замера ADR-927 §4: ось ИМЕНИ была завышена чужими деревьями.
+
+    Проверяется ИСХОД по именам, а не «стало меньше»: имя, объявленное только
+    в чужом дереве, обязано исчезнуть из третьего исхода целиком.
+    """
+    root = pathlib.Path(_tree(tmp_path, {
+        "spa_core/tests/test_mine.py": "import json\n",
+    }))
+    without = build_graph(str(root))
+    _nested_repo(root, ".claude/worktrees/other", dot_git="file")
+    with_alien = build_graph(str(root))
+
+    assert "a_module_no_tree_has" not in with_alien["unresolved_names"]
+    assert with_alien["name_counts"] == without["name_counts"]
+    assert with_alien["files"] == without["files"]
+
+
+# ─────────── два рода дуг ОДНИМ обходом: тождество, а не обещание ────────────
+
+def test_second_role_edges_from_one_walk_equal_the_separate_call(tmp_path):
+    """Предмет ADR-928 (заказ G915 п. 3): разбор дерева платился ДВАЖДЫ.
+
+    Тождество закреплено ЗНАЧЕНИЕМ, а не словом: порви сборку второго рода (возьми
+    полное дерево вместо отобранного), и дуга из-под `try/except ImportError`
+    попадёт в род «исполняется самим импортом» — ровно односторонность в сторону
+    ЗАВЫШЕНИЯ, названную ADR-529 п. 2.
+    """
+    root = _tree(tmp_path, {
+        "scripts/__init__.py": "",
+        "scripts/drill.py": "from spa_core.risk.policy import APPROVED\n",
+        # охранённый импорт: в полном роде дуга ЕСТЬ, во втором — НЕТ
+        "spa_core/tests/test_guarded.py": (
+            "try:\n    import scripts.drill\n"
+            "except ImportError:\n    pass\n"),
+        # и незащищённый сосед: во ВТОРОМ роде дуга обязана остаться
+        "spa_core/tests/test_plain.py": "import scripts.drill\n",
+        # ОТНОСИТЕЛЬНЫЙ импорт под охраной. Он здесь не для полноты: дуги
+        # относительного импорта разрешает ОТДЕЛЬНАЯ дверь (`_relative_edges`),
+        # и мутация «подать ей ПОЛНОЕ дерево вместо отобранного» на сцене из
+        # одних только абсолютных импортов ВЫЖИВАЕТ — замер батареи ADR-928,
+        # мутант 6/10. Сцена без этой строки мерила бы половину двери.
+        "spa_core/tests/helper_near.py": "Y = 2\n",
+        "spa_core/tests/test_guarded_relative.py": (
+            "try:\n    from . import helper_near\n"
+            "except ImportError:\n    pass\n"),
+    })
+    separate = build_graph(root, module_level_only=True)
+    together = build_graph(root, with_module_level_edges=True)
+
+    assert together["edges_module_level"] == separate["edges"]
+    # Предпосылка тождества: роды РАЗЛИЧАЮТСЯ на этой сцене. Совпади они —
+    # тождество выше было бы зелёным и пустым.
+    assert together["edges"] != separate["edges"]
+    assert "scripts/drill.py" not in together["edges_module_level"][
+        "spa_core/tests/test_guarded.py"]
+    assert "scripts/drill.py" in together["edges_module_level"][
+        "spa_core/tests/test_plain.py"]
+    # Вторая дверь дуг (относительные импорты) обязана спрашиваться у ТОГО ЖЕ
+    # отобранного дерева: охранённая относительная дуга во втором роде — НЕТ.
+    assert "spa_core/tests/helper_near.py" in together["edges"][
+        "spa_core/tests/test_guarded_relative.py"]
+    assert "spa_core/tests/helper_near.py" not in together[
+        "edges_module_level"]["spa_core/tests/test_guarded_relative.py"]
+
+
+def test_not_asking_the_second_role_is_not_the_same_as_no_arcs(tmp_path):
+    """`None` = «не спрашивали», `{}` = «ни одной дуги». Инв. #17 на ключе.
+
+    Подмени `None` пустым словарём, и читатель второго рода получит «дорога не
+    исполняется» вместо «не спрошено» — молчаливый ответ вместо третьего исхода.
+    """
+    root = _tree(tmp_path, {"spa_core/tests/test_a.py": "import json\n"})
+    assert build_graph(root)["edges_module_level"] is None
+
+    asked = build_graph(root, with_module_level_edges=True)["edges_module_level"]
+    # Спросили ⇒ ответ есть у КАЖДОГО разобранного файла, и «дуг нет» у файла
+    # записано пустым множеством, а не отсутствием ключа.
+    assert isinstance(asked, dict)
+    assert set(asked) == set(build_graph(root)["declares"])
+    assert asked["spa_core/tests/test_a.py"] == set()
+
+
 # ────────────────────── скип вместо замера не выход ───────────────────────────
 
 def test_the_battery_never_skips_instead_of_measuring():

@@ -794,3 +794,98 @@ class TactReadsNothingTheKeyDoesNotCover(unittest.TestCase):
                          and p.startswith(os.path.abspath(root) + os.sep)]
             self.assertEqual(uncovered, [smuggled],
                              "сторож обязан УМЕТЬ краснеть, иначе он украшение")
+
+
+class SecondRoleComesFromTheSameWalk(unittest.TestCase):
+    """Цена второго рода дуг: ОДИН обход, а не два (ADR-928, заказ G915 п. 3).
+
+    Прежде второй род собирался отдельным ПОЛНЫМ разбором дерева при первом
+    спросе. Замер на чистом дереве (5 535 файлов): два обхода 35,0 с против
+    20,7 с у одного, то есть разбор платился дважды. Утверждение «платим один
+    раз» обязано быть ЗАМЕРЕНО, иначе оно есть обещание в комментарии.
+    """
+
+    def test_precomputed_arcs_are_used_and_the_tree_is_not_parsed_again(self):
+        """Порви передачу дуг — и граф соберётся заново, то есть цена вернётся."""
+        calls: list[tuple] = []
+        real = census.build_graph
+
+        def spy(*a, **kw):
+            calls.append((a, kw))
+            return real(*a, **kw)
+
+        census.build_graph = spy
+        try:
+            lazy = census._LazyGraph("/dev/null/no-such-tree",
+                                     {"a.py": {"b.py"}})
+            self.assertTrue(lazy.built, "дуги поданы ⇒ граф УЖЕ есть")
+            self.assertEqual(lazy["edges"], {"a.py": {"b.py"}})
+            self.assertEqual(calls, [],
+                             "граф собран заново — цена второго обхода вернулась")
+        finally:
+            census.build_graph = real
+
+    def test_arcs_not_supplied_is_not_the_same_as_no_arcs(self):
+        """Третий исход на ключе: `None` = «не поданы», и тогда граф СОБИРАЕТСЯ.
+
+        Подмени `None` пустым графом, и читатель получит «дорога не
+        исполняется» вместо «не спрошено» — инв. #17 на дуге.
+        """
+        with tempfile.TemporaryDirectory() as root:
+            _write(root, "spa_core/__init__.py", "")
+            _write(root, "spa_core/a.py", "import spa_core.b\n")
+            _write(root, "spa_core/b.py", "X = 1\n")
+            lazy = census._LazyGraph(root)
+            self.assertFalse(lazy.built, "дуги не поданы ⇒ графа ещё нет")
+            self.assertEqual(lazy["edges"]["spa_core/a.py"], {"spa_core/b.py"})
+            self.assertTrue(lazy.built)
+
+
+class TheReaderActuallyAsksForTheSecondRole(unittest.TestCase):
+    """ПРОВОДКА, а не только дверь (ADR-928; мутант 10/10 батареи ВЫЖИЛ).
+
+    Прошлый контроль мерил `_LazyGraph` напрямую — то есть свой стенд. Замена
+    `build_graph(repo_root, with_module_level_edges=True)` на зов без ключа
+    оставляет ВЕРДИКТ тождественным (ленивый путь соберёт второй граф сам) и
+    молча возвращает цену второго ПОЛНОГО обхода. Вердиктом такую правку не
+    поймать вовсе: предмет здесь — ЧИСЛО обходов, и спрашивать его надо у
+    настоящего `_measure_fresh`, а не у стенда.
+    """
+
+    def test_measure_fresh_parses_the_tree_exactly_once(self):
+        with tempfile.TemporaryDirectory() as root:
+            _write(root, "spa_core/__init__.py", "")
+            _write(root, "spa_core/risk/__init__.py", "")
+            _write(root, "spa_core/risk/policy.py", "APPROVED = False\n")
+            _write(root, "spa_core/a.py", "import spa_core.risk.policy\n")
+            # Домены сторожа кладутся ВСЕ: отсутствующий каталог даёт честное
+            # «домен НЕ ИЗМЕРЕН», и тогда «один обход» было бы свойством
+            # неполной сцены, а не проводки.
+            for domain in linter.DOMAINS:
+                _write(root, f"{domain}/__init__.py", "")
+
+            calls: list[dict] = []
+            real = census.build_graph
+
+            def spy(*a, **kw):
+                calls.append(dict(kw))
+                return real(*a, **kw)
+
+            census.build_graph = spy
+            try:
+                doc = census._measure_fresh(root, census.MAX_DEPTH)
+            finally:
+                census.build_graph = real
+
+            self.assertEqual(
+                len(calls), 1,
+                f"дерево разобрано {len(calls)} раз(а) вместо одного: "
+                f"{calls} — цена второго полного обхода вернулась")
+            self.assertTrue(
+                calls[0].get("with_module_level_edges"),
+                "второй род дуг у обхода НЕ СПРОШЕН — читатель соберёт его "
+                "отдельным полным обходом, и вердикт этого не покажет")
+            # Нулевая проба: замер состоялся, иначе «один обход» было бы
+            # свойством упавшего прибора, а не проводки.
+            self.assertEqual(doc["unmeasured"], [])
+            self.assertEqual(doc["counts_sum"], doc["population"])

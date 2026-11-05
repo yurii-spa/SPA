@@ -1,0 +1,69 @@
+{
+ "title": "ADR-928 BOUNDARY — дельта цикла #1041: граница репозитория у общей двери _py_files опознаётся МЕТКОЙ дерева (.git), а не литералом имени; сужение названо; два рода дуг собираются ОДНИМ обходом",
+ "tests": [
+  "spa_core/tests/test_membership_reach_census.py",
+  "scripts/tests/test_forbidden_reach_census.py"
+ ],
+ "mutations": [
+  {
+   "name": "границы НЕТ вовсе — чужие вложенные деревья снова предмет переписи (состояние main до ADR-928: 88,7 % прод-дерева)",
+   "file": "spa_core/monitoring/membership_reach_census.py",
+   "old": "            if _is_repo_dir(here / name):\n                nested.append((here / name).relative_to(root).as_posix())\n                continue",
+   "new": "            pass"
+  },
+  {
+   "name": "форма метки угадана: `is_dir` вместо `exists` — worktree (у них `.git` ФАЙЛ) проходит мимо границы",
+   "file": "spa_core/monitoring/membership_reach_census.py",
+   "old": "    return (path / \".git\").exists()",
+   "new": "    return (path / \".git\").is_dir()"
+  },
+  {
+   "name": "граница опознаётся ЛИТЕРАЛОМ имени каталога — догадка об имени, которое выбирает харнесс",
+   "file": "spa_core/monitoring/membership_reach_census.py",
+   "old": "    return (path / \".git\").exists()",
+   "new": "    return path.name == \".claude\""
+  },
+  {
+   "name": "сужение дерева МОЛЧАЛИВО: читатель вердикта не узнаёт, какие деревья в предмет не вошли",
+   "file": "spa_core/monitoring/membership_reach_census.py",
+   "old": "        \"nested_repos_excluded\": nested_repos,",
+   "new": "        \"nested_repos_excluded\": [],"
+  },
+  {
+   "name": "вопрос задан САМОМУ корню, а не потомкам — перепись мерит ПУСТОТУ",
+   "file": "spa_core/monitoring/membership_reach_census.py",
+   "old": "            if _is_repo_dir(here / name):",
+   "new": "            if _is_repo_dir(here):"
+  },
+  {
+   "name": "второй род дуг собран у ПОЛНОГО дерева — охранённая дуга читается как исполняемая самим импортом (ADR-529 п. 2 наизнанку)",
+   "file": "spa_core/monitoring/membership_reach_census.py",
+   "old": "            for target in _relative_edges(ml_tree, rel, root):\n                ml_targets.add(target)",
+   "new": "            for target in _relative_edges(tree, rel, root):\n                ml_targets.add(target)"
+  },
+  {
+   "name": "второй род берёт имена у ПОЛНОГО дерева — тождество с отдельным зовом рвётся",
+   "file": "spa_core/monitoring/membership_reach_census.py",
+   "old": "            for dotted in sorted(_imported_modules(ml_tree)):",
+   "new": "            for dotted in sorted(_imported_modules(tree)):"
+  },
+  {
+   "name": "«не спрашивали» подменено пустым ответом — третий исход на ключе исчезает (инв. #17)",
+   "file": "spa_core/monitoring/membership_reach_census.py",
+   "old": "    edges_module_level: dict[str, set[str]] | None = (\n        {} if with_module_level_edges else None)",
+   "new": "    edges_module_level: dict[str, set[str]] | None = {}"
+  },
+  {
+   "name": "поданные дуги ИГНОРИРУЮТСЯ — цена второго полного обхода возвращается молча",
+   "file": "scripts/forbidden_reach_census.py",
+   "old": "        self._graph: dict | None = (\n            {\"edges\": precomputed} if precomputed is not None else None)",
+   "new": "        self._graph: dict | None = None"
+  },
+  {
+   "name": "второй род у читателя не спрошен — `_LazyGraph` получает None и платит второй обход",
+   "file": "scripts/forbidden_reach_census.py",
+   "old": "    graph = build_graph(repo_root, with_module_level_edges=True)",
+   "new": "    graph = build_graph(repo_root)"
+  }
+ ]
+}

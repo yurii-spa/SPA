@@ -16721,6 +16721,130 @@ def _probe_tracked_data_untouched_by_declared_runs(arg: str | None) -> tuple[str
         _shutil.rmtree(scene, ignore_errors=True)
 
 
+def _probe_reach_census_boundary_stops_at_nested_repos(
+        arg: str | None, *, repo_root: str | None = None) -> tuple[str, str]:
+    """Критерий: перепись импортов НЕ считает предметом ЧУЖОЕ вложенное дерево.
+
+    Предмет — карточка `inbox-perepis-platit-za-vlozhennye-worktree-88`
+    (заказ G915 п. 2, ADR-928). Замер цикла #1040: в прод-клоне 43 192 файла
+    `.py` из 48 704 (88,7 %) лежат внутри тринадцати вложенных git-worktree —
+    клонов ТОГО ЖЕ репозитория, принадлежащих другим сессиям. Перепись
+    отвечала о них как о нашем дереве: цена 634,3 с против 66,2 с, а
+    ПУБЛИКУЕМАЯ ось имени завышена в 8,6 раза (`name_outside_tree`), её третий
+    исход — в 11,2 раза (`name_unresolved` 368 против 33).
+
+    **Меряется ИСХОД, а не структура.** Проба не ищет в исходнике ни имени
+    `_is_repo_dir`, ни литерала `.git`, ни строки `nested_repos_excluded` в
+    прозе: она строит ОДНОРАЗОВОЕ дерево, зовёт НАСТОЯЩИЙ `build_graph` и
+    спрашивает вердикт ЗНАЧЕНИЕМ. Подстрокой она не проходит (ADR-333).
+
+    Контроль в обе стороны лежит внутри самой проверки:
+
+    * вложенное дерево с `.git`-ФАЙЛОМ (форма worktree — именно она у всех
+      тринадцати) ⇒ его файлов в населении НЕТ; порви границу, и вернётся
+      ровно авария ADR-927 §3;
+    * вложенное дерево с `.git`-КАТАЛОГОМ (форма обычного клона) ⇒ то же;
+      спроси `is_dir` вместо `exists`, и первый контроль покраснеет, а этот —
+      нет, то есть форма метки названа, а не угадана;
+    * каталог с ТЕМ ЖЕ именем, но БЕЗ `.git`, ⇒ его файлы в населении ЕСТЬ;
+      замени границу литералом имени (`.claude` в `_SKIP_DIRS`), и покраснеет
+      ровно этот контроль — догадка об имени каталога перестаёт проходить;
+    * сужение НАЗВАНО (`nested_repos_excluded` перечисляет оба дерева);
+      верни молчаливое сужение, и покраснеет этот контроль, а первые два
+      останутся зелёными — то есть «дерево сузили молча» отличимо от «не
+      сузили вовсе» (инв. #17).
+
+    Корень дерева — ВХОД, не окружение; часов, pid, сети и git-окружения проба
+    не спрашивает вовсе (три семейства бомб правила доставки отсутствуют по
+    построению).
+    """
+    if (arg or "").strip():
+        return UNMEASURED, (f"проба не принимает аргумента (дано {arg!r}): "
+                            "предмет — граница переписи, пофайловой формы у "
+                            "него нет")
+    try:
+        from spa_core.monitoring import membership_reach_census as reach
+    except BaseException as exc:  # noqa: BLE001 — причина обязана быть названа
+        return UNMEASURED, f"перепись не импортируется: {type(exc).__name__}: {exc}"
+
+    import tempfile as _tempfile
+
+    def _scene(base: _pathlib.Path) -> None:
+        """Дерево-сцена: наш код + три вложенных каталога трёх форм."""
+        (base / "spa_core").mkdir(parents=True, exist_ok=True)
+        (base / "spa_core" / "__init__.py").write_text("", encoding="utf-8")
+        (base / "spa_core" / "mine.py").write_text(
+            "import json\n", encoding="utf-8")
+        for rel, mark in ((".claude/worktrees/other", "file"),
+                          ("vendored/clone", "dir"),
+                          (".claude/worktrees/plain", None)):
+            d = base / rel
+            d.mkdir(parents=True, exist_ok=True)
+            (d / "alien.py").write_text(
+                "import a_module_no_tree_has\n", encoding="utf-8")
+            if mark == "file":
+                (d / ".git").write_text("gitdir: /elsewhere\n", encoding="utf-8")
+            elif mark == "dir":
+                (d / ".git").mkdir(exist_ok=True)
+
+    with _tempfile.TemporaryDirectory(prefix="reach_boundary_") as tmp:
+        base = _pathlib.Path(tmp)
+        _scene(base)
+        try:
+            graph = reach.build_graph(str(base))
+        except BaseException as exc:  # noqa: BLE001
+            return UNMEASURED, (f"граф на одноразовой сцене не построен: "
+                                f"{type(exc).__name__}: {exc}")
+
+        files = graph.get("files")
+        if not isinstance(files, list) or "spa_core/mine.py" not in files:
+            return UNMEASURED, ("сцена не обеспечила предпосылку: своего файла "
+                                f"`spa_core/mine.py` в населении нет ({files!r}) "
+                                "— на таком стенде вердикт не относится к границе")
+
+        broken: list[str] = []
+        # Нулевая проба уже дана выше (свой файл в населении есть), поэтому
+        # красный ниже относится к границе, а не к пустой сцене.
+        for label, rel in (("вложенное дерево с `.git`-ФАЙЛОМ (worktree)",
+                            ".claude/worktrees/other/alien.py"),
+                           ("вложенное дерево с `.git`-КАТАЛОГОМ (клон)",
+                            "vendored/clone/alien.py")):
+            if rel in files:
+                broken.append(f"{label}: файл `{rel}` ПОПАЛ в предмет переписи")
+
+        plain = ".claude/worktrees/plain/alien.py"
+        if plain not in files:
+            broken.append("каталог БЕЗ `.git` выброшен из предмета: граница "
+                          f"опознаётся литералом имени, а не меткой дерева "
+                          f"(`{plain}` в населении нет)")
+
+        named = graph.get("nested_repos_excluded")
+        want = [".claude/worktrees/other", "vendored/clone"]
+        if named is None:
+            broken.append("сужение НЕ НАЗВАНО вовсе: ключа "
+                          "`nested_repos_excluded` в документе нет")
+        elif sorted(named) != want:
+            broken.append(f"сужение названо не тем: {sorted(named)!r} вместо "
+                          f"{want!r}")
+
+        # Ось ИМЕНИ: имя, объявленное ТОЛЬКО в чужом дереве, обязано исчезнуть
+        # из третьего исхода целиком — это и есть завышенное публикуемое число.
+        unresolved = graph.get("unresolved_names")
+        if isinstance(unresolved, dict) and "a_module_no_tree_has" in unresolved:
+            broken.append("ось ИМЕНИ несёт имя из чужого дерева "
+                          "(`a_module_no_tree_has` в `unresolved_names`) — "
+                          "ровно то публикуемое число, что было завышено 11,2×")
+
+    if broken:
+        return NOT_SATISFIED, ("граница переписи не держит: "
+                               + " · ".join(broken))
+    return SATISFIED, (
+        "граница держит ИСХОДОМ на одноразовой сцене: вложенные деревья обеих "
+        "форм (`.git`-файл и `.git`-каталог) из предмета исключены и НАЗВАНЫ, "
+        "каталог с тем же именем без `.git` предметом остался, ось ИМЕНИ "
+        "чужого имени не несёт")
+
+
 PROBES: dict[str, Callable[[str | None], "tuple[str, str]"]] = {
     "tracked_data_untouched_by_declared_runs":
         _probe_tracked_data_untouched_by_declared_runs,
@@ -16862,6 +16986,8 @@ PROBES: dict[str, Callable[[str | None], "tuple[str, str]"]] = {
         _probe_ledger_day_unit_census_names_the_unit,
     "census_probe_refuses_unobserved_subject":
         _probe_census_probe_refuses_unobserved_subject,
+    "reach_census_boundary_stops_at_nested_repos":
+        _probe_reach_census_boundary_stops_at_nested_repos,
     "portfolio_decision_owner_covers_capital":
         _probe_portfolio_decision_owner_covers_capital,
     "no_single_criterion_probe_on_a_multi_criterion_order":

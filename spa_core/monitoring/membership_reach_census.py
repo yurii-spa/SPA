@@ -297,16 +297,72 @@ def _relative_edges(tree: ast.AST, rel: str,
     return out
 
 
-def _py_files(root: pathlib.Path) -> list[str]:
-    """Все файлы ``.py`` дерева, кроме объявленных пропускаемых каталогов."""
+def _is_repo_dir(path: pathlib.Path) -> bool:
+    """Каталог САМ является git-деревом: внутри него лежит ``.git``.
+
+    Форма ``.git`` намеренно НЕ уточняется (``exists``, а не ``is_dir``): у
+    обычного клона это каталог, у worktree — ФАЙЛ со строкой ``gitdir: …``.
+    Спросить про каталог значило бы пропустить ровно те вложенные деревья, из-за
+    которых граница и понадобилась: все тринадцать вложенных деревьев прод-клона
+    (замер ADR-927 §3) — именно worktree, то есть ``.git``-ФАЙЛЫ.
+
+    Почему граница опознаётся так, а не литералом имени в :data:`_SKIP_DIRS`.
+    Литерал (``.claude``) был бы ДОГАДКОЙ об имени каталога, в который чужая
+    сессия сложила свой клон, — а имя выбирает харнесс, и завтра оно другое.
+    «Каталог является git-деревом» есть свойство самого дерева, проверяемое у
+    него, а не у нашей памяти о нём.
+    """
+    return (path / ".git").exists()
+
+
+def _walk_tree(root: pathlib.Path) -> tuple[list[str], list[str]]:
+    """Файлы ``.py`` дерева И перечень ВЛОЖЕННЫХ деревьев, которые пропущены.
+
+    Возврат: (файлы, вложенные деревья). Второй член — не украшение: сужение
+    дерева обязано быть ВИДНО читателю вердикта, иначе оно есть то же, чем было
+    бы сужение прогона «до своего набора» (цикл #189). Поэтому
+    :func:`build_graph` печатает его рядом с вердиктом, а не прячет.
+
+    Предмет границы (ADR-927 §3, замер цикла #1040): в прод-клоне 43 192 файла
+    ``.py`` из 48 704 (88,7 %) лежат внутри тринадцати ВЛОЖЕННЫХ worktree —
+    чужих клонов ТОГО ЖЕ репозитория. Разбирать их значит отвечать на вопрос о
+    чужой сессии под видом вопроса о нашем дереве: цена переписи
+    ``forbidden_reach_census`` на прод-дереве была 634,3 с против 66,2 с на
+    чистом, а публикуемая ось ИМЕНИ оказалась завышена в 8,6 раза
+    (``name_outside_tree``), и её третий исход — в 11,2 раза
+    (``name_unresolved`` 368 против 33).
+
+    Корень сам является git-деревом и предметом переписи остаётся: вопрос
+    задаётся только ПОТОМКАМ.
+    """
     out: list[str] = []
+    nested: list[str] = []
     for dirpath, dirnames, filenames in os.walk(root):
-        dirnames[:] = sorted(d for d in dirnames if d not in _SKIP_DIRS)
+        here = pathlib.Path(dirpath)
+        keep: list[str] = []
+        for name in sorted(dirnames):
+            if name in _SKIP_DIRS:
+                continue
+            if _is_repo_dir(here / name):
+                nested.append((here / name).relative_to(root).as_posix())
+                continue
+            keep.append(name)
+        dirnames[:] = keep
         for name in sorted(filenames):
             if name.endswith(".py"):
-                full = pathlib.Path(dirpath) / name
+                full = here / name
                 out.append(full.relative_to(root).as_posix())
-    return sorted(out)
+    return sorted(out), sorted(nested)
+
+
+def _py_files(root: pathlib.Path) -> list[str]:
+    """Все файлы ``.py`` дерева, кроме пропускаемых каталогов и ЧУЖИХ деревьев.
+
+    Тонкая дверь над :func:`_walk_tree` — для читателей, которым перечень
+    вложенных деревьев не нужен. Обход ОДИН: спрашивать дерево дважды значило бы
+    завести второй ответ на тот же вопрос.
+    """
+    return _walk_tree(root)[0]
 
 
 def _module_level_imports(tree: ast.Module) -> ast.Module:
@@ -327,7 +383,8 @@ def _module_level_imports(tree: ast.Module) -> ast.Module:
     return ast.Module(body=body, type_ignores=[])
 
 
-def build_graph(repo_root: str, module_level_only: bool = False) -> dict:
+def build_graph(repo_root: str, module_level_only: bool = False,
+                with_module_level_edges: bool = False) -> dict:
     """Граф импортов дерева + ось ИМЕНИ. Единственный вход — путь дерева.
 
     ``module_level_only=True`` даёт ВТОРОЙ род графа: дуги только от импортов
@@ -335,11 +392,25 @@ def build_graph(repo_root: str, module_level_only: bool = False) -> dict:
     импорта файла. Умолчание ``False`` сохраняет прежнее поведение дословно.
     Род объявлен в возвращаемом документе (``module_level_only``): два графа
     одной формы, отличимые только происхождением, читатель спутал бы молча.
+
+    ``with_module_level_edges=True`` добавляет к документу ключ
+    ``edges_module_level`` — дуги ВТОРОГО рода, собранные ТЕМ ЖЕ обходом.
+    Предмет (ADR-928, заказ G915 п. 3): читателю, которому нужны оба рода,
+    прежде приходилось разбирать дерево ДВАЖДЫ (11 070 разборов из 22 516 в
+    замере цикла #1040), хотя отличает роды только фильтр по УЖЕ разобранному
+    дереву. Разбор — главное слагаемое цены; второй род поверх него стои́т лишь
+    обход уже готового дерева.
+
+    Ось ИМЕНИ второму роду НЕ пересчитывается намеренно: она есть вопрос о
+    НАПИСАНИИ и у двух родов различается (``names`` берутся у ``edge_tree``).
+    Ключ несёт РОВНО дуги — то, что единственный читатель второго рода у графа и
+    спрашивает. Тождество с отдельным зовом ``module_level_only=True``
+    закреплено контролем, а не обещано словом.
     """
     root = pathlib.Path(repo_root)
     if not root.is_dir():
         raise Unmeasured(f"дерева нет по пути {repo_root}")
-    files = _py_files(root)
+    files, nested_repos = _walk_tree(root)
     if not files:
         raise Unmeasured(f"ни одного файла .py в дереве {repo_root}")
     top_levels = _top_level_names(root)
@@ -347,6 +418,8 @@ def build_graph(repo_root: str, module_level_only: bool = False) -> dict:
 
     declares: dict[str, set[str]] = {}
     edges: dict[str, set[str]] = {}
+    edges_module_level: dict[str, set[str]] | None = (
+        {} if with_module_level_edges else None)
     name_counts = {name: 0 for name in NAME_OUTCOMES}
     unresolved_names: dict[str, int] = {}
     unparsed: dict[str, str] = {}
@@ -384,6 +457,22 @@ def build_graph(repo_root: str, module_level_only: bool = False) -> dict:
         declares[rel] = declared
         edges[rel] = targets
 
+        if edges_module_level is not None:
+            # ВТОРОЙ род дуг — от ТОГО ЖЕ разбора. Имена через тот же
+            # `resolve_cache`, поэтому цена здесь — обход готового дерева, а не
+            # повторное чтение файла с диска и не повторный `ast.parse`.
+            ml_tree = (edge_tree if module_level_only
+                       else _module_level_imports(tree))
+            ml_targets: set[str] = set()
+            for dotted in sorted(_imported_modules(ml_tree)):
+                _outcome, target = _classify_name(root, dotted, top_levels,
+                                                  resolve_cache, attributes)
+                if target is not None:
+                    ml_targets.add(target)
+            for target in _relative_edges(ml_tree, rel, root):
+                ml_targets.add(target)
+            edges_module_level[rel] = ml_targets
+
     return {
         "files": files,
         "declares": declares,
@@ -394,6 +483,13 @@ def build_graph(repo_root: str, module_level_only: bool = False) -> dict:
         "relative_edges_resolved": relative_edges_resolved,
         "top_levels": sorted(top_levels),
         "module_level_only": module_level_only,
+        # Сужение дерева НАЗВАНО, а не умолчано: читатель вердикта обязан видеть,
+        # какие деревья в предмет не вошли (ADR-928). Пустой список = «вложенных
+        # деревьев не встретилось», и это ОТВЕТ, а не отсутствие ответа.
+        "nested_repos_excluded": nested_repos,
+        # Отсутствие ключа и ПУСТОЙ ключ — разные утверждения: `None` означает
+        # «второго рода не спрашивали», а `{}` означало бы «ни одной дуги».
+        "edges_module_level": edges_module_level,
     }
 
 

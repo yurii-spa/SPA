@@ -275,15 +275,27 @@ def _load_cache(path: str) -> tuple[dict | None, str | None]:
 
 
 class _LazyGraph:
-    """Второй род графа, собираемый при ПЕРВОМ спросе и ни секундой раньше.
+    """Второй род графа. ДУГИ берутся у ТОГО ЖЕ обхода, если они уже собраны.
 
-    ``reverse_bfs`` берёт у графа ровно ``["edges"]``, поэтому ленивость видна
-    только здесь и не протекает ни в соседа, ни в ось исходов.
+    ``reverse_bfs`` берёт у графа ровно ``["edges"]``, поэтому вид второго рода
+    здесь и остаётся: ни в соседа, ни в ось исходов он не протекает.
+
+    **Почему ленивость снята (ADR-928, заказ G915 п. 3).** Прежде второй род
+    собирался отдельным ПОЛНЫМ обходом дерева при первом спросе — то есть
+    дерево разбиралось дважды (11 070 разборов из 22 516 в замере цикла #1040).
+    Ленивость экономила этот обход, когда ось занижения ничего не нашла; но
+    замер показал, что собрать ОБА рода одним обходом стои́т **столько же, что
+    один** (замер на чистом дереве 5 535 файлов: 20,7 с против 22,3 с у одного
+    рода и 35,0 с у двух обходов — главное слагаемое цены есть ``ast.parse``, а
+    не обход готового дерева). Поэтому «не платить иногда» заменено на «платить
+    ноль всегда», и ``precomputed`` есть обычный путь, а ленивый зов —
+    положительный контроль на случай, когда дуги второго рода не поданы.
     """
 
-    def __init__(self, repo_root: str):
+    def __init__(self, repo_root: str, precomputed: dict | None = None):
         self._repo_root = repo_root
-        self._graph: dict | None = None
+        self._graph: dict | None = (
+            {"edges": precomputed} if precomputed is not None else None)
 
     @property
     def built(self) -> bool:
@@ -413,7 +425,10 @@ def _measure_fresh(repo_root: str, max_depth: int) -> dict:
     :func:`measure`.
     """
     root = pathlib.Path(repo_root)
-    graph = build_graph(repo_root)
+    # Оба рода дуг — ОДНИМ обходом (ADR-928): разбор дерева есть главное
+    # слагаемое цены, и платить его дважды значило бы отвечать на тот же вопрос
+    # второй раз.
+    graph = build_graph(repo_root, with_module_level_edges=True)
     files = graph["files"]
     unmeasured: list[str] = [
         f"{rel}: граф не разобрал файл ({reason}) — НЕ ИЗМЕРЕН"
@@ -424,10 +439,11 @@ def _measure_fresh(repo_root: str, max_depth: int) -> dict:
     unmeasured.extend(seed_unmeasured)
 
     domain_files = _domain_files(files)
-    # Второй род графа стоит столько же, сколько первый, а нужен ТОЛЬКО когда
-    # ось занижения что-то нашла: у пустой находки нечего спрашивать об
-    # исполнении. Лениво — чтобы шаг цикла не платил за ответ, которого нет.
-    exec_graph = _LazyGraph(repo_root)
+    # Второй род графа собран ТЕМ ЖЕ обходом (ADR-928). Ленивый путь остаётся
+    # живым для случая, когда дуги не поданы: иначе отсутствие ключа молча
+    # давало бы пустой граф, то есть «дорога не исполняется» вместо «не
+    # спрошено».
+    exec_graph = _LazyGraph(repo_root, graph.get("edges_module_level"))
     counts, findings = _reach_axis(graph, domain_files, by_lib, max_depth,
                                    exec_graph, by_lib_exec)
     launch_counts, launch_findings = _reach_axis(
@@ -488,6 +504,11 @@ def _measure_fresh(repo_root: str, max_depth: int) -> dict:
         "seed_files": {lib: sorted(rels) for lib, rels in sorted(by_lib.items()) if rels},
         "parity": parity,
         "name_counts": graph["name_counts"],
+        # Сужение дерева НАЗВАНО у САМОГО громкого читателя двери, а не только
+        # внутри графа (ADR-928): перепись печатается в шаге 0-офис, и читатель
+        # вердикта обязан видеть, какие деревья в предмет не вошли. Пустой
+        # список = «вложенных деревьев не встретилось» и есть ОТВЕТ.
+        "nested_repos_excluded": graph["nested_repos_excluded"],
         "unmeasured": unmeasured,
     }
 

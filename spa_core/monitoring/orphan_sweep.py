@@ -118,6 +118,7 @@ from __future__ import annotations
 import argparse
 import json
 import os
+import re
 import sys
 from pathlib import Path
 from typing import Optional, Sequence
@@ -259,6 +260,37 @@ DOOR_STATES = ("affirms", "silent", "blind")
 #: невлитые коммиты не тронули ни одного пути), и это ТРЕТИЙ исход, а не
 #: «доставлено»: ошибаться обязано в сторону ОТКАЗА считать работу доставленной.
 CONTENT_STATES = ("delivered", "pending", "unmeasured")
+
+#: Исходы оси РАБОЧЕГО ДЕРЕВА (ADR-929). Перечень ЗАМКНУТ.
+#:
+#: ``carries`` — дерево несёт незакоммиченные байты ВНЕ ``data/``.
+#: ``clean`` — измерено и равно нулю: таких байтов нет.
+#: ``unmeasured`` — git не ответил о состоянии дерева; это ТРЕТИЙ исход, а не
+#: ``clean`` (инв. #17).
+#:
+#: Ось НЕ судит, годна ли такая работа к подъёму, — ровно как четвёртая дверь
+#: не судит годность кандидата (ADR-902). Она ОТРИЦАЕТ право строки «поднимать
+#: нечего» звучать как утверждение обо ВСЕЙ работе: коммита у этих байтов нет,
+#: поэтому ни один из четырёх вопросов переписи о них не задаётся ВООБЩЕ.
+WORKTREE_STATES = ("carries", "clean", "unmeasured")
+
+#: **Число оси есть число ЗАПИСЕЙ состояния, а не файлов.** `git status
+#: --porcelain` сворачивает целиком неотслеживаемый каталог в ОДНУ запись
+#: (`?? docs/`), поэтому дерево с сотней новых файлов в одном новом каталоге
+#: даёт `1`. Снять свёртку мог бы `--untracked-files=all`, но флаг пришлось бы
+#: менять у ТОГО ЖЕ вызова, из которого рядом считается `dirty`, то есть
+#: изменить публикуемое число соседа ради своего (тот же порядок, что у
+#: `_py_files` в ADR-928). Предел объявлен, а не подразумевается; порядок
+#: деревьев он не портит — отметка каталога двигается вместе с записью в него.
+#: Сцена предела — `TheUntrackedDirectoryCollapse`.
+#:
+#: Что из грязи ось НЕ считает, и почему это названо, а не умолчано.
+#: ``data/`` — живое состояние прода: по `CLAUDE.md` «в боевом мусор в `data/`
+#: не мусор, а состояние», и дневной цикл делает его грязным в КАЖДОМ дереве.
+#: Считать его значило бы объявить членом оси все деревья и тем обнулить её.
+#: Исключённое печатается ЧИСЛОМ рядом — молчаливое сужение было бы тем же
+#: дефектом, что и молчаливое сужение дерева в ADR-928.
+WORKTREE_IGNORED_PREFIX = "data/"
 
 #: Исходы ОДНОГО пути. ``absent_on_ref`` держится отдельно от ``differs``
 #: намеренно: «на `ref` этого файла нет вовсе» и «есть, но другой» —
@@ -701,14 +733,170 @@ def _count_span(repo: Path, span: str) -> Optional[int]:
         return None
 
 
+#: Буквы состояния `git status --porcelain`. Пробел — полноправная буква
+#: (` M` = «изменено, не добавлено»), и именно он делает разбор по КОЛОНКЕ
+#: негодным: общая дверь `_git` отдаёт вывод `.strip()`-нутым, поэтому ПЕРВАЯ
+#: строка теряет ведущий пробел, а остальные — нет. Срез `line[3:]` съедал у
+#: неё первый символ пути МОЛЧА: замер 05.11 дал `ata/adapter_status.json`
+#: вместо `data/adapter_status.json`, то есть путь, который обязан был
+#: попасть в «не считано», уехал в НАХОДКУ. Счётчик `dirty` рядом этого не
+#: замечает ПО ПОСТРОЕНИЮ — он считает строки, а не разбирает их.
+#:
+#: Чинится здесь, а не в `_git`: у общей двери ЧЕТЫРЕ других читателя
+#: (`ls-tree`, `worktree list`, `rev-list`, `diff --name-only`), и ни один из
+#: них на ведущий пробел не опирается — правка двери была бы правкой чужого
+#: ответа ради своего (тот же порядок, что у `_py_files` в ADR-928).
+_PORCELAIN_STATUS = " MADRCU?!T"
+_PORCELAIN_RE = re.compile(rf"^[{re.escape(_PORCELAIN_STATUS)}]{{1,2}} (.+)$")
+
+
+def _porcelain_path(line: str) -> Optional[str]:
+    """Путь из строки ``git status --porcelain``. Не разобрали ⇒ ``None``.
+
+    Буквы состояния берутся ЖАДНО (две, иначе одна) — так строка переживает
+    и обычный вид ` M путь`, и обрезанный вид `M путь` после `.strip()`.
+    """
+    m = _PORCELAIN_RE.match(line)
+    if not m:
+        return None
+    path = m.group(1)
+    # Переименование git печатает как `старое -> новое`; предмет — НОВОЕ имя,
+    # потому что именно его байты лежат в дереве.
+    if " -> " in path:
+        path = path.split(" -> ", 1)[1]
+    return path or None
+
+
+def _mtime(path: Path) -> Optional[float]:
+    """Отметка файла. Не прочитали ⇒ ``None`` (не ноль и не «сейчас»)."""
+    try:
+        return path.stat().st_mtime
+    except OSError:
+        return None
+
+
+def worktree_door(status_code: int, status_out: str, *,
+                  tree: Optional[Path] = None, mtime_probe=None) -> dict:
+    """Ось РАБОЧЕГО ДЕРЕВА: несёт ли дерево незакоммиченные байты вне ``data/``.
+
+    Берёт ГОТОВЫЙ ответ ``git status --porcelain``, который строка и так уже
+    спросила: своя дверь к git означала бы второй обход на то же дерево и —
+    хуже — ответ о ДРУГОМ моменте, чем счётчик ``dirty`` рядом.
+
+    git не ответил ⇒ ``unmeasured`` с причиной, а не ``clean``: «не спросили»
+    обязано отличаться от «спросили и ничего нет» (инв. #17).
+
+    **Отметка — ВХОД, а не окружение** (`.claude/rules/deployment.md`, приём №1):
+    ``mtime_probe`` по умолчанию спрашивает настоящую ФС, а тест передаёт свою.
+    Отметка нужна затем, что СЧЁТ путей на этот вопрос не отвечает: дерево с
+    2916 чужими заметками месячной давности и дерево, в котором цикл умер час
+    назад, по счёту неразличимы, а по отметке — нет. Это ИЗМЕРЕНИЕ, а не
+    суждение о готовности работы (судить её прибору запрещено, ADR-908).
+    """
+    probe = mtime_probe or _mtime
+    if status_code != 0:
+        return {"worktree": "unmeasured", "worktree_reason":
+                f"git не назвал состояние дерева (код {status_code}): "
+                f"{(status_out or 'пусто')[:120]}",
+                "worktree_outside": None, "worktree_ignored": None,
+                "worktree_examples": [], "worktree_newest": None,
+                "worktree_newest_state": "unmeasured"}
+    outside, ignored, unparsed = [], 0, []
+    for line in status_out.splitlines():
+        if not line.strip():
+            continue
+        path = _porcelain_path(line)
+        if path is None:
+            # Строку не разобрали ⇒ она НАЗЫВАЕТСЯ, а не пропускается молча:
+            # пропуск сделал бы «не разобрали» неотличимым от «под `data/`».
+            unparsed.append(line[:60])
+            continue
+        # Путь со спецсимволами git отдаёт в кавычках, и тогда префикс не
+        # совпадёт ⇒ путь попадёт в `outside`. Ошибка идёт в сторону НАХОДКИ
+        # (лишнее имя названо), а не в сторону молчания, и это выбор.
+        if path.startswith(WORKTREE_IGNORED_PREFIX):
+            ignored += 1
+            continue
+        outside.append(path)
+    if unparsed:
+        # Хоть одна неразобранная строка ⇒ ось НЕ ИЗМЕРЕНА целиком: мы не
+        # знаем, лежал ли под ней путь вне `data/`, а «carries 0» утверждал бы,
+        # что не лежал. Ошибаться обязано в сторону ОТКАЗА отвечать.
+        return {"worktree": "unmeasured", "worktree_reason":
+                f"не разобрано строк состояния: {len(unparsed)} "
+                f"(например {unparsed[0]!r})",
+                "worktree_outside": None, "worktree_ignored": ignored,
+                "worktree_examples": [], "worktree_newest": None,
+                "worktree_newest_state": "unmeasured"}
+    if not outside:
+        # Отметки нет И НЕ ДОЛЖНО БЫТЬ: мерить нечего. Это НЕ «не измерено» —
+        # у чистого дерева вопрос не возникает.
+        return {"worktree": "clean", "worktree_reason": None,
+                "worktree_outside": 0, "worktree_ignored": ignored,
+                "worktree_examples": [], "worktree_newest": None,
+                "worktree_newest_state": "no_subject"}
+    stamps, unread = [], 0
+    for rel in outside:
+        got = probe((tree / rel) if tree is not None else Path(rel))
+        if got is None:
+            unread += 1
+        else:
+            stamps.append(got)
+    if stamps:
+        newest, newest_state = max(stamps), "measured"
+    else:
+        # Ни один путь не прочитан ⇒ ТРЕТИЙ исход с причиной, а не «давно».
+        newest, newest_state = None, "unmeasured"
+    return {"worktree": "carries",
+            "worktree_reason": (f"отметка НЕ ПРОЧИТАНА ни у одного из {unread} путей"
+                                if newest_state == "unmeasured" else None),
+            "worktree_outside": len(outside),
+            "worktree_ignored": ignored,
+            "worktree_unread_stamps": unread,
+            "worktree_examples": sorted(outside)[:3],
+            "worktree_newest": newest,
+            "worktree_newest_state": newest_state}
+
+
+def order_carrying(rows: Sequence[dict]) -> list[dict]:
+    """Деревья, несущие незакоммиченные байты, — в порядке НОВИЗНЫ.
+
+    Дверь именованная, а не выражение внутри :func:`sweep`, именно ради
+    контроля: сцена, сверявшая порядок со СВОЕЙ копией правила, оставила
+    мутанта «сортировать по счёту» ЖИВЫМ (замер #1043, мутация M5) — копия
+    правила мерит себя, а не прибор.
+
+    Счёт путей на вопрос оси не отвечает: замер 05.11 поставил первым
+    прод-дерево с 2916 чужими заметками месячной давности, тогда как предмет —
+    дерево `c1042` с 13 путями, в котором часом ранее умер цикл. Дерево с НЕ
+    ПРОЧИТАННОЙ отметкой уходит в КОНЕЦ: «отметки нет» не выдаётся ни за
+    свежее, ни за давнее.
+    """
+    return sorted((r for r in rows if r.get("worktree") == "carries"),
+                  key=lambda x: (x.get("worktree_newest") is None,
+                                 -(x.get("worktree_newest") or 0.0)))
+
+
 def _tree_row(tree: Path, lineage: Path, ref: str, *, limit: int = SPAN_LIMIT) -> dict:
     code, sha = _git(tree, "rev-parse", "HEAD")
     if code != 0 or not sha:
         return {"tree": str(tree), "verdict": "no_head",
-                "reason": f"git не назвал HEAD дерева: {sha or 'пусто'} (код {code})"}
+                "reason": f"git не назвал HEAD дерева: {sha or 'пусто'} (код {code})",
+                # Ось рабочего дерева у такой строки НЕ ИЗМЕРЕНА, и это
+                # печатается: у дерева без HEAD git не ответил ни на один
+                # вопрос, и «чисто» здесь было бы выдумкой.
+                "worktree": "unmeasured",
+                "worktree_reason": "git не назвал HEAD — о дереве не спрошено ничего",
+                "worktree_outside": None, "worktree_ignored": None,
+                "worktree_examples": []}
     dcode, dout = _git(tree, "status", "--porcelain")
     dirty = len([x for x in dout.splitlines() if x.strip()]) if dcode == 0 else None
     row = {"tree": str(tree), "head": sha, "dirty": dirty}
+    # Ось РАБОЧЕГО ДЕРЕВА (ADR-929) живёт на КАЖДОЙ строке, а не только у
+    # кандидатов: её предмет — ровно те деревья, которые вердикт `on_main`
+    # из кандидатов ИСКЛЮЧАЕТ, и спрашивать её у одних кандидатов значило бы
+    # не задать её там, где она единственно и нужна.
+    row.update(worktree_door(dcode, dout, tree=tree))
 
     present = _present(lineage, sha)
     if present is None:
@@ -762,6 +950,15 @@ def sweep(repo_root: str | Path = _REPO_ROOT, *, ref: str = REF_DEFAULT,
                 "lineage_rejected": rejected, "rows": [], "tally": {}}
 
     rows = [_tree_row(t, lineage, ref, limit=limit) for t in trees]
+    worktree_tally = {s: sum(1 for r in rows if r.get("worktree") == s)
+                      for s in WORKTREE_STATES}
+    unknown_wt = [r.get("worktree") for r in rows
+                  if r.get("worktree") not in WORKTREE_STATES]
+    if unknown_wt:  # перечень WORKTREE_STATES замкнут
+        raise Unmeasured(
+            f"исход оси рабочего дерева вне перечня: {sorted(set(map(str, unknown_wt)))}")
+    assert sum(worktree_tally.values()) == len(rows), "учёт рабочего дерева не сошёлся"
+    carrying = order_carrying(rows)
     tally = {v: sum(1 for r in rows if r["verdict"] == v) for v in VERDICTS}
     unknown = [r["verdict"] for r in rows if r["verdict"] not in VERDICTS]
     if unknown:  # перечень VERDICTS замкнут — расхождение есть дефект прибора
@@ -814,6 +1011,11 @@ def sweep(repo_root: str | Path = _REPO_ROOT, *, ref: str = REF_DEFAULT,
     return {"state": "measured", "ref": ref, "lineage_repo": str(lineage),
             "lineage_rejected": rejected, "repo_root": str(repo),
             "trees": len(rows), "rows": rows, "tally": tally,
+            "worktree_tally": worktree_tally,
+            "worktree_ignored_prefix": WORKTREE_IGNORED_PREFIX,
+            # Деревья, несущие незакоммиченные байты вне `data/`. Годность к
+            # подъёму НЕ судится (ADR-929) — называется только факт.
+            "worktree_carrying": carrying,
             "candidates": candidates,
             "fresh_base_lag_max": fresh_base_lag_max,
             "candidates_with_measured_span": [
@@ -880,11 +1082,46 @@ def report(doc: dict) -> list[str]:
     for r in doc["candidates"]:
         if r.get("span_state") != "measured":
             lines.append(f"   ▫️ пролёт НЕ ИЗМЕРЕН: {r['tree']} · {r.get('reason', '')[:90]}")
+    # «Поднимать нечего» — утверждение о КОММИТАХ, и оно обязано называть свой
+    # предмет (ADR-929). Прежняя безусловная форма читалась как «работы нигде
+    # нет»: 05.11 она была напечатана над деревом `c1042`, которое перепись
+    # перечислила и у которого сама записала `dirty=13`, — а в нём лежала
+    # законченная работа цикла #1042 (ADR-928, тест, журнал, заказ).
+    wt = doc.get("worktree_tally") or {}
+    carrying = doc.get("worktree_carrying") or []
     if not fresh:
-        lines.append("   ✅ поднимать нечего: ни одного кандидата со свежей базой")
+        lines.append("   ✅ поднимать ПО КОММИТАМ нечего: ни одного кандидата "
+                     "со свежей базой")
     elif not doc.get("fresh_to_raise"):
-        lines.append(f"   ✅ поднимать нечего: все {len(fresh)} свежих кандидат(а) "
-                     f"несут содержимое, УЖЕ доставленное на {doc['ref']} иным путём")
+        lines.append(f"   ✅ поднимать ПО КОММИТАМ нечего: все {len(fresh)} свежих "
+                     f"кандидат(а) несут содержимое, УЖЕ доставленное на "
+                     f"{doc['ref']} иным путём")
+    if wt:
+        lines.append("   ось РАБОЧЕГО ДЕРЕВА (ни один из четырёх вопросов выше о ней "
+                     "не спрашивает — у этих байтов нет коммита): "
+                     + " · ".join(f"{k} {wt.get(k, 0)}" for k in WORKTREE_STATES)
+                     + f" — не считано грязное под {doc.get('worktree_ignored_prefix')!r}"
+                       " (живое состояние, грязно в каждом дереве)")
+        for r in carrying[:5]:
+            if r.get("worktree_newest_state") == "measured":
+                import datetime as _dt
+                when = _dt.datetime.fromtimestamp(
+                    r["worktree_newest"], _dt.timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
+            else:
+                when = f"НЕ ИЗМЕРЕНА ({r.get('worktree_reason')})"
+            lines.append(f"   🗃 НЕСЁТ НЕЗАКОММИЧЕННОЕ ({r.get('worktree_outside')} путей "
+                         f"вне {doc.get('worktree_ignored_prefix')!r}, "
+                         f"ещё {r.get('worktree_ignored')} внутри): {r['tree']}")
+            lines.append(f"      новейший байт: {when} · например: "
+                         f"{', '.join(r.get('worktree_examples') or ())}"
+                         " — ГОДНОСТЬ К ПОДЪЁМУ НЕ СУДИТСЯ, решение за читателем")
+        if len(carrying) > 5:
+            lines.append(f"   🗃 …и ещё {len(carrying) - 5} дерев(о/а) с "
+                         "незакоммиченными байтами вне "
+                         f"{doc.get('worktree_ignored_prefix')!r}")
+        for r in (x for x in doc.get("rows", []) if x.get("worktree") == "unmeasured"):
+            lines.append(f"   ⚠️ ось рабочего дерева НЕ ИЗМЕРЕНА: {r['tree']} · "
+                         f"{r.get('worktree_reason')}")
     ct = doc.get("content_tally")
     if ct:
         lines.append("   содержимое у кандидатов: "
