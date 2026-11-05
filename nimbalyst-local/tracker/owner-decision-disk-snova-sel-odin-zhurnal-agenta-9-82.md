@@ -2,12 +2,14 @@
 trackerStatus:
   type: owner-decision
 title: "Диск снова съел один журнал агента: 9,82 ГБ из 9,91 ГБ всех логов — выбрать починку из трёх"
-status: needs-owner
+status: ingested
 source: nimbalyst
 created: 2026-10-29
 priority: critical
 subject: IRREVERSIBLE
 finding_adr: ADR-858
+status_trail:
+  - "2026-11-02T21:20:40.730857+00:00 needs-owner -> ingested · queue.set_status"
 ---
 
 ## Что случилось и почему это важно

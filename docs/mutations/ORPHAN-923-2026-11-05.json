@@ -1,0 +1,74 @@
+{
+ "title": "ADR-923 ORPHAN — дельта цикла #1036: перепись сирот становится ПРИБОРОМ; клон для вопросов о происхождении ВЫБИРАЕТСЯ, усечённый есть третий исход; свежесть сироты разделяет ОТСТАВАНИЕ БАЗЫ, а не пролёт",
+ "tests": [
+  "spa_core/tests/test_orphan_sweep.py"
+ ],
+ "mutations": [
+  {
+   "name": "усечённый клон снова ОТВЕЧАЕТ: отказ pick_lineage_repo проглочен и выдан за измеренную перепись (дословно авария 04.11)",
+   "file": "spa_core/monitoring/orphan_sweep.py",
+   "old": "    except Unmeasured as exc:\n        return {\"state\": \"unmeasured\", \"reason\": str(exc), \"ref\": ref,\n                \"lineage_repo\": None, \"lineage_rejected\": [], \"rows\": [], \"tally\": {}}",
+   "new": "    except Unmeasured as exc:\n        lineage, rejected = Path(lineage_candidates[0]), []"
+  },
+  {
+   "name": "разделителем снова объявлен ПРОЛЁТ, а не отставание базы — ошибка руки цикла #1036 возвращена",
+   "file": "spa_core/monitoring/orphan_sweep.py",
+   "old": "            \"fresh_candidates\": [\n                r for r in candidates\n                if r.get(\"base_lag_state\") == \"measured\"\n                and r[\"base_lag\"] <= fresh_base_lag_max],",
+   "new": "            \"fresh_candidates\": [\n                r for r in candidates\n                if r.get(\"span_state\") == \"measured\" and r[\"span\"] == 1],"
+  },
+  {
+   "name": "пролёт за пределом выдан ЧИСЛОМ: «не измерено» становится неотличимо от ответа (инв. #17)",
+   "file": "spa_core/monitoring/orphan_sweep.py",
+   "old": "    return {\"span\": None, \"span_state\": \"unmeasured\",\n            \"reason\": (f\"за {limit} шагов по первым родителям не встретилось коммита, \"\n                       f\"который на {ref} есть — история дерева чужая, размер работы \"\n                       f\"НЕ ИЗМЕРЕН (пределом его называть нельзя)\")}",
+   "new": "    return {\"span\": limit, \"span_state\": \"measured\", \"base\": cur, \"base_lag\": 0,\n            \"base_lag_state\": \"measured\"}"
+  },
+  {
+   "name": "«git не сосчитал отставание» склеено с НУЛЁМ — ровно подмена, различающая сироту от заброшенной ветки",
+   "file": "spa_core/monitoring/orphan_sweep.py",
+   "old": "    code, out = _git(repo, \"rev-list\", \"--count\", span)\n    if code != 0:\n        return None\n    try:\n        return int(out)\n    except ValueError:\n        return None",
+   "new": "    code, out = _git(repo, \"rev-list\", \"--count\", span)\n    try:\n        return int(out)\n    except ValueError:\n        return 0"
+  },
+  {
+   "name": "«деревьев нет» выдано за ответ: перепись молчит вместо отказа",
+   "file": "spa_core/monitoring/orphan_sweep.py",
+   "old": "    if not found:\n        raise Unmeasured(f\"git перечислил ноль деревьев клона {repo} — это не ответ, а молчание\")\n    return found",
+   "new": "    return found"
+  },
+  {
+   "name": "git не ответил о наличии коммита — склеено с «нет», и усечение снова РОЖДАЕТ кандидата",
+   "file": "spa_core/monitoring/orphan_sweep.py",
+   "old": "    code, _ = _git(repo, \"cat-file\", \"-e\", f\"{sha}^{{commit}}\")\n    if code in (0, 1, 128):\n        return code == 0\n    return None",
+   "new": "    code, _ = _git(repo, \"cat-file\", \"-e\", f\"{sha}^{{commit}}\")\n    return code == 0"
+  },
+  {
+   "name": "код возврата снова считает находкой любого кандидата, а не свежего — заброшенные ветки краснят шаг каждый цикл",
+   "file": "spa_core/monitoring/orphan_sweep.py",
+   "old": "    return 1 if doc[\"fresh_candidates\"] else 0",
+   "new": "    return 1 if doc[\"candidates\"] else 0"
+  },
+  {
+   "name": "невлитая ветка объявлена СИРОТОЙ — вопрос мержа подан как подъём",
+   "file": "spa_core/monitoring/orphan_sweep.py",
+   "old": "CANDIDATE_VERDICTS = (\"never_pushed\",)",
+   "new": "CANDIDATE_VERDICTS = (\"never_pushed\", \"off_main_branch\")"
+  },
+  {
+   "name": "порог свежести ослаблен до бесконечности — заброшенная ветка 30.06 снова зовётся готовой работой",
+   "file": "spa_core/monitoring/orphan_sweep.py",
+   "old": "FRESH_BASE_LAG_MAX = 100",
+   "new": "FRESH_BASE_LAG_MAX = 10 ** 9"
+  },
+  {
+   "name": "порог свежести сжат до НУЛЯ — суточный поток main снова ПРЯЧЕТ сироту (ошибка в ПРОПУСК)",
+   "file": "spa_core/monitoring/orphan_sweep.py",
+   "old": "FRESH_BASE_LAG_MAX = 100",
+   "new": "FRESH_BASE_LAG_MAX = 0"
+  },
+  {
+   "name": "порог инъектировать нельзя: умолчание затеняет аргумент — сцены мерили бы не свой порог",
+   "file": "spa_core/monitoring/orphan_sweep.py",
+   "old": "                and r[\"base_lag\"] <= fresh_base_lag_max],",
+   "new": "                and r[\"base_lag\"] <= FRESH_BASE_LAG_MAX],"
+  }
+ ]
+}

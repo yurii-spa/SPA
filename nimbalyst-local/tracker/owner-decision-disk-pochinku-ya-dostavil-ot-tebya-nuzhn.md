@@ -2,13 +2,15 @@
 trackerStatus:
   type: owner-decision
 title: "Диск: починку я доставил — от тебя нужны усечение журнала на 123 ГиБ и включение агента"
-status: needs-owner
+status: ingested
 source: nimbalyst
 created: 2026-10-30
 priority: critical
 subject: IRREVERSIBLE
 finding_adr: ADR-865
 supersedes: owner-decision-disk-snova-sel-odin-zhurnal-agenta-9-82
+status_trail:
+  - "2026-11-02T21:20:40.732649+00:00 needs-owner -> ingested · queue.set_status"
 ---
 
 ## Что случилось и почему это важно

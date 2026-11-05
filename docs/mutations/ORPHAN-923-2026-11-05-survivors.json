@@ -1,0 +1,20 @@
+{
+ "title": "ADR-923 ORPHAN — ПЕРЕПРОГОН ровно двух выживших замера #1036 после починки батареи",
+ "tests": [
+  "spa_core/tests/test_orphan_sweep.py"
+ ],
+ "mutations": [
+  {
+   "name": "«деревьев нет» выдано за ответ: перепись молчит вместо отказа",
+   "file": "spa_core/monitoring/orphan_sweep.py",
+   "old": "    if not found:\n        raise Unmeasured(f\"git перечислил ноль деревьев клона {repo} — это не ответ, а молчание\")\n    return found",
+   "new": "    return found"
+  },
+  {
+   "name": "git не ответил о наличии коммита — склеено с «нет», и усечение снова РОЖДАЕТ кандидата",
+   "file": "spa_core/monitoring/orphan_sweep.py",
+   "old": "    code, _ = _git(repo, \"cat-file\", \"-e\", f\"{sha}^{{commit}}\")\n    if code in (0, 1, 128):\n        return code == 0\n    return None",
+   "new": "    code, _ = _git(repo, \"cat-file\", \"-e\", f\"{sha}^{{commit}}\")\n    return code == 0"
+  }
+ ]
+}

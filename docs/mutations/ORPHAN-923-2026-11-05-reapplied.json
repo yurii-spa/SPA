@@ -1,0 +1,14 @@
+{
+ "title": "ADR-923 ORPHAN — ПЕРЕПРОГОН мутации, которая в прогоне #1036 была НЕ ПРИМЕНЕНА (якорь уехал при инъекции порога)",
+ "tests": [
+  "spa_core/tests/test_orphan_sweep.py"
+ ],
+ "mutations": [
+  {
+   "name": "разделителем снова объявлен ПРОЛЁТ, а не отставание базы — ошибка руки цикла #1036 возвращена",
+   "file": "spa_core/monitoring/orphan_sweep.py",
+   "old": "            \"fresh_candidates\": [\n                r for r in candidates\n                if r.get(\"base_lag_state\") == \"measured\"\n                and r[\"base_lag\"] <= fresh_base_lag_max],",
+   "new": "            \"fresh_candidates\": [\n                r for r in candidates\n                if r.get(\"span_state\") == \"measured\" and r[\"span\"] == 1],"
+  }
+ ]
+}

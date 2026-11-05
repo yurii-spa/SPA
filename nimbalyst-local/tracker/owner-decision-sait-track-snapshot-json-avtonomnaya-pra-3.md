@@ -2,10 +2,12 @@
 trackerStatus:
   type: owner-decision
 title: "Сайт: track_snapshot.json — автономная правка задела owner-gated область, нужно решение"
-status: needs-owner
+status: ingested
 source: orchestrator
 created: 2026-10-29
 approves: landing/src/data/track_snapshot.json
+status_trail:
+  - "2026-11-02T21:20:40.731666+00:00 needs-owner -> ingested · queue.set_status"
 ---
 
 ## Что случилось и почему это важно

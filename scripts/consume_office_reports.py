@@ -1092,6 +1092,15 @@ _READ_SCHEMA: dict[str, tuple[str, ...]] = {
                                      "repo_history", "trees_declared",
                                      "measure_carriers", "invoked_by",
                                      "findings"),
+    # ADR-923. `lineage_repo` в схеме ОБЯЗАТЕЛЕН по той же причине, что
+    # `repo_root` у соседа выше: «коммита нет в полном клоне» есть утверждение о
+    # КОНКРЕТНОМ клоне, и усечённый отвечает на него неверно МОЛЧА (замер #1036:
+    # из 40 кандидатов усечённого прод-клона ЛОЖНЫХ 21). Без поля отчёт
+    # прочёлся бы как ответ полной истории. `fresh_base_lag_max` обязателен,
+    # потому что «свежих 0» при пороге 0 и при пороге 100 — РАЗНЫЕ утверждения.
+    "orphan_sweep.json": ("state", "tally", "rows", "lineage_repo",
+                          "lineage_rejected", "fresh_base_lag_max",
+                          "invoked_by", "candidates"),
     # Заказ G93 п. 3 (ADR-547). `tact_floor_hours` в схеме обязателен: ТАЛЛИ
     # без такта-пола читается как вердикт о сегодняшнем мире, а он вердикт о
     # мире НА МОМЕНТ прогона — и момент этот обязан иметь срок. `verdict` и
@@ -1662,6 +1671,8 @@ _PRODUCER: dict[str, str] = {
         "spa_core/monitoring/acceptance_tree_capability.py",
     "acceptance_tree_lineage.json":
         "spa_core/monitoring/acceptance_tree_lineage.py",
+    "orphan_sweep.json":
+        "spa_core/monitoring/orphan_sweep.py",
     "s49_tally_tact.json":
         "spa_core/monitoring/s49_tally_tact.py",
     "slo_keepability.json":
@@ -4098,6 +4109,16 @@ def _summarize_json(path: str, data, *, now: dt.datetime | None = None,
         # многострочная — ни одна из них).
         from spa_core.monitoring.acceptance_tree_lineage import format_report as _atl_report
         out.extend(_atl_report(data))
+    elif name == "orphan_sweep.json":
+        # ADR-923. Без этой ветки артефакт читается ВХОЛОСТУЮ, и перепись сирот
+        # снова держалась бы на том, что кто-то набрал команду руками — а ручная
+        # форма ОТРАВЛЕНА клоном, в котором её только и запускают (из 40
+        # кандидатов усечённого прод-клона 21 ложный, молча и кодом 0).
+        # Правило отрисовки делегируется ПРОИЗВОДИТЕЛЮ; ввоз ОДНОСТРОЧНЫЙ
+        # (сторож достижимости вырезает ввозы двух объявленных форм, скобочная
+        # многострочная — ни одна из них).
+        from spa_core.monitoring.orphan_sweep import format_report as _osw_report
+        out.extend(_osw_report(data))
     elif name == "s49_tally_tact.json":
         # Заказ G93 п. 3 (ADR-547). Без этой ветки артефакт читается ВХОЛОСТУЮ, и
         # ТАЛЛИ §49 — единственное число, которого приказ владельца просит прямо, —

@@ -2,10 +2,12 @@
 trackerStatus:
   type: owner-decision
 title: "Можно ли книге иметь больше 8 позиций: потолок объявлен, а проверка книги его не спрашивает"
-status: needs-owner
+status: ingested
 source: nimbalyst
 created: 2026-10-30
 twin_key: "sha256:370cc2ba1ece056ae06c4d8e178aea1d15c07eaa7d264a01c299521a32584853"
+status_trail:
+  - "2026-11-02T21:20:40.728274+00:00 needs-owner -> ingested · queue.set_status"
 ---
 
 ## Что случилось и почему это важно
