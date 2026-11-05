@@ -241,14 +241,39 @@ class TheOrderIsByRecencyNotByCount(unittest.TestCase):
             for name in ("older", "newer"):
                 for f in sorted((Path(tmp) / name).glob("*")):
                     _os.utime(f, (stamp[name], stamp[name]))
-            doc = osw.sweep(lineage, ref=BRANCH, previous=None, cuw=None)
+            # РОДОСЛОВНЫЙ КЛОН — ВХОД СЦЕНЫ, а не свойство хоста.
+            # `LINEAGE_CANDIDATES_DEFAULT` — литеральные пути рабочего Мака
+            # (`~/Documents/SPA_mirror`, `~/Documents/SPA_Claude`); на раннере
+            # их нет, `pick_lineage_repo` честно отвечает `unmeasured`, и первая
+            # редакция этой сцены была ЗЕЛЕНА здесь и КРАСНА в CI (прогон
+            # 42090640014). Половина инъекции — та же бомба: сцена построила
+            # настоящий git-репозиторий и при этом оставила ВТОРУЮ дверь к
+            # окружению открытой (`.claude/rules/deployment.md`, § «GIT-ОКРУЖЕНИЕ»).
+            doc = osw.sweep(lineage, ref=BRANCH, previous=None, cuw=None,
+                            lineage_candidates=[str(lineage)])
             self.assertEqual(doc["state"], "measured", doc.get("reason"))
+            # Положительный контроль инъекции: ответ пришёл о МОЁМ клоне.
+            # Без него подстановка хостового пути вернулась бы незамеченной.
+            self.assertEqual(Path(doc["lineage_repo"]), lineage)
             rows = {Path(r["tree"]).name: r for r in doc["worktree_carrying"]}
             self.assertGreater(rows["older"]["worktree_outside"],
                                rows["newer"]["worktree_outside"],
                                "предпосылка сцены: по СЧЁТУ порядок обратный")
             order = [Path(r["tree"]).name for r in doc["worktree_carrying"]]
             self.assertEqual(order[:2], ["newer", "older"])
+
+    def test_an_undeclared_lineage_clone_is_unmeasured_not_a_verdict(self):
+        """Отрицательный контроль того же механизма, что покраснел в CI.
+
+        Он держит ДВА утверждения сразу: родословная без клона — третий исход
+        (а не «поднимать нечего»), и именно ЭТО происходило на раннере, пока
+        сцена выше не объявила свой клон. Без него починка была бы
+        утверждением о себе.
+        """
+        doc = osw.sweep(Path("/nonexistent-tree"), ref=BRANCH, previous=None,
+                        cuw=None, lineage_candidates=["/nonexistent-clone"])
+        self.assertEqual(doc["state"], "unmeasured")
+        self.assertIn("клона нет на диске", doc["reason"])
 
 
 class TheReportCarriesTheAxis(unittest.TestCase):
