@@ -59,6 +59,38 @@ acceptance_tree_lineage.pick_lineage_repo`), выбор ПЕЧАТАЕТСЯ, и
 10 — древние расхождения, у них ``span_state="unmeasured"``.
 Точность формы на этом замере 1/1, и **это не доля, а единственное наблюдение**.
 
+## Третий вопрос: «в полёте» или «брошена» (ADR-924, заказ G911 п. 6)
+
+Первые два вопроса — о ДИСКЕ («уезжал ли коммит», «сколько работы он несёт»).
+Третий — о ЧЕЛОВЕКЕ за деревом, и до цикла #1037 прибор его не задавал вовсе:
+законченная-и-брошенная работа и работа, которую пишут прямо сейчас, на диске
+выглядят ОДИНАКОВО.
+
+Отвечают ДВЕ двери, и ни одна не заменяет другую:
+
+| дверь | что доказывает | когда слепа |
+|---|---|---|
+| объявление (`data/session_changes.jsonl` + `check_undelivered_work.session_state`) | сессия назвала это дерево И её активность ПОДТВЕРЖДЕНА | журнал не прочитан · живость объявившей сессии `UNKNOWN` |
+| движение (прошлый артефакт этой же переписи) | HEAD дерева ИЗМЕНИЛСЯ с прошлой переписи ⇒ в нём работали после неё | прошлой переписи нет · она сама `unmeasured` · дерева в ней не было |
+
+**«Брошена» исходом НЕ ЯВЛЯЕТСЯ** (:data:`FLIGHT_STATES`): обе двери умеют
+доказывать РАБОТУ и не умеют доказывать её отсутствие. Поэтому у каждой двери
+ТРИ состояния (:data:`DOOR_STATES`), и ``silent`` («никто не объявлял» /
+«HEAD тот же») со ``blind`` («не прочитали») не склеиваются: ошибка здесь идёт
+в сторону ОТКАЗА поднимать чужое, а не в сторону подъёма работы, которую пишут.
+
+**Цена молчания измерена ДВАЖДЫ на одном дереве.** Замер #1036 назвал
+`~/Documents/SPA_worktrees/yield01` кандидатом (`7ee20ce01`, пролёт 2) и не
+поднял — «сперва спросить, не в полёте ли она», — а спросить было нечем: та
+сессия себя не объявила, и дверь объявления о ней молчит до сих пор. Замер
+#1037 полтора часа спустя нашёл там `cf23c2977`, пролёт 3: дерево ДВИНУЛОСЬ.
+То есть вторая дверь отвечает там, где первая молчит, и ровно на том случае,
+который и породил заказ.
+
+**Прошлый слепок читается ДО записи своего** (:func:`load_previous` в
+:func:`run`/:func:`main`): артефакт перезаписывается каждым прогоном, и
+«сравнить с прошлым разом» после записи означает сравнить замер с самим собой.
+
 ## Чего прибор НЕ умеет
 
 Он не находит СВОЮ сироту: цикл, не запушивший свою работу, невидим для своей же
@@ -74,11 +106,18 @@ acceptance_tree_lineage.pick_lineage_repo`), выбор ПЕЧАТАЕТСЯ, и
 Он не читает рабочее дерево: грязные файлы считаются (``dirty``), но
 незакоммиченная работа сиротой здесь не зовётся — у неё нет коммита, а значит нет
 и предмета, который можно было бы сверить с полным клоном.
+
+Он не доказывает БРОШЕННОСТЬ — см. третий вопрос выше. И он не ловит сессию,
+которая работает в дереве, но за промежуток между двумя переписями не сделала ни
+коммита и себя не объявила: обе двери о ней МОЛЧАТ, и исход честно будет
+``unmeasured``. Доля такого населения НЕ ИЗМЕРЕНА (замер #1037 — одно
+наблюдение, не доля).
 """
 from __future__ import annotations
 
 import argparse
 import json
+import os
 import sys
 from pathlib import Path
 from typing import Optional, Sequence
@@ -158,6 +197,288 @@ MEASURED_NEAREST_ABANDONED = 971
 #: НЕРАВЕНСТВО, а не само число: сверять число с собой значило бы мерить свою
 #: же копию (урок #1027).
 FRESH_BASE_LAG_MAX = 100
+
+
+# ── Третий вопрос переписи: «в полёте» против «брошена» (заказ G911 п. 6) ──
+#
+# Первые два вопроса прибора — «уезжал ли коммит» и «сколько работы он несёт».
+# Оба отвечают о ДИСКЕ. Третий вопрос — о ЧЕЛОВЕКЕ за деревом, и до цикла #1037
+# прибор его НЕ ЗАДАВАЛ вовсе, о чём сам же и говорил вслух: «законченная и
+# брошенная» против «идущей прямо сейчас» на диске выглядят ОДИНАКОВО (чистое
+# дерево, коммит поверх вершины, в полном клоне коммита нет).
+#
+# Цена молчания измерена дважды на одном и том же дереве. Замер #1036 назвал
+# `~/Documents/SPA_worktrees/yield01` кандидатом (`7ee20ce01`, пролёт 2) и не
+# поднял его — «сперва спросить, не в полёте ли она», — а спросить было нечем.
+# Замер #1037 полтора часа спустя нашёл там `cf23c2977`, пролёт 3: дерево
+# ДВИНУЛОСЬ. Подними его цикл #1036 — он увёз бы на `origin/main` половину
+# чужой незаконченной работы под своей подписью.
+
+#: Исходы третьего вопроса. Перечень ЗАМКНУТ.
+#:
+#: **«Брошена» здесь НЕ ЗНАЧИТСЯ, и это не недосмотр, а граница измерения.**
+#: Обе двери ниже умеют доказывать РАБОТУ и не умеют доказывать её отсутствие:
+#: сессия, не объявившая себя, может писать в дерево прямо сейчас, а дерево, не
+#: двинувшееся с прошлой переписи, может принадлежать сессии, которая думает.
+#: Поэтому «нет улик работы» есть ``unmeasured`` с названной причиной — ровно
+#: инв. #17, и ошибка здесь идёт в сторону ОТКАЗА поднимать чужое, а не в
+#: сторону подъёма работы, которую сейчас пишут.
+FLIGHT_STATES = ("in_flight", "unmeasured")
+
+#: Что может ответить ОДНА дверь. Три состояния, и склеивать ``silent`` с
+#: ``blind`` запрещено: «никто не объявлял» есть ОТВЕТ двери, а «журнал не
+#: прочитан» — её отсутствие, и выдать второе за первое значило бы сделать
+#: слепую дверь источником вердикта.
+DOOR_STATES = ("affirms", "silent", "blind")
+
+#: Журнал объявлений — единственная дверь к живости сессии (`CLAUDE.md`,
+#: шаги 0a/0b). Он живёт в ДАННЫХ переписываемого клона, а правило живости — в
+#: КОДЕ своего дерева: это два разных вопроса к двум разным деревьям, и путать
+#: их легко (урок #193).
+JOURNAL_DEFAULT = "data/session_changes.jsonl"
+
+#: Сколько последних записей журнала читать. `None` — все: журнал на 3341
+#: запись читается за доли секунды, а окно по числу записей молча выронило бы
+#: объявление сессии, которая объявилась один раз и работает третий час.
+JOURNAL_LAST = None
+
+
+#: Отличает «вызывающий НЕ передал правило живости» от «передал `None`».
+#: Второе есть ОСОЗНАННОЕ «мерить живость нечем» (так сцена проверяет слепую
+#: дверь), первое — обычный путь, где прибор грузит правило сам. Склеить их
+#: значило бы лишить сцену возможности назвать слепоту.
+_SENTINEL = object()
+
+
+def _read_journal(cuw, path: Path) -> tuple[Optional[list], Optional[str]]:
+    """Записи журнала объявлений. (записи|None, причина слепоты|None).
+
+    Читает их ТЕМ ЖЕ разборщиком, что шаги 0a/0b (`read_entries`), — своего
+    парсера JSONL здесь нет намеренно. Журнал не прочитан ⇒ `None`, и дверь
+    объявления становится слепой; пустой список записей слепотой НЕ является
+    («журнал пуст» есть ответ).
+    """
+    if cuw is None:
+        return None, "правило живости не загружено — журнал разбирать нечем"
+    if not path.exists():
+        return None, f"журнала объявлений нет ({path})"
+    try:
+        entries, _bad = cuw.read_entries(path, JOURNAL_LAST)
+    except Exception as exc:                                    # noqa: BLE001
+        return None, f"журнал объявлений НЕ ПРОЧИТАН ({path}): {type(exc).__name__}: {exc}"
+    return list(entries), None
+
+
+def load_cuw(path: Optional[Path] = None):
+    """Загрузить ЕДИНСТВЕННОЕ правило живости сессии. Возвращает (модуль|None, причина).
+
+    Правило живости (`session_state`: пара ``session_pid`` + ``session_pid_start``,
+    ADR-453) живёт в `scripts/check_undelivered_work.py` и загружается, а НЕ
+    копируется — тем же приёмом, что `spa_core/studio_os/company_truth.py`. Вторая
+    копия правила разошлась бы с первой МОЛЧА, и это не гипотеза: ровно так три
+    набора адаптеров звались одним именем и три месяца врал `house_view_gap`.
+
+    `None` сам есть измерение: дверь объявления становится СЛЕПОЙ с названной
+    причиной, а не отвечает «сессия мертва».
+    """
+    import importlib.util
+    target = Path(path) if path is not None else _REPO_ROOT / "scripts" / "check_undelivered_work.py"
+    try:
+        spec = importlib.util.spec_from_file_location("_orphan_sweep_cuw", target)
+        if spec is None or spec.loader is None:
+            return None, f"правило живости не загрузилось: нет загрузчика для {target}"
+        mod = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(mod)
+    except Exception as exc:                                    # noqa: BLE001
+        return None, f"правило живости не загрузилось ({target}): {type(exc).__name__}: {exc}"
+    return mod, None
+
+
+def load_previous(path: str | Path) -> tuple[Optional[dict], Optional[str]]:
+    """Прошлая перепись с диска. Возвращает (замер|None, причина слепоты|None).
+
+    **Читать её обязан сам прибор и ДО записи своей.** Артефакт перезаписывается
+    каждым прогоном, поэтому слепок предшественника исчезает в тот же миг, и
+    «сравнить с прошлым разом» после записи означает сравнить замер с самим
+    собой — знакомый класс (ADR-774: сверять одно и то же с самим собой).
+    """
+    p = Path(path)
+    if not p.exists():
+        return None, f"прошлой переписи нет на диске ({p}) — это первый прогон, а не «не двинулось»"
+    try:
+        doc = json.loads(p.read_text(encoding="utf-8"))
+    except (OSError, ValueError) as exc:
+        return None, f"прошлая перепись НЕ ПРОЧИТАНА ({p}): {type(exc).__name__}: {exc}"
+    if not isinstance(doc, dict):
+        return None, f"прошлая перепись не словарь, а {type(doc).__name__} — сверять движение не с чем"
+    if doc.get("state") != "measured":
+        return None, (f"прошлая перепись сама НЕ ИЗМЕРЕНА (state={doc.get('state')!r}) — "
+                      f"её HEAD'ам верить нельзя")
+    return doc, None
+
+
+def movement_door(tree: str, head: Optional[str], previous: Optional[dict],
+                  previous_blind_reason: Optional[str] = None) -> dict:
+    """Двинулось ли дерево с прошлой переписи.
+
+    Оба написания пути приходят из `git worktree list` ОДНОГО И ТОГО ЖЕ клона
+    (своё — сейчас, чужое — из своего же артефакта), поэтому сверка идёт
+    побайтно и второго правила нормализации здесь НЕ ЗАВОДИТСЯ: лишняя мерка
+    рядом с существующей и есть тот дефект, за который `ADAPTER_REGISTRY`
+    получил три имени.
+    """
+    door = {"door": "movement"}
+    if previous is None:
+        return {**door, "state": "blind",
+                "reason": previous_blind_reason or "прошлая перепись не прочитана"}
+    if not isinstance(head, str) or not head:
+        return {**door, "state": "blind",
+                "reason": "у дерева не назван HEAD сейчас — сравнивать нечего"}
+    for row in previous.get("rows") or ():
+        if not isinstance(row, dict) or row.get("tree") != tree:
+            continue
+        was = row.get("head")
+        if not isinstance(was, str) or not was:
+            return {**door, "state": "blind",
+                    "reason": (f"в прошлой переписи у дерева HEAD не назван "
+                               f"(её исход {row.get('verdict')!r})")}
+        if was != head:
+            return {**door, "state": "affirms", "previous_head": was,
+                    "previous_generated_at": previous.get("generated_at"),
+                    "reason": (f"дерево ДВИНУЛОСЬ с прошлой переписи "
+                               f"({previous.get('generated_at')}): {was[:9]} → {head[:9]} — "
+                               f"кто-то работал в нём ПОСЛЕ неё")}
+        return {**door, "state": "silent", "previous_head": was,
+                "previous_generated_at": previous.get("generated_at"),
+                "reason": (f"HEAD тот же, что в прошлой переписи "
+                           f"({previous.get('generated_at')}) — это НЕ брошенность, "
+                           f"а отсутствие улик за этот промежуток")}
+    return {**door, "state": "blind",
+            "reason": ("дерева в прошлой переписи не было вовсе — оно моложе её, "
+                       "и промежутка для сравнения нет")}
+
+
+def _tree_key(cuw, tree: str) -> tuple[Optional[str], Optional[str]]:
+    """Путь дерева меркой ЖУРНАЛА — через публичную дверь `tree_of_path`.
+
+    Ту же дверь внутри себя зовёт `worktree_of`, поэтому обе стороны сверки
+    приходят к одному написанию ОДНИМ правилом (`/tmp` ≡ `/private/tmp`), и
+    второй копии нормализации здесь не заводится.
+
+    **У этого приёма есть ИЗМЕРЕННАЯ ловушка, и она требует проверки, а не
+    доверия.** `tree_of_path` написана для пути ФАЙЛА внутри дерева: она режет
+    путь на ПЕРВОМ компоненте, который выглядит каталогом репозитория. Если так
+    выглядит компонент самого КОРНЯ дерева, ответ будет про ЧУЖОЕ дерево.
+    Замер #1037 на живом хосте: из 81 дерева ловушка у **13** — все
+    `~/Documents/SPA_Claude/.claude/worktrees/<имя>` сворачиваются в
+    `~/Documents/SPA_Claude`, то есть в ПРОД-дерево, которое объявляет каждый
+    цикл. Без проверки дверь объявления утверждала бы «в полёте» для тринадцати
+    чужих деревьев, и настоящая сирота в любом из них была бы молча укрыта
+    чужим объявлением. Шесть из одиннадцати кандидатов того же замера — ровно
+    эти деревья; сегодня они не утверждали лишь потому, что прод-дерево в тот
+    час было `not_confirmed`. Это везение, а не устройство.
+
+    Поэтому ответ ПРОВЕРЯЕТСЯ: базовое имя ключа обязано совпасть с базовым
+    именем дерева. Усечение всегда отбрасывает хотя бы один компонент, то есть
+    меняет базовое имя; складывание `/private/tmp` ≡ `/tmp` его не меняет
+    никогда. Не совпало ⇒ `None` + причина, то есть дверь СЛЕПА (fail-CLOSED),
+    а не «деревья разные».
+    """
+    try:
+        key = cuw.tree_of_path(str(Path(tree) / "spa_core"))
+    except Exception as exc:                                    # noqa: BLE001
+        return None, f"`tree_of_path` не ответил: {type(exc).__name__}: {exc}"
+    if not key:
+        return None, "`tree_of_path` не назвал дерево для этого пути"
+    if Path(key).name != Path(tree).name:
+        return None, (f"мерка журнала свернула путь дерева в ЧУЖОЙ корень "
+                      f"({tree} → {key}): компонент самого корня выглядит каталогом "
+                      f"репозитория, и объявления этого чужого дерева читались бы как "
+                      f"объявления нашего")
+    return key, None
+
+
+def declaration_door(tree: str, entries: Optional[Sequence[dict]], cuw,
+                     *, journal_blind_reason: Optional[str] = None,
+                     self_session: str = "", ps_probe=None, cmd_probe=None) -> dict:
+    """Объявила ли себя сессия, работающая в этом дереве.
+
+    Живость меряет `check_undelivered_work.session_state` — ЕДИНСТВЕННОЕ правило
+    дома, загруженное, а не скопированное. `ACTIVE` ⇒ дверь УТВЕРЖДАЕТ полёт;
+    все объявления `NOT_CONFIRMED` (или объявлений нет вовсе) ⇒ дверь МОЛЧИТ, и
+    это не «брошена»; хоть один `UNKNOWN` без утверждающего ⇒ дверь СЛЕПА
+    (fail-CLOSED: неизмеренную живость нельзя читать как её отсутствие).
+    """
+    door = {"door": "declaration"}
+    if cuw is None:
+        return {**door, "state": "blind",
+                "reason": journal_blind_reason or "правило живости не загружено"}
+    if entries is None:
+        return {**door, "state": "blind",
+                "reason": journal_blind_reason or "журнал объявлений не прочитан"}
+    key, key_blind = _tree_key(cuw, tree)
+    if key is None:
+        return {**door, "state": "blind", "reason": key_blind}
+    seen: list[dict] = []
+    for entry in entries:
+        if not isinstance(entry, dict):
+            continue
+        try:
+            declared = cuw.worktree_of(entry)
+        except Exception as exc:                                # noqa: BLE001
+            return {**door, "state": "blind",
+                    "reason": f"журнал не разобран: {type(exc).__name__}: {exc}"}
+        if not declared or declared != key:
+            continue
+        try:
+            state, why = cuw.session_state(
+                entry, self_session,
+                **({"ps": ps_probe} if ps_probe is not None else {}),
+                **({"cmd_probe": cmd_probe} if cmd_probe is not None else {}))
+        except Exception as exc:                                # noqa: BLE001
+            return {**door, "state": "blind",
+                    "reason": f"живость не измерена: {type(exc).__name__}: {exc}"}
+        seen.append({"session": entry.get("session"), "ts": entry.get("ts"),
+                     "liveness": state, "why": why})
+    if not seen:
+        return {**door, "state": "silent", "sessions": [],
+                "reason": ("дерево не объявил НИКТО — это отсутствие улик, "
+                           "а не доказательство брошенности")}
+    alive = [s for s in seen if s["liveness"] == cuw.ACTIVE]
+    if alive:
+        return {**door, "state": "affirms", "sessions": seen,
+                "reason": (f"сессия {alive[0]['session']} объявила это дерево и её "
+                           f"активность ПОДТВЕРЖДЕНА: {alive[0]['why']}")}
+    unknown = [s for s in seen if s["liveness"] == cuw.UNKNOWN]
+    if unknown:
+        return {**door, "state": "blind", "sessions": seen,
+                "reason": (f"живость объявившей сессии {unknown[0]['session']} НЕ ИЗМЕРЕНА: "
+                           f"{unknown[0]['why']}")}
+    return {**door, "state": "silent", "sessions": seen,
+            "reason": (f"объявлений {len(seen)}, ни одно не подтверждает активность "
+                       f"(последнее: {seen[-1]['why']}) — улик работы нет, "
+                       f"брошенность этим НЕ доказана")}
+
+
+def flight_verdict(doors: Sequence[dict]) -> dict:
+    """Свести ответы дверей в один исход. «Брошена» не возвращается НИКОГДА.
+
+    Утверждает хоть одна дверь ⇒ ``in_flight``: улика работы есть, и чужая
+    улика сильнее нашего желания поднять. Иначе ``unmeasured`` с перечислением
+    того, что сказала КАЖДАЯ дверь, — читатель обязан видеть, молчала она или
+    была слепа.
+    """
+    affirming = [d for d in doors if d.get("state") == "affirms"]
+    if affirming:
+        return {"flight": "in_flight",
+                "flight_evidence": [d["door"] for d in affirming],
+                "flight_reason": " · ".join(d.get("reason", "") for d in affirming),
+                "flight_doors": list(doors)}
+    return {"flight": "unmeasured",
+            "flight_evidence": [],
+            "flight_reason": " · ".join(
+                f"{d.get('door')}: {d.get('state')} — {d.get('reason', '')}" for d in doors),
+            "flight_doors": list(doors)}
 
 
 def worktrees(repo: Path) -> list[Path]:
@@ -291,8 +612,19 @@ def _tree_row(tree: Path, lineage: Path, ref: str, *, limit: int = SPAN_LIMIT) -
 def sweep(repo_root: str | Path = _REPO_ROOT, *, ref: str = REF_DEFAULT,
           lineage_candidates: Sequence[str] = LINEAGE_CANDIDATES_DEFAULT,
           limit: int = SPAN_LIMIT,
-          fresh_base_lag_max: int = FRESH_BASE_LAG_MAX) -> dict:
-    """Перепись сирот. Возвращает замер; НИЧЕГО не правит и не поднимает."""
+          fresh_base_lag_max: int = FRESH_BASE_LAG_MAX,
+          previous: Optional[dict] = None,
+          previous_blind_reason: Optional[str] = None,
+          journal: Optional[str | Path] = None,
+          cuw=_SENTINEL, cuw_path: Optional[Path] = None,
+          self_session: str = "", ps_probe=None, cmd_probe=None) -> dict:
+    """Перепись сирот. Возвращает замер; НИЧЕГО не правит и не поднимает.
+
+    `previous` — прошлая перепись (см. :func:`load_previous`): её обязан
+    прочитать вызывающий ДО записи новой, иначе дверь движения сверит замер с
+    самим собой. Не передана ⇒ дверь движения СЛЕПА с названной причиной, а не
+    отвечает «не двинулось».
+    """
     repo = Path(repo_root)
     try:
         lineage, rejected = pick_lineage_repo(list(lineage_candidates))
@@ -316,6 +648,31 @@ def sweep(repo_root: str | Path = _REPO_ROOT, *, ref: str = REF_DEFAULT,
                 "lineage_rejected": rejected, "rows": rows, "tally": tally}
     assert sum(tally.values()) == len(rows), "учёт не сошёлся"
     candidates = [r for r in rows if r["verdict"] in CANDIDATE_VERDICTS]
+
+    # Третий вопрос — только КАНДИДАТАМ: он про решение «поднимать ли», а дерево,
+    # чей коммит уже на `ref`, поднимать и не предлагается.
+    if cuw is _SENTINEL:
+        cuw, cuw_blind = load_cuw(cuw_path)
+    else:
+        cuw_blind = None if cuw is not None else "правило живости не передано вызывающим"
+    journal_path = Path(journal) if journal is not None else repo / JOURNAL_DEFAULT
+    entries, journal_blind = _read_journal(cuw, journal_path)
+    for row in candidates:
+        doors = [
+            declaration_door(row["tree"], entries, cuw,
+                             journal_blind_reason=cuw_blind or journal_blind,
+                             self_session=self_session,
+                             ps_probe=ps_probe, cmd_probe=cmd_probe),
+            movement_door(row["tree"], row.get("head"), previous, previous_blind_reason),
+        ]
+        row.update(flight_verdict(doors))
+    flight_tally = {s: sum(1 for r in candidates if r.get("flight") == s)
+                    for s in FLIGHT_STATES}
+    assert sum(flight_tally.values()) == len(candidates), "учёт полёта не сошёлся"
+
+    fresh = [r for r in candidates
+             if r.get("base_lag_state") == "measured"
+             and r["base_lag"] <= fresh_base_lag_max]
     return {"state": "measured", "ref": ref, "lineage_repo": str(lineage),
             "lineage_rejected": rejected, "repo_root": str(repo),
             "trees": len(rows), "rows": rows, "tally": tally,
@@ -323,10 +680,15 @@ def sweep(repo_root: str | Path = _REPO_ROOT, *, ref: str = REF_DEFAULT,
             "fresh_base_lag_max": fresh_base_lag_max,
             "candidates_with_measured_span": [
                 r for r in candidates if r.get("span_state") == "measured"],
-            "fresh_candidates": [
-                r for r in candidates
-                if r.get("base_lag_state") == "measured"
-                and r["base_lag"] <= fresh_base_lag_max],
+            "fresh_candidates": fresh,
+            "flight_tally": flight_tally,
+            "journal": str(journal_path),
+            "previous_generated_at": (previous or {}).get("generated_at"),
+            "previous_blind_reason": None if previous else (
+                previous_blind_reason or "прошлая перепись не передана вызывающим"),
+            "fresh_in_flight": [r for r in fresh if r.get("flight") == "in_flight"],
+            "fresh_flight_unmeasured": [
+                r for r in fresh if r.get("flight") != "in_flight"],
             "span_limit": limit}
 
 
@@ -346,8 +708,16 @@ def report(doc: dict) -> list[str]:
                  f"{len(measured)}, база СВЕЖАЯ (отстаёт ≤ "
                  f"{doc['fresh_base_lag_max']}) у {len(fresh)}")
     for r in sorted(fresh, key=lambda x: x["span"]):
-        lines.append(f"   🔶 ПОДНЯТЬ: {r['tree']} · {r['head'][:9]} · пролёт {r['span']} "
+        head = ("🛫 НЕ ПОДНИМАТЬ (В ПОЛЁТЕ)" if r.get("flight") == "in_flight"
+                else "🔶 ПОДНЯТЬ")
+        lines.append(f"   {head}: {r['tree']} · {r['head'][:9]} · пролёт {r['span']} "
                      f"коммит(ов) · база отстаёт {r['base_lag']} · грязных файлов {r['dirty']}")
+        if r.get("flight") == "in_flight":
+            lines.append(f"      улика работы ({', '.join(r.get('flight_evidence') or ())}): "
+                         f"{r.get('flight_reason')}")
+        else:
+            lines.append(f"      полёт НЕ ИЗМЕРЕН (брошенность этим НЕ доказана): "
+                         f"{r.get('flight_reason')}")
     for r in sorted(measured, key=lambda x: (x.get("base_lag") is None, x.get("base_lag") or 0)):
         if r in fresh:
             continue
@@ -360,6 +730,12 @@ def report(doc: dict) -> list[str]:
             lines.append(f"   ▫️ пролёт НЕ ИЗМЕРЕН: {r['tree']} · {r.get('reason', '')[:90]}")
     if not fresh:
         lines.append("   ✅ поднимать нечего: ни одного кандидата со свежей базой")
+    ft = doc.get("flight_tally")
+    if ft:
+        lines.append("   полёт у кандидатов: " + " · ".join(f"{k} {ft.get(k, 0)}" for k in FLIGHT_STATES)
+                     + " — «брошена» исходом не является (доказать её нечем)")
+    if doc.get("previous_blind_reason"):
+        lines.append(f"   дверь ДВИЖЕНИЯ слепа: {doc['previous_blind_reason']}")
     return lines
 
 
@@ -380,6 +756,10 @@ def run(repo_root: str | Path = _REPO_ROOT, *, data_dir: Optional[Path] = None,
     root = Path(repo_root)
     source = Path(data_dir) if data_dir is not None else root / "data"
     target = Path(dest) if dest is not None else source / ARTIFACT
+    # Прошлый слепок читается ДО записи нового: артефакт перезаписывается этим же
+    # вызовом, и после записи дверь движения сверяла бы замер с самим собой.
+    if "previous" not in kw:
+        kw["previous"], kw["previous_blind_reason"] = load_previous(target)
     doc = sweep(root, **kw)
     doc["invoked_by"] = call_provenance(tree_root=root)
     doc["generated_at"] = _stamp_now(now)
@@ -406,6 +786,9 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
                     help="клон для вопросов о происхождении; можно несколько, "
                          "порядок — объявленный приоритет")
     ap.add_argument("--span-limit", type=int, default=SPAN_LIMIT)
+    ap.add_argument("--journal", default=None,
+                    help="журнал объявлений, по которому меряется живость сессии "
+                         "(умолчание — data/session_changes.jsonl переписываемого клона)")
     ap.add_argument("--fresh-base-lag-max", type=int, default=FRESH_BASE_LAG_MAX,
                     help="насколько база кандидата вправе отставать от вершины, "
                          "чтобы работа считалась свежей")
@@ -414,15 +797,20 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
     ap.add_argument("--no-write", action="store_true")
     args = ap.parse_args(argv)
 
+    dest = (Path(args.out) if args.out
+            else Path(args.repo_root) / "data" / ARTIFACT)
+    # ДО замера, не после: иначе прошлый слепок уже затёрт своим же.
+    previous, previous_blind = load_previous(dest)
     doc = sweep(args.repo_root, ref=args.ref,
                 lineage_candidates=args.lineage or LINEAGE_CANDIDATES_DEFAULT,
                 limit=args.span_limit,
-                fresh_base_lag_max=args.fresh_base_lag_max)
+                fresh_base_lag_max=args.fresh_base_lag_max,
+                previous=previous, previous_blind_reason=previous_blind,
+                journal=args.journal,
+                self_session=os.environ.get("SPA_SESSION_ID", ""))
     doc["invoked_by"] = call_provenance(tree_root=Path(args.repo_root))
     doc["generated_at"] = _stamp_now()
     if not args.no_write:
-        dest = (Path(args.out) if args.out
-                else Path(args.repo_root) / "data" / ARTIFACT)
         dest.parent.mkdir(parents=True, exist_ok=True)
         atomic_save(doc, str(dest))
     if args.json:

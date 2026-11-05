@@ -1,0 +1,87 @@
+{
+ "title": "ADR-924 FLIGHT — дельта цикла #1037: третий вопрос переписи сирот («в полёте» против «брошена»), две двери по три состояния, «брошена» исходом не является, прошлый слепок читается ДО записи своего",
+ "tests": [
+  "spa_core/tests/test_orphan_sweep_flight.py",
+  "spa_core/tests/test_orphan_sweep.py"
+ ],
+ "mutations": [
+  {
+   "name": "дверь ДВИЖЕНИЯ не утверждает полёт НИКОГДА — состояние main до ADR-924",
+   "file": "spa_core/monitoring/orphan_sweep.py",
+   "old": "        if was != head:",
+   "new": "        if False:"
+  },
+  {
+   "name": "первый прогон выдан за «не двинулось»: слепота стала ОТВЕТОМ (инв. #17)",
+   "file": "spa_core/monitoring/orphan_sweep.py",
+   "old": "    if previous is None:\n        return {**door, \"state\": \"blind\",\n                \"reason\": previous_blind_reason or \"прошлая перепись не прочитана\"}",
+   "new": "    if previous is None:\n        return {**door, \"state\": \"silent\",\n                \"reason\": previous_blind_reason or \"прошлая перепись не прочитана\"}"
+  },
+  {
+   "name": "дерево МОЛОЖЕ прошлой переписи объявлено «не двинулось» — промежутка нет, а ответ есть",
+   "file": "spa_core/monitoring/orphan_sweep.py",
+   "old": "    return {**door, \"state\": \"blind\",\n            \"reason\": (\"дерева в прошлой переписи не было вовсе — оно моложе её, \"\n                       \"и промежутка для сравнения нет\")}",
+   "new": "    return {**door, \"state\": \"silent\",\n            \"reason\": (\"дерева в прошлой переписи не было вовсе — оно моложе её, \"\n                       \"и промежутка для сравнения нет\")}"
+  },
+  {
+   "name": "ЧУЖОЕ «не измерено» принимается за замер: HEAD'ам неизмеренной переписи верим",
+   "file": "spa_core/monitoring/orphan_sweep.py",
+   "old": "    if doc.get(\"state\") != \"measured\":\n        return None, (f\"прошлая перепись сама НЕ ИЗМЕРЕНА (state={doc.get('state')!r}) — \"\n                      f\"её HEAD'ам верить нельзя\")",
+   "new": "    if False:\n        return None, (f\"прошлая перепись сама НЕ ИЗМЕРЕНА (state={doc.get('state')!r}) — \"\n                      f\"её HEAD'ам верить нельзя\")"
+  },
+  {
+   "name": "fail-OPEN живости: неизмеренная живость объявившей сессии читается как её отсутствие",
+   "file": "spa_core/monitoring/orphan_sweep.py",
+   "old": "    unknown = [s for s in seen if s[\"liveness\"] == cuw.UNKNOWN]\n    if unknown:",
+   "new": "    unknown = [s for s in seen if s[\"liveness\"] == cuw.UNKNOWN]\n    if False:"
+  },
+  {
+   "name": "нечитаемый журнал объявляется тишиной «дерево не объявил НИКТО»",
+   "file": "spa_core/monitoring/orphan_sweep.py",
+   "old": "    if entries is None:\n        return {**door, \"state\": \"blind\",\n                \"reason\": journal_blind_reason or \"журнал объявлений не прочитан\"}",
+   "new": "    if entries is None:\n        entries = []"
+  },
+  {
+   "name": "ИЗМЕРЕННАЯ ловушка возвращена: 13 деревьев из 81 наследуют объявление ПРОД-дерева",
+   "file": "spa_core/monitoring/orphan_sweep.py",
+   "old": "    if Path(key).name != Path(tree).name:",
+   "new": "    if False:"
+  },
+  {
+   "name": "двери склеены союзом И: одной улики работы мало, чтобы не поднимать чужое",
+   "file": "spa_core/monitoring/orphan_sweep.py",
+   "old": "    affirming = [d for d in doors if d.get(\"state\") == \"affirms\"]\n    if affirming:",
+   "new": "    affirming = [d for d in doors if d.get(\"state\") == \"affirms\"]\n    if len(affirming) == len(doors):"
+  },
+  {
+   "name": "«брошена» становится исходом: прибор берётся доказать ОТСУТСТВИЕ работы",
+   "file": "spa_core/monitoring/orphan_sweep.py",
+   "old": "    return {\"flight\": \"unmeasured\",\n            \"flight_evidence\": [],",
+   "new": "    return {\"flight\": \"abandoned\",\n            \"flight_evidence\": [],"
+  },
+  {
+   "name": "прошлый слепок читается ПОСЛЕ записи своего — замер сверяется с САМИМ СОБОЙ (класс ADR-774)",
+   "file": "spa_core/monitoring/orphan_sweep.py",
+   "old": "    if \"previous\" not in kw:\n        kw[\"previous\"], kw[\"previous_blind_reason\"] = load_previous(target)\n    doc = sweep(root, **kw)",
+   "new": "    doc = sweep(root, **kw)\n    if \"previous\" not in kw:\n        kw[\"previous\"], kw[\"previous_blind_reason\"] = load_previous(target)"
+  },
+  {
+   "name": "отчёт зовёт ПОДНЯТЬ дерево, в котором работают прямо сейчас",
+   "file": "spa_core/monitoring/orphan_sweep.py",
+   "old": "        head = (\"🛫 НЕ ПОДНИМАТЬ (В ПОЛЁТЕ)\" if r.get(\"flight\") == \"in_flight\"\n                else \"🔶 ПОДНЯТЬ\")",
+   "new": "        head = \"🔶 ПОДНЯТЬ\""
+  },
+  {
+   "name": "третий вопрос не задаётся вовсе: кандидат приходит без вердикта полёта",
+   "file": "spa_core/monitoring/orphan_sweep.py",
+   "old": "        row.update(flight_verdict(doors))",
+   "new": "        pass  # третий вопрос снят мутацией"
+  },
+  {
+   "name": "исключение разбора журнала проглатывается — слепота неотличима от тишины",
+   "file": "spa_core/monitoring/orphan_sweep.py",
+   "old": "        except Exception as exc:                                # noqa: BLE001\n            return {**door, \"state\": \"blind\",\n                    \"reason\": f\"журнал не разобран: {type(exc).__name__}: {exc}\"}",
+   "new": "        except Exception as exc:                                # noqa: BLE001\n            continue"
+  }
+ ]
+}
