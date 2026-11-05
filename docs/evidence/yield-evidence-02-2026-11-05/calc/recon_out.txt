@@ -1,0 +1,19 @@
+{"start": {"date": "2026-10-01", "equity": 100260.76}, "end": {"date": "2026-11-04", "equity": 100600.22}, "totals": {"d_equity": 339.46, "net_pnl": 199.56, "dy": 263.67, "cost": 64.11, "mtm": 0.0, "d_floating_unexplained": 0, "d_loop": 50270.28}, "sum_transfer_floating": -50130.39, "identity_residual": 0.0141}
+{'date': '2026-10-02', 'equity': 100084.13, 'floating': 50073.31, 'loop': 50010.83, 'd_equity': -176.63, 'net_pnl': -57.0748, 'd_floating': -50187.45, 'transfer_floating': -50130.38, 'd_loop': 50010.83, 'check': -0.01, 'loop_measured': True, 'rounding': -0.01}
+{'date': '2026-10-03', 'equity': 100147.64, 'floating': 50080.06, 'loop': 50067.58, 'd_equity': 63.51, 'net_pnl': 6.7515, 'd_floating': 6.75, 'transfer_floating': -0.0, 'd_loop': 56.75, 'check': 0.01, 'loop_measured': True, 'rounding': 0.0}
+{'date': '2026-10-04', 'equity': 100141.19, 'floating': 50086.83, 'loop': 50054.36, 'd_equity': -6.45, 'net_pnl': 6.7749, 'd_floating': 6.77, 'transfer_floating': -0.0, 'd_loop': -13.22, 'check': 0.0, 'loop_measured': True, 'rounding': 0.0}
+{'date': '2026-11-03', 'equity': 100456.86, 'floating': 50322.62, 'loop': 50134.24, 'd_equity': -109.73, 'net_pnl': 7.4476, 'd_floating': 7.45, 'transfer_floating': 0.0, 'd_loop': -117.18, 'check': 0.0, 'loop_measured': True, 'rounding': 0.0}
+{'date': '2026-11-04', 'equity': 100600.22, 'floating': 50329.94, 'loop': 50270.28, 'd_equity': 143.36, 'net_pnl': 7.3177, 'd_floating': 7.32, 'transfer_floating': 0.0, 'd_loop': 136.04, 'check': 0.0, 'loop_measured': True, 'rounding': 0.0}
+days with transfers: [('2026-10-02', -50130.38)]
+rounding max 0.01
+loop keys ['collateral_units', 'debt_shares', 'entry', 'events', 'last_valuation', 'negative_carry_days', 'share_price_history', 'status', 'unmeasured_runs']
+
+LOOP: units 133327.1668 oracle price sUSDe/PYUSD 1.250329 -> 1.25604 (+0.4568%)
+      sUSDe share price (USDe/share) 1.250944 -> 1.256409 (+0.4369%) dates 2026-10-02 -> 2026-11-04
+      implied USDe in PYUSD: entry 0.999508  last 0.999706
+      collateral 166702.76 -> 167464.20 (+761.44) | debt 116691.94 -> 117143.52 (+451.58) | equity 50010.83 -> 50320.68 (+309.85)
+      collateral growth split: sUSDe accrual 728.36 · USDe/PYUSD oracle deviation 33.08
+      debt growth 451.58 over 33.92 d = 4.244% annual (entry borrow APY 4.200%)
+      header equity 100650.61 = floating 50329.94 + loop(last_valuation 2026-11-04T23:02:55Z) 50320.68 ; daily row 11-04 loop 50270.28
+
+30d (01.10→31.10): equity 100260.76→100455.08 = +194.32 ; floating 50297.69 loop 50157.39

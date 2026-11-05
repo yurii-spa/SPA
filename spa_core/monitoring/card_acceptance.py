@@ -61,6 +61,7 @@ import json
 import os
 import re
 import sys
+import time
 import pathlib as _pathlib
 from datetime import datetime, timezone
 from typing import Callable
@@ -17285,10 +17286,21 @@ def audit(tracker_dir: str | None = None, *, origin_readthrough: bool = True,
                 # файла в `tracker_dir` не имеет; проба отвечает об этом ТРЕТЬИМ
                 # исходом («карточки нет ни в дереве, ни среди разошедшихся»), и
                 # это верно: читать её локальную копию действительно негде.
+                # ЦЕНА пробы снимается ЗДЕСЬ, а не секундомером снаружи. Шаг
+                # 0-офис мерили трижды (1022 с · 1086 с · ≥960 с) и трижды
+                # писали «ПРИЧИНА хвоста НЕ ИЗМЕРЕНА»: снаружи виден только
+                # ИТОГ, а он складывается из проб, каждая из которых молчит о
+                # себе. Монотонные часы — намеренно: стенные прыгают от NTP, и
+                # отрицательная «цена» выглядела бы как находка о проводке.
+                _t0 = time.monotonic()
                 verdict, detail = run_probe(spec, tracker_dir=tracker_dir,
                                             repo_root=repo_root)
+                seconds = round(time.monotonic() - _t0, 1)
             else:
                 verdict, detail = NOT_PROBED, f"карточка закрыта ({status}) — вопрос снят"
+                # None, а НЕ 0.0 (инв. #17): пробу не запускали вовсе, и
+                # «бесплатно» здесь было бы утверждением о замере, которого нет.
+                seconds = None
             rows.append({
                 "card": name[:-3],
                 "status": status,
@@ -17300,6 +17312,8 @@ def audit(tracker_dir: str | None = None, *, origin_readthrough: bool = True,
                 # дереве нет, иначе читается как «файл рядом, посмотри» — и
                 # следующая сессия идёт искать его на диске.
                 "from_origin": from_origin,
+                # Цена ЭТОЙ пробы в секундах, либо None — «не запускали».
+                "seconds": seconds,
             })
     counts = {
         "declared": len(rows),
@@ -17312,6 +17326,67 @@ def audit(tracker_dir: str | None = None, *, origin_readthrough: bool = True,
     counts["from_origin"] = sum(1 for r in rows if r.get("from_origin"))
     return {"tracker_dir": tracker_dir, "scanned": scanned, "counts": counts,
             "rows": rows, "origin": origin}
+
+
+# Порог, выше которого проба НАЗЫВАЕТСЯ поимённо. Не вкус: шаг 0-офис печатает
+# 87 % своих строк за первые 6 с, а остаток такта — ~1016 с (замеры #1034/#1036/
+# #1037), то есть предмет вопроса живёт в десятках секунд и выше. Порог ниже
+# утопил бы находку в списке дешёвых проб, выше — спрятал бы её.
+PROBE_PRICE_LOUD_S = 30.0
+
+
+def probe_price_lines(result: dict) -> list[str]:
+    """Строки о ЦЕНЕ проб для шага 0-офис.
+
+    Вопрос, на который отвечает функция: **из чего складывается такт шага
+    0-офис**. До ADR-925 его мерили секундомером СНАРУЖИ — три раза (1022 с ·
+    1086 с · ≥960 с) и три раза с выводом «ПРИЧИНА хвоста НЕ ИЗМЕРЕНА»: снаружи
+    виден только итог, а итог складывается из проб, и ни одна о себе не говорила.
+    Семплирующий зонд цикла #1038 нашёл хвост внутри `audit()` → `run_probe` —
+    то есть ровно здесь, и впредь его называет сам прибор, а не чужой зонд.
+
+    Три исхода различимы (инв. #17):
+
+    * **измерено** — цена названа у каждой запущенной пробы, итог напечатан;
+    * **измерено и ни одна не дорога** — итог напечатан, и сказано вслух, что
+      порога `PROBE_PRICE_LOUD_S` не достигла ни одна (молчание здесь читалось
+      бы как «цены не мерили»);
+    * **НЕ ИЗМЕРЕНО** с названной причиной — у запущенных проб цены нет вовсе
+      (отчёт СТАРОГО ОБРАЗЦА, произведённый писателем до ADR-925: ровно капкан
+      ADR-248 — ключа в артефакте нет не потому, что замер пуст). Смешанный
+      случай тоже назван: итог по тем, у кого цена есть, И число тех, у кого нет.
+
+    Закрытая карточка в знаменателе не стои́т: пробу у неё не запускали, её
+    `seconds` есть `None`, и считать её «бесплатной» значило бы утверждать о
+    замере, которого не было.
+    """
+    rows = result.get("rows") or []
+    ran = [r for r in rows if r.get("open")]
+    if not ran:
+        return []
+    priced = [r for r in ran if isinstance(r.get("seconds"), (int, float))]
+    blind = len(ran) - len(priced)
+    if not priced:
+        return [f"   [НЕ ИЗМЕРЕНО] цена проб: запущено {len(ran)}, "
+                f"но ни у одной нет поля `seconds` — отчёт старого образца "
+                f"(писатель до ADR-925). Это НЕ «пробы бесплатны»"]
+    total = sum(float(r["seconds"]) for r in priced)
+    head = (f"   цена проб: суммарно {total:.1f} с по {len(priced)} запущенн"
+            f"{'ой' if len(priced) == 1 else 'ым'}")
+    if blind:
+        head += f" · БЕЗ ЦЕНЫ ещё {blind} (НЕ ИЗМЕРЕНО, не ноль)"
+    out = [head]
+    loud = sorted((r for r in priced if float(r["seconds"]) >= PROBE_PRICE_LOUD_S),
+                  key=lambda r: -float(r["seconds"]))
+    if not loud:
+        out.append(f"   ни одна проба не достигла {PROBE_PRICE_LOUD_S:.0f} с — "
+                   f"хвост такта складывается НЕ здесь")
+        return out
+    for r in loud:
+        share = 100.0 * float(r["seconds"]) / total if total else 0.0
+        out.append(f"   ⏱ {float(r['seconds']):.1f} с ({share:.0f} % цены проб) · "
+                   f"{r['probe']} · карточка {r['card']} ({r['status']})")
+    return out
 
 
 def report_lines(result: dict) -> list[str]:
@@ -17347,6 +17422,9 @@ def report_lines(result: dict) -> list[str]:
                f"на закрытых {c.get('declared_closed', 0)}) · "
                f"КРИТЕРИЙ ВЫПОЛНЕН при открытой карточке {c.get('satisfied_but_open', 0)} · "
                f"ещё не выполнен {c.get('not_satisfied', 0)} · не измерено {c.get('unmeasured', 0)}")
+    # Цена — ДО перечисления вердиктов: такт шага 0-офис измеряется десятками
+    # минут, и вопрос «куда они ушли» дороже любой отдельной строки вердикта.
+    out.extend(probe_price_lines(result))
     for r in result["rows"]:
         where_from = " [дочитана с origin, файла в этом дереве нет]" if r.get("from_origin") else ""
         if r["open"] and r["verdict"] == SATISFIED:

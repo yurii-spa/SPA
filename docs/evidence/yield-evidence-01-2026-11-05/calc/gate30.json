@@ -1,0 +1,374 @@
+{
+ "balanced": {
+  "experiment": "balanced-fixed-carry-v1@2026-10-02",
+  "start_date": "2026-10-02",
+  "last_date": "2026-11-04",
+  "calendar_days": 34,
+  "observed_rows": 34,
+  "missing_dates": [],
+  "duplicate_rows": 0,
+  "start_nav": 99555.06,
+  "nav_day30": 99840.63,
+  "return_30d_pct": 0.2868,
+  "nav_end": 99891.2,
+  "return_period_pct": 0.3376,
+  "annualized_ACT365_pct": 3.685,
+  "sum_daily_yield_usd": 368.41,
+  "sum_costs_usd": 67.91,
+  "sum_mtm_usd": 0,
+  "sum_net_pnl_usd": 300.49,
+  "nav_delta_usd": 336.14,
+  "fixed_carry_mark_usd": 84.95,
+  "fixed_carry_trade_cost_usd": 49.3,
+  "mdd_pct": -0.1078,
+  "mdd_day": "2026-10-03",
+  "apy_observed_mean_pct": 5.24,
+  "apy_observed_min_max": [
+   4.7266,
+   7.0342
+  ],
+  "deployed_share_mean_pct": 75.76,
+  "deployed_share_min_pct": 75.01,
+  "mtm_coverage_values": [
+   "0.0"
+  ],
+  "composition_changes": [],
+  "n_changes": 0,
+  "accrual_basis": [
+   "per_position_observed_apy"
+  ],
+  "economics_model": [
+   "sleeve-econ-v2"
+  ],
+  "fixed_carry": {
+   "legs": [
+    {
+     "market": "0x9c560ebaf78e596cbcc27411d633a74d628dd7dc",
+     "pt": "0xdc169abe56461a2e0c034da431ac2a3ebf596094",
+     "underlying": "sUSDS",
+     "expiry": "2026-11-26T00:00:00.000Z",
+     "units": 25017.69076523,
+     "entry_price": 0.9930132365967825,
+     "mark": 0.9964089522081927,
+     "mark_at": "2026-11-04T00:00:15.028Z",
+     "mark_ok": true,
+     "entry_date": "2026-10-03",
+     "entry_implied_apy_pct": 4.8343009753053945,
+     "cost_basis_usd": 24892.2
+    }
+   ],
+   "unmeasured_days": 0
+  },
+  "positions_now": [
+   {
+    "protocol": "maple",
+    "opened": "2026-09-10",
+    "is_delta_neutral": true,
+    "apy_pct": 5.1051,
+    "notional_usd": 18739.229666,
+    "stale": false
+   },
+   {
+    "protocol": "fluid_fusdc",
+    "opened": "2026-09-10",
+    "is_delta_neutral": true,
+    "apy_pct": 5.51,
+    "notional_usd": 18756.208571,
+    "stale": false
+   },
+   {
+    "protocol": "susde",
+    "opened": "2026-09-10",
+    "is_delta_neutral": true,
+    "apy_pct": 5.1878,
+    "notional_usd": 18736.128574,
+    "stale": false
+   },
+   {
+    "protocol": "morpho_steakhouse",
+    "opened": "2026-09-10",
+    "is_delta_neutral": true,
+    "apy_pct": 6.2703,
+    "notional_usd": 18731.769276,
+    "stale": false
+   }
+  ],
+  "stop_reference": {
+   "basis": "current_experiment_peak",
+   "experiment_id": "balanced-fixed-carry-v1@2026-10-02",
+   "since": "2026-10-02T00:55:51.377259Z",
+   "initial_equity_usd": 99555.06,
+   "peak_equity": 99891.20153599996,
+   "legacy_peak_equity": 100496.01712799998,
+   "decision": "owner 2026-10-03, package three-portfolios-closeout item 7",
+   "drawdown_pct": 0.0,
+   "threshold_pct": -0.08
+  }
+ },
+ "aggressive": {
+  "experiment": "aggressive-susde-loop-v1@2026-10-02",
+  "start_date": "2026-10-02",
+  "last_date": "2026-11-04",
+  "calendar_days": 34,
+  "observed_rows": 34,
+  "missing_dates": [],
+  "duplicate_rows": 0,
+  "start_nav": 100260.76,
+  "nav_day30": 100455.08,
+  "return_30d_pct": 0.1938,
+  "nav_end": 100600.22,
+  "return_period_pct": 0.3386,
+  "annualized_ACT365_pct": 3.695,
+  "sum_daily_yield_usd": 263.67,
+  "sum_costs_usd": 64.11,
+  "sum_mtm_usd": 0,
+  "sum_net_pnl_usd": 199.56,
+  "nav_delta_usd": 339.46,
+  "fixed_carry_mark_usd": 0,
+  "fixed_carry_trade_cost_usd": 0,
+  "mdd_pct": -0.8558,
+  "mdd_day": "2026-10-30",
+  "apy_observed_mean_pct": 5.639,
+  "apy_observed_min_max": [
+   4.7781,
+   9.1081
+  ],
+  "deployed_share_mean_pct": 50.02,
+  "deployed_share_min_pct": 49.97,
+  "mtm_coverage_values": [
+   "0.0"
+  ],
+  "composition_changes": [],
+  "n_changes": 0,
+  "accrual_basis": [
+   "per_position_observed_apy"
+  ],
+  "economics_model": [
+   "sleeve-econ-v2"
+  ],
+  "loop_hf_min": 1.301348,
+  "loop_hf_last": 1.307701,
+  "loop_ltv_max": 0.703117,
+  "loop_measured": [
+   "False",
+   "True"
+  ],
+  "loop_status": [
+   "open"
+  ],
+  "loop_economics_last": null,
+  "loop_cfg": {
+   "status": "open",
+   "share_price_history": [
+    [
+     "2026-10-02",
+     1.2509437713623286
+    ],
+    [
+     "2026-10-03",
+     1.251103205708526
+    ],
+    [
+     "2026-10-04",
+     1.2512684054051686
+    ],
+    [
+     "2026-10-05",
+     1.2514341411596683
+    ],
+    [
+     "2026-10-06",
+     1.2516002512771858
+    ],
+    [
+     "2026-10-07",
+     1.2517665573468695
+    ],
+    [
+     "2026-10-08",
+     1.2519336680473672
+    ],
+    [
+     "2026-10-09",
+     1.2521019489613705
+    ],
+    [
+     "2026-10-10",
+     1.2522649392379686
+    ],
+    [
+     "2026-10-12",
+     1.2525907107473606
+    ],
+    [
+     "2026-10-13",
+     1.2527535515362875
+    ],
+    [
+     "2026-10-14",
+     1.2529166268979361
+    ],
+    [
+     "2026-10-15",
+     1.2530801161675724
+    ],
+    [
+     "2026-10-16",
+     1.2532452340328541
+    ],
+    [
+     "2026-10-17",
+     1.2534061015113587
+    ],
+    [
+     "2026-10-18",
+     1.2535634185312692
+    ],
+    [
+     "2026-10-19",
+     1.2537392681391197
+    ],
+    [
+     "2026-10-20",
+     1.2538820688999823
+    ],
+    [
+     "2026-10-21",
+     1.2540423457503642
+    ],
+    [
+     "2026-10-22",
+     1.2542037486041588
+    ],
+    [
+     "2026-10-23",
+     1.2543666143772445
+    ],
+    [
+     "2026-10-24",
+     1.2545378453404294
+    ],
+    [
+     "2026-10-25",
+     1.2547090501137177
+    ],
+    [
+     "2026-10-26",
+     1.2548803982517407
+    ],
+    [
+     "2026-10-27",
+     1.2550511702630398
+    ],
+    [
+     "2026-10-29",
+     1.2553917747325085
+    ],
+    [
+     "2026-10-30",
+     1.2555602738661489
+    ],
+    [
+     "2026-10-31",
+     1.2557310046710715
+    ],
+    [
+     "2026-11-02",
+     1.2560705334354891
+    ],
+    [
+     "2026-11-03",
+     1.2562356779457229
+    ],
+    [
+     "2026-11-04",
+     1.256409411667885
+    ]
+   ],
+   "collateral_units": 133327.16683971666,
+   "debt_shares": 1.1357162819504346e+17,
+   "negative_carry_days": 0,
+   "unmeasured_runs": 0,
+   "entry": {
+    "at": "2026-10-02T00:55:51Z",
+    "budget_usd": 50130.38,
+    "equity_in_usd": 50010.83,
+    "debt_usd": 116691.94,
+    "collateral_value_usd": 166702.76,
+    "price": 1.2503285608513148,
+    "ltv": 0.7,
+    "economics": {
+     "leverage": 3.3333,
+     "levered_gross_pct": 7.8573,
+     "round_trip_cost_pct_of_equity": 0.3333,
+     "amortised_cost_pct": 1.3519,
+     "levered_net_pct": 6.5054,
+     "spread_pp": 1.0972
+    },
+    "yield_source": "live sUSDe APY from the orchestrator snapshot (bootstrap)",
+    "borrow_apy_pct": 4.199879576679014,
+    "cost_usd": 119.55
+   },
+   "events": [
+    {
+     "at": "2026-10-02T00:55:51Z",
+     "event": "opened",
+     "budget_usd": 50130.38,
+     "equity_in_usd": 50010.83,
+     "debt_usd": 116691.94,
+     "collateral_value_usd": 166702.76,
+     "price": 1.2503285608513148,
+     "ltv": 0.7,
+     "economics": {
+      "leverage": 3.3333,
+      "levered_gross_pct": 7.8573,
+      "round_trip_cost_pct_of_equity": 0.3333,
+      "amortised_cost_pct": 1.3519,
+      "levered_net_pct": 6.5054,
+      "spread_pp": 1.0972
+     },
+     "yield_source": "live sUSDe APY from the orchestrator snapshot (bootstrap)",
+     "borrow_apy_pct": 4.199879576679014,
+     "cost_usd": 119.55
+    }
+   ],
+   "last_valuation": {
+    "collateral_value": 167464.1986,
+    "debt_value": 117143.523302,
+    "equity": 50320.675299,
+    "hf": 1.308051,
+    "ltv": 0.699514,
+    "at": "2026-11-04T23:02:55Z"
+   }
+  },
+  "positions_now": [
+   {
+    "protocol": "maple",
+    "opened": "2026-09-10",
+    "is_delta_neutral": true,
+    "apy_pct": 5.1051,
+    "notional_usd": 25153.708805,
+    "stale": false
+   },
+   {
+    "protocol": "fluid_fusdc",
+    "opened": "2026-09-10",
+    "is_delta_neutral": true,
+    "apy_pct": 5.51,
+    "notional_usd": 25176.221823,
+    "stale": false
+   }
+  ],
+  "stop_reference": {
+   "basis": "current_experiment_peak",
+   "experiment_id": "aggressive-susde-loop-v1@2026-10-02",
+   "since": "2026-10-02T00:55:51.840175Z",
+   "initial_equity_usd": 100260.76,
+   "peak_equity": 100650.6111255,
+   "legacy_peak_equity": 100670.1273955,
+   "decision": "owner 2026-10-03, package three-portfolios-closeout item 7",
+   "drawdown_pct": 0.0,
+   "threshold_pct": -0.25
+  }
+ }
+}

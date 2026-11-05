@@ -1,0 +1,62 @@
+{
+ "title": "ADR-925 PRICE — дельта цикла #1038: цена каждой пробы снимается там, где тратится; закрытая карточка даёт None, а не 0.0; отчёт без цены — третий исход, а не ноль",
+ "tests": [
+  "spa_core/tests/test_card_acceptance_probe_price.py"
+ ],
+ "mutations": [
+  {
+   "name": "закрытая карточка объявлена БЕСПЛАТНОЙ (инв. #17: не измерено ≠ нуль)",
+   "file": "spa_core/monitoring/card_acceptance.py",
+   "old": "                seconds = None",
+   "new": "                seconds = 0.0"
+  },
+  {
+   "name": "отчёт СТАРОГО ОБРАЗЦА молча суммируется в нуль вместо третьего исхода",
+   "file": "spa_core/monitoring/card_acceptance.py",
+   "old": "    if not priced:\n        return [f\"   [НЕ ИЗМЕРЕНО] цена проб: запущено {len(ran)}, \"",
+   "new": "    if False:\n        return [f\"   [НЕ ИЗМЕРЕНО] цена проб: запущено {len(ran)}, \""
+  },
+  {
+   "name": "смешанный случай ПРЯЧЕТ число проб без цены",
+   "file": "spa_core/monitoring/card_acceptance.py",
+   "old": "    blind = len(ran) - len(priced)",
+   "new": "    blind = 0"
+  },
+  {
+   "name": "граница порога перестала быть включающей (ровно 30 с не названо)",
+   "file": "spa_core/monitoring/card_acceptance.py",
+   "old": "    loud = sorted((r for r in priced if float(r[\"seconds\"]) >= PROBE_PRICE_LOUD_S),",
+   "new": "    loud = sorted((r for r in priced if float(r[\"seconds\"]) > PROBE_PRICE_LOUD_S),"
+  },
+  {
+   "name": "ПРОМАХ-половина: писатель цены есть, до читателя строка не доходит",
+   "file": "spa_core/monitoring/card_acceptance.py",
+   "old": "    out.extend(probe_price_lines(result))",
+   "new": "    pass"
+  },
+  {
+   "name": "цена всегда НУЛЬ: часы сняты, а поле осталось",
+   "file": "spa_core/monitoring/card_acceptance.py",
+   "old": "                seconds = round(time.monotonic() - _t0, 1)",
+   "new": "                seconds = 0.0"
+  },
+  {
+   "name": "закрытая карточка ВХОДИТ в знаменатель и создаёт ложное «БЕЗ ЦЕНЫ»",
+   "file": "spa_core/monitoring/card_acceptance.py",
+   "old": "    ran = [r for r in rows if r.get(\"open\")]",
+   "new": "    ran = list(rows)"
+  },
+  {
+   "name": "порог поднят так, что ни одна проба не называется НИКОГДА",
+   "file": "spa_core/monitoring/card_acceptance.py",
+   "old": "PROBE_PRICE_LOUD_S = 30.0",
+   "new": "PROBE_PRICE_LOUD_S = 100000.0"
+  },
+  {
+   "name": "дешёвая проба молчит вовсе — «цену не мерили» неотличимо от «дешево»",
+   "file": "spa_core/monitoring/card_acceptance.py",
+   "old": "        out.append(f\"   ни одна проба не достигла {PROBE_PRICE_LOUD_S:.0f} с — \"",
+   "new": "        out.append(f\"   \""
+  }
+ ]
+}
