@@ -18,6 +18,7 @@
 """
 # LLM_FORBIDDEN
 import ast
+import json
 import os
 import subprocess
 import sys
@@ -471,3 +472,325 @@ class ExitCodesAreThree(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+# ───────────────────────────────── ТАКТ (ADR-927) ─────────────────────────────
+#
+# Такт стои́т на ОДНОМ условии: ключ покрывает все входы, от которых вердикт
+# может измениться. Поэтому у каждого класса входа здесь ПОЛОЖИТЕЛЬНЫЙ
+# КОНТРОЛЬ — мутация этого входа ОБЯЗАНА сменить ключ. Класс без своего
+# контроля был бы украшением: ключ, не замечающий входа, переиспользует
+# устаревший вердикт МОЛЧА, и это fail-OPEN, то есть ровно то, против чего
+# написан инв. #17.
+
+def _tact_scene(root):
+    """Сцена такта: предмет переписи + каталог `data/`, без которого такта нет."""
+    _scene(root, _WATCHER_IMPORTS_HELPER, _HELPER_IMPORTS_REQUESTS)
+    os.makedirs(os.path.join(root, "data"), exist_ok=True)
+    return root
+
+
+class TactKeyCoversEveryInputItClaims(unittest.TestCase):
+    """Шесть классов входа — шесть мутаций, каждая обязана сменить ключ."""
+
+    def _key(self, root):
+        key, _material, unmeasured = census.tact_key(root)
+        self.assertEqual(unmeasured, [], "ключ сцены обязан быть ПОЛНЫМ")
+        return key
+
+    def test_a_byte_in_any_tree_file_changes_the_key(self):
+        with tempfile.TemporaryDirectory() as root:
+            _tact_scene(root)
+            before = self._key(root)
+            _write(root, "spa_core/helpers/net.py",
+                   _HELPER_IMPORTS_REQUESTS + "\n# один байт больше\n")
+            self.assertNotEqual(before, self._key(root))
+
+    def test_an_added_py_file_changes_the_key(self):
+        with tempfile.TemporaryDirectory() as root:
+            _tact_scene(root)
+            before = self._key(root)
+            _write(root, "spa_core/helpers/second.py", "x = 1\n")
+            self.assertNotEqual(before, self._key(root))
+
+    def test_a_removed_py_file_changes_the_key(self):
+        with tempfile.TemporaryDirectory() as root:
+            _tact_scene(root)
+            _write(root, "spa_core/helpers/second.py", "x = 1\n")
+            before = self._key(root)
+            os.remove(os.path.join(root, "spa_core/helpers/second.py"))
+            self.assertNotEqual(before, self._key(root))
+
+    def test_an_empty_top_level_directory_changes_the_key(self):
+        """Дверь, которую ключ по одним БАЙТАМ .py не закрыл бы.
+
+        `_top_level_names` читает ЗАПИСИ КАТАЛОГА, а не только файлы `.py`:
+        пустой каталог верхнего уровня с именем сторонней библиотеки
+        переводит её имя из `outside_the_tree` в `unresolved`, то есть МЕНЯЕТ
+        вердикт оси имени, не тронув ни одного байта `.py`. Найдено чтением
+        исходника до доставки (цикл #1040).
+        """
+        with tempfile.TemporaryDirectory() as root:
+            _tact_scene(root)
+            before = self._key(root)
+            os.makedirs(os.path.join(root, "requests"))
+            self.assertNotEqual(
+                before, self._key(root),
+                "пустой каталог верхнего уровня меняет ось ИМЕНИ — ключ обязан это видеть")
+
+    def test_the_declared_depth_changes_the_key(self):
+        with tempfile.TemporaryDirectory() as root:
+            _tact_scene(root)
+            self.assertNotEqual(census.tact_key(root, max_depth=3)[0],
+                                census.tact_key(root, max_depth=2)[0])
+
+    def test_the_measured_tree_path_changes_the_key(self):
+        with tempfile.TemporaryDirectory() as one:
+            with tempfile.TemporaryDirectory() as two:
+                _tact_scene(one)
+                _tact_scene(two)
+                self.assertNotEqual(self._key(one), self._key(two),
+                                    "ответ несёт абсолютный repo_root — он вход")
+
+    def test_the_loaded_rule_bytes_are_in_the_key(self):
+        """Правило приезжает из дерева ПРИБОРА, а не из мерянного дерева."""
+        with tempfile.TemporaryDirectory() as root:
+            _tact_scene(root)
+            _key, material, _u = census.tact_key(root)
+            labels = {name for name, _digest in material["rule_modules"]}
+            self.assertIn("lint_forbidden_imports.py", labels)
+            self.assertIn("membership_reach_census.py", labels)
+            self.assertIn("forbidden_reach_census.py", labels)
+
+    def test_the_interpreter_is_in_the_key(self):
+        with tempfile.TemporaryDirectory() as root:
+            _tact_scene(root)
+            _key, material, _u = census.tact_key(root)
+            self.assertEqual(material["interpreter"], sys.version)
+
+    def test_every_declared_class_is_present_in_the_material(self):
+        """Паритет с объявлением: перечень классов и материал не расходятся."""
+        with tempfile.TemporaryDirectory() as root:
+            _tact_scene(root)
+            _key, material, _u = census.tact_key(root)
+            self.assertEqual(sorted(material), sorted(census.KEY_CLASSES))
+
+
+class TactReuseNeverChangesTheAnswer(unittest.TestCase):
+
+    def test_a_key_hit_returns_the_same_answer_with_the_named_moment(self):
+        with tempfile.TemporaryDirectory() as root:
+            _tact_scene(root)
+            first = census.measure(root, now="2026-01-01T00:00:00Z")
+            self.assertFalse(first["tact"]["reused"])
+            second = census.measure(root, now="2026-02-02T00:00:00Z")
+            self.assertTrue(second["tact"]["reused"])
+            # момент — ПЕРВОГО замера, а не второго зова
+            self.assertEqual(second["tact"]["measured_at"], "2026-01-01T00:00:00Z")
+            self.assertEqual({k: v for k, v in first.items() if k != "tact"},
+                             {k: v for k, v in second.items() if k != "tact"})
+            self.assertEqual(census.verdict(first), census.verdict(second))
+
+    def test_a_changed_tree_is_measured_again_not_reused(self):
+        with tempfile.TemporaryDirectory() as root:
+            _tact_scene(root)
+            census.measure(root, now="2026-01-01T00:00:00Z")
+            _write(root, "spa_core/helpers/net.py", "def fetch():\n    return None\n")
+            again = census.measure(root, now="2026-03-03T00:00:00Z")
+            self.assertFalse(again["tact"]["reused"],
+                             "дерево изменилось — переиспользовать ЗАПРЕЩЕНО")
+            self.assertEqual(again["tact"]["measured_at"], "2026-03-03T00:00:00Z")
+
+    def test_the_answer_differs_after_the_tree_changed(self):
+        """Контроль самого контроля: если бы такт врал, вердикт бы не сдвинулся."""
+        with tempfile.TemporaryDirectory() as root:
+            _tact_scene(root)
+            with_road = census.measure(root, now="2026-01-01T00:00:00Z")
+            self.assertEqual(census.verdict(with_road), "НАХОДКА")
+            _write(root, "spa_core/helpers/net.py", "def fetch():\n    return None\n")
+            without = census.measure(root, now="2026-03-03T00:00:00Z")
+            self.assertEqual(census.verdict(without), "НИЖНЯЯ ГРАНИЦА")
+
+    def test_cache_off_never_reads_and_never_writes(self):
+        with tempfile.TemporaryDirectory() as root:
+            _tact_scene(root)
+            doc = census.measure(root, cache=False, now="2026-01-01T00:00:00Z")
+            self.assertFalse(doc["tact"]["reused"])
+            self.assertIsNone(doc["tact"]["cache"])
+            self.assertFalse(os.path.exists(os.path.join(root, census.CACHE_REL)))
+
+    def test_no_data_dir_means_no_tact_at_all(self):
+        """Сцена в `tempfile` без `data/` обязана мерить, а не читать чужой кеш."""
+        with tempfile.TemporaryDirectory() as root:
+            _scene(root, _WATCHER_IMPORTS_HELPER, _HELPER_IMPORTS_REQUESTS)
+            doc = census.measure(root, now="2026-01-01T00:00:00Z")
+            self.assertFalse(doc["tact"]["reused"])
+            self.assertIsNone(doc["tact"]["cache"])
+            self.assertIn("нет", doc["tact"]["miss"])
+
+
+class TactMissIsNeverCleanAndNeverSilent(unittest.TestCase):
+
+    def test_a_corrupt_cache_is_a_miss_not_an_answer(self):
+        with tempfile.TemporaryDirectory() as root:
+            _tact_scene(root)
+            with open(os.path.join(root, census.CACHE_REL), "w",
+                      encoding="utf-8") as fh:
+                fh.write("{не json")
+            doc = census.measure(root, now="2026-01-01T00:00:00Z")
+            self.assertFalse(doc["tact"]["reused"])
+            self.assertIn("не прочитан", doc["tact"]["miss"])
+            self.assertEqual(census.verdict(doc), "НАХОДКА")
+
+    def test_a_cache_of_the_wrong_shape_is_a_miss(self):
+        with tempfile.TemporaryDirectory() as root:
+            _tact_scene(root)
+            with open(os.path.join(root, census.CACHE_REL), "w",
+                      encoding="utf-8") as fh:
+                fh.write('{"key": "x"}')
+            doc = census.measure(root, now="2026-01-01T00:00:00Z")
+            self.assertFalse(doc["tact"]["reused"])
+            self.assertIn("формы", doc["tact"]["miss"])
+
+    def test_a_foreign_key_in_the_cache_is_a_miss(self):
+        with tempfile.TemporaryDirectory() as root:
+            _tact_scene(root)
+            census.measure(root, now="2026-01-01T00:00:00Z")
+            path = os.path.join(root, census.CACHE_REL)
+            with open(path, encoding="utf-8") as fh:
+                stored = json.load(fh)
+            stored["key"] = "0" * 64
+            with open(path, "w", encoding="utf-8") as fh:
+                json.dump(stored, fh)
+            doc = census.measure(root, now="2026-04-04T00:00:00Z")
+            self.assertFalse(doc["tact"]["reused"])
+            self.assertIn("НЕ совпал", doc["tact"]["miss"])
+
+    def test_an_incomplete_key_refuses_to_reuse(self):
+        """Ключ НЕ ПОЛОН ⇒ мерить. Переиспользовать по неполному ключу — fail-OPEN."""
+        with tempfile.TemporaryDirectory() as root:
+            _tact_scene(root)
+            census.measure(root, now="2026-01-01T00:00:00Z")
+            real = census.tact_key
+
+            def incomplete(repo_root, max_depth=census.MAX_DEPTH):
+                key, material, _u = real(repo_root, max_depth)
+                return key, material, ["вход не прочитан — проба"]
+
+            census.tact_key = incomplete
+            try:
+                doc = census.measure(root, now="2026-05-05T00:00:00Z")
+            finally:
+                census.tact_key = real
+            self.assertFalse(doc["tact"]["reused"])
+            self.assertIn("НЕ ПОЛОН", doc["tact"]["miss"])
+            self.assertEqual(doc["tact"]["measured_at"], "2026-05-05T00:00:00Z")
+
+    def test_the_report_names_the_moment_of_the_reused_measurement(self):
+        with tempfile.TemporaryDirectory() as root:
+            _tact_scene(root)
+            census.measure(root, now="2026-01-01T00:00:00Z")
+            reused = census.measure(root, now="2026-02-02T00:00:00Z")
+            report = census.format_report(reused)
+            self.assertIn("ПЕРЕИСПОЛЬЗОВАН", report)
+            self.assertIn("2026-01-01T00:00:00Z", report)
+            fresh = census.measure(root, cache=False, now="2026-02-02T00:00:00Z")
+            self.assertIn("ИЗМЕРЕНО сейчас", census.format_report(fresh))
+
+    def test_a_document_without_a_tact_block_is_named_not_assumed_fresh(self):
+        with tempfile.TemporaryDirectory() as root:
+            _tact_scene(root)
+            doc = census.measure(root, cache=False, now="2026-01-01T00:00:00Z")
+            doc.pop("tact")
+            self.assertIn("[ТАКТ] НЕ ИЗМЕРЕН", census.format_report(doc))
+
+
+class TactReadsNothingTheKeyDoesNotCover(unittest.TestCase):
+    """Сторож ПОЛНОТЫ ключа: новый вход-файл обязан покраснить эту проверку.
+
+    Контроль отвечает на вопрос «читает ли замер что-нибудь, чего ключ не
+    покрывает», а не «перечислены ли классы». Перечень классов можно дописать
+    словом; этот тест дописать словом нельзя — он смотрит на НАСТОЯЩИЕ чтения
+    живого замера на сцене.
+    """
+
+    def test_every_path_the_measurement_reads_is_covered_by_the_key(self):
+        import builtins
+        import pathlib as _pathlib
+
+        with tempfile.TemporaryDirectory() as root:
+            _tact_scene(root)
+            real_open = builtins.open
+            real_read_text = _pathlib.Path.read_text
+            real_read_bytes = _pathlib.Path.read_bytes
+            seen: list[str] = []
+
+            def note(path):
+                try:
+                    seen.append(os.path.abspath(str(path)))
+                except Exception:  # noqa: BLE001
+                    pass
+
+            def open_spy(file, *a, **kw):
+                note(file)
+                return real_open(file, *a, **kw)
+
+            def read_text_spy(self, *a, **kw):
+                note(self)
+                return real_read_text(self, *a, **kw)
+
+            def read_bytes_spy(self, *a, **kw):
+                note(self)
+                return real_read_bytes(self, *a, **kw)
+
+            builtins.open = open_spy
+            _pathlib.Path.read_text = read_text_spy
+            _pathlib.Path.read_bytes = read_bytes_spy
+            try:
+                census.measure(root, cache=False, now="2026-01-01T00:00:00Z")
+            finally:
+                builtins.open = real_open
+                _pathlib.Path.read_text = real_read_text
+                _pathlib.Path.read_bytes = real_read_bytes
+
+            rule_files = {path for _label, path in census._rule_module_files()}
+            uncovered = []
+            for path in set(seen):
+                if path in rule_files:
+                    continue
+                if path.endswith(".py"):
+                    continue          # байты .py — класс `py_files`
+                if not path.startswith(os.path.abspath(root) + os.sep):
+                    continue          # вне мерянного дерева и не правило
+                uncovered.append(path)
+            self.assertEqual(
+                sorted(uncovered), [],
+                "замер прочитал путь, которого ключ НЕ покрывает: такт "
+                "переиспользовал бы устаревший вердикт молча")
+
+    def test_the_spy_itself_can_go_red(self):
+        """Положительный контроль сторожа: подложенное чтение обязано найтись."""
+        import pathlib as _pathlib
+
+        with tempfile.TemporaryDirectory() as root:
+            _tact_scene(root)
+            smuggled = os.path.join(root, "data", "unkeyed_input.txt")
+            with open(smuggled, "w", encoding="utf-8") as fh:
+                fh.write("вход, которого нет в ключе\n")
+            real_read_text = _pathlib.Path.read_text
+            seen: list[str] = []
+
+            def spy(self, *a, **kw):
+                seen.append(os.path.abspath(str(self)))
+                return real_read_text(self, *a, **kw)
+
+            _pathlib.Path.read_text = spy
+            try:
+                _pathlib.Path(smuggled).read_text(encoding="utf-8")
+            finally:
+                _pathlib.Path.read_text = real_read_text
+            uncovered = [p for p in seen
+                         if not p.endswith(".py")
+                         and p.startswith(os.path.abspath(root) + os.sep)]
+            self.assertEqual(uncovered, [smuggled],
+                             "сторож обязан УМЕТЬ краснеть, иначе он украшение")

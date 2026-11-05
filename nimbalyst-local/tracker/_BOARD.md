@@ -2,11 +2,11 @@
 
 > Авто-генерится `scripts/build_tracker_board.py` из `nimbalyst-local/tracker/*.md`. НЕ править вручную — правь карточки. Источник правды — карточки, это индекс (bootstrap).
 >
-> Собрана: 2026-11-05T07:46:01Z · сверка с карточками: `python3 scripts/build_tracker_board.py --check` (сторож `spa_core/tests/test_tracker_board_matches_cards.py`).
+> Собрана: 2026-11-05T09:08:32Z · сверка с карточками: `python3 scripts/build_tracker_board.py --check` (сторож `spa_core/tests/test_tracker_board_matches_cards.py`).
 >
-> Сверено с `origin/main` (7eebc0360) · у **1** своя правка, кто новее — не измерено.
+> Сверено с `origin/main` (1c9c684f8).
 >
-> Всего карточек: **1588** · ждёт владельца: **4** · занято сессиями: **14**.
+> Всего карточек: **1589** · ждёт владельца: **4** · занято сессиями: **14**.
 
 ## 🔴 ЖДЁТ ВЛАДЕЛЬЦА (needs-owner)
 
@@ -424,7 +424,7 @@
 ### · closed
 - Считать ли верный отказ по правилам допуска неисправностью флота  ·  `owner-decision-schitat-li-vernyi-otkaz-po-pravilam-dopu.md` · 2026-10-08
 
-## 📥 Inbox (задания: Telegram / заметки / голос)  (901)
+## 📥 Inbox (задания: Telegram / заметки / голос)  (902)
 
 ### · in-progress
 - а задача починить все-таки еще раз сообщение которым не пишет нужно твое решени…  ·  `inbox-a-zadacha-pochinit-vse-taki-esche-raz-so.md` · 2026-08-14 · 🔒 `pid43119`
@@ -1159,6 +1159,7 @@
 - Перепись «куда смотрит git в shell-скрипте» красная на чистом origin/main (2 из 20)  ·  `inbox-perepis-kuda-smotrit-git-v-shell-skripte.md` · 2026-09-29
 - Перепись оси работника написана и не позвана: храповик сирот красен на чистой вершине  ·  `inbox-perepis-osi-rabotnika-napisana-i-ne-pozv.md` · 2026-10-15
 - Перепись падает KeyError, когда файл соседской переписи не разобран: третий исход назван, но читателю не даётся  ·  `inbox-perepis-padaet-keyerror-kogda-fail-sosed.md` · 2026-09-24
+- Перепись платит за вложенные worktree: 88,7 % прод-дерева — чужие клоны  ·  `inbox-perepis-platit-za-vlozhennye-worktree-88.md` · 2026-11-05
 - Перепись разборов ленты меряет цену РАЗБОРА, а бюджет объявлен о ЗОВЕ ВИДА — и по объявленному предмету он уже пробит  ·  `inbox-perepis-razborov-lenty-meryaet-tsenu-raz.md` · 2026-10-23
 - Перепись сирот считает ПРОЗУ в manifest.json проводкой — упоминание в notes выводит модуль из переписи  ·  `inbox-perepis-sirot-schitaet-prozu-v-manifest.md` · 2026-09-07
 - Перепись: сколько адаптеров путают мёртвый фид с верным отказом (остаток ADR-671)  ·  `inbox-perepis-skolko-adapterov-putayut-mertvyi.md` · 2026-10-08

@@ -90,6 +90,8 @@ from __future__ import annotations
 
 import argparse
 import ast
+import datetime
+import hashlib
 import json
 import os
 import pathlib
@@ -104,6 +106,7 @@ for _p in (REPO_ROOT, _SCRIPTS_DIR):
         sys.path.insert(0, _p)
 
 import lint_forbidden_imports as linter  # noqa: E402  — ОДНА копия правила
+from spa_core.utils.atomic import atomic_save  # noqa: E402  — инв. #5
 from spa_core.monitoring.membership_reach_census import (  # noqa: E402
     MAX_DEPTH,
     Unmeasured,
@@ -130,6 +133,145 @@ EXEC_OUTCOMES: tuple[str, ...] = (EXECUTED, DEFERRED)
 #: ВЫЗОВ, и этот прибор о вызовах не судит. Имя исхода объявлено, чтобы
 #: отсутствие суждения было видно читателю, а не выглядело нулём.
 LAUNCH_EXEC_NOT_ASKED = "execution_not_asked_a_launch_is_a_call"
+
+
+# ─────────────────────────── ТАКТ: ключ по входам вердикта ───────────────────
+#: Куда ложится переиспользуемый вердикт. Каталог `data/` объявлен
+#: runtime-only (`.gitignore`: `data/*.json`), поэтому ключ и ответ НЕ едут в
+#: git вместе с кодом. Каталога нет ⇒ такта нет вовсе: сцена в `tempfile`
+#: обязана мерить заново, а не читать чужой кеш.
+CACHE_REL = "data/forbidden_reach_census_tact.json"
+
+
+def _utc_now() -> str:
+    """Момент замера. Умолчание — настоящие часы; вход ``now=`` их подменяет."""
+    return datetime.datetime.now(datetime.timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
+
+#: Классы входов, от которых вердикт МОЖЕТ измениться. Перечень ЗАКРЫТ, и
+#: каждый класс берётся у ТОЙ ЖЕ двери, которой читает сам замер, — литерала
+#: рядом нет ни у одного (урок ADR-920/ADR-926: мерка, объявленная литералом
+#: возле кода, меряет себя). Добавить вход, не добавив его сюда, значит
+#: переиспользовать устаревший вердикт — поэтому дверей ровно столько, сколько
+#: класс несёт, и сторож `tact_key_covers_every_door` краснеет на новой.
+KEY_CLASSES: tuple[str, ...] = (
+    "tree",            # путь дерева: ответ несёт абсолютный `repo_root`
+    "py_files",        # пути и БАЙТЫ каждого .py — `_py_files`, дверь графа
+    "top_level_names", # имена верхнего уровня — `_top_level_names`, дверь ОСИ ИМЕНИ
+    "rule_modules",    # байты ЗАГРУЖЕННЫХ правил: они живут не в мерянном дереве
+    "max_depth",       # объявленный предел дороги — ПАРАМЕТР, а не файл
+    "interpreter",     # форма AST и порядок обхода
+)
+
+
+def _rule_module_files() -> list[tuple[str, str]]:
+    """Файлы ЗАГРУЖЕННЫХ правил — у самих модулей, а не перечнем имён.
+
+    Правило приезжает из дерева ЗАПУЩЕННОГО прибора, и это НЕ обязательно
+    мерянное дерево: `measure(tmp)` судит чужие файлы правилом хозяина. Байты
+    правила поэтому входят в ключ отдельным классом; выводятся они из
+    `__file__` загруженных модулей, поэтому новый ввоз правила попадает в ключ
+    сам, без второй копии перечня.
+    """
+    import spa_core.monitoring.membership_reach_census as _reach
+    mods = [linter, _reach, sys.modules[__name__]]
+    try:
+        import spa_core.ci.llm_forbidden_lint as _llm
+    except Exception:  # noqa: BLE001 — не ввезено ⇒ и в ключ входить нечему
+        pass
+    else:
+        mods.append(_llm)
+    # Метка — БАЗОВОЕ ИМЯ файла, а не `__name__` модуля: запущенный скрипт
+    # зовётся `__main__`, а ввезённый шагом 0-офис — `forbidden_reach_census`,
+    # и ключ, различающий их, не совпал бы НИКОГДА между двумя вызывающими
+    # (найдено своим же замером на живом дереве, цикл #1040).
+    out: list[tuple[str, str]] = []
+    for mod in mods:
+        path = getattr(mod, "__file__", None)
+        if path:
+            abspath = os.path.abspath(path)
+            out.append((os.path.basename(abspath), abspath))
+    return sorted(set(out))
+
+
+def tact_key(repo_root: str, max_depth: int = MAX_DEPTH) -> tuple[str, dict, list[str]]:
+    """Ключ такта: от чего вердикт МОЖЕТ измениться, и ни от чего больше.
+
+    Возврат — ``(ключ, материал поимённо, причины НЕ ИЗМЕРЕНО)``. Ключ не
+    посчитан ⇒ список причин непуст, и вызывающий ОБЯЗАН мерить: промах ключа
+    и нечитаемый вход дают ОДНО действие (мерить), но РАЗНЫЕ причины, и обе
+    печатаются. «Ключ совпал» — единственное основание переиспользовать ответ,
+    потому что при совпадении всех шести классов замер не может дать другой
+    ответ ПО ПОСТРОЕНИЮ (инв. #16: это не ослабление проверки, а отказ платить
+    второй раз за тот же вопрос).
+
+    Цена ключа измерена: 0.26 с против 634.3 с у замера (цикл #1040) — читать и
+    хешировать не то же, что разбирать: 116 МБ читаются за 0.21 с и разбираются
+    за сотни секунд.
+    """
+    import spa_core.monitoring.membership_reach_census as _reach
+
+    unmeasured: list[str] = []
+    root = pathlib.Path(repo_root)
+    material: dict = {"tree": os.path.abspath(repo_root),
+                      "max_depth": int(max_depth),
+                      "interpreter": sys.version}
+
+    try:
+        files = _reach._py_files(root)
+    except OSError as exc:
+        unmeasured.append(f"перечень .py не снят ({type(exc).__name__}: {exc})")
+        files = []
+    digest = hashlib.sha256()
+    for rel in files:
+        digest.update(rel.encode("utf-8"))
+        digest.update(b"\x00")
+        try:
+            digest.update(hashlib.sha256((root / rel).read_bytes()).digest())
+        except OSError as exc:
+            unmeasured.append(f"{rel}: байты не прочитаны ({type(exc).__name__}) — ключ НЕ ПОЛОН")
+    material["py_files"] = {"count": len(files), "digest": digest.hexdigest()}
+
+    try:
+        material["top_level_names"] = sorted(_reach._top_level_names(root))
+    except OSError as exc:
+        unmeasured.append(f"имена верхнего уровня не сняты ({type(exc).__name__}: {exc})")
+        material["top_level_names"] = None
+
+    rules: list[list[str]] = []
+    for name, path in _rule_module_files():
+        try:
+            rules.append([name, hashlib.sha256(pathlib.Path(path).read_bytes()).hexdigest()])
+        except OSError as exc:
+            unmeasured.append(f"правило {name}: байты не прочитаны ({type(exc).__name__}) — ключ НЕ ПОЛОН")
+    material["rule_modules"] = rules
+
+    if not files:
+        unmeasured.append("ни одного файла .py — ключ НЕ ПОЛОН")
+
+    key = hashlib.sha256(
+        json.dumps(material, ensure_ascii=False, sort_keys=True).encode("utf-8")
+    ).hexdigest()
+    return key, material, unmeasured
+
+
+def _cache_path(repo_root: str) -> str | None:
+    """Путь кеша такта. ``None`` = каталога `data/` нет, такта нет вовсе."""
+    path = pathlib.Path(repo_root) / CACHE_REL
+    return str(path) if path.parent.is_dir() else None
+
+
+def _load_cache(path: str) -> tuple[dict | None, str | None]:
+    """Прочитанный кеш либо ``(None, причина)``. Битый кеш = промах, не ответ."""
+    try:
+        with open(path, encoding="utf-8") as fh:
+            doc = json.load(fh)
+    except FileNotFoundError:
+        return None, "кеша такта ещё нет"
+    except (OSError, ValueError) as exc:
+        return None, f"кеш такта не прочитан ({type(exc).__name__}: {exc})"
+    if not isinstance(doc, dict) or "key" not in doc or "answer" not in doc:
+        return None, "кеш такта не той формы — промах"
+    return doc, None
 
 
 class _LazyGraph:
@@ -263,8 +405,13 @@ def _reach_axis(graph: dict, domain_files: list[str], seeds_by_key: dict[str, se
     return counts, findings
 
 
-def measure(repo_root: str = REPO_ROOT, max_depth: int = MAX_DEPTH) -> dict:
-    """Перепись. Единственный вход — путь дерева и объявленный предел глубины."""
+def _measure_fresh(repo_root: str, max_depth: int) -> dict:
+    """ЗАМЕР. Единственный вход — путь дерева и объявленный предел глубины.
+
+    Разбирает дерево целиком; цена на живом дереве — 634.3 с (замер #1039).
+    Звать напрямую — значит отказаться от такта ОСОЗНАННО; обычная дверь —
+    :func:`measure`.
+    """
     root = pathlib.Path(repo_root)
     graph = build_graph(repo_root)
     files = graph["files"]
@@ -345,6 +492,80 @@ def measure(repo_root: str = REPO_ROOT, max_depth: int = MAX_DEPTH) -> dict:
     }
 
 
+def measure(repo_root: str = REPO_ROOT, max_depth: int = MAX_DEPTH, *,
+            cache: bool = True, now: str | None = None) -> dict:
+    """Перепись С ТАКТОМ: ключ совпал ⇒ ответ переиспользован, иначе ЗАМЕР.
+
+    Такт объявлен заказом G914 п. 2 и стои́т на одном условии: ключ обязан
+    покрывать ВСЕ входы, от которых вердикт может измениться (``KEY_CLASSES``).
+    Поэтому:
+
+    * ключ совпал ⇒ ответ отдаётся с НАЗВАННЫМ моментом замера
+      (``doc["tact"]["measured_at"]``), и читатель не вправе принять его за
+      «измерено сейчас»;
+    * ключ НЕ совпал, кеша нет, кеш битый, ключ НЕ ПОСЧИТАН ⇒ **ЗАМЕР**.
+      Промах ключа — это «мерить», а никогда «чисто» (инв. #17).
+
+    Причины «ключ не посчитан» живут в ``doc["tact"]["unmeasured"]`` и НЕ
+    попадают в ``doc["unmeasured"]`` намеренно: когда ключ снять не удалось,
+    цикл МЕРИТ, то есть вердикт полностью измерен, и опускать его до
+    «НЕ ИЗМЕРЕНО» значило бы соврать в обратную сторону. Видимость при этом
+    не теряется — ``format_report`` печатает эти причины отдельной строкой.
+    """
+    key, material, key_unmeasured = tact_key(repo_root, max_depth)
+    path = _cache_path(repo_root) if cache else None
+    miss = None
+    if path is None:
+        miss = ("такт выключен вызывающим" if not cache
+                else f"каталога {os.path.dirname(CACHE_REL)}/ нет — такта нет")
+    elif key_unmeasured:
+        miss = "ключ НЕ ПОЛОН — переиспользовать нечего"
+    else:
+        stored, reason = _load_cache(path)
+        if stored is None:
+            miss = reason
+        elif stored.get("key") != key:
+            miss = "ключ НЕ совпал — дерево или правило изменились"
+        else:
+            doc = dict(stored["answer"])
+            doc["tact"] = {
+                "key": key,
+                "reused": True,
+                "measured_at": stored.get("measured_at"),
+                "cache": path,
+                "miss": None,
+                "unmeasured": list(key_unmeasured),
+                "classes": list(KEY_CLASSES),
+            }
+            return doc
+
+    doc = _measure_fresh(repo_root, max_depth)
+    measured_at = now if now is not None else _utc_now()
+    doc["tact"] = {
+        "key": key,
+        "reused": False,
+        "measured_at": measured_at,
+        "cache": path,
+        "miss": miss,
+        "unmeasured": list(key_unmeasured),
+        "classes": list(KEY_CLASSES),
+    }
+    doc["tact"]["stored"] = False
+    if path is not None and not key_unmeasured:
+        answer = {k: v for k, v in doc.items() if k != "tact"}
+        try:
+            atomic_save({"key": key, "measured_at": measured_at,
+                         "material": material, "answer": answer}, path)
+        except (OSError, TypeError, ValueError) as exc:
+            # Запись не удалась ⇒ следующий зов СНОВА померит. Это дорого, но
+            # честно; молчание сделало бы «такт не работает» неотличимым от
+            # «такт работает», и отличить их можно только ОТДЕЛЬНЫМ полем.
+            doc["tact"]["store_failed"] = f"{type(exc).__name__}: {exc}"
+        else:
+            doc["tact"]["stored"] = True
+    return doc
+
+
 def verdict(doc: dict) -> str:
     """Один из трёх исходов: НЕ ИЗМЕРЕНО · НАХОДКА · НИЖНЯЯ ГРАНИЦА."""
     if doc["unmeasured"] or not doc["population"]:
@@ -395,6 +616,23 @@ def format_report(doc: dict) -> str:
         lines.append(f"   [НЕ ИЗМЕРЕНО] {line}")
     if len(doc["unmeasured"]) > 12:
         lines.append(f"   [НЕ ИЗМЕРЕНО] …и ещё {len(doc['unmeasured']) - 12} причин(ы)")
+    tact = doc.get("tact")
+    if tact is None:
+        lines.append("[ТАКТ] НЕ ИЗМЕРЕН: ответ пришёл без блока такта")
+    elif tact["reused"]:
+        lines.append(
+            f"[ТАКТ] ответ ПЕРЕИСПОЛЬЗОВАН по ключу {tact['key'][:12]} — "
+            f"замер снят {tact['measured_at']}, а НЕ сейчас; "
+            f"входов в ключе {len(tact['classes'])}")
+    else:
+        lines.append(
+            f"[ТАКТ] ИЗМЕРЕНО сейчас ({tact['measured_at']}), ключ "
+            f"{tact['key'][:12]} — причина промаха: {tact['miss']}")
+    for line in (tact or {}).get("unmeasured", [])[:3]:
+        lines.append(f"   [ТАКТ НЕ ПОЛОН] {line}")
+    if (tact or {}).get("store_failed"):
+        lines.append(f"   [ТАКТ НЕ ЗАПИСАН] {tact['store_failed']} — следующий "
+                     "зов померит заново")
     lines.append("ADVISORY: прибор только ЧИТАЕТ — ни один сторож не изменён")
     return "\n".join(lines)
 
@@ -404,10 +642,24 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--root", default=REPO_ROOT)
     parser.add_argument("--max-depth", type=int, default=MAX_DEPTH)
     parser.add_argument("--json", action="store_true")
+    parser.add_argument("--no-cache", action="store_true",
+                        help="мерить заново, не читая и не записывая такт")
+    parser.add_argument("--tact-key", action="store_true",
+                        help="напечатать ключ такта и его материал, не мерить")
+    parser.add_argument("--now", default=None,
+                        help="момент замера (ISO-8601); умолчание — часы")
     args = parser.parse_args(argv)
 
+    if args.tact_key:
+        key, material, unmeasured = tact_key(args.root, args.max_depth)
+        print(json.dumps({"key": key, "material": material,
+                          "unmeasured": unmeasured},
+                         ensure_ascii=False, indent=2, sort_keys=True))
+        return 2 if unmeasured else 0
+
     try:
-        doc = measure(args.root, args.max_depth)
+        doc = measure(args.root, args.max_depth, cache=not args.no_cache,
+                      now=args.now)
     except Unmeasured as exc:
         print(f"НЕ ИЗМЕРЕНО: {exc}")
         return 2
