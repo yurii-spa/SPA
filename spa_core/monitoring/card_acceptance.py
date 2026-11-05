@@ -16845,6 +16845,171 @@ def _probe_reach_census_boundary_stops_at_nested_repos(
         "чужого имени не несёт")
 
 
+def _probe_orphan_sweep_names_an_unregistered_copy(
+        arg: str | None, *, repo_root: str | None = None) -> tuple[str, str]:
+    """Критерий: перепись сирот называет дерево-КОПИЮ, которого git не перечислил.
+
+    Предмет — карточка `inbox-perepis-sirot-slepa-k-kopiyam-dereva-odi`
+    (заказ G917 п. 2, ADR-930). Замер цикла #1043:
+    `git worktree list --porcelain` печатает ОДНУ запись на АДМИНИСТРАТИВНЫЙ
+    каталог, а дерево, сделанное `cp -r` с живого worktree, несёт `.git`,
+    указывающий на ТОТ ЖЕ каталог, — и перечислению невидимо ВООБЩЕ. Из восьми
+    деревьев мёртвого цикла #1042 перечисление видело ДВА, байты в копиях
+    РАСХОДИЛИСЬ (ADR 193 строки против 157). Третьего исхода у невидимого
+    дерева нет ПО ПОСТРОЕНИЮ: оно не попадает в `rows`, поэтому `unmeasured 0`
+    честен и бесполезен — он о перечисленных.
+
+    **Меряется ИСХОД, а не структура.** Проба не ищет в исходнике ни имени
+    `walk_trees`, ни литерала `.git`, ни слова «копия» в прозе: она строит
+    ОДНОРАЗОВЫЙ репозиторий, НАСТОЯЩИЙ `git worktree add`, НАСТОЯЩУЮ `cp -r`
+    копию и спрашивает вердикт ЗНАЧЕНИЕМ. Подстрокой она не проходит (ADR-333).
+
+    Контроль в обе стороны — внутри самой проверки:
+
+    * сцена сперва ДОКАЗЫВАЕТ дефект: перечисление git'а копию не видит. Не
+      доказала ⇒ `unmeasured`, а не «критерий выполнен» (на стенде, где git
+      копию видит, вердикт не относится к предмету);
+    * копия обязана войти в население с исходом `walk_only`; порви дверь
+      границы — и исход станет пустым, то есть покраснеет ровно это звено;
+    * у строки копии обязана быть ОГОВОРКА о том, что `HEAD` пришёл из общего
+      административного каталога: без неё ответ об ОРИГИНАЛЕ подавался бы как
+      ответ о копии;
+    * чужое дерево в тех же корнях обязано остаться ЗА населением (иначе
+      кандидатом в сироты станет каждый клон на машине), а дерево с
+      оборванной меткой — третьим исходом, а не «членом» и не «чужим».
+
+    Корни обхода и дверь границы — ВХОДЫ, поэтому ни прод-дерево, ни `$HOME`,
+    ни боевые корни проба не трогает. Часов, pid и git-окружения хоста она не
+    спрашивает: имя ветки сцены объявлено `git init -b` ЯВНО.
+    """
+    if (arg or "").strip():
+        return UNMEASURED, (f"проба не принимает аргумента (дано {arg!r}): "
+                            "предмет — ось открытия переписи, пофайловой формы "
+                            "у него нет")
+    try:
+        from spa_core.monitoring import orphan_sweep as _sweep
+    except BaseException as exc:  # noqa: BLE001 — причина обязана быть названа
+        return UNMEASURED, f"перепись сирот не импортируется: {type(exc).__name__}: {exc}"
+
+    import shutil as _shutil
+    import subprocess as _sp
+    import tempfile as _tempfile
+
+    branch = "main"   # имя ветки сцены — ЯВНОЕ (иначе хост решает за сцену)
+
+    def _run(args, cwd) -> tuple[int, str]:
+        out = _sp.run(args, cwd=str(cwd), capture_output=True, text=True)
+        return out.returncode, (out.stderr or out.stdout or "").strip()
+
+    with _tempfile.TemporaryDirectory(prefix="orphan_copy_probe_") as tmp:
+        base = _pathlib.Path(tmp).resolve()
+        repo = base / "clone"
+        repo.mkdir()
+        steps = [
+            (["git", "init", "-b", branch], repo),
+            (["git", "config", "user.email", "probe@example.invalid"], repo),
+            (["git", "config", "user.name", "Probe"], repo),
+        ]
+        for args, cwd in steps:
+            code, why = _run(args, cwd)
+            if code != 0:
+                return UNMEASURED, f"сцена не построена ({' '.join(args)}): {why[:160]}"
+        (repo / "seed.txt").write_text("seed\n", encoding="utf-8")
+        for args in (["git", "add", "seed.txt"], ["git", "commit", "-m", "seed"]):
+            code, why = _run(args, repo)
+            if code != 0:
+                return UNMEASURED, f"сцена не построена ({' '.join(args)}): {why[:160]}"
+        live = base / "trees" / "live"
+        code, why = _run(["git", "worktree", "add", "--detach", str(live), branch], repo)
+        if code != 0:
+            return UNMEASURED, f"сцена не построена (worktree add): {why[:160]}"
+        copy = base / "trees" / "copy"
+        try:
+            _shutil.copytree(live, copy, symlinks=True)
+        except BaseException as exc:  # noqa: BLE001
+            return UNMEASURED, f"копия дерева не создана: {type(exc).__name__}: {exc}"
+
+        # ── нулевая проба: сцена ДОКАЗЫВАЕТ дефект, иначе вердикт не о нём ──
+        try:
+            listed = {str(_pathlib.Path(t).resolve()) for t in _sweep.worktrees(repo)}
+        except BaseException as exc:  # noqa: BLE001
+            return UNMEASURED, f"перечисление git'а на сцене отказало: {exc}"
+        if str(live.resolve()) not in listed:
+            return UNMEASURED, ("сцена не обеспечила предпосылку: живого "
+                                "worktree нет в перечислении git'а")
+        if str(copy.resolve()) in listed:
+            return UNMEASURED, ("сцена НЕ воспроизводит дефект: перечисление "
+                                "git'а увидело `cp -r` копию — на таком стенде "
+                                "вердикт к предмету не относится")
+
+        alien = base / "alien"
+        alien.mkdir()
+        for args in (["git", "init", "-b", branch],
+                     ["git", "config", "user.email", "a@example.invalid"],
+                     ["git", "config", "user.name", "A"]):
+            _run(args, alien)
+        broken_mark = base / "trees" / "broken"
+        broken_mark.mkdir(parents=True, exist_ok=True)
+        (broken_mark / ".git").write_text(
+            f"gitdir: {base}/nowhere/.git/worktrees/ghost\n", encoding="utf-8")
+
+        try:
+            doc = _sweep.sweep(repo, ref=f"refs/heads/{branch}",
+                               lineage_candidates=[str(repo)],
+                               walk_roots=[str(base)],
+                               journal=base / "no-journal.jsonl", cuw=None)
+        except BaseException as exc:  # noqa: BLE001
+            return UNMEASURED, (f"перепись на одноразовой сцене не выполнена: "
+                                f"{type(exc).__name__}: {exc}")
+        if doc.get("state") != "measured":
+            return UNMEASURED, f"перепись ответила НЕ ИЗМЕРЕНО: {doc.get('reason')}"
+
+        broken: list[str] = []
+        if doc.get("walk_state") != "measured":
+            broken.append(f"ось обхода НЕ ИЗМЕРЕНА: {doc.get('walk_reason')}")
+        rows = {r.get("tree"): r for r in doc.get("rows") or ()}
+        row = rows.get(str(copy))
+        if row is None:
+            broken.append(f"копии `{copy}` в населении НЕТ вовсе — ровно дефект "
+                          f"замера #1043 (перечислено {len(rows)} дерев(а))")
+        else:
+            if row.get("discovery") != "walk_only":
+                broken.append(f"исход оси открытия у копии — "
+                              f"{row.get('discovery')!r} вместо 'walk_only'")
+            if "ОРИГИНАЛА" not in (row.get("discovery_caveat") or ""):
+                broken.append("у строки копии НЕТ оговорки про общий "
+                              "административный каталог: HEAD оригинала "
+                              "подаётся как ответ о копии")
+        if str(alien) in rows:
+            broken.append(f"чужой клон `{alien}` вошёл в население — кандидатом "
+                          f"в сироты стал бы каждый клон на машине")
+        if str(broken_mark) in rows:
+            broken.append(f"дерево с ОБОРВАННОЙ меткой `{broken_mark}` взято в "
+                          f"население — НЕ ИЗМЕРЕНО выдано за ответ")
+        mt = doc.get("membership_tally") or {}
+        if mt.get("unmeasured", 0) < 1:
+            broken.append("оборванная метка не дала третьего исхода: "
+                          f"принадлежность {mt!r}")
+        if mt.get("foreign", 0) < 1:
+            broken.append(f"чужое дерево отвергнуто МОЛЧА: принадлежность {mt!r}")
+        text = "\n".join(_sweep.report(doc))
+        if str(copy) not in text:
+            broken.append("копия найдена, но читателю НЕ НАЗВАНА — вердикт без "
+                          "адреса есть записка (класс ADR-918)")
+
+        if broken:
+            return NOT_SATISFIED, ("ось открытия не держит: " + " · ".join(broken))
+        return SATISFIED, (
+            f"ИСХОДОМ на одноразовой сцене: `cp -r` копия, невидимая "
+            f"`git worktree list`, вошла в население с исходом `walk_only`, "
+            f"напечатана по имени и несёт оговорку про общий административный "
+            f"каталог; чужой клон остался за населением (foreign "
+            f"{mt.get('foreign')}), оборванная метка дала третий исход "
+            f"(unmeasured {mt.get('unmeasured')}); ось открытия "
+            + " · ".join(f"{k} {(doc.get('discovery_tally') or {}).get(k, 0)}"
+                         for k in _sweep.DISCOVERY_STATES))
+
+
 PROBES: dict[str, Callable[[str | None], "tuple[str, str]"]] = {
     "tracked_data_untouched_by_declared_runs":
         _probe_tracked_data_untouched_by_declared_runs,
@@ -16988,6 +17153,8 @@ PROBES: dict[str, Callable[[str | None], "tuple[str, str]"]] = {
         _probe_census_probe_refuses_unobserved_subject,
     "reach_census_boundary_stops_at_nested_repos":
         _probe_reach_census_boundary_stops_at_nested_repos,
+    "orphan_sweep_names_an_unregistered_copy":
+        _probe_orphan_sweep_names_an_unregistered_copy,
     "portfolio_decision_owner_covers_capital":
         _probe_portfolio_decision_owner_covers_capital,
     "no_single_criterion_probe_on_a_multi_criterion_order":

@@ -2,9 +2,9 @@
 
 > Авто-генерится `scripts/build_tracker_board.py` из `nimbalyst-local/tracker/*.md`. НЕ править вручную — правь карточки. Источник правды — карточки, это индекс (bootstrap).
 >
-> Собрана: 2026-11-05T19:00:35Z · сверка с карточками: `python3 scripts/build_tracker_board.py --check` (сторож `spa_core/tests/test_tracker_board_matches_cards.py`).
+> Собрана: 2026-11-05T22:01:51Z · сверка с карточками: `python3 scripts/build_tracker_board.py --check` (сторож `spa_core/tests/test_tracker_board_matches_cards.py`).
 >
-> Сверено с `origin/main` (1caf7130c) · у **2** своя правка, кто новее — не измерено.
+> Сверено с `origin/main` (8934f9212) · у **2** своя правка, кто новее — не измерено.
 >
 > Всего карточек: **1592** · ждёт владельца: **4** · занято сессиями: **14**.
 
@@ -748,6 +748,7 @@
 - Перепись читателей журнала слепа к 20 HTTP-маршрутам — ровно к тем, чей ответ видит владелец  ·  `inbox-perepis-chitatelei-zhurnala-slepa-k-20-h.md` · 2026-09-16
 - Перепись класса ADR-875 не видит ПОЛЯРНОСТИ третьего исхода — честный отказ числится находкой  ·  `inbox-perepis-klassa-adr-875-ne-vidit-polyarno.md` · 2026-10-31
 - Перепись порядка списков ответа не называет ЗВАВШЕГО — вторая ось заказа G801 неизмерима по построению  ·  `inbox-perepis-poryadka-spiskov-otveta-ne-nazyv.md` · 2026-10-24
+- Перепись сирот слепа к КОПИЯМ дерева: один административный каталог — одна запись  ·  `inbox-perepis-sirot-slepa-k-kopiyam-dereva-odi.md` · 2026-11-05
 - Песочница тестов общая на весь хост: пять тестов краснеют, если набор гоняли в последние 6 часов  ·  `inbox-pesochnitsa-testov-obschaya-na-ves-host.md` · 2026-08-20
 - Починить судью: ноль в цене хода и «цену не записали» — одна ветка (ответ владельца, вариант 1)  ·  `inbox-pochinit-sudyu-nol-v-tsene-hoda-i-tsenu.md` · 2026-09-15
 - Подключить стража ротации PAT к ежедневной проверке — ПОСЛЕ настоящей ротации  ·  `inbox-podklyuchit-strazha-rotatsii-pat-k-ezhed.md` · 2026-08-26
@@ -1163,7 +1164,6 @@
 - Перепись падает KeyError, когда файл соседской переписи не разобран: третий исход назван, но читателю не даётся  ·  `inbox-perepis-padaet-keyerror-kogda-fail-sosed.md` · 2026-09-24
 - Перепись разборов ленты меряет цену РАЗБОРА, а бюджет объявлен о ЗОВЕ ВИДА — и по объявленному предмету он уже пробит  ·  `inbox-perepis-razborov-lenty-meryaet-tsenu-raz.md` · 2026-10-23
 - Перепись сирот считает ПРОЗУ в manifest.json проводкой — упоминание в notes выводит модуль из переписи  ·  `inbox-perepis-sirot-schitaet-prozu-v-manifest.md` · 2026-09-07
-- Перепись сирот слепа к КОПИЯМ дерева: один административный каталог — одна запись  ·  `inbox-perepis-sirot-slepa-k-kopiyam-dereva-odi.md` · 2026-11-05
 - Перепись: сколько адаптеров путают мёртвый фид с верным отказом (остаток ADR-671)  ·  `inbox-perepis-skolko-adapterov-putayut-mertvyi.md` · 2026-10-08
 - Перепись вердиктов по коду выхода красна на origin/main: у агента com.spa.mission_tick нет обёртки, и сайт остаётся неразобранным  ·  `inbox-perepis-verdiktov-po-kodu-vyhoda-krasna.md` · 2026-10-08
 - Перепись закончена: опрошены все 36 адаптеров своими фидами — доступная доходность из нашего набора исчерпана, кроме трёх статических меток  ·  `inbox-perepis-zakonchena-oprosheny-vse-36-adap.md` · 2026-08-29

@@ -797,6 +797,7 @@
 | ADR-927 | Перепись платит за ДЕРЕВЬЯ, которые не являются её предметом (88,7 % прод-дерева — чужие клоны), и у её вердикта есть ключ | Accepted | [ADR-927](ADR-927-the-census-pays-for-trees-that-are-not-its-subject.md) |
 | ADR-928 | Граница предмета переписи есть МЕТКА дерева, а не литерал имени; и два рода дуг собираются одним обходом | Accepted | [ADR-928](ADR-928-census-boundary-is-the-tree-mark-not-the-name.md) |
 | ADR-929 | «Поднимать нечего» есть утверждение о КОММИТАХ, и предел, объявленный в докстринге, вердикта не несёт | Accepted | [ADR-929](ADR-929-the-sweep-headline-must-name-its-subject.md) |
+| ADR-930 | Открытие деревьев есть перечисление git'а ПЛЮС объявленный обход: `cp -r` копия невидима перечислению по построению | Accepted | [ADR-930](ADR-930-tree-discovery-is-git-listing-plus-a-declared-walk.md) |
 
 ## Соглашения
 

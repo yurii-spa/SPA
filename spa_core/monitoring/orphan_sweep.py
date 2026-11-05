@@ -154,6 +154,69 @@ LINEAGE_CANDIDATES_DEFAULT = (MIRROR_DEFAULT, str(Path.home() / "Documents" / "S
 #: пролёт НЕ ИЗМЕРЕН (третий исход), а не равен пределу.
 SPAN_LIMIT = 50
 
+#: Корни обхода файловой системы. ОБЪЯВЛЕНЫ, а не угаданы: имя каталога, в
+#: который сессия сложила своё дерево, выбирает не прибор, и догадка о нём была
+#: бы ровно тем литералом, вместо которого ADR-928 ввёл метку дерева. Корень,
+#: которого на машине нет, есть НАЗВАННЫЙ исход (см. :func:`walk_trees`), а не
+#: молчаливый пропуск: на раннере CI не существует ни один из них, и «копий не
+#: найдено» там означало бы «не спрашивали».
+WALK_ROOTS_DEFAULT = (
+    str(Path.home() / "Documents" / "SPA_Claude"),
+    str(Path.home() / "Documents"),
+    str(Path.home() / "studio-os-scratch"),
+    str(Path.home() / "studio-os-serve"),
+    "/private/tmp",
+    "/tmp",
+)
+
+#: Предел глубины обхода. Три — ЗАМЕР, а не круглое число: деревья живут на
+#: первом уровне (`/private/tmp/spa_c1044`), на втором
+#: (`~/Documents/SPA_worktrees/c1042fin`) и на третьем
+#: (`~/Documents/SPA_Claude/.claude/worktrees/<имя>`). Замер 2026-11-05: при 2
+#: находится 101 дерево, при 3 — 142, при 4 — ещё 4, и все четыре чужих
+#: репозиториев. Цена: 0.251 с на 17 302 каталога.
+WALK_DEPTH_MAX = 3
+
+#: Каталоги, в которые обход не заходит. Это НЕ граница дерева (её ставит метка
+#: `.git`, дверь :func:`_is_repo_dir`) — это цена: внутри них деревьев не бывает,
+#: а файлов бывает много.
+WALK_SKIP_DIRS = frozenset({
+    ".git", "node_modules", "__pycache__", ".venv", "venv",
+    ".mypy_cache", ".pytest_cache", ".ruff_cache", "site-packages",
+})
+
+#: Исходы оси ОТКРЫТИЯ: КТО увидел дерево. Перечень ЗАМКНУТ.
+#:
+#: Предмет (замер цикла #1043, карточка `inbox-perepis-sirot-slepa-k-kopiyam-dereva-odi`):
+#: `git worktree list --porcelain` печатает ОДНУ запись на АДМИНИСТРАТИВНЫЙ
+#: каталог, а дерево, сделанное `cp -r` с живого worktree, несёт `.git`,
+#: указывающий на ТОТ ЖЕ административный каталог. Таких деревьев перечисление
+#: не видит ВООБЩЕ — и третьего исхода у них нет ПО ПОСТРОЕНИЮ: они не попадают
+#: в `rows`, поэтому `unmeasured 0` честен и бесполезен (он о перечисленных).
+#:
+#: Из восьми деревьев мёртвого цикла #1042 перечисление видело ДВА, а байты в
+#: копиях РАСХОДИЛИСЬ (ADR у `c1042` 193 строки против 157 у `c1042fin`).
+#: Способ копирования предписан самим порядком работ («долгий прогон не живёт в
+#: дереве, чьи байты меняются», ADR-886), поэтому копии будут и дальше.
+DISCOVERY_STATES = ("both", "registered_only", "walk_only")
+
+#: Исходы оси ПРИНАДЛЕЖНОСТИ клону. Перечень ЗАМКНУТ.
+#:
+#: Обход находит деревья ЛЮБОГО репозитория (замер 2026-11-05: из 142 найденных
+#: 52 — чужие клоны `studio_bridge`, `earn-defi`, одноразовые стенды). Судить их
+#: родословную по НАШЕМУ `origin/main` значило бы объявить кандидатом в сироты
+#: каждое чужое дерево. Признак членства — ОБЩИЙ административный каталог
+#: (`git rev-parse --git-common-dir`): у `cp -r` копии он тот же, что у нашего
+#: клона, и это ровно то, что делает её нашей; у отдельного клона (в том числе у
+#: ПОЛНОГО зеркала) — свой.
+MEMBERSHIP_STATES = ("member", "foreign", "unmeasured")
+
+#: Исходы объявленного корня обхода. Перечень ЗАМКНУТ.
+ROOT_STATES = ("walked", "absent", "unreadable")
+
+#: Исходы оси обхода в целом.
+WALK_STATES = ("measured", "unmeasured")
+
 #: Исходы дерева. Перечень ЗАМКНУТ: новый исход обязан быть назван здесь, иначе
 #: учёт перестанет сходиться (см. :func:`sweep`, тождество `tally`).
 VERDICTS = ("on_main", "never_pushed", "off_main_branch", "no_head", "unmeasured")
@@ -636,6 +699,216 @@ def flight_verdict(doors: Sequence[dict]) -> dict:
             "flight_doors": list(doors)}
 
 
+def _is_repo_dir(path: Path) -> bool:
+    """Каталог САМ является git-деревом. ГОТОВАЯ дверь, а не своя копия.
+
+    Признак границы берётся у :func:`membership_reach_census._is_repo_dir`
+    (ADR-928) намеренно: своя копия разошлась бы, а разойтись ей есть куда —
+    форма метки там `exists`, а НЕ `is_dir`, потому что у worktree `.git` есть
+    ФАЙЛ со строкой `gitdir: …`, и спросить про каталог значило бы пропустить
+    ровно те деревья, из-за которых граница понадобилась.
+
+    Дверь не ввезлась ⇒ исключение :class:`Unmeasured`. Подставить здесь свою
+    проверку значило бы ответить «копий нет» силами двери, которой нет.
+    """
+    try:
+        from spa_core.monitoring.membership_reach_census import _is_repo_dir as _door
+    except BaseException as exc:  # noqa: BLE001 — причина обязана быть названа
+        raise Unmeasured(
+            f"готовая дверь границы дерева не ввезена: {type(exc).__name__}: {exc}"
+        ) from exc
+    return _door(path)
+
+
+def common_dir(tree: Path) -> tuple[Optional[str], Optional[str]]:
+    """Административный каталог дерева. `(путь, None)` либо `(None, причина)`.
+
+    `--path-format=absolute` обязателен: без него git отвечает ОТНОСИТЕЛЬНЫМ
+    путём от дерева, и два разных дерева получили бы одинаковую строку `.git`,
+    то есть признак членства превратился бы в признак «у дерева есть `.git`».
+    """
+    code, out = _git(tree, "rev-parse", "--path-format=absolute", "--git-common-dir")
+    if code != 0 or not out.strip():
+        return None, f"git не назвал административный каталог: {out.strip() or 'пусто'} (код {code})"
+    try:
+        return str(Path(out.strip()).resolve()), None
+    except OSError as exc:
+        return None, f"путь административного каталога не разрешается: {exc}"
+
+
+def clone_membership(tree: Path, own: Optional[str]) -> dict:
+    """Принадлежит ли дерево НАШЕМУ клону. Три исхода, см. :data:`MEMBERSHIP_STATES`.
+
+    `own` не измерен ⇒ исход `unmeasured` у КАЖДОГО дерева: сравнивать с
+    неизвестным и звать результат «чужой» значило бы выдать неизмеренное за
+    ответ (инв. #17).
+    """
+    if not own:
+        return {"tree": str(tree), "state": "unmeasured",
+                "reason": "административный каталог НАШЕГО клона не измерен — "
+                          "сравнивать не с чем"}
+    cd, why = common_dir(tree)
+    if cd is None:
+        return {"tree": str(tree), "state": "unmeasured", "reason": why}
+    if cd == own:
+        return {"tree": str(tree), "state": "member", "common_dir": cd}
+    return {"tree": str(tree), "state": "foreign", "common_dir": cd,
+            "reason": f"административный каталог ДРУГОЙ: {cd}"}
+
+
+def walk_trees(roots: Sequence[str], *, depth_max: int = WALK_DEPTH_MAX,
+               skip: frozenset = WALK_SKIP_DIRS,
+               is_repo_dir=None) -> dict:
+    """Деревья, найденные ОБХОДОМ объявленных корней.
+
+    Корни — ВХОД, а не окружение: тест передаёт свои, боевой путь берёт
+    :data:`WALK_ROOTS_DEFAULT`.
+
+    Обход НЕ СПУСКАЕТСЯ внутрь найденного дерева — то же сужение, что у
+    ADR-928, и оно НАЗВАНО: дерево, зарегистрированное git'ом ВНУТРИ другого
+    дерева, обходу невидимо, и ровно поэтому обход не заменяет перечисление, а
+    СКЛАДЫВАЕТСЯ с ним (замер 2026-11-05: такое дерево одно —
+    `…/sceneB/.claude/worktrees/nested`).
+
+    Третий исход у каждого корня (:data:`ROOT_STATES`) и у оси в целом
+    (:data:`WALK_STATES`): корня нет на машине ⇒ `absent`; не читается ⇒
+    `unreadable` с причиной. НИ ОДНОГО корня не обойдено ⇒ ось `unmeasured`, и
+    «копий не найдено» не утверждается вовсе — на раннере CI не существует ни
+    один объявленный корень, и ноль там был бы ложным.
+    """
+    probe = is_repo_dir or _is_repo_dir
+    rows: list[dict] = []
+    found: dict[str, str] = {}   # разрешённый путь → путь, каким его нашли
+    walked_any = False
+    seen_roots: set[str] = set()
+    for raw in roots:
+        root = Path(raw)
+        try:
+            key = str(root.resolve())
+        except OSError as exc:
+            rows.append({"root": str(root), "state": "unreadable",
+                         "reason": f"путь не разрешается: {exc}", "trees": 0})
+            continue
+        if key in seen_roots:  # `/tmp` и `/private/tmp` — один каталог на macOS
+            continue
+        seen_roots.add(key)
+        if not root.exists():
+            rows.append({"root": str(root), "state": "absent",
+                         "reason": "каталога на этой машине нет", "trees": 0})
+            continue
+        here_found = 0
+        try:
+            if probe(root):
+                found.setdefault(key, str(root))
+                here_found += 1
+            stack: list[tuple[Path, int]] = [(root, 0)]
+            while stack:
+                cur, depth = stack.pop()
+                if depth >= depth_max:
+                    continue
+                with os.scandir(cur) as it:
+                    entries = sorted(it, key=lambda e: e.name)
+                for ent in entries:
+                    try:
+                        if not ent.is_dir(follow_symlinks=False):
+                            continue
+                    except OSError:
+                        continue
+                    if ent.name in skip:
+                        continue
+                    child = Path(ent.path)
+                    if probe(child):
+                        try:
+                            ckey = str(child.resolve())
+                        except OSError:
+                            continue
+                        if ckey not in found:
+                            found[ckey] = str(child)
+                            here_found += 1
+                        # Внутрь дерева не спускаемся — сужение названо выше.
+                        continue
+                    stack.append((child, depth + 1))
+        except OSError as exc:
+            rows.append({"root": str(root), "state": "unreadable",
+                         "reason": f"обход прерван: {type(exc).__name__}: {exc}",
+                         "trees": here_found})
+            continue
+        walked_any = True
+        rows.append({"root": str(root), "state": "walked", "reason": None,
+                     "trees": here_found})
+    unknown = [r["state"] for r in rows if r["state"] not in ROOT_STATES]
+    if unknown:  # перечень ROOT_STATES замкнут
+        raise Unmeasured(f"исход корня обхода вне перечня: {sorted(set(unknown))}")
+    if not walked_any:
+        return {"state": "unmeasured", "roots": rows, "found": {},
+                "reason": ("ни один объявленный корень не обойдён — «копий не "
+                           "найдено» НЕ утверждается: " +
+                           " · ".join(f"{r['root']}: {r['state']}" for r in rows))}
+    return {"state": "measured", "roots": rows, "found": found, "reason": None}
+
+
+def discover_trees(repo: Path, *, walk_roots: Sequence[str] = WALK_ROOTS_DEFAULT,
+                   depth_max: int = WALK_DEPTH_MAX,
+                   is_repo_dir=None) -> dict:
+    """Население деревьев = перечисление git'а ∪ обход, с осью ОТКРЫТИЯ у каждого.
+
+    Перечисление остаётся НЕСУЩИМ (его отказ — отказ всей переписи, см.
+    :func:`worktrees`), обход только ДОБАВЛЯЕТ. Обратный порядок был бы хуже:
+    обход не знает про деревья, зарегистрированные внутри другого дерева, а
+    перечисление их знает.
+
+    Дерево, найденное ТОЛЬКО обходом, обязано ещё и ПРИНАДЛЕЖАТЬ нашему клону
+    (:func:`clone_membership`), иначе кандидатом в сироты стало бы каждое чужое
+    дерево на машине. Зарегистрированному дереву этот вопрос не задаётся: его
+    членство доказано самим фактом регистрации, и лишний зов git'а на 75
+    деревьях стоил бы секунду ни за что.
+    """
+    registered = [str(t) for t in worktrees(repo)]
+    reg_keys: dict[str, str] = {}
+    for t in registered:
+        try:
+            reg_keys[str(Path(t).resolve())] = t
+        except OSError:
+            reg_keys[t] = t
+    own, own_why = common_dir(repo)
+    walk = walk_trees(walk_roots, depth_max=depth_max, is_repo_dir=is_repo_dir)
+    membership: list[dict] = []
+    walk_members: dict[str, str] = {}
+    for key, shown in sorted((walk.get("found") or {}).items()):
+        if key in reg_keys:          # уже доказано регистрацией
+            walk_members[key] = reg_keys[key]
+            continue
+        verdict = clone_membership(Path(shown), own)
+        membership.append(verdict)
+        if verdict["state"] == "member":
+            walk_members[key] = shown
+    discovery: dict[str, str] = {}
+    trees: list[Path] = []
+    for key, shown in sorted(reg_keys.items()):
+        discovery[shown] = "both" if key in walk_members else "registered_only"
+        trees.append(Path(shown))
+    for key, shown in sorted(walk_members.items()):
+        if key in reg_keys:
+            continue
+        discovery[shown] = "walk_only"
+        trees.append(Path(shown))
+    tally = {s: sum(1 for v in discovery.values() if v == s) for s in DISCOVERY_STATES}
+    unknown = [v for v in discovery.values() if v not in DISCOVERY_STATES]
+    if unknown:  # перечень DISCOVERY_STATES замкнут
+        raise Unmeasured(f"исход оси открытия вне перечня: {sorted(set(unknown))}")
+    assert sum(tally.values()) == len(discovery), "учёт оси открытия не сошёлся"
+    mt = {s: sum(1 for v in membership if v["state"] == s) for s in MEMBERSHIP_STATES}
+    assert sum(mt.values()) == len(membership), "учёт принадлежности не сошёлся"
+    return {"trees": trees, "discovery": discovery, "discovery_tally": tally,
+            "walk_state": walk["state"], "walk_reason": walk.get("reason"),
+            "walk_roots": walk["roots"], "walk_depth_max": depth_max,
+            "own_common_dir": own, "own_common_dir_reason": own_why,
+            "membership_tally": mt,
+            "membership_foreign": [v for v in membership if v["state"] == "foreign"],
+            "membership_unmeasured": [v for v in membership
+                                      if v["state"] == "unmeasured"]}
+
+
 def worktrees(repo: Path) -> list[Path]:
     """Деревья клона. git не ответил ⇒ исключение, а не пустой список.
 
@@ -928,7 +1201,10 @@ def sweep(repo_root: str | Path = _REPO_ROOT, *, ref: str = REF_DEFAULT,
           previous_blind_reason: Optional[str] = None,
           journal: Optional[str | Path] = None,
           cuw=_SENTINEL, cuw_path: Optional[Path] = None,
-          self_session: str = "", ps_probe=None, cmd_probe=None) -> dict:
+          self_session: str = "", ps_probe=None, cmd_probe=None,
+          walk_roots: Sequence[str] = WALK_ROOTS_DEFAULT,
+          walk_depth_max: int = WALK_DEPTH_MAX,
+          is_repo_dir=None) -> dict:
     """Перепись сирот. Возвращает замер; НИЧЕГО не правит и не поднимает.
 
     `previous` — прошлая перепись (см. :func:`load_previous`): её обязан
@@ -943,13 +1219,30 @@ def sweep(repo_root: str | Path = _REPO_ROOT, *, ref: str = REF_DEFAULT,
         return {"state": "unmeasured", "reason": str(exc), "ref": ref,
                 "lineage_repo": None, "lineage_rejected": [], "rows": [], "tally": {}}
     try:
-        trees = worktrees(repo)
+        # Население = перечисление git'а ∪ ОБХОД объявленных корней (ADR-930).
+        # Перечисление остаётся несущим: его отказ — отказ всей переписи.
+        found = discover_trees(repo, walk_roots=walk_roots,
+                               depth_max=walk_depth_max, is_repo_dir=is_repo_dir)
+        trees = found["trees"]
     except Unmeasured as exc:
         return {"state": "unmeasured", "reason": str(exc), "ref": ref,
                 "lineage_repo": str(lineage),
                 "lineage_rejected": rejected, "rows": [], "tally": {}}
 
     rows = [_tree_row(t, lineage, ref, limit=limit) for t in trees]
+    # Ось ОТКРЫТИЯ живёт на КАЖДОЙ строке: «кто это дерево увидел» есть
+    # свойство строки, а не сводки, и читателю вердикта она нужна там же, где
+    # вердикт. У дерева, найденного ТОЛЬКО обходом, печатается ещё и оговорка:
+    # его `.git` указывает на ОБЩИЙ административный каталог, поэтому `HEAD`,
+    # база и пролёт описывают коммит ОРИГИНАЛА, а не байты, уникальные для
+    # копии. Своя у копии ровно ось рабочего дерева — и ровно она была слепа.
+    for row in rows:
+        row["discovery"] = found["discovery"].get(row["tree"], "both")
+        if row["discovery"] == "walk_only":
+            row["discovery_caveat"] = (
+                "дерево-КОПИЯ: административный каталог общий с оригиналом ⇒ "
+                "HEAD/база/пролёт — о коммите ОРИГИНАЛА; своя у копии ось "
+                "рабочего дерева (индекс тоже общий, и это НЕ ДОКЛАДЫВАЕТСЯ)")
     worktree_tally = {s: sum(1 for r in rows if r.get("worktree") == s)
                       for s in WORKTREE_STATES}
     unknown_wt = [r.get("worktree") for r in rows
@@ -1008,9 +1301,23 @@ def sweep(repo_root: str | Path = _REPO_ROOT, *, ref: str = REF_DEFAULT,
     fresh = [r for r in candidates
              if r.get("base_lag_state") == "measured"
              and r["base_lag"] <= fresh_base_lag_max]
+    discovery_tally = found["discovery_tally"]
+    assert sum(discovery_tally.values()) == len(rows), "учёт оси открытия не сошёлся"
     return {"state": "measured", "ref": ref, "lineage_repo": str(lineage),
             "lineage_rejected": rejected, "repo_root": str(repo),
             "trees": len(rows), "rows": rows, "tally": tally,
+            # Ось ОТКРЫТИЯ (ADR-930). `walk_state` ОБЯЗАН печататься рядом с
+            # числом: `walk_only 0` при необойдённых корнях есть ложный ноль.
+            "discovery_tally": discovery_tally,
+            "walk_state": found["walk_state"],
+            "walk_reason": found["walk_reason"],
+            "walk_roots": found["walk_roots"],
+            "walk_depth_max": found["walk_depth_max"],
+            "own_common_dir": found["own_common_dir"],
+            "own_common_dir_reason": found["own_common_dir_reason"],
+            "membership_tally": found["membership_tally"],
+            "membership_foreign": found["membership_foreign"],
+            "membership_unmeasured": found["membership_unmeasured"],
             "worktree_tally": worktree_tally,
             "worktree_ignored_prefix": WORKTREE_IGNORED_PREFIX,
             # Деревья, несущие незакоммиченные байты вне `data/`. Годность к
@@ -1047,6 +1354,46 @@ def report(doc: dict) -> list[str]:
              f"   родословную спрашивали у ПОЛНОГО клона: {doc['lineage_repo']}"]
     for r in doc.get("lineage_rejected", []):
         lines.append(f"   отвергнут клон {r['repo']}: {r.get('reason', r.get('state'))}")
+    # Ось ОТКРЫТИЯ печатается ВЫШЕ исходов намеренно: она отвечает на вопрос
+    # «о скольки деревьях вообще спросили», и прочитать исходы, не зная его,
+    # значит прочитать долю без знаменателя (ADR-930).
+    dt = doc.get("discovery_tally")
+    if dt is not None:
+        if doc.get("walk_state") == "measured":
+            lines.append("   ось ОТКРЫТИЯ: "
+                         + " · ".join(f"{k} {dt.get(k, 0)}" for k in DISCOVERY_STATES)
+                         + f" (обход глубины {doc.get('walk_depth_max')} по "
+                           f"{len(doc.get('walk_roots') or ())} объявленным корням)")
+        else:
+            # Ложный ноль запрещён: «копий не найдено» и «не обходили» —
+            # разные утверждения (инв. #17).
+            lines.append(f"   ⚠️ ось ОТКРЫТИЯ НЕ ИЗМЕРЕНА: {doc.get('walk_reason')}"
+                         " — число `walk_only` НЕ утверждается")
+        for r in doc.get("walk_roots") or ():
+            if r.get("state") != "walked":
+                lines.append(f"      ▫️ корень {r['state']}: {r['root']} — {r.get('reason')}")
+        mt = doc.get("membership_tally") or {}
+        if sum(mt.values()):
+            lines.append("      принадлежность НАШЕМУ клону (спрошена у "
+                         f"{sum(mt.values())} дерев(а), найденных только обходом): "
+                         + " · ".join(f"{k} {mt.get(k, 0)}" for k in MEMBERSHIP_STATES)
+                         + f"; административный каталог нашего клона — "
+                           f"{doc.get('own_common_dir') or 'НЕ ИЗМЕРЕН: ' + str(doc.get('own_common_dir_reason'))}")
+        for v in doc.get("membership_unmeasured") or ():
+            lines.append(f"      ⚠️ принадлежность НЕ ИЗМЕРЕНА: {v['tree']} — {v.get('reason')}")
+        # Слепое пятно ОБХОДА называется поимённо тем же порядком, что и слепое
+        # пятно перечисления: «обход добавляет» было бы похвальбой, если бы
+        # цена сужения («внутрь дерева не спускаемся») осталась непечатаемой.
+        for r in doc.get("rows", []):
+            if r.get("discovery") == "registered_only":
+                lines.append(f"   ▫️ ТОЛЬКО ПЕРЕЧИСЛЕНИЕМ (обход его не достаёт "
+                             f"— дерево зарегистрировано ВНУТРИ другого дерева "
+                             f"либо вне объявленных корней): {r['tree']}")
+        for r in doc.get("rows", []):
+            if r.get("discovery") == "walk_only":
+                lines.append(f"   🆕 ТОЛЬКО ОБХОДОМ (перечисление git'а его НЕ "
+                             f"видит): {r['tree']}")
+                lines.append(f"      {r.get('discovery_caveat')}")
     t = doc["tally"]
     lines.append("   исходы: " + " · ".join(f"{k} {t[k]}" for k in VERDICTS))
     measured = doc["candidates_with_measured_span"]

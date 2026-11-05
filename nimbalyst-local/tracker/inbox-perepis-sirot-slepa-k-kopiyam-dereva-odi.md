@@ -2,10 +2,14 @@
 trackerStatus:
   type: inbox
 title: "Перепись сирот слепа к КОПИЯМ дерева: один административный каталог — одна запись"
-status: new
+status: done
 source: nimbalyst
 created: 2026-11-05
 twin_key: "sha256:8c5fe992101a18660c3264a8ffa30cdac30ad5d421349d4430cab18ad60877c6"
+acceptance_probe: orphan_sweep_names_an_unregistered_copy
+status_trail:
+  - "2026-11-05T21:23:03.248020+00:00 new -> in-progress · queue.set_status · cycle-83264"
+  - "2026-11-05T22:01:49.423584+00:00 in-progress -> done · queue.set_status/closed_by:cycle-83264 (ADR-930)/evidence:проба orphan_sweep_names_an_unregistered_copy = satisfied (настоящая cp -r копия на одноразовой сцене вошла в население как walk_only, названа по имени, несёт оговорку; чужой клон foreign 1, оборванна · cycle-83264"
 ---
 
 ## Что измерено
