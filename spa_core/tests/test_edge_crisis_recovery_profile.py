@@ -6,6 +6,15 @@ Negative controls (mutation targets):
   - breaking the recovery computation returns wrong weights
   - removing the 'variant_d' suppression lets it dominate the portfolio
   - swapping APY and maxDD would change the verdict
+
+# FROZEN-DATE-OK: fixture-subject — ДАТА здесь и есть ПРЕДМЕТ: это кризисные окна
+# детерминированной фикстуры (`aggressive_lab/fixtures.py`, 2024-07-01..2026-05-31) и шов
+# TRAIN/TEST 2025-06-30, то есть входные данные сцены, а не срок. Понятия свежести на пути
+# этого файла НЕТ ни одного: `grep -n "now()|today()|time()|utcnow"` даёт НОЛЬ вхождений,
+# сдвиг календаря ни один его вердикт не меняет. Пометка поставлена сессией novel-edge-rnd
+# 2026-11-06 как исполнение формы №3 `.claude/rules/deployment.md` (не инъекция часов —
+# инъектировать нечего); основание и причина записаны в `docs/journal/2026-W45.md` и в
+# записи #154 реестра. Тест НЕ ослаблен: ни одна проверка не удалена и не сужена.
 """
 # LLM_FORBIDDEN
 from __future__ import annotations
