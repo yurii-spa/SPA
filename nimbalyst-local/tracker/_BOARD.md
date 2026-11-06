@@ -2,11 +2,11 @@
 
 > Авто-генерится `scripts/build_tracker_board.py` из `nimbalyst-local/tracker/*.md`. НЕ править вручную — правь карточки. Источник правды — карточки, это индекс (bootstrap).
 >
-> Собрана: 2026-11-05T22:01:51Z · сверка с карточками: `python3 scripts/build_tracker_board.py --check` (сторож `spa_core/tests/test_tracker_board_matches_cards.py`).
+> Собрана: 2026-11-06T00:15:47Z · сверка с карточками: `python3 scripts/build_tracker_board.py --check` (сторож `spa_core/tests/test_tracker_board_matches_cards.py`).
 >
-> Сверено с `origin/main` (8934f9212) · у **2** своя правка, кто новее — не измерено.
+> Сверено с `origin/main` (f2be8438f) · у **2** своя правка, кто новее — не измерено.
 >
-> Всего карточек: **1592** · ждёт владельца: **4** · занято сессиями: **14**.
+> Всего карточек: **1593** · ждёт владельца: **4** · занято сессиями: **14**.
 
 ## 🔴 ЖДЁТ ВЛАДЕЛЬЦА (needs-owner)
 
@@ -424,7 +424,7 @@
 ### · closed
 - Считать ли верный отказ по правилам допуска неисправностью флота  ·  `owner-decision-schitat-li-vernyi-otkaz-po-pravilam-dopu.md` · 2026-10-08
 
-## 📥 Inbox (задания: Telegram / заметки / голос)  (905)
+## 📥 Inbox (задания: Telegram / заметки / голос)  (906)
 
 ### · in-progress
 - а задача починить все-таки еще раз сообщение которым не пишет нужно твое решени…  ·  `inbox-a-zadacha-pochinit-vse-taki-esche-raz-so.md` · 2026-08-14 · 🔒 `pid43119`
@@ -596,6 +596,7 @@
 - Карта «чей это тест» ВЫДУМЫВАЕТСЯ, если в том же дереве идёт второй прогон: атрибуция по совпадению во времени, без единой проверки, что писал именно этот тест  ·  `inbox-karta-chei-eto-test-vydumyvaetsya-pri-parallelnom-progone.md` · 2026-08-23
 - Карточка про сторожа ИИ лежит у владельца в СТАРОЙ бескнопочной редакции — переотправить после окна анти-шторма  ·  `inbox-kartochka-pro-storozha-ii-lezhit-u-vlade.md` · 2026-09-07
 - Карточка, созданная посреди цикла, не доезжает: create пишет в ХОСТ-дерево, а пуш идёт из worktree  ·  `inbox-kartochka-sozdannaya-posredi-tsikla-ne-d.md` · 2026-08-06
+- Карточка владельцу рекомендовала отказ и цену отказа не называла  ·  `inbox-kartochka-vladeltsu-rekomendovala-otkaz.md` · 2026-11-05
 - Карточки без записей цикла теряются молча: сторож видит 2 из 103  ·  `inbox-kartochki-bez-zapisei-tsikla-teryayutsya.md` · 2026-10-15
 - Карточки моста находок рождаются в прод-дереве и не доезжают до origin — четыре needs-owner потеряны на последнем метре  ·  `inbox-kartochki-mosta-nahodok-rozhdayutsya-v-p.md` · 2026-08-08
 - Кнопка «Принято — беру в работу» закрывает карточку-поручение ДО того, как поручение исполнено  ·  `inbox-knopka-prinyato-zakryvaet-poruchenie-do-ego-ispolneniya.md` · 2026-08-22

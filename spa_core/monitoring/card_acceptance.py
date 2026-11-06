@@ -17010,6 +17010,341 @@ def _probe_orphan_sweep_names_an_unregistered_copy(
                          for k in _sweep.DISCOVERY_STATES))
 
 
+def _probe_owner_card_names_the_price_of_refusing(
+        arg: str | None, *, repo_root: str | None = None) -> tuple[str, str]:
+    """Критерий: совет в карточке владельцу ЗНАЕТ измеренную цену отказа.
+
+    Предмет — авария 2026-11-06 (цикл #1045, ADR-931).
+    `scripts/safe_site_push.py` печатал в карточке `Отклонить (рекомендую)`
+    КОНСТАНТОЙ и описывал последствие словами «owner-gated поверхность
+    остаётся неизменной». Замер того дня: живая `/track-record/` несла
+    `as of 2026-10-21` (383 ч, 120 дней трека против 135 живых), витрина,
+    собранная прибором 29.10, ждала ответа СЕДЬМОЙ день, а сторож
+    `com.spa.site_freshness` выходил кодом 1 каждые шесть часов и причину
+    называл верно (`SHELF_NOT_DELIVERED`). То есть совет рекомендовал ровно
+    то, что заморозило публичные числа, и цену этого не называл НИ В ОДНУ
+    сторону.
+
+    Предмет НЕ «какое решение верно»: публичные числа остаются предметом №2
+    границы ADR-285. Предмет — что карточка несёт ИЗМЕРЕННУЮ цену, а
+    рекомендация без неё не печатается вовсе.
+
+    **Меряется ИСХОД, а не структура.** Проба не ищет в исходнике ни слова
+    «рекомендую», ни имени функции: она строит ОДНОРАЗОВЫЕ сцены и спрашивает
+    вердикт ЗНАЧЕНИЕМ. Подстрокой она не проходит (ADR-333).
+
+    Контроль в обе стороны — внутри самой проверки:
+
+    * две сцены, отличающиеся РОВНО двумя полями отчёта сторожа, обязаны дать
+      ПРОТИВОПОЛОЖНЫЕ советы (`approve` против `refuse`). Совпади они — совет
+      снова константа, и это ровно предмет аварии;
+    * печатаемые числа обязаны происходить ИЗ ОТЧЁТА, а не из прозы: сцена
+      кладёт свои значения и требует их в тексте;
+    * сцена без отчёта обязана дать `unmeasured` БЕЗ совета: «не измерено»,
+      ставшее советом, — тот же дефект с другой стороны;
+    * отсутствие операнда обязано быть отличимо от нуля (инв. #17);
+    * сборщик карточки обязан ЗВАТЬ эту дверь (мерится AST): функция без
+      читателя есть половина починки.
+
+    Часов, pid и git-окружения хоста проба не спрашивает: момент суждения —
+    ВХОД (`now=`), корень — одноразовый каталог, срок годности отчёта сцена
+    объявляет САМА в своём минимальном манифесте.
+    """
+    if (arg or "").strip():
+        return UNMEASURED, (f"проба не принимает аргумента (дано {arg!r}): "
+                            "предмет — цена отказа в карточке, пофайловой "
+                            "формы у него нет")
+    import datetime as _dt
+    import importlib.util as _ilu
+    import json as _json
+    import re as _re
+    import tempfile as _tempfile
+
+    root = _pathlib.Path(repo_root) if repo_root else REPO_ROOT
+    pusher = _pathlib.Path(root) / "scripts" / "safe_site_push.py"
+    if not pusher.exists():
+        return UNMEASURED, f"инструмента доставки сайта нет по пути {pusher}"
+    try:
+        spec = _ilu.spec_from_file_location("ssp_price_probe", pusher)
+        mod = _ilu.module_from_spec(spec)
+        spec.loader.exec_module(mod)
+    except BaseException as exc:  # noqa: BLE001 — причина обязана быть названа
+        return UNMEASURED, (f"инструмент доставки сайта не ввезён: "
+                            f"{type(exc).__name__}: {exc}")
+    for name in ("_price_of_refusing", "_card_lines", "_SHELF_REL",
+                 "_FRESHNESS_REL"):
+        if not hasattr(mod, name):
+            return UNMEASURED, (f"у инструмента доставки нет `{name}` — "
+                                f"дверь цены или сборщик тела переименованы, "
+                                f"перемерить")
+
+    anchor = _dt.datetime(2026, 11, 6, 1, 0, 0, tzinfo=_dt.timezone.utc)
+    #: Значения сцены НАМЕРЕННО не равны боевым: текст обязан нести ИХ, а не
+    #: числа, вписанные в прозу генератора.
+    scene_as_of, scene_age_h, scene_overdue = "2024-03-07", 211.0, 3.0
+    #: Срок годности отчёта, объявленный САМОЙ сценой (не боевые 13 ч).
+    scene_slo_h = 2
+
+    def _scene(base: _pathlib.Path, label: str, report) -> _pathlib.Path:
+        home = base / label
+        (home / "data").mkdir(parents=True)
+        (home / "architecture").mkdir(parents=True)
+        #: Срок годности сцены НАМЕРЕННО не равен боевым 13 ч: читатель,
+        #: подменивший объявление своим литералом, ответил бы «свежо» там,
+        #: где объявление говорит «протухло» (мутация M6).
+        (home / "architecture" / "manifest.json").write_text(_json.dumps(
+            {"artifacts": [{"path": mod._FRESHNESS_REL,
+                            "producer": "com.spa.site_freshness",
+                            "slo_hours": scene_slo_h}], "agents": []}),
+            encoding="utf-8")
+        if report is not None:
+            (home / mod._FRESHNESS_REL).write_text(
+                _json.dumps(report), encoding="utf-8")
+        return home
+
+    def _report(**over):
+        doc = {"ts": (anchor - _dt.timedelta(hours=1)).isoformat().replace(
+                   "+00:00", "Z"),
+               "site_as_of": scene_as_of, "site_as_of_age_h": scene_age_h,
+               "shelf_overdue_days": scene_overdue,
+               "shelf_built_not_delivered": True,
+               "shelf_cadence_leg": "measured"}
+        doc.update(over)
+        return doc
+
+    with _tempfile.TemporaryDirectory(prefix="refusal_price_probe_") as tmp:
+        base = _pathlib.Path(tmp).resolve()
+        try:
+            costly = mod._price_of_refusing(
+                [mod._SHELF_REL], root=_scene(base, "costly", _report()),
+                now=anchor)
+            free = mod._price_of_refusing(
+                [mod._SHELF_REL],
+                root=_scene(base, "free", _report(
+                    shelf_built_not_delivered=False, shelf_overdue_days=0)),
+                now=anchor)
+            silent = mod._price_of_refusing(
+                [mod._SHELF_REL], root=_scene(base, "silent", None), now=anchor)
+            holey_doc = _report()
+            holey_doc.pop("shelf_overdue_days")
+            holey = mod._price_of_refusing(
+                [mod._SHELF_REL], root=_scene(base, "holey", holey_doc),
+                now=anchor)
+            # Отчёт СТАРШЕ объявленного срока — замер другого дня, не ответ.
+            stale_root = _scene(base, "stale", _report())
+            late = mod._price_of_refusing(
+                [mod._SHELF_REL], root=stale_root,
+                now=anchor + _dt.timedelta(hours=scene_slo_h + 1))
+            # Разовая правка страницы: витрины в ней нет.
+            no_shelf = mod._price_of_refusing(
+                ["landing/src/pages/index.astro"],
+                root=_scene(base, "no_shelf", _report()), now=anchor)
+            # ТЕКСТ, который читает владелец — отдельно от двери цены.
+            costly_card = "\n".join(mod._card_lines(
+                ["landing/src/data/site_numbers.json"],
+                [{"klass": "P", "file": mod._SHELF_REL, "rule": "publication.gate",
+                  "matched_text": "backtest value changed"}],
+                [mod._SHELF_REL], "chore(site numbers): weekly shelf",
+                root=_scene(base, "card_costly", _report()), now=anchor))
+            safe_card = "\n".join(mod._card_lines(
+                ["landing/src/pages/index.astro"],
+                [{"klass": "E", "file": "landing/src/pages/index.astro",
+                  "rule": "honesty.token.removed", "matched_text": "RESEARCH"}],
+                ["landing/src/pages/index.astro"], "fix(site): copy",
+                root=_scene(base, "card_safe", _report()), now=anchor))
+        except BaseException as exc:  # noqa: BLE001
+            return UNMEASURED, (f"дверь цены отказала на сцене: "
+                                f"{type(exc).__name__}: {exc}")
+
+    for label, got in (("costly", costly), ("free", free), ("silent", silent),
+                       ("holey", holey), ("stale", late), ("no_shelf", no_shelf)):
+        if not (isinstance(got, tuple) and len(got) == 3):
+            return UNMEASURED, (f"дверь цены вернула не тройку на сцене "
+                                f"{label}: {got!r:.120}")
+
+    # 1. цена есть и она не ноль ⇒ `measured` и совета НЕТ (инв. #8: совет
+    #    «одобрить» значил бы публикацию owner-gated чисел одним тапом; совет
+    #    «отклонить» — ту самую заморозку, которую цена и называет)
+    if costly[0] != "measured" or costly[2] is not None:
+        return NOT_SATISFIED, (
+            f"сцена с НЕнулевой ценой (витрина не доставлена, просрочка "
+            f"{scene_overdue:g} дн) дала исход {costly[0]!r} и совет "
+            f"{costly[2]!r} вместо 'measured'/None")
+    costly_text = "\n".join(costly[1])
+    missing = [str(v) for v in (scene_as_of, int(scene_age_h), int(scene_overdue))
+               if str(v) not in costly_text]
+    if missing:
+        return NOT_SATISFIED, (
+            f"цена напечатана без своих операндов — в тексте нет "
+            f"{', '.join(missing)}: {costly_text[:200]}")
+
+    # 2. обратное направление: цена измерена и равна нулю ⇒ совет `refuse`
+    if free[0] != "measured_zero" or free[2] != "refuse":
+        return NOT_SATISFIED, (
+            f"сцена с НУЛЕВОЙ ценой дала исход {free[0]!r} и совет "
+            f"{free[2]!r} вместо 'measured_zero'/'refuse'")
+
+    # 3. СОВЕТ НЕ КОНСТАНТА: две сцены, отличающиеся двумя полями, спорят
+    if costly[2] == free[2]:
+        return NOT_SATISFIED, (
+            f"совет ОДИН И ТОТ ЖЕ ({costly[2]!r}) на сценах с ненулевой и "
+            f"нулевой ценой — это и есть предмет аварии")
+
+    # 4. НЕ ИЗМЕРЕНО при ВИТРИНЕ в правке не становится советом
+    for label, got in (("без отчёта сторожа", silent),
+                       ("без операнда в отчёте", holey)):
+        if got[0] != "unmeasured" or got[2] is not None:
+            return NOT_SATISFIED, (
+                f"сцена {label} дала исход {got[0]!r} и совет {got[2]!r} "
+                f"вместо 'unmeasured'/None")
+        text = "\n".join(got[1])
+        if "Рекомендация:" in text:
+            return NOT_SATISFIED, (
+                f"сцена {label}: совета быть не должно, а он напечатан: "
+                f"{text[:200]}")
+
+    # 4в. ИНВ. #8 ЗНАЧЕНИЕМ: «одобрить» не советуется НИ НА ОДНОЙ сцене.
+    #     Карточка едет владельцу кнопками, и такой совет означал бы
+    #     публикацию owner-gated чисел одним тапом с телефона.
+    for label, got in (("costly", costly), ("free", free), ("silent", silent),
+                       ("holey", holey), ("stale", late), ("no_shelf", no_shelf)):
+        if got[2] not in ("refuse", None):
+            return NOT_SATISFIED, (
+                f"сцена {label} вернула совет {got[2]!r} — контракт допускает "
+                f"только 'refuse' либо None (инв. #8)")
+        if "Рекомендация: **Одобрить**" in "\n".join(got[1]):
+            return NOT_SATISFIED, (
+                f"сцена {label} печатает совет «Одобрить» — один тап с "
+                f"телефона отправил бы owner-gated числа в live (инв. #8)")
+
+    # 4г. безопасное умолчание остаётся, но с ПРИЧИНОЙ, а не привычкой
+    if no_shelf[2] != "refuse" or "#8" not in "\n".join(no_shelf[1]):
+        return NOT_SATISFIED, (
+            f"правка без витрины дала совет {no_shelf[2]!r} без ссылки на "
+            f"инв. #8 — отказ здесь обязан быть НАЗВАННЫМ умолчанием, а не "
+            f"привычкой: {'  '.join(no_shelf[1])[:200]}")
+    if "shelf_overdue_days" not in "\n".join(holey[1]):
+        return NOT_SATISFIED, (
+            "отсутствующий операнд не НАЗВАН — «поля нет» неотличимо от нуля "
+            f"(инв. #17): {'  '.join(holey[1])[:200]}")
+
+    # 4а. отчёт сторожа старше ОБЪЯВЛЕННОГО срока ⇒ НЕ ИЗМЕРЕНО
+    if late[0] != "unmeasured" or late[2] is not None:
+        return NOT_SATISFIED, (
+            f"отчёт сторожа старше объявленных {scene_slo_h} ч дал исход "
+            f"{late[0]!r} и совет {late[2]!r} — свежесть операнда не судится "
+            f"либо порог взят не из объявления")
+
+    # 4б. ТЕКСТ, который читает владелец: константы-совета в строке варианта
+    #     быть не должно, а ложная претензия про неизменность — только под
+    #     отрицанием. Дверь цены может отвечать верно, а печататься прежнее.
+    for option in [ln for ln in costly_card.splitlines()
+                   if ln.lstrip().startswith(("2.", "2)")) and "Отклонить" in ln]:
+        if "рекоменд" in option.lower():
+            return NOT_SATISFIED, (
+                f"совет вернулся КОНСТАНТОЙ в строку варианта: {option.strip()!r}")
+    for found in _re.finditer("поверхность остаётся неизменной", costly_card,
+                              flags=_re.IGNORECASE):
+        if "НЕ «" not in costly_card[max(0, found.start() - 4):found.start()]:
+            return NOT_SATISFIED, (
+                "в карточке напечатана ПРЕТЕНЗИЯ «поверхность остаётся "
+                "неизменной» вместо цены: "
+                + costly_card[max(0, found.start() - 60):found.end() + 20])
+    if not all(str(v) in costly_card
+               for v in (scene_as_of, int(scene_age_h), int(scene_overdue))):
+        return NOT_SATISFIED, (
+            "тело карточки не несёт операндов цены — дверь ответила, а "
+            "владелец читает карточку без числа")
+
+    # 4д. ПОМЕТКА «(рекомендую)» ПРОИЗВОДНАЯ, и стои́т она в строке ВАРИАНТА:
+    #     `parse_options` ставит владельцу звезду у рекомендованной КНОПКИ, и
+    #     совет, живущий только в прозе ниже, до кнопок не доходит. Поэтому
+    #     мерятся ДВЕ сцены: у безопасной пометка обязана БЫТЬ, у дорогой — НЕТ.
+    def _option_two(card: str) -> str:
+        rows = [ln for ln in card.splitlines()
+                if ln.lstrip().startswith("2.") and "Отклонить" in ln]
+        return rows[0] if rows else ""
+
+    safe_option, costly_option = _option_two(safe_card), _option_two(costly_card)
+    if not safe_option or not costly_option:
+        return UNMEASURED, ("в теле карточки нет строки варианта «2. Отклонить» "
+                            "— форма вариантов изменилась, перемерить")
+    if "рекоменд" not in safe_option.lower():
+        return NOT_SATISFIED, (
+            f"у БЕЗОПАСНОЙ сцены пометка «(рекомендую)» в строке варианта "
+            f"пропала — кнопка владельца теряет звезду: {safe_option.strip()!r}")
+    if "рекоменд" in costly_option.lower():
+        return NOT_SATISFIED, (
+            f"у ДОРОГОЙ сцены пометка «(рекомендую)» стои́т в строке варианта — "
+            f"пометка снова КОНСТАНТА: {costly_option.strip()!r}")
+
+    # 4е. РАЗБОР КНОПОК — второй читатель этого текста, и он однажды ошибся:
+    #     `owner_decisions` вычитает отрицание шаблоном "не рекоменд...",
+    #     а фраза «Рекомендации здесь нет» под него не попадает — слово
+    #     «рекомендац» из блока цены досталось хвосту ПОСЛЕДНЕГО варианта, и
+    #     звезда уехала «Отложить». Спрашивается ЗНАЧЕНИЕ, а не текст.
+    try:
+        from spa_core.telegram.owner_decisions import parse_options as _opts
+    except BaseException as exc:  # noqa: BLE001
+        return UNMEASURED, f"разбор кнопок владельца не ввезён: {exc}"
+    try:
+        costly_stars = {o.label.lower(): o.recommended for o in _opts(costly_card)}
+        safe_stars = {o.label.lower(): o.recommended for o in _opts(safe_card)}
+    except BaseException as exc:  # noqa: BLE001
+        return UNMEASURED, f"разбор кнопок отказал на сцене: {exc}"
+    if not costly_stars or not safe_stars:
+        return UNMEASURED, ("разбор кнопок не нашёл вариантов — форма карточки "
+                            "изменилась, перемерить")
+    if any(costly_stars.values()):
+        return NOT_SATISFIED, (
+            f"у ДОРОГОГО отказа рекомендации нет, а звезда кому-то досталась: "
+            f"{costly_stars!r} — подсказка владельцу перевёрнута")
+    if safe_stars.get("отклонить") is not True or safe_stars.get("одобрить") is not False:
+        return NOT_SATISFIED, (
+            f"у БЕЗОПАСНОЙ сцены звезда стои́т не у «Отклонить»: {safe_stars!r}")
+
+    # 5. проводка: сборщик карточки ЗОВЁТ дверь цены (AST, не подстрока)
+    import ast as _ast
+    try:
+        tree = _ast.parse(pusher.read_text(encoding="utf-8"))
+    except BaseException as exc:  # noqa: BLE001
+        return UNMEASURED, f"инструмент доставки не разобран: {exc}"
+    # Цепь ДВУХЗВЕННАЯ: маршрутизатор → сборщик тела → дверь цены. Спросить
+    # только о крайнем звене значило бы пропустить разрыв в середине.
+    def _calls(fn_name: str):
+        fn = next((n for n in _ast.walk(tree)
+                   if isinstance(n, _ast.FunctionDef) and n.name == fn_name), None)
+        if fn is None:
+            return None
+        return {n.func.id for n in _ast.walk(fn)
+                if isinstance(n, _ast.Call) and isinstance(n.func, _ast.Name)}
+
+    for caller, callee in (("_route_to_owner_card", "_card_lines"),
+                           ("_card_lines", "_price_of_refusing")):
+        called = _calls(caller)
+        if called is None:
+            return UNMEASURED, (f"функции `{caller}` в инструменте нет — "
+                                f"проводку мерить не на чем")
+        if callee not in called:
+            return NOT_SATISFIED, (
+                f"разрыв проводки: `{caller}` НЕ зовёт `{callee}` — половина "
+                f"починки, владелец по-прежнему читает карточку без цены")
+
+    return SATISFIED, (
+        f"совет не константа и «одобрить» не советуется НИ НА ОДНОЙ из шести "
+        f"сцен (инв. #8): цена {scene_age_h:g} ч / {scene_overdue:g} дн "
+        f"просрочки → 'measured' БЕЗ совета, обе причины названы; нулевая цена "
+        f"→ 'measured_zero'/refuse с операндом; без отчёта, без операнда и "
+        f"старше объявленных {scene_slo_h} ч → 'unmeasured' БЕЗ совета; правка "
+        f"без витрины → 'refuse' с НАЗВАННОЙ причиной (инв. #8), а не по "
+        f"привычке; ТЕЛО карточки несёт операнды, константы-совета в строке "
+        f"варианта нет, претензия про неизменность только под отрицанием; "
+        f"пометка «(рекомендую)» ПРОИЗВОДНАЯ — есть у безопасной сцены, нет у "
+        f"дорогой, и РАЗБОР КНОПОК это подтверждает (у дорогой сцены звезды "
+        f"нет ни у кого, у безопасной она у «Отклонить»); сборщик дверь зовёт "
+        f"(AST, обе дуги)")
+
+
 PROBES: dict[str, Callable[[str | None], "tuple[str, str]"]] = {
     "tracked_data_untouched_by_declared_runs":
         _probe_tracked_data_untouched_by_declared_runs,
@@ -17201,6 +17536,8 @@ PROBES: dict[str, Callable[[str | None], "tuple[str, str]"]] = {
         _probe_ci_red_cause_axis_names_the_cause,
     "ci_cause_axis_names_a_session_death":
         _probe_ci_cause_axis_names_a_session_death,
+    "owner_card_names_the_price_of_refusing":
+        _probe_owner_card_names_the_price_of_refusing,
 }
 
 
