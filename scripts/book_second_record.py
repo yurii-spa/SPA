@@ -187,7 +187,12 @@ def write_artifact(verdict: dict, ddir: "str | Path | None" = None) -> "Path | N
     doc["ran_at"] = datetime.now(timezone.utc).isoformat()
     try:
         from spa_core.utils.atomic import atomic_save
-        atomic_save(d / ARTIFACT, doc)
+        # Порядок аргументов — `atomic_save(data, path)`, и он НЕ косметика:
+        # перевёрнутый вызов канонической двери ОТКАЗЫВАЕТ fail-CLOSED
+        # (`path must be a str/PathLike, got dict`), отказ глотает `except` ниже,
+        # и запись МОЛЧА уходила в неатомарный запас — то есть инвариант #5 не
+        # исполнялся здесь никогда (найдено циклом #1053, ADR-936).
+        atomic_save(doc, str(d / ARTIFACT))
     except Exception:  # noqa: BLE001 — запись следа не имеет права ронять замер
         try:
             (d / ARTIFACT).write_text(json.dumps(doc, ensure_ascii=False, indent=2) + "\n",

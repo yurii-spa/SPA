@@ -201,12 +201,178 @@ def _scopes(tree: ast.Module):
             yield n.body, False
 
 
+#: ── ПОЗИЦИЯ ПУТИ У ПОМОЩНИКА ЗАПИСИ — спросить его СОБСТВЕННОЕ ТЕЛО ───────────
+#:
+#: `_WRITE_ANY_ARG` просматривал ВСЕ аргументы вызова, и это читалось как
+#: осторожность: «позиция пути у разных авторов разная, пометим всё». Цена
+#: осторожности ИЗМЕРЕНА (цикл #1053) и она не в шуме, а во ЛЖИ: помеченным
+#: оказывался ПЭЙЛОАД — аргумент с данными, а не с путём.
+#:
+#:     report = evaluate(..., site_numbers=site_numbers, ...)   # собрано из ЧТЕНИЙ
+#:     _atomic_write(_REPORT, report)                           # путь arg0, данные arg1
+#:
+#: `_name_table` честно наследует имена артефактов через правую часть присваивания
+#: — без этого не разрешались бы настоящие пути вида `str(Path(d) / NAME)`. Но
+#: вместе с путём имена наследуются и в ЗНАЧЕНИЕ, СОБРАННОЕ ИЗ ЧТЕНИЙ: `report`
+#: происходит от прочитанной витрины, и `_WRITE_ANY_ARG` объявлял витрину
+#: ЗАПИСАННОЙ.
+#:
+#: Замер репозитория (5549 файлов): **22** ложных атрибуции записи в 10 файлах, и
+#: ВСЕ 22 — позиция `arg1` при видимом пути в `arg0`. Среди них
+#: `spa_core/analytics/analytics_runner.py` как писатель `equity_curve_daily.json`
+#: (ЖИВОЙ ТРЕК, который мандат запрещает трогать) и
+#: `spa_core/data_trust/integrity.py` как писатель `data/adapter_status.json`
+#: (execution-домен, `.claude/rules/adapters.md`). Одна доезжала до вердикта
+#: флота: `B7:contradiction:com.spa.site_freshness` — находка WARN, которой НЕТ в
+#: мире. Она же ПРЯТАЛА истинный вердикт агента: `contradiction` возвращается ДО
+#: расчёта покрытия, поэтому `confirmed` по всем объявленным продуктам не
+#: печатался вовсе. Ровно тот вред, о котором предупреждает докстринг
+#: `_name_table`: «Ложный ПИСАТЕЛЬ дороже пропуска».
+#:
+#: **Чинится НЕ наследованием и НЕ именем параметра, и оба отвергнуты замером.**
+#: Запрет наследовать имена через вызов убрал бы 68 НАСТОЯЩИХ записей — путь у
+#: них собран помощником вроде `_default_file(...)`, то есть ошибка ушла бы в
+#: СТОРОНУ ТИШИНЫ. Угадывание по имени параметра не годится тем же: 372
+#: определения помощников во дереве, и позиция пути у них РАЗНАЯ
+#: (`_atomic_write_rows(rows, out)` — путь ВТОРЫМ, `_atomic_write_text(text, path)`
+#: — тоже).
+#:
+#: Чинится вопросом к самому помощнику: его тело содержит primitive-запись
+#: (`open(p,"w")` · `os.replace(tmp, p)` · `p.write_text(...)` · `_WRITERS`), и
+#: ПАРАМЕТР, чьё значение доходит до позиции пути этой записи, и есть путь.
+#:
+#: Три исхода различимы (инв. #17): позиция НАЗВАНА (помечается только она) ·
+#: определения помощника в этом модуле СПОРЯТ о позиции ⇒ прежнее поведение ·
+#: определения здесь НЕТ ВОВСЕ ⇒ прежнее поведение. Тишины среди исходов нет:
+#: неразобранный помощник остаётся ГРОМКИМ, каким и был.
+#:
+#: **Чего это НЕ закрывает.** Ветка `CANONICAL_DOORS` у `write_doors` по-прежнему
+#: помечает все аргументы: позиции пути у `atomic_append`/`atomic_update` живут в
+#: ДРУГОМ модуле (`spa_core/utils/atomic.py`), а `write_doors` принимает только
+#: текст одного исходника и файловой двери не имеет по контракту. Население этой
+#: ветки названо замером в журнале цикла, а не оставлено нулём.
+
+
+def _param_taint(body, params: list[str]) -> dict[str, set[str]]:
+    """Локальные имена, ПРОИСХОДЯЩИЕ от каждого параметра (до неподвижной точки).
+
+    Нужно потому, что путь внутри помощника почти всегда переобозначают
+    (`p = Path(path)`, `tmp = path.with_suffix(...)`): без этого параметр-путь не
+    дошёл бы до primitive-записи ни в одном реальном помощнике дерева.
+    """
+    taint: dict[str, set[str]] = {p: {p} for p in params}
+    for _ in range(3):
+        for node in ast.walk(ast.Module(body=list(body), type_ignores=[])):
+            if not isinstance(node, ast.Assign) or node.value is None:
+                continue
+            rhs_names = {n.id for n in ast.walk(node.value) if isinstance(n, ast.Name)}
+            origin = {p for p, names in taint.items() if rhs_names & names}
+            if not origin:
+                continue
+            for target in node.targets:
+                if isinstance(target, ast.Name):
+                    for p in origin:
+                        taint[p].add(target.id)
+    return taint
+
+
+def _path_param_index(fn) -> int | None:
+    """Индекс параметра-ПУТИ у помощника записи. `None` = по телу НЕ РАЗОБРАНО.
+
+    Голосуют ТОЛЬКО позиции пути у primitive-записей внутри тела. Вложенный
+    помощник из `_WRITE_ANY_ARG` голоса не подаёт: его собственная позиция ещё
+    не выяснена, и считать её известной значило бы вывести ответ из догадки.
+    Ноль голосов и спор голосов — ОДИН исход («не разобрано»), и он ведёт к
+    прежнему громкому поведению, а не к тишине.
+    """
+    params = [a.arg for a in fn.args.args]
+    if not params:
+        return None
+    offset = 1 if params[0] == "self" else 0
+    effective = params[offset:]
+    if not effective:
+        return None
+    taint = _param_taint(fn.body, effective)
+    votes: set[int] = set()
+
+    def vote(expr) -> None:
+        seen = ({n.id for n in ast.walk(expr) if isinstance(n, ast.Name)}
+                | {n.attr for n in ast.walk(expr) if isinstance(n, ast.Attribute)})
+        for i, name in enumerate(effective):
+            if taint[name] & seen:
+                votes.add(i)
+
+    for node in ast.walk(fn):
+        if not isinstance(node, ast.Call):
+            continue
+        called = _call_name(node)
+        if called == "open":
+            if node.args and _open_mode_is_write(node):
+                vote(node.args[0])
+        elif _is_rename_call(node):
+            if len(node.args) > 1:
+                vote(node.args[1])          # НАЗНАЧЕНИЕ, не временный файл
+        elif called in ("write_text", "write_bytes") and isinstance(node.func, ast.Attribute):
+            vote(node.func.value)
+        elif called in _WRITERS:
+            idx = _WRITERS[called]
+            if len(node.args) > idx:
+                vote(node.args[idx])
+    return next(iter(votes)) + offset if len(votes) == 1 else None
+
+
+def write_helper_paths(tree: ast.Module) -> dict[str, tuple[int, str] | None]:
+    """{имя помощника: (индекс пути, имя параметра)} по определениям ЭТОГО модуля.
+
+    `None` у имени — НАЗВАННЫЙ отказ: определения в одном модуле спорят о позиции.
+    Отсутствие ключа — помощника здесь не определяли вовсе. Оба исхода ведут к
+    прежнему поведению, но различимы для читателя (инв. #17).
+    """
+    out: dict[str, tuple[int, str] | None] = {}
+    for node in ast.walk(tree):
+        if not isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef)):
+            continue
+        if node.name not in _WRITE_ANY_ARG:
+            continue
+        idx = _path_param_index(node)
+        if idx is None:
+            out[node.name] = None
+            continue
+        spot = (idx, [a.arg for a in node.args.args][idx])
+        if node.name not in out:
+            out[node.name] = spot
+        elif out[node.name] is None or out[node.name][0] != idx:
+            out[node.name] = None           # спор определений НАЗВАН, не замолчан
+    return out
+
+
+def path_bearing_args(node: ast.Call, fname: str,
+                      helper_paths: dict[str, tuple[int, str] | None]) -> list:
+    """Выражения вызова помощника, способные нести ПУТЬ — ОДНА дверь на обоих
+    читателей (`scan_source` и `write_doors`).
+
+    Своя копия этого выбора у второго читателя была бы вторым определением одного
+    имени — тем самым дефектом «одно имя — один объект»: разойдясь, копии дали бы
+    разную запись об одном файле.
+    """
+    spot = helper_paths.get(fname)
+    if isinstance(spot, tuple):
+        idx, pname = spot
+        if len(node.args) > idx:
+            return [node.args[idx]]
+        return [k.value for k in node.keywords if k.arg == pname]
+    # НЕ РАЗОБРАНО (определения нет либо они спорят) — прежнее громкое поведение.
+    return list(node.args) + [k.value for k in node.keywords]
+
+
 def scan_source(src: str) -> dict[str, set[str]]:
     """{имя артефакта: {"write"|"read"}} для одного модуля. Синтаксис битый ⇒ пусто."""
     try:
         tree = ast.parse(src)
     except SyntaxError:
         return {}
+    # Позиция пути у помощников записи ЭТОГО модуля — ответ их собственных тел.
+    helper_paths = write_helper_paths(tree)
     module_table = _name_table(tree.body)
     out: dict[str, set[str]] = {}
 
@@ -232,7 +398,10 @@ def scan_source(src: str) -> dict[str, set[str]]:
                     for arg in node.args:
                         mark(_names_in(arg, table), WRITE)
                 elif fname in _WRITE_ANY_ARG:
-                    for arg in list(node.args) + [k.value for k in node.keywords]:
+                    # Только позиция ПУТИ: пометить аргумент с данными значило бы
+                    # объявить писателем того, кто артефакт ПРОЧИТАЛ (см. блок
+                    # «ПОЗИЦИЯ ПУТИ У ПОМОЩНИКА ЗАПИСИ» выше).
+                    for arg in path_bearing_args(node, fname, helper_paths):
                         mark(_names_in(arg, table), WRITE)
                 elif fname in _WRITERS:
                     if fname == "write_text":
@@ -335,6 +504,31 @@ CANONICAL_DOORS = frozenset({
     "atomic_save", "atomic_save_text", "atomic_append", "atomic_append_ring",
     "atomic_update", "atomic_write_via_tmp",
 })
+
+#: Позиция ПУТИ у канонических дверей. Объявлено ЗДЕСЬ по одной причине:
+#: :func:`write_doors` принимает ТЕКСТ одного исходника и файловой двери не имеет по
+#: контракту, а определения этих шести живут в ДРУГОМ модуле
+#: (`spa_core/utils/atomic.py`) — спросить их тело прямо отсюда нечем.
+#:
+#: **Объявление НЕ доверенное.** Его паритет с настоящими подписями мерит
+#: `test_canonical_door_path_positions_match_the_real_module` ТЕМ ЖЕ резолвером
+#: (:func:`_path_param_index`), которым разбираются локальные помощники: переименуй
+#: кто-нибудь параметр или поменяй порядок — краснеет тест, а не молчит таблица.
+#: Объявление, которое само себе мерка, и есть дефект, против которого это написано.
+#:
+#: Зачем вообще: до цикла #1053 ветка канонических дверей помечала ВСЕ аргументы, и
+#: `spa_core/monitoring/intraday_equity.py` числился писателем
+#: `data/equity_curve_daily.json` — ЖИВОГО ТРЕКА, который он только читает. Верхняя
+#: граница класса измерена тем же циклом: из 1041 вызова канонических дверей больше
+#: одного имени артефакта среди аргументов несут **15**.
+CANONICAL_PATH_ARG = {
+    "atomic_save": 1,
+    "atomic_save_text": 1,
+    "atomic_append": 1,
+    "atomic_append_ring": 1,
+    "atomic_update": 0,
+    "atomic_write_via_tmp": 0,
+}
 
 #: Дверь ОБЩАЯ · дверь СВОЯ · дверь НЕ РАЗОБРАНА. Третий исход отделён
 #: намеренно (инв. #17): помощник, определённый в ДРУГОМ модуле, не есть ни
@@ -456,6 +650,7 @@ def write_doors(src: str) -> dict[str, set[str]]:
     except SyntaxError:
         return {}
     helpers = helper_doors(tree)
+    helper_paths = write_helper_paths(tree)
     module_table = _name_table(tree.body)
     out: dict[str, set[str]] = {}
 
@@ -472,8 +667,18 @@ def write_doors(src: str) -> dict[str, set[str]]:
             if fname is None:
                 continue
             if fname in CANONICAL_DOORS:
+                # Только позиция ПУТИ (`CANONICAL_PATH_ARG`): аргумент с данными
+                # объявил бы писателем того, кто артефакт ПРОЧИТАЛ. Имени нет в
+                # объявлении ⇒ третий исход, прежнее громкое поведение.
+                idx = CANONICAL_PATH_ARG.get(fname)
+                if idx is None:
+                    spots = list(node.args) + [k.value for k in node.keywords]
+                elif len(node.args) > idx:
+                    spots = [node.args[idx]]
+                else:
+                    spots = [k.value for k in node.keywords if k.arg == "path"]
                 names: set[str] = set()
-                for arg in list(node.args) + [k.value for k in node.keywords]:
+                for arg in spots:
                     names |= _names_in(arg, table)
                 mark(names, DOOR_SHARED)
             elif _own_door_call(node):
@@ -488,7 +693,7 @@ def write_doors(src: str) -> dict[str, set[str]]:
                     mark(names, DOOR_OWN)
             elif fname in _WRITE_ANY_ARG or fname in helpers:
                 names = set()
-                for arg in list(node.args) + [k.value for k in node.keywords]:
+                for arg in path_bearing_args(node, fname, helper_paths):
                     names |= _names_in(arg, table)
                 mark(names, helpers.get(fname) or DOOR_UNRESOLVED)
     return out

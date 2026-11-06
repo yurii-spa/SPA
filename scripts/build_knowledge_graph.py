@@ -142,7 +142,10 @@ def main() -> int:
     rep = build()
     try:
         from spa_core.utils.atomic import atomic_save
-        atomic_save(OUTPUT, rep)
+        # `atomic_save(data, path)` — порядок аргументов. Перевёрнутый вызов
+        # отказывает fail-CLOSED, отказ глотает `except` ниже, и запись молча
+        # уходила в неатомарный запас (найдено циклом #1053, ADR-936).
+        atomic_save(rep, OUTPUT)
     except Exception:  # noqa: BLE001
         with open(OUTPUT, "w", encoding="utf-8") as fh:
             json.dump(rep, fh, ensure_ascii=False, indent=1)
