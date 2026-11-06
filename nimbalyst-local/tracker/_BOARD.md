@@ -2,11 +2,11 @@
 
 > Авто-генерится `scripts/build_tracker_board.py` из `nimbalyst-local/tracker/*.md`. НЕ править вручную — правь карточки. Источник правды — карточки, это индекс (bootstrap).
 >
-> Собрана: 2026-11-06T04:08:07Z · сверка с карточками: `python3 scripts/build_tracker_board.py --check` (сторож `spa_core/tests/test_tracker_board_matches_cards.py`).
+> Собрана: 2026-11-06T06:13:46Z · сверка с карточками: `python3 scripts/build_tracker_board.py --check` (сторож `spa_core/tests/test_tracker_board_matches_cards.py`).
 >
-> Сверено с `origin/main` (a0695ac42) · у **1** своя правка, кто новее — не измерено.
+> Сверено с `origin/main` (e87397d8a) · у **1** своя правка, кто новее — не измерено.
 >
-> Всего карточек: **1594** · ждёт владельца: **4** · занято сессиями: **14**.
+> Всего карточек: **1595** · ждёт владельца: **4** · занято сессиями: **14**.
 
 ## 🔴 ЖДЁТ ВЛАДЕЛЬЦА (needs-owner)
 
@@ -424,7 +424,7 @@
 ### · closed
 - Считать ли верный отказ по правилам допуска неисправностью флота  ·  `owner-decision-schitat-li-vernyi-otkaz-po-pravilam-dopu.md` · 2026-10-08
 
-## 📥 Inbox (задания: Telegram / заметки / голос)  (907)
+## 📥 Inbox (задания: Telegram / заметки / голос)  (908)
 
 ### · in-progress
 - а задача починить все-таки еще раз сообщение которым не пишет нужно твое решени…  ·  `inbox-a-zadacha-pochinit-vse-taki-esche-raz-so.md` · 2026-08-14 · 🔒 `pid43119`
@@ -720,6 +720,7 @@
 - Объявление агента не умеет сказать «намеренно выключен» — и поэтому 46 суток CRITICAL советует отменить решение владельца  ·  `inbox-obyavlenie-agenta-ne-umeet-skazat-namere.md` · 2026-10-15
 - Объявление с пустым списком файлов рождает в шаге 0a находку, которую нельзя снять никогда  ·  `inbox-obyavlenie-s-pustym-spiskom-failov-rozhd.md` · 2026-08-30
 - Обязательное правило design-docs недостижимо по ссылкам — сторож связности красный на main  ·  `inbox-obyazatelnoe-pravilo-design-docs-nedostizhimo.md` · 2026-08-28
+- Обязательный шаг 1г поднимает долгий pytest В ДЕРЕВЕ ДОСТАВКИ: у прибора нет входа --repo-root, и правило ADR-886 нарушается по построению  ·  `inbox-obyazatelnyi-shag-1g-podnimaet-dolgii-py.md` · 2026-11-05
 - Очередь теряет карточки: читать обе формы frontmatter + сторож (решение владельца 09.08)  ·  `inbox-ochered-teryaet-kartochki-chitat-obe-for.md` · 2026-08-09
 - Офис знает о красном наборе ОДНО число: население 79 падений не разбирает никто  ·  `inbox-ofis-znaet-o-krasnom-nabore-odno-chislo.md` · 2026-11-01
 - Офис зовёт артефакт прочитанным ВХОЛОСТУЮ и тут же печатает его числа — счётчик перестал отвечать на свой вопрос  ·  `inbox-ofis-zovet-artefakt-prochitannym-vholost.md` · 2026-10-05
@@ -1126,7 +1127,6 @@
 - Объявленный агент mission_tick без обёртки: дерево обещает то, чего в нём нет  ·  `inbox-obyavlennyi-agent-mission-tick-bez-obert.md` · 2026-10-01
 - Объявленный артефакт читается ВХОЛОСТУЮ: artifact_stamp_clock_doors.json числится прочитанным и не разбирается  ·  `inbox-obyavlennyi-artefakt-chitaetsya-vholostu.md` · 2026-10-07
 - Объявленный читатель отчёта экономики флота его не читает  ·  `inbox-obyavlennyi-chitatel-otcheta-ekonomiki-f.md` · 2026-10-08
-- Обязательный шаг 1г поднимает долгий pytest В ДЕРЕВЕ ДОСТАВКИ: у прибора нет входа --repo-root, и правило ADR-886 нарушается по построению  ·  `inbox-obyazatelnyi-shag-1g-podnimaet-dolgii-py.md` · 2026-11-05
 - Обязательный шаг цикла отвечает о деньгах по закоммиченному канону и молчит об этом — измерено дважды в один день  ·  `inbox-obyazatelnyi-shag-tsikla-otvechaet-o-den.md` · 2026-10-07
 - «Очередь полна» верна ровно настолько, насколько свеж локальный ref: в проде origin/main отстал, и отставание не мерит никто  ·  `inbox-ochered-polna-verna-rovno-nastolko-nasko.md` · 2026-08-31
 - Очередь владельца: в needs-owner 32 карточки, а циклы докладывают 6 — 26 с пометкой расхождения в отчёт не попадают  ·  `inbox-ochered-vladeltsa-v-needs-owner-32-karto.md` · 2026-09-16
@@ -1169,6 +1169,7 @@
 - Перепись: сколько адаптеров путают мёртвый фид с верным отказом (остаток ADR-671)  ·  `inbox-perepis-skolko-adapterov-putayut-mertvyi.md` · 2026-10-08
 - Перепись вердиктов по коду выхода красна на origin/main: у агента com.spa.mission_tick нет обёртки, и сайт остаётся неразобранным  ·  `inbox-perepis-verdiktov-po-kodu-vyhoda-krasna.md` · 2026-10-08
 - Перепись закончена: опрошены все 36 адаптеров своими фидами — доступная доходность из нашего набора исчерпана, кроме трёх статических меток  ·  `inbox-perepis-zakonchena-oprosheny-vse-36-adap.md` · 2026-08-29
+- Перепись записи имён краснеет на ЧИСТОМ origin/main: ожидание «ровно один спрашивающий» против трёх в дереве  ·  `inbox-perepis-zapisi-imen-krasneet-na-chistom.md` · 2026-11-06
 - Пересобрать дерево-приёмку §49 закоммиченным сборщиком и дать ему место в дифференциале  ·  `inbox-peresobrat-derevo-priemku-49-zakommichen.md` · 2026-11-04
 - Первичный источник fluid_usdc МЁРТВ: оба endpoint'а Fluid отвечают 404, а докстринг обещает слой «кто первый»  ·  `inbox-pervichnyi-istochnik-fluid-usdc-mertv-ob.md` · 2026-09-06
 - Писатели цикла не видят песочницы data_dir — прогон тестов меняет git-tracked data/ (пять модулей, четыре файла)  ·  `inbox-pisateli-tsikla-ne-vidyat-pesochnitsy-da.md` · 2026-10-28

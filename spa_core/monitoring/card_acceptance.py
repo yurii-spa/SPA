@@ -17503,6 +17503,146 @@ def _probe_column_door_class_is_measured(
         + " | ".join(seen))
 
 
+def _probe_delivery_tree_input_class_population_named(
+        arg: str | None, *, repo_root: str | None = None) -> tuple[str, str]:
+    """Критерий: население класса «шаг не умеет назвать дерево прогона» ИЗМЕРЕНО и пусто.
+
+    Предмет — карточка `inbox-obyazatelnyi-shag-1g-podnimaet-dolgii-py` (ADR-926).
+    Замер 05.11 (цикл #1039): обязательный шаг 1г
+    (`scripts/import_time_anchor_bombs.py`) поднимает дочерний `pytest` по десяткам
+    тест-модулей, а входа «в каком дереве» у него не было вовсе — значит прогон идёт
+    в дереве запуска, а цикл, правивший тесты, запускает шаг из своего ДЕРЕВА
+    ДОСТАВКИ по построению. `.claude/rules/deployment.md` § «БАЙТЫ, КОТОРЫЕ НЕ
+    ЯВЛЯЮТСЯ КОДОМ» п. 1 это запрещает, и цена запрета измерена аварией #1000
+    (`f4612d8e9` увёз на `main` синтаксически битый ЭТОТ ЖЕ файл). Карточка требовала
+    двух вещей: вход у шага И ЗАМЕР населения класса («сколько ещё обязательных шагов
+    поднимают долгий прогон, не умея назвать дерево»).
+
+    **Меряется ИСХОД, а не структура.** Проба не ищет в исходнике ни строки
+    `--repo-root`, ни слова «дерево»: она зовёт перепись
+    `scripts/delivery_tree_input_census.py` и спрашивает ВЕРДИКТ значением. Подстрокой
+    она не проходит (ADR-333) — сцена с флагом в комментарии даёт `UNNAMEABLE`.
+
+    Контроль в обе стороны — внутри самой проверки:
+
+    * **нулевая проба — НАСТОЯЩАЯ авария в её НАСТОЯЩЕМ месте.** Исходник шага 1г
+      берётся ДО починки (`git show origin/main:…`), кладётся в одноразовое дерево с
+      ПОЛНОЙ поверхностью шагов, и перепись ОБЯЗАНА назвать его `UNNAMEABLE`. Не
+      назвала ⇒ `unmeasured`: прибор, не краснеющий на аварии, ради которой написан,
+      даёт «✅ ПУСТ», и это ровно урок ADR-932, а не пустой класс;
+    * **половина инъекции** (вход объявлен, до `cwd=` не доехал — форма ADR-932)
+      обязана давать `HALF`, иначе звено «доехал ли вход» порвано, и `NAMEABLE` на
+      живом дереве ничего не значит;
+    * на живом дереве ни один объявленный шаг не смеет быть `UNMEASURED`: шаг,
+      названный в объявлении и отсутствующий в дереве, — отказ, а не вычитание из
+      населения;
+    * предмет класса обязан быть ПУСТ, и население обязано быть НАЗВАНО числом.
+
+    Дерево — ВХОД (`repo_root`), поэтому ни прод-дерево, ни живое `data/` проба не
+    трогает; часов, pid и git-окружения хоста она не спрашивает.
+    """
+    if (arg or "").strip():
+        return UNMEASURED, (f"проба не принимает аргумента (дано {arg!r}): предмет — "
+                            "население класса, пофайловой формы у него нет")
+
+    import importlib.util as _ilu
+    import shutil as _shutil
+    import subprocess as _sp
+    import sys as _sys
+    import tempfile as _tempfile
+
+    root = _pathlib.Path(repo_root or REPO_ROOT)
+    census_path = root / "scripts" / "delivery_tree_input_census.py"
+    if not census_path.is_file():
+        return NOT_SATISFIED, (f"переписи населения нет: {census_path} отсутствует — "
+                               "население класса НЕ ИЗМЕРЕНО")
+    try:
+        spec = _ilu.spec_from_file_location("spa_dtic_probe", census_path)
+        mod = _ilu.module_from_spec(spec)          # type: ignore[arg-type]
+        _sys.modules["spa_dtic_probe"] = mod
+        spec.loader.exec_module(mod)               # type: ignore[union-attr]
+    except BaseException as exc:  # noqa: BLE001 — причина обязана быть названа
+        return UNMEASURED, f"перепись не импортируется: {type(exc).__name__}: {exc}"
+
+    step_rel = "scripts/import_time_anchor_bombs.py"
+
+    def _scene(tmp: _pathlib.Path, step_source: str | None) -> _pathlib.Path:
+        for place in mod.DECLARATION_PLACES:
+            dst = tmp / place
+            dst.parent.mkdir(parents=True, exist_ok=True)
+            _shutil.copy2(root / place, dst)
+        for step in mod.declared_steps(tmp):
+            src, d = root / step, tmp / step
+            if src.is_file() and not d.exists():
+                d.parent.mkdir(parents=True, exist_ok=True)
+                _shutil.copy2(src, d)
+        if step_source is not None:
+            (tmp / step_rel).write_text(step_source, encoding="utf-8")
+        return tmp
+
+    def _verdict_of(tmp: _pathlib.Path):
+        c = mod.measure(tmp)
+        return c, next((s for s in c.steps if s.step == step_rel), None)
+
+    # ── нулевая проба: восстановить НАСТОЯЩУЮ аварию ──────────────────────────
+    shown = _sp.run(["git", "show", f"origin/main:{step_rel}"],
+                    cwd=str(root), capture_output=True, text=True)
+    if shown.returncode != 0 or "argparse" not in shown.stdout:
+        return UNMEASURED, ("предпосылка НЕ ОБЕСПЕЧЕНА: git не отдал версию шага 1г с "
+                            f"origin/main (код {shown.returncode}) — восстановить "
+                            "аварию нечем, и выдавать это за выполненный критерий нельзя")
+    pre = shown.stdout
+    if "--repo-root" in pre:
+        return UNMEASURED, ("на origin/main уже лежит починенный шаг — нулевая проба "
+                            "изображала бы аварию, которой нет; перемерить предмет")
+    try:
+        with _tempfile.TemporaryDirectory(prefix="dtic_zero_") as d:
+            _, step = _verdict_of(_scene(_pathlib.Path(d), pre))
+    except BaseException as exc:  # noqa: BLE001
+        return UNMEASURED, f"нулевая сцена не построена: {type(exc).__name__}: {exc}"
+    if step is None or step.verdict != "UNNAMEABLE":
+        return UNMEASURED, ("перепись НЕ краснеет на аварии, ради которой написана "
+                            f"(вердикт довершинной версии: {getattr(step, 'verdict', None)}) — "
+                            "её «предмет пуст» ничего не значит")
+
+    # ── контроль половины инъекции (форма ADR-932) ────────────────────────────
+    fixed = (root / step_rel).read_text(encoding="utf-8")
+    if "bombs(args.lag_min, root)" not in fixed:
+        return NOT_SATISFIED, ("в шаге 1г нет проводки bombs(args.lag_min, root) — "
+                               "вход до прогона не доведён")
+    half = fixed.replace("bombs(args.lag_min, root)", "bombs(args.lag_min)")
+    try:
+        with _tempfile.TemporaryDirectory(prefix="dtic_half_") as d:
+            _, step_h = _verdict_of(_scene(_pathlib.Path(d), half))
+    except BaseException as exc:  # noqa: BLE001
+        return UNMEASURED, f"сцена половины инъекции не построена: {type(exc).__name__}: {exc}"
+    if step_h is None or step_h.verdict != "HALF":
+        return UNMEASURED, ("перепись не отличает ОБЪЯВЛЕННЫЙ вход от ДОЕХАВШЕГО "
+                            f"(вердикт половины: {getattr(step_h, 'verdict', None)}) — "
+                            "звено «доехал ли вход» порвано")
+
+    # ── сам критерий на живом дереве ──────────────────────────────────────────
+    try:
+        c = mod.measure(root)
+    except BaseException as exc:  # noqa: BLE001
+        return UNMEASURED, f"перепись живого дерева не состоялась: {type(exc).__name__}: {exc}"
+    if c.unmeasured:
+        return UNMEASURED, ("шаги объявлены и не измерены: "
+                            + "; ".join(f"{s.step}: {s.reason}" for s in c.unmeasured[:4]))
+    with_runs = [s for s in c.steps if s.verdict != "NO_LONG_RUN"]
+    if c.subject:
+        return NOT_SATISFIED, ("предмет класса НЕ пуст: "
+                               + ", ".join(f"{s.step}={s.verdict}" for s in c.subject))
+    live = next((s for s in c.steps if s.step == step_rel), None)
+    if live is None or live.verdict != "NAMEABLE":
+        return NOT_SATISFIED, (f"шаг 1г не умеет назвать дерево: "
+                               f"{getattr(live, 'verdict', 'его нет в поверхности')}")
+    return SATISFIED, (f"население ИЗМЕРЕНО: объявленных шагов {len(c.steps)}, долгий "
+                       f"прогон поднимает {len(with_runs)}, предмет класса пуст; "
+                       f"{step_rel} = NAMEABLE (cwd от --repo-root); нулевая проба на "
+                       "довершинной версии дала UNNAMEABLE, половина инъекции — HALF")
+
+
 PROBES: dict[str, Callable[[str | None], "tuple[str, str]"]] = {
     "tracked_data_untouched_by_declared_runs":
         _probe_tracked_data_untouched_by_declared_runs,
@@ -17648,6 +17788,8 @@ PROBES: dict[str, Callable[[str | None], "tuple[str, str]"]] = {
         _probe_reach_census_boundary_stops_at_nested_repos,
     "orphan_sweep_names_an_unregistered_copy":
         _probe_orphan_sweep_names_an_unregistered_copy,
+    "delivery_tree_input_class_population_named":
+        _probe_delivery_tree_input_class_population_named,
     "portfolio_decision_owner_covers_capital":
         _probe_portfolio_decision_owner_covers_capital,
     "no_single_criterion_probe_on_a_multi_criterion_order":

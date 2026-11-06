@@ -26,10 +26,23 @@
 не разобрали вывод ⇒ «НЕ ИЗМЕРЕНО» с названной причиной и ненулевой код возврата.
 «Не измерено» никогда не выдаётся за «чисто».
 
+**В КАКОМ ДЕРЕВЕ идёт прогон — вход, а не умолчание (ADR-926, карточка
+`inbox-obyazatelnyi-shag-1g-podnimaet-dolgii-py`).** Шаг 1г обязателен для цикла,
+правившего тест-файл, а такой цикл запускает его из своего ДЕРЕВА ДОСТАВКИ по
+построению — то есть обязательный шаг протокола приглашал ровно то состояние, которое
+`.claude/rules/deployment.md` § «БАЙТЫ, КОТОРЫЕ НЕ ЯВЛЯЮТСЯ КОДОМ» п. 1 запрещает:
+«долгий прогон НЕ ЖИВЁТ в дереве доставки». Цена запрета измерена аварией цикла #1000:
+часть предписанного набора инструментирует исходники НА МЕСТЕ, снятый прогон оставил
+битый `card_acceptance.py`, и `f4612d8e9` увёз его на `main`. Поэтому дерево ОБЪЯВЛЯЕТСЯ
+и ПЕЧАТАЕТСЯ, а три исхода у входа различимы (инв. #17): дерево НАЗВАНО · дерево не
+названо (умолчание — своё, и оно печатается) · названное дерево не читается ⇒ ОТКАЗ с
+причиной, а НЕ молчаливый возврат к своему. Молчаливый возврат был бы хуже отсутствия
+входа: читатель думал бы, что мерили чужое дерево.
+
 Запуск (замер длится ~2 мин, потому и не живёт внутри набора — второй прогон pytest
 в ТОМ ЖЕ дереве столкнулся бы с основным):
 
-    python3 scripts/import_time_anchor_bombs.py [--lag-min 95]
+    python3 scripts/import_time_anchor_bombs.py [--lag-min 95] [--repo-root <дерево>]
 
 Коды возврата: 0 — бомб нет · 1 — бомбы названы · 2 — НЕ ИЗМЕРЕНО.
 """
@@ -315,6 +328,48 @@ def changed_verdicts(base: dict[str, str], aged: dict[str, str]) -> list[tuple[s
     return changed
 
 
+#: Каталоги, по наличию хотя бы одного из которых дерево опознаётся как ЭТОТ репозиторий.
+#: Проверка нужна затем, что `cwd=` несуществующего или чужого каталога даёт отказ
+#: pytest на СТОРОННЕЙ причине («набор не собрался»), и читатель прочёл бы поломку
+#: прибора вместо поломки входа.
+_TREE_MARKERS = ("spa_core/tests", "spa_core")
+
+
+def resolve_repo_root(named: str | None) -> tuple[Path, bool]:
+    """Дерево, в котором пойдёт прогон: (путь, названо ли оно вызывающим).
+
+    Три исхода различимы (инв. #17):
+
+    * дерево НАЗВАНО — возвращается оно, второй член `True`;
+    * дерево не названо — возвращается своё (`ROOT`), второй член `False`;
+      вызывающий обязан это НАПЕЧАТАТЬ, иначе «мерили чужое» и «мерили своё»
+      сливаются в один молчаливый ответ;
+    * названное дерево не читается ⇒ :class:`NotMeasured` с причиной. Молчаливый
+      возврат к своему дереву здесь запрещён: он изготовил бы ответ о дереве,
+      которого прибор не видел.
+    """
+    if named is None:
+        return ROOT, False
+    if not named.strip():
+        raise NotMeasured("--repo-root назван пустой строкой — дерево не определено")
+    tree = Path(named).expanduser()
+    try:
+        tree = tree.resolve()
+    except OSError as exc:
+        raise NotMeasured(f"--repo-root {named!r} не разрешается в путь: {exc}") from exc
+    if not tree.exists():
+        raise NotMeasured(f"--repo-root {tree} не существует")
+    if not tree.is_dir():
+        raise NotMeasured(f"--repo-root {tree} не каталог")
+    if not os.access(tree, os.R_OK | os.X_OK):
+        raise NotMeasured(f"--repo-root {tree} не читается (права)")
+    if not any((tree / m).is_dir() for m in _TREE_MARKERS):
+        raise NotMeasured(
+            f"--repo-root {tree} не похож на дерево SPA: нет ни одного из "
+            f"{', '.join(_TREE_MARKERS)} — прогон там отказал бы по СТОРОННЕЙ причине")
+    return tree, True
+
+
 def bombs(lag_min: float = DEFAULT_LAG_MIN, root: Path = ROOT) -> list[tuple[str, str, str]]:
     """Тесты, у которых вердикт МЕНЯЕТСЯ от одной лишь задержки: (тест, было, стало)."""
     population = anchored_at_import(root)
@@ -336,9 +391,16 @@ def main(argv: list[str] | None = None) -> int:
     ap.add_argument("--lag-min", type=float, default=DEFAULT_LAG_MIN,
                     help="задержка сбор→выполнение в минутах (умолчание — длительность "
                          "полного прогона)")
+    ap.add_argument("--repo-root", default=None,
+                    help="дерево, В КОТОРОМ идёт дочерний прогон (ADR-926). Не названо — "
+                         "своё дерево, и оно печатается; названное нечитаемое дерево — "
+                         "ОТКАЗ код 2, а не молчаливый возврат к своему")
     args = ap.parse_args(argv)
     try:
-        found = bombs(args.lag_min)
+        root, named = resolve_repo_root(args.repo_root)
+        print(f"дерево прогона: {root} "
+              f"({'НАЗВАНО входом --repo-root' if named else 'умолчание — дерево прибора'})")
+        found = bombs(args.lag_min, root)
     except NotMeasured as exc:
         print(f"НЕ ИЗМЕРЕНО — {exc}")
         return 2
