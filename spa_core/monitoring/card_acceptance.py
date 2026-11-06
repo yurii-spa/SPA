@@ -17345,6 +17345,164 @@ def _probe_owner_card_names_the_price_of_refusing(
         f"(AST, обе дуги)")
 
 
+def _probe_column_door_class_is_measured(
+        arg: str | None, *, repo_root: str | None = None) -> tuple[str, str]:
+    """Критерий: класс «читатель разбирает вывод git ПО КОЛОНКЕ» ИЗМЕРЕН.
+
+    Предмет — заказ G919 п. 5 (ADR-932). Авария 05.11 (цикл #1044): общая
+    дверь `acceptance_tree_lineage._git` отдаёт вывод `.strip()`-нутым, а
+    читатель в `orphan_sweep` разбирал `git status --porcelain` срезом
+    `line[3:]`. Стрижка съедает ведущий пробел ПЕРВОЙ строки и только её, и
+    срез по колонке дал `ata/adapter_status.json` вместо
+    `data/adapter_status.json` — МОЛЧА, кодом возврата 0. Починка легла у
+    читателя, а население класса осталось НЕ ИЗМЕРЕННЫМ: заказ назвал девять
+    неразобранных читателей и прямо сказал, что это не ноль.
+
+    **Меряется ИСХОД, а не структура.** Проба не ищет в исходнике ни слова
+    `strip`, ни имени функции: она кладёт ОДНОРАЗОВЫЕ сцены и спрашивает
+    вердикт ЗНАЧЕНИЕМ. Подстрокой она не проходит (ADR-333).
+
+    Контроль в обе стороны — внутри самой проверки:
+
+    * сцена аварии (стригущая дверь + срез без якоря) обязана дать `COLUMN_BOMB`
+      и код 3;
+    * снятие ЛЮБОГО из трёх звеньев порознь обязано сменить вердикт: без
+      стрижки — `column_safe`; под якорем — `column_safe`; без среза — пустая
+      поверхность;
+    * дверь, чья стрижка не разрешается, обязана дать `unmeasured` и код 2, а
+      не «безопасно» (инв. #17);
+    * **живое дерево обязано дать ОБА числа**: предмет пуст И поверхность
+      НЕПУСТА. «Бомб ноль» на пустой поверхности было бы вакуумом — прибор,
+      переставший мерить, выглядел бы как чистое дерево.
+
+    Часов, pid и git-окружения хоста проба не спрашивает: прибор разбирает AST
+    файлов, которые сцена кладёт сама.
+    """
+    if (arg or "").strip():
+        return UNMEASURED, (f"проба не принимает аргумента (дано {arg!r}): предмет — "
+                            "население класса в дереве, пофайловой формы у него нет")
+    import contextlib as _contextlib
+    import importlib.util as _ilu
+    import io as _io
+    import sys as _sys
+    import tempfile as _tempfile
+
+    root = _pathlib.Path(repo_root) if repo_root else _pathlib.Path(REPO_ROOT)
+    tool = root / "scripts" / "git_column_door_census.py"
+    if not tool.exists():
+        return UNMEASURED, f"прибора переписи нет по пути {tool}"
+    try:
+        spec = _ilu.spec_from_file_location("gcd_census_probe", tool)
+        mod = _ilu.module_from_spec(spec)
+        _sys.modules["gcd_census_probe"] = mod
+        spec.loader.exec_module(mod)
+    except BaseException as exc:  # noqa: BLE001 — причина обязана быть названа
+        return UNMEASURED, f"прибор переписи не ввезён: {type(exc).__name__}: {exc}"
+    for name in ("measure", "main", "VERDICT_BOMB", "VERDICT_SAFE",
+                 "VERDICT_UNMEASURED"):
+        if not hasattr(mod, name):
+            return UNMEASURED, f"у прибора переписи нет двери `{name}`"
+
+    door_strips = (
+        "import subprocess\n\n\n"
+        "def _git(repo, *args):\n"
+        "    proc = subprocess.run([\"git\", \"-C\", str(repo), *args],\n"
+        "                          capture_output=True, text=True)\n"
+        "    return proc.returncode, (proc.stdout or \"\").strip()\n"
+    )
+    door_plain = door_strips.replace('(proc.stdout or \"\").strip()', "proc.stdout")
+    door_unresolved = (
+        "import subprocess\n\n\n"
+        "def _git(repo, *args):\n"
+        "    proc = subprocess.run([\"git\", \"-C\", str(repo), *args],\n"
+        "                          capture_output=True, text=True)\n"
+        "    return proc.returncode, _shape(proc)\n\n\n"
+        "def _shape(proc):\n"
+        "    return proc.stdout\n"
+    )
+    reader_column = (
+        "from door import _git\n\n\n"
+        "def paths(tree):\n"
+        "    code, out = _git(tree, \"status\", \"--porcelain\")\n"
+        "    return [ln[3:] for ln in out.splitlines() if ln]\n"
+    )
+    reader_anchored = reader_column.replace("if ln]", 'if ln.startswith(\"??\")]')
+    reader_regex = (
+        "import re\n\n"
+        "from door import _git\n\n"
+        "_RE = re.compile(r\"^[ MADRCU?!T]{1,2} (.+)$\")\n\n\n"
+        "def paths(tree):\n"
+        "    code, out = _git(tree, \"status\", \"--porcelain\")\n"
+        "    return [m.group(1) for m in (\n"
+        "        _RE.match(ln) for ln in out.splitlines()) if m]\n"
+    )
+
+    def _scene(door_src: str, reader_src: str):
+        tmp = _pathlib.Path(_tempfile.mkdtemp(prefix="gcd_probe_"))
+        pkg = tmp / "spa_core"
+        pkg.mkdir()
+        (pkg / "door.py").write_text(door_src, encoding="utf-8")
+        (pkg / "reader.py").write_text(reader_src, encoding="utf-8")
+        return tmp
+
+    scenes = (
+        ("авария: дверь стрижёт, срез без якоря", door_strips, reader_column,
+         [mod.VERDICT_BOMB], 3),
+        ("без стрижки: та же форма чтения", door_plain, reader_column,
+         [mod.VERDICT_SAFE], 0),
+        ("под якорем: стрижка безразлична", door_strips, reader_anchored,
+         [mod.VERDICT_SAFE], 0),
+        ("без среза: жадная регулярка", door_strips, reader_regex, [], 0),
+        ("дверь не разрешилась", door_unresolved, reader_column,
+         [mod.VERDICT_UNMEASURED], 2),
+    )
+    seen: list[str] = []
+    for label, door_src, reader_src, want_verdicts, want_code in scenes:
+        scene = _scene(door_src, reader_src)
+        try:
+            census = mod.measure(scene, ("spa_core",))
+            got = [f.verdict for f in census.findings]
+            # Отчёт прибора глушится НАМЕРЕННО: предмет пробы — код возврата, а
+            # печать пяти сцен в поток шага 0-офис была бы шумом, в котором
+            # настоящая находка перестала бы читаться.
+            with _contextlib.redirect_stdout(_io.StringIO()), \
+                    _contextlib.redirect_stderr(_io.StringIO()):
+                code = mod.main(["--root", str(scene), "--subtree", "spa_core"])
+        except BaseException as exc:  # noqa: BLE001
+            return UNMEASURED, (f"сцена «{label}» не измерилась: "
+                                f"{type(exc).__name__}: {exc}")
+        if got != want_verdicts:
+            return NOT_SATISFIED, (f"сцена «{label}»: вердикты {got} вместо "
+                                   f"{want_verdicts} — звено меры порвано")
+        if code != want_code:
+            return NOT_SATISFIED, (f"сцена «{label}»: код {code} вместо {want_code} — "
+                                   f"три исхода перестали различаться (инв. #17)")
+        seen.append(f"{label} → {got or 'поверхности нет'} / код {code}")
+
+    try:
+        live = mod.measure(root)
+    except BaseException as exc:  # noqa: BLE001
+        return UNMEASURED, f"живое дерево не измерилось: {type(exc).__name__}: {exc}"
+    surface = len(live.findings)
+    bombs = live.bombs
+    stripping = sum(1 for d in live.doors if d.strips is True)
+    if surface == 0:
+        return UNMEASURED, ("поверхность живого дерева ПУСТА — «бомб ноль» был бы "
+                            "вакуумом: прибор ничего не измерил")
+    if stripping == 0:
+        return UNMEASURED, ("стригущих дверей в дереве не найдено — половина A меры "
+                            "мертва, и ноль описывал бы прибор, а не дерево")
+    if bombs:
+        return NOT_SATISFIED, ("предмет класса НЕПУСТ: " + "; ".join(
+            f"{f.module}:{f.lineno} {f.func}() срез {f.column} ← {f.door}" for f in bombs))
+    return SATISFIED, (
+        f"класс ИЗМЕРЕН и ПУСТ: дверей к выводу git {len(live.doors)} "
+        f"(стригут {stripping}), срезов по колонке {surface}, из них БОМБА 0 · "
+        f"безопасно {len(live.safe)} · НЕ ИЗМЕРЕНО {len(live.unmeasured)}; "
+        f"пять сцен различают три исхода и каждое звено порознь: "
+        + " | ".join(seen))
+
+
 PROBES: dict[str, Callable[[str | None], "tuple[str, str]"]] = {
     "tracked_data_untouched_by_declared_runs":
         _probe_tracked_data_untouched_by_declared_runs,
@@ -17538,6 +17696,7 @@ PROBES: dict[str, Callable[[str | None], "tuple[str, str]"]] = {
         _probe_ci_cause_axis_names_a_session_death,
     "owner_card_names_the_price_of_refusing":
         _probe_owner_card_names_the_price_of_refusing,
+    "column_door_class_is_measured": _probe_column_door_class_is_measured,
 }
 
 

@@ -799,6 +799,7 @@
 | ADR-929 | «Поднимать нечего» есть утверждение о КОММИТАХ, и предел, объявленный в докстринге, вердикта не несёт | Accepted | [ADR-929](ADR-929-the-sweep-headline-must-name-its-subject.md) |
 | ADR-930 | Открытие деревьев есть перечисление git'а ПЛЮС объявленный обход: `cp -r` копия невидима перечислению по построению | Accepted | [ADR-930](ADR-930-tree-discovery-is-git-listing-plus-a-declared-walk.md) |
 | ADR-931 | Рекомендация в карточке владельцу обязана ЗНАТЬ измеренную цену отказа; совет без цены не печатается вовсе | Accepted | [ADR-931](ADR-931-the-advice-in-an-owner-card-must-know-the-price-of-refusing.md) |
+| ADR-932 | Класс «читатель разбирает вывод git ПО КОЛОНКЕ» измерен, и первый замер был НЕВЕРЕН: дверь переходит границу функции | Accepted | [ADR-932](ADR-932-the-column-door-class-is-measured-not-assumed-empty.md) |
 
 ## Соглашения
 
