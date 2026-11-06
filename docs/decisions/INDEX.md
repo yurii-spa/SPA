@@ -801,6 +801,7 @@
 | ADR-931 | Рекомендация в карточке владельцу обязана ЗНАТЬ измеренную цену отказа; совет без цены не печатается вовсе | Accepted | [ADR-931](ADR-931-the-advice-in-an-owner-card-must-know-the-price-of-refusing.md) |
 | ADR-932 | Класс «читатель разбирает вывод git ПО КОЛОНКЕ» измерен, и первый замер был НЕВЕРЕН: дверь переходит границу функции | Accepted | [ADR-932](ADR-932-the-column-door-class-is-measured-not-assumed-empty.md) |
 | ADR-933 | Обязательный шаг умеет назвать дерево, в котором живёт его долгий прогон; население класса ИЗМЕРЕНО — 23 шага, долгий прогон у одного | Accepted | [ADR-933](ADR-933-the-mandatory-step-can-name-the-tree-its-long-run-lives-in.md) |
+| ADR-934 | Прибор спрашивается о СВОЕЙ аварии, восстановленной в её настоящем месте; население 6 · видит 6 · слеп 0, и первый замер ДВАЖДЫ соврал в сторону находки | Accepted | [ADR-934](ADR-934-an-instrument-is-asked-about-its-own-accident.md) |
 
 ## Соглашения
 
