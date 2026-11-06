@@ -1,0 +1,116 @@
+{
+ "title": "ADR-935 SURFACE — дельта цикла #1050: поверхность класса «прибор о своём охвате» измерена (население ≤ 90 против спрошенных 6); мутации бьют по КАЖДОМУ несущему утверждению формы, по положительному контролю формы и по трём исходам",
+ "tests": [
+  "spa_core/tests/test_population_verdict_surface.py"
+ ],
+ "mutations": [
+  {
+   "name": "половина формы снята: «читает AST» больше не требуется — в класс войдёт любой модуль с парой констант",
+   "file": "spa_core/tests/_population_verdict_surface.py",
+   "old": "    if reads_ast and len(labels) >= 2:",
+   "new": "    if len(labels) >= 2:"
+  },
+  {
+   "name": "вторая половина формы снята: словарь исходов больше не требуется — в класс войдёт любой читатель AST",
+   "file": "spa_core/tests/_population_verdict_surface.py",
+   "old": "    if reads_ast and len(labels) >= 2:",
+   "new": "    if reads_ast:"
+  },
+  {
+   "name": "правило «ярлык обязан быть УПОТРЕБЛЁН» снято: ярлыком станет любое имя файла или ключ словаря",
+   "file": "spa_core/tests/_population_verdict_surface.py",
+   "old": "    labels = tuple(sorted(name for name, n in hits.items() if n >= 2))",
+   "new": "    labels = tuple(sorted(declared))"
+  },
+  {
+   "name": "проверка ВИДА значения снята: путь к артефакту и текст сообщения пойдут за ярлыки исхода",
+   "file": "spa_core/tests/_population_verdict_surface.py",
+   "old": "        if target.isupper() and isinstance(value, ast.Constant) \\\n                and isinstance(value.value, str) and _LABEL_VALUE.match(value.value):",
+   "new": "        if target.isupper() and isinstance(value, ast.Constant) \\\n                and isinstance(value.value, str):"
+  },
+  {
+   "name": "третий исход свёрнут во второй: неразобранный файл объявлен «вне формы» — «не измерено» съедено «измерено и равно нулю» (инв. #17)",
+   "file": "spa_core/tests/_population_verdict_surface.py",
+   "old": "    except (SyntaxError, ValueError, RecursionError) as exc:\n        return Subject(rel=rel, outcome=UNMEASURED,\n                       reason=f\"не разобран ({type(exc).__name__}: {exc})\")",
+   "new": "    except (SyntaxError, ValueError, RecursionError):\n        return Subject(rel=rel, outcome=OUT_OF_FORM)"
+  },
+  {
+   "name": "ПОЛОЖИТЕЛЬНЫЙ КОНТРОЛЬ ФОРМЫ ОБЕЗВРЕЖЕН: известный член вне формы больше не называется — перепись хвалит охват, которого нет",
+   "file": "spa_core/tests/_population_verdict_surface.py",
+   "old": "    census.declared_outside_form = sorted(declared - in_form)",
+   "new": "    census.declared_outside_form = []"
+  },
+  {
+   "name": "опровергнутая форма выходит НУЛЁМ: число выдаётся за ответ, хотя мера доказанно неверна",
+   "file": "spa_core/tests/_population_verdict_surface.py",
+   "old": "    if census.declared_outside_form:\n        return 2        # форма опровергнута — число не выдаётся за ответ",
+   "new": "    if False:\n        return 2        # форма опровергнута — число не выдаётся за ответ"
+  },
+  {
+   "name": "неполный замер выходит НУЛЁМ: «не измерено» становится неотличимо от «чисто» по коду возврата",
+   "file": "spa_core/tests/_population_verdict_surface.py",
+   "old": "    if census.counts[UNMEASURED] or census.walk_gaps:\n        return 1        # измерено НЕ ПОЛНОСТЬЮ, и это видно по коду возврата",
+   "new": "    if False:\n        return 1        # измерено НЕ ПОЛНОСТЬЮ, и это видно по коду возврата"
+  },
+  {
+   "name": "пробел ОБХОДА не считается: закрытый каталог молча пропущен, население вышло НИЖНЕЙ границей под видом верхней",
+   "file": "spa_core/tests/_population_verdict_surface.py",
+   "old": "    census.walk_gaps = len(blind)",
+   "new": "    census.walk_gaps = 0"
+  },
+  {
+   "name": "причина пробела не названа: «не измерено» без имени каталога неотличимо от «чисто»",
+   "file": "spa_core/tests/_population_verdict_surface.py",
+   "old": "    census.unmeasured_reasons.extend(blind)",
+   "new": "    census.unmeasured_reasons.extend([])"
+  },
+  {
+   "name": "чужие клоны посчитаны нашими: население умножается на число вложенных деревьев (88,7 % файлов прод-дерева)",
+   "file": "spa_core/tests/_population_verdict_surface.py",
+   "old": "                if (child / \".git\").exists():\n                    continue  # чужой клон: его файлы не наши",
+   "new": "                if False:\n                    continue  # чужой клон: его файлы не наши"
+  },
+  {
+   "name": "отрезание СЛИШКОМ широкое: любой подкаталог объявлен клоном — перепись занижает поверхность, то есть врёт в сторону «работа закончена»",
+   "file": "spa_core/tests/_population_verdict_surface.py",
+   "old": "                if (child / \".git\").exists():\n                    continue  # чужой клон: его файлы не наши",
+   "new": "                if True:\n                    continue  # чужой клон: его файлы не наши"
+  },
+  {
+   "name": "fail-OPEN у предпосылки: отсутствующий перечень известных членов заменён ПУСТЫМ — форма остаётся без контроля, а ответ печатается",
+   "file": "spa_core/tests/_population_verdict_surface.py",
+   "old": "    if not path.exists():\n        raise Refused(",
+   "new": "    if not path.exists():\n        return frozenset(), source\n    if False:\n        raise Refused("
+  },
+  {
+   "name": "ПУСТОЙ перечень известных членов принят за перечень: «ноль известных членов» формой не проверяется ничем",
+   "file": "spa_core/tests/_population_verdict_surface.py",
+   "old": "    if not found:\n        raise Refused(",
+   "new": "    if False:\n        raise Refused("
+  },
+  {
+   "name": "деление на население возвращено: измеренный НОЛЬ ронял бы отчёт ровно там, где обязан назвать ноль вслух (дефект, найденный своим же контролем)",
+   "file": "spa_core/tests/_population_verdict_surface.py",
+   "old": "    if census.population:\n        share = f\"{100.0 * census.roles[DECLARED] / census.population:.1f} %\"",
+   "new": "    if True:\n        share = f\"{100.0 * census.roles[DECLARED] / census.population:.1f} %\""
+  },
+  {
+   "name": "дерево без единого .py объявлено НУЛЁМ вместо отказа: «обход не состоялся» становится неотличимо от «формы нет ни у кого»",
+   "file": "spa_core/tests/_population_verdict_surface.py",
+   "old": "    if not files:\n        raise Refused(",
+   "new": "    if False:\n        raise Refused("
+  },
+  {
+   "name": "не-git дерево принято: обход не назвал бы своих границ, а ответ всё равно печатается",
+   "file": "spa_core/tests/_population_verdict_surface.py",
+   "old": "    if not (root / \".git\").exists():\n        raise Refused(",
+   "new": "    if False:\n        raise Refused("
+  },
+  {
+   "name": "роли не складываются в население: кандидат объявлен и объявленным тоже — доля охвата перестаёт быть долей",
+   "file": "spa_core/tests/_population_verdict_surface.py",
+   "old": "            role = DECLARED if rel in declared else CANDIDATE",
+   "new": "            role = DECLARED"
+  }
+ ]
+}
