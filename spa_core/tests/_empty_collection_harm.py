@@ -401,14 +401,20 @@ def _direction_of_silent_fold(
 
 
 def direction_of_one_read(
-    hit: ast.AST, parents: Dict[int, ast.AST]
+    hit: ast.AST, parents: Dict[int, ast.AST], seeds_left: int = -1
 ) -> Tuple[str, str]:
     """Направление вреда для ОДНОГО чтения рода `loop`: ``(исход, причина)``.
 
     Исход — член DIRECTION_OUTCOMES. «Не измерено» нулём не считается и ни за один
     род не выдаётся: форма, которую прибор не разобрал, не оправдывает ни тишины,
     ни шума (инв. #17).
+
+    ``seeds_left`` — остаток бюджета ЗАСЕВА производного имени (ADR-946). ``-1``
+    означает «бюджет не назван» и берёт ``SEED_HOPS``; ноль — прослеживание
+    ОБОРВАНО, и это третий исход, а не род.
     """
+    if seeds_left < 0:
+        seeds_left = SEED_HOPS
     kind, loop = _enclosing_loop(hit, parents)
     if loop is None or kind is None:
         return "unmeasured", "цикл над именем не поднят"
@@ -436,10 +442,17 @@ def direction_of_one_read(
         # Собранное уходит дальше: меньше собранных элементов означает МЕНЬШЕ находок,
         # если это находки, и БОЛЬШЕ, если это множество-исключение. Направление решает
         # СЛЕДУЮЩИЙ шаг, и выдумывать его здесь значило бы вернуть «два бита под одним
-        # именем» — ровно то, против чего ось заведена.
-        return "unmeasured", ("результат включения уходит дальше "
-                              f"({type(host).__name__ if host else 'владельца нет'}) — "
-                              "направление решает следующий шаг")
+        # именем» — ровно то, против чего ось заведена. Поэтому вопрос ПЕРЕАДРЕСУЕТСЯ
+        # читателям производного имени (ADR-946), а не угадывается здесь.
+        derived = bound_name(host)
+        if derived is None:
+            return "unmeasured", ("результат включения уходит дальше "
+                                  f"({type(host).__name__ if host else 'владельца нет'}) "
+                                  "и ИМЕНИ ему не дано — направление решает следующий шаг")
+        if seeds_left <= 0:
+            return "unmeasured", (f"цепочка производных имён длиннее бюджета "
+                                  f"({SEED_HOPS}) — прослеживание ОБОРВАНО на `{derived}`")
+        return _direction_through_name(derived, host, parents, seeds_left - 1)
     if isinstance(owner, ast.GeneratorExp):
         fold = parents.get(id(owner))
         if isinstance(fold, ast.Call) and isinstance(fold.func, ast.Name):
@@ -525,3 +538,156 @@ def direction(
         })
     return {"tally": tally, "rows": out,
             "unparsable_readers": dict(reasons_of_break)}
+
+
+# ---------------------------------------------------------------------------
+# ЗАСЕВ ПРОИЗВОДНОГО ИМЕНИ (ADR-946, цикл #1065, заказ G935 п. 2)
+# ---------------------------------------------------------------------------
+# **Что это закрывает.** Ось направления (ADR-945) отдавала `unmeasured` **178** из
+# 387 кандидатов, и крупнейшая причина была ОДНА: `результат включения уходит дальше`
+# — 142 чтения, из них у **91** «дальше» есть ИМЯ (`x = [… for … in NAME]`), у 13
+# имя объявлено с типом (`AnnAssign`). Пустота исходного перечня в этой форме
+# ДОКАЗЫВАЕТ пустоту `x`: витков ноль ⇒ собрано ничего. Значит направление вреда
+# лежит не здесь, а у ЧИТАТЕЛЕЙ `x`, и спрашивать его надо у них.
+#
+# **Почему это не выдумывание рода.** Прибор не угадывает, находки `x` или
+# множество-исключение: он задаёт ТОТ ЖЕ вопрос `direction_of_one_read` следующему
+# шагу и складывает ответы тем же правилом (расхождение ⇒ `both`). Новый род не
+# заводится ни один; меняется только число `unmeasured`.
+#
+# **Ошибаться обязано в сторону `unmeasured`** (требование заказа). Поэтому засев
+# ОТКАЗЫВАЕТ, едва пустота `x` перестаёт следовать из пустоты перечня: второе
+# связывание имени в области, мутация на месте (`+=`, `.append()`), параметр
+# функции, `global`/`nonlocal`, `except … as`, импорт под тем же именем, тело класса
+# (имя класса методам не видно) — любое из этого обрывает прослеживание с НАЗВАННОЙ
+# причиной. Цепочка производных имён ограничена бюджетом, и его исчерпание —
+# третий исход, а не род (дословно образец ADR-932: засев до неподвижной точки,
+# исчерпание = код 2).
+
+#: Сколько раз прослеживание перепрыгивает на ПРОИЗВОДНОЕ имя. Исчерпание — третий
+#: исход, а не род.
+SEED_HOPS = 5
+
+#: Области, внутри которых имя ищется целиком. `ClassDef` сюда НЕ входит намеренно:
+#: связывание в теле класса методам этого класса не видно, и считать такое чтение
+#: тем же именем значило бы приписать роду чужое направление.
+SCOPE_NODES: Tuple[type, ...] = (
+    ast.Module, ast.FunctionDef, ast.AsyncFunctionDef, ast.Lambda,
+)
+
+
+def _enclosing_scope(
+    node: ast.AST, parents: Dict[int, ast.AST]
+) -> Tuple[Optional[ast.AST], str]:
+    """Область, в которой живёт связывание: ``(узел, причина-если-нет)``."""
+    current: Optional[ast.AST] = parents.get(id(node))
+    for _hop in range(CLIMB_DEPTH):
+        if current is None:
+            return None, "область связывания не найдена в разборе"
+        if isinstance(current, ast.ClassDef):
+            return None, "связывание в ТЕЛЕ КЛАССА — методам это имя не видно"
+        if isinstance(current, SCOPE_NODES):
+            return current, ""
+        current = parents.get(id(current))
+    return None, "подъём к области длиннее предела"
+
+
+def bound_name(host: Optional[ast.AST]) -> Optional[str]:
+    """Имя, которому ОДНОЗНАЧНО присвоен результат включения, либо ``None``.
+
+    Распаковка (`a, b = …`), присвоение в элемент (`d[k] = …`) и присвоение в
+    атрибут (`self.x = …`) именем НЕ считаются: у первой пустота не доказана без
+    разбора формы, у двух других имя живёт в чужом объекте, и его читателей эта
+    область не исчерпывает.
+    """
+    if isinstance(host, ast.Assign):
+        if len(host.targets) == 1 and isinstance(host.targets[0], ast.Name):
+            return host.targets[0].id
+        return None
+    if isinstance(host, ast.AnnAssign) and isinstance(host.target, ast.Name):
+        return host.target.id
+    if isinstance(host, ast.NamedExpr) and isinstance(host.target, ast.Name):
+        return host.target.id
+    return None
+
+
+def rebinding_of(scope: ast.AST, name: str) -> Optional[str]:
+    """Причина, по которой пустота перечня НЕ доказывает пустоту ``name``, либо
+    ``None``. Любое второе связывание и любая мутация на месте — причина."""
+    stores = 0
+    for node in ast.walk(scope):
+        if isinstance(node, ast.AugAssign) and isinstance(node.target, ast.Name) \
+                and node.target.id == name:
+            return f"`{name}` дополняется на месте (+=) — пустота не доказана"
+        if isinstance(node, ast.Call) and isinstance(node.func, ast.Attribute) \
+                and node.func.attr in ACCUMULATING_METHODS \
+                and isinstance(node.func.value, ast.Name) \
+                and node.func.value.id == name:
+            return (f"`{name}` мутируется на месте (.{node.func.attr}()) — "
+                    f"пустота не доказана")
+        if isinstance(node, ast.Name) and node.id == name \
+                and isinstance(node.ctx, (ast.Store, ast.Del)):
+            stores += 1
+        elif isinstance(node, ast.arg) and node.arg == name:
+            return f"`{name}` — параметр функции, пустота из перечня не следует"
+        elif isinstance(node, (ast.Global, ast.Nonlocal)) and name in node.names:
+            return f"`{name}` объявлен {type(node).__name__.lower()} — связывание вне области"
+        elif isinstance(node, ast.ExceptHandler) and node.name == name:
+            return f"`{name}` связывается `except … as` — пустота не доказана"
+        elif isinstance(node, ast.alias) \
+                and (node.asname or node.name.split(".")[0]) == name:
+            return f"`{name}` связывается импортом — пустота не доказана"
+        elif isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef, ast.ClassDef)) \
+                and node.name == name:
+            return f"`{name}` связывается определением {type(node).__name__} — пустота не доказана"
+    if stores != 1:
+        return (f"`{name}` связывается в области {stores} раз(а), а не один — "
+                f"пустота не доказана")
+    return None
+
+
+def _loop_reads_of(
+    scope: ast.AST, name: str, binder: ast.AST, parents: Dict[int, ast.AST]
+) -> List[ast.AST]:
+    """Чтения имени рода `loop` в области, не принадлежащие самому связыванию.
+
+    Фильтр по роду здесь НЕСУЩИЙ: ось направления относится только к перебору
+    (`direction()`), и `len(x)` рядом с `for … in x` — не вопрос о направлении.
+    Складывать такие чтения в ответ значило бы кормить вердикт «не измерено» от
+    формы, которая к оси не относится вовсе.
+    """
+    out: List[ast.AST] = []
+    for node in ast.walk(scope):
+        if not (isinstance(node, ast.Name) and node.id == name
+                and isinstance(node.ctx, ast.Load)):
+            continue
+        if _contains(binder, node):
+            continue
+        _kind, loop = _enclosing_loop(node, parents)
+        if loop is not None:
+            out.append(node)
+    return out
+
+
+def _direction_through_name(
+    name: str, binder: ast.AST, parents: Dict[int, ast.AST], seeds_left: int
+) -> Tuple[str, str]:
+    """Направление вреда, спрошенное у ЧИТАТЕЛЕЙ производного имени."""
+    scope, why_no_scope = _enclosing_scope(binder, parents)
+    if scope is None:
+        return "unmeasured", f"засев `{name}` ОТКАЗАН: {why_no_scope}"
+    blocked = rebinding_of(scope, name)
+    if blocked is not None:
+        return "unmeasured", f"засев `{name}` ОТКАЗАН: {blocked}"
+    verdicts: List[str] = []
+    why: List[str] = []
+    for hit in _loop_reads_of(scope, name, binder, parents):
+        outcome, reason = direction_of_one_read(hit, parents, seeds_left)
+        verdicts.append(outcome)
+        why.append(f"[{name}] {reason}")
+    measured = {item for item in verdicts if item != "unmeasured"}
+    if not measured:
+        tail = " · ".join(why) if why else "ни одного читающего цикла в области"
+        return "unmeasured", f"засев `{name}`: рода не дало ни одно чтение — {tail}"
+    joined = f"засев `{name}`: " + " · ".join(why)
+    return ("both" if len(measured) > 1 else measured.pop()), joined

@@ -245,7 +245,15 @@ class DirectionOfOneRead(unittest.TestCase):
         """Собранное, ушедшее дальше: меньше собранных элементов означает МЕНЬШЕ
         находок, если это находки, и БОЛЬШЕ — если это множество-исключение.
         Направление решает СЛЕДУЮЩИЙ шаг, и выдумывать его здесь значило бы вернуть
-        «два бита под одним именем»."""
+        «два бита под одним именем».
+
+        **Поправка ADR-946 (цикл #1065).** Вердикт прежний — `unmeasured`, — а
+        ПРИЧИНА теперь называет, где именно прослеживание встало: засев ADR-946
+        спрашивает следующий шаг и ОТКАЗЫВАЕТ, когда производное имя не перебирает
+        ни один цикл (`check(known)` — не цикл). Прежняя строка причины («уходит
+        дальше») осталась у формы, которой ИМЕНИ не дано, — она проверена соседом
+        ниже. Это УСИЛЕНИЕ претензии: та же сцена, тот же вердикт, названный шаг.
+        """
         outcome, why = _read("""
             KEYS = ("a", "b")
             def run():
@@ -253,7 +261,20 @@ class DirectionOfOneRead(unittest.TestCase):
                 return check(known)
         """, "KEYS")
         self.assertEqual("unmeasured", outcome, why)
+        self.assertIn("засев `known`", why)
+        self.assertIn("ни одного читающего цикла", why)
+
+    def test_an_escape_without_a_name_keeps_the_original_reason(self):
+        """СОСЕД предыдущей: у собранного, ушедшего дальше БЕЗ ИМЕНИ, засеву
+        переадресовать вопрос некому — причина остаётся дословно прежней."""
+        outcome, why = _read("""
+            KEYS = ("a", "b")
+            def run():
+                return {"known": [k.upper() for k in KEYS]}
+        """, "KEYS")
+        self.assertEqual("unmeasured", outcome, why)
         self.assertIn("уходит дальше", why)
+        self.assertIn("ИМЕНИ ему не дано", why)
 
     def test_a_collected_comprehension_handed_straight_out_is_FEWER(self):
         """СОСЕД предыдущей: собранное ОТДАЁТСЯ сразу — следующего шага нет, и
