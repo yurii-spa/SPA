@@ -2,11 +2,11 @@
 
 > Авто-генерится `scripts/build_tracker_board.py` из `nimbalyst-local/tracker/*.md`. НЕ править вручную — правь карточки. Источник правды — карточки, это индекс (bootstrap).
 >
-> Собрана: 2026-11-07T12:48:17Z · сверка с карточками: `python3 scripts/build_tracker_board.py --check` (сторож `spa_core/tests/test_tracker_board_matches_cards.py`).
+> Собрана: 2026-11-07T14:52:50Z · сверка с карточками: `python3 scripts/build_tracker_board.py --check` (сторож `spa_core/tests/test_tracker_board_matches_cards.py`).
 >
-> Сверено с `origin/main` (c27bdff81) · у **1** своя правка, кто новее — не измерено.
+> Сверено с `origin/main` (24d78280b).
 >
-> Всего карточек: **1600** · ждёт владельца: **4** · занято сессиями: **14**.
+> Всего карточек: **1601** · ждёт владельца: **4** · занято сессиями: **14**.
 
 ## 🔴 ЖДЁТ ВЛАДЕЛЬЦА (needs-owner)
 
@@ -424,7 +424,7 @@
 ### · closed
 - Считать ли верный отказ по правилам допуска неисправностью флота  ·  `owner-decision-schitat-li-vernyi-otkaz-po-pravilam-dopu.md` · 2026-10-08
 
-## 📥 Inbox (задания: Telegram / заметки / голос)  (911)
+## 📥 Inbox (задания: Telegram / заметки / голос)  (912)
 
 ### · in-progress
 - а задача починить все-таки еще раз сообщение которым не пишет нужно твое решени…  ·  `inbox-a-zadacha-pochinit-vse-taki-esche-raz-so.md` · 2026-08-14 · 🔒 `pid43119`
@@ -1032,6 +1032,7 @@
 - `--data-dir` шага 0-офис не доходит до проб приёмки: они читают ЗАМОРОЖЕННЫЙ канон worktree  ·  `inbox-data-dir-shaga-0-ofis-ne-dohodit-do-prob-priemki.md` · 2026-09-13
 - Депег-стоп RiskPolicy к циклу НЕ подключён: ни один вызов не передаёт stablecoin_prices, и гейт пропускается МОЛЧА  ·  `inbox-depeg-stop-riskpolicy-k-tsiklu-ne-podkly.md` · 2026-11-05
 - Десять критериев приёмки «Portfolio CIO» измерены ОДНАЖДЫ И ПРОЗОЙ — машины, способной перемерить их сегодня, нет  ·  `inbox-desyat-kriteriev-priemki-portfolio-cio-i.md` · 2026-09-29
+- Десять противоядий переписи перечней направлены не в ту сторону (проходят на пустом)  ·  `inbox-desyat-protivoyadii-perepisi-perechnei-n.md` · 2026-11-07
 - Детектор голодающих приказов не отличает «не начато» от «готово, но не доставлено»  ·  `inbox-detektor-golodayuschih-prikazov-ne-otlic.md` · 2026-09-23
 - Детерминированный разбор входящих меряет ПРОД-дерево: 33 против 318 на origin, и печатает это числом без третьего исхода  ·  `inbox-determinirovannyi-razbor-vhodyaschih-mer.md` · 2026-10-28
 - Девять красных в CI с разными причинами: разобрать поимённо, числа в базы не дописывать  ·  `inbox-devyat-krasnyh-v-ci-s-raznymi-prichinami.md` · 2026-09-26
