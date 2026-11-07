@@ -2,7 +2,7 @@
 trackerStatus:
   type: inbox
 title: "Регрессия ADR-849: 15 модулей Tier-B падают с 02.11 — default_file(None) роняет «не писать лог»"
-status: in-progress
+status: done
 source: nimbalyst
 created: 2026-11-06
 priority: high
@@ -11,11 +11,7 @@ intake_kind: task
 acceptance_probe: tier_b_protocol_path_survives_a_disabled_log
 status_trail:
   - "2026-11-07T22:17:01.713052+00:00 new -> in-progress · queue.set_status · cycle-26318"
-claimed_by: pid26318
-claimed_at: 2026-11-07T22:17:02Z
-claimed_run_id: orchestrator-26318-6A7F03175E2A4A16A912F851B2C6DB0A
-claimed_pid: 26318
-claimed_pid_start: Sat Nov  7 22:50:23 2026
+  - "2026-11-07T22:31:12.470027+00:00 in-progress -> done · queue.set_status/closed_by:cycle-26318/evidence:проба tier_b_protocol_path_survives_a_disabled_log: not_satisfied (15 из 19 названы) -> satisfied (19 вызвано, падений нет); ADR-948 на origin 5a226e92d; контроль в обе стороны test_tier_b_disabled_lo · cycle-26318"
 ---
 
 ## Что случилось

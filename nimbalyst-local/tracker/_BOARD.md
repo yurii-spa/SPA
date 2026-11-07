@@ -2,9 +2,9 @@
 
 > Авто-генерится `scripts/build_tracker_board.py` из `nimbalyst-local/tracker/*.md`. НЕ править вручную — правь карточки. Источник правды — карточки, это индекс (bootstrap).
 >
-> Собрана: 2026-11-07T22:17:02Z · сверка с карточками: `python3 scripts/build_tracker_board.py --check` (сторож `spa_core/tests/test_tracker_board_matches_cards.py`).
+> Собрана: 2026-11-07T22:31:13Z · сверка с карточками: `python3 scripts/build_tracker_board.py --check` (сторож `spa_core/tests/test_tracker_board_matches_cards.py`).
 >
-> Сверено с `origin/main` (886910f9c).
+> Сверено с `origin/main` (5a226e92d) · у **1** своя правка, кто новее — не измерено.
 >
 > Всего карточек: **1607** · ждёт владельца: **4** · занято сессиями: **14**.
 
@@ -443,7 +443,6 @@
 - Пробный ход сверх бюджета оборота — реализовать решение владельца (вариант 1, ADR-334)  ·  `inbox-probnyi-hod-sverh-byudzheta-oborota.md` · 2026-09-11
 - Проверить, не завышено ли число «открытых счётчиков»: один из 171 доказанно не дефект  ·  `inbox-proverit-ne-zavysheno-li-chislo-otkrytyh.md` · 2026-09-30
 - Расширить опрашиваемый набор адаптеров шагами (второй шаг варианта A, после ADR-138)  ·  `inbox-rasshirit-oprashivaemyi-nabor-adapterov.md` · 2026-08-26
-- Регрессия ADR-849: 15 модулей Tier-B падают с 02.11 — default_file(None) роняет «не писать лог»  ·  `inbox-regressiya-adr-849-15-modulei-tier-b-pad.md` · 2026-11-06
 - Сторож кнопок нарушает границу, которую сам объявил соблюдённой: метка-БУКВА принималась где угодно, и слово в прозе = «наш дефект разбора» с лекарством чинить НЕСУЩЕСТВУЮЩУЮ форму (перемер #484: ложная ОДНА из 21, не пять; п.1 исполнен)  ·  `inbox-storozh-knopok-narushaet-granitsu-kotoru.md` · 2026-09-04
 - Сторож переходов статусов ждёт первого улова: назвать немого писателя и встроить прогон в агента  ·  `inbox-storozh-perehodov-statusov-zhdet-pervogo.md` · 2026-08-09
 - TASK — Portfolio CIO: Dynamic Capital Allocation & Rebalancing  ·  `inbox-task-portfolio-cio-dynamic-capital-alloc.md` · 2026-08-13 · 🔒 `cycle-29046`
@@ -808,6 +807,7 @@
 - Разобрать 52 карточки с ветки work-status-check, потом удалить ветку (решение владельца 20.08, вариант 1)  ·  `inbox-razobrat-52-kartochki-s-vetki-work-statu.md` · 2026-08-20
 - «red_team: CRITICAL» — это ЭХО нашей же остановки, а не находка разведки; причина нигде не названа  ·  `inbox-red-team-critical-eto-eho-ostanovki-a-ne-nahodka.md` · 2026-08-10
 - Реестр решений INDEX.md — общая тетрадь без защиты общей памяти (guard_entry_loss её строк не видит)  ·  `inbox-reestr-reshenii-index-md-obschaya-tetrad.md` · 2026-08-27
+- Регрессия ADR-849: 15 модулей Tier-B падают с 02.11 — default_file(None) роняет «не писать лог»  ·  `inbox-regressiya-adr-849-15-modulei-tier-b-pad.md` · 2026-11-06
 - Реинвестировать начисленное: буфер и размещение от текущего equity, знаменатель потолков сделать ОБЩИМ  ·  `inbox-reinvestirovat-nachislennoe-bufer-i-razm.md` · 2026-09-09
 - Ремонт кнопок не спрашивает источник правды: лекарство от отставшей живой копии есть, но до УЖЕ доставленного вопроса не доедет никогда  ·  `inbox-remont-knopok-ne-sprashivaet-istochnik-p.md` · 2026-08-22
 - Рецидив 4 находок из ОДНОГО класса: карточки моста закрываются по «источник промолчал», а причина простоя так и не названа  ·  `inbox-retsidiv-4-nahodok-iz-odnogo-klassa-kart.md` · 2026-08-28
