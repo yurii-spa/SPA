@@ -1,6 +1,6 @@
 {
  "ЧТО_ЭТО": "объявление класса ИМЕНАМИ: перечни, у которых мутация «опустошить» ВЫЖИЛА. Перечень предмета переписи (declared_collection_census) есть ВЕРХНЯЯ граница вреда; эта база — ИЗМЕРЕННЫЙ вред. Может только УБЫВАТЬ: дописывать запись, чтобы погасить падение, ЗАПРЕЩЕНО (инв. #16).",
- "ADR": "ADR-944",
+ "ADR": "ADR-944 · ADR-945 (ось направления)",
  "measured_at": "2026-11-07",
  "measured_on_commit": "67ccc0db1d26c006d0793411e76e3c9294fe70e9",
  "scope": {
@@ -16,7 +16,31 @@
    "unmeasured": 13
   },
   "НЕ_ЗАКРЫТО": "кандидаты вне spa_core/monitoring/ (273 из 390) и неизмеренный остаток области — замер не доведён, и нулём это не считается",
-  "НАПРАВЛЕНИЕ_вреда_НЕ_ИЗМЕРЕНО": "`survived` = «пустоту не заметил ни один собственный тест модуля», а НЕ «молча усиливает». У перечня под ФИЛЬТРОМ-отсечкой (`if any(m in path for m in NAME)`) пустота даёт БОЛЬШЕ находок — шум, а не тишину. Оба состояния дефекты, но лечатся разным; ось направления не мерена (ADR-944)"
+  "направление": {
+   "ЧТО_ЭТО": "род вреда: `fewer` — пустота даёт МЕНЬШЕ находок (ТИШИНА, ложное усиление) · `more` — БОЛЬШЕ прошло сквозь отсечку (ШУМ либо прорыв защиты) · `both` — у `if` две ветки, и накопители в них двигаются в ПРОТИВОПОЛОЖНЫЕ стороны · `unmeasured` с названной причиной. Ось РАЗДЕЛЯЕТ уже отобранное; в SUBJECT_AXES переписи не складывается (ADR-945)",
+   "прибор": "spa_core/tests/_empty_collection_harm.py::direction",
+   "измерено_на_коммите": "cd10d6b2e",
+   "измерено": "2026-11-07",
+   "область": "ВСЁ дерево (не один пакет): кандидаты признака `production == produces`",
+   "предмет_переписи": 572,
+   "кандидатов": 391,
+   "исходы": {
+    "fewer": 188,
+    "more": 22,
+    "both": 2,
+    "unmeasured": 179
+   },
+   "отношение_тишина_к_шуму": 8.5,
+   "почему_НЕ_ИЗМЕРЕНО": {
+    "результат включения уходит дальше": 148,
+    "свёртка условием не является": 50,
+    "ни одна ветка не исключает": 7,
+    "без накопления в теле": 22,
+    "генератор отдаёт результат наружу": 20,
+    "не объявлена ни тихой": 10
+   },
+   "НЕ_ЗАКРЫТО": "(1) род `more` несёт ДВА смысла — шум отчёта и прорыв ЗАЩИТНОЙ отсечки (редакторы публичного ответа, чистильщик учёток); население второго НЕ МЕРЕНО, ось не заведена, карточка открыта. (2) направление у 45,8 % кандидатов `unmeasured`, крупнейшая причина одна — результат собирающего включения уходит дальше, и род решает СЛЕДУЮЩИЙ шаг. (3) ось не судит ни ВЕЛИЧИНУ сдвига, ни сам ВРЕД: вред меряет мутация (ADR-944)"
+  }
  },
  "harmful": [
   {
@@ -29,7 +53,8 @@
     "spa_core/tests/test_call_sourced_input_census_wiring.py"
    ],
    "summary": "мутант «опустошить» ВЫЖИЛ: 40 passed in 14.69s — пустоту не заметил ни один собственный тест модуля",
-   "why_candidate": "spa_core/monitoring/call_sourced_input_census.py:872:comp:comprehension-collects"
+   "why_candidate": "spa_core/monitoring/call_sourced_input_census.py:872:comp:comprehension-collects",
+   "направление": "unmeasured"
   },
   {
    "module": "spa_core/monitoring/cio_explainability.py",
@@ -40,7 +65,8 @@
     "spa_core/tests/test_cio_explainability.py"
    ],
    "summary": "мутант «опустошить» ВЫЖИЛ: 54 passed in 3.56s — пустоту не заметил ни один собственный тест модуля",
-   "why_candidate": "spa_core/monitoring/cio_explainability.py:763:for:.append()"
+   "why_candidate": "spa_core/monitoring/cio_explainability.py:763:for:.append()",
+   "направление": "fewer"
   },
   {
    "module": "spa_core/monitoring/cio_substitution_census.py",
@@ -51,7 +77,8 @@
     "spa_core/tests/test_cio_substitution_census.py"
    ],
    "summary": "мутант «опустошить» ВЫЖИЛ: 80 passed in 0.28s — пустоту не заметил ни один собственный тест модуля",
-   "why_candidate": "spa_core/monitoring/cio_substitution_census.py:895:comp:comprehension-collects"
+   "why_candidate": "spa_core/monitoring/cio_substitution_census.py:895:comp:comprehension-collects",
+   "направление": "unmeasured"
   },
   {
    "module": "spa_core/monitoring/failure_cause_census.py",
@@ -62,7 +89,8 @@
     "spa_core/tests/test_failure_cause_census.py"
    ],
    "summary": "мутант «опустошить» ВЫЖИЛ: 50 passed in 0.25s — пустоту не заметил ни один собственный тест модуля",
-   "why_candidate": "spa_core/monitoring/failure_cause_census.py:627:comp:quantifier:any"
+   "why_candidate": "spa_core/monitoring/failure_cause_census.py:627:comp:quantifier:any",
+   "направление": "both"
   },
   {
    "module": "spa_core/monitoring/findings_bridge.py",
@@ -73,7 +101,8 @@
     "spa_core/tests/test_findings_bridge.py"
    ],
    "summary": "мутант «опустошить» ВЫЖИЛ: 41 passed in 0.42s — пустоту не заметил ни один собственный тест модуля",
-   "why_candidate": "spa_core/tests/test_write_helper_path_argument.py:269:comp:comprehension-collects"
+   "why_candidate": "spa_core/tests/test_write_helper_path_argument.py:269:comp:comprehension-collects",
+   "направление": "unmeasured"
   },
   {
    "module": "spa_core/monitoring/golive_producer_criteria.py",
@@ -84,7 +113,8 @@
     "spa_core/tests/test_golive_producer_criteria.py"
    ],
    "summary": "мутант «опустошить» ВЫЖИЛ: 20 passed in 0.30s — пустоту не заметил ни один собственный тест модуля",
-   "why_candidate": "spa_core/monitoring/golive_producer_criteria.py:74:for:no-accumulation;spa_core/tests/test_golive_producer_criteria.py:57:comp:comprehension-collects"
+   "why_candidate": "spa_core/monitoring/golive_producer_criteria.py:74:for:no-accumulation;spa_core/tests/test_golive_producer_criteria.py:57:comp:comprehension-collects",
+   "направление": "unmeasured"
   },
   {
    "module": "spa_core/monitoring/pre_trade_recheck_census.py",
@@ -95,7 +125,8 @@
     "spa_core/tests/test_pre_trade_recheck_census.py"
    ],
    "summary": "мутант «опустошить» ВЫЖИЛ: 44 passed in 0.21s — пустоту не заметил ни один собственный тест модуля",
-   "why_candidate": "spa_core/monitoring/pre_trade_recheck_census.py:243:comp:quantifier:any"
+   "why_candidate": "spa_core/monitoring/pre_trade_recheck_census.py:243:comp:quantifier:any",
+   "направление": "fewer"
   },
   {
    "module": "spa_core/monitoring/presence_as_observation_census.py",
@@ -106,7 +137,8 @@
     "spa_core/tests/test_presence_as_observation_census.py"
    ],
    "summary": "мутант «опустошить» ВЫЖИЛ: 79 passed, 3 subtests passed in 0.83s — пустоту не заметил ни один собственный тест модуля",
-   "why_candidate": "spa_core/monitoring/presence_as_observation_census.py:1383:for:.append()"
+   "why_candidate": "spa_core/monitoring/presence_as_observation_census.py:1383:for:.append()",
+   "направление": "fewer"
   },
   {
    "module": "spa_core/monitoring/presence_as_observation_census.py",
@@ -117,7 +149,8 @@
     "spa_core/tests/test_presence_as_observation_census.py"
    ],
    "summary": "мутант «опустошить» ВЫЖИЛ: 79 passed, 3 subtests passed in 1.04s — пустоту не заметил ни один собственный тест модуля",
-   "why_candidate": "spa_core/monitoring/presence_as_observation_census.py:814:comp:quantifier:any;spa_core/monitoring/presence_as_observation_census.py:958:comp:quantifier:any"
+   "why_candidate": "spa_core/monitoring/presence_as_observation_census.py:814:comp:quantifier:any;spa_core/monitoring/presence_as_observation_census.py:958:comp:quantifier:any",
+   "направление": "more"
   },
   {
    "module": "spa_core/monitoring/rule_second_copy_census.py",
@@ -130,7 +163,33 @@
     "spa_core/tests/test_rule_second_copy_census_wiring.py"
    ],
    "summary": "мутант «опустошить» ВЫЖИЛ: 110 passed in 178.89s (0:02:58) — пустоту не заметил ни один собственный тест модуля",
-   "why_candidate": "spa_core/monitoring/rule_second_copy_census.py:1606:comp:quantifier:any"
+   "why_candidate": "spa_core/monitoring/rule_second_copy_census.py:1606:comp:quantifier:any",
+   "направление": "more"
   }
- ]
+ ],
+ "ПОЧИНЕНО_НЕ_ОБЪЯВЛЕНО": {
+  "ЧТО_ЭТО": "перечни, ИЗМЕРЕННЫЕ вредными и ПОЧИНЕННЫЕ тем же циклом. В `harmful` их нет намеренно: контракт базы требует, чтобы запись ОСТАВАЛАСЬ предметом переписи, а получивший противоядие из предмета выходит. Запись здесь — память о замере, не долг",
+  "цикл": "#1064 (ADR-945)",
+  "противоядие": "spa_core/tests/test_public_redaction_denylist.py",
+  "перечни": [
+   {
+    "module": "spa_core/api/routers/rates_desk.py",
+    "name": "_REFUSAL_REDACT_KEY_SUBSTRINGS",
+    "направление": "more",
+    "мутация_до_починки": "ВЫЖИЛ: 39 passed, 3 skipped — на НАСТОЯЩЕМ наборе ввозящих (2 файла)"
+   },
+   {
+    "module": "spa_core/api/routers/underwriting.py",
+    "name": "_REDACT_KEY_SUBSTRINGS",
+    "направление": "more",
+    "мутация_до_починки": "НЕ ИЗМЕРЕНО: модуль не ввозит ни один тест дерева"
+   },
+   {
+    "module": "spa_core/studio_os/memory/sources.py",
+    "name": "SECRET_RES",
+    "направление": "more",
+    "мутация_до_починки": "НЕ ИЗМЕРЕНО: модуль не ввозит ни один тест дерева"
+   }
+  ]
+ }
 }

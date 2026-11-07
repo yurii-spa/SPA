@@ -812,6 +812,7 @@
 | ADR-942 | ADR-942 — Чтение перечня привязывается к МОДУЛЮ объявления, а не к голому имени | Accepted | [ADR-942](ADR-942-a-read-is-bound-to-the-declaring-module-not-to-the-bare-name.md) |
 | ADR-943 | Заказ G932 п. 3 отвечен ЗАМЕРОМ «НЕ расширять»: оси `empty` и `other` — две половины ОДНОГО вопроса, предмет 571 -> 571 на обеих крайностях; население 1186, вопросом о непустоте не являются 1174 | Accepted | [ADR-943](ADR-943-the-read-kind-axes-are-two-halves-of-one-question.md) |
 | ADR-944 | ADR-944 — Предмет переписи перечней есть ВЕРХНЯЯ граница вреда; сам вред меряет МУТАЦИЯ, и признак приоритизации был слеп к единственному известному члену класса | Accepted | [ADR-944](ADR-944-the-upper-bound-of-harm-is-not-the-harm-mutation-measures-it.md) |
+| ADR-945 | ADR-945 — Направление вреда делит класс пустого перечня на ДВА рода, и опасен тот, который МОЛЧИТ; а в роде «больше» нашлись защитные отсечки, охраняющие секреты | Accepted | [ADR-945](ADR-945-the-direction-of-harm-splits-the-class-in-two-and-silence-is-the-dangerous-half.md) |
 
 ## Соглашения
 

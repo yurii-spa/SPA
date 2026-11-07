@@ -101,6 +101,62 @@ class HarmBaselineRatchet(unittest.TestCase):
         self.assertGreater(tally["produces"], 0, "признак не нашёл ни одного кандидата — "
                                                  "это сам по себе повод перемерить прибор")
 
+    def test_the_recorded_direction_agrees_with_the_LIVE_instrument(self):
+        """Род вреда у записи сверяется ПАРИТЕТОМ с прибором, а не литералом в базе.
+
+        Литерал краснел бы от своего же производителя — дефект, уже оплаченный
+        (`observed_floor`, цикл #1055): число выводится прибором, и держать его копию
+        значило бы завести второе место. Паритет же краснеет РОВНО когда род СМЕНИЛСЯ,
+        а смена рода означает, что сменилось и лекарство (ADR-945).
+        """
+        live = {
+            harm.key(row["module"], row["name"]): row["direction"]
+            for row in harm.direction(
+                [r for r in self.result["rows"] if r["subject"]]) ["rows"]
+        }
+        drifted = {
+            f"{entry['module']}::{entry['name']}":
+                f"объявлено {entry.get('направление')!r}, прибор отвечает "
+                f"{live.get(harm.key(entry['module'], entry['name']))!r}"
+            for entry in self.doc["harmful"]
+            if entry.get("направление")
+            != live.get(harm.key(entry["module"], entry["name"]))
+        }
+        self.assertEqual(
+            drifted, {},
+            "род вреда у записи РАСХОДИТСЯ с живым прибором — сменилась форма чтения, "
+            f"а значит и лекарство: {drifted}")
+
+    def test_the_direction_axis_has_all_four_outcomes_distinguishable(self):
+        """Ось обязана уметь сказать «не измерено» — иначе её молчание неотличимо от
+        «направления нет» (инв. #17). И обязана ответить о КАЖДОМ кандидате признака:
+        ось, отвечающая о части, назвала бы долю от неизвестного знаменателя."""
+        candidates = [
+            row for row in self.result["rows"]
+            if row["subject"]
+            and self.production.get(harm.key(row["module"], row["name"])) == "produces"
+        ]
+        result = harm.direction(candidates)
+        self.assertEqual(set(result["tally"]), set(harm.DIRECTION_OUTCOMES))
+        self.assertEqual(sum(result["tally"].values()), len(candidates),
+                         "ось обязана ответить о КАЖДОМ кандидате признака")
+        self.assertGreater(result["tally"]["fewer"], 0,
+                           "ось не нашла ни одной ТИХОЙ пустоты — это повод перемерить "
+                           "прибор, а не вывод о дереве")
+
+    def test_the_direction_scope_is_named_not_implied(self):
+        """Область замера направления — ЧАСТЬ объявления, как и у мутационного замера:
+        исходы из одной области читались бы как «во всём дереве столько»."""
+        scope = self.doc["scope"].get("направление")
+        self.assertIsInstance(scope, dict, "замер направления не объявлен вовсе")
+        for field in ("прибор", "измерено_на_коммите", "измерено", "область",
+                      "кандидатов", "исходы", "почему_НЕ_ИЗМЕРЕНО", "НЕ_ЗАКРЫТО"):
+            self.assertIn(field, scope, f"замер направления без поля {field!r}")
+        self.assertEqual(set(scope["исходы"]), set(harm.DIRECTION_OUTCOMES),
+                         "объявленные исходы обязаны совпасть с перечнем прибора")
+        self.assertTrue(str(scope["НЕ_ЗАКРЫТО"]).strip(),
+                        "незакрытая часть замера обязана быть НАЗВАНА")
+
     def test_the_scope_of_the_measurement_is_named_not_implied(self):
         """Область замера — ЧАСТЬ объявления: `harmful` из одного пакета читалось бы
         как «во всём дереве столько», а это другое утверждение."""

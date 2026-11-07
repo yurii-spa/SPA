@@ -260,3 +260,268 @@ def key(module: str, name: str) -> str:
     """Ключ объявления ПАРНЫЙ: одноимённые перечни разных модулей не делят ни
     чтений (ADR-942), ни противоядий — значит не вправе делить и записи класса."""
     return f"{module}::{name}"
+
+
+# ---------------------------------------------------------------------------
+# ОСЬ НАПРАВЛЕНИЯ ВРЕДА (ADR-945, цикл #1064, заказ G934 п. 4)
+# ---------------------------------------------------------------------------
+# **Зачем отдельная ось.** `survived` стенда выше означает РОВНО «пустоту не заметил
+# ни один собственный тест модуля» — и НЕ означает «молча усиливает». Разбор десяти
+# выживших (ADR-944) показал это сразу: `cio_explainability._BOOKS` читается как
+# `for key, book_id in _BOOKS:` с накоплением в теле — пустота даёт МЕНЬШЕ находок
+# (тишина, предмет ADR-939), а `presence_as_observation_census._SKIP_PARTS` читается
+# как `if any(part in marker for part in _SKIP_PARTS): continue` — пустота даёт
+# БОЛЬШЕ находок (шум). Оба состояния — дефекты (никто не заметил), но лечатся они
+# разным, и объявить их ОДНИМ родом значило бы завести ось, несущую два бита под
+# одним именем — дословно дефект, измеренный ADR-943 на осях `empty`/`other`.
+#
+# **И РАЗЛИЧАЮТСЯ они не только лечением, но и ОБНАРУЖИМОСТЬЮ.** Шум виден: поток
+# находок, выросший на порядок, замечает читатель отчёта. Тишина не видна никому —
+# «находок нет» выглядит дословно как хороший день. Поэтому `fewer` ОПАСНЕЕ `more`
+# при равной мере вреда, и приоритет починки идёт по роду, а не по номеру строки.
+#
+# **Почему это НЕ пятая ось переписи и НЕ вторая ось признака.** Та же причина, что
+# у `production` (ADR-944): ось, перекладывание внутри которой предмета не меняет,
+# есть украшение. Направление не сужает и не расширяет ни предмет, ни признак — оно
+# РАЗДЕЛЯЕТ уже отобранное на два рода с разными лекарствами.
+
+#: Истинность ТИХОЙ свёртки над ПУСТЫМ перечнем: `any` → False, `all` → True,
+#: `sum` → 0 (ложно). Громкие свёртки (`min`/`max`) сюда НЕ входят по построению —
+#: над пустым они поднимают `ValueError`, пустота замечена, и предмета нет.
+TRUTH_OVER_EMPTY: Dict[str, bool] = {"any": False, "all": True, "sum": False}
+
+#: Утверждения, которыми ветка ИСКЛЮЧАЕТ рассматриваемый элемент из рассмотрения.
+#: `Return` считается отсечкой ТОЛЬКО с пустым или константным значением: `return
+#: build_finding()` исключением не является, он находку ОТДАЁТ.
+CUTOFF_NODES: Tuple[type, ...] = (ast.Continue, ast.Break)
+
+DIRECTION_OUTCOMES: Tuple[str, ...] = ("fewer", "more", "both", "unmeasured")
+
+#: Что ветка делает с рассматриваемым элементом.
+BRANCH_EFFECTS: Tuple[str, ...] = ("cutoff", "accumulates", "none")
+
+
+def _is_cutoff_stmt(node: ast.stmt) -> bool:
+    if isinstance(node, CUTOFF_NODES):
+        return True
+    return (isinstance(node, ast.Return)
+            and (node.value is None or isinstance(node.value, ast.Constant)))
+
+
+def branch_effect(stmts: Sequence[ast.stmt]) -> str:
+    """Что ветка ДЕЛАЕТ с рассматриваемым элементом — член BRANCH_EFFECTS.
+
+    **Отсечка имеет ПРИОРИТЕТ над накоплением, и это ВЫБОР, а не недосмотр.**
+    Ветка `dirnames[:] = []` + `continue` (дословно `_SKIP_PARTS`) содержит и
+    подрезку, и выход: элемент до пути находок не доходит ни при каком содержимом
+    ветки, поэтому род её — отсечка. Считать такую ветку «и то и другое» значило бы
+    отдать `unmeasured` там, где направление определено однозначно.
+    """
+    if any(_is_cutoff_stmt(stmt) for stmt in stmts):
+        return "cutoff"
+    return "accumulates" if _body_accumulates(stmts) else "none"
+
+
+def _condition_owner(
+    node: ast.AST, parents: Dict[int, ast.AST]
+) -> Tuple[Optional[ast.AST], str, int]:
+    """Поднимается от узла-операнда к УТВЕРЖДЕНИЮ, чьим условием он является.
+
+    Возвращает ``(владелец, род, число отрицаний)`` либо ``(None, причина, 0)``.
+
+    **Через `and`/`or` подъём идёт НАМЕРЕННО, и это не вольность.** Подстановка
+    константы вместо ОДНОГО операнда монотонной формулы двигает «срабатывает ли
+    ветка» РОВНО в одну сторону: ``A or X`` при ``A=False`` срабатывает не чаще
+    исходного, при ``A=True`` — всегда; ``A and X`` при ``A=True`` срабатывает не
+    реже, при ``A=False`` — никогда. Поэтому знание эффективной истинности нашего
+    операнда достаточно, а значения соседних операндов не нужны. Любая НЕмонотонная
+    обёртка (`==`, арифметика, вызов) подъём ОБРЫВАЕТ третьим исходом.
+    """
+    current = node
+    negations = 0
+    for _hop in range(CLIMB_DEPTH):
+        parent = parents.get(id(current))
+        if parent is None:
+            return None, "у условия нет владельца в разборе", 0
+        if isinstance(parent, ast.UnaryOp) and isinstance(parent.op, ast.Not):
+            negations += 1
+        elif isinstance(parent, ast.BoolOp):
+            pass  # монотонно — см. docstring
+        elif isinstance(parent, ast.If) and parent.test is current:
+            return parent, "if", negations
+        elif isinstance(parent, ast.comprehension) and any(
+                test is current for test in parent.ifs):
+            return parent, "filter", negations
+        else:
+            return None, f"свёртка условием не является: {type(parent).__name__}", 0
+        current = parent
+    return None, "подъём к условию длиннее предела", 0
+
+
+def _direction_of_silent_fold(
+    fold_name: str, fold_call: ast.AST, parents: Dict[int, ast.AST]
+) -> Tuple[str, str]:
+    """Направление для чтения под ТИХОЙ свёрткой: ``(исход, причина)``."""
+    owner, kind, negations = _condition_owner(fold_call, parents)
+    if owner is None:
+        return "unmeasured", f"{fold_name}(): {kind}"
+    # Эффективная истинность НАШЕГО операнда над пустым перечнем.
+    fires_more = TRUTH_OVER_EMPTY[fold_name] != bool(negations % 2)
+    if kind == "filter":
+        # Предикат ВКЛЮЧЕНИЯ: срабатывает чаще ⇒ собирается больше.
+        return (("more" if fires_more else "fewer"),
+                f"{fold_name}() в фильтре включения, "
+                f"над пустым предикат {'истинен' if fires_more else 'ложен'}")
+    assert isinstance(owner, ast.If)
+    arms: List[Tuple[str, str, bool]] = [("тело", branch_effect(owner.body), fires_more)]
+    if owner.orelse:
+        arms.append(("иначе", branch_effect(owner.orelse), not fires_more))
+    verdicts: List[str] = []
+    why: List[str] = []
+    for label, effect, arm_fires_more in arms:
+        if effect == "none":
+            continue
+        if effect == "cutoff":
+            verdict = "fewer" if arm_fires_more else "more"
+        else:
+            verdict = "more" if arm_fires_more else "fewer"
+        verdicts.append(verdict)
+        why.append(f"{label}: {effect}, срабатывает "
+                   f"{'ЧАЩЕ' if arm_fires_more else 'РЕЖЕ'} ⇒ {verdict}")
+    if not verdicts:
+        return "unmeasured", (f"{fold_name}(): ни одна ветка не исключает элемент "
+                              f"и не накапливает находку")
+    joined = f"{fold_name}(): " + " · ".join(why)
+    if len(set(verdicts)) > 1:
+        # ДВЕ ветки двигают счёт находок в ПРОТИВОПОЛОЖНЫЕ стороны: накопители в них
+        # РАЗНЫЕ, и починка обязана смотреть на обе. Свести к одному роду значило бы
+        # потерять ровно то, ради чего ось заведена.
+        return "both", joined
+    return verdicts[0], joined
+
+
+def direction_of_one_read(
+    hit: ast.AST, parents: Dict[int, ast.AST]
+) -> Tuple[str, str]:
+    """Направление вреда для ОДНОГО чтения рода `loop`: ``(исход, причина)``.
+
+    Исход — член DIRECTION_OUTCOMES. «Не измерено» нулём не считается и ни за один
+    род не выдаётся: форма, которую прибор не разобрал, не оправдывает ни тишины,
+    ни шума (инв. #17).
+    """
+    kind, loop = _enclosing_loop(hit, parents)
+    if loop is None or kind is None:
+        return "unmeasured", "цикл над именем не поднят"
+    if kind == "for":
+        why = _body_accumulates(loop.body)  # type: ignore[union-attr]
+        if why:
+            return "fewer", f"`for … in NAME` с накоплением в теле ({why}): " \
+                            f"над пустым витков НОЛЬ ⇒ накоплено НИЧЕГО"
+        return "unmeasured", ("`for … in NAME` без накопления в теле — чего станет "
+                              "меньше или больше, из формы не следует")
+    if kind != "comprehension":
+        return "unmeasured", f"род цикла не разобран: {kind}"
+    owner = parents.get(id(loop))
+    if owner is None:
+        return "unmeasured", "у генератора нет владельца в разборе"
+    if isinstance(owner, (ast.ListComp, ast.SetComp, ast.DictComp)):
+        host = parents.get(id(owner))
+        if isinstance(host, (ast.Yield, ast.YieldFrom)) or (
+                isinstance(host, ast.Return) and host.value is owner):
+            return "fewer", "включение СОБИРАЕТ и сразу ОТДАЁТСЯ наружу ⇒ собрано меньше"
+        if isinstance(host, ast.Call) and isinstance(host.func, ast.Attribute) \
+                and host.func.attr in ACCUMULATING_METHODS:
+            return "fewer", (f"включение СОБИРАЕТ и сразу накапливается "
+                             f"(.{host.func.attr}()) ⇒ накоплено меньше")
+        # Собранное уходит дальше: меньше собранных элементов означает МЕНЬШЕ находок,
+        # если это находки, и БОЛЬШЕ, если это множество-исключение. Направление решает
+        # СЛЕДУЮЩИЙ шаг, и выдумывать его здесь значило бы вернуть «два бита под одним
+        # именем» — ровно то, против чего ось заведена.
+        return "unmeasured", ("результат включения уходит дальше "
+                              f"({type(host).__name__ if host else 'владельца нет'}) — "
+                              "направление решает следующий шаг")
+    if isinstance(owner, ast.GeneratorExp):
+        fold = parents.get(id(owner))
+        if isinstance(fold, ast.Call) and isinstance(fold.func, ast.Name):
+            name = fold.func.id
+            if name in LOUD_FOLDS:
+                return "unmeasured", (f"ГРОМКО: {name}() над пустым поднимает "
+                                      f"ValueError — предмета нет")
+            if name in TRUTH_OVER_EMPTY:
+                return _direction_of_silent_fold(name, fold, parents)
+            return "unmeasured", f"свёртка `{name}()` не объявлена ни тихой, ни громкой"
+        return "unmeasured", "генератор отдаёт результат наружу без свёртки"
+    return "unmeasured", f"владелец генератора не разобран: {type(owner).__name__}"
+
+
+def direction(
+    rows: Sequence[Dict[str, Any]], root: Optional[Path] = None
+) -> Dict[str, Any]:
+    """Направление вреда для КАЖДОЙ строки входа. Вход — строки `production()`
+    (или `census()["rows"]`): ось имеет смысл только там, где перечень ПЕРЕБИРАЮТ.
+
+    Решение по объявлению: роды, собранные по его чтениям, СКЛАДЫВАЮТСЯ, и
+    расхождение даёт `both`, а не произвольную из двух сторон. `unmeasured` у
+    ОТДЕЛЬНОГО чтения род объявления не запирает — но объявление, у которого
+    измеренных чтений НЕТ ни одного, остаётся `unmeasured` целиком.
+    """
+    root = root or REPO_ROOT
+    trees: Dict[str, Optional[ast.Module]] = {}
+    parents: Dict[str, Any] = {}
+    reasons_of_break: Dict[str, str] = {}
+
+    def load(rel: str):
+        if rel not in trees:
+            try:
+                tree = ast.parse((root / rel).read_text(errors="replace"))
+            except (OSError, SyntaxError, ValueError) as exc:
+                trees[rel], parents[rel] = None, None
+                reasons_of_break[rel] = f"{type(exc).__name__}: {exc}"
+            else:
+                trees[rel], parents[rel] = tree, _parents(tree)
+        return trees[rel], parents[rel]
+
+    out: List[Dict[str, Any]] = []
+    tally = {outcome: 0 for outcome in DIRECTION_OUTCOMES}
+    for row in rows:
+        verdicts: List[str] = []
+        why: List[str] = []
+        for place in row.get("reads", {}).get("loop", []):
+            rel, _, lineno = place.rpartition(":")
+            tree, index = load(rel)
+            if tree is None:
+                verdicts.append("unmeasured")
+                why.append(f"{place}: НЕ РАЗОБРАН — {reasons_of_break[rel]}")
+                continue
+            hits = [
+                node for node in ast.walk(tree)
+                if getattr(node, "lineno", None) == int(lineno)
+                and ((isinstance(node, ast.Name) and node.id == row["name"])
+                     or (isinstance(node, ast.Attribute) and node.attr == row["name"]))
+            ]
+            if not hits:
+                verdicts.append("unmeasured")
+                why.append(f"{place}: узел чтения не найден")
+                continue
+            for hit in hits:
+                outcome, reason = direction_of_one_read(hit, index)
+                verdicts.append(outcome)
+                why.append(f"{place}: {reason}")
+        measured = {v for v in verdicts if v != "unmeasured"}
+        if not measured:
+            verdict = "unmeasured"
+            if not verdicts:
+                why.append("ни одного чтения рода `loop` — ось к объявлению не относится")
+        elif measured == {"fewer"}:
+            verdict = "fewer"
+        elif measured == {"more"}:
+            verdict = "more"
+        else:
+            verdict = "both"
+        tally[verdict] += 1
+        out.append({
+            "module": row["module"], "name": row["name"], "lineno": row["lineno"],
+            "form": row.get("form"), "direction": verdict, "why": why,
+        })
+    return {"tally": tally, "rows": out,
+            "unparsable_readers": dict(reasons_of_break)}

@@ -2,11 +2,11 @@
 
 > Авто-генерится `scripts/build_tracker_board.py` из `nimbalyst-local/tracker/*.md`. НЕ править вручную — правь карточки. Источник правды — карточки, это индекс (bootstrap).
 >
-> Собрана: 2026-11-07T17:22:00Z · сверка с карточками: `python3 scripts/build_tracker_board.py --check` (сторож `spa_core/tests/test_tracker_board_matches_cards.py`).
+> Собрана: 2026-11-07T19:06:44Z · сверка с карточками: `python3 scripts/build_tracker_board.py --check` (сторож `spa_core/tests/test_tracker_board_matches_cards.py`).
 >
-> Сверено с `origin/main` (67ccc0db1) · у **1** своя правка, кто новее — не измерено.
+> Сверено с `origin/main` (cd10d6b2e) · у **1** своя правка, кто новее — не измерено.
 >
-> Всего карточек: **1603** · ждёт владельца: **4** · занято сессиями: **14**.
+> Всего карточек: **1606** · ждёт владельца: **4** · занято сессиями: **14**.
 
 ## 🔴 ЖДЁТ ВЛАДЕЛЬЦА (needs-owner)
 
@@ -424,7 +424,7 @@
 ### · closed
 - Считать ли верный отказ по правилам допуска неисправностью флота  ·  `owner-decision-schitat-li-vernyi-otkaz-po-pravilam-dopu.md` · 2026-10-08
 
-## 📥 Inbox (задания: Telegram / заметки / голос)  (914)
+## 📥 Inbox (задания: Telegram / заметки / голос)  (917)
 
 ### · in-progress
 - а задача починить все-таки еще раз сообщение которым не пишет нужно твое решени…  ·  `inbox-a-zadacha-pochinit-vse-taki-esche-raz-so.md` · 2026-08-14 · 🔒 `pid43119`
@@ -987,6 +987,7 @@
 - Журнал решений: чинить писателя и читателя одним заходом (ответ владельца, вариант A)  ·  `inbox-zhurnal-reshenii-chinit-pisatelya-i-chit.md` · 2026-09-15
 - Журнал циклов молча теряет записи при конкурентной доставке — за неделю пропало 9 (восстановлены)  ·  `inbox-zhurnal-tsiklov-molcha-teryaet-zapisi-pr.md` · 2026-08-06
 ### · new
+- 127 брошенных деревьев на 25,8 ГБ не дают гейту допустить предписанный прогон  ·  `inbox-127-broshennyh-derevev-na-25-8-gb-ne-day.md` · 2026-11-07
 - 21 тест трёх батарей ряда краснеет на ЧИСТОМ origin/main — измерено дифференциально, ни один не внесён циклом #783  ·  `inbox-21-test-treh-batarei-ryada-krasneet-na-c.md` · 2026-10-06
 - 307 карточек живут на origin, а в прод-дереве их файла нет — доска называет их числом, но не показывает  ·  `inbox-307-kartochek-nevidimy-prod-derevu.md` · 2026-08-30
 - 54 безголовых браузера держат три одноразовых дерева, старейший сутки с лишним  ·  `inbox-54-bezgolovyh-brauzera-derzhat-tri-odnor.md` · 2026-11-07
@@ -1115,6 +1116,7 @@
 - Мост находок без писателя 45 часов — агент com.spa.decision_loop НЕ ЗАГРУЖЕН во флоте, и CRITICAL шага 0-офис никому не достаются  ·  `inbox-most-nahodok-bez-pisatelya-45-chasov-agen.md` · 2026-10-31
 - Мост находок (decision_loop) не укладывается в 2 ч — перепись покрытия журнала решений гоняет вложенные симуляции окна на каждого читателя  ·  `inbox-most-nahodok-decision-loop-ne-ukladyvaet.md` · 2026-11-02
 - Мост отказывает ВЕРНО, но долг доставки НЕПОГАСИМ: следы карточки разошлись двумя ЗАКОННЫМИ переходами из одного статуса  ·  `inbox-most-otkazyvaet-verno-no-dolg-dostavki-n.md` · 2026-09-04
+- Мутационный стенд подбирает тесты по основе имени — и мерит однофамильца, а не модуль  ·  `inbox-mutatsionnyi-stend-podbiraet-testy-po-os.md` · 2026-11-07
 - На Linux принадлежность процесса всегда OWNERSHIP_UNKNOWN: 19 красных тестов и, возможно, инертный клин  ·  `inbox-na-linux-prinadlezhnost-protsessa-vsegda.md` · 2026-09-26
 - Находка петли: com.spa.decision_loop: объявлено PRODUCES (data/adapter_feed_divergenc  ·  `inbox-nahodka-petli-com-spa-decision-loop-obya.md` · 2026-10-29
 - Находки третьего шага не доходят до судьи достижимости — ряд считает девять вместо десяти  ·  `inbox-nahodki-tretego-shaga-ne-dohodyat-do-sud.md` · 2026-09-30
@@ -1234,6 +1236,7 @@
 - Ремонт карточек-фантомов применяется наполовину: запрет на закрытие решения срабатывает после записи  ·  `inbox-remont-kartochek-fantomov-primenyaetsya.md` · 2026-10-18
 - РЕШЕНИЕ АГЕНТА (не вопрос владельцу): верный отказ по правилам допуска перестаёт быть неисправностью флота — исполнить  ·  `inbox-reshenie-politicheskii-otkaz-ne-neispravnost.md` · 2026-10-08
 - resource_health.json объявлен consumer_required, а шаг 0-офис не упоминает его ни разу (ADR-858)  ·  `inbox-resource-health-json-obyavlen-consumer-r.md` · 2026-10-29
+- Род «больше» несёт два смысла: шум отчёта и прорыв защитной отсечки — население подрода не измерено  ·  `inbox-rod-bolshe-neset-dva-smysla-shum-otcheta.md` · 2026-11-07
 - «Род записи НЕ ОБЪЯВЛЕН у 4» — утверждение о дрейфе прод-копии очереди, а не о сессиях: 668 карточек из 1569 в проде нет вовсе  ·  `inbox-rod-zapisi-obyavlyaetsya-polem-kind-a-ch.md` · 2026-11-03
 - Рост ленты лечится только строкой УПЛОТНЕНИЯ — накапливающие списки причин переснять нельзя  ·  `inbox-rost-lenty-lechitsya-tolko-strokoi-uplot.md` · 2026-10-23
 - scripts/system_health_check.py заменён монитором два месяца назад, но остался в дереве  ·  `inbox-scripts-system-health-check-py-zamenen-m.md` · 2026-08-25
