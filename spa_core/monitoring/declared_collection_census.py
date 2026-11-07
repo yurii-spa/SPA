@@ -51,10 +51,43 @@ G929 п. 3 (ADR-939) ставит вопрос дословно: **скольк�
 единственный ИЗВЕСТНЫЙ предмет класса выпал бы из населения, то есть прибор ответил бы
 «пусто» о том, чего не видел (урок ADR-935).
 
-**Имя сверяется ПО ИМЕНИ, а не по разрешённому импорту.** Чтение ``NAME`` в соседнем
-модуле зачтётся даже если это ДРУГОЙ ``NAME``. Ошибка этого выбора идёт в сторону
-БОЛЬШЕГО числа чтений, то есть в сторону НЕнаходки: прибор скорее промолчит о предмете,
-чем выдумает его. Направление названо, потому что обратное было бы недопустимо.
+**Чтение привязывается к МОДУЛЮ ОБЪЯВЛЕНИЯ, а не к голому имени (ADR-942, цикл
+#1061).** Прежняя редакция ключевала чтения ОДНИМ именем, и этот выбор был назван
+вслух как ошибка «в сторону НЕнаходки» — но цена оказалась не оговоркой, а дефектом
+того же класса, против которого прибор написан: ``assert ПЕРЕЧЕНЬ``, дописанный для
+ОДНОГО модуля, снимал с предмета ВСЕ одноимённые перечни дерева. Замер #1060
+(ADR-941): два РАЗНЫХ ``_TS_KEYS`` — ``spa_core/audit/data_integrity.py`` и
+``spa_core/monitoring/bounded_window_census.py`` — получили дословно один список из
+семи чтений, и ОДНО противоядие сняло с предмета ОБА. Население коллизии: **368**
+имён объявлено более чем в одном месте, **1365** объявлений (31,6 % поверхности) в
+коллизии. Ошибка шла в сторону ЛОЖНОГО УСИЛЕНИЯ — предмет НЕДОсчитывался.
+
+Привязка читает ИМПОРТЫ файла-читателя (``_imports``) и области связывания имён
+(``_scope_bindings``), и у неё ЧЕТЫРЕ исхода (``RESOLUTION_KINDS``):
+
+====================  ======================================================
+исход привязки        что он означает
+====================  ======================================================
+``module``            чтение названо: ``from pkg.mod import NAME`` ·
+                      ``import pkg.mod as m`` + ``m.NAME`` · голое ``NAME``
+                      при объявлении В ТОМ ЖЕ файле. Зачитывается РОВНО
+                      этому объявлению
+``local``             имя связано в области функции/класса либо прочитано
+                      как ``self.NAME``/``cls.NAME`` — это НЕ объявление
+                      уровня модуля, и зачитывать его нельзя никому
+                      (дословный случай ``_TS_KEYS`` внутри функций
+                      ``daily_operations_report.py``)
+``foreign``           имя ввезено из модуля ВНЕ дерева (``typing`` и др.)
+``unresolved``        форма не разобрана (звёздный импорт, атрибут
+                      выражения, голое имя без импорта). **ТРЕТИЙ ИСХОД:**
+                      такое чтение не зачитывается объявлению И не даёт
+                      объявлению попасть в предмет — соответствующая ось
+                      становится ``unmeasured``
+====================  ======================================================
+
+Направление ошибки теперь названо точнее: нераспознанная форма не оправдывает ни
+находку, ни её отсутствие (инв. #17). Цена — объявления, у которых одноимённое
+чтение не разобрано, уходят в ``not_excluded``, а не в ``subject``.
 
 **Предмет НЕ ЕСТЬ дефект, и это граница утверждения, а не осторожность.** Прибор
 доказывает, что ОПУСТЕВШИЙ перечень не будет замечен НИ ОДНИМ его читателем. Вреден ли
@@ -136,6 +169,21 @@ SUBJECT_AXES: Dict[str, str] = {
 
 #: Род чтения. Перечень ЗАМКНУТ: чтение, не попавшее ни в один род, есть ``other``.
 READ_KINDS = ("loop", "emptiness", "other")
+
+#: Чем кончается привязка ОДНОГО чтения к объявлению. Перечень ЗАМКНУТ: привязка,
+#: вернувшая исход вне него, краснит сторожа, а не проезжает молча.
+RESOLUTION_KINDS = ("module", "local", "foreign", "unresolved")
+
+#: Метка модуля ВНЕ дерева. Путь им быть не может — ни один файл так не называется.
+FOREIGN_MODULE = "<вне дерева>"
+
+#: Сколько звеньев родительской цепи прибор проходит, выясняя область имени.
+SCOPE_DEPTH = 200
+
+#: Узлы, ВВОДЯЩИЕ область имён. Генераторные выражения сюда НЕ входят намеренно:
+#: их цели считаются связанными в объемлющей области, и эта ошибка идёт в сторону
+#: ``local``, то есть в сторону НЕзачёта чтения — в сторону НАХОДКИ, не умолчания.
+SCOPE_TYPES = (ast.FunctionDef, ast.AsyncFunctionDef, ast.Lambda, ast.ClassDef)
 
 
 class Unmeasured(Exception):
@@ -336,21 +384,231 @@ def _classify_read(node: ast.AST, index: Dict[int, Tuple[ast.AST, str]]) -> str:
     return "other"
 
 
+def _dotted_name(node: ast.AST) -> Optional[str]:
+    """``a.b.c`` из цепочки ``Attribute``/``Name``, либо None, если в основании
+    цепочки не имя (вызов, индекс, литерал)."""
+    parts: List[str] = []
+    current: ast.AST = node
+    while isinstance(current, ast.Attribute):
+        parts.append(current.attr)
+        current = current.value
+    if not isinstance(current, ast.Name):
+        return None
+    parts.append(current.id)
+    return ".".join(reversed(parts))
+
+
+def _module_rel(root: Path, dotted: str) -> Optional[str]:
+    """Точечное имя модуля → путь ВНУТРИ дерева, либо None (модуль не наш).
+
+    Пакет считается модулем по ``__init__.py``: ``from spa_core import monitoring``
+    есть ввоз модуля, а не имени, и спутать их значило бы привязать чтение к
+    несуществующему объявлению.
+    """
+    parts = [p for p in dotted.split(".") if p]
+    if not parts:
+        return None
+    candidate = root.joinpath(*parts).with_suffix(".py")
+    if candidate.is_file():
+        return str(candidate.relative_to(root))
+    package = root.joinpath(*parts) / "__init__.py"
+    if package.is_file():
+        return str(package.relative_to(root))
+    return None
+
+
+def _imports(tree: ast.Module, root: Path, rel: str) -> Dict[str, Any]:
+    """Карта импортов файла-ЧИТАТЕЛЯ.
+
+    ``modules`` — алиас или точечное имя → путь модуля (или ``FOREIGN_MODULE``);
+    ``names``   — имя В ЭТОМ файле → (путь модуля, имя в ОБЪЯВЛЕНИИ);
+    ``star``    — есть ли ``from X import *`` (источник голого имени не назван).
+    """
+    modules: Dict[str, str] = {}
+    names: Dict[str, Tuple[str, str]] = {}
+    star = False
+    package = rel.rsplit("/", 1)[0] if "/" in rel else ""
+    for node in ast.walk(tree):
+        if isinstance(node, ast.Import):
+            for alias in node.names:
+                target = _module_rel(root, alias.name) or FOREIGN_MODULE
+                modules[alias.asname or alias.name] = target
+        elif isinstance(node, ast.ImportFrom):
+            if node.level:
+                base_parts = package.split("/") if package else []
+                up = node.level - 1
+                base_parts = base_parts[: len(base_parts) - up] if up else base_parts
+                prefix = ".".join([p for p in base_parts if p])
+                dotted = f"{prefix}.{node.module}" if node.module else prefix
+            else:
+                dotted = node.module or ""
+            owner = _module_rel(root, dotted) or FOREIGN_MODULE
+            for alias in node.names:
+                if alias.name == "*":
+                    star = True
+                    continue
+                as_module = _module_rel(root, f"{dotted}.{alias.name}") if dotted else None
+                if as_module is not None:
+                    modules[alias.asname or alias.name] = as_module
+                else:
+                    names[alias.asname or alias.name] = (owner, alias.name)
+    return {"modules": modules, "names": names, "star": star}
+
+
+def _walk_own_scope(nodes: Sequence[ast.AST]):
+    """Узлы СВОЕЙ области: в тело вложенной области прибор не спускается —
+    связанное там имя снаружи не видно."""
+    stack: List[ast.AST] = list(nodes)
+    while stack:
+        node = stack.pop()
+        yield node
+        if isinstance(node, SCOPE_TYPES):
+            continue
+        stack.extend(ast.iter_child_nodes(node))
+
+
+def _bound_in(scope: ast.AST) -> set:
+    """Имена, СВЯЗАННЫЕ в этой области. ``global``/``nonlocal`` вычитаются: такое
+    имя принадлежит уровню модуля, и считать его локальным значило бы потерять
+    настоящее чтение объявления."""
+    bound: set = set()
+    declared_outer: set = set()
+    if isinstance(scope, ast.Module):
+        body: List[ast.AST] = list(scope.body)
+    elif isinstance(scope, ast.Lambda):
+        body = [scope.body]
+    else:
+        body = list(getattr(scope, "body", []))
+    args = getattr(scope, "args", None)
+    if isinstance(args, ast.arguments):
+        for arg in [*getattr(args, "posonlyargs", []), *args.args, *args.kwonlyargs]:
+            bound.add(arg.arg)
+        if args.vararg:
+            bound.add(args.vararg.arg)
+        if args.kwarg:
+            bound.add(args.kwarg.arg)
+    for node in _walk_own_scope(body):
+        if isinstance(node, (ast.Global, ast.Nonlocal)):
+            declared_outer.update(node.names)
+        elif isinstance(node, ast.Name) and isinstance(node.ctx, (ast.Store, ast.Del)):
+            bound.add(node.id)
+        elif isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef, ast.ClassDef)):
+            bound.add(node.name)
+        elif isinstance(node, (ast.Import, ast.ImportFrom)):
+            for alias in node.names:
+                if alias.name == "*":
+                    continue
+                bound.add(alias.asname or alias.name.split(".")[0])
+        elif isinstance(node, ast.ExceptHandler) and node.name:
+            bound.add(node.name)
+    return bound - declared_outer
+
+
+def _scope_bindings(tree: ast.Module) -> Tuple[set, Dict[int, set]]:
+    """(имена уровня МОДУЛЯ, id области → связанные в ней имена)."""
+    per_scope: Dict[int, set] = {}
+    for node in ast.walk(tree):
+        if isinstance(node, SCOPE_TYPES):
+            per_scope[id(node)] = _bound_in(node)
+    return _bound_in(tree), per_scope
+
+
+def _enclosing_scopes(
+    node: ast.AST, index: Dict[int, Tuple[ast.AST, str]], depth: int = SCOPE_DEPTH
+) -> List[ast.AST]:
+    """Области, объемлющие узел, от внутренней к внешней (модуль не включён)."""
+    out: List[ast.AST] = []
+    current: ast.AST = node
+    for _ in range(depth):
+        parent_field = index.get(id(current))
+        if parent_field is None:
+            break
+        parent = parent_field[0]
+        if isinstance(parent, SCOPE_TYPES):
+            out.append(parent)
+        current = parent
+    return out
+
+
+def _resolve_read(
+    node: ast.AST, index: Dict[int, Tuple[ast.AST, str]], ctx: Dict[str, Any]
+) -> Tuple[str, Optional[str], Optional[str], str]:
+    """Привязать ОДНО чтение к модулю объявления.
+
+    Возвращает ``(исход, модуль, имя_в_объявлении, причина)``; исход — член
+    ``RESOLUTION_KINDS``, и у ``unresolved`` причина ОБЯЗАТЕЛЬНА.
+    """
+    if isinstance(node, ast.Attribute):
+        dotted = _dotted_name(node.value)
+        if dotted is None:
+            return "unresolved", None, None, "атрибут выражения, а не модуля"
+        head = dotted.split(".")[0]
+        if head in ("self", "cls"):
+            return "local", None, None, "атрибут экземпляра/класса — не уровень модуля"
+        target = ctx["modules"].get(dotted)
+        if target is None and "." in dotted:
+            base = ctx["modules"].get(head)
+            if base and base != FOREIGN_MODULE and base.endswith("/__init__.py"):
+                prefix = base[: -len("/__init__.py")].replace("/", ".")
+                target = _module_rel(ctx["root"], f"{prefix}.{dotted.split('.', 1)[1]}")
+        if target == FOREIGN_MODULE:
+            return "foreign", None, None, "модуль вне дерева"
+        if target is not None:
+            return "module", target, node.attr, ""
+        return "unresolved", None, None, f"основание «{dotted}» не объявлено импортом"
+
+    name = node.id  # type: ignore[attr-defined]
+    for scope in _enclosing_scopes(node, index):
+        if name in ctx["scope_bound"].get(id(scope), ()):
+            return "local", None, None, "связано в области функции/класса"
+    if name in ctx["names"]:
+        module, declared = ctx["names"][name]
+        if module == FOREIGN_MODULE:
+            return "foreign", None, None, "ввезено из модуля вне дерева"
+        return "module", module, declared, ""
+    if name in ctx["modules"]:
+        return "local", None, None, "имя модуля, а не перечня"
+    if name in ctx["module_bound"]:
+        return "module", ctx["rel"], name, ""
+    if ctx["star"]:
+        return "unresolved", None, None, "звёздный импорт — источник имени не назван"
+    return "unresolved", None, None, "голое имя без импорта и без связывания в файле"
+
+
 def reads(
     root: Optional[Path] = None,
     reader_roots: Sequence[str] = READER_ROOTS,
-) -> Tuple[Dict[str, Dict[str, List[str]]], List[Dict[str, str]]]:
-    """Все чтения всех ВЕРХНЕРЕГИСТРОВЫХ имён, разложенные по роду.
+) -> Tuple[
+    Dict[Tuple[str, str], Dict[str, List[str]]],
+    Dict[str, Dict[str, List[str]]],
+    List[Dict[str, str]],
+    Dict[str, int],
+]:
+    """Все чтения всех ВЕРХНЕРЕГИСТРОВЫХ имён, привязанные к МОДУЛЮ объявления.
 
-    Один проход по дереву: имя → род → места. Иначе замер был бы O(имён × файлов) и
-    не укладывался бы в такт.
+    Возвращает ``(привязанные, неразобранные, непрочитанные_файлы, счёт_исходов)``:
+
+    * ``привязанные``   — ``(модуль, имя) → род → места``. Ключ ПАРНЫЙ, и это
+      несущая часть замера: одноимённые перечни разных модулей больше не делят
+      чтения, а противоядие снимает с предмета РОВНО свой перечень (ADR-942).
+    * ``неразобранные`` — ``имя → род → места`` для чтений, чью форму прибор не
+      разобрал. Такое чтение МОГЛО быть о любом одноимённом объявлении, поэтому
+      оно запирает соответствующую ось в ``unmeasured`` (инв. #17), а не
+      зачитывается и не игнорируется.
+    * ``счёт_исходов``  — сколько чтений пришлось на каждый член
+      ``RESOLUTION_KINDS``. Печатается отчётом: охват прибора называет он сам.
+
+    Один проход по дереву: иначе замер был бы O(имён × файлов) и не укладывался
+    бы в такт.
     """
     import re
 
     root = root or REPO_ROOT
     name_re = re.compile(DECLARED_NAME_RE)
-    out: Dict[str, Dict[str, List[str]]] = {}
+    bound: Dict[Tuple[str, str], Dict[str, List[str]]] = {}
+    unbound: Dict[str, Dict[str, List[str]]] = {}
     broken: List[Dict[str, str]] = []
+    counts: Dict[str, int] = {kind: 0 for kind in RESOLUTION_KINDS}
     for path in _iter_py_files(root, reader_roots):
         tree, reason = _parse(path)
         if tree is None:
@@ -358,6 +616,12 @@ def reads(
             continue
         index = _parent_index(tree)
         rel = str(path.relative_to(root))
+        module_bound, scope_bound = _scope_bindings(tree)
+        ctx: Dict[str, Any] = {
+            "root": root, "rel": rel,
+            "module_bound": module_bound, "scope_bound": scope_bound,
+            **_imports(tree, root, rel),
+        }
         for node in ast.walk(tree):
             name: Optional[str] = None
             if isinstance(node, ast.Name) and isinstance(node.ctx, ast.Load):
@@ -367,9 +631,16 @@ def reads(
             if name is None or not name_re.match(name):
                 continue
             kind = _classify_read(node, index)
-            bucket = out.setdefault(name, {k: [] for k in READ_KINDS})
-            bucket[kind].append(f"{rel}:{node.lineno}")
-    return out, broken
+            outcome, module, declared, _reason = _resolve_read(node, index, ctx)
+            counts[outcome] = counts.get(outcome, 0) + 1
+            place = f"{rel}:{node.lineno}"
+            if outcome == "module" and module is not None and declared is not None:
+                bucket = bound.setdefault((module, declared), {k: [] for k in READ_KINDS})
+                bucket[kind].append(place)
+            elif outcome == "unresolved":
+                bucket = unbound.setdefault(name, {k: [] for k in READ_KINDS})
+                bucket[kind].append(place)
+    return bound, unbound, broken, counts
 
 
 def census(
@@ -380,7 +651,7 @@ def census(
     """Замер класса. Три исхода различимы, и «не измерено» нулём не считается."""
     root = root or REPO_ROOT
     decls, broken_decl = declarations(root, declaration_roots)
-    read_map, broken_read = reads(root, reader_roots)
+    bound_reads, unbound_reads, broken_read, resolution = reads(root, reader_roots)
     # Файл, не поддавшийся разбору, мог нести ЛЮБОЕ чтение ⇒ обе двери о чтении
     # становятся `unmeasured` у ВСЕХ объявлений. Это fail-CLOSED, а не придирка:
     # пропущенный `assert NAME` превратил бы «противоядие есть» в «предмета нет».
@@ -388,19 +659,31 @@ def census(
 
     rows: List[Dict[str, Any]] = []
     for decl in decls:
-        buckets = read_map.get(decl["name"], {k: [] for k in READ_KINDS})
+        buckets = bound_reads.get((decl["module"], decl["name"]), {k: [] for k in READ_KINDS})
         # Объявление само себя не читает: строка объявления из чтений вычитается.
         own = f"{decl['module']}:{decl['lineno']}"
         places = {k: [p for p in v if p != own] for k, v in buckets.items()}
         total = sum(len(v) for v in places.values())
+        # Чтения ТОГО ЖЕ имени, чью форму прибор не разобрал. Зачесть их значило бы
+        # вернуть слияние по имени (ADR-942); промолчать — выдумать находку. Поэтому
+        # они запирают РОВНО ту ось, о которой могли бы ответить (инв. #17).
+        murky = {
+            k: [p for p in v if p != own]
+            for k, v in unbound_reads.get(decl["name"], {k: [] for k in READ_KINDS}).items()
+        }
+        murky_total = sum(len(v) for v in murky.values())
         if reads_unmeasured:
             axes = {k: "unmeasured" for k in ("reader", "iter", "empty", "other")}
         else:
             axes = {
-                "reader": "has_reader" if total else "no_reader",
-                "iter": "iterated" if places["loop"] else "never_iterated",
-                "empty": "asked" if places["emptiness"] else "not_asked",
-                "other": "other_reads" if places["other"] else "only_loop",
+                "reader": "has_reader" if total else (
+                    "unmeasured" if murky_total else "no_reader"),
+                "iter": "iterated" if places["loop"] else (
+                    "unmeasured" if murky["loop"] else "never_iterated"),
+                "empty": "asked" if places["emptiness"] else (
+                    "unmeasured" if murky["emptiness"] else "not_asked"),
+                "other": "other_reads" if places["other"] else (
+                    "unmeasured" if murky["other"] else "only_loop"),
             }
         dangerous = [axis for axis, want in SUBJECT_AXES.items() if axes[axis] == want]
         unmeasured_axes = [a for a, v in axes.items() if v == "unmeasured"]
@@ -415,6 +698,8 @@ def census(
             "axes": axes,
             "reads": places,
             "read_count": total,
+            "unresolved_reads": murky,
+            "unresolved_read_count": murky_total,
             "subject": subject,
             "not_excluded": not_excluded,
         })
@@ -440,11 +725,25 @@ def census(
                 ("empty", EMPTY_OUTCOMES), ("other", OTHER_OUTCOMES),
             )
         },
+        "resolution": resolution,
+        "colliding_names": sum(
+            1 for name, count in _name_counts(decls).items() if count > 1),
+        "declarations_in_collision": sum(
+            count for count in _name_counts(decls).values() if count > 1),
         "unparsable_declaration_files": broken_decl,
         "unparsable_reader_files": broken_read,
         "unmeasured": bool(broken_decl or broken_read),
         "rows": rows,
     }
+
+
+def _name_counts(decls: Sequence[Dict[str, Any]]) -> Dict[str, int]:
+    """Сколько РАЗНЫХ объявлений носит каждое имя. Число коллизии печатается: пока
+    прибор сливал чтения по имени, именно оно было ценой замера (ADR-942)."""
+    counts: Dict[str, int] = {}
+    for decl in decls:
+        counts[decl["name"]] = counts.get(decl["name"], 0) + 1
+    return counts
 
 
 def report(result: Dict[str, Any], limit: int = 40) -> str:
@@ -455,6 +754,12 @@ def report(result: Dict[str, Any], limit: int = 40) -> str:
         f"корни объявления {', '.join(result['declaration_roots'])}, "
         f"корни читателей {', '.join(result['reader_roots'])}, "
         f"глубина обёрток {result['wrapper_depth']}"
+    )
+    lines.append(
+        "   привязка чтений к МОДУЛЮ объявления: "
+        + " · ".join(f"{k} {result['resolution'].get(k, 0)}" for k in RESOLUTION_KINDS)
+        + f"; имён в коллизии {result['colliding_names']}"
+        f" (объявлений {result['declarations_in_collision']})"
     )
     for axis in ("reader", "iter", "empty", "other"):
         pairs = " · ".join(f"{k} {v}" for k, v in result["by_axis"][axis].items())

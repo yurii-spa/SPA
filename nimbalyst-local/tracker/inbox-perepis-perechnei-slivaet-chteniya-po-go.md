@@ -2,10 +2,13 @@
 trackerStatus:
   type: inbox
 title: "Перепись перечней сливает чтения по ГОЛОМУ ИМЕНИ: одно противоядие снимает с предмета все одноимённые (368 имён, 1365 объявлений)"
-status: new
+status: done
 source: nimbalyst
 created: 2026-11-07
 twin_key: "sha256:10be12c737526342a498ec18307c8c6f63a3755a2a461383e8cecb0cf528da56"
+acceptance_probe: collection_read_is_bound_to_the_declaring_module
+status_trail:
+  - "2026-11-07T12:48:17.301625+00:00 new -> done · queue.set_status/closed_by:cycle-34314 (цикл #1061)/evidence:ADR-942: чтение привязано к паре «модуль+имя»; проба collection_read_is_bound_to_the_declaring_module = satisfied (two.COLL остался предметом при противоядии у one.COLL); дифференциально 508→571 (+67/ · cycle-34314"
 ---
 
 ## Что случилось и почему это важно

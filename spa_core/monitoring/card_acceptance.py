@@ -17345,6 +17345,134 @@ def _probe_owner_card_names_the_price_of_refusing(
         f"(AST, обе дуги)")
 
 
+#: Сцена пробы ADR-942: два ОДНОИМЁННЫХ перечня в РАЗНЫХ модулях, противоядие у
+#: ОДНОГО. Форма — ОБЪЯВЛЕНИЕ, с которым сверяется контрольная батарея: сцена,
+#: живущая только в теле пробы, расходилась бы с контролем молча.
+MODULE_BOUND_READ_SCENE: dict = {
+    "spa_core/one.py": "COLL = (1, 2)\n",
+    "spa_core/two.py": "COLL = (3, 4)\n",
+    "spa_core/reader_one.py": (
+        "from spa_core.one import COLL\n\n\n"
+        "def f():\n    for x in COLL:\n        pass\n    assert COLL\n"),
+    "spa_core/reader_two.py": (
+        "from spa_core.two import COLL\n\n\n"
+        "def g():\n    for x in COLL:\n        pass\n"),
+}
+
+
+def _probe_collection_read_is_bound_to_the_declaring_module(
+        arg: str | None = None, *, census=None) -> tuple[str, str]:
+    """Критерий карточки `inbox-perepis-perechnei-slivaet-chteniya-po-go`:
+    перепись объявленных перечней привязывает чтение к МОДУЛЮ объявления.
+
+    Предмет — ИСХОД, а не структура. Проба строит одноразовую сцену из ЧЕТЫРЁХ
+    файлов (два одноимённых перечня в РАЗНЫХ модулях, противоядие `assert COLL`
+    у ОДНОГО) и спрашивает НАСТОЯЩИЙ прибор
+    `spa_core.monitoring.declared_collection_census.census`. Удовлетворена она
+    только если прибор оставил в предмете ВТОРОЙ перечень и снял ПЕРВЫЙ.
+
+    Почему именно так. Прежняя редакция прибора (ADR-940) ключевала чтения
+    ГОЛЫМ ИМЕНЕМ, и одно противоядие снимало с предмета ВСЕ одноимённые перечни
+    дерева — ошибка в сторону ЛОЖНОГО УСИЛЕНИЯ (ADR-941: `_TS_KEYS` в двух
+    модулях получили ОДИН список из семи чтений). Вернись слияние — на этой
+    сцене `two.COLL` выпадет из предмета, и проба ОТКАЖЕТ. Подстрокой её пройти
+    нельзя по построению: сравниваются ВЕРДИКТЫ прибора на сцене, а не текст.
+
+    Число предмета НАСТОЯЩЕГО дерева пробой НЕ проверяется намеренно: оно есть
+    замер (508 → 571, ADR-942) и принадлежит ДЕРЕВУ, а не адресу, — литерал
+    здесь краснел бы от своего же производителя.
+
+    Три исхода различимы (инв. #17): `unmeasured` — прибор не импортируется или
+    сцена не разобралась; `not_satisfied` — назван ВОПРОС, отвеченный
+    отрицательно; `satisfied` — печатаются ИЗМЕРЕННЫЕ вердикты, а не постоянная
+    строка.
+
+    `census` инъектируется ТОЛЬКО контрольной батареей: проба, никогда не
+    видевшая настоящей поломки, остаётся украшением
+    (`.claude/rules/acceptance.md` п. 3).
+    """
+    import tempfile  # noqa: PLC0415
+    from pathlib import Path  # noqa: PLC0415
+
+    if census is None:
+        import importlib  # noqa: PLC0415
+        try:
+            census = importlib.import_module(
+                "spa_core.monitoring.declared_collection_census").census
+        except Exception as exc:  # noqa: BLE001 — третий исход, а не ноль
+            return UNMEASURED, (
+                "прибор переписи не импортируется: "
+                f"{type(exc).__name__}: {exc}")
+
+    with tempfile.TemporaryDirectory(prefix="spa_bound_read_probe_") as tmp:
+        base = Path(tmp)
+        for rel, text in MODULE_BOUND_READ_SCENE.items():
+            path = base / rel
+            path.parent.mkdir(parents=True, exist_ok=True)
+            path.write_text(text, encoding="utf-8")
+        try:
+            result = census(base, declaration_roots=("spa_core",),
+                            reader_roots=("spa_core",))
+        except BaseException as exc:  # noqa: BLE001
+            return UNMEASURED, (
+                f"сцена не измерилась: {type(exc).__name__}: {exc}")
+
+    if not isinstance(result, dict) or "rows" not in result:
+        return UNMEASURED, f"прибор ответил не замером: {type(result).__name__}"
+    if result.get("unmeasured"):
+        return UNMEASURED, (
+            "сцена НЕ РАЗОБРАЛАСЬ — проба померила бы свою ошибку, а не класс: "
+            f"{result.get('unparsable_reader_files')}")
+
+    def _row(module: str):
+        rows = [r for r in result["rows"]
+                if r.get("name") == "COLL" and r.get("module") == module]
+        return rows[0] if len(rows) == 1 else None
+
+    antidoted = _row("spa_core/one.py")
+    namesake = _row("spa_core/two.py")
+    if antidoted is None or namesake is None:
+        return UNMEASURED, (
+            "сцена не дала ДВУХ объявлений `COLL` по модулям — прибор не "
+            f"различает их по паре «модуль + имя»: {len(result['rows'])} строк(и)")
+
+    if antidoted["axes"].get("empty") != "asked":
+        return NOT_SATISFIED, (
+            "противоядие `assert COLL` в `spa_core/one.py` прибором НЕ ПРОЧИТАНО "
+            f"({antidoted['axes']}) — звено «вопрос о непустоте» порвано")
+    if antidoted.get("subject") is not False:
+        return NOT_SATISFIED, (
+            "перечень с НАСТОЯЩИМ противоядием числится предметом — "
+            "прибор выдумал бы находку")
+    if namesake["axes"].get("empty") != "not_asked":
+        return NOT_SATISFIED, (
+            "ЧУЖОЕ противоядие зачтено одноимённому перечню "
+            f"`spa_core/two.py` ({namesake['axes']}, чтения {namesake['reads']}) — "
+            "слияние чтений ПО ГОЛОМУ ИМЕНИ ВЕРНУЛОСЬ (ADR-941)")
+    if namesake.get("subject") is not True:
+        return NOT_SATISFIED, (
+            "одноимённый перечень без противоядия НЕ числится предметом "
+            f"({namesake['axes']}) — предмет НЕДОсчитывается")
+    if result.get("subject") != 1:
+        return NOT_SATISFIED, (
+            f"предметом обязан быть РОВНО один из двух, прибор назвал "
+            f"{result.get('subject')}")
+
+    resolution = result.get("resolution") or {}
+    if not resolution.get("module"):
+        return NOT_SATISFIED, (
+            "ни одно чтение сцены не привязано к модулю — привязка мертва, а "
+            f"вердикты совпали случайно: {resolution}")
+    return SATISFIED, (
+        "чтение привязано к МОДУЛЮ объявления: на сцене из двух одноимённых "
+        "`COLL` противоядие сняло предмет РОВНО у `spa_core/one.py` "
+        f"(empty={antidoted['axes']['empty']}), а `spa_core/two.py` ОСТАЛСЯ "
+        f"предметом (empty={namesake['axes']['empty']}); предмет "
+        f"{result['subject']} из поверхности {result['surface']}, привязка "
+        f"{dict(sorted(resolution.items()))}, имён в коллизии "
+        f"{result.get('colliding_names')}")
+
+
 def _probe_column_door_class_is_measured(
         arg: str | None, *, repo_root: str | None = None) -> tuple[str, str]:
     """Критерий: класс «читатель разбирает вывод git ПО КОЛОНКЕ» ИЗМЕРЕН.
@@ -17838,6 +17966,8 @@ PROBES: dict[str, Callable[[str | None], "tuple[str, str]"]] = {
         _probe_ci_cause_axis_names_a_session_death,
     "owner_card_names_the_price_of_refusing":
         _probe_owner_card_names_the_price_of_refusing,
+    "collection_read_is_bound_to_the_declaring_module":
+        _probe_collection_read_is_bound_to_the_declaring_module,
     "column_door_class_is_measured": _probe_column_door_class_is_measured,
 }
 

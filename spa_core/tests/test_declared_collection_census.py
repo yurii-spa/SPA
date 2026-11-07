@@ -50,6 +50,19 @@ def _row(result: dict, name: str) -> dict:
     return rows[0]
 
 
+def _row_in(result: dict, module: str, name: str) -> dict:
+    """Строка ОДНОГО объявления, названного ПАРОЙ «модуль + имя».
+
+    Именно пара и есть предмет ADR-942: на сцене с одноимёнными перечнями
+    обращение по одному имени не отличило бы их друг от друга — то есть контроль
+    померил бы ту самую ошибку, против которой написан.
+    """
+    rows = [r for r in result["rows"] if r["name"] == name and r["module"] == module]
+    assert len(rows) == 1, (
+        f"ожидалось ровно одно объявление {module}:{name}, вышло {len(rows)}")
+    return rows[0]
+
+
 def _measure(base: Path, body: str, name: str = "COLL") -> dict:
     _scene(base, {"spa_core/m.py": body})
     result = dcc.census(base, declaration_roots=("spa_core",), reader_roots=("spa_core",))
@@ -280,9 +293,13 @@ def test_the_instruments_own_collections_are_not_empty():
     for name in ("DECLARATION_ROOTS", "READER_ROOTS", "SKIP_PARTS",
                  "TRANSPARENT_CALLS", "TRANSPARENT_METHODS", "EMPTINESS_CALLS",
                  "READ_KINDS", "SUBJECT_AXES", "READER_OUTCOMES", "ITER_OUTCOMES",
-                 "EMPTY_OUTCOMES", "OTHER_OUTCOMES"):
+                 "EMPTY_OUTCOMES", "OTHER_OUTCOMES", "RESOLUTION_KINDS",
+                 "SCOPE_TYPES"):
         assert getattr(dcc, name), f"{name} ПУСТ — цикл по нему истинен вхолостую"
     assert dcc.WRAPPER_DEPTH >= 1, "глубина 0 оборвала бы ВСЕ обёртки молча"
+    assert dcc.SCOPE_DEPTH >= 1, "глубина 0 назвала бы ЛЮБОЕ имя не локальным"
+    assert "unresolved" in dcc.RESOLUTION_KINDS, "у привязки нет третьего исхода"
+    assert "module" in dcc.RESOLUTION_KINDS, "привязка не умеет назвать модуль"
 
 
 # ──────────── звено 9: исходы на НАСТОЯЩЕМ дереве ЗАМКНУТЫ ────────────
@@ -317,3 +334,183 @@ def test_the_subject_is_a_subset_of_the_surface():
     assert result["subject"] == counted, "напечатанное число не сошлось с измеренным"
     assert result["subject"] <= result["surface"]
     assert len(result["rows"]) == result["surface"]
+
+
+# ──────────── звено 10: ЧТЕНИЕ ПРИВЯЗАНО К МОДУЛЮ, а не к голому имени (ADR-942) ────────────
+#
+# Звено написано по замеру цикла #1060 (ADR-941): прибор ключевал чтения ОДНИМ
+# именем, и `assert ПЕРЕЧЕНЬ`, дописанный для одного модуля, снимал с предмета ВСЕ
+# одноимённые перечни дерева — ошибка в сторону ЛОЖНОГО УСИЛЕНИЯ, то есть ровно тот
+# класс, который прибор написан измерять, жил в самом приборе. Разорви звено
+# (верни слияние по имени) — и КАЖДАЯ проверка ниже краснеет.
+
+_TWO_MODULES = {
+    "spa_core/one.py": "COLL = (1, 2)\n",
+    "spa_core/two.py": "COLL = (3, 4)\n",
+}
+
+
+def test_an_antidote_in_one_module_does_not_cover_its_namesake(tmp_path):
+    """ДОСЛОВНАЯ сцена аварии: два одноимённых перечня, противоядие у ОДНОГО.
+
+    Второй обязан ОСТАТЬСЯ в предмете. Вернись слияние по имени — `assert COLL`
+    из `reader_one.py` зачтётся обоим, `two.COLL` выпадет из предмета, и эта
+    проверка покраснеет. Другого способа поймать возврат слияния нет: число
+    предмета на настоящем дереве — замер, а не константа.
+    """
+    base = _scene(tmp_path, {
+        **_TWO_MODULES,
+        "spa_core/reader_one.py": (
+            "from spa_core.one import COLL\n\n\n"
+            "def f():\n    for x in COLL:\n        pass\n    assert COLL\n"),
+        "spa_core/reader_two.py": (
+            "from spa_core.two import COLL\n\n\n"
+            "def g():\n    for x in COLL:\n        pass\n"),
+    })
+    result = dcc.census(base, declaration_roots=("spa_core",), reader_roots=("spa_core",))
+    assert not result["unmeasured"], result["unparsable_reader_files"]
+
+    with_antidote = _row_in(result, "spa_core/one.py", "COLL")
+    assert with_antidote["axes"]["empty"] == "asked", with_antidote["reads"]
+    assert with_antidote["subject"] is False, "противоядие на месте, а прибор числит предмет"
+
+    namesake = _row_in(result, "spa_core/two.py", "COLL")
+    assert namesake["axes"]["empty"] == "not_asked", (
+        "чужое противоядие зачтено одноимённому перечню — слияние по имени ВЕРНУЛОСЬ: "
+        f"{namesake['reads']}")
+    assert namesake["subject"] is True, namesake["axes"]
+    assert result["subject"] == 1, (
+        f"предметом обязан быть РОВНО один из двух, вышло {result['subject']}")
+    assert result["colliding_names"] == 1, result["colliding_names"]
+    assert result["declarations_in_collision"] == 2, result["declarations_in_collision"]
+
+
+@pytest.mark.parametrize("reader,link", [
+    ("from spa_core.two import COLL\n\n\ndef g():\n    for x in COLL:\n        pass\n",
+     "from pkg.mod import NAME"),
+    ("from spa_core.two import COLL as C\n\n\ndef g():\n    for x in C:\n        pass\n",
+     "from pkg.mod import NAME as ALIAS"),
+    ("import spa_core.two as m\n\n\ndef g():\n    for x in m.COLL:\n        pass\n",
+     "import pkg.mod as m + m.NAME"),
+    ("import spa_core.two\n\n\ndef g():\n    for x in spa_core.two.COLL:\n        pass\n",
+     "import pkg.mod + pkg.mod.NAME"),
+    ("from spa_core import two\n\n\ndef g():\n    for x in two.COLL:\n        pass\n",
+     "from pkg import mod + mod.NAME"),
+    ("from .two import COLL\n\n\ndef g():\n    for x in COLL:\n        pass\n",
+     "относительный импорт"),
+])
+def test_every_declared_import_form_names_the_module(tmp_path, reader, link):
+    """Каждая форма ввоза названа ОТДЕЛЬНО: не разбери прибор одну — чтение ушло бы
+    в третий исход, и перечень с НАСТОЯЩИМ читателем попал бы в `not_excluded`.
+
+    Сцена всегда одна и та же: читается `two.COLL`, а `one.COLL` не читает никто.
+    Поэтому проверка отвечает сразу на два вопроса — привязано ли чтение к тому
+    модулю, И не зачлось ли оно соседу.
+    """
+    base = _scene(tmp_path, {**_TWO_MODULES, "spa_core/reader.py": reader})
+    result = dcc.census(base, declaration_roots=("spa_core",), reader_roots=("spa_core",))
+    assert not result["unmeasured"], result["unparsable_reader_files"]
+    read = _row_in(result, "spa_core/two.py", "COLL")
+    assert read["axes"]["iter"] == "iterated", f"форма «{link}» не разобрана: {read}"
+    assert read["subject"] is True, link
+    silent = _row_in(result, "spa_core/one.py", "COLL")
+    assert silent["axes"]["reader"] == "no_reader", (
+        f"чтение формы «{link}» зачтено ОДНОИМЁННОМУ перечню: {silent['reads']}")
+
+
+def test_a_local_binding_is_not_a_read_of_the_module_level_namesake(tmp_path):
+    """Имя, СВЯЗАННОЕ внутри функции, — не чтение одноимённого объявления.
+
+    Дословный случай из замера #1060: локальные `_TS_KEYS` внутри функций
+    `daily_operations_report.py` попадали в список чтений обоих модульных
+    `_TS_KEYS`. Такое чтение не принадлежит НИ ОДНОМУ объявлению уровня модуля, и
+    это ответ, а не третий исход, — поэтому предмет обязан остаться предметом.
+    """
+    base = _scene(tmp_path, {
+        "spa_core/m.py": "COLL = (1, 2)\n\n\ndef f():\n    for x in COLL:\n        pass\n",
+        "spa_core/local.py": (
+            "def g():\n    COLL = (7,)\n    assert COLL\n    return COLL[0]\n"),
+    })
+    result = dcc.census(base, declaration_roots=("spa_core",), reader_roots=("spa_core",))
+    assert not result["unmeasured"], result["unparsable_reader_files"]
+    row = _row_in(result, "spa_core/m.py", "COLL")
+    assert row["axes"]["empty"] == "not_asked", (
+        f"локальное `assert COLL` зачтено модульному перечню: {row['reads']}")
+    assert row["unresolved_read_count"] == 0, (
+        "локальное связывание выдано за НЕРАЗОБРАННУЮ форму — это ответ, а не "
+        f"третий исход: {row['unresolved_reads']}")
+    assert row["subject"] is True, row["axes"]
+    # Локальных чтений на сцене РОВНО два — `assert COLL` и `COLL[0]`; присваивание
+    # `COLL = (7,)` чтением не является. Число названо, чтобы «ни одно чтение не
+    # разобрано» не могло пройти как успех.
+    assert result["resolution"]["local"] == 2, result["resolution"]
+
+
+def test_a_global_statement_keeps_the_read_at_module_level(tmp_path):
+    """Обратная сторона: `global NAME` возвращает чтение на уровень модуля.
+
+    Без этого прибор назвал бы локальным имя, которое функция объявила
+    глобальным, — и НАСТОЯЩЕЕ противоядие перестало бы читаться.
+    """
+    base = _scene(tmp_path, {
+        "spa_core/m.py": (
+            "COLL = (1, 2)\n\n\ndef f():\n    for x in COLL:\n        pass\n\n\n"
+            "def h():\n    global COLL\n    assert COLL\n    COLL = (3,)\n"),
+    })
+    result = dcc.census(base, declaration_roots=("spa_core",), reader_roots=("spa_core",))
+    row = _row_in(result, "spa_core/m.py", "COLL")
+    assert row["axes"]["empty"] == "asked", (
+        f"`global COLL` + `assert COLL` прочитано как локальное: {row['reads']}")
+    assert row["subject"] is False
+
+
+@pytest.mark.parametrize("reader,link", [
+    ("def g():\n    assert COLL\n", "голое имя без импорта и без связывания"),
+    ("from spa_core.other import *\n\n\ndef g():\n    assert COLL\n", "звёздный импорт"),
+    ("def g(obj):\n    assert obj.result().COLL\n", "атрибут выражения"),
+])
+def test_an_unresolvable_read_is_a_THIRD_OUTCOME_not_a_verdict(tmp_path, reader, link):
+    """Форма, которую прибор не разобрал, запирает РОВНО свою ось.
+
+    Зачесть такое чтение значило бы вернуть слияние по имени (ложное усиление);
+    промолчать о нём — выдумать находку. Поэтому ось становится `unmeasured`,
+    объявление уходит в `not_excluded`, и ни тем, ни другим оно не считается
+    (инв. #17).
+    """
+    base = _scene(tmp_path, {
+        "spa_core/m.py": "COLL = (1, 2)\n\n\ndef f():\n    for x in COLL:\n        pass\n",
+        "spa_core/other.py": "ANOTHER = (1,)\n",
+        "spa_core/murky.py": reader,
+    })
+    result = dcc.census(base, declaration_roots=("spa_core",), reader_roots=("spa_core",))
+    assert not result["unmeasured"], (
+        "сцена НЕ РАЗБИРАЕТСЯ — контроль померил бы свою ошибку: "
+        f"{result['unparsable_reader_files']}")
+    row = _row_in(result, "spa_core/m.py", "COLL")
+    assert row["unresolved_read_count"] >= 1, f"форма «{link}» не попала в третий исход: {row}"
+    assert row["axes"]["empty"] == "unmeasured", (
+        f"форма «{link}»: {row['axes']} — «не измерено» выдано за вердикт")
+    assert row["subject"] is False, "«не измерено» выдано за находку"
+    assert row["not_excluded"] is True, "«не измерено» выдано за чисто"
+    assert result["resolution"]["unresolved"] >= 1, result["resolution"]
+
+
+def test_the_resolution_outcomes_on_the_real_tree_are_closed():
+    """Исходы привязки на НАСТОЯЩЕМ дереве ЗАМКНУТЫ, и охват печатается.
+
+    Привязка, вернувшая исход вне `RESOLUTION_KINDS`, краснит сторожа. И ни один
+    исход не имеет права быть единственным: будь всё `unresolved`, прибор
+    отвечал бы «не измерено» обо всём дереве и выглядел бы при этом рабочим.
+    """
+    result = _real()
+    assert set(result["resolution"]) <= set(dcc.RESOLUTION_KINDS), result["resolution"]
+    assert result["resolution"]["module"] > 0, "ни одно чтение не привязано к модулю"
+    assert result["resolution"]["module"] > result["resolution"]["unresolved"], (
+        "неразобранных чтений больше, чем привязанных — замер о дереве НЕ состоялся: "
+        f"{result['resolution']}")
+    assert result["colliding_names"] > 0, (
+        "имён в коллизии НЕТ — либо дерево изменилось, либо счёт сломан; "
+        "замер #1060 назвал 368")
+    text = dcc.report(result, limit=1)
+    assert "привязка чтений к МОДУЛЮ объявления" in text, (
+        "отчёт не называет СВОЙ способ привязки (урок ADR-935)")

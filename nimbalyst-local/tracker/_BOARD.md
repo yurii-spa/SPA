@@ -2,9 +2,9 @@
 
 > Авто-генерится `scripts/build_tracker_board.py` из `nimbalyst-local/tracker/*.md`. НЕ править вручную — правь карточки. Источник правды — карточки, это индекс (bootstrap).
 >
-> Собрана: 2026-11-07T11:06:04Z · сверка с карточками: `python3 scripts/build_tracker_board.py --check` (сторож `spa_core/tests/test_tracker_board_matches_cards.py`).
+> Собрана: 2026-11-07T12:48:17Z · сверка с карточками: `python3 scripts/build_tracker_board.py --check` (сторож `spa_core/tests/test_tracker_board_matches_cards.py`).
 >
-> Сверено с `origin/main` (d85f462e1).
+> Сверено с `origin/main` (c27bdff81) · у **1** своя правка, кто новее — не измерено.
 >
 > Всего карточек: **1600** · ждёт владельца: **4** · занято сессиями: **14**.
 
@@ -750,6 +750,7 @@
 - Перенос следа умеет только ДОПИСЫВАТЬ: пустое поле на origin надо заменять на месте (две карточки уже испортили и починили)  ·  `inbox-perenos-sleda-umeet-tolko-dopisyvat-pust.md` · 2026-08-30
 - Перепись читателей журнала слепа к 20 HTTP-маршрутам — ровно к тем, чей ответ видит владелец  ·  `inbox-perepis-chitatelei-zhurnala-slepa-k-20-h.md` · 2026-09-16
 - Перепись класса ADR-875 не видит ПОЛЯРНОСТИ третьего исхода — честный отказ числится находкой  ·  `inbox-perepis-klassa-adr-875-ne-vidit-polyarno.md` · 2026-10-31
+- Перепись перечней сливает чтения по ГОЛОМУ ИМЕНИ: одно противоядие снимает с предмета все одноимённые (368 имён, 1365 объявлений)  ·  `inbox-perepis-perechnei-slivaet-chteniya-po-go.md` · 2026-11-07
 - Перепись порядка списков ответа не называет ЗВАВШЕГО — вторая ось заказа G801 неизмерима по построению  ·  `inbox-perepis-poryadka-spiskov-otveta-ne-nazyv.md` · 2026-10-24
 - Перепись сирот слепа к КОПИЯМ дерева: один административный каталог — одна запись  ·  `inbox-perepis-sirot-slepa-k-kopiyam-dereva-odi.md` · 2026-11-05
 - Песочница тестов общая на весь хост: пять тестов краснеют, если набор гоняли в последние 6 часов  ·  `inbox-pesochnitsa-testov-obschaya-na-ves-host.md` · 2026-08-20
@@ -1166,7 +1167,6 @@
 - Перепись «куда смотрит git в shell-скрипте» красная на чистом origin/main (2 из 20)  ·  `inbox-perepis-kuda-smotrit-git-v-shell-skripte.md` · 2026-09-29
 - Перепись оси работника написана и не позвана: храповик сирот красен на чистой вершине  ·  `inbox-perepis-osi-rabotnika-napisana-i-ne-pozv.md` · 2026-10-15
 - Перепись падает KeyError, когда файл соседской переписи не разобран: третий исход назван, но читателю не даётся  ·  `inbox-perepis-padaet-keyerror-kogda-fail-sosed.md` · 2026-09-24
-- Перепись перечней сливает чтения по ГОЛОМУ ИМЕНИ: одно противоядие снимает с предмета все одноимённые (368 имён, 1365 объявлений)  ·  `inbox-perepis-perechnei-slivaet-chteniya-po-go.md` · 2026-11-07
 - Перепись разборов ленты меряет цену РАЗБОРА, а бюджет объявлен о ЗОВЕ ВИДА — и по объявленному предмету он уже пробит  ·  `inbox-perepis-razborov-lenty-meryaet-tsenu-raz.md` · 2026-10-23
 - Перепись сирот считает ПРОЗУ в manifest.json проводкой — упоминание в notes выводит модуль из переписи  ·  `inbox-perepis-sirot-schitaet-prozu-v-manifest.md` · 2026-09-07
 - Перепись: сколько адаптеров путают мёртвый фид с верным отказом (остаток ADR-671)  ·  `inbox-perepis-skolko-adapterov-putayut-mertvyi.md` · 2026-10-08
