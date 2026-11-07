@@ -811,6 +811,7 @@
 | ADR-941 | Заказ G930 п. 2 исполнен: четыре выживших мутанта убиты СЦЕНОЙ, а не токен-assert'ом (4/4); и прибор ADR-940 сливает чтения ПО ГОЛОМУ ИМЕНИ — 368 имён / 1365 объявлений, честная дельта 4, а не 5 | Accepted | [ADR-941](ADR-941-the-census-of-declared-collections-merges-readers-by-bare-name.md) |
 | ADR-942 | ADR-942 — Чтение перечня привязывается к МОДУЛЮ объявления, а не к голому имени | Accepted | [ADR-942](ADR-942-a-read-is-bound-to-the-declaring-module-not-to-the-bare-name.md) |
 | ADR-943 | Заказ G932 п. 3 отвечен ЗАМЕРОМ «НЕ расширять»: оси `empty` и `other` — две половины ОДНОГО вопроса, предмет 571 -> 571 на обеих крайностях; население 1186, вопросом о непустоте не являются 1174 | Accepted | [ADR-943](ADR-943-the-read-kind-axes-are-two-halves-of-one-question.md) |
+| ADR-944 | ADR-944 — Предмет переписи перечней есть ВЕРХНЯЯ граница вреда; сам вред меряет МУТАЦИЯ, и признак приоритизации был слеп к единственному известному члену класса | Accepted | [ADR-944](ADR-944-the-upper-bound-of-harm-is-not-the-harm-mutation-measures-it.md) |
 
 ## Соглашения
 

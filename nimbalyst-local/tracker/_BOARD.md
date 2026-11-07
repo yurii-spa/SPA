@@ -2,11 +2,11 @@
 
 > Авто-генерится `scripts/build_tracker_board.py` из `nimbalyst-local/tracker/*.md`. НЕ править вручную — правь карточки. Источник правды — карточки, это индекс (bootstrap).
 >
-> Собрана: 2026-11-07T14:52:50Z · сверка с карточками: `python3 scripts/build_tracker_board.py --check` (сторож `spa_core/tests/test_tracker_board_matches_cards.py`).
+> Собрана: 2026-11-07T17:22:00Z · сверка с карточками: `python3 scripts/build_tracker_board.py --check` (сторож `spa_core/tests/test_tracker_board_matches_cards.py`).
 >
-> Сверено с `origin/main` (24d78280b).
+> Сверено с `origin/main` (67ccc0db1) · у **1** своя правка, кто новее — не измерено.
 >
-> Всего карточек: **1601** · ждёт владельца: **4** · занято сессиями: **14**.
+> Всего карточек: **1603** · ждёт владельца: **4** · занято сессиями: **14**.
 
 ## 🔴 ЖДЁТ ВЛАДЕЛЬЦА (needs-owner)
 
@@ -424,7 +424,7 @@
 ### · closed
 - Считать ли верный отказ по правилам допуска неисправностью флота  ·  `owner-decision-schitat-li-vernyi-otkaz-po-pravilam-dopu.md` · 2026-10-08
 
-## 📥 Inbox (задания: Telegram / заметки / голос)  (912)
+## 📥 Inbox (задания: Telegram / заметки / голос)  (914)
 
 ### · in-progress
 - а задача починить все-таки еще раз сообщение которым не пишет нужно твое решени…  ·  `inbox-a-zadacha-pochinit-vse-taki-esche-raz-so.md` · 2026-08-14 · 🔒 `pid43119`
@@ -1031,6 +1031,7 @@
 - daily_cycle.lock не держит суточный лимит — только одновременность (найдено при safety-ревью ADR-145, 26.08)  ·  `inbox-daily-cycle-lock-ne-derzhit-sutochnyi-limit.md` · 2026-08-26
 - `--data-dir` шага 0-офис не доходит до проб приёмки: они читают ЗАМОРОЖЕННЫЙ канон worktree  ·  `inbox-data-dir-shaga-0-ofis-ne-dohodit-do-prob-priemki.md` · 2026-09-13
 - Депег-стоп RiskPolicy к циклу НЕ подключён: ни один вызов не передаёт stablecoin_prices, и гейт пропускается МОЛЧА  ·  `inbox-depeg-stop-riskpolicy-k-tsiklu-ne-podkly.md` · 2026-11-05
+- Дерево прогона несло сломанный card_acceptance.py — форма аварии ADR-886, причина НЕ установлена  ·  `inbox-derevo-progona-neslo-slomannyi-card-acce.md` · 2026-11-07
 - Десять критериев приёмки «Portfolio CIO» измерены ОДНАЖДЫ И ПРОЗОЙ — машины, способной перемерить их сегодня, нет  ·  `inbox-desyat-kriteriev-priemki-portfolio-cio-i.md` · 2026-09-29
 - Десять противоядий переписи перечней направлены не в ту сторону (проходят на пустом)  ·  `inbox-desyat-protivoyadii-perepisi-perechnei-n.md` · 2026-11-07
 - Детектор голодающих приказов не отличает «не начато» от «готово, но не доставлено»  ·  `inbox-detektor-golodayuschih-prikazov-ne-otlic.md` · 2026-09-23
@@ -1160,6 +1161,7 @@
 - Paper-модули #39 CDR и #36 dwell обязаны логировать концентрацию и duty — иначе форвард будет неатрибутируем  ·  `inbox-paper-moduli-39-cdr-i-36-dwell-obyazany.md` · 2026-08-08
 - Печать ступени переписей убивает третий исход прибора: 78 жёстких индексов по counts  ·  `inbox-pechat-stupeni-perepisei-ubivaet-tretii.md` · 2026-09-11
 - Перечень видов ленты research_factory не имеет читателя и расходится с самой лентой в обе стороны  ·  `inbox-perechen-vidov-lenty-research-factory-ne.md` · 2026-10-24
+- Перечни, которые можно опустошить молча: область замера закрыта на один пакет из сорока одного  ·  `inbox-perechni-kotorye-mozhno-opustoshit-molch.md` · 2026-11-07
 - Перемерить записи #35–#76 после починки курса (вторая половина варианта 1, ADR-139)  ·  `inbox-peremerit-zapisi-35-76-posle-pochinki-ku.md` · 2026-08-26
 - Перепись 18 статических адаптеров: где литерал, где живой пул и сколько там доходности  ·  `inbox-perepis-18-staticheskih-adapterov.md` · 2026-08-29
 - Перепись cd-перед-git КРАСНА на main: deploy_all.sh берёт каталог из окружения  ·  `inbox-perepis-cd-pered-git-krasna-na-main-depl.md` · 2026-10-07

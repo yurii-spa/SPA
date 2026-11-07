@@ -1,0 +1,136 @@
+{
+ "ЧТО_ЭТО": "объявление класса ИМЕНАМИ: перечни, у которых мутация «опустошить» ВЫЖИЛА. Перечень предмета переписи (declared_collection_census) есть ВЕРХНЯЯ граница вреда; эта база — ИЗМЕРЕННЫЙ вред. Может только УБЫВАТЬ: дописывать запись, чтобы погасить падение, ЗАПРЕЩЕНО (инв. #16).",
+ "ADR": "ADR-944",
+ "measured_at": "2026-11-07",
+ "measured_on_commit": "67ccc0db1d26c006d0793411e76e3c9294fe70e9",
+ "scope": {
+  "пакет": "spa_core/monitoring/",
+  "признак_отбора": "предмет переписи ADR-943 И признак приоритизации `production == produces` (_empty_collection_harm.py)",
+  "мутация": "значение объявления заменено пустым контейнером того же рода",
+  "прогон": "ТОЛЬКО собственные тест-файлы модуля (spa_core/tests/test_<модуль>*.py)",
+  "кандидатов_в_области": 117,
+  "измерено": 65,
+  "исходы": {
+   "survived": 10,
+   "killed": 42,
+   "unmeasured": 13
+  },
+  "НЕ_ЗАКРЫТО": "кандидаты вне spa_core/monitoring/ (273 из 390) и неизмеренный остаток области — замер не доведён, и нулём это не считается",
+  "НАПРАВЛЕНИЕ_вреда_НЕ_ИЗМЕРЕНО": "`survived` = «пустоту не заметил ни один собственный тест модуля», а НЕ «молча усиливает». У перечня под ФИЛЬТРОМ-отсечкой (`if any(m in path for m in NAME)`) пустота даёт БОЛЬШЕ находок — шум, а не тишину. Оба состояния дефекты, но лечатся разным; ось направления не мерена (ADR-944)"
+ },
+ "harmful": [
+  {
+   "module": "spa_core/monitoring/call_sourced_input_census.py",
+   "name": "DOORS",
+   "lineno": 140,
+   "form": "tuple",
+   "tests": [
+    "spa_core/tests/test_call_sourced_input_census.py",
+    "spa_core/tests/test_call_sourced_input_census_wiring.py"
+   ],
+   "summary": "мутант «опустошить» ВЫЖИЛ: 40 passed in 14.69s — пустоту не заметил ни один собственный тест модуля",
+   "why_candidate": "spa_core/monitoring/call_sourced_input_census.py:872:comp:comprehension-collects"
+  },
+  {
+   "module": "spa_core/monitoring/cio_explainability.py",
+   "name": "_BOOKS",
+   "lineno": 241,
+   "form": "tuple",
+   "tests": [
+    "spa_core/tests/test_cio_explainability.py"
+   ],
+   "summary": "мутант «опустошить» ВЫЖИЛ: 54 passed in 3.56s — пустоту не заметил ни один собственный тест модуля",
+   "why_candidate": "spa_core/monitoring/cio_explainability.py:763:for:.append()"
+  },
+  {
+   "module": "spa_core/monitoring/cio_substitution_census.py",
+   "name": "ABSENCE_FORMS",
+   "lineno": 185,
+   "form": "tuple",
+   "tests": [
+    "spa_core/tests/test_cio_substitution_census.py"
+   ],
+   "summary": "мутант «опустошить» ВЫЖИЛ: 80 passed in 0.28s — пустоту не заметил ни один собственный тест модуля",
+   "why_candidate": "spa_core/monitoring/cio_substitution_census.py:895:comp:comprehension-collects"
+  },
+  {
+   "module": "spa_core/monitoring/failure_cause_census.py",
+   "name": "_FOREIGN",
+   "lineno": 228,
+   "form": "tuple",
+   "tests": [
+    "spa_core/tests/test_failure_cause_census.py"
+   ],
+   "summary": "мутант «опустошить» ВЫЖИЛ: 50 passed in 0.25s — пустоту не заметил ни один собственный тест модуля",
+   "why_candidate": "spa_core/monitoring/failure_cause_census.py:627:comp:quantifier:any"
+  },
+  {
+   "module": "spa_core/monitoring/findings_bridge.py",
+   "name": "INTERNAL_WRITES",
+   "lineno": 501,
+   "form": "tuple",
+   "tests": [
+    "spa_core/tests/test_findings_bridge.py"
+   ],
+   "summary": "мутант «опустошить» ВЫЖИЛ: 41 passed in 0.42s — пустоту не заметил ни один собственный тест модуля",
+   "why_candidate": "spa_core/tests/test_write_helper_path_argument.py:269:comp:comprehension-collects"
+  },
+  {
+   "module": "spa_core/monitoring/golive_producer_criteria.py",
+   "name": "_TRACKED_SOURCES",
+   "lineno": 50,
+   "form": "tuple",
+   "tests": [
+    "spa_core/tests/test_golive_producer_criteria.py"
+   ],
+   "summary": "мутант «опустошить» ВЫЖИЛ: 20 passed in 0.30s — пустоту не заметил ни один собственный тест модуля",
+   "why_candidate": "spa_core/monitoring/golive_producer_criteria.py:74:for:no-accumulation;spa_core/tests/test_golive_producer_criteria.py:57:comp:comprehension-collects"
+  },
+  {
+   "module": "spa_core/monitoring/pre_trade_recheck_census.py",
+   "name": "_TOLERANCE_HINTS",
+   "lineno": 156,
+   "form": "tuple",
+   "tests": [
+    "spa_core/tests/test_pre_trade_recheck_census.py"
+   ],
+   "summary": "мутант «опустошить» ВЫЖИЛ: 44 passed in 0.21s — пустоту не заметил ни один собственный тест модуля",
+   "why_candidate": "spa_core/monitoring/pre_trade_recheck_census.py:243:comp:quantifier:any"
+  },
+  {
+   "module": "spa_core/monitoring/presence_as_observation_census.py",
+   "name": "SHELL_CONTENT_VETO_SCENES",
+   "lineno": 1336,
+   "form": "tuple",
+   "tests": [
+    "spa_core/tests/test_presence_as_observation_census.py"
+   ],
+   "summary": "мутант «опустошить» ВЫЖИЛ: 79 passed, 3 subtests passed in 0.83s — пустоту не заметил ни один собственный тест модуля",
+   "why_candidate": "spa_core/monitoring/presence_as_observation_census.py:1383:for:.append()"
+  },
+  {
+   "module": "spa_core/monitoring/presence_as_observation_census.py",
+   "name": "_SKIP_PARTS",
+   "lineno": 278,
+   "form": "tuple",
+   "tests": [
+    "spa_core/tests/test_presence_as_observation_census.py"
+   ],
+   "summary": "мутант «опустошить» ВЫЖИЛ: 79 passed, 3 subtests passed in 1.04s — пустоту не заметил ни один собственный тест модуля",
+   "why_candidate": "spa_core/monitoring/presence_as_observation_census.py:814:comp:quantifier:any;spa_core/monitoring/presence_as_observation_census.py:958:comp:quantifier:any"
+  },
+  {
+   "module": "spa_core/monitoring/rule_second_copy_census.py",
+   "name": "_EXECUTOR_SKIP",
+   "lineno": 267,
+   "form": "tuple",
+   "tests": [
+    "spa_core/tests/test_rule_second_copy_census.py",
+    "spa_core/tests/test_rule_second_copy_census_no_shadowing.py",
+    "spa_core/tests/test_rule_second_copy_census_wiring.py"
+   ],
+   "summary": "мутант «опустошить» ВЫЖИЛ: 110 passed in 178.89s (0:02:58) — пустоту не заметил ни один собственный тест модуля",
+   "why_candidate": "spa_core/monitoring/rule_second_copy_census.py:1606:comp:quantifier:any"
+  }
+ ]
+}
