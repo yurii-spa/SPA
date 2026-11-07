@@ -558,3 +558,40 @@ class StatusTests(unittest.TestCase):
 
 if __name__ == "__main__":  # pragma: no cover
     unittest.main()
+
+
+class DayVerdictFieldsIsNotEmpty(unittest.TestCase):
+    """Противоядие классу ADR-940 — добавлено циклом #1060 (заказ G930 п. 2).
+
+    Мутационная проба #1059 показала, что ``DAY_VERDICT_FIELDS = ()`` переживает
+    ВЕСЬ набор: единственный читатель перебирал перечень витком цикла внутри
+    ``_verdict``, а цикл по пустому перечню истинен вхолостую. Ошибка идёт в
+    сторону ЛОЖНОГО УСИЛЕНИЯ, а не отказа: при пустом перечне отпечатки двух
+    РАЗНЫХ дней становятся равны (``((), ())`` против ``((), ())``), прибор
+    отвечает «вердикт к полю не чувствителен» и объявляет разрыв неизмеримым
+    там, где он измерим.
+
+    Поэтому перечень проверяется СЦЕНОЙ, а не одним упоминанием: два набора
+    строк, различающиеся РОВНО одним объявленным полем, обязаны давать РАЗНЫЕ
+    отпечатки.
+    """
+
+    def test_the_declared_fields_are_not_an_empty_collection(self):
+        self.assertTrue(
+            argp.DAY_VERDICT_FIELDS,
+            "перечень полей дневного вердикта ПУСТ — цикл по нему истинен "
+            "вхолостую, и отпечатки двух разных дней стали бы равны молча")
+
+    def test_a_difference_in_one_declared_field_changes_the_fingerprint(self):
+        """Положительный контроль: чувствительность меряется, а не объявляется."""
+        base = [{f: 1 for f in argp.DAY_VERDICT_FIELDS}]
+        moved = [dict(base[0], **{argp.DAY_VERDICT_FIELDS[0]: 2})]
+        self.assertNotEqual(argp.day_fingerprint(base),
+                            argp.day_fingerprint(moved),
+                            "отпечаток не различил строки, различающиеся "
+                            "объявленным полем — перечень пуст или не читается")
+
+    def test_an_absent_row_list_is_an_empty_fingerprint_not_a_crash(self):
+        """Третий исход: строк нет ⇒ отпечаток пуст, и это не равно «поля нет»."""
+        self.assertEqual(argp.day_fingerprint(None), ())
+        self.assertEqual(argp.day_fingerprint([]), ())

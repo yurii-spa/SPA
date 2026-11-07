@@ -322,3 +322,52 @@ class TheAdvisoryContract(unittest.TestCase):
 
 if __name__ == "__main__":  # pragma: no cover
     unittest.main()
+
+
+class FleetDirsAreNotEmpty(unittest.TestCase):
+    """Противоядие классу ADR-940 — добавлено циклом #1060 (заказ G930 п. 2).
+
+    Мутационная проба #1059 показала, что ``_FLEET_DIRS = ()`` переживает ВЕСЬ
+    набор: единственный читатель перебирал перечень витком цикла в
+    ``find_fleet_consumers``, а цикл по пустому перечню истинен вхолостую.
+    Ошибка идёт в сторону ЛОЖНОГО УСИЛЕНИЯ: обёртки launchd и манифесты — это
+    ЧЕТВЁРТЫЙ класс потребителя переписи, и при пустом перечне он не ищется
+    нигде. Прибор отвечает «потребителей флота 0», и это читается как «перепись
+    никто не запускает», тогда как настоящий ответ — «мы не смотрели».
+
+    Поэтому перечень проверяется СЦЕНОЙ: обёртка, называющая перепись, обязана
+    находиться, и обратный контроль требует, чтобы посторонний файл не считался.
+    """
+
+    def test_the_fleet_dirs_are_not_an_empty_collection(self) -> None:
+        self.assertTrue(
+            ccc._FLEET_DIRS,
+            "перечень каталогов флота ПУСТ — цикл по нему истинен вхолостую, и "
+            "четвёртый класс потребителя перестал бы искаться молча, отвечая "
+            "нулём вместо «не измерено»")
+
+    def test_a_fleet_wrapper_naming_a_census_is_found(self) -> None:
+        """Положительный контроль на настоящей форме обёртки флота."""
+        with TemporaryDirectory() as tmp:
+            tree = Path(tmp)
+            (tree / "launchd").mkdir()
+            (tree / "launchd" / "com.spa.probe.plist").write_text(
+                "<string>spa_core.monitoring.loop_health</string>\n",
+                encoding="utf-8")
+            found = ccc.find_fleet_consumers(
+                tree, {"loop_health": "spa_core/monitoring/loop_health.py"})
+        self.assertEqual([row["file"] for row in found],
+                         ["launchd/com.spa.probe.plist"], found)
+        self.assertEqual(found[0]["callees"], ["loop_health"], found[0])
+
+    def test_a_wrapper_naming_nothing_known_is_not_counted(self) -> None:
+        """Обратный контроль: иначе находка висела бы над любым деревом."""
+        with TemporaryDirectory() as tmp:
+            tree = Path(tmp)
+            (tree / "launchd").mkdir()
+            (tree / "launchd" / "com.spa.other.plist").write_text(
+                "<string>spa_core.monitoring.not_a_census</string>\n",
+                encoding="utf-8")
+            found = ccc.find_fleet_consumers(
+                tree, {"loop_health": "spa_core/monitoring/loop_health.py"})
+        self.assertEqual(found, [])

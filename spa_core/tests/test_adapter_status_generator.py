@@ -32,8 +32,11 @@ from pathlib import Path
 from typing import Any
 from unittest.mock import MagicMock, patch
 
+from spa_core.tests._freshness import ts as _ts
 from spa_core.monitoring.adapter_status_generator import (
     SCHEMA_VERSION,
+    _GSM_INHERITS_SKY,
+    _merge_gsm_hours,
     _apy_composition,
     _build_pool_indexes,
     _fetch_defillama,
@@ -744,3 +747,68 @@ class TestSparkPinIsTheCreditMarket(unittest.TestCase):
         pool, kind = found
         self.assertEqual(kind, "hint")
         self.assertEqual(pool["pool"], "54e9b138-3146-4c1f-8dce-1cb948f5ef96")
+
+
+class GsmInheritorsAreNotEmpty(unittest.TestCase):
+    """Противоядие классу ADR-940 — добавлено циклом #1060 (заказ G930 п. 2).
+
+    Мутационная проба #1059 показала, что ``_GSM_INHERITS_SKY = ()`` переживает
+    ВЕСЬ набор: единственный читатель перебирал перечень витком цикла в
+    ``_merge_gsm_hours``, а цикл по пустому перечню истинен вхолостую. Вред тут
+    не в ложном усилении, а в НЕМОМ возврате ровно той аварии, по которой шов и
+    написан: наблюдённая на цепочке задержка ``DSPause.delay()`` не доезжает ни
+    до одной строки, гейт читает отсутствующее поле и отказывает НАВСЕГДА, а
+    производитель при этом исправно выходит нулём. Молчат обе стороны.
+
+    **Сцена ниже написана так, чтобы не пройти ВХОЛОСТУЮ** — первая редакция
+    этого же класса (цикл #1060, поймано до доставки) проверяла результат
+    циклом ``for key in _GSM_INHERITS_SKY``, то есть воспроизводила ровно тот
+    дефект, против которого написана: на пустом перечне такой цикл истинен и
+    молчит. Поэтому утверждение идёт о СОСТАВЕ проштампованных строк и о том,
+    что он НЕ ПУСТ, а не о каждом члене перечня по отдельности.
+    """
+
+    #: Строка, которая существует в сцене независимо от перечня: иначе на пустом
+    #: перечне сцена осталась бы вовсе без адаптеров и сравнивать было бы нечего.
+    _WITNESS_ROW = "spark_susds"
+
+    def _stamped(self, source: str) -> tuple:
+        """Состав строк, до которых доехало наблюдение, и весь набор строк."""
+        with tempfile.TemporaryDirectory() as td:
+            tmp = Path(td)
+            (tmp / "sky_status.json").write_text(json.dumps({
+                "gsm_hours": 48.0,
+                "source": source,
+                "last_checked": _ts(hours_ago=1.0),
+                "witnesses": ["rpc-a", "rpc-b", "rpc-c"],
+            }), encoding="utf-8")
+            adapters = {key: {"tier": 1} for key in _GSM_INHERITS_SKY}
+            adapters.setdefault(self._WITNESS_ROW, {"tier": 1})
+            _merge_gsm_hours(adapters, tmp)
+        return (sorted(k for k, row in adapters.items() if "gsm_hours" in row),
+                adapters)
+
+    def test_the_inheritor_list_is_not_an_empty_collection(self):
+        self.assertTrue(
+            _GSM_INHERITS_SKY,
+            "перечень наследников задержки Sky ПУСТ — цикл по нему истинен "
+            "вхолостую, и наблюдённая задержка перестала бы доезжать до гейта "
+            "молча, оставив его закрытым навсегда")
+
+    def test_an_onchain_observation_reaches_exactly_the_declared_rows(self):
+        """Положительный контроль: шов ADR-065/137 действует, а не объявлен."""
+        stamped, adapters = self._stamped("onchain")
+        self.assertTrue(stamped,
+                        "наблюдение не доехало НИ ДО ОДНОЙ строки — перечень "
+                        "наследников пуст или не читается")
+        self.assertEqual(stamped, sorted(_GSM_INHERITS_SKY), adapters)
+        for key in stamped:
+            row = adapters[key]
+            self.assertEqual(row.get("gsm_hours"), 48.0, (key, row))
+            self.assertEqual(row.get("gsm_source"), "onchain", (key, row))
+            self.assertIsNotNone(row.get("gsm_hours_as_of"), (key, row))
+
+    def test_a_non_onchain_observation_reaches_nothing(self):
+        """Обратный контроль: `manual` — константа, гейту её видеть нельзя."""
+        stamped, adapters = self._stamped("manual")
+        self.assertEqual(stamped, [], adapters)

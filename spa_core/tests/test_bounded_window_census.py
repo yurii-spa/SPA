@@ -21,6 +21,7 @@ import tempfile
 import unittest
 from pathlib import Path
 
+from spa_core.monitoring import bounded_window_census as bwc
 from spa_core.monitoring.bounded_window_census import (
     WINDOW_NAMED_SATURATED,
     WINDOW_NAMED_UNSATURATED,
@@ -168,3 +169,39 @@ class CensusIsFailClosed(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class TimestampKeysAreNotEmpty(unittest.TestCase):
+    """Противоядие классу ADR-940 — добавлено циклом #1060 (заказ G930 п. 2).
+
+    Мутационная проба #1059 показала, что ``_TS_KEYS = ()`` переживает ВЕСЬ
+    набор, и выжил этот мутант по особой причине: у читателя есть ВТОРОЙ заход —
+    «любое ISO-поле записи». Поэтому пустой перечень не ломает ответ громко, он
+    МЕНЯЕТ ЕГО МОЛЧА: порядок имён в ``_TS_KEYS`` и есть приоритет, и без него
+    днём записи становится то поле, которое просто оказалось первым в словаре.
+    Запись про отметку `ts` начинает датироваться своим `expires_at`, то есть
+    прибор приписывает наблюдение не тому дню — а границу окна он берёт
+    минимальной датой, значит сдвигается и вердикт о полноте буфера.
+
+    Сцена ниже и есть этот случай: `expires_at` лежит ПЕРВЫМ, `ts` — вторым.
+    """
+
+    def test_the_named_keys_are_not_an_empty_collection(self):
+        self.assertTrue(
+            bwc._TS_KEYS,
+            "перечень имён-кандидатов на отметку ПУСТ — цикл по нему истинен "
+            "вхолостую, и день записи молча начал бы браться из любого "
+            "ISO-поля в порядке словаря")
+
+    def test_a_named_key_outranks_an_arbitrary_iso_field(self):
+        """Положительный контроль: приоритет имён ДЕЙСТВУЕТ, а не объявлен."""
+        record = {"expires_at": "2026-01-01T00:00:00Z",
+                  "ts": "2026-09-02T01:00:00Z"}
+        self.assertEqual(
+            day_of(record), "2026-09-02",
+            "днём записи взято поле, которое лишь похоже на дату, — приоритет "
+            "имён не применён")
+
+    def test_a_record_without_any_timestamp_is_still_none(self):
+        """Третий исход не свернулся: отметки нет ⇒ день не выдумывается."""
+        self.assertIsNone(day_of({"max_runs": 30, "note": "no date here"}))

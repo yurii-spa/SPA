@@ -635,11 +635,25 @@ def _sandbox(src: Path, mutate) -> Path:
     return tmp
 
 
+def day_fingerprint(rows: Any) -> Tuple[Any, ...]:
+    """Отпечаток дневного этажа вердикта — то, ЧЕМ прибор мерит чувствительность.
+
+    Вынесено из ``_verdict`` циклом #1060 (заказ G930 п. 2) не ради красоты, а
+    чтобы класс ADR-940 стало чем убить. ``DAY_VERDICT_FIELDS`` читался РОВНО
+    одним витком цикла внутри `_verdict`, и мутант ``DAY_VERDICT_FIELDS = ()``
+    пережил весь набор: пустой перечень даёт у КАЖДОЙ строки пустой кортеж, то
+    есть отпечатки двух РАЗНЫХ дней становятся равны, прибор отвечает «вердикт
+    к полю не чувствителен» — и это ложное усиление, а не отказ. Теперь на
+    отпечаток можно посмотреть сценой, не поднимая судью целиком.
+    """
+    return tuple(tuple(r.get(f) for f in DAY_VERDICT_FIELDS)
+                 for r in (rows or []))
+
+
 def _verdict(data_dir: Path, horizon_days: int) -> Tuple[Any, Any]:
     from spa_core.paper_trading import shadow_trigger_eval as ste
     doc = ste.evaluate_window(data_dir, horizon_days=horizon_days, write=False)
-    rows = doc.get("per_verdict") or []
-    day = tuple(tuple(r.get(f) for f in DAY_VERDICT_FIELDS) for r in rows)
+    day = day_fingerprint(doc.get("per_verdict"))
     top = (doc.get("status"), doc.get("ready_to_arm"), doc.get("hit_rate"),
            doc.get("net_usd_if_followed"), doc.get("net_bps_if_followed"),
            doc.get("hold_missed_usd_total"),
