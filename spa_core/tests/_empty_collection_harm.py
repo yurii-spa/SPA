@@ -358,19 +358,26 @@ def _condition_owner(
     return None, "подъём к условию длиннее предела", 0
 
 
-def _direction_of_silent_fold(
-    fold_name: str, fold_call: ast.AST, parents: Dict[int, ast.AST]
+def _direction_from_condition(
+    prefix: str, owner: ast.AST, kind: str, fires_more: bool
 ) -> Tuple[str, str]:
-    """Направление для чтения под ТИХОЙ свёрткой: ``(исход, причина)``."""
-    owner, kind, negations = _condition_owner(fold_call, parents)
-    if owner is None:
-        return "unmeasured", f"{fold_name}(): {kind}"
-    # Эффективная истинность НАШЕГО операнда над пустым перечнем.
-    fires_more = TRUTH_OVER_EMPTY[fold_name] != bool(negations % 2)
+    """Направление по УТВЕРЖДЕНИЮ, чьим условием оказалось чтение.
+
+    Вход — ЭФФЕКТИВНАЯ истинность нашего операнда над ПУСТЫМ перечнем
+    (``fires_more``), владелец условия и род владельца (``if`` либо ``filter``).
+
+    **Почему дверь ОДНА на две формы.** Так читают перечень тихая свёртка
+    (``any``/``all``/``sum``, ADR-945) и ПРОВЕРКА ПРИНАДЛЕЖНОСТИ
+    (``in``/``not in``, ADR-947). Форма операнда у них разная, а дальше вопрос
+    дословно один: срабатывает ветка ЧАЩЕ или РЕЖЕ и что она делает с
+    рассматриваемым элементом. Своя копия этой логики у второй двери означала бы,
+    что две двери расходятся МОЛЧА — ровно тот дефект, который ADR-942 измерил на
+    слиянии чтений по имени.
+    """
     if kind == "filter":
         # Предикат ВКЛЮЧЕНИЯ: срабатывает чаще ⇒ собирается больше.
         return (("more" if fires_more else "fewer"),
-                f"{fold_name}() в фильтре включения, "
+                f"{prefix} в фильтре включения, "
                 f"над пустым предикат {'истинен' if fires_more else 'ложен'}")
     assert isinstance(owner, ast.If)
     arms: List[Tuple[str, str, bool]] = [("тело", branch_effect(owner.body), fires_more)]
@@ -389,15 +396,108 @@ def _direction_of_silent_fold(
         why.append(f"{label}: {effect}, срабатывает "
                    f"{'ЧАЩЕ' if arm_fires_more else 'РЕЖЕ'} ⇒ {verdict}")
     if not verdicts:
-        return "unmeasured", (f"{fold_name}(): ни одна ветка не исключает элемент "
+        return "unmeasured", (f"{prefix}: ни одна ветка не исключает элемент "
                               f"и не накапливает находку")
-    joined = f"{fold_name}(): " + " · ".join(why)
+    joined = f"{prefix}: " + " · ".join(why)
     if len(set(verdicts)) > 1:
         # ДВЕ ветки двигают счёт находок в ПРОТИВОПОЛОЖНЫЕ стороны: накопители в них
         # РАЗНЫЕ, и починка обязана смотреть на обе. Свести к одному роду значило бы
         # потерять ровно то, ради чего ось заведена.
         return "both", joined
     return verdicts[0], joined
+
+
+def _direction_of_silent_fold(
+    fold_name: str, fold_call: ast.AST, parents: Dict[int, ast.AST]
+) -> Tuple[str, str]:
+    """Направление для чтения под ТИХОЙ свёрткой: ``(исход, причина)``."""
+    owner, kind, negations = _condition_owner(fold_call, parents)
+    if owner is None:
+        return "unmeasured", f"{fold_name}(): {kind}"
+    # Эффективная истинность НАШЕГО операнда над пустым перечнем.
+    fires_more = TRUTH_OVER_EMPTY[fold_name] != bool(negations % 2)
+    return _direction_from_condition(f"{fold_name}()", owner, kind, fires_more)
+
+
+# ---------------------------------------------------------------------------
+# ПРОВЕРКА ПРИНАДЛЕЖНОСТИ — чтение рода `other` (ADR-947, цикл #1066, G936 п. 2)
+# ---------------------------------------------------------------------------
+# **Что это закрывает.** ADR-946 измерил, что остаток `unmeasured` держится НЕ
+# пробелом разбора, а ГРАНИЦЕЙ оси: из 135 отказов 111 — «ни одного читающего
+# цикла в области», потому что производное имя не ПЕРЕБИРАЮТ вовсе, а проверяют
+# на принадлежность (`item in x`), передают аргументом или спрашивают длину. Ось
+# направления спрашивала только чтения рода `loop` (`_loop_reads_of`), и это было
+# сказано вслух как объявленная граница. Эта дверь переносит границу на ОДИН род
+# чтения — проверку принадлежности, — и ни на какой другой.
+#
+# **Известный член класса назван ДО замера** (порядок заказа G936 п. 2):
+# `if item in SKIP: continue` над ПУСТЫМ `SKIP` не отсекает НИ ОДНОГО элемента ⇒
+# находок БОЛЬШЕ (`more`). Это дословно форма `_SKIP_PARTS` из ADR-945, но без
+# свёртки `any`, и до этой двери прибор отвечал о ней `unmeasured` — замерено на
+# сцене ДО первой правки.
+#
+# **Громкого исхода у формы НЕТ.** Пустая правая часть `in` не поднимает ничего
+# (в отличие от `min`/`max` над пустым) — ровно поэтому форма и опасна: пустота
+# молча меняет вердикт КАЖДОЙ проверки.
+
+#: Истинность проверки принадлежности над ПУСТЫМ перечнем — при ЛЮБОМ левом
+#: операнде: `x in EMPTY` ложно, `x not in EMPTY` истинно. Перечень ЗАМКНУТ:
+#: оператор вне него принадлежностью не является и даёт третий исход.
+MEMBERSHIP_TRUTH_OVER_EMPTY: Dict[str, bool] = {"In": False, "NotIn": True}
+
+#: Как форма читается в причине. Текст — часть ответа: «`x in NAME`» объясняет
+#: читателю отчёта, ЧТО именно прибор разобрал, а имя класса узла — нет.
+MEMBERSHIP_TEXT: Dict[str, str] = {"In": "x in NAME", "NotIn": "x not in NAME"}
+
+
+def membership_operand(
+    node: ast.AST, parents: Dict[int, ast.AST]
+) -> Tuple[Optional[ast.Compare], Optional[str], str]:
+    """Является ли чтение ПРАВЫМ операндом одиночной проверки принадлежности.
+
+    Возвращает ``(сравнение, имя оператора, "")`` либо ``(None, None, причина)``.
+
+    **Каждый отказ назван и каждый — в сторону `unmeasured`.** Цепочка сравнений
+    (`a in X in Y`) двигает истинность операнда неоднозначно. Имя СЛЕВА
+    (`NAME in other`) спрашивает, не является ли сам перечень ЭЛЕМЕНТОМ чужого
+    набора, — другой вопрос, и его пустота не решает. Оператор не из
+    ``in``/``not in`` к принадлежности не относится вовсе. Прозрачные обёртки
+    (`item in tuple(NAME)`) эта дверь НЕ проходит: подъём через них есть
+    отдельный вопрос с НЕ ИЗМЕРЕННЫМ населением (заказ G936 п. 3), и пройти его
+    молча значило бы ответить о том, чего не смотрели (урок ADR-940).
+    """
+    parent = parents.get(id(node))
+    if not isinstance(parent, ast.Compare):
+        where = type(parent).__name__ if parent is not None else "владельца нет"
+        return None, None, f"чтение не операнд сравнения ({where})"
+    if len(parent.ops) != 1:
+        return None, None, "цепочка сравнений — истинность операнда не однозначна"
+    if parent.comparators[0] is not node:
+        return None, None, "имя СЛЕВА: вопрос не о принадлежности ему"
+    op = type(parent.ops[0]).__name__
+    if op not in MEMBERSHIP_TRUTH_OVER_EMPTY:
+        return None, None, f"оператор `{op}` принадлежностью не является"
+    return parent, op, ""
+
+
+def direction_of_one_membership_read(
+    hit: ast.AST, parents: Dict[int, ast.AST]
+) -> Tuple[str, str]:
+    """Направление вреда для ОДНОГО чтения-проверки принадлежности.
+
+    Исход — член DIRECTION_OUTCOMES. Форма, которую дверь не разобрала, остаётся
+    `unmeasured` с НАЗВАННОЙ причиной: ни тишины, ни шума она не оправдывает
+    (инв. #17).
+    """
+    compare, op, why_not = membership_operand(hit, parents)
+    if compare is None or op is None:
+        return "unmeasured", f"принадлежность: {why_not}"
+    owner, kind, negations = _condition_owner(compare, parents)
+    if owner is None:
+        return "unmeasured", f"`{MEMBERSHIP_TEXT[op]}`: {kind}"
+    fires_more = MEMBERSHIP_TRUTH_OVER_EMPTY[op] != bool(negations % 2)
+    return _direction_from_condition(
+        f"`{MEMBERSHIP_TEXT[op]}`", owner, kind, fires_more)
 
 
 def direction_of_one_read(
@@ -417,7 +517,16 @@ def direction_of_one_read(
         seeds_left = SEED_HOPS
     kind, loop = _enclosing_loop(hit, parents)
     if loop is None or kind is None:
-        return "unmeasured", "цикл над именем не поднят"
+        # Цикла над именем нет — но «не перебирают» ещё не значит «форма не
+        # разобрана». Чтение рода `other` может быть ПРОВЕРКОЙ ПРИНАДЛЕЖНОСТИ, и
+        # направление у неё выводится ровно так же, как у тихой свёртки
+        # (ADR-947). Порядок здесь НЕСУЩИЙ: сперва перебор, и только при его
+        # отсутствии — принадлежность; иначе дверь переписала бы уже измеренные
+        # роды, а требование заказа — ошибаться в сторону `unmeasured`.
+        outcome, reason = direction_of_one_membership_read(hit, parents)
+        if outcome != "unmeasured":
+            return outcome, reason
+        return "unmeasured", f"цикл над именем не поднят; {reason}"
     if kind == "for":
         why = _body_accumulates(loop.body)  # type: ignore[union-attr]
         if why:
@@ -646,15 +755,21 @@ def rebinding_of(scope: ast.AST, name: str) -> Optional[str]:
     return None
 
 
-def _loop_reads_of(
+def _direction_reads_of(
     scope: ast.AST, name: str, binder: ast.AST, parents: Dict[int, ast.AST]
 ) -> List[ast.AST]:
-    """Чтения имени рода `loop` в области, не принадлежащие самому связыванию.
+    """Чтения имени, О КОТОРЫХ ось направления вправе спросить, в области
+    связывания и не принадлежащие самому связыванию.
 
-    Фильтр по роду здесь НЕСУЩИЙ: ось направления относится только к перебору
-    (`direction()`), и `len(x)` рядом с `for … in x` — не вопрос о направлении.
-    Складывать такие чтения в ответ значило бы кормить вердикт «не измерено» от
-    формы, которая к оси не относится вовсе.
+    Фильтр по роду здесь НЕСУЩИЙ и остаётся им: `len(x)` рядом с `for … in x` —
+    не вопрос о направлении, и складывать такие чтения в ответ значило бы кормить
+    вердикт «не измерено» формой, которая к оси не относится вовсе.
+
+    **Родов теперь ДВА, и второй добавлен ЗАМЕРОМ, а не на всякий случай**
+    (ADR-947, заказ G936 п. 2): перебор (`for … in x`, включение) и ПРОВЕРКА
+    ПРИНАДЛЕЖНОСТИ (`item in x`). Крупнейшая причина отказа ADR-946 была ровно
+    «ни одного читающего ЦИКЛА в области» — 111 из 135, — то есть ось отказывала
+    не потому, что форма неясна, а потому что спрашивала не о той форме.
     """
     out: List[ast.AST] = []
     for node in ast.walk(scope):
@@ -665,6 +780,10 @@ def _loop_reads_of(
             continue
         _kind, loop = _enclosing_loop(node, parents)
         if loop is not None:
+            out.append(node)
+            continue
+        compare, op, _why = membership_operand(node, parents)
+        if compare is not None and op is not None:
             out.append(node)
     return out
 
@@ -681,13 +800,19 @@ def _direction_through_name(
         return "unmeasured", f"засев `{name}` ОТКАЗАН: {blocked}"
     verdicts: List[str] = []
     why: List[str] = []
-    for hit in _loop_reads_of(scope, name, binder, parents):
+    for hit in _direction_reads_of(scope, name, binder, parents):
         outcome, reason = direction_of_one_read(hit, parents, seeds_left)
         verdicts.append(outcome)
         why.append(f"[{name}] {reason}")
     measured = {item for item in verdicts if item != "unmeasured"}
     if not measured:
-        tail = " · ".join(why) if why else "ни одного читающего цикла в области"
+        # Формулировка РАСШИРЯЕТСЯ, а не заменяется: прежняя дословная причина
+        # («ни одного читающего цикла в области») остаётся подстрокой, поэтому
+        # пробы ADR-945/946, которые её проверяют, НЕ ТРОНУТЫ ни одной строкой
+        # (инв. #16). Дописано РОВНО то, о чём ось стала спрашивать.
+        tail = (" · ".join(why) if why
+                else "ни одного читающего цикла в области "
+                     "и ни одной проверки принадлежности")
         return "unmeasured", f"засев `{name}`: рода не дало ни одно чтение — {tail}"
     joined = f"засев `{name}`: " + " · ".join(why)
     return ("both" if len(measured) > 1 else measured.pop()), joined

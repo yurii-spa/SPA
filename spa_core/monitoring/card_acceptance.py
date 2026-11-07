@@ -17771,7 +17771,109 @@ def _probe_delivery_tree_input_class_population_named(
                        "довершинной версии дала UNNAMEABLE, половина инъекции — HALF")
 
 
+#: Форма, которой модуль Tier-B ОТКЛЮЧАЕТ лог на протокольном пути. Строка —
+#: единственный признак ПРЕДМЕТА: модуль, её не несущий, этой пробой не судится,
+#: и выдумывать ему вердикт значило бы отвечать о том, чего не смотрели.
+_DISABLED_LOG_FORM = '"log_path": None'
+
+
+def _probe_tier_b_protocol_path_survives_a_disabled_log(
+    arg: str | None,
+) -> tuple[str, str]:
+    """Критерий: ни один модуль Tier-B не падает на протокольном пути с ОТКЛЮЧЁННЫМ логом.
+
+    Проба мерит ИСХОД, а не структуру: она ИМПОРТИРУЕТ каждый модуль
+    ``spa_core/analytics/``, чей исходник отключает лог (``"log_path": None``), и
+    ЗОВЁТ его протокольную точку ``analyze({"protocol": …})``. Предмет — падение
+    ``TypeError … NoneType``: ровно оно 02.11 перевело 15 модулей Tier-B в
+    ``failed`` (переписка ADR-849 §2 обернула путь в ``utils.data_dir.default_file``,
+    а тот начинался с ``os.fspath`` — ``None`` значит «лога не писать», и
+    ``os.fspath(None)`` падает).
+
+    **Подстрокой проба НЕ проходит** (ADR-333): наличие строки-признака в
+    исходнике делает модуль ПРЕДМЕТОМ, а вердикт даёт только настоящий вызов.
+
+    **Три исхода различимы** (инв. #17): ни одного падения · падения НАЗВАНЫ
+    поимённо · предмет НЕ ИЗМЕРЕН — каталог не прочитан, признака не нашёл ни
+    один модуль, либо хоть один предмет до своей двери не доехал (упал импортом
+    или иным исключением). Частичное покрытие — ``unmeasured``, а не «выполнено»:
+    про недоехавший модуль не известно НИЧЕГО (тот же порядок, что у
+    ``artifact_contract_confirmed``).
+
+    Измерение идёт в ПЕСОЧНИЦУ: ``SPA_DATA_DIR`` на время вызова уводится во
+    временный каталог и возвращается обратно — иначе проба трогала бы живое
+    состояние, а шаг 0-офис зовёт её каждый цикл.
+    """
+    import importlib
+    import tempfile
+    from pathlib import Path as _Path
+
+    folder = _Path(REPO_ROOT) / "spa_core" / "analytics"
+    try:
+        files = sorted(
+            path for path in folder.glob("*.py")
+            if _DISABLED_LOG_FORM in path.read_text(errors="replace")
+        )
+    except OSError as exc:
+        return UNMEASURED, f"каталог Tier-B не прочитан: {folder} — {exc}"
+    if not files:
+        return UNMEASURED, (
+            f"ни одного модуля с признаком {_DISABLED_LOG_FORM} в {folder} — "
+            f"предмет НЕ ИЗМЕРЕН, нулём это не считается")
+
+    failed: list[str] = []
+    undelivered: list[str] = []
+    called = 0
+    previous = os.environ.get("SPA_DATA_DIR")
+    with tempfile.TemporaryDirectory(prefix="probe_tier_b_") as box:
+        os.environ["SPA_DATA_DIR"] = box
+        try:
+            for path in files:
+                try:
+                    module = importlib.import_module(
+                        f"spa_core.analytics.{path.stem}")
+                except Exception as exc:  # noqa: BLE001 — любой отказ импорта
+                    undelivered.append(f"{path.stem}: импорт {type(exc).__name__}")
+                    continue
+                door = getattr(module, "analyze", None)
+                if door is None:
+                    undelivered.append(f"{path.stem}: нет analyze()")
+                    continue
+                try:
+                    door({"protocol": "aave_v3"})
+                except TypeError as exc:
+                    if "NoneType" in str(exc):
+                        failed.append(path.stem)
+                    else:
+                        undelivered.append(f"{path.stem}: TypeError иной — {exc}")
+                    continue
+                except Exception as exc:  # noqa: BLE001 — иная поломка не предмет
+                    undelivered.append(f"{path.stem}: {type(exc).__name__}")
+                    continue
+                called += 1
+        finally:
+            if previous is None:
+                os.environ.pop("SPA_DATA_DIR", None)
+            else:
+                os.environ["SPA_DATA_DIR"] = previous
+
+    tail = (f"; до своей двери НЕ доехали {len(undelivered)}: "
+            f"{', '.join(undelivered[:4])}") if undelivered else ""
+    if failed:
+        return NOT_SATISFIED, (
+            f"падают на отключённом логе {len(failed)} из {len(files)} предмет(а/ов): "
+            f"{', '.join(failed)}{tail}")
+    if undelivered:
+        return UNMEASURED, (
+            f"вердикт дали {called} из {len(files)} предмет(а/ов){tail}")
+    return SATISFIED, (
+        f"вызвано {called} модул(ь/я/ей) Tier-B с отключённым логом, "
+        f"падений НЕТ (предметов {len(files)})")
+
+
 PROBES: dict[str, Callable[[str | None], "tuple[str, str]"]] = {
+    "tier_b_protocol_path_survives_a_disabled_log":
+        _probe_tier_b_protocol_path_survives_a_disabled_log,
     "tracked_data_untouched_by_declared_runs":
         _probe_tracked_data_untouched_by_declared_runs,
     "ci_red_census_names_the_population":
