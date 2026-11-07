@@ -8,12 +8,6 @@ created: 2026-08-13
 priority: critical
 status_trail:
   - "2026-08-26T22:31:36.748790+00:00 new -> in-progress · queue.set_status · cycle-96657"
-claimed_by: cycle-42606
-claimed_at: 2026-11-07T00:37:20Z
-claimed_run_id: orchestrator-42606-0B0DBE30E7FF4B40BDC732A3A6D3B002
-claimed_pid: 42606
-claimed_pid_start: Sat Nov  7 01:28:05 2026
-claim_takeover_reason: Цикл #1055: держатель cycle-20978 (pid 20978) ИЗМЕРЕННО мёртв (ps -p пуст, pgrep пуст). Его работа (ADR-937) НА origin/main коммитом 429a296c2 — подъёма не требует. Шаг 0a orphan_sweep: код 0, 'поднимать ПО КОММИТАМ нечего'; ось рабочего дерева назвала /private/tmp/spa_c1052* — работа #1053 (ADR-936) уже на origin/main 951eeee14. Беру по шагу 0a-голод (in-progress 1848.5ч, вердикт stale).
 ---
 
 ## УКАЗАНИЕ ВЛАДЕЛЬЦА 2026-08-22 (cloud-сессия): ЗАПУСТИТЬ СЛЕДУЮЩИМ ЦИКЛОМ
