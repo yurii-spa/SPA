@@ -816,6 +816,7 @@
 | ADR-946 | ADR-946 — Засев производного имени закрывает крупнейшую причину `unmeasured` у оси направления, и остаток оказался НЕ пробелом разбора, а ОБЪЯВЛЕННОЙ границей оси | Accepted | [ADR-946](ADR-946-seeding-the-derived-name-measures-the-remaining-unmeasured-and-it-is-a-declared-scope.md) |
 | ADR-947 | ADR-947 — Проверка принадлежности — второй род чтения, о котором ось направления вправе спросить; и премиса заказа о «111 отказах» ОПРОВЕРГНУТА замером | Accepted | [ADR-947](ADR-947-membership-is-the-second-read-kind-the-direction-axis-may-ask-about.md) |
 | ADR-948 | ADR-948 — Явное «лога не писать» (`log_path: None`) — это вызывающий сказал своё, а не отсутствующее умолчание; 15 модулей Tier-B падали пять суток | Accepted | [ADR-948](ADR-948-an-explicit-none-log-path-is-the-caller-speaking-not-a-missing-default.md) |
+| ADR-949 | ADR-949 — Громкость индексирующего чтения ИЗМЕРИМА, и у глушителя население НОЛЬ | Accepted | [ADR-949](ADR-949-the-loudness-of-an-indexing-read-is-measurable-and-measured.md) |
 
 ## Соглашения
 
