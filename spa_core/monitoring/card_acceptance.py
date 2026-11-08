@@ -17871,7 +17871,103 @@ def _probe_tier_b_protocol_path_survives_a_disabled_log(
         f"падений НЕТ (предметов {len(files)})")
 
 
+#: Предел возраста сводки аналитики для пробы родов APY. То же число и та же
+#: причина, что у `ADAPTER_STATUS_MAX_AGE_H`: сводка лежит частично в git, и
+#: протухшая копия в worktree дала бы ПРОТИВОПОЛОЖНЫЙ вердикт тому же коду.
+APY_CENSUS_MAX_AGE_H = 24.0
+
+
+def _probe_apy_name_carries_one_kind(arg: str | None, now=None) -> tuple[str, str]:
+    """Критерий §5 приказа владельца «Portfolio CIO»: у каждого числа, названного
+    «APY», ОБЪЯВЛЕН род — и это проверил ЖИВОЙ ЦИКЛ, а не тест.
+
+    Дословное требование владельца: «Не допускать использования одного названия
+    APY для разных экономических показателей». Разобрано ADR-953: родов шесть
+    (`spa_core/analytics/apy_kinds.KINDS`), читатель один — секция цикла
+    `apy_name_census`, и она же печатает разброс ставок книги с его причиной.
+
+    **Проба меряет ИСХОД, а не структуру.** «Модуль есть и тесты зелёные» здесь
+    не годится вдвойне: предмет карточки — чтобы цикл КАЖДЫЙ ДЕНЬ называл род
+    каждого своего apy-числа, а это видно только в артефакте, который цикл
+    произвёл. Поэтому дверь одна — `data/analytics_summary.json`, раздел
+    `sections.apy_name_census`; секции нет ⇒ `unmeasured` («цикл её ещё не
+    производил»), а НЕ `not_satisfied`: доставка кода и его работа в проде —
+    два разных события (`.claude/rules/deployment.md`).
+
+    Находки осей 2–4 (разброс ставок, окно, основание) вердикта НЕ решают
+    намеренно: они суть свойства ПРОИЗВОДИТЕЛЕЙ, которых эта карточка не правит,
+    и повесить их сюда значило бы запереть критерий на чужой работе. Предмет
+    пробы ровно один — НЕОБЪЯВЛЕННЫХ путей ноль.
+
+    Время — вход (`now`), а не окружение.
+    """
+    path = os.path.join(REPO_ROOT, "data", "analytics_summary.json")
+    rel = os.path.relpath(path, REPO_ROOT)
+    try:
+        with open(path, encoding="utf-8") as fh:
+            doc = json.load(fh)
+    except FileNotFoundError:
+        return UNMEASURED, f"{rel} нет в этом дереве — предмет не измерен"
+    except (OSError, ValueError) as exc:
+        return UNMEASURED, f"{rel} не разобран: {type(exc).__name__}: {exc}"
+    if not isinstance(doc, dict):
+        return UNMEASURED, f"форма {rel} не разобрана ({type(doc).__name__})"
+
+    stamp = doc.get("generated_at")
+    if not stamp:
+        return UNMEASURED, f"{rel} без generated_at — возраст не измерен, судить нечем"
+    try:
+        made = datetime.fromisoformat(str(stamp).replace("Z", "+00:00"))
+    except ValueError:
+        return UNMEASURED, f"{rel}: generated_at {stamp!r} не разобран — возраст не измерен"
+    if made.tzinfo is None:
+        made = made.replace(tzinfo=timezone.utc)
+    age_h = ((now or datetime.now(timezone.utc)) - made).total_seconds() / 3600.0
+    if age_h > APY_CENSUS_MAX_AGE_H:
+        return UNMEASURED, (f"{rel} протух: возраст {age_h:.1f}ч при пределе "
+                            f"{APY_CENSUS_MAX_AGE_H:.0f}ч — мерить надо из дерева "
+                            "с живым data/")
+
+    sections = doc.get("sections")
+    if not isinstance(sections, dict):
+        return UNMEASURED, f"в {rel} нет раздела sections — предмет не измерен"
+    sec = sections.get("apy_name_census")
+    if sec is None:
+        return UNMEASURED, (f"цикл ещё не производил секцию apy_name_census в {rel} "
+                            "— доставка кода и его работа в проде суть два события")
+    if not isinstance(sec, dict):
+        return UNMEASURED, (f"секция apy_name_census в {rel} не разобрана "
+                            f"({type(sec).__name__})")
+    if sec.get("status") == "ERROR":
+        return UNMEASURED, f"секция упала в цикле: {sec.get('error')}"
+    if sec.get("verdict") == "UNMEASURED":
+        return UNMEASURED, ("перепись сама доложила НЕ ИЗМЕРЕНО: "
+                            + "; ".join(sec.get("unmeasured") or ["причина не названа"]))
+
+    undeclared = sec.get("undeclared")
+    if undeclared is None:
+        return UNMEASURED, ("секция не несёт поля `undeclared` — отсутствие "
+                            "перечня нулём не является")
+    if not isinstance(undeclared, list):
+        return UNMEASURED, (f"поле `undeclared` не перечень "
+                            f"({type(undeclared).__name__})")
+    total = sec.get("paths_found")
+    if not isinstance(total, int) or total <= 0:
+        return UNMEASURED, ("перепись не нашла НИ ОДНОГО apy-именованного числа "
+                            "— доля у пустого набора не существует")
+    if undeclared:
+        names = ", ".join(str(u.get("path")) for u in undeclared[:4]
+                          if isinstance(u, dict))
+        return NOT_SATISFIED, (f"НЕОБЪЯВЛЕННЫХ путей {len(undeclared)} из {total}: "
+                               f"{names}")
+    return SATISFIED, (f"род объявлен у всех {total} apy-именованных чисел цикла "
+                       f"({sec.get('paths_declared')} путей); находок осей "
+                       f"производителей {len(sec.get('findings') or [])}, "
+                       f"не измерено {len(sec.get('unmeasured') or [])}")
+
+
 PROBES: dict[str, Callable[[str | None], "tuple[str, str]"]] = {
+    "apy_name_carries_one_kind": _probe_apy_name_carries_one_kind,
     "tier_b_protocol_path_survives_a_disabled_log":
         _probe_tier_b_protocol_path_survives_a_disabled_log,
     "tracked_data_untouched_by_declared_runs":

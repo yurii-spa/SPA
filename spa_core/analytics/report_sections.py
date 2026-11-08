@@ -404,6 +404,28 @@ def _section_governance_tokens(data_dir: Path, equity_doc: dict) -> Dict[str, An
                  "не собираема без фабрикации")
 
 
+def _section_apy_name_census(data_dir: Path, equity_doc: dict,
+                             sections: Dict[str, Dict[str, Any]]) -> Dict[str, Any]:
+    """Перепись родов числа, названного «APY» (приказ владельца «Portfolio CIO» §5).
+
+    Судит СВОИХ СОСЕДЕЙ этого же прогона, поэтому получает уже собранный словарь
+    секций входом: сверять числа РАЗНЫХ циклов означало бы смешать возраст
+    артефакта с расхождением производителей.
+    """
+    from .apy_name_census import measure
+
+    rep = measure(equity_doc, sections)
+    if rep.get("verdict") == "UNMEASURED":
+        # «Не измерено» в этом слое носит имя SKIPPED — ровно та же честная форма,
+        # что у соседей (нет применимых данных ⇒ никакой фабрикации). Сам вердикт
+        # при этом ОСТАЁТСЯ в теле: потеряй его, и «не измерено» стало бы
+        # неотличимо от «нечего мерить» (инв. #17).
+        reasons = rep.get("unmeasured") or ["причина не названа"]
+        rep["status"] = "SKIPPED"
+        rep["reason"] = "; ".join(reasons)
+    return rep
+
+
 # Порядок фиксирован (детерминированный отчёт); имена = имена модулей плана.
 _SECTION_BUILDERS: List[Tuple[str, Callable[[Path, dict], Dict[str, Any]]]] = [
     ("portfolio_stats", _section_portfolio_stats),
@@ -417,7 +439,19 @@ _SECTION_BUILDERS: List[Tuple[str, Callable[[Path, dict], Dict[str, Any]]]] = [
     ("governance_token_value_tracker", _section_governance_tokens),
 ]
 
-SECTION_NAMES: List[str] = [name for name, _ in _SECTION_BUILDERS]
+# Секции, судящие СВОИХ СОСЕДЕЙ того же прогона: строятся ПОСЛЕ остальных и
+# получают уже собранный словарь. Перечень ОТДЕЛЬНЫЙ намеренно — у них другая
+# сигнатура, и сложить их в _SECTION_BUILDERS значило бы соврать о входе.
+_POST_SECTION_BUILDERS: List[
+    Tuple[str, Callable[[Path, dict, Dict[str, Any]], Dict[str, Any]]]
+] = [
+    ("apy_name_census", _section_apy_name_census),
+]
+
+SECTION_NAMES: List[str] = (
+    [name for name, _ in _SECTION_BUILDERS]
+    + [name for name, _ in _POST_SECTION_BUILDERS]
+)
 
 
 def build_report_sections(data_dir: Path, equity_doc: dict) -> Dict[str, Dict[str, Any]]:
@@ -430,6 +464,16 @@ def build_report_sections(data_dir: Path, equity_doc: dict) -> Dict[str, Dict[st
             sections[name] = builder(data_dir, equity_doc)
         except Exception as exc:  # noqa: BLE001 — fail-safe по образцу цикла
             log.warning("analytics section %r failed: %s", name, exc)
+            sections[name] = {
+                "status": "ERROR",
+                "engine": name,
+                "error": f"{type(exc).__name__}: {exc}",
+            }
+    for name, post in _POST_SECTION_BUILDERS:
+        try:
+            sections[name] = post(data_dir, equity_doc, sections)
+        except Exception as exc:  # noqa: BLE001 — тот же fail-safe
+            log.warning("analytics post-section %r failed: %s", name, exc)
             sections[name] = {
                 "status": "ERROR",
                 "engine": name,

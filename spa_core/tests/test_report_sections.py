@@ -86,7 +86,10 @@ class TestSectionsContract:
     def test_exactly_nine_plan_sections(self, live_book):
         sections = build_report_sections(live_book, _equity_doc())
         assert sorted(sections.keys()) == sorted(SECTION_NAMES)
-        assert len(sections) == 9
+        # ПАРИТЕТ С ОБЪЯВЛЕНИЕМ, а не литерал: число секций растёт решением
+        # (apy_name_census, ADR-953), и счётный потолок устаревал бы в день
+        # доставки — утверждение же здесь про «ровно те, что объявлены».
+        assert len(sections) == len(SECTION_NAMES)
         for name, sec in sections.items():
             assert sec["status"] in ("OK", "SKIPPED", "ERROR"), name
             if sec["status"] == "SKIPPED":
@@ -294,7 +297,10 @@ class TestHonestSkips:
 
     def test_empty_data_dir_all_nine_skipped(self, tmp_path):
         sections = build_report_sections(tmp_path, {})
-        assert len(sections) == 9
+        # ПАРИТЕТ С ОБЪЯВЛЕНИЕМ, а не литерал: число секций растёт решением
+        # (apy_name_census, ADR-953), и счётный потолок устаревал бы в день
+        # доставки — утверждение же здесь про «ровно те, что объявлены».
+        assert len(sections) == len(SECTION_NAMES)
         for name, sec in sections.items():
             assert sec["status"] == "SKIPPED", f"{name}: {sec}"
             assert sec["reason"]
@@ -359,7 +365,10 @@ class TestFailureIsolation:
         assert sections["portfolio_volatility_tracker"]["status"] == "OK"
         assert sections["yield_attribution_tracker"]["status"] == "OK"
         assert sections["defi_protocol_market_share_tracker"]["status"] == "OK"
-        assert len(sections) == 9
+        # ПАРИТЕТ С ОБЪЯВЛЕНИЕМ, а не литерал: число секций растёт решением
+        # (apy_name_census, ADR-953), и счётный потолок устаревал бы в день
+        # доставки — утверждение же здесь про «ровно те, что объявлены».
+        assert len(sections) == len(SECTION_NAMES)
 
     def test_tracker_crash_does_not_break_runner(self, live_book, monkeypatch):
         import spa_core.analytics.yield_attribution_tracker as yat_mod

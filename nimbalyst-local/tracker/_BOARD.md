@@ -2,11 +2,11 @@
 
 > Авто-генерится `scripts/build_tracker_board.py` из `nimbalyst-local/tracker/*.md`. НЕ править вручную — правь карточки. Источник правды — карточки, это индекс (bootstrap).
 >
-> Собрана: 2026-11-07T22:31:13Z · сверка с карточками: `python3 scripts/build_tracker_board.py --check` (сторож `spa_core/tests/test_tracker_board_matches_cards.py`).
+> Собрана: 2026-11-08T09:15:11Z · сверка с карточками: `python3 scripts/build_tracker_board.py --check` (сторож `spa_core/tests/test_tracker_board_matches_cards.py`).
 >
-> Сверено с `origin/main` (5a226e92d) · у **1** своя правка, кто новее — не измерено.
+> Сверено с `origin/main` (73671b33e) · у **1** своя правка, кто новее — не измерено.
 >
-> Всего карточек: **1607** · ждёт владельца: **4** · занято сессиями: **14**.
+> Всего карточек: **1608** · ждёт владельца: **4** · занято сессиями: **14**.
 
 ## 🔴 ЖДЁТ ВЛАДЕЛЬЦА (needs-owner)
 
@@ -424,7 +424,7 @@
 ### · closed
 - Считать ли верный отказ по правилам допуска неисправностью флота  ·  `owner-decision-schitat-li-vernyi-otkaz-po-pravilam-dopu.md` · 2026-10-08
 
-## 📥 Inbox (задания: Telegram / заметки / голос)  (918)
+## 📥 Inbox (задания: Telegram / заметки / голос)  (919)
 
 ### · in-progress
 - а задача починить все-таки еще раз сообщение которым не пишет нужно твое решени…  ·  `inbox-a-zadacha-pochinit-vse-taki-esche-raz-so.md` · 2026-08-14 · 🔒 `pid43119`
@@ -1312,6 +1312,7 @@
 - Тест ворот публикации не доходит до ворот: его заслоняет гейт окна мутаций  ·  `inbox-test-vorot-publikatsii-ne-dohodit-do-vor.md` · 2026-10-18
 - Три отправителя стоп-крана в обход канонической двери (найдено #313)  ·  `inbox-tri-otpravitelya-stop-krana-v-obhod-kano.md` · 2026-08-20
 - Три прибора написаны и не позваны: храповик непроводки КРАСЕН на чистом origin/main a326d063e  ·  `inbox-tri-pribora-napisany-i-ne-pozvany-hrapov.md` · 2026-10-10
+- Три ставки книги печатаются без знаменателя — одно слово «APY» на три разных показателя  ·  `inbox-tri-stavki-knigi-pechatayutsya-bez-zname.md` · 2026-11-08
 - Три вопроса владельцу живут только на ветке: карточка-разбор числит работу done, а ветка жива и объявлений в ней ноль  ·  `inbox-tri-voprosa-vladeltsu-zhivut-tolko-na-ve.md` · 2026-11-03
 - Цикл считает покрытие фидов 100% живым, а aave_arbitrum читает круглые константы из adapter_status.json  ·  `inbox-tsikl-schitaet-pokrytie-fidov-100-zhivym.md` · 2026-08-29
 - Цикл заканчивается раньше своего прогона — вердикт теряется, а работа лежит недоставленной  ·  `inbox-tsikl-zakanchivaetsya-ranshe-svoego-prog.md` · 2026-10-06
