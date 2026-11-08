@@ -9,12 +9,6 @@ priority: critical
 status_trail:
   - "2026-08-26T22:31:36.748790+00:00 new -> in-progress · queue.set_status · cycle-96657"
 acceptance_probe: apy_name_carries_one_kind
-claimed_by: cycle-789
-claimed_at: 2026-11-08T19:14:45Z
-claimed_run_id: orchestrator-789-7223DBFB476749C48F4C6449E0545216
-claimed_pid: 789
-claimed_pid_start: Sun Nov  8 20:08:42 2026
-claim_takeover_reason: шаг 0a-голод: карточка in-progress 1891,1ч, мимо 462 цикла, вердикт stale. Прошлый держатель cycle-29046 — ps -p 29046 ПУСТО; живых оркестраторов на машине кроме моего (pid789, agent_orchestrator.sh, старт Nov 8 20:08:42) — НОЛЬ. Работа трёх последних циклов НЕ потеряна и сверена на origin/main 427c6cf8d поимённо: ADR-950 (#1068) файл+INDEX+STATE есть; ADR-954 (#1072) и ADR-956 (#1074) файл+INDEX есть, НЕТ только строки в docs/STATE.md — её несу СВОИМ циклом. orphan_sweep --repo-root прод код 0 (по коммитам поднимать нечего, пролёт измерен у 9 из 10).
 ---
 
 ## УКАЗАНИЕ ВЛАДЕЛЬЦА 2026-08-22 (cloud-сессия): ЗАПУСТИТЬ СЛЕДУЮЩИМ ЦИКЛОМ
