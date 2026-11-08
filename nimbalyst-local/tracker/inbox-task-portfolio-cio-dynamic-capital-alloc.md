@@ -38557,6 +38557,19 @@ md5) · шаг 1г код 0 · долгие прогоны — в ОТДЕЛЬН
 `_move_cost_usd` и его литералы, веса §11, живой трек, прод-дерево и `landing/**` не тронуты.
 Статус карточки — `in-progress` (стоячий приказ владельца, инв. #14).
 
+**Доставлено:** `main` `7de16e9c0b5370b401684ca2a62b597bdbfd1844`, 12 файлов одним коммитом
+(слепок байтов сверен у 30 чтений, режимов у 4, разбор Python у 5).
+**Прогон ЗАКАЗАН:** `ci-control` **42520914453** на ПОЛНОЙ sha `7de16e9c0b5370b401684ca2a62b597bdbfd1844`
+(`workflow_dispatch`, факт отправки перечитан у API, не у кода возврата curl). Вердикт набора
+спрашивать `scripts/ci_control_verdict.py`, а НЕ `conclusion` прогона.
+**Все 6 красных пакета храповиков ДИФФЕРЕНЦИАЛЬНО идентичны на чистом `origin/main`**
+(`test_decision_journal_coverage::ReaderPopulationRatchet`, `test_inbox_acceptance_ratchet`,
+`test_python_git_ref_provenance`, `test_script_path_launch_imports`,
+`test_unwired_registry_evidence`, `test_unwired_scripts_ratchet`) — замер на двух деревьях
+от одной вершины, 4 failed против 4 failed поимённо. Этот цикл красных НЕ добавил.
+Поправка унаследованного заказа: `test_inbox_acceptance_ratchet` красен **ДЕСЯТЬЮ** именами,
+а не двумя (G945 п. 8 нёс устаревшее число).
+
 ### Заказ G946 (следующему циклу)
 
 1. **ГЛАВНОЕ — §15 ТЗ владельца (Portfolio optimization objective), следующий по порядку.**
