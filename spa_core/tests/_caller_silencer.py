@@ -63,6 +63,7 @@ from typing import Any, Dict, List, Optional, Sequence, Set, Tuple
 
 from spa_core.monitoring import declared_collection_census as census_mod
 from spa_core.tests import _empty_collection_harm as harm
+from spa_core.tests import _framework_entry as fw
 from spa_core.tests import _silencer_fate as fates
 from spa_core.tests import _subscript_silencer as sil
 
@@ -77,8 +78,11 @@ OUTCOMES: Tuple[str, ...] = ("loud", "silenced", "unmeasured")
 #: `with` — менеджер контекста, ГЛОТАЮЩИЙ исключение (`pytest.raises`,
 #: `assertRaises`, `contextlib.suppress`): он ловит не хуже `except`, и не спросить
 #: про него значило бы назвать такое чтение `loud`, то есть ошибиться в ОПАСНУЮ
-#: сторону.
-SILENCER_KINDS: Tuple[str, ...] = ("try", "with")
+#: сторону. Третий род — КАРКАС, и он приходит ОБЪЯВЛЕНИЕМ
+#: (:data:`_framework_entry.DECLARATION`), а не разбором формы: что делает с
+#: исключением `@router.get`, из синтаксиса не следует (ADR-952). Перечень
+#: ВЫВЕДЕН из объявления, а не перечислен рядом с ним.
+SILENCER_KINDS: Tuple[str, ...] = ("try", "with") + fw.SILENCED_ENTRY_KINDS
 
 #: Менеджеры контекста, ГЛОТАЮЩИЕ названный род исключения.
 SWALLOWING_MANAGERS: Tuple[str, ...] = (
@@ -94,8 +98,10 @@ TRANSPARENT_DECORATORS = frozenset({
     "final", "abstractmethod", "wraps", "lru_cache", "cache", "dataclass",
 })
 
-#: Чем оборвано замыкание, когда исход `loud`. Считаются ОТДЕЛЬНО.
-ENTRY_KINDS: Tuple[str, ...] = ("module_level", "pytest_test")
+#: Чем оборвано замыкание, когда исход `loud`. Считаются ОТДЕЛЬНО. Каркасы
+#: берутся из ОБЪЯВЛЕНИЯ (ADR-952) и только те, у которых механизм «каркас
+#: ДОКЛАДЫВАЕТ исключение» назван словами.
+ENTRY_KINDS: Tuple[str, ...] = ("module_level",) + fw.LOUD_ENTRY_KINDS
 
 #: Привязка одного вызова к объявлению.
 OURS, OTHER, UNKNOWN = "ours", "other", "unknown"
@@ -452,8 +458,13 @@ def opaque_decorator(func: ast.AST) -> Optional[str]:
 
 
 def _is_pytest_test(func: ast.AST, rel: str) -> bool:
-    name = getattr(func, "name", "")
-    return name.startswith("test_") and ("tests/" in rel or "/test_" in f"/{rel}")
+    """Делегирует ЕДИНСТВЕННОМУ предикату объявления (ADR-952).
+
+    Своей копии здесь нет намеренно: до ADR-952 тот же `def test_…` был точкой
+    входа, когда ЗВАЛ измеряемое, и «звавшим вне дерева», когда измеряемое лежало
+    В ЕГО ТЕЛЕ, — асимметрию решал НОМЕР ПРЫЖКА, а не свойство дерева.
+    """
+    return fw.is_pytest_test(getattr(func, "name", ""), rel)
 
 
 def _decorator_of(rel: str, name: str,
@@ -525,13 +536,47 @@ def loudness_through_callers(target_rel: str, fname: str, is_method: bool,
             if unknown:
                 blockers.append(f"одноимённых вызовов `{name}`, не привязанных к "
                                 f"объявляющему модулю: {len(unknown)} ({unknown[0]})")
-            if not ours:
-                blockers.append(f"`{name}` не зовёт ни одна строка поверхности — "
-                                "звавший ВНЕ дерева (каркас, точка входа)")
-            opaque = _decorator_of(rel, name, facts)
-            if opaque is not None:
-                blockers.append(f"`{name}` несёт декоратор `@{opaque}` — звавший "
-                                "назначается ИМ (каркас, планировщик)")
+            # ─── каркас спрашивается ОБЪЯВЛЕНИЕМ, а не разбором формы ───
+            # Вопрос стои́т ДО обоих препятствий ниже намеренно: оба они говорят
+            # «звавший назначается каркасом», и пока каркас не назван, это и есть
+            # «не измерено». Названный каркас отвечает на ОБА сразу.
+            declared = fw.framework_entry(rel, name, facts)
+            if declared is not None:
+                entry, mark = declared
+                if entry.verdict == "silenced":
+                    return {"loudness": "silenced", "silencer": entry.kind,
+                            "entry": None, "hops": hop,
+                            "why": (f"`{rel}::{name}` — объявленная точка входа "
+                                    f"`{entry.kind}` (примета `{mark}`): "
+                                    f"{entry.why}"),
+                            # Судьба объявлена каркасом, но отдаётся ТОЛЬКО
+                            # тому, кто о ней спросил: иначе «судьбы нет»
+                            # перестало бы отличаться от «не спрашивали»
+                            # (контракт ADR-951, инв. #17). Дефект найден
+                            # собственным контролем батареи ADR-952.
+                            "fate": (entry.fate if fate_of is not None
+                                     else None),
+                            "fate_why": (entry.why if fate_of is not None
+                                         else None),
+                            "fate_site": (f"{rel}::{name}"
+                                          if fate_of is not None else None)}
+                if entry.verdict == "loud":
+                    entries[entry.kind] += 1
+                else:
+                    blockers.append(
+                        f"`{name}` зовёт объявленный каркас `{entry.kind}` "
+                        f"(примета `{mark}`), но судьба исключения у него НЕ "
+                        f"ОДНА: {entry.why}")
+            else:
+                if not ours:
+                    blockers.append(f"`{name}` не зовёт ни одна строка "
+                                    "поверхности — звавший ВНЕ дерева (каркас, "
+                                    "точка входа) и каркас НЕ ОБЪЯВЛЕН")
+                opaque = _decorator_of(rel, name, facts)
+                if opaque is not None:
+                    blockers.append(f"`{name}` несёт декоратор `@{opaque}` — "
+                                    "звавший назначается ИМ (каркас, "
+                                    "планировщик) и каркас НЕ ОБЪЯВЛЕН")
 
             for site_rel, call in pending:
                 encl, encl_method = enclosing_callable(call, facts[site_rel])

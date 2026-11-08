@@ -329,10 +329,24 @@ class ControlOnRealTreeMembers(unittest.TestCase):
         self.assertEqual("silenced", got["loudness"], got["why"])
         self.assertIn("criterion_sign_price.py", got["why"])
 
-    def test_a_route_handler_of_the_tree_is_unmeasured_not_loud(self) -> None:
+    def test_a_route_handler_of_the_tree_is_silenced_by_the_framework_not_loud(self) -> None:
+        """НАМЕРЕННОЕ изменение проверки (инв. #16), и оно УСИЛЕНИЕ, а не ослабление.
+
+        Прежнее имя и прежнее утверждение были `unmeasured`: ADR-950 знал, что
+        `@router.get` назначает звавшим КАРКАС, но что этот каркас делает с
+        исключением, не было объявлено нигде — и «не измерено» было честным
+        ответом. ADR-952 объявил механизм словами (`ServerErrorMiddleware` →
+        HTTP 500), поэтому чтение переходит из «неизвестно» НА ПРЕДМЕТ.
+
+        Утверждение, которое тест защищал, сохранено ДОСЛОВНО первой строкой:
+        `loud` здесь по-прежнему запрещён, и это единственный вердикт, который
+        снял бы чтение с приоритета. Вход не изменён ни на байт.
+        """
         got = cs.loudness_through_callers(
             "spa_core/academy/api/routes/auth.py", "me", False, tree_facts())
-        self.assertEqual("unmeasured", got["loudness"], got["why"])
+        self.assertNotEqual("loud", got["loudness"], got["why"])
+        self.assertEqual("silenced", got["loudness"], got["why"])
+        self.assertEqual("asgi_route", got["silencer"], got["why"])
 
 
 class DeclarationCarriesItsOwnContract(unittest.TestCase):

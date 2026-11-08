@@ -1,0 +1,110 @@
+{
+ "title": "ADR-952 — дельта цикла #1070: ТОЧКА ВХОДА КАРКАСА как ОБЪЯВЛЕНИЕ (заказ G940 п. 1)",
+ "tests": [
+  "spa_core/tests/test_framework_entry.py"
+ ],
+ "mutations": [
+  {
+   "name": "M1 дорога значения снята: фабрика признаётся по ИМЕНИ, откуда она ввезена — не спрашивается",
+   "file": "spa_core/tests/_framework_entry.py",
+   "old": "        if not _imported_from(mod, head, ASGI_PACKAGES):\n            continue",
+   "new": "        pass"
+  },
+  {
+   "name": "M2 глагол не проверяется: любой атрибут маршрутизатора становится маршрутом",
+   "file": "spa_core/tests/_framework_entry.py",
+   "old": "        if not isinstance(node, ast.Attribute) or node.attr not in ASGI_VERBS:\n            continue",
+   "new": "        if not isinstance(node, ast.Attribute):\n            continue"
+  },
+  {
+   "name": "M3 признак теста теряет ПУТЬ: `test_`-функция вне тестового дерева объявляется каркасом",
+   "file": "spa_core/tests/_framework_entry.py",
+   "old": "    return name.startswith(\"test_\") and (\"tests/\" in rel or \"/test_\" in f\"/{rel}\")",
+   "new": "    return name.startswith(\"test_\")"
+  },
+  {
+   "name": "M4 признак теста теряет ИМЯ: любая функция тестового файла объявляется тестом",
+   "file": "spa_core/tests/_framework_entry.py",
+   "old": "    return name.startswith(\"test_\") and (\"tests/\" in rel or \"/test_\" in f\"/{rel}\")",
+   "new": "    return \"tests/\" in rel or \"/test_\" in f\"/{rel}\""
+  },
+  {
+   "name": "M5 порядок опроса перевёрнут: `loud` спрашивается ПЕРЕД заглушающим каркасом",
+   "file": "spa_core/tests/_framework_entry.py",
+   "old": "_PROBES: Tuple[Tuple[str, Any], ...] = (\n    (\"asgi_route\", lambda func, name, rel, mod: asgi_route_decorator(func, mod)),",
+   "new": "_PROBES: Tuple[Tuple[str, Any], ...] = (\n    (\"pytest_test\", lambda func, name, rel, mod: (\n        name if is_pytest_test(name, rel) else None)),\n    (\"asgi_route\", lambda func, name, rel, mod: asgi_route_decorator(func, mod)),"
+  },
+  {
+   "name": "M6 фикстура признаётся без ввоза pytest: чужой `@fixture` объявляется каркасом",
+   "file": "spa_core/tests/_framework_entry.py",
+   "old": "            if node.id == \"fixture\" and _imported_from(mod, node.id, (\"pytest\",)):\n                return \"fixture\"",
+   "new": "            if node.id == \"fixture\":\n                return \"fixture\""
+  },
+  {
+   "name": "M7 крюк unittest признаётся без БАЗЫ класса: `setUp` у любого класса объявляется каркасом",
+   "file": "spa_core/tests/_framework_entry.py",
+   "old": "    for base in owner.bases:\n        label = (base.id if isinstance(base, ast.Name)\n                 else base.attr if isinstance(base, ast.Attribute) else None)\n        if label in UNITTEST_BASES:\n            return f\"{owner.name}.{name}\"\n    return None",
+   "new": "    return f\"{owner.name}.{name}\""
+  },
+  {
+   "name": "M8 контракт объявления не проверяется на импорте (ADR-932 наизнанку)",
+   "file": "spa_core/tests/_framework_entry.py",
+   "old": "\n_check_declaration()\n",
+   "new": "\n_ = _check_declaration\n"
+  },
+  {
+   "name": "M9 перечни родов перечислены РУКОЙ, а не выведены из объявления (ADR-943)",
+   "file": "spa_core/tests/_framework_entry.py",
+   "old": "LOUD_ENTRY_KINDS: Tuple[str, ...] = tuple(\n    kind for kind, entry in DECLARATION.items() if entry.verdict == \"loud\")",
+   "new": "LOUD_ENTRY_KINDS: Tuple[str, ...] = (\"pytest_test\", \"pytest_fixture\",\n                                     \"unittest_hook\")"
+  },
+  {
+   "name": "M10 заглушающий каркас докладывается как ГРОМКИЙ (ошибка в опасную сторону)",
+   "file": "spa_core/tests/_caller_silencer.py",
+   "old": "                if entry.verdict == \"silenced\":",
+   "new": "                if entry.verdict == \"никогда\":"
+  },
+  {
+   "name": "M11 объявленный каркас не отменяет препятствий: громкая точка входа гаснет в `unmeasured`",
+   "file": "spa_core/tests/_caller_silencer.py",
+   "old": "                if entry.verdict == \"loud\":\n                    entries[entry.kind] += 1",
+   "new": "                if entry.verdict == \"никогда\":\n                    entries[entry.kind] += 1"
+  },
+  {
+   "name": "M12 судьба каркаса отдаётся и тому, кто о ней НЕ СПРАШИВАЛ (инв. #17)",
+   "file": "spa_core/tests/_caller_silencer.py",
+   "old": "                            \"fate\": (entry.fate if fate_of is not None\n                                     else None),",
+   "new": "                            \"fate\": entry.fate,"
+  },
+  {
+   "name": "M13 предикат теста ДУБЛИРУЕТСЯ в приборе — асимметрия прыжка возвращается",
+   "file": "spa_core/tests/_caller_silencer.py",
+   "old": "    return fw.is_pytest_test(getattr(func, \"name\", \"\"), rel)",
+   "new": "    name = getattr(func, \"name\", \"\")\n    return name.startswith(\"test_\") and (\"tests/\" in rel or \"/test_\" in f\"/{rel}\")"
+  },
+  {
+   "name": "M14 перечень глушителей прибора перечислен рукой и каркас в него не попадает",
+   "file": "spa_core/tests/_caller_silencer.py",
+   "old": "SILENCER_KINDS: Tuple[str, ...] = (\"try\", \"with\") + fw.SILENCED_ENTRY_KINDS",
+   "new": "SILENCER_KINDS: Tuple[str, ...] = (\"try\", \"with\")"
+  },
+  {
+   "name": "M15 перечень точек входа прибора перечислен рукой: громкие каркасы в него не попадают",
+   "file": "spa_core/tests/_caller_silencer.py",
+   "old": "ENTRY_KINDS: Tuple[str, ...] = (\"module_level\",) + fw.LOUD_ENTRY_KINDS",
+   "new": "ENTRY_KINDS: Tuple[str, ...] = (\"module_level\", \"pytest_test\")"
+  },
+  {
+   "name": "M16 объявленный каркас берётся ПЕРВЫЙ по обходу AST, а не по порядку опроса",
+   "file": "spa_core/tests/_framework_entry.py",
+   "old": "    for kind, _probe in _PROBES:\n        if kind in found:\n            return DECLARATION[kind], found[kind]\n    return None",
+   "new": "    for kind in found:\n        return DECLARATION[kind], found[kind]\n    return None"
+  },
+  {
+   "name": "M17 механизм члена объявления не требуется — объявление превращается в ярлык",
+   "file": "spa_core/tests/_framework_entry.py",
+   "old": "        if len(entry.why) < 40:\n            raise ValueError(f\"`{kind}`: механизм не назван — это не объявление\")",
+   "new": "        pass"
+  }
+ ]
+}
