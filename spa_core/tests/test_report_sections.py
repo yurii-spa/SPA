@@ -14,12 +14,14 @@
 from __future__ import annotations
 
 import json
+import tempfile
 from pathlib import Path
 
 import pytest
 
 from spa_core.analytics.analytics_runner import run_post_cycle_analytics
 from spa_core.analytics.report_sections import (
+    DATA_INDEPENDENT_SECTIONS,
     SECTION_NAMES,
     build_report_sections,
 )
@@ -301,9 +303,45 @@ class TestHonestSkips:
         # (apy_name_census, ADR-953), и счётный потолок устаревал бы в день
         # доставки — утверждение же здесь про «ровно те, что объявлены».
         assert len(sections) == len(SECTION_NAMES)
+        # ADR-958: предмет секции бывает ДВУХ родов, и премиса «пустой data/ ⇒
+        # SKIPPED у ВСЕХ» верна только для первого. Секция, чей предмет —
+        # поведение самого кода на объявленной сцене, обязана отвечать OK: ей
+        # было ЧТО мерить. Это НЕ ослабление — проверок стало БОЛЬШЕ: у
+        # data-независимой секции сверяется, что она САМА объявляет, что
+        # живого data/ не читала (`data_dir_read: False`). Список-исключение
+        # без этой сверки и был бы ослаблением (инв. #16).
         for name, sec in sections.items():
+            if name in DATA_INDEPENDENT_SECTIONS:
+                assert sec["status"] == "OK", f"{name}: {sec}"
+                assert sec.get("data_dir_read") is False, (
+                    f"{name} объявлена data-независимой, но не печатает "
+                    f"data_dir_read=False: {sec}")
+                assert DATA_INDEPENDENT_SECTIONS[name].strip(), (
+                    f"{name}: членство объявлено без причины")
+                continue
             assert sec["status"] == "SKIPPED", f"{name}: {sec}"
             assert sec["reason"]
+
+    def test_data_independent_membership_names_only_real_sections(self):
+        # Объявление обязано выдерживать свою же мерку: имя, которого нет среди
+        # секций, означало бы, что перечень молча разъехался с отчётом.
+        unknown = set(DATA_INDEPENDENT_SECTIONS) - set(SECTION_NAMES)
+        assert not unknown, f"объявлены несуществующие секции: {sorted(unknown)}"
+
+    def test_a_data_dependent_section_cannot_sneak_into_the_exempt_list(self):
+        """Положительный контроль на САМ перечень.
+
+        Если в перечень попадёт секция, которая живое `data/` всё-таки читает,
+        проверка выше поймает её на отсутствии `data_dir_read=False`. Здесь это
+        воспроизводится явно: иначе «перечень пуст от лишнего» было бы
+        неотличимо от «проверка ничего не умеет».
+        """
+        sections = build_report_sections(Path(tempfile.mkdtemp()), {})
+        victim = next(n for n in SECTION_NAMES
+                      if n not in DATA_INDEPENDENT_SECTIONS)
+        assert sections[victim].get("data_dir_read") is not False, (
+            f"{victim} читает data/, но печатает data_dir_read=False — тогда "
+            "признак членства ничего не различает")
 
     def test_lp_skipped_without_file_ok_with_positions(self, live_book):
         sec = build_report_sections(live_book, _equity_doc())["lp_position_tracker"]

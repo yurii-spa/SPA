@@ -825,6 +825,7 @@
 | ADR-955 | ADR-955 — §12 ТЗ владельца «Marginal APY»: лестница отдаёт ВИЛКУ трёх родов, а слепая ось бывает НЕ ПУСТОЙ — предмет её записей ВЫДУМАН | принято | [ADR-955](ADR-955-marginal-apy-at-size-ladder-and-the-fixture-subject-state.md) |
 | ADR-956 | ADR-956 — §13 ТЗ владельца «Transaction economics»: из девяти слагаемых цены свой сумманд имеют ДВА, а «не заряжено» и «сказать нечем» — РАЗНЫЕ отказы | принято | [ADR-956](ADR-956-transaction-economics-census.md) |
 | ADR-957 | ADR-957 — §14 ТЗ владельца «Round trip»: третьей ноги у цены нет, а о вероятности скорой перекладки не говорит НИ ОДИН вход двери | принято | [ADR-957](ADR-957-round-trip-economics-census.md) |
+| ADR-958 | ADR-958 — §15 ТЗ владельца «Portfolio optimization objective»: своё слагаемое есть у ОДНОГО штрафа из шести, а сторож финансовой математики был слеп к стоп-крану и к слою §15 | принято | [ADR-958](ADR-958-objective-penalty-census-and-the-unguarded-math-layer.md) |
 
 ## Соглашения
 

@@ -466,6 +466,30 @@ def _section_round_trip_economics(data_dir: Path, equity_doc: dict) -> Dict[str,
     return rep
 
 
+def _section_objective_penalties(data_dir: Path, equity_doc: dict) -> Dict[str, Any]:
+    """Portfolio optimization objective — §15 ТЗ владельца (ADR-958).
+
+    Слой ADVISORY: §15 требует зарядить ШЕСТЬ штрафов в целевую функцию, и
+    каждый такой заряд есть правка функции, решающей о движении денег (предмет
+    №1 границы ADR-285). Секция только НАЗЫВАЕТ род каждого штрафа и то, чего
+    не хватает.
+
+    Читатель у замера обязан быть ВНУТРИ цикла (ADR-526): прибор, чей отчёт не
+    получает никто, неотличим от прибора, который не запускался.
+
+    Секция НЕ несёт apy-именованных чисел намеренно (см. докстринг модуля):
+    счёт целевой функции — разность кандидата, а не доходность книги, и назвать
+    его `apy_*` было бы ровно тем дефектом, который ловит перепись §5.
+    """
+    from .objective_penalties import measure
+
+    rep = measure(data_dir)
+    if rep.get("status") == "SKIPPED":
+        reasons = rep.get("unmeasured") or ["причина не названа"]
+        rep["reason"] = "; ".join(str(r) for r in reasons)
+    return rep
+
+
 def _section_apy_name_census(data_dir: Path, equity_doc: dict,
                              sections: Dict[str, Dict[str, Any]]) -> Dict[str, Any]:
     """Перепись родов числа, названного «APY» (приказ владельца «Portfolio CIO» §5).
@@ -502,6 +526,7 @@ _SECTION_BUILDERS: List[Tuple[str, Callable[[Path, dict], Dict[str, Any]]]] = [
     ("conservative_expected_apy", _section_conservative_expected_apy),
     ("marginal_apy_ladder", _section_marginal_apy_ladder),
     ("round_trip_economics", _section_round_trip_economics),
+    ("objective_penalties", _section_objective_penalties),
 ]
 
 # Секции, судящие СВОИХ СОСЕДЕЙ того же прогона: строятся ПОСЛЕ остальных и
@@ -517,6 +542,27 @@ SECTION_NAMES: List[str] = (
     [name for name, _ in _SECTION_BUILDERS]
     + [name for name, _ in _POST_SECTION_BUILDERS]
 )
+
+#: Секции, чей ПРЕДМЕТ лежит НЕ в `data/`, и причина у каждой (ADR-958).
+#:
+#: Почему перечень объявлен, а не выведен. Почти у каждой секции предмет —
+#: наблюдение дня, и пустой `data/` обязан давать ЧЕСТНЫЙ `SKIPPED`: иначе
+#: «данных нет» стало бы неотличимо от «посчитано» (инв. #17), и ровно это
+#: проверяет `TestHonestSkips`. Но предмет бывает и другого рода: поведение
+#: САМОГО КОДА на объявленной сцене. Такая секция на пустом `data/` обязана
+#: отвечать `OK` — и не потому, что ей разрешено исключение, а потому, что
+#: мерить ей было ЧТО, и снимок дня в её ответ не входит ни одним числом.
+#:
+#: Членство здесь — УТВЕРЖДЕНИЕ, которое проверяется: секция обязана печатать
+#: `data_dir_read: False`, то есть сама объявлять, что живого `data/` не
+#: читала. Перечень без этой проверки был бы списком-исключением, которым
+#: гасят красноту, — тем самым дефектом, против которого написан инв. #16.
+DATA_INDEPENDENT_SECTIONS: Dict[str, str] = {
+    "objective_penalties":
+        "предмет §15 — поведение ЦЕЛЕВОЙ ФУНКЦИИ тюнера на объявленной сцене "
+        "(ADR-958). Снимок дня в ответ не входит: подмешать его значило бы "
+        "сделать род штрафа свойством дня, а не функции",
+}
 
 
 def build_report_sections(data_dir: Path, equity_doc: dict) -> Dict[str, Dict[str, Any]]:
