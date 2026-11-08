@@ -1,0 +1,113 @@
+{
+  "title": "ADR-955 MARGINAL — дельта цикла #1073: §12 ТЗ владельца «Marginal APY» — перепись СЕМИ осей влияния своего размера (новое состояние «предмет записи ВЫДУМАН») + лестница +$5/10/20/40k ВИЛКОЙ трёх родов",
+  "tests": [
+    "spa_core/tests/test_apy_marginal.py",
+    "spa_core/tests/test_marginal_apy_probe.py",
+    "spa_core/tests/test_report_sections.py",
+    "spa_core/tests/test_apy_name_census.py"
+  ],
+  "mutations": [
+    {
+      "name": "M1 ВЫДУМАННЫЙ предмет объявлен КРЕДИТОМ — главная находка цикла исчезает: файл о TestProtocol читался бы как живое наблюдение",
+      "file": "spa_core/analytics/apy_marginal.py",
+      "old": "    if not bound:\n        rec.update(state=\"fixture_subject\",",
+      "new": "    if False:\n        rec.update(state=\"fixture_subject\","
+    },
+    {
+      "name": "M2 предмет-КЛЮЧ отображения не читается — ЕДИНСТВЕННАЯ измеримая ось §12 докладывается слепой (дефект первой редакции этого же цикла)",
+      "file": "spa_core/analytics/apy_marginal.py",
+      "old": "                    n = _norm(k)\n                    if n:\n                        subjects.add(n)",
+      "new": "                    pass  # мутация: предмет-ключ не читается"
+    },
+    {
+      "name": "M3 ПУСТОЙ файл объявлен кредитом — прочитанная пустота выдаётся за учтённую ось (инверсия ADR-940)",
+      "file": "spa_core/analytics/apy_marginal.py",
+      "old": "        rec.update(state=\"empty\",\n                   detail=f\"{source}: файл есть и ПУСТ — прочитанная пустота \"\n                          \"ответом об оси не является\")\n        return rec",
+      "new": "        rec.update(state=\"credited\", detail=\"мутация: пустота учтена\")\n        return rec"
+    },
+    {
+      "name": "M4 КОНСТАНТНЫЙ TVL принимается знаменателем разбавления — прямое нарушение ADR-053 («never stamp live on a constant»)",
+      "file": "spa_core/analytics/apy_marginal.py",
+      "old": "    if src != \"live\":\n        return None, (f\"TVL не живой (`tvl_source`={src!r}) — знаменатель \"\n                      \"разбавления на константе есть ровно запрет ADR-053\")",
+      "new": "    if False:\n        return None, \"мутация\""
+    },
+    {
+      "name": "M5 НЕИЗМЕРЕННЫЙ состав ставки принимается целиком базовым — печаталось бы НУЛЕВОЕ влияние своего размера",
+      "file": "spa_core/analytics/apy_marginal.py",
+      "old": "    if isinstance(comp, str) and comp.strip():\n        rec[\"unmeasured\"] = (f\"состав ставки НЕ ИЗМЕРЕН ({comp}) — принять всю \"",
+      "new": "    if False:\n        rec[\"unmeasured\"] = (f\"состав ставки НЕ ИЗМЕРЕН ({comp}) — принять всю \""
+    },
+    {
+      "name": "M6 ЗНАК вилки инвертирован — самый разбавляемый пул получал бы САМУЮ щедрую оценку (инверсия всего замысла §12)",
+      "file": "spa_core/analytics/apy_marginal.py",
+      "old": "    upper = base_pct + reward_pct * factor\n    modelled = _diluted_apy(reward_pct, base_pct, tvl_usd, amount_usd)\n    lower = (base_pct + reward_pct) * factor",
+      "new": "    lower = base_pct + reward_pct * factor\n    modelled = _diluted_apy(reward_pct, base_pct, tvl_usd, amount_usd)\n    upper = (base_pct + reward_pct) * factor"
+    },
+    {
+      "name": "M7 ВЕРХНЯЯ граница считается по МОДЕЛИ — граница перестаёт быть границей, модель носит метку факта",
+      "file": "spa_core/analytics/apy_marginal.py",
+      "old": "    upper = base_pct + reward_pct * factor\n",
+      "new": "    upper = _diluted_apy(reward_pct, base_pct, tvl_usd, amount_usd)\n"
+    },
+    {
+      "name": "M8 лестница сведена к ОДНОЙ ступени — §12 просит четыре, и «ставка при размере» без лестницы вопроса владельца не покрывает",
+      "file": "spa_core/analytics/apy_marginal.py",
+      "old": "RUNGS_USD: Tuple[float, ...] = (5_000.0, 10_000.0, 20_000.0, 40_000.0)",
+      "new": "RUNGS_USD: Tuple[float, ...] = (5_000.0,)"
+    },
+    {
+      "name": "M9 срок меряется СТЕННЫМИ ЧАСАМИ, а не входом — проверка свежести становится будильником",
+      "file": "spa_core/analytics/apy_marginal.py",
+      "old": "    now = now or datetime.now(timezone.utc)\n    ours = opportunity_names(adapters)",
+      "new": "    now = datetime.now(timezone.utc)\n    ours = opportunity_names(adapters)"
+    },
+    {
+      "name": "M10 секция СНЯТА из перечня цикла — числа §12 не производились бы ни одним циклом (класс «прибор написан и не позван»)",
+      "file": "spa_core/analytics/report_sections.py",
+      "old": "    (\"marginal_apy_ladder\", _section_marginal_apy_ladder),\n]",
+      "new": "]"
+    },
+    {
+      "name": "M11 секция строится ПОСЛЕ переписи родов — необъявленное число §12 перестало бы краснеть у соседа",
+      "file": "spa_core/analytics/report_sections.py",
+      "old": "    (\"conservative_expected_apy\", _section_conservative_expected_apy),\n    (\"marginal_apy_ladder\", _section_marginal_apy_ladder),\n]",
+      "new": "    (\"conservative_expected_apy\", _section_conservative_expected_apy),\n]"
+    },
+    {
+      "name": "M12 род ставки при размере объявлен НАЗАД СМОТРЯЩИМ — выведенное моделью стало бы сравнимо с наблюдением как однородное (инверсия C2 ADR-580)",
+      "file": "spa_core/analytics/apy_kinds.py",
+      "old": "        window=\"today_at_size\",\n        evidence=\"not_applicable\",\n        horizon=\"forward\",\n        meaning=(\"ВЕРХНЯЯ граница ставки протокола при добавлении НАШЕЙ суммы: \"",
+      "new": "        window=\"today_at_size\",\n        evidence=\"not_applicable\",\n        horizon=\"backward\",\n        meaning=(\"ВЕРХНЯЯ граница ставки протокола при добавлении НАШЕЙ суммы: \""
+    },
+    {
+      "name": "M13 путь числа вилки СНЯТ из объявления — apy-именованное число поехало бы без рода",
+      "file": "spa_core/analytics/apy_kinds.py",
+      "old": "    \"sections/marginal_apy_ladder/opportunities[]/rungs[]/apy_bracket_width_pp\":\n        \"rate_bracket_width_pp\",",
+      "new": "    # мутация: путь числа вилки снят из объявления"
+    },
+    {
+      "name": "M14 проба не ловит МОЛЧАЛИВЫЙ пробел — возможность без лестницы и без причины прошла бы приёмку (инв. #17)",
+      "file": "spa_core/monitoring/card_acceptance.py",
+      "old": "    if silent:\n        return NOT_SATISFIED, (f\"у {len(silent)} возможностей лестницы нет БЕЗ \"",
+      "new": "    if False:\n        return NOT_SATISFIED, (f\"у {len(silent)} возможностей лестницы нет БЕЗ \""
+    },
+    {
+      "name": "M15 проба не требует СЕМИ осей — перепись из шести прошла бы приёмку, отвечая не на вопрос владельца",
+      "file": "spa_core/monitoring/card_acceptance.py",
+      "old": "    if not isinstance(axes, list) or len(axes) != 7:",
+      "new": "    if not isinstance(axes, list) or len(axes) < 1:"
+    },
+    {
+      "name": "M16 отсутствие секции объявлено NOT_SATISFIED — доставка кода и его работа в проде перестали бы быть двумя событиями",
+      "file": "spa_core/monitoring/card_acceptance.py",
+      "old": "    sec = sections.get(\"marginal_apy_ladder\")\n    if sec is None:\n        return UNMEASURED, (f\"цикл ещё не производил секцию marginal_apy_ladder \"",
+      "new": "    sec = sections.get(\"marginal_apy_ladder\")\n    if sec is None:\n        return NOT_SATISFIED, (f\"цикл ещё не производил секцию marginal_apy_ladder \""
+    },
+    {
+      "name": "M17 проба не требует ПРИЧИНЫ СЛОВАМИ у оси — молчащая ось прошла бы приёмку",
+      "file": "spa_core/monitoring/card_acceptance.py",
+      "old": "            or not a.get(\"detail\") or not a.get(\"why\")]",
+      "new": "            or not a.get(\"detail\")]"
+    }
+  ]
+}

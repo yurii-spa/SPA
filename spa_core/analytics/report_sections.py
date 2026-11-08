@@ -422,6 +422,28 @@ def _section_conservative_expected_apy(data_dir: Path, equity_doc: dict) -> Dict
     return rep
 
 
+def _section_marginal_apy_ladder(data_dir: Path, equity_doc: dict) -> Dict[str, Any]:
+    """Marginal APY — §12 ТЗ владельца: влияние НАШЕГО размера на ставку.
+
+    Слой ADVISORY: целевая функция тюнера, потолки и RiskPolicy не тронуты —
+    требование §12 «optimizer должен распределять капитал по marginal return
+    curve» есть предмет №1 границы ADR-285 и этой секцией не исполняется.
+
+    Секция СТРОИТСЯ ДО переписи родов (`apy_name_census`) намеренно: перепись
+    судит соседей ТОГО ЖЕ прогона, и apy-именованное число этой секции,
+    добавленное мимо объявления, обязано краснеть у неё, а не ждать своего
+    сторожа.
+    """
+    from .apy_marginal import measure
+
+    rep = measure(data_dir)
+    if rep.get("verdict") == "UNMEASURED" and not rep.get("opportunities"):
+        reasons = rep.get("unmeasured") or ["причина не названа"]
+        rep["status"] = "SKIPPED"
+        rep["reason"] = "; ".join(reasons)
+    return rep
+
+
 def _section_apy_name_census(data_dir: Path, equity_doc: dict,
                              sections: Dict[str, Dict[str, Any]]) -> Dict[str, Any]:
     """Перепись родов числа, названного «APY» (приказ владельца «Portfolio CIO» §5).
@@ -456,6 +478,7 @@ _SECTION_BUILDERS: List[Tuple[str, Callable[[Path, dict], Dict[str, Any]]]] = [
     ("chain_fee_tracker", _section_chain_fees),
     ("governance_token_value_tracker", _section_governance_tokens),
     ("conservative_expected_apy", _section_conservative_expected_apy),
+    ("marginal_apy_ladder", _section_marginal_apy_ladder),
 ]
 
 # Секции, судящие СВОИХ СОСЕДЕЙ того же прогона: строятся ПОСЛЕ остальных и

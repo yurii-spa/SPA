@@ -18084,10 +18084,140 @@ def _probe_conservative_expected_apy_published(arg: str | None, now=None) -> tup
                        f"{sec.get('haircut_from_blind_axes_pp')} пп")
 
 
+def _probe_marginal_apy_ladder_published(arg: str | None, now=None) -> tuple[str, str]:
+    """Критерий §12 приказа владельца «Portfolio CIO»: ЖИВОЙ ЦИКЛ печатает
+    ставку НА ЛЕСТНИЦЕ своего размера, и СЕМЬ осей §12 названы поимённо.
+
+    Дословное требование §12 — «если vault показывает 8 % APY, это не означает,
+    что $40k можно разместить под 8 %… оценивать APY at +$5k/+$10k/+$20k/+$40k…
+    учитывать TVL dilution, utilization, reward dilution, capacity, deposit
+    caps, liquidity, withdrawal depth». Разобрано ADR-955.
+
+    **Проба меряет ИСХОД, а не структуру.** Предмет не «модуль есть», а «цикл
+    КАЖДЫЙ ДЕНЬ производит лестницу и ни одного пробела не прячет». Дверь одна —
+    `data/analytics_summary.json`, раздел `sections.marginal_apy_ladder`; секции
+    нет ⇒ `unmeasured` («цикл её ещё не производил»), а НЕ `not_satisfied`:
+    доставка кода и его работа в проде суть два разных события
+    (`.claude/rules/deployment.md`).
+
+    Предмет вердикта — ровно три утверждения:
+
+    1. хотя бы одна лестница ИЗМЕРЕНА (ноль при непустом наборе возможностей
+       значит, что лестница не считается ни на чём);
+    2. у КАЖДОЙ неизмеренной возможности названа причина (инв. #17: молчаливый
+       пропуск исходом не является);
+    3. ВСЕ СЕМЬ осей §12 несут состояние И причину словами — перепись осей, у
+       которой ось молчит, отвечает не на вопрос владельца.
+
+    Чего проба НЕ требует намеренно: чтобы хоть одна ось была УЧТЕНА. Сегодня
+    учтена ровно одна из семи, и повесить сюда порог значило бы требовать от
+    приёмки того, что лежит у ПИСАТЕЛЕЙ данных (три оси слепы потому, что ряда
+    никто не пишет), а не у читателя формулы. Рост доли — отдельная работа с
+    отдельным замером.
+
+    Время — вход (`now`), а не окружение.
+    """
+    path = os.path.join(REPO_ROOT, "data", "analytics_summary.json")
+    rel = os.path.relpath(path, REPO_ROOT)
+    try:
+        with open(path, encoding="utf-8") as fh:
+            doc = json.load(fh)
+    except FileNotFoundError:
+        return UNMEASURED, f"{rel} нет в этом дереве — предмет не измерен"
+    except (OSError, ValueError) as exc:
+        return UNMEASURED, f"{rel} не разобран: {type(exc).__name__}: {exc}"
+    if not isinstance(doc, dict):
+        return UNMEASURED, f"форма {rel} не разобрана ({type(doc).__name__})"
+
+    stamp = doc.get("generated_at")
+    if not stamp:
+        return UNMEASURED, f"{rel} без generated_at — возраст не измерен, судить нечем"
+    try:
+        made = datetime.fromisoformat(str(stamp).replace("Z", "+00:00"))
+    except ValueError:
+        return UNMEASURED, f"{rel}: generated_at {stamp!r} не разобран — возраст не измерен"
+    if made.tzinfo is None:
+        made = made.replace(tzinfo=timezone.utc)
+    age_h = ((now or datetime.now(timezone.utc)) - made).total_seconds() / 3600.0
+    if age_h > APY_CENSUS_MAX_AGE_H:
+        return UNMEASURED, (f"{rel} протух: возраст {age_h:.1f}ч при пределе "
+                            f"{APY_CENSUS_MAX_AGE_H:.0f}ч — мерить надо из дерева "
+                            "с живым data/")
+
+    sections = doc.get("sections")
+    if not isinstance(sections, dict):
+        return UNMEASURED, f"в {rel} нет раздела sections — предмет не измерен"
+    sec = sections.get("marginal_apy_ladder")
+    if sec is None:
+        return UNMEASURED, (f"цикл ещё не производил секцию marginal_apy_ladder "
+                            f"в {rel} — доставка кода и его работа в проде суть "
+                            "два события")
+    if not isinstance(sec, dict):
+        return UNMEASURED, (f"секция marginal_apy_ladder в {rel} не разобрана "
+                            f"({type(sec).__name__})")
+    if sec.get("status") == "ERROR":
+        return UNMEASURED, f"секция упала в цикле: {sec.get('error')}"
+    if sec.get("verdict") == "UNMEASURED" and not sec.get("opportunities"):
+        return UNMEASURED, ("секция сама доложила НЕ ИЗМЕРЕНО: "
+                            + "; ".join(sec.get("unmeasured") or ["причина не названа"]))
+
+    counts = sec.get("counts")
+    if not isinstance(counts, dict):
+        return UNMEASURED, ("секция не несёт `counts` — отсутствие счёта нулём "
+                            "не является")
+    total = counts.get("opportunities")
+    measured = counts.get("ladder_measured")
+    if not isinstance(total, int) or total <= 0:
+        return UNMEASURED, ("в секции ни одной возможности — доля у пустого "
+                            "набора не существует")
+    if not isinstance(measured, int):
+        return UNMEASURED, "`ladder_measured` не число — предмет не измерен"
+
+    rows = sec.get("opportunities")
+    if not isinstance(rows, list) or not rows:
+        return UNMEASURED, "`opportunities` не перечень — назвать пробелы нечем"
+    silent = [r.get("adapter_id") for r in rows
+              if isinstance(r, dict) and not r.get("rungs")
+              and not r.get("unmeasured")]
+    if silent:
+        return NOT_SATISFIED, (f"у {len(silent)} возможностей лестницы нет БЕЗ "
+                               f"названной причины: {', '.join(map(str, silent[:4]))}"
+                               " — молчаливый пропуск исходом не является (инв. #17)")
+
+    axes = sec.get("axes")
+    if not isinstance(axes, list) or len(axes) != 7:
+        return UNMEASURED, (f"перечень осей §12 несёт "
+                            f"{len(axes) if isinstance(axes, list) else '—'} "
+                            "записей вместо семи: владелец назвал семь, и "
+                            "перепись из другого числа отвечает не на его вопрос")
+    mute = [a.get("axis") for a in axes
+            if not isinstance(a, dict) or not a.get("state")
+            or not a.get("detail") or not a.get("why")]
+    if mute:
+        return NOT_SATISFIED, (f"у {len(mute)} осей §12 состояние или причина не "
+                               f"названы: {', '.join(map(str, mute[:4]))}")
+
+    rungs_declared = ((sec.get("declared") or {}).get("rungs_usd")
+                      if isinstance(sec.get("declared"), dict) else None)
+    if not isinstance(rungs_declared, list) or len(rungs_declared) < 2:
+        return UNMEASURED, ("секция не объявила ступени лестницы — «ставка при "
+                            "размере» без названного размера числом не является")
+
+    if measured <= 0:
+        return NOT_SATISFIED, (f"ни одной лестницы не измерено из {total} "
+                               "возможностей — причины названы поимённо в секции")
+    return SATISFIED, (f"лестница измерена у {measured} из {total} возможностей "
+                       f"на ступенях {rungs_declared}, у остальных причина "
+                       f"названа; осей §12 учтено {sec.get('axes_credited')} из 7, "
+                       f"предмет ВЫДУМАН у "
+                       f"{counts.get('axes_with_fixture_subject')}")
+
+
 PROBES: dict[str, Callable[[str | None], "tuple[str, str]"]] = {
     "apy_name_carries_one_kind": _probe_apy_name_carries_one_kind,
     "conservative_expected_apy_published":
         _probe_conservative_expected_apy_published,
+    "marginal_apy_ladder_published": _probe_marginal_apy_ladder_published,
     "tier_b_protocol_path_survives_a_disabled_log":
         _probe_tier_b_protocol_path_survives_a_disabled_log,
     "tracked_data_untouched_by_declared_runs":

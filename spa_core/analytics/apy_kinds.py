@@ -57,7 +57,8 @@ DENOMINATORS: Tuple[str, ...] = ("nav", "deployed", "position", None)
 
 #: ЗА КАКОЙ СРОК снято число.
 WINDOWS: Tuple[str, ...] = ("today", "trailing_ring", "trailing_7d",
-                            "trailing_30d", "forward_on_trailing_30d", None)
+                            "trailing_30d", "forward_on_trailing_30d",
+                            "today_at_size", None)
 
 #: НА КАКИХ барах трека число имеет право стоять.
 #: `evidenced_only` — только на доказанных (ADR-580 C2: бэктест/разогрев
@@ -234,6 +235,63 @@ KINDS: Dict[str, ApyKind] = {
                  "«ставка гуляет на 3.85 пп»"),
         owner_term="",
     ),
+    # ── §12 приказа владельца (ADR-955): рода ставки ПРИ НАШЕМ РАЗМЕРЕ ──
+    # Три рода на одну ступень лестницы намеренно: из трёх величин ФАКТОМ
+    # является только разбавление наградной части, а поведение базы — модель.
+    # Один род на троих позволил бы сравнить модель с фактом как однородные —
+    # ровно инверсия поправки C2 ADR-580.
+    "position_rate_at_size_upper": _k(
+        kind="position_rate_at_size_upper",
+        subject="position",
+        is_rate=True,
+        denominator="position",
+        window="today_at_size",
+        evidence="not_applicable",
+        horizon="forward",
+        meaning=("ВЕРХНЯЯ граница ставки протокола при добавлении НАШЕЙ суммы: "
+                 "разбавлена только наградная часть (фиксированная эмиссия на "
+                 "больший TVL — это определение), база держится постоянной. "
+                 "Граница, а не ожидание: все семь осей §12 действуют вниз"),
+        owner_term="Marginal APY",
+    ),
+    "position_rate_at_size_modelled": _k(
+        kind="position_rate_at_size_modelled",
+        subject="position",
+        is_rate=True,
+        denominator="position",
+        window="today_at_size",
+        evidence="not_applicable",
+        horizon="forward",
+        meaning=("ставка при нашем размере по ОБЪЯВЛЕННОЙ МОДЕЛИ MP-911 "
+                 "(`√`-эластичность базы). Выведено моделью, не наблюдено: ряда "
+                 "«ставка против TVL» по нашим протоколам не пишет никто"),
+        owner_term="Marginal APY",
+    ),
+    "position_rate_at_size_lower": _k(
+        kind="position_rate_at_size_lower",
+        subject="position",
+        is_rate=True,
+        denominator="position",
+        window="today_at_size",
+        evidence="not_applicable",
+        horizon="forward",
+        meaning=("НИЖНЯЯ граница ставки при нашем размере: база разбавлена "
+                 "полностью, как наградная часть — граница вреда сверху"),
+        owner_term="Marginal APY",
+    ),
+    "rate_bracket_width_pp": _k(
+        kind="rate_bracket_width_pp",
+        subject="position",
+        is_rate=False,
+        denominator=None,
+        window=None,
+        evidence="not_applicable",
+        horizon="forward",
+        meaning=("ШИРИНА вилки «верхняя граница − нижняя» в процентных пунктах "
+                 "и есть цена слепых осей §12, выраженная числом. Ставкой НЕ "
+                 "является: 0.33 здесь — не «0.33 % годовых»"),
+        owner_term="",
+    ),
     "position_rate_expected_conservative": _k(
         kind="position_rate_expected_conservative",
         subject="position",
@@ -273,6 +331,19 @@ PATH_KINDS: Dict[str, str] = {
     "sections/conservative_expected_apy/opportunities[]/apy_vol_30d_pp": "rate_dispersion_30d_pp",
     "sections/conservative_expected_apy/opportunities[]/conservative_expected_apy_pct":
         "position_rate_expected_conservative",
+    # секция §12 (ADR-955)
+    "sections/marginal_apy_ladder/opportunities[]/displayed_apy_pct": "position_rate",
+    "sections/marginal_apy_ladder/opportunities[]/base_apy_pct": "position_rate_base",
+    "sections/marginal_apy_ladder/opportunities[]/incentive_apy_pct":
+        "position_rate_incentive",
+    "sections/marginal_apy_ladder/opportunities[]/rungs[]/apy_upper_pct":
+        "position_rate_at_size_upper",
+    "sections/marginal_apy_ladder/opportunities[]/rungs[]/apy_modelled_pct":
+        "position_rate_at_size_modelled",
+    "sections/marginal_apy_ladder/opportunities[]/rungs[]/apy_lower_pct":
+        "position_rate_at_size_lower",
+    "sections/marginal_apy_ladder/opportunities[]/rungs[]/apy_bracket_width_pp":
+        "rate_bracket_width_pp",
 }
 
 
