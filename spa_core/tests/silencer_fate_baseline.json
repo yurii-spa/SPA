@@ -1,0 +1,527 @@
+{
+ "_что_это": "ADR-951: СУДЬБА пойманного исключения у каждого из 66 заглушённых чтений класса ADR-950. Объявление ИМЕНАМИ, а не числом: число без имён перемерить нельзя (урок ADR-913).",
+ "_перемерить": "python3 -c \"from spa_core.tests import _caller_silencer as cs, _silencer_fate as f; r=cs.caller_reads(fate_of=f.fate_of_handler); print(r['tally'], r['fate_tally'])\"  (≈180 с)",
+ "_замер": "2026-11-08, цикл #1069, дерево доставки на базе origin/main 323a25157",
+ "предмет": {
+  "loud": 0,
+  "silenced": 66,
+  "unmeasured": 16
+ },
+ "судьбы": {
+  "reraised": 0,
+  "renamed": 66,
+  "lost": 0,
+  "unmeasured": 0
+ },
+ "крайности_на_том_же_дереве": {
+  "_что_это": "заказ G939 п. 1: ось с родом и БЕЗ рода. Расхождение крайностей и есть доказательство, что род предмет ДВИГАЕТ по построению.",
+  "без_рода": {
+   "silenced": 66,
+   "loud": 0,
+   "unmeasured": 16
+  },
+  "все_lost": {
+   "silenced": 66,
+   "loud": 0,
+   "unmeasured": 16
+  },
+  "все_renamed": {
+   "silenced": 66,
+   "loud": 0,
+   "unmeasured": 16
+  },
+  "все_reraised": {
+   "silenced": 1,
+   "loud": 0,
+   "unmeasured": 81
+  },
+  "вывод": "крайности РАСХОДЯТСЯ (66 против 1) — род не украшение; но двигает предмет РОВНО одна судьба `reraised`, а перекладывание между `lost` и `renamed` не меняет НИЧЕГО (66 = 66 = 66)"
+ },
+ "глушителей_по_модулю": {
+  "spa_core/monitoring/findings_bridge.py": 40,
+  "scripts/consume_office_reports.py": 17,
+  "spa_core/monitoring/criterion_sign_price.py": 7,
+  "spa_core/monitoring/reachability_of_the_rest.py": 1,
+  "spa_core/monitoring/card_acceptance.py": 1
+ },
+ "читателей_по_модулю": {
+  "spa_core/monitoring/rule_second_copy_census.py": 16,
+  "spa_core/monitoring/prior_run_operand_census.py": 11,
+  "spa_core/monitoring/snapshot_minute_sensitivity.py": 11,
+  "spa_core/monitoring/criterion_sign_price.py": 7,
+  "spa_core/monitoring/judged_state_identity_census.py": 5,
+  "spa_core/monitoring/cio_substitution_census.py": 4,
+  "spa_core/monitoring/declared_source_live_parity.py": 2,
+  "spa_core/monitoring/finding_address_price.py": 2,
+  "spa_core/monitoring/list_identity_census.py": 2,
+  "spa_core/monitoring/mutation_application_census.py": 2,
+  "spa_core/monitoring/call_sourced_input_census.py": 1,
+  "spa_core/monitoring/failed_name_survival_census.py": 1,
+  "spa_core/monitoring/reachability_of_the_rest.py": 1,
+  "spa_core/monitoring/unresolved_path_census.py": 1
+ },
+ "члены": [
+  {
+   "чтение": "spa_core/monitoring/call_sourced_input_census.py:874",
+   "перечень": "doors",
+   "функция": "measure",
+   "судьба": "renamed",
+   "глушитель": "spa_core/monitoring/findings_bridge.py:3942"
+  },
+  {
+   "чтение": "spa_core/monitoring/cio_substitution_census.py:497",
+   "перечень": "hit_refusal",
+   "функция": "direction_of",
+   "судьба": "renamed",
+   "глушитель": "spa_core/monitoring/findings_bridge.py:3187"
+  },
+  {
+   "чтение": "spa_core/monitoring/cio_substitution_census.py:499",
+   "перечень": "hit_entry",
+   "функция": "direction_of",
+   "судьба": "renamed",
+   "глушитель": "spa_core/monitoring/findings_bridge.py:3187"
+  },
+  {
+   "чтение": "spa_core/monitoring/cio_substitution_census.py:501",
+   "перечень": "hit_entry",
+   "функция": "direction_of",
+   "судьба": "renamed",
+   "глушитель": "spa_core/monitoring/findings_bridge.py:3187"
+  },
+  {
+   "чтение": "spa_core/monitoring/cio_substitution_census.py:502",
+   "перечень": "hit_refusal",
+   "функция": "direction_of",
+   "судьба": "renamed",
+   "глушитель": "spa_core/monitoring/findings_bridge.py:3187"
+  },
+  {
+   "чтение": "spa_core/monitoring/criterion_sign_price.py:205",
+   "перечень": "numbers",
+   "функция": "scorable_days",
+   "судьба": "renamed",
+   "глушитель": "spa_core/monitoring/criterion_sign_price.py:716"
+  },
+  {
+   "чтение": "spa_core/monitoring/criterion_sign_price.py:216",
+   "перечень": "numbers",
+   "функция": "scorable_days",
+   "судьба": "renamed",
+   "глушитель": "spa_core/monitoring/criterion_sign_price.py:716"
+  },
+  {
+   "чтение": "spa_core/monitoring/criterion_sign_price.py:217",
+   "перечень": "numbers",
+   "функция": "scorable_days",
+   "судьба": "renamed",
+   "глушитель": "spa_core/monitoring/criterion_sign_price.py:716"
+  },
+  {
+   "чтение": "spa_core/monitoring/criterion_sign_price.py:218",
+   "перечень": "numbers",
+   "функция": "scorable_days",
+   "судьба": "renamed",
+   "глушитель": "spa_core/monitoring/criterion_sign_price.py:716"
+  },
+  {
+   "чтение": "spa_core/monitoring/criterion_sign_price.py:221",
+   "перечень": "numbers",
+   "функция": "scorable_days",
+   "судьба": "renamed",
+   "глушитель": "spa_core/monitoring/criterion_sign_price.py:716"
+  },
+  {
+   "чтение": "spa_core/monitoring/criterion_sign_price.py:222",
+   "перечень": "numbers",
+   "функция": "scorable_days",
+   "судьба": "renamed",
+   "глушитель": "spa_core/monitoring/criterion_sign_price.py:716"
+  },
+  {
+   "чтение": "spa_core/monitoring/criterion_sign_price.py:223",
+   "перечень": "numbers",
+   "функция": "scorable_days",
+   "судьба": "renamed",
+   "глушитель": "spa_core/monitoring/criterion_sign_price.py:716"
+  },
+  {
+   "чтение": "spa_core/monitoring/declared_source_live_parity.py:424",
+   "перечень": "outcomes",
+   "функция": "measure",
+   "судьба": "renamed",
+   "глушитель": "spa_core/monitoring/findings_bridge.py:4074"
+  },
+  {
+   "чтение": "spa_core/monitoring/declared_source_live_parity.py:427",
+   "перечень": "outcomes",
+   "функция": "measure",
+   "судьба": "renamed",
+   "глушитель": "spa_core/monitoring/findings_bridge.py:4074"
+  },
+  {
+   "чтение": "spa_core/monitoring/failed_name_survival_census.py:936",
+   "перечень": "roles",
+   "функция": "wide_roles",
+   "судьба": "renamed",
+   "глушитель": "scripts/consume_office_reports.py:6301"
+  },
+  {
+   "чтение": "spa_core/monitoring/finding_address_price.py:641",
+   "перечень": "readings",
+   "функция": "tally",
+   "судьба": "renamed",
+   "глушитель": "spa_core/monitoring/findings_bridge.py:3287"
+  },
+  {
+   "чтение": "spa_core/monitoring/finding_address_price.py:642",
+   "перечень": "readings",
+   "функция": "tally",
+   "судьба": "renamed",
+   "глушитель": "spa_core/monitoring/findings_bridge.py:3287"
+  },
+  {
+   "чтение": "spa_core/monitoring/judged_state_identity_census.py:931",
+   "перечень": "road_counts",
+   "функция": "measure",
+   "судьба": "renamed",
+   "глушитель": "scripts/consume_office_reports.py:6438"
+  },
+  {
+   "чтение": "spa_core/monitoring/judged_state_identity_census.py:932",
+   "перечень": "road_counts",
+   "функция": "measure",
+   "судьба": "renamed",
+   "глушитель": "scripts/consume_office_reports.py:6438"
+  },
+  {
+   "чтение": "spa_core/monitoring/judged_state_identity_census.py:936",
+   "перечень": "road_counts",
+   "функция": "measure",
+   "судьба": "renamed",
+   "глушитель": "scripts/consume_office_reports.py:6438"
+  },
+  {
+   "чтение": "spa_core/monitoring/judged_state_identity_census.py:937",
+   "перечень": "tense_counts",
+   "функция": "measure",
+   "судьба": "renamed",
+   "глушитель": "scripts/consume_office_reports.py:6438"
+  },
+  {
+   "чтение": "spa_core/monitoring/judged_state_identity_census.py:938",
+   "перечень": "asks_counts",
+   "функция": "measure",
+   "судьба": "renamed",
+   "глушитель": "scripts/consume_office_reports.py:6438"
+  },
+  {
+   "чтение": "spa_core/monitoring/list_identity_census.py:369",
+   "перечень": "by_clock",
+   "функция": "kind_axis",
+   "судьба": "renamed",
+   "глушитель": "spa_core/monitoring/findings_bridge.py:3287"
+  },
+  {
+   "чтение": "spa_core/monitoring/list_identity_census.py:370",
+   "перечень": "by_arith",
+   "функция": "kind_axis",
+   "судьба": "renamed",
+   "глушитель": "spa_core/monitoring/findings_bridge.py:3287"
+  },
+  {
+   "чтение": "spa_core/monitoring/mutation_application_census.py:819",
+   "перечень": "anchor",
+   "функция": "summarise",
+   "судьба": "renamed",
+   "глушитель": "spa_core/monitoring/findings_bridge.py:3920"
+  },
+  {
+   "чтение": "spa_core/monitoring/mutation_application_census.py:820",
+   "перечень": "speech",
+   "функция": "summarise",
+   "судьба": "renamed",
+   "глушитель": "spa_core/monitoring/findings_bridge.py:3920"
+  },
+  {
+   "чтение": "spa_core/monitoring/prior_run_operand_census.py:1321",
+   "перечень": "counts",
+   "функция": "_cross_axis",
+   "судьба": "renamed",
+   "глушитель": "scripts/consume_office_reports.py:6254"
+  },
+  {
+   "чтение": "spa_core/monitoring/prior_run_operand_census.py:1335",
+   "перечень": "counts",
+   "функция": "_cross_axis",
+   "судьба": "renamed",
+   "глушитель": "scripts/consume_office_reports.py:6254"
+  },
+  {
+   "чтение": "spa_core/monitoring/prior_run_operand_census.py:1339",
+   "перечень": "counts",
+   "функция": "_cross_axis",
+   "судьба": "renamed",
+   "глушитель": "scripts/consume_office_reports.py:6254"
+  },
+  {
+   "чтение": "spa_core/monitoring/prior_run_operand_census.py:1342",
+   "перечень": "counts",
+   "функция": "_cross_axis",
+   "судьба": "renamed",
+   "глушитель": "scripts/consume_office_reports.py:6254"
+  },
+  {
+   "чтение": "spa_core/monitoring/prior_run_operand_census.py:1350",
+   "перечень": "counts",
+   "функция": "_cross_axis",
+   "судьба": "renamed",
+   "глушитель": "scripts/consume_office_reports.py:6254"
+  },
+  {
+   "чтение": "spa_core/monitoring/prior_run_operand_census.py:1356",
+   "перечень": "counts",
+   "функция": "_cross_axis",
+   "судьба": "renamed",
+   "глушитель": "scripts/consume_office_reports.py:6254"
+  },
+  {
+   "чтение": "spa_core/monitoring/prior_run_operand_census.py:1360",
+   "перечень": "counts",
+   "функция": "_cross_axis",
+   "судьба": "renamed",
+   "глушитель": "scripts/consume_office_reports.py:6254"
+  },
+  {
+   "чтение": "spa_core/monitoring/prior_run_operand_census.py:1366",
+   "перечень": "counts",
+   "функция": "_cross_axis",
+   "судьба": "renamed",
+   "глушитель": "scripts/consume_office_reports.py:6254"
+  },
+  {
+   "чтение": "spa_core/monitoring/prior_run_operand_census.py:1370",
+   "перечень": "counts",
+   "функция": "_cross_axis",
+   "судьба": "renamed",
+   "глушитель": "scripts/consume_office_reports.py:6254"
+  },
+  {
+   "чтение": "spa_core/monitoring/prior_run_operand_census.py:1376",
+   "перечень": "counts",
+   "функция": "_cross_axis",
+   "судьба": "renamed",
+   "глушитель": "scripts/consume_office_reports.py:6254"
+  },
+  {
+   "чтение": "spa_core/monitoring/prior_run_operand_census.py:1379",
+   "перечень": "counts",
+   "функция": "_cross_axis",
+   "судьба": "renamed",
+   "глушитель": "scripts/consume_office_reports.py:6254"
+  },
+  {
+   "чтение": "spa_core/monitoring/reachability_of_the_rest.py:438",
+   "перечень": "cross",
+   "функция": "_cross",
+   "судьба": "renamed",
+   "глушитель": "spa_core/monitoring/reachability_of_the_rest.py:395"
+  },
+  {
+   "чтение": "spa_core/monitoring/rule_second_copy_census.py:1705",
+   "перечень": "counts",
+   "функция": "peer_pairs",
+   "судьба": "renamed",
+   "глушитель": "spa_core/monitoring/findings_bridge.py:3468"
+  },
+  {
+   "чтение": "spa_core/monitoring/rule_second_copy_census.py:1709",
+   "перечень": "counts",
+   "функция": "peer_pairs",
+   "судьба": "renamed",
+   "глушитель": "spa_core/monitoring/findings_bridge.py:3468"
+  },
+  {
+   "чтение": "spa_core/monitoring/rule_second_copy_census.py:1712",
+   "перечень": "counts",
+   "функция": "peer_pairs",
+   "судьба": "renamed",
+   "глушитель": "spa_core/monitoring/findings_bridge.py:3468"
+  },
+  {
+   "чтение": "spa_core/monitoring/rule_second_copy_census.py:1716",
+   "перечень": "counts",
+   "функция": "peer_pairs",
+   "судьба": "renamed",
+   "глушитель": "spa_core/monitoring/findings_bridge.py:3468"
+  },
+  {
+   "чтение": "spa_core/monitoring/rule_second_copy_census.py:1723",
+   "перечень": "counts",
+   "функция": "peer_pairs",
+   "судьба": "renamed",
+   "глушитель": "spa_core/monitoring/findings_bridge.py:3468"
+  },
+  {
+   "чтение": "spa_core/monitoring/rule_second_copy_census.py:1725",
+   "перечень": "counts",
+   "функция": "peer_pairs",
+   "судьба": "renamed",
+   "глушитель": "spa_core/monitoring/findings_bridge.py:3468"
+  },
+  {
+   "чтение": "spa_core/monitoring/rule_second_copy_census.py:22337",
+   "перечень": "outcomes",
+   "функция": "subject_of_a_series_number",
+   "судьба": "renamed",
+   "глушитель": "spa_core/monitoring/findings_bridge.py:3468"
+  },
+  {
+   "чтение": "spa_core/monitoring/rule_second_copy_census.py:22338",
+   "перечень": "outcomes",
+   "функция": "subject_of_a_series_number",
+   "судьба": "renamed",
+   "глушитель": "spa_core/monitoring/findings_bridge.py:3468"
+  },
+  {
+   "чтение": "spa_core/monitoring/rule_second_copy_census.py:3713",
+   "перечень": "counts",
+   "функция": "triple_copies",
+   "судьба": "renamed",
+   "глушитель": "spa_core/monitoring/findings_bridge.py:3468"
+  },
+  {
+   "чтение": "spa_core/monitoring/rule_second_copy_census.py:3716",
+   "перечень": "counts",
+   "функция": "triple_copies",
+   "судьба": "renamed",
+   "глушитель": "spa_core/monitoring/findings_bridge.py:3468"
+  },
+  {
+   "чтение": "spa_core/monitoring/rule_second_copy_census.py:3722",
+   "перечень": "counts",
+   "функция": "triple_copies",
+   "судьба": "renamed",
+   "глушитель": "spa_core/monitoring/findings_bridge.py:3468"
+  },
+  {
+   "чтение": "spa_core/monitoring/rule_second_copy_census.py:3733",
+   "перечень": "counts",
+   "функция": "triple_copies",
+   "судьба": "renamed",
+   "глушитель": "spa_core/monitoring/findings_bridge.py:3468"
+  },
+  {
+   "чтение": "spa_core/monitoring/rule_second_copy_census.py:3736",
+   "перечень": "counts",
+   "функция": "triple_copies",
+   "судьба": "renamed",
+   "глушитель": "spa_core/monitoring/findings_bridge.py:3468"
+  },
+  {
+   "чтение": "spa_core/monitoring/rule_second_copy_census.py:3738",
+   "перечень": "counts",
+   "функция": "triple_copies",
+   "судьба": "renamed",
+   "глушитель": "spa_core/monitoring/findings_bridge.py:3468"
+  },
+  {
+   "чтение": "spa_core/monitoring/rule_second_copy_census.py:9401",
+   "перечень": "values",
+   "функция": "tail_value_divergence",
+   "судьба": "renamed",
+   "глушитель": "spa_core/monitoring/findings_bridge.py:3468"
+  },
+  {
+   "чтение": "spa_core/monitoring/rule_second_copy_census.py:9978",
+   "перечень": "origins",
+   "функция": "open_class_counter_census",
+   "судьба": "renamed",
+   "глушитель": "spa_core/monitoring/card_acceptance.py:6998"
+  },
+  {
+   "чтение": "spa_core/monitoring/snapshot_minute_sensitivity.py:491",
+   "перечень": "class_counts",
+   "функция": "measure",
+   "судьба": "renamed",
+   "глушитель": "spa_core/monitoring/findings_bridge.py:2757"
+  },
+  {
+   "чтение": "spa_core/monitoring/snapshot_minute_sensitivity.py:493",
+   "перечень": "class_counts",
+   "функция": "measure",
+   "судьба": "renamed",
+   "глушитель": "spa_core/monitoring/findings_bridge.py:2757"
+  },
+  {
+   "чтение": "spa_core/monitoring/snapshot_minute_sensitivity.py:497",
+   "перечень": "class_counts",
+   "функция": "measure",
+   "судьба": "renamed",
+   "глушитель": "spa_core/monitoring/findings_bridge.py:2757"
+  },
+  {
+   "чтение": "spa_core/monitoring/snapshot_minute_sensitivity.py:499",
+   "перечень": "class_counts",
+   "функция": "measure",
+   "судьба": "renamed",
+   "глушитель": "spa_core/monitoring/findings_bridge.py:2757"
+  },
+  {
+   "чтение": "spa_core/monitoring/snapshot_minute_sensitivity.py:502",
+   "перечень": "class_counts",
+   "функция": "measure",
+   "судьба": "renamed",
+   "глушитель": "spa_core/monitoring/findings_bridge.py:2757"
+  },
+  {
+   "чтение": "spa_core/monitoring/snapshot_minute_sensitivity.py:504",
+   "перечень": "class_counts",
+   "функция": "measure",
+   "судьба": "renamed",
+   "глушитель": "spa_core/monitoring/findings_bridge.py:2757"
+  },
+  {
+   "чтение": "spa_core/monitoring/snapshot_minute_sensitivity.py:507",
+   "перечень": "class_counts",
+   "функция": "measure",
+   "судьба": "renamed",
+   "глушитель": "spa_core/monitoring/findings_bridge.py:2757"
+  },
+  {
+   "чтение": "spa_core/monitoring/snapshot_minute_sensitivity.py:509",
+   "перечень": "class_counts",
+   "функция": "measure",
+   "судьба": "renamed",
+   "глушитель": "spa_core/monitoring/findings_bridge.py:2757"
+  },
+  {
+   "чтение": "spa_core/monitoring/snapshot_minute_sensitivity.py:512",
+   "перечень": "class_counts",
+   "функция": "measure",
+   "судьба": "renamed",
+   "глушитель": "spa_core/monitoring/findings_bridge.py:2757"
+  },
+  {
+   "чтение": "spa_core/monitoring/snapshot_minute_sensitivity.py:514",
+   "перечень": "class_counts",
+   "функция": "measure",
+   "судьба": "renamed",
+   "глушитель": "spa_core/monitoring/findings_bridge.py:2757"
+  },
+  {
+   "чтение": "spa_core/monitoring/snapshot_minute_sensitivity.py:518",
+   "перечень": "class_counts",
+   "функция": "measure",
+   "судьба": "renamed",
+   "глушитель": "spa_core/monitoring/findings_bridge.py:2757"
+  },
+  {
+   "чтение": "spa_core/monitoring/unresolved_path_census.py:657",
+   "перечень": "by_reason",
+   "функция": "measure",
+   "судьба": "renamed",
+   "глушитель": "spa_core/monitoring/findings_bridge.py:4003"
+  }
+ ]
+}

@@ -818,6 +818,7 @@
 | ADR-948 | ADR-948 — Явное «лога не писать» (`log_path: None`) — это вызывающий сказал своё, а не отсутствующее умолчание; 15 модулей Tier-B падали пять суток | Accepted | [ADR-948](ADR-948-an-explicit-none-log-path-is-the-caller-speaking-not-a-missing-default.md) |
 | ADR-949 | ADR-949 — Громкость индексирующего чтения ИЗМЕРИМА, и у глушителя население НОЛЬ | Accepted | [ADR-949](ADR-949-the-loudness-of-an-indexing-read-is-measurable-and-measured.md) |
 | ADR-950 | ADR-950 — Граница «вызывающих не спрашивали» измерима, и за ней 66 из 78 чтений МОЛЧАТ | Accepted | [ADR-950](ADR-950-the-caller-boundary-of-loudness-is-measurable-and-most-reads-are-silent.md) |
+| ADR-951 | ADR-951 — Судьба глушителя: род, который предмет ДВИГАЕТ, и ни одно из 66 чтений пустоту НЕ ТЕРЯЕТ | Accepted | [ADR-951](ADR-951-the-fate-of-a-silencer-is-a-kind-that-moves-the-subject.md) |
 
 ## Соглашения
 

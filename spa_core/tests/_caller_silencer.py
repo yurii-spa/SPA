@@ -63,6 +63,7 @@ from typing import Any, Dict, List, Optional, Sequence, Set, Tuple
 
 from spa_core.monitoring import declared_collection_census as census_mod
 from spa_core.tests import _empty_collection_harm as harm
+from spa_core.tests import _silencer_fate as fates
 from spa_core.tests import _subscript_silencer as sil
 
 #: Сколько уровней звавших прибор проходит. ВЫБОР, а не свойство дерева; исчерпание
@@ -345,6 +346,30 @@ def silencer_at_site(call: ast.Call, facts: ModuleFacts
 
     Вердикт — `silenced` · `unmeasured` · `none`. `none` означает «на этом участке
     глушителя нет», а НЕ «громко»: решение о громкости принимает замыкание.
+
+    Прежняя дверь ADR-950, вопрос СУДЬБЫ не задаётся (``fate_of=None``). Своей
+    копии разбора у неё нет — иначе расхождение с четырёхчленной формой пошло бы
+    молча (урок ADR-774 о единственной двери).
+    """
+    verdict, kind, why, _fate = silencer_at_site_with_fate(call, facts, None)
+    return verdict, kind, why
+
+
+def silencer_at_site_with_fate(
+    call: ast.Call, facts: ModuleFacts,
+    fate_of: Optional[Any] = None,
+) -> Tuple[str, Optional[str], str, Optional[Tuple[str, str]]]:
+    """То же плюс СУДЬБА пойманного исключения: ``(вердикт, род, причина, судьба)``.
+
+    ``fate_of`` — ВХОД (ADR-951), а не свойство дерева: ``None`` означает «вопрос
+    о судьбе не задан», и тогда поведение БАЙТ В БАЙТ прежнее. Классификатор
+    получает обработчик и отдаёт ``(судьба, причина)``.
+
+    **Судьба ``reraised`` — единственная, снимающая участок с предмета:**
+    обработчик, безусловно поднимающий исключение дальше, глушителем не является,
+    и подъём продолжается, как если бы его не было. Остальные судьбы
+    (:data:`_silencer_fate.SILENCING_FATES`) вердикт не меняют — они описывают
+    ВРЕД, а не принадлежность предмету.
     """
     arg_names = {a.id for a in call.args if isinstance(a, ast.Name)}
     arg_names |= {kw.value.id for kw in call.keywords
@@ -353,22 +378,29 @@ def silencer_at_site(call: ast.Call, facts: ModuleFacts
     cur: Optional[ast.AST] = facts.index.get(id(call))
     for _hop in range(sil.CLIMB_DEPTH):
         if cur is None:
-            return "unmeasured", None, "подъём вышел за разбор — область не найдена"
+            return ("unmeasured", None,
+                    "подъём вышел за разбор — область не найдена", None)
         if isinstance(cur, (ast.With, ast.AsyncWith)) \
                 and any(harm._contains(stmt, child) for stmt in cur.body):
-            verdict = _swallowing_with(cur)
-            if verdict is not None:
-                return verdict
+            swallowed = _swallowing_with(cur)
+            if swallowed is not None:
+                return (*swallowed, None)
         if isinstance(cur, TRY_NODES) \
                 and any(harm._contains(stmt, child) for stmt in cur.body):
             for handler in cur.handlers:
                 caught = sil.handler_catches(handler)
                 if caught is None:
                     return ("unmeasured", None,
-                            "род ловимого исключения у звавшего НЕ РАЗОБРАН")
+                            "род ловимого исключения у звавшего НЕ РАЗОБРАН", None)
                 if sil.BARE in caught or (set(caught) & sil.SILENCING_EXCEPTIONS):
+                    fate = fate_of(handler) if fate_of is not None else None
+                    if fate is not None and fate[0] == "reraised":
+                        # Глушителем не является: пустота уходит выше. Подъём
+                        # продолжается, как если бы обработчика не было.
+                        continue
                     return ("silenced", "try",
-                            f"вызов в теле `try`, обработчик ловит {sorted(caught)}")
+                            f"вызов в теле `try`, обработчик ловит {sorted(caught)}",
+                            fate)
         if isinstance(cur, ast.If) \
                 and any(harm._contains(stmt, child) for stmt in cur.body):
             for name in sorted(arg_names):
@@ -376,12 +408,13 @@ def silencer_at_site(call: ast.Call, facts: ModuleFacts
                 if why is not None:
                     return ("unmeasured", None,
                             f"охрана у звавшего ({why}) — связать охраняемое имя "
-                            "`" + name + "` с НАШИМ перечнем нечем")
+                            "`" + name + "` с НАШИМ перечнем нечем", None)
         if isinstance(cur, (ast.FunctionDef, ast.AsyncFunctionDef,
                             ast.Lambda, ast.Module)):
-            return "none", None, "глушителя вокруг вызова нет"
+            return "none", None, "глушителя вокруг вызова нет", None
         child, cur = cur, facts.index.get(id(cur))
-    return "unmeasured", None, f"подъём длиннее предела ({sil.CLIMB_DEPTH})"
+    return ("unmeasured", None,
+            f"подъём длиннее предела ({sil.CLIMB_DEPTH})", None)
 
 
 def call_sites(fname: str, target_rel: str, is_method: bool,
@@ -439,7 +472,8 @@ def _decorator_of(rel: str, name: str,
 
 
 def loudness_through_callers(target_rel: str, fname: str, is_method: bool,
-                             facts: Dict[str, ModuleFacts]
+                             facts: Dict[str, ModuleFacts],
+                             fate_of: Optional[Any] = None,
                              ) -> Dict[str, Any]:
     """Громкость чтения с учётом замыкания звавших. Три исхода :data:`OUTCOMES`.
 
@@ -471,10 +505,14 @@ def loudness_through_callers(target_rel: str, fname: str, is_method: bool,
             # ─── ПЕРВЫМ делом глушитель: доказательство по одному пути ───
             pending: List[Tuple[str, ast.Call]] = []
             for site_rel, call in ours:
-                verdict, kind, why = silencer_at_site(call, facts[site_rel])
+                verdict, kind, why, fate = silencer_at_site_with_fate(
+                    call, facts[site_rel], fate_of)
                 if verdict == "silenced":
                     return {"loudness": "silenced", "silencer": kind, "entry": None,
-                            "hops": hop, "why": f"{site_rel}:{call.lineno} — {why}"}
+                            "hops": hop, "why": f"{site_rel}:{call.lineno} — {why}",
+                            "fate": fate[0] if fate else None,
+                            "fate_why": fate[1] if fate else None,
+                            "fate_site": f"{site_rel}:{call.lineno}"}
                 if verdict == "unmeasured":
                     blockers.append(f"{site_rel}:{call.lineno} — {why}")
                     continue
@@ -544,7 +582,8 @@ def _subscript_at(facts: ModuleFacts, name: str, lineno: int) -> Optional[ast.Su
     return None
 
 
-def caller_reads(root: Optional[Path] = None) -> Dict[str, Any]:
+def caller_reads(root: Optional[Path] = None,
+                 fate_of: Optional[Any] = None) -> Dict[str, Any]:
     """Громкость ЗА границей своей функции у каждого `loud`-чтения ADR-949.
 
     Вход берётся ЕДИНСТВЕННОЙ дверью :func:`_subscript_silencer.subscript_reads` —
@@ -582,7 +621,8 @@ def caller_reads(root: Optional[Path] = None) -> Dict[str, Any]:
                          "why": ("чтение вне именованной функции — звавшего спросить "
                                  "нечем")})
             continue
-        verdict = loudness_through_callers(rel, encl_name, is_method, facts)
+        verdict = loudness_through_callers(rel, encl_name, is_method, facts,
+                                           fate_of)
         tally[verdict["loudness"]] += 1
         if verdict["silencer"] is not None:
             kinds[verdict["silencer"]] += 1
@@ -591,8 +631,13 @@ def caller_reads(root: Optional[Path] = None) -> Dict[str, Any]:
         rows.append({**row, "func": encl_name, "is_method": is_method,
                      "loudness": verdict["loudness"],
                      "silencer": verdict["silencer"],
+                     "fate": verdict.get("fate"),
+                     "fate_why": verdict.get("fate_why"),
+                     "fate_site": verdict.get("fate_site"),
                      "hops": verdict["hops"], "why": verdict["why"]})
     return {"tally": tally, "silencer_kinds": kinds, "entries": entries,
+            "fate_tally": fates.fate_tally(rows),
+            "fate_asked": fate_of is not None,
             "rows": rows, "input_tally": base["tally"],
             "scope": {**base["scope"],
                       "reader_roots": list(census_mod.READER_ROOTS),
