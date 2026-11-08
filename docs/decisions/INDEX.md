@@ -823,6 +823,7 @@
 | ADR-953 | ADR-953 — ОДНО ИМЯ «APY» несёт РАЗНЫЕ экономические величины: три ставки книги в ОДНОМ цикле, разброс 0,6677 пп, и рода у числа не объявлено ВООБЩЕ | принято | [ADR-953](ADR-953-one-apy-name-many-economic-quantities.md) |
 | ADR-954 | ADR-954 — §10/§11 ТЗ владельца: Conservative Expected APY и Persistence; НЕИЗМЕРЕННОЕ поднимает haircut, а не persistence (слепота не печатается оптимизмом) | принято | [ADR-954](ADR-954-conservative-expected-apy.md) |
 | ADR-955 | ADR-955 — §12 ТЗ владельца «Marginal APY»: лестница отдаёт ВИЛКУ трёх родов, а слепая ось бывает НЕ ПУСТОЙ — предмет её записей ВЫДУМАН | принято | [ADR-955](ADR-955-marginal-apy-at-size-ladder-and-the-fixture-subject-state.md) |
+| ADR-956 | ADR-956 — §13 ТЗ владельца «Transaction economics»: из девяти слагаемых цены свой сумманд имеют ДВА, а «не заряжено» и «сказать нечем» — РАЗНЫЕ отказы | принято | [ADR-956](ADR-956-transaction-economics-census.md) |
 
 ## Соглашения
 
