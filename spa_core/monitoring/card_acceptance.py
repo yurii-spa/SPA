@@ -17966,8 +17966,128 @@ def _probe_apy_name_carries_one_kind(arg: str | None, now=None) -> tuple[str, st
                        f"не измерено {len(sec.get('unmeasured') or [])}")
 
 
+def _probe_conservative_expected_apy_published(arg: str | None, now=None) -> tuple[str, str]:
+    """Критерий §10/§11 приказа владельца «Portfolio CIO»: ЖИВОЙ ЦИКЛ печатает
+    Conservative Expected APY, и у каждого непроизведённого числа НАЗВАНА причина.
+
+    Дословное требование §11 — «Expected Base APY + Expected Incentive APY ×
+    Persistence Factor − Uncertainty Haircut», «Displayed APY != Expected APY»;
+    §10 — прозрачная детерминированная устойчивость. Разобрано ADR-954.
+
+    **Проба меряет ИСХОД, а не структуру.** Предмет не «модуль есть», а «цикл
+    КАЖДЫЙ ДЕНЬ производит ожидание и ни одного пробела не прячет». Поэтому
+    дверь одна — `data/analytics_summary.json`, раздел
+    `sections.conservative_expected_apy`; секции нет ⇒ `unmeasured` («цикл её
+    ещё не производил»), а НЕ `not_satisfied`: доставка кода и его работа в
+    проде суть два разных события (`.claude/rules/deployment.md`).
+
+    Предмет вердикта — ровно два утверждения:
+
+    1. хотя бы одно ожидание ИЗМЕРЕНО (ноль измеренных при непустом наборе
+       возможностей значит, что формула не работает ни на чём);
+    2. у КАЖДОГО неизмеренного числа названа причина, и у КАЖДОЙ слепой оси
+       §10 названо состояние (инв. #17: «не измерено» никогда не выдаётся за
+       «чисто», и молчаливый `None` исходом не является).
+
+    Чего проба НЕ требует намеренно: чтобы ожидание отличалось от напечатанной
+    ставки У КАЖДОЙ возможности. Совпадение законно (нулевые стимулы, нулевой
+    разброс, все оси учтены), и повесить сюда это условие значило бы запереть
+    критерий на сегодняшнем составе данных, а не на работе формулы.
+
+    Время — вход (`now`), а не окружение.
+    """
+    path = os.path.join(REPO_ROOT, "data", "analytics_summary.json")
+    rel = os.path.relpath(path, REPO_ROOT)
+    try:
+        with open(path, encoding="utf-8") as fh:
+            doc = json.load(fh)
+    except FileNotFoundError:
+        return UNMEASURED, f"{rel} нет в этом дереве — предмет не измерен"
+    except (OSError, ValueError) as exc:
+        return UNMEASURED, f"{rel} не разобран: {type(exc).__name__}: {exc}"
+    if not isinstance(doc, dict):
+        return UNMEASURED, f"форма {rel} не разобрана ({type(doc).__name__})"
+
+    stamp = doc.get("generated_at")
+    if not stamp:
+        return UNMEASURED, f"{rel} без generated_at — возраст не измерен, судить нечем"
+    try:
+        made = datetime.fromisoformat(str(stamp).replace("Z", "+00:00"))
+    except ValueError:
+        return UNMEASURED, f"{rel}: generated_at {stamp!r} не разобран — возраст не измерен"
+    if made.tzinfo is None:
+        made = made.replace(tzinfo=timezone.utc)
+    age_h = ((now or datetime.now(timezone.utc)) - made).total_seconds() / 3600.0
+    if age_h > APY_CENSUS_MAX_AGE_H:
+        return UNMEASURED, (f"{rel} протух: возраст {age_h:.1f}ч при пределе "
+                            f"{APY_CENSUS_MAX_AGE_H:.0f}ч — мерить надо из дерева "
+                            "с живым data/")
+
+    sections = doc.get("sections")
+    if not isinstance(sections, dict):
+        return UNMEASURED, f"в {rel} нет раздела sections — предмет не измерен"
+    sec = sections.get("conservative_expected_apy")
+    if sec is None:
+        return UNMEASURED, (f"цикл ещё не производил секцию conservative_expected_apy "
+                            f"в {rel} — доставка кода и его работа в проде суть "
+                            "два события")
+    if not isinstance(sec, dict):
+        return UNMEASURED, (f"секция conservative_expected_apy в {rel} не разобрана "
+                            f"({type(sec).__name__})")
+    if sec.get("status") == "ERROR":
+        return UNMEASURED, f"секция упала в цикле: {sec.get('error')}"
+    if sec.get("verdict") == "UNMEASURED" and not sec.get("opportunities"):
+        return UNMEASURED, ("секция сама доложила НЕ ИЗМЕРЕНО: "
+                            + "; ".join(sec.get("unmeasured") or ["причина не названа"]))
+
+    counts = sec.get("counts")
+    if not isinstance(counts, dict):
+        return UNMEASURED, ("секция не несёт `counts` — отсутствие счёта нулём "
+                            "не является")
+    total = counts.get("adapters")
+    measured = counts.get("expected_measured")
+    if not isinstance(total, int) or total <= 0:
+        return UNMEASURED, ("в секции ни одной возможности — доля у пустого "
+                            "набора не существует")
+    if not isinstance(measured, int):
+        return UNMEASURED, "`expected_measured` не число — предмет не измерен"
+
+    rows = sec.get("opportunities")
+    if not isinstance(rows, list) or not rows:
+        return UNMEASURED, "`opportunities` не перечень — назвать пробелы нечем"
+    silent = [r.get("adapter_id") for r in rows
+              if isinstance(r, dict)
+              and r.get("conservative_expected_apy_pct") is None
+              and not (r.get("expected_unmeasured") or r.get("persistence_unmeasured"))]
+    if silent:
+        return NOT_SATISFIED, (f"у {len(silent)} возможностей ожидание отсутствует "
+                               f"БЕЗ названной причины: {', '.join(map(str, silent[:4]))}"
+                               " — молчаливый None исходом не является (инв. #17)")
+
+    axes = sec.get("blind_axes")
+    if not isinstance(axes, list) or not axes:
+        return UNMEASURED, ("секция не несёт перечня слепых осей §10 — "
+                            "пустота ответом об осях не является")
+    mute = [a.get("axis") for a in axes
+            if not isinstance(a, dict) or not a.get("state") or not a.get("detail")]
+    if mute:
+        return NOT_SATISFIED, (f"у {len(mute)} осей §10 состояние или причина не "
+                               f"названы: {', '.join(map(str, mute[:4]))}")
+
+    if measured <= 0:
+        return NOT_SATISFIED, (f"ни одного ожидания не измерено из {total} "
+                               "возможностей — формула не работает ни на чём; "
+                               "причины названы поимённо в секции")
+    return SATISFIED, (f"ожидание измерено у {measured} из {total} возможностей, "
+                       f"у остальных причина названа; слепых осей §10 "
+                       f"{sec.get('blind_axes_count')} из {len(axes)} ⇒ haircut "
+                       f"{sec.get('haircut_from_blind_axes_pp')} пп")
+
+
 PROBES: dict[str, Callable[[str | None], "tuple[str, str]"]] = {
     "apy_name_carries_one_kind": _probe_apy_name_carries_one_kind,
+    "conservative_expected_apy_published":
+        _probe_conservative_expected_apy_published,
     "tier_b_protocol_path_survives_a_disabled_log":
         _probe_tier_b_protocol_path_survives_a_disabled_log,
     "tracked_data_untouched_by_declared_runs":

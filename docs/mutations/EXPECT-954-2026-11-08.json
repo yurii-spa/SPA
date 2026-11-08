@@ -1,0 +1,112 @@
+{
+ "title": "ADR-954 EXPECT — §10/§11 ТЗ владельца «Portfolio CIO»: Conservative Expected APY и Persistence/Confidence; НЕИЗМЕРЕННОЕ поднимает haircut, а не persistence",
+ "tests": [
+  "spa_core/tests/test_apy_expectation.py",
+  "spa_core/tests/test_apy_name_census.py",
+  "spa_core/tests/test_report_sections.py"
+ ],
+ "mutations": [
+  {
+   "name": "короткий ряд даёт УСТОЙЧИВОСТЬ 1.0 вместо None: слепота напечатана как оптимизм",
+   "file": "spa_core/analytics/apy_expectation.py",
+   "old": "    if len(points) < MIN_OBSERVATIONS:\n        rec[\"factor\"] = None",
+   "new": "    if len(points) < MIN_OBSERVATIONS:\n        rec[\"factor\"] = 1.0"
+  },
+  {
+   "name": "нулевой уровень ставки даёт factor 0.0 вместо НЕ ИЗМЕРЕНО (ноль и слепота слиты)",
+   "file": "spa_core/analytics/apy_expectation.py",
+   "old": "        rec[\"factor\"] = None\n        rec[\"unmeasured\"] = (f\"долгое среднее",
+   "new": "        rec[\"factor\"] = 0.0\n        rec[\"unmeasured\"] = (f\"долгое среднее"
+  },
+  {
+   "name": "неизмеренный состав ставки принимается ЧИСТО БАЗОВЫМ — нулевой риск истечения стимулов",
+   "file": "spa_core/analytics/apy_expectation.py",
+   "old": "    if composition_unmeasured:\n        return None, (f\"состав ставки НЕ ИЗМЕРЕН",
+   "new": "    if False and composition_unmeasured:\n        return None, (f\"состав ставки НЕ ИЗМЕРЕН"
+  },
+  {
+   "name": "неизмеренная устойчивость подменяется единицей — стимулы берутся целиком",
+   "file": "spa_core/analytics/apy_expectation.py",
+   "old": "    if factor is None:\n        return None, \"устойчивость не измерена — множителя у стимулов нет\"",
+   "new": "    if factor is None:\n        factor = 1.0"
+  },
+  {
+   "name": "ПУСТОЙ файл слепой оси объявляется учтённым — прочитанная пустота как ответ",
+   "file": "spa_core/analytics/apy_expectation.py",
+   "old": "                rec[\"state\"] = \"blind_empty\"",
+   "new": "                rec[\"state\"] = \"credited\""
+  },
+  {
+   "name": "приход данных БЕЗ потребителя даёт кредит — haircut падает без новой информации",
+   "file": "spa_core/analytics/apy_expectation.py",
+   "old": "                    rec[\"state\"] = \"blind_no_consumer\"",
+   "new": "                    rec[\"state\"] = \"credited\""
+  },
+  {
+   "name": "срок слепой оси спрашивается у СТЕННЫХ ЧАСОВ, а не у входа now",
+   "file": "spa_core/analytics/apy_expectation.py",
+   "old": "    now = now or datetime.now(timezone.utc)\n    out: List[Dict[str, Any]] = []",
+   "new": "    now = datetime.now(timezone.utc)\n    out: List[Dict[str, Any]] = []"
+  },
+  {
+   "name": "слепые оси §10 НЕ поднимают haircut — незнание перестаёт вычитать",
+   "file": "spa_core/analytics/apy_expectation.py",
+   "old": "    haircut_blind = round(HAIRCUT_PER_BLIND_PP * n_blind, 4)",
+   "new": "    haircut_blind = 0.0"
+  },
+  {
+   "name": "разброс УМЕНЬШАЕТ haircut — инверсия замысла §11",
+   "file": "spa_core/analytics/apy_expectation.py",
+   "old": "        haircut = haircut_blind + (HAIRCUT_VOL_COEF * vol if vol is not None else 0.0)",
+   "new": "        haircut = haircut_blind - (HAIRCUT_VOL_COEF * vol if vol is not None else 0.0)"
+  },
+  {
+   "name": "непрочитанный вход даёт status OK с нулём возможностей",
+   "file": "spa_core/analytics/apy_expectation.py",
+   "old": "    if unmeasured:\n        rep[\"status\"] = \"SKIPPED\"\n        rep[\"verdict\"] = \"UNMEASURED\"\n        rep[\"unmeasured\"] = unmeasured",
+   "new": "    if False and unmeasured:\n        rep[\"status\"] = \"SKIPPED\"\n        rep[\"verdict\"] = \"UNMEASURED\"\n        rep[\"unmeasured\"] = unmeasured"
+  },
+  {
+   "name": "пустой реестр адаптеров читается как «ноль возможностей», а не НЕ ИЗМЕРЕНО",
+   "file": "spa_core/analytics/apy_expectation.py",
+   "old": "    if not isinstance(adapters, dict) or not adapters:\n        rep[\"status\"] = \"SKIPPED\"",
+   "new": "    if not isinstance(adapters, dict):\n        rep[\"status\"] = \"SKIPPED\""
+  },
+  {
+   "name": "проверка суммы весов снята — persistence_factor перестаёт быть долей",
+   "file": "spa_core/analytics/apy_expectation.py",
+   "old": "    if abs(w - 1.0) > 1e-9:",
+   "new": "    if False:"
+  },
+  {
+   "name": "ОЖИДАНИЕ вправе носить метку замера — дефект поправки C2 ADR-580 возвращён",
+   "file": "spa_core/analytics/apy_kinds.py",
+   "old": "        if k.horizon == \"forward\" and k.evidence != \"not_applicable\":",
+   "new": "        if False:"
+  },
+  {
+   "name": "направление во времени не сверяется со словарём — «sideways» проходит",
+   "file": "spa_core/analytics/apy_kinds.py",
+   "old": "        if k.horizon not in HORIZONS:",
+   "new": "        if False:"
+  },
+  {
+   "name": "секция §10/§11 НЕ зарегистрирована в отчёте — числа не производятся никогда",
+   "file": "spa_core/analytics/report_sections.py",
+   "old": "    (\"conservative_expected_apy\", _section_conservative_expected_apy),",
+   "new": "    # секция снята мутацией"
+  },
+  {
+   "name": "адаптер без ряда молча выбрасывается из переписи",
+   "file": "spa_core/analytics/apy_expectation.py",
+   "old": "        if not points:\n            no_series.append(aid)",
+   "new": "        if not points:\n            continue"
+  },
+  {
+   "name": "отрицательное ожидание печатается как ставка",
+   "file": "spa_core/analytics/apy_expectation.py",
+   "old": "    return round(max(0.0, value), 4), \"\"",
+   "new": "    return round(value, 4), \"\""
+  }
+ ]
+}

@@ -821,6 +821,7 @@
 | ADR-951 | ADR-951 — Судьба глушителя: род, который предмет ДВИГАЕТ, и ни одно из 66 чтений пустоту НЕ ТЕРЯЕТ | Accepted | [ADR-951](ADR-951-the-fate-of-a-silencer-is-a-kind-that-moves-the-subject.md) |
 | ADR-952 | ADR-952 — ТОЧКА ВХОДА КАРКАСА это ОБЪЯВЛЕНИЕ: 4 из 16 «не измерено» закрылись, ещё 4 ВЫШЛИ ИЗ ПОВЕРХНОСТИ, и это РАЗНЫЕ события | принято | [ADR-952](ADR-952-framework-entry-point-is-a-declaration.md) |
 | ADR-953 | ADR-953 — ОДНО ИМЯ «APY» несёт РАЗНЫЕ экономические величины: три ставки книги в ОДНОМ цикле, разброс 0,6677 пп, и рода у числа не объявлено ВООБЩЕ | принято | [ADR-953](ADR-953-one-apy-name-many-economic-quantities.md) |
+| ADR-954 | ADR-954 — §10/§11 ТЗ владельца: Conservative Expected APY и Persistence; НЕИЗМЕРЕННОЕ поднимает haircut, а не persistence (слепота не печатается оптимизмом) | принято | [ADR-954](ADR-954-conservative-expected-apy.md) |
 
 ## Соглашения
 

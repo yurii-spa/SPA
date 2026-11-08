@@ -404,6 +404,24 @@ def _section_governance_tokens(data_dir: Path, equity_doc: dict) -> Dict[str, An
                  "не собираема без фабрикации")
 
 
+def _section_conservative_expected_apy(data_dir: Path, equity_doc: dict) -> Dict[str, Any]:
+    """Conservative Expected APY и Persistence/Confidence — §10/§11 ТЗ владельца.
+
+    Слой ADVISORY: ни одно число отсюда не гейтит исполнение. Секция СТРОИТСЯ
+    ДО переписи родов (`apy_name_census`) намеренно — перепись судит своих
+    соседей того же прогона, и необъявленное число этой секции обязано краснеть
+    у неё, а не ждать отдельного сторожа.
+    """
+    from .apy_expectation import measure
+
+    rep = measure(data_dir)
+    if rep.get("verdict") == "UNMEASURED" and not rep.get("opportunities"):
+        reasons = rep.get("unmeasured") or ["причина не названа"]
+        rep["status"] = "SKIPPED"
+        rep["reason"] = "; ".join(reasons)
+    return rep
+
+
 def _section_apy_name_census(data_dir: Path, equity_doc: dict,
                              sections: Dict[str, Dict[str, Any]]) -> Dict[str, Any]:
     """Перепись родов числа, названного «APY» (приказ владельца «Portfolio CIO» §5).
@@ -437,6 +455,7 @@ _SECTION_BUILDERS: List[Tuple[str, Callable[[Path, dict], Dict[str, Any]]]] = [
     ("staking_reward_tracker", _section_staking_rewards),
     ("chain_fee_tracker", _section_chain_fees),
     ("governance_token_value_tracker", _section_governance_tokens),
+    ("conservative_expected_apy", _section_conservative_expected_apy),
 ]
 
 # Секции, судящие СВОИХ СОСЕДЕЙ того же прогона: строятся ПОСЛЕ остальных и
@@ -455,7 +474,7 @@ SECTION_NAMES: List[str] = (
 
 
 def build_report_sections(data_dir: Path, equity_doc: dict) -> Dict[str, Dict[str, Any]]:
-    """Построить все 9 секций. Провал одного трекера НЕ ломает остальные:
+    """Построить все секции (их число — ``len(SECTION_NAMES)``, не литерал). Провал одного трекера НЕ ломает остальные:
     исключение → WARNING + секция ``{"status": "ERROR", "error": ...}``."""
     data_dir = Path(data_dir)
     sections: Dict[str, Dict[str, Any]] = {}
