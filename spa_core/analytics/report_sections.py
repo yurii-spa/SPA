@@ -444,6 +444,28 @@ def _section_marginal_apy_ladder(data_dir: Path, equity_doc: dict) -> Dict[str, 
     return rep
 
 
+def _section_round_trip_economics(data_dir: Path, equity_doc: dict) -> Dict[str, Any]:
+    """Round trip — §14 ТЗ владельца: круг хода, а не вход (ADR-957).
+
+    Слой ADVISORY: §14 требует зарядить `eventual B exit` и снижать
+    привлекательность хода при высокой вероятности скорой новой перекладки —
+    и то, и другое есть правка ЦЕНЫ, решающей о движении денег (предмет №1
+    границы ADR-285). Секция только НАЗЫВАЕТ, чего не хватает.
+
+    Читатель у замера обязан быть ВНУТРИ цикла (ADR-526): прибор, чей отчёт не
+    получает никто, неотличим от прибора, который не запускался. §13
+    (`transaction_economics`) эту ступень сегодня не имеет — названо отдельной
+    строкой заказа, а не починено прицепом.
+    """
+    from .round_trip_economics import measure
+
+    rep = measure(data_dir)
+    if rep.get("status") == "SKIPPED":
+        reasons = rep.get("unmeasured") or ["причина не названа"]
+        rep["reason"] = "; ".join(str(r) for r in reasons)
+    return rep
+
+
 def _section_apy_name_census(data_dir: Path, equity_doc: dict,
                              sections: Dict[str, Dict[str, Any]]) -> Dict[str, Any]:
     """Перепись родов числа, названного «APY» (приказ владельца «Portfolio CIO» §5).
@@ -479,6 +501,7 @@ _SECTION_BUILDERS: List[Tuple[str, Callable[[Path, dict], Dict[str, Any]]]] = [
     ("governance_token_value_tracker", _section_governance_tokens),
     ("conservative_expected_apy", _section_conservative_expected_apy),
     ("marginal_apy_ladder", _section_marginal_apy_ladder),
+    ("round_trip_economics", _section_round_trip_economics),
 ]
 
 # Секции, судящие СВОИХ СОСЕДЕЙ того же прогона: строятся ПОСЛЕ остальных и
