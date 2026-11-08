@@ -817,6 +817,7 @@
 | ADR-947 | ADR-947 — Проверка принадлежности — второй род чтения, о котором ось направления вправе спросить; и премиса заказа о «111 отказах» ОПРОВЕРГНУТА замером | Accepted | [ADR-947](ADR-947-membership-is-the-second-read-kind-the-direction-axis-may-ask-about.md) |
 | ADR-948 | ADR-948 — Явное «лога не писать» (`log_path: None`) — это вызывающий сказал своё, а не отсутствующее умолчание; 15 модулей Tier-B падали пять суток | Accepted | [ADR-948](ADR-948-an-explicit-none-log-path-is-the-caller-speaking-not-a-missing-default.md) |
 | ADR-949 | ADR-949 — Громкость индексирующего чтения ИЗМЕРИМА, и у глушителя население НОЛЬ | Accepted | [ADR-949](ADR-949-the-loudness-of-an-indexing-read-is-measurable-and-measured.md) |
+| ADR-950 | ADR-950 — Граница «вызывающих не спрашивали» измерима, и за ней 66 из 78 чтений МОЛЧАТ | Accepted | [ADR-950](ADR-950-the-caller-boundary-of-loudness-is-measurable-and-most-reads-are-silent.md) |
 
 ## Соглашения
 

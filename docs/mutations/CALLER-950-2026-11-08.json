@@ -1,0 +1,122 @@
+{
+ "title": "ADR-950 CALLER — дельта цикла #1068: громкость индексирующего чтения ЗА границей своей функции; глушитель спрашивается ПЕРВЫМ, привязка — к объявляющему модулю, `loud` требует ПЕРЕЧИСЛЕННОГО замыкания",
+ "tests": [
+  "spa_core/tests/test_caller_silencer.py"
+ ],
+ "mutations": [
+  {
+   "name": "декоратор у звавшего СНЯТ — `_public_view` снова выходит `loud` (замер 08.11: ошибка в ОПАСНУЮ сторону)",
+   "file": "spa_core/tests/_caller_silencer.py",
+   "old": "            opaque = _decorator_of(rel, name, facts)\n            if opaque is not None:\n                blockers.append(f\"`{name}` несёт декоратор `@{opaque}` — звавший \"\n                                \"назначается ИМ (каркас, планировщик)\")",
+   "new": "            opaque = None"
+  },
+  {
+   "name": "порядок ВОЗВРАЩЁН к первой редакции: декоратор спрашивается ДО вызовов и понижает НАЙДЕННЫЙ глушитель",
+   "file": "spa_core/tests/_caller_silencer.py",
+   "old": "            ours, unknown, dynamic = call_sites(name, rel, method, facts)\n\n            # ─── ПЕРВЫМ делом глушитель: доказательство по одному пути ───",
+   "new": "            ours, unknown, dynamic = call_sites(name, rel, method, facts)\n            _o = _decorator_of(rel, name, facts)\n            if _o is not None:\n                return {\"loudness\": \"unmeasured\", \"silencer\": None, \"entry\": None,\n                        \"hops\": hop, \"why\": f\"`{name}` несёт декоратор `@{_o}`\"}\n\n            # ─── ПЕРВЫМ делом глушитель: доказательство по одному пути ───"
+  },
+  {
+   "name": "глотающий `with` снят — `pytest.raises(KeyError)` снова читается как отсутствие глушителя",
+   "file": "spa_core/tests/_caller_silencer.py",
+   "old": "        if isinstance(cur, (ast.With, ast.AsyncWith)) \\\n                and any(harm._contains(stmt, child) for stmt in cur.body):\n            verdict = _swallowing_with(cur)\n            if verdict is not None:\n                return verdict",
+   "new": "        if False:\n            pass"
+  },
+  {
+   "name": "`except*` выпал из разбора — группа исключений снова читается как `loud`",
+   "file": "spa_core/tests/_caller_silencer.py",
+   "old": "TRY_NODES: Tuple[type, ...] = ((ast.Try, ast.TryStar) if hasattr(ast, \"TryStar\")\n                               else (ast.Try,))",
+   "new": "TRY_NODES: Tuple[type, ...] = (ast.Try,)"
+  },
+  {
+   "name": "род у глотающего `with` НЕ сверяется — `raises(ValueError)` глушит всё",
+   "file": "spa_core/tests/_caller_silencer.py",
+   "old": "        if set(caught) & sil.SILENCING_EXCEPTIONS:\n            return (\"silenced\", \"with\",",
+   "new": "        if True:\n            return (\"silenced\", \"with\","
+  },
+  {
+   "name": "`with …raises()` без рода объявлен глушителем — третий исход подменён находкой",
+   "file": "spa_core/tests/_caller_silencer.py",
+   "old": "        if not expr.args:\n            return (\"unmeasured\", None,\n                    f\"`with …{name}()` без названного рода — глотает или нет, \"\n                    \"из формы не следует\")",
+   "new": "        if not expr.args:\n            return (\"silenced\", \"with\", \"глотает\")"
+  },
+  {
+   "name": "цикл замыкания объявлен ПЕРЕЧИСЛЕНИЕМ — `loud` без единой точки входа",
+   "file": "spa_core/tests/_caller_silencer.py",
+   "old": "            if sum(entries.values()) == 0:\n                return {\"loudness\": \"unmeasured\", \"silencer\": None, \"entry\": None,\n                        \"hops\": hop,\n                        \"why\": (\"замыкание звавших замкнулось в ЦИКЛ и не дошло ни \"\n                                f\"до одной точки входа (повторных узлов {revisited})\")}",
+   "new": "            if False:\n                pass"
+  },
+  {
+   "name": "однофамилец СЛИВАЕТСЯ: голое имя привязывается к нашему объявлению всегда (урок ADR-941/942 отменён)",
+   "file": "spa_core/tests/_caller_silencer.py",
+   "old": "        if local in facts.module_defs:\n            return OTHER          # у модуля СВОЁ объявление этого имени",
+   "new": "        if local in facts.module_defs:\n            return OURS"
+  },
+  {
+   "name": "локальное связывание не спрашивается — параметр с нашим именем читается как чужое имя",
+   "file": "spa_core/tests/_caller_silencer.py",
+   "old": "        if _locally_bound(call, local, facts):\n            return UNKNOWN        # параметр или локальная переменная",
+   "new": "        if False:\n            return UNKNOWN"
+  },
+  {
+   "name": "псевдоним ЧУЖОГО модуля привязывается к нашему объявлению",
+   "file": "spa_core/tests/_caller_silencer.py",
+   "old": "            if resolved is not None or dotted.startswith((\"spa_core.\", \"scripts.\")):\n                return OURS if whole == target_mod else OTHER",
+   "new": "            if resolved is not None or dotted.startswith((\"spa_core.\", \"scripts.\")):\n                return OURS"
+  },
+  {
+   "name": "точечный псевдоним не разбирается вовсе — `mod.f()` перестаёт быть вызовом нашей функции",
+   "file": "spa_core/tests/_caller_silencer.py",
+   "old": "        dotted = _dotted(fn.value)",
+   "new": "        dotted = None"
+  },
+  {
+   "name": "неразобранный род обработчика объявлен НЕ-глушителем — третий исход исчезает",
+   "file": "spa_core/tests/_caller_silencer.py",
+   "old": "                if caught is None:\n                    return (\"unmeasured\", None,\n                            \"род ловимого исключения у звавшего НЕ РАЗОБРАН\")",
+   "new": "                if caught is None:\n                    continue"
+  },
+  {
+   "name": "охрана у звавшего объявлена ГЛУШИТЕЛЕМ — связь с нашим перечнем выдумана",
+   "file": "spa_core/tests/_caller_silencer.py",
+   "old": "                if why is not None:\n                    return (\"unmeasured\", None,\n                            f\"охрана у звавшего ({why}) — связать охраняемое имя \"\n                            \"`\" + name + \"` с НАШИМ перечнем нечем\")",
+   "new": "                if why is not None:\n                    return (\"silenced\", \"try\", \"охрана у звавшего\")"
+  },
+  {
+   "name": "предел подъёма объявлен `loud` — неизмеренное замыкание выдаётся за громкое",
+   "file": "spa_core/tests/_caller_silencer.py",
+   "old": "    return {\"loudness\": \"unmeasured\", \"silencer\": None, \"entry\": None,\n            \"hops\": CALLER_HOPS,\n            \"why\": f\"замыкание звавших длиннее предела ({CALLER_HOPS})\"}",
+   "new": "    return {\"loudness\": \"loud\", \"silencer\": None, \"entry\": {\"module_level\": 0,\n            \"pytest_test\": 0}, \"hops\": CALLER_HOPS, \"why\": \"предел\"}"
+  },
+  {
+   "name": "имя, добываемое СТРОКОЙ, не считается препятствием — `getattr` делает замыкание невидимым молча",
+   "file": "spa_core/tests/_caller_silencer.py",
+   "old": "            if dynamic:\n                blockers.append(f\"имя `{name}` добывается СТРОКОЙ в {len(dynamic)} \"\n                                f\"файл(ах) ({dynamic[0]}) — замыкание неперечислимо\")",
+   "new": "            if False:\n                pass"
+  },
+  {
+   "name": "точка входа pytest не распознаётся — тест перестаёт обрывать замыкание",
+   "file": "spa_core/tests/_caller_silencer.py",
+   "old": "                if _is_pytest_test(encl, site_rel):\n                    entries[\"pytest_test\"] += 1\n                    continue",
+   "new": "                if False:\n                    continue"
+  },
+  {
+   "name": "прозрачный декоратор снят из перечня — любая обёртка делает замыкание неперечислимым",
+   "file": "spa_core/tests/_caller_silencer.py",
+   "old": "TRANSPARENT_DECORATORS = frozenset({\n    \"property\", \"staticmethod\", \"classmethod\", \"cached_property\", \"override\",\n    \"final\", \"abstractmethod\", \"wraps\", \"lru_cache\", \"cache\", \"dataclass\",\n})",
+   "new": "TRANSPARENT_DECORATORS = frozenset()"
+  },
+  {
+   "name": "`else` у `try` объявлен его ТЕЛОМ — вызов из else читается как заглушённый",
+   "file": "spa_core/tests/_caller_silencer.py",
+   "old": "        if isinstance(cur, TRY_NODES) \\\n                and any(harm._contains(stmt, child) for stmt in cur.body):",
+   "new": "        if isinstance(cur, TRY_NODES) \\\n                and any(harm._contains(stmt, child)\n                        for stmt in list(cur.body) + list(cur.orelse)):"
+  },
+  {
+   "name": "«ни одного звавшего» объявлено отсутствием препятствия — функция каркаса выходит `loud`",
+   "file": "spa_core/tests/_caller_silencer.py",
+   "old": "            if not ours:\n                blockers.append(f\"`{name}` не зовёт ни одна строка поверхности — \"\n                                \"звавший ВНЕ дерева (каркас, точка входа)\")",
+   "new": "            if not ours:\n                pass"
+  }
+ ]
+}
