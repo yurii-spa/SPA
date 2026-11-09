@@ -2,11 +2,11 @@
 
 > Авто-генерится `scripts/build_tracker_board.py` из `nimbalyst-local/tracker/*.md`. НЕ править вручную — правь карточки. Источник правды — карточки, это индекс (bootstrap).
 >
-> Собрана: 2026-11-09T00:00:01Z · сверка с карточками: `python3 scripts/build_tracker_board.py --check` (сторож `spa_core/tests/test_tracker_board_matches_cards.py`).
+> Собрана: 2026-11-09T01:32:08Z · сверка с карточками: `python3 scripts/build_tracker_board.py --check` (сторож `spa_core/tests/test_tracker_board_matches_cards.py`).
 >
-> Сверено с `origin/main` (e356f7e4e).
+> Сверено с `origin/main` (1308ce809) · у **1** своя правка, кто новее — не измерено.
 >
-> Всего карточек: **1611** · ждёт владельца: **6** · занято сессиями: **13**.
+> Всего карточек: **1612** · ждёт владельца: **7** · занято сессиями: **13**.
 
 ## 🔴 ЖДЁТ ВЛАДЕЛЬЦА (needs-owner)
 
@@ -15,6 +15,7 @@
 - **Сайт: site_numbers.json — автономная правка задела owner-gated область, нужно решение**  ·  `owner-decision-sait-site-numbers-json-avtonomnaya-pravk-2.md`
 - **Считать ли портфель по-настоящему оптимально — или оставить сегодняшнюю приближённую раскладку** · _high_  ·  `owner-decision-schitat-li-portfel-po-nastoyaschemu-opti.md`
 - **Снять ли блокировку earn-defi (KC-1 с 19.09) — она возникла из-за незакрытой дневной свечи Coinbase**  ·  `owner-decision-snyat-li-blokirovku-earn-defi-kc-1.md`
+- **Три вклада в одном риске считаются тремя разными — включить ли защиту, которая уже написана**  ·  `owner-decision-tri-vklada-v-odnom-riske-schitayutsya-tr.md`
 - **Влить ли готовую правку про потолок 8 позиций (ADR-902): ты решил «да» 2 ноября, доставка ждёт твоего слова** · _high_  ·  `owner-decision-vlit-li-gotovuyu-pravku-pro-potolok-8-po.md`
 
 ## 🔒 ЗАНЯТЫ СЕССИЯМИ (claimed_by)
@@ -35,7 +36,7 @@
 - **Сторож ответа владельца зовёт человека на не-спор: 1 и "1" — одно решение, а сравниваются байты** — держит `cycle-84821` · с 2026-08-30T00:50:53Z  ·  `inbox-storozh-otveta-vladeltsa-zovet-cheloveka.md`
 - **Замок цикла оркестратора доставлен, но в проде не работает: обёртка агента синкается раз в сутки, а голос о пропавшей защите живёт в самом пропавшем файле** — держит `cycle-81141` · с 2026-08-08T01:59:06Z  ·  `inbox-zamok-tsikla-orkestratora-dostavlen-no-v.md`
 
-## 🧑‍⚖️ Owner Decisions (что нужно от владельца)  (385)
+## 🧑‍⚖️ Owner Decisions (что нужно от владельца)  (386)
 
 ### · needs-owner
 - Потолок «не больше 20 % в один протокол» сторожит не протокол, а отдельный рынок внутри него  ·  `owner-decision-potolok-ne-bolshe-20-v-odin-protokol-sto.md` · 2026-11-09
@@ -43,6 +44,7 @@
 - Сайт: site_numbers.json — автономная правка задела owner-gated область, нужно решение  ·  `owner-decision-sait-site-numbers-json-avtonomnaya-pravk-2.md` · 2026-11-03
 - Считать ли портфель по-настоящему оптимально — или оставить сегодняшнюю приближённую раскладку  ·  `owner-decision-schitat-li-portfel-po-nastoyaschemu-opti.md` · 2026-10-30
 - Снять ли блокировку earn-defi (KC-1 с 19.09) — она возникла из-за незакрытой дневной свечи Coinbase  ·  `owner-decision-snyat-li-blokirovku-earn-defi-kc-1.md` · 2026-11-04
+- Три вклада в одном риске считаются тремя разными — включить ли защиту, которая уже написана  ·  `owner-decision-tri-vklada-v-odnom-riske-schitayutsya-tr.md` · 2026-11-09
 - Влить ли готовую правку про потолок 8 позиций (ADR-902): ты решил «да» 2 ноября, доставка ждёт твоего слова  ·  `owner-decision-vlit-li-gotovuyu-pravku-pro-potolok-8-po.md` · 2026-11-04
 ### · ingested
 - Ключ Etherscan уже работает — задача была «фантомной» (петля исправлена)  ·  `own-06-etherscan-prod-key.md` · 2026-07-15
