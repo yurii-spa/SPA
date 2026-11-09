@@ -828,6 +828,7 @@
 | ADR-958 | ADR-958 — §15 ТЗ владельца «Portfolio optimization objective»: своё слагаемое есть у ОДНОГО штрафа из шести, а сторож финансовой математики был слеп к стоп-крану и к слою §15 | принято | [ADR-958](ADR-958-objective-penalty-census-and-the-unguarded-math-layer.md) |
 | ADR-959 | ADR-959 — §16 ТЗ владельца «Risk»: исполняется 5 ограничений из 9, у двух потолок связывает НЕ ТОТ субъект (concentration ключуется vault'ом), BASE_CHAIN_CAP объявлен и дверью не читается | принято | [ADR-959](ADR-959-risk-constraint-census-and-the-proxy-subject.md) |
 | ADR-960 | ADR-960 — §17 ТЗ владельца «Correlated risk»: в одно ведро сводится ОДНА зависимость из десяти, а четыре оси риска на денежном пути ВЫКЛЮЧЕНЫ умолчанием check_axes=False | принято | [ADR-960](ADR-960-correlated-dependency-census.md) |
+| ADR-961 | ADR-961 — §18 ТЗ владельца «Asset allocation boundary»: объекта «разрешённая asset exposure» в системе НЕТ, актив выразим у ОДНОЙ поверхности из четырёх и не читается ни одной дверью | принято | [ADR-961](ADR-961-asset-allocation-boundary-census.md) |
 
 ## Соглашения
 

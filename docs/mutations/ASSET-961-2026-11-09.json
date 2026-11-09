@@ -1,0 +1,110 @@
+{
+ "title": "ADR-961 ASSET — дельта цикла #1079: §18 «Asset allocation boundary» измерена по трём осям; граница актива не выразима на трёх поверхностях из четырёх, а у четвёртой она вход и читается ноль раз",
+ "tests": [
+  "spa_core/tests/test_asset_boundary_census.py"
+ ],
+ "mutations": [
+  {
+   "name": "нормализатор НЕ СНИМАЕТ личность ключей — возвращается ошибка замера первой редакции (gate объявил бы switch_charged)",
+   "file": "spa_core/analytics/asset_boundary_census.py",
+   "old": "    out = str(verdict)\n    for role, key in ((\"DEST\", scene.get(\"same_asset\")),",
+   "new": "    return str(verdict)\n    for role, key in ((\"DEST\", scene.get(\"same_asset\")),"
+  },
+  {
+   "name": "нормализатор СТИРАЕТ ВСЁ — различения стало бы не видно нигде, и «invisible» было бы свойством прибора",
+   "file": "spa_core/analytics/asset_boundary_census.py",
+   "old": "    out = str(verdict)\n    for role, key in ((\"DEST\", scene.get(\"same_asset\")),",
+   "new": "    return \"ОТПЕЧАТОК\"\n    for role, key in ((\"DEST\", scene.get(\"same_asset\")),"
+  },
+  {
+   "name": "дверь допуска: ОБА пункта назначения берутся одним и тем же — актив не возмущён, «invisible» вырожден",
+   "file": "spa_core/analytics/asset_boundary_census.py",
+   "old": "    t_other, s_other = _gate_specs(scene, scene[\"other_asset\"], scene[\"other_asset_asset\"], 0.15)",
+   "new": "    t_other, s_other = _gate_specs(scene, scene[\"same_asset\"], scene[\"same_asset_asset\"], 0.15)"
+  },
+  {
+   "name": "дверь допуска: положительный контроль СНЯТ — ответ об активе выдавался бы и на мёртвом приборе",
+   "file": "spa_core/analytics/asset_boundary_census.py",
+   "old": "    if v_big == v_same:\n        return {\"surface\": \"gate\", \"kind\": UNMEASURED,",
+   "new": "    if False:\n        return {\"surface\": \"gate\", \"kind\": UNMEASURED,"
+  },
+  {
+   "name": "дверь книги: ОБА состояния берутся с одним активом — дифференциал вырожден",
+   "file": "spa_core/analytics/asset_boundary_census.py",
+   "old": "        v_other = _ask(_book(scene[\"other_asset_asset\"]))",
+   "new": "        v_other = _ask(_book(scene[\"same_asset_asset\"]))"
+  },
+  {
+   "name": "дверь книги: положительный контроль СНЯТ",
+   "file": "spa_core/analytics/asset_boundary_census.py",
+   "old": "    if v_big == v_same:\n        return {\"surface\": \"book\", \"kind\": UNMEASURED,",
+   "new": "    if False:\n        return {\"surface\": \"book\", \"kind\": UNMEASURED,"
+  },
+  {
+   "name": "сцена больше НЕ УДЕРЖИВАЕТ тир и сеть — вердикт решал бы потолок тира, а не актив",
+   "file": "spa_core/analytics/asset_boundary_census.py",
+   "old": "        slot = groups.setdefault((info.get(\"tier\"), str(info.get(\"chain\") or \"\").lower()), {})",
+   "new": "        slot = groups.setdefault((\"ANY\", \"ANY\"), {})"
+  },
+  {
+   "name": "в сцену допускается ключ БЕЗ НАЗВАННОГО актива — возмущать было бы нечего, а прибор ответил бы",
+   "file": "spa_core/analytics/asset_boundary_census.py",
+   "old": "        if not info.get(\"asset\"):\n            continue",
+   "new": "        if False:\n            continue"
+  },
+  {
+   "name": "в фондируемый набор попадают СОВЕТАТЕЛЬНЫЕ ключи — сцену закрыл бы флаг, а не граница актива",
+   "file": "spa_core/analytics/asset_boundary_census.py",
+   "old": "        if entry.get(\"research_only\") or entry.get(\"advisory_only\"):\n            advisory[str(key)] = \"research_only/advisory_only\"\n            continue",
+   "new": "        if False:\n            advisory[str(key)] = \"research_only/advisory_only\"\n            continue"
+  },
+  {
+   "name": "«производителя нет» выдаётся за «актив не кладёт» — не измерено стало бы ответом (инв. #17)",
+   "file": "spa_core/analytics/asset_boundary_census.py",
+   "old": "    if not path.exists():\n        return None, f\"{GATE_RECORD_PRODUCER_REL}: файла нет\"",
+   "new": "    if not path.exists():\n        return False, None"
+  },
+  {
+   "name": "«загрузчика кандидатов нет» выдаётся за пустой список полей — та же подмена у поверхности предложения",
+   "file": "spa_core/analytics/asset_boundary_census.py",
+   "old": "    return None, \"в аллокаторе нет `_load_adapters` — поверхность предложения не найдена\"",
+   "new": "    return [], None"
+  },
+  {
+   "name": "НЕ ИЗМЕРЕНО идёт за «чисто»: код 2 подменён нулём",
+   "file": "spa_core/analytics/asset_boundary_census.py",
+   "old": "    if report.get(\"unmeasured\") or report.get(\"vocab_errors\"):\n        return 2",
+   "new": "    if False:\n        return 2"
+  },
+  {
+   "name": "«возмутить нечем» перестаёт быть находкой — поверхность без входа читалась бы как соблюдающая границу",
+   "file": "spa_core/analytics/asset_boundary_census.py",
+   "old": "    if any(r.get(\"kind\") in (\"switch_invisible\", \"no_input_door\") for r in rows):\n        return 1",
+   "new": "    if any(r.get(\"kind\") in (\"switch_invisible\",) for r in rows):\n        return 1"
+  },
+  {
+   "name": "отсутствие субъекта границы перестаёт быть находкой",
+   "file": "spa_core/analytics/asset_boundary_census.py",
+   "old": "    if report.get(\"authority\", {}).get(\"kind\") in (\"no_subject\", UNMEASURED):\n        return 1",
+   "new": "    if False:\n        return 1"
+  },
+  {
+   "name": "зов без stablecoin_prices объявляется исправным — заказ G949 п. 4 отвечал бы наоборот",
+   "file": "spa_core/analytics/asset_boundary_census.py",
+   "old": "    return {\n        \"kind\": \"finding\" if (missing_prices or missing_latency) else \"ok\",",
+   "new": "    return {\n        \"kind\": \"ok\","
+  },
+  {
+   "name": "власть над exposure объявляется владельческой без всякого замера",
+   "file": "spa_core/analytics/asset_boundary_census.py",
+   "old": "        kind = \"no_subject\"\n        detail = (\"объекта «разрешённая asset exposure» в системе НЕТ",
+   "new": "        kind = \"owner_only\"\n        detail = (\"объекта «разрешённая asset exposure» в системе НЕТ"
+  },
+  {
+   "name": "ось выразимости у двери допуска объявляет door_input, не спросив ни подписи, ни производителя",
+   "file": "spa_core/analytics/asset_boundary_census.py",
+   "old": "    if builds is None:\n        kind, detail = UNMEASURED, f\"производитель записи не прочитан: {why}\"\n    elif \"asset\" in sig:",
+   "new": "    if True:\n        kind, detail = \"door_input\", \"актив — параметр двери допуска\"\n    elif \"asset\" in sig:"
+  }
+ ]
+}

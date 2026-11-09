@@ -2,14 +2,15 @@
 
 > Авто-генерится `scripts/build_tracker_board.py` из `nimbalyst-local/tracker/*.md`. НЕ править вручную — правь карточки. Источник правды — карточки, это индекс (bootstrap).
 >
-> Собрана: 2026-11-09T01:32:08Z · сверка с карточками: `python3 scripts/build_tracker_board.py --check` (сторож `spa_core/tests/test_tracker_board_matches_cards.py`).
+> Собрана: 2026-11-09T03:30:51Z · сверка с карточками: `python3 scripts/build_tracker_board.py --check` (сторож `spa_core/tests/test_tracker_board_matches_cards.py`).
 >
-> Сверено с `origin/main` (1308ce809) · у **1** своя правка, кто новее — не измерено.
+> Сверено с `origin/main` (686ef581c).
 >
-> Всего карточек: **1612** · ждёт владельца: **7** · занято сессиями: **13**.
+> Всего карточек: **1613** · ждёт владельца: **8** · занято сессиями: **13**.
 
 ## 🔴 ЖДЁТ ВЛАДЕЛЬЦА (needs-owner)
 
+- **Граница актива не объявлена ни в одном месте: система может уйти из USDC в другой актив, и это никто не проверяет**  ·  `owner-decision-granitsa-aktiva-ne-obyavlena-ni-v-odnom.md`
 - **Потолок «не больше 20 % в один протокол» сторожит не протокол, а отдельный рынок внутри него**  ·  `owner-decision-potolok-ne-bolshe-20-v-odin-protokol-sto.md`
 - **Решение о перекладке: «не знаю, когда был прошлый ход» система читает как «хода не было» и разрешает двигать деньги**  ·  `owner-decision-reshenie-o-perekladke-ne-znayu-kogda-byl.md`
 - **Сайт: site_numbers.json — автономная правка задела owner-gated область, нужно решение**  ·  `owner-decision-sait-site-numbers-json-avtonomnaya-pravk-2.md`
@@ -36,9 +37,10 @@
 - **Сторож ответа владельца зовёт человека на не-спор: 1 и "1" — одно решение, а сравниваются байты** — держит `cycle-84821` · с 2026-08-30T00:50:53Z  ·  `inbox-storozh-otveta-vladeltsa-zovet-cheloveka.md`
 - **Замок цикла оркестратора доставлен, но в проде не работает: обёртка агента синкается раз в сутки, а голос о пропавшей защите живёт в самом пропавшем файле** — держит `cycle-81141` · с 2026-08-08T01:59:06Z  ·  `inbox-zamok-tsikla-orkestratora-dostavlen-no-v.md`
 
-## 🧑‍⚖️ Owner Decisions (что нужно от владельца)  (386)
+## 🧑‍⚖️ Owner Decisions (что нужно от владельца)  (387)
 
 ### · needs-owner
+- Граница актива не объявлена ни в одном месте: система может уйти из USDC в другой актив, и это никто не проверяет  ·  `owner-decision-granitsa-aktiva-ne-obyavlena-ni-v-odnom.md` · 2026-11-09
 - Потолок «не больше 20 % в один протокол» сторожит не протокол, а отдельный рынок внутри него  ·  `owner-decision-potolok-ne-bolshe-20-v-odin-protokol-sto.md` · 2026-11-09
 - Решение о перекладке: «не знаю, когда был прошлый ход» система читает как «хода не было» и разрешает двигать деньги  ·  `owner-decision-reshenie-o-perekladke-ne-znayu-kogda-byl.md` · 2026-11-08
 - Сайт: site_numbers.json — автономная правка задела owner-gated область, нужно решение  ·  `owner-decision-sait-site-numbers-json-avtonomnaya-pravk-2.md` · 2026-11-03
