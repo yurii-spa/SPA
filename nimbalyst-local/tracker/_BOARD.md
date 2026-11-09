@@ -2,17 +2,18 @@
 
 > Авто-генерится `scripts/build_tracker_board.py` из `nimbalyst-local/tracker/*.md`. НЕ править вручную — правь карточки. Источник правды — карточки, это индекс (bootstrap).
 >
-> Собрана: 2026-11-09T09:11:11Z · сверка с карточками: `python3 scripts/build_tracker_board.py --check` (сторож `spa_core/tests/test_tracker_board_matches_cards.py`).
+> Собрана: 2026-11-09T11:15:02Z · сверка с карточками: `python3 scripts/build_tracker_board.py --check` (сторож `spa_core/tests/test_tracker_board_matches_cards.py`).
 >
-> Сверено с `origin/main` (3616e1068).
+> Сверено с `origin/main` (b1aad844b).
 >
-> Всего карточек: **1615** · ждёт владельца: **10** · занято сессиями: **13**.
+> Всего карточек: **1616** · ждёт владельца: **11** · занято сессиями: **13**.
 
 ## 🔴 ЖДЁТ ВЛАДЕЛЬЦА (needs-owner)
 
 - **Граница актива не объявлена ни в одном месте: система может уйти из USDC в другой актив, и это никто не проверяет**  ·  `owner-decision-granitsa-aktiva-ne-obyavlena-ni-v-odnom.md`
 - **Кандидат может получить деньги: ни одна дверь его не останавливает (и три соседних вопроса про тиры)**  ·  `owner-decision-kandidat-mozhet-poluchit-dengi-dver-dopu.md`
 - **Новые деньги не отличаются от перекладки: пункт 20 задания CIO**  ·  `owner-decision-novye-dengi-ne-otlichayutsya-ot-pereklad.md`
+- **Пересчёт раскладки идёт раз в сутки, а ты просил раз в час — и подъём «стало лучше» не умеет никто**  ·  `owner-decision-pereschet-raskladki-idet-raz-v-sutki-a-t.md`
 - **Потолок «не больше 20 % в один протокол» сторожит не протокол, а отдельный рынок внутри него**  ·  `owner-decision-potolok-ne-bolshe-20-v-odin-protokol-sto.md`
 - **Решение о перекладке: «не знаю, когда был прошлый ход» система читает как «хода не было» и разрешает двигать деньги**  ·  `owner-decision-reshenie-o-perekladke-ne-znayu-kogda-byl.md`
 - **Сайт: site_numbers.json — автономная правка задела owner-gated область, нужно решение**  ·  `owner-decision-sait-site-numbers-json-avtonomnaya-pravk-2.md`
@@ -39,12 +40,13 @@
 - **Сторож ответа владельца зовёт человека на не-спор: 1 и "1" — одно решение, а сравниваются байты** — держит `cycle-84821` · с 2026-08-30T00:50:53Z  ·  `inbox-storozh-otveta-vladeltsa-zovet-cheloveka.md`
 - **Замок цикла оркестратора доставлен, но в проде не работает: обёртка агента синкается раз в сутки, а голос о пропавшей защите живёт в самом пропавшем файле** — держит `cycle-81141` · с 2026-08-08T01:59:06Z  ·  `inbox-zamok-tsikla-orkestratora-dostavlen-no-v.md`
 
-## 🧑‍⚖️ Owner Decisions (что нужно от владельца)  (389)
+## 🧑‍⚖️ Owner Decisions (что нужно от владельца)  (390)
 
 ### · needs-owner
 - Граница актива не объявлена ни в одном месте: система может уйти из USDC в другой актив, и это никто не проверяет  ·  `owner-decision-granitsa-aktiva-ne-obyavlena-ni-v-odnom.md` · 2026-11-09
 - Кандидат может получить деньги: ни одна дверь его не останавливает (и три соседних вопроса про тиры)  ·  `owner-decision-kandidat-mozhet-poluchit-dengi-dver-dopu.md` · 2026-11-09
 - Новые деньги не отличаются от перекладки: пункт 20 задания CIO  ·  `owner-decision-novye-dengi-ne-otlichayutsya-ot-pereklad.md` · 2026-11-09
+- Пересчёт раскладки идёт раз в сутки, а ты просил раз в час — и подъём «стало лучше» не умеет никто  ·  `owner-decision-pereschet-raskladki-idet-raz-v-sutki-a-t.md` · 2026-11-09
 - Потолок «не больше 20 % в один протокол» сторожит не протокол, а отдельный рынок внутри него  ·  `owner-decision-potolok-ne-bolshe-20-v-odin-protokol-sto.md` · 2026-11-09
 - Решение о перекладке: «не знаю, когда был прошлый ход» система читает как «хода не было» и разрешает двигать деньги  ·  `owner-decision-reshenie-o-perekladke-ne-znayu-kogda-byl.md` · 2026-11-08
 - Сайт: site_numbers.json — автономная правка задела owner-gated область, нужно решение  ·  `owner-decision-sait-site-numbers-json-avtonomnaya-pravk-2.md` · 2026-11-03
