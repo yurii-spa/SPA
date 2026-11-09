@@ -2,11 +2,11 @@
 
 > Авто-генерится `scripts/build_tracker_board.py` из `nimbalyst-local/tracker/*.md`. НЕ править вручную — правь карточки. Источник правды — карточки, это индекс (bootstrap).
 >
-> Собрана: 2026-11-09T16:28:24Z · сверка с карточками: `python3 scripts/build_tracker_board.py --check` (сторож `spa_core/tests/test_tracker_board_matches_cards.py`).
+> Собрана: 2026-11-09T20:08:02Z · сверка с карточками: `python3 scripts/build_tracker_board.py --check` (сторож `spa_core/tests/test_tracker_board_matches_cards.py`).
 >
-> Сверено с `origin/main` (d765f8187) · у **1** своя правка, кто новее — не измерено.
+> Сверено с `origin/main` (060124c78).
 >
-> Всего карточек: **1619** · ждёт владельца: **12** · занято сессиями: **14**.
+> Всего карточек: **1620** · ждёт владельца: **13** · занято сессиями: **14**.
 
 ## 🔴 ЖДЁТ ВЛАДЕЛЬЦА (needs-owner)
 
@@ -15,6 +15,7 @@
 - **Новые деньги не отличаются от перекладки: пункт 20 задания CIO**  ·  `owner-decision-novye-dengi-ne-otlichayutsya-ot-pereklad.md`
 - **Пересчёт раскладки идёт раз в сутки, а ты просил раз в час — и подъём «стало лучше» не умеет никто**  ·  `owner-decision-pereschet-raskladki-idet-raz-v-sutki-a-t.md`
 - **Потолок «не больше 20 % в один протокол» сторожит не протокол, а отдельный рынок внутри него**  ·  `owner-decision-potolok-ne-bolshe-20-v-odin-protokol-sto.md`
+- **Проверка свежести данных не применяется к нашему собственному снимку — защита от мёртвого источника работает только наполовину**  ·  `owner-decision-proverka-svezhesti-dannyh-ne-primenyaets.md`
 - **Решение о перекладке: «не знаю, когда был прошлый ход» система читает как «хода не было» и разрешает двигать деньги**  ·  `owner-decision-reshenie-o-perekladke-ne-znayu-kogda-byl.md`
 - **Сайт: site_numbers.json — автономная правка задела owner-gated область, нужно решение**  ·  `owner-decision-sait-site-numbers-json-avtonomnaya-pravk-2.md`
 - **Сайт: track_snapshot.json — автономная правка задела owner-gated область, нужно решение**  ·  `owner-decision-sait-track-snapshot-json-avtonomnaya-pra-4.md`
@@ -42,7 +43,7 @@
 - **TASK — Portfolio CIO: Dynamic Capital Allocation & Rebalancing** — держит `cycle-66346` · с 2026-11-09T14:13:24Z  ·  `inbox-task-portfolio-cio-dynamic-capital-alloc.md`
 - **Замок цикла оркестратора доставлен, но в проде не работает: обёртка агента синкается раз в сутки, а голос о пропавшей защите живёт в самом пропавшем файле** — держит `cycle-81141` · с 2026-08-08T01:59:06Z  ·  `inbox-zamok-tsikla-orkestratora-dostavlen-no-v.md`
 
-## 🧑‍⚖️ Owner Decisions (что нужно от владельца)  (391)
+## 🧑‍⚖️ Owner Decisions (что нужно от владельца)  (392)
 
 ### · needs-owner
 - Граница актива не объявлена ни в одном месте: система может уйти из USDC в другой актив, и это никто не проверяет  ·  `owner-decision-granitsa-aktiva-ne-obyavlena-ni-v-odnom.md` · 2026-11-09
@@ -50,6 +51,7 @@
 - Новые деньги не отличаются от перекладки: пункт 20 задания CIO  ·  `owner-decision-novye-dengi-ne-otlichayutsya-ot-pereklad.md` · 2026-11-09
 - Пересчёт раскладки идёт раз в сутки, а ты просил раз в час — и подъём «стало лучше» не умеет никто  ·  `owner-decision-pereschet-raskladki-idet-raz-v-sutki-a-t.md` · 2026-11-09
 - Потолок «не больше 20 % в один протокол» сторожит не протокол, а отдельный рынок внутри него  ·  `owner-decision-potolok-ne-bolshe-20-v-odin-protokol-sto.md` · 2026-11-09
+- Проверка свежести данных не применяется к нашему собственному снимку — защита от мёртвого источника работает только наполовину  ·  `owner-decision-proverka-svezhesti-dannyh-ne-primenyaets.md` · 2026-11-09
 - Решение о перекладке: «не знаю, когда был прошлый ход» система читает как «хода не было» и разрешает двигать деньги  ·  `owner-decision-reshenie-o-perekladke-ne-znayu-kogda-byl.md` · 2026-11-08
 - Сайт: site_numbers.json — автономная правка задела owner-gated область, нужно решение  ·  `owner-decision-sait-site-numbers-json-avtonomnaya-pravk-2.md` · 2026-11-03
 - Сайт: track_snapshot.json — автономная правка задела owner-gated область, нужно решение  ·  `owner-decision-sait-track-snapshot-json-avtonomnaya-pra-4.md` · 2026-11-08

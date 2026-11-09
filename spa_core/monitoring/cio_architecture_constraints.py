@@ -400,6 +400,33 @@ def lint_blindness(root: str) -> dict:
     Обе двери вносятся в КОПИЮ дерева во временном каталоге — живой каталог
     не читается и не пишется. Ответ «инструмента нет» — самостоятельный третий
     исход, а не ноль нарушений (класс #465).
+
+    🪤 ЗАМЕР СПРАШИВАЛ ОДНУ ДВЕРЬ СТОРОЖА ИЗ ДВУХ, А ОТВЕЧАЛ О СТОРОЖЕ (ADR-969)
+    ==========================================================================
+    Эта функция звала РОВНО ``run_lint``, и у него в докстринге сказано прямо:
+    «Дверь ПЕРВАЯ (импорт SDK) — и только она». Вторая дверь сторожа —
+    ``run_launch_lint`` (AST-разбор запуска бинаря ``claude`` подпроцессом,
+    введена ADR-958) — не спрашивалась НИКОГДА, поэтому сцена
+    ``subprocess_binary`` получала ``violations=0`` ПО ПОСТРОЕНИЮ, а секция §45
+    печатала из этого нуля вывод о СТОРОЖЕ: «вставить вызов claude в
+    risk/execution/monitoring можно, и ни одна проверка не покраснеет».
+
+    Вывод был НЕВЕРЕН с ADR-958, и неверен в опасную сторону — он звал
+    закрытую дверь открытой, то есть приглашал починку исправного сторожа.
+    Замер 2026-11-09 на ``origin/main`` 060124c78: та же сцена, та же копия
+    дерева — ``run_lint`` даёт 0, ``run_launch_lint`` даёт 1
+    (``spa_core/risk/probe_llm_door.py:5 launches /usr/local/bin/claude via
+    subprocess.run``). CRITICAL печатался ДВЕНАДЦАТЬ циклов подряд (G947 п. 2 …
+    G957 п. 14), и каждый раз заказ просил «чинить ПРОИЗВОДИТЕЛЯ секции, не
+    текст» — производитель здесь, и дефект у него ровно один: спросить обе
+    двери и объединить ответ.
+
+    Три исхода различимы (инв. #17): дверь спрошена и сцена ПОЙМАНА · дверь
+    спрошена и сцена НЕ поймана · **дверь спросить НЕЧЕМ** (у проверки нет
+    точки входа, либо она сама вернула названную причину ``unmeasured``). В
+    третьем случае ``blind_to_subprocess`` НЕ утверждается ни в одну сторону:
+    «не спросили» не есть «не видит», и подставить тут ``True`` значило бы
+    воспроизвести исходный дефект с другой стороны.
     """
     lint_path = os.path.join(root, "scripts", "lint_llm_forbidden.py")
     if not os.path.isfile(lint_path):
@@ -418,6 +445,23 @@ def lint_blindness(root: str) -> dict:
     if not hasattr(mod, "run_lint"):
         return {"measured": False, "reason": "у проверки нет run_lint(base_dir)"}
 
+    #: Двери сторожа, которые ОБЯЗАНЫ быть спрошены обе. Имя → как читать ответ.
+    #: ``run_launch_lint`` возвращает ТРИ значения, третье — названная причина
+    #: «дверь НЕ ИЗМЕРЕНА» (инв. #17 у самого сторожа); она не теряется здесь, а
+    #: доезжает до отчёта, иначе третий исход сторожа схлопнулся бы в ноль.
+    def _ask_door1(base: str):
+        _files, violations = mod.run_lint(base)
+        return violations, None
+
+    def _ask_door2(base: str):
+        if not hasattr(mod, "run_launch_lint"):
+            return [], ("у проверки нет run_launch_lint(base_dir) — "
+                        "дверь-запуск спросить НЕЧЕМ")
+        _files, violations, unmeasured = mod.run_launch_lint(base)
+        return violations, unmeasured
+
+    doors = (("sdk_import_door", _ask_door1), ("subprocess_door", _ask_door2))
+
     scenes = {
         "sdk_import": "import anthropic\n\n\ndef ask(q):\n    return anthropic.go(q)\n",
         "subprocess_binary": (
@@ -435,15 +479,46 @@ def lint_blindness(root: str) -> dict:
             with open(os.path.join(risk_dir, "probe_llm_door.py"), "w",
                       encoding="utf-8") as fh:
                 fh.write(body)
-            _files, violations = mod.run_lint(tmp)
-            out["scenes"][key] = {"violations": len(violations),
-                                  "seen": bool(violations)}
+            by_door: dict[str, Any] = {}
+            for door_name, ask in doors:
+                try:
+                    violations, unmeasured = ask(tmp)
+                except Exception as exc:  # noqa: BLE001
+                    by_door[door_name] = {
+                        "asked": False,
+                        "unmeasured": f"{type(exc).__name__}: {exc}",
+                        "violations": None, "seen": None}
+                    continue
+                by_door[door_name] = {
+                    "asked": unmeasured is None,
+                    "unmeasured": unmeasured,
+                    "violations": len(violations) if unmeasured is None else None,
+                    "seen": bool(violations) if unmeasured is None else None}
+            seen_any = any(d.get("seen") for d in by_door.values())
+            # «Не поймана» имеет право утверждаться ТОЛЬКО если каждая дверь была
+            # спрошена. Любая неспрошенная дверь ⇒ про сцену НЕ ИЗМЕРЕНО.
+            all_asked = all(d.get("asked") for d in by_door.values())
+            out["scenes"][key] = {
+                # Сохранено прежнее имя и прежний смысл поля: сколько нарушений
+                # насчитала ПЕРВАЯ дверь. Читатели секции §45 на него ссылаются.
+                "violations": by_door["sdk_import_door"].get("violations"),
+                "seen": seen_any if (seen_any or all_asked) else None,
+                "seen_by": sorted(n for n, d in by_door.items() if d.get("seen")),
+                "all_doors_asked": all_asked,
+                "by_door": by_door}
         finally:
             shutil.rmtree(tmp, ignore_errors=True)
     sdk = out["scenes"].get("sdk_import", {})
     sub = out["scenes"].get("subprocess_binary", {})
-    out["blind_to_subprocess"] = bool(sdk.get("seen")) and not sub.get("seen")
     out["control_ok"] = bool(sdk.get("seen"))
+    if sub.get("seen") is None:
+        # Третий исход: сцену не у всех дверей спросили ⇒ слепота НЕ измерена.
+        out["blind_to_subprocess"] = None
+        out["blind_unmeasured_reason"] = "; ".join(
+            f"{n}: {d['unmeasured']}"
+            for n, d in sub.get("by_door", {}).items() if d.get("unmeasured"))
+    else:
+        out["blind_to_subprocess"] = bool(sdk.get("seen")) and not sub.get("seen")
     return out
 
 
@@ -661,6 +736,9 @@ def run(root: str = REPO_ROOT, *, write: bool = True,
     # ── 3. Сторож: видит ли он дверь, которой система пользуется ─────────────
     guard = lint_blindness(root)
     llm["guard"] = guard
+    _gscenes = guard.get("scenes") or {}
+    sdk_seen_by = list((_gscenes.get("sdk_import") or {}).get("seen_by") or [])
+    sub_seen_by = list((_gscenes.get("subprocess_binary") or {}).get("seen_by") or [])
     if not guard.get("measured"):
         unchecked.append(f"слепота сторожа инварианта #3 НЕ измерена: "
                          f"{guard.get('reason')}")
@@ -669,21 +747,40 @@ def run(root: str = REPO_ROOT, *, write: bool = True,
             "слепота сторожа НЕ измерена: контрольная сцена (SDK-импорт) им "
             "не поймана — значит проба запустила сторожа неверно, и «не видит "
             "subprocess» ничего не означает")
+    elif guard.get("blind_to_subprocess") is None:
+        # ADR-969, третий исход: хотя бы одну дверь сторожа спросить НЕЧЕМ.
+        # «Не спросили» не есть «не видит» — вердикт о слепоте НЕ выдаётся.
+        unchecked.append(
+            "слепота сторожа инварианта #3 НЕ ИЗМЕРЕНА: не все двери сторожа "
+            f"спрошены — {guard.get('blind_unmeasured_reason') or 'причина не названа'}")
     elif guard.get("blind_to_subprocess"):
         subprocess_doors = [rel for rel, kind in scan["doors"].items()
                             if kind == "subprocess"]
         findings.append({
             "severity": "CRITICAL", "code": "guard_blind_to_real_door",
             "message": (
-                "единственный сторож инварианта #3 (scripts/lint_llm_forbidden.py) "
-                "видит ТОЛЬКО импорт SDK: контрольная дверь-SDK в spa_core/risk/ "
-                "поймана, дверь-subprocess к бинарю claude в том же каталоге — "
-                "НЕТ (0 нарушений). А дверь этой системы именно вторая "
+                "сторож инварианта #3 (scripts/lint_llm_forbidden.py) НЕ ловит "
+                "дверь, которой система пользуется: спрошены ОБЕ его двери "
+                "(run_lint — импорт SDK, run_launch_lint — запуск бинаря claude "
+                "подпроцессом), контрольная сцена-SDK в spa_core/risk/ поймана, "
+                "а сцена-subprocess к бинарю claude в том же каталоге — НЕТ "
+                f"НИ ОДНОЙ дверью. А дверь этой системы именно вторая "
                 f"({len(subprocess_doors)} модул(ь/я/ей): "
                 f"{', '.join(sorted(subprocess_doors)) or '—'}). "
                 "Ограничение §45 сегодня выполняется, но держится оно НЕ "
                 "сторожем: вставить вызов claude в risk/execution/monitoring "
                 "можно, и ни одна проверка не покраснеет")})
+    else:
+        findings.append({
+            "severity": "INFO", "code": "guard_sees_the_real_door",
+            "message": (
+                "сторож инварианта #3 ловит ОБА рода двери: сцена-SDK поймана "
+                f"({', '.join(sdk_seen_by) or '—'}), сцена-запуска бинаря claude "
+                f"подпроцессом поймана ({', '.join(sub_seen_by) or '—'}). "
+                "ДВЕНАДЦАТЬ циклов здесь печатался CRITICAL о слепоте сторожа, "
+                "и он был артефактом ПРОБЫ, а не свойством сторожа: проба звала "
+                "РОВНО run_lint («дверь первая — и только она»), то есть "
+                "отвечала о стороже ответом одной его двери (ADR-969)")})
 
     counts = {
         "critical": sum(1 for f in findings if f["severity"] == "CRITICAL"),

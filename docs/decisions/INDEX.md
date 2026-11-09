@@ -836,6 +836,7 @@
 | ADR-966 | ADR-966 — §23 ТЗ «Portfolio CIO»: стартовой политики shadow-режима в дереве НЕТ, а три её величины объявлены production | принято | [ADR-966](ADR-966-cio-s23-shadow-start-policy.md) |
 | ADR-967 | ADR-967 — §24 ТЗ «Portfolio CIO»: словарь решений владельца не реализован ни на одной двери | принято | [ADR-967](ADR-967-cio-s24-decision-types.md) |
 | ADR-968 | ADR-968 — §25 ТЗ «Portfolio CIO»: из 28 полей записи решения сохраняется 18, восьми нет ни у одного носителя | принято | [ADR-968](ADR-968-cio-s25-decision-payload.md) |
+| ADR-969 | ADR-969 — §26 ТЗ «Portfolio CIO»: входов пять, а не четыре — результат зависит от стенных часов, и пятый вход не пришпилить у точки входа | принято | [ADR-969](ADR-969-section-26-determinism-the-fifth-input.md) |
 
 ## Соглашения
 
