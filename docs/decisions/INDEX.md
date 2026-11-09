@@ -829,6 +829,7 @@
 | ADR-959 | ADR-959 — §16 ТЗ владельца «Risk»: исполняется 5 ограничений из 9, у двух потолок связывает НЕ ТОТ субъект (concentration ключуется vault'ом), BASE_CHAIN_CAP объявлен и дверью не читается | принято | [ADR-959](ADR-959-risk-constraint-census-and-the-proxy-subject.md) |
 | ADR-960 | ADR-960 — §17 ТЗ владельца «Correlated risk»: в одно ведро сводится ОДНА зависимость из десяти, а четыре оси риска на денежном пути ВЫКЛЮЧЕНЫ умолчанием check_axes=False | принято | [ADR-960](ADR-960-correlated-dependency-census.md) |
 | ADR-961 | ADR-961 — §18 ТЗ владельца «Asset allocation boundary»: объекта «разрешённая asset exposure» в системе НЕТ, актив выразим у ОДНОЙ поверхности из четырёх и не читается ни одной дверью | принято | [ADR-961](ADR-961-asset-allocation-boundary-census.md) |
+| ADR-962 | ADR-962 — §19 ТЗ владельца «Candidate и Tier»: тир размер ОГРАНИЧИВАЕТ, но потолок T3 на протокол НЕДОСТИЖИМ, а дверь допуска слепа к статусу кандидата | принято | [ADR-962](ADR-962-tier-candidate-census.md) |
 
 ## Соглашения
 

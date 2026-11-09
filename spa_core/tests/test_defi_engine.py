@@ -384,3 +384,74 @@ def test_code_version_is_the_package_content_not_git_head(tmp_path, monkeypatch)
     assert v1 and len(v1) == 12
     monkeypatch.setattr("subprocess.run", lambda *a, **k: (_ for _ in ()).throw(AssertionError("git called")))
     assert engine._code_version() == v1, "must not depend on git"
+
+
+# ── tier authority: the THIRD outcome (ADR-962, cycle #1066) ──────────────────
+#
+# Until #1066 the census had two outcomes per (copy, protocol): agree and disagree. The case
+# "the copy NAMES a tier, the authority does not know the key" was a bare `continue` — invisible in
+# `disagreements` AND absent from `copies_unmeasured` (which stayed `[]`), so the report read as
+# "every copy measured". Measured 2026-11-09 on the live tree: 12 such rows, 10 distinct keys,
+# 3 of them on money-path copies — against 8 reported disagreements.
+
+#: Money-path (copy, protocol) pairs where the copy names a tier and the AUTHORITY is silent,
+#: measured 2026-11-09 under `census(None)` (the call shape CI uses — no live `data/`, so the
+#: `data_registry` copy is honestly unmeasured). May only SHRINK: closing one means teaching the
+#: authority the key, which is an owner-permitted tier decision (ADR-532 §Owner gate); adding one
+#: is a regression. `sky_susds` is the protocol the OWNER promoted to T1 (ADR-065, invariant #10).
+KNOWN_AUTHORITY_SILENT_ON_MONEY_PATH = {("policy_enforcer", "sky_susds")}
+
+
+def test_census_names_the_authority_silent_rows_instead_of_dropping_them():
+    """The third outcome EXISTS and is not folded into either of the other two."""
+    cen = tiers.census(None)
+    assert "authority_silent" in cen and "n_authority_silent" in cen
+    assert cen["n_authority_silent"] == len(cen["authority_silent"])
+    # Negative control for the fold: a silent row is NOT a disagreement. Were it folded in, the
+    # looser-ratchet's denominator would move without anyone touching a tier label.
+    silent_pairs = {(r["copy"], r["protocol"]) for r in cen["authority_silent"]}
+    disagree_pairs = {(r["copy"], r["protocol"]) for r in cen["disagreements"]}
+    assert silent_pairs & disagree_pairs == set()
+    # Every silent row names a tier on the copy side — otherwise it is plain absence, not silence.
+    assert all(r["copy_tier"] for r in cen["authority_silent"])
+
+
+def test_money_path_authority_silence_is_declared_by_name():
+    cen = tiers.census(None)
+    got = {(r["copy"], r["protocol"]) for r in cen["authority_silent"] if r["money_path"]}
+    assert got - KNOWN_AUTHORITY_SILENT_ON_MONEY_PATH == set(), \
+        f"new money-path tier copy the authority cannot name: {got}"
+    assert KNOWN_AUTHORITY_SILENT_ON_MONEY_PATH - got == set(), \
+        f"closed {KNOWN_AUTHORITY_SILENT_ON_MONEY_PATH - got} — remove it from the baseline"
+    assert cen["n_authority_silent_on_money_path"] == len(got)
+
+
+def test_census_catches_a_planted_silence(monkeypatch):
+    """POSITIVE CONTROL: make the authority forget a key the copies name → a row must appear.
+
+    The planted key is one the authority answers for TODAY, so the scene perturbs exactly the
+    thing under test; `maple` is the same key the planted-disagreement control uses.
+    """
+    real = tiers.authority
+
+    def forgetful(key):
+        return None if str(key) == "maple" else real(key)
+
+    monkeypatch.setattr(tiers, "authority", forgetful)
+    cen = tiers.census(None)
+    rows = [r for r in cen["authority_silent"] if r["protocol"] == "maple"]
+    assert rows, "the authority forgot `maple` and no silent row was reported"
+    assert all(r["protocol"] != "maple" for r in cen["disagreements"]), \
+        "silence was reported as a disagreement"
+
+
+def test_planted_silence_does_not_leak_into_the_looser_ratchet(monkeypatch):
+    """REVERSE CONTROL: the known-looser set is unchanged by silence elsewhere."""
+    before = {(r["copy"], r["protocol"]) for r in tiers.census(None)["disagreements"]
+              if r["money_path"] and r["direction"] == "looser"}
+    real = tiers.authority
+    monkeypatch.setattr(tiers, "authority",
+                        lambda k: None if str(k) == "maple" else real(k))
+    after = {(r["copy"], r["protocol"]) for r in tiers.census(None)["disagreements"]
+             if r["money_path"] and r["direction"] == "looser"}
+    assert before == after

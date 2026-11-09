@@ -24,6 +24,19 @@ Copies measured
 ``data_registry``      ``data/adapter_registry.json``        money path: gate fallback, allocator merge
 ``adapter_class``      the adapter class ``TIER`` attribute  orchestrator record (self-report)
 
+Three outcomes per (copy, protocol) — and the third one used to vanish (ADR-962)
+------------------------------------------------------------------------------
+``agree`` · ``disagree`` (``disagreements``, with a direction) · **the authority does not know
+the key while the copy names a tier** (``authority_silent``). Until cycle #1080 the third case was
+a bare ``continue``: the row was reported neither as a disagreement nor as unmeasured, and
+``copies_unmeasured`` stayed ``[]``, so the report read as "every copy measured, N disagreements".
+Measured 2026-11-09: **10** distinct keys across 3 copies were dropped that way, two of them on the
+money path, against **8** reported disagreements. One of the two is ``sky_susds`` — the protocol the
+OWNER promoted to T1 (ADR-065, invariant #10) — so the authority's own source does not carry the
+owner's promotion, and the instrument built to catch exactly that could not say it.
+``authority_silent`` is kept OUT of ``disagreements`` on purpose: "does not know" is not a
+disagreement, and folding it in would silently move the ratchet's denominator.
+
 LLM_FORBIDDEN, stdlib only, read-only.
 """
 # LLM_FORBIDDEN
@@ -94,7 +107,8 @@ def _copies(data_dir: Optional[Path]) -> dict[str, dict[str, Optional[str]]]:
 def census(data_dir: "Path | str | None" = None) -> dict:
     """Every tier copy vs the authority. Read-only; changes nothing."""
     cols = _copies(Path(data_dir) if data_dir is not None else None)
-    rows = []
+    rows: list = []
+    silent: list = []
     for copy, mapping in sorted(cols.items()):
         if copy == "policy_enforcer":
             # The enforcer has no T2 set: it resolves "not T1 and not T3" to T2. Judge it for
@@ -105,6 +119,23 @@ def census(data_dir: "Path | str | None" = None) -> dict:
         for k in sorted(names):
             auth = authority(k)
             got = mapping.get(k, "T2" if copy == "policy_enforcer" else None)
+            if got is not None and auth is None:
+                # THIRD OUTCOME (инв. #17, ADR-962). Until cycle #1080 this was a bare
+                # `continue`: the copy NAMES a tier, the authority does not know the key, and the
+                # row vanished — reported neither as a disagreement nor as unmeasured, while
+                # `copies_unmeasured` stayed `[]`, i.e. the report read as "every copy measured".
+                # Measured population on 2026-11-09: 10 distinct keys across 3 copies, two of them
+                # on the money path (`notional_v3`, `sky_susds`) — against 8 reported
+                # disagreements. `sky_susds` is the protocol the OWNER promoted to T1 (ADR-065,
+                # invariant #10): the authority's own source does not carry that promotion, and the
+                # census that exists to catch exactly this could not say so.
+                # Kept OUT of `disagreements` deliberately: "the authority does not know" is not a
+                # disagreement, and folding it in would move the ratchet's denominator.
+                silent.append({
+                    "protocol": k, "copy": copy, "copy_tier": got,
+                    "money_path": MONEY_PATH.get(copy, False),
+                })
+                continue
             if auth is None or got is None or got == auth:
                 continue
             rows.append({
@@ -120,6 +151,11 @@ def census(data_dir: "Path | str | None" = None) -> dict:
         "copies_unmeasured": unmeasured,     # e.g. no data/ in CI — named, never read as agreement
         "disagreements": rows,
         "n_disagreements": len(rows),
+        # Third outcome: the copy names a tier, the authority does not know the key. Neither
+        # agreement nor disagreement — naming it is the whole point (инв. #17).
+        "authority_silent": silent,
+        "n_authority_silent": len(silent),
+        "n_authority_silent_on_money_path": sum(1 for r in silent if r["money_path"]),
         "n_money_path_looser": sum(1 for r in rows if r["money_path"] and r["direction"] == "looser"),
         "resolution": ("not performed here: changing a protocol tier label is an ADR plus the "
                        "owner's explicit permission (ADR-532 §Owner gate)"),
