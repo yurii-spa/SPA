@@ -2,14 +2,15 @@
 
 > Авто-генерится `scripts/build_tracker_board.py` из `nimbalyst-local/tracker/*.md`. НЕ править вручную — правь карточки. Источник правды — карточки, это индекс (bootstrap).
 >
-> Собрана: 2026-11-08T19:52:33Z · сверка с карточками: `python3 scripts/build_tracker_board.py --check` (сторож `spa_core/tests/test_tracker_board_matches_cards.py`).
+> Собрана: 2026-11-09T00:00:01Z · сверка с карточками: `python3 scripts/build_tracker_board.py --check` (сторож `spa_core/tests/test_tracker_board_matches_cards.py`).
 >
-> Сверено с `origin/main` (427c6cf8d) · у **1** своя правка, кто новее — не измерено.
+> Сверено с `origin/main` (e356f7e4e).
 >
-> Всего карточек: **1610** · ждёт владельца: **5** · занято сессиями: **14**.
+> Всего карточек: **1611** · ждёт владельца: **6** · занято сессиями: **13**.
 
 ## 🔴 ЖДЁТ ВЛАДЕЛЬЦА (needs-owner)
 
+- **Потолок «не больше 20 % в один протокол» сторожит не протокол, а отдельный рынок внутри него**  ·  `owner-decision-potolok-ne-bolshe-20-v-odin-protokol-sto.md`
 - **Решение о перекладке: «не знаю, когда был прошлый ход» система читает как «хода не было» и разрешает двигать деньги**  ·  `owner-decision-reshenie-o-perekladke-ne-znayu-kogda-byl.md`
 - **Сайт: site_numbers.json — автономная правка задела owner-gated область, нужно решение**  ·  `owner-decision-sait-site-numbers-json-avtonomnaya-pravk-2.md`
 - **Считать ли портфель по-настоящему оптимально — или оставить сегодняшнюю приближённую раскладку** · _high_  ·  `owner-decision-schitat-li-portfel-po-nastoyaschemu-opti.md`
@@ -32,12 +33,12 @@
 - **Прогон тестов переписывает СОРОК git-tracked файлов в data/ (карточка #225/#226 считает, что их три) — среди них журнал исполнения** — держит `cycle-352` · с 2026-08-23T03:25:59Z  ·  `inbox-progon-testov-perepisyvaet-sorok-otslezhivaemyh-failov-data.md`
 - **Производители устаревших чисел сайта: дата go-live из API, сверка NAV до цикла, протухшие артефакты, молчащие стражи сайта** — держит `pid20023` · с 2026-09-08T21:15:05Z  ·  `inbox-proizvoditeli-ustarevshih-chisel-saita-d.md`
 - **Сторож ответа владельца зовёт человека на не-спор: 1 и "1" — одно решение, а сравниваются байты** — держит `cycle-84821` · с 2026-08-30T00:50:53Z  ·  `inbox-storozh-otveta-vladeltsa-zovet-cheloveka.md`
-- **TASK — Portfolio CIO: Dynamic Capital Allocation & Rebalancing** — держит `cycle-789` · с 2026-11-08T19:14:45Z  ·  `inbox-task-portfolio-cio-dynamic-capital-alloc.md`
 - **Замок цикла оркестратора доставлен, но в проде не работает: обёртка агента синкается раз в сутки, а голос о пропавшей защите живёт в самом пропавшем файле** — держит `cycle-81141` · с 2026-08-08T01:59:06Z  ·  `inbox-zamok-tsikla-orkestratora-dostavlen-no-v.md`
 
-## 🧑‍⚖️ Owner Decisions (что нужно от владельца)  (384)
+## 🧑‍⚖️ Owner Decisions (что нужно от владельца)  (385)
 
 ### · needs-owner
+- Потолок «не больше 20 % в один протокол» сторожит не протокол, а отдельный рынок внутри него  ·  `owner-decision-potolok-ne-bolshe-20-v-odin-protokol-sto.md` · 2026-11-09
 - Решение о перекладке: «не знаю, когда был прошлый ход» система читает как «хода не было» и разрешает двигать деньги  ·  `owner-decision-reshenie-o-perekladke-ne-znayu-kogda-byl.md` · 2026-11-08
 - Сайт: site_numbers.json — автономная правка задела owner-gated область, нужно решение  ·  `owner-decision-sait-site-numbers-json-avtonomnaya-pravk-2.md` · 2026-11-03
 - Считать ли портфель по-настоящему оптимально — или оставить сегодняшнюю приближённую раскладку  ·  `owner-decision-schitat-li-portfel-po-nastoyaschemu-opti.md` · 2026-10-30
@@ -447,7 +448,7 @@
 - Расширить опрашиваемый набор адаптеров шагами (второй шаг варианта A, после ADR-138)  ·  `inbox-rasshirit-oprashivaemyi-nabor-adapterov.md` · 2026-08-26
 - Сторож кнопок нарушает границу, которую сам объявил соблюдённой: метка-БУКВА принималась где угодно, и слово в прозе = «наш дефект разбора» с лекарством чинить НЕСУЩЕСТВУЮЩУЮ форму (перемер #484: ложная ОДНА из 21, не пять; п.1 исполнен)  ·  `inbox-storozh-knopok-narushaet-granitsu-kotoru.md` · 2026-09-04
 - Сторож переходов статусов ждёт первого улова: назвать немого писателя и встроить прогон в агента  ·  `inbox-storozh-perehodov-statusov-zhdet-pervogo.md` · 2026-08-09
-- TASK — Portfolio CIO: Dynamic Capital Allocation & Rebalancing  ·  `inbox-task-portfolio-cio-dynamic-capital-alloc.md` · 2026-08-13 · 🔒 `cycle-789`
+- TASK — Portfolio CIO: Dynamic Capital Allocation & Rebalancing  ·  `inbox-task-portfolio-cio-dynamic-capital-alloc.md` · 2026-08-13
 - Tier-C: 171 из 180 модулей не отвечают, 9 отвечающих — константы. Подключить или честно списать  ·  `inbox-tier-c-171-iz-180-modulei-ne-otvechayut.md` · 2026-08-06
 - Целостность трека SPA: подключить сторож, пересчёт из сырых входов, commit-reveal книги (перенос из earn-defi)  ·  `inbox-tselostnost-treka-spa-podklyuchit-storoz.md` · 2026-09-08
 - Цена класса «две сессии на одном предмете»: G38 п. 3 лежит остатком пятьдесят заказов  ·  `inbox-tsena-klassa-dve-sessii-na-odnom-predmet.md` · 2026-09-28
