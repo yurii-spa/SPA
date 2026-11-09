@@ -468,3 +468,19 @@ def test_missing_source_breakdown_is_unmeasured_not_absence_of_the_finding():
     assert "evidence_that_never_ages" not in codes
     assert any("не измерен" in u.lower() or "НЕ ИЗМЕРЕН" in u
                for u in unmeasured), unmeasured
+
+
+def test_report_write_true_produces_the_artifact(tmp_path):
+    """Контроль дефекта #1088: `atomic_save` звался как (path, doc), и
+    `run(write=True)` — умолчание CLI — падал ValueError в самом конце.
+    Батарея до этого проверяла только `write=False`, то есть путь записи
+    не был измерен ни разу, а артефакта §26 на диске не было никогда."""
+    root = tmp_path / "root"
+    (root / "data").mkdir(parents=True)
+    anchor = _anchor()
+    data = _scene(str(root), orch_age_h=1.0, status_age_h=1.0, anchor=anchor)
+    doc = DC.run(root=str(root), data_dir=data, write=True,
+                 with_seed_axis=False, now=anchor)
+    path = root / DC.REPORT_REL
+    assert path.is_file(), "артефакт §26 не записан"
+    assert json.loads(path.read_text(encoding="utf-8"))["schema"] == doc["schema"]

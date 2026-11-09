@@ -1009,7 +1009,11 @@ def run(root: str = REPO_ROOT, data_dir: Optional[str] = None,
     }
     if write:
         from spa_core.utils.atomic import atomic_save
-        atomic_save(os.path.join(root, REPORT_REL), doc)
+        # (data, path) — не наоборот. До #1088 аргументы стояли переставленными,
+        # и `run(write=True)` (умолчание CLI) падал ValueError в самом конце:
+        # артефакт §26 не был записан ни разу, а батарея проверяла только
+        # `write=False`. Найдено прибором §27 на том же вызове.
+        atomic_save(doc, os.path.join(root, REPORT_REL))
     return doc
 
 
