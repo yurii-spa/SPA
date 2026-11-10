@@ -2,10 +2,18 @@
 trackerStatus:
   type: owner-decision
 title: Проверка свежести данных не применяется к нашему собственному снимку — защита от мёртвого источника работает только наполовину
-status: needs-owner
+status: ingested
 source: nimbalyst
 created: 2026-11-09
 twin_key: "sha256:06fb10c152aa3ff6fda8864c7df8aec0c8efba51b3a005c512efa812de8d4d6e"
+owner_choice: 1
+owner_answered_at: 2026-11-10T11:05:39.593667+00:00
+owner_answer_via: telegram
+owner_answered_by: 258651137
+owner_answer_kind: option
+status_trail:
+  - "2026-11-10T11:05:39.594301+00:00 needs-owner -> owner-done · owner_answer.record_owner_answer"
+  - "2026-11-10T11:24:23.942273+00:00 owner-done -> ingested · queue.set_status · cycle-19679"
 ---
 
 ## Что случилось и почему это важно
@@ -57,3 +65,18 @@ twin_key: "sha256:06fb10c152aa3ff6fda8864c7df8aec0c8efba51b3a005c512efa812de8d4d
 стороны (протокол внутри окна — годен, за окном — `unevidenced`), прогоняю money-path
 через `pre_cutover_gate` и поправляю строку в `CLAUDE.md`, чтобы она описывала оба
 источника, а не один.
+
+---
+
+## Решение владельца
+
+**Вариант 1** — Применить к снимку то же окно 36 часов
+
+_Ответ владельца получен 2026-11-10T11:05:39.593667+00:00 (telegram). Карточка закрыта самим владельцем, не агентом (инвариант #14)._
+
+## Исполнение ответа (цикл #1093, 2026-11-10)
+
+Вариант 1 исполнен тем же днём — **ADR-976**: окно 36 ч применяется к снимку оркестратора через ту же
+дверь `_within_window`, что и ко второму источнику (`spa_core/allocator/allocator.py::_load_evidenced_apy`).
+Проба `snapshot_evidence_ages_out` на живых данных — `satisfied`; находка `evidence_that_never_ages`
+прибора §26 исчезла. Карточка-исполнитель `inbox-ispolnit-otvet-vladeltsa-10-11-variant-1` — `done`.

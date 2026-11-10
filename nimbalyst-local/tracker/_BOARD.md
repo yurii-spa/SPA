@@ -2,11 +2,11 @@
 
 > Авто-генерится `scripts/build_tracker_board.py` из `nimbalyst-local/tracker/*.md`. НЕ править вручную — правь карточки. Источник правды — карточки, это индекс (bootstrap).
 >
-> Собрана: 2026-11-10T01:38:10Z · сверка с карточками: `python3 scripts/build_tracker_board.py --check` (сторож `spa_core/tests/test_tracker_board_matches_cards.py`).
+> Собрана: 2026-11-10T15:34:06Z · сверка с карточками: `python3 scripts/build_tracker_board.py --check` (сторож `spa_core/tests/test_tracker_board_matches_cards.py`).
 >
-> Сверено с `origin/main` (57a354327).
+> Сверено с `origin/main` (e2ec97d9f) · у **2** своя правка, кто новее — не измерено.
 >
-> Всего карточек: **1621** · ждёт владельца: **13** · занято сессиями: **14**.
+> Всего карточек: **1623** · ждёт владельца: **12** · занято сессиями: **14**.
 
 ## 🔴 ЖДЁТ ВЛАДЕЛЬЦА (needs-owner)
 
@@ -15,7 +15,6 @@
 - **Новые деньги не отличаются от перекладки: пункт 20 задания CIO**  ·  `owner-decision-novye-dengi-ne-otlichayutsya-ot-pereklad.md`
 - **Пересчёт раскладки идёт раз в сутки, а ты просил раз в час — и подъём «стало лучше» не умеет никто**  ·  `owner-decision-pereschet-raskladki-idet-raz-v-sutki-a-t.md`
 - **Потолок «не больше 20 % в один протокол» сторожит не протокол, а отдельный рынок внутри него**  ·  `owner-decision-potolok-ne-bolshe-20-v-odin-protokol-sto.md`
-- **Проверка свежести данных не применяется к нашему собственному снимку — защита от мёртвого источника работает только наполовину**  ·  `owner-decision-proverka-svezhesti-dannyh-ne-primenyaets.md`
 - **Решение о перекладке: «не знаю, когда был прошлый ход» система читает как «хода не было» и разрешает двигать деньги**  ·  `owner-decision-reshenie-o-perekladke-ne-znayu-kogda-byl.md`
 - **Сайт: site_numbers.json — автономная правка задела owner-gated область, нужно решение**  ·  `owner-decision-sait-site-numbers-json-avtonomnaya-pravk-2.md`
 - **Сайт: track_snapshot.json — автономная правка задела owner-gated область, нужно решение**  ·  `owner-decision-sait-track-snapshot-json-avtonomnaya-pra-4.md`
@@ -51,7 +50,6 @@
 - Новые деньги не отличаются от перекладки: пункт 20 задания CIO  ·  `owner-decision-novye-dengi-ne-otlichayutsya-ot-pereklad.md` · 2026-11-09
 - Пересчёт раскладки идёт раз в сутки, а ты просил раз в час — и подъём «стало лучше» не умеет никто  ·  `owner-decision-pereschet-raskladki-idet-raz-v-sutki-a-t.md` · 2026-11-09
 - Потолок «не больше 20 % в один протокол» сторожит не протокол, а отдельный рынок внутри него  ·  `owner-decision-potolok-ne-bolshe-20-v-odin-protokol-sto.md` · 2026-11-09
-- Проверка свежести данных не применяется к нашему собственному снимку — защита от мёртвого источника работает только наполовину  ·  `owner-decision-proverka-svezhesti-dannyh-ne-primenyaets.md` · 2026-11-09
 - Решение о перекладке: «не знаю, когда был прошлый ход» система читает как «хода не было» и разрешает двигать деньги  ·  `owner-decision-reshenie-o-perekladke-ne-znayu-kogda-byl.md` · 2026-11-08
 - Сайт: site_numbers.json — автономная правка задела owner-gated область, нужно решение  ·  `owner-decision-sait-site-numbers-json-avtonomnaya-pravk-2.md` · 2026-11-03
 - Сайт: track_snapshot.json — автономная правка задела owner-gated область, нужно решение  ·  `owner-decision-sait-track-snapshot-json-avtonomnaya-pra-4.md` · 2026-11-08
@@ -266,6 +264,7 @@
 - 🅰🅰🅰 Продуктовый слой агентов (Head of Product + R&D продукта + продвижение) — построить  ·  `owner-decision-produktovyi-sloi-agentov-head-of-product.md` · 2026-07-16
 - Проверь одно поле: доходят ли до тебя заявки с сайта (одна минута)  ·  `owner-decision-prover-odno-pole-dohodyat-li-do-tebya-za.md` · 2026-08-22
 - Проверка книги слабее проверки перед сделкой — 60 % в рисковом уровне проходит как «здоровый портфель»  ·  `owner-decision-proverka-knigi-slabee-proverki-pered-sde.md` · 2026-08-18
+- Проверка свежести данных не применяется к нашему собственному снимку — защита от мёртвого источника работает только наполовину  ·  `owner-decision-proverka-svezhesti-dannyh-ne-primenyaets.md` · 2026-11-09
 - Публичная страница «проверь нас» показывает замеры месячной давности — выбери, как их обновлять  ·  `owner-decision-publichnaya-stranitsa-prover-nas-pokazyv.md` · 2026-07-29
 - Пять процентов кэша записаны в двух местах — это одно правило или два?  ·  `owner-decision-pyat-protsentov-kesha-zapisany-v-dvuh-me.md` · 2026-09-19
 - Пять решений после ночного аудита: честные числа, кнопка «Пауза» и кто что решает  ·  `owner-decision-pyat-reshenii-po-itogam-nochnogo-audita.md` · 2026-09-09
@@ -442,7 +441,7 @@
 ### · closed
 - Считать ли верный отказ по правилам допуска неисправностью флота  ·  `owner-decision-schitat-li-vernyi-otkaz-po-pravilam-dopu.md` · 2026-10-08
 
-## 📥 Inbox (задания: Telegram / заметки / голос)  (923)
+## 📥 Inbox (задания: Telegram / заметки / голос)  (925)
 
 ### · in-progress
 - а задача починить все-таки еще раз сообщение которым не пишет нужно твое решени…  ·  `inbox-a-zadacha-pochinit-vse-taki-esche-raz-so.md` · 2026-08-14 · 🔒 `pid43119`
@@ -606,6 +605,8 @@
 - Хвост ADR-564: пять дефектов фабрики исследований после повторного разбора  ·  `inbox-hvost-adr-564-pyat-defektov-fabriki-issl.md` · 2026-10-04
 - Имена 41 упавшего теста на main не существуют нигде: reports/ не выгружается, а печать режет 61 до 20  ·  `inbox-imena-upavshih-testov-na-main-zhivut-tol.md` · 2026-09-28
 - Исход FAIL у ворот публикации не меряет ни одна проба — на сцене ADR-789 ворота отвечают «НЕ ИЗМЕРЕНО»  ·  `inbox-ishod-fail-u-vorot-publikatsii-ne-meryae.md` · 2026-10-30
+- Исполнить ответ владельца 10.11 (вариант 1): окно свежести 36 ч — и к снимку оркестратора, второму источнику доказательности (money-path, ADR-975)  ·  `inbox-ispolnit-otvet-vladeltsa-10-11-variant-1.md` · 2026-11-10
+- Исполнить ответ владельца 27.10: срок годности решения 10 мин и допуск свежести 60/15 с — в колонку TriggerParams и к её читателю  ·  `inbox-ispolnit-otvet-vladeltsa-27-10-srok-godn.md` · 2026-11-10
 - Исправленные факты вместо отвергнутых проверкой: USYC, OUSG, USDY (fact-043…055)  ·  `inbox-ispravlennye-fakty-vmesto-otvergnutyh-pr.md` · 2026-10-05
 - Исследователь кандидатов считает, что активных адаптеров НОЛЬ: парсер написан под dict, а реестр — список  ·  `inbox-issledovatel-kandidatov-schitaet-chto-ak.md` · 2026-08-17
 - Из алерта: ⚠️ SPA 7-Day Checkpoint FAILED: 1 check(s)  ·  `inbox-iz-alerta-spa-7-day-checkpoint-failed-1-2.md` · 2026-08-08
@@ -1106,7 +1107,7 @@
 - Храповик зашитых дат КРАСНЫЙ на origin/main: 7 файлов за пять дней, четыре — сегодняшние  ·  `inbox-hrapovik-zashityh-dat-krasnyi-na-origin.md` · 2026-09-10
 - Инъекция часов кончается на границе подпроцесса: претензия injected-clock подтверждается AST, а вторая половина сравнения живёт в другом процессе (поверхность 32 файла, класс НЕ ИЗМЕРЕН)  ·  `inbox-inektsiya-chasov-konchaetsya-na-granitse.md` · 2026-11-02
 - Исчерпание лимитов Claude невидимо: цех молча стоит, владелец гадает «работает ли» — нужен явный сигнал «нет топлива»  ·  `inbox-ischerpanie-limitov-claude-nevidimo-tsehu.md` · 2026-08-22
-- Исполнить ответ владельца 27.10: срок годности решения 10 мин и допуск свежести 60/15 с — в колонку TriggerParams и к её читателю  ·  `inbox-ispolnit-otvet-vladeltsa-27-10-srok-godn.md` · 2026-11-10
+- Исполнить §29 приказа «Portfolio CIO»: аварийный выход капитала ВЫШЕ раннего выхода EmergencyBreakers — порядок Step 2b/2c/3 (money-path, ADR-973)  ·  `inbox-ispolnit-29-prikaza-portfolio-cio-avarii.md` · 2026-11-10
 - Исполнить Вариант 2 владельца: дописать 38 ставок и подключить их к hit_rate со СМЕШАННОЙ пробой  ·  `inbox-ispolnit-variant-2-vladeltsa-dopisat-38.md` · 2026-09-10
 - Измерить население класса: усечённый клон отвечает о происхождении коммита молча и НЕВЕРНО  ·  `inbox-izmerit-naselenie-klassa-usechennyi-klon.md` · 2026-11-04
 - Карточка, рождённая через 4 ч 54 мин ПОСЛЕ починки ADR-866, ключа близнеца не несёт — и три дешёвые гипотезы опровергнуты  ·  `inbox-kartochka-rozhdennaya-cherez-4-ch-54-min.md` · 2026-10-30

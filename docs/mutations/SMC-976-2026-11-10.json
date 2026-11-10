@@ -1,0 +1,34 @@
+{
+ "title": "ADR-976 SMC — дельта цикла #1093: окно свежести 36 ч у ветки снимка оркестратора в _load_evidenced_apy (ответ владельца 10.11, вариант 1) — окно снято (дефект ADR-969 возвращён), неразбираемая отметка падает на generated_at (fail-OPEN), отметка записи игнорируется (судится только generated_at), вторая копия окна литералом 36.0 вместо одной двери",
+ "tests": [
+  "spa_core/tests/test_allocator_snapshot_window_owner_answer_2026_11_10.py",
+  "spa_core/tests/test_probe_snapshot_evidence_ages_out.py",
+  "spa_core/tests/test_determinism_census.py"
+ ],
+ "mutations": [
+  {
+   "name": "M01 окно у ветки снимка снято — источник снова не стареет (дефект ADR-969)",
+   "file": "spa_core/allocator/allocator.py",
+   "old": "        if not _within_window(a.get(\"last_updated\"), orch_ts):\n            continue\n        dec = _band(a.get(\"apy_pct\"))",
+   "new": "        dec = _band(a.get(\"apy_pct\"))"
+  },
+  {
+   "name": "M02 неразбираемая отметка падает на generated_at — возраст выдуман (fail-OPEN)",
+   "file": "spa_core/allocator/allocator.py",
+   "old": "        dt = _parsed(str(as_of)) if as_of else _parsed(fallback_ts)\n        if dt is None:\n            return False",
+   "new": "        dt = (_parsed(str(as_of)) if as_of else None) or _parsed(fallback_ts)\n        if dt is None:\n            return False"
+  },
+  {
+   "name": "M03 отметка записи снимка игнорируется — судится только generated_at файла",
+   "file": "spa_core/allocator/allocator.py",
+   "old": "        if not _within_window(a.get(\"last_updated\"), orch_ts):\n            continue",
+   "new": "        if not _within_window(None, orch_ts):\n            continue"
+  },
+  {
+   "name": "M04 вторая копия окна литералом 36.0 — две двери вместо одной",
+   "file": "spa_core/allocator/allocator.py",
+   "old": "        if not _within_window(a.get(\"last_updated\"), orch_ts):\n            continue",
+   "new": "        _stamp = _parsed(str(a.get(\"last_updated\") or orch_ts))\n        if _stamp is None or ((now or datetime.now(timezone.utc)) - _stamp).total_seconds() / 3600.0 > 36.0:\n            continue"
+  }
+ ]
+}

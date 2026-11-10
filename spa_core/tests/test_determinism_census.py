@@ -229,8 +229,15 @@ def test_fifth_input_is_not_pinnable_at_either_entry_point():
 def test_axis_c_result_changes_from_the_clock_alone(tmp_path):
     """НЕСУЩАЯ НАХОДКА: байты входа те же, меняется РОВНО `now`.
 
-    Сцена построена так, что источник ``adapter_status`` стои́т близко к краю
-    окна: на якоре он доказателен, на сдвиге за окно — нет.
+    Сцена построена так, что ОБА источника стоя́т близко к краю окна: на якоре
+    доказательны, на сдвиге за окно — нет.
+
+    ИЗМЕНЕНО НАМЕРЕННО (ADR-976, инв. #16): до ответа владельца 10.11 на сдвиге
+    выживал ``from_orchestrator`` (ветка снимка окна не применяла), и строка
+    ниже закрепляла этот дефект как часть сцены. Предмет теста — «результат
+    зависит от одних часов» — не изменился и по-прежнему красен на приборе,
+    который `now` не двигает; прежний исход достижим двойником
+    `_never_aging_allocator` (см. `test_axis_c_names_the_source_that_never_ages`).
     """
     anchor = _anchor()
     data = _scene(str(tmp_path), orch_age_h=1.0, status_age_h=1.0, anchor=anchor)
@@ -239,7 +246,7 @@ def test_axis_c_result_changes_from_the_clock_alone(tmp_path):
     assert out["depends_on_clock"] is True
     assert out["changed_at_offsets"] == [48.0]
     assert out["rows"][0]["apy_evidenced"] == ["from_orchestrator", "from_status"]
-    assert out["rows"][1]["apy_evidenced"] == ["from_orchestrator"]
+    assert out["rows"][1]["apy_evidenced"] == []
 
 
 def test_axis_c_says_not_dependent_when_nothing_moves(tmp_path):
@@ -255,19 +262,35 @@ def test_axis_c_says_not_dependent_when_nothing_moves(tmp_path):
     assert out["changed_at_offsets"] == []
 
 
-def test_axis_c_names_the_source_that_never_ages(tmp_path):
-    """Вторая находка: ветка снимка оркестратора окна свежести НЕ применяет.
+def test_axis_c_names_the_source_that_never_ages(tmp_path, monkeypatch):
+    """Вторая находка ADR-969: ветка снимка оркестратора окна свежести НЕ применяла.
 
-    На сдвиге в год источник ``adapter_status`` вымирает весь, а
-    ``orchestrator_live`` остаётся — то есть `_fundable` на нём НИКОГДА не
-    скажет `unevidenced`.
+    ИЗМЕНЕНО НАМЕРЕННО (ADR-976, инв. #16): ответ владельца 10.11 (вариант 1,
+    ADR-975) исполнен — живой аллокатор применяет окно к ОБОИМ источникам, и на
+    живом коде этот исход больше не достижим. Прежний исход сохранён СЦЕНОЙ:
+    двойник аллокатора образца 09.11 (`_never_aging_allocator`) — чтобы прибор
+    по-прежнему ЛОВИЛ нестареющий источник, когда он есть. Живой аллокатор —
+    соседний тест.
     """
+    from spa_core.tests._never_aging_allocator import install
+    install(monkeypatch)
     anchor = _anchor()
     data = _scene(str(tmp_path), orch_age_h=1.0, status_age_h=1.0, anchor=anchor)
     out = DC.measure_fifth_input(data, offsets_h=(0.0, 8760.0), now=anchor)
     assert out["measured"], out["reason"]
     assert out["never_aging"]["apy_by_source"] == {"orchestrator_live": 1}
     assert out["never_aging"]["apy_evidenced"] == ["from_orchestrator"]
+
+
+def test_axis_c_live_allocator_ages_both_sources_out(tmp_path):
+    """ADR-976: на живом аллокаторе на сдвиге в год не остаётся НИ ОДНОГО источника."""
+    anchor = _anchor()
+    data = _scene(str(tmp_path), orch_age_h=1.0, status_age_h=1.0, anchor=anchor)
+    out = DC.measure_fifth_input(data, offsets_h=(0.0, 8760.0), now=anchor)
+    assert out["measured"], out["reason"]
+    assert out["rows"][0]["apy_evidenced"] == ["from_orchestrator", "from_status"]
+    assert out["never_aging"]["apy_by_source"] == {}
+    assert out["never_aging"]["apy_evidenced"] == []
 
 
 def test_axis_c_missing_snapshot_is_unmeasured_not_equal_sets(tmp_path):

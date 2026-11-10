@@ -1,0 +1,140 @@
+{
+ "title": "ADR-974 SMC — дельта цикла #1092: §30 «Shadow Mode» — паритет с карточкой (поля, вторая граница), порядок шагов цикла (уникальность маркеров, направление), исполнение (взвод, готовность, нечитаемая готовность), входы (книга трека, ставки того же дня, отсутствие as_of), поля (писатель, вторые носители), ответ системы (сделка без оборота, третий исход), пары по дням (расхождение, окно взвода, день без записи), критичность, порядок atomic_save, --now, проба приёмки",
+ "tests": [
+  "spa_core/tests/test_shadow_mode_census.py"
+ ],
+ "mutations": [
+  {
+   "name": "M01 паритет слеп к перечню полей — карточка без поля проходит как совпавшая",
+   "file": "spa_core/analytics/shadow_mode_census.py",
+   "old": "    elif list(fields) != list(OWNER_SAVED_FIELDS):",
+   "new": "    elif False:"
+  },
+  {
+   "name": "M02 вторая граница раздела не найдена — счёт идёт до конца файла (fail-OPEN)",
+   "file": "spa_core/analytics/shadow_mode_census.py",
+   "old": "    if end is None:\n        return None, (f\"найден {SECTION_HEAD!r}, но НЕ найдена вторая граница \"",
+   "new": "    if end is None and False:\n        return None, (f\"найден {SECTION_HEAD!r}, но НЕ найдена вторая граница \""
+  },
+  {
+   "name": "M03 дублированный маркер порядка принимается за один",
+   "file": "spa_core/analytics/shadow_mode_census.py",
+   "old": "        if len(hits) != 1:",
+   "new": "        if len(hits) == 0:"
+  },
+  {
+   "name": "M04 направление порядка шагов не читается — всегда «запись до сделки»",
+   "file": "spa_core/analytics/shadow_mode_census.py",
+   "old": "    if w < d < t:",
+   "new": "    if True:"
+  },
+  {
+   "name": "M05 взведённая книга читается как shadow_only",
+   "file": "spa_core/analytics/shadow_mode_census.py",
+   "old": "    return {\"kind\": \"verdict_decides\" if armed else \"shadow_only\",",
+   "new": "    return {\"kind\": \"shadow_only\","
+  },
+  {
+   "name": "M06 взвод до готовности никогда не называется",
+   "file": "spa_core/analytics/shadow_mode_census.py",
+   "old": "        armed_before_ready = readiness.get(\"ready_to_arm\") is False",
+   "new": "        armed_before_ready = False"
+  },
+  {
+   "name": "M07 нечитаемая готовность взвода читается как «взведён после готовности»",
+   "file": "spa_core/analytics/shadow_mode_census.py",
+   "old": "    if readiness.get(\"measured\") and kind == \"verdict_decides\":",
+   "new": "    if kind == \"verdict_decides\":"
+  },
+  {
+   "name": "M08 книга записи не сверяется с книгой трека — всегда real_same_day",
+   "file": "spa_core/analytics/shadow_mode_census.py",
+   "old": "            elif rec_pos == trk_pos:",
+   "new": "            elif True:"
+  },
+  {
+   "name": "M09 одна ставка того же дня делает все ставки свежими",
+   "file": "spa_core/analytics/shadow_mode_census.py",
+   "old": "        elif len(same_day) == len(apy):",
+   "new": "        elif len(same_day) >= 1:"
+  },
+  {
+   "name": "M10 константа прибора не сверяется с писателем записи",
+   "file": "spa_core/analytics/shadow_mode_census.py",
+   "old": "            elif not set(rk) <= writer:",
+   "new": "            elif False:"
+  },
+  {
+   "name": "M11 нечитаемые вторые носители читаются как прочитанные",
+   "file": "spa_core/analytics/shadow_mode_census.py",
+   "old": "            if not any(readable.values()):",
+   "new": "            if False:"
+  },
+  {
+   "name": "M12 сделка на дату без оборота в треке не считается ходом",
+   "file": "spa_core/analytics/shadow_mode_census.py",
+   "old": "    if (turnover or 0) > 0 or traded:",
+   "new": "    if (turnover or 0) > 0:"
+  },
+  {
+   "name": "M13 третий исход ответа системы схлопнут в «держала»",
+   "file": "spa_core/analytics/shadow_mode_census.py",
+   "old": "    return {\"kind\": UNMEASURED, \"turnover_usd\": turnover, \"trade_on_date\": traded,",
+   "new": "    return {\"kind\": \"held\", \"turnover_usd\": turnover, \"trade_on_date\": traded,"
+  },
+  {
+   "name": "M14 расхождение «система ↔ CIO» никогда не фиксируется",
+   "file": "spa_core/analytics/shadow_mode_census.py",
+   "old": "        diverges = (sysa[\"kind\"] == \"moved\" and cio == \"HOLD\") or (sysa[\"kind\"] == \"held\" and cio == \"ACT\")",
+   "new": "        diverges = False"
+  },
+  {
+   "name": "M15 день взвода попадает в окно «после взвода»",
+   "file": "spa_core/analytics/shadow_mode_census.py",
+   "old": "        if armed_at and d > armed_at:",
+   "new": "        if armed_at and d >= armed_at:"
+  },
+  {
+   "name": "M16 схлопнувшаяся контрольная рука не называется CRITICAL",
+   "file": "spa_core/analytics/shadow_mode_census.py",
+   "old": "            if aa.get(\"days\", 0) > 0 and aa.get(\"divergent\", 0) == 0:",
+   "new": "            if False:"
+  },
+  {
+   "name": "M17 CRITICAL печатается как WARNING",
+   "file": "spa_core/analytics/shadow_mode_census.py",
+   "old": "    overall = (\"CRITICAL\" if counts[\"critical\"] else",
+   "new": "    overall = (\"WARNING\" if counts[\"critical\"] else"
+  },
+  {
+   "name": "M18 порядок аргументов atomic_save перевёрнут — артефакта нет",
+   "file": "spa_core/analytics/shadow_mode_census.py",
+   "old": "        atomic_save(doc, os.path.join(root, REPORT_REL))",
+   "new": "        atomic_save(os.path.join(root, REPORT_REL), doc)"
+  },
+  {
+   "name": "M19 пустой --now молча становится стенными часами",
+   "file": "spa_core/analytics/shadow_mode_census.py",
+   "old": "        return None, \"--now пуст — отказ, а не стенные часы\"",
+   "new": "        return None, None"
+  },
+  {
+   "name": "M20 день трека без записи не считается",
+   "file": "spa_core/analytics/shadow_mode_census.py",
+   "old": "            matrix[\"no_record\"] = matrix.get(\"no_record\", 0) + 1\n            continue",
+   "new": "            continue"
+  },
+  {
+   "name": "M21 отсутствие apy_as_of читается как устаревание, а не как НЕ ИЗМЕРЕНО",
+   "file": "spa_core/analytics/shadow_mode_census.py",
+   "old": "        if not as_of:\n            inputs[\"rates\"] = {\"kind\": UNMEASURED,",
+   "new": "        if False:\n            inputs[\"rates\"] = {\"kind\": UNMEASURED,"
+  },
+  {
+   "name": "M22 проба считает второй носитель исполнением критерия",
+   "file": "spa_core/monitoring/card_acceptance.py",
+   "old": "    if kind == \"in_the_record\":\n        return SATISFIED, (f\"«what current system did» несёт сама запись: ключи \"",
+   "new": "    if kind in (\"in_the_record\", \"in_a_second_carrier\"):\n        return SATISFIED, (f\"«what current system did» несёт сама запись: ключи \""
+  }
+ ]
+}

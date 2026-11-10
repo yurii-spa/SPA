@@ -18290,8 +18290,152 @@ def _probe_emergency_exit_outranks_the_breaker(arg: str | None, now=None) -> tup
                        f"{ln.get('trade_damper')}) стоя́т ДО раннего выхода EB (строка "
                        f"{ln.get('breaker_return')})")
 
+def _probe_shadow_record_carries_the_system_action(
+        arg: str | None, *, data_dir: str | None = None) -> tuple[str, str]:
+    """Критерий §30 приказа владельца «Portfolio CIO» (ADR-974): запись решения тени несёт
+    ОТВЕТ СИСТЕМЫ («what current system did») САМА, а не оставляет его читателю на склейку
+    по дате со вторыми носителями. Замер #1092: пять полей §30 у записи
+    `allocation_rationale_history.jsonl` разложились как 3 в записи · 2 у вторых носителей,
+    и первое из пяти отсутствует ПО ПОСТРОЕНИЮ порядка шагов (запись на Step 2f, сделка на
+    Step 3).
+
+    Меряется ИСХОДОМ по прибору §30 (`spa_core.analytics.shadow_mode_census.measure_fields`)
+    на живом каталоге данных: род носителя у поля «what current system did». Исполнителем
+    критерия будет дописывание записи ПОСЛЕ Step 3 (или второй носитель, склеенный
+    `decision_id`), а не прибор.
+
+    Три исхода:
+    * прибор не ввезён / каталог не прочитан / род `unmeasured` ⇒ `unmeasured` с причиной;
+    * поле у второго носителя или отсутствует везде ⇒ `not_satisfied` (носители названы);
+    * поле в самой записи ⇒ `satisfied`.
+    """
+    if arg:
+        return UNMEASURED, (f"проба не принимает аргумента (дано {arg!r}): критерий "
+                            "назван целиком")
+    try:
+        from spa_core.analytics import shadow_mode_census as smc
+    except Exception as exc:  # noqa: BLE001 — нечем измерить ≠ «исполнено»
+        return UNMEASURED, f"прибор §30 не импортирован: {type(exc).__name__}: {exc}"
+    base = data_dir or os.path.join(REPO_ROOT, "data")
+    carriers = smc.load_carriers(base)
+    if carriers.get("records") is None:
+        return UNMEASURED, (f"запись решения {base}/{smc.RECORD_REL} не прочитана: "
+                            f"{carriers.get('records_reason')} — НЕ ИЗМЕРЕНО")
+    fields = smc.measure_fields(REPO_ROOT, carriers)
+    row = (fields.get("fields") or {}).get("what current system did") or {}
+    kind = row.get("kind")
+    if kind == "in_the_record":
+        return SATISFIED, (f"«what current system did» несёт сама запись: ключи "
+                           f"{row.get('record_keys')}, покрытие {row.get('coverage')}")
+    if kind == "in_a_second_carrier":
+        return NOT_SATISFIED, (f"«what current system did» в записи решения нет — живёт у "
+                               f"вторых носителей {sorted(row.get('readable') or {})}: "
+                               f"{row.get('why_not_in_record')}")
+    if kind == "absent_everywhere":
+        return NOT_SATISFIED, "«what current system did» не несёт ни один носитель"
+    return UNMEASURED, f"род носителя не измерен: {row.get('reason')} — НЕ ИЗМЕРЕНО"
+
+
+def _probe_snapshot_evidence_ages_out(
+        arg: str | None, *, data_dir: str | None = None,
+        now: "datetime | None" = None) -> tuple[str, str]:
+    """Критерий исполнения ответа владельца 10.11 (вариант 1, ADR-975): окно свежести
+    36 ч применяется к ОБОИМ источникам доказательности, в том числе к снимку
+    оркестратора (`adapter_orchestrator_status.json`), который до того не старел вовсе
+    (ADR-969 ось C, находка `evidence_that_never_ages`).
+
+    Меряется ИСХОДОМ по прибору §26 (`determinism_census.measure_fifth_input`): на самом
+    дальнем сдвиге часов набор годных по APY протоколов обязан быть ПУСТ — у обоих
+    источников. Исполнитель критерия — правка ветки снимка в `_load_evidenced_apy`
+    (money-path, решение владельца уже есть), не прибор.
+
+    Три исхода:
+    * прибор не ввезён / снимки не прочитаны / дверь часов исчезла ⇒ `unmeasured`;
+    * на дальнем сдвиге годные протоколы остаются (источник назван) ⇒ `not_satisfied`;
+    * на дальнем сдвиге годных нет ⇒ `satisfied`.
+
+    Каталог и часы — ВХОДЫ (`data_dir`, `now`), а не окружение.
+    """
+    if arg:
+        return UNMEASURED, (f"проба не принимает аргумента (дано {arg!r}): критерий "
+                            "назван целиком")
+    try:
+        from spa_core.analytics import determinism_census as dc
+    except Exception as exc:  # noqa: BLE001 — нечем измерить ≠ «исполнено»
+        return UNMEASURED, f"прибор §26 не импортирован: {type(exc).__name__}: {exc}"
+    base = data_dir or os.path.join(REPO_ROOT, "data")
+    fifth = dc.measure_fifth_input(base, now=now)
+    if not fifth.get("measured"):
+        return UNMEASURED, f"ось C §26 не измерена: {fifth.get('reason')} — НЕ ИЗМЕРЕНО"
+    far = fifth.get("never_aging") or {}
+    by_src = far.get("apy_by_source") or {}
+    if "offset_h" not in far or not isinstance(by_src, dict):
+        return UNMEASURED, "дальний сдвиг часов не записан прибором — НЕ ИЗМЕРЕНО"
+    surviving = {k: v for k, v in by_src.items() if v}
+    if surviving:
+        return NOT_SATISFIED, (f"на сдвиге {far.get('offset_h')} ч годными остаются "
+                               f"{sum(surviving.values())} протокол(ов) {surviving}: "
+                               f"источник не стареет, окно {fifth.get('max_age_h')} ч к "
+                               f"нему не применяется")
+    return SATISFIED, (f"на сдвиге {far.get('offset_h')} ч годных протоколов нет ни у одного "
+                       f"источника (окно {fifth.get('max_age_h')} ч действует на оба)")
+
+
+def _probe_counterfactual_tracks_every_declared_horizon(
+        arg: str | None, *, data_dir: str | None = None) -> tuple[str, str]:
+    """Критерий §31 приказа владельца «Portfolio CIO» (ADR-977): у КАЖДОГО из пяти
+    объявленных горизонтов (1h · 6h · 24h · 3d · 7d) есть носитель, считающий исход
+    неисполненной рекомендации именно на нём. Замер #1094: судья тени и реплей §38 считают
+    на ОДНОМ горизонте (7 дн.), два горизонта недостижимы при суточном шаге наблюдения
+    входов, два достижимы и не считаются никем.
+
+    Меряется ИСХОДОМ по прибору §31 (`counterfactual_tracking_census.measure_horizons`)
+    на живом каталоге данных: род каждого горизонта. Исполнителем критерия будет носитель,
+    считающий на недостающих горизонтах (и, для 1h/6h, более частое наблюдение входов —
+    решение о такте), а не прибор.
+
+    Три исхода:
+    * прибор не ввезён / каталог не прочитан / род горизонта `unmeasured` ⇒ `unmeasured`;
+    * хотя бы один горизонт не `tracked` ⇒ `not_satisfied` (горизонты и роды названы);
+    * все объявленные горизонты `tracked` ⇒ `satisfied`.
+    """
+    if arg:
+        return UNMEASURED, (f"проба не принимает аргумента (дано {arg!r}): критерий "
+                            "назван целиком")
+    try:
+        from spa_core.analytics import counterfactual_tracking_census as ctc
+    except Exception as exc:  # noqa: BLE001 — нечем измерить ≠ «исполнено»
+        return UNMEASURED, f"прибор §31 не импортирован: {type(exc).__name__}: {exc}"
+    base = data_dir or os.path.join(REPO_ROOT, "data")
+    carriers = ctc.load_carriers(base)
+    if carriers.get("eval") is None and carriers.get("replay") is None:
+        return UNMEASURED, (f"ни судья {base}/{ctc.EVAL_REL}, ни реплей {base}/{ctc.REPLAY_REL} "
+                            f"не прочитаны: {carriers.get('eval_reason')}; "
+                            f"{carriers.get('replay_reason')} — НЕ ИЗМЕРЕНО")
+    hz = ctc.measure_horizons(carriers)
+    rows = hz.get("horizons") or {}
+    if len(rows) != ctc.OWNER_HORIZONS_DECLARED:
+        return UNMEASURED, (f"прибор вернул {len(rows)} горизонт(ов) из "
+                            f"{ctc.OWNER_HORIZONS_DECLARED} объявленных — НЕ ИЗМЕРЕНО")
+    unmeasured = {h: r.get("reason") for h, r in rows.items() if r.get("kind") == UNMEASURED}
+    if unmeasured:
+        return UNMEASURED, f"род горизонта не измерен: {unmeasured} — НЕ ИЗМЕРЕНО"
+    untracked = {h: r["kind"] for h, r in rows.items() if r.get("kind") != "tracked"}
+    if untracked:
+        return NOT_SATISFIED, (f"из {ctc.OWNER_HORIZONS_DECLARED} горизонтов считается "
+                               f"{ctc.OWNER_HORIZONS_DECLARED - len(untracked)}; не считаются: "
+                               f"{untracked} (шаг наблюдения входов {hz.get('cadence_hours')} ч)")
+    return SATISFIED, (f"все {ctc.OWNER_HORIZONS_DECLARED} горизонтов считаются носителями "
+                       f"{ {h: r.get('carriers') for h, r in rows.items()} }")
+
+
 PROBES: dict[str, Callable[[str | None], "tuple[str, str]"]] = {
     "apy_name_carries_one_kind": _probe_apy_name_carries_one_kind,
+    "shadow_record_carries_the_system_action":
+        _probe_shadow_record_carries_the_system_action,
+    "snapshot_evidence_ages_out": _probe_snapshot_evidence_ages_out,
+    "counterfactual_tracks_every_declared_horizon":
+        _probe_counterfactual_tracks_every_declared_horizon,
     "conservative_expected_apy_published":
         _probe_conservative_expected_apy_published,
     "marginal_apy_ladder_published": _probe_marginal_apy_ladder_published,

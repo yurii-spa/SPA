@@ -306,6 +306,16 @@ def _load_evidenced_apy(
     On conflict the FRESHER producer wins (deterministic, by ``generated_at``);
     both values are logged so a divergence stays visible (D6). Never raises:
     any unreadable/invalid input contributes nothing.
+
+    **Both sources age out through the SAME window and the SAME door**
+    (ADR-975 — owner answer 2026-11-10, variant 1; executed by ADR-976). Until
+    then the window ``_EVIDENCE_MAX_AGE_H`` was applied to ``adapter_status.json``
+    only: an orchestrator snapshot entry stayed evidence FOREVER, so if the poller
+    died the gate ``_fundable`` would have kept its last snapshot "fresh" for good
+    (ADR-969 axis C: on a one-year clock shift 9 ``orchestrator_live`` protocols
+    survived). Age of a snapshot entry is measured from the entry's own
+    ``last_updated`` when present, else from the snapshot's ``generated_at``; an
+    unparseable or missing stamp is NOT evidence (fail-CLOSED, invariant 2).
     """
     out: dict[str, tuple[float, str]] = {}
 
@@ -379,23 +389,6 @@ def _load_evidenced_apy(
         _wrong_shape(container, "mapping", path)
         return {}
 
-    orch = _read(orchestrator_path)
-    orch_ts = str(orch.get("generated_at") or "")
-    for a in _as_list(orch.get("adapters"), orchestrator_path):
-        if not isinstance(a, dict) or not a.get("live_data"):
-            continue
-        if a.get("status") not in ("ok", "partial", None):
-            continue
-        dec = _band(a.get("apy_pct"))
-        if dec is not None and a.get("protocol"):
-            out[str(a["protocol"])] = (dec, "orchestrator_live")
-
-    if adapter_status_path is None:
-        return out
-
-    st = _read(adapter_status_path)
-    st_ts = str(st.get("generated_at") or "")
-
     def _parsed(ts: str) -> "datetime | None":
         """ISO-8601 → aware datetime. Never raises; ``None`` when unparseable."""
         try:
@@ -407,10 +400,15 @@ def _load_evidenced_apy(
     def _within_window(as_of: object, fallback_ts: str) -> bool:
         """Is an observation young enough to still count as evidence?
 
-        Age is measured from when the value was OBSERVED (``live_apy_as_of``),
-        not from when the file was written — a carried-forward reading must age
-        out on its own clock. An unparseable timestamp is treated as too old:
-        unknown age is not evidence (fail-CLOSED).
+        Age is measured from when the value was OBSERVED (``live_apy_as_of`` /
+        ``last_updated``), not from when the file was written — a carried-forward
+        reading must age out on its own clock. An unparseable timestamp is treated
+        as too old: unknown age is not evidence (fail-CLOSED).
+
+        ONE door for BOTH sources (ADR-975/976): the orchestrator snapshot and
+        ``adapter_status.json`` are judged by this same function with the same
+        ``now`` — a second copy of the window would be a second place for the
+        rule to drift.
         """
         dt = _parsed(str(as_of)) if as_of else _parsed(fallback_ts)
         if dt is None:
@@ -425,6 +423,28 @@ def _load_evidenced_apy(
         ref = now or datetime.now(timezone.utc)
         age_h = (ref - dt).total_seconds() / 3600.0
         return age_h <= _EVIDENCE_MAX_AGE_H
+
+    orch = _read(orchestrator_path)
+    orch_ts = str(orch.get("generated_at") or "")
+    for a in _as_list(orch.get("adapters"), orchestrator_path):
+        if not isinstance(a, dict) or not a.get("live_data"):
+            continue
+        if a.get("status") not in ("ok", "partial", None):
+            continue
+        # ADR-975/976 (owner answer 2026-11-10, variant 1): the orchestrator's
+        # own snapshot ages out through the SAME window as adapter_status —
+        # an entry older than ``_EVIDENCE_MAX_AGE_H`` is no longer evidence.
+        if not _within_window(a.get("last_updated"), orch_ts):
+            continue
+        dec = _band(a.get("apy_pct"))
+        if dec is not None and a.get("protocol"):
+            out[str(a["protocol"])] = (dec, "orchestrator_live")
+
+    if adapter_status_path is None:
+        return out
+
+    st = _read(adapter_status_path)
+    st_ts = str(st.get("generated_at") or "")
 
     # Compare real instants, not strings: "…Z" vs "…+00:00" sort in the WRONG
     # order lexicographically ("Z" > "+"), which would silently pick the stale

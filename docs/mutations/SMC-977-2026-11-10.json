@@ -1,0 +1,134 @@
+{
+  "title": "ADR-977 SMC — дельта цикла #1094: §31 «Counterfactual tracking» — паритет с карточкой (горизонты, величины, пример, вторая граница, HTML-комментарий), предмет (род пары, строка судьи, книги), горизонты (шаг наблюдения, недостижимость, tracked), величины (источник стоимости, смесь, UNCHECKED), связь (двойная запись в день), критичность, порядок atomic_save, проба приёмки",
+  "tests": [
+    "spa_core/tests/test_counterfactual_tracking_census.py"
+  ],
+  "mutations": [
+    {
+      "name": "M01 паритет слеп к перечню горизонтов — карточка без горизонта проходит как совпавшая",
+      "file": "spa_core/analytics/counterfactual_tracking_census.py",
+      "old": "    elif list(hz) != list(OWNER_HORIZONS):",
+      "new": "    elif False:"
+    },
+    {
+      "name": "M02 паритет слеп к перечню величин",
+      "file": "spa_core/analytics/counterfactual_tracking_census.py",
+      "old": "    elif list(qt) != list(OWNER_QUANTITIES):",
+      "new": "    elif False:"
+    },
+    {
+      "name": "M03 вторая граница раздела не найдена — счёт идёт до конца файла (fail-OPEN)",
+      "file": "spa_core/analytics/counterfactual_tracking_census.py",
+      "old": "    if end is None:\n        return None, (f\"найден {SECTION_HEAD!r}, но НЕ найдена вторая граница \"",
+      "new": "    if end is None and False:\n        return None, (f\"найден {SECTION_HEAD!r}, но НЕ найдена вторая граница \""
+    },
+    {
+      "name": "M04 HTML-комментарий карточки читается как пункт владельца",
+      "file": "spa_core/analytics/counterfactual_tracking_census.py",
+      "old": "        if not s or s.startswith(\"<!--\"):",
+      "new": "        if not s:"
+    },
+    {
+      "name": "M05 неисполненная ACT и неисполненная HOLD — один род",
+      "file": "spa_core/analytics/counterfactual_tracking_census.py",
+      "old": "        kind = (\"unexecuted_act\" if dv.get(\"cio\") == \"ACT\" else\n                \"unfollowed_hold\" if dv.get(\"cio\") == \"HOLD\" else UNMEASURED)",
+      "new": "        kind = \"unfollowed_hold\""
+    },
+    {
+      "name": "M06 день без строки судьи считается отслеженным",
+      "file": "spa_core/analytics/counterfactual_tracking_census.py",
+      "old": "                         \"judge\": \"tracked\" if jr else (UNMEASURED if rows is None else \"untracked\")})",
+      "new": "                         \"judge\": \"tracked\"})"
+    },
+    {
+      "name": "M07 непрочитанная книга считается книгой без ACT (ноль вместо не измерено)",
+      "file": "spa_core/analytics/counterfactual_tracking_census.py",
+      "old": "        acts_by_book[book] = (None if rows_b is None else\n                              sum(1 for r in rows_b if r.get(\"verdict\") == \"ACT\"))",
+      "new": "        acts_by_book[book] = sum(1 for r in (rows_b or []) if r.get(\"verdict\") == \"ACT\")"
+    },
+    {
+      "name": "M08 горизонт короче шага наблюдения читается как достижимый",
+      "file": "spa_core/analytics/counterfactual_tracking_census.py",
+      "old": "        elif hh < cadence:",
+      "new": "        elif False:"
+    },
+    {
+      "name": "M09 шаг наблюдения не измерен — горизонты объявляются достижимыми, а не НЕ ИЗМЕРЕНО",
+      "file": "spa_core/analytics/counterfactual_tracking_census.py",
+      "old": "        elif cadence is None:\n            rows[h] = {\"kind\": UNMEASURED, \"hours\": hh, \"reason\": f\"шаг наблюдения не измерен: {why}\"}",
+      "new": "        elif cadence is None:\n            rows[h] = {\"kind\": \"reachable_untracked\", \"hours\": hh}"
+    },
+    {
+      "name": "M10 горизонт судьи захардкожен сутками вместо чтения params.horizon_days",
+      "file": "spa_core/analytics/counterfactual_tracking_census.py",
+      "old": "            carrier_h[\"judge\"] = {\"hours\": float(hd) * 24.0, \"source\": \"params.horizon_days\"}",
+      "new": "            carrier_h[\"judge\"] = {\"hours\": 168.0, \"source\": \"params.horizon_days\"}"
+    },
+    {
+      "name": "M11 записанная оценка стоимости принимается за фактическую",
+      "file": "spa_core/analytics/counterfactual_tracking_census.py",
+      "old": "ACTUAL_COST_SOURCES: Tuple[str, ...] = (\"observed\", \"measured\", \"realised\", \"realized\")",
+      "new": "ACTUAL_COST_SOURCES: Tuple[str, ...] = (\"observed\", \"measured\", \"realised\", \"realized\", \"recorded\")"
+    },
+    {
+      "name": "M12 смесь источников стоимости — одной наблюдённой достаточно для «на рекомендацию»",
+      "file": "spa_core/analytics/counterfactual_tracking_census.py",
+      "old": "            if present and actual == len(present):",
+      "new": "            if present and actual > 0:"
+    },
+    {
+      "name": "M13 UNCHECKED судьи считается вердиктом «хорошо/плохо»",
+      "file": "spa_core/analytics/counterfactual_tracking_census.py",
+      "old": "            scored = [row for row in present\n                      if any(row.get(k) in spec[\"judge_values\"] for k in spec[\"judge_row_keys\"])]",
+      "new": "            scored = list(present)"
+    },
+    {
+      "name": "M14 величина без носителя читается как агрегат, а не как отсутствующая",
+      "file": "spa_core/analytics/counterfactual_tracking_census.py",
+      "old": "            r[\"kind\"] = (\"per_recommendation\" if scored else\n                         \"aggregate_only\" if replay_hit else \"absent\")",
+      "new": "            r[\"kind\"] = (\"per_recommendation\" if scored else \"aggregate_only\")"
+    },
+    {
+      "name": "M15 непрочитанный судья даёт «отсутствует» вместо НЕ ИЗМЕРЕНО",
+      "file": "spa_core/analytics/counterfactual_tracking_census.py",
+      "old": "        if rows is None:\n            r[\"kind\"] = UNMEASURED\n            r[\"reason\"] = why\n            out[name] = r\n            continue",
+      "new": "        if rows is None:\n            rows = []"
+    },
+    {
+      "name": "M16 несколько записей в день не делают связь по дате двусмысленной",
+      "file": "spa_core/analytics/counterfactual_tracking_census.py",
+      "old": "    ambiguous = sorted(d for d, n in per_date.items() if n > 1)",
+      "new": "    ambiguous = []"
+    },
+    {
+      "name": "M17 неполный набор горизонтов не CRITICAL",
+      "file": "spa_core/analytics/counterfactual_tracking_census.py",
+      "old": "    if hz and len(tracked) < horizons[\"declared\"]:\n        add(\"CRITICAL\", \"horizons_declared_vs_tracked\",",
+      "new": "    if hz and len(tracked) < horizons[\"declared\"]:\n        add(\"INFO\", \"horizons_declared_vs_tracked\","
+    },
+    {
+      "name": "M18 оценка T0 вместо пересчёта стоимости не CRITICAL",
+      "file": "spa_core/analytics/counterfactual_tracking_census.py",
+      "old": "        elif k == \"estimate_reused\":\n            add(\"CRITICAL\", f\"quantity_not_recomputed:{name}\", f\"«{name}»: {r.get('reason')}\")",
+      "new": "        elif k == \"estimate_reused\":\n            add(\"INFO\", f\"quantity_not_recomputed:{name}\", f\"«{name}»: {r.get('reason')}\")"
+    },
+    {
+      "name": "M19 порядок аргументов atomic_save перевёрнут — артефакта нет",
+      "file": "spa_core/analytics/counterfactual_tracking_census.py",
+      "old": "        atomic_save(doc, os.path.join(root, REPORT_REL))",
+      "new": "        atomic_save(os.path.join(root, REPORT_REL), doc)"
+    },
+    {
+      "name": "M20 проба считает горизонт с родом НЕ ИЗМЕРЕНО не считающимся (вердикт вместо третьего исхода)",
+      "file": "spa_core/monitoring/card_acceptance.py",
+      "old": "    unmeasured = {h: r.get(\"reason\") for h, r in rows.items() if r.get(\"kind\") == UNMEASURED}\n    if unmeasured:\n        return UNMEASURED, f\"род горизонта не измерен: {unmeasured} — НЕ ИЗМЕРЕНО\"",
+      "new": "    unmeasured = {}"
+    },
+    {
+      "name": "M21 проба довольствуется одним считающимся горизонтом",
+      "file": "spa_core/monitoring/card_acceptance.py",
+      "old": "    untracked = {h: r[\"kind\"] for h, r in rows.items() if r.get(\"kind\") != \"tracked\"}\n    if untracked:",
+      "new": "    untracked = {h: r[\"kind\"] for h, r in rows.items() if r.get(\"kind\") != \"tracked\"}\n    if len(untracked) == len(rows):"
+    }
+  ]
+}
