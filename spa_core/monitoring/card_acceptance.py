@@ -18478,6 +18478,61 @@ def _probe_every_declared_error_class_has_a_measurer(
                        f"{ {n: [c.get('carrier') for c in r.get('carriers') or []] for n, r in rows.items()} }")
 
 
+def _probe_every_declared_portfolio_kpi_has_a_producer(
+        arg: str | None, *, data_dir: str | None = None) -> tuple[str, str]:
+    """Критерий §33 приказа владельца «Portfolio CIO» (ADR-979): у КАЖДОГО из двенадцати KPI
+    (Gross/Net Portfolio APY · Realized Portfolio Yield · Optimal Policy-Compliant APY · Yield Gap ·
+    Transaction Cost Drag · Portfolio Turnover · False Rebalance Rate · Missed Opportunity Cost ·
+    Forecast Accuracy · Average Break-even · Risk Policy Violations) есть ПРОИЗВОДИТЕЛЬ — носитель,
+    публикующий число под именем владельца с населением, родом числа и третьим исходом. Замер
+    #1096: из двенадцати производится семь; выделенный владельцем Yield Gap и его уменьшаемое —
+    НИЖНЯЯ ГРАНИЦА объявленного (поиск перебирает подмножества, ADR-859); у трёх KPI слагаемые
+    лежат в носителях, а число не складывает никто.
+
+    Меряется ИСХОДОМ по прибору §33 (`portfolio_kpi_census.measure_kpis`) на живом каталоге данных:
+    род каждого KPI. Корень дерева (снимок трека, витрина, модуль поиска) — родитель `data_dir`.
+    Свежесть производителя — отдельный вопрос, пробой не судится. Исполнителем критерия будут
+    производители недостающих KPI, а не прибор.
+
+    Три исхода:
+    * прибор не ввезён / ни один носитель не прочитан / род KPI `unmeasured` ⇒ `unmeasured`;
+    * хотя бы один KPI не `produced` ⇒ `not_satisfied` (KPI и роды названы);
+    * все объявленные KPI `produced` ⇒ `satisfied`.
+    """
+    if arg:
+        return UNMEASURED, (f"проба не принимает аргумента (дано {arg!r}): критерий "
+                            "назван целиком")
+    try:
+        from spa_core.analytics import error_class_census as ecc
+        from spa_core.analytics import portfolio_kpi_census as pkc
+    except Exception as exc:  # noqa: BLE001 — нечем измерить ≠ «исполнено»
+        return UNMEASURED, f"прибор §33 не импортирован: {type(exc).__name__}: {exc}"
+    base = data_dir or os.path.join(REPO_ROOT, "data")
+    root = os.path.dirname(base.rstrip(os.sep)) or REPO_ROOT
+    carriers = pkc.load_carriers(base, root)
+    if all(carriers.get(k) is None for k in ("replay", "records", "snapshot", "shelf", "limits")):
+        return UNMEASURED, (f"ни реплей, ни запись, ни снимок трека, ни витрина, ни лимиты в {base} "
+                            f"не прочитаны: {carriers.get('replay_reason')}; "
+                            f"{carriers.get('records_reason')}; {carriers.get('snapshot_reason')}; "
+                            f"{carriers.get('shelf_reason')}; {carriers.get('limits_reason')} "
+                            f"— НЕ ИЗМЕРЕНО")
+    kpis = pkc.measure_kpis(carriers, ecc.load_slo(root), datetime.now(timezone.utc))
+    rows = kpis.get("kpis") or {}
+    if len(rows) != pkc.OWNER_KPIS_DECLARED:
+        return UNMEASURED, (f"прибор вернул {len(rows)} KPI из "
+                            f"{pkc.OWNER_KPIS_DECLARED} объявленных — НЕ ИЗМЕРЕНО")
+    unmeasured = {n: r.get("reason") for n, r in rows.items() if r.get("kind") == UNMEASURED}
+    if unmeasured:
+        return UNMEASURED, f"род KPI не измерен: {unmeasured} — НЕ ИЗМЕРЕНО"
+    missing = {n: r["kind"] for n, r in rows.items() if r.get("kind") not in pkc.PRODUCED_KINDS}
+    if missing:
+        return NOT_SATISFIED, (f"из {pkc.OWNER_KPIS_DECLARED} KPI производится "
+                               f"{pkc.OWNER_KPIS_DECLARED - len(missing)}; без производителя: {missing}; "
+                               f"выделенный владельцем «{pkc.OWNER_EMPHASIS}» → {kpis.get('emphasis_kind')}")
+    return SATISFIED, (f"все {pkc.OWNER_KPIS_DECLARED} KPI производятся носителями "
+                       f"{ {n: [c.get('carrier') for c in r.get('carriers') or []] for n, r in rows.items()} }")
+
+
 PROBES: dict[str, Callable[[str | None], "tuple[str, str]"]] = {
     "apy_name_carries_one_kind": _probe_apy_name_carries_one_kind,
     "shadow_record_carries_the_system_action":
@@ -18487,6 +18542,8 @@ PROBES: dict[str, Callable[[str | None], "tuple[str, str]"]] = {
         _probe_counterfactual_tracks_every_declared_horizon,
     "every_declared_error_class_has_a_measurer":
         _probe_every_declared_error_class_has_a_measurer,
+    "every_declared_portfolio_kpi_has_a_producer":
+        _probe_every_declared_portfolio_kpi_has_a_producer,
     "conservative_expected_apy_published":
         _probe_conservative_expected_apy_published,
     "marginal_apy_ladder_published": _probe_marginal_apy_ladder_published,

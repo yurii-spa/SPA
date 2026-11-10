@@ -1,0 +1,164 @@
+{
+  "title": "ADR-979 SMC — дельта цикла #1096: §33 «Portfolio KPIs» — паритет с карточкой (KPI, слово «Минимум», выделение «Особенно важен», члены формулы, вторая граница, HTML-комментарий, остановка перечня), роды KPI (колонка gross/net, третий исход реплея, порядок родов, состояние снимка, род ответа поиска — у модуля, нечитаемый модуль, формула владельца, самосравнение цели, дни без колонки, доля ложных перекладок), свежесть (SLO манифеста, отсутствие SLO ≠ свеж), сводка не из неизмеренного, нижняя граница ≠ производитель, проба приёмки",
+  "tests": [
+    "spa_core/tests/test_portfolio_kpi_census.py"
+  ],
+  "mutations": [
+    {
+      "name": "M01 паритет слеп к перечню KPI — карточка без KPI проходит как совпавшая",
+      "file": "spa_core/analytics/portfolio_kpi_census.py",
+      "old": "    elif list(kpis) != list(OWNER_KPIS):",
+      "new": "    elif False:"
+    },
+    {
+      "name": "M02 паритет слеп к слову владельца «Минимум:»",
+      "file": "spa_core/analytics/portfolio_kpi_census.py",
+      "old": "    if kpis is None:\n        mism.append(f\"в разделе нет слова владельца",
+      "new": "    if kpis is None and False:\n        mism.append(f\"в разделе нет слова владельца"
+    },
+    {
+      "name": "M03 паритет слеп к выделению владельца «Особенно важен:»",
+      "file": "spa_core/analytics/portfolio_kpi_census.py",
+      "old": "    if parsed.get(\"emphasis\") != OWNER_EMPHASIS:",
+      "new": "    if False:"
+    },
+    {
+      "name": "M04 паритет слеп к членам формулы владельца",
+      "file": "spa_core/analytics/portfolio_kpi_census.py",
+      "old": "    if list(parsed.get(\"formula_terms_present\") or []) != list(OWNER_FORMULA_TERMS):",
+      "new": "    if False:"
+    },
+    {
+      "name": "M05 вторая граница раздела не найдена — счёт идёт до конца файла (fail-OPEN)",
+      "file": "spa_core/analytics/portfolio_kpi_census.py",
+      "old": "    if end is None:\n        return None, (f\"найден {SECTION_HEAD!r}, но НЕ найдена вторая граница \"",
+      "new": "    if end is None and False:\n        return None, (f\"найден {SECTION_HEAD!r}, но НЕ найдена вторая граница \""
+    },
+    {
+      "name": "M06 HTML-комментарий карточки читается как пункт владельца",
+      "file": "spa_core/analytics/portfolio_kpi_census.py",
+      "old": "        if not s or s.startswith(\"<!--\"):\n            continue\n        out.append(s)",
+      "new": "        if not s:\n            continue\n        out.append(s)"
+    },
+    {
+      "name": "M07 перечень не останавливается на «Особенно важен:» — формула читается как KPI",
+      "file": "spa_core/analytics/portfolio_kpi_census.py",
+      "old": "        if s == \"⸻\" or s in stops:",
+      "new": "        if s == \"⸻\":"
+    },
+    {
+      "name": "M08 Net Portfolio APY читает колонку gross",
+      "file": "spa_core/analytics/portfolio_kpi_census.py",
+      "old": "    return _measure_portfolio_rate(carriers, \"net_apy_pct\", \"Net Portfolio APY\")",
+      "new": "    return _measure_portfolio_rate(carriers, \"gross_apy_pct\", \"Net Portfolio APY\")"
+    },
+    {
+      "name": "M09 третий исход реплея считается присутствующим всегда",
+      "file": "spa_core/analytics/portfolio_kpi_census.py",
+      "old": "            \"third_outcome_present\": bool(third), \"third_outcome\": third,",
+      "new": "            \"third_outcome_present\": True, \"third_outcome\": third,"
+    },
+    {
+      "name": "M10 порядок родов перевёрнут — худший носитель побеждает лучший",
+      "file": "spa_core/analytics/portfolio_kpi_census.py",
+      "old": "    for k in (\"produced\", \"produced_without_third_outcome\", \"produced_under_other_name\"):",
+      "new": "    for k in (\"produced_under_other_name\", \"produced_without_third_outcome\", \"produced\"):"
+    },
+    {
+      "name": "M11 состояние снимка трека не спрашивается — UNCHECKED читается как замер",
+      "file": "spa_core/analytics/portfolio_kpi_census.py",
+      "old": "                               kind=(\"produced\" if state == SNAPSHOT_MEASURED and",
+      "new": "                               kind=(\"produced\" if True and"
+    },
+    {
+      "name": "M12 слова модуля поиска о роде ответа не спрашиваются — любой модуль «нижняя граница»",
+      "file": "spa_core/analytics/portfolio_kpi_census.py",
+      "old": "    if OPTIMUM_LOWER_BOUND_WORDS in doc:",
+      "new": "    if True:"
+    },
+    {
+      "name": "M13 нечитаемый модуль поиска не есть третий исход",
+      "file": "spa_core/analytics/portfolio_kpi_census.py",
+      "old": "    if text is None:\n        return {\"kind\": UNMEASURED,\n                \"reason\": f\"модуль поиска {OPTIMUM_SEARCH_REL} не прочитан: \"",
+      "new": "    if text is None and False:\n        return {\"kind\": UNMEASURED,\n                \"reason\": f\"модуль поиска {OPTIMUM_SEARCH_REL} не прочитан: \""
+    },
+    {
+      "name": "M14 Yield Gap выносит род при неизмеренном роде поиска",
+      "file": "spa_core/analytics/portfolio_kpi_census.py",
+      "old": "    if search[\"kind\"] == UNMEASURED:\n        return {\"kind\": UNMEASURED, \"reason\": search[\"reason\"], \"carriers\": cs,\n                \"per_book\": per_book, \"search\": search}",
+      "new": "    if False:\n        return {\"kind\": UNMEASURED, \"reason\": search[\"reason\"], \"carriers\": cs,\n                \"per_book\": per_book, \"search\": search}"
+    },
+    {
+      "name": "M15 допуск формулы владельца бесконечен — расхождение не считается",
+      "file": "spa_core/analytics/portfolio_kpi_census.py",
+      "old": "        elif abs(float(g) - (float(t) - float(b))) <= FORMULA_TOLERANCE_PP:",
+      "new": "        elif True:"
+    },
+    {
+      "name": "M16 самосравнение цели с книгой не считается",
+      "file": "spa_core/analytics/portfolio_kpi_census.py",
+      "old": "    same = sum(1 for r in judged if r[\"current_positions\"] == r[\"target_positions\"])",
+      "new": "    same = 0"
+    },
+    {
+      "name": "M17 дни трека без колонки стоимости считаются нулём",
+      "file": "spa_core/analytics/portfolio_kpi_census.py",
+      "old": "                           rows_without_column=len(daily) - len(with_c),",
+      "new": "                           rows_without_column=0,"
+    },
+    {
+      "name": "M18 дни трека без колонки оборота считаются нулём",
+      "file": "spa_core/analytics/portfolio_kpi_census.py",
+      "old": "                           rows_without_column=len(daily) - len(with_t),",
+      "new": "                           rows_without_column=0,"
+    },
+    {
+      "name": "M19 доля ложных перекладок не вычисляется из числителя и знаменателя",
+      "file": "spa_core/analytics/portfolio_kpi_census.py",
+      "old": "            \"value\": (round(hits / pop, 4) if _num(pop) and _num(hits) and pop else None),",
+      "new": "            \"value\": None,"
+    },
+    {
+      "name": "M20 отсутствие SLO читается как «свеж»",
+      "file": "spa_core/analytics/portfolio_kpi_census.py",
+      "old": "        return {\"stamp\": ts.isoformat(), \"age_hours\": age, \"slo_hours\": None, \"fresh\": None,",
+      "new": "        return {\"stamp\": ts.isoformat(), \"age_hours\": age, \"slo_hours\": None, \"fresh\": True,"
+    },
+    {
+      "name": "M21 устаревший носитель читается как свежий",
+      "file": "spa_core/analytics/portfolio_kpi_census.py",
+      "old": "            \"fresh\": age <= slo_h, \"reason\": None}",
+      "new": "            \"fresh\": True, \"reason\": None}"
+    },
+    {
+      "name": "M22 неизмеренный KPI проваливается в находки",
+      "file": "spa_core/analytics/portfolio_kpi_census.py",
+      "old": "            unmeasured.append(f\"KPI «{name}»: {r.get('reason')}\")\n            continue",
+      "new": "            unmeasured.append(f\"KPI «{name}»: {r.get('reason')}\")"
+    },
+    {
+      "name": "M23 сводка не называет нижнюю границу отсутствием производителя",
+      "file": "spa_core/analytics/portfolio_kpi_census.py",
+      "old": "    missing = [n for n, r in rows.items() if r[\"kind\"] not in PRODUCED_KINDS and r[\"kind\"] != UNMEASURED]",
+      "new": "    missing = [n for n, r in rows.items() if r[\"kind\"] == \"components_not_composed\"]"
+    },
+    {
+      "name": "M24 нижняя граница объявлена производителем",
+      "file": "spa_core/analytics/portfolio_kpi_census.py",
+      "old": "PRODUCED_KINDS: Tuple[str, ...] = (\"produced\",)",
+      "new": "PRODUCED_KINDS: Tuple[str, ...] = (\"produced\", \"lower_bound_of_declared\")"
+    },
+    {
+      "name": "M25 проба: KPI без производителя не есть not_satisfied",
+      "file": "spa_core/monitoring/card_acceptance.py",
+      "old": "    if missing:\n        return NOT_SATISFIED, (f\"из {pkc.OWNER_KPIS_DECLARED} KPI производится \"",
+      "new": "    if missing and False:\n        return NOT_SATISFIED, (f\"из {pkc.OWNER_KPIS_DECLARED} KPI производится \""
+    },
+    {
+      "name": "M26 проба: неизмеренный род KPI выносится вердиктом",
+      "file": "spa_core/monitoring/card_acceptance.py",
+      "old": "    if unmeasured:\n        return UNMEASURED, f\"род KPI не измерен: {unmeasured} — НЕ ИЗМЕРЕНО\"",
+      "new": "    if unmeasured and False:\n        return UNMEASURED, f\"род KPI не измерен: {unmeasured} — НЕ ИЗМЕРЕНО\""
+    }
+  ]
+}
