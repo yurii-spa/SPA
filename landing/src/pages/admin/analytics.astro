@@ -21,6 +21,10 @@ import RETIRED from '../../lib/retired_events.json';
   (function(){
     var API=(location.hostname==='localhost'||location.hostname==='127.0.0.1')?'http://localhost:8765':'https://api.earn-defi.com';
     function set(id,v){var e=document.getElementById(id);if(e)e.textContent=v;}
+    // Everything below comes from the API as untrusted JSON (event names and page paths are written by an
+    // unauthenticated POST /api/analytics/event). It is rendered as TEXT: every value that lands in an
+    // innerHTML template goes through esc() — pinned by spa_core/tests/test_admin_pages_escape_untrusted.py.
+    function esc(s){return String(s==null?'':s).replace(/[&<>"']/g,function(c){return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c];});}
     // inv #17: a retired event is NOT MEASURED after RETIRED.retired_at — its counter is a frozen
     // historical total, a missing key is unknown. Neither is a live 0 (GOVERNANCE-UX-RECOVERY-01 F2).
     var RET=(RETIRED&&RETIRED.events)||[];
@@ -34,9 +38,9 @@ import RETIRED from '../../lib/retired_events.json';
       set('a-today',d.views_today);set('a-7d',d.views_7d);set('a-total',d.total_views);
       var ev=d.events||{};set('a-aw',evCount(ev,'analyze_wallet'));set('an-state','live');
       var ec=document.getElementById('a-events');
-      if(ec)ec.innerHTML=Object.keys(ev).map(function(k){return '<div class="ac-pg"><span>'+k+'</span><b>'+evCount(ev,k)+'</b></div>';}).join('')||'<div class="ac-pg"><span>no events yet</span></div>';
+      if(ec)ec.innerHTML=Object.keys(ev).map(function(k){return '<div class="ac-pg"><span>'+esc(k)+'</span><b>'+esc(evCount(ev,k))+'</b></div>';}).join('')||'<div class="ac-pg"><span>no events yet</span></div>';
       var pg=document.getElementById('a-pages');
-      if(pg&&d.top_pages)pg.innerHTML=d.top_pages.map(function(p){return '<div class="ac-pg"><span>'+p.page+'</span><b>'+p.views+'</b></div>';}).join('')||'<div class="ac-pg"><span>—</span></div>';
+      if(pg&&Array.isArray(d.top_pages))pg.innerHTML=d.top_pages.map(function(p){return '<div class="ac-pg"><span>'+esc(p&&p.page)+'</span><b>'+esc(p&&p.views)+'</b></div>';}).join('')||'<div class="ac-pg"><span>—</span></div>';
     }).catch(function(){set('an-state','offline');});
   })();
 </script>

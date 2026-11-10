@@ -104,6 +104,7 @@ const sections = [
         (function(){
           var API = (location.hostname==='localhost'||location.hostname==='127.0.0.1') ? 'http://localhost:8765' : 'https://api.earn-defi.com';
           function set(id,v){ var el=document.getElementById(id); if(el) el.textContent=v; }
+          function esc(s){return String(s==null?'':s).replace(/[&<>"']/g,function(c){return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c];});}
           // inv #17: retired event ⇒ NOT MEASURED after retired_at; missing key ⇒ unknown — never a live 0.
           var RET=(RETIRED&&RETIRED.events)||[];
           function evCount(ev,k){
@@ -121,7 +122,8 @@ const sections = [
             set('an-state','live');
             var pg=document.getElementById('an-pages');
             if(pg && d.top_pages && d.top_pages.length){
-              pg.innerHTML='<div class="ac-pages-h">Top pages</div>'+d.top_pages.map(function(p){return '<div class="ac-pg"><span>'+p.page+'</span><b>'+p.views+'</b></div>';}).join('');
+              // page paths come from an unauthenticated POST — rendered as text (esc), never as markup
+              pg.innerHTML='<div class="ac-pages-h">Top pages</div>'+d.top_pages.map(function(p){return '<div class="ac-pg"><span>'+esc(p&&p.page)+'</span><b>'+esc(p&&p.views)+'</b></div>';}).join('');
             }
           }).catch(function(){ set('an-state','offline — API not reachable'); });
           // Q2-5: real anonymous pilot-interest count (PII-minimal sink) — replaces the placeholder tile.
