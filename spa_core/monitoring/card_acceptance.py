@@ -18256,6 +18256,40 @@ def _probe_decision_expiry_answer_executed(arg: str | None, now=None) -> tuple[s
                        f"читатель берёт значение tolerance_s={col.get('tolerance_s')!r}")
 
 
+
+def _probe_emergency_exit_outranks_the_breaker(arg: str | None, now=None) -> tuple[str, str]:
+    """Критерий §29 приказа владельца «Portfolio CIO» (ADR-973): аварийный ВЫХОД капитала
+    стои́т в цикле ВЫШЕ раннего выхода EmergencyBreakers. Замер #1091: при HALT (эксплойт
+    EB-01, каскад оракула EB-02) и PAUSE (газ EB-03) Step 2b возвращает цикл ДО all-cash
+    стоп-крана (Step 2c) и ДО сделки (Step 3) — книга держится в поражённом протоколе,
+    пока датчик горит, а газ получает приоритет над сохранностью капитала, обратно §29.
+
+    Меряется ИСХОДОМ по ПОРЯДКУ шагов в исходнике цикла (прибор §29
+    `spa_core.analytics.emergency_mode_census.measure_cycle_order`): три маркера, каждый
+    РОВНО один раз. Исполнителем критерия будет правка money-path (владелец), не прибор.
+
+    Три исхода:
+    * прибор не ввезён / исходник не прочитан / маркер не один ⇒ `unmeasured` с причиной;
+    * ранний выход EB стои́т до all-cash ИЛИ до сделки ⇒ `not_satisfied` (строки названы);
+    * all-cash и сделка стоя́т до раннего выхода EB ⇒ `satisfied`.
+    """
+    try:
+        from spa_core.analytics import emergency_mode_census as emc
+    except Exception as exc:  # noqa: BLE001 — нечем измерить ≠ «исполнено»
+        return UNMEASURED, f"прибор §29 не импортирован: {type(exc).__name__}: {exc}"
+    order = emc.measure_cycle_order()
+    if order.get("kind") == emc.UNMEASURED or not order.get("lines"):
+        return UNMEASURED, f"порядок шагов цикла не измерен: {order.get('reason')} — НЕ ИЗМЕРЕНО"
+    ln = order["lines"]
+    if order.get("kind") == "halt_precedes_exit":
+        return NOT_SATISFIED, (f"ранний выход EmergencyBreakers (строка {ln.get('breaker_return')}) "
+                               f"стои́т ДО all-cash стоп-крана (строка {ln.get('kill_switch_override')}) "
+                               f"и ДО сделки (строка {ln.get('trade_damper')}) — при HALT/PAUSE книга "
+                               f"держится, выход не исполняется")
+    return SATISFIED, (f"all-cash (строка {ln.get('kill_switch_override')}) и сделка (строка "
+                       f"{ln.get('trade_damper')}) стоя́т ДО раннего выхода EB (строка "
+                       f"{ln.get('breaker_return')})")
+
 PROBES: dict[str, Callable[[str | None], "tuple[str, str]"]] = {
     "apy_name_carries_one_kind": _probe_apy_name_carries_one_kind,
     "conservative_expected_apy_published":
@@ -18427,6 +18461,7 @@ PROBES: dict[str, Callable[[str | None], "tuple[str, str]"]] = {
     "curated_facts_usable": _probe_curated_facts_usable,
     "problem_absent": _probe_problem_absent,
     "decision_expiry_answer_executed": _probe_decision_expiry_answer_executed,
+    "emergency_exit_outranks_the_breaker": _probe_emergency_exit_outranks_the_breaker,
     "owner_control_plane_reachable": _probe_owner_control_plane_reachable,
     "office_hollow_counter_means_harm":
         _probe_office_hollow_counter_means_harm,

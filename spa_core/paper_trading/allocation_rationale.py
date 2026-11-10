@@ -191,6 +191,11 @@ def build_history_record(
         "decision_id": f"adr060-shadow-{cycle_date}" if cycle_date else None,
         "cycle_date": cycle_date,
         "generated_at": doc.get("generated_at"),
+        # §28 ТЗ «Portfolio CIO» (ADR-971 ось C, G961 п. 2): СРОК ГОДНОСТИ записи решения —
+        # рождение + ручка владельца `decision_ttl_s` (600 с, ответ 27.10, ADR-972). Это
+        # ЗАПИСЬ, не ворота: принуждение у двери исполнения на бумаге недостижимо
+        # (ADR-971 ось E). Нет рождения или ручки ⇒ None — срок НЕ вычислен, а не «вечен».
+        "valid_until": _valid_until(doc.get("generated_at"), params.get("decision_ttl_s")),
         "policy_version": params.get("policy_version"),
         "mode": params.get("mode"),
         "verdict": dec.get("decision"),
@@ -236,6 +241,23 @@ def build_history_record(
         # отдельным числом и ноль за ответ не выдаёт.
         "admissible_trim": doc.get("admissible_trim"),
     }
+
+
+def _valid_until(generated_at: object, ttl_s: object) -> Optional[str]:
+    """``generated_at + decision_ttl_s`` в ISO-8601, либо ``None`` (срок не вычислен).
+
+    Третий исход различим (инв. #17): ``None`` означает «нет рождения или нет ручки», а
+    не «бессрочно» — читатель §28 (`decision_expiry_census._role_of`) знает поле по
+    имени (`until`) и отличает запись без срока от записи со сроком.
+    """
+    ts = _parse_ts(generated_at)
+    try:
+        ttl = float(ttl_s)  # type: ignore[arg-type]
+    except (TypeError, ValueError):
+        return None
+    if ts is None or not math.isfinite(ttl) or ttl < 0:
+        return None
+    return (ts + timedelta(seconds=ttl)).isoformat()
 
 
 def run_identity(record: dict) -> Optional[str]:
@@ -802,6 +824,11 @@ def write_shadow_rationale(
                 "reversal_window_days": p.reversal_window_days,
                 "reversal_escalation": p.reversal_escalation,
                 "below_median_cap_factor": p.below_median_cap_factor,
+                # ADR-972 (ответ владельца 27.10): две ручки v1.2 несутся в запись,
+                # чтобы `valid_until` записи решения был выводим из НЕЁ САМОЙ (§28).
+                # `getattr` — колонка старше v1.2 (сцены тестов) ручек не имеет ⇒ None.
+                "input_freshness_tolerance_s": getattr(p, "input_freshness_tolerance_s", None),
+                "decision_ttl_s": getattr(p, "decision_ttl_s", None),
                 # CIO oversight phase E (Investment Policy Objective Contract):
                 # names+versions the ADR-060 §3 column this cycle ran under, so
                 # every recorded verdict is traceable to an accepted mandate

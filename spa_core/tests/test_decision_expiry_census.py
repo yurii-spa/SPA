@@ -424,7 +424,16 @@ def test_axis_e_live_tree_has_no_enforcement_door_and_the_ttl_is_unreachable(tmp
     e = DX.measure_enforcement_door(_data_dir(tmp_path, _chain(a)), DX.REPO_ROOT, now=a)
     assert e["door"]["kind"] == "no_gate_on_path", e["door"]
     assert e["gate_words"]["kind"] == "absent"
-    assert e["surface_tokens"]["kind"] == "absent", e["surface_tokens"]
+    # ИЗМЕНЕНО НАМЕРЕННО (ADR-973, заказ G961 п. 2, цикл #1091): писатель записи решения
+    # `allocation_rationale.build_history_record` чеканит поле `valid_until`, и слово срока
+    # годности появилось на поверхности зовущих §27 — как ЗАПИСЬ, а не как дверь: род двери
+    # по-прежнему `no_gate_on_path` (строка выше), гейт слов срока не знает (`gate_words` absent).
+    # Прежний исход («absent») достижим сценой на корне без этого слова —
+    # test_axis_e_instrument_asks_the_surface_with_exact_tokens. Не ослабление: утверждение
+    # стало ТОЧНЕЕ — назван единственный носитель слова, появление второго красит тест.
+    assert e["surface_tokens"]["kind"] == "present", e["surface_tokens"]
+    assert e["surface_tokens"]["hits"] == [
+        "spa_core/paper_trading/allocation_rationale.py:valid_until"], e["surface_tokens"]
     tv = e["ttl_vs_window"]
     assert tv["reachable_on_paper"] is False
     assert tv["ttl_over_window"] == pytest.approx(DX.OWNER_TTL_S / 0.6, rel=0.05)
