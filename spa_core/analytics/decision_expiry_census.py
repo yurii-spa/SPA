@@ -46,9 +46,12 @@ ADR-839 — ``docs/decisions/owner-answers-2026-10-27-session.json``, запис
   константами · возраст ответа · статус карточки.
 * **B — колонка владельца и её читатель**: ручки ``TriggerParams`` (ввоз ADR-487) + контроль
   СПОСОБНОСТИ читателя: загрузчику подаётся сцена с ручкой ``decision_ttl_s`` — берёт ли он
-  ЗНАЧЕНИЕ (``tolerance_s``) или только ИМЯ (``ttl_dial``). Замер: имя берёт, значение —
-  никогда (``tolerance_s`` у него литерал ``None``). То есть исполнить ответ владельца
-  одной ручкой нельзя — читатель ручки её не прочтёт.
+  ЗНАЧЕНИЕ (``tolerance_s``) или только ИМЯ (``ttl_dial``). Замер #1089: имя брал, значение —
+  никогда (``tolerance_s`` у него был литерал ``None``). Исполнено ADR-972 (цикл #1090):
+  колонка v1.2 несёт ``input_freshness_tolerance_s`` (60/15 с) и ``decision_ttl_s`` (600 с),
+  читатель берёт оба значения. Ось B теперь сверяет ЧИСЛА колонки с ответом владельца
+  (``column_matches_answer``): ручка с чужим числом — не исполнение, а подмена
+  (``owner_answer_misexecuted``, CRITICAL).
 * **C — роли полей времени у записи решения**: у живой записи (носитель ``shadow`` §25,
   ``allocation_rationale_history.jsonl``) каждое поле, похожее на время, получает РОЛЬ:
   ``birth_stamp`` (штамп прогона, §26 ``RUN_IDENTITY_FIELDS``) · ``identity_date`` (дата в
@@ -482,7 +485,11 @@ def measure_owner_column(params: Any = None) -> Dict[str, Any]:
     out["ttl_dial"] = live.get("ttl_dial")
     out["tolerance_dial"] = live.get("tolerance_dial")
     out["tolerance_s"] = live.get("tolerance_s")
+    out["ttl_s"] = live.get("ttl_s")
     out["hints"] = list(_s49._TOLERANCE_HINTS)
+    # Паритет ЧИСЕЛ колонки с ответом владельца (ADR-836, вариант А). Ручка есть, а число
+    # чужое — это не исполнение, и сторож обязан это различать от «ручки нет».
+    out["column_matches_answer"] = _column_matches_answer(out)
     # Контроль читателя: сцена с ручкой — берёт ли он значение?
     scene = types.SimpleNamespace(**{_SCENE_TTL_DIAL: OWNER_TTL_S,
                                      _SCENE_FRESHNESS_DIAL: OWNER_FRESHNESS_S["paper"],
@@ -512,6 +519,33 @@ def measure_owner_column(params: Any = None) -> Dict[str, Any]:
     out["loader"] = {"kind": kind, "reason": why, "scene_dials": [_SCENE_TTL_DIAL,
                                                                   _SCENE_FRESHNESS_DIAL]}
     return out
+
+
+def _column_matches_answer(column: Dict[str, Any]) -> Dict[str, Any]:
+    """Сходятся ли числа ручек колонки с числами ответа владельца — три исхода.
+
+    ``kind``: ``matches`` · ``differs`` (расхождения названы) · ``unmeasured`` (ручки нет
+    или режим колонки не из словаря ответа — сравнивать нечего, и это не «сошлось»).
+    """
+    mode = column.get("mode")
+    expected_fresh = OWNER_FRESHNESS_S.get(str(mode)) if mode is not None else None
+    ttl_s, fresh_s = column.get("ttl_s"), column.get("tolerance_s")
+    if column.get("ttl_dial") is None or column.get("tolerance_dial") is None:
+        return {"kind": UNMEASURED,
+                "reason": "в колонке нет обеих ручек ответа — сравнивать с ответом нечего"}
+    if expected_fresh is None:
+        return {"kind": UNMEASURED,
+                "reason": f"режим колонки {mode!r} не назван в ответе владельца "
+                          f"({sorted(OWNER_FRESHNESS_S)}) — ожидаемого допуска нет"}
+    mismatches: List[str] = []
+    if not isinstance(ttl_s, (int, float)) or abs(float(ttl_s) - OWNER_TTL_S) > 1e-9:
+        mismatches.append(f"срок годности решения: колонка {ttl_s!r}, владелец {OWNER_TTL_S:.0f} с")
+    if not isinstance(fresh_s, (int, float)) or abs(float(fresh_s) - expected_fresh) > 1e-9:
+        mismatches.append(f"допуск свежести ({mode}): колонка {fresh_s!r}, "
+                          f"владелец {expected_fresh:.0f} с")
+    if mismatches:
+        return {"kind": "differs", "reason": "; ".join(mismatches), "mismatches": mismatches}
+    return {"kind": "matches", "reason": f"ttl {OWNER_TTL_S:.0f} с · допуск {expected_fresh:.0f} с ({mode})"}
 
 
 # ───────────────────────── ось C: роли полей времени ─────────────────────────
@@ -783,6 +817,16 @@ def _findings(parity_r: Dict[str, Any], answer: Dict[str, Any], column: Dict[str
         else:
             executed = column.get("ttl_dial") is not None
             kind_a = "answered_and_executed" if executed else "answered_not_executed"
+            parity_col = column.get("column_matches_answer") or {}
+            if executed and parity_col.get("kind") == "differs":
+                findings.append({
+                    "severity": "CRITICAL", "code": "owner_answer_misexecuted",
+                    "message": (f"ручки срока в колонке владельца ({column.get('version')}) "
+                                f"есть, но их числа расходятся с ответом {OWNER_ANSWER_ADR} "
+                                f"(вариант {OWNER_CHOICE}): {parity_col.get('reason')}")})
+            elif executed and parity_col.get("kind") == UNMEASURED:
+                unmeasured.append("ось B (паритет чисел колонки с ответом): "
+                                  + str(parity_col.get("reason")))
             if not executed:
                 age = answer.get("age_days")
                 findings.append({
@@ -915,15 +959,20 @@ def _findings(parity_r: Dict[str, Any], answer: Dict[str, Any], column: Dict[str
 
 def run(root: str = REPO_ROOT, data_dir: Optional[str] = None,
         card_path: Optional[str] = None, write: bool = True,
-        now: Optional[dt.datetime] = None) -> Dict[str, Any]:
-    """Полный замер §28. Только ЧИТАЕТ; ``applied=False``."""
+        now: Optional[dt.datetime] = None, params: Any = None) -> Dict[str, Any]:
+    """Полный замер §28. Только ЧИТАЕТ; ``applied=False``.
+
+    ``params`` — колонка владельца как ВХОД (умолчание — живая `TriggerParams`):
+    сцена «ответ не исполнен» после ADR-972 на живой колонке недостижима, а
+    находка обязана оставаться достижимой для контроля в обе стороны.
+    """
     data_dir = data_dir or os.path.join(root, "data")
     card_path = card_path or os.path.join(root, CARD_REL)
     stamped = now or dt.datetime.now(dt.timezone.utc)
 
     parity_r = parity(card_path)
     answer = import_owner_answer(root, now=stamped)
-    column = measure_owner_column()
+    column = measure_owner_column(params)
     record = measure_record_time_fields(data_dir, root)
     lookalikes = measure_lookalikes(root)
     enforcement = measure_enforcement_door(data_dir, root, now=now)

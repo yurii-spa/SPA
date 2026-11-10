@@ -60,24 +60,29 @@
 (`gate_reader_axis`) и НАЗЫВАЕТ каждого зовущего по имени вместо вывода «модуль
 есть».
 
-Порога свежести у владельца НЕТ — и подставлять свой запрещено
+Порог свежести — ВЛАДЕЛЬЦА, и подставлять свой запрещено
 ------------------------------------------------------------------------------
 §22 ТЗ требует: «Все значения должны быть config/policy. **Не hardcode**».
 Вопрос «вход был СЛИШКОМ стар» требует допуска, а допуск — решение владельца.
 Замер 27.09: в колонке владельца (`TriggerParams`, ADR-060 §3, версия v1.1,
-14 ручек) НЕТ ни ручки про свежесть входа на момент исполнения, ни срока
-годности решения; слов `valid_until` / TTL решения нет ни в ОДНОМ файле
-репозитория. Поэтому прибор:
+14 ручек) НЕ БЫЛО ни ручки про свежесть входа на момент исполнения, ни срока
+годности решения; слов `valid_until` / TTL решения не было ни в ОДНОМ файле
+репозитория. Владелец ответил 27.10 (ADR-836, вариант А: допуск свежести
+60 с на бумаге / 15 с вживую, срок годности решения 600 с); ответ исполнен
+ADR-972 (цикл #1090): в колонке v1.2 — ручки ``input_freshness_tolerance_s``
+и ``decision_ttl_s``, и :func:`load_owner_tolerance` берёт их ЗНАЧЕНИЯ
+(``tolerance_s`` / ``ttl_s``), а не только имена. Поэтому прибор:
 
 * НЕ выдумывает допуск и НЕ берёт чужой (TTL советательной аналитики, окно
   протухания замка цикла и прочее — ответы на другие вопросы);
 * объявляет вопрос о чрезмерной старости **третьим исходом**
-  (``freshness_judgeable=False``, причина названа), а не «чисто»;
+  (``freshness_judgeable=False``, причина названа), а не «чисто», — у колонки
+  БЕЗ ручки (сцена, чужой объект параметров, нечитаемая колонка);
 * печатает ВЕСЬ список ручек владельца рядом с находкой — чтобы отсутствие
   нужной было видно, а не утверждалось.
 
-Допуск можно ПЕРЕДАТЬ (`tolerance_s=`): объявит владелец — прибор начнёт судить
-чрезмерную старость, и `CRITICAL` станет достижимым без единой правки.
+Допуск можно ПЕРЕДАТЬ (`tolerance_s=`) — явный аргумент сильнее колонки; без
+него берётся число владельца из колонки, и `CRITICAL` достижим на живой форме.
 
 Что прибор НЕ докладывает
 ------------------------------------------------------------------------------
@@ -155,6 +160,12 @@ RECHECK_EVENT_TYPES = (
 #: Прибор ищет их в колонке владельца ЗАМЕРОМ, а не утверждает отсутствие.
 _TOLERANCE_HINTS = ("ttl", "valid", "expir", "fresh", "stale", "input_age",
                     "decision_age", "max_age")
+#: Те же подсказки, разложенные по ДВУМ предметам ответа владельца (ADR-836 → ADR-972):
+#: допуск свежести ВХОДА (сколько может стареть наблюдение к моменту сделки) и срок
+#: годности РЕШЕНИЯ (§28). Это разные величины — число одной нельзя подставить за другую:
+#: TTL 600 с, принятый за допуск свежести, спрятал бы любой устаревший вход.
+_FRESHNESS_HINTS = ("fresh", "stale", "input_age", "max_age")
+_TTL_HINTS = ("ttl", "valid", "expir", "decision_age")
 
 #: Модуль повторной проверки и его инертные читатели. Инертность — свойство
 #: ЗОВУЩЕГО, поэтому она объявлена списком и печатается, а не подразумевается.
@@ -242,11 +253,32 @@ def load_owner_tolerance(params: Any = None) -> Dict[str, Any]:
     hits = [name for name in sorted(dials)
             if any(hint in name.lower() for hint in _TOLERANCE_HINTS)
             and name not in ("version", "version_date", "mode")]
+    # Два предмета — две ручки (ADR-972). Ручка, попавшая в подсказки, но ни в один
+    # из двух предметов (возможно только при подменённых подсказках), остаётся
+    # НАЗВАННОЙ без значения — прежняя форма ответа, а не выдуманное число.
+    fresh_hits = [n for n in hits if any(h in n.lower() for h in _FRESHNESS_HINTS)]
+    ttl_hits = [n for n in hits if any(h in n.lower() for h in _TTL_HINTS)]
+    unassigned = [n for n in hits if n not in fresh_hits and n not in ttl_hits]
+    tolerance_dial = fresh_hits[0] if fresh_hits else None
+    ttl_dial = ttl_hits[0] if ttl_hits else (unassigned[0] if unassigned else None)
     return {"measured": True, "reason": None, "dials": dials,
-            "tolerance_dial": (hits[0] if hits else None),
-            "tolerance_s": None,
-            "ttl_dial": (hits[0] if hits else None),
+            "tolerance_dial": tolerance_dial,
+            #: ЗНАЧЕНИЕ ручки владельца, не имя: до ADR-972 здесь стоял литерал
+            #: ``None`` — и ручка в колонке сама по себе судить старость не начинала.
+            "tolerance_s": _dial_seconds(dials, tolerance_dial),
+            "ttl_dial": ttl_dial,
+            "ttl_s": _dial_seconds(dials, ttl_dial),
             "version": dials.get("version"), "mode": dials.get("mode")}
+
+
+def _dial_seconds(dials: Dict[str, Any], name: Optional[str]) -> Optional[float]:
+    """Число ручки либо ``None``: нечисло (bool, строка) — не допуск, а отсутствие."""
+    if name is None:
+        return None
+    value = dials.get(name)
+    if isinstance(value, bool) or not isinstance(value, (int, float)):
+        return None
+    return float(value)
 
 
 # ── разбор одного исполнения ────────────────────────────────────────────────
@@ -464,6 +496,20 @@ def identity_axis(executions: List[dict]) -> Dict[str, Any]:
 
 # ── перепись ────────────────────────────────────────────────────────────────
 
+def _unjudgeable_reason(policy: Dict[str, Any]) -> str:
+    """Почему допуска нет — по ПРОЧИТАННОЙ колонке, а не утверждением о дереве."""
+    if not policy.get("measured"):
+        return (f"колонка владельца не прочитана ({policy.get('reason')}) — "
+                f"вопрос «вход был слишком стар» НЕ ИЗМЕРЕН и не выдаётся за «чисто»")
+    dial = policy.get("tolerance_dial")
+    n = len(policy.get("dials") or {})
+    if dial is None:
+        return (f"в прочитанной колонке ({policy.get('version')}, {n} ручек) ручки "
+                f"допуска свежести входа нет (подсказки {list(_FRESHNESS_HINTS)}) — "
+                f"вопрос «вход был слишком стар» НЕ ИЗМЕРЕН и не выдаётся за «чисто»")
+    return (f"ручка {dial!r} в колонке есть, но её значение не число "
+            f"({(policy.get('dials') or {}).get(dial)!r}) — допуск НЕ ИЗМЕРЕН")
+
 def run_census(data_dir: Path, now: Optional[datetime] = None,
                repo_root: Optional[Path] = None,
                tolerance_s: Optional[float] = None,
@@ -521,11 +567,7 @@ def run_census(data_dir: Path, now: Optional[datetime] = None,
         #: False здесь — третий исход вопроса, а не «вход свеж».
         "freshness_judgeable": tolerance_s is not None,
         "freshness_unjudgeable_reason": (
-            None if tolerance_s is not None else
-            "владелец не объявил ни допуска свежести входа, ни срока годности "
-            "решения (§28): в колонке TriggerParams такой ручки нет, слова "
-            "`valid_until` нет ни в одном файле — вопрос «вход был слишком "
-            "стар» НЕ ИЗМЕРЕН и не выдаётся за «чисто»"),
+            None if tolerance_s is not None else _unjudgeable_reason(policy)),
         "chain_rows": len(rows),
         "unparsable_lines": chain["unparsable_lines"],
         "executions": len(executions),

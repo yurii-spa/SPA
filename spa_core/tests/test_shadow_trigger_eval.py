@@ -263,7 +263,9 @@ def test_full_writer_stamps_the_history_line_with_the_investment_decision_fields
     # ИЗМЕНЕНО НАМЕРЕННО (ADR-357, инв. #16): предмет не тронут — строка истории
     # обязана НЕСТИ версию контракта. Сменилось число: ответ владельца 12.09
     # добавил две ручки, контракт требует новой версии при изменении порогов.
-    assert row["policy_version"] == "v1.1"
+    # ИЗМЕНЕНО НАМЕРЕННО (ADR-972, инв. #16): тот же предмет, новое число — ответ
+    # владельца 27.10 добавил две ручки срока/свежести, версия контракта v1.2.
+    assert row["policy_version"] == "v1.2"
     assert row["mode"] == "paper"
     assert "legs" in row and "gates" in row
 

@@ -114,8 +114,28 @@ class TriggerParams:
     reversal_window_days: int = 14       # window in which a reversal is penalised
     reversal_escalation: float = 1.5     # gain threshold ×N when reversing
     below_median_cap_factor: float = 0.5  # below-median yield ⇒ ≤ half the tier cap
-    version: str = "v1.1"                # v1.1 — ADR-357 добавил max_trade_usd и max_turnover_per_day
-    version_date: str = "2026-09-12"     # owner acceptance date (ADR-357)
+    # ── ДВЕ РУЧКИ ИЗ ОТВЕТА ВЛАДЕЛЬЦА 27.10 (ADR-836 → ADR-972) ─────────────
+    # §27/§28 ТЗ CIO: вопрос «Перепроверка перед сделкой: назови два числа»
+    # (`owner-decision-pereproverka-pered-sdelkoi-nazovi-dva-ch`, 27.09) владелец
+    # закрыл 27.10 вариантом А — и ответ 13 дней лежал без исполнителя
+    # (замер ADR-971: ручки в колонке нет, читатель колонки берёт имя, не число).
+    #
+    # Числа — ВЛАДЕЛЬЦА, не выведены и не выбраны здесь:
+    #   • допуск свежести ВХОДА — сколько наблюдение ставок может стареть к
+    #     моменту сделки: 60 с на бумаге, 15 с на живых деньгах;
+    #   • срок годности РЕШЕНИЯ (§28 `valid_until`) — сколько живёт рекомендация:
+    #     10 минут = 600 с, одинаково в обеих колонках (владелец назвал одно число).
+    #
+    # Имена несут подсказки читателя колонки (`_TOLERANCE_HINTS` ADR-487:
+    # «fresh» и «ttl») — иначе прибор ADR-487/§28 ручку не увидит, и исполнение
+    # останется половинным. Ручки ОПИСЫВАЮТ допуск; ворота принуждения у двери
+    # исполнения сюда не входят (на бумаге окно решение→исполнение ≤ 2 с против
+    # 600 с — ADR-971 ось E; принуждение появится вместе с реальным исполнением).
+    # Пороги RiskPolicy этим не тронуты — это ручки мандата ADR-060 §3.
+    input_freshness_tolerance_s: float = 60.0   # вход старше — сделку не исполнять без второго взгляда
+    decision_ttl_s: float = 600.0               # решение старше — не исполнять без нового расчёта
+    version: str = "v1.2"                # v1.2 — ADR-972 добавил input_freshness_tolerance_s и decision_ttl_s (ответ владельца 27.10)
+    version_date: str = "2026-10-27"     # owner answer date (ADR-836 → ADR-972); v1.1 было 2026-09-12 (ADR-357)
     mode: str = "paper"                  # which ADR-060 §3 column this instance is
 
     @classmethod
@@ -151,6 +171,8 @@ class TriggerParams:
             reversal_window_days=21,
             reversal_escalation=2.0,
             below_median_cap_factor=0.5,   # одинаков в обеих колонках
+            input_freshness_tolerance_s=15.0,  # владелец 27.10: 15 с вживую (ADR-972)
+            decision_ttl_s=600.0,              # владелец назвал ОДНО число для обеих колонок
             mode="pilot",
         )
 

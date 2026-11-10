@@ -2,13 +2,16 @@
 trackerStatus:
   type: inbox
 title: "Исполнить ответ владельца 27.10: срок годности решения 10 мин и допуск свежести 60/15 с — в колонку TriggerParams и к её читателю"
-status: new
+status: done
 source: nimbalyst
 created: 2026-11-10
 priority: high
 acceptance_probe: decision_expiry_answer_executed
 twin_key: "sha256:d492e6c015d0ac099b006adaff87ce3eeedf584a1fd87e7055533a3308626320"
 intake_kind: task
+status_trail:
+  - "2026-11-10T03:59:13.936403+00:00 new -> in-progress · queue.set_status · cycle-62456"
+  - "2026-11-10T04:04:32.172014+00:00 in-progress -> done · queue.set_status/closed_by:cycle-62456 (цикл #1090)/evidence:ADR-972: TriggerParams v1.2 несёт input_freshness_tolerance_s (60/15 с) и decision_ttl_s (600 с), load_owner_tolerance берёт значения; проба decision_expiry_answer_executed на дереве доставки = satisf · cycle-62456"
 ---
 
 ## Что случилось и почему это важно

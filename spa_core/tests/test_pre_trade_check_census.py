@@ -224,7 +224,11 @@ def test_axis_b_imports_the_verdict_and_keeps_its_window(tmp_path):
     assert r["measured"] and r["status"] == S49.STATUS_WARNING
     assert r["no_recheck"] == 1 and r["executions_measurable"] == 1
     assert r["window_s_max"] == pytest.approx(0.6, abs=0.01)
-    assert r["freshness_judgeable"] is False
+    # ИЗМЕНЕНО НАМЕРЕННО (ADR-972, инв. #16): до 10.11 свежесть судить было нечем —
+    # у владельца не было ручки. Ответ 27.10 исполнен: ввезённый вердикт судит числом
+    # владельца (60 с на бумаге), и окно 0,6 с внутри допуска.
+    assert r["freshness_judgeable"] is True
+    assert r["freshness_unjudgeable_reason"] is None
     assert "ADR-487" in r["source"]
 
 

@@ -43,7 +43,7 @@ priority: high
 | `own-optimum-proigryvaet-resheniyu` (1) — сравнивать с «ничего не делать» | **НЕ исполнен** (money-path): совпадений `do_nothing`/`keep_vs_optimum` в коде 0 |
 | `sistema-ne-sprashivaet-proderzhitsya-li` (1) — N = 3 дня | **НЕ исполнен** (money-path): у `TriggerParams` порога устойчивости нет, и `cio_explainability` сам это печатает |
 | `zaschita-ot-kachelei` (1) — сравнивать с состоянием книги за 14 дней | **НЕ исполнен**: `reversal_window_days=14` сравнивает ДРУГОЙ предмет |
-| `pereproverka-pered-sdelkoi` (А) — свежесть 60 с / 15 с, срок годности решения 10 мин | **НЕ исполнен**: совпадений `decision_ttl`/`pre_trade_freshness` в коде 0 |
+| `pereproverka-pered-sdelkoi` (А) — свежесть 60 с / 15 с, срок годности решения 10 мин | **ИСПОЛНЕН 10.11 (ADR-972, цикл #1090)**: `TriggerParams` v1.2 несёт `input_freshness_tolerance_s` (60/15 с) и `decision_ttl_s` (600 с), читатель колонки ADR-487 берёт их значения; проба `decision_expiry_answer_executed` = `satisfied`. Ворота принуждения у двери исполнения — не входят (на бумаге TTL недостижим, ADR-971 ось E) |
 | `potolok-base-tsepochki` (A) — главное число в `risk/policy.py`, сайт берёт оттуда | **НЕ проверен**: в `constitution.json` есть `chain_caps`, но происхождение не сверено |
 | `pyat-protsentov-kesha` (1) — одно правило | **НЕ исполнен**: `MIN_CASH_BUFFER = 0.05` литералом в `_income_common.py`, `emode_looping.py`, `s43_vol_adjusted.py` |
 | `agent-nablyudatel-prosypaetsya-raz-v-7-6` (ускорить прогон) | **НЕ измерен**: цена прогона `decision_loop` этим замером не мерялась |

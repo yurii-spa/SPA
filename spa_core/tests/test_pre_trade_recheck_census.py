@@ -20,6 +20,7 @@ FROZEN-DATE-OK: injected-clock — часы прибора инъектирую�
 from __future__ import annotations
 
 import json
+import types
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
@@ -149,13 +150,36 @@ def test_link_unrelated_event_between_is_not_counted_as_a_recheck(tmp_path):
 # ── звено: ДОПУСК ВЛАДЕЛЬЦА (третий исход и достижимость CRITICAL) ──────────
 
 def test_link_no_owner_tolerance_is_a_third_outcome_not_clean(tmp_path):
-    """Допуска нет ⇒ вопрос «слишком стар» НЕ ИЗМЕРЕН и назван причиной."""
+    """Допуска нет ⇒ вопрос «слишком стар» НЕ ИЗМЕРЕН и назван причиной.
+
+    ИЗМЕНЕНО НАМЕРЕННО (ADR-972, инв. #16): до 10.11 сцена читала ЖИВУЮ колонку,
+    и «допуска нет» было её свойством. Владелец ответил 27.10, ответ исполнен —
+    живая колонка допуск несёт. Предмет теста (третий исход у колонки БЕЗ ручки)
+    не тронут: колонка без ручки теперь подаётся сценой явно.
+    """
     _write(tmp_path / "data", _chain())
-    report = _run(tmp_path / "data")
+    column_without_dial = types.SimpleNamespace(min_hold_days=3, version="scene", mode="paper")
+    report = _run(tmp_path / "data", params=column_without_dial)
     assert report["freshness_judgeable"] is False
     assert report["tolerance_s"] is None
     assert "НЕ ИЗМЕРЕН" in report["freshness_unjudgeable_reason"]
+    assert "ручки допуска свежести входа нет" in report["freshness_unjudgeable_reason"]
     assert report["stale_beyond_tolerance"] == 0
+
+
+def test_link_live_column_makes_freshness_judgeable_by_the_owner_number(tmp_path):
+    """ADR-972: без явного допуска прибор судит числом ВЛАДЕЛЬЦА из живой колонки."""
+    _write(tmp_path / "data", _chain(window_s=0.6))
+    report = _run(tmp_path / "data")
+    assert report["freshness_judgeable"] is True
+    assert report["tolerance_s"] == 60.0
+    assert report["freshness_unjudgeable_reason"] is None
+    assert report["stale_beyond_tolerance"] == 0          # 0,6 с < 60 с
+    # и то же окно, превысившее число владельца, — CRITICAL без единого аргумента
+    _write(tmp_path / "data", _chain(window_s=61.0))
+    report = _run(tmp_path / "data")
+    assert report["status"] == census.STATUS_CRITICAL
+    assert report["stale_beyond_tolerance"] == 1
 
 
 def test_link_declared_tolerance_makes_critical_reachable(tmp_path):
@@ -182,13 +206,45 @@ def test_link_recheck_present_beats_tolerance(tmp_path):
     assert report["status"] == census.STATUS_OK
 
 
-def test_owner_column_is_read_and_carries_no_freshness_dial(tmp_path):
-    """Замер 27.09: в колонке владельца нет ручки свежести/TTL — она ПЕЧАТАЕТСЯ."""
+def test_owner_column_is_read_and_carries_the_owner_dials(tmp_path):
+    """ИЗМЕНЕНО НАМЕРЕННО (ADR-972, инв. #16). Замер 27.09 говорил «ручки нет»;
+    владелец ответил 27.10, ответ исполнен — у живой колонки ручки ЕСТЬ, и читатель
+    берёт их ЗНАЧЕНИЯ. Колонка по-прежнему ПЕЧАТАЕТСЯ целиком."""
     policy = census.load_owner_tolerance()
     assert policy["measured"] is True
-    assert policy["tolerance_dial"] is None
+    assert policy["tolerance_dial"] == "input_freshness_tolerance_s"
+    assert policy["tolerance_s"] == 60.0
+    assert policy["ttl_dial"] == "decision_ttl_s"
+    assert policy["ttl_s"] == 600.0
     assert policy["dials"], "колонка обязана быть напечатана, а не утверждена"
     assert "min_hold_days" in policy["dials"]
+
+
+def test_owner_column_without_a_dial_still_names_absence_not_zero(tmp_path):
+    """Колонка БЕЗ ручки (сцена) — отсутствие названо, число не выдумано."""
+    scene = types.SimpleNamespace(min_hold_days=3, version="scene", mode="paper")
+    policy = census.load_owner_tolerance(scene)
+    assert policy["measured"] is True
+    assert policy["tolerance_dial"] is None and policy["tolerance_s"] is None
+    assert policy["ttl_dial"] is None and policy["ttl_s"] is None
+
+
+def test_owner_column_reader_does_not_pass_the_ttl_off_as_the_freshness_tolerance():
+    """Два предмета — две ручки: TTL решения НЕ подставляется за допуск свежести входа."""
+    scene = types.SimpleNamespace(decision_ttl_s=600.0, version="scene", mode="paper")
+    policy = census.load_owner_tolerance(scene)
+    assert policy["ttl_dial"] == "decision_ttl_s" and policy["ttl_s"] == 600.0
+    assert policy["tolerance_dial"] is None and policy["tolerance_s"] is None
+
+
+def test_owner_column_reader_refuses_a_non_numeric_dial_value():
+    """Ручка есть, значение не число ⇒ имя названо, допуск НЕ ИЗМЕРЕН (не 0 и не строка)."""
+    scene = types.SimpleNamespace(input_freshness_tolerance_s="60", decision_ttl_s=True,
+                                  version="scene", mode="paper")
+    policy = census.load_owner_tolerance(scene)
+    assert policy["tolerance_dial"] == "input_freshness_tolerance_s"
+    assert policy["tolerance_s"] is None
+    assert policy["ttl_dial"] == "decision_ttl_s" and policy["ttl_s"] is None
 
 
 def test_owner_column_unreadable_is_a_third_outcome(tmp_path):

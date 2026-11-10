@@ -67,8 +67,11 @@ def test_params_carry_the_investment_policy_contract_identity(tmp_path: Path) ->
     # Сменилось само число: ответ владельца 12.09 добавил в контракт две ручки
     # (`max_trade_usd`, `max_turnover_per_day`), а контракт требует новой версии
     # при любом изменении порогов — иначе версия не значила бы ничего.
-    assert params["policy_version"] == "v1.1"
-    assert params["policy_version_date"] == "2026-09-12"
+    # ИЗМЕНЕНО НАМЕРЕННО (ADR-972, инв. #16): тот же предмет, новое число — ответ
+    # владельца 27.10 (ADR-836, вариант А) добавил `input_freshness_tolerance_s` и
+    # `decision_ttl_s`; дата версии = дата ответа владельца.
+    assert params["policy_version"] == "v1.2"
+    assert params["policy_version_date"] == "2026-10-27"
     assert params["mode"] == "paper"  # default column — no SPA_CAPITAL_MODE set here
 
 

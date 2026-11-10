@@ -313,7 +313,20 @@ class TestProbeTransfersTheVerdict(_Base):
     def test_the_verdict_follows_the_owner_dial_not_a_literal_of_the_probe(self) -> None:
         """Допуск свежести — ручка владельца. Проба своего порога НЕ имеет."""
         self.scene_no_second_observation()
-        self.assertIn("НЕ ИЗМЕРЕН", self.probe()[1])
+        # ИЗМЕНЕНО НАМЕРЕННО (ADR-972, инв. #16): до 10.11 здесь стояло «НЕ ИЗМЕРЕН» —
+        # у владельца не было ручки. Ответ 27.10 исполнен: проба судит числом владельца
+        # из колонки (окно сцены 1 с < 60 с ⇒ старше допуска 0). Третий исход остаётся
+        # достижимым у колонки БЕЗ ручки — ниже он подаётся явно.
+        detail_live = self.probe()[1]
+        self.assertIn("старше объявленного владельцем допуска 0", detail_live)
+        self.assertNotIn("НЕ ИЗМЕРЕН", detail_live)
+        with patch.object(ptc, "load_owner_tolerance",
+                          return_value={"measured": True, "reason": None,
+                                        "dials": {"mode": "paper", "min_hold_days": 3},
+                                        "tolerance_dial": None, "tolerance_s": None,
+                                        "ttl_dial": None, "ttl_s": None,
+                                        "version": "v1.1", "mode": "paper"}):
+            self.assertIn("НЕ ИЗМЕРЕН", self.probe()[1])
         with patch.object(ptc, "load_owner_tolerance",
                           return_value={"measured": True, "reason": None,
                                         "dials": {"mode": "paper"},

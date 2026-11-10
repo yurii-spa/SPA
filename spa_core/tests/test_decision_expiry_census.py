@@ -251,14 +251,50 @@ def test_axis_a_missing_card_keeps_the_register_answer_and_marks_status_unmeasur
 
 # ───────────────────── ось B: колонка владельца и её читатель ────────────────
 
-def test_axis_b_live_column_has_no_ttl_dial_and_the_reader_names_only():
-    """Несущая претензия: ручки нет; читатель ADR-487 на сцене с ручкой берёт ИМЯ, не значение."""
+def test_axis_b_live_column_carries_the_owner_dials_and_the_reader_reads_values():
+    """ИЗМЕНЕНО НАМЕРЕННО (ADR-972, инв. #16). Несущая претензия #1089 («ручки нет,
+    читатель берёт имя») была находкой, и находка закрыта исполнением ответа владельца:
+    колонка v1.2 несёт обе ручки, читатель берёт значения, числа сходятся с ответом."""
     b = DX.measure_owner_column()
     assert b["measured"], b.get("reason")
-    assert b["ttl_dial"] is None
-    assert b["dials_n"] >= 14
+    assert b["ttl_dial"] == "decision_ttl_s" and b["ttl_s"] == DX.OWNER_TTL_S
+    assert b["tolerance_dial"] == "input_freshness_tolerance_s"
+    assert b["tolerance_s"] == DX.OWNER_FRESHNESS_S["paper"]
+    assert b["dials_n"] >= 16
+    assert b["loader"]["kind"] == "reads_value", b["loader"]
+    assert b["column_matches_answer"]["kind"] == "matches", b["column_matches_answer"]
+
+
+def test_axis_b_names_dial_only_is_still_reachable_through_a_reader_that_drops_the_value(monkeypatch):
+    """Контроль в обратную сторону: читатель, забывший значение, снова даёт names_dial_only."""
+    real = S49.load_owner_tolerance
+
+    def naming_only(params=None):
+        out = real(params)
+        out["tolerance_s"] = None
+        out["ttl_s"] = None
+        return out
+
+    monkeypatch.setattr(S49, "load_owner_tolerance", naming_only)
+    b = DX.measure_owner_column()
     assert b["loader"]["kind"] == "names_dial_only", b["loader"]
     assert "decision_ttl_s" in b["loader"]["reason"]
+
+
+def test_axis_b_column_with_a_foreign_number_is_misexecution_not_execution():
+    """Ручка есть, число чужое ⇒ `differs` с названным расхождением, а не «исполнено»."""
+    scene = types.SimpleNamespace(decision_ttl_s=300.0, input_freshness_tolerance_s=60.0,
+                                  version="scene", mode="paper")
+    b = DX.measure_owner_column(params=scene)
+    par = b["column_matches_answer"]
+    assert par["kind"] == "differs"
+    assert "300.0" in par["reason"] and "600" in par["reason"]
+    pilot = types.SimpleNamespace(decision_ttl_s=600.0, input_freshness_tolerance_s=60.0,
+                                  version="scene", mode="pilot")
+    assert DX.measure_owner_column(params=pilot)["column_matches_answer"]["kind"] == "differs"
+    unknown = types.SimpleNamespace(decision_ttl_s=600.0, input_freshness_tolerance_s=60.0,
+                                    version="scene", mode="sandbox")
+    assert DX.measure_owner_column(params=unknown)["column_matches_answer"]["kind"] == UNMEASURED
 
 
 def test_axis_b_a_dial_in_the_column_would_be_seen():
@@ -460,16 +496,19 @@ def test_axis_f_imports_section_27_clock_and_names_the_section_24_word():
 
 # ───────────────────── прогон целиком ─────────────────────────────────────────
 
-def test_run_on_scene_data_is_critical_with_the_unexecuted_answer_first(tmp_path):
+def test_run_on_scene_data_with_a_column_without_the_dials_is_critical_unexecuted_first(tmp_path):
+    """ИЗМЕНЕНО НАМЕРЕННО (ADR-972, инв. #16): до 10.11 сцена читала ЖИВУЮ колонку и
+    «ответ не исполнен» был её свойством; ответ исполнен — колонка без ручек подаётся
+    входом, чтобы находка оставалась ДОСТИЖИМОЙ (контроль в обе стороны)."""
     a = _anchor()
+    column_1089 = types.SimpleNamespace(min_hold_days=3, version="v1.1", mode="paper")
     doc = DX.run(root=DX.REPO_ROOT, data_dir=_data_dir(tmp_path, _chain(a), _live_like_record(a)),
-                 write=False, now=a)
+                 write=False, now=a, params=column_1089)
     assert doc["overall"] == "CRITICAL"
     codes = [f["code"] for f in doc["findings"]]
     assert "owner_answer_unexecuted" in codes
     crit = [f for f in doc["findings"] if f["severity"] == "CRITICAL"]
     assert [f["code"] for f in crit] == ["owner_answer_unexecuted"]
-    assert "column_reader_names_dial_but_never_reads_value" in codes
     assert "decision_record_has_no_expiry_field" in codes
     assert "owner_ttl_unreachable_on_paper" in codes
     assert "expiry_needs_now_and_it_is_not_an_input" in codes
@@ -477,6 +516,32 @@ def test_run_on_scene_data_is_critical_with_the_unexecuted_answer_first(tmp_path
     assert doc["unmeasured"] == [], doc["unmeasured"]
     assert doc["applied"] is False
     assert doc["generated_at"] == a.isoformat()
+
+
+def test_run_on_scene_data_with_the_live_column_has_the_answer_executed(tmp_path):
+    """ADR-972: на живой колонке ответ исполнен — CRITICAL про исполнение уходит,
+    остальные находки §28 (поле expiry у записи, TTL на бумаге недостижим…) остаются."""
+    a = _anchor()
+    doc = DX.run(root=DX.REPO_ROOT, data_dir=_data_dir(tmp_path, _chain(a), _live_like_record(a)),
+                 write=False, now=a)
+    codes = [f["code"] for f in doc["findings"]]
+    assert "owner_answer_unexecuted" not in codes
+    assert "owner_answer_misexecuted" not in codes
+    assert "column_reader_names_dial_but_never_reads_value" not in codes
+    assert "decision_record_has_no_expiry_field" in codes
+    assert "owner_ttl_unreachable_on_paper" in codes
+    assert doc["unmeasured"] == [], doc["unmeasured"]
+    assert doc["applied"] is False
+
+
+def test_run_on_a_column_with_a_foreign_number_reports_misexecution(tmp_path):
+    a = _anchor()
+    foreign = types.SimpleNamespace(decision_ttl_s=60.0, input_freshness_tolerance_s=60.0,
+                                    version="scene", mode="paper")
+    doc = DX.run(root=DX.REPO_ROOT, data_dir=_data_dir(tmp_path, _chain(a), _live_like_record(a)),
+                 write=False, now=a, params=foreign)
+    codes = [f["code"] for f in doc["findings"] if f["severity"] == "CRITICAL"]
+    assert "owner_answer_misexecuted" in codes and "owner_answer_unexecuted" not in codes
 
 
 def test_run_every_kind_printed_belongs_to_a_declared_vocabulary(tmp_path):
@@ -539,10 +604,12 @@ def test_probe_is_registered_and_validates():
     assert CA.validate_spec("decision_expiry_answer_executed") is None
 
 
-def test_probe_on_the_live_tree_is_not_satisfied_with_the_dial_named_absent():
+def test_probe_on_the_live_tree_is_satisfied_after_adr_972():
+    """ИЗМЕНЕНО НАМЕРЕННО (ADR-972, инв. #16): проба объявлена ДО работы и не правилась;
+    сменился ИСХОД на живом дереве — ответ владельца исполнен."""
     status, reason = CA.PROBES["decision_expiry_answer_executed"](None)
-    assert status == CA.NOT_SATISFIED
-    assert "ручки срока годности решения НЕТ" in reason
+    assert status == CA.SATISFIED, reason
+    assert "decision_ttl_s" in reason and "v1.2" in reason
 
 
 def test_probe_three_outcomes_are_distinct(monkeypatch):

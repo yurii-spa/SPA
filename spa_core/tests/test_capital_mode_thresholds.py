@@ -54,8 +54,12 @@ def test_both_columns_carry_the_same_accepted_policy_version():
     # Сменилось само число: ответ владельца 12.09 добавил в контракт две ручки
     # (`max_trade_usd`, `max_turnover_per_day`), а контракт требует новой версии
     # при любом изменении порогов — иначе версия не значила бы ничего.
-    assert paper.version == pilot.version == "v1.1"
-    assert paper.version_date == pilot.version_date == "2026-09-12"  # ADR-357 (см. выше)
+    # ИЗМЕНЕНО НАМЕРЕННО (ADR-972, инв. #16): предмет снова НЕ тронут — одна версия
+    # на обе колонки. Сменилось число: ответ владельца 27.10 (ADR-836, вариант А)
+    # добавил в контракт ещё две ручки (`input_freshness_tolerance_s`,
+    # `decision_ttl_s`); дата версии — дата ОТВЕТА владельца, а не правки.
+    assert paper.version == pilot.version == "v1.2"
+    assert paper.version_date == pilot.version_date == "2026-10-27"  # ADR-836 → ADR-972
 
 
 def test_mode_names_which_column_was_resolved():
@@ -76,8 +80,11 @@ def test_pilot_is_stricter_on_every_dial_that_differs():
     assert q.max_turnover_per_week < p.max_turnover_per_week   # меньше за неделю
     assert q.min_leg_frac > p.min_leg_frac               # шире мёртвая зона
     assert q.reversal_escalation > p.reversal_escalation  # дороже разворот
-    # Единственная ручка, одинаковая в обеих колонках, — и это НАМЕРЕННО.
+    assert q.input_freshness_tolerance_s < p.input_freshness_tolerance_s  # вживую вход должен быть свежее
+    # Две ручки, одинаковые в обеих колонках, — и это НАМЕРЕННО: доля ниже медианы
+    # (ADR-055) и срок годности решения — владелец 27.10 назвал ОДНО число (ADR-972).
     assert q.below_median_cap_factor == p.below_median_cap_factor == 0.5
+    assert q.decision_ttl_s == p.decision_ttl_s == 600.0
     # Окупаемость — единственная «мягче» цифра: на пилоте ход окупается дольше
     # просто потому, что суммы меньше, а газ тот же. Это не послабление.
     assert q.max_payback_days > p.max_payback_days
