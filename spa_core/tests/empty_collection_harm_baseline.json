@@ -117,18 +117,6 @@
    "направление": "unmeasured"
   },
   {
-   "module": "spa_core/monitoring/pre_trade_recheck_census.py",
-   "name": "_TOLERANCE_HINTS",
-   "lineno": 156,
-   "form": "tuple",
-   "tests": [
-    "spa_core/tests/test_pre_trade_recheck_census.py"
-   ],
-   "summary": "мутант «опустошить» ВЫЖИЛ: 44 passed in 0.21s — пустоту не заметил ни один собственный тест модуля",
-   "why_candidate": "spa_core/monitoring/pre_trade_recheck_census.py:243:comp:quantifier:any",
-   "направление": "fewer"
-  },
-  {
    "module": "spa_core/monitoring/presence_as_observation_census.py",
    "name": "SHELL_CONTENT_VETO_SCENES",
    "lineno": 1336,

@@ -18213,6 +18213,49 @@ def _probe_marginal_apy_ladder_published(arg: str | None, now=None) -> tuple[str
                        f"{counts.get('axes_with_fixture_subject')}")
 
 
+# ── проба: ответ владельца 27.10 (§27+§28, ADR-836, вариант А) ИСПОЛНЕН в колонке ──
+def _probe_decision_expiry_answer_executed(arg: str | None, now=None) -> tuple[str, str]:
+    """Критерий §28 приказа владельца «Portfolio CIO» (ADR-971): ответ владельца
+    27.10 — срок годности решения 10 мин, допуск свежести 60/15 с (ADR-836, карточка
+    `owner-decision-pereproverka-pered-sdelkoi-nazovi-dva-ch`) — ИСПОЛНЕН: в колонке
+    владельца (`TriggerParams`) есть ручка срока годности, И читатель колонки (ADR-487
+    `load_owner_tolerance`) берёт её ЗНАЧЕНИЕ, а не только имя.
+
+    Меряется ИСХОДОМ, не структурой: оба факта спрашиваются у прибора §28
+    (`spa_core.analytics.decision_expiry_census.measure_owner_column`), который сам
+    подаёт читателю сцену с ручкой и смотрит, вернул ли он число.
+
+    Три исхода:
+    * прибор не ввезён / колонка не прочитана / контроль читателя не состоялся ⇒
+      `unmeasured` с причиной (инв. #17 — «нечем измерить» ≠ «исполнено»);
+    * ручки нет, ЛИБО ручка есть, но читатель значение не берёт ⇒ `not_satisfied`
+      (половина исполнения — не исполнение: ручка без читателя судить не начнёт);
+    * ручка есть и читатель берёт значение ⇒ `satisfied`.
+
+    Имя ручки сравнивается не подстрокой, а тем, что сообщил сам читатель (ADR-333).
+    """
+    try:
+        from spa_core.analytics import decision_expiry_census as dex
+    except Exception as exc:  # noqa: BLE001 — нечем измерить ≠ «исполнено»
+        return UNMEASURED, f"прибор §28 не импортирован: {type(exc).__name__}: {exc}"
+    col = dex.measure_owner_column()
+    if not col.get("measured"):
+        return UNMEASURED, f"колонка владельца не прочитана: {col.get('reason')} — НЕ ИЗМЕРЕНО"
+    loader = col.get("loader") or {}
+    if loader.get("kind") not in ("reads_value", "names_dial_only"):
+        return UNMEASURED, (f"контроль читателя колонки не состоялся: "
+                            f"{loader.get('reason')} — НЕ ИЗМЕРЕНО")
+    if col.get("ttl_dial") is None:
+        return NOT_SATISFIED, (f"в колонке владельца {col.get('version')} ({col.get('dials_n')} "
+                               f"ручек) ручки срока годности решения НЕТ — ответ владельца "
+                               f"27.10 (вариант А) не исполнен")
+    if loader.get("kind") != "reads_value":
+        return NOT_SATISFIED, (f"ручка {col.get('ttl_dial')!r} в колонке есть, но читатель "
+                               f"(ADR-487) берёт ИМЯ, а не значение — половина исполнения")
+    return SATISFIED, (f"ручка {col.get('ttl_dial')!r} в колонке {col.get('version')}, "
+                       f"читатель берёт значение tolerance_s={col.get('tolerance_s')!r}")
+
+
 PROBES: dict[str, Callable[[str | None], "tuple[str, str]"]] = {
     "apy_name_carries_one_kind": _probe_apy_name_carries_one_kind,
     "conservative_expected_apy_published":
@@ -18383,6 +18426,7 @@ PROBES: dict[str, Callable[[str | None], "tuple[str, str]"]] = {
     "research_evidence_tail_closed": _probe_research_evidence_tail_closed,
     "curated_facts_usable": _probe_curated_facts_usable,
     "problem_absent": _probe_problem_absent,
+    "decision_expiry_answer_executed": _probe_decision_expiry_answer_executed,
     "owner_control_plane_reachable": _probe_owner_control_plane_reachable,
     "office_hollow_counter_means_harm":
         _probe_office_hollow_counter_means_harm,
