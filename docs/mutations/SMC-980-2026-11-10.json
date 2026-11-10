@@ -1,0 +1,200 @@
+{
+ "title": "ADR-980 SMC — дельта цикла #1097: §34 «Daily Report» — паритет с карточкой (пункты, горизонты, словарь Decision, строка Cash, слова «сохранить», заголовок секции, ветка KEEP, дети блока, HTML-комментарий, вторая граница), рендеры значения (значащие цифры, RU-запятая, раскладка/ноги/причины целиком), роды пунктов (absent при пустом поле, третий исход по ленте, словарь, components_only), ось читателя (без текста — НЕ ИЗМЕРЕНО, живой сборщик по умолчанию, форма ADR-808, сводка), существующие части, свежесть, проба приёмки",
+ "tests": [
+  "spa_core/tests/test_daily_report_census.py"
+ ],
+ "mutations": [
+  {
+   "name": "M01 паритет слеп к перечню пунктов — карточка без пункта проходит как совпавшая",
+   "file": "spa_core/analytics/daily_report_census.py",
+   "old": "    elif list(items) != list(OWNER_ITEMS):",
+   "new": "    elif False:"
+  },
+  {
+   "name": "M02 паритет не сверяет горизонты 7d/30d/90d",
+   "file": "spa_core/analytics/daily_report_census.py",
+   "old": "    if items is not None and list(parsed.get(\"horizons\") or []) != list(OWNER_HORIZONS):",
+   "new": "    if False and list(parsed.get(\"horizons\") or []) != list(OWNER_HORIZONS):"
+  },
+  {
+   "name": "M03 паритет не сверяет словарь Decision",
+   "file": "spa_core/analytics/daily_report_census.py",
+   "old": "    if items is not None and list(parsed.get(\"decision_words\") or []) != list(OWNER_DECISION_WORDS):",
+   "new": "    if False and list(parsed.get(\"decision_words\") or []) != list(OWNER_DECISION_WORDS):"
+  },
+  {
+   "name": "M04 паритет не требует строки Cash в раскладке",
+   "file": "spa_core/analytics/daily_report_census.py",
+   "old": "    if items is not None and OWNER_ALLOCATION_CASH_ROW not in (parsed.get(\"allocation_rows\") or []):",
+   "new": "    if False and OWNER_ALLOCATION_CASH_ROW not in (parsed.get(\"allocation_rows\") or []):"
+  },
+  {
+   "name": "M05 паритет не требует слов «сохранить существующие части»",
+   "file": "spa_core/analytics/daily_report_census.py",
+   "old": "    if not parsed.get(\"keep_words_present\"):",
+   "new": "    if False:"
+  },
+  {
+   "name": "M06 паритет не требует заголовка секции",
+   "file": "spa_core/analytics/daily_report_census.py",
+   "old": "    if not parsed.get(\"title_present\"):",
+   "new": "    if False:"
+  },
+  {
+   "name": "M07 паритет не требует ветки KEEP",
+   "file": "spa_core/analytics/daily_report_census.py",
+   "old": "    if not parsed.get(\"keep_branch_present\"):",
+   "new": "    if False:"
+  },
+  {
+   "name": "M08 дети блока (Aave: 22%, 7d:) читаются пунктами секции",
+   "file": "spa_core/analytics/daily_report_census.py",
+   "old": "        if open_block is not None:\n            hm = _HORIZON_RE.match(s)",
+   "new": "        if False:\n            hm = _HORIZON_RE.match(s)"
+  },
+  {
+   "name": "M09 HTML-комментарий карточки читается строкой владельца (ребёнком блока)",
+   "file": "spa_core/analytics/daily_report_census.py",
+   "old": "        if s.startswith(\"<!--\") or s == OWNER_SECTION_TITLE or s == OWNER_KEEP_BRANCH:",
+   "new": "        if s == OWNER_SECTION_TITLE or s == OWNER_KEEP_BRANCH:"
+  },
+  {
+   "name": "M10 нет второй границы — пример читается до конца карточки, а не НЕ ИЗМЕРЕНО",
+   "file": "spa_core/analytics/daily_report_census.py",
+   "old": "    if end is None:\n        return None, (f\"найден {SECTION_HEAD!r}, но НЕ найдена вторая граница \"",
+   "new": "    if end is None:\n        end = len(lines)\n    if False:\n        return None, (f\"найден {SECTION_HEAD!r}, но НЕ найдена вторая граница \""
+  },
+  {
+   "name": "M11 порог значащих цифр снят — «0,430» считается доходимостью",
+   "file": "spa_core/analytics/daily_report_census.py",
+   "old": "            if _significant_digits(v, k) < MIN_SIGNIFICANT_DIGITS:\n                continue",
+   "new": "            if False:\n                continue"
+  },
+  {
+   "name": "M12 русская десятичная запятая не распознаётся",
+   "file": "spa_core/analytics/daily_report_census.py",
+   "old": "            ru = grouped.replace(\",\", \"\\u2009\").replace(\".\", \",\")   # RU: 55 000 · 4,01 — ОДНА дверь",
+   "new": "            ru = grouped.replace(\",\", \"\\u2009\")   # RU: 55 000 · 4,01 — ОДНА дверь"
+  },
+  {
+   "name": "M13 раскладка доходит, если дошла ХОТЯ БЫ одна сумма",
+   "file": "spa_core/analytics/daily_report_census.py",
+   "old": "        if any(h is None for h in hits):\n            return None\n        return all(hits)",
+   "new": "        if any(h is None for h in hits):\n            return None\n        return any(hits)"
+  },
+  {
+   "name": "M14 ноги хода доходят по одному имени протокола, без суммы",
+   "file": "spa_core/analytics/daily_report_census.py",
+   "old": "and value_reaches(abs(float(lg[\"delta_usd\"])), \"money\", text) is True",
+   "new": "and True"
+  },
+  {
+   "name": "M15 причины доходят, если дошла ХОТЯ БЫ одна",
+   "file": "spa_core/analytics/daily_report_census.py",
+   "old": "        return all(r in text for r in reasons)",
+   "new": "        return any(r in text for r in reasons)"
+  },
+  {
+   "name": "M16 поле без единого значения в ленте числится produced",
+   "file": "spa_core/analytics/daily_report_census.py",
+   "old": "r.update({\"kind\": \"produced\" if present or shape[\"with_value\"] else \"absent\",",
+   "new": "r.update({\"kind\": \"produced\","
+  },
+  {
+   "name": "M17 третий исход объявляется наблюдённым без единого None в ленте",
+   "file": "spa_core/analytics/daily_report_census.py",
+   "old": "    if nulls:\n        third = \"наблюдён (None/пусто в ленте отличимо от значения)\"",
+   "new": "    if True:\n        third = \"наблюдён (None/пусто в ленте отличимо от значения)\""
+  },
+  {
+   "name": "M18 словарь Decision всегда «согласен»",
+   "file": "spa_core/analytics/daily_report_census.py",
+   "old": "\"agrees\": bool(set(seen) & set(spec[\"vocabulary\"]))",
+   "new": "\"agrees\": True"
+  },
+  {
+   "name": "M19 без текста отчёта доходимость = False, а не НЕ ИЗМЕРЕНО",
+   "file": "spa_core/analytics/daily_report_census.py",
+   "old": "                                 if (present and report_text is not None) else None)",
+   "new": "                                 if (present and report_text is not None) else False)"
+  },
+  {
+   "name": "M20 слагаемые без сложения числятся produced",
+   "file": "spa_core/analytics/daily_report_census.py",
+   "old": "            r.update({\"kind\": \"components_only\" if have else \"absent\",",
+   "new": "            r.update({\"kind\": \"produced\" if have else \"absent\","
+  },
+  {
+   "name": "M21 отсутствие секции — CRITICAL и на пустом каталоге",
+   "file": "spa_core/analytics/daily_report_census.py",
+   "old": "    if measured_any and items.get(\"report_built\") and items.get(\"section_title_in_report\") is False:",
+   "new": "    if items.get(\"report_built\") and items.get(\"section_title_in_report\") is False:"
+  },
+  {
+   "name": "M22 форма ADR-808 печатается и там, где дашборд пункт не несёт",
+   "file": "spa_core/analytics/daily_report_census.py",
+   "old": "                where = \" (доходит до дашборда, не до отчёта — форма ADR-808)\" if r.get(\"brief_reach\") else \"\"",
+   "new": "                where = \" (доходит до дашборда, не до отчёта — форма ADR-808)\" if True else \"\""
+  },
+  {
+   "name": "M23 «не доходит до отчёта» — WARN вместо CRITICAL",
+   "file": "spa_core/analytics/daily_report_census.py",
+   "old": "                add(\"CRITICAL\", f\"item_not_in_report:{name}\",",
+   "new": "                add(\"WARN\", f\"item_not_in_report:{name}\","
+  },
+  {
+   "name": "M24 сводка не называет произведённые, но не дошедшие пункты",
+   "file": "spa_core/analytics/daily_report_census.py",
+   "old": "                         and not (r[\"kind\"] in PRODUCED_KINDS and r.get(\"report_reach\") is True)]",
+   "new": "                         and not (r[\"kind\"] in PRODUCED_KINDS)]"
+  },
+  {
+   "name": "M25 снятая существующая часть отчёта не становится находкой",
+   "file": "spa_core/analytics/daily_report_census.py",
+   "old": "        elif missing:\n            add(\"WARN\", \"preserved_parts_missing\",",
+   "new": "        elif False:\n            add(\"WARN\", \"preserved_parts_missing\","
+  },
+  {
+   "name": "M26 устаревшая лента не становится находкой",
+   "file": "spa_core/analytics/daily_report_census.py",
+   "old": "        if fr.get(\"fresh\") is False:\n            add(\"WARN\", f\"stale:{key}\"",
+   "new": "        if False:\n            add(\"WARN\", f\"stale:{key}\""
+  },
+  {
+   "name": "M27 живой сборщик отчёта подменён отказом по умолчанию",
+   "file": "spa_core/analytics/daily_report_census.py",
+   "old": "    read = reader or live_report_reader",
+   "new": "    read = reader or (lambda d, n: (None, None, None, \"нет\"))"
+  },
+  {
+   "name": "M28 отчёт без единого числа трека читается как «части сняты» (WARN), а не НЕ ИЗМЕРЕНО",
+   "file": "spa_core/analytics/daily_report_census.py",
+   "old": "        if parts and all(p.get(\"kind\") in (\"absent\", UNMEASURED) for p in parts.values()):",
+   "new": "        if False:"
+  },
+  {
+   "name": "M29 отсутствующая существующая часть числится produced и дошедшей",
+   "file": "spa_core/analytics/daily_report_census.py",
+   "old": "            out[key] = {\"kind\": \"absent\", \"reach\": None}",
+   "new": "            out[key] = {\"kind\": \"produced\", \"reach\": True}"
+  },
+  {
+   "name": "M30 слой дашборда несёт ноги по одним именам, без сумм",
+   "file": "spa_core/analytics/daily_report_census.py",
+   "old": "            return bool(legs) and all(str(lg.get(\"protocol\")) in text\n                                      and f\"{abs(float(lg['delta_usd'])):,.0f}\" in text for lg in legs)",
+   "new": "            return bool(legs) and all(str(lg.get(\"protocol\")) in text\n                                      and True for lg in legs)"
+  },
+  {
+   "name": "M31 проба: недошедшие пункты не делают критерий not_satisfied",
+   "file": "spa_core/monitoring/card_acceptance.py",
+   "old": "    if missing:\n        return NOT_SATISFIED, (f\"из {drc.OWNER_ITEMS_DECLARED} пунктов CIO-секции производится \"",
+   "new": "    if False:\n        return NOT_SATISFIED, (f\"из {drc.OWNER_ITEMS_DECLARED} пунктов CIO-секции производится \""
+  },
+  {
+   "name": "M32 проба: неизмеренная доходимость судится как вердикт",
+   "file": "spa_core/monitoring/card_acceptance.py",
+   "old": "    if unreached:\n        return UNMEASURED, (f\"доходимость не измерена (нет рендера с ≥{drc.MIN_SIGNIFICANT_DIGITS} \"",
+   "new": "    if False:\n        return UNMEASURED, (f\"доходимость не измерена (нет рендера с ≥{drc.MIN_SIGNIFICANT_DIGITS} \""
+  }
+ ]
+}

@@ -18533,6 +18533,71 @@ def _probe_every_declared_portfolio_kpi_has_a_producer(
                        f"{ {n: [c.get('carrier') for c in r.get('carriers') or []] for n, r in rows.items()} }")
 
 
+def _probe_daily_report_carries_every_cio_item(
+        arg: str | None, *, data_dir: str | None = None) -> tuple[str, str]:
+    """Критерий §34 приказа владельца «Portfolio CIO» (ADR-980): у КАЖДОГО из тринадцати
+    пунктов CIO-секции утреннего отчёта (Current expected net APY · Optimal policy-compliant
+    APY · Yield gap · Target allocation · Decision · Recommended · Expected incremental return ·
+    Switching cost · Break-even · Expected persistence · Risk · Confidence · Reason) есть
+    ПРОИЗВОДИТЕЛЬ (поле записи решения) и ЧИТАТЕЛЬ-ВЛАДЕЛЕЦ — значение ДОХОДИТ до отчёта,
+    который владелец получает каждое утро (`spa_core.telegram.reports.daily`, агент
+    `com.spa.digest_daily`). Замер #1097: производится 8 из 13, до отчёта доходит 0, до
+    дашборда (ADR-488) — 6; секции «🧠 Portfolio CIO» в отчёте нет.
+
+    Меряется ИСХОДОМ по прибору §34 (`daily_report_census.run`) на живом каталоге данных:
+    отчёт СОБИРАЕТСЯ настоящим сборщиком (`drain=False`, ничего не пишется) и в его тексте
+    ищется РЕНДЕР значения каждого пункта. Корень дерева — родитель `data_dir`. Свежесть —
+    отдельный вопрос, пробой не судится. Исполнителем критерия будет CIO-секция в отчёте и
+    производители недостающих пунктов, а не прибор.
+
+    Три исхода:
+    * прибор не ввезён / лента решений не прочитана / отчёт не собран / род пункта или его
+      доходимость `unmeasured` ⇒ `unmeasured`;
+    * хотя бы один пункт не `produced` или не доходит до отчёта ⇒ `not_satisfied` (пункты
+      и роды названы);
+    * все объявленные пункты `produced` и доходят ⇒ `satisfied`.
+    """
+    if arg:
+        return UNMEASURED, (f"проба не принимает аргумента (дано {arg!r}): критерий "
+                            "назван целиком")
+    try:
+        from spa_core.analytics import daily_report_census as drc
+    except Exception as exc:  # noqa: BLE001 — нечем измерить ≠ «исполнено»
+        return UNMEASURED, f"прибор §34 не импортирован: {type(exc).__name__}: {exc}"
+    base = data_dir or os.path.join(REPO_ROOT, "data")
+    root = os.path.dirname(base.rstrip(os.sep)) or REPO_ROOT
+    doc = drc.run(root=root, data_dir=base, card_path=os.path.join(root, drc.CARD_REL),
+                  write=False)
+    items = doc.get("items") or {}
+    rows = items.get("items") or {}
+    if not doc.get("carriers_read", {}).get("records"):
+        return UNMEASURED, (f"лента решений {drc.RECORD_REL} в {base} не прочитана — НЕ ИЗМЕРЕНО")
+    if not items.get("report_built"):
+        return UNMEASURED, (f"утренний отчёт владельцу не собран: "
+                            f"{(doc.get('report') or {}).get('reason')} — НЕ ИЗМЕРЕНО")
+    if len(rows) != drc.OWNER_ITEMS_DECLARED:
+        return UNMEASURED, (f"прибор вернул {len(rows)} пунктов из "
+                            f"{drc.OWNER_ITEMS_DECLARED} объявленных — НЕ ИЗМЕРЕНО")
+    unmeasured = {n: r.get("reason") for n, r in rows.items() if r.get("kind") == UNMEASURED}
+    if unmeasured:
+        return UNMEASURED, f"род пункта не измерен: {unmeasured} — НЕ ИЗМЕРЕНО"
+    unreached = {n: r.get("value") for n, r in rows.items()
+                 if r.get("kind") in drc.PRODUCED_KINDS and r.get("report_reach") is None}
+    if unreached:
+        return UNMEASURED, (f"доходимость не измерена (нет рендера с ≥{drc.MIN_SIGNIFICANT_DIGITS} "
+                            f"значащими цифрами): {unreached} — НЕ ИЗМЕРЕНО")
+    missing = {n: (r["kind"] if r.get("kind") not in drc.PRODUCED_KINDS else "не доходит до отчёта")
+               for n, r in rows.items()
+               if r.get("kind") not in drc.PRODUCED_KINDS or r.get("report_reach") is not True}
+    if missing:
+        return NOT_SATISFIED, (f"из {drc.OWNER_ITEMS_DECLARED} пунктов CIO-секции производится "
+                               f"{items.get('produced')}, до утреннего отчёта доходит "
+                               f"{items.get('reach_report')}; секция «{drc.OWNER_SECTION_TITLE}» "
+                               f"в отчёте: {items.get('section_title_in_report')}; не исполнено: {missing}")
+    return SATISFIED, (f"все {drc.OWNER_ITEMS_DECLARED} пунктов CIO-секции производятся и доходят до "
+                       f"утреннего отчёта владельцу: {items.get('reach_report_names')}")
+
+
 PROBES: dict[str, Callable[[str | None], "tuple[str, str]"]] = {
     "apy_name_carries_one_kind": _probe_apy_name_carries_one_kind,
     "shadow_record_carries_the_system_action":
@@ -18544,6 +18609,8 @@ PROBES: dict[str, Callable[[str | None], "tuple[str, str]"]] = {
         _probe_every_declared_error_class_has_a_measurer,
     "every_declared_portfolio_kpi_has_a_producer":
         _probe_every_declared_portfolio_kpi_has_a_producer,
+    "daily_report_carries_every_cio_item":
+        _probe_daily_report_carries_every_cio_item,
     "conservative_expected_apy_published":
         _probe_conservative_expected_apy_published,
     "marginal_apy_ladder_published": _probe_marginal_apy_ladder_published,
