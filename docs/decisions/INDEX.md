@@ -845,6 +845,7 @@
 | ADR-975 | ADR-975 — Ответ владельца 10.11 (вариант 1): окно свежести 36 ч применяется и к снимку оркестратора — записан; исполнитель — карточка с пробой `snapshot_evidence_ages_out` | принято | [ADR-975](ADR-975-owner-answer-10-11-freshness-window-for-the-orchestrator-snapshot.md) |
 | ADR-976 | ADR-976 — Ответ владельца 10.11 (вариант 1) исполнен: окно свежести 36 ч стареет и снимок оркестратора — одна дверь `_within_window` на оба источника, проба `snapshot_evidence_ages_out` satisfied | принято | [ADR-976](ADR-976-owner-answer-10-11-executed-snapshot-ages-out.md) |
 | ADR-977 | ADR-977 — §31 ТЗ «Portfolio CIO»: из пяти горизонтов counterfactual считается один, два недостижимы при суточном шаге наблюдения; «actual costs» у судьи — оценка T0, переписанная под другим именем | принято | [ADR-977](ADR-977-cio-s31-counterfactual-tracking.md) |
+| ADR-978 | ADR-978 — §32 ТЗ «Portfolio CIO»: из семи классов ошибок измеряются четыре; два видны только сигналом в T0, у break-even прогноз и факт не сравниваются; три измерителя не бежали неделю | принято | [ADR-978](ADR-978-cio-s32-error-classes.md) |
 
 ## Соглашения
 

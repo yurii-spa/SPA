@@ -18429,6 +18429,55 @@ def _probe_counterfactual_tracks_every_declared_horizon(
                        f"{ {h: r.get('carriers') for h, r in rows.items()} }")
 
 
+def _probe_every_declared_error_class_has_a_measurer(
+        arg: str | None, *, data_dir: str | None = None) -> tuple[str, str]:
+    """Критерий §32 приказа владельца «Portfolio CIO» (ADR-978): у КАЖДОГО из семи классов
+    ошибок (False Rebalance · Missed Opportunity · Late Rebalance · Excessive Turnover ·
+    Risk Violation · APY Forecast Error · Break-even Forecast Error) есть ИЗМЕРИТЕЛЬ —
+    носитель, считающий ошибку ПОСЛЕ, с населением и третьим исходом. Замер #1095: из семи
+    измеряются четыре; два класса видны только сигналом в T0 (гейт оборота, триггер RT-04),
+    у одного прогноз и факт лежат в разных носителях и не сравниваются.
+
+    Меряется ИСХОДОМ по прибору §32 (`error_class_census.measure_classes`) на живом каталоге
+    данных: род каждого класса. Свежесть измерителя — отдельный вопрос, пробой не судится.
+    Исполнителем критерия будут носители недостающих классов, а не прибор.
+
+    Три исхода:
+    * прибор не ввезён / ни один носитель не прочитан / род класса `unmeasured` ⇒ `unmeasured`;
+    * хотя бы один класс не `measured` ⇒ `not_satisfied` (классы и роды названы);
+    * все объявленные классы `measured` ⇒ `satisfied`.
+    """
+    if arg:
+        return UNMEASURED, (f"проба не принимает аргумента (дано {arg!r}): критерий "
+                            "назван целиком")
+    try:
+        from spa_core.analytics import error_class_census as ecc
+    except Exception as exc:  # noqa: BLE001 — нечем измерить ≠ «исполнено»
+        return UNMEASURED, f"прибор §32 не импортирован: {type(exc).__name__}: {exc}"
+    base = data_dir or os.path.join(REPO_ROOT, "data")
+    carriers = ecc.load_carriers(base)
+    if all(carriers.get(k) is None for k in ("replay", "eval", "forecast", "limits")):
+        return UNMEASURED, (f"ни реплей, ни судья, ни прогноз, ни лимиты в {base} не прочитаны: "
+                            f"{carriers.get('replay_reason')}; {carriers.get('eval_reason')}; "
+                            f"{carriers.get('forecast_reason')}; {carriers.get('limits_reason')} "
+                            f"— НЕ ИЗМЕРЕНО")
+    slo = ecc.load_slo(os.path.dirname(base.rstrip(os.sep)) or REPO_ROOT)
+    classes = ecc.measure_classes(carriers, slo, datetime.now(timezone.utc))
+    rows = classes.get("classes") or {}
+    if len(rows) != ecc.OWNER_CLASSES_DECLARED:
+        return UNMEASURED, (f"прибор вернул {len(rows)} класс(ов) из "
+                            f"{ecc.OWNER_CLASSES_DECLARED} объявленных — НЕ ИЗМЕРЕНО")
+    unmeasured = {n: r.get("reason") for n, r in rows.items() if r.get("kind") == UNMEASURED}
+    if unmeasured:
+        return UNMEASURED, f"род класса не измерен: {unmeasured} — НЕ ИЗМЕРЕНО"
+    missing = {n: r["kind"] for n, r in rows.items() if r.get("kind") not in ecc.MEASURED_KINDS}
+    if missing:
+        return NOT_SATISFIED, (f"из {ecc.OWNER_CLASSES_DECLARED} классов измеряется "
+                               f"{ecc.OWNER_CLASSES_DECLARED - len(missing)}; без измерителя: {missing}")
+    return SATISFIED, (f"все {ecc.OWNER_CLASSES_DECLARED} классов измеряются носителями "
+                       f"{ {n: [c.get('carrier') for c in r.get('carriers') or []] for n, r in rows.items()} }")
+
+
 PROBES: dict[str, Callable[[str | None], "tuple[str, str]"]] = {
     "apy_name_carries_one_kind": _probe_apy_name_carries_one_kind,
     "shadow_record_carries_the_system_action":
@@ -18436,6 +18485,8 @@ PROBES: dict[str, Callable[[str | None], "tuple[str, str]"]] = {
     "snapshot_evidence_ages_out": _probe_snapshot_evidence_ages_out,
     "counterfactual_tracks_every_declared_horizon":
         _probe_counterfactual_tracks_every_declared_horizon,
+    "every_declared_error_class_has_a_measurer":
+        _probe_every_declared_error_class_has_a_measurer,
     "conservative_expected_apy_published":
         _probe_conservative_expected_apy_published,
     "marginal_apy_ladder_published": _probe_marginal_apy_ladder_published,

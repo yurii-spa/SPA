@@ -1,0 +1,158 @@
+{
+  "title": "ADR-978 SMC — дельта цикла #1095: §32 «Ошибки, которые необходимо измерять» — паритет с карточкой (классы, слово «Минимум», вторая граница, HTML-комментарий), роды классов (третий исход, самоотказ носителя, сигнал в T0 ≠ замер, разбор причины отказа, прогноз и факт без сравнения), свежесть измерителя (SLO манифеста, отсутствие SLO ≠ свеж), сводка не из неизмеренного, порядок atomic_save, проба приёмки",
+  "tests": [
+    "spa_core/tests/test_error_class_census.py"
+  ],
+  "mutations": [
+    {
+      "name": "M01 паритет слеп к перечню классов — карточка без класса проходит как совпавшая",
+      "file": "spa_core/analytics/error_class_census.py",
+      "old": "    elif list(cls) != list(OWNER_CLASSES):",
+      "new": "    elif False:"
+    },
+    {
+      "name": "M02 паритет слеп к слову владельца «Минимум:» (первый проход: выжила — проверка дублировала соседнюю; слиты)",
+      "file": "spa_core/analytics/error_class_census.py",
+      "old": "    if cls is None:\n        mism.append(f\"в разделе нет слова владельца {OWNER_FLOOR_WORD!r} — перечень не объявлен \"",
+      "new": "    if cls is None and False:\n        mism.append(f\"в разделе нет слова владельца {OWNER_FLOOR_WORD!r} — перечень не объявлен \""
+    },
+    {
+      "name": "M03 вторая граница раздела не найдена — счёт идёт до конца файла (fail-OPEN)",
+      "file": "spa_core/analytics/error_class_census.py",
+      "old": "    if end is None:\n        return None, (f\"найден {SECTION_HEAD!r}, но НЕ найдена вторая граница \"",
+      "new": "    if end is None and False:\n        return None, (f\"найден {SECTION_HEAD!r}, но НЕ найдена вторая граница \""
+    },
+    {
+      "name": "M04 HTML-комментарий карточки читается как пункт владельца",
+      "file": "spa_core/analytics/error_class_census.py",
+      "old": "        if not s or s.startswith(\"<!--\"):",
+      "new": "        if not s:"
+    },
+    {
+      "name": "M05 блок без ключа третьего исхода считается измеренным (инв. #17)",
+      "file": "spa_core/analytics/error_class_census.py",
+      "old": "            \"kind\": \"measured\" if has_third else \"measured_without_third_outcome\",",
+      "new": "            \"kind\": \"measured\","
+    },
+    {
+      "name": "M06 самоотказ носителя (verdict=UNCHECKED) читается как замер",
+      "file": "spa_core/analytics/error_class_census.py",
+      "old": "    if block.get(\"verdict\") == JUDGE_UNCHECKED:",
+      "new": "    if False:"
+    },
+    {
+      "name": "M07 Late Rebalance: календарный триггер RT-04 засчитан измерителем",
+      "file": "spa_core/analytics/error_class_census.py",
+      "old": "    return {\"kind\": \"signal_at_t0_only\",\n            \"reason\": (\"RT-04",
+      "new": "    return {\"kind\": \"measured\",\n            \"reason\": (\"RT-04"
+    },
+    {
+      "name": "M08 Late Rebalance: «нет ни триггера» неотличимо от «не прочитано»",
+      "file": "spa_core/analytics/error_class_census.py",
+      "old": "        return {\"kind\": \"absent\", \"reason\": \"ни измерителя опоздания",
+      "new": "        return {\"kind\": UNMEASURED, \"reason\": \"ни измерителя опоздания"
+    },
+    {
+      "name": "M09 Excessive Turnover: причина отказа с аргументом (`:55%>15%`) не распознаётся",
+      "file": "spa_core/analytics/error_class_census.py",
+      "old": "            reasons = [str(s).split(\":\")[0] for s in (r.get(\"reasons\") or [])]",
+      "new": "            reasons = [str(s) for s in (r.get(\"reasons\") or [])]"
+    },
+    {
+      "name": "M10 Excessive Turnover: гейт оборота засчитан измерителем ошибки",
+      "file": "spa_core/analytics/error_class_census.py",
+      "old": "    return {\"kind\": \"signal_at_t0_only\",\n            \"reason\": (\"оборот виден",
+      "new": "    return {\"kind\": \"measured\",\n            \"reason\": (\"оборот виден"
+    },
+    {
+      "name": "M11 Risk Violation: status=SKIP не считается третьим исходом",
+      "file": "spa_core/analytics/error_class_census.py",
+      "old": "        has_third = \"skip_reasons\" in lim or bool(skips)",
+      "new": "        has_third = \"skip_reasons\" in lim"
+    },
+    {
+      "name": "M12 Risk Violation: журнал блоков без третьего исхода объявлен измеренным",
+      "file": "spa_core/analytics/error_class_census.py",
+      "old": "                           kind=\"measured_without_third_outcome\" if rows else UNMEASURED,\n                           reason=None if rows else \"журнал блоков пуст\",",
+      "new": "                           kind=\"measured\" if rows else UNMEASURED,\n                           reason=None if rows else \"журнал блоков пуст\","
+    },
+    {
+      "name": "M13 APY Forecast Error: третий исход подставлен, а не прочитан у носителя",
+      "file": "spa_core/analytics/error_class_census.py",
+      "old": "    has_third = \"unchecked\" in fc and isinstance(observed, (int, float))",
+      "new": "    has_third = True"
+    },
+    {
+      "name": "M14 Break-even: прогноз и факт в разных носителях засчитаны как измеренная ошибка",
+      "file": "spa_core/analytics/error_class_census.py",
+      "old": "        kind, reason = \"forecast_and_fact_uncompared\", (",
+      "new": "        kind, reason = \"measured\", ("
+    },
+    {
+      "name": "M15 Break-even: строка реплея с payback_days=null считается фактом",
+      "file": "spa_core/analytics/error_class_census.py",
+      "old": "        with_fact = [w for w in worst if isinstance(w.get(\"payback_days\"), (int, float))]",
+      "new": "        with_fact = list(worst)"
+    },
+    {
+      "name": "M16 свежесть: устаревший носитель объявлен свежим",
+      "file": "spa_core/analytics/error_class_census.py",
+      "old": "            \"fresh\": age <= slo_h, \"reason\": None}",
+      "new": "            \"fresh\": True, \"reason\": None}"
+    },
+    {
+      "name": "M17 свежесть: отсутствие SLO в манифесте читается как «свеж», а не как «не измерено»",
+      "file": "spa_core/analytics/error_class_census.py",
+      "old": "        return {\"stamp\": ts.isoformat(), \"age_hours\": age, \"slo_hours\": None, \"fresh\": None,",
+      "new": "        return {\"stamp\": ts.isoformat(), \"age_hours\": age, \"slo_hours\": None, \"fresh\": True,"
+    },
+    {
+      "name": "M18 сводка «объявлено/измеряется» изготовлена из НЕИЗМЕРЕННЫХ классов",
+      "file": "spa_core/analytics/error_class_census.py",
+      "old": "    missing = [n for n, r in rows.items() if r[\"kind\"] not in MEASURED_KINDS and r[\"kind\"] != UNMEASURED]",
+      "new": "    missing = [n for n, r in rows.items() if r[\"kind\"] not in MEASURED_KINDS]"
+    },
+    {
+      "name": "M19 устаревший измеритель не даёт находки",
+      "file": "spa_core/analytics/error_class_census.py",
+      "old": "            if fr.get(\"fresh\") is False:\n                add(\"WARN\", f\"measurer_stale:{name}\",",
+      "new": "            if False:\n                add(\"WARN\", f\"measurer_stale:{name}\","
+    },
+    {
+      "name": "M20 Missed Opportunity: строки судьи UNCHECKED не считаются третьим исходом",
+      "file": "spa_core/analytics/error_class_census.py",
+      "old": "        unchecked = [r for r in rows if r.get(\"counterfactual\") == JUDGE_UNCHECKED]",
+      "new": "        unchecked = []"
+    },
+    {
+      "name": "M21 красная проверка лимитов сегодня не называется",
+      "file": "spa_core/analytics/error_class_census.py",
+      "old": "        if name == \"Risk Violation\" and r.get(\"failing_today\"):",
+      "new": "        if False:"
+    },
+    {
+      "name": "M22 порядок аргументов atomic_save перевёрнут (прибор без артефакта, урок §26)",
+      "file": "spa_core/analytics/error_class_census.py",
+      "old": "        atomic_save(doc, os.path.join(root, REPORT_REL))",
+      "new": "        atomic_save(os.path.join(root, REPORT_REL), doc)"
+    },
+    {
+      "name": "M23 main: CRITICAL/WARNING выходит нулём",
+      "file": "spa_core/analytics/error_class_census.py",
+      "old": "    if doc[\"overall\"] in (\"CRITICAL\", \"WARNING\"):\n        return 1",
+      "new": "    if doc[\"overall\"] in (\"CRITICAL\", \"WARNING\"):\n        return 0"
+    },
+    {
+      "name": "M24 проба: класс без измерителя не мешает satisfied",
+      "file": "spa_core/monitoring/card_acceptance.py",
+      "old": "    if missing:\n        return NOT_SATISFIED, (f\"из {ecc.OWNER_CLASSES_DECLARED} классов измеряется \"",
+      "new": "    if missing and False:\n        return NOT_SATISFIED, (f\"из {ecc.OWNER_CLASSES_DECLARED} классов измеряется \""
+    },
+    {
+      "name": "M25 проба: неизмеренный род класса превращается в вердикт",
+      "file": "spa_core/monitoring/card_acceptance.py",
+      "old": "    if unmeasured:\n        return UNMEASURED, f\"род класса не измерен: {unmeasured} — НЕ ИЗМЕРЕНО\"",
+      "new": "    if False:\n        return UNMEASURED, f\"род класса не измерен: {unmeasured} — НЕ ИЗМЕРЕНО\""
+    }
+  ]
+}
