@@ -18665,6 +18665,76 @@ def _probe_paper_apy_quantities_defined_and_distinct(
                        f"владельца, коллизий слов нет, разбросы объяснены: {list(rows)}")
 
 
+def _probe_owner_main_screen_is_owner_first(
+        arg: str | None, *, data_dir: str | None = None) -> tuple[str, str]:
+    """Критерий §36 приказа владельца «Portfolio CIO» (ADR-982): на ОСНОВНОМ экране владельца
+    (первое сообщение утреннего дайджеста — то, что он получает сам, не открывая ничего) нет
+    ни одного из шести запрещённых классов (optimizer internals · JSON · policy hashes ·
+    technical IDs · implementation paths · internal states) и есть КАЖДЫЙ из девяти выводов
+    (Текущая доходность · Потенциальная доходность · Есть ли проблема · Что система предлагает
+    сделать · Сколько это даст · Сколько стоит · Когда окупится · Изменится ли риск · Нужна ли
+    моя реакция), а технические подробности живут в «Подробнее». Замер #1099: на основном
+    экране 3 запрещённых отрезка двух классов (`eligible` · `ECON-10` · `compound_v3`), из
+    девяти выводов производится 7, на экране стоят 2.
+
+    Меряется ИСХОДОМ по прибору §36 (`owner_ui_census.run`) на живом каталоге данных: отчёт
+    СОБИРАЕТСЯ настоящим сборщиком (`drain=False`, ничего не пишется); запрещённый класс
+    судится ФОРМОЙ (детектор печатает отрезок), вывод — РЕНДЕРОМ значения (≥3 значащих цифр)
+    либо ФРАЗОЙ из словаря владельца. Корень дерева — родитель `data_dir`. Дашборд и
+    «Подробнее» пробой НЕ судятся — предмет владельца ограничен словами «на основном экране».
+    Исполнителем критерия будет форма первого сообщения дайджеста и производители двух
+    отсутствующих выводов, а не прибор.
+
+    Три исхода:
+    * прибор не ввезён / лента решений не прочитана / отчёт не собран / род вывода или его
+      доходимость `unmeasured` ⇒ `unmeasured`;
+    * хотя бы один запрещённый отрезок на основном экране, либо хотя бы один вывод не
+      `produced` или не доходит ⇒ `not_satisfied` (отрезки, выводы и роды названы);
+    * основной экран чист и все девять выводов `produced` и доходят ⇒ `satisfied`.
+    """
+    if arg:
+        return UNMEASURED, (f"проба не принимает аргумента (дано {arg!r}): критерий "
+                            "назван целиком")
+    try:
+        from spa_core.analytics import owner_ui_census as ouc
+    except Exception as exc:  # noqa: BLE001 — нечем измерить ≠ «исполнено»
+        return UNMEASURED, f"прибор §36 не импортирован: {type(exc).__name__}: {exc}"
+    base = data_dir or os.path.join(REPO_ROOT, "data")
+    root = os.path.dirname(base.rstrip(os.sep)) or REPO_ROOT
+    doc = ouc.run(root=root, data_dir=base, card_path=os.path.join(root, ouc.CARD_REL), write=False)
+    if not doc.get("carriers_read", {}).get("records"):
+        return UNMEASURED, f"лента решений {ouc.RECORD_REL} в {base} не прочитана — НЕ ИЗМЕРЕНО"
+    main = (doc.get("surfaces") or {}).get("surfaces", {}).get(ouc.SURFACE_MAIN) or {}
+    outputs = doc.get("outputs") or {}
+    rows = outputs.get("outputs") or {}
+    if not main.get("measured") or not outputs.get("main_screen_built"):
+        return UNMEASURED, (f"основной экран владельца не собран: "
+                            f"{(doc.get('report') or {}).get('reason')} — НЕ ИЗМЕРЕНО")
+    if len(rows) != ouc.OWNER_OUTPUTS_DECLARED:
+        return UNMEASURED, (f"прибор вернул {len(rows)} выводов из "
+                            f"{ouc.OWNER_OUTPUTS_DECLARED} объявленных — НЕ ИЗМЕРЕНО")
+    unmeasured = {n: r.get("reason") for n, r in rows.items() if r.get("kind") == UNMEASURED}
+    if unmeasured:
+        return UNMEASURED, f"род вывода не измерен: {unmeasured} — НЕ ИЗМЕРЕНО"
+    unreached = {n: r.get("value") for n, r in rows.items()
+                 if r.get("kind") in ouc.PRODUCED_KINDS and r.get("main_reach") is None}
+    if unreached:
+        return UNMEASURED, (f"доходимость не измерена (нет рендера с ≥{ouc.MIN_SIGNIFICANT_DIGITS} "
+                            f"значащими цифрами): {unreached} — НЕ ИЗМЕРЕНО")
+    forbidden = {cls: main["hits"][cls] for cls in main.get("classes_present") or []}
+    missing = {n: (r["kind"] if r.get("kind") not in ouc.PRODUCED_KINDS else "не доходит до основного экрана")
+               for n, r in rows.items()
+               if r.get("kind") not in ouc.PRODUCED_KINDS or r.get("main_reach") is not True}
+    if forbidden or missing:
+        return NOT_SATISFIED, (f"на основном экране владельца запрещённых отрезков {main.get('total')} "
+                               f"({forbidden}); из {ouc.OWNER_OUTPUTS_DECLARED} выводов производится "
+                               f"{outputs.get('produced')}, на основном экране {outputs.get('reach_main')}; "
+                               f"не исполнено: {missing}")
+    return SATISFIED, (f"основной экран владельца без запрещённых классов, все "
+                       f"{ouc.OWNER_OUTPUTS_DECLARED} выводов производятся и доходят: "
+                       f"{outputs.get('reach_main_names')}")
+
+
 PROBES: dict[str, Callable[[str | None], "tuple[str, str]"]] = {
     "apy_name_carries_one_kind": _probe_apy_name_carries_one_kind,
     "shadow_record_carries_the_system_action":
@@ -18680,6 +18750,8 @@ PROBES: dict[str, Callable[[str | None], "tuple[str, str]"]] = {
         _probe_daily_report_carries_every_cio_item,
     "paper_apy_quantities_defined_and_distinct":
         _probe_paper_apy_quantities_defined_and_distinct,
+    "owner_main_screen_is_owner_first":
+        _probe_owner_main_screen_is_owner_first,
     "conservative_expected_apy_published":
         _probe_conservative_expected_apy_published,
     "marginal_apy_ladder_published": _probe_marginal_apy_ladder_published,

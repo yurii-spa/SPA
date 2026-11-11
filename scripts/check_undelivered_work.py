@@ -1518,16 +1518,29 @@ def resolve_rel(path_str, root, git=_git):
     if not p.is_absolute():
         return p.as_posix(), None
 
-    root = Path(root).resolve()
+    # Объявленная строка может НЕ БЫТЬ путём: цикл #1094 объявил 26 путей, склеенных в одну
+    # строку (zsh не расщепил $FILES), и `os.stat` на ней падал ENAMETOOLONG — весь шаг 0a
+    # умирал трейсбеком, и ни одна из прочих записей не измерялась. Отказ ОС — третий исход
+    # этого пути с названной причиной (инв. #17), а не смерть сторожа; «склеенный путь»
+    # называется своим именем, чтобы читатель узнал дефект объявления, а не искал каталог.
+    glued = [seg for seg in str(path_str).split() if seg.startswith("/")]
+    if len(glued) > 1:
+        return None, (f"объявленная строка не путь, а {len(glued)} путей, склеенных пробелами "
+                      f"(дефект объявления, zsh не расщепил список): {str(path_str)[:120]}…")
     try:
-        return p.resolve().relative_to(root).as_posix(), None
-    except ValueError:
-        pass
+        root = Path(root).resolve()
+        try:
+            return p.resolve().relative_to(root).as_posix(), None
+        except ValueError:
+            pass
 
-    probe = p if p.is_dir() else p.parent          # `git -C` хочет каталог, не файл
-    climbed = not probe.is_dir()                   # пришлось лезть выше — каталогов уже нет
-    while not probe.is_dir() and probe != probe.parent:
-        probe = probe.parent
+        probe = p if p.is_dir() else p.parent          # `git -C` хочет каталог, не файл
+        climbed = not probe.is_dir()                   # пришлось лезть выше — каталогов уже нет
+        while not probe.is_dir() and probe != probe.parent:
+            probe = probe.parent
+    except OSError as exc:
+        return None, (f"путь не разрешается ОС ({type(exc).__name__}: {exc.strerror or exc}) — "
+                      f"измерить нечем: {str(path_str)[:120]}")
     if not probe.is_dir() or probe == probe.parent:
         return None, (f"путь вне хост-репо, каталога больше нет (worktree удалён?): {path_str}")
 

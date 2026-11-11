@@ -1,0 +1,20 @@
+{
+ "title": "ADR-982 SMC-b — шаг 0a: склеенный путь и отказ ОС (M33–M34), судит test_undelivered_work_guard.py",
+ "tests": [
+  "spa_core/tests/test_undelivered_work_guard.py"
+ ],
+ "mutations": [
+  {
+   "name": "M33 склеенный путь не распознаётся — строка идёт в ОС как путь",
+   "file": "scripts/check_undelivered_work.py",
+   "old": "    if len(glued) > 1:\n        return None, (f\"объявленная строка не путь, а {len(glued)} путей, склеенных пробелами \"",
+   "new": "    if False:\n        return None, (f\"объявленная строка не путь, а {len(glued)} путей, склеенных пробелами \""
+  },
+  {
+   "name": "M34 отказ ОС не ловится — шаг 0a снова умирает трейсбеком",
+   "file": "scripts/check_undelivered_work.py",
+   "old": "    except OSError as exc:\n        return None, (f\"путь не разрешается ОС ({type(exc).__name__}: {exc.strerror or exc}) — \"\n                      f\"измерить нечем: {str(path_str)[:120]}\")",
+   "new": "    except ValueError as exc:\n        return None, (f\"путь не разрешается ОС ({type(exc).__name__}: {exc}) — \"\n                      f\"измерить нечем: {str(path_str)[:120]}\")"
+  }
+ ]
+}

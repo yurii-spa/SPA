@@ -2209,3 +2209,49 @@ class TestRelativePathNamesItsTreeByAnnounceCwd:
         assert [bool(f.get("foreign_only")) for f in rep["findings"]] == [False]
         assert "своё дерево сессии не определено" in rep["findings"][0]["detail"]
         assert rep["exit_code"] == 1
+
+
+# ── 16. объявленная строка — не путь (авария шага 0a цикла #1099) ──────────────
+
+class TestDeclaredStringThatIsNotAPath:
+    """Цикл #1094 объявил 26 путей, СКЛЕЕННЫХ в одну строку (zsh не расщепил `$FILES`), и
+    тут же снял её объявлением `dropped`. Шаг 0a после этого умирал трейсбеком
+    (`OSError: File name too long` из `Path.is_dir`) на КАЖДОМ прогоне — пять циклов
+    (#1094…#1098) оставались без сторожа недоставленной работы, и об этом не говорил никто:
+    смерть прибора читается как «шаг не запускали». Отказ ОС на одном пути — третий исход
+    ЭТОГО пути с названной причиной (инв. #17), а не смерть всего замера."""
+
+    def _glued(self, repo, n=26):
+        return " ".join(str(repo / "scripts" / f"f{i}.py") for i in range(n))
+
+    def test_glued_paths_are_named_as_a_declaration_defect(self, guard, repo):
+        rel, why = guard.resolve_rel(self._glued(repo), repo)
+        assert rel is None
+        assert "26 путей" in why and "склеен" in why
+
+    def test_one_overlong_component_is_an_os_refusal_not_a_crash(self, guard, repo):
+        # путь длиннее PATH_MAX (1024) — `os.stat` отвечает ENAMETOOLONG, и `Path.is_dir()` его
+        # НЕ глотает (в отличие от ENOENT); путь лежит ВНЕ корня (внутри корня
+        # `resolve().relative_to` отвечает без stat). Без защиты исключение убивало весь прогон
+        # шага 0a — ровно так умирала склеенная строка #1094 длиной 2 621 знак
+        overlong = repo.parent / "elsewhere" / ("x" * 1100 + ".py")
+        rel, why = guard.resolve_rel(str(overlong), repo)
+        assert rel is None
+        assert "не разрешается ОС" in why and "OSError" in why
+
+    def test_a_single_absolute_path_with_a_space_in_its_name_is_still_a_path(self, guard, repo):
+        # ОДИН путь с пробелом в имени — не склейка: сегментов, начинающихся с «/», ровно один
+        p = repo / "scripts" / "with space.py"
+        rel, why = guard.resolve_rel(str(p), repo)
+        assert why is None and rel == "scripts/with space.py"
+
+    def test_report_survives_a_glued_declaration_and_measures_the_neighbours(self, guard, repo):
+        glued = self._glued(repo)
+        (repo / "scripts" / "kept.py").write_text("новое содержимое\n", encoding="utf-8")
+        rep = report(guard, repo, [
+            entry("pid45250", [glued]),
+            entry("pid45251", [repo / "scripts" / "kept.py"]),
+        ])
+        # склеенная строка — НЕ ИЗМЕРЕНО с причиной, соседняя запись измерена как обычно
+        assert any("склеен" in str(u.get("reason", "")) for u in rep["unmeasured"]), rep["unmeasured"]
+        assert any(f.get("path") == "scripts/kept.py" for f in rep["findings"]), rep["findings"]
