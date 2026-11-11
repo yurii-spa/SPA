@@ -18735,6 +18735,73 @@ def _probe_owner_main_screen_is_owner_first(
                        f"{outputs.get('reach_main_names')}")
 
 
+def _probe_owner_scenes_pass_and_discriminate(
+        arg: str | None, *, repo_root: str | None = None) -> tuple[str, str]:
+    """Критерий §37 приказа владельца «Portfolio CIO» (ADR-983): у КАЖДОЙ из пятнадцати сцен
+    владельца (Test 1 «очевидно плохая аллокация» … Test 15 «same snapshot determinism») есть
+    дверь на денежном пути, живая дверь на сцене владельца ведёт себя как он ожидает, на
+    ПОРВАННОЙ сцене ответ меняется, и в репозитории есть названный тест сцены. Замер #1100:
+    дверей present 6 / partial 9 / absent 0; сцен as_expected 13, contrary 2 (Test 1 — колонка
+    paper не даёт REBALANCE: наибольший выигрыш одного хода 0,45 пп < полосы 0,50 пп; Test 2 —
+    дверь цены ACT на пойманном всплеске, входа «стойкость» нет); порванные различают 15/15.
+
+    Меряется ИСХОДОМ по прибору §37 (`testing_scenario_census.run`): сцены строятся из
+    литералов владельца на живых дверях (дверь цены, ограничитель, гейт политики, потолки,
+    ёмкость, стоп-кран газа Base, гейт Tier-A); живой `data/` не читается. Корень дерева —
+    `repo_root` (реестр тестов сверяется AST с ЭТИМ деревом). Недостающие входы дверей
+    (`partial`) критерий НЕ валят: это предмет исполнителей, а не сцены; валит `absent`.
+
+    Три исхода:
+    * прибор не ввезён / паритет с карточкой не измерен / контрольная сцена сломана / хотя бы
+      одна сцена или сверка тестов `unmeasured` ⇒ `unmeasured`;
+    * хотя бы одна сцена `contrary`/`unreachable`, или `indiscriminate`, или дверь `absent`,
+      или тест `absent`/`stale` ⇒ `not_satisfied` (сцены названы поимённо);
+    * все пятнадцать: дверь есть · as_expected · discriminates · тест present ⇒ `satisfied`.
+    """
+    if arg:
+        return UNMEASURED, (f"проба не принимает аргумента (дано {arg!r}): критерий "
+                            "назван целиком")
+    try:
+        from spa_core.analytics import testing_scenario_census as tsc
+    except Exception as exc:  # noqa: BLE001 — нечем измерить ≠ «исполнено»
+        return UNMEASURED, f"прибор §37 не импортирован: {type(exc).__name__}: {exc}"
+    root = repo_root or REPO_ROOT
+    doc = tsc.run(root=root, card_path=os.path.join(root, tsc.CARD_REL), write=False)
+    if not doc.get("parity", {}).get("parsed", {}).get("measured"):
+        return UNMEASURED, (f"паритет с карточкой не измерен: "
+                            f"{doc.get('parity', {}).get('parsed', {}).get('reason')} — НЕ ИЗМЕРЕНО")
+    if not doc.get("control", {}).get("ok"):
+        return UNMEASURED, f"контрольная сцена сломана: {doc.get('control', {}).get('reason')} — НЕ ИЗМЕРЕНО"
+    rows = doc.get("scenes") or {}
+    if len(rows) != tsc.OWNER_SCENES_DECLARED:
+        return UNMEASURED, (f"прибор вернул {len(rows)} сцен из {tsc.OWNER_SCENES_DECLARED} "
+                            f"объявленных — НЕ ИЗМЕРЕНО")
+    unmeasured = {n: r.get("reason") or r["tests"]["refs"] for n, r in rows.items()
+                  if r.get("scene_kind") == UNMEASURED or r["tests"]["kind"] == UNMEASURED}
+    if unmeasured:
+        return UNMEASURED, f"сцены или сверка тестов не измерены: {sorted(unmeasured)} — НЕ ИЗМЕРЕНО"
+    bad: dict[str, list[str]] = {}
+    for n, r in rows.items():
+        why = []
+        if r["door"]["kind"] == "absent":
+            why.append("двери нет")
+        if r["scene_kind"] != "as_expected":
+            why.append(f"сцена {r['scene_kind']}")
+        if r["tear_kind"] != "discriminates":
+            why.append(f"порванная {r['tear_kind']}")
+        if r["tests"]["kind"] != "present":
+            why.append(f"тест {r['tests']['kind']}")
+        if why:
+            bad[f"Test {n} ({r['title']})"] = why
+    tally = doc.get("tally") or {}
+    if bad:
+        return NOT_SATISFIED, (f"из {tsc.OWNER_SCENES_DECLARED} сцен владельца не исполнены "
+                               f"{len(bad)}: {bad}; двери {tally.get('door')}, сцены {tally.get('scene')}")
+    return SATISFIED, (f"все {tsc.OWNER_SCENES_DECLARED} сцен владельца: дверь есть, живая дверь ведёт "
+                       f"себя как ожидалось, порванная сцена различается, тест в репозитории назван и "
+                       f"найден; двери {tally.get('door')}")
+
+
 PROBES: dict[str, Callable[[str | None], "tuple[str, str]"]] = {
     "apy_name_carries_one_kind": _probe_apy_name_carries_one_kind,
     "shadow_record_carries_the_system_action":
@@ -18752,6 +18819,8 @@ PROBES: dict[str, Callable[[str | None], "tuple[str, str]"]] = {
         _probe_paper_apy_quantities_defined_and_distinct,
     "owner_main_screen_is_owner_first":
         _probe_owner_main_screen_is_owner_first,
+    "owner_scenes_pass_and_discriminate":
+        _probe_owner_scenes_pass_and_discriminate,
     "conservative_expected_apy_published":
         _probe_conservative_expected_apy_published,
     "marginal_apy_ladder_published": _probe_marginal_apy_ladder_published,

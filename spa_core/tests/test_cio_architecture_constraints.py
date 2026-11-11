@@ -252,11 +252,27 @@ class TestGuardBlindness(unittest.TestCase):
     """Дефект 3: «сторож есть» и «сторож видит» — разные утверждения."""
 
     def test_sdk_seen_and_subprocess_not(self):
+        """Обе сцены ВИДНЫ сторожу, и каждая — своей дверью (ADR-969, цикл #1087).
+
+        До ADR-969 этот тест утверждал ОБРАТНОЕ (`subprocess_binary.seen is False`,
+        `blind_to_subprocess is True`): прибор спрашивал одну дверь сторожа из двух
+        (`run_lint`) и слепоту к запуску бинаря «измерял» по построению. ADR-969 научил
+        прибор спрашивать и вторую дверь (`run_launch_lint`, ADR-958) — сцена запуска
+        бинаря стала видна, и тест, закреплявший старый дефект как норму, покраснел на
+        `main` с #1090 (пред-существующее красное в семи прогонах #1090…#1099, ADR-982 § 6).
+        Имя сохранено намеренно: его читают сводки прошлых прогонов; содержание — теперь
+        положительный контроль ADR-969 в обе стороны (кто именно увидел каждую сцену).
+        """
         got = mod.lint_blindness(_REPO)
         self.assertTrue(got["measured"], got.get("reason"))
-        self.assertTrue(got["scenes"]["sdk_import"]["seen"])
-        self.assertFalse(got["scenes"]["subprocess_binary"]["seen"])
-        self.assertTrue(got["blind_to_subprocess"])
+        sdk, sub = got["scenes"]["sdk_import"], got["scenes"]["subprocess_binary"]
+        self.assertTrue(sdk["seen"])
+        self.assertIn("sdk_import_door", sdk["seen_by"])
+        self.assertTrue(sub["all_doors_asked"], sub.get("by_door"))
+        self.assertTrue(sub["seen"], sub.get("by_door"))
+        self.assertEqual(["subprocess_door"], sub["seen_by"])
+        self.assertIs(got["blind_to_subprocess"], False)
+        self.assertTrue(got["control_ok"])
 
     def test_missing_tool_is_a_third_outcome_not_zero_violations(self):
         with tempfile.TemporaryDirectory() as tmp:
@@ -324,8 +340,19 @@ class TestLiveVerdict(unittest.TestCase):
                 0, self.doc["llm"]["by_layer"][layer]["modules_reaching"], layer)
 
     def test_guard_blindness_is_reported_as_critical(self):
+        """Живое дерево НЕ несёт находки «сторож слеп к настоящей двери» — с ADR-969.
+
+        До ADR-969 тест требовал `assertIn`: прибор спрашивал одну дверь сторожа из двух
+        и печатал CRITICAL о слепоте по построению двенадцать циклов подряд (G947 п. 2 …
+        G957 п. 14). ADR-969 спросил вторую дверь — сцена запуска бинаря видна, находки
+        нет, и тест, закреплявший ложный CRITICAL как норму, покраснел на `main` с #1090.
+        Имя сохранено (его читают сводки прошлых прогонов); утверждение теперь обратное,
+        и его положительный контроль — `TestGuardBlindness.test_sdk_seen_and_subprocess_not`
+        (каждая сцена видна своей дверью). Возврат находки на живом дереве означал бы
+        регресс сторожа, а не его слепоту, и обязан краснеть здесь.
+        """
         codes = {f["code"] for f in self.doc["findings"]}
-        self.assertIn("guard_blind_to_real_door", codes)
+        self.assertNotIn("guard_blind_to_real_door", codes)
 
     def test_report_is_json_serialisable_and_declares_its_signatures(self):
         json.dumps(self.doc, ensure_ascii=False)
