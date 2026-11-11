@@ -17966,6 +17966,75 @@ def _probe_apy_name_carries_one_kind(arg: str | None, now=None) -> tuple[str, st
                        f"не измерено {len(sec.get('unmeasured') or [])}")
 
 
+def _probe_observation_period_covers_the_owner_events(
+        arg: str | None, *, repo_root: str | None = None,
+        data_dir: str | None = None) -> tuple[str, str]:
+    """Критерий §39 приказа владельца «Portfolio CIO» (ADR-985): период теневого наблюдения
+    СОДЕРЖИТ все восемь рыночных событий владельца (APY spike · stable opportunity · high gas ·
+    low gas · opportunity disappearing · incoming capital · risk block · no-action period) — каждое
+    с названным днём и доказательством у двери СИСТЕМЫ (полоса ADR-060, режим газа p25/p75,
+    горизонт судьи, гейт `target_fully_evidenced`/RiskPolicy), детекторы различают сцену с
+    событием и без, а критерий взвода (ADR-067) спрашивает о событиях хоть одним полем, а не
+    только о днях и исходах. Замер #1102 (98 дней журнала 06.08…11.11, газ 47 дн.): наблюдено
+    6 из 8 — НЕ было `stable opportunity` (самая долгая серия над полосой короче горизонта) и
+    `incoming capital` (капитал бумажной книги принимал одно значение); критерий взвода —
+    `days_and_outcomes_only`.
+
+    Меряется ИСХОДОМ по прибору §39 (`observation_period_census.run`): журнал ADR-060, история
+    газа и артефакт взвода читаются из `data_dir` как есть, ни одно число не считается заново.
+    Корень дерева — `repo_root` (карточка читается из него).
+
+    Три исхода:
+    * прибор не ввезён / паритет с карточкой не измерен / журнала нет / любое событие или
+      критерий срока `unmeasured` ⇒ `unmeasured`;
+    * паритет расходится, событие `never_observed`, детектор `indiscriminate`, критерий срока не
+      `events_in_criterion` ⇒ `not_satisfied` (события и причины названы, рост — рядом);
+    * все восемь событий `observed`, все детекторы различают, критерий спрашивает о событиях ⇒
+      `satisfied`.
+    """
+    if arg:
+        return UNMEASURED, (f"проба не принимает аргумента (дано {arg!r}): критерий "
+                            "назван целиком")
+    try:
+        from spa_core.analytics import observation_period_census as opc
+    except Exception as exc:  # noqa: BLE001 — нечем измерить ≠ «исполнено»
+        return UNMEASURED, f"прибор §39 не импортирован: {type(exc).__name__}: {exc}"
+    root = repo_root or REPO_ROOT
+    base = data_dir or os.path.join(root, "data")
+    doc = opc.run(root=root, data_dir=base, card_path=os.path.join(root, opc.CARD_REL), write=False)
+    parity = doc["parity"]
+    if parity["agrees"] is None:
+        return UNMEASURED, f"паритет с карточкой не измерен: {parity['parsed'].get('reason')} — НЕ ИЗМЕРЕНО"
+    events = doc["events"]
+    if len(events) != opc.OWNER_EVENTS_DECLARED:
+        return UNMEASURED, (f"прибор вернул {len(events)} событий из {opc.OWNER_EVENTS_DECLARED} объявленных "
+                            f"— НЕ ИЗМЕРЕНО")
+    unmeasured: dict[str, object] = {e: r.get("reason") for e, r in events.items() if r["kind"] == UNMEASURED}
+    if doc["criterion"]["kind"] == UNMEASURED:
+        unmeasured["критерий срока"] = doc["criterion"].get("reason")
+    if unmeasured:
+        return UNMEASURED, f"не измерено: {unmeasured} — НЕ ИЗМЕРЕНО"
+    bad: dict[str, str] = {}
+    if parity["agrees"] is False:
+        bad["карточка"] = "; ".join(parity["mismatches"])
+    for e, r in events.items():
+        if r["kind"] == "never_observed":
+            g = doc["growth"].get(e) or {}
+            bad[f"событие {e}"] = f"never_observed за {r.get('input_days')} дн. входа, рост {g.get('kind')}"
+    for e, ctl in doc["controls"].items():
+        if ctl["kind"] != "discriminates":
+            bad[f"детектор {e}"] = ctl["kind"]
+    if doc["criterion"]["kind"] != "events_in_criterion":
+        bad["критерий срока"] = (f"{doc['criterion']['kind']}: критерии {doc['criterion'].get('criteria')} — "
+                                 f"о событиях владельца не спрашивает ни одно поле")
+    if bad:
+        return NOT_SATISFIED, f"не исполнено: {bad}"
+    cov = doc["coverage"]
+    return SATISFIED, (f"все {cov['declared']} событий владельца наблюдены в периоде "
+                       f"({doc['availability']['journal']}), детекторы различают, критерий взвода "
+                       f"спрашивает о событиях ({doc['criterion'].get('criteria')})")
+
+
 def _probe_conservative_expected_apy_published(arg: str | None, now=None) -> tuple[str, str]:
     """Критерий §10/§11 приказа владельца «Portfolio CIO»: ЖИВОЙ ЦИКЛ печатает
     Conservative Expected APY, и у каждого непроизведённого числа НАЗВАНА причина.
@@ -18908,6 +18977,8 @@ PROBES: dict[str, Callable[[str | None], "tuple[str, str]"]] = {
         _probe_owner_scenes_pass_and_discriminate,
     "historical_replay_compares_the_owner_period":
         _probe_historical_replay_compares_the_owner_period,
+    "observation_period_covers_the_owner_events":
+        _probe_observation_period_covers_the_owner_events,
     "conservative_expected_apy_published":
         _probe_conservative_expected_apy_published,
     "marginal_apy_ladder_published": _probe_marginal_apy_ladder_published,
