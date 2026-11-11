@@ -1,0 +1,212 @@
+{
+ "title": "ADR-981 SMC — дельта цикла #1098: §35 «Paper APY cleanup» — паритет с карточкой (перечень пяти величин, строка «исправить или документировать», правило «без понятного определения», HTML-комментарий, вторая граница), отрезок ярлыка (разделители, скобка с процентом, «↳»), оценка определения (все три части, словарь носителя), носители (produced/absent, третий исход), поверхности (маркер взвешенной, рендер «год.», лучшая оценка), различимость (отрезок vs строка, порог коллизии, витрина, объяснённость, допуск), находки, проба приёмки",
+ "tests": [
+  "spa_core/tests/test_paper_apy_census.py"
+ ],
+ "mutations": [
+  {
+   "name": "M01 паритет слеп к перечню величин — карточка с иным перечнем проходит как совпавшая",
+   "file": "spa_core/analytics/paper_apy_census.py",
+   "old": "    elif list(q) != list(OWNER_QUANTITIES):",
+   "new": "    elif False:"
+  },
+  {
+   "name": "M02 паритет не требует строки «исправить или документировать»",
+   "file": "spa_core/analytics/paper_apy_census.py",
+   "old": "    if not parsed.get(\"lead_present\"):",
+   "new": "    if False:"
+  },
+  {
+   "name": "M03 паритет не требует правила «без понятного определения»",
+   "file": "spa_core/analytics/paper_apy_census.py",
+   "old": "    if not parsed.get(\"rule_present\"):",
+   "new": "    if False:"
+  },
+  {
+   "name": "M04 перечень читается без строки «Owner должен четко видеть различие» (с начала раздела)",
+   "file": "spa_core/analytics/paper_apy_census.py",
+   "old": "    if start is None:\n        return None\n    out: List[str] = []",
+   "new": "    if start is None:\n        start = -1\n    out: List[str] = []"
+  },
+  {
+   "name": "M05 HTML-комментарий карточки засчитывается величиной",
+   "file": "spa_core/analytics/paper_apy_census.py",
+   "old": "        if not s or s.startswith(\"<!--\"):",
+   "new": "        if not s:"
+  },
+  {
+   "name": "M06 без второй границы раздел читается до конца карточки",
+   "file": "spa_core/analytics/paper_apy_census.py",
+   "old": "    if end is None:\n        return None, (f\"найден {SECTION_HEAD!r}, но НЕ найдена вторая граница \"",
+   "new": "    if end is None:\n        end = len(lines)\n    if False:\n        return None, (f\"найден {SECTION_HEAD!r}, но НЕ найдена вторая граница \""
+  },
+  {
+   "name": "M07 отрезок ярлыка не режется разделителем — слово соседней величины засчитывается",
+   "file": "spa_core/analytics/paper_apy_census.py",
+   "old": "    for stop in _SEGMENT_STOPS:\n        j = rest.find(stop, len(label))",
+   "new": "    for stop in ():\n        j = rest.find(stop, len(label))"
+  },
+  {
+   "name": "M08 скобка с числом-процентом считается определением этой величины",
+   "file": "spa_core/analytics/paper_apy_census.py",
+   "old": "        if _PCT_VALUE_RE.search(inner):\n            cut = k\n            break",
+   "new": "        if False:\n            cut = k\n            break"
+  },
+  {
+   "name": "M09 оценка defined при любой ОДНОЙ части, а не при всех трёх",
+   "file": "spa_core/analytics/paper_apy_census.py",
+   "old": "    if all(parts.get(p) for p in DEFINITION_PARTS):\n        return \"defined\"",
+   "new": "    if any(parts.get(p) for p in DEFINITION_PARTS):\n        return \"defined\""
+  },
+  {
+   "name": "M10 продолжение «↳» не читается",
+   "file": "spa_core/analytics/paper_apy_census.py",
+   "old": "            if nxt.strip().startswith(\"↳\"):\n                chunk += \"\\n\" + nxt",
+   "new": "            if False:\n                chunk += \"\\n\" + nxt"
+  },
+  {
+   "name": "M11 часть «род» у словаря носителя засчитывается всегда",
+   "file": "spa_core/analytics/paper_apy_census.py",
+   "old": "    parts = {\"род\": bool(keys & set(DICT_KIND_KEYS)),",
+   "new": "    parts = {\"род\": True,"
+  },
+  {
+   "name": "M12 часть «метод» у словаря носителя засчитывается всегда",
+   "file": "spa_core/analytics/paper_apy_census.py",
+   "old": "             \"метод\": bool(keys & set(DICT_METHOD_KEYS))}\n    return {\"grade\": _grade(parts), \"parts\": parts, \"keys\"",
+   "new": "             \"метод\": True}\n    return {\"grade\": _grade(parts), \"parts\": parts, \"keys\""
+  },
+  {
+   "name": "M13 носитель без числа считается произведённым",
+   "file": "spa_core/analytics/paper_apy_census.py",
+   "old": "        present = _num(value)\n        out[cid] = {\"value\": value if present else None, \"state\": \"produced\" if present else \"absent\",",
+   "new": "        present = _num(value)\n        out[cid] = {\"value\": value if present else None, \"state\": \"produced\","
+  },
+  {
+   "name": "M14 третий исход по барам объявляется, а не читается",
+   "file": "spa_core/analytics/paper_apy_census.py",
+   "old": "    third = (\"наблюдён (None в барах отличим от значения)\" if nulls else",
+   "new": "    third = (\"наблюдён (None в барах отличим от значения)\" if True else"
+  },
+  {
+   "name": "M15 взвешенная ставка доходит до отчёта по числу, а не по маркеру",
+   "file": "spa_core/analytics/paper_apy_census.py",
+   "old": "        marker_present = None if report_text is None else (sec[\"label\"].lower() in report_text.lower())",
+   "new": "        marker_present = None if report_text is None else (out[\"digest\"].get(\"value_in_text\") is True)"
+  },
+  {
+   "name": "M16 ярлык «год.» не узнаёт рендер в один знак",
+   "file": "spa_core/analytics/paper_apy_census.py",
+   "old": "        if value_in_text is not True and spec[\"digest_labels\"] == (\"год.\",):",
+   "new": "        if False:"
+  },
+  {
+   "name": "M17 лучшая оценка по поверхностям берётся первой попавшейся, а не лучшей",
+   "file": "spa_core/analytics/paper_apy_census.py",
+   "old": "    order = (\"defined\", \"partial\", \"bare\")",
+   "new": "    order = (\"bare\", \"partial\", \"defined\")"
+  },
+  {
+   "name": "M18 величина без ни одного носителя считается произведённой",
+   "file": "spa_core/analytics/paper_apy_census.py",
+   "old": "        if any(s == \"produced\" for s in states):\n            kind = \"produced\"",
+   "new": "        if True:\n            kind = \"produced\""
+  },
+  {
+   "name": "M19 коллизия слова судится всей строкой, а не отрезком ярлыка",
+   "file": "spa_core/analytics/paper_apy_census.py",
+   "old": "            for seg in (d.get(\"definition\") or {}).get(\"segments\") or []:",
+   "new": "            for seg in (d.get(\"definition\") or {}).get(\"lines\") or []:"
+  },
+  {
+   "name": "M20 коллизия требует трёх носителей, а не двух",
+   "file": "spa_core/analytics/paper_apy_census.py",
+   "old": "        collisions[word] = {\"bearers\": bearers, \"collides\": len(bearers) > 1}",
+   "new": "        collisions[word] = {\"bearers\": bearers, \"collides\": len(bearers) > 2}"
+  },
+  {
+   "name": "M21 витрина не участвует в коллизии слов",
+   "file": "spa_core/analytics/paper_apy_census.py",
+   "old": "            if sh.get(\"reach\") and shelf is not None:",
+   "new": "            if False:"
+  },
+  {
+   "name": "M22 разброс одной величины считается объяснённым всегда",
+   "file": "spa_core/analytics/paper_apy_census.py",
+   "old": "            explained = any(q[\"surfaces\"][s].get(\"definition\", {}).get(\"grade\") == \"defined\" for s in vals)",
+   "new": "            explained = True"
+  },
+  {
+   "name": "M23 порог разброса бесконечен — два числа никогда не расходятся",
+   "file": "spa_core/analytics/paper_apy_census.py",
+   "old": "                                 \"diverges\": spread > DIVERGENCE_TOLERANCE_PP, \"explained_by_definition\": explained}",
+   "new": "                                 \"diverges\": False, \"explained_by_definition\": explained}"
+  },
+  {
+   "name": "M24 величина без поверхности владельца не находка",
+   "file": "spa_core/analytics/paper_apy_census.py",
+   "old": "        if not reach:\n            add(\"CRITICAL\", f\"quantity_not_on_owner_surface:{name}\",",
+   "new": "        if False:\n            add(\"CRITICAL\", f\"quantity_not_on_owner_surface:{name}\","
+  },
+  {
+   "name": "M25 величина с частичным определением проходит как определённая",
+   "file": "spa_core/analytics/paper_apy_census.py",
+   "old": "        elif grade != \"defined\":\n            where = \", \".join(",
+   "new": "        elif grade == \"никогда\":\n            where = \", \".join("
+  },
+  {
+   "name": "M26 форма ADR-488 (определение теряется в слое отображения) не называется",
+   "file": "spa_core/analytics/paper_apy_census.py",
+   "old": "        if dig.get(\"reach\") and dd and dd.get(\"grade\") == \"defined\" and dig[\"definition\"].get(\"grade\") != \"defined\":",
+   "new": "        if False:"
+  },
+  {
+   "name": "M27 разный знак net/gross у реплея не называется",
+   "file": "spa_core/analytics/paper_apy_census.py",
+   "old": "        if rep and _num(rep.get(\"gross_current\")) and _num(rep.get(\"value\")) \\",
+   "new": "        if False and _num(rep.get(\"gross_current\")) and _num(rep.get(\"value\")) \\"
+  },
+  {
+   "name": "M28 коллизия слова печатается INFO, а не CRITICAL",
+   "file": "spa_core/analytics/paper_apy_census.py",
+   "old": "        if c[\"collides\"]:\n            add(\"CRITICAL\", f\"one_word_two_quantities:{word}\",",
+   "new": "        if c[\"collides\"]:\n            add(\"INFO\", f\"one_word_two_quantities:{word}\","
+  },
+  {
+   "name": "M29 необъяснённый разброс одной величины не находка",
+   "file": "spa_core/analytics/paper_apy_census.py",
+   "old": "        if d[\"diverges\"] and not d[\"explained_by_definition\"]:",
+   "new": "        if False:"
+  },
+  {
+   "name": "M30 документ формулы считается дошедшим до владельца всегда",
+   "file": "spa_core/analytics/paper_apy_census.py",
+   "old": "        elif report_text is not None and DOC_MARKER not in report_text:",
+   "new": "        elif False:"
+  },
+  {
+   "name": "M31 устаревший реплей считается свежим",
+   "file": "spa_core/analytics/paper_apy_census.py",
+   "old": "        if fr.get(\"fresh\") is False:\n            add(\"WARN\", f\"stale:{key}\", f\"{label}: {fr['age_hours']} ч при SLO {fr['slo_hours']} ч (отметка {fr['stamp']})\")",
+   "new": "        if False:\n            add(\"WARN\", f\"stale:{key}\", f\"{label}: {fr['age_hours']} ч при SLO {fr['slo_hours']} ч (отметка {fr['stamp']})\")"
+  },
+  {
+   "name": "M32 сводка «объявлено/с определением» не печатается",
+   "file": "spa_core/analytics/paper_apy_census.py",
+   "old": "        if rest:\n            add(\"CRITICAL\", \"quantities_declared_vs_defined\",",
+   "new": "        if False:\n            add(\"CRITICAL\", \"quantities_declared_vs_defined\","
+  },
+  {
+   "name": "M33 проба: величина без определения не мешает satisfied",
+   "file": "spa_core/monitoring/card_acceptance.py",
+   "old": "    if undefined or collisions or divergent:",
+   "new": "    if collisions or divergent:"
+  },
+  {
+   "name": "M34 проба: непрочитанная витрина даёт вердикт, а не НЕ ИЗМЕРЕНО",
+   "file": "spa_core/monitoring/card_acceptance.py",
+   "old": "    for key, rel in ((\"daily\", pac.TRACK_REL), (\"records\", pac.RECORD_REL), (\"shelf\", pac.SHELF_REL)):",
+   "new": "    for key, rel in ((\"daily\", pac.TRACK_REL), (\"records\", pac.RECORD_REL)):"
+  }
+ ]
+}

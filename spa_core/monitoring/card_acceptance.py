@@ -18598,6 +18598,73 @@ def _probe_daily_report_carries_every_cio_item(
                        f"утреннего отчёта владельцу: {items.get('reach_report_names')}")
 
 
+def _probe_paper_apy_quantities_defined_and_distinct(
+        arg: str | None, *, data_dir: str | None = None) -> tuple[str, str]:
+    """Критерий §35 приказа владельца «Portfolio CIO» (ADR-981): у КАЖДОЙ из пяти величин
+    владельца (Current displayed weighted APY · Expected Net APY · Realized APY · 7-day
+    realized/estimated APY · Optimal policy-compliant APY) есть ПРОИЗВОДИТЕЛЬ, на поверхности
+    владельца (утренний отчёт · слой дашборда · витрина чисел) она стои́т с ОПРЕДЕЛЕНИЕМ
+    (род · окно · метод), и величины РАЗЛИЧИМЫ: одно слово не носит двух величин, одна величина
+    не ходит двумя числами без объяснения. Замер #1098: производится 5 из 5, с определением 1
+    (Realized — на витрине), слово «paper» носит ДВЕ величины (начисленную ставку дня в отчёте и
+    годовой эквивалент за период на витрине), «current» ходит двумя числами (отчёт/дашборд).
+
+    Меряется ИСХОДОМ по прибору §35 (`paper_apy_census.run`) на живом каталоге данных: отчёт
+    СОБИРАЕТСЯ настоящим сборщиком (`drain=False`, ничего не пишется), витрина и снимок читаются
+    от корня — родителя `data_dir`. Свежесть — отдельный вопрос, пробой не судится. Исполнителем
+    критерия будет определение рядом с каждым числом и один словарь имён, а не прибор.
+
+    Три исхода:
+    * прибор не ввезён / трек или лента не прочитаны / отчёт не собран / витрина не прочитана /
+      род величины `unmeasured` ⇒ `unmeasured`;
+    * хотя бы одна величина без `defined` на поверхности владельца, либо коллизия слова, либо
+      необъяснённый разброс ⇒ `not_satisfied` (величины и роды названы);
+    * все пять `defined`, коллизий нет, разбросы объяснены ⇒ `satisfied`.
+    """
+    if arg:
+        return UNMEASURED, (f"проба не принимает аргумента (дано {arg!r}): критерий "
+                            "назван целиком")
+    try:
+        from spa_core.analytics import paper_apy_census as pac
+    except Exception as exc:  # noqa: BLE001 — нечем измерить ≠ «исполнено»
+        return UNMEASURED, f"прибор §35 не импортирован: {type(exc).__name__}: {exc}"
+    base = data_dir or os.path.join(REPO_ROOT, "data")
+    root = os.path.dirname(base.rstrip(os.sep)) or REPO_ROOT
+    doc = pac.run(root=root, data_dir=base, card_path=os.path.join(root, pac.CARD_REL),
+                  write=False)
+    read = doc.get("carriers_read") or {}
+    for key, rel in (("daily", pac.TRACK_REL), ("records", pac.RECORD_REL), ("shelf", pac.SHELF_REL)):
+        if not read.get(key):
+            return UNMEASURED, f"носитель {rel} в {base}/{root} не прочитан — НЕ ИЗМЕРЕНО"
+    measured = doc.get("measured") or {}
+    if not measured.get("report_built"):
+        return UNMEASURED, (f"утренний отчёт владельцу не собран: "
+                            f"{(doc.get('report') or {}).get('reason')} — НЕ ИЗМЕРЕНО")
+    rows = measured.get("quantities") or {}
+    if len(rows) != pac.OWNER_QUANTITIES_DECLARED:
+        return UNMEASURED, (f"прибор вернул {len(rows)} величин из "
+                            f"{pac.OWNER_QUANTITIES_DECLARED} объявленных — НЕ ИЗМЕРЕНО")
+    unmeasured = {n: [c.get("reason") for c in r.get("carriers") or []]
+                  for n, r in rows.items() if r.get("kind") == UNMEASURED or r.get("definition_grade") == UNMEASURED}
+    if unmeasured:
+        return UNMEASURED, f"род или определение величины не измерены: {unmeasured} — НЕ ИЗМЕРЕНО"
+    distinct = doc.get("distinctness") or {}
+    collisions = {w: list(c.get("bearers") or {}) for w, c in (distinct.get("collisions") or {}).items()
+                  if c.get("collides")}
+    divergent = {n: d.get("values") for n, d in (distinct.get("divergences") or {}).items()
+                 if d.get("diverges") and not d.get("explained_by_definition")}
+    undefined = {n: r.get("definition_grade") for n, r in rows.items()
+                 if r.get("definition_grade") != "defined"}
+    if undefined or collisions or divergent:
+        return NOT_SATISFIED, (f"из {pac.OWNER_QUANTITIES_DECLARED} величин производится "
+                               f"{measured.get('produced')}, на поверхности владельца "
+                               f"{measured.get('on_owner_surface')}, с определением {measured.get('defined')}; "
+                               f"без определения: {undefined}; слово носит две величины: {collisions}; "
+                               f"одна величина — два числа без объяснения: {divergent}")
+    return SATISFIED, (f"все {pac.OWNER_QUANTITIES_DECLARED} величин владельца определены на поверхности "
+                       f"владельца, коллизий слов нет, разбросы объяснены: {list(rows)}")
+
+
 PROBES: dict[str, Callable[[str | None], "tuple[str, str]"]] = {
     "apy_name_carries_one_kind": _probe_apy_name_carries_one_kind,
     "shadow_record_carries_the_system_action":
@@ -18611,6 +18678,8 @@ PROBES: dict[str, Callable[[str | None], "tuple[str, str]"]] = {
         _probe_every_declared_portfolio_kpi_has_a_producer,
     "daily_report_carries_every_cio_item":
         _probe_daily_report_carries_every_cio_item,
+    "paper_apy_quantities_defined_and_distinct":
+        _probe_paper_apy_quantities_defined_and_distinct,
     "conservative_expected_apy_published":
         _probe_conservative_expected_apy_published,
     "marginal_apy_ladder_published": _probe_marginal_apy_ladder_published,
