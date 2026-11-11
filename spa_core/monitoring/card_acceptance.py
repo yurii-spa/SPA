@@ -18035,6 +18035,78 @@ def _probe_observation_period_covers_the_owner_events(
                        f"спрашивает о событиях ({doc['criterion'].get('criteria')})")
 
 
+def _probe_release_stage_is_declared_and_matches_behaviour(
+        arg: str | None, *, repo_root: str | None = None,
+        data_dir: str | None = None) -> tuple[str, str]:
+    """Критерий §40 приказа владельца «Portfolio CIO» (ADR-986): система ОБЪЯВЛЯЕТ, на какой
+    ступени лестницы владельца (Stage 0 Diagnosis only · 1 Shadow CIO · 2 Owner-approved
+    execution · 3 Limited auto-execution · 4 Policy-bounded autonomous rebalancing) она стои́т —
+    полем хоть одного артефакта `data/*.json` словарём владельца, — и объявление СОГЛАСНО с
+    поведением: запись взведённой книги (ADR-324/328 — её вердикт РЕШАЕТ перекладку) не
+    подписана `SHADOW` / «ADVISORY: no position was changed by it», а строки журнала ADR-060
+    несут поле стадии/взвода, по которому решающий вердикт отличим от советующего. Замер #1103
+    (три книги взведены 11.09, журналов 2869 строк, артефактов 738): стадию не объявляет никто,
+    все три записи подписаны `SHADOW`, поле стадии не несёт ни одна строка.
+
+    Меряется ИСХОДОМ по прибору §40 (`release_stage_census.run`): карточка — из `repo_root`,
+    журналы, записи и артефакты (§41, ADR-067, готовность) — из `data_dir` как есть; ни одно
+    число не считается заново. Взвод при `ready_to_arm=False` — решение владельца и пробой НЕ
+    судится (прибор несёт его INFO).
+
+    Три исхода:
+    * прибор не ввезён / паритет с карточкой не измерен / объявление не измерено / поведение
+      любой книги или поля журнала `unmeasured` ⇒ `unmeasured`;
+    * паритет расходится, стадия не объявлена, ярлык любой книги противоречит поведению,
+      поля стадии в журнале нет ⇒ `not_satisfied` (пункты названы);
+    * стадия объявлена словарём владельца, все ярлыки согласны, журнал несёт поле ⇒ `satisfied`.
+    """
+    if arg:
+        return UNMEASURED, (f"проба не принимает аргумента (дано {arg!r}): критерий "
+                            "назван целиком")
+    try:
+        from spa_core.analytics import release_stage_census as rsc
+    except Exception as exc:  # noqa: BLE001 — нечем измерить ≠ «исполнено»
+        return UNMEASURED, f"прибор §40 не импортирован: {type(exc).__name__}: {exc}"
+    root = repo_root or REPO_ROOT
+    base = data_dir or os.path.join(root, "data")
+    doc = rsc.run(root=root, data_dir=base, card_path=os.path.join(root, rsc.CARD_REL), write=False)
+    parity = doc["parity"]
+    if parity["agrees"] is None:
+        return UNMEASURED, f"паритет с карточкой не измерен: {parity['parsed'].get('reason')} — НЕ ИЗМЕРЕНО"
+    unmeasured: dict[str, object] = {}
+    if doc["declaration"]["kind"] == UNMEASURED:
+        unmeasured["объявление стадии"] = doc["declaration"].get("reason")
+    for book, b in doc["books"].items():
+        if b["behaviour"] == UNMEASURED:
+            unmeasured[f"книга {book}"] = b.get("reason")
+    for book, lb in doc["labels"].items():
+        if lb["kind"] == UNMEASURED:
+            unmeasured[f"ярлык {book}"] = lb.get("reason")
+    if doc["record_fields"]["kind"] == UNMEASURED:
+        unmeasured["поля стадии в журнале"] = doc["record_fields"].get("reason")
+    if unmeasured:
+        return UNMEASURED, f"не измерено: {unmeasured} — НЕ ИЗМЕРЕНО"
+    bad: dict[str, str] = {}
+    if parity["agrees"] is False:
+        bad["карточка"] = "; ".join(parity["mismatches"])
+    decl = doc["declaration"]
+    if decl["kind"] != "declared":
+        bad["объявление стадии"] = (f"{decl['kind']}: из {decl['files']} артефактов ни один не несёт стадию словарём "
+                                   f"владельца; словарей режима {len(decl['vocabularies'])}")
+    for book, lb in doc["labels"].items():
+        if lb["kind"] == "contradicts":
+            bad[f"ярлык {book}"] = lb.get("detail") or "contradicts"
+    rf = doc["record_fields"]
+    if rf["kind"] != "carried":
+        bad["поля стадии в журнале"] = rf.get("detail") or rf["kind"]
+    if bad:
+        return NOT_SATISFIED, f"не исполнено: {bad}"
+    shapes = {book: b["stage_shape"] for book, b in doc["books"].items()}
+    return SATISFIED, (f"стадия объявлена словарём владельца ({[d['file'] + ':' + d['key'] for d in decl['declaring']]}), "
+                       f"ярлыки всех книг согласны с поведением (формы {shapes}), журнал несёт поле стадии "
+                       f"({rf['by_field']})")
+
+
 def _probe_conservative_expected_apy_published(arg: str | None, now=None) -> tuple[str, str]:
     """Критерий §10/§11 приказа владельца «Portfolio CIO»: ЖИВОЙ ЦИКЛ печатает
     Conservative Expected APY, и у каждого непроизведённого числа НАЗВАНА причина.
@@ -18979,6 +19051,8 @@ PROBES: dict[str, Callable[[str | None], "tuple[str, str]"]] = {
         _probe_historical_replay_compares_the_owner_period,
     "observation_period_covers_the_owner_events":
         _probe_observation_period_covers_the_owner_events,
+    "release_stage_is_declared_and_matches_behaviour":
+        _probe_release_stage_is_declared_and_matches_behaviour,
     "conservative_expected_apy_published":
         _probe_conservative_expected_apy_published,
     "marginal_apy_ladder_published": _probe_marginal_apy_ladder_published,
