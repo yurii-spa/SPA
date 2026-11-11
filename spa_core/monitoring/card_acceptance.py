@@ -18802,6 +18802,91 @@ def _probe_owner_scenes_pass_and_discriminate(
                        f"найден; двери {tally.get('door')}")
 
 
+def _probe_historical_replay_compares_the_owner_period(
+        arg: str | None, *, repo_root: str | None = None,
+        data_dir: str | None = None) -> tuple[str, str]:
+    """Критерий §38 приказа владельца «Portfolio CIO» (ADR-984): реплей сравнивает Current
+    Strategy с Portfolio CIO Shadow Strategy по ВСЕМ девяти осям владельца (Net APY · Realized
+    Return · Gas · Fees · Turnover · Risk Events · Max Concentration · False Rebalances · Missed
+    Opportunities), без look-ahead (сценой на живых дверях, не комментарием), на популяции, которую
+    сам реплей согласен утверждать и которая способна расти, и считает главную цель владельца —
+    `risk-adjusted realized net return`. Замер #1101: осей carried 7 / partial 2 (Risk Events —
+    только потолок концентрации; False Rebalances — только у живой книги), цель НЕ считается
+    (слагаемые есть), look-ahead causal 2/2, популяция 7 общих дней из 188 пар (3,7 %), последний
+    общий день 15.08 и вырасти она НЕ МОЖЕТ: книга руки тени держит `pendle`, у которого нет цены
+    с 06.09.
+
+    Меряется ИСХОДОМ по прибору §38 (`historical_replay_census.run`): реплей `cio_shadow_replay`
+    гоняется на КОПИИ своих входов из `data_dir` с `write=False`, живой `data/` реплею не
+    отдаётся; ни одно число не считается заново (итог реплея переносится). Корень дерева —
+    `repo_root` (карточка и конституция читаются из него), каталог данных — `data_dir`.
+
+    Три исхода:
+    * прибор не ввезён / паритет с карточкой не измерен / реплей не прогнан / любая ось, цель,
+      сцена look-ahead или популяция `unmeasured` ⇒ `unmeasured`;
+    * паритет расходится, ось не `carried`, цель не `computed`, сцена `leaks`, популяция
+      `cannot_grow`/`empty`, либо реплей сам отказывается утверждать вывод ⇒ `not_satisfied`
+      (оси и причины названы);
+    * все девять осей `carried`, цель `computed`, обе сцены `causal`, популяция `can_grow` и
+      реплей свой вывод утверждает ⇒ `satisfied`.
+    """
+    if arg:
+        return UNMEASURED, (f"проба не принимает аргумента (дано {arg!r}): критерий "
+                            "назван целиком")
+    try:
+        from spa_core.analytics import historical_replay_census as hrc
+    except Exception as exc:  # noqa: BLE001 — нечем измерить ≠ «исполнено»
+        return UNMEASURED, f"прибор §38 не импортирован: {type(exc).__name__}: {exc}"
+    root = repo_root or REPO_ROOT
+    base = data_dir or os.path.join(root, "data")
+    doc = hrc.run(root=root, data_dir=base, card_path=os.path.join(root, hrc.CARD_REL), write=False)
+    parity = doc["parity"]
+    if parity["agrees"] is None:
+        return UNMEASURED, f"паритет с карточкой не измерен: {parity['parsed'].get('reason')} — НЕ ИЗМЕРЕНО"
+    if not doc["replay"]["measured"]:
+        return UNMEASURED, f"реплей не прогнан: {doc['replay'].get('reason')} — НЕ ИЗМЕРЕНО"
+    axes = doc["axes"]
+    if len(axes) != hrc.OWNER_AXES_DECLARED:
+        return UNMEASURED, (f"прибор вернул {len(axes)} осей из {hrc.OWNER_AXES_DECLARED} объявленных "
+                            f"— НЕ ИЗМЕРЕНО")
+    unmeasured: dict[str, object] = {}
+    unmeasured.update({f"ось {a}": r.get("reason") for a, r in axes.items() if r["kind"] == UNMEASURED})
+    if doc["goal"]["kind"] == UNMEASURED:
+        unmeasured["цель"] = doc["goal"].get("reason")
+    unmeasured.update({f"look-ahead {n}": r.get("reason") for n, r in doc["lookahead"].items()
+                       if r["kind"] == UNMEASURED})
+    if doc["population"]["kind"] == UNMEASURED:
+        unmeasured["популяция"] = doc["population"].get("reason")
+    if doc["population"].get("replay_refuses_claim") is None:
+        unmeasured["порог реплея"] = doc["population"].get("reason_refusal_unmeasured")
+    if unmeasured:
+        return UNMEASURED, f"не измерено: {unmeasured} — НЕ ИЗМЕРЕНО"
+    bad: dict[str, str] = {}
+    if parity["agrees"] is False:
+        bad["карточка"] = "; ".join(parity["mismatches"])
+    for a, r in axes.items():
+        if r["kind"] != "carried":
+            bad[f"ось {a}"] = f"{r['kind']}: {r.get('narrowing') or r.get('reason')}"
+    if doc["goal"]["kind"] != "computed":
+        bad["цель"] = f"{doc['goal']['kind']}: {doc['goal'].get('reason')}"
+    for n, r in doc["lookahead"].items():
+        if r["kind"] != "causal":
+            bad[f"look-ahead {n}"] = r["kind"]
+    pop = doc["population"]
+    if pop["kind"] != "can_grow":
+        bad["популяция"] = (f"{pop['kind']}: общих {pop.get('common_scored_days')} из {pop.get('day_pairs')} пар, "
+                            f"без цены в последней записи {pop.get('hold_book_unpriced_in_last_record')}")
+    if pop["replay_refuses_claim"] is True:
+        bad["вывод реплея"] = (f"реплей сам отказывается утверждать на {pop['common_scored_days']} < "
+                               f"{pop['replay_min_common_days']} общих днях")
+    if bad:
+        return NOT_SATISFIED, (f"§38 не исполнен по {len(bad)} пунктам: {bad}; оси {doc['axes_tally']}")
+    return SATISFIED, (f"все {hrc.OWNER_AXES_DECLARED} осей владельца несёт реплей, цель "
+                       f"{hrc.OWNER_GOAL_METRIC!r} считается, look-ahead causal {len(doc['lookahead'])}/"
+                       f"{len(doc['lookahead'])}, популяция {pop['common_scored_days']} общих дней из "
+                       f"{pop['day_pairs']} и способна расти; оси {doc['axes_tally']}")
+
+
 PROBES: dict[str, Callable[[str | None], "tuple[str, str]"]] = {
     "apy_name_carries_one_kind": _probe_apy_name_carries_one_kind,
     "shadow_record_carries_the_system_action":
@@ -18821,6 +18906,8 @@ PROBES: dict[str, Callable[[str | None], "tuple[str, str]"]] = {
         _probe_owner_main_screen_is_owner_first,
     "owner_scenes_pass_and_discriminate":
         _probe_owner_scenes_pass_and_discriminate,
+    "historical_replay_compares_the_owner_period":
+        _probe_historical_replay_compares_the_owner_period,
     "conservative_expected_apy_published":
         _probe_conservative_expected_apy_published,
     "marginal_apy_ladder_published": _probe_marginal_apy_ladder_published,
