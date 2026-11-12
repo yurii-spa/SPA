@@ -1,0 +1,149 @@
+{
+ "adr": "ADR-989",
+ "cycle": "#1106 (cycle-1106)",
+ "date": "2026-11-12",
+ "tree": "/private/tmp/spa_mut_1106",
+ "module": "spa_core/monitoring/decision_audit_trail.py",
+ "battery": "spa_core/tests/test_decision_audit_trail.py",
+ "module_md5_under_test": "8cfcee99515e3179495fe254f82a103a",
+ "note": "мутации координат ADR-989 (ось «решение ↔ исполнено», ступени между записями по AST, стадия/взвод); каждая — подмена байтов на месте в ОТДЕЛЬНОМ дереве, возврат в finally и сверка md5; мутация, ломающая сборку, не засчитывается (BROKE_BUILD); выжившая записывается, тест ради неё не «усиливается» задним числом (урок #1104 M15) M13 не применилась (якорь `or 0` исчез при починке по храповику #17) и перемерена M13b на новом якоре.",
+ "summary": {
+  "applied": 18,
+  "killed": 16,
+  "survived": 2,
+  "not_applied": 1,
+  "broke_build": 0
+ },
+ "survivors": [
+  {
+   "id": "M15",
+   "name": "M15 порог цента снят: любое ненулевое расхождение — зазор",
+   "status": "SURVIVED",
+   "tail": "75 passed in 0.32s"
+  },
+  {
+   "id": "M18",
+   "name": "M18 стадия: событие без словаря в data, но с полем на верхнем уровне, не считается",
+   "status": "SURVIVED",
+   "tail": "75 passed in 0.32s"
+  }
+ ],
+ "mutations": [
+  {
+   "id": "M01",
+   "name": "M01 ось зазора: расхождение позиций никогда не записывается (всё consistent)",
+   "status": "KILLED",
+   "tail": "1 failed, 41 passed in 0.24s"
+  },
+  {
+   "id": "M02",
+   "name": "M02 ось зазора: любая книга в событии цепочки «объясняет» (равенство не спрашивается)",
+   "status": "KILLED",
+   "tail": "1 failed, 42 passed in 0.23s"
+  },
+  {
+   "id": "M03",
+   "name": "M03 ось зазора: предложение и сам ход допускаются как носители переписанной цели",
+   "status": "KILLED",
+   "tail": "1 failed, 41 passed in 0.23s"
+  },
+  {
+   "id": "M04",
+   "name": "M04 проводка: полная объяснимость не спрашивает зазор",
+   "status": "KILLED",
+   "tail": "1 failed, 53 passed in 0.24s"
+  },
+  {
+   "id": "M05",
+   "name": "M05 третий исход: нет предложения ⇒ considered consistent",
+   "status": "KILLED",
+   "tail": "1 failed, 47 passed in 0.24s"
+  },
+  {
+   "id": "M06",
+   "name": "M06 AST: отрезок между записями не ограничен (считаются все присваивания)",
+   "status": "KILLED",
+   "tail": "1 failed, 56 passed in 0.25s"
+  },
+  {
+   "id": "M07",
+   "name": "M07 AST: любое событие между записями считается несущим цель",
+   "status": "KILLED",
+   "tail": "1 failed, 59 passed in 0.25s"
+  },
+  {
+   "id": "M08",
+   "name": "M08 AST: носитель записи трима всегда признаётся дверью трейла",
+   "status": "KILLED",
+   "tail": "1 failed, 62 passed in 0.25s"
+  },
+  {
+   "id": "M09",
+   "name": "M09 стадия: поле засчитывается, только если несутся ВСЕ поля словаря",
+   "status": "KILLED",
+   "tail": "1 failed, 68 passed in 0.27s"
+  },
+  {
+   "id": "M10",
+   "name": "M10 стадия: отсутствие словаря печатается нулём, а не None",
+   "status": "KILLED",
+   "tail": "1 failed, 67 passed in 0.27s"
+  },
+  {
+   "id": "M11",
+   "name": "M11 судья: расхождение без причины понижено до WARN",
+   "status": "KILLED",
+   "tail": "1 failed, 48 passed in 0.23s"
+  },
+  {
+   "id": "M12",
+   "name": "M12 критерий: зазор не называется в причине NOT_SATISFIED",
+   "status": "KILLED",
+   "tail": "1 failed, 53 passed in 0.26s"
+  },
+  {
+   "id": "M13",
+   "name": "M13 худшее расхождение: выбирается наименьшее",
+   "status": "NOT_APPLIED",
+   "tail": "якорь найден 0 раз"
+  },
+  {
+   "id": "M14",
+   "name": "M14 судья: в счёте печатается n вместо u",
+   "status": "KILLED",
+   "tail": "1 failed, 48 passed in 0.25s"
+  },
+  {
+   "id": "M15",
+   "name": "M15 порог цента снят: любое ненулевое расхождение — зазор",
+   "status": "SURVIVED",
+   "tail": "75 passed in 0.32s"
+  },
+  {
+   "id": "M16",
+   "name": "M16 AST: присваивание цели не записывается в ступени",
+   "status": "KILLED",
+   "tail": "1 failed, 55 passed in 0.26s"
+  },
+  {
+   "id": "M17",
+   "name": "M17 судья оси не зовётся вовсе",
+   "status": "KILLED",
+   "tail": "1 failed, 44 passed in 0.25s"
+  },
+  {
+   "id": "M18",
+   "name": "M18 стадия: событие без словаря в data, но с полем на верхнем уровне, не считается",
+   "status": "SURVIVED",
+   "tail": "75 passed in 0.32s"
+  },
+  {
+   "id": "M13b",
+   "name": "M13b худшее расхождение: выбирается наименьшее (якорь после починки `or 0` → `observed_number`; M13 первой редакции не применилась — якорь исчез при починке храповика #17)",
+   "status": "KILLED",
+   "tail": "1 failed, 50 passed in 0.24s"
+  }
+ ],
+ "final_battery_after_restore": "75 passed in 0.29s",
+ "generated_at": "2026-11-12T05:48:27.811550+00:00"
+}

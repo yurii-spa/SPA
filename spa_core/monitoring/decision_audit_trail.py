@@ -37,6 +37,25 @@
 — он именует ПРОГОН. Это измерение, а не рассуждение, и оно краснеет само,
 если производителя однажды починят.
 
+«Каждое решение должно быть воспроизводимо» — ось ADR-989 (цикл #1106)
+=======================================================================
+Девять полей отвечают на вопрос «что сохранено». Первая строка §43 задаёт
+другой: воспроизводимо ли решение. Трейл записывает решение ОДИН раз — на
+Step 2 (`allocation_proposal.target_usd`) — и ход ОДИН раз — на Step 3
+(`trade_executed.to_allocation`); между ними живой цикл переписывает цель
+ступенями (RiskPolicy-трим · стоп-кран · SOFT де-риск · RTMR · псевдонимы ·
+урезание ADR-850), и ни одна из них своего результата в трейл не пишет. Замер
+12.11: из 46 перекладок у 43 исполненная книга НЕ равна записанному решению, и
+ни одно событие цепочки не несёт переписанной цели — трейл отвечает на «почему
+13 августа переместили $12 000» решением, которого цикл не исполнил. Поэтому с
+ADR-989 «полностью объяснима» перекладка только тогда, когда девять полей
+отвечают И исполненная книга равна записанному решению (или причина
+расхождения записана событием цепочки). Ступени между двумя записями меряются
+AST цикла (`rewrite_steps_between_records`), а не памятью о нём: ступень,
+добавленная после прибора, невидима прибору по построению (урок #1104/#1105).
+Поля стадии/взвода (ADR-986) ищутся в цепочке словарём их единственного
+владельца (`release_stage_census.STAGE_RECORD_FIELDS`), не копией.
+
 Чего этот модуль НЕ делает
 ==========================
 Не пишет в трейл, не меняет схему событий, не трогает RiskPolicy, kill-switch,
@@ -46,6 +65,7 @@
 
 from __future__ import annotations
 
+import ast
 import datetime as dt
 import json
 import os
@@ -84,6 +104,212 @@ OWNER_FIELDS: tuple[tuple[str, str], ...] = (
 )
 
 PRESENT, PARTIAL, ABSENT, UNMEASURED = "present", "partial", "absent", "unmeasured"
+
+# ── §43, первая строка: «Каждое решение должно быть воспроизводимо» (ADR-989) ──
+#: Цикл, который пишет трейл, и имена его двери к трейлу. Писатель ЕДИНСТВЕННЫЙ
+#: (`spa_core.audit.audit_trail.record_event`); в цикле он импортируется под
+#: именем `_audit_record` — оба имени есть одна дверь, а не две.
+CYCLE_RUNNER_REL = "spa_core/paper_trading/cycle_runner.py"
+TRAIL_WRITER_NAMES: frozenset = frozenset({"record_event", "_audit_record"})
+#: Переменная цели в цикле — её переписывают ступени между Step 2 и Step 3.
+DECISION_VARIABLE = "target_usd"
+#: Ключи, под которыми событие цепочки могло бы нести ПЕРЕПИСАННУЮ цель.
+TARGET_KEYS: tuple[str, ...] = ("target_usd", "target", "rewritten_target", "to_allocation")
+#: Ключевое слово, под которым запись трима ADR-850 едет к своему носителю.
+TRIM_RECORD_KEYWORD = "admissible_trim"
+REPRODUCIBILITY_PROVENANCE = ("§43 ТЗ CIO, дословно: «Каждое решение должно быть воспроизводимо»; "
+                              "ось ADR-989; контрапункты — ADR-988 § 9 (трим ADR-850 в трейле?) и "
+                              "ADR-986 (стадия/взвод в записи?)")
+GAP_EPS_USD = 0.01
+GAP_CONSISTENT, GAP_EXPLAINED, GAP_UNEXPLAINED, GAP_UNMEASURED = (
+    "consistent", "explained", "unexplained", "unmeasured")
+
+
+def _num_or_none(value: object) -> float | None:
+    if isinstance(value, bool) or not isinstance(value, (int, float)):
+        return None
+    return float(value)
+
+
+def _books_equal(a: dict, b: dict) -> bool | None:
+    """Две книги равны с точностью до цента; нечисло в любой — НЕ ИЗМЕРЕНО (None)."""
+    for p in set(a) | set(b):
+        x = _num_or_none(a.get(p, 0.0))
+        y = _num_or_none(b.get(p, 0.0))
+        if x is None or y is None:
+            return None
+        if abs(x - y) > GAP_EPS_USD:
+            return False
+    return True
+
+
+def decision_execution_gap(move: dict, chain: list[dict]) -> dict:
+    """Равна ли ИСПОЛНЕННАЯ книга ЗАПИСАННОМУ решению — и если нет, записано ли почему.
+
+    Четыре исхода: ``consistent`` — равны; ``explained`` — не равны, но другое
+    событие ТОЙ ЖЕ цепочки несёт книгу, равную исполненной (переписанная цель
+    записана); ``unexplained`` — не равны, и переписанной цели не несёт никто;
+    ``unmeasured`` — сравнивать нечем (нет предложения / не словари / не числа).
+    «Не измерено» не считается ни совпадением, ни расхождением.
+    """
+    data = move.get("data") or {}
+    executed = data.get("to_allocation")
+    proposal_ev = next((e for e in chain if e.get("event_type") == "allocation_proposal"), None)
+    if proposal_ev is None:
+        return {"status": GAP_UNMEASURED,
+                "detail": "в цепочке хода нет allocation_proposal — исполненное сравнивать не с чем"}
+    decided = (proposal_ev.get("data") or {}).get("target_usd")
+    if not isinstance(decided, dict) or not isinstance(executed, dict):
+        return {"status": GAP_UNMEASURED,
+                "detail": "цель решения или исполненная книга не словарь — сравнение не поставлено"}
+    positions: dict[str, dict] = {}
+    for p in sorted(set(decided) | set(executed)):
+        x = _num_or_none(decided.get(p, 0.0))
+        y = _num_or_none(executed.get(p, 0.0))
+        if x is None or y is None:
+            return {"status": GAP_UNMEASURED,
+                    "detail": f"позиция '{p}': значение не число — сравнение не поставлено"}
+        if abs(x - y) > GAP_EPS_USD:
+            positions[p] = {"decided": round(x, 2), "executed": round(y, 2)}
+    if not positions:
+        return {"status": GAP_CONSISTENT, "max_diff_usd": 0.0,
+                "detail": "исполненная книга равна записанному решению"}
+    max_diff = max(abs(v["decided"] - v["executed"]) for v in positions.values())
+    for ev in chain:
+        if ev is proposal_ev or ev is move:
+            continue
+        d = ev.get("data")
+        if not isinstance(d, dict):
+            continue
+        for key in TARGET_KEYS:
+            cand = d.get(key)
+            if isinstance(cand, dict) and _books_equal(cand, executed) is True:
+                return {"status": GAP_EXPLAINED, "max_diff_usd": round(max_diff, 2),
+                        "positions": positions,
+                        "carrier": f"{ev.get('event_type')}.{key}",
+                        "detail": (f"исполнено не то, что записано решением, но переписанную "
+                                   f"цель несёт событие '{ev.get('event_type')}'.{key}")}
+    return {"status": GAP_UNEXPLAINED, "max_diff_usd": round(max_diff, 2), "positions": positions,
+            "detail": (f"{len(positions)} позиц. исполнены не так, как записано решением "
+                       f"(максимум ${max_diff:,.2f}), и ни одно событие цепочки не несёт "
+                       f"переписанной цели")}
+
+
+def _call_name(node: ast.Call) -> str | None:
+    if isinstance(node.func, ast.Name):
+        return node.func.id
+    if isinstance(node.func, ast.Attribute):
+        return node.func.attr
+    return None
+
+
+def rewrite_steps_between_records(source: str | None, *, rel: str = CYCLE_RUNNER_REL) -> dict:
+    """AST цикла: сколько ступеней переписывают цель МЕЖДУ записью решения и записью хода.
+
+    Меряется ТЕКСТ цикла, а не память о нём: ступень, поставленная после
+    прибора, невидима прибору по построению. Три исхода (инв. #17): измерено ·
+    источник не прочитан/не разбирается · писатель трейла в цикле не найден.
+    Ответ: число ступеней (присваиваний `target_usd`) между строкой записи
+    `allocation_proposal` и строкой записи `trade_executed`, события трейла
+    между ними и сколько из них несут ПОЛЕ ЦЕЛИ, и кому уезжает запись трима
+    ADR-850 (`admissible_trim=`) — дверь трейла или другой носитель.
+    """
+    out: dict[str, Any] = {"measured": False, "source": rel}
+    if source is None:
+        out["reason"] = f"{rel} не прочитан — о ступенях между решением и ходом судить нечем"
+        return out
+    try:
+        tree = ast.parse(source)
+    except SyntaxError as exc:
+        out["reason"] = f"{rel} не разбирается интерпретатором: {exc.msg} (строка {exc.lineno})"
+        return out
+    records: dict[str, list[dict]] = {}
+    trim_carriers: list[dict] = []
+    for node in ast.walk(tree):
+        if not isinstance(node, ast.Call):
+            continue
+        name = _call_name(node)
+        if any(kw.arg == TRIM_RECORD_KEYWORD for kw in node.keywords):
+            trim_carriers.append({"callee": name, "line": node.lineno,
+                                  "is_trail_writer": name in TRAIL_WRITER_NAMES})
+        if name not in TRAIL_WRITER_NAMES or len(node.args) < 2:
+            continue
+        ev = node.args[1]
+        if not (isinstance(ev, ast.Constant) and isinstance(ev.value, str)):
+            continue
+        keys: list[str] = []
+        if len(node.args) >= 3 and isinstance(node.args[2], ast.Dict):
+            keys = [k.value for k in node.args[2].keys
+                    if isinstance(k, ast.Constant) and isinstance(k.value, str)]
+        records.setdefault(ev.value, []).append({"line": node.lineno, "data_keys": keys})
+    prop, move = records.get("allocation_proposal"), records.get("trade_executed")
+    if not prop or not move:
+        missing = [n for n, r in (("allocation_proposal", prop), ("trade_executed", move)) if not r]
+        out["reason"] = (f"в {rel} не найдена запись события {', '.join(missing)} дверью трейла "
+                         f"({'/'.join(sorted(TRAIL_WRITER_NAMES))}) — границы отрезка не названы")
+        return out
+    lo, hi = min(r["line"] for r in prop), max(r["line"] for r in move)
+    rewrites: list[dict] = []
+    for node in ast.walk(tree):
+        if not isinstance(node, (ast.Assign, ast.AugAssign, ast.AnnAssign)):
+            continue
+        if not (lo < node.lineno < hi):
+            continue
+        targets = node.targets if isinstance(node, ast.Assign) else [node.target]
+        if not any(isinstance(n, ast.Name) and n.id == DECISION_VARIABLE
+                   for t in targets for n in ast.walk(t)):
+            continue
+        callee = _call_name(node.value) if isinstance(node.value, ast.Call) else None
+        rewrites.append({"line": node.lineno, "callee": callee})
+    rewrites.sort(key=lambda r: r["line"])
+    between = sorted(({"event_type": ev, **r} for ev, rows in records.items()
+                      for r in rows if lo < r["line"] < hi), key=lambda e: e["line"])
+    target_bearing = [e for e in between if any(k in TARGET_KEYS for k in e["data_keys"])]
+    reaches: bool | None = (any(c["is_trail_writer"] for c in trim_carriers)
+                            if trim_carriers else None)
+    out.update({
+        "measured": True,
+        "proposal_record_line": lo,
+        "move_record_line": hi,
+        "rewrites": len(rewrites),
+        "rewrite_steps": rewrites,
+        "events_between": between,
+        "target_bearing_events_between": len(target_bearing),
+        "trim_record_carriers": trim_carriers,
+        # True — доходит; False — едет к другому носителю; None — записи трима в цикле нет.
+        "trim_record_reaches_trail": reaches,
+    })
+    return out
+
+
+def _stage_fields() -> tuple[str, ...] | None:
+    """Поля стадии/взвода — у ЕДИНСТВЕННОГО владельца словаря (ADR-986), не копия."""
+    try:
+        from spa_core.analytics.release_stage_census import STAGE_RECORD_FIELDS
+    except Exception:  # noqa: BLE001 — словарь не ввезён ⇒ третий исход
+        return None
+    return tuple(str(f) for f in STAGE_RECORD_FIELDS)
+
+
+def stage_in_chain(chain: list[dict], fields: tuple[str, ...] | None) -> bool | None:
+    """Несёт ли хоть одно событие цепочки поле стадии/взвода; None — словаря нет."""
+    if fields is None:
+        return None
+    for ev in chain:
+        d = ev.get("data")
+        if isinstance(d, dict) and any(f in d for f in fields):
+            return True
+        if any(f in ev for f in fields):
+            return True
+    return False
+
+
+def _read_text(path: str) -> str | None:
+    try:
+        with open(path, encoding="utf-8") as fh:
+            return fh.read()
+    except OSError:
+        return None
 
 #: Критерий §49 приказа «Portfolio CIO», мерой ПОЛОВИНЫ которого модуль себя
 #: объявляет. Якорь читается как НАЧАЛО строки (ADR-333): упоминание критерия
@@ -190,6 +416,14 @@ def criterion_verdict(doc: dict) -> dict:
             where.append("; ".join(named))
         if unread:
             where.append("счёт НЕ ПРОЧИТАН у полей: " + "; ".join(unread))
+        # ADR-989: перекладка с девятью полями, но исполненная не так, как
+        # записано решением, тоже не объяснима — и причина обязана быть НАЗВАНА.
+        repro = observed(doc, "reproducibility", kind=dict)
+        gap = observed(repro, "decision_execution_gap", kind=dict) if repro is not None else None
+        unexplained = observed_number(gap, GAP_UNEXPLAINED) if gap is not None else None
+        if unexplained:
+            where.append(f"у {unexplained:.0f} исполненная книга отличается от записанного "
+                         f"решения без записи причины (ось ADR-989)")
         if not where:
             where.append("перечень полей в отчёте не разобран")
         return {"status": CRITERION_NOT_SATISFIED,
@@ -198,9 +432,13 @@ def criterion_verdict(doc: dict) -> dict:
                            f"владельца, по которым данные не отвечают: "
                            + " · ".join(where)),
                 "answerable": answerable, "moves": moves}
+    repro = observed(doc, "reproducibility", kind=dict)
+    gap = observed(repro, "decision_execution_gap", kind=dict) if repro is not None else None
+    tail = (" и исполненная книга равна записанному решению" if gap is not None
+            else "; ось «решение ↔ исполнено» (ADR-989) в этом отчёте не снята")
     return {"status": CRITERION_SATISFIED,
             "reason": (f"у каждой из {moves:.0f} перекладок данные отвечают на все "
-                       f"девять полей §43 — снимок решения восстановим"),
+                       f"девять полей §43{tail} — снимок решения восстановим"),
             "answerable": answerable, "moves": moves}
 
 
@@ -482,10 +720,17 @@ def id_collisions(moves: list[dict]) -> dict:
 def run(root: str | None = None, *, now: dt.datetime | None = None,
         read: Callable[[str], Any] = _read_json,
         read_lines: Callable[[str], "tuple[list[dict], int] | None"] = _read_jsonl,
+        read_text: Callable[[str], "str | None"] = _read_text,
+        stage_fields: "tuple[str, ...] | None | Callable[[], tuple[str, ...] | None]" = _stage_fields,
         write: bool = True) -> dict:
-    """Собрать отчёт. ``now`` инъектируется — иных обращений к часам здесь нет."""
+    """Собрать отчёт. ``now`` инъектируется — иных обращений к часам здесь нет.
+
+    ``read_text`` — дверь к тексту цикла (ось ADR-989 меряет его AST);
+    ``stage_fields`` — словарь полей стадии (по умолчанию у владельца словаря).
+    """
     root = root or REPO_ROOT
     now = now or dt.datetime.now(dt.timezone.utc)
+    fields_of_stage = stage_fields() if callable(stage_fields) else stage_fields
 
     trail = read_lines(os.path.join(root, TRAIL_REL))
     if trail is None:
@@ -498,7 +743,12 @@ def run(root: str | None = None, *, now: dt.datetime | None = None,
         return _report(root, now, overall=_UNCHECKED, fields={}, findings=[],
                        unchecked=["в трейле нет ни одной перекладки — восстанавливать нечего"],
                        population={"trail_events": len(rows), "unparseable_lines": bad_lines},
-                       identity={}, snapshot={}, moves=[], write=write)
+                       identity={}, snapshot={}, moves=[], write=write,
+                       reproducibility={"provenance": REPRODUCIBILITY_PROVENANCE,
+                                        "decision_execution_gap": None,
+                                        "rewrite_steps": rewrite_steps_between_records(
+                                            read_text(os.path.join(root, CYCLE_RUNNER_REL))),
+                                        "stage_in_trail": None})
 
     chains: dict[str, list[dict]] = {}
     for r in rows:
@@ -507,17 +757,28 @@ def run(root: str | None = None, *, now: dt.datetime | None = None,
     ctx = _context(root, read, read_lines, sample_date=_day(moves[-1].get("timestamp")) or "1970-01-01")
 
     resolved = []
+    stage_carried = 0
     for m in moves:
         chain = chains.get(str(m.get("correlation_id")), [m])
         fields = resolve_move(m, chain, ctx)
         age = _age_days(_day(m.get("timestamp")), now)
+        gap = decision_execution_gap(m, chain)
+        stage = stage_in_chain(chain, fields_of_stage)
+        if stage:
+            stage_carried += 1
         resolved.append({
             "trade_id": (m.get("data") or {}).get("trade_id"),
             "date": _day(m.get("timestamp")),
             "diff_usd": (m.get("data") or {}).get("diff_usd"),
             "age_days": age,
             "fields": fields,
-            "fully_answerable": all(f["status"] == PRESENT for f in fields.values()),
+            "gap": gap,
+            "stage_carried": stage,
+            # ADR-989: девять полей отвечают И исполнено то, что записано (или
+            # причина расхождения записана). «Не измерено» у зазора полной
+            # объяснимости не даёт — fail-CLOSED.
+            "fully_answerable": (all(f["status"] == PRESENT for f in fields.values())
+                                 and gap["status"] in (GAP_CONSISTENT, GAP_EXPLAINED)),
         })
 
     per_field = {}
@@ -533,6 +794,29 @@ def run(root: str | None = None, *, now: dt.datetime | None = None,
         per_field[key] = {"owner_wording": wording, "counts": counts,
                           "source": source, "detail": detail}
 
+    gap_counts = {s: 0 for s in (GAP_CONSISTENT, GAP_EXPLAINED, GAP_UNEXPLAINED, GAP_UNMEASURED)}
+    worst_gap: dict | None = None
+    for r in resolved:
+        g = r["gap"]
+        gap_counts[g["status"]] += 1
+        # Худшее расхождение — только среди ИЗМЕРЕННЫХ величин: зазор без числа
+        # (`None`) не «нулевой», он не участвует в выборе (инв. #17).
+        cur = observed_number(g, "max_diff_usd")
+        best = observed_number(worst_gap, "max_diff_usd") if worst_gap is not None else None
+        if g["status"] == GAP_UNEXPLAINED and cur is not None and (best is None or cur > best):
+            worst_gap = {"trade_id": r["trade_id"], "date": r["date"],
+                         "max_diff_usd": cur, "positions": g.get("positions")}
+    reproducibility = {
+        "provenance": REPRODUCIBILITY_PROVENANCE,
+        "decision_execution_gap": {"moves": len(resolved), **gap_counts, "worst": worst_gap},
+        "rewrite_steps": rewrite_steps_between_records(
+            read_text(os.path.join(root, CYCLE_RUNNER_REL))),
+        "stage_in_trail": {"measured": fields_of_stage is not None,
+                           "fields": list(fields_of_stage) if fields_of_stage is not None else None,
+                           "moves": len(resolved),
+                           "carrying": stage_carried if fields_of_stage is not None else None},
+    }
+
     identity = id_collisions(moves)
     # Запись без возраста в «старые» не попадает — но это НЕ «ей ноль дней»:
     # ноль здесь только сравнение, а отсутствие названо соседним счётчиком.
@@ -546,11 +830,12 @@ def run(root: str | None = None, *, now: dt.datetime | None = None,
         "owner_horizon_days": OWNER_HORIZON_DAYS,
         "owner_horizon_provenance": OWNER_HORIZON_PROVENANCE,
         "fully_answerable": sum(1 for r in resolved if r["fully_answerable"]),
+        "gap_unexplained": gap_counts[GAP_UNEXPLAINED],
         "oldest_move_date": min((r["date"] for r in resolved if r["date"]), default=None),
         "newest_move_date": max((r["date"] for r in resolved if r["date"]), default=None),
     }
 
-    findings, unchecked = _judge(per_field, identity, population, ctx)
+    findings, unchecked = _judge(per_field, identity, population, ctx, reproducibility)
 
     if all(c[UNMEASURED] == len(resolved) for c in (v["counts"] for v in per_field.values())):
         overall = _UNCHECKED
@@ -563,7 +848,8 @@ def run(root: str | None = None, *, now: dt.datetime | None = None,
 
     return _report(root, now, overall=overall, fields=per_field, findings=findings,
                    unchecked=unchecked, population=population, identity=identity,
-                   snapshot=ctx.get("snapshot_probe") or {}, moves=resolved, write=write)
+                   snapshot=ctx.get("snapshot_probe") or {}, moves=resolved, write=write,
+                   reproducibility=reproducibility)
 
 
 def _age_days(date: str | None, now: dt.datetime) -> float | None:
@@ -618,8 +904,8 @@ def _context(root: str, read: Callable[[str], Any],
     return ctx
 
 
-def _judge(per_field: dict, identity: dict, population: dict, ctx: dict
-           ) -> tuple[list[dict], list[str]]:
+def _judge(per_field: dict, identity: dict, population: dict, ctx: dict,
+           reproducibility: dict | None = None) -> tuple[list[dict], list[str]]:
     findings: list[dict] = []
     unchecked: list[str] = []
     n = population.get("moves") or 0
@@ -693,6 +979,8 @@ def _judge(per_field: dict, identity: dict, population: dict, ctx: dict
     elif not snap.get("measured"):
         unchecked.append(f"snapshot_id: {snap.get('reason', 'опыт не поставлен')}")
 
+    _judge_reproducibility(findings, unchecked, n, reproducibility or {})
+
     if n and not population.get("fully_answerable"):
         findings.append({
             "severity": "CRITICAL",
@@ -706,9 +994,121 @@ def _judge(per_field: dict, identity: dict, population: dict, ctx: dict
     return findings, unchecked
 
 
+def _judge_reproducibility(findings: list[dict], unchecked: list[str], n: int,
+                           repro: dict) -> None:
+    """Находки оси ADR-989 — «решение ↔ исполнено», ступени между записями, стадия."""
+    gap = observed(repro, "decision_execution_gap", kind=dict)
+    if n and gap is not None:
+        u = observed_number(gap, GAP_UNEXPLAINED)
+        u = int(u) if u is not None else None
+        if u:
+            w = observed(gap, "worst", kind=dict)
+            where = ""
+            if w is not None and (w.get("date") or w.get("trade_id")):
+                diff = observed_number(w, "max_diff_usd")
+                diff_txt = f"${diff:,.2f}" if diff is not None else "НЕ ИЗМЕРЕНО"
+                where = (f" — худшая: {w.get('date')} {w.get('trade_id')}, расхождение "
+                         f"{diff_txt}")
+            findings.append({
+                "severity": "CRITICAL",
+                "code": "decision_differs_from_execution_unexplained",
+                "message": (f"у {u} из {n} перекладок исполненная книга отличается от "
+                            f"записанного решения (allocation_proposal.target_usd), и ни одно "
+                            f"событие цепочки не несёт переписанную цель{where}. На вопрос "
+                            f"«почему переместили» такой трейл отвечает решением, которого "
+                            f"цикл не исполнил"),
+            })
+        if observed_number(gap, GAP_CONSISTENT) == n and n:
+            findings.append({
+                "severity": "INFO",
+                "code": "decision_matches_execution",
+                "message": f"у всех {n} перекладок исполненная книга равна записанному решению",
+            })
+        unmeasured = observed_number(gap, GAP_UNMEASURED)
+        if unmeasured:
+            unchecked.append(f"решение ↔ исполнено: у {unmeasured:.0f} из {n} перекладок "
+                             f"сравнение не поставлено (нет предложения или не числа)")
+
+    steps = observed(repro, "rewrite_steps", kind=dict)
+    if steps is not None and not steps.get("measured"):
+        unchecked.append(f"ступени между записью решения и записью хода: {steps.get('reason')}")
+    elif steps is not None:
+        rewrites = observed_number(steps, "rewrites")
+        bearing = observed_number(steps, "target_bearing_events_between")
+        if rewrites is None or bearing is None:
+            unchecked.append("ступени между записью решения и записью хода: счёт в разделе "
+                             "`rewrite_steps` не прочитан")
+            rewrites, bearing = 0, 0
+        rewrites, bearing = int(rewrites), int(bearing)
+        callees = ", ".join(str(r.get("callee") or f"строка {r.get('line')}")
+                            for r in (steps.get("rewrite_steps") or []))
+        between = steps.get("events_between") or []
+        types = ", ".join(sorted({e["event_type"] for e in between})) or "ни одного"
+        reaches = steps.get("trim_record_reaches_trail")
+        if reaches is False:
+            carriers = ", ".join(sorted({str(c.get("callee")) for c in
+                                         (steps.get("trim_record_carriers") or [])}))
+            trim_note = (f"; запись трима ADR-850 (`{TRIM_RECORD_KEYWORD}=`) едет к "
+                         f"{carriers}, а не в трейл")
+        elif reaches is None:
+            trim_note = f"; записи трима ADR-850 (`{TRIM_RECORD_KEYWORD}=`) в цикле не найдено"
+        else:
+            trim_note = "; запись трима ADR-850 доходит до двери трейла"
+        if rewrites and not bearing:
+            findings.append({
+                "severity": "CRITICAL",
+                "code": "rewrite_steps_invisible_to_trail",
+                "message": (f"между записью решения (строка {steps.get('proposal_record_line')}) "
+                            f"и записью хода (строка {steps.get('move_record_line')}) цель "
+                            f"переписывают {rewrites} ступеней ({callees}); событий трейла между "
+                            f"ними {len(between)} ({types}), с полем цели — 0: ни одна ступень "
+                            f"не записывает, ЧТО она сделала с целью{trim_note}"),
+            })
+        elif rewrites:
+            findings.append({
+                "severity": "INFO",
+                "code": "rewrite_steps_carried_by_trail",
+                "message": (f"между записью решения и записью хода {rewrites} ступеней "
+                            f"переписывают цель, и {bearing} событий трейла несут поле цели"
+                            f"{trim_note}"),
+            })
+
+    stage = observed(repro, "stage_in_trail", kind=dict)
+    if stage is not None and not stage.get("measured"):
+        unchecked.append("стадия/взвод в записи решения: словарь полей "
+                         "(release_stage_census.STAGE_RECORD_FIELDS) не ввезён")
+    elif stage is not None and n:
+        carrying = observed_number(stage, "carrying")
+        carrying = int(carrying) if carrying is not None else None
+        fields = ", ".join(stage.get("fields") or [])
+        if carrying is None:
+            unchecked.append("стадия/взвод в записи решения: счёт несущих цепочек не прочитан")
+        elif carrying == 0:
+            findings.append({
+                "severity": "WARN",
+                "code": "stage_not_in_trail",
+                "message": (f"ни одна из {n} цепочек не несёт поля стадии/взвода ({fields}) — "
+                            f"решающий вердикт взведённой книги в трейле неотличим от "
+                            f"советующего (ADR-986)"),
+            })
+        elif carrying < n:
+            findings.append({
+                "severity": "WARN",
+                "code": "stage_partly_in_trail",
+                "message": f"поле стадии/взвода несут {carrying} из {n} цепочек ({fields})",
+            })
+        else:
+            findings.append({
+                "severity": "INFO",
+                "code": "stage_in_trail",
+                "message": f"все {n} цепочек несут поле стадии/взвода ({fields})",
+            })
+
+
 def _report(root: str, now: dt.datetime, *, overall: str, fields: dict,
             findings: list[dict], unchecked: list[str], population: dict,
-            identity: dict, snapshot: dict, moves: list[dict], write: bool) -> dict:
+            identity: dict, snapshot: dict, moves: list[dict], write: bool,
+            reproducibility: dict | None = None) -> dict:
     doc = {
         "generated_at": now.isoformat(),
         "overall": overall,
@@ -722,6 +1122,7 @@ def _report(root: str, now: dt.datetime, *, overall: str, fields: dict,
         "owner_fields": fields,
         "identity": identity,
         "snapshot_id_probe": snapshot,
+        "reproducibility": reproducibility or {"provenance": REPRODUCIBILITY_PROVENANCE},
         "moves": moves[-10:],
         "findings": findings,
         "unchecked": unchecked,
@@ -749,6 +1150,11 @@ def _main(argv: list[str] | None = None) -> int:
     print(f"decision_audit_trail: {doc['overall']} "
           f"(critical={c['critical']} warn={c['warn']} info={c['info']} "
           f"unchecked={c['unchecked']})")
+    gap = (doc.get("reproducibility") or {}).get("decision_execution_gap") or {}
+    if gap:
+        print(f"  решение ↔ исполнено: совпали {gap.get(GAP_CONSISTENT)} · объяснены "
+              f"{gap.get(GAP_EXPLAINED)} · расходятся без причины {gap.get(GAP_UNEXPLAINED)} · "
+              f"не измерено {gap.get(GAP_UNMEASURED)} из {gap.get('moves')}")
     for f in doc["findings"]:
         print(f"  [{f['severity']}] {f['message']}")
     for u in doc["unchecked"]:

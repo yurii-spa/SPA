@@ -526,10 +526,13 @@ _READ_SCHEMA: dict[str, tuple[str, ...]] = {
     # намеренно: вопрос владельца — не «сколько находок», а «на какие из ДЕВЯТИ
     # его полей отвечают данные». `identity` — потому что вопрос поставлен через
     # ход, и join по неоднозначному имени отвечает двумя ходами сразу.
+    # `reproducibility` (ADR-989) — первая строка §43 «каждое решение должно
+    # быть воспроизводимо»: равна ли исполненная книга записанному решению и
+    # сколько ступеней цикла переписывают цель, не оставляя записи в трейле.
     "decision_audit_trail.json": ("overall", "counts.critical", "counts.warn",
                                   "counts.info", "counts.unchecked", "population",
                                   "owner_fields", "identity", "snapshot_id_probe",
-                                  "findings", "unchecked"),
+                                  "reproducibility", "findings", "unchecked"),
     # §47 ТЗ CIO «Failure modes». `tally` объявлен рядом с вердиктом намеренно:
     # вопрос владельца — не «сколько находок», а «на скольких из ДЕСЯТИ
     # названных им деградаций путь решения отказывает». `probes` — потому что
@@ -4862,6 +4865,36 @@ def _summarize_json(path: str, data, *, now: dt.datetime | None = None,
         if probe.get("measured") and not probe.get("content_addressed"):
             out.append("   snapshot_id адресует ПРОГОН, а не содержимое снимка "
                        "(опыт: два вызова производителя на одном входе разошлись)")
+        # ADR-989: ось «решение ↔ исполнено». Отсутствие ключа — артефакт снят
+        # прибором ПРЕЖНЕЙ версии, и это печатается как «не измерено», а не
+        # пропускается молча.
+        repro = data.get("reproducibility")
+        gap = repro.get("decision_execution_gap") if isinstance(repro, dict) else None
+        if isinstance(gap, dict):
+            out.append(f"   решение ↔ исполнено (§43 «воспроизводимо», ADR-989): совпали "
+                       f"{_num(gap, 'consistent')} · объяснены {_num(gap, 'explained')} · "
+                       f"РАСХОДЯТСЯ без записи причины {_num(gap, 'unexplained')} · не измерено "
+                       f"{_num(gap, 'unmeasured')} из {_num(gap, 'moves')}")
+        else:
+            out.append("   решение ↔ исполнено (§43 «воспроизводимо»): НЕ ИЗМЕРЕНО — "
+                       "артефакт снят прибором без этой оси (до ADR-989)")
+        steps = repro.get("rewrite_steps") if isinstance(repro, dict) else None
+        if isinstance(steps, dict) and steps.get("measured"):
+            reaches = steps.get("trim_record_reaches_trail")
+            reaches_txt = ("да" if reaches is True else "НЕТ — едет к другому носителю"
+                           if reaches is False else "записи трима в цикле не найдено")
+            out.append(f"   ступеней цикла, переписывающих цель между записью решения и записью "
+                       f"хода: {_num(steps, 'rewrites')}; из них видны трейлу полем цели: "
+                       f"{_num(steps, 'target_bearing_events_between')}; запись трима ADR-850 "
+                       f"доходит до трейла: {reaches_txt}")
+        elif isinstance(steps, dict):
+            out.append(f"   ступени между решением и ходом: НЕ ИЗМЕРЕНО — {steps.get('reason')}")
+        stage = repro.get("stage_in_trail") if isinstance(repro, dict) else None
+        if isinstance(stage, dict) and stage.get("measured"):
+            out.append(f"   стадия/взвод в цепочке хода (ADR-986): несут {_num(stage, 'carrying')} "
+                       f"из {_num(stage, 'moves')} цепочек")
+        elif isinstance(stage, dict):
+            out.append("   стадия/взвод в цепочке хода: НЕ ИЗМЕРЕНО — словарь полей не ввезён")
         for f in (data.get("findings") or []):
             if isinstance(f, dict) and f.get("severity") == "CRITICAL":
                 out.append(f"   [{f['severity']}] {f.get('message')}")

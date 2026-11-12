@@ -12,6 +12,15 @@
   цель; строки вердикта гейта объясняют ОТКАЗ, а не выбор;
 * ``trade_id`` назван дважды и более у 12 из 30 значений.
 
+Ось ADR-989 (цикл #1106, замер 12.11 по 46 перекладкам): у 43 исполненная
+книга НЕ равна записанному решению, и ни одно событие цепочки не несёт
+переписанной цели; между записью решения (Step 2) и записью хода (Step 3) цель
+переписывают 9 ступеней цикла, в трейл результат не пишет ни одна, запись трима
+ADR-850 едет к ``write_shadow_rationale``; поля стадии/взвода (ADR-986) не несёт
+ни одна из 46 цепочек. Сцена ``_chain`` по умолчанию воспроизводит ЖИВУЮ форму
+(предложение {aave 40 000}, исполнено {aave 40 000, morpho 12 000}) — поэтому у
+неё зазор ``unexplained``; согласованная сцена — ``_consistent_chain``.
+
 Модуль ничего не гейтит — он МЕРЯЕТ и НАЗЫВАЕТ, поэтому вся его польза живёт в
 проводке (кто зовёт, кто читает), и ровно она обычно пропадает молча. Проводка
 здесь проверяется ФОРМОЙ ВЫЗОВА и ПОВЕДЕНИЕМ читателя, а не именем в тексте.
@@ -555,6 +564,434 @@ class TestWiring(unittest.TestCase):
         self.assertIn("девять полей §43", text)
         self.assertIn("объяснимы ПОЛНОСТЬЮ", text)
         self.assertIn("ADVISORY", text)
+
+
+# ── §43, первая строка «каждое решение должно быть воспроизводимо» — ось ADR-989 ──
+
+_CONSISTENT_BOOK = {"aave_v3": 40000.0, "morpho_blue": 12000.0}
+
+
+def _consistent_chain(days_ago: int, **kw) -> list[dict]:
+    """Цепочка, где исполнено РОВНО то, что записано решением."""
+    return _chain(days_ago, proposal={"target_usd": dict(_CONSISTENT_BOOK),
+                                      "model_used": "optimized_yield"}, **kw)
+
+
+def _with_event(events: list[dict], event: dict, *, before: str = "trade_executed") -> list[dict]:
+    """Вставить событие в цепочку ПЕРЕД событием названного типа (порядок живого цикла)."""
+    out: list[dict] = []
+    for e in events:
+        if e["event_type"] == before and event.get("correlation_id") == e.get("correlation_id"):
+            out.append(event)
+        out.append(e)
+    if event not in out:
+        out.append(event)
+    return out
+
+
+def _gap(doc: dict) -> dict:
+    return doc["reproducibility"]["decision_execution_gap"]
+
+
+class TestDecisionExecutionGap(unittest.TestCase):
+    """Равна ли исполненная книга записанному решению — и записано ли, почему нет."""
+
+    def test_the_live_form_differs_and_nobody_records_why(self):
+        # Сцена 06.09 = живая форма: предложение {aave 40000}, исполнено
+        # {aave 40000, morpho 12000} — ход на $12 000, которого решение не несёт.
+        t = _Tree(_chain(40))
+        try:
+            doc = t.run()
+            self.assertEqual(_gap(doc)["unexplained"], 1)
+            self.assertEqual(_gap(doc)["consistent"], 0)
+            self.assertIn("decision_differs_from_execution_unexplained", _codes(doc))
+            self.assertEqual(doc["population"]["gap_unexplained"], 1)
+            mv = doc["moves"][0]
+            self.assertEqual(mv["gap"]["status"], m.GAP_UNEXPLAINED)
+            self.assertEqual(mv["gap"]["positions"]["morpho_blue"],
+                             {"decided": 0.0, "executed": 12000.0})
+            self.assertEqual(mv["gap"]["max_diff_usd"], 12000.0)
+        finally:
+            t.close()
+
+    def test_a_consistent_book_is_said_out_loud(self):
+        t = _Tree(_consistent_chain(40))
+        try:
+            doc = t.run()
+            self.assertEqual(_gap(doc)["consistent"], 1)
+            self.assertEqual(_gap(doc)["unexplained"], 0)
+            self.assertIn("decision_matches_execution", _codes(doc))
+            self.assertNotIn("decision_differs_from_execution_unexplained", _codes(doc))
+        finally:
+            t.close()
+
+    def test_a_recorded_rewrite_explains_the_gap(self):
+        # Событие ТОЙ ЖЕ цепочки несёт книгу, равную исполненной ⇒ причина записана.
+        events = _with_event(_chain(40), {
+            "event_type": "kill_switch", "correlation_id": "c1", "timestamp": _ts(40),
+            "data": {"target_usd": dict(_CONSISTENT_BOOK)}})
+        t = _Tree(events)
+        try:
+            doc = t.run()
+            self.assertEqual(_gap(doc)["explained"], 1)
+            self.assertEqual(_gap(doc)["unexplained"], 0)
+            self.assertEqual(doc["moves"][0]["gap"]["carrier"], "kill_switch.target_usd")
+            self.assertNotIn("decision_differs_from_execution_unexplained", _codes(doc))
+        finally:
+            t.close()
+
+    def test_a_carrier_from_ANOTHER_cycle_explains_nothing(self):
+        events = _chain(40) + [{
+            "event_type": "kill_switch", "correlation_id": "c-other", "timestamp": _ts(40),
+            "data": {"target_usd": dict(_CONSISTENT_BOOK)}}]
+        t = _Tree(events)
+        try:
+            self.assertEqual(_gap(t.run())["unexplained"], 1)
+        finally:
+            t.close()
+
+    def test_a_carrier_with_a_DIFFERENT_book_explains_nothing(self):
+        events = _with_event(_chain(40), {
+            "event_type": "kill_switch", "correlation_id": "c1", "timestamp": _ts(40),
+            "data": {"target_usd": {"aave_v3": 40000.0, "morpho_blue": 11000.0}}})
+        t = _Tree(events)
+        try:
+            self.assertEqual(_gap(t.run())["unexplained"], 1)
+        finally:
+            t.close()
+
+    def test_no_proposal_is_unmeasured_not_consistent(self):
+        events = [e for e in _chain(40) if e["event_type"] != "allocation_proposal"]
+        t = _Tree(events)
+        try:
+            doc = t.run()
+            self.assertEqual(_gap(doc)["unmeasured"], 1)
+            self.assertEqual(_gap(doc)["consistent"], 0)
+            self.assertTrue(any("решение ↔ исполнено" in u for u in doc["unchecked"]))
+        finally:
+            t.close()
+
+    def test_a_non_number_is_unmeasured(self):
+        t = _Tree(_chain(40, move={"trade_id": "T001", "diff_usd": 1.0,
+                                   "from_allocation": {"aave_v3": 1.0},
+                                   "to_allocation": {"aave_v3": "forty"}}))
+        try:
+            self.assertEqual(_gap(t.run())["unmeasured"], 1)
+        finally:
+            t.close()
+
+    def test_a_cent_is_not_a_gap(self):
+        t = _Tree(_chain(40, proposal={"target_usd": {"aave_v3": 40000.004, "morpho_blue": 12000.0},
+                                       "model_used": "x"}))
+        try:
+            self.assertEqual(_gap(t.run())["consistent"], 1)
+        finally:
+            t.close()
+
+    def test_the_gap_finding_is_critical_and_counts_only_the_unexplained(self):
+        # Одна согласованная, одна расходящаяся: в счёте «1 из 2», тяжесть CRITICAL —
+        # расхождение без записи причины есть утверждение о НЕвоспроизводимости.
+        events = _consistent_chain(40, corr="c1", trade_id="T001")
+        events += _chain(3, corr="c2", trade_id="T002")
+        t = _Tree(events)
+        try:
+            doc = t.run()
+            f = next(f for f in doc["findings"]
+                     if f["code"] == "decision_differs_from_execution_unexplained")
+            self.assertEqual(f["severity"], "CRITICAL")
+            self.assertIn("у 1 из 2", f["message"])
+            self.assertEqual(_gap(doc)["consistent"], 1)
+            self.assertNotIn("decision_matches_execution", _codes(doc))
+        finally:
+            t.close()
+
+    def test_the_worst_gap_is_named_in_the_finding(self):
+        events = _chain(40, corr="c1", trade_id="T001")
+        events += _chain(3, corr="c2", trade_id="T002",
+                         move={"trade_id": "T002", "diff_usd": 40000.0,
+                               "from_allocation": {"aave_v3": 40000.0},
+                               "to_allocation": {"aave_v3": 0.0}})
+        t = _Tree(events)
+        try:
+            doc = t.run()
+            self.assertEqual(_gap(doc)["worst"]["trade_id"], "T002")
+            msg = next(f["message"] for f in doc["findings"]
+                       if f["code"] == "decision_differs_from_execution_unexplained")
+            self.assertIn("T002", msg)
+            self.assertIn("$40,000.00", msg)
+            self.assertIn("2 из 2", msg)
+        finally:
+            t.close()
+
+
+class TestFullyAnswerableNeedsAConsistentBook(unittest.TestCase):
+    """Положительный контроль ПРОВОДКИ: девять полей отвечают, а книга разошлась ⇒ не объяснима."""
+
+    def _all_present(self, *_a, **_k):
+        return {k: m._f(m.PRESENT, "test", "") for k, _ in m.OWNER_FIELDS}
+
+    def test_nine_present_fields_with_an_unexplained_gap_are_not_fully_answerable(self):
+        from unittest import mock
+        t = _Tree(_chain(40))
+        try:
+            with mock.patch.object(m, "resolve_move", self._all_present):
+                doc = t.run()
+            self.assertEqual(doc["population"]["fully_answerable"], 0)
+            self.assertEqual(doc["criterion"]["status"], m.CRITERION_NOT_SATISFIED)
+            self.assertIn("ADR-989", doc["criterion"]["reason"])
+        finally:
+            t.close()
+
+    def test_nine_present_fields_with_a_consistent_book_are_fully_answerable(self):
+        from unittest import mock
+        t = _Tree(_consistent_chain(40))
+        try:
+            with mock.patch.object(m, "resolve_move", self._all_present):
+                doc = t.run()
+            self.assertEqual(doc["population"]["fully_answerable"], 1)
+            self.assertEqual(doc["criterion"]["status"], m.CRITERION_SATISFIED)
+            self.assertIn("исполненная книга равна записанному решению", doc["criterion"]["reason"])
+        finally:
+            t.close()
+
+    def test_an_old_artifact_without_the_axis_is_judged_as_before_and_says_so(self):
+        # Отчёт прежней версии: `fully_answerable == moves`, оси нет ⇒ SATISFIED,
+        # и вердикт ВСЛУХ говорит, что ось не снята (не выдаёт её за «совпало»).
+        doc = {"population": {"moves": 2, "fully_answerable": 2}, "owner_fields": {},
+               "unchecked": []}
+        v = m.criterion_verdict(doc)
+        self.assertEqual(v["status"], m.CRITERION_SATISFIED)
+        self.assertIn("не снята", v["reason"])
+
+
+_SYNTH_HEAD = """
+def cycle(_audit_record, cid, target_usd, f, write_shadow_rationale, rec):
+    _audit_record(cid, "allocation_proposal", {"target_usd": target_usd, "model_used": "m"})
+"""
+_SYNTH_TAIL = """
+    _audit_record(cid, "trade_executed", {"trade_id": "T", "to_allocation": target_usd})
+"""
+
+
+def _synth(body: str = "") -> str:
+    return _SYNTH_HEAD + body + _SYNTH_TAIL
+
+
+class TestRewriteStepsAST(unittest.TestCase):
+    """Ступени между записью решения и записью хода — по ТЕКСТУ цикла, не по памяти."""
+
+    def test_the_live_cycle_is_measured_and_the_steps_are_invisible_to_the_trail(self):
+        src = open(os.path.join(REPO_ROOT, m.CYCLE_RUNNER_REL), encoding="utf-8").read()
+        r = m.rewrite_steps_between_records(src)
+        self.assertTrue(r["measured"], r.get("reason"))
+        self.assertLess(r["proposal_record_line"], r["move_record_line"])
+        self.assertGreaterEqual(r["rewrites"], 1)
+        self.assertEqual(r["target_bearing_events_between"], 0)
+        self.assertIn("apply_admissible_trim", [s["callee"] for s in r["rewrite_steps"]])
+        self.assertTrue(r["trim_record_carriers"], "запись трима ADR-850 в цикле не найдена")
+        self.assertIs(r["trim_record_reaches_trail"], False)
+        self.assertIn("write_shadow_rationale",
+                      {c["callee"] for c in r["trim_record_carriers"]})
+
+    def test_no_rewrite_between_the_records_is_zero(self):
+        r = m.rewrite_steps_between_records(_synth())
+        self.assertTrue(r["measured"])
+        self.assertEqual(r["rewrites"], 0)
+        self.assertEqual(r["events_between"], [])
+
+    def test_a_rewrite_is_counted_with_its_callee(self):
+        r = m.rewrite_steps_between_records(_synth("    target_usd = f(target_usd)\n"))
+        self.assertEqual(r["rewrites"], 1)
+        self.assertEqual(r["rewrite_steps"][0]["callee"], "f")
+        self.assertEqual(r["target_bearing_events_between"], 0)
+
+    def test_a_rewrite_recorded_with_the_target_is_seen_as_carried(self):
+        body = ('    target_usd = f(target_usd)\n'
+                '    _audit_record(cid, "kill_switch", {"target_usd": target_usd})\n')
+        r = m.rewrite_steps_between_records(_synth(body))
+        self.assertEqual(r["rewrites"], 1)
+        self.assertEqual(r["target_bearing_events_between"], 1)
+        self.assertEqual(r["events_between"][0]["event_type"], "kill_switch")
+
+    def test_an_event_between_WITHOUT_the_target_is_not_carrying(self):
+        body = ('    target_usd = f(target_usd)\n'
+                '    _audit_record(cid, "risk_verdict", {"approved": True})\n')
+        r = m.rewrite_steps_between_records(_synth(body))
+        self.assertEqual(len(r["events_between"]), 1)
+        self.assertEqual(r["target_bearing_events_between"], 0)
+
+    def test_a_rewrite_outside_the_segment_is_not_counted(self):
+        head = _SYNTH_HEAD.replace('    _audit_record(cid, "allocation_proposal"',
+                                   '    target_usd = f(target_usd)\n'
+                                   '    _audit_record(cid, "allocation_proposal"')
+        src = head + _SYNTH_TAIL + "    target_usd = f(target_usd)\n"
+        r = m.rewrite_steps_between_records(src)
+        self.assertTrue(r["measured"], r.get("reason"))
+        self.assertEqual(r["rewrites"], 0)
+
+    def test_tuple_assignment_counts_as_a_rewrite(self):
+        r = m.rewrite_steps_between_records(_synth("    target_usd, rec = f(target_usd)\n"))
+        self.assertEqual(r["rewrites"], 1)
+
+    def test_trim_record_carrier_is_named_and_judged_by_the_door(self):
+        shadow = m.rewrite_steps_between_records(
+            _synth("    write_shadow_rationale(admissible_trim=rec)\n"))
+        self.assertIs(shadow["trim_record_reaches_trail"], False)
+        self.assertEqual(shadow["trim_record_carriers"][0]["callee"], "write_shadow_rationale")
+        trail = m.rewrite_steps_between_records(
+            _synth('    _audit_record(cid, "trim", {"k": 1}, admissible_trim=rec)\n'))
+        self.assertIs(trail["trim_record_reaches_trail"], True)
+        none = m.rewrite_steps_between_records(_synth())
+        self.assertIsNone(none["trim_record_reaches_trail"])
+
+    def test_unreadable_and_broken_sources_are_unmeasured_with_a_reason(self):
+        r = m.rewrite_steps_between_records(None)
+        self.assertFalse(r["measured"])
+        self.assertIn("не прочитан", r["reason"])
+        r = m.rewrite_steps_between_records("def (:\n")
+        self.assertFalse(r["measured"])
+        self.assertIn("не разбирается", r["reason"])
+
+    def test_a_missing_writer_names_the_missing_event(self):
+        r = m.rewrite_steps_between_records(_SYNTH_HEAD)
+        self.assertFalse(r["measured"])
+        self.assertIn("trade_executed", r["reason"])
+        named = r["reason"].split("события", 1)[1].split("дверью", 1)[0]
+        self.assertNotIn("allocation_proposal", named)
+
+    def test_run_on_a_tree_without_the_cycle_says_unmeasured(self):
+        t = _Tree(_chain(40))
+        try:
+            doc = t.run()
+            self.assertFalse(doc["reproducibility"]["rewrite_steps"]["measured"])
+            self.assertTrue(any("ступени между записью решения" in u for u in doc["unchecked"]))
+            self.assertNotIn("rewrite_steps_invisible_to_trail", _codes(doc))
+        finally:
+            t.close()
+
+    def test_run_reads_the_cycle_through_the_injected_door(self):
+        body = ('    target_usd = f(target_usd)\n'
+                '    write_shadow_rationale(admissible_trim=rec)\n')
+        t = _Tree(_chain(40))
+        try:
+            doc = t.run(read_text=lambda _p: _synth(body))
+            self.assertIn("rewrite_steps_invisible_to_trail", _codes(doc))
+            msg = next(f["message"] for f in doc["findings"]
+                       if f["code"] == "rewrite_steps_invisible_to_trail")
+            self.assertIn("write_shadow_rationale, а не в трейл", msg)
+            carried = t.run(read_text=lambda _p: _synth(
+                '    target_usd = f(target_usd)\n'
+                '    _audit_record(cid, "kill_switch", {"target_usd": target_usd})\n'))
+            self.assertIn("rewrite_steps_carried_by_trail", _codes(carried))
+            self.assertNotIn("rewrite_steps_invisible_to_trail", _codes(carried))
+        finally:
+            t.close()
+
+    def test_an_empty_trail_still_measures_the_cycle(self):
+        t = _Tree([])
+        try:
+            doc = t.run(read_text=lambda _p: _synth("    target_usd = f(target_usd)\n"))
+            self.assertEqual(doc["overall"], "UNCHECKED")
+            self.assertTrue(doc["reproducibility"]["rewrite_steps"]["measured"])
+            self.assertEqual(doc["reproducibility"]["rewrite_steps"]["rewrites"], 1)
+        finally:
+            t.close()
+
+
+class TestStageInTrail(unittest.TestCase):
+    """Поля стадии/взвода (ADR-986) — словарём их единственного владельца."""
+
+    def test_fields_come_from_the_owner_of_the_dictionary(self):
+        from spa_core.analytics.release_stage_census import STAGE_RECORD_FIELDS
+        self.assertEqual(m._stage_fields(), tuple(STAGE_RECORD_FIELDS))
+
+    def test_the_live_form_carries_no_stage(self):
+        t = _Tree(_chain(40))
+        try:
+            doc = t.run()
+            st = doc["reproducibility"]["stage_in_trail"]
+            self.assertTrue(st["measured"])
+            self.assertEqual(st["carrying"], 0)
+            self.assertIn("stage_not_in_trail", _codes(doc))
+            self.assertIs(doc["moves"][0]["stage_carried"], False)
+        finally:
+            t.close()
+
+    def test_an_event_with_an_armed_field_is_counted(self):
+        t = _Tree(_chain(40, verdict={"approved": True, "violations": [], "warnings": [],
+                                      "armed": True}))
+        try:
+            doc = t.run()
+            self.assertEqual(doc["reproducibility"]["stage_in_trail"]["carrying"], 1)
+            self.assertIn("stage_in_trail", _codes(doc))
+            self.assertNotIn("stage_not_in_trail", _codes(doc))
+        finally:
+            t.close()
+
+    def test_a_partly_carrying_trail_is_named_partly(self):
+        events = _chain(40, corr="c1", trade_id="T001")
+        events += _chain(3, corr="c2", trade_id="T002",
+                         verdict={"approved": True, "violations": [], "warnings": [],
+                                  "cio_stage": "Stage 3"})
+        t = _Tree(events)
+        try:
+            doc = t.run()
+            self.assertEqual(doc["reproducibility"]["stage_in_trail"]["carrying"], 1)
+            self.assertIn("stage_partly_in_trail", _codes(doc))
+        finally:
+            t.close()
+
+    def test_a_missing_dictionary_is_unmeasured_not_zero(self):
+        t = _Tree(_chain(40))
+        try:
+            doc = t.run(stage_fields=None)
+            st = doc["reproducibility"]["stage_in_trail"]
+            self.assertFalse(st["measured"])
+            self.assertIsNone(st["carrying"])
+            self.assertNotIn("stage_not_in_trail", _codes(doc))
+            self.assertTrue(any("STAGE_RECORD_FIELDS" in u for u in doc["unchecked"]))
+        finally:
+            t.close()
+
+
+class TestOfficeReproducibilityBranch(unittest.TestCase):
+    """Шаг 0-офис печатает ось — и артефакт прежней версии называет «не измерено»."""
+
+    def _office(self):
+        path = os.path.join(REPO_ROOT, "scripts", "consume_office_reports.py")
+        spec = importlib.util.spec_from_file_location("_office_c1106", path)
+        mod = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(mod)
+        return mod
+
+    def test_schema_declares_the_axis(self):
+        self.assertIn("reproducibility", self._office()._READ_SCHEMA["decision_audit_trail.json"])
+
+    def test_branch_prints_the_gap_steps_and_stage(self):
+        office = self._office()
+        t = _Tree(_chain(40))
+        try:
+            doc = t.run(read_text=lambda _p: _synth("    target_usd = f(target_usd)\n"))
+        finally:
+            t.close()
+        text = "\n".join(office._summarize_json("decision_audit_trail.json", doc))
+        self.assertIn("решение ↔ исполнено", text)
+        self.assertIn("РАСХОДЯТСЯ без записи причины 1", text)
+        self.assertIn("ступеней цикла, переписывающих цель", text)
+        self.assertIn("записи трима в цикле не найдено", text)
+        self.assertIn("стадия/взвод в цепочке хода (ADR-986): несут 0 из 1", text)
+
+    def test_an_old_artifact_without_the_axis_prints_unmeasured(self):
+        office = self._office()
+        t = _Tree(_chain(40))
+        try:
+            doc = t.run()
+        finally:
+            t.close()
+        doc.pop("reproducibility")
+        text = "\n".join(office._summarize_json("decision_audit_trail.json", doc))
+        self.assertIn("до ADR-989", text)
+        self.assertNotIn("РАСХОДЯТСЯ", text)
 
 
 if __name__ == "__main__":  # pragma: no cover
