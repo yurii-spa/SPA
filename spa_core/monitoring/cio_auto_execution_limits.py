@@ -63,6 +63,22 @@ T3 суммарно 25 % проходил ``_apply_risk_policy_gate`` с НУЛ�
 ``gate``
     допустима ли получившаяся книга — ``_apply_risk_policy_gate`` над
     ``RiskPolicy v1.0``.
+``trim`` *(четвёртая; #1104 / ADR-987 — поверхность ADR-850)*
+    КАКОГО РАЗМЕРА ход будет сделан — ``admissible_trim.apply_admissible_trim``
+    (Step 2e'' цикла, стои́т после первого вопроса гейта и ДО вердикта
+    экономики Step 2f). Предложение, чей оборот выше потолков РАЗМЕРА
+    (``TriggerParams.max_trade_usd``, ``max_turnover_per_move``), здесь не
+    отказывается, а УРЕЗАЕТСЯ до допустимого и переспрашивается у той же
+    RiskPolicy. Эта поверхность связывает РАЗМЕРОМ, а не отказом — и до #1104
+    замер §41 её не знал: ADR-250 (07.09) и артефакт 29.10 судили о
+    `max trade amount` только по отказу экономики (``ACT → HOLD``), то есть
+    отвечали на вопрос «остановит ли нас потолок», а не «сделаем ли мы ход
+    меньше». ADR-848 назвал ту же разницу дефектом (потолок размера читался
+    как ФИЛЬТР предложений, а не как РАЗМЕР хода), ADR-850 её закрыл — и
+    отчёт §41, не знающий трима, продолжал бы описывать мир до ADR-850.
+    Бюджеты дня и недели трим НЕ читает намеренно (ADR-848: они зависят от
+    уже прокрученного оборота и потолком ЭТОГО хода не являются) — запись об
+    этом есть, но щелью (``gap``) не считается.
 
 Пять исходов на ограничение, и три средних — самостоятельные
 ============================================================
@@ -145,8 +161,22 @@ DECLARED_INERT = "DECLARED_INERT"
 ABSENT = "ABSENT"
 UNCHECKED = "UNCHECKED"
 
-#: Три поверхности решения, в порядке прохождения капитала.
-SURFACES = ("allocator", "economics", "gate")
+#: Четыре поверхности решения. Первые три — как они названы в ADR-250;
+#: ``trim`` добавлена #1104 (ADR-987): в цикле она стои́т Step 2e'' — после
+#: первого вопроса гейта (Step 2b) и до вердикта экономики (Step 2f).
+SURFACES = ("allocator", "economics", "trim", "gate")
+
+#: ЧЕМ каждая поверхность связывает. Различие существенно для §41: три
+#: поверхности отвечают ограничению ОТКАЗОМ или срезом предложения, а трим —
+#: РАЗМЕРОМ хода, и сводка «связывает / не связывает» без этого поля слила бы
+#: «ход не будет сделан» и «ход будет сделан меньше» в один ответ.
+SURFACE_SEMANTICS = {
+    "allocator": "срезает ПРЕДЛОЖЕНИЕ потолком (цель меньше, остаток кэшем)",
+    "economics": "ОТКАЗЫВАЕТ ходу (ACT → HOLD), размер хода не меняет",
+    "trim": ("УМЕНЬШАЕТ РАЗМЕР хода до допустимого (k < 1) и переспрашивает ту же "
+             "RiskPolicy — связывает размером, а не отказом (ADR-850)"),
+    "gate": "ОТКАЗЫВАЕТ книге или подрезает её под буфер/пол TVL",
+}
 
 #: Капитал сцены. Не порог и ничего не решает — все доли ниже выводятся из него
 #: же, поэтому число можно менять, не меняя смысла ни одной пробы.
@@ -376,6 +406,82 @@ def _trigger_params(**overrides: Any) -> Any:
     return TriggerParams(**overrides)
 
 
+# ──────────────────────── поверхность: trim (ADR-850) ───────────────────────
+
+#: Вердикт трима на ходе, который урезать не надо, — точка отсчёта.
+_TRIM_UNTOUCHED = "ALREADY_WITHIN_SIZE_CAPS"
+#: Вердикт трима, когда ход СДЕЛАН МЕНЬШЕ — то, чем эта поверхность связывает.
+_TRIM_APPLIED = "TRIMMED_TO_ADMISSIBLE"
+
+#: Сцена перетасовки БОЛЬШЕ потолков размера, но допустимая для гейта и после
+#: урезания: 30 % капитала из одного T1-пула в другой T1-пул. В T2-пул (потолок
+#: 20 %) та же форма сцены при БОЛЬШЕМ ходе получила бы отказ гейта по
+#: КОНЦЕНТРАЦИИ, и замер записал бы его в актив потолку размера, которого у
+#: гейта нет (та же ловушка, что у T3). При 30 % урезанная книга T2 = 15 % ещё
+#: ниже потолка — выбор T1 → T1 здесь защитный, а не несущий (мутация M15 #1104
+#: выжила ровно поэтому и записана); несущую сторону ловушки держит тест с
+#: ходом 45 % в T2.
+_TRIM_BIG_SPEC = [{"protocol": "aave_v3", "tier": "T1", "apy_pct": 2.0},
+                  {"protocol": "compound_v3", "tier": "T1", "apy_pct": 6.0}]
+
+
+def _trim_record(current: dict[str, float], target: dict[str, float], *,
+                 params: Any = None, capital_usd: float = _SCENE_CAPITAL_USD,
+                 spec: list[dict] | None = None) -> dict:
+    """Запись шага урезания (ADR-850) над сценой из литералов.
+
+    Зовётся НАСТОЯЩИЙ ``apply_admissible_trim`` с настоящими дверями (RiskPolicy
+    переспрашивается через ``_apply_risk_policy_gate``, род хода — через демпфер
+    ADR-168); журнал ходов пуст, поэтому часов эта сцена не спрашивает.
+    Живой ``data/`` не участвует — состояние во временном каталоге.
+    """
+    from spa_core.paper_trading.admissible_trim import apply_admissible_trim
+    adapters = _gate_adapters(spec or _TRIM_BIG_SPEC)
+    with tempfile.TemporaryDirectory(prefix="cio_ael_trim_") as tmp:
+        _final, rec = apply_admissible_trim(
+            dict(target), current_positions=dict(current),
+            capital_usd=float(capital_usd), notes=[], adapters=adapters,
+            ddir=Path(tmp), params=params, trades=[],
+        )
+    return dict(rec)
+
+
+def _trim_fingerprint(rec: dict) -> str:
+    """Вердикт трима как СРАВНИМАЯ строка: что сделал и во сколько раз урезал.
+
+    Оборот в отпечаток не входит: он меняется от любого шевеления величины и
+    «изменился» произносилось бы и там, где трим не сделал ничего.
+    """
+    k = rec.get("k")
+    k_s = "—" if k is None else f"{float(k):.4f}"
+    return f"{rec.get('verdict')}|k={k_s}"
+
+
+def _trim_verdict(current: dict[str, float], target: dict[str, float],
+                  **kw: Any) -> str:
+    return _trim_fingerprint(_trim_record(current, target, **kw))
+
+
+def _trim_detail(rec: dict) -> str:
+    """Что трим сделал — словами из его же записи (оборот до/после, потолок)."""
+    full = rec.get("turnover_full_usd")
+    adm = rec.get("admissible_usd")
+    fin = rec.get("turnover_final_usd")
+    parts = [str(rec.get("verdict"))]
+    if full is not None and adm is not None:
+        parts.append(f"оборот ${float(full):,.0f} при потолке ${float(adm):,.0f}")
+    if fin is not None:
+        parts.append(f"→ сделан ${float(fin):,.0f}")
+        if float(fin) <= 0 < float(full or 0):
+            # Урезанные ноги легли ниже пыли `min_leg_frac`: при капитале, в
+            # сто раз большем, долларовый потолок меньше одной пылевой ноги —
+            # ход вырождается в ноль. Это свойство системы, не пробы.
+            parts.append("(урезанные ноги ниже пыли min_leg_frac — ход вырождается в ноль)")
+    if rec.get("k") is not None:
+        parts.append(f"k={float(rec['k']):.4f}")
+    return ", ".join(parts)
+
+
 # ────────────────────────── поверхность: allocator ──────────────────────────
 
 def _allocator() -> Any:
@@ -441,6 +547,47 @@ def _t3_probe_keys() -> list[str]:
     return out
 
 
+# ──────────── чьё решение стои́т за ручкой: реестр решений, не список ────────
+
+_DECISIONS_REL = "docs/decisions"
+
+
+def _field_decisions(root: str, field_names: set[str]) -> dict | None:
+    """Какие ADR называют каждое поле политики — ЗАМЕРОМ по реестру решений.
+
+    Контрапункт ADR-986 (§40): ступень 3 лестницы владельца — «заранее
+    УТВЕРЖДЁННЫЕ bands», и поле политики само по себе утверждением не является:
+    ``dataclasses.fields`` отвечает «ручка объявлена», а не «владелец решил её
+    значение». Ответ берётся не из таблицы в голове, а из ``docs/decisions``:
+    поле названо хотя бы одним ADR ⇒ решение о нём записано; не названо ни
+    одним ⇒ ручка есть, решения нет. Реестр не прочитан ⇒ ``None`` — третий
+    исход, а не пустой словарь (инв. #17).
+    """
+    import re
+    base = Path(root) / _DECISIONS_REL
+    if not base.is_dir():
+        return None
+    names = sorted(n for n in field_names if n)
+    if not names:
+        return {}
+    pattern = re.compile(r"\b(" + "|".join(re.escape(n) for n in names) + r")\b")
+    out: dict[str, set[str]] = {n: set() for n in names}
+    seen = 0
+    for path in sorted(base.glob("ADR-*.md")):
+        try:
+            text = path.read_text(encoding="utf-8", errors="replace")
+        except OSError:
+            continue
+        seen += 1
+        adr = path.name.split("-", 2)
+        adr_id = "-".join(adr[:2]) if len(adr) >= 2 else path.stem
+        for m in pattern.finditer(text):
+            out[m.group(1)].add(adr_id)
+    if seen == 0:
+        return None
+    return {n: sorted(v) for n, v in out.items()}
+
+
 # ─────────────────────────────── контроль ───────────────────────────────────
 
 def _healthy_baselines() -> dict:
@@ -448,18 +595,23 @@ def _healthy_baselines() -> dict:
     spec = [{"protocol": "aave_v3", "tier": "T1", "apy_pct": 4.0},
             {"protocol": "pendle", "tier": "T2", "apy_pct": 8.0}]
     target = {"aave_v3": 0.30 * _SCENE_CAPITAL_USD, "pendle": 0.15 * _SCENE_CAPITAL_USD}
+    econ = _econ_scene()
     return {
         "gate": _gate_verdict(target, spec),
         "gate_spec": spec,
         "gate_target": target,
-        "economics": _econ_verdict(_econ_scene()),
+        "economics": _econ_verdict(econ),
+        # Здоровый ход (10 % капитала) лежит ВНУТРИ потолков размера: трим его
+        # не трогает (k = 1). Без этой точки отсчёта «урезал» показать нечем.
+        "trim": _trim_fingerprint(_trim_record(
+            econ["current_positions"], econ["target_positions"], spec=spec)),
         "allocator_chain": _alloc_weights_verdict(
             "_enforce_chain_caps", {"aave_v3": 0.40, "pendle": 0.20}),
     }
 
 
 def _control_ok(baseline: dict) -> tuple[bool, str]:
-    """Разрешает ли здоровая сцена ход на ВСЕХ трёх поверхностях."""
+    """Разрешает ли здоровая сцена ход на ВСЕХ четырёх поверхностях."""
     if not baseline["gate"].startswith("approved=True|err=False"):
         return False, ("здоровая сцена не одобрена гейтом "
                        f"({baseline['gate']}) — перехода «разрешено → запрещено» "
@@ -467,6 +619,10 @@ def _control_ok(baseline: dict) -> tuple[bool, str]:
     if baseline["economics"] != "ACT":
         return False, ("здоровая сцена не даёт ACT у экономики "
                        f"({baseline['economics']}) — переход показать нечем")
+    if not str(baseline.get("trim", "")).startswith(_TRIM_UNTOUCHED):
+        return False, ("здоровый ход уже урезается тримом "
+                       f"({baseline.get('trim')}) — переход «не урезан → урезан» "
+                       "показать нечем")
     untouched = json.dumps({"aave_v3": 0.4, "pendle": 0.2}, ensure_ascii=False)
     if baseline["allocator_chain"] != untouched:
         return False, ("здоровая раскладка уже срезается сетевыми потолками "
@@ -524,6 +680,18 @@ def _probe_max_trade_amount(base: dict, fields: dict, origins: dict) -> list[dic
     econ_scaled = _econ_verdict(econ_scene)
     usd_fields = sorted(n for n in fields["RiskConfig"] | fields["TriggerParams"]
                         if n.endswith("_usd"))
+    # ЧЕТВЁРТАЯ ПОВЕРХНОСТЬ (#1104, ADR-987): тот же ход ×k у ТРИМА. Экономика
+    # выше отвечает отказом (HOLD); трим отвечает РАЗМЕРОМ — ход делается, но
+    # не больше `max_trade_usd`. Это разные ответы на вопрос владельца, и до
+    # #1104 отчёт знал только первый.
+    trim_scaled = _trim_record(econ_scene["current_positions"],
+                               econ_scene["target_positions"],
+                               capital_usd=_SCENE_CAPITAL_USD * k,
+                               spec=base["gate_spec"])
+    trim_dial = _trim_record(_econ_scene()["current_positions"],
+                             _econ_scene()["target_positions"],
+                             params=_trigger_params(max_trade_usd=1_000.0),
+                             spec=base["gate_spec"])
     return [
         _rec("gate", "quantity",
              not gate_scaled.startswith("approved=True"),
@@ -532,6 +700,14 @@ def _probe_max_trade_amount(base: dict, fields: dict, origins: dict) -> list[dic
         _rec("economics", "quantity", econ_scaled != base["economics"],
              f"ход ×{k:g} (${0.10 * _SCENE_CAPITAL_USD * k:,.0f}) при той же "
              f"доле 10 %: {econ_scaled}"),
+        _rec("trim", "quantity", _trim_fingerprint(trim_scaled) != base["trim"],
+             f"ход ×{k:g} (${0.10 * _SCENE_CAPITAL_USD * k:,.0f}) при той же доле "
+             f"10 %: {base['trim']} → {_trim_detail(trim_scaled)} — связывает "
+             f"РАЗМЕРОМ: ход сделан, но не больше потолка"),
+        _rec("trim", "threshold", _trim_fingerprint(trim_dial) != base["trim"],
+             f"max_trade_usd {_trigger_params().max_trade_usd:,.0f} → 1 000 на здоровом "
+             f"ходе: {base['trim']} → {_trim_detail(trim_dial)}",
+             "max_trade_usd", "TriggerParams"),
         # ПЕРЕМЕРЕНО 12.09 (ADR-357): ручка появилась по ответу владельца, и здесь
         # она проверяется ПОВЕДЕНИЕМ, а не именем поля. Совпадение по имени
         # ошибается в обе стороны: `min_tvl_usd` тоже оканчивается на `_usd`, но
@@ -553,11 +729,28 @@ def _probe_pct_per_rebalance(base: dict, fields: dict, origins: dict) -> list[di
     )
     v_big = _econ_verdict(big)
     v_dial = _econ_verdict(_econ_scene(), _trigger_params(max_turnover_per_move=0.01))
+    # ЧЕТВЁРТАЯ ПОВЕРХНОСТЬ (#1104, ADR-987): перетасовка 30 % капитала между
+    # двумя T1-пулами — больше потолка за ход (15 %), допустима для гейта.
+    big_trim = _trim_record(
+        {"aave_v3": 0.40 * _SCENE_CAPITAL_USD, "compound_v3": 0.0},
+        {"aave_v3": 0.10 * _SCENE_CAPITAL_USD, "compound_v3": 0.30 * _SCENE_CAPITAL_USD},
+        spec=_TRIM_BIG_SPEC)
+    dial_trim = _trim_record(_econ_scene()["current_positions"],
+                             _econ_scene()["target_positions"],
+                             params=_trigger_params(max_turnover_per_move=0.01),
+                             spec=base["gate_spec"])
     return [
         _rec("economics", "quantity", v_big != base["economics"],
              f"оборот 10 % → 35 % капитала: {base['economics']} → {v_big}"),
         _rec("economics", "threshold", v_dial != base["economics"],
              f"max_turnover_per_move 0.15 → 0.01: {base['economics']} → {v_dial}",
+             "max_turnover_per_move", "TriggerParams"),
+        _rec("trim", "quantity", _trim_fingerprint(big_trim) != base["trim"],
+             f"оборот 10 % → 30 % капитала (T1 → T1): {base['trim']} → "
+             f"{_trim_detail(big_trim)} — связывает РАЗМЕРОМ, а не отказом"),
+        _rec("trim", "threshold", _trim_fingerprint(dial_trim) != base["trim"],
+             f"max_turnover_per_move 0.15 → 0.01 на здоровом ходе: {base['trim']} → "
+             f"{_trim_detail(dial_trim)}",
              "max_turnover_per_move", "TriggerParams"),
         _rec("gate", "quantity", False,
              "гейт судит КНИГУ, а не ход: понятия оборота у него нет "
@@ -592,7 +785,26 @@ def _probe_daily_turnover(base: dict, fields: dict, origins: dict) -> list[dict]
     # что «его кто-то читает».
     spent_today = _econ_verdict(_econ_scene(turnover_today_usd=0.99 * _SCENE_CAPITAL_USD))
     day_dial = _econ_verdict(_econ_scene(), _trigger_params(max_turnover_per_day=0.01))
+    # ЧЕТВЁРТАЯ ПОВЕРХНОСТЬ (#1104): трим читает ТОЛЬКО потолки размера хода и
+    # дневной бюджет не знает — по построению (ADR-848: бюджет зависит от уже
+    # прокрученного оборота и потолком ЭТОГО хода не является; его судит
+    # экономика выше). Поэтому ужесточение дневного бюджета трим не поворачивает,
+    # и это запись, а не щель: ход при съеденном бюджете не делается вовсе.
+    import inspect as _inspect
+    from spa_core.paper_trading.admissible_trim import apply_admissible_trim
+    trim_inputs = sorted(_inspect.signature(apply_admissible_trim).parameters)
+    trim_daily_inputs = [p for p in trim_inputs if "day" in p or "turnover" in p]
+    trim_day_dial = _trim_record(_econ_scene()["current_positions"],
+                                 _econ_scene()["target_positions"],
+                                 params=_trigger_params(max_turnover_per_day=0.01),
+                                 spec=base["gate_spec"])
     return [
+        _rec("trim", "threshold", _trim_fingerprint(trim_day_dial) != base["trim"],
+             f"max_turnover_per_day {_trigger_params().max_turnover_per_day} → 0.01 у "
+             f"трима: {base['trim']} → {_trim_fingerprint(trim_day_dial)}; входов "
+             f"про оборот/сутки у apply_admissible_trim: {trim_daily_inputs or 'нет'} "
+             f"— бюджеты дня трим не читает ПО ПОСТРОЕНИЮ (ADR-848), их судит экономика",
+             "max_turnover_per_day", "TriggerParams"),
         _rec("economics", "quantity", spent_today != base["economics"],
              f"оборот за СЕГОДНЯ 0 → 99 % капитала: {base['economics']} → "
              f"{spent_today}; входы про оборот: {turnover_inputs}, про сутки: "
@@ -1009,7 +1221,20 @@ def run(root: str = REPO_ROOT, *, write: bool = True,
                 entry.update({"outcome": UNCHECKED,
                               "unchecked_reason": control_reason})
 
+    # Чьё решение стои́т за каждой ручкой (ADR-986, ступень 3 = «утверждённые
+    # bands»): меряется по реестру решений, пишется в саму запись порога.
+    knob_names = {r.get("policy_field") for e in results
+                  for r in e.get("records") or [] if r.get("policy_field")}
+    decisions = _field_decisions(root, {n for n in knob_names if n})
+    for entry in results:
+        for rec in entry.get("records") or []:
+            if rec.get("policy_field"):
+                rec["decisions"] = (None if decisions is None
+                                    else list(decisions.get(rec["policy_field"], [])))
+
     findings, unchecked = _findings(results, control_ok, control_reason, baseline)
+    if control_ok:
+        findings.extend(_decision_findings(results, decisions))
     counts = {
         "critical": sum(1 for f in findings if f["severity"] == "CRITICAL"),
         "warn": sum(1 for f in findings if f["severity"] == "WARN"),
@@ -1038,9 +1263,14 @@ def run(root: str = REPO_ROOT, *, write: bool = True,
         "limits_total": len(OWNER_LIMITS),
         "tally": tally,
         "surfaces": list(SURFACES),
+        "surface_semantics": dict(SURFACE_SEMANTICS),
+        "policy_field_decisions": (
+            {"measured": False,
+             "reason": f"реестр решений {_DECISIONS_REL} в корне {root} не прочитан"}
+            if decisions is None else {"measured": True, "fields": decisions}),
         "control": {"passed": control_ok, "reason": control_reason,
                     "healthy_baseline": {k: v for k, v in baseline.items()
-                                         if k in ("gate", "economics",
+                                         if k in ("gate", "economics", "trim",
                                                   "allocator_chain")},
                     "surfaces_with_a_binding_limit": sorted(
                         _binding_surfaces(results)) if control_ok else []},
@@ -1059,6 +1289,49 @@ def run(root: str = REPO_ROOT, *, write: bool = True,
         from spa_core.utils.atomic import atomic_save
         atomic_save(doc, os.path.join(root, REPORT_REL))
     return doc
+
+
+def _decision_findings(results: list[dict], decisions: dict | None) -> list[dict]:
+    """Ручки, за которыми не стои́т ни одного записанного решения — и ручки трима.
+
+    Первая находка — контрапункт ADR-986: ручка владельца, значение которой не
+    называет ни один ADR, для ступени 3 («заранее утверждённые bands») не
+    утверждена. Вторая — что именно §41 получил от четвёртой поверхности.
+    """
+    out: list[dict] = []
+    if decisions is None:
+        out.append({
+            "severity": "INFO", "code": "knob_decisions_unmeasured",
+            "message": ("за какими ручками стои́т записанное решение владельца — "
+                        "НЕ ИЗМЕРЕНО: реестр решений не прочитан"),
+        })
+    else:
+        knobs = sorted({f"{r['declared_in']}.{r['policy_field']}"
+                        for e in results for r in e.get("records") or []
+                        if r.get("policy_field") and r.get("changed")})
+        orphans = sorted(k for k in knobs
+                         if not decisions.get(k.split(".", 1)[1]))
+        out.append({
+            "severity": "WARN" if orphans else "INFO",
+            "code": "knob_without_decision",
+            "message": (
+                f"ручек, поворачивающих вердикт: {len(knobs)}; из них не названы "
+                f"ни одним ADR реестра: {orphans or 'ни одна'} — для ступени 3 "
+                f"лестницы владельца (ADR-986: «заранее утверждённые bands») "
+                f"ручка без записанного решения утверждённой не является"),
+        })
+    sized = sorted({e["owner_wording"] for e in results
+                    for r in e.get("records") or []
+                    if r["surface"] == "trim" and r["axis"] == "quantity" and r["changed"]})
+    out.append({
+        "severity": "INFO", "code": "trim_sizes_the_move",
+        "message": (
+            f"поверхность `trim` (ADR-850) связывает РАЗМЕРОМ хода, а не отказом: "
+            f"{'; '.join('«' + w + '»' for w in sized) or 'ни одно ограничение'} — "
+            f"ход делается, но не больше потолка; остальные три поверхности отвечают "
+            f"отказом или срезом предложения (см. surface_semantics)"),
+    })
+    return out
 
 
 def _measured(result: dict) -> str:

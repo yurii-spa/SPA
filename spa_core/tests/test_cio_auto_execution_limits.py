@@ -11,6 +11,11 @@
 
 Литеральных pid здесь нет вовсе. Единственная литеральная дата — якорь
 инъекции.
+
+#1104 (ADR-987): поверхностей стало ЧЕТЫРЕ. Урезание хода ADR-850 (``trim``)
+связывает РАЗМЕРОМ, а не отказом, и отчёт о трёх поверхностях описывал мир до
+ADR-850 — проверки раздела 8 краснеют, если трим снова выпадет из замера или
+если «ход сделан меньше» снова станет неотличим от «ход не сделан».
 """
 # FROZEN-DATE-OK: injected-clock — литерал `NOW` служит ТОЛЬКО якорем: он
 # передаётся параметром `now=` в `M.run(...)`, и единственное поле отчёта, где
@@ -32,7 +37,7 @@ from spa_core.monitoring import cio_auto_execution_limits as M
 NOW = dt.datetime(2026, 3, 4, 5, 6, 7, tzinfo=dt.timezone.utc)
 
 #: Один прогон на весь файл: он детерминирован и не трогает живое состояние,
-#: а двенадцать проб × три поверхности — не та цена, которую стоит платить
+#: а двенадцать проб × четыре поверхности — не та цена, которую стоит платить
 #: заново в каждом тесте.
 _RUN: dict = {}
 
@@ -451,3 +456,217 @@ class TestReportShape(unittest.TestCase):
 
 if __name__ == "__main__":  # pragma: no cover
     unittest.main()
+
+
+# ─── 8. ЧЕТВЁРТАЯ ПОВЕРХНОСТЬ (#1104, ADR-987): трим связывает РАЗМЕРОМ ──────
+
+class TestTrimIsTheFourthSurface(unittest.TestCase):
+    """До #1104 отчёт §41 знал три поверхности и описывал мир до ADR-850.
+
+    Артефакт 29.10 называл у «max trade amount» одну связывающую поверхность —
+    ``economics`` (отказ ACT → HOLD). Шаг 2e'' цикла с 28.10 отвечает на ту же
+    величину иначе: ход ДЕЛАЕТСЯ, но не больше потолка. Два разных ответа на
+    вопрос владельца, и второй в отчёте не существовал.
+    """
+
+    def test_trim_is_declared_fourth_and_covered_by_control(self):
+        doc = _run()
+        self.assertEqual(4, len(M.SURFACES))
+        self.assertIn("trim", M.SURFACES)
+        self.assertEqual(list(M.SURFACES), doc["surfaces"])
+        self.assertIn("trim", doc["control"]["surfaces_with_a_binding_limit"])
+        self.assertTrue(
+            doc["control"]["healthy_baseline"]["trim"].startswith(M._TRIM_UNTOUCHED),
+            "здоровый ход (10 % капитала) обязан лежать внутри потолков размера — "
+            "иначе переход «не урезан → урезан» показать нечем")
+
+    def test_max_trade_amount_binds_at_trim_by_size_not_by_refusal(self):
+        entry = _limit(_run(), "max_trade_amount")
+        self.assertIn("trim", entry["surfaces_binding"])
+        self.assertIn("economics", entry["surfaces_binding"],
+                      "экономика по-прежнему отвечает отказом — трим её не заменяет")
+        trim = {r["axis"]: r for r in entry["records"] if r["surface"] == "trim"}
+        self.assertTrue(trim["quantity"]["changed"])
+        self.assertIn(M._TRIM_APPLIED, trim["quantity"]["detail"])
+        self.assertIn("k=0.0150", trim["quantity"]["detail"],
+                      "ход ×100 при потолке $15 000 урезается до 1,5 % предложения")
+        self.assertTrue(trim["threshold"]["changed"])
+        self.assertEqual("max_trade_usd", trim["threshold"]["policy_field"])
+        self.assertEqual("TriggerParams", trim["threshold"]["declared_in"])
+
+    def test_pct_per_rebalance_binds_at_trim_with_half_the_move(self):
+        entry = _limit(_run(), "max_pct_per_rebalance")
+        self.assertIn("trim", entry["surfaces_binding"])
+        q = next(r for r in entry["records"]
+                 if r["surface"] == "trim" and r["axis"] == "quantity")
+        self.assertTrue(q["changed"])
+        self.assertIn("k=0.5000", q["detail"], "30 % предложения при потолке 15 %")
+        t = next(r for r in entry["records"]
+                 if r["surface"] == "trim" and r["axis"] == "threshold")
+        self.assertTrue(t["changed"])
+        self.assertEqual("max_turnover_per_move", t["policy_field"])
+
+    def test_daily_budget_is_not_a_trim_input_and_is_not_called_a_gap(self):
+        """Трим не читает бюджет дня ПО ПОСТРОЕНИЮ (ADR-848) — запись, не щель."""
+        entry = _limit(_run(), "max_daily_turnover")
+        rec = next(r for r in entry["records"] if r["surface"] == "trim")
+        self.assertFalse(rec["changed"])
+        self.assertNotIn("gap", rec)
+        self.assertNotIn("trim", entry["surfaces_binding"])
+        self.assertIn("ADR-848", rec["detail"])
+        self.assertEqual(M.BINDING, entry["outcome"],
+                         "экономика связывает дневной бюджет — исход не меняется")
+
+    def test_refusal_and_sizing_are_two_different_answers(self):
+        """Та же величина, тот же ход ×100: экономика говорит HOLD, трим — k < 1."""
+        entry = _limit(_run(), "max_trade_amount")
+        econ = next(r for r in entry["records"]
+                    if r["surface"] == "economics" and r["axis"] == "quantity")
+        trim = next(r for r in entry["records"]
+                    if r["surface"] == "trim" and r["axis"] == "quantity")
+        self.assertTrue(econ["changed"] and trim["changed"])
+        self.assertIn("HOLD", econ["detail"])
+        self.assertNotIn("HOLD", trim["detail"])
+        self.assertIn("РАЗМЕРОМ", trim["detail"])
+
+    def test_a_torn_trim_door_makes_the_whole_tally_unreadable(self):
+        """Трим, который никогда не урезает, неотличим от сломанной пробы.
+
+        Рвётся ДВЕРЬ (запись трима), а не отдельная проба: именно так отчёт и
+        сломался бы в жизни — шаг 2e'' выпал бы из цикла, а трёхповерхностный
+        отчёт продолжал бы читаться как полный.
+        """
+        original = M._trim_record
+        M._trim_record = lambda *a, **k: {"verdict": M._TRIM_UNTOUCHED, "k": 1.0}
+        try:
+            doc = M.run(write=False, now=NOW)
+        finally:
+            M._trim_record = original
+        self.assertEqual("UNCHECKED", doc["overall"])
+        self.assertFalse(doc["control"]["passed"])
+        self.assertIn("trim", doc["control"]["reason"])
+        self.assertEqual(len(M.OWNER_LIMITS), doc["tally"][M.UNCHECKED])
+
+    def test_a_trim_that_cuts_the_healthy_move_fails_the_control(self):
+        """Точка отсчёта обязана быть «не урезан»: иначе «урезал» нечем показать."""
+        original = M._healthy_baselines
+        M._healthy_baselines = lambda: dict(original(), trim=f"{M._TRIM_APPLIED}|k=0.5000")
+        try:
+            doc = M.run(write=False, now=NOW)
+        finally:
+            M._healthy_baselines = original
+        self.assertFalse(doc["control"]["passed"])
+        self.assertIn("трим", doc["control"]["reason"])
+
+    def test_trim_scene_is_a_real_reshuffle_judged_by_the_real_doors(self):
+        rec = M._trim_record({"aave_v3": 40_000.0, "compound_v3": 0.0},
+                             {"aave_v3": 10_000.0, "compound_v3": 30_000.0})
+        self.assertEqual(M._TRIM_APPLIED, rec["verdict"])
+        self.assertAlmostEqual(0.5, rec["k"], places=4)
+        self.assertEqual("ADR-850", rec["adr"])
+        self.assertTrue(rec["policy"]["approved"], "урезанную книгу переспросила RiskPolicy")
+        self.assertEqual(15_000.0, rec["admissible_usd"])
+
+    def test_the_t2_trap_the_scene_was_built_to_avoid(self):
+        """Та же перетасовка в T2-пул: гейт отказывает урезанной книге по КОНЦЕНТРАЦИИ.
+
+        Если бы сцена трима шла в `pendle` (T2, потолок 20 %), отказ гейта
+        записался бы в актив потолку РАЗМЕРА, которого у гейта нет — та же
+        ловушка, что у суммарного потолка T3 в разделе 1.
+        """
+        rec = M._trim_record(
+            {"aave_v3": 40_000.0, "pendle": 10_000.0},
+            {"aave_v3": 5_000.0, "pendle": 45_000.0},
+            spec=[{"protocol": "aave_v3", "tier": "T1"}, {"protocol": "pendle", "tier": "T2"}])
+        self.assertEqual("REFUSED_BY_RISK_POLICY", rec["verdict"])
+        self.assertFalse(rec["policy"]["approved"])
+
+    def test_fingerprint_sees_k_and_ignores_turnover(self):
+        a = M._trim_fingerprint({"verdict": "X", "k": 0.5, "turnover_full_usd": 1.0})
+        b = M._trim_fingerprint({"verdict": "X", "k": 0.5, "turnover_full_usd": 2.0})
+        self.assertEqual(a, b)
+        self.assertNotEqual(a, M._trim_fingerprint({"verdict": "X", "k": 0.4}))
+        self.assertEqual("X|k=—", M._trim_fingerprint({"verdict": "X"}),
+                         "отсутствие k — отдельное значение, а не ноль")
+
+    def test_detail_names_a_move_that_degenerates_to_dust(self):
+        rec = {"verdict": M._TRIM_APPLIED, "k": 0.015, "turnover_full_usd": 1e6,
+               "admissible_usd": 15_000.0, "turnover_final_usd": 0.0}
+        self.assertIn("ниже пыли", M._trim_detail(rec))
+        rec["turnover_final_usd"] = 15_000.0
+        self.assertNotIn("ниже пыли", M._trim_detail(rec))
+
+    def test_surface_semantics_cover_every_surface_and_name_trim_as_sizing(self):
+        sem = _run()["surface_semantics"]
+        self.assertEqual(set(M.SURFACES), set(sem))
+        self.assertIn("размер", sem["trim"].lower())
+        self.assertIn("отказ", sem["economics"].lower())
+
+    def test_finding_names_both_size_limits_the_trim_binds(self):
+        f = next(x for x in _run()["findings"] if x["code"] == "trim_sizes_the_move")
+        self.assertEqual("INFO", f["severity"])
+        self.assertIn("«max trade amount»", f["message"])
+        self.assertIn("«max % portfolio per rebalance»", f["message"])
+        self.assertNotIn("«max daily turnover»", f["message"])
+
+
+# ─── 9. Чьё решение стои́т за ручкой — замер по реестру, не таблица ───────────
+
+class TestKnobDecisionsAreMeasuredNotListed(unittest.TestCase):
+    """Контрапункт ADR-986: ручка объявлена ≠ значение утверждено владельцем."""
+
+    def test_every_turning_knob_is_named_by_at_least_one_adr(self):
+        doc = _run()
+        self.assertTrue(doc["policy_field_decisions"]["measured"])
+        turning = [r for e in doc["limits"] for r in e["records"]
+                   if r.get("policy_field") and r["changed"]]
+        self.assertTrue(turning)
+        for r in turning:
+            self.assertIsNotNone(r.get("decisions"), r["policy_field"])
+            self.assertTrue(r["decisions"], f"ручка {r['policy_field']} без решения")
+            self.assertTrue(all(x.startswith("ADR-") for x in r["decisions"]))
+        knob = next(x for x in doc["findings"] if x["code"] == "knob_without_decision")
+        self.assertEqual("INFO", knob["severity"])
+        self.assertIn("ни одна", knob["message"])
+
+    def test_a_root_without_the_registry_is_unmeasured_not_empty(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            self.assertIsNone(M._field_decisions(tmp, {"max_trade_usd"}))
+            reg = Path(tmp) / "docs" / "decisions"
+            reg.mkdir(parents=True)
+            self.assertIsNone(M._field_decisions(tmp, {"max_trade_usd"}),
+                              "пустой реестр — не прочитан ни один ADR, ответа нет")
+            (reg / "ADR-001-x.md").write_text("ручка max_trade_usd = 15000", encoding="utf-8")
+            (reg / "ADR-002-y.md").write_text("про max_trade_usd_extra только", encoding="utf-8")
+            out = M._field_decisions(tmp, {"max_trade_usd", "min_gain_pp"})
+            self.assertEqual({"max_trade_usd": ["ADR-001"], "min_gain_pp": []}, out)
+
+    def test_decision_findings_flag_an_orphan_knob_as_warn(self):
+        results = [{"owner_wording": "x", "records": [
+            {"surface": "economics", "axis": "threshold", "changed": True,
+             "policy_field": "foo", "declared_in": "TriggerParams"}]}]
+        warn = next(f for f in M._decision_findings(results, {"foo": []})
+                    if f["code"] == "knob_without_decision")
+        self.assertEqual("WARN", warn["severity"])
+        self.assertIn("TriggerParams.foo", warn["message"])
+        info = next(f for f in M._decision_findings(results, {"foo": ["ADR-1"]})
+                    if f["code"] == "knob_without_decision")
+        self.assertEqual("INFO", info["severity"])
+
+    def test_an_unread_registry_is_its_own_finding(self):
+        codes = {f["code"] for f in M._decision_findings([], None)}
+        self.assertIn("knob_decisions_unmeasured", codes)
+        self.assertNotIn("knob_without_decision", codes)
+
+    def test_run_reports_an_unread_registry_as_unmeasured(self):
+        original = M._field_decisions
+        M._field_decisions = lambda root, names: None
+        try:
+            doc = M.run(write=False, now=NOW)
+        finally:
+            M._field_decisions = original
+        self.assertFalse(doc["policy_field_decisions"]["measured"])
+        self.assertIn("reason", doc["policy_field_decisions"])
+        rec = next(r for e in doc["limits"] for r in e["records"] if r.get("policy_field"))
+        self.assertIsNone(rec["decisions"])
+        self.assertIn("knob_decisions_unmeasured", {f["code"] for f in doc["findings"]})

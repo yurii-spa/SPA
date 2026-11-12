@@ -447,7 +447,7 @@ class VerdictCodeIsReachableInEveryKind(unittest.TestCase):
 
 
 class LiveTreeCensus(unittest.TestCase):
-    """Замер на живом дереве: все четыре поверхности отвечают, ни одна не молчит."""
+    """Замер на живом дереве: все поверхности (пять с #1104, + `trim`) отвечают, ни одна не молчит."""
 
     @classmethod
     def setUpClass(cls):
@@ -537,3 +537,46 @@ class InstrumentOnlyReads(unittest.TestCase):
 
 if __name__ == "__main__":  # pragma: no cover
     unittest.main()
+
+
+class TrimSurfaceFromS41(unittest.TestCase):
+    """#1104 (ADR-987): §41 объявил четвёртую поверхность — урезание хода ADR-850.
+
+    Словарь поверхностей здесь ВВЕЗЁН из §41, поэтому новая поверхность обязана
+    получить ответ и тут — иначе прибор честно говорит «объявлена и НЕ измерена»
+    и уходит в код 2 (так он и покраснел на дереве #1104 до этой правки).
+    """
+
+    @classmethod
+    def setUpClass(cls):
+        cls.report = abc.census(REPO_ROOT)
+
+    def test_trim_is_in_the_imported_vocabulary(self):
+        self.assertIn("trim", abc.SURFACES_18)
+
+    def test_trim_has_no_asset_input_and_its_control_speaks(self):
+        row = next(r for r in self.report["distinction"] if r["surface"] == "trim")
+        self.assertEqual("no_input_door", row["kind"], row["detail"])
+        self.assertNotEqual(row["control"]["within_caps"], row["control"]["over_caps"],
+                            "контроль обязан показать, что трим жив на СВОЮ величину")
+        self.assertIn("adapters", row["detail"])
+
+    def test_trim_expressibility_is_registry_only(self):
+        row = next(r for r in self.report["expressibility"] if r["surface"] == "trim")
+        self.assertEqual("registry_only", row["kind"], row["detail"])
+        self.assertIn("adapters", row["door_params"])
+        self.assertNotIn("asset", row["door_params"])
+
+    def test_a_silent_trim_control_is_unmeasured_not_a_verdict(self):
+        probes = {"trim_record": lambda *a, **k: {"verdict": "X", "k": 1.0},
+                  "trim_fingerprint": lambda rec: "X|k=1.0000"}
+        row = abc.probe_trim(probes)
+        self.assertEqual(abc.UNMEASURED, row["kind"])
+        self.assertIn("МОЛЧИТ", row["detail"])
+
+    def test_a_trim_that_fails_is_unmeasured_with_the_reason(self):
+        def boom(*a, **k):
+            raise RuntimeError("дверь закрыта")
+        row = abc.probe_trim({"trim_record": boom, "trim_fingerprint": str})
+        self.assertEqual(abc.UNMEASURED, row["kind"])
+        self.assertIn("RuntimeError", row["detail"])

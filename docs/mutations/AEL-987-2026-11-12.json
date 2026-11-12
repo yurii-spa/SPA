@@ -1,0 +1,119 @@
+{
+ "adr": "ADR-987",
+ "cycle": "#1104",
+ "date": "2026-11-12",
+ "tree": "/private/tmp/spa_mut_1104",
+ "module": "spa_core/monitoring/cio_auto_execution_limits.py",
+ "battery": "spa_core/tests/test_cio_auto_execution_limits.py",
+ "module_md5_under_test": "4885468e3ec18ecd21039dd275bc1bfc",
+ "note": "md5 — байты модуля ПОД мутацией (до правки комментария о сцене T2 по итогам M15; правка — только комментарий, код не менялся)",
+ "summary": {
+  "applied": 16,
+  "killed": 14,
+  "survived": 2,
+  "not_applied": 0,
+  "broke_build": 0
+ },
+ "survivors": {
+  "M11": "прозаическая мутация словаря semantics: слово «размер» остаётся во второй половине строки; различающей сцены нет и не придумывается — записано",
+  "M15": "сцена трима в T2 при 30 %: урезанная книга T2 = 15 % ниже потолка 20 %, гейт одобряет — выбор T1 → T1 защитный, не несущий; несущую сторону ловушки держит тест с ходом 45 %"
+ },
+ "mutations": [
+  {
+   "id": "M01",
+   "name": "M01 trim выпадает из SURFACES",
+   "status": "KILLED",
+   "tail": "1 failed, 7 passed in 0.58s"
+  },
+  {
+   "id": "M02",
+   "name": "M02 отпечаток трима не видит k",
+   "status": "KILLED",
+   "tail": "1 failed, 34 passed in 1.26s"
+  },
+  {
+   "id": "M03",
+   "name": "M03 запись трима ×100 всегда «не изменилась»",
+   "status": "KILLED",
+   "tail": "1 failed, 33 passed in 1.23s"
+  },
+  {
+   "id": "M04",
+   "name": "M04 ручка max_trade_usd у трима теряет policy_field",
+   "status": "KILLED",
+   "tail": "1 failed, 35 passed in 1.17s"
+  },
+  {
+   "id": "M05",
+   "name": "M05 контроль не требует «не урезан» на здоровом ходе",
+   "status": "KILLED",
+   "tail": "1 failed, 30 passed in 1.29s"
+  },
+  {
+   "id": "M06",
+   "name": "M06 дневной бюджет у трима объявлен щелью",
+   "status": "KILLED",
+   "tail": "1 failed, 31 passed in 1.17s"
+  },
+  {
+   "id": "M07",
+   "name": "M07 нечитаемый реестр решений → пустой словарь",
+   "status": "KILLED",
+   "tail": "1 failed, 42 passed in 1.21s"
+  },
+  {
+   "id": "M08",
+   "name": "M08 пустой реестр (0 ADR) → пустой словарь",
+   "status": "KILLED",
+   "tail": "1 failed, 42 passed in 1.19s"
+  },
+  {
+   "id": "M09",
+   "name": "M09 сирота-ручка не поднимает WARN",
+   "status": "KILLED",
+   "tail": "1 failed, 44 passed in 1.19s"
+  },
+  {
+   "id": "M10",
+   "name": "M10 граница слова снята (префиксы совпадают)",
+   "status": "KILLED",
+   "tail": "1 failed, 42 passed in 0.90s"
+  },
+  {
+   "id": "M11",
+   "name": "M11 семантика трима теряет слово «размер»",
+   "status": "SURVIVED",
+   "tail": "47 passed in 1.22s"
+  },
+  {
+   "id": "M12",
+   "name": "M12 пылевая нога не называется",
+   "status": "KILLED",
+   "tail": "1 failed, 32 passed in 1.17s"
+  },
+  {
+   "id": "M13",
+   "name": "M13 решения не пишутся в запись порога",
+   "status": "KILLED",
+   "tail": "1 failed, 45 passed in 1.20s"
+  },
+  {
+   "id": "M14",
+   "name": "M14 находка trim_sizes_the_move берёт ВСЕ поверхности",
+   "status": "KILLED",
+   "tail": "1 failed, 33 passed in 1.16s"
+  },
+  {
+   "id": "M15",
+   "name": "M15 большая сцена трима идёт в T2 (ловушка концентрации)",
+   "status": "SURVIVED",
+   "tail": "47 passed in 1.21s"
+  },
+  {
+   "id": "M16",
+   "name": "M16 healthy_baseline не несёт trim",
+   "status": "KILLED",
+   "tail": "1 failed, 40 passed in 1.19s"
+  }
+ ]
+}

@@ -731,3 +731,29 @@ def test_the_instrument_writes_nothing(tmp_path, monkeypatch):
     before = sorted(p.name for p in tmp_path.iterdir())
     ncc.census(REPO, tmp_path)
     assert sorted(p.name for p in tmp_path.iterdir()) == before
+
+
+# ---------------------------------------------------------------------------
+# #1104 (ADR-987): четвёртая поверхность §41 — урезание хода ADR-850
+# ---------------------------------------------------------------------------
+
+def test_trim_surface_is_imported_and_answered_as_absent_with_the_reason():
+    """Словарь поверхностей ввезён из §41: новая поверхность получает ответ и здесь.
+
+    До этой правки прибор на дереве #1104 честно говорил «поверхность trim
+    объявлена и НЕ измерена» и уходил в код 2 — верно по своей мерке и мимо по
+    предмету: ответ про трим есть, его просто никто не записал.
+    """
+    assert "trim" in ncc.SURFACES_20
+    row = next(r for r in ncc.expressibility(REPO) if r["surface"] == "trim")
+    assert row["kind"] == "absent", row
+    assert row["params_naming_source"] == []
+    assert "capital_usd" in row["params"]
+    assert "род хода" in row["why"].lower() or "РОД хода" in row["why"]
+    assert "ADR-168" in row["why"]
+
+
+def test_trim_row_counts_toward_express_absent_on_the_live_tree():
+    report = ncc.census(REPO)
+    assert report["unmeasured"] == [], report["unmeasured"]
+    assert "trim" in report["verdict"]["express_absent"]

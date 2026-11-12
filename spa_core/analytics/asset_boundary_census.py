@@ -133,7 +133,7 @@ except Exception as _exc:  # pragma: no cover
     _VOCAB_ERRORS.append(f"§41 SURFACES: {type(_exc).__name__}: {_exc}")
 
 
-#: Поверхности §18. ``SURFACES`` §41 — три поверхности, через которые проходит
+#: Поверхности §18. ``SURFACES`` §41 — поверхности, через которые проходит
 #: решение о движении денег. Четвёртая добавлена ЗДЕСЬ и с причиной: §18
 #: спрашивает про СОСТАВ КНИГИ («strategic underlying exposure»), а состав книги
 #: судит вторая дверь политики (``check_portfolio_health``), которой у §41 в
@@ -204,13 +204,16 @@ def load_surface_probes() -> Tuple[Dict[str, Callable], Optional[str]]:
     """Пробы поверхностей §41 — ввезены, чтобы не было ВТОРОГО ответа о них."""
     try:
         from spa_core.monitoring.cio_auto_execution_limits import (
-            _econ_scene, _econ_verdict, _gate_verdict,
+            _econ_scene, _econ_verdict, _gate_verdict, _trim_fingerprint, _trim_record,
         )
     except Exception as exc:  # noqa: BLE001
         return {}, f"пробы §41 не ввезены: {type(exc).__name__}: {exc}"
     return {"gate_verdict": _gate_verdict,
             "econ_scene": _econ_scene,
-            "econ_verdict": _econ_verdict}, None
+            "econ_verdict": _econ_verdict,
+            # четвёртая поверхность §41 (ADR-987): урезание хода ADR-850
+            "trim_record": _trim_record,
+            "trim_fingerprint": _trim_fingerprint}, None
 
 
 # ---------------------------------------------------------------------------
@@ -260,7 +263,7 @@ def _allocator_record_fields(root: Path) -> Tuple[Optional[List[str]], Optional[
 
 
 def expressibility(root: Path, pol: Dict[str, Any]) -> List[Dict[str, Any]]:
-    """Род выразимости актива у каждой из четырёх поверхностей."""
+    """Род выразимости актива у каждой из поверхностей §18 (пять с #1104: + `trim`)."""
     out: List[Dict[str, Any]] = []
 
     # ── поверхность gate: дверь допуска + запись, которую она получает ──────
@@ -327,6 +330,26 @@ def expressibility(root: Path, pol: Dict[str, Any]) -> List[Dict[str, Any]]:
                   f"(объявлено: {caps})")
     out.append({"surface": "allocator", "kind": kind, "detail": detail,
                 "record_fields": fields, "enforcers": enforcers, "caps": caps})
+
+    # ── поверхность trim: урезание хода (ADR-850; четвёртая поверхность §41, ADR-987)
+    try:
+        from spa_core.paper_trading.admissible_trim import apply_admissible_trim
+        trim_sig = sorted(inspect.signature(apply_admissible_trim).parameters)
+        if "asset" in trim_sig or "assets" in trim_sig:
+            kind, detail = "door_input", "актив — параметр урезания хода"
+        elif "adapters" in trim_sig:
+            kind = "registry_only"
+            detail = (f"актив не параметр урезания (параметры: {trim_sig}); до "
+                      f"переспрошенного гейта он доезжает ДАННЫМИ — в снимке `adapters`, "
+                      f"который трим не читает, а передаёт")
+        else:
+            kind = "absent"
+            detail = (f"у урезания нет ни входа об активе, ни снимка, в котором он "
+                      f"мог бы ехать: {trim_sig}")
+    except Exception as exc:  # noqa: BLE001
+        kind, detail, trim_sig = UNMEASURED, f"шаг урезания не ввезён: {exc}", []
+    out.append({"surface": "trim", "kind": kind, "detail": detail,
+                "door_params": trim_sig})
 
     return out
 
@@ -712,6 +735,47 @@ def probe_economics(probes: Dict[str, Callable]) -> Dict[str, Any]:
             "control": {"base": base, "weak_gain": weak}}
 
 
+def probe_trim(probes: Dict[str, Callable]) -> Dict[str, Any]:
+    """Урезание хода (ADR-850): входа об активе нет ВОВСЕ ⇒ возмутить нечем.
+
+    Четвёртая поверхность §41 (ADR-987). Трим читает доллары ног и потолки
+    РАЗМЕРА; актив до него доезжает только внутри снимка ``adapters``, который он
+    не читает, а ПЕРЕДАЁТ переспрошенному гейту — ответ гейта про актив уже
+    измерен :func:`probe_gate`, и считать его здесь второй раз значило бы завести
+    два ответа об одной двери. Контроль печатается: трим жив и на СВОЮ величину
+    (размер хода) откликается — иначе его молчание об активе ничего не стоило бы.
+    """
+    try:
+        from spa_core.paper_trading.admissible_trim import apply_admissible_trim
+        params = sorted(inspect.signature(apply_admissible_trim).parameters)
+        cap = SCENE_CAPITAL_USD
+        held = {"aave_v3": 0.40 * cap, "compound_v3": 0.0}
+        small = probes["trim_fingerprint"](probes["trim_record"](
+            held, {"aave_v3": 0.30 * cap, "compound_v3": 0.10 * cap}))
+        big = probes["trim_fingerprint"](probes["trim_record"](
+            held, {"aave_v3": 0.10 * cap, "compound_v3": 0.30 * cap}))
+    except Exception as exc:  # noqa: BLE001
+        return {"surface": "trim", "kind": UNMEASURED,
+                "detail": f"шаг урезания не ответил: {type(exc).__name__}: {exc}"}
+    if small == big:
+        return {"surface": "trim", "kind": UNMEASURED,
+                "detail": ("положительный контроль МОЛЧИТ: ход втрое больше потолка "
+                           "урезан так же, как ход внутри потолка — о живости трима "
+                           "сказать нечего"),
+                "control": {"within_caps": small, "over_caps": big}}
+    if "asset" in params or "assets" in params:
+        return {"surface": "trim", "kind": UNMEASURED,
+                "detail": (f"у урезания ПОЯВИЛСЯ вход об активе ({params}) — проба "
+                           f"смены актива для него не написана; «не измерено», а не "
+                           f"«не различает»"),
+                "control": {"within_caps": small, "over_caps": big}}
+    return {"surface": "trim", "kind": "no_input_door",
+            "detail": (f"входа об активе у урезания нет: {params}. Оно читает доллары "
+                       f"ног и потолки РАЗМЕРА (ADR-850); актив едет мимо него в снимке "
+                       f"`adapters` к переспрошенному гейту, чей ответ уже измерен"),
+            "control": {"within_caps": small, "over_caps": big}}
+
+
 def probe_allocator(root: Path) -> Dict[str, Any]:
     """Поверхность предложения: актива нет ни во входе, ни в потолках."""
     fields, why = _allocator_record_fields(root)
@@ -819,6 +883,7 @@ def census(root: Optional[Path] = None) -> Dict[str, Any]:
                 probe_gate(scene, probes),
                 probe_book(scene, pol),
                 probe_economics(probes),
+                probe_trim(probes),
                 probe_allocator(base),
             ]
 

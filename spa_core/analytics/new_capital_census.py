@@ -175,7 +175,7 @@ except Exception as _exc:  # pragma: no cover
     _VOCAB_ERRORS.append("§41 SURFACES: {}: {}".format(type(_exc).__name__, _exc))
 
 
-#: Поверхности §20. ``SURFACES`` §41 — три поверхности, через которые проходит
+#: Поверхности §20. ``SURFACES`` §41 — поверхности, через которые проходит
 #: решение о движении денег; ``book`` добавлена §18 (состав книги судит вторая
 #: дверь политики). Пятая добавлена ЗДЕСЬ и с причиной: §20 спрашивает про РОД
 #: ХОДА, а род хода не записан нигде, кроме ЖУРНАЛА ходов (`data/trades.json`,
@@ -522,6 +522,32 @@ def expressibility(root: Path) -> List[Dict[str, Any]]:
                     "капитал поверхности — {}: приход новых денег невыразим ПО "
                     "ПОСТРОЕНИЮ, поверхность всегда раскладывает капитал заново"
                     .format(len(fields), origin or "НЕ ИЗМЕРЕН: {}".format(o_err))),
+        })
+
+    # ── trim: урезание хода (ADR-850; четвёртая поверхность §41, ADR-987) ─────
+    try:
+        from spa_core.paper_trading.admissible_trim import apply_admissible_trim
+        params, err = _door_params(apply_admissible_trim)
+    except Exception as exc:  # noqa: BLE001
+        params, err = None, "шаг урезания не ввезён: {}: {}".format(type(exc).__name__, exc)
+    if params is None:
+        out.append({"surface": "trim", "kind": UNMEASURED, "why": err})
+    else:
+        named = sorted(p for p in params
+                       if any(tok in p for tok in
+                              ("deposit", "inflow", "new_capital", "new_money",
+                               "contribution", "funding_source", "source")))
+        out.append({
+            "surface": "trim",
+            "kind": "door_input" if named else "absent",
+            "params": params, "params_naming_source": named,
+            "why": ("источник денег назван входом: {}".format(named) if named else
+                    "ни один из {} входов урезания не называет, ОТКУДА доллар; трим "
+                    "различает РОД хода дверью демпфера (ADR-168: де-риск, первичное "
+                    "размещение и размещение простаивающего кэша не урезаются, "
+                    "перетасовка урезается) — но род хода не есть источник денег: "
+                    "приход новых денег и прибыль здесь так же неразличимы"
+                    .format(len(params))),
         })
 
     # ── journal: запись хода ─────────────────────────────────────────────────
