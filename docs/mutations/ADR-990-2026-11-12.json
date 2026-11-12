@@ -1,0 +1,143 @@
+{
+ "adr": "ADR-990",
+ "cycle": "#1107 (cycle-1107, pid 19616) — замер; доставлено #1108 (cycle-1108) наследством",
+ "date": "2026-11-12",
+ "tree": "/private/tmp/spa_mut_1107",
+ "module": "spa_core/monitoring/cio_explainability.py",
+ "battery": "spa_core/tests/test_cio_explainability.py",
+ "module_md5_under_test": "2fed3aacea6e4a648b6473c8b0b64c07",
+ "note": "мутации координат ADR-990 (ось «о том ли ходе» explained_vs_executed_day/held_book_vs_trail/explained_vs_executed, контрапункты _probe_trim/_probe_stage, критерий §49, читатель-копия SELF_REL); каждая — подмена байтов на месте в ОТДЕЛЬНОМ дереве, возврат в finally и побайтовая сверка со снимком ДО; прогон прибора пережил сессию #1107 (вышла кодом 0 до его конца), результат прочитан #1108 из /tmp/c1107/mut.json и mut.err; выживших нет — записывать нечего, тест не «усиливался».",
+ "summary": {
+  "applied": 20,
+  "killed": 20,
+  "survived": 0,
+  "not_applied": 0,
+  "broke_build": 0
+ },
+ "survivors": [],
+ "mutations": [
+  {
+   "id": "M01",
+   "name": "M01 ось дня: HOLD при движении книги засчитывается согласным",
+   "status": "KILLED",
+   "new_failures": 6
+  },
+  {
+   "id": "M02",
+   "name": "M02 ось дня: другой ход засчитывается согласным",
+   "status": "KILLED",
+   "new_failures": 3
+  },
+  {
+   "id": "M03",
+   "name": "M03 ось дня: неисполненный ход засчитывается согласным",
+   "status": "KILLED",
+   "new_failures": 3
+  },
+  {
+   "id": "M04",
+   "name": "M04 ось дня: книгой дня считается ПЕРВЫЙ ход, не последний",
+   "status": "KILLED",
+   "new_failures": 1
+  },
+  {
+   "id": "M05",
+   "name": "M05 книга трейла: ход ТОГО ЖЕ дня не считается",
+   "status": "KILLED",
+   "new_failures": 1
+  },
+  {
+   "id": "M06",
+   "name": "M06 держимая книга: расхождение никогда не называется",
+   "status": "KILLED",
+   "new_failures": 2
+  },
+  {
+   "id": "M07",
+   "name": "M07 население: худший день — минимум, не максимум",
+   "status": "KILLED",
+   "new_failures": 1
+  },
+  {
+   "id": "M08",
+   "name": "M08 население: дни с ходом считаются вне истории",
+   "status": "KILLED",
+   "new_failures": 2
+  },
+  {
+   "id": "M09",
+   "name": "M09 трим: любой k объявляется «не урезан»",
+   "status": "KILLED",
+   "new_failures": 10
+  },
+  {
+   "id": "M10",
+   "name": "M10 трим: молчание засчитывается произнесённым",
+   "status": "KILLED",
+   "new_failures": 3
+  },
+  {
+   "id": "M11",
+   "name": "M11 трим: коллизия значений не выключает денежный путь",
+   "status": "KILLED",
+   "new_failures": 1
+  },
+  {
+   "id": "M12",
+   "name": "M12 стадия: отсутствие полей не называется",
+   "status": "KILLED",
+   "new_failures": 2
+  },
+  {
+   "id": "M13",
+   "name": "M13 критерий: зазор оси не красит половину",
+   "status": "KILLED",
+   "new_failures": 1
+  },
+  {
+   "id": "M14",
+   "name": "M14 критерий: артефакт до ADR-990 судится молча",
+   "status": "KILLED",
+   "new_failures": 1
+  },
+  {
+   "id": "M15",
+   "name": "M15 читатели: копия измерителя в чужом дереве — читатель",
+   "status": "KILLED",
+   "new_failures": 1
+  },
+  {
+   "id": "M16",
+   "name": "M16 контроль оси: несовпавшая сцена не роняет контроль",
+   "status": "KILLED",
+   "new_failures": 1
+  },
+  {
+   "id": "M17",
+   "name": "M17 находки: HOLD при движении не доходит до CRITICAL",
+   "status": "KILLED",
+   "new_failures": 1
+  },
+  {
+   "id": "M18",
+   "name": "M18 прогон: трейл никогда не читается (ось всегда не измерена)",
+   "status": "KILLED",
+   "new_failures": 1
+  },
+  {
+   "id": "M19",
+   "name": "M19 замер книги: трим судится у книги БЕЗ хода",
+   "status": "KILLED",
+   "new_failures": 2
+  },
+  {
+   "id": "M20",
+   "name": "M20 критерий: не измеренная ось не делает SATISFIED неизвестным",
+   "status": "KILLED",
+   "new_failures": 2
+  }
+ ],
+ "final_battery_after_restore": "107 passed in 6.98s (перепрогон #1108 в SPA_worktrees/c1107 на финальных байтах)",
+ "instrument_rc": 0,
+ "generated_at": "2026-11-12T08:33:02+00:00"
+}

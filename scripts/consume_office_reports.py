@@ -552,6 +552,7 @@ _READ_SCHEMA: dict[str, tuple[str, ...]] = {
                                 "counts.info", "counts.unchecked",
                                 "facts_total", "tally", "control",
                                 "subject_book", "books", "explanation_layer",
+                                "executed_move",
                                 "findings", "unchecked"),
     # §42 ТЗ CIO «Kill switch». `tally` рядом с вердиктом по той же причине,
     # что у соседей: вопрос владельца — не «сколько находок», а «сколько из ТРЁХ
@@ -3615,6 +3616,28 @@ def _summarize_json(path: str, data, *, now: dt.datetime | None = None,
                        f"{', '.join(layer.get('consumers') or []) or 'НЕТ НИ ОДНОГО'}"
                        f" · в ежедневном отчёте: "
                        f"{'да' if layer.get('in_daily_channel') else 'НЕТ'}")
+        # Ось ADR-990: о ТОМ ли ходе фраза. Печатается именной веткой, а не
+        # числом находок: «HOLD во фразе в 11 из 11 дней с ходом» и «одна
+        # CRITICAL» читаются совершенно по-разному. Артефакт прежней версии
+        # раздела не несёт — это «НЕ ИЗМЕРЕНО — до ADR-990», а не «чисто».
+        axis = data.get("executed_move")
+        if not isinstance(axis, dict):
+            out.append("   о том ли ходе объяснение (ADR-990): НЕ ИЗМЕРЕНО — "
+                       "артефакт до ADR-990, раздела `executed_move` нет")
+        elif axis.get("status") != "measured":
+            out.append(f"   [НЕ ИЗМЕРЕНО] о том ли ходе объяснение (ADR-990): "
+                       f"{axis.get('reason') or 'причина не названа'}")
+        else:
+            d = axis.get("days") or {}
+            h = axis.get("held_book") or {}
+            latest = axis.get("latest") or {}
+            out.append(f"   о том ли ходе объяснение (ADR-990): дней тени "
+                       f"{_num(axis, 'shadow_days')}, с исполненным ходом "
+                       f"{_num(axis, 'days_with_executed_moves')}, из них HOLD во фразе "
+                       f"{_num(d, 'hold_while_book_moved')} · другой ход "
+                       f"{_num(d, 'different_move')} · ход не исполнен "
+                       f"{_num(d, 'move_not_executed')} · «держит» расходится с трейлом у "
+                       f"{_num(h, 'differs')} · сегодня: {latest.get('status') or _UNMEASURED}")
         for f in (data.get("findings") or []):
             if f.get("severity") in ("CRITICAL", "WARN"):
                 out.append(f"   [{f['severity']}] {f.get('message')}")

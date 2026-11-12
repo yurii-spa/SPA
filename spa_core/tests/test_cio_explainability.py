@@ -562,3 +562,438 @@ class TestNoMoneyPathChange(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+# ═══════════════════ ADR-990: о ТОМ ли ходе объяснение (ось §44) ═══════════════════
+#
+# Восемь фактов выше судят СОСТАВ фразы. Ось ADR-990 судит её ПРЕДМЕТ: фраза
+# строится из записи ТЕНИ (ADR-060 shadow), а деньги двигает цикл по другому
+# журналу. Сцены ниже — замер #1107 на живом трейле: из 190 дней тени книга
+# исполняла ход на 11, и во все 11 фраза говорила HOLD. Каждая сцена ломает
+# ровно одну координату и требует, чтобы вердикт изменился.
+
+_MOVE = {"event_type": "trade_executed", "timestamp": "2026-08-27T08:00:00+00:00",
+         "data": {"trade_id": "T020", "diff_usd": 302105.26,
+                  "to_allocation": {"pendle": 18947.37, "maple": 18947.37,
+                                    "compound_v3": 40000.0, "morpho_steakhouse": 12105.26}}}
+_HOLD_REC = {"cycle_date": "2026-08-27", "verdict": "HOLD", "legs": [],
+             "current_positions": {"pendle": 18947.37, "maple": 18947.37,
+                                   "compound_v3": 40000.0, "morpho_steakhouse": 12105.26}}
+_MOVE_REC = {"cycle_date": "2026-08-27", "verdict": "MOVE",
+             "legs": [{"protocol": "aave", "direction": "increase", "delta_usd": 12000.0}],
+             "target_positions": {"pendle": 18947.37, "maple": 18947.37,
+                                  "compound_v3": 40000.0, "morpho_steakhouse": 12105.26},
+             "current_positions": {"compound_v3": 40000.0}}
+
+
+class TestExecutedAxisDay(unittest.TestCase):
+
+    def test_hold_while_the_book_moved_is_named(self):
+        got = M.explained_vs_executed_day(_HOLD_REC, [_MOVE])
+        self.assertEqual(got["status"], M.DAY_HOLD_WHILE_BOOK_MOVED)
+        self.assertEqual(got["executed_moves"], 1)
+        self.assertAlmostEqual(got["executed_diff_usd"], 302105.26)
+
+    def test_hold_and_a_quiet_book_are_consistent(self):
+        self.assertEqual(M.explained_vs_executed_day(_HOLD_REC, [])["status"],
+                         M.DAY_CONSISTENT)
+
+    def test_a_move_equal_to_the_executed_book_is_consistent(self):
+        self.assertEqual(M.explained_vs_executed_day(_MOVE_REC, [_MOVE])["status"],
+                         M.DAY_CONSISTENT)
+
+    def test_a_cent_apart_is_still_consistent_a_dollar_is_not(self):
+        near = dict(_MOVE, data=dict(_MOVE["data"],
+                                     to_allocation=dict(_MOVE["data"]["to_allocation"],
+                                                        pendle=18947.375)))
+        self.assertEqual(M.explained_vs_executed_day(_MOVE_REC, [near])["status"],
+                         M.DAY_CONSISTENT)
+        far = dict(_MOVE, data=dict(_MOVE["data"],
+                                    to_allocation=dict(_MOVE["data"]["to_allocation"],
+                                                       pendle=18948.37)))
+        self.assertEqual(M.explained_vs_executed_day(_MOVE_REC, [far])["status"],
+                         M.DAY_DIFFERENT_MOVE)
+
+    def test_a_move_the_book_never_made_is_named(self):
+        self.assertEqual(M.explained_vs_executed_day(_MOVE_REC, [])["status"],
+                         M.DAY_MOVE_NOT_EXECUTED)
+
+    def test_a_record_without_a_verdict_is_unmeasured_not_consistent(self):
+        rec = dict(_HOLD_REC); rec.pop("verdict")
+        self.assertEqual(M.explained_vs_executed_day(rec, [])["status"], M.DAY_UNMEASURED)
+        self.assertEqual(M.explained_vs_executed_day(rec, [_MOVE])["status"], M.DAY_UNMEASURED)
+
+    def test_a_non_numeric_book_is_unmeasured_not_different(self):
+        bad = dict(_MOVE, data=dict(_MOVE["data"],
+                                    to_allocation=dict(_MOVE["data"]["to_allocation"],
+                                                       pendle="18947.37")))
+        self.assertEqual(M.explained_vs_executed_day(_MOVE_REC, [bad])["status"],
+                         M.DAY_UNMEASURED)
+
+    def test_the_last_move_of_the_day_is_the_executed_book(self):
+        """Семь ходов за день (27.08) — книга дня это ПОСЛЕДНИЙ to_allocation."""
+        first = dict(_MOVE, data=dict(_MOVE["data"], to_allocation={"aave": 1.0}))
+        got = M.explained_vs_executed_day(_MOVE_REC, [first, _MOVE])
+        self.assertEqual(got["status"], M.DAY_CONSISTENT)
+        self.assertEqual(got["executed_moves"], 2)
+
+
+class TestHeldBookVersusTrail(unittest.TestCase):
+
+    def test_the_phrase_holds_the_trail_book(self):
+        got = M.held_book_vs_trail(_HOLD_REC, _MOVE["data"]["to_allocation"])
+        self.assertEqual(got["status"], M.HELD_MATCHES)
+
+    def test_a_book_the_trail_never_had_is_named_with_its_width(self):
+        """Сцена 06.08: тень «держит» 24 дробных позиции, трек — три."""
+        rec = dict(_HOLD_REC, current_positions={"aave_v3": 4791.06, "sdai": 2546.29,
+                                                 "maple": 2231.48})
+        got = M.held_book_vs_trail(rec, {"maple": 20000.0, "pendle": 20000.0,
+                                         "morpho_steakhouse": 40000.0})
+        self.assertEqual(got["status"], M.HELD_DIFFERS)
+        self.assertEqual(got["positions_differing"], 5)
+
+    def test_no_trail_book_yet_is_unmeasured_not_a_mismatch(self):
+        self.assertEqual(M.held_book_vs_trail(_HOLD_REC, None)["status"], M.HELD_UNMEASURED)
+
+    def test_a_record_without_positions_is_unmeasured(self):
+        rec = dict(_HOLD_REC); rec.pop("current_positions")
+        self.assertEqual(M.held_book_vs_trail(rec, {"a": 1.0})["status"], M.HELD_UNMEASURED)
+
+    def test_book_as_of_takes_the_last_move_on_or_before_the_day(self):
+        by_day = M.moves_by_day([
+            dict(_MOVE, timestamp="2026-08-20T08:00:00+00:00",
+                 data=dict(_MOVE["data"], to_allocation={"a": 1.0})),
+            _MOVE,
+            dict(_MOVE, timestamp="2026-09-11T08:00:00+00:00",
+                 data=dict(_MOVE["data"], to_allocation={"z": 9.0})),
+        ])
+        self.assertEqual(M.book_as_of("2026-08-27", by_day), _MOVE["data"]["to_allocation"])
+        self.assertEqual(M.book_as_of("2026-08-26", by_day), {"a": 1.0})
+        self.assertIsNone(M.book_as_of("2026-08-01", by_day))
+
+    def test_moves_by_day_ignores_other_events_and_undated_rows(self):
+        by_day = M.moves_by_day([_MOVE, {"event_type": "allocation_proposal",
+                                         "timestamp": "2026-08-27T07:00:00+00:00"},
+                                 {"event_type": "trade_executed"}])
+        self.assertEqual(list(by_day), ["2026-08-27"])
+        self.assertEqual(len(by_day["2026-08-27"]), 1)
+
+
+class TestExecutedAxisPopulation(unittest.TestCase):
+    """Замер #1107: 190 дней тени · 11 с ходом · 11 HOLD · 18 чужих книг."""
+
+    def _records(self):
+        quiet = [dict(_HOLD_REC, cycle_date=f"2026-09-{d:02d}") for d in range(12, 20)]
+        return [_HOLD_REC] + quiet
+
+    def test_population_counts_sum_to_the_shadow_days(self):
+        got = M.explained_vs_executed(self._records(), [_MOVE])
+        self.assertEqual(got["status"], "measured")
+        self.assertEqual(got["shadow_days"], 9)
+        self.assertEqual(sum(got["days"].values()), 9)
+        self.assertEqual(got["days"][M.DAY_HOLD_WHILE_BOOK_MOVED], 1)
+        self.assertEqual(got["days"][M.DAY_CONSISTENT], 8)
+        self.assertEqual(got["days_with_executed_moves"], 1)
+
+    def test_worst_day_is_the_largest_executed_sum_among_hold_days(self):
+        small = dict(_MOVE, timestamp="2026-09-12T08:00:00+00:00",
+                     data=dict(_MOVE["data"], diff_usd=40263.16))
+        got = M.explained_vs_executed(self._records(), [small, _MOVE])
+        self.assertEqual(got["worst"]["date"], "2026-08-27")
+        self.assertAlmostEqual(got["worst"]["executed_diff_usd"], 302105.26)
+        self.assertEqual(got["days"][M.DAY_HOLD_WHILE_BOOK_MOVED], 2)
+
+    def test_a_move_without_a_sum_cannot_become_the_worst_day(self):
+        unsummed = dict(_MOVE, data={k: v for k, v in _MOVE["data"].items() if k != "diff_usd"})
+        got = M.explained_vs_executed([_HOLD_REC], [unsummed])
+        self.assertEqual(got["days"][M.DAY_HOLD_WHILE_BOOK_MOVED], 1)
+        self.assertIsNone(got["worst"])
+
+    def test_trail_days_outside_the_shadow_history_are_not_judged(self):
+        early = dict(_MOVE, timestamp="2026-06-12T08:00:00+00:00")
+        got = M.explained_vs_executed(self._records(), [early, _MOVE])
+        self.assertEqual(got["trail_move_days_total"], 2)
+        self.assertEqual(got["days_with_executed_moves"], 1)
+
+    def test_no_trail_is_unmeasured_with_the_trail_named(self):
+        got = M.explained_vs_executed(self._records(), None)
+        self.assertEqual(got["status"], "unmeasured")
+        self.assertIn(M.TRAIL_NAME, got["reason"])
+
+    def test_empty_history_is_unmeasured_not_zero_findings(self):
+        self.assertEqual(M.explained_vs_executed([], [_MOVE])["status"], "unmeasured")
+
+    def test_held_book_mismatch_span_is_dated(self):
+        recs = [dict(_HOLD_REC, cycle_date="2026-08-28",
+                     current_positions={"aave_v3": 4791.06}),
+                dict(_HOLD_REC, cycle_date="2026-08-29",
+                     current_positions={"aave_v3": 4791.06}),
+                dict(_HOLD_REC, cycle_date="2026-08-30")]
+        got = M.explained_vs_executed(recs, [_MOVE])
+        self.assertEqual(got["held_book"], {M.HELD_MATCHES: 1, M.HELD_DIFFERS: 2,
+                                            M.HELD_UNMEASURED: 0})
+        self.assertEqual(got["held_differs_span"], ["2026-08-28", "2026-08-29"])
+        self.assertEqual(got["latest"]["held"]["status"], M.HELD_MATCHES)
+
+    def test_axis_control_passes_on_its_own_scenes(self):
+        got = M.run_axis_control()
+        self.assertTrue(got["passed"], got)
+        self.assertEqual(got["failed"], [])
+
+    def test_a_broken_detector_fails_the_axis_control(self):
+        with mock.patch.object(M, "explained_vs_executed_day",
+                               return_value={"status": M.DAY_CONSISTENT}):
+            got = M.run_axis_control()
+        self.assertFalse(got["passed"])
+        self.assertTrue(any("hold_while_moved" in f for f in got["failed"]))
+
+
+class TestTrimProbe(unittest.TestCase):
+    """Запись тени с 28.10 несёт `admissible_trim` (ADR-850): k=0.27 у 26 из 27."""
+
+    TRIM_REC = {"admissible_trim": {"k": 0.272727, "damper_reason": "weekly_turnover_budget",
+                                    "cost": {"full_turnover_usd": 55000.0,
+                                             "final_turnover_usd": 15000.0}}}
+    LIVE_TEXT = ("Предложенный ход: +aave_v3 ($9,545). Оборот $15,000 (15.0% капитала), "
+                 "стоимость $55.65. payback_too_long:196.2d.")
+
+    def test_live_phrase_explains_the_trimmed_move_and_is_silent_about_the_trim(self):
+        got = M._probe_trim(self.LIVE_TEXT, self.TRIM_REC)
+        self.assertEqual(got["outcome"], M.SILENT)
+        self.assertAlmostEqual(got["evidence"]["k"], 0.272727)
+        self.assertEqual(got["evidence"]["full_turnover_usd"], 55000.0)
+
+    def test_naming_the_full_sum_flips_to_spoken(self):
+        got = M._probe_trim(self.LIVE_TEXT + " Урезано с $55,000.", self.TRIM_REC)
+        self.assertEqual(got["outcome"], M.SPOKEN)
+
+    def test_naming_k_as_a_percent_flips_to_spoken(self):
+        got = M._probe_trim(self.LIVE_TEXT + " Ход урезан до 27% от предложенного.",
+                            self.TRIM_REC)
+        self.assertEqual(got["outcome"], M.SPOKEN)
+
+    def test_a_percent_about_the_turnover_is_not_the_trim(self):
+        """«15.0% капитала» во фразе — доля оборота, а не k; k=0.15 совпало бы."""
+        rec = {"admissible_trim": {"k": 0.15, "cost": {"full_turnover_usd": 100000.0}}}
+        got = M._probe_trim("Оборот $15,000 (15.0% капитала).", rec)
+        # 15.0 — рендер k·100 с одной цифрой; это ЩЕДРАЯ сторона детектора и она
+        # названа здесь вслух, а не спрятана: совпадение по значению слепо к смыслу.
+        self.assertEqual(got["outcome"], M.SPOKEN)
+
+    def test_untrimmed_move_is_nothing_to_explain(self):
+        rec = {"admissible_trim": {"k": 1.0, "cost": {"full_turnover_usd": 15000.0}}}
+        self.assertEqual(M._probe_trim(self.LIVE_TEXT, rec)["outcome"], M.UNCHECKED)
+
+    def test_no_trim_record_is_absent(self):
+        self.assertEqual(M._probe_trim(self.LIVE_TEXT, LIVE_RECORD)["outcome"], M.ABSENT)
+
+    def test_trim_record_without_k_is_unchecked_not_silent(self):
+        rec = {"admissible_trim": {"cost": {"full_turnover_usd": 55000.0}}}
+        self.assertEqual(M._probe_trim(self.LIVE_TEXT, rec)["outcome"], M.UNCHECKED)
+
+    def test_measure_brief_judges_the_trim_only_for_a_book_with_a_move(self):
+        rec = dict(LIVE_RECORD, **self.TRIM_REC)
+        self.assertEqual(_measure(rec=rec)["trim"]["outcome"], M.SILENT)
+        no_legs = dict(rec, legs=[])
+        self.assertEqual(_measure(rec=no_legs)["trim"]["outcome"], M.UNCHECKED)
+
+
+class TestStageProbe(unittest.TestCase):
+    FIELDS = ("stage", "release_stage", "cio_stage", "armed", "cio_armed")
+
+    def test_live_record_carries_no_stage_field_and_mode_is_not_one(self):
+        got = M._probe_stage("Держит: compound_v3.", dict(LIVE_RECORD, mode="paper"),
+                             self.FIELDS)
+        self.assertEqual(got["outcome"], M.ABSENT)
+        self.assertIn("mode=paper", got["detail"])
+        self.assertIn("не стадия", got["detail"])
+
+    def test_a_recorded_but_unspoken_stage_is_silent(self):
+        got = M._probe_stage("Держит: compound_v3.", dict(LIVE_RECORD, stage="shadow"),
+                             self.FIELDS)
+        self.assertEqual(got["outcome"], M.SILENT)
+        self.assertEqual(got["evidence"], {"stage": "shadow"})
+
+    def test_a_spoken_stage_flips_to_spoken(self):
+        got = M._probe_stage("Решение тени (shadow).", dict(LIVE_RECORD, stage="shadow"),
+                             self.FIELDS)
+        self.assertEqual(got["outcome"], M.SPOKEN)
+
+    def test_a_boolean_arming_is_spoken_by_its_word(self):
+        got = M._probe_stage("Советник не взведён.", dict(LIVE_RECORD, armed=False),
+                             self.FIELDS)
+        self.assertEqual(got["outcome"], M.SPOKEN)
+        got = M._probe_stage("Советник предлагает.", dict(LIVE_RECORD, armed=False),
+                             self.FIELDS)
+        self.assertEqual(got["outcome"], M.SILENT)
+
+    def test_no_dictionary_is_unchecked_and_names_its_owner(self):
+        got = M._probe_stage("x", LIVE_RECORD, None)
+        self.assertEqual(got["outcome"], M.UNCHECKED)
+        self.assertIn("release_stage_census", got["source"])
+
+    def test_the_dictionary_is_imported_from_its_owner_not_copied(self):
+        from spa_core.analytics.release_stage_census import STAGE_RECORD_FIELDS
+        self.assertEqual(M._stage_fields(), tuple(str(f) for f in STAGE_RECORD_FIELDS))
+
+    def test_measure_brief_carries_the_stage_for_a_book_without_a_move_too(self):
+        got = _measure(rec=dict(LIVE_RECORD, legs=[], stage="shadow"),
+                       stage_fields=self.FIELDS)
+        self.assertEqual(got["stage"]["outcome"], M.SILENT)
+
+
+class TestExecutedAxisInTheReport(unittest.TestCase):
+    """`run()` на одноразовом каталоге: трейл есть / нет, раздел и находки."""
+
+    def _doc(self, tmp: Path, with_trail: bool) -> dict:
+        ddir = tmp / "state"
+        ddir.mkdir()
+        rec = dict(LIVE_RECORD, cycle_date="2026-08-27",
+                   current_positions=_HOLD_REC["current_positions"])
+        (ddir / "allocation_rationale_history.jsonl").write_text(
+            json.dumps(rec, ensure_ascii=False) + "\n", encoding="utf-8")
+        if with_trail:
+            (ddir / M.TRAIL_NAME).write_text(json.dumps(_MOVE) + "\n", encoding="utf-8")
+        return M.run(root=M.REPO_ROOT, data_dir=str(ddir), write=False)
+
+    def test_hold_while_moved_reaches_the_report_as_critical(self):
+        import tempfile
+        with tempfile.TemporaryDirectory() as td:
+            doc = self._doc(Path(td), with_trail=True)
+        ax = doc["executed_move"]
+        self.assertEqual(ax["status"], "measured")
+        self.assertEqual(ax["book"], "conservative")
+        self.assertEqual(ax["days"][M.DAY_HOLD_WHILE_BOOK_MOVED], 1)
+        codes = {f["code"]: f["severity"] for f in doc["findings"]}
+        self.assertEqual(codes.get("explanation_says_hold_while_book_moved"), "CRITICAL")
+        self.assertIn("ADR-990", ax["provenance"])
+        self.assertTrue(ax["control"]["passed"])
+
+    def test_no_trail_is_unmeasured_and_said_aloud(self):
+        import tempfile
+        with tempfile.TemporaryDirectory() as td:
+            doc = self._doc(Path(td), with_trail=False)
+        self.assertEqual(doc["executed_move"]["status"], "unmeasured")
+        self.assertTrue(any("ADR-990" in u and "НЕ ИЗМЕРЕНО" in u for u in doc["unchecked"]))
+        self.assertFalse(any(f["code"].startswith("explanation_says_hold")
+                             for f in doc["findings"]))
+
+    def test_stage_and_trim_findings_reach_the_report(self):
+        import tempfile
+        with tempfile.TemporaryDirectory() as td:
+            doc = self._doc(Path(td), with_trail=True)
+        codes = {f["code"] for f in doc["findings"]}
+        self.assertIn("stage_not_recorded", codes)
+        self.assertIn("trim_not_recorded", codes)
+
+    def test_the_eight_owner_facts_are_untouched_by_the_axis(self):
+        """Ось ADR-990 не девятый факт: знаменатель владельца остаётся восемь."""
+        import tempfile
+        with tempfile.TemporaryDirectory() as td:
+            doc = self._doc(Path(td), with_trail=True)
+        self.assertEqual(doc["facts_total"], 8)
+        self.assertEqual(sum(doc["tally"].values()), 8)
+        self.assertNotIn("trim", {f["fact"] for f in doc["books"][0]["facts"]})
+
+    def test_a_failed_axis_control_makes_only_the_axis_unmeasured(self):
+        import tempfile
+        with tempfile.TemporaryDirectory() as td:
+            with mock.patch.object(M, "run_axis_control",
+                                   return_value={"passed": False, "scenes": 7,
+                                                 "failed": ["x"], "reason": "сломан"}):
+                doc = self._doc(Path(td), with_trail=True)
+        self.assertEqual(doc["executed_move"]["status"], "unmeasured")
+        self.assertTrue(doc["control"]["passed"])      # восемь фактов судятся как прежде
+        self.assertIsNotNone(doc["tally"])
+
+
+class TestCriterionCarriesTheAxis(unittest.TestCase):
+    """§49 Auditability (половина «explanation»): ось ADR-990 — член конъюнкции."""
+
+    def _satisfied_doc(self, **axis) -> dict:
+        doc = {"control": {"passed": True}, "facts_total": 8,
+               "books": [{"book": "conservative", "has_recommendation": True,
+                          "tally": {M.SPOKEN: 8, M.SILENT: 0, M.ABSENT: 0, M.UNCHECKED: 0},
+                          "machine_tokens": []}]}
+        if axis:
+            doc["executed_move"] = axis
+        return doc
+
+    def test_a_pre_adr990_artifact_is_judged_as_before_and_says_the_axis_is_not_taken(self):
+        got = M.criterion_verdict(self._satisfied_doc())
+        self.assertEqual(got["status"], M.CRITERION_SATISFIED)
+        self.assertIn("до ADR-990", got["reason"])
+
+    def test_hold_while_moved_makes_the_half_not_satisfied(self):
+        got = M.criterion_verdict(self._satisfied_doc(
+            status="measured", days_with_executed_moves=11,
+            days={M.DAY_HOLD_WHILE_BOOK_MOVED: 11, M.DAY_DIFFERENT_MOVE: 0}))
+        self.assertEqual(got["status"], M.CRITERION_NOT_SATISFIED)
+        self.assertIn("в 11 говорило HOLD", got["reason"])
+
+    def test_a_consistent_axis_keeps_satisfied_and_says_so(self):
+        got = M.criterion_verdict(self._satisfied_doc(
+            status="measured", days_with_executed_moves=3,
+            days={M.DAY_HOLD_WHILE_BOOK_MOVED: 0, M.DAY_DIFFERENT_MOVE: 0}))
+        self.assertEqual(got["status"], M.CRITERION_SATISFIED)
+        self.assertIn("говорила о них", got["reason"])
+
+    def test_an_unmeasured_axis_turns_satisfied_into_unmeasured(self):
+        got = M.criterion_verdict(self._satisfied_doc(status="unmeasured", reason="трейла нет"))
+        self.assertEqual(got["status"], M.CRITERION_UNMEASURED)
+        self.assertIn("трейла нет", got["reason"])
+
+    def test_an_unmeasured_axis_does_not_hide_a_not_satisfied_half(self):
+        doc = self._satisfied_doc(status="unmeasured", reason="трейла нет")
+        doc["books"][0]["tally"][M.SPOKEN] = 3
+        got = M.criterion_verdict(doc)
+        self.assertEqual(got["status"], M.CRITERION_NOT_SATISFIED)
+        self.assertIn("НЕ ИЗМЕРЕНА", got["reason"])
+
+    def test_an_unreadable_day_count_is_unmeasured_not_consistent(self):
+        got = M.criterion_verdict(self._satisfied_doc(status="measured", days={}))
+        self.assertEqual(got["status"], M.CRITERION_UNMEASURED)
+
+
+class TestMeasurerCopyIsNotAConsumer(unittest.TestCase):
+
+    def test_a_copy_of_the_measurer_under_another_root_is_excluded_by_its_path(self):
+        """Замер #1107: прибор из рабочего дерева с `--root <прод>` записал
+        прод-копию самого себя читателем объяснения."""
+        import tempfile
+        with tempfile.TemporaryDirectory() as td:
+            root = Path(td)
+            (root / "spa_core" / "monitoring").mkdir(parents=True)
+            (root / "scripts").mkdir()
+            (root / "spa_core" / "monitoring" / "cio_explainability.py").write_text(
+                "x = build_books_brief\n", encoding="utf-8")
+            (root / "spa_core" / "monitoring" / "reader.py").write_text(
+                "x = build_books_brief\n", encoding="utf-8")
+            got = M._brief_consumers(str(root))
+        self.assertEqual(got, ["spa_core/monitoring/reader.py"])
+
+
+class TestTrimValueCollision(unittest.TestCase):
+    """Сцена 12.11: полная сумма предложения $40,000 равна позиции «держит
+    compound_v3 ($40,000)». Совпавшее число — не свидетельство о триме."""
+
+    REC = {"admissible_trim": {"k": 0.375, "cost": {"full_turnover_usd": 40000.0,
+                                                    "final_turnover_usd": 15000.0}},
+           "current_positions": {"compound_v3": 40000.0, "maple": 20000.0},
+           "legs": [{"protocol": "aave_v3", "direction": "increase", "delta_usd": 13125.0}]}
+    TEXT = "Держит: compound_v3 ($40,000), maple ($20,000). Оборот $15,000, стоимость $43.80."
+
+    def test_a_colliding_full_sum_does_not_make_the_trim_spoken(self):
+        got = M._probe_trim(self.TEXT, self.REC)
+        self.assertEqual(got["outcome"], M.SILENT)
+        self.assertIn("числом не свидетельствует", got["detail"])
+
+    def test_k_still_flips_it_to_spoken(self):
+        got = M._probe_trim(self.TEXT + " Ход урезан до 37.5% от предложенного.", self.REC)
+        self.assertEqual(got["outcome"], M.SPOKEN)
+
+    def test_a_non_colliding_full_sum_is_evidence(self):
+        rec = dict(self.REC, current_positions={"compound_v3": 41000.0})
+        got = M._probe_trim(self.TEXT + " Предложено было $40,000.", rec)
+        self.assertEqual(got["outcome"], M.SPOKEN)
