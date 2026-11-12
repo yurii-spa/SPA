@@ -332,6 +332,199 @@ class TestReportShape(unittest.TestCase):
             self.assertIn("ADR-", control["promise_source"], control["control"])
 
 
+# ──────── 10. Аварийный выход под тримом ADR-850 (ADR-988, ось №1) ──────────
+
+def _trim_that_doses(target_usd, *, current_positions, capital_usd, notes, **_kw):
+    """Поддельный Step 2e'': урезает ЛЮБОЙ ход вдвое, включая выход в кэш."""
+    half = {p: float(current_positions.get(p, 0.0)) * 0.5
+            + float(target_usd.get(p, 0.0)) * 0.5
+            for p in set(current_positions) | set(target_usd)}
+    return half, {"verdict": "TRIMMED_TO_ADMISSIBLE", "k": 0.5,
+                  "damper_reason": "within_limits", "why": "поддельный трим урезал всё"}
+
+
+def _trim_that_never_trims(target_usd, **_kw):
+    """Поддельный трим, который не урезает ничего — контроль обязан это поймать."""
+    return dict(target_usd), {"verdict": "ALREADY_WITHIN_SIZE_CAPS", "k": 1.0,
+                              "damper_reason": "within_limits", "why": "ничего не делаю"}
+
+
+def _trim_that_raises(*_a, **_kw):
+    raise RuntimeError("дверь трима порвана")
+
+
+def _trim_silent_untouched(target_usd, *, current_positions, capital_usd, notes, **_kw):
+    """Выход не тронут, но причина НЕ дверь демпфера; перетасовку режет честно."""
+    deployed = sum(float(v) for v in target_usd.values())
+    if deployed <= 0.01:
+        return dict(target_usd), {"verdict": "UNMEASURED", "why": "не смог"}
+    from spa_core.paper_trading.admissible_trim import apply_admissible_trim
+    return apply_admissible_trim(target_usd, current_positions=current_positions,
+                                 capital_usd=capital_usd, notes=notes, **_kw)
+
+
+class TestEmergencyExitUnderTheTrim(unittest.TestCase):
+    """Артефакт 29.10 знал две ступени; с ADR-850 в цикле третья — и она ПОСЛЕ крана."""
+
+    def test_real_trim_leaves_the_emergency_exit_whole_and_names_the_reason(self):
+        axis = M._trim_under_door(_door(), M._scene(), NOW)
+        self.assertEqual(M.TRIM_EXEMPT, axis["verdict"], axis)
+        self.assertEqual("NOT_A_RESHUFFLE", axis["exit_trim_verdict"])
+        self.assertEqual("derisk_never_damped", axis["exit_damper_reason"],
+                         "освобождение обязано приходить из двери демпфера, а не из «не смог»")
+        self.assertEqual(axis["exit_target_after_door"], axis["exit_target_after_trim"])
+        self.assertTrue(all(v == 0.0 for v in axis["exit_target_after_trim"].values()))
+
+    def test_positive_control_the_same_trim_cuts_a_reshuffle(self):
+        axis = M._trim_under_door(_door(), M._scene(), NOW)
+        ctl = axis["control"]
+        self.assertTrue(ctl["passed"], ctl)
+        self.assertEqual("TRIMMED_TO_ADMISSIBLE", ctl["reshuffle_verdict"])
+        self.assertLess(float(ctl["k"]), 1.0)
+        self.assertGreater(float(ctl["k"]), 0.0)
+
+    def test_a_trim_that_doses_the_exit_is_DOSED_and_CRITICAL(self):
+        axis = M._trim_under_door(_door(), M._scene(), NOW, trim=_trim_that_doses)
+        self.assertEqual(M.TRIM_DOSED, axis["verdict"], axis)
+        findings, unchecked = M._findings(
+            [], {"commands": [], "doors": []}, {}, {"verdict": "SEPARABLE", "reason": ""},
+            True, "", trim_axis=axis, candidate={"verdict": M.UNCHECKED})
+        codes = {f["code"]: f["severity"] for f in findings}
+        self.assertEqual("CRITICAL", codes.get("emergency_exit_dosed_by_trim"), codes)
+
+    def test_a_trim_that_trims_nothing_fails_the_control_and_is_UNCHECKED(self):
+        """«Выход не урезан» ничего не стоит, если трим не урезает и перетасовку."""
+        axis = M._trim_under_door(_door(), M._scene(), NOW, trim=_trim_that_never_trims)
+        self.assertEqual(M.UNCHECKED, axis["verdict"], axis)
+        self.assertFalse(axis["control"]["passed"])
+        self.assertIn("контроль", axis["unchecked_reason"])
+
+    def test_a_torn_trim_door_is_UNCHECKED_not_EXEMPT(self):
+        axis = M._trim_under_door(_door(), M._scene(), NOW, trim=_trim_that_raises)
+        self.assertEqual(M.UNCHECKED, axis["verdict"])
+        self.assertIn("дверь трима порвана", axis["unchecked_reason"])
+
+    def test_untouched_exit_without_a_named_reason_is_UNCHECKED(self):
+        """Книга цела, но освобождение не доказано дверью — третий исход, не EXEMPT."""
+        axis = M._trim_under_door(_door(), M._scene(), NOW, trim=_trim_silent_untouched)
+        self.assertEqual(M.UNCHECKED, axis["verdict"], axis)
+        self.assertTrue(axis["control"]["passed"], "перетасовку этот трим режет честно")
+        self.assertIn("не названа", axis["unchecked_reason"])
+
+    def test_exempt_exit_is_an_INFO_finding_that_cites_the_control(self):
+        axis = M._trim_under_door(_door(), M._scene(), NOW)
+        findings, unchecked = M._findings(
+            [], {"commands": [], "doors": []}, {}, {"verdict": "SEPARABLE", "reason": ""},
+            True, "", trim_axis=axis, candidate={"verdict": M.UNCHECKED})
+        info = next(f for f in findings if f["code"] == "emergency_exit_survives_trim")
+        self.assertEqual("INFO", info["severity"])
+        self.assertIn("k=0.75", info["message"])
+        self.assertTrue(any("PAUSE AUTO EXECUTION" in u for u in unchecked),
+                        "неизмеренный кандидат обязан быть назван, а не пропущен")
+
+    def test_the_real_report_carries_the_axis_and_it_is_EXEMPT(self):
+        doc = M.run(root=str(REPO), write=False, now=NOW)
+        self.assertEqual(M.TRIM_EXEMPT, doc["trim_under_door"]["verdict"])
+        self.assertEqual("/pause", doc["trim_under_door"]["door"])
+
+
+# ──── 11. Кандидат органа PAUSE AUTO EXECUTION — взвод CIO (ADR-988, ось №2) ────
+
+def _channel():
+    return {"commands": ["/pause", "/resume"],
+            "doors": [_door(), _door("/resume", handler="cmd_resume",
+                                    payload={"active": False,
+                                             "reason": "manual_telegram_resume"})]}
+
+
+class TestPauseAutoExecutionCandidate(unittest.TestCase):
+
+    def test_arming_state_is_a_code_constant_with_three_books_and_no_runtime_door(self):
+        decl = M._arming_declaration(str(REPO))
+        self.assertIsNone(decl["unchecked"])
+        self.assertEqual("code_constant", decl["state_lives_in"])
+        self.assertEqual(["aggressive", "balanced", "conservative"], decl["books"])
+        self.assertEqual([], decl["reads_at_runtime"],
+                         "взвод читает файл/окружение — у органа появилась дверь, перемерить")
+
+    def test_real_arming_door_answers_UNARMED_allowed_so_the_candidate_is_NOT_THE_ORGAN(self):
+        cand = M._pause_auto_execution_candidate(str(REPO), M._scene(), _channel())
+        self.assertEqual(M.CANDIDATE_NOT_THE_ORGAN, cand["verdict"], cand)
+        self.assertIsNone(cand["owner_door"])
+        self.assertEqual(["kill_switch_active.json"], cand["owner_channel_state_files"])
+        self.assertTrue(cand["unarmed_book_reshuffle"]["allowed"])
+        self.assertEqual("UNARMED", cand["unarmed_book_reshuffle"]["decision"])
+        self.assertFalse(cand["armed_book_reshuffle"]["allowed"],
+                         "взведённая книга без вердикта CIO обязана держать (fail-CLOSED)")
+        self.assertEqual("HOLD", cand["armed_book_reshuffle"]["decision"])
+
+    def test_a_door_that_would_hold_makes_the_candidate_WOULD_HOLD(self):
+        def holding_door(book_id, cio_doc, cur, tgt, damper_reason=None):
+            return (False, "HOLD", "поддельный взвод держит всё")
+        cand = M._pause_auto_execution_candidate(str(REPO), M._scene(), _channel(),
+                                                 trade_allowed=holding_door)
+        self.assertEqual(M.CANDIDATE_WOULD_HOLD, cand["verdict"], cand)
+
+    def test_unparseable_arming_file_is_UNCHECKED_with_a_reason(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            cand = M._pause_auto_execution_candidate(tmp, M._scene(), _channel())
+        self.assertEqual(M.UNCHECKED, cand["verdict"])
+        self.assertIn("не разобран", cand["unchecked_reason"])
+
+    def test_a_torn_arming_door_is_UNCHECKED_not_a_verdict(self):
+        def torn(*_a, **_k):
+            raise RuntimeError("дверь взвода порвана")
+        cand = M._pause_auto_execution_candidate(str(REPO), M._scene(), _channel(),
+                                                 trade_allowed=torn)
+        self.assertEqual(M.UNCHECKED, cand["verdict"])
+        self.assertIn("дверь взвода порвана", cand["unchecked_reason"])
+
+    def test_arming_declared_as_non_literal_is_named_not_assumed(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            target = root / M.ARMING_REL
+            target.parent.mkdir(parents=True)
+            target.write_text("import json\nARMED_BOOKS = json.load(open('x.json'))\n",
+                              encoding="utf-8")
+            decl = M._arming_declaration(str(root))
+        self.assertEqual("not_a_literal", decl["state_lives_in"])
+        self.assertIn("open", decl["reads_at_runtime"])
+        self.assertIn("load", decl["reads_at_runtime"])
+
+    def test_not_the_organ_is_a_WARN_finding(self):
+        cand = M._pause_auto_execution_candidate(str(REPO), M._scene(), _channel())
+        findings, _ = M._findings(
+            [], {"commands": [], "doors": []}, {}, {"verdict": "SEPARABLE", "reason": ""},
+            True, "", trim_axis={"verdict": M.TRIM_EXEMPT, "detail": "", "control": {"k": 1}},
+            candidate=cand)
+        codes = {f["code"]: f["severity"] for f in findings}
+        self.assertEqual("WARN", codes.get("pause_auto_execution_candidate_is_not_the_organ"), codes)
+
+    def test_the_real_report_carries_the_candidate_and_ABSENT_stands(self):
+        doc = M.run(root=str(REPO), write=False, now=NOW)
+        self.assertEqual(M.CANDIDATE_NOT_THE_ORGAN,
+                         doc["pause_auto_execution_candidate"]["verdict"])
+        pae = next(c for c in doc["controls"] if c["control"] == "pause_auto_execution")
+        self.assertEqual(M.ABSENT, pae["outcome"],
+                         "кандидат отвергнут измерением — орган по-прежнему ABSENT")
+
+    def test_office_step_prints_both_axes_and_names_an_older_artifact(self):
+        import sys
+        sys.path.insert(0, str(REPO / "scripts"))
+        try:
+            import consume_office_reports as C
+        finally:
+            sys.path.pop(0)
+        declared = C._READ_SCHEMA["cio_kill_switch_controls.json"]
+        self.assertIn("trim_under_door", declared)
+        self.assertIn("pause_auto_execution_candidate", declared)
+        source = (REPO / "scripts" / "consume_office_reports.py").read_text(encoding="utf-8")
+        self.assertIn("аварийный выход под тримом ADR-850", source)
+        self.assertIn("кандидат органа PAUSE AUTO EXECUTION", source)
+        self.assertIn("артефакт снят прибором без этой оси", source,
+                      "артефакт прежней версии обязан печататься как НЕ ИЗМЕРЕНО")
+
+
 # ───────────────────────────── 9. ПРОВОДКА ──────────────────────────────────
 
 class TestWiring(unittest.TestCase):

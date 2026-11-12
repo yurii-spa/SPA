@@ -107,6 +107,27 @@ Router и сюда не попадает никогда). Это ровно та
 эквивалентно явному нулю — обе формы дают тот же оборот и ту же итоговую
 книгу. Находки здесь нет, и сказано это вслух, чтобы её не «нашли» второй раз.
 
+Две оси, добавленные #1105 (ADR-988): артефакт моложе правки может описывать мир ДО неё
+======================================================================================
+ADR-249 и артефакт 29.10 судили дверь на ДВУХ ступенях цикла (Step 2c override ·
+Step 2c-soft). С 28.10 (ADR-850) в цикле стои́т Step 2e'' — урезание хода до
+допустимого РАЗМЕРА, — и оно стои́т ПОСЛЕ стоп-крана. Аварийный выход — тоже
+ход, и вопрос «не дозирует ли трим аварийный выход до 15 % капитала за цикл»
+до #1105 не задавался никому. Ось ``trim_under_door`` зовёт НАСТОЯЩИЙ
+``apply_admissible_trim`` над книгой, которую оставил стоп-кран; положительный
+контроль — перетасовка той же сцены ТЕМ ЖЕ тримом урезается (k < 1), иначе
+«выход не урезан» ничего не доказывает.
+
+Вторая ось — ``pause_auto_execution_candidate``: единственный переключатель в
+дереве, похожий на орган «PAUSE AUTO EXECUTION», — взвод CIO
+(``cio_arming.ARMED_BOOKS``, ADR-324/328). Прибор меряет, (а) где живёт его
+состояние (разбор дерева: литерал в коде, файлов и окружения модуль не
+читает), (б) пишет ли туда хоть одна дверь владельца, (в) что СДЕЛАЛ БЫ снятый
+взвод — настоящим ``trade_allowed`` над перетасовкой: невзведённая книга
+отвечает ``UNARMED`` и ход ПРОПУСКАЕТ (решает прежнее правило цикла), то есть
+снятие взвода не держит книгу, а возвращает её прежнему исполнителю. Это НЕ
+орган паузы, и сказано это измерением, а не чтением.
+
 ADVISORY. Ни один орган этим модулем не строится и не двигается: добавить
 владельцу ручку, которая останавливает движение денег, — money-path и решение
 владельца, а не строка замера.
@@ -176,6 +197,18 @@ OWNER_CONTROLS: tuple[tuple[str, str, str, str, str, tuple[str, ...]], ...] = (
 #: Капитал сцены. Не порог и ничего не решает — доли ниже выводятся из него же,
 #: поэтому число можно менять, не меняя смысла ни одной пробы.
 _SCENE_CAPITAL_USD = 100_000.0
+
+#: Файл взвода CIO — единственный переключатель дерева, похожий на орган
+#: «PAUSE AUTO EXECUTION» (ADR-324/328). Разбирается деревом, не импортом
+#: умолчания: реестр читается в момент вызова (урок #1103).
+ARMING_REL = "spa_core/paper_trading/cio_arming.py"
+
+#: Исходы оси «аварийный выход под тримом» (ADR-850 · ADR-988).
+TRIM_EXEMPT = "EXEMPT"        # трим выход не тронул, и причина НАЗВАНА дверью демпфера
+TRIM_DOSED = "DOSED"          # трим урезал аварийный выход — выход растянут на циклы
+#: Исходы оси «кандидат органа PAUSE AUTO EXECUTION».
+CANDIDATE_NOT_THE_ORGAN = "NOT_THE_ORGAN"   # снятый взвод ход ПРОПУСКАЕТ, а не держит
+CANDIDATE_WOULD_HOLD = "WOULD_HOLD"         # снятый взвод держит книгу — кандидат годен
 
 
 # ───────────────────────────── канал владельца ──────────────────────────────
@@ -574,6 +607,250 @@ def _separability(door: dict, now: dt.datetime) -> dict:
             "producers_naming_the_door": names_door}
 
 
+# ───────────── аварийный выход под тримом (ADR-850 · ADR-988) ───────────────
+
+def _scene_adapters() -> list[dict]:
+    """Фид сцены для переспроса RiskPolicy: живые TVL выше пола, тиры T1/T2."""
+    from spa_core.risk.policy import RiskConfig
+    floor = float(RiskConfig().min_tvl_usd)
+    return [
+        {"protocol": "aave_v3", "apy_pct": 2.7, "tvl_usd": floor * 180.0,
+         "tier": "T1", "apy_source": "live", "tvl_source": "live"},
+        {"protocol": "compound_v3", "apy_pct": 3.1, "tvl_usd": floor * 120.0,
+         "tier": "T1", "apy_source": "live", "tvl_source": "live"},
+        {"protocol": "pendle", "apy_pct": 9.0, "tvl_usd": floor * 16.0,
+         "tier": "T2", "apy_source": "live", "tvl_source": "live"},
+    ]
+
+
+def _run_trim(target: dict, scene: dict, state_dir: Path, now: dt.datetime,
+              trim: Any) -> tuple[dict, dict]:
+    """Один зов настоящего Step 2e'' над книгой сцены: ``(цель после, запись)``."""
+    notes: list[str] = []
+    final, record = trim(
+        dict(target),
+        current_positions=dict(scene["held"]),
+        capital_usd=scene["capital_usd"],
+        notes=notes,
+        adapters=_scene_adapters(),
+        ddir=state_dir,
+        trades=[],
+        now=now,
+    )
+    if not isinstance(record, dict):
+        record = {"verdict": EFFECT_UNMEASURED, "why": "запись трима не словарь"}
+    return dict(final), record
+
+
+def _trim_under_door(door: dict, scene: dict, now: dt.datetime, *,
+                     trim: Any = None) -> dict:
+    """Дозирует ли урезание хода (Step 2e'', ADR-850) аварийный выход.
+
+    Порядок тот же, что у живого цикла: стоп-кран переписывает цель (Step 2c),
+    затем ТОТ ЖЕ трим, что судит перетасовки, получает эту книгу. Три исхода:
+
+    ``EXEMPT`` — цель после трима равна цели после крана (все позиции в ноль),
+    и запись трима НАЗЫВАЕТ причину (``NOT_A_RESHUFFLE`` от двери демпфера);
+    ``DOSED`` — трим изменил книгу: выход растянут на несколько циклов;
+    ``UNCHECKED`` — трим не ответил, либо положительный контроль не пройден.
+
+    Положительный контроль — перетасовка той же сцены ТЕМ ЖЕ тримом урезается
+    (``TRIMMED_TO_ADMISSIBLE``, k < 1). Без него «выход не урезан» было бы
+    верно и для трима, который не урезает ничего.
+    """
+    if trim is None:
+        from spa_core.paper_trading.admissible_trim import apply_admissible_trim as trim
+    out: dict[str, Any] = {"verdict": UNCHECKED, "door": door.get("command"),
+                           "adr": "ADR-850", "control": {}}
+    try:
+        with tempfile.TemporaryDirectory(prefix="cio_ks_trim_") as tmp:
+            state_dir = Path(tmp)
+            (state_dir / door["state_file"]).write_text(
+                json.dumps(door["payload"], ensure_ascii=False), encoding="utf-8")
+            after_door = _apply_doors(state_dir, scene)
+            exit_target = dict(after_door["target"])
+            exit_final, exit_rec = _run_trim(exit_target, scene, state_dir, now, trim)
+
+            # Контроль: перетасовка ровно тех же денег в ту же сцену. Оборот
+            # выводится из капитала сцены и заведомо больше любого потолка
+            # размера, которым трим урезает (иначе контроль мерил бы потолок,
+            # а не трим).
+            cap = scene["capital_usd"]
+            reshuffle = {"aave_v3": 0.20 * cap, "pendle": 0.20 * cap,
+                         "compound_v3": 0.20 * cap}
+            ctl_final, ctl_rec = _run_trim(reshuffle, scene, Path(tmp), now, trim)
+    except Exception as exc:  # noqa: BLE001 — трим не ответил ⇒ не измерено
+        out["unchecked_reason"] = f"трим не ответил: {type(exc).__name__}: {exc}"
+        return out
+
+    k = ctl_rec.get("k")
+    control_ok = (ctl_rec.get("verdict") == "TRIMMED_TO_ADMISSIBLE"
+                  and isinstance(k, (int, float)) and 0.0 < float(k) < 1.0)
+    out["control"] = {
+        "passed": bool(control_ok),
+        "reshuffle_verdict": ctl_rec.get("verdict"),
+        "k": k,
+        "why": ctl_rec.get("why"),
+    }
+    out["exit_target_after_door"] = {p: round(float(v), 2) for p, v in exit_target.items()}
+    out["exit_target_after_trim"] = {p: round(float(v), 2) for p, v in exit_final.items()}
+    out["exit_trim_verdict"] = exit_rec.get("verdict")
+    out["exit_damper_reason"] = exit_rec.get("damper_reason")
+    out["exit_why"] = exit_rec.get("why")
+    if not control_ok:
+        out["unchecked_reason"] = (
+            "положительный контроль не пройден: перетасовка той же сцены тримом "
+            f"не урезана ({ctl_rec.get('verdict')}, k={k!r}) — «выход не урезан» "
+            "доказать нечем")
+        return out
+
+    deployed_door = sum(float(v) for v in exit_target.values())
+    deployed_trim = sum(float(exit_final.get(p, 0.0)) for p in set(exit_target) | set(exit_final))
+    if abs(deployed_trim - deployed_door) > 0.01:
+        out["verdict"] = TRIM_DOSED
+        out["detail"] = (
+            f"трим изменил книгу после стоп-крана: развёрнуто ${deployed_door:,.2f} → "
+            f"${deployed_trim:,.2f} (вердикт трима {exit_rec.get('verdict')}, "
+            f"k={exit_rec.get('k')!r}) — аварийный выход растянут на несколько циклов")
+        return out
+    if exit_rec.get("verdict") != "NOT_A_RESHUFFLE":
+        # Книга цела, но причина НЕ названа дверью демпфера: «не тронул, потому
+        # что не смог» и «не тронул, потому что это де-риск» — разные миры.
+        out["unchecked_reason"] = (
+            f"книга после трима равна книге после крана, но причина не названа "
+            f"родом хода (вердикт трима {exit_rec.get('verdict')!r}): освобождение "
+            f"не доказано дверью")
+        return out
+    out["verdict"] = TRIM_EXEMPT
+    out["detail"] = (
+        f"аварийный выход трим не дозирует: род хода `{exit_rec.get('damper_reason')}` "
+        f"(дверь демпфера ADR-168) выводит его из предмета урезания; книга после "
+        f"крана и после трима одна (${deployed_door:,.2f} развёрнуто)")
+    return out
+
+
+# ──────── кандидат органа PAUSE AUTO EXECUTION — взвод CIO (ADR-324) ────────
+
+def _arming_declaration(root: str) -> dict:
+    """Где живёт состояние взвода: разбор ``cio_arming.py`` деревом.
+
+    Возвращает ``books`` (ключи литерала ``ARMED_BOOKS``), ``state_lives_in``
+    (``code_constant`` — литерал словаря в модуле; иначе ``not_a_literal``) и
+    ``reads_at_runtime`` — зовёт ли модуль хоть одну дверь к файлу/окружению
+    (``open`` · ``_read_json`` · ``Path(...)`` · ``os.environ``): если нет, то и
+    снять взвод снаружи нечем — только доставкой кода.
+    """
+    path = Path(root) / ARMING_REL
+    try:
+        tree = ast.parse(path.read_text(encoding="utf-8"))
+    except Exception as exc:  # noqa: BLE001
+        return {"unchecked": f"файл взвода не разобран ({path}): "
+                             f"{type(exc).__name__}: {exc}"}
+    books: list[str] = []
+    lives_in = "absent"
+    for node in tree.body:
+        targets: list[ast.expr] = []
+        value: ast.expr | None = None
+        if isinstance(node, ast.Assign):
+            targets, value = node.targets, node.value
+        elif isinstance(node, ast.AnnAssign) and node.value is not None:
+            targets, value = [node.target], node.value
+        for t in targets:
+            if isinstance(t, ast.Name) and t.id == "ARMED_BOOKS":
+                if isinstance(value, ast.Dict):
+                    lives_in = "code_constant"
+                    books = sorted(k.value for k in value.keys
+                                   if isinstance(k, ast.Constant)
+                                   and isinstance(k.value, str))
+                else:
+                    lives_in = "not_a_literal"
+    runtime_doors: list[str] = []
+    for call in [n for n in ast.walk(tree) if isinstance(n, ast.Call)]:
+        fname = getattr(call.func, "id", None) or getattr(call.func, "attr", None)
+        if fname in ("open", "_read_json", "read_text", "load", "loads", "getenv", "environ"):
+            runtime_doors.append(fname)
+    for node in ast.walk(tree):
+        if (isinstance(node, ast.Attribute) and node.attr == "environ"):
+            runtime_doors.append("os.environ")
+    return {"unchecked": None, "books": books, "state_lives_in": lives_in,
+            "reads_at_runtime": sorted(set(runtime_doors))}
+
+
+def _pause_auto_execution_candidate(root: str, scene: dict, channel: dict, *,
+                                    trade_allowed: Any = None) -> dict:
+    """Является ли снятие взвода CIO органом «PAUSE AUTO EXECUTION».
+
+    Орган владельца обещает ``HOLD_ONLY``: «CIO продолжает предлагать, но
+    предложенное не исполняется само». Единственный переключатель дерева с
+    похожим именем — взвод (ADR-324/328). Три вопроса, все измерением:
+
+    1. где состояние — разбор дерева (``_arming_declaration``);
+    2. пишет ли туда дверь владельца — ни одна дверь канала не пишет файл,
+       который этот модуль читал бы (он не читает файлов вовсе);
+    3. что сделал бы СНЯТЫЙ взвод — настоящий ``trade_allowed`` над
+       перетасовкой сцены для невзведённой книги: ``UNARMED`` + ход пропущен
+       ⇒ ``NOT_THE_ORGAN``; ход удержан ⇒ ``WOULD_HOLD``.
+    """
+    if trade_allowed is None:
+        from spa_core.paper_trading.cio_arming import trade_allowed
+    decl = _arming_declaration(root)
+    out: dict[str, Any] = {"candidate": "cio_arming.ARMED_BOOKS", "adr": "ADR-324/328",
+                           "verdict": UNCHECKED, "declaration": decl}
+    if decl.get("unchecked"):
+        out["unchecked_reason"] = decl["unchecked"]
+        return out
+
+    # Дверь владельца к взводу: файл, который взвод читает, и который пишет
+    # хоть одна дверь канала. Взвод файлов не читает ⇒ пересечение пусто
+    # ПО ПОСТРОЕНИЮ, и это печатается, а не подразумевается.
+    door_files = sorted({str(d.get("state_file")) for d in channel.get("doors", [])})
+    out["owner_door"] = None
+    out["owner_channel_state_files"] = door_files
+    out["arming_runtime_doors"] = decl.get("reads_at_runtime")
+
+    cap = scene["capital_usd"]
+    reshuffle = {"aave_v3": 0.20 * cap, "pendle": 0.20 * cap, "compound_v3": 0.20 * cap}
+    books_obs = decl.get("books")
+    books = list(books_obs) if isinstance(books_obs, list) else []
+    unarmed_book = "scene_book_not_armed"
+    try:
+        armed_probe = None
+        if books:
+            armed_probe = trade_allowed(books[0], None, dict(scene["held"]),
+                                        dict(reshuffle), damper_reason="within_limits")
+        unarmed_probe = trade_allowed(unarmed_book, None, dict(scene["held"]),
+                                      dict(reshuffle), damper_reason="within_limits")
+    except Exception as exc:  # noqa: BLE001
+        out["unchecked_reason"] = f"дверь взвода не ответила: {type(exc).__name__}: {exc}"
+        return out
+
+    def _rec(p: Any) -> dict | None:
+        if not (isinstance(p, tuple) and len(p) == 3):
+            return None
+        return {"allowed": bool(p[0]), "decision": str(p[1]), "why": str(p[2])}
+
+    out["armed_book_reshuffle"] = _rec(armed_probe) if armed_probe is not None else None
+    unarmed = _rec(unarmed_probe)
+    out["unarmed_book_reshuffle"] = unarmed
+    if unarmed is None:
+        out["unchecked_reason"] = "ответ двери взвода не разобран"
+        return out
+    if unarmed["allowed"]:
+        out["verdict"] = CANDIDATE_NOT_THE_ORGAN
+        out["detail"] = (
+            f"снятый взвод не держит книгу: невзведённая книга отвечает "
+            f"`{unarmed['decision']}` и перетасовку ПРОПУСКАЕТ (решает прежнее "
+            f"правило цикла, ADR-168) — это не HOLD_ONLY; состояние взвода — "
+            f"{decl['state_lives_in']} ({len(books)} книг(и): {', '.join(books) or '—'}), "
+            f"двери владельца к нему нет")
+    else:
+        out["verdict"] = CANDIDATE_WOULD_HOLD
+        out["detail"] = (
+            f"снятый взвод держит книгу (`{unarmed['decision']}`) — кандидат годен "
+            f"как орган, но двери владельца к нему нет: состояние — {decl['state_lives_in']}")
+    return out
+
+
 # ───────────────────────────── сборка вердикта ──────────────────────────────
 
 def _door_text(door: dict) -> str:
@@ -625,6 +902,10 @@ def run(root: str = REPO_ROOT, *, write: bool = True,
     decision: dict[str, Any] = {}
     separability: dict[str, Any] = {
         "verdict": UNCHECKED, "reason": "двери не измерены", "probes": []}
+    trim_axis: dict[str, Any] = {
+        "verdict": UNCHECKED, "door": None,
+        "unchecked_reason": "двери не измерены — выход под тримом судить нечем"}
+    candidate: dict[str, Any] = {"candidate": "cio_arming.ARMED_BOOKS", "verdict": UNCHECKED}
     control_ok = False
     control_reason = channel.get("unchecked") or ""
 
@@ -665,6 +946,17 @@ def run(root: str = REPO_ROOT, *, write: bool = True,
             except Exception as exc:  # noqa: BLE001
                 decision = {"unchecked_reason": f"{type(exc).__name__}: {exc}"}
             separability = _separability(strongest, now)
+            try:
+                trim_axis = _trim_under_door(strongest, scene, now)
+            except Exception as exc:  # noqa: BLE001
+                trim_axis = {"verdict": UNCHECKED, "door": strongest.get("command"),
+                             "unchecked_reason": f"{type(exc).__name__}: {exc}"}
+
+    try:
+        candidate = _pause_auto_execution_candidate(root, scene, channel)
+    except Exception as exc:  # noqa: BLE001
+        candidate = {"candidate": "cio_arming.ARMED_BOOKS", "verdict": UNCHECKED,
+                     "unchecked_reason": f"{type(exc).__name__}: {exc}"}
 
     controls: list[dict] = []
     for key, wording, promise, promised_effect, source, claim_words in OWNER_CONTROLS:
@@ -687,7 +979,8 @@ def run(root: str = REPO_ROOT, *, write: bool = True,
                          "detail": detail, "unchecked_reason": ""})
 
     findings, unchecked = _findings(
-        controls, channel, decision, separability, control_ok, control_reason)
+        controls, channel, decision, separability, control_ok, control_reason,
+        trim_axis=trim_axis, candidate=candidate)
     counts = {
         "critical": sum(1 for f in findings if f["severity"] == "CRITICAL"),
         "warn": sum(1 for f in findings if f["severity"] == "WARN"),
@@ -729,6 +1022,8 @@ def run(root: str = REPO_ROOT, *, write: bool = True,
         "controls": controls,
         "decision_layer_under_door": decision,
         "separability": separability,
+        "trim_under_door": trim_axis,
+        "pause_auto_execution_candidate": candidate,
         "findings": findings,
         "unchecked": unchecked,
         "advisory": (
@@ -744,7 +1039,9 @@ def run(root: str = REPO_ROOT, *, write: bool = True,
 
 def _findings(controls: list[dict], channel: dict,
               decision: dict, separability: dict,
-              control_ok: bool, control_reason: str) -> tuple[list[dict], list[str]]:
+              control_ok: bool, control_reason: str, *,
+              trim_axis: dict | None = None,
+              candidate: dict | None = None) -> tuple[list[dict], list[str]]:
     findings: list[dict] = []
     unchecked: list[str] = []
 
@@ -753,6 +1050,57 @@ def _findings(controls: list[dict], channel: dict,
             f"положительный контроль не пройден — {control_reason}; счёт по "
             f"органам остановки читать нельзя")
         return findings, unchecked
+
+    # ── ось ADR-988 №1: аварийный выход под тримом ADR-850 ──────────────────
+    if isinstance(trim_axis, dict):
+        tv = trim_axis.get("verdict")
+        if tv == TRIM_DOSED:
+            findings.append({
+                "severity": "CRITICAL",
+                "code": "emergency_exit_dosed_by_trim",
+                "message": (
+                    f"аварийный выход ДОЗИРУЕТСЯ урезанием хода (Step 2e'', ADR-850): "
+                    f"{trim_axis.get('detail')} — «EMERGENCY STOP» перестаёт быть "
+                    f"all-cash за один цикл, и орган подменён размером"),
+            })
+        elif tv == TRIM_EXEMPT:
+            findings.append({
+                "severity": "INFO",
+                "code": "emergency_exit_survives_trim",
+                "message": (
+                    f"четвёртая поверхность решения выход не трогает: "
+                    f"{trim_axis.get('detail')}; контроль — перетасовка той же сцены "
+                    f"урезана (k={(trim_axis.get('control') if isinstance(trim_axis.get('control'), dict) else {}).get('k')})"),
+            })
+        else:
+            unchecked.append(
+                f"аварийный выход под тримом: "
+                f"{trim_axis.get('unchecked_reason') or 'причина не названа'}")
+
+    # ── ось ADR-988 №2: кандидат органа PAUSE AUTO EXECUTION ─────────────────
+    if isinstance(candidate, dict):
+        cv = candidate.get("verdict")
+        if cv == CANDIDATE_NOT_THE_ORGAN:
+            findings.append({
+                "severity": "WARN",
+                "code": "pause_auto_execution_candidate_is_not_the_organ",
+                "message": (
+                    f"единственный переключатель дерева с похожим именем — взвод CIO "
+                    f"({candidate.get('candidate')}, {candidate.get('adr')}) — органом "
+                    f"«PAUSE AUTO EXECUTION» не является: {candidate.get('detail')}"),
+            })
+        elif cv == CANDIDATE_WOULD_HOLD:
+            findings.append({
+                "severity": "WARN",
+                "code": "pause_auto_execution_candidate_has_no_owner_door",
+                "message": (
+                    f"взвод CIO ({candidate.get('candidate')}) держал бы книгу, но двери "
+                    f"владельца к нему нет: {candidate.get('detail')}"),
+            })
+        else:
+            unchecked.append(
+                f"кандидат органа PAUSE AUTO EXECUTION: "
+                f"{candidate.get('unchecked_reason') or 'причина не названа'}")
 
     absent = [c for c in controls if c["outcome"] == ABSENT]
     conflated = [c for c in controls if c["outcome"] == CONFLATED]

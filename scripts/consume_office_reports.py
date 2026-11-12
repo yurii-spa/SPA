@@ -561,7 +561,12 @@ _READ_SCHEMA: dict[str, tuple[str, ...]] = {
                                       "controls_total", "tally", "control",
                                       "owner_channel", "controls",
                                       "decision_layer_under_door",
-                                      "separability", "findings", "unchecked"),
+                                      "separability",
+                                      # ADR-988: аварийный выход под тримом ADR-850 и
+                                      # кандидат органа PAUSE AUTO EXECUTION (взвод).
+                                      "trim_under_door",
+                                      "pause_auto_execution_candidate",
+                                      "findings", "unchecked"),
     # §41 ТЗ CIO «Auto-execution limits». `tally` рядом с вердиктом по той же
     # причине, что у §42: вопрос владельца — не «сколько находок», а «сколько
     # из ДВЕНАДЦАТИ названных им ограничений реально стои́т на пути решения».
@@ -3644,6 +3649,26 @@ def _summarize_json(path: str, data, *, now: dt.datetime | None = None,
             sep = data.get("separability") or {}
             out.append(f"   остановка без остановки наблюдения: "
                        f"{sep.get('verdict') or _UNMEASURED} — {sep.get('reason')}")
+            # ADR-988: две оси, которых артефакт до #1105 не знал. Отсутствие
+            # ключа — артефакт снят прибором ПРЕЖНЕЙ версии, и это печатается
+            # как «не измерено», а не пропускается молча.
+            trim = data.get("trim_under_door")
+            if isinstance(trim, dict):
+                out.append(f"   аварийный выход под тримом ADR-850: "
+                           f"{trim.get('verdict') or _UNMEASURED} — "
+                           f"{trim.get('detail') or trim.get('unchecked_reason')}")
+            else:
+                out.append("   аварийный выход под тримом ADR-850: НЕ ИЗМЕРЕНО — "
+                           "артефакт снят прибором без этой оси (до ADR-988)")
+            cand = data.get("pause_auto_execution_candidate")
+            if isinstance(cand, dict):
+                out.append(f"   кандидат органа PAUSE AUTO EXECUTION "
+                           f"({cand.get('candidate')}): "
+                           f"{cand.get('verdict') or _UNMEASURED} — "
+                           f"{cand.get('detail') or cand.get('unchecked_reason')}")
+            else:
+                out.append("   кандидат органа PAUSE AUTO EXECUTION: НЕ ИЗМЕРЕНО — "
+                           "артефакт снят прибором без этой оси (до ADR-988)")
         for f in (data.get("findings") or []):
             if f.get("severity") in ("CRITICAL", "WARN"):
                 out.append(f"   [{f['severity']}] {f.get('message')}")

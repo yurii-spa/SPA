@@ -1,0 +1,134 @@
+{
+ "adr": "ADR-988",
+ "cycle": "#1105 (cycle-42565)",
+ "date": "2026-11-12",
+ "tree": "/private/tmp/spa_mut_1105",
+ "module": "spa_core/monitoring/cio_kill_switch_controls.py",
+ "battery": "spa_core/tests/test_cio_kill_switch_controls.py",
+ "module_md5_under_test": "445666e51e1277a1ef688250cceaee36",
+ "note": "мутации координат ADR-988 (две новые оси); каждая — подмена байтов на месте в ОТДЕЛЬНОМ дереве, возврат в finally и сверка md5; мутация, ломающая сборку, не засчитывается M13 в первой редакции ломала сборку (SyntaxError) и НЕ засчитана — краснота от парсера не доказывает чувствительности (урок ADR-249); перемерена валидной формой M13b.",
+ "summary": {
+  "applied": 18,
+  "killed": 18,
+  "survived": 0,
+  "not_applied": 0,
+  "broke_build": 1
+ },
+ "survivors": [],
+ "mutations": [
+  {
+   "id": "M01",
+   "name": "M01 ось трима: EXEMPT при любом исходе (DOSED недостижим)",
+   "status": "KILLED",
+   "tail": "1 failed, 27 passed in 0.41s"
+  },
+  {
+   "id": "M02",
+   "name": "M02 ось трима: контроль пройден всегда",
+   "status": "KILLED",
+   "tail": "1 failed, 28 passed in 0.40s"
+  },
+  {
+   "id": "M03",
+   "name": "M03 ось трима: причина освобождения не спрашивается",
+   "status": "KILLED",
+   "tail": "1 failed, 33 passed in 0.44s"
+  },
+  {
+   "id": "M04",
+   "name": "M04 ось трима: порванная дверь глотается как EXEMPT",
+   "status": "KILLED",
+   "tail": "1 failed, 26 passed in 0.40s"
+  },
+  {
+   "id": "M05",
+   "name": "M05 ось трима: контроль меряет не трим, а подставной k",
+   "status": "KILLED",
+   "tail": "1 failed, 29 passed in 0.42s"
+  },
+  {
+   "id": "M06",
+   "name": "M06 ось трима: эффект сравнивается по составу, а не по деньгам",
+   "status": "KILLED",
+   "tail": "1 failed, 27 passed in 0.42s"
+  },
+  {
+   "id": "M07",
+   "name": "M07 кандидат: UNARMED-пропуск читается как WOULD_HOLD (ветки перепутаны)",
+   "status": "KILLED",
+   "tail": "1 failed, 34 passed in 0.42s"
+  },
+  {
+   "id": "M08",
+   "name": "M08 кандидат: порванная дверь взвода глотается как NOT_THE_ORGAN",
+   "status": "KILLED",
+   "tail": "1 failed, 35 passed in 0.40s"
+  },
+  {
+   "id": "M09",
+   "name": "M09 кандидат: состояние взвода объявляется литералом без разбора",
+   "status": "KILLED",
+   "tail": "1 failed, 36 passed in 0.40s"
+  },
+  {
+   "id": "M10",
+   "name": "M10 кандидат: двери к файлу/окружению не ищутся",
+   "status": "KILLED",
+   "tail": "1 failed, 36 passed in 0.41s"
+  },
+  {
+   "id": "M11",
+   "name": "M11 кандидат: нечитаемый файл взвода — не UNCHECKED, а пустая декларация",
+   "status": "KILLED",
+   "tail": "1 failed, 42 passed in 0.45s"
+  },
+  {
+   "id": "M12",
+   "name": "M12 находки: DOSED понижен до WARN",
+   "status": "KILLED",
+   "tail": "1 failed, 27 passed in 0.37s"
+  },
+  {
+   "id": "M13",
+   "name": "M13 находки: неизмеренный кандидат пропадает молча",
+   "status": "BROKE_BUILD",
+   "tail": "первая редакция ломала синтаксис (`pass and …`) — не засчитана; перемерена как M13b"
+  },
+  {
+   "id": "M14",
+   "name": "M14 run(): ось трима не зовётся — остаётся заглушка UNCHECKED",
+   "status": "KILLED",
+   "tail": "1 failed, 32 passed in 0.39s"
+  },
+  {
+   "id": "M15",
+   "name": "M15 run(): кандидат не зовётся — остаётся заглушка UNCHECKED",
+   "status": "KILLED",
+   "tail": "1 failed, 41 passed in 0.42s"
+  },
+  {
+   "id": "M16",
+   "name": "M16 документ: поля двух осей не пишутся",
+   "status": "KILLED",
+   "tail": "1 failed, 22 passed in 0.27s"
+  },
+  {
+   "id": "M17",
+   "name": "M17 кандидат: взведённая книга не спрашивается (armed_probe=None)",
+   "status": "KILLED",
+   "tail": "1 failed, 40 passed in 0.41s"
+  },
+  {
+   "id": "M18",
+   "name": "M18 ось трима: контроль перетасовки подменён выходом (меряется то же самое)",
+   "status": "KILLED",
+   "tail": "1 failed, 29 passed in 0.38s"
+  },
+  {
+   "id": "M13b",
+   "name": "M13b находки: неизмеренный кандидат пропадает молча (валидная форма — вызов подменён на no-op)",
+   "status": "KILLED",
+   "tail": "1 failed, 29 passed in 0.38s"
+  }
+ ]
+}
