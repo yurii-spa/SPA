@@ -89,6 +89,7 @@ from __future__ import annotations
 import datetime as dt
 import json
 import os
+import re
 import sys
 import tempfile
 from pathlib import Path
@@ -103,6 +104,34 @@ REFUSES = "REFUSES"
 PARTIAL = "PARTIAL"
 PROCEEDS = "PROCEEDS"
 UNCHECKED = "UNCHECKED"
+
+#: Схема артефакта. v1 — десять проб ADR-247; v2 (ADR-992) — плюс вторая ось
+#: ``post_gate``: переживает ли отказ гейта ступени, стоящие ПОСЛЕ него на
+#: пути к записи цели (шесть скрытых ступеней ADR-991, среди них трим ADR-850).
+SCHEMA = "cio_failure_modes/v2"
+
+#: Исходы второй оси. ``UNMEASURED`` — третий исход, не ноль и не скип.
+SURVIVES = "SURVIVES"
+UNDONE = "UNDONE"
+UNMEASURED = "UNMEASURED"
+
+#: Ступени ПОСЛЕ гейта допустимости в ЖИВОМ порядке `cycle_runner.run_cycle`
+#: (ADR-991 §2: стоп-кран · мягкий дерискинг · ADR-002 · дерискинг повторно ·
+#: постура RTMR · псевдонимы пула · трим ADR-850). Порядок здесь — ОБЪЯВЛЕНИЕ,
+#: и оно СВЕРЯЕТСЯ с исходником цикла (`live_stage_order`): разойдись они,
+#: вторая ось отвечает «не измерено», а не меряет цепь, которой нет.
+POST_GATE_STAGES: tuple[str, ...] = (
+    "apply_kill_switch_override",
+    "apply_soft_derisk_gate",
+    "_compliant_target",
+    "apply_soft_derisk_gate",
+    "apply_rtmr_posture_gate",
+    "apply_pool_alias_gate",
+    "apply_admissible_trim",
+)
+_GATE_CALL = "_apply_risk_policy_gate("
+_RECORD_CALL = "write_shadow_rationale("
+_DECISION_LINE = re.compile(r"traded\s*=\s*\(\(not _safety_failed\)\s*and\s*\(not policy_blocked\)")
 
 #: Десять условий §47 в порядке ТЗ. Ключ → дословная формулировка владельца.
 OWNER_CONDITIONS: tuple[tuple[str, str], ...] = (
@@ -171,6 +200,7 @@ def _policy_caps() -> dict:
         "t1_frac": float(cfg.max_concentration_t1),
         "t2_frac": float(cfg.max_concentration_t2),
         "tvl_floor_usd": float(cfg.min_tvl_usd),
+        "max_protocols": int(cfg.max_protocols),
         "source": "spa_core.risk.policy.RiskConfig",
     }
 
@@ -707,6 +737,509 @@ def _simulation_step_probe(root: str) -> dict:
     }
 
 
+# ═══════════════ вторая ось (ADR-992): переживает ли отказ гейта путь к записи ═══════════
+
+def live_stage_order(root: str = REPO_ROOT) -> dict:
+    """Сверить ОБЪЯВЛЕННЫЙ порядок ступеней с исходником живого цикла.
+
+    Читается ``spa_core/paper_trading/cycle_runner.py`` под ``root``: строка
+    первого вызова гейта допустимости, строка записи цели
+    (``write_shadow_rationale(``) и между ними — вызовы объявленных ступеней по
+    строкам (импорт и ``def`` вызовами не считаются). Три исхода:
+    ``measured`` (последовательность совпала с :data:`POST_GATE_STAGES`) ·
+    ``diverged`` (не совпала — названы обе) · ``unmeasured`` (цикл не прочитан
+    либо якоря не найдены). Отдельно — стоит ли у решения Step 3 условие
+    «не заблокировано политикой» (статически, по строке ``traded = …``).
+    """
+    target = os.path.join(root, "spa_core", "paper_trading", "cycle_runner.py")
+    out: dict[str, Any] = {"declared": list(POST_GATE_STAGES), "live": [],
+                           "sites": [], "gate_line": None, "record_line": None,
+                           "decision_requires_not_blocked": None}
+    try:
+        with open(target, "r", encoding="utf-8") as fh:
+            lines = fh.read().splitlines()
+    except OSError as exc:
+        out.update(verdict="unmeasured", reason=f"цикл не прочитан ({exc})")
+        return out
+
+    def _is_call(line: str, name: str) -> bool:
+        s = line.strip()
+        if s.startswith(("#", "from ", "import ", "def ")):
+            return False
+        return re.search(r"(?<![\w.])" + re.escape(name) + r"\(", s) is not None
+
+    gate_ln = next((i for i, l in enumerate(lines, 1)
+                    if _is_call(l, "_apply_risk_policy_gate")), None)
+    rec_ln = next((i for i, l in enumerate(lines, 1)
+                   if _is_call(l, "write_shadow_rationale")), None)
+    out.update(gate_line=gate_ln, record_line=rec_ln)
+    if gate_ln is None or rec_ln is None or rec_ln <= gate_ln:
+        out.update(verdict="unmeasured",
+                   reason=("якоря (вызов гейта · запись цели) не найдены или стоят "
+                           "в обратном порядке"))
+        return out
+    sites: list[tuple[int, str]] = []
+    for i in range(gate_ln + 1, rec_ln):
+        for name in set(POST_GATE_STAGES):
+            if _is_call(lines[i - 1], name):
+                sites.append((i, name))
+    sites.sort()
+    seq = [n for _, n in sites]
+    out.update(live=seq, sites=[{"line": i, "stage": n} for i, n in sites],
+               decision_requires_not_blocked=any(_DECISION_LINE.search(l)
+                                                 for l in lines[rec_ln:]))
+    if seq == list(POST_GATE_STAGES):
+        out.update(verdict="measured", reason="")
+    else:
+        out.update(verdict="diverged",
+                   reason=f"живой порядок {seq} ≠ объявленному {list(POST_GATE_STAGES)}")
+    return out
+
+
+def _book(d: Any) -> dict[str, float]:
+    return {str(p): float(v) for p, v in (d or {}).items()
+            if isinstance(v, (int, float)) and not isinstance(v, bool)
+            and float(v) > 0.0}
+
+
+def _one_sided(held: dict, book: dict) -> float:
+    from spa_core.governance.churn_damper import one_sided_turnover
+    return float(one_sided_turnover(dict(held), dict(book)))
+
+
+#: Постура RTMR «ничего не активно». Передаётся ступени ЯВНО — иначе она читала бы
+#: файл хоста (`data/monitoring/risk_posture.json`), и вердикт зависел бы от машины.
+_NORMAL_POSTURE: dict = {"entries": {}}
+
+
+def _live_stages(*, gate: dict, held: dict, capital_usd: float, adapters: list[dict],
+                 ddir: Path, now: dt.datetime, trim_record: dict) -> list[tuple[str, Callable]]:
+    """Семь ступеней живого цикла как вызываемые ``(книга, заметки) → (книга, пометка)``.
+
+    Входы — рынка ЗДОРОВОГО: стоп-кран не взведён, дерискинг не активен,
+    постура NORMAL. Тогда переписать книгу способна только деградация ДАННЫХ —
+    предмет §47. ADR-002 пропускается, когда гейт отказал или упал — как в
+    цикле (`if not _safety_failed and not policy_blocked`).
+    """
+    from spa_core.paper_trading.risk_gate import _compliant_target
+    from spa_core.paper_trading.cycle_gates import (
+        apply_kill_switch_override, apply_soft_derisk_gate, apply_rtmr_posture_gate)
+    from spa_core.paper_trading.pool_alias_gate import apply_pool_alias_gate
+    from spa_core.paper_trading.admissible_trim import apply_admissible_trim
+
+    skipped = (not gate.get("approved")) or gate.get("error") is not None
+
+    def ks(b, notes):
+        return apply_kill_switch_override(b, ks_triggered=False, ks_allocation={},
+                                          capital_usd=capital_usd, notes=notes), None
+
+    def derisk(b, notes):
+        return apply_soft_derisk_gate(b, current_positions=dict(held),
+                                      derisk_active=False, notes=notes), None
+
+    def adr002(b, notes):
+        if skipped:
+            return b, "пропущена: гейт отказал или упал (как в цикле)"
+        out, collapsed = _compliant_target(dict(b), capital_usd, ddir, False)
+        return out, ("книга СХЛОПНУТА (ADR-002)" if collapsed else "без изменений")
+
+    def rtmr(b, notes):
+        return apply_rtmr_posture_gate(b, capital_usd=capital_usd,
+                                       now_ts=int(now.timestamp()), notes=notes,
+                                       posture=dict(_NORMAL_POSTURE)), None
+
+    def alias(b, notes):
+        return apply_pool_alias_gate(b, capital_usd=capital_usd, notes=notes,
+                                     adapters=list(adapters), ddir=ddir), None
+
+    def trim(b, notes):
+        out, rec = apply_admissible_trim(
+            b, current_positions=dict(held), capital_usd=capital_usd, notes=notes,
+            adapters=list(adapters), ddir=ddir, trades=[], now=now)
+        trim_record.update(rec or {})
+        return out, str((rec or {}).get("verdict"))
+
+    fns = (ks, derisk, adr002, derisk, rtmr, alias, trim)
+    return list(zip(POST_GATE_STAGES, fns))
+
+
+def run_post_gate_chain(*, gate: dict, raw_target: dict, held: dict, capital_usd: float,
+                        adapters: list[dict], ddir: Path, now: dt.datetime,
+                        stages: "list[tuple[str, Callable]] | None" = None) -> dict:
+    """Провести книгу от вердикта гейта до записи цели ТЕМИ ЖЕ функциями, что цикл.
+
+    Носитель входит так, как его пересвязывает цикл после гейта: цель ГЕЙТА —
+    если гейт не упал и срезал буфер либо заморозил пул (ADR-053); иначе — сырая
+    цель аллокатора (цикл носитель не пересвязывает, и при отказе гейта к записи
+    идёт ОТКАЗАННАЯ книга под ``policy_blocked``).
+
+    Что считается «отменой отказа» — три формы, каждая НАЗВАНА и приписана
+    ступени, на которой возникла:
+
+    * ``fresh_to_refused`` — замороженный гейтом пул получил свежий капитал;
+    * ``raised_above_judged`` — пул поднят выше того, что гейт одобрил И выше
+      удержанного (свежий капитал, которого гейт не видел);
+    * ``introduced_unjudged`` — в книге появился протокол, которого гейт не судил
+      и книга не держит;
+    * ``book_replaced`` — ступень сняла с книги протокол, одобренный гейтом
+      (ход, которого гейт не просил).
+
+    Отдельно — ``record_divergence``: книга у записи несёт свежий капитал,
+    которого гейт не одобрял (сравнение с одобренным, а не с входом ступени).
+    Ступень вправе переспросить RiskPolicy сама (трим ADR-850) — это
+    записывается в ``rejudged_within_chain``, но одобрения ПЕРВОГО гейта не
+    заменяет: §47 спрашивает про отказ, который уже прозвучал.
+    """
+    judged_ok = gate.get("error") is None and bool(gate.get("approved"))
+    gate_target = _book(observed(gate, "target_usd", kind=dict))
+    judged: dict[str, float] = dict(gate_target) if judged_ok else {}
+    # Список заморозки читается наблюдением (инв. #17): «гейт поля не дал» и
+    # «гейт никого не заморозил» — разные утверждения, и первое записывается.
+    frozen_obs = observed(gate, "tvl_unverified", kind=list)
+    frozen = sorted(str(p) for p in frozen_obs) if frozen_obs is not None else []
+    held_b = _book(held)
+    if gate.get("error") is None and (gate.get("trimmed") or frozen):
+        carrier, carrier_source = dict(gate_target), "цель гейта (срез буфера / заморозка ADR-053)"
+    else:
+        carrier, carrier_source = _book(raw_target), "сырая цель аллокатора (носитель не пересвязан)"
+    support = set(judged) | set(held_b)
+    trim_record: dict = {}
+    table = stages if stages is not None else _live_stages(
+        gate=gate, held=held_b, capital_usd=capital_usd, adapters=adapters,
+        ddir=ddir, now=now, trim_record=trim_record)
+
+    def _ceiling(p: str) -> float:
+        return max(judged.get(p, 0.0), held_b.get(p, 0.0))
+
+    steps: list[dict] = []
+    undone_by: list[str] = []
+    forms: set[str] = set()
+    book = dict(carrier)
+    notes: list[str] = []
+    for name, fn in table:
+        before = dict(book)
+        try:
+            after, note = fn(dict(before), notes)
+        except Exception as exc:  # noqa: BLE001 — ступень упала ⇒ не измерено
+            return {"outcome": UNMEASURED, "steps": steps, "carrier_in": carrier,
+                    "carrier_source": carrier_source, "final": before,
+                    "unmeasured_reason": f"ступень {name} не исполнена: {type(exc).__name__}: {exc}",
+                    "gate": {"approved": judged_ok, "error": gate.get("error"),
+                             "frozen": frozen, "judged_target": judged}}
+        after = _book(after)
+        fresh_to_refused = {p: round(after[p] - _ceiling(p), 2) for p in frozen
+                            if after.get(p, 0.0) > _ceiling(p) + 0.01
+                            and after.get(p, 0.0) > before.get(p, 0.0) + 0.01}
+        raised = {p: round(after[p] - _ceiling(p), 2) for p in after
+                  if p not in frozen and after[p] > _ceiling(p) + 0.01
+                  and after[p] > before.get(p, 0.0) + 0.01 and p in support}
+        # Введённый протокол приписывается ступени, которая его ВВЕЛА: соседи ниже,
+        # пронёсшие его дальше, книгу не переписывали (контроль — тест «один виновник»).
+        introduced = sorted(p for p in after if p not in support and after[p] > 0.01
+                            and before.get(p, 0.0) <= 0.01)
+        dropped = sorted(p for p in judged if p in before and p not in after
+                         and judged.get(p, 0.0) > 0.01)
+        step_forms: list[str] = []
+        if fresh_to_refused:
+            step_forms.append("fresh_to_refused")
+        if raised:
+            step_forms.append("raised_above_judged")
+        if introduced:
+            step_forms.append("introduced_unjudged")
+        if dropped:
+            step_forms.append("book_replaced")
+        changed = any(abs(after.get(p, 0.0) - before.get(p, 0.0)) > 0.01
+                      for p in set(after) | set(before))
+        steps.append({"stage": name, "changed": changed, "note": note,
+                      "fresh_to_refused_usd": fresh_to_refused,
+                      "raised_above_judged_usd": raised,
+                      "introduced_unjudged": introduced, "dropped_judged": dropped,
+                      "forms": step_forms})
+        if step_forms:
+            undone_by.append(name)
+            forms.update(step_forms)
+        book = after
+
+    final = dict(book)
+    divergence = {p: round(final[p] - _ceiling(p), 2) for p in final
+                  if final[p] > _ceiling(p) + 0.01}
+    rejudged = None
+    if trim_record.get("policy") is not None:
+        rejudged = bool((trim_record.get("policy") or {}).get("approved"))
+    outcome = UNDONE if undone_by else SURVIVES
+    return {
+        "outcome": outcome,
+        "gate": {"approved": judged_ok, "error": gate.get("error"), "frozen": frozen,
+                 "frozen_observed": frozen_obs is not None, "judged_target": judged},
+        "carrier_in": carrier, "carrier_source": carrier_source,
+        "steps": steps, "final": final,
+        "undone_by": undone_by, "forms": sorted(forms),
+        "fresh_beyond_gate_usd": divergence,
+        "record_divergence": bool(divergence),
+        "rejudged_within_chain": rejudged,
+        "trim_verdict": trim_record.get("verdict"),
+        "turnover_carrier_usd": round(_one_sided(held_b, carrier), 2),
+        "turnover_final_usd": round(_one_sided(held_b, final), 2),
+        "unmeasured_reason": "",
+    }
+
+
+# ───────────────────────────── сцены второй оси ─────────────────────────────
+
+def _scene_over_count_cap(policy_caps: dict) -> dict:
+    """Сырая цель ШИРЕ потолка числа протоколов — ровно та книга, ради которой
+    написана ступень ADR-002 (её docstring: аллокатор «natively emits ~24
+    protocols»). Один пул заморожен гейтом (TVL не живой), один удерживается
+    больше цели (сторона продажи). Снимка адаптеров в каталоге состояния НЕТ —
+    это и есть деградация: ступень читает СВОЮ копию снимка из файла, а не
+    строки, которые судил гейт.
+    """
+    cap = _SCENE_CAPITAL_USD
+    n = int(policy_caps.get("max_protocols") or 8) + 1
+    t1_pool = ["aave_v3", "compound_v3", "sky_susds", "spark", "morpho_steakhouse",
+               "yearn_v3", "fluid_fusdc", "morpho_blue_base", "aave_v3_base"]
+    t2_pool = ["maple", "euler", "pendle", "aerodrome", "moonwell", "silo"]
+    n_t2 = max(1, n // 3)
+    names = t1_pool[: n - n_t2] + t2_pool[:n_t2]
+    while len(names) < n:                      # потолок больше нашего словаря имён
+        names.append(f"protocol_{len(names):02d}")
+    tiers = {p: ("T2" if p in t2_pool else "T1") for p in names}
+    each = round(0.90 * cap / n, 2)
+    floor = float(policy_caps["tvl_floor_usd"])
+    rows = [_row(p, 4.0, floor * 20.0, tiers[p]) for p in names if p != "pendle"]
+    rows.append(_row("pendle", 9.0, floor * 16.0, "T2", tvl_source="static"))
+    return {
+        "capital_usd": cap,
+        "target": {p: each for p in names},
+        "held": {"aave_v3": round(0.20 * cap, 2), "pendle": round(0.05 * cap, 2)},
+        "adapters": rows,
+        "frozen": "pendle",
+    }
+
+
+def _scene_refused_book(policy_caps: dict) -> dict:
+    """Гейт ОТКАЗЫВАЕТ всей книге: концентрация T1 выше потолка RiskConfig.
+    Ход — перетасовка (продать pendle, купить aave), поэтому трим ADR-850 его
+    урезает: урезанная книга ложится ПОД потолок и переспрошенная RiskPolicy
+    её одобряет, хотя первый гейт отказал полной.
+    """
+    cap = _SCENE_CAPITAL_USD
+    t1 = float(policy_caps["t1_frac"])
+    floor = float(policy_caps["tvl_floor_usd"])
+    return {
+        "capital_usd": cap,
+        "target": {"aave_v3": round((t1 + 0.10) * cap, 2)},
+        "held": {"aave_v3": round(0.20 * cap, 2), "pendle": round(0.30 * cap, 2)},
+        "adapters": [_row("aave_v3", 2.7, floor * 180.0, "T1"),
+                     _row("pendle", 9.0, floor * 16.0, "T2")],
+    }
+
+
+def _call_chain(scene: dict, adapters: list[dict], target: dict, now: dt.datetime,
+                stages=None) -> dict:
+    """Гейт + цепь в ОДНОМ временном каталоге состояния: как цикл, но герметично."""
+    from spa_core.paper_trading.risk_gate import _apply_risk_policy_gate
+
+    with tempfile.TemporaryDirectory(prefix="cio_fm_chain_") as tmp:
+        ddir = Path(tmp)
+        gate = _apply_risk_policy_gate(dict(target), scene["capital_usd"], adapters,
+                                       ddir=ddir, current_positions=dict(scene["held"]))
+        res = run_post_gate_chain(gate=gate, raw_target=dict(target),
+                                  held=dict(scene["held"]),
+                                  capital_usd=scene["capital_usd"],
+                                  adapters=adapters, ddir=ddir, now=now, stages=stages)
+    return res
+
+
+def _scene_record(key: str, title: str, condition: str, res: dict, detail: str) -> dict:
+    out = {"scene": key, "title": title, "condition": condition, "detail": detail}
+    out.update(res)
+    return out
+
+
+def _synthetic_return_stage(frozen: str, usd: float):
+    """Ступень-подделка для контроля чувствительности: возвращает свежий
+    капитал замороженному пулу. Если проба её не заметит — вторая ось слепа."""
+    def fn(book, notes):
+        book = dict(book)
+        book[frozen] = float(book.get(frozen, 0.0)) + float(usd)
+        return book, "СИНТЕТИЧЕСКИЙ возврат капитала (контроль)"
+    return fn
+
+
+def run_post_gate_axis(ctx: dict, *, root: str = REPO_ROOT,
+                       now: dt.datetime | None = None) -> dict:
+    """Вторая ось §47 (ADR-992): отказ гейта на пути к записи цели."""
+    now = now or dt.datetime.now(dt.timezone.utc)
+    caps = ctx["caps"]
+    order = live_stage_order(root)
+    checks: dict[str, bool] = {}
+    reasons: list[str] = []
+    scenes: list[dict] = []
+
+    # К0 — тождество на здоровой сцене: цепь обязана вернуть книгу гейта как есть.
+    healthy = ctx["gate_scene"]
+    try:
+        k0 = _call_chain(healthy, healthy["adapters"], healthy["target"], now)
+        ident = (k0["outcome"] == SURVIVES and all(
+            abs(k0["final"].get(p, 0.0) - k0["carrier_in"].get(p, 0.0)) <= 0.01
+            for p in set(k0["final"]) | set(k0["carrier_in"])))
+        checks["k0_healthy_chain_is_identity"] = bool(ident) and bool(k0["gate"]["approved"])
+        if not checks["k0_healthy_chain_is_identity"]:
+            reasons.append("К0: на здоровой сцене цепь НЕ тождественна — стенд не нейтрален, "
+                           f"исход {k0['outcome']}, финал {k0['final']}")
+    except Exception as exc:  # noqa: BLE001
+        checks["k0_healthy_chain_is_identity"] = False
+        reasons.append(f"К0 не исполнен: {type(exc).__name__}: {exc}")
+
+    # К1 — чувствительность: подделка, вернувшая капитал замороженному пулу,
+    # обязана быть замечена и НАЗВАНА (сцена G980: «гейт отказал, ступень вернула ход»).
+    try:
+        rows = [dict(r) for r in healthy["adapters"]]
+        for r in rows:
+            if r["protocol"] == "pendle":
+                r["tvl_source"] = "static"
+        fake = [("synthetic_return", _synthetic_return_stage("pendle", 1_000.0))]
+        k1 = _call_chain(healthy, rows, healthy["target"], now, stages=fake)
+        checks["k1_synthetic_return_is_named"] = (
+            k1["outcome"] == UNDONE and k1["undone_by"] == ["synthetic_return"]
+            and "fresh_to_refused" in k1["forms"] and k1["gate"]["frozen"] == ["pendle"])
+        if not checks["k1_synthetic_return_is_named"]:
+            reasons.append(f"К1: синтетический возврат капитала НЕ замечен — {k1['outcome']} / "
+                           f"{k1.get('undone_by')} / {k1.get('forms')}")
+    except Exception as exc:  # noqa: BLE001
+        checks["k1_synthetic_return_is_named"] = False
+        reasons.append(f"К1 не исполнен: {type(exc).__name__}: {exc}")
+
+    checks["order_matches_live_cycle"] = order.get("verdict") == "measured"
+    if not checks["order_matches_live_cycle"]:
+        reasons.append(f"порядок ступеней: {order.get('verdict')} — {order.get('reason')}")
+    control = {"passed": all(checks.values()), "checks": checks, "reasons": reasons}
+
+    # С1 — заморозка ADR-053 (missing liquidity) через все ступени.
+    try:
+        rows = [dict(r) for r in healthy["adapters"]]
+        for r in rows:
+            if r["protocol"] == "pendle":
+                r["tvl_source"] = "static"
+        s1 = _call_chain(healthy, rows, healthy["target"], now)
+        fz = s1["gate"]["frozen"]
+        det = (f"гейт заморозил {fz} на удержанном; после {len(s1['steps'])} ступеней свежего "
+               f"капитала к замороженному: {s1['fresh_beyond_gate_usd'] or 'нет'}; "
+               f"трим: {s1.get('trim_verdict')}; оборот у записи ${s1['turnover_final_usd']:,.0f}")
+        if not fz:
+            s1 = dict(s1, outcome=UNMEASURED,
+                      unmeasured_reason="гейт не заморозил пул — отказа, который можно отменить, нет")
+        scenes.append(_scene_record("s1_frozen_pool_through_chain",
+                                    "замороженный пул (ADR-053) проходит шесть ступеней",
+                                    "missing_liquidity", s1, det))
+    except Exception as exc:  # noqa: BLE001
+        scenes.append({"scene": "s1_frozen_pool_through_chain", "outcome": UNMEASURED,
+                       "condition": "missing_liquidity",
+                       "title": "замороженный пул (ADR-053) проходит шесть ступеней",
+                       "unmeasured_reason": f"{type(exc).__name__}: {exc}", "detail": ""})
+
+    # С2 — книга шире потолка числа протоколов при ОТСУТСТВУЮЩЕМ снимке адаптеров.
+    try:
+        sc = _scene_over_count_cap(caps)
+        s2 = _call_chain(sc, sc["adapters"], sc["target"], now)
+        adr002 = next((st for st in s2["steps"] if st["stage"] == "_compliant_target"), {})
+        det = (f"гейт одобрил {len(s2['gate']['judged_target'])} протоколов, заморозив "
+               f"{s2['gate']['frozen']}; ступень ADR-002 ({adr002.get('note')}): поднято выше "
+               f"одобренного {adr002.get('raised_above_judged_usd') or 'ничего'}, введено не судимых "
+               f"{adr002.get('introduced_unjudged') or 'ничего'}, снято одобренных "
+               f"{adr002.get('dropped_judged') or 'ничего'}; трим: {s2.get('trim_verdict')}; у записи "
+               f"свежий капитал сверх одобренного {s2['fresh_beyond_gate_usd'] or 'нет'}, оборот "
+               f"${s2['turnover_final_usd']:,.0f} (вход ${s2['turnover_carrier_usd']:,.0f}); "
+               f"RiskPolicy переспрошена тримом: {s2.get('rejudged_within_chain')}")
+        if not s2["gate"]["approved"]:
+            s2 = dict(s2, outcome=UNMEASURED,
+                      unmeasured_reason=("гейт не одобрил широкую книгу — ступень ADR-002 "
+                                         "недостижима на этой сцене"))
+        scenes.append(_scene_record("s2_snapshot_absent_over_count_cap",
+                                    "книга шире потолка числа протоколов, снимка адаптеров нет",
+                                    "stale_data", s2, det))
+    except Exception as exc:  # noqa: BLE001
+        scenes.append({"scene": "s2_snapshot_absent_over_count_cap", "outcome": UNMEASURED,
+                       "condition": "stale_data",
+                       "title": "книга шире потолка числа протоколов, снимка адаптеров нет",
+                       "unmeasured_reason": f"{type(exc).__name__}: {exc}", "detail": ""})
+
+    # С3 — гейт отказал ВСЕЙ книге; к записи идёт отказанная книга под тримом.
+    try:
+        sc = _scene_refused_book(caps)
+        s3 = _call_chain(sc, sc["adapters"], sc["target"], now)
+        det = (f"гейт: approved={s3['gate']['approved']}; носитель — {s3['carrier_source']}; "
+               f"трим: {s3.get('trim_verdict')} (RiskPolicy переспрошена: {s3.get('rejudged_within_chain')}); "
+               f"у записи свежий капитал, которого ПЕРВЫЙ гейт не одобрял: "
+               f"{s3['fresh_beyond_gate_usd'] or 'нет'}, оборот ${s3['turnover_final_usd']:,.0f} "
+               f"(вход ${s3['turnover_carrier_usd']:,.0f}); решение Step 3 требует "
+               f"«не заблокировано политикой»: {order.get('decision_requires_not_blocked')}")
+        if s3["gate"]["approved"]:
+            s3 = dict(s3, outcome=UNMEASURED,
+                      unmeasured_reason="гейт одобрил книгу — отказа, который нужно пережить, нет")
+        scenes.append(_scene_record("s3_refused_book_reaches_record",
+                                    "гейт отказал всей книге — что доходит до записи",
+                                    "risk_policy_refusal", s3, det))
+    except Exception as exc:  # noqa: BLE001
+        scenes.append({"scene": "s3_refused_book_reaches_record", "outcome": UNMEASURED,
+                       "condition": "risk_policy_refusal",
+                       "title": "гейт отказал всей книге — что доходит до записи",
+                       "unmeasured_reason": f"{type(exc).__name__}: {exc}", "detail": ""})
+
+    tally = {o: sum(1 for s in scenes if s.get("outcome") == o)
+             for o in (SURVIVES, UNDONE, UNMEASURED)}
+    tally["total"] = len(scenes)
+    verdict = "measured" if control["passed"] else "unmeasured"
+    return {
+        "schema": SCHEMA,
+        "verdict": verdict,
+        "stages": list(POST_GATE_STAGES),
+        "order": order,
+        "control": control,
+        "scenes": scenes,
+        "tally": tally,
+        "method": ("живые функции ступеней в ЖИВОМ порядке cycle_runner, свой временный "
+                   "каталог состояния, рынок здоров (стоп-кран выкл · дерискинг выкл · "
+                   "постура NORMAL явно); единственный двигатель — деградация данных"),
+        "host_doors": [
+            "_compliant_target → portfolio_rebalancer._build_safe_fallback_positions читает "
+            "каталог состояния ХОСТА (data_dir=None), а не каталог цикла: состав запасной книги "
+            "зависит от машины — вердикт сцены С2 судит ФОРМУ подмены, не её суммы",
+        ],
+        "advisory": ("ADVISORY: ни одна ступень не переносится и не снимается — это "
+                     "money-path и решение владельца"),
+    }
+
+
+def _post_gate_findings(pg: dict) -> tuple[list[dict], list[str]]:
+    findings: list[dict] = []
+    unchecked: list[str] = []
+    if not (pg.get("control") or {}).get("passed"):
+        for r in (pg.get("control") or {}).get("reasons") or ["контроль не пройден, причина не названа"]:
+            unchecked.append(f"вторая ось (ADR-992): {r}")
+    for s in pg.get("scenes") or []:
+        if s.get("outcome") == UNDONE:
+            findings.append({
+                "severity": "CRITICAL",
+                "code": f"refusal_undone:{s['scene']}",
+                "message": (f"сцена «{s.get('title')}»: ступень(и) {', '.join(s.get('undone_by') or [])} "
+                            f"переписали книгу, которую судил гейт ({', '.join(s.get('forms') or [])}). "
+                            f"{s.get('detail', '')}"),
+            })
+        elif s.get("outcome") == SURVIVES and s.get("record_divergence"):
+            findings.append({
+                "severity": "WARN",
+                "code": f"record_diverges:{s['scene']}",
+                "message": (f"сцена «{s.get('title')}»: ни одна ступень капитал не вернула, но книга у "
+                            f"записи несёт свежий капитал, которого первый гейт не одобрял "
+                            f"({s.get('fresh_beyond_gate_usd')}). {s.get('detail', '')}"),
+            })
+        elif s.get("outcome") == UNMEASURED:
+            unchecked.append(f"вторая ось, сцена «{s.get('title')}»: {s.get('unmeasured_reason') or 'причина не названа'}")
+    return findings, unchecked
+
+
 def run(*, root: str = REPO_ROOT, now: dt.datetime | None = None,
         write: bool = True) -> dict:
     """Прогнать десять проб §47 и записать отчёт."""
@@ -735,6 +1268,12 @@ def run(*, root: str = REPO_ROOT, now: dt.datetime | None = None,
                                  reason=f"проба не выполнена: {type(exc).__name__}: {exc}"))
 
     findings, unchecked = _findings(probes)
+    # Вторая ось (ADR-992): отказ гейта на пути к записи. Её находки входят в
+    # общий счёт и вердикт; её «не измерено» — в общий список, не в ноль.
+    post_gate = run_post_gate_axis(ctx, root=root, now=now)
+    pg_findings, pg_unchecked = _post_gate_findings(post_gate)
+    findings = findings + pg_findings
+    unchecked = unchecked + pg_unchecked
     counts = {
         "critical": sum(1 for f in findings if f["severity"] == "CRITICAL"),
         "warn": sum(1 for f in findings if f["severity"] == "WARN"),
@@ -748,6 +1287,7 @@ def run(*, root: str = REPO_ROOT, now: dt.datetime | None = None,
     tally = {o: sum(1 for p in probes if p["outcome"] == o)
              for o in (REFUSES, PARTIAL, PROCEEDS, UNCHECKED)}
     doc = {
+        "schema": SCHEMA,
         "generated_at": now.isoformat(),
         "overall": overall,
         "counts": counts,
@@ -763,6 +1303,7 @@ def run(*, root: str = REPO_ROOT, now: dt.datetime | None = None,
                                       f"version={params.version})"),
         },
         "probes": probes,
+        "post_gate": post_gate,
         "findings": findings,
         "unchecked": unchecked,
         "advisory": ("ADVISORY: ни одна дверь не строится и не двигается этим "
@@ -841,6 +1382,13 @@ def _main(argv: list[str] | None = None) -> int:
               f"{p['detail'] or p['unchecked_reason']}")
     for f in doc["findings"]:
         print(f"  [{f['severity']}] {f['message']}")
+    pg = doc.get("post_gate") or {}
+    t = pg.get("tally") or {}
+    print(f"  вторая ось (ADR-992) отказ гейта на пути к записи: {pg.get('verdict')} — "
+          f"сцен {t.get('total')}: переживает {t.get(SURVIVES)} · ОТМЕНЁН {t.get(UNDONE)} · "
+          f"не измерено {t.get(UNMEASURED)}")
+    for s in pg.get("scenes") or []:
+        print(f"    {s.get('outcome'):10s} «{s.get('title')}» — {s.get('detail') or s.get('unmeasured_reason')}")
     for u in doc["unchecked"]:
         print(f"  [НЕ ИЗМЕРЕНО] {u}")
     return 0

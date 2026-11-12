@@ -508,3 +508,360 @@ class TestHolesFoundByMutation(unittest.TestCase):
 
 if __name__ == "__main__":  # pragma: no cover
     unittest.main()
+
+
+# ═══════════════ вторая ось (ADR-992): отказ гейта на пути к записи ═══════════════
+
+def _fake_cycle(root: str, body: str) -> None:
+    d = os.path.join(root, "spa_core", "paper_trading")
+    os.makedirs(d, exist_ok=True)
+    with open(os.path.join(d, "cycle_runner.py"), "w", encoding="utf-8") as fh:
+        fh.write(body)
+
+
+_LIVE_LIKE_CYCLE = """
+from spa_core.paper_trading.risk_gate import (
+    _apply_risk_policy_gate,
+    _compliant_target,
+)
+def run_cycle():
+    gate = _apply_risk_policy_gate(target_usd, capital_usd, adapters)
+    target_usd = apply_kill_switch_override(target_usd)
+    target_usd = apply_soft_derisk_gate(target_usd)
+    target_usd, _c = _compliant_target(target_usd, capital_usd, ddir, write)
+    target_usd = apply_soft_derisk_gate(target_usd)
+    target_usd = apply_rtmr_posture_gate(target_usd)
+    from spa_core.paper_trading.pool_alias_gate import apply_pool_alias_gate
+    target_usd = apply_pool_alias_gate(target_usd)
+    from spa_core.paper_trading.admissible_trim import apply_admissible_trim
+    target_usd, _t = apply_admissible_trim(target_usd)
+    _cio_doc = write_shadow_rationale(data_dir=ddir, target_positions=target_usd)
+    traded = ((not _safety_failed) and (not policy_blocked)
+              and diff_usd > threshold_usd)
+"""
+
+
+class TestStageOrderAgainstTheLiveCycle(unittest.TestCase):
+    """Объявленный порядок ступеней СВЕРЯЕТСЯ с исходником живого цикла."""
+
+    def test_declared_order_matches_cycle_runner_on_this_tree(self):
+        od = M.live_stage_order(M.REPO_ROOT)
+        self.assertEqual(od["verdict"], "measured", od.get("reason"))
+        self.assertEqual(od["live"], list(M.POST_GATE_STAGES))
+        self.assertLess(od["gate_line"], od["record_line"])
+        self.assertTrue(od["decision_requires_not_blocked"],
+                        "Step 3 больше не требует «не заблокировано политикой» — "
+                        "сцена С3 судит другой цикл")
+
+    def test_the_live_like_fake_is_measured(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            _fake_cycle(tmp, _LIVE_LIKE_CYCLE)
+            od = M.live_stage_order(tmp)
+        self.assertEqual(od["verdict"], "measured", od.get("reason"))
+        self.assertTrue(od["decision_requires_not_blocked"])
+
+    def test_a_swapped_order_is_diverged_and_names_both(self):
+        swapped = _LIVE_LIKE_CYCLE.replace(
+            "    target_usd = apply_rtmr_posture_gate(target_usd)\n", "").replace(
+            "    target_usd = apply_kill_switch_override(target_usd)\n",
+            "    target_usd = apply_kill_switch_override(target_usd)\n"
+            "    target_usd = apply_rtmr_posture_gate(target_usd)\n")
+        with tempfile.TemporaryDirectory() as tmp:
+            _fake_cycle(tmp, swapped)
+            od = M.live_stage_order(tmp)
+        self.assertEqual(od["verdict"], "diverged")
+        self.assertIn("apply_rtmr_posture_gate", od["reason"])
+        self.assertEqual(od["live"][1], "apply_rtmr_posture_gate")
+
+    def test_imports_and_defs_are_not_calls(self):
+        """Ступени, названные ТОЛЬКО импортом/def в объявленном порядке, —
+        не живая цепь: вердикт diverged, а не measured."""
+        body = "\n".join(
+            ["def run_cycle():",
+             "    gate = _apply_risk_policy_gate(t)"]
+            + [f"    from x import {n}" for n in M.POST_GATE_STAGES]
+            + [f"def {n}(): pass" for n in dict.fromkeys(M.POST_GATE_STAGES)]
+            + ["    _cio_doc = write_shadow_rationale(t)"]) + "\n"
+        with tempfile.TemporaryDirectory() as tmp:
+            _fake_cycle(tmp, body)
+            od = M.live_stage_order(tmp)
+        self.assertEqual(od["verdict"], "diverged")
+        self.assertEqual(od["live"], [])
+
+    def test_unreadable_cycle_is_unmeasured_with_a_reason(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            od = M.live_stage_order(tmp)
+        self.assertEqual(od["verdict"], "unmeasured")
+        self.assertTrue(od["reason"].strip())
+
+    def test_missing_decision_line_is_false_not_absent(self):
+        body = _LIVE_LIKE_CYCLE.split("    traded =")[0]
+        with tempfile.TemporaryDirectory() as tmp:
+            _fake_cycle(tmp, body)
+            od = M.live_stage_order(tmp)
+        self.assertEqual(od["verdict"], "measured")
+        self.assertIs(od["decision_requires_not_blocked"], False)
+
+
+def _gate(approved=True, target=None, frozen=(), error=None, trimmed=False):
+    return {"approved": approved, "error": error, "trimmed": trimmed,
+            "target_usd": dict(target or {}), "tvl_unverified": list(frozen),
+            "violations": [] if approved else ["x"]}
+
+
+def _identity(book, notes):
+    return book, None
+
+
+def _chain(gate, raw, held, stages):
+    with tempfile.TemporaryDirectory() as tmp:
+        return M.run_post_gate_chain(
+            gate=gate, raw_target=raw, held=held, capital_usd=1_000.0, adapters=[],
+            ddir=Path(tmp), now=_NOW, stages=stages)
+
+
+class TestTheChainProbeDiscriminates(unittest.TestCase):
+    """Каждая форма отмены ловится и приписывается СВОЕЙ ступени — на подделках."""
+
+    HELD = {"a": 100.0, "b": 50.0}
+
+    def test_identity_chain_survives_with_no_forms(self):
+        g = _gate(target={"a": 100.0, "b": 50.0}, frozen=["b"])
+        r = _chain(g, g["target_usd"], self.HELD, [("s", _identity)])
+        self.assertEqual(r["outcome"], M.SURVIVES)
+        self.assertEqual(r["forms"], [])
+        self.assertFalse(r["record_divergence"])
+
+    def test_fresh_capital_to_a_frozen_pool_is_named(self):
+        g = _gate(target={"a": 100.0, "b": 50.0}, frozen=["b"])
+        def give(book, notes):
+            book = dict(book); book["b"] += 10.0; return book, None
+        r = _chain(g, g["target_usd"], self.HELD, [("s0", _identity), ("giver", give)])
+        self.assertEqual(r["outcome"], M.UNDONE)
+        self.assertEqual(r["undone_by"], ["giver"])
+        self.assertEqual(r["forms"], ["fresh_to_refused"])
+        self.assertEqual(r["steps"][1]["fresh_to_refused_usd"], {"b": 10.0})
+
+    def test_raising_above_both_judged_and_held_is_named(self):
+        g = _gate(target={"a": 80.0, "b": 50.0}, frozen=["b"])
+        def grow(book, notes):
+            book = dict(book); book["a"] = 120.0; return book, None
+        r = _chain(g, g["target_usd"], self.HELD, [("grower", grow)])
+        self.assertEqual(r["undone_by"], ["grower"])
+        self.assertEqual(r["forms"], ["raised_above_judged"])
+        self.assertEqual(r["steps"][0]["raised_above_judged_usd"], {"a": 20.0})
+
+    def test_a_rise_that_stays_under_held_is_not_fresh_capital(self):
+        """Гейт одобрил продажу 100 → 80; ступень поставила 90: это МЕНЬШАЯ продажа,
+        а не свежий капитал — потолок свежести = max(одобрено, удержано)."""
+        g = _gate(target={"a": 80.0, "b": 50.0}, frozen=["b"])
+        def soften(book, notes):
+            book = dict(book); book["a"] = 90.0; return book, None
+        r = _chain(g, g["target_usd"], self.HELD, [("softener", soften)])
+        self.assertEqual(r["outcome"], M.SURVIVES)
+        self.assertTrue(r["steps"][0]["changed"])
+
+    def test_an_unjudged_protocol_is_blamed_on_the_stage_that_introduced_it(self):
+        g = _gate(target={"a": 100.0, "b": 50.0}, frozen=["b"])
+        def intro(book, notes):
+            book = dict(book); book["c"] = 5.0; return book, None
+        r = _chain(g, g["target_usd"], self.HELD,
+                   [("intro", intro), ("carrier", _identity), ("carrier2", _identity)])
+        self.assertEqual(r["undone_by"], ["intro"], "соседи ниже пронесли «c», не вводили его")
+        self.assertEqual(r["forms"], ["introduced_unjudged"])
+        self.assertEqual(r["steps"][1]["forms"], [])
+
+    def test_dropping_an_approved_protocol_is_book_replaced(self):
+        g = _gate(target={"a": 100.0, "b": 50.0}, frozen=["b"])
+        def drop(book, notes):
+            book = dict(book); book.pop("a"); return book, None
+        r = _chain(g, g["target_usd"], self.HELD, [("dropper", drop)])
+        self.assertEqual(r["undone_by"], ["dropper"])
+        self.assertEqual(r["forms"], ["book_replaced"])
+        self.assertEqual(r["steps"][0]["dropped_judged"], ["a"])
+
+    def test_refused_gate_keeps_the_raw_carrier_and_judges_nothing(self):
+        g = _gate(approved=False, target={"a": 300.0})
+        r = _chain(g, {"a": 300.0}, self.HELD, [("s", _identity)])
+        self.assertIn("сырая цель", r["carrier_source"])
+        self.assertEqual(r["gate"]["judged_target"], {})
+        self.assertEqual(r["outcome"], M.SURVIVES)
+        self.assertTrue(r["record_divergence"], "300 > удержанных 100 — свежий капитал без одобрения")
+        self.assertEqual(r["fresh_beyond_gate_usd"], {"a": 200.0})
+
+    def test_refused_gate_with_a_book_under_held_has_no_divergence(self):
+        g = _gate(approved=False, target={"a": 60.0})
+        r = _chain(g, {"a": 60.0}, self.HELD, [("s", _identity)])
+        self.assertFalse(r["record_divergence"])
+
+    def test_frozen_or_trimmed_gate_hands_its_own_target_as_the_carrier(self):
+        g = _gate(target={"a": 70.0, "b": 50.0}, frozen=["b"])
+        r = _chain(g, {"a": 70.0, "b": 90.0}, self.HELD, [("s", _identity)])
+        self.assertEqual(r["carrier_in"], {"a": 70.0, "b": 50.0})
+        g2 = _gate(target={"a": 70.0, "b": 90.0})
+        r2 = _chain(g2, {"a": 70.0, "b": 90.0}, self.HELD, [("s", _identity)])
+        self.assertIn("сырая цель", r2["carrier_source"])
+
+    def test_a_crashing_stage_is_unmeasured_and_named(self):
+        g = _gate(target={"a": 100.0, "b": 50.0})
+        def boom(book, notes):
+            raise RuntimeError("дверь не ответила")
+        r = _chain(g, g["target_usd"], self.HELD, [("ok", _identity), ("boom", boom)])
+        self.assertEqual(r["outcome"], M.UNMEASURED)
+        self.assertIn("boom", r["unmeasured_reason"])
+        self.assertEqual(len(r["steps"]), 1)
+
+    def test_turnover_is_one_sided_against_held(self):
+        g = _gate(target={"a": 50.0, "b": 100.0}, frozen=[])
+        r = _chain(g, g["target_usd"], self.HELD, [("s", _identity)])
+        self.assertEqual(r["turnover_final_usd"], 50.0)
+
+
+class TestTheSecondAxisOnTheLiveFunctions(unittest.TestCase):
+    """Сцены второй оси над НАСТОЯЩИМИ ступенями цикла."""
+
+    @classmethod
+    def setUpClass(cls):
+        cls.pg = M.run_post_gate_axis(_ctx(), root=M.REPO_ROOT, now=_NOW)
+        cls.scenes = {s["scene"]: s for s in cls.pg["scenes"]}
+
+    def test_control_passes_on_the_live_tree(self):
+        self.assertTrue(self.pg["control"]["passed"], self.pg["control"]["reasons"])
+        self.assertEqual(sorted(self.pg["control"]["checks"]),
+                         ["k0_healthy_chain_is_identity", "k1_synthetic_return_is_named",
+                          "order_matches_live_cycle"])
+        self.assertEqual(self.pg["verdict"], "measured")
+
+    def test_frozen_pool_survives_all_seven_stages(self):
+        s = self.scenes["s1_frozen_pool_through_chain"]
+        self.assertEqual(s["outcome"], M.SURVIVES, s.get("detail"))
+        self.assertEqual(s["gate"]["frozen"], ["pendle"])
+        self.assertEqual(len(s["steps"]), len(M.POST_GATE_STAGES))
+        self.assertEqual(s["fresh_beyond_gate_usd"], {})
+
+    def test_adr002_replaces_the_gated_book_when_the_snapshot_is_absent(self):
+        s = self.scenes["s2_snapshot_absent_over_count_cap"]
+        self.assertTrue(s["gate"]["approved"], "гейт обязан одобрить широкую книгу, иначе ADR-002 недостижим")
+        self.assertEqual(s["gate"]["frozen"], ["pendle"])
+        self.assertEqual(s["outcome"], M.UNDONE, s.get("detail"))
+        self.assertEqual(s["undone_by"], ["_compliant_target"],
+                         "виновник ровно один — ступень ADR-002; соседи ниже книгу не переписывали")
+        adr002 = next(st for st in s["steps"] if st["stage"] == "_compliant_target")
+        self.assertTrue(adr002["changed"])
+        self.assertIn("СХЛОПНУТА", adr002["note"])
+        self.assertTrue(set(s["forms"]) & {"raised_above_judged", "introduced_unjudged", "book_replaced"})
+
+    def test_adr002_scene_turns_a_degradation_into_a_move(self):
+        s = self.scenes["s2_snapshot_absent_over_count_cap"]
+        self.assertGreater(s["turnover_final_usd"], 0.0,
+                           "у записи оборот ноль — подмена книги ходом не стала, сцена потеряла предмет")
+
+    def test_refused_book_reaches_the_record_trimmed_and_rejudged(self):
+        s = self.scenes["s3_refused_book_reaches_record"]
+        self.assertFalse(s["gate"]["approved"])
+        self.assertIn("сырая цель", s["carrier_source"])
+        self.assertEqual(s["trim_verdict"], "TRIMMED_TO_ADMISSIBLE", s.get("detail"))
+        self.assertIs(s["rejudged_within_chain"], True)
+        self.assertTrue(s["record_divergence"])
+        self.assertEqual(s["outcome"], M.SURVIVES)
+        self.assertTrue(self.pg["order"]["decision_requires_not_blocked"])
+
+    def test_every_scene_outcome_is_in_the_vocabulary(self):
+        for s in self.pg["scenes"]:
+            self.assertIn(s["outcome"], (M.SURVIVES, M.UNDONE, M.UNMEASURED))
+            if s["outcome"] == M.UNMEASURED:
+                self.assertTrue(s["unmeasured_reason"].strip())
+        self.assertEqual(sum(v for k, v in self.pg["tally"].items() if k != "total"),
+                         self.pg["tally"]["total"])
+
+    def test_host_doors_are_named(self):
+        self.assertTrue(any("_compliant_target" in d for d in self.pg["host_doors"]))
+
+    def test_order_block_names_the_live_lines(self):
+        od = self.pg["order"]
+        self.assertEqual(od["verdict"], "measured")
+        self.assertEqual([s["stage"] for s in od["sites"]], list(M.POST_GATE_STAGES))
+
+
+class TestTheSecondAxisInTheReport(unittest.TestCase):
+
+    @classmethod
+    def setUpClass(cls):
+        cls.doc = M.run(root=M.REPO_ROOT, now=_NOW, write=False)
+
+    def test_schema_is_v2_and_the_axis_is_in_the_artifact(self):
+        self.assertEqual(self.doc["schema"], M.SCHEMA)
+        self.assertIn("post_gate", self.doc)
+        self.assertEqual(self.doc["post_gate"]["schema"], M.SCHEMA)
+
+    def test_undone_is_critical_and_divergence_is_warn(self):
+        codes = {f["code"]: f["severity"] for f in self.doc["findings"]}
+        self.assertEqual(codes.get("refusal_undone:s2_snapshot_absent_over_count_cap"), "CRITICAL")
+        self.assertEqual(codes.get("record_diverges:s3_refused_book_reaches_record"), "WARN")
+
+    def test_the_ten_conditions_are_untouched_by_the_axis(self):
+        self.assertEqual(self.doc["conditions_total"], len(M.OWNER_CONDITIONS))
+        self.assertEqual(sum(self.doc["tally"].values()), len(M.OWNER_CONDITIONS))
+
+    def test_unchecked_count_includes_the_axis(self):
+        self.assertEqual(len(self.doc["unchecked"]), self.doc["counts"]["unchecked"])
+
+
+class TestTheSecondAxisFailsClosed(unittest.TestCase):
+
+    def test_a_broken_control_makes_the_axis_unmeasured_and_keeps_scene_findings(self):
+        """Контроль сорван ⇒ вердикт оси «не измерено» с причиной; находки сцен при
+        этом НЕ прячутся — ошибка в опасную сторону была бы молчанием."""
+        real = M._call_chain
+        def leaky(scene, adapters, target, now, stages=None):
+            r = real(scene, adapters, target, now, stages=stages)
+            if stages is None and scene is _ctx_cache["gate_scene"] and adapters is scene["adapters"]:
+                r = dict(r, final=dict(r["final"], aave_v3=r["final"].get("aave_v3", 0.0) + 1.0))
+            return r
+        _ctx_cache = _ctx()
+        M._call_chain = leaky
+        try:
+            pg = M.run_post_gate_axis(_ctx_cache, root=M.REPO_ROOT, now=_NOW)
+        finally:
+            M._call_chain = real
+        self.assertEqual(pg["verdict"], "unmeasured")
+        self.assertFalse(pg["control"]["checks"]["k0_healthy_chain_is_identity"])
+        self.assertTrue(any("К0" in r for r in pg["control"]["reasons"]))
+        findings, unchecked = M._post_gate_findings(pg)
+        self.assertTrue(any(u.startswith("вторая ось") for u in unchecked))
+        self.assertTrue(any(f["code"].startswith("refusal_undone:") for f in findings))
+
+    def test_a_diverged_order_is_reported_not_measured(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            _fake_cycle(tmp, _LIVE_LIKE_CYCLE.replace(
+                "    target_usd = apply_pool_alias_gate(target_usd)\n", ""))
+            pg = M.run_post_gate_axis(_ctx(), root=tmp, now=_NOW)
+        self.assertEqual(pg["verdict"], "unmeasured")
+        self.assertFalse(pg["control"]["checks"]["order_matches_live_cycle"])
+        self.assertTrue(any("порядок ступеней" in r for r in pg["control"]["reasons"]))
+
+
+class TestLiveStagesMirrorTheCycle(unittest.TestCase):
+
+    def test_adr002_is_skipped_when_the_gate_refused_as_in_the_cycle(self):
+        """`_compliant_target` в цикле стоит под `not policy_blocked`: на отказанной
+        книге шире потолка числа протоколов ступень обязана быть ПРОПУЩЕНА, а не
+        схлопывать книгу, которой гейт отказал."""
+        from spa_core.paper_trading.risk_gate import _apply_risk_policy_gate
+        caps = M._policy_caps()
+        sc = M._scene_over_count_cap(caps)
+        cap = sc["capital_usd"]
+        over = round((float(caps["t1_frac"]) + 0.10) * cap, 2)       # выше потолка T1
+        rest = round((0.90 * cap - over) / (len(sc["target"]) - 1), 2)  # сумма под буфером кэша,
+        wide = {p: rest for p in sc["target"]}                          # чтобы гейт не срезал долю
+        wide["aave_v3"] = over
+        with tempfile.TemporaryDirectory() as tmp:
+            gate = _apply_risk_policy_gate(dict(wide), sc["capital_usd"], sc["adapters"],
+                                           ddir=Path(tmp), current_positions=dict(sc["held"]))
+            self.assertFalse(gate["approved"], gate["violations"][:2])
+            r = M.run_post_gate_chain(gate=gate, raw_target=wide, held=sc["held"],
+                                      capital_usd=sc["capital_usd"], adapters=sc["adapters"],
+                                      ddir=Path(tmp), now=_NOW)
+        st = next(s for s in r["steps"] if s["stage"] == "_compliant_target")
+        self.assertIn("пропущена", st["note"])
+        self.assertFalse(st["changed"])

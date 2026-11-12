@@ -859,6 +859,7 @@
 | ADR-989 | ADR-989 — §43 «Portfolio CIO»: трейл пишет решение ДО девяти ступеней цикла, ход — ПОСЛЕ; у 43 из 46 перекладок исполнено не записанное, причины не несёт никто; трим ADR-850 и стадия в трейл не едут | принято | [ADR-989](ADR-989-cio-s43-audit-trail-decision-execution-gap.md) |
 | ADR-990 | ADR-990 · §44 «Portfolio CIO»: фраза владельцу объясняет решение ТЕНИ — во все 11 дней, когда книга исполняла ход, она говорила HOLD; трим ADR-850 и стадия во фразу не едут | принято | [ADR-990](ADR-990-cio-s44-explainability-explains-the-shadow-not-the-executed-move.md) |
 | ADR-991 | ADR-991 · §46 «Portfolio CIO»: носитель цели между Optimizer и Target Allocation переписывают 6 ступеней, которых в карте нет (трим ADR-850 среди них); Risk Gate зовётся до Target Allocation | принято | [ADR-991](ADR-991-cio-s46-component-map-hidden-stages-and-live-order.md) |
+| ADR-992 | ADR-992 · §47 «Portfolio CIO»: отказ гейта переживает шесть скрытых ступеней, пока книга уже; книгу шире потолка без снимка адаптеров ступень ADR-002 подменяет зашитой, и трим делает из подмены ход | принято | [ADR-992](ADR-992-cio-s47-gate-refusal-through-hidden-stages.md) |
 
 ## Соглашения
 

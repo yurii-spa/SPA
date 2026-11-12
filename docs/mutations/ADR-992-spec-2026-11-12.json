@@ -1,0 +1,128 @@
+{
+ "title": "ADR-992 — дельта цикла #1111 (вторая ось §47: отказ гейта на пути к записи)",
+ "tests": [
+  "spa_core/tests/test_cio_failure_modes.py"
+ ],
+ "mutations": [
+  {
+   "name": "M01 порядок: импорт и def читаются вызовами",
+   "file": "spa_core/monitoring/cio_failure_modes.py",
+   "old": "        if s.startswith((\"#\", \"from \", \"import \", \"def \")):\n            return False\n",
+   "new": "        if s.startswith(\"#\"):\n            return False\n"
+  },
+  {
+   "name": "M02 порядок: последовательность не сверяется с объявленной",
+   "file": "spa_core/monitoring/cio_failure_modes.py",
+   "old": "    if seq == list(POST_GATE_STAGES):\n        out.update(verdict=\"measured\", reason=\"\")",
+   "new": "    if True:\n        out.update(verdict=\"measured\", reason=\"\")"
+  },
+  {
+   "name": "M03 порядок: условие решения Step 3 считается найденным всегда",
+   "file": "spa_core/monitoring/cio_failure_modes.py",
+   "old": "               decision_requires_not_blocked=any(_DECISION_LINE.search(l)\n                                                 for l in lines[rec_ln:]))",
+   "new": "               decision_requires_not_blocked=True)"
+  },
+  {
+   "name": "M04 цепь: носитель всегда сырая цель (пересвязка гейта забыта)",
+   "file": "spa_core/monitoring/cio_failure_modes.py",
+   "old": "    if gate.get(\"error\") is None and (gate.get(\"trimmed\") or frozen):\n        carrier, carrier_source",
+   "new": "    if False:\n        carrier, carrier_source"
+  },
+  {
+   "name": "M05 цепь: отказанная книга читается одобренной",
+   "file": "spa_core/monitoring/cio_failure_modes.py",
+   "old": "    judged: dict[str, float] = dict(gate_target) if judged_ok else {}",
+   "new": "    judged: dict[str, float] = dict(gate_target)"
+  },
+  {
+   "name": "M06 цепь: свежий капитал замороженному пулу не считается формой",
+   "file": "spa_core/monitoring/cio_failure_modes.py",
+   "old": "        if fresh_to_refused:\n            step_forms.append(\"fresh_to_refused\")",
+   "new": "        if False:\n            step_forms.append(\"fresh_to_refused\")"
+  },
+  {
+   "name": "M07 цепь: потолок свежести без удержанного (меньшая продажа читается свежим капиталом)",
+   "file": "spa_core/monitoring/cio_failure_modes.py",
+   "old": "        return max(judged.get(p, 0.0), held_b.get(p, 0.0))",
+   "new": "        return judged.get(p, 0.0)"
+  },
+  {
+   "name": "M08 цепь: введённый протокол приписывается и соседям ниже",
+   "file": "spa_core/monitoring/cio_failure_modes.py",
+   "old": "        introduced = sorted(p for p in after if p not in support and after[p] > 0.01\n                            and before.get(p, 0.0) <= 0.01)",
+   "new": "        introduced = sorted(p for p in after if p not in support and after[p] > 0.01)"
+  },
+  {
+   "name": "M09 цепь: снятие одобренного протокола не форма",
+   "file": "spa_core/monitoring/cio_failure_modes.py",
+   "old": "        if dropped:\n            step_forms.append(\"book_replaced\")",
+   "new": "        if False:\n            step_forms.append(\"book_replaced\")"
+  },
+  {
+   "name": "M10 цепь: упавшая ступень читается как «пережил»",
+   "file": "spa_core/monitoring/cio_failure_modes.py",
+   "old": "            return {\"outcome\": UNMEASURED, \"steps\": steps, \"carrier_in\": carrier,",
+   "new": "            return {\"outcome\": SURVIVES, \"steps\": steps, \"carrier_in\": carrier,"
+  },
+  {
+   "name": "M11 цепь: исход всегда SURVIVES",
+   "file": "spa_core/monitoring/cio_failure_modes.py",
+   "old": "    outcome = UNDONE if undone_by else SURVIVES",
+   "new": "    outcome = SURVIVES"
+  },
+  {
+   "name": "M12 ступени: ADR-002 не пропускается при отказе гейта (цикл пропускает)",
+   "file": "spa_core/monitoring/cio_failure_modes.py",
+   "old": "        if skipped:\n            return b, \"пропущена: гейт отказал или упал (как в цикле)\"",
+   "new": "        if False:\n            return b, \"пропущена: гейт отказал или упал (как в цикле)\""
+  },
+  {
+   "name": "M13 находки: отмена отказа — WARN, не CRITICAL",
+   "file": "spa_core/monitoring/cio_failure_modes.py",
+   "old": "                \"severity\": \"CRITICAL\",\n                \"code\": f\"refusal_undone:{s['scene']}\",",
+   "new": "                \"severity\": \"WARN\",\n                \"code\": f\"refusal_undone:{s['scene']}\","
+  },
+  {
+   "name": "M14 находки: расхождение записи не печатается",
+   "file": "spa_core/monitoring/cio_failure_modes.py",
+   "old": "        elif s.get(\"outcome\") == SURVIVES and s.get(\"record_divergence\"):",
+   "new": "        elif False:"
+  },
+  {
+   "name": "M15 контроль: К0 тождество не проверяется",
+   "file": "spa_core/monitoring/cio_failure_modes.py",
+   "old": "        checks[\"k0_healthy_chain_is_identity\"] = bool(ident) and bool(k0[\"gate\"][\"approved\"])",
+   "new": "        checks[\"k0_healthy_chain_is_identity\"] = True"
+  },
+  {
+   "name": "M16 ось: вердикт measured при сорванном контроле",
+   "file": "spa_core/monitoring/cio_failure_modes.py",
+   "old": "    verdict = \"measured\" if control[\"passed\"] else \"unmeasured\"",
+   "new": "    verdict = \"measured\""
+  },
+  {
+   "name": "M17 контроль: порядок ступеней не входит в контроль",
+   "file": "spa_core/monitoring/cio_failure_modes.py",
+   "old": "    checks[\"order_matches_live_cycle\"] = order.get(\"verdict\") == \"measured\"",
+   "new": "    checks[\"order_matches_live_cycle\"] = True"
+  },
+  {
+   "name": "M18 сцена С2: книга ровно в потолок числа протоколов (ADR-002 недостижима)",
+   "file": "spa_core/monitoring/cio_failure_modes.py",
+   "old": "    n = int(policy_caps.get(\"max_protocols\") or 8) + 1",
+   "new": "    n = int(policy_caps.get(\"max_protocols\") or 8)"
+  },
+  {
+   "name": "M19 run: находки второй оси не входят в общий счёт",
+   "file": "spa_core/monitoring/cio_failure_modes.py",
+   "old": "    findings = findings + pg_findings\n",
+   "new": "    findings = findings\n"
+  },
+  {
+   "name": "M20 цепь: подъём выше одобренного не форма",
+   "file": "spa_core/monitoring/cio_failure_modes.py",
+   "old": "        if raised:\n            step_forms.append(\"raised_above_judged\")",
+   "new": "        if False:\n            step_forms.append(\"raised_above_judged\")"
+  }
+ ]
+}

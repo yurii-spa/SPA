@@ -1,0 +1,183 @@
+{
+ "adr": "ADR-992",
+ "cycle": "#1111 (cycle-1111)",
+ "date": "2026-11-12",
+ "tree": "/private/tmp/spa_mut_1111",
+ "module": "spa_core/monitoring/cio_failure_modes.py",
+ "battery": "spa_core/tests/test_cio_failure_modes.py",
+ "module_md5_under_test": "133ad28bb05a7445e31474c76a2166e3",
+ "battery_md5": "a8e7eaf3018ea918272d0ec789ed22db",
+ "note": "мутации координат ADR-992 (вторая ось §47: сверка порядка ступеней с живым циклом, цепь run_post_gate_chain, ступени _live_stages, находки, контроль К0/К1/порядок, сцена С2, слияние в run); каждая — подмена байтов на месте в ОТДЕЛЬНОМ дереве прибором ADR-726, возврат в finally и побайтовая сверка. Числа ниже прочитаны из mut.json ПОСЛЕ прогона (урок #1110), не написаны заранее.",
+ "spec": "docs/mutations/ADR-992-spec-2026-11-12.json",
+ "population": 20,
+ "applied": 20,
+ "counts": {
+  "killed": 20,
+  "survived": 0,
+  "not_applied": 0,
+  "broke_collection": 0
+ },
+ "baseline_failures": [],
+ "instrument_rc": 0,
+ "results": [
+  {
+   "name": "M01 порядок: импорт и def читаются вызовами",
+   "outcome": "killed",
+   "killed_by": [
+    "spa_core/tests/test_cio_failure_modes.py::TestStageOrderAgainstTheLiveCycle::test_imports_and_defs_are_not_calls"
+   ]
+  },
+  {
+   "name": "M02 порядок: последовательность не сверяется с объявленной",
+   "outcome": "killed",
+   "killed_by": [
+    "spa_core/tests/test_cio_failure_modes.py::TestStageOrderAgainstTheLiveCycle::test_a_swapped_order_is_diverged_and_names_both",
+    "spa_core/tests/test_cio_failure_modes.py::TestStageOrderAgainstTheLiveCycle::test_imports_and_defs_are_not_calls",
+    "spa_core/tests/test_cio_failure_modes.py::TestTheSecondAxisFailsClosed::test_a_diverged_order_is_reported_not_measured"
+   ]
+  },
+  {
+   "name": "M03 порядок: условие решения Step 3 считается найденным всегда",
+   "outcome": "killed",
+   "killed_by": [
+    "spa_core/tests/test_cio_failure_modes.py::TestStageOrderAgainstTheLiveCycle::test_missing_decision_line_is_false_not_absent"
+   ]
+  },
+  {
+   "name": "M04 цепь: носитель всегда сырая цель (пересвязка гейта забыта)",
+   "outcome": "killed",
+   "killed_by": [
+    "spa_core/tests/test_cio_failure_modes.py::TestTheChainProbeDiscriminates::test_frozen_or_trimmed_gate_hands_its_own_target_as_the_carrier",
+    "spa_core/tests/test_cio_failure_modes.py::TestTheSecondAxisOnTheLiveFunctions::test_frozen_pool_survives_all_seven_stages"
+   ]
+  },
+  {
+   "name": "M05 цепь: отказанная книга читается одобренной",
+   "outcome": "killed",
+   "killed_by": [
+    "spa_core/tests/test_cio_failure_modes.py::TestTheChainProbeDiscriminates::test_refused_gate_keeps_the_raw_carrier_and_judges_nothing",
+    "spa_core/tests/test_cio_failure_modes.py::TestTheSecondAxisInTheReport::test_undone_is_critical_and_divergence_is_warn",
+    "spa_core/tests/test_cio_failure_modes.py::TestTheSecondAxisOnTheLiveFunctions::test_refused_book_reaches_the_record_trimmed_and_rejudged"
+   ]
+  },
+  {
+   "name": "M06 цепь: свежий капитал замороженному пулу не считается формой",
+   "outcome": "killed",
+   "killed_by": [
+    "spa_core/tests/test_cio_failure_modes.py::TestTheChainProbeDiscriminates::test_fresh_capital_to_a_frozen_pool_is_named",
+    "spa_core/tests/test_cio_failure_modes.py::TestTheSecondAxisOnTheLiveFunctions::test_control_passes_on_the_live_tree"
+   ]
+  },
+  {
+   "name": "M07 цепь: потолок свежести без удержанного (меньшая продажа читается свежим капиталом)",
+   "outcome": "killed",
+   "killed_by": [
+    "spa_core/tests/test_cio_failure_modes.py::TestTheChainProbeDiscriminates::test_a_rise_that_stays_under_held_is_not_fresh_capital",
+    "spa_core/tests/test_cio_failure_modes.py::TestTheChainProbeDiscriminates::test_raising_above_both_judged_and_held_is_named",
+    "spa_core/tests/test_cio_failure_modes.py::TestTheChainProbeDiscriminates::test_refused_gate_keeps_the_raw_carrier_and_judges_nothing",
+    "spa_core/tests/test_cio_failure_modes.py::TestTheChainProbeDiscriminates::test_refused_gate_with_a_book_under_held_has_no_divergence",
+    "spa_core/tests/test_cio_failure_modes.py::TestTheSecondAxisInTheReport::test_undone_is_critical_and_divergence_is_warn",
+    "spa_core/tests/test_cio_failure_modes.py::TestTheSecondAxisOnTheLiveFunctions::test_refused_book_reaches_the_record_trimmed_and_rejudged"
+   ]
+  },
+  {
+   "name": "M08 цепь: введённый протокол приписывается и соседям ниже",
+   "outcome": "killed",
+   "killed_by": [
+    "spa_core/tests/test_cio_failure_modes.py::TestTheChainProbeDiscriminates::test_an_unjudged_protocol_is_blamed_on_the_stage_that_introduced_it",
+    "spa_core/tests/test_cio_failure_modes.py::TestTheSecondAxisOnTheLiveFunctions::test_adr002_replaces_the_gated_book_when_the_snapshot_is_absent"
+   ]
+  },
+  {
+   "name": "M09 цепь: снятие одобренного протокола не форма",
+   "outcome": "killed",
+   "killed_by": [
+    "spa_core/tests/test_cio_failure_modes.py::TestTheChainProbeDiscriminates::test_dropping_an_approved_protocol_is_book_replaced"
+   ]
+  },
+  {
+   "name": "M10 цепь: упавшая ступень читается как «пережил»",
+   "outcome": "killed",
+   "killed_by": [
+    "spa_core/tests/test_cio_failure_modes.py::TestTheChainProbeDiscriminates::test_a_crashing_stage_is_unmeasured_and_named"
+   ]
+  },
+  {
+   "name": "M11 цепь: исход всегда SURVIVES",
+   "outcome": "killed",
+   "killed_by": [
+    "spa_core/tests/test_cio_failure_modes.py::TestTheChainProbeDiscriminates::test_fresh_capital_to_a_frozen_pool_is_named",
+    "spa_core/tests/test_cio_failure_modes.py::TestTheSecondAxisFailsClosed::test_a_broken_control_makes_the_axis_unmeasured_and_keeps_scene_findings",
+    "spa_core/tests/test_cio_failure_modes.py::TestTheSecondAxisInTheReport::test_undone_is_critical_and_divergence_is_warn",
+    "spa_core/tests/test_cio_failure_modes.py::TestTheSecondAxisOnTheLiveFunctions::test_adr002_replaces_the_gated_book_when_the_snapshot_is_absent",
+    "spa_core/tests/test_cio_failure_modes.py::TestTheSecondAxisOnTheLiveFunctions::test_control_passes_on_the_live_tree"
+   ]
+  },
+  {
+   "name": "M12 ступени: ADR-002 не пропускается при отказе гейта (цикл пропускает)",
+   "outcome": "killed",
+   "killed_by": [
+    "spa_core/tests/test_cio_failure_modes.py::TestLiveStagesMirrorTheCycle::test_adr002_is_skipped_when_the_gate_refused_as_in_the_cycle"
+   ]
+  },
+  {
+   "name": "M13 находки: отмена отказа — WARN, не CRITICAL",
+   "outcome": "killed",
+   "killed_by": [
+    "spa_core/tests/test_cio_failure_modes.py::TestTheSecondAxisInTheReport::test_undone_is_critical_and_divergence_is_warn"
+   ]
+  },
+  {
+   "name": "M14 находки: расхождение записи не печатается",
+   "outcome": "killed",
+   "killed_by": [
+    "spa_core/tests/test_cio_failure_modes.py::TestTheSecondAxisInTheReport::test_undone_is_critical_and_divergence_is_warn"
+   ]
+  },
+  {
+   "name": "M15 контроль: К0 тождество не проверяется",
+   "outcome": "killed",
+   "killed_by": [
+    "spa_core/tests/test_cio_failure_modes.py::TestTheSecondAxisFailsClosed::test_a_broken_control_makes_the_axis_unmeasured_and_keeps_scene_findings"
+   ]
+  },
+  {
+   "name": "M16 ось: вердикт measured при сорванном контроле",
+   "outcome": "killed",
+   "killed_by": [
+    "spa_core/tests/test_cio_failure_modes.py::TestTheSecondAxisFailsClosed::test_a_broken_control_makes_the_axis_unmeasured_and_keeps_scene_findings",
+    "spa_core/tests/test_cio_failure_modes.py::TestTheSecondAxisFailsClosed::test_a_diverged_order_is_reported_not_measured"
+   ]
+  },
+  {
+   "name": "M17 контроль: порядок ступеней не входит в контроль",
+   "outcome": "killed",
+   "killed_by": [
+    "spa_core/tests/test_cio_failure_modes.py::TestTheSecondAxisFailsClosed::test_a_diverged_order_is_reported_not_measured"
+   ]
+  },
+  {
+   "name": "M18 сцена С2: книга ровно в потолок числа протоколов (ADR-002 недостижима)",
+   "outcome": "killed",
+   "killed_by": [
+    "spa_core/tests/test_cio_failure_modes.py::TestTheSecondAxisFailsClosed::test_a_broken_control_makes_the_axis_unmeasured_and_keeps_scene_findings",
+    "spa_core/tests/test_cio_failure_modes.py::TestTheSecondAxisInTheReport::test_undone_is_critical_and_divergence_is_warn",
+    "spa_core/tests/test_cio_failure_modes.py::TestTheSecondAxisOnTheLiveFunctions::test_adr002_replaces_the_gated_book_when_the_snapshot_is_absent"
+   ]
+  },
+  {
+   "name": "M19 run: находки второй оси не входят в общий счёт",
+   "outcome": "killed",
+   "killed_by": [
+    "spa_core/tests/test_cio_failure_modes.py::TestTheSecondAxisInTheReport::test_undone_is_critical_and_divergence_is_warn"
+   ]
+  },
+  {
+   "name": "M20 цепь: подъём выше одобренного не форма",
+   "outcome": "killed",
+   "killed_by": [
+    "spa_core/tests/test_cio_failure_modes.py::TestTheChainProbeDiscriminates::test_raising_above_both_judged_and_held_is_named"
+   ]
+  }
+ ]
+}

@@ -538,10 +538,14 @@ _READ_SCHEMA: dict[str, tuple[str, ...]] = {
     # названных им деградаций путь решения отказывает». `probes` — потому что
     # «частично» и «отказывает» в отчёте о fail-safe читаются одинаково, а
     # значат разное.
+    # ADR-992 (вторая ось §47): ``post_gate`` объявлен рядом с десятью пробами
+    # НАМЕРЕННО — артефакт без него читается «ось не измерена», а не «отказ
+    # пережил всё» (инв. #17).
     "cio_failure_modes.json": ("overall", "counts.critical", "counts.warn",
                                "counts.info", "counts.unchecked",
                                "conditions_total", "tally", "probes",
-                               "thresholds_provenance", "findings", "unchecked"),
+                               "thresholds_provenance", "findings", "unchecked",
+                               "post_gate"),
     # §44 ТЗ CIO «Explainability». `tally` рядом с вердиктом по той же причине,
     # что у соседа: вопрос владельца — не «сколько находок», а «сколько из
     # ВОСЬМИ названных им фактов объяснение произносит». `control` в схеме
@@ -3587,6 +3591,33 @@ def _summarize_json(path: str, data, *, now: dt.datetime | None = None,
         for f in (data.get("findings") or []):
             if f.get("severity") in ("CRITICAL", "WARN"):
                 out.append(f"   [{f['severity']}] {f.get('message')}")
+        # Вторая ось (ADR-992): переживает ли отказ гейта шесть скрытых ступеней
+        # ADR-991 на пути к записи цели. Печатается ИМЕННОЙ веткой: артефакт схемы
+        # v1 оси не несёт — тогда строка говорит «не измерено», а не «пережил».
+        pg = data.get("post_gate")
+        if isinstance(pg, dict):
+            t2 = pg.get("tally") or {}
+            out.append(f"   отказ гейта на пути к записи (ADR-992): "
+                       f"{pg.get('verdict') or _UNMEASURED} — сцен {_num(t2, 'total')}: "
+                       f"переживает {_num(t2, 'SURVIVES')} · ОТМЕНЁН {_num(t2, 'UNDONE')} · "
+                       f"не измерено {_num(t2, 'UNMEASURED')}")
+            for sc in (pg.get("scenes") or []):
+                if sc.get("outcome") == "UNDONE":
+                    out.append(f"   [UNDONE] «{sc.get('title')}» — ступень "
+                               f"{', '.join(sc.get('undone_by') or [])}: {sc.get('detail')}"[:400])
+                elif sc.get("outcome") == "UNMEASURED":
+                    out.append(f"   [НЕ ИЗМЕРЕНО] «{sc.get('title')}»: "
+                               f"{sc.get('unmeasured_reason') or 'причина не названа'}"[:300])
+                elif sc.get("record_divergence"):
+                    out.append(f"   [WARN] «{sc.get('title')}» — запись несёт свежий капитал без "
+                               f"одобрения первого гейта: {sc.get('fresh_beyond_gate_usd')}"[:400])
+            od = pg.get("order") or {}
+            if od.get("verdict") != "measured":
+                out.append(f"   [НЕ ИЗМЕРЕНО] порядок ступеней после гейта: "
+                           f"{od.get('reason') or 'причина не названа'}"[:300])
+        else:
+            out.append("   [НЕ ИЗМЕРЕНО] вторая ось §47 (отказ гейта на пути к записи, "
+                       "ADR-992): артефакт схемы v1, оси в нём нет — перемерить прибором")
         for u in (data.get("unchecked") or [])[:6]:
             out.append(f"   [НЕ ИЗМЕРЕНО] {u}")
         out.append("   ADVISORY: ни одна дверь этим замером не строится — "

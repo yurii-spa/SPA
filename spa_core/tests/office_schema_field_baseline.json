@@ -179,7 +179,8 @@
   "probes",
   "thresholds_provenance",
   "findings",
-  "unchecked"
+  "unchecked",
+  "post_gate"
  ],
  "cio_kill_switch_controls.json": [
   "overall",
