@@ -1704,7 +1704,11 @@ _READ_SCHEMA: dict[str, tuple[str, ...]] = {
                                          "counts.unchecked", "positive_control",
                                          "knobs", "knobs_total", "knobs_relaxed",
                                          "knobs_added", "knobs_unchanged",
-                                         "proposals", "homes", "findings"),
+                                         "proposals", "homes", "findings",
+                                         # ADR-993: вторая ось §48 — обход отказа
+                                         # СТУПЕНЬЮ на живых записях; артефакт
+                                         # без неё читается «ось не измерена»
+                                         "bypass_by_stage"),
     "evidence_staleness.json": ("overall", "action", "reason", "counts.fresh",
                                 "counts.soft_stale", "counts.hard_stale",
                                 "counts.unknown_age", "counts.unchecked",
@@ -4850,6 +4854,46 @@ def _summarize_json(path: str, data, *, now: dt.datetime | None = None,
                        f"{data.get('knobs_total')}")
         for f in (data.get("findings") or [])[:6]:
             out.append(f"   [{(f.get('severity') or '').upper()}] {f.get('text')}"[:400])
+        # Вторая ось (ADR-993): отказ RiskPolicy обходят СТУПЕНЬЮ, не порогом —
+        # на ЖИВЫХ записях §43. Печатается ИМЕННОЙ веткой: артефакт схемы v1 оси
+        # не несёт, и тогда строка говорит «не измерено», а не «обходов нет».
+        bp = data.get("bypass_by_stage")
+        if isinstance(bp, dict) and bp.get("verdict") == "measured":
+            tr = bp.get("trail") or {}
+            w = tr.get("window") or {}
+            rj = tr.get("rejudged_within_chain") or {}
+            out.append(f"   обход отказа ступенью (ADR-993, с {bp.get('since')}): цепочек "
+                       f"{_num(w, 'chains')} · отказов первого гейта {_num(w, 'refused')} · "
+                       f"из них ИСПОЛНЕНО {len(w.get('refused_then_executed') or [])} · "
+                       f"исполнений {_num(w, 'executions')}, со свежим капиталом сверх гейта "
+                       f"{len(w.get('executions_fresh_beyond_gate') or [])} "
+                       f"(${_num(w, 'fresh_beyond_gate_usd')}) · переспрос в трейле: "
+                       f"{rj.get('verdict') or _UNMEASURED}")
+            for rec in (w.get("executions_fresh_beyond_gate") or [])[:4]:
+                out.append(f"   [СВЕРХ ГЕЙТА] {rec.get('trade_id')} {str(rec.get('timestamp'))[:10]}: "
+                           f"${rec.get('fresh_beyond_gate_usd')} по {rec.get('beyond_by_protocol')}; "
+                           f"введены без суда {rec.get('introduced_unjudged')}"[:300])
+            sh = bp.get("shadow") or {}
+            for book, b in sorted(sh.items()):
+                if not isinstance(b, dict):
+                    continue
+                if b.get("verdict") != "measured":
+                    out.append(f"   [НЕ ИЗМЕРЕНО] теневой журнал «{book}»: {b.get('reason')}"[:300])
+                    continue
+                out.append(f"   тень «{book}»: тримов {_num(b, 'trims')}, переспросов RiskPolicy "
+                           f"{_num(b, 'rejudged')} (одобрена {_num(b, 'rejudged_approved')}), на днях с "
+                           f"ходом {_num(b, 'trims_on_act_days')}, «отказ → одобрение» в один день "
+                           f"{len(b.get('refusal_to_approval_same_day') or [])}")
+            vl = bp.get("version_labels") or {}
+            if vl.get("verdict") == "measured" and vl.get("undeclared"):
+                out.append(f"   [WARN] подписи версии политики на записях {vl.get('undeclared')} "
+                           f"против объявленной `{vl.get('declared')}`")
+        elif isinstance(bp, dict):
+            out.append(f"   [НЕ ИЗМЕРЕНО] вторая ось §48 (обход отказа ступенью, ADR-993): "
+                       f"{bp.get('reason') or 'причина не названа'}"[:300])
+        else:
+            out.append("   [НЕ ИЗМЕРЕНО] вторая ось §48 (обход отказа ступенью, ADR-993): "
+                       "артефакт схемы v1, оси в нём нет — перемерить прибором с --data-dir")
         out.append("   ADVISORY: ни один порог этим замером НЕ меняется и ни одно "
                    "решение не переносится — правка порога это money-path и "
                    "решение владельца")

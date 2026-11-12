@@ -323,7 +323,10 @@ def test_artifact_is_written_atomically(tmp_path):
     (root / "data").mkdir(exist_ok=True)
     M.run(root, write=True, now=NOW)
     doc = json.loads((root / M.REPORT_REL).read_text(encoding="utf-8"))
-    assert doc["schema"] == "cio_policy_change_procedure/v1"
+    # ADR-993: схема поднята до v2 — артефакт несёт вторую ось `bypass_by_stage`;
+    # офис отличает v1 (оси нет ⇒ «не измерено») от v2 именно по этому полю.
+    assert doc["schema"] == "cio_policy_change_procedure/v2"
+    assert "bypass_by_stage" in doc
     assert doc["generated_at"] == NOW.isoformat()
 
 
@@ -357,3 +360,378 @@ def test_every_live_knob_has_a_declared_polarity():
     assert not err, err
     missing = sorted(set(cur) - set(M.KNOB_POLARITY))
     assert not missing, f"полярность не объявлена: {missing}"
+
+
+# ─── вторая ось §48 (ADR-993): отказ политики обходят СТУПЕНЬЮ, не порогом ────
+#
+# Каждая сцена — живая запись трейла §43 в миниатюре: `allocation_proposal` →
+# `risk_verdict` → `trade_executed` / `trade_blocked` под одним `correlation_id`.
+# Положительные контроли — замер 12.11 (цикл #1112): T033 ($1 052,63 сверх гейта),
+# 36 отказов и ни одного исполнения после отказа, один вердикт на цепочку.
+
+import pytest as _pt
+
+
+def _ev(cid: str, etype: str, ts: str, data: dict) -> dict:
+    return {"event_id": f"{cid}-{etype}", "correlation_id": cid, "event_type": etype,
+            "timestamp": ts, "data": data, "prev_event_id": None}
+
+
+def chain(cid: str, day: str, *, target: dict, approved: bool = True,
+          trimmed: bool = False, executed: dict | None = None, held: dict | None = None,
+          blocked: bool = False, violations: list | None = None,
+          extra_verdicts: int = 0, trade_id: str = "T900") -> list[dict]:
+    ts = f"{day}T06:00:00+00:00"
+    ev = [_ev(cid, "cycle_start", ts, {}),
+          _ev(cid, "allocation_proposal", ts, {"target_usd": target}),
+          _ev(cid, "risk_verdict", ts, {"approved": approved, "violations": violations or [],
+                                        "trimmed": trimmed})]
+    for _ in range(extra_verdicts):
+        ev.append(_ev(cid, "risk_verdict", ts, {"approved": True, "violations": [], "trimmed": False}))
+    if executed is not None:
+        ev.append(_ev(cid, "trade_executed", ts, {"trade_id": trade_id, "from_allocation": held or {},
+                                                   "to_allocation": executed}))
+    if blocked:
+        ev.append(_ev(cid, "trade_blocked", ts, {"violations": violations or []}))
+    return ev
+
+
+def shadow_rec(day: str, *, book_verdict: str = "HOLD", trim: dict | None = None,
+               policy_version: str | None = "v1.0") -> dict:
+    rec = {"schema": "shadow-hist-v2", "book_id": "conservative", "cycle_date": day,
+           "generated_at": f"{day}T07:00:00+00:00", "verdict": book_verdict,
+           "decision_id": f"adr060-shadow-{day}"}
+    if policy_version is not None:
+        rec["policy_version"] = policy_version
+    if trim is not None:
+        rec["admissible_trim"] = trim
+    return rec
+
+
+def data_scene(root: Path, chains: list[list[dict]], *, shadow: dict[str, list[dict]] | None = None,
+               raw_trail: str | None = None) -> Path:
+    """Каталог данных сцены: трейл + теневые журналы трёх книг (по умолчанию пустые)."""
+    d = root / "data"
+    d.mkdir(parents=True, exist_ok=True)
+    if raw_trail is None:
+        raw_trail = "".join(json.dumps(e) + "\n" for ch in chains for e in ch)
+    (d / M.TRAIL_FILE).write_text(raw_trail, encoding="utf-8")
+    for book, fname in M.SHADOW_HISTORY_FILES.items():
+        rows = (shadow or {}).get(book, [])
+        (d / fname).write_text("".join(json.dumps(r) + "\n" for r in rows), encoding="utf-8")
+    return d
+
+
+SINCE = "2026-09-06"
+IN = "2026-09-10"      # день в окне заказа
+BEFORE = "2026-08-20"  # день до окна — считается только за всю историю
+
+
+def _bypass(doc: dict) -> dict:
+    return doc["bypass_by_stage"]
+
+
+def _texts(doc: dict, severity: str) -> list[str]:
+    return [f["text"] for f in doc["findings"] if f["severity"] == severity]
+
+
+class TestTheGateQuestion:
+    """execution_vs_gate: свежий капитал считается от потолка max(одобрено, удержано)."""
+
+    def test_equal_books_are_consistent(self):
+        r = M.execution_vs_gate({"a": 10.0}, {"a": 5.0}, {"a": 10.0})
+        assert r["equal_to_decision"] and r["fresh_beyond_gate_usd"] == 0.0
+
+    def test_capital_above_approved_and_held_is_fresh(self):
+        r = M.execution_vs_gate({"a": 10.0}, {"a": 5.0}, {"a": 12.5})
+        assert r["fresh_beyond_gate_usd"] == 2.5 and r["beyond_by_protocol"] == {"a": 2.5}
+
+    def test_a_smaller_sale_is_not_fresh_capital(self):
+        """ADR-992: удержано 20, одобрено 10, исполнено 15 — продажа меньше одобренной, свежего нет."""
+        r = M.execution_vs_gate({"a": 10.0}, {"a": 20.0}, {"a": 15.0})
+        assert r["fresh_beyond_gate_usd"] == 0.0 and not r["equal_to_decision"]
+
+    def test_a_book_below_the_decision_is_not_a_bypass(self):
+        """Срез гейта к буферу кэша (июнь: T003…T014, ×0.95) обходом не является."""
+        r = M.execution_vs_gate({"a": 100.0, "b": 50.0}, {}, {"a": 95.0, "b": 47.5})
+        assert r["fresh_beyond_gate_usd"] == 0.0 and r["introduced_unjudged"] == []
+
+    def test_a_protocol_dropped_from_the_decision_is_not_equal(self):
+        """Одобрено два протокола, исполнен один — книги НЕ равны (ключи решения тоже считаются)."""
+        r = M.execution_vs_gate({"a": 10.0, "b": 5.0}, {}, {"a": 10.0})
+        assert not r["equal_to_decision"] and r["fresh_beyond_gate_usd"] == 0.0
+
+    def test_a_protocol_nobody_judged_is_introduced(self):
+        r = M.execution_vs_gate({"a": 10.0}, {"a": 10.0}, {"a": 10.0, "z": 3.0})
+        assert r["introduced_unjudged"] == ["z"] and r["fresh_beyond_gate_usd"] == 3.0
+
+    def test_a_held_protocol_is_not_introduced(self):
+        """Протокол удержан, но не в одобренной книге, — он не «введён», его не трогали."""
+        r = M.execution_vs_gate({"a": 10.0}, {"z": 3.0}, {"a": 10.0, "z": 3.0})
+        assert r["introduced_unjudged"] == [] and r["fresh_beyond_gate_usd"] == 0.0
+
+    def test_t033_live_control(self):
+        """Положительный контроль — живая запись 2026-09-08 дословно: $1 052,63 сверх гейта."""
+        approved = {"aave_v3": 4736.84, "compound_v3": 37894.74, "fluid_fusdc": 18947.37,
+                    "fluid_usdc": 9473.68, "pendle": 18947.37}
+        held = {"compound_v3": 40000.0, "fluid_usdc": 20000.0, "maple": 20000.0,
+                "morpho_blue_base": 10000.0, "aave_v3": 5000.0}
+        executed = {"pendle": 20000.0, "fluid_usdc": 20000.0, "compound_v3": 40000.0,
+                    "aave_v3": 4736.84, "maple": 5263.16, "morpho_blue_base": 4736.84}
+        r = M.execution_vs_gate(approved, held, executed)
+        assert r["fresh_beyond_gate_usd"] == 1052.63
+        assert r["beyond_by_protocol"] == {"pendle": 1052.63}
+        assert r["introduced_unjudged"] == []
+
+
+class TestTheTrailAxisDiscriminates:
+    def test_refusal_held_to_blocked_is_not_a_bypass(self, tmp_path):
+        d = data_scene(tmp_path, [chain("c1", IN, target={"a": 10.0}, approved=False, blocked=True,
+                                        violations=["a: cap"])])
+        bp = M.measure_bypass(d, since=SINCE, declared_version="v1.0")
+        w = bp["trail"]["window"]
+        assert (w["refused"], w["refused_then_blocked"], w["refused_then_executed"]) == (1, 1, [])
+        doc = M.run(scene(tmp_path), write=False, now=NOW, data_dir=d, since=SINCE)
+        assert not any("ОБОЙДЁН" in t for t in _texts(doc, "critical"))
+
+    def test_refusal_followed_by_execution_is_named_critical(self, tmp_path):
+        d = data_scene(tmp_path, [chain("c1", IN, target={"a": 10.0}, approved=False,
+                                        violations=["a: cap"], executed={"a": 10.0}, held={},
+                                        trade_id="T777")])
+        doc = M.run(scene(tmp_path), write=False, now=NOW, data_dir=d, since=SINCE)
+        w = _bypass(doc)["trail"]["window"]
+        assert len(w["refused_then_executed"]) == 1
+        assert w["refused_then_executed"][0]["trade_ids"] == ["T777"]
+        hits = [t for t in _texts(doc, "critical") if "ОБОЙДЁН" in t and "c1" in t and "T777" in t]
+        assert hits, doc["findings"]
+        assert doc["overall"] == "CRITICAL"
+
+    def test_execution_equal_to_the_decision_is_consistent(self, tmp_path):
+        d = data_scene(tmp_path, [chain("c1", IN, target={"a": 10.0}, executed={"a": 10.0}, held={})])
+        w = M.measure_bypass(d, since=SINCE)["trail"]["window"]
+        assert (w["executions"], w["executions_equal_to_decision"],
+                w["executions_fresh_beyond_gate"]) == (1, 1, [])
+
+    def test_fresh_capital_beyond_the_gate_is_named_with_dollars_and_protocols(self, tmp_path):
+        d = data_scene(tmp_path, [chain("c1", IN, target={"a": 10.0}, held={"a": 4.0},
+                                        executed={"a": 10.0, "z": 5.0}, trade_id="T801")])
+        doc = M.run(scene(tmp_path), write=False, now=NOW, data_dir=d, since=SINCE)
+        w = _bypass(doc)["trail"]["window"]
+        rec = w["executions_fresh_beyond_gate"][0]
+        assert rec["trade_id"] == "T801" and rec["introduced_unjudged"] == ["z"]
+        assert w["fresh_beyond_gate_usd"] == 5.0
+        assert rec["stage"] is None and "ADR-850" in rec["stage_reason"]
+        crit = [t for t in _texts(doc, "critical") if "СВЕРХ потолка" in t]
+        assert crit and "$5.00" in crit[0] and "'z'" in crit[0], crit
+
+    def test_a_gate_trimmed_book_below_the_decision_is_counted_but_not_fresh(self, tmp_path):
+        d = data_scene(tmp_path, [chain("c1", IN, target={"a": 100.0}, trimmed=True,
+                                        executed={"a": 95.0}, held={})])
+        w = M.measure_bypass(d, since=SINCE)["trail"]["window"]
+        assert w["executions_below_decision_only"] == 1
+        assert w["executions_fresh_beyond_gate"] == [] and w["fresh_beyond_gate_usd"] == 0.0
+
+    def test_a_chain_before_the_window_counts_only_all_time(self, tmp_path):
+        d = data_scene(tmp_path, [chain("old", BEFORE, target={"a": 1.0}, held={},
+                                        executed={"a": 9.0}, trade_id="T001"),
+                                  chain("new", IN, target={"a": 1.0}, executed={"a": 1.0}, held={})])
+        doc = M.run(scene(tmp_path), write=False, now=NOW, data_dir=d, since=SINCE)
+        t = _bypass(doc)["trail"]
+        assert t["window"]["executions_fresh_beyond_gate"] == []
+        assert [r["trade_id"] for r in t["all_time"]["executions_fresh_beyond_gate"]] == ["T001"]
+        # окно чисто, история нет — об истории говорится WARN, не CRITICAL
+        assert not any("СВЕРХ потолка" in x for x in _texts(doc, "critical"))
+        assert any("за всю историю" in x for x in _texts(doc, "warn"))
+
+    def test_the_window_is_an_input(self, tmp_path):
+        d = data_scene(tmp_path, [chain("old", BEFORE, target={"a": 1.0}, held={},
+                                        executed={"a": 9.0})])
+        assert M.measure_bypass(d, since="2026-08-01")["trail"]["window"]["executions"] == 1
+        assert M.measure_bypass(d, since=SINCE)["trail"]["window"]["executions"] == 0
+
+    def test_one_verdict_per_chain_makes_rejudgement_unmeasured_not_zero(self, tmp_path):
+        """Замер 12.11: 615 цепочек, с двумя вердиктами — 0. Это свойство носителя."""
+        d = data_scene(tmp_path, [chain("c1", IN, target={"a": 1.0})])
+        rj = M.measure_bypass(d, since=SINCE)["trail"]["rejudged_within_chain"]
+        assert rj["verdict"] == M.BYPASS_UNMEASURED and rj["carrier"] == M.CARRIER_ONE_VERDICT
+        doc = M.run(scene(tmp_path), write=False, now=NOW, data_dir=d, since=SINCE)
+        assert any("переспрос RiskPolicy внутри цепочки: НЕ ИЗМЕРЕНО" in t
+                   for t in _texts(doc, "unchecked"))
+
+    def test_a_second_verdict_in_a_chain_is_a_measured_rejudgement(self, tmp_path):
+        d = data_scene(tmp_path, [chain("c1", IN, target={"a": 1.0}, extra_verdicts=1)])
+        rj = M.measure_bypass(d, since=SINCE)["trail"]["rejudged_within_chain"]
+        assert rj == {"events": 1, "verdict": M.BYPASS_MEASURED, "reason": ""}
+
+    def test_a_chain_without_a_verdict_is_counted_apart(self, tmp_path):
+        ch = [e for e in chain("c1", IN, target={"a": 1.0}) if e["event_type"] != "risk_verdict"]
+        w = M.measure_bypass(data_scene(tmp_path, [ch]), since=SINCE)["trail"]["window"]
+        assert (w["chains"], w["chains_without_verdict"], w["refused"]) == (1, 1, 0)
+
+
+class TestTheTrailAxisFailsClosed:
+    def test_missing_trail_is_unmeasured_and_overall_is_not_ok(self, tmp_path):
+        doc = M.run(scene(tmp_path), write=False, now=NOW, data_dir=tmp_path / "nowhere",
+                    since=SINCE)
+        bp = _bypass(doc)
+        assert bp["verdict"] == M.BYPASS_UNMEASURED and "audit_trail.jsonl" in bp["reason"]
+        assert bp["trail"] is None and bp["shadow"] is None
+        assert any("НЕ ИЗМЕРЕНА" in t for t in _texts(doc, "unchecked"))
+        assert doc["overall"] == "UNCHECKED"
+
+    def test_a_non_numeric_book_is_unmeasured_not_a_zero_gap(self, tmp_path):
+        d = data_scene(tmp_path, [chain("c1", IN, target={"a": "ten"}, executed={"a": 10.0}, held={})])
+        w = M.measure_bypass(d, since=SINCE)["trail"]["window"]
+        assert (w["executions"], w["executions_unmeasured"],
+                w["executions_equal_to_decision"]) == (1, 1, 0)
+
+    def test_unparsable_lines_are_counted_not_dropped_silently(self, tmp_path):
+        good = "".join(json.dumps(e) + "\n" for e in chain("c1", IN, target={"a": 1.0}))
+        d = data_scene(tmp_path, [], raw_trail=good + "{not json\n[1,2]\n")
+        t = M.measure_bypass(d, since=SINCE)["trail"]
+        assert t["unparsable_lines"] == 2 and t["chains_total"] == 1
+
+    def test_a_row_without_correlation_id_is_counted_apart(self, tmp_path):
+        ev = chain("c1", IN, target={"a": 1.0})
+        ev[0] = dict(ev[0]); del ev[0]["correlation_id"]
+        t = M.measure_bypass(data_scene(tmp_path, [ev]), since=SINCE)["trail"]
+        assert t["rows_without_correlation"] == 1
+
+    def test_missing_shadow_journal_is_unmeasured_per_book(self, tmp_path):
+        d = data_scene(tmp_path, [chain("c1", IN, target={"a": 1.0})])
+        (d / M.SHADOW_HISTORY_FILES["balanced"]).unlink()
+        doc = M.run(scene(tmp_path), write=False, now=NOW, data_dir=d, since=SINCE)
+        sh = _bypass(doc)["shadow"]
+        assert sh["balanced"]["verdict"] == M.BYPASS_UNMEASURED
+        assert sh["conservative"]["verdict"] == M.BYPASS_MEASURED
+        assert any("«balanced» не прочитан" in t for t in _texts(doc, "unchecked"))
+
+
+_TRIM_OK = {"adr": "ADR-850", "verdict": "TRIMMED_TO_ADMISSIBLE", "k": 0.375,
+            "policy": {"approved": True, "violations": [], "trimmed_by_gate": False}}
+
+
+class TestTheShadowAxis:
+    def test_rejudgements_are_counted_from_the_trim_record(self, tmp_path):
+        d = data_scene(tmp_path, [chain("c1", IN, target={"a": 1.0})],
+                       shadow={"conservative": [shadow_rec(IN, trim=_TRIM_OK),
+                                                shadow_rec("2026-09-11", trim={"verdict": "ALREADY_WITHIN_SIZE_CAPS"}),
+                                                shadow_rec("2026-09-12")]})
+        b = M.measure_bypass(d, since=SINCE)["shadow"]["conservative"]
+        assert (b["records"], b["trims"], b["rejudged"], b["rejudged_approved"]) == (3, 2, 1, 1)
+        assert b["trim_verdicts"] == {"ALREADY_WITHIN_SIZE_CAPS": 1, "TRIMMED_TO_ADMISSIBLE": 1}
+        assert b["trims_on_act_days"] == 0 and b["refusal_to_approval_same_day"] == []
+
+    def test_refusal_turned_into_approval_the_same_day_is_critical(self, tmp_path):
+        d = data_scene(tmp_path, [chain("c1", IN, target={"a": 10.0}, approved=False, blocked=True,
+                                        violations=["a: cap"])],
+                       shadow={"conservative": [shadow_rec(IN, trim=_TRIM_OK)]})
+        doc = M.run(scene(tmp_path), write=False, now=NOW, data_dir=d, since=SINCE)
+        conv = _bypass(doc)["shadow"]["conservative"]["refusal_to_approval_same_day"]
+        assert conv and conv[0]["day"] == IN
+        assert any("отказ стал одобрением" in t for t in _texts(doc, "critical"))
+
+    def test_approval_on_a_day_without_refusal_is_not_a_conversion(self, tmp_path):
+        d = data_scene(tmp_path, [chain("c1", IN, target={"a": 10.0}, approved=True)],
+                       shadow={"conservative": [shadow_rec(IN, trim=_TRIM_OK)]})
+        b = M.measure_bypass(d, since=SINCE)["shadow"]["conservative"]
+        assert b["refusal_to_approval_same_day"] == [] and b["rejudged_approved"] == 1
+
+    def test_a_trim_on_an_act_day_is_a_warning(self, tmp_path):
+        d = data_scene(tmp_path, [chain("c1", IN, target={"a": 1.0})],
+                       shadow={"conservative": [shadow_rec(IN, book_verdict="ACT", trim=_TRIM_OK)]})
+        doc = M.run(scene(tmp_path), write=False, now=NOW, data_dir=d, since=SINCE)
+        assert _bypass(doc)["shadow"]["conservative"]["trims_on_act_days"] == 1
+        assert any("на днях с ходом" in t for t in _texts(doc, "warn"))
+
+    def test_shadow_records_before_the_window_are_not_counted(self, tmp_path):
+        d = data_scene(tmp_path, [chain("c1", IN, target={"a": 1.0})],
+                       shadow={"conservative": [shadow_rec(BEFORE, trim=_TRIM_OK)]})
+        b = M.measure_bypass(d, since=SINCE)["shadow"]["conservative"]
+        assert (b["records"], b["trims"]) == (0, 0)
+
+
+class TestVersionLabels:
+    def test_labels_other_than_the_declared_version_are_named(self, tmp_path):
+        d = data_scene(tmp_path, [chain("c1", IN, target={"a": 1.0})],
+                       shadow={"conservative": [shadow_rec(IN, policy_version="v1.2"),
+                                                shadow_rec("2026-09-11", policy_version="v1.0")]})
+        bp = M.measure_bypass(d, since=SINCE, declared_version="v1.0")
+        assert bp["version_labels"] == {"verdict": M.BYPASS_MEASURED, "declared": "v1.0",
+                                        "on_records": ["v1.0", "v1.2"], "undeclared": ["v1.2"]}
+
+    def test_matching_labels_are_not_a_finding(self, tmp_path):
+        d = data_scene(tmp_path, [chain("c1", IN, target={"a": 1.0})],
+                       shadow={"conservative": [shadow_rec(IN, policy_version="v1.0")]})
+        doc = M.run(scene(tmp_path), write=False, now=NOW, data_dir=d, since=SINCE)
+        # у сцены политика без поля `version` ⇒ объявленной версии нет ⇒ НЕ ИЗМЕРЕНО, не WARN
+        vl = _bypass(doc)["version_labels"]
+        assert vl["verdict"] == M.BYPASS_UNMEASURED and vl["on_records"] == ["v1.0"]
+        assert not any("больше одного имени" in t for t in _texts(doc, "warn"))
+        assert any("подписи версии политики" in t for t in _texts(doc, "unchecked"))
+
+    def test_undeclared_label_reaches_the_findings_on_a_declared_policy(self, tmp_path):
+        root = scene(tmp_path)
+        (root / M.POLICY_REL).write_text(
+            _POLICY.format(cash=0.05, t1=0.40, changelog="") + "    version: str = \"v1.0\"\n",
+            encoding="utf-8")
+        d = data_scene(tmp_path, [chain("c1", IN, target={"a": 1.0})],
+                       shadow={"conservative": [shadow_rec(IN, policy_version="v1.2")]})
+        doc = M.run(root, write=False, now=NOW, data_dir=d, since=SINCE)
+        assert _bypass(doc)["declared_version"] == "v1.0"
+        assert any("['v1.2']" in t and "больше одного имени" in t for t in _texts(doc, "warn"))
+
+
+class TestTheAxisInTheReport:
+    def test_report_carries_window_provenance_and_candidates(self, tmp_path):
+        d = data_scene(tmp_path, [chain("c1", IN, target={"a": 1.0})])
+        bp = _bypass(M.run(scene(tmp_path), write=False, now=NOW, data_dir=d, since=SINCE))
+        assert bp["since"] == SINCE and "G981" in bp["since_provenance"]
+        assert [c["adr"] for c in bp["stage_candidates"]] == ["ADR-850", "ADR-108", "ADR-072"]
+        assert bp["data_dir"] == str(d)
+
+    def test_data_dir_defaults_to_root_data(self, tmp_path):
+        root = scene(tmp_path)
+        data_scene(root, [chain("c1", IN, target={"a": 1.0})])
+        bp = _bypass(M.run(root, write=False, now=NOW, since=SINCE))
+        assert bp["verdict"] == M.BYPASS_MEASURED and bp["data_dir"] == str(root / "data")
+
+    def test_cli_accepts_data_dir_and_since(self, tmp_path, capsys):
+        root = scene(tmp_path)
+        d = data_scene(tmp_path / "elsewhere", [chain("c1", IN, target={"a": 1.0})])
+        (root / "data").mkdir(exist_ok=True)
+        rc = M.main(["--root", str(root), "--data-dir", str(d), "--since", "2026-09-01"])
+        assert rc == 0
+        out = capsys.readouterr().out
+        assert "вторая ось (с 2026-09-01" in out
+        written = json.loads((root / M.REPORT_REL).read_text(encoding="utf-8"))
+        assert written["bypass_by_stage"]["since"] == "2026-09-01"
+
+    def test_live_tree_report_carries_the_axis(self):
+        """На НАСТОЯЩЕМ дереве ось либо измерена, либо честно не измерена — но присутствует."""
+        doc = M.run(write=False, now=NOW)
+        bp = doc["bypass_by_stage"]
+        assert bp["verdict"] in (M.BYPASS_MEASURED, M.BYPASS_UNMEASURED)
+        if bp["verdict"] == M.BYPASS_MEASURED:
+            assert bp["trail"]["rejudged_within_chain"]["verdict"] in (M.BYPASS_MEASURED, M.BYPASS_UNMEASURED)
+
+
+class TestTheOfficeBranch:
+    """Шаг 0-офис печатает ось именной веткой; артефакт v1 → «не измерено», не «обходов нет»."""
+
+    @staticmethod
+    def _office():
+        import importlib.util
+        import sys
+        path = Path(M.__file__).resolve().parents[2] / "scripts" / "consume_office_reports.py"
+        if "consume_office_reports" in sys.modules:
+            return sys.modules["consume_office_reports"]
+        spec = importlib.util.spec_from_file_location("consume_office_reports", path)
+        mod = importlib.util.module_from_spec(spec)
+        sys.modules["consume_office_reports"] = mod
+        spec.loader.exec_module(mod)
+        return mod
+
+    def test_schema_declares_the_axis(self):
+        office = self._office()
+        assert "bypass_by_stage" in office._READ_SCHEMA["cio_policy_change_procedure.json"]

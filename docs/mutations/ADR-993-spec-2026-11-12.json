@@ -1,0 +1,128 @@
+{
+ "title": "ADR-993 — дельта цикла #1112 (вторая ось §48: обход отказа RiskPolicy ступенью на живых записях)",
+ "tests": [
+  "spa_core/tests/test_cio_policy_change_procedure.py"
+ ],
+ "mutations": [
+  {
+   "name": "M01 потолок свежести забывает удержанное (меньшая продажа станет свежим капиталом)",
+   "file": "spa_core/monitoring/cio_policy_change_procedure.py",
+   "old": "        ceiling = max(approved.get(proto, 0.0), held.get(proto, 0.0))\n",
+   "new": "        ceiling = approved.get(proto, 0.0)\n"
+  },
+  {
+   "name": "M02 «введён без суда» не смотрит на удержанное",
+   "file": "spa_core/monitoring/cio_policy_change_procedure.py",
+   "old": "        if proto not in approved and proto not in held and usd > BYPASS_EPS_USD:\n",
+   "new": "        if proto not in approved and usd > BYPASS_EPS_USD:\n"
+  },
+  {
+   "name": "M03 равенство книг сверяет только ключи исполненной",
+   "file": "spa_core/monitoring/cio_policy_change_procedure.py",
+   "old": "                for p in set(executed) | set(approved))\n",
+   "new": "                for p in set(executed))\n"
+  },
+  {
+   "name": "M04 окно заказа не действует — всё считается окном",
+   "file": "spa_core/monitoring/cio_policy_change_procedure.py",
+   "old": "        buckets = [all_time] + ([window] if ts[:10] >= since else [])\n",
+   "new": "        buckets = [all_time, window]\n"
+  },
+  {
+   "name": "M05 отказ гейта читается как отсутствие вердикта",
+   "file": "spa_core/monitoring/cio_policy_change_procedure.py",
+   "old": "        if approved is False:\n            refused_dates.add(ts[:10])\n",
+   "new": "        if approved is None:\n            refused_dates.add(ts[:10])\n"
+  },
+  {
+   "name": "M06 исполнение после отказа никогда не называется",
+   "file": "spa_core/monitoring/cio_policy_change_procedure.py",
+   "old": "                if execs:\n                    b[\"refused_then_executed\"].append({\n",
+   "new": "                if False:\n                    b[\"refused_then_executed\"].append({\n"
+  },
+  {
+   "name": "M07 порог переспроса сдвинут: два вердикта — ещё не переспрос",
+   "file": "spa_core/monitoring/cio_policy_change_procedure.py",
+   "old": "        if len(verdicts) > 1:\n            rejudged_events += 1\n",
+   "new": "        if len(verdicts) > 2:\n            rejudged_events += 1\n"
+  },
+  {
+   "name": "M08 ноль событий переспроса объявляется измеренным",
+   "file": "spa_core/monitoring/cio_policy_change_procedure.py",
+   "old": "    if rejudged_events:\n        rejudged = {\"events\": rejudged_events, \"verdict\": BYPASS_MEASURED, \"reason\": \"\"}\n",
+   "new": "    if True:\n        rejudged = {\"events\": rejudged_events, \"verdict\": BYPASS_MEASURED, \"reason\": \"\"}\n"
+  },
+  {
+   "name": "M09 нечисловая книга не отправляется в «не измерено»",
+   "file": "spa_core/monitoring/cio_policy_change_procedure.py",
+   "old": "            if executed is None or held is None or target is None:\n                for b in buckets:\n                    b[\"executions_unmeasured\"] += 1\n                continue\n",
+   "new": "            if False:\n                for b in buckets:\n                    b[\"executions_unmeasured\"] += 1\n                continue\n"
+  },
+  {
+   "name": "M10 сумма свежего капитала не накапливается",
+   "file": "spa_core/monitoring/cio_policy_change_procedure.py",
+   "old": "                        b[\"fresh_beyond_gate_usd\"] + cmp[\"fresh_beyond_gate_usd\"], 2)\n",
+   "new": "                        b[\"fresh_beyond_gate_usd\"], 2)\n"
+  },
+  {
+   "name": "M11 свежий капитал в окне понижен с critical до info",
+   "file": "spa_core/monitoring/cio_policy_change_procedure.py",
+   "old": "        out.append({\"severity\": \"critical\", \"field\": None,\n                    \"text\": (f\"с {since}: у {len(fresh)} из {win['executions']} исполнений книга несёт \"\n",
+   "new": "        out.append({\"severity\": \"info\", \"field\": None,\n                    \"text\": (f\"с {since}: у {len(fresh)} из {win['executions']} исполнений книга несёт \"\n"
+  },
+  {
+   "name": "M12 история без окна перестаёт быть WARN",
+   "file": "spa_core/monitoring/cio_policy_change_procedure.py",
+   "old": "        out.append({\"severity\": \"warn\" if not fresh else \"info\", \"field\": None,\n",
+   "new": "        out.append({\"severity\": \"info\", \"field\": None,\n"
+  },
+  {
+   "name": "M13 отсутствующий трейл читается как измеренный пустой",
+   "file": "spa_core/monitoring/cio_policy_change_procedure.py",
+   "old": "    rows, bad, err = _read_jsonl(data_dir / TRAIL_FILE)\n    if err:\n",
+   "new": "    rows, bad, err = _read_jsonl(data_dir / TRAIL_FILE)\n    if False:\n"
+  },
+  {
+   "name": "M14 теневые записи не фильтруются окном",
+   "file": "spa_core/monitoring/cio_policy_change_procedure.py",
+   "old": "        recs = [r for r in rows if str(observed(r, \"generated_at\", kind=str) or \"\")[:10] >= since]\n",
+   "new": "        recs = list(rows)\n"
+  },
+  {
+   "name": "M15 «отказ → одобрение» не сверяется с днями отказа",
+   "file": "spa_core/monitoring/cio_policy_change_procedure.py",
+   "old": "                if day in refused_dates:\n",
+   "new": "                if True:\n"
+  },
+  {
+   "name": "M16 трим на дне с ходом не считается",
+   "file": "spa_core/monitoring/cio_policy_change_procedure.py",
+   "old": "            if str(observed(r, \"verdict\", kind=str)) != \"HOLD\":\n                on_act += 1\n",
+   "new": "            if False:\n                on_act += 1\n"
+  },
+  {
+   "name": "M17 необъявленные подписи версии всегда пусты",
+   "file": "spa_core/monitoring/cio_policy_change_procedure.py",
+   "old": "                          \"undeclared\": sorted(labels - {declared_version})}\n",
+   "new": "                          \"undeclared\": []}\n"
+  },
+  {
+   "name": "M18 непрочитанная версия политики объявляется измеренной",
+   "file": "spa_core/monitoring/cio_policy_change_procedure.py",
+   "old": "    if declared_version is None or not isinstance(declared_version, str):\n",
+   "new": "    if False:\n"
+  },
+  {
+   "name": "M19 нечитаемая строка трейла не считается",
+   "file": "spa_core/monitoring/cio_policy_change_procedure.py",
+   "old": "        except ValueError:\n            bad += 1\n            continue\n",
+   "new": "        except ValueError:\n            continue\n"
+  },
+  {
+   "name": "M20 запись без correlation_id не считается отдельно",
+   "file": "spa_core/monitoring/cio_policy_change_procedure.py",
+   "old": "        if not cid:\n            orphan += 1\n            continue\n",
+   "new": "        if not cid:\n            cid = \"orphan\"\n"
+  }
+ ]
+}

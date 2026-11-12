@@ -1,0 +1,125 @@
+{
+ "adr": "ADR-993",
+ "cycle": "#1112 (cycle-71557)",
+ "date": "2026-11-12",
+ "tree": "/private/tmp/spa_mut_1112",
+ "module": "spa_core/monitoring/cio_policy_change_procedure.py",
+ "battery": "spa_core/tests/test_cio_policy_change_procedure.py",
+ "module_md5_under_test": "156f050a9350874ae31456e44122fef3",
+ "battery_md5": "01ef3c7b0c6dc327c91072b25d6f18e0",
+ "note": "мутации координат ADR-993 (вторая ось §48: потолок свежести max(одобрено, удержано), «введён без суда», равенство книг, окно заказа, отказ и исполнение после отказа, переспрос в трейле, нечисловая книга, сумма свежего капитала, severity находок, отсутствующий трейл, окно и соединение тени, день с ходом, подписи версии, нечитаемая строка, запись без correlation_id); каждая — подмена байтов на месте в ОТДЕЛЬНОМ дереве прибором ADR-726, возврат в finally и побайтовая сверка. Числа ниже прочитаны из mut.json ПОСЛЕ прогона (урок #1110), не написаны заранее.",
+ "spec": "docs/mutations/ADR-993-spec-2026-11-12.json",
+ "population": 20,
+ "applied": 20,
+ "counts": {
+  "killed": 20,
+  "survived": 0,
+  "not_applied": 0,
+  "broke_collection": 0
+ },
+ "baseline_failures": [],
+ "instrument_rc": 0,
+ "unmeasured_reason": null,
+ "results": [
+  {
+   "name": "M01 потолок свежести забывает удержанное (меньшая продажа станет свежим капиталом)",
+   "outcome": "killed",
+   "new_failures": 3
+  },
+  {
+   "name": "M02 «введён без суда» не смотрит на удержанное",
+   "outcome": "killed",
+   "new_failures": 2
+  },
+  {
+   "name": "M03 равенство книг сверяет только ключи исполненной",
+   "outcome": "killed",
+   "new_failures": 1
+  },
+  {
+   "name": "M04 окно заказа не действует — всё считается окном",
+   "outcome": "killed",
+   "new_failures": 2
+  },
+  {
+   "name": "M05 отказ гейта читается как отсутствие вердикта",
+   "outcome": "killed",
+   "new_failures": 3
+  },
+  {
+   "name": "M06 исполнение после отказа никогда не называется",
+   "outcome": "killed",
+   "new_failures": 1
+  },
+  {
+   "name": "M07 порог переспроса сдвинут: два вердикта — ещё не переспрос",
+   "outcome": "killed",
+   "new_failures": 1
+  },
+  {
+   "name": "M08 ноль событий переспроса объявляется измеренным",
+   "outcome": "killed",
+   "new_failures": 1
+  },
+  {
+   "name": "M09 нечисловая книга не отправляется в «не измерено»",
+   "outcome": "killed",
+   "new_failures": 1
+  },
+  {
+   "name": "M10 сумма свежего капитала не накапливается",
+   "outcome": "killed",
+   "new_failures": 1
+  },
+  {
+   "name": "M11 свежий капитал в окне понижен с critical до info",
+   "outcome": "killed",
+   "new_failures": 1
+  },
+  {
+   "name": "M12 история без окна перестаёт быть WARN",
+   "outcome": "killed",
+   "new_failures": 1
+  },
+  {
+   "name": "M13 отсутствующий трейл читается как измеренный пустой",
+   "outcome": "killed",
+   "new_failures": 1
+  },
+  {
+   "name": "M14 теневые записи не фильтруются окном",
+   "outcome": "killed",
+   "new_failures": 1
+  },
+  {
+   "name": "M15 «отказ → одобрение» не сверяется с днями отказа",
+   "outcome": "killed",
+   "new_failures": 2
+  },
+  {
+   "name": "M16 трим на дне с ходом не считается",
+   "outcome": "killed",
+   "new_failures": 1
+  },
+  {
+   "name": "M17 необъявленные подписи версии всегда пусты",
+   "outcome": "killed",
+   "new_failures": 2
+  },
+  {
+   "name": "M18 непрочитанная версия политики объявляется измеренной",
+   "outcome": "killed",
+   "new_failures": 1
+  },
+  {
+   "name": "M19 нечитаемая строка трейла не считается",
+   "outcome": "killed",
+   "new_failures": 1
+  },
+  {
+   "name": "M20 запись без correlation_id не считается отдельно",
+   "outcome": "killed",
+   "new_failures": 1
+  }
+ ]
+}

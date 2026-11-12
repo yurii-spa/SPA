@@ -65,13 +65,18 @@ ADVISORY. Модуль ничего не чинит и не двигает: ни
 
 from __future__ import annotations
 
+import argparse
 import ast
+import json
 import os
 import re
 import tempfile
+from collections import Counter
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
+
+from spa_core.utils.observation import observed
 
 REPORT_REL = "data/cio_policy_change_procedure.json"
 
@@ -472,6 +477,382 @@ def positive_control() -> dict[str, Any]:
     return {"passed": all(c["passed"] for c in checks), "checks": checks}
 
 
+# ─── вторая ось §48 (ADR-993): отказ политики обходят СТУПЕНЬЮ, не порогом ──
+#
+# ADR-254 мерил §48 по ПОРОГАМ: что изменилось в `RiskConfig` против снимка v1.0
+# и есть ли у ослабления предъявимое решение. «Не ослаблять policy молча» можно
+# нарушить, не тронув ни одного порога: гейт отказал (или одобрил ОДНУ книгу),
+# а ступень после гейта — трим ADR-850, запасная книга ADR-108 (ступень ADR-002),
+# перераздача ADR-072 — исполнила ДРУГУЮ. ADR-991/992 нашли эти ступени на
+# носителе цели и показали на СЦЕНАХ, что отказ они переживают не всегда. Эта
+# ось задаёт тот же вопрос ЖИВЫМ записям §43 (заказ G981 п. 1 карточки приказа):
+# трейлу `audit_trail.jsonl` (деньги) и теневым журналам ADR-060 (переспрос).
+#
+# Что считается обходом (и что — НЕ считается):
+#   * отказ первого гейта (`risk_verdict.approved == False`) и в той же цепочке
+#     `trade_executed` — отказ ОБОЙДЁН;
+#   * исполненная книга несёт по протоколу БОЛЬШЕ, чем max(одобрено, удержано),
+#     — свежий капитал, которого первый гейт не судил (`record_divergence`
+#     ADR-992 на живой записи); протокол, не названный ни одобренной книгой,
+#     ни удержанным, — введён без суда (`introduced_unjudged`);
+#   * книга НИЖЕ одобренной (срез гейта к буферу кэша, трим вниз) обходом НЕ
+#     является: меньшая продажа не есть свежий капитал (ADR-992).
+# Трейл НЕ подписывает ступень (ADR-989: девять переписчиков цели невидимы
+# ему по построению), поэтому виновник у живой записи остаётся неназванным, а
+# ступени ниже — КАНДИДАТЫ, не вердикт.
+TRAIL_REL = "data/audit_trail.jsonl"
+TRAIL_FILE = "audit_trail.jsonl"
+SHADOW_HISTORY_FILES: dict[str, str] = {
+    "conservative": "allocation_rationale_history.jsonl",
+    "balanced": "allocation_rationale_history_balanced.jsonl",
+    "aggressive": "allocation_rationale_history_aggressive.jsonl",
+}
+BYPASS_WINDOW_SINCE = "2026-09-06"
+BYPASS_WINDOW_PROVENANCE = (
+    "заказ G981 п. 1 карточки приказа «Portfolio CIO»: «сколько раз с 06.09 отказ "
+    "RiskPolicy был „обойдён“ не правкой порога, а ступенью»")
+BYPASS_STAGE_CANDIDATES: tuple[tuple[str, str, str], ...] = (
+    ("ADR-850", "трим допустимого хода", "apply_admissible_trim"),
+    ("ADR-108", "запасная книга при отсутствии снимка (ступень ADR-002)", "_compliant_target"),
+    ("ADR-072", "перераздача срезанного гейтом бюджета", "redistribute_freed_budget"),
+)
+BYPASS_EPS_USD = 0.01
+BYPASS_MEASURED = "measured"
+BYPASS_UNMEASURED = "UNMEASURED"
+#: Трейл пишет ОДИН `risk_verdict` на цепочку (замер 12.11: 615 цепочек, с двумя
+#: вердиктами — 0). Переспрос политики ступенью (повторный гейт ADR-072, трим
+#: ADR-850) едет в лог и в теневой журнал, не в трейл. Ноль событий здесь —
+#: свойство НОСИТЕЛЯ, а не ответ «не переспрашивали».
+CARRIER_ONE_VERDICT = "one_verdict_per_chain"
+STAGE_NOT_SIGNED = ("ступень не названа: трейл не несёт переписанной цели и не подписывает "
+                    "переписчика (ADR-989); кандидаты — " +
+                    ", ".join(f"{adr} ({what})" for adr, what, _ in BYPASS_STAGE_CANDIDATES))
+
+
+def _read_jsonl(path: Path) -> tuple[list[dict[str, Any]], int, str | None]:
+    """(записи, нечитаемых строк, причина отказа). Нет файла — ОТКАЗ, не пустой список."""
+    try:
+        text = path.read_text(encoding="utf-8")
+    except OSError as exc:
+        return [], 0, f"{path}: {exc.__class__.__name__}: {exc}"
+    rows: list[dict[str, Any]] = []
+    bad = 0
+    for line in text.splitlines():
+        if not line.strip():
+            continue
+        try:
+            obj = json.loads(line)
+        except ValueError:
+            bad += 1
+            continue
+        if isinstance(obj, dict):
+            rows.append(obj)
+        else:
+            bad += 1
+    return rows, bad, None
+
+
+def _usd(value: Any) -> float | None:
+    if isinstance(value, bool) or not isinstance(value, (int, float)):
+        return None
+    return float(value)
+
+
+def _book(value: Any) -> dict[str, float] | None:
+    """Книга как словарь чисел — либо None: не словарь или нечисло внутри (НЕ ИЗМЕРЕНО)."""
+    if not isinstance(value, dict):
+        return None
+    out: dict[str, float] = {}
+    for key, raw in value.items():
+        usd = _usd(raw)
+        if usd is None:
+            return None
+        out[str(key)] = usd
+    return out
+
+
+def execution_vs_gate(approved: dict[str, float], held: dict[str, float],
+                      executed: dict[str, float]) -> dict[str, Any]:
+    """Несёт ли ИСПОЛНЕННАЯ книга капитал, которого первый гейт не судил.
+
+    Потолок свежести у протокола — max(одобрено, удержано) (ADR-992): меньшая
+    продажа не есть свежий капитал, и книга НИЖЕ одобренной обходом не является.
+    Протокол, которого нет ни в одобренной книге, ни среди удержанного, — введён
+    без суда (`introduced_unjudged`).
+    """
+    fresh = 0.0
+    beyond: dict[str, float] = {}
+    introduced: list[str] = []
+    for proto, usd in executed.items():
+        ceiling = max(approved.get(proto, 0.0), held.get(proto, 0.0))
+        if usd - ceiling > BYPASS_EPS_USD:
+            beyond[proto] = round(usd - ceiling, 2)
+            fresh += usd - ceiling
+        if proto not in approved and proto not in held and usd > BYPASS_EPS_USD:
+            introduced.append(proto)
+    equal = all(abs(executed.get(p, 0.0) - approved.get(p, 0.0)) <= BYPASS_EPS_USD
+                for p in set(executed) | set(approved))
+    return {"fresh_beyond_gate_usd": round(fresh, 2), "beyond_by_protocol": beyond,
+            "introduced_unjudged": sorted(introduced), "equal_to_decision": equal}
+
+
+def _group_chains(rows: list[dict[str, Any]]) -> tuple[dict[str, list[dict[str, Any]]], int]:
+    chains: dict[str, list[dict[str, Any]]] = {}
+    orphan = 0
+    for r in rows:
+        cid = observed(r, "correlation_id", kind=str)
+        if not cid:
+            orphan += 1
+            continue
+        chains.setdefault(cid, []).append(r)
+    return chains, orphan
+
+
+def _empty_tally() -> dict[str, Any]:
+    return {"chains": 0, "chains_without_verdict": 0, "refused": 0,
+            "refused_then_executed": [], "refused_then_blocked": 0, "refused_hold": 0,
+            "executions": 0, "executions_equal_to_decision": 0,
+            "executions_below_decision_only": 0, "executions_fresh_beyond_gate": [],
+            "fresh_beyond_gate_usd": 0.0, "executions_unmeasured": 0}
+
+
+def tally_trail(chains: dict[str, list[dict[str, Any]]], since: str) -> dict[str, Any]:
+    """Обход отказа по цепочкам трейла — в окне заказа и за всю историю порознь."""
+    window, all_time = _empty_tally(), _empty_tally()
+    rejudged_events = 0
+    refused_dates: set[str] = set()
+    for cid, ev in chains.items():
+        ts = next((str(observed(e, "timestamp", kind=str) or "") for e in ev
+                   if observed(e, "timestamp", kind=str)), "")
+        buckets = [all_time] + ([window] if ts[:10] >= since else [])
+        for b in buckets:
+            b["chains"] += 1
+        verdicts = [e for e in ev if e.get("event_type") == "risk_verdict"]
+        if len(verdicts) > 1:
+            rejudged_events += 1
+        if not verdicts:
+            for b in buckets:
+                b["chains_without_verdict"] += 1
+            continue
+        vdata = observed(verdicts[0], "data", kind=dict)
+        approved = None if vdata is None else observed(vdata, "approved", kind=bool)
+        types = [e.get("event_type") for e in ev]
+        execs = [e for e in ev if e.get("event_type") == "trade_executed"]
+        if approved is False:
+            refused_dates.add(ts[:10])
+            for b in buckets:
+                b["refused"] += 1
+                if execs:
+                    b["refused_then_executed"].append({
+                        "correlation_id": cid, "timestamp": ts,
+                        "violations": observed(vdata, "violations", kind=list),
+                        "trade_ids": [observed(observed(e, "data", kind=dict), "trade_id")
+                                      for e in execs]})
+                elif "trade_blocked" in types:
+                    b["refused_then_blocked"] += 1
+                else:
+                    b["refused_hold"] += 1
+        proposal = next((e for e in ev if e.get("event_type") == "allocation_proposal"), None)
+        pdata = observed(proposal, "data", kind=dict) if proposal is not None else None
+        target = _book(observed(pdata, "target_usd", kind=dict)) if pdata is not None else None
+        for e in execs:
+            edata = observed(e, "data", kind=dict)
+            executed = _book(observed(edata, "to_allocation", kind=dict)) if edata is not None else None
+            held = _book(observed(edata, "from_allocation", kind=dict)) if edata is not None else None
+            for b in buckets:
+                b["executions"] += 1
+            if executed is None or held is None or target is None:
+                for b in buckets:
+                    b["executions_unmeasured"] += 1
+                continue
+            cmp = execution_vs_gate(target, held, executed)
+            if cmp["equal_to_decision"]:
+                for b in buckets:
+                    b["executions_equal_to_decision"] += 1
+            elif cmp["fresh_beyond_gate_usd"] > BYPASS_EPS_USD or cmp["introduced_unjudged"]:
+                rec = {"trade_id": observed(edata, "trade_id"), "correlation_id": cid,
+                       "timestamp": str(observed(e, "timestamp", kind=str) or ts),
+                       "first_gate_approved": approved,
+                       "gate_trimmed": observed(vdata, "trimmed", kind=bool),
+                       "stage": None, "stage_reason": STAGE_NOT_SIGNED, **cmp}
+                for b in buckets:
+                    b["executions_fresh_beyond_gate"].append(rec)
+                    b["fresh_beyond_gate_usd"] = round(
+                        b["fresh_beyond_gate_usd"] + cmp["fresh_beyond_gate_usd"], 2)
+            else:
+                for b in buckets:
+                    b["executions_below_decision_only"] += 1
+    if rejudged_events:
+        rejudged = {"events": rejudged_events, "verdict": BYPASS_MEASURED, "reason": ""}
+    else:
+        rejudged = {"events": 0, "verdict": BYPASS_UNMEASURED, "carrier": CARRIER_ONE_VERDICT,
+                    "reason": ("трейл несёт один `risk_verdict` на цепочку — переспрос RiskPolicy "
+                               "ступенью (повторный гейт ADR-072, трим ADR-850) трейлу невидим по "
+                               "построению; свидетель переспроса — поле `admissible_trim.policy` "
+                               "теневого журнала ADR-060 (см. `shadow`)")}
+    return {"window": window, "all_time": all_time, "rejudged_within_chain": rejudged,
+            "refused_dates": sorted(refused_dates)}
+
+
+def tally_shadow(data_dir: Path, since: str, refused_dates: set[str]) -> dict[str, Any]:
+    """Переспрос RiskPolicy тримом ADR-850 по теневым журналам ADR-060 — по книгам.
+
+    Единственное место, где переспрос ЗАПИСАН: `admissible_trim.policy`. Сцена
+    «отказ стал одобрением» собирается соединением по ДНЮ (UTC) с отказами
+    первого гейта из трейла — основание соединения названо в отчёте.
+    """
+    books: dict[str, Any] = {}
+    for book, fname in SHADOW_HISTORY_FILES.items():
+        rows, bad, err = _read_jsonl(data_dir / fname)
+        if err:
+            books[book] = {"verdict": BYPASS_UNMEASURED, "reason": err}
+            continue
+        recs = [r for r in rows if str(observed(r, "generated_at", kind=str) or "")[:10] >= since]
+        trim_verdicts: Counter = Counter()
+        labels: Counter = Counter()
+        rejudged = rejudged_approved = on_act = 0
+        converted: list[dict[str, Any]] = []
+        for r in recs:
+            label = observed(r, "policy_version", kind=str)
+            if label is not None:
+                labels[label] += 1
+            trim = observed(r, "admissible_trim", kind=dict)
+            if trim is None:
+                continue
+            trim_verdicts[str(observed(trim, "verdict", kind=str))] += 1
+            if str(observed(r, "verdict", kind=str)) != "HOLD":
+                on_act += 1
+            pol = observed(trim, "policy", kind=dict)
+            if pol is None:
+                continue
+            rejudged += 1
+            ok = observed(pol, "approved", kind=bool)
+            if ok:
+                rejudged_approved += 1
+                day = str(observed(r, "cycle_date", kind=str)
+                          or observed(r, "generated_at", kind=str) or "")[:10]
+                if day in refused_dates:
+                    converted.append({"book": book, "day": day,
+                                      "decision_id": observed(r, "decision_id"),
+                                      "trim_verdict": observed(trim, "verdict")})
+        books[book] = {"verdict": BYPASS_MEASURED, "records": len(recs), "unparsable_lines": bad,
+                       "trims": sum(trim_verdicts.values()),
+                       "trim_verdicts": dict(sorted(trim_verdicts.items())),
+                       "rejudged": rejudged, "rejudged_approved": rejudged_approved,
+                       "trims_on_act_days": on_act,
+                       "refusal_to_approval_same_day": converted,
+                       "join_basis": "день UTC: `cycle_date` записи ↔ дата `risk_verdict` трейла",
+                       "policy_version_labels": dict(sorted(labels.items()))}
+    return books
+
+
+def measure_bypass(data_dir: Path, *, since: str = BYPASS_WINDOW_SINCE,
+                   declared_version: Any = None) -> dict[str, Any]:
+    """Вторая ось §48 на живых записях. `data_dir` — ВХОД: из worktree живого `data/` нет."""
+    out: dict[str, Any] = {"since": since, "since_provenance": BYPASS_WINDOW_PROVENANCE,
+                           "data_dir": str(data_dir), "stage_candidates": [
+                               {"adr": a, "what": w, "function": f} for a, w, f in BYPASS_STAGE_CANDIDATES],
+                           "declared_version": declared_version}
+    rows, bad, err = _read_jsonl(data_dir / TRAIL_FILE)
+    if err:
+        out.update(verdict=BYPASS_UNMEASURED, reason=err, trail=None, shadow=None,
+                   version_labels=None)
+        return out
+    chains, orphan = _group_chains(rows)
+    trail = tally_trail(chains, since)
+    trail.update(rows=len(rows), unparsable_lines=bad, rows_without_correlation=orphan,
+                 chains_total=len(chains))
+    shadow = tally_shadow(data_dir, since, set(trail["refused_dates"]))
+    labels: set[str] = set()
+    for b in shadow.values():
+        if b.get("verdict") == BYPASS_MEASURED:
+            labels.update(b["policy_version_labels"])
+    if declared_version is None or not isinstance(declared_version, str):
+        version_labels = {"verdict": BYPASS_UNMEASURED,
+                          "reason": "`RiskConfig.version` не прочитан — сравнивать подписи не с чем",
+                          "on_records": sorted(labels), "declared": declared_version}
+    else:
+        version_labels = {"verdict": BYPASS_MEASURED, "declared": declared_version,
+                          "on_records": sorted(labels),
+                          "undeclared": sorted(labels - {declared_version})}
+    out.update(verdict=BYPASS_MEASURED, reason="", trail=trail, shadow=shadow,
+               version_labels=version_labels)
+    return out
+
+
+def _bypass_findings(bp: dict[str, Any]) -> list[dict[str, Any]]:
+    out: list[dict[str, Any]] = []
+    if bp.get("verdict") != BYPASS_MEASURED:
+        out.append({"severity": "unchecked", "field": None,
+                    "text": (f"вторая ось §48 (обход отказа ступенью, ADR-993) НЕ ИЗМЕРЕНА: "
+                             f"{bp.get('reason') or 'причина не названа'}")})
+        return out
+    trail = bp["trail"]
+    win, allt = trail["window"], trail["all_time"]
+    since = bp["since"]
+    for rec in win["refused_then_executed"]:
+        out.append({"severity": "critical", "field": None,
+                    "text": (f"отказ RiskPolicy ОБОЙДЁН: цепочка {rec['correlation_id']} "
+                             f"({rec['timestamp'][:19]}) получила `approved=False` "
+                             f"({rec.get('violations')}) и в той же цепочке исполнен ход "
+                             f"{rec.get('trade_ids')} — ослабление политики не порогом, а ступенью")})
+    fresh = win["executions_fresh_beyond_gate"]
+    if fresh:
+        protos = sorted({p for r in fresh for p in r["introduced_unjudged"]})
+        out.append({"severity": "critical", "field": None,
+                    "text": (f"с {since}: у {len(fresh)} из {win['executions']} исполнений книга несёт "
+                             f"${win['fresh_beyond_gate_usd']:,.2f} свежего капитала СВЕРХ потолка "
+                             f"первого гейта (max(одобрено, удержано)); введены без суда: "
+                             f"{protos or '—'}; ступень трейлом не подписана — RiskPolicy судила "
+                             "одну книгу, исполнена другая: «ослабить policy молча» другими средствами")})
+    if allt["executions_fresh_beyond_gate"]:
+        n_all = len(allt["executions_fresh_beyond_gate"])
+        out.append({"severity": "warn" if not fresh else "info", "field": None,
+                    "text": (f"за всю историю трейла: {n_all} из {allt['executions']} исполнений несут "
+                             f"${allt['fresh_beyond_gate_usd']:,.2f} свежего капитала сверх потолка первого "
+                             f"гейта; отказов первого гейта {allt['refused']}, из них исполнено "
+                             f"{len(allt['refused_then_executed'])}, удержано отказом "
+                             f"{allt['refused_then_blocked'] + allt['refused_hold']}")})
+    rj = trail["rejudged_within_chain"]
+    if rj["verdict"] != BYPASS_MEASURED:
+        out.append({"severity": "unchecked", "field": None,
+                    "text": f"переспрос RiskPolicy внутри цепочки: НЕ ИЗМЕРЕНО — {rj['reason']}"})
+    for book, b in sorted(bp["shadow"].items()):
+        if b.get("verdict") != BYPASS_MEASURED:
+            out.append({"severity": "unchecked", "field": None,
+                        "text": f"теневой журнал «{book}» не прочитан: {b.get('reason')}"})
+            continue
+        for c in b["refusal_to_approval_same_day"]:
+            out.append({"severity": "critical", "field": None,
+                        "text": (f"книга «{book}», {c['day']}: первый гейт отказал книге дня, а трим "
+                                 f"ADR-850 переспросил RiskPolicy и получил одобрение "
+                                 f"({c['trim_verdict']}, {c['decision_id']}) — отказ стал одобрением "
+                                 "внутри одного дня")})
+        if b["trims_on_act_days"]:
+            out.append({"severity": "warn", "field": None,
+                        "text": (f"книга «{book}»: {b['trims_on_act_days']} трим(ов) ADR-850 на днях с "
+                                 "ходом — урезанная книга дошла до исполнения")})
+    measured = [b for b in bp["shadow"].values() if b.get("verdict") == BYPASS_MEASURED]
+    if measured:
+        out.append({"severity": "info", "field": None,
+                    "text": (f"теневые журналы ADR-060 с {since}: трим ADR-850 переспросил RiskPolicy "
+                             f"{sum(b['rejudged'] for b in measured)} раз (одобрена "
+                             f"{sum(b['rejudged_approved'] for b in measured)}), на днях с ходом "
+                             f"{sum(b['trims_on_act_days'] for b in measured)}, «отказ → одобрение» в "
+                             f"один день {sum(len(b['refusal_to_approval_same_day']) for b in measured)}")})
+    vl = bp["version_labels"]
+    if vl["verdict"] != BYPASS_MEASURED:
+        out.append({"severity": "unchecked", "field": "version",
+                    "text": f"подписи версии политики на записях: НЕ ИЗМЕРЕНО — {vl['reason']}"})
+    elif vl["undeclared"]:
+        out.append({"severity": "warn", "field": "version",
+                    "text": (f"записи теневых журналов подписаны версиями политики "
+                             f"{vl['undeclared']}, а `RiskConfig.version` объявляет "
+                             f"`{vl['declared']}` — у CURRENT RULE больше одного имени, и по "
+                             "подписи записи его правило не найти")})
+    return out
+
+
 # ─── находки ─────────────────────────────────────────────────────────────────
 
 def _findings(meas: dict[str, Any]) -> list[dict[str, Any]]:
@@ -553,14 +934,24 @@ def measure(root: Path) -> dict[str, Any]:
 
 
 def run(root: str | Path | None = None, *, write: bool = True,
-        now: datetime | None = None) -> dict[str, Any]:
-    """Собрать отчёт §48. ``now`` — ВХОД (правило о времени в тестах)."""
+        now: datetime | None = None, data_dir: str | Path | None = None,
+        since: str = BYPASS_WINDOW_SINCE) -> dict[str, Any]:
+    """Собрать отчёт §48. ``now`` — ВХОД (правило о времени в тестах).
+
+    ``data_dir`` — каталог живых записей (трейл, теневые журналы); умолчание —
+    ``<root>/data``. Из worktree живого ``data/`` нет ПО ПОСТРОЕНИЮ — передавать
+    каталог прод-дерева, иначе вторая ось меряет git-замороженный канон.
+    ``since`` — окно заказа (дата ISO), печатается с провенансом.
+    """
     root = Path(root) if root else Path(__file__).resolve().parents[2]
+    data_path = Path(data_dir) if data_dir else root / "data"
     ts = (now or datetime.now(timezone.utc)).isoformat()
 
     control = positive_control()
     meas = measure(root)
-    findings = _findings(meas)
+    declared = observed(meas["knobs"]["knobs"].get("version"), "current", kind=str)
+    bypass = measure_bypass(data_path, since=since, declared_version=declared)
+    findings = _findings(meas) + _bypass_findings(bypass)
 
     counts = {
         "critical": sum(1 for f in findings if f["severity"] == "critical"),
@@ -581,7 +972,7 @@ def run(root: str | Path | None = None, *, write: bool = True,
 
     knobs = meas["knobs"]["knobs"]
     doc = {
-        "schema": "cio_policy_change_procedure/v1",
+        "schema": "cio_policy_change_procedure/v2",
         "generated_at": ts,
         "overall": overall,
         "counts": counts,
@@ -594,6 +985,9 @@ def run(root: str | Path | None = None, *, write: bool = True,
         "knobs_unchanged": sum(1 for k in knobs.values() if k["verdict"] == "UNCHANGED"),
         "proposals": meas["proposals"],
         "homes": meas["homes"],
+        # ADR-993: вторая ось §48 — обход отказа ступенью на живых записях.
+        # Артефакт без этого поля — схема v1, ось НЕ измерена (офис печатает это вслух).
+        "bypass_by_stage": bypass,
         "findings": findings,
         "advisory": ("ADVISORY: ни один порог не изменён и ни одно решение не "
                      "перенесено. Перенос дома решений — отдельная работа; правка "
@@ -605,14 +999,35 @@ def run(root: str | Path | None = None, *, write: bool = True,
     return doc
 
 
-def main() -> int:
-    doc = run(root=os.environ.get("SPA_ROOT") or None)
+def main(argv: list[str] | None = None) -> int:
+    ap = argparse.ArgumentParser(description="§48 ТЗ CIO: процедура изменения Risk Policy "
+                                 "(пороги, ADR-254) и обход отказа ступенью (ADR-993)")
+    ap.add_argument("--root", default=os.environ.get("SPA_ROOT") or None,
+                    help="корень дерева с политикой и реестром решений (умолчание — своё)")
+    ap.add_argument("--data-dir", default=None,
+                    help="каталог живых записей (трейл, теневые журналы); умолчание <root>/data — "
+                         "из worktree живого data/ нет, передавать каталог прод-дерева")
+    ap.add_argument("--since", default=BYPASS_WINDOW_SINCE,
+                    help=f"окно заказа для второй оси, дата ISO (умолчание {BYPASS_WINDOW_SINCE})")
+    args = ap.parse_args(argv)
+    doc = run(root=args.root, data_dir=args.data_dir, since=args.since)
     print(f"cio_policy_change_procedure: {doc['overall']} "
           f"(critical={doc['counts']['critical']} warn={doc['counts']['warn']} "
           f"unchecked={doc['counts']['unchecked']}) · "
           f"ослаблено {len(doc['knobs_relaxed'])}, ужесточено "
           f"{len(doc['knobs_tightened'])}, добавлено {len(doc['knobs_added'])}, "
           f"не менялось {doc['knobs_unchanged']} из {doc['knobs_total']}")
+    bp = doc["bypass_by_stage"]
+    if bp.get("verdict") == BYPASS_MEASURED:
+        w = bp["trail"]["window"]
+        print(f"  вторая ось (с {bp['since']}, {bp['data_dir']}): цепочек {w['chains']} · "
+              f"отказов первого гейта {w['refused']} · из них исполнено "
+              f"{len(w['refused_then_executed'])} · исполнений {w['executions']}, со свежим "
+              f"капиталом сверх гейта {len(w['executions_fresh_beyond_gate'])} "
+              f"(${w['fresh_beyond_gate_usd']:,.2f}) · переспрос в трейле: "
+              f"{bp['trail']['rejudged_within_chain']['verdict']}")
+    else:
+        print(f"  вторая ось: НЕ ИЗМЕРЕНО — {bp.get('reason')}")
     for f in doc["findings"]:
         print(f"  [{f['severity'].upper()}] {f['text']}")
     return 0
