@@ -98,6 +98,27 @@ ADR-994 сам назвал щель: «самый свежий файл мог 
 * **1** — замер состоялся и есть находка (входы протухли · производитель не
   загружен · сводка расходится с живой).
 * **2** — замера НЕТ ВОВСЕ (конституция или население §49 не прочитаны).
+
+## ADR-996 (цикл #1115): второй канал оси «кто написал» и длительность записи
+
+ADR-995 оставил двенадцать входов с писателем «НЕ НАЗВАН» — две кучи формы моста
+(29.10 09:53–10:18Z и 03.11 01:05–01:07Z). Замер #1115 назвал обе ДРУГИМИ каналами:
+
+* **03.11** — сэмплер ступеней `findings_bridge --run` мандата ARB 02 (P1.2) на
+  ЖИВОМ прод-`data/`: длительности его отчёта (`decision_reproducibility` 31 с,
+  `ranking_tie_persistence` 51 с) равны `mtime − generated_at` ровно у этих двух
+  файлов (01:05:36 → 01:06:07; 01:06:08 → 01:06:59), порядок записи равен порядку
+  ступеней моста, коммиты мандата легли в 01:08Z, его «замороженная копия data/»
+  снята в ~01:55Z — ПОСЛЕ. `SPA_SANDBOX=1` защищал трекер, не `data/`. Рука, не бегун.
+* **29.10** — окно отчёта самого моста (`findings_bridge_report.json`:
+  `run_started_at` 07:49Z … `generated_at` 10:18Z) накрывает все входы кучи: это
+  прогон моста. Зовущего отчёт не называет — штампа `invoked_by` у него нет (ADR-822).
+
+Отсюда два входа прибора: **отчёт моста** как второй канал (вход в его окне —
+`bridge_run`, зовущий — штамп или «не назван»; отчёт не прочитан ⇒ канал
+`UNCHECKED`, не «прогонов не было») и **`write_lag_s` = mtime − generated_at** у каждой
+строки — у ступени моста это длительность ступени, и именно по ней писатель 03.11
+был узнан. Рука (ADR-995) сильнее окна: рука, запустившая мост целиком, остаётся рукой.
 """
 
 from __future__ import annotations
@@ -119,11 +140,13 @@ from spa_core.monitoring import s49_criterion_price as price_meter  # noqa: E402
 from spa_core.monitoring import s49_tally_tact as tally_meter  # noqa: E402
 from spa_core.utils.observation import observed  # noqa: E402
 
-SCHEMA = "s49_surface_freshness/v2"
+SCHEMA = "s49_surface_freshness/v3"
 REPORT_REL = "data/s49_surface_freshness.json"
 TALLY_REL = "data/s49_tally_tact.json"
 ADR = "ADR-994"
 ADR_WRITERS = "ADR-995"
+#: Второй канал оси «кто написал» — отчёт самого моста (окно прогона), ADR-996.
+ADR_BRIDGE = "ADR-996"
 
 #: Исходы у ОДНОГО входа сводки.
 FRESH = "fresh"
@@ -143,14 +166,24 @@ PRODUCER_UNKNOWN = "producer_unknown"
 DRIFT_MEASURED = "measured"
 DRIFT_UNCHECKED = "UNCHECKED"
 
-#: Исходы оси «кто написал вход» (ADR-995). У ОДНОГО входа: `hand` — запись
-#: сессии в окне называет модуль-производитель или сам артефакт; `unattributed`
-#: — записи нет, писатель НЕ НАЗВАН (это не «бегун»); `no_clock` — у входа нет
-#: `generated_at`, окно не построить. У ОСИ целиком: `measured` / `UNCHECKED`
-#: (канал не прочитан — об авторстве не сказано ничего).
+#: Исходы оси «кто написал вход» (ADR-995, второй канал — ADR-996). У ОДНОГО
+#: входа: `hand` — запись сессии в окне называет модуль-производитель или сам
+#: артефакт; `bridge_run` — `generated_at` входа лежит в окне прогона моста по
+#: ЕГО СОБСТВЕННОМУ отчёту (`run_started_at` … `generated_at` у
+#: `findings_bridge_report.json`): вход написан прогоном моста, а ЗОВУЩИЙ прогона
+#: читается из штампа отчёта (`invoked_by`) либо остаётся не назван;
+#: `unattributed` — ни то, ни другое, писатель НЕ НАЗВАН (это не «бегун»);
+#: `no_clock` — у входа нет `generated_at`, окна не построить. У ОСИ целиком:
+#: `measured` / `UNCHECKED` (канал не прочитан — об авторстве не сказано ничего).
+#: Порядок: рука сильнее окна — рука, запустившая мост целиком, остаётся рукой.
 WRITER_HAND = "hand"
+WRITER_BRIDGE_RUN = "bridge_run"
 WRITER_UNATTRIBUTED = "unattributed"
-WRITER_STATES = (WRITER_HAND, WRITER_UNATTRIBUTED, NO_CLOCK)
+WRITER_STATES = (WRITER_HAND, WRITER_BRIDGE_RUN, WRITER_UNATTRIBUTED, NO_CLOCK)
+#: Отчёт моста — второй канал: он лежит рядом с артефактами и несёт окно
+#: ПОСЛЕДНЕГО прогона. Прогон, снятый до отчёта (сэмплер 03.11 01:05Z, ADR-996),
+#: отчёта не оставляет и этим каналом не виден — это сказано в NOT_REPORTED.
+BRIDGE_REPORT_NAME = "findings_bridge_report.json"
 WRITERS_MEASURED = "measured"
 WRITERS_UNCHECKED = "UNCHECKED"
 #: Боковой канал — журнал объявлений сессий, живёт рядом с артефактами.
@@ -175,7 +208,9 @@ ADVISORY = ("ADVISORY: прибор только ЧИТАЕТ конституц
 
 NOT_REPORTED = ("НЕ ДОКЛАДЫВАЕТ: верна ли живая проба (её держит контроль в обе стороны) · "
                 "почему бегун выключен (своя карточка) · зовущего вне состава ступеней · "
-                "писателя, который НЕ объявил себя в журнале сессий (канал видит только объявленное)")
+                "писателя, который НЕ объявил себя в журнале сессий (канал видит только объявленное) · "
+                "прогон моста, снятый ДО своего отчёта (окна прогона у него нет) · "
+                "зовущего прогона моста, если у отчёта нет штампа `invoked_by`")
 
 
 class Unmeasured(Exception):
@@ -463,6 +498,59 @@ def _names(entry: dict, module: Optional[str], artifact: Optional[str]) -> Optio
     return None
 
 
+def read_bridge_runs(path: Path) -> tuple[Optional[list[dict]], Optional[str]]:
+    """Окна прогонов моста по ЕГО отчёту; (прогоны, причина отказа).
+
+    Отчёт не прочитан ⇒ `(None, причина)` — канал НЕ ПРОЧИТАН (третий исход, не
+    «прогонов не было»). Отчёт есть, а часов прогона (`run_started_at` и
+    `generated_at`) нет или они не разобраны ⇒ тоже `None` с причиной: окно без
+    границ — не окно. Зовущий прогона — штамп `invoked_by` отчёта; штампа нет ⇒
+    `caller=None`, и это сказано словами, а не подставлено именем службы.
+    """
+    doc, problem = read_json(Path(path))
+    if doc is None:
+        return None, f"отчёт моста {Path(path).name} не прочитан: {problem}"
+    if not isinstance(doc, dict):
+        return None, f"отчёт моста {Path(path).name}: не словарь"
+    start = parse_ts(doc.get("run_started_at"))
+    end = parse_ts(doc.get("generated_at"))
+    if start is None or end is None:
+        return None, (f"у отчёта моста {Path(path).name} нет часов прогона "
+                      f"(run_started_at={doc.get('run_started_at')!r}, "
+                      f"generated_at={doc.get('generated_at')!r}) — окно не построить")
+    if end < start:
+        return None, (f"у отчёта моста {Path(path).name} конец прогона раньше начала "
+                      f"({end.isoformat()} < {start.isoformat()}) — окно не построить")
+    stamp = observed(doc, "invoked_by", kind=dict)
+    caller: Optional[str] = None
+    if stamp is not None:
+        entry = stamp.get("entry") or stamp.get("label") or stamp.get("by")
+        caller = str(entry) if isinstance(entry, str) and entry else None
+    return [{"source": Path(path).name, "started_at": start.isoformat(),
+             "generated_at": end.isoformat(), "caller": caller,
+             "stamp_present": stamp is not None}], None
+
+
+def _written_at(path: Optional[Path]) -> Optional[dt.datetime]:
+    """Когда файл реально записан (mtime, UTC); нет пути или файла ⇒ `None`."""
+    if path is None:
+        return None
+    try:
+        return dt.datetime.fromtimestamp(os.stat(path).st_mtime, tz=dt.timezone.utc)
+    except OSError:
+        return None
+
+
+def _run_covering(runs: list[dict], made: dt.datetime) -> Optional[dict]:
+    """Прогон моста, чьё окно [started_at, generated_at] накрывает момент входа."""
+    for run in runs:
+        start = parse_ts(run.get("started_at"))
+        end = parse_ts(run.get("generated_at"))
+        if start is not None and end is not None and start <= made <= end:
+            return run
+    return None
+
+
 def batch_groups(rows: Iterable[dict], *, batch_minutes: float = BATCH_WINDOW_MINUTES) -> dict[str, list[dict]]:
     """Неатрибутированные входы кучами: соседи ближе `batch_minutes` — одна куча.
 
@@ -490,20 +578,43 @@ def writer_rows(inputs: Iterable[dict], *, entries: Optional[list[dict]],
                 now: dt.datetime, window_minutes: float = HAND_WINDOW_MINUTES,
                 batch_minutes: float = BATCH_WINDOW_MINUTES,
                 module_of_artifact: Callable[[Optional[str]], Optional[str]] = module_of,
-                channel_problem: Optional[str] = None, malformed: int = 0) -> dict:
-    """Кто написал каждый вход — по боковому каналу (журнал объявлений сессий).
+                channel_problem: Optional[str] = None, malformed: int = 0,
+                bridge_runs: Optional[list[dict]] = None,
+                bridge_problem: Optional[str] = None,
+                data_dir: Optional[Path] = None,
+                written_at_of: Callable[[Optional[Path]], Optional[dt.datetime]] = _written_at) -> dict:
+    """Кто написал каждый вход — по двум боковым каналам.
 
-    `entries=None` ⇒ канал НЕ ПРОЧИТАН ⇒ вся ось `UNCHECKED` с причиной: о руках
-    не сказано ничего (не «рук нет»). Пустой список — канал прочитан, записей
-    нет: каждый вход `unattributed`, и это измерение.
+    Первый канал — журнал объявлений сессий (ADR-995): `entries=None` ⇒ канал НЕ
+    ПРОЧИТАН ⇒ вся ось `UNCHECKED` с причиной: о руках не сказано ничего (не «рук
+    нет»). Пустой список — канал прочитан, записей нет.
+
+    Второй канал — отчёт самого моста (ADR-996): `bridge_runs=None` ⇒ отчёт НЕ
+    ПРОЧИТАН (`bridge_channel.verdict == UNCHECKED`, причина — `bridge_problem`),
+    вход в окно прогона не попадает ПО ПОСТРОЕНИЮ и остаётся `unattributed`; пустой
+    список — отчёт прочитан, прогонов нет. Вход внутри окна прогона — `bridge_run`,
+    зовущий — штамп отчёта или «не назван». Рука сильнее окна.
+
+    `data_dir` — чтобы снять `written_at` (mtime) и `write_lag_s` = mtime −
+    `generated_at`: у ступени моста это ДЛИТЕЛЬНОСТЬ ступени (03.11:
+    `decision_reproducibility` 31 с, `ranking_tie_persistence` 51 с — ровно числа
+    отчёта мандата ARB 02, по которым писатель и был узнан). Нет каталога или файла
+    ⇒ `None` — не измерено, не ноль.
     """
     rows_in = [r for r in inputs if r.get("state") != UNBOUND]
     stamps = {id(r): parse_ts(r.get("generated_at")) for r in rows_in}
+    bridge_channel = ({"verdict": WRITERS_UNCHECKED, "runs": None, "source": BRIDGE_REPORT_NAME,
+                       "reason": bridge_problem or "отчёт моста не читался"}
+                      if bridge_runs is None else
+                      {"verdict": WRITERS_MEASURED, "runs": list(bridge_runs),
+                       "source": BRIDGE_REPORT_NAME, "reason": None})
     if entries is None:
         return {"verdict": WRITERS_UNCHECKED, "window_minutes": window_minutes,
                 "batch_minutes": batch_minutes, "entries_read": None,
                 "malformed_lines": None, "rows": [],
-                "counts": {WRITER_HAND: None, WRITER_UNATTRIBUTED: None, NO_CLOCK: None},
+                "counts": {WRITER_HAND: None, WRITER_BRIDGE_RUN: None,
+                           WRITER_UNATTRIBUTED: None, NO_CLOCK: None},
+                "bridge_channel": bridge_channel,
                 "reason": (f"боковой канал (`{SESSION_LOG_NAME}`) не прочитан — "
                            f"{channel_problem or 'причина не названа'}; об авторстве входов "
                            "не сказано НИЧЕГО")}
@@ -522,7 +633,15 @@ def writer_rows(inputs: Iterable[dict], *, entries: Optional[list[dict]],
         row = {"criterion": r.get("criterion"), "artifact": artifact,
                "generated_at": r.get("generated_at"), "module": module_of_artifact(artifact),
                "writer": None, "session": None, "ts": None, "evidence": None,
-               "candidates": [], "cluster_size": None, "why": None}
+               "candidates": [], "cluster_size": None, "why": None,
+               "written_at": None, "write_lag_s": None,
+               "run_started_at": None, "caller": None}
+        written = written_at_of(artifact_path(data_dir, str(artifact))
+                                if data_dir is not None and artifact else None)
+        if written is not None:
+            row["written_at"] = written.isoformat()
+            if made is not None:
+                row["write_lag_s"] = round((written - made).total_seconds(), 1)
         if made is None:
             row["writer"] = NO_CLOCK
             row["why"] = "у входа нет `generated_at` — окно для бокового канала не построить"
@@ -552,21 +671,42 @@ def writer_rows(inputs: Iterable[dict], *, entries: Optional[list[dict]],
                           f"{'файл модуля' if how == 'files' else 'модуль в тексте'} "
                           f"{row['module'] or artifact}")
         else:
-            row["writer"] = WRITER_UNATTRIBUTED
-            shape = (f"куча из {cluster} входов в пределах ±{batch_minutes:g} мин — форма прогона моста"
-                     if cluster and cluster > 1 else "одиночный файл")
-            tail = (f"; в окне ±{window_minutes:g} мин были сессии {', '.join(row['candidates'])}, "
-                    "ни одна не называет модуль или артефакт" if row["candidates"]
-                    else f"; записей в окне ±{window_minutes:g} мин нет")
-            row["why"] = f"писатель НЕ НАЗВАН: {shape}{tail}"
+            run = _run_covering(bridge_runs, made) if bridge_runs else None
+            if run is not None:
+                row["writer"] = WRITER_BRIDGE_RUN
+                row["ts"] = run.get("generated_at")
+                row["run_started_at"] = run.get("started_at")
+                row["evidence"] = "bridge_report"
+                row["caller"] = run.get("caller")
+                row["why"] = (f"вход написан ПРОГОНОМ моста: окно его отчёта "
+                              f"{run.get('started_at')} → {run.get('generated_at')} накрывает "
+                              f"{made.isoformat()}; зовущий прогона "
+                              + (f"по штампу отчёта: {row['caller']}" if row["caller"]
+                                 else "НЕ НАЗВАН — штампа `invoked_by` у отчёта нет"))
+            else:
+                row["writer"] = WRITER_UNATTRIBUTED
+                shape = (f"куча из {cluster} входов в пределах ±{batch_minutes:g} мин — форма прогона моста"
+                         if cluster and cluster > 1 else "одиночный файл")
+                tail = (f"; в окне ±{window_minutes:g} мин были сессии {', '.join(row['candidates'])}, "
+                        "ни одна не называет модуль или артефакт" if row["candidates"]
+                        else f"; записей в окне ±{window_minutes:g} мин нет")
+                bridge = (f"; отчёт моста не прочитан ({bridge_channel['reason']})"
+                          if bridge_runs is None else
+                          ("; окно отчёта моста вход не накрывает" if bridge_runs
+                           else "; прогонов моста в отчёте нет"))
+                lag = (f"; запись длилась {row['write_lag_s']:.0f} с (mtime − generated_at)"
+                       if isinstance(row["write_lag_s"], (int, float)) else "")
+                row["why"] = f"писатель НЕ НАЗВАН: {shape}{tail}{bridge}{lag}"
         out_rows.append(row)
 
     counts = {WRITER_HAND: sum(1 for r in out_rows if r["writer"] == WRITER_HAND),
+              WRITER_BRIDGE_RUN: sum(1 for r in out_rows if r["writer"] == WRITER_BRIDGE_RUN),
               WRITER_UNATTRIBUTED: sum(1 for r in out_rows if r["writer"] == WRITER_UNATTRIBUTED),
               NO_CLOCK: sum(1 for r in out_rows if r["writer"] == NO_CLOCK)}
     return {"verdict": WRITERS_MEASURED, "window_minutes": window_minutes,
             "batch_minutes": batch_minutes, "entries_read": len(entries),
-            "malformed_lines": malformed, "rows": out_rows, "counts": counts, "reason": None}
+            "malformed_lines": malformed, "rows": out_rows, "counts": counts,
+            "bridge_channel": bridge_channel, "reason": None}
 
 
 # ─────────────────────────── 3. сводка: замороженная против живой ───────────────────────────
@@ -737,17 +877,63 @@ def findings(inputs: list[dict], producers: list[dict], tally: dict, drifted: di
         dead_names = {p["producer"] for p in dead}
         batches = batch_groups(wrows, batch_minutes=float(writers.get("batch_minutes")
                                                            or BATCH_WINDOW_MINUTES))
+        bridge_channel = writers.get("bridge_channel") if isinstance(writers.get("bridge_channel"), dict) else None
         if batches and dead_names:
-            shown = "; ".join(f"{stamp}: {len(rs)} входов ({', '.join(str(r.get('criterion')) for r in rs)})"
+            def _span(rs: list[dict]) -> str:
+                lags = [r.get("write_lag_s") for r in rs if isinstance(r.get("write_lag_s"), (int, float))]
+                if not lags:
+                    return "длительность записи НЕ ИЗМЕРЕНА"
+                return (f"запись длилась {min(lags):.0f}…{max(lags):.0f} с" if len(lags) > 1
+                        else f"запись длилась {lags[0]:.0f} с")
+            shown = "; ".join(f"{stamp}: {len(rs)} входов ({', '.join(str(r.get('criterion')) for r in rs)}; {_span(rs)})"
                               for stamp, rs in sorted(batches.items()))
-            # Третий исход о ЗОВУЩЕМ: канал не различает «бегун до выключения» и
+            # Третий исход о ЗОВУЩЕМ: каналы не различают «бегун до выключения» и
             # «рука без объявления» — поэтому `unchecked`, а не «рука» и не «бегун».
+            # ADR-996: третий спрошенный канал — отчёт моста — назван с его исходом,
+            # чтобы «не накрывает» и «не прочитан» не читались одинаково.
+            if bridge_channel is None:
+                bridge_said = "отчёт моста не спрашивался"
+            elif bridge_channel.get("verdict") != WRITERS_MEASURED:
+                bridge_said = f"отчёт моста НЕ ПРОЧИТАН ({bridge_channel.get('reason')})"
+            elif bridge_channel.get("runs"):
+                bridge_said = ("окно отчёта моста ("
+                               + ", ".join(f"{r.get('started_at')} → {r.get('generated_at')}"
+                                           for r in bridge_channel["runs"])
+                               + ") эти входы не накрывает — прогон, их написавший, отчёта не оставил")
+            else:
+                bridge_said = "в отчёте моста прогонов нет"
             out.append({"severity": "unchecked", "key": "batch_without_a_caller",
                         "text": (f"{sum(len(v) for v in batches.values())} входов §49 написаны кучей "
                                  f"формы моста, производитель сегодня ВЫКЛЮЧЕН, и зовущий НЕ НАЗВАН "
-                                 f"ни журналом сессий, ни флотом (бегун до выключения или рука без "
-                                 f"объявления — канал не различает): {shown}")})
-        if not hands and not (batches and dead_names):
+                                 f"ни журналом сессий, ни флотом, ни отчётом моста ({bridge_said}) — "
+                                 f"бегун до выключения или рука без объявления, каналы не различают: {shown}")})
+        bridge_rows = [r for r in wrows if r.get("writer") == WRITER_BRIDGE_RUN]
+        if bridge_rows and dead_names:
+            by_run: dict[tuple, list[dict]] = {}
+            for r in bridge_rows:
+                by_run.setdefault((r.get("run_started_at"), r.get("ts"), r.get("caller")), []).append(r)
+            unstamped = {k: v for k, v in by_run.items() if not k[2]}
+            stamped = {k: v for k, v in by_run.items() if k[2]}
+            if unstamped:
+                shown = "; ".join(f"прогон {k[0]} → {k[1]}: {len(v)} входов "
+                                  f"({', '.join(str(r.get('criterion')) for r in v)})"
+                                  for k, v in sorted(unstamped.items(), key=lambda kv: str(kv[0])))
+                # Прогон НАЗВАН окном его отчёта, зовущий — нет: отчёт без штампа
+                # (ADR-822 — у штампа не было читателя; теперь есть). «Бегун до
+                # выключения» и «рука, запустившая мост целиком» отчётом не различаются.
+                out.append({"severity": "unchecked", "key": "bridge_run_without_a_stamp",
+                            "text": (f"{sum(len(v) for v in unstamped.values())} входов §49 написаны "
+                                     f"ПРОГОНОМ моста (окно — из отчёта моста {BRIDGE_REPORT_NAME}), "
+                                     f"производитель сегодня ВЫКЛЮЧЕН, а зовущего прогона отчёт не "
+                                     f"называет — штампа `invoked_by` у него нет (бегун до выключения "
+                                     f"или рука, запустившая мост целиком, — отчёт не различает): {shown}")})
+            if stamped:
+                shown = "; ".join(f"прогон {k[0]} → {k[1]} зван {k[2]}: {len(v)} входов"
+                                  for k, v in sorted(stamped.items(), key=lambda kv: str(kv[0])))
+                out.append({"severity": "info", "key": "bridge_run_caller_named",
+                            "text": (f"{sum(len(v) for v in stamped.values())} входов §49 написаны "
+                                     f"прогоном моста, и его зовущий назван штампом отчёта: {shown}")})
+        if not hands and not (batches and dead_names) and not (bridge_rows and dead_names):
             out.append({"severity": "info", "key": "no_hands",
                         "text": (f"рук среди {bound} входов §49 не найдено (журнал сессий: "
                                  f"{writers.get('entries_read')} записей, окно "
@@ -819,8 +1005,15 @@ def measure(repo_root: str | Path, *, data_dir: str | Path | None = None,
             live_rows: Optional[list[dict]] = None, ref: str = "origin/main",
             session_entries: Optional[list[dict]] = None,
             session_log: str | Path | None = None,
-            window_minutes: float = HAND_WINDOW_MINUTES) -> dict:
-    """Снять четыре оси. Часы, флот, живые строки и журнал сессий — ВХОДЫ.
+            window_minutes: float = HAND_WINDOW_MINUTES,
+            bridge_runs: Optional[list[dict]] = None,
+            bridge_report: str | Path | None = None) -> dict:
+    """Снять четыре оси. Часы, флот, живые строки, журнал сессий и отчёт моста — ВХОДЫ.
+
+    `bridge_runs` (ADR-996): `None` — прочитать отчёт моста самому (`bridge_report`,
+    умолчание — `findings_bridge_report.json` рядом с артефактами; не прочитан ⇒
+    второй канал оси `UNCHECKED` с причиной); список — окна прогонов даны контролем,
+    пустой список = «отчёт прочитан, прогонов нет».
 
     `loaded=None` при `fleet_asked=False` означает «спросить флот самому»; при
     `fleet_asked=True` — «спросили, ответа нет» (третий исход). Контроль
@@ -859,10 +1052,16 @@ def measure(repo_root: str | Path, *, data_dir: str | Path | None = None,
     log_path = Path(session_log) if session_log else data / SESSION_LOG_NAME
     if session_entries is None:
         session_entries, channel_problem, malformed = read_session_log(log_path)
+    bridge_problem: Optional[str] = None
+    bridge_path = Path(bridge_report) if bridge_report else data / BRIDGE_REPORT_NAME
+    if bridge_runs is None:
+        bridge_runs, bridge_problem = read_bridge_runs(bridge_path)
     writers = writer_rows(inputs, entries=session_entries, now=moment,
                           window_minutes=window_minutes, channel_problem=channel_problem,
-                          malformed=malformed)
+                          malformed=malformed, bridge_runs=bridge_runs,
+                          bridge_problem=bridge_problem, data_dir=data)
     writers["session_log"] = str(log_path)
+    writers["bridge_channel"]["path"] = str(bridge_path)
     producers = producer_rows(inputs, manifest=manifest, loaded=loaded, now=moment,
                               writers=writers)
     tally = tally_state(data, manifest=manifest, now=moment)
@@ -874,6 +1073,7 @@ def measure(repo_root: str | Path, *, data_dir: str | Path | None = None,
         "schema": SCHEMA,
         "adr": ADR,
         "adr_writers": ADR_WRITERS,
+        "adr_bridge_channel": ADR_BRIDGE,
         "generated_at": moment.isoformat(),
         "overall": _overall(found),
         "counts": counts,
@@ -965,13 +1165,26 @@ def report(doc: dict, max_rows: int = 16) -> list[str]:
         lines.append("     кто написал входы: НЕ ИЗМЕРЕНО — оси нет в артефакте (схема v1)")
     elif writers.get("verdict") == WRITERS_MEASURED:
         wc = observed(writers, "counts", kind=dict)
-        lines.append(f"     кто написал входы ({ADR_WRITERS}): рукой {_n(wc, WRITER_HAND)} · не назван "
+        lines.append(f"     кто написал входы ({ADR_WRITERS}/{ADR_BRIDGE}): рукой {_n(wc, WRITER_HAND)} · "
+                     f"прогоном моста {_n(wc, WRITER_BRIDGE_RUN)} · не назван "
                      f"{_n(wc, WRITER_UNATTRIBUTED)} · без часов {_n(wc, NO_CLOCK)} "
                      f"(журнал сессий: записей {writers.get('entries_read')}, нечитаемых "
                      f"{writers.get('malformed_lines')}, окно ±{writers.get('window_minutes')} мин)")
+        bc = observed(writers, "bridge_channel", kind=dict)
+        if bc is None:
+            lines.append("       отчёт моста: НЕ СПРАШИВАЛСЯ (канала нет в артефакте — схема v2)")
+        elif bc.get("verdict") != WRITERS_MEASURED:
+            lines.append(f"       отчёт моста: НЕ ПРОЧИТАН — {bc.get('reason')}")
+        else:
+            runs = bc.get("runs") or []
+            lines.append(f"       отчёт моста ({bc.get('source')}): прогонов {len(runs)}"
+                         + "".join(f" · {r.get('started_at')} → {r.get('generated_at')}, зовущий "
+                                   f"{r.get('caller') or 'НЕ НАЗВАН (штампа нет)'}" for r in runs))
         for r in (observed(writers, "rows", kind=list) or [])[:max_rows]:
             if r.get("writer") == WRITER_HAND:
                 lines.append(f"       [hand] {r.get('criterion')} {r.get('artifact')}: {r.get('why')}")
+            elif r.get("writer") == WRITER_BRIDGE_RUN:
+                lines.append(f"       [bridge_run] {r.get('criterion')} {r.get('artifact')}: {r.get('why')}")
     else:
         lines.append(f"     кто написал входы ({ADR_WRITERS}): НЕ ИЗМЕРЕНО — {writers.get('reason')}")
     tally = observed(doc, "tally", kind=dict)
@@ -1018,12 +1231,16 @@ def main(argv: Optional[list[str]] = None) -> int:
     ap.add_argument("--session-log", default=None,
                     help=f"журнал объявлений сессий для оси «кто написал» (ADR-995); умолчание — "
                          f"{SESSION_LOG_NAME} рядом с артефактами; не прочитан ⇒ ось UNCHECKED")
+    ap.add_argument("--bridge-report", default=None,
+                    help=f"отчёт моста для второго канала оси «кто написал» (ADR-996); умолчание — "
+                         f"{BRIDGE_REPORT_NAME} рядом с артефактами; не прочитан ⇒ канал UNCHECKED")
     ap.add_argument("--no-write", action="store_true", help="не писать артефакт")
     ap.add_argument("--json", action="store_true", help="печатать отчёт как JSON")
     args = ap.parse_args(argv)
     try:
         doc = run(root=args.root, data_dir=args.data_dir, write=not args.no_write,
-                  rollup_json=args.rollup_json, live=args.live, session_log=args.session_log)
+                  rollup_json=args.rollup_json, live=args.live, session_log=args.session_log,
+                  bridge_report=args.bridge_report)
     except Unmeasured as exc:
         print(f"s49_surface_freshness: НЕ ИЗМЕРЕНО — {exc}", file=sys.stderr)
         return 2

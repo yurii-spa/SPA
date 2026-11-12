@@ -1,0 +1,166 @@
+{
+  "title": "ADR-996 — дельта цикла #1115 (§49: второй канал оси «кто написал» — отчёт моста; длительность записи)",
+  "tests": [
+    "spa_core/tests/test_s49_surface_freshness.py"
+  ],
+  "baseline_failures": [],
+  "population": 15,
+  "applied": 15,
+  "counts": {
+    "killed": 15,
+    "survived": 0,
+    "not_applied": 0,
+    "broke_collection": 0
+  },
+  "unmeasured_reason": null,
+  "rc": 0,
+  "results": [
+    {
+      "name": "M01 окно отчёта игнорируется — любой вход считается прогоном моста",
+      "file": "spa_core/monitoring/s49_surface_freshness.py",
+      "outcome": "killed",
+      "detail": "",
+      "new_failures": [
+        "spa_core/tests/test_s49_surface_freshness.py::TestBridgeRunChannel::test_batch_finding_names_the_bridge_channel_outcome",
+        "spa_core/tests/test_s49_surface_freshness.py::TestBridgeRunChannel::test_live_control_0311_input_outside_the_window_stays_unattributed",
+        "spa_core/tests/test_s49_surface_freshness.py::TestBridgeRunChannel::test_window_edges_are_inclusive"
+      ]
+    },
+    {
+      "name": "M02 окно отчёта сильнее руки",
+      "file": "spa_core/monitoring/s49_surface_freshness.py",
+      "outcome": "killed",
+      "detail": "",
+      "new_failures": [
+        "spa_core/tests/test_s49_surface_freshness.py::TestBridgeRunChannel::test_hand_beats_the_bridge_window"
+      ]
+    },
+    {
+      "name": "M03 отсутствующий отчёт моста выдаётся за прочитанный пустой",
+      "file": "spa_core/monitoring/s49_surface_freshness.py",
+      "outcome": "killed",
+      "detail": "",
+      "new_failures": [
+        "spa_core/tests/test_s49_surface_freshness.py::TestBridgeRunChannel::test_absent_report_is_channel_unread_not_no_runs",
+        "spa_core/tests/test_s49_surface_freshness.py::TestBridgeRunChannel::test_batch_finding_names_the_bridge_channel_outcome",
+        "spa_core/tests/test_s49_surface_freshness.py::TestBridgeRunChannel::test_report_says_channel_unread_or_absent"
+      ]
+    },
+    {
+      "name": "M04 отчёт моста без часов прогона выдаётся за пустой",
+      "file": "spa_core/monitoring/s49_surface_freshness.py",
+      "outcome": "killed",
+      "detail": "",
+      "new_failures": [
+        "spa_core/tests/test_s49_surface_freshness.py::TestBridgeRunChannel::test_report_without_clocks_is_unread_with_the_reason"
+      ]
+    },
+    {
+      "name": "M05 зовущий прогона выдумывается именем службы при отсутствии штампа",
+      "file": "spa_core/monitoring/s49_surface_freshness.py",
+      "outcome": "killed",
+      "detail": "",
+      "new_failures": [
+        "spa_core/tests/test_s49_surface_freshness.py::TestBridgeRunChannel::test_finding_bridge_run_without_a_stamp_replaces_the_batch_question",
+        "spa_core/tests/test_s49_surface_freshness.py::TestBridgeRunChannel::test_live_control_1029_inputs_inside_the_window_are_bridge_run",
+        "spa_core/tests/test_s49_surface_freshness.py::TestBridgeRunChannel::test_report_prints_the_bridge_run_and_the_channel"
+      ]
+    },
+    {
+      "name": "M06 нечитаемый mtime подставляется текущим временем (лаг — числом, а не None)",
+      "file": "spa_core/monitoring/s49_surface_freshness.py",
+      "outcome": "killed",
+      "detail": "",
+      "new_failures": [
+        "spa_core/tests/test_s49_surface_freshness.py::TestBridgeRunChannel::test_write_lag_is_unmeasured_for_a_vanished_file"
+      ]
+    },
+    {
+      "name": "M07 счёт прогонов моста зашит нулём",
+      "file": "spa_core/monitoring/s49_surface_freshness.py",
+      "outcome": "killed",
+      "detail": "",
+      "new_failures": [
+        "spa_core/tests/test_s49_surface_freshness.py::TestBridgeRunChannel::test_live_control_1029_inputs_inside_the_window_are_bridge_run",
+        "spa_core/tests/test_s49_surface_freshness.py::TestBridgeRunChannel::test_measure_reads_the_report_next_to_the_artifacts",
+        "spa_core/tests/test_s49_surface_freshness.py::TestBridgeRunChannel::test_report_prints_the_bridge_run_and_the_channel",
+        "spa_core/tests/test_s49_surface_freshness.py::TestBridgeRunChannel::test_run_passes_an_explicit_bridge_report"
+      ]
+    },
+    {
+      "name": "M08 находка «прогон без штампа» молчит",
+      "file": "spa_core/monitoring/s49_surface_freshness.py",
+      "outcome": "killed",
+      "detail": "",
+      "new_failures": [
+        "spa_core/tests/test_s49_surface_freshness.py::TestBridgeRunChannel::test_finding_bridge_run_without_a_stamp_replaces_the_batch_question"
+      ]
+    },
+    {
+      "name": "M09 вопрос о прогоне моста задаётся и живому производителю (ложное усиление)",
+      "file": "spa_core/monitoring/s49_surface_freshness.py",
+      "outcome": "killed",
+      "detail": "",
+      "new_failures": [
+        "spa_core/tests/test_s49_surface_freshness.py::TestBridgeRunChannel::test_bridge_findings_are_asked_only_of_a_dead_producer"
+      ]
+    },
+    {
+      "name": "M10 непрочитанный отчёт моста объявляется измеренным каналом",
+      "file": "spa_core/monitoring/s49_surface_freshness.py",
+      "outcome": "killed",
+      "detail": "",
+      "new_failures": [
+        "spa_core/tests/test_s49_surface_freshness.py::TestBridgeRunChannel::test_absent_report_is_channel_unread_not_no_runs",
+        "spa_core/tests/test_s49_surface_freshness.py::TestBridgeRunChannel::test_batch_finding_names_the_bridge_channel_outcome",
+        "spa_core/tests/test_s49_surface_freshness.py::TestBridgeRunChannel::test_report_says_channel_unread_or_absent",
+        "spa_core/tests/test_s49_surface_freshness.py::TestWriters::test_channel_not_read_is_unchecked_on_the_whole_axis"
+      ]
+    },
+    {
+      "name": "M11 строка отчёта не печатает входы прогона моста",
+      "file": "spa_core/monitoring/s49_surface_freshness.py",
+      "outcome": "killed",
+      "detail": "",
+      "new_failures": [
+        "spa_core/tests/test_s49_surface_freshness.py::TestBridgeRunChannel::test_report_prints_the_bridge_run_and_the_channel"
+      ]
+    },
+    {
+      "name": "M12 текст кучи не различает «отчёт не прочитан» и «прогонов нет»",
+      "file": "spa_core/monitoring/s49_surface_freshness.py",
+      "outcome": "killed",
+      "detail": "",
+      "new_failures": [
+        "spa_core/tests/test_s49_surface_freshness.py::TestBridgeRunChannel::test_batch_finding_names_the_bridge_channel_outcome"
+      ]
+    },
+    {
+      "name": "M13 окно с концом раньше начала принимается",
+      "file": "spa_core/monitoring/s49_surface_freshness.py",
+      "outcome": "killed",
+      "detail": "",
+      "new_failures": [
+        "spa_core/tests/test_s49_surface_freshness.py::TestBridgeRunChannel::test_report_with_end_before_start_is_unread"
+      ]
+    },
+    {
+      "name": "M14 измеренная длительность записи не печатается в строке входа",
+      "file": "spa_core/monitoring/s49_surface_freshness.py",
+      "outcome": "killed",
+      "detail": "",
+      "new_failures": [
+        "spa_core/tests/test_s49_surface_freshness.py::TestBridgeRunChannel::test_write_lag_is_mtime_minus_generated_at_live_control_0311"
+      ]
+    },
+    {
+      "name": "M15 длительность кучи «не измерена» подменяется нулём",
+      "file": "spa_core/monitoring/s49_surface_freshness.py",
+      "outcome": "killed",
+      "detail": "",
+      "new_failures": [
+        "spa_core/tests/test_s49_surface_freshness.py::TestBridgeRunChannel::test_batch_finding_says_lag_unmeasured_when_no_mtime"
+      ]
+    }
+  ]
+}

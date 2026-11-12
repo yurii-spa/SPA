@@ -1,0 +1,98 @@
+{
+  "title": "ADR-996 — дельта цикла #1115 (§49: второй канал оси «кто написал» — отчёт моста; длительность записи)",
+  "tests": [
+    "spa_core/tests/test_s49_surface_freshness.py"
+  ],
+  "mutations": [
+    {
+      "name": "M01 окно отчёта игнорируется — любой вход считается прогоном моста",
+      "file": "spa_core/monitoring/s49_surface_freshness.py",
+      "old": "        if start is not None and end is not None and start <= made <= end:\n",
+      "new": "        if start is not None and end is not None:\n"
+    },
+    {
+      "name": "M02 окно отчёта сильнее руки",
+      "file": "spa_core/monitoring/s49_surface_freshness.py",
+      "old": "        if hand is not None:\n            ts, e, how = hand\n",
+      "new": "        if hand is not None and not (bridge_runs and _run_covering(bridge_runs, made)):\n            ts, e, how = hand\n"
+    },
+    {
+      "name": "M03 отсутствующий отчёт моста выдаётся за прочитанный пустой",
+      "file": "spa_core/monitoring/s49_surface_freshness.py",
+      "old": "        return None, f\"отчёт моста {Path(path).name} не прочитан: {problem}\"\n",
+      "new": "        return [], None\n"
+    },
+    {
+      "name": "M04 отчёт моста без часов прогона выдаётся за пустой",
+      "file": "spa_core/monitoring/s49_surface_freshness.py",
+      "old": "    if start is None or end is None:\n        return None, (",
+      "new": "    if start is None or end is None:\n        return [], None\n    if False:\n        return None, ("
+    },
+    {
+      "name": "M05 зовущий прогона выдумывается именем службы при отсутствии штампа",
+      "file": "spa_core/monitoring/s49_surface_freshness.py",
+      "old": "    caller: Optional[str] = None\n    if stamp is not None:\n",
+      "new": "    caller: Optional[str] = \"com.spa.decision_loop\"\n    if stamp is not None:\n"
+    },
+    {
+      "name": "M06 нечитаемый mtime подставляется текущим временем (лаг — числом, а не None)",
+      "file": "spa_core/monitoring/s49_surface_freshness.py",
+      "old": "    except OSError:\n        return None\n\n\ndef _run_covering(",
+      "new": "    except OSError:\n        return dt.datetime.now(tz=dt.timezone.utc)\n\n\ndef _run_covering("
+    },
+    {
+      "name": "M07 счёт прогонов моста зашит нулём",
+      "file": "spa_core/monitoring/s49_surface_freshness.py",
+      "old": "              WRITER_BRIDGE_RUN: sum(1 for r in out_rows if r[\"writer\"] == WRITER_BRIDGE_RUN),\n",
+      "new": "              WRITER_BRIDGE_RUN: 0,\n"
+    },
+    {
+      "name": "M08 находка «прогон без штампа» молчит",
+      "file": "spa_core/monitoring/s49_surface_freshness.py",
+      "old": "            if unstamped:\n                shown = ",
+      "new": "            if unstamped and False:\n                shown = "
+    },
+    {
+      "name": "M09 вопрос о прогоне моста задаётся и живому производителю (ложное усиление)",
+      "file": "spa_core/monitoring/s49_surface_freshness.py",
+      "old": "        if bridge_rows and dead_names:\n",
+      "new": "        if bridge_rows:\n"
+    },
+    {
+      "name": "M10 непрочитанный отчёт моста объявляется измеренным каналом",
+      "file": "spa_core/monitoring/s49_surface_freshness.py",
+      "old": "    bridge_channel = ({\"verdict\": WRITERS_UNCHECKED, \"runs\": None, \"source\": BRIDGE_REPORT_NAME,\n",
+      "new": "    bridge_channel = ({\"verdict\": WRITERS_MEASURED, \"runs\": None, \"source\": BRIDGE_REPORT_NAME,\n"
+    },
+    {
+      "name": "M11 строка отчёта не печатает входы прогона моста",
+      "file": "spa_core/monitoring/s49_surface_freshness.py",
+      "old": "            elif r.get(\"writer\") == WRITER_BRIDGE_RUN:\n                lines.append(f\"       [bridge_run] {r.get('criterion')} {r.get('artifact')}: {r.get('why')}\")\n",
+      "new": "            elif r.get(\"writer\") == WRITER_BRIDGE_RUN:\n                pass\n"
+    },
+    {
+      "name": "M12 текст кучи не различает «отчёт не прочитан» и «прогонов нет»",
+      "file": "spa_core/monitoring/s49_surface_freshness.py",
+      "old": "                bridge_said = f\"отчёт моста НЕ ПРОЧИТАН ({bridge_channel.get('reason')})\"\n",
+      "new": "                bridge_said = \"в отчёте моста прогонов нет\"\n"
+    },
+    {
+      "name": "M13 окно с концом раньше начала принимается",
+      "file": "spa_core/monitoring/s49_surface_freshness.py",
+      "old": "    if end < start:\n",
+      "new": "    if False and end < start:\n"
+    },
+    {
+      "name": "M14 измеренная длительность записи не печатается в строке входа",
+      "file": "spa_core/monitoring/s49_surface_freshness.py",
+      "old": "                lag = (f\"; запись длилась {row['write_lag_s']:.0f} с (mtime − generated_at)\"\n                       if isinstance(row[\"write_lag_s\"], (int, float)) else \"\")\n",
+      "new": "                lag = \"\"\n"
+    },
+    {
+      "name": "M15 длительность кучи «не измерена» подменяется нулём",
+      "file": "spa_core/monitoring/s49_surface_freshness.py",
+      "old": "                if not lags:\n                    return \"длительность записи НЕ ИЗМЕРЕНА\"\n",
+      "new": "                if not lags:\n                    return \"запись длилась 0 с\"\n"
+    }
+  ]
+}

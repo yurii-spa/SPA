@@ -655,7 +655,8 @@ class TestWriters:
         assert row["session"] == "cycle-79383" and row["evidence"] == "files"
         assert row["module"] == AUDIT_MOD
         assert "+66 с" in row["why"] and "cycle-79383" in row["why"]
-        assert w["counts"] == {M.WRITER_HAND: 1, M.WRITER_UNATTRIBUTED: 12, M.NO_CLOCK: 0}
+        assert w["counts"] == {M.WRITER_HAND: 1, M.WRITER_BRIDGE_RUN: 0,
+                               M.WRITER_UNATTRIBUTED: 12, M.NO_CLOCK: 0}
         assert w["entries_read"] == 2 and w["malformed_lines"] == 0
 
     def test_hand_by_summary_when_files_name_nothing(self, tmp_path):
@@ -697,7 +698,10 @@ class TestWriters:
         inputs = M.input_rows(rows, data_dir=data, now=NOW)
         w = M.writer_rows(inputs, entries=None, now=NOW, channel_problem="файла нет")
         assert w["verdict"] == M.WRITERS_UNCHECKED and w["rows"] == []
-        assert w["counts"] == {M.WRITER_HAND: None, M.WRITER_UNATTRIBUTED: None, M.NO_CLOCK: None}
+        assert w["counts"] == {M.WRITER_HAND: None, M.WRITER_BRIDGE_RUN: None,
+                               M.WRITER_UNATTRIBUTED: None, M.NO_CLOCK: None}
+        # ADR-996: второй канал в UNCHECKED-ответе оси тоже назван, не потерян
+        assert w["bridge_channel"]["verdict"] == M.WRITERS_UNCHECKED
         assert "файла нет" in w["reason"] and w["entries_read"] is None
 
     def test_malformed_lines_are_counted_not_swallowed(self, tmp_path):
@@ -817,7 +821,7 @@ class TestWriters:
                          manifest=man, loaded=set(), live_rows=live_rows(LIVE_1113),
                          session_entries=[])
         batch = next(f for f in dead["findings"] if f["key"] == "batch_without_a_caller")
-        assert "13 входов" in batch["text"] and "канал не различает" in batch["text"]
+        assert "13 входов" in batch["text"] and "каналы не различают" in batch["text"]
 
     def test_channel_absent_is_an_unchecked_finding_not_no_hands(self, tmp_path):
         data, rows, man = scene(tmp_path)
@@ -853,16 +857,18 @@ class TestWriters:
         assert doc["writers"]["counts"][M.WRITER_HAND] == 1
         assert not (tmp_path / M.REPORT_REL).exists()
 
-    def test_schema_is_v2_and_the_doc_carries_the_axis(self, tmp_path):
+    def test_schema_is_v3_and_the_doc_carries_both_channels(self, tmp_path):
         data, rows, man = scene(tmp_path)
         doc = M.measure(tmp_path, data_dir=data, now=NOW, criteria=CRITERIA, tact_rows=rows,
                         manifest=man, loaded=set(), live_rows=live_rows(LIVE_1113),
-                        session_entries=[])
-        assert doc["schema"] == "s49_surface_freshness/v2"
+                        session_entries=[], bridge_runs=[])
+        assert doc["schema"] == "s49_surface_freshness/v3"
         assert doc["adr_writers"] == "ADR-995" and doc["adr"] == "ADR-994"
+        assert doc["adr_bridge_channel"] == "ADR-996"
         assert set(doc["writers"]) >= {"verdict", "rows", "counts", "entries_read",
                                        "malformed_lines", "window_minutes", "batch_minutes",
-                                       "reason", "session_log"}
+                                       "reason", "session_log", "bridge_channel"}
+        assert set(doc["writers"]["counts"]) == set(M.WRITER_STATES)
 
     def test_report_prints_the_hand_and_both_silences(self, tmp_path):
         data, rows, man, inputs, hand_ts = scene_1106(tmp_path)
@@ -871,7 +877,7 @@ class TestWriters:
                         session_entries=[entry_1106(hand_ts)])
         out = "\n".join(M.format_report(doc))
         assert "молчит 10 ч по любому файлу · без рук 342 ч (рукой 1)" in out
-        assert "рукой 1 · не назван 12 · без часов 0" in out
+        assert "рукой 1 · прогоном моста 0 · не назван 12 · без часов 0" in out
         assert "[hand] Auditability data/decision_audit_trail.json" in out and "ADR-995" in out
 
     def test_report_says_unmeasured_when_the_axis_is_unchecked_or_absent(self, tmp_path):
@@ -940,3 +946,327 @@ class TestAuditabilityProbeIsAReader:
         # есть доказательство, что проба дошла до артефакта читателем, а не писателем
         assert verdict == ca.NOT_SATISFIED
         assert "снимок не полон" in reason
+
+
+# ═══════════════════ ADR-996: второй канал оси — отчёт САМОГО моста; длительность записи ═══════════════════
+
+#: Отчёт моста прода 29.10: `run_started_at` 07:49:13Z, `generated_at` 10:18:11Z; входы
+#: §49 той кучи легли с 09:53 по 10:10Z — ВНУТРИ окна. Здесь окно считается от момента
+#: входа сцены (`NOW − 342 ч`), чтобы файл не зависел от календаря: 2 ч 08 мин до и 8 мин после.
+def bridge_report_doc(made: dt.datetime, *, before_min: float = 128.0, after_min: float = 8.0,
+                      invoked_by: dict | None = None, clocks: bool = True) -> dict:
+    doc = {"adr": "ADR-066", "created": [], "closed": []}
+    if clocks:
+        doc["run_started_at"] = (made - dt.timedelta(minutes=before_min)).isoformat()
+        doc["generated_at"] = (made + dt.timedelta(minutes=after_min)).isoformat()
+    if invoked_by is not None:
+        doc["invoked_by"] = invoked_by
+    return doc
+
+
+def write_bridge_report(data: Path, doc: dict) -> Path:
+    path = data / M.BRIDGE_REPORT_NAME
+    path.write_text(json.dumps(doc), encoding="utf-8")
+    return path
+
+
+MADE_1029 = NOW - dt.timedelta(hours=342.0)
+
+
+class TestBridgeRunChannel:
+    """Вход внутри окна прогона моста — `bridge_run`; зовущий — штамп отчёта или «не назван»."""
+
+    def test_live_control_1029_inputs_inside_the_window_are_bridge_run(self, tmp_path):
+        data, rows, man = scene(tmp_path)
+        write_bridge_report(data, bridge_report_doc(MADE_1029))
+        runs, problem = M.read_bridge_runs(data / M.BRIDGE_REPORT_NAME)
+        assert problem is None and len(runs) == 1
+        assert runs[0]["caller"] is None and runs[0]["stamp_present"] is False
+        inputs = M.input_rows(rows, data_dir=data, now=NOW)
+        w = M.writer_rows(inputs, entries=[], now=NOW, bridge_runs=runs, data_dir=data)
+        assert w["counts"] == {M.WRITER_HAND: 0, M.WRITER_BRIDGE_RUN: 13,
+                               M.WRITER_UNATTRIBUTED: 0, M.NO_CLOCK: 0}
+        row = w["rows"][0]
+        assert row["writer"] == M.WRITER_BRIDGE_RUN and row["evidence"] == "bridge_report"
+        assert row["run_started_at"] == runs[0]["started_at"] and row["ts"] == runs[0]["generated_at"]
+        assert row["caller"] is None and row["session"] is None
+        assert "ПРОГОНОМ моста" in row["why"] and "штампа `invoked_by` у отчёта нет" in row["why"]
+        assert w["bridge_channel"]["verdict"] == M.WRITERS_MEASURED
+
+    def test_live_control_0311_input_outside_the_window_stays_unattributed(self, tmp_path):
+        """Куча 03.11 01:05Z: отчёт моста 29.10 её не накрывает — прогон отчёта не оставил."""
+        ages = {c: 342.0 for c in CRITERIA}
+        ages["Costs"] = 342.0 - 113.0  # 03.11 против 29.10 — на 4,7 суток позже окна
+        data, rows, man = scene(tmp_path, ages=ages)
+        runs, _ = M.read_bridge_runs(write_bridge_report(data, bridge_report_doc(MADE_1029)))
+        inputs = M.input_rows(rows, data_dir=data, now=NOW)
+        by = {r["criterion"]: r for r in M.writer_rows(inputs, entries=[], now=NOW,
+                                                       bridge_runs=runs)["rows"]}
+        assert by["Costs"]["writer"] == M.WRITER_UNATTRIBUTED
+        assert "окно отчёта моста вход не накрывает" in by["Costs"]["why"]
+        assert by["Economics"]["writer"] == M.WRITER_BRIDGE_RUN
+
+    def test_window_edges_are_inclusive(self, tmp_path):
+        data, rows, man = scene(tmp_path)
+        inputs = M.input_rows(rows, data_dir=data, now=NOW)
+        made = MADE_1029
+        at_start = [{"started_at": made.isoformat(), "generated_at": (made + dt.timedelta(minutes=1)).isoformat(),
+                     "caller": None}]
+        at_end = [{"started_at": (made - dt.timedelta(minutes=1)).isoformat(), "generated_at": made.isoformat(),
+                   "caller": None}]
+        just_after = [{"started_at": (made + dt.timedelta(seconds=1)).isoformat(),
+                       "generated_at": (made + dt.timedelta(minutes=1)).isoformat(), "caller": None}]
+        for runs, expect in ((at_start, M.WRITER_BRIDGE_RUN), (at_end, M.WRITER_BRIDGE_RUN),
+                             (just_after, M.WRITER_UNATTRIBUTED)):
+            w = M.writer_rows(inputs, entries=[], now=NOW, bridge_runs=runs)
+            assert w["rows"][0]["writer"] == expect, (runs, expect)
+
+    def test_hand_beats_the_bridge_window(self, tmp_path):
+        """Рука, запустившая мост целиком, остаётся рукой: объявление сильнее окна."""
+        data, rows, man, inputs, hand_ts = scene_1106(tmp_path)
+        made = NOW - dt.timedelta(hours=10.3)
+        runs = [{"started_at": (made - dt.timedelta(minutes=5)).isoformat(),
+                 "generated_at": (made + dt.timedelta(minutes=5)).isoformat(), "caller": None}]
+        row = next(r for r in M.writer_rows(inputs, entries=[entry_1106(hand_ts)], now=NOW,
+                                            bridge_runs=runs)["rows"]
+                   if r["criterion"] == "Auditability")
+        assert row["writer"] == M.WRITER_HAND and row["session"] == "cycle-79383"
+
+    def test_caller_is_read_from_the_stamp_when_present(self, tmp_path):
+        data, rows, man = scene(tmp_path)
+        doc = bridge_report_doc(MADE_1029, invoked_by={"entry": "launchd:com.spa.decision_loop"})
+        runs, problem = M.read_bridge_runs(write_bridge_report(data, doc))
+        assert problem is None and runs[0]["caller"] == "launchd:com.spa.decision_loop"
+        assert runs[0]["stamp_present"] is True
+        inputs = M.input_rows(rows, data_dir=data, now=NOW)
+        row = M.writer_rows(inputs, entries=[], now=NOW, bridge_runs=runs)["rows"][0]
+        assert row["caller"] == "launchd:com.spa.decision_loop"
+        assert "по штампу отчёта: launchd:com.spa.decision_loop" in row["why"]
+
+    def test_stamp_without_a_name_is_not_a_caller(self, tmp_path):
+        data, rows, man = scene(tmp_path)
+        runs, _ = M.read_bridge_runs(write_bridge_report(
+            data, bridge_report_doc(MADE_1029, invoked_by={"entry": ""})))
+        assert runs[0]["caller"] is None and runs[0]["stamp_present"] is True
+
+    def test_absent_report_is_channel_unread_not_no_runs(self, tmp_path):
+        data, rows, man = scene(tmp_path)
+        runs, problem = M.read_bridge_runs(data / M.BRIDGE_REPORT_NAME)
+        assert runs is None and M.BRIDGE_REPORT_NAME in problem and "не прочитан" in problem
+        inputs = M.input_rows(rows, data_dir=data, now=NOW)
+        w = M.writer_rows(inputs, entries=[], now=NOW, bridge_runs=None, bridge_problem=problem)
+        assert w["bridge_channel"] == {"verdict": M.WRITERS_UNCHECKED, "runs": None,
+                                       "source": M.BRIDGE_REPORT_NAME, "reason": problem}
+        assert w["counts"][M.WRITER_UNATTRIBUTED] == 13 and w["counts"][M.WRITER_BRIDGE_RUN] == 0
+        assert "отчёт моста не прочитан" in w["rows"][0]["why"]
+
+    def test_report_without_clocks_is_unread_with_the_reason(self, tmp_path):
+        data, rows, man = scene(tmp_path)
+        path = write_bridge_report(data, bridge_report_doc(MADE_1029, clocks=False))
+        runs, problem = M.read_bridge_runs(path)
+        assert runs is None and "нет часов прогона" in problem
+        only_end = bridge_report_doc(MADE_1029)
+        del only_end["run_started_at"]
+        runs, problem = M.read_bridge_runs(write_bridge_report(data, only_end))
+        assert runs is None and "run_started_at=None" in problem
+
+    def test_report_with_end_before_start_is_unread(self, tmp_path):
+        data, rows, man = scene(tmp_path)
+        doc = bridge_report_doc(MADE_1029, before_min=-10.0, after_min=-20.0)
+        runs, problem = M.read_bridge_runs(write_bridge_report(data, doc))
+        assert runs is None and "раньше начала" in problem
+
+    def test_report_that_is_not_a_dict_is_unread(self, tmp_path):
+        data, rows, man = scene(tmp_path)
+        path = data / M.BRIDGE_REPORT_NAME
+        path.write_text("[1, 2]", encoding="utf-8")
+        runs, problem = M.read_bridge_runs(path)
+        assert runs is None and "не словарь" in problem
+
+    def test_empty_runs_is_measured_and_attributes_nothing(self, tmp_path):
+        data, rows, man = scene(tmp_path)
+        inputs = M.input_rows(rows, data_dir=data, now=NOW)
+        w = M.writer_rows(inputs, entries=[], now=NOW, bridge_runs=[])
+        assert w["bridge_channel"]["verdict"] == M.WRITERS_MEASURED and w["bridge_channel"]["runs"] == []
+        assert w["counts"][M.WRITER_BRIDGE_RUN] == 0 and w["counts"][M.WRITER_UNATTRIBUTED] == 13
+        assert "прогонов моста в отчёте нет" in w["rows"][0]["why"]
+
+    def test_measure_reads_the_report_next_to_the_artifacts(self, tmp_path):
+        data, rows, man = scene(tmp_path)
+        write_bridge_report(data, bridge_report_doc(MADE_1029))
+        doc = M.measure(tmp_path, data_dir=data, now=NOW, criteria=CRITERIA, tact_rows=rows,
+                        manifest=man, loaded=set(), live_rows=live_rows(LIVE_1113),
+                        session_entries=[])
+        bc = doc["writers"]["bridge_channel"]
+        assert bc["verdict"] == M.WRITERS_MEASURED and bc["path"] == str(data / M.BRIDGE_REPORT_NAME)
+        assert doc["writers"]["counts"][M.WRITER_BRIDGE_RUN] == 13
+
+    def test_run_passes_an_explicit_bridge_report(self, tmp_path):
+        data, rows, man = scene(tmp_path)
+        elsewhere = tmp_path / "bridge_elsewhere.json"
+        elsewhere.write_text(json.dumps(bridge_report_doc(MADE_1029)), encoding="utf-8")
+        doc = M.run(tmp_path, data_dir=data, write=False, now=NOW, bridge_report=elsewhere,
+                    criteria=CRITERIA, tact_rows=rows, manifest=man, loaded=set(),
+                    live_rows=live_rows(LIVE_1113), session_entries=[])
+        assert doc["writers"]["bridge_channel"]["path"] == str(elsewhere)
+        assert doc["writers"]["counts"][M.WRITER_BRIDGE_RUN] == 13
+
+    def test_cli_accepts_the_bridge_report_flag(self, tmp_path, monkeypatch):
+        data, rows, man = scene(tmp_path)
+        elsewhere = tmp_path / "bridge_elsewhere.json"
+        elsewhere.write_text(json.dumps(bridge_report_doc(MADE_1029)), encoding="utf-8")
+        seen: dict = {}
+
+        def fake_run(**kw):
+            seen.update(kw)
+            return {"counts": {"critical": 0, "warn": 0}, "findings": [], "writers": None}
+        monkeypatch.setattr(M, "run", fake_run)
+        rc = M.main(["--bridge-report", str(elsewhere), "--no-write", "--json"])
+        assert rc == 0 and seen["bridge_report"] == str(elsewhere)
+
+    # ─── находки ───
+
+    def test_finding_bridge_run_without_a_stamp_replaces_the_batch_question(self, tmp_path):
+        data, rows, man = scene(tmp_path)
+        write_bridge_report(data, bridge_report_doc(MADE_1029))
+        doc = M.measure(tmp_path, data_dir=data, now=NOW, criteria=CRITERIA, tact_rows=rows,
+                        manifest=man, loaded=set(), live_rows=live_rows(LIVE_1113),
+                        session_entries=[])
+        keys = {f["key"]: f for f in doc["findings"]}
+        assert "batch_without_a_caller" not in keys  # все 13 отнесены прогону моста
+        f = keys["bridge_run_without_a_stamp"]
+        assert f["severity"] == "unchecked"
+        assert "13 входов" in f["text"] and M.BRIDGE_REPORT_NAME in f["text"]
+        assert "штампа `invoked_by` у него нет" in f["text"] and "отчёт не различает" in f["text"]
+        assert "no_hands" not in keys and "bridge_run_caller_named" not in keys
+
+    def test_finding_caller_named_is_info(self, tmp_path):
+        data, rows, man = scene(tmp_path)
+        write_bridge_report(data, bridge_report_doc(
+            MADE_1029, invoked_by={"entry": "launchd:com.spa.decision_loop"}))
+        doc = M.measure(tmp_path, data_dir=data, now=NOW, criteria=CRITERIA, tact_rows=rows,
+                        manifest=man, loaded=set(), live_rows=live_rows(LIVE_1113),
+                        session_entries=[])
+        keys = {f["key"]: f for f in doc["findings"]}
+        assert "bridge_run_without_a_stamp" not in keys
+        assert keys["bridge_run_caller_named"]["severity"] == "info"
+        assert "launchd:com.spa.decision_loop" in keys["bridge_run_caller_named"]["text"]
+
+    def test_bridge_findings_are_asked_only_of_a_dead_producer(self, tmp_path):
+        data, rows, man = scene(tmp_path)
+        write_bridge_report(data, bridge_report_doc(MADE_1029))
+        alive = M.measure(tmp_path, data_dir=data, now=NOW, criteria=CRITERIA, tact_rows=rows,
+                          manifest=man, loaded={"com.spa.decision_loop"},
+                          live_rows=live_rows(LIVE_1113), session_entries=[])
+        keys = {f["key"] for f in alive["findings"]}
+        assert "bridge_run_without_a_stamp" not in keys and "no_hands" in keys
+
+    def test_batch_finding_names_the_bridge_channel_outcome(self, tmp_path):
+        """Три исхода второго канала в тексте кучи различимы: не прочитан · не накрывает · прогонов нет."""
+        data, rows, man = scene(tmp_path)
+        base = dict(data_dir=data, now=NOW, criteria=CRITERIA, tact_rows=rows, manifest=man,
+                    loaded=set(), live_rows=live_rows(LIVE_1113), session_entries=[])
+        unread = M.measure(tmp_path, **base)
+        text = next(f for f in unread["findings"] if f["key"] == "batch_without_a_caller")["text"]
+        assert "отчёт моста НЕ ПРОЧИТАН" in text and M.BRIDGE_REPORT_NAME in text
+        none = M.measure(tmp_path, bridge_runs=[], **base)
+        text = next(f for f in none["findings"] if f["key"] == "batch_without_a_caller")["text"]
+        assert "в отчёте моста прогонов нет" in text
+        far = [{"started_at": (NOW - dt.timedelta(hours=600)).isoformat(),
+                "generated_at": (NOW - dt.timedelta(hours=599)).isoformat(), "caller": None}]
+        miss = M.measure(tmp_path, bridge_runs=far, **base)
+        text = next(f for f in miss["findings"] if f["key"] == "batch_without_a_caller")["text"]
+        assert "эти входы не накрывает" in text and "отчёта не оставил" in text
+
+    # ─── длительность записи ───
+
+    def test_write_lag_is_mtime_minus_generated_at_live_control_0311(self, tmp_path):
+        """03.11: `decision_reproducibility` generated_at 01:05:36, mtime 01:06:07 — 31 с ступени."""
+        import os
+        data, rows, man = scene(tmp_path)
+        path = M.artifact_path(data, rows[0]["artifact"])
+        made = M.parse_ts(json.loads(path.read_text())["generated_at"])
+        when = (made + dt.timedelta(seconds=31)).timestamp()
+        os.utime(path, (when, when))
+        inputs = M.input_rows(rows, data_dir=data, now=NOW)
+        row = M.writer_rows(inputs, entries=[], now=NOW, bridge_runs=[], data_dir=data)["rows"][0]
+        assert row["write_lag_s"] == 31.0
+        assert M.parse_ts(row["written_at"]) == made + dt.timedelta(seconds=31)
+        assert "запись длилась 31 с" in row["why"]
+
+    def test_the_mtime_door_is_an_input(self, tmp_path):
+        data, rows, man = scene(tmp_path)
+        inputs = M.input_rows(rows, data_dir=data, now=NOW)
+        made = M.parse_ts(inputs[0]["generated_at"])
+        asked: list = []
+
+        def fake_mtime(path):
+            asked.append(path)
+            return made + dt.timedelta(seconds=51)
+        row = M.writer_rows(inputs, entries=[], now=NOW, bridge_runs=[], data_dir=data,
+                            written_at_of=fake_mtime)["rows"][0]
+        assert row["write_lag_s"] == 51.0 and asked[0] == M.artifact_path(data, rows[0]["artifact"])
+
+    def test_write_lag_is_unmeasured_without_a_data_dir(self, tmp_path):
+        data, rows, man = scene(tmp_path)
+        inputs = M.input_rows(rows, data_dir=data, now=NOW)
+        row = M.writer_rows(inputs, entries=[], now=NOW, bridge_runs=[])["rows"][0]
+        assert row["written_at"] is None and row["write_lag_s"] is None
+        assert "длилась" not in row["why"]
+
+    def test_write_lag_is_unmeasured_for_a_vanished_file(self, tmp_path):
+        data, rows, man = scene(tmp_path)
+        inputs = M.input_rows(rows, data_dir=data, now=NOW)
+        M.artifact_path(data, rows[0]["artifact"]).unlink()
+        row = M.writer_rows(inputs, entries=[], now=NOW, bridge_runs=[], data_dir=data)["rows"][0]
+        assert row["written_at"] is None and row["write_lag_s"] is None
+
+    def test_batch_finding_prints_the_lag_span(self, tmp_path):
+        import os
+        data, rows, man = scene(tmp_path)
+        # mtime у КАЖДОГО файла — от его generated_at, иначе лаг зависел бы от календаря
+        for r, lag in zip(rows, (31, 51, 5) + (0,) * (len(rows) - 3)):
+            path = M.artifact_path(data, r["artifact"])
+            made = M.parse_ts(json.loads(path.read_text())["generated_at"])
+            when = (made + dt.timedelta(seconds=lag)).timestamp()
+            os.utime(path, (when, when))
+        doc = M.measure(tmp_path, data_dir=data, now=NOW, criteria=CRITERIA, tact_rows=rows,
+                        manifest=man, loaded=set(), live_rows=live_rows(LIVE_1113),
+                        session_entries=[], bridge_runs=[])
+        text = next(f for f in doc["findings"] if f["key"] == "batch_without_a_caller")["text"]
+        assert "запись длилась 0…51 с" in text
+
+    def test_batch_finding_says_lag_unmeasured_when_no_mtime(self, tmp_path):
+        data, rows, man = scene(tmp_path)
+        inputs = M.input_rows(rows, data_dir=data, now=NOW)
+        w = M.writer_rows(inputs, entries=[], now=NOW, bridge_runs=[])
+        producers = M.producer_rows(inputs, manifest=man, loaded=set(), now=NOW, writers=w)
+        tally = M.tally_state(data, manifest=man, now=NOW)
+        found = M.findings(inputs, producers, tally, M.drift(tally["rows"], live_rows(LIVE_1113)), w)
+        text = next(f for f in found if f["key"] == "batch_without_a_caller")["text"]
+        assert "длительность записи НЕ ИЗМЕРЕНА" in text
+
+    # ─── отрисовка ───
+
+    def test_report_prints_the_bridge_run_and_the_channel(self, tmp_path):
+        data, rows, man = scene(tmp_path)
+        write_bridge_report(data, bridge_report_doc(MADE_1029))
+        doc = M.measure(tmp_path, data_dir=data, now=NOW, criteria=CRITERIA, tact_rows=rows,
+                        manifest=man, loaded=set(), live_rows=live_rows(LIVE_1113),
+                        session_entries=[])
+        out = "\n".join(M.format_report(doc))
+        assert "рукой 0 · прогоном моста 13 · не назван 0 · без часов 0" in out
+        assert f"отчёт моста ({M.BRIDGE_REPORT_NAME}): прогонов 1" in out
+        assert "зовущий НЕ НАЗВАН (штампа нет)" in out
+        assert "[bridge_run] Architecture" in out and "ADR-996" in out
+
+    def test_report_says_channel_unread_or_absent(self, tmp_path):
+        data, rows, man = scene(tmp_path)
+        doc = M.measure(tmp_path, data_dir=data, now=NOW, criteria=CRITERIA, tact_rows=rows,
+                        manifest=man, loaded=set(), live_rows=live_rows(LIVE_1113),
+                        session_entries=[])
+        out = "\n".join(M.format_report(doc))
+        assert "отчёт моста: НЕ ПРОЧИТАН" in out
+        v2 = json.loads(json.dumps(doc))
+        del v2["writers"]["bridge_channel"]
+        assert "канала нет в артефакте — схема v2" in "\n".join(M.format_report(v2))
