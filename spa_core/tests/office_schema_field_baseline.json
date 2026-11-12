@@ -145,6 +145,12 @@
   "edges_wired",
   "edges_total",
   "orchestrators",
+  "hidden_stages",
+  "hidden_stage_sites",
+  "rewriters_unmeasured_edges",
+  "stage_order",
+  "order_inversions",
+  "stages_off_path",
   "findings"
  ],
  "cio_explainability.json": [

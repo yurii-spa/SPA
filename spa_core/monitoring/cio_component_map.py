@@ -98,10 +98,40 @@
 отдаётся человеку; машинного носителя здесь быть не должно.
 ``UNCHECKED`` — измерить не удалось, причина названа. Не ноль, не скип.
 
+Третий вопрос §46 (ADR-991, цикл #1109): ТО ЛИ значение доходит до ступени?
+============================================================================
+Стык ``WIRED_IN_PROCESS`` верен и недостаточен: имя, рождённое ``allocate()``,
+доходит до ``write_shadow_rationale`` — но между двумя вызовами его
+ПЕРЕСВЯЗЫВАЮТ девять присваиваний (ADR-989 насчитал их чтением строк 1631–2404),
+и семь делают функции, которых в карте владельца НЕТ: стоп-кран, мягкий дерискинг,
+ADR-002, постура RTMR, псевдонимы пулов, трим ADR-850. «Состав 10/10, строить
+нечего» (ADR-253) был ответом о ПРОПИСАННЫХ ступенях; о непрописанных карта не
+знала по построению — ровно то, что владелец запретил словами «не создавать
+новые компоненты, если эквиваленты уже существуют».
+
+:func:`carrier_rewriters` — площадка есть присваивание в том же теле функции,
+строго между входами, ПЕРЕсвязывающее имя носителя значением с вызовом. Первое
+связывание производного имени — не переписчик (найдено на себе:
+``_policy_refusals = quantify_policy_refusals(...)``); ``dict(gate[...])``
+приписывается тому, кто связал ``gate``. Вызов входа ДРУГОЙ ступени карты —
+«прописанная не на своём стыке» (Risk Gate стои́т в живом цикле ДО Target
+Allocation), всё прочее — СКРЫТАЯ ступень.
+
+:func:`stage_order` — порядок ПЕРВОГО вызова входов на СКВОЗНОМ пути, приведённый к
+корню по графу вызовов (голым именем: ``_mod2.main()`` — чужой модуль, и первая
+редакция замыкала граф в кольцо). Ветка раннего выхода (``if not live: … return``)
+на путь не ложится — иначе ветка «данных нет» читалась бы как порядок торгового
+дня. Это ПРОКСИ: строка ≠ исполнение, позиции печатаются целиком.
+
+Исходы оси: ``measured`` (в т. ч. «измерено и равно нулю») · ``unmeasured`` с
+причиной (входы в разных функциях, корня нет) · ``not_applicable`` для файлового
+носителя. Ступень вне сквозного пути — ``off_path``, не вызванная — ``unreached``;
+ни то, ни другое не инверсия и не ноль.
+
 Положительный контроль — условие ВСЕГО отчёта
 =============================================
 «Читателя нет» ничего не значит, если проба слепа. Счёт читается, только если
-выполнены ПЯТЬ условий (:func:`positive_control`); не выполнено любое ⇒
+выполнены ДЕВЯТЬ условий (:func:`positive_control`); не выполнено любое ⇒
 ``overall="UNCHECKED"``:
 
 **К1** проба умеет сказать «связано» на сцене, где читатель есть.
@@ -113,6 +143,12 @@
 **К5, обратный** — оркестратор, который зовёт обе ступени, но НЕ передаёт
 результат, носителем не является. Без К5 второй носитель выродился бы в
 «оба имени встретились в одном файле».
+**К6** проба переписчиков видит СКРЫТУЮ ступень между входами.
+**К7, обратный** — псевдоним без вызова и первое связывание производного имени
+переписчиками НЕ являются (ноль на чистом носителе).
+**К8** проба порядка видит инверсию против порядка владельца.
+**К9, обратный** — цикл в порядке владельца даёт ноль инверсий, а вызов в ветке
+раннего выхода не ложится на путь.
 """
 
 from __future__ import annotations
@@ -731,8 +767,372 @@ def measure(root: Path, stages: tuple[Stage, ...] = STAGES) -> dict[str, Any]:
                 edge.update(verdict="DEAD_END",
                             note="продукт не получает никто, кроме производителя")
         edges.append(edge)
+
+    # Третья ось (ADR-991): на стыке, который несёт ход значением, — кто
+    # ПЕРЕСВЯЗЫВАЕТ носитель между входами; и порядок первого вызова входов.
+    declared = {e: st.key for st in stages for e in st.entry}
+    for edge in edges:
+        if edge["verdict"] != "WIRED_IN_PROCESS":
+            edge["rewriters"] = {"verdict": "not_applicable",
+                                 "reason": "носитель не в памяти оркестратора"}
+            continue
+        rel = edge["carrier"].split(":", 1)[1]
+        edge["rewriters"] = carrier_rewriters(
+            orchestrators[rel], entries.get(edge["from"], set()),
+            entries.get(edge["to"], set()), declared)
+    human = frozenset(st.key for st in stages if st.kind == "human")
+    order = {rel: stage_order(tree, {st.key: set(st.entry) for st in stages},
+                              tuple(st.key for st in stages), human)
+             for rel, tree in orchestrators.items()}
     return {"role": role, "readers": readers, "registry": registry,
-            "entries": {k: sorted(v) for k, v in entries.items()}, "edges": edges}
+            "entries": {k: sorted(v) for k, v in entries.items()}, "edges": edges,
+            "order": order}
+
+
+# ───────── переписчики носителя и порядок ступеней (ADR-991, перемер §46 #1109) ─────────
+#
+# Третий вопрос §46, которого не было у первых двух: **то ли самое значение доходит
+# до следующей ступени, что произвела предыдущая?** Стык «Portfolio Optimizer →
+# Target Allocation» с цикла #515 числится ``WIRED_IN_PROCESS`` — и это верно: имя,
+# рождённое ``allocate()``, доходит до аргумента ``write_shadow_rationale``. Но между
+# двумя вызовами то же имя ПЕРЕСВЯЗЫВАЮТ девять присваиваний (замер ADR-989,
+# строки 1631–2404 ``cycle_runner``), и семь из девяти делают функции, которых в
+# карте владельца нет: стоп-кран, мягкий дерискинг, ADR-002, постура RTMR,
+# псевдонимы пулов, трим ADR-850. Карта говорила «состав 10/10, строить нечего» —
+# о ПРОПИСАННЫХ ступенях; о непрописанных она не знала по построению.
+#
+# Второй вопрос той же оси — ПОРЯДОК: владелец назвал цепь упорядоченной
+# (Target Allocation → Rebalance Evaluator → Risk Gate), а живой цикл зовёт входы
+# в своём порядке. Мера — ПЕРВАЯ строка вызова входа, приведённая к общему корню
+# через граф вызовов функций оркестратора (вызов внутри помощника стои́т там, где
+# стои́т вызов помощника). Это ПРОКСИ: строка не равна исполнению при ветвлении,
+# и прибор печатает позиции целиком, чтобы читатель судил сам. Мерить порядок
+# динамикой значило бы запускать дневной цикл — против живого ``data/`` нельзя.
+
+#: Конструкторы-копии: ``target_usd = dict(gate["target_usd"])`` переписывает
+#: носитель не сам — его переписал тот, кто связал ``gate``. Площадка
+#: приписывается ЕМУ, иначе два трима RiskPolicy читались бы как «dict».
+_COPY_CTORS = {"dict", "list", "tuple", "set", "frozenset", "sorted",
+               "copy", "deepcopy"}
+
+#: Предел глубины графа вызовов при приведении строки к корню.
+_CALL_DEPTH = 12
+
+
+def _target_names(node: ast.AST) -> set[str]:
+    """Имена, которые связывает цель присваивания (``Name`` либо распаковка)."""
+    if isinstance(node, ast.Name):
+        return {node.id}
+    if isinstance(node, (ast.Tuple, ast.List)):
+        out: set[str] = set()
+        for e in node.elts:
+            out |= _target_names(e)
+        return out
+    if isinstance(node, ast.Starred):
+        return _target_names(node.value)
+    return set()
+
+
+def _defs(tree: ast.AST) -> list[ast.AST]:
+    return [n for n in ast.walk(tree)
+            if isinstance(n, (ast.FunctionDef, ast.AsyncFunctionDef))]
+
+
+def _enclosing_def(tree: ast.AST, lineno: int) -> ast.AST | None:
+    """Самая ВНУТРЕННЯЯ функция, в чьи строки попадает ``lineno``."""
+    best = None
+    for n in _defs(tree):
+        end = getattr(n, "end_lineno", None) or n.lineno
+        if n.lineno <= lineno <= end and (best is None or n.lineno > best.lineno):
+            best = n
+    return best
+
+
+def _early_exit_ranges(fn: ast.AST) -> list[tuple[int, int]]:
+    """Строки веток ``if``/``else``, которые кончаются ``return``/``raise``, ПОКА за
+    самим ``if`` в том же блоке ещё есть операторы.
+
+    Такая ветка — РАННИЙ ВЫХОД (``if not live: … return result``): вызов в ней не
+    лежит на сквозном пути функции, и судить по нему о порядке ступеней значило бы
+    читать ветку «данных нет» как порядок торгового дня (найдено на себе, #1109:
+    ``_run_daily_report`` в ``cycle_runner`` зовётся ТОЛЬКО там). Хвост функции
+    (``return`` последним оператором) и ``try`` ранним выходом НЕ являются —
+    первая редакция считала их таковыми и объявила весь цикл «вне пути».
+    """
+    out: list[tuple[int, int]] = []
+
+    def block(stmts: list[ast.stmt]) -> None:
+        for i, st in enumerate(stmts):
+            follows = i < len(stmts) - 1
+            if isinstance(st, ast.If):
+                for br in (st.body, st.orelse):
+                    if br and follows and isinstance(br[-1], (ast.Return, ast.Raise)):
+                        out.append((br[0].lineno,
+                                    getattr(br[-1], "end_lineno", br[-1].lineno)))
+                    block(br)
+                continue
+            for attr in ("body", "orelse", "finalbody"):
+                sub = getattr(st, attr, None)
+                if isinstance(sub, list) and sub and isinstance(sub[0], ast.stmt):
+                    block(sub)
+            for h in getattr(st, "handlers", []) or []:
+                block(h.body)
+
+    block(list(getattr(fn, "body", [])))
+    return out
+
+
+def _in_returning_branch(fn: ast.AST, lineno: int,
+                         ranges: list[tuple[int, int]] | None = None) -> bool:
+    """Стои́т ли строка в ветке раннего выхода функции (см. :func:`_early_exit_ranges`)."""
+    for a, b in (ranges if ranges is not None else _early_exit_ranges(fn)):
+        if a <= lineno <= b:
+            return True
+    return False
+
+
+def _import_aliases(tree: ast.AST) -> dict[str, str]:
+    """``from m import f as g`` → ``{g: f}``: вызов ``g(...)`` есть вызов входа ``f``."""
+    out: dict[str, str] = {}
+    for n in ast.walk(tree):
+        if isinstance(n, ast.ImportFrom):
+            for a in n.names:
+                if a.asname and a.asname != a.name:
+                    out[a.asname] = a.name
+    return out
+
+
+def _call_args(call: ast.Call) -> list[ast.AST]:
+    return list(call.args) + [k.value for k in call.keywords if k.value is not None]
+
+
+def _entry_calls(tree: ast.AST, entries: set[str],
+                 aliases: dict[str, str]) -> list[ast.Call]:
+    out = []
+    for n in ast.walk(tree):
+        if isinstance(n, ast.Call):
+            nm = _call_name(n)
+            if aliases.get(nm, nm) in entries:
+                out.append(n)
+    return sorted(out, key=lambda c: c.lineno)
+
+
+def carrier_rewriters(tree: ast.AST, up_entries: set[str], down_entries: set[str],
+                      declared: dict[str, str]) -> dict[str, Any]:
+    """Кто ПЕРЕСВЯЗЫВАЕТ носитель между входом верхней ступени и входом нижней.
+
+    Носитель — имена, рождённые возвратом верхнего входа, которые доходят до
+    аргумента нижнего (та же мера, что у :func:`in_process_carrier`). Площадка —
+    присваивание в том же теле функции, строго между двумя вызовами, связывающее
+    имя носителя значением, в котором есть ВЫЗОВ. Псевдоним без вызова
+    (``x = y``) переписчиком не является. ``declared`` — вход → ключ прописанной
+    ступени; вызов входа другой ступени карты здесь — «прописанная не на своём
+    стыке», всё прочее — СКРЫТАЯ ступень.
+
+    Три исхода: ``measured`` · ``unmeasured`` с причиной (входы в разных функциях
+    или не найдены — строка там порядком не является) · пустой список площадок
+    при ``measured`` — «измерено и равно нулю».
+    """
+    base: dict[str, Any] = {"function": "", "span": [], "carried": [], "sites": [],
+                            "hidden": [], "declared_out_of_place": []}
+    aliases = _import_aliases(tree)
+    # Вход, ввезённый под псевдонимом (``rebalance_portfolio as _rb``), рождает
+    # носитель под псевдонимом же — происхождение ищется по обоим именам.
+    up_names = set(up_entries) | {a for a, n in aliases.items() if n in up_entries}
+    produced = _produced_by(tree, up_names)
+    if not produced:
+        return {**base, "verdict": "unmeasured",
+                "reason": "возврат входа верхней ступени не связан ни с одним именем"}
+    ups = _entry_calls(tree, up_entries, aliases)
+    if not ups:
+        return {**base, "verdict": "unmeasured",
+                "reason": "вызова входа верхней ступени в оркестраторе нет"}
+    up_call = ups[0]
+    downs = []
+    for c in _entry_calls(tree, down_entries, aliases):
+        carried = {v for node in _call_args(c) for k, v in _atoms(node)
+                   if k == "n" and v in produced}
+        if carried and c.lineno > up_call.lineno:
+            downs.append((c, carried))
+    if not downs:
+        return {**base, "verdict": "unmeasured",
+                "reason": ("ни один вызов входа нижней ступени после входа верхней "
+                           "не получает её продукт аргументом")}
+    down_call, carried = downs[0]
+    fn_up = _enclosing_def(tree, up_call.lineno)
+    fn_down = _enclosing_def(tree, down_call.lineno)
+    if fn_up is None or fn_up is not fn_down:
+        return {**base, "verdict": "unmeasured",
+                "span": [up_call.lineno, down_call.lineno],
+                "reason": (f"входы вызываются в разных функциях "
+                           f"({getattr(fn_up, 'name', '<модуль>')} / "
+                           f"{getattr(fn_down, 'name', '<модуль>')}) — порядок по "
+                           "строкам там носителем не является")}
+    binders: dict[str, list[tuple[int, str]]] = {}
+    first_bind: dict[str, int] = {}
+    for n in ast.walk(fn_up):
+        if not isinstance(n, ast.Assign):
+            continue
+        for t in n.targets:
+            for nm in _target_names(t):
+                first_bind[nm] = min(first_bind.get(nm, n.lineno), n.lineno)
+                if isinstance(n.value, ast.Call):
+                    cn = _call_name(n.value)
+                    binders.setdefault(nm, []).append((n.lineno, aliases.get(cn, cn)))
+    sites: list[dict[str, Any]] = []
+    for n in sorted((x for x in ast.walk(fn_up) if isinstance(x, ast.Assign)),
+                    key=lambda x: x.lineno):
+        if not (up_call.lineno < n.lineno < down_call.lineno):
+            continue
+        bound: set[str] = set()
+        for t in n.targets:
+            bound |= _target_names(t)
+        # ПЕРЕсвязывание: имя уже было связано раньше. Первое связывание
+        # производного имени (``_policy_refusals = quantify(...)``) — не
+        # переписчик носителя, а его производная; замер #1109 нашёл это на себе.
+        bound = {b for b in bound & carried if first_bind.get(b, n.lineno) < n.lineno}
+        if not bound:
+            continue
+        atoms = _atoms(n.value)
+        callees = sorted(v for k, v in atoms if k == "f")
+        if not callees:
+            continue                       # псевдоним без вызова — не переписчик
+        callee = _call_name(n.value) if isinstance(n.value, ast.Call) else callees[0]
+        via = ""
+        if callee in _COPY_CTORS:
+            inner = sorted(v for k, v in atoms if k == "n" and v not in bound)
+            for nm in inner:
+                cands = [(ln, cl) for ln, cl in binders.get(nm, []) if ln < n.lineno]
+                if cands:
+                    callee, via = max(cands)[1], nm
+                    break
+        callee = aliases.get(callee, callee)
+        key = declared.get(callee, "")
+        sites.append({"line": n.lineno, "bound": sorted(bound), "callee": callee,
+                      "via": via, "stage": key,
+                      "kind": "declared" if key else "hidden"})
+    return {**base, "verdict": "measured", "reason": "", "function": fn_up.name,
+            "span": [up_call.lineno, down_call.lineno], "carried": sorted(carried),
+            "sites": sites,
+            "hidden": sorted({s["callee"] for s in sites if s["kind"] == "hidden"}),
+            "declared_out_of_place": sorted({s["stage"] for s in sites
+                                             if s["kind"] == "declared"})}
+
+
+def stage_order(tree: ast.AST, stage_entries: dict[str, set[str]],
+                owner_order: tuple[str, ...],
+                skip: frozenset[str] = frozenset()) -> dict[str, Any]:
+    """Порядок ПЕРВОГО вызова входов ступеней в оркестраторе против порядка владельца.
+
+    Позиция — кортеж строк по пути графа вызовов от корня (функции, которую не
+    зовёт никто) до вызова входа; вызов внутри помощника стои́т там, где стои́т
+    вызов помощника. Корней может быть несколько — берётся тот, под которым
+    достижимо больше ступеней, и он ПЕЧАТАЕТСЯ. ``skip`` — ступени, порядок
+    которых не меряется по построению (род ``human``). Инверсия — пара ступеней
+    владельца, вызванная в обратном порядке.
+    """
+    aliases = _import_aliases(tree)
+    defs = _defs(tree)
+    names = {d.name for d in defs}
+    # Вызов = (строка, лежит ли он в ветке раннего выхода). Второе поле едет по
+    # всему пути: помощник, позванный из ветки ``if not live: … return``, сам
+    # стои́т вне сквозного пути, даже если внутри него ветвления нет.
+    calls_in: dict[str, dict[str, tuple[bool, int]]] = {d.name: {} for d in defs}
+    # Граф «кто кого зовёт» строится ТОЛЬКО по вызовам голым именем: ``x.main()``
+    # — чужой модуль, и считать его вызовом своего ``main`` значит замкнуть граф в
+    # кольцо (замер #1109: ``_mod2.main()`` в ``cycle_runner`` делал корнем
+    # ``_run_fundability_pack``). Входы ступеней меряются и через атрибут.
+    graph: dict[str, dict[str, tuple[bool, int]]] = {d.name: {} for d in defs}
+    early: dict[str, list[tuple[int, int]]] = {d.name: _early_exit_ranges(d) for d in defs}
+    for n in ast.walk(tree):
+        if not isinstance(n, ast.Call):
+            continue
+        fn = _enclosing_def(tree, n.lineno)
+        if fn is None:
+            continue
+        cn = _call_name(n)
+        cn = aliases.get(cn, cn)
+        # Предпочтение — вызову на СКВОЗНОМ пути: ``main`` зовёт ``_main_inner``
+        # дважды, первый раз в ветке ``--dry-run`` с ранним возвратом (#1109).
+        rec = (_in_returning_branch(fn, n.lineno, early[fn.name]), n.lineno)
+        cur = calls_in[fn.name]
+        if cn not in cur or rec < cur[cn]:
+            cur[cn] = rec
+        if isinstance(n.func, ast.Name) and cn in names:
+            g = graph[fn.name]
+            if cn not in g or rec < g[cn]:
+                g[cn] = rec
+    callers = {f: sorted(c for c, cs in graph.items() if f in cs and c != f)
+               for f in names}
+
+    def paths(fname: str, seen: tuple[str, ...] = ()
+              ) -> list[tuple[str, tuple[int, ...], bool]]:
+        if not callers[fname]:
+            return [(fname, (), False)]
+        if len(seen) >= _CALL_DEPTH:
+            return []
+        out = []
+        for c in callers[fname]:
+            if c in seen:
+                continue                   # кольцо — путь обрывается, корня нет
+            early, ln = graph[c][fname]
+            for root, p, e in paths(c, seen + (fname,)):
+                out.append((root, p + (ln,), e or early))
+        return out
+
+    occurrences: dict[str, list[tuple[str, tuple[int, ...], str, bool]]] = {}
+    for key, entries in stage_entries.items():
+        occ = []
+        for fname, cs in calls_in.items():
+            for e in entries:
+                if e in cs:
+                    early, ln = cs[e]
+                    for root, p, pe in paths(fname):
+                        occ.append((root, p + (ln,), fname, pe or early))
+        occurrences[key] = occ
+    roots_cover: dict[str, set[str]] = {}
+    for key, occ in occurrences.items():
+        for root, _, _, _ in occ:
+            roots_cover.setdefault(root, set()).add(key)
+    if not roots_cover:
+        return {"verdict": "unmeasured", "reason": "ни один вход ступени в оркестраторе не вызван",
+                "root": "", "positions": {}, "off_path": {}, "unreached": sorted(stage_entries),
+                "inversions": [], "owner_order": list(owner_order)}
+    root = sorted(roots_cover, key=lambda r: (-len(roots_cover[r]), r))[0]
+    positions: dict[str, dict[str, Any]] = {}
+    off_path: dict[str, dict[str, Any]] = {}
+    unreached: list[str] = []
+    for key in owner_order:
+        if key in skip:
+            continue
+        occ = sorted((p, f, e) for r, p, f, e in occurrences.get(key, []) if r == root)
+        on = [(p, f) for p, f, e in occ if not e]
+        if on:
+            positions[key] = {"first": list(on[0][0]), "function": on[0][1],
+                              "calls": len(occ), "early_return_calls": len(occ) - len(on)}
+        elif occ:
+            off_path[key] = {"first": list(occ[0][0]), "function": occ[0][1],
+                             "calls": len(occ),
+                             "reason": "все вызовы входа лежат в ветке раннего выхода"}
+        else:
+            unreached.append(key)
+    inversions = []
+    ordered = [k for k in owner_order if k in positions]
+    for i, a in enumerate(ordered):
+        for b in ordered[i + 1:]:
+            if tuple(positions[a]["first"]) > tuple(positions[b]["first"]):
+                inversions.append([a, b])
+    live = sorted(ordered, key=lambda k: tuple(positions[k]["first"]))
+    if len(positions) < 2:
+        return {"verdict": "unmeasured", "reason": "под корнем достижимо меньше двух ступеней",
+                "root": root, "positions": positions, "off_path": off_path,
+                "unreached": unreached, "inversions": [], "owner_order": list(owner_order),
+                "live_order": live}
+    return {"verdict": "measured", "reason": "", "root": root, "positions": positions,
+            "off_path": off_path, "unreached": unreached, "inversions": inversions,
+            "owner_order": [k for k in owner_order if k not in skip], "live_order": live,
+            "method": ("позиция = первая строка вызова, приведённая к корню по графу "
+                       "вызовов (ПРОКСИ: строка ≠ исполнение при ветвлении)")}
 
 
 # ─────────────────────────── положительный контроль ───────────────────────────
@@ -762,8 +1162,37 @@ _ORCH_BLIND = ('from spa_core.probe_up import run\n'
                '    return read(d)\n')   # …но результат не передаёт
 
 
+_ORCH_REWRITES = ('from spa_core.probe_up import run\n'
+                  'from spa_core.probe_down import read\n'
+                  'from spa_core.probe_hidden import clamp\n'
+                  'def cycle(d):\n'
+                  '    res = run(d)\n'
+                  '    res = clamp(res)\n'          # скрытая ступень
+                  '    return read(res)\n')
+_ORCH_CLEAN = ('from spa_core.probe_up import run\n'
+               'from spa_core.probe_down import read\n'
+               'def cycle(d):\n'
+               '    res = run(d)\n'
+               '    same = res\n'                   # псевдоним без вызова
+               '    extra = len(res)\n'            # первое связывание производного
+               '    return read(same, extra)\n')
+_ORCH_INVERTED = ('from spa_core.a import first\n'
+                  'from spa_core.b import second\n'
+                  'def cycle(d):\n'
+                  '    second(d)\n'
+                  '    first(d)\n')
+_ORCH_ORDERED = ('from spa_core.a import first\n'
+                 'from spa_core.b import second\n'
+                 'def cycle(d, live):\n'
+                 '    if not live:\n'
+                 '        second(d)\n'             # ранний выход — не путь
+                 '        return 0\n'
+                 '    first(d)\n'
+                 '    second(d)\n')
+
+
 def positive_control() -> dict[str, Any]:
-    """Пять сцен; не выполнена любая ⇒ счёт читать нельзя.
+    """Девять сцен; не выполнена любая ⇒ счёт читать нельзя.
 
     Сцены разбираются в памяти: живое дерево не читается и не пишется.
     """
@@ -786,6 +1215,24 @@ def positive_control() -> dict[str, Any]:
         "k5_calling_both_is_not_carrying": not in_process_carrier(
             ast.parse(_ORCH_BLIND), {"run"}, {"read"}),
     }
+    # К6/К7 — переписчики носителя; К8/К9 — порядок (ADR-991).
+    rw_hidden = carrier_rewriters(ast.parse(_ORCH_REWRITES), {"run"}, {"read"},
+                                  {"run": "up", "read": "down"})
+    rw_clean = carrier_rewriters(ast.parse(_ORCH_CLEAN), {"run"}, {"read"},
+                                 {"run": "up", "read": "down"})
+    checks["k6_rewriter_probe_sees_a_hidden_stage"] = (
+        rw_hidden["verdict"] == "measured" and rw_hidden["hidden"] == ["clamp"])
+    checks["k7_alias_and_derivative_are_not_rewriters"] = (
+        rw_clean["verdict"] == "measured" and rw_clean["sites"] == [])
+    od_inv = stage_order(ast.parse(_ORCH_INVERTED), {"a": {"first"}, "b": {"second"}},
+                         ("a", "b"))
+    od_ok = stage_order(ast.parse(_ORCH_ORDERED), {"a": {"first"}, "b": {"second"}},
+                        ("a", "b"))
+    checks["k8_order_probe_sees_an_inversion"] = (
+        od_inv["verdict"] == "measured" and od_inv["inversions"] == [["a", "b"]])
+    checks["k9_owner_order_gives_zero_and_early_exit_is_off_path"] = (
+        od_ok["verdict"] == "measured" and od_ok["inversions"] == []
+        and od_ok["positions"]["b"]["first"][-1] == 8)
     return {"passed": all(checks.values()), "checks": checks}
 
 
@@ -817,6 +1264,51 @@ def _findings(meas: dict[str, Any]) -> list[dict[str, str]]:
                                  "его не берёт ни файлом, ни значением")})
         elif e["verdict"] == "UNCHECKED":
             out.append({"severity": "unchecked", "text": f"{head}: {e['note']}"})
+        rw = e.get("rewriters") or {}
+        if rw.get("verdict") == "unmeasured":
+            out.append({"severity": "unchecked",
+                        "text": f"переписчики носителя «{head}» не измерены: {rw['reason']}"})
+        elif rw.get("verdict") == "measured":
+            if rw["hidden"]:
+                n_sites = sum(1 for s in rw["sites"] if s["kind"] == "hidden")
+                rebound = sorted({b for s in rw["sites"] for b in s["bound"]})
+                out.append({"severity": "critical",
+                            "text": (f"СКРЫТЫЕ СТУПЕНИ на стыке «{head}»: носитель "
+                                     f"`{', '.join(rebound)}` между входами "
+                                     f"(строки {rw['span'][0]}–{rw['span'][1]} "
+                                     f"`{rw['function']}`) пересвязывают "
+                                     f"{len(rw['hidden'])} функций, которых в карте "
+                                     f"владельца нет, на {n_sites} площадках: "
+                                     f"{', '.join(rw['hidden'])}. «Состав 10/10, "
+                                     "строить нечего» был о ПРОПИСАННЫХ ступенях")})
+            for key in rw["declared_out_of_place"]:
+                nm = next((s.owner_name for s in STAGES if s.key == key), key)
+                n_sites = sum(1 for s in rw["sites"] if s["stage"] == key)
+                out.append({"severity": "warn",
+                            "text": (f"прописанная ступень «{nm}» переписывает носитель "
+                                     f"стыка «{head}» ({n_sites} площадк(а/и)) — в карте "
+                                     "владельца она стои́т не здесь")})
+    for rel, od in (meas.get("order") or {}).items():
+        if od["verdict"] == "unmeasured":
+            out.append({"severity": "unchecked",
+                        "text": f"порядок ступеней в {rel} не измерен: {od['reason']}"})
+            continue
+        if od["inversions"]:
+            names = {s.key: s.owner_name for s in STAGES}
+            pairs = "; ".join(f"«{names.get(a, a)}» после «{names.get(b, b)}»"
+                              for a, b in od["inversions"])
+            out.append({"severity": "warn",
+                        "text": (f"порядок живого цикла ({rel}, корень `{od['root']}`) "
+                                 f"расходится с картой владельца: {len(od['inversions'])} "
+                                 f"инверси(я/и) — {pairs}. Мера — первая строка вызова "
+                                 "на сквозном пути (прокси)")})
+        for key, off in (od.get("off_path") or {}).items():
+            names = {s.key: s.owner_name for s in STAGES}
+            out.append({"severity": "warn",
+                        "text": (f"вход ступени «{names.get(key, key)}» в {rel} зовётся ТОЛЬКО в "
+                                 f"ветке раннего выхода (`{off.get('function') or '?'}`, "
+                                 f"строка {(off.get('first') or ['?'])[-1]}): на сквозном "
+                                 "пути цикла её нет")})
     for key, r in meas["role"].items():
         if r["verdict"] == "UNCHECKED":
             out.append({"severity": "unchecked",
@@ -842,6 +1334,19 @@ def run(root: str | Path | None = None, *, write: bool = True,
     }
     wired = sum(1 for e in meas["edges"]
                 if e["verdict"] in ("WIRED", "WIRED_IN_PROCESS"))
+    hidden: set[str] = set()
+    hidden_sites = 0
+    rewriters_unmeasured = 0
+    for e in meas["edges"]:
+        rw = e.get("rewriters") or {}
+        if rw.get("verdict") == "measured":
+            hidden |= set(rw["hidden"])
+            hidden_sites += sum(1 for s in rw["sites"] if s["kind"] == "hidden")
+        elif rw.get("verdict") == "unmeasured":
+            rewriters_unmeasured += 1
+    inversions = sum(len(od.get("inversions") or []) for od in meas["order"].values()
+                     if od["verdict"] == "measured")
+    off_path = sum(len(od.get("off_path") or {}) for od in meas["order"].values())
     present = sum(1 for r in meas["role"].values()
                   if r["verdict"] != "UNCHECKED")
 
@@ -857,7 +1362,7 @@ def run(root: str | Path | None = None, *, write: bool = True,
         overall = "OK"
 
     doc = {
-        "schema": "cio_component_map/v1",
+        "schema": "cio_component_map/v2",
         "generated_at": ts,
         "overall": overall,
         "counts": counts,
@@ -877,6 +1382,14 @@ def run(root: str | Path | None = None, *, write: bool = True,
         "edges_wired": wired,
         "edges_total": len(meas["edges"]),
         "orchestrators": list(ORCHESTRATORS),
+        # Третья ось (ADR-991): скрытые ступени и порядок. Отсутствие измерения
+        # у стыка — отдельное число, а не ноль скрытых (инв. #17).
+        "hidden_stages": sorted(hidden),
+        "hidden_stage_sites": hidden_sites,
+        "rewriters_unmeasured_edges": rewriters_unmeasured,
+        "stage_order": meas["order"],
+        "order_inversions": inversions,
+        "stages_off_path": off_path,
         "findings": findings,
         "advisory": ("ADVISORY: ни один порог не изменён, ни одна ступень не "
                      "перенесена. Соединить разорванный стык — правка "

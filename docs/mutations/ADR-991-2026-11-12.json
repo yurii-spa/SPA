@@ -1,0 +1,174 @@
+{
+ "adr": "ADR-991",
+ "cycle": "#1109 (cycle-66966) — замер и полный прогон 20 мутаций; #1110 (cycle-3166) — чтение результата, три различающие сцены, перемер трёх выживших, доставка наследством",
+ "date": "2026-11-12",
+ "trees": {
+  "run_1109": "/private/tmp/spa_mut_1109",
+  "run_1110": "/private/tmp/spa_mut_1110"
+ },
+ "module": "spa_core/monitoring/cio_component_map.py",
+ "battery": "spa_core/tests/test_cio_component_map.py",
+ "module_md5_under_test": "b461b7cec7a210255e15382e4a22c8ed",
+ "battery_md5_1110": "5b2f9048d1d1f0045c46cab862780218",
+ "note": "мутации координат ADR-991 (третья ось §46: переписчики носителя carrier_rewriters, порядок ступеней stage_order, контроль К6–К9, отчёт/run); каждая — подмена байтов на месте в ОТДЕЛЬНОМ дереве, возврат в finally и побайтовая сверка со снимком ДО. Прогон #1109 пережил сессию (вышла кодом 0 до его конца); результат прочитан #1110 из /tmp/c1109/mut.json: 17 убито, 3 ВЫЖИЛИ (M05, M13, M18) — у каждого одноимённый тест существовал и до мутированной ветки НЕ ДОХОДИЛ. #1110 дописал ТОЛЬКО три сцены в батарею (модуль не тронут), перемерил трёх выживших тем же прибором в новом дереве; статус остальных 17 от добавления тестов измениться не может (критерий — ИЗМЕНЕНИЕ набора упавших имён относительно базы, база 0 красных в обоих прогонах).",
+ "summary_1109": {
+  "killed": 17,
+  "survived": 3,
+  "not_applied": 0,
+  "broke_collection": 0,
+  "applied": 20,
+  "population": 20,
+  "rc": 1
+ },
+ "summary_1110_remeasure": {
+  "killed": 3,
+  "survived": 0,
+  "not_applied": 0,
+  "broke_collection": 0,
+  "applied": 3,
+  "population": 3,
+  "rc": 0
+ },
+ "summary_final": {
+  "applied": 20,
+  "killed": 20,
+  "survived": 0
+ },
+ "survivors_final": [],
+ "mutations": [
+  {
+   "id": "M01",
+   "name": "M01 переписчики: первое связывание производного имени засчитывается переписчиком",
+   "status_1109": "KILLED",
+   "new_failures_1109": 3
+  },
+  {
+   "id": "M02",
+   "name": "M02 переписчики: копия-конструктор не приписывается связавшему (dict остаётся dict)",
+   "status_1109": "KILLED",
+   "new_failures_1109": 1
+  },
+  {
+   "id": "M03",
+   "name": "M03 переписчики: площадки вне промежутка между входами засчитываются",
+   "status_1109": "KILLED",
+   "new_failures_1109": 1
+  },
+  {
+   "id": "M04",
+   "name": "M04 переписчики: прописанная ступень читается как скрытая",
+   "status_1109": "KILLED",
+   "new_failures_1109": 2
+  },
+  {
+   "id": "M05",
+   "name": "M05 переписчики: псевдоним без вызова засчитывается",
+   "status_1109": "SURVIVED",
+   "new_failures_1109": 0,
+   "status_1110_after_new_scene": "KILLED",
+   "new_failures_1110": [
+    "spa_core/tests/test_cio_component_map.py::CarrierRewriterTests::test_rebinding_to_a_plain_name_without_a_call_is_not_a_site"
+   ]
+  },
+  {
+   "id": "M06",
+   "name": "M06 переписчики: входы в разных функциях читаются как измеренные",
+   "status_1109": "KILLED",
+   "new_failures_1109": 1
+  },
+  {
+   "id": "M07",
+   "name": "M07 переписчики: псевдоним ввоза не разрешается у происхождения носителя",
+   "status_1109": "KILLED",
+   "new_failures_1109": 1
+  },
+  {
+   "id": "M08",
+   "name": "M08 порядок: ветка раннего выхода ложится на путь (off_path исчезает)",
+   "status_1109": "KILLED",
+   "new_failures_1109": 4
+  },
+  {
+   "id": "M09",
+   "name": "M09 порядок: граф вызовов строится и по атрибутным вызовам (кольцо)",
+   "status_1109": "KILLED",
+   "new_failures_1109": 1
+  },
+  {
+   "id": "M10",
+   "name": "M10 порядок: равные позиции считаются инверсией",
+   "status_1109": "KILLED",
+   "new_failures_1109": 3
+  },
+  {
+   "id": "M11",
+   "name": "M11 порядок: вызов в ветке раннего выхода предпочитается сквозному",
+   "status_1109": "KILLED",
+   "new_failures_1109": 11
+  },
+  {
+   "id": "M12",
+   "name": "M12 порядок: вызов внутри помощника не приводится к строке вызова помощника",
+   "status_1109": "KILLED",
+   "new_failures_1109": 3
+  },
+  {
+   "id": "M13",
+   "name": "M13 порядок: кольцо не обрывается",
+   "status_1109": "SURVIVED",
+   "new_failures_1109": 0,
+   "status_1110_after_new_scene": "KILLED",
+   "new_failures_1110": [
+    "spa_core/tests/test_cio_component_map.py::StageOrderTests::test_ring_does_not_lengthen_a_position"
+   ]
+  },
+  {
+   "id": "M14",
+   "name": "M14 отчёт: скрытые ступени — warn, не critical",
+   "status_1109": "KILLED",
+   "new_failures_1109": 2
+  },
+  {
+   "id": "M15",
+   "name": "M15 отчёт: неизмеренные переписчики молчат",
+   "status_1109": "KILLED",
+   "new_failures_1109": 1
+  },
+  {
+   "id": "M16",
+   "name": "M16 run: неизмеренные стыки не считаются отдельно",
+   "status_1109": "KILLED",
+   "new_failures_1109": 1
+  },
+  {
+   "id": "M17",
+   "name": "M17 run: файловый носитель получает переписчиков вместо not_applicable",
+   "status_1109": "KILLED",
+   "new_failures_1109": 20
+  },
+  {
+   "id": "M18",
+   "name": "M18 контроль: К6 не требует увидеть скрытую ступень",
+   "status_1109": "SURVIVED",
+   "new_failures_1109": 0,
+   "status_1110_after_new_scene": "KILLED",
+   "new_failures_1110": [
+    "spa_core/tests/test_cio_component_map.py::PositiveControlTests::test_k6_requires_the_hidden_stage_to_be_seen"
+   ]
+  },
+  {
+   "id": "M19",
+   "name": "M19 порядок: ступень вне пути читается как не вызванная",
+   "status_1109": "KILLED",
+   "new_failures_1109": 1
+  },
+  {
+   "id": "M20",
+   "name": "M20 отчёт: инверсии порядка молчат",
+   "status_1109": "KILLED",
+   "new_failures_1109": 1
+  }
+ ],
+ "final_battery_after_restore": "81 passed in 104.88s (#1110, SPA_worktrees/c1109, финальные байты)",
+ "generated_at": "2026-11-12T11:39:58+00:00"
+}

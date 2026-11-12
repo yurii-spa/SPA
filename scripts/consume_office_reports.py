@@ -609,11 +609,17 @@ _READ_SCHEMA: dict[str, tuple[str, ...]] = {
     # §46. `stages_declared` объявлен рядом с замером НАМЕРЕННО: без него
     # «ступеней 10/10» нечем прочитать — не видно, ЧТО именно объявлено
     # эквивалентом, и устаревшее объявление стало бы неотличимо от здорового.
+    # ADR-991 (третья ось §46): скрытые ступени и порядок. ``rewriters_unmeasured_edges``
+    # объявлен рядом со счётом скрытых НАМЕРЕННО — «скрытых 0» при неизмеренном стыке
+    # читалось бы как чистота (инв. #17).
     "cio_component_map.json": ("overall", "counts.critical", "counts.warn",
                                "counts.info", "counts.unchecked",
                                "positive_control", "stages_declared", "stages",
                                "stages_present", "stages_total", "edges",
                                "edges_wired", "edges_total", "orchestrators",
+                               "hidden_stages", "hidden_stage_sites",
+                               "rewriters_unmeasured_edges", "stage_order",
+                               "order_inversions", "stages_off_path",
                                "findings"),
     # §48. `knobs` объявлен рядом со счётом НАМЕРЕННО: «ослаблено 1» нечем
     # прочитать без того, КАКОЕ поле и с какого значения — а «не менялось 11»
@@ -3811,6 +3817,29 @@ def _summarize_json(path: str, data, *, now: dt.datetime | None = None,
                 if e.get("verdict") in ("ONE_WAY", "DEAD_END", "UNCHECKED"):
                     out.append(f"   [{e['verdict']}] {e.get('from_name')} → "
                                f"{e.get('to_name')}: {e.get('note') or ''}"[:400])
+            # Третья ось (ADR-991). Печатаются ТРИ числа порознь: скрытые ступени ·
+            # стыки, где переписчиков не измерили · инверсии порядка. Схема v1 этой
+            # оси не несёт — тогда строка говорит «ось не измерена», а не «ноль».
+            if "hidden_stages" in data:
+                hidden = data.get("hidden_stages") or []
+                out.append(f"   скрытых ступеней на носителе: {len(hidden)} "
+                           f"(площадок {_num(data, 'hidden_stage_sites')}; стыков с НЕ "
+                           f"ИЗМЕРЕННЫМИ переписчиками "
+                           f"{_num(data, 'rewriters_unmeasured_edges')})"
+                           + (f": {', '.join(hidden)}" if hidden else ""))
+                out.append(f"   инверсий порядка против карты владельца: "
+                           f"{_num(data, 'order_inversions')} · ступеней вне сквозного "
+                           f"пути: {_num(data, 'stages_off_path')}")
+                for rel, od in (data.get("stage_order") or {}).items():
+                    if od.get("verdict") == "measured":
+                        out.append(f"   живой порядок ({rel}, корень `{od.get('root')}`): "
+                                   f"{' → '.join(od.get('live_order') or [])}"[:400])
+                    else:
+                        out.append(f"   [НЕ ИЗМЕРЕНО] порядок ({rel}): "
+                                   f"{od.get('reason') or 'причина не названа'}"[:300])
+            else:
+                out.append("   [НЕ ИЗМЕРЕНО] третья ось §46 (скрытые ступени · порядок): "
+                           "артефакт схемы v1, оси в нём нет — перемерить прибором")
         for f in (data.get("findings") or [])[:6]:
             out.append(f"   [{(f.get('severity') or '').upper()}] {f.get('text')}"[:400])
         out.append("   ADVISORY: разорванный стык этим замером НЕ соединяется и "
