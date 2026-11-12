@@ -1,0 +1,134 @@
+{
+  "title": "ADR-995 — дельта цикла #1114 (§49, четвёртая ось: КТО написал вход поверхности)",
+  "tests": [
+    "spa_core/tests/test_s49_surface_freshness.py"
+  ],
+  "mutations": [
+    {
+      "name": "M01 ось UNCHECKED считается измеренной у производителя",
+      "file": "spa_core/monitoring/s49_surface_freshness.py",
+      "old": "    hands_measured = bool(writers) and writers.get(\"verdict\") == WRITERS_MEASURED\n    hand_by_artifact",
+      "new": "    hands_measured = bool(writers)\n    hand_by_artifact"
+    },
+    {
+      "name": "M02 рука считается по всем входам производителя",
+      "file": "spa_core/monitoring/s49_surface_freshness.py",
+      "old": "            hand_written = sum(1 for r in group if str(r.get(\"artifact\")) in hand_by_artifact)\n",
+      "new": "            hand_written = len(group)\n"
+    },
+    {
+      "name": "M03 молчание «без рук» не исключает руки",
+      "file": "spa_core/monitoring/s49_surface_freshness.py",
+      "old": "            rest = [(s, a) for s, a in stamped if str(a) not in hand_by_artifact]\n",
+      "new": "            rest = list(stamped)\n"
+    },
+    {
+      "name": "M04 отсутствующий журнал выдаётся за прочитанный пустой",
+      "file": "spa_core/monitoring/s49_surface_freshness.py",
+      "old": "    except OSError as exc:\n        return None, f\"{path}: {exc.__class__.__name__}: {exc}\", 0\n",
+      "new": "    except OSError as exc:\n        return [], None, 0\n"
+    },
+    {
+      "name": "M05 нечитаемая строка журнала проглатывается молча",
+      "file": "spa_core/monitoring/s49_surface_freshness.py",
+      "old": "        except ValueError:\n            malformed += 1\n            continue\n",
+      "new": "        except ValueError:\n            continue\n"
+    },
+    {
+      "name": "M06 совпадение по files не считается доказательством",
+      "file": "spa_core/monitoring/s49_surface_freshness.py",
+      "old": "                return \"files\"\n",
+      "new": "                return None\n"
+    },
+    {
+      "name": "M07 совпадение по summary не считается доказательством",
+      "file": "spa_core/monitoring/s49_surface_freshness.py",
+      "old": "            return \"summary\"\n",
+      "new": "            return None\n"
+    },
+    {
+      "name": "M08 окно руки вдвое шире объявленного",
+      "file": "spa_core/monitoring/s49_surface_freshness.py",
+      "old": "    in_window = [(ts, e) for ts, e in stamped_entries if abs((ts - made)) <= window]\n",
+      "new": "    in_window = [(ts, e) for ts, e in stamped_entries if abs((ts - made)) <= window * 2]\n"
+    },
+    {
+      "name": "M09 кучи режутся по зазору в сто раз шире окна",
+      "file": "spa_core/monitoring/s49_surface_freshness.py",
+      "old": "        if prev is None or (ts - prev).total_seconds() > float(batch_minutes) * 60.0:\n",
+      "new": "        if prev is None or (ts - prev).total_seconds() > float(batch_minutes) * 6000.0:\n"
+    },
+    {
+      "name": "M10 размер кучи считает соседей за любым расстоянием",
+      "file": "spa_core/monitoring/s49_surface_freshness.py",
+      "old": "                      and abs((stamps[id(other)] - made).total_seconds()) <= float(batch_minutes) * 60.0)\n",
+      "new": "                      and abs((stamps[id(other)] - made).total_seconds()) <= float(batch_minutes) * 60.0 * 100000)\n"
+    },
+    {
+      "name": "M11 непрочитанный канал объявляется измеренным",
+      "file": "spa_core/monitoring/s49_surface_freshness.py",
+      "old": "        return {\"verdict\": WRITERS_UNCHECKED, \"window_minutes\": window_minutes,\n",
+      "new": "        return {\"verdict\": WRITERS_MEASURED, \"window_minutes\": window_minutes,\n"
+    },
+    {
+      "name": "M12 вход без часов судится как «не назван»",
+      "file": "spa_core/monitoring/s49_surface_freshness.py",
+      "old": "            row[\"writer\"] = NO_CLOCK\n",
+      "new": "            row[\"writer\"] = WRITER_UNATTRIBUTED\n"
+    },
+    {
+      "name": "M13 найденная рука записывается как «не назван»",
+      "file": "spa_core/monitoring/s49_surface_freshness.py",
+      "old": "            row[\"writer\"] = WRITER_HAND\n",
+      "new": "            row[\"writer\"] = WRITER_UNATTRIBUTED\n"
+    },
+    {
+      "name": "M14 находка о руке понижена до info",
+      "file": "spa_core/monitoring/s49_surface_freshness.py",
+      "old": "            out.append({\"severity\": \"warn\", \"key\": \"hand_written\",\n",
+      "new": "            out.append({\"severity\": \"info\", \"key\": \"hand_written\",\n"
+    },
+    {
+      "name": "M15 куча без зовущего спрашивается и у живого производителя",
+      "file": "spa_core/monitoring/s49_surface_freshness.py",
+      "old": "        if batches and dead_names:\n",
+      "new": "        if batches:\n"
+    },
+    {
+      "name": "M16 непрочитанный канал не даёт находки unchecked",
+      "file": "spa_core/monitoring/s49_surface_freshness.py",
+      "old": "    if writers is None or writers.get(\"verdict\") != WRITERS_MEASURED:\n        out.append({\"severity\": \"unchecked\", \"key\": \"writers_unchecked\",\n",
+      "new": "    if False:\n        out.append({\"severity\": \"unchecked\", \"key\": \"writers_unchecked\",\n"
+    },
+    {
+      "name": "M17 текст о замороженной поверхности не знает о руке",
+      "file": "spa_core/monitoring/s49_surface_freshness.py",
+      "old": "        elif worst.get(\"hands_measured\") and (worst.get(\"hand_written\") or 0) > 0:\n",
+      "new": "        elif False:\n"
+    },
+    {
+      "name": "M18 measure не читает журнал рядом с артефактами",
+      "file": "spa_core/monitoring/s49_surface_freshness.py",
+      "old": "        session_entries, channel_problem, malformed = read_session_log(log_path)\n",
+      "new": "        session_entries, channel_problem, malformed = [], None, 0\n"
+    },
+    {
+      "name": "M19 производителям не передаётся ось «кто написал»",
+      "file": "spa_core/monitoring/s49_surface_freshness.py",
+      "old": "                              writers=writers)\n",
+      "new": "                              writers=None)\n"
+    },
+    {
+      "name": "M20 находкам не передаётся ось «кто написал»",
+      "file": "spa_core/monitoring/s49_surface_freshness.py",
+      "old": "    found = findings(inputs, producers, tally, drifted, writers)\n",
+      "new": "    found = findings(inputs, producers, tally, drifted)\n"
+    },
+    {
+      "name": "M21 офис не объявляет поле writers обязательным",
+      "file": "scripts/consume_office_reports.py",
+      "old": "                                   \"fleet_measured\", \"writers\", \"tally\", \"drift\", \"findings\"),\n",
+      "new": "                                   \"fleet_measured\", \"tally\", \"drift\", \"findings\"),\n"
+    }
+  ]
+}

@@ -54,6 +54,30 @@
    сам, потому что сводка стои́т 76 с и своего такта (ADR-547). Без входа ось
    честно `UNCHECKED`, а не «дрейфа нет».
 
+## Четвёртый вопрос (ADR-995, цикл #1114): КТО написал вход
+
+ADR-994 сам назвал щель: «самый свежий файл мог написать и ДРУГОЙ,
+необъявленный писатель (класс ADR-811)». Замер 12.11 показал, что это не
+оговорка, а состояние: `data/decision_audit_trail.json` 05:52Z написала РУКА
+сессии (цикл #1106, `--root <прод>` сразу после правки модуля — запись об этом
+есть в журнале объявлений `data/session_changes.jsonl` за 65 с до файла), а
+прибор v1 засчитал этот файл выключенному бегуну и напечатал «молчит 11 ч» там,
+где бегун молчит с 29.10. Кандидат ADR-994 § 6а (проба `Auditability` в
+`card_acceptance` пишет артефакт) опровергнут кодом: проба читает артефакт и
+зовёт `criterion_verdict`, `run()` прибора не трогает — контроль в батарее.
+
+4. **Кто написал каждый вход?** Боковой канал — журнал объявлений сессий
+   (`session_changes.jsonl` в каталоге данных, ВХОД `--session-log` /
+   `session_entries=`): запись в окне ±30 мин от `generated_at`, чьи `files`
+   или `summary` называют модуль-производитель входа (одна дверь —
+   `findings_bridge.CENSUS_PRODUCT`) или сам артефакт, ⇒ `hand` с названной
+   сессией. Записи нет ⇒ `unattributed` — писатель НЕ НАЗВАН (ни рука, ни
+   бегун), и рядом печатается размер кучи: сколько входов написано в пределах
+   ±15 мин (форма прогона моста) — одиночный файл и куча из одиннадцати суть
+   разные подозреваемые. Канала нет ⇒ `UNCHECKED` на всю ось, а не «рук нет».
+   Молчание производителя теперь печатается ДВАЖДЫ: по любому файлу (нижняя
+   граница, как в v1) и БЕЗ рук — и второе честнее о бегуне.
+
 ## Чего прибор НЕ докладывает
 
 * Верна ли живая проба — это держит её контроль в обе стороны
@@ -62,6 +86,11 @@
   только, ЧТО от его молчания видит поверхность.
 * Ничего не чинит и не включает: ADVISORY, читает конституцию, артефакты и
   список флота; `landing/**`, RiskPolicy, стоп-кран, аллокатор не трогаются.
+* Кто написал кучу без записи в журнале сессий (03.11 01:06Z — одиннадцать
+  файлов формы моста, ни одной записи): боковой канал видит только то, что
+  сессия ОБЪЯВИЛА. Штампа писателя в самих артефактах нет (ADR-822/823 — у
+  штампа не было читателя); этот прибор и есть первый читатель, и читает он
+  канал, а не штамп.
 
 ## Коды возврата
 
@@ -90,10 +119,11 @@ from spa_core.monitoring import s49_criterion_price as price_meter  # noqa: E402
 from spa_core.monitoring import s49_tally_tact as tally_meter  # noqa: E402
 from spa_core.utils.observation import observed  # noqa: E402
 
-SCHEMA = "s49_surface_freshness/v1"
+SCHEMA = "s49_surface_freshness/v2"
 REPORT_REL = "data/s49_surface_freshness.json"
 TALLY_REL = "data/s49_tally_tact.json"
 ADR = "ADR-994"
+ADR_WRITERS = "ADR-995"
 
 #: Исходы у ОДНОГО входа сводки.
 FRESH = "fresh"
@@ -113,6 +143,27 @@ PRODUCER_UNKNOWN = "producer_unknown"
 DRIFT_MEASURED = "measured"
 DRIFT_UNCHECKED = "UNCHECKED"
 
+#: Исходы оси «кто написал вход» (ADR-995). У ОДНОГО входа: `hand` — запись
+#: сессии в окне называет модуль-производитель или сам артефакт; `unattributed`
+#: — записи нет, писатель НЕ НАЗВАН (это не «бегун»); `no_clock` — у входа нет
+#: `generated_at`, окно не построить. У ОСИ целиком: `measured` / `UNCHECKED`
+#: (канал не прочитан — об авторстве не сказано ничего).
+WRITER_HAND = "hand"
+WRITER_UNATTRIBUTED = "unattributed"
+WRITER_STATES = (WRITER_HAND, WRITER_UNATTRIBUTED, NO_CLOCK)
+WRITERS_MEASURED = "measured"
+WRITERS_UNCHECKED = "UNCHECKED"
+#: Боковой канал — журнал объявлений сессий, живёт рядом с артефактами.
+SESSION_LOG_NAME = "session_changes.jsonl"
+#: Окно «рука ↔ файл»: в замере 12.11 объявление файлов стояло за 65 с до
+#: артефакта, «ДОСТАВЛЕН» — через 146 с после; полчаса покрывают сессию, которая
+#: сначала правит, потом гоняет прибор по проду, потом пушит.
+HAND_WINDOW_MINUTES = 30.0
+#: Куча: входы, написанные в пределах ±15 мин друг от друга, — форма прогона
+#: моста. Прогон 29.10 писал тринадцать входов с 09:57:20 по 10:10:16 (13 мин),
+#: прогон 03.11 — за 31 с; «в одну секунду» разрезало бы один прогон на кучки.
+BATCH_WINDOW_MINUTES = 15.0
+
 OVERALL_OK = "OK"
 OVERALL_WARN = "WARN"
 OVERALL_CRITICAL = "CRITICAL"
@@ -123,7 +174,8 @@ ADVISORY = ("ADVISORY: прибор только ЧИТАЕТ конституц
             "стоп-кран, аллокатор, живой трек и landing/**")
 
 NOT_REPORTED = ("НЕ ДОКЛАДЫВАЕТ: верна ли живая проба (её держит контроль в обе стороны) · "
-                "почему бегун выключен (своя карточка) · зовущего вне состава ступеней")
+                "почему бегун выключен (своя карточка) · зовущего вне состава ступеней · "
+                "писателя, который НЕ объявил себя в журнале сессий (канал видит только объявленное)")
 
 
 class Unmeasured(Exception):
@@ -270,11 +322,17 @@ def fleet_loaded(runner: Callable[..., Any] = subprocess.run) -> Optional[set[st
 
 
 def producer_rows(inputs: Iterable[dict], *, manifest: dict,
-                  loaded: Optional[set[str]], now: dt.datetime) -> list[dict]:
+                  loaded: Optional[set[str]], now: dt.datetime,
+                  writers: Optional[dict] = None) -> list[dict]:
     """Производители входов: сколько критериев на каждом, жив ли, когда молчит.
 
     Молчание измеряется САМЫМ СВЕЖИМ артефактом производителя среди входов:
     «не загружен» говорит о сегодня, «молчит N ч» — с какого момента.
+
+    `writers` (ADR-995) — ось «кто написал»: с ней молчание печатается ВТОРОЙ
+    раз, уже БЕЗ входов, написанных рукой сессии (`silent_hours_excluding_hands`).
+    Оси нет или она `UNCHECKED` ⇒ `hands_measured=False`, второе число `None` —
+    «не измерено», а не «рук не было».
     """
     by_producer: dict[Optional[str], list[dict]] = {}
     for row in inputs:
@@ -282,6 +340,13 @@ def producer_rows(inputs: Iterable[dict], *, manifest: dict,
             continue
         producer = producer_of(manifest, row.get("artifact"))
         by_producer.setdefault(producer, []).append(row)
+
+    hands_measured = bool(writers) and writers.get("verdict") == WRITERS_MEASURED
+    hand_by_artifact: dict[str, dict] = {}
+    if hands_measured:
+        for w in writers.get("rows") or ():
+            if isinstance(w, dict) and w.get("writer") == WRITER_HAND and w.get("artifact"):
+                hand_by_artifact[str(w["artifact"])] = w
 
     rows: list[dict] = []
     for producer, group in sorted(by_producer.items(), key=lambda kv: str(kv[0])):
@@ -291,6 +356,16 @@ def producer_rows(inputs: Iterable[dict], *, manifest: dict,
         last_seen = newest[0].isoformat() if newest else None
         last_seen_artifact = newest[1] if newest else None
         silent_h = round((now - newest[0]).total_seconds() / 3600.0, 2) if newest else None
+        hand_written: Optional[int] = None
+        last_seen_no_hands: Optional[str] = None
+        silent_no_hands: Optional[float] = None
+        if hands_measured:
+            hand_written = sum(1 for r in group if str(r.get("artifact")) in hand_by_artifact)
+            rest = [(s, a) for s, a in stamped if str(a) not in hand_by_artifact]
+            newest_rest = max(rest, key=lambda sa: sa[0]) if rest else None
+            if newest_rest is not None:
+                last_seen_no_hands = newest_rest[0].isoformat()
+                silent_no_hands = round((now - newest_rest[0]).total_seconds() / 3600.0, 2)
         if producer is None:
             state = PRODUCER_UNKNOWN
             why = "конституция не называет производителя — спросить флот не о ком"
@@ -311,8 +386,187 @@ def producer_rows(inputs: Iterable[dict], *, manifest: dict,
                      # Нижняя граница молчания: самый свежий файл мог написать и
                      # ДРУГОЙ, необъявленный писатель (класс ADR-811) — артефакт
                      # назван, чтобы читатель мог спросить об этом сам.
-                     "silent_hours": silent_h, "why": why})
+                     "silent_hours": silent_h, "why": why,
+                     # ADR-995: тот же вопрос БЕЗ входов, написанных рукой сессии.
+                     # `hands_measured=False` ⇒ оба `None` — не измерено, не ноль.
+                     "hands_measured": hands_measured,
+                     "hand_written": hand_written,
+                     "last_seen_excluding_hands": last_seen_no_hands,
+                     "silent_hours_excluding_hands": silent_no_hands})
     return rows
+
+
+# ─────────────────────────── 4. кто написал: боковой канал ───────────────────────────
+
+def module_of(artifact: Optional[str]) -> Optional[str]:
+    """Модуль-производитель артефакта — ОДНОЙ дверью, картой ступеней моста.
+
+    Своя карта здесь была бы второй копией правила (ADR-220): мост объявляет,
+    какой модуль пишет какой артефакт, и именно его запись сверяется с `files`
+    объявления сессии. Артефакта в карте нет ⇒ `None` — рука по модулю не
+    распознаётся, остаётся совпадение по самому артефакту.
+    """
+    if not artifact:
+        return None
+    try:
+        from spa_core.monitoring import findings_bridge as bridge  # noqa: PLC0415
+    except ImportError:
+        return None
+    for entry in (getattr(bridge, "CENSUS_PRODUCT", None) or {}).values():
+        if isinstance(entry, dict) and entry.get("artifact") == artifact:
+            module = entry.get("module")
+            return str(module) if isinstance(module, str) and module else None
+    return None
+
+
+def read_session_log(path: Path) -> tuple[Optional[list[dict]], Optional[str], int]:
+    """Записи журнала объявлений; (записи, причина отказа, нечитаемых строк).
+
+    Файла нет или он не читается ⇒ `(None, причина, 0)` — третий исход оси.
+    Нечитаемая строка считается и пропускается: журнал пишут много сессий,
+    одна битая строка не делает канал несуществующим, но и молчать о ней нельзя.
+    """
+    try:
+        text = Path(path).read_text(encoding="utf-8")
+    except OSError as exc:
+        return None, f"{path}: {exc.__class__.__name__}: {exc}", 0
+    entries: list[dict] = []
+    malformed = 0
+    for line in text.splitlines():
+        if not line.strip():
+            continue
+        try:
+            doc = json.loads(line)
+        except ValueError:
+            malformed += 1
+            continue
+        if isinstance(doc, dict):
+            entries.append(doc)
+        else:
+            malformed += 1
+    return entries, None, malformed
+
+
+def _names(entry: dict, module: Optional[str], artifact: Optional[str]) -> Optional[str]:
+    """Чем запись называет вход: `files` (сильно), `summary` (слабее) или ничем."""
+    targets = [t for t in (module, artifact) if t]
+    files = entry.get("files")
+    if isinstance(files, list):
+        for f in files:
+            if isinstance(f, str) and any(f.replace("\\", "/").endswith(t) for t in targets):
+                return "files"
+    summary = entry.get("summary")
+    if isinstance(summary, str) and targets:
+        stems = {Path(t).stem for t in targets}
+        if any(stem and stem in summary for stem in stems):
+            return "summary"
+    return None
+
+
+def batch_groups(rows: Iterable[dict], *, batch_minutes: float = BATCH_WINDOW_MINUTES) -> dict[str, list[dict]]:
+    """Неатрибутированные входы кучами: соседи ближе `batch_minutes` — одна куча.
+
+    Группа ключуется отметкой ПЕРВОГО входа (до минуты). Резать по календарной
+    минуте или часу нельзя: прогон 29.10 шёл с 09:57 по 10:10 и попал бы в два
+    часа — две «кучи» из одного прогона.
+    """
+    stamped = sorted(
+        ((parse_ts(r.get("generated_at")), r) for r in rows
+         if isinstance(r, dict) and r.get("writer") == WRITER_UNATTRIBUTED
+         and (r.get("cluster_size") or 0) > 1 and parse_ts(r.get("generated_at")) is not None),
+        key=lambda tr: tr[0])
+    groups: dict[str, list[dict]] = {}
+    key: Optional[str] = None
+    prev: Optional[dt.datetime] = None
+    for ts, r in stamped:
+        if prev is None or (ts - prev).total_seconds() > float(batch_minutes) * 60.0:
+            key = ts.isoformat()[:16]
+        groups.setdefault(str(key), []).append(r)
+        prev = ts
+    return groups
+
+
+def writer_rows(inputs: Iterable[dict], *, entries: Optional[list[dict]],
+                now: dt.datetime, window_minutes: float = HAND_WINDOW_MINUTES,
+                batch_minutes: float = BATCH_WINDOW_MINUTES,
+                module_of_artifact: Callable[[Optional[str]], Optional[str]] = module_of,
+                channel_problem: Optional[str] = None, malformed: int = 0) -> dict:
+    """Кто написал каждый вход — по боковому каналу (журнал объявлений сессий).
+
+    `entries=None` ⇒ канал НЕ ПРОЧИТАН ⇒ вся ось `UNCHECKED` с причиной: о руках
+    не сказано ничего (не «рук нет»). Пустой список — канал прочитан, записей
+    нет: каждый вход `unattributed`, и это измерение.
+    """
+    rows_in = [r for r in inputs if r.get("state") != UNBOUND]
+    stamps = {id(r): parse_ts(r.get("generated_at")) for r in rows_in}
+    if entries is None:
+        return {"verdict": WRITERS_UNCHECKED, "window_minutes": window_minutes,
+                "batch_minutes": batch_minutes, "entries_read": None,
+                "malformed_lines": None, "rows": [],
+                "counts": {WRITER_HAND: None, WRITER_UNATTRIBUTED: None, NO_CLOCK: None},
+                "reason": (f"боковой канал (`{SESSION_LOG_NAME}`) не прочитан — "
+                           f"{channel_problem or 'причина не названа'}; об авторстве входов "
+                           "не сказано НИЧЕГО")}
+
+    window = dt.timedelta(minutes=float(window_minutes))
+    stamped_entries: list[tuple[dt.datetime, dict]] = []
+    for e in entries:
+        ts = parse_ts(e.get("ts"))
+        if ts is not None:
+            stamped_entries.append((ts, e))
+
+    out_rows: list[dict] = []
+    for r in rows_in:
+        made = stamps[id(r)]
+        artifact = r.get("artifact")
+        row = {"criterion": r.get("criterion"), "artifact": artifact,
+               "generated_at": r.get("generated_at"), "module": module_of_artifact(artifact),
+               "writer": None, "session": None, "ts": None, "evidence": None,
+               "candidates": [], "cluster_size": None, "why": None}
+        if made is None:
+            row["writer"] = NO_CLOCK
+            row["why"] = "у входа нет `generated_at` — окно для бокового канала не построить"
+            out_rows.append(row)
+            continue
+        cluster = sum(1 for other in rows_in
+                      if stamps[id(other)] is not None
+                      and abs((stamps[id(other)] - made).total_seconds()) <= float(batch_minutes) * 60.0)
+        row["cluster_size"] = cluster
+        in_window = [(ts, e) for ts, e in stamped_entries if abs((ts - made)) <= window]
+        hand: Optional[tuple[dt.datetime, dict, str]] = None
+        for ts, e in sorted(in_window, key=lambda te: abs((te[0] - made))):
+            how = _names(e, row["module"], artifact)
+            if how is not None:
+                hand = (ts, e, how)
+                break
+        row["candidates"] = sorted({str(e.get("session")) for _, e in in_window if e.get("session")})
+        if hand is not None:
+            ts, e, how = hand
+            row["writer"] = WRITER_HAND
+            row["session"] = str(e.get("session") or "") or None
+            row["ts"] = ts.isoformat()
+            row["evidence"] = how
+            offset = (made - ts).total_seconds()
+            row["why"] = (f"сессия {row['session']} объявила в {ts.isoformat()} "
+                          f"({'+' if offset >= 0 else '−'}{abs(offset):.0f} с до файла) "
+                          f"{'файл модуля' if how == 'files' else 'модуль в тексте'} "
+                          f"{row['module'] or artifact}")
+        else:
+            row["writer"] = WRITER_UNATTRIBUTED
+            shape = (f"куча из {cluster} входов в пределах ±{batch_minutes:g} мин — форма прогона моста"
+                     if cluster and cluster > 1 else "одиночный файл")
+            tail = (f"; в окне ±{window_minutes:g} мин были сессии {', '.join(row['candidates'])}, "
+                    "ни одна не называет модуль или артефакт" if row["candidates"]
+                    else f"; записей в окне ±{window_minutes:g} мин нет")
+            row["why"] = f"писатель НЕ НАЗВАН: {shape}{tail}"
+        out_rows.append(row)
+
+    counts = {WRITER_HAND: sum(1 for r in out_rows if r["writer"] == WRITER_HAND),
+              WRITER_UNATTRIBUTED: sum(1 for r in out_rows if r["writer"] == WRITER_UNATTRIBUTED),
+              NO_CLOCK: sum(1 for r in out_rows if r["writer"] == NO_CLOCK)}
+    return {"verdict": WRITERS_MEASURED, "window_minutes": window_minutes,
+            "batch_minutes": batch_minutes, "entries_read": len(entries),
+            "malformed_lines": malformed, "rows": out_rows, "counts": counts, "reason": None}
 
 
 # ─────────────────────────── 3. сводка: замороженная против живой ───────────────────────────
@@ -398,21 +652,38 @@ def drift(frozen_rows: Iterable[dict], live_rows: Optional[Iterable[dict]]) -> d
 
 # ─────────────────────────── находки ───────────────────────────
 
-def findings(inputs: list[dict], producers: list[dict], tally: dict, drifted: dict) -> list[dict]:
+def findings(inputs: list[dict], producers: list[dict], tally: dict, drifted: dict,
+             writers: Optional[dict] = None) -> list[dict]:
     out: list[dict] = []
     ic = input_counts(inputs)
     bound = len(inputs) - ic[UNBOUND]
     stale_names = [r["criterion"] for r in inputs if r.get("state") == STALE]
     dead = [p for p in producers if p["state"] == NOT_LOADED]
     unmeasured_fleet = [p for p in producers if p["state"] == FLEET_UNMEASURED]
+    writers = writers if isinstance(writers, dict) else None
+    hands_measured = bool(writers) and writers.get("verdict") == WRITERS_MEASURED
 
     if ic[STALE] and dead:
         worst = max(dead, key=lambda p: p["criteria_count"])
-        silent = (f"самый свежий его продукт {worst['last_seen_artifact']} — "
-                  f"{worst['silent_hours']:.0f} ч назад ({worst['last_seen']}; нижняя граница "
-                  f"молчания: файл мог написать и необъявленный писатель)"
-                  if worst.get("silent_hours") is not None
-                  else "молчит, с какого момента — НЕ ИЗМЕРЕНО (часов в артефактах нет)")
+        if worst.get("silent_hours") is None:
+            silent = "молчит, с какого момента — НЕ ИЗМЕРЕНО (часов в артефактах нет)"
+        elif worst.get("hands_measured") and (worst.get("hand_written") or 0) > 0:
+            # ADR-995: самый свежий файл написала РУКА — нижняя граница молчания
+            # бегуна читается по входам БЕЗ рук, и печатаются ОБЕ.
+            no_hands = worst.get("silent_hours_excluding_hands")
+            silent = (f"самый свежий его продукт {worst['last_seen_artifact']} — "
+                      f"{worst['silent_hours']:.0f} ч назад ({worst['last_seen']}), но его "
+                      f"написала РУКА сессии, не бегун; без рук "
+                      + (f"нижняя граница молчания {no_hands:.0f} ч "
+                         f"({worst.get('last_seen_excluding_hands')})"
+                         if no_hands is not None else
+                         "молчание НЕ ИЗМЕРЕНО — все его входы написаны руками"))
+        else:
+            silent = (f"самый свежий его продукт {worst['last_seen_artifact']} — "
+                      f"{worst['silent_hours']:.0f} ч назад ({worst['last_seen']}; нижняя граница "
+                      f"молчания: файл мог написать и необъявленный писатель"
+                      + ("" if worst.get("hands_measured") else
+                         " — ось «кто написал» не измерена") + ")")
         out.append({"severity": "critical", "key": "surface_frozen",
                     "text": (f"поверхность §49 ЗАМОРОЖЕНА: {ic[STALE]} из {bound} входов старше "
                              f"своего SLO ({', '.join(stale_names)}); производитель "
@@ -445,6 +716,42 @@ def findings(inputs: list[dict], producers: list[dict], tally: dict, drifted: di
                     "text": (f"все {bound} входов §49 производит ОДНА служба "
                              f"{producers[0]['producer']} — поверхность приёмки замерзает "
                              "одним выключателем")})
+
+    # ─── ADR-995: кто написал входы ───
+    if writers is None or writers.get("verdict") != WRITERS_MEASURED:
+        out.append({"severity": "unchecked", "key": "writers_unchecked",
+                    "text": ("кто написал входы §49 — НЕ ИЗМЕРЕНО: "
+                             + (str(writers.get("reason")) if writers else
+                                "ось «кто написал» не снималась"))})
+    else:
+        wrows = [r for r in (writers.get("rows") or []) if isinstance(r, dict)]
+        hands = [r for r in wrows if r.get("writer") == WRITER_HAND]
+        if hands:
+            named = "; ".join(
+                f"{r.get('criterion')} ({r.get('artifact')}) — {r.get('session')} "
+                f"{r.get('ts')} по {r.get('evidence')}" for r in hands)
+            out.append({"severity": "warn", "key": "hand_written",
+                        "text": (f"{len(hands)} из {bound} входов §49 написаны РУКОЙ сессии, "
+                                 f"а не производителем: {named}; поверхность читает такой файл "
+                                 "как продукт бегуна, и его возраст занижает молчание бегуна")})
+        dead_names = {p["producer"] for p in dead}
+        batches = batch_groups(wrows, batch_minutes=float(writers.get("batch_minutes")
+                                                           or BATCH_WINDOW_MINUTES))
+        if batches and dead_names:
+            shown = "; ".join(f"{stamp}: {len(rs)} входов ({', '.join(str(r.get('criterion')) for r in rs)})"
+                              for stamp, rs in sorted(batches.items()))
+            # Третий исход о ЗОВУЩЕМ: канал не различает «бегун до выключения» и
+            # «рука без объявления» — поэтому `unchecked`, а не «рука» и не «бегун».
+            out.append({"severity": "unchecked", "key": "batch_without_a_caller",
+                        "text": (f"{sum(len(v) for v in batches.values())} входов §49 написаны кучей "
+                                 f"формы моста, производитель сегодня ВЫКЛЮЧЕН, и зовущий НЕ НАЗВАН "
+                                 f"ни журналом сессий, ни флотом (бегун до выключения или рука без "
+                                 f"объявления — канал не различает): {shown}")})
+        if not hands and not (batches and dead_names):
+            out.append({"severity": "info", "key": "no_hands",
+                        "text": (f"рук среди {bound} входов §49 не найдено (журнал сессий: "
+                                 f"{writers.get('entries_read')} записей, окно "
+                                 f"±{writers.get('window_minutes'):g} мин)")})
 
     if tally["state"] == STALE:
         c = tally.get("counts")
@@ -509,12 +816,20 @@ def measure(repo_root: str | Path, *, data_dir: str | Path | None = None,
             now: Optional[dt.datetime] = None, criteria: Optional[list[str]] = None,
             tact_rows: Optional[list[dict]] = None, manifest: Optional[dict] = None,
             loaded: Optional[set[str]] = None, fleet_asked: bool = False,
-            live_rows: Optional[list[dict]] = None, ref: str = "origin/main") -> dict:
-    """Снять три оси. Часы, флот и живые строки — ВХОДЫ.
+            live_rows: Optional[list[dict]] = None, ref: str = "origin/main",
+            session_entries: Optional[list[dict]] = None,
+            session_log: str | Path | None = None,
+            window_minutes: float = HAND_WINDOW_MINUTES) -> dict:
+    """Снять четыре оси. Часы, флот, живые строки и журнал сессий — ВХОДЫ.
 
     `loaded=None` при `fleet_asked=False` означает «спросить флот самому»; при
     `fleet_asked=True` — «спросили, ответа нет» (третий исход). Контроль
     подменяет оба явно, чтобы ни одна сцена не упиралась в живой `launchctl`.
+
+    `session_entries` (ADR-995): `None` — прочитать журнал самому (`session_log`,
+    умолчание — `session_changes.jsonl` рядом с артефактами; не прочитан ⇒ ось
+    `UNCHECKED`); список — записи даны контролем, пустой список = «канал прочитан,
+    записей нет» (измерение, не третий исход).
     """
     root = str(repo_root)
     data = Path(data_dir) if data_dir else Path(root) / "data"
@@ -539,15 +854,26 @@ def measure(repo_root: str | Path, *, data_dir: str | Path | None = None,
         loaded = fleet_loaded()
 
     inputs = input_rows(rows_in, data_dir=data, now=moment)
-    producers = producer_rows(inputs, manifest=manifest, loaded=loaded, now=moment)
+    channel_problem: Optional[str] = None
+    malformed = 0
+    log_path = Path(session_log) if session_log else data / SESSION_LOG_NAME
+    if session_entries is None:
+        session_entries, channel_problem, malformed = read_session_log(log_path)
+    writers = writer_rows(inputs, entries=session_entries, now=moment,
+                          window_minutes=window_minutes, channel_problem=channel_problem,
+                          malformed=malformed)
+    writers["session_log"] = str(log_path)
+    producers = producer_rows(inputs, manifest=manifest, loaded=loaded, now=moment,
+                              writers=writers)
     tally = tally_state(data, manifest=manifest, now=moment)
     drifted = drift(tally["rows"], live_rows)
-    found = findings(inputs, producers, tally, drifted)
+    found = findings(inputs, producers, tally, drifted, writers)
     counts = {s: sum(1 for f in found if f["severity"] == s)
               for s in ("critical", "warn", "info", "unchecked")}
     return {
         "schema": SCHEMA,
         "adr": ADR,
+        "adr_writers": ADR_WRITERS,
         "generated_at": moment.isoformat(),
         "overall": _overall(found),
         "counts": counts,
@@ -558,6 +884,7 @@ def measure(repo_root: str | Path, *, data_dir: str | Path | None = None,
         "input_counts": input_counts(inputs),
         "producers": producers,
         "fleet_measured": loaded is not None,
+        "writers": writers,
         "tally": tally,
         "drift": drifted,
         "findings": found,
@@ -577,7 +904,8 @@ def live_rows_from_rollup(doc: Any) -> list[dict]:
 
 def run(root: str | Path | None = None, *, data_dir: str | Path | None = None,
         write: bool = True, now: Optional[dt.datetime] = None,
-        rollup_json: str | Path | None = None, live: bool = False, **kw) -> dict:
+        rollup_json: str | Path | None = None, live: bool = False,
+        session_log: str | Path | None = None, **kw) -> dict:
     """Собрать отчёт и (по умолчанию) записать `REPORT_REL` в корень дерева."""
     root_path = Path(root) if root else _REPO_ROOT
     live_rows = kw.pop("live_rows", None)
@@ -596,7 +924,8 @@ def run(root: str | Path | None = None, *, data_dir: str | Path | None = None,
             live_rows = live_rows_from_rollup(rollup.measure(str(root_path), data_dir=data))
         except rollup.Unmeasured as exc:
             raise Unmeasured(f"живая сводка не снята: {exc}") from exc
-    doc = measure(root_path, data_dir=data_dir, now=now, live_rows=live_rows, **kw)
+    doc = measure(root_path, data_dir=data_dir, now=now, live_rows=live_rows,
+                  session_log=session_log, **kw)
     if write:
         from spa_core.utils.atomic import atomic_save  # noqa: PLC0415
         atomic_save(doc, str(root_path / REPORT_REL))
@@ -621,8 +950,30 @@ def report(doc: dict, max_rows: int = 16) -> list[str]:
     for p in (observed(doc, "producers", kind=list) or [])[:max_rows]:
         silent = (f"молчит {p['silent_hours']:.0f} ч" if isinstance(p.get("silent_hours"), (int, float))
                   else "молчание НЕ ИЗМЕРЕНО")
+        if p.get("hands_measured"):
+            no_hands = p.get("silent_hours_excluding_hands")
+            silent += (f" по любому файлу · без рук {no_hands:.0f} ч"
+                       if isinstance(no_hands, (int, float)) else
+                       " по любому файлу · без рук НЕ ИЗМЕРЕНО")
+            silent += f" (рукой {p.get('hand_written')})"
+        else:
+            silent += " (кто писал — НЕ ИЗМЕРЕНО)"
         lines.append(f"     [{p.get('state')}] {p.get('producer')}: критериев "
                      f"{p.get('criteria_count')}, протухло {p.get('stale_count')}, {silent}")
+    writers = observed(doc, "writers", kind=dict)
+    if writers is None:
+        lines.append("     кто написал входы: НЕ ИЗМЕРЕНО — оси нет в артефакте (схема v1)")
+    elif writers.get("verdict") == WRITERS_MEASURED:
+        wc = observed(writers, "counts", kind=dict)
+        lines.append(f"     кто написал входы ({ADR_WRITERS}): рукой {_n(wc, WRITER_HAND)} · не назван "
+                     f"{_n(wc, WRITER_UNATTRIBUTED)} · без часов {_n(wc, NO_CLOCK)} "
+                     f"(журнал сессий: записей {writers.get('entries_read')}, нечитаемых "
+                     f"{writers.get('malformed_lines')}, окно ±{writers.get('window_minutes')} мин)")
+        for r in (observed(writers, "rows", kind=list) or [])[:max_rows]:
+            if r.get("writer") == WRITER_HAND:
+                lines.append(f"       [hand] {r.get('criterion')} {r.get('artifact')}: {r.get('why')}")
+    else:
+        lines.append(f"     кто написал входы ({ADR_WRITERS}): НЕ ИЗМЕРЕНО — {writers.get('reason')}")
     tally = observed(doc, "tally", kind=dict)
     if tally is not None:
         lines.append(f"     сводка: [{tally.get('state')}] {tally.get('why')}")
@@ -664,12 +1015,15 @@ def main(argv: Optional[list[str]] = None) -> int:
                     help="JSON живой сводки (`cio_acceptance_rollup --json`) для оси дрейфа")
     ap.add_argument("--live", action="store_true",
                     help="снять живую сводку самому (≈76 с) вместо `--rollup-json`")
+    ap.add_argument("--session-log", default=None,
+                    help=f"журнал объявлений сессий для оси «кто написал» (ADR-995); умолчание — "
+                         f"{SESSION_LOG_NAME} рядом с артефактами; не прочитан ⇒ ось UNCHECKED")
     ap.add_argument("--no-write", action="store_true", help="не писать артефакт")
     ap.add_argument("--json", action="store_true", help="печатать отчёт как JSON")
     args = ap.parse_args(argv)
     try:
         doc = run(root=args.root, data_dir=args.data_dir, write=not args.no_write,
-                  rollup_json=args.rollup_json, live=args.live)
+                  rollup_json=args.rollup_json, live=args.live, session_log=args.session_log)
     except Unmeasured as exc:
         print(f"s49_surface_freshness: НЕ ИЗМЕРЕНО — {exc}", file=sys.stderr)
         return 2

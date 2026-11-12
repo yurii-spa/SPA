@@ -1,0 +1,240 @@
+{
+  "title": "ADR-995 — дельта цикла #1114 (§49, четвёртая ось: КТО написал вход поверхности)",
+  "tests": [
+    "spa_core/tests/test_s49_surface_freshness.py"
+  ],
+  "baseline_failures": [],
+  "population": 21,
+  "applied": 21,
+  "counts": {
+    "killed": 21,
+    "survived": 0,
+    "not_applied": 0,
+    "broke_collection": 0
+  },
+  "unmeasured_reason": null,
+  "rc": 0,
+  "results": [
+    {
+      "name": "M01 ось UNCHECKED считается измеренной у производителя",
+      "file": "spa_core/monitoring/s49_surface_freshness.py",
+      "outcome": "killed",
+      "detail": "",
+      "new_failures": [
+        "spa_core/tests/test_s49_surface_freshness.py::TestWriters::test_channel_absent_is_an_unchecked_finding_not_no_hands",
+        "spa_core/tests/test_s49_surface_freshness.py::TestWriters::test_producer_without_the_axis_has_no_hand_numbers",
+        "spa_core/tests/test_s49_surface_freshness.py::TestWriters::test_report_says_unmeasured_when_the_axis_is_unchecked_or_absent"
+      ]
+    },
+    {
+      "name": "M02 рука считается по всем входам производителя",
+      "file": "spa_core/monitoring/s49_surface_freshness.py",
+      "outcome": "killed",
+      "detail": "",
+      "new_failures": [
+        "spa_core/tests/test_s49_surface_freshness.py::TestWriters::test_producer_silence_is_printed_twice_with_and_without_hands",
+        "spa_core/tests/test_s49_surface_freshness.py::TestWriters::test_report_prints_the_hand_and_both_silences"
+      ]
+    },
+    {
+      "name": "M03 молчание «без рук» не исключает руки",
+      "file": "spa_core/monitoring/s49_surface_freshness.py",
+      "outcome": "killed",
+      "detail": "",
+      "new_failures": [
+        "spa_core/tests/test_s49_surface_freshness.py::TestWriters::test_all_inputs_by_hand_leaves_silence_unmeasured_not_zero",
+        "spa_core/tests/test_s49_surface_freshness.py::TestWriters::test_findings_name_the_hand_and_both_silences",
+        "spa_core/tests/test_s49_surface_freshness.py::TestWriters::test_producer_silence_is_printed_twice_with_and_without_hands",
+        "spa_core/tests/test_s49_surface_freshness.py::TestWriters::test_report_prints_the_hand_and_both_silences"
+      ]
+    },
+    {
+      "name": "M04 отсутствующий журнал выдаётся за прочитанный пустой",
+      "file": "spa_core/monitoring/s49_surface_freshness.py",
+      "outcome": "killed",
+      "detail": "",
+      "new_failures": [
+        "spa_core/tests/test_s49_surface_freshness.py::TestWriters::test_channel_absent_is_an_unchecked_finding_not_no_hands",
+        "spa_core/tests/test_s49_surface_freshness.py::TestWriters::test_missing_session_log_is_none_with_a_reason",
+        "spa_core/tests/test_s49_surface_freshness.py::TestWriters::test_report_says_unmeasured_when_the_axis_is_unchecked_or_absent"
+      ]
+    },
+    {
+      "name": "M05 нечитаемая строка журнала проглатывается молча",
+      "file": "spa_core/monitoring/s49_surface_freshness.py",
+      "outcome": "killed",
+      "detail": "",
+      "new_failures": [
+        "spa_core/tests/test_s49_surface_freshness.py::TestWriters::test_malformed_lines_are_counted_not_swallowed",
+        "spa_core/tests/test_s49_surface_freshness.py::TestWriters::test_measure_reads_the_session_log_next_to_the_artifacts"
+      ]
+    },
+    {
+      "name": "M06 совпадение по files не считается доказательством",
+      "file": "spa_core/monitoring/s49_surface_freshness.py",
+      "outcome": "killed",
+      "detail": "",
+      "new_failures": [
+        "spa_core/tests/test_s49_surface_freshness.py::TestWriters::test_findings_name_the_hand_and_both_silences",
+        "spa_core/tests/test_s49_surface_freshness.py::TestWriters::test_live_control_1106_hand_is_named_by_files",
+        "spa_core/tests/test_s49_surface_freshness.py::TestWriters::test_measure_reads_the_session_log_next_to_the_artifacts",
+        "spa_core/tests/test_s49_surface_freshness.py::TestWriters::test_producer_silence_is_printed_twice_with_and_without_hands",
+        "spa_core/tests/test_s49_surface_freshness.py::TestWriters::test_report_prints_the_hand_and_both_silences",
+        "spa_core/tests/test_s49_surface_freshness.py::TestWriters::test_run_passes_an_explicit_session_log"
+      ]
+    },
+    {
+      "name": "M07 совпадение по summary не считается доказательством",
+      "file": "spa_core/monitoring/s49_surface_freshness.py",
+      "outcome": "killed",
+      "detail": "",
+      "new_failures": [
+        "spa_core/tests/test_s49_surface_freshness.py::TestWriters::test_hand_by_summary_when_files_name_nothing"
+      ]
+    },
+    {
+      "name": "M08 окно руки вдвое шире объявленного",
+      "file": "spa_core/monitoring/s49_surface_freshness.py",
+      "outcome": "killed",
+      "detail": "",
+      "new_failures": [
+        "spa_core/tests/test_s49_surface_freshness.py::TestWriters::test_entry_outside_the_window_is_not_a_hand"
+      ]
+    },
+    {
+      "name": "M09 кучи режутся по зазору в сто раз шире окна",
+      "file": "spa_core/monitoring/s49_surface_freshness.py",
+      "outcome": "killed",
+      "detail": "",
+      "new_failures": [
+        "spa_core/tests/test_s49_surface_freshness.py::TestWriters::test_batch_groups_join_a_thirteen_minute_run_and_split_an_hour"
+      ]
+    },
+    {
+      "name": "M10 размер кучи считает соседей за любым расстоянием",
+      "file": "spa_core/monitoring/s49_surface_freshness.py",
+      "outcome": "killed",
+      "detail": "",
+      "new_failures": [
+        "spa_core/tests/test_s49_surface_freshness.py::TestWriters::test_cluster_size_counts_neighbours_within_the_batch_window"
+      ]
+    },
+    {
+      "name": "M11 непрочитанный канал объявляется измеренным",
+      "file": "spa_core/monitoring/s49_surface_freshness.py",
+      "outcome": "killed",
+      "detail": "",
+      "new_failures": [
+        "spa_core/tests/test_s49_surface_freshness.py::TestWriters::test_channel_absent_is_an_unchecked_finding_not_no_hands",
+        "spa_core/tests/test_s49_surface_freshness.py::TestWriters::test_channel_not_read_is_unchecked_on_the_whole_axis",
+        "spa_core/tests/test_s49_surface_freshness.py::TestWriters::test_producer_without_the_axis_has_no_hand_numbers",
+        "spa_core/tests/test_s49_surface_freshness.py::TestWriters::test_report_says_unmeasured_when_the_axis_is_unchecked_or_absent"
+      ]
+    },
+    {
+      "name": "M12 вход без часов судится как «не назван»",
+      "file": "spa_core/monitoring/s49_surface_freshness.py",
+      "outcome": "killed",
+      "detail": "",
+      "new_failures": [
+        "spa_core/tests/test_s49_surface_freshness.py::TestWriters::test_input_without_a_clock_is_a_no_clock_row"
+      ]
+    },
+    {
+      "name": "M13 найденная рука записывается как «не назван»",
+      "file": "spa_core/monitoring/s49_surface_freshness.py",
+      "outcome": "killed",
+      "detail": "",
+      "new_failures": [
+        "spa_core/tests/test_s49_surface_freshness.py::TestWriters::test_findings_name_the_hand_and_both_silences",
+        "spa_core/tests/test_s49_surface_freshness.py::TestWriters::test_hand_by_summary_when_files_name_nothing",
+        "spa_core/tests/test_s49_surface_freshness.py::TestWriters::test_live_control_1106_hand_is_named_by_files",
+        "spa_core/tests/test_s49_surface_freshness.py::TestWriters::test_measure_reads_the_session_log_next_to_the_artifacts",
+        "spa_core/tests/test_s49_surface_freshness.py::TestWriters::test_producer_silence_is_printed_twice_with_and_without_hands",
+        "spa_core/tests/test_s49_surface_freshness.py::TestWriters::test_report_prints_the_hand_and_both_silences",
+        "spa_core/tests/test_s49_surface_freshness.py::TestWriters::test_run_passes_an_explicit_session_log"
+      ]
+    },
+    {
+      "name": "M14 находка о руке понижена до info",
+      "file": "spa_core/monitoring/s49_surface_freshness.py",
+      "outcome": "killed",
+      "detail": "",
+      "new_failures": [
+        "spa_core/tests/test_s49_surface_freshness.py::TestWriters::test_findings_name_the_hand_and_both_silences"
+      ]
+    },
+    {
+      "name": "M15 куча без зовущего спрашивается и у живого производителя",
+      "file": "spa_core/monitoring/s49_surface_freshness.py",
+      "outcome": "killed",
+      "detail": "",
+      "new_failures": [
+        "spa_core/tests/test_s49_surface_freshness.py::TestFindings::test_fresh_surface_is_ok",
+        "spa_core/tests/test_s49_surface_freshness.py::TestWriters::test_batch_without_a_caller_is_asked_only_of_a_dead_producer"
+      ]
+    },
+    {
+      "name": "M16 непрочитанный канал не даёт находки unchecked",
+      "file": "spa_core/monitoring/s49_surface_freshness.py",
+      "outcome": "killed",
+      "detail": "",
+      "new_failures": [
+        "spa_core/tests/test_s49_surface_freshness.py::TestWriters::test_channel_absent_is_an_unchecked_finding_not_no_hands"
+      ]
+    },
+    {
+      "name": "M17 текст о замороженной поверхности не знает о руке",
+      "file": "spa_core/monitoring/s49_surface_freshness.py",
+      "outcome": "killed",
+      "detail": "",
+      "new_failures": [
+        "spa_core/tests/test_s49_surface_freshness.py::TestWriters::test_findings_name_the_hand_and_both_silences"
+      ]
+    },
+    {
+      "name": "M18 measure не читает журнал рядом с артефактами",
+      "file": "spa_core/monitoring/s49_surface_freshness.py",
+      "outcome": "killed",
+      "detail": "",
+      "new_failures": [
+        "spa_core/tests/test_s49_surface_freshness.py::TestWriters::test_channel_absent_is_an_unchecked_finding_not_no_hands",
+        "spa_core/tests/test_s49_surface_freshness.py::TestWriters::test_measure_reads_the_session_log_next_to_the_artifacts",
+        "spa_core/tests/test_s49_surface_freshness.py::TestWriters::test_report_says_unmeasured_when_the_axis_is_unchecked_or_absent",
+        "spa_core/tests/test_s49_surface_freshness.py::TestWriters::test_run_passes_an_explicit_session_log"
+      ]
+    },
+    {
+      "name": "M19 производителям не передаётся ось «кто написал»",
+      "file": "spa_core/monitoring/s49_surface_freshness.py",
+      "outcome": "killed",
+      "detail": "",
+      "new_failures": [
+        "spa_core/tests/test_s49_surface_freshness.py::TestWriters::test_findings_name_the_hand_and_both_silences",
+        "spa_core/tests/test_s49_surface_freshness.py::TestWriters::test_report_prints_the_hand_and_both_silences"
+      ]
+    },
+    {
+      "name": "M20 находкам не передаётся ось «кто написал»",
+      "file": "spa_core/monitoring/s49_surface_freshness.py",
+      "outcome": "killed",
+      "detail": "",
+      "new_failures": [
+        "spa_core/tests/test_s49_surface_freshness.py::TestFindings::test_fresh_surface_is_ok",
+        "spa_core/tests/test_s49_surface_freshness.py::TestFindings::test_live_control_1113_is_critical_and_names_the_producer",
+        "spa_core/tests/test_s49_surface_freshness.py::TestWriters::test_batch_without_a_caller_is_asked_only_of_a_dead_producer",
+        "spa_core/tests/test_s49_surface_freshness.py::TestWriters::test_channel_absent_is_an_unchecked_finding_not_no_hands",
+        "spa_core/tests/test_s49_surface_freshness.py::TestWriters::test_findings_name_the_hand_and_both_silences"
+      ]
+    },
+    {
+      "name": "M21 офис не объявляет поле writers обязательным",
+      "file": "scripts/consume_office_reports.py",
+      "outcome": "killed",
+      "detail": "",
+      "new_failures": [
+        "spa_core/tests/test_s49_surface_freshness.py::TestWriters::test_the_office_declares_the_axis_as_a_mandatory_field"
+      ]
+    }
+  ]
+}

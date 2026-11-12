@@ -361,15 +361,20 @@ class TestDrift:
 class TestFindings:
     def test_live_control_1113_is_critical_and_names_the_producer(self, tmp_path):
         data, rows, man = scene(tmp_path)
+        # ADR-995: журнал сессий — ВХОД; пустой список = «канал прочитан, записей нет».
+        # Все 13 входов сцены написаны в одну секунду при выключенном бегуне ⇒ куча
+        # без названного зовущего — третий исход (`unchecked`), не рука и не бегун.
         doc = M.measure(tmp_path, data_dir=data, now=NOW, criteria=CRITERIA, tact_rows=rows,
-                        manifest=man, loaded=set(), live_rows=live_rows(LIVE_1113))
+                        manifest=man, loaded=set(), live_rows=live_rows(LIVE_1113),
+                        session_entries=[])
         assert doc["overall"] == M.OVERALL_CRITICAL
         crit = [f for f in doc["findings"] if f["severity"] == "critical"]
         assert len(crit) == 1 and crit[0]["key"] == "surface_frozen"
         assert "13 из 13" in crit[0]["text"] and "com.spa.decision_loop" in crit[0]["text"]
-        assert doc["counts"] == {"critical": 1, "warn": 2, "info": 1, "unchecked": 0}
+        assert doc["counts"] == {"critical": 1, "warn": 2, "info": 1, "unchecked": 1}
         keys = {f["key"] for f in doc["findings"]}
-        assert {"surface_frozen", "single_producer", "tally_stale", "tally_drift"} == keys
+        assert {"surface_frozen", "single_producer", "tally_stale", "tally_drift",
+                "batch_without_a_caller"} == keys
 
     def test_stale_inputs_with_a_loaded_producer_is_warn_not_critical(self, tmp_path):
         data, rows, man = scene(tmp_path)
@@ -395,9 +400,9 @@ class TestFindings:
         data, rows, man = scene(tmp_path, ages=ages, tally_age=1.0)
         doc = M.measure(tmp_path, data_dir=data, now=NOW, criteria=CRITERIA, tact_rows=rows,
                         manifest=man, loaded={"com.spa.decision_loop"},
-                        live_rows=live_rows(FROZEN_1113))
+                        live_rows=live_rows(FROZEN_1113), session_entries=[])
         assert doc["overall"] == M.OVERALL_OK
-        assert {f["key"] for f in doc["findings"]} == {"single_producer", "tally_same"}
+        assert {f["key"] for f in doc["findings"]} == {"single_producer", "tally_same", "no_hands"}
 
     def test_drift_unchecked_alone_makes_overall_unchecked(self, tmp_path):
         ages = {c: 1.0 for c in CRITERIA}
@@ -595,3 +600,343 @@ class TestWiring:
         out = "\n".join(str(x) for x in mod._summarize_json(
             "data/s49_surface_freshness.json", doc, now=NOW, root=str(_REPO)))
         assert "ADR-994" in out and "протухших 13" in out
+
+
+# ═══════════════════════ ADR-995: четвёртая ось — КТО написал вход ═══════════════════════
+
+#: Запись журнала объявлений цикла #1106 (12.11 05:51:18Z) — за 66 с до файла
+#: `data/decision_audit_trail.json` 05:52:23Z. Пути и ярлык — дословно из прода;
+#: отметка считается ОТ `NOW`, как и всё в этом файле.
+def entry_1106(ts: str, *, files: list[str] | None = None, summary: str | None = None,
+               session: str = "cycle-79383") -> dict:
+    return {"ts": ts, "session": session,
+            "summary": summary if summary is not None else
+            "цикл #1106 (cycle-1106): ADR-989 готов к доставке — §43 ТЗ CIO ось «решение ↔ исполнено»",
+            "files": files if files is not None else [
+                "/Users/yuriikulieshov/Documents/SPA_worktrees/c1106/spa_core/monitoring/decision_audit_trail.py",
+                "/Users/yuriikulieshov/Documents/SPA_worktrees/c1106/spa_core/tests/test_decision_audit_trail.py",
+                "/Users/yuriikulieshov/Documents/SPA_worktrees/c1106/docs/STATE.md"],
+            "card": "inbox-task-portfolio-cio-dynamic-capital-alloc", "card_state": "claim"}
+
+
+AUDIT_ART = "data/decision_audit_trail.json"
+AUDIT_MOD = "spa_core/monitoring/decision_audit_trail.py"
+
+
+def scene_1106(tmp_path: Path, *, hand_age: float = 10.3) -> tuple[Path, list[dict], dict, list[dict], str]:
+    """Сцена 12.11: 13 входов 342 ч, один (`Auditability`) написан рукой `hand_age` ч назад."""
+    ages = {c: 342.0 for c in CRITERIA}
+    ages["Auditability"] = hand_age
+    data, rows, man = scene(tmp_path, ages=ages)
+    # вход Auditability — под НАСТОЯЩИМ именем артефакта, чтобы карта моста его узнала
+    for r in rows:
+        if r["criterion"] == "Auditability":
+            r["artifact"] = AUDIT_ART
+    write_artifact(data, AUDIT_ART, hours_ago=hand_age)
+    man = manifest_for(rows)
+    made = NOW - dt.timedelta(hours=hand_age)
+    hand_ts = (made - dt.timedelta(seconds=66)).isoformat()
+    inputs = M.input_rows(rows, data_dir=data, now=NOW)
+    return data, rows, man, inputs, hand_ts
+
+
+class TestWriters:
+    """Кто написал вход — по боковому каналу; три исхода у оси и у строки."""
+
+    def test_live_control_1106_hand_is_named_by_files(self, tmp_path):
+        """Положительный контроль замера 12.11: рука названа, с ярлыком, доказательством и смещением."""
+        data, rows, man, inputs, hand_ts = scene_1106(tmp_path)
+        noise = {"ts": hand_ts, "session": "cycle-other", "summary": "чужая работа",
+                 "files": ["/x/y/spa_core/monitoring/other_meter.py"]}
+        w = M.writer_rows(inputs, entries=[noise, entry_1106(hand_ts)], now=NOW)
+        assert w["verdict"] == M.WRITERS_MEASURED
+        row = next(r for r in w["rows"] if r["criterion"] == "Auditability")
+        assert row["writer"] == M.WRITER_HAND
+        assert row["session"] == "cycle-79383" and row["evidence"] == "files"
+        assert row["module"] == AUDIT_MOD
+        assert "+66 с" in row["why"] and "cycle-79383" in row["why"]
+        assert w["counts"] == {M.WRITER_HAND: 1, M.WRITER_UNATTRIBUTED: 12, M.NO_CLOCK: 0}
+        assert w["entries_read"] == 2 and w["malformed_lines"] == 0
+
+    def test_hand_by_summary_when_files_name_nothing(self, tmp_path):
+        data, rows, man, inputs, hand_ts = scene_1106(tmp_path)
+        e = entry_1106(hand_ts, files=["/x/docs/STATE.md"],
+                       summary="перегнал decision_audit_trail по проду руками")
+        row = next(r for r in M.writer_rows(inputs, entries=[e], now=NOW)["rows"]
+                   if r["criterion"] == "Auditability")
+        assert row["writer"] == M.WRITER_HAND and row["evidence"] == "summary"
+
+    def test_entry_outside_the_window_is_not_a_hand(self, tmp_path):
+        data, rows, man, inputs, _ = scene_1106(tmp_path)
+        made = NOW - dt.timedelta(hours=10.3)
+        far = (made - dt.timedelta(minutes=31)).isoformat()
+        row = next(r for r in M.writer_rows(inputs, entries=[entry_1106(far)], now=NOW)["rows"]
+                   if r["criterion"] == "Auditability")
+        assert row["writer"] == M.WRITER_UNATTRIBUTED and row["candidates"] == []
+        assert "записей в окне" in row["why"]
+
+    def test_entry_in_window_naming_nothing_is_a_candidate_not_a_hand(self, tmp_path):
+        data, rows, man, inputs, hand_ts = scene_1106(tmp_path)
+        e = entry_1106(hand_ts, files=["/x/docs/STATE.md"], summary="журнал дописан")
+        row = next(r for r in M.writer_rows(inputs, entries=[e], now=NOW)["rows"]
+                   if r["criterion"] == "Auditability")
+        assert row["writer"] == M.WRITER_UNATTRIBUTED
+        assert row["candidates"] == ["cycle-79383"] and row["session"] is None
+        assert "ни одна не называет" in row["why"]
+
+    def test_no_entries_is_measured_unattributed_not_unchecked(self, tmp_path):
+        data, rows, man = scene(tmp_path)
+        inputs = M.input_rows(rows, data_dir=data, now=NOW)
+        w = M.writer_rows(inputs, entries=[], now=NOW)
+        assert w["verdict"] == M.WRITERS_MEASURED
+        assert w["counts"][M.WRITER_UNATTRIBUTED] == 13 and w["counts"][M.WRITER_HAND] == 0
+        assert w["entries_read"] == 0
+
+    def test_channel_not_read_is_unchecked_on_the_whole_axis(self, tmp_path):
+        data, rows, man = scene(tmp_path)
+        inputs = M.input_rows(rows, data_dir=data, now=NOW)
+        w = M.writer_rows(inputs, entries=None, now=NOW, channel_problem="файла нет")
+        assert w["verdict"] == M.WRITERS_UNCHECKED and w["rows"] == []
+        assert w["counts"] == {M.WRITER_HAND: None, M.WRITER_UNATTRIBUTED: None, M.NO_CLOCK: None}
+        assert "файла нет" in w["reason"] and w["entries_read"] is None
+
+    def test_malformed_lines_are_counted_not_swallowed(self, tmp_path):
+        log = tmp_path / "session_changes.jsonl"
+        log.write_text('{"ts": "2026-01-01T00:00:00Z", "session": "a"}\n'
+                       'это не JSON\n'
+                       '\n'
+                       '[1, 2]\n'
+                       '{"ts": "2026-01-01T00:00:01Z", "session": "b"}\n', encoding="utf-8")
+        entries, problem, malformed = M.read_session_log(log)
+        assert problem is None and malformed == 2
+        assert [e["session"] for e in entries] == ["a", "b"]
+
+    def test_missing_session_log_is_none_with_a_reason(self, tmp_path):
+        entries, problem, malformed = M.read_session_log(tmp_path / "нет.jsonl")
+        assert entries is None and malformed == 0
+        assert "нет.jsonl" in problem
+
+    def test_input_without_a_clock_is_a_no_clock_row(self, tmp_path):
+        data, rows, man = scene(tmp_path, ages={})
+        for r in rows:
+            write_artifact(data, r["artifact"], hours_ago=None, extra={})
+        inputs = M.input_rows(rows, data_dir=data, now=NOW)
+        w = M.writer_rows(inputs, entries=[], now=NOW)
+        assert w["counts"][M.NO_CLOCK] == 13
+        assert all(r["writer"] == M.NO_CLOCK and r["cluster_size"] is None for r in w["rows"])
+
+    def test_unbound_rows_are_not_judged(self, tmp_path):
+        data = tmp_path / "data"
+        data.mkdir()
+        rows = [{"criterion": "X", "state": stt.TACT_UNBOUND, "slo_hours": None,
+                 "artifact": None, "why": "нет"}]
+        inputs = M.input_rows(rows, data_dir=data, now=NOW)
+        assert M.writer_rows(inputs, entries=[], now=NOW)["rows"] == []
+
+    def test_cluster_size_counts_neighbours_within_the_batch_window(self, tmp_path):
+        data, rows, man, inputs, _ = scene_1106(tmp_path)
+        w = M.writer_rows(inputs, entries=[], now=NOW)
+        by = {r["criterion"]: r for r in w["rows"]}
+        assert by["Auditability"]["cluster_size"] == 1
+        assert by["Economics"]["cluster_size"] == 12
+        assert "одиночный файл" in by["Auditability"]["why"]
+        assert "куча из 12" in by["Economics"]["why"]
+
+    def test_batch_groups_join_a_thirteen_minute_run_and_split_an_hour(self):
+        def row(minutes: float) -> dict:
+            return {"writer": M.WRITER_UNATTRIBUTED, "cluster_size": 2,
+                    "generated_at": (NOW - dt.timedelta(minutes=minutes)).isoformat()}
+        rows = [row(0), row(5), row(12.9), row(80), row(85)]
+        groups = M.batch_groups(rows, batch_minutes=15.0)
+        assert sorted(len(g) for g in groups.values()) == [2, 3]
+        # прогон 29.10 шёл с 09:57 по 10:10 — две календарные «кучи» были бы ложью
+        assert len(groups) == 2
+
+    def test_batch_groups_ignore_hands_and_singles(self):
+        rows = [{"writer": M.WRITER_HAND, "cluster_size": 3, "generated_at": NOW.isoformat()},
+                {"writer": M.WRITER_UNATTRIBUTED, "cluster_size": 1, "generated_at": NOW.isoformat()},
+                {"writer": M.NO_CLOCK, "cluster_size": None, "generated_at": None}]
+        assert M.batch_groups(rows) == {}
+
+    def test_module_of_uses_the_bridge_map_and_names_nothing_it_does_not_know(self):
+        assert M.module_of(AUDIT_ART) == AUDIT_MOD
+        assert M.module_of("data/такого_нет.json") is None
+        assert M.module_of(None) is None
+
+    def test_producer_silence_is_printed_twice_with_and_without_hands(self, tmp_path):
+        """Замер 12.11: «молчит 10,3 ч» по любому файлу, 342 ч без рук — ОБА, и рука посчитана."""
+        data, rows, man, inputs, hand_ts = scene_1106(tmp_path)
+        w = M.writer_rows(inputs, entries=[entry_1106(hand_ts)], now=NOW)
+        prod = M.producer_rows(inputs, manifest=man, loaded=set(), now=NOW, writers=w)[0]
+        assert prod["hands_measured"] is True and prod["hand_written"] == 1
+        assert prod["silent_hours"] == pytest.approx(10.3, abs=0.01)
+        assert prod["silent_hours_excluding_hands"] == pytest.approx(342.0, abs=0.01)
+        assert prod["last_seen_artifact"] == AUDIT_ART
+        assert prod["last_seen_excluding_hands"] != prod["last_seen"]
+
+    def test_producer_without_the_axis_has_no_hand_numbers(self, tmp_path):
+        data, rows, man, inputs, _ = scene_1106(tmp_path)
+        prod = M.producer_rows(inputs, manifest=man, loaded=set(), now=NOW)[0]
+        assert prod["hands_measured"] is False
+        assert prod["hand_written"] is None and prod["silent_hours_excluding_hands"] is None
+        unchecked = M.writer_rows(inputs, entries=None, now=NOW)
+        prod2 = M.producer_rows(inputs, manifest=man, loaded=set(), now=NOW, writers=unchecked)[0]
+        assert prod2["hands_measured"] is False and prod2["hand_written"] is None
+
+    def test_all_inputs_by_hand_leaves_silence_unmeasured_not_zero(self, tmp_path):
+        data, rows, man = scene(tmp_path)
+        inputs = M.input_rows(rows, data_dir=data, now=NOW)
+        w = M.writer_rows(inputs, entries=[], now=NOW)
+        for r in w["rows"]:
+            r["writer"] = M.WRITER_HAND
+        prod = M.producer_rows(inputs, manifest=man, loaded=set(), now=NOW, writers=w)[0]
+        assert prod["hand_written"] == 13 and prod["silent_hours_excluding_hands"] is None
+
+    def test_findings_name_the_hand_and_both_silences(self, tmp_path):
+        data, rows, man, inputs, hand_ts = scene_1106(tmp_path)
+        doc = M.measure(tmp_path, data_dir=data, now=NOW, criteria=CRITERIA, tact_rows=rows,
+                        manifest=man, loaded=set(), live_rows=live_rows(LIVE_1113),
+                        session_entries=[entry_1106(hand_ts)])
+        keys = {f["key"]: f for f in doc["findings"]}
+        assert "hand_written" in keys and keys["hand_written"]["severity"] == "warn"
+        assert "cycle-79383" in keys["hand_written"]["text"] and "Auditability" in keys["hand_written"]["text"]
+        frozen = keys["surface_frozen"]["text"]
+        assert "написала РУКА" in frozen and "без рук" in frozen and "342 ч" in frozen
+        assert "batch_without_a_caller" in keys  # остальные 12 — куча 342 ч без зовущего
+        assert keys["batch_without_a_caller"]["severity"] == "unchecked"
+        assert "no_hands" not in keys
+
+    def test_batch_without_a_caller_is_asked_only_of_a_dead_producer(self, tmp_path):
+        data, rows, man = scene(tmp_path)
+        alive = M.measure(tmp_path, data_dir=data, now=NOW, criteria=CRITERIA, tact_rows=rows,
+                          manifest=man, loaded={"com.spa.decision_loop"},
+                          live_rows=live_rows(LIVE_1113), session_entries=[])
+        assert not any(f["key"] == "batch_without_a_caller" for f in alive["findings"])
+        assert any(f["key"] == "no_hands" for f in alive["findings"])
+        dead = M.measure(tmp_path, data_dir=data, now=NOW, criteria=CRITERIA, tact_rows=rows,
+                         manifest=man, loaded=set(), live_rows=live_rows(LIVE_1113),
+                         session_entries=[])
+        batch = next(f for f in dead["findings"] if f["key"] == "batch_without_a_caller")
+        assert "13 входов" in batch["text"] and "канал не различает" in batch["text"]
+
+    def test_channel_absent_is_an_unchecked_finding_not_no_hands(self, tmp_path):
+        data, rows, man = scene(tmp_path)
+        doc = M.measure(tmp_path, data_dir=data, now=NOW, criteria=CRITERIA, tact_rows=rows,
+                        manifest=man, loaded=set(), live_rows=live_rows(LIVE_1113))
+        keys = {f["key"]: f for f in doc["findings"]}
+        assert keys["writers_unchecked"]["severity"] == "unchecked"
+        assert M.SESSION_LOG_NAME in keys["writers_unchecked"]["text"]
+        assert "no_hands" not in keys and "hand_written" not in keys
+        assert doc["writers"]["verdict"] == M.WRITERS_UNCHECKED
+        assert doc["producers"][0]["hands_measured"] is False
+        assert "не измерена" in keys["surface_frozen"]["text"]
+
+    def test_measure_reads_the_session_log_next_to_the_artifacts(self, tmp_path):
+        data, rows, man, inputs, hand_ts = scene_1106(tmp_path)
+        (data / M.SESSION_LOG_NAME).write_text(
+            json.dumps(entry_1106(hand_ts), ensure_ascii=False) + "\nмусор\n", encoding="utf-8")
+        doc = M.measure(tmp_path, data_dir=data, now=NOW, criteria=CRITERIA, tact_rows=rows,
+                        manifest=man, loaded=set(), live_rows=live_rows(LIVE_1113))
+        w = doc["writers"]
+        assert w["verdict"] == M.WRITERS_MEASURED and w["entries_read"] == 1 and w["malformed_lines"] == 1
+        assert w["session_log"] == str(data / M.SESSION_LOG_NAME)
+        assert w["counts"][M.WRITER_HAND] == 1
+
+    def test_run_passes_an_explicit_session_log(self, tmp_path):
+        data, rows, man, inputs, hand_ts = scene_1106(tmp_path)
+        log = tmp_path / "elsewhere.jsonl"
+        log.write_text(json.dumps(entry_1106(hand_ts), ensure_ascii=False) + "\n", encoding="utf-8")
+        doc = M.run(tmp_path, data_dir=data, write=False, now=NOW, session_log=log,
+                    criteria=CRITERIA, tact_rows=rows, manifest=man, loaded=set(),
+                    live_rows=live_rows(LIVE_1113))
+        assert doc["writers"]["session_log"] == str(log)
+        assert doc["writers"]["counts"][M.WRITER_HAND] == 1
+        assert not (tmp_path / M.REPORT_REL).exists()
+
+    def test_schema_is_v2_and_the_doc_carries_the_axis(self, tmp_path):
+        data, rows, man = scene(tmp_path)
+        doc = M.measure(tmp_path, data_dir=data, now=NOW, criteria=CRITERIA, tact_rows=rows,
+                        manifest=man, loaded=set(), live_rows=live_rows(LIVE_1113),
+                        session_entries=[])
+        assert doc["schema"] == "s49_surface_freshness/v2"
+        assert doc["adr_writers"] == "ADR-995" and doc["adr"] == "ADR-994"
+        assert set(doc["writers"]) >= {"verdict", "rows", "counts", "entries_read",
+                                       "malformed_lines", "window_minutes", "batch_minutes",
+                                       "reason", "session_log"}
+
+    def test_report_prints_the_hand_and_both_silences(self, tmp_path):
+        data, rows, man, inputs, hand_ts = scene_1106(tmp_path)
+        doc = M.measure(tmp_path, data_dir=data, now=NOW, criteria=CRITERIA, tact_rows=rows,
+                        manifest=man, loaded=set(), live_rows=live_rows(LIVE_1113),
+                        session_entries=[entry_1106(hand_ts)])
+        out = "\n".join(M.format_report(doc))
+        assert "молчит 10 ч по любому файлу · без рук 342 ч (рукой 1)" in out
+        assert "рукой 1 · не назван 12 · без часов 0" in out
+        assert "[hand] Auditability data/decision_audit_trail.json" in out and "ADR-995" in out
+
+    def test_report_says_unmeasured_when_the_axis_is_unchecked_or_absent(self, tmp_path):
+        data, rows, man = scene(tmp_path)
+        doc = M.measure(tmp_path, data_dir=data, now=NOW, criteria=CRITERIA, tact_rows=rows,
+                        manifest=man, loaded=set(), live_rows=live_rows(LIVE_1113))
+        out = "\n".join(M.format_report(doc))
+        assert "кто написал входы (ADR-995): НЕ ИЗМЕРЕНО" in out
+        assert "(кто писал — НЕ ИЗМЕРЕНО)" in out
+        v1 = dict(doc)
+        del v1["writers"]
+        assert "оси нет в артефакте (схема v1)" in "\n".join(M.format_report(v1))
+
+    def test_the_office_declares_the_axis_as_a_mandatory_field(self):
+        source = (_REPO / "scripts" / "consume_office_reports.py").read_text(encoding="utf-8")
+        start = source.index('"s49_surface_freshness.json": ("schema", "overall"')
+        assert '"writers"' in source[start:start + 500]
+        baseline = json.loads((_REPO / "spa_core" / "tests" / "office_schema_field_baseline.json")
+                              .read_text(encoding="utf-8"))
+        assert "writers" in baseline["s49_surface_freshness.json"]
+
+
+class TestAuditabilityProbeIsAReader:
+    """ADR-994 § 6а подозревал пробу `Auditability` в записи артефакта. Опровержение — контролем."""
+
+    def test_the_probe_reads_the_artifact_and_never_calls_run(self, tmp_path, monkeypatch):
+        import sys
+        import types
+        from spa_core.monitoring import card_acceptance as ca
+        from spa_core.monitoring import decision_audit_trail as real
+
+        calls = {"run": 0, "save": 0}
+
+        def _run(*a, **k):
+            calls["run"] += 1
+            raise AssertionError("проба позвала run() — это и была бы запись артефакта")
+
+        def _save(*a, **k):
+            calls["save"] += 1
+            raise AssertionError("проба пишет через atomic_save")
+
+        stub = types.ModuleType(ca.AUDIT_TRAIL_MODULE)
+        stub.CRITERION = real.CRITERION
+        stub.REPORT_REL = real.REPORT_REL
+        stub.CRITERION_SATISFIED = real.CRITERION_SATISFIED
+        stub.CRITERION_NOT_SATISFIED = real.CRITERION_NOT_SATISFIED
+        stub.CRITERION_UNMEASURED = real.CRITERION_UNMEASURED
+        stub.criterion_verdict = lambda doc: {"status": real.CRITERION_NOT_SATISFIED,
+                                              "reason": "сцена: снимок не полон"}
+        stub.run = _run
+        monkeypatch.setitem(sys.modules, ca.AUDIT_TRAIL_MODULE, stub)
+        import spa_core.utils.atomic as atomic
+        monkeypatch.setattr(atomic, "atomic_save", _save)
+
+        data = tmp_path / "data"
+        data.mkdir()
+        (data / "decision_audit_trail.json").write_text(
+            json.dumps({"generated_at": dt.datetime.now(dt.timezone.utc).isoformat(),
+                        "overall": "CRITICAL"}), encoding="utf-8")
+        before = sorted(p.name for p in data.iterdir())
+        verdict, reason = ca._probe_auditability_decision_carries_snapshot_and_explanation(
+            None, repo_root=str(_REPO), data_dir=str(data))
+        assert calls == {"run": 0, "save": 0}
+        assert sorted(p.name for p in data.iterdir()) == before
+        # половина «snapshot» ПРОЧИТАНА и дала вердикт — критерий не выполнен; это и
+        # есть доказательство, что проба дошла до артефакта читателем, а не писателем
+        assert verdict == ca.NOT_SATISFIED
+        assert "снимок не полон" in reason

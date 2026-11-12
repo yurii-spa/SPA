@@ -1341,10 +1341,12 @@ _READ_SCHEMA: dict[str, tuple[str, ...]] = {
     # читают приёмку. `input_counts` и `producers` в схеме обязательны: без них
     # «сводка протухла» не отличимо от «один вход опоздал»; `drift` обязателен —
     # «живая не снята» (UNCHECKED) и «живая совпала» суть разные положения дел.
+    # ADR-995 (G983 п. 1): `writers` обязателен — «рук нет» и «канал не прочитан»
+    # суть разные положения дел, и без поля они неразличимы.
     "s49_surface_freshness.json": ("schema", "overall", "counts.critical", "counts.warn",
                                    "counts.info", "counts.unchecked", "population",
                                    "inputs", "input_counts", "producers",
-                                   "fleet_measured", "tally", "drift", "findings"),
+                                   "fleet_measured", "writers", "tally", "drift", "findings"),
     # Заказ G94 (ADR-549). `unmeasured_causes` в схеме ОБЯЗАТЕЛЕН: «выдерживаем
     # 64» без причин неизмеренных читалось бы как «у остальных всё хорошо», тогда
     # как у 120 артефактов такт не наблюдён ВОВСЕ, и чинится это разным у каждой
