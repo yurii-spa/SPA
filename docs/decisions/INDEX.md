@@ -861,6 +861,7 @@
 | ADR-991 | ADR-991 · §46 «Portfolio CIO»: носитель цели между Optimizer и Target Allocation переписывают 6 ступеней, которых в карте нет (трим ADR-850 среди них); Risk Gate зовётся до Target Allocation | принято | [ADR-991](ADR-991-cio-s46-component-map-hidden-stages-and-live-order.md) |
 | ADR-992 | ADR-992 · §47 «Portfolio CIO»: отказ гейта переживает шесть скрытых ступеней, пока книга уже; книгу шире потолка без снимка адаптеров ступень ADR-002 подменяет зашитой, и трим делает из подмены ход | принято | [ADR-992](ADR-992-cio-s47-gate-refusal-through-hidden-stages.md) |
 | ADR-993 | ADR-993 · §48 «Portfolio CIO»: отказ RiskPolicy ступенью не обойдён ни разу (36/36 удержаны), но 19 из 46 исполненных книг несут $196 579 сверх судимого гейтом; `policy_version` тени — мандат ADR-060 | принято | [ADR-993](ADR-993-cio-s48-policy-refusal-bypassed-by-stage.md) |
+| ADR-994 | ADR-994 · §49 «Portfolio CIO» второй осью: поверхность приёмки ЗАМОРОЖЕНА — все 13 входов старше SLO, производитель один и выключен с 29.10, офис 14 дней печатал счёт 0·11·2, живой — 1·9·3 | принято | [ADR-994](ADR-994-cio-s49-acceptance-surface-frozen.md) |
 
 ## Соглашения
 

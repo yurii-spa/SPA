@@ -85,6 +85,8 @@ PRODUCES = (
     "data/cio_architecture_constraints.json",
     "data/cio_component_map.json",
     "data/cio_policy_change_procedure.json",
+    # ADR-994 (цикл #1113): §49 второй осью — свежесть поверхности приёмки.
+    "data/s49_surface_freshness.json",
     "data/cio_post_trade_verification.json",
     # Объявлено ВМЕСТЕ с вызовом (цикл #522, ADR-259). ADR-257 внёс этот
     # артефакт в манифест и в читателя шага 0-офис, но производящего вызова
@@ -547,6 +549,7 @@ CENSUS_STAGE: tuple[str, ...] = (
     "cio_architecture_constraints",
     "cio_component_map",
     "cio_policy_change_procedure",
+    "s49_surface_freshness",
     "cio_post_trade_verification",
     "cio_outcome_independence",
     "cio_substitution_census",
@@ -806,6 +809,9 @@ CENSUS_PRODUCT: dict[str, dict[str, str]] = {
     "cio_policy_change_procedure": {
         "module": "spa_core/monitoring/cio_policy_change_procedure.py",
         "artifact": "data/cio_policy_change_procedure.json"},
+    "s49_surface_freshness": {
+        "module": "spa_core/monitoring/s49_surface_freshness.py",
+        "artifact": "data/s49_surface_freshness.json"},
     "cio_post_trade_verification": {
         "module": "spa_core/monitoring/cio_post_trade_verification.py",
         "artifact": "data/cio_post_trade_verification.json"},
@@ -3135,6 +3141,19 @@ def main(argv=None) -> int:
                   f"critical={pcp['counts']['critical']})")
     except Exception as e:  # noqa: BLE001 — замер §48 не смеет валить мост
         census_skipped(_skipped, "cio_policy_change_procedure", e)
+    # ADR-994 (заказ G982 п. 1): §49 ВТОРОЙ осью — свежа ли поверхность, с которой
+    # читают приёмку. Живая сводка здесь НЕ снимается (у неё свой такт и ступень
+    # `s49_tally_tact`, ADR-547): ось дрейфа в прогоне моста честно UNCHECKED,
+    # а входы и производитель мерятся всегда.
+    try:
+        from spa_core.monitoring import s49_surface_freshness
+        _ssf = s49_surface_freshness.run(root=args.root)
+        print(f"s49_surface_freshness: {_ssf['overall']} "
+              f"(critical={_ssf['counts']['critical']} "
+              f"warn={_ssf['counts']['warn']} "
+              f"unchecked={_ssf['counts']['unchecked']})")
+    except Exception as e:  # noqa: BLE001 — прибор не смеет валить мост
+        census_skipped(_skipped, "s49_surface_freshness", e)
     # §5 ТЗ CIO, ступень `post-trade verification`: есть ли предмет сверки и
     # подают ли ей наблюдённый исход. Мост находок его НЕ читает: подать
     # ступени фактическую книгу значит изменить путь решения о капитале —

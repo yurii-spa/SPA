@@ -1337,6 +1337,14 @@ _READ_SCHEMA: dict[str, tuple[str, ...]] = {
     "s49_tally_tact.json": ("status", "tally", "population", "tact_floor_hours",
                             "tact_floor_set_by", "callers_calling", "verdict",
                             "tally_cost_s", "findings"),
+    # Заказ G982 п. 1 (ADR-994): §49 ВТОРОЙ осью — свежа ли ПОВЕРХНОСТЬ, с которой
+    # читают приёмку. `input_counts` и `producers` в схеме обязательны: без них
+    # «сводка протухла» не отличимо от «один вход опоздал»; `drift` обязателен —
+    # «живая не снята» (UNCHECKED) и «живая совпала» суть разные положения дел.
+    "s49_surface_freshness.json": ("schema", "overall", "counts.critical", "counts.warn",
+                                   "counts.info", "counts.unchecked", "population",
+                                   "inputs", "input_counts", "producers",
+                                   "fleet_measured", "tally", "drift", "findings"),
     # Заказ G94 (ADR-549). `unmeasured_causes` в схеме ОБЯЗАТЕЛЕН: «выдерживаем
     # 64» без причин неизмеренных читалось бы как «у остальных всё хорошо», тогда
     # как у 120 артефактов такт не наблюдён ВОВСЕ, и чинится это разным у каждой
@@ -1906,6 +1914,8 @@ _PRODUCER: dict[str, str] = {
         "spa_core/monitoring/orphan_sweep.py",
     "s49_tally_tact.json":
         "spa_core/monitoring/s49_tally_tact.py",
+    "s49_surface_freshness.json":
+        "spa_core/monitoring/s49_surface_freshness.py",
     "slo_keepability.json":
         "spa_core/monitoring/slo_keepability.py",
     "prose_binding_census.json":
@@ -4442,6 +4452,16 @@ def _summarize_json(path: str, data, *, now: dt.datetime | None = None,
         # многострочная — ни одна из них).
         from spa_core.monitoring.orphan_sweep import format_report as _osw_report
         out.extend(_osw_report(data))
+    elif name == "s49_surface_freshness.json":
+        # Заказ G982 п. 1 (ADR-994). Без этой ветки артефакт читается ВХОЛОСТУЮ,
+        # и вопрос «вердикт на поверхности — о сегодняшнем мире или о прошлом»
+        # снова остаётся без ответа: сводка §49 печаталась 14 дней как
+        # сегодняшняя при выключенном производителе. Правило отрисовки
+        # делегируется ПРОИЗВОДИТЕЛЮ; ввоз ОДНОСТРОЧНЫЙ (сторож достижимости
+        # вырезает ввозы двух объявленных форм, скобочная многострочная — ни
+        # одна из них).
+        from spa_core.monitoring.s49_surface_freshness import format_report as _ssf_report
+        out.extend(_ssf_report(data))
     elif name == "s49_tally_tact.json":
         # Заказ G93 п. 3 (ADR-547). Без этой ветки артефакт читается ВХОЛОСТУЮ, и
         # ТАЛЛИ §49 — единственное число, которого приказ владельца просит прямо, —

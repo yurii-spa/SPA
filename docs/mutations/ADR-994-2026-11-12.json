@@ -1,0 +1,224 @@
+{
+  "title": "ADR-994 — дельта цикла #1113 (§49 второй осью: свежесть поверхности приёмки)",
+  "tests": [
+    "spa_core/tests/test_s49_surface_freshness.py"
+  ],
+  "baseline_failures": [],
+  "population": 20,
+  "applied": 20,
+  "counts": {
+    "killed": 20,
+    "survived": 0,
+    "not_applied": 0,
+    "broke_collection": 0
+  },
+  "unmeasured_reason": null,
+  "rc": 0,
+  "results": [
+    {
+      "name": "M01 граница срока: равный SLO становится протухшим",
+      "file": "spa_core/monitoring/s49_surface_freshness.py",
+      "outcome": "killed",
+      "detail": "",
+      "new_failures": [
+        "spa_core/tests/test_s49_surface_freshness.py::TestInputFreshness::test_age_equal_to_slo_is_still_fresh"
+      ]
+    },
+    {
+      "name": "M02 отсутствующий файл выдаётся за протухший",
+      "file": "spa_core/monitoring/s49_surface_freshness.py",
+      "outcome": "killed",
+      "detail": "",
+      "new_failures": [
+        "spa_core/tests/test_s49_surface_freshness.py::TestFindings::test_absent_and_no_clock_inputs_are_separate_findings",
+        "spa_core/tests/test_s49_surface_freshness.py::TestInputFreshness::test_missing_file_is_absent_not_stale",
+        "spa_core/tests/test_s49_surface_freshness.py::TestInputFreshness::test_unreadable_json_is_absent_with_the_reason"
+      ]
+    },
+    {
+      "name": "M03 файл без часов считается свежим",
+      "file": "spa_core/monitoring/s49_surface_freshness.py",
+      "outcome": "killed",
+      "detail": "",
+      "new_failures": [
+        "spa_core/tests/test_s49_surface_freshness.py::TestFindings::test_absent_and_no_clock_inputs_are_separate_findings",
+        "spa_core/tests/test_s49_surface_freshness.py::TestInputFreshness::test_file_without_clock_is_no_clock_not_fresh",
+        "spa_core/tests/test_s49_surface_freshness.py::TestInputFreshness::test_unparsable_clock_is_no_clock"
+      ]
+    },
+    {
+      "name": "M04 вложенный путь артефакта схлопывается до имени",
+      "file": "spa_core/monitoring/s49_surface_freshness.py",
+      "outcome": "killed",
+      "detail": "",
+      "new_failures": [
+        "spa_core/tests/test_s49_surface_freshness.py::TestInputFreshness::test_nested_artifact_path_keeps_its_subdirectory"
+      ]
+    },
+    {
+      "name": "M05 строка без привязки выдумывает производителя",
+      "file": "spa_core/monitoring/s49_surface_freshness.py",
+      "outcome": "killed",
+      "detail": "",
+      "new_failures": [
+        "spa_core/tests/test_s49_surface_freshness.py::TestProducers::test_unbound_rows_do_not_invent_a_producer"
+      ]
+    },
+    {
+      "name": "M06 неспрошенный флот читается как «не загружен»",
+      "file": "spa_core/monitoring/s49_surface_freshness.py",
+      "outcome": "killed",
+      "detail": "",
+      "new_failures": [
+        "spa_core/tests/test_s49_surface_freshness.py::TestFindings::test_fleet_unmeasured_is_an_unchecked_finding",
+        "spa_core/tests/test_s49_surface_freshness.py::TestProducers::test_fleet_not_asked_is_unmeasured_not_dead"
+      ]
+    },
+    {
+      "name": "M07 загруженный производитель читается как выключенный",
+      "file": "spa_core/monitoring/s49_surface_freshness.py",
+      "outcome": "killed",
+      "detail": "",
+      "new_failures": [
+        "spa_core/tests/test_s49_surface_freshness.py::TestFindings::test_live_control_1113_is_critical_and_names_the_producer",
+        "spa_core/tests/test_s49_surface_freshness.py::TestFindings::test_stale_inputs_with_a_loaded_producer_is_warn_not_critical",
+        "spa_core/tests/test_s49_surface_freshness.py::TestProducers::test_loaded_producer_is_loaded",
+        "spa_core/tests/test_s49_surface_freshness.py::TestProducers::test_one_dead_producer_holds_all_thirteen",
+        "spa_core/tests/test_s49_surface_freshness.py::TestReport::test_format_report_names_the_adr_and_delegates"
+      ]
+    },
+    {
+      "name": "M08 молчание мерится САМЫМ СТАРЫМ продуктом",
+      "file": "spa_core/monitoring/s49_surface_freshness.py",
+      "outcome": "killed",
+      "detail": "",
+      "new_failures": [
+        "spa_core/tests/test_s49_surface_freshness.py::TestProducers::test_silence_is_the_newest_artifact_and_it_is_named"
+      ]
+    },
+    {
+      "name": "M09 неудачный launchctl даёт пустой флот вместо «не спрошен»",
+      "file": "spa_core/monitoring/s49_surface_freshness.py",
+      "outcome": "killed",
+      "detail": "",
+      "new_failures": [
+        "spa_core/tests/test_s49_surface_freshness.py::TestFleetDoor::test_failed_launchctl_is_none_not_empty"
+      ]
+    },
+    {
+      "name": "M10 сводка без объявленного срока читается как протухшая",
+      "file": "spa_core/monitoring/s49_surface_freshness.py",
+      "outcome": "killed",
+      "detail": "",
+      "new_failures": [
+        "spa_core/tests/test_s49_surface_freshness.py::TestTally::test_tally_without_declared_slo_is_unbound"
+      ]
+    },
+    {
+      "name": "M11 непереданная живая сводка читается как измеренная",
+      "file": "spa_core/monitoring/s49_surface_freshness.py",
+      "outcome": "killed",
+      "detail": "",
+      "new_failures": [
+        "spa_core/tests/test_s49_surface_freshness.py::TestDrift::test_no_live_rows_is_unchecked_not_zero",
+        "spa_core/tests/test_s49_surface_freshness.py::TestFindings::test_drift_unchecked_alone_makes_overall_unchecked",
+        "spa_core/tests/test_s49_surface_freshness.py::TestReport::test_the_blindness_is_named_in_the_report_itself"
+      ]
+    },
+    {
+      "name": "M12 расхождение вердиктов не замечается",
+      "file": "spa_core/monitoring/s49_surface_freshness.py",
+      "outcome": "killed",
+      "detail": "",
+      "new_failures": [
+        "spa_core/tests/test_s49_surface_freshness.py::TestDrift::test_live_control_1113_three_criteria_changed",
+        "spa_core/tests/test_s49_surface_freshness.py::TestFindings::test_drift_finding_names_criteria_and_both_counts",
+        "spa_core/tests/test_s49_surface_freshness.py::TestFindings::test_live_control_1113_is_critical_and_names_the_producer",
+        "spa_core/tests/test_s49_surface_freshness.py::TestMeasureAndRun::test_rollup_json_feeds_the_drift_axis",
+        "spa_core/tests/test_s49_surface_freshness.py::TestReport::test_format_report_names_the_adr_and_delegates"
+      ]
+    },
+    {
+      "name": "M13 критерий, пропавший с одной стороны, не отличается от изменившегося",
+      "file": "spa_core/monitoring/s49_surface_freshness.py",
+      "outcome": "killed",
+      "detail": "",
+      "new_failures": [
+        "spa_core/tests/test_s49_surface_freshness.py::TestDrift::test_criterion_missing_on_one_side_is_a_missing_row"
+      ]
+    },
+    {
+      "name": "M14 критичность не зависит от живости производителя",
+      "file": "spa_core/monitoring/s49_surface_freshness.py",
+      "outcome": "killed",
+      "detail": "",
+      "new_failures": [
+        "spa_core/tests/test_s49_surface_freshness.py::TestFindings::test_fleet_unmeasured_is_an_unchecked_finding",
+        "spa_core/tests/test_s49_surface_freshness.py::TestFindings::test_stale_inputs_with_a_loaded_producer_is_warn_not_critical"
+      ]
+    },
+    {
+      "name": "M15 протухшие входы при живом производителе молчат",
+      "file": "spa_core/monitoring/s49_surface_freshness.py",
+      "outcome": "killed",
+      "detail": "",
+      "new_failures": [
+        "spa_core/tests/test_s49_surface_freshness.py::TestFindings::test_stale_inputs_with_a_loaded_producer_is_warn_not_critical"
+      ]
+    },
+    {
+      "name": "M16 «один производитель» печатается и при одном входе",
+      "file": "spa_core/monitoring/s49_surface_freshness.py",
+      "outcome": "killed",
+      "detail": "",
+      "new_failures": [
+        "spa_core/tests/test_s49_surface_freshness.py::TestFindings::test_single_producer_info_needs_more_than_one_input"
+      ]
+    },
+    {
+      "name": "M17 протухшая сводка не становится находкой",
+      "file": "spa_core/monitoring/s49_surface_freshness.py",
+      "outcome": "killed",
+      "detail": "",
+      "new_failures": [
+        "spa_core/tests/test_s49_surface_freshness.py::TestFindings::test_live_control_1113_is_critical_and_names_the_producer",
+        "spa_core/tests/test_s49_surface_freshness.py::TestFindings::test_tally_stale_finding_quotes_what_the_reader_sees"
+      ]
+    },
+    {
+      "name": "M18 critical не поднимает сводный вердикт",
+      "file": "spa_core/monitoring/s49_surface_freshness.py",
+      "outcome": "killed",
+      "detail": "",
+      "new_failures": [
+        "spa_core/tests/test_s49_surface_freshness.py::TestFindings::test_live_control_1113_is_critical_and_names_the_producer"
+      ]
+    },
+    {
+      "name": "M19 пустое население не отказывает",
+      "file": "spa_core/monitoring/s49_surface_freshness.py",
+      "outcome": "killed",
+      "detail": "",
+      "new_failures": [
+        "spa_core/tests/test_s49_surface_freshness.py::TestMeasureAndRun::test_empty_population_is_unmeasured"
+      ]
+    },
+    {
+      "name": "M20 возраст считается в минутах, а не часах",
+      "file": "spa_core/monitoring/s49_surface_freshness.py",
+      "outcome": "killed",
+      "detail": "",
+      "new_failures": [
+        "spa_core/tests/test_s49_surface_freshness.py::TestFindings::test_absent_and_no_clock_inputs_are_separate_findings",
+        "spa_core/tests/test_s49_surface_freshness.py::TestFindings::test_drift_unchecked_alone_makes_overall_unchecked",
+        "spa_core/tests/test_s49_surface_freshness.py::TestFindings::test_fresh_surface_is_ok",
+        "spa_core/tests/test_s49_surface_freshness.py::TestInputFreshness::test_age_above_slo_is_stale_and_names_both_numbers",
+        "spa_core/tests/test_s49_surface_freshness.py::TestInputFreshness::test_age_equal_to_slo_is_still_fresh",
+        "spa_core/tests/test_s49_surface_freshness.py::TestInputFreshness::test_nested_artifact_path_keeps_its_subdirectory",
+        "spa_core/tests/test_s49_surface_freshness.py::TestTally::test_fresh_tally",
+        "spa_core/tests/test_s49_surface_freshness.py::TestTally::test_frozen_tally_342h_over_14_is_stale_with_counts",
+        "spa_core/tests/test_s49_surface_freshness.py::TestTally::test_tally_without_declared_slo_is_unbound"
+      ]
+    }
+  ]
+}

@@ -621,5 +621,21 @@
   "transfer_to_denominator",
   "findings",
   "does_not_report"
+ ],
+ "s49_surface_freshness.json": [
+  "schema",
+  "overall",
+  "counts.critical",
+  "counts.warn",
+  "counts.info",
+  "counts.unchecked",
+  "population",
+  "inputs",
+  "input_counts",
+  "producers",
+  "fleet_measured",
+  "tally",
+  "drift",
+  "findings"
  ]
 }

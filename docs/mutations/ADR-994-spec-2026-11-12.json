@@ -1,0 +1,128 @@
+{
+  "title": "ADR-994 — дельта цикла #1113 (§49 второй осью: свежесть поверхности приёмки)",
+  "tests": [
+    "spa_core/tests/test_s49_surface_freshness.py"
+  ],
+  "mutations": [
+    {
+      "name": "M01 граница срока: равный SLO становится протухшим",
+      "file": "spa_core/monitoring/s49_surface_freshness.py",
+      "old": "        if age > float(slo):\n",
+      "new": "        if age >= float(slo):\n"
+    },
+    {
+      "name": "M02 отсутствующий файл выдаётся за протухший",
+      "file": "spa_core/monitoring/s49_surface_freshness.py",
+      "old": "            row[\"state\"] = ABSENT\n            row[\"why\"] = f\"{artifact}: {problem}\"\n",
+      "new": "            row[\"state\"] = STALE\n            row[\"why\"] = f\"{artifact}: {problem}\"\n"
+    },
+    {
+      "name": "M03 файл без часов считается свежим",
+      "file": "spa_core/monitoring/s49_surface_freshness.py",
+      "old": "            row[\"state\"] = NO_CLOCK\n            row[\"why\"] = (f\"{artifact}: файл есть,",
+      "new": "            row[\"state\"] = FRESH\n            row[\"why\"] = (f\"{artifact}: файл есть,"
+    },
+    {
+      "name": "M04 вложенный путь артефакта схлопывается до имени",
+      "file": "spa_core/monitoring/s49_surface_freshness.py",
+      "old": "    rel = artifact[len(\"data/\"):] if artifact.startswith(\"data/\") else artifact\n",
+      "new": "    rel = Path(artifact).name\n"
+    },
+    {
+      "name": "M05 строка без привязки выдумывает производителя",
+      "file": "spa_core/monitoring/s49_surface_freshness.py",
+      "old": "        if row.get(\"state\") == UNBOUND:\n            continue\n        producer = producer_of(manifest, row.get(\"artifact\"))\n",
+      "new": "        producer = producer_of(manifest, row.get(\"artifact\"))\n"
+    },
+    {
+      "name": "M06 неспрошенный флот читается как «не загружен»",
+      "file": "spa_core/monitoring/s49_surface_freshness.py",
+      "old": "        elif loaded is None:\n            state = FLEET_UNMEASURED\n",
+      "new": "        elif loaded is None:\n            state = NOT_LOADED\n"
+    },
+    {
+      "name": "M07 загруженный производитель читается как выключенный",
+      "file": "spa_core/monitoring/s49_surface_freshness.py",
+      "old": "        elif producer in loaded:\n            state = LOADED\n",
+      "new": "        elif producer not in loaded:\n            state = LOADED\n"
+    },
+    {
+      "name": "M08 молчание мерится САМЫМ СТАРЫМ продуктом",
+      "file": "spa_core/monitoring/s49_surface_freshness.py",
+      "old": "        newest = max(stamped, key=lambda sa: sa[0]) if stamped else None\n",
+      "new": "        newest = min(stamped, key=lambda sa: sa[0]) if stamped else None\n"
+    },
+    {
+      "name": "M09 неудачный launchctl даёт пустой флот вместо «не спрошен»",
+      "file": "spa_core/monitoring/s49_surface_freshness.py",
+      "old": "    if proc.returncode != 0 or not isinstance(proc.stdout, str):\n        return None\n",
+      "new": "    if not isinstance(proc.stdout, str):\n        return None\n"
+    },
+    {
+      "name": "M10 сводка без объявленного срока читается как протухшая",
+      "file": "spa_core/monitoring/s49_surface_freshness.py",
+      "old": "    if slo is None:\n        out[\"state\"] = UNBOUND\n",
+      "new": "    if slo is None:\n        out[\"state\"] = STALE\n"
+    },
+    {
+      "name": "M11 непереданная живая сводка читается как измеренная",
+      "file": "spa_core/monitoring/s49_surface_freshness.py",
+      "old": "        return {\"verdict\": DRIFT_UNCHECKED, \"rows\": [], \"changed\": 0,\n",
+      "new": "        return {\"verdict\": DRIFT_MEASURED, \"rows\": [], \"changed\": 0,\n"
+    },
+    {
+      "name": "M12 расхождение вердиктов не замечается",
+      "file": "spa_core/monitoring/s49_surface_freshness.py",
+      "old": "        elif f_v != l_v:\n",
+      "new": "        elif False:\n"
+    },
+    {
+      "name": "M13 критерий, пропавший с одной стороны, не отличается от изменившегося",
+      "file": "spa_core/monitoring/s49_surface_freshness.py",
+      "old": "        if name not in frozen or name not in live:\n",
+      "new": "        if False:\n"
+    },
+    {
+      "name": "M14 критичность не зависит от живости производителя",
+      "file": "spa_core/monitoring/s49_surface_freshness.py",
+      "old": "    if ic[STALE] and dead:\n",
+      "new": "    if ic[STALE]:\n"
+    },
+    {
+      "name": "M15 протухшие входы при живом производителе молчат",
+      "file": "spa_core/monitoring/s49_surface_freshness.py",
+      "old": "    elif ic[STALE]:\n        out.append({\"severity\": \"warn\", \"key\": \"inputs_stale\",\n",
+      "new": "    elif False:\n        out.append({\"severity\": \"warn\", \"key\": \"inputs_stale\",\n"
+    },
+    {
+      "name": "M16 «один производитель» печатается и при одном входе",
+      "file": "spa_core/monitoring/s49_surface_freshness.py",
+      "old": "    if len({p[\"producer\"] for p in producers}) == 1 and producers and bound > 1:\n",
+      "new": "    if len({p[\"producer\"] for p in producers}) == 1 and producers and bound >= 1:\n"
+    },
+    {
+      "name": "M17 протухшая сводка не становится находкой",
+      "file": "spa_core/monitoring/s49_surface_freshness.py",
+      "old": "    if tally[\"state\"] == STALE:\n        c = tally.get(\"counts\")\n",
+      "new": "    if False:\n        c = tally.get(\"counts\")\n"
+    },
+    {
+      "name": "M18 critical не поднимает сводный вердикт",
+      "file": "spa_core/monitoring/s49_surface_freshness.py",
+      "old": "    if \"critical\" in sev:\n        return OVERALL_CRITICAL\n",
+      "new": "    if False:\n        return OVERALL_CRITICAL\n"
+    },
+    {
+      "name": "M19 пустое население не отказывает",
+      "file": "spa_core/monitoring/s49_surface_freshness.py",
+      "old": "    if not criteria:\n        raise Unmeasured(\"население §49 пусто — мерить нечего\")\n",
+      "new": "    if False:\n        raise Unmeasured(\"население §49 пусто — мерить нечего\")\n"
+    },
+    {
+      "name": "M20 возраст считается в минутах, а не часах",
+      "file": "spa_core/monitoring/s49_surface_freshness.py",
+      "old": "    return round((now - stamp).total_seconds() / 3600.0, 2)\n",
+      "new": "    return round((now - stamp).total_seconds() / 60.0, 2)\n"
+    }
+  ]
+}
