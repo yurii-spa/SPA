@@ -42,6 +42,8 @@ from pathlib import Path
 
 from spa_core.utils.atomic import atomic_save
 from spa_core.utils.observation import observed, observed_number
+from spa_core.monitoring.call_provenance import (  # noqa: E402
+    call_provenance, describe as describe_caller, describe_launcher, launcher_provenance)
 from spa_core.monitoring.architecture_conformance import REPO_ROOT, subject_inputs
 # Гейт такта ВЗЯТ у соседа, а не скопирован: вторая копия правила «пора ли мерить»
 # разошлась бы с первой молча (ADR-220). Ввоз одной строкой — сторож достижимости
@@ -2149,6 +2151,15 @@ def run_bridge(root: str = REPO_ROOT, now: dt.datetime | None = None,
               # отличимо от «равно generated_at» (инв. #17).
               **({"run_started_at": run_started_at.isoformat()}
                  if run_started_at is not None else {}),
+              # КТО написал отчёт — две оси, обе ИЗМЕРЕНЫ у процесса, а не
+              # объявлены звавшим (ADR-997, заказ G985 п. 1а). `invoked_by` —
+              # точка входа программы (`call_provenance`, читатель —
+              # `s49_surface_freshness.read_bridge_runs`); `launched_by` — цепь
+              # родителей до launchd: прямое задание флота или вложенный прогон
+              # (рука, сессия). Точка входа одна и та же у бегуна и у руки,
+              # набравшей `python3 -m … --run`, — поэтому осей две, а не одна.
+              "invoked_by": call_provenance(tree_root=Path(root)),
+              "launched_by": launcher_provenance(tree_root=Path(root)),
               "delivery": delivery,
               "owner_answer_delivery": _deliver_owner_answers(root, now, deliver_answers),
               "created": created, "deferred": deferred, "closed": closed,
@@ -4578,6 +4589,10 @@ def main(argv=None) -> int:
         loop_health.run(root=args.root)
     except Exception as e:  # noqa: BLE001
         census_skipped(_skipped, "loop_health", e)
+    # Вслух — чтобы лог прогона (`/tmp/spa_decision_loop.log`) нёс ту же
+    # запись, что и отчёт, и расхождение между ними было бы видно.
+    print(f"findings_bridge: {describe_caller(r.get('invoked_by'))}; "
+          f"{describe_launcher(r.get('launched_by'))}")
     print(f"findings_bridge: created={len(r['created'])} closed={len(r['closed'])} "
           f"deferred={len(r['deferred'])} waiting={len(r['waiting_hysteresis'])} "
           f"closing={len(r.get('closing_hysteresis') or [])} "

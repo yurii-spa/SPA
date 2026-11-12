@@ -615,6 +615,47 @@ class Bridge(unittest.TestCase):
         self.assertEqual(r["created"], [])
 
 
+    def test_report_carries_who_called_and_who_launched(self):
+        """ADR-997 (заказ G985 п. 1а): отчёт моста несёт ДВА измеренных штампа писателя.
+
+        `invoked_by` — точка входа программы, `launched_by` — цепь родителей до launchd;
+        оба сняты у ПРОЦЕССА, а не объявлены звавшим, и оба читает
+        `s49_surface_freshness.read_bridge_runs` — здесь читатель зовётся на ТОМ ЖЕ файле,
+        который записал мост (писатель и читатель сверяются друг с другом, не каждый с собой).
+        """
+        from pathlib import Path as _P
+        from spa_core.monitoring import s49_surface_freshness as s49
+        self.put_conformance([self.warn()])
+        r = self.run_bridge()
+        for key, schema in (("invoked_by", "call_provenance.v1"),
+                            ("launched_by", "launcher_provenance.v1")):
+            self.assertIn(key, r)
+            self.assertEqual(r[key]["schema"], schema)
+            self.assertIsInstance(r[key]["measured"], bool)
+        with open(os.path.join(self.root, fb.REPORT_REL), encoding="utf-8") as f:
+            on_disk = json.load(f)
+        self.assertEqual(on_disk["invoked_by"], r["invoked_by"])
+        self.assertEqual(on_disk["launched_by"], r["launched_by"])
+        # Под pytest точка входа — файл pytest, запуск — вложенный (pytest стоит между
+        # процессом и launchd). Отчёт при этом НЕ может назвать прогон заданием флота.
+        if r["launched_by"]["measured"]:
+            self.assertEqual(r["launched_by"]["kind"], "nested")
+        # Без `run_started_at` читатель окна честно отказывает ЧАСАМИ, а не штампом.
+        runs, problem = s49.read_bridge_runs(_P(self.root) / fb.REPORT_REL)
+        self.assertIsNone(runs)
+        self.assertIn("нет часов прогона", problem)
+        r2 = fb.run_bridge(self.root, now=NOW, create=self.q.create, close=self.q._close,
+                           notify=self.q.notify, retract=self.q.retract,
+                           run_started_at=NOW - dt.timedelta(minutes=5))
+        runs, problem = s49.read_bridge_runs(_P(self.root) / fb.REPORT_REL)
+        self.assertIsNone(problem)
+        self.assertTrue(runs[0]["stamp_present"])
+        if r2["invoked_by"]["measured"]:
+            self.assertEqual(runs[0]["caller"].split(" · ")[0], r2["invoked_by"]["entry"])
+        if r2["launched_by"]["measured"]:
+            self.assertIn("вложенный прогон", runs[0]["launcher"])
+
+
 if __name__ == "__main__":
     unittest.main()
 

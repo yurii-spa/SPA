@@ -1,0 +1,100 @@
+{
+  "title": "ADR-997 — дельта цикла #1116 (штамп писателя в отчёте моста: точка входа + цепь запуска до launchd)",
+  "tests": [
+    "spa_core/tests/test_call_provenance.py",
+    "spa_core/tests/test_findings_bridge.py",
+    "spa_core/tests/test_s49_surface_freshness.py"
+  ],
+  "mutations": [
+    {
+      "name": "M01 всё — задание launchd (вложенность не различается)",
+      "file": "spa_core/monitoring/call_provenance.py",
+      "old": "            direct = hops == 1 or (hops == 2 and fleet)\n",
+      "new": "            direct = True\n"
+    },
+    {
+      "name": "M02 обёртка не проверяется — различает только глубина",
+      "file": "spa_core/monitoring/call_provenance.py",
+      "old": "            direct = hops == 1 or (hops == 2 and fleet)\n",
+      "new": "            direct = hops <= 2\n"
+    },
+    {
+      "name": "M03 род перепутан: задание ↔ вложенный",
+      "file": "spa_core/monitoring/call_provenance.py",
+      "old": "                   \"kind\": \"launchd_job\" if direct else \"nested\",\n",
+      "new": "                   \"kind\": \"nested\" if direct else \"launchd_job\",\n"
+    },
+    {
+      "name": "M04 цикл цепи не замечается (уходит в предел ходов)",
+      "file": "spa_core/monitoring/call_provenance.py",
+      "old": "        if cur in seen:\n            doc = {",
+      "new": "        if False:\n            doc = {"
+    },
+    {
+      "name": "M05 молчащая дверь выдаётся за вложенный прогон",
+      "file": "spa_core/monitoring/call_provenance.py",
+      "old": "        if rec is None:\n            doc = {\"schema\": LAUNCHER_SCHEMA, \"measured\": False, \"read_by\": _DOOR_PS,\n                   \"chain\": chain,\n                   \"reason\": f\"дверь `{_DOOR_PS}` молчит о pid {cur} — звено цепи не прочитано\"}\n            break\n",
+      "new": "        if rec is None:\n            doc = {\"schema\": LAUNCHER_SCHEMA, \"measured\": True, \"kind\": \"nested\", \"read_by\": _DOOR_PS,\n                   \"chain\": chain, \"hops_to_launchd\": len(chain), \"launchd_child\": \"?\", \"fleet_wrapper\": False}\n            break\n"
+    },
+    {
+      "name": "M06 подставленная дверь игнорируется — всегда настоящая ps",
+      "file": "spa_core/monitoring/call_provenance.py",
+      "old": "    real_door = read_parent is None\n",
+      "new": "    real_door = True\n"
+    },
+    {
+      "name": "M07 корень дерева не сворачивается в команде",
+      "file": "spa_core/monitoring/call_provenance.py",
+      "old": "    if tree_root is not None:\n        text = text.replace(str(tree_root) + \"/\", \"\")\n    home = str(Path.home())\n",
+      "new": "    home = str(Path.home())\n"
+    },
+    {
+      "name": "M08 строка описания: не измерено печатается как вложенный",
+      "file": "spa_core/monitoring/call_provenance.py",
+      "old": "    if not doc.get(\"measured\"):\n        return f\"запущен: НЕ ИЗМЕРЕНО — {doc.get('reason', 'причина не названа')}\"\n    hops = doc.get(\"hops_to_launchd\")\n",
+      "new": "    hops = doc.get(\"hops_to_launchd\")\n"
+    },
+    {
+      "name": "M09 отчёт моста: запуск ОБЪЯВЛЕН заданием флота, а не измерен",
+      "file": "spa_core/monitoring/findings_bridge.py",
+      "old": "              \"launched_by\": launcher_provenance(tree_root=Path(root)),\n",
+      "new": "              \"launched_by\": {\"schema\": \"launcher_provenance.v1\", \"measured\": True, \"kind\": \"launchd_job\", \"hops_to_launchd\": 2, \"launchd_child\": \"scripts/agent_template.sh decision_loop\", \"fleet_wrapper\": True, \"chain\": []},\n"
+    },
+    {
+      "name": "M10 отчёт моста без штампа точки входа",
+      "file": "spa_core/monitoring/findings_bridge.py",
+      "old": "              \"invoked_by\": call_provenance(tree_root=Path(root)),\n",
+      "new": "              \"invoked_by_\": call_provenance(tree_root=Path(root)),\n"
+    },
+    {
+      "name": "M11 читатель: не измеренный запуск печатается как вложенный",
+      "file": "spa_core/monitoring/s49_surface_freshness.py",
+      "old": "    if not doc.get(\"measured\"):\n        return f\"запуск НЕ ИЗМЕРЕН ({doc.get('reason') or 'причина не названа'})\"\n    hops = doc.get(\"hops_to_launchd\")\n",
+      "new": "    hops = doc.get(\"hops_to_launchd\")\n"
+    },
+    {
+      "name": "M12 читатель: зовущий выдумывается из запуска при отсутствии точки входа",
+      "file": "spa_core/monitoring/s49_surface_freshness.py",
+      "old": "        if caller is not None:\n            caller = f\"{caller} · {launcher_text}\"\n",
+      "new": "        caller = f\"{caller} · {launcher_text}\"\n"
+    },
+    {
+      "name": "M13 читатель: отсутствие записи о запуске выдаётся за «не измерено»",
+      "file": "spa_core/monitoring/s49_surface_freshness.py",
+      "old": "    launcher = observed(doc, \"launched_by\", kind=dict)\n    launcher_text: Optional[str] = None\n",
+      "new": "    launcher = observed(doc, \"launched_by\", kind=dict) or {\"measured\": False, \"reason\": \"записи нет\"}\n    launcher_text: Optional[str] = None\n"
+    },
+    {
+      "name": "M14 читатель: род задания перепутан",
+      "file": "spa_core/monitoring/s49_surface_freshness.py",
+      "old": "    if doc.get(\"kind\") == \"launchd_job\":\n        return f\"прямое задание launchd ({hops} ход(а) до launchd)\"\n",
+      "new": "    if doc.get(\"kind\") != \"launchd_job\":\n        return f\"прямое задание launchd ({hops} ход(а) до launchd)\"\n"
+    },
+    {
+      "name": "M15 читатель: ось запуска не читается вовсе",
+      "file": "spa_core/monitoring/s49_surface_freshness.py",
+      "old": "    launcher = observed(doc, \"launched_by\", kind=dict)\n    launcher_text: Optional[str] = None\n    if launcher is not None:\n",
+      "new": "    launcher = None\n    launcher_text: Optional[str] = None\n    if launcher is not None:\n"
+    }
+  ]
+}

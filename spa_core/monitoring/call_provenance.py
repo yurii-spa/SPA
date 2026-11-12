@@ -69,6 +69,7 @@ ADR-411 провёл артефакт переписи к производите
 from __future__ import annotations
 
 import json
+import os
 import sys
 from pathlib import Path
 from typing import Any, Optional
@@ -178,6 +179,169 @@ def call_provenance(*, tree_root: Optional[Path] = None,
         doc["doors_agree"] = None
         doc["one_door_silent"] = _DOOR_ARGV if by_argv is None else _DOOR_MAIN
     return doc
+
+
+# ---------------------------------------------------------------------------
+# Кто ЗАПУСТИЛ процесс — вторая ось, которой у точки входа нет (ADR-997)
+# ---------------------------------------------------------------------------
+#
+# `call_provenance` отвечает «какая ПРОГРАММА пишет документ» и сам говорит,
+# чего не доказывает: «не „автоматически ли это“ — тот же `findings_bridge.py`
+# может набрать и рука». Заказ G985 п. 1а спросил ровно это: прогон моста —
+# ЗАДАНИЕ launchd или рука? У процесса есть вторая измеримая ось — цепь его
+# родителей. Задание launchd запускается САМИМ launchd (pid 1): у флота
+# `python3 -m <модуль>` ← `bash scripts/agent_template.sh <агент> …` ← launchd,
+# и это ДВА хода. Рука — всегда глубже: между процессом и launchd стоят
+# оболочка, сессия, их запускатели (замер 12.11: у сессии оркестратора — пять
+# ходов, `python ← zsh ← claude ← python ← bash agent_orchestrator.sh ← launchd`).
+#
+# Почему НЕ переменная окружения `XPC_SERVICE_NAME`. Казалось бы, launchd
+# кладёт в неё метку задания. Замер 12.11 на живом флоте: у `rtmr_service`,
+# `telegram.bot`, `uvicorn spa_core.api.server` — прямых заданий launchd — она
+# равна `0`, ровно как у руки в терминале; метку несут только четыре процесса
+# другой формы. Признак, одинаковый у задания и у руки, различителем не
+# является, и прибор, построенный на нём, назвал бы флот рукой.
+#
+# Что признак НЕ доказывает: «вложенный» ≠ «человек». Это утверждение о
+# СТРУКТУРЕ запуска — между процессом и launchd есть другие процессы, и они
+# НАЗВАНЫ в записи; кто сидел за клавиатурой, цепь не знает.
+
+LAUNCHER_SCHEMA = "launcher_provenance.v1"
+LAUNCHD_PID = 1
+_DOOR_PS = "ps -o ppid=,command= -p <pid>"
+#: Обёртки флота, которыми launchd запускает агентов (`launchd/*.plist` →
+#: `scripts/agent_<имя>.sh` → `exec … scripts/agent_template.sh <имя> <модуль>`).
+_FLEET_WRAPPER = "scripts/agent_template.sh"
+#: Исходы (инв. #17): прямое задание launchd · вложенный прогон · не измерено.
+LAUNCHER_KINDS = ("launchd_job", "nested")
+_MAX_HOPS = 24
+_COMMAND_WIDTH = 160
+
+#: Кэш ОДНОГО процесса: цепь родителей за время жизни процесса не меняется
+#: (переусыновление осиротевшего процесса — к pid 1, и это тот же ответ), а
+#: `run_bridge` в тестах зовётся сотнями раз. Ключ — (pid, стартовый pid, корень);
+#: подставленная дверь `read_parent` кэш не трогает — у неё свои сцены.
+_LAUNCHER_CACHE: dict[tuple, dict] = {}
+
+
+def _ps_parent(pid: int) -> Optional[tuple[int, str]]:
+    """Одно чтение одной двери: ``(ppid, command)`` процесса; ``None`` — дверь молчит.
+
+    Живость и родство спрашиваются у ``ps -p <pid>`` — не грепом по колонкам
+    (`.claude/rules/deployment.md`, § «ОКНО МУТАЦИОННОГО ПРИБОРА», п. 6).
+    """
+    import subprocess
+    try:
+        out = subprocess.run(["ps", "-o", "ppid=,command=", "-p", str(int(pid))],
+                             capture_output=True, text=True, timeout=5)
+    except (OSError, ValueError, subprocess.SubprocessError):
+        return None
+    line = (out.stdout or "").strip()
+    if out.returncode != 0 or not line:
+        return None
+    parts = line.split(None, 1)
+    try:
+        ppid = int(parts[0])
+    except ValueError:
+        return None
+    return ppid, (parts[1] if len(parts) > 1 else "")
+
+
+def _shorten_command(command: str, tree_root: Optional[Path]) -> str:
+    """Команда процесса для записи: без корня дерева и без домашнего каталога."""
+    text = command or ""
+    if tree_root is not None:
+        text = text.replace(str(tree_root) + "/", "")
+    home = str(Path.home())
+    if home:
+        text = text.replace(home, "~")
+    return text[:_COMMAND_WIDTH]
+
+
+def launcher_provenance(*, start_pid: Optional[int] = None,
+                        read_parent: Any = None,
+                        tree_root: Optional[Path] = None,
+                        max_hops: int = _MAX_HOPS) -> dict:
+    """Цепь родителей процесса до launchd: прямое ли это ЗАДАНИЕ launchd.
+
+    ``read_parent(pid) -> (ppid, command) | None`` существует для проверки
+    РАЗБОРА (чужую цепь вживую не подстроишь); умолчание читает настоящую
+    ``ps``. Положительный контроль настоящей двери — отдельный подпроцесс.
+
+    Три исхода различимы: ``kind="launchd_job"`` — процесс сам есть ребёнок
+    launchd либо его родитель — обёртка флота, запущенная launchd (два хода);
+    ``kind="nested"`` — между процессом и launchd есть другие процессы, и они
+    названы в ``chain``; ``measured=False`` с причиной — дверь молчит о каком-то
+    звене, цепь зациклилась или не дошла до launchd за ``max_hops`` ходов.
+    """
+    pid = os.getpid() if start_pid is None else int(start_pid)
+    root = Path(tree_root).resolve() if tree_root is not None else None
+    real_door = read_parent is None
+    key = (os.getpid(), pid, str(root))
+    if real_door and key in _LAUNCHER_CACHE:
+        return dict(_LAUNCHER_CACHE[key])
+    reader = _ps_parent if real_door else read_parent
+
+    chain: list[dict] = []
+    seen: set[int] = set()
+    cur = pid
+    doc: dict
+    while True:
+        if cur in seen:
+            doc = {"schema": LAUNCHER_SCHEMA, "measured": False, "read_by": _DOOR_PS,
+                   "chain": chain,
+                   "reason": f"цепь родителей зациклилась на pid {cur} — до launchd не дошла"}
+            break
+        if len(chain) >= max_hops:
+            doc = {"schema": LAUNCHER_SCHEMA, "measured": False, "read_by": _DOOR_PS,
+                   "chain": chain,
+                   "reason": f"цепь родителей длиннее {max_hops} ходов — до launchd не дошла"}
+            break
+        seen.add(cur)
+        rec = reader(cur)
+        if rec is None:
+            doc = {"schema": LAUNCHER_SCHEMA, "measured": False, "read_by": _DOOR_PS,
+                   "chain": chain,
+                   "reason": f"дверь `{_DOOR_PS}` молчит о pid {cur} — звено цепи не прочитано"}
+            break
+        ppid, command = int(rec[0]), str(rec[1] if len(rec) > 1 else "")
+        chain.append({"pid": cur, "ppid": ppid, "command": _shorten_command(command, root)})
+        if ppid == LAUNCHD_PID:
+            launchd_child = chain[-1]
+            hops = len(chain)
+            fleet = _FLEET_WRAPPER in launchd_child["command"]
+            direct = hops == 1 or (hops == 2 and fleet)
+            doc = {"schema": LAUNCHER_SCHEMA, "measured": True,
+                   "kind": "launchd_job" if direct else "nested",
+                   "hops_to_launchd": hops,
+                   "launchd_child": launchd_child["command"],
+                   "fleet_wrapper": fleet,
+                   "chain": chain, "read_by": _DOOR_PS}
+            break
+        if ppid <= 0:
+            doc = {"schema": LAUNCHER_SCHEMA, "measured": False, "read_by": _DOOR_PS,
+                   "chain": chain,
+                   "reason": f"у pid {cur} родитель {ppid} — не launchd и не процесс"}
+            break
+        cur = ppid
+    if real_door:
+        _LAUNCHER_CACHE[key] = dict(doc)
+    return doc
+
+
+def describe_launcher(doc: Optional[dict]) -> str:
+    """Одна строка для отчёта. Отсутствие записи не выдаётся за запись."""
+    if not isinstance(doc, dict) or "measured" not in doc:
+        return "запущен: НЕ ЗАПИСАНО (в документе нет поля `launched_by`)"
+    if not doc.get("measured"):
+        return f"запущен: НЕ ИЗМЕРЕНО — {doc.get('reason', 'причина не названа')}"
+    hops = doc.get("hops_to_launchd")
+    if doc.get("kind") == "launchd_job":
+        return (f"запущен: прямое задание launchd ({hops} ход(а) до launchd; "
+                f"ребёнок launchd: `{doc.get('launchd_child')}`)")
+    between = [c.get("command") for c in (doc.get("chain") or [])[1:]]
+    return (f"запущен: вложенный прогон — не прямое задание launchd ({hops} ход(ов); "
+            f"между процессом и launchd: {' ← '.join(f'`{c}`' for c in between) or '—'})")
 
 
 def describe(doc: Optional[dict]) -> str:

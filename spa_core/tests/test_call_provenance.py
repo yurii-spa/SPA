@@ -252,5 +252,131 @@ class TheProducersActuallyCarryIt(unittest.TestCase):
         self.assertIn("НЕ ЗАПИСАНО", line)
 
 
+# ---------------------------------------------------------------------------
+# Вторая ось — КТО ЗАПУСТИЛ процесс (ADR-997, заказ G985 п. 1а)
+# ---------------------------------------------------------------------------
+
+from spa_core.monitoring.call_provenance import (  # noqa: E402
+    LAUNCHER_SCHEMA, describe_launcher, launcher_provenance)
+
+FLEET = "/bin/bash /Users/x/Documents/SPA_Claude/scripts/agent_template.sh decision_loop spa_core.monitoring.findings_bridge --run"
+PY = "/Users/x/miniconda3/bin/python3 -m spa_core.monitoring.findings_bridge --run"
+
+
+def chain_reader(table: dict[int, tuple[int, str]]):
+    """Подставленная дверь `ps`: таблица pid → (ppid, command); нет строки — дверь молчит."""
+    def read(pid: int):
+        return table.get(pid)
+    return read
+
+
+class LauncherParsing(unittest.TestCase):
+    """Разбор цепи. Цепь подставлена — чужую вживую не подстроишь; настоящая дверь ниже."""
+
+    def test_fleet_job_is_two_hops_and_named_launchd_job(self):
+        # Замер 12.11 живого флота: python ← agent_template.sh ← launchd (pid 1).
+        doc = launcher_provenance(start_pid=2917, read_parent=chain_reader(
+            {2917: (2571, PY), 2571: (1, FLEET)}))
+        self.assertTrue(doc["measured"])
+        self.assertEqual(doc["schema"], LAUNCHER_SCHEMA)
+        self.assertEqual(doc["kind"], "launchd_job")
+        self.assertEqual(doc["hops_to_launchd"], 2)
+        self.assertTrue(doc["fleet_wrapper"])
+        self.assertIn("agent_template.sh decision_loop", doc["launchd_child"])
+        self.assertEqual([c["pid"] for c in doc["chain"]], [2917, 2571])
+
+    def test_direct_child_of_launchd_is_a_launchd_job_in_one_hop(self):
+        # Форма `director_server`: python — сам ребёнок launchd.
+        doc = launcher_provenance(start_pid=2494, read_parent=chain_reader({2494: (1, PY)}))
+        self.assertEqual((doc["kind"], doc["hops_to_launchd"], doc["fleet_wrapper"]),
+                         ("launchd_job", 1, False))
+
+    def test_hand_in_a_session_is_nested_and_the_chain_is_named(self):
+        # Замер 12.11 сессии оркестратора: пять ходов до launchd.
+        table = {100: (90, PY), 90: (80, "/bin/zsh -c …"), 80: (70, "~/.local/bin/claude -p …"),
+                 70: (60, "python3 scripts/claude_run_with_timeout.py …"),
+                 60: (1, "/bin/bash scripts/agent_orchestrator.sh")}
+        doc = launcher_provenance(start_pid=100, read_parent=chain_reader(table))
+        self.assertTrue(doc["measured"])
+        self.assertEqual(doc["kind"], "nested")
+        self.assertEqual(doc["hops_to_launchd"], 5)
+        self.assertFalse(doc["fleet_wrapper"])
+        self.assertEqual(doc["launchd_child"], "/bin/bash scripts/agent_orchestrator.sh")
+        line = describe_launcher(doc)
+        self.assertIn("вложенный прогон", line)
+        self.assertIn("claude", line)
+
+    def test_fleet_wrapper_started_by_a_shell_is_nested_not_a_job(self):
+        # Рука набрала `bash scripts/agent_decision_loop.sh` из терминала: обёртка та же,
+        # но её родитель — оболочка, а не launchd. Обёртка ≠ задание.
+        table = {100: (90, PY), 90: (80, FLEET), 80: (70, "/bin/zsh -l"), 70: (1, "Terminal")}
+        doc = launcher_provenance(start_pid=100, read_parent=chain_reader(table))
+        self.assertEqual(doc["kind"], "nested")
+        self.assertEqual(doc["hops_to_launchd"], 4)
+
+    def test_two_hops_through_a_shell_is_nested_the_wrapper_is_the_discriminator(self):
+        # Два хода — но над процессом оболочка, а не обёртка флота: `python ← zsh ← launchd`.
+        # Глубина одна и та же, что у задания флота; различает ОБЁРТКА, не число ходов.
+        doc = launcher_provenance(start_pid=100, read_parent=chain_reader(
+            {100: (90, PY), 90: (1, "/bin/zsh -l")}))
+        self.assertEqual((doc["kind"], doc["hops_to_launchd"], doc["fleet_wrapper"]),
+                         ("nested", 2, False))
+
+    def test_silent_door_is_unmeasured_with_the_pid_named(self):
+        doc = launcher_provenance(start_pid=100, read_parent=chain_reader({100: (90, PY)}))
+        self.assertFalse(doc["measured"])
+        self.assertNotIn("kind", doc)
+        self.assertIn("pid 90", doc["reason"])
+        self.assertEqual(len(doc["chain"]), 1)
+        self.assertIn("НЕ ИЗМЕРЕНО", describe_launcher(doc))
+
+    def test_cycle_in_the_chain_is_unmeasured_not_nested(self):
+        doc = launcher_provenance(start_pid=100, read_parent=chain_reader(
+            {100: (90, PY), 90: (100, "/bin/zsh")}))
+        self.assertFalse(doc["measured"])
+        self.assertIn("зациклилась", doc["reason"])
+
+    def test_chain_longer_than_max_hops_is_unmeasured(self):
+        table = {i: (i - 1, "p") for i in range(3, 40)}
+        doc = launcher_provenance(start_pid=39, read_parent=chain_reader(table), max_hops=5)
+        self.assertFalse(doc["measured"])
+        self.assertIn("длиннее 5", doc["reason"])
+
+    def test_tree_root_and_home_are_folded_out_of_commands(self):
+        cmd = f"/bin/bash {ROOT}/scripts/agent_template.sh x y"
+        doc = launcher_provenance(start_pid=5, read_parent=chain_reader({5: (1, cmd)}), tree_root=ROOT)
+        self.assertEqual(doc["launchd_child"], "/bin/bash scripts/agent_template.sh x y")
+        self.assertNotIn(str(Path.home()), doc["launchd_child"])
+
+    def test_absent_record_is_not_a_record(self):
+        self.assertIn("НЕ ЗАПИСАНО", describe_launcher(None))
+        self.assertIn("НЕ ЗАПИСАНО", describe_launcher({}))
+
+    def test_launchd_job_line_names_the_child(self):
+        doc = launcher_provenance(start_pid=2917, read_parent=chain_reader(
+            {2917: (2571, PY), 2571: (1, FLEET)}))
+        line = describe_launcher(doc)
+        self.assertIn("прямое задание launchd", line)
+        self.assertIn("agent_template.sh decision_loop", line)
+
+
+class LauncherRealDoor(unittest.TestCase):
+    """Положительный контроль НАСТОЯЩЕЙ двери: отдельный процесс читает свою `ps`."""
+
+    def test_a_real_process_reaches_launchd_and_the_last_link_has_ppid_one(self):
+        code = ("import json; from spa_core.monitoring.call_provenance import launcher_provenance; "
+                "print(json.dumps(launcher_provenance()))")
+        res = _run(["-c", code])
+        self.assertEqual(res.returncode, 0, res.stderr)
+        doc = json.loads(res.stdout.strip().splitlines()[-1])
+        self.assertEqual(doc["schema"], LAUNCHER_SCHEMA)
+        self.assertTrue(doc["measured"], doc.get("reason"))
+        self.assertIn(doc["kind"], ("launchd_job", "nested"))
+        self.assertGreaterEqual(doc["hops_to_launchd"], 1)
+        self.assertEqual(doc["chain"][-1]["ppid"], 1)
+        # Ребёнок pytest — НЕ задание флота: pytest стоит между ним и launchd.
+        self.assertEqual(doc["kind"], "nested")
+
+
 if __name__ == "__main__":
     unittest.main()

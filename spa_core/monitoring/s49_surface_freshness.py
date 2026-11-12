@@ -526,9 +526,32 @@ def read_bridge_runs(path: Path) -> tuple[Optional[list[dict]], Optional[str]]:
     if stamp is not None:
         entry = stamp.get("entry") or stamp.get("label") or stamp.get("by")
         caller = str(entry) if isinstance(entry, str) and entry else None
+    # Вторая ось штампа (ADR-997): КТО ЗАПУСТИЛ процесс — прямое задание launchd
+    # или вложенный прогон. Точка входа у бегуна и у руки одна (`findings_bridge.py`),
+    # поэтому зовущий печатается вместе с запуском; записи нет ⇒ слово о ней
+    # не печатается вовсе (отсутствие не выдаётся за «вложенный»).
+    launcher = observed(doc, "launched_by", kind=dict)
+    launcher_text: Optional[str] = None
+    if launcher is not None:
+        launcher_text = _describe_launcher(launcher)
+        if caller is not None:
+            caller = f"{caller} · {launcher_text}"
     return [{"source": Path(path).name, "started_at": start.isoformat(),
              "generated_at": end.isoformat(), "caller": caller,
+             "launcher": launcher_text,
              "stamp_present": stamp is not None}], None
+
+
+def _describe_launcher(doc: dict) -> str:
+    """Короткая форма записи `launched_by` для строки зовущего (три исхода)."""
+    if not doc.get("measured"):
+        return f"запуск НЕ ИЗМЕРЕН ({doc.get('reason') or 'причина не названа'})"
+    hops = doc.get("hops_to_launchd")
+    if doc.get("kind") == "launchd_job":
+        return f"прямое задание launchd ({hops} ход(а) до launchd)"
+    chain = [c.get("command") for c in (doc.get("chain") or [])[1:] if isinstance(c, dict)]
+    head = chain[0] if chain else "—"
+    return f"вложенный прогон ({hops} ход(ов) до launchd; над процессом: `{head}`)"
 
 
 def _written_at(path: Optional[Path]) -> Optional[dt.datetime]:

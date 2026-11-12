@@ -1270,3 +1270,80 @@ class TestBridgeRunChannel:
         v2 = json.loads(json.dumps(doc))
         del v2["writers"]["bridge_channel"]
         assert "канала нет в артефакте — схема v2" in "\n".join(M.format_report(v2))
+
+
+# ---------------------------------------------------------------------------
+# ADR-997: вторая ось штампа отчёта моста — КТО ЗАПУСТИЛ (launchd против вложенного прогона)
+# ---------------------------------------------------------------------------
+
+ENTRY = "spa_core/monitoring/findings_bridge.py"
+FLEET_CHAIN = [{"pid": 7, "ppid": 6, "command": "python3 -m spa_core.monitoring.findings_bridge --run"},
+               {"pid": 6, "ppid": 1, "command": "/bin/bash scripts/agent_template.sh decision_loop …"}]
+HAND_CHAIN = [{"pid": 7, "ppid": 6, "command": "python3 -m spa_core.monitoring.findings_bridge --run"},
+              {"pid": 6, "ppid": 5, "command": "/bin/zsh -c …"},
+              {"pid": 5, "ppid": 1, "command": "/bin/bash scripts/agent_orchestrator.sh"}]
+
+
+def launched(kind: str, chain: list[dict]) -> dict:
+    return {"schema": "launcher_provenance.v1", "measured": True, "kind": kind,
+            "hops_to_launchd": len(chain), "launchd_child": chain[-1]["command"],
+            "fleet_wrapper": "agent_template.sh" in chain[-1]["command"], "chain": chain}
+
+
+def report_with_launcher(tmp_path: Path, launched_by: dict | None, *, entry: str | None = ENTRY):
+    data, rows, man = scene(tmp_path)
+    doc = bridge_report_doc(MADE_1029, invoked_by=({"entry": entry} if entry is not None else None))
+    if launched_by is not None:
+        doc["launched_by"] = launched_by
+    return data, rows, M.read_bridge_runs(write_bridge_report(data, doc))
+
+
+class TestBridgeLauncherAxis:
+    def test_fleet_job_is_named_a_direct_launchd_job_next_to_the_entry(self, tmp_path):
+        data, rows, (runs, problem) = report_with_launcher(tmp_path, launched("launchd_job", FLEET_CHAIN))
+        assert problem is None
+        assert runs[0]["caller"].startswith(ENTRY + " · ")
+        assert "прямое задание launchd (2 ход(а)" in runs[0]["caller"]
+        assert runs[0]["launcher"] == "прямое задание launchd (2 ход(а) до launchd)"
+        inputs = M.input_rows(rows, data_dir=data, now=NOW)
+        row = M.writer_rows(inputs, entries=[], now=NOW, bridge_runs=runs)["rows"][0]
+        assert row["writer"] == M.WRITER_BRIDGE_RUN
+        assert "по штампу отчёта: " + ENTRY + " · прямое задание launchd" in row["why"]
+
+    def test_nested_run_names_the_process_above_it(self, tmp_path):
+        _, _, (runs, _) = report_with_launcher(tmp_path, launched("nested", HAND_CHAIN))
+        assert "вложенный прогон (3 ход(ов)" in runs[0]["caller"]
+        assert "`/bin/zsh -c …`" in runs[0]["caller"]
+
+    def test_unmeasured_launcher_is_said_not_guessed(self, tmp_path):
+        _, _, (runs, _) = report_with_launcher(tmp_path, {
+            "schema": "launcher_provenance.v1", "measured": False,
+            "reason": "дверь `ps` молчит о pid 6"})
+        assert "запуск НЕ ИЗМЕРЕН (дверь `ps` молчит о pid 6)" in runs[0]["caller"]
+        assert "вложенный" not in runs[0]["caller"] and "прямое" not in runs[0]["caller"]
+
+    def test_absent_launcher_leaves_the_caller_as_the_entry_alone(self, tmp_path):
+        _, _, (runs, _) = report_with_launcher(tmp_path, None)
+        assert runs[0]["caller"] == ENTRY and runs[0]["launcher"] is None
+
+    def test_launcher_without_an_entry_is_not_a_caller(self, tmp_path):
+        # Запуск назван, а программа — нет: зовущего нет (имя не выдумывается из цепи),
+        # но ось запуска прочитана и лежит отдельным полем.
+        _, _, (runs, _) = report_with_launcher(tmp_path, launched("launchd_job", FLEET_CHAIN), entry=None)
+        assert runs[0]["caller"] is None and runs[0]["stamp_present"] is False
+        assert runs[0]["launcher"].startswith("прямое задание launchd")
+
+    def test_live_writer_and_reader_agree_on_the_same_file(self, tmp_path):
+        """Запись настоящего `call_provenance`/`launcher_provenance` этого процесса читается
+        тем же читателем, что и подставленные сцены выше (писатель и читатель — одна форма)."""
+        from spa_core.monitoring.call_provenance import call_provenance, launcher_provenance
+        data, rows, man = scene(tmp_path)
+        doc = bridge_report_doc(MADE_1029)
+        doc["invoked_by"] = call_provenance()
+        doc["launched_by"] = launcher_provenance()
+        runs, problem = M.read_bridge_runs(write_bridge_report(data, doc))
+        assert problem is None and runs[0]["stamp_present"] is True
+        if doc["launched_by"]["measured"]:
+            assert runs[0]["launcher"].startswith(("вложенный прогон", "прямое задание launchd"))
+        else:
+            assert runs[0]["launcher"].startswith("запуск НЕ ИЗМЕРЕН")

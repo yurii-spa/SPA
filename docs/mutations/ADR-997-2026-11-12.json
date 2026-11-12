@@ -1,0 +1,183 @@
+{
+  "title": "ADR-997 — дельта цикла #1116 (штамп писателя в отчёте моста: точка входа + цепь запуска до launchd)",
+  "tests": [
+    "spa_core/tests/test_call_provenance.py",
+    "spa_core/tests/test_findings_bridge.py",
+    "spa_core/tests/test_s49_surface_freshness.py"
+  ],
+  "baseline_failures": [],
+  "population": 15,
+  "applied": 15,
+  "counts": {
+    "killed": 15,
+    "survived": 0,
+    "not_applied": 0,
+    "broke_collection": 0
+  },
+  "unmeasured_reason": null,
+  "rc": 0,
+  "results": [
+    {
+      "name": "M01 всё — задание launchd (вложенность не различается)",
+      "file": "spa_core/monitoring/call_provenance.py",
+      "outcome": "killed",
+      "detail": "",
+      "new_failures": [
+        "spa_core/tests/test_call_provenance.py::LauncherParsing::test_fleet_wrapper_started_by_a_shell_is_nested_not_a_job",
+        "spa_core/tests/test_call_provenance.py::LauncherParsing::test_hand_in_a_session_is_nested_and_the_chain_is_named",
+        "spa_core/tests/test_call_provenance.py::LauncherParsing::test_two_hops_through_a_shell_is_nested_the_wrapper_is_the_discriminator",
+        "spa_core/tests/test_call_provenance.py::LauncherRealDoor::test_a_real_process_reaches_launchd_and_the_last_link_has_ppid_one",
+        "spa_core/tests/test_findings_bridge.py::Bridge::test_report_carries_who_called_and_who_launched"
+      ]
+    },
+    {
+      "name": "M02 обёртка не проверяется — различает только глубина",
+      "file": "spa_core/monitoring/call_provenance.py",
+      "outcome": "killed",
+      "detail": "",
+      "new_failures": [
+        "spa_core/tests/test_call_provenance.py::LauncherParsing::test_two_hops_through_a_shell_is_nested_the_wrapper_is_the_discriminator"
+      ]
+    },
+    {
+      "name": "M03 род перепутан: задание ↔ вложенный",
+      "file": "spa_core/monitoring/call_provenance.py",
+      "outcome": "killed",
+      "detail": "",
+      "new_failures": [
+        "spa_core/tests/test_call_provenance.py::LauncherParsing::test_direct_child_of_launchd_is_a_launchd_job_in_one_hop",
+        "spa_core/tests/test_call_provenance.py::LauncherParsing::test_fleet_job_is_two_hops_and_named_launchd_job",
+        "spa_core/tests/test_call_provenance.py::LauncherParsing::test_fleet_wrapper_started_by_a_shell_is_nested_not_a_job",
+        "spa_core/tests/test_call_provenance.py::LauncherParsing::test_hand_in_a_session_is_nested_and_the_chain_is_named",
+        "spa_core/tests/test_call_provenance.py::LauncherParsing::test_two_hops_through_a_shell_is_nested_the_wrapper_is_the_discriminator",
+        "spa_core/tests/test_call_provenance.py::LauncherRealDoor::test_a_real_process_reaches_launchd_and_the_last_link_has_ppid_one",
+        "spa_core/tests/test_findings_bridge.py::Bridge::test_report_carries_who_called_and_who_launched"
+      ]
+    },
+    {
+      "name": "M04 цикл цепи не замечается (уходит в предел ходов)",
+      "file": "spa_core/monitoring/call_provenance.py",
+      "outcome": "killed",
+      "detail": "",
+      "new_failures": [
+        "spa_core/tests/test_call_provenance.py::LauncherParsing::test_cycle_in_the_chain_is_unmeasured_not_nested"
+      ]
+    },
+    {
+      "name": "M05 молчащая дверь выдаётся за вложенный прогон",
+      "file": "spa_core/monitoring/call_provenance.py",
+      "outcome": "killed",
+      "detail": "",
+      "new_failures": [
+        "spa_core/tests/test_call_provenance.py::LauncherParsing::test_silent_door_is_unmeasured_with_the_pid_named"
+      ]
+    },
+    {
+      "name": "M06 подставленная дверь игнорируется — всегда настоящая ps",
+      "file": "spa_core/monitoring/call_provenance.py",
+      "outcome": "killed",
+      "detail": "",
+      "new_failures": [
+        "spa_core/tests/test_call_provenance.py::LauncherParsing::test_chain_longer_than_max_hops_is_unmeasured",
+        "spa_core/tests/test_call_provenance.py::LauncherParsing::test_cycle_in_the_chain_is_unmeasured_not_nested",
+        "spa_core/tests/test_call_provenance.py::LauncherParsing::test_fleet_job_is_two_hops_and_named_launchd_job",
+        "spa_core/tests/test_call_provenance.py::LauncherParsing::test_fleet_wrapper_started_by_a_shell_is_nested_not_a_job",
+        "spa_core/tests/test_call_provenance.py::LauncherParsing::test_hand_in_a_session_is_nested_and_the_chain_is_named",
+        "spa_core/tests/test_call_provenance.py::LauncherParsing::test_launchd_job_line_names_the_child",
+        "spa_core/tests/test_call_provenance.py::LauncherParsing::test_silent_door_is_unmeasured_with_the_pid_named",
+        "spa_core/tests/test_call_provenance.py::LauncherParsing::test_tree_root_and_home_are_folded_out_of_commands",
+        "spa_core/tests/test_call_provenance.py::LauncherParsing::test_two_hops_through_a_shell_is_nested_the_wrapper_is_the_discriminator"
+      ]
+    },
+    {
+      "name": "M07 корень дерева не сворачивается в команде",
+      "file": "spa_core/monitoring/call_provenance.py",
+      "outcome": "killed",
+      "detail": "",
+      "new_failures": [
+        "spa_core/tests/test_call_provenance.py::LauncherParsing::test_tree_root_and_home_are_folded_out_of_commands"
+      ]
+    },
+    {
+      "name": "M08 строка описания: не измерено печатается как вложенный",
+      "file": "spa_core/monitoring/call_provenance.py",
+      "outcome": "killed",
+      "detail": "",
+      "new_failures": [
+        "spa_core/tests/test_call_provenance.py::LauncherParsing::test_silent_door_is_unmeasured_with_the_pid_named"
+      ]
+    },
+    {
+      "name": "M09 отчёт моста: запуск ОБЪЯВЛЕН заданием флота, а не измерен",
+      "file": "spa_core/monitoring/findings_bridge.py",
+      "outcome": "killed",
+      "detail": "",
+      "new_failures": [
+        "spa_core/tests/test_findings_bridge.py::Bridge::test_report_carries_who_called_and_who_launched"
+      ]
+    },
+    {
+      "name": "M10 отчёт моста без штампа точки входа",
+      "file": "spa_core/monitoring/findings_bridge.py",
+      "outcome": "killed",
+      "detail": "",
+      "new_failures": [
+        "spa_core/tests/test_findings_bridge.py::Bridge::test_report_carries_who_called_and_who_launched"
+      ]
+    },
+    {
+      "name": "M11 читатель: не измеренный запуск печатается как вложенный",
+      "file": "spa_core/monitoring/s49_surface_freshness.py",
+      "outcome": "killed",
+      "detail": "",
+      "new_failures": [
+        "spa_core/tests/test_s49_surface_freshness.py::TestBridgeLauncherAxis::test_unmeasured_launcher_is_said_not_guessed"
+      ]
+    },
+    {
+      "name": "M12 читатель: зовущий выдумывается из запуска при отсутствии точки входа",
+      "file": "spa_core/monitoring/s49_surface_freshness.py",
+      "outcome": "killed",
+      "detail": "",
+      "new_failures": [
+        "spa_core/tests/test_s49_surface_freshness.py::TestBridgeLauncherAxis::test_launcher_without_an_entry_is_not_a_caller"
+      ]
+    },
+    {
+      "name": "M13 читатель: отсутствие записи о запуске выдаётся за «не измерено»",
+      "file": "spa_core/monitoring/s49_surface_freshness.py",
+      "outcome": "killed",
+      "detail": "",
+      "new_failures": [
+        "spa_core/tests/test_s49_surface_freshness.py::TestBridgeLauncherAxis::test_absent_launcher_leaves_the_caller_as_the_entry_alone",
+        "spa_core/tests/test_s49_surface_freshness.py::TestBridgeRunChannel::test_caller_is_read_from_the_stamp_when_present"
+      ]
+    },
+    {
+      "name": "M14 читатель: род задания перепутан",
+      "file": "spa_core/monitoring/s49_surface_freshness.py",
+      "outcome": "killed",
+      "detail": "",
+      "new_failures": [
+        "spa_core/tests/test_findings_bridge.py::Bridge::test_report_carries_who_called_and_who_launched",
+        "spa_core/tests/test_s49_surface_freshness.py::TestBridgeLauncherAxis::test_fleet_job_is_named_a_direct_launchd_job_next_to_the_entry",
+        "spa_core/tests/test_s49_surface_freshness.py::TestBridgeLauncherAxis::test_launcher_without_an_entry_is_not_a_caller",
+        "spa_core/tests/test_s49_surface_freshness.py::TestBridgeLauncherAxis::test_nested_run_names_the_process_above_it"
+      ]
+    },
+    {
+      "name": "M15 читатель: ось запуска не читается вовсе",
+      "file": "spa_core/monitoring/s49_surface_freshness.py",
+      "outcome": "killed",
+      "detail": "",
+      "new_failures": [
+        "spa_core/tests/test_findings_bridge.py::Bridge::test_report_carries_who_called_and_who_launched",
+        "spa_core/tests/test_s49_surface_freshness.py::TestBridgeLauncherAxis::test_fleet_job_is_named_a_direct_launchd_job_next_to_the_entry",
+        "spa_core/tests/test_s49_surface_freshness.py::TestBridgeLauncherAxis::test_launcher_without_an_entry_is_not_a_caller",
+        "spa_core/tests/test_s49_surface_freshness.py::TestBridgeLauncherAxis::test_live_writer_and_reader_agree_on_the_same_file",
+        "spa_core/tests/test_s49_surface_freshness.py::TestBridgeLauncherAxis::test_nested_run_names_the_process_above_it",
+        "spa_core/tests/test_s49_surface_freshness.py::TestBridgeLauncherAxis::test_unmeasured_launcher_is_said_not_guessed"
+      ]
+    }
+  ]
+}
