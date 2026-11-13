@@ -5407,6 +5407,117 @@ def _probe_owner_visibility_numbers_delivered(
         f"потеряно 0, поверхность читает все поля: {', '.join(callers)}")
 
 
+#: Член класса «песочница без названного каталога данных», измеренный ADR-996 § 2.1:
+#: дверь, через которую 03.11 01:05Z легли 11 файлов в прод-`data/`.
+_SANDBOX_CLASS_MEMBER = "spa_core/monitoring/findings_bridge.py"
+#: Строка проводки двери в члене (ADR-998): снять её — восстановить аварию.
+_SANDBOX_CLASS_DOOR_LINE = "    leak = sandbox_leak_reason(args.root)\n"
+
+
+def _probe_sandbox_data_dir_class_population_named(
+        arg: str | None, *, repo_root: str | None = None) -> tuple[str, str]:
+    """Критерий: население класса «песочница без названного каталога данных» ИЗМЕРЕНО,
+    и измеренный член класса — мост — маркер песочницы СПРАШИВАЕТ.
+
+    Предмет — ADR-996 § 6б / ADR-998 (цикл #1117). Замер #1115: куча из 11 файлов в
+    прод-`data/` 03.11 01:05Z написана сэмплером мандата ARB 02 под `SPA_SANDBOX=1` —
+    маркер защищал трекер, а `findings_bridge --run` брал корень из `--root` с
+    умолчанием «дерево модуля» и маркера не спрашивал. ADR-996 измерил ОДНОГО члена и
+    сказал вслух: население НЕ измерено.
+
+    **Меряется ИСХОД, а не структура.** Проба не ищет в мосте строки `SPA_SANDBOX` и не
+    грепает `assert_not_prod_realpath`: она зовёт перепись
+    `scripts/sandbox_data_dir_census.py` и спрашивает ВЕРДИКТ значением у каждой точки
+    входа поверхности. Подстрокой не проходит (ADR-333): дверь, названная в комментарии,
+    у переписи остаётся `MARKER_BLIND` — вызова нет.
+
+    Контроль в обе стороны — внутри самой проверки:
+
+    * **нулевая проба — НАСТОЯЩАЯ авария в её НАСТОЯЩЕМ месте.** Из живого моста
+      снимается ОДНА строка проводки двери (`_SANDBOX_CLASS_DOOR_LINE`), файл кладётся в
+      одноразовое дерево, и перепись ОБЯЗАНА назвать его `MARKER_BLIND`. Не назвала ⇒
+      `unmeasured`: прибор, не краснеющий на аварии, ради которой написан, ничего не
+      измерил (урок ADR-932). Строки проводки в мосте нет ⇒ `not_satisfied`: дверь
+      либо снята, либо переименована — обе формы требуют перемера, а не зелёного;
+    * на живом дереве ни одна точка входа поверхности не смеет быть `UNMEASURED`;
+    * член класса на живом дереве обязан быть `DOOR`;
+    * население обязано быть НАЗВАНО числом по каждому вердикту — оно печатается в
+      ответе, и «пуст» здесь не требуется и не утверждается: класс велик (замер #1117),
+      закрыт у измеренной двери, остальные названы поимённо прибором.
+
+    Дерево — ВХОД (`repo_root`): ни прод-дерево, ни живое `data/` проба не трогает.
+    """
+    if (arg or "").strip():
+        return UNMEASURED, (f"проба не принимает аргумента (дано {arg!r}): предмет — "
+                            "население класса, пофайловой формы у него нет")
+
+    import importlib.util as _ilu
+    import sys as _sys
+    import tempfile as _tempfile
+
+    root = _pathlib.Path(repo_root or REPO_ROOT)
+    census_path = root / "scripts" / "sandbox_data_dir_census.py"
+    if not census_path.is_file():
+        return NOT_SATISFIED, (f"переписи населения нет: {census_path} отсутствует — "
+                               "население класса НЕ ИЗМЕРЕНО")
+    try:
+        spec = _ilu.spec_from_file_location("spa_sddc_probe", census_path)
+        mod = _ilu.module_from_spec(spec)          # type: ignore[arg-type]
+        _sys.modules["spa_sddc_probe"] = mod
+        spec.loader.exec_module(mod)               # type: ignore[union-attr]
+    except BaseException as exc:  # noqa: BLE001
+        return UNMEASURED, f"перепись не загрузилась: {type(exc).__name__}: {exc}"
+
+    member = root / _SANDBOX_CLASS_MEMBER
+    if not member.is_file():
+        return UNMEASURED, f"члена класса нет в дереве: {member}"
+    live_src = member.read_text(encoding="utf-8")
+    if _SANDBOX_CLASS_DOOR_LINE not in live_src:
+        return NOT_SATISFIED, ("в мосте нет проводки двери "
+                               f"{_SANDBOX_CLASS_DOOR_LINE.strip()!r} — маркер песочницы у "
+                               "`--run` не спрашивается (или дверь переименована: перемерить)")
+
+    # ── нулевая проба: авария 03.11 в её настоящем файле ──────────────────────
+    pre = live_src.replace(_SANDBOX_CLASS_DOOR_LINE, "")
+    try:
+        with _tempfile.TemporaryDirectory(prefix="sddc_zero_") as d:
+            scene = _pathlib.Path(d)
+            for sub in mod.SURFACE_DIRS:
+                (scene / sub).mkdir(parents=True, exist_ok=True)
+            (scene / _SANDBOX_CLASS_MEMBER).write_text(pre, encoding="utf-8")
+            zero = mod.measure(scene)
+            entry = next((e for e in zero.entries if e.path == _SANDBOX_CLASS_MEMBER), None)
+    except BaseException as exc:  # noqa: BLE001
+        return UNMEASURED, f"нулевая сцена не измерилась: {type(exc).__name__}: {exc}"
+    if entry is None or entry.verdict != "MARKER_BLIND":
+        return UNMEASURED, ("перепись НЕ краснеет на аварии, ради которой написана "
+                            f"(вердикт моста без проводки: {getattr(entry, 'verdict', None)}) "
+                            "— её население ничего не значит")
+
+    # ── сам критерий на живом дереве ──────────────────────────────────────────
+    try:
+        live = mod.measure(root)
+    except BaseException as exc:  # noqa: BLE001
+        return UNMEASURED, f"перепись живого дерева не состоялась: {type(exc).__name__}: {exc}"
+    if live.unmeasured:
+        return UNMEASURED, ("точки входа не измерены: "
+                            + "; ".join(f"{e.path}: {e.reason}" for e in live.unmeasured[:4]))
+    if not live.entries:
+        return UNMEASURED, "поверхность живого дерева ПУСТА — население нечем назвать"
+    member_live = next((e for e in live.entries if e.path == _SANDBOX_CLASS_MEMBER), None)
+    if member_live is None:
+        return UNMEASURED, "мост не попал в поверхность переписи — флаг каталога не найден"
+    if member_live.verdict != "DOOR":
+        return NOT_SATISFIED, (f"член класса читается {member_live.verdict}, а не DOOR: "
+                               "маркер песочницы у `--run` не спрашивается")
+    order = ("MARKER_BLIND", "DOOR", "EXPLICIT_ONLY", "READER", "UNMEASURED")
+    pop = " · ".join(f"{k} {live.counts.get(k, 0)}" for k in order)
+    return SATISFIED, (
+        f"население НАЗВАНО: точек входа {len(live.entries)} ({pop}); член класса "
+        f"{_SANDBOX_CLASS_MEMBER} — DOOR ({', '.join(member_live.doors)}); нулевая проба "
+        "(мост без проводки) — MARKER_BLIND")
+
+
 def _probe_portfolio_decision_owner_covers_capital(
         arg: str | None, *, now: "datetime | None" = None,
         data_dir: str | None = None,
@@ -19204,6 +19315,8 @@ PROBES: dict[str, Callable[[str | None], "tuple[str, str]"]] = {
         _probe_orphan_sweep_names_an_unregistered_copy,
     "delivery_tree_input_class_population_named":
         _probe_delivery_tree_input_class_population_named,
+    "sandbox_data_dir_class_population_named":
+        _probe_sandbox_data_dir_class_population_named,
     "portfolio_decision_owner_covers_capital":
         _probe_portfolio_decision_owner_covers_capital,
     "no_single_criterion_probe_on_a_multi_criterion_order":

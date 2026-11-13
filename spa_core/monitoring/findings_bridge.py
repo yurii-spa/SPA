@@ -2198,6 +2198,31 @@ def run_bridge(root: str = REPO_ROOT, now: dt.datetime | None = None,
     return report
 
 
+def sandbox_leak_reason(root: str) -> str | None:
+    """Почему прогон моста под маркером песочницы НЕ ИМЕЕТ ПРАВА идти по `root` — или None.
+
+    ADR-998 (цикл #1117), член класса «песочница без названного каталога данных»
+    (ADR-996 § 2.1): 03.11 01:05Z сэмплер мандата ARB 02 шёл под `SPA_SANDBOX=1`, а
+    `--root` оставил умолчанию — деревом модуля, то есть прод-клоном, — и ступени
+    моста написали 11 файлов в живой `data/`. Маркер защищал трекер (его читает
+    `live_paths`), а корень ступеней берётся ИЗ ЭТОГО аргумента, и двери к маркеру у
+    него не было. Это защита НА ПРИЁМНИКЕ (C8(a) ADR-580): вызывающий, забывший
+    `--root`/`SPA_DATA_DIR`, получает отказ, а не молчаливую запись в прод.
+
+    Дверь — ЕДИНСТВЕННАЯ, та же, что у трекера: `live_paths.assert_not_prod_realpath`
+    (маркер активен И `<root>/data` совпадает с прод-деревом или лежит внутри него ⇒
+    `SandboxLeakError`). Своей копии проверки здесь нет намеренно — две копии
+    разошлись бы. Без маркера функция молчит: прод-бегун (`decision_loop`) маркера
+    не ставит и этой проверки не видит вовсе.
+    """
+    from spa_core.utils.live_paths import SandboxLeakError, assert_not_prod_realpath
+    try:
+        assert_not_prod_realpath(Path(root) / "data", who="findings_bridge --run")
+    except SandboxLeakError as exc:
+        return str(exc)
+    return None
+
+
 def main(argv=None) -> int:
     ap = argparse.ArgumentParser(description=__doc__.splitlines()[0])
     ap.add_argument("--run", action="store_true")
@@ -2208,6 +2233,12 @@ def main(argv=None) -> int:
     if not args.run:
         ap.print_help()
         return 0
+    # ADR-998: под маркером песочницы корень, разрешившийся в прод, — ОТКАЗ до
+    # первой ступени, а не запись в живой `data/` (куча 03.11, ADR-996 § 2.1).
+    leak = sandbox_leak_reason(args.root)
+    if leak is not None:
+        print(f"ОТКАЗ (код 2): {leak}", file=sys.stderr)
+        return 2
     # Старт процесса снимается ЗДЕСЬ — до ступени переписей, которая на живом
     # Маке занимает часы. Это момент, после которого код процесса неизменяем;
     # именно его спрашивает `artifact_absence.verdict` у вопроса «успел ли

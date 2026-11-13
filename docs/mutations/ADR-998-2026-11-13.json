@@ -1,0 +1,184 @@
+{
+  "title": "ADR-998 — дельта цикла #1117 (перепись «песочница без названного каталога данных» + дверь-отказ моста)",
+  "tests": [
+    "spa_core/tests/test_sandbox_data_dir_census.py",
+    "spa_core/tests/test_findings_bridge.py"
+  ],
+  "baseline_failures": [],
+  "population": 15,
+  "applied": 15,
+  "counts": {
+    "killed": 15,
+    "survived": 0,
+    "not_applied": 0,
+    "broke_collection": 0
+  },
+  "unmeasured_reason": null,
+  "rc": 0,
+  "results": [
+    {
+      "name": "M01 дверь считается по наличию в файле, а не по достижимости от входа",
+      "file": "scripts/sandbox_data_dir_census.py",
+      "outcome": "killed",
+      "detail": "",
+      "new_failures": [
+        "spa_core/tests/test_sandbox_data_dir_census.py::TestTheProbe::test_a_scene_tree_with_the_live_bridge_is_satisfied",
+        "spa_core/tests/test_sandbox_data_dir_census.py::TestTheProbe::test_live_tree_is_satisfied_and_names_the_population",
+        "spa_core/tests/test_sandbox_data_dir_census.py::TestTheProbe::test_the_wiring_as_prose_is_not_satisfied",
+        "spa_core/tests/test_sandbox_data_dir_census.py::TestTheRealMember::test_the_bridge_without_the_one_wiring_line_is_blind",
+        "spa_core/tests/test_sandbox_data_dir_census.py::TestThreeOutcomes::test_render_names_the_subject_and_the_half_injection",
+        "spa_core/tests/test_sandbox_data_dir_census.py::TestVerdictsOnScenes::test_a_door_defined_but_unreached_from_main_is_blind"
+      ]
+    },
+    {
+      "name": "M02 раздача root= ступеням не замечается",
+      "file": "scripts/sandbox_data_dir_census.py",
+      "outcome": "killed",
+      "detail": "",
+      "new_failures": [
+        "spa_core/tests/test_sandbox_data_dir_census.py::TestTheRealMember::test_the_live_bridge_is_door",
+        "spa_core/tests/test_sandbox_data_dir_census.py::TestVerdictsOnScenes::test_delegating_root_to_stages_counts_as_writing"
+      ]
+    },
+    {
+      "name": "M03 вердикты MARKER_BLIND и EXPLICIT_ONLY перепутаны",
+      "file": "scripts/sandbox_data_dir_census.py",
+      "outcome": "killed",
+      "detail": "",
+      "new_failures": [
+        "spa_core/tests/test_sandbox_data_dir_census.py::TestTheProbe::test_a_scene_tree_with_the_live_bridge_is_satisfied",
+        "spa_core/tests/test_sandbox_data_dir_census.py::TestTheProbe::test_live_tree_is_satisfied_and_names_the_population",
+        "spa_core/tests/test_sandbox_data_dir_census.py::TestTheProbe::test_the_wiring_as_prose_is_not_satisfied",
+        "spa_core/tests/test_sandbox_data_dir_census.py::TestTheRealMember::test_the_bridge_without_the_one_wiring_line_is_blind",
+        "spa_core/tests/test_sandbox_data_dir_census.py::TestThreeOutcomes::test_cli_codes_and_json",
+        "spa_core/tests/test_sandbox_data_dir_census.py::TestThreeOutcomes::test_render_names_the_subject_and_the_half_injection",
+        "spa_core/tests/test_sandbox_data_dir_census.py::TestThreeOutcomes::test_unmeasured_does_not_hide_a_named_subject",
+        "spa_core/tests/test_sandbox_data_dir_census.py::TestVerdictsOnScenes::test_a_door_defined_but_unreached_from_main_is_blind",
+        "spa_core/tests/test_sandbox_data_dir_census.py::TestVerdictsOnScenes::test_a_door_named_only_in_prose_is_blind",
+        "spa_core/tests/test_sandbox_data_dir_census.py::TestVerdictsOnScenes::test_constant_default_with_a_write_is_marker_blind",
+        "spa_core/tests/test_sandbox_data_dir_census.py::TestVerdictsOnScenes::test_delegating_root_to_stages_counts_as_writing",
+        "spa_core/tests/test_sandbox_data_dir_census.py::TestVerdictsOnScenes::test_fallback_if_is_none_form_is_a_default",
+        "spa_core/tests/test_sandbox_data_dir_census.py::TestVerdictsOnScenes::test_fallback_or_form_is_a_default",
+        "spa_core/tests/test_sandbox_data_dir_census.py::TestVerdictsOnScenes::test_imported_default_is_resolved_one_hop",
+        "spa_core/tests/test_sandbox_data_dir_census.py::TestVerdictsOnScenes::test_no_default_and_no_fallback_is_explicit_only"
+      ]
+    },
+    {
+      "name": "M04 модуль, только раздающий root=, читается READER",
+      "file": "scripts/sandbox_data_dir_census.py",
+      "outcome": "killed",
+      "detail": "",
+      "new_failures": [
+        "spa_core/tests/test_sandbox_data_dir_census.py::TestVerdictsOnScenes::test_delegating_root_to_stages_counts_as_writing"
+      ]
+    },
+    {
+      "name": "M05 неизмеренный файл не мешает коду 0",
+      "file": "scripts/sandbox_data_dir_census.py",
+      "outcome": "killed",
+      "detail": "",
+      "new_failures": [
+        "spa_core/tests/test_sandbox_data_dir_census.py::TestThreeOutcomes::test_unparsable_file_is_unmeasured_and_blocks_a_clean_verdict"
+      ]
+    },
+    {
+      "name": "M06 обёртка str()/Path() не снимается — происхождение теряется",
+      "file": "scripts/sandbox_data_dir_census.py",
+      "outcome": "killed",
+      "detail": "",
+      "new_failures": [
+        "spa_core/tests/test_sandbox_data_dir_census.py::TestVerdictsOnScenes::test_constant_default_with_a_write_is_marker_blind",
+        "spa_core/tests/test_sandbox_data_dir_census.py::TestVerdictsOnScenes::test_fallback_or_form_is_a_default"
+      ]
+    },
+    {
+      "name": "M07 запасное умолчание формы `args.x or X` не видится",
+      "file": "scripts/sandbox_data_dir_census.py",
+      "outcome": "killed",
+      "detail": "",
+      "new_failures": [
+        "spa_core/tests/test_sandbox_data_dir_census.py::TestVerdictsOnScenes::test_fallback_or_form_is_a_default"
+      ]
+    },
+    {
+      "name": "M08 запасное умолчание формы `if args.x is None:` не видится",
+      "file": "scripts/sandbox_data_dir_census.py",
+      "outcome": "killed",
+      "detail": "",
+      "new_failures": [
+        "spa_core/tests/test_sandbox_data_dir_census.py::TestVerdictsOnScenes::test_fallback_if_is_none_form_is_a_default"
+      ]
+    },
+    {
+      "name": "M09 дверь ищется ПОДСТРОКОЙ по исходнику (ADR-333)",
+      "file": "scripts/sandbox_data_dir_census.py",
+      "outcome": "killed",
+      "detail": "",
+      "new_failures": [
+        "spa_core/tests/test_sandbox_data_dir_census.py::TestTheProbe::test_a_scene_tree_with_the_live_bridge_is_satisfied",
+        "spa_core/tests/test_sandbox_data_dir_census.py::TestTheProbe::test_live_tree_is_satisfied_and_names_the_population",
+        "spa_core/tests/test_sandbox_data_dir_census.py::TestTheProbe::test_the_wiring_as_prose_is_not_satisfied",
+        "spa_core/tests/test_sandbox_data_dir_census.py::TestTheRealMember::test_the_bridge_without_the_one_wiring_line_is_blind",
+        "spa_core/tests/test_sandbox_data_dir_census.py::TestThreeOutcomes::test_render_names_the_subject_and_the_half_injection",
+        "spa_core/tests/test_sandbox_data_dir_census.py::TestVerdictsOnScenes::test_a_door_defined_but_unreached_from_main_is_blind",
+        "spa_core/tests/test_sandbox_data_dir_census.py::TestVerdictsOnScenes::test_a_door_named_only_in_prose_is_blind"
+      ]
+    },
+    {
+      "name": "M10 имя умолчания не разрешается через импорт",
+      "file": "scripts/sandbox_data_dir_census.py",
+      "outcome": "killed",
+      "detail": "",
+      "new_failures": [
+        "spa_core/tests/test_sandbox_data_dir_census.py::TestVerdictsOnScenes::test_imported_default_is_resolved_one_hop"
+      ]
+    },
+    {
+      "name": "M11 тест-файлы попадают в поверхность",
+      "file": "scripts/sandbox_data_dir_census.py",
+      "outcome": "killed",
+      "detail": "",
+      "new_failures": [
+        "spa_core/tests/test_sandbox_data_dir_census.py::TestVerdictsOnScenes::test_test_files_are_skipped"
+      ]
+    },
+    {
+      "name": "M12 пустая поверхность читается «предмет пуст»",
+      "file": "scripts/sandbox_data_dir_census.py",
+      "outcome": "killed",
+      "detail": "",
+      "new_failures": [
+        "spa_core/tests/test_sandbox_data_dir_census.py::TestThreeOutcomes::test_empty_surface_is_unmeasured"
+      ]
+    },
+    {
+      "name": "M13 отсутствующий каталог поверхности молча пропускается",
+      "file": "scripts/sandbox_data_dir_census.py",
+      "outcome": "killed",
+      "detail": "",
+      "new_failures": [
+        "spa_core/tests/test_sandbox_data_dir_census.py::TestThreeOutcomes::test_missing_surface_dir_refuses"
+      ]
+    },
+    {
+      "name": "M14 дверь моста никогда не отказывает",
+      "file": "spa_core/monitoring/findings_bridge.py",
+      "outcome": "killed",
+      "detail": "",
+      "new_failures": [
+        "spa_core/tests/test_sandbox_data_dir_census.py::TestBridgeSandboxGuard::test_marker_and_a_child_of_prod_is_refused",
+        "spa_core/tests/test_sandbox_data_dir_census.py::TestBridgeSandboxGuard::test_marker_and_prod_root_refuses_with_code_2_and_writes_nothing",
+        "spa_core/tests/test_sandbox_data_dir_census.py::TestBridgeSandboxGuard::test_probe_tree_marker_counts_too"
+      ]
+    },
+    {
+      "name": "M15 отказ печатается, но прогон идёт дальше",
+      "file": "spa_core/monitoring/findings_bridge.py",
+      "outcome": "killed",
+      "detail": "",
+      "new_failures": [
+        "spa_core/tests/test_sandbox_data_dir_census.py::TestBridgeSandboxGuard::test_marker_and_prod_root_refuses_with_code_2_and_writes_nothing"
+      ]
+    }
+  ]
+}

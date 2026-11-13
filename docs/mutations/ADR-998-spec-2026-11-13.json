@@ -1,0 +1,99 @@
+{
+  "title": "ADR-998 — дельта цикла #1117 (перепись «песочница без названного каталога данных» + дверь-отказ моста)",
+  "tests": [
+    "spa_core/tests/test_sandbox_data_dir_census.py",
+    "spa_core/tests/test_findings_bridge.py"
+  ],
+  "mutations": [
+    {
+      "name": "M01 дверь считается по наличию в файле, а не по достижимости от входа",
+      "file": "scripts/sandbox_data_dir_census.py",
+      "old": "    doors, _entry_found = reachable_doors(tree)\n    anywhere = _doors_in(tree)\n",
+      "new": "    doors = _doors_in(tree)\n    anywhere = doors\n"
+    },
+    {
+      "name": "M02 раздача root= ступеням не замечается",
+      "file": "scripts/sandbox_data_dir_census.py",
+      "old": "                if any(kw.arg == \"root\" for kw in node.keywords):\n                    delegates = True\n",
+      "new": "                if any(kw.arg == \"root\" for kw in node.keywords):\n                    delegates = False\n"
+    },
+    {
+      "name": "M03 вердикты MARKER_BLIND и EXPLICIT_ONLY перепутаны",
+      "file": "scripts/sandbox_data_dir_census.py",
+      "old": "    elif entry.default_kind in (\"required\", \"none\"):\n        entry.verdict = \"EXPLICIT_ONLY\"\n    else:\n        entry.verdict = \"MARKER_BLIND\"\n",
+      "new": "    elif entry.default_kind in (\"required\", \"none\"):\n        entry.verdict = \"MARKER_BLIND\"\n    else:\n        entry.verdict = \"EXPLICIT_ONLY\"\n"
+    },
+    {
+      "name": "M04 модуль, только раздающий root=, читается READER",
+      "file": "scripts/sandbox_data_dir_census.py",
+      "old": "    elif not writes and not delegates:\n        entry.verdict = \"READER\"\n",
+      "new": "    elif not writes:\n        entry.verdict = \"READER\"\n"
+    },
+    {
+      "name": "M05 неизмеренный файл не мешает коду 0",
+      "file": "scripts/sandbox_data_dir_census.py",
+      "old": "    if blind:\n        code = 1\n    elif unm:\n        code = 2\n    else:\n        code = 0\n",
+      "new": "    if blind:\n        code = 1\n    else:\n        code = 0\n"
+    },
+    {
+      "name": "M06 обёртка str()/Path() не снимается — происхождение теряется",
+      "file": "scripts/sandbox_data_dir_census.py",
+      "old": "    expr = _unwrap(expr)\n    direct = _classify_expr(expr, src)\n",
+      "new": "    expr = expr\n    direct = None\n"
+    },
+    {
+      "name": "M07 запасное умолчание формы `args.x or X` не видится",
+      "file": "scripts/sandbox_data_dir_census.py",
+      "old": "            if _mentions_dest(node.values[0], dest) and _usable(node.values[1]):\n                return node.values[1]\n",
+      "new": "            if False and _mentions_dest(node.values[0], dest) and _usable(node.values[1]):\n                return node.values[1]\n"
+    },
+    {
+      "name": "M08 запасное умолчание формы `if args.x is None:` не видится",
+      "file": "scripts/sandbox_data_dir_census.py",
+      "old": "                for stmt in (node.body if empty else node.orelse):\n                    if isinstance(stmt, ast.Assign) and _usable(stmt.value):\n                        return stmt.value\n",
+      "new": "                for stmt in ():\n                    if isinstance(stmt, ast.Assign) and _usable(stmt.value):\n                        return stmt.value\n"
+    },
+    {
+      "name": "M09 дверь ищется ПОДСТРОКОЙ по исходнику (ADR-333)",
+      "file": "scripts/sandbox_data_dir_census.py",
+      "old": "    if doors:\n        entry.verdict = \"DOOR\"\n",
+      "new": "    if doors or \"live_data_dir\" in src or \"assert_not_prod_realpath\" in src:\n        entry.verdict = \"DOOR\"\n"
+    },
+    {
+      "name": "M10 имя умолчания не разрешается через импорт",
+      "file": "scripts/sandbox_data_dir_census.py",
+      "old": "            if cand.is_file():\n                try:\n                    osrc = cand.read_text(encoding=\"utf-8\")\n",
+      "new": "            if False:\n                try:\n                    osrc = cand.read_text(encoding=\"utf-8\")\n"
+    },
+    {
+      "name": "M11 тест-файлы попадают в поверхность",
+      "file": "scripts/sandbox_data_dir_census.py",
+      "old": "            if \"/tests/\" in p.as_posix() or p.name.startswith(\"test_\"):\n                continue\n",
+      "new": "            if \"/tests/\" in p.as_posix():\n                continue\n"
+    },
+    {
+      "name": "M12 пустая поверхность читается «предмет пуст»",
+      "file": "scripts/sandbox_data_dir_census.py",
+      "old": "    if not entries:\n        return Census(str(repo), list(dirs), entries, counts, 2,\n",
+      "new": "    if False:\n        return Census(str(repo), list(dirs), entries, counts, 2,\n"
+    },
+    {
+      "name": "M13 отсутствующий каталог поверхности молча пропускается",
+      "file": "scripts/sandbox_data_dir_census.py",
+      "old": "        if not base.is_dir():\n            raise NotMeasured(f\"каталог поверхности отсутствует: {base}\")\n",
+      "new": "        if not base.is_dir():\n            continue\n"
+    },
+    {
+      "name": "M14 дверь моста никогда не отказывает",
+      "file": "spa_core/monitoring/findings_bridge.py",
+      "old": "    except SandboxLeakError as exc:\n        return str(exc)\n    return None\n",
+      "new": "    except SandboxLeakError as exc:\n        return None\n    return None\n"
+    },
+    {
+      "name": "M15 отказ печатается, но прогон идёт дальше",
+      "file": "spa_core/monitoring/findings_bridge.py",
+      "old": "    if leak is not None:\n        print(f\"ОТКАЗ (код 2): {leak}\", file=sys.stderr)\n        return 2\n",
+      "new": "    if leak is not None:\n        print(f\"ОТКАЗ (код 2): {leak}\", file=sys.stderr)\n"
+    }
+  ]
+}
