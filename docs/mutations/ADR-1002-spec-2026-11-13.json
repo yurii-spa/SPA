@@ -1,0 +1,92 @@
+{
+  "title": "ADR-1002 — замер «реестр → бегун»: куда пишут аналитики реестра под песочницей (цикл #1121)",
+  "tests": [
+    "spa_core/tests/test_registry_runner_write_census.py"
+  ],
+  "mutations": [
+    {
+      "name": "M01 форма context= принимается всегда (обязательный kw-only параметр не блокирует вход)",
+      "file": "scripts/registry_runner_write_census.py",
+      "old": "        if all(r == CONTEXT_PARAM for r in required):\n",
+      "new": "        if True:\n"
+    },
+    {
+      "name": "M02 класс записи никогда не становится целью бегуна (всегда модуль)",
+      "file": "scripts/registry_runner_write_census.py",
+      "old": "            if ok:\n                target_cls = cls_name\n",
+      "new": "            if False:\n                target_cls = cls_name\n"
+    },
+    {
+      "name": "M03 atomic_save именем не считается записью",
+      "file": "scripts/registry_runner_write_census.py",
+      "old": "        if f.id == \"atomic_save\":\n            return \"atomic_save\"\n",
+      "new": "        if f.id == \"atomic_save_never\":\n            return \"atomic_save\"\n"
+    },
+    {
+      "name": "M04 любой open() — запись (режим чтения тоже)",
+      "file": "scripts/registry_runner_write_census.py",
+      "old": "    return bool(mode) and any(ch in _WRITE_MODES for ch in mode)\n",
+      "new": "    return True\n"
+    },
+    {
+      "name": "M05 граф вызовов не следует за функциями модуля (запись через помощника не видна)",
+      "file": "scripts/registry_runner_write_census.py",
+      "old": "                if f.id in funcs:\n                    stack.append((\"f\", f.id))\n",
+      "new": "                if f.id in funcs:\n                    pass\n"
+    },
+    {
+      "name": "M06 делегирование чужому модулю аналитики (атрибутом) не замечается",
+      "file": "scripts/registry_runner_write_census.py",
+      "old": "                if base in delegate_names:\n                    delegates.add(f\"{base}.{f.attr}\")\n",
+      "new": "                if base in delegate_names:\n                    pass\n"
+    },
+    {
+      "name": "M07 бегун всегда «кладёт data_dir в контекст»",
+      "file": "scripts/registry_runner_write_census.py",
+      "old": "    passes = False\n",
+      "new": "    passes = True\n"
+    },
+    {
+      "name": "M08 неразобранный модуль гасит названный предмет (код 0 при UNMEASURED > 0)",
+      "file": "scripts/registry_runner_write_census.py",
+      "old": "    code = 1 if exposed else 0\n",
+      "new": "    code = 1 if exposed and not counts[\"UNMEASURED\"] else 0\n"
+    },
+    {
+      "name": "M09 наблюдение не отказывает на прод-дереве",
+      "file": "scripts/registry_runner_write_census.py",
+      "old": "    if _is_prod_tree(repo):\n        raise NotMeasured(f\"наблюдение в ПРОД-дереве запрещено: {repo}\")\n",
+      "new": "    if False:\n        raise NotMeasured(f\"наблюдение в ПРОД-дереве запрещено: {repo}\")\n"
+    },
+    {
+      "name": "M10 реестр читается только из аннотированного присваивания (простое Assign — не реестр)",
+      "file": "scripts/registry_runner_write_census.py",
+      "old": "        if not isinstance(node, (ast.Assign, ast.AnnAssign)) or not isinstance(node.value, ast.List):\n",
+      "new": "        if not isinstance(node, ast.AnnAssign) or not isinstance(node.value, ast.List):\n"
+    },
+    {
+      "name": "M11 порядок входов — копия правила, а не чтение бегуна дерева",
+      "file": "scripts/registry_runner_write_census.py",
+      "old": "                    methods = tuple(str(v) for v in vals)\n",
+      "new": "                    methods = (\"analyze\", \"score\", \"run\")\n"
+    },
+    {
+      "name": "M12 корзина «data/ дерева» смотрит на cwd (запись в дерево модуля не наблюдается)",
+      "file": "scripts/registry_runner_write_census.py",
+      "old": "watch = {\"runner_dir\": sandbox, \"tree_data\": os.path.join(repo, \"data\"), \"cwd_data\": os.path.join(cwd, \"data\")}\n",
+      "new": "watch = {\"runner_dir\": sandbox, \"tree_data\": os.path.join(cwd, \"data\"), \"cwd_data\": os.path.join(cwd, \"data\")}\n"
+    },
+    {
+      "name": "M13 дверь контекста у модуля никогда не замечается",
+      "file": "scripts/registry_runner_write_census.py",
+      "old": "def _reads_context_data_dir(tree: ast.Module) -> bool:\n    for node in ast.walk(tree):\n",
+      "new": "def _reads_context_data_dir(tree: ast.Module) -> bool:\n    for node in []:\n"
+    },
+    {
+      "name": "M14 дверь контекста считается открытой без бегуна (модуль с context.get(\"data_dir\") выходит из предмета сам)",
+      "file": "scripts/registry_runner_write_census.py",
+      "old": "               and not (runner.passes_data_dir and m.reads_context_data_dir)]\n",
+      "new": "               and not m.reads_context_data_dir]\n"
+    }
+  ]
+}

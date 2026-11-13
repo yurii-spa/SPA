@@ -1,0 +1,161 @@
+{
+  "title": "ADR-1002 — замер «реестр → бегун»: куда пишут аналитики реестра под песочницей (цикл #1121)",
+  "tests": [
+    "spa_core/tests/test_registry_runner_write_census.py"
+  ],
+  "baseline_failures": [],
+  "population": 14,
+  "applied": 14,
+  "counts": {
+    "killed": 14,
+    "survived": 0,
+    "not_applied": 0,
+    "broke_collection": 0
+  },
+  "unmeasured_reason": null,
+  "rc": 0,
+  "results": [
+    {
+      "name": "M01 форма context= принимается всегда (обязательный kw-only параметр не блокирует вход)",
+      "file": "scripts/registry_runner_write_census.py",
+      "outcome": "killed",
+      "detail": "",
+      "new_failures": [
+        "spa_core/tests/test_registry_runner_write_census.py::TestEntrySelection::test_kwonly_required_parameter_blocks_the_entry"
+      ]
+    },
+    {
+      "name": "M02 класс записи никогда не становится целью бегуна (всегда модуль)",
+      "file": "scripts/registry_runner_write_census.py",
+      "outcome": "killed",
+      "detail": "",
+      "new_failures": [
+        "spa_core/tests/test_registry_runner_write_census.py::TestEntrySelection::test_class_without_required_args_is_the_target_and_self_method_is_followed",
+        "spa_core/tests/test_registry_runner_write_census.py::TestEntrySelection::test_dataclass_with_required_fields_yields_to_the_module"
+      ]
+    },
+    {
+      "name": "M03 atomic_save именем не считается записью",
+      "file": "scripts/registry_runner_write_census.py",
+      "outcome": "killed",
+      "detail": "",
+      "new_failures": [
+        "spa_core/tests/test_registry_runner_write_census.py::TestCensusRunnerFlag::test_census_runner_flag_prints_the_runner_verdict_and_lifts_the_code",
+        "spa_core/tests/test_registry_runner_write_census.py::TestEntrySelection::test_module_level_analyze_reaching_a_write_through_a_helper",
+        "spa_core/tests/test_registry_runner_write_census.py::TestEntrySelection::test_registry_class_absent_from_file_falls_back_to_module",
+        "spa_core/tests/test_registry_runner_write_census.py::TestRunnerDoor::test_runner_with_the_door_and_a_module_reading_it_empties_the_subject",
+        "spa_core/tests/test_registry_runner_write_census.py::TestThreeOutcomes::test_main_prints_three_outcomes_and_returns_the_code",
+        "spa_core/tests/test_registry_runner_write_census.py::TestThreeOutcomes::test_registry_as_plain_assign_is_read_too",
+        "spa_core/tests/test_registry_runner_write_census.py::TestThreeOutcomes::test_unparsable_module_is_UNMEASURED_and_does_not_hide_a_named_subject"
+      ]
+    },
+    {
+      "name": "M04 любой open() — запись (режим чтения тоже)",
+      "file": "scripts/registry_runner_write_census.py",
+      "outcome": "killed",
+      "detail": "",
+      "new_failures": [
+        "spa_core/tests/test_registry_runner_write_census.py::TestWritesAndDelegation::test_str_replace_and_read_open_are_not_writes"
+      ]
+    },
+    {
+      "name": "M05 граф вызовов не следует за функциями модуля (запись через помощника не видна)",
+      "file": "scripts/registry_runner_write_census.py",
+      "outcome": "killed",
+      "detail": "",
+      "new_failures": [
+        "spa_core/tests/test_registry_runner_write_census.py::TestCensusRunnerFlag::test_census_runner_flag_prints_the_runner_verdict_and_lifts_the_code",
+        "spa_core/tests/test_registry_runner_write_census.py::TestEntrySelection::test_module_level_analyze_reaching_a_write_through_a_helper",
+        "spa_core/tests/test_registry_runner_write_census.py::TestEntrySelection::test_registry_class_absent_from_file_falls_back_to_module",
+        "spa_core/tests/test_registry_runner_write_census.py::TestObserveEndToEnd::test_real_runner_writes_land_in_module_default_not_in_the_runner_dir",
+        "spa_core/tests/test_registry_runner_write_census.py::TestRunnerDoor::test_runner_with_the_door_and_a_module_reading_it_empties_the_subject",
+        "spa_core/tests/test_registry_runner_write_census.py::TestThreeOutcomes::test_main_prints_three_outcomes_and_returns_the_code",
+        "spa_core/tests/test_registry_runner_write_census.py::TestThreeOutcomes::test_registry_as_plain_assign_is_read_too",
+        "spa_core/tests/test_registry_runner_write_census.py::TestThreeOutcomes::test_unparsable_module_is_UNMEASURED_and_does_not_hide_a_named_subject"
+      ]
+    },
+    {
+      "name": "M06 делегирование чужому модулю аналитики (атрибутом) не замечается",
+      "file": "scripts/registry_runner_write_census.py",
+      "outcome": "killed",
+      "detail": "",
+      "new_failures": [
+        "spa_core/tests/test_registry_runner_write_census.py::TestWritesAndDelegation::test_delegation_to_a_sibling_analytics_module_is_its_own_outcome"
+      ]
+    },
+    {
+      "name": "M07 бегун всегда «кладёт data_dir в контекст»",
+      "file": "scripts/registry_runner_write_census.py",
+      "outcome": "killed",
+      "detail": "",
+      "new_failures": [
+        "spa_core/tests/test_registry_runner_write_census.py::TestLiveTree::test_population_is_named_and_the_runner_door_state_is_measured",
+        "spa_core/tests/test_registry_runner_write_census.py::TestRunnerDoor::test_runner_without_the_door_names_the_subject"
+      ]
+    },
+    {
+      "name": "M08 неразобранный модуль гасит названный предмет (код 0 при UNMEASURED > 0)",
+      "file": "scripts/registry_runner_write_census.py",
+      "outcome": "killed",
+      "detail": "",
+      "new_failures": [
+        "spa_core/tests/test_registry_runner_write_census.py::TestThreeOutcomes::test_unparsable_module_is_UNMEASURED_and_does_not_hide_a_named_subject"
+      ]
+    },
+    {
+      "name": "M09 наблюдение не отказывает на прод-дереве",
+      "file": "scripts/registry_runner_write_census.py",
+      "outcome": "killed",
+      "detail": "",
+      "new_failures": [
+        "spa_core/tests/test_registry_runner_write_census.py::TestObserveRefusals::test_refuses_the_prod_tree_before_running_anything"
+      ]
+    },
+    {
+      "name": "M10 реестр читается только из аннотированного присваивания (простое Assign — не реестр)",
+      "file": "scripts/registry_runner_write_census.py",
+      "outcome": "killed",
+      "detail": "",
+      "new_failures": [
+        "spa_core/tests/test_registry_runner_write_census.py::TestThreeOutcomes::test_registry_as_plain_assign_is_read_too"
+      ]
+    },
+    {
+      "name": "M11 порядок входов — копия правила, а не чтение бегуна дерева",
+      "file": "scripts/registry_runner_write_census.py",
+      "outcome": "killed",
+      "detail": "",
+      "new_failures": [
+        "spa_core/tests/test_registry_runner_write_census.py::TestEntrySelection::test_entry_order_comes_from_the_scene_runner_not_from_a_copy"
+      ]
+    },
+    {
+      "name": "M12 корзина «data/ дерева» смотрит на cwd (запись в дерево модуля не наблюдается)",
+      "file": "scripts/registry_runner_write_census.py",
+      "outcome": "killed",
+      "detail": "",
+      "new_failures": [
+        "spa_core/tests/test_registry_runner_write_census.py::TestObserveEndToEnd::test_real_runner_writes_land_in_module_default_not_in_the_runner_dir"
+      ]
+    },
+    {
+      "name": "M13 дверь контекста у модуля никогда не замечается",
+      "file": "scripts/registry_runner_write_census.py",
+      "outcome": "killed",
+      "detail": "",
+      "new_failures": [
+        "spa_core/tests/test_registry_runner_write_census.py::TestRunnerDoor::test_runner_with_the_door_and_a_module_reading_it_empties_the_subject",
+        "spa_core/tests/test_registry_runner_write_census.py::TestWritesAndDelegation::test_context_door_and_env_door_are_reported_per_module"
+      ]
+    },
+    {
+      "name": "M14 дверь контекста считается открытой без бегуна (модуль с context.get(\"data_dir\") выходит из предмета сам)",
+      "file": "scripts/registry_runner_write_census.py",
+      "outcome": "killed",
+      "detail": "",
+      "new_failures": [
+        "spa_core/tests/test_registry_runner_write_census.py::TestRunnerDoor::test_runner_without_the_door_names_the_subject"
+      ]
+    }
+  ]
+}

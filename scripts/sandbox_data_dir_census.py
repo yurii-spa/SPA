@@ -580,6 +580,10 @@ def main(argv: Optional[List[str]] = None) -> int:
     ap.add_argument("--callers", action="store_true",
                     help="ADR-999: ещё и ЧИТАТЕЛИ слепых точек входа — кто зовёт и называет ли "
                          "каталог (прибор рядом, sandbox_data_dir_callers.py; код — максимум из двух)")
+    ap.add_argument("--runner", action="store_true",
+                    help="ADR-1002: ещё и БЕГУН реестра — доходит ли каталог бегуна до модулей `_module_registry` "
+                         "и достигает ли его вход записи (прибор рядом, registry_runner_write_census.py; "
+                         "с --callers подмножество «76 реестра» помечается; код — максимум)")
     args = ap.parse_args(argv)
     repo = Path(args.repo_root).resolve() if args.repo_root else ROOT
     if args.repo_root is None:
@@ -604,6 +608,18 @@ def main(argv: Optional[List[str]] = None) -> int:
             else:
                 print(f"⚠️ НЕ ИЗМЕРЕНО (читатели): {exc}")
             return 2
+    runner = None
+    if args.runner:
+        runner = _load_runner_tool()
+        readers_doc = {"callers": callers.to_doc(callers_census)} if callers is not None else None
+        try:
+            runner_census = runner.measure(repo, readers_doc=readers_doc)
+        except runner.NotMeasured as exc:
+            if args.json:
+                print(json.dumps({"code": 2, "unmeasured_reason": f"бегун: {exc}"}, ensure_ascii=False))
+            else:
+                print(f"⚠️ НЕ ИЗМЕРЕНО (бегун): {exc}")
+            return 2
     if args.json:
         doc = {"root": census.root, "surface_dirs": census.surface_dirs,
                "counts": census.counts, "code": census.code,
@@ -611,15 +627,23 @@ def main(argv: Optional[List[str]] = None) -> int:
                "entries": [asdict(e) for e in census.entries]}
         if callers is not None:
             doc["callers"] = callers.to_doc(callers_census)
+        if runner is not None:
+            doc["runner"] = runner.to_doc(runner_census)
         print(json.dumps(doc, ensure_ascii=False, indent=2))
     else:
         print(render(census))
         if callers is not None:
             print()
             print(callers.render(callers_census))
+        if runner is not None:
+            print()
+            print(runner.render(runner_census))
+    code = census.code
     if callers is not None:
-        return max(census.code, callers_census.code)
-    return census.code
+        code = max(code, callers_census.code)
+    if runner is not None:
+        code = max(code, runner_census.code)
+    return code
 
 
 def _load_callers_tool():
@@ -632,6 +656,20 @@ def _load_callers_tool():
     assert spec and spec.loader
     mod = importlib.util.module_from_spec(spec)
     sys.modules["spa_sandbox_data_dir_callers"] = mod     # dataclasses ищут модуль по имени
+    spec.loader.exec_module(mod)
+    return mod
+
+
+def _load_runner_tool():
+    """Прибор «реестр → бегун» (ADR-1002) живёт рядом и грузится по файлу, как прибор читателей."""
+    import importlib.util
+    path = Path(__file__).with_name("registry_runner_write_census.py")
+    if not path.is_file():
+        raise NotMeasured(f"прибор бегуна не найден: {path}")
+    spec = importlib.util.spec_from_file_location("spa_registry_runner_write_census", path)
+    assert spec and spec.loader
+    mod = importlib.util.module_from_spec(spec)
+    sys.modules["spa_registry_runner_write_census"] = mod   # dataclasses ищут модуль по имени
     spec.loader.exec_module(mod)
     return mod
 
