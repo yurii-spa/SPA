@@ -17,6 +17,20 @@ _DEFAULT_DATA_DIR = os.path.join(os.path.dirname(__file__), "..", "..", "data")
 _EPS = 1e-9
 
 
+def _config_from_context(context: dict) -> dict | None:
+    """Каталог бегуна из контекста → ``config`` рекурсивного вызова (ADR-1004).
+
+    Бегун ``signal_aggregator`` кладёт ``ctx["data_dir"]`` ОДНОЙ дверью (ADR-1003) и
+    биндит контекст в ПЕРВЫЙ позиционный параметр входа — здесь это ``protocols``, а не
+    ``config``. До ADR-1004 контекстная ветка ``analyze`` звала себя с ``config=None`` и
+    каталог бегуна терялся на границе рекурсии: журнал ложился в умолчание модуля
+    (под песочницей — в прод-дерево; замер ADR-1003 § 3.2: «пишет в ``data/`` дерева
+    ПО-ПРЕЖНЕМУ»). Нет ключа ⇒ ``None`` — легаси-форма вызова не меняется ни байтом.
+    """
+    data_dir = context.get("data_dir") if isinstance(context, dict) else None
+    return {"data_dir": str(data_dir)} if data_dir else None
+
+
 def _atomic_write(path: str, data: Any) -> None:
     """Atomic write: tmp file + os.replace."""
     dir_name = os.path.dirname(path)
@@ -212,8 +226,11 @@ class ProtocolDeFiYieldDurationMismatchAnalyzer:
             _ctx_profile = _pf.generic_profile_for(protocols["protocol"])
             if _ctx_profile is None:
                 return None
+            # ADR-1004: каталог бегуна (ctx["data_dir"], ADR-1003) доезжает до
+            # записи журнала через config — иначе рекурсия роняет его в умолчание.
             return _pf.extract_protocol_score(
-                self.analyze([_ctx_profile]), _ctx_profile)
+                self.analyze([_ctx_profile], _config_from_context(protocols)),
+                _ctx_profile)
         if config is None:
             config = {}
 

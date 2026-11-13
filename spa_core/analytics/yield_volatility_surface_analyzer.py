@@ -19,9 +19,8 @@ from typing import Optional
 # Constants
 # ---------------------------------------------------------------------------
 
-_LOG_PATH = os.path.join(
-    os.path.dirname(__file__), "..", "..", "data", "yield_volatility_surface_log.json"
-)
+_LOG_FILE = "yield_volatility_surface_log.json"
+_LOG_PATH = os.path.join(os.path.dirname(__file__), "..", "..", "data", _LOG_FILE)
 _LOG_PATH_AT_IMPORT = _LOG_PATH
 from spa_core.utils.data_dir import default_file as _default_file  # ADR-849 §2: SPA_DATA_DIR сильнее умолчания
 _LOG_CAP = 100
@@ -135,9 +134,29 @@ def _surface_label(protocol: str, asset: str, yield_cat: str,
 # Log helper
 # ---------------------------------------------------------------------------
 
-def _log_result(result: dict) -> None:
+def _config_from_context(context: dict) -> Optional[dict]:
+    """Каталог бегуна из контекста → ``config`` рекурсивного вызова (ADR-1004).
+
+    Бегун кладёт ``ctx["data_dir"]`` одной дверью (ADR-1003) и биндит контекст в
+    ``yield_series``; ряд модуль уже читал из этого каталога (``_apy.get_series(…,
+    data_dir=…)``), а ЖУРНАЛ писал мимо него — ``_log_result`` знал только умолчание
+    модуля и ``SPA_DATA_DIR``. Нет ключа ⇒ ``None``: легаси-форма не меняется.
+    """
+    data_dir = context.get("data_dir") if isinstance(context, dict) else None
+    return {"data_dir": str(data_dir)} if data_dir else None
+
+
+def _log_path_for(data_dir: Optional[str]) -> str:
+    """ЕДИНСТВЕННАЯ дверь к адресу журнала: каталог бегуна (контекст/config) сильнее
+    ``SPA_DATA_DIR``, тот — сильнее умолчания модуля (ADR-849 § 2, ADR-1003 § 2.2)."""
+    if data_dir:
+        return os.path.normpath(os.path.join(str(data_dir), _LOG_FILE))
+    return os.path.normpath(_default_file(_LOG_PATH, _LOG_PATH_AT_IMPORT))
+
+
+def _log_result(result: dict, data_dir: Optional[str] = None) -> None:
     """Append result to ring-buffer log (cap 100), atomic write."""
-    log_path = os.path.normpath(_default_file(_LOG_PATH, _LOG_PATH_AT_IMPORT))
+    log_path = _log_path_for(data_dir)
     try:
         if os.path.exists(log_path):
             with open(log_path, "r") as f:
@@ -175,7 +194,8 @@ def analyze(yield_series: list, config: dict = None) -> dict:
     ----------
     yield_series : list of dicts with keys:
         protocol, asset, apy_7d_samples, apy_30d_samples, apy_90d_samples
-    config : unused (reserved for future extension)
+    config : optional; ``data_dir`` — каталог журнала (его кладёт контекстная ветка из
+        ``ctx["data_dir"]`` бегуна, ADR-1004); иначе ``SPA_DATA_DIR`` либо умолчание модуля
 
     Returns
     -------
@@ -208,7 +228,8 @@ def analyze(yield_series: list, config: dict = None) -> dict:
         # ПОЛЯРНОСТЬ: движок отдаёт stability_score «выше = стабильнее» —
         # generic-извлечение прочло бы его как риск (класс ошибки фазы 2);
         # инвертируем явно.
-        _rows = (analyze([_ctx_profile]) or {}).get("protocols") or []
+        # ADR-1004: каталог бегуна доезжает и до ЗАПИСИ журнала, не только до чтения ряда.
+        _rows = (analyze([_ctx_profile], _config_from_context(yield_series)) or {}).get("protocols") or []
         _row = _rows[0] if _rows and isinstance(_rows[0], dict) else None
         if _row is None:
             return None
@@ -292,5 +313,5 @@ def analyze(yield_series: list, config: dict = None) -> dict:
         "timestamp": time.time(),
     }
 
-    _log_result(result)
+    _log_result(result, data_dir=(config or {}).get("data_dir"))
     return result

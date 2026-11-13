@@ -1,0 +1,116 @@
+{
+  "title": "ADR-1004 — два читателя-писателя реестра пишут журнал в каталог бегуна, а не мимо ключа (цикл #1123)",
+  "tests": [
+    "spa_core/tests/test_registry_writers_follow_the_runner_door.py",
+    "spa_core/tests/test_protocol_defi_yield_duration_mismatch_analyzer.py",
+    "spa_core/tests/test_yield_volatility_surface_analyzer.py"
+  ],
+  "baseline_failures": [],
+  "population": 9,
+  "applied": 9,
+  "counts": {
+    "killed": 9,
+    "survived": 0,
+    "not_applied": 0,
+    "broke_collection": 0
+  },
+  "unmeasured_reason": null,
+  "rc": 0,
+  "results": [
+    {
+      "name": "M01 ydm: рекурсивный вызов теряет config (до ADR-1004)",
+      "file": "spa_core/analytics/protocol_defi_yield_duration_mismatch_analyzer.py",
+      "outcome": "killed",
+      "detail": "",
+      "new_failures": [
+        "spa_core/tests/test_registry_writers_follow_the_runner_door.py::TestYieldDurationMismatchWriter::test_context_with_the_runner_key_writes_the_log_into_the_runner_dir",
+        "spa_core/tests/test_registry_writers_follow_the_runner_door.py::TestYieldDurationMismatchWriter::test_the_real_runner_lands_the_log_in_its_own_data_dir"
+      ]
+    },
+    {
+      "name": "M02 ydm: дверь контекста всегда отдаёт None",
+      "file": "spa_core/analytics/protocol_defi_yield_duration_mismatch_analyzer.py",
+      "outcome": "killed",
+      "detail": "",
+      "new_failures": [
+        "spa_core/tests/test_registry_writers_follow_the_runner_door.py::TestTheDoorIsWhatDiscriminates::test_both_modules_resolve_the_runner_key_through_one_door_each",
+        "spa_core/tests/test_registry_writers_follow_the_runner_door.py::TestYieldDurationMismatchWriter::test_context_with_the_runner_key_writes_the_log_into_the_runner_dir",
+        "spa_core/tests/test_registry_writers_follow_the_runner_door.py::TestYieldDurationMismatchWriter::test_the_real_runner_lands_the_log_in_its_own_data_dir"
+      ]
+    },
+    {
+      "name": "M03 ydm: ключ под другим именем",
+      "file": "spa_core/analytics/protocol_defi_yield_duration_mismatch_analyzer.py",
+      "outcome": "killed",
+      "detail": "",
+      "new_failures": [
+        "spa_core/tests/test_registry_writers_follow_the_runner_door.py::TestTheDoorIsWhatDiscriminates::test_both_modules_resolve_the_runner_key_through_one_door_each",
+        "spa_core/tests/test_registry_writers_follow_the_runner_door.py::TestYieldDurationMismatchWriter::test_context_with_the_runner_key_writes_the_log_into_the_runner_dir",
+        "spa_core/tests/test_registry_writers_follow_the_runner_door.py::TestYieldDurationMismatchWriter::test_the_real_runner_lands_the_log_in_its_own_data_dir"
+      ]
+    },
+    {
+      "name": "M04 ydm: собственное умолчание сильнее config",
+      "file": "spa_core/analytics/protocol_defi_yield_duration_mismatch_analyzer.py",
+      "outcome": "killed",
+      "detail": "",
+      "new_failures": [
+        "spa_core/tests/test_protocol_defi_yield_duration_mismatch_analyzer.py::TestAnalyze::test_config_data_dir_override",
+        "spa_core/tests/test_registry_writers_follow_the_runner_door.py::TestYieldDurationMismatchWriter::test_config_key_beats_the_instance_default_and_a_legacy_call_keeps_it",
+        "spa_core/tests/test_registry_writers_follow_the_runner_door.py::TestYieldDurationMismatchWriter::test_context_with_the_runner_key_writes_the_log_into_the_runner_dir",
+        "spa_core/tests/test_registry_writers_follow_the_runner_door.py::TestYieldDurationMismatchWriter::test_the_real_runner_lands_the_log_in_its_own_data_dir"
+      ]
+    },
+    {
+      "name": "M05 yvs: рекурсивный вызов теряет config (до ADR-1004)",
+      "file": "spa_core/analytics/yield_volatility_surface_analyzer.py",
+      "outcome": "killed",
+      "detail": "",
+      "new_failures": [
+        "spa_core/tests/test_registry_writers_follow_the_runner_door.py::TestYieldVolatilitySurfaceWriter::test_context_with_the_runner_key_reads_the_series_and_writes_the_log_there",
+        "spa_core/tests/test_registry_writers_follow_the_runner_door.py::TestYieldVolatilitySurfaceWriter::test_the_real_runner_lands_the_log_in_its_own_data_dir"
+      ]
+    },
+    {
+      "name": "M06 yvs: журнал пишется без каталога (до ADR-1004)",
+      "file": "spa_core/analytics/yield_volatility_surface_analyzer.py",
+      "outcome": "killed",
+      "detail": "",
+      "new_failures": [
+        "spa_core/tests/test_registry_writers_follow_the_runner_door.py::TestYieldVolatilitySurfaceWriter::test_context_with_the_runner_key_reads_the_series_and_writes_the_log_there",
+        "spa_core/tests/test_registry_writers_follow_the_runner_door.py::TestYieldVolatilitySurfaceWriter::test_the_real_runner_lands_the_log_in_its_own_data_dir"
+      ]
+    },
+    {
+      "name": "M07 yvs: дверь адреса игнорирует каталог",
+      "file": "spa_core/analytics/yield_volatility_surface_analyzer.py",
+      "outcome": "killed",
+      "detail": "",
+      "new_failures": [
+        "spa_core/tests/test_registry_writers_follow_the_runner_door.py::TestYieldVolatilitySurfaceWriter::test_config_key_beats_SPA_DATA_DIR_which_beats_the_module_default",
+        "spa_core/tests/test_registry_writers_follow_the_runner_door.py::TestYieldVolatilitySurfaceWriter::test_context_with_the_runner_key_reads_the_series_and_writes_the_log_there",
+        "spa_core/tests/test_registry_writers_follow_the_runner_door.py::TestYieldVolatilitySurfaceWriter::test_the_real_runner_lands_the_log_in_its_own_data_dir"
+      ]
+    },
+    {
+      "name": "M08 yvs: SPA_DATA_DIR сильнее каталога бегуна (порядок перевёрнут)",
+      "file": "spa_core/analytics/yield_volatility_surface_analyzer.py",
+      "outcome": "killed",
+      "detail": "",
+      "new_failures": [
+        "spa_core/tests/test_registry_writers_follow_the_runner_door.py::TestYieldVolatilitySurfaceWriter::test_config_key_beats_SPA_DATA_DIR_which_beats_the_module_default"
+      ]
+    },
+    {
+      "name": "M09 yvs: дверь контекста всегда отдаёт None",
+      "file": "spa_core/analytics/yield_volatility_surface_analyzer.py",
+      "outcome": "killed",
+      "detail": "",
+      "new_failures": [
+        "spa_core/tests/test_registry_writers_follow_the_runner_door.py::TestTheDoorIsWhatDiscriminates::test_both_modules_resolve_the_runner_key_through_one_door_each",
+        "spa_core/tests/test_registry_writers_follow_the_runner_door.py::TestYieldVolatilitySurfaceWriter::test_context_with_the_runner_key_reads_the_series_and_writes_the_log_there",
+        "spa_core/tests/test_registry_writers_follow_the_runner_door.py::TestYieldVolatilitySurfaceWriter::test_the_real_runner_lands_the_log_in_its_own_data_dir"
+      ]
+    }
+  ]
+}

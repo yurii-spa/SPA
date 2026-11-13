@@ -1,0 +1,64 @@
+{
+  "title": "ADR-1004 — два читателя-писателя реестра пишут журнал в каталог бегуна, а не мимо ключа (цикл #1123)",
+  "tests": [
+    "spa_core/tests/test_registry_writers_follow_the_runner_door.py",
+    "spa_core/tests/test_protocol_defi_yield_duration_mismatch_analyzer.py",
+    "spa_core/tests/test_yield_volatility_surface_analyzer.py"
+  ],
+  "mutations": [
+    {
+      "name": "M01 ydm: рекурсивный вызов теряет config (до ADR-1004)",
+      "file": "spa_core/analytics/protocol_defi_yield_duration_mismatch_analyzer.py",
+      "old": "                self.analyze([_ctx_profile], _config_from_context(protocols)),\n",
+      "new": "                self.analyze([_ctx_profile]),\n"
+    },
+    {
+      "name": "M02 ydm: дверь контекста всегда отдаёт None",
+      "file": "spa_core/analytics/protocol_defi_yield_duration_mismatch_analyzer.py",
+      "old": "    return {\"data_dir\": str(data_dir)} if data_dir else None\n",
+      "new": "    return None\n"
+    },
+    {
+      "name": "M03 ydm: ключ под другим именем",
+      "file": "spa_core/analytics/protocol_defi_yield_duration_mismatch_analyzer.py",
+      "old": "    return {\"data_dir\": str(data_dir)} if data_dir else None\n",
+      "new": "    return {\"data_root\": str(data_dir)} if data_dir else None\n"
+    },
+    {
+      "name": "M04 ydm: собственное умолчание сильнее config",
+      "file": "spa_core/analytics/protocol_defi_yield_duration_mismatch_analyzer.py",
+      "old": "        data_dir = config.get(\"data_dir\", self.data_dir)\n",
+      "new": "        data_dir = self.data_dir\n"
+    },
+    {
+      "name": "M05 yvs: рекурсивный вызов теряет config (до ADR-1004)",
+      "file": "spa_core/analytics/yield_volatility_surface_analyzer.py",
+      "old": "        _rows = (analyze([_ctx_profile], _config_from_context(yield_series)) or {}).get(\"protocols\") or []\n",
+      "new": "        _rows = (analyze([_ctx_profile]) or {}).get(\"protocols\") or []\n"
+    },
+    {
+      "name": "M06 yvs: журнал пишется без каталога (до ADR-1004)",
+      "file": "spa_core/analytics/yield_volatility_surface_analyzer.py",
+      "old": "    _log_result(result, data_dir=(config or {}).get(\"data_dir\"))\n",
+      "new": "    _log_result(result)\n"
+    },
+    {
+      "name": "M07 yvs: дверь адреса игнорирует каталог",
+      "file": "spa_core/analytics/yield_volatility_surface_analyzer.py",
+      "old": "    if data_dir:\n        return os.path.normpath(os.path.join(str(data_dir), _LOG_FILE))\n",
+      "new": "    if False:\n        return os.path.normpath(os.path.join(str(data_dir), _LOG_FILE))\n"
+    },
+    {
+      "name": "M08 yvs: SPA_DATA_DIR сильнее каталога бегуна (порядок перевёрнут)",
+      "file": "spa_core/analytics/yield_volatility_surface_analyzer.py",
+      "old": "    if data_dir:\n        return os.path.normpath(os.path.join(str(data_dir), _LOG_FILE))\n",
+      "new": "    if data_dir and not os.environ.get(\"SPA_DATA_DIR\"):\n        return os.path.normpath(os.path.join(str(data_dir), _LOG_FILE))\n"
+    },
+    {
+      "name": "M09 yvs: дверь контекста всегда отдаёт None",
+      "file": "spa_core/analytics/yield_volatility_surface_analyzer.py",
+      "old": "    return {\"data_dir\": str(data_dir)} if data_dir else None\n",
+      "new": "    return None\n"
+    }
+  ]
+}
