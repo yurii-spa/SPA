@@ -2790,6 +2790,8 @@ def main(argv: Optional[List[str]] = None) -> int:
     parser.add_argument("--data-dir", default=str(_DEFAULT_DATA_DIR))
     parser.add_argument("--launch-agents-dir", default=str(_DEFAULT_LAUNCH_AGENTS_DIR))
     args = parser.parse_args(argv)
+    from spa_core.utils.live_paths import refuse_if_sandbox_leaks  # ADR-1000: дверь песочницы, транш 1
+    refuse_if_sandbox_leaks(args.data_dir, who="agent_health_monitor")
 
     send = bool(args.run)  # default (no flag) and --check do NOT send
     monitor = AgentHealthMonitor(

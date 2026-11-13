@@ -1,0 +1,104 @@
+{
+  "title": "ADR-1000 — транш 1 двери песочницы: общая дверь live_paths + проводка в 48 точках входа (цикл #1119)",
+  "tests": [
+    "spa_core/tests/test_sandbox_door_tranche1.py"
+  ],
+  "mutations": [
+    {
+      "name": "M01 дверь всегда молчит: sandbox_leak_reason возвращает None, не спросив прод-путь",
+      "file": "spa_core/utils/live_paths.py",
+      "old": "    try:\n        assert_not_prod_realpath(Path(path), who=who)\n    except SandboxLeakError as exc:\n        return str(exc)\n    return None\n",
+      "new": "    return None\n"
+    },
+    {
+      "name": "M02 своя копия сравнения вместо единственной двери (подмена assert_not_prod_realpath не меняет ответ)",
+      "file": "spa_core/utils/live_paths.py",
+      "old": "        assert_not_prod_realpath(Path(path), who=who)\n    except SandboxLeakError as exc:",
+      "new": "        _refuse_if_leaking_to_prod(Path(path), DEFAULT_LIVE_ROOT, who=who)\n    except SandboxLeakError as exc:"
+    },
+    {
+      "name": "M03 None судится как «чисто» (TypeError снят)",
+      "file": "spa_core/utils/live_paths.py",
+      "old": "    if path is None:\n        raise TypeError(",
+      "new": "    if path is None:\n        return None\n        raise TypeError("
+    },
+    {
+      "name": "M04 отказ печатается, но процесс НЕ останавливается (SystemExit снят)",
+      "file": "spa_core/utils/live_paths.py",
+      "old": "          file=_sys.stderr)\n    raise SystemExit(code)\n",
+      "new": "          file=_sys.stderr)\n    return None\n"
+    },
+    {
+      "name": "M05 код выхода не из параметра — всегда 0 (argparse-выход и дверь становятся неразличимы с успехом)",
+      "file": "spa_core/utils/live_paths.py",
+      "old": "    raise SystemExit(code)\n",
+      "new": "    raise SystemExit(0)\n"
+    },
+    {
+      "name": "M06 отказ без имени двери в stderr (не отличить от argparse-ошибки)",
+      "file": "spa_core/utils/live_paths.py",
+      "old": "    print(f\"{who}: ОТКАЗ (код {code}): {reason} — под маркером песочницы ({SANDBOX_ENV}) \"",
+      "new": "    print(f\"{who}: {reason} — под маркером песочницы ({SANDBOX_ENV}) \""
+    },
+    {
+      "name": "M07 проводка снята у одной точки входа (edge_tuw_unsmooth) — половина инъекции ADR-932",
+      "file": "scripts/edge_tuw_unsmooth.py",
+      "old": "    refuse_if_sandbox_leaks(a.data_dir, who=\"edge_tuw_unsmooth\")\n",
+      "new": "    pass\n"
+    },
+    {
+      "name": "M08 дверь судит умолчание модуля, а не названный флагом каталог (check_owner_order_starvation)",
+      "file": "scripts/check_owner_order_starvation.py",
+      "old": "    refuse_if_sandbox_leaks(data_base, who=\"check_owner_order_starvation\")\n",
+      "new": "    refuse_if_sandbox_leaks(own_data_dir(Path(_REPO_ROOT) / \"data\"), who=\"check_owner_order_starvation\")\n"
+    },
+    {
+      "name": "M09 дверь стоит ПОСЛЕ первой записи, а не до (seed_test_fixtures: сначала main делает своё)",
+      "file": "scripts/seed_test_fixtures.py",
+      "old": "    args = _parse_args(argv)\n    from spa_core.utils.live_paths import refuse_if_sandbox_leaks  # ADR-1000: дверь песочницы, транш 1\n    refuse_if_sandbox_leaks(args.out_dir, who=\"seed_test_fixtures\")\n",
+      "new": "    args = _parse_args(argv)\n    import os as _o; _o.makedirs(args.out_dir, exist_ok=True); open(_o.path.join(args.out_dir, \"mutant.json\"), \"w\").write(\"{}\")\n    from spa_core.utils.live_paths import refuse_if_sandbox_leaks  # ADR-1000: дверь песочницы, транш 1\n    refuse_if_sandbox_leaks(args.out_dir, who=\"seed_test_fixtures\")\n"
+    },
+    {
+      "name": "M10 дверь судит сырой флаг до разрешения умолчания (reap_stale_worktrees: None без --root)",
+      "file": "scripts/reap_stale_worktrees.py",
+      "old": "    refuse_if_sandbox_leaks(root, who=\"reap_stale_worktrees\")\n",
+      "new": "    refuse_if_sandbox_leaks(args.root, who=\"reap_stale_worktrees\")\n"
+    },
+    {
+      "name": "M11 дверь судит сырой флаг до разрешения умолчания (portfolio_optimizer: None без --data-dir)",
+      "file": "spa_core/analytics/portfolio_optimizer.py",
+      "old": "    refuse_if_sandbox_leaks(data_dir, who=\"portfolio_optimizer\")\n",
+      "new": "    refuse_if_sandbox_leaks(args.data_dir, who=\"portfolio_optimizer\")\n"
+    },
+    {
+      "name": "M12 who чужой: отказ приписан другой точке входа (adr_number)",
+      "file": "scripts/adr_number.py",
+      "old": "    refuse_if_sandbox_leaks(args.root, who=\"adr_number\")\n",
+      "new": "    refuse_if_sandbox_leaks(args.root, who=\"decision_reproducibility\")\n"
+    },
+    {
+      "name": "M13 у переписей судится только --root, названный --data-dir не судится (error_class_census)",
+      "file": "spa_core/analytics/error_class_census.py",
+      "old": "    refuse_if_sandbox_leaks(ns.data_dir if ns.data_dir else ns.root, who=\"error_class_census\")\n",
+      "new": "    refuse_if_sandbox_leaks(ns.root, who=\"error_class_census\")\n"
+    },
+    {
+      "name": "M14 страховка sys.path снята у скрипта, зовущегося по пути (edge_pt_fixed_vs_float)",
+      "file": "scripts/edge_pt_fixed_vs_float.py",
+      "old": "if _SPA_REPO_ROOT not in sys.path:\n    sys.path.insert(0, _SPA_REPO_ROOT)\n",
+      "new": "if False:\n    sys.path.insert(0, _SPA_REPO_ROOT)\n"
+    },
+    {
+      "name": "M15 дверь проглочена: SystemExit перехвачен в точке входа (fix_fabricated_evidence)",
+      "file": "scripts/fix_fabricated_evidence.py",
+      "old": "    refuse_if_sandbox_leaks(args.data_dir, who=\"fix_fabricated_evidence\")\n",
+      "new": "    try:\n        refuse_if_sandbox_leaks(args.data_dir, who=\"fix_fabricated_evidence\")\n    except SystemExit:\n        pass\n"
+    },
+    {
+      "name": "M16 дверь после list_cards, а не до (check_owner_order_starvation: чужая дверь трекера заслонила бы ответ)",
+      "file": "scripts/check_owner_order_starvation.py",
+      "old": "    from spa_core.utils.live_paths import refuse_if_sandbox_leaks  # ADR-1000: дверь песочницы, транш 1\n    refuse_if_sandbox_leaks(data_base, who=\"check_owner_order_starvation\")\n    cards = list_cards(tracker_dir=args.tracker_dir)\n    now = datetime.now(timezone.utc)\n",
+      "new": "    cards = list_cards(tracker_dir=args.tracker_dir)\n    now = datetime.now(timezone.utc)\n    from spa_core.utils.live_paths import refuse_if_sandbox_leaks  # ADR-1000: дверь песочницы, транш 1\n    refuse_if_sandbox_leaks(data_base, who=\"check_owner_order_starvation\")\n"
+    }
+  ]
+}

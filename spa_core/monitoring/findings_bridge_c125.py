@@ -543,6 +543,8 @@ def main(argv=None) -> int:
     ap.add_argument("--reopen-cooldown-h", type=float, default=REOPEN_COOLDOWN_H)
     ap.add_argument("--json", action="store_true", help="отчёт в stdout как JSON")
     args = ap.parse_args(argv)
+    from spa_core.utils.live_paths import refuse_if_sandbox_leaks  # ADR-1000: дверь песочницы, транш 1
+    refuse_if_sandbox_leaks(args.root, who="findings_bridge_c125")
 
     report = run(args.root, dt.datetime.now(dt.timezone.utc), apply=args.apply,
                  max_per_day=args.max_per_day, min_observations=args.min_observations,

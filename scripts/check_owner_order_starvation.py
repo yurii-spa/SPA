@@ -590,10 +590,12 @@ def main(argv=None) -> int:
                          f"пустая строка — читать ТОЛЬКО дерево")
     args = ap.parse_args(argv)
 
-    cards = list_cards(tracker_dir=args.tracker_dir)
-    now = datetime.now(timezone.utc)
     data_base = (Path(args.data_dir) if args.data_dir
                  else own_data_dir(Path(_REPO_ROOT) / "data"))
+    from spa_core.utils.live_paths import refuse_if_sandbox_leaks  # ADR-1000: дверь песочницы, транш 1
+    refuse_if_sandbox_leaks(data_base, who="check_owner_order_starvation")
+    cards = list_cards(tracker_dir=args.tracker_dir)
+    now = datetime.now(timezone.utc)
     announce = data_base / ANNOUNCE_NAME
 
     def claim_verdict(card_id: str) -> tuple[str, str]:

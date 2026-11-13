@@ -92,6 +92,11 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from types import SimpleNamespace
 
+# ADR-1000: скрипт зовётся ПО ПУТИ (sys.path[0] — его каталог), а дверь песочницы живёт в spa_core.
+_SPA_REPO_ROOT = str(Path(__file__).resolve().parents[1])
+if _SPA_REPO_ROOT not in sys.path:
+    sys.path.insert(0, _SPA_REPO_ROOT)
+
 _REPO_ROOT = Path(__file__).resolve().parents[1]
 _PYTHON = sys.executable
 
@@ -555,6 +560,8 @@ def main(argv: list[str] | None = None) -> int:
     args = p.parse_args(argv)
 
     root = str(Path(args.repo_root or _REPO_ROOT).resolve())
+    from spa_core.utils.live_paths import refuse_if_sandbox_leaks  # ADR-1000: дверь песочницы, транш 1
+    refuse_if_sandbox_leaks(root, who="mutation_gate")
 
     # Окно — ПЕРЕД первой подменой, и его недоступность есть ТРЕТИЙ ИСХОД, а не
     # разрешение мутировать без записи: прогон без окна оставил бы после SIGKILL

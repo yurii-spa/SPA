@@ -809,6 +809,8 @@ def _main(argv: Optional[List[str]] = None) -> int:
         help="Data directory path.",
     )
     args = parser.parse_args(argv)
+    from spa_core.utils.live_paths import refuse_if_sandbox_leaks  # ADR-1000: дверь песочницы, транш 1
+    refuse_if_sandbox_leaks(args.data_dir, who="rebalance_optimizer")
 
     optimizer = RebalanceOptimizer(data_path=args.data_dir)
     plan = optimizer.generate_plan()

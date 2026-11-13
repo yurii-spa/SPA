@@ -341,6 +341,8 @@ if __name__ == "__main__":
     parser.add_argument("--run", action="store_true", help="Compute and write log")
     parser.add_argument("--data-dir", default="data", help="Data directory")
     args = parser.parse_args()
+    from spa_core.utils.live_paths import refuse_if_sandbox_leaks  # ADR-1000: дверь песочницы, транш 1
+    refuse_if_sandbox_leaks(args.data_dir, who="protocol_defi_position_size_optimizer")
 
     _sample = [
         {

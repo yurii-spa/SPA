@@ -44,6 +44,11 @@ import sys
 from pathlib import Path
 from typing import Dict, List, Optional, Sequence, Tuple
 
+# ADR-1000: скрипт зовётся ПО ПУТИ (sys.path[0] — его каталог), а дверь песочницы живёт в spa_core.
+_SPA_REPO_ROOT = str(Path(__file__).resolve().parents[1])
+if _SPA_REPO_ROOT not in sys.path:
+    sys.path.insert(0, _SPA_REPO_ROOT)
+
 IS_ADVISORY = True
 OUTSIDE_RISKPOLICY = True
 
@@ -203,6 +208,8 @@ def main(argv=None) -> int:
     ap.add_argument("--data-dir", type=Path, default=DEFAULT_DATA)
     ap.add_argument("--json", type=Path, default=None)
     a = ap.parse_args(argv)
+    from spa_core.utils.live_paths import refuse_if_sandbox_leaks  # ADR-1000: дверь песочницы, транш 1
+    refuse_if_sandbox_leaks(a.data_dir, who="edge_lst_yield_persistence")
     out = run(a.data_dir)
     if a.json:
         a.json.write_text(json.dumps(out, indent=1, default=str))

@@ -513,6 +513,8 @@ def _main(argv: list[str] | None = None) -> int:
     args = ap.parse_args(argv)
 
     repo_root = Path(args.repo_root).resolve()
+    from spa_core.utils.live_paths import refuse_if_sandbox_leaks  # ADR-1000: дверь песочницы, транш 1
+    refuse_if_sandbox_leaks(repo_root, who="refresh_no_regression_census")
     run_tree = Path(args.run_tree).resolve() if args.run_tree else (
         RUN_TREE_DEFAULT if args.make_tree else None)
     #: Дерево, которое собрал ЭТОТ прогон, — и только оно подлежит снятию. Дерево,

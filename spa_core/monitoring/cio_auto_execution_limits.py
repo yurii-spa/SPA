@@ -1452,6 +1452,8 @@ def _main(argv: list[str] | None = None) -> int:
     ap.add_argument("--no-write", action="store_true")
     ap.add_argument("--json", action="store_true")
     args = ap.parse_args(argv)
+    from spa_core.utils.live_paths import refuse_if_sandbox_leaks  # ADR-1000: дверь песочницы, транш 1
+    refuse_if_sandbox_leaks(args.root, who="cio_auto_execution_limits")
     doc = run(root=args.root, write=not args.no_write)
     if args.json:
         print(json.dumps(doc, ensure_ascii=False, indent=2))

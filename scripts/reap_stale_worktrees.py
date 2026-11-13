@@ -172,6 +172,11 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(ROOT / "scripts"))
 
+# ADR-1000: скрипт зовётся ПО ПУТИ (sys.path[0] — его каталог), а дверь песочницы живёт в spa_core.
+_SPA_REPO_ROOT = str(Path(__file__).resolve().parents[1])
+if _SPA_REPO_ROOT not in sys.path:
+    sys.path.insert(0, _SPA_REPO_ROOT)
+
 # Одно определение на репозиторий: «где живёт общее состояние сессий». Свою копию этого
 # ответа заводить нельзя — два определения разойдутся, а вопрос буквально один и тот же
 # (цикл #54 решил его для шага 0a, цикл #234 переносит сюда ИМПОРТОМ, не копией).
@@ -1009,6 +1014,8 @@ def main(argv=None) -> int:
             # не выполнится — отказ, а не пустой список кандидатов.
             root_note = f"главное рабочее дерево не определено ({why}) — корнем взят {ROOT}"
 
+    from spa_core.utils.live_paths import refuse_if_sandbox_leaks  # ADR-1000: дверь песочницы, транш 1
+    refuse_if_sandbox_leaks(root, who="reap_stale_worktrees")
     log_path = args.log or (root / "data" / "session_changes.jsonl")
     if args.no_fetch:
         base_read = (False, "запрошен офлайн-прогон (`--no-fetch`)")

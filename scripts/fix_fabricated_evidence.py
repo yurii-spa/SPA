@@ -25,6 +25,11 @@ import json
 import sys
 from pathlib import Path
 
+# ADR-1000: скрипт зовётся ПО ПУТИ (sys.path[0] — его каталог), а дверь песочницы живёт в spa_core.
+_SPA_REPO_ROOT = str(Path(__file__).resolve().parents[1])
+if _SPA_REPO_ROOT not in sys.path:
+    sys.path.insert(0, _SPA_REPO_ROOT)
+
 FABRICATED_VALUE = 10.115           # the S7 backtest fallback the cycle injected
 FABRICATED_REASON = "S7 backtest fallback injected by cycle_runner when live APY was unavailable (ADR-058)"
 
@@ -100,6 +105,8 @@ def main() -> int:
     ap.add_argument("--data-dir", default="data")
     ap.add_argument("--dry-run", action="store_true")
     args = ap.parse_args()
+    from spa_core.utils.live_paths import refuse_if_sandbox_leaks  # ADR-1000: дверь песочницы, транш 1
+    refuse_if_sandbox_leaks(args.data_dir, who="fix_fabricated_evidence")
     rep = fix(Path(args.data_dir), args.dry_run)
     print(json.dumps(rep, indent=2, ensure_ascii=False))
     return 0

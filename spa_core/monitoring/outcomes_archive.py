@@ -466,6 +466,8 @@ def main(argv=None) -> int:  # pragma: no cover — тонкая обёртка 
     ap.add_argument("--dry-run", action="store_true",
                     help="показать, что было бы дозаписано, и не писать")
     args = ap.parse_args(argv)
+    from spa_core.utils.live_paths import refuse_if_sandbox_leaks  # ADR-1000: дверь песочницы, транш 1
+    refuse_if_sandbox_leaks(args.root, who="outcomes_archive")
     if args.completeness or not args.backfill:
         rep = analyze_completeness(args.root)
         print(json.dumps(rep, ensure_ascii=False, indent=2))

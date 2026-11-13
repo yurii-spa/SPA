@@ -1615,6 +1615,8 @@ def main(argv=None) -> int:
                     help=("заказ — САМ опрос сирот: карточки дерева, которых на "
                           f"{ORPHAN_REF} нет вообще и которые не закрыты (замер #899)"))
     args = ap.parse_args(argv)
+    from spa_core.utils.live_paths import refuse_if_sandbox_leaks  # ADR-1000: дверь песочницы, транш 1
+    refuse_if_sandbox_leaks(args.root, who="card_delivery")
     if args.show:
         try:
             print(json.dumps(json.load(open(os.path.join(args.root, STATUS_REL))),

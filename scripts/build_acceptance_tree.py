@@ -359,6 +359,8 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
                          "дерева (мерка — у прибора, второй копии нет)")
     ap.add_argument("--json", action="store_true")
     args = ap.parse_args(argv)
+    from spa_core.utils.live_paths import refuse_if_sandbox_leaks  # ADR-1000: дверь песочницы, транш 1
+    refuse_if_sandbox_leaks(args.repo_root, who="build_acceptance_tree")
 
     if args.check is not None:
         # Мерка НЕ копируется: её держит прибор родословной. Вторая копия

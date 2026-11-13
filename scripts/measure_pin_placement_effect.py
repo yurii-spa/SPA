@@ -469,6 +469,8 @@ def main(argv: Optional[list[str]] = None) -> int:  # noqa: D103
     )
     parser.add_argument("--json", action="store_true", help="машинный вывод")
     args = parser.parse_args(argv)
+    from spa_core.utils.live_paths import refuse_if_sandbox_leaks  # ADR-1000: дверь песочницы, транш 1
+    refuse_if_sandbox_leaks(args.data_dir, who="measure_pin_placement_effect")
 
     tmp_root: Optional[str] = None
     try:

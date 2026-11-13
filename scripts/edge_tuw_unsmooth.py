@@ -34,6 +34,12 @@ import argparse
 import json
 import math
 from pathlib import Path
+import sys
+
+# ADR-1000: скрипт зовётся ПО ПУТИ (sys.path[0] — его каталог), а дверь песочницы живёт в spa_core.
+_SPA_REPO_ROOT = str(Path(__file__).resolve().parents[1])
+if _SPA_REPO_ROOT not in sys.path:
+    sys.path.insert(0, _SPA_REPO_ROOT)
 
 REPO = Path(__file__).resolve().parent.parent
 DEFAULT_DATA = REPO / "data" / "aggressive_lab"
@@ -373,6 +379,8 @@ def main(argv=None) -> int:
     ap.add_argument("--data-dir", type=Path, default=DEFAULT_DATA)
     ap.add_argument("--json", type=Path, help="write the full result as JSON here")
     a = ap.parse_args(argv)
+    from spa_core.utils.live_paths import refuse_if_sandbox_leaks  # ADR-1000: дверь песочницы, транш 1
+    refuse_if_sandbox_leaks(a.data_dir, who="edge_tuw_unsmooth")
     try:
         res = run(a.data_dir)
     except PanelError as e:

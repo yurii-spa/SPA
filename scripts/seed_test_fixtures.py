@@ -27,6 +27,11 @@ import random
 import sys
 from datetime import date, timedelta
 
+# ADR-1000: скрипт зовётся ПО ПУТИ (sys.path[0] — его каталог), а дверь песочницы живёт в spa_core.
+_SPA_REPO_ROOT = str(pathlib.Path(__file__).resolve().parents[1])
+if _SPA_REPO_ROOT not in sys.path:
+    sys.path.insert(0, _SPA_REPO_ROOT)
+
 START_DATE = date(2026, 6, 12)
 DAYS = 7
 # Последний смоделированный день. Снимок описывает книгу ПО эту дату — значит и штамп
@@ -171,6 +176,8 @@ def _parse_args(argv=None):
 
 def main(argv=None) -> int:
     args = _parse_args(argv)
+    from spa_core.utils.live_paths import refuse_if_sandbox_leaks  # ADR-1000: дверь песочницы, транш 1
+    refuse_if_sandbox_leaks(args.out_dir, who="seed_test_fixtures")
     try:
         stamp = date.fromisoformat(args.generated_at)
     except ValueError as exc:

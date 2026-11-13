@@ -199,6 +199,8 @@ def main(argv=None) -> int:
     ap.add_argument("--run", "--once", action="store_true", dest="run")
     ap.add_argument("--root", default=REPO_ROOT)
     args = ap.parse_args(argv)
+    from spa_core.utils.live_paths import refuse_if_sandbox_leaks  # ADR-1000: дверь песочницы, транш 1
+    refuse_if_sandbox_leaks(args.root, who="intraday_equity")
     if not args.run:
         ap.print_help()
         return 0

@@ -675,6 +675,8 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
     ap.add_argument("--now", default=None, help="момент замера ISO-8601 (вход, не часы)")
     ap.add_argument("--no-write", action="store_true")
     ns = ap.parse_args(list(argv) if argv is not None else None)
+    from spa_core.utils.live_paths import refuse_if_sandbox_leaks  # ADR-1000: дверь песочницы, транш 1
+    refuse_if_sandbox_leaks(ns.data_dir if ns.data_dir else ns.root, who="error_class_census")
     now, why = parse_now(ns.now)
     if why:
         print(f"НЕ ИЗМЕРЕНО: {why}")

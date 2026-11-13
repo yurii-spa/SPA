@@ -292,6 +292,8 @@ def main() -> int:
     ap.add_argument("--out", default=str(_REPO_ROOT / "data" / "backtest_results_real.json"))
     ap.add_argument("--window", type=int, default=182, help="rolling-window size in days")
     args = ap.parse_args()
+    from spa_core.utils.live_paths import refuse_if_sandbox_leaks  # ADR-1000: дверь песочницы, транш 1
+    refuse_if_sandbox_leaks(args.data_dir, who="run_backtest_real")
 
     data_dir = Path(args.data_dir)
     series = load_series(data_dir)

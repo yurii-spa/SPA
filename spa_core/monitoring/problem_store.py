@@ -807,6 +807,8 @@ def main(argv: Optional[list] = None) -> int:
     parser.add_argument("--data-dir", default=str(_default_data_dir()))
     parser.add_argument("--no-cards", action="store_true")
     args = parser.parse_args(argv)
+    from spa_core.utils.live_paths import refuse_if_sandbox_leaks  # ADR-1000: дверь песочницы, транш 1
+    refuse_if_sandbox_leaks(args.data_dir, who="problem_store")
     report = run_once(Path(args.data_dir), create_cards=not args.no_cards)
     print(_json.dumps(report, ensure_ascii=False, indent=2))
     return 0 if "error" not in report else 1

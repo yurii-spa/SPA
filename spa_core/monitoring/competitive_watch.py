@@ -595,6 +595,8 @@ def main(argv: Optional[List[str]] = None) -> int:
     parser.add_argument("--generated-at", default=None,
                         help="ISO timestamp override (for deterministic re-runs)")
     args = parser.parse_args(argv)
+    from spa_core.utils.live_paths import refuse_if_sandbox_leaks  # ADR-1000: дверь песочницы, транш 1
+    refuse_if_sandbox_leaks(args.data_dir, who="competitive_watch")
 
     send = bool(args.run)
     monitor = CompetitiveWatchMonitor(

@@ -224,3 +224,47 @@ def live_data_dir(fallback_root: Path | None = None) -> Path:
         return candidate
     # `live_root` выполняет ту же проверку для своей ветки умолчания — не дублируем.
     return live_root(fallback_root) / "data"
+
+
+def sandbox_leak_reason(path: "Path | str", *, who: str) -> "str | None":
+    """Почему точка входа под маркером песочницы НЕ ИМЕЕТ ПРАВА писать по ``path`` — или ``None``.
+
+    ADR-1000 (цикл #1119, транш 1 раскатки ADR-999 § 3.2): общая форма двери для точек
+    входа с достижимым умолчанием каталога данных. Та же проверка, что у моста
+    (ADR-998) и у `decision_reproducibility` (ADR-999) — `assert_not_prod_realpath`;
+    своей копии сравнения здесь нет намеренно: дверь ЕДИНСТВЕННАЯ, и подмена её
+    ловится одним спаем. Без маркера молчит (боевой путь не меняется ни одним вызовом);
+    чужой путь под маркером проходит — это и есть правильно сконфигурированная песочница.
+
+    ``path`` — ЭФФЕКТИВНОЕ значение (корень или каталог данных ПОСЛЕ разрешения
+    умолчания), не ``None``: судить «ничего» значило бы объявить умолчание чистым, не
+    посмотрев на него (инв. #17). ``None`` ⇒ ``TypeError`` с названной причиной.
+    """
+    if path is None:
+        raise TypeError(
+            f"{who}: дверь песочницы получила None — передавать надо ЭФФЕКТИВНЫЙ путь "
+            "(после разрешения умолчания), иначе умолчание остаётся несудимым (ADR-1000)")
+    try:
+        assert_not_prod_realpath(Path(path), who=who)
+    except SandboxLeakError as exc:
+        return str(exc)
+    return None
+
+
+def refuse_if_sandbox_leaks(path: "Path | str", *, who: str, code: int = 2) -> None:
+    """Дверь точки входа: маркер + путь в прод-дереве ⇒ причина в stderr и ``SystemExit(code)``.
+
+    Ставится сразу после ``parse_args`` (или после разрешения умолчания, если флаг
+    допускает ``None``) и ДО первой записи — ADR-999 § 3.1, форма (A). ``SystemExit``
+    поднимается нарочно, а не возвращается кодом: у 49 точек входа транша 1 главные
+    функции возвращают ``int``, ``None`` либо зовут ``sys.exit`` сами, и единая форма
+    выхода не зависит от этой разницы. ``except Exception`` её не глотает.
+    """
+    reason = sandbox_leak_reason(path, who=who)
+    if reason is None:
+        return
+    import sys as _sys
+    print(f"{who}: ОТКАЗ (код {code}): {reason} — под маркером песочницы ({SANDBOX_ENV}) "
+          f"каталог данных обязан быть назван вне прод-дерева",
+          file=_sys.stderr)
+    raise SystemExit(code)

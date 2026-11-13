@@ -878,6 +878,8 @@ def main(argv: Optional[List[str]] = None) -> int:
                     help="взять первые N строк выборки (для контроля на малом контуре)")
     ap.add_argument("--max-rows", type=int, default=25)
     args = ap.parse_args(argv)
+    from spa_core.utils.live_paths import refuse_if_sandbox_leaks  # ADR-1000: дверь песочницы, транш 1
+    refuse_if_sandbox_leaks(args.root, who="absent_path_probe")
 
     outcome = run(Path(args.root), dest=Path(args.out) if args.out else None,
                   write=not args.no_write, sample=args.sample, limit=args.limit)

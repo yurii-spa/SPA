@@ -384,6 +384,8 @@ def _main() -> None:
         help="Override output directory (used with --run).",
     )
     args = parser.parse_args()
+    from spa_core.utils.live_paths import refuse_if_sandbox_leaks  # ADR-1000: дверь песочницы, транш 1
+    refuse_if_sandbox_leaks(args.data_dir, who="stablecoin_yield_optimizer")
 
     optimizer = StablecoinYieldOptimizer(capital_fraction=args.capital_fraction)
     report = optimizer.allocation_report()

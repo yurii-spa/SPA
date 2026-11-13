@@ -413,6 +413,8 @@ def _main(argv: Optional[List[str]] = None) -> int:
     parser.add_argument("--data-dir", default=str(_DEFAULT_DATA_DIR),
                         help="Data directory path.")
     args = parser.parse_args(argv)
+    from spa_core.utils.live_paths import refuse_if_sandbox_leaks  # ADR-1000: дверь песочницы, транш 1
+    refuse_if_sandbox_leaks(args.data_dir, who="monthly_performance_report")
 
     rpt = MonthlyPerformanceReport(data_dir=args.data_dir, month=args.month)
     report = rpt.build()

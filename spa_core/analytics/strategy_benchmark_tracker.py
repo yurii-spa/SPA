@@ -455,6 +455,8 @@ def _main(argv: Optional[List[str]] = None) -> int:
     parser.add_argument("--active", default=DEFAULT_ACTIVE_STRATEGY,
                         help="Active (live) strategy id. Default S0.")
     args = parser.parse_args(argv)
+    from spa_core.utils.live_paths import refuse_if_sandbox_leaks  # ADR-1000: дверь песочницы, транш 1
+    refuse_if_sandbox_leaks(args.data_dir, who="strategy_benchmark_tracker")
 
     tracker = StrategyBenchmarkTracker(
         data_dir=args.data_dir, use_real=args.real, active_strategy_id=args.active

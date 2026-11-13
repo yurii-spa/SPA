@@ -102,6 +102,8 @@ def main() -> int:
     ap = argparse.ArgumentParser(description="Build the offline-verifiable SPA DD data snapshot")
     ap.add_argument("--out-dir", default=None)
     args = ap.parse_args()
+    from spa_core.utils.live_paths import refuse_if_sandbox_leaks  # ADR-1000: дверь песочницы, транш 1
+    refuse_if_sandbox_leaks(Path(args.out_dir) if args.out_dir else OUT_DIR, who="build_dd_snapshot")
     m = build(out_dir=Path(args.out_dir) if args.out_dir else OUT_DIR)
     print(f"[build_dd_snapshot] verifier_ok={m['verifier_ok']} head={str(m['expected_decision_head'])[:16]} "
           f"surfaces={m['expected_surfaces']}")

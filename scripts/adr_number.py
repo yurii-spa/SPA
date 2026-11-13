@@ -62,6 +62,11 @@ ROOT = Path(__file__).resolve().parents[1]
 if str(ROOT / "scripts") not in sys.path:
     sys.path.insert(0, str(ROOT / "scripts"))
 
+# ADR-1000: скрипт зовётся ПО ПУТИ (sys.path[0] — его каталог), а дверь песочницы живёт в spa_core.
+_SPA_REPO_ROOT = str(Path(__file__).resolve().parents[1])
+if _SPA_REPO_ROOT not in sys.path:
+    sys.path.insert(0, _SPA_REPO_ROOT)
+
 from check_undelivered_work import _git  # noqa: E402  (переиспользование, не копия)
 
 DEFAULT_BASE = "origin/main"
@@ -1414,6 +1419,8 @@ def main(argv=None) -> int:
                    help="предел длины колонки «Заголовок» (умолчание — TITLE_MAX_CHARS)")
 
     args = ap.parse_args(argv)
+    from spa_core.utils.live_paths import refuse_if_sandbox_leaks  # ADR-1000: дверь песочницы, транш 1
+    refuse_if_sandbox_leaks(args.root, who="adr_number")
     if args.cmd == "next":
         return _cmd_next(args)
     if args.cmd == "check":

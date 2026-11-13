@@ -56,6 +56,11 @@ import tempfile
 import warnings
 from pathlib import Path
 
+# ADR-1000: скрипт зовётся ПО ПУТИ (sys.path[0] — его каталог), а дверь песочницы живёт в spa_core.
+_SPA_REPO_ROOT = str(Path(__file__).resolve().parents[1])
+if _SPA_REPO_ROOT not in sys.path:
+    sys.path.insert(0, _SPA_REPO_ROOT)
+
 EXIT_CLEAN = 0
 EXIT_UNMEASURED = 2
 EXIT_FINDING = 3
@@ -895,6 +900,8 @@ def main(argv=None) -> int:
     args = ap.parse_args(argv)
 
     root = Path(args.root) if args.root else Path(__file__).resolve().parent.parent
+    from spa_core.utils.live_paths import refuse_if_sandbox_leaks  # ADR-1000: дверь песочницы, транш 1
+    refuse_if_sandbox_leaks(root, who="git_path_coordinate_census")
     result = census(root)
 
     if args.json:

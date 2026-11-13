@@ -621,6 +621,8 @@ def main(argv: Optional[List[str]] = None) -> int:
     ap.add_argument("--limit", type=int, default=None)
     ap.add_argument("--no-write", action="store_true")
     args = ap.parse_args(argv)
+    from spa_core.utils.live_paths import refuse_if_sandbox_leaks  # ADR-1000: дверь песочницы, транш 1
+    refuse_if_sandbox_leaks(args.root, who="copy_independence_probe")
 
     outcome = run(Path(args.root), dest=Path(args.out) if args.out else None,
                   write=not args.no_write, limit=args.limit)

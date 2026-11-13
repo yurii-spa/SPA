@@ -1049,6 +1049,8 @@ def main(argv: Optional[List[str]] = None) -> int:
     ap.add_argument("--card", default=None, help="карточка приказа владельца")
     ap.add_argument("--no-write", action="store_true")
     ns = ap.parse_args(argv)
+    from spa_core.utils.live_paths import refuse_if_sandbox_leaks  # ADR-1000: дверь песочницы, транш 1
+    refuse_if_sandbox_leaks(ns.data_dir if ns.data_dir else ns.root, who="pre_trade_check_census")
     doc = run(root=ns.root, data_dir=ns.data_dir, card_path=ns.card,
               write=not ns.no_write)
     _print(doc)

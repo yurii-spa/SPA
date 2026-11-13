@@ -453,6 +453,8 @@ def main(argv: Optional[List[str]] = None) -> int:
     args = parser.parse_args(argv)
 
     data_dir = Path(args.data_dir) if args.data_dir else _default_data_dir()
+    from spa_core.utils.live_paths import refuse_if_sandbox_leaks  # ADR-1000: дверь песочницы, транш 1
+    refuse_if_sandbox_leaks(data_dir, who="portfolio_optimizer")
 
     try:
         doc = optimize(data_dir, step=args.step)

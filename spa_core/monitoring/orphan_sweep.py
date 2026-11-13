@@ -1553,6 +1553,8 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
 
     dest = (Path(args.out) if args.out
             else Path(args.repo_root) / "data" / ARTIFACT)
+    from spa_core.utils.live_paths import refuse_if_sandbox_leaks  # ADR-1000: дверь песочницы, транш 1
+    refuse_if_sandbox_leaks(dest, who="orphan_sweep")
     # ДО замера, не после: иначе прошлый слепок уже затёрт своим же.
     previous, previous_blind = load_previous(dest)
     doc = sweep(args.repo_root, ref=args.ref,

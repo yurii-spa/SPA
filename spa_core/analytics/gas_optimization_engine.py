@@ -423,6 +423,8 @@ def _cli() -> None:
     parser.add_argument("--check", action="store_true", help="Print without saving")
     parser.add_argument("--run", action="store_true", help="Compute and save")
     args = parser.parse_args()
+    from spa_core.utils.live_paths import refuse_if_sandbox_leaks  # ADR-1000: дверь песочницы, транш 1
+    refuse_if_sandbox_leaks(args.data_dir, who="gas_optimization_engine")
 
     engine = GasOptimizationEngine(data_dir=args.data_dir)
     result = engine.optimize(args.tx_type, args.urgency, args.base_fee, args.eth_price, args.gas_units)

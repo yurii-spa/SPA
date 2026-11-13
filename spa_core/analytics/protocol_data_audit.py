@@ -652,6 +652,8 @@ def main() -> None:
     )
     parser.add_argument("--data-dir", default=".", help="Base directory")
     args = parser.parse_args()
+    from spa_core.utils.live_paths import refuse_if_sandbox_leaks  # ADR-1000: дверь песочницы, транш 1
+    refuse_if_sandbox_leaks(args.data_dir, who="protocol_data_audit")
 
     audit = ProtocolDataAudit(base_dir=args.data_dir)
     result = audit.run_audit()
