@@ -1,0 +1,169 @@
+{
+  "title": "ADR-999 — читатели слепых точек входа + дверь decision_reproducibility (цикл #1118)",
+  "tests": [
+    "spa_core/tests/test_sandbox_data_dir_callers.py",
+    "spa_core/tests/test_sandbox_data_dir_census.py",
+    "spa_core/tests/test_decision_reproducibility.py"
+  ],
+  "baseline_failures": [],
+  "population": 15,
+  "applied": 15,
+  "counts": {
+    "killed": 15,
+    "survived": 0,
+    "not_applied": 0,
+    "broke_collection": 0
+  },
+  "unmeasured_reason": null,
+  "rc": 0,
+  "results": [
+    {
+      "name": "M01 перечень путей читается вызовом: argv-признак всегда истинен",
+      "file": "scripts/sandbox_data_dir_callers.py",
+      "outcome": "killed",
+      "detail": "",
+      "new_failures": [
+        "spa_core/tests/test_sandbox_data_dir_callers.py::TestCallerForms::test_a_list_of_paths_is_not_a_call"
+      ]
+    },
+    {
+      "name": "M02 импорт внутри функции виден всему файлу (область видимости не учитывается)",
+      "file": "scripts/sandbox_data_dir_callers.py",
+      "outcome": "killed",
+      "detail": "",
+      "new_failures": [
+        "spa_core/tests/test_sandbox_data_dir_callers.py::TestCallerForms::test_function_level_import_is_visible_only_inside_its_function"
+      ]
+    },
+    {
+      "name": "M03 имя функции, ввезённое из нескольких модулей, приписывается каждому",
+      "file": "scripts/sandbox_data_dir_callers.py",
+      "outcome": "killed",
+      "detail": "",
+      "new_failures": [
+        "spa_core/tests/test_sandbox_data_dir_callers.py::TestCallerForms::test_function_name_imported_from_two_modules_belongs_to_nobody"
+      ]
+    },
+    {
+      "name": "M04 UNCALLED не считается предметом (код 0 при отсутствии вызывающих)",
+      "file": "scripts/sandbox_data_dir_callers.py",
+      "outcome": "killed",
+      "detail": "",
+      "new_failures": [
+        "spa_core/tests/test_sandbox_data_dir_callers.py::TestCallerForms::test_no_caller_is_uncalled_and_a_finding",
+        "spa_core/tests/test_sandbox_data_dir_callers.py::TestThreeOutcomes::test_cli_codes_json_and_default_tree_printed",
+        "spa_core/tests/test_sandbox_data_dir_callers.py::TestThreeOutcomes::test_render_names_the_subject",
+        "spa_core/tests/test_sandbox_data_dir_callers.py::TestThreeOutcomes::test_unparsable_caller_is_unmeasured_and_does_not_hide_a_finding"
+      ]
+    },
+    {
+      "name": "M05 неразобранный вызывающий молча пропускается",
+      "file": "scripts/sandbox_data_dir_callers.py",
+      "outcome": "killed",
+      "detail": "",
+      "new_failures": [
+        "spa_core/tests/test_sandbox_data_dir_callers.py::TestThreeOutcomes::test_census_cli_with_callers_combines_codes",
+        "spa_core/tests/test_sandbox_data_dir_callers.py::TestThreeOutcomes::test_unparsable_caller_is_unmeasured_and_does_not_hide_a_finding",
+        "spa_core/tests/test_sandbox_data_dir_callers.py::TestThreeOutcomes::test_unparsable_caller_turns_named_by_all_into_unmeasured_code_2"
+      ]
+    },
+    {
+      "name": "M06 маркер меряется ПОДСТРОКОЙ, а не присваиванием",
+      "file": "scripts/sandbox_data_dir_callers.py",
+      "outcome": "killed",
+      "detail": "",
+      "new_failures": [
+        "spa_core/tests/test_sandbox_data_dir_callers.py::TestCallerForms::test_py_marker_is_an_assignment_not_a_docstring"
+      ]
+    },
+    {
+      "name": "M07 комментарий в .sh читается вызовом",
+      "file": "scripts/sandbox_data_dir_callers.py",
+      "outcome": "killed",
+      "detail": "",
+      "new_failures": [
+        "spa_core/tests/test_sandbox_data_dir_callers.py::TestCallerForms::test_wrapper_with_continuation_line_and_plist_chain",
+        "spa_core/tests/test_sandbox_data_dir_callers.py::TestTheLiveTree::test_the_fleet_does_not_call_a_blind_entrypoint"
+      ]
+    },
+    {
+      "name": "M08 перенос строки `\\\\` не склеивается — флаг на продолжении теряется",
+      "file": "scripts/sandbox_data_dir_callers.py",
+      "outcome": "killed",
+      "detail": "",
+      "new_failures": [
+        "spa_core/tests/test_sandbox_data_dir_callers.py::TestCallerForms::test_wrapper_with_continuation_line_and_plist_chain"
+      ]
+    },
+    {
+      "name": "M09 цепь plist → обёртка не прослеживается",
+      "file": "scripts/sandbox_data_dir_callers.py",
+      "outcome": "killed",
+      "detail": "",
+      "new_failures": [
+        "spa_core/tests/test_sandbox_data_dir_callers.py::TestCallerForms::test_wrapper_with_continuation_line_and_plist_chain"
+      ]
+    },
+    {
+      "name": "M10 запись реестра читается «назвал каталог»",
+      "file": "scripts/sandbox_data_dir_callers.py",
+      "outcome": "killed",
+      "detail": "",
+      "new_failures": [
+        "spa_core/tests/test_sandbox_data_dir_callers.py::TestCallerForms::test_registry_entry_is_a_relying_caller",
+        "spa_core/tests/test_sandbox_data_dir_callers.py::TestTheLiveTree::test_registry_is_the_largest_relying_form"
+      ]
+    },
+    {
+      "name": "M11 именованный аргумент каталога не считается",
+      "file": "scripts/sandbox_data_dir_callers.py",
+      "outcome": "killed",
+      "detail": "",
+      "new_failures": [
+        "spa_core/tests/test_sandbox_data_dir_callers.py::TestCallerForms::test_caller_verdict_is_the_census_verdict_of_the_caller",
+        "spa_core/tests/test_sandbox_data_dir_callers.py::TestCallerForms::test_function_level_import_is_visible_only_inside_its_function",
+        "spa_core/tests/test_sandbox_data_dir_callers.py::TestCallerForms::test_inprocess_kwarg_positional_and_argv",
+        "spa_core/tests/test_sandbox_data_dir_callers.py::TestTheLiveTree::test_the_bridge_names_the_root_of_its_stages"
+      ]
+    },
+    {
+      "name": "M12 промпт оркестратора в .sh читается обёрткой флота",
+      "file": "scripts/sandbox_data_dir_callers.py",
+      "outcome": "killed",
+      "detail": "",
+      "new_failures": [
+        "spa_core/tests/test_sandbox_data_dir_callers.py::TestCallerForms::test_the_orchestrator_wrapper_is_a_prompt_not_a_shell_caller",
+        "spa_core/tests/test_sandbox_data_dir_callers.py::TestTheLiveTree::test_the_fleet_does_not_call_a_blind_entrypoint"
+      ]
+    },
+    {
+      "name": "M13 перепись с --callers отдаёт свой код, «не измерено» читателей прячется",
+      "file": "scripts/sandbox_data_dir_census.py",
+      "outcome": "killed",
+      "detail": "",
+      "new_failures": [
+        "spa_core/tests/test_sandbox_data_dir_callers.py::TestThreeOutcomes::test_census_cli_with_callers_combines_codes"
+      ]
+    },
+    {
+      "name": "M14 дверь второго члена никогда не отказывает",
+      "file": "spa_core/monitoring/decision_reproducibility.py",
+      "outcome": "killed",
+      "detail": "",
+      "new_failures": [
+        "spa_core/tests/test_sandbox_data_dir_callers.py::TestDecisionReproducibilityGuard::test_marker_and_a_child_of_prod_is_refused",
+        "spa_core/tests/test_sandbox_data_dir_callers.py::TestDecisionReproducibilityGuard::test_marker_and_prod_root_refuses_with_code_2_before_any_child",
+        "spa_core/tests/test_sandbox_data_dir_callers.py::TestDecisionReproducibilityGuard::test_the_door_is_the_single_live_paths_door"
+      ]
+    },
+    {
+      "name": "M15 отказ печатается, а прогон идёт",
+      "file": "spa_core/monitoring/decision_reproducibility.py",
+      "outcome": "killed",
+      "detail": "",
+      "new_failures": [
+        "spa_core/tests/test_sandbox_data_dir_callers.py::TestDecisionReproducibilityGuard::test_marker_and_prod_root_refuses_with_code_2_before_any_child"
+      ]
+    }
+  ]
+}

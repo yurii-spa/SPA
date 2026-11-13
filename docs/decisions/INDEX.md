@@ -866,6 +866,7 @@
 | ADR-996 | ADR-996 · §49 «Portfolio CIO»: обе кучи без зовущего названы — 03.11 01:05Z это сэмплер мандата ARB 02 на ЖИВОМ `data/` (рука), 29.10 — прогон моста по окну его отчёта; отчёт стал вторым каналом оси | принято | [ADR-996](ADR-996-cio-s49-batch-callers-named-bridge-report-channel.md) |
 | ADR-997 | ADR-997 · §49 «Portfolio CIO»: отчёт моста несёт ДВА измеренных штампа писателя — точка входа (`invoked_by`) и цепь запуска до launchd (`launched_by`); `XPC_SERVICE_NAME` различителем не является | принято | [ADR-997](ADR-997-cio-s49-bridge-report-invoked-by-and-launched-by-stamps.md) |
 | ADR-998 | ADR-998 · §49 «Portfolio CIO»: класс «песочница без названного каталога данных» ИЗМЕРЕН (393 точки входа, 236 слепы к маркеру); измеренный член — мост — получил дверь-отказ на приёмнике | принято | [ADR-998](ADR-998-cio-s49-sandbox-without-named-data-dir-class-measured-bridge-door.md) |
+| ADR-999 | ADR-999 — §49 «Portfolio CIO»: читатели слепых точек входа ИЗМЕРЕНЫ (флот не зовёт ни одной · 76 — реестр · 50 — рука); общая дверь — на приёмнике в main; второй член — decision_reproducibility | принято | [ADR-999](ADR-999-cio-s49-sandbox-blind-entrypoint-callers-measured-receiver-door-form.md) |
 
 ## Соглашения
 

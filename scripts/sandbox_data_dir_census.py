@@ -50,7 +50,7 @@
 
 Запуск::
 
-    python3 scripts/sandbox_data_dir_census.py [--repo-root <дерево>] [--subtree <каталог>] [--json]
+    python3 scripts/sandbox_data_dir_census.py [--repo-root <дерево>] [--subtree <каталог>] [--json] [--callers]
 
 Коды возврата: 0 — предмет класса ПУСТ (и измерен) · 1 — предмет НАЗВАН · 2 — НЕ ИЗМЕРЕНО.
 """
@@ -542,6 +542,9 @@ def main(argv: Optional[List[str]] = None) -> int:
     ap.add_argument("--subtree", action="append", default=None,
                     help="ограничить поверхность одним каталогом (можно несколько раз)")
     ap.add_argument("--json", action="store_true")
+    ap.add_argument("--callers", action="store_true",
+                    help="ADR-999: ещё и ЧИТАТЕЛИ слепых точек входа — кто зовёт и называет ли "
+                         "каталог (прибор рядом, sandbox_data_dir_callers.py; код — максимум из двух)")
     args = ap.parse_args(argv)
     repo = Path(args.repo_root).resolve() if args.repo_root else ROOT
     if args.repo_root is None:
@@ -555,15 +558,47 @@ def main(argv: Optional[List[str]] = None) -> int:
         else:
             print(f"⚠️ НЕ ИЗМЕРЕНО: {exc}")
         return 2
+    callers = None
+    if args.callers:
+        callers = _load_callers_tool()
+        try:
+            callers_census = callers.measure(repo, census=census)
+        except callers.NotMeasured as exc:
+            if args.json:
+                print(json.dumps({"code": 2, "unmeasured_reason": f"читатели: {exc}"}, ensure_ascii=False))
+            else:
+                print(f"⚠️ НЕ ИЗМЕРЕНО (читатели): {exc}")
+            return 2
     if args.json:
         doc = {"root": census.root, "surface_dirs": census.surface_dirs,
                "counts": census.counts, "code": census.code,
                "unmeasured_reason": census.unmeasured_reason,
                "entries": [asdict(e) for e in census.entries]}
+        if callers is not None:
+            doc["callers"] = callers.to_doc(callers_census)
         print(json.dumps(doc, ensure_ascii=False, indent=2))
     else:
         print(render(census))
+        if callers is not None:
+            print()
+            print(callers.render(callers_census))
+    if callers is not None:
+        return max(census.code, callers_census.code)
     return census.code
+
+
+def _load_callers_tool():
+    """Прибор читателей (ADR-999) живёт рядом и грузится по файлу: `scripts/` в sys.path не ставят."""
+    import importlib.util
+    path = Path(__file__).with_name("sandbox_data_dir_callers.py")
+    if not path.is_file():
+        raise NotMeasured(f"прибор читателей не найден: {path}")
+    spec = importlib.util.spec_from_file_location("spa_sandbox_data_dir_callers", path)
+    assert spec and spec.loader
+    mod = importlib.util.module_from_spec(spec)
+    sys.modules["spa_sandbox_data_dir_callers"] = mod     # dataclasses ищут модуль по имени
+    spec.loader.exec_module(mod)
+    return mod
 
 
 if __name__ == "__main__":

@@ -886,6 +886,28 @@ def run(root: str = REPO_ROOT, runs: int = DEFAULT_RUNS, write: bool = True,
     return report
 
 
+def sandbox_leak_reason(root: str) -> str | None:
+    """Почему прогон под маркером песочницы НЕ ИМЕЕТ ПРАВА писать отчёт по `root` — или None.
+
+    ADR-999 (цикл #1118): второй член класса «песочница без названного каталога данных»
+    (ADR-998 § 6в — «половина инъекции»: двери `SPA_SANDBOX`/`SPA_DATA_DIR` этот модуль
+    ставил только РЕБЁНКУ в `_default_runner`, а сам писал `REPORT_REL` под `--root` с
+    умолчанием деревом модуля, маркера не спрашивая). Дверь — ЕДИНСТВЕННАЯ, та же, что у
+    моста и у трекера: `live_paths.assert_not_prod_realpath`; своей копии проверки нет
+    намеренно. Без маркера молчит: бегун `decision_loop` маркера не ставит, его путь не
+    меняется; чужой корень под маркером проходит — это и есть правильно сконфигурированная
+    песочница. Вызов через мост (`run(root=…)`) этой двери не проходит — его корень уже
+    осуждён дверью моста (ADR-998 § 3.2).
+    """
+    from pathlib import Path
+    from spa_core.utils.live_paths import SandboxLeakError, assert_not_prod_realpath
+    try:
+        assert_not_prod_realpath(Path(root) / "data", who="decision_reproducibility")
+    except SandboxLeakError as exc:
+        return str(exc)
+    return None
+
+
 def _main(argv: list[str] | None = None) -> int:
     import argparse
 
@@ -897,6 +919,15 @@ def _main(argv: list[str] | None = None) -> int:
     ap.add_argument("--data-dir", default=None)
     ap.add_argument("--no-save", action="store_true")
     args = ap.parse_args(argv)
+
+    # ADR-999: под маркером песочницы отчёт в прод-`data/` не пишется — та же дверь,
+    # что у моста (ADR-998), и стоит она ДО первого прогона ребёнка.
+    leak = sandbox_leak_reason(args.root)
+    if leak is not None:
+        print(f"decision_reproducibility: ОТКАЗ (код 2): {leak} — под маркером песочницы "
+              f"(SPA_SANDBOX) корень обязан быть назван --root вне прод-дерева",
+              file=sys.stderr)
+        return 2
 
     rep = run(root=args.root, runs=args.runs, write=not args.no_save,
               data_dir=args.data_dir)

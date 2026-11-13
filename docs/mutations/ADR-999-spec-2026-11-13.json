@@ -1,0 +1,100 @@
+{
+  "title": "ADR-999 — читатели слепых точек входа + дверь decision_reproducibility (цикл #1118)",
+  "tests": [
+    "spa_core/tests/test_sandbox_data_dir_callers.py",
+    "spa_core/tests/test_sandbox_data_dir_census.py",
+    "spa_core/tests/test_decision_reproducibility.py"
+  ],
+  "mutations": [
+    {
+      "name": "M01 перечень путей читается вызовом: argv-признак всегда истинен",
+      "file": "scripts/sandbox_data_dir_callers.py",
+      "old": "    if \"-m\" in strs:\n        return True\n    if not getattr(node, \"elts\", None):\n        return False\n",
+      "new": "    return True\n    if not getattr(node, \"elts\", None):\n        return False\n"
+    },
+    {
+      "name": "M02 импорт внутри функции виден всему файлу (область видимости не учитывается)",
+      "file": "scripts/sandbox_data_dir_callers.py",
+      "old": "        sc = scope.get(id(node))\n        if isinstance(node, ast.Import):",
+      "new": "        sc = None\n        if isinstance(node, ast.Import):"
+    },
+    {
+      "name": "M03 имя функции, ввезённое из нескольких модулей, приписывается каждому",
+      "file": "scripts/sandbox_data_dir_callers.py",
+      "old": "                   and len(fn_name_owners.get(f.id, set())) == 1)",
+      "new": "                   and True)"
+    },
+    {
+      "name": "M04 UNCALLED не считается предметом (код 0 при отсутствии вызывающих)",
+      "file": "scripts/sandbox_data_dir_callers.py",
+      "old": "    subject = counts.get(\"DEFAULT_RELIED\", 0) + counts.get(\"UNCALLED\", 0)",
+      "new": "    subject = counts.get(\"DEFAULT_RELIED\", 0)"
+    },
+    {
+      "name": "M05 неразобранный вызывающий молча пропускается",
+      "file": "scripts/sandbox_data_dir_callers.py",
+      "old": "            unmeasured_files.append(f\"{rel}: {exc.msg} (строка {exc.lineno})\")\n            continue",
+      "new": "            continue"
+    },
+    {
+      "name": "M06 маркер меряется ПОДСТРОКОЙ, а не присваиванием",
+      "file": "scripts/sandbox_data_dir_callers.py",
+      "old": "        sets_marker = _py_sets_marker(tree)\n",
+      "new": "        sets_marker = MARKER_ENV in text\n"
+    },
+    {
+      "name": "M07 комментарий в .sh читается вызовом",
+      "file": "scripts/sandbox_data_dir_callers.py",
+      "old": "            if line.lstrip().startswith(\"#\"):\n                continue\n            toks = _sh_tokens(line)\n            for r in present:",
+      "new": "            toks = _sh_tokens(line)\n            for r in present:"
+    },
+    {
+      "name": "M08 перенос строки `\\\\` не склеивается — флаг на продолжении теряется",
+      "file": "scripts/sandbox_data_dir_callers.py",
+      "old": "        if raw.rstrip().endswith(\"\\\\\"):\n            buf += raw.rstrip()[:-1] + \" \"\n            continue",
+      "new": "        if False:\n            buf += raw.rstrip()[:-1] + \" \"\n            continue"
+    },
+    {
+      "name": "M09 цепь plist → обёртка не прослеживается",
+      "file": "scripts/sandbox_data_dir_callers.py",
+      "old": "        launchd = p.name in wrappers\n",
+      "new": "        launchd = False\n"
+    },
+    {
+      "name": "M10 запись реестра читается «назвал каталог»",
+      "file": "scripts/sandbox_data_dir_callers.py",
+      "old": "                    found.append(Caller(rel, \"registry\", node.lineno, False, None, None, sets_marker,",
+      "new": "                    found.append(Caller(rel, \"registry\", node.lineno, True, \"kwarg\", None, sets_marker,"
+    },
+    {
+      "name": "M11 именованный аргумент каталога не считается",
+      "file": "scripts/sandbox_data_dir_callers.py",
+      "old": "        if kw.arg in DIR_KWARGS:\n            return \"kwarg\"",
+      "new": "        if kw.arg in DIR_KWARGS:\n            return None"
+    },
+    {
+      "name": "M12 промпт оркестратора в .sh читается обёрткой флота",
+      "file": "scripts/sandbox_data_dir_callers.py",
+      "old": "        kind = \"prompt\" if rel in prompt_rel else \"shell\"\n",
+      "new": "        kind = \"shell\"\n"
+    },
+    {
+      "name": "M13 перепись с --callers отдаёт свой код, «не измерено» читателей прячется",
+      "file": "scripts/sandbox_data_dir_census.py",
+      "old": "        return max(census.code, callers_census.code)\n",
+      "new": "        return census.code\n"
+    },
+    {
+      "name": "M14 дверь второго члена никогда не отказывает",
+      "file": "spa_core/monitoring/decision_reproducibility.py",
+      "old": "        assert_not_prod_realpath(Path(root) / \"data\", who=\"decision_reproducibility\")\n    except SandboxLeakError as exc:\n        return str(exc)\n    return None",
+      "new": "        assert_not_prod_realpath(Path(root) / \"data\", who=\"decision_reproducibility\")\n    except SandboxLeakError as exc:\n        return None\n    return None"
+    },
+    {
+      "name": "M15 отказ печатается, а прогон идёт",
+      "file": "spa_core/monitoring/decision_reproducibility.py",
+      "old": "              file=sys.stderr)\n        return 2\n",
+      "new": "              file=sys.stderr)\n"
+    }
+  ]
+}
