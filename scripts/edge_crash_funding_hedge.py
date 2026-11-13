@@ -380,6 +380,13 @@ def build_report(rates_dir: Path) -> dict:
     }
 
 
+def _fmt_half_hedge(x: Optional[float]) -> str:
+    """Число номиналов PT на половину краха; None — «—». Вынесено из f-string: вложенные
+    одинаковые кавычки внутри поля f-string разбирает только Python ≥ 3.12 (PEP 701), а CI идёт на 3.11.
+    """
+    return "—" if x is None else f"{x:.1f}"
+
+
 def _bp(x: Optional[float]) -> str:
     return "—" if x is None else f"{x * 1e4:+.2f} bp"
 
@@ -403,7 +410,7 @@ def print_report(r: dict) -> None:
               f"{e['dy_cum'] * 100:+.2f} pp | {y0:>7s} | {hr}")
     print(f"§2 величина: медианный коэффициент хеджа {ch['median_hedge_ratio']} по {ch['n_episodes_with_ratio']} эпизодам "
           f"(положительных {ch['n_episodes_with_positive_hedge']}); номиналов PT на половину краха: "
-          f"{'—' if ch['notionals_for_half_hedge'] is None else f'{ch['notionals_for_half_hedge']:.1f}'}")
+          f"{_fmt_half_hedge(ch['notionals_for_half_hedge'])}")
     for yr, b in sorted(ch["by_year"].items()):
         ym = "—" if b["y_at_start_mean"] is None else f"{b['y_at_start_mean'] * 100:.1f} %"
         print(f"   {yr}: эпизодов {b['episodes']} · Σ марка {b['mark_cum_sum'] * 100:+.3f} % · Σ Δy {b['dy_cum_sum'] * 100:+.2f} pp · y в начале ≈ {ym}")

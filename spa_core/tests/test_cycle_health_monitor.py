@@ -4,9 +4,10 @@ Tests for the cycle-health monitors.
 This file holds TWO independent sections:
 
   1. ``spa_core.analytics.cycle_health_monitor`` (MP-631) — a DEPRECATED
-     tombstone: the module's first statement is ``raise ImportError`` and it is
-     "kept for git history only". Its tests can never run and are skipped with
-     that as the stated reason (see ``_ANALYTICS_SKIP`` below).
+     tombstone (first statement ``raise ImportError``, "kept for git history
+     only") that was REMOVED on 2026-11-13 (ADR-1001); the import now fails with
+     ``ModuleNotFoundError`` (a subclass of ``ImportError``). Its tests can never
+     run and are skipped with that as the stated reason (see ``_ANALYTICS_SKIP``).
   2. ``spa_core.monitoring.cycle_health_monitor`` — the LIVE module behind the
      ``com.spa.cycle_health`` agent. These tests DO run.
 
@@ -67,8 +68,8 @@ except ImportError as _exc:  # pragma: no cover - deprecation path
 
 _ANALYTICS_SKIP = unittest.skipIf(
     _ANALYTICS_IMPORT_ERROR is not None,
-    f"spa_core.analytics.cycle_health_monitor is a deprecated tombstone "
-    f"(kept for git history only, raises on import): {_ANALYTICS_IMPORT_ERROR}. "
+    f"spa_core.analytics.cycle_health_monitor was a deprecated tombstone, removed "
+    f"2026-11-13 (ADR-1001); the import fails: {_ANALYTICS_IMPORT_ERROR}. "
     f"The live module is spa_core.monitoring.cycle_health_monitor — covered by "
     f"section 2 of this file and by test_cycle_health_honesty.py.",
 )

@@ -345,8 +345,14 @@ class TestTheLiveTree(unittest.TestCase):
     def test_population_is_named_and_measured(self):
         self.assertGreater(len(self.c.readers), 100)
         self.assertEqual(self.c.unmeasured_files, [])
-        for k in ("NAMED_BY_ALL", "DEFAULT_RELIED", "UNCALLED"):
+        for k in ("NAMED_BY_ALL", "DEFAULT_RELIED"):
             self.assertIn(k, self.c.counts)
+        # ADR-1001 (цикл #1120): до него `UNCALLED` на живом дереве держался РОВНО одним надгробием
+        # (`spa_core/analytics/cycle_health_monitor.py`, ADR-1000 § 4) — перепись теперь читает его
+        # родом `DEAD_MODULE`, а сам файл снят. Достижимость рода `UNCALLED` держит сцена
+        # `test_no_caller_is_uncalled_and_a_finding`; на живом дереве остаток ОБЯЗАН быть нулём.
+        self.assertEqual(self.c.counts.get("UNCALLED", 0), 0,
+                         [r.path for r in self.c.readers if r.verdict == "UNCALLED"])
         self.assertEqual(self.c.code, 1)
 
     def test_the_fleet_does_not_call_a_blind_entrypoint(self):

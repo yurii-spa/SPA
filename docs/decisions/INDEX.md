@@ -868,6 +868,7 @@
 | ADR-998 | ADR-998 · §49 «Portfolio CIO»: класс «песочница без названного каталога данных» ИЗМЕРЕН (393 точки входа, 236 слепы к маркеру); измеренный член — мост — получил дверь-отказ на приёмнике | принято | [ADR-998](ADR-998-cio-s49-sandbox-without-named-data-dir-class-measured-bridge-door.md) |
 | ADR-999 | ADR-999 — §49 «Portfolio CIO»: читатели слепых точек входа ИЗМЕРЕНЫ (флот не зовёт ни одной · 76 — реестр · 50 — рука); общая дверь — на приёмнике в main; второй член — decision_reproducibility | принято | [ADR-999](ADR-999-cio-s49-sandbox-blind-entrypoint-callers-measured-receiver-door-form.md) |
 | ADR-1000 | ADR-1000 — §49 «Portfolio CIO»: транш 1 двери песочницы — 48 точек входа с достижимым умолчанием у руки закрыты ОДНОЙ дверью live_paths; слепых 235 → 187, рука/промпт 4 → 0, без зовущего 45 → 1 | принято | [ADR-1000](ADR-1000-sandbox-door-tranche-1.md) |
+| ADR-1001 | ADR-1001 — §49 «Portfolio CIO»: род «мёртвый модуль» в переписи, надгробие analytics/cycle_health_monitor снято (без зовущего 1→0); CI main красен от f-string PEP 701 на Python 3.11 — починено, сторож | принято | [ADR-1001](ADR-1001-dead-module-kind-and-ci-fstring.md) |
 
 ## Соглашения
 

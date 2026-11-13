@@ -5510,7 +5510,8 @@ def _probe_sandbox_data_dir_class_population_named(
     if member_live.verdict != "DOOR":
         return NOT_SATISFIED, (f"член класса читается {member_live.verdict}, а не DOOR: "
                                "маркер песочницы у `--run` не спрашивается")
-    order = ("MARKER_BLIND", "DOOR", "EXPLICIT_ONLY", "READER", "UNMEASURED")
+    # ADR-1001: род `DEAD_MODULE` (надгробие) печатается тоже — иначе население НАЗВАНО не целиком.
+    order = ("MARKER_BLIND", "DOOR", "EXPLICIT_ONLY", "READER", "DEAD_MODULE", "UNMEASURED")
     pop = " · ".join(f"{k} {live.counts.get(k, 0)}" for k in order)
     return SATISFIED, (
         f"население НАЗВАНО: точек входа {len(live.entries)} ({pop}); член класса "

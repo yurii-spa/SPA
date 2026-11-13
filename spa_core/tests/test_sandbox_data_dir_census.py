@@ -7,7 +7,9 @@
 
 Что здесь проверяется, и КАЖДОЕ — по исходу, не по подстроке:
 
-* перепись различает пять вердиктов на одноразовых сценах и три кода возврата;
+* перепись различает шесть вердиктов на одноразовых сценах и три кода возврата (шестой —
+  `DEAD_MODULE`, ADR-1001: надгробие с `raise` первой исполняемой инструкцией — не слепое и не
+  «не измерено», читателей у него не ищут; контроль рода: raise после импорта / внутри `main` — не надгробие);
 * дверь судится ДОСТИЖИМОСТЬЮ от входа (половина инъекции — урок ADR-932): функция
   двери в файле без проводки от `main` ⇒ `MARKER_BLIND`, дверь в комментарии ⇒
   `MARKER_BLIND`;
@@ -239,6 +241,46 @@ def main(argv=None):
 
 BROKEN = "def main(:\n    pass\n"
 
+# ADR-1001: надгробие — первая ИСПОЛНЯЕМАЯ инструкция `raise`; argparse ниже не исполняется никогда.
+# Форма дословно повторяет снятый `spa_core/analytics/cycle_health_monitor.py` (комментарии, raise,
+# докстринг ПОСЛЕ raise, затем полноценная точка входа с флагом каталога и записью).
+DEAD_TOMBSTONE = '''
+# DEPRECATED — orphaned module. Canonical: spa_core.monitoring.x
+raise ImportError(
+    "DEPRECATED: use spa_core.monitoring.x instead"
+)
+
+"""Docstring that is NOT first — the raise is."""
+import argparse
+from pathlib import Path
+from spa_core.utils.atomic import atomic_save
+ROOT = Path(__file__).resolve().parents[2]
+
+def main(argv=None):
+    ap = argparse.ArgumentParser()
+    ap.add_argument("--data-dir", default=str(ROOT / "data"))
+    args = ap.parse_args(argv)
+    atomic_save(Path(args.data_dir) / "x.json", {"a": 1})
+    return 0
+
+if __name__ == "__main__":
+    raise SystemExit(main())
+'''
+
+# Контроль рода: докстринг ПЕРЕД raise — всё ещё надгробие (строка не исполнение).
+DEAD_AFTER_DOCSTRING = '"""Module docstring first."""\n' + DEAD_TOMBSTONE.lstrip("\n")
+
+# Контроль рода: raise ПОСЛЕ импорта — НЕ надгробие (модуль уже что-то исполнил; main может быть
+# достижим в другой ветке), судится как обычная точка входа — здесь MARKER_BLIND.
+RAISE_AFTER_IMPORT = DEAD_TOMBSTONE.replace(
+    '# DEPRECATED — orphaned module. Canonical: spa_core.monitoring.x\nraise ImportError(',
+    'import os\nraise ImportError(', 1).replace(
+    '    "DEPRECATED: use spa_core.monitoring.x instead"\n)',
+    '    "DEPRECATED: use spa_core.monitoring.x instead"\n) if os.environ.get("NEVER_SET_x") else None', 1)
+
+# Контроль рода: raise внутри main — не надгробие.
+RAISE_INSIDE_MAIN = BLIND_CONSTANT.replace("    run(args.root)\n", "    raise RuntimeError('x')\n    run(args.root)\n", 1)
+
 
 def _scene(tmp: Path, files: dict[str, str]) -> Path:
     for sub in census.SURFACE_DIRS:
@@ -347,6 +389,64 @@ class TestVerdictsOnScenes(unittest.TestCase):
         c = census.measure(_scene(self.tmp, {"scripts/test_a.py": BLIND_CONSTANT,
                                              "scripts/a.py": READER_ONLY}))
         self.assertIsNone(_entry(c, "scripts/test_a.py"))
+
+
+class TestDeadModuleKind(unittest.TestCase):
+    """ADR-1001: надгробие — отдельный род, не `UNCALLED` и не `MARKER_BLIND`.
+
+    ADR-1000 § 4 держал остаток «один мёртвый модуль» ПОИМЁННО, потому что перепись его не
+    различала: файл с флагом каталога и записью читался `MARKER_BLIND`, прибор читателей — `UNCALLED`
+    («зовут руками, умолчание достижимо»), что про надгробие ложь: его `main` не достигает ничто.
+    """
+
+    def setUp(self):
+        self._tmp = tempfile.TemporaryDirectory(prefix="sddc_dead_")
+        self.tmp = Path(self._tmp.name)
+
+    def tearDown(self):
+        self._tmp.cleanup()
+
+    def test_a_tombstone_is_dead_module_not_blind_and_not_a_finding(self):
+        c = census.measure(_scene(self.tmp, {"spa_core/analytics/dead.py": DEAD_TOMBSTONE}))
+        e = _entry(c, "spa_core/analytics/dead.py")
+        self.assertEqual(e.verdict, "DEAD_MODULE")
+        self.assertEqual(e.flag, "--data-dir", "флаг назван — модуль В поверхности, а не вне её")
+        self.assertIn("raise", e.reason)
+        self.assertEqual(c.counts, {"DEAD_MODULE": 1})
+        self.assertEqual([x.path for x in c.dead], ["spa_core/analytics/dead.py"])
+        self.assertEqual(c.blind, [], "надгробие не слепое — дверь ему не положена")
+        self.assertEqual(c.code, 0, "мёртвый модуль — не предмет класса и не «не измерено»")
+        self.assertIn("МЁРТВЫЙ МОДУЛЬ spa_core/analytics/dead.py", census.render(c))
+
+    def test_a_docstring_before_the_raise_is_still_a_tombstone(self):
+        c = census.measure(_scene(self.tmp, {"spa_core/analytics/dead2.py": DEAD_AFTER_DOCSTRING}))
+        self.assertEqual(_entry(c, "spa_core/analytics/dead2.py").verdict, "DEAD_MODULE")
+
+    def test_a_raise_after_an_import_is_not_a_tombstone(self):
+        """Исполнение до raise — модуль жив (его `main` может быть достижим): судится как точка входа."""
+        c = census.measure(_scene(self.tmp, {"spa_core/analytics/alive.py": RAISE_AFTER_IMPORT}))
+        self.assertEqual(_entry(c, "spa_core/analytics/alive.py").verdict, "MARKER_BLIND")
+        self.assertEqual(c.dead, [])
+
+    def test_a_raise_inside_main_is_not_a_tombstone(self):
+        c = census.measure(_scene(self.tmp, {"scripts/alive2.py": RAISE_INSIDE_MAIN}))
+        self.assertEqual(_entry(c, "scripts/alive2.py").verdict, "MARKER_BLIND")
+
+    def test_readers_are_not_sought_for_a_tombstone(self):
+        """Прибор читателей (ADR-999) строит поверхность из СЛЕПЫХ точек — надгробия в ней нет,
+        поэтому `UNCALLED` у него про надгробие не бывает: остаток — ноль, не список."""
+        callers = _load(ROOT / "scripts" / "sandbox_data_dir_callers.py", "spa_sddc_callers_for_dead")
+        c = census.measure(_scene(self.tmp, {"spa_core/analytics/dead.py": DEAD_TOMBSTONE,
+                                             "scripts/blind.py": BLIND_CONSTANT}))
+        cc = callers.measure(self.tmp, census=c)
+        self.assertEqual(sorted(r.path for r in cc.readers), ["scripts/blind.py"])
+        self.assertEqual(cc.exposure["uncalled"], 1, "живая слепая точка без вызывающего — остаётся UNCALLED")
+
+    def test_the_live_tree_holds_no_tombstone_with_a_data_flag(self):
+        """Исход заказа G989 п. 1а: `spa_core/analytics/cycle_health_monitor.py` снят ADR-1001."""
+        c = census.measure(ROOT)
+        self.assertEqual([e.path for e in c.dead], [])
+        self.assertFalse((ROOT / "spa_core/analytics/cycle_health_monitor.py").exists())
 
 
 class TestThreeOutcomes(unittest.TestCase):

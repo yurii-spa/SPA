@@ -101,7 +101,9 @@ class SystemConfigValidator:
         "strategy_tournament",
         "slippage_simulator",
         "liquidity_exit_simulator",
-        "cycle_health_monitor",
+        # "cycle_health_monitor" снят 2026-11-13 (ADR-1001): analytics-копия была надгробием
+        # (raise ImportError первой строкой с 2026-08-04) и удалена; живой модуль —
+        # spa_core.monitoring.cycle_health_monitor, он не в этом каталоге и этим списком не судится.
         "apy_anomaly_detector",
     ]
 

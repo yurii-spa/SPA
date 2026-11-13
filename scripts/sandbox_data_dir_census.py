@@ -29,6 +29,13 @@
 * ``EXPLICIT_ONLY`` — умолчания у флага нет (``required`` либо ``None`` без запасного
                       выражения): вызывающий обязан назвать каталог сам;
 * ``READER``        — записи под каталог данных не найдено: вне предмета;
+* ``DEAD_MODULE``   — первая ИСПОЛНЯЕМАЯ инструкция модуля — ``raise`` (надгробие
+                      ``DEPRECATED``): его ``main`` недостижим ни при каком вызове, дверь
+                      ему не ставится, читателей у него не ищут — снять, а не защищать
+                      (ADR-1000 § 6а, ADR-1001). Отдельный род, а не ``UNCALLED``: «без
+                      вызывающего» у живой точки входа значит «зовут руками», у мёртвой —
+                      ничего, и считать их одним числом значило бы держать остаток
+                      поимённо вместо нуля;
 * ``UNMEASURED``    — файл не разобран / не прочитан (причина названа).
 
 **Дверь судится ДОСТИЖИМОСТЬЮ от точки входа, а не наличием в файле** (урок ADR-932 о
@@ -130,6 +137,11 @@ class Census:
     @property
     def unmeasured(self) -> List[Entry]:
         return [e for e in self.entries if e.verdict == "UNMEASURED"]
+
+    @property
+    def dead(self) -> List[Entry]:
+        """Надгробия (ADR-1001): не слепые, не измеряемые — снимать."""
+        return [e for e in self.entries if e.verdict == "DEAD_MODULE"]
 
 
 # ─────────────────────────── разбор одного файла ───────────────────────────
@@ -413,6 +425,21 @@ def _writes_and_doors(tree: ast.Module) -> Tuple[List[str], bool, List[str], boo
     return writes, delegates, doors, door_imported, door_unreached
 
 
+def raises_at_module_top(tree: ast.Module) -> bool:
+    """Первая ИСПОЛНЯЕМАЯ инструкция модуля — `raise` (мёртвый модуль, надгробие).
+
+    Докстринг и любые строковые выражения перед ней не считаются исполнением; импорт,
+    присваивание, `if` — считаются: модуль, который сначала что-то делает и лишь потом
+    поднимает исключение, мёртвым не является (его `main` МОЖЕТ быть достижим).
+    """
+    for node in tree.body:
+        if isinstance(node, ast.Expr) and isinstance(node.value, ast.Constant) \
+                and isinstance(node.value.value, str):
+            continue
+        return isinstance(node, ast.Raise)
+    return False
+
+
 def judge_file(path: Path, repo: Path) -> Optional[Entry]:
     """Вердикт по одному файлу; None — файл вне поверхности (флага нет)."""
     rel = path.relative_to(repo).as_posix()
@@ -428,6 +455,12 @@ def judge_file(path: Path, repo: Path) -> Optional[Entry]:
     if found is None:
         return None
     flag, call = found
+    if raises_at_module_top(tree):
+        # ADR-1001: надгробие. Флаг объявлен в коде, которого интерпретатор не достигает;
+        # судить его дверь/запись/умолчание значило бы выдать строку за поведение.
+        return Entry(path=rel, verdict="DEAD_MODULE", flag=flag,
+                     reason="первая исполняемая инструкция модуля — raise: main недостижим, "
+                            "дверь не ставится, читателей не ищут — снять")
     dest = _dest_of(flag, call)
     default_expr: Optional[ast.AST] = None
     required = False
@@ -512,7 +545,7 @@ def measure(repo: Path, dirs: Tuple[str, ...] = SURFACE_DIRS) -> Census:
 def render(c: Census) -> str:
     lines = [f"Перепись «песочница без названного каталога данных» · дерево {c.root} · "
              f"поверхность {', '.join(c.surface_dirs)}"]
-    order = ("MARKER_BLIND", "DOOR", "EXPLICIT_ONLY", "READER", "UNMEASURED")
+    order = ("MARKER_BLIND", "DOOR", "EXPLICIT_ONLY", "READER", "DEAD_MODULE", "UNMEASURED")
     lines.append("  точек входа с флагом каталога: " + str(len(c.entries)) + " · " +
                  " · ".join(f"{k} {c.counts.get(k, 0)}" for k in order))
     blind = c.blind
@@ -526,6 +559,8 @@ def render(c: Census) -> str:
                 imp += " · дверь ЕСТЬ в файле, но от точки входа не достигается (половина инъекции)"
             lines.append(f"    - {e.path}: {e.flag} default={e.default!r} "
                          f"[{e.default_kind}/{e.default_origin}] пишет: {forms}{imp}")
+    for e in c.dead:
+        lines.append(f"  🪦 МЁРТВЫЙ МОДУЛЬ {e.path}: {e.reason}")
     for e in c.unmeasured:
         lines.append(f"  ⚠️ НЕ ИЗМЕРЕНО {e.path}: {e.reason}")
     if c.code == 0:

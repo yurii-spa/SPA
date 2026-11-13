@@ -1,0 +1,93 @@
+{
+  "title": "ADR-1001 — род «мёртвый модуль» в переписи песочницы, снятие надгробия, сторож PEP 701 для CI на 3.11 (цикл #1120)",
+  "tests": [
+    "spa_core/tests/test_sandbox_data_dir_census.py",
+    "spa_core/tests/test_fstring_ci_python_compat.py"
+  ],
+  "mutations": [
+    {
+      "name": "M01 род никогда не срабатывает: raises_at_module_top всегда False (надгробие читается MARKER_BLIND)",
+      "file": "scripts/sandbox_data_dir_census.py",
+      "old": "        return isinstance(node, ast.Raise)\n",
+      "new": "        return False\n"
+    },
+    {
+      "name": "M02 докстринг перед raise не пропускается (надгробие с докстрингом первым читается живым)",
+      "file": "scripts/sandbox_data_dir_census.py",
+      "old": "        if isinstance(node, ast.Expr) and isinstance(node.value, ast.Constant) \\\n                and isinstance(node.value.value, str):\n            continue\n",
+      "new": "        if False:\n            continue\n"
+    },
+    {
+      "name": "M03 любой первый оператор — надгробие (raises_at_module_top всегда True)",
+      "file": "scripts/sandbox_data_dir_census.py",
+      "old": "        return isinstance(node, ast.Raise)\n",
+      "new": "        return True\n"
+    },
+    {
+      "name": "M04 надгробие числится READER (вне предмета, но под чужим именем)",
+      "file": "scripts/sandbox_data_dir_census.py",
+      "old": "        return Entry(path=rel, verdict=\"DEAD_MODULE\", flag=flag,",
+      "new": "        return Entry(path=rel, verdict=\"READER\", flag=flag,"
+    },
+    {
+      "name": "M05 рендер молчит о надгробиях",
+      "file": "scripts/sandbox_data_dir_census.py",
+      "old": "    for e in c.dead:\n",
+      "new": "    for e in []:\n"
+    },
+    {
+      "name": "M06 надгробие теряет флаг (читается как вне поверхности)",
+      "file": "scripts/sandbox_data_dir_census.py",
+      "old": "        return Entry(path=rel, verdict=\"DEAD_MODULE\", flag=flag,",
+      "new": "        return Entry(path=rel, verdict=\"DEAD_MODULE\", flag=None,"
+    },
+    {
+      "name": "M07 свойство dead пусто всегда",
+      "file": "scripts/sandbox_data_dir_census.py",
+      "old": "        return [e for e in self.entries if e.verdict == \"DEAD_MODULE\"]\n",
+      "new": "        return []\n"
+    },
+    {
+      "name": "M08 надгробие красит код возврата как слепая точка",
+      "file": "scripts/sandbox_data_dir_census.py",
+      "old": "    blind = counts.get(\"MARKER_BLIND\", 0)\n",
+      "new": "    blind = counts.get(\"MARKER_BLIND\", 0) + counts.get(\"DEAD_MODULE\", 0)\n"
+    },
+    {
+      "name": "M09 прибор читателей ищет вызывающих и у надгробий",
+      "file": "scripts/sandbox_data_dir_callers.py",
+      "old": "readers = [Reader(e.path, e.flag or \"\", e.default_origin, \"UNCALLED\") for e in census.blind]",
+      "new": "readers = [Reader(e.path, e.flag or \"\", e.default_origin, \"UNCALLED\") for e in census.entries if e.verdict in (\"MARKER_BLIND\", \"DEAD_MODULE\")]"
+    },
+    {
+      "name": "M10 сторож: кавычки никогда не сталкиваются",
+      "file": "spa_core/tests/test_fstring_ci_python_compat.py",
+      "old": "    if len(outer) == 1:\n        return inner[0] == outer\n    return inner == outer\n",
+      "new": "    if len(outer) == 1:\n        return False\n    return False\n"
+    },
+    {
+      "name": "M11 сторож: тройная внешняя + одинарная внутренняя считается столкновением (3.11 это разбирает)",
+      "file": "spa_core/tests/test_fstring_ci_python_compat.py",
+      "old": "    if len(outer) == 1:\n        return inner[0] == outer\n    return inner == outer\n",
+      "new": "    return inner[0] == outer[0]\n"
+    },
+    {
+      "name": "M12 сторож: неразбираемый файл читается чистым",
+      "file": "spa_core/tests/test_fstring_ci_python_compat.py",
+      "old": "        return [f\"{path}:{exc.lineno}: не разбирается Python",
+      "new": "        return []  # [f\"{path}:{exc.lineno}: не разбирается Python"
+    },
+    {
+      "name": "M13 сторож: комментарий внутри поля не ловится",
+      "file": "spa_core/tests/test_fstring_ci_python_compat.py",
+      "old": "        elif stack and t.type == tokenize.COMMENT:\n",
+      "new": "        elif False:\n"
+    },
+    {
+      "name": "M14 возврат байта CI-аварии: вложенная f-string с кавычкой внешней в edge_crash_funding_hedge:406 (сторож обязан покраснеть на живом дереве)",
+      "file": "scripts/edge_crash_funding_hedge.py",
+      "old": "          f\"{_fmt_half_hedge(ch['notionals_for_half_hedge'])}\")",
+      "new": "          f\"{'—' if ch['notionals_for_half_hedge'] is None else f'{ch['notionals_for_half_hedge']:.1f}'}\")"
+    }
+  ]
+}

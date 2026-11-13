@@ -1,0 +1,176 @@
+{
+  "title": "ADR-1001 — род «мёртвый модуль» в переписи песочницы, снятие надгробия, сторож PEP 701 для CI на 3.11 (цикл #1120)",
+  "tests": [
+    "spa_core/tests/test_sandbox_data_dir_census.py",
+    "spa_core/tests/test_fstring_ci_python_compat.py"
+  ],
+  "baseline_failures": [],
+  "population": 14,
+  "applied": 14,
+  "counts": {
+    "killed": 14,
+    "survived": 0,
+    "not_applied": 0,
+    "broke_collection": 0
+  },
+  "unmeasured_reason": null,
+  "rc": 0,
+  "results": [
+    {
+      "name": "M01 род никогда не срабатывает: raises_at_module_top всегда False (надгробие читается MARKER_BLIND)",
+      "file": "scripts/sandbox_data_dir_census.py",
+      "outcome": "killed",
+      "detail": "",
+      "new_failures": [
+        "spa_core/tests/test_sandbox_data_dir_census.py::TestDeadModuleKind::test_a_docstring_before_the_raise_is_still_a_tombstone",
+        "spa_core/tests/test_sandbox_data_dir_census.py::TestDeadModuleKind::test_a_tombstone_is_dead_module_not_blind_and_not_a_finding",
+        "spa_core/tests/test_sandbox_data_dir_census.py::TestDeadModuleKind::test_readers_are_not_sought_for_a_tombstone"
+      ]
+    },
+    {
+      "name": "M02 докстринг перед raise не пропускается (надгробие с докстрингом первым читается живым)",
+      "file": "scripts/sandbox_data_dir_census.py",
+      "outcome": "killed",
+      "detail": "",
+      "new_failures": [
+        "spa_core/tests/test_sandbox_data_dir_census.py::TestDeadModuleKind::test_a_docstring_before_the_raise_is_still_a_tombstone"
+      ]
+    },
+    {
+      "name": "M03 любой первый оператор — надгробие (raises_at_module_top всегда True)",
+      "file": "scripts/sandbox_data_dir_census.py",
+      "outcome": "killed",
+      "detail": "",
+      "new_failures": [
+        "spa_core/tests/test_sandbox_data_dir_census.py::TestDeadModuleKind::test_a_raise_after_an_import_is_not_a_tombstone",
+        "spa_core/tests/test_sandbox_data_dir_census.py::TestDeadModuleKind::test_a_raise_inside_main_is_not_a_tombstone",
+        "spa_core/tests/test_sandbox_data_dir_census.py::TestDeadModuleKind::test_readers_are_not_sought_for_a_tombstone",
+        "spa_core/tests/test_sandbox_data_dir_census.py::TestDeadModuleKind::test_the_live_tree_holds_no_tombstone_with_a_data_flag",
+        "spa_core/tests/test_sandbox_data_dir_census.py::TestTheProbe::test_a_scene_tree_with_the_live_bridge_is_satisfied",
+        "spa_core/tests/test_sandbox_data_dir_census.py::TestTheProbe::test_live_tree_is_satisfied_and_names_the_population",
+        "spa_core/tests/test_sandbox_data_dir_census.py::TestTheProbe::test_the_wiring_as_prose_is_not_satisfied",
+        "spa_core/tests/test_sandbox_data_dir_census.py::TestTheRealMember::test_the_bridge_without_the_one_wiring_line_is_blind",
+        "spa_core/tests/test_sandbox_data_dir_census.py::TestTheRealMember::test_the_live_bridge_is_door",
+        "spa_core/tests/test_sandbox_data_dir_census.py::TestTheRealMember::test_the_live_population_is_named_and_measured",
+        "spa_core/tests/test_sandbox_data_dir_census.py::TestThreeOutcomes::test_cli_codes_and_json",
+        "spa_core/tests/test_sandbox_data_dir_census.py::TestThreeOutcomes::test_render_names_the_subject_and_the_half_injection",
+        "spa_core/tests/test_sandbox_data_dir_census.py::TestThreeOutcomes::test_unmeasured_does_not_hide_a_named_subject",
+        "spa_core/tests/test_sandbox_data_dir_census.py::TestVerdictsOnScenes::test_a_door_defined_but_unreached_from_main_is_blind",
+        "spa_core/tests/test_sandbox_data_dir_census.py::TestVerdictsOnScenes::test_a_door_named_only_in_prose_is_blind",
+        "spa_core/tests/test_sandbox_data_dir_census.py::TestVerdictsOnScenes::test_a_reached_door_is_door",
+        "spa_core/tests/test_sandbox_data_dir_census.py::TestVerdictsOnScenes::test_a_reader_is_outside_the_subject",
+        "spa_core/tests/test_sandbox_data_dir_census.py::TestVerdictsOnScenes::test_constant_default_with_a_write_is_marker_blind",
+        "spa_core/tests/test_sandbox_data_dir_census.py::TestVerdictsOnScenes::test_delegating_root_to_stages_counts_as_writing",
+        "spa_core/tests/test_sandbox_data_dir_census.py::TestVerdictsOnScenes::test_fallback_if_is_none_form_is_a_default",
+        "spa_core/tests/test_sandbox_data_dir_census.py::TestVerdictsOnScenes::test_fallback_or_form_is_a_default",
+        "spa_core/tests/test_sandbox_data_dir_census.py::TestVerdictsOnScenes::test_imported_default_is_resolved_one_hop",
+        "spa_core/tests/test_sandbox_data_dir_census.py::TestVerdictsOnScenes::test_no_default_and_no_fallback_is_explicit_only"
+      ]
+    },
+    {
+      "name": "M04 надгробие числится READER (вне предмета, но под чужим именем)",
+      "file": "scripts/sandbox_data_dir_census.py",
+      "outcome": "killed",
+      "detail": "",
+      "new_failures": [
+        "spa_core/tests/test_sandbox_data_dir_census.py::TestDeadModuleKind::test_a_docstring_before_the_raise_is_still_a_tombstone",
+        "spa_core/tests/test_sandbox_data_dir_census.py::TestDeadModuleKind::test_a_tombstone_is_dead_module_not_blind_and_not_a_finding"
+      ]
+    },
+    {
+      "name": "M05 рендер молчит о надгробиях",
+      "file": "scripts/sandbox_data_dir_census.py",
+      "outcome": "killed",
+      "detail": "",
+      "new_failures": [
+        "spa_core/tests/test_sandbox_data_dir_census.py::TestDeadModuleKind::test_a_tombstone_is_dead_module_not_blind_and_not_a_finding"
+      ]
+    },
+    {
+      "name": "M06 надгробие теряет флаг (читается как вне поверхности)",
+      "file": "scripts/sandbox_data_dir_census.py",
+      "outcome": "killed",
+      "detail": "",
+      "new_failures": [
+        "spa_core/tests/test_sandbox_data_dir_census.py::TestDeadModuleKind::test_a_tombstone_is_dead_module_not_blind_and_not_a_finding"
+      ]
+    },
+    {
+      "name": "M07 свойство dead пусто всегда",
+      "file": "scripts/sandbox_data_dir_census.py",
+      "outcome": "killed",
+      "detail": "",
+      "new_failures": [
+        "spa_core/tests/test_sandbox_data_dir_census.py::TestDeadModuleKind::test_a_tombstone_is_dead_module_not_blind_and_not_a_finding"
+      ]
+    },
+    {
+      "name": "M08 надгробие красит код возврата как слепая точка",
+      "file": "scripts/sandbox_data_dir_census.py",
+      "outcome": "killed",
+      "detail": "",
+      "new_failures": [
+        "spa_core/tests/test_sandbox_data_dir_census.py::TestDeadModuleKind::test_a_tombstone_is_dead_module_not_blind_and_not_a_finding"
+      ]
+    },
+    {
+      "name": "M09 прибор читателей ищет вызывающих и у надгробий",
+      "file": "scripts/sandbox_data_dir_callers.py",
+      "outcome": "killed",
+      "detail": "",
+      "new_failures": [
+        "spa_core/tests/test_sandbox_data_dir_census.py::TestDeadModuleKind::test_readers_are_not_sought_for_a_tombstone"
+      ]
+    },
+    {
+      "name": "M10 сторож: кавычки никогда не сталкиваются",
+      "file": "spa_core/tests/test_fstring_ci_python_compat.py",
+      "outcome": "killed",
+      "detail": "",
+      "new_failures": [
+        "spa_core/tests/test_fstring_ci_python_compat.py::TestScenes::test_nested_same_quote_is_a_finding",
+        "spa_core/tests/test_fstring_ci_python_compat.py::TestScenes::test_scan_names_the_finding_with_its_path",
+        "spa_core/tests/test_fstring_ci_python_compat.py::TestScenes::test_the_real_form_nested_fstring_reusing_the_outer_quote_is_a_finding",
+        "spa_core/tests/test_fstring_ci_python_compat.py::TestScenes::test_triple_outer_triple_inner_is_a_finding"
+      ]
+    },
+    {
+      "name": "M11 сторож: тройная внешняя + одинарная внутренняя считается столкновением (3.11 это разбирает)",
+      "file": "spa_core/tests/test_fstring_ci_python_compat.py",
+      "outcome": "killed",
+      "detail": "",
+      "new_failures": [
+        "spa_core/tests/test_fstring_ci_python_compat.py::TestScenes::test_nested_fstring_with_distinct_quotes_is_clean",
+        "spa_core/tests/test_fstring_ci_python_compat.py::TestScenes::test_triple_outer_single_inner_is_clean_311_parses_it",
+        "spa_core/tests/test_fstring_ci_python_compat.py::TestTheLiveTree::test_no_file_in_the_repo_needs_a_newer_python_than_ci"
+      ]
+    },
+    {
+      "name": "M12 сторож: неразбираемый файл читается чистым",
+      "file": "spa_core/tests/test_fstring_ci_python_compat.py",
+      "outcome": "killed",
+      "detail": "",
+      "new_failures": [
+        "spa_core/tests/test_fstring_ci_python_compat.py::TestScenes::test_a_file_this_interpreter_cannot_parse_is_a_finding_not_clean"
+      ]
+    },
+    {
+      "name": "M13 сторож: комментарий внутри поля не ловится",
+      "file": "spa_core/tests/test_fstring_ci_python_compat.py",
+      "outcome": "killed",
+      "detail": "",
+      "new_failures": [
+        "spa_core/tests/test_fstring_ci_python_compat.py::TestScenes::test_comment_inside_a_field_is_a_finding"
+      ]
+    },
+    {
+      "name": "M14 возврат байта CI-аварии: вложенная f-string с кавычкой внешней в edge_crash_funding_hedge:406 (сторож обязан покраснеть на живом дереве)",
+      "file": "scripts/edge_crash_funding_hedge.py",
+      "outcome": "killed",
+      "detail": "",
+      "new_failures": [
+        "spa_core/tests/test_fstring_ci_python_compat.py::TestTheLiveTree::test_no_file_in_the_repo_needs_a_newer_python_than_ci"
+      ]
+    }
+  ]
+}

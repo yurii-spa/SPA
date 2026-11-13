@@ -16,8 +16,10 @@
   песочница проходит).
 * **Сцена D (шесть точек с умолчанием-fallback):** флаг не назван ⇒ дверь получила
   РАЗРЕШЁННОЕ умолчание, а не `None` («ничего» судить нельзя — инв. #17).
-* **Перепись (исход заказа G988 п. 1а):** `sandbox_data_dir_census` читает у всех 49 `DOOR`
-  (дверь достигается от входа), у читателей `uncalled == 0` и рука/промпт `== 0`.
+* **Перепись (исход заказа G988 п. 1а):** `sandbox_data_dir_census` читает у всех 48 `DOOR`
+  (дверь достигается от входа), у читателей `uncalled == 0` и рука/промпт `== 0`. Остаток
+  «один мёртвый модуль», который ADR-1000 держал поимённо, снят ADR-1001 (цикл #1120): перепись
+  различает род `DEAD_MODULE`, а сам модуль удалён — остаток обязан быть НУЛЁМ, не списком.
 * **Отрицательный контроль:** та же точка входа с закомментированной строкой двери — не `DOOR`.
 
 Сцены B/C/D ловят дверь спаем, который зовёт НАСТОЯЩУЮ `refuse_if_sandbox_leaks` и затем
@@ -90,9 +92,10 @@ TRANCHE = [
     ("spa_core/analytics/strategy_benchmark_tracker.py", "data", "--data-dir", [], False),
     ("spa_core/analytics/yield_attribution_tracker.py", "data", "--data-dir", [], False),
 ]
-# 49 в переписи минус `spa_core/analytics/cycle_health_monitor.py`: модуль поднимает ImportError
-# на ПЕРВОЙ строке (DEPRECATED → spa_core.monitoring.cycle_health_monitor) — его argparse не исполняется
-# ни при каком вызове, точкой входа он не является; перепись этого не различает (ADR-1000 § 4).
+# 49 в переписи ADR-1000 минус `spa_core/analytics/cycle_health_monitor.py`: модуль поднимал ImportError
+# на ПЕРВОЙ строке (DEPRECATED → spa_core.monitoring.cycle_health_monitor) — его argparse не исполнялся
+# ни при каком вызове, точкой входа он не являлся. ADR-1001 (цикл #1120): перепись получила род
+# `DEAD_MODULE`, файл удалён — ниже это проверяется исходом (нет в дереве, нет в переписи, `uncalled == 0`).
 assert len(TRANCHE) == 48, len(TRANCHE)
 assert len({t[0] for t in TRANCHE}) == 48
 
@@ -100,16 +103,9 @@ assert len({t[0] for t in TRANCHE}) == 48
 # иначе — `--root` (ADR-1000 § 3); для них сцена B ждёт корень, потому что `--data-dir` не назван.
 _ENV_KEYS = ("SPA_SANDBOX", "SPA_STAMP_TREE")
 
-#: Единственная слепая точка входа переписи без вызывающего, НЕ вошедшая в транш, и почему — см. ниже.
+#: Мёртвый модуль ADR-1000 § 4 — единственный остаток `UNCALLED` того транша; удалён ADR-1001.
+#: Имя оставлено, чтобы проверять ИСХОД удаления (файла нет, перепись его не числит), а не помнить его.
 DEAD_MODULE = "spa_core/analytics/cycle_health_monitor.py"
-
-
-def _raises_at_module_top(path: Path) -> bool:
-    """Первая исполняемая инструкция модуля — `raise` (мёртвый модуль, его main недостижим)."""
-    import ast
-    tree = ast.parse(path.read_text(encoding="utf-8"))
-    body = [n for n in tree.body if not (isinstance(n, ast.Expr) and isinstance(getattr(n, "value", None), ast.Constant))]
-    return bool(body) and isinstance(body[0], ast.Raise)
 
 
 def _same_or_within(path: Path, target: Path) -> bool:
@@ -384,15 +380,17 @@ class TestTheCensusReadsTheTranche(unittest.TestCase):
         cc = self.callers.measure(ROOT, census=self.c)
         self.assertEqual(cc.code, 1 if cc.counts.get("DEFAULT_RELIED") else 0,
                          cc.unmeasured_reason)
-        # Остаток `UNCALLED` — РОВНО один названный мёртвый модуль: его первая инструкция —
-        # `raise ImportError` (DEPRECATED), argparse под ним не исполняется ни при каком вызове,
-        # и ставить туда дверь значило бы судить код, который не запускается. Перепись этого
-        # не различает (ADR-1000 § 4, § 6а). Любой ДРУГОЙ остаток — красный.
+        # Остаток `UNCALLED` — НОЛЬ (ADR-1001). ADR-1000 держал здесь поимённо один мёртвый модуль
+        # (первая инструкция `raise ImportError`, argparse под ним не исполнялся ни при каком вызове);
+        # теперь перепись различает род `DEAD_MODULE` (мёртвый — не слепой, читателей у него не ищут),
+        # а сам модуль удалён из дерева. Любой остаток — красный, и мёртвых в живом дереве быть не должно.
         uncalled = sorted(r.path for r in cc.readers if r.verdict == "UNCALLED")
-        self.assertEqual(uncalled, [DEAD_MODULE], uncalled)
-        self.assertTrue(_raises_at_module_top(ROOT / DEAD_MODULE),
-                        f"{DEAD_MODULE} больше не мёртв — дверь ему теперь положена (транш 2)")
-        self.assertEqual(cc.exposure["uncalled"], 1)
+        self.assertEqual(uncalled, [], uncalled)
+        self.assertFalse((ROOT / DEAD_MODULE).exists(),
+                         f"{DEAD_MODULE} снят ADR-1001 — вернулся в дерево")
+        self.assertEqual([e.path for e in self.c.dead], [],
+                         "в живом дереве остались надгробия с флагом каталога — снять, не защищать")
+        self.assertEqual(cc.exposure["uncalled"], 0)
         self.assertEqual(cc.exposure["relied_by_prompt_or_hand"], 0)
         self.assertEqual(cc.exposure["relied_other"], 0)
         # остаток — ТОЛЬКО реестр (ADR-999 § 6в, не этой дверью)
