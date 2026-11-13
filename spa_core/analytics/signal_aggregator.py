@@ -541,6 +541,32 @@ class SignalAggregator:
 
     # ── helpers ──────────────────────────────────────────────────────────
 
+    def _context_for_modules(self, context: Dict[str, Any]) -> Dict[str, Any]:
+        """ЕДИНСТВЕННАЯ дверь, через которую каталог бегуна доходит до модуля (ADR-1003).
+
+        Замер ADR-1002 (цикл #1121): прод-вызывающие строят бегун с ``data_dir=ddir``
+        (``cycle_runner`` / ``cycle_gates``), а модулям отдавали ``context={"cycle_ts": …}``
+        — каталог до модуля НЕ доходил. 53 модуля реестра спрашивают
+        ``context.get("data_dir")`` и, не получив его, падали в своё умолчание —
+        под песочницей это запись в прод-дерево (63 модуля / 60 файлов в rsync-копии,
+        каталог бегуна — 0).
+
+        Правила двери:
+        * каталог бегуна ВЫИГРЫВАЕТ у ключа, принесённого вызывающим в контексте: у
+          прогона ОДИН адрес записи — тот, с которым построен бегун; два адреса на один
+          прогон и были бы предметом ADR-996/998;
+        * значение — ``str`` (модули делают ``Path(context.get("data_dir") or DEFAULT)``,
+          а контекст обязан оставаться JSON-сериализуемым);
+        * контекст вызывающего НЕ мутируется — отдаётся копия;
+        * в проде ``self.data_dir`` есть ``DATA_DIR`` этого файла, и все 21 константа
+          ``DATA_DIR``/``_DATA_DIR`` пакета аналитики разрешаются в тот же каталог
+          (замер #1122), поэтому байты штатного цикла не двигаются ни у одного модуля.
+        Обе двери запуска (``_run_module`` и ``_run_module_silent``) ходят только сюда.
+        """
+        ctx = dict(context)
+        ctx["data_dir"] = str(self.data_dir)
+        return ctx
+
     def _record(self, module_name: str, status: str, detail: str = "") -> None:
         self._log.append({
             "ts": _utc_now_iso(),
@@ -572,9 +598,10 @@ class SignalAggregator:
                     context: Dict[str, Any]) -> Tuple[Optional[float], bool]:
         """Запускает один модуль с таймаутом. Возвращает (score, ok). None при сбое."""
         adapter = _ModuleAdapter(module_info)
+        ctx = self._context_for_modules(context)
         try:
             score, status, detail = _run_bounded(
-                lambda: adapter.run(protocol, context),
+                lambda: adapter.run(protocol, ctx),
                 self.module_timeout,
                 adapter.module_name,
             )
@@ -599,9 +626,10 @@ class SignalAggregator:
         бы лгать в другую сторону.
         """
         adapter = _ModuleAdapter(module_info)
+        ctx = self._context_for_modules(context)
         try:
             score, status, _detail = _run_bounded(
-                lambda: adapter.run(protocol, context),
+                lambda: adapter.run(protocol, ctx),
                 self.module_timeout,
                 adapter.module_name,
             )

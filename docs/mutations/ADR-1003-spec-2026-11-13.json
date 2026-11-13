@@ -1,0 +1,63 @@
+{
+  "title": "ADR-1003 — дверь data_dir у бегуна signal_aggregator: каталог бегуна доходит до модуля одной дверью (цикл #1122)",
+  "tests": [
+    "spa_core/tests/test_signal_aggregator_data_dir_door.py",
+    "spa_core/tests/test_registry_runner_write_census.py"
+  ],
+  "mutations": [
+    {
+      "name": "M01 дверь не кладёт ключ (строка присваивания снята)",
+      "file": "spa_core/analytics/signal_aggregator.py",
+      "old": "        ctx = dict(context)\n        ctx[\"data_dir\"] = str(self.data_dir)\n        return ctx\n",
+      "new": "        ctx = dict(context)\n        return ctx\n"
+    },
+    {
+      "name": "M02 дверь всегда называет прод-умолчание, а не каталог бегуна",
+      "file": "spa_core/analytics/signal_aggregator.py",
+      "old": "        ctx[\"data_dir\"] = str(self.data_dir)\n",
+      "new": "        ctx[\"data_dir\"] = str(DATA_DIR)\n"
+    },
+    {
+      "name": "M03 вызывающий выигрывает у бегуна (setdefault вместо присваивания)",
+      "file": "spa_core/analytics/signal_aggregator.py",
+      "old": "        ctx[\"data_dir\"] = str(self.data_dir)\n",
+      "new": "        ctx.setdefault(\"data_dir\", str(self.data_dir))\n"
+    },
+    {
+      "name": "M04 значение — Path, а не str",
+      "file": "spa_core/analytics/signal_aggregator.py",
+      "old": "        ctx[\"data_dir\"] = str(self.data_dir)\n",
+      "new": "        ctx[\"data_dir\"] = self.data_dir\n"
+    },
+    {
+      "name": "M05 контекст вызывающего мутируется (копии нет)",
+      "file": "spa_core/analytics/signal_aggregator.py",
+      "old": "        ctx = dict(context)\n        ctx[\"data_dir\"] = str(self.data_dir)\n",
+      "new": "        ctx = context\n        ctx[\"data_dir\"] = str(self.data_dir)\n"
+    },
+    {
+      "name": "M06 громкая дверь запуска (_run_module) идёт мимо двери",
+      "file": "spa_core/analytics/signal_aggregator.py",
+      "old": "        adapter = _ModuleAdapter(module_info)\n        ctx = self._context_for_modules(context)\n        try:\n            score, status, detail = _run_bounded(\n",
+      "new": "        adapter = _ModuleAdapter(module_info)\n        ctx = dict(context)\n        try:\n            score, status, detail = _run_bounded(\n"
+    },
+    {
+      "name": "M07 тихая дверь запуска (_run_module_silent) идёт мимо двери",
+      "file": "spa_core/analytics/signal_aggregator.py",
+      "old": "        adapter = _ModuleAdapter(module_info)\n        ctx = self._context_for_modules(context)\n        try:\n            score, status, _detail = _run_bounded(\n",
+      "new": "        adapter = _ModuleAdapter(module_info)\n        ctx = dict(context)\n        try:\n            score, status, _detail = _run_bounded(\n"
+    },
+    {
+      "name": "M08 второй писатель ключа в бегуне (адаптер кладёт data_dir сам — две двери)",
+      "file": "spa_core/analytics/signal_aggregator.py",
+      "old": "            ctx = dict(context)\n            ctx[\"protocol\"] = protocol\n",
+      "new": "            ctx = dict(context)\n            ctx[\"protocol\"] = protocol\n            ctx.setdefault(\"data_dir\", str(DATA_DIR))\n"
+    },
+    {
+      "name": "M09 ключ под другим именем (модули-читатели его не найдут)",
+      "file": "spa_core/analytics/signal_aggregator.py",
+      "old": "        ctx[\"data_dir\"] = str(self.data_dir)\n",
+      "new": "        ctx[\"data_root\"] = str(self.data_dir)\n"
+    }
+  ]
+}

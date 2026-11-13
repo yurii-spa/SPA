@@ -19,7 +19,8 @@
   сцена с НАСТОЯЩИМ бегуном — модуль, пишущий в `data/` дерева, модуль, пишущий в `data` от cwd,
   и модуль без записи: корзины и парность со статикой считаются поимённо;
 * живое дерево: население названо по каждому вердикту, `UNMEASURED` = 0, бегун `data_dir` в контекст
-  НЕ кладёт (это ЗАМЕР состояния — изменится вместе с дверью у бегуна, и тест тогда обязан перемериться).
+  КЛАДЁТ (ADR-1003, цикл #1122: дверь `SignalAggregator._context_for_modules`; до неё ADR-1002 мерил
+  «не кладёт» — утверждение перемерено и переписано вместе с ADR, а не погашено).
 
 Прод-`data/` не пишется ни одной сценой: наблюдение идёт только в одноразовых каталогах, а отказ на
 прод-дереве проверяется через подмену `live_paths.DEFAULT_LIVE_ROOT` на одноразовый каталог.
@@ -698,11 +699,17 @@ class TestLiveTree(unittest.TestCase):
         self.assertEqual(c.counts["UNMEASURED"], 0, [m.reason for m in c.modules if m.verdict == "UNMEASURED"][:5])
         for v in rrwc.VERDICTS:
             self.assertIn(v, c.counts)
-        # ЗАМЕР состояния (ADR-1002): бегун data_dir в контекст не кладёт. Появилась дверь ⇒ перемерить и
-        # переписать это утверждение вместе с ADR, а не гасить.
-        self.assertFalse(c.runner.passes_data_dir)
+        # ЗАМЕР состояния: ADR-1002 мерил «бегун data_dir в контекст НЕ кладёт»; ADR-1003 (цикл #1122)
+        # поставил дверь — утверждение перемерено и переписано вместе с ADR, а не погашено.
+        self.assertTrue(c.runner.passes_data_dir)
+        # Дверь закрывает только читателей контекста (53 по замеру #1121); остальные записи реестра
+        # по-прежнему достигают своего умолчания от входа бегуна ⇒ предмет не пуст, код 1.
         self.assertEqual(c.code, 1)
         self.assertGreater(c.exposure["default_reached_under_sandbox"], 0)
+        self.assertEqual(c.exposure["default_reached_under_sandbox"],
+                         c.exposure["write_reachable"] - sum(
+                             1 for m in c.modules
+                             if m.verdict == "WRITE_REACHABLE" and m.reads_context_data_dir))
         self.assertEqual(tuple(c.runner.entry_methods)[:1], ("analyze",))
 
 
