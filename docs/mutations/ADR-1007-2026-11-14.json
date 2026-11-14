@@ -1,0 +1,120 @@
+{
+ "adr": "ADR-1007",
+ "title": "ADR-1007 — наблюдённый спутник у КАЖДОЙ объявленной оси прибора «реестр → бегун» (цикл #1128)",
+ "date": "2026-11-14",
+ "cycle": "#1128",
+ "spec": "docs/mutations/ADR-1007-spec-2026-11-14.json",
+ "tool": "scripts/delta_mutation_run.py (ADR-726)",
+ "tree": "/private/tmp/spa_mut_1128 (rsync-копия финальных байтов; НЕ дерево доставки)",
+ "baseline_red": 0,
+ "summary": "МУТАЦИИ ПО ДЕЛЬТЕ: применено 12 · убито 12 · выжило 0 · НЕ ПРИМЕНЕНО 0 · СЛОМАЛИ СБОРКУ 0 (население 12)",
+ "applied": 12,
+ "killed": 12,
+ "survived": 0,
+ "broke_build": 0,
+ "not_applied": 0,
+ "window_after": "окна нет (--window-check: код 0) в дереве мутаций и в дереве доставки",
+ "tests": [
+  "spa_core/tests/test_registry_census_observed_axes.py",
+  "spa_core/tests/test_registry_census_foreign_param_observed.py"
+ ],
+ "mutations": [
+  {
+   "name": "M01 предмет оси «умолчание достижимо» теряет дверь бегуна (вторая мерка расходится с печатаемым счётом)",
+   "outcome": "killed",
+   "killed_by": [
+    "spa_core/tests/test_registry_census_foreign_param_observed.py::ForeignObservedSubject::test_empty_subject_prints_no_block",
+    "spa_core/tests/test_registry_census_observed_axes.py::AxisSubjectIsOneMeasureWithTheCount::test_exposed_axis_uses_the_same_door_as_measure_both_ways",
+    "spa_core/tests/test_registry_census_observed_axes.py::EarnedVerdictOnEveryAxis::test_axis_block_is_absent_when_the_subject_is_empty"
+   ]
+  },
+  {
+   "name": "M02 неизвестная ось отвечает пустым предметом вместо отказа (fail-OPEN у объявления)",
+   "outcome": "killed",
+   "killed_by": [
+    "spa_core/tests/test_registry_census_observed_axes.py::DeclaredAxes::test_undeclared_axis_is_a_refusal_not_an_empty_answer"
+   ]
+  },
+  {
+   "name": "M03 неизвестное правило предмета отвечает пустым вместо отказа",
+   "outcome": "killed",
+   "killed_by": [
+    "spa_core/tests/test_registry_census_observed_axes.py::DeclaredAxes::test_unknown_subject_rule_is_a_refusal"
+   ]
+  },
+  {
+   "name": "M04 исход двери в правиле не сверяется с DOOR_OUTCOMES (опечатка в объявлении = молчаливый пустой предмет)",
+   "outcome": "killed",
+   "killed_by": [
+    "spa_core/tests/test_registry_census_observed_axes.py::DeclaredAxes::test_unknown_door_outcome_in_a_rule_is_a_refusal"
+   ]
+  },
+  {
+   "name": "M05 паритет предмета со счётом всегда «сходится» (расхождение двух мерок становится невидимым)",
+   "outcome": "killed",
+   "killed_by": [
+    "spa_core/tests/test_registry_census_observed_axes.py::AxisSubjectIsOneMeasureWithTheCount::test_lying_exposure_count_is_unmeasured_and_kills_the_verdict",
+    "spa_core/tests/test_registry_census_observed_axes.py::AxisSubjectIsOneMeasureWithTheCount::test_missing_exposure_count_is_none_not_agreement"
+   ]
+  },
+  {
+   "name": "M06 отсутствие счёта оси в сводке читается как согласие (НЕ ИЗМЕРЕНО выдано за «сходится»)",
+   "outcome": "killed",
+   "killed_by": [
+    "spa_core/tests/test_registry_census_observed_axes.py::AxisSubjectIsOneMeasureWithTheCount::test_missing_exposure_count_is_none_not_agreement"
+   ]
+  },
+  {
+   "name": "M07 свёртка тишины по статусу считает и писавших («вошёл и промолчал» перестаёт быть отдельным числом)",
+   "outcome": "killed",
+   "killed_by": [
+    "spa_core/tests/test_registry_census_observed_axes.py::ThreeOutcomesOnEveryAxis::test_writers_are_not_counted_in_silent_by_status"
+   ]
+  },
+  {
+   "name": "M08 спутник отвечает только о первой оси, а не о всём объявлении (две соседние оси снова без наблюдения)",
+   "outcome": "killed",
+   "killed_by": [
+    "spa_core/tests/test_registry_census_observed_axes.py::DeclaredAxes::test_observed_axes_answers_exactly_the_declared_set",
+    "spa_core/tests/test_registry_census_observed_axes.py::EarnedVerdictOnEveryAxis::test_all_wrote_says_the_counts_agree",
+    "spa_core/tests/test_registry_census_observed_axes.py::EarnedVerdictOnEveryAxis::test_long_axis_names_the_tail_it_did_not_print",
+    "spa_core/tests/test_registry_census_observed_axes.py::EarnedVerdictOnEveryAxis::test_nothing_wrote_prints_the_axis_own_tail",
+    "spa_core/tests/test_registry_census_observed_axes.py::EarnedVerdictOnEveryAxis::test_writers_make_the_gap_a_named_number",
+    "spa_core/tests/test_registry_census_observed_axes.py::ObservedAxesOnTheLiveTree::test_json_always_carries_every_declared_axis",
+    "spa_core/tests/test_registry_census_observed_axes.py::ObservedAxesOnTheLiveTree::test_live_axes_are_not_empty"
+   ]
+  },
+  {
+   "name": "M09 вывод печатается, не спросив о ненаблюдённых (НЕ ИЗМЕРЕНО выдано за «измерено и ноль»)",
+   "outcome": "killed",
+   "killed_by": [
+    "spa_core/tests/test_registry_census_foreign_param_observed.py::ForeignObservedRender::test_verdict_nothing_to_move_fires_only_when_earned",
+    "spa_core/tests/test_registry_census_observed_axes.py::EarnedVerdictOnEveryAxis::test_one_unobserved_module_silences_both_verdicts"
+   ]
+  },
+  {
+   "name": "M10 зазор «счёт минус записи» не называется числом (писавшие есть — и счёт выдан за перечень записей)",
+   "outcome": "killed",
+   "killed_by": [
+    "и счёт выдан за перечень записей) — spa_core/tests/test_registry_census_observed_axes.py::EarnedVerdictOnEveryAxis::test_writers_make_the_gap_a_named_number"
+   ]
+  },
+  {
+   "name": "M11 --json не несёт спутника осей (машинный читатель остаётся без двух новых осей)",
+   "outcome": "killed",
+   "killed_by": [
+    "spa_core/tests/test_registry_census_observed_axes.py::ObservedAxesOnTheLiveTree::test_json_always_carries_every_declared_axis",
+    "spa_core/tests/test_registry_census_observed_axes.py::ObservedAxesOnTheLiveTree::test_live_axes_are_not_empty",
+    "spa_core/tests/test_registry_census_observed_axes.py::ObservedAxesOnTheLiveTree::test_live_run_without_observation_is_unmeasured_everywhere",
+    "spa_core/tests/test_registry_census_observed_axes.py::ObservedAxesOnTheLiveTree::test_live_subject_equals_its_own_count_on_every_axis"
+   ]
+  },
+  {
+   "name": "M12 обрезанный перечень молчит о хвосте (читатель крупной оси не узнаёт, что видит не всё)",
+   "outcome": "killed",
+   "killed_by": [
+    "spa_core/tests/test_registry_census_observed_axes.py::EarnedVerdictOnEveryAxis::test_long_axis_names_the_tail_it_did_not_print"
+   ]
+  }
+ ]
+}

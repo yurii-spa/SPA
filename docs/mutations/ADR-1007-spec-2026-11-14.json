@@ -1,0 +1,81 @@
+{
+ "title": "ADR-1007 — наблюдённый спутник у КАЖДОЙ объявленной оси прибора «реестр → бегун» (цикл #1128)",
+ "tests": [
+  "spa_core/tests/test_registry_census_observed_axes.py",
+  "spa_core/tests/test_registry_census_foreign_param_observed.py"
+ ],
+ "mutations": [
+  {
+   "name": "M01 предмет оси «умолчание достижимо» теряет дверь бегуна (вторая мерка расходится с печатаемым счётом)",
+   "file": "scripts/registry_runner_write_census.py",
+   "old": "    return (m.verdict == \"WRITE_REACHABLE\"\n            and not (runner.passes_data_dir and m.data_dir_door == \"CONTEXT_PARAM\"))\n",
+   "new": "    return m.verdict == \"WRITE_REACHABLE\"\n"
+  },
+  {
+   "name": "M02 неизвестная ось отвечает пустым предметом вместо отказа (fail-OPEN у объявления)",
+   "file": "scripts/registry_runner_write_census.py",
+   "old": "    if axis not in OBSERVED_AXES:\n        raise NotMeasured(f\"ось не объявлена в OBSERVED_AXES: {axis}\")\n    rule = OBSERVED_AXES[axis][1]\n",
+   "new": "    if axis not in OBSERVED_AXES:\n        return []\n    rule = OBSERVED_AXES[axis][1]\n"
+  },
+  {
+   "name": "M03 неизвестное правило предмета отвечает пустым вместо отказа",
+   "file": "scripts/registry_runner_write_census.py",
+   "old": "    raise NotMeasured(f\"ось {axis}: правило предмета `{rule}` прибору неизвестно\")\n",
+   "new": "    return []\n"
+  },
+  {
+   "name": "M04 исход двери в правиле не сверяется с DOOR_OUTCOMES (опечатка в объявлении = молчаливый пустой предмет)",
+   "file": "scripts/registry_runner_write_census.py",
+   "old": "        if door not in DOOR_OUTCOMES:\n            raise NotMeasured(f\"ось {axis}: исход двери `{door}` не объявлен в DOOR_OUTCOMES\")\n",
+   "new": "        pass\n"
+  },
+  {
+   "name": "M05 паритет предмета со счётом всегда «сходится» (расхождение двух мерок становится невидимым)",
+   "file": "scripts/registry_runner_write_census.py",
+   "old": "              \"agrees\": None if declared is None else declared == len(subject)}\n",
+   "new": "              \"agrees\": True}\n"
+  },
+  {
+   "name": "M06 отсутствие счёта оси в сводке читается как согласие (НЕ ИЗМЕРЕНО выдано за «сходится»)",
+   "file": "scripts/registry_runner_write_census.py",
+   "old": "    declared = census.exposure.get(axis)\n",
+   "new": "    declared = census.exposure.get(axis, len(subject))\n"
+  },
+  {
+   "name": "M07 свёртка тишины по статусу считает и писавших («вошёл и промолчал» перестаёт быть отдельным числом)",
+   "file": "scripts/registry_runner_write_census.py",
+   "old": "            if outcome == \"SILENT\":\n                silent_by_status[status] = silent_by_status.get(status, 0) + 1\n",
+   "new": "            silent_by_status[status] = silent_by_status.get(status, 0) + 1\n"
+  },
+  {
+   "name": "M08 спутник отвечает только о первой оси, а не о всём объявлении (две соседние оси снова без наблюдения)",
+   "file": "scripts/registry_runner_write_census.py",
+   "old": "    return {axis: axis_observed(census, obs, axis) for axis in OBSERVED_AXES}\n",
+   "new": "    return {\"door_foreign_param\": axis_observed(census, obs, \"door_foreign_param\")}\n"
+  },
+  {
+   "name": "M09 вывод печатается, не спросив о ненаблюдённых (НЕ ИЗМЕРЕНО выдано за «измерено и ноль»)",
+   "file": "scripts/registry_runner_write_census.py",
+   "old": "        elif oc[\"UNMEASURED\"] == 0 and oc[\"WROTE\"] == 0 and oc[\"SILENT\"]:\n",
+   "new": "        elif oc[\"WROTE\"] == 0 and oc[\"SILENT\"]:\n"
+  },
+  {
+   "name": "M10 зазор «счёт минус записи» не называется числом (писавшие есть — и счёт выдан за перечень записей)",
+   "file": "scripts/registry_runner_write_census.py",
+   "old": "            out.append(f\"    ⇒ писали {oc['WROTE']} из {n}: статический счёт `{axis}` \"\n                       + (f\"БОЛЬШЕ числа наблюдённых записей на {gap}\" if gap\n                          else \"совпал с числом наблюдённых записей\"))\n",
+   "new": "            out.append(f\"    ⇒ писали {oc['WROTE']} из {n}: статический счёт `{axis}` \"\n                       + \"совпал с числом наблюдённых записей\")\n"
+  },
+  {
+   "name": "M11 --json не несёт спутника осей (машинный читатель остаётся без двух новых осей)",
+   "file": "scripts/registry_runner_write_census.py",
+   "old": "        doc[\"observed_axes\"] = observed_axes(c, obs)\n",
+   "new": "        pass\n"
+  },
+  {
+   "name": "M12 обрезанный перечень молчит о хвосте (читатель крупной оси не узнаёт, что видит не всё)",
+   "file": "scripts/registry_runner_write_census.py",
+   "old": "        if len(fo[\"per_module\"]) > 40:\n",
+   "new": "        if False:\n"
+  }
+ ]
+}
