@@ -9,12 +9,6 @@ priority: critical
 status_trail:
   - "2026-08-26T22:31:36.748790+00:00 new -> in-progress · queue.set_status · cycle-96657"
 acceptance_probe: apy_name_carries_one_kind
-claimed_by: cycle-30066
-claimed_at: 2026-11-14T23:16:01Z
-claimed_run_id: orchestrator-30066-22D0A6894FBD466B8001B4B82AEBFCD2
-claimed_pid: 30066
-claimed_pid_start: Sun Nov 15 00:13:34 2026
-claim_takeover_reason: цикл #1133: наследство #1132 доставлено целиком — ADR-1010 на origin/main c4ea7be8e, захват снят самим #1132 коммитом 0cf7205ba (frontmatter карточки на ac8f5497e не несёт ни одного поля claim_*); работа #1133 — заказ G1000 п. 1 (г) из нового worktree c1133 на ac8f5497e
 ---
 
 ## УКАЗАНИЕ ВЛАДЕЛЬЦА 2026-08-22 (cloud-сессия): ЗАПУСТИТЬ СЛЕДУЮЩИМ ЦИКЛОМ
