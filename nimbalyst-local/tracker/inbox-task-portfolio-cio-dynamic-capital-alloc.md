@@ -9,12 +9,6 @@ priority: critical
 status_trail:
   - "2026-08-26T22:31:36.748790+00:00 new -> in-progress · queue.set_status · cycle-96657"
 acceptance_probe: apy_name_carries_one_kind
-claimed_by: cycle-1126
-claimed_at: 2026-11-14T11:41:25Z
-claimed_run_id: orchestrator-12877-F3B2D5542066428E9C4FC1D6E8546A1D
-claimed_pid: 12877
-claimed_pid_start: Sat Nov 14 12:37:03 2026
-claim_takeover_reason: цикл #1126: работа #1125 (ADR-1005, ось FOREIGN_PARAM у прибора ADR-1002) НЕ потеряна — она закончена и лежит в SPA_worktrees/c1125 незакоммиченной; md5 всех трёх файлов доставки совпали с объявлением § 5 самого ADR-1005 (8d9553f8 · eddafbea · 09dcdae5), окна мутационного прибора в дереве нет, py_compile OK; origin/main 0600faeb9 её НЕ несёт. #1126 повторяет мутации (8) и батарею на ФИНАЛЬНЫХ байтах и доставляет
 ---
 
 ## УКАЗАНИЕ ВЛАДЕЛЬЦА 2026-08-22 (cloud-сессия): ЗАПУСТИТЬ СЛЕДУЮЩИМ ЦИКЛОМ
