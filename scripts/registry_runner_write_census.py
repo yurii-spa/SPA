@@ -71,6 +71,17 @@ ADR-999 измерил читателей слепых точек входа к�
 (остальные статусы молчат по основаниям, объясняющимся раньше пути). Ось, спорящая со своим счётом,
 делает разбор НЕ ИЗМЕРЕННЫМ: причины над неподтверждённым населением не печатаются.
 
+**ПРИЧИНА НЕВХОДА (ADR-1009).** Соседний вопрос у статуса `unchecked`: ADR-1007 § 6б свернул 42
+таких модуля словами «бегун не входит вовсе», а это УТВЕРЖДЕНИЕ О МЕХАНИЗМЕ — и в бегуне к одному
+ярлыку `unchecked` ведут ДВА РАЗНЫХ: сентинел `UNCHECKED` из `_invoke` (ни один вход не биндит
+контекст — бегун действительно не вошёл) и ПАДЕНИЕ входа, который контекст принять МОГ, с диагнозом
+`_foreign_input_entrypoint` (вход требует доменный тип) — а туда бегун ВОШЁЛ. Основание ответа —
+те же исполненные строки (строка ТЕЛА входа исполнилась ⇒ вошёл), вторая независимая сторона —
+СЛОВА бегуна, читаемые ПАРИТЕТОМ с объявлением (`RUNNER_UNCHECKED_MARKERS`): появись у бегуна
+третий путь — прибор говорит НЕ ИЗМЕРЕНО, а не раскладывает новый механизм по двум старым именам.
+Расхождение сторон есть НАХОДКА (`DISAGREED`), не повод выбрать удобную. Словарь — `UNENTERED_CAUSES`,
+оси — `UNENTERED_AXES`.
+
 Коды: 0 — предмет пуст и измерен (ни одного `WRITE_REACHABLE`, умолчание которого достижимо у бегуна) ·
 1 — предмет назван · 2 — НЕ ИЗМЕРЕНО (реестр/бегун не прочитаны, `_ENTRY_METHODS` не найден, пустая
 поверхность). Как у соседних переписей: `UNMEASURED` у отдельных модулей не прячет названный предмет.
@@ -199,6 +210,52 @@ SILENT_CAUSE_AXIS = "default_reached_under_sandbox"
 
 #: Статус бегуна, которому вопрос о причине ПРИНАДЛЕЖИТ. Остальные — другие оси (см. выше).
 SILENT_CAUSE_STATUS = "ok"
+
+#: Причины статуса `unchecked` у модуля внутри предмета оси (ADR-1009 = ADR-1008 § 7а).
+#: ADR-1007 § 6б свернул 42 таких модуля словами «бегун не входит — ось ADR-999/1000», ADR-1008 § 2
+#: повторил формулировку, и заказ G998 п. 1 (а) назвал её премисой работы. Премиса — УТВЕРЖДЕНИЕ О
+#: МЕХАНИЗМЕ, и в бегуне к одному ярлыку `unchecked` ведут ДВА РАЗНЫХ: сентинел `UNCHECKED` из
+#: `_invoke` (ни один вход не биндит контекст — бегун действительно НЕ ВОШЁЛ) и ПАДЕНИЕ входа,
+#: который контекст принять МОГ, с диагнозом `_foreign_input_entrypoint` (вход требует доменный
+#: тип) — а туда бегун ВОШЁЛ и исполнил его строки. Один ярлык, два механизма, имя — по одному.
+#:
+#: Основание ответа — те же НАБЛЮДЁННЫЕ исполненные строки, что у ADR-1008: строка ТЕЛА входа
+#: исполнилась ⇒ бегун в него вошёл. Вторая, независимая сторона — СЛОВА самого бегуна, читаемые
+#: паритетом с объявлением (`RUNNER_UNCHECKED_MARKERS`, `read_runner_unchecked_markers`).
+#:
+#: * ``NO_ENTRY_BOUND`` — ни одна строка тела ни одного входа-кандидата не исполнена, и бегун
+#:   говорит то же: контекст не биндится ни одной формой, вход не позван. ТОЛЬКО здесь премиса
+#:   «бегун не входит» верна, и только здесь предмет статики под бегуном НЕ СУЩЕСТВУЕТ;
+#: * ``ENTERED_RAISED_FOREIGN`` — строки тела входа ИСПОЛНЕНЫ, вход отказал на `Mapping`: бегун
+#:   вошёл, предмет статики существует, а мешает ФОРМА контекста (класс ADR #136), не отсутствие
+#:   входа. Премиса «бегун не входит» здесь ЛОЖНА, и починка у этих модулей ДРУГАЯ;
+#: * ``DISAGREED`` — ТРЕТИЙ ИСХОД: стороны расходятся (строки говорят одно, бегун другое). Выбрать
+#:   удобную значило бы вернуть ровно тот дефект, которым ярлык оказался на двух механизмах;
+#: * ``UNNAMED`` — ТРЕТИЙ ИСХОД (инв. #17) с основанием: наблюдение без исполненных строк · файл
+#:   не разобран · в файле нет входа с объявленным бегуном именем · бегун объяснил статус словами,
+#:   которых объявление прибора не несёт. Нулём и «причин нет» это не считается никогда.
+UNENTERED_CAUSES = ("NO_ENTRY_BOUND", "ENTERED_RAISED_FOREIGN", "DISAGREED", "UNNAMED")
+
+#: Статус бегуна, которому принадлежит вопрос «входил ли он вообще». У `ok` спрашивают другое
+#: (почему вошедший не записал — `SILENT_CAUSES`), у `failed`/`dormant` — свои оси (ADR-1007 § 6в).
+UNENTERED_CAUSE_STATUS = "unchecked"
+
+#: Оси, у которых спрашивается причина НЕВХОДА, — ВСЕ объявленные (`OBSERVED_AXES`), а не пара,
+#: названная заказом. Заказ G998 п. 1 (а) назвал две (предмет прибора `default_reached_under_sandbox`
+#: с 42 `unchecked` и третий исход двери `door_unresolved` с 5), но `unchecked` есть и у третьей
+#: (`door_foreign_param`, 4 замером #1131): спроси прибор РОВНО то, что названо вслух, — и четыре
+#: модуля остались бы с премисой, которой никто не мерил, причём молча. Перечень берётся у
+#: объявления: ось, выбранная зовом, отвечала бы о населении, которого объявление не несёт (ADR-1007).
+UNENTERED_AXES: Tuple[str, ...] = tuple(OBSERVED_AXES)
+
+#: ГОЛОВА объяснения бегуна (текст до подстановки) → причина. Сверяется с AST бегуна: литерал,
+#: которого здесь нет, делает разбор НЕ ИЗМЕРЕННЫМ целиком, а не раскладывается по двум известным
+#: именам. Это паритет с объявлением, а не подстрока, зашитая в прибор: мерка, сверяющая свои
+#: константы САМА С СОБОЙ, уже была предметом (ADR-913).
+RUNNER_UNCHECKED_MARKERS: Dict[str, str] = {
+    "no context-accepting entrypoint": "NO_ENTRY_BOUND",
+    "entrypoint requires non-mapping input, adapter supplies Mapping:": "ENTERED_RAISED_FOREIGN",
+}
 
 #: Формы записи. `os.replace`/`os.rename`/`os.makedirs`/`shutil.*`/`json.dump` — только у СВОЕГО модуля
 #: (`str.replace` записью не является); `write_text`/`write_bytes`/`mkdir` — у любого объекта;
@@ -1592,6 +1649,212 @@ def silent_causes(repo: Path, census: Census, obs: Optional[Dict[str, Any]],
             "per_module": per_module, "parity": parity, "unmeasured_reason": None}
 
 
+
+# ─────── причина НЕВХОДА: почему бегун ответил `unchecked` (ADR-1009 = ADR-1008 § 7а) ───────
+
+
+def read_runner_unchecked_markers(repo: Path) -> Dict[int, str]:
+    """Литералы, которыми БЕГУН объясняет свой `unchecked` — из его AST, а не из копии в приборе.
+
+    ADR-1007 § 6б и ADR-1008 § 2 назвали 42 `unchecked` словами «бегун не входит вовсе», и это
+    УТВЕРЖДЕНИЕ О МЕХАНИЗМЕ, которого ни один замер не проверял: в `run()` бегуна к статусу
+    `unchecked` ведут ДВА РАЗНЫХ пути — сентинел `UNCHECKED` из `_invoke` («ни один вход не
+    биндит контекст», бегун действительно не вошёл) и ПАДЕНИЕ входа, который контекст принять
+    МОГ, с диагнозом `_foreign_input_entrypoint` («вход требует доменный тип») — а туда бегун
+    ВОШЁЛ. Один ярлык на два механизма, и ярлык назван по одному из них.
+
+    Поэтому вторая, независимая сторона ответа берётся у САМОГО бегуна, но его слова читаются
+    ПАРИТЕТОМ С ОБЪЯВЛЕНИЕМ (`RUNNER_UNCHECKED_MARKERS`), а не подстрокой, зашитой в прибор:
+    появись у бегуна третий путь к `unchecked` или смени он формулировку — прибор обязан сказать
+    НЕ ИЗМЕРЕНО, а не разложить новый механизм по двум старым именам. Своя копия текста молча
+    отвечала бы о бегуне, которого в дереве уже нет (знакомый класс: мерка, сверяющая свои
+    константы САМА С СОБОЙ, ADR-913).
+
+    Возвращает {строка объявления → литерал}. Пусто ⇒ `NotMeasured`: судить о причинах
+    `unchecked`, не найдя в бегуне ни одного объяснения, значило бы выдать догадку за замер.
+    """
+    runner = repo / RUNNER_REL
+    if not runner.is_file():
+        raise NotMeasured(f"бегуна нет: {runner}")
+    try:
+        tree = _read_tree(runner)
+    except (SyntaxError, UnicodeDecodeError, OSError) as exc:
+        raise NotMeasured(f"бегун не разобран: {type(exc).__name__}: {exc}")
+    found: Dict[int, str] = {}
+    for node in ast.walk(tree):
+        if not isinstance(node, ast.Return) or not isinstance(node.value, ast.Tuple):
+            continue
+        elts = node.value.elts
+        if len(elts) != 3:
+            continue
+        if not (isinstance(elts[1], ast.Constant) and elts[1].value == UNENTERED_CAUSE_STATUS):
+            continue
+        detail = elts[2]
+        # `"…" % (…)` — литерал в ЛЕВОЙ части: голова объяснения объявлена, хвост подставляется
+        if isinstance(detail, ast.Constant) and isinstance(detail.value, str):
+            found[node.lineno] = detail.value
+        elif isinstance(detail, ast.BinOp) and isinstance(detail.left, ast.Constant) \
+                and isinstance(detail.left.value, str):
+            found[node.lineno] = detail.left.value
+        else:
+            raise NotMeasured(
+                f"бегун объясняет `{UNENTERED_CAUSE_STATUS}` в строке {node.lineno} не литералом "
+                f"({type(detail).__name__}) — объявление прибора такой формы не несёт")
+    if not found:
+        raise NotMeasured(
+            f"в бегуне не найдено ни одного объявленного объяснения статуса `{UNENTERED_CAUSE_STATUS}`")
+    return found
+
+
+def _marker_head(literal: str) -> str:
+    """ГОЛОВА объяснения: литерал до первой подстановки — она объявлена, хвост подставляется."""
+    return literal.split("%")[0].rstrip()
+
+
+def _marker_cause(detail: str, declared: Dict[int, str]) -> Optional[str]:
+    """Причина по СЛОВАМ бегуна: голова объявленного литерала — начало его `detail`.
+
+    Длинные головы пробуются первыми: вложись одно объяснение в другое, выбор «какое попалось
+    раньше» зависел бы от порядка обхода, а не от текста (тот же довод, что у `PYTHONHASHSEED`).
+    """
+    for head in sorted({_marker_head(lit) for lit in declared.values() if _marker_head(lit)},
+                       key=len, reverse=True):
+        if detail.startswith(head):
+            return RUNNER_UNCHECKED_MARKERS.get(head)
+    return None
+
+
+def _candidate_entries(tree: ast.Module, entry_methods: Tuple[str, ...]) -> Dict[str, Any]:
+    """Входы-КАНДИДАТЫ: функции модуля и методы его классов, чьё ИМЯ объявлено бегуном.
+
+    Спрашивается именно кандидат, а не выбранный статикой вход: выбор статики — её ответ, а
+    вопрос «входил ли бегун» принадлежит ЛЮБОМУ входу, который бегун мог позвать. Перечень имён
+    берётся у бегуна (`RunnerSide.entry_methods`, то же чтение AST, которым его получает
+    `measure()`), поэтому второй копии правила у прибора нет.
+    """
+    out: Dict[str, Any] = {}
+    for n in tree.body:
+        if isinstance(n, (ast.FunctionDef, ast.AsyncFunctionDef)) and n.name in entry_methods:
+            out[n.name] = n
+        elif isinstance(n, ast.ClassDef):
+            for b in n.body:
+                if isinstance(b, (ast.FunctionDef, ast.AsyncFunctionDef)) and b.name in entry_methods:
+                    out[f"{n.name}.{b.name}"] = b
+    return out
+
+
+def _module_unentered_cause(repo: Path, mv: ModuleVerdict, lines: Optional[List[int]],
+                            detail: Optional[str], entry_methods: Tuple[str, ...],
+                            declared: Dict[int, str]) -> Dict[str, Any]:
+    """Причина `unchecked` ОДНОГО модуля: исполненные строки входа — первая сторона, слова бегуна — вторая.
+
+    Первая сторона НАБЛЮДЕНА и ни о чём не догадывается: строка тела входа исполнилась ⇒ бегун в
+    него ВОШЁЛ. Вторая — ответ самого бегуна. Расхождение сторон есть НАХОДКА (`DISAGREED`), а не
+    повод выбрать удобную: подставить одну из двух значило бы вернуть ровно тот дефект, которым
+    ярлык `unchecked` и оказался на двух механизмах.
+    """
+    if lines is None:
+        return {"cause": "UNNAMED", "detail": "наблюдение не несёт исполненных строк модуля",
+                "entered_entries": [], "runner_said": None}
+    said = _marker_cause(detail or "", declared)
+    try:
+        tree = _read_tree(repo / mv.path)
+    except (SyntaxError, UnicodeDecodeError, OSError) as exc:
+        return {"cause": "UNNAMED", "detail": f"файл не разобран: {type(exc).__name__}: {exc}",
+                "entered_entries": [], "runner_said": said}
+    cands = _candidate_entries(tree, entry_methods)
+    if not cands:
+        return {"cause": "UNNAMED",
+                "detail": "в файле нет ни одного входа с объявленным бегуном именем — входить было некуда",
+                "entered_entries": [], "runner_said": said}
+    executed = set(lines)
+    entered = sorted(name for name, fn in cands.items() if _body_span(fn) & executed)
+    by_lines = "ENTERED_RAISED_FOREIGN" if entered else "NO_ENTRY_BOUND"
+    if said is None:
+        return {"cause": "UNNAMED",
+                "detail": (f"бегун объяснил статус словами, которых объявление прибора не несёт: "
+                           f"{(detail or '')[:80]!r}"),
+                "entered_entries": entered, "runner_said": None}
+    if said != by_lines:
+        return {"cause": "DISAGREED",
+                "detail": (f"стороны РАСХОДЯТСЯ: исполненные строки говорят `{by_lines}`"
+                           + (f" (вход {', '.join(entered)})" if entered else " (ни одна строка входа)")
+                           + f", бегун — `{said}`"),
+                "entered_entries": entered, "runner_said": said}
+    if by_lines == "ENTERED_RAISED_FOREIGN":
+        return {"cause": by_lines,
+                "detail": (f"бегун ВОШЁЛ (исполнены строки тела {', '.join(entered)}) и вход отказал на "
+                           f"Mapping — предмет статики существует, мешает ФОРМА контекста, а не отсутствие входа"),
+                "entered_entries": entered, "runner_said": said}
+    return {"cause": by_lines,
+            "detail": (f"ни одна строка тела входов ({', '.join(sorted(cands))}) не исполнена — "
+                       f"контекст не биндится ни одной формой; предмет статики под бегуном НЕ СУЩЕСТВУЕТ"),
+            "entered_entries": [], "runner_said": said}
+
+
+def unentered_causes(repo: Path, census: Census, obs: Optional[Dict[str, Any]],
+                     axis: str = SILENT_CAUSE_AXIS) -> Dict[str, Any]:
+    """Причины статуса `unchecked` внутри предмета объявленной оси (ADR-1009 = ADR-1008 § 7а).
+
+    Предмет вопроса — ПЕРЕСЕЧЕНИЕ предмета оси (`axis_observed`, та же единственная дверь) И
+    статуса бегуна `unchecked`, ровно как `silent_causes` делает это для `ok`. Вопрос у них
+    РАЗНЫЙ: у `ok` спрашивают, почему вошедший не записал, здесь — ВХОДИЛ ЛИ ОН ВООБЩЕ.
+
+    Три исхода различимы (инв. #17): причина НАЗВАНА · НЕ НАЗВАНА (`UNNAMED`/`DISAGREED` с
+    основанием) · наблюдения не было вовсе (`subject` пуст, `unmeasured_reason` назван).
+    """
+    sputnik = axis_observed(census, obs, axis)
+    empty = {"axis": axis, "status": UNENTERED_CAUSE_STATUS, "subject": 0, "causes": {},
+             "per_module": [], "parity": {"unchecked": None, "subject": 0, "agrees": None}}
+    if obs is None:
+        return {**empty, "unmeasured_reason": "наблюдение не запускалось (--observe не задан)"}
+    axis_parity = sputnik["parity"]
+    if axis_parity["agrees"] is not True:
+        return {**empty, "unmeasured_reason": (
+            f"предмет оси `{axis}` не подтверждён её же счётом "
+            f"(предмет {axis_parity['subject']}, счёт {axis_parity['exposure']})")}
+    try:
+        declared = read_runner_unchecked_markers(repo)
+    except NotMeasured as exc:
+        return {**empty, "unmeasured_reason": str(exc)}
+    unknown = sorted({_marker_head(lit) for lit in declared.values()}
+                     - set(RUNNER_UNCHECKED_MARKERS))
+    if unknown:
+        # Паритет с объявлением: новый путь бегуна к `unchecked` обязан СТАТЬ ВИДИМЫМ, а не
+        # разойтись по двум старым именам — иначе прибор ответит о бегуне, которого нет в дереве.
+        return {**empty, "unmeasured_reason": (
+            "бегун объясняет `%s` словами, которых объявление прибора не несёт: %s"
+            % (UNENTERED_CAUSE_STATUS, "; ".join(repr(u) for u in unknown)))}
+    by_name = {m.module: m for m in census.modules}
+    obs_of = {r["module"]: r for r in obs.get("per_module", [])}
+    subject = [e for e in sputnik["per_module"]
+               if e["outcome"] == "SILENT" and e["runner_status"] == UNENTERED_CAUSE_STATUS]
+    causes = {k: 0 for k in UNENTERED_CAUSES}
+    per_module: List[Dict[str, Any]] = []
+    for e in subject:
+        mv = by_name.get(e["module"])
+        r = obs_of.get(e["module"]) or {}
+        if mv is None:
+            row = {"cause": "UNNAMED", "detail": "модуля нет в переписи",
+                   "entered_entries": [], "runner_said": None}
+        else:
+            row = _module_unentered_cause(repo, mv, r.get("lines"), r.get("detail"),
+                                          census.runner.entry_methods, declared)
+        causes[row["cause"]] += 1
+        per_module.append({"module": e["module"], **row})
+    declared_n = sputnik["silent_by_status"].get(UNENTERED_CAUSE_STATUS)
+    parity = {"unchecked": declared_n, "subject": len(subject),
+              "agrees": None if declared_n is None else declared_n == len(subject)}
+    return {"axis": axis, "status": UNENTERED_CAUSE_STATUS, "subject": len(subject),
+            "causes": causes, "per_module": per_module, "parity": parity, "unmeasured_reason": None}
+
+
+def unentered_causes_by_axis(repo: Path, census: Census,
+                             obs: Optional[Dict[str, Any]]) -> Dict[str, Dict[str, Any]]:
+    """Разбор у КАЖДОЙ оси из `UNENTERED_AXES` — перечень осей объявлен, а не выбран зовом."""
+    return {axis: unentered_causes(repo, census, obs, axis) for axis in UNENTERED_AXES}
+
+
 def to_doc(c: Census) -> dict:
     return {"root": c.root, "runner": asdict(c.runner), "counts": c.counts, "exposure": c.exposure,
             "blind_subset": c.blind_subset, "code": c.code, "unmeasured_reason": c.unmeasured_reason,
@@ -1683,6 +1946,44 @@ def render(c: Census, obs: Optional[Dict[str, Any]] = None) -> str:
         out.append(f"    ⇒ причина НАЗВАНА у {named} из {sc['subject']}, НЕ НАЗВАНА у "
                    f"{sc['causes']['UNNAMED']}: причина решает, была бы починка двери каталога "
                    f"дверью с ЧИТАТЕЛЕМ или ложным усилением (ADR-940…944)")
+    for axis, uc in unentered_causes_by_axis(Path(c.root), c, obs).items():
+        head = f"  ПРИЧИНЫ статуса `{UNENTERED_CAUSE_STATUS}` у оси `{axis}` (ADR-1009)"
+        if uc["unmeasured_reason"]:
+            out.append(f"{head}: ⚠️ НЕ ИЗМЕРЕНО — {uc['unmeasured_reason']}")
+            continue
+        if uc["parity"]["agrees"] is False:
+            out.append(f"{head}: ⚠️ НЕ ИЗМЕРЕНО — предмет ({uc['parity']['subject']}) расходится "
+                       f"со свёрткой статуса ({uc['parity']['unchecked']}); разбор НЕ печатается, "
+                       f"пока мерки не одна")
+            continue
+        if not uc["subject"]:
+            out.append(f"{head}: предмет ПУСТ — ни одного модуля с этим статусом внутри оси "
+                       f"(измерено и равно нулю, не «не мерили»)")
+            continue
+        out.append(f"{head} — предмет {uc['subject']}; основание: ИСПОЛНЕННЫЕ строки тела входа "
+                   f"+ слова бегуна паритетом с объявлением:")
+        for cause in UNENTERED_CAUSES:
+            if uc["causes"][cause]:
+                out.append(f"    {cause:<24} {uc['causes'][cause]}")
+        for e in uc["per_module"][:40]:
+            out.append(f"    {e['module']}: {e['cause']} — {e['detail']}")
+        if len(uc["per_module"]) > 40:
+            out.append(f"    … и ещё {len(uc['per_module']) - 40} (полный перечень — `--json`, "
+                       f"ключ `unentered_causes.{axis}.per_module`)")
+        not_entered = uc["causes"]["NO_ENTRY_BOUND"]
+        entered = uc["causes"]["ENTERED_RAISED_FOREIGN"]
+        # Пояснение печатается ТОЛЬКО у непустой стороны: фраза «там бегун вошёл» при нуле
+        # описывала бы население, которого замер не нашёл, — число без своего смысла.
+        out.append(f"    ⇒ премиса «бегун не входит» (ADR-1007 § 6б) ВЕРНА у {not_entered} из "
+                   f"{uc['subject']} и ЛОЖНА у {entered}"
+                   + (f"; у этих {entered} бегун ВОШЁЛ и вход отказал на Mapping — предмет статики "
+                      f"существует, мешает ФОРМА контекста (класс ADR #136), и починка у них ДРУГАЯ"
+                      if entered else "")
+                   + (f"; у этих {not_entered} контекст не биндится ни одной формой — предмет "
+                      f"статики под бегуном НЕ СУЩЕСТВУЕТ (ось ADR-999/1000)" if not_entered else ""))
+        if uc["causes"]["DISAGREED"] or uc["causes"]["UNNAMED"]:
+            out.append(f"    ⚠️ третий исход: DISAGREED {uc['causes']['DISAGREED']} · "
+                       f"UNNAMED {uc['causes']['UNNAMED']} — основание названо у каждого поимённо")
     unm = [m for m in c.modules if m.verdict == "UNMEASURED"]
     if unm:
         out.append("  НЕ ИЗМЕРЕНО (модули):")
@@ -1743,6 +2044,10 @@ def main(argv: Optional[List[str]] = None) -> int:
         # а названная причина «не мерили» (машинный читатель, получивший нули, был бы предметом
         # этого решения с другой стороны — тот же довод, что у `observed_axes`).
         doc["silent_causes"] = silent_causes(repo, c, obs)
+        # ADR-1009: причины статуса `unchecked` у КАЖДОЙ объявленной оси (`UNENTERED_AXES`) —
+        # тот же порядок, что у `observed_axes`/`silent_causes`: без наблюдения это НЕ нули, а
+        # названная причина «не мерили».
+        doc["unentered_causes"] = unentered_causes_by_axis(repo, c, obs)
         print(json.dumps(doc, ensure_ascii=False, indent=2))
     else:
         print(render(c, obs))
