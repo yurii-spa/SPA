@@ -88,6 +88,7 @@ ADR-999 измерил читателей слепых точек входа к�
 
     python3 scripts/registry_runner_write_census.py [--repo-root <дерево>] [--readers-json <callers.json>] [--json]
     python3 scripts/registry_runner_write_census.py --observe <одноразовое дерево> [--timeout 3] [--protocol aave_v3]
+    python3 scripts/registry_runner_write_census.py --observe <одноразовое дерево> --protocols all   # различие по протоколам (ADR-1010)
 """
 from __future__ import annotations
 
@@ -256,6 +257,50 @@ RUNNER_UNCHECKED_MARKERS: Dict[str, str] = {
     "no context-accepting entrypoint": "NO_ENTRY_BOUND",
     "entrypoint requires non-mapping input, adapter supplies Mapping:": "ENTERED_RAISED_FOREIGN",
 }
+
+#: ИМЯ объявления протоколов У БЕГУНА. Протокол — ВХОД наблюдения, и до ADR-1010 он был входом
+#: НЕОБЪЯВЛЕННЫМ: `--protocol` имел умолчание `aave_v3`, все замеры ADR-1002…1009 сняты на нём
+#: одном, а вопрос «различается ли МЕХАНИЗМ по протоколам» никто не задавал (заказ G999 п. 1б).
+#: Перечень читается у САМОГО бегуна (`read_runner_protocols`), а не хранится копией в приборе:
+#: своя копия ответила бы о населении, которого в дереве уже нет (ADR-913 — мерка, сверяющая свои
+#: константы САМА С СОБОЙ; тот же довод, что у `RUNNER_UNCHECKED_MARKERS`).
+RUNNER_PROTOCOLS_NAME = "DEFAULT_PROTOCOLS"
+
+#: Меньше двух наблюдений на вопрос «РАЗЛИЧАЕТСЯ ли» не отвечают вовсе: один протокол даёт
+#: значение, а не различие. Это ТРЕТИЙ ИСХОД (инв. #17), а не «различий нет» — именно подстановка
+#: «одно наблюдение ⇒ инвариантно» и держала семь ADR на одном `aave_v3`.
+PROTOCOL_VARIANCE_MIN = 2
+
+#: Исходы сравнения. `UNMEASURED` обязателен и у КАЖДОЙ стороны отдельно: сторона, чей разбор не
+#: состоялся хотя бы под одним протоколом, не имеет права дать «инвариантно» по остальным.
+PROTOCOL_VERDICTS = ("INVARIANT", "VARIES", "UNMEASURED")
+#: Читатели объявления: имена вердиктов берутся ОТСЮДА, а не вписываются рядом второй копией.
+#: Объявление без читателя есть ложное усиление (ADR-940…944) — именно его этот прибор и ловит.
+_PV_INVARIANT, _PV_VARIES, _PV_UNMEASURED = PROTOCOL_VERDICTS
+
+#: Два РАЗНЫХ вида различия, и свернуть их в одно имя нельзя — это ровно дефект ADR-1009 (один
+#: ярлык на два механизма), только на уровень выше:
+#:
+#: * ``SUBJECT_MOVED`` — модуль ВХОДИТ в предмет под одними протоколами и НЕ входит под другими.
+#:   Различается САМО НАСЕЛЕНИЕ, поэтому число, снятое на одном протоколе, есть число о нём одном;
+#: * ``LABEL_DIFFERS`` — модуль в предмете у ВСЕХ, но ярлык (статус бегуна / причина) различается.
+#:   Различается сам МЕХАНИЗМ при одном и том же населении.
+#:
+#: Сравнивать СЧЁТА и считать это ответом ЗАПРЕЩЕНО: шестнадцать литералов «~3,3 %» не расходились
+#: между собой ни на йоту при настоящих 5,3 % (`.claude/rules/site-numbers.md`). Поэтому сравнение
+#: идёт ПОИМЁННО по модулям, а счёт печатается рядом как следствие, а не как основание.
+PROTOCOL_DIFFERENCES = ("SUBJECT_MOVED", "LABEL_DIFFERS")
+_PD_MOVED, _PD_DIFFERS = PROTOCOL_DIFFERENCES
+
+#: Стороны, у которых спрашивается инвариантность. Перечень ОБЪЯВЛЕН, а не выбран зовом (тот же
+#: довод, что у `UNENTERED_AXES`): сторона, названная вызывающим кодом, отвечала бы о населении,
+#: которого объявление не несёт. `runner_status` — свёртка статусов бегуна, `unentered:<ось>` —
+#: разбор ADR-1009 у каждой объявленной оси, `silent` — разбор ADR-1008.
+#: Сколько различий печатать у КАЖДОГО вида; остальные — в `--json`.
+_PV_SHOWN = 10
+
+PROTOCOL_SIDES: Tuple[str, ...] = ("runner_status", "silent") + tuple(
+    f"unentered:{axis}" for axis in UNENTERED_AXES)
 
 #: Формы записи. `os.replace`/`os.rename`/`os.makedirs`/`shutil.*`/`json.dump` — только у СВОЕГО модуля
 #: (`str.replace` записью не является); `write_text`/`write_bytes`/`mkdir` — у любого объекта;
@@ -1855,13 +1900,230 @@ def unentered_causes_by_axis(repo: Path, census: Census,
     return {axis: unentered_causes(repo, census, obs, axis) for axis in UNENTERED_AXES}
 
 
+# ───────────── различается ли МЕХАНИЗМ по протоколам (ADR-1010, заказ G999 п. 1б) ─────────────
+
+def read_runner_protocols(repo: Path) -> Tuple[str, ...]:
+    """Перечень протоколов — из AST БЕГУНА (`DEFAULT_PROTOCOLS`), а не из копии в приборе.
+
+    Протокол — ВХОД наблюдения, и семь решений подряд (ADR-1002…1009) сняли свои числа на одном
+    `aave_v3`, потому что вход имел умолчание и никто не спрашивал, зависит ли от него ОТВЕТ.
+    Перечень берётся у того, кого мерим: смени бегун список — прибор обязан поехать за ним, а не
+    отвечать о протоколах, которых в дереве нет.
+
+    Пусто / не литерал / нет объявления ⇒ `NotMeasured`. Выдумать перечень здесь значило бы
+    объявить инвариантность по множеству, которого бегун не знает.
+    """
+    runner = repo / RUNNER_REL
+    if not runner.is_file():
+        raise NotMeasured(f"бегуна нет: {runner}")
+    try:
+        tree = _read_tree(runner)
+    except (SyntaxError, UnicodeDecodeError, OSError) as exc:
+        raise NotMeasured(f"бегун не разобран: {type(exc).__name__}: {exc}")
+    for node in tree.body:
+        if not isinstance(node, ast.Assign):
+            continue
+        if not any(isinstance(t, ast.Name) and t.id == RUNNER_PROTOCOLS_NAME for t in node.targets):
+            continue
+        try:
+            value = ast.literal_eval(node.value)
+        except (ValueError, TypeError, SyntaxError) as exc:
+            raise NotMeasured(
+                f"`{RUNNER_PROTOCOLS_NAME}` у бегуна не литерал ({type(node.value).__name__}): {exc}")
+        if not isinstance(value, (list, tuple)):
+            raise NotMeasured(
+                f"`{RUNNER_PROTOCOLS_NAME}` у бегуна не перечень, а {type(value).__name__}")
+        names = tuple(str(v) for v in value)
+        if not names:
+            raise NotMeasured(f"`{RUNNER_PROTOCOLS_NAME}` у бегуна ПУСТ — мерить не на чем")
+        return names
+    raise NotMeasured(f"у бегуна нет объявления `{RUNNER_PROTOCOLS_NAME}`")
+
+
+def _compare_across_protocols(by_protocol: Dict[str, Dict[str, str]]) -> Dict[str, Any]:
+    """ПОИМЁННОЕ сравнение одного ярлыка у одних и тех же модулей между протоколами.
+
+    Основание — модуль, а не счёт: равные счёта при разных модулях есть ровно тот зелёный ответ
+    на СВОЙ вопрос, которым три сторожа сайта пропустили шестнадцать перепечатанных литералов.
+    """
+    protocols = sorted(by_protocol)
+    seen = [set(by_protocol[p]) for p in protocols]
+    everywhere = set.intersection(*seen) if seen else set()
+    union = set().union(*seen) if seen else set()
+    moved = [{"module": m,
+              "in": [p for p in protocols if m in by_protocol[p]],
+              "out": [p for p in protocols if m not in by_protocol[p]]}
+             for m in sorted(union - everywhere)]
+    differs = []
+    for m in sorted(everywhere):
+        labels = {p: by_protocol[p][m] for p in protocols}
+        if len(set(labels.values())) > 1:
+            differs.append({"module": m, "labels": labels})
+    found = {_PD_MOVED: moved, _PD_DIFFERS: differs}
+    return {"verdict": _PV_INVARIANT if not moved and not differs else _PV_VARIES,
+            "protocols": protocols,
+            "subject": {p: len(by_protocol[p]) for p in protocols},
+            "union": len(union), "intersection": len(everywhere),
+            # «Предмет ПУСТ под всеми протоколами» и «сверено поимённо» — РАЗНЫЕ ответы, хотя
+            # вердикт у них один: пустому предмету различаться нечем, и выдать это за сверку
+            # значило бы назвать инвариантностью отсутствие населения (инв. #17, то же правило,
+            # которым `unentered_causes` печатает пустой предмет своими словами).
+            "subject_empty": not union,
+            "differences": found,
+            "counts": {k: len(v) for k, v in found.items()},
+            "unmeasured_reason": None}
+
+
+def _side_labels(repo: Path, census: Census, obs: Dict[str, Any], side: str) -> Dict[str, str]:
+    """Ярлык объявленной стороны у каждого модуля её предмета. Неизмеренная сторона ⇒ `NotMeasured`."""
+    if side == "runner_status":
+        return {r["module"]: r["status"] for r in obs.get("per_module", [])}
+    if side == "silent":
+        sc = silent_causes(repo, census, obs)
+        if sc.get("unmeasured_reason"):
+            raise NotMeasured(f"сторона `{side}`: {sc['unmeasured_reason']}")
+        return {e["module"]: e["cause"] for e in sc["per_module"]}
+    if side.startswith("unentered:"):
+        axis = side.split(":", 1)[1]
+        uc = unentered_causes(repo, census, obs, axis)
+        if uc.get("unmeasured_reason"):
+            raise NotMeasured(f"сторона `{side}`: {uc['unmeasured_reason']}")
+        if uc["parity"]["agrees"] is False:
+            raise NotMeasured(
+                f"сторона `{side}`: предмет ({uc['parity']['subject']}) расходится со свёрткой "
+                f"статуса ({uc['parity']['unchecked']})")
+        return {e["module"]: e["cause"] for e in uc["per_module"]}
+    raise NotMeasured(f"сторона `{side}` прибору неизвестна (объявление — `PROTOCOL_SIDES`)")
+
+
+def protocol_variance(repo: Path, census: Census,
+                      observations: Optional[Dict[str, Dict[str, Any]]]) -> Dict[str, Any]:
+    """Различается ли механизм бегуна по ПРОТОКОЛАМ (заказ G999 п. 1б = ADR-1009 § 7б).
+
+    Вопрос появился потому, что ответ семи решений подряд снят на ОДНОМ протоколе: `--protocol`
+    имел умолчание, и «измерено на `aave_v3`» читалось как «измерено». Это не придирка к форме:
+    если население предмета зависит от протокола, то число, снятое на одном, есть число О НЁМ, и
+    починка, назначенная по нему, лечит одну восьмую.
+
+    Три исхода различимы (инв. #17): `INVARIANT` (ИЗМЕРЕНО и поимённо совпало) · `VARIES`
+    (различие НАЗВАНО — модулями, протоколами и видом) · `UNMEASURED` с причиной (наблюдений
+    меньше `PROTOCOL_VARIANCE_MIN` · сторона не разобралась хотя бы под одним протоколом ·
+    объявление бегуна не прочитано). Отдельно печатается `declared_not_observed`: ответ
+    принадлежит НАБЛЮДЁННЫМ протоколам, а не всему объявлению бегуна.
+    """
+    empty: Dict[str, Any] = {"verdict": _PV_UNMEASURED, "protocols": [], "sides": {},
+                             "min_required": PROTOCOL_VARIANCE_MIN,
+                             "declared": [], "declared_not_observed": []}
+    if not observations:
+        return {**empty, "unmeasured_reason": "наблюдение не запускалось (--observe не задан)"}
+    protocols = sorted(observations)
+    if len(protocols) < PROTOCOL_VARIANCE_MIN:
+        return {**empty, "protocols": protocols, "unmeasured_reason": (
+            f"наблюдений {len(protocols)} < {PROTOCOL_VARIANCE_MIN}: один протокол даёт ЗНАЧЕНИЕ, "
+            f"а не различие — «различий нет» из него не следует")}
+    try:
+        declared = list(read_runner_protocols(repo))
+    except NotMeasured as exc:
+        return {**empty, "protocols": protocols, "unmeasured_reason": (
+            f"перечень протоколов бегуна не прочитан: {exc}")}
+    sides: Dict[str, Dict[str, Any]] = {}
+    for side in PROTOCOL_SIDES:
+        by_protocol: Dict[str, Dict[str, str]] = {}
+        reason: Optional[str] = None
+        for p in protocols:
+            try:
+                by_protocol[p] = _side_labels(repo, census, observations[p], side)
+            except NotMeasured as exc:
+                reason = f"протокол `{p}`: {exc}"
+                break
+        if reason is not None:
+            sides[side] = {"verdict": _PV_UNMEASURED, "protocols": protocols, "subject": {},
+                           "union": 0, "intersection": 0, "subject_empty": None,
+                           "differences": {k: [] for k in PROTOCOL_DIFFERENCES},
+                           "counts": {k: 0 for k in PROTOCOL_DIFFERENCES},
+                           "unmeasured_reason": reason}
+            continue
+        sides[side] = _compare_across_protocols(by_protocol)
+    verdicts = {s["verdict"] for s in sides.values()}
+    # fail-CLOSED: неизмеренная сторона НЕ даёт итогу права сказать «инвариантно» по остальным.
+    if _PV_UNMEASURED in verdicts:
+        overall = _PV_UNMEASURED
+        reason: Optional[str] = "; ".join(
+            f"{name}: {s['unmeasured_reason']}" for name, s in sides.items()
+            if s["verdict"] == _PV_UNMEASURED)
+    else:
+        overall = _PV_VARIES if _PV_VARIES in verdicts else _PV_INVARIANT
+        reason = None
+    return {"verdict": overall, "protocols": protocols, "sides": sides,
+            "min_required": PROTOCOL_VARIANCE_MIN, "declared": declared,
+            "declared_not_observed": [p for p in declared if p not in observations],
+            "observed_not_declared": [p for p in protocols if p not in declared],
+            "unmeasured_reason": reason}
+
+
+def render_protocol_variance(pv: Dict[str, Any]) -> List[str]:
+    """Печать сравнения. Различие НАЗЫВАЕТСЯ поимённо, инвариантность — числом СВЕРЕННЫХ модулей."""
+    out = [f"  РАЗЛИЧИЕ МЕХАНИЗМА ПО ПРОТОКОЛАМ (ADR-1010) — наблюдений {len(pv['protocols'])}"
+           f" ({', '.join(pv['protocols']) or '—'})"]
+    # Охват печатается ДО вердикта и при любом вердикте: «о каких протоколах этот ответ» —
+    # вопрос, на который НЕ ИЗМЕРЕНО отвечать не отказывается.
+    if pv.get("declared"):
+        if pv["declared_not_observed"]:
+            out.append(f"    ответ принадлежит НАБЛЮДЁННЫМ протоколам: объявлено бегуном "
+                       f"{len(pv['declared'])}, не наблюдалось "
+                       f"{len(pv['declared_not_observed'])} "
+                       f"({', '.join(pv['declared_not_observed'])})")
+        else:
+            out.append(f"    наблюдены ВСЕ {len(pv['declared'])} протокола объявления бегуна "
+                       f"`{RUNNER_PROTOCOLS_NAME}`")
+        if pv["observed_not_declared"]:
+            out.append(f"    наблюдались НЕ ОБЪЯВЛЕННЫЕ бегуном: "
+                       f"{', '.join(pv['observed_not_declared'])}")
+    if pv["verdict"] == _PV_UNMEASURED:
+        out.append(f"    ⚠️ НЕ ИЗМЕРЕНО — {pv['unmeasured_reason']}")
+        return out
+    for side, s in pv["sides"].items():
+        if s["verdict"] == _PV_UNMEASURED:
+            out.append(f"    {side:<42} ⚠️ НЕ ИЗМЕРЕНО — {s['unmeasured_reason']}")
+            continue
+        counts = "/".join(str(s["subject"][p]) for p in s["protocols"])
+        if s["verdict"] == _PV_INVARIANT and s.get("subject_empty"):
+            out.append(f"    {side:<42} предмет ПУСТ под всеми протоколами — измерено и равно "
+                       f"нулю, сверкой это не является")
+            continue
+        if s["verdict"] == _PV_INVARIANT:
+            out.append(f"    {side:<42} INVARIANT — предмет {counts}; совпал ПОИМЁННО "
+                       f"({s['intersection']} модул(ей), union = intersect)")
+            continue
+        out.append(f"    {side:<42} VARIES — предмет {counts}; union {s['union']}, "
+                   f"intersect {s['intersection']}; SUBJECT_MOVED "
+                   f"{s['counts']['SUBJECT_MOVED']} · LABEL_DIFFERS {s['counts']['LABEL_DIFFERS']}")
+        moved, differs = s["differences"][_PD_MOVED], s["differences"][_PD_DIFFERS]
+        for e in moved[:_PV_SHOWN]:
+            out.append(f"      ↔ {e['module']}: в предмете под {', '.join(e['in'])}; "
+                       f"вне — {', '.join(e['out'])}")
+        for e in differs[:_PV_SHOWN]:
+            shown = ", ".join(f"{p}={lab}" for p, lab in e["labels"].items())
+            out.append(f"      ≠ {e['module']}: {shown}")
+        # Остаток считается по КАЖДОМУ виду отдельно: «всего минус 20» врёт, когда один вид короче
+        # предела, — и это было бы число, не называющее своего производителя.
+        rest = (len(moved) - min(_PV_SHOWN, len(moved))) + (len(differs) - min(_PV_SHOWN, len(differs)))
+        if rest > 0:
+            out.append(f"      … и ещё {rest} (полный перечень — `--json`, ключ "
+                       f"`protocol_variance.sides['{side}'].differences`)")
+    out.append("    НЕ ДОКЛАДЫВАЕТ: корзины ЗАПИСИ по протоколам (вопрос ADR-1002, и у `tree_data` "
+               "есть свой конфаунд — накопление файлов последовательными прогонами в одном дереве)")
+    return out
+
+
 def to_doc(c: Census) -> dict:
     return {"root": c.root, "runner": asdict(c.runner), "counts": c.counts, "exposure": c.exposure,
             "blind_subset": c.blind_subset, "code": c.code, "unmeasured_reason": c.unmeasured_reason,
             "modules": [asdict(m) for m in c.modules]}
 
 
-def render(c: Census, obs: Optional[Dict[str, Any]] = None) -> str:
+def render(c: Census, obs: Optional[Dict[str, Any]] = None,
+           observations: Optional[Dict[str, Dict[str, Any]]] = None) -> str:
     out = [f"РЕЕСТР → БЕГУН: куда пишут аналитики под песочницей (ADR-999 § 6в) · дерево {c.root}",
            f"  бегун {c.runner.runner_path}: входы {list(c.runner.entry_methods)}; кладёт data_dir в контекст "
            f"модуля — {'ДА' if c.runner.passes_data_dir else 'НЕТ'}",
@@ -2000,6 +2262,12 @@ def render(c: Census, obs: Optional[Dict[str, Any]] = None) -> str:
         if obs["elsewhere_in_tree"]:
             out.append("    прочее в дереве: " + ", ".join(obs["elsewhere_in_tree"][:10]))
         out.append("    записи по абсолютным путям вне дерева/cwd/песочницы наблюдение НЕ видит")
+    # ADR-1010: сравнение по протоколам печатается ВСЕГДА — без второго наблюдения это НЕ
+    # «различий нет», а названный третий исход. Подстановка «один протокол ⇒ инвариантно» и
+    # держала семь решений подряд на одном `aave_v3`.
+    out.extend(render_protocol_variance(protocol_variance(
+        Path(c.root), c, observations if observations is not None
+        else ({obs["protocol"]: obs} if obs is not None else None))))
     verdict = {0: "✅ предмет пуст: ни одна запись реестра не доводит вход бегуна до записи в своё умолчание",
                1: "❗ предмет НАЗВАН: бегун каталога не передаёт, а вход достигает записи — она ляжет в умолчание модуля",
                2: f"⚠️ НЕ ИЗМЕРЕНО: {c.unmeasured_reason}"}[c.code]
@@ -2014,6 +2282,10 @@ def main(argv: Optional[List[str]] = None) -> int:
     ap.add_argument("--observe", default=None, metavar="TREE",
                     help="одноразовое НЕ-git дерево: настоящий бегун зовёт каждый модуль, записи наблюдаются")
     ap.add_argument("--protocol", default="aave_v3")
+    ap.add_argument("--protocols", default=None, metavar="СПИСОК",
+                    help="`all` (весь перечень бегуна `DEFAULT_PROTOCOLS`) либо имена через запятую: "
+                         "наблюдение снимается у КАЖДОГО, и прибор отвечает, различается ли механизм "
+                         "по протоколам (ADR-1010). Один протокол на этот вопрос НЕ отвечает")
     ap.add_argument("--timeout", type=float, default=3.0, help="таймаут модуля у бегуна, с")
     ap.add_argument("--json", action="store_true")
     args = ap.parse_args(argv)
@@ -2023,8 +2295,24 @@ def main(argv: Optional[List[str]] = None) -> int:
     try:
         c = measure(repo, Path(args.readers_json) if args.readers_json else None)
         obs = None
+        observations: Optional[Dict[str, Dict[str, Any]]] = None
         if args.observe:
-            obs = observe(Path(args.observe), c, protocol=args.protocol, timeout=args.timeout)
+            if args.protocols:
+                # Перечень — у БЕГУНА (`all`) либо назван вслух. Своей копии списка у прибора нет.
+                wanted = (list(read_runner_protocols(repo)) if args.protocols.strip() == "all"
+                          else [s.strip() for s in args.protocols.split(",") if s.strip()])
+                if not wanted:
+                    raise NotMeasured("--protocols не назвал ни одного протокола")
+                observations = {}
+                for name in wanted:
+                    print(f"[реестр→бегун] наблюдение, протокол {name}", file=sys.stderr)
+                    observations[name] = observe(Path(args.observe), c, protocol=name,
+                                                 timeout=args.timeout)
+                # Разборы «одного протокола» печатаются от ПЕРВОГО названного, и render его называет.
+                obs = observations[wanted[0]]
+            else:
+                obs = observe(Path(args.observe), c, protocol=args.protocol, timeout=args.timeout)
+                observations = {args.protocol: obs}
     except NotMeasured as exc:
         if args.json:
             print(json.dumps({"code": 2, "unmeasured_reason": str(exc)}, ensure_ascii=False))
@@ -2048,9 +2336,14 @@ def main(argv: Optional[List[str]] = None) -> int:
         # тот же порядок, что у `observed_axes`/`silent_causes`: без наблюдения это НЕ нули, а
         # названная причина «не мерили».
         doc["unentered_causes"] = unentered_causes_by_axis(repo, c, obs)
+        # ADR-1010: протокол — ОБЪЯВЛЕННЫЙ вход, и ответ о нём печатается всегда. Одно наблюдение
+        # даёт НЕ ИЗМЕРЕНО с причиной, а не «инвариантно».
+        doc["protocol_variance"] = protocol_variance(repo, c, observations)
+        if observations is not None and len(observations) > 1:
+            doc["observations"] = observations
         print(json.dumps(doc, ensure_ascii=False, indent=2))
     else:
-        print(render(c, obs))
+        print(render(c, obs, observations))
     return c.code
 
 
