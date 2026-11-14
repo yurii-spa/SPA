@@ -9,12 +9,6 @@ priority: critical
 status_trail:
   - "2026-08-26T22:31:36.748790+00:00 new -> in-progress · queue.set_status · cycle-96657"
 acceptance_probe: apy_name_carries_one_kind
-claimed_by: cycle-48802
-claimed_at: 2026-11-14T13:03:40Z
-claimed_run_id: orchestrator-48802-2E4613D7AC21447294DD7CFF4C023817
-claimed_pid: 48802
-claimed_pid_start: Sat Nov 14 13:55:48 2026
-claim_takeover_reason: шаг 0a прогнан (код 2, находок о работе #1125/#1126 нет: наследство ADR-1005 доставлено коммитами 2f81a508+94d0b438, origin/main 006ef6a82 несёт все три файла); захват #1126 снят на origin тем же коммитом; живых процессов прежних держателей нет; свой замер базы снят заново (static door_foreign_param 12, наблюдение бегуном /tmp/c1127_obs_base.json) — отчёту умершей сессии не верю, перемерил сам
 ---
 
 ## УКАЗАНИЕ ВЛАДЕЛЬЦА 2026-08-22 (cloud-сессия): ЗАПУСТИТЬ СЛЕДУЮЩИМ ЦИКЛОМ
