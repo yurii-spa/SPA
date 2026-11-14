@@ -60,6 +60,17 @@ ADR-999 измерил читателей слепых точек входа к�
 результатах). Без `--observe` блок печатает `НЕ ИЗМЕРЕНО`, а не нули; вывод «переносить нечего»
 печатается ТОЛЬКО когда ненаблюдённых нет и писавших нет.
 
+**ПРИЧИНА тишины (ADR-1008).** Спутник ADR-1006/1007 отвечает «писал или промолчал», и у самой
+крупной оси (`default_reached_under_sandbox`) промолчавших со статусом `ok` оказалось 129 — вошёл,
+отработал, не записал. Ответ «почему» выводится НЕ из догадки о взятой ветке, а из НАБЛЮДЁННЫХ
+исполненных строк файла модуля: наблюдатель трассирует ровно его файл (две двери — `sys.settrace`
+для своего потока и `threading.settrace` для потока таймаута) и несёт `lines` у каждого модуля.
+Причиной считается только условие, которое бегун ВЫЧИСЛИЛ и которое оказалось ЛОЖНЫМ перед вызовом,
+ведущим к записи; место, до чьего условия управление не дошло, есть СЛЕДСТВИЕ, а не причина.
+Словарь причин — `SILENT_CAUSES`; предмет вопроса — пересечение предмета оси и статуса `ok`
+(остальные статусы молчат по основаниям, объясняющимся раньше пути). Ось, спорящая со своим счётом,
+делает разбор НЕ ИЗМЕРЕННЫМ: причины над неподтверждённым населением не печатаются.
+
 Коды: 0 — предмет пуст и измерен (ни одного `WRITE_REACHABLE`, умолчание которого достижимо у бегуна) ·
 1 — предмет назван · 2 — НЕ ИЗМЕРЕНО (реестр/бегун не прочитаны, `_ENTRY_METHODS` не найден, пустая
 поверхность). Как у соседних переписей: `UNMEASURED` у отдельных модулей не прячет названный предмет.
@@ -144,6 +155,50 @@ OBSERVED_AXES: Dict[str, Tuple[str, str, str]] = {
         "exposed",
         "достижимость умолчания перечнем записей не является"),
 }
+
+#: Причины ТИШИНЫ модуля, которого бегун ПОЗВАЛ и который не записал ничего (ADR-1008 = ADR-1007 § 6а).
+#: ADR-1007 измерил, что предмет прибора (`default_reached_under_sandbox` 251) больше числа
+#: наблюдённых записей на 190, и назвал четыре ОСНОВАНИЯ тишины по статусу бегуна: `unchecked` 42
+#: (бегун не входит — ось ADR-999/1000) · `failed` 5 · `dormant` 14 · **`ok` 129** — вошёл,
+#: отработал и не записал. Разбор этих 129 по ПРИЧИНАМ и есть вопрос «насколько предмет 251 —
+#: ложное население» (ADR-1007 § 6а): причина решает, была бы починка двери каталога дверью с
+#: ЧИТАТЕЛЕМ или ложным усилением класса ADR-940…944.
+#:
+#: Вопрос задаётся ТОЛЬКО статусу `ok`. У `unchecked`/`failed`/`dormant` молчание объясняется
+#: раньше всякого пути (бегун не вошёл · отказал · спал), и подставлять им причину ПУТИ значило бы
+#: отвечать не на их вопрос (ADR-1007 § 6б/в — отдельные оси).
+#:
+#: Основание причины — НАБЛЮДЁННЫЕ исполненные строки файла модуля (`observation.per_module[].lines`,
+#: трассировка под настоящим бегуном), а не догадка о том, какую ветку он взял. Статика отвечает
+#: только «где лежит запись и каким вызовом она достижима»; какой из путей ИСПОЛНИЛСЯ — наблюдение.
+#:
+#: * ``SELF_DISABLED`` — расходящийся вызов стои́т под условием, которое ЛОЖНО потому, что модуль САМ
+#:   передал флагу/ключу записи ложную константу: контекст-путь зовёт свой же легаси-движок
+#:   (``self.analyze(_legacy, write_log=False)``, ``analyze(_legacy, config={"log_path": None})``);
+#: * ``FLAG_DEFAULT_FALSY`` — то же место, но ложь приходит из УМОЛЧАНИЯ: флаг объявлен
+#:   ``write_log: bool = False`` либо читается ``config.get("write_log", False)``, а вызывающий его
+#:   не кладёт (та же форма, что шесть «записей за флагом» ADR-1006 § 2);
+#: * ``DATA_CONDITION`` — условие о самих ВХОДНЫХ данных (``not opportunities``,
+#:   ``len(opportunities) < 2``), а не о флаге записи: тишина есть свойство входа, а не проводки;
+#: * ``RETURNED_BEFORE_WRITE`` — вход ВЫШЕЛ до расходящегося вызова (исполненный ``return`` раньше
+#:   его строки), и никакого условия на самом вызове нет — форма «контекстная ветка возвращает до
+#:   записи» ADR-1006 § 2;
+#: * ``WRITE_LINE_EXECUTED`` — строка записи ИСПОЛНЕНА, а корзина пуста: причина не в пути вовсе
+#:   (запись по абсолютному пути вне корзин, проглоченное исключение) — отдельная причина, не
+#:   «необъяснённая»;
+#: * ``MIXED`` — расходящихся мест больше одного и причины у них РАЗНЫЕ; сводить их к одной значило
+#:   бы выбрать удобную;
+#: * ``UNNAMED`` — ТРЕТИЙ ИСХОД (инв. #17): причину назвать нечем, и основание печатается
+#:   (наблюдение без исполненных строк · входа в файле нет · расходящегося места не нашлось).
+#:   Нулём и «причин нет» это не считается никогда.
+SILENT_CAUSES = ("SELF_DISABLED", "FLAG_DEFAULT_FALSY", "DATA_CONDITION", "RETURNED_BEFORE_WRITE",
+                 "WRITE_LINE_EXECUTED", "MIXED", "UNNAMED")
+
+#: Ось, у которой спрашивается причина тишины. Одно имя — один вопрос: предмет прибора.
+SILENT_CAUSE_AXIS = "default_reached_under_sandbox"
+
+#: Статус бегуна, которому вопрос о причине ПРИНАДЛЕЖИТ. Остальные — другие оси (см. выше).
+SILENT_CAUSE_STATUS = "ok"
 
 #: Формы записи. `os.replace`/`os.rename`/`os.makedirs`/`shutil.*`/`json.dump` — только у СВОЕГО модуля
 #: (`str.replace` записью не является); `write_text`/`write_bytes`/`mkdir` — у любого объекта;
@@ -940,13 +995,27 @@ def measure(repo: Path, readers_json: Optional[Path] = None,
 # ─────────────────────────── наблюдение ───────────────────────────
 
 _OBSERVER = r'''
-import json, os, sys, time
+import json, os, sys, threading, time
 repo, sandbox, protocol, timeout, modules_path, out_path = sys.argv[1:7]
 sys.path.insert(0, repo)
 from spa_core.analytics import signal_aggregator as sa
 agg = sa.SignalAggregator(data_dir=sandbox, module_timeout=float(timeout))
 cwd = os.getcwd()
 watch = {"runner_dir": sandbox, "tree_data": os.path.join(repo, "data"), "cwd_data": os.path.join(cwd, "data")}
+
+# ADR-1008: ИСПОЛНЕННЫЕ строки файла модуля под настоящим бегуном — основание причины тишины.
+# Двери две, и обе нужны: бегун зовёт модуль в ПОТОКЕ (таймаут через futures), а `sys.settrace`
+# действует только на свой поток. Фильтр по имени файла стои́т ПЕРВЫМ, поэтому чужой код (бегун,
+# stdlib, соседние модули аналитики) не трассируется вовсе — иначе цена выросла бы на порядки.
+_cur = {"file": None, "lines": None}
+
+
+def _trace(frame, event, arg):
+    lines = _cur["lines"]
+    if lines is None or frame.f_code.co_filename != _cur["file"]:
+        return None
+    lines.add(frame.f_lineno)
+    return _trace
 
 def snap(root):
     out = {}
@@ -969,15 +1038,25 @@ results = []
 for info in modules:
     before = {k: snap(v) for k, v in watch.items()}
     t0 = time.time()
+    _cur["file"] = os.path.realpath(os.path.join(
+        repo, "spa_core", "analytics", info["module"].replace(".", os.sep) + ".py"))
+    _cur["lines"] = set()
+    threading.settrace(_trace)
+    sys.settrace(_trace)
     try:
         agg._run_module(info, protocol, {"cycle_ts": "observe", "source": "registry_runner_write_census"})
         status = agg._log[-1]["status"] if agg._log else "?"
         detail = agg._log[-1].get("detail", "") if agg._log else ""
     except BaseException as exc:
         status, detail = "observer_error", f"{type(exc).__name__}: {exc}"
+    finally:
+        sys.settrace(None)
+        threading.settrace(None)
+    lines = sorted(_cur["lines"])
+    _cur["lines"] = None
     after = {k: snap(v) for k, v in watch.items()}
     results.append({"module": info["module"], "status": status, "detail": detail[:200],
-                    "seconds": round(time.time() - t0, 3),
+                    "seconds": round(time.time() - t0, 3), "lines": lines,
                     "written": {k: [os.path.relpath(p, watch[k]) for p in diff(before[k], after[k])] for k in watch}})
 json.dump({"results": results}, open(out_path, "w", encoding="utf-8"), ensure_ascii=False, indent=1)
 '''
@@ -1182,6 +1261,337 @@ def foreign_observed(census: Census, obs: Optional[Dict[str, Any]]) -> Dict[str,
 
 # ─────────────────────────── вывод ───────────────────────────
 
+# ───────────────── причина ТИШИНЫ: почему вошёл и не записал (ADR-1008) ─────────────────
+
+
+def _func_index(tree: ast.Module) -> Dict[Tuple[str, ...], Any]:
+    """Функции модуля и методы его классов — тем же ключом, что `measure_module` (`f`/`m`)."""
+    out: Dict[Tuple[str, ...], Any] = {}
+    for n in tree.body:
+        if isinstance(n, (ast.FunctionDef, ast.AsyncFunctionDef)):
+            out[("f", n.name)] = n
+        elif isinstance(n, ast.ClassDef):
+            for b in n.body:
+                if isinstance(b, (ast.FunctionDef, ast.AsyncFunctionDef)):
+                    out[("m", n.name, b.name)] = b
+    return out
+
+
+def _entry_key_of(entry: Optional[str]) -> Optional[Tuple[str, ...]]:
+    if not entry:
+        return None
+    if "." in entry:
+        cls, meth = entry.split(".", 1)
+        return ("m", cls, meth)
+    return ("f", entry)
+
+
+def _call_edges(funcs: Dict[Tuple[str, ...], Any]) -> Dict[Tuple[str, ...], List[Tuple[int, Tuple[str, ...]]]]:
+    """Рёбра графа вызовов ВНУТРИ модуля с номером СТРОКИ вызова.
+
+    Правило совпадает с обходом `measure_module` (по имени, с избытком: `self.x()` берёт метод `x`
+    любого класса модуля) — иначе причина объясняла бы ДРУГОЙ граф, чем тот, которым получен
+    вердикт `WRITE_REACHABLE`, и предмет разошёлся бы с мерой (знакомый дефект D6).
+    """
+    plain = {k[1] for k in funcs if k[0] == "f"}
+    by_attr: Dict[str, List[Tuple[str, ...]]] = {}
+    for k in funcs:
+        if k[0] == "m":
+            by_attr.setdefault(k[2], []).append(k)
+    out: Dict[Tuple[str, ...], List[Tuple[int, Tuple[str, ...]]]] = {}
+    for key, fn in funcs.items():
+        edges: List[Tuple[int, Tuple[str, ...]]] = []
+        for node in ast.walk(fn):
+            if not isinstance(node, ast.Call):
+                continue
+            f = node.func
+            if isinstance(f, ast.Name) and f.id in plain:
+                edges.append((node.lineno, ("f", f.id)))
+            elif isinstance(f, ast.Attribute):
+                for ck in by_attr.get(f.attr, []):
+                    edges.append((node.lineno, ck))
+        out[key] = edges
+    return out
+
+
+def _body_span(fn: Any) -> Set[int]:
+    """Строки ТЕЛА функции: строка `def` исключена — она исполняется при импорте у КАЖДОГО метода."""
+    return set(range(fn.lineno + 1, (fn.end_lineno or fn.lineno) + 1))
+
+
+def _write_holders(funcs: Dict[Tuple[str, ...], Any], write_lines: Set[int]) -> Set[Tuple[str, ...]]:
+    return {k for k, fn in funcs.items()
+            if write_lines & set(range(fn.lineno, (fn.end_lineno or fn.lineno) + 1))}
+
+
+def _leads_to_write(key: Tuple[str, ...], edges, holders: Set[Tuple[str, ...]],
+                    seen: Optional[Set[Tuple[str, ...]]] = None) -> bool:
+    if key in holders:
+        return True
+    seen = seen or set()
+    if key in seen:
+        return False
+    seen = seen | {key}
+    return any(_leads_to_write(ck, edges, holders, seen) for _ln, ck in edges.get(key, []))
+
+
+def _branch_ifs(fn: Any, line: int) -> List[Tuple[ast.If, Set[int]]]:
+    """`If`, в ТЕЛЕ которых (а не в тесте) лежит строка, с диапазоном ВЗЯТОЙ ветви.
+
+    Возвращает от внешнего к внутреннему: (узел, строки той ветви, где лежит `line`). Диапазон
+    нужен, чтобы отличить «условие исполнено и ЛОЖНО» (ни одна строка ветви не исполнена) от
+    «условие исполнено, ветвь взята, а вызов всё равно не исполнился» — второе causa не является.
+    """
+    out: List[Tuple[ast.If, Set[int]]] = []
+    for node in ast.walk(fn):
+        if not isinstance(node, ast.If):
+            continue
+        for branch in (node.body, node.orelse):
+            if any(b.lineno <= line <= (b.end_lineno or b.lineno) for b in branch):
+                span: Set[int] = set()
+                for b in branch:
+                    span |= set(range(b.lineno, (b.end_lineno or b.lineno) + 1))
+                out.append((node, span))
+                break
+    out.sort(key=lambda t: t[0].lineno)
+    return out
+
+
+def _false_guard(fn: Any, line: int, executed: Set[int]) -> Optional[ast.If]:
+    """УСЛОВИЕ, которое бегун ВЫЧИСЛИЛ и которое оказалось ЛОЖНЫМ прямо перед вызовом.
+
+    Иначе — вызов не исполнился ПОСЛЕДСТВИЕМ: управление до его условия не дошло вовсе, и
+    называть такое место причиной значило бы выдать следствие за причину (на оси в 129 модулей
+    это ровно та разница, из-за которой первый замер дал `MIXED` у 80 из них).
+    """
+    best: Optional[ast.If] = None
+    for node, span in _branch_ifs(fn, line):
+        if node.lineno not in executed:
+            continue          # условие не вычислялось — ветвь ниже судить нечем
+        if span & executed:
+            continue          # ветвь ВЗЯТА: ложным это условие не было
+        best = node           # вычислено и ложно; внутреннее перекрывает внешнее
+    return best
+
+
+_FALSY_SENTINEL = object()
+
+
+def _is_falsy_const(node: Optional[ast.AST]) -> bool:
+    if node is None:
+        return False
+    try:
+        return not bool(ast.literal_eval(node))
+    except (ValueError, TypeError, SyntaxError, MemoryError, RecursionError):
+        return False
+
+
+def _guard_operands(test: ast.AST) -> Tuple[Set[str], Set[str]]:
+    """(имена, строковые КЛЮЧИ), от которых зависит условие."""
+    names: Set[str] = set()
+    keys: Set[str] = set()
+    for n in ast.walk(test):
+        if isinstance(n, ast.Name):
+            names.add(n.id)
+        elif isinstance(n, ast.Call) and isinstance(n.func, ast.Attribute) \
+                and n.func.attr in ("get", "pop") and n.args and _const(n.args[0]):
+            keys.add(str(_const(n.args[0])))
+        elif isinstance(n, ast.Subscript) and _const(n.slice):
+            keys.add(str(_const(n.slice)))
+    return names, keys
+
+
+def _guard_cause(tree: ast.Module, holder: Any, test: ast.AST) -> Tuple[str, str]:
+    """Откуда у условия взялась ЛОЖЬ: модуль сам передал · умолчание ложно · условие о данных.
+
+    Порядок объявлен и значим: «модуль САМ передал ложную константу» сильнее «умолчание ложно»,
+    потому что при обоих признаках исполнился именно переданный аргумент (контекст-путь зовёт свой
+    легаси-движок), а умолчание до него не доходит.
+    """
+    names, keys = _guard_operands(test)
+    want = names | keys
+    if not want:
+        return "DATA_CONDITION", "условие без операндов-имён"
+    # (1) ложная константа, которую модуль САМ ПЕРЕДАЁТ под этим именем/ключом.
+    # Судятся ТОЛЬКО аргументы вызова: словарь-литерал где угодно в файле вызовом не является, и
+    # первый замер на этом ошибся — `{"opportunities": []}` в теле ОТВЕТА пустой ветви
+    # `defi_cross_chain_yield_comparator` прочитался как «модуль сам выключает запись».
+    passed: Set[str] = set()
+    for node in ast.walk(tree):
+        if not isinstance(node, ast.Call):
+            continue
+        payloads: List[ast.AST] = list(node.args)
+        for kw in node.keywords:
+            if kw.arg and kw.arg in want and _is_falsy_const(kw.value):
+                passed.add(kw.arg)
+            payloads.append(kw.value)
+        for arg in payloads:
+            for sub in ast.walk(arg):
+                if not isinstance(sub, ast.Dict):
+                    continue
+                for k, v in zip(sub.keys, sub.values):
+                    ck = _const(k)
+                    if ck and str(ck) in want and _is_falsy_const(v):
+                        passed.add(str(ck))
+    # имена, связанные с ключом: `x = cfg.get("k", d)` — условие об `x` есть условие о ключе `k`
+    linked: Dict[str, Optional[ast.AST]] = {}
+    for node in ast.walk(tree):
+        if isinstance(node, ast.Assign) and len(node.targets) == 1 \
+                and isinstance(node.targets[0], ast.Name) and node.targets[0].id in want:
+            for sub in ast.walk(node.value):
+                if isinstance(sub, ast.Call) and isinstance(sub.func, ast.Attribute) \
+                        and sub.func.attr in ("get", "pop") and sub.args and _const(sub.args[0]):
+                    key = str(_const(sub.args[0]))
+                    linked[key] = sub.args[1] if len(sub.args) > 1 else None
+    for key in linked:
+        if key in passed:
+            return "SELF_DISABLED", f"модуль передаёт `{key}` ложной константой"
+    if passed:
+        return "SELF_DISABLED", f"модуль передаёт `{sorted(passed)[0]}` ложной константой"
+    # (2) ложное УМОЛЧАНИЕ: параметр со значением по умолчанию либо `.get(key, <ложь>)`
+    for key, default in linked.items():
+        if _is_falsy_const(default) or default is None:
+            return "FLAG_DEFAULT_FALSY", f"умолчание ключа `{key}` ложно, вызывающий его не кладёт"
+    # ключ, прочитанный В САМОМ УСЛОВИИ: умолчание берётся ОТТУДА ЖЕ, а не из любого `.get` файла.
+    # Первый замер сканировал весь файл и ошибся: `(analyze([_ctx_profile]) or {}).get("opportunities")`
+    # в СОСЕДНЕЙ ветви `defi_cross_chain_yield_comparator` — чтение РЕЗУЛЬТАТА чужого вызова, а не флага.
+    for node in ast.walk(test):
+        if isinstance(node, ast.Call) and isinstance(node.func, ast.Attribute) \
+                and node.func.attr in ("get", "pop") and node.args and _const(node.args[0]):
+            key = str(_const(node.args[0]))
+            if len(node.args) < 2 or _is_falsy_const(node.args[1]):
+                return "FLAG_DEFAULT_FALSY", f"умолчание ключа `{key}` ложно, вызывающий его не кладёт"
+    for node in ast.walk(tree):
+        if not isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef)):
+            continue
+        a = node.args
+        pos = list(a.posonlyargs) + list(a.args)
+        for prm, dflt in zip(pos[len(pos) - len(a.defaults):], a.defaults):
+            if prm.arg in want and _is_falsy_const(dflt):
+                return "FLAG_DEFAULT_FALSY", f"умолчание параметра `{prm.arg}` ложно у {node.name}"
+        for prm, dflt in zip(a.kwonlyargs, a.kw_defaults):
+            if dflt is not None and prm.arg in want and _is_falsy_const(dflt):
+                return "FLAG_DEFAULT_FALSY", f"умолчание параметра `{prm.arg}` ложно у {node.name}"
+    # (3) условие о самих ВХОДНЫХ данных: операнды — параметры держателя либо локальные значения
+    hold_params = _params_of(holder, is_method=True)[1] | _params_of(holder, is_method=False)[1]
+    if names & hold_params:
+        return "DATA_CONDITION", f"условие о входных данных: {sorted(names & hold_params)[0]}"
+    return "UNNAMED", "операнд условия не разрешён ни во флаг, ни во входные данные"
+
+
+def _module_silent_cause(repo: Path, mv: ModuleVerdict, lines: Optional[List[int]]) -> Dict[str, Any]:
+    """Причина тишины ОДНОГО модуля: статика даёт граф, наблюдение — исполненные строки."""
+    if lines is None:
+        return {"cause": "UNNAMED", "detail": "наблюдение не несёт исполненных строк модуля",
+                "sites": []}
+    executed = set(lines)
+    try:
+        tree = _read_tree(repo / mv.path)
+    except (SyntaxError, UnicodeDecodeError, OSError) as exc:
+        return {"cause": "UNNAMED", "detail": f"файл не разобран: {type(exc).__name__}: {exc}",
+                "sites": []}
+    write_lines = {w.line for w in mv.writes}
+    if write_lines & executed:
+        hit = sorted(write_lines & executed)
+        return {"cause": "WRITE_LINE_EXECUTED",
+                "detail": f"строка записи исполнена ({', '.join(map(str, hit[:3]))}), корзина пуста",
+                "sites": []}
+    funcs = _func_index(tree)
+    entry = _entry_key_of(mv.entry)
+    if entry not in funcs:
+        return {"cause": "UNNAMED", "detail": f"входа `{mv.entry}` в файле нет — граф не построен",
+                "sites": []}
+    edges = _call_edges(funcs)
+    holders = _write_holders(funcs, write_lines)
+    # расходящиеся места: вызывающий ВОШЁЛ, вызов ведёт к записи, а СТРОКА вызова не исполнена
+    sites: List[Dict[str, Any]] = []
+    downstream: List[Dict[str, Any]] = []
+    for key, fn in funcs.items():
+        if not (_body_span(fn) & executed):
+            continue
+        for line, callee in edges.get(key, []):
+            if callee == key or line in executed:
+                continue
+            if not _leads_to_write(callee, edges, holders):
+                continue
+            label = key[1] if key[0] == "f" else f"{key[1]}.{key[2]}"
+            guard = _false_guard(fn, line, executed)
+            if guard is not None:
+                cause, detail = _guard_cause(tree, fn, guard.test)
+                sites.append({"where": f"{label}:{line}", "cause": cause,
+                              "guard": ast.unparse(guard.test)[:120], "detail": detail})
+                continue
+            rets = [n.lineno for n in ast.walk(fn)
+                    if isinstance(n, ast.Return) and n.lineno in executed and n.lineno < line]
+            downstream.append({"where": f"{label}:{line}",
+                               "cause": "RETURNED_BEFORE_WRITE" if rets else "UNNAMED",
+                               "guard": None,
+                               "detail": (f"исполненный return в строке {max(rets)}" if rets else
+                                          "ни вычисленного условия на вызове, ни выхода раньше него")})
+    if not sites:
+        # ни одного ВЫЧИСЛЕННОГО и ложного условия: причина — выход раньше вызова, если он наблюдён
+        sites = [d for d in downstream if d["cause"] == "RETURNED_BEFORE_WRITE"] or downstream
+    if not sites:
+        return {"cause": "UNNAMED",
+                "detail": "расходящегося места не нашлось: ни один вызов к записи не объяснён",
+                "sites": []}
+    kinds = {s["cause"] for s in sites}
+    if len(kinds) == 1:
+        one = sites[0]
+        return {"cause": sites[0]["cause"], "detail": one["detail"], "sites": sites}
+    return {"cause": "MIXED", "detail": "причины расходящихся мест РАЗНЫЕ: " + ", ".join(sorted(kinds)),
+            "sites": sites}
+
+
+def silent_causes(repo: Path, census: Census, obs: Optional[Dict[str, Any]],
+                  axis: str = SILENT_CAUSE_AXIS) -> Dict[str, Any]:
+    """Причины тишины у «вошёл и промолчал» внутри предмета объявленной оси (ADR-1008).
+
+    Предмет вопроса — ПЕРЕСЕЧЕНИЕ двух объявлений: предмет оси (`axis_observed`, та же единственная
+    дверь, которой его считает `measure()`) И статус бегуна `ok`. Остальные статусы молчат по
+    основаниям, которые объясняются раньше всякого пути (ADR-1007 § 6б/в), и подстановка им причины
+    ПУТИ была бы ответом не на их вопрос.
+
+    Три исхода различимы (инв. #17): причина НАЗВАНА · причина НЕ НАЗВАНА (`UNNAMED` с основанием) ·
+    наблюдения не было вовсе (`subject` пуст, `unmeasured_reason` назван). Ноль причин и
+    «не мерили» не совпадают ни в одном выводе.
+    """
+    sputnik = axis_observed(census, obs, axis)
+    if obs is None:
+        return {"axis": axis, "status": SILENT_CAUSE_STATUS, "subject": 0, "causes": {},
+                "per_module": [], "parity": {"silent_ok": None, "subject": 0, "agrees": None},
+                "unmeasured_reason": "наблюдение не запускалось (--observe не задан)"}
+    # Предмет взят У ОСИ, поэтому ось, спорящая сама с собой, делает и этот разбор НЕ ИЗМЕРЕННЫМ:
+    # печатать причины над предметом, который прибор сам отказался назвать, значило бы объяснять
+    # население, которого он не подтвердил (сцена-контроль: врущий счёт оси ⇒ разбор молчит).
+    axis_parity = sputnik["parity"]
+    if axis_parity["agrees"] is not True:
+        return {"axis": axis, "status": SILENT_CAUSE_STATUS, "subject": 0, "causes": {},
+                "per_module": [], "parity": {"silent_ok": None, "subject": 0, "agrees": None},
+                "unmeasured_reason": (
+                    f"предмет оси `{axis}` не подтверждён её же счётом "
+                    f"(предмет {axis_parity['subject']}, счёт {axis_parity['exposure']})")}
+    by_name = {m.module: m for m in census.modules}
+    lines_of = {r["module"]: r.get("lines") for r in obs.get("per_module", [])}
+    subject = [e for e in sputnik["per_module"]
+               if e["outcome"] == "SILENT" and e["runner_status"] == SILENT_CAUSE_STATUS]
+    causes = {k: 0 for k in SILENT_CAUSES}
+    per_module: List[Dict[str, Any]] = []
+    for e in subject:
+        mv = by_name.get(e["module"])
+        if mv is None:
+            row = {"cause": "UNNAMED", "detail": "модуля нет в переписи", "sites": []}
+        else:
+            row = _module_silent_cause(repo, mv, lines_of.get(e["module"]))
+        causes[row["cause"]] += 1
+        per_module.append({"module": e["module"], **row})
+    declared = sputnik["silent_by_status"].get(SILENT_CAUSE_STATUS)
+    parity = {"silent_ok": declared, "subject": len(subject),
+              "agrees": None if declared is None else declared == len(subject)}
+    return {"axis": axis, "status": SILENT_CAUSE_STATUS, "subject": len(subject), "causes": causes,
+            "per_module": per_module, "parity": parity, "unmeasured_reason": None}
+
+
 def to_doc(c: Census) -> dict:
     return {"root": c.root, "runner": asdict(c.runner), "counts": c.counts, "exposure": c.exposure,
             "blind_subset": c.blind_subset, "code": c.code, "unmeasured_reason": c.unmeasured_reason,
@@ -1249,6 +1659,30 @@ def render(c: Census, obs: Optional[Dict[str, Any]] = None) -> str:
             out.append(f"    ⇒ писали {oc['WROTE']} из {n}: статический счёт `{axis}` "
                        + (f"БОЛЬШЕ числа наблюдённых записей на {gap}" if gap
                           else "совпал с числом наблюдённых записей"))
+    sc = silent_causes(Path(c.root), c, obs)
+    if sc["unmeasured_reason"]:
+        out.append(f"  ПРИЧИНЫ тишины «вошёл и промолчал» (ADR-1008): ⚠️ НЕ ИЗМЕРЕНО — {sc['unmeasured_reason']}")
+    elif sc["parity"]["agrees"] is False:
+        out.append(f"  ПРИЧИНЫ тишины «вошёл и промолчал» (ADR-1008): ⚠️ НЕ ИЗМЕРЕНО — предмет "
+                   f"({sc['parity']['subject']}) расходится со свёрткой тишины "
+                   f"({sc['parity']['silent_ok']}); разбор НЕ печатается, пока мерки не одна")
+    elif sc["subject"]:
+        named = sum(v for k, v in sc["causes"].items() if k != "UNNAMED")
+        out.append(f"  ПРИЧИНЫ тишины у {sc['subject']} «вошёл и промолчал» (статус `{sc['status']}`, "
+                   f"предмет оси `{sc['axis']}`; основание — ИСПОЛНЕННЫЕ строки под бегуном, ADR-1008):")
+        for cause in SILENT_CAUSES:
+            if sc["causes"][cause]:
+                out.append(f"    {cause:<22} {sc['causes'][cause]}")
+        for e in sc["per_module"][:40]:
+            g = f" · условие `{e['sites'][0]['guard']}`" if e["sites"] and e["sites"][0].get("guard") else ""
+            where = f" @ {e['sites'][0]['where']}" if e["sites"] else ""
+            out.append(f"    {e['module']}: {e['cause']}{where} — {e['detail']}{g}")
+        if len(sc["per_module"]) > 40:
+            out.append(f"    … и ещё {len(sc['per_module']) - 40} (полный перечень — `--json`, "
+                       f"ключ `silent_causes.per_module`)")
+        out.append(f"    ⇒ причина НАЗВАНА у {named} из {sc['subject']}, НЕ НАЗВАНА у "
+                   f"{sc['causes']['UNNAMED']}: причина решает, была бы починка двери каталога "
+                   f"дверью с ЧИТАТЕЛЕМ или ложным усилением (ADR-940…944)")
     unm = [m for m in c.modules if m.verdict == "UNMEASURED"]
     if unm:
         out.append("  НЕ ИЗМЕРЕНО (модули):")
@@ -1305,6 +1739,10 @@ def main(argv: Optional[List[str]] = None) -> int:
         # был бы предметом этих решений с другой стороны.
         doc["foreign_observed"] = foreign_observed(c, obs)
         doc["observed_axes"] = observed_axes(c, obs)
+        # ADR-1008: причины тишины «вошёл и промолчал» — ВСЕГДА, и без наблюдения это НЕ нули,
+        # а названная причина «не мерили» (машинный читатель, получивший нули, был бы предметом
+        # этого решения с другой стороны — тот же довод, что у `observed_axes`).
+        doc["silent_causes"] = silent_causes(repo, c, obs)
         print(json.dumps(doc, ensure_ascii=False, indent=2))
     else:
         print(render(c, obs))

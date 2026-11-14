@@ -1,0 +1,99 @@
+{
+ "title": "ADR-1008 — ПРИЧИНА тишины у «вошёл и промолчал» внутри предмета 251 (цикл #1130)",
+ "tests": [
+  "spa_core/tests/test_registry_census_silent_cause.py",
+  "spa_core/tests/test_registry_census_observed_axes.py"
+ ],
+ "mutations": [
+  {
+   "name": "M01 условие, которого бегун НЕ ВЫЧИСЛЯЛ, становится причиной (следствие выдаётся за причину)",
+   "file": "scripts/registry_runner_write_census.py",
+   "old": "        if node.lineno not in executed:\n            continue          # условие не вычислялось — ветвь ниже судить нечем\n",
+   "new": "        pass\n"
+  },
+  {
+   "name": "M02 ВЗЯТАЯ ветвь считается ложным условием (истинное условие объявляется ложным)",
+   "file": "scripts/registry_runner_write_census.py",
+   "old": "        if span & executed:\n            continue          # ветвь ВЗЯТА: ложным это условие не было\n",
+   "new": "        pass\n"
+  },
+  {
+   "name": "M03 SELF_DISABLED судит любой словарь файла, а не АРГУМЕНТ вызова (ответ читается как аргумент)",
+   "file": "scripts/registry_runner_write_census.py",
+   "old": "        payloads: List[ast.AST] = list(node.args)\n",
+   "new": "        payloads: List[ast.AST] = list(node.args) + [tree]\n"
+  },
+  {
+   "name": "M04 умолчание ключа ищется по всему файлу, а не в самом условии (чужой результат читается флагом)",
+   "file": "scripts/registry_runner_write_census.py",
+   "old": "    for node in ast.walk(test):\n        if isinstance(node, ast.Call) and isinstance(node.func, ast.Attribute) \\\n                and node.func.attr in (\"get\", \"pop\") and node.args and _const(node.args[0]):\n            key = str(_const(node.args[0]))\n",
+   "new": "    for node in ast.walk(tree):\n        if isinstance(node, ast.Call) and isinstance(node.func, ast.Attribute) \\\n                and node.func.attr in (\"get\", \"pop\") and node.args and _const(node.args[0]):\n            key = str(_const(node.args[0]))\n"
+  },
+  {
+   "name": "M05 порядок причин перевёрнут: переданная ложь уступает умолчанию (исполнился именно аргумент)",
+   "file": "scripts/registry_runner_write_census.py",
+   "old": "    if passed:\n        return \"SELF_DISABLED\", f\"модуль передаёт `{sorted(passed)[0]}` ложной константой\"\n",
+   "new": "    pass\n"
+  },
+  {
+   "name": "M06 ложность константы не проверяется — правдивое умолчание тоже «ложно»",
+   "file": "scripts/registry_runner_write_census.py",
+   "old": "    try:\n        return not bool(ast.literal_eval(node))\n",
+   "new": "    try:\n        ast.literal_eval(node)\n        return True\n"
+  },
+  {
+   "name": "M07 причина спрашивается у ЛЮБОГО статуса, а не только у «вошёл и промолчал»",
+   "file": "scripts/registry_runner_write_census.py",
+   "old": "    subject = [e for e in sputnik[\"per_module\"]\n               if e[\"outcome\"] == \"SILENT\" and e[\"runner_status\"] == SILENT_CAUSE_STATUS]\n",
+   "new": "    subject = [e for e in sputnik[\"per_module\"] if e[\"outcome\"] == \"SILENT\"]\n"
+  },
+  {
+   "name": "M08 в предмет берутся и ПИСАВШИЕ (вопрос «почему промолчал» задаётся писавшему)",
+   "file": "scripts/registry_runner_write_census.py",
+   "old": "    declared = sputnik[\"silent_by_status\"].get(SILENT_CAUSE_STATUS)\n",
+   "new": "    subject = [e for e in sputnik[\"per_module\"] if e[\"runner_status\"] == SILENT_CAUSE_STATUS]\n    declared = sputnik[\"silent_by_status\"].get(SILENT_CAUSE_STATUS)\n"
+  },
+  {
+   "name": "M09 без наблюдения печатаются НУЛИ вместо названного «не мерили» (инв. #17)",
+   "file": "scripts/registry_runner_write_census.py",
+   "old": "                \"unmeasured_reason\": \"наблюдение не запускалось (--observe не задан)\"}\n",
+   "new": "                \"unmeasured_reason\": None}\n"
+  },
+  {
+   "name": "M10 наблюдение без исполненных строк получает подставленную причину вместо третьего исхода",
+   "file": "scripts/registry_runner_write_census.py",
+   "old": "    if lines is None:\n        return {\"cause\": \"UNNAMED\", \"detail\": \"наблюдение не несёт исполненных строк модуля\",\n                \"sites\": []}\n",
+   "new": "    if lines is None:\n        lines = []\n"
+  },
+  {
+   "name": "M11 ось, спорящая со своим счётом, больше не закрывает разбор (причины над неподтверждённым населением)",
+   "file": "scripts/registry_runner_write_census.py",
+   "old": "    if axis_parity[\"agrees\"] is not True:\n",
+   "new": "    if False:\n"
+  },
+  {
+   "name": "M12 исполненная строка записи перестаёт быть своей причиной (сливается с путём)",
+   "file": "scripts/registry_runner_write_census.py",
+   "old": "    if write_lines & executed:\n        hit = sorted(write_lines & executed)\n",
+   "new": "    if False:\n        hit = sorted(write_lines & executed)\n"
+  },
+  {
+   "name": "M13 MIXED сводится к ОДНОЙ причине — выбирается удобная",
+   "file": "scripts/registry_runner_write_census.py",
+   "old": "    kinds = {s[\"cause\"] for s in sites}\n    if len(kinds) == 1:\n",
+   "new": "    kinds = {s[\"cause\"] for s in sites}\n    if True:\n"
+  },
+  {
+   "name": "M14 наблюдатель не возвращает трассировку — следующие модули наблюдаются под включённым трейсом",
+   "file": "scripts/registry_runner_write_census.py",
+   "old": "    finally:\n        sys.settrace(None)\n        threading.settrace(None)\n",
+   "new": "    finally:\n        pass\n"
+  },
+  {
+   "name": "M15 наблюдатель не несёт исполненных строк — основание причины исчезает молча",
+   "file": "scripts/registry_runner_write_census.py",
+   "old": "\"seconds\": round(time.time() - t0, 3), \"lines\": lines,",
+   "new": "\"seconds\": round(time.time() - t0, 3),"
+  }
+ ]
+}

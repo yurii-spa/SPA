@@ -2,11 +2,11 @@
 
 > Авто-генерится `scripts/build_tracker_board.py` из `nimbalyst-local/tracker/*.md`. НЕ править вручную — правь карточки. Источник правды — карточки, это индекс (bootstrap).
 >
-> Собрана: 2026-11-13T18:02:21Z · сверка с карточками: `python3 scripts/build_tracker_board.py --check` (сторож `spa_core/tests/test_tracker_board_matches_cards.py`).
+> Собрана: 2026-11-14T18:17:11Z · сверка с карточками: `python3 scripts/build_tracker_board.py --check` (сторож `spa_core/tests/test_tracker_board_matches_cards.py`).
 >
-> Сверено с `origin/main` (e35585473) · у **1** своя правка, кто новее — не измерено.
+> Сверено с `origin/main` (76d7b7425) · у **1** своя правка, кто новее — не измерено.
 >
-> Всего карточек: **1624** · ждёт владельца: **12** · занято сессиями: **14**.
+> Всего карточек: **1626** · ждёт владельца: **12** · занято сессиями: **14**.
 
 ## 🔴 ЖДЁТ ВЛАДЕЛЬЦА (needs-owner)
 
@@ -39,7 +39,7 @@
 - **Прогон тестов переписывает СОРОК git-tracked файлов в data/ (карточка #225/#226 считает, что их три) — среди них журнал исполнения** — держит `cycle-352` · с 2026-08-23T03:25:59Z  ·  `inbox-progon-testov-perepisyvaet-sorok-otslezhivaemyh-failov-data.md`
 - **Производители устаревших чисел сайта: дата go-live из API, сверка NAV до цикла, протухшие артефакты, молчащие стражи сайта** — держит `pid20023` · с 2026-09-08T21:15:05Z  ·  `inbox-proizvoditeli-ustarevshih-chisel-saita-d.md`
 - **Сторож ответа владельца зовёт человека на не-спор: 1 и "1" — одно решение, а сравниваются байты** — держит `cycle-84821` · с 2026-08-30T00:50:53Z  ·  `inbox-storozh-otveta-vladeltsa-zovet-cheloveka.md`
-- **TASK — Portfolio CIO: Dynamic Capital Allocation & Rebalancing** — держит `cycle-1124` · с 2026-11-13T17:49:40Z  ·  `inbox-task-portfolio-cio-dynamic-capital-alloc.md`
+- **TASK — Portfolio CIO: Dynamic Capital Allocation & Rebalancing** — держит `cycle-65860` · с 2026-11-14T18:09:41Z  ·  `inbox-task-portfolio-cio-dynamic-capital-alloc.md`
 - **Замок цикла оркестратора доставлен, но в проде не работает: обёртка агента синкается раз в сутки, а голос о пропавшей защите живёт в самом пропавшем файле** — держит `cycle-81141` · с 2026-08-08T01:59:06Z  ·  `inbox-zamok-tsikla-orkestratora-dostavlen-no-v.md`
 
 ## 🧑‍⚖️ Owner Decisions (что нужно от владельца)  (392)
@@ -441,7 +441,7 @@
 ### · closed
 - Считать ли верный отказ по правилам допуска неисправностью флота  ·  `owner-decision-schitat-li-vernyi-otkaz-po-pravilam-dopu.md` · 2026-10-08
 
-## 📥 Inbox (задания: Telegram / заметки / голос)  (926)
+## 📥 Inbox (задания: Telegram / заметки / голос)  (928)
 
 ### · in-progress
 - а задача починить все-таки еще раз сообщение которым не пишет нужно твое решени…  ·  `inbox-a-zadacha-pochinit-vse-taki-esche-raz-so.md` · 2026-08-14 · 🔒 `pid43119`
@@ -462,7 +462,7 @@
 - Расширить опрашиваемый набор адаптеров шагами (второй шаг варианта A, после ADR-138)  ·  `inbox-rasshirit-oprashivaemyi-nabor-adapterov.md` · 2026-08-26
 - Сторож кнопок нарушает границу, которую сам объявил соблюдённой: метка-БУКВА принималась где угодно, и слово в прозе = «наш дефект разбора» с лекарством чинить НЕСУЩЕСТВУЮЩУЮ форму (перемер #484: ложная ОДНА из 21, не пять; п.1 исполнен)  ·  `inbox-storozh-knopok-narushaet-granitsu-kotoru.md` · 2026-09-04
 - Сторож переходов статусов ждёт первого улова: назвать немого писателя и встроить прогон в агента  ·  `inbox-storozh-perehodov-statusov-zhdet-pervogo.md` · 2026-08-09
-- TASK — Portfolio CIO: Dynamic Capital Allocation & Rebalancing  ·  `inbox-task-portfolio-cio-dynamic-capital-alloc.md` · 2026-08-13 · 🔒 `cycle-1124`
+- TASK — Portfolio CIO: Dynamic Capital Allocation & Rebalancing  ·  `inbox-task-portfolio-cio-dynamic-capital-alloc.md` · 2026-08-13 · 🔒 `cycle-65860`
 - Tier-C: 171 из 180 модулей не отвечают, 9 отвечающих — константы. Подключить или честно списать  ·  `inbox-tier-c-171-iz-180-modulei-ne-otvechayut.md` · 2026-08-06
 - Целостность трека SPA: подключить сторож, пересчёт из сырых входов, commit-reveal книги (перенос из earn-defi)  ·  `inbox-tselostnost-treka-spa-podklyuchit-storoz.md` · 2026-09-08
 - Цена класса «две сессии на одном предмете»: G38 п. 3 лежит остатком пятьдесят заказов  ·  `inbox-tsena-klassa-dve-sessii-na-odnom-predmet.md` · 2026-09-28
@@ -1097,6 +1097,7 @@
 - Храповик литеральных дат ловит класс ТОЛЬКО после пуша — три экземпляра, каждый чинила следующая сессия  ·  `inbox-hrapovik-literalnyh-dat-lovit-klass-tolk.md` · 2026-08-28
 - Храповик литеральных дат не видит ТРЕТЬЮ запись — дату, собранную форматом; бомба уже сработала 08.10  ·  `inbox-hrapovik-literalnyh-dat-ne-vidit-tretyu.md` · 2026-10-18
 - Храповик литеральных дат снова КРАСНЫЙ на main — два ДРУГИХ файла (cio_failure_modes, decision_reproducibility)  ·  `inbox-hrapovik-literalnyh-dat-snova-krasnyi-na-2.md` · 2026-09-08
+- Храповик литеральных дат снова КРАСНЫЙ на main — фикстура XSS-правки 10.11 вошла в закрытый класс  ·  `inbox-hrapovik-literalnyh-dat-snova-krasnyi-na-3.md` · 2026-11-14
 - Храповик населения читателей журнала решений красен на чистом origin/main: keep_dominance_census читает apy_evidenced_pct и не измеряется  ·  `inbox-hrapovik-naseleniya-chitatelei-zhurnala.md` · 2026-09-28
 - Храповик приёмки КРАСЕН на origin/main: две карточки закрыты без машинного критерия  ·  `inbox-hrapovik-priemki-krasen-na-origin-main-d.md` · 2026-10-25
 - Храповик приёмки красен о закрытиях 22-суточной давности: у него часы ДОСТАВКИ, а не закрытия  ·  `inbox-hrapovik-priemki-krasen-o-zakrytiyah-22.md` · 2026-10-27
@@ -1125,6 +1126,7 @@
 - Кто новее из двух копий карточки: нужна ТРЕТЬЯ ось (дата коммита пути), а ось следа опровергнута замером  ·  `inbox-kto-novee-iz-dvuh-kopii-kartochki-nuzhna.md` · 2026-11-04
 - Квитанция мутаций ADR-871 заработана РАННЕЙ редакцией батареи — доставленная НЕ ИЗМЕРЕНА, и перемер в оболочке цикла невозможен (прибор рестартует)  ·  `inbox-kvitantsiya-mutatsii-adr-871-zarabotana.md` · 2026-10-30
 - «Лежит 8 служб» — но три строки из шести это НЕ ИЗМЕРЕНО: проверке не назвали файл вывода  ·  `inbox-lezhit-8-sluzhb-no-tri-stroki-iz-shesti.md` · 2026-10-10
+- Личность держателя карточки распорота по полям: release читает метку, а takeover обновляет pid  ·  `inbox-lichnost-derzhatelya-kartochki-rasporota.md` · 2026-11-14
 - live_registry_scene_census — сирота, вскрытая ужесточением детектора: её «вызывающим» был путь её же теста  ·  `inbox-live-registry-scene-census-sirota-vskryt.md` · 2026-10-27
 - main КРАСЕН: храповик инварианта #17 вырос на три координаты из двух чужих доставок  ·  `inbox-main-krasen-hrapovik-invarianta-17-vyros.md` · 2026-10-08
 - manifest.json уехал с indent=2 вместо канонического indent=1 — следующая регенерация выдаст 10 000 строк диффа за чужой счёт  ·  `inbox-manifest-json-uehal-s-indent-2-vmesto-ka.md` · 2026-10-08
