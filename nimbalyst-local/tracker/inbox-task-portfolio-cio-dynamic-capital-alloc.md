@@ -9,12 +9,6 @@ priority: critical
 status_trail:
   - "2026-08-26T22:31:36.748790+00:00 new -> in-progress · queue.set_status · cycle-96657"
 acceptance_probe: apy_name_carries_one_kind
-claimed_by: cycle-65860
-claimed_at: 2026-11-14T18:09:41Z
-claimed_run_id: orchestrator-65860-CFF7102FC6D8437C8C50AFB5ABAA529F
-claimed_pid: 65860
-claimed_pid_start: Sat Nov 14 18:41:57 2026
-claim_takeover_reason: вердикт stale: свежих захватов 0, держателя нет; наследство #1129 доставлено на origin/main 76d7b7425 (ADR-1007 + запись цикла), незаконченной работы предшественника в деревьях нет — работа #1130 начата с заказа G997 п. 1а
 ---
 
 ## УКАЗАНИЕ ВЛАДЕЛЬЦА 2026-08-22 (cloud-сессия): ЗАПУСТИТЬ СЛЕДУЮЩИМ ЦИКЛОМ
