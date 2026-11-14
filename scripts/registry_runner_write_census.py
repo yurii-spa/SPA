@@ -50,6 +50,16 @@ ADR-999 измерил читателей слепых точек входа к�
 прод-дерево или git-дерево: писать туда значило бы воспроизвести предмет замера. Записи по абсолютным
 путям ВНЕ дерева, cwd и песочницы наблюдение не видит — это сказано в итоге, не замалчивается.
 
+**Наблюдённый спутник статики (ADR-1006).** Статический счёт «дверь не у связанного имени»
+(`door_foreign_param`, ось ADR-1005) и «умолчание достижимо у бегуна» (`default_reached_under_sandbox`)
+утверждают ДОСТИЖИМОСТЬ места записи, а не запись. Прочитанные как перечень записей, они родили в
+заказе G995 п. 1 (а) ожидание «корзина бегуна 1 → 12», которое наблюдение ЭТОГО ЖЕ прибора
+опровергало. Поэтому рядом с подмножеством `FOREIGN_PARAM` печатается, что сделал бегун с КАЖДЫМ из
+них: `WROTE` (корзины названы) · `SILENT` (позван, записи нет; статус бегуна рядом — он отличает
+«вошёл и промолчал» от `unchecked`) · `UNMEASURED` (наблюдения не было либо модуля нет в его
+результатах). Без `--observe` блок печатает `НЕ ИЗМЕРЕНО`, а не нули; вывод «переносить нечего»
+печатается ТОЛЬКО когда ненаблюдённых нет и писавших нет.
+
 Коды: 0 — предмет пуст и измерен (ни одного `WRITE_REACHABLE`, умолчание которого достижимо у бегуна) ·
 1 — предмет назван · 2 — НЕ ИЗМЕРЕНО (реестр/бегун не прочитаны, `_ENTRY_METHODS` не найден, пустая
 поверхность). Как у соседних переписей: `UNMEASURED` у отдельных модулей не прячет названный предмет.
@@ -99,6 +109,13 @@ VERDICTS = ("NO_ENTRY", "WRITE_REACHABLE", "DELEGATES_OUT", "NO_WRITE_REACHED", 
 #: Распространение СТРОГОЕ: контейнер (`[ctx]`, `{"k": ctx}`) и результат чужого вызова (`f(ctx)`) связью
 #: НЕ являются — ошибка идёт в сторону FOREIGN_PARAM, то есть находки, а не её отсутствия.
 DOOR_OUTCOMES = ("CONTEXT_PARAM", "FOREIGN_PARAM", "NONE", "UNRESOLVED")
+
+#: Исходы наблюдённого СПУТНИКА статической оси `FOREIGN_PARAM` (ADR-1006). Статический счёт
+#: («дверь не у связанного имени» 12, «умолчание достижимо» 251) есть утверждение о ДОСТИЖИМОСТИ, а
+#: не о записи: заказ G995 п. 1 (а) прочитал его как «12 записей переедут дверью в каталог бегуна»,
+#: и наблюдение этого же прибора говорило обратное. Три исхода различимы (инв. #17): бегун ПИСАЛ ·
+#: бегун вошёл и НЕ ПИСАЛ · наблюдения НЕ БЫЛО. Последнее нулём не считается никогда.
+FOREIGN_OBSERVED_OUTCOMES = ("WROTE", "SILENT", "UNMEASURED")
 
 #: Формы записи. `os.replace`/`os.rename`/`os.makedirs`/`shutil.*`/`json.dump` — только у СВОЕГО модуля
 #: (`str.replace` записью не является); `write_text`/`write_bytes`/`mkdir` — у любого объекта;
@@ -1025,6 +1042,49 @@ def observe(repo: Path, census: Census, *, protocol: str, timeout: float,
             "observer_stderr_tail": (proc.stderr or "")[-600:]}
 
 
+def foreign_observed(census: Census, obs: Optional[Dict[str, Any]]) -> Dict[str, Any]:
+    """Наблюдённый спутник статической оси ``FOREIGN_PARAM`` (ADR-1006).
+
+    Статика отвечает «дверь каталога у модуля есть, но НЕ у того имени, в которое бегун биндит
+    контекст» (ADR-1005), и рядом стои́т счёт ``default_reached_under_sandbox`` — «умолчание
+    ДОСТИЖИМО от входа бегуна». Оба числа верны и ни одно не утверждает, что модуль под бегуном
+    ЧТО-ТО ПИШЕТ: достижимость места записи по графу вызовов и факт записи — разные наблюдения.
+    Заказ G995 п. 1 (а) вывел из них ожидание «корзина бегуна 1 → 12, дерево 47 → 36», то есть
+    прочитал статический счёт как перечень записей; наблюдение ТОГО ЖЕ прибора (``--observe``)
+    уже тогда говорило обратное, но печаталось отдельно и про этот подмножество молчало.
+
+    Исход у каждого модуля предмета — один из ``FOREIGN_OBSERVED_OUTCOMES``:
+
+    * ``WROTE`` — наблюдение видело запись (корзины названы);
+    * ``SILENT`` — бегун модуль позвал, записи нет; его статус (``ok``/``dormant``/``failed``/
+      ``unchecked``) несётся рядом, потому что именно он отличает «вошёл и промолчал» от «бегун
+      в модуль не вошёл вовсе»;
+    * ``UNMEASURED`` — наблюдения не было (``--observe`` не задан) либо модуля нет в его
+      результатах. Это НЕ ноль: ноль здесь означал бы «измерено и равно нулю», а мы не мерили.
+    """
+    subject = [m for m in census.modules if m.data_dir_door == "FOREIGN_PARAM"]
+    outcomes = {k: 0 for k in FOREIGN_OBSERVED_OUTCOMES}
+    per_module: List[Dict[str, Any]] = []
+    results = {r["module"]: r for r in (obs or {}).get("per_module", [])}
+    no_observation = None if obs is not None else "наблюдение не запускалось (--observe не задан)"
+    for m in subject:
+        if no_observation is not None:
+            outcome, status, written, why = "UNMEASURED", None, {}, no_observation
+        elif m.module not in results:
+            outcome, status, written, why = (
+                "UNMEASURED", None, {}, "модуля нет в результатах наблюдения")
+        else:
+            r = results[m.module]
+            written = {k: v for k, v in r["written"].items() if v}
+            outcome = "WROTE" if written else "SILENT"
+            status, why = r["status"], None
+        outcomes[outcome] += 1
+        per_module.append({"module": m.module, "outcome": outcome, "runner_status": status,
+                           "written": written, "reason": why})
+    return {"subject": len(subject), "outcomes": outcomes, "per_module": per_module,
+            "unmeasured_reason": no_observation}
+
+
 # ─────────────────────────── вывод ───────────────────────────
 
 def to_doc(c: Census) -> dict:
@@ -1063,6 +1123,20 @@ def render(c: Census, obs: Optional[Dict[str, Any]] = None) -> str:
             bases = sorted({f"{r.func}:{r.line} у `{r.base}`" for r in m.data_dir_reads})
             why = f" — {m.data_dir_door_reason}" if m.data_dir_door_reason else ""
             out.append(f"    {m.module} [{m.verdict}] {m.data_dir_door}{why}: " + "; ".join(bases[:4]))
+    fo = foreign_observed(c, obs)
+    if fo["subject"]:
+        oc = fo["outcomes"]
+        out.append(f"  что сделал БЕГУН с этими {fo['subject']} (наблюдённый спутник статики, ADR-1006):")
+        out.append(f"    ПИСАЛ {oc['WROTE']} · вошёл и НЕ ПИСАЛ {oc['SILENT']} · "
+                   f"НЕ ИЗМЕРЕНО {oc['UNMEASURED']}"
+                   + (f" — {fo['unmeasured_reason']}" if fo["unmeasured_reason"] else ""))
+        for e in fo["per_module"][:40]:
+            tail = (", ".join(f"{k}: {', '.join(v[:3])}" for k, v in e["written"].items())
+                    if e["written"] else (e["reason"] or f"статус бегуна `{e['runner_status']}`"))
+            out.append(f"    {e['module']}: {e['outcome']} — {tail}")
+        if oc["UNMEASURED"] == 0 and oc["WROTE"] == 0 and oc["SILENT"]:
+            out.append("    ⇒ ни один из них под бегуном НЕ ПИСАЛ: переносить дверью в каталог "
+                       "бегуна НЕЧЕГО, и ожидание «эти записи переедут» на этом населении ЛОЖНО")
     unm = [m for m in c.modules if m.verdict == "UNMEASURED"]
     if unm:
         out.append("  НЕ ИЗМЕРЕНО (модули):")
@@ -1114,6 +1188,8 @@ def main(argv: Optional[List[str]] = None) -> int:
         doc = to_doc(c)
         if obs is not None:
             doc["observation"] = obs
+        # ADR-1006: спутник печатается ВСЕГДА — без наблюдения он несёт НЕ ИЗМЕРЕНО, а не нули
+        doc["foreign_observed"] = foreign_observed(c, obs)
         print(json.dumps(doc, ensure_ascii=False, indent=2))
     else:
         print(render(c, obs))

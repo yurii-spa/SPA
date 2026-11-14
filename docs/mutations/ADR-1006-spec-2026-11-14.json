@@ -1,0 +1,63 @@
+{
+ "title": "ADR-1006 — наблюдённый спутник статической оси FOREIGN_PARAM у прибора «реестр → бегун» (цикл #1127)",
+ "tests": [
+  "spa_core/tests/test_registry_census_foreign_param_observed.py",
+  "spa_core/tests/test_registry_census_data_dir_door_param.py"
+ ],
+ "mutations": [
+  {
+   "name": "M01 наблюдения НЕТ ⇒ модуль числится SILENT, а не UNMEASURED (инв. #17 наизнанку: «не мерили» выдано за «измерено и тихо»)",
+   "file": "scripts/registry_runner_write_census.py",
+   "old": "            outcome, status, written, why = \"UNMEASURED\", None, {}, no_observation\n",
+   "new": "            outcome, status, written, why = \"SILENT\", None, {}, no_observation\n"
+  },
+  {
+   "name": "M02 модуля нет в результатах наблюдения ⇒ SILENT вместо UNMEASURED («не наблюдали» = «наблюдали и тихо»)",
+   "file": "scripts/registry_runner_write_census.py",
+   "old": "                \"UNMEASURED\", None, {}, \"модуля нет в результатах наблюдения\")\n",
+   "new": "                \"SILENT\", None, {}, \"модуля нет в результатах наблюдения\")\n"
+  },
+  {
+   "name": "M03 предмет спутника — любой читатель КЛЮЧА, а не ось FOREIGN_PARAM (спутник отвечает про чужую ось)",
+   "file": "scripts/registry_runner_write_census.py",
+   "old": "    subject = [m for m in census.modules if m.data_dir_door == \"FOREIGN_PARAM\"]\n",
+   "new": "    subject = [m for m in census.modules if m.reads_context_data_dir]\n"
+  },
+  {
+   "name": "M04 пустая корзина считается записью (ключ есть ⇒ «писал»)",
+   "file": "scripts/registry_runner_write_census.py",
+   "old": "            written = {k: v for k, v in r[\"written\"].items() if v}\n",
+   "new": "            written = dict(r[\"written\"])\n"
+  },
+  {
+   "name": "M05 исход решает СТАТУС бегуна, а не факт записи",
+   "file": "scripts/registry_runner_write_census.py",
+   "old": "            outcome = \"WROTE\" if written else \"SILENT\"\n",
+   "new": "            outcome = \"WROTE\" if r[\"status\"] == \"ok\" else \"SILENT\"\n"
+  },
+  {
+   "name": "M06 вывод «переносить нечего» печатается, не спросив о ненаблюдённых",
+   "file": "scripts/registry_runner_write_census.py",
+   "old": "        if oc[\"UNMEASURED\"] == 0 and oc[\"WROTE\"] == 0 and oc[\"SILENT\"]:\n",
+   "new": "        if oc[\"WROTE\"] == 0 and oc[\"SILENT\"]:\n"
+  },
+  {
+   "name": "M07 --json не несёт спутника (машинный читатель остаётся без оси)",
+   "file": "scripts/registry_runner_write_census.py",
+   "old": "        doc[\"foreign_observed\"] = foreign_observed(c, obs)\n",
+   "new": "        pass\n"
+  },
+  {
+   "name": "M08 статус бегуна у SILENT не несётся («вошёл и промолчал» неотличимо от «не вошёл»)",
+   "file": "scripts/registry_runner_write_census.py",
+   "old": "            status, why = r[\"status\"], None\n",
+   "new": "            status, why = None, None\n"
+  },
+  {
+   "name": "M09 блок спутника печатается и на ПУСТОМ предмете",
+   "file": "scripts/registry_runner_write_census.py",
+   "old": "    if fo[\"subject\"]:\n",
+   "new": "    if True:\n"
+  }
+ ]
+}

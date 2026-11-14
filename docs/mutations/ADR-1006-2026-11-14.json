@@ -1,0 +1,97 @@
+{
+ "adr": "ADR-1006",
+ "title": "ADR-1006 — наблюдённый спутник статической оси FOREIGN_PARAM у прибора «реестр → бегун» (цикл #1127)",
+ "date": "2026-11-14",
+ "cycle": "#1127",
+ "spec": "docs/mutations/ADR-1006-spec-2026-11-14.json",
+ "tool": "scripts/delta_mutation_run.py (ADR-726)",
+ "tree": "/private/tmp/spa_mut_1127 (rsync-копия финальных байтов БЕЗ .git; НЕ дерево доставки)",
+ "baseline_red": 0,
+ "summary": "МУТАЦИИ ПО ДЕЛЬТЕ: применено 9 · убито 9 · выжило 0 · НЕ ПРИМЕНЕНО 0 · СЛОМАЛИ СБОРКУ 0 (население 9)",
+ "applied": 9,
+ "killed": 9,
+ "survived": 0,
+ "broke_build": 0,
+ "not_applied": 0,
+ "window_after": "окна нет (--window-check: код 0) в дереве мутаций и в дереве доставки",
+ "tests": [
+  "spa_core/tests/test_registry_census_foreign_param_observed.py",
+  "spa_core/tests/test_registry_census_data_dir_door_param.py"
+ ],
+ "mutations": [
+  {
+   "name": "M01 наблюдения НЕТ ⇒ модуль числится SILENT, а не UNMEASURED (инв. #17 наизнанку: «не мерили» выдано за «измерено и тихо»)",
+   "outcome": "killed",
+   "killed_by": [
+    "spa_core/tests/test_registry_census_foreign_param_observed.py::ForeignObservedOnTheLiveTree::test_live_run_without_observation_answers_unmeasured",
+    "spa_core/tests/test_registry_census_foreign_param_observed.py::ForeignObservedOutcomes::test_no_observation_is_unmeasured_not_zero",
+    "spa_core/tests/test_registry_census_foreign_param_observed.py::ForeignObservedRender::test_text_names_three_outcomes_and_the_cause_when_unobserved"
+   ]
+  },
+  {
+   "name": "M02 модуля нет в результатах наблюдения ⇒ SILENT вместо UNMEASURED («не наблюдали» = «наблюдали и тихо»)",
+   "outcome": "killed",
+   "killed_by": [
+    "spa_core/tests/test_registry_census_foreign_param_observed.py::ForeignObservedOutcomes::test_module_missing_from_observation_is_unmeasured_with_its_own_reason",
+    "spa_core/tests/test_registry_census_foreign_param_observed.py::ForeignObservedRender::test_verdict_nothing_to_move_fires_only_when_earned"
+   ]
+  },
+  {
+   "name": "M03 предмет спутника",
+   "outcome": "killed",
+   "killed_by": [
+    "любой читатель КЛЮЧА",
+    "а не ось FOREIGN_PARAM (спутник отвечает про чужую ось) — spa_core/tests/test_registry_census_foreign_param_observed.py::ForeignObservedOnTheLiveTree::test_live_subject_matches_the_static_axis",
+    "spa_core/tests/test_registry_census_foreign_param_observed.py::ForeignObservedSubject::test_empty_subject_prints_no_block",
+    "spa_core/tests/test_registry_census_foreign_param_observed.py::ForeignObservedSubject::test_only_foreign_param_is_the_subject"
+   ]
+  },
+  {
+   "name": "M04 пустая корзина считается записью (ключ есть ⇒ «писал»)",
+   "outcome": "killed",
+   "killed_by": [
+    "spa_core/tests/test_registry_census_foreign_param_observed.py::ForeignObservedOutcomes::test_empty_basket_list_is_not_a_write"
+   ]
+  },
+  {
+   "name": "M05 исход решает СТАТУС бегуна, а не факт записи",
+   "outcome": "killed",
+   "killed_by": [
+    "spa_core/tests/test_registry_census_foreign_param_observed.py::ForeignObservedOutcomes::test_empty_basket_list_is_not_a_write",
+    "spa_core/tests/test_registry_census_foreign_param_observed.py::ForeignObservedOutcomes::test_invoked_but_silent_carries_the_runner_status",
+    "spa_core/tests/test_registry_census_foreign_param_observed.py::ForeignObservedOutcomes::test_module_missing_from_observation_is_unmeasured_with_its_own_reason",
+    "spa_core/tests/test_registry_census_foreign_param_observed.py::ForeignObservedRender::test_verdict_nothing_to_move_fires_only_when_earned"
+   ]
+  },
+  {
+   "name": "M06 вывод «переносить нечего» печатается, не спросив о ненаблюдённых",
+   "outcome": "killed",
+   "killed_by": [
+    "spa_core/tests/test_registry_census_foreign_param_observed.py::ForeignObservedRender::test_verdict_nothing_to_move_fires_only_when_earned"
+   ]
+  },
+  {
+   "name": "M07 --json не несёт спутника (машинный читатель остаётся без оси)",
+   "outcome": "killed",
+   "killed_by": [
+    "spa_core/tests/test_registry_census_foreign_param_observed.py::ForeignObservedOnTheLiveTree::test_json_always_carries_the_companion",
+    "spa_core/tests/test_registry_census_foreign_param_observed.py::ForeignObservedOnTheLiveTree::test_live_run_without_observation_answers_unmeasured",
+    "spa_core/tests/test_registry_census_foreign_param_observed.py::ForeignObservedOnTheLiveTree::test_live_subject_matches_the_static_axis"
+   ]
+  },
+  {
+   "name": "M08 статус бегуна у SILENT не несётся («вошёл и промолчал» неотличимо от «не вошёл»)",
+   "outcome": "killed",
+   "killed_by": [
+    "spa_core/tests/test_registry_census_foreign_param_observed.py::ForeignObservedOutcomes::test_invoked_but_silent_carries_the_runner_status"
+   ]
+  },
+  {
+   "name": "M09 блок спутника печатается и на ПУСТОМ предмете",
+   "outcome": "killed",
+   "killed_by": [
+    "spa_core/tests/test_registry_census_foreign_param_observed.py::ForeignObservedSubject::test_empty_subject_prints_no_block"
+   ]
+  }
+ ]
+}
