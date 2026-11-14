@@ -9,12 +9,6 @@ priority: critical
 status_trail:
   - "2026-08-26T22:31:36.748790+00:00 new -> in-progress · queue.set_status · cycle-96657"
 acceptance_probe: apy_name_carries_one_kind
-claimed_by: cycle-1132
-claimed_at: 2026-11-14T21:43:13Z
-claimed_run_id: orchestrator-1209-4886A51DE5C74F5C84C327BAB161A824
-claimed_pid: 1209
-claimed_pid_start: Sat Nov 14 22:36:12 2026
-claim_takeover_reason: цикл #1132: наследство #1131 доставлено целиком — ADR-1009 на origin/main 0a5e36053, незапушенного нет; захват cycle-1125 осиротел (pid 70846 мёртв, ps пуст; вердикт stale шагом 0a-голод). Работа #1132 — заказ G999 п. 1 (б) из worktree c1132 на 0a5e36053
 ---
 
 ## УКАЗАНИЕ ВЛАДЕЛЬЦА 2026-08-22 (cloud-сессия): ЗАПУСТИТЬ СЛЕДУЮЩИМ ЦИКЛОМ
