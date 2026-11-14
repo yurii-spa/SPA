@@ -89,6 +89,16 @@ ADR-999 измерил читателей слепых точек входа к�
     python3 scripts/registry_runner_write_census.py [--repo-root <дерево>] [--readers-json <callers.json>] [--json]
     python3 scripts/registry_runner_write_census.py --observe <одноразовое дерево> [--timeout 3] [--protocol aave_v3]
     python3 scripts/registry_runner_write_census.py --observe <одноразовое дерево> --protocols all   # различие по протоколам (ADR-1010)
+    python3 scripts/registry_runner_write_census.py --observe <одноразовое дерево> --timeouts declared,0.01,10  # различие по ПРЕДЕЛУ (ADR-1011)
+
+**ПРЕДЕЛ МОДУЛЯ (ADR-1011).** Второй вход наблюдения, и он был необъявленным тем же способом, что
+`--protocol`: умолчание-литерал `3.0` в приборе СОВПАДАЛО с объявлением бегуна `MODULE_TIMEOUT`, то
+есть прибор сверял свою константу сам с собой (класс ADR-913). Теперь предел читается У БЕГУНА, а
+`--timeouts` снимает наблюдение у каждого названного и сравнивает ПОИМЁННО тем же ядром, что
+протокол. Отличие одно и несущее: `INVARIANT` печатается только над ЖИВЫМ контролем входа
+(`timeout_knob_control` — синтетический модуль спит дольше одного предела и короче другого), потому
+что «население не зависит от предела» и «предел ни на что не влияет» дают ОДНО наблюдение, а второе
+есть дефект проводки. Контроль мёртв или не измерен ⇒ итог НЕ ИЗМЕРЕН.
 """
 from __future__ import annotations
 
@@ -301,6 +311,49 @@ _PV_SHOWN = 10
 
 PROTOCOL_SIDES: Tuple[str, ...] = ("runner_status", "silent") + tuple(
     f"unentered:{axis}" for axis in UNENTERED_AXES)
+
+#: ─── ТАЙМАУТ: ВТОРОЙ вход наблюдения, и до ADR-1011 он был НЕОБЪЯВЛЕННЫМ (заказ G1000 п. 1г) ───
+#:
+#: `--timeout` имел в приборе умолчание-ЛИТЕРАЛ `3.0`. Оно СОВПАДАЛО с объявлением бегуна
+#: (`MODULE_TIMEOUT = 3.0`) — и именно совпадение делало дефект невидимым: прибор сверял свою
+#: константу САМ С СОБОЙ (класс ADR-913), а на вопрос «тем ли пределом мерили, которым живёт
+#: бегун» отвечал не замером, а везением. Верная копия опаснее неверной: она молчит ровно до того
+#: дня, когда бегун поменяет своё число, и тогда девять решений продолжат печатать «измерено» о
+#: пределе, которого в дереве нет.
+RUNNER_TIMEOUT_NAME = "MODULE_TIMEOUT"
+#: Имена у бегуна, которыми читается ОТВЕТ на сработавший предел (`read_runner_timeout_status`).
+#: Ожидание контроля есть утверждение О БЕГУНЕ, поэтому слово берётся у него, а не вписывается
+#: сюда второй копией (тот же довод, что у `RUNNER_UNCHECKED_MARKERS`).
+RUNNER_MODULE_CALL = "_run_module"
+RUNNER_RECORD = "_record"
+RUNNER_TIMEOUT_EXC_MARK = "timeout"
+
+#: Одна дверь на оба входа: порог «меньше двух наблюдений — не ответ» принадлежит ВОПРОСУ
+#: «различается ли», а не протоколу. Вторая копия этого числа была бы ровно тем дефектом, который
+#: прибор и ловит, — объявление, живущее в двух местах.
+VARIANCE_MIN = PROTOCOL_VARIANCE_MIN
+
+#: Исход положительного контроля входа. `INVARIANT` без ЖИВОГО контроля печататься НЕ ИМЕЕТ ПРАВА:
+#: «население не зависит от предела» и «предел ни на что не влияет» по наблюдению НЕРАЗЛИЧИМЫ, а
+#: второе есть дефект проводки, а не свойство системы. Проверка, никогда не видевшая настоящей
+#: поломки, — украшение (`.claude/rules/deployment.md`, § «Проверка сторожа сторожей»).
+KNOB_VERDICTS = ("KNOB_LIVE", "KNOB_DEAD", "UNMEASURED")
+_KB_LIVE, _KB_DEAD, _KB_UNMEASURED = KNOB_VERDICTS
+
+#: Сцена контроля: синтетический модуль спит `KNOB_SLEEP_S`, и тот же бегун ТОГО ЖЕ дерева
+#: зовётся ДВАЖДЫ — пределом НИЖЕ сна и пределом ВЫШЕ. Числа выбраны так, чтобы контроль стоил
+#: меньше секунды и обе границы лежали ДАЛЕКО от сна: дрожание планировщика не должно решать
+#: вердикт (тот же довод, что у измеренного свободного pid — «кажется, хватит» причиной не является).
+KNOB_SLEEP_S = 0.30
+KNOB_BELOW_S = 0.05
+KNOB_ABOVE_S = 2.00
+#: Имя синтетического модуля сцены. Он НЕ кладётся в дерево: сеется в `sys.modules` наблюдателя,
+#: потому что бегун входит в модуль через `importlib.import_module`. Файла в дереве не возникает —
+#: дерево под прибором не правится ни байтом (`.claude/rules/deployment.md`, § про окно прибора).
+KNOB_MODULE_NAME = "_census_timeout_knob_control"
+#: Предел на саму сцену контроля: два зова по `KNOB_ABOVE_S` плюс ввоз бегуна. Превышен ⇒ НЕ
+#: ИЗМЕРЕНО с причиной, а не «вход мёртв» (ошибка в сторону отказа, а не ложной находки).
+_KNOB_RUN_TIMEOUT_S = 90.0
 
 #: Формы записи. `os.replace`/`os.rename`/`os.makedirs`/`shutil.*`/`json.dump` — только у СВОЕГО модуля
 #: (`str.replace` записью не является); `write_text`/`write_bytes`/`mkdir` — у любого объекта;
@@ -1940,29 +1993,33 @@ def read_runner_protocols(repo: Path) -> Tuple[str, ...]:
     raise NotMeasured(f"у бегуна нет объявления `{RUNNER_PROTOCOLS_NAME}`")
 
 
-def _compare_across_protocols(by_protocol: Dict[str, Dict[str, str]]) -> Dict[str, Any]:
-    """ПОИМЁННОЕ сравнение одного ярлыка у одних и тех же модулей между протоколами.
+def _compare_across_values(by_value: Dict[str, Dict[str, str]]) -> Dict[str, Any]:
+    """ПОИМЁННОЕ сравнение одного ярлыка у одних и тех же модулей между значениями ВХОДА.
+
+    Ядро ОДНО на все входы наблюдения (протокол — ADR-1010, предел модуля — ADR-1011): своя
+    копия у второго входа отвечала бы на свой вопрос, а имя, называющее один из входов, уже
+    было бы обещанием, которого ядро не держит.
 
     Основание — модуль, а не счёт: равные счёта при разных модулях есть ровно тот зелёный ответ
     на СВОЙ вопрос, которым три сторожа сайта пропустили шестнадцать перепечатанных литералов.
     """
-    protocols = sorted(by_protocol)
-    seen = [set(by_protocol[p]) for p in protocols]
+    values = sorted(by_value)
+    seen = [set(by_value[v]) for v in values]
     everywhere = set.intersection(*seen) if seen else set()
     union = set().union(*seen) if seen else set()
     moved = [{"module": m,
-              "in": [p for p in protocols if m in by_protocol[p]],
-              "out": [p for p in protocols if m not in by_protocol[p]]}
+              "in": [v for v in values if m in by_value[v]],
+              "out": [v for v in values if m not in by_value[v]]}
              for m in sorted(union - everywhere)]
     differs = []
     for m in sorted(everywhere):
-        labels = {p: by_protocol[p][m] for p in protocols}
+        labels = {v: by_value[v][m] for v in values}
         if len(set(labels.values())) > 1:
             differs.append({"module": m, "labels": labels})
     found = {_PD_MOVED: moved, _PD_DIFFERS: differs}
     return {"verdict": _PV_INVARIANT if not moved and not differs else _PV_VARIES,
-            "protocols": protocols,
-            "subject": {p: len(by_protocol[p]) for p in protocols},
+            "values": values,
+            "subject": {v: len(by_value[v]) for v in values},
             "union": len(union), "intersection": len(everywhere),
             # «Предмет ПУСТ под всеми протоколами» и «сверено поимённо» — РАЗНЫЕ ответы, хотя
             # вердикт у них один: пустому предмету различаться нечем, и выдать это за сверку
@@ -2037,13 +2094,13 @@ def protocol_variance(repo: Path, census: Census,
                 reason = f"протокол `{p}`: {exc}"
                 break
         if reason is not None:
-            sides[side] = {"verdict": _PV_UNMEASURED, "protocols": protocols, "subject": {},
+            sides[side] = {"verdict": _PV_UNMEASURED, "values": protocols, "subject": {},
                            "union": 0, "intersection": 0, "subject_empty": None,
                            "differences": {k: [] for k in PROTOCOL_DIFFERENCES},
                            "counts": {k: 0 for k in PROTOCOL_DIFFERENCES},
                            "unmeasured_reason": reason}
             continue
-        sides[side] = _compare_across_protocols(by_protocol)
+        sides[side] = _compare_across_values(by_protocol)
     verdicts = {s["verdict"] for s in sides.values()}
     # fail-CLOSED: неизмеренная сторона НЕ даёт итогу права сказать «инвариантно» по остальным.
     if _PV_UNMEASURED in verdicts:
@@ -2086,7 +2143,7 @@ def render_protocol_variance(pv: Dict[str, Any]) -> List[str]:
         if s["verdict"] == _PV_UNMEASURED:
             out.append(f"    {side:<42} ⚠️ НЕ ИЗМЕРЕНО — {s['unmeasured_reason']}")
             continue
-        counts = "/".join(str(s["subject"][p]) for p in s["protocols"])
+        counts = "/".join(str(s["subject"][p]) for p in s["values"])
         if s["verdict"] == _PV_INVARIANT and s.get("subject_empty"):
             out.append(f"    {side:<42} предмет ПУСТ под всеми протоколами — измерено и равно "
                        f"нулю, сверкой это не является")
@@ -2116,6 +2173,382 @@ def render_protocol_variance(pv: Dict[str, Any]) -> List[str]:
     return out
 
 
+# ───────── предел модуля: ВТОРОЙ объявленный вход (ADR-1011, заказ G1000 п. 1г) ─────────
+
+def read_runner_timeout(repo: Path) -> float:
+    """Предел модуля — из AST БЕГУНА (`MODULE_TIMEOUT`), а не копией-литералом в приборе.
+
+    Тот же довод, что у `read_runner_protocols`, и та же ловушка с другой стороны: перечень
+    протоколов прибор у себя не держал вовсе, а предел держал — и держал ВЕРНЫЙ. Поэтому дефект
+    и прожил девять решений: расхождения сегодня нет, и назвать его нечем, кроме вопроса «а кто
+    тут объявляет?».
+
+    Нет объявления · не числовой литерал · не положительное ⇒ `NotMeasured`. Подставить здесь
+    `3.0` значило бы ответить о пределе, которого бегун не объявляет (инв. #17).
+    """
+    runner = repo / RUNNER_REL
+    if not runner.is_file():
+        raise NotMeasured(f"бегуна нет: {runner}")
+    try:
+        tree = _read_tree(runner)
+    except (SyntaxError, UnicodeDecodeError, OSError) as exc:
+        raise NotMeasured(f"бегун не разобран: {type(exc).__name__}: {exc}")
+    for node in tree.body:
+        if not isinstance(node, ast.Assign):
+            continue
+        if not any(isinstance(t, ast.Name) and t.id == RUNNER_TIMEOUT_NAME for t in node.targets):
+            continue
+        try:
+            value = ast.literal_eval(node.value)
+        except (ValueError, TypeError, SyntaxError) as exc:
+            raise NotMeasured(
+                f"`{RUNNER_TIMEOUT_NAME}` у бегуна не литерал ({type(node.value).__name__}): {exc}")
+        # `bool` — подкласс `int`, и `MODULE_TIMEOUT = True` пределом не является.
+        if isinstance(value, bool) or not isinstance(value, (int, float)):
+            raise NotMeasured(
+                f"`{RUNNER_TIMEOUT_NAME}` у бегуна не число, а {type(value).__name__}")
+        if value <= 0:
+            raise NotMeasured(f"`{RUNNER_TIMEOUT_NAME}` у бегуна не положителен: {value}")
+        return float(value)
+    raise NotMeasured(f"у бегуна нет объявления `{RUNNER_TIMEOUT_NAME}`")
+
+
+def _handler_is_timeout(handler: ast.ExceptHandler) -> bool:
+    """Ловит ли обработчик именно ПРЕДЕЛ. Имя исключения читается у бегуна, род — по слову."""
+    names: List[str] = []
+    for node in ast.walk(handler.type) if handler.type is not None else []:
+        if isinstance(node, ast.Name):
+            names.append(node.id)
+        elif isinstance(node, ast.Attribute):
+            names.append(node.attr)
+    return any(RUNNER_TIMEOUT_EXC_MARK in n.lower() for n in names)
+
+
+def read_runner_timeout_status(repo: Path) -> str:
+    """Каким СЛОВОМ бегун отвечает на сработавший предел — читается У НЕГО, паритетом.
+
+    Ожидание контроля («при пределе ниже сна бегун обязан сказать `timeout`») есть утверждение
+    О БЕГУНЕ, и вписать это слово в прибор значило бы снова свериться с собой: переименуй бегун
+    статус — контроль объявил бы ЖИВОЙ вход мёртвым, то есть соврал бы в сторону ложной находки.
+    Поэтому слово берётся из обработчика предела внутри `_run_module`.
+
+    Нет обработчика · он ничего не записывает · записывает РАЗНЫЕ слова ⇒ `NotMeasured`: появись
+    у бегуна второй ответ на предел — прибор обязан сказать «не измерено», а не выбрать удобное
+    (тот же порядок, что у `RUNNER_UNCHECKED_MARKERS` в ADR-1009).
+    """
+    runner = repo / RUNNER_REL
+    if not runner.is_file():
+        raise NotMeasured(f"бегуна нет: {runner}")
+    try:
+        tree = _read_tree(runner)
+    except (SyntaxError, UnicodeDecodeError, OSError) as exc:
+        raise NotMeasured(f"бегун не разобран: {type(exc).__name__}: {exc}")
+    calls: List[str] = []
+    seen_entry = False
+    for node in ast.walk(tree):
+        if not (isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef))
+                and node.name == RUNNER_MODULE_CALL):
+            continue
+        seen_entry = True
+        for sub in ast.walk(node):
+            if not (isinstance(sub, ast.ExceptHandler) and _handler_is_timeout(sub)):
+                continue
+            for call in ast.walk(sub):
+                if (isinstance(call, ast.Call) and isinstance(call.func, ast.Attribute)
+                        and call.func.attr == RUNNER_RECORD and len(call.args) >= 2
+                        and isinstance(call.args[1], ast.Constant)
+                        and isinstance(call.args[1].value, str)):
+                    calls.append(call.args[1].value)
+    if not seen_entry:
+        raise NotMeasured(f"у бегуна нет `{RUNNER_MODULE_CALL}` — предел звать некому")
+    if not calls:
+        raise NotMeasured(
+            f"`{RUNNER_MODULE_CALL}` не записывает статуса в обработчике предела "
+            f"(искали `{RUNNER_RECORD}` со строковым литералом)")
+    if len(set(calls)) > 1:
+        raise NotMeasured(
+            f"на предел бегун отвечает РАЗНЫМИ словами {sorted(set(calls))} — выбрать удобное "
+            f"значило бы раскладывать новый механизм по старым именам")
+    return calls[0]
+
+
+#: Сцена положительного контроля. Синтетический модуль СЕЕТСЯ в `sys.modules` (бегун входит
+#: `importlib.import_module`), поэтому дерево под прибором не правится ни байтом.
+_KNOB_CONTROL = r'''
+import json, os, sys, tempfile, time, types
+repo, mod_name, sleep_s, below, above, out_path = sys.argv[1:7]
+sys.path.insert(0, repo)
+from spa_core.analytics import signal_aggregator as sa
+
+_sleep = float(sleep_s)
+mod = types.ModuleType("spa_core.analytics." + mod_name)
+
+
+def analyze(context):
+    time.sleep(_sleep)
+    return 1.0
+
+
+mod.analyze = analyze
+sys.modules["spa_core.analytics." + mod_name] = mod
+info = {"module": mod_name, "class": None, "weight": 0.0, "category": "knob-control"}
+out = {}
+with tempfile.TemporaryDirectory(prefix="rrwc_knob_") as sandbox:
+    for side, t in (("below", float(below)), ("above", float(above))):
+        t0 = time.time()
+        try:
+            agg = sa.SignalAggregator(data_dir=sandbox, module_timeout=t)
+            agg._run_module(info, "knob_control",
+                            {"cycle_ts": "knob", "source": "timeout_knob_control"})
+            log = getattr(agg, "_log", None)
+            status = log[-1].get("status") if log else None
+            error = None if status is not None else "бегун не записал ни одной строки"
+        except BaseException as exc:
+            status, error = None, "%s: %s" % (type(exc).__name__, exc)
+        out[side] = {"timeout": t, "status": status, "error": error,
+                     "seconds": round(time.time() - t0, 3)}
+json.dump(out, open(out_path, "w", encoding="utf-8"), ensure_ascii=False)
+'''
+
+
+def timeout_knob_control(repo: Path, *, python: str = sys.executable,
+                         sleep_s: float = KNOB_SLEEP_S, below: float = KNOB_BELOW_S,
+                         above: float = KNOB_ABOVE_S) -> Dict[str, Any]:
+    """Доходит ли вход «предел» до РЕШЕНИЯ бегуна — положительный контроль, а не чтение кода.
+
+    Без него «население не зависит от предела» неотличимо от «предел ни на что не влияет»:
+    первое есть свойство системы, второе — дефект проводки, и НАБЛЮДЕНИЕ у них одно и то же.
+    Контроль ставит сцену, где ответ ОБЯЗАН различаться: модуль спит дольше одного предела и
+    короче другого, и зовёт его НАСТОЯЩИЙ бегун названного дерева.
+
+    Три исхода (инв. #17): `KNOB_LIVE` — ниже сна бегун сказал своё слово предела, выше не
+    сказал; `KNOB_DEAD` — обе стороны ответили ОДИНАКОВО (вход до решения не доходит);
+    `UNMEASURED` с причиной — слово предела не прочитано, бегун не ввезён, сцена не отработала.
+    """
+    empty: Dict[str, Any] = {"verdict": _KB_UNMEASURED, "expected_status": None, "sides": {},
+                             "sleep_s": sleep_s, "below_s": below, "above_s": above,
+                             "dead_reason": None}
+    if not (below < sleep_s < above):
+        return {**empty, "unmeasured_reason": (
+            f"сцена контроля неисполнима: требуется {below} < {sleep_s} < {above}")}
+    try:
+        expected = read_runner_timeout_status(repo)
+    except NotMeasured as exc:
+        return {**empty, "unmeasured_reason": f"слово предела у бегуна не прочитано: {exc}"}
+    with tempfile.TemporaryDirectory(prefix="rrwc_knob_out_") as tmp:
+        out_path = Path(tmp) / "knob.json"
+        try:
+            proc = subprocess.run(
+                [python, "-c", _KNOB_CONTROL, str(repo), KNOB_MODULE_NAME, str(sleep_s),
+                 str(below), str(above), str(out_path)],
+                capture_output=True, text=True, timeout=_KNOB_RUN_TIMEOUT_S)
+        except (OSError, subprocess.SubprocessError) as exc:
+            return {**empty, "expected_status": expected, "unmeasured_reason": (
+                f"сцена контроля не запустилась: {type(exc).__name__}: {exc}")}
+        if not out_path.is_file():
+            return {**empty, "expected_status": expected, "unmeasured_reason": (
+                f"сцена контроля не отдала результата (код {proc.returncode}): "
+                f"{(proc.stderr or '').strip()[-300:]}")}
+        try:
+            sides = json.loads(out_path.read_text(encoding="utf-8"))
+        except (OSError, ValueError) as exc:
+            return {**empty, "expected_status": expected, "unmeasured_reason": (
+                f"результат контроля не прочитан: {type(exc).__name__}: {exc}")}
+    if set(sides) != {"below", "above"}:
+        return {**empty, "expected_status": expected, "sides": sides, "unmeasured_reason": (
+            f"сцена вернула не обе стороны, а {sorted(sides)}")}
+    errs = {s: v.get("error") for s, v in sides.items() if v.get("error")}
+    if errs:
+        return {**empty, "expected_status": expected, "sides": sides, "unmeasured_reason": (
+            "бегун сцены не ответил: " + "; ".join(f"{k}: {v}" for k, v in errs.items()))}
+    below_hit = sides["below"].get("status") == expected
+    above_hit = sides["above"].get("status") == expected
+    live = below_hit and not above_hit
+    return {"verdict": _KB_LIVE if live else _KB_DEAD, "expected_status": expected,
+            "sides": sides, "sleep_s": sleep_s, "below_s": below, "above_s": above,
+            "unmeasured_reason": None,
+            "dead_reason": None if live else (
+                f"предел на решение бегуна НЕ ВЛИЯЕТ так, как объявлено: при {below} с статус "
+                f"`{sides['below'].get('status')}`, при {above} с — `{sides['above'].get('status')}`; "
+                f"ожидалось `{expected}` РОВНО у первой")}
+
+
+def timeout_key(value: float) -> str:
+    """Ключ наблюдения по пределу. Одна дверь: ключ и печать обязаны быть одной строкой, иначе
+    «наблюдений 2» легко получить из одного предела, записанного двумя способами (`3` и `3.0`)."""
+    return repr(float(value))
+
+
+def _slowest_observed_module(observations: Dict[str, Dict[str, Any]]) -> Optional[Dict[str, Any]]:
+    """Самый медленный модуль среди наблюдений — ЗАПАС, которым объясняется инвариантность.
+
+    Наблюдение без `seconds` ответа не даёт, и это НЕ нуль (инв. #17): «запас не измерен» и
+    «запаса нет» — разные утверждения, а второе читалось бы как находка.
+    """
+    best: Optional[Dict[str, Any]] = None
+    for key, obs in observations.items():
+        rows = obs.get("per_module")
+        if not rows:
+            return None
+        for r in rows:
+            sec = r.get("seconds")
+            if not isinstance(sec, (int, float)) or isinstance(sec, bool):
+                return None
+            if best is None or float(sec) > best["seconds"]:
+                best = {"module": r.get("module"), "seconds": float(sec), "at_timeout": key}
+    return best
+
+
+def timeout_variance(repo: Path, census: Census,
+                     observations: Optional[Dict[str, Dict[str, Any]]],
+                     knob: Optional[Dict[str, Any]] = None) -> Dict[str, Any]:
+    """Различается ли механизм бегуна по ПРЕДЕЛУ модуля (заказ G1000 п. 1г = ADR-1010 § 7г).
+
+    ADR-1010 закрыл первый вход наблюдения (протокол) и НАЗВАЛ второй: предел стоял `3 с` во
+    всех замерах ADR-1002…1010, и зависимость населения `dormant`/`failed`/`timeout` от него не
+    измерял никто. Сравнение — ПОИМЁННОЕ и тем же ядром, что у протокола: своя копия ядра
+    отвечала бы на свой вопрос (`_compare_across_values`), а равные счёта при разных модулях уже
+    были зелёным ответом сторожа мимо предмета.
+
+    Отличие от протокола ОДНО и оно несущее: у предела инвариантность обязана ЗАРАБОТАТЬ право
+    быть напечатанной. «Население не зависит от предела» и «предел ни на что не влияет» дают
+    ОДНО наблюдение, поэтому `INVARIANT` печатается только над живым контролем входа
+    (`timeout_knob_control`); контроль мёртв или не измерен ⇒ итог НЕ ИЗМЕРЕН (fail-CLOSED).
+    Названное различие (`VARIES`) в контроле не нуждается: различие само и есть доказательство,
+    что вход до решения доходит.
+    """
+    kb = knob or {"verdict": _KB_UNMEASURED, "expected_status": None, "sides": {},
+                  "dead_reason": None, "unmeasured_reason": "контроль входа не запускался"}
+    empty: Dict[str, Any] = {"verdict": _PV_UNMEASURED, "timeouts": [], "sides": {},
+                             "min_required": VARIANCE_MIN, "declared": None,
+                             "declared_observed": None, "knob": kb, "margin": None,
+                             "slowest": None}
+    if not observations:
+        return {**empty, "unmeasured_reason": "наблюдение не запускалось (--observe не задан)"}
+    try:
+        timeouts = sorted(observations, key=float)
+    except (TypeError, ValueError) as exc:
+        return {**empty, "timeouts": sorted(observations), "unmeasured_reason": (
+            f"ключи наблюдений не читаются как предел ({exc}) — ключ обязан делать "
+            f"`timeout_key`, иначе «наблюдений 2» получается из одного предела")}
+    if len(timeouts) < VARIANCE_MIN:
+        return {**empty, "timeouts": timeouts, "unmeasured_reason": (
+            f"наблюдений {len(timeouts)} < {VARIANCE_MIN}: один предел даёт ЗНАЧЕНИЕ, "
+            f"а не различие — «различий нет» из него не следует")}
+    try:
+        declared = read_runner_timeout(repo)
+    except NotMeasured as exc:
+        return {**empty, "timeouts": timeouts, "unmeasured_reason": (
+            f"объявление предела у бегуна не прочитано: {exc} — без него нельзя сказать, "
+            f"входит ли в наблюдённые тот предел, которым бегун живёт")}
+    declared_observed = timeout_key(declared) in observations
+    slowest = _slowest_observed_module(observations)
+    margin = (round(declared / slowest["seconds"], 1)
+              if slowest and slowest["seconds"] > 0 else None)
+    sides: Dict[str, Dict[str, Any]] = {}
+    for side in PROTOCOL_SIDES:
+        by_value: Dict[str, Dict[str, str]] = {}
+        reason: Optional[str] = None
+        for t in timeouts:
+            try:
+                by_value[t] = _side_labels(repo, census, observations[t], side)
+            except NotMeasured as exc:
+                reason = f"предел `{t}`: {exc}"
+                break
+        if reason is not None:
+            sides[side] = {"verdict": _PV_UNMEASURED, "values": timeouts, "subject": {},
+                           "union": 0, "intersection": 0, "subject_empty": None,
+                           "differences": {k: [] for k in PROTOCOL_DIFFERENCES},
+                           "counts": {k: 0 for k in PROTOCOL_DIFFERENCES},
+                           "unmeasured_reason": reason}
+            continue
+        sides[side] = _compare_across_values(by_value)
+    verdicts = {s["verdict"] for s in sides.values()}
+    if _PV_UNMEASURED in verdicts:
+        overall = _PV_UNMEASURED
+        reason = "; ".join(f"{name}: {s['unmeasured_reason']}" for name, s in sides.items()
+                           if s["verdict"] == _PV_UNMEASURED)
+    elif _PV_VARIES in verdicts:
+        overall, reason = _PV_VARIES, None
+    elif kb["verdict"] != _KB_LIVE:
+        # fail-CLOSED, и это НЕСУЩАЯ половина решения: все стороны совпали поимённо, но без
+        # живого контроля такой ответ в равной мере описывает дефект проводки.
+        overall = _PV_UNMEASURED
+        reason = (f"стороны совпали ПОИМЁННО, но вход не подтверждён контролем "
+                  f"({kb['verdict']}: {kb.get('dead_reason') or kb.get('unmeasured_reason')}) — "
+                  f"«население не зависит от предела» и «предел ни на что не влияет» по "
+                  f"наблюдению НЕРАЗЛИЧИМЫ")
+    else:
+        overall, reason = _PV_INVARIANT, None
+    return {"verdict": overall, "timeouts": timeouts, "sides": sides,
+            "min_required": VARIANCE_MIN, "declared": declared,
+            "declared_observed": declared_observed, "knob": kb,
+            "slowest": slowest, "margin": margin, "unmeasured_reason": reason}
+
+
+def render_timeout_variance(tv: Dict[str, Any]) -> List[str]:
+    """Печать сравнения по пределу. Запас печатается ВСЕГДА: инвариантность без названной
+    причины — число без своего производителя, а именно запасом она здесь и объясняется."""
+    out = [f"  РАЗЛИЧИЕ МЕХАНИЗМА ПО ПРЕДЕЛУ МОДУЛЯ (ADR-1011) — наблюдений "
+           f"{len(tv['timeouts'])} ({', '.join(tv['timeouts']) or '—'} с)"]
+    if tv.get("declared") is not None:
+        out.append(f"    объявление бегуна `{RUNNER_TIMEOUT_NAME}` = {tv['declared']} с — "
+                   + ("СРЕДИ наблюдённых" if tv["declared_observed"]
+                      else "⚠️ среди наблюдённых ЕГО НЕТ: ответ принадлежит пределам, "
+                           "которыми бегун не живёт"))
+    kb = tv["knob"]
+    if kb["verdict"] == _KB_LIVE:
+        s = kb["sides"]
+        out.append(f"    контроль входа KNOB_LIVE — модуль спит {kb['sleep_s']} с: при "
+                   f"{kb['below_s']} с бегун сказал `{s['below']['status']}`, при "
+                   f"{kb['above_s']} с — `{s['above']['status']}`")
+    elif kb["verdict"] == _KB_DEAD:
+        out.append(f"    ❗ контроль входа KNOB_DEAD — {kb['dead_reason']}")
+    else:
+        out.append(f"    ⚠️ контроль входа НЕ ИЗМЕРЕН — {kb.get('unmeasured_reason')}")
+    if tv.get("slowest") is None:
+        out.append("    запас НЕ ИЗМЕРЕН: у наблюдений нет длительностей модулей")
+    else:
+        sl = tv["slowest"]
+        out.append(f"    самый медленный модуль наблюдения: {sl['module']} {sl['seconds']} с "
+                   f"(при пределе {sl['at_timeout']} с)" + (
+                       f"; запас до объявленного предела {tv['margin']}×"
+                       if tv.get("margin") is not None else "; запас не считается: 0 с"))
+    if tv["verdict"] == _PV_UNMEASURED:
+        out.append(f"    ⚠️ НЕ ИЗМЕРЕНО — {tv['unmeasured_reason']}")
+        return out
+    for side, s in tv["sides"].items():
+        if s["verdict"] == _PV_UNMEASURED:
+            out.append(f"    {side:<42} ⚠️ НЕ ИЗМЕРЕНО — {s['unmeasured_reason']}")
+            continue
+        counts = "/".join(str(s["subject"][t]) for t in s["values"])
+        if s["verdict"] == _PV_INVARIANT and s.get("subject_empty"):
+            out.append(f"    {side:<42} предмет ПУСТ под всеми пределами — измерено и равно "
+                       f"нулю, сверкой это не является")
+            continue
+        if s["verdict"] == _PV_INVARIANT:
+            out.append(f"    {side:<42} INVARIANT — предмет {counts}; совпал ПОИМЁННО "
+                       f"({s['intersection']} модул(ей), union = intersect)")
+            continue
+        out.append(f"    {side:<42} VARIES — предмет {counts}; union {s['union']}, "
+                   f"intersect {s['intersection']}; SUBJECT_MOVED "
+                   f"{s['counts']['SUBJECT_MOVED']} · LABEL_DIFFERS {s['counts']['LABEL_DIFFERS']}")
+        moved, differs = s["differences"][_PD_MOVED], s["differences"][_PD_DIFFERS]
+        for e in moved[:_PV_SHOWN]:
+            out.append(f"      ↔ {e['module']}: в предмете при {', '.join(e['in'])} с; "
+                       f"вне — {', '.join(e['out'])} с")
+        for e in differs[:_PV_SHOWN]:
+            shown = ", ".join(f"{t}с={lab}" for t, lab in e["labels"].items())
+            out.append(f"      ≠ {e['module']}: {shown}")
+        rest = (len(moved) - min(_PV_SHOWN, len(moved))) + (len(differs) - min(_PV_SHOWN, len(differs)))
+        if rest > 0:
+            out.append(f"      … и ещё {rest} (полный перечень — `--json`, ключ "
+                       f"`timeout_variance.sides['{side}'].differences`)")
+    out.append("    НЕ ДОКЛАДЫВАЕТ: матрица «предел × протокол» (прибор мерит входы ПО ОДНОМУ; "
+               "смешанный зов отказывает) и цена предела в секундах прогона")
+    return out
+
+
 def to_doc(c: Census) -> dict:
     return {"root": c.root, "runner": asdict(c.runner), "counts": c.counts, "exposure": c.exposure,
             "blind_subset": c.blind_subset, "code": c.code, "unmeasured_reason": c.unmeasured_reason,
@@ -2123,7 +2556,9 @@ def to_doc(c: Census) -> dict:
 
 
 def render(c: Census, obs: Optional[Dict[str, Any]] = None,
-           observations: Optional[Dict[str, Dict[str, Any]]] = None) -> str:
+           observations: Optional[Dict[str, Dict[str, Any]]] = None,
+           by_timeout: Optional[Dict[str, Dict[str, Any]]] = None,
+           knob: Optional[Dict[str, Any]] = None) -> str:
     out = [f"РЕЕСТР → БЕГУН: куда пишут аналитики под песочницей (ADR-999 § 6в) · дерево {c.root}",
            f"  бегун {c.runner.runner_path}: входы {list(c.runner.entry_methods)}; кладёт data_dir в контекст "
            f"модуля — {'ДА' if c.runner.passes_data_dir else 'НЕТ'}",
@@ -2268,6 +2703,12 @@ def render(c: Census, obs: Optional[Dict[str, Any]] = None,
     out.extend(render_protocol_variance(protocol_variance(
         Path(c.root), c, observations if observations is not None
         else ({obs["protocol"]: obs} if obs is not None else None))))
+    # ADR-1011: предел модуля — ВТОРОЙ вход, и о нём печатается тот же ответ и тем же порядком.
+    # Без второго наблюдения это НЕ «различий нет», а названный третий исход; и `INVARIANT` тут
+    # обязан стоять над ЖИВЫМ контролем входа, иначе он описывает ещё и мёртвую проводку.
+    out.extend(render_timeout_variance(timeout_variance(
+        Path(c.root), c, by_timeout if by_timeout is not None
+        else ({timeout_key(obs["timeout"]): obs} if obs is not None else None), knob)))
     verdict = {0: "✅ предмет пуст: ни одна запись реестра не доводит вход бегуна до записи в своё умолчание",
                1: "❗ предмет НАЗВАН: бегун каталога не передаёт, а вход достигает записи — она ляжет в умолчание модуля",
                2: f"⚠️ НЕ ИЗМЕРЕНО: {c.unmeasured_reason}"}[c.code]
@@ -2286,7 +2727,10 @@ def main(argv: Optional[List[str]] = None) -> int:
                     help="`all` (весь перечень бегуна `DEFAULT_PROTOCOLS`) либо имена через запятую: "
                          "наблюдение снимается у КАЖДОГО, и прибор отвечает, различается ли механизм "
                          "по протоколам (ADR-1010). Один протокол на этот вопрос НЕ отвечает")
-    ap.add_argument("--timeout", type=float, default=3.0, help="таймаут модуля у бегуна, с")
+    ap.add_argument("--timeout", type=float, default=None,
+                    help="предел модуля у бегуна, с. Умолчания-литерала у прибора НЕТ: не назван — берётся ОБЪЯВЛЕНИЕ бегуна `MODULE_TIMEOUT`, и выбор ПЕЧАТАЕТСЯ (ADR-1011)")
+    ap.add_argument("--timeouts", default=None, metavar="СПИСОК",
+                    help="`declared` (предел бегуна) и/или числа через запятую: наблюдение снимается у КАЖДОГО, и прибор отвечает, различается ли механизм по пределу (ADR-1011). Один предел на этот вопрос НЕ отвечает")
     ap.add_argument("--json", action="store_true")
     args = ap.parse_args(argv)
     repo = Path(args.repo_root).resolve() if args.repo_root else ROOT
@@ -2296,7 +2740,23 @@ def main(argv: Optional[List[str]] = None) -> int:
         c = measure(repo, Path(args.readers_json) if args.readers_json else None)
         obs = None
         observations: Optional[Dict[str, Dict[str, Any]]] = None
+        by_timeout: Optional[Dict[str, Dict[str, Any]]] = None
+        knob: Optional[Dict[str, Any]] = None
+        # ADR-1011: предел НЕ имеет умолчания-литерала у прибора. Своё `3.0` совпадало с
+        # объявлением бегуна, и совпадение делало вопрос «кто тут объявляет» невидимым.
+        base_timeout = args.timeout
+        if base_timeout is None:
+            base_timeout = read_runner_timeout(repo)
+            print(f"[реестр→бегун] предел не назван — беру ОБЪЯВЛЕНИЕ бегуна "
+                  f"`{RUNNER_TIMEOUT_NAME}` = {base_timeout} с", file=sys.stderr)
         if args.observe:
+            if args.protocols and args.timeouts:
+                # Матрица двух входов — ОТДЕЛЬНЫЙ вопрос, и ответить на него смешанным зовом
+                # нельзя: наблюдения легли бы в один словарь, а ключ у него может быть только
+                # один. Молчаливо выбрать «главный» вход значило бы снова мерить необъявленное.
+                raise NotMeasured(
+                    "--protocols и --timeouts вместе прибор не мерит: входы спрашиваются ПО "
+                    "ОДНОМУ (матрица «предел × протокол» названа в ADR-1011 как не измеренная)")
             if args.protocols:
                 # Перечень — у БЕГУНА (`all`) либо назван вслух. Своей копии списка у прибора нет.
                 wanted = (list(read_runner_protocols(repo)) if args.protocols.strip() == "all"
@@ -2307,12 +2767,40 @@ def main(argv: Optional[List[str]] = None) -> int:
                 for name in wanted:
                     print(f"[реестр→бегун] наблюдение, протокол {name}", file=sys.stderr)
                     observations[name] = observe(Path(args.observe), c, protocol=name,
-                                                 timeout=args.timeout)
+                                                 timeout=base_timeout)
                 # Разборы «одного протокола» печатаются от ПЕРВОГО названного, и render его называет.
                 obs = observations[wanted[0]]
-            else:
-                obs = observe(Path(args.observe), c, protocol=args.protocol, timeout=args.timeout)
+                by_timeout = {timeout_key(base_timeout): obs}
+            elif args.timeouts:
+                # `declared` — предел БЕГУНА; числа — названные вслух. Дубли по ключу ядро
+                # сложило бы в «наблюдений 1», поэтому ключ делает единственная дверь.
+                wanted_t: List[float] = []
+                for tok in (s.strip() for s in args.timeouts.split(",")):
+                    if not tok:
+                        continue
+                    if tok == "declared":
+                        wanted_t.append(read_runner_timeout(repo))
+                        continue
+                    try:
+                        wanted_t.append(float(tok))
+                    except ValueError:
+                        raise NotMeasured(f"--timeouts: `{tok}` не предел и не `declared`")
+                if not wanted_t:
+                    raise NotMeasured("--timeouts не назвал ни одного предела")
+                by_timeout = {}
+                for t in wanted_t:
+                    print(f"[реестр→бегун] наблюдение, предел {t} с", file=sys.stderr)
+                    by_timeout[timeout_key(t)] = observe(Path(args.observe), c,
+                                                         protocol=args.protocol, timeout=t)
+                obs = by_timeout[timeout_key(wanted_t[0])]
                 observations = {args.protocol: obs}
+            else:
+                obs = observe(Path(args.observe), c, protocol=args.protocol, timeout=base_timeout)
+                observations = {args.protocol: obs}
+                by_timeout = {timeout_key(base_timeout): obs}
+            # Контроль входа стои́т РЯДОМ с наблюдением и на ТОМ ЖЕ дереве: ответ о пределе
+            # принадлежит тому бегуну, которого мерили, а не тому, из которого запущен прибор.
+            knob = timeout_knob_control(Path(args.observe))
     except NotMeasured as exc:
         if args.json:
             print(json.dumps({"code": 2, "unmeasured_reason": str(exc)}, ensure_ascii=False))
@@ -2339,11 +2827,18 @@ def main(argv: Optional[List[str]] = None) -> int:
         # ADR-1010: протокол — ОБЪЯВЛЕННЫЙ вход, и ответ о нём печатается всегда. Одно наблюдение
         # даёт НЕ ИЗМЕРЕНО с причиной, а не «инвариантно».
         doc["protocol_variance"] = protocol_variance(repo, c, observations)
+        # ADR-1011: тот же порядок у второго входа — предел. Без наблюдения это НЕ нули, а
+        # названная причина; `INVARIANT` без живого контроля входа не печатается вовсе.
+        doc["timeout_variance"] = timeout_variance(repo, c, by_timeout, knob)
+        doc["timeout_knob_control"] = knob or {
+            "verdict": _KB_UNMEASURED, "unmeasured_reason": "контроль входа не запускался"}
         if observations is not None and len(observations) > 1:
             doc["observations"] = observations
+        if by_timeout is not None and len(by_timeout) > 1:
+            doc["observations_by_timeout"] = by_timeout
         print(json.dumps(doc, ensure_ascii=False, indent=2))
     else:
-        print(render(c, obs, observations))
+        print(render(c, obs, observations, by_timeout, knob))
     return c.code
 
 
