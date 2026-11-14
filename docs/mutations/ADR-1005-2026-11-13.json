@@ -1,0 +1,112 @@
+{
+ "title": "ADR-1005 — ось «у какого параметра дверь» у прибора ADR-1002: третий исход FOREIGN_PARAM (цикл #1125)",
+ "tests": [
+  "spa_core/tests/test_registry_census_data_dir_door_param.py",
+  "spa_core/tests/test_registry_runner_write_census.py"
+ ],
+ "baseline_failures": [],
+ "population": 8,
+ "applied": 8,
+ "counts": {
+  "killed": 8,
+  "survived": 0,
+  "not_applied": 0,
+  "broke_collection": 0
+ },
+ "unmeasured_reason": null,
+ "rc": 0,
+ "tree": "/private/tmp/spa_mut_1125 (rsync-копия c1125 без .git; окно снято после побайтовой сверки, --window-check: ОКНА НЕТ)",
+ "delivery_md5": {
+  "scripts/registry_runner_write_census.py": "8d9553f8f1ecceb3bc68ba4f0ef9e2b0",
+  "spa_core/tests/test_registry_census_data_dir_door_param.py": "eddafbea5adfda418b2c027e8dac6bd7",
+  "spa_core/tests/test_registry_runner_write_census.py": "09dcdae5152a30b094c4cae56f0cc326"
+ },
+ "results": [
+  {
+   "name": "M01 ось схлопнута: любое чтение ключа = CONTEXT_PARAM (прибор ADR-1002 до оси)",
+   "file": "scripts/registry_runner_write_census.py",
+   "outcome": "killed",
+   "detail": "",
+   "new_failures": [
+    "spa_core/tests/test_registry_census_data_dir_door_param.py::ReadAtAForeignName::test_a_container_is_not_a_binding",
+    "spa_core/tests/test_registry_census_data_dir_door_param.py::ReadAtAForeignName::test_a_foreign_call_result_is_not_a_binding",
+    "spa_core/tests/test_registry_census_data_dir_door_param.py::ReadAtAForeignName::test_the_adr_1004_form_before_the_fix_reads_at_config_while_the_runner_binds_protocols",
+    "spa_core/tests/test_registry_census_data_dir_door_param.py::TheAxisIsRendered::test_foreign_readers_are_named_with_the_base_they_read_at",
+    "spa_core/tests/test_registry_runner_write_census.py::TestLiveTree::test_population_is_named_and_the_runner_door_state_is_measured"
+   ]
+  },
+  {
+   "name": "M02 предмет считается по КЛЮЧУ, а не по параметру (читатель у config выходит из предмета)",
+   "file": "scripts/registry_runner_write_census.py",
+   "outcome": "killed",
+   "detail": "",
+   "new_failures": [
+    "spa_core/tests/test_registry_census_data_dir_door_param.py::ReadAtAForeignName::test_the_adr_1004_form_before_the_fix_reads_at_config_while_the_runner_binds_protocols",
+    "spa_core/tests/test_registry_runner_write_census.py::TestLiveTree::test_population_is_named_and_the_runner_door_state_is_measured"
+   ]
+  },
+  {
+   "name": "M03 связанное имя — ПОСЛЕДНИЙ позиционный, а не первый",
+   "file": "scripts/registry_runner_write_census.py",
+   "outcome": "killed",
+   "detail": "",
+   "new_failures": [
+    "spa_core/tests/test_registry_census_data_dir_door_param.py::ReadAtAForeignName::test_the_adr_1004_form_before_the_fix_reads_at_config_while_the_runner_binds_protocols",
+    "spa_core/tests/test_registry_census_data_dir_door_param.py::ReadAtAForeignName::test_the_same_form_after_the_fix_is_read_at_the_bound_name_and_leaves_the_subject",
+    "spa_core/tests/test_registry_census_data_dir_door_param.py::TheAxisIsRendered::test_foreign_readers_are_named_with_the_base_they_read_at",
+    "spa_core/tests/test_registry_census_data_dir_door_param.py::TheLiveTree::test_both_adr_1004_modules_read_at_the_bound_name"
+   ]
+  },
+  {
+   "name": "M04 имя не распространяется в помощников (аргумент вызова не связывает параметр)",
+   "file": "scripts/registry_runner_write_census.py",
+   "outcome": "killed",
+   "detail": "",
+   "new_failures": [
+    "spa_core/tests/test_registry_census_data_dir_door_param.py::ReadAtAForeignName::test_the_same_form_after_the_fix_is_read_at_the_bound_name_and_leaves_the_subject",
+    "spa_core/tests/test_registry_census_data_dir_door_param.py::ReadAtTheBoundName::test_helper_receiving_the_bound_name_by_keyword",
+    "spa_core/tests/test_registry_census_data_dir_door_param.py::TheLiveTree::test_both_adr_1004_modules_read_at_the_bound_name"
+   ]
+  },
+  {
+   "name": "M05 псевдонимы и self.attr не распространяются",
+   "file": "scripts/registry_runner_write_census.py",
+   "outcome": "killed",
+   "detail": "",
+   "new_failures": [
+    "spa_core/tests/test_registry_census_data_dir_door_param.py::ReadAtTheBoundName::test_alias_with_a_guard_tail_is_still_the_bound_name",
+    "spa_core/tests/test_registry_census_data_dir_door_param.py::ReadAtTheBoundName::test_self_attribute_holding_the_bound_name"
+   ]
+  },
+  {
+   "name": "M06 чтение без входа у бегуна читается как NONE, а не UNRESOLVED",
+   "file": "scripts/registry_runner_write_census.py",
+   "outcome": "killed",
+   "detail": "",
+   "new_failures": [
+    "spa_core/tests/test_registry_census_data_dir_door_param.py::NoReadAndTheThirdOutcome::test_read_without_a_runner_entry_is_unresolved_with_a_reason",
+    "spa_core/tests/test_registry_census_data_dir_door_param.py::TheLiveTree::test_every_key_reader_carries_exactly_one_axis_outcome_and_the_sum_matches"
+   ]
+  },
+  {
+   "name": "M07 контейнер и чужой вызов считаются связью (ошибка в сторону НЕ-находки)",
+   "file": "scripts/registry_runner_write_census.py",
+   "outcome": "killed",
+   "detail": "",
+   "new_failures": [
+    "spa_core/tests/test_registry_census_data_dir_door_param.py::ReadAtAForeignName::test_a_container_is_not_a_binding",
+    "spa_core/tests/test_registry_census_data_dir_door_param.py::ReadAtAForeignName::test_a_foreign_call_result_is_not_a_binding",
+    "spa_core/tests/test_registry_census_data_dir_door_param.py::ReadAtAForeignName::test_the_same_form_after_the_fix_is_read_at_the_bound_name_and_leaves_the_subject"
+   ]
+  },
+  {
+   "name": "M08 *args получает имя (третий исход подменён ответом)",
+   "file": "scripts/registry_runner_write_census.py",
+   "outcome": "killed",
+   "detail": "",
+   "new_failures": [
+    "spa_core/tests/test_registry_census_data_dir_door_param.py::NoReadAndTheThirdOutcome::test_context_into_varargs_has_no_name_to_bind"
+   ]
+  }
+ ]
+}

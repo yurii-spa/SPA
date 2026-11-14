@@ -1,0 +1,57 @@
+{
+ "title": "ADR-1005 — ось «у какого параметра дверь» у прибора ADR-1002: третий исход FOREIGN_PARAM (цикл #1125)",
+ "tests": [
+  "spa_core/tests/test_registry_census_data_dir_door_param.py",
+  "spa_core/tests/test_registry_runner_write_census.py"
+ ],
+ "mutations": [
+  {
+   "name": "M01 ось схлопнута: любое чтение ключа = CONTEXT_PARAM (прибор ADR-1002 до оси)",
+   "file": "scripts/registry_runner_write_census.py",
+   "old": "    return (\"CONTEXT_PARAM\" if any_bound else \"FOREIGN_PARAM\"), None, sites\n",
+   "new": "    return (\"CONTEXT_PARAM\" if sites else \"FOREIGN_PARAM\"), None, sites\n"
+  },
+  {
+   "name": "M02 предмет считается по КЛЮЧУ, а не по параметру (читатель у config выходит из предмета)",
+   "file": "scripts/registry_runner_write_census.py",
+   "old": "               and not (runner.passes_data_dir and m.data_dir_door == \"CONTEXT_PARAM\")]\n",
+   "new": "               and not (runner.passes_data_dir and m.reads_context_data_dir)]\n"
+  },
+  {
+   "name": "M03 связанное имя — ПОСЛЕДНИЙ позиционный, а не первый",
+   "file": "scripts/registry_runner_write_census.py",
+   "old": "        if not required_pos[1:] and not kwonly_required:\n            return pos[0].arg, None\n",
+   "new": "        if not required_pos[1:] and not kwonly_required:\n            return pos[-1].arg, None\n"
+  },
+  {
+   "name": "M04 имя не распространяется в помощников (аргумент вызова не связывает параметр)",
+   "file": "scripts/registry_runner_write_census.py",
+   "old": "                    if got:\n                        cur = carry.setdefault(ckey, set())\n",
+   "new": "                    if False:\n                        cur = carry.setdefault(ckey, set())\n"
+  },
+  {
+   "name": "M05 псевдонимы и self.attr не распространяются",
+   "file": "scripts/registry_runner_write_census.py",
+   "old": "                if isinstance(node, (ast.Assign, ast.AnnAssign)):\n                    value = node.value\n",
+   "new": "                if False:\n                    value = node.value\n"
+  },
+  {
+   "name": "M06 чтение без входа у бегуна читается как NONE, а не UNRESOLVED",
+   "file": "scripts/registry_runner_write_census.py",
+   "old": "        mv.verdict = \"NO_ENTRY\"\n        if mv.reads_context_data_dir:\n",
+   "new": "        mv.verdict = \"NO_ENTRY\"\n        if False:\n"
+  },
+  {
+   "name": "M07 контейнер и чужой вызов считаются связью (ошибка в сторону НЕ-находки)",
+   "file": "scripts/registry_runner_write_census.py",
+   "old": "        if isinstance(f, ast.Attribute) and f.attr == \"copy\" and not expr.args:\n            return _carrying_names(f.value, names, self_attrs)\n    return False\n",
+   "new": "        if isinstance(f, ast.Attribute) and f.attr == \"copy\" and not expr.args:\n            return _carrying_names(f.value, names, self_attrs)\n    return any(_carrying_names(e, names, self_attrs) for e in ast.iter_child_nodes(expr))\n"
+  },
+  {
+   "name": "M08 *args получает имя (третий исход подменён ответом)",
+   "file": "scripts/registry_runner_write_census.py",
+   "old": "    elif a.vararg is not None and not kwonly_required:\n        return None, f\"контекст уходит в *{a.vararg.arg} — имени параметра нет\"\n",
+   "new": "    elif a.vararg is not None and not kwonly_required:\n        return a.vararg.arg, None\n"
+  }
+ ]
+}

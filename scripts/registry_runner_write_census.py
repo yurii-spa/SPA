@@ -86,6 +86,20 @@ CONTEXT_PARAM = "context"
 
 VERDICTS = ("NO_ENTRY", "WRITE_REACHABLE", "DELEGATES_OUT", "NO_WRITE_REACHED", "UNMEASURED")
 
+#: Ось «у какого ПАРАМЕТРА дверь» (ADR-1004 § 6а; до неё прибор судил по КЛЮЧУ: `ctx["data_dir"]` где
+#: угодно в файле читалось как «модуль читает каталог бегуна», и у `protocol_defi_yield_duration_mismatch_analyzer`
+#: до ADR-1004 это было ложно — ключ читался у `config`, а бегун биндит контекст в `protocols`).
+#:   CONTEXT_PARAM  — ≥1 чтение ключа у имени, которому бегун отдаёт контекст (само имя, его псевдоним,
+#:                    параметр помощника, которому оно передано, атрибут `self`, в который оно положено);
+#:   FOREIGN_PARAM  — ключ читается, но НИ ОДНО чтение не достигает связанного имени: все — у чужого
+#:                    параметра/атрибута (`config`, `self.config`, …) либо в функции, куда контекст не доходит;
+#:   NONE           — ключ не читается вовсе;
+#:   UNRESOLVED     — ключ читается, а связанное имя назвать нельзя (входа у бегуна нет; контекст идёт в
+#:                    `*args`/`**kwargs` без имени) — третий исход, не «читает» и не «не читает».
+#: Распространение СТРОГОЕ: контейнер (`[ctx]`, `{"k": ctx}`) и результат чужого вызова (`f(ctx)`) связью
+#: НЕ являются — ошибка идёт в сторону FOREIGN_PARAM, то есть находки, а не её отсутствия.
+DOOR_OUTCOMES = ("CONTEXT_PARAM", "FOREIGN_PARAM", "NONE", "UNRESOLVED")
+
 #: Формы записи. `os.replace`/`os.rename`/`os.makedirs`/`shutil.*`/`json.dump` — только у СВОЕГО модуля
 #: (`str.replace` записью не является); `write_text`/`write_bytes`/`mkdir` — у любого объекта;
 #: `atomic_save` — именем либо атрибутом; `open` — с режимом записи.
@@ -107,6 +121,14 @@ class WriteSite:
 
 
 @dataclass
+class ReadSite:
+    func: str            # где лежит чтение ключа (функция / Класс.метод / «<модуль>»)
+    line: int
+    base: str            # у кого читается: текст базы (`config`, `context`, `self._ctx`, …)
+    bound: bool          # достигает ли база имени, которому бегун отдал контекст
+
+
+@dataclass
 class ModuleVerdict:
     module: str                       # имя записи реестра (stem, может быть dotted)
     tier: str
@@ -117,7 +139,10 @@ class ModuleVerdict:
     verdict: str
     writes: List[WriteSite] = field(default_factory=list)
     delegates: List[str] = field(default_factory=list)
-    reads_context_data_dir: bool = False
+    reads_context_data_dir: bool = False   # по КЛЮЧУ: `"data_dir"` читается где-то в файле (ось ADR-1002)
+    data_dir_door: str = "NONE"            # по ПАРАМЕТРУ: один из DOOR_OUTCOMES (ось ADR-1004 § 6а)
+    data_dir_door_reason: Optional[str] = None   # у UNRESOLVED — почему связанное имя не названо
+    data_dir_reads: List[ReadSite] = field(default_factory=list)
     reads_env_data_dir: bool = False
     init_unknown: bool = False        # конструктор класса не разобран (база вне модуля) — принят строящимся
     entry_annotation: Optional[str] = None  # аннотация входа контекста: не-Mapping ⇒ бегун может ответить unchecked ПОСЛЕ вызова
@@ -445,6 +470,177 @@ def _reads_env(tree: ast.Module) -> bool:
     return any(_const(n) == ENV_KEY for n in ast.walk(tree))
 
 
+# ─────────────── ось «у какого параметра дверь» (ADR-1004 § 6а) ───────────────
+
+def _read_base(node: ast.AST) -> Optional[ast.AST]:
+    """База чтения ключа `data_dir`: `X["data_dir"]` → X; `X.get("data_dir")`/`X.pop(...)` → X; иначе None."""
+    if isinstance(node, ast.Subscript) and _const(node.slice) == DATA_DIR_KEY:
+        return node.value
+    if isinstance(node, ast.Call) and isinstance(node.func, ast.Attribute) \
+            and node.func.attr in ("get", "pop") and node.args and _const(node.args[0]) == DATA_DIR_KEY:
+        return node.func.value
+    return None
+
+
+def _bound_context_name(fn: Any, *, is_method: bool) -> Tuple[Optional[str], Optional[str]]:
+    """Имя параметра, в который `_invoke` биндит контекст, — тем же правилом, что `_accepts_context`.
+
+    Возвращает (имя, None) либо (None, причина): форма 1 (`context=ctx`) — параметр `context`, если он есть
+    по имени; если форма 1 проходит только через `**kwargs` — имени нет (контекст лежит в `kwargs["context"]`);
+    форма 2 (`fn(ctx)`) — первый позиционный после `self`; только `*args` — имени нет.
+    """
+    a = fn.args
+    pos = list(a.posonlyargs) + list(a.args)
+    if is_method and "staticmethod" not in _decorators(fn) and pos:
+        pos = pos[1:]
+    n_def = len(a.defaults)
+    required_pos = pos[: max(0, len(pos) - n_def)]
+    kwonly_required = [k for k, d in zip(a.kwonlyargs, a.kw_defaults) if d is None]
+    pos_names = [p.arg for p in pos]
+    kw_names = [k.arg for k in a.kwonlyargs]
+    if CONTEXT_PARAM in pos_names or CONTEXT_PARAM in kw_names or a.kwarg is not None:
+        required = [p.arg for p in required_pos] + [k.arg for k in kwonly_required]
+        if all(r == CONTEXT_PARAM for r in required):
+            if CONTEXT_PARAM in pos_names or CONTEXT_PARAM in kw_names:
+                return CONTEXT_PARAM, None
+            return None, f"контекст уходит в **{a.kwarg.arg} под ключом `{CONTEXT_PARAM}` — имени параметра нет"
+    if pos:
+        if not required_pos[1:] and not kwonly_required:
+            return pos[0].arg, None
+    elif a.vararg is not None and not kwonly_required:
+        return None, f"контекст уходит в *{a.vararg.arg} — имени параметра нет"
+    return None, "вход бегуна не принимает контекст"
+
+
+def _carrying_names(expr: ast.AST, names: Set[str], self_attrs: Set[str]) -> bool:
+    """Несёт ли выражение связанный контекст. СТРОГО: имя · `self.attr` из набора · `a or b`/`a if c else b`
+    из несущих · `dict(x)`/`x.copy()` несущего. Контейнер и чужой вызов — НЕ связь (ошибка в сторону находки)."""
+    if isinstance(expr, ast.Name):
+        return expr.id in names
+    if isinstance(expr, ast.Attribute) and isinstance(expr.value, ast.Name) and expr.value.id == "self":
+        return expr.attr in self_attrs
+    if isinstance(expr, ast.BoolOp):
+        return any(_carrying_names(v, names, self_attrs) for v in expr.values)
+    if isinstance(expr, ast.IfExp):
+        return _carrying_names(expr.body, names, self_attrs) or _carrying_names(expr.orelse, names, self_attrs)
+    if isinstance(expr, ast.Call):
+        f = expr.func
+        if isinstance(f, ast.Name) and f.id == "dict" and len(expr.args) == 1 and not expr.keywords:
+            return _carrying_names(expr.args[0], names, self_attrs)
+        if isinstance(f, ast.Attribute) and f.attr == "copy" and not expr.args:
+            return _carrying_names(f.value, names, self_attrs)
+    return False
+
+
+def _params_of(fn: Any, *, is_method: bool) -> Tuple[List[str], Set[str]]:
+    """(позиционные имена без self, все имена параметров) — для сопоставления аргументов вызова."""
+    a = fn.args
+    pos = list(a.posonlyargs) + list(a.args)
+    if is_method and "staticmethod" not in _decorators(fn) and pos:
+        pos = pos[1:]
+    names = {p.arg for p in pos} | {k.arg for k in a.kwonlyargs}
+    return [p.arg for p in pos], names
+
+
+def _data_dir_door(tree: ast.Module, funcs: Dict[str, ast.AST], classes: Dict[str, ast.ClassDef],
+                   all_methods: Dict[str, List[Tuple[str, ast.AST]]], node_of, entry_key: Tuple[str, ...],
+                   bound: Optional[str]) -> Tuple[str, Optional[str], List[ReadSite]]:
+    """Распространить связанное имя по графу вызовов модуля и судить КАЖДОЕ чтение ключа `data_dir`.
+
+    Возвращает (исход из DOOR_OUTCOMES, причина для UNRESOLVED, чтения поимённо).
+    """
+    # функция-владелец каждого узла (первый уровень вложенности: методы классов и функции модуля)
+    owner: Dict[int, Tuple[str, ...]] = {}
+    for name, fn in funcs.items():
+        for n in ast.walk(fn):
+            owner[id(n)] = ("f", name)
+    for cname, c in classes.items():
+        for n in c.body:
+            if isinstance(n, (ast.FunctionDef, ast.AsyncFunctionDef)):
+                for sub in ast.walk(n):
+                    owner[id(sub)] = ("m", cname, n.name)
+    reads: List[Tuple[ast.AST, ast.AST, Optional[Tuple[str, ...]]]] = []
+    for node in ast.walk(tree):
+        base = _read_base(node)
+        if base is not None:
+            reads.append((node, base, owner.get(id(node))))
+    if not reads:
+        return "NONE", None, []
+    if bound is None:
+        return "UNRESOLVED", None, [ReadSite(func=(k[1] if k and k[0] == "f" else f"{k[1]}.{k[2]}" if k else "<модуль>"),
+                                             line=n.lineno, base=ast.unparse(b), bound=False) for n, b, k in reads]
+
+    carry: Dict[Tuple[str, ...], Set[str]] = {entry_key: {bound}}
+    self_attrs: Dict[str, Set[str]] = {}          # класс → атрибуты self, несущие контекст
+    changed = True
+    rounds = 0
+    while changed and rounds < 50:
+        changed = False
+        rounds += 1
+        for key in list(carry):
+            fn = node_of(key)
+            if fn is None:
+                continue
+            names = carry[key]
+            attrs = self_attrs.setdefault(key[1], set()) if key[0] == "m" else set()
+            for node in ast.walk(fn):
+                # псевдонимы: x = ctx · x = ctx or {} · self.a = ctx
+                if isinstance(node, (ast.Assign, ast.AnnAssign)):
+                    value = node.value
+                    if value is None or not _carrying_names(value, names, attrs):
+                        continue
+                    targets = node.targets if isinstance(node, ast.Assign) else [node.target]
+                    for t in targets:
+                        if isinstance(t, ast.Name) and t.id not in names:
+                            names.add(t.id); changed = True
+                        elif isinstance(t, ast.Attribute) and isinstance(t.value, ast.Name) and t.value.id == "self" \
+                                and key[0] == "m" and t.attr not in attrs:
+                            attrs.add(t.attr); changed = True
+                    continue
+                if not isinstance(node, ast.Call):
+                    continue
+                # вызовы: куда уходит несущее имя аргументом
+                callees: List[Tuple[Tuple[str, ...], ast.AST, bool]] = []
+                f = node.func
+                if isinstance(f, ast.Name):
+                    if f.id in funcs:
+                        callees.append((("f", f.id), funcs[f.id], False))
+                    elif f.id in classes:
+                        for cname, n in all_methods.get("__init__", []):
+                            if cname == f.id:
+                                callees.append((("m", cname, "__init__"), n, True))
+                elif isinstance(f, ast.Attribute):
+                    for cname, n in all_methods.get(f.attr, []):
+                        callees.append((("m", cname, f.attr), n, True))       # по имени, с избытком
+                for ckey, cfn, is_m in callees:
+                    pos_names, all_names = _params_of(cfn, is_method=is_m)
+                    got: Set[str] = set()
+                    for i, arg in enumerate(node.args):
+                        if isinstance(arg, ast.Starred):
+                            continue
+                        if i < len(pos_names) and _carrying_names(arg, names, attrs):
+                            got.add(pos_names[i])
+                    for kw in node.keywords:
+                        if kw.arg in all_names and _carrying_names(kw.value, names, attrs):
+                            got.add(kw.arg)
+                    if got:
+                        cur = carry.setdefault(ckey, set())
+                        if not got <= cur:
+                            cur |= got; changed = True
+                    elif ckey not in carry and is_m and ckey[1] in self_attrs and self_attrs[ckey[1]]:
+                        carry[ckey] = set(); changed = True      # метод того же класса видит self.attr
+    sites: List[ReadSite] = []
+    any_bound = False
+    for node, base, key in reads:
+        label = "<модуль>" if key is None else (key[1] if key[0] == "f" else f"{key[1]}.{key[2]}")
+        names = carry.get(key, set()) if key is not None else set()
+        attrs = self_attrs.get(key[1], set()) if key is not None and key[0] == "m" else set()
+        is_bound = _carrying_names(base, names, attrs)
+        any_bound = any_bound or is_bound
+        sites.append(ReadSite(func=label, line=node.lineno, base=ast.unparse(base), bound=is_bound))
+    return ("CONTEXT_PARAM" if any_bound else "FOREIGN_PARAM"), None, sites
+
+
 # ─────────────────────────── один модуль ───────────────────────────
 
 def measure_module(repo: Path, entry: Dict[str, object], methods_order: Iterable[str]) -> ModuleVerdict:
@@ -495,31 +691,6 @@ def measure_module(repo: Path, entry: Dict[str, object], methods_order: Iterable
                 mv.runner_target = "module (класс требует аргументов)"
         else:
             mv.runner_target = "module (класс не найден)"
-    entry_key: Optional[Tuple[str, ...]] = None
-    if target_cls:
-        meths = _methods(classes[target_cls], classes)
-        for m in methods_order:
-            if m in meths and _accepts_context(meths[m][1], is_method=True):
-                entry_key = ("m", meths[m][0], m)
-                mv.entry = f"{target_cls}.{m}"
-                mv.entry_annotation = _entry_annotation(meths[m][1], is_method=True)
-                break
-    else:
-        for m in methods_order:
-            if m in funcs and _accepts_context(funcs[m], is_method=False):
-                entry_key = ("f", m)
-                mv.entry = m
-                mv.entry_annotation = _entry_annotation(funcs[m], is_method=False)
-                break
-    if entry_key is None:
-        mv.verdict = "NO_ENTRY"
-        return mv
-
-    # ── достижимость записи ──
-    reached: Set[Tuple[str, ...]] = set()
-    stack: List[Tuple[str, ...]] = [entry_key]
-    writes: List[WriteSite] = []
-    delegates: Set[str] = set()
     all_methods: Dict[str, List[Tuple[str, ast.AST]]] = {}
     for cname, c in classes.items():
         for n in c.body:
@@ -533,6 +704,48 @@ def measure_module(repo: Path, entry: Dict[str, object], methods_order: Iterable
             if cname == key[1]:
                 return n
         return None
+
+    entry_key: Optional[Tuple[str, ...]] = None
+    entry_fn: Optional[ast.AST] = None
+    entry_is_method = False
+    if target_cls:
+        meths = _methods(classes[target_cls], classes)
+        for m in methods_order:
+            if m in meths and _accepts_context(meths[m][1], is_method=True):
+                entry_key = ("m", meths[m][0], m)
+                entry_fn, entry_is_method = meths[m][1], True
+                mv.entry = f"{target_cls}.{m}"
+                mv.entry_annotation = _entry_annotation(meths[m][1], is_method=True)
+                break
+    else:
+        for m in methods_order:
+            if m in funcs and _accepts_context(funcs[m], is_method=False):
+                entry_key = ("f", m)
+                entry_fn, entry_is_method = funcs[m], False
+                mv.entry = m
+                mv.entry_annotation = _entry_annotation(funcs[m], is_method=False)
+                break
+    if entry_key is None:
+        mv.verdict = "NO_ENTRY"
+        if mv.reads_context_data_dir:
+            # ключ читается, а связывать нечего: бегун в этот модуль с контекстом не входит
+            mv.data_dir_door, _, mv.data_dir_reads = _data_dir_door(
+                tree, funcs, classes, all_methods, node_of, ("f", "<нет входа>"), None)
+            mv.data_dir_door_reason = "входа у бегуна нет — контекст в модуль не приходит, связанного имени нет"
+        return mv
+
+    # ── ось «у какого параметра дверь» (ADR-1004 § 6а) ──
+    bound, why = _bound_context_name(entry_fn, is_method=entry_is_method)
+    mv.data_dir_door, _, mv.data_dir_reads = _data_dir_door(
+        tree, funcs, classes, all_methods, node_of, entry_key, bound)
+    if mv.data_dir_door == "UNRESOLVED":
+        mv.data_dir_door_reason = why
+
+    # ── достижимость записи ──
+    reached: Set[Tuple[str, ...]] = set()
+    stack: List[Tuple[str, ...]] = [entry_key]
+    writes: List[WriteSite] = []
+    delegates: Set[str] = set()
 
     while stack:
         key = stack.pop()
@@ -635,12 +848,18 @@ def measure(repo: Path, readers_json: Optional[Path] = None,
     counts = {v: 0 for v in VERDICTS}
     for m in modules:
         counts[m.verdict] += 1
+    # Дверь бегуна закрывает умолчание только у того, кто читает ключ У СВЯЗАННОГО ИМЕНИ (ADR-1004 § 6а):
+    # читатель ключа у чужого параметра (`FOREIGN_PARAM`) под песочницей пишет в умолчание, как и не-читатель.
     exposed = [m for m in modules if m.verdict == "WRITE_REACHABLE"
-               and not (runner.passes_data_dir and m.reads_context_data_dir)]
+               and not (runner.passes_data_dir and m.data_dir_door == "CONTEXT_PARAM")]
+    door_counts = {d: sum(1 for m in modules if m.data_dir_door == d) for d in DOOR_OUTCOMES}
     exposure = {
         "write_reachable": counts["WRITE_REACHABLE"],
         "runner_passes_data_dir": int(runner.passes_data_dir),
         "module_reads_context_data_dir": sum(1 for m in modules if m.reads_context_data_dir),
+        "door_context_param": door_counts["CONTEXT_PARAM"],
+        "door_foreign_param": door_counts["FOREIGN_PARAM"],
+        "door_unresolved": door_counts["UNRESOLVED"],
         "module_reads_env_data_dir": sum(1 for m in modules if m.reads_env_data_dir),
         "default_reached_under_sandbox": len(exposed),
         "init_unknown": sum(1 for m in modules if m.init_unknown),
@@ -832,11 +1051,18 @@ def render(c: Census, obs: Optional[Dict[str, Any]] = None) -> str:
         out.append("  достигают записи от входа бегуна (поимённо, первые 40):")
         for m in writers[:40]:
             forms = sorted({w.form for w in m.writes})
-            door = " · дверь контекста" if m.reads_context_data_dir else ""
+            door = f" · дверь контекста: {m.data_dir_door}" if m.reads_context_data_dir else ""
             env = " · SPA_DATA_DIR" if m.reads_env_data_dir else ""
             cli = f" · CLI-умолчание {m.blind_cli}" if m.blind_cli else ""
             out.append(f"    {m.module} [{m.tier}] {m.entry} → {', '.join(forms)} "
                        f"({len(m.writes)} мест){door}{env}{cli}")
+    foreign = [m for m in c.modules if m.data_dir_door in ("FOREIGN_PARAM", "UNRESOLVED")]
+    if foreign:
+        out.append("  читают ключ data_dir НЕ у связанного имени (ось ADR-1004 § 6а, поимённо):")
+        for m in foreign[:40]:
+            bases = sorted({f"{r.func}:{r.line} у `{r.base}`" for r in m.data_dir_reads})
+            why = f" — {m.data_dir_door_reason}" if m.data_dir_door_reason else ""
+            out.append(f"    {m.module} [{m.verdict}] {m.data_dir_door}{why}: " + "; ".join(bases[:4]))
     unm = [m for m in c.modules if m.verdict == "UNMEASURED"]
     if unm:
         out.append("  НЕ ИЗМЕРЕНО (модули):")

@@ -702,14 +702,20 @@ class TestLiveTree(unittest.TestCase):
         # ЗАМЕР состояния: ADR-1002 мерил «бегун data_dir в контекст НЕ кладёт»; ADR-1003 (цикл #1122)
         # поставил дверь — утверждение перемерено и переписано вместе с ADR, а не погашено.
         self.assertTrue(c.runner.passes_data_dir)
-        # Дверь закрывает только читателей контекста (53 по замеру #1121); остальные записи реестра
-        # по-прежнему достигают своего умолчания от входа бегуна ⇒ предмет не пуст, код 1.
+        # Дверь закрывает только читателей контекста У СВЯЗАННОГО ИМЕНИ (ADR-1005; по ключу их 53 —
+        # замер #1121, по параметру из них 36, ещё 12 читают у `config` и остаются в предмете);
+        # остальные записи реестра по-прежнему достигают своего умолчания от входа бегуна ⇒ код 1.
         self.assertEqual(c.code, 1)
         self.assertGreater(c.exposure["default_reached_under_sandbox"], 0)
         self.assertEqual(c.exposure["default_reached_under_sandbox"],
                          c.exposure["write_reachable"] - sum(
                              1 for m in c.modules
-                             if m.verdict == "WRITE_REACHABLE" and m.reads_context_data_dir))
+                             if m.verdict == "WRITE_REACHABLE" and m.data_dir_door == "CONTEXT_PARAM"))
+        # усиление, не ослабление: тождество по КЛЮЧУ было бы ЛОЖНО на этом дереве — читатели у чужого
+        # параметра пишут в умолчание, и прибор обязан их считать
+        self.assertLess(c.exposure["write_reachable"] - sum(
+            1 for m in c.modules if m.verdict == "WRITE_REACHABLE" and m.reads_context_data_dir),
+            c.exposure["default_reached_under_sandbox"])
         self.assertEqual(tuple(c.runner.entry_methods)[:1], ("analyze",))
 
 
