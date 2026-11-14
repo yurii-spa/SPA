@@ -38,7 +38,9 @@ import Layout from '../../layouts/Layout.astro';
   (function(){
     var API=(location.hostname==='localhost'||location.hostname==='127.0.0.1')?'http://localhost:8765':'https://api.earn-defi.com';
     var ROLE_LABEL={infra:'Инфраструктура',allocation:'Аллокация',monitoring:'Мониторинг',reporting:'Отчётность',research:'Исследования',other:'Прочее'};
-    function esc(s){return String(s==null?'':s).replace(/[&<>"]/g,function(c){return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c];});}
+    // Registry JSON is untrusted: every value that lands in an innerHTML template goes through esc()
+    // (text context and double-quoted title= attributes) — pinned by spa_core/tests/test_admin_pages_escape_untrusted.py.
+    function esc(s){return String(s==null?'':s).replace(/[&<>"']/g,function(c){return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c];});}
     function badge(a){
       if(a.retired) return {ico:'⚫',cls:'retired',t:'retired'};
       if(a.problems&&a.problems.length) return {ico:'🔴',cls:'bad',t:'проблема'};
@@ -59,7 +61,7 @@ import Layout from '../../layouts/Layout.astro';
       // roles rollup
       var byRole=d.by_role||{};
       var order=(d.roles||['infra','allocation','monitoring','reporting','research','other']);
-      var rollup=order.filter(function(r){return byRole[r];}).map(function(r){return '<span class="rl">'+esc(ROLE_LABEL[r]||r)+' '+byRole[r]+'</span>';}).join('');
+      var rollup=order.filter(function(r){return byRole[r];}).map(function(r){return '<span class="rl">'+esc(ROLE_LABEL[r]||r)+' '+esc(byRole[r])+'</span>';}).join('');
       document.getElementById('ag-roles').innerHTML=rollup||'—';
       set('ag-state','live');
       set('ag-gen',d.generated_at?('снимок '+String(d.generated_at).slice(0,16).replace('T',' ')+' UTC'):(d.note||''));
