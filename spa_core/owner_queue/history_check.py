@@ -39,12 +39,23 @@ from __future__ import annotations
 import logging
 import os
 import subprocess
+import tempfile
 from pathlib import Path
 
 log = logging.getLogger(__name__)
 
 _REPO = Path(__file__).resolve().parents[2]
 _CLAUDE = os.environ.get("SPA_CLAUDE_BIN") or "/Users/yuriikulieshov/.local/bin/claude"
+
+#: The history-check classifier gets the owner's words and a context digest already built into
+#: the prompt, so it needs NO tools. Until this change it ran a plain ``claude -p`` from the
+#: caller's cwd (the production tree): built-in read tools and any MCP servers configured for that
+#: directory were available to a headless agent on every owner message. Same remedy as
+#: ``spa_core.telegram.ask_router`` (2026-09-30): no built-in tools (``--tools ""``), no MCP
+#: servers (``--strict-mcp-config`` without a config), cwd outside the repo. Kept identical to
+#: ``ask_router.CLASSIFIER_FLAGS`` — pinned by test_history_check_no_tools.py.
+CLASSIFIER_FLAGS = ("--tools", "", "--strict-mcp-config")
+_SAFE_CWD = tempfile.gettempdir()
 
 _VALID = {"DONE", "IN_PROGRESS", "REJECTED", "PARTIAL", "NEW"}
 
@@ -242,10 +253,11 @@ def history_check(text: str, *, timeout: int = 120) -> dict:
     env = dict(os.environ)
     env["PATH"] = "/Users/yuriikulieshov/.local/bin:/opt/homebrew/bin:/usr/local/bin:" + env.get("PATH", "")
     try:
-        # No tools needed (judgement from provided context) → NO skip-permissions.
+        # No tools needed (judgement from provided context) → no built-in tools, no MCP, safe cwd
+        # (see CLASSIFIER_FLAGS). Any failure below still degrades to NEW: an owner item is never lost.
         proc = subprocess.run(
-            [_CLAUDE, "-p", prompt],
-            capture_output=True, text=True, timeout=timeout, env=env,
+            [_CLAUDE, "-p", prompt, *CLASSIFIER_FLAGS],
+            capture_output=True, text=True, timeout=timeout, env=env, cwd=_SAFE_CWD,
         )
     except Exception as exc:  # noqa: BLE001
         log.warning("history_check: claude call failed: %s", exc)

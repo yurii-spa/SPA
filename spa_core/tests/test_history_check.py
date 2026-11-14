@@ -174,8 +174,8 @@ def test_history_check_passes_message_into_prompt(monkeypatch):
     monkeypatch.setattr(hc, "_build_history_context", lambda *a, **k: "CTX")
 
     def fake_run(cmd, *args, **kwargs):
-        # cmd == [_CLAUDE, "-p", prompt]
-        captured["prompt"] = cmd[-1]
+        # cmd == [_CLAUDE, "-p", prompt, *CLASSIFIER_FLAGS] — the prompt follows "-p"
+        captured["prompt"] = cmd[cmd.index("-p") + 1]
         return _Proc(stdout="NEW\nнет")
 
     monkeypatch.setattr(hc.subprocess, "run", fake_run)
