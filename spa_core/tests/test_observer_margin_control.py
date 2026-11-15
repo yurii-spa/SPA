@@ -59,9 +59,16 @@ def _load(path: Path, name: str):
 
 
 rrwc = _load(CENSUS_PATH, "rrwc_observer_margin")
+#: ВТОРАЯ, НЕЗАВИСИМАЯ дверь к тому же вопросу — босой зов настоящего `_run_bounded` без шима.
+#: Она и есть «отдельный вопрос ДО сцены» карточки `inbox-proverka-slepoty-predela-zakrepila-otvet`.
+bcp = _load(ROOT / "scripts" / "bounded_countdown_probe.py", "bcp_observer_margin")
 
 _BITES, _DEAD, _UNMEASURED = rrwc.OBSERVER_MARGIN_VERDICTS
 _BZ_BITES, _BZ_BLIND, _BZ_UNMEASURED = rrwc.BUSY_LIMIT_VERDICTS
+_H_BLIND, _H_BITES, _H_UNMEASURED = bcp.HOST_BUSY_VERDICTS
+#: Какой вердикт СЦЕНЫ обязан соответствовать какому ответу ХОЗЯИНА. Соответствие объявлено
+#: ТАБЛИЦЕЙ, а не вкусом: предмет проверки — согласие двух НЕЗАВИСИМЫХ дверей об одном хозяине.
+_HOST_TO_SCENE = {_H_BLIND: _BZ_BLIND, _H_BITES: _BZ_BITES}
 
 #: Величины сцены. Все они — СЛЕДСТВИЯ объявлений прибора, а не литералы «на глаз»:
 #: `under < sleep < over` есть предпосылка самой сцены, и прибор её проверяет первым делом.
@@ -459,6 +466,17 @@ class TheLiveRunnerIsAskedTheSameQuestion(unittest.TestCase):
     настоящей поломки, — украшение (`.claude/rules/deployment.md`).
     """
 
+    #: Числа сквозной сцены. Они ОБЩИЕ для обеих дверей — сцены и вопроса о хозяине:
+    #: разные числа означали бы два разных вопроса под одним именем, и согласие дверей
+    #: перестало бы что-либо утверждать.
+    BUSY_S = 0.05
+    UNDER_S = 0.005
+    #: Повторов занятого модуля — столько же, сколько объявил сам прибор
+    #: (`OBS_BUSY_REPEATS`). Исход НЕ детерминирован (гонка за GIL), поэтому ответом
+    #: является ДОЛЯ: прежние ТРИ повтора делали согласие двух дверей заметно
+    #: вероятностным ни за что — цена полного ряда здесь 0.5 с на дверь.
+    BUSY_REPEATS = rrwc.OBS_BUSY_REPEATS
+
     @classmethod
     def setUpClass(cls):
         cls._tmp = tempfile.TemporaryDirectory(prefix="rrwc_obsm_live_")
@@ -470,10 +488,26 @@ class TheLiveRunnerIsAskedTheSameQuestion(unittest.TestCase):
                             ignore=shutil.ignore_patterns("__pycache__", "data", ".git",
                                                           "*.pyc", "tests"))
         cls.reason = None
+        # ─── ВОПРОС О ХОЗЯИНЕ ЗАДАЁТСЯ ПЕРВЫМ, ДО СЦЕНЫ ──────────────────────────────
+        # Род ответа есть свойство МАШИНЫ (замер ADR-1015/1017: macOS 3.13 — слеп,
+        # ubuntu-latest 3.11 — кусает), и спрашивать его ПОСЛЕ сцены означало бы
+        # подгонять ожидание под уже полученный ответ. Дверь НЕЗАВИСИМАЯ и босая:
+        # сцена гонит бегуна в подпроцессе над копией дерева, эта — в своём процессе
+        # без шима. Числа у обеих дверей ОДНИ (ниже), иначе сравнивались бы разные сцены.
+        try:
+            cls.host = bcp.host_busy_limit(work_s=cls.BUSY_S, limit_s=cls.UNDER_S,
+                                           repeats=cls.BUSY_REPEATS)
+        except BaseException as exc:                                # noqa: BLE001
+            cls.host = {"verdict": _H_UNMEASURED, "ok_n": None, "n": 0, "over_x": None,
+                        "reason": f"дверь хозяина отказала: {type(exc).__name__}: {exc}"}
+        # Ответ хозяина ПЕЧАТАЕТСЯ: карточка требует, чтобы зелёный прогон называл вердикт,
+        # а не молчал о нём (молчание «прошло» неотличимо от «не измерено», урок #465).
+        print(f"[host-busy-limit] {cls.host['verdict']}: {cls.host['reason']}",
+              file=sys.stderr, flush=True)
         try:
             cls.ctl = rrwc.observer_margin_control(
-                cls.root, sleep_s=0.20, under=0.005, over=1.0, busy_s=0.05,
-                busy_repeats=3, repeats=2)
+                cls.root, sleep_s=0.20, under=cls.UNDER_S, over=1.0, busy_s=cls.BUSY_S,
+                busy_repeats=cls.BUSY_REPEATS, repeats=2)
         except Exception as exc:                                    # noqa: BLE001
             cls.ctl, cls.reason = None, f"{type(exc).__name__}: {exc}"
 
@@ -502,9 +536,60 @@ class TheLiveRunnerIsAskedTheSameQuestion(unittest.TestCase):
         """Вторая опровергнутая догадка: снимок дерева ПОСЛЕ зова почти бесплатен."""
         self.assertLess(self.ctl["overhead_split"]["bookkeeping_s"], 0.02, self.ctl)
 
-    def test_the_REAL_runner_is_blind_to_a_busy_module(self):
-        """Находка, о которой заказ не спрашивал, и она про ПРОД-бегуна, а не про прибор."""
+    def test_the_host_question_is_asked_BEFORE_the_scene_and_its_answer_is_NAMED(self):
+        """Род ответа — ВХОД сцены, и «не измерено» здесь падает ГРОМКО, а не скипает.
+
+        Карточка `inbox-proverka-slepoty-predela-zakrepila-otvet` п. 3 дословно: `pytest.skip`
+        сделал бы «не измерено» неотличимым от «прошло» (урок #465 — такой тест не краснеет и
+        не проходит, он ИСЧЕЗАЕТ). Поэтому третий исход двери хозяина есть ПАДЕНИЕ с причиной.
+        """
+        self.assertIn(self.host["verdict"], bcp.HOST_BUSY_VERDICTS, self.host)
+        if self.host["verdict"] == _H_UNMEASURED:
+            self.fail("ответ ХОЗЯИНА о пределе НЕ ИЗМЕРЕН, и выдавать это за проверку "
+                      f"нельзя: {self.host['reason']}")
+        self.assertEqual(self.host["n"], self.BUSY_REPEATS, self.host)
+        self.assertGreaterEqual(self.host["over_x"], 10.0, self.host)
+
+    def test_the_scene_AGREES_with_the_host_about_the_busy_limit(self):
+        """Утверждение о КОДЕ, а не о машине: два НЕЗАВИСИМЫХ наблюдения одного хозяина сходятся.
+
+        Прежняя редакция закрепляла `BUSY_LIMIT_BLIND` литералом и была красна на CI с момента
+        доставки (`'BUSY_LIMIT_BITES' != 'BUSY_LIMIT_BLIND'`, прогон 43686574574): вердикт был
+        свойством ХОЗЯИНА, а не кода (`.claude/rules/deployment.md`). Проверяемое здесь — что
+        сцена докладывает про ЭТОТ хозяин то же, что босая дверь, и ни одна из них не выдумывает
+        слепоту. Спор двух наблюдений ГАСИТ вердикт (ADR-1017 § 26в), а не выбирает удобное.
+        """
         bz = self.ctl["busy_limit"]
+        self.assertEqual(bz["total_n"], self.BUSY_REPEATS, bz)
+        self.assertEqual(bz["ok_n"] + bz["timeout_n"], bz["total_n"], bz)
+        # Превышение — АРИФМЕТИКА сцены (занят / предел), и от хозяина она не зависит.
+        self.assertGreaterEqual(bz["over_x"], 10.0, bz)
+        expected = _HOST_TO_SCENE[self.host["verdict"]]
+        self.assertEqual(bz["verdict"], expected,
+                         f"две НЕЗАВИСИМЫЕ двери разошлись об ОДНОМ хозяине: босая дверь — "
+                         f"{self.host['verdict']} (`ok` {self.host['ok_n']} из "
+                         f"{self.host['n']}), сцена — {bz['verdict']} (`ok` {bz['ok_n']} из "
+                         f"{bz['total_n']}). Это находка о ПРОВОДКЕ, а не о машине: "
+                         f"{self.host['reason']}")
+
+    def test_the_REAL_runner_is_blind_to_a_busy_module_WHERE_THE_SUBJECT_EXISTS(self):
+        """Находка ADR-1015 остаётся ПРОВЕРЯЕМОЙ там, где предмет ЕСТЬ.
+
+        Третий исход «на этом хозяине предел кусает, предмета в сцене НЕТ» — названный ответ, а
+        не падение (готовая форма `CANARY_SUBJECT_ABSENT`, ADR-1017 § «Решение» п. 4). Тест при
+        этом НЕ молчит: он утверждает, что сцена не выдумала слепоту, которой на этом хозяине
+        нет, и печатает причину. На Маке (где предмет есть) проверка слепоты идёт полностью.
+        """
+        bz = self.ctl["busy_limit"]
+        if self.host["verdict"] == _H_BITES:
+            # Предмета НЕТ. Утверждается обратная сторона: ни одного слепого наблюдения, и
+            # сцена доложила `BITES` — то есть слепоту она себе не придумала.
+            self.assertEqual(bz["verdict"], _BZ_BITES, bz)
+            self.assertEqual(bz["ok_n"], 0, bz)
+            print(f"[busy-limit] предмета слепоты на этом хозяине НЕТ: {self.host['reason']}",
+                  file=sys.stderr, flush=True)
+            return
+        self.assertEqual(self.host["verdict"], _H_BLIND, self.host)
         self.assertEqual(bz["verdict"], _BZ_BLIND, bz)
         self.assertGreater(bz["ok_n"], 0, bz)
         self.assertGreaterEqual(bz["over_x"], 10.0, bz)

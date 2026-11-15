@@ -1,0 +1,13 @@
+{
+  "_why": "Население класса «вердикт закреплён за ХОЗЯИНОМ» (карточка inbox-proverka-slepoty-predela-zakrepila-otvet п. 4). База может ТОЛЬКО УМЕНЬШАТЬСЯ. Дописывать сюда утверждение, чтобы погасить падение, ЗАПРЕЩЕНО — тот же порядок, что у frozen_date_baseline.json, design_status_baseline.json, site_numbers_baseline.json.",
+  "_measured": "2026-11-15, цикл #1143, scripts/host_pinned_verdict_census.py",
+  "_measurement": {
+    "files_seen": 2544,
+    "surface_files": ["spa_core/tests/test_observer_margin_control.py"],
+    "subject_before_the_fix": 1,
+    "subject_after_the_fix": 0,
+    "positive_control": "редакция origin/main ДО починки даёт PINNED на spa_core/tests/test_observer_margin_control.py:508 (_BZ_BLIND, TheLiveRunnerIsAskedTheSameQuestion) — настоящая авария в её настоящем месте"
+  },
+  "_floor_not_ceiling": "Число ПРЕДМЕТА есть ПОЛ: условие поверхности спрашивается у ОБЛАСТИ, поэтому область, достающая дверь через ОБЩЕГО помощника, в поверхность не попадает. Граница названа в самом приборе.",
+  "subject": []
+}

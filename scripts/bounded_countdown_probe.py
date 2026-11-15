@@ -77,6 +77,13 @@ _PLACE_TO_VERDICT = dict(zip(PLACES, COUNTDOWN_VERDICTS))
 CANARY_VERDICTS = ("CANARY_TRANSPARENT", "CANARY_PERTURBED", "CANARY_SUBJECT_ABSENT")
 _C_OK, _C_PERTURBED, _C_ABSENT = CANARY_VERDICTS
 
+#: Ответ ХОЗЯИНА на вопрос «кусает ли предел занятый модуль». Отдельный словарь, а не
+#: переиспользование `BUSY_LIMIT_VERDICTS` переписи: там это ВЕРДИКТ СЦЕНЫ о бегуне, здесь —
+#: свойство МАШИНЫ, измеренное босой дверью. Одно имя на два предмета и есть класс «одно имя —
+#: один объект» (`.claude/rules/adapters.md`, цикл #274).
+HOST_BUSY_VERDICTS = ("HOST_LIMIT_BLIND", "HOST_LIMIT_BITES", "HOST_LIMIT_UNMEASURED")
+_H_BLIND, _H_BITES, _H_UNMEASURED = HOST_BUSY_VERDICTS
+
 #: Сцена по умолчанию. Числа взяты у ADR-1015 § «Замер» (занят 0.05 с при пределе 0.001 с —
 #: в 50× дольше предела, `ok` 18 из 20): прибор обязан смотреть на ТУ сцену, которая находку и
 #: произвела, иначе он отвечает на свой вопрос.
@@ -570,6 +577,65 @@ def canary(shim_rows: List[Dict[str, Any]], bare_rows: List[Dict[str, Any]]) -> 
             f"босой ряд слеп {bare_ok} из {len(bare_rows)}, а под шимом слепых 0 — прибор "
             f"ПЕРЕВЕРНУЛ свой предмет, и отметки описывают его самого")}
     return {**doc, "verdict": _C_OK}
+
+
+def host_busy_limit(*, work_s: float = BUSY_S, limit_s: float = BUSY_LIMIT_S,
+                    repeats: int = REPEATS,
+                    runner: Optional[Callable[..., Any]] = None) -> Dict[str, Any]:
+    """Кусает ли предел ЗАНЯТЫЙ модуль НА ЭТОМ ХОЗЯИНЕ — ОТДЕЛЬНЫЙ вопрос, задаваемый ДО сцены.
+
+    Дверь написана по карточке `inbox-proverka-slepoty-predela-zakrepila-otvet`: утверждение
+    «предел слеп» ЕСТЬ свойство хозяина, а не кода. Замер ADR-1015/1017: на macOS (CPython 3.13)
+    предел слеп к вычисляющему модулю, на `ubuntu-latest` (CPython 3.11) тот же настоящий бегун
+    предел КУСАЕТ. Проверка, закрепившая ответ одной машины, краснеет от смены ХОЗЯИНА — и
+    красный по известной причине перестаёт быть сигналом (`.claude/rules/deployment.md`).
+
+    Дверь ОДНА и БОСАЯ (`trace_bare`): шима здесь нет намеренно — вопрос о хозяине не должен
+    зависеть от прибора, возмущающего свой предмет (урок ADR-898). Своей копии зова у двери нет:
+    она звёт `trace_bare`, то есть НАСТОЯЩИЙ `_run_bounded`.
+
+    Три исхода различимы (инв. #17) и ни один не сливается с другим:
+
+    * ``HOST_LIMIT_BLIND`` — хотя бы один `ok` при превышении: предмет слепоты НА ЭТОМ ХОЗЯИНЕ
+      ЕСТЬ. Исход гонки не детерминирован, поэтому ответом является ДОЛЯ, а не одно наблюдение;
+    * ``HOST_LIMIT_BITES`` — ПОЛНЫЙ ряд без единого `ok`: на этом хозяине предел кусает, и
+      предмета слепоты в сцене НЕТ. Это НЕ находка о коде и НЕ провал — это третий исход
+      (та же форма, что `CANARY_SUBJECT_ABSENT`);
+    * ``HOST_LIMIT_UNMEASURED`` — ряд пуст, неполон или в нём есть строка `error`. **Пустой ряд
+      НЕ есть `BITES`:** ноль наблюдений и ноль слепых строк — разные вещи, и выдать первое за
+      второе значило бы объявить предел кусающим, ничего не измерив.
+    """
+    if repeats < 1:
+        return {"verdict": _H_UNMEASURED, "ok_n": None, "timeout_n": None, "n": 0,
+                "asked_n": repeats, "over_x": None, "rows": [],
+                "reason": (f"повторов запрошено {repeats}: ряда нет, а ноль наблюдений "
+                           f"ответом о хозяине не является")}
+    over_x = round(work_s / limit_s, 1) if limit_s > 0 else None
+    rows: List[Dict[str, Any]] = []
+    try:
+        for _ in range(repeats):
+            rows.append(trace_bare(kind="busy", work_s=work_s, limit_s=limit_s, runner=runner))
+    except BaseException as exc:  # noqa: BLE001 — причина обязана быть названа
+        return {"verdict": _H_UNMEASURED, "ok_n": None, "timeout_n": None, "n": len(rows),
+                "asked_n": repeats, "over_x": over_x, "rows": rows,
+                "reason": f"ряд не собран: {type(exc).__name__}: {exc}"}
+    errors = [r for r in rows if r["outcome"] == "error"]
+    doc = {"ok_n": sum(1 for r in rows if r["outcome"] == "ok"),
+           "timeout_n": sum(1 for r in rows if r["outcome"] == "timeout"),
+           "n": len(rows), "asked_n": repeats, "over_x": over_x, "rows": rows}
+    if errors or len(rows) != repeats:
+        return {**doc, "verdict": _H_UNMEASURED, "ok_n": None, "timeout_n": None,
+                "reason": (f"ряд НЕПОЛОН или испорчен: собрано {len(rows)} из {repeats}, "
+                           f"строк `error` {len(errors)}"
+                           + (f" ({errors[0].get('exc')})" if errors else "")
+                           + " — доля по обрезку есть ответ о другом ряде")}
+    if doc["ok_n"] > 0:
+        return {**doc, "verdict": _H_BLIND, "reason": (
+            f"предел СЛЕП на этом хозяине: `ok` {doc['ok_n']} из {len(rows)} при превышении "
+            f"{over_x}× (занят {work_s} с при пределе {limit_s} с)")}
+    return {**doc, "verdict": _H_BITES, "reason": (
+        f"предел КУСАЕТ на этом хозяине: ни одного `ok` в {len(rows)} повторах при превышении "
+        f"{over_x}× — предмета слепоты в сцене НЕТ, и это третий исход, а не падение")}
 
 
 def verdict_of_series(rows: List[Dict[str, Any]]) -> Dict[str, Any]:

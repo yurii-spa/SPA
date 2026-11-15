@@ -17883,6 +17883,117 @@ def _probe_delivery_tree_input_class_population_named(
                        "довершинной версии дала UNNAMEABLE, половина инъекции — HALF")
 
 
+def _probe_host_pinned_verdict_class_population_named(
+        arg: str | None, *, repo_root: str | None = None) -> tuple[str, str]:
+    """Критерий: население класса «вердикт закреплён за ХОЗЯИНОМ» ИЗМЕРЕНО и предмет ПУСТ.
+
+    Предмет — карточка `inbox-proverka-slepoty-predela-zakrepila-otvet`. Замер 15.11:
+    `test_observer_margin_control.py::…::test_the_REAL_runner_is_blind_to_a_busy_module`
+    закрепил литералом `BUSY_LIMIT_BLIND` и был КРАСЕН на CI с момента доставки
+    (`'BUSY_LIMIT_BITES' != 'BUSY_LIMIT_BLIND'`, прогон 43686574574, шард 6), оставаясь
+    зелёным на Маке: вердикт был свойством ХОЗЯИНА, а не кода. Красный по известной
+    причине перестаёт быть сигналом, и чужой прогон краснеет каждый раз.
+
+    **Меряется ИСХОД, а не структура.** Проба не ищет в исходнике ни слова «хозяин», ни
+    имени двери: она зовёт перепись `scripts/host_pinned_verdict_census.py` и спрашивает
+    ВЕРДИКТ значением. Подстрокой она не проходит (ADR-333) — сцена, где имя двери лежит
+    в комментарии, поверхностью не является, и перепись это докладывает сама.
+
+    Контроль в обе стороны — внутри самой проверки:
+
+    * **нулевая проба — НАСТОЯЩАЯ авария в её НАСТОЯЩЕМ месте.** Редакция теста ДО
+      починки берётся с `origin/main` и ОБЯЗАНА получить `PINNED`. Не получила ⇒
+      `unmeasured`: перепись, не краснеющая на аварии, ради которой написана, даёт
+      «предмет пуст» ни о чём (урок ADR-932);
+    * **поверхность обязана быть НЕ ПУСТА:** пустая означает, что перепись смотрит не
+      туда, и её «предмет пуст» ничего не утверждает;
+    * **синтетическая сцена предметом НЕ является** (`observe_door=`): замер #1143 —
+      условие поверхности, заданное ФАЙЛУ вместо ОБЛАСТИ, давало 8 ложных `PINNED`;
+    * **предмет обязан быть ПУСТ**, и население обязано быть НАЗВАНО числом.
+
+    Дерево — ВХОД (`repo_root`); живое `data/`, часы, pid и git-окружение хоста проба не
+    спрашивает. Исход `unmeasured` отличён от `not_satisfied` по построению (инв. #17).
+    """
+    if (arg or "").strip():
+        return UNMEASURED, (f"проба не принимает аргумента (дано {arg!r}): предмет — "
+                            "население класса, пофайловой формы у него нет")
+
+    import importlib.util as _ilu
+    import subprocess as _sp
+    import sys as _sys
+
+    root = _pathlib.Path(repo_root or REPO_ROOT)
+    census_path = root / "scripts" / "host_pinned_verdict_census.py"
+    if not census_path.is_file():
+        return NOT_SATISFIED, (f"переписи населения нет: {census_path} отсутствует — "
+                               "население класса НЕ ИЗМЕРЕНО")
+    try:
+        spec = _ilu.spec_from_file_location("spa_hpvc_probe", census_path)
+        mod = _ilu.module_from_spec(spec)          # type: ignore[arg-type]
+        _sys.modules["spa_hpvc_probe"] = mod
+        spec.loader.exec_module(mod)               # type: ignore[union-attr]
+    except BaseException as exc:  # noqa: BLE001 — причина обязана быть названа
+        return UNMEASURED, f"перепись не импортируется: {type(exc).__name__}: {exc}"
+
+    subject_rel = "spa_core/tests/test_observer_margin_control.py"
+
+    # ── нулевая проба: восстановить НАСТОЯЩУЮ аварию ──────────────────────────
+    shown = _sp.run(["git", "show", f"origin/main:{subject_rel}"],
+                    cwd=str(root), capture_output=True, text=True)
+    if shown.returncode != 0 or not shown.stdout.strip():
+        return UNMEASURED, ("предпосылка НЕ ОБЕСПЕЧЕНА: git не отдал довершинную редакцию "
+                            f"{subject_rel} с origin/main (код {shown.returncode}) — "
+                            "восстановить аварию нечем, и выдавать это за выполненный "
+                            "критерий нельзя")
+    try:
+        pre = mod.measure_source(shown.stdout, label="PRE")
+    except BaseException as exc:  # noqa: BLE001
+        return UNMEASURED, f"нулевая сцена не разобрана: {type(exc).__name__}: {exc}"
+    if "_HOST_TO_SCENE" in shown.stdout:
+        return UNMEASURED, ("на origin/main уже лежит починенная редакция — нулевая проба "
+                            "изображала бы аварию, которой нет; предмет перемерить")
+    if not any(c.verdict == mod.PINNED for c in pre):
+        return UNMEASURED, ("перепись НЕ краснеет на аварии, ради которой написана "
+                            f"(вердикты довершинной редакции: "
+                            f"{sorted({c.verdict for c in pre}) or 'ни одного утверждения'}) "
+                            "— её «предмет пуст» ничего не значит")
+
+    # ── контроль «синтетическая сцена предметом не является» ──────────────────
+    synth = mod.measure_source(
+        "def t(self):\n"
+        "    ctl = observer_margin_control(self.root, observe_door=plan())\n"
+        "    self.assertEqual(ctl['busy_limit']['verdict'], _BZ_BLIND)\n",
+        label="synthetic")
+    if [c.verdict for c in synth] != [mod.SYNTHETIC]:
+        return UNMEASURED, ("перепись не отличает сфабрикованную сцену от настоящей гонки "
+                            f"(вердикты: {[c.verdict for c in synth]}) — население было бы "
+                            "ответом о словах, а не о предмете")
+
+    # ── сам критерий на живом дереве ──────────────────────────────────────────
+    try:
+        census = mod.measure(root)
+    except mod.NotMeasured as exc:
+        return UNMEASURED, f"перепись живого дерева не состоялась: {exc}"
+    except BaseException as exc:  # noqa: BLE001
+        return UNMEASURED, f"перепись живого дерева отказала: {type(exc).__name__}: {exc}"
+    if census.unmeasured:
+        return UNMEASURED, ("файлы не разобраны: "
+                            + "; ".join(f"{f}: {why}" for f, why in census.unmeasured[:4]))
+    if not census.surface:
+        return UNMEASURED, ("ПОВЕРХНОСТЬ ПУСТА: перепись смотрит не туда, и «предмет пуст» "
+                            "здесь есть свойство прибора, а не набора")
+    if census.subject:
+        return NOT_SATISFIED, ("предмет класса НЕ пуст: " + ", ".join(
+            f"{c.file}:{c.line} ({c.scope}, {c.constant})" for c in census.subject[:5]))
+    return SATISFIED, (f"население ИЗМЕРЕНО: файлов прочитано {census.files_seen}, в "
+                       f"поверхности {len(census.surface)}, утверждений "
+                       f"{len(census.claims)} (HOST_ASKED {len(census.host_asked)}, "
+                       f"SYNTHETIC {len(census.synthetic)}), предмет класса ПУСТ; нулевая "
+                       f"проба на довершинной редакции {subject_rel} дала PINNED, "
+                       "сфабрикованная сцена — SYNTHETIC. Число предмета есть ПОЛ: область, "
+                       "достающая дверь через общего помощника, в поверхность не попадает")
+
+
 #: Форма, которой модуль Tier-B ОТКЛЮЧАЕТ лог на протокольном пути. Строка —
 #: единственный признак ПРЕДМЕТА: модуль, её не несущий, этой пробой не судится,
 #: и выдумывать ему вердикт значило бы отвечать о том, чего не смотрели.
@@ -19316,6 +19427,8 @@ PROBES: dict[str, Callable[[str | None], "tuple[str, str]"]] = {
         _probe_orphan_sweep_names_an_unregistered_copy,
     "delivery_tree_input_class_population_named":
         _probe_delivery_tree_input_class_population_named,
+    "host_pinned_verdict_class_population_named":
+        _probe_host_pinned_verdict_class_population_named,
     "sandbox_data_dir_class_population_named":
         _probe_sandbox_data_dir_class_population_named,
     "portfolio_decision_owner_covers_capital":
