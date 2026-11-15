@@ -256,7 +256,31 @@ def edition_line(v: Verdict) -> list[str]:
     ]
 
 
-def report(c: Census, max_rows: int = 12) -> list[str]:
+def _named_rows(items: Sequence[Verdict], *, kind_label: str,
+                max_rows: Optional[int],
+                line: Callable[[Verdict], str]) -> list[str]:
+    """Имена рода + ОБЪЯВЛЕНИЕ умолчанного остатка.
+
+    Предел строк существует ради читаемости, но «напечатано всё» и
+    «напечатана часть» обязаны быть РАЗЛИЧИМЫ (инв. #17): иначе читающий
+    получает 12 имён под числом 18 и не узнаёт об этом ниоткуда — ровно так
+    заказ G1009 п. 1 потребовал «идти ПОИМЁННО» у прибора, который поимённо
+    не называет. Умолчание названо числом И выходом из него; строки «ещё 0»
+    нет намеренно — пустое объявление учат пролистывать.
+
+    `max_rows=None` ⇒ предела нет (CLI `--all`).
+    """
+    shown = list(items) if max_rows is None else list(items)[:max_rows]
+    rows = [line(v) for v in shown]
+    withheld = len(items) - len(shown)
+    if withheld:
+        rows.append(
+            f"  [УМОЛЧАНО] ещё {withheld} имён рода {kind_label} НЕ напечатано "
+            f"(предел строк {max_rows}) — полный перечень: --all")
+    return rows
+
+
+def report(c: Census, max_rows: Optional[int] = 12) -> list[str]:
     """Человекочитаемый свод замера."""
     if not c.measured:
         return [f"РЕДАКЦИЯ ПРОИЗВОДИТЕЛЕЙ НЕ ИЗМЕРЕНА: {c.reason}"]
@@ -271,11 +295,14 @@ def report(c: Census, max_rows: int = 12) -> list[str]:
     for r in c.rejected:
         lines.append(f"  [клон отвергнут] {r.get('repo')} — "
                      f"{r.get('reason', r.get('state'))}")
-    for v in sorted(stale, key=lambda x: -(x.lag_hours or 0))[:max_rows]:
-        lines.append(f"  [ПРЕЖНЯЯ] {v.artifact}: производитель {v.producer} "
-                     f"правлен через {v.lag_hours:.1f}ч после производства")
-    for v in unmeasured[:max_rows]:
-        lines.append(f"  [НЕ ИЗМЕРЕНО] {v.artifact}: {v.reason}")
+    lines += _named_rows(
+        sorted(stale, key=lambda x: -(x.lag_hours or 0)),
+        kind_label="ПРЕЖНЯЯ", max_rows=max_rows,
+        line=lambda v: (f"  [ПРЕЖНЯЯ] {v.artifact}: производитель {v.producer} "
+                        f"правлен через {v.lag_hours:.1f}ч после производства"))
+    lines += _named_rows(
+        unmeasured, kind_label="НЕ ИЗМЕРЕНО", max_rows=max_rows,
+        line=lambda v: f"  [НЕ ИЗМЕРЕНО] {v.artifact}: {v.reason}")
     return lines
 
 
@@ -313,6 +340,12 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
     ap.add_argument("--repo", action="append", dest="repos",
                     help="клон-кандидат; порядок объявлен, выбор печатается")
     ap.add_argument("--ref", default=REF_DEFAULT)
+    ap.add_argument("--all", action="store_true",
+                    help="печатать ВСЕ имена без предела строк: цикл, идущий "
+                         "ПОИМЁННО, иначе получит часть под полным числом")
+    ap.add_argument("--max-rows", type=int, default=12,
+                    help="предел строк у КАЖДОГО рода (умолчание 12); "
+                         "умолчанный остаток ВСЕГДА объявляется числом")
     args = ap.parse_args(argv)
 
     try:
@@ -321,7 +354,7 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
         print(f"РЕДАКЦИЯ ПРОИЗВОДИТЕЛЕЙ НЕ ИЗМЕРЕНА: {exc}")
         return 2
     c = measure(producers, moments, repos=args.repos, ref=args.ref)
-    for line in report(c):
+    for line in report(c, max_rows=None if args.all else args.max_rows):
         print(line)
     if not c.measured:
         return 2
