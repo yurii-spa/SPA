@@ -2391,6 +2391,63 @@ def _absent_block(name: str, data, key: str, *, root: str | None,
     return _finding_mark(is_finding), why
 
 
+#: Выбор клона для вопроса о РЕДАКЦИИ — один раз за прогон, не 133 раза.
+#: `history_completeness` считает достижимые коммиты (`rev-list --count`), и на
+#: 28 011 коммитах зеркала это не та цена, которую можно платить на каждый
+#: артефакт. Кэш держит и НАЗВАННУЮ причину отказа, и признак «уже сказано»:
+#: причина обязана прозвучать ОДИН раз и громко, а не 133 раза подряд.
+_EDITION_PICK: list = []
+
+
+def _edition_repo():
+    """`(клон, причина-отказа, уже-говорили)` — ВЫБРАННЫЙ клон для вопроса о редакции."""
+    if not _EDITION_PICK:
+        try:
+            from spa_core.monitoring import artifact_edition as _ae
+            repo, _rejected = _ae.pick_lineage_repo(
+                [REPO_ROOT, _ae.MIRROR_DEFAULT])
+            _EDITION_PICK.append({"repo": repo, "reason": None, "told": False})
+        except Exception as exc:  # noqa: BLE001 — любой отказ есть ТРЕТИЙ исход
+            _EDITION_PICK.append(
+                {"repo": None, "told": False,
+                 "reason": f"{type(exc).__name__}: {exc}"})
+    return _EDITION_PICK[0]
+
+
+def _producer_edition(name: str, data, *, now: dt.datetime | None = None) -> list[str]:
+    """Той ли РЕДАКЦИЕЙ производителя вынесен вывод, что лежит в дереве.
+
+    Сосед `_subject_drift` спрашивает, не сменился ли ПРЕДМЕТ проверки; здесь —
+    не сменился ли сам ПРИБОР. Оси разные, и вторая до цикла #1158 не
+    спрашивалась НИ У ОДНОГО артефакта, хотя производитель объявлен у 133
+    (предмет объявлен у 2).
+
+    Авария, ради которой строка добавлена: `cio_architecture_constraints.json`
+    от 29.10 печатал CRITICAL «сторож инварианта #3 видит только импорт SDK»,
+    а ADR-969 починил этот замер 09.11 — одиннадцатью днями ПОЗЖЕ. Находка
+    осталась напечатанной, будучи уже неверной, под напутствием офиса «красные
+    строки выше = действовать». Положительный контроль #1158: подсаженная в
+    `spa_core/risk/` дверь-подпроцесс ЛОВИТСЯ (код возврата 1).
+
+    Решение живёт в :mod:`spa_core.monitoring.artifact_edition`; здесь — только
+    огранка в строки офиса, как у `_absent_verdict` (ADR-525).
+    """
+    producer = _PRODUCER.get(name)
+    if not producer:
+        return []
+    pick = _edition_repo()
+    if pick["repo"] is None:
+        if pick["told"]:
+            return []
+        pick["told"] = True
+        return [f"   ⚠️ РЕДАКЦИЯ ПРОИЗВОДИТЕЛЕЙ {_UNMEASURED} (один раз на "
+                f"прогон): {pick['reason']}"]
+    from spa_core.monitoring import artifact_edition as _ae
+    return _ae.edition_line(_ae.verdict(
+        name, producer, produced_at=_produced_moment(name, data),
+        repo=pick["repo"]))
+
+
 def _subject_drift(name: str, data, *, root: str | None = None,
                    now: dt.datetime | None = None) -> list[str]:
     """Менялся ли ПРЕДМЕТ проверки после того, как вердикт был вынесен.
@@ -2834,6 +2891,9 @@ def _summarize_json(path: str, data, *, now: dt.datetime | None = None,
     # ПОСЛЕ возраста и ДО вердикта: читатель должен узнать, что предмет сменился,
     # раньше, чем прочтёт вердикт о нём.
     head.extend(_subject_drift(name, data, root=(artifact_root or root), now=now))
+    # Та же логика места, что у соседа выше, но ось ДРУГАЯ: он про смену
+    # ПРЕДМЕТА, этот — про смену самого ПРИБОРА (цикл #1158).
+    head.extend(_producer_edition(name, data, now=now))
     out: list[str] = []
     if name == "chief_investment.json":
         hv = data.get("house_view") or {}

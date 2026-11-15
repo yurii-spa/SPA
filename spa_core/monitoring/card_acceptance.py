@@ -17825,16 +17825,25 @@ def _probe_delivery_tree_input_class_population_named(
         return c, next((s for s in c.steps if s.step == step_rel), None)
 
     # ── нулевая проба: восстановить НАСТОЯЩУЮ аварию ──────────────────────────
-    shown = _sp.run(["git", "show", f"origin/main:{step_rel}"],
+    #
+    # Байты берутся у БЛОБА, а не у ссылки `origin/main` (замер #1144, ADR-1019 § 7).
+    # Ссылка ДВИЖЕТСЯ: с момента прихода починки ADR-933 на `main` (06.11) эта проба
+    # отвечала `unmeasured` — то есть объявленный критерий карточки МОЛЧА перестал
+    # мерить, и заметить это можно было только спросив пробу. Блоб адресуется
+    # СОДЕРЖИМЫМ, поэтому «не те байты» здесь невозможны по построению.
+    pre_fix_blob = "d5dd29f62da0d842cdb1f09a62784e9839498ec8"   # вершина 15ba1c054
+    shown = _sp.run(["git", "cat-file", "blob", pre_fix_blob],
                     cwd=str(root), capture_output=True, text=True)
     if shown.returncode != 0 or "argparse" not in shown.stdout:
-        return UNMEASURED, ("предпосылка НЕ ОБЕСПЕЧЕНА: git не отдал версию шага 1г с "
-                            f"origin/main (код {shown.returncode}) — восстановить "
-                            "аварию нечем, и выдавать это за выполненный критерий нельзя")
+        return UNMEASURED, ("предпосылка НЕ ОБЕСПЕЧЕНА: git не отдал аварийные байты шага "
+                            f"1г (блоб {pre_fix_blob}, вершина 15ba1c054, код "
+                            f"{shown.returncode}) — восстановить аварию нечем, и выдавать "
+                            "это за выполненный критерий нельзя")
     pre = shown.stdout
     if "--repo-root" in pre:
-        return UNMEASURED, ("на origin/main уже лежит починенный шаг — нулевая проба "
-                            "изображала бы аварию, которой нет; перемерить предмет")
+        return UNMEASURED, (f"закреплённый блоб {pre_fix_blob} несёт ПОЧИНЕННЫЙ шаг — "
+                            "нулевая проба изображала бы аварию, которой нет; перемерить "
+                            "номер блоба")
     try:
         with _tempfile.TemporaryDirectory(prefix="dtic_zero_") as d:
             _, step = _verdict_of(_scene(_pathlib.Path(d), pre))

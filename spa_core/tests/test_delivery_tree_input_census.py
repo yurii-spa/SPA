@@ -65,16 +65,28 @@ def _scene(tmp: Path, step_source: str | None = None) -> Path:
     return tmp
 
 
+#: Байты шага 1г ДО починки ADR-933 — закреплены БЛОБОМ, а не ссылкой `origin/main`.
+#:
+#: Почему (замер #1144, ADR-1019 § 7). Прежняя редакция брала аварию у `origin/main`, и это
+#: была бомба от ДВИЖУЩЕЙСЯ ССЫЛКИ: с момента прихода починки ADR-933 на `main` (06.11) ссылка
+#: отдаёт УЖЕ ПОЧИНЕННЫЙ файл, восстановить аварию стало нечем, и контроль покраснел навсегда
+#: (он и стои́т в росписи прогона 43717299364). Блоб адресуется СОДЕРЖИМЫМ, поэтому аварийная
+#: редакция не может втихую стать починенной.
+PRE_FIX_BLOB = "d5dd29f62da0d842cdb1f09a62784e9839498ec8"   # вершина 15ba1c054
+
+
 def _pre_fix_source() -> str:
-    """Исходник шага 1г ДО починки — из git, а не переписанный руками."""
+    """Исходник шага 1г ДО починки — из git по БЛОБУ, а не переписанный руками."""
     proc = subprocess.run(
-        ["git", "show", "origin/main:scripts/import_time_anchor_bombs.py"],
+        ["git", "cat-file", "blob", PRE_FIX_BLOB],
         cwd=ROOT, capture_output=True, text=True)
     if proc.returncode != 0 or "argparse" not in proc.stdout:
+        # Усечённый клон отвечает об истории МОЛЧА и неверно (`.claude/rules/deployment.md`
+        # § поправка #1031), поэтому отсутствие ОБЪЕКТА — третий исход с названной причиной.
         raise unittest.SkipTest(
-            "предпосылка НЕ ОБЕСПЕЧЕНА: git не отдал версию шага 1г с origin/main "
-            f"(код {proc.returncode}) — восстановить аварию нечем, и выдавать это "
-            "за пройденный контроль запрещено")
+            f"предпосылка НЕ ОБЕСПЕЧЕНА: git не отдал аварийные байты шага 1г (блоб "
+            f"{PRE_FIX_BLOB}, вершина 15ba1c054, код {proc.returncode}) — восстановить "
+            "аварию нечем, и выдавать это за пройденный контроль запрещено")
     return proc.stdout
 
 
@@ -83,10 +95,11 @@ class ControlOnTheRealAccident(unittest.TestCase):
 
     def test_control_a_pre_fix_step_is_unnameable(self) -> None:
         pre = _pre_fix_source()
-        # Предпосылка сцены ПРОВЕРЯЕТСЯ, а не предполагается: если на origin/main уже
-        # лежит починенный файл, сцена изображала бы аварию, которой нет.
+        # Предпосылка сцены ПРОВЕРЯЕТСЯ, а не предполагается: закреплён неверный блоб —
+        # сцена изображала бы аварию, которой в этих байтах нет.
         self.assertNotIn("--repo-root", pre,
-                         "версия с origin/main уже несёт вход — аварию восстановить нечем")
+                         f"закреплённый блоб {PRE_FIX_BLOB} уже несёт вход — аварию "
+                         "восстановить нечем, перемерить номер блоба")
         with tempfile.TemporaryDirectory(prefix="spa_dtic_") as d:
             c = census.measure(_scene(Path(d), pre))
             step = next(s for s in c.steps if s.step.endswith("import_time_anchor_bombs.py"))
