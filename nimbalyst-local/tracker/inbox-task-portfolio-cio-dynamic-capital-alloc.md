@@ -44735,3 +44735,35 @@ G1007…G832.
 **8. Одноразовые деревья #1159** — `SPA_worktrees/c1159` (доставка) и `SPA_worktrees/c1159mut`
 (мутации, шаг 1г). Снять ИЗМЕРЕННЫМ снятием (`scripts/reap_stale_worktrees.py`), не
 `git worktree remove`.
+
+### Доставка #1159 и АДРЕС прогона на доставленных байтах
+
+Набор уехал **ОДНИМ** коммитом `0fe68ef666d8cd07cd7e7cda43e0d3e80215926a` (11 файлов; слепок
+байтов сверен у **27** чтений, слепок режимов у 2, разбор уезжающего Python — 4 файла).
+`ci-control.yml` разослан (`{"ref":"main"}` — сырую sha `dispatches` не принимает, HTTP 422),
+прогон **43744830441** (`workflow_dispatch`, `head_sha` =
+`0fe68ef666d8cd07cd7e7cda43e0d3e80215926a` — **ПЕРЕЧИТАН у API**; `HTTP 204` сам по себе
+доказательством не является, `gh` на машине не установлен, слаг `yurii-spa/SPA`). На момент конца
+цикла прогон `queued`.
+
+**Проверяемое утверждение доставки #1159 — ПО РОДУ, а не числом.** В росписи `ci-control-report`
+прогона 43744830441 нет НИ ОДНОГО имени из `spa_core/tests/test_artifact_edition.py`. Основание —
+не надежда: все восемь новых проб берут население рода ВХОДОМ (`_kinds(n_stale, n_unmeasured)`,
+ни git, ни часов), а девятая (`test_the_cli_flag_reaches_the_printer`) получает входом и перечень
+производителей, и клон сцены, минуя офис и живое `data/`; литеральной даты в файле нет ни одной,
+имя ветки сцены объявлено `git init -b`.
+**База для сравнения — роспись прогона 43736614584 на вершине `a217b6cab` (байты #1158): 66
+падений в 51 файле, прочитаны ИМЕНАМИ этим циклом** (не взяты числом из прошлой записи), и
+разложены по роду: стенные часы **5** + дефектная часть **61**.
+
+⚠️ **Чего #1159 НЕ утверждает.** Пред-существующие красные
+`test_cio_architecture_constraints.py::TestLiveVerdict::test_money_path_layers_do_not_reach_the_llm`,
+`test_inbox_acceptance_ratchet.py::test_no_new_card_is_in_work_without_a_criterion` (перемерен
+ПОИМЁННО: те же **10** карточек, все `done`, совпадение со списком #1144 — 10/10),
+`test_invisible_consumer_scale.py::WiringTest::test_measure_calls_the_coordinate_and_stores_it_under_its_own_key`,
+`test_card_acceptance.py::TestRegisteredProbesAreReal::test_every_registered_probe_returns_a_known_verdict`
+и ДВА из `test_office_absent_block_producer_aware.py::CensusRatchet` стоят в росписи 43736614584
+тем же именем ⇒ **не регрессия #1159** и НЕ разобраны. Род нового имени
+`test_child_env_census.py::test_every_outcome_the_doors_return_is_declared`, пришедшего между
+43727221100 и 43736614584, — СТЕННЫЕ ЧАСЫ (`cause.skeleton` = «Timeout (>#s) from
+pytest-timeout»), то есть загрузка раннера, а не дефект.
