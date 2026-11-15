@@ -401,6 +401,14 @@ MARGIN_KIND_LOWER_BOUND = "lower_bound"
 #: поэтому они называются раздельно, а не одной строкой «что-то с запасом».
 MARGIN_VERDICTS = ("MARGIN_CLEARS_FLOOR", "MARGIN_BELOW_FLOOR", "MARGIN_UNMEASURED")
 _MG_CLEARS, _MG_BELOW, _MG_UNMEASURED = MARGIN_VERDICTS
+#: Род АДРЕСА, по которому снят запас, и он живёт В ДАННЫХ, а не в прозе рядом (инв. #17).
+#: Одиночный замер снимает запас у ПРЕДЕЛА (ключ наблюдения — предел), матрица — у КЛЕТКИ
+#: (ключ несёт ОБА входа). До ADR-1014 адрес назывался `at_timeout` безусловно, и матричный
+#: зов печатал бы «наблюдение при пределе `p_one@1.0` с» — число с подделанным родом, ровно
+#: тот дефект, против которого написан весь прибор. Поэтому адрес несёт свой род ЗНАЧЕНИЕМ.
+MARGIN_AT_KINDS = ("timeout", "cell")
+_AT_TIMEOUT, _AT_CELL = MARGIN_AT_KINDS
+_AT_WORDS = {_AT_TIMEOUT: "при пределе {} с", _AT_CELL: "в клетке `{}`"}
 
 #: ─── МАТРИЦА ДВУХ ОБЪЯВЛЕННЫХ ВХОДОВ (ADR-1012, заказ G1001 п. 1а = ADR-1011 § 7а) ───
 #:
@@ -2470,12 +2478,30 @@ def timeout_key(value: float) -> str:
     return repr(float(value))
 
 
-def _slowest_observed_module(observations: Dict[str, Dict[str, Any]]) -> Optional[Dict[str, Any]]:
+def _margin_at(slowest: Optional[Dict[str, Any]]) -> str:
+    """Адрес наблюдения СЛОВАМИ, по объявленному роду. Неизвестный род — третий исход, а не
+    молчаливая подстановка «при пределе»: подделанный род и есть предмет `MARGIN_AT_KINDS`."""
+    if not slowest:
+        return "адрес не измерен"
+    kind, at = slowest.get("at_kind"), slowest.get("at")
+    if kind not in _AT_WORDS:
+        return f"род адреса НЕ ОБЪЯВЛЕН (`{kind}`), адрес `{at}`"
+    return _AT_WORDS[kind].format(at)
+
+
+def _slowest_observed_module(observations: Dict[str, Dict[str, Any]],
+                            at_kind: str = _AT_TIMEOUT) -> Optional[Dict[str, Any]]:
     """Самый медленный модуль среди наблюдений — ЗАПАС, которым объясняется инвариантность.
 
     Наблюдение без `seconds` ответа не даёт, и это НЕ нуль (инв. #17): «запас не измерен» и
     «запаса нет» — разные утверждения, а второе читалось бы как находка.
+
+    `at_kind` объявляет, ЧЕМ является ключ наблюдений: пределом (одиночный замер) или
+    клеткой матрицы. Род уезжает в запись вместе с адресом — читатель JSON не обязан
+    угадывать, о чём ему назвали адрес.
     """
+    if at_kind not in MARGIN_AT_KINDS:  # pragma: no cover — объявление, а не ветка данных
+        raise ValueError(f"род адреса `{at_kind}` не объявлен в MARGIN_AT_KINDS")
     best: Optional[Dict[str, Any]] = None
     for key, obs in observations.items():
         rows = obs.get("per_module")
@@ -2486,7 +2512,8 @@ def _slowest_observed_module(observations: Dict[str, Dict[str, Any]]) -> Optiona
             if not isinstance(sec, (int, float)) or isinstance(sec, bool):
                 return None
             if best is None or float(sec) > best["seconds"]:
-                best = {"module": r.get("module"), "seconds": float(sec), "at_timeout": key}
+                best = {"module": r.get("module"), "seconds": float(sec),
+                        "at": key, "at_kind": at_kind}
     return best
 
 
@@ -2538,7 +2565,7 @@ def margin_floor_verdict(declared: Optional[float],
                 "kind": MARGIN_KIND_LOWER_BOUND, "slowest": slowest, "reason": (
                     f"запас {margin}× НИЖЕ порога {MARGIN_FLOOR_X}×: самый медленный модуль "
                     f"`{slowest.get('module')}` занял {seconds} с при объявленном пределе "
-                    f"{declared} с (наблюдение при пределе {slowest.get('at_timeout')} с). "
+                    f"{declared} с (наблюдение {_margin_at(slowest)}). "
                     f"Оценка запаса — НИЖНЯЯ граница ({MARGIN_KIND_LOWER_BOUND}), поэтому она НЕ "
                     f"доказывает, что настоящий запас тонок; она перестаёт доказывать, что он "
                     f"безопасен, и «инвариантно» теряет свою названную причину")}
@@ -2676,7 +2703,7 @@ def render_timeout_variance(tv: Dict[str, Any]) -> List[str]:
         out.append(f"    запас НЕ ИЗМЕРЕН ({mg['verdict']}) — {mg['reason']}")
     else:
         head = (f"    самый медленный модуль наблюдения: {sl['module']} {sl['seconds']} с "
-                f"(при пределе {sl['at_timeout']} с)")
+                f"({_margin_at(sl)})")
         if mg["verdict"] == _MG_CLEARS:
             out.append(head + f"; запас до объявленного предела ≥{mg['margin']}× "
                               f"(НИЖНЯЯ граница) — порог {mg['floor']}× ПРОЙДЕН")
@@ -2783,6 +2810,31 @@ def _matrix_grid(by_cell: Dict[str, Any]) -> Tuple[List[str], List[str], Dict[st
     return protocols, timeouts, grid
 
 
+def _slice_cell_key(axis: str, fixed: str, moving: str) -> str:
+    """Ключ клетки СРЕЗА: ось говорит, какая половина ключа неподвижна.
+
+    Дверь одна на двух читателей — сравнение ярлыков и запас. Разойдись они, запас мерился бы
+    по одному набору клеток, а вердикт выносился по другому, и расхождение было бы молчаливым.
+    """
+    return (f"{fixed}{MATRIX_CELL_SEP}{moving}" if axis == _MX_T_IN_P
+            else f"{moving}{MATRIX_CELL_SEP}{fixed}")
+
+
+def _slice_margin(by_cell: Dict[str, Dict[str, Any]], axis: str, fixed: str,
+                  moving: List[str], declared: Optional[float]) -> Dict[str, Any]:
+    """Запас до предела у ОДНОГО среза матрицы (ADR-1014).
+
+    Мерится у СРЕЗА, а не у оси, и различие несущее: «инвариантно при `aave_v3`» объясняется
+    запасом ТЕХ клеток, по которым этот срез и сравнивался. Запас, снятый по всей матрице,
+    осудил бы вместе со тонким срезом и все остальные — утверждение встало бы у оси целиком
+    и не сработало бы никогда (ADR-1013 § 7а дословно). Предел по-прежнему берётся У БЕГУНА
+    (класс ADR-913), двери к величине и к порогу — те же, что у одиночного замера.
+    """
+    cells = {key: by_cell[key] for key in
+             (_slice_cell_key(axis, fixed, m) for m in moving)}
+    return margin_floor_verdict(declared, _slowest_observed_module(cells, _AT_CELL))
+
+
 def _axis_liveness(axis: str, side_axis: Dict[str, Dict[str, Any]],
                    knob: Dict[str, Any]) -> Tuple[str, str]:
     """Чем доказано, что вход этой оси ДОХОДИТ до решения.
@@ -2796,7 +2848,13 @@ def _axis_liveness(axis: str, side_axis: Dict[str, Dict[str, Any]],
     Внешний контроль зачитывается только своей оси (`AXIS_KNOB_INPUT`): принять контроль
     предела за доказательство живости протокола значило бы зачесть одной оси контроль другой.
     """
-    varying = sorted(s for s, v in side_axis.items() if v["verdict"] == _PV_VARIES)
+    # Доказательством служит НАЗВАННОЕ РАЗЛИЧИЕ, а не сводный вердикт стороны, и с ADR-1014
+    # это перестало быть одним и тем же: гейт запаса вправе увести сводку стороны в
+    # `UNMEASURED` из-за ДРУГОГО, тонкого среза — и спроси мы сводку, ось потеряла бы
+    # доказательство живости, которое у неё есть, а причина отказа назвала бы НЕ ТО звено
+    # («живость не доказана» вместо «запас тонок»).
+    varying = sorted(s for s, v in side_axis.items()
+                     if v["verdict"] == _PV_VARIES or v.get("slices_varying"))
     if varying:
         return _AX_BY_DIFF, (f"по этой оси РАЗЛИЧАЮТСЯ стороны: {', '.join(varying)} — вход "
                              f"доходит до решения, доказано теми же наблюдениями")
@@ -2828,10 +2886,16 @@ def matrix_variance(repo: Path, census: Census,
     ядра отвечала бы на свой вопрос, а счёта вместо модулей были бы зелёным ответом мимо
     предмета.
 
-    Три исхода различимы (инв. #17): `INVARIANT` (все срезы совпали ПОИМЁННО И живость оси
-    доказана) · `VARIES` (срез НАЗВАН — осью, значением соседа, стороной и модулями) ·
-    `UNMEASURED` с причиной (клеток по одной оси меньше `VARIANCE_MIN` · матрица рваная ·
-    сторона не разобралась хотя бы в одной клетке · живость оси НЕ ДОКАЗАНА).
+    Три исхода различимы (инв. #17): `INVARIANT` (все срезы совпали ПОИМЁННО, живость оси
+    доказана И запас КАЖДОГО среза прошёл порог) · `VARIES` (срез НАЗВАН — осью, значением
+    соседа, стороной и модулями) · `UNMEASURED` с причиной (клеток по одной оси меньше
+    `VARIANCE_MIN` · матрица рваная · сторона не разобралась хотя бы в одной клетке ·
+    живость оси НЕ ДОКАЗАНА · запас среза не подтверждён).
+
+    ЗАПАС — УСЛОВИЕ вердикта и здесь (ADR-1014, заказ G1003 п. 1а = ADR-1013 § 7а), и он
+    мерится у СРЕЗА: «инвариантно при `aave_v3`» объясняется запасом ТЕХ клеток, по которым
+    срез и сравнивался. Запас по всей матрице осудил бы вместе с тонким срезом и все
+    остальные — утверждение встало бы у оси целиком и не сработало бы никогда.
     """
     kb = knob or {"verdict": _KB_UNMEASURED, "dead_reason": None,
                   "unmeasured_reason": "контроль входа не запускался"}
@@ -2872,6 +2936,15 @@ def matrix_variance(repo: Path, census: Census,
         "declared_timeout": declared_timeout,
         "declared_timeout_observed": timeout_key(declared_timeout) in timeouts,
     }
+    # Запас среза не зависит от СТОРОНЫ (он свойство наблюдений, а не ярлыков), поэтому
+    # считается ОДИН раз на срез — до сторон. Посчитай его внутри стороны, и одна величина
+    # получила бы столько объявлений, сколько сторон, то есть класс «одно имя — один объект».
+    margins: Dict[str, Dict[str, Dict[str, Any]]] = {}
+    for axis in MATRIX_AXES:
+        fixed_values = protocols if axis == _MX_T_IN_P else timeouts
+        moving = timeouts if axis == _MX_T_IN_P else protocols
+        margins[axis] = {f: _slice_margin(by_cell, axis, f, moving, declared_timeout)
+                         for f in fixed_values}
     # Ярлыки снимаются ОДИН раз на клетку: `_side_labels` зовёт разборы ADR-1008/1009, и второй
     # проход по тем же клеткам стоил бы вдвое, отвечая то же самое.
     sides: Dict[str, Dict[str, Any]] = {}
@@ -2886,6 +2959,7 @@ def matrix_variance(repo: Path, census: Census,
                 break
         if reason is not None:
             sides[side] = {axis: {"verdict": _PV_UNMEASURED, "slices": {},
+                                  "slices_varying": [], "slices_unmeasured": [],
                                   "unmeasured_reason": reason} for axis in MATRIX_AXES}
             continue
         per_axis: Dict[str, Dict[str, Any]] = {}
@@ -2894,14 +2968,32 @@ def matrix_variance(repo: Path, census: Census,
             inner = timeouts if axis == _MX_T_IN_P else protocols
             slices: Dict[str, Dict[str, Any]] = {}
             for fixed in outer:
-                by_value = {v: labels[f"{fixed}{MATRIX_CELL_SEP}{v}" if axis == _MX_T_IN_P
-                                      else f"{v}{MATRIX_CELL_SEP}{fixed}"] for v in inner}
-                slices[fixed] = _compare_across_values(by_value)
+                by_value = {v: labels[_slice_cell_key(axis, fixed, v)] for v in inner}
+                sl = _compare_across_values(by_value)
+                gate = margins[axis][fixed]
+                sl["margin_gate"] = gate
+                if sl["verdict"] == _PV_INVARIANT and gate["verdict"] != _MG_CLEARS:
+                    # fail-CLOSED по ЗАПАСУ, у СРЕЗА (ADR-1014). Порядок звеньев тот же, что
+                    # у одиночного замера: `VARIES` запасом НЕ гатится — названное различие
+                    # само есть доказательство, что вход доходит, и гасить находку порогом
+                    # значило бы ослаблять проверку.
+                    sl["verdict"] = _PV_UNMEASURED
+                    sl["unmeasured_reason"] = (
+                        f"срез совпал ПОИМЁННО, но причина, которой этот ответ объясняется, "
+                        f"не подтверждена: {gate['reason']}")
+                slices[fixed] = sl
             varies = sorted(f for f, s in slices.items() if s["verdict"] == _PV_VARIES)
+            thin = sorted(f for f, s in slices.items() if s["verdict"] == _PV_UNMEASURED)
             per_axis[axis] = {
-                "verdict": _PV_VARIES if varies else _PV_INVARIANT,
-                "slices": slices, "slices_varying": varies,
-                "unmeasured_reason": None}
+                # Порядок исходов — тот же, что у ОСИ (ADR-1012): неизмеренный срез НЕ даёт
+                # стороне права сказать «инвариантно» по остальным. Названные различия при
+                # этом не теряются: они остаются в `slices_varying` и печатаются.
+                "verdict": (_PV_UNMEASURED if thin else
+                            (_PV_VARIES if varies else _PV_INVARIANT)),
+                "slices": slices, "slices_varying": varies, "slices_unmeasured": thin,
+                "unmeasured_reason": ("; ".join(
+                    f"срез `{f}`: {slices[f]['unmeasured_reason']}" for f in thin)
+                    if thin else None)}
         sides[side] = per_axis
     axes: Dict[str, Dict[str, Any]] = {}
     for axis in MATRIX_AXES:
@@ -2932,10 +3024,17 @@ def matrix_variance(repo: Path, census: Census,
             verdict, reason = _PV_INVARIANT, None
         axes[axis] = {"verdict": verdict, "liveness": liveness,
                       "liveness_reason": liveness_reason,
+                      "margins": margins[axis],
+                      "margin_floor": MARGIN_FLOOR_X,
+                      "slices_unmeasured": {n: v.get("slices_unmeasured", [])
+                                            for n, v in side_axis.items()},
                       "sides": {n: v["verdict"] for n, v in side_axis.items()},
+                      # Спрашивается РАЗЛИЧИЕ, а не сводка стороны: с ADR-1014 сводка вправе
+                      # уйти в `UNMEASURED` из-за тонкого среза, и названная находка
+                      # исчезла бы из сводки оси молча.
                       "sides_varying": {n: v.get("slices_varying", [])
                                         for n, v in side_axis.items()
-                                        if v["verdict"] == _PV_VARIES},
+                                        if v.get("slices_varying")},
                       "unmeasured_reason": reason}
     verdicts = {a["verdict"] for a in axes.values()}
     if _PV_UNMEASURED in verdicts:
@@ -2949,6 +3048,33 @@ def matrix_variance(repo: Path, census: Census,
     return {"verdict": overall, "protocols": protocols, "timeouts": timeouts,
             "cells": len(by_cell), "min_required": VARIANCE_MIN, "sides": sides,
             "axes": axes, "knob": kb, "unmeasured_reason": overall_reason, **coverage}
+
+
+def _render_axis_margin(a: Dict[str, Any]) -> List[str]:
+    """Запас СРЕЗОВ оси (ADR-1014). Печатается ВСЕГДА и обоими исходами раздельно: «запас
+    тонок» требует искать подорожавший модуль, «длительностей нет» — чинить наблюдателя.
+    Худший срез назван ИМЕНЕМ: лидер не устойчив, устойчива величина, а действовать надо
+    по срезу, который ответ и держит."""
+    gates: Dict[str, Dict[str, Any]] = a.get("margins") or {}
+    if not gates:
+        return ["      запас до предела: НЕ ИЗМЕРЕН — срезов у этой оси нет"]
+    head = f"      запас до предела (порог {a.get('margin_floor', MARGIN_FLOOR_X)}×)"
+    out: List[str] = []
+    blind = sorted(f for f, g in gates.items() if g["verdict"] == _MG_UNMEASURED)
+    if blind:
+        out.append(head + f": ⚠️ НЕ ИЗМЕРЕН в {len(blind)} из {len(gates)} срезов "
+                          f"({', '.join(blind[:_MX_SHOWN])}) — {gates[blind[0]]['reason']}")
+    measured = {f: g for f, g in gates.items() if g["margin"] is not None}
+    if measured:
+        worst = min(measured, key=lambda f: measured[f]["margin"])
+        g = measured[worst]
+        below = sorted(f for f, m in measured.items() if m["verdict"] == _MG_BELOW)
+        out.append(head + f": худший ИЗМЕРЕННЫЙ срез `{worst}` ≥{g['margin']}× "
+                          f"({g['kind']}, самый медленный {g['slowest']['module']} "
+                          f"{g['slowest']['seconds']} с, {_margin_at(g['slowest'])}) — "
+                   + ("ПРОЙДЕН" if g["verdict"] == _MG_CLEARS
+                      else f"❗ НИЖЕ порога; таких срезов {len(below)} из {len(gates)}"))
+    return out
 
 
 def render_matrix_variance(mx: Dict[str, Any]) -> List[str]:
@@ -2975,6 +3101,7 @@ def render_matrix_variance(mx: Dict[str, Any]) -> List[str]:
     for axis, a in mx["axes"].items():
         out.append(f"    ось {axis} — {titles[axis]}")
         out.append(f"      живость оси: {a['liveness']} — {a['liveness_reason']}")
+        out.extend(_render_axis_margin(a))
         mark = {_PV_INVARIANT: "✅", _PV_VARIES: "❗", _PV_UNMEASURED: "⚠️"}[a["verdict"]]
         out.append(f"      {mark} ОСЬ: {a['verdict']}"
                    + (f" — {a['unmeasured_reason']}" if a["unmeasured_reason"] else ""))
@@ -2997,7 +3124,8 @@ def render_matrix_variance(mx: Dict[str, Any]) -> List[str]:
                            + f"; SUBJECT_MOVED {s['counts'][_PD_MOVED]} · "
                            f"LABEL_DIFFERS {s['counts'][_PD_DIFFERS]}")
     out.append("    НЕ ДОКЛАДЫВАЕТ: третий вход наблюдения (ADR-1011 § 7в — кандидаты `python`, "
-               "cwd, каталог песочницы) и сторож ЗАПАСА (§ 7б)")
+               "cwd, каталог песочницы); ПОЧЕМУ срез подорожал (ADR-1013 § 7г — у вопроса нет "
+               "носителя) и перемер самого порога (§ 7б)")
     return out
 
 

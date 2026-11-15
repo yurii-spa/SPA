@@ -180,15 +180,23 @@ class Scene:
                            counts={"WRITE_REACHABLE": len(mods)}, exposure=exposure,
                            blind_subset=None, code=1)
 
-    def obs(self, rows):
-        """rows = [(модуль, статус)] — одна клетка матрицы."""
+    def obs(self, rows, seconds=0.001):
+        """rows = [(модуль, статус)] — одна клетка матрицы.
+
+        `seconds` — длительность модулей ЭТОЙ клетки (ADR-1014: запас мерится у СРЕЗА, значит
+        сцене нужна клетка со своей ценой). `None` снимает длительности вовсе — «запас НЕ
+        ИЗМЕРЕН», и это третий исход, а не нулевой запас.
+        """
         per_module, statuses = [], {}
         for module, status in rows:
             statuses[status] = statuses.get(status, 0) + 1
-            per_module.append({"module": module, "status": status,
-                               "detail": _FOREIGN_TEXT + " a" if status == "unchecked" else "",
-                               "seconds": 0.001, "lines": [self._line("head = positions[0]")],
-                               "written": {"runner_dir": [], "tree_data": [], "cwd_data": []}})
+            row = {"module": module, "status": status,
+                   "detail": _FOREIGN_TEXT + " a" if status == "unchecked" else "",
+                   "lines": [self._line("head = positions[0]")],
+                   "written": {"runner_dir": [], "tree_data": [], "cwd_data": []}}
+            if seconds is not None:
+                row["seconds"] = seconds
+            per_module.append(row)
         return {"repo": str(self.root) + "_copy", "protocol": "?", "timeout": SCENE_TIMEOUT,
                 "modules": len(rows), "statuses": statuses, "baskets": {}, "writers": [],
                 "per_module": per_module, "elsewhere_in_tree": [], "parity": {},

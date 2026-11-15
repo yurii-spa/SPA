@@ -7,7 +7,10 @@
     "instrument_md5": "0b55c9c1e545b1bd7fccbf4cba4c3639",
     "cells": 2,
     "declared_timeout_s": 3.0,
-    "observed_timeouts_s": [0.01, 3.0],
+    "observed_timeouts_s": [
+      0.01,
+      3.0
+    ],
     "slowest_module": "protocol_ecosystem_health_scorecard",
     "slowest_seconds": 0.016,
     "margin_kind": "lower_bound",
@@ -18,9 +21,81 @@
   },
   "prior": {
     "_": "Замеры предшественников — не наши, и названы как их. Держатся здесь затем, что ИМЕННО ИХ РАСХОЖДЕНИЕ и есть довод за сторожа: одна и та же величина уехала вдвое за сутки на одном дереве, от загрузки машины, а не от кода.",
-    "ADR-1011": {"slowest_seconds": 0.008, "margin_at_least": 375.0, "cells": 3, "measured_at": "2026-11-14"},
-    "ADR-1012": {"slowest_seconds": 0.016, "margin_at_least": 187.5, "cells": 24, "slowest_module": "yield_reinvestment_engine", "measured_at": "2026-11-15"}
+    "ADR-1011": {
+      "slowest_seconds": 0.008,
+      "margin_at_least": 375.0,
+      "cells": 3,
+      "measured_at": "2026-11-14"
+    },
+    "ADR-1012": {
+      "slowest_seconds": 0.016,
+      "margin_at_least": 187.5,
+      "cells": 24,
+      "slowest_module": "yield_reinvestment_engine",
+      "measured_at": "2026-11-15"
+    }
   },
   "_личность_медленного_модуля_НЕ_устойчива": "Замер #1135 и замер ADR-1012 дали ОДНУ величину (0.016 с) и РАЗНЫЕ модули (protocol_ecosystem_health_scorecard против yield_reinvestment_engine). Значит «самый медленный модуль» — не долговечный факт, а свойство прогона; долговечна ВЕЛИЧИНА. Поэтому храповик держит население не прошедших порог, а не имя лидера.",
-  "not_clearing": []
+  "not_clearing": [],
+  "measured_matrix": {
+    "_назначение": "Замер ЗАПАСА у СРЕЗОВ матрицы (ADR-1014, заказ G1003 п. 1а = ADR-1013 § 7а). До ADR-1014 матрица запасом не гатилась вовсе: гейт ADR-1013 жил только в одиночном зове, а матричный ответ по оси `timeout_within_protocol` печатал «инвариантно» без условия на запас.",
+    "at_commit": "5b2b6598d2abc6a6c0b316d200a29362c9400644",
+    "at_commit_plus": "байты цикла #1136 поверх базы (md5 прибора ниже)",
+    "instrument_md5": "3d84768f62d6c95eb109a8d6822981a9",
+    "cells": 4,
+    "protocols": [
+      "aave_v3",
+      "pendle"
+    ],
+    "observed_timeouts_s": [
+      0.01,
+      3.0
+    ],
+    "declared_timeout_s": 3.0,
+    "margin_kind": "lower_bound",
+    "knob": "KNOB_LIVE",
+    "axis_verdicts": {
+      "timeout_within_protocol": "INVARIANT",
+      "protocol_within_timeout": "VARIES"
+    },
+    "slices": {
+      "timeout_within_protocol": {
+        "aave_v3": {
+          "margin_at_least": 250.0,
+          "slowest_module": "defi_portfolio_stress_tester",
+          "slowest_seconds": 0.012,
+          "at_cell": "aave_v3@0.01",
+          "verdict": "MARGIN_CLEARS_FLOOR"
+        },
+        "pendle": {
+          "margin_at_least": 375.0,
+          "slowest_module": "protocol_ponzi_risk_screener",
+          "slowest_seconds": 0.008,
+          "at_cell": "pendle@0.01",
+          "verdict": "MARGIN_CLEARS_FLOOR"
+        }
+      },
+      "protocol_within_timeout": {
+        "0.01": {
+          "margin_at_least": 250.0,
+          "slowest_module": "defi_portfolio_stress_tester",
+          "slowest_seconds": 0.012,
+          "at_cell": "aave_v3@0.01",
+          "verdict": "MARGIN_CLEARS_FLOOR"
+        },
+        "3.0": {
+          "margin_at_least": 375.0,
+          "slowest_module": "yield_farming_roi_calculator",
+          "slowest_seconds": 0.008,
+          "at_cell": "aave_v3@3.0",
+          "verdict": "MARGIN_CLEARS_FLOOR"
+        }
+      }
+    },
+    "source": "цикл #1136, СВОЙ прогон: scripts/registry_runner_write_census.py --observe <одноразовое НЕ-git дерево> --protocols aave_v3,pendle --timeouts declared,0.01 --json",
+    "measured_at": "2026-11-15",
+    "_запас_есть_свойство_СРЕЗА_а_не_матрицы": "Срезы одной оси дали РАЗНЫЕ запасы (250× против 375×) и РАЗНЫХ медленных модулей в ОДНОМ прогоне. Значит разрешение у гейта есть не украшение: запас по всей матрице был бы 250× для обоих срезов и осудил бы вместе с тонким срезом сохранный. Личность лидера при этом снова не устойчива — третий прогон подряд даёт ТРЕТИЙ набор имён (ADR-1011 `—`, ADR-1012 yield_reinvestment_engine, ADR-1013 protocol_ecosystem_health_scorecard, #1136 defi_portfolio_stress_tester / protocol_ponzi_risk_screener / yield_farming_roi_calculator), а ВЕЛИЧИНА держится в полосе 0.008…0.016 с.",
+    "not_clearing_slices": [],
+    "_что_НЕ_измерено": "Население `not_clearing_slices` измерено на 4 срезах (2 оси × 2 среза) при 4 клетках, а не на 24 клетках ADR-1012. «Ни один срез не ниже порога» принадлежит ЭТОМУ замеру и его размеру. Отдельно НЕ ИЗМЕРЕНО, почему в клетке `aave_v3@0.01` самый медленный модуль наблюдён 0.012 с при пределе клетки 0.01 с и получил статус `ok`: либо длительность есть ВЕРХНЯЯ граница (в неё входят накладные наблюдателя, и настоящая ниже предела), либо предел на этом пути не кусает. Два чтения, и замер их не различает."
+  }
 }

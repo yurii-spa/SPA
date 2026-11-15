@@ -24,6 +24,8 @@ import subprocess
 import unittest
 from pathlib import Path
 
+from spa_core.tests._freshness import ts
+
 ROOT = Path(__file__).resolve().parents[2]
 ADMIN = ROOT / "landing" / "src" / "pages" / "admin"
 FIXED = ("analytics.astro", "agents.astro", "index.astro")
@@ -82,6 +84,14 @@ class AdminEscapeStaticTest(unittest.TestCase):
 
 
 # --------------------------------------------------------------------------- runtime (node)
+# FROZEN-DATE-OK: subject-date — ОДНА литеральная дата ниже (`retired_at` в заглушке `_HARNESS`)
+# есть ПРЕДМЕТ, а не окно свежести: это объявление «когда событие выведено из обращения», и
+# батарея проверяет, что выведенное событие на странице не рисуется. У такой даты нет окна, из
+# которого она могла бы выпасть от сдвига календаря. Единственная отметка, которая окном жила
+# (`generated_at` → `ag-state` = live), ПЕРЕВЕДЕНА на возраст `ts(hours_ago=1)` циклом #1136
+# (ADR-1014): она и была бомбой, из-за которой файл попал в класс 10.11 (коммит `6b890da80`).
+# ⚠️ Отметка глушит ФАЙЛ целиком — новая литеральная дата рядом с понятием свежести сторожу
+# здесь больше не видна, и защищает её только комментарий у самой отметки.
 _HARNESS = r"""
 const RETIRED={events:['retired_evt'],retired_at:'2026-01-01'};
 const els={}; const made=[];
@@ -139,7 +149,12 @@ class AdminEscapeRuntimeTest(unittest.TestCase):
 
     def test_agents_registry_hostile_values_are_text(self):
         hostile = PAYLOADS[0]
-        payload = {"generated_at": "2026-11-10T10:00:00Z", "roles": ["infra", hostile],
+        # Отметка — ВОЗРАСТ, а не дата (`.claude/rules/deployment.md`, приём №2): страница
+        # судит по ней свежесть и печатает `ag-state` = `live`, поэтому литеральная дата
+        # здесь краснела бы от сдвига календаря, ничего не говоря о экранировании —
+        # предмете этой батареи. Инъекция часов (приём №1) невозможна: время берёт сама
+        # страница у своего `Date`.
+        payload = {"generated_at": ts(hours_ago=1), "roles": ["infra", hostile],
                    "by_role": {"infra": "<img src=x onerror=alert(1)>", hostile: 2},
                    "agents": [{"short": hostile, "role": "infra", "loaded": True, "pid": "<svg onload=alert(2)>", "schedule": PAYLOADS[1],
                                "problems": [PAYLOADS[2], PAYLOADS[4]], "reboot_safe": True},
