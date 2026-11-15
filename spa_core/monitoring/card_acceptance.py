@@ -17938,20 +17938,29 @@ def _probe_host_pinned_verdict_class_population_named(
     subject_rel = "spa_core/tests/test_observer_margin_control.py"
 
     # ── нулевая проба: восстановить НАСТОЯЩУЮ аварию ──────────────────────────
-    shown = _sp.run(["git", "show", f"origin/main:{subject_rel}"],
+    #
+    # Байты берутся у БЛОБА, а не у ссылки `origin/main` (замер #1144). Ссылка
+    # ДВИЖЕТСЯ: в момент, когда починка приехала на `main` (`7b387eb73`), эта
+    # нулевая проба стала отвечать `unmeasured` — то есть объявленный критерий
+    # карточки МОЛЧА перестал мерить, а тест-близнец того же контроля покраснел
+    # навсегда (прогон 43717299364, шард 6). Блоб адресуется СОДЕРЖИМЫМ, поэтому
+    # «не те байты» здесь невозможны по построению.
+    pre_fix_blob = "9748949b372e011350fe230ee895025e38aff709"   # вершина 98eb81abd
+    shown = _sp.run(["git", "cat-file", "blob", pre_fix_blob],
                     cwd=str(root), capture_output=True, text=True)
     if shown.returncode != 0 or not shown.stdout.strip():
-        return UNMEASURED, ("предпосылка НЕ ОБЕСПЕЧЕНА: git не отдал довершинную редакцию "
-                            f"{subject_rel} с origin/main (код {shown.returncode}) — "
-                            "восстановить аварию нечем, и выдавать это за выполненный "
-                            "критерий нельзя")
+        return UNMEASURED, ("предпосылка НЕ ОБЕСПЕЧЕНА: git не отдал аварийные байты "
+                            f"{subject_rel} (блоб {pre_fix_blob}, вершина 98eb81abd, "
+                            f"код {shown.returncode}) — восстановить аварию нечем, и "
+                            "выдавать это за выполненный критерий нельзя")
     try:
         pre = mod.measure_source(shown.stdout, label="PRE")
     except BaseException as exc:  # noqa: BLE001
         return UNMEASURED, f"нулевая сцена не разобрана: {type(exc).__name__}: {exc}"
     if "_HOST_TO_SCENE" in shown.stdout:
-        return UNMEASURED, ("на origin/main уже лежит починенная редакция — нулевая проба "
-                            "изображала бы аварию, которой нет; предмет перемерить")
+        return UNMEASURED, (f"закреплённый блоб {pre_fix_blob} несёт ПОЧИНЕННУЮ редакцию — "
+                            "нулевая проба изображала бы аварию, которой нет; перемерить "
+                            "номер блоба")
     if not any(c.verdict == mod.PINNED for c in pre):
         return UNMEASURED, ("перепись НЕ краснеет на аварии, ради которой написана "
                             f"(вердикты довершинной редакции: "
@@ -19251,7 +19260,117 @@ def _probe_historical_replay_compares_the_owner_period(
                        f"{pop['day_pairs']} и способна расти; оси {doc['axes_tally']}")
 
 
+#: Запас сцены: во сколько раз работа ребёнка обязана превышать предел, чтобы
+#: вопрос «кусает ли предел» вообще имел смысл. Тот же порог, что у наблюдателя
+#: переписи (`MARGIN_FLOOR_X`, ADR-1015 § 7г) — менять его здесь запрещено
+#: заказом G1007 п. 1 (ж), и своего числа у пробы нет ни одного.
+BUSY_SCENE_MARGIN_FLOOR_X = 10.0
+
+
+def _probe_module_limit_bites_a_busy_module(
+        arg: str | None, *, runner=None, repeats: int = 10,
+        limit_s: float = 0.001, work_s: float = 0.05) -> tuple[str, str]:
+    """Критерий: объявленный предел на модуль аналитики ловит ВЫЧИСЛЯЮЩИЙ модуль.
+
+    Предмет — карточка `inbox-predel-modulya-analitiki-slep-k-vychisly` п. 3.
+    Замер #1137 (ADR-1015) на настоящем бегуне: предел 0.001 с, работа 0.05 с,
+    статус ``ok`` **18 из 20** (при пределе 0.01 с — 20 из 20, но это 5×, ниже
+    запаса сцены, поэтому умолчание пробы — первая строка замера, 50×).
+    Спящий модуль предел ловил 3/3, то есть слеп он
+    был именно к занятому вычислением, а реестр аналитики населён
+    вычисляющими. Механизм ИЗМЕРЕН #1142 (ADR-1017), правка — #1144 (ADR-1019).
+
+    **Меряется ИСХОД, а не структура.** Проба не ищет в исходнике ни слова
+    «дедлайн», ни ``monotonic``, ни формы условия: она ЗОВЁТ настоящую дверь
+    ``signal_aggregator._run_bounded`` занятым ребёнком и спрашивает, сколько
+    зовов вышло со статусом «уложился». Подстрокой она не проходит (ADR-333):
+    починка, записанная комментарием, даёт ровно те же ``ok_n``, что и её
+    отсутствие.
+
+    Контроль в обе стороны — в батарее `test_bounded_deadline_mechanism.py`:
+    бегун ДО починки (дословное тело, судящее исход вердиктом ожидания) обязан
+    получить у этой же пробы ``not_satisfied``, а каждая ПОЛОВИНА правки,
+    снятая по отдельности, — тоже ``not_satisfied``. Бегун — ВХОД (``runner``),
+    поэтому контролю не нужно трогать боевой модуль.
+
+    Три исхода различимы (инв. #17):
+
+    * **satisfied** — ни один зов не вышел как «уложился» (``ok_n == 0``);
+    * **not_satisfied** — вышел хотя бы один, и число названо: предел слеп;
+    * **unmeasured** — бегун не ввозится ИЛИ предпосылка сцены не обеспечена
+      (работа ребёнка на ЭТОМ хозяине не превышает предел в
+      ``BUSY_SCENE_MARGIN_FLOOR_X`` раз). Предпосылка ИЗМЕРЯЕТСЯ голым зовом, а
+      не принимается на слово: на медленном хозяине ``work_s`` может не
+      состояться, и тогда «предел не кусает» было бы свойством сцены.
+
+    Вердикт НЕ закрепляется за хозяином (урок ADR-1018): проба не утверждает
+    ничего про слепоту интерпретатора — она утверждает, что НАШ код сверяет
+    срок САМ. Этот ответ одинаков на 3.11 и на 3.13 по построению.
+    """
+    if (arg or "").strip():
+        return UNMEASURED, (f"проба не принимает аргумента (дано {arg!r}): предмет — "
+                            "исход зова бегуна, пофайловой формы у него нет")
+
+    import time as _time
+    from concurrent.futures import TimeoutError as _FT
+
+    try:
+        from spa_core.analytics import signal_aggregator as _sa
+    except BaseException as exc:  # noqa: BLE001 — причина обязана быть названа
+        return UNMEASURED, f"бегун не ввозится: {type(exc).__name__}: {exc}"
+
+    call = runner if runner is not None else getattr(_sa, "_run_bounded", None)
+    if not callable(call):
+        return UNMEASURED, "двери `_run_bounded` в модуле нет — звать нечего"
+
+    def _busy(seconds: float) -> int:
+        """Ребёнок, ЗАНЯТЫЙ вычислением (не спящий): держит GIL, как Tier-модуль."""
+        spins = 0
+        end = _time.perf_counter() + seconds
+        while _time.perf_counter() < end:
+            spins += 1
+        return spins
+
+    # ── предпосылка сцены ИЗМЕРЯЕТСЯ, а не предполагается ────────────────────
+    bare_started = _time.perf_counter()
+    _busy(work_s)
+    bare = _time.perf_counter() - bare_started
+    over_x = (bare / limit_s) if limit_s > 0 else 0.0
+    if limit_s <= 0:
+        return UNMEASURED, f"предел сцены не положителен ({limit_s!r}) — вопроса нет"
+    if over_x < BUSY_SCENE_MARGIN_FLOOR_X:
+        return UNMEASURED, (
+            f"предпосылка сцены НЕ ОБЕСПЕЧЕНА на этом хозяине: голая работа {bare:.4f} с "
+            f"против предела {limit_s} с — превышение {over_x:.1f}× ниже запаса "
+            f"{BUSY_SCENE_MARGIN_FLOOR_X}×; «предел не кусает» было бы свойством сцены")
+
+    ok_n = 0
+    timeout_n = 0
+    for _ in range(repeats):
+        try:
+            call(lambda: _busy(work_s), limit_s, "acceptance-probe")
+            ok_n += 1
+        except _FT:
+            timeout_n += 1
+        except BaseException as exc:  # noqa: BLE001 — ни один чужой исход не молчит
+            return UNMEASURED, (f"зов бегуна дал посторонний исход "
+                                f"{type(exc).__name__}: {exc} — вердикта о пределе нет")
+
+    if ok_n + timeout_n != repeats:          # арифметика сцены, а не вкус
+        return UNMEASURED, (f"ряд неполон: уложился {ok_n} + предел {timeout_n} != "
+                            f"{repeats} зовов")
+    if ok_n:
+        return NOT_SATISFIED, (
+            f"предел СЛЕП к вычисляющему модулю: «уложился» {ok_n} из {repeats} зовов при "
+            f"работе {bare:.4f} с и пределе {limit_s} с (превышение {over_x:.1f}×)")
+    return SATISFIED, (
+        f"предел кусает вычисляющий модуль: «уложился» 0 из {repeats} зовов при работе "
+        f"{bare:.4f} с и пределе {limit_s} с (превышение {over_x:.1f}×)")
+
+
 PROBES: dict[str, Callable[[str | None], "tuple[str, str]"]] = {
+    "module_limit_bites_a_busy_module":
+        _probe_module_limit_bites_a_busy_module,
     "apy_name_carries_one_kind": _probe_apy_name_carries_one_kind,
     "shadow_record_carries_the_system_action":
         _probe_shadow_record_carries_the_system_action,

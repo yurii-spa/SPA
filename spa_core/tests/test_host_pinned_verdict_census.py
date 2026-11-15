@@ -51,27 +51,69 @@ hpvc = _load(CENSUS_PATH, "hpvc_under_test")
 omc = _load(ROOT / SUBJECT_REL, "omc_under_test")
 
 
+#: Байты АВАРИЙНОЙ редакции `test_observer_margin_control.py` — закреплены БЛОБОМ,
+#: а не ссылкой `origin/main`.
+#:
+#: Почему именно так (замер #1144). В первой редакции нулевая проба брала аварию
+#: у `origin/main`, и это была БОМБА того же семейства, что литеральная дата: ссылка
+#: ДВИЖЕТСЯ. Пока починка лежала в ветке, контроль был зелен; в момент, когда она
+#: приехала на `main` (`7b387eb73`), тот же байт кода стал КРАСНЫМ навсегда — именно
+#: это и случилось в контрольном прогоне `43717299364`, шард 6: «на origin/main уже
+#: лежит починенная редакция». Красный по известной причине перестаёт быть сигналом.
+#:
+#: Блоб адресуется СОДЕРЖИМЫМ, поэтому «не те байты» здесь невозможны по построению:
+#: аварийная редакция не может втихую стать починенной. Коммит, на вершине которого
+#: эти байты лежали на `main`, — `98eb81abd` (байты #1142).
+PRE_FIX_BLOB = "9748949b372e011350fe230ee895025e38aff709"
+PRE_FIX_COMMIT = "98eb81abd"
+
+
 class ThePositiveControlReplaysTheRealFailure(unittest.TestCase):
     """Нулевая проба: авария 15.11 на байтах, которые её и несли."""
 
     @classmethod
     def setUpClass(cls):
-        shown = subprocess.run(["git", "show", f"origin/main:{SUBJECT_REL}"],
+        shown = subprocess.run(["git", "cat-file", "blob", PRE_FIX_BLOB],
                                cwd=str(ROOT), capture_output=True, text=True)
         cls.pre = shown.stdout if shown.returncode == 0 else None
-        cls.why = f"git вернул код {shown.returncode}: {shown.stderr.strip()[:200]}"
+        cls.why = (f"git вернул код {shown.returncode} на блоб {PRE_FIX_BLOB} "
+                   f"(вершина {PRE_FIX_COMMIT}): {shown.stderr.strip()[:200]}")
 
     def test_the_pre_fix_assertion_is_named_PINNED(self):
         if self.pre is None:
             # Предпосылка не обеспечена — падать ГРОМКО, а не скипать (урок #465).
+            # Усечённый клон отвечает на вопрос об истории МОЛЧА и неверно
+            # (`.claude/rules/deployment.md` § поправка #1031), поэтому отсутствие
+            # объекта есть ТРЕТИЙ ИСХОД с названной причиной, а не пустая авария.
             self.fail(f"предпосылка НЕ ОБЕСПЕЧЕНА, восстановить аварию нечем: {self.why}")
+        if "_HOST_TO_SCENE" in self.pre:
+            # Закреплён не тот блоб: байты несут УЖЕ починенную редакцию. С
+            # content-адресацией это означает ошибку в самом номере, а не движение
+            # ссылки, — и молчать об этом нельзя (проба изображала бы аварию, которой
+            # в этих байтах нет).
+            self.fail(f"закреплённый блоб {PRE_FIX_BLOB} несёт ПОЧИНЕННУЮ редакцию — "
+                      "нулевая проба изображала бы аварию, которой нет; перемерить номер")
         claims = hpvc.measure_source(self.pre, label="PRE")
         pinned = [c for c in claims if c.verdict == hpvc.PINNED]
-        if "_HOST_TO_SCENE" in self.pre:
-            self.fail("на origin/main уже лежит починенная редакция — нулевая проба "
-                      "изображала бы аварию, которой нет; предмет перемерить")
         self.assertTrue(pinned, f"перепись НЕ видит аварии, ради которой написана: {claims}")
         self.assertTrue(any(c.constant == "_BZ_BLIND" for c in pinned), pinned)
+
+    def test_the_replay_is_pinned_by_content_not_by_a_moving_ref(self):
+        """Контроль самой закрепки: `origin/main` ответил бы ДРУГИМИ байтами.
+
+        Это и есть различающая сцена: пока обе двери дают одно, закрепка ничего не
+        утверждает. Здесь они дают РАЗНОЕ — значит предмет закрепки существует.
+        """
+        moving = subprocess.run(["git", "show", f"origin/main:{SUBJECT_REL}"],
+                                cwd=str(ROOT), capture_output=True, text=True)
+        if moving.returncode != 0:
+            self.fail(f"предпосылка НЕ ОБЕСПЕЧЕНА: {moving.stderr.strip()[:200]}")
+        self.assertIn("_HOST_TO_SCENE", moving.stdout,
+                      "на `origin/main` нет починенной редакции — сцена не различает")
+        self.assertIsNotNone(self.pre, self.why)
+        self.assertNotIn("_HOST_TO_SCENE", self.pre or "",
+                         "закреплённые байты совпали с движущейся ссылкой — закрепка "
+                         "сегодня ничего не держит")
 
     def test_the_fixed_assertion_is_named_HOST_ASKED(self):
         claims = hpvc.measure_source((ROOT / SUBJECT_REL).read_text(encoding="utf-8"),

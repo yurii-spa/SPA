@@ -2,11 +2,15 @@
 trackerStatus:
   type: inbox
 title: "Предел модуля аналитики СЛЕП к вычисляющему модулю: статус ok при превышении в 50 раз"
-status: new
+status: done
 created: 2026-11-15
 kind: task
 priority: high
 twin_key: "sha256:5e17e6bee5868c3be9fcb5b38d882e4c60781a7fd655c3a213957c73fd1d37e5"
+acceptance_probe: module_limit_bites_a_busy_module
+status_trail:
+  - "2026-11-15T14:20:12.830674+00:00 new -> in-progress · queue.set_status · cycle-26130"
+  - "2026-11-15T14:43:00.916771+00:00 in-progress -> done · queue.set_status/closed_by:цикл #1144 (ADR-1019)/evidence:проба module_limit_bites_a_busy_module = satisfied (0 из 10 зовов «уложился» при превышении 50×); сквозной прогон observer_margin_control на одноразовом дереве: босая дверь HOST_LIMIT_BITES, сцена BUS · cycle-26130"
 ---
 
 ## Что случилось и почему это важно

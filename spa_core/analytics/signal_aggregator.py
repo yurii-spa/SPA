@@ -292,6 +292,41 @@ def _run_bounded(fn, timeout: float, label: str = ""):
     **daemon**, поэтому он не держит выход интерпретатора (у пула потоки не
     daemon, и `_python_exit` join'ит их на выходе). Его результат
     отбрасывается, как отбрасывался и раньше.
+
+    ─── Правка #1144 (ADR-1019): предел был СЛЕП к ВЫЧИСЛЯЮЩЕМУ модулю ───
+
+    Форма выше ловила СПЯЩИЙ модуль надёжно и **не ловила занятый вычислением
+    вовсе**: замер #1137 (ADR-1015) — предел 0.01 с, работа 0.05 с, статус
+    ``ok`` **20 из 20**. То есть обещание «модуль не задержит цикл дольше
+    MODULE_TIMEOUT» снова не выполнялось, и хуже, чем в #296: там в health-логе
+    оставался честный ``timeout``, здесь стои́т ``ok``.
+
+    Механизм ИЗМЕРЕН (#1142, ADR-1017), гипотеза «главный поток не доходит до
+    ожидания» ОПРОВЕРГНУТА — он доходит. Две настоящие дыры, и обе здесь:
+
+    1. **исход судился ВЕРДИКТОМ ожидания, а не часами.** ``lock.acquire(True,
+       срок)`` у занятого вычислением соседа возвращает «взял» многократно
+       позже срока (худшее — в **38.6×**): к моменту позднего возврата событие
+       уже установлено, ``wait`` отвечает ``True``, и превышение в 50 раз
+       выходит из функции как ``ok``. Примитив докладывает об успехе, не
+       сверившись со своим сроком, — поэтому срок сверяем МЫ, ПОСЛЕ зова;
+    2. **отсчёт начинался ПОСЛЕ** ``Thread.start()``, а ``start()`` у занятого
+       ребёнка держит главный поток почти всё время его работы (0.0054…0.0451 с
+       при работе 0.0500 с — он ждёт ``Thread._started``, а разбуженному потоку
+       нужен GIL). Бюджет тем самым становился ``start() + timeout``, и модуль,
+       превысивший предел, но уложившийся в эту сумму, снова выходил как
+       ``ok``. Поэтому дедлайн берётся ДО ``start()`` — он существует ВНЕ
+       ожидания и не зависит от того, когда до ожидания дошли.
+
+    ПОЧЕМУ примитив пересиживает срок — НЕ ИЗМЕРЕНО, и объявлять причину
+    известной нельзя (ADR-1017). Эта правка от неё и не зависит: она не
+    пытается заставить примитив вернуться вовремя — она перестаёт ему ВЕРИТЬ.
+
+    Цена названа числом: в песочнице класс ПУСТ (ADR-1016 — 671 запись реестра,
+    максимум 0.007 с при пределе 3.0 с, запас 428×), то есть ни один
+    существующий модуль от правки статуса не меняет. В проде население НЕ
+    ИЗМЕРЕНО — длительность модуля не писал никто; с этой же правкой её пишет
+    ``_record`` (``duration_s``), и вопрос станет измеримым.
     """
     box: Dict[str, Any] = {}
     done = threading.Event()
@@ -304,13 +339,23 @@ def _run_bounded(fn, timeout: float, label: str = ""):
         finally:
             done.set()
 
+    # Дедлайн существует ВНЕ ожидания и ДО запуска ребёнка: всё, что съест сам
+    # `start()`, тратится из бюджета модуля, а не добавляется к нему.
+    deadline = time.monotonic() + timeout
+
     threading.Thread(
         target=_runner,
         name=f"spa-signal-module:{label}"[:60],
         daemon=True,
     ).start()
 
-    if not done.wait(timeout):
+    remaining = deadline - time.monotonic()
+    done.wait(remaining if remaining > 0.0 else 0.0)
+
+    # Исход судится ПОСЛЕ зова — ЧАСАМИ и состоянием события, а не тем, что
+    # вернул примитив. Оба условия нужны: `is_set()` без часов пропускает
+    # пересиженный срок (дыра 1), часы без `is_set()` — ответ без результата.
+    if not done.is_set() or time.monotonic() > deadline:
         raise FuturesTimeout(f"module exceeded {timeout}s")
     exc = box.get("exc")
     if exc is not None:
@@ -567,13 +612,25 @@ class SignalAggregator:
         ctx["data_dir"] = str(self.data_dir)
         return ctx
 
-    def _record(self, module_name: str, status: str, detail: str = "") -> None:
+    def _record(self, module_name: str, status: str, detail: str = "",
+                duration_s: Optional[float] = None) -> None:
+        """Запись о модуле в health-лог.
+
+        ``duration_s`` — стена ОДНОГО зова модуля, снятая вызывающим. Поле
+        пишется ВСЕГДА, и ``None`` в нём означает «не измерено» (инв. #17):
+        нулём отсутствие наблюдения представить нельзя — ноль есть «модуль
+        ответил мгновенно», то есть утверждение о системе. До #1144 (ADR-1019)
+        длительность не писал НИКТО, поэтому население класса «модуль дольше
+        предела» в проде было НЕ ИЗМЕРЕНО по построению (ADR-1016 § 7а).
+        """
         self._log.append({
             "ts": _utc_now_iso(),
             "module": module_name,
             # ok | unchecked | failed | timeout | dormant | blind | unsourced
             "status": status,
             "detail": detail,
+            # число — измерено · None — НЕ измерено (вызывающий стену не снимал)
+            "duration_s": duration_s,
         })
         if status == "ok" or self._module_status.get(module_name) != "ok":
             self._module_status[module_name] = status
@@ -599,6 +656,9 @@ class SignalAggregator:
         """Запускает один модуль с таймаутом. Возвращает (score, ok). None при сбое."""
         adapter = _ModuleAdapter(module_info)
         ctx = self._context_for_modules(context)
+        # Стена ОДНОГО зова. Снимается здесь, а не внутри `_run_bounded`:
+        # вызывающий видит и то, что съел сам запуск ребёнка.
+        started = time.monotonic()
         try:
             score, status, detail = _run_bounded(
                 lambda: adapter.run(protocol, ctx),
@@ -606,13 +666,16 @@ class SignalAggregator:
                 adapter.module_name,
             )
         except FuturesTimeout:
-            self._record(adapter.module_name, "timeout")
+            self._record(adapter.module_name, "timeout",
+                         duration_s=time.monotonic() - started)
             return None, False
         except Exception as exc:  # noqa: BLE001
             self._record(adapter.module_name, "failed",
-                         f"{type(exc).__name__}: {exc}")
+                         f"{type(exc).__name__}: {exc}",
+                         duration_s=time.monotonic() - started)
             return None, False
-        self._record(adapter.module_name, status, detail)
+        self._record(adapter.module_name, status, detail,
+                     duration_s=time.monotonic() - started)
         return score, status == "ok"
 
     def _run_module_silent(self, module_info: Dict[str, Any], protocol: str,
