@@ -9,12 +9,6 @@ priority: critical
 status_trail:
   - "2026-08-26T22:31:36.748790+00:00 new -> in-progress · queue.set_status · cycle-96657"
 acceptance_probe: apy_name_carries_one_kind
-claimed_by: cycle-32705
-claimed_at: 2026-11-15T04:15:29Z
-claimed_run_id: orchestrator-29150-5B0103247EFE4594A677020A854EFAE6
-claimed_pid: 29150
-claimed_pid_start: Sun Nov 15 05:12:23 2026
-claim_takeover_reason: цикл #1136: вердикт захвата stale — держатель cycle-90744 объявил card_state: done 15.11 03:09Z, pid мёртв; ADR-1013 и заказ G1003 доставлены (origin/main 5b2b6598d несёт оба), потерянной работы нет; карточка — долгоиграющий носитель заказа
 ---
 
 ## УКАЗАНИЕ ВЛАДЕЛЬЦА 2026-08-22 (cloud-сессия): ЗАПУСТИТЬ СЛЕДУЮЩИМ ЦИКЛОМ
