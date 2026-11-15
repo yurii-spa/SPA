@@ -656,6 +656,15 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
             print(f"ОТКАЗ (код 2): --now не разобран: {args.now!r}", file=sys.stderr)
             return 2
 
+    # ADR-1000 (транш 1 двери песочницы, ADR-999 § 3.1 форма А): умолчание
+    # `--data-dir` достижимо у руки и ведёт в ПРОД-дерево, поэтому дверь ставится
+    # сразу после `parse_args` и ДО первого чтения. Соседний отказ
+    # `refuse_prod_root` сторожит ПЕСОЧНИЦУ (куда пишем), эта дверь — КАТАЛОГ
+    # ДАННЫХ (откуда читаем): под маркером песочницы прод-каталог здесь означает,
+    # что замер думает, будто мерит стенд, а мерит живой трек.
+    from spa_core.utils.live_paths import refuse_if_sandbox_leaks
+    refuse_if_sandbox_leaks(args.data_dir, who="edition_cause")
+
     try:
         c = run(prod_data=Path(args.data_dir), sandbox_root=Path(args.sandbox_root),
                 only=args.only, budget_s=args.budget, repos=args.repos,

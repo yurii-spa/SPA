@@ -28,7 +28,9 @@ FROZEN-DATE-OK: injected-clock — литеральной даты в файле
 
 from __future__ import annotations
 
+import contextlib
 import datetime as dt
+import io
 import json
 import os
 import subprocess
@@ -445,6 +447,45 @@ class NumericAxisTest(SceneMixin):
                             "пришла и не ушла): 1" in s for s in lines), lines)
         self.assertTrue(any("расхождение ТОЛЬКО В ЧИСЛАХ текста" in s
                             for s in lines), lines)
+
+
+class SandboxDoorTest(unittest.TestCase):
+    """Дверь песочницы ADR-1000 на КАТАЛОГЕ ДАННЫХ — и она позвана ОТ ВХОДА.
+
+    Соседний отказ `refuse_prod_root` сторожит песочницу (куда пишем). Эта дверь —
+    про каталог, ОТКУДА читаем: под маркером песочницы прод-каталог здесь значит,
+    что замер думает, будто мерит стенд, а мерит живой трек. Перепись
+    `sandbox_data_dir_callers` поймала отсутствие двери у этого модуля красным —
+    чинится ПРИЧИНА (дверь позвана), а не база переписи (инв. #16).
+    """
+
+    def test_the_marker_plus_a_prod_data_dir_refuses_with_code_2(self):
+        from spa_core.utils import live_paths as lp
+        os.environ[lp.SANDBOX_ENV] = "1"
+        self.addCleanup(os.environ.pop, lp.SANDBOX_ENV, None)
+        err = io.StringIO()
+        with contextlib.redirect_stderr(err):
+            with self.assertRaises(SystemExit) as box:
+                ec.main(["--data-dir", str(lp.DEFAULT_LIVE_ROOT / "data"),
+                         "--sandbox-root", "/tmp/не-важно-дверь-раньше"])
+        self.assertEqual(box.exception.code, 2)
+        self.assertIn("edition_cause", err.getvalue())
+
+    def test_the_door_is_called_from_the_entry_point_with_its_own_name(self):
+        """Проводка, а не наличие: дверь, определённая но не позванная, — половина инъекции."""
+        from spa_core.utils import live_paths as lp
+        seen = []
+        real = lp.refuse_if_sandbox_leaks
+        lp.refuse_if_sandbox_leaks = lambda path, *, who, code=2: seen.append((str(path), who))
+        self.addCleanup(setattr, lp, "refuse_if_sandbox_leaks", real)
+        with tempfile.TemporaryDirectory() as tmp:
+            err = io.StringIO()
+            with contextlib.redirect_stderr(err):
+                code = ec.main(["--data-dir", tmp, "--sandbox-root", str(_REPO_ROOT),
+                                "--quiet"])
+        # Дверь позвана ДО отказа «песочница = дерево доставки», и отказ тоже случился.
+        self.assertEqual(seen, [(tmp, "edition_cause")])
+        self.assertEqual(code, 2)
 
 
 class HelperBoundaryTest(SceneMixin):
