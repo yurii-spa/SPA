@@ -301,9 +301,23 @@ def _produce(entry: Entry, *, root: Path, data: Path,
 
 
 def remeasure_one(artifact: str, *, prod_data: Path, sandbox_root: Path,
-                  budget_s: float = BUDGET_S) -> Outcome:
-    """Перемерить ОДИН член класса. Исход — один из трёх, всегда с причиной у третьего."""
-    entry = ENTRY.get(artifact)
+                  budget_s: float = BUDGET_S,
+                  entries: Optional[Mapping[str, "Entry"]] = None) -> Outcome:
+    """Перемерить ОДИН член класса. Исход — один из трёх, всегда с причиной у третьего.
+
+    ``entries`` — таблица песочных входов ВХОДОМ (умолчание :data:`ENTRY`, боевой
+    путь не меняется ни одним вызовом). Нужна она не для удобства сцен: сосед
+    :mod:`spa_core.monitoring.edition_cause` судит ту же таблицу своим гейтом и
+    зовёт эту функцию проводкой, а «параметр есть у гейта, у проводки нет» —
+    ровно та половина инъекции, которую `.claude/rules/deployment.md` § «ЛИЧНОСТЬ
+    ПРОЦЕССА» называет той же бомбой (замер #453).
+    """
+    # Умолчание разрешается В МОМЕНТ ЗОВА, а не в момент определения: значение
+    # по умолчанию `= ENTRY` связало бы ИМЕННО ТОТ словарь, что существовал при
+    # импорте, и подмена объявленного дома таблицы перестала бы доходить до
+    # проводки — своя же батарея ушла в красное на десяти пробах (замер #1161).
+    table = ENTRY if entries is None else entries
+    entry = table.get(artifact)
     if entry is None:
         return Outcome(UNMEASURED, artifact, reason=(
             "песочного входа у этого члена НЕ ОБЪЯВЛЕНО: запускать производителя "
