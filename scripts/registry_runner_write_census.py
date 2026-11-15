@@ -410,6 +410,60 @@ MARGIN_AT_KINDS = ("timeout", "cell")
 _AT_TIMEOUT, _AT_CELL = MARGIN_AT_KINDS
 _AT_WORDS = {_AT_TIMEOUT: "при пределе {} с", _AT_CELL: "в клетке `{}`"}
 
+#: ─── НАКЛАД НАБЛЮДАТЕЛЯ И ПРЕДЕЛ НА ПУТИ НАБЛЮДЕНИЯ (ADR-1015, заказ G1004 п. 1а = ADR-1014 § 7а) ───
+#:
+#: ADR-1014 назвал свою границу числом: в клетке `aave_v3@0.01` самый медленный модуль снят
+#: **0.012 с при пределе клетки 0.01 с** и получил статус `ok`. У наблюдения ДВА чтения, и
+#: различить их рассуждением нельзя:
+#:
+#:   1. длительность есть ВЕРХНЯЯ граница настоящей (в `seconds` входят накладные наблюдателя —
+#:      трассировка исполненных строк и снимок дерева ПОСЛЕ зова), и настоящая ниже предела;
+#:   2. предел на ПУТИ НАБЛЮДЕНИЯ не кусает вовсе — и тогда это находка о ПРОВОДКЕ, а «ни один
+#:      модуль не подошёл к пределу» всё время было свойством прибора, а не системы.
+#:
+#: Контроль `timeout_knob_control` (ADR-1011) второго чтения не закрывает ПО ПОСТРОЕНИЮ: он зовёт
+#: `_run_module` своим коротким сценарием, БЕЗ трассировки и БЕЗ корзин, то есть доказывает
+#: живость предела на пути, которым перепись не мерит. Поэтому контроль здесь идёт ЕДИНСТВЕННОЙ
+#: дверью наблюдения (`_observer_run`) — различает его ровно СЕМЯ.
+OBSERVER_MARGIN_VERDICTS = ("OBS_LIMIT_BITES", "OBS_LIMIT_DEAD", "OBS_MARGIN_UNMEASURED")
+_OB_BITES, _OB_DEAD, _OB_UNMEASURED = OBSERVER_MARGIN_VERDICTS
+#: Имя синтетического модуля сцены. На диске его нет НАМЕРЕННО: дерево под наблюдателем не
+#: правится ни байтом, а трассировщик честно не находит своего файла и не пишет ни строки.
+OBS_CONTROL_MODULE = "_census_observer_margin_control"
+#: Сон модуля сцены. Он и есть ЗАДАННАЯ длительность, от которой наклад считается вычитанием:
+#: без известной истины «наблюдённые 0.012 с» не раскладываются на модуль и наблюдателя никак.
+OBS_SLEEP_S = 0.30
+#: Предел НИЖЕ сна — сторона, где предел ОБЯЗАН укусить (чтение 2 опровергается здесь).
+OBS_LIMIT_UNDER_SLEEP_S = 0.01
+#: Предел ВЫШЕ сна — сторона, где модуль дорабатывает до конца, и ровно здесь виден НАКЛАД
+#: (чтение 1 получает ЧИСЛО вместо объявления).
+OBS_LIMIT_OVER_SLEEP_S = 2.00
+#: Сколько ждать сцену целиком. Больше двух минут означает, что сцена не отработала, и это
+#: НЕ ИЗМЕРЕНО с причиной, а не вердикт.
+_OBS_RUN_TIMEOUT_S = 120.0
+#: Сколько раз повторить модуль на стороне «предел выше сна». ОДНО наблюдение меряет ХОЛОДНЫЙ
+#: зов — первый в процессе, и он несёт разовые издержки (ввоз `concurrent`, первый поток,
+#: первая запись бегуна). Перепись же гоняет 302 модуля подряд, то есть её числа ТЁПЛЫЕ, и
+#: равнять холодный наклад с её 0.012 с значило бы сравнивать разные величины под одним именем.
+#: Поэтому сторона даёт РЯД: первая строка — холодная, остальные — тёплые, и названы раздельно.
+OBS_REPEATS = 4
+#: ─── ВТОРОЙ ВОПРОС ТОЙ ЖЕ СЦЕНЫ: кусает ли предел ЗАНЯТЫЙ модуль (ADR-1015 § 4) ───
+#:
+#: «Спит» и «считает» — РАЗНЫЕ вопросы к пределу, и это не рассуждение: замер #1137 нашёл, что
+#: ответ у них ПРОТИВОПОЛОЖНЫЙ. Спящий модуль предел ловит надёжно; занятый вычислением —
+#: НЕТ, и статус выходит `ok` при длительности в разы выше предела. Реестр аналитики населён
+#: именно ВЫЧИСЛЯЮЩИМИ модулями, поэтому ответ о спящем на вопрос о них НЕ отвечает — ровно
+#: тот класс, против которого написан весь прибор.
+BUSY_LIMIT_VERDICTS = ("BUSY_LIMIT_BITES", "BUSY_LIMIT_BLIND", "BUSY_LIMIT_UNMEASURED")
+_BZ_BITES, _BZ_BLIND, _BZ_UNMEASURED = BUSY_LIMIT_VERDICTS
+#: Сколько ЗАНЯТ модуль вычислением. Величина выбрана так, чтобы быть кратно выше предела
+#: стороны `under` (0.05 с против 0.01 с — ПЯТИКРАТНО): вопрос «кусает ли предел», а не
+#: «успевает ли модуль впритык».
+OBS_BUSY_S = 0.05
+#: Сколько раз повторить занятый модуль. Исход НЕ ДЕТЕРМИНИРОВАН (гонка за GIL), поэтому
+#: ответом является ДОЛЯ, а не одно наблюдение: одно дало бы монетку вместо замера.
+OBS_BUSY_REPEATS = 10
+
 #: ─── МАТРИЦА ДВУХ ОБЪЯВЛЕННЫХ ВХОДОВ (ADR-1012, заказ G1001 п. 1а = ADR-1011 § 7а) ───
 #:
 #: ADR-1010 закрыл первый вход (протокол), ADR-1011 — второй (предел), и каждый ответ снят,
@@ -1247,11 +1301,45 @@ def measure(repo: Path, readers_json: Optional[Path] = None,
 # ─────────────────────────── наблюдение ───────────────────────────
 
 _OBSERVER = r'''
-import json, os, sys, threading, time
-repo, sandbox, protocol, timeout, modules_path, out_path = sys.argv[1:7]
+import json, os, sys, threading, time, types
+repo, sandbox, protocol, timeout, modules_path, out_path, seed_path = sys.argv[1:8]
 sys.path.insert(0, repo)
 from spa_core.analytics import signal_aggregator as sa
 agg = sa.SignalAggregator(data_dir=sandbox, module_timeout=float(timeout))
+
+# ADR-1015: СЕМЕНА — синтетические модули с ЗАДАННОЙ длительностью, сеются в `sys.modules`
+# (бегун входит `importlib.import_module`), поэтому дерево под наблюдателем не правится ни
+# байтом. Нужны они положительному контролю этого самого пути: без модуля, чья длительность
+# ЗАВЕДОМО выше предела, «статус ok при длительности выше предела» объясняется и накладными
+# наблюдателя, и мёртвым пределом — наблюдение у двух чтений ОДНО И ТО ЖЕ.
+#
+# Род занятости объявлен ЗНАЧЕНИЕМ (`kind`), а не выведен из числа: «спит» и «считает» — это
+# РАЗНЫЕ вопросы к пределу бегуна, и ответ у них разный (ADR-1015 § 4). Неизвестный род —
+# отказ, а не молчаливая подстановка сна.
+if seed_path != "-":
+    def _mk_sleep(_s):
+        def analyze(context):
+            time.sleep(_s)
+            return 1.0
+        return analyze
+
+    def _mk_busy(_s):
+        def analyze(context):
+            _end = time.time() + _s
+            _x = 0
+            while time.time() < _end:
+                _x += 1
+            return 1.0
+        return analyze
+
+    _MAKERS = {"sleep": _mk_sleep, "busy": _mk_busy}
+    for _seed in json.load(open(seed_path, encoding="utf-8")):
+        _kind = _seed.get("kind", "sleep")
+        if _kind not in _MAKERS:
+            raise SystemExit("род занятости семени не объявлен: %r" % (_kind,))
+        _m = types.ModuleType("spa_core.analytics." + _seed["module"])
+        _m.analyze = _MAKERS[_kind](float(_seed["sleep_s"]))
+        sys.modules["spa_core.analytics." + _seed["module"]] = _m
 cwd = os.getcwd()
 watch = {"runner_dir": sandbox, "tree_data": os.path.join(repo, "data"), "cwd_data": os.path.join(cwd, "data")}
 
@@ -1304,11 +1392,16 @@ for info in modules:
     finally:
         sys.settrace(None)
         threading.settrace(None)
+    # ADR-1015: секундомер остановлен ДВАЖДЫ и оба числа уезжают РАЗДЕЛЬНО. `seconds_call` —
+    # до бухгалтерии наблюдателя (снимок дерева ПОСЛЕ зова), `seconds` — как было, вместе с ней.
+    # Одно число на два вопроса означало бы, что «модуль подорожал» и «наблюдатель подорожал»
+    # неразличимы, а причиной вердикта запаса объявлена ПЕРВАЯ из двух.
+    t_call = round(time.time() - t0, 3)
     lines = sorted(_cur["lines"])
     _cur["lines"] = None
     after = {k: snap(v) for k, v in watch.items()}
     results.append({"module": info["module"], "status": status, "detail": detail[:200],
-                    "seconds": round(time.time() - t0, 3), "lines": lines,
+                    "seconds": round(time.time() - t0, 3), "seconds_call": t_call, "lines": lines,
                     "written": {k: [os.path.relpath(p, watch[k]) for p in diff(before[k], after[k])] for k in watch}})
 json.dump({"results": results}, open(out_path, "w", encoding="utf-8"), ensure_ascii=False, indent=1)
 '''
@@ -1345,9 +1438,17 @@ def _is_prod_tree(repo: Path) -> bool:
     return r == prod or prod in r.parents
 
 
-def observe(repo: Path, census: Census, *, protocol: str, timeout: float,
-            python: str = sys.executable) -> Dict[str, Any]:
-    """Настоящий бегун названного дерева зовёт каждый модуль; записи ловятся корзинами."""
+def _observer_run(repo: Path, entries: List[Dict[str, object]], *, protocol: str, timeout: float,
+                  python: str = sys.executable,
+                  seed: Optional[List[Dict[str, Any]]] = None,
+                  run_timeout: Optional[float] = None) -> Dict[str, Any]:
+    """ЕДИНСТВЕННАЯ дверь к пути наблюдения: запреты дерева, песочницы, зов `_OBSERVER`.
+
+    Своя копия этого зова у положительного контроля означала бы, что контроль доказывает
+    поведение пути, которым НИКТО не мерит, — ровно тот класс, против которого написан весь
+    прибор. Поэтому и перепись, и контроль идут ОДНОЙ дверью, а различает их ровно `seed`
+    (синтетические модули с заданной длительностью) и состав `entries`.
+    """
     repo = repo.resolve()
     # каноническая дверь: под маркером песочницы прод-realpath — отказ (SandboxLeakError); и БЕЗ маркера — ниже
     _live_paths().assert_not_prod_realpath(repo, who="registry_runner_write_census --observe")
@@ -1355,27 +1456,49 @@ def observe(repo: Path, census: Census, *, protocol: str, timeout: float,
         raise NotMeasured(f"наблюдение в ПРОД-дереве запрещено: {repo}")
     if (repo / ".git").exists():
         raise NotMeasured(f"наблюдение в git-дереве запрещено (git-tracked data/ был бы записан): {repo}")
-    entries = read_registry(repo)
     with tempfile.TemporaryDirectory(prefix="rrwc_sandbox_") as sb, \
             tempfile.TemporaryDirectory(prefix="rrwc_cwd_") as cwd, \
             tempfile.TemporaryDirectory(prefix="rrwc_io_") as io_dir:
         mods_path = Path(io_dir) / "modules.json"
         out_path = Path(io_dir) / "out.json"
         mods_path.write_text(json.dumps(entries, ensure_ascii=False), encoding="utf-8")
+        seed_arg = "-"
+        if seed is not None:
+            seed_path = Path(io_dir) / "seed.json"
+            seed_path.write_text(json.dumps(seed, ensure_ascii=False), encoding="utf-8")
+            seed_arg = str(seed_path)
         before_tree = _tree_snapshot(repo)
         env = dict(os.environ)
         env.pop("SPA_ENV", None)
         env["PYTHONDONTWRITEBYTECODE"] = "1"
-        proc = subprocess.run(
-            [python, "-c", _OBSERVER, str(repo), sb, protocol, str(timeout), str(mods_path), str(out_path)],
-            cwd=cwd, env=env, capture_output=True, text=True)
+        try:
+            proc = subprocess.run(
+                [python, "-c", _OBSERVER, str(repo), sb, protocol, str(timeout), str(mods_path),
+                 str(out_path), seed_arg],
+                cwd=cwd, env=env, capture_output=True, text=True, timeout=run_timeout)
+        except subprocess.TimeoutExpired as exc:
+            # Предел зова есть ВХОД, а не умолчание: перепись 302 модулей идёт минутами и
+            # предела не имеет (`None`), а сцена контроля обязана не висеть. Истёкший предел —
+            # НЕ ИЗМЕРЕНО с причиной, а не пустое наблюдение.
+            raise NotMeasured(f"наблюдатель не уложился в {run_timeout} с: {exc}") from exc
         after_tree = _tree_snapshot(repo)
         if not out_path.is_file():
             raise NotMeasured(f"наблюдатель не отдал результата (код {proc.returncode}): "
                               f"{(proc.stderr or '')[-800:]}")
         doc = json.loads(out_path.read_text(encoding="utf-8"))
         elsewhere = sorted(p for p in after_tree if before_tree.get(p) != after_tree[p])
-    results = doc["results"]
+    return {"results": doc["results"], "elsewhere": elsewhere,
+            "observer_returncode": proc.returncode,
+            "observer_stderr_tail": (proc.stderr or "")[-600:]}
+
+
+def observe(repo: Path, census: Census, *, protocol: str, timeout: float,
+            python: str = sys.executable) -> Dict[str, Any]:
+    """Настоящий бегун названного дерева зовёт каждый модуль; записи ловятся корзинами."""
+    repo = repo.resolve()
+    ran = _observer_run(repo, read_registry(repo), protocol=protocol, timeout=timeout,
+                        python=python)
+    results, elsewhere = ran["results"], ran["elsewhere"]
     by_name = {m.module: m for m in census.modules}
     statuses: Dict[str, int] = {}
     baskets = {"runner_dir": 0, "tree_data": 0, "cwd_data": 0}
@@ -1406,8 +1529,8 @@ def observe(repo: Path, census: Census, *, protocol: str, timeout: float,
     return {"repo": str(repo), "protocol": protocol, "timeout": timeout, "modules": len(results),
             "statuses": statuses, "baskets": baskets, "writers": writers, "per_module": results,
             "elsewhere_in_tree": [str(Path(p).relative_to(repo)) for p in elsewhere],
-            "parity": parity, "observer_returncode": proc.returncode,
-            "observer_stderr_tail": (proc.stderr or "")[-600:]}
+            "parity": parity, "observer_returncode": ran["observer_returncode"],
+            "observer_stderr_tail": ran["observer_stderr_tail"]}
 
 
 def _axis_subject(census: Census, axis: str) -> List[ModuleVerdict]:
@@ -2472,6 +2595,204 @@ def timeout_knob_control(repo: Path, *, python: str = sys.executable,
                 f"ожидалось `{expected}` РОВНО у первой")}
 
 
+def observer_margin_control(repo: Path, *, sleep_s: float = OBS_SLEEP_S,
+                            under: float = OBS_LIMIT_UNDER_SLEEP_S,
+                            over: float = OBS_LIMIT_OVER_SLEEP_S,
+                            busy_s: float = OBS_BUSY_S,
+                            busy_repeats: int = OBS_BUSY_REPEATS,
+                            repeats: int = OBS_REPEATS,
+                            python: str = sys.executable,
+                            observe_door=None) -> Dict[str, Any]:
+    """Кусает ли предел на ПУТИ НАБЛЮДЕНИЯ — и сколько стоит сам наблюдатель.
+
+    Сцена ставит модуль с ЗАДАННОЙ длительностью `sleep_s` и гоняет его ЕДИНСТВЕННОЙ дверью
+    наблюдения дважды: предел НИЖЕ сна и предел ВЫШЕ сна. Ответ обязан различаться, и каждая
+    сторона отвечает на свой вопрос:
+
+    * предел ниже сна ⇒ бегун обязан сказать своё слово предела. Сказал — чтение 2
+      («предел не кусает») ОПРОВЕРГНУТО наблюдением, а не рассуждением;
+    * предел выше сна ⇒ модуль дорабатывает, и `наблюдённые − sleep_s` есть НАКЛАД
+      наблюдателя. Это число и переводит `MARGIN_KIND_LOWER_BOUND` из объявления в замер:
+      пока наклад не назван, «0.012 с при пределе 0.01 с» объясняется обоими чтениями сразу.
+
+    Три исхода (инв. #17): ``OBS_LIMIT_BITES`` · ``OBS_LIMIT_DEAD`` (находка о проводке) ·
+    ``OBS_MARGIN_UNMEASURED`` с названной причиной. Наклад НЕ ИЗМЕРЕН — тоже третий исход, а не
+    нуль: нуль читался бы как «наблюдатель бесплатен», то есть как утверждение о системе.
+    """
+    empty: Dict[str, Any] = {"verdict": _OB_UNMEASURED, "expected_status": None, "sides": {},
+                             "sleep_s": sleep_s, "under_s": under, "over_s": over,
+                             "busy_s": busy_s, "busy_limit": {
+                                 "verdict": _BZ_UNMEASURED, "ok_n": None, "timeout_n": None,
+                                 "total_n": 0, "over_x": None,
+                                 "unmeasured_reason": "сцена занятости не отработала"},
+                             "overhead_s": None, "overhead_kind": None,
+                             "overhead_split": {"call_s": None, "bookkeeping_s": None,
+                                                "warm_s": None, "warm_n": 0,
+                                                "idle_s": None, "idle_n": 0,
+                                                "unmeasured_reason": "сцена не отработала"},
+                             "dead_reason": None, "unmeasured_reason": None}
+    if not (under < sleep_s < over):
+        return {**empty, "unmeasured_reason": (
+            f"сцена контроля неисполнима: требуется {under} < {sleep_s} < {over}")}
+    try:
+        expected = read_runner_timeout_status(repo)
+    except NotMeasured as exc:
+        return {**empty, "unmeasured_reason": f"слово предела у бегуна не прочитано: {exc}"}
+    # Имена модулей сцены — ОДНА дверь на обе стороны: разойдись они, строки стороны не нашлись
+    # бы по имени, и «сцена не отработала» стало бы неотличимо от «имя разошлось».
+    def _mod(i: int) -> str:
+        return f"{OBS_CONTROL_MODULE}_{i}"
+
+    sides: Dict[str, Dict[str, Any]] = {}
+    # ЧЕТЫРЕ стороны, и каждая отвечает на СВОЙ вопрос — свести их в одну нельзя:
+    #   1-2 `limit_*_sleep` — кусает ли предел СПЯЩИЙ модуль (чтение 2 ADR-1014 § 7а);
+    #   3   `no_sleep`      — сколько наблюдатель стои́т у модуля, который НЕ СПИТ (чтение 1);
+    #   4   `busy_under_limit` — кусает ли предел ЗАНЯТЫЙ ВЫЧИСЛЕНИЕМ модуль. Реестр населён
+    #       именно такими, и ответ у них ПРОТИВОПОЛОЖНЫЙ ответу спящего (§ 4).
+    for name, limit, repeats, sl, kind in (
+            ("limit_under_sleep", under, 1, sleep_s, "sleep"),
+            ("limit_over_sleep", over, repeats, sleep_s, "sleep"),
+            ("no_sleep", over, repeats, 0.0, "sleep"),
+            ("busy_under_limit", under, busy_repeats, busy_s, "busy")):
+        names = [_mod(i) for i in range(1, repeats + 1)]
+        entries: List[Dict[str, object]] = [
+            {"module": n, "class": None, "weight": 0.0,
+             "category": "observer-margin-control"} for n in names]
+        seed = [{"module": n, "sleep_s": sl, "kind": kind} for n in names]
+        try:
+            ran = (observe_door or _observer_run)(
+                repo, entries, protocol="observer_margin_control",
+                timeout=limit, python=python, seed=seed, run_timeout=_OBS_RUN_TIMEOUT_S)
+        except (NotMeasured, OSError, ValueError, KeyError) as exc:
+            return {**empty, "expected_status": expected, "sides": sides, "unmeasured_reason": (
+                f"сторона `{name}` не отработала: {type(exc).__name__}: {exc}")}
+        by_mod = {r.get("module"): r for r in ran["results"]}
+        missing = [n for n in names if n not in by_mod]
+        if missing:
+            return {**empty, "expected_status": expected, "sides": sides, "unmeasured_reason": (
+                f"сторона `{name}`: наблюдатель не отдал строк о модулях сцены {missing} — "
+                f"предпосылка не обеспечена, и судить по остатку значило бы мерить не ряд")}
+        series: List[Dict[str, Any]] = []
+        for n in names:
+            row = by_mod[n]
+            sec, sec_call = row.get("seconds"), row.get("seconds_call")
+            if not isinstance(sec, (int, float)) or isinstance(sec, bool):
+                return {**empty, "expected_status": expected, "sides": sides,
+                        "unmeasured_reason": (
+                            f"сторона `{name}`, модуль `{n}`: секундомер наблюдателя ответил "
+                            f"{sec!r} — вычитать нельзя, а подстановка нуля сделала бы "
+                            f"наблюдателя бесплатным")}
+            series.append({"module": n, "status": row.get("status"),
+                           "detail": row.get("detail"), "seconds": float(sec),
+                           "seconds_call": (float(sec_call)
+                                            if isinstance(sec_call, (int, float))
+                                            and not isinstance(sec_call, bool) else None)})
+        if not series:
+            # Пустой ряд — третий исход с причиной, а НЕ падение и не «сторона ответила».
+            # Нашёл эту дыру положительный контроль на `busy_repeats=0`: до него сторона с
+            # нулём повторов роняла прибор на `series[0]`, то есть «не измерено» приходило
+            # исключением вместо вердикта.
+            return {**empty, "expected_status": expected, "sides": sides,
+                    "unmeasured_reason": (
+                        f"сторона `{name}` пуста: повторов заказано {repeats}, строк 0 — "
+                        f"у ряда из нуля наблюдений доли не бывает")}
+        first = series[0]
+        sides[name] = {"timeout": limit, "sleep_s": sl, "status": first["status"],
+                       "detail": first["detail"], "seconds": first["seconds"],
+                       "seconds_call": first["seconds_call"], "series": series,
+                       "observer_returncode": ran["observer_returncode"]}
+    under_hit = sides["limit_under_sleep"]["status"] == expected
+    # На стороне «предел выше сна» слово предела не должно звучать НИ У ОДНОЙ строки ряда:
+    # «у первой не звучало» ответом не является, иначе тёплые строки судились бы по холодной.
+    over_hit = any(r["status"] == expected for r in sides["limit_over_sleep"]["series"])
+    overhead: Optional[float] = None
+    overhead_kind: Optional[str] = None
+    if over_hit:
+        overhead_kind = "НЕ ИЗМЕРЕН: при пределе выше сна бегун всё равно сказал слово предела"
+    else:
+        raw = sides["limit_over_sleep"]["seconds"] - sleep_s
+        if raw < 0:
+            overhead_kind = (f"НЕ ИЗМЕРЕН: наблюдённые {sides['limit_over_sleep']['seconds']} с "
+                             f"КОРОЧЕ заданного сна {sleep_s} с — сцена не обеспечила свою "
+                             f"предпосылку, и отрицательный наклад был бы выдуманным числом")
+        else:
+            overhead, overhead_kind = round(raw, 4), MARGIN_KIND_LOWER_BOUND
+    # Расклад наклада на ДВА слагаемых. Он и отвечает на вопрос «кого называет причиной вердикта
+    # запас»: `call` — зов модуля вместе с трассировкой, `bookkeeping` — снимок дерева ПОСЛЕ
+    # зова, к модулю не относящийся вовсе. Нет второго числа ⇒ НЕ ИЗМЕРЕНО с причиной.
+    split: Dict[str, Any] = {"call_s": None, "bookkeeping_s": None, "warm_s": None,
+                             "warm_n": 0, "idle_s": None, "idle_n": 0,
+                             "unmeasured_reason": "наклад не измерен"}
+    o_side = sides.get("limit_over_sleep") or {}
+    if overhead is not None and o_side.get("seconds_call") is not None:
+        call_overhead = round(float(o_side["seconds_call"]) - sleep_s, 4)
+        book = round(float(o_side["seconds"]) - float(o_side["seconds_call"]), 4)
+        if call_overhead < 0 or book < 0:
+            split["unmeasured_reason"] = (
+                f"раскладка отрицательна (зов {call_overhead} с, бухгалтерия {book} с) — "
+                f"секундомеры сцены не согласны, и выдуманное слагаемое было бы хуже пустоты")
+        else:
+            # ТЁПЛЫЙ наклад — по ОСТАЛЬНЫМ строкам ряда; берётся МИНИМУМ, потому что вопрос
+            # «сколько наблюдатель стои́т неизбежно», а не «сколько он стоил в среднем под
+            # чужой загрузкой». Ряда нет ⇒ третий исход, а не холодное число под тёплым именем.
+            warm_rows = [r for r in o_side["series"][1:]
+                         if r.get("seconds_call") is not None
+                         and float(r["seconds_call"]) >= sleep_s]
+            warm = (round(min(float(r["seconds_call"]) for r in warm_rows) - sleep_s, 4)
+                    if warm_rows else None)
+            # НАКЛАД У НЕ СПЯЩЕГО МОДУЛЯ — берётся МАКСИМУМ ряда, потому что вопрос «сколько
+            # наблюдатель МОГ приписать модулю», а не «сколько он приписал в среднем»: объяснять
+            # им `ok` при длительности выше предела вправе только самая щедрая оценка.
+            idle_rows = [r for r in (sides.get("no_sleep") or {}).get("series", [])
+                         if r.get("seconds_call") is not None]
+            idle = (round(max(float(r["seconds_call"]) for r in idle_rows), 4)
+                    if idle_rows else None)
+            split = {"call_s": call_overhead, "bookkeeping_s": book, "warm_s": warm,
+                     "warm_n": len(warm_rows), "idle_s": idle, "idle_n": len(idle_rows),
+                     "unmeasured_reason": None if (warm is not None and idle is not None) else (
+                         f"часть раскладки НЕ ИЗМЕРЕНА: тёплых строк "
+                         f"{len(warm_rows)} из {repeats - 1}, строк у не спящего модуля "
+                         f"{len(idle_rows)} из {repeats}")}
+    # ЗАНЯТЫЙ модуль и предел — отдельный вердикт у той же сцены. Ответом является ДОЛЯ:
+    # исход не детерминирован (гонка за GIL), и одно наблюдение дало бы монетку вместо замера.
+    bz_rows = (sides.get("busy_under_limit") or {}).get("series", [])
+    bz_ok = sum(1 for r in bz_rows if r["status"] != expected)
+    bz_to = sum(1 for r in bz_rows if r["status"] == expected)
+    over_x = round(busy_s / under, 1) if under > 0 else None
+    # Полноту ряда здесь НЕ перепроверяют, и это решение, а не упущение: на вопрос «ряд
+    # полон?» отвечает ОДИН сторож — полнота стороны выше (пустой ряд и недостающие имена, оба
+    # с НАЗВАННЫМИ причинами). Второй ответ на тот же вопрос дал бы два разных «не измерено» об
+    # одной причине (класс ADR-220), а мутация, снимающая здешнюю копию, никакой сценой не
+    # убивается — ветка недостижима ПО ПОСТРОЕНИЮ (мутант M12 выжил именно так).
+    if bz_ok == 0:
+        busy_limit = {"verdict": _BZ_BITES, "ok_n": bz_ok, "timeout_n": bz_to,
+                      "total_n": len(bz_rows), "over_x": over_x, "unmeasured_reason": None}
+    else:
+        busy_limit = {"verdict": _BZ_BLIND, "ok_n": bz_ok, "timeout_n": bz_to,
+                      "total_n": len(bz_rows), "over_x": over_x, "unmeasured_reason": None}
+    empty = {**empty, "busy_limit": busy_limit}
+    if not under_hit:
+        return {**empty, "expected_status": expected, "sides": sides,
+                "overhead_s": overhead, "overhead_kind": overhead_kind,
+                "overhead_split": split,
+                "verdict": _OB_DEAD, "dead_reason": (
+                    f"предел на ПУТИ НАБЛЮДЕНИЯ не кусает: модуль спал {sleep_s} с при пределе "
+                    f"{under} с (в {round(sleep_s / under, 1)}× дольше), а бегун записал "
+                    f"`{sides['limit_under_sleep']['status']}` вместо `{expected}` ⇒ «ни один "
+                    f"модуль не подошёл к пределу» было свойством ПРИБОРА, не системы")}
+    if over_hit:
+        return {**empty, "expected_status": expected, "sides": sides,
+                "overhead_kind": overhead_kind, "unmeasured_reason": (
+                    f"обе стороны ответили `{expected}`: при пределе {over} с выше сна "
+                    f"{sleep_s} с слово предела не должно звучать, и сцена различающей не стала")}
+    return {"verdict": _OB_BITES, "expected_status": expected, "sides": sides,
+            "sleep_s": sleep_s, "under_s": under, "over_s": over, "busy_s": busy_s,
+            "busy_limit": busy_limit,
+            "overhead_s": overhead, "overhead_kind": overhead_kind,
+            "overhead_split": split,
+            "dead_reason": None, "unmeasured_reason": None}
+
+
 def timeout_key(value: float) -> str:
     """Ключ наблюдения по пределу. Одна дверь: ключ и печать обязаны быть одной строкой, иначе
     «наблюдений 2» легко получить из одного предела, записанного двумя способами (`3` и `3.0`)."""
@@ -3135,11 +3456,65 @@ def to_doc(c: Census) -> dict:
             "modules": [asdict(m) for m in c.modules]}
 
 
+def render_observer_margin(ctl: Optional[Dict[str, Any]]) -> List[str]:
+    """Печать контроля ADR-1015. Заголовки строк РАЗНЫЕ намеренно: утверждение о печати обязано
+    вырезать свой предмет по заголовку, а не искать подстроку по всему тексту (урок #1136 —
+    так мутант «печатать не то» выживает, потому что слова находятся в соседней строке)."""
+    out = ["  НАКЛАД НАБЛЮДАТЕЛЯ И УКУС ПРЕДЕЛА НА ПУТИ НАБЛЮДЕНИЯ (ADR-1015):"]
+    if not ctl:
+        out.append("    укус предела: НЕ ИЗМЕРЕН — сцена не запускалась")
+        out.append("    наклад наблюдателя: НЕ ИЗМЕРЕН — сцена не запускалась")
+        return out
+    v = ctl.get("verdict")
+    why = ctl.get("dead_reason") or ctl.get("unmeasured_reason")
+    sides = ctl.get("sides") or {}
+    if v == _OB_BITES:
+        u, o = sides.get("limit_under_sleep", {}), sides.get("limit_over_sleep", {})
+        out.append(f"    укус предела: {v} — модуль спал {ctl.get('sleep_s')} с; при пределе "
+                   f"{u.get('timeout')} с бегун сказал `{u.get('status')}`, при {o.get('timeout')} с — "
+                   f"`{o.get('status')}`")
+    else:
+        out.append(f"    укус предела: {v} — {why}")
+    oh, kind = ctl.get("overhead_s"), ctl.get("overhead_kind")
+    if oh is None:
+        out.append(f"    наклад наблюдателя: НЕ ИЗМЕРЕН — {kind}")
+    else:
+        out.append(f"    наклад наблюдателя: {oh} с ({kind}) — наблюдённая длительность модуля "
+                   f"ЗАВЫШЕНА на эту величину, и запас есть НИЖНЯЯ граница настоящего")
+    sp = ctl.get("overhead_split") or {}
+    if sp.get("call_s") is None or sp.get("bookkeeping_s") is None:
+        out.append(f"    расклад наклада: НЕ ИЗМЕРЕН — {sp.get('unmeasured_reason')}")
+    else:
+        out.append(f"    расклад наклада: зов модуля {sp['call_s']} с · бухгалтерия наблюдателя "
+                   f"{sp['bookkeeping_s']} с (снимок дерева ПОСЛЕ зова, к модулю не относится)")
+    if sp.get("warm_s") is None:
+        out.append(f"    тёплый наклад: НЕ ИЗМЕРЕН — {sp.get('unmeasured_reason')}")
+    else:
+        out.append(f"    тёплый наклад: {sp['warm_s']} с по {sp.get('warm_n')} строкам ряда "
+                   f"(холодный зов — первый в процессе, перепись же гоняет модули подряд)")
+    bz = ctl.get("busy_limit") or {}
+    if bz.get("verdict") == _BZ_UNMEASURED:
+        out.append(f"    предел у ЗАНЯТОГО модуля: НЕ ИЗМЕРЕН — {bz.get('unmeasured_reason')}")
+    else:
+        out.append(f"    предел у ЗАНЯТОГО модуля: {bz.get('verdict')} — модуль считал "
+                   f"{ctl.get('busy_s')} с при пределе {ctl.get('under_s')} с (в "
+                   f"{bz.get('over_x')}× дольше), и бегун сказал `ok` у {bz.get('ok_n')} из "
+                   f"{bz.get('total_n')} повторов")
+    if sp.get("idle_s") is None:
+        out.append(f"    наклад у НЕ СПЯЩЕГО модуля: НЕ ИЗМЕРЕН — {sp.get('unmeasured_reason')}")
+    else:
+        out.append(f"    наклад у НЕ СПЯЩЕГО модуля: {sp['idle_s']} с (МАКСИМУМ ряда из "
+                   f"{sp.get('idle_n')}) — ровно такие модули перепись и наблюдает, и ровно этим "
+                   f"числом вправе объясняться `ok` при длительности выше предела клетки")
+    return out
+
+
 def render(c: Census, obs: Optional[Dict[str, Any]] = None,
            observations: Optional[Dict[str, Dict[str, Any]]] = None,
            by_timeout: Optional[Dict[str, Dict[str, Any]]] = None,
            knob: Optional[Dict[str, Any]] = None,
-           by_cell: Optional[Dict[str, Dict[str, Any]]] = None) -> str:
+           by_cell: Optional[Dict[str, Dict[str, Any]]] = None,
+           obs_margin: Optional[Dict[str, Any]] = None) -> str:
     out = [f"РЕЕСТР → БЕГУН: куда пишут аналитики под песочницей (ADR-999 § 6в) · дерево {c.root}",
            f"  бегун {c.runner.runner_path}: входы {list(c.runner.entry_methods)}; кладёт data_dir в контекст "
            f"модуля — {'ДА' if c.runner.passes_data_dir else 'НЕТ'}",
@@ -3298,6 +3673,10 @@ def render(c: Census, obs: Optional[Dict[str, Any]] = None,
     # ADR-1012: матрица печатается ВСЕГДА — без матричного зова это НЕ «различий нет», а
     # названный третий исход тем же порядком, что у обоих одиночных входов.
     out.extend(render_matrix_variance(matrix_variance(Path(c.root), c, by_cell, knob)))
+    # ADR-1015: наклад наблюдателя и укус предела НА ПУТИ НАБЛЮДЕНИЯ печатаются ВСЕГДА — без
+    # сцены это НЕ «наклада нет» (нуль читался бы как «наблюдатель бесплатен»), а названный
+    # третий исход тем же порядком, что у всех соседей выше.
+    out.extend(render_observer_margin(obs_margin))
     verdict = {0: "✅ предмет пуст: ни одна запись реестра не доводит вход бегуна до записи в своё умолчание",
                1: "❗ предмет НАЗВАН: бегун каталога не передаёт, а вход достигает записи — она ляжет в умолчание модуля",
                2: f"⚠️ НЕ ИЗМЕРЕНО: {c.unmeasured_reason}"}[c.code]
@@ -3352,6 +3731,7 @@ def main(argv: Optional[List[str]] = None) -> int:
         by_timeout: Optional[Dict[str, Dict[str, Any]]] = None
         by_cell: Optional[Dict[str, Dict[str, Any]]] = None
         knob: Optional[Dict[str, Any]] = None
+        obs_margin: Optional[Dict[str, Any]] = None
         if args.observe:
             # ADR-1011: предел НЕ имеет умолчания-литерала у прибора. Своё `3.0` совпадало с
             # объявлением бегуна, и совпадение делало вопрос «кто тут объявляет» невидимым.
@@ -3420,6 +3800,9 @@ def main(argv: Optional[List[str]] = None) -> int:
             # Контроль входа стои́т РЯДОМ с наблюдением и на ТОМ ЖЕ дереве: ответ о пределе
             # принадлежит тому бегуну, которого мерили, а не тому, из которого запущен прибор.
             knob = timeout_knob_control(Path(args.observe))
+            # ADR-1015: второй контроль того же входа, но на ПУТИ НАБЛЮДЕНИЯ — и на том же
+            # дереве, по той же причине, что у первого.
+            obs_margin = observer_margin_control(Path(args.observe))
     except NotMeasured as exc:
         if args.json:
             print(json.dumps({"code": 2, "unmeasured_reason": str(exc)}, ensure_ascii=False))
@@ -3458,6 +3841,11 @@ def main(argv: Optional[List[str]] = None) -> int:
         doc["matrix_variance"] = matrix_variance(repo, c, by_cell, knob)
         doc["timeout_knob_control"] = knob or {
             "verdict": _KB_UNMEASURED, "unmeasured_reason": "контроль входа не запускался"}
+        # ADR-1015: наклад наблюдателя и укус предела на ПУТИ НАБЛЮДЕНИЯ — тем же порядком, что
+        # у контроля входа: без сцены это НЕ нули, а названная причина.
+        doc["observer_margin_control"] = obs_margin or {
+            "verdict": _OB_UNMEASURED, "overhead_s": None, "overhead_kind": None,
+            "unmeasured_reason": "сцена наклада не запускалась"}
         if observations is not None and len(observations) > 1:
             doc["observations"] = observations
         if by_timeout is not None and len(by_timeout) > 1:
@@ -3466,7 +3854,7 @@ def main(argv: Optional[List[str]] = None) -> int:
             doc["observations_by_cell"] = by_cell
         print(json.dumps(doc, ensure_ascii=False, indent=2))
     else:
-        print(render(c, obs, observations, by_timeout, knob, by_cell))
+        print(render(c, obs, observations, by_timeout, knob, by_cell, obs_margin))
     return c.code
 
 
