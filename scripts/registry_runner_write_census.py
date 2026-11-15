@@ -355,6 +355,48 @@ KNOB_MODULE_NAME = "_census_timeout_knob_control"
 #: ИЗМЕРЕНО с причиной, а не «вход мёртв» (ошибка в сторону отказа, а не ложной находки).
 _KNOB_RUN_TIMEOUT_S = 90.0
 
+#: ─── МАТРИЦА ДВУХ ОБЪЯВЛЕННЫХ ВХОДОВ (ADR-1012, заказ G1001 п. 1а = ADR-1011 § 7а) ───
+#:
+#: ADR-1010 закрыл первый вход (протокол), ADR-1011 — второй (предел), и каждый ответ снят,
+#: держа ВТОРОЙ вход неподвижным: предел мерили при одном `aave_v3`, протокол — при одном
+#: пределе 3 с. Смешанный зов прибор ОТКАЗЫВАЛ (ADR-1011 § 6), и отказ был верен: наблюдения
+#: легли бы в ОДИН словарь, у которого ключ может быть только один, а молчаливый выбор
+#: «главного» входа снова мерил бы необъявленное.
+#:
+#: Матрица отменяет не отказ, а ОДНОКЛЮЧЕВОЙ словарь: клетка несёт ОБА входа сразу
+#: (`cell_key`), и ответ печатается ПО ОСЯМ, а не одной строкой. «Инвариантно по пределу ПРИ
+#: `aave_v3`» и «инвариантно по пределу» — разные утверждения, и второе до сих пор не измерял
+#: никто.
+MATRIX_CELL_SEP = "@"
+#: Оси матрицы. Ось — это НАПРАВЛЕНИЕ сравнения, а не вход: `timeout_within_protocol` спрашивает
+#: «держится ли ответ ADR-1011 у КАЖДОГО протокола», `protocol_within_timeout` — «держится ли
+#: ответ ADR-1010 у КАЖДОГО предела». Свернуть их в одно имя нельзя: один и тот же набор клеток
+#: отвечает на два разных вопроса, и сложение ответов было бы ровно тем молчаливым выбором, от
+#: которого отказывался ADR-1011.
+MATRIX_AXES = ("timeout_within_protocol", "protocol_within_timeout")
+_MX_T_IN_P, _MX_P_IN_T = MATRIX_AXES
+#: Исходы живости ОСИ. `INVARIANT` обязано заработать право быть напечатанным (несущее правило
+#: ADR-1011 § 4), и у матрицы для этого есть СВОЁ доказательство, которого у одиночного замера
+#: нет: если хоть одна объявленная сторона по этой оси РАЗЛИЧАЕТСЯ, то вход до решения доходит —
+#: доказано теми же наблюдениями, а не отдельной сценой. `AXIS_LIVE_BY_KNOB` — живость, добытая
+#: внешним контролем (у предела он есть); `AXIS_LIVENESS_UNPROVEN` — ни того, ни другого, и тогда
+#: «инвариантно» и «вход никуда не идёт» по наблюдению НЕРАЗЛИЧИМЫ (fail-CLOSED).
+AXIS_LIVENESS = ("AXIS_LIVE_BY_DIFFERENCE", "AXIS_LIVE_BY_KNOB", "AXIS_LIVENESS_UNPROVEN")
+_AX_BY_DIFF, _AX_BY_KNOB, _AX_UNPROVEN = AXIS_LIVENESS
+#: Какая ось чьим внешним контролем подтверждается. Объявление, а не выбор зовом: контроль
+#: `timeout_knob_control` двигает ПРЕДЕЛ, и принять его за доказательство живости ПРОТОКОЛА
+#: значило бы зачесть одной оси контроль другой.
+AXIS_KNOB_INPUT = {_MX_T_IN_P: "timeout"}
+#: Сколько срезов печатать у каждой оси; остальные — в `--json`.
+_MX_SHOWN = 8
+#: Что отвечают ОДИНОЧНЫЕ входы, когда наблюдения сняты матрицей. Выбрать клетку и выдать её за
+#: ответ об одном входе было бы ровно тем молчаливым выбором, от которого отказывался ADR-1011
+#: § 6: ответ об одном входе ПРИ неподвижном соседе — это срез матрицы, и он напечатан там.
+_MATRIX_ABSENT_REASON = (
+    "наблюдения сняты МАТРИЦЕЙ двух входов (ADR-1012): ответ об одном входе принадлежит СРЕЗУ "
+    "матрицы при названном значении соседа, и прибор не выбирает клетку молча — см. "
+    "`matrix_variance.sides[<сторона>][<ось>].slices`")
+
 #: Формы записи. `os.replace`/`os.rename`/`os.makedirs`/`shutil.*`/`json.dump` — только у СВОЕГО модуля
 #: (`str.replace` записью не является); `write_text`/`write_bytes`/`mkdir` — у любого объекта;
 #: `atomic_save` — именем либо атрибутом; `open` — с режимом записи.
@@ -2054,7 +2096,8 @@ def _side_labels(repo: Path, census: Census, obs: Dict[str, Any], side: str) -> 
 
 
 def protocol_variance(repo: Path, census: Census,
-                      observations: Optional[Dict[str, Dict[str, Any]]]) -> Dict[str, Any]:
+                      observations: Optional[Dict[str, Dict[str, Any]]],
+                      absent_reason: Optional[str] = None) -> Dict[str, Any]:
     """Различается ли механизм бегуна по ПРОТОКОЛАМ (заказ G999 п. 1б = ADR-1009 § 7б).
 
     Вопрос появился потому, что ответ семи решений подряд снят на ОДНОМ протоколе: `--protocol`
@@ -2072,7 +2115,8 @@ def protocol_variance(repo: Path, census: Census,
                              "min_required": PROTOCOL_VARIANCE_MIN,
                              "declared": [], "declared_not_observed": []}
     if not observations:
-        return {**empty, "unmeasured_reason": "наблюдение не запускалось (--observe не задан)"}
+        return {**empty, "unmeasured_reason": (
+            absent_reason or "наблюдение не запускалось (--observe не задан)")}
     protocols = sorted(observations)
     if len(protocols) < PROTOCOL_VARIANCE_MIN:
         return {**empty, "protocols": protocols, "unmeasured_reason": (
@@ -2401,7 +2445,8 @@ def _slowest_observed_module(observations: Dict[str, Dict[str, Any]]) -> Optiona
 
 def timeout_variance(repo: Path, census: Census,
                      observations: Optional[Dict[str, Dict[str, Any]]],
-                     knob: Optional[Dict[str, Any]] = None) -> Dict[str, Any]:
+                     knob: Optional[Dict[str, Any]] = None,
+                     absent_reason: Optional[str] = None) -> Dict[str, Any]:
     """Различается ли механизм бегуна по ПРЕДЕЛУ модуля (заказ G1000 п. 1г = ADR-1010 § 7г).
 
     ADR-1010 закрыл первый вход наблюдения (протокол) и НАЗВАЛ второй: предел стоял `3 с` во
@@ -2424,7 +2469,8 @@ def timeout_variance(repo: Path, census: Census,
                              "declared_observed": None, "knob": kb, "margin": None,
                              "slowest": None}
     if not observations:
-        return {**empty, "unmeasured_reason": "наблюдение не запускалось (--observe не задан)"}
+        return {**empty, "unmeasured_reason": (
+            absent_reason or "наблюдение не запускалось (--observe не задан)")}
     try:
         timeouts = sorted(observations, key=float)
     except (TypeError, ValueError) as exc:
@@ -2549,6 +2595,286 @@ def render_timeout_variance(tv: Dict[str, Any]) -> List[str]:
     return out
 
 
+# ───────── матрица двух объявленных входов (ADR-1012, заказ G1001 п. 1а) ─────────
+
+def cell_key(protocol: str, timeout: float) -> str:
+    """Ключ КЛЕТКИ матрицы: протокол И предел сразу, одной дверью.
+
+    Вся суть отказа ADR-1011 § 6 была в том, что наблюдения двух входов легли бы в словарь с
+    ОДНИМ ключом. Матрица отменяет не отказ, а одноклю­чевой словарь: ключ несёт оба входа, и
+    молчаливого выбора «главного» входа не остаётся ни одного.
+
+    Предел печатается ЕДИНСТВЕННОЙ дверью `timeout_key` — своя форма здесь дала бы `3` и `3.0`
+    двумя клетками одного предела, то есть «наблюдений 2» из одного наблюдения.
+
+    Имя протокола с разделителем внутри ⇒ `NotMeasured`: ключ стал бы неоднозначным, а срез
+    отвечал бы о ЧУЖОЙ клетке. Угадывать разбор на таком имени значило бы вернуть ровно тот
+    молчаливый выбор, против которого матрица и написана.
+    """
+    name = str(protocol)
+    if not name.strip():
+        raise NotMeasured("клетка матрицы без протокола: имя пусто")
+    if MATRIX_CELL_SEP in name:
+        raise NotMeasured(
+            f"протокол `{name}` несёт разделитель клетки `{MATRIX_CELL_SEP}`: ключ стал бы "
+            f"неоднозначным, и срез отвечал бы о чужой клетке")
+    return f"{name}{MATRIX_CELL_SEP}{timeout_key(timeout)}"
+
+
+def split_cell_key(key: str) -> Tuple[str, str]:
+    """Обратная дверь `cell_key`. Неразбираемый ключ — третий исход, а не половина ответа."""
+    protocol, sep, t = str(key).rpartition(MATRIX_CELL_SEP)
+    if not sep or not protocol or not t:
+        raise NotMeasured(
+            f"ключ клетки `{key}` не разбирается: ждали `<протокол>{MATRIX_CELL_SEP}<предел>`")
+    try:
+        float(t)
+    except (TypeError, ValueError):
+        raise NotMeasured(f"ключ клетки `{key}`: `{t}` не читается как предел")
+    return protocol, t
+
+
+def _matrix_grid(by_cell: Dict[str, Any]) -> Tuple[List[str], List[str], Dict[str, Tuple[str, str]]]:
+    """Протоколы, пределы и карта `ключ → (протокол, предел)`.
+
+    ПОЛНОТА проверяется здесь и является предпосылкой, а не удобством: у рваной матрицы срез
+    одного протокола сравнивал бы ДВА предела, а соседнего — три, и «инвариантно» первого
+    описывало бы другое население. Дыра ⇒ `NotMeasured` с ПЕРЕЧНЕМ дыр.
+    """
+    grid = {k: split_cell_key(k) for k in by_cell}
+    protocols = sorted({p for p, _ in grid.values()})
+    try:
+        timeouts = sorted({t for _, t in grid.values()}, key=float)
+    except (TypeError, ValueError) as exc:  # pragma: no cover — split_cell_key уже проверил
+        raise NotMeasured(f"пределы клеток не упорядочиваются: {exc}")
+    holes = [f"{p}{MATRIX_CELL_SEP}{t}" for p in protocols for t in timeouts
+             if f"{p}{MATRIX_CELL_SEP}{t}" not in by_cell]
+    if holes:
+        raise NotMeasured(
+            f"матрица РВАНАЯ: клеток {len(by_cell)} при {len(protocols)}×{len(timeouts)} = "
+            f"{len(protocols) * len(timeouts)}; нет — {', '.join(holes[:8])}"
+            + (f" … и ещё {len(holes) - 8}" if len(holes) > 8 else ""))
+    return protocols, timeouts, grid
+
+
+def _axis_liveness(axis: str, side_axis: Dict[str, Dict[str, Any]],
+                   knob: Dict[str, Any]) -> Tuple[str, str]:
+    """Чем доказано, что вход этой оси ДОХОДИТ до решения.
+
+    Несущее правило ADR-1011 § 4 — «`INVARIANT` обязано заработать право быть напечатанным» —
+    принадлежит не пределу, а ВОПРОСУ: «население не зависит от входа» и «вход ни на что не
+    влияет» по наблюдению неразличимы у ЛЮБОГО входа. У матрицы для этого есть доказательство,
+    которого у одиночного замера нет вовсе: если по этой оси РАЗЛИЧАЕТСЯ хоть одна объявленная
+    сторона, то вход доходит — и доказано это ТЕМИ ЖЕ наблюдениями, а не отдельной сценой.
+
+    Внешний контроль зачитывается только своей оси (`AXIS_KNOB_INPUT`): принять контроль
+    предела за доказательство живости протокола значило бы зачесть одной оси контроль другой.
+    """
+    varying = sorted(s for s, v in side_axis.items() if v["verdict"] == _PV_VARIES)
+    if varying:
+        return _AX_BY_DIFF, (f"по этой оси РАЗЛИЧАЮТСЯ стороны: {', '.join(varying)} — вход "
+                             f"доходит до решения, доказано теми же наблюдениями")
+    if axis in AXIS_KNOB_INPUT and knob.get("verdict") == _KB_LIVE:
+        return _AX_BY_KNOB, (f"ни одна сторона не различается, но вход `{AXIS_KNOB_INPUT[axis]}` "
+                             f"подтверждён внешним контролем ({_KB_LIVE})")
+    if axis in AXIS_KNOB_INPUT:
+        return _AX_UNPROVEN, (
+            f"ни одна сторона не различается, а внешний контроль входа "
+            f"`{AXIS_KNOB_INPUT[axis]}` не живой ({knob.get('verdict')}: "
+            f"{knob.get('dead_reason') or knob.get('unmeasured_reason')})")
+    return _AX_UNPROVEN, ("ни одна сторона не различается, а внешнего контроля у этого входа "
+                          "прибор не имеет — «инвариантно» и «вход никуда не идёт» "
+                          "по наблюдению НЕРАЗЛИЧИМЫ")
+
+
+def matrix_variance(repo: Path, census: Census,
+                    by_cell: Optional[Dict[str, Dict[str, Any]]],
+                    knob: Optional[Dict[str, Any]] = None) -> Dict[str, Any]:
+    """Держится ли ответ об ОДНОМ входе, когда двигается ВТОРОЙ (заказ G1001 п. 1а).
+
+    ADR-1010 ответил о протоколе при одном пределе 3 с, ADR-1011 — о пределе при одном
+    протоколе `aave_v3`. Оба ответа верны ПРИ неподвижном соседе, и ни один из них не есть
+    ответ вообще: тот же замер ADR-1010 показал, что предмет `silent` протокол-ЗАВИСИМ
+    (117…129), то есть сосед двигает САМО НАСЕЛЕНИЕ, по которому меряется второй вход.
+
+    Ответ печатается ПО ОСЯМ (`MATRIX_AXES`), и это ровно те два ключа, которых не хватало
+    однокле­точному словарю. Сравнение — тем же ядром `_compare_across_values`: третья копия
+    ядра отвечала бы на свой вопрос, а счёта вместо модулей были бы зелёным ответом мимо
+    предмета.
+
+    Три исхода различимы (инв. #17): `INVARIANT` (все срезы совпали ПОИМЁННО И живость оси
+    доказана) · `VARIES` (срез НАЗВАН — осью, значением соседа, стороной и модулями) ·
+    `UNMEASURED` с причиной (клеток по одной оси меньше `VARIANCE_MIN` · матрица рваная ·
+    сторона не разобралась хотя бы в одной клетке · живость оси НЕ ДОКАЗАНА).
+    """
+    kb = knob or {"verdict": _KB_UNMEASURED, "dead_reason": None,
+                  "unmeasured_reason": "контроль входа не запускался"}
+    empty: Dict[str, Any] = {"verdict": _PV_UNMEASURED, "protocols": [], "timeouts": [],
+                             "cells": 0, "min_required": VARIANCE_MIN, "sides": {},
+                             "axes": {}, "knob": kb, "declared_protocols": [],
+                             "declared_protocols_not_observed": [], "declared_timeout": None,
+                             "declared_timeout_observed": None}
+    if not by_cell:
+        return {**empty, "unmeasured_reason": (
+            "матрица не снималась (--protocols и --timeouts вместе не заданы)")}
+    try:
+        protocols, timeouts, _ = _matrix_grid(by_cell)
+    except NotMeasured as exc:
+        return {**empty, "cells": len(by_cell), "unmeasured_reason": str(exc)}
+    short = [name for name, axis_values in (("протоколов", protocols), ("пределов", timeouts))
+             if len(axis_values) < VARIANCE_MIN]
+    if short:
+        return {**empty, "protocols": protocols, "timeouts": timeouts, "cells": len(by_cell),
+                "unmeasured_reason": (
+                    f"{' и '.join(short)} меньше {VARIANCE_MIN}: матрица из одного столбца "
+                    f"матрицей не является — она даёт ЗНАЧЕНИЕ по неподвижной оси, а не "
+                    f"различие (протоколов {len(protocols)}, пределов {len(timeouts)})")}
+    declared_protocols: List[str] = []
+    declared_timeout: Optional[float] = None
+    try:
+        declared_protocols = list(read_runner_protocols(repo))
+        declared_timeout = read_runner_timeout(repo)
+    except NotMeasured as exc:
+        return {**empty, "protocols": protocols, "timeouts": timeouts, "cells": len(by_cell),
+                "unmeasured_reason": (
+                    f"объявление бегуна не прочитано: {exc} — без него нельзя сказать, о каких "
+                    f"входах этот ответ")}
+    coverage = {
+        "declared_protocols": declared_protocols,
+        "declared_protocols_not_observed": [p for p in declared_protocols if p not in protocols],
+        "observed_protocols_not_declared": [p for p in protocols if p not in declared_protocols],
+        "declared_timeout": declared_timeout,
+        "declared_timeout_observed": timeout_key(declared_timeout) in timeouts,
+    }
+    # Ярлыки снимаются ОДИН раз на клетку: `_side_labels` зовёт разборы ADR-1008/1009, и второй
+    # проход по тем же клеткам стоил бы вдвое, отвечая то же самое.
+    sides: Dict[str, Dict[str, Any]] = {}
+    for side in PROTOCOL_SIDES:
+        labels: Dict[str, Dict[str, str]] = {}
+        reason: Optional[str] = None
+        for key in sorted(by_cell):
+            try:
+                labels[key] = _side_labels(repo, census, by_cell[key], side)
+            except NotMeasured as exc:
+                reason = f"клетка `{key}`: {exc}"
+                break
+        if reason is not None:
+            sides[side] = {axis: {"verdict": _PV_UNMEASURED, "slices": {},
+                                  "unmeasured_reason": reason} for axis in MATRIX_AXES}
+            continue
+        per_axis: Dict[str, Dict[str, Any]] = {}
+        for axis in MATRIX_AXES:
+            outer = protocols if axis == _MX_T_IN_P else timeouts
+            inner = timeouts if axis == _MX_T_IN_P else protocols
+            slices: Dict[str, Dict[str, Any]] = {}
+            for fixed in outer:
+                by_value = {v: labels[f"{fixed}{MATRIX_CELL_SEP}{v}" if axis == _MX_T_IN_P
+                                      else f"{v}{MATRIX_CELL_SEP}{fixed}"] for v in inner}
+                slices[fixed] = _compare_across_values(by_value)
+            varies = sorted(f for f, s in slices.items() if s["verdict"] == _PV_VARIES)
+            per_axis[axis] = {
+                "verdict": _PV_VARIES if varies else _PV_INVARIANT,
+                "slices": slices, "slices_varying": varies,
+                "unmeasured_reason": None}
+        sides[side] = per_axis
+    axes: Dict[str, Dict[str, Any]] = {}
+    for axis in MATRIX_AXES:
+        side_axis = {name: s[axis] for name, s in sides.items()}
+        liveness, liveness_reason = _axis_liveness(axis, side_axis, kb)
+        # ГАТЕ стои́т у СТОРОНЫ, а не у оси, и различие существенно: в настоящем замере по оси
+        # протоколов `runner_status` РАЗЛИЧАЕТСЯ, а три оси ADR-1009 — нет, и именно их
+        # «инвариантно» и есть тот ответ, которому нужно доказательство живости входа. ADR-1010
+        # напечатал его над живым контролем — но контролем НЕНАЗВАННЫМ: живость доказывали
+        # соседние стороны того же наблюдения, и не скажи они ничего, то же «инвариантно»
+        # вышло бы над мёртвой проводкой.
+        if liveness == _AX_UNPROVEN:
+            for name, v in side_axis.items():
+                if v["verdict"] == _PV_INVARIANT:
+                    v["verdict"] = _PV_UNMEASURED
+                    v["unmeasured_reason"] = (
+                        f"срезы совпали ПОИМЁННО, но живость оси НЕ ДОКАЗАНА — {liveness_reason}")
+        unmeasured = {name: v["unmeasured_reason"] for name, v in side_axis.items()
+                      if v["verdict"] == _PV_UNMEASURED}
+        if unmeasured:
+            # fail-CLOSED: неизмеренная сторона НЕ даёт оси права сказать «инвариантно» по
+            # остальным — тот же порядок, что у обоих одиночных входов.
+            verdict: str = _PV_UNMEASURED
+            reason = "; ".join(f"{n}: {r}" for n, r in unmeasured.items())
+        elif any(v["verdict"] == _PV_VARIES for v in side_axis.values()):
+            verdict, reason = _PV_VARIES, None
+        else:
+            verdict, reason = _PV_INVARIANT, None
+        axes[axis] = {"verdict": verdict, "liveness": liveness,
+                      "liveness_reason": liveness_reason,
+                      "sides": {n: v["verdict"] for n, v in side_axis.items()},
+                      "sides_varying": {n: v.get("slices_varying", [])
+                                        for n, v in side_axis.items()
+                                        if v["verdict"] == _PV_VARIES},
+                      "unmeasured_reason": reason}
+    verdicts = {a["verdict"] for a in axes.values()}
+    if _PV_UNMEASURED in verdicts:
+        overall = _PV_UNMEASURED
+        overall_reason: Optional[str] = "; ".join(
+            f"{name}: {a['unmeasured_reason']}" for name, a in axes.items()
+            if a["verdict"] == _PV_UNMEASURED)
+    else:
+        overall = _PV_VARIES if _PV_VARIES in verdicts else _PV_INVARIANT
+        overall_reason = None
+    return {"verdict": overall, "protocols": protocols, "timeouts": timeouts,
+            "cells": len(by_cell), "min_required": VARIANCE_MIN, "sides": sides,
+            "axes": axes, "knob": kb, "unmeasured_reason": overall_reason, **coverage}
+
+
+def render_matrix_variance(mx: Dict[str, Any]) -> List[str]:
+    """Печать матрицы. Ось печатает свой вердикт И чем доказана её живость: «инвариантно» без
+    названного доказательства живости входа описывает ещё и мёртвую проводку."""
+    out = [f"  МАТРИЦА ДВУХ ВХОДОВ «предел × протокол» (ADR-1012) — клеток {mx['cells']}: "
+           f"протоколов {len(mx['protocols'])} × пределов {len(mx['timeouts'])}"]
+    if mx["protocols"] and mx["timeouts"]:
+        out.append(f"    протоколы: {', '.join(mx['protocols'])}")
+        out.append(f"    пределы, с: {', '.join(mx['timeouts'])}")
+    if mx.get("declared_protocols"):
+        miss = mx["declared_protocols_not_observed"]
+        out.append(f"    охват: объявлено бегуном протоколов {len(mx['declared_protocols'])}, "
+                   + (f"НЕ наблюдалось {len(miss)} ({', '.join(miss)})" if miss
+                      else "наблюдены ВСЕ")
+                   + f"; объявленный предел {mx['declared_timeout']} с — "
+                   + ("СРЕДИ наблюдённых" if mx.get("declared_timeout_observed")
+                      else "⚠️ среди наблюдённых ЕГО НЕТ"))
+    if mx["verdict"] == _PV_UNMEASURED and not mx.get("axes"):
+        out.append(f"    ⚠️ НЕ ИЗМЕРЕНО — {mx['unmeasured_reason']}")
+        return out
+    titles = {_MX_T_IN_P: "держится ли ответ ADR-1011 (ПРЕДЕЛ) у КАЖДОГО протокола",
+              _MX_P_IN_T: "держится ли ответ ADR-1010 (ПРОТОКОЛ) у КАЖДОГО предела"}
+    for axis, a in mx["axes"].items():
+        out.append(f"    ось {axis} — {titles[axis]}")
+        out.append(f"      живость оси: {a['liveness']} — {a['liveness_reason']}")
+        mark = {_PV_INVARIANT: "✅", _PV_VARIES: "❗", _PV_UNMEASURED: "⚠️"}[a["verdict"]]
+        out.append(f"      {mark} ОСЬ: {a['verdict']}"
+                   + (f" — {a['unmeasured_reason']}" if a["unmeasured_reason"] else ""))
+        # Вердикт КАЖДОЙ объявленной стороны печатается всегда: «ось различается» ничего не
+        # говорит о стороне, которая НЕ различается, а именно её инвариантность и заказана.
+        for name, v in mx["sides"].items():
+            sv = v[axis]
+            if sv["verdict"] == _PV_UNMEASURED:
+                out.append(f"        {name:<40} ⚠️ НЕ ИЗМЕРЕНО — {sv['unmeasured_reason']}")
+                continue
+            if sv["verdict"] == _PV_INVARIANT:
+                out.append(f"        {name:<40} INVARIANT во ВСЕХ {len(sv['slices'])} срезах")
+                continue
+            out.append(f"        {name:<40} VARIES в {len(sv['slices_varying'])} "
+                       f"из {len(sv['slices'])} срезов")
+            for fixed in sv["slices_varying"][:_MX_SHOWN]:
+                s = sv["slices"][fixed]
+                out.append(f"          @ {fixed}: предмет "
+                           + "/".join(str(s["subject"][x]) for x in s["values"])
+                           + f"; SUBJECT_MOVED {s['counts'][_PD_MOVED]} · "
+                           f"LABEL_DIFFERS {s['counts'][_PD_DIFFERS]}")
+    out.append("    НЕ ДОКЛАДЫВАЕТ: третий вход наблюдения (ADR-1011 § 7в — кандидаты `python`, "
+               "cwd, каталог песочницы) и сторож ЗАПАСА (§ 7б)")
+    return out
+
+
 def to_doc(c: Census) -> dict:
     return {"root": c.root, "runner": asdict(c.runner), "counts": c.counts, "exposure": c.exposure,
             "blind_subset": c.blind_subset, "code": c.code, "unmeasured_reason": c.unmeasured_reason,
@@ -2558,7 +2884,8 @@ def to_doc(c: Census) -> dict:
 def render(c: Census, obs: Optional[Dict[str, Any]] = None,
            observations: Optional[Dict[str, Dict[str, Any]]] = None,
            by_timeout: Optional[Dict[str, Dict[str, Any]]] = None,
-           knob: Optional[Dict[str, Any]] = None) -> str:
+           knob: Optional[Dict[str, Any]] = None,
+           by_cell: Optional[Dict[str, Dict[str, Any]]] = None) -> str:
     out = [f"РЕЕСТР → БЕГУН: куда пишут аналитики под песочницей (ADR-999 § 6в) · дерево {c.root}",
            f"  бегун {c.runner.runner_path}: входы {list(c.runner.entry_methods)}; кладёт data_dir в контекст "
            f"модуля — {'ДА' if c.runner.passes_data_dir else 'НЕТ'}",
@@ -2700,20 +3027,47 @@ def render(c: Census, obs: Optional[Dict[str, Any]] = None,
     # ADR-1010: сравнение по протоколам печатается ВСЕГДА — без второго наблюдения это НЕ
     # «различий нет», а названный третий исход. Подстановка «один протокол ⇒ инвариантно» и
     # держала семь решений подряд на одном `aave_v3`.
+    # ADR-1012: в матричном зове одиночные ответы НЕ выбирают клетку молча — ответ по одному
+    # входу принадлежит срезам матрицы, и «взять первую клетку» было бы ровно тем молчаливым
+    # выбором, от которого ADR-1011 § 6 отказывался.
     out.extend(render_protocol_variance(protocol_variance(
-        Path(c.root), c, observations if observations is not None
-        else ({obs["protocol"]: obs} if obs is not None else None))))
+        Path(c.root), c, None if by_cell else (observations if observations is not None
+        else ({obs["protocol"]: obs} if obs is not None else None)),
+        absent_reason=_MATRIX_ABSENT_REASON if by_cell else None)))
     # ADR-1011: предел модуля — ВТОРОЙ вход, и о нём печатается тот же ответ и тем же порядком.
     # Без второго наблюдения это НЕ «различий нет», а названный третий исход; и `INVARIANT` тут
     # обязан стоять над ЖИВЫМ контролем входа, иначе он описывает ещё и мёртвую проводку.
     out.extend(render_timeout_variance(timeout_variance(
-        Path(c.root), c, by_timeout if by_timeout is not None
-        else ({timeout_key(obs["timeout"]): obs} if obs is not None else None), knob)))
+        Path(c.root), c, None if by_cell else (by_timeout if by_timeout is not None
+        else ({timeout_key(obs["timeout"]): obs} if obs is not None else None)), knob,
+        absent_reason=_MATRIX_ABSENT_REASON if by_cell else None)))
+    # ADR-1012: матрица печатается ВСЕГДА — без матричного зова это НЕ «различий нет», а
+    # названный третий исход тем же порядком, что у обоих одиночных входов.
+    out.extend(render_matrix_variance(matrix_variance(Path(c.root), c, by_cell, knob)))
     verdict = {0: "✅ предмет пуст: ни одна запись реестра не доводит вход бегуна до записи в своё умолчание",
                1: "❗ предмет НАЗВАН: бегун каталога не передаёт, а вход достигает записи — она ляжет в умолчание модуля",
                2: f"⚠️ НЕ ИЗМЕРЕНО: {c.unmeasured_reason}"}[c.code]
     out.append(verdict)
     return "\n".join(out)
+
+
+def _parse_timeouts(spec: str, repo: Path) -> List[float]:
+    """`declared` — предел БЕГУНА; числа — названные вслух. Дверь ОДНА на одиночный зов и на
+    матричный: вторая копия разбора дала бы `declared` два разных значения в одном приборе."""
+    wanted: List[float] = []
+    for tok in (s.strip() for s in spec.split(",")):
+        if not tok:
+            continue
+        if tok == "declared":
+            wanted.append(read_runner_timeout(repo))
+            continue
+        try:
+            wanted.append(float(tok))
+        except ValueError:
+            raise NotMeasured(f"--timeouts: `{tok}` не предел и не `declared`")
+    if not wanted:
+        raise NotMeasured("--timeouts не назвал ни одного предела")
+    return wanted
 
 
 def main(argv: Optional[List[str]] = None) -> int:
@@ -2726,7 +3080,8 @@ def main(argv: Optional[List[str]] = None) -> int:
     ap.add_argument("--protocols", default=None, metavar="СПИСОК",
                     help="`all` (весь перечень бегуна `DEFAULT_PROTOCOLS`) либо имена через запятую: "
                          "наблюдение снимается у КАЖДОГО, и прибор отвечает, различается ли механизм "
-                         "по протоколам (ADR-1010). Один протокол на этот вопрос НЕ отвечает")
+                         "по протоколам (ADR-1010). Один протокол на этот вопрос НЕ отвечает. "
+                         "Вместе с --timeouts снимается МАТРИЦА «предел × протокол» (ADR-1012)")
     ap.add_argument("--timeout", type=float, default=None,
                     help="предел модуля у бегуна, с. Умолчания-литерала у прибора НЕТ: не назван — берётся ОБЪЯВЛЕНИЕ бегуна `MODULE_TIMEOUT`, и выбор ПЕЧАТАЕТСЯ (ADR-1011)")
     ap.add_argument("--timeouts", default=None, metavar="СПИСОК",
@@ -2741,23 +3096,47 @@ def main(argv: Optional[List[str]] = None) -> int:
         obs = None
         observations: Optional[Dict[str, Dict[str, Any]]] = None
         by_timeout: Optional[Dict[str, Dict[str, Any]]] = None
+        by_cell: Optional[Dict[str, Dict[str, Any]]] = None
         knob: Optional[Dict[str, Any]] = None
-        # ADR-1011: предел НЕ имеет умолчания-литерала у прибора. Своё `3.0` совпадало с
-        # объявлением бегуна, и совпадение делало вопрос «кто тут объявляет» невидимым.
-        base_timeout = args.timeout
-        if base_timeout is None:
-            base_timeout = read_runner_timeout(repo)
-            print(f"[реестр→бегун] предел не назван — беру ОБЪЯВЛЕНИЕ бегуна "
-                  f"`{RUNNER_TIMEOUT_NAME}` = {base_timeout} с", file=sys.stderr)
         if args.observe:
+            # ADR-1011: предел НЕ имеет умолчания-литерала у прибора. Своё `3.0` совпадало с
+            # объявлением бегуна, и совпадение делало вопрос «кто тут объявляет» невидимым.
+            #
+            # ADR-1012: и спрашивается он ТОЛЬКО когда есть наблюдение. Предел — вход
+            # НАБЛЮДЕНИЯ, и до 15.11 он читался безусловно: дерево без объявления
+            # `MODULE_TIMEOUT` получало код 2 даже на чисто СТАТИЧЕСКИЙ вопрос, которому предел
+            # не нужен ни для чего. Отказ был верен по форме и мимо по предмету — «не измерено»
+            # печаталось о том, чего не спрашивали. Красным это держало
+            # `test_main_prints_three_outcomes_and_returns_the_code`.
+            base_timeout = args.timeout
+            if base_timeout is None:
+                base_timeout = read_runner_timeout(repo)
+                print(f"[реестр→бегун] предел не назван — беру ОБЪЯВЛЕНИЕ бегуна "
+                      f"`{RUNNER_TIMEOUT_NAME}` = {base_timeout} с", file=sys.stderr)
             if args.protocols and args.timeouts:
-                # Матрица двух входов — ОТДЕЛЬНЫЙ вопрос, и ответить на него смешанным зовом
-                # нельзя: наблюдения легли бы в один словарь, а ключ у него может быть только
-                # один. Молчаливо выбрать «главный» вход значило бы снова мерить необъявленное.
-                raise NotMeasured(
-                    "--protocols и --timeouts вместе прибор не мерит: входы спрашиваются ПО "
-                    "ОДНОМУ (матрица «предел × протокол» названа в ADR-1011 как не измеренная)")
-            if args.protocols:
+                # ADR-1012: МАТРИЦА двух входов. Отказ ADR-1011 § 6 был верен для словаря с
+                # ОДНИМ ключом — здесь ключ клетки несёт оба входа (`cell_key`), поэтому
+                # молчаливого выбора «главного» входа не остаётся ни одного.
+                wanted = (list(read_runner_protocols(repo)) if args.protocols.strip() == "all"
+                          else [s.strip() for s in args.protocols.split(",") if s.strip()])
+                if not wanted:
+                    raise NotMeasured("--protocols не назвал ни одного протокола")
+                wanted_t = _parse_timeouts(args.timeouts, repo)
+                by_cell = {}
+                for name in wanted:
+                    for t in wanted_t:
+                        print(f"[реестр→бегун] клетка матрицы: протокол {name}, предел {t} с",
+                              file=sys.stderr)
+                        by_cell[cell_key(name, t)] = observe(Path(args.observe), c,
+                                                             protocol=name, timeout=t)
+                # Разборы ОДНОГО наблюдения (спутники осей, ADR-1006…1009) печатаются от
+                # НАЗВАННОЙ клетки, и выбор ПЕЧАТАЕТСЯ: молчаливая «первая клетка» была бы тем
+                # же необъявленным входом на уровень ниже.
+                head = cell_key(wanted[0], wanted_t[0])
+                print(f"[реестр→бегун] разборы одного наблюдения — от клетки {head}",
+                      file=sys.stderr)
+                obs = by_cell[head]
+            elif args.protocols:
                 # Перечень — у БЕГУНА (`all`) либо назван вслух. Своей копии списка у прибора нет.
                 wanted = (list(read_runner_protocols(repo)) if args.protocols.strip() == "all"
                           else [s.strip() for s in args.protocols.split(",") if s.strip()])
@@ -2772,21 +3151,7 @@ def main(argv: Optional[List[str]] = None) -> int:
                 obs = observations[wanted[0]]
                 by_timeout = {timeout_key(base_timeout): obs}
             elif args.timeouts:
-                # `declared` — предел БЕГУНА; числа — названные вслух. Дубли по ключу ядро
-                # сложило бы в «наблюдений 1», поэтому ключ делает единственная дверь.
-                wanted_t: List[float] = []
-                for tok in (s.strip() for s in args.timeouts.split(",")):
-                    if not tok:
-                        continue
-                    if tok == "declared":
-                        wanted_t.append(read_runner_timeout(repo))
-                        continue
-                    try:
-                        wanted_t.append(float(tok))
-                    except ValueError:
-                        raise NotMeasured(f"--timeouts: `{tok}` не предел и не `declared`")
-                if not wanted_t:
-                    raise NotMeasured("--timeouts не назвал ни одного предела")
+                wanted_t = _parse_timeouts(args.timeouts, repo)
                 by_timeout = {}
                 for t in wanted_t:
                     print(f"[реестр→бегун] наблюдение, предел {t} с", file=sys.stderr)
@@ -2826,19 +3191,28 @@ def main(argv: Optional[List[str]] = None) -> int:
         doc["unentered_causes"] = unentered_causes_by_axis(repo, c, obs)
         # ADR-1010: протокол — ОБЪЯВЛЕННЫЙ вход, и ответ о нём печатается всегда. Одно наблюдение
         # даёт НЕ ИЗМЕРЕНО с причиной, а не «инвариантно».
-        doc["protocol_variance"] = protocol_variance(repo, c, observations)
+        doc["protocol_variance"] = protocol_variance(
+            repo, c, None if by_cell else observations,
+            absent_reason=_MATRIX_ABSENT_REASON if by_cell else None)
         # ADR-1011: тот же порядок у второго входа — предел. Без наблюдения это НЕ нули, а
         # названная причина; `INVARIANT` без живого контроля входа не печатается вовсе.
-        doc["timeout_variance"] = timeout_variance(repo, c, by_timeout, knob)
+        doc["timeout_variance"] = timeout_variance(
+            repo, c, None if by_cell else by_timeout, knob,
+            absent_reason=_MATRIX_ABSENT_REASON if by_cell else None)
+        # ADR-1012: матрица — третий объявленный ответ, и порядок у неё тот же: без матричного
+        # зова это НЕ нули, а названная причина.
+        doc["matrix_variance"] = matrix_variance(repo, c, by_cell, knob)
         doc["timeout_knob_control"] = knob or {
             "verdict": _KB_UNMEASURED, "unmeasured_reason": "контроль входа не запускался"}
         if observations is not None and len(observations) > 1:
             doc["observations"] = observations
         if by_timeout is not None and len(by_timeout) > 1:
             doc["observations_by_timeout"] = by_timeout
+        if by_cell is not None and len(by_cell) > 1:
+            doc["observations_by_cell"] = by_cell
         print(json.dumps(doc, ensure_ascii=False, indent=2))
     else:
-        print(render(c, obs, observations, by_timeout, knob))
+        print(render(c, obs, observations, by_timeout, knob, by_cell))
     return c.code
 
 

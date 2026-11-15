@@ -741,7 +741,24 @@ class TestTheInstrumentHoldsNoTimeoutLiteral(unittest.TestCase):
 
 # ───────────── матрица двух входов ОТКАЗЫВАЕТ, а не выбирает главный ─────────────
 
-class TestTwoInputsAtOnceRefuse(unittest.TestCase):
+class TestTwoInputsAtOnceAreNowTheMATRIX(unittest.TestCase):
+    """ОСОЗНАННОЕ изменение этого класса (инв. #16: обоснование — здесь, запись — в журнале
+    W46, цикл #1134, ADR-1012).
+
+    Здесь стояли два утверждения о том, что смешанный зов `--protocols` + `--timeouts`
+    ОТКАЗЫВАЕТ (ADR-1011 § 6). Отказ был верен — но верен ровно для словаря наблюдений с ОДНИМ
+    ключом: два входа в нём неразличимы, и молчаливый выбор «главного» снова мерил бы
+    необъявленное. ADR-1011 § 7 (а) сам назвал матрицу НЕ ИЗМЕРЕННОЙ и сказал, чем она
+    закрывается: «отдельный ответ с ДВУМЯ ключами».
+
+    ADR-1012 его и дал: ключ КЛЕТКИ несёт оба входа сразу (`cell_key`), поэтому выбирать нечего,
+    а отказ стал бы отказом мерить ответ, который заказан. Проверка НЕ снята и НЕ ослаблена — она
+    ПЕРЕВЁРНУТА и переехала: предмет «два входа сразу» держит теперь
+    `spa_core/tests/test_registry_census_matrix_variance.py` (34 утверждения, включая сквозной
+    живой зов). Что остаётся здесь — ровно то, что ADR-1012 НЕ отменил: неоднозначный ключ
+    клетки по-прежнему ОТКАЗ, а не угаданный разбор.
+    """
+
     def _run(self, *extra):
         """Код 2 сам по себе предметом НЕ является: пустое дерево наблюдения даёт его же.
         Поэтому читается ПРИЧИНА — иначе снятый отказ прошёл бы незамеченным."""
@@ -751,19 +768,31 @@ class TestTwoInputsAtOnceRefuse(unittest.TestCase):
                 code = rrwc.main(["--repo-root", str(ROOT), "--observe", tmp, "--json", *extra])
         return code, json.loads(buf.getvalue())
 
-    def test_protocols_and_timeouts_together_are_UNMEASURED(self):
-        """Наблюдения легли бы в ОДИН словарь, а ключ у него может быть только один. Молчаливый
-        выбор «главного» входа снова мерил бы необъявленное."""
+    def test_the_old_refusal_is_GONE_and_the_tree_refuses_for_its_OWN_reason(self):
+        """Пустое дерево наблюдения отказывает по-прежнему — но СВОЕЙ причиной (реестра нет), а
+        не прежней «входы спрашиваются по одному». Читается именно причина: код 2 совпал бы."""
         code, doc = self._run("--protocols", "all", "--timeouts", "declared")
         self.assertEqual(code, 2)
-        self.assertIn("--protocols и --timeouts вместе", doc["unmeasured_reason"])
+        self.assertNotIn("вместе прибор не мерит", doc["unmeasured_reason"])
+        self.assertNotIn("спрашиваются ПО", doc["unmeasured_reason"])
 
-    def test_the_same_tree_refuses_for_ANOTHER_reason_without_the_matrix(self):
-        """Контроль предпосылки теста выше: на ТОМ ЖЕ дереве одиночный вход отказывает своей,
-        ДРУГОЙ причиной. Совпади причины — предыдущий тест мерил бы пустое дерево."""
+    def test_the_same_tree_refuses_identically_for_a_single_input(self):
+        """Контроль предпосылки: на ТОМ ЖЕ дереве одиночный вход отказывает ТОЙ ЖЕ причиной —
+        значит причина принадлежит дереву, а не смешанному зову."""
         code, doc = self._run("--timeouts", "declared,9")
         self.assertEqual(code, 2)
-        self.assertNotIn("--protocols и --timeouts вместе", doc["unmeasured_reason"])
+        mixed = self._run("--protocols", "all", "--timeouts", "declared")[1]
+        # Путь одноразового дерева у двух зовов РАЗНЫЙ по построению, поэтому сверяется ПРИЧИНА
+        # без него: равенство целых строк отвечало бы на вопрос «одна ли это папка».
+        head = lambda r: r.split(":", 1)[0]
+        self.assertEqual(head(doc["unmeasured_reason"]), head(mixed["unmeasured_reason"]))
+        self.assertEqual(head(doc["unmeasured_reason"]), "реестра нет")
+
+    def test_an_ambiguous_cell_key_is_STILL_a_refusal(self):
+        """Единственное, что ADR-1012 НЕ отменил: неоднозначность ключа. Угадай прибор разбор —
+        срез отвечал бы о ЧУЖОЙ клетке, то есть вернулся бы молчаливый выбор на уровень ниже."""
+        with self.assertRaises(rrwc.NotMeasured):
+            rrwc.cell_key(f"aa{rrwc.MATRIX_CELL_SEP}ve", 3.0)
 
 
 if __name__ == "__main__":
