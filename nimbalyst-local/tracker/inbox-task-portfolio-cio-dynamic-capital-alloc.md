@@ -9,12 +9,6 @@ priority: critical
 status_trail:
   - "2026-08-26T22:31:36.748790+00:00 new -> in-progress · queue.set_status · cycle-96657"
 acceptance_probe: apy_name_carries_one_kind
-claimed_by: cycle-1158
-claimed_at: 2026-11-15T16:09:29Z
-claimed_run_id: orchestrator-64158-D4D398F35D8145DFB07D5AC930BA5895
-claimed_pid: 64158
-claimed_pid_start: Sun Nov 15 17:05:11 2026
-claim_takeover_reason: держатель cycle-94091 (pid 94091) МЁРТВ по ps; его работа НЕ потеряна — незакоммиченный диф из SPA_worktrees/c1144 (4 файла) перенесён в SPA_worktrees/c1158 и ПЕРЕМЕРЕН дифференциально: тест ControlOnTheRealAccident до починки падает ('--repo-root unexpectedly found'), после — 3 passed; проба delivery_tree_input_class_population_named до починки молчала unmeasured, после — satisfied с числами ADR-933 (23 шага, 1 долгий прогон, предмет пуст); блоб d5dd29f62 сверен с 15ba1c054:scripts/import_time_anchor_bombs.py и присутствует даже в усечённом прод-клоне
 ---
 
 ## УКАЗАНИЕ ВЛАДЕЛЬЦА 2026-08-22 (cloud-сессия): ЗАПУСТИТЬ СЛЕДУЮЩИМ ЦИКЛОМ
@@ -44638,3 +44632,35 @@ G1007…G832.
 **6. Одноразовые деревья #1158** — `SPA_worktrees/c1158` (дерево доставки) и
 `SPA_worktrees/c1158mut` (мутации, шаг 1г). Снять ИЗМЕРЕННЫМ снятием
 (`scripts/reap_stale_worktrees.py`), не `git worktree remove`.
+
+### Доставка #1158 и АДРЕС прогона на доставленных байтах
+
+Набор уехал **ОДНИМ** коммитом `a217b6cabf00303a8e83a1697c37baa7f38de2f4` (11 файлов; слепок
+байтов сверен у **28** чтений, слепок режимов у 3, разбор уезжающего Python — 5 файлов).
+`ci-control.yml` разослан (`{"ref":"main"}` — сырую sha `dispatches` не принимает, HTTP 422),
+прогон **43736614584** (`workflow_dispatch`, `head_sha` = `a217b6cabf00303a8e83a1697c37baa7f38de2f4`
+— **ПЕРЕЧИТАН у API**; `HTTP 204` сам по себе доказательством не является, `gh` на машине не
+установлен, слаг `yurii-spa/SPA`). На момент конца цикла прогон `in_progress`.
+
+**Проверяемое утверждение доставки #1158 — ПО РОДУ, а не числом.** В росписи
+`ci-control-report` прогона 43736614584 нет НИ ОДНОГО имени из
+`spa_core/tests/test_artifact_edition.py` (НОВЫЙ файл) и НЕТ имени
+`spa_core/tests/test_delivery_tree_input_census.py::ControlOnTheRealAccident::test_control_a_pre_fix_step_is_unnameable`
+— **а оно СТОИТ в росписи 43727221100**, то есть это красный, который доставка обязана погасить.
+Основание — не надежда: авария контроля закреплена БЛОБОМ `d5dd29f62`, который не может
+измениться, а сцены нового файла принимают входом и момент (`produced_at`), и клон (`repos=`).
+**База для сравнения — роспись прогона 43727221100 на вершине `ed27b078b` (байты #1144): 66
+падений в 51 файле, прочитаны ИМЕНАМИ этим циклом** (не взяты числом из прошлой записи; у #1144
+база была 74 в 55). Нетто-число скажет больше о загрузке раннера, чем о коде.
+
+⚠️ **Чего #1158 НЕ утверждает.** В росписи 43727221100 красными стояли ещё
+`spa_core/tests/test_card_acceptance.py::TestRegisteredProbesAreReal::test_every_registered_probe_returns_a_known_verdict`
+и ДВА из `spa_core/tests/test_office_absent_block_producer_aware.py::CensusRatchet`. На дереве
+#1158 все три ЗЕЛЕНЫ (прогон 32 passed / 139 subtests, 411.85 с), но **это НЕ утверждение, что
+их починила эта доставка**: `card_acceptance.py` правлен наследством, а
+`test_office_absent_block_producer_aware.py` не трогался вовсе, и расхождение «красно в CI —
+зелено на своём дереве» есть известный род (CI 3.11 против Mac 3.13 и прочее окружение; замер
+#1041: 19 из 56). Чей это род у этих трёх — **НЕ ИЗМЕРЕНО**, и приписывать их себе нельзя.
+Пред-существующий красный `test_invisible_consumer_scale.py::WiringTest::test_measure_calls_the_coordinate_and_stores_it_under_its_own_key`
+воспроизводится и на дереве #1158 (батарея офиса: 1 failed, 365 passed, 783 с), стои́т в росписи
+43727221100 тем же именем ⇒ **не регрессия #1158** и не разобран.
