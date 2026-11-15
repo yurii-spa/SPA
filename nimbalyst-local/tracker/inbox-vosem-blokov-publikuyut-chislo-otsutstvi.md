@@ -53,3 +53,23 @@ acceptance_probe: additive_field_reader_distinguishes
 `additive_field_reader_census.blocks_with_no_reader` короче восьми, и у каждого
 ушедшего блока названо, что с его числом стало: проведено до вердикта либо
 снято решением. Проба — `additive_field_reader_distinguishes`.
+
+## Расхождение «проба ↔ предмет» (назвал цикл #1141, 2026-11-15)
+
+Машинная проба карточки (`additive_field_reader_distinguishes`) по замеру шага 0-офис
+**ВЫПОЛНЕНА**: эталон различает «unmeasured» против «measured_zero» на сценах, отличающихся
+РОВНО полем, и население класса НАЗВАНО (блоков 26, читателей числа отсутствия 23 — оба
+населения 11, только отсутствие 12).
+
+**Но предмет заголовка жив.** Тот же прогон печатает **11** блоков, чьё число отсутствия
+публикуется и НЕ ЧИТАЕТ НИКТО (`daily_report_census._ledger_shape`, `paper_apy_census._bar_shape`,
+`card_acceptance._probe_ci_cause_axis_names_a_session_death`, `claim_release_census.build_report`,
+`empty_release_causes.build_report`, `failure_cause_census.as_json`, `foreign_done_cost.build_report`,
+`rule_second_copy_census.the_verdict_form_outside_the_closed_list`, `slo_keepability.measure`,
+`substring_structure_assertions.measure` ×2) — то есть на 29-10 было 8, сегодня 11.
+
+Поэтому карточка НЕ закрыта: проба меряет «население НАЗВАНО», а заголовок обещает «читателя
+ПОЯВИЛИ». Закрыть по непокрывающей пробе значило бы похоронить живую находку, а править пробу
+делающей сессии запрещено (`.claude/rules/acceptance.md` п. 2). Карточка остаётся `new`;
+следующая берущая её сессия обязана вернуть её в `new` с НОВОЙ пробой по исходу «блоков без
+читателя стало меньше» либо расписать предмет отдельной карточкой.

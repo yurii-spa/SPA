@@ -99,6 +99,20 @@ ADR-999 измерил читателей слепых точек входа к�
 (`timeout_knob_control` — синтетический модуль спит дольше одного предела и короче другого), потому
 что «население не зависит от предела» и «предел ни на что не влияет» дают ОДНО наблюдение, а второе
 есть дефект проводки. Контроль мёртв или не измерен ⇒ итог НЕ ИЗМЕРЕН.
+
+**НАСЕЛЕНИЕ КЛАССА «ДОЛЬШЕ ПРЕДЕЛА ХОТЯ БЫ ИНОГДА» (ADR-1016, заказ G1005 п. 1 = ADR-1015 § 7в).**
+ADR-1015 нашёл, что предел НЕ ограничивает ВЫЧИСЛЯЮЩИЙ модуль, и честно оставил открытым вопрос
+«скольких это задело». Прежний замер на него не отвечает дважды: он снят ОДНИМ проходом (а предмет —
+«хотя бы ИНОГДА»), и свёрнут в один ряд по ВСЕМ модулям (а население есть ответ ПОИМЁННЫЙ). Вход
+`--duration-repeats N` снимает N ПРОХОДОВ по всему реестру и судит КАЖДЫЙ модуль по МАКСИМУМУ его
+ряда: `OVER_LIMIT_SOMETIMES` · `NEAR_LIMIT` (запас ниже пола `MARGIN_FLOOR_X`) · `UNDER_LIMIT` ·
+`NOT_ENTERED` (бегун не вошёл в тело ни разу — ВЫЧИСЛЕНИЯ не было, и стенную цену такого модуля
+несёт отдельное число) · `DURATION_UNMEASURED` с причиной. Населений поэтому ДВА, и складывать их
+нельзя: вычисляющее («кого чинить») и стенное («сколько теряет цикл»). Ответ печатается ТОЛЬКО над
+живым контролем оси (`duration_population_control`): его несущая сторона — ЧЕРЕДУЮЩИЙСЯ модуль, о
+котором ОДИН проход обязан сказать `UNDER_LIMIT`, а ряд — `OVER_LIMIT_SOMETIMES`; совпади они,
+вердикт `DPC_BLIND` и население НЕ ИЗМЕРЕНО. Прибор только ЧИТАЕТ: правка `_run_bounded` — вход
+денежного пути, и `.claude/rules/risk-engine.md` запрещает её прицепом.
 """
 from __future__ import annotations
 
@@ -463,6 +477,82 @@ OBS_BUSY_S = 0.05
 #: Сколько раз повторить занятый модуль. Исход НЕ ДЕТЕРМИНИРОВАН (гонка за GIL), поэтому
 #: ответом является ДОЛЯ, а не одно наблюдение: одно дало бы монетку вместо замера.
 OBS_BUSY_REPEATS = 10
+
+#: ─── НАСЕЛЕНИЕ КЛАССА «ДОЛЬШЕ ПРЕДЕЛА ХОТЯ БЫ ИНОГДА» (ADR-1016, заказ G1005 п. 1 = ADR-1015 § 7в) ───
+#:
+#: ADR-1015 нашёл, что `MODULE_TIMEOUT` не ограничивает ВЫЧИСЛЯЮЩИЙ модуль, и честно оставил
+#: открытым главный вопрос: СКОЛЬКО записей реестра этим задеты. Прежний замер (#1136,
+#: `0.008 … 0.016 с`) на него не отвечает по ДВУМ причинам, и обе названы:
+#:
+#:   1. он снят ОДНИМ проходом, а предмет — «хотя бы ИНОГДА»: одно наблюдение отвечает про один
+#:      момент времени, и модуль, выходящий за предел через раз, в нём выглядит безупречным;
+#:   2. он свёрнут в один ряд по ВСЕМ модулям («самый медленный — 0.016 с»), то есть отвечает
+#:      про прогон, а не про модуль; население же есть ответ ПОИМЁННЫЙ.
+#:
+#: Поэтому здесь ряд повторов у КАЖДОГО модуля (`--duration-repeats`), и вердикт модуля
+#: считается по МАКСИМУМУ ряда: вопрос «выходил ли хоть раз», а не «каков он в среднем».
+DURATION_VERDICTS = ("OVER_LIMIT_SOMETIMES", "NEAR_LIMIT", "UNDER_LIMIT",
+                     "NOT_ENTERED", "DURATION_UNMEASURED")
+_DU_OVER, _DU_NEAR, _DU_UNDER, _DU_NOT_ENTERED, _DU_UNMEASURED = DURATION_VERDICTS
+#: Минимум проходов. ОДИН проход — это НЕ ИЗМЕРЕНО с причиной, а не «населения нет»: нуль,
+#: снятый мерой, не способной увидеть предмет, читался бы как утверждение о системе.
+DURATION_MIN_PASSES = 2
+#: Два РАЗНЫХ вопроса к одной и той же длительности, и складывать их нельзя:
+#:   • ВЫЧИСЛЯЮЩЕЕ население — модуль, в чьё ТЕЛО бегун вошёл и чья длительность вышла за предел.
+#:     Это и есть предмет ADR-1015 § 7в дословно («сколько записей ВЫЧИСЛЯЮТ дольше предела»);
+#:   • СТЕННОЕ население — модуль ЛЮБОГО рода, чья длительность у бегуна вышла за предел, включая
+#:     тот, в чьё тело бегун не входил вовсе (цену ввоза он платит всё равно).
+#: Первое отвечает «кого чинить», второе — «сколько цикл теряет». Свести их в одно число значило
+#: бы приписать вычисление модулю, который не исполнил ни строки своего тела.
+DURATION_NOT_ENTERED_STATUS = UNENTERED_CAUSE_STATUS
+#: Слово, которым НАБЛЮДАТЕЛЬ (не бегун) отмечает свою поломку. Живёт внутри `_OBSERVER`, и
+#: паритет этой копии с литералом сцены держит тест — иначе прибор молча перестал бы отличать
+#: «наблюдатель упал» от «модуль ответил», то есть выдал бы НЕ ИЗМЕРЕНО за наблюдение.
+OBSERVER_ERROR_STATUS = "observer_error"
+#: Исходы положительного контроля оси повторов. `DPC_BLIND` — находка о ПРОВОДКЕ: ряд собран, а
+#: ответ не отличается от одного прохода, то есть повторы декоративны. Население печатается
+#: ТОЛЬКО над живым контролем — тот же несущий порядок, что у `INVARIANT` (ADR-1011 § 4).
+DURATION_CONTROL_VERDICTS = ("DPC_SEPARATES", "DPC_BLIND", "DPC_UNMEASURED")
+_DP_SEPARATES, _DP_BLIND, _DP_UNMEASURED = DURATION_CONTROL_VERDICTS
+#: Имя синтетического модуля сцены контроля. На диске его нет НАМЕРЕННО (как у сцены наклада).
+DUR_CONTROL_MODULE = "_census_duration_population_control"
+#: Стороны контроля заданы ДОЛЯМИ предела, а не секундами: предел читается у бегуна и у разных
+#: деревьев разный, а сцена обязана остаться различающей при любом его значении. Полуторного
+#: превышения достаточно (вопрос «выходит ли за предел», а не «насколько»), и оно вдвое дешевле
+#: трёхкратного: каждый проход сцены ждёт эту сторону целиком — предел её не кусает.
+DUR_CTL_OVER_X = 1.5
+#: Ниже предела, но ВЫШЕ пола запаса (`1/MARGIN_FLOOR_X`) — сторона `NEAR_LIMIT`.
+DUR_CTL_NEAR_X = 0.5
+#: Ниже пола запаса — сторона `UNDER_LIMIT`.
+DUR_CTL_UNDER_X = 0.02
+#: ЧЕРЕДУЮЩАЯСЯ сторона: первый проход ниже пола, второй — выше предела. Она и есть РАЗЛИЧАЮЩАЯ
+#: сцена оси: один проход скажет `UNDER_LIMIT`, ряд — `OVER_LIMIT_SOMETIMES`. Порядок именно
+#: такой (сначала короткий), потому что обратный дал бы верный ответ и одному проходу — то есть
+#: сцена перестала бы различать меру, ради которой написана.
+DUR_CTL_ALTERNATE_X = (DUR_CTL_UNDER_X, DUR_CTL_OVER_X)
+#: Проходов у сцены ровно столько, сколько длительностей у чередующейся стороны.
+DUR_CTL_PASSES = len(DUR_CTL_ALTERNATE_X)
+#: Род занятости ВСЕХ сторон сцены — ВЫЧИСЛЕНИЕ, а не сон, и это не вкус, а замер #1141.
+#:
+#: Со спящими сторонами сцена не сходилась, и причина оказалась сама находкой: модуль, укушенный
+#: пределом, **продолжает спать в своём потоке** (ADR-1015 честно назвал эту цену), и его
+#: БРОШЕННЫЙ поток задерживает зов СЛЕДУЮЩЕГО модуля. Замер сцены при пределе 0.2 с: сторона
+#: `near` со сном 0.1 с наблюдена **0.248 с** — её зов кончился ровно тогда, когда досыпал
+#: брошенный поток предыдущей стороны (0.6 с от её начала). Вычисляющая сторона такого следа не
+#: оставляет: предел её не кусает (ровно предмет ADR-1015), она дорабатывает сама, и ряд
+#: становится однородным. Побочно это и есть причина, по которой перепись реестра обязана
+#: читать ряд, а не одно число: сосед по проходу влияет на наблюдение.
+DUR_CTL_OCCUPANCY = "busy"
+#: Предел сцены, с. Берётся СВОЙ, а не у бегуна: сцена отвечает на вопрос о МЕРЕ (различает ли
+#: ряд проходов), и зависеть от того, какой предел объявлен в чужом дереве, ей нельзя. Величина
+#: должна оставлять место накладу наблюдателя (у ВЫЧИСЛЯЮЩЕГО модуля он измерен ADR-1015 как
+#: 0.0 с, у спящего — 0.129…0.149 с): при 1 с сторона `near` (0.5 с) остаётся под пределом даже
+#: со спящим накладом, а `under` (0.02 с) — под полом запаса 0.1 с.
+DUR_CTL_TIMEOUT_S = 1.0
+#: Сколько ждать сцену целиком; истёк — НЕ ИЗМЕРЕНО с причиной, а не вердикт.
+_DUR_CTL_RUN_TIMEOUT_S = 120.0
+#: Сколько строк населения печатать; остальные — в `--json`.
+_DUR_SHOWN = 12
 
 #: ─── МАТРИЦА ДВУХ ОБЪЯВЛЕННЫХ ВХОДОВ (ADR-1012, заказ G1001 п. 1а = ADR-1011 § 7а) ───
 #:
@@ -1302,7 +1392,7 @@ def measure(repo: Path, readers_json: Optional[Path] = None,
 
 _OBSERVER = r'''
 import json, os, sys, threading, time, types
-repo, sandbox, protocol, timeout, modules_path, out_path, seed_path = sys.argv[1:8]
+repo, sandbox, protocol, timeout, modules_path, out_path, seed_path, passes = sys.argv[1:9]
 sys.path.insert(0, repo)
 from spa_core.analytics import signal_aggregator as sa
 agg = sa.SignalAggregator(data_dir=sandbox, module_timeout=float(timeout))
@@ -1317,28 +1407,67 @@ agg = sa.SignalAggregator(data_dir=sandbox, module_timeout=float(timeout))
 # РАЗНЫЕ вопросы к пределу бегуна, и ответ у них разный (ADR-1015 § 4). Неизвестный род —
 # отказ, а не молчаливая подстановка сна.
 if seed_path != "-":
-    def _mk_sleep(_s):
+    def _wait_sleep(_s):
+        time.sleep(_s)
+
+    def _wait_busy(_s):
+        _end = time.time() + _s
+        _x = 0
+        while time.time() < _end:
+            _x += 1
+
+    _WAITS = {"sleep": _wait_sleep, "busy": _wait_busy}
+
+    def _mk_sleep(_seed):
+        _s = float(_seed["sleep_s"])
+
         def analyze(context):
-            time.sleep(_s)
+            _wait_sleep(_s)
             return 1.0
         return analyze
 
-    def _mk_busy(_s):
+    def _mk_busy(_seed):
+        _s = float(_seed["sleep_s"])
+
         def analyze(context):
-            _end = time.time() + _s
-            _x = 0
-            while time.time() < _end:
-                _x += 1
+            _wait_busy(_s)
             return 1.0
         return analyze
 
-    _MAKERS = {"sleep": _mk_sleep, "busy": _mk_busy}
+    # ADR-1016: род `alternate` — длительность МЕНЯЕТСЯ от зова к зову по объявленному ряду, и
+    # он есть РАЗЛИЧАЮЩАЯ сцена оси проходов: при пределе между двумя длительностями ОДИН
+    # проход отвечает одно, а ряд — другое. Без него «ряд проходов» и «первый проход»
+    # неразличимы наблюдением, то есть ось была бы декоративной (урок выживших мутантов #1137).
+    #
+    # Род занятости у него объявляется ОТДЕЛЬНЫМ полем (`occupancy`) и умолчания НЕ имеет: у
+    # `sleep` и `busy` ответ предела разный (ADR-1015 § 4), и подставить один молча значило бы
+    # выбрать ответ за сцену.
+    def _mk_alternate(_seed):
+        _seq = [float(x) for x in (_seed.get("durations") or [])]
+        if len(_seq) < 2:
+            raise SystemExit(
+                "семя `alternate` требует `durations` из >=2 длительностей: %r" % (_seed,))
+        _occ = _seed.get("occupancy")
+        if _occ not in _WAITS:
+            raise SystemExit(
+                "род занятости чередующегося семени не объявлен: %r" % (_occ,))
+        _wait = _WAITS[_occ]
+        _n = [0]
+
+        def analyze(context):
+            _s = _seq[_n[0] % len(_seq)]
+            _n[0] += 1
+            _wait(_s)
+            return 1.0
+        return analyze
+
+    _MAKERS = {"sleep": _mk_sleep, "busy": _mk_busy, "alternate": _mk_alternate}
     for _seed in json.load(open(seed_path, encoding="utf-8")):
         _kind = _seed.get("kind", "sleep")
         if _kind not in _MAKERS:
             raise SystemExit("род занятости семени не объявлен: %r" % (_kind,))
         _m = types.ModuleType("spa_core.analytics." + _seed["module"])
-        _m.analyze = _MAKERS[_kind](float(_seed["sleep_s"]))
+        _m.analyze = _MAKERS[_kind](_seed)
         sys.modules["spa_core.analytics." + _seed["module"]] = _m
 cwd = os.getcwd()
 watch = {"runner_dir": sandbox, "tree_data": os.path.join(repo, "data"), "cwd_data": os.path.join(cwd, "data")}
@@ -1374,8 +1503,9 @@ def diff(a, b):
     return sorted(p for p in b if a.get(p) != b[p])
 
 modules = json.load(open(modules_path, encoding="utf-8"))
-results = []
-for info in modules:
+
+
+def measure_one(info):
     before = {k: snap(v) for k, v in watch.items()}
     t0 = time.time()
     _cur["file"] = os.path.realpath(os.path.join(
@@ -1400,10 +1530,34 @@ for info in modules:
     lines = sorted(_cur["lines"])
     _cur["lines"] = None
     after = {k: snap(v) for k, v in watch.items()}
-    results.append({"module": info["module"], "status": status, "detail": detail[:200],
-                    "seconds": round(time.time() - t0, 3), "seconds_call": t_call, "lines": lines,
-                    "written": {k: [os.path.relpath(p, watch[k]) for p in diff(before[k], after[k])] for k in watch}})
-json.dump({"results": results}, open(out_path, "w", encoding="utf-8"), ensure_ascii=False, indent=1)
+    return {"module": info["module"], "status": status, "detail": detail[:200],
+            "seconds": round(time.time() - t0, 3), "seconds_call": t_call, "lines": lines,
+            "written": {k: [os.path.relpath(p, watch[k]) for p in diff(before[k], after[k])] for k in watch}}
+
+
+# ADR-1016: ПРОХОДЫ. Вопрос «дольше предела хотя бы ИНОГДА» ряду из одного наблюдения не задать
+# вовсе. Повтор ОДНИМ ИМЕНЕМ (приём сцены наклада, ADR-1015) здесь не годится: он спрашивает про
+# РАЗНЫЕ модули, а предмет — разброс у ОДНОГО. Проходы идут ПО КРУГУ (весь список, потом ещё
+# раз), а не подряд у каждого модуля: подряд мерило бы «тёплый сразу после холодного», то есть
+# один момент времени, тогда как предмет — разброс ПО ВРЕМЕНИ.
+passes_n = max(1, int(passes))
+series = []
+for _p in range(passes_n):
+    for info in modules:
+        row = measure_one(info)
+        row["pass"] = _p
+        series.append(row)
+# `results` остаётся РОВНО тем, чем было до ADR-1016 — одна строка на модуль, первый проход, без
+# поля `pass`: соседние разборы (ADR-1006…1012) читают его по имени модуля, и смена формы под
+# ними означала бы, что перепись отвечает на чужие вопросы по-новому без спроса.
+results = []
+for r in series:
+    if r["pass"] == 0:
+        r = dict(r)
+        r.pop("pass", None)
+        results.append(r)
+json.dump({"results": results, "series": series, "passes": passes_n},
+          open(out_path, "w", encoding="utf-8"), ensure_ascii=False, indent=1)
 '''
 
 
@@ -1441,7 +1595,8 @@ def _is_prod_tree(repo: Path) -> bool:
 def _observer_run(repo: Path, entries: List[Dict[str, object]], *, protocol: str, timeout: float,
                   python: str = sys.executable,
                   seed: Optional[List[Dict[str, Any]]] = None,
-                  run_timeout: Optional[float] = None) -> Dict[str, Any]:
+                  run_timeout: Optional[float] = None,
+                  passes: int = 1) -> Dict[str, Any]:
     """ЕДИНСТВЕННАЯ дверь к пути наблюдения: запреты дерева, песочницы, зов `_OBSERVER`.
 
     Своя копия этого зова у положительного контроля означала бы, что контроль доказывает
@@ -1474,7 +1629,7 @@ def _observer_run(repo: Path, entries: List[Dict[str, object]], *, protocol: str
         try:
             proc = subprocess.run(
                 [python, "-c", _OBSERVER, str(repo), sb, protocol, str(timeout), str(mods_path),
-                 str(out_path), seed_arg],
+                 str(out_path), seed_arg, str(int(passes))],
                 cwd=cwd, env=env, capture_output=True, text=True, timeout=run_timeout)
         except subprocess.TimeoutExpired as exc:
             # Предел зова есть ВХОД, а не умолчание: перепись 302 модулей идёт минутами и
@@ -1487,7 +1642,11 @@ def _observer_run(repo: Path, entries: List[Dict[str, object]], *, protocol: str
                               f"{(proc.stderr or '')[-800:]}")
         doc = json.loads(out_path.read_text(encoding="utf-8"))
         elsewhere = sorted(p for p in after_tree if before_tree.get(p) != after_tree[p])
+    # ADR-1016: `series` и `passes` уезжают РЯДОМ с `results`, а не вместо него. Отсутствие ряда
+    # у старого наблюдателя — это `None`, а не пустой список: пустой список читался бы как
+    # «проходов не было ни одного», то есть как утверждение о наблюдении, которого не делали.
     return {"results": doc["results"], "elsewhere": elsewhere,
+            "series": doc.get("series"), "passes": doc.get("passes"),
             "observer_returncode": proc.returncode,
             "observer_stderr_tail": (proc.stderr or "")[-600:]}
 
@@ -2793,6 +2952,292 @@ def observer_margin_control(repo: Path, *, sleep_s: float = OBS_SLEEP_S,
             "dead_reason": None, "unmeasured_reason": None}
 
 
+def _duration_of_module(name: str, per_pass: Dict[int, Dict[str, Any]], *, passes: int,
+                        timeout: float, margin_floor_x: float, expected: str) -> Dict[str, Any]:
+    """Вердикт ОДНОГО модуля по РЯДУ проходов (ADR-1016).
+
+    Вердикт считается по МАКСИМУМУ ряда, а не по среднему и не по первому: предмет — «выходил ли
+    ХОТЯ БЫ РАЗ», и среднее здесь утопило бы ровно тот модуль, ради которого замер делается.
+
+    Три исхода различимы (инв. #17) и ни один не сливается с соседом: измерено · измерено и
+    ВНУТРИ предела · НЕ ИЗМЕРЕНО с названной причиной. Отдельно от них стои́т `NOT_ENTERED` —
+    это не «не измерено» (длительность как раз измерена) и не «внутри предела» (вычисления не
+    было вовсе), а СВОЙ исход: бегун заплатил стенное время за ввоз, а тела модуля не исполнил.
+    """
+    out: Dict[str, Any] = {"module": name, "verdict": _DU_UNMEASURED, "max_s": None,
+                           "wall_max_s": None, "kind": None, "entered_n": None,
+                           "over_passes": [], "series": [], "reason": None}
+    missing = [p for p in range(passes) if p not in per_pass]
+    if missing:
+        return {**out, "reason": (
+            f"нет строк о проходах {missing} из {passes} — ряд неполон, а судить по остатку "
+            f"значило бы мерить не ряд")}
+    series: List[Dict[str, Any]] = []
+    for p in range(passes):
+        row = per_pass[p]
+        sec = row.get("seconds_call")
+        if not isinstance(sec, (int, float)) or isinstance(sec, bool):
+            return {**out, "reason": (
+                f"проход {p}: секундомер наблюдателя ответил {sec!r} — подстановка нуля "
+                f"сделала бы модуль бесплатным, то есть заведомо прошедшим предел")}
+        series.append({"pass": p, "status": row.get("status"), "seconds_call": float(sec),
+                       "detail": str(row.get("detail") or "")[:120]})
+    out = {**out, "series": series}
+    wall_max = max(s["seconds_call"] for s in series)
+    out = {**out, "wall_max_s": round(wall_max, 3)}
+    broken = [s["pass"] for s in series if s["status"] == OBSERVER_ERROR_STATUS]
+    if broken:
+        return {**out, "reason": (
+            f"наблюдатель упал на проходах {broken} — его поломка не есть длительность модуля")}
+    unentered = [s for s in series if s["status"] == DURATION_NOT_ENTERED_STATUS]
+    if len(unentered) == passes:
+        return {**out, "verdict": _DU_NOT_ENTERED, "entered_n": 0, "reason": (
+            f"бегун не вошёл в тело ни в одном из {passes} проходов (`"
+            f"{DURATION_NOT_ENTERED_STATUS}`): ВЫЧИСЛЕНИЯ не было, и считать такой модуль "
+            f"вычисляющим значило бы ответить на другой вопрос — стенную цену его ввоза "
+            f"несёт `wall_max_s`")}
+    if unentered:
+        return {**out, "entered_n": passes - len(unentered), "reason": (
+            f"ряд СМЕШАН: бегун вошёл в тело в {passes - len(unentered)} проходах из {passes}, "
+            f"в остальных ответил `{DURATION_NOT_ENTERED_STATUS}` — у разнородного ряда "
+            f"максимума не бывает, а выбрать удобную половину значило бы подделать род числа")}
+    # Слово предела у бегуна есть САМОСТОЯТЕЛЬНОЕ свидетельство выхода за предел, и оно НЕ
+    # заменяется сравнением чисел: когда предел кусает, модуль продолжает работать в своём
+    # потоке, а секундомер останавливается на возврате бегуна — наблюдённая длительность
+    # оказывается НИЖНЕЙ границей настоящей, и по ней одной выход был бы невидим.
+    over = [s for s in series if s["status"] == expected or s["seconds_call"] > timeout]
+    measured_max = round(max(s["seconds_call"] for s in series), 3)
+    kind = (MARGIN_KIND_LOWER_BOUND if any(s["status"] == expected for s in series) else None)
+    out = {**out, "max_s": measured_max, "kind": kind, "entered_n": passes,
+           "over_passes": [s["pass"] for s in over]}
+    if over:
+        return {**out, "verdict": _DU_OVER, "reason": None}
+    if margin_floor_x > 0 and measured_max >= timeout / margin_floor_x:
+        return {**out, "verdict": _DU_NEAR, "reason": (
+            f"запас до предела меньше объявленного пола {margin_floor_x:g}× "
+            f"({measured_max} с при пределе {timeout} с)")}
+    return {**out, "verdict": _DU_UNDER, "reason": None}
+
+
+def duration_population(repo: Path, *, protocol: str, timeout: float,
+                        passes: int = DURATION_MIN_PASSES,
+                        python: str = sys.executable,
+                        observe_door=None,
+                        entries: Optional[List[Dict[str, object]]] = None,
+                        seed: Optional[List[Dict[str, Any]]] = None,
+                        margin_floor_x: float = MARGIN_FLOOR_X,
+                        expected_status: Optional[str] = None,
+                        run_timeout: Optional[float] = None) -> Dict[str, Any]:
+    """НАСЕЛЕНИЕ класса «дольше предела хотя бы иногда» — поимённо и по РЯДУ проходов (ADR-1016).
+
+    Закрывает ADR-1015 § 7 (в) ровно в той части, в какой его можно закрыть НАБЛЮДЕНИЕМ: сколько
+    записей реестра выходят за `MODULE_TIMEOUT` хотя бы в одном проходе. Прибор только ЧИТАЕТ и
+    НИЧЕГО не чинит: правка `_run_bounded` — вход денежного пути (`cycle_gates` Step 2c-pre), и
+    `.claude/rules/risk-engine.md` запрещает её прицепом.
+
+    **Два населения, и складывать их нельзя.** `computing_population` — модули, в чьё ТЕЛО бегун
+    вошёл и чей максимум вышел за предел (дословный предмет § 7в). `wall_over_limit_n` — модули
+    ЛЮБОГО рода, чья стенная длительность вышла за предел, включая `NOT_ENTERED`: цену ввоза
+    бегун платит и за них. Первое отвечает «кого чинить», второе — «сколько теряет цикл».
+
+    Ответ печатается ТОЛЬКО над живым контролем оси (`duration_population_control`): «население
+    пусто» и «мера не способна увидеть предмет» дают ОДНО наблюдение, и это ровно тот класс,
+    против которого написан весь прибор. Проходов меньше `DURATION_MIN_PASSES` ⇒ НЕ ИЗМЕРЕНО с
+    причиной, а не нуль.
+    """
+    base: Dict[str, Any] = {
+        "protocol": protocol, "timeout": timeout, "passes": passes,
+        "margin_floor_x": margin_floor_x, "expected_timeout_status": expected_status,
+        "modules": 0, "counts": {v: 0 for v in DURATION_VERDICTS},
+        "computing_population": None, "near_population": None, "wall_over_limit_n": None,
+        "one_pass_counts": None, "one_pass_disagrees": None, "disagreeing_modules": [],
+        "subject": [], "unmeasured_modules": [], "unmeasured_reason": None}
+    if passes < DURATION_MIN_PASSES:
+        return {**base, "unmeasured_reason": (
+            f"проходов заказано {passes} при минимуме {DURATION_MIN_PASSES}: вопрос «дольше "
+            f"предела ХОТЯ БЫ ИНОГДА» ряду из одного наблюдения не задать — оно отвечает про "
+            f"ОДИН момент, а не про разброс, и нуль по такой мере читался бы как ответ")}
+    if timeout <= 0:
+        return {**base, "unmeasured_reason": (
+            f"предел {timeout} не положителен — запас от него не считается, а выдуманное "
+            f"частное было бы хуже пустоты")}
+    if expected_status is None:
+        try:
+            expected_status = read_runner_timeout_status(repo)
+        except NotMeasured as exc:
+            return {**base, "unmeasured_reason": f"слово предела у бегуна не прочитано: {exc}"}
+        base = {**base, "expected_timeout_status": expected_status}
+    if entries is None:
+        try:
+            entries = read_registry(repo)
+        except NotMeasured as exc:
+            return {**base, "unmeasured_reason": f"реестр не прочитан: {exc}"}
+    if not entries:
+        return {**base, "unmeasured_reason": (
+            "в реестре ноль записей — у пустой поверхности населения не бывает (fail-CLOSED: "
+            "пустой ответ здесь неотличим от «предмет пуст»)")}
+    try:
+        # СЕМЕНА (ADR-1015) идут ТОЙ ЖЕ дверью: различает перепись и её положительный контроль
+        # ровно `seed`, и своя копия зова у контроля доказывала бы поведение пути, которым
+        # перепись не мерит. Перепись зовётся без семян — и это не «нет семян», а их отсутствие
+        # по предмету: она судит НАСТОЯЩИЕ модули дерева.
+        ran = (observe_door or _observer_run)(
+            repo, entries, protocol=protocol, timeout=timeout, python=python,
+            seed=seed, passes=passes, run_timeout=run_timeout)
+    except (NotMeasured, OSError, ValueError, KeyError) as exc:
+        return {**base, "unmeasured_reason": (
+            f"наблюдение не отработало: {type(exc).__name__}: {exc}")}
+    rows = ran.get("series")
+    if not isinstance(rows, list) or not rows:
+        return {**base, "unmeasured_reason": (
+            "наблюдатель не отдал РЯДА проходов (`series`) — судить по `results` значило бы "
+            "ответить одним проходом на вопрос о разбросе")}
+    got = ran.get("passes")
+    if got != passes:
+        return {**base, "unmeasured_reason": (
+            f"наблюдатель отдал проходов {got!r}, заказано {passes}: ряд не тот, что заказан, "
+            f"и считать по нему значило бы подделать объявленный вход")}
+    by_mod: Dict[str, Dict[int, Dict[str, Any]]] = {}
+    for r in rows:
+        name, p = r.get("module"), r.get("pass")
+        if not isinstance(name, str) or not name:
+            return {**base, "unmeasured_reason": f"строка ряда без имени модуля: {r!r}"}
+        if not isinstance(p, int) or isinstance(p, bool):
+            return {**base, "unmeasured_reason": (
+                f"строка ряда модуля `{name}` без номера прохода: {p!r} — ряд не упорядочить, "
+                f"а «иногда» без порядка проходов есть догадка")}
+        by_mod.setdefault(name, {})[p] = r
+    verdicts: List[Dict[str, Any]] = []
+    one_pass: Dict[str, str] = {}
+    for name in sorted(by_mod):
+        per_pass = by_mod[name]
+        v = _duration_of_module(name, per_pass, passes=passes, timeout=timeout,
+                                margin_floor_x=margin_floor_x, expected=expected_status)
+        verdicts.append(v)
+        # Что сказал бы ОДИН проход — считается ТЕМ ЖЕ ядром по первой строке ряда. Своя копия
+        # правила здесь означала бы, что «ряд отличается от одного прохода» доказано РАЗНЫМИ
+        # мерками, то есть ничем.
+        head = {0: per_pass[0]} if 0 in per_pass else {}
+        one_pass[name] = _duration_of_module(
+            name, head, passes=1, timeout=timeout, margin_floor_x=margin_floor_x,
+            expected=expected_status)["verdict"]
+    counts = {v: 0 for v in DURATION_VERDICTS}
+    for v in verdicts:
+        counts[v["verdict"]] = counts.get(v["verdict"], 0) + 1
+    one_counts: Dict[str, int] = {v: 0 for v in DURATION_VERDICTS}
+    for name in one_pass:
+        one_counts[one_pass[name]] = one_counts.get(one_pass[name], 0) + 1
+    disagree = sorted(v["module"] for v in verdicts
+                      if one_pass.get(v["module"]) != v["verdict"])
+    wall_over = [v for v in verdicts
+                 if isinstance(v.get("wall_max_s"), (int, float)) and v["wall_max_s"] > timeout]
+    subject = sorted((v for v in verdicts if v["verdict"] in (_DU_OVER, _DU_NEAR)),
+                     key=lambda v: (-(v.get("max_s") or 0.0), v["module"]))
+    return {**base, "expected_timeout_status": expected_status, "modules": len(verdicts),
+            "counts": counts, "computing_population": counts[_DU_OVER],
+            "near_population": counts[_DU_NEAR], "wall_over_limit_n": len(wall_over),
+            "wall_over_limit": sorted(v["module"] for v in wall_over),
+            "one_pass_counts": one_counts, "one_pass_disagrees": len(disagree),
+            "disagreeing_modules": disagree, "subject": subject,
+            "unmeasured_modules": [{"module": v["module"], "reason": v["reason"]}
+                                   for v in verdicts if v["verdict"] == _DU_UNMEASURED],
+            "per_module": verdicts, "one_pass": one_pass, "unmeasured_reason": None}
+
+
+def duration_population_control(repo: Path, *, timeout: float = DUR_CTL_TIMEOUT_S,
+                                python: str = sys.executable,
+                                observe_door=None,
+                                passes: int = DUR_CTL_PASSES) -> Dict[str, Any]:
+    """Положительный контроль ОСИ ПРОХОДОВ: различает ли ряд то, чего не различает один проход.
+
+    Сцена ставит ЧЕТЫРЕ синтетических модуля с ЗАДАННЫМИ длительностями и гоняет их той же
+    ЕДИНСТВЕННОЙ дверью наблюдения, которой идёт перепись (`_observer_run`; своя копия зова
+    доказывала бы поведение пути, которым никто не мерит):
+
+    * выше предела ⇒ обязан выйти `OVER_LIMIT_SOMETIMES`;
+    * ниже предела, но выше пола запаса ⇒ `NEAR_LIMIT`;
+    * ниже пола ⇒ `UNDER_LIMIT`;
+    * ЧЕРЕДУЮЩИЙСЯ (первый проход короткий, второй длинный) ⇒ ряд обязан сказать
+      `OVER_LIMIT_SOMETIMES`, а ОДИН проход — `UNDER_LIMIT`. Это и есть различающая сцена: без
+      неё «ряд» и «первый проход» неразличимы наблюдением, и ось была бы декорацией.
+
+    Три исхода (инв. #17): ``DPC_SEPARATES`` · ``DPC_BLIND`` (находка о проводке: ряд собран, а
+    отличия от одного прохода нет) · ``DPC_UNMEASURED`` с названной причиной.
+    """
+    sides = {"over": DUR_CTL_OVER_X, "near": DUR_CTL_NEAR_X, "under": DUR_CTL_UNDER_X}
+    expect = {"over": _DU_OVER, "near": _DU_NEAR, "under": _DU_UNDER,
+              "alternate": _DU_OVER}
+    empty: Dict[str, Any] = {"verdict": _DP_UNMEASURED, "timeout": timeout, "passes": passes,
+                             "sides": {}, "expected": expect, "alternate_one_pass": None,
+                             "blind_reason": None, "unmeasured_reason": None}
+    if passes < DURATION_MIN_PASSES:
+        return {**empty, "unmeasured_reason": (
+            f"проходов у сцены {passes} при минимуме {DURATION_MIN_PASSES} — различать нечем")}
+    if passes < len(DUR_CTL_ALTERNATE_X):
+        return {**empty, "unmeasured_reason": (
+            f"проходов у сцены {passes}, а чередующаяся сторона объявлена на "
+            f"{len(DUR_CTL_ALTERNATE_X)} длительностей — её второй половины сцена не увидит")}
+    if not (DUR_CTL_UNDER_X < 1.0 / MARGIN_FLOOR_X <= DUR_CTL_NEAR_X < 1.0 < DUR_CTL_OVER_X):
+        return {**empty, "unmeasured_reason": (
+            f"стороны сцены не упорядочены: требуется {DUR_CTL_UNDER_X} < "
+            f"{1.0 / MARGIN_FLOOR_X:g} <= {DUR_CTL_NEAR_X} < 1 < {DUR_CTL_OVER_X}")}
+    try:
+        expected_status = read_runner_timeout_status(repo)
+    except NotMeasured as exc:
+        return {**empty, "unmeasured_reason": f"слово предела у бегуна не прочитано: {exc}"}
+    names = {k: f"{DUR_CONTROL_MODULE}_{k}" for k in list(sides) + ["alternate"]}
+    entries = [{"module": n, "class": None, "weight": 0.0,
+                "category": "duration-population-control"} for n in names.values()]
+    seed = [{"module": names[k], "sleep_s": round(x * timeout, 4),
+             "kind": DUR_CTL_OCCUPANCY} for k, x in sides.items()]
+    seed.append({"module": names["alternate"], "kind": "alternate",
+                 "occupancy": DUR_CTL_OCCUPANCY,
+                 "durations": [round(x * timeout, 4) for x in DUR_CTL_ALTERNATE_X]})
+    pop = duration_population(repo, protocol="duration_population_control", timeout=timeout,
+                              passes=passes, python=python, observe_door=observe_door,
+                              entries=entries, seed=seed, expected_status=expected_status,
+                              run_timeout=_DUR_CTL_RUN_TIMEOUT_S)
+    if pop["unmeasured_reason"]:
+        return {**empty, "unmeasured_reason": f"сцена не отработала: {pop['unmeasured_reason']}"}
+    got = {v["module"]: v for v in pop.get("per_module") or []}
+    out_sides: Dict[str, Any] = {}
+    for key, name in names.items():
+        v = got.get(name)
+        if v is None:
+            return {**empty, "sides": out_sides, "unmeasured_reason": (
+                f"сторона `{key}`: наблюдатель не отдал строк о модуле `{name}` — предпосылка "
+                f"не обеспечена, и судить по остатку значило бы мерить не сцену")}
+        out_sides[key] = {"module": name, "verdict": v["verdict"], "expected": expect[key],
+                          "max_s": v.get("max_s"), "series": v.get("series"),
+                          "reason": v.get("reason")}
+    wrong = [k for k in names if out_sides[k]["verdict"] != expect[k]]
+    if wrong:
+        return {**empty, "sides": out_sides, "unmeasured_reason": (
+            "сцена не воспроизвела своих же сторон " + ", ".join(
+                f"`{k}`: ждали {expect[k]}, вышло {out_sides[k]['verdict']}" for k in wrong)
+            + " — пока сцена не различает заведомо разные длительности, её ответ о населении "
+              "ничего не стои́т")}
+    # Несущая половина контроля: ОДИН проход обязан ответить о чередующемся модуле ИНАЧЕ, чем
+    # ряд. Сравниваются вердикты, посчитанные ОДНИМ ядром (`_duration_of_module`), — иначе
+    # «отличается» доказывалось бы разными мерками, то есть ничем.
+    alt_one_pass = (pop.get("one_pass") or {}).get(names["alternate"])
+    if alt_one_pass == out_sides["alternate"]["verdict"]:
+        return {**empty, "sides": out_sides, "verdict": _DP_BLIND,
+                "alternate_one_pass": alt_one_pass, "blind_reason": (
+                    f"ряд из {passes} проходов ответил о чередующемся модуле то же, что ОДИН "
+                    f"проход (`{alt_one_pass}`) — ось проходов ничего не различает, и "
+                    f"«население» по ней есть свойство меры, а не системы")}
+    if alt_one_pass != _DU_UNDER:
+        return {**empty, "sides": out_sides, "alternate_one_pass": alt_one_pass,
+                "unmeasured_reason": (
+                    f"один проход ответил о чередующемся модуле `{alt_one_pass}`, а сцена "
+                    f"объявлена на `{_DU_UNDER}` (первая длительность ряда — "
+                    f"{DUR_CTL_ALTERNATE_X[0]:g}× предела): различие есть, но не то, которое "
+                    f"объявлено, и зачесть его значило бы принять чужое наблюдение за своё")}
+    return {**empty, "verdict": _DP_SEPARATES, "sides": out_sides,
+            "alternate_one_pass": alt_one_pass, "unmeasured_reason": None}
+
+
 def timeout_key(value: float) -> str:
     """Ключ наблюдения по пределу. Одна дверь: ключ и печать обязаны быть одной строкой, иначе
     «наблюдений 2» легко получить из одного предела, записанного двумя способами (`3` и `3.0`)."""
@@ -3509,12 +3954,81 @@ def render_observer_margin(ctl: Optional[Dict[str, Any]]) -> List[str]:
     return out
 
 
+def render_duration_population(pop: Optional[Dict[str, Any]],
+                               ctl: Optional[Dict[str, Any]]) -> List[str]:
+    """Печать населения класса ADR-1016. Заголовки строк РАЗНЫЕ намеренно (урок #1136: утверждение
+    о печати обязано вырезать свой предмет заголовком, иначе мутант «печатать не то» выживает).
+
+    Население печатается ТОЛЬКО над живым контролем оси: «класс пуст» и «мера не видит класса»
+    дают одно наблюдение, и выдать второе за первое значило бы сделать ровно ту подмену, против
+    которой написан прибор.
+    """
+    out = ["  НАСЕЛЕНИЕ КЛАССА «ДОЛЬШЕ ПРЕДЕЛА ХОТЯ БЫ ИНОГДА» (ADR-1016, ADR-1015 § 7в):"]
+    cv = (ctl or {}).get("verdict")
+    if not ctl:
+        out.append("    контроль оси проходов: НЕ ИЗМЕРЕН — сцена не запускалась")
+    elif cv == _DP_SEPARATES:
+        out.append(f"    контроль оси проходов: {cv} — чередующийся модуль: ряд сказал "
+                   f"`{(ctl.get('sides') or {}).get('alternate', {}).get('verdict')}`, ОДИН "
+                   f"проход — `{ctl.get('alternate_one_pass')}`")
+    elif cv == _DP_BLIND:
+        out.append(f"    контроль оси проходов: {cv} — {ctl.get('blind_reason')}")
+    else:
+        out.append(f"    контроль оси проходов: {cv} — {ctl.get('unmeasured_reason')}")
+    if not pop:
+        out.append("    население: НЕ ИЗМЕРЕНО — ряд проходов не снимался")
+        out.append("    стенное население: НЕ ИЗМЕРЕНО — ряд проходов не снимался")
+        return out
+    if pop.get("unmeasured_reason"):
+        out.append(f"    население: НЕ ИЗМЕРЕНО — {pop['unmeasured_reason']}")
+        out.append("    стенное население: НЕ ИЗМЕРЕНО — по той же причине")
+        return out
+    if cv != _DP_SEPARATES:
+        out.append(f"    население: НЕ ИЗМЕРЕНО — контроль оси проходов ответил `{cv}`, и над "
+                   f"мерой, чья различающая способность не доказана, число было бы свойством "
+                   f"прибора (модулей в ряду {pop.get('modules')}, проходов {pop.get('passes')})")
+        out.append("    стенное население: НЕ ИЗМЕРЕНО — по той же причине")
+        return out
+    counts = pop.get("counts") or {}
+    out.append(f"    ряд: модулей {pop.get('modules')} · проходов {pop.get('passes')} · предел "
+               f"{pop.get('timeout')} с · протокол {pop.get('protocol')} · слово предела у бегуна "
+               f"`{pop.get('expected_timeout_status')}`")
+    out.append("    вычисляющее население (вошёл в тело И вышел за предел хотя бы раз): "
+               f"{pop.get('computing_population')} из {pop.get('modules')}")
+    out.append(f"    у предела (запас ниже пола {pop.get('margin_floor_x')}×): "
+               f"{pop.get('near_population')}")
+    out.append(f"    стенное население (ЛЮБОЙ род, стенная длительность выше предела): "
+               f"{pop.get('wall_over_limit_n')} — это ДРУГОЙ вопрос: цену ввоза бегун платит и "
+               f"за модуль, в тело которого не вошёл")
+    out.append("    раскладка: " + " · ".join(f"{v} {counts.get(v, 0)}" for v in DURATION_VERDICTS))
+    out.append(f"    ОДИН проход сказал бы иначе у {pop.get('one_pass_disagrees')} модулей — "
+               f"ровно столько прежний замер (#1136, один проход) назвать не мог ПО ПОСТРОЕНИЮ")
+    for v in (pop.get("subject") or [])[:_DUR_SHOWN]:
+        kind = f", {v['kind']}" if v.get("kind") else ""
+        out.append(f"    [{v['verdict']}] {v['module']}: максимум ряда {v.get('max_s')} с"
+                   f"{kind}, проходы за пределом {v.get('over_passes')}")
+    extra = len(pop.get("subject") or []) - _DUR_SHOWN
+    if extra > 0:
+        out.append(f"    … ещё {extra} строк(и) предмета (полный перечень — `--json`)")
+    for u in (pop.get("unmeasured_modules") or [])[:_DUR_SHOWN]:
+        out.append(f"    [НЕ ИЗМЕРЕНО] {u['module']}: {u['reason']}")
+    out.append("    НЕ ДОКЛАДЫВАЕТ: длительность под ЖИВЫМ циклом (наблюдение идёт в песочнице, "
+               "и фиды там не те) · настоящую длительность укушенного пределом модуля (она "
+               "НИЖНЯЯ граница: модуль работает дальше в своём потоке) · поведение при другом "
+               "протоколе и другом пределе (это оси ADR-1010/1011)")
+    out.append("    ADVISORY: прибор только ЧИТАЕТ — `_run_bounded` не правится (вход денежного "
+               "пути, `.claude/rules/risk-engine.md`); вердикта кода возврата не меняет")
+    return out
+
+
 def render(c: Census, obs: Optional[Dict[str, Any]] = None,
            observations: Optional[Dict[str, Dict[str, Any]]] = None,
            by_timeout: Optional[Dict[str, Dict[str, Any]]] = None,
            knob: Optional[Dict[str, Any]] = None,
            by_cell: Optional[Dict[str, Dict[str, Any]]] = None,
-           obs_margin: Optional[Dict[str, Any]] = None) -> str:
+           obs_margin: Optional[Dict[str, Any]] = None,
+           duration: Optional[Dict[str, Any]] = None,
+           duration_control: Optional[Dict[str, Any]] = None) -> str:
     out = [f"РЕЕСТР → БЕГУН: куда пишут аналитики под песочницей (ADR-999 § 6в) · дерево {c.root}",
            f"  бегун {c.runner.runner_path}: входы {list(c.runner.entry_methods)}; кладёт data_dir в контекст "
            f"модуля — {'ДА' if c.runner.passes_data_dir else 'НЕТ'}",
@@ -3677,6 +4191,10 @@ def render(c: Census, obs: Optional[Dict[str, Any]] = None,
     # сцены это НЕ «наклада нет» (нуль читался бы как «наблюдатель бесплатен»), а названный
     # третий исход тем же порядком, что у всех соседей выше.
     out.extend(render_observer_margin(obs_margin))
+    # ADR-1016: население класса «дольше предела хотя бы иногда» печатается ВСЕГДА — без ряда
+    # проходов это НЕ нуль (нуль читался бы как «класс пуст»), а названный третий исход тем же
+    # порядком, что у всех соседей выше.
+    out.extend(render_duration_population(duration, duration_control))
     verdict = {0: "✅ предмет пуст: ни одна запись реестра не доводит вход бегуна до записи в своё умолчание",
                1: "❗ предмет НАЗВАН: бегун каталога не передаёт, а вход достигает записи — она ляжет в умолчание модуля",
                2: f"⚠️ НЕ ИЗМЕРЕНО: {c.unmeasured_reason}"}[c.code]
@@ -3719,6 +4237,11 @@ def main(argv: Optional[List[str]] = None) -> int:
                     help="предел модуля у бегуна, с. Умолчания-литерала у прибора НЕТ: не назван — берётся ОБЪЯВЛЕНИЕ бегуна `MODULE_TIMEOUT`, и выбор ПЕЧАТАЕТСЯ (ADR-1011)")
     ap.add_argument("--timeouts", default=None, metavar="СПИСОК",
                     help="`declared` (предел бегуна) и/или числа через запятую: наблюдение снимается у КАЖДОГО, и прибор отвечает, различается ли механизм по пределу (ADR-1011). Один предел на этот вопрос НЕ отвечает")
+    ap.add_argument("--duration-repeats", type=int, default=1, metavar="N",
+                    help=f"сколько ПРОХОДОВ по всему реестру снять ради населения класса «дольше "
+                         f"предела хотя бы иногда» (ADR-1016, минимум {DURATION_MIN_PASSES}). "
+                         f"Умолчание 1 означает НЕ ИЗМЕРЕНО с причиной, а не «класс пуст»: ряду "
+                         f"из одного наблюдения вопрос «иногда» не задать вовсе")
     ap.add_argument("--json", action="store_true")
     args = ap.parse_args(argv)
     repo = Path(args.repo_root).resolve() if args.repo_root else ROOT
@@ -3732,6 +4255,8 @@ def main(argv: Optional[List[str]] = None) -> int:
         by_cell: Optional[Dict[str, Dict[str, Any]]] = None
         knob: Optional[Dict[str, Any]] = None
         obs_margin: Optional[Dict[str, Any]] = None
+        duration: Optional[Dict[str, Any]] = None
+        dur_control: Optional[Dict[str, Any]] = None
         if args.observe:
             # ADR-1011: предел НЕ имеет умолчания-литерала у прибора. Своё `3.0` совпадало с
             # объявлением бегуна, и совпадение делало вопрос «кто тут объявляет» невидимым.
@@ -3803,6 +4328,21 @@ def main(argv: Optional[List[str]] = None) -> int:
             # ADR-1015: второй контроль того же входа, но на ПУТИ НАБЛЮДЕНИЯ — и на том же
             # дереве, по той же причине, что у первого.
             obs_margin = observer_margin_control(Path(args.observe))
+            # ADR-1016: население класса «дольше предела хотя бы иногда». Ряд проходов стои́т
+            # дорого (каждый проход — весь реестр), поэтому он снимается ТОЛЬКО по названному
+            # входу `--duration-repeats`; не назван ⇒ НЕ ИЗМЕРЕНО с причиной, а не нуль.
+            dur_control = duration_population_control(Path(args.observe))
+            if args.duration_repeats >= DURATION_MIN_PASSES:
+                print(f"[реестр→бегун] ряд проходов ради населения: {args.duration_repeats} "
+                      f"проход(ов) по всему реестру, предел {base_timeout} с",
+                      file=sys.stderr)
+            # Зов идёт в ОБОИХ случаях одной дверью: при недостаточном числе проходов прибор сам
+            # отвечает НЕ ИЗМЕРЕНО с причиной И НЕ ТРОГАЕТ наблюдателя (проверка проходов стои́т
+            # до него). Ветка «не звать вовсе» дала бы `None`, то есть «не запускали», —
+            # неотличимо от «наблюдатель не отдал ряда», а это разные причины.
+            duration = duration_population(
+                Path(args.observe), protocol=args.protocol, timeout=base_timeout,
+                passes=args.duration_repeats)
     except NotMeasured as exc:
         if args.json:
             print(json.dumps({"code": 2, "unmeasured_reason": str(exc)}, ensure_ascii=False))
@@ -3846,6 +4386,14 @@ def main(argv: Optional[List[str]] = None) -> int:
         doc["observer_margin_control"] = obs_margin or {
             "verdict": _OB_UNMEASURED, "overhead_s": None, "overhead_kind": None,
             "unmeasured_reason": "сцена наклада не запускалась"}
+        # ADR-1016: население класса и контроль его оси — тем же порядком: без ряда это НЕ нули,
+        # а названная причина (машинный читатель, получивший нуль вместо «не мерили», и был бы
+        # предметом этого решения с другой стороны).
+        doc["duration_population"] = duration or {
+            "computing_population": None, "wall_over_limit_n": None,
+            "unmeasured_reason": "ряд проходов не снимался"}
+        doc["duration_population_control"] = dur_control or {
+            "verdict": _DP_UNMEASURED, "unmeasured_reason": "сцена оси проходов не запускалась"}
         if observations is not None and len(observations) > 1:
             doc["observations"] = observations
         if by_timeout is not None and len(by_timeout) > 1:
@@ -3854,7 +4402,8 @@ def main(argv: Optional[List[str]] = None) -> int:
             doc["observations_by_cell"] = by_cell
         print(json.dumps(doc, ensure_ascii=False, indent=2))
     else:
-        print(render(c, obs, observations, by_timeout, knob, by_cell, obs_margin))
+        print(render(c, obs, observations, by_timeout, knob, by_cell, obs_margin,
+                     duration, dur_control))
     return c.code
 
 

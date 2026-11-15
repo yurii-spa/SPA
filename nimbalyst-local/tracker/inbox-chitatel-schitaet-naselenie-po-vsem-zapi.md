@@ -2,7 +2,7 @@
 trackerStatus:
   type: inbox
 title: Читатель считает население по ВСЕМ записям, а не по несущим новое поле — класс шире одного экземпляра (ADR-851)
-status: in-progress
+status: done
 source: nimbalyst
 created: 2026-10-28
 priority: high
@@ -10,6 +10,7 @@ finding_adr: ADR-851
 acceptance_probe: additive_field_reader_distinguishes
 status_trail:
   - "2026-10-29T05:05:23.573091+00:00 new -> in-progress · queue.set_status · cycle-58886"
+  - "2026-11-15T08:16:43.567939+00:00 in-progress -> done · queue.set_status/closed_by:cycle-1141/evidence:машинная проба карточки additive_field_reader_distinguishes ВЫПОЛНЕНА (шаг 0-офис #1141, ADR-208): эталон различает «unmeasured» против «measured_zero» на сценах, отличающихся РОВНО полем; население к · cycle-94257"
 ---
 
 ## Находка (замер 2026-10-28, цикл #970, ADR-851)

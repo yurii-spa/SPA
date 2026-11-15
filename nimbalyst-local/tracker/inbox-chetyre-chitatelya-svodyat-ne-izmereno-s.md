@@ -2,7 +2,7 @@
 trackerStatus:
   type: inbox
 title: Четыре читателя сводят «не измерено» с «отказано» — ПОЧИНИТЬ (население измерено ADR-870; три находки в инструменте доставки)
-status: in-progress
+status: done
 source: nimbalyst
 created: 2026-10-30
 priority: high
@@ -10,6 +10,7 @@ twin_key: "sha256:e75f57b5e00c1be45877307eaed07264aed205567055daff9511af318c11f8
 acceptance_probe: three_outcome_readers_distinguish_by_code
 status_trail:
   - "2026-10-30T14:21:16.477857+00:00 new -> in-progress · queue.set_status · cycle-28564"
+  - "2026-11-15T08:16:41.618631+00:00 in-progress -> done · queue.set_status/closed_by:cycle-1141/evidence:машинная проба карточки three_outcome_readers_distinguish_by_code ВЫПОЛНЕНА (шаг 0-офис #1141, ADR-208): находок класса НОЛЬ при дверях 16 и читателях 7 — различают кодом 5, fail-OPEN 0, не читают код · cycle-94257"
 ---
 
 ADR-870 (цикл #987) ИЗМЕРИЛ население класса ADR-869: дверей **14**, читателей **6**,

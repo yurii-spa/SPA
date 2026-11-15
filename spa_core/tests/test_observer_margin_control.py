@@ -433,9 +433,16 @@ class TheControlGoesThroughTheONEObservationDoor(unittest.TestCase):
         self.assertIn("_observer_run", calls["observer_margin_control"], calls)
 
     def test_the_observer_script_declares_the_kind_and_refuses_an_unknown_one(self):
+        # ADR-1016 добавил в словарь ТРЕТИЙ род (`alternate` — длительность меняется от зова к
+        # зову, различающая сцена оси проходов). Литерал обновлён НАМЕРЕННО и это УСИЛЕНИЕ, а не
+        # ослабление (инв. #16): утверждение осталось точным — словарь перечислен дословно, — и
+        # теперь требует, чтобы новый род был в нём ОБЪЯВЛЕН, а не подставлен молча. Запись о
+        # правке — `docs/journal/2026-W46.md`, цикл #1141.
         src = rrwc._OBSERVER
-        self.assertIn('_MAKERS = {"sleep": _mk_sleep, "busy": _mk_busy}', src)
+        self.assertIn('_MAKERS = {"sleep": _mk_sleep, "busy": _mk_busy, "alternate": _mk_alternate}',
+                      src)
         self.assertIn("род занятости семени не объявлен", src)
+        self.assertIn("род занятости чередующегося семени не объявлен", src)
 
     def test_the_observer_stops_its_stopwatch_twice_and_names_both(self):
         src = rrwc._OBSERVER

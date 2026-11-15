@@ -9,6 +9,12 @@ priority: critical
 status_trail:
   - "2026-08-26T22:31:36.748790+00:00 new -> in-progress · queue.set_status · cycle-96657"
 acceptance_probe: apy_name_carries_one_kind
+claimed_by: cycle-1141
+claimed_at: 2026-11-15T07:51:59Z
+claimed_run_id: orchestrator-94257-8AEA7D545B284F7AAFBAE0340A086DF7
+claimed_pid: 94257
+claimed_pid_start: Sun Nov 15 08:45:20 2026
+claim_takeover_reason: сверено вручную: ADR-1015 + журнал #1137 на origin/main d22543b69 (файл решения и секция журнала есть); все недавние держатели (cycle-1132/30066/90744/32705) объявили card_state done, pid мертвы по ps; шаг 0a: все 4 строки «НЕ ДОСТАВЛЕНО» — об ЭТОЙ карточке от умерших циклов, своей работы в находках нет
 ---
 
 ## УКАЗАНИЕ ВЛАДЕЛЬЦА 2026-08-22 (cloud-сессия): ЗАПУСТИТЬ СЛЕДУЮЩИМ ЦИКЛОМ
