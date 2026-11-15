@@ -355,6 +355,53 @@ KNOB_MODULE_NAME = "_census_timeout_knob_control"
 #: ИЗМЕРЕНО с причиной, а не «вход мёртв» (ошибка в сторону отказа, а не ложной находки).
 _KNOB_RUN_TIMEOUT_S = 90.0
 
+#: ─── ЗАПАС ДО ПРЕДЕЛА: величина, которой объясняется инвариантность (ADR-1013, заказ G1002 п. 1а) ───
+#:
+#: `INVARIANT` по пределу печатается только над живым контролем входа (ADR-1011 § 4) — но
+#: ПРИЧИНОЙ, которой этот ответ объясняют вслух, всё время был ЗАПАС: ни один модуль не подходит
+#: к пределу близко, поэтому статуса `timeout` нет ни в одной клетке. Запас прибор МЕРИЛ и
+#: ПЕЧАТАЛ — и не гатил им НИЧЕГО. Число стояло в выводе украшением.
+#:
+#: Цена этого ИЗМЕРЕНА, и ровно она сделала сторожа починкой, а не замером: ADR-1011 снял запас
+#: `375×` (самый медленный модуль 0.008 с), ADR-1012 сутки позже на ТОМ ЖЕ дереве — `≥187.5×`
+#: (0.016 с). Величина, названная причиной вердикта, уехала ВДВОЕ за один цикл — не от кода, а от
+#: загрузки машины. Пока она ничего не гатит, её дорога к единице ничем не отмечена: в день,
+#: когда запас станет `1.2×`, вердикт останется `INVARIANT`, а причина, которой его объясняют,
+#: перестанет быть правдой МОЛЧА. Это тот же класс, что «напечатанное число — не третий род, а
+#: дефект» (`.claude/rules/site-numbers.md`), только напечатанное здесь — ПРИЧИНА вердикта.
+#:
+#: Порог — РЕШЕНИЕ, а не копия чужого числа. Класс ADR-913 («мерка сверяет свои константы сама с
+#: собой») закрыт тем, что сам предел берётся У БЕГУНА (`read_runner_timeout` → `MODULE_TIMEOUT`)
+#: и здесь не дублируется ни одним литералом: порог — безразмерная КРАТНОСТЬ, и переименуй бегун
+#: своё число, порог останется верен, а прибор честно скажет НЕ ИЗМЕРЕНО.
+#:
+#: Величина порога выбрана из ИЗМЕРЕННОГО размаха шума, а не на глаз: загрузка машины двигает
+#: длительность ВДВОЕ (375× → 187.5× выше), поэтому порог обязан лежать далеко за пределами
+#: двойки — иначе сторож отвечал бы на вопрос «насколько сейчас занят Mac», а не «безопасен ли
+#: запас», и первая же ночная сборка покрасила бы его. `10×` означает: модуль вправе занять до
+#: десятой доли предела (при `MODULE_TIMEOUT = 3.0 с` — 0.3 с). От наблюдённых 0.016 с это
+#: РЕГРЕСС В 19 РАЗ, то есть заведомо не шум; до предела при этом остаётся десятикратная подушка.
+MARGIN_FLOOR_X = 10.0
+#: Знак оценки запаса, и он живёт В ДАННЫХ, а не в прозе рядом (инв. #17: отсутствие и род
+#: наблюдения обязаны быть представлены ЗНАЧЕНИЕМ). `seconds` наблюдателя включает его
+#: СОБСТВЕННЫЕ накладные — трассировку записей и два снимка дерева, — поэтому наблюдённая
+#: длительность есть ВЕРХНЯЯ граница настоящей, а частное `предел / длительность` — НИЖНЯЯ
+#: граница настоящего запаса.
+#:
+#: Для гейта этот знак работает в ОДНУ сторону, и обе половины названы: нижняя граница, прошедшая
+#: порог, ДОКАЗЫВАЕТ, что настоящий запас его прошёл (настоящий ≥ оценки); нижняя граница НИЖЕ
+#: порога не доказывает обратного — она лишь перестаёт доказывать безопасность. Поэтому «ниже
+#: порога» есть НЕ ИЗМЕРЕНО (fail-CLOSED), а НЕ находка о системе: находка утверждала бы то,
+#: чего замер не видел, и была бы ровно тем выдуманным числом, против которого написан прибор.
+MARGIN_KIND_LOWER_BOUND = "lower_bound"
+#: Исходы гейта запаса. Их ТРИ, и третий не сливается ни с одним из первых двух (инв. #17):
+#: порог пройден · порог НЕ пройден · запас НЕ ИЗМЕРЕН вовсе. Второй и третий оба ведут к
+#: `UNMEASURED` у вердикта, но причины РАЗНЫЕ и требуют разных действий — «запас стал тонок»
+#: (искать подорожавший модуль) против «длительностей в наблюдении нет» (починить наблюдателя), —
+#: поэтому они называются раздельно, а не одной строкой «что-то с запасом».
+MARGIN_VERDICTS = ("MARGIN_CLEARS_FLOOR", "MARGIN_BELOW_FLOOR", "MARGIN_UNMEASURED")
+_MG_CLEARS, _MG_BELOW, _MG_UNMEASURED = MARGIN_VERDICTS
+
 #: ─── МАТРИЦА ДВУХ ОБЪЯВЛЕННЫХ ВХОДОВ (ADR-1012, заказ G1001 п. 1а = ADR-1011 § 7а) ───
 #:
 #: ADR-1010 закрыл первый вход (протокол), ADR-1011 — второй (предел), и каждый ответ снят,
@@ -2443,6 +2490,62 @@ def _slowest_observed_module(observations: Dict[str, Dict[str, Any]]) -> Optiona
     return best
 
 
+def margin_floor_verdict(declared: Optional[float],
+                         slowest: Optional[Dict[str, Any]]) -> Dict[str, Any]:
+    """Прошёл ли ИЗМЕРЕННЫЙ запас объявленный порог `MARGIN_FLOOR_X` (ADR-1013).
+
+    Запас — это та величина, которой объясняется `INVARIANT` по пределу, и до ADR-1013 она не
+    гатила ничего: прибор её печатал. Здесь она становится условием, и у ответа ТРИ исхода
+    (`MARGIN_VERDICTS`, инв. #17), а не два:
+
+    * `MARGIN_CLEARS_FLOOR` — запас измерен и порог прошёл. Оценка запаса есть НИЖНЯЯ граница
+      (`MARGIN_KIND_LOWER_BOUND`), поэтому пройденный порог ДОКАЗЫВАЕТ, что настоящий запас его
+      прошёл: настоящий не меньше оценки.
+    * `MARGIN_BELOW_FLOOR` — измерен и НЕ прошёл. Утверждением о системе это НЕ является по тому
+      же знаку: нижняя граница ниже порога не доказывает, что настоящий запас тонок, — она
+      перестаёт доказывать, что он безопасен. Поэтому вердикт у вызывающего — НЕ ИЗМЕРЕНО, а не
+      находка (fail-CLOSED, и ошибка идёт в сторону отказа, не выдуманного числа).
+    * `MARGIN_UNMEASURED` — запаса нет вовсе, и это НЕ нуль: «запас не измерен» и «запаса нет» —
+      разные утверждения, второе читалось бы находкой.
+
+    Нулевая длительность попадает в ТРЕТИЙ исход намеренно. Нуль здесь неотличим от «длительность
+    не измерялась»: модуль, который успел импортироваться и отработать за время НИЖЕ разрешения
+    часов, и сломанный секундомер дают одну и ту же запись. Считать такой нуль бесконечным
+    запасом значило бы выдать неизмеренное за самый безопасный исход — ровно наоборот к инв. #17.
+    """
+    if slowest is None:
+        return {"verdict": _MG_UNMEASURED, "margin": None, "floor": MARGIN_FLOOR_X,
+                "kind": MARGIN_KIND_LOWER_BOUND, "slowest": None, "reason": (
+                    "запас НЕ ИЗМЕРЕН: у наблюдений нет длительностей модулей, а именно запасом "
+                    "объясняется инвариантность — без него «предел ни на что не влияет» нечем "
+                    "отличить от «до предела никто и не доходит»")}
+    seconds = slowest.get("seconds")
+    if not isinstance(seconds, (int, float)) or isinstance(seconds, bool) or seconds <= 0:
+        return {"verdict": _MG_UNMEASURED, "margin": None, "floor": MARGIN_FLOOR_X,
+                "kind": MARGIN_KIND_LOWER_BOUND, "slowest": slowest, "reason": (
+                    f"длительность самого медленного модуля не является положительным числом "
+                    f"({seconds!r}): делить на неё нельзя, а нуль неотличим от «секундомер не "
+                    f"сработал» — считать его бесконечным запасом значило бы выдать НЕ ИЗМЕРЕНО "
+                    f"за самый безопасный исход")}
+    if declared is None:
+        return {"verdict": _MG_UNMEASURED, "margin": None, "floor": MARGIN_FLOOR_X,
+                "kind": MARGIN_KIND_LOWER_BOUND, "slowest": slowest, "reason": (
+                    "предел бегуна не прочитан — запас есть ОТНОШЕНИЕ к нему, и без объявления "
+                    "бегуна его числитель пришлось бы выдумать (класс ADR-913)")}
+    margin = round(float(declared) / float(seconds), 1)
+    if margin < MARGIN_FLOOR_X:
+        return {"verdict": _MG_BELOW, "margin": margin, "floor": MARGIN_FLOOR_X,
+                "kind": MARGIN_KIND_LOWER_BOUND, "slowest": slowest, "reason": (
+                    f"запас {margin}× НИЖЕ порога {MARGIN_FLOOR_X}×: самый медленный модуль "
+                    f"`{slowest.get('module')}` занял {seconds} с при объявленном пределе "
+                    f"{declared} с (наблюдение при пределе {slowest.get('at_timeout')} с). "
+                    f"Оценка запаса — НИЖНЯЯ граница ({MARGIN_KIND_LOWER_BOUND}), поэтому она НЕ "
+                    f"доказывает, что настоящий запас тонок; она перестаёт доказывать, что он "
+                    f"безопасен, и «инвариантно» теряет свою названную причину")}
+    return {"verdict": _MG_CLEARS, "margin": margin, "floor": MARGIN_FLOOR_X,
+            "kind": MARGIN_KIND_LOWER_BOUND, "slowest": slowest, "reason": None}
+
+
 def timeout_variance(repo: Path, census: Census,
                      observations: Optional[Dict[str, Dict[str, Any]]],
                      knob: Optional[Dict[str, Any]] = None,
@@ -2467,7 +2570,8 @@ def timeout_variance(repo: Path, census: Census,
     empty: Dict[str, Any] = {"verdict": _PV_UNMEASURED, "timeouts": [], "sides": {},
                              "min_required": VARIANCE_MIN, "declared": None,
                              "declared_observed": None, "knob": kb, "margin": None,
-                             "slowest": None}
+                             "slowest": None,
+                             "margin_gate": margin_floor_verdict(None, None)}
     if not observations:
         return {**empty, "unmeasured_reason": (
             absent_reason or "наблюдение не запускалось (--observe не задан)")}
@@ -2489,8 +2593,10 @@ def timeout_variance(repo: Path, census: Census,
             f"входит ли в наблюдённые тот предел, которым бегун живёт")}
     declared_observed = timeout_key(declared) in observations
     slowest = _slowest_observed_module(observations)
-    margin = (round(declared / slowest["seconds"], 1)
-              if slowest and slowest["seconds"] > 0 else None)
+    # ОДНА дверь к запасу: и число, и вердикт порога выходят из `margin_floor_verdict`. Своя
+    # формула рядом дала бы второе объявление одной величины — класс «одно имя, один объект».
+    margin_gate = margin_floor_verdict(declared, slowest)
+    margin = margin_gate["margin"]
     sides: Dict[str, Dict[str, Any]] = {}
     for side in PROTOCOL_SIDES:
         by_value: Dict[str, Dict[str, str]] = {}
@@ -2524,12 +2630,22 @@ def timeout_variance(repo: Path, census: Census,
                   f"({kb['verdict']}: {kb.get('dead_reason') or kb.get('unmeasured_reason')}) — "
                   f"«население не зависит от предела» и «предел ни на что не влияет» по "
                   f"наблюдению НЕРАЗЛИЧИМЫ")
+    elif margin_gate["verdict"] != _MG_CLEARS:
+        # fail-CLOSED по ЗАПАСУ (ADR-1013). Контроль входа выше доказывает, что предел ДОХОДИТ до
+        # решения; запас отвечает на другой вопрос — ПОЧЕМУ при живом входе население всё равно
+        # не меняется. Ответ один: никто не подходит к пределу близко. Перестань это быть правдой
+        # — и `INVARIANT` останется напечатанным, а его причина тихо исчезнет. Поэтому причина
+        # вердикта обязана быть УСЛОВИЕМ вердикта, а не строкой рядом с ним.
+        overall = _PV_UNMEASURED
+        reason = (f"стороны совпали ПОИМЁННО при живом контроле входа, но причина, которой этот "
+                  f"ответ объясняется, не подтверждена: {margin_gate['reason']}")
     else:
         overall, reason = _PV_INVARIANT, None
     return {"verdict": overall, "timeouts": timeouts, "sides": sides,
             "min_required": VARIANCE_MIN, "declared": declared,
             "declared_observed": declared_observed, "knob": kb,
-            "slowest": slowest, "margin": margin, "unmeasured_reason": reason}
+            "slowest": slowest, "margin": margin, "margin_gate": margin_gate,
+            "unmeasured_reason": reason}
 
 
 def render_timeout_variance(tv: Dict[str, Any]) -> List[str]:
@@ -2552,14 +2668,24 @@ def render_timeout_variance(tv: Dict[str, Any]) -> List[str]:
         out.append(f"    ❗ контроль входа KNOB_DEAD — {kb['dead_reason']}")
     else:
         out.append(f"    ⚠️ контроль входа НЕ ИЗМЕРЕН — {kb.get('unmeasured_reason')}")
-    if tv.get("slowest") is None:
-        out.append("    запас НЕ ИЗМЕРЕН: у наблюдений нет длительностей модулей")
+    # Запас печатается ВСЕГДА и ВМЕСТЕ со своим вердиктом порога: с ADR-1013 он не причина
+    # «рядом», а условие вердикта, и читателю нужны оба — число и то, прошло ли оно порог.
+    mg = tv.get("margin_gate") or margin_floor_verdict(None, None)
+    sl = mg.get("slowest")
+    if sl is None:
+        out.append(f"    запас НЕ ИЗМЕРЕН ({mg['verdict']}) — {mg['reason']}")
     else:
-        sl = tv["slowest"]
-        out.append(f"    самый медленный модуль наблюдения: {sl['module']} {sl['seconds']} с "
-                   f"(при пределе {sl['at_timeout']} с)" + (
-                       f"; запас до объявленного предела {tv['margin']}×"
-                       if tv.get("margin") is not None else "; запас не считается: 0 с"))
+        head = (f"    самый медленный модуль наблюдения: {sl['module']} {sl['seconds']} с "
+                f"(при пределе {sl['at_timeout']} с)")
+        if mg["verdict"] == _MG_CLEARS:
+            out.append(head + f"; запас до объявленного предела ≥{mg['margin']}× "
+                              f"(НИЖНЯЯ граница) — порог {mg['floor']}× ПРОЙДЕН")
+        elif mg["verdict"] == _MG_BELOW:
+            out.append(head + f"; ❗ запас ≥{mg['margin']}× НИЖЕ порога {mg['floor']}×")
+            out.append(f"    {mg['reason']}")
+        else:
+            out.append(head + f"; ⚠️ запас НЕ ИЗМЕРЕН ({mg['verdict']})")
+            out.append(f"    {mg['reason']}")
     if tv["verdict"] == _PV_UNMEASURED:
         out.append(f"    ⚠️ НЕ ИЗМЕРЕНО — {tv['unmeasured_reason']}")
         return out

@@ -1,0 +1,26 @@
+{
+  "_назначение": "Храповик ЗАПАСА до предела модуля (ADR-1013, заказ G1002 п. 1а = ADR-1012 § 7а). Запас — величина, которой объясняется вердикт INVARIANT по оси предела у переписи «реестр → бегун». До ADR-1013 прибор её мерил и ПЕЧАТАЛ, но не гатил ею ничего.",
+  "_правило": "Население `not_clearing` может только УМЕНЬШАТЬСЯ. Дописывать в него, чтобы погасить падение, ЗАПРЕЩЕНО (инв. #16) — тот же порядок, что у frozen_date_baseline.json, design_status_baseline.json, site_numbers_baseline.json. Запись без измеренных полей замером не является и читателем не принимается (порядок acceptance_plateau_baseline.json).",
+  "_почему_здесь_нет_порога": "Порог живёт в ОДНОМ месте — `MARGIN_FLOOR_X` в scripts/registry_runner_write_census.py. Копия порога здесь означала бы, что сторож сверяет константу с константой и молчит ровно до дня, когда одна из двух поедет (класс ADR-913). Здесь лежит ЗАМЕР со своим доказательством, и текущий порог применяется к нему той же дверью `margin_floor_verdict`.",
+  "measured": {
+    "at_commit": "0c1f244632ede719e0effe69cad9ba02e25be022",
+    "instrument_md5": "0b55c9c1e545b1bd7fccbf4cba4c3639",
+    "cells": 2,
+    "declared_timeout_s": 3.0,
+    "observed_timeouts_s": [0.01, 3.0],
+    "slowest_module": "protocol_ecosystem_health_scorecard",
+    "slowest_seconds": 0.016,
+    "margin_kind": "lower_bound",
+    "axis_verdict": "INVARIANT",
+    "knob": "KNOB_LIVE",
+    "source": "цикл #1135, СВОЙ прогон: scripts/registry_runner_write_census.py --observe <одноразовое НЕ-git дерево> --timeouts declared,0.01 --json",
+    "measured_at": "2026-11-15"
+  },
+  "prior": {
+    "_": "Замеры предшественников — не наши, и названы как их. Держатся здесь затем, что ИМЕННО ИХ РАСХОЖДЕНИЕ и есть довод за сторожа: одна и та же величина уехала вдвое за сутки на одном дереве, от загрузки машины, а не от кода.",
+    "ADR-1011": {"slowest_seconds": 0.008, "margin_at_least": 375.0, "cells": 3, "measured_at": "2026-11-14"},
+    "ADR-1012": {"slowest_seconds": 0.016, "margin_at_least": 187.5, "cells": 24, "slowest_module": "yield_reinvestment_engine", "measured_at": "2026-11-15"}
+  },
+  "_личность_медленного_модуля_НЕ_устойчива": "Замер #1135 и замер ADR-1012 дали ОДНУ величину (0.016 с) и РАЗНЫЕ модули (protocol_ecosystem_health_scorecard против yield_reinvestment_engine). Значит «самый медленный модуль» — не долговечный факт, а свойство прогона; долговечна ВЕЛИЧИНА. Поэтому храповик держит население не прошедших порог, а не имя лидера.",
+  "not_clearing": []
+}
