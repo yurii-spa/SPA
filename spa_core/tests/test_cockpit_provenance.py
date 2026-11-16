@@ -13,7 +13,6 @@ from __future__ import annotations
 import http.client
 import json
 import re
-import socket
 import threading
 import time
 from datetime import datetime, timezone
@@ -23,17 +22,12 @@ import pytest
 
 from spa_core.studio_os import access_jwt, mission_control as mc, mission_intake as mi, mission_server
 from spa_core.studio_os import owner_view as ov
+from spa_core.tests._loopback_ports import free_ports
 from spa_core.tests.test_mission_server import AUD, CERTS, OWNER_EMAIL, TEAM, base_claims, make_jwt
 
 NOW = datetime(2026, 10, 16, 7, 30, tzinfo=timezone.utc)   # FROZEN-DATE-OK: injected-clock — passed as now=
 PUBLIC_HOST = "mc.example.test"
 OWNER_LINE = "заметка владельца"
-
-
-def _free_port() -> int:
-    with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
-        s.bind(("127.0.0.1", 0))
-        return s.getsockname()[1]
 
 
 def _body(text, kind="task", **extra) -> bytes:
@@ -58,7 +52,10 @@ class _Pair:
         self.tracker = tmp / "tracker"
         self.tracker.mkdir()
         monkeypatch.setattr(access_jwt, "fetch_certs", lambda *a, **k: CERTS)
-        self.local_port, self.public_port = _free_port(), _free_port()
+        # ADR-1030: пара РАЗНЫХ номеров берётся ОДНИМ зовом. Две независимые пробы могли
+        # вернуть один номер, и `mission_server.serve` fail-CLOSED отказал бы ВСЕМ шести
+        # тестам, берущим эту фикстуру («public_port N collides with the local listener N»).
+        self.local_port, self.public_port = free_ports(2)
         env = {"MC_PUBLIC_HOST": PUBLIC_HOST, "MC_PUBLIC_PORT": str(self.public_port), "MC_ACCESS_AUD": AUD,
                "MC_ACCESS_TEAM": TEAM, "MC_OWNER_EMAILS": OWNER_EMAIL}
         servers, _ = mission_server.serve(self.root, self.local_port, serve_forever=False, env=env,

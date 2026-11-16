@@ -43,6 +43,7 @@ sys.path.insert(0, str(ROOT))
 from spa_core.studio_os import access_jwt  # noqa: E402
 from spa_core.studio_os import mission_build  # noqa: E402
 from spa_core.studio_os import mission_server  # noqa: E402
+from spa_core.tests._loopback_ports import free_port, free_ports  # noqa: E402
 
 #: The clock passed INTO build_bundle(now=...) — the builder never reads the wall clock in these tests.
 NOW = datetime(2026, 10, 3, tzinfo=timezone.utc)
@@ -707,19 +708,23 @@ class MissionServerBundleResilience(unittest.TestCase):
 # ════════════════════════════════════════════════════════════════════════════════════════════
 # mission_server — HTTP layer
 # ════════════════════════════════════════════════════════════════════════════════════════════
-def free_port() -> int:
-    """A port measured at the same socket family the server itself binds (no 'probably free')."""
-    with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
-        s.bind(("127.0.0.1", 0))
-        return s.getsockname()[1]
+# ``free_port`` / ``free_ports`` живут в ``spa_core/tests/_loopback_ports.py`` (ADR-1030).
+# Местная копия здесь СНЯТА намеренно: она измеряла по ОДНОМУ номеру за раз, и две её пробы
+# могли вернуть ОДИН номер — ровно то падение, что пришло в прогон 43831179477 (шард 3,
+# `BundleError: public_port N collides with the local listener port N`). Сцене, которой нужны
+# ДВА разных порта, ``free_ports(2)`` даёт различность ПО ПОСТРОЕНИЮ, а не по везению.
 
 
 class LiveServer:
     """A real mission_server pair (local + optional public), started in threads on measured-free
     loopback ports."""
 
-    def __init__(self, root, env=None, access_config_path=None, allow_env_config=False):
-        self.local_port = free_port()
+    def __init__(self, root, env=None, access_config_path=None, allow_env_config=False,
+                  local_port=None):
+        # ``local_port`` — ВХОД (ADR-1030): сцене с публичным слушателем нужны ДВА номера,
+        # и взять их обязан ОДИН зов ``free_ports(2)``. Своя проба здесь оставила бы
+        # предпосылку «номера разные» необеспеченной.
+        self.local_port = free_port() if local_port is None else int(local_port)
         self.servers, self.serving = mission_server.serve(
             root, self.local_port, serve_forever=False, env=env,
             access_config_path=access_config_path, allow_env_config=allow_env_config)
@@ -1031,13 +1036,14 @@ class ServerAccessGate(unittest.TestCase):
         self.root = self.tmp / "serve"
         self.ui = _write_ui_dir(self.tmp / "ui")
         build_loopback_bundle(self.root, self.ui)
-        self.public_port = free_port()
+        self.public_port, local_port = free_ports(2)
         self.env = {"MC_PUBLIC_HOST": "mc.earn-defi.com", "MC_PUBLIC_PORT": str(self.public_port),
                     "MC_ACCESS_AUD": AUD, "MC_ACCESS_TEAM": TEAM, "MC_OWNER_EMAILS": OWNER_EMAIL}
         self._orig_fetch = access_jwt.fetch_certs
         access_jwt.fetch_certs = lambda *a, **k: CERTS  # tests never touch the network
         # finding #6: env-based config requires an explicit opt-in — this is the test override.
-        self.s = LiveServer(self.root, env=self.env, allow_env_config=True)
+        self.s = LiveServer(self.root, env=self.env, allow_env_config=True,
+                             local_port=local_port)
 
     def tearDown(self):
         self.s.close()
@@ -1315,10 +1321,10 @@ class ServerStartupRefusal(unittest.TestCase):
                                   allow_env_config=True)
 
     def test_public_port_in_range_is_accepted(self):
-        public_port = free_port()
+        public_port, local_port = free_ports(2)
         env = {"MC_PUBLIC_HOST": "mc.earn-defi.com", "MC_PUBLIC_PORT": str(public_port),
                "MC_ACCESS_AUD": AUD, "MC_ACCESS_TEAM": TEAM, "MC_OWNER_EMAILS": OWNER_EMAIL}
-        servers, _serving = mission_server.serve(self.root, free_port(), serve_forever=False,
+        servers, _serving = mission_server.serve(self.root, local_port, serve_forever=False,
                                                    env=env, allow_env_config=True)
         try:
             self.assertIsNotNone(servers["public"])
@@ -1362,12 +1368,12 @@ class ServerStartupRefusal(unittest.TestCase):
 
     def test_access_config_file_mode_0600_is_accepted(self):
         cfg = self.tmp / "mission_access.json"
-        public_port = free_port()
+        public_port, local_port = free_ports(2)
         cfg.write_text(json.dumps({"public_host": "mc.earn-defi.com", "public_port": public_port,
                                     "aud": AUD, "team": TEAM, "owner_emails": [OWNER_EMAIL]}),
                         encoding="utf-8")
         cfg.chmod(0o600)
-        servers, _serving = mission_server.serve(self.root, free_port(), serve_forever=False,
+        servers, _serving = mission_server.serve(self.root, local_port, serve_forever=False,
                                                    env={}, access_config_path=cfg)
         try:
             self.assertIsNotNone(servers["public"])
@@ -1422,6 +1428,72 @@ class ServerStartupRefusal(unittest.TestCase):
         with self.assertRaises(mission_server.BundleError):
             mission_server.serve(self.root, free_port(), serve_forever=False, env={},
                                   access_config_path=link)
+
+
+# ══════════════════════════════════════════════════════════════════════════════════════════════
+# ADR-1030 — положительный контроль НАСТОЯЩЕЙ аварии, а не украшение
+# ══════════════════════════════════════════════════════════════════════════════════════════════
+class ThePremiseOfTwoDistinctPortsIsEnforced(unittest.TestCase):
+    """Авария 2026-11-16: прогон `43831179477` (шард 3) покраснел в `setUp` этого файла —
+
+        BundleError: public_port 50024 collides with the local listener port 50024
+
+    а следующий прогон `43845563466` на вершине, не тронувшей `mission_server` ни байтом,
+    был по этому имени ЗЕЛЁН. Вердикт был свойством того, какой номер ОС выдала ДВАЖДЫ.
+
+    Оба теста ниже гоняются на ОДНИХ байтах и дают ПРОТИВОПОЛОЖНЫЕ ответы: первый
+    воспроизводит красный одним входом (значит «зелено на своём дереве» удачей, а не
+    свойством раннера — род `runner_environment` тут не при чём), второй показывает, что
+    через `free_ports(2)` та же сцена красной быть НЕ МОЖЕТ.
+    """
+
+    def setUp(self):
+        import tempfile
+        self._tmp = tempfile.TemporaryDirectory()
+        self.tmp = Path(self._tmp.name)
+        self.root = self.tmp / "serve"
+        self.ui = _write_ui_dir(self.tmp / "ui")
+        build_loopback_bundle(self.root, self.ui)
+
+    def tearDown(self):
+        self._tmp.cleanup()
+
+    def _env(self, public_port):
+        return {"MC_PUBLIC_HOST": "mc.earn-defi.com", "MC_PUBLIC_PORT": str(public_port),
+                "MC_ACCESS_AUD": AUD, "MC_ACCESS_TEAM": TEAM, "MC_OWNER_EMAILS": OWNER_EMAIL}
+
+    def test_one_number_handed_out_twice_reproduces_the_CI_failure_verbatim(self):
+        # ОДИН номер в роли обеих проб — это НЕ выдумка: закрытый порт свободен, и ОС
+        # вправе выдать его снова. Именно это и случилось в шарде 3.
+        collided = free_port()
+        with self.assertRaises(mission_server.BundleError) as caught:
+            mission_server.serve(self.root, collided, serve_forever=False,
+                                  env=self._env(collided), allow_env_config=True)
+        said = str(caught.exception)
+        self.assertIn("collides with the local listener port", said, said)
+        self.assertIn(str(collided), said, said)
+
+    def test_the_pair_taken_from_one_call_cannot_collide(self):
+        public_port, local_port = free_ports(2)
+        self.assertNotEqual(public_port, local_port)
+        servers, _serving = mission_server.serve(self.root, local_port, serve_forever=False,
+                                                   env=self._env(public_port),
+                                                   allow_env_config=True)
+        try:
+            self.assertIsNotNone(servers["public"])
+            self.assertEqual(servers["public"].server_address[1], public_port)
+            self.assertEqual(servers["local"].server_address[1], local_port)
+        finally:
+            servers["local"].server_close()
+            servers["public"].server_close()
+
+    def test_the_access_gate_setUp_takes_its_two_ports_from_ONE_call(self):
+        """Иначе починка держалась бы на прозе: сцена обязана брать пару одним зовом."""
+        import inspect
+        body = inspect.getsource(ServerAccessGate.setUp)
+        self.assertIn("free_ports(2)", body, body)
+        self.assertNotIn("free_port()", body, body)
+        self.assertIn("local_port=local_port", body, body)
 
 
 if __name__ == "__main__":
