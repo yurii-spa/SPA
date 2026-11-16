@@ -2,12 +2,13 @@
 trackerStatus:
   type: inbox
 title: "Сессия pytest умерла изнутри на шарде 7: вычитание из None спрятало 2 падения (прогон 43933147333)"
-status: in-progress
+status: done
 created: 2026-11-16
 twin_key: "sha256:27fdb44c6ea69ffff3ecd34fb23d27b72e9dc08e08925c824c9b4877119cf254"
 acceptance_probe: tb_sanitizer_sees_the_report_excinfo
 status_trail:
   - "2026-11-16T22:04:43.549553+00:00 new -> in-progress · queue.set_status · cycle-49407"
+  - "2026-11-16T22:24:51.584130+00:00 in-progress -> done · queue.set_status/closed_by:ADR-1036/evidence:проба tb_sanitizer_sees_the_report_excinfo = satisfied на доставленном коде (origin/main 849ff3b39); причина обморока ДОКАЗАНА стеком джобы 133532234632 (_pytest/_code/code.py:214), кандидат modular_c · cycle-49407"
 ---
 
 ## Что случилось и почему это важно

@@ -2,9 +2,9 @@
 
 > Авто-генерится `scripts/build_tracker_board.py` из `nimbalyst-local/tracker/*.md`. НЕ править вручную — правь карточки. Источник правды — карточки, это индекс (bootstrap).
 >
-> Собрана: 2026-11-16T22:19:43Z · сверка с карточками: `python3 scripts/build_tracker_board.py --check` (сторож `spa_core/tests/test_tracker_board_matches_cards.py`).
+> Собрана: 2026-11-16T22:24:58Z · сверка с карточками: `python3 scripts/build_tracker_board.py --check` (сторож `spa_core/tests/test_tracker_board_matches_cards.py`).
 >
-> Сверено с `origin/main` (d2f1b6e6b) · у **3** своя правка, кто новее — не измерено.
+> Сверено с `origin/main` (8e65bcadd) · у **1** своя правка, кто новее — не измерено.
 >
 > Всего карточек: **1641** · ждёт владельца: **12** · занято сессиями: **14**.
 
@@ -458,7 +458,6 @@
 - Пробный ход сверх бюджета оборота — реализовать решение владельца (вариант 1, ADR-334)  ·  `inbox-probnyi-hod-sverh-byudzheta-oborota.md` · 2026-09-11
 - Проверить, не завышено ли число «открытых счётчиков»: один из 171 доказанно не дефект  ·  `inbox-proverit-ne-zavysheno-li-chislo-otkrytyh.md` · 2026-09-30
 - Расширить опрашиваемый набор адаптеров шагами (второй шаг варианта A, после ADR-138)  ·  `inbox-rasshirit-oprashivaemyi-nabor-adapterov.md` · 2026-08-26
-- Сессия pytest умерла изнутри на шарде 7: вычитание из None спрятало 2 падения (прогон 43933147333)  ·  `inbox-sessiya-pytest-umerla-iznutri-na-sharde.md` · 2026-11-16
 - Сторож кнопок нарушает границу, которую сам объявил соблюдённой: метка-БУКВА принималась где угодно, и слово в прозе = «наш дефект разбора» с лекарством чинить НЕСУЩЕСТВУЮЩУЮ форму (перемер #484: ложная ОДНА из 21, не пять; п.1 исполнен)  ·  `inbox-storozh-knopok-narushaet-granitsu-kotoru.md` · 2026-09-04
 - Сторож переходов статусов ждёт первого улова: назвать немого писателя и встроить прогон в агента  ·  `inbox-storozh-perehodov-statusov-zhdet-pervogo.md` · 2026-08-09
 - TASK — Portfolio CIO: Dynamic Capital Allocation & Rebalancing  ·  `inbox-task-portfolio-cio-dynamic-capital-alloc.md` · 2026-08-13 · 🔒 `cycle-53850`
@@ -838,6 +837,7 @@
 - Сигнал ребаланса каждый день требует переложиться в пул, который система финансировать не может  ·  `inbox-rt05-sravnivaet-knigu-s-neprohodimym-pulom.md` · 2026-09-09
 - Ряд дней offsite-бэкапа ключуется ЛОКАЛЬНОЙ датой, а читается по UTC — между 00 и 02 UTC серия рвётся  ·  `inbox-ryad-dnei-offsite-bekapa-klyuchuetsya-lo.md` · 2026-08-09
 - Сбалансированный трек: ноль профинансированных дней из 40 при 920 отработанных циклах  ·  `inbox-sbalansirovannyi-trek-nol-profinansirova.md` · 2026-08-08
+- Сессия pytest умерла изнутри на шарде 7: вычитание из None спрятало 2 падения (прогон 43933147333)  ·  `inbox-sessiya-pytest-umerla-iznutri-na-sharde.md` · 2026-11-16
 - Шаг 0-офис из worktree докладывает «не прочитано 20» — и это выглядит как настоящая находка  ·  `inbox-shag-0-ofis-iz-worktree-dokladyvaet-ne-p.md` · 2026-08-12
 - Шаг 0-офис не отличает отчёт СТАРОГО ОБРАЗЦА от настоящего расхождения схемы — и зовёт завести карточку на исправное состояние  ·  `inbox-shag-0-ofis-ne-otlichaet-otchet-starogo.md` · 2026-08-15
 - Шаг 0-офис печатает не то, что в файлах: вердикт house_view_gap мёртв (None вместо расхождений), house_view едет без возраста (19.4 ч)  ·  `inbox-shag-0-ofis-pechataet-ne-to-chto-v-faila.md` · 2026-08-09
