@@ -326,6 +326,102 @@ class SkeletonKeepsTheHeadAndDropsTheDiff(unittest.TestCase):
                          frozenset({"spa_core/x.py:664"}))
 
 
+class TheEventKeyDoesNotDependOnTheTempDirName(unittest.TestCase):
+    """Положительный контроль ADR-1034 — настоящая авария прогонов `ci-control`.
+
+    Сцена дословно воспроизводит замер 16.11 (цикл #1173) на живых артефактах
+    43899796397 → 43917851571: ОДИН неизменный тест
+    (`scripts/tests/test_shell_git_cd_target_census.py`) дал ДВА события, потому что
+    `tempfile` выдал ему разные имена каталога — `cdtarget-dqid9nv` и
+    `cdtarget-whcv8ted`. Нормализатор гасил числа, но не сегмент `$TMPDIR`, и дельта
+    состава печатала ложное «пришло новое» вместе с ложным «ушло».
+
+    Цена сегодня была нулевая (имя то же, видно глазами) — и ровно поэтому проверка
+    нужна: мера, чей ключ зависит от имени временного каталога, со временем начинает
+    считать одно событие двумя, НЕ СКАЗАВ, когда это началось.
+
+    Времени, номеров процессов и git-окружения в предмете нет: сцена — две строки.
+    """
+
+    #: Дословные сообщения двух прогонов. Различие между ними РОВНО одно — имя,
+    #: которое не выбирал никто.
+    RUN_A = ("AssertionError: 2 != 1 : талоги "
+             "('/tmp/cdtarget-dqid9nv/c1/homeA/Documents/SPA_Claude' ≠ "
+             "'/tmp/cdtarget-dqid9nv/c1/ext/SPA_SYNC_REPO')")
+    RUN_B = ("AssertionError: 2 != 1 : талоги "
+             "('/tmp/cdtarget-whcv8ted/c1/homeA/Documents/SPA_Claude' ≠ "
+             "'/tmp/cdtarget-whcv8ted/c1/ext/SPA_SYNC_REPO')")
+
+    def _event(self, message: str) -> tuple[str, str]:
+        """Ключ события — та же пара, которой группирует читатель дельты."""
+        return (fcc.kind_of(message) or "«тип не назван»", fcc.skeleton_of(message))
+
+    def test_two_runs_with_different_temp_names_are_ONE_event(self):
+        """Предмет аварии: ключ обязан совпасть, а не «почти совпасть»."""
+        self.assertEqual(self._event(self.RUN_A), self._event(self.RUN_B))
+        self.assertEqual(len({self._event(self.RUN_A), self._event(self.RUN_B)}), 1)
+
+    def test_the_random_segment_is_gone_from_the_key_itself(self):
+        """Не «ключи равны случайно»: самого имени в ключе больше нет.
+
+        Без этого проверка выше прошла бы и на нормализаторе, который стёр СТРОКУ
+        целиком, — а такой «успех» означал бы потерю предмета (см. контроль ниже).
+        """
+        skeleton = fcc.skeleton_of(self.RUN_A)
+        self.assertNotIn("dqid", skeleton)
+        self.assertNotIn("cdtarget", skeleton)
+        self.assertIn("<врем>", skeleton)
+
+    def test_the_tail_after_the_segment_SURVIVES(self):
+        """Отрицательный контроль переусердствования: хвост несёт ПРЕДМЕТ.
+
+        Гасить путь целиком нельзя: различие `homeA` ≠ `ext` и есть то, на что
+        жалуется утверждение. Стерев его, прибор склеил бы разные провалы в один —
+        занижение, которого у этого модуля не прячут, а печатают вилкой.
+        """
+        skeleton = fcc.skeleton_of(self.RUN_A)
+        self.assertIn("homeA", skeleton)
+        self.assertIn("ext", skeleton)
+        self.assertIn("SPA_SYNC_REPO", skeleton)
+
+    def test_a_REAL_difference_stays_two_events(self):
+        """Второй отрицательный контроль: правка не склеивает всё подряд."""
+        one = "AssertionError: талоги ('/tmp/aaa111/c1/homeA' ≠ '/tmp/aaa111/c1/ext')"
+        two = "AssertionError: талоги ('/tmp/bbb222/c1/homeA' ≠ '/tmp/bbb222/c1/OTHER')"
+        self.assertNotEqual(self._event(one), self._event(two))
+
+    def test_the_step_is_IDEMPOTENT_over_an_already_normalised_skeleton(self):
+        """Скелет прошлого прогона читается из артефакта УЖЕ нормализованным.
+
+        Числа в нём заменены родом (`cdtarget-dqid#nv`), поэтому шаг обязан дать тот
+        же ключ и на таком тексте — иначе сличение с артефактом предыдущего прогона
+        отвечало бы на другой вопрос, чем сличение сырых сообщений. Замер #1173: без
+        `#` в классе сегмента ложная дельта на живых артефактах оставалась 2/2, с ним
+        упала до 1/1 (единственное уцелевшее расхождение — настоящее, список
+        «мёртвых скриптов» вырос на одно имя).
+        """
+        self.assertEqual(fcc.skeleton_of("AssertionError: в /tmp/cdtarget-dqid#nv/c#/x"),
+                         fcc.skeleton_of("AssertionError: в /tmp/cdtarget-whcv#ted/c#/x"))
+
+    def test_the_macos_temp_root_is_named_too(self):
+        """`$TMPDIR` на Маке — `/var/folders/<род>/<род>/T/`, и он тоже ничей.
+
+        Иначе один и тот же провал давал бы РАЗНЫЕ события в зависимости от того, где
+        его намерили — на раннере или на рабочем Маке, — то есть ключ зависел бы от
+        хоста (тот же род, что КАЛЕНДАРЬ и НОМЕР ПРОЦЕССА в `.claude/rules/deployment.md`).
+        """
+        mac = fcc.skeleton_of(
+            "AssertionError: в /var/folders/k2/9xyzabc_1234/T/cdtarget-dqid9nv/c1/homeA")
+        linux = fcc.skeleton_of("AssertionError: в /tmp/cdtarget-whcv8ted/c1/homeA")
+        self.assertEqual(mac, linux)
+        self.assertIn("<врем>", mac)
+
+    def test_a_chosen_path_WITH_an_extension_is_still_a_path(self):
+        """Прежнее правило не отменено: файл с расширением остаётся `<путь>`."""
+        self.assertEqual(fcc.skeleton_of("AssertionError: нет /tmp/abc123/data/x.json"),
+                         "нет <путь>")
+
+
 class ExitCodeOfTheCLI(TempTree):
     def test_measured_record_returns_zero(self):
         path = self.write("j.xml", junit([
