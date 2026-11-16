@@ -17892,6 +17892,151 @@ def _probe_delivery_tree_input_class_population_named(
                        "довершинной версии дала UNNAMEABLE, половина инъекции — HALF")
 
 
+def _probe_ci_only_red_class_determinism_named(
+        arg: str | None, *, repo_root: str | None = None) -> tuple[str, str]:
+    """Критерий: у КАЖДОГО члена рода «окружение раннера» названо, свойство его зелёное
+    или удача (ADR-1031, карточка `inbox-obyavlenie-roda-okruzhenie-rannera-ne-ot`).
+
+    Поле `local_outcome: passed` есть НАБЛЮДЕНИЕ. ADR-1030 нашёл первый измеренный
+    случай, где оно соврало бы: тест зелен на своём дереве ДВАЖДЫ и краснеет на том же
+    дереве и тех же байтах ОДНИМ входом, потому что его вердикт — свойство номера,
+    который ОС выдала дважды. Двух наблюдений вероятностному падению почти всегда
+    хватает, и пока ось не названа, род вычитает из вилки дефектов живые бомбы.
+
+    **Меряется ИСХОД объявления, а не слова в нём.** Проба читает объявление и
+    спрашивает: назван ли у каждого члена вердикт оси из ЗАМКНУТОГО словаря, названа ли
+    дверь, которую сцена спрашивает у живой машины, и назван ли механизм. Подстрокой она
+    не проходит (ADR-333): слово `deterministic` без двери и механизма критерия не
+    выполняет.
+
+    Контроль в обе стороны — внутри самой проверки:
+
+    * **нулевая проба — НАСТОЯЩЕЕ состояние ДО замера**, и байты берутся у БЛОБА, а не у
+      ссылки `origin/main`: ссылка ДВИЖЕТСЯ, и в момент прихода своей же починки такая
+      проба замолчала бы (урок #1144). Пред-замерная редакция объявления ОБЯЗАНА
+      получить `not_satisfied`; получила иное ⇒ `unmeasured`, потому что проба,
+      не краснеющая на состоянии, ради которого написана, ничего не утверждает;
+    * **словарь оси сверяется с ОБЪЯВЛЕНИЕМ**, а не с самой пробой: иначе проба
+      сравнивала бы объявление со своей же меркой — класс, на котором выжила мутация 5
+      замера #1027;
+    * **население обязано быть НАЗВАНО и СХОДИТЬСЯ**: `deterministic + bomb + stale +
+      unmeasured` равно населению ДО замера, иначе из класса кого-то потеряли молча;
+    * **`bomb` в словаре НЕТ по построению** — такой член из объявления УХОДИТ, и база
+      убывает (инв. #16).
+
+    Дерево — ВХОД (`repo_root`); живое `data/`, часы, pid и порт проба не спрашивает.
+    Исход `unmeasured` отличён от `not_satisfied` (инв. #17).
+    """
+    if (arg or "").strip():
+        return UNMEASURED, (f"проба не принимает аргумента (дано {arg!r}): предмет — "
+                            "ОБЪЯВЛЕНИЕ класса целиком, пофайловой формы у него нет")
+
+    import json as _json
+    import subprocess as _sp
+
+    root = _pathlib.Path(repo_root or REPO_ROOT)
+    rel = "spa_core/tests/ci_only_red_class_baseline.json"
+    path = root / rel
+
+    #: Блоб объявления ДО замера оси (вершина 0028a3eda): 19 членов, и ни у одного нет
+    #: ни вердикта оси, ни двери, ни механизма. Адресуется СОДЕРЖИМЫМ ⇒ «не те байты»
+    #: здесь невозможны по построению.
+    PRE_AXIS_BLOB = "99fde88850b0779d4206c29554a9c6a7cb2e7db7"
+    POPULATION_BEFORE = 19
+
+    def _read(text: str, label: str):
+        try:
+            doc = _json.loads(text)
+        except Exception as exc:                                    # noqa: BLE001
+            return None, f"объявление ({label}) не разбирается: {type(exc).__name__}: {exc}"
+        if not isinstance(doc, dict) or not isinstance(doc.get("members"), list):
+            return None, (f"объявление ({label}) не несёт списка `members` — пустое "
+                          "объявление совпало бы с «класс пуст»")
+        return doc, None
+
+    def _unexplained(doc) -> list[str]:
+        """Члены, чьё зелёное НЕ ОБЪЯСНЕНО. Мерка — словарь САМОГО объявления."""
+        vocab = tuple((doc.get("determinism_axis") or {}).get("словарь") or ())
+        if not vocab:
+            return ["<в объявлении нет словаря оси>"]
+        out = []
+        for m in doc["members"]:
+            nid = m.get("nodeid", "<без имени>")
+            if m.get("determinism") not in vocab:
+                out.append(f"{nid}: вердикт оси {m.get('determinism')!r} вне словаря {vocab}")
+            elif not (m.get("determinism_door") or "").strip():
+                out.append(f"{nid}: дверь к живой машине не названа")
+            elif len((m.get("determinism_mechanism") or "").strip()) < 40:
+                out.append(f"{nid}: механизм не назван — «зелено дважды» механизмом не является")
+        return out
+
+    # ── нулевая проба: состояние ДО замера обязано быть ОТКАЗОМ ───────────────
+    shown = _sp.run(["git", "cat-file", "blob", PRE_AXIS_BLOB],
+                    cwd=str(root), capture_output=True, text=True)
+    if shown.returncode != 0 or not shown.stdout.strip():
+        return UNMEASURED, ("предпосылка НЕ ОБЕСПЕЧЕНА: git не отдал пред-замерные байты "
+                            f"{rel} (блоб {PRE_AXIS_BLOB}, код {shown.returncode}) — "
+                            "нулевую пробу восстановить нечем, и выдавать это за "
+                            "выполненный критерий нельзя")
+    pre, why = _read(shown.stdout, f"блоб {PRE_AXIS_BLOB}")
+    if pre is None:
+        return UNMEASURED, f"нулевая сцена не прочитана: {why}"
+    if len(pre["members"]) != POPULATION_BEFORE:
+        return UNMEASURED, (f"закреплённый блоб несёт {len(pre['members'])} членов, а замер "
+                            f"ADR-1031 шёл по {POPULATION_BEFORE} — номер блоба перемерить")
+    if not _unexplained(pre):
+        return UNMEASURED, (f"пред-замерная редакция объявления (блоб {PRE_AXIS_BLOB}) "
+                            "проходит критерий — значит проба не краснеет на состоянии, "
+                            "ради которого написана, и её «выполнено» ничего не значит")
+
+    # ── сам критерий на дереве ────────────────────────────────────────────────
+    if not path.is_file():
+        return NOT_SATISFIED, f"объявления класса нет: {path} отсутствует"
+    try:
+        live_text = path.read_text(encoding="utf-8")
+    except OSError as exc:
+        return UNMEASURED, f"объявление не прочитано: {path}: {exc}"
+    live, why = _read(live_text, rel)
+    if live is None:
+        return UNMEASURED, why or "объявление не прочитано"
+
+    naked = _unexplained(live)
+    if naked:
+        return NOT_SATISFIED, (
+            f"ось детерминизма названа не у всех: {len(naked)} из {len(live['members'])} "
+            "членов объявления:\n  " + "\n  ".join(naked[:8]))
+
+    axis = live.get("determinism_axis") or {}
+    tally = axis.get("замер_1170") or {}
+    parts = {k: tally.get(k) for k in
+             ("deterministic", "bomb_removed", "stale_removed", "unmeasured")}
+    if any(not isinstance(v, int) for v in parts.values()):
+        return UNMEASURED, ("замер оси не назван числами по родам "
+                            f"({parts}) — население класса не сходится ни с чем")
+    total = sum(parts.values())                             # type: ignore[arg-type]
+    before = tally.get("population_before")
+    if total != before:
+        return NOT_SATISFIED, (
+            f"роды оси не сходятся с населением ДО замера: {parts} даёт {total}, а "
+            f"объявлено {before!r} — кого-то потеряли молча")
+    if len(live["members"]) != parts["deterministic"]:
+        return NOT_SATISFIED, (
+            f"в объявлении осталось {len(live['members'])} членов, а детерминированными "
+            f"названо {parts['deterministic']} — объявление спорит со своим же замером")
+    if live.get("upper_bound") != len(live["members"]):
+        return NOT_SATISFIED, (
+            f"`upper_bound`={live.get('upper_bound')!r} против {len(live['members'])} "
+            "членов: литерал разошёлся со своим производителем")
+
+    return SATISFIED, (
+        f"ось детерминизма названа у ВСЕХ {len(live['members'])} членов объявления "
+        f"(роды: детерминировано {parts['deterministic']} · выведено бомбой "
+        f"{parts['bomb_removed']} · выведено протухшим {parts['stale_removed']} · "
+        f"НЕ ИЗМЕРЕНО {parts['unmeasured']}; население ДО замера {before}); у каждого "
+        "названы дверь и механизм, словарь сверен с объявлением, и пред-замерная "
+        f"редакция (блоб {PRE_AXIS_BLOB}) критерий НЕ проходит — нулевая проба держит")
+
+
 def _probe_host_pinned_verdict_class_population_named(
         arg: str | None, *, repo_root: str | None = None) -> tuple[str, str]:
     """Критерий: население класса «вердикт закреплён за ХОЗЯИНОМ» ИЗМЕРЕНО и предмет ПУСТ.
@@ -19555,6 +19700,8 @@ PROBES: dict[str, Callable[[str | None], "tuple[str, str]"]] = {
         _probe_orphan_sweep_names_an_unregistered_copy,
     "delivery_tree_input_class_population_named":
         _probe_delivery_tree_input_class_population_named,
+    "ci_only_red_class_determinism_named":
+        _probe_ci_only_red_class_determinism_named,
     "host_pinned_verdict_class_population_named":
         _probe_host_pinned_verdict_class_population_named,
     "sandbox_data_dir_class_population_named":

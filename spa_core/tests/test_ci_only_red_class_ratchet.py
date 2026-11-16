@@ -77,7 +77,7 @@ SCHEMA = "ci-only-red-class/1"
 #: счётный потолок `CALLER_SUPPLIED_MAX = 26` устарел НА ДЕНЬ СВОЕЙ ДОСТАВКИ, и
 #: заметить это было нечем, потому что число ни с чем не сверялось. Мутация замера
 #: #1027 подняла этот литерал до 999 и ВЫЖИЛА ровно по той же причине.
-CEILING = 19
+CEILING = 11
 
 #: Поля, обязательные у каждого члена. `measured_in` отвечает на вопрос «чем это имя
 #: добыто»: без него объявление становится списком из головы.
@@ -88,7 +88,21 @@ CEILING = 19
 #: #1027 сузила его здесь до `("nodeid",)` и ВЫЖИЛА — набор упавших имён не
 #: изменился, потому что сузилась та самая мерка, которой мерят.
 REQUIRED_MEMBER_FIELDS = ("nodeid", "ci_outcome", "local_outcome", "ci_cause",
-                          "door", "measured_in")
+                          "door", "measured_in",
+                          # ADR-1031: ось ДЕТЕРМИНИЗМА. `local_outcome: passed` есть
+                          # НАБЛЮДЕНИЕ, и двух наблюдений вероятностному падению почти
+                          # всегда хватает, чтобы выглядеть зелёным (ADR-1030). Поэтому
+                          # член обязан назвать, ЧЕМ его зелёное является — свойством
+                          # сцены или удачей, — и назвать дверь с механизмом.
+                          "determinism", "determinism_door",
+                          "determinism_mechanism", "determinism_measured_in")
+
+#: Вердикты ОСИ ДЕТЕРМИНИЗМА (ADR-1031). Перечень ЗАМКНУТ и сверяется с блоком
+#: `determinism_axis` самого объявления. `bomb` здесь НЕТ по построению: член, чей
+#: красный воспроизводится на своём дереве одним входом, роду «окружение раннера» не
+#: принадлежит и из объявления УХОДИТ — держать его значило бы вычитать живой дефект
+#: из вилки дефектов контрольного прогона.
+DETERMINISM_VERDICTS = ("deterministic", "unmeasured")
 
 #: Вердикты о члене объявления. Перечень ЗАМКНУТ: новый исход обязан быть назван здесь.
 PRESENT = "present"
@@ -269,6 +283,48 @@ class DeclarationHoldsTest(unittest.TestCase):
             f"{REQUIRED_MEMBER_FIELDS}. Сузить требование в коде, не тронув объявление, "
             "значит погасить проверку молча (инв. #16)")
 
+    def test_every_member_names_whether_its_green_is_a_property_or_luck(self) -> None:
+        """Ось ДЕТЕРМИНИЗМА (ADR-1031): `local_outcome: passed` — наблюдение, не свойство.
+
+        ADR-1030 нашёл первый измеренный случай, где критерий объявил бы НЕ ТО:
+        `test_public_listener_duplicate_host_is_400` был зелен на своём дереве ДВАЖДЫ и
+        краснел на том же дереве и тех же байтах одним входом. Двух наблюдений
+        вероятностному падению почти всегда хватает, чтобы выглядеть зелёным, — значит
+        «зелено дома» обязано стоять на ОТСУТСТВИИ вероятностной двери в сцене, и дверь
+        обязана быть НАЗВАНА.
+
+        Словарь ЗАМКНУТ и сверяется с объявлением, а не с самим сторожем: иначе его можно
+        расширить молча — ровно тот класс, который `REQUIRED_MEMBER_FIELDS` уже ловит
+        сверкой выше. `bomb` в словаре НЕТ намеренно: член, чей красный воспроизводится
+        дома одним входом, роду не принадлежит и УХОДИТ из объявления (база убывает).
+        """
+        axis = self.doc.get("determinism_axis")
+        self.assertIsInstance(
+            axis, dict,
+            "в объявлении нет блока `determinism_axis` — тогда словарь оси живёт только "
+            "внутри сторожа, и расширить его можно молча (инв. #16)")
+        self.assertEqual(
+            tuple(axis.get("словарь") or ()), DETERMINISM_VERDICTS,
+            f"словарь оси разошёлся: объявление {tuple(axis.get('словарь') or ())}, "
+            f"сторож {DETERMINISM_VERDICTS}")
+        bad = []
+        for m in self.members:
+            nid = m.get("nodeid", "<без имени>")
+            verdict = m.get("determinism")
+            if verdict not in DETERMINISM_VERDICTS:
+                bad.append(f"{nid}: вердикт оси {verdict!r} вне замкнутого словаря "
+                           f"{DETERMINISM_VERDICTS}")
+                continue
+            # Механизм — это и есть разница между замером и записью о замере.
+            if len((m.get("determinism_mechanism") or "").strip()) < 40:
+                bad.append(f"{nid}: вердикт {verdict!r} объявлен без механизма — "
+                           "«зелено дважды» механизмом не является")
+            if not (m.get("determinism_door") or "").strip():
+                bad.append(f"{nid}: дверь, которую сцена спрашивает у живой машины, "
+                           "не названа")
+        self.assertFalse(bad, "ось детерминизма объявлена не до конца:\n  "
+                              + "\n  ".join(bad))
+
     def test_the_upper_bound_only_shrinks(self) -> None:
         self.assertLessEqual(
             len(self.members), CEILING,
@@ -338,6 +394,11 @@ _GOOD_MEMBER = {
     "ci_cause": "контроль сторожа: причина взята из ЭТОГО файла",
     "door": "runner_environment",
     "measured_in": "контроль сторожа: имя взято из ЭТОГО файла",
+    "determinism": "deterministic",
+    "determinism_door": "control_no_live_door",
+    "determinism_mechanism": "контроль сторожа: вероятностной двери в сцене нет ни одной, "
+                             "и механизм назван здесь, в самом контроле",
+    "determinism_measured_in": "контроль сторожа",
 }
 
 
@@ -345,7 +406,8 @@ def _doc(members, **over) -> dict:
     base = {"schema": SCHEMA, "upper_bound": len(members), "members": members,
             "required_member_fields": list(REQUIRED_MEMBER_FIELDS),
             "measurement": "контроль", "ci_run_id": "0", "measured_on_sha": "0" * 9,
-            "defective_part_size": max(len(members), 1), "wall_clock_minutes": 1}
+            "defective_part_size": max(len(members), 1), "wall_clock_minutes": 1,
+            "determinism_axis": {"словарь": list(DETERMINISM_VERDICTS)}}
     base.update(over)
     return base
 
@@ -428,6 +490,46 @@ class PositiveControlsTest(unittest.TestCase):
         with self.assertRaises(AssertionError) as got:
             case.test_the_neighbouring_door_is_named_and_not_mixed_in()
         self.assertIn("runner_environment", str(got.exception))
+
+    # ── ось ДЕТЕРМИНИЗМА (ADR-1031): три контроля на боевой проверке ──────────
+
+    def test_a_member_whose_green_is_unexplained_is_refused(self) -> None:
+        """Ровно состояние объявления ДО ADR-1031: `local_outcome: passed` и больше ничего.
+
+        Это не выдуманная поломка: все 19 членов жили так, и ADR-1030 показал, что при
+        таком объявлении живая бомба вычитается из вилки дефектов как «окружение».
+        """
+        naked = dict(_GOOD_MEMBER); naked.pop("determinism_mechanism")
+        case = DeclarationHoldsTest(
+            "test_every_member_names_whether_its_green_is_a_property_or_luck")
+        case.doc = _doc([naked]); case.members = case.doc["members"]
+        with self.assertRaises(AssertionError) as got:
+            case.test_every_member_names_whether_its_green_is_a_property_or_luck()
+        self.assertIn("без механизма", str(got.exception))
+
+    def test_a_verdict_outside_the_closed_vocabulary_is_refused(self) -> None:
+        case = DeclarationHoldsTest(
+            "test_every_member_names_whether_its_green_is_a_property_or_luck")
+        case.doc = _doc([dict(_GOOD_MEMBER, determinism="скорее_всего_нормально")])
+        case.members = case.doc["members"]
+        with self.assertRaises(AssertionError) as got:
+            case.test_every_member_names_whether_its_green_is_a_property_or_luck()
+        self.assertIn("вне замкнутого словаря", str(got.exception))
+
+    def test_a_vocabulary_widened_only_in_the_guard_is_refused(self) -> None:
+        """Тот же класс, что `REQUIRED_MEMBER_FIELDS`: мерка обязана жить у ОБЪЯВЛЕНИЯ.
+
+        Расширь словарь внутри сторожа — и «вердикт вне словаря» перестаёт что-либо
+        требовать, а набор упавших имён не меняется.
+        """
+        case = DeclarationHoldsTest(
+            "test_every_member_names_whether_its_green_is_a_property_or_luck")
+        doc = _doc([_GOOD_MEMBER])
+        doc["determinism_axis"] = {"словарь": list(DETERMINISM_VERDICTS) + ["bomb"]}
+        case.doc = doc; case.members = doc["members"]
+        with self.assertRaises(AssertionError) as got:
+            case.test_every_member_names_whether_its_green_is_a_property_or_luck()
+        self.assertIn("словарь оси разошёлся", str(got.exception))
 
     def test_a_class_larger_than_the_set_it_was_measured_in_is_refused(self) -> None:
         case = DeclarationHoldsTest("test_the_class_is_a_subset_of_the_measured_defective_part")

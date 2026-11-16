@@ -2,11 +2,11 @@
 
 > Авто-генерится `scripts/build_tracker_board.py` из `nimbalyst-local/tracker/*.md`. НЕ править вручную — правь карточки. Источник правды — карточки, это индекс (bootstrap).
 >
-> Собрана: 2026-11-16T11:30:19Z · сверка с карточками: `python3 scripts/build_tracker_board.py --check` (сторож `spa_core/tests/test_tracker_board_matches_cards.py`).
+> Собрана: 2026-11-16T13:22:29Z · сверка с карточками: `python3 scripts/build_tracker_board.py --check` (сторож `spa_core/tests/test_tracker_board_matches_cards.py`).
 >
-> Сверено с `origin/main` (6eb66fdc0).
+> Сверено с `origin/main` (0028a3eda) · у **2** своя правка, кто новее — не измерено.
 >
-> Всего карточек: **1637** · ждёт владельца: **12** · занято сессиями: **14**.
+> Всего карточек: **1639** · ждёт владельца: **12** · занято сессиями: **14**.
 
 ## 🔴 ЖДЁТ ВЛАДЕЛЬЦА (needs-owner)
 
@@ -441,7 +441,7 @@
 ### · closed
 - Считать ли верный отказ по правилам допуска неисправностью флота  ·  `owner-decision-schitat-li-vernyi-otkaz-po-pravilam-dopu.md` · 2026-10-08
 
-## 📥 Inbox (задания: Telegram / заметки / голос)  (939)
+## 📥 Inbox (задания: Telegram / заметки / голос)  (941)
 
 ### · in-progress
 - а задача починить все-таки еще раз сообщение которым не пишет нужно твое решени…  ·  `inbox-a-zadacha-pochinit-vse-taki-esche-raz-so.md` · 2026-08-14 · 🔒 `pid43119`
@@ -737,6 +737,7 @@
 - Обход owner-gate по трейлеру Owner-Approved не работал никогда: опечатка в имени аргумента, спрятанная слепым except  ·  `inbox-obhod-owner-gate-po-treileru-owner-appro.md` · 2026-08-07
 - Оболочка и воркфлоу: 124 места того же вопроса печатались числом с вердиктом «НЕ ИЗМЕРЕНО» — вторая половина класса ADR-875  ·  `inbox-obolochka-i-vorkflou-124-mesta-togo-zhe.md` · 2026-10-31
 - Объявление агента не умеет сказать «намеренно выключен» — и поэтому 46 суток CRITICAL советует отменить решение владельца  ·  `inbox-obyavlenie-agenta-ne-umeet-skazat-namere.md` · 2026-10-15
+- Объявление рода «окружение раннера» не отличает детерминированно зелёный тест от зелёного по удаче  ·  `inbox-obyavlenie-roda-okruzhenie-rannera-ne-ot.md` · 2026-11-16
 - Объявление с пустым списком файлов рождает в шаге 0a находку, которую нельзя снять никогда  ·  `inbox-obyavlenie-s-pustym-spiskom-failov-rozhd.md` · 2026-08-30
 - Обязательное правило design-docs недостижимо по ссылкам — сторож связности красный на main  ·  `inbox-obyazatelnoe-pravilo-design-docs-nedostizhimo.md` · 2026-08-28
 - Обязательный шаг 1г поднимает долгий pytest В ДЕРЕВЕ ДОСТАВКИ: у прибора нет входа --repo-root, и правило ADR-886 нарушается по построению  ·  `inbox-obyazatelnyi-shag-1g-podnimaet-dolgii-py.md` · 2026-11-05
@@ -1164,7 +1165,6 @@
 - Объявить в _READ_SCHEMA чтения двух веток отчёта 0-офис (класс A, ADR-325)  ·  `inbox-obyavit-v-read-schema-chteniya-dvuh-veto.md` · 2026-09-11
 - Объявитель пишет безымянный захват и не отказывает — профилактика стоит на одной двери из двух  ·  `inbox-obyavitel-pishet-bezymyannyi-zahvat-i-ne.md` · 2026-10-08
 - Объявление, назвавшее ПРОД-дерево вместо своего, прячет недоставку: шаг 0a кладёт её в успокаивающий раздел, а само дерево не называет ВОВСЕ  ·  `inbox-obyavlenie-nazvavshee-prod-derevo-pryachet.md` · 2026-09-28
-- Объявление рода «окружение раннера» не отличает детерминированно зелёный тест от зелёного по удаче  ·  `inbox-obyavlenie-roda-okruzhenie-rannera-ne-ot.md` · 2026-11-16
 - Объявленный агент mission_tick без обёртки: дерево обещает то, чего в нём нет  ·  `inbox-obyavlennyi-agent-mission-tick-bez-obert.md` · 2026-10-01
 - Объявленный артефакт читается ВХОЛОСТУЮ: artifact_stamp_clock_doors.json числится прочитанным и не разбирается  ·  `inbox-obyavlennyi-artefakt-chitaetsya-vholostu.md` · 2026-10-07
 - Объявленный читатель отчёта экономики флота его не читает  ·  `inbox-obyavlennyi-chitatel-otcheta-ekonomiki-f.md` · 2026-10-08
@@ -1287,6 +1287,7 @@
 - Шаг 0a МОЛЧИТ о дереве по живому якорю-хосту — так 28.08 была скрыта недоставленная работа  ·  `inbox-shag-0a-molchit-o-dereve-po-zhivomu-yako.md` · 2026-08-28
 - Шаг 0a предлагает поднять МУТАНТА как недоставленную работу — читателя окна он не зовёт  ·  `inbox-shag-0a-predlagaet-podnyat-mutanta-kak-n.md` · 2026-10-17
 - Шаг 0a зовёт поднять файл, который в прод-дереве ОТСТАЁТ на 1672 строки — подъём стёр бы 14 записей реестра  ·  `inbox-shag-0a-zovet-podnyat-fail-kotoryi-v-pro.md` · 2026-08-21
+- Ширина вывода ps: девять дверей одного класса, вред доказан у одной  ·  `inbox-shirina-vyvoda-ps-devyat-dverei-odnogo-k.md` · 2026-11-16
 - Шторм повторов одного решения владельцу (200+ копий за ночь) — анти-шторм доставлен, корень (слепой предикат «отправлено») остаётся  ·  `inbox-shtorm-povtorov-odnogo-resheniya-vladeltsu.md` · 2026-08-20
 - Шторм решений ПРОДОЛЖАЕТСЯ после анти-шторма: карточки живут ТОЛЬКО в хост-дереве, заголовок дрейфует → дубли, владелец измотан  ·  `inbox-shtorm-prodolzhaetsya-kartochki-tolko-v-host-dereve.md` · 2026-08-20
 - Синк кода в прод не сериализован: 11 раз за сутки два-три процесса писали ОДИН файл резерва, один раз подрались за .git/index.lock  ·  `inbox-sink-koda-v-prod-ne-serializovan-11-raz.md` · 2026-09-06
@@ -1347,6 +1348,7 @@
 - Тест судит о своей уборке глобом по ОБЩЕМУ временному каталогу — и краснеет от соседнего прогона того же кода  ·  `inbox-test-sudit-o-svoei-uborke-globom-po-obsc.md` · 2026-11-01
 - Тест тождества капитала КРАСЕН на чистом origin: два читателя одной записи расходятся на сцене с дублем и порчей  ·  `inbox-test-tozhdestva-kapitala-krasen-na-chist.md` · 2026-09-16
 - Тест ворот публикации не доходит до ворот: его заслоняет гейт окна мутаций  ·  `inbox-test-vorot-publikatsii-ne-dohodit-do-vor.md` · 2026-10-18
+- Три детерминированных члена рода окружения сами кандидаты в дефекты  ·  `inbox-tri-determinirovannyh-chlena-roda-okruzh.md` · 2026-11-16
 - Три отправителя стоп-крана в обход канонической двери (найдено #313)  ·  `inbox-tri-otpravitelya-stop-krana-v-obhod-kano.md` · 2026-08-20
 - Три прибора написаны и не позваны: храповик непроводки КРАСЕН на чистом origin/main a326d063e  ·  `inbox-tri-pribora-napisany-i-ne-pozvany-hrapov.md` · 2026-10-10
 - Три ставки книги печатаются без знаменателя — одно слово «APY» на три разных показателя  ·  `inbox-tri-stavki-knigi-pechatayutsya-bez-zname.md` · 2026-11-08

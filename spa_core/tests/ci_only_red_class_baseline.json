@@ -1,193 +1,229 @@
 {
-  "schema": "ci-only-red-class/1",
-  "зачем": "ОДИННАДЦАТАЯ дверь семейства «вердикт зависит не от кода»: ОКРУЖЕНИЕ РАННЕРА. Имя красно в контрольном прогоне CI и ЗЕЛЕНО на своём дереве той же вершины. Эти имена дефектами кода не являются, и держать их в вилке дефектов значит завышать её на 19 из 56. Соседняя дверь — СОДЕРЖИМОЕ ДЕРЕВА (ADR-905…907, spa_core/tests/tree_content_class_baseline.json); двери РАЗНЫЕ, мерить порознь.",
-  "upper_bound": 19,
-  "required_member_fields": [
-    "nodeid",
-    "ci_outcome",
-    "local_outcome",
-    "ci_cause",
-    "door",
-    "measured_in"
+ "schema": "ci-only-red-class/1",
+ "зачем": "ОДИННАДЦАТАЯ дверь семейства «вердикт зависит не от кода»: ОКРУЖЕНИЕ РАННЕРА. Имя красно в контрольном прогоне CI и ЗЕЛЕНО на своём дереве той же вершины. Эти имена дефектами кода не являются, и держать их в вилке дефектов значит завышать её на 19 из 56. Соседняя дверь — СОДЕРЖИМОЕ ДЕРЕВА (ADR-905…907, spa_core/tests/tree_content_class_baseline.json); двери РАЗНЫЕ, мерить порознь.",
+ "upper_bound": 11,
+ "required_member_fields": [
+  "nodeid",
+  "ci_outcome",
+  "local_outcome",
+  "ci_cause",
+  "door",
+  "measured_in",
+  "determinism",
+  "determinism_door",
+  "determinism_mechanism",
+  "determinism_measured_in"
+ ],
+ "контракт_полей_зачем": "Перечень полей живёт ЗДЕСЬ, а не только в сторожe: мутация #5 замера #1027 сузила кортеж `REQUIRED_MEMBER_FIELDS` в самом сторожe до одного поля и ВЫЖИЛА — сторож сверял объявление со СВОЕЙ ЖЕ (мутированной) спецификацией. Теперь спецификация у объявления, и сужение в коде краснит паритет.",
+ "measurement": "прогон дефектной части (56 имён) ПОИМЁННО на своём дереве: один процесс pytest на ФАЙЛ, выбраны ровно объявленные nodeid, окружение прогона CI (SPA_ENV=ci PYTHONHASHSEED=0 -p no:randomly), одноразовое дерево /private/tmp/spa_c1027_run на 072d1ed21; вердикт снят из junitxml. Наблюдений ДВА независимых, 19 из 19 совпали",
+ "ci_run_id": "41765759535",
+ "measured_on_sha": "072d1ed21",
+ "defective_part_size": 56,
+ "wall_clock_minutes": 13,
+ "чего_замер_НЕ_отвечает": "«зелен в прогоне ПО ФАЙЛУ» не равно «зелен в шардированном прогоне ВСЕГО набора»: состав прогона есть ТРЕТЬЯ дверь (взаимное влияние тестов), и она здесь НЕ ИЗМЕРЕНА. Поэтому 19 — население класса ПРИ ЭТОМ способе спросить, а не доказательство, что 19 имён зелены в CI при любом составе.",
+ "members": [
+  {
+   "nodeid": "scripts/tests/test_check_concurrent_pytest.py::TestOpenFilesParsesRealLsof::test_a_live_process_whose_only_write_target_is_unlinked_reads_UNREADABLE",
+   "ci_outcome": "failed",
+   "local_outcome": "passed",
+   "ci_cause": "AssertionError: scripts/tests/test_check_concurrent_pytest.py:681: in test_a_live_process_whose_only_write_target_is_unlinked_reads_UNREADABLE",
+   "door": "runner_environment",
+   "measured_in": "прогон дефектной части (56 имён) ПОИМЁННО на своём дереве: один процесс pytest на ФАЙЛ, выбраны ровно объявленные nodeid, окружение прогона CI (SPA_ENV=ci PYTHONHASHSEED=0 -p no:randomly), одноразовое дерево /private/tmp/spa_c1027_run на 072d1ed21; вердикт снят из junitxml. Наблюдений ДВА независимых, 19 из 19 совпали",
+   "confirmed_by_second_run": true,
+   "determinism": "deterministic",
+   "determinism_door": "platform_os_tool",
+   "determinism_mechanism": "Сцена спрашивает у живой машины ВЫВОД `lsof` о СВОЁМ процессе (`os.getpid()`, жив по построению). Улика прогона 43859165098: `lsof -a -p 2341 -d 0-255 -Ffntia` вышел кодом 0, 81 строка, метки полей ['a','f','i','n','p','t'], и отвязанного файла с меткой `n`, кончающейся на `.gone`, среди них НЕТ. BSD-`lsof` печатает имя отвязанного файла, procfs-`lsof` на Linux — нет. Вероятностной двери в сцене не осталось ни одной: номер процесса свой, часы не спрашиваются, порт не берётся.",
+   "determinism_measured_in": "цикл #1170, заказ G1019 п. 2: улика взята из junit-артефакта шарда контрольного прогона 43859165098 (вершина 3c9c4fa90), а НЕ из поля `msg` сводки — там живёт только строка-адрес. Вердикт о детерминизме выведен из ОТСУТСТВИЯ вероятностной двери в сцене (номер порта, номер процесса, стенные часы, состав населения живой машины), а не из повторного зелёного: двух наблюдений вероятностному падению почти всегда хватает."
+  },
+  {
+   "nodeid": "spa_core/tests/test_act_day_recovery.py::TestTheHonestBatteryHoles::test_fractional_turnover_keeps_its_cents",
+   "ci_outcome": "failed",
+   "local_outcome": "passed",
+   "ci_cause": "AssertionError: spa_core/tests/test_act_day_recovery.py:607: in test_fractional_turnover_keeps_its_cents",
+   "door": "runner_environment",
+   "measured_in": "прогон дефектной части (56 имён) ПОИМЁННО на своём дереве: один процесс pytest на ФАЙЛ, выбраны ровно объявленные nodeid, окружение прогона CI (SPA_ENV=ci PYTHONHASHSEED=0 -p no:randomly), одноразовое дерево /private/tmp/spa_c1027_run на 072d1ed21; вердикт снят из junitxml. Наблюдений ДВА независимых, 19 из 19 совпали",
+   "confirmed_by_second_run": true,
+   "determinism": "deterministic",
+   "determinism_door": "interpreter_or_arch_float",
+   "determinism_mechanism": "В сцене НЕТ ни одной двери к живой машине: вход — литералы, часы инъектированы (`now=`), дерево одноразовое. Арифметика на фиксированных входах на одной сборке повторяется ПОБАЙТОВО, поэтому зелёное здесь детерминировано ПО ПОСТРОЕНИЮ, а не по двум наблюдениям. Расхождение замерено: Мак (3.13.11/arm64) даёт 20000.01, раннер (3.11.18/x86-64) — 20000.0. КАКАЯ из двух осей (версия интерпретатора или архитектура) переворачивает исход, НЕ РАЗДЕЛЕНО, и для вердикта о детерминизме это не требуется.",
+   "determinism_measured_in": "цикл #1170, заказ G1019 п. 2: улика взята из junit-артефакта шарда контрольного прогона 43859165098 (вершина 3c9c4fa90), а НЕ из поля `msg` сводки — там живёт только строка-адрес. Вердикт о детерминизме выведен из ОТСУТСТВИЯ вероятностной двери в сцене (номер порта, номер процесса, стенные часы, состав населения живой машины), а не из повторного зелёного: двух наблюдений вероятностному падению почти всегда хватает."
+  },
+  {
+   "nodeid": "spa_core/tests/test_announce_clock_door_census.py::TestSynthForm::test_an_unknown_directive_yields_a_string_and_the_DOOR_refuses_it",
+   "ci_outcome": "failed",
+   "local_outcome": "passed",
+   "ci_cause": "AssertionError: spa_core/tests/test_announce_clock_door_census.py:1217: in test_an_unknown_directive_yields_a_string_and_the_DOOR_refuses_it",
+   "door": "runner_environment",
+   "measured_in": "прогон дефектной части (56 имён) ПОИМЁННО на своём дереве: один процесс pytest на ФАЙЛ, выбраны ровно объявленные nodeid, окружение прогона CI (SPA_ENV=ci PYTHONHASHSEED=0 -p no:randomly), одноразовое дерево /private/tmp/spa_c1027_run на 072d1ed21; вердикт снят из junitxml. Наблюдений ДВА независимых, 19 из 19 совпали",
+   "confirmed_by_second_run": true,
+   "determinism": "deterministic",
+   "determinism_door": "platform_c_library",
+   "determinism_mechanism": "Сцена спрашивает `strftime` ЖИВОЙ платформы на неизвестной директиве `%Q` — и сам docstring теста это объявляет («замер на ЭТОЙ машине»). BSD-`strftime` отдаёт `Q`, glibc — `%Q` (улика прогона: `'%Q' != 'Q'`). Ответ libc на фиксированный вход на одной машине постоянен ⇒ детерминировано.",
+   "determinism_measured_in": "цикл #1170, заказ G1019 п. 2: улика взята из junit-артефакта шарда контрольного прогона 43859165098 (вершина 3c9c4fa90), а НЕ из поля `msg` сводки — там живёт только строка-адрес. Вердикт о детерминизме выведен из ОТСУТСТВИЯ вероятностной двери в сцене (номер порта, номер процесса, стенные часы, состав населения живой машины), а не из повторного зелёного: двух наблюдений вероятностному падению почти всегда хватает."
+  },
+  {
+   "nodeid": "spa_core/tests/test_edge_downside_parity.py::test_downside_denominator_is_exactly_zero_where_volatility_is_not",
+   "ci_outcome": "failed",
+   "local_outcome": "passed",
+   "ci_cause": "тип не назван: spa_core/tests/test_edge_downside_parity.py:100: in test_downside_denominator_is_exactly_zero_where_volatility_is_not",
+   "door": "runner_environment",
+   "measured_in": "прогон дефектной части (56 имён) ПОИМЁННО на своём дереве: один процесс pytest на ФАЙЛ, выбраны ровно объявленные nodeid, окружение прогона CI (SPA_ENV=ci PYTHONHASHSEED=0 -p no:randomly), одноразовое дерево /private/tmp/spa_c1027_run на 072d1ed21; вердикт снят из junitxml. Наблюдений ДВА независимых, 19 из 19 совпали",
+   "confirmed_by_second_run": true,
+   "determinism": "deterministic",
+   "determinism_door": "interpreter_or_arch_float",
+   "determinism_mechanism": "Дверей к живой машине в сцене нет: синтетическая панель из литералов, без `data/`, сети и часов (так и объявлено в шапке файла). Замер 16.11: Мак даёт `stdev([0.0002]*10)` РОВНО 0.0, раннер — 2.8571235909641123e-20. Сравнение с точным нулём на константном ряде — предмет отдельной карточки; для ОСИ ДЕТЕРМИНИЗМА важно, что исход есть свойство сборки, а не удачи: одна сборка повторяет его побайтово.",
+   "determinism_measured_in": "цикл #1170, заказ G1019 п. 2: улика взята из junit-артефакта шарда контрольного прогона 43859165098 (вершина 3c9c4fa90), а НЕ из поля `msg` сводки — там живёт только строка-адрес. Вердикт о детерминизме выведен из ОТСУТСТВИЯ вероятностной двери в сцене (номер порта, номер процесса, стенные часы, состав населения живой машины), а не из повторного зелёного: двух наблюдений вероятностному падению почти всегда хватает."
+  },
+  {
+   "nodeid": "spa_core/tests/test_edge_tuw_unsmooth.py::test_constant_series_autocorrelation_is_unmeasured_not_zero",
+   "ci_outcome": "failed",
+   "local_outcome": "passed",
+   "ci_cause": "тип не назван: spa_core/tests/test_edge_tuw_unsmooth.py:96: in test_constant_series_autocorrelation_is_unmeasured_not_zero",
+   "door": "runner_environment",
+   "measured_in": "прогон дефектной части (56 имён) ПОИМЁННО на своём дереве: один процесс pytest на ФАЙЛ, выбраны ровно объявленные nodeid, окружение прогона CI (SPA_ENV=ci PYTHONHASHSEED=0 -p no:randomly), одноразовое дерево /private/tmp/spa_c1027_run на 072d1ed21; вердикт снят из junitxml. Наблюдений ДВА независимых, 19 из 19 совпали",
+   "confirmed_by_second_run": true,
+   "determinism": "deterministic",
+   "determinism_door": "interpreter_or_arch_float",
+   "determinism_mechanism": "Та же дверь и тот же род, что у соседа выше, на другой величине: Мак даёт `lag1_autocorr([0.001]*50) is None`, раннер — 0.98. Константный ряд даёт НЕ РОВНО ноль в дисперсии на одной сборке и ровно ноль на другой. Часы в модуле не спрашиваются вовсе (объявлено `FROZEN-DATE-OK` в шапке) ⇒ вероятностной двери нет.",
+   "determinism_measured_in": "цикл #1170, заказ G1019 п. 2: улика взята из junit-артефакта шарда контрольного прогона 43859165098 (вершина 3c9c4fa90), а НЕ из поля `msg` сводки — там живёт только строка-адрес. Вердикт о детерминизме выведен из ОТСУТСТВИЯ вероятностной двери в сцене (номер порта, номер процесса, стенные часы, состав населения живой машины), а не из повторного зелёного: двух наблюдений вероятностному падению почти всегда хватает."
+  },
+  {
+   "nodeid": "spa_core/tests/test_office_absent_block_producer_aware.py::CensusRatchet::test_the_allowlist_keys_match_the_live_producer_exactly",
+   "ci_outcome": "failed",
+   "local_outcome": "passed",
+   "ci_cause": "AssertionError: spa_core/tests/test_office_absent_block_producer_aware.py:467: in test_the_allowlist_keys_match_the_live_producer_exactly",
+   "door": "runner_environment",
+   "measured_in": "прогон дефектной части (56 имён) ПОИМЁННО на своём дереве: один процесс pytest на ФАЙЛ, выбраны ровно объявленные nodeid, окружение прогона CI (SPA_ENV=ci PYTHONHASHSEED=0 -p no:randomly), одноразовое дерево /private/tmp/spa_c1027_run на 072d1ed21; вердикт снят из junitxml. Наблюдений ДВА независимых, 19 из 19 совпали",
+   "confirmed_by_second_run": true,
+   "determinism": "deterministic",
+   "determinism_door": "interpreter_version_ast",
+   "determinism_mechanism": "Сцена разбирает ЖИВОЙ производитель `scripts/consume_office_reports.py` через `ast` — то есть спрашивает у машины РАЗБОРЩИК, а не файл (байты файла в обоих местах одни, вершина одна). Улика: площадка `_summarize_json` несёт текст `'—'` на Маке (3.13) и `'латентность : в отчёте нет —'` на раннере (3.11). Это PEP 701: с 3.12 f-строка даёт ДРУГОЕ дерево, и извлечённая константа — другая. Разбор фиксированного исходника одним интерпретатором повторяется ⇒ детерминировано.",
+   "determinism_measured_in": "цикл #1170, заказ G1019 п. 2: улика взята из junit-артефакта шарда контрольного прогона 43859165098 (вершина 3c9c4fa90), а НЕ из поля `msg` сводки — там живёт только строка-адрес. Вердикт о детерминизме выведен из ОТСУТСТВИЯ вероятностной двери в сцене (номер порта, номер процесса, стенные часы, состав населения живой машины), а не из повторного зелёного: двух наблюдений вероятностному падению почти всегда хватает."
+  },
+  {
+   "nodeid": "spa_core/tests/test_office_absent_block_producer_aware.py::CensusRatchet::test_the_exemption_covers_no_MORE_sites_than_it_names",
+   "ci_outcome": "failed",
+   "local_outcome": "passed",
+   "ci_cause": "AssertionError: spa_core/tests/test_office_absent_block_producer_aware.py:340: in test_the_exemption_covers_no_MORE_sites_than_it_names",
+   "door": "runner_environment",
+   "measured_in": "прогон дефектной части (56 имён) ПОИМЁННО на своём дереве: один процесс pytest на ФАЙЛ, выбраны ровно объявленные nodeid, окружение прогона CI (SPA_ENV=ci PYTHONHASHSEED=0 -p no:randomly), одноразовое дерево /private/tmp/spa_c1027_run на 072d1ed21; вердикт снят из junitxml. Наблюдений ДВА независимых, 19 из 19 совпали",
+   "confirmed_by_second_run": true,
+   "determinism": "deterministic",
+   "determinism_door": "interpreter_version_ast",
+   "determinism_mechanism": "Тот же разборщик и та же площадка, другой вопрос: «освобождённых должно быть ровно столько, сколько названо» — на раннере 1 против 2. Причина одна с соседом выше (PEP 701).",
+   "determinism_measured_in": "цикл #1170, заказ G1019 п. 2: улика взята из junit-артефакта шарда контрольного прогона 43859165098 (вершина 3c9c4fa90), а НЕ из поля `msg` сводки — там живёт только строка-адрес. Вердикт о детерминизме выведен из ОТСУТСТВИЯ вероятностной двери в сцене (номер порта, номер процесса, стенные часы, состав населения живой машины), а не из повторного зелёного: двух наблюдений вероятностному падению почти всегда хватает."
+  },
+  {
+   "nodeid": "spa_core/tests/test_recover_trusted_runtime.py::TestDryRunZeroMutation::test_dry_run_reaches_confirmed_broken_and_mutates_nothing",
+   "ci_outcome": "failed",
+   "local_outcome": "passed",
+   "ci_cause": "AssertionError: spa_core/tests/test_recover_trusted_runtime.py:135: in test_dry_run_reaches_confirmed_broken_and_mutates_nothing",
+   "door": "runner_environment",
+   "measured_in": "прогон дефектной части (56 имён) ПОИМЁННО на своём дереве: один процесс pytest на ФАЙЛ, выбраны ровно объявленные nodeid, окружение прогона CI (SPA_ENV=ci PYTHONHASHSEED=0 -p no:randomly), одноразовое дерево /private/tmp/spa_c1027_run на 072d1ed21; вердикт снят из junitxml. Наблюдений ДВА независимых, 19 из 19 совпали",
+   "confirmed_by_second_run": true,
+   "determinism": "deterministic",
+   "determinism_door": "absent_binary_or_privilege",
+   "determinism_mechanism": "Сцена поднимает настоящий `recover_trusted_runtime` подпроцессом и ждёт кода 0; на раннере он вышел **127** («команда не найдена») со своей же запиской «cannot read root-owned runtime as runner — digest check deferred to --execute (root)». Код 127 есть свойство СОСТАВА хоста (чего в нём не установлено и чьи права у зовущего), а не удачи: на одном хосте он повторяется.",
+   "determinism_measured_in": "цикл #1170, заказ G1019 п. 2: улика взята из junit-артефакта шарда контрольного прогона 43859165098 (вершина 3c9c4fa90), а НЕ из поля `msg` сводки — там живёт только строка-адрес. Вердикт о детерминизме выведен из ОТСУТСТВИЯ вероятностной двери в сцене (номер порта, номер процесса, стенные часы, состав населения живой машины), а не из повторного зелёного: двух наблюдений вероятностному падению почти всегда хватает."
+  },
+  {
+   "nodeid": "spa_core/tests/test_shell_git_cd_repo_identity.py::GuardOnTheGuard::test_empty_baseline_makes_the_real_tree_run_red_by_name",
+   "ci_outcome": "failed",
+   "local_outcome": "passed",
+   "ci_cause": "AssertionError: spa_core/tests/test_shell_git_cd_repo_identity.py:324: in test_empty_baseline_makes_the_real_tree_run_red_by_name",
+   "door": "runner_environment",
+   "measured_in": "прогон дефектной части (56 имён) ПОИМЁННО на своём дереве: один процесс pytest на ФАЙЛ, выбраны ровно объявленные nodeid, окружение прогона CI (SPA_ENV=ci PYTHONHASHSEED=0 -p no:randomly), одноразовое дерево /private/tmp/spa_c1027_run на 072d1ed21; вердикт снят из junitxml. Наблюдений ДВА независимых, 19 из 19 совпали",
+   "confirmed_by_second_run": true,
+   "determinism": "deterministic",
+   "determinism_door": "host_pinned_path",
+   "determinism_mechanism": "Предмет сцены — приколоченные в оболочечных скриптах пути, и они указывают на МАК: улика прогона — 12 строк «каталога '/Users/yuriikulieshov/Documents/SPA_Claude' нет на этой машине», `by_host=0`, «⛔ НЕ ИЗМЕРЕНО: 23 приколоченных целей нет на этом хосте». Наличие каталога на хосте постоянно в пределах хоста ⇒ детерминировано.",
+   "determinism_measured_in": "цикл #1170, заказ G1019 п. 2: улика взята из junit-артефакта шарда контрольного прогона 43859165098 (вершина 3c9c4fa90), а НЕ из поля `msg` сводки — там живёт только строка-адрес. Вердикт о детерминизме выведен из ОТСУТСТВИЯ вероятностной двери в сцене (номер порта, номер процесса, стенные часы, состав населения живой машины), а не из повторного зелёного: двух наблюдений вероятностному падению почти всегда хватает."
+  },
+  {
+   "nodeid": "spa_core/tests/test_shell_git_cd_repo_identity.py::GuardOnTheGuard::test_shipped_baseline_is_green_and_covers_the_measured_subject",
+   "ci_outcome": "failed",
+   "local_outcome": "passed",
+   "ci_cause": "AssertionError: spa_core/tests/test_shell_git_cd_repo_identity.py:335: in test_shipped_baseline_is_green_and_covers_the_measured_subject",
+   "door": "runner_environment",
+   "measured_in": "прогон дефектной части (56 имён) ПОИМЁННО на своём дереве: один процесс pytest на ФАЙЛ, выбраны ровно объявленные nodeid, окружение прогона CI (SPA_ENV=ci PYTHONHASHSEED=0 -p no:randomly), одноразовое дерево /private/tmp/spa_c1027_run на 072d1ed21; вердикт снят из junitxml. Наблюдений ДВА независимых, 19 из 19 совпали",
+   "confirmed_by_second_run": true,
+   "determinism": "deterministic",
+   "determinism_door": "host_pinned_path",
+   "determinism_mechanism": "Обратная сторона того же вопроса на той же двери (та же улика, тот же список 23 целей).",
+   "determinism_measured_in": "цикл #1170, заказ G1019 п. 2: улика взята из junit-артефакта шарда контрольного прогона 43859165098 (вершина 3c9c4fa90), а НЕ из поля `msg` сводки — там живёт только строка-адрес. Вердикт о детерминизме выведен из ОТСУТСТВИЯ вероятностной двери в сцене (номер порта, номер процесса, стенные часы, состав населения живой машины), а не из повторного зелёного: двух наблюдений вероятностному падению почти всегда хватает."
+  },
+  {
+   "nodeid": "spa_core/tests/test_truncated_input_census.py::TheJanitorSeesEveryWorktree::test_trees_beyond_the_old_budget_are_still_found",
+   "ci_outcome": "failed",
+   "local_outcome": "passed",
+   "ci_cause": "AssertionError: spa_core/tests/test_truncated_input_census.py:743: in test_trees_beyond_the_old_budget_are_still_found",
+   "door": "runner_environment",
+   "measured_in": "прогон дефектной части (56 имён) ПОИМЁННО на своём дереве: один процесс pytest на ФАЙЛ, выбраны ровно объявленные nodeid, окружение прогона CI (SPA_ENV=ci PYTHONHASHSEED=0 -p no:randomly), одноразовое дерево /private/tmp/spa_c1027_run на 072d1ed21; вердикт снят из junitxml. Наблюдений ДВА независимых, 19 из 19 совпали",
+   "confirmed_by_second_run": true,
+   "determinism": "deterministic",
+   "determinism_door": "host_tmpdir_path_length",
+   "determinism_mechanism": "Сцена строит СВОЙ одноразовый репозиторий в `TemporaryDirectory()` и требует, чтобы вывод `git worktree list --porcelain` перерос бюджет 2000 символов. Длину вывода задаёт ПРЕФИКС системного временного каталога: на Маке `/var/folders/<…>/T/tmpXXXXXXXX` (≈49 символов), на Linux `/tmp/tmpXXXXXXXX` (≈16). Улика прогона: 1955 против порога 2000 — не хватило ровно префикса. Предпосылка сцены закреплена ХОСТОМ, а не построением (это предмет карточки), но в пределах хоста она постоянна ⇒ детерминировано.",
+   "determinism_measured_in": "цикл #1170, заказ G1019 п. 2: улика взята из junit-артефакта шарда контрольного прогона 43859165098 (вершина 3c9c4fa90), а НЕ из поля `msg` сводки — там живёт только строка-адрес. Вердикт о детерминизме выведен из ОТСУТСТВИЯ вероятностной двери в сцене (номер порта, номер процесса, стенные часы, состав населения живой машины), а не из повторного зелёного: двух наблюдений вероятностному падению почти всегда хватает."
+  }
+ ],
+ "determinism_axis": {
+  "зачем": "Поле `local_outcome: passed` есть НАБЛЮДЕНИЕ, а не свойство: оно не отличает детерминированно зелёный тест от зелёного ПО УДАЧЕ. ADR-1030 нашёл первый измеренный случай, где критерий объявил бы НЕ ТО, и ADR-1031 измерил ось у всех 19 членов. Вердикт `deterministic` обязан стоять на ОТСУТСТВИИ вероятностной двери в сцене — повторное зелёное свойством не является.",
+  "словарь": [
+   "deterministic",
+   "unmeasured"
   ],
-  "контракт_полей_зачем": "Перечень полей живёт ЗДЕСЬ, а не только в сторожe: мутация #5 замера #1027 сузила кортеж `REQUIRED_MEMBER_FIELDS` в самом сторожe до одного поля и ВЫЖИЛА — сторож сверял объявление со СВОЕЙ ЖЕ (мутированной) спецификацией. Теперь спецификация у объявления, и сужение в коде краснит паритет.",
-  "measurement": "прогон дефектной части (56 имён) ПОИМЁННО на своём дереве: один процесс pytest на ФАЙЛ, выбраны ровно объявленные nodeid, окружение прогона CI (SPA_ENV=ci PYTHONHASHSEED=0 -p no:randomly), одноразовое дерево /private/tmp/spa_c1027_run на 072d1ed21; вердикт снят из junitxml. Наблюдений ДВА независимых, 19 из 19 совпали",
-  "ci_run_id": "41765759535",
-  "measured_on_sha": "072d1ed21",
-  "defective_part_size": 56,
-  "wall_clock_minutes": 13,
-  "чего_замер_НЕ_отвечает": "«зелен в прогоне ПО ФАЙЛУ» не равно «зелен в шардированном прогоне ВСЕГО набора»: состав прогона есть ТРЕТЬЯ дверь (взаимное влияние тестов), и она здесь НЕ ИЗМЕРЕНА. Поэтому 19 — население класса ПРИ ЭТОМ способе спросить, а не доказательство, что 19 имён зелены в CI при любом составе.",
-  "members": [
+  "почему bomb не словом, а ВЫВОДОМ": "Член, у которого красный воспроизводится на СВОЁМ дереве одним входом, рода «окружение раннера» не принадлежит вовсе: держать его здесь значило бы вычитать живой дефект из вилки. Поэтому `bomb` в объявлении не хранится — такой член УХОДИТ из него, и база убывает (инв. #16).",
+  "замер_1170": {
+   "population_before": 19,
+   "deterministic": 11,
+   "bomb_removed": 7,
+   "stale_removed": 1,
+   "unmeasured": 0,
+   "ci_run_id": "43859165098",
+   "measured_on_sha": "3c9c4fa90",
+   "removed": [
     {
-      "nodeid": "scripts/tests/test_check_concurrent_pytest.py::TestOpenFilesParsesRealLsof::test_a_live_process_whose_only_write_target_is_unlinked_reads_UNREADABLE",
-      "ci_outcome": "failed",
-      "local_outcome": "passed",
-      "ci_cause": "AssertionError: scripts/tests/test_check_concurrent_pytest.py:681: in test_a_live_process_whose_only_write_target_is_unlinked_reads_UNREADABLE",
-      "door": "runner_environment",
-      "measured_in": "прогон дефектной части (56 имён) ПОИМЁННО на своём дереве: один процесс pytest на ФАЙЛ, выбраны ровно объявленные nodeid, окружение прогона CI (SPA_ENV=ci PYTHONHASHSEED=0 -p no:randomly), одноразовое дерево /private/tmp/spa_c1027_run на 072d1ed21; вердикт снят из junitxml. Наблюдений ДВА независимых, 19 из 19 совпали",
-      "confirmed_by_second_run": true
+     "nodeid": "spa_core/tests/test_mission_rebuild_from_canon.py::test_rebuild_from_canon_gives_byte_identical_mission_json",
+     "kind": "stale_ci_outcome",
+     "door": "—"
     },
     {
-      "nodeid": "spa_core/tests/test_act_day_recovery.py::TestTheHonestBatteryHoles::test_fractional_turnover_keeps_its_cents",
-      "ci_outcome": "failed",
-      "local_outcome": "passed",
-      "ci_cause": "AssertionError: spa_core/tests/test_act_day_recovery.py:607: in test_fractional_turnover_keeps_its_cents",
-      "door": "runner_environment",
-      "measured_in": "прогон дефектной части (56 имён) ПОИМЁННО на своём дереве: один процесс pytest на ФАЙЛ, выбраны ровно объявленные nodeid, окружение прогона CI (SPA_ENV=ci PYTHONHASHSEED=0 -p no:randomly), одноразовое дерево /private/tmp/spa_c1027_run на 072d1ed21; вердикт снят из junitxml. Наблюдений ДВА независимых, 19 из 19 совпали",
-      "confirmed_by_second_run": true
+     "nodeid": "spa_core/tests/test_mutation_window_owner_probe.py::test_a_refusal_that_also_blocks_a_dead_owner_is_caught",
+     "kind": "bomb",
+     "door": "process_identity_via_ps_column_text"
     },
     {
-      "nodeid": "spa_core/tests/test_announce_clock_door_census.py::TestSynthForm::test_an_unknown_directive_yields_a_string_and_the_DOOR_refuses_it",
-      "ci_outcome": "failed",
-      "local_outcome": "passed",
-      "ci_cause": "AssertionError: spa_core/tests/test_announce_clock_door_census.py:1217: in test_an_unknown_directive_yields_a_string_and_the_DOOR_refuses_it",
-      "door": "runner_environment",
-      "measured_in": "прогон дефектной части (56 имён) ПОИМЁННО на своём дереве: один процесс pytest на ФАЙЛ, выбраны ровно объявленные nodeid, окружение прогона CI (SPA_ENV=ci PYTHONHASHSEED=0 -p no:randomly), одноразовое дерево /private/tmp/spa_c1027_run на 072d1ed21; вердикт снят из junitxml. Наблюдений ДВА независимых, 19 из 19 совпали",
-      "confirmed_by_second_run": true
+     "nodeid": "spa_core/tests/test_mutation_window_owner_probe.py::test_a_refusal_that_restores_anyway_is_caught",
+     "kind": "bomb",
+     "door": "process_identity_via_ps_column_text"
     },
     {
-      "nodeid": "spa_core/tests/test_edge_downside_parity.py::test_downside_denominator_is_exactly_zero_where_volatility_is_not",
-      "ci_outcome": "failed",
-      "local_outcome": "passed",
-      "ci_cause": "тип не назван: spa_core/tests/test_edge_downside_parity.py:100: in test_downside_denominator_is_exactly_zero_where_volatility_is_not",
-      "door": "runner_environment",
-      "measured_in": "прогон дефектной части (56 имён) ПОИМЁННО на своём дереве: один процесс pytest на ФАЙЛ, выбраны ровно объявленные nodeid, окружение прогона CI (SPA_ENV=ci PYTHONHASHSEED=0 -p no:randomly), одноразовое дерево /private/tmp/spa_c1027_run на 072d1ed21; вердикт снят из junitxml. Наблюдений ДВА независимых, 19 из 19 совпали",
-      "confirmed_by_second_run": true
+     "nodeid": "spa_core/tests/test_mutation_window_owner_probe.py::test_a_refusal_that_takes_the_window_record_with_it_is_caught",
+     "kind": "bomb",
+     "door": "process_identity_via_ps_column_text"
     },
     {
-      "nodeid": "spa_core/tests/test_edge_tuw_unsmooth.py::test_constant_series_autocorrelation_is_unmeasured_not_zero",
-      "ci_outcome": "failed",
-      "local_outcome": "passed",
-      "ci_cause": "тип не назван: spa_core/tests/test_edge_tuw_unsmooth.py:96: in test_constant_series_autocorrelation_is_unmeasured_not_zero",
-      "door": "runner_environment",
-      "measured_in": "прогон дефектной части (56 имён) ПОИМЁННО на своём дереве: один процесс pytest на ФАЙЛ, выбраны ровно объявленные nodeid, окружение прогона CI (SPA_ENV=ci PYTHONHASHSEED=0 -p no:randomly), одноразовое дерево /private/tmp/spa_c1027_run на 072d1ed21; вердикт снят из junitxml. Наблюдений ДВА независимых, 19 из 19 совпали",
-      "confirmed_by_second_run": true
+     "nodeid": "spa_core/tests/test_mutation_window_owner_probe.py::test_a_refusal_without_a_way_up_is_caught",
+     "kind": "bomb",
+     "door": "process_identity_via_ps_column_text"
     },
     {
-      "nodeid": "spa_core/tests/test_mission_rebuild_from_canon.py::test_rebuild_from_canon_gives_byte_identical_mission_json",
-      "ci_outcome": "failed",
-      "local_outcome": "passed",
-      "ci_cause": "тип не назван: spa_core/tests/test_mission_rebuild_from_canon.py:81: in test_rebuild_from_canon_gives_byte_identical_mission_json",
-      "door": "runner_environment",
-      "measured_in": "прогон дефектной части (56 имён) ПОИМЁННО на своём дереве: один процесс pytest на ФАЙЛ, выбраны ровно объявленные nodeid, окружение прогона CI (SPA_ENV=ci PYTHONHASHSEED=0 -p no:randomly), одноразовое дерево /private/tmp/spa_c1027_run на 072d1ed21; вердикт снят из junitxml. Наблюдений ДВА независимых, 19 из 19 совпали",
-      "confirmed_by_second_run": true
+     "nodeid": "spa_core/tests/test_mutation_window_owner_probe.py::test_the_probe_is_green_on_an_untouched_copy",
+     "kind": "bomb",
+     "door": "process_identity_via_ps_column_text"
     },
     {
-      "nodeid": "spa_core/tests/test_mutation_window_owner_probe.py::test_a_refusal_that_also_blocks_a_dead_owner_is_caught",
-      "ci_outcome": "failed",
-      "local_outcome": "passed",
-      "ci_cause": "AssertionError: spa_core/tests/test_mutation_window_owner_probe.py:183: in test_a_refusal_that_also_blocks_a_dead_owner_is_caught",
-      "door": "runner_environment",
-      "measured_in": "прогон дефектной части (56 имён) ПОИМЁННО на своём дереве: один процесс pytest на ФАЙЛ, выбраны ровно объявленные nodeid, окружение прогона CI (SPA_ENV=ci PYTHONHASHSEED=0 -p no:randomly), одноразовое дерево /private/tmp/spa_c1027_run на 072d1ed21; вердикт снят из junitxml. Наблюдений ДВА независимых, 19 из 19 совпали",
-      "confirmed_by_second_run": true
+     "nodeid": "spa_core/tests/test_mutation_window_owner_probe.py::test_the_probe_is_green_on_the_live_tree",
+     "kind": "bomb",
+     "door": "process_identity_via_ps_column_text"
     },
     {
-      "nodeid": "spa_core/tests/test_mutation_window_owner_probe.py::test_a_refusal_that_restores_anyway_is_caught",
-      "ci_outcome": "failed",
-      "local_outcome": "passed",
-      "ci_cause": "AssertionError: spa_core/tests/test_mutation_window_owner_probe.py:171: in test_a_refusal_that_restores_anyway_is_caught",
-      "door": "runner_environment",
-      "measured_in": "прогон дефектной части (56 имён) ПОИМЁННО на своём дереве: один процесс pytest на ФАЙЛ, выбраны ровно объявленные nodeid, окружение прогона CI (SPA_ENV=ci PYTHONHASHSEED=0 -p no:randomly), одноразовое дерево /private/tmp/spa_c1027_run на 072d1ed21; вердикт снят из junitxml. Наблюдений ДВА независимых, 19 из 19 совпали",
-      "confirmed_by_second_run": true
-    },
-    {
-      "nodeid": "spa_core/tests/test_mutation_window_owner_probe.py::test_a_refusal_that_takes_the_window_record_with_it_is_caught",
-      "ci_outcome": "failed",
-      "local_outcome": "passed",
-      "ci_cause": "AssertionError: spa_core/tests/test_mutation_window_owner_probe.py:137: in test_a_refusal_that_takes_the_window_record_with_it_is_caught",
-      "door": "runner_environment",
-      "measured_in": "прогон дефектной части (56 имён) ПОИМЁННО на своём дереве: один процесс pytest на ФАЙЛ, выбраны ровно объявленные nodeid, окружение прогона CI (SPA_ENV=ci PYTHONHASHSEED=0 -p no:randomly), одноразовое дерево /private/tmp/spa_c1027_run на 072d1ed21; вердикт снят из junitxml. Наблюдений ДВА независимых, 19 из 19 совпали",
-      "confirmed_by_second_run": true
-    },
-    {
-      "nodeid": "spa_core/tests/test_mutation_window_owner_probe.py::test_a_refusal_without_a_way_up_is_caught",
-      "ci_outcome": "failed",
-      "local_outcome": "passed",
-      "ci_cause": "AssertionError: spa_core/tests/test_mutation_window_owner_probe.py:149: in test_a_refusal_without_a_way_up_is_caught",
-      "door": "runner_environment",
-      "measured_in": "прогон дефектной части (56 имён) ПОИМЁННО на своём дереве: один процесс pytest на ФАЙЛ, выбраны ровно объявленные nodeid, окружение прогона CI (SPA_ENV=ci PYTHONHASHSEED=0 -p no:randomly), одноразовое дерево /private/tmp/spa_c1027_run на 072d1ed21; вердикт снят из junitxml. Наблюдений ДВА независимых, 19 из 19 совпали",
-      "confirmed_by_second_run": true
-    },
-    {
-      "nodeid": "spa_core/tests/test_mutation_window_owner_probe.py::test_the_probe_is_green_on_an_untouched_copy",
-      "ci_outcome": "failed",
-      "local_outcome": "passed",
-      "ci_cause": "AssertionError: spa_core/tests/test_mutation_window_owner_probe.py:88: in test_the_probe_is_green_on_an_untouched_copy",
-      "door": "runner_environment",
-      "measured_in": "прогон дефектной части (56 имён) ПОИМЁННО на своём дереве: один процесс pytest на ФАЙЛ, выбраны ровно объявленные nodeid, окружение прогона CI (SPA_ENV=ci PYTHONHASHSEED=0 -p no:randomly), одноразовое дерево /private/tmp/spa_c1027_run на 072d1ed21; вердикт снят из junitxml. Наблюдений ДВА независимых, 19 из 19 совпали",
-      "confirmed_by_second_run": true
-    },
-    {
-      "nodeid": "spa_core/tests/test_mutation_window_owner_probe.py::test_the_probe_is_green_on_the_live_tree",
-      "ci_outcome": "failed",
-      "local_outcome": "passed",
-      "ci_cause": "AssertionError: spa_core/tests/test_mutation_window_owner_probe.py:79: in test_the_probe_is_green_on_the_live_tree",
-      "door": "runner_environment",
-      "measured_in": "прогон дефектной части (56 имён) ПОИМЁННО на своём дереве: один процесс pytest на ФАЙЛ, выбраны ровно объявленные nodeid, окружение прогона CI (SPA_ENV=ci PYTHONHASHSEED=0 -p no:randomly), одноразовое дерево /private/tmp/spa_c1027_run на 072d1ed21; вердикт снят из junitxml. Наблюдений ДВА независимых, 19 из 19 совпали",
-      "confirmed_by_second_run": true
-    },
-    {
-      "nodeid": "spa_core/tests/test_mutation_window_scene_reaping.py::test_success_path_leaves_no_scene_process_at_cleanup",
-      "ci_outcome": "failed",
-      "local_outcome": "passed",
-      "ci_cause": "AssertionError: spa_core/tests/test_mutation_window_scene_reaping.py:67: in test_success_path_leaves_no_scene_process_at_cleanup",
-      "door": "runner_environment",
-      "measured_in": "прогон дефектной части (56 имён) ПОИМЁННО на своём дереве: один процесс pytest на ФАЙЛ, выбраны ровно объявленные nodeid, окружение прогона CI (SPA_ENV=ci PYTHONHASHSEED=0 -p no:randomly), одноразовое дерево /private/tmp/spa_c1027_run на 072d1ed21; вердикт снят из junitxml. Наблюдений ДВА независимых, 19 из 19 совпали",
-      "confirmed_by_second_run": true
-    },
-    {
-      "nodeid": "spa_core/tests/test_office_absent_block_producer_aware.py::CensusRatchet::test_the_allowlist_keys_match_the_live_producer_exactly",
-      "ci_outcome": "failed",
-      "local_outcome": "passed",
-      "ci_cause": "AssertionError: spa_core/tests/test_office_absent_block_producer_aware.py:467: in test_the_allowlist_keys_match_the_live_producer_exactly",
-      "door": "runner_environment",
-      "measured_in": "прогон дефектной части (56 имён) ПОИМЁННО на своём дереве: один процесс pytest на ФАЙЛ, выбраны ровно объявленные nodeid, окружение прогона CI (SPA_ENV=ci PYTHONHASHSEED=0 -p no:randomly), одноразовое дерево /private/tmp/spa_c1027_run на 072d1ed21; вердикт снят из junitxml. Наблюдений ДВА независимых, 19 из 19 совпали",
-      "confirmed_by_second_run": true
-    },
-    {
-      "nodeid": "spa_core/tests/test_office_absent_block_producer_aware.py::CensusRatchet::test_the_exemption_covers_no_MORE_sites_than_it_names",
-      "ci_outcome": "failed",
-      "local_outcome": "passed",
-      "ci_cause": "AssertionError: spa_core/tests/test_office_absent_block_producer_aware.py:340: in test_the_exemption_covers_no_MORE_sites_than_it_names",
-      "door": "runner_environment",
-      "measured_in": "прогон дефектной части (56 имён) ПОИМЁННО на своём дереве: один процесс pytest на ФАЙЛ, выбраны ровно объявленные nodeid, окружение прогона CI (SPA_ENV=ci PYTHONHASHSEED=0 -p no:randomly), одноразовое дерево /private/tmp/spa_c1027_run на 072d1ed21; вердикт снят из junitxml. Наблюдений ДВА независимых, 19 из 19 совпали",
-      "confirmed_by_second_run": true
-    },
-    {
-      "nodeid": "spa_core/tests/test_recover_trusted_runtime.py::TestDryRunZeroMutation::test_dry_run_reaches_confirmed_broken_and_mutates_nothing",
-      "ci_outcome": "failed",
-      "local_outcome": "passed",
-      "ci_cause": "AssertionError: spa_core/tests/test_recover_trusted_runtime.py:135: in test_dry_run_reaches_confirmed_broken_and_mutates_nothing",
-      "door": "runner_environment",
-      "measured_in": "прогон дефектной части (56 имён) ПОИМЁННО на своём дереве: один процесс pytest на ФАЙЛ, выбраны ровно объявленные nodeid, окружение прогона CI (SPA_ENV=ci PYTHONHASHSEED=0 -p no:randomly), одноразовое дерево /private/tmp/spa_c1027_run на 072d1ed21; вердикт снят из junitxml. Наблюдений ДВА независимых, 19 из 19 совпали",
-      "confirmed_by_second_run": true
-    },
-    {
-      "nodeid": "spa_core/tests/test_shell_git_cd_repo_identity.py::GuardOnTheGuard::test_empty_baseline_makes_the_real_tree_run_red_by_name",
-      "ci_outcome": "failed",
-      "local_outcome": "passed",
-      "ci_cause": "AssertionError: spa_core/tests/test_shell_git_cd_repo_identity.py:324: in test_empty_baseline_makes_the_real_tree_run_red_by_name",
-      "door": "runner_environment",
-      "measured_in": "прогон дефектной части (56 имён) ПОИМЁННО на своём дереве: один процесс pytest на ФАЙЛ, выбраны ровно объявленные nodeid, окружение прогона CI (SPA_ENV=ci PYTHONHASHSEED=0 -p no:randomly), одноразовое дерево /private/tmp/spa_c1027_run на 072d1ed21; вердикт снят из junitxml. Наблюдений ДВА независимых, 19 из 19 совпали",
-      "confirmed_by_second_run": true
-    },
-    {
-      "nodeid": "spa_core/tests/test_shell_git_cd_repo_identity.py::GuardOnTheGuard::test_shipped_baseline_is_green_and_covers_the_measured_subject",
-      "ci_outcome": "failed",
-      "local_outcome": "passed",
-      "ci_cause": "AssertionError: spa_core/tests/test_shell_git_cd_repo_identity.py:335: in test_shipped_baseline_is_green_and_covers_the_measured_subject",
-      "door": "runner_environment",
-      "measured_in": "прогон дефектной части (56 имён) ПОИМЁННО на своём дереве: один процесс pytest на ФАЙЛ, выбраны ровно объявленные nodeid, окружение прогона CI (SPA_ENV=ci PYTHONHASHSEED=0 -p no:randomly), одноразовое дерево /private/tmp/spa_c1027_run на 072d1ed21; вердикт снят из junitxml. Наблюдений ДВА независимых, 19 из 19 совпали",
-      "confirmed_by_second_run": true
-    },
-    {
-      "nodeid": "spa_core/tests/test_truncated_input_census.py::TheJanitorSeesEveryWorktree::test_trees_beyond_the_old_budget_are_still_found",
-      "ci_outcome": "failed",
-      "local_outcome": "passed",
-      "ci_cause": "AssertionError: spa_core/tests/test_truncated_input_census.py:743: in test_trees_beyond_the_old_budget_are_still_found",
-      "door": "runner_environment",
-      "measured_in": "прогон дефектной части (56 имён) ПОИМЁННО на своём дереве: один процесс pytest на ФАЙЛ, выбраны ровно объявленные nodeid, окружение прогона CI (SPA_ENV=ci PYTHONHASHSEED=0 -p no:randomly), одноразовое дерево /private/tmp/spa_c1027_run на 072d1ed21; вердикт снят из junitxml. Наблюдений ДВА независимых, 19 из 19 совпали",
-      "confirmed_by_second_run": true
+     "nodeid": "spa_core/tests/test_mutation_window_scene_reaping.py::test_success_path_leaves_no_scene_process_at_cleanup",
+     "kind": "bomb",
+     "door": "process_identity_via_ps_column_text"
     }
-  ]
+   ]
+  },
+  "чего_замер_НЕ_отвечает": "Ось отвечает «зелёное на своём дереве есть свойство или удача», и НЕ отвечает, правомерен ли сам тест и не является ли названный механизм ПОМИМО прочего дефектом кода: `lsof`-разбор на procfs, сравнение с точным нулём на константном ряде и предпосылка сцены, закреплённая префиксом временного каталога, — каждая из них кандидат в дефект, и каждая ушла своей карточкой, а не этим полем."
+ }
 }

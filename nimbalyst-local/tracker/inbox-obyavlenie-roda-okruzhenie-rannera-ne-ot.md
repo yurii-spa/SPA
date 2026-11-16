@@ -2,10 +2,14 @@
 trackerStatus:
   type: inbox
 title: Объявление рода «окружение раннера» не отличает детерминированно зелёный тест от зелёного по удаче
-status: new
+status: done
 source: nimbalyst
 created: 2026-11-16
 twin_key: "sha256:393655b3fe7c105ddf2594af98f6b6589844fe9a359d7b840a1ce14a55f3bda7"
+acceptance_probe: ci_only_red_class_determinism_named
+status_trail:
+  - "2026-11-16T13:06:50.425463+00:00 new -> in-progress · queue.set_status · cycle-79408"
+  - "2026-11-16T13:22:27.542459+00:00 in-progress -> done · queue.set_status/closed_by:orchestrator-79408 (цикл #1170)/evidence:ADR-1031: ось измерена у всех 19 членов (детерминировано 11 - бомб 7, воспроизведены одним входом - протух 1 - НЕ ИЗМЕРЕНО 0); проба ci_only_red_class_determinism_named = satisfied, нулевая проба закр · cycle-79408"
 ---
 
 ## Что случилось и почему это важно

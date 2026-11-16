@@ -602,7 +602,17 @@ def _process_probe(pid: int) -> dict:
         return {"exists": None, "started_at": None, "command": None,
                 "why": f"os.kill({pid}, 0) отказал: {exc}"}
     try:
-        proc = subprocess.run(["ps", "-p", str(pid), "-o", "lstart=,command="],
+        # `-ww` — НЕ украшение, а предмет ADR-1031. GNU-`ps` (procps-ng, раннер CI)
+        # обрезает строку по ШИРИНЕ ЭКРАНА, а без терминала берёт 80 колонок: команда
+        # нашего же дочернего прибора приезжала усечённой
+        # (`/opt/hostedtoolcache/Python/3.11.18/x64/bin/python /tmp` — РОВНО 80 символов
+        # вместе с `lstart`), `_TOOL_IN_COMMAND` в ней прибора не находил, и вердикт о
+        # владельце окна выходил `unmeasured` при ЖИВОМ своём владельце. Это тот же класс,
+        # что `.claude/rules/deployment.md` § «ОКНО МУТАЦИОННОГО ПРИБОРА» п. 6 запрещает в
+        # grep-форме: ответ был свойством ТОГО, КАК `ps` сегодня рисует вывод. BSD-`ps`
+        # (Мак) не обрезает ни с терминалом, ни без, поэтому дома это было невидимо —
+        # 7 тестов красны в CI и зелены на Маке (прогон 43859165098).
+        proc = subprocess.run(["ps", "-ww", "-p", str(pid), "-o", "lstart=,command="],
                               capture_output=True, text=True, timeout=30,
                               env=dict(os.environ, LC_ALL="C"))
     except (OSError, subprocess.SubprocessError) as exc:
