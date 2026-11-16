@@ -31,13 +31,45 @@
 дыра в записи о деньгах. Молчаливое прощение первого («суммы же сошлись») ослепило бы прибор
 ровно на том классе, ради которого он написан.
 
+## РОСТ состава обязан менять код возврата (ADR-1033, заказ G1021 п. 6)
+
+Два расхождения живой книги ИСТОРИЧЕСКИЕ и закрыты быть не могут: дописать запись задним
+числом значит выдумать наблюдение (`docs/37`), переписать журнал ходов значит правку записи
+о деньгах, которая агенту не принадлежит (инв. #14). Решение «не закрывать» принято и названо
+вслух. Цена этого решения была в другом месте: шесть циклов подряд шаг 1д давал код **1** на
+одном и том же составе, и **третья дыра дала бы ТОТ ЖЕ код** — рост был виден только чтением
+глазами. Прибор, чей вердикт не меняется от прихода нового дефекта, отвечает на свой вопрос,
+а не на нужный.
+
+Поэтому наблюдённый состав сверяется с ОБЪЯВЛЕННЫМ (`scripts/book_second_record_baseline.json`):
+
+| исход | код | что это |
+|---|:--:|---|
+| сходится, и объявлять нечего | **0** | расхождений нет вовсе И перечень пуст |
+| НОВЫХ НЕТ | **1** | наблюдённое РОВНО совпало с объявленным — статус-кво назван |
+| состав РАЗОШЁЛСЯ с объявленным | **3** | пришло новое · объявленное исчезло · конец не сошёлся |
+| НЕ ИЗМЕРЕНО | **2** | нет каталога/файла, файл не разобран, журнал пуст, **объявление не прочитано** |
+
+**Личность расхождения** — `trade_id` + род + ОБЕ суммы + разошедшиеся ключи. `gap_usd` в
+личность НЕ входит намеренно: он выводится из двух сумм, и сверять его отдельно значило бы
+сравнивать число с самим собой (знакомый класс, ADR-349). Дыра, выросшая на том же ходу, при
+этом остаётся НОВОЙ — суммы в личности именно за этим.
+
+**Расхождение КОНЦА объявлению не подлежит** и перечнем не прощается никогда: оно про
+СЕГОДНЯШНЮЮ книгу, а не про историю.
+
+**Отсутствие объявления — НЕ ИЗМЕРЕНО, а не «всё знакомо».** Обратная подстановка («перечня
+нет ⇒ считаем всё объявленным») вернула бы прежнюю слепоту тише красного вердикта — тот самый
+fail-OPEN, против которого прибор и написан.
+
 ## Третий исход
 
-Нет каталога данных, нет файла, файл не разобран, журнал пуст ⇒ **«НЕ ИЗМЕРЕНО»** с
-названной причиной и кодом 2 (инв. #17). Отсутствие `data/` в рабочем дереве — штатно
-и НЕ является находкой: там его нет по построению.
+Нет каталога данных, нет файла, файл не разобран, журнал пуст, объявление не прочитано ⇒
+**«НЕ ИЗМЕРЕНО»** с названной причиной и кодом 2 (инв. #17). Отсутствие `data/` в рабочем
+дереве — штатно и НЕ является находкой: там его нет по построению.
 
-Коды возврата: 0 — сходится · 1 — расхождения названы · 2 — НЕ ИЗМЕРЕНО.
+Коды возврата: 0 — сходится · 1 — новых расхождений нет · 2 — НЕ ИЗМЕРЕНО · 3 — состав
+разошёлся с объявленным.
 """
 from __future__ import annotations
 
@@ -155,6 +187,95 @@ def measure(ddir: str | None = None) -> dict:
     }
 
 
+#: Объявление исторических расхождений. Живёт РЯДОМ с прибором и в git — иначе
+#: «что мы уже знаем» пришлось бы держать в голове читателя, а голова читателя
+#: меняется каждый цикл.
+BASELINE = ROOT / "scripts" / "book_second_record_baseline.json"
+
+#: Поля, которые обязана нести КАЖДАЯ объявленная строка. Перечень читается ИЗ
+#: САМОГО объявления (ключ ``required_fields``), и этот литерал — лишь запас на
+#: случай, когда объявление своего контракта не несёт: объявление, само решающее,
+#: чем его мерить, не меряется ничем.
+DECLARED_REQUIRED = ("trade_id", "kind", "sum_before", "sum_after", "gap_usd",
+                     "keys_only_before", "keys_only_after", "reason")
+
+
+def _cents(v: object) -> int:
+    """Сумма в ЦЕЛЫХ центах. Книга ведётся в центах, а float сравнивать нельзя."""
+    try:
+        return int(round(float(v or 0.0) * 100))
+    except (TypeError, ValueError) as exc:
+        raise NotMeasured(f"сумма не разобрана ({v!r}: {exc})") from exc
+
+
+def identity(b: dict) -> tuple:
+    """Личность расхождения: ход + род + ОБЕ суммы + разошедшиеся ключи.
+
+    ``gap_usd`` в личность НЕ входит: он выводится из двух сумм, уже вошедших сюда,
+    и сверка его отдельно сравнивала бы число с самим собой. Суммы входят ОБЕ именно
+    затем, чтобы выросшая на том же ходу дыра осталась НОВОЙ, а не спряталась за
+    знакомым ``trade_id``.
+    """
+    return (str(b.get("trade_id")), str(b.get("kind")),
+            _cents(b.get("sum_before")), _cents(b.get("sum_after")),
+            tuple(str(k) for k in (b.get("keys_only_before") or ())),
+            tuple(str(k) for k in (b.get("keys_only_after") or ())))
+
+
+def load_declared(path: "str | Path | None" = None) -> dict:
+    """Прочитать объявление. Любая немочь — :class:`NotMeasured` с причиной.
+
+    **Почему fail-CLOSED.** Обратная подстановка («перечня нет ⇒ считаем всё
+    объявленным») вернула бы слепоту к росту состава, и вернула бы её ТИШЕ красного
+    вердикта. Подстановка в другую сторону («перечня нет ⇒ всё новое») кричала бы о
+    находке, которой никто не мерил. Поэтому ни одна из двух: это третий исход.
+    """
+    p = Path(path) if path else BASELINE
+    if not p.is_file():
+        raise NotMeasured(f"объявления исторических расхождений нет ({p}) — «новое» от "
+                          f"«знакомого» отличить нечем")
+    try:
+        doc = json.loads(p.read_text(encoding="utf-8"))
+    except Exception as exc:  # noqa: BLE001
+        raise NotMeasured(f"объявление не разобрано ({p.name}: {exc})") from exc
+    if not isinstance(doc, dict) or not isinstance(doc.get("declared"), list):
+        raise NotMeasured(f"в объявлении {p.name} нет списка `declared` — перечень не прочитан")
+    required = doc.get("required_fields")
+    if not (isinstance(required, list) and required and all(isinstance(f, str) for f in required)):
+        required = list(DECLARED_REQUIRED)
+    rows = {}
+    for i, row in enumerate(doc["declared"]):
+        if not isinstance(row, dict):
+            raise NotMeasured(f"строка #{i} объявления {p.name} не объект")
+        missing = [f for f in required if f not in row]
+        if missing:
+            raise NotMeasured(f"строка #{i} объявления {p.name} (`{row.get('trade_id')}`) не несёт "
+                              f"полей {missing} — объявление без своего контракта прощало бы что угодно")
+        rows[identity(row)] = row
+    return {"source": str(p), "rows": rows}
+
+
+def classify(verdict: dict, declared: dict) -> dict:
+    """Развести «новых нет» и «состав разошёлся». Ничего не чинит и не прощает."""
+    seen = {}
+    for b in verdict["chain_breaks"]:
+        seen[identity(b)] = b
+    new = [seen[k] for k in seen if k not in declared["rows"]]
+    vanished = [declared["rows"][k] for k in declared["rows"] if k not in seen]
+    terminal = verdict.get("terminal_divergence")
+    return {
+        "declared_source": declared["source"],
+        "declared_count": len(declared["rows"]),
+        # Порядок печати — порядок журнала ходов, а не порядок обхода множества:
+        # PYTHONHASHSEED=0 в CI его фиксирует, но опираться на это нельзя.
+        "new_breaks": sorted(new, key=lambda b: str(b.get("trade_id"))),
+        "vanished_declared": sorted(vanished, key=lambda b: str(b.get("trade_id"))),
+        # Конец объявлению не подлежит: любое его расхождение — рост состава.
+        "terminal_is_new": terminal is not None,
+        "diverged_from_declaration": bool(new or vanished or terminal is not None),
+    }
+
+
 #: Имя артефакта прогона. Прибор, не оставляющий следа, неотличим от прибора,
 #: который не запускался НИ РАЗУ — и это ровно тот класс, ради которого он написан.
 ARTIFACT = "book_second_record.json"
@@ -205,6 +326,8 @@ def write_artifact(verdict: dict, ddir: "str | Path | None" = None) -> "Path | N
 def main(argv: list[str] | None = None) -> int:
     ap = argparse.ArgumentParser(description=__doc__.splitlines()[0])
     ap.add_argument("--data-dir", default=None, help="каталог данных (умолчание — SPA_DATA_DIR или data/)")
+    ap.add_argument("--baseline", default=None,
+                    help=f"объявление исторических расхождений (умолчание — {BASELINE})")
     ap.add_argument("--json", action="store_true", help="печатать замер как JSON")
     args = ap.parse_args(argv)
     try:
@@ -216,10 +339,24 @@ def main(argv: list[str] | None = None) -> int:
         write_artifact({"status": "unmeasured", "reason": str(exc), "reconciles": None},
                        args.data_dir)
         return 2
-    write_artifact({"status": "measured", **r}, args.data_dir)
+    # Объявление читается ПОСЛЕ замера и ДО вердикта: его немочь — такое же
+    # «НЕ ИЗМЕРЕНО», и выдать её за «новых нет» значило бы вернуть прежнюю слепоту.
+    try:
+        declared = load_declared(args.baseline)
+    except NotMeasured as exc:
+        print(f"НЕ ИЗМЕРЕНО — {exc}")
+        write_artifact({"status": "unmeasured", "reason": str(exc), "reconciles": None, **r},
+                       args.data_dir)
+        return 2
+    cl = classify(r, declared)
+    write_artifact({"status": "measured", **r, **cl}, args.data_dir)
     if args.json:
-        print(json.dumps(r, ensure_ascii=False, indent=2))
-    if r["reconciles"]:
+        print(json.dumps({**r, **cl}, ensure_ascii=False, indent=2))
+    # КАКОЕ объявление мерило — часть ответа: умолчание печатается так же, как
+    # названный вход (иначе читатель не узнает, с чем сверяли).
+    print(f"объявление: {cl['declared_source']} ({cl['declared_count']} строк"
+          f"{', УМОЛЧАНИЕ' if not args.baseline else ', НАЗВАНО входом'})")
+    if r["reconciles"] and not cl["diverged_from_declaration"]:
         print(f"Вторая запись сходится: {r['trades']} ходов, цепь непрерывна, "
               f"конец совпал с книгой. Каталог: {r['data_dir']}")
         return 0
@@ -235,7 +372,26 @@ def main(argv: list[str] | None = None) -> int:
         t = r["terminal_divergence"]
         print(f"  КОНЕЦ НЕ СОШЁЛСЯ после {t['last_trade_id']}: "
               f"журнал ${t['sum_journal']:,.2f} · книга ${t['sum_book']:,.2f}")
-    return 1
+    if not cl["diverged_from_declaration"]:
+        print(f"  ✅ НОВЫХ НЕТ: наблюдённое РОВНО совпало с объявленным "
+              f"({cl['declared_count']} истори"
+              f"{'ческое расхождение' if cl['declared_count'] == 1 else 'ческих расхождения'}) — "
+              f"статус-кво назван, а не забыт")
+        return 1
+    print("  🔎 СОСТАВ РАЗОШЁЛСЯ С ОБЪЯВЛЕННЫМ — это находка ДНЯ, а не статус-кво:")
+    for b in cl["new_breaks"]:
+        print(f"     • НОВОЕ РАСХОЖДЕНИЕ {b['trade_id']} ({b['kind']}): "
+              f"${b['sum_before']:,.2f} → ${b['sum_after']:,.2f} "
+              f"(${b['gap_usd']:+,.2f}) — в объявлении его НЕТ; чинить у ПИСАТЕЛЯ журнала "
+              f"ходов, дописывать в {Path(cl['declared_source']).name} ЗАПРЕЩЕНО")
+    for b in cl["vanished_declared"]:
+        print(f"     • ОБЪЯВЛЕННОЕ ИСЧЕЗЛО {b['trade_id']} ({b['kind']}): "
+              f"${b['sum_before']:,.2f} → ${b['sum_after']:,.2f} — наблюдения больше нет. "
+              f"Либо мерили НЕ ТОТ каталог, либо журнал ходов переписан")
+    if cl["terminal_is_new"]:
+        print("     • КОНЕЦ НЕ СОШЁЛСЯ — объявлению не подлежит по построению: "
+              "это про СЕГОДНЯШНЮЮ книгу, а не про историю")
+    return 3
 
 
 if __name__ == "__main__":
