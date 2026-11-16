@@ -2,9 +2,9 @@
 
 > Авто-генерится `scripts/build_tracker_board.py` из `nimbalyst-local/tracker/*.md`. НЕ править вручную — правь карточки. Источник правды — карточки, это индекс (bootstrap).
 >
-> Собрана: 2026-11-16T20:38:18Z · сверка с карточками: `python3 scripts/build_tracker_board.py --check` (сторож `spa_core/tests/test_tracker_board_matches_cards.py`).
+> Собрана: 2026-11-16T22:19:43Z · сверка с карточками: `python3 scripts/build_tracker_board.py --check` (сторож `spa_core/tests/test_tracker_board_matches_cards.py`).
 >
-> Сверено с `origin/main` (475bfe89c).
+> Сверено с `origin/main` (d2f1b6e6b) · у **3** своя правка, кто новее — не измерено.
 >
 > Всего карточек: **1641** · ждёт владельца: **12** · занято сессиями: **14**.
 
@@ -458,6 +458,7 @@
 - Пробный ход сверх бюджета оборота — реализовать решение владельца (вариант 1, ADR-334)  ·  `inbox-probnyi-hod-sverh-byudzheta-oborota.md` · 2026-09-11
 - Проверить, не завышено ли число «открытых счётчиков»: один из 171 доказанно не дефект  ·  `inbox-proverit-ne-zavysheno-li-chislo-otkrytyh.md` · 2026-09-30
 - Расширить опрашиваемый набор адаптеров шагами (второй шаг варианта A, после ADR-138)  ·  `inbox-rasshirit-oprashivaemyi-nabor-adapterov.md` · 2026-08-26
+- Сессия pytest умерла изнутри на шарде 7: вычитание из None спрятало 2 падения (прогон 43933147333)  ·  `inbox-sessiya-pytest-umerla-iznutri-na-sharde.md` · 2026-11-16
 - Сторож кнопок нарушает границу, которую сам объявил соблюдённой: метка-БУКВА принималась где угодно, и слово в прозе = «наш дефект разбора» с лекарством чинить НЕСУЩЕСТВУЮЩУЮ форму (перемер #484: ложная ОДНА из 21, не пять; п.1 исполнен)  ·  `inbox-storozh-knopok-narushaet-granitsu-kotoru.md` · 2026-09-04
 - Сторож переходов статусов ждёт первого улова: назвать немого писателя и встроить прогон в агента  ·  `inbox-storozh-perehodov-statusov-zhdet-pervogo.md` · 2026-08-09
 - TASK — Portfolio CIO: Dynamic Capital Allocation & Rebalancing  ·  `inbox-task-portfolio-cio-dynamic-capital-alloc.md` · 2026-08-13 · 🔒 `cycle-53850`
@@ -1280,7 +1281,6 @@
 - Секция §45 шага 0-офис десятый цикл подряд печатает опровергнутое CRITICAL — чинить ПРОИЗВОДИТЕЛЯ, не текст  ·  `inbox-sektsiya-45-shaga-0-ofis-desyatyi-tsikl.md` · 2026-11-09
 - Семь мутационных подмен в батареях не спрашивают, применились ли они  ·  `inbox-sem-mutatsionnyh-podmen-v-batareyah-ne-s.md` · 2026-10-04
 - Семь скриптов, вскрытых строгим сканером: разобрать поштучно (подключить / списать / вывести класс правилом)  ·  `inbox-sem-skriptov-vskrytyh-strogim-skanerom-r.md` · 2026-08-16
-- Сессия pytest умерла изнутри на шарде 7: вычитание из None спрятало 2 падения (прогон 43933147333)  ·  `inbox-sessiya-pytest-umerla-iznutri-na-sharde.md` · 2026-11-16
 - Сессия теряет доступ на ЧТЕНИЕ прод-дерева, а запись продолжает работать — второй случай из двух аудитов  ·  `inbox-sessiya-teryaet-dostup-na-chtenie-prod-de.md` · 2026-08-26
 - Сетевая подрезка не должна быть приговором протоколу (решение владельца ADR-193, вариант 1)  ·  `inbox-setevaya-podrezka-ne-dolzhna-byt-prigovo.md` · 2026-08-31
 - Шаг 0-офис идёт 5 минут при пределе 180 с — два его теста красны на main постоянно  ·  `inbox-shag-0-ofis-idet-5-minut-pri-predele-180.md` · 2026-10-09

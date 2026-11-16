@@ -903,6 +903,7 @@
 | ADR-1033 | ADR-1033 — Вторая запись о деньгах: рост состава расхождений ОБЯЗАН менять код возврата | принято | [ADR-1033](ADR-1033-book-second-record-growth-changes-the-exit-code.md) |
 | ADR-1034 | ADR-1034 — Ключ события причины провала НЕ ВПРАВЕ зависеть от имени временного каталога | принято | [ADR-1034](ADR-1034-event-key-must-not-depend-on-the-temp-dir-name.md) |
 | ADR-1035 | ADR-1035 — `#` в прозе стирал две трети МЕСТА ОБЪЯВЛЕНИЯ шагов цикла, и ОБЯЗАТЕЛЬНЫЙ шаг числился мёртвым | принято | [ADR-1035](ADR-1035-a-hash-in-prose-erased-two-thirds-of-the-declaration-place.md) |
+| ADR-1036 | ADR-1036 — Санитар трассы чистил объект, который через мгновение заменяли: у `unittest`-тестов починка ADR-768 не работала ни одного дня | принято | [ADR-1036](ADR-1036-tb-sanitizer-missed-the-unittest-excinfo.md) |
 
 ## Соглашения
 

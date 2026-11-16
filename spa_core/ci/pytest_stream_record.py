@@ -57,6 +57,24 @@ ADR-474 научил шаг CI отличать «красно» от «НЕ И�
    у основного исключения и по цепочке ``__cause__``/``__context__``. САМ ПРОВАЛ остаётся
    провалом: меняется только набор строк в его трассе, исход и сообщение — нет. Активен,
    когда плагин загружен (`-p`), независимо от переменной записи.
+
+   ⚠️ **Поправка ADR-1036 (цикл #1175): санитар смотрел НЕ ТУДА, и у `unittest`-тестов
+   не работал ни одного дня.** Он чистил ``call.excinfo``, а у ``TestCase`` исключение
+   из ``runtest`` не всплывает: его забирает результат самого ``TestCase``, а в отчёт
+   подставляет ПЛОСКИЙ хук ``_pytest/unittest.py::pytest_runtest_makereport``
+   (``call.excinfo = item._excinfo.pop(0)``) — и он идёт ПОСЛЕ нашей обёртки, потому что
+   обе объявлены ``tryfirst``, а плагин грузится флагом ``-p``, то есть регистрируется
+   ПОЗЖЕ встроенного. Санитар чистил объект, который через мгновение заменяли.
+   Цена — тот же обморок ДВАЖДЫ: 17.10 (прогон 39003158532, шард 2, 4320 тестов без
+   исхода) и 16.11 (прогон 43933147333, шард 7, ``exit 3`` два раза подряд, под ними
+   2 падения). Обе жертвы — ``unittest``-классы, и первая ЕСТЬ тот самый тест, ради
+   которого санитар писался. Кандидатов на будущее ``call.excinfo`` теперь перечисляет
+   ОДНА дверь ``excinfos_awaiting_report`` (прямой объект + очередь ``item._excinfo``), а
+   отказ санитара больше не глохнет в ``except: pass``: он попадает в ``SANITIZER_ERRORS``
+   и в сводку прогона, потому что молчание делало «не смотрел» неотличимым от «смотреть
+   было нечего» (инв. #17). Контроли — ``scripts/tests/test_pytest_stream_record.py``
+   (сквозная сцена на настоящем pytest: обе формы провала обязаны быть осмотрены) и
+   проба приёмки ``tb_sanitizer_sees_the_report_excinfo``.
 2. **Только перечисленные** (``SPA_PYTEST_RESUME_ONLY`` = путь к файлу, nodeid на строку):
    сборка ТА ЖЕ, что у шарда (те же файлы), после неё оставляются только перечисленные —
    остальные отдаются pytest как `deselected`. Так `scripts/ci_control.py run-shard`
@@ -255,15 +273,86 @@ def sanitize_excinfo(excinfo) -> int:                        # noqa: ANN001
     return dropped
 
 
+#: Отказы санитара этой сессии, по строке на отказ. Печатаются в сводке: отказ,
+#: о котором молчат, и есть «не измерено», выданное за «чисто».
+SANITIZER_ERRORS: list[str] = []
+
+
+def _unittest_queue(item):                                   # noqa: ANN001, ANN201
+    """Очередь ``TestCaseFunction._excinfo`` — ВТОРОЙ источник будущего ``call.excinfo``."""
+    queue = getattr(item, "_excinfo", None)
+    if queue is None:
+        return ()
+    try:
+        return tuple(queue)
+    except TypeError:                                        # pragma: no cover
+        return ()
+
+
+def excinfos_awaiting_report(item, call):                    # noqa: ANN001, ANN201
+    """Все ``ExceptionInfo``, которые МОГУТ стать ``call.excinfo`` к сборке отчёта.
+
+    **Источников ДВА, и до ADR-1036 санитар смотрел только в первый.**
+    ``_pytest/unittest.py::pytest_runtest_makereport`` — ПЛОСКИЙ хук (не обёртка)
+    с ``tryfirst=True``, и он ПОДМЕНЯЕТ ``call.excinfo`` на ``item._excinfo.pop(0)``:
+    у ``unittest``-теста исключение не всплывает из ``runtest``, а копится в
+    результате самого ``TestCase``. Наша обёртка тоже ``tryfirst``, а плагин грузится
+    флагом ``-p``, то есть РЕГИСТРИРУЕТСЯ ПОЗЖЕ встроенного — в ``reversed(hook_impls)``
+    она идёт ПЕРВОЙ и чистит объект, который через мгновение будет ЗАМЕНЁН. Трасса,
+    уехавшая в ``repr_failure``, санитара не видела ни разу.
+
+    Цена замерена дважды одним и тем же обмороком: 17.10 (прогон 39003158532, шард 2,
+    4320 тестов без исхода) и 16.11 (прогон 43933147333, шард 7, ДВА падения под
+    обмороком, два ``exit 3`` подряд). Обе жертвы — ``unittest``-классы, и первая из
+    них ЕСТЬ тот самый тест, ради которого санитар ADR-768 и писался: починка не
+    работала ни одного дня, а выглядела доставленной.
+    """
+    out = []
+    seen: set[int] = set()
+    for candidate in (getattr(call, "excinfo", None), *_unittest_queue(item)):
+        if candidate is None or id(candidate) in seen:
+            continue
+        seen.add(id(candidate))
+        out.append(candidate)
+    return out
+
+
 @pytest.hookimpl(wrapper=True, tryfirst=True)
 def pytest_runtest_makereport(item, call):                   # noqa: ANN001, ARG001
-    excinfo = getattr(call, "excinfo", None)
-    if excinfo is not None:
+    looked = 0
+    dropped = 0
+    failure = None
+    try:
+        for excinfo in excinfos_awaiting_report(item, call):
+            looked += 1
+            dropped += sanitize_excinfo(excinfo)
+    except Exception as exc:                                 # pragma: no cover
+        # Санитар не имеет права сам стать причиной INTERNALERROR — но и молчать
+        # об отказе не имеет права: молчание делает «не смотрел» неотличимым от
+        # «смотреть было нечего».
+        failure = f"{getattr(item, 'nodeid', '?')}: {type(exc).__name__}: {exc}"
+        SANITIZER_ERRORS.append(failure)
+    if _RECORDER is not None and (looked or failure):
+        event = {"e": "tbscan", "n": getattr(item, "nodeid", "?"),
+                 "looked": looked, "dropped": dropped}
+        if failure is not None:
+            event["err"] = failure
         try:
-            sanitize_excinfo(excinfo)
+            _RECORDER.emit(event)
         except Exception:                                    # pragma: no cover
-            pass        # санитар не имеет права сам стать причиной INTERNALERROR
+            pass
     return (yield)
+
+
+@pytest.hookimpl(trylast=True)
+def pytest_terminal_summary(terminalreporter, exitstatus, config) -> None:  # noqa: ANN001, ARG001
+    """Отказ санитара обязан быть ВИДЕН в логе шарда, а не только в записи."""
+    if not SANITIZER_ERRORS:
+        return
+    terminalreporter.write_sep(
+        "=", f"САНИТАР ТРАССЫ ОТКАЗАЛ {len(SANITIZER_ERRORS)} раз(а) — НЕ ИЗМЕРЕНО")
+    for line in SANITIZER_ERRORS[:10]:
+        terminalreporter.write_line(line)
 
 
 # --- доигрывание: только перечисленные ---------------------------------------

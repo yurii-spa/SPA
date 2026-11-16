@@ -19522,6 +19522,141 @@ def _probe_module_limit_bites_a_busy_module(
         f"{bare:.4f} с и пределе {limit_s} с (превышение {over_x:.1f}×)")
 
 
+#: Сцена пробы ADR-1036: шпион ставится на САМ модуль плагина, а не на добавку
+#: цикла. Так одна мерка судит обе редакции, и проба не превращается в проверку
+#: собственного кода.
+_TB_SCENE_CONFTEST = '''
+import json, os, pathlib
+import spa_core.ci.pytest_stream_record as plug
+
+OUT = pathlib.Path(os.environ["SPA_TB_PROBE_OUT"])
+_looked = []
+_orig = plug.sanitize_excinfo
+
+
+def _spy(excinfo):
+    _looked.append(excinfo)
+    return _orig(excinfo)
+
+
+plug.sanitize_excinfo = _spy
+
+
+def pytest_exception_interact(node, call, report):
+    used = getattr(call, "excinfo", None)
+    rows = json.loads(OUT.read_text()) if OUT.exists() else {}
+    rows[report.nodeid] = any(x is used for x in _looked)
+    OUT.write_text(json.dumps(rows, ensure_ascii=False, sort_keys=True))
+'''
+
+_TB_SCENE_TEST = '''
+import unittest
+
+
+def test_plain_function_fails():
+    assert False, "обычная функция"
+
+
+class ACase(unittest.TestCase):
+    def test_unittest_method_fails(self):
+        self.assertTrue(False, "метод unittest")
+'''
+
+
+def _probe_tb_sanitizer_sees_the_report_excinfo(arg: str | None = None,
+                                                *, repo_root: str | None = None
+                                                ) -> tuple[str, str]:
+    """Критерий: санитар трассы смотрит ТУ ЖЕ ExceptionInfo, из которой собран отчёт.
+
+    Предмет — карточка `inbox-sessiya-pytest-umerla-iznutri-na-sharde` (ADR-1036).
+    Сессия `pytest` дважды умирала ИЗНУТРИ (`exit 3`) на попытке отрисовать провал:
+    `_pytest/_code/code.py:214` считает `self._rawentry.tb_lineno - 1`, а у звена,
+    на котором SIGALRM застал кадр без номера строки, `tb_lineno is None`. Санитар
+    ADR-768 для этого и писался — и НЕ РАБОТАЛ ни одного дня у `unittest`-тестов:
+    у них исключение не всплывает из `runtest`, а подставляется в отчёт ПЛОСКИМ
+    хуком `_pytest/unittest.py::pytest_runtest_makereport`
+    (`call.excinfo = item._excinfo.pop(0)`) ПОСЛЕ нашей обёртки `tryfirst`.
+
+    **Почему проба мерит ПРОВОДКУ, а не симптом.** Критерий, записанный в самой
+    карточке («в следующем прогоне `error` вернулось к 0»), оказался ВЫПОЛНЕН 16.11
+    прогоном `43952453112` — без единой правки кода: род стенных часов РОТИРУЕТСЯ,
+    и обморок просто не попал на тот же шард (дефектная часть при этом не
+    изменилась ни одним именем). Проба, стоящая на таком числе, объявила бы работу
+    сделанной за счёт удачи. Мерить надо то, что не ротируется: ОСМОТРЕН ли объект,
+    из которого собран отчёт.
+
+    Сцена — настоящий дочерний `pytest` с настоящей `unittest`-интеграцией и
+    настоящим порядком хуков; в ней ДВЕ формы провала, и предмет есть их
+    АСИММЕТРИЯ. Прежняя редакция отвечает `{функция: True, unittest-метод: False}`
+    (замер цикла #1175 на подлинных байтах `origin/main`), починенная — обе `True`.
+    Одной формы не хватило бы: «обе False» значит сломан сам шпион сцены, и это
+    другой разговор, поэтому у него СВОЙ исход.
+
+    Третий исход СВОЙ (инв. #17): плагина нет в дереве · дочерний прогон не
+    поднялся · сцена не оставила замера ⇒ `unmeasured` с названной причиной, а не
+    «не выполнено».
+    """
+    import json as _json
+    import subprocess as _subprocess
+    import sys as _sys
+    import tempfile as _tempfile
+    from pathlib import Path as _Path
+
+    root = _Path(repo_root or REPO_ROOT)
+    plugin = root / "spa_core" / "ci" / "pytest_stream_record.py"
+    if not plugin.exists():
+        return UNMEASURED, f"НЕ ИЗМЕРЕНО: плагина нет по пути {plugin}"
+
+    with _tempfile.TemporaryDirectory(prefix="tb_sanitizer_probe_") as tmp:
+        scene = _Path(tmp)
+        (scene / "conftest.py").write_text(_TB_SCENE_CONFTEST, encoding="utf-8")
+        (scene / "test_scene.py").write_text(_TB_SCENE_TEST, encoding="utf-8")
+        out = scene / "looked.json"
+        # Запись и список доигрывания РОДИТЕЛЯ ребёнку не передаются: иначе проба
+        # дописала бы в чужой поток и отбросила бы свою же сцену (урок прогона №5
+        # от 17.10, ADR-768 п. 2).
+        env = {k: v for k, v in os.environ.items()
+               if k not in ("SPA_PYTEST_STREAM", "SPA_PYTEST_RESUME_ONLY")}
+        env["SPA_TB_PROBE_OUT"] = str(out)
+        env["PYTHONPATH"] = str(root)
+        try:
+            proc = _subprocess.run(
+                [_sys.executable, "-m", "pytest", str(scene), "-q",
+                 "-p", "no:randomly", "-p", "no:cacheprovider",
+                 "-p", "spa_core.ci.pytest_stream_record"],
+                cwd=str(scene), env=env, capture_output=True, text=True, timeout=300,
+            )
+        except Exception as exc:                                    # noqa: BLE001
+            return UNMEASURED, (f"НЕ ИЗМЕРЕНО: дочерний pytest не поднялся "
+                                f"({type(exc).__name__}: {exc})")
+        if not out.exists():
+            return UNMEASURED, (
+                f"НЕ ИЗМЕРЕНО: сцена не оставила замера (код {proc.returncode}); "
+                f"хвост: {(proc.stdout or '')[-200:]!r}")
+        try:
+            rows = _json.loads(out.read_text(encoding="utf-8"))
+        except Exception as exc:                                    # noqa: BLE001
+            return UNMEASURED, f"НЕ ИЗМЕРЕНО: замер не читается ({exc})"
+
+    plain = [v for k, v in rows.items() if "test_plain_function_fails" in k]
+    method = [v for k, v in rows.items() if "test_unittest_method_fails" in k]
+    if not plain or not method:
+        return UNMEASURED, (f"НЕ ИЗМЕРЕНО: сцена дала не обе формы провала: "
+                            f"{sorted(rows)}")
+    if not all(plain):
+        return UNMEASURED, ("НЕ ИЗМЕРЕНО: санитар не видел даже ExceptionInfo обычной "
+                            "функции — сломан шпион сцены, а не предмет")
+    if not all(method):
+        return NOT_SATISFIED, (
+            "санитар НЕ ВИДЕЛ объект, из которого собран отчёт unittest-метода: "
+            "pytest упадёт в своей же отрисовке провала (`code.py:214`, "
+            "`tb_lineno - 1`) и унесёт весь шард — так умерли шард 2 (17.10) и "
+            "шард 7 (16.11)")
+    return SATISFIED, ("осмотрены ОБА источника будущего `call.excinfo` — и прямой, "
+                       "и очередь `unittest` (`item._excinfo`): обе формы провала "
+                       "в сцене осмотрены")
+
+
 PROBES: dict[str, Callable[[str | None], "tuple[str, str]"]] = {
     "module_limit_bites_a_busy_module":
         _probe_module_limit_bites_a_busy_module,
@@ -19759,6 +19894,8 @@ PROBES: dict[str, Callable[[str | None], "tuple[str, str]"]] = {
     "collection_read_is_bound_to_the_declaring_module":
         _probe_collection_read_is_bound_to_the_declaring_module,
     "column_door_class_is_measured": _probe_column_door_class_is_measured,
+    "tb_sanitizer_sees_the_report_excinfo":
+        _probe_tb_sanitizer_sees_the_report_excinfo,
 }
 
 

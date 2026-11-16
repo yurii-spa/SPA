@@ -579,3 +579,254 @@ def test_resume_list_is_taken_by_this_session_and_not_inherited_by_children(monk
     items = [_It("a::b"), _It("a::c")]
     plugin.pytest_collection_modifyitems(None, _Cfg(), items)
     assert [i.nodeid for i in items] == ["a::b"] and _Cfg.hook.dropped == ["a::c"]
+
+
+# ── 5. Санитар трассы смотрит ТУ ЖЕ ExceptionInfo, из которой собран отчёт ────
+#
+# Предмет — ADR-1036, цикл #1175. Санитар ADR-768 чистил `call.excinfo` в обёртке
+# `pytest_runtest_makereport` с `tryfirst=True`. У `unittest`-теста исключение из
+# `runtest` НЕ всплывает: его забирает результат самого `TestCase`, а подставляет в
+# отчёт ПЛОСКИЙ хук `_pytest/unittest.py::pytest_runtest_makereport`
+# (`call.excinfo = item._excinfo.pop(0)`) — и он идёт ПОСЛЕ нашей обёртки. То есть
+# санитар чистил объект, который через мгновение заменяли, а трасса, уехавшая в
+# `repr_failure`, его не видела ни разу.
+#
+# Цена измерена дважды ОДНИМ обмороком: 17.10 (прогон 39003158532, шард 2, 4320
+# тестов без исхода) и 16.11 (прогон 43933147333, шард 7, `exit 3` дважды подряд).
+# Обе жертвы — `unittest`-классы, и первая ЕСТЬ тот самый тест, ради которого
+# санитар и писался.
+#
+# ⚠️ ТРЕТИЙ ИСХОД НАЗВАН: настоящее звено с `tb_lineno is None` в сцене СИНТЕЗИРОВАТЬ
+# НЕЧЕМ — замер 16.11: 400 попыток поймать его SIGALRM-ом в тугом цикле (Python
+# 3.13.11) дали НОЛЬ. Поэтому класс мерится ДВУМЯ контролями, а не одним: удаление
+# безномерного звена — на объектном уровне (подлинная форма звена, фальшивое
+# происхождение), а ПРОВОДКА — сквозным прогоном настоящего pytest, где и был дефект.
+
+_SANITIZER_SCENE_CONFTEST = '''
+"""Сцена замера: СОВПАЛ ли объект, который чистил санитар, с тем, из которого собран отчёт."""
+import json, os, pathlib
+import spa_core.ci.pytest_stream_record as plug
+
+OUT = pathlib.Path(os.environ["SPA_SCENE_OUT"])
+_looked = []                    # СИЛЬНЫЕ ссылки: id() переиспользуется, тождество — нет
+_orig = plug.sanitize_excinfo
+
+
+def _spy(excinfo):
+    _looked.append(excinfo)
+    return _orig(excinfo)
+
+
+plug.sanitize_excinfo = _spy
+
+
+def pytest_exception_interact(node, call, report):
+    used = getattr(call, "excinfo", None)
+    rows = json.loads(OUT.read_text()) if OUT.exists() else {}
+    rows[report.nodeid] = any(x is used for x in _looked)
+    OUT.write_text(json.dumps(rows, ensure_ascii=False, sort_keys=True))
+'''
+
+_SANITIZER_SCENE_TEST = '''
+import unittest
+
+
+def test_plain_function_fails():
+    assert False, "обычная функция"
+
+
+class ACase(unittest.TestCase):
+    def test_unittest_method_fails(self):
+        self.assertTrue(False, "метод unittest")
+'''
+
+
+def test_the_sanitizer_looks_at_the_excinfo_the_report_is_built_from(
+    tmp_path: Path,
+) -> None:
+    """Сквозной контроль на ПРОВОДКУ: обе формы теста, и обе обязаны быть осмотрены.
+
+    Сцена отличает ровно то, что разошлось в проде: обычная функция и метод
+    `unittest.TestCase`. Прежняя редакция (подлинные байты `origin/main` до
+    ADR-1036) на этой же сцене отвечает `{функция: True, unittest-метод: False}` —
+    асимметрия и есть дефект; симметрия и есть починка.
+
+    Шпион ставится НА МОДУЛЬ плагина (`sanitize_excinfo`), а не на наш новый код:
+    так сцена мерит ОБЕ редакции одной меркой и не превращается в проверку
+    собственной добавки.
+    """
+    scene = _scene(tmp_path, _SANITIZER_SCENE_TEST)
+    (scene / "conftest.py").write_text(_SANITIZER_SCENE_CONFTEST, encoding="utf-8")
+    out = tmp_path / "looked.json"
+    env = {**os.environ, "SPA_SCENE_OUT": str(out), "PYTHONPATH": str(_REPO_ROOT)}
+    proc = subprocess.run(
+        [sys.executable, "-m", "pytest", str(scene), "-q", "-p", "no:randomly",
+         "-p", _PLUGIN_ARG, "-p", "no:cacheprovider"],
+        cwd=str(scene), env=env, capture_output=True, text=True, timeout=300,
+    )
+    if not out.exists():
+        pytest.fail("предпосылка НЕ обеспечена: сцена не оставила замера "
+                    f"(код {proc.returncode})\n{proc.stdout[-2000:]}")
+    rows = json.loads(out.read_text(encoding="utf-8"))
+    plain = [v for k, v in rows.items() if "test_plain_function_fails" in k]
+    method = [v for k, v in rows.items() if "test_unittest_method_fails" in k]
+    assert plain and method, f"сцена не дала обеих форм: {rows}"
+    assert all(plain), (
+        "санитар не видел ExceptionInfo обычной функции — сломана и прежняя проводка: "
+        f"{rows}")
+    assert all(method), (
+        "санитар НЕ ВИДЕЛ объект, из которого собран отчёт unittest-метода — это "
+        "дословно авария 17.10/16.11: pytest падает в своей же отрисовке провала "
+        f"(`code.py:214`, `tb_lineno - 1`) и УБИВАЕТ шард. Замер: {rows}")
+
+
+def test_the_unittest_queue_is_named_as_a_second_source_of_the_report_excinfo() -> None:
+    """Источников будущего `call.excinfo` ДВА, и очередь `_excinfo` — второй.
+
+    Контроль на звено: уберите из `excinfos_awaiting_report` разбор `item._excinfo`
+    — и утверждение «осмотрены все кандидаты» станет ложным ровно для той формы,
+    которая дважды убила шард.
+    """
+    plug = _import_plugin()
+
+    class _Item:
+        nodeid = "scene.py::ACase::test_x"
+
+        def __init__(self, queue):
+            self._excinfo = queue
+
+    class _Call:
+        def __init__(self, excinfo):
+            self.excinfo = excinfo
+
+    queued, direct = object(), object()
+    both = plug.excinfos_awaiting_report(_Item([queued]), _Call(direct))
+    assert any(x is direct for x in both), "прямой `call.excinfo` потерян"
+    assert any(x is queued for x in both), (
+        "очередь `item._excinfo` не осмотрена — это и есть дефект ADR-1036")
+
+    # дедуп по ТОЖДЕСТВУ, а не по равенству: один объект не чистится дважды
+    same = plug.excinfos_awaiting_report(_Item([direct]), _Call(direct))
+    assert len(same) == 1, f"один и тот же объект осмотрен дважды: {same}"
+
+    # ВТОРАЯ сторона: у не-unittest теста очереди нет, и выдумывать её нельзя
+    class _Plain:
+        nodeid = "scene.py::test_plain"
+
+    only = plug.excinfos_awaiting_report(_Plain(), _Call(direct))
+    assert [x is direct for x in only] == [True], f"лишний кандидат из ниоткуда: {only}"
+    assert plug.excinfos_awaiting_report(_Plain(), _Call(None)) == [], (
+        "нечего чистить — обязан быть ПУСТОЙ перечень, а не выдуманный кандидат")
+
+
+class _FakeRaw:
+    """Подлинная ФОРМА звена трассы (`tb_lineno`/`tb_next`) при фальшивом происхождении.
+
+    Настоящее звено с `tb_lineno is None` синтезировать нечем (замер в шапке раздела),
+    а форма — это всё, что читают `_has_line`/`drop_lineless`: они спрашивают getattr.
+    """
+
+    def __init__(self, lineno, nxt=None):
+        self.tb_lineno = lineno
+        self.tb_next = nxt
+
+
+class _FakeEntry:
+    def __init__(self, raw):
+        self._rawentry = raw
+
+
+class _FakeTraceback(list):
+    pass
+
+
+class _FakeExcInfo:
+    def __init__(self, entries):
+        self.traceback = _FakeTraceback(entries)
+        self.value = None
+
+
+def test_a_lineless_entry_is_dropped_wherever_the_excinfo_came_from() -> None:
+    """Удаление безномерного звена — И у прямого объекта, И у пришедшего из очереди."""
+    plug = _import_plugin()
+
+    def _scene_excinfo():
+        tail = _FakeRaw(42)
+        head = _FakeRaw(None, tail)       # ровно та форма, на которой падает pytest
+        return _FakeExcInfo([_FakeEntry(head), _FakeEntry(tail)])
+
+    direct, queued = _scene_excinfo(), _scene_excinfo()
+
+    class _Item:
+        nodeid = "scene.py::ACase::test_x"
+        _excinfo = [queued]
+
+    class _Call:
+        excinfo = direct
+
+    for excinfo in plug.excinfos_awaiting_report(_Item(), _Call()):
+        plug.sanitize_excinfo(excinfo)
+
+    for name, excinfo in (("прямой", direct), ("из очереди", queued)):
+        lines = [e._rawentry.tb_lineno for e in excinfo.traceback]
+        assert None not in lines, (
+            f"{name}: безномерное звено ОСТАЛОСЬ в трассе {lines} — pytest упадёт на "
+            "`tb_lineno - 1` и унесёт с собой весь шард")
+        assert 42 in lines, f"{name}: санитар выбросил ЗВЕНЬЯ С НОМЕРОМ: {lines}"
+
+
+def test_a_sanitizer_refusal_is_named_out_loud_and_never_escapes(monkeypatch) -> None:
+    """Отказ санитара — НАЗВАННЫЙ третий исход, а не тишина (инв. #17).
+
+    Прежняя редакция глушила любое исключение санитара `except Exception: pass`, и
+    «санитар отказал» становилось неотличимо от «чистить было нечего». Молчание
+    здесь опаснее красноты: оно и позволило дефекту проводки прожить месяц.
+    """
+    plug = _import_plugin()
+
+    class _Boom:
+        nodeid = "scene.py::ACase::test_x"
+        _excinfo = [object()]
+
+    class _Call:
+        excinfo = None
+
+    def _explode(_excinfo):
+        raise RuntimeError("дверь закрыта")
+
+    monkeypatch.setattr(plug, "sanitize_excinfo", _explode)
+    monkeypatch.setattr(plug, "SANITIZER_ERRORS", [])
+
+    gen = plug.pytest_runtest_makereport(_Boom(), _Call())
+    next(gen)                                    # до-yield: здесь и зовётся санитар
+    with pytest.raises(StopIteration):
+        gen.send("отчёт")                        # исключение НЕ выпускается наружу
+
+    assert plug.SANITIZER_ERRORS, (
+        "санитар отказал, а перечень отказов пуст — отказ выдан за «чисто»")
+    assert "RuntimeError" in plug.SANITIZER_ERRORS[0], plug.SANITIZER_ERRORS
+    assert "ACase::test_x" in plug.SANITIZER_ERRORS[0], (
+        f"отказ не назвал, НА КОМ он случился: {plug.SANITIZER_ERRORS}")
+
+
+def test_the_record_names_how_many_excinfos_were_looked_at(tmp_path: Path) -> None:
+    """Запись несёт `tbscan`: сколько кандидатов ОСМОТРЕНО и сколько звеньев убрано.
+
+    Это и делает «санитар не смотрел» наблюдаемым извне: у unittest-метода
+    `looked` обязан быть ≥ 1, а у зелёного теста события нет вовсе.
+    """
+    scene = _scene(tmp_path, _SANITIZER_SCENE_TEST)
+    stream = tmp_path / "stream.jsonl"
+    env = {**os.environ, "SPA_PYTEST_STREAM": str(stream),
+           "PYTHONPATH": str(_REPO_ROOT)}
+    subprocess.run(
+        [sys.executable, "-m", "pytest", str(scene), "-q", "-p", "no:randomly",
+         "-p", _PLUGIN_ARG, "-p", "no:cacheprovider"],
+        cwd=str(scene), env=env, capture_output=True, text=True, timeout=300,
+    )
+    assert stream.exists(), "записи нет — судить не о чем"
+    scans = {e["n"]: e for e in _events(stream) if e.get("e") == "tbscan"}
+    method = [e for n, e in scans.items() if "test_unittest_method_fails" in n]
+    assert method, f"у unittest-метода события `tbscan` нет вовсе: {sorted(scans)}"
+    assert method[0]["looked"] >= 1, method[0]
+    assert "err" not in method[0], f"санитар отказал на чистой сцене: {method[0]}"
