@@ -2,11 +2,11 @@
 
 > Авто-генерится `scripts/build_tracker_board.py` из `nimbalyst-local/tracker/*.md`. НЕ править вручную — правь карточки. Источник правды — карточки, это индекс (bootstrap).
 >
-> Собрана: 2026-11-16T08:17:19Z · сверка с карточками: `python3 scripts/build_tracker_board.py --check` (сторож `spa_core/tests/test_tracker_board_matches_cards.py`).
+> Собрана: 2026-11-16T09:59:40Z · сверка с карточками: `python3 scripts/build_tracker_board.py --check` (сторож `spa_core/tests/test_tracker_board_matches_cards.py`).
 >
-> Сверено с `origin/main` (0737573c0).
+> Сверено с `origin/main` (5fbbc1a03).
 >
-> Всего карточек: **1634** · ждёт владельца: **12** · занято сессиями: **14**.
+> Всего карточек: **1635** · ждёт владельца: **12** · занято сессиями: **14**.
 
 ## 🔴 ЖДЁТ ВЛАДЕЛЬЦА (needs-owner)
 
@@ -441,7 +441,7 @@
 ### · closed
 - Считать ли верный отказ по правилам допуска неисправностью флота  ·  `owner-decision-schitat-li-vernyi-otkaz-po-pravilam-dopu.md` · 2026-10-08
 
-## 📥 Inbox (задания: Telegram / заметки / голос)  (936)
+## 📥 Inbox (задания: Telegram / заметки / голос)  (937)
 
 ### · in-progress
 - а задача починить все-таки еще раз сообщение которым не пишет нужно твое решени…  ·  `inbox-a-zadacha-pochinit-vse-taki-esche-raz-so.md` · 2026-08-14 · 🔒 `pid43119`
@@ -1181,6 +1181,7 @@
 - Окно свежести КОРОЧЕ бюджета работника — два порога одного вопроса без общего источника  ·  `inbox-okno-svezhesti-koroche-byudzheta-rabotni.md` · 2026-10-14
 - origin/main красен ещё восемью тестами: три из них — сторожа сторожей, и их вердикты недействительны  ·  `inbox-origin-main-krasen-esche-vosemyu-testami.md` · 2026-10-07
 - Ось достижимости вердикта СЛЕПА на Linux: lsof есть и выходит нулём, а разбор не отдаёт ни одной записи — три красных есть ОДНА работа  ·  `inbox-os-dostizhimosti-verdikta-slepa-na-linux.md` · 2026-11-02
+- Ось «голое слово в чужой строке» у отношения «упоминает» НЕ ИЗМЕРЕНА — и нулём это не считается  ·  `inbox-os-goloe-slovo-v-chuzhoi-stroke-u-otnosh.md` · 2026-11-16
 - Осиротевшая работа cycle-74714 (05.09): наблюдение есть, но не в том артефакте, куда смотрит гейт — $14 210 снято с цели  ·  `inbox-osirotevshaya-rabota-cycle-74714-05-09-n.md` · 2026-09-05
 - Объявление владения называет ПРОД-пути, поэтому привязать прогон к его дереву нечем даже при абсолютных путях  ·  `inbox-osirotevshii-polnyi-progon-est-yadra-a-e.md` · 2026-09-18
 - Остатки инжеста 21.08: гейт доказанности APY в аварийной книге и якорь архива исходов — сначала ЗАМЕР  ·  `inbox-ostatki-inzhesta-21-08-geit-dokazannosti.md` · 2026-08-21
