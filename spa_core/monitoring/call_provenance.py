@@ -232,7 +232,11 @@ def _ps_parent(pid: int) -> Optional[tuple[int, str]]:
     """
     import subprocess
     try:
-        out = subprocess.run(["ps", "-o", "ppid=,command=", "-p", str(int(pid))],
+        # `-ww`: предмет ADR-1032. Маркер `scripts/agent_template.sh` в строке ребёнка
+        # launchd занимает колонки 59…84 — конец ЗА пределом 80. Замер: вердикт
+        # (True, "launchd_job", True) на полной строке против (True, "nested", False)
+        # на обрезанной, то есть прямое задание флота читалось бы как вложенный прогон.
+        out = subprocess.run(["ps", "-ww", "-o", "ppid=,command=", "-p", str(int(pid))],
                              capture_output=True, text=True, timeout=5)
     except (OSError, ValueError, subprocess.SubprocessError):
         return None

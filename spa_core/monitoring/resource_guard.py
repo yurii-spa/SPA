@@ -210,7 +210,12 @@ def redact_cmd(cmd: str) -> str:
 
 
 def measure_processes(policy: dict, *, run: Callable = _run, top: int = 15) -> dict:
-    out = run(["ps", "-axo", "pid=,ppid=,rss=,nice=,etime=,command="])
+    # `-ww`: предмет ADR-1032. Перед командой стоя́т пять колонок (≈34 знака), поэтому
+    # образцы класса DISPOSABLE (`python[0-9.]* -m pytest`, `/private/tmp/spa_`) падают
+    # за предел. Замер на живой таблице: расходными признаны пять процессов на полной
+    # строке против ОДНОГО на обрезанной — под давлением памяти `protect` не тронул бы
+    # те четыре, ради которых и написан.
+    out = run(["ps", "-ww", "-axo", "pid=,ppid=,rss=,nice=,etime=,command="])
     if out is None:
         return {"state": UNMEASURED, "reason": "ps failed"}
     rows = []
@@ -249,7 +254,13 @@ def measure_processes(policy: dict, *, run: Callable = _run, top: int = 15) -> d
 # ── protection ──────────────────────────────────────────────────────────────
 
 def _same_process(pid: int, cmd: str) -> bool:
-    out = _run(["ps", "-o", "command=", "-p", str(pid)])
+    # `-ww`: предмет ADR-1032, и здесь дефект тоньше соседнего. Снимок берёт дверь
+    # :213 (формат с ПЯТЬЮ колонками впереди), а перечитывает эта (без колонок) —
+    # обрезание по СТРОКЕ приходится у них на РАЗНЫЕ знаки команды, поэтому сверка
+    # первых 120 знаков не сойдётся НИКОГДА при длине строки свыше предела (398 из 753
+    # процессов этой машины). Замер: True на полной строке против False на обрезанной,
+    # то есть снижение приоритета молча не применялось бы ни к одному процессу.
+    out = _run(["ps", "-ww", "-o", "command=", "-p", str(pid)])
     return bool(out) and redact_cmd(out.strip())[:120] == cmd.strip()[:120]
 
 

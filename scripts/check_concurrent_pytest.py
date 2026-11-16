@@ -146,7 +146,12 @@ def _run(cmd: list[str]) -> str | None:
 
 def list_pytest_processes(*, self_pid: int | None = None) -> list[PytestProc] | None:
     """Enumerate running pytest processes system-wide. ``None`` = unmeasured."""
-    raw = _run(["ps", "-ax", "-o", "pid=,ppid=,lstart=,command="])
+    # `-ww`: предмет ADR-1032. GNU-`ps` без терминала режет строку по 80 колонок, а
+    # здесь перед командой стоя́т ещё три колонки (≈37 знаков) — слово `pytest` у
+    # настоящих прогонов этой машины стоит на колонках 596…8527 и обрезанием теряется
+    # ЦЕЛИКОМ. Замер: вердикт двери (28279,) на полной строке против () на обрезанной,
+    # то есть сторож параллельных прогонов СЛЕПНЕТ, и это fail-OPEN.
+    raw = _run(["ps", "-ww", "-ax", "-o", "pid=,ppid=,lstart=,command="])
     if raw is None:
         return None
     procs = []

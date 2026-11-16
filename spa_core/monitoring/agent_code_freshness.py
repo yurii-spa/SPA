@@ -230,7 +230,11 @@ def _launchctl_pid(label: str, runner: Runner) -> Optional[int]:
 
 def _process_table(runner: Runner) -> List[dict]:
     """[{pid, ppid, command}] по всем процессам. Пусто ⇒ измерить нечем."""
-    text = runner(["ps", "-eo", "pid=,ppid=,command="])
+    # `-ww`: предмет ADR-1032. Решение «кто python-потомок обёртки» принимается по
+    # ГОЛОВЕ команды, но голова стоит за двумя колонками, и у 354 строк этой машины
+    # первый токен кончается ЗА колонкой 80 (худшая — 232). Замер: пять настоящих пар
+    # «обёртка → её python» на полной строке против НУЛЯ на обрезанной.
+    text = runner(["ps", "-ww", "-eo", "pid=,ppid=,command="])
     rows: List[dict] = []
     for line in text.splitlines():
         parts = line.strip().split(None, 2)
