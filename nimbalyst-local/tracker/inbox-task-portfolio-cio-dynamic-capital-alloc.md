@@ -46539,3 +46539,15 @@ G1017, G1016, G1015, G1014, G1013, G1012, G1011, G1010, G1009 и G1008 насл�
 `gh` в дереве НЕТ ⇒ отправка `curl`'ом. `ref` обязан быть ИМЕНЕМ ВЕТКИ (`main`), коммит
 уходит ВХОДОМ `inputs.sha` **ПОЛНОЙ** sha — укороченная валит `actions/checkout`, прогон
 умирает до сводки, а `conclusion failure` читается как красный набор.
+
+**Прогон цикла #1177 ЗАКАЗАН:** `ci-control` **43996349768** на
+`412b78915a817c0e13b15c4a6b2cd8e12c2e4901` (`ref: main`, коммит входом `inputs.sha` ПОЛНОЙ
+sha, слаг `yurii-spa/SPA`, HTTP 204; наличие и статус `queued` ПЕРЕЧИТАНЫ у API,
+`total_count` 343 → **344**). Отправка одна, укороченной sha не было. Исход этим циклом НЕ
+прочитан и заранее не объявляется — его читает следующий цикл по строке сводки, не по
+`conclusion` (ADR-474), и состав сличает ПО ИМЕНАМ через `report.json` обоих прогонов
+(**43985062958** → **43996349768**). Ожидание, НЕ являющееся утверждением: три снятых имени
+(`test_sandbox_data_dir_callers::TestTheLiveTree::test_population_is_named_and_measured` ·
+`test_sandbox_door_tranche1::TestTheCensusReadsTheTranche::test_no_entry_point_with_a_hand_reachable_default_remains` ·
+`test_sandbox_wiring_ratchet::test_no_new_subprocess_harness_bypasses_the_sandbox_marker`)
+обязаны УЙТИ из состава; если хоть одно осталось — вердикт мерил не то дерево.
