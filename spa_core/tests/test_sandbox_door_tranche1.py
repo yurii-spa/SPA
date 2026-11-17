@@ -54,6 +54,7 @@ TRANCHE = [
     ("scripts/edge_weekday_loss_gate.py", "data", "--data-dir", [], False),
     ("scripts/fix_fabricated_evidence.py", "data", "--data-dir", [], False),
     ("scripts/git_path_coordinate_census.py", "root", "--root", [], True),
+    ("scripts/hook_arg_mutation_census.py", "root", "--repo-root", [], True),
     ("scripts/measure_pin_placement_effect.py", "data", "--data-dir", [], False),
     ("scripts/mutation_gate.py", "root", "--repo-root", [], True),
     ("scripts/reap_stale_worktrees.py", "root", "--root", [], True),
@@ -96,8 +97,13 @@ TRANCHE = [
 # на ПЕРВОЙ строке (DEPRECATED → spa_core.monitoring.cycle_health_monitor) — его argparse не исполнялся
 # ни при каком вызове, точкой входа он не являлся. ADR-1001 (цикл #1120): перепись получила род
 # `DEAD_MODULE`, файл удалён — ниже это проверяется исходом (нет в дереве, нет в переписи, `uncalled == 0`).
-assert len(TRANCHE) == 48, len(TRANCHE)
-assert len({t[0] for t in TRANCHE}) == 48
+# ПЛЮС `scripts/hook_arg_mutation_census.py` (ADR-1038, цикл #1177): прибор ADR-1037 приехал
+# на `main` коммитом `176e16ebd` точкой входа с умолчанием `--repo-root`, ДОСТИЖИМЫМ у руки, и
+# без двери — перепись читателей назвала его `UNCALLED`, то есть два сторожа на `main` стали
+# красными в день доставки. Дверь добавлена, вход в транш — ЗДЕСЬ: иначе он прошёл бы только
+# переписью, без четырёх сцен на настоящем `__main__`.
+assert len(TRANCHE) == 49, len(TRANCHE)
+assert len({t[0] for t in TRANCHE}) == 49
 
 # у семи переписей (`*_census`) есть И `--root`, И `--data-dir`: дверь судит названный `--data-dir`,
 # иначе — `--root` (ADR-1000 § 3); для них сцена B ждёт корень, потому что `--data-dir` не назван.
@@ -463,10 +469,14 @@ class TestScriptsCalledByPathCanImportTheDoor(unittest.TestCase):
         return proc
 
     def test_no_tranche_script_dies_on_importing_the_door(self):
-        """ВСЕ 18 скриптов транша, не только страхованные: `grep sys.path` обманул дважды
-        (`adr_number`, `reap_stale_worktrees` кладут на путь `scripts/`, а не корень)."""
+        """ВСЕ 19 скриптов транша, не только страхованные: `grep sys.path` обманул дважды
+        (`adr_number`, `reap_stale_worktrees` кладут на путь `scripts/`, а не корень).
+
+        Число — ЗАМЕР состава транша, а не константа: 18 → 19 циклом #1177 (ADR-1038,
+        `hook_arg_mutation_census.py`). Расходится с `TRANCHE` ⇒ красный здесь, и это
+        верно: скрипт, попавший в транш мимо этой сцены, импорт двери не проверял бы."""
         scripts = [(rel, flag) for rel, kind, flag, *_ in TRANCHE if rel.startswith("scripts/")]
-        self.assertEqual(len(scripts), 18)
+        self.assertEqual(len(scripts), 19)
         for rel, flag in scripts:
             with self.subTest(rel):
                 proc = self._run(rel, flag, ["next"] if rel.endswith("adr_number.py") else [])

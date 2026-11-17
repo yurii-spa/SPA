@@ -281,6 +281,17 @@ def _produce(entry: Entry, *, root: Path, data: Path,
     # Предмет прогона — дерево песочницы: и `cwd`, и путь импорта должны вести
     # туда, иначе производитель прочитал бы СВОЙ код из дерева вызова.
     env["PYTHONPATH"] = os.pathsep.join([str(root), env.get("PYTHONPATH", "")]).rstrip(os.pathsep)
+    # Маркер песочницы C8(b) (ADR-580, храповик `test_sandbox_wiring_ratchet`; закрыто
+    # ADR-1038): производитель импортирует ДЕРЕВО, на которое переставлен `PYTHONPATH`, и
+    # читатель без своего параметра `data_dir` молча ушёл бы в ПРОД — класс INC-1. Маркер
+    # идёт СО СВОЕЙ песочницей: `refuse_prod_root` выше уже отказал на корне внутри прода,
+    # поэтому `root`/`data` здесь заведомо не прод. Значение, НАЗВАННОЕ записью реестра
+    # (`entry.env`), сильнее этого умолчания; унаследованное от родителя — слабее, иначе
+    # чужой `SPA_DATA_DIR` увёл бы запись из песочницы.
+    for _key, _value in (("SPA_LIVE_ROOT", str(root)), ("SPA_DATA_DIR", str(data))):
+        if _key not in entry.env:
+            env[_key] = _value
+    env["SPA_SANDBOX"] = "1"
     started = time.monotonic()
     proc = subprocess.Popen(argv, cwd=str(root), env=env,
                             stdout=subprocess.DEVNULL, stderr=subprocess.PIPE,

@@ -58,6 +58,13 @@ import sys
 import tempfile
 from pathlib import Path
 
+#: Корень дерева ПРИБОРА. Нужен на `sys.path`, потому что прибор зовут и как скрипт
+#: (`python3 scripts/hook_arg_mutation_census.py` — тогда `sys.path[0]` это `scripts/`,
+#: и `import spa_core` не находится), и импортом из батареи.
+PROJECT_ROOT = Path(__file__).resolve().parents[1]
+if str(PROJECT_ROOT) not in sys.path:
+    sys.path.insert(0, str(PROJECT_ROOT))
+
 EXIT_OK = 0
 EXIT_FINDINGS = 1
 EXIT_UNMEASURED = 2
@@ -140,6 +147,16 @@ def measure_call_order(repo_root: Path, extra_plugins=(), targets=PROBE_TARGETS,
         # пустой список (ловушка цикла #1175, заказ G1025 п. 7).
         env["PYTHONPATH"] = os.pathsep.join(
             [str(tmpdir)] + ([env["PYTHONPATH"]] if env.get("PYTHONPATH") else []))
+        # Маркер песочницы C8(b) (ADR-580, храповик `test_sandbox_wiring_ratchet`): ребёнок
+        # импортирует ДЕРЕВО, на которое мы переставили `PYTHONPATH`, и читатель без своего
+        # параметра `data_dir` молча ушёл бы в ПРОД (форма INC-1). Маркер идёт ВМЕСТЕ со
+        # своей песочницей: один маркер без `SPA_LIVE_ROOT`/`SPA_DATA_DIR` заставил бы
+        # двери ребёнка ОТКАЗАТЬ на прод-каталоге — и перепись осталась бы НЕ ИЗМЕРЕННОЙ.
+        sandbox = tmpdir / "sandbox"
+        (sandbox / "data").mkdir(parents=True, exist_ok=True)
+        env["SPA_SANDBOX"] = "1"
+        env["SPA_LIVE_ROOT"] = str(sandbox)
+        env["SPA_DATA_DIR"] = str(sandbox / "data")
         cmd = [sys.executable, "-m", "pytest", "--collect-only", "-q", "-p", "no:randomly",
                "-p", "spa_hook_order_observer"]
         for plugin in (*plugins, *extra_plugins):
@@ -457,16 +474,22 @@ def main(argv=None) -> int:
                     help="не сверять с объявлением (только назвать состав)")
     args = ap.parse_args(argv)
 
-    default_root = Path(__file__).resolve().parent.parent
+    default_root = PROJECT_ROOT
+    # Умолчание РАЗРЕШАЕТСЯ ДО двери: судить `None` нельзя (инв. #17).
+    root = Path(args.repo_root).expanduser().resolve() if args.repo_root else default_root
+    # ADR-1000 транш 1 (добавлено циклом #1177, ADR-1038): точка входа с умолчанием
+    # каталога, ДОСТИЖИМЫМ у руки, обязана спросить дверь песочницы ДО первой работы —
+    # и ДО отказа «дерево не репозиторий»: тот тоже выходит кодом 2, и без имени двери
+    # код 2 ничего бы не доказывал. Ввоз здесь, а не в шапке: так же, как у соседей транша.
+    from spa_core.utils.live_paths import refuse_if_sandbox_leaks
+    refuse_if_sandbox_leaks(root, who="hook_arg_mutation_census")
     if args.repo_root:
-        root = Path(args.repo_root).resolve()
         if not (root / "scripts").is_dir():
             print(f"❌ НЕ ИЗМЕРЕНО: названное дерево не читается как репозиторий: {root}",
                   file=sys.stderr)
             return EXIT_UNMEASURED
         print(f"дерево: {root} (НАЗВАНО входом --repo-root)")
     else:
-        root = default_root
         print(f"дерево: {root} (УМОЛЧАНИЕ — дерево прибора; назвать входом --repo-root)")
 
     targets = tuple(args.target) if args.target else PROBE_TARGETS
