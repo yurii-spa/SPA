@@ -1,0 +1,306 @@
+{
+  "crisis_breakdowns": {
+    "APY": {
+      "eth_crash_2024_08": {
+        "day0_loss_pct": 2.935,
+        "total_window_loss_pct": 5.871
+      },
+      "rseth_depeg_2026_04": {
+        "day0_loss_pct": 5.347,
+        "total_window_loss_pct": 10.694
+      },
+      "usde_unwind_2025_10": {
+        "day0_loss_pct": 5.556,
+        "total_window_loss_pct": 11.113
+      }
+    },
+    "EW": {
+      "eth_crash_2024_08": {
+        "day0_loss_pct": 3.3,
+        "total_window_loss_pct": 6.6
+      },
+      "rseth_depeg_2026_04": {
+        "day0_loss_pct": 5.55,
+        "total_window_loss_pct": 11.1
+      },
+      "usde_unwind_2025_10": {
+        "day0_loss_pct": 5.3,
+        "total_window_loss_pct": 10.6
+      }
+    },
+    "TRB-max": {
+      "eth_crash_2024_08": {
+        "day0_loss_pct": 1.465,
+        "total_window_loss_pct": 2.93
+      },
+      "rseth_depeg_2026_04": {
+        "day0_loss_pct": 2.192,
+        "total_window_loss_pct": 4.384
+      },
+      "usde_unwind_2025_10": {
+        "day0_loss_pct": 2.48,
+        "total_window_loss_pct": 4.96
+      }
+    },
+    "TRB-sum": {
+      "eth_crash_2024_08": {
+        "day0_loss_pct": 1.499,
+        "total_window_loss_pct": 2.998
+      },
+      "rseth_depeg_2026_04": {
+        "day0_loss_pct": 2.378,
+        "total_window_loss_pct": 4.756
+      },
+      "usde_unwind_2025_10": {
+        "day0_loss_pct": 2.799,
+        "total_window_loss_pct": 5.598
+      }
+    },
+    "TRB-worst-day": {
+      "eth_crash_2024_08": {
+        "day0_loss_pct": 1.465,
+        "total_window_loss_pct": 2.93
+      },
+      "rseth_depeg_2026_04": {
+        "day0_loss_pct": 2.192,
+        "total_window_loss_pct": 4.384
+      },
+      "usde_unwind_2025_10": {
+        "day0_loss_pct": 2.48,
+        "total_window_loss_pct": 4.96
+      }
+    }
+  },
+  "meta": {
+    "backtest_period": "2024-07-01 .. 2026-05-31",
+    "cost_bps_annual_ongoing": 2,
+    "cost_bps_entry": 10,
+    "evidence_level": "L0",
+    "idea": "#42 TRB-Alloc",
+    "is_advisory": true,
+    "outside_riskpolicy": true
+  },
+  "metrics": {
+    "APY": {
+      "calmar": -0.094,
+      "cost_bps": 13.8,
+      "days": 700,
+      "gross_apy_pct": -1.19,
+      "label": "APY",
+      "max_dd_pct": 13.41,
+      "net_apy_pct": -1.26,
+      "years": 1.92
+    },
+    "EW": {
+      "calmar": -0.141,
+      "cost_bps": 13.8,
+      "days": 700,
+      "gross_apy_pct": -1.83,
+      "label": "EW",
+      "max_dd_pct": 13.45,
+      "net_apy_pct": -1.9,
+      "years": 1.92
+    },
+    "TRB-max": {
+      "calmar": 1.728,
+      "cost_bps": 13.8,
+      "days": 700,
+      "gross_apy_pct": 7.58,
+      "label": "TRB-max",
+      "max_dd_pct": 4.35,
+      "net_apy_pct": 7.51,
+      "years": 1.92
+    },
+    "TRB-sum": {
+      "calmar": 1.361,
+      "cost_bps": 13.8,
+      "days": 700,
+      "gross_apy_pct": 6.81,
+      "label": "TRB-sum",
+      "max_dd_pct": 4.95,
+      "net_apy_pct": 6.74,
+      "years": 1.92
+    },
+    "TRB-worst-day": {
+      "calmar": 1.728,
+      "cost_bps": 13.8,
+      "days": 700,
+      "gross_apy_pct": 7.58,
+      "label": "TRB-worst-day",
+      "max_dd_pct": 4.35,
+      "net_apy_pct": 7.51,
+      "years": 1.92
+    }
+  },
+  "spec_summary": {
+    "leverage_loop": {
+      "headline_apy_pct": 15.0,
+      "max_crisis_hit_pct": 28.0,
+      "sum_crisis_hit_pct": 45.0
+    },
+    "lrt_carry": {
+      "headline_apy_pct": 13.0,
+      "max_crisis_hit_pct": 22.0,
+      "sum_crisis_hit_pct": 31.0
+    },
+    "points_farm": {
+      "headline_apy_pct": 14.0,
+      "max_crisis_hit_pct": 2.0,
+      "sum_crisis_hit_pct": 4.5
+    },
+    "susde_dn": {
+      "headline_apy_pct": 11.0,
+      "max_crisis_hit_pct": 9.0,
+      "sum_crisis_hit_pct": 13.0
+    },
+    "variant_d": {
+      "headline_apy_pct": 9.0,
+      "max_crisis_hit_pct": 20.0,
+      "sum_crisis_hit_pct": 48.0
+    }
+  },
+  "strategies": [
+    "susde_dn",
+    "lrt_carry",
+    "leverage_loop",
+    "points_farm",
+    "variant_d"
+  ],
+  "tail_budgets": {
+    "APY": {
+      "leverage_loop": {
+        "max_crisis_hit_pct": 28.0,
+        "tail_risk_contribution_pct": 6.774,
+        "weight_pct": 24.19
+      },
+      "lrt_carry": {
+        "max_crisis_hit_pct": 22.0,
+        "tail_risk_contribution_pct": 4.613,
+        "weight_pct": 20.97
+      },
+      "points_farm": {
+        "max_crisis_hit_pct": 2.0,
+        "tail_risk_contribution_pct": 0.452,
+        "weight_pct": 22.58
+      },
+      "susde_dn": {
+        "max_crisis_hit_pct": 9.0,
+        "tail_risk_contribution_pct": 1.597,
+        "weight_pct": 17.74
+      },
+      "variant_d": {
+        "max_crisis_hit_pct": 20.0,
+        "tail_risk_contribution_pct": 2.903,
+        "weight_pct": 14.52
+      }
+    },
+    "EW": {
+      "leverage_loop": {
+        "max_crisis_hit_pct": 28.0,
+        "tail_risk_contribution_pct": 5.6,
+        "weight_pct": 20.0
+      },
+      "lrt_carry": {
+        "max_crisis_hit_pct": 22.0,
+        "tail_risk_contribution_pct": 4.4,
+        "weight_pct": 20.0
+      },
+      "points_farm": {
+        "max_crisis_hit_pct": 2.0,
+        "tail_risk_contribution_pct": 0.4,
+        "weight_pct": 20.0
+      },
+      "susde_dn": {
+        "max_crisis_hit_pct": 9.0,
+        "tail_risk_contribution_pct": 1.8,
+        "weight_pct": 20.0
+      },
+      "variant_d": {
+        "max_crisis_hit_pct": 20.0,
+        "tail_risk_contribution_pct": 4.0,
+        "weight_pct": 20.0
+      }
+    },
+    "TRB-max": {
+      "leverage_loop": {
+        "max_crisis_hit_pct": 28.0,
+        "tail_risk_contribution_pct": 1.347,
+        "weight_pct": 4.81
+      },
+      "lrt_carry": {
+        "max_crisis_hit_pct": 22.0,
+        "tail_risk_contribution_pct": 1.347,
+        "weight_pct": 6.12
+      },
+      "points_farm": {
+        "max_crisis_hit_pct": 2.0,
+        "tail_risk_contribution_pct": 1.347,
+        "weight_pct": 67.36
+      },
+      "susde_dn": {
+        "max_crisis_hit_pct": 9.0,
+        "tail_risk_contribution_pct": 1.347,
+        "weight_pct": 14.97
+      },
+      "variant_d": {
+        "max_crisis_hit_pct": 20.0,
+        "tail_risk_contribution_pct": 1.347,
+        "weight_pct": 6.74
+      }
+    },
+    "TRB-sum": {
+      "leverage_loop": {
+        "max_crisis_hit_pct": 28.0,
+        "tail_risk_contribution_pct": 1.662,
+        "weight_pct": 5.93
+      },
+      "lrt_carry": {
+        "max_crisis_hit_pct": 22.0,
+        "tail_risk_contribution_pct": 1.895,
+        "weight_pct": 8.61
+      },
+      "points_farm": {
+        "max_crisis_hit_pct": 2.0,
+        "tail_risk_contribution_pct": 1.187,
+        "weight_pct": 59.34
+      },
+      "susde_dn": {
+        "max_crisis_hit_pct": 9.0,
+        "tail_risk_contribution_pct": 1.849,
+        "weight_pct": 20.54
+      },
+      "variant_d": {
+        "max_crisis_hit_pct": 20.0,
+        "tail_risk_contribution_pct": 1.113,
+        "weight_pct": 5.56
+      }
+    },
+    "TRB-worst-day": {
+      "leverage_loop": {
+        "max_crisis_hit_pct": 28.0,
+        "tail_risk_contribution_pct": 1.347,
+        "weight_pct": 4.81
+      },
+      "lrt_carry": {
+        "max_crisis_hit_pct": 22.0,
+        "tail_risk_contribution_pct": 1.347,
+        "weight_pct": 6.12
+      },
+      "points_farm": {
+        "max_crisis_hit_pct": 2.0,
+        "tail_risk_contribution_pct": 1.347,
+        "weight_pct": 67.36
+      },
+      "susde_dn": {
+        "max_crisis_hit_pct": 9.0,
+        "tail_risk_contribution_pct": 1.347,
+        "weight_pct": 14.97
+      },
+      "variant_d": {
+        "max_crisis_hit_pct": 20.0,
+        "tail_risk_contribution_pct": 1.347,
+        "weight_pct": 6.74
+      }
+    }
+  }
+}
