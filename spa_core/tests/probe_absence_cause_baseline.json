@@ -1,0 +1,317 @@
+{
+ "schema": "spa-probe-absence-cause-baseline/1",
+ "_why": [
+  "ОБЪЯВЛЕНИЕ разбиения класса «прибор без пробы ИЗВЕСТНЫЙ ЧЛЕН» (ADR-1041)",
+  "по ПРИЧИНЕ отсутствия пробы — заказ G1030 п. 3, ADR-1042.",
+  "Перечень ИМЁН с исходом у каждого, а не числа: счётный потолок устаревает",
+  "на день доставки и назвать пришедшее не может по построению (ADR-912).",
+  "База может ТОЛЬКО УБЫВАТЬ: имя уходит, когда у прибора ПОЯВЛЯЕТСЯ проба",
+  "(тогда он уходит и из объявления соседа). Дописывать имя или сдвигать",
+  "исход строки, чтобы погасить падение, ЗАПРЕЩЕНО (инв. #16) — чинить прибор.",
+  "Ось `outcome` — о ДЕТЕКТОРЕ: достаёт ли он до прибора вообще.",
+  "Ось `distance` — о МАТЕРИАЛЕ батареи: `one_claim_away` значит, что живой",
+  "зов прибора в тесте УЖЕ есть и не хватает только имени члена; это перечень",
+  "КАНДИДАТОВ на «настоящая проба в неузнанном виде», и ВЕРНОСТЬ этой догадки",
+  "по каждому из них НЕ ИЗМЕРЕНА — следующий вопрос, не ответ."
+ ],
+ "measured_at": "2026-11-17",
+ "measured_in": "origin/main 449360a6f + файлы цикла #1181",
+ "subjects_source": "spa_core/tests/known_member_probe_baseline.json (ADR-1041)",
+ "population_at_measure": 46,
+ "counts_at_measure": {
+  "probe_absent": 46,
+  "detector_blind": 0,
+  "detector_loose": 0,
+  "unmeasured": 0
+ },
+ "distances_at_measure": {
+  "one_claim_away": 26,
+  "no_live_call": 20,
+  "unmeasured": 0
+ },
+ "doors_at_measure": {
+  "func+module": 1,
+  "func+module+path": 1,
+  "module": 38,
+  "module+path": 4,
+  "path": 2
+ },
+ "rows": {
+  "scripts/forbidden_reach_census.py": {
+   "outcome": "probe_absent",
+   "distance": "one_claim_away",
+   "door": "module",
+   "near_test": "test_finding_is_one_and_clean_is_zero_and_unmeasured_is_two"
+  },
+  "scripts/git_column_door_census.py": {
+   "outcome": "probe_absent",
+   "distance": "no_live_call",
+   "door": "path",
+   "near_test": null
+  },
+  "scripts/registry_runner_write_census.py": {
+   "outcome": "probe_absent",
+   "distance": "no_live_call",
+   "door": "path",
+   "near_test": null
+  },
+  "spa_core/monitoring/additive_field_reader_census.py": {
+   "outcome": "probe_absent",
+   "distance": "one_claim_away",
+   "door": "module",
+   "near_test": "test_the_unattributable_axis_is_a_named_third_outcome_not_a_zero"
+  },
+  "spa_core/monitoring/analytics_audit_freshness.py": {
+   "outcome": "probe_absent",
+   "distance": "no_live_call",
+   "door": "module",
+   "near_test": null
+  },
+  "spa_core/monitoring/announce_clock_door_census.py": {
+   "outcome": "probe_absent",
+   "distance": "one_claim_away",
+   "door": "module",
+   "near_test": "test_a_package_module_is_loaded_by_its_dotted_name_not_by_bare_path"
+  },
+  "spa_core/monitoring/artifact_absence.py": {
+   "outcome": "probe_absent",
+   "distance": "no_live_call",
+   "door": "module",
+   "near_test": null
+  },
+  "spa_core/monitoring/artifact_stamp_clock_doors.py": {
+   "outcome": "probe_absent",
+   "distance": "one_claim_away",
+   "door": "module",
+   "near_test": "test_if_due_inside_the_tact_does_not_call_a_single_producer"
+  },
+  "spa_core/monitoring/call_sourced_input_census.py": {
+   "outcome": "probe_absent",
+   "distance": "one_claim_away",
+   "door": "module",
+   "near_test": "test_fixture_directory_is_excluded_and_counted"
+  },
+  "spa_core/monitoring/cio_policy_change_procedure.py": {
+   "outcome": "probe_absent",
+   "distance": "one_claim_away",
+   "door": "module",
+   "near_test": "test_every_live_knob_has_a_declared_polarity"
+  },
+  "spa_core/monitoring/cio_post_trade_verification.py": {
+   "outcome": "probe_absent",
+   "distance": "no_live_call",
+   "door": "module",
+   "near_test": null
+  },
+  "spa_core/monitoring/cio_substitution_census.py": {
+   "outcome": "probe_absent",
+   "distance": "one_claim_away",
+   "door": "module+path",
+   "near_test": "test_the_rebalancer_publishes_numbers_of_a_rejected_allocation"
+  },
+  "spa_core/monitoring/cio_target_producers.py": {
+   "outcome": "probe_absent",
+   "distance": "one_claim_away",
+   "door": "module",
+   "near_test": "test_a_producer_rejecting_the_healthy_target_voids_the_tally"
+  },
+  "spa_core/monitoring/copy_independence_probe.py": {
+   "outcome": "probe_absent",
+   "distance": "one_claim_away",
+   "door": "module+path",
+   "near_test": "test_a_complete_artifact_with_zero_findings_exits_clean"
+  },
+  "spa_core/monitoring/decision_audit_trail.py": {
+   "outcome": "probe_absent",
+   "distance": "one_claim_away",
+   "door": "func+module",
+   "near_test": "test_the_live_cycle_is_measured_and_the_steps_are_invisible_to_the_trail"
+  },
+  "spa_core/monitoring/decision_reproducibility.py": {
+   "outcome": "probe_absent",
+   "distance": "no_live_call",
+   "door": "module",
+   "near_test": null
+  },
+  "spa_core/monitoring/delivery_name_loss.py": {
+   "outcome": "probe_absent",
+   "distance": "no_live_call",
+   "door": "module",
+   "near_test": null
+  },
+  "spa_core/monitoring/duplicate_subject_census.py": {
+   "outcome": "probe_absent",
+   "distance": "one_claim_away",
+   "door": "module",
+   "near_test": "test_the_real_tree_reaches_both_surfaces"
+  },
+  "spa_core/monitoring/golive_artifact_outcomes.py": {
+   "outcome": "probe_absent",
+   "distance": "no_live_call",
+   "door": "module",
+   "near_test": null
+  },
+  "spa_core/monitoring/green_by_construction_census.py": {
+   "outcome": "probe_absent",
+   "distance": "one_claim_away",
+   "door": "module",
+   "near_test": "test_inside_the_tact_the_stage_does_NOT_measure_and_says_so"
+  },
+  "spa_core/monitoring/hand_truncation_census.py": {
+   "outcome": "probe_absent",
+   "distance": "one_claim_away",
+   "door": "module",
+   "near_test": "test_every_site_lands_in_exactly_one_bucket"
+  },
+  "spa_core/monitoring/haystack_origin_census.py": {
+   "outcome": "probe_absent",
+   "distance": "one_claim_away",
+   "door": "module+path",
+   "near_test": "test_the_real_tree_shows_that_unfolded_is_not_absent_from_the_repo"
+  },
+  "spa_core/monitoring/helper_execution_census.py": {
+   "outcome": "probe_absent",
+   "distance": "no_live_call",
+   "door": "module",
+   "near_test": null
+  },
+  "spa_core/monitoring/judge_alone_price.py": {
+   "outcome": "probe_absent",
+   "distance": "no_live_call",
+   "door": "module",
+   "near_test": null
+  },
+  "spa_core/monitoring/judged_state_identity_census.py": {
+   "outcome": "probe_absent",
+   "distance": "no_live_call",
+   "door": "module",
+   "near_test": null
+  },
+  "spa_core/monitoring/lead_channel_watch.py": {
+   "outcome": "probe_absent",
+   "distance": "one_claim_away",
+   "door": "module",
+   "near_test": "test_real_endpoint_source_is_wired"
+  },
+  "spa_core/monitoring/leg_provenance_split.py": {
+   "outcome": "probe_absent",
+   "distance": "no_live_call",
+   "door": "module",
+   "near_test": null
+  },
+  "spa_core/monitoring/live_registry_scene_census.py": {
+   "outcome": "probe_absent",
+   "distance": "no_live_call",
+   "door": "module+path",
+   "near_test": null
+  },
+  "spa_core/monitoring/modular_constant_operand.py": {
+   "outcome": "probe_absent",
+   "distance": "no_live_call",
+   "door": "module",
+   "near_test": null
+  },
+  "spa_core/monitoring/pre_trade_recheck_census.py": {
+   "outcome": "probe_absent",
+   "distance": "no_live_call",
+   "door": "module",
+   "near_test": null
+  },
+  "spa_core/monitoring/presence_as_observation_census.py": {
+   "outcome": "probe_absent",
+   "distance": "one_claim_away",
+   "door": "module",
+   "near_test": "test_the_real_wallet_criterion_carries_the_third_outcome"
+  },
+  "spa_core/monitoring/prior_run_operand_census.py": {
+   "outcome": "probe_absent",
+   "distance": "no_live_call",
+   "door": "module",
+   "near_test": null
+  },
+  "spa_core/monitoring/probe_verdict_authorship.py": {
+   "outcome": "probe_absent",
+   "distance": "no_live_call",
+   "door": "module",
+   "near_test": null
+  },
+  "spa_core/monitoring/run_identity_key_price.py": {
+   "outcome": "probe_absent",
+   "distance": "no_live_call",
+   "door": "func+module+path",
+   "near_test": null
+  },
+  "spa_core/monitoring/subject_population_census.py": {
+   "outcome": "probe_absent",
+   "distance": "one_claim_away",
+   "door": "module",
+   "near_test": "test_the_pre_adr327_form_is_proven_blind"
+  },
+  "spa_core/monitoring/substring_structure_assertions.py": {
+   "outcome": "probe_absent",
+   "distance": "one_claim_away",
+   "door": "module",
+   "near_test": "test_unmeasured_is_counted_apart_from_stable_in_the_doc"
+  },
+  "spa_core/monitoring/three_outcome_reader_census.py": {
+   "outcome": "probe_absent",
+   "distance": "one_claim_away",
+   "door": "module",
+   "near_test": "test_the_census_finds_its_own_cli_as_a_door"
+  },
+  "spa_core/monitoring/truncated_input_census.py": {
+   "outcome": "probe_absent",
+   "distance": "one_claim_away",
+   "door": "module",
+   "near_test": "test_no_caller_of_the_wiring_truncates_silently"
+  },
+  "spa_core/monitoring/unresolved_path_census.py": {
+   "outcome": "probe_absent",
+   "distance": "one_claim_away",
+   "door": "module",
+   "near_test": "test_the_attribute_of_a_base_class_is_found"
+  },
+  "spa_core/monitoring/vacuous_guard_census.py": {
+   "outcome": "probe_absent",
+   "distance": "one_claim_away",
+   "door": "module",
+   "near_test": "test_a_complete_artifact_with_zero_findings_exits_clean"
+  },
+  "spa_core/tests/_absent_observation.py": {
+   "outcome": "probe_absent",
+   "distance": "one_claim_away",
+   "door": "module",
+   "near_test": "test_baseline_exists_and_explains_itself"
+  },
+  "spa_core/tests/_call_wiring.py": {
+   "outcome": "probe_absent",
+   "distance": "no_live_call",
+   "door": "module",
+   "near_test": null
+  },
+  "spa_core/tests/_injected_clock.py": {
+   "outcome": "probe_absent",
+   "distance": "one_claim_away",
+   "door": "module",
+   "near_test": "test_every_injected_clock_claim_in_the_suite_is_true"
+  },
+  "spa_core/tests/_orphan_producer.py": {
+   "outcome": "probe_absent",
+   "distance": "one_claim_away",
+   "door": "module",
+   "near_test": "test_the_artifact_is_reachable_on_the_real_repo"
+  },
+  "spa_core/tests/_ps_column_width.py": {
+   "outcome": "probe_absent",
+   "distance": "one_claim_away",
+   "door": "module",
+   "near_test": "test_the_surface_is_measured_and_not_assumed"
+  },
+  "spa_core/tests/_subprocess_clock_door.py": {
+   "outcome": "probe_absent",
+   "distance": "no_live_call",
+   "door": "module",
+   "near_test": null
+  }
+ }
+}
