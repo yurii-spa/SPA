@@ -10,7 +10,9 @@ Dead code categories:
                       string forward-ref annotations, `if TYPE_CHECKING:` imports
                       — see scan_unused_imports)
 2. no_tests        — spa_core modules with no corresponding test file
-3. todo_stale      — TODO/FIXME/HACK/XXX comments
+3. todo_stale      — маркеры TODO/FIXME/HACK/XXX в ЗАГЛАВНОЙ форме
+                     (слово «hack» в прозе маркером не является — см.
+                      scan_todo_comments, замер цикла #1183)
 4. stub_module     — files with < 50 lines of non-empty code (likely stubs)
 5. orphan_module   — spa_core module not imported by any other spa_core file
 
@@ -490,8 +492,33 @@ class DeadCodeScanner:
     def scan_todo_comments(self) -> List[DeadCodeItem]:
         """
         Find TODO/FIXME/HACK/XXX comments in spa_core and scripts.
+
+        **Маркер опознаётся по ЗАГЛАВНОЙ форме, и это НЕ придирка к регистру**
+        (инвариант #16 — изменение меры с обоснованием; замер цикла #1183).
+        Прежняя редакция искала тот же набор слов с ``re.IGNORECASE``, то есть
+        не могла отличить МАРКЕР-соглашение (``# TODO:``) от обычного слова в
+        прозе. В предметной области SPA слово «hack» — это ВЗЛОМ протокола, и
+        оно живёт в именах риск-величин: ``# Hack risk``, ``# Hack history``,
+        ``# hack=50%, loss=90%``. Замер на `a19e8ea96`: находок **16**, из них
+        **15** — ровно такая проза (девять строк одного теста страхового
+        покрытия, две в оценщиках моста, «Hack risk window» в реестре
+        протоколов, «Hack risk» в стресс-движке), и **одна** настоящая —
+        ``scripts/edge_risk_shape_adaptive_blend.py`` с ``# TODO:``.
+
+        Разность измерена в ОБЕ стороны: множество «есть у новой редакции, нет
+        у старой» **ПУСТО** — ни один настоящий маркер не потерян, потому что
+        соглашение на то и соглашение, что пишется капслоком. Это тот же класс,
+        что уже закрыт у соседнего сторожа голых подъёмов
+        (`tests/test_spaerror_complete.py::bare_raises`, 10.09): **упоминание
+        слова становилось доказательством факта**, и сторож честно отвечал на
+        свой вопрос («встречается ли подстрока») вместо нужного («есть ли
+        здесь незакрытая работа»).
+
+        Строчный маркер (``# todo: …``) этой редакцией НЕ опознаётся
+        НАМЕРЕННО: в дереве таких нет ни одного (тот же замер), а опознавать их
+        значило бы вернуть неразличимость прозы и маркера — цену уже знаем.
         """
-        pattern = re.compile(r"#\s*(TODO|FIXME|HACK|XXX)\b", re.IGNORECASE)
+        pattern = re.compile(r"#\s*(TODO|FIXME|HACK|XXX)\b")
         search_dirs = [self._abs(_SPA_DIR), self._abs("scripts")]
         items = []
         for sdir in search_dirs:

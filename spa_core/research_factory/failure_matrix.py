@@ -346,7 +346,12 @@ def _c16_malformed_scanner(tmp):
 
         @staticmethod
         def scan(data_dir, now, rpc_client=None):
-            raise RuntimeError("malformed source payload")
+            # drill: intentional fault injection — сцена нарочно поднимает
+            # ЧУЖОЙ (не-SPA) отказ: предмет контроля C16 ровно в том, что
+            # `run_once` переживает произвольный сбой постороннего
+            # сканера. Перевод этого подъёма на SPAError подменил бы
+            # предмет — проверялась бы устойчивость к СВОЕЙ ошибке.
+            raise RuntimeError("malformed source payload")  # drill: intentional fault injection
 
     import spa_core.research_factory.run as run_mod
     orig = run_mod._discover_scanners

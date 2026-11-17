@@ -38,6 +38,8 @@ from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from typing import Any
 
+from spa_core.utils.errors import RegistryError
+
 #: Исходы меры. Различимы (инвариант #17): «сцена не поднялась» никогда не
 #: выдаётся за «мера слепа» и наоборот.
 DRIVE_OK = "measured"
@@ -129,7 +131,10 @@ def _measure_scene(root: Path, *, now: datetime) -> dict:
     spec = importlib.util.spec_from_file_location(
         "_cdr_scene", str(here / "scripts" / "cycle_dry_run.py"))
     if spec is None or spec.loader is None:
-        raise RuntimeError("scripts/cycle_dry_run.py не ввозится как модуль")
+        raise RegistryError(
+            "scripts/cycle_dry_run.py не ввозится как модуль",
+            code="MODULE_NOT_IMPORTABLE",
+            details={"path": str(here / "scripts" / "cycle_dry_run.py")})
     cdr = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(cdr)
     cdr.ROOT = str(root)

@@ -97,6 +97,7 @@ from pathlib import Path
 from typing import Any, Callable, Dict, List, Optional, Sequence, Tuple
 
 from spa_core.utils.atomic import atomic_save
+from spa_core.utils.errors import ConfigError
 from spa_core.utils.observation import observed
 
 ARTIFACT_NAME = "record_survival_census.json"
@@ -313,8 +314,9 @@ def github_fetch(token: Optional[str] = None) -> Callable[[str], Any]:
     if not tok:
         tok = _token_from_keychain()
     if not tok:
-        raise RuntimeError("токена нет: ни GITHUB_TOKEN, ни GITHUB_PAT_SPA, "
-                           "ни Keychain GITHUB_PAT_SPA")
+        raise ConfigError("GITHUB_PAT_SPA",
+                          "нет ни в GITHUB_TOKEN, ни в GITHUB_PAT_SPA, "
+                          "ни в Keychain GITHUB_PAT_SPA")
 
     def fetch(path: str) -> Any:
         req = urllib.request.Request(
