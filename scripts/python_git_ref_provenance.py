@@ -1174,6 +1174,29 @@ def _numbered(rows):
             yield i, r
 
 
+def population_delta(frozen, current) -> dict:
+    """Популяция предмета ПО ФАЙЛУ: ``{файл: (было, стало)}`` только для изменившихся.
+
+    Мерка, РАЗЛИЧАЮЩАЯ рост и перенос личности. На ней прибор уже ошибался:
+    запись `_migration` в его собственной базе рассказывает, как храповик объявил
+    РОСТ на два зова, когда правка выше по файлу сдвинула два существующих зова на
+    +4 строки. Доказательством тогда послужила именно популяция по файлу — и
+    добывали её РУКАМИ, потому что прибор её не печатает.
+
+    Личность неразобранного зова несёт хвост ``#N``, но файл у неё по-прежнему
+    первым сегментом, поэтому обе оси считаются одной меркой.
+    """
+    from collections import Counter
+
+    def by_file(keys):
+        return Counter(k.split("::", 1)[0] for k in keys)
+
+    was, now = by_file(frozen), by_file(current)
+    return {f: (was.get(f, 0), now.get(f, 0))
+            for f in sorted(set(was) | set(now))
+            if was.get(f, 0) != now.get(f, 0)}
+
+
 ORDER = ["asked_and_gated", "asked_not_gated", "cache_only", "unmeasured"]
 TITLE = {"asked_and_gated": "СПРОШЕНО У СЕРВЕРА, и отказ прекращает путь",
          "asked_not_gated": "спрос есть, но его ОТКАЗ ничего не прекращает "
@@ -1266,6 +1289,18 @@ def main(argv=None) -> int:
     def say(msg):
         print(msg, file=sys.stderr if args.json else sys.stdout)
 
+    # Машинный читатель обязан видеть ОБЕ стороны разницы так же, как человек:
+    # документ, несущий только «пришло», воспроизводит ту же слепоту на шаг ниже.
+    ratchet_doc = None
+    if frozen is not None:
+        _current = sorted(set(subject) | set(unresolved))
+        ratchet_doc = {
+            "new": [k for k in _current if k not in frozen],
+            "gone": [k for k in frozen if k not in _current],
+            "population_delta_by_file": {
+                f: list(v) for f, v in population_delta(frozen, _current).items()},
+        }
+
     if args.json:
         print(json.dumps({
             "root": rep["root"], "files": rep["files"], "remotes": rep["remotes"],
@@ -1279,6 +1314,7 @@ def main(argv=None) -> int:
             "mutating_unmeasured": sum(1 for r in rows if r["mutating"] is None),
             "proven_both_axes": proven_both,
             "subject": subject, "unresolved": unresolved,
+            "ratchet": ratchet_doc,
             "unread": rep["unread"],
         }, ensure_ascii=False, indent=2))
     else:
@@ -1321,10 +1357,30 @@ def main(argv=None) -> int:
         # «не разобран» стал бы способом спрятать его от храповика.
         current = sorted(set(subject) | set(unresolved))
         new = [k for k in current if k not in frozen]
+        # ОБЕ стороны разницы считаются ДО вердикта и называются в ОДНОМ ответе.
+        # Прежде `gone` вычислялся только после того, как рост оказался пустым,
+        # и красный ответ «предмет ВЫРОС на N» был по построению неотличим от
+        # «N личностей ПЕРЕЕХАЛО» (переименована функция, выделена обёртка,
+        # разобралась подкоманда). На этой самой мерке прибор уже ошибался —
+        # см. `_migration` в его базе: рост на два зова оказался сдвигом строк.
+        gone = [k for k in frozen if k not in current]
         if new:
             say(f"\n🔴 ХРАПОВИК: предмет ВЫРОС на {len(new)} — " + ", ".join(new))
+            say(f"   ОДНОВРЕМЕННО УШЛО: {len(gone)}"
+                + (" — " + ", ".join(gone) if gone else "")
+                + ("  ⚠️ ушло столько же, сколько пришло — это может быть ПЕРЕНОС "
+                   "личности, а не рост; решает популяция по файлу ниже"
+                   if gone and len(gone) == len(new) else ""))
+            delta = population_delta(frozen, current)
+            if delta:
+                say("   популяция предмета ПО ФАЙЛУ изменилась у "
+                    f"{len(delta)}: "
+                    + ", ".join(f"{f} {a}→{b}" for f, (a, b) in delta.items()))
+            else:
+                say("   популяция предмета ПО ФАЙЛУ не изменилась НИ У ОДНОГО "
+                    "файла ⇒ новых зовов не появилось, сменилась ЛИЧНОСТЬ — "
+                    "это НЕ рост предмета, а перенос")
             return 3
-        gone = [k for k in frozen if k not in current]
         if gone:
             say(f"\n🟢 предмет сократился на {len(gone)}: " + ", ".join(gone)
                 + " — обнови базу")

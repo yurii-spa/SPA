@@ -33,6 +33,40 @@ from python_git_ref_provenance import (          # noqa: E402
 
 BASELINE = REPO / "scripts" / "python_git_ref_provenance_baseline.json"
 
+#: Имя пробы, чей предмет — РЕАЛЬНОЕ дерево против замороженной базы.
+SUBJECT_PROBE = "TestRatchet::test_real_tree_matches_the_frozen_baseline"
+
+
+def derivative_note(out: str) -> str:
+    """Почему красен контроль, чья ПРЕДПОСЫЛКА — зелёное реальное дерево.
+
+    Замер 2026-11-17 (цикл #1184, выборка имён вилки CI по заказу G1033 п. 2):
+    этот файл отдаёт в CI ЧЕТЫРЕ красных имени, а дефект под ними ОДИН — предмет
+    храповика вырос на реальном дереве. Три из четырёх берут «реальное дерево
+    сходится с базой» ПРЕДПОСЫЛКОЙ и потому красны ПО ПОСТРОЕНИЮ, пока предмет
+    открыт; их `AssertionError: 0 != 3` не говорил об этом ничего, и читатель
+    отчёта считал четыре дефекта вместо одного.
+
+    Сообщение НЕ ослабляет вердикт (красный остаётся красным) — оно называет
+    ПРОИСХОЖДЕНИЕ красноты, то есть отвечает на вопрос «сколько здесь дефектов».
+    """
+    tail = []
+    for ln in out.splitlines():
+        ln = ln.strip()
+        if "ХРАПОВИК" in ln:
+            # Перечень имён печатает проба ПРЕДМЕТА; здесь он только раздувал бы
+            # отчёт CI, повторяя то же тридцать один раз на каждый производный
+            # контроль. Читателю нужен СЧЁТ и ссылка на предмет.
+            tail.append(ln.split(" — ")[0])
+        elif "ОДНОВРЕМЕННО УШЛО" in ln:
+            tail.append(ln.split(" — ")[0])
+        elif "популяция предмета ПО ФАЙЛУ" in ln:
+            tail.append(ln.split(": ")[0])
+    return ("ПРЕДПОСЫЛКА НЕ ОБЕСПЕЧЕНА: контроль требует, чтобы РЕАЛЬНОЕ дерево "
+            f"сходилось с базой, а оно не сходится — это тот же ОДИН дефект, что "
+            f"у {SUBJECT_PROBE}, а не отдельный. "
+            + (" | ".join(tail) if tail else "строки храповика в выводе нет"))
+
 
 class Tree(unittest.TestCase):
     """Синтетическое дерево: ровно те формы, о которых идёт спор."""
@@ -573,8 +607,8 @@ class RegistryGovernance(unittest.TestCase):
 
     def test_an_intact_baseline_passes(self):
         """Положительный контроль: без него все отказы ниже истинны по построению."""
-        rc, _ = self._run(self.real)
-        self.assertEqual(0, rc)
+        rc, out = self._run(self.real)
+        self.assertEqual(0, rc, derivative_note(out))
 
     def test_an_empty_admitted_reason_is_unmeasured_not_pass(self):
         doc = json.loads(json.dumps(self.real))
@@ -650,10 +684,138 @@ class RegistryReactsToTheCensus(unittest.TestCase):
         frozen = json.loads(BASELINE.read_text(encoding="utf-8"))
         first = sorted(frozen.get("unresolved") or {})[0].rsplit("#", 1)[0]
         rc, out = self._run_with(drop={first})
-        self.assertEqual(0, rc)
+        self.assertEqual(0, rc, derivative_note(out))
         self.assertIn("сократил", out, "сокращение долга не объявлено")
 
     def test_the_unchanged_census_is_green(self):
         """Контроль: обе сцены выше меняют вердикт, а не воспроизводят общий фон."""
-        rc, _ = self._run_with()
-        self.assertEqual(0, rc)
+        rc, out = self._run_with()
+        self.assertEqual(0, rc, derivative_note(out))
+
+
+class BothSidesOfTheDifferenceAreNamed(unittest.TestCase):
+    """Красный ответ храповика обязан называть ОБЕ стороны разницы.
+
+    Замер 2026-11-17 (цикл #1184, выборка имён вилки CI по заказу G1033 п. 2):
+    на росте прибор возвращал 3 ДО того, как вообще вычислял ушедшие личности,
+    поэтому строка «предмет ВЫРОС на N» была по построению неотличима от
+    «N личностей ПЕРЕЕХАЛО» — переименована функция, выделена обёртка,
+    разобралась подкоманда. На этой самой мерке прибор уже ошибался: запись
+    `_migration` в его собственной базе рассказывает, как храповик объявил рост
+    на ДВА зова, которых не появилось (правка выше по файлу сдвинула два
+    существующих на +4 строки), и доказательством тогда послужила популяция
+    предмета ПО ФАЙЛУ — добытая РУКАМИ, потому что прибор её не печатает.
+
+    Сцены синтетические НАМЕРЕННО: реальное дерево сегодня красно ростом на 31,
+    и мерить на нём «различает ли прибор перенос» значило бы мерить два свойства
+    одной пробой. Вердикт (код 3) ни одна проба ниже не ослабляет — спор идёт о
+    том, ЧТО ответ говорит читателю, а не о том, красен он или зелен.
+    """
+
+    def setUp(self):
+        import python_git_ref_provenance as P
+        self.P = P
+        self.real_census = P.census
+        self.tmp = Path(tempfile.mkdtemp(prefix="c1184-"))
+        self.addCleanup(shutil.rmtree, self.tmp, ignore_errors=True)
+        self.addCleanup(setattr, P, "census", self.real_census)
+
+    @staticmethod
+    def _row(file, func, sub="show", ref="origin/main", line=10):
+        return {"file": file, "line": line, "func": func, "sub": sub, "ref": ref,
+                "verdict": "cache_only", "basis": "by_config", "mutating": False,
+                "why": "синтетическая строка сцены"}
+
+    def _scene(self, rows):
+        """Цензус подменяется ЦЕЛИКОМ: о реальном дереве сцена не спрашивает."""
+        def fake(root):
+            return {"root": str(root), "files": len(rows), "remotes": ["origin"],
+                    "modules": len(rows), "screened_out": 0, "doors": len(rows),
+                    "invocations": len(rows), "outer": [], "updaters": 0,
+                    "rows": list(rows), "unread": []}
+        self.P.census = fake
+
+    def _run(self, baseline_doc):
+        b = self.tmp / "b.json"
+        b.write_text(json.dumps(baseline_doc, ensure_ascii=False), encoding="utf-8")
+        buf = io.StringIO()
+        with contextlib.redirect_stdout(buf), contextlib.redirect_stderr(buf):
+            rc = self.P.main(["--root", str(self.tmp), "--baseline", str(b)])
+        return rc, buf.getvalue()
+
+    def _baseline(self, keys):
+        return {"schema": self.P.BASELINE_SCHEMA, "subject": sorted(keys),
+                "admitted_after_migration": {}, "unresolved": {}}
+
+    def test_a_migration_is_not_read_as_growth(self):
+        """ПЕРЕНОС личности: пришло столько же, сколько ушло, популяция та же.
+
+        Форма аварии `_migration` один в один: зовы те же, изменилось ИМЯ
+        функции. Прежняя редакция печатала только «ВЫРОС на 1» — то есть ровно
+        то же, что на настоящем росте.
+        """
+        self._scene([self._row("scripts/a.py", "look_v2")])
+        rc, out = self._run(self._baseline(["scripts/a.py::look::show:origin/main"]))
+        self.assertEqual(3, rc, "красный вердикт ослаблен — спор был не о нём")
+        self.assertIn("ОДНОВРЕМЕННО УШЛО: 1", out)
+        self.assertIn("scripts/a.py::look::show:origin/main", out,
+                      "ушедшая личность не названа — читатель не отличит перенос")
+        self.assertIn("не изменилась НИ У ОДНОГО", out,
+                      "популяция по файлу не названа, а она и есть решающая мерка")
+
+    def test_real_growth_says_that_nothing_left(self):
+        """НАСТОЯЩИЙ рост: ушло НОЛЬ, и ноль ПЕЧАТАЕТСЯ.
+
+        Молчание про вторую сторону неотличимо от «не считали» (инв. #17), и
+        именно поэтому ноль здесь произносится вслух.
+        """
+        self._scene([self._row("scripts/a.py", "look"),
+                     self._row("scripts/b.py", "look", line=20)])
+        rc, out = self._run(self._baseline(["scripts/a.py::look::show:origin/main"]))
+        self.assertEqual(3, rc)
+        self.assertIn("ОДНОВРЕМЕННО УШЛО: 0", out)
+        self.assertIn("scripts/b.py 0→1", out,
+                      "рост популяции файла не назван")
+        self.assertNotIn("не изменилась НИ У ОДНОГО", out,
+                         "настоящий рост объявлен переносом")
+
+    def test_the_migration_warning_fires_only_when_the_counts_match(self):
+        """Контроль предупреждения: при 2 пришедших и 1 ушедшей — не «перенос»."""
+        self._scene([self._row("scripts/a.py", "look_v2"),
+                     self._row("scripts/c.py", "look", line=30)])
+        rc, out = self._run(self._baseline(["scripts/a.py::look::show:origin/main"]))
+        self.assertEqual(3, rc)
+        self.assertIn("ОДНОВРЕМЕННО УШЛО: 1", out)
+        self.assertNotIn("может быть ПЕРЕНОС", out,
+                         "подсказка о переносе выдана там, где счёта не сошлись")
+
+    def test_the_json_document_carries_both_sides_too(self):
+        """Машинный читатель видит то же, что человек, — иначе слепота на шаг ниже."""
+        self._scene([self._row("scripts/a.py", "look_v2")])
+        b = self.tmp / "b.json"
+        b.write_text(json.dumps(self._baseline(
+            ["scripts/a.py::look::show:origin/main"]), ensure_ascii=False),
+            encoding="utf-8")
+        out, err = io.StringIO(), io.StringIO()
+        with contextlib.redirect_stdout(out), contextlib.redirect_stderr(err):
+            rc = self.P.main(["--root", str(self.tmp), "--json", "--baseline", str(b)])
+        self.assertEqual(3, rc)
+        doc = json.loads(out.getvalue())
+        self.assertEqual(["scripts/a.py::look_v2::show:origin/main"],
+                         doc["ratchet"]["new"])
+        self.assertEqual(["scripts/a.py::look::show:origin/main"],
+                         doc["ratchet"]["gone"])
+        self.assertEqual({}, doc["ratchet"]["population_delta_by_file"],
+                         "популяция файла не изменилась, а документ утверждает иное")
+
+    def test_population_delta_is_empty_when_nothing_moved(self):
+        """Прямая проба мерки: равные множества дают ПУСТУЮ разницу."""
+        keys = ["scripts/a.py::look::show:origin/main",
+                "scripts/b.py::look::show:origin/main"]
+        self.assertEqual({}, self.P.population_delta(keys, list(keys)))
+
+    def test_population_delta_counts_the_unresolved_tail_under_its_file(self):
+        """Хвост `#N` у неразобранного зова не ломает ось файла."""
+        d = self.P.population_delta([], ["scripts/a.py::f::None:None#1",
+                                         "scripts/a.py::f::None:None#2"])
+        self.assertEqual({"scripts/a.py": (0, 2)}, d)
