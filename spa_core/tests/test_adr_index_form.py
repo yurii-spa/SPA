@@ -288,7 +288,12 @@ def test_rows_out_of_declared_form_only_shrink():
     """
     baseline = json.loads(BASELINE.read_text(encoding="utf-8"))
     known = set(baseline["known_out_of_form_keys"])
-    rep = adr.index_form(ROOT)
+    # Реестр СОСТАВНОЙ (ADR-1046): форма спрашивается у ОБЕИХ частей. Спросить одну живую
+    # значило бы, что строка, уехавшая в архив, выпадает и из счёта записей (rows_total
+    # упал бы с 895 до 150 и прочитался бы как «пропало 745 решений»), и из-под самого
+    # храповика формы — то есть архивирование стало бы способом вынести строку из-под
+    # проверки молча. Вопрос тот же, предмет — весь реестр.
+    rep = adr.register_form(ROOT)
     assert rep["measured"], rep["unmeasured_reason"]
     actual = {r["key"] for r in rep["out_of_form"]}
 
@@ -328,7 +333,7 @@ def test_baseline_counters_agree_with_the_live_measurement():
     одна строка. Обоснование — в `docs/journal/2026-W44.md` и в ADR-831.
     """
     baseline = json.loads(BASELINE.read_text(encoding="utf-8"))
-    rep = adr.index_form(ROOT)
+    rep = adr.register_form(ROOT)
     assert rep["measured"], rep["unmeasured_reason"]
     whole = [r for r in rep["out_of_form"]
              if r["repair"]["file"] and r["repair"]["status"]]

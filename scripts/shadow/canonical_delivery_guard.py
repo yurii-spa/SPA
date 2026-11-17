@@ -51,6 +51,9 @@ POLICY = (
     ('docs/decisions/ADR-*.md',           APPEND_ONLY),
     ('docs/adr/ADR-*.md',                 APPEND_ONLY),
     ('docs/decisions/INDEX.md',           APPEND_ONLY),
+    # ADR-1046: архивная ЧАСТЬ реестра — та же семья и то же правило. Не объявить её
+    # значило бы отдать 745 строк реестра в третий исход («класс не назван»).
+    ('docs/decisions/INDEX-ARCHIVE.md',   APPEND_ONLY),
     ('docs/STATE.md',                     MERGE_REQUIRED),
     ('nimbalyst-local/tracker/_BOARD.md', GENERATED_REBUILDABLE),
     ('nimbalyst-local/tracker/own-*.md',  MERGE_REQUIRED),
@@ -69,13 +72,15 @@ POLICY = (
 #: Семьи, у которых заголовок записи уникален: два одинаковых заголовка — дефект
 #: дописывания, а не «стало больше». Замер ADR-395: «другой прогон того же дня ОСТАЁТСЯ»,
 #: поэтому уникальность объявляется ПОИМЁННО, а не распространяется на все APPEND_ONLY.
-UNIQUE_HEADING_FAMILIES = ('docs/journal/*.md', 'docs/decisions/INDEX.md')
+UNIQUE_HEADING_FAMILIES = ('docs/journal/*.md', 'docs/decisions/INDEX.md',
+                           'docs/decisions/INDEX-ARCHIVE.md')
 
 #: Как выглядит «запись» в каждой семье. Отсутствие образца ⇒ проверка заголовков НЕ
 #: выполняется и это НАЗЫВАЕТСЯ, а не выдаётся за «заголовки целы».
 HEADING_PATTERNS = (
     ('docs/journal/*.md', r'^##\s+.+$'),
     ('docs/decisions/INDEX.md', r'^\|\s*ADR-\d+', ),
+    ('docs/decisions/INDEX-ARCHIVE.md', r'^\|\s*ADR-\d+', ),
     ('docs/STATE.md', r'^##\s+.+$'),
     ('.claude/rules/*.md', r'^##\s+.+$'),
     ('CLAUDE.md', r'^##\s+.+$'),

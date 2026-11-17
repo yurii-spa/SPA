@@ -1233,7 +1233,15 @@ FAT_ADR_TITLE_EXIT = 16
 #: Путь реестра решений ОТНОСИТЕЛЬНО корня дерева. Вопрос задаётся ТОЛЬКО ему:
 #: «колонка заголовка» есть свойство ЭТОЙ таблицы, и спрашивать его у любого
 #: markdown значило бы выдумать колонку там, где её нет.
+#:
+#: С ADR-1046 реестр СОСТАВНОЙ, и частей ДВЕ: живая и архивная. Обе — та же таблица
+#: с той же шапкой, поэтому предел колонки касается обеих. Спросить одну живую
+#: значило бы, что перенос строки в архив выносит её из-под гейта МОЛЧА — ровно тот
+#: класс, против которого гейт написан (ADR-889: вопрос не задавался в момент
+#: доставки вовсе, и четыре толстые строки уехали на main).
 ADR_REGISTER_REL = "docs/decisions/INDEX.md"
+ADR_REGISTER_ARCHIVE_REL = "docs/decisions/INDEX-ARCHIVE.md"
+ADR_REGISTER_PARTS = (ADR_REGISTER_REL, ADR_REGISTER_ARCHIVE_REL)
 
 
 class DeliveredAdrTitleIsFat(RuntimeError):
@@ -1287,7 +1295,10 @@ def _register_parser(runner_file: Optional[str] = None):
 
 def enforce_delivery_adr_titles(file_args: list, allow: bool = False,
                                 runner_file: Optional[str] = None) -> list:
-    """Уезжающий `docs/decisions/INDEX.md` обязан держать предел колонки.
+    """Уезжающая часть реестра решений обязана держать предел колонки.
+
+    Частей ДВЕ (`ADR_REGISTER_PARTS`, ADR-1046) и вопрос один: судится та из них,
+    которая уезжает этим пушем.
 
     Байты берутся ЕДИНСТВЕННОЙ дверью :func:`read_delivery_bytes`: судится
     ровно то содержимое, которое уедет, и оно же сверено со слепком. Своё
@@ -1301,7 +1312,8 @@ def enforce_delivery_adr_titles(file_args: list, allow: bool = False,
     _ADR_TITLE_GATE["called"] = True
     for fa in file_args:
         key = _delivery_abs(fa)
-        if not key.replace(os.sep, "/").endswith(ADR_REGISTER_REL):
+        if not any(key.replace(os.sep, "/").endswith(rel)
+                   for rel in ADR_REGISTER_PARTS):
             # Не реестр — это «не спрашивали», а не «прошёл»: иначе число
             # «сверено» росло бы от молчания соседних файлов набора.
             continue
@@ -1901,7 +1913,13 @@ def _common_prefix_at_line_boundary(base: bytes, local: bytes, remote: bytes) ->
 # ══════════════════════════════════════════════════════════════════════════════
 
 #: Документы, которые ДОПИСЫВАЮТ все сессии подряд (протокол §«Шаг 3»).
-APPEND_ONLY_DOCS = ("docs/STATE.md", "docs/decisions/INDEX.md")
+# Архивная часть реестра (ADR-1046) входит в КАЖДЫЙ из трёх наборов ниже по той же
+# причине, по которой в них входит живая: с 17.11 в ней лежат 745 решений из 895, то
+# есть БОЛЬШАЯ ЧАСТЬ памяти реестра. Оставить её вне наборов значило бы, что
+# архивирование вынесло эту память из-под всех трёх стражей молча — и пропажа 745
+# строк не краснела бы нигде.
+APPEND_ONLY_DOCS = ("docs/STATE.md", "docs/decisions/INDEX.md",
+                    "docs/decisions/INDEX-ARCHIVE.md")
 APPEND_ONLY_PREFIXES = ("docs/journal/",)
 
 #: Заголовок ЗАПИСИ: `## …` в журнале и блок-цитата `> **…` в `docs/STATE.md`.
@@ -1927,7 +1945,7 @@ ENTRY_HEADER_RE = re.compile(rb"^(?:##[ \t]+\S.*|>[ \t]*\*\*.+)$", re.M)
 # целиком: иначе страж краснел бы на штатное превращение черновика в решение.
 #
 #: Документы, чья запись опознаётся строкой таблицы реестра.
-REGISTRY_DOCS = ("docs/decisions/INDEX.md",)
+REGISTRY_DOCS = ("docs/decisions/INDEX.md", "docs/decisions/INDEX-ARCHIVE.md")
 
 #: Строка реестра. Тождество записи — номер (`ADR-197`, `ADR-YL-011`,
 #: `ADR-OWN-2026-07`, `ADR-TEST`), а не вся ячейка: правка описания записи не
@@ -2457,7 +2475,8 @@ def guard_content_loss(repo_path: str, remote_bytes: Optional[bytes],
 #: делает решение ненаходимым, а `check_memory_in_git --links` покраснеет у
 #: СЛЕДУЮЩЕГО цикла — причиной в чужом пуше (цикл #459).
 SHARED_MEMORY_DOCS = ("docs/STATE.md", "nimbalyst-local/tracker/_BOARD.md",
-                      "docs/decisions/INDEX.md")
+                      "docs/decisions/INDEX.md",
+                      "docs/decisions/INDEX-ARCHIVE.md")
 SHARED_MEMORY_PREFIXES = ("docs/journal/",)
 
 

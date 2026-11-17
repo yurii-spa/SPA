@@ -2,12 +2,14 @@
 trackerStatus:
   type: inbox
 title: "Восемь блоков публикуют число отсутствия, и не читает его никто (ADR-856, замер #974)"
-status: new
+status: done
 source: nimbalyst
 created: 2026-10-29
 priority: high
 finding_adr: ADR-856
 acceptance_probe: additive_field_reader_distinguishes
+status_trail:
+  - "2026-11-17T23:12:27.692758+00:00 new -> done · queue.set_status/closed_by:оркестратор, цикл #1185/evidence:своя проба карточки additive_field_reader_distinguishes = satisfied (перемерена руками из worktree на origin/main c45ba398a: эталон различает unmeasured против measured_zero; население класса НАЗВАНО  · cycle-30620"
 ---
 
 ## Что измерено (цикл #974, ADR-856)

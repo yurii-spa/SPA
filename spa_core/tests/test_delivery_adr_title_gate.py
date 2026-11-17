@@ -192,17 +192,33 @@ def test_the_live_register_passes_the_gate(ptg, tmp_path):
     Без этой половины отказы были бы неотличимы от сторожа, который краснеет
     всегда, и единственным способом доставить реестр стал бы флаг обхода.
     """
-    live = (ROOT / "docs" / "decisions" / "INDEX.md").read_text(encoding="utf-8")
-    target = _register(tmp_path, live)
-    ptg.pin_delivery_bytes([str(target)])
-    verdicts = ptg.enforce_delivery_adr_titles([str(target)])
-    assert len(verdicts) == 1, verdicts
-    assert verdicts[0]["state"] == "within_limit", (
-        f"живой реестр не проходит свой же гейт: {verdicts[0]} — позови "
-        f"`python3 scripts/adr_number.py titles --write`")
-    assert verdicts[0]["rows"] > 500, (
-        f"в живом реестре измерено всего {verdicts[0]['rows']} строк — столько "
-        f"не бывает, значит разбор формы сломан и «толстых нет» ничего не значит")
+    # Реестр СОСТАВНОЙ (ADR-1046), и гейт задаёт вопрос КАЖДОЙ уезжающей части.
+    # Сцена несёт ОБЕ: 17.11 живая часть стала 150 строками, и порог «строк больше
+    # 500» на ней одной краснел бы не на сломанном разборе, а на ЗДОРОВОМ реестре —
+    # то есть сторож перестал бы отвечать на свой вопрос. Предмет порога — «разбор не
+    # сломан», и он измерим только по ОБЪЕДИНЕНИЮ.
+    d = tmp_path / "docs" / "decisions"
+    d.mkdir(parents=True, exist_ok=True)
+    targets = []
+    for rel in ptg.ADR_REGISTER_PARTS:
+        src = ROOT / rel
+        if not src.is_file():
+            continue
+        dst = tmp_path / rel
+        dst.write_text(src.read_text(encoding="utf-8"), encoding="utf-8")
+        targets.append(str(dst))
+    assert targets, "ни одной части реестра не прочитано — мерить нечего"
+    ptg.pin_delivery_bytes(targets)
+    verdicts = ptg.enforce_delivery_adr_titles(targets)
+    assert len(verdicts) == len(targets), verdicts
+    for v in verdicts:
+        assert v["state"] == "within_limit", (
+            f"живой реестр не проходит свой же гейт: {v} — позови "
+            f"`python3 scripts/adr_number.py titles --write`")
+    rows = sum(v["rows"] for v in verdicts)
+    assert rows > 500, (
+        f"во всём реестре измерено всего {rows} строк — столько не бывает, значит "
+        f"разбор формы сломан и «толстых нет» ничего не значит")
 
 
 # ═════════════════════════════════════════════════════════════════════════════

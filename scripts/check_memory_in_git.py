@@ -148,37 +148,73 @@ _BACKTICK_RE = re.compile(r"`(docs/[^`\s]+\.md)`")
 _ADR_FILE_RE = re.compile(r"^ADR-[\w.-]+\.md$")
 
 
-def check_index_links(root, index_rel="docs/decisions/INDEX.md"):
+#: Части реестра решений. Копия перечня здесь НЕ живёт: он объявлен ОДИН раз в
+#: `scripts/adr_number.py::REGISTER_PARTS` (ADR-1046), иначе гейт до пуша и тест после
+#: пуша спорили бы о том, из чего состоит реестр.
+def _register_parts() -> tuple:
+    try:
+        from adr_number import REGISTER_PARTS  # noqa: PLC0415
+    except Exception:  # noqa: BLE001 — третий исход, а не молчаливое умолчание
+        return ()
+    return tuple(REGISTER_PARTS)
+
+
+def check_index_links(root, index_rel=None):
     """Ссылочная целостность реестра решений. (находки, не_измерено).
 
     Работает в ЧИСТОМ чекауте, поэтому видна в CI: битая строка реестра (ADR указан,
     файла нет) краснит гейт там же, где живёт origin.
+
+    **Реестр СОСТАВНОЙ (ADR-1046), и вопрос «решение вне реестра» задаётся
+    ОБЪЕДИНЕНИЮ частей.** Спросить его одной живой части значило бы объявить 745
+    архивных решений недостижимыми в тот же миг, когда они стали достижимы по номеру;
+    спросить только архив — пропустить новое решение, не внесённое никуда. Часть,
+    которая объявлена и НЕ ЧИТАЕТСЯ, даёт «не измерено» с названной причиной
+    (fail-CLOSED): исчезнувший архив обязан кричать, а не выглядеть как «архива не было».
+
+    `index_rel` оставлен входом для сцен: названная часть судится одна (так меряют
+    положительные контроли), `None` — весь объявленный реестр.
     """
     root = Path(root)
-    index = root / index_rel
-    if not index.is_file():
-        return [], [f"{index_rel}: файла нет — ссылочная целостность не измерена"]
-    try:
-        text = index.read_text(encoding="utf-8")
-    except OSError as exc:
-        return [], [f"{index_rel}: не читается ({exc}) — не измерено"]
+    parts = (index_rel,) if index_rel else (_register_parts() or ("docs/decisions/INDEX.md",))
 
-    findings = []
-    targets = set(_LINK_RE.findall(text)) | set(_BACKTICK_RE.findall(text))
-    for t in sorted(targets):
-        if (index.parent / t).is_file() or (root / t).is_file():
+    findings, unchecked = [], []
+    listed, present = set(), []
+    for rel in parts:
+        index = root / rel
+        if not index.is_file():
+            if rel == parts[0]:
+                unchecked.append(f"{rel}: файла нет — ссылочная целостность не измерена")
+            # Архивной части может не быть вовсе: реестр ещё не делили. Это ДРУГОЕ
+            # состояние, чем «часть есть и не читается», и молчать о нём верно.
             continue
-        findings.append(f"{index_rel} ссылается на `{t}`, но такого файла нет в дереве")
+        try:
+            text = index.read_text(encoding="utf-8")
+        except OSError as exc:
+            unchecked.append(f"{rel}: не читается ({exc}) — не измерено")
+            continue
+        present.append(rel)
+        targets = set(_LINK_RE.findall(text)) | set(_BACKTICK_RE.findall(text))
+        for t in sorted(targets):
+            if (index.parent / t).is_file() or (root / t).is_file():
+                continue
+            findings.append(f"{rel} ссылается на `{t}`, но такого файла нет в дереве")
+        listed |= {Path(t).name for t in targets}
 
-    listed = {Path(t).name for t in targets}
+    if unchecked:
+        return findings, unchecked
+    if not present:
+        return findings, ["ни одной части реестра решений не прочитано — не измерено"]
+
+    where = " / ".join(present)
     for p in sorted((root / "docs" / "decisions").glob("*.md")):
         if not _ADR_FILE_RE.match(p.name):
             continue  # INDEX.md, _TEMPLATE.md и прочее — не решения
         if p.name not in listed:
             findings.append(
-                f"{p.relative_to(root).as_posix()} существует, но не упомянут в {index_rel} "
+                f"{p.relative_to(root).as_posix()} существует, но не упомянут в {where} "
                 f"— решение вне реестра")
-    return findings, []
+    return findings, unchecked
 
 
 def build_report(root=ROOT, base_ref=DEFAULT_BASE, git=_git, do_tree=True, do_links=True,

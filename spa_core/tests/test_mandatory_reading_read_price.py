@@ -82,6 +82,21 @@ import pytest
 
 _REPO_ROOT = Path(__file__).resolve().parents[2]
 _REGISTER = _REPO_ROOT / "docs" / "decisions" / "INDEX.md"
+
+#: Архивная ЧАСТЬ реестра (ADR-1046). Потолок цены чтения ниже касается ЖИВОЙ части —
+#: она и есть обязательное чтение шага 0; архив читают по номеру, и его цена не входит
+#: в ту, что платит каждая сессия. Но вопросы о СОДЕРЖИМОМ реестра (стоит ли в нём
+#: решение, в пределе ли его заголовок) задаются ОБЪЕДИНЕНИЮ: перенос строки в архив
+#: не вправе выносить её из-под проверки.
+_REGISTER_ARCHIVE = _REPO_ROOT / "docs" / "decisions" / "INDEX-ARCHIVE.md"
+
+
+def _register_union_text() -> str:
+    """Текст ВСЕХ существующих частей реестра. Архива может не быть — тогда одна часть."""
+    parts = [_REGISTER.read_text(encoding="utf-8")]
+    if _REGISTER_ARCHIVE.is_file():
+        parts.append(_REGISTER_ARCHIVE.read_text(encoding="utf-8"))
+    return "\n".join(parts)
 _BASELINE = Path(__file__).parent / "adr_index_read_price_baseline.json"
 
 
@@ -338,7 +353,11 @@ def test_the_register_row_of_this_very_change_obeys_the_new_limit():
     Правило, которое не может выполнить даже вводящий его цикл, — не правило. ADR-838 стои́т
     в реестре с заголовком в пределе и ссылкой на файл, где лежит вся проза.
     """
-    lengths = title_lengths(_REGISTER.read_text(encoding="utf-8"))
+    # Реестр СОСТАВНОЙ (ADR-1046): строка ADR-838 уехала в архивную часть вместе с
+    # остальными номерами ≤ 900. Она в реестре СТОИТ, и предел ей подчиняется там же;
+    # спрашивать одну живую часть значило бы, что правило перестаёт касаться своего
+    # автора ровно тогда, когда его строка становится старой.
+    lengths = title_lengths(_register_union_text())
     assert "ADR-838" in lengths, (
         "Строки ADR-838 в реестре нет — решение, вводящее предел на строку реестра, обязано "
         "само в нём стоять (иначе реестр не является реестром решений)."

@@ -72,6 +72,117 @@ from check_undelivered_work import _git  # noqa: E402  (переиспользо
 DEFAULT_BASE = "origin/main"
 DECISIONS_DIR = "docs/decisions"
 INDEX_REL = f"{DECISIONS_DIR}/INDEX.md"
+
+# ── РЕЕСТР СОСТОИТ ИЗ ЧАСТЕЙ (ADR-1046) ─────────────────────────────────────
+#
+# ЗАЧЕМ. `docs/decisions/INDEX.md` назван обязательным чтением шага 0 в той же строке
+# `CLAUDE.md`, что и `STATE.md`, и у его цены чтения есть потолок — 180 000 символов
+# (`spa_core/tests/test_mandatory_reading_read_price.py`, ADR-838/840). Замер 17.11:
+# реестр стоя́л 186 664 символа при 903 строках, то есть потолок был превышен на 6 664,
+# и ДВА имени набора краснели на одном этом факте.
+#
+# ПОЧЕМУ ПОТОЛОК НАД ОДНИМ ФАЙЛОМ — НЕ ХРАПОВИК, А ОБРАТНЫЙ ОТСЧЁТ. Решения
+# НАКАПЛИВАЮТСЯ: с 28.10 (136 610 символов, 691 строка) по 17.11 реестр вырос на
+# 50 054 символа, то есть ≈2 500 символов в сутки при ≈10 новых строках. Потолок
+# 180 000, назначенный 28.10, был обречён быть пробитым через ≈17 суток — и был пробит
+# через 20. Поднимать его ЗАПРЕЩЕНО (инв. #16), а сокращать заголовки НЕЧЕМ: сумма H1
+# всех 900 решений — 91 160 символов против 95 249 в колонке, то есть колонка УЖЕ есть
+# заголовок, а не пересказ (прибор `titles` на ней выиграл бы 4 089 символов — сутки с
+# половиной роста). Единственный ответ, который не врёт: реестр перестаёт быть ОДНИМ
+# файлом.
+#
+# ЧТО ДЕЛАЕМ. Реестр объявлен СОСТАВНЫМ: живая часть (`INDEX.md`, обязательное чтение —
+# последние решения) и архивная (`INDEX-ARCHIVE.md`, достижимость решения по номеру).
+# Архив лежит В ТОМ ЖЕ каталоге намеренно: ссылки строк относительны каталогу решений, и
+# перенос файла в `docs/journal/` оборвал бы все 745 ссылок разом. Это ЧАСТЬ реестра, а
+# не снимок: снимки (`docs/journal/INDEX-archive-<дата>.md`, ADR-840) мертвы по
+# построению и ни на один вопрос о достижимости не отвечают.
+#
+# ЧЕГО ЭТО НЕ ДЕЛАЕТ. Строка, УЕХАВШАЯ в архив, не исчезла — но ответить на это способен
+# лишь тот, кто читает ОБЕ части. Поэтому вопрос «не пропала ли запись реестра» задаётся
+# ОБЪЕДИНЕНИЮ (:func:`register_parts`), а не живой части: иначе первое же архивирование
+# читалось бы как пропажа 745 решений, а настоящая пропажа — прикрывалась бы переносом.
+ARCHIVE_REL = f"{DECISIONS_DIR}/INDEX-ARCHIVE.md"
+
+#: Части реестра, в порядке чтения. Живая — первая.
+REGISTER_PARTS = (INDEX_REL, ARCHIVE_REL)
+
+
+def register_parts(root, parts=REGISTER_PARTS):
+    """({rel: текст} прочитанных частей, [не_измерено]) — ОДНА дверь к реестру.
+
+    Три исхода РАЗЛИЧИМЫ (инв. #17), и различает их сама живая часть, а не память
+    этого модуля:
+
+    * часть прочитана ⇒ её текст в ответе;
+    * часть ОБЪЯВЛЕНА живой частью (её имя упомянуто в `INDEX.md`), но файла нет или
+      он не читается ⇒ `unreadable` с НАЗВАННОЙ причиной. Молчание здесь означало бы,
+      что исчезнувший архив с 745 решениями выглядит как «архива не было»;
+    * часть НЕ объявлена и файла нет ⇒ её и не должно быть (реестр ещё не делили).
+      Это «измерено и равно нулю», и оно не есть «не измерено».
+
+    Живая часть — всегда `parts[0]`; её отсутствие есть «не измерено» всегда.
+    """
+    root = Path(root)
+    texts, unreadable = {}, []
+    live_rel = parts[0]
+    live_text = ""
+    live_path = root / live_rel
+    if live_path.is_file():
+        try:
+            live_text = live_path.read_text(encoding="utf-8")
+        except OSError as exc:
+            unreadable.append(f"{live_rel}: не читается ({exc}) — реестр НЕ ИЗМЕРЕН")
+        else:
+            texts[live_rel] = live_text
+    else:
+        unreadable.append(f"{live_rel}: живой части реестра нет в дереве — НЕ ИЗМЕРЕНО")
+
+    for rel in parts[1:]:
+        path = root / rel
+        declared = Path(rel).name in live_text
+        if not path.is_file():
+            if declared:
+                unreadable.append(
+                    f"{rel}: живая часть на неё ССЫЛАЕТСЯ, а файла нет — решения, "
+                    f"перенесённые в архив, НЕДОСТИЖИМЫ (fail-CLOSED)")
+            continue
+        try:
+            texts[rel] = path.read_text(encoding="utf-8")
+        except OSError as exc:
+            unreadable.append(f"{rel}: не читается ({exc}) — НЕ ИЗМЕРЕНО")
+    return texts, unreadable
+
+
+def register_form(root, parts=REGISTER_PARTS):
+    """Перепись формы строк по ВСЕМУ реестру: суммы по частям + происхождение строки.
+
+    Форма у частей ОДНА (та же шапка таблицы), поэтому складывать их законно; но
+    каждая находка несёт `part`, иначе «строка вне формы» не называет, где её искать.
+
+    Третий исход берётся у :func:`register_parts` — одна дверь на оба вопроса.
+    """
+    out = {"parts": {}, "rows_total": 0, "in_form": 0, "out_of_form": [],
+           "measured": False, "unmeasured_reason": None}
+    texts, unreadable = register_parts(root, parts)
+    if unreadable:
+        out["unmeasured_reason"] = " · ".join(unreadable)
+        return out
+    for rel in texts:
+        rep = index_form(root, index_rel=rel)
+        out["parts"][rel] = rep
+        if not rep["measured"]:
+            out["unmeasured_reason"] = rep["unmeasured_reason"]
+            return out
+        out["rows_total"] += rep["rows_total"]
+        out["in_form"] += rep["in_form"]
+        for row in rep["out_of_form"]:
+            row = dict(row)
+            row["part"] = rel
+            out["out_of_form"].append(row)
+    out["measured"] = True
+    return out
+
 REMOTES_NS = "refs/remotes/"
 
 # Имя файла решения: ADR-<ключ>-<слаг>.md. Ключ бывает числовым (`067`) и именованным
@@ -903,6 +1014,151 @@ def shorten_index(root, index_rel=INDEX_REL, limit: int = TITLE_MAX_CHARS):
     return out
 
 
+#: Шапка архивной части. Пишется ОДИН раз; дальше архив только дополняется.
+_ARCHIVE_HEADER = """# ADR INDEX — АРХИВНАЯ часть реестра решений
+
+> **Это часть реестра, а не снимок.** Живая часть — [`INDEX.md`](INDEX.md): она
+> объявлена обязательным чтением шага 0 и несёт ПОСЛЕДНИЕ решения. Здесь лежат
+> строки решений с меньшими номерами — чтобы решение оставалось достижимым ПО
+> НОМЕРУ, не стоя́ при этом в цене чтения, которую платит каждая сессия (ADR-1046).
+>
+> Ни одна строка не переписана: они перенесены ДОСЛОВНО, байт в байт. Вопрос «не
+> пропала ли запись реестра» задаётся ОБЪЕДИНЕНИЮ частей
+> (`scripts/adr_number.py::register_parts`), поэтому перенос пропажей не является, а
+> пропажа переносом не прикрывается. Отличать от СНИМКОВ
+> `docs/journal/INDEX-archive-<дата>.md` (ADR-840): снимок мёртв по построению и ни
+> на один вопрос о достижимости решения не отвечает.
+>
+> Переносит ТОЛЬКО прибор: `python3 scripts/adr_number.py archive --below <N> --write`.
+> Руками здесь не правят — как и в живой части (ADR-838/840).
+
+| ADR | Заголовок | Статус | Файл |
+|---|---|---|---|
+"""
+
+#: Строка-указатель, которую живая часть несёт ВМЕСТО перенесённых строк.
+_ARCHIVE_POINTER = (
+    "> **Решения с номером ≤ {below} живут в АРХИВНОЙ части реестра —**\n"
+    "> [`INDEX-ARCHIVE.md`]({name}) (перенесено строк: {moved}; дословно, ни одна не "
+    "переписана).\n"
+    "> Это ЧАСТЬ реестра, а не снимок: решение достижимо по номеру там же. Почему\n"
+    "> реестр перестал быть одним файлом — ADR-1046: цена чтения растёт ≈2 500\n"
+    "> символов в сутки, и потолок над одним накапливающимся файлом есть обратный\n"
+    "> отсчёт, а не храповик.\n")
+
+
+def _row_keys(text: str) -> list:
+    """Ключи ВСЕХ строк таблицы текста — тем же разбором, что у остальных читателей."""
+    return [m.group("num") + (m.group("dup") or "")
+            for m in (_ROW_RE.match(line) for line in text.splitlines()) if m]
+
+
+def _insert_pointer(text: str, pointer: str) -> str:
+    """Указатель на архив ставится ПЕРЕД шапкой таблицы живой части.
+
+    Место выбрано не для красоты: читатель обязан узнать о второй части ДО того, как
+    решит, что решения в реестре нет. Строка-указатель не является строкой таблицы и
+    поэтому ни в один счёт записей не попадает.
+    """
+    lines = text.splitlines(keepends=True)
+    for i, line in enumerate(lines):
+        if declared_form(line) is not None:
+            return "".join(lines[:i]) + pointer + "\n" + "".join(lines[i:])
+    return text + "\n" + pointer
+
+
+def archive_rows(root, below: int, index_rel=INDEX_REL, archive_rel=ARCHIVE_REL):
+    """Перенос строк реестра с номером ≤ `below` в архивную часть. НИЧЕГО не пишет.
+
+    Отдаёт новый текст ОБЕИХ частей и замер. Три исхода различимы (инв. #17): части не
+    прочитаны / форма не измерена / контроль переноса отказал ⇒ `measured=False` с
+    причиной · перенесено N строк · переносить нечего (`moved == []`) — это «измерено
+    и равно нулю», а не отказ.
+
+    **Контроль переноса идёт ЗДЕСЬ, а не в CLI:** множество ключей ДО обязано РОВНО
+    совпасть с объединением множеств ПОСЛЕ, и текст каждой перенесённой строки —
+    побайтово с исходным. Иначе «архивирование» стало бы способом потерять строку
+    молча, то есть ровно тем, против чего написан страж общей тетради (цикл #459).
+    """
+    root = Path(root)
+    out = {"measured": False, "unmeasured_reason": None, "moved": [], "kept": 0,
+           "live_text": None, "archive_text": None, "chars_before": None,
+           "chars_live_after": None, "chars_archive_after": None}
+    try:
+        live = (root / index_rel).read_text(encoding="utf-8")
+    except OSError as exc:
+        out["unmeasured_reason"] = f"{index_rel} не читается ({exc}) — перенос НЕ ИЗМЕРЕН"
+        return out
+    if declared_form(live) is None:
+        out["unmeasured_reason"] = (
+            f"{index_rel}: шапка таблицы с колонкой «{_STATUS_HEADER}» не найдена — "
+            f"какая строка является записью, НЕ ИЗМЕРЕНО")
+        return out
+
+    archive_path = root / archive_rel
+    if archive_path.is_file():
+        try:
+            archive = archive_path.read_text(encoding="utf-8")
+        except OSError as exc:
+            out["unmeasured_reason"] = (f"{archive_rel} существует и не читается ({exc}) "
+                                        f"— перенос НЕ ИЗМЕРЕН (fail-CLOSED)")
+            return out
+        if declared_form(archive) is None:
+            out["unmeasured_reason"] = (
+                f"{archive_rel}: шапка таблицы не найдена — дописывать строки некуда")
+            return out
+    else:
+        archive = _ARCHIVE_HEADER
+
+    out["measured"] = True
+    out["chars_before"] = len(live)
+
+    keys_before = _row_keys(live) + _row_keys(archive)
+    kept_lines, moved_lines = [], []
+    for raw in live.splitlines(keepends=True):
+        m = _ROW_RE.match(raw)
+        num = None
+        if m:
+            tail = m.group("num")[len("ADR-"):]
+            num = int(tail) if _NUMERIC_KEY_RE.match(tail) else None
+        if num is not None and num <= below:
+            moved_lines.append(raw if raw.endswith("\n") else raw + "\n")
+        else:
+            kept_lines.append(raw)
+    out["kept"] = len(_row_keys("".join(kept_lines)))
+
+    if not moved_lines:
+        out["live_text"], out["archive_text"] = live, archive
+        out["chars_live_after"], out["chars_archive_after"] = len(live), len(archive)
+        return out
+
+    live_new = _insert_pointer("".join(kept_lines), _ARCHIVE_POINTER.format(
+        below=below, name=Path(archive_rel).name, moved=len(moved_lines)))
+    archive_new = (archive if archive.endswith("\n") else archive + "\n") + "".join(moved_lines)
+
+    keys_after = _row_keys(live_new) + _row_keys(archive_new)
+    if sorted(keys_before) != sorted(keys_after):
+        out["measured"] = False
+        out["unmeasured_reason"] = (
+            f"контроль переноса ОТКАЗАЛ: ключи реестра разошлись — пропало "
+            f"{sorted(set(keys_before) - set(keys_after))}, появилось "
+            f"{sorted(set(keys_after) - set(keys_before))}. Ни одна строка не записана")
+        return out
+    for raw in moved_lines:
+        if raw not in archive_new:
+            out["measured"] = False
+            out["unmeasured_reason"] = (
+                "контроль переноса ОТКАЗАЛ: перенесённая строка не найдена в архиве "
+                "ДОСЛОВНО. Ни одна строка не записана")
+            return out
+
+    out["moved"] = [_ROW_RE.match(r).group("num") for r in moved_lines]
+    out["live_text"], out["archive_text"] = live_new, archive_new
+    out["chars_live_after"] = len(live_new)
+    out["chars_archive_after"] = len(archive_new)
+    return out
+
+
 def _origin_files(root, base_ref, git=_git):
     """Имена файлов решений на base ref, либо None если ref не измерим (fail-CLOSED)."""
     rc, out, _ = git(root, "ls-tree", "--name-only", f"{base_ref}:{DECISIONS_DIR}")
@@ -1389,6 +1645,41 @@ def _cmd_titles(args) -> int:
     return 1 if (rep["shortened"] or rep["refused"]) else 0
 
 
+def _cmd_archive(args) -> int:
+    """Перенести старые строки реестра в архивную часть. По умолчанию НИЧЕГО не пишет.
+
+    Коды: 0 — переносить нечего · 1 — перенос измерен (и записан при `--write`) ·
+    2 — НЕ ИЗМЕРЕНО (часть не прочитана, форма не найдена, контроль переноса отказал).
+    """
+    root = Path(args.root)
+    rep = archive_rows(root, args.below)
+    if args.json:
+        print(json.dumps({k: v for k, v in rep.items()
+                          if k not in ("live_text", "archive_text")},
+                         ensure_ascii=False, indent=2))
+        return 2 if not rep["measured"] else (1 if rep["moved"] else 0)
+    if not rep["measured"]:
+        print("❓ НЕ ИЗМЕРЕНО — перенос не подтверждаю (fail-CLOSED):")
+        print(f"  - {rep['unmeasured_reason']}")
+        return 2
+    print(f"перенос строк реестра с номером ≤ {args.below}:")
+    print(f"  переносится: {len(rep['moved'])} · остаётся в живой части: {rep['kept']}")
+    print(f"  цена чтения живой части: {rep['chars_before']} → "
+          f"{rep['chars_live_after']} символов (потолок обязательного чтения — "
+          f"180 000, ADR-838/840)")
+    print(f"  архивная часть: {rep['chars_archive_after']} символов")
+    if not rep["moved"]:
+        print("  переносить нечего — измерено и равно нулю")
+        return 0
+    if not args.write:
+        print("  (ничего не записано — повтори с `--write`)")
+        return 1
+    (root / INDEX_REL).write_text(rep["live_text"], encoding="utf-8")
+    (root / ARCHIVE_REL).write_text(rep["archive_text"], encoding="utf-8")
+    print(f"  записано: {INDEX_REL} · {ARCHIVE_REL}")
+    return 1
+
+
 def main(argv=None) -> int:
     ap = argparse.ArgumentParser(description=__doc__,
                                  formatter_class=argparse.RawDescriptionHelpFormatter)
@@ -1418,6 +1709,14 @@ def main(argv=None) -> int:
     t.add_argument("--limit-chars", type=int, default=TITLE_MAX_CHARS,
                    help="предел длины колонки «Заголовок» (умолчание — TITLE_MAX_CHARS)")
 
+    a = sub.add_parser("archive",
+                       help="перенести старые строки в архивную часть реестра (ADR-1046)")
+    a.add_argument("--below", type=int, required=True,
+                   help="переносить строки с номером ≤ этого (именованные семейства "
+                        "`ADR-OWN`/`ADR-YL` не переносятся: номера у них нет)")
+    a.add_argument("--write", action="store_true",
+                   help="записать результат (без флага — только показать)")
+
     args = ap.parse_args(argv)
     from spa_core.utils.live_paths import refuse_if_sandbox_leaks  # ADR-1000: дверь песочницы, транш 1
     refuse_if_sandbox_leaks(args.root, who="adr_number")
@@ -1427,6 +1726,8 @@ def main(argv=None) -> int:
         return _cmd_check(args)
     if args.cmd == "titles":
         return _cmd_titles(args)
+    if args.cmd == "archive":
+        return _cmd_archive(args)
     return _cmd_repair(args) if args.cmd == "repair" else _cmd_form(args)
 
 

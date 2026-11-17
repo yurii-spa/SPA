@@ -334,9 +334,16 @@ def test_the_shortening_is_a_transfer_and_the_archive_proves_it():
 
 def test_the_register_row_of_this_very_change_obeys_the_limit():
     """Положительный контроль на живучесть правила: своя строка ему подчиняется."""
-    rows = adr.register_title_rows(
-        (ROOT / "docs" / "decisions" / "INDEX.md").read_text(encoding="utf-8"))
-    lengths = {f"ADR-{key}": len(title) for key, title, _ in rows}
+    # Реестр СОСТАВНОЙ (ADR-1046): своя строка ADR-840 уехала в архивную часть вместе с
+    # остальными номерами ≤ 900 — она в реестре СТОИТ, и предел ей подчиняется там же.
+    # Спрашивать одну живую часть значило бы, что правило перестаёт касаться автора
+    # ровно тогда, когда его строка становится старой.
+    texts, unreadable = adr.register_parts(ROOT)
+    assert not unreadable, unreadable
+    lengths = {}
+    for text in texts.values():
+        for key, title, _ in adr.register_title_rows(text):
+            lengths[f"ADR-{key}"] = len(title)
     assert "ADR-840" in lengths, (
         "строки ADR-840 в реестре нет — решение, приводящее колонку к заголовку, обязано "
         "само в реестре стоять.")

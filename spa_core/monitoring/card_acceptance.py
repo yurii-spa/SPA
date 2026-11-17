@@ -13530,6 +13530,112 @@ def _probe_door_sites_operand_agrees(
         "них: " + " + ".join(f"{n} {v}" for n, v in verdict.measured.items()))
 
 
+def _probe_register_read_price_within_ceiling(
+        arg: str | None = None, *, root: str | None = None,
+        code_root: str | None = None) -> tuple[str, str]:
+    """Критерий карточки `inbox-tsena-chteniya-reestra-reshenii-proboila` (ADR-1046).
+
+    Предмет — ИСХОД, а не «тест зелен», и исходов тут ДВА, которые нельзя сворачивать
+    в один: цена чтения обязательного набора В ПОТОЛКЕ **и** ни одно решение не вышло
+    из реестра. Поодиночке каждый достигается тривиально и ложно: цену чтения можно
+    опустить до нуля, вынеся реестр целиком (и потеряв достижимость), а достижимость —
+    не трогая цену вовсе (и оставив потолок пробитым). Зелёный ответ на один из них
+    никогда не есть ответ на оба.
+
+    Три вопроса, и согласие нужно по всем трём:
+
+    1. все ОБЪЯВЛЕННЫЕ части реестра читаются (`register_parts` не отдал ни одного
+       `unreadable`) — исчезнувший архив обязан кричать, а не выглядеть как «архива
+       не было»;
+    2. ЖИВАЯ часть (обязательное чтение шага 0) не дороже потолка
+       `REGISTER_MAX_CHARS` — число берётся у сторожа, а не печатается здесь второй
+       копией;
+    3. решений ВНЕ реестра нет — тем же читателем `check_index_links`, которым это
+       меряет гейт памяти (одна мерка на двоих).
+
+    Три исхода различимы (инв. #17): `unmeasured` — приборы не импортируются, часть
+    реестра не читается, потолок не объявлен числом; `not_satisfied` — любой из трёх
+    вопросов отвечен отрицательно, и строка НАЗЫВАЕТ какой; `satisfied` — все три, и
+    печатаются ИЗМЕРЕННЫЕ числа, а не постоянная строка.
+
+    `root` — дерево, чей РЕЕСТР судится; `code_root` — дерево, откуда берутся ПРИБОРЫ.
+    Это РАЗНЫЕ входы намеренно: прибор есть код и живёт в одной копии, реестр есть
+    данные. Оба инъектируются ТОЛЬКО контрольной батареей
+    (`.claude/rules/acceptance.md` п. 3).
+    """
+    import importlib.util  # noqa: PLC0415
+
+    base = _pathlib.Path(root) if root else _pathlib.Path(REPO_ROOT)
+    code = _pathlib.Path(code_root) if code_root else _pathlib.Path(REPO_ROOT)
+
+    def _load(name, rel):
+        path = code / rel
+        spec = importlib.util.spec_from_file_location(name, path)
+        if spec is None or spec.loader is None:
+            raise ImportError(f"{path} не загружается как модуль")
+        mod = importlib.util.module_from_spec(spec)
+        sys.modules[name] = mod
+        spec.loader.exec_module(mod)
+        return mod
+
+    try:
+        adr = _load("_probe_register_parts_adr", "scripts/adr_number.py")
+        mem = _load("_probe_register_parts_mem", "scripts/check_memory_in_git.py")
+    except BaseException as exc:  # noqa: BLE001 — третий исход, а не согласие
+        return UNMEASURED, (f"прибор реестра не импортируется: "
+                            f"{type(exc).__name__}: {exc}")
+
+    # Потолок объявлен сторожем цены чтения; своя копия числа здесь была бы вторым
+    # местом для него — ровно тот дефект, против которого написана вся правка.
+    try:
+        price = _load("_probe_register_parts_price",
+                      "spa_core/tests/test_mandatory_reading_read_price.py")
+        ceiling = int(price.REGISTER_MAX_CHARS)
+    except BaseException as exc:  # noqa: BLE001
+        return UNMEASURED, (f"потолок цены чтения НЕ ОБЪЯВЛЕН числом "
+                            f"({type(exc).__name__}: {exc}) — судить не по чему")
+
+    try:
+        texts, unreadable = adr.register_parts(base)
+    except BaseException as exc:  # noqa: BLE001
+        return UNMEASURED, f"части реестра не измерены: {type(exc).__name__}: {exc}"
+    if unreadable:
+        return UNMEASURED, " · ".join(unreadable)
+
+    live_rel = adr.REGISTER_PARTS[0]
+    live = texts.get(live_rel)
+    if live is None:
+        return UNMEASURED, f"{live_rel}: живая часть не прочитана — НЕ ИЗМЕРЕНО"
+
+    try:
+        findings, links_unmeasured = mem.check_index_links(base)
+    except BaseException as exc:  # noqa: BLE001
+        return UNMEASURED, (f"достижимость решений не измерена: "
+                            f"{type(exc).__name__}: {exc}")
+    if links_unmeasured:
+        return UNMEASURED, " · ".join(links_unmeasured)
+
+    problems = []
+    if len(live) > ceiling:
+        problems.append(
+            f"{live_rel} стои́т {len(live)} символов при потолке {ceiling} "
+            f"(перенести старые строки: `adr_number.py archive --below N --write`)")
+    outside = [f for f in findings if "вне реестра" in f]
+    if outside:
+        problems.append(f"решений ВНЕ реестра: {len(outside)} — {outside[0]}")
+    broken = [f for f in findings if f not in outside]
+    if broken:
+        problems.append(f"битых ссылок реестра: {len(broken)} — {broken[0]}")
+    if problems:
+        return NOT_SATISFIED, " · ".join(problems)
+
+    rows = sum(len(adr.register_title_rows(t)) for t in texts.values())
+    return SATISFIED, (
+        f"цена чтения живой части {len(live)} из {ceiling} символов "
+        f"(запас {ceiling - len(live)}) · частей реестра {len(texts)} · "
+        f"строк решений {rows} · решений вне реестра 0, битых ссылок 0")
+
+
 def _probe_fixture_gap_class_is_empty(
         arg: str | None = None, *, census=None,
         baseline=None) -> tuple[str, str]:
@@ -19706,6 +19812,7 @@ PROBES: dict[str, Callable[[str | None], "tuple[str, str]"]] = {
         _probe_tact_stage_names_its_caller,
     "door_sites_operand_agrees": _probe_door_sites_operand_agrees,
     "fixture_gap_class_is_empty": _probe_fixture_gap_class_is_empty,
+    "register_read_price_within_ceiling": _probe_register_read_price_within_ceiling,
     "tree_content_class_declaration_holds":
         _probe_tree_content_class_declaration_holds,
     "literal_neighbour_class_declaration_holds":

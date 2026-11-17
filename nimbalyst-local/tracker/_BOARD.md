@@ -2,11 +2,11 @@
 
 > Авто-генерится `scripts/build_tracker_board.py` из `nimbalyst-local/tracker/*.md`. НЕ править вручную — правь карточки. Источник правды — карточки, это индекс (bootstrap).
 >
-> Собрана: 2026-11-17T20:27:27Z · сверка с карточками: `python3 scripts/build_tracker_board.py --check` (сторож `spa_core/tests/test_tracker_board_matches_cards.py`).
+> Собрана: 2026-11-17T23:13:50Z · сверка с карточками: `python3 scripts/build_tracker_board.py --check` (сторож `spa_core/tests/test_tracker_board_matches_cards.py`).
 >
-> Сверено с `origin/main` (2bc975fd9).
+> Сверено с `origin/main` (c45ba398a) · у **2** своя правка, кто новее — не измерено.
 >
-> Всего карточек: **1643** · ждёт владельца: **12** · занято сессиями: **14**.
+> Всего карточек: **1644** · ждёт владельца: **12** · занято сессиями: **14**.
 
 ## 🔴 ЖДЁТ ВЛАДЕЛЬЦА (needs-owner)
 
@@ -441,7 +441,7 @@
 ### · closed
 - Считать ли верный отказ по правилам допуска неисправностью флота  ·  `owner-decision-schitat-li-vernyi-otkaz-po-pravilam-dopu.md` · 2026-10-08
 
-## 📥 Inbox (задания: Telegram / заметки / голос)  (945)
+## 📥 Inbox (задания: Telegram / заметки / голос)  (946)
 
 ### · in-progress
 - а задача починить все-таки еще раз сообщение которым не пишет нужно твое решени…  ·  `inbox-a-zadacha-pochinit-vse-taki-esche-raz-so.md` · 2026-08-14 · 🔒 `pid43119`
@@ -928,6 +928,7 @@
 - Три критерия go-live переписать на настоящую проводку: решение владельца 31.10, вариант 1 (шесть баллов из десяти — константа)  ·  `inbox-tri-kriteriya-go-live-perepisat-na-nasto.md` · 2026-10-31
 - Три рабочих дерева держат недоставленную работу — поднять или осознанно списать  ·  `inbox-tri-rabochih-dereva-derzhat-nedostavlenn.md` · 2026-08-14
 - Контракт в коде и контракт в манифесте разошлись у трёх агентов — один за несколько часов  ·  `inbox-tri-rashozhdeniya-kontrakta-s-manifestom.md` · 2026-08-28
+- Цена чтения реестра решений пробила потолок: реестр перестал быть одним файлом  ·  `inbox-tsena-chteniya-reestra-reshenii-probila.md` · 2026-11-17
 - У двери ТРИ исхода, у читателя ДВА: население класса ADR-869 измерено — 4 находки из 6 читателей, и три из них в инструменте доставки  ·  `inbox-u-dveri-tri-ishoda-u-chitatelya-dva-nase.md` · 2026-10-30
 - У ежедневного аудита 90% нет сторожа — он молча стоял 13 суток, и метрика не сдвинулась ни на модуль  ·  `inbox-u-ezhednevnogo-audita-90-net-storozha-on.md` · 2026-08-22
 - У файлов .claude/rules/ нет ни одного сторожа: 104 строки правил исчезли на шесть дней и нашлись случайно  ·  `inbox-u-failov-claude-rules-net-ni-odnogo-stor.md` · 2026-09-02
@@ -957,6 +958,7 @@
 - Вопрос владельцу велел прочитать поле, которого в коде нет — и ответ пришёл: инструкцию владельцу никто не проверяет  ·  `inbox-vopros-vladeltsu-velel-prochitat-pole-ko.md` · 2026-08-22
 - Вопрос владельцу, живущий ТОЛЬКО на ветке, невидим и сторожу, и отправителю — 18 таких, один заперт в своём же PR  ·  `inbox-vopros-vladeltsu-zhivuschii-tolko-na-vet.md` · 2026-08-23
 - Вопросы владельцу снова уезжают БЕЗ кнопок — две карточки 'починено' стоят done, а замер 21.08 показывает обратное  ·  `inbox-voprosy-vladeltsu-snova-uezzhayut-bez-kn.md` · 2026-08-21
+- Восемь блоков публикуют число отсутствия, и не читает его никто (ADR-856, замер #974)  ·  `inbox-vosem-blokov-publikuyut-chislo-otsutstvi.md` · 2026-10-29
 - Восемь карточек всё ещё ждут владельца БЕЗ КНОПОК — разобрать остаток  ·  `inbox-vosem-kartochek-vse-esche-zhdut-vladelts.md` · 2026-08-10
 - Восемь вопросов владельцу живут только на origin — отправитель считает очередь по ПРОД-дереву и не видел их ни разу  ·  `inbox-vosem-voprosov-vladeltsu-zhivut-tolko-na.md` · 2026-08-21
 - Вот обе задачи, оформленные подробно и по отдельности — в стиле карточек проект…  ·  `inbox-vot-obe-zadachi-oformlennye-podrobno-i-p.md` · 2026-08-05
@@ -1376,7 +1378,6 @@
 - Ветка сверки по mtime срабатывает на свежем worktree всегда — у неё СВОЙ дефект, тактом не лечится (остаток ADR-264)  ·  `inbox-vetka-sverki-po-mtime-srabatyvaet-na-sve.md` · 2026-09-08
 - Вето храповика замороженных дат держится ТЕКСТОМ, а не формой: 311 комментариев против 71 докстроки, случайная форма пуста ТОЛЬКО сегодня  ·  `inbox-veto-hrapovika-zamorozhennyh-dat-derzhit.md` · 2026-11-02
 - Внести артефакт в манифест «без срока» нельзя: B5 требует положительный slo_hours — предпосылка замера #426 верна только для B2  ·  `inbox-vnesti-artefakt-v-manifest-bez-sroka-nel.md` · 2026-08-30
-- Восемь блоков публикуют число отсутствия, и не читает его никто (ADR-856, замер #974)  ·  `inbox-vosem-blokov-publikuyut-chislo-otsutstvi.md` · 2026-10-29
 - Восемь карточек: машинный критерий приёмки выполнен, а статус держит их открытыми  ·  `inbox-vosem-kartochek-mashinnyi-kriterii-priem.md` · 2026-10-21
 - Восемь сроков годности без объявленной единицы — часы это или секунды, по документу не определить  ·  `inbox-vosem-srokov-godnosti-bez-obyavlennoi-ed.md` · 2026-10-26
 - Восемнадцать ответов владельца 27.10: исполнителя не назвал никто  ·  `inbox-vosemnadtsat-otvetov-vladeltsa-27-10-isp.md` · 2026-10-28

@@ -24,7 +24,14 @@ from pathlib import Path
 
 _ROOT = Path(__file__).resolve().parents[2]
 _DIRS = ("docs/decisions", "docs/adr")
-_REGISTRIES = ("docs/decisions/INDEX.md", "docs/adr/ADR_INDEX.md")
+# Реестров ТРИ файла и ДВА пространства: старая серия `docs/adr/` ведёт свой индекс, а
+# новая `docs/decisions/` с ADR-1046 СОСТАВНАЯ — живая часть (обязательное чтение шага 0)
+# и архивная (достижимость по номеру). Строка, уехавшая в архив, не стала недостижимой:
+# спросить одну живую часть значило бы объявить 745 решений вне реестра в тот же миг,
+# когда они в нём остались. Перечень берётся у ЕДИНСТВЕННОЙ двери `adr_number`, а не
+# копируется сюда литералом.
+_REGISTRIES = ("docs/decisions/INDEX.md", "docs/decisions/INDEX-ARCHIVE.md",
+               "docs/adr/ADR_INDEX.md")
 _NUM = re.compile(r"ADR-(?:[A-Z]+-)?\d+")
 
 

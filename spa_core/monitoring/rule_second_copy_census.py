@@ -424,6 +424,11 @@ RULE_DIR = ".claude/rules"
 #: о принятом решении значило бы выдать выбор за отсутствие выбора.
 ADR_DIRS = ("docs/decisions", "docs/adr")
 ADR_REGISTRY = "docs/decisions/INDEX.md"
+#: ADR-1046: реестр СОСТАВНОЙ, и архивная часть — те же строки по той же мере (одна
+#: строка на ADR, построчная мера совпадает со ВСЕМ, что в строке названо). Не объявить
+#: её здесь значило бы, что 745 перенесённых строк вернулись в поверхность решения
+#: молча — то есть замер 20.09 перестал бы описывать предмет.
+ADR_REGISTRY_PARTS = (ADR_REGISTRY, "docs/decisions/INDEX-ARCHIVE.md")
 
 #: Язык ПРАВА ИЗМЕНЕНИЯ. Маркеры намеренно про то, КТО вправе менять число, а
 #: не про то, что число — порог: слово «порог» стои́т в сотнях абзацев рядом с
@@ -2019,7 +2024,7 @@ def adr_channel(root: Path) -> dict:
         if not base.is_dir():
             continue
         for path in sorted(base.glob("*.md")):
-            if path.relative_to(root).as_posix() == ADR_REGISTRY:
+            if path.relative_to(root).as_posix() in ADR_REGISTRY_PARTS:
                 continue
             try:
                 body = path.read_text(encoding="utf-8")
@@ -3052,7 +3057,7 @@ def table_form_population(root: Path, channel: str) -> dict:
                 # единственная «таблица» — весь файл одной строкой на ADR.
                 # Посчитать его молча значило бы подпереть утверждение о
                 # репозитории тем, что репозиторий уже объявил исключением.
-                "declared_registry": rel == ADR_REGISTRY,
+                "declared_registry": rel in ADR_REGISTRY_PARTS,
             })
     long_line_hits = [h for h in hits if h["wide_because"] in
                       (WIDE_BY_LINE_LENGTH, WIDE_BY_BOTH)

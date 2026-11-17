@@ -67,6 +67,11 @@ ALLOW: Tuple[Rule, ...] = (
     # authority and `may_not` list; without it those questions had no canonical evidence at all.
     Rule("spa", "architecture/roles.json", "CANONICAL", "roles", 3),
     Rule("spa", "docs/decisions/INDEX.md", "CANONICAL", "doc", 2),
+    # ADR-1046: реестр СОСТАВНОЙ, и архивная часть несёт 745 строк из 895. Не объявить
+    # её здесь значило бы, что сборщик памяти перестал видеть решения ≤ ADR-900 в тот
+    # же миг, когда они остались в реестре, — и на вопрос «что решено по X» отвечал бы
+    # UNKNOWN там, где решение есть.
+    Rule("spa", "docs/decisions/INDEX-ARCHIVE.md", "CANONICAL", "doc", 2),
     Rule("spa", "docs/SYSTEM_MAP.md", "CANONICAL", "doc", 2),
     Rule("spa", "PROJECT_CONTROL/00_START_HERE.md", "CANONICAL", "doc", 2),
     # ADR-551: WHY an artifact exists, who owns it, what authorized it — one chunk per artifact, so
