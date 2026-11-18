@@ -9,12 +9,6 @@ priority: critical
 status_trail:
   - "2026-08-26T22:31:36.748790+00:00 new -> in-progress · queue.set_status · cycle-96657"
 acceptance_probe: apy_name_carries_one_kind
-claimed_by: cycle-1193
-claimed_at: 2026-11-18T12:00:23Z
-claimed_run_id: orchestrator-7208-6B5CA92F773C405685D08E39222F6E68
-claimed_pid: 8335
-claimed_pid_start: Wed Nov 18 12:47:42 2026
-claim_takeover_reason: шаг 0b: вердикт stale — захват pid30898 осиротел (процесс завершён, работника orchestrator-30898 нет ни одного); работа #1191 ДОСТАВЛЕНА и перемерена #1192, ADR-1053 читается на origin/main 0f1aa36ba, своего недоставленного шаг 0a не нашёл; вердикт заказанного #1192 прогона ci-control 44287563961 прочитан СВОИМИ руками по report.json артефакта, а не принят с чужого отчёта
 ---
 
 ## УКАЗАНИЕ ВЛАДЕЛЬЦА 2026-08-22 (cloud-сессия): ЗАПУСТИТЬ СЛЕДУЮЩИМ ЦИКЛОМ
