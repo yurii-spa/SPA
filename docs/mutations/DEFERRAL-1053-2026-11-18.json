@@ -1,0 +1,82 @@
+{
+  "title": "ADR-1053 — дельта цикла #1191: отсрочка «ещё не производился» ограничена ОБЪЯВЛЕННЫМ горизонтом артефакта; три исхода различимы значением, граница названа, горизонт читается а не выбирается",
+  "tests": [
+    "spa_core/tests/test_absence_deferral_horizon.py",
+    "spa_core/tests/test_artifact_absence_runner_start.py",
+    "spa_core/tests/test_artifact_absence_shared_verdict.py"
+  ],
+  "mutations": [
+    {
+      "name": "вопрос о горизонте снят совсем: отсрочка снова безусловна (поведение ДО ADR-1053)",
+      "file": "spa_core/monitoring/artifact_absence.py",
+      "old": "        if runner_age_h > horizon:",
+      "new": "        if False:"
+    },
+    {
+      "name": "граница сдвинута на равенство: объявленный срок объявляется просроченным в последний свой час",
+      "file": "spa_core/monitoring/artifact_absence.py",
+      "old": "        if runner_age_h > horizon:",
+      "new": "        if runner_age_h >= horizon:"
+    },
+    {
+      "name": "сравнение перевёрнуто: находкой становится ЖИВОЙ бегун, а молчащий оправдывается",
+      "file": "spa_core/monitoring/artifact_absence.py",
+      "old": "        if runner_age_h > horizon:",
+      "new": "        if runner_age_h < horizon:"
+    },
+    {
+      "name": "просрочка больше не обязывает: исход назван, а флаг находки сброшен (fail-OPEN тише красного)",
+      "file": "spa_core/monitoring/artifact_absence.py",
+      "old": "                artifact=artifact_rel, kind=DEFERRAL_OUTLIVED_THE_RUNNER,\n                is_finding=True,",
+      "new": "                artifact=artifact_rel, kind=DEFERRAL_OUTLIVED_THE_RUNNER,\n                is_finding=False,"
+    },
+    {
+      "name": "необъявленный горизонт перестаёт быть третьим исходом и склеивается с отсрочкой",
+      "file": "spa_core/monitoring/artifact_absence.py",
+      "old": "                artifact=artifact_rel, kind=UNMEASURED_NO_HORIZON,\n                is_finding=True, stage=stage, module=module,",
+      "new": "                artifact=artifact_rel, kind=NOT_YET,\n                is_finding=False, stage=stage, module=module,"
+    },
+    {
+      "name": "горизонт подставляется константой, а не читается у объявления: мерка расходится с офисной",
+      "file": "spa_core/monitoring/artifact_absence.py",
+      "old": "        horizon = (horizon_of(artifact_rel) if horizon_of is not None\n                   else declared_horizon_hours(artifact_rel, root=root))",
+      "new": "        horizon = 999999.0"
+    },
+    {
+      "name": "дверь-вход игнорируется: сцена не может объявить свой предел, спрашивается только реестр",
+      "file": "spa_core/monitoring/artifact_absence.py",
+      "old": "        horizon = (horizon_of(artifact_rel) if horizon_of is not None\n                   else declared_horizon_hours(artifact_rel, root=root))",
+      "new": "        horizon = declared_horizon_hours(artifact_rel, root=root)"
+    },
+    {
+      "name": "булево читается как число часов: `slo_hours: true` становится горизонтом в один час",
+      "file": "spa_core/monitoring/artifact_absence.py",
+      "old": "        if isinstance(value, bool) or not isinstance(value, (int, float)):\n            return None",
+      "new": "        if not isinstance(value, (int, float)):\n            return None"
+    },
+    {
+      "name": "ноль и отрицательный срок читаются как объявленный горизонт",
+      "file": "spa_core/monitoring/artifact_absence.py",
+      "old": "        return float(value) if value > 0 else None",
+      "new": "        return float(value)"
+    },
+    {
+      "name": "нечитаемый реестр подставляет бесконечный горизонт вместо «не объявлен»",
+      "file": "spa_core/monitoring/artifact_absence.py",
+      "old": "    except Exception:                                         # noqa: BLE001\n        return None\n    for item in (doc.get(\"artifacts\") or []):",
+      "new": "    except Exception:                                         # noqa: BLE001\n        return 10.0 ** 9\n    for item in (doc.get(\"artifacts\") or []):"
+    },
+    {
+      "name": "возраст бегуна считается от прихода кода, а не от «сейчас»: молчание перестаёт расти",
+      "file": "spa_core/monitoring/artifact_absence.py",
+      "old": "        runner_age_h = round((now - ran).total_seconds() / 3600.0, 2)",
+      "new": "        runner_age_h = round((born - ran).total_seconds() / 3600.0, 2)"
+    },
+    {
+      "name": "офис снова печатает находку как отсрочку: словарь исходов тот же, читатель ослеплён",
+      "file": "scripts/consume_office_reports.py",
+      "old": "    if v.kind == _aa.DEFERRAL_OUTLIVED_THE_RUNNER:",
+      "new": "    if False:"
+    }
+  ]
+}

@@ -44,6 +44,23 @@ from pathlib import Path
 
 from spa_core.monitoring import artifact_absence as aa
 
+#: Горизонт, объявляемый сценами. Заведомо больше любого зазора этой батареи
+#: (её зазоры — часы), поэтому вопрос ADR-1053 на её предмете не срабатывает и
+#: прежние вердикты сохраняются байт в байт. Число НЕ выбрано под сцену: это
+#: `slo_hours`, объявленный в боевом реестре для артефактов ступеней моста.
+SCENE_HORIZON_H = 192.0
+
+
+def _declare_horizon(root, artifact_rel: str, *,
+                     hours: float = SCENE_HORIZON_H) -> None:
+    """Выложить в сцене реестр артефактов с объявленным горизонтом (ADR-1053)."""
+    path = root / aa.MANIFEST_REL
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text(json.dumps(
+        {"artifacts": [{"path": artifact_rel, "slo_hours": hours}]}),
+        encoding="utf-8")
+
+
 NOW = dt.datetime(2026, 10, 2, 9, 0, tzinfo=dt.timezone.utc)
 
 #: Живой зазор замера 02.10 в часах, считая назад от `NOW`.
@@ -72,6 +89,13 @@ class _Scene(unittest.TestCase):
         self.addCleanup(shutil.rmtree, self.root, ignore_errors=True)
         self.stage, self.module_rel, self.artifact_rel = _stage_pair()
         (self.root / "data").mkdir(parents=True, exist_ok=True)
+        # Горизонт отсрочки — ВХОД вердикта с ADR-1053, и сцена обязана его
+        # ОБЪЯВИТЬ: без объявленного срока «ответ будет на следующем прогоне»
+        # опровергнуть нечем, и вердикт честно отвечает `UNMEASURED_NO_HORIZON`.
+        # Предмет ЭТОЙ батареи от объявления не меняется ни на шаг: все её
+        # зазоры «бегун ↔ код» измеряются часами, а объявленный здесь горизонт
+        # заведомо их перекрывает, поэтому дорога отсрочки остаётся той же.
+        _declare_horizon(self.root, self.artifact_rel)
 
     def producer(self, *, born_hours_ago: float):
         p = self.root / self.module_rel

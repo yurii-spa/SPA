@@ -181,6 +181,7 @@
 | ADR-1050 | ADR-1050 — Распаковка в ХВОСТЕ зова не делает неизвестной его ГОЛОВУ | Accepted | [ADR-1050](ADR-1050-a-star-in-the-tail-does-not-blind-the-head.md) |
 | ADR-1051 | ADR-1051 — Заработанное освобождение носителя было недостижимо из CLI, и судьба десяти карточек названа | Accepted | [ADR-1051](ADR-1051-earned-carrier-release-was-unreachable-from-the-cli.md) |
 | ADR-1052 | ADR-1052 — Догоняющий дневной цикл судится ЧАСОМ СУТОК, а не возрастом разрыва | Accepted | [ADR-1052](ADR-1052-catch-up-daily-cycle-by-hour-of-day.md) |
+| ADR-1053 | ADR-1053 — Отсрочка «ещё не производился» держалась МОЛЧАНИЕМ бегуна, и шаг 0-офис печатал это словами «это НЕ находка» | Accepted | [ADR-1053](ADR-1053-the-deferral-was-held-alive-by-the-runners-own-silence.md) |
 
 ## Соглашения
 

@@ -51,6 +51,23 @@ from pathlib import Path
 from tempfile import TemporaryDirectory
 
 from spa_core.monitoring import artifact_absence as aa
+
+#: Горизонт, объявляемый сценами. Заведомо больше любого зазора этой батареи
+#: (её зазоры — часы), поэтому вопрос ADR-1053 на её предмете не срабатывает и
+#: прежние вердикты сохраняются байт в байт. Число НЕ выбрано под сцену: это
+#: `slo_hours`, объявленный в боевом реестре для артефактов ступеней моста.
+SCENE_HORIZON_H = 192.0
+
+
+def _declare_horizon(root, artifact_rel: str, *,
+                     hours: float = SCENE_HORIZON_H) -> None:
+    """Выложить в сцене реестр артефактов с объявленным горизонтом (ADR-1053)."""
+    path = root / aa.MANIFEST_REL
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text(json.dumps(
+        {"artifacts": [{"path": artifact_rel, "slo_hours": hours}]}),
+        encoding="utf-8")
+
 from spa_core.monitoring import architecture_conformance as ac
 from spa_core.monitoring.findings_bridge import CENSUS_PRODUCT, CENSUS_STAGE
 
@@ -94,6 +111,13 @@ class _Tree(unittest.TestCase):
         self.root = Path(self._tmp.name)
         (self.root / "data").mkdir()
         (self.root / "spa_core" / "monitoring").mkdir(parents=True)
+        # Горизонт отсрочки — ВХОД вердикта с ADR-1053, и сцена обязана его
+        # ОБЪЯВИТЬ: без объявленного срока «ответ будет на следующем прогоне»
+        # опровергнуть нечем, и вердикт честно отвечает `UNMEASURED_NO_HORIZON`.
+        # Предмет ЭТОЙ батареи от объявления не меняется ни на шаг: все её
+        # зазоры «бегун ↔ код» измеряются часами, а объявленный здесь горизонт
+        # заведомо их перекрывает, поэтому дорога отсрочки остаётся той же.
+        _declare_horizon(self.root, ARTIFACT)
 
     def tearDown(self):
         self._tmp.cleanup()
@@ -209,6 +233,10 @@ class FailOpenOfTheDerivedStageName(_Tree):
             "module": MODULE, "artifact": "data/совсем_другое_имя.json"}}
         self.module(born_hours_ago=1.0)
         self.runner(ran_hours_ago=3.0)
+        # Сцена объявляет СВОЙ артефакт — у неё он нарочно назван иначе, чем
+        # у ступени, и горизонт базовой сцены (ADR-1053) про него не сказал бы
+        # ничего: отсрочка ушла бы в `UNMEASURED_NO_HORIZON` и спрятала предмет.
+        _declare_horizon(self.root, "data/совсем_другое_имя.json")
         v = aa.verdict("data/совсем_другое_имя.json", root=str(self.root),
                        now=NOW, products=products)
         self.assertEqual(v.stage, "стороннее_имя_ступени",
@@ -455,6 +483,10 @@ class WiringIsMeasuredNotAssumed(unittest.TestCase):
                 json.dumps({"generated_at":
                             (NOW - dt.timedelta(hours=3)).isoformat()}),
                 encoding="utf-8")
+            # Своё дерево ⇒ свой объявленный горизонт (ADR-1053): предмет здесь
+            # — СОГЛАСИЕ двух читателей, а не срок, и несогласие по причине
+            # необъявленного срока было бы ответом не на тот вопрос.
+            _declare_horizon(root, ARTIFACT)
             shared = aa.verdict(ARTIFACT, root=str(root), now=NOW)
             is_finding, _ = office._absent_verdict(ARTIFACT, root=str(root),
                                                    data_dir=None, now=NOW)
