@@ -2,11 +2,11 @@
 
 > Авто-генерится `scripts/build_tracker_board.py` из `nimbalyst-local/tracker/*.md`. НЕ править вручную — правь карточки. Источник правды — карточки, это индекс (bootstrap).
 >
-> Собрана: 2026-11-18T02:13:31Z · сверка с карточками: `python3 scripts/build_tracker_board.py --check` (сторож `spa_core/tests/test_tracker_board_matches_cards.py`).
+> Собрана: 2026-11-18T04:06:55Z · сверка с карточками: `python3 scripts/build_tracker_board.py --check` (сторож `spa_core/tests/test_tracker_board_matches_cards.py`).
 >
-> Сверено с `origin/main` (c27fdbb4c).
+> Сверено с `origin/main` (be4142894) · у **1** своя правка, кто новее — не измерено.
 >
-> Всего карточек: **1646** · ждёт владельца: **12** · занято сессиями: **14**.
+> Всего карточек: **1651** · ждёт владельца: **12** · занято сессиями: **14**.
 
 ## 🔴 ЖДЁТ ВЛАДЕЛЬЦА (needs-owner)
 
@@ -441,7 +441,7 @@
 ### · closed
 - Считать ли верный отказ по правилам допуска неисправностью флота  ·  `owner-decision-schitat-li-vernyi-otkaz-po-pravilam-dopu.md` · 2026-10-08
 
-## 📥 Inbox (задания: Telegram / заметки / голос)  (948)
+## 📥 Inbox (задания: Telegram / заметки / голос)  (950)
 
 ### · in-progress
 - а задача починить все-таки еще раз сообщение которым не пишет нужно твое решени…  ·  `inbox-a-zadacha-pochinit-vse-taki-esche-raz-so.md` · 2026-08-14 · 🔒 `pid43119`
@@ -1248,6 +1248,7 @@
 - Предписанный прогон мёртвой сессии шёл 3ч47м и не дошёл до 6 процентов — цена прогона может зависеть от живости номера в окружении  ·  `inbox-predpisannyi-progon-mertvoi-sessii-shel.md` · 2026-10-22
 - Предписанный прогон не доживает до вердикта — CI умирает по таймауту внутри пробы стабильности  ·  `inbox-predpisannyi-progon-ne-dozhivaet-do-verdi.md` · 2026-09-19
 - Предписанный прогон тестов на хосте НЕ ЗАПУСКАЕТСЯ: гейт допуска отказывает по диску (16.2 ГБ < 20), и это неотличимо от быстрого успеха  ·  `inbox-predpisannyi-progon-testov-na-hoste-ne-z.md` · 2026-10-28
+- Прибор ADR-362 считает одно чтение origin/main дважды: своя строка двери и зов снаружи  ·  `inbox-pribor-adr-362-schitaet-odno-chtenie-ori.md` · 2026-11-18
 - Прибор мутаций по дельте слеп к SUBFAILED и называет своё слепое пятно дырой покрытия  ·  `inbox-pribor-mutatsii-po-delte-slep-k-subfaile.md` · 2026-10-26
 - Прибор наблюдённости капитала каждый цикл кричит про спор TVL, а деньгам это не вредит  ·  `inbox-pribor-nablyudennosti-kapitala-kazhdyi-t.md` · 2026-09-15
 - Причина, которая возникает только в облаке, не доходит до учёта повторов  ·  `inbox-prichina-kotoraya-voznikaet-tolko-v-obla.md` · 2026-10-23
@@ -1274,6 +1275,7 @@
 - Работа мёртвого цикла лежит недоставленной, и это неотличимо от «цикл ещё ждёт замер»  ·  `inbox-rabota-mertvogo-tsikla-lezhit-nedostavle.md` · 2026-10-04
 - Работа мёртвой сессии cycle-4362 (ADR-857, доставка карточек) не на origin — поднять из дерева или патча  ·  `inbox-rabota-mertvoi-sessii-cycle-4362-adr-857.md` · 2026-10-29
 - Работа уезжает в ветвь rescue/* на origin и не доходит до main — пять циклов подряд, и ни один сторож об этом не сказал  ·  `inbox-rabota-uezzhaet-v-vetv-rescue-na-origin.md` · 2026-09-27
+- Распаковка последовательности в зове двери не измеряется: 13 зовов числятся долгом из-за слепоты разборщика  ·  `inbox-raspakovka-posledovatelnosti-v-zove-dver.md` · 2026-11-18
 - Рассыльщик открытых вопросов наследует ту же слепоту: закрытый на origin вопрос может уехать владельцу повторно  ·  `inbox-rassylschik-otkrytyh-voprosov-nasleduet.md` · 2026-09-03
 - Реестр решений: дописать указатели на 78 ADR из других папок (решение владельца, вариант А)  ·  `inbox-reestr-reshenii-dopisat-ukazateli-na-78.md` · 2026-09-07
 - Реестр решений: строки ADR-777 и ADR-778 без имени файла — решения не находятся по ссылке  ·  `inbox-reestr-reshenii-stroki-adr-777-i-adr-778.md` · 2026-10-18
@@ -1397,7 +1399,7 @@
 - Зазор гейта оправдывает любую ошибку стоимости, когда гейт уже отказывает  ·  `inbox-zazor-geita-opravdyvaet-lyubuyu-oshibku.md` · 2026-10-28
 - Журнал одного агента вырос до 4,85 ГБ и заполнил диск на 100 % — свободное место не меряет никто  ·  `inbox-zhurnal-odnogo-agenta-vyros-do-4-85-gb-i.md` · 2026-10-02
 
-## 🤖 Agent Tasks (что делает агент)  (226)
+## 🤖 Agent Tasks (что делает агент)  (229)
 
 ### · in-progress
 - 🅰🅰🅰 Продуктовый слой агентов (супер-студия)  ·  `agent-aaa-product-layer.md` · 2026-07-16
@@ -1458,11 +1460,13 @@
 - Сторож паспортов агентов краснеет НА УСПЕХЕ: он требует, чтобы курация оставалась незаконченной  ·  `agent-storozh-pasportov-krasneet-na-uspehe.md` · 2026-09-10
 - Напоминание о снятии стоп-крана: реализовать политику А1 (ADR-097)  ·  `agent-task-napominanie-o-snyatii-stop-krana-realizo.md` · 2026-08-20
 - Повторяющийся сбой com.spa.capital_shadow: malformed_plist  ·  `agent-task-povtoryayuschiisya-sboi-com-spa-capital-2.md` · 2026-11-01
+- Повторяющийся сбой com.spa.cloudflared: exit_nonzero:1  ·  `agent-task-povtoryayuschiisya-sboi-com-spa-cloudfla.md` · 2026-11-17
 - Повторяющийся сбой com.spa.cmo_editorial: stale_log  ·  `agent-task-povtoryayuschiisya-sboi-com-spa-cmo-edit.md` · 2026-10-19
 - Повторяющийся сбой com.spa.daily_cycle: exit_nonzero:5  ·  `agent-task-povtoryayuschiisya-sboi-com-spa-daily-cy-2.md` · 2026-10-19
 - Повторяющийся сбой com.spa.decision_loop: exit_nonzero:-15  ·  `agent-task-povtoryayuschiisya-sboi-com-spa-decision-2.md` · 2026-10-30
 - Повторяющийся сбой com.spa.decision_loop: exit_nonzero:137  ·  `agent-task-povtoryayuschiisya-sboi-com-spa-decision.md` · 2026-10-13
 - Повторяющийся сбой com.spa.digest_weekly: no_run_since_reboot_(>_)_—_missed_first  ·  `agent-task-povtoryayuschiisya-sboi-com-spa-digest-w.md` · 2026-10-22
+- Повторяющийся сбой com.spa.director_build: exit_nonzero:1  ·  `agent-task-povtoryayuschiisya-sboi-com-spa-director.md` · 2026-11-13
 - Повторяющийся сбой com.spa.io_health: stale_log  ·  `agent-task-povtoryayuschiisya-sboi-com-spa-io-healt.md` · 2026-10-19
 - Повторяющийся сбой com.spa.io_liquidity: stale_log  ·  `agent-task-povtoryayuschiisya-sboi-com-spa-io-liqui.md` · 2026-10-19
 - Повторяющийся сбой com.spa.io_market_structure: stale_log  ·  `agent-task-povtoryayuschiisya-sboi-com-spa-io-marke-2.md` · 2026-10-19
@@ -1498,6 +1502,7 @@
 - Повторяющийся сбой site_freshness: MISSING_ASOF  ·  `agent-task-povtoryayuschiisya-sboi-site-freshness-m.md` · 2026-10-08
 - Повторяющийся сбой site_freshness: PUBLISHED_SNAPSHOT_STALE  ·  `agent-task-povtoryayuschiisya-sboi-site-freshness-p-2.md` · 2026-10-07
 - Повторяющийся сбой site_freshness: publication_behind  ·  `agent-task-povtoryayuschiisya-sboi-site-freshness-p.md` · 2026-10-06
+- Повторяющийся сбой site_freshness: SHELF_UNREADABLE  ·  `agent-task-povtoryayuschiisya-sboi-site-freshness-s-2.md` · 2026-11-17
 - Повторяющийся сбой site_freshness: SHELF_NOT_DELIVERED  ·  `agent-task-povtoryayuschiisya-sboi-site-freshness-s.md` · 2026-10-30
 - Повторяющийся сбой site_freshness: UNAVAILABLE  ·  `agent-task-povtoryayuschiisya-sboi-site-freshness-u.md` · 2026-10-21
 - Повторяющийся сбой system_health: domains_degraded  ·  `agent-task-povtoryayuschiisya-sboi-system-health-do.md` · 2026-10-06
