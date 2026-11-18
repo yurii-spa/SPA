@@ -2,11 +2,11 @@
 
 > Авто-генерится `scripts/build_tracker_board.py` из `nimbalyst-local/tracker/*.md`. НЕ править вручную — правь карточки. Источник правды — карточки, это индекс (bootstrap).
 >
-> Собрана: 2026-11-18T07:32:23Z · сверка с карточками: `python3 scripts/build_tracker_board.py --check` (сторож `spa_core/tests/test_tracker_board_matches_cards.py`).
+> Собрана: 2026-11-18T07:39:41Z · сверка с карточками: `python3 scripts/build_tracker_board.py --check` (сторож `spa_core/tests/test_tracker_board_matches_cards.py`).
 >
-> Сверено с `origin/main` (ab6bc3e3a) · у **2** своя правка, кто новее — не измерено.
+> Сверено с `origin/main` (0b8482252) · у **1** своя правка, кто новее — не измерено.
 >
-> Всего карточек: **1651** · ждёт владельца: **12** · занято сессиями: **14**.
+> Всего карточек: **1652** · ждёт владельца: **12** · занято сессиями: **14**.
 
 ## 🔴 ЖДЁТ ВЛАДЕЛЬЦА (needs-owner)
 
@@ -441,7 +441,7 @@
 ### · closed
 - Считать ли верный отказ по правилам допуска неисправностью флота  ·  `owner-decision-schitat-li-vernyi-otkaz-po-pravilam-dopu.md` · 2026-10-08
 
-## 📥 Inbox (задания: Telegram / заметки / голос)  (950)
+## 📥 Inbox (задания: Telegram / заметки / голос)  (951)
 
 ### · in-progress
 - а задача починить все-таки еще раз сообщение которым не пишет нужно твое решени…  ·  `inbox-a-zadacha-pochinit-vse-taki-esche-raz-so.md` · 2026-08-14 · 🔒 `pid43119`
@@ -1172,6 +1172,7 @@
 - Объявленный читатель отчёта экономики флота его не читает  ·  `inbox-obyavlennyi-chitatel-otcheta-ekonomiki-f.md` · 2026-10-08
 - Обязательный шаг цикла отвечает о деньгах по закоммиченному канону и молчит об этом — измерено дважды в один день  ·  `inbox-obyazatelnyi-shag-tsikla-otvechaet-o-den.md` · 2026-10-07
 - «Очередь полна» верна ровно настолько, насколько свеж локальный ref: в проде origin/main отстал, и отставание не мерит никто  ·  `inbox-ochered-polna-verna-rovno-nastolko-nasko.md` · 2026-08-31
+- Очередь владельца читается из ПРОД-копии даже из worktree: owner-done 18 против 0 на origin/main  ·  `inbox-ochered-vladeltsa-chitaetsya-iz-prod-kop.md` · 2026-11-18
 - Очередь владельца: в needs-owner 32 карточки, а циклы докладывают 6 — 26 с пометкой расхождения в отчёт не попадают  ·  `inbox-ochered-vladeltsa-v-needs-owner-32-karto.md` · 2026-09-16
 - Один агент пишет 123 ГиБ в сутки в свой журнал и в одиночку останавливает машину (ADR-858)  ·  `inbox-odin-agent-pishet-123-gib-v-sutki-v-svoi.md` · 2026-10-29
 - Один агент пишет 2 ГБ логов в сутки, 59 процентов — одна повторяющаяся строка: приёмка цикла не измерилась из-за диска  ·  `inbox-odin-agent-pishet-2-gb-logov-v-sutki-59.md` · 2026-10-07
