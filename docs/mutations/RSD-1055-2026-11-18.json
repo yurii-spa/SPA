@@ -1,0 +1,116 @@
+{
+ "title": "ADR-1055 RSD — дельта красного набора ПО РОДАМ: перевод идентичности (класс, модуль, вложенность), чтение оси родов (обморок, окружение раннера), род перехода по ТОМУ прогону, где имя было, пять поводов отказа ростера (не словарь, нет failures, нет nodeid, столкновение идентичностей, нет оси родов), половина дельты, измеренный ноль, тождество суммы по родам, слова отчёта («регрессией не является», «не починено»), вердикт по одним дефектным приходам",
+ "tests": [
+  "spa_core/tests/test_red_set_delta.py"
+ ],
+ "mutations": [
+  {
+   "name": "M01 перевод идентичности теряет класс",
+   "file": "spa_core/monitoring/red_set_delta.py",
+   "old": "    return \".\".join([module] + parts[:-1]) + \"::\" + parts[-1]",
+   "new": "    return module + \"::\" + parts[-1]"
+  },
+  {
+   "name": "M02 перевод идентичности не снимает .py",
+   "file": "spa_core/monitoring/red_set_delta.py",
+   "old": "    module = path[:-3] if path.endswith(\".py\") else path",
+   "new": "    module = path"
+  },
+  {
+   "name": "M03 перевод идентичности не меняет разделитель пути",
+   "file": "spa_core/monitoring/red_set_delta.py",
+   "old": "    module = module.replace(\"/\", \".\")",
+   "new": "    module = module"
+  },
+  {
+   "name": "M04 ось родов не читается — все имена дефекты",
+   "file": "spa_core/monitoring/red_set_delta.py",
+   "old": "            rods[item] = rod",
+   "new": "            rods[item] = ROD_DEFECT"
+  },
+  {
+   "name": "M05 документ без оси родов НЕ отказывает",
+   "file": "spa_core/monitoring/red_set_delta.py",
+   "old": "    if not isinstance(fork, dict):",
+   "new": "    if isinstance(fork, dict) and False:"
+  },
+  {
+   "name": "M06 запись ростера без nodeid пропускается молча",
+   "file": "spa_core/monitoring/red_set_delta.py",
+   "old": "        if not isinstance(nodeid, str) or not nodeid:",
+   "new": "        if False:"
+  },
+  {
+   "name": "M07 столкновение идентичностей не замечено",
+   "file": "spa_core/monitoring/red_set_delta.py",
+   "old": "        if key in names and names[key] != nodeid:",
+   "new": "        if False:"
+  },
+  {
+   "name": "M08 имя оси вне ростера принимается «по похожести»",
+   "file": "spa_core/monitoring/red_set_delta.py",
+   "old": "            if not isinstance(item, str) or item not in names:",
+   "new": "            if not isinstance(item, str):"
+  },
+  {
+   "name": "M09 половина дельты объявляется дельтой",
+   "file": "spa_core/monitoring/red_set_delta.py",
+   "old": "    if not prev.measured or not curr.measured:",
+   "new": "    if not prev.measured and not curr.measured:"
+  },
+  {
+   "name": "M10 измеренный ноль неотличим от замера с переходами",
+   "file": "spa_core/monitoring/red_set_delta.py",
+   "old": "    status = MEASURED if (arrived or departed) else MEASURED_EMPTY",
+   "new": "    status = MEASURED"
+  },
+  {
+   "name": "M11 род ушедшего спрашивается у документа, в котором его нет",
+   "file": "spa_core/monitoring/red_set_delta.py",
+   "old": "                   rod=prev.rods.get(k, ROD_UNMEASURED), rod_from=\"prev\")",
+   "new": "                   rod=curr.rods.get(k, ROD_UNMEASURED), rod_from=\"prev\")"
+  },
+  {
+   "name": "M12 обморок попадает в то, за чем стоит гнаться",
+   "file": "spa_core/monitoring/red_set_delta.py",
+   "old": "        return tuple(r for r in self.arrived if r.rod == ROD_DEFECT)",
+   "new": "        return tuple(self.arrived)"
+  },
+  {
+   "name": "M13 отчёт не называет обморок не-регрессией",
+   "file": "spa_core/monitoring/red_set_delta.py",
+   "old": "    if any(r.rod == ROD_WALLCLOCK for r in d.arrived):",
+   "new": "    if False:"
+  },
+  {
+   "name": "M14 отчёт выдаёт ушедший обморок за починку",
+   "file": "spa_core/monitoring/red_set_delta.py",
+   "old": "    if any(r.rod == ROD_WALLCLOCK for r in d.departed):",
+   "new": "    if False:"
+  },
+  {
+   "name": "M15 ростер не словарь — читается как пустой",
+   "file": "spa_core/monitoring/red_set_delta.py",
+   "old": "    if not isinstance(doc, dict):",
+   "new": "    if isinstance(doc, dict) and False:"
+  },
+  {
+   "name": "M16 отсутствие списка failures не отказывает",
+   "file": "spa_core/monitoring/red_set_delta.py",
+   "old": "    if not isinstance(raw, list):",
+   "new": "    if isinstance(raw, list) and False:"
+  },
+  {
+   "name": "M17 неизмеренная дельта молчит и выглядит чистой",
+   "file": "spa_core/monitoring/red_set_delta.py",
+   "old": "        return self.status == UNMEASURED or bool(self.defect_arrivals)",
+   "new": "        return bool(self.defect_arrivals)"
+  },
+  {
+   "name": "M18 ось окружения раннера не читается вовсе",
+   "file": "spa_core/monitoring/red_set_delta.py",
+   "old": "                      (\"runner_environment_names\", ROD_RUNNER_ENV)):",
+   "new": "                      (\"runner_environment_names_MISSING\", ROD_RUNNER_ENV)):"
+  }
+ ]
+}

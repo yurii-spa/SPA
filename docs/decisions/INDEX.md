@@ -183,6 +183,7 @@
 | ADR-1052 | ADR-1052 — Догоняющий дневной цикл судится ЧАСОМ СУТОК, а не возрастом разрыва | Accepted | [ADR-1052](ADR-1052-catch-up-daily-cycle-by-hour-of-day.md) |
 | ADR-1053 | ADR-1053 — Отсрочка «ещё не производился» держалась МОЛЧАНИЕМ бегуна, и шаг 0-офис печатал это словами «это НЕ находка» | Accepted | [ADR-1053](ADR-1053-the-deferral-was-held-alive-by-the-runners-own-silence.md) |
 | ADR-1054 | ADR-1054 — «Горизонта нет» было ОДНИМ ответом на ПЯТЬ состояний, и причина звала читателя в файл, которого нет | Accepted | [ADR-1054](ADR-1054-three-states-of-an-undeclared-horizon-were-one.md) |
+| ADR-1055 | ADR-1055 — Поимённая дельта красного набора считала ОБМОРОКИ регрессиями: 4 из 4 пришедших имён вердикта не несут вовсе | Accepted | [ADR-1055](ADR-1055-the-per-name-delta-counted-faints-as-regressions.md) |
 
 ## Соглашения
 

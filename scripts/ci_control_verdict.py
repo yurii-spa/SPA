@@ -77,6 +77,7 @@ if str(ROOT) not in sys.path:          # прибор зовут и подпро
 from spa_core.monitoring.call_provenance import call_provenance  # noqa: E402
 from spa_core.monitoring.call_provenance import describe as provenance_line  # noqa: E402,E501
 from spa_core.monitoring.record_survival_census import github_fetch  # noqa: E402
+from spa_core.monitoring import red_set_delta  # noqa: E402
 from spa_core.utils.observation import observed  # noqa: E402
 
 #: НИ ПУТИ ОТЧЁТА, НИ ТАКТА здесь НЕТ — и это решение, а не пропуск (как у соседа
@@ -722,8 +723,34 @@ def run(root=ROOT, *, now=None, fetch=None, grab=None, branch: str = DEFAULT_BRA
     return document(rep, findings(rep), root=root, now=now)
 
 
+def delta_run(prev_run: str, curr_run: str, *, fetch=None, grab=None):
+    """Дельта красного набора ДВУХ прогонов ПО РОДАМ (ADR-1055, цикл #1194).
+
+    Отдельный режим, а НЕ новая строка обычного отчёта: обычный отчёт читает шаг
+    0-офис, и дописывать в него секцию значило бы подчинить её чужому словарю
+    статусов (урок #1130). Поэтому умолчание этого файла не меняется ни байтом.
+
+    Дверь к сети — ЕДИНСТВЕННАЯ (:func:`report_of_run`); второй её копии нет
+    намеренно, иначе «какой документ сравнивается» имело бы два ответа.
+    """
+    if fetch is None:
+        try:
+            fetch = github_fetch()
+        except (RuntimeError, OSError) as exc:
+            raise NotMeasured(f"дельта не спрошена: {type(exc).__name__}: {exc}") from exc
+    if grab is None:
+        grab = artifact_grab(_keychain_token())
+    prev = report_of_run(prev_run, fetch=fetch, grab=grab)
+    curr = report_of_run(curr_run, fetch=fetch, grab=grab)
+    return red_set_delta.delta(prev, curr)
+
+
 def main(argv=None) -> int:
     ap = argparse.ArgumentParser(description=(__doc__ or "").splitlines()[0])
+    ap.add_argument("--delta", nargs=2, metavar=("ПРЕЖНИЙ", "ТЕКУЩИЙ"),
+                    help="дельта красного набора двух прогонов ПО РОДАМ: "
+                         "пришедшее имя рода `wallclock_timeout` регрессией не "
+                         "является, вердикта о нём нет вовсе (ADR-1055)")
     ap.add_argument("--json", action="store_true",
                     help="отдать документ на stdout (его записывает ПОЗВАВШИЙ)")
     ap.add_argument("--branch", default=DEFAULT_BRANCH,
@@ -733,6 +760,37 @@ def main(argv=None) -> int:
     ap.add_argument("--repo-root", default=str(ROOT),
                     help="дерево, о котором спрашивается происхождение зова")
     args = ap.parse_args(argv)
+
+    if args.delta:
+        try:
+            d = delta_run(args.delta[0], args.delta[1])
+        except NotMeasured as exc:
+            print(f"⛔ НЕ ИЗМЕРЕНО: {exc}", file=sys.stderr)
+            if args.json:
+                print(json.dumps({"unmeasured": str(exc)}, ensure_ascii=False))
+            return 2
+        if args.json:
+            print(json.dumps({
+                "schema": "spa-red-set-delta/1",
+                "status": d.status,
+                "reason": d.reason,
+                "prev": {"run": d.prev.run, "sha": d.prev.sha,
+                         "names": len(d.prev.names)},
+                "curr": {"run": d.curr.run, "sha": d.curr.sha,
+                         "names": len(d.curr.names)},
+                "arrived": [t._asdict() for t in d.arrived],
+                "departed": [t._asdict() for t in d.departed],
+                "defect_arrivals": [t.nodeid for t in d.defect_arrivals],
+            }, ensure_ascii=False))
+        else:
+            for line in red_set_delta.format_delta(d):
+                print(line)
+        # 2 — НЕ ИЗМЕРЕНО · 1 — пришло имя, о котором вердикт ЕСТЬ · 0 — чисто.
+        # Три исхода различимы кодом возврата (инв. #17).
+        if d.status == red_set_delta.UNMEASURED:
+            return 2
+        return 1 if d.defect_arrivals else 0
+
     try:
         doc = run(root=args.repo_root, branch=args.branch, runs=args.runs)
     except NotMeasured as exc:
