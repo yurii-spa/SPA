@@ -186,6 +186,7 @@
 | ADR-1055 | ADR-1055 — Поимённая дельта красного набора считала ОБМОРОКИ регрессиями: 4 из 4 пришедших имён вердикта не несут вовсе | Accepted | [ADR-1055](ADR-1055-the-per-name-delta-counted-faints-as-regressions.md) |
 | ADR-1056 | ADR-1056 — Множитель цены переписи: N имён без вердикта даёт МЕСТО зова, а не цена; дешёвая форма ЗАПРЕЩЕНА формой пробы | Accepted | [ADR-1056](ADR-1056-census-call-multiplier.md) |
 | ADR-1057 | ADR-1057 — Зов прибора в КЛАССОВОЙ ПОДГОТОВКЕ — такой же живой зов; форма пробы сама производила род обморока | Accepted | [ADR-1057](ADR-1057-a-live-call-in-the-class-preparation-is-a-probe-too.md) |
+| ADR-1058 | ADR-1058 — ПРИЧИНА внутри «НЕ ИЗМЕРЕНО» назначалась умолчанием: идущий прогон докладывался умершим | Accepted | [ADR-1058](ADR-1058-the-cause-inside-not-measured-was-assigned-not-measured.md) |
 
 ## Соглашения
 

@@ -1,0 +1,74 @@
+{
+ "title": "ADR-1058 — дельта цикла #1197: ПРИЧИНА внутри «НЕ ИЗМЕРЕНО» перестала назначаться по умолчанию. Живость прогона спрашивается у строки прогона и ТОЛЬКО когда отчёта нет; три состояния (завершён · ещё идёт · живость НЕ ИЗМЕРЕНА) различимы и ни одно не подставляется вместо другого",
+ "tests": [
+  "spa_core/tests/test_ci_control_verdict_wiring.py"
+ ],
+ "mutations": [
+  {
+   "name": "поведение ДО ADR-1058: причина НАЗНАЧАЕТСЯ по умолчанию — живость не спрашивается вовсе, и идущий прогон объявляется мёртвым (ровно замер 18.11 по прогону 44393343317)",
+   "file": "scripts/ci_control_verdict.py",
+   "old": "        why = (\"истёк (90 дней)\" if expired else\n               _absence_cause(run_id, fetch=fetch, now=now))",
+   "new": "        why = (\"истёк (90 дней)\" if expired else\n               \"его нет вовсе — прогон умер раньше сводки\")"
+  },
+  {
+   "name": "состояния склеены в сторону смерти: ВСЁ, что не завершено, объявляется завершённым",
+   "file": "scripts/ci_control_verdict.py",
+   "old": "    return {\"state\": LIVE_DONE if status == \"completed\" else LIVE_RUNNING,",
+   "new": "    return {\"state\": LIVE_DONE,"
+  },
+  {
+   "name": "состояния склеены в обратную сторону: завершённый прогон объявляется идущим — «ждать» советуется там, где ждать некого",
+   "file": "scripts/ci_control_verdict.py",
+   "old": "    return {\"state\": LIVE_DONE if status == \"completed\" else LIVE_RUNNING,",
+   "new": "    return {\"state\": LIVE_RUNNING,"
+  },
+  {
+   "name": "третий исход подставлен смертью: строка прогона без статуса читается как «прогон завершён» (fail-OPEN в опасную сторону)",
+   "file": "scripts/ci_control_verdict.py",
+   "old": "    if not isinstance(run, dict) or not run.get(\"status\"):\n        return {\"state\": LIVE_UNMEASURED, \"status\": None, \"conclusion\": None,",
+   "new": "    if not isinstance(run, dict) or not run.get(\"status\"):\n        return {\"state\": LIVE_DONE, \"status\": None, \"conclusion\": None,"
+  },
+  {
+   "name": "третий исход подставлен ожиданием: немочь СЕТИ читается как «прогон ещё идёт», то есть «не измерено» становится советом ждать",
+   "file": "scripts/ci_control_verdict.py",
+   "old": "        return {\"state\": LIVE_UNMEASURED, \"status\": None, \"conclusion\": None,\n                \"age_h\": None,\n                \"why\": f\"строка прогона {run_id} не прочитана: \"",
+   "new": "        return {\"state\": LIVE_RUNNING, \"status\": None, \"conclusion\": None,\n                \"age_h\": None,\n                \"why\": f\"строка прогона {run_id} не прочитана: \""
+  },
+  {
+   "name": "причина идущего прогона перестаёт называть состояние: строка снова утверждает отсутствие отчёта как таковое",
+   "file": "scripts/ci_control_verdict.py",
+   "old": "        return (f\"его нет ПОКА — прогон ЕЩЁ ИДЁТ (`status: {live['status']}`{age}): \"\n                f\"отчёт кладётся сводкой, и ждать здесь надо, а не заказывать новый \"\n                f\"прогон\")",
+   "new": "        return (f\"его нет вовсе (`status: {live['status']}`{age})\")"
+  },
+  {
+   "name": "вопрос задаётся ВСЕГДА, включая счастливый путь: цена без вопроса — лишний запрос на каждый прочитанный отчёт",
+   "file": "scripts/ci_control_verdict.py",
+   "old": "    rows = (listing or {}).get(\"artifacts\") or []\n    live = [a for a in rows if a.get(\"name\") == REPORT_ARTIFACT and a.get(\"expired\") is False]",
+   "new": "    rows = (listing or {}).get(\"artifacts\") or []\n    run_liveness(run_id, fetch=fetch, now=now)\n    live = [a for a in rows if a.get(\"name\") == REPORT_ARTIFACT and a.get(\"expired\") is False]"
+  },
+  {
+   "name": "якорь времени не доезжает до двери: возраст идущего прогона спрашивается у СТЕННЫХ часов — состояние верное, срок выдуманный (класс бомбы по календарю)",
+   "file": "scripts/ci_control_verdict.py",
+   "old": "    moment = now if now is not None else dt.datetime.now(dt.timezone.utc)\n    age_h = None if started is None else (moment - started).total_seconds() / 3600.0",
+   "new": "    moment = dt.datetime.now(dt.timezone.utc)\n    age_h = None if started is None else (moment - started).total_seconds() / 3600.0"
+  },
+  {
+   "name": "якорь не прокинут дельтой: `--delta` получает срок от стенных часов, хотя сам момент ему передали",
+   "file": "scripts/ci_control_verdict.py",
+   "old": "    prev = report_of_run(prev_run, fetch=fetch, grab=grab, now=now)\n    curr = report_of_run(curr_run, fetch=fetch, grab=grab, now=now)",
+   "new": "    prev = report_of_run(prev_run, fetch=fetch, grab=grab)\n    curr = report_of_run(curr_run, fetch=fetch, grab=grab)"
+  },
+  {
+   "name": "истёкший артефакт теряет СВОЮ причину и сваливается в вопрос о живости: «истёк (90 дней)» и «не бывало» снова одно",
+   "file": "scripts/ci_control_verdict.py",
+   "old": "        why = (\"истёк (90 дней)\" if expired else\n               _absence_cause(run_id, fetch=fetch, now=now))",
+   "new": "        why = _absence_cause(run_id, fetch=fetch, now=now)"
+  },
+  {
+   "name": "третий исход теряет свой код возврата: «НЕ ИЗМЕРЕНО» у дельты отвечает кодом успеха",
+   "file": "scripts/ci_control_verdict.py",
+   "old": "        except NotMeasured as exc:\n            print(f\"⛔ НЕ ИЗМЕРЕНО: {exc}\", file=sys.stderr)\n            if args.json:\n                print(json.dumps({\"unmeasured\": str(exc)}, ensure_ascii=False))\n            return 2",
+   "new": "        except NotMeasured as exc:\n            print(f\"⛔ НЕ ИЗМЕРЕНО: {exc}\", file=sys.stderr)\n            if args.json:\n                print(json.dumps({\"unmeasured\": str(exc)}, ensure_ascii=False))\n            return 0"
+  }
+ ]
+}

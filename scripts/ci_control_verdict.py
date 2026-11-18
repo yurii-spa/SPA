@@ -40,6 +40,16 @@
 (инв. #17): отсутствие вердикта и зелёный вердикт — разные состояния, и второе здесь ни разу
 не наблюдалось.
 
+ПРИЧИНА внутри «НЕ ИЗМЕРЕНО» тоже обязана быть ЗАМЕРОМ (ADR-1058, цикл #1197). «Отчёта у прогона
+нет» есть ОДНО наблюдение, «прогон не дожил до сводки» — ДРУГОЕ, и до 18.11 второе подставлялось
+вместо первого по умолчанию: заказанный предшественником вердикт ИДУЩЕГО прогона 44393343317
+(`status: in_progress`, шёл 1.0 ч) читался как «прогон умер раньше сводки». Живость спрашивается у
+строки прогона (:func:`run_liveness`) и ТОЛЬКО когда отчёта нет; три состояния — завершён · ещё
+идёт · живость НЕ ИЗМЕРЕНА — различимы, и ни одно не подставляется вместо другого. Код возврата у
+всех трёх один (**2**): вердиктом не является ни одно из них, а различие живёт в ПРИЧИНЕ, у которой
+есть читатель — следующий цикл, выбирающий между «ждать» и «заказать новый прогон» (≈1–1.6 ч
+раннера и потерянный якорь дельты).
+
 ПРОВОДКА (ADR-845). Прибор только ЧИТАЕТ: ни одного файла он не пишет. Отчёт
 (``data/ci_control_verdict.json``) записывает ТОТ, КТО ПОЗВАЛ, — ступень
 `findings_bridge.ci_control_verdict_step`; прибор отдаёт документ на stdout (``--json``).
@@ -206,8 +216,78 @@ def _run_row(run: dict) -> dict:
             "url": run.get("html_url"), "verdict": "НЕ ЗАПРАШИВАЛСЯ"}
 
 
-def report_of_run(run_id: str, *, fetch, grab) -> dict:
-    """`report.json` одного прогона. Любая немочь — :class:`NotMeasured` с причиной."""
+#: Состояния прогона, РАЗЛИЧИМЫЕ у :func:`run_liveness`. Ни одно из трёх вердиктом не
+#: является — различаются ПРИЧИНЫ отсутствия вердикта, и это разные причины.
+LIVE_DONE, LIVE_RUNNING, LIVE_UNMEASURED = "completed", "running", "unmeasured"
+
+
+def run_liveness(run_id: str, *, fetch, now=None) -> dict:
+    """ДОЖИЛ ли прогон до сводки — ОТДЕЛЬНЫЙ вопрос, и ответ на него НЕ выводится из
+    отсутствия отчёта (ADR-1058).
+
+    Замер 2026-11-18 (цикл #1197): заказанный предшественником вердикт прогона
+    **44393343317** прибор объявил НЕ ИЗМЕРЕННЫМ с причиной «его нет вовсе — прогон умер
+    раньше сводки», а живой API в ту же минуту отвечал `status: in_progress` (начат
+    20:39Z, шёл 1.0 ч). Отчёт появляется ТОЛЬКО со сводкой, поэтому у идущего прогона его
+    нет ПОКА — и это не смерть. Отсутствие отчёта есть ОДНО наблюдение, живость прогона —
+    ДРУГОЕ, и первое ко второму не сводится.
+
+    Цена ложной причины — не косметика: «умер» приглашает заказать НОВЫЙ прогон (≈1–1.6 ч
+    раннера) и потерять якорь дельты, а «ещё идёт» требует ровно обратного — ждать и
+    перечитать. Выдуманная причина внутри честного «НЕ ИЗМЕРЕНО» опаснее молчания: она
+    выглядит как замер.
+
+    Три исхода РАЗЛИЧИМЫ (инв. #17) и ни один не подставляется вместо другого:
+    завершён · ещё идёт · живость НЕ ИЗМЕРЕНА (строка прогона не прочитана). Вопрос
+    задаётся ТОЛЬКО когда отчёта нет: на счастливом пути лишнего запроса не делается.
+    """
+    try:
+        run = fetch(f"/repos/{REPO}/actions/runs/{run_id}")
+    except (urllib.error.URLError, urllib.error.HTTPError, OSError, ValueError) as exc:
+        return {"state": LIVE_UNMEASURED, "status": None, "conclusion": None,
+                "age_h": None,
+                "why": f"строка прогона {run_id} не прочитана: "
+                       f"{type(exc).__name__}: {exc}"}
+    if not isinstance(run, dict) or not run.get("status"):
+        return {"state": LIVE_UNMEASURED, "status": None, "conclusion": None,
+                "age_h": None,
+                "why": f"строка прогона {run_id} статуса не несёт — "
+                       f"это НЕ «прогон завершён»"}
+    status = str(run.get("status"))
+    started = _parse_moment(run.get("run_started_at") or run.get("created_at"))
+    moment = now if now is not None else dt.datetime.now(dt.timezone.utc)
+    age_h = None if started is None else (moment - started).total_seconds() / 3600.0
+    return {"state": LIVE_DONE if status == "completed" else LIVE_RUNNING,
+            "status": status, "conclusion": run.get("conclusion"), "age_h": age_h,
+            "why": None}
+
+
+def _absence_cause(run_id: str, *, fetch, now=None) -> str:
+    """ПОЧЕМУ отчёта нет — причина ЗАРАБОТАННАЯ, а не назначенная по умолчанию."""
+    live = run_liveness(run_id, fetch=fetch, now=now)
+    age = "" if live.get("age_h") is None else f", идёт {live['age_h']:.1f}ч"
+    if live["state"] == LIVE_RUNNING:
+        # Строка утверждает РОВНО одно состояние и не поминает соседнее даже
+        # отрицанием: «это НЕ умер…» стояло здесь в первой редакции и ломало
+        # утверждение «идущий прогон не назван мёртвым» СВОИМ ЖЕ словом (поймано
+        # прогоном). Почему состояния разные — объяснено в докстроке и ADR-1058, а не
+        # в причине, которую читают и глазами, и подстрокой.
+        return (f"его нет ПОКА — прогон ЕЩЁ ИДЁТ (`status: {live['status']}`{age}): "
+                f"отчёт кладётся сводкой, и ждать здесь надо, а не заказывать новый "
+                f"прогон")
+    if live["state"] == LIVE_DONE:
+        return (f"его нет вовсе — прогон умер раньше сводки "
+                f"(`status: completed`, `conclusion: {live['conclusion']}`{age})")
+    return (f"его нет, а ДОЖИЛ ЛИ прогон до сводки — НЕ ИЗМЕРЕНО ({live['why']}): "
+            f"«умер» и «ещё идёт» здесь неразличимы, и выдумывать их запрещено")
+
+
+def report_of_run(run_id: str, *, fetch, grab, now=None) -> dict:
+    """`report.json` одного прогона. Любая немочь — :class:`NotMeasured` с причиной.
+
+    `now` — ВХОД (умолчание — стенные часы): возраст идущего прогона есть замер, и в
+    тестах обе стороны этого сравнения закрепляются одним якорем.
+    """
     try:
         listing = fetch(f"/repos/{REPO}/actions/runs/{run_id}/artifacts?per_page=100")
     except (urllib.error.URLError, urllib.error.HTTPError, OSError, ValueError) as exc:
@@ -218,7 +298,7 @@ def report_of_run(run_id: str, *, fetch, grab) -> dict:
     if not live:
         expired = [a for a in rows if a.get("name") == REPORT_ARTIFACT]
         why = ("истёк (90 дней)" if expired else
-               "его нет вовсе — прогон умер раньше сводки")
+               _absence_cause(run_id, fetch=fetch, now=now))
         raise NotMeasured(f"у прогона {run_id} отчёта `{REPORT_ARTIFACT}` нет: {why}. "
                           f"`conclusion` вердиктом НЕ является")
     art = live[0]
@@ -485,7 +565,10 @@ def census(*, fetch, grab, branch: str = DEFAULT_BRANCH, runs: int = DEFAULT_RUN
             f"все {len(rows)} прогон(а) `{WORKFLOW_FILE}` на ветке {branch} ещё идут — "
             f"вердикта пока нет ни у одного")
     latest = done[0]
-    doc = report_of_run(str(latest.get("id")), fetch=fetch, grab=grab)
+    # Здесь прогон завершён ПО ПОСТРОЕНИЮ (`done` отобран по `status == "completed"`),
+    # поэтому причина «умер раньше сводки» на этом пути заработана и до ADR-1058. Якорь
+    # времени всё равно уезжает входом: вторая копия часов разошлась бы с первой молча.
+    doc = report_of_run(str(latest.get("id")), fetch=fetch, grab=grab, now=moment)
     ended = _parse_moment(latest.get("updated_at"))
     age_h = None if ended is None else (moment - ended).total_seconds() / 3600.0
     totals = doc.get("totals") if isinstance(doc.get("totals"), dict) else {}
@@ -723,7 +806,7 @@ def run(root=ROOT, *, now=None, fetch=None, grab=None, branch: str = DEFAULT_BRA
     return document(rep, findings(rep), root=root, now=now)
 
 
-def delta_run(prev_run: str, curr_run: str, *, fetch=None, grab=None):
+def delta_run(prev_run: str, curr_run: str, *, fetch=None, grab=None, now=None):
     """Дельта красного набора ДВУХ прогонов ПО РОДАМ (ADR-1055, цикл #1194).
 
     Отдельный режим, а НЕ новая строка обычного отчёта: обычный отчёт читает шаг
@@ -732,6 +815,11 @@ def delta_run(prev_run: str, curr_run: str, *, fetch=None, grab=None):
 
     Дверь к сети — ЕДИНСТВЕННАЯ (:func:`report_of_run`); второй её копии нет
     намеренно, иначе «какой документ сравнивается» имело бы два ответа.
+
+    **Номера прогонов здесь приходят ИЗВНЕ** (заказ предыдущего цикла), а не отбираются
+    по `status == "completed"`, как в :func:`census`. Поэтому ровно на этом пути «отчёта
+    нет» законно означает И «прогон ещё идёт» — причину называет :func:`run_liveness`
+    (ADR-1058), а не умолчание.
     """
     if fetch is None:
         try:
@@ -740,8 +828,8 @@ def delta_run(prev_run: str, curr_run: str, *, fetch=None, grab=None):
             raise NotMeasured(f"дельта не спрошена: {type(exc).__name__}: {exc}") from exc
     if grab is None:
         grab = artifact_grab(_keychain_token())
-    prev = report_of_run(prev_run, fetch=fetch, grab=grab)
-    curr = report_of_run(curr_run, fetch=fetch, grab=grab)
+    prev = report_of_run(prev_run, fetch=fetch, grab=grab, now=now)
+    curr = report_of_run(curr_run, fetch=fetch, grab=grab, now=now)
     return red_set_delta.delta(prev, curr)
 
 

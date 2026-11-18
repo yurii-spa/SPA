@@ -131,8 +131,11 @@ class _Net:
     """
 
     def __init__(self, runs, artifacts=None, report=None, *, fetch_raises=None,
-                 grab_raises=None, zip_bytes=None):
+                 grab_raises=None, zip_bytes=None, run_absent=None):
         self.runs = runs
+        #: Чем отвечает дверь строки прогона, когда номера в сцене НЕТ. Умолчание —
+        #: документ без `status`: так ведёт себя ответ, из которого живость не выводится.
+        self.run_absent = {} if run_absent is None else run_absent
         self.artifacts = artifacts if artifacts is not None else [
             {"id": 1, "name": "ci-control-report", "expired": False,
              "archive_download_url": "https://api.example/zip"}]
@@ -147,6 +150,17 @@ class _Net:
             raise self.fetch_raises
         if "/artifacts" in path:
             return {"artifacts": self.artifacts}
+        # Дверь СТРОКИ ОДНОГО прогона (ADR-1058): живой API отдаёт здесь ровно ту же
+        # строку, что и в списке, поэтому сцена берёт её из `self.runs` по номеру, а не
+        # выдумывает вторую копию. Отдать сюда `{"workflow_runs": …}` значило бы
+        # ответить на вопрос о живости документом БЕЗ `status` — и прибор честно сказал
+        # бы «НЕ ИЗМЕРЕНО» о прогоне, чей статус сцена знает.
+        hit = path.rsplit("/actions/runs/", 1)
+        if len(hit) == 2 and hit[1].isdigit():
+            for row in self.runs:
+                if str(row.get("id")) == hit[1]:
+                    return dict(row)
+            return self.run_absent
         return {"workflow_runs": self.runs}
 
     def grab(self, url):
@@ -366,6 +380,31 @@ class TheThirdOutcomeNeverBecomesAVerdict(unittest.TestCase):
         self._raises(_Net([_run_row()], artifacts=[
             {"id": 1, "name": "ci-control-report", "expired": True}]), "истёк")
 
+    def test_the_cause_of_absence_is_measured_not_assigned(self):
+        """Порванное звено ADR-1058: причина «умер раньше сводки» НАЗНАЧАЛАСЬ.
+
+        ДИФФЕРЕНЦИАЛЬНЫЙ контроль, и он единственный, который нельзя пройти случайно:
+        две сцены отличаются РОВНО одним полем (`status`) и больше ничем, а причины
+        обязаны выйти РАЗНЫЕ. Прибор, не спрашивающий живость (редакция до 18.11), даёт
+        на обе сцены ОДНУ строку — и тест краснеет.
+        """
+        dead = self._cause(_Net([_run_row("44393343317")], artifacts=[]))
+        alive = self._cause(_Net([_run_row("44393343317", status="in_progress",
+                                           conclusion=None)], artifacts=[]))
+        self.assertNotEqual(dead, alive,
+                            "причина отсутствия отчёта НЕ ЗАВИСИТ от того, дожил ли "
+                            "прогон до сводки — значит она назначена, а не измерена")
+        self.assertIn("раньше сводки", dead)
+        self.assertIn("ЕЩЁ ИДЁТ", alive)
+        self.assertNotIn("умер", alive,
+                         "идущий прогон назван мёртвым — ровно замер 18.11 по прогону "
+                         "44393343317 (`status: in_progress`, шёл 1.0 ч)")
+
+    def _cause(self, net):
+        with self.assertRaises(ccv.NotMeasured) as box:
+            ccv.report_of_run("44393343317", fetch=net.fetch, grab=net.grab, now=NOW)
+        return str(box.exception)
+
     def test_a_broken_zip(self):
         self._raises(_Net([_run_row()], zip_bytes="не zip".encode("utf-8")), "не разобран")
 
@@ -403,6 +442,153 @@ class TheThirdOutcomeNeverBecomesAVerdict(unittest.TestCase):
                  "PATH": "/nonexistent"})
         self.assertEqual(proc.returncode, 2, proc.stdout + proc.stderr)
         self.assertIn("unmeasured", json.loads(proc.stdout.strip().splitlines()[-1]))
+
+
+# ──── 6a. ЖИВОСТЬ прогона — отдельное наблюдение от отсутствия отчёта ─────────
+
+class TheLivenessOfARunIsItsOwnObservation(unittest.TestCase):
+    """Предмет ADR-1058: причина внутри «НЕ ИЗМЕРЕНО» обязана быть ЗАМЕРОМ.
+
+    Замер 18.11 (цикл #1197): заказанный предшественником вердикт прогона
+    **44393343317** прибор объявил НЕ ИЗМЕРЕННЫМ с причиной «его нет вовсе — прогон
+    умер раньше сводки», а живой API в ту же минуту отвечал `status: in_progress`
+    (начат 20:39Z, шёл 1.0 ч). Отчёт кладёт сводка — у идущего прогона его нет ПОКА.
+
+    Цена ложной причины названа в ADR: «умер» приглашает заказать НОВЫЙ прогон
+    (≈1–1.6 ч раннера) и потерять якорь дельты, «ещё идёт» требует обратного.
+
+    Каждый тест ниже — положительный контроль одного порванного звена.
+    """
+
+    def test_a_running_run_is_named_running(self):
+        """Звено: живость НЕ СПРАШИВАЛАСЬ вовсе."""
+        net = _Net([_run_row("44393343317", status="in_progress", conclusion=None)])
+        live = ccv.run_liveness("44393343317", fetch=net.fetch, now=NOW)
+        self.assertEqual(live["state"], ccv.LIVE_RUNNING)
+        self.assertEqual(live["status"], "in_progress")
+
+    def test_a_completed_run_is_named_completed(self):
+        net = _Net([_run_row("44393343317")])
+        live = ccv.run_liveness("44393343317", fetch=net.fetch, now=NOW)
+        self.assertEqual(live["state"], ccv.LIVE_DONE)
+        self.assertEqual(live["conclusion"], "failure")
+
+    def test_an_unreadable_run_row_is_the_THIRD_outcome(self):
+        """Звено: немочь двери подставлялась бы как «завершён» либо как «идёт».
+
+        Оба подставления неверны в ОПАСНУЮ сторону (инв. #17), поэтому у «не прочитано»
+        своё состояние и своя названная причина.
+        """
+        net = _Net([_run_row("1")])  # номера 44393343317 в сцене НЕТ
+        live = ccv.run_liveness("44393343317", fetch=net.fetch, now=NOW)
+        self.assertEqual(live["state"], ccv.LIVE_UNMEASURED)
+        self.assertIn("статуса не несёт", live["why"])
+
+        net = _Net([_run_row("44393343317")],
+                   fetch_raises=OSError("сеть отвалилась"))
+        live = ccv.run_liveness("44393343317", fetch=net.fetch, now=NOW)
+        self.assertEqual(live["state"], ccv.LIVE_UNMEASURED)
+        self.assertIn("не прочитана", live["why"])
+
+    def test_the_three_states_never_collapse_into_two(self):
+        """Звено: два из трёх состояний назывались бы ОДНОЙ строкой."""
+        scenes = {
+            ccv.LIVE_DONE: _Net([_run_row("7")]),
+            ccv.LIVE_RUNNING: _Net([_run_row("7", status="queued", conclusion=None)]),
+            ccv.LIVE_UNMEASURED: _Net([_run_row("8")]),
+        }
+        seen = {want: ccv.run_liveness("7", fetch=net.fetch, now=NOW)["state"]
+                for want, net in scenes.items()}
+        self.assertEqual(seen, {k: k for k in scenes},
+                         "состояния живости слиплись — «не измерено» перестало быть "
+                         "отличимым от ответа")
+
+    def test_the_age_is_anchored_to_the_injected_clock(self):
+        """Звено: возраст идущего прогона спрашивался бы у СТЕННЫХ часов.
+
+        Обе стороны сравнения производны от якоря `NOW`: `created_at` сцены считается
+        от него же, поэтому тест не краснеет от того, что сдвинулся календарь
+        (`.claude/rules/deployment.md`, § про время в тестах).
+        """
+        net = _Net([_run_row("9", status="in_progress", conclusion=None, ended_h=1.0)])
+        live = ccv.run_liveness("9", fetch=net.fetch, now=NOW)
+        self.assertAlmostEqual(live["age_h"], 1.6, places=3)
+
+    def test_the_liveness_is_asked_ONLY_when_the_report_is_missing(self):
+        """Звено: лишний запрос на счастливом пути (цена без вопроса).
+
+        Вторая половина — ОБРАТНАЯ: когда отчёта нет, запрос обязан БЫТЬ, иначе
+        причина не может быть заработана ничем.
+        """
+        def asked_run_rows(net):
+            return [p for p in net.asked
+                    if "/actions/runs/" in str(p) and "/artifacts" not in str(p)
+                    and str(p).rsplit("/", 1)[-1].isdigit()]
+
+        healthy = _Net([_run_row("44393343317")])
+        ccv.report_of_run("44393343317", fetch=healthy.fetch, grab=healthy.grab, now=NOW)
+        self.assertEqual(asked_run_rows(healthy), [],
+                         "отчёт на месте, а строку прогона всё равно спросили — "
+                         "это цена без вопроса")
+
+        empty = _Net([_run_row("44393343317")], artifacts=[])
+        with self.assertRaises(ccv.NotMeasured):
+            ccv.report_of_run("44393343317", fetch=empty.fetch, grab=empty.grab, now=NOW)
+        self.assertTrue(asked_run_rows(empty),
+                        "отчёта нет, а живость не спросили — причину взять негде")
+
+    def test_the_delta_path_says_WAIT_not_DIED(self):
+        """Звено, которое и было найдено: именно `--delta` получает номер ИЗВНЕ.
+
+        В :func:`ccv.census` прогон завершён ПО ПОСТРОЕНИЮ (отбор по
+        `status == "completed"`), поэтому дефект там не наблюдался ни разу — и ровно
+        поэтому его не замечали: сцена счастливого пути его не производит.
+        """
+        net = _Net([_run_row("44371815483"),
+                    _run_row("44393343317", status="in_progress", conclusion=None)],
+                   artifacts=[])
+        with self.assertRaises(ccv.NotMeasured) as box:
+            ccv.delta_run("44371815483", "44393343317",
+                          fetch=net.fetch, grab=net.grab, now=NOW)
+        self.assertIn("раньше сводки", str(box.exception),
+                      "прежний прогон ЗАВЕРШЁН, и про него причина прежняя")
+
+        net = _Net([_run_row("44371815483"),
+                    _run_row("44393343317", status="in_progress", conclusion=None)],
+                   artifacts=[])
+        with self.assertRaises(ccv.NotMeasured) as box:
+            ccv.delta_run("44393343317", "44371815483",
+                          fetch=net.fetch, grab=net.grab, now=NOW)
+        self.assertIn("ЕЩЁ ИДЁТ", str(box.exception))
+        self.assertNotIn("умер", str(box.exception))
+        # Возраст тоже обязан быть от ЯКОРЯ: не доехал бы `now` до двери — строка несла
+        # бы верное состояние и ВЫДУМАННЫЙ срок, а срок здесь и есть то, по чему решают
+        # «ждать ещё» или «прогон завис».
+        self.assertIn("идёт 1.6ч", str(box.exception))
+
+    def test_the_exit_code_of_all_three_stays_the_THIRD_outcome(self):
+        """Звено: «ещё идёт» получило бы код, который читается как вердикт.
+
+        Код у всех трёх один (**2**) намеренно: вердиктом не является ни одно из
+        состояний, а различие живёт в ПРИЧИНЕ. Отдельный код без читателя был бы
+        «написано и не позвано» (ADR-345).
+        """
+        for scene in ("in_progress", "completed"):
+            net = _Net([_run_row("44393343317", status=scene,
+                                 conclusion=None if scene == "in_progress" else "failure")],
+                       artifacts=[])
+            # Патчатся ВСЕ три двери наружу, включая Keychain: этот файл живой машины не
+            # спрашивает ни разу (шапка), а `artifact_grab(_keychain_token())` поднял бы
+            # подпроцесс `security` и отвечал бы на вопрос «что сегодня у этого Мака».
+            saved = (ccv.github_fetch, ccv.artifact_grab, ccv._keychain_token)
+            ccv.github_fetch = lambda: net.fetch
+            ccv.artifact_grab = lambda token=None: net.grab
+            ccv._keychain_token = lambda: "сцена"
+            try:
+                code = ccv.main(["--delta", "44393343317", "44393343317"])
+            finally:
+                ccv.github_fetch, ccv.artifact_grab, ccv._keychain_token = saved
+            self.assertEqual(code, 2, f"сцена {scene}: третий исход потерял свой код")
 
 
 # ───── 7. дверь байтов: токен НЕ уезжает на переадресацию (авария 401) ────────
