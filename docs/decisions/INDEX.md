@@ -184,6 +184,7 @@
 | ADR-1053 | ADR-1053 — Отсрочка «ещё не производился» держалась МОЛЧАНИЕМ бегуна, и шаг 0-офис печатал это словами «это НЕ находка» | Accepted | [ADR-1053](ADR-1053-the-deferral-was-held-alive-by-the-runners-own-silence.md) |
 | ADR-1054 | ADR-1054 — «Горизонта нет» было ОДНИМ ответом на ПЯТЬ состояний, и причина звала читателя в файл, которого нет | Accepted | [ADR-1054](ADR-1054-three-states-of-an-undeclared-horizon-were-one.md) |
 | ADR-1055 | ADR-1055 — Поимённая дельта красного набора считала ОБМОРОКИ регрессиями: 4 из 4 пришедших имён вердикта не несут вовсе | Accepted | [ADR-1055](ADR-1055-the-per-name-delta-counted-faints-as-regressions.md) |
+| ADR-1056 | ADR-1056 — Множитель цены переписи: N имён без вердикта даёт МЕСТО зова, а не цена; дешёвая форма ЗАПРЕЩЕНА формой пробы | Accepted | [ADR-1056](ADR-1056-census-call-multiplier.md) |
 
 ## Соглашения
 

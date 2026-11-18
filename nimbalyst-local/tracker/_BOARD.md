@@ -2,11 +2,11 @@
 
 > Авто-генерится `scripts/build_tracker_board.py` из `nimbalyst-local/tracker/*.md`. НЕ править вручную — правь карточки. Источник правды — карточки, это индекс (bootstrap).
 >
-> Собрана: 2026-11-18T13:42:40Z · сверка с карточками: `python3 scripts/build_tracker_board.py --check` (сторож `spa_core/tests/test_tracker_board_matches_cards.py`).
+> Собрана: 2026-11-18T18:21:43Z · сверка с карточками: `python3 scripts/build_tracker_board.py --check` (сторож `spa_core/tests/test_tracker_board_matches_cards.py`).
 >
-> Сверено с `origin/main` (7c78cef92).
+> Сверено с `origin/main` (801d3f72c).
 >
-> Всего карточек: **1656** · ждёт владельца: **12** · занято сессиями: **13**.
+> Всего карточек: **1657** · ждёт владельца: **12** · занято сессиями: **13**.
 
 ## 🔴 ЖДЁТ ВЛАДЕЛЬЦА (needs-owner)
 
@@ -440,7 +440,7 @@
 ### · closed
 - Считать ли верный отказ по правилам допуска неисправностью флота  ·  `owner-decision-schitat-li-vernyi-otkaz-po-pravilam-dopu.md` · 2026-10-08
 
-## 📥 Inbox (задания: Telegram / заметки / голос)  (955)
+## 📥 Inbox (задания: Telegram / заметки / голос)  (956)
 
 ### · in-progress
 - а задача починить все-таки еще раз сообщение которым не пишет нужно твое решени…  ·  `inbox-a-zadacha-pochinit-vse-taki-esche-raz-so.md` · 2026-08-14 · 🔒 `pid43119`
@@ -1081,6 +1081,7 @@
 - Дыра в записи о деньгах 23.08: книга потеряла  999.88 без хода в журнале  ·  `inbox-dyra-v-zapisi-o-dengah-23-08-kniga-poter.md` · 2026-09-13
 - Единица приёмки — контур, а не модуль: объявление CONSUMES и храповик «артефакт без читателя»  ·  `inbox-edinitsa-priemki-kontur-a-ne-modul-obyav.md` · 2026-09-11
 - Флот теряет 29 агентов при переустановке — plist есть, в установщике нет  ·  `inbox-flot-teryaet-29-agentov-pri-pereustanovk.md` · 2026-08-26
+- Форма пробы требует СВОЕГО живого зова от каждого теста — и этим сама производит род обморока  ·  `inbox-forma-proby-trebuet-svoego-zhivogo-zova.md` · 2026-11-18
 - Форвардные марки лаборатории невозможны по построению: не сохранённый якорь гасит марку И депег-гейт  ·  `inbox-forvardnye-marki-laboratorii-nevozmozhny.md` · 2026-11-06
 - Гейт финансирования судит НЕ ТОТ пул, а снимок штампует на нём tvl_source=live (compound_v3 без pool_id, morpho_blue_base с другим)  ·  `inbox-geit-finansirovaniya-sudit-ne-tot-pul-a.md` · 2026-11-08
 - Гейт go-live BTC-движка не спрашивает про лицензию на данные — решение владельца 09.09 описано прозой  ·  `inbox-geit-go-live-btc-dvizhka-ne-sprashivaet.md` · 2026-10-07

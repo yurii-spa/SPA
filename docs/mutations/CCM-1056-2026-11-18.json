@@ -1,0 +1,80 @@
+{
+ "title": "ADR-1056 CCM — множитель цены переписи: место зова (setUpClass против тела теста против setUp), засев достижимости через помощника (ленивый кэш), дешёвая дверь прибора, ось модуль+функция и разбор псевдонимов ввоза, порог множителя, третий исход на неразобранном файле, объявленный порог раннера",
+ "tests": [
+  "spa_core/tests/test_census_call_multiplier.py"
+ ],
+ "mutations": [
+  {
+   "name": "M01 порог множителя сдвинут: два платящих теста перестают быть находкой",
+   "file": "spa_core/tests/_census_call_multiplier.py",
+   "old": "    if len(payers) >= 2:",
+   "new": "    if len(payers) >= 3:"
+  },
+  {
+   "name": "M02 классовая подготовка не читается — дешёвая форма объявлена дорогой",
+   "file": "spa_core/tests/_census_call_multiplier.py",
+   "old": "    for name in CLASS_SETUP:\n        setup_hits |= reach.get(name, set())",
+   "new": "    for name in ():\n        setup_hits |= reach.get(name, set())"
+  },
+  {
+   "name": "M03 подготовка на каждый тест читается как классовая — дорогой класс объявлен дешёвым",
+   "file": "spa_core/tests/_census_call_multiplier.py",
+   "old": "PER_TEST_SETUP = (\"setUp\", \"asyncSetUp\", \"tearDown\", \"asyncTearDown\")",
+   "new": "PER_TEST_SETUP = ()"
+  },
+  {
+   "name": "M04 засев достижимости через помощника снят — ленивый кэш прячет множитель",
+   "file": "spa_core/tests/_census_call_multiplier.py",
+   "old": "            for callee in _self_calls(fn, methods):",
+   "new": "            for callee in ():"
+  },
+  {
+   "name": "M05 дешёвая дверь прибора игнорируется — краснеет на выключенной переписи",
+   "file": "spa_core/tests/_census_call_multiplier.py",
+   "old": "    if not cheap_when:\n        return False",
+   "new": "    if cheap_when is not None:\n        return False"
+  },
+  {
+   "name": "M06 дешёвая дверь принимает ЛЮБОЕ значение — зов с sweep=True объявлен дешёвым",
+   "file": "spa_core/tests/_census_call_multiplier.py",
+   "old": "        if isinstance(kw.value, ast.Constant) and kw.value.value == cheap_when[\"value\"]:",
+   "new": "        if isinstance(kw.value, ast.Constant) or True:"
+  },
+  {
+   "name": "M07 ось теряет МОДУЛЬ — чужая функция того же имени читается нашей переписью",
+   "file": "spa_core/tests/_census_call_multiplier.py",
+   "old": "            if attr != want_func or module != want_module:",
+   "new": "            if attr != want_func:"
+  },
+  {
+   "name": "M08 псевдоним ввоза не читается — `import ... as tc` теряет зов",
+   "file": "spa_core/tests/_census_call_multiplier.py",
+   "old": "                out[alias.asname or alias.name] = alias.name",
+   "new": "                out[alias.name] = alias.name"
+  },
+  {
+   "name": "M09 неразобранный файл объявлен чистым, а не третьим исходом",
+   "file": "spa_core/tests/_census_call_multiplier.py",
+   "old": "                tally[UNMEASURED] += 1\n                continue",
+   "new": "                tally[ONCE] += 1\n                continue"
+  },
+  {
+   "name": "M10 счётчик непрочитанных файлов не растёт — полнота ответа не проверяема",
+   "file": "spa_core/tests/_census_call_multiplier.py",
+   "old": "                files_unread += 1",
+   "new": "                files_unread += 0"
+  },
+  {
+   "name": "M11 объявленный порог раннера расходится с воркфлоу",
+   "file": "spa_core/tests/_census_call_multiplier.py",
+   "old": "RUNNER_TIMEOUT_S = 180",
+   "new": "RUNNER_TIMEOUT_S = 300"
+  },
+  {
+   "name": "M12 зов голым именем читается как зов модуля — подстрока возвращается",
+   "file": "spa_core/tests/_census_call_multiplier.py",
+   "old": "    if isinstance(fn, ast.Attribute) and isinstance(fn.value, ast.Name):\n        return f\"{fn.value.id}.{fn.attr}\"\n    return None",
+   "new": "    if isinstance(fn, ast.Attribute) and isinstance(fn.value, ast.Name):\n        return f\"{fn.value.id}.{fn.attr}\"\n    return \"thing_census.sweep\""
+  }
+ ]
+}

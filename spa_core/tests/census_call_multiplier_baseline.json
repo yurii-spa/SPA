@@ -1,0 +1,29 @@
+{
+  "_comment": [
+    "Классы, у которых дорогая перепись живого дерева зовётся из тела КАЖДОГО",
+    "теста, то есть цена умножается на число тестов, а по сроку --timeout=180",
+    "столько же имён уходит в красный набор БЕЗ вердикта (ADR-1056).",
+    "База может ТОЛЬКО УМЕНЬШАТЬСЯ. Дописывать сюда, чтобы погасить падение,",
+    "ЗАПРЕЩЕНО (инв. #16) — тот же порядок, что у frozen_date_baseline.json,",
+    "design_status_baseline.json, site_numbers_baseline.json."
+  ],
+  "measured_at": "2026-11-18",
+  "runner_run": "44325110478",
+  "runner_timeout_s": 180,
+  "members": {
+    "spa_core/tests/test_known_member_probe_census.py::TheLiveTreeIsMeasuredAndKnownMembersAreShown": {
+      "payers": 3,
+      "runner_wallclock_names": 3,
+      "runner_file_s": 541.4,
+      "blocker": "probe_form_forbids_the_cheap_form",
+      "why_not_fixed": "Дешёвая форма ЗАПРЕЩЕНА ДРУГИМ сторожем, и это ИЗМЕРЕНО циклом #1195. Перенос зова в setUpClass снижает множитель 3 -> 1 (541.4 -> ~181 с), и ОДНОВРЕМЕННО `known_member_probe_census` объявляет САМ СЕБЯ `no_probe`: его форма пробы ищет живой зов только в области `test_*` (`_test_scopes` собирает функции по префиксу имени), а `setUpClass` в засев не попадает ВОВСЕ, и тест читает уже готовый `self.census`. Замер: объявленный класс вырос 46 -> 48 именами `known_member_probe_census.py` и `_census_call_multiplier.py`. Два сторожа НЕ МОГУТ быть зелёными на одном коде, и это не случайность одного файла: форма пробы ТРЕБУЕТ, чтобы каждый несущий пробу тест делал СВОЙ живой зов, то есть сама ПРОИЗВОДИТ множитель. Чинится в `known_member_probe_census`: пометка живого ответа обязана течь из классовой подготовки в тела тестов того же класса (`unittest` гарантирует, что `setUpClass` отработал до каждого из них). Карточка — inbox-forma-proby-trebuet-svoego-zhivogo-zova."
+    },
+    "spa_core/tests/test_run_identity_key_price.py::BatteryHoleTests": {
+      "payers": 3,
+      "runner_wallclock_names": 2,
+      "runner_file_s": 369.4,
+      "blocker": "each_test_needs_its_own_scene",
+      "why_not_fixed": "ОДИН зов на класс здесь НЕ ПРИМЕНИМ по предмету тестов: `setUp` строит КАЖДОМУ свою одноразовую сцену `data/`, а `test_the_guard_is_lowered_again_after_a_sweep` утверждает о ПОБОЧНОМ действии зова (`_SWEEPING` опущен) — общий результат такое утверждение проверить не может. Дешёвая дверь прибора (`sweep_readers=False`) в файле УЖЕ используется семью зовами; ровно те два, где перепись обязана идти, и дают имена по сроку. Выход — дешевле сама перепись читателей либо ОБЪЯВЛЕННО уже её охват; НЕ СДЕЛАН. Разница 3 против 2 объяснена: `test_a_reentrant_call_refuses_the_sweep_instead_of_running_it_again` отказывает в переписи сам, то есть ось ФОРМЫ ошибается в сторону НАХОДКИ."
+    }
+  }
+}

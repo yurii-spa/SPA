@@ -1,0 +1,14 @@
+{
+ "title": "ADR-1056 CCM раунд 2 — выжившая M12: голое имя получает выдуманную метку модуля",
+ "tests": [
+  "spa_core/tests/test_census_call_multiplier.py"
+ ],
+ "mutations": [
+  {
+   "name": "M12 зов голым именем читается как зов модуля — подстрока возвращается",
+   "file": "spa_core/tests/_census_call_multiplier.py",
+   "old": "    if isinstance(fn, ast.Attribute) and isinstance(fn.value, ast.Name):\n        return f\"{fn.value.id}.{fn.attr}\"\n    return None",
+   "new": "    if isinstance(fn, ast.Attribute) and isinstance(fn.value, ast.Name):\n        return f\"{fn.value.id}.{fn.attr}\"\n    return \"thing_census.sweep\""
+  }
+ ]
+}
