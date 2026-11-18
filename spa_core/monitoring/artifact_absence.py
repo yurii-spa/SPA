@@ -130,6 +130,18 @@ ADR-261 (цикл #524, доставлен тремя часами раньше)
 тактами, и это осознанно — мерка взята ОБЪЯВЛЕННАЯ, а не выдуманная под
 вопрос.
 
+**ADR-1054 (цикл #1193): «горизонта нет» — это ПЯТЬ состояний, не одно.**
+Первая редакция двери возвращала `None` на все пять и утверждала в своей шапке,
+что различать их читателю не нужно. Цена утверждения ИЗМЕРЕНА в тот же день:
+батарея `test_office_absent_artifact_producer_aware` строит сцену БЕЗ реестра
+артефактов, вердикт сказал ей «`architecture/manifest.json`: нет `slo_hours`»,
+и ДВА имени упали с причиной, которая причиной не была — реестра в сцене не
+было ни одного байта. В бою это направление опаснее: читателю, у которого
+пропал манифест, сторож советует вписать строку в пропавший файл. Теперь
+состояние объявлено ЗНАЧЕНИЕМ (`Absence.horizon_state`) и у каждого свой
+следующий шаг. Это тот же инв. #17, но на ступень ниже: три исхода ВЕРДИКТА
+были различимы, а три состояния его ВХОДА — нет.
+
 Время — ВХОД (`.claude/rules/deployment.md`): `now` принимается параметром,
 собственных стенных часов у вердикта нет. Объявление переписи тоже вход
 (`products=`), чтобы сцена могла нарушать ТОЛЬКО своё ограничение.
@@ -177,6 +189,26 @@ DEFERRAL_OUTLIVED_THE_RUNNER = "deferral_outlived_the_runner"
 #: равно НУЛЮ (все 121 артефакт ступеней несут `slo_hours`), то есть дверь
 #: заперта на будущее, а не красит сегодняшнее дерево.
 UNMEASURED_NO_HORIZON = "unmeasured_no_horizon"
+
+#: ПОЧЕМУ горизонта нет — РАЗНЫЕ состояния с РАЗНЫМ следующим шагом (ADR-1054).
+#: До него `declared_horizon_hours` склеивал их все в `None`, а печаталась ОДНА
+#: причина — «`architecture/manifest.json`: нет `slo_hours`», — и читателя
+#: отправляли искать строку в файле, которого в дереве могло не быть ВОВСЕ.
+#: Замер 18.11 (цикл #1193): в сцене батареи
+#: `test_office_absent_artifact_producer_aware` реестра не было ни одного
+#: байта, вердикт объявил «нет `slo_hours`», и ДВА имени упали с причиной,
+#: которая причиной не была. Это тот же инв. #17, но на ступень ниже: три
+#: исхода вердикта были различимы, а три состояния ВХОДА — нет.
+HORIZON_DECLARED = "declared"
+HORIZON_NO_REGISTRY = "registry_absent"
+HORIZON_REGISTRY_UNREADABLE = "registry_unreadable"
+HORIZON_ARTIFACT_NOT_IN_REGISTRY = "artifact_not_in_registry"
+HORIZON_NO_SLO_HOURS = "entry_without_slo_hours"
+HORIZON_BAD_VALUE = "slo_hours_not_a_positive_number"
+#: Горизонт выдаёт ВЫЗЫВАЮЩИЙ (`horizon_of=`) и выдал `None`. Спрашивать о нём
+#: реестр нельзя: вызывающий мог и не читать его. Отдельное состояние, потому
+#: что следующий шаг здесь — к ВЫЗЫВАЮЩЕМУ, а не к манифесту.
+HORIZON_NOT_GIVEN_BY_CALLER = "not_given_by_horizon_of"
 
 #: Модуль БЕГУНА — файл, который НЕСЁТ вызовы ступеней. Отдельная константа, а
 #: не выведенный путь: вопрос «приехал ли ВЫЗОВ» задаётся именно этому файлу.
@@ -228,6 +260,10 @@ class Absence:
     #: Сколько часов назад бегун запускался в последний раз. Отсрочка законна
     #: только пока это число не больше горизонта.
     runner_age_h: float | None = None
+    #: ПОЧЕМУ горизонт такой, какой он есть, — ЗНАЧЕНИЕМ, а не прозой `reason`
+    #: (ADR-1054). У `None`-горизонта пять разных причин и пять разных
+    #: следующих шагов; читатель, которому дали одну, идёт не туда.
+    horizon_state: str | None = None
 
     @property
     def not_yet(self) -> bool:
@@ -252,8 +288,34 @@ def _products(products):
 MANIFEST_REL = "architecture/manifest.json"
 
 
-def declared_horizon_hours(artifact_rel: str, *, root: str) -> float | None:
-    """Объявленный горизонт артефакта в часах либо `None` — «не объявлен».
+@dataclass(frozen=True)
+class Horizon:
+    """Горизонт отсрочки и — ОТДЕЛЬНО — почему он такой.
+
+    `hours is None` значит «ограничить отсрочку нечем», и у этого ответа ПЯТЬ
+    разных оснований (ADR-1054). Прежняя редакция склеивала их в `None` и
+    утверждала в своей же шапке, что «отличить их друг от друга читателю не
+    нужно — следующий шаг у всех трёх один: объявить горизонт». Утверждение
+    ОПРОВЕРГНУТО замером 18.11: у состояния «реестра нет ВОВСЕ» следующий шаг
+    не «объявить строку», а «положить реестр» (в бою — тревога о пропавшем
+    манифесте, в сцене — выложить его), и названная не та причина отправляет
+    читателя править файл, которого нет.
+    """
+
+    hours: float | None
+    state: str
+    #: Что именно измерено — словами, для строки отчёта.
+    detail: str
+    #: Следующий шаг ЧИТАТЕЛЯ. У каждого состояния свой, и это весь смысл.
+    next_step: str
+
+    @property
+    def declared(self) -> bool:
+        return self.hours is not None
+
+
+def declared_horizon(artifact_rel: str, *, root: str) -> Horizon:
+    """Объявленный горизонт артефакта И состояние его объявления.
 
     Читается `slo_hours` из реестра артефактов манифеста. Число НЕ выбирается
     этим модулем ни для одного артефакта: вопрос «как долго отсрочка остаётся
@@ -261,24 +323,66 @@ def declared_horizon_hours(artifact_rel: str, *, root: str) -> float | None:
     существующего файла. Разойдись они — один и тот же артефакт считался бы
     просроченным по одной мерке и свежим по другой.
 
-    `None` возвращается и когда реестр не прочитан, и когда строки нет, и когда
-    значение не число: все три суть «ограничить отсрочку нечем», и склеивать их
-    с объявленным горизонтом нельзя. Отличить их друг от друга читателю не
-    нужно — следующий шаг у всех трёх один: объявить горизонт.
+    Пять состояний «не объявлен» различимы ЗНАЧЕНИЕМ (инв. #17): реестра нет ·
+    реестр нечитаем · артефакта в реестре нет · строка есть, а срока в ней нет ·
+    срок есть, но это не положительное число. Склеивать их с ОБЪЯВЛЕННЫМ
+    горизонтом по-прежнему нельзя — находкой остаются все пять.
     """
+    path = os.path.join(root, MANIFEST_REL)
+    if not os.path.exists(path):
+        return Horizon(
+            hours=None, state=HORIZON_NO_REGISTRY,
+            detail=(f"реестра артефактов {MANIFEST_REL} в дереве НЕТ — "
+                    f"спросить срок не у кого"),
+            next_step=(f"положить {MANIFEST_REL} в дерево, о котором задан "
+                       f"вопрос: в бою это тревога о пропавшем реестре, в "
+                       f"сцене — незаложенная предпосылка сцены"))
     try:
-        with open(os.path.join(root, MANIFEST_REL), encoding="utf-8") as fh:
+        with open(path, encoding="utf-8") as fh:
             doc = json.load(fh)
-    except Exception:                                         # noqa: BLE001
-        return None
+    except Exception as exc:                                  # noqa: BLE001
+        return Horizon(
+            hours=None, state=HORIZON_REGISTRY_UNREADABLE,
+            detail=f"реестр {MANIFEST_REL} не читается: {type(exc).__name__}",
+            next_step=f"починить {MANIFEST_REL} — разбор падает, срока в нём "
+                      f"не видно ни у одного артефакта")
     for item in (doc.get("artifacts") or []):
         if not isinstance(item, dict) or item.get("path") != artifact_rel:
             continue
+        if "slo_hours" not in item:
+            return Horizon(
+                hours=None, state=HORIZON_NO_SLO_HOURS,
+                detail=(f"строка артефакта в {MANIFEST_REL} есть, а поля "
+                        f"`slo_hours` в ней нет"),
+                next_step=f"объявить `slo_hours` этого артефакта в "
+                          f"{MANIFEST_REL}")
         value = item.get("slo_hours")
-        if isinstance(value, bool) or not isinstance(value, (int, float)):
-            return None
-        return float(value) if value > 0 else None
-    return None
+        bad = (isinstance(value, bool)
+               or not isinstance(value, (int, float))
+               or value <= 0)
+        if bad:
+            return Horizon(
+                hours=None, state=HORIZON_BAD_VALUE,
+                detail=(f"`slo_hours` артефакта в {MANIFEST_REL} равно "
+                        f"{value!r} — это не положительное число часов"),
+                next_step=f"исправить значение `slo_hours` в {MANIFEST_REL}: "
+                          f"срока {value!r} не бывает")
+        return Horizon(hours=float(value), state=HORIZON_DECLARED,
+                       detail=f"объявлено {float(value):.4g}ч",
+                       next_step="")
+    return Horizon(
+        hours=None, state=HORIZON_ARTIFACT_NOT_IN_REGISTRY,
+        detail=f"артефакта нет в реестре {MANIFEST_REL} ни одной строкой",
+        next_step=f"внести артефакт в {MANIFEST_REL} вместе с его `slo_hours`")
+
+
+def declared_horizon_hours(artifact_rel: str, *, root: str) -> float | None:
+    """Только часы — тонкая дверь над `declared_horizon` (ADR-1054).
+
+    Оставлена байт в байт по ПОВЕДЕНИЮ: `None` у всех пяти состояний. Своего
+    разбора у неё нет ни строки — вторая копия разошлась бы с первой молча.
+    """
+    return declared_horizon(artifact_rel, root=root).hours
 
 
 def _resolve(rel: str, *, root: str, data_dir: str | None) -> str:
@@ -537,8 +641,24 @@ def verdict(artifact_rel: str, *, root: str, now: dt.datetime,
         # которого некому сделать. Цена названа: дерево-приёмка §49 (решение
         # владельца ADR-509) отстало на 790 коммитов, и среди них изменились
         # НОСИТЕЛИ мерки §49, а ни одному циклу об этом не сказали.
-        horizon = (horizon_of(artifact_rel) if horizon_of is not None
-                   else declared_horizon_hours(artifact_rel, root=root))
+        # Горизонт приходит СО СВОИМ состоянием (ADR-1054): «не объявлен» это
+        # пять разных состояний с пятью разными следующими шагами, и назвать
+        # не то отправляет читателя править файл, которого нет.
+        if horizon_of is not None:
+            given = horizon_of(artifact_rel)
+            hz = (Horizon(hours=given, state=HORIZON_DECLARED,
+                          detail=f"выдано вызывающим: {float(given):.4g}ч",
+                          next_step="")
+                  if given is not None else
+                  Horizon(hours=None, state=HORIZON_NOT_GIVEN_BY_CALLER,
+                          detail="горизонт выдаёт вызывающий (`horizon_of=`), "
+                                 "и он ответил «не объявлен»",
+                          next_step="спросить ВЫЗЫВАЮЩЕГО: реестр здесь не "
+                                    "опрашивался вовсе, и утверждать о нём "
+                                    "нечего"))
+        else:
+            hz = declared_horizon(artifact_rel, root=root)
+        horizon = hz.hours
         runner_age_h = round((now - ran).total_seconds() / 3600.0, 2)
         if horizon is None:
             return Absence(
@@ -546,13 +666,13 @@ def verdict(artifact_rel: str, *, root: str, now: dt.datetime,
                 is_finding=True, stage=stage, module=module,
                 clock_field=clock_field, call_state=call.state,
                 carrier=call.carrier, module_age_h=born_age_h,
-                runner_age_h=runner_age_h,
+                runner_age_h=runner_age_h, horizon_state=hz.state,
                 runner_ran_at=report.get(clock_field),
                 reason=(f"{later} приехал ПОСЛЕ последнего прогона бегуна, а "
                         f"горизонт отсрочки для {artifact_rel} НЕ ОБЪЯВЛЕН "
-                        f"({MANIFEST_REL}: нет `slo_hours`) ⇒ «ответ будет "
-                        f"позже» опровергнуть нечем, и это {UNMEASURED}, а не "
-                        f"отсрочка"))
+                        f"({hz.detail}) ⇒ «ответ будет позже» опровергнуть "
+                        f"нечем, и это {UNMEASURED}, а не отсрочка. "
+                        f"Следующий шаг: {hz.next_step}"))
         if runner_age_h > horizon:
             return Absence(
                 artifact=artifact_rel, kind=DEFERRAL_OUTLIVED_THE_RUNNER,
@@ -560,6 +680,7 @@ def verdict(artifact_rel: str, *, root: str, now: dt.datetime,
                 clock_field=clock_field, call_state=call.state,
                 carrier=call.carrier, module_age_h=born_age_h,
                 horizon_h=horizon, runner_age_h=runner_age_h,
+                horizon_state=hz.state,
                 runner_ran_at=report.get(clock_field),
                 reason=(f"{later} приехал ПОСЛЕ последнего прогона бегуна, НО "
                         f"сам бегун молчит {runner_age_h:.1f}ч при объявленном "
@@ -572,7 +693,7 @@ def verdict(artifact_rel: str, *, root: str, now: dt.datetime,
             artifact=artifact_rel, kind=NOT_YET, is_finding=False,
             stage=stage, module=module, clock_field=clock_field,
             call_state=call.state, carrier=call.carrier,
-            module_age_h=born_age_h,
+            module_age_h=born_age_h, horizon_state=hz.state,
             horizon_h=horizon, runner_age_h=runner_age_h,
             runner_ran_at=report.get(clock_field),
             reason=(f"{later} приехал в дерево ПОСЛЕ последнего "

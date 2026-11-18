@@ -1,0 +1,70 @@
+{
+ "title": "ADR-1054 — дельта цикла #1193: «горизонта нет» различено на ПЯТЬ состояний (инв. #17 на входе вердикта); причина перестала звать читателя в файл, которого нет; четвёртая батарея объявляет горизонт как предпосылку сцены",
+ "tests": [
+  "spa_core/tests/test_absence_horizon_states.py",
+  "spa_core/tests/test_office_absent_artifact_producer_aware.py",
+  "spa_core/tests/test_absence_deferral_horizon.py"
+ ],
+ "mutations": [
+  {
+   "name": "состояние склеено назад в одно: отсутствующий реестр снова объявляется строкой без slo_hours (поведение ДО ADR-1054)",
+   "file": "spa_core/monitoring/artifact_absence.py",
+   "old": "            detail=(f\"реестра артефактов {MANIFEST_REL} в дереве НЕТ — \"\n                    f\"спросить срок не у кого\"),",
+   "new": "            detail=(f\"{MANIFEST_REL}: нет `slo_hours`\"),"
+  },
+  {
+   "name": "следующий шаг у отсутствующего реестра подменён на «вписать строку» — ровно тот совет, который звал править пропавший файл",
+   "file": "spa_core/monitoring/artifact_absence.py",
+   "old": "            next_step=(f\"положить {MANIFEST_REL} в дерево, о котором задан \"\n                       f\"вопрос: в бою это тревога о пропавшем реестре, в \"\n                       f\"сцене — незаложенная предпосылка сцены\"))",
+   "new": "            next_step=(f\"объявить `slo_hours` этого артефакта в {MANIFEST_REL}\"))"
+  },
+  {
+   "name": "состояние не доезжает до вердикта ЗНАЧЕНИЕМ: horizon_state обнулён, и читателю остаётся только проза",
+   "file": "spa_core/monitoring/artifact_absence.py",
+   "old": "                runner_age_h=runner_age_h, horizon_state=hz.state,\n                runner_ran_at=report.get(clock_field),\n                reason=(f\"{later} приехал ПОСЛЕ последнего прогона бегуна, а \"",
+   "new": "                runner_age_h=runner_age_h, horizon_state=None,\n                runner_ran_at=report.get(clock_field),\n                reason=(f\"{later} приехал ПОСЛЕ последнего прогона бегуна, а \""
+  },
+  {
+   "name": "ответ вызывающего «не объявлен» свален на реестр: утверждение о том, чего не спрашивали",
+   "file": "spa_core/monitoring/artifact_absence.py",
+   "old": "                  Horizon(hours=None, state=HORIZON_NOT_GIVEN_BY_CALLER,",
+   "new": "                  Horizon(hours=None, state=HORIZON_NO_REGISTRY,"
+  },
+  {
+   "name": "строка без поля slo_hours склеена с негодным значением: два состояния с РАЗНЫМ следующим шагом снова одно",
+   "file": "spa_core/monitoring/artifact_absence.py",
+   "old": "        if \"slo_hours\" not in item:\n            return Horizon(\n                hours=None, state=HORIZON_NO_SLO_HOURS,",
+   "new": "        if \"slo_hours\" not in item:\n            return Horizon(\n                hours=None, state=HORIZON_BAD_VALUE,"
+  },
+  {
+   "name": "негодное значение склеено с ОТСУТСТВИЕМ строки: опечатка в объявлении читается как «артефакта в реестре нет»",
+   "file": "spa_core/monitoring/artifact_absence.py",
+   "old": "            return Horizon(\n                hours=None, state=HORIZON_BAD_VALUE,\n                detail=(f\"`slo_hours` артефакта в {MANIFEST_REL} равно \"",
+   "new": "            return Horizon(\n                hours=None, state=HORIZON_ARTIFACT_NOT_IN_REGISTRY,\n                detail=(f\"`slo_hours` артефакта в {MANIFEST_REL} равно \""
+  },
+  {
+   "name": "тонкая дверь обзавелась СВОИМ разбором: вторая копия, которая разойдётся с первой молча",
+   "file": "spa_core/monitoring/artifact_absence.py",
+   "old": "    return declared_horizon(artifact_rel, root=root).hours",
+   "new": "    return 192.0"
+  },
+  {
+   "name": "нулевой срок принят за объявленный горизонт: отсрочка станет бессрочной с виду объявленной",
+   "file": "spa_core/monitoring/artifact_absence.py",
+   "old": "               or value <= 0)",
+   "new": "               or value < 0)"
+  },
+  {
+   "name": "предпосылка сцены снята у четвёртой батареи — дословное состояние прогона 44287563961",
+   "file": "spa_core/tests/test_office_absent_artifact_producer_aware.py",
+   "old": "        _declare_horizon(self.root, ARTIFACT)",
+   "new": "        pass  # предпосылка сцены снята"
+  },
+  {
+   "name": "сцена объявляет горизонт НЕ ТАМ, где вердикт его ищет: зелёная сцена, не объявившая ничего",
+   "file": "spa_core/tests/test_office_absent_artifact_producer_aware.py",
+   "old": "    path = root / aa.MANIFEST_REL",
+   "new": "    path = root / \"architecture\" / \"ne-tot-reestr.json\""
+  }
+ ]
+}
