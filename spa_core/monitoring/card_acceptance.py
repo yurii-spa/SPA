@@ -19930,6 +19930,185 @@ def _probe_tb_sanitizer_sees_the_report_excinfo(arg: str | None = None,
                        "в сцене осмотрены")
 
 
+def _catchup_run_call_sites(source: str, inside: str) -> int:
+    """Сколько раз ``catchup_cycle.run(...)`` ЗОВЁТСЯ внутри функции ``inside``.
+
+    Меряется AST, а не подстрокой: упоминание имени в комментарии, в докстроке или в
+    соседней функции зовом не является, и считать его зовом значило бы объявить
+    проводку целой по прозе о ней (ADR-333, класс «упомянут ≠ приписан»).
+    """
+    import ast
+    try:
+        tree = ast.parse(source)
+    except SyntaxError:
+        return -1
+    target = next((n for n in ast.walk(tree)
+                   if isinstance(n, (ast.FunctionDef, ast.AsyncFunctionDef))
+                   and n.name == inside), None)
+    if target is None:
+        return -1
+    found = 0
+    for node in ast.walk(target):
+        if not isinstance(node, ast.Call):
+            continue
+        f = node.func
+        if (isinstance(f, ast.Attribute) and f.attr == "run"
+                and isinstance(f.value, ast.Name) and f.value.id == "catchup_cycle"):
+            found += 1
+    return found
+
+
+def _probe_catchup_cycle_fires_once_after_the_hour(arg: str | None = None) -> tuple[str, str]:
+    """Критерий карточки `inbox-dogonyayuschii-dnevnoi-tsikl-storozh-pro` (ADR-1052).
+
+    Критерий назван ДО работы и НЕ этой сессией — он стоит в теле карточки, написанном
+    при её создании 17.09 по решению владельца («вариант A»): «положительный контроль —
+    воспроизведение 17.09 (цикла нет, время после порога ⇒ ровно ОДИН запуск; повторный
+    прогон ⇒ ноль)». Проба его лишь МЕХАНИЗИРУЕТ.
+
+    Меряется ИСХОД, а не структура: у настоящего модуля спрашивают, СКОЛЬКО запусков он
+    делает и КАКОЙ службы, на шести сценах в одноразовом каталоге, с инъектированными
+    часами и подменённой дверью ``launchctl``. Подстрокой проба не проходит: сравниваются
+    ЧИСЛА запусков и ЗНАЧЕНИЯ вердиктов, а не текст модуля.
+
+    Семь звеньев, и у каждого своё имя в вердикте:
+
+    1. `scene_17_09` — цикла за сегодня нет, 10:30 UTC ⇒ РОВНО ОДИН kickstart;
+    2. `scene_label` — будится та же служба, что ведёт плановый цикл;
+    3. `scene_repeat` — повторный прогон тех же суток ⇒ НОЛЬ запусков;
+    4. `scene_cycle_present` — цикл за сегодня есть ⇒ НОЛЬ запусков;
+    5. `scene_before_hour` — до порога ⇒ НОЛЬ запусков (плановый цикл не опоздал);
+    6. `scene_unmeasured` — состояние не читается ⇒ НОЛЬ запусков И ОДНА тревога;
+       молчание здесь так же негодно, как запуск вслепую (инв. #17);
+    7. `live_caller` — зов `catchup_cycle.run(...)` ЕСТЬ внутри `run_self_heal`:
+       прибор без живого читателя — сирота, и его зелень ничего не значит.
+
+    ТРИ ИСХОДА РАЗЛИЧИМЫ (инв. #17):
+
+    * модуль не ввозится ⇒ ``not_satisfied``: вариант A владельца НЕ ПОСТРОЕН, и это
+      ИЗМЕРЕНИЕ, а не неспособность измерить («как было» этой карточки);
+    * звено порвано ⇒ ``not_satisfied`` с ИМЕНЕМ звена и наблюдённым числом;
+    * сцену не удалось обеспечить (временный каталог, исходник сторожа не прочитан) ⇒
+      ``unmeasured`` с названной причиной — за «чисто» это не выдаётся.
+    """
+    import datetime as _dtmod
+    import json as _json
+    import tempfile
+    from pathlib import Path as _P
+    try:
+        from spa_core.monitoring import catchup_cycle as _cc
+    except Exception as exc:  # noqa: BLE001 — предмет НЕ ПОСТРОЕН, и это измерение
+        return NOT_SATISFIED, (f"модуль догоняющего цикла не ввозится "
+                               f"({exc.__class__.__name__}: {exc}) — вариант A владельца "
+                               f"от 17.09 НЕ ПОСТРОЕН")
+
+    utc = _dtmod.timezone.utc
+    after = _dtmod.datetime(2026, 9, 17, 10, 30, tzinfo=utc)
+    before = _dtmod.datetime(2026, 9, 17, 9, 30, tzinfo=utc)
+    broken: list[str] = []
+    try:
+        with tempfile.TemporaryDirectory() as t:
+            root = _P(t)
+            snap = root / _cc.CYCLE_STATUS_NAME
+
+            def _write_cycle(day: str) -> None:
+                snap.write_text(_json.dumps({"last_cycle_ts": f"{day}T07:02:00Z"}),
+                                encoding="utf-8")
+
+            # 1-2. Воспроизведение 17.09: цикла за сегодня нет, порог пройден.
+            _write_cycle("2026-09-16")
+            kicks: list[str] = []
+            alarms: list[str] = []
+            r1 = _cc.run(now=after, data_dir=root,
+                         kickstart=lambda lbl: (kicks.append(lbl), True)[1],
+                         alert=alarms.append)
+            if len(kicks) != 1:
+                broken.append(f"scene_17_09: запусков {len(kicks)}, а владелец назвал РОВНО ОДИН "
+                              f"(вердикт модуля {r1.get('verdict')!r})")
+            elif kicks[0] != _cc.DAILY_CYCLE_LABEL:
+                broken.append(f"scene_label: разбужена служба {kicks[0]!r}, а плановый цикл ведёт "
+                              f"{_cc.DAILY_CYCLE_LABEL!r} — обёртка НЕ та же")
+
+            # 3. Повторный прогон тех же суток — ноль.
+            again: list[str] = []
+            r2 = _cc.run(now=after + _dtmod.timedelta(minutes=5), data_dir=root,
+                         kickstart=lambda lbl: (again.append(lbl), True)[1],
+                         alert=alarms.append)
+            if again:
+                broken.append(f"scene_repeat: повторный прогон сделал ещё {len(again)} запуск(ов) "
+                              f"(вердикт {r2.get('verdict')!r}) — «не чаще одного в сутки» не держится")
+
+            # 4. Цикл за сегодня есть — ноль.
+            _write_cycle("2026-09-17")
+            present: list[str] = []
+            r3 = _cc.run(now=after, data_dir=root,
+                         kickstart=lambda lbl: (present.append(lbl), True)[1],
+                         alert=alarms.append)
+            if present or r3.get("verdict") != "cycle_present":
+                broken.append(f"scene_cycle_present: при готовом цикле запусков {len(present)}, "
+                              f"вердикт {r3.get('verdict')!r} — лишний прогон дня")
+
+            # 5. До порога — ноль. Новый каталог: журнал попыток не должен решать за час.
+            with tempfile.TemporaryDirectory() as t2:
+                root2 = _P(t2)
+                (root2 / _cc.CYCLE_STATUS_NAME).write_text(
+                    _json.dumps({"last_cycle_ts": "2026-09-16T07:02:00Z"}), encoding="utf-8")
+                early: list[str] = []
+                r4 = _cc.run(now=before, data_dir=root2,
+                             kickstart=lambda lbl: (early.append(lbl), True)[1],
+                             alert=alarms.append)
+                if early or r4.get("verdict") != "not_due":
+                    broken.append(f"scene_before_hour: до {_cc.CATCHUP_HOUR_UTC}:00 UTC запусков "
+                                  f"{len(early)}, вердикт {r4.get('verdict')!r} — порог не держится")
+
+            # 6. Состояние не читается — ноль запусков И тревога.
+            with tempfile.TemporaryDirectory() as t3:
+                root3 = _P(t3)
+                blind: list[str] = []
+                cries: list[str] = []
+                r5 = _cc.run(now=after, data_dir=root3,
+                             kickstart=lambda lbl: (blind.append(lbl), True)[1],
+                             alert=cries.append)
+                if blind:
+                    broken.append(f"scene_unmeasured: при непрочитанном состоянии сделано "
+                                  f"{len(blind)} запуск(ов) — это запуск вслепую")
+                if r5.get("verdict") != "not_measured":
+                    broken.append(f"scene_unmeasured: вердикт {r5.get('verdict')!r}, а наблюдения "
+                                  f"нет — «не измерено» не названо (инв. #17)")
+                if len(cries) != 1:
+                    broken.append(f"scene_unmeasured: тревог {len(cries)}, а владелец назвал "
+                                  f"«не измерено И тревога» — молчание тоже негодно")
+    except OSError as exc:
+        return UNMEASURED, (f"сцену не удалось обеспечить ({exc.__class__.__name__}: {exc}) — "
+                            f"про предмет НЕ ИЗМЕРЕНО ничего")
+    except Exception as exc:  # noqa: BLE001 — упавший модуль ИЗМЕРЕН, а не «не измерен»
+        return NOT_SATISFIED, (f"модуль догоняющего цикла УПАЛ на сцене "
+                               f"({exc.__class__.__name__}: {exc}) — ни один из "
+                               f"исходов владельца на нём не наблюдаем")
+
+    # 7. Живой читатель: зов внутри сторожа пропусков, которого будит флот.
+    try:
+        import spa_core.monitoring.self_heal as _sh
+        sites = _catchup_run_call_sites(inspect.getsource(_sh), "run_self_heal")
+    except Exception as exc:  # noqa: BLE001
+        return UNMEASURED, (f"исходник сторожа пропусков не прочитан "
+                            f"({exc.__class__.__name__}: {exc}) — проводка НЕ ИЗМЕРЕНА")
+    if sites < 0:
+        broken.append("live_caller: в сторожа пропусков нет функции `run_self_heal` — "
+                      "проводку мерить нечем")
+    elif sites == 0:
+        broken.append("live_caller: `catchup_cycle.run(...)` НЕ зовётся из `run_self_heal` — "
+                      "прибор написан и не позван, его зелень ничего не значит")
+
+    if broken:
+        return NOT_SATISFIED, ("догоняющий цикл варианта A НЕ закрыт:\n  " + "\n  ".join(broken))
+    return SATISFIED, (f"воспроизведение 17.09 даёт РОВНО ОДИН kickstart "
+                       f"{_cc.DAILY_CYCLE_LABEL}, повторный прогон — ноль; готовый цикл, "
+                       f"час до порога {_cc.CATCHUP_HOUR_UTC}:00 UTC и непрочитанное "
+                       f"состояние дают ноль запусков (последнее — с тревогой); зов из "
+                       f"`run_self_heal` есть ({sites})")
+
+
 PROBES: dict[str, Callable[[str | None], "tuple[str, str]"]] = {
     "module_limit_bites_a_busy_module":
         _probe_module_limit_bites_a_busy_module,
@@ -20171,6 +20350,8 @@ PROBES: dict[str, Callable[[str | None], "tuple[str, str]"]] = {
     "column_door_class_is_measured": _probe_column_door_class_is_measured,
     "tb_sanitizer_sees_the_report_excinfo":
         _probe_tb_sanitizer_sees_the_report_excinfo,
+    "catchup_cycle_fires_once_after_the_hour":
+        _probe_catchup_cycle_fires_once_after_the_hour,
 }
 
 

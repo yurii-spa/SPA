@@ -1,0 +1,68 @@
+{
+ "title": "ADR-1052 CATCHUP — дельта цикла #1190: догоняющий дневной цикл по ЧАСУ СУТОК (вариант A владельца 17.09); три исхода различимы у решения, у журнала попыток и у кода возврата CLI",
+ "tests": [
+  "spa_core/tests/test_catchup_cycle_probe.py"
+ ],
+ "mutations": [
+  {
+   "name": "базовый флаг запуска перевёрнут: готовый цикл и час до порога ТОЖЕ будят службу",
+   "file": "spa_core/monitoring/catchup_cycle.py",
+   "old": "        \"launch\": False,\n    }",
+   "new": "        \"launch\": True,\n    }"
+  },
+  {
+   "name": "непрочитанный снимок подменён ДНЁМ — «не измерено» снова становится значением, и цикл будится вслепую",
+   "file": "spa_core/monitoring/catchup_cycle.py",
+   "old": "        return None, f\"снимок {path} не прочитан ({exc.__class__.__name__}: {exc})\"",
+   "new": "        return \"1970-01-01\", None"
+  },
+  {
+   "name": "граница «цикл за сегодня есть» сдвинута на строгое больше: день с готовым циклом судится как пропущенный",
+   "file": "spa_core/monitoring/catchup_cycle.py",
+   "old": "    if last_cycle_day >= today:",
+   "new": "    if last_cycle_day > today:"
+  },
+  {
+   "name": "порог включает свой же час: в 10:30 UTC вердикт «не наступил» — ровно авария 17.09",
+   "file": "spa_core/monitoring/catchup_cycle.py",
+   "old": "    if moment.hour < CATCHUP_HOUR_UTC:",
+   "new": "    if moment.hour <= CATCHUP_HOUR_UTC:"
+  },
+  {
+   "name": "попытка НЕ учитывается: сторож, крутящийся каждые 5 минут, становится kickstart-петлёй",
+   "file": "spa_core/monitoring/catchup_cycle.py",
+   "old": "    _record_attempt(root, verdict)      # попытка учтена ДО действия: не kickstart-петля",
+   "new": "    pass  # попытка НЕ учтена"
+  },
+  {
+   "name": "код возврата «НЕ ИЗМЕРЕНО» склеен с «делать нечего» (инв. #17 наизнанку)",
+   "file": "spa_core/monitoring/catchup_cycle.py",
+   "old": "    NOT_MEASURED: 2,",
+   "new": "    NOT_MEASURED: 0,"
+  },
+  {
+   "name": "код возврата «цикл запущен» склеен с «делать нечего»: действие перестаёт быть видимым расписанию",
+   "file": "spa_core/monitoring/catchup_cycle.py",
+   "old": "    LAUNCHED: 1,",
+   "new": "    LAUNCHED: 0,"
+  },
+  {
+   "name": "тревога при «не измерено» снята: молчание вместо отказа",
+   "file": "spa_core/monitoring/catchup_cycle.py",
+   "old": "        if write:\n            (alert or _alert)(",
+   "new": "        if False:\n            (alert or _alert)("
+  },
+  {
+   "name": "неразбираемый --now молча возвращается к стенным часам (предмет ADR-897)",
+   "file": "spa_core/monitoring/catchup_cycle.py",
+   "old": "        raise NotMeasured(f\"--now не разобран ({text!r}): {exc} — ожидается ISO-8601\") from exc",
+   "new": "        return None"
+  },
+  {
+   "name": "живой читатель снят: прибор написан и не позван (класс ADR-414)",
+   "file": "spa_core/monitoring/self_heal.py",
+   "old": "        catchup = catchup_cycle.run(write=not dry_run)",
+   "new": "        catchup = None"
+  }
+ ]
+}

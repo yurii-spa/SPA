@@ -18,6 +18,11 @@ Self-healing rules (deterministic, stdlib only, LLM FORBIDDEN):
   3. Daily cycle gap: if paper_trading_status.last_cycle_ts is older than
      CYCLE_GAP_HOURS → run the deterministic gap recovery (cycle_runner) and
      kickstart com.spa.daily_cycle.
+  3b. ДОГОНЯЮЩИЙ цикл по ЧАСУ СУТОК (решение владельца 17.09, вариант A; ADR-1052):
+     если к CATCHUP_HOUR_UTC цикла за ТЕКУЩИЕ сутки ещё не было — ОДИН kickstart
+     com.spa.daily_cycle. Правило 3 отвечает на другой вопрос (возраст разрыва), и
+     17.09 день повис до 26,3 ч, не дойдя до его порога 28 ч. Решение, журнал попыток
+     и три исхода — в spa_core/monitoring/catchup_cycle.py.
   4. Every action is logged to data/self_heal_status.json and (on action or repeated
      failure) sent to Telegram. Fail-safe: a heal attempt never crashes the watchdog.
   R6. telegram_bot with a LIVE pid but a STALE liveness beacon (long-poll wedged —
@@ -561,6 +566,26 @@ def run_self_heal(dry_run: bool = False) -> dict:
             )
             involved.add("com.spa.daily_cycle")
 
+    # 3b) ДОГОНЯЮЩИЙ цикл по ЧАСУ СУТОК (решение владельца 17.09, вариант A; ADR-1052).
+    # Правило 3 выше судит ВОЗРАСТ РАЗРЫВА (28 ч) — и ровно поэтому 17.09 день повис до
+    # 26,3 ч, не дойдя до порога действия. Это другой вопрос: «есть ли цикл за СЕГОДНЯ к
+    # 10:00 UTC». Решение и журнал попыток живут в своём модуле (одна попытка в сутки,
+    # «не измерено» ⇒ тревога и НОЛЬ запусков), здесь — только зов и доклад.
+    catchup = None
+    try:
+        from spa_core.monitoring import catchup_cycle
+        catchup = catchup_cycle.run(write=not dry_run)
+    except Exception as exc:  # noqa: BLE001 — сторож не падает от своего правила
+        failures.append(f"catch-up cycle rule failed ({type(exc).__name__}: {exc})")
+    if isinstance(catchup, dict):
+        verdict = catchup.get("verdict")
+        if verdict == "launched":
+            actions.append(f"catch-up daily cycle kickstarted ({catchup.get('reason')})")
+            involved.add("com.spa.daily_cycle")
+        elif verdict in ("launch_failed", "not_measured"):
+            failures.append(f"catch-up daily cycle: {catchup.get('reason')}")
+            involved.add("com.spa.daily_cycle")
+
     if not dry_run:
         _save_revival_history(hist)
 
@@ -590,6 +615,9 @@ def run_self_heal(dry_run: bool = False) -> dict:
         "cycle_age_h": round(age, 2) if age is not None else None,
         "cycle_stale": cycle_stale,
         "cycle_stale_threshold_h": CYCLE_STALE_H,
+        # Вердикт правила 3b. `None` здесь значит «правило НЕ ОТРАБОТАЛО» (исключение
+        # выше), а не «делать было нечего» — у «нечего» свой вердикт-строка.
+        "catchup_verdict": (catchup or {}).get("verdict") if isinstance(catchup, dict) else None,
         # Healthy = no failures/breakers AND every residency-required agent is
         # resident AND the daily cycle is within its staleness SLA. Calendar
         # agents being idle does NOT make us unhealthy.

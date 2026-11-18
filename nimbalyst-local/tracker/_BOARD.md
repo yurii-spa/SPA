@@ -2,9 +2,9 @@
 
 > Авто-генерится `scripts/build_tracker_board.py` из `nimbalyst-local/tracker/*.md`. НЕ править вручную — правь карточки. Источник правды — карточки, это индекс (bootstrap).
 >
-> Собрана: 2026-11-18T05:47:34Z · сверка с карточками: `python3 scripts/build_tracker_board.py --check` (сторож `spa_core/tests/test_tracker_board_matches_cards.py`).
+> Собрана: 2026-11-18T07:32:23Z · сверка с карточками: `python3 scripts/build_tracker_board.py --check` (сторож `spa_core/tests/test_tracker_board_matches_cards.py`).
 >
-> Сверено с `origin/main` (10968b529) · у **12** своя правка, кто новее — не измерено.
+> Сверено с `origin/main` (ab6bc3e3a) · у **2** своя правка, кто новее — не измерено.
 >
 > Всего карточек: **1651** · ждёт владельца: **12** · занято сессиями: **14**.
 
@@ -572,6 +572,7 @@
 - Добавь задачу проверить Telegram завтра  ·  `inbox-dobav-zadachu-proverit-telegram-zavtra.md` · 2026-09-30
 - Дочерний pytest виснет, если его тест-файл лежит в basetemp родителя: 300 с вместо 0.00 с  ·  `inbox-dochernii-pytest-visnet-esli-ego-test-fa.md` · 2026-08-20
 - docs/STATE.md разросся до 1647 строк при собственном пределе ~150 — а его читает каждая сессия  ·  `inbox-docs-state-md-razrossya-do-1647-strok-pr.md` · 2026-08-06
+- Догоняющий дневной цикл: сторож пропусков сам будит цикл, если к 10:00 UTC его не было (решение владельца 17.09, вариант A)  ·  `inbox-dogonyayuschii-dnevnoi-tsikl-storozh-pro.md` · 2026-09-17
 - Долгоживущие агенты не подхватывают доставленный код — и никто об этом не говорит  ·  `inbox-dolgozhivuschie-agenty-ne-podhvatyvayut.md` · 2026-08-08
 - Доставка не спрашивает, компилируется ли уезжающий Python: сломанный card_acceptance.py уехал на main мимо трёх сторожей  ·  `inbox-dostavka-ne-sprashivaet-kompiliruetsya-l.md` · 2026-11-01
 - Доставка объявляет ВЕЧНЫЙ долг о закрытии, которое УЖЕ на origin: «доехало ли моё изменение» решается побайтовым равенством всего файла  ·  `inbox-dostavka-obyavlyaet-vechnyi-dolg-o-zakry.md` · 2026-08-17
@@ -1064,7 +1065,6 @@
 - Девять случаев набора идут без срока: зонд часов гасит ITIMER_REAL прогона (заказ G676 п. 1)  ·  `inbox-devyat-sluchaev-nabora-idut-bez-sroka-zo.md` · 2026-10-09
 - Девять сроков обещаны агентам, которых не запускают, и ОДИН из девяти файлов система пишет каждые сутки  ·  `inbox-devyat-srokov-obeschany-agentam-kotoryh.md` · 2026-10-26
 - Девять сторожей зелены без своего входа — чинить по одному  ·  `inbox-devyat-storozhei-zeleny-bez-svoego-vhoda.md` · 2026-09-19
-- Догоняющий дневной цикл: сторож пропусков сам будит цикл, если к 10:00 UTC его не было (решение владельца 17.09, вариант A)  ·  `inbox-dogonyayuschii-dnevnoi-tsikl-storozh-pro.md` · 2026-09-17
 - Дорога находки у переписи не воспроизводима между прогонами  ·  `inbox-doroga-nahodki-u-perepisi-ne-vosproizvod.md` · 2026-11-05
 - Доска _BOARD.md наследует слепоту по составу: строится из файлов на диске, в хост-дереве максимум 525 из 714  ·  `inbox-doska-board-md-nasleduet-slepotu-po-sost.md` · 2026-08-27
 - Доска Nimbalyst отстаёт от origin по построению: нужна постоянная доставка карточек и поштучный перемер 156 расходящихся  ·  `inbox-doska-nimbalyst-otstaet-ot-origin-po-pos.md` · 2026-09-17
