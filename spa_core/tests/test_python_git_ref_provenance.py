@@ -575,6 +575,154 @@ class TestRatchet(unittest.TestCase):
                             f"{m['file']} прошёл бы отбор мимо")
 
 
+class StarInTheTailDoesNotBlindTheHead(Tree):
+    """Распаковка в ХВОСТЕ зова не делает неизвестной его ГОЛОВУ (ADR-1050).
+
+    Замер цикла #1188 на живом дереве: из пятнадцати зовов «НЕ ИЗМЕРЕНО»
+    прежняя редакция :func:`_param_map` отдавала ``None`` на ПЕРВОЙ же
+    распаковке и теряла ВСЕ аргументы зова — включая те, что стоят ДО звезды и
+    чья позиция определена однозначно. Два из них несли remote-tracking ссылку
+    именно там (`scripts/check_undelivered_work.py::owner_work_last_touch` —
+    ``git(root, "rev-list", …, f"{base_ref}..{ref}", "--", *owner_work)`` и
+    `scripts/reap_stale_worktrees.py::archive` — ``git(wt, …, "diff", base_ref,
+    "--", *rels)``), то есть прибор молчал о зовах, вердикт которых мог вынести.
+
+    Каждый тест ниже — положительный контроль: он краснеет, если вернуть прежнее
+    поведение, и краснеет, если «починить» его слишком широко (fail-OPEN).
+    """
+
+    #: Дверь дерева: `*args` втекает в argv — самая частая форма.
+    DOOR = HEAD + """
+def git(cwd, *args):
+    return subprocess.run(["git", "-C", str(cwd), *args], capture_output=True)
+"""
+
+    def test_ref_before_the_star_is_measured_not_shrugged_at(self):
+        """Форма `check_undelivered_work.py`: ссылка ДО распаковки ⇒ ВЕРДИКТ.
+
+        Это тот зов, о котором прибор молчал. Красный здесь = откат ADR-1050."""
+        rows = self.rows(m=self.DOOR + """
+def look(root, base_ref="origin/main", ref="HEAD", paths=()):
+    return git(root, "rev-list", "--max-count=1", f"{base_ref}..{ref}",
+               "--", *paths)
+""")
+        self.assertEqual(1, len(rows), "зов со ссылкой в голове снова потерян")
+        self.assertEqual("rev-list", rows[0]["sub"])
+        self.assertEqual("origin/main", rows[0]["ref"])
+        self.assertNotEqual("unmeasured", rows[0]["verdict"],
+                            "ссылка найдена, а вердикт всё ещё не вынесен")
+
+    def test_a_ref_that_could_only_live_in_the_tail_stays_unmeasured(self):
+        """Fail-CLOSED НЕ ослаблен: в голове ссылки нет ⇒ НЕ ИЗМЕРЕНО.
+
+        Обратная сторона той же правки. Объявить такой зов «не читателем»
+        значило бы выдать незнание за чистоту: ссылка могла приехать
+        распаковкой."""
+        rows = self.rows(m=self.DOOR + """
+def look(root, rest=()):
+    return git(root, *rest)
+""")
+        self.assertEqual(1, len(rows))
+        self.assertEqual("unmeasured", rows[0]["verdict"])
+        self.assertIsNone(rows[0]["ref"])
+
+    def test_the_reason_names_which_unpacking_and_from_which_position(self):
+        """Причина называет ИМЯ распаковки и позицию, а не «*args или **kwargs».
+
+        Прежняя строка была одна на все формы, и читатель отчёта не мог узнать,
+        чинить ли ему вызов или дверь."""
+        rows = self.rows(m=self.DOOR + """
+def look(root, tail=()):
+    return git(root, "show", *tail)
+""")
+        self.assertEqual(1, len(rows))
+        why = rows[0]["why"]
+        self.assertIn("*tail", why, f"распаковка не названа по имени: {why!r}")
+        self.assertIn("позиции 2", why, f"позиция не названа: {why!r}")
+
+    def test_both_causes_are_named_when_both_hold(self):
+        """ДВЕ причины — пробел хвоста И неразрешённое значение в голове.
+
+        Форма `scripts/cartographer/snapshot.py:192`: `sha` приходит из
+        `a or f(...)` (не разрешается), а хвост распакован. Назвать одну из двух
+        значило бы предложить чинить не ту половину (урок ADR-1045)."""
+        rows = self.rows(m=self.DOOR + """
+def resolve(root):
+    return None
+
+
+def look(root, sha=None, paths=()):
+    sha = sha or resolve(root)
+    return git(root, "ls-tree", "-r", sha, "--", *paths)
+""")
+        self.assertEqual(1, len(rows))
+        why = rows[0]["why"]
+        self.assertIn("*paths", why)
+        self.assertIn("причин ДВЕ", why, f"вторая причина не названа: {why!r}")
+
+    def test_a_fully_mapped_call_without_a_ref_is_not_in_the_population(self):
+        """Третий исход отличим от двух: сопоставлено ВСЁ, ссылки нет ⇒ не зов.
+
+        Без этого контроля «починка» могла бы объявить unmeasured ЛЮБОЙ зов
+        двери, и население прибора раздулось бы шумом."""
+        self.assertEqual([], self.rows(m=self.DOOR + """
+def look(root):
+    return git(root, "status", "--porcelain")
+"""))
+
+    def test_named_keywords_survive_a_double_star(self):
+        """`**kw` не уносит с собой ЯВНО названные именованные аргументы."""
+        rows = self.rows(m=self.DOOR + """
+def door(cwd, ref="HEAD", **kw):
+    return subprocess.run(["git", "-C", str(cwd), "show", ref],
+                          capture_output=True, **kw)
+
+
+def look(root, extra=None):
+    return door(root, ref="origin/main", **(extra or {}))
+""")
+        self.assertEqual(1, len(rows))
+        self.assertEqual("origin/main", rows[0]["ref"],
+                         "названный аргумент потерян вместе с **kw")
+
+    def test_the_head_is_mapped_by_position_not_by_order_of_appearance(self):
+        """Голова сопоставляется ПОЗИЦИЕЙ, и значение едет в ТОТ параметр.
+
+        Контроль на мерку самого сопоставления: если бы прибор связывал
+        аргументы по порядку ПОЯВЛЕНИЯ в теле (а не по позиции), ссылка попала
+        бы не в тот параметр и зов вышел бы из населения молча.
+
+        Счёт строк здесь НЕ утверждается, и это измерено, а не осторожность:
+        дверь с ТОЧНО наследуемыми параметрами даёт ДВЕ строки на одно чтение
+        (своя строка `subprocess` внутри двери + зов двери снаружи) — поведение
+        ПРЕД-СУЩЕСТВУЮЩЕЕ, воспроизведено на нетронутой редакции прибора
+        (`HEAD:scripts/python_git_ref_provenance.py`, зов БЕЗ звезды: 2 строки).
+        На живом дереве правка ADR-1050 новых двойников НЕ создала — `reads` 88
+        до и 88 после. Класс назван вслух карточкой, а не замазан этим тестом."""
+        # Сцена РАЗЛИЧАЮЩАЯ, и это измерено мутацией: у двери есть первый
+        # параметр, который в argv НЕ втекает (`tag`). При сопоставлении «всё в
+        # первый параметр» ссылка уехала бы в `tag`, тот не прошёл бы фильтр
+        # `door["params"]`, и зов вышел бы в НЕ ИЗМЕРЕНО. С дверью, чей первый
+        # параметр втекает в argv (`cwd` у `git(cwd, *args)`), мутация
+        # «сопоставление по порядку» ВЫЖИВАЕТ: вердикт не меняется, потому что
+        # токены собираются всё равно. Первая редакция этого теста так и была
+        # написана — и мутация её пережила.
+        rows = self.rows(m=HEAD + """
+def door(tag, cwd, sub, ref, *rest):
+    return subprocess.run(["git", "-C", str(cwd), sub, ref, *rest],
+                          capture_output=True)
+
+
+def look(root, paths=()):
+    return door("audit", root, "show", "origin/main:docs/STATE.md", *paths)
+""")
+        outside = [r for r in rows if r["func"] == "look"]
+        self.assertEqual(1, len(outside), f"зов двери снаружи потерян: {rows!r}")
+        self.assertEqual("show", outside[0]["sub"])
+        self.assertEqual("origin/main", outside[0]["ref"])
+        self.assertNotEqual("unmeasured", outside[0]["verdict"])
+
+
 if __name__ == "__main__":
     unittest.main()
 

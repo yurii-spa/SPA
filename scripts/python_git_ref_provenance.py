@@ -656,9 +656,12 @@ def inherited_params(mods, rounds: int = 4) -> dict:
                 m.res.enter(caller, out.get((m.rel, caller.name))
                             if caller else None) if caller else \
                     setattr(m.res, "local", {})
-                pmap = _param_map(target, node)
-                if pmap is None:
-                    continue
+                # ОДНА мерка сопоставления на обоих читателей двери (ADR-1050):
+                # аргументы ДО распаковки сопоставимы однозначно и здесь тоже, а
+                # прежний отказ на первой же звезде терял и их. Пробел тут не
+                # нужен: наследование и так связывает только то, что РАЗРЕШЕНО,
+                # и расходящихся вызывающих помечает DYN.
+                pmap, _gap = _param_map(target, node)
                 key = (m.rel, name)
                 for arg in list(node.args) + [k.value for k in node.keywords]:
                     pname = pmap.get(id(arg))
@@ -768,24 +771,69 @@ def known_remotes(invocations) -> set:
     return out
 
 
+def _star_name(arg: ast.Starred) -> str:
+    """Чем именно распаковывают — чтобы причина называла ЭТО, а не «звезду»."""
+    inner = arg.value
+    if isinstance(inner, ast.Name):
+        return f"*{inner.id}"
+    if isinstance(inner, ast.Attribute):
+        return f"*…{inner.attr}"
+    if isinstance(inner, ast.Call):
+        name = _callee_name(inner)
+        return f"*{name}()" if name else "*<зов>"
+    return "*<выражение>"
+
+
 def _param_map(fn, node: ast.Call):
-    """аргумент зова → имя параметра двери. None — соответствие не установлено."""
+    """аргумент зова → имя параметра двери; плюс ПРОБЕЛ сопоставления.
+
+    Возвращает пару ``(соответствие, пробел)``. ``пробел is None`` — сопоставлено
+    ВСЁ; иначе названо, ЧТО именно оборвало сопоставление и с какой позиции.
+
+    **Почему пара, а не None (ADR-1050, замер цикла #1188).** Прежняя редакция на
+    ПЕРВОЙ же распаковке (``*args`` / ``**kwargs``) отдавала ``None`` и теряла ВСЕ
+    аргументы зова — в том числе те, что стоят ДО звезды и чья позиция определена
+    однозначно. Цена измерена на живом дереве: пять зовов из пятнадцати
+    «НЕ ИЗМЕРЕНО» несли remote-tracking ссылку в аргументе ПЕРЕД распаковкой
+    (``git(root, "rev-list", …, f"{base_ref}..{ref}", "--", *owner_work)`` —
+    `scripts/check_undelivered_work.py`, `scripts/reap_stale_worktrees.py`,
+    `scripts/cartographer/snapshot.py` ×3), то есть прибор молчал о зовах, чей
+    вердикт он мог вынести. Звезда в ХВОСТЕ не делает неизвестной ГОЛОВУ.
+
+    Fail-CLOSED при этом НЕ ослаблен: пробел возвращается наверх, и зов, у
+    которого ссылка в сопоставленной части НЕ найдена, остаётся ``unmeasured`` —
+    ссылка могла приехать распаковкой. Меняется только то, что «не измерено»
+    перестало накрывать СОПОСТАВИМУЮ часть зова (инв. #17: три исхода — ссылка
+    найдена · не найдена при полном сопоставлении (зов не читатель) · не найдена
+    при пробеле (НЕ ИЗМЕРЕНО с названной причиной)).
+
+    Длина распакованной последовательности НЕ измеряется намеренно: разрешитель
+    этого прибора разбирает СТРОКИ, а не последовательности, и выдумывать
+    ``len(*refs)`` значило бы ответить «я не умею» под видом «чисто». Это
+    названный остаток класса, а не недосмотр.
+    """
     names = [a.arg for a in fn.args.posonlyargs + fn.args.args]
-    out = {}
+    out, gap = {}, None
     for i, arg in enumerate(node.args):
         if isinstance(arg, ast.Starred):
-            return None
+            gap = (f"аргументы с позиции {i} не сопоставлены: распаковка "
+                   f"{_star_name(arg)} — длина последовательности не измерена")
+            break
         if i < len(names):
             out[id(arg)] = names[i]
         elif fn.args.vararg:
             out[id(arg)] = fn.args.vararg.arg
         else:
-            return None
+            gap = (f"аргумент #{i} не сопоставлен: у двери нет ни параметра на "
+                   f"этой позиции, ни *args")
+            break
     for kw in node.keywords:
         if kw.arg is None:
-            return None
+            gap = gap or ("именованные аргументы не сопоставлены: распаковка "
+                          "**kwargs")
+            continue
         out[id(kw.value)] = kw.arg
-    return out
+    return out, gap
 
 
 def find_readers(mods, doors, remotes, mod_index, inherit):
@@ -803,6 +851,7 @@ def find_readers(mods, doors, remotes, mod_index, inherit):
             runner = _runner_name(node)
             direct = runner in RUNNERS and _argv_node(node) is not None
             tokens, via, door_sub = [], None, None
+            gap, door_name = None, None
 
             if direct:
                 tokens = m.res.tokens(_argv_node(node))
@@ -823,28 +872,16 @@ def find_readers(mods, doors, remotes, mod_index, inherit):
                     outer.append({"file": m.rel, "line": node.lineno,
                                   "via": name})
                     continue
-                pmap = _param_map(door["fn"], node)
-                if pmap is None:
-                    readers.append({"file": m.rel, "line": node.lineno,
-                                    "func": fn.name if fn else None,
-                                    "ref": None, "basis": "by_var",
-                                    "verdict": "unmeasured", "mutating": False,
-                                    "sub": None, "mod": m, "node": node,
-                                    "stmt": stmt_of.get(node), "fnode": fn,
-                                    "why": (f"зов двери {name}() разобран не до "
-                                            f"конца: соответствие аргументов "
-                                            f"параметрам не установлено (*args "
-                                            f"или **kwargs)")})
-                    continue
+                pmap, gap = _param_map(door["fn"], node)
                 for arg in list(node.args) + [k.value for k in node.keywords]:
                     pname = pmap.get(id(arg))
                     if pname is None or pname not in door["params"]:
                         continue
                     for tok in m.res.tokens(arg):
                         tokens.append(tok)
-                if not tokens:
+                if not tokens and gap is None:
                     continue
-                via, door_sub = name, door["sub"]
+                via, door_sub, door_name = name, door["sub"], name
 
             found_ref, pair = None, None
             for tok in tokens:
@@ -853,6 +890,27 @@ def find_readers(mods, doors, remotes, mod_index, inherit):
                     found_ref, pair = got, gotpair
                     break
             if not found_ref:
+                # Пробел сопоставления (ADR-1050): ссылки в сопоставленной части
+                # нет, но часть аргументов не сопоставлена вовсе — значит «зов не
+                # читатель» НЕ доказано. Третий исход, а не тишина (инв. #17).
+                if gap is not None:
+                    # Причин бывает ДВЕ, и вторая не следствие первой: хвост не
+                    # сопоставлен (пробел) И значение уже сопоставленного
+                    # аргумента не разрешено (DYN). Называть одну из двух —
+                    # ровно та слепота, за которую ADR-1045 требовал обе
+                    # стороны разницы: читатель чинил бы не ту половину.
+                    why = f"зов двери {door_name}() разобран не до конца: {gap}"
+                    if DYN in tokens:
+                        why += ("; И значение сопоставленного аргумента не "
+                                "разрешено — причин ДВЕ, вторая не следствие "
+                                "первой")
+                    readers.append({"file": m.rel, "line": node.lineno,
+                                    "func": fn.name if fn else None,
+                                    "ref": None, "basis": "by_var",
+                                    "verdict": "unmeasured", "mutating": False,
+                                    "sub": None, "mod": m, "node": node,
+                                    "stmt": stmt_of.get(node), "fnode": fn,
+                                    "why": why})
                 continue
 
             sub = subcommand(tokens) if direct else (

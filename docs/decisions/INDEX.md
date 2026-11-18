@@ -178,6 +178,7 @@
 | ADR-1047 | ADR-1047 — Объявление операнда двери не отставало от замера: оно НИКОГДА своему дереву не соответствовало | Accepted | [ADR-1047](ADR-1047-operand-declaration-never-matched-its-tree.md) |
 | ADR-1048 | ADR-1048 — Пол на НЕмонотонной величине краснеет на верном состоянии | Accepted | [ADR-1048](ADR-1048-floor-on-a-non-monotonic-quantity.md) |
 | ADR-1049 | ADR-1049 — Непрочитанная база освобождений — это ОТКАЗ, а не пропуск: дверь приёмки inbox работала fail-OPEN | Accepted | [ADR-1049](ADR-1049-unread-acceptance-baseline-is-a-refusal.md) |
+| ADR-1050 | ADR-1050 — Распаковка в ХВОСТЕ зова не делает неизвестной его ГОЛОВУ | Accepted | [ADR-1050](ADR-1050-a-star-in-the-tail-does-not-blind-the-head.md) |
 
 ## Соглашения
 
