@@ -6,7 +6,7 @@ status: done
 source: nimbalyst
 created: 2026-09-17
 owner_decision: owner-decision-segodnyashnii-tsikl-treka-ne-zapuskalsya
-fate_reason: "возврат в приём: вариант A владельца НЕ реализован (замер 18.11) — закрытие было незаработанным"
+fate_reason: "ИСПОЛНЕНО цикл #1190 (ADR-1052): вариант A построен, закрытие заработано пробой. Прежняя причина (возврат в приём 18.11 — вариант A не реализован) осталась в status_trail и в теле карточки"
 acceptance_probe: catchup_cycle_fires_once_after_the_hour
 claimed_by: cycle-94710
 claimed_at: 2026-11-18T07:07:34Z
