@@ -2,11 +2,11 @@
 
 > Авто-генерится `scripts/build_tracker_board.py` из `nimbalyst-local/tracker/*.md`. НЕ править вручную — правь карточки. Источник правды — карточки, это индекс (bootstrap).
 >
-> Собрана: 2026-11-18T00:46:30Z · сверка с карточками: `python3 scripts/build_tracker_board.py --check` (сторож `spa_core/tests/test_tracker_board_matches_cards.py`).
+> Собрана: 2026-11-18T02:13:31Z · сверка с карточками: `python3 scripts/build_tracker_board.py --check` (сторож `spa_core/tests/test_tracker_board_matches_cards.py`).
 >
-> Сверено с `origin/main` (f5cab0fa4) · у **1** своя правка, кто новее — не измерено.
+> Сверено с `origin/main` (c27fdbb4c).
 >
-> Всего карточек: **1645** · ждёт владельца: **12** · занято сессиями: **14**.
+> Всего карточек: **1646** · ждёт владельца: **12** · занято сессиями: **14**.
 
 ## 🔴 ЖДЁТ ВЛАДЕЛЬЦА (needs-owner)
 
@@ -441,7 +441,7 @@
 ### · closed
 - Считать ли верный отказ по правилам допуска неисправностью флота  ·  `owner-decision-schitat-li-vernyi-otkaz-po-pravilam-dopu.md` · 2026-10-08
 
-## 📥 Inbox (задания: Telegram / заметки / голос)  (947)
+## 📥 Inbox (задания: Telegram / заметки / голос)  (948)
 
 ### · in-progress
 - а задача починить все-таки еще раз сообщение которым не пишет нужно твое решени…  ·  `inbox-a-zadacha-pochinit-vse-taki-esche-raz-so.md` · 2026-08-14 · 🔒 `pid43119`
@@ -1061,6 +1061,7 @@
 - `--data-dir` шага 0-офис не доходит до проб приёмки: они читают ЗАМОРОЖЕННЫЙ канон worktree  ·  `inbox-data-dir-shaga-0-ofis-ne-dohodit-do-prob-priemki.md` · 2026-09-13
 - Депег-стоп RiskPolicy к циклу НЕ подключён: ни один вызов не передаёт stablecoin_prices, и гейт пропускается МОЛЧА  ·  `inbox-depeg-stop-riskpolicy-k-tsiklu-ne-podkly.md` · 2026-11-05
 - Дерево прогона несло сломанный card_acceptance.py — форма аварии ADR-886, причина НЕ установлена  ·  `inbox-derevo-progona-neslo-slomannyi-card-acce.md` · 2026-11-07
+- Десять карточек закрыты дверью, которая их пропустить не должна была — судьба десяти НЕ разобрана (ADR-1049)  ·  `inbox-desyat-kartochek-zakryty-dveryu-kotoraya.md` · 2026-11-18
 - Десять критериев приёмки «Portfolio CIO» измерены ОДНАЖДЫ И ПРОЗОЙ — машины, способной перемерить их сегодня, нет  ·  `inbox-desyat-kriteriev-priemki-portfolio-cio-i.md` · 2026-09-29
 - Десять противоядий переписи перечней направлены не в ту сторону (проходят на пустом)  ·  `inbox-desyat-protivoyadii-perepisi-perechnei-n.md` · 2026-11-07
 - Детектор голодающих приказов не отличает «не начато» от «готово, но не доставлено»  ·  `inbox-detektor-golodayuschih-prikazov-ne-otlic.md` · 2026-09-23

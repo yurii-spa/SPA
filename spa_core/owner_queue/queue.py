@@ -153,6 +153,25 @@ class AcceptanceCriterionMissing(RuntimeError):
     """inbox-карточку берут в работу без машинного критерия приёмки (`.claude/rules/acceptance.md`)."""
 
 
+class AcceptanceBaselineUnmeasured(AcceptanceCriterionMissing):
+    """База освобождений НЕ ПРОЧИТАНА — освобождение карточки по ней НЕ ИЗМЕРЕНО (ADR-1049).
+
+    **Это ТРЕТИЙ исход, а не частный случай второго** (инв. #17). У вопроса «можно ли
+    перевести эту inbox-карточку из приёма» три ответа, и они обязаны быть различимы:
+
+    * критерий у карточки ЕСТЬ ⇒ перевод идёт;
+    * критерия нет И карточки нет в базе ⇒ :class:`AcceptanceCriterionMissing`;
+    * критерия нет, а база НЕ ПРОЧИТАЛАСЬ ⇒ **этот** отказ: про карточку не известно
+      ничего, и отказ называет СВОЮ причину, а не чужую.
+
+    **Почему подклассом, а не отдельным корнем.** Вызывающие (CLI `orchestrator_queue.py`,
+    `intake`, `cockpit_loop`, `repair_phantom_intake_cards`) ловят
+    :class:`AcceptanceCriterionMissing` и переводят его в отказ с кодом 2 — наследование
+    сохраняет им поведение без правки, а читателю оставляет возможность отличить исходы
+    по ТИПУ, а не по подстроке в тексте (подстрока — не мера, ADR-333).
+    """
+
+
 class LifecycleRefused(RuntimeError):
     """A status change outside the card lifecycle (Build Loop v1, ADR-551): a transition the
     table does not allow, a `done` with no recorded evidence, or an owner decision closed by an
@@ -757,10 +776,33 @@ def set_status(path: str | Path, new_status: str,
             and not _carried_ok and not has_acceptance_criterion(_fm)):
         _base = _inbox_acceptance_baseline()
         if _base is None:
-            import sys as _sys
-            print(f"WARNING: {INBOX_ACCEPTANCE_BASELINE} не прочиталась — освобождение по базе "
-                  f"НЕ ИЗМЕРЕНО, карточка {p.name} пропущена без проверки критерия", file=_sys.stderr)
-        elif p.name not in _base:
+            # НЕ ИЗМЕРЕНО — это ОТКАЗ, а не пропуск (ADR-1049, инв. #2 и #17).
+            #
+            # Здесь стоял fail-OPEN: предупреждение в stderr и карточка проходила. Имя
+            # прежнего контроля («громко, а не молчаливым отказом») называло выбор ложной
+            # парой — отказ тоже бывает ГРОМКИМ, и именно он честен: база умеет только
+            # ОСВОБОЖДАТЬ, поэтому непрочитанная база означает «про эту карточку не
+            # известно, освобождена ли она», а не «освобождена». Пропуск делал «не
+            # измерено» неотличимым от «критерий есть» — ровно то представление, которое
+            # инвариант #17 запрещает, и ровно та тишина, из-за которой вопрос «как
+            # закрылись эти карточки» задним числом НЕ РАЗРЕШИМ: журнал переходов
+            # (`data/tracker_status_audit.jsonl`) пишет ФАКТ записи и не пишет вердикт
+            # гейта, а предупреждение уходило в stderr сессии, который не хранится.
+            #
+            # Ширина правки ровно одна карточка: сюда код доходит ТОЛЬКО когда у карточки
+            # нет ни `acceptance_probe`, ни `finding_key`, ни заработанного `carried_to`.
+            # Карточка со своим критерием базы не спрашивает и этим отказом не задета.
+            raise AcceptanceBaselineUnmeasured(
+                f"{p.name}: база освобождений НЕ ПРОЧИТАНА ({INBOX_ACCEPTANCE_BASELINE}) — "
+                f"освобождение этой карточки по базе НЕ ИЗМЕРЕНО, а перевод в "
+                f"'{new_status}' без машинного критерия приёмки разрешён только по ней "
+                f"(.claude/rules/acceptance.md). Это НЕ «критерия нет» и НЕ «критерий есть»: "
+                f"про карточку не известно ничего. Выходы два, и оба не трогают базу: "
+                f"починить чтение базы (файл на месте? валидный JSON с ключом \"files\"? "
+                f"запущено из дерева, где он лежит?) либо объявить пробу ДО работы — "
+                f"python3 scripts/orchestrator_queue.py probe {p} <имя из card_acceptance.PROBES[:аргумент]>. "
+                f"В базу scripts/inbox_acceptance_baseline.json НЕ дописывать: она только уменьшается.")
+        if p.name not in _base:
             raise AcceptanceCriterionMissing(
                 f"{p.name}: inbox-карточку нельзя перевести в '{new_status}' без машинного критерия "
                 f"приёмки (.claude/rules/acceptance.md). ДО работы объявить пробу: "

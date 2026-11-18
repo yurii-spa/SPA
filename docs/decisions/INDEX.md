@@ -177,6 +177,7 @@
 | ADR-1046 | ADR-1046 — Реестр решений СОСТАВНОЙ: потолок над одним накапливающимся файлом есть обратный отсчёт, а не храповик | Accepted | [ADR-1046](ADR-1046-decision-register-is-composite.md) |
 | ADR-1047 | ADR-1047 — Объявление операнда двери не отставало от замера: оно НИКОГДА своему дереву не соответствовало | Accepted | [ADR-1047](ADR-1047-operand-declaration-never-matched-its-tree.md) |
 | ADR-1048 | ADR-1048 — Пол на НЕмонотонной величине краснеет на верном состоянии | Accepted | [ADR-1048](ADR-1048-floor-on-a-non-monotonic-quantity.md) |
+| ADR-1049 | ADR-1049 — Непрочитанная база освобождений — это ОТКАЗ, а не пропуск: дверь приёмки inbox работала fail-OPEN | Accepted | [ADR-1049](ADR-1049-unread-acceptance-baseline-is-a-refusal.md) |
 
 ## Соглашения
 

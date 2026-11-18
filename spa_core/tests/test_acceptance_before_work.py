@@ -78,14 +78,79 @@ class TakingIntoWork(unittest.TestCase):
         path = _card(self.tmp, "agent-zadacha", kind="agent-task")
         q.set_status(path, "in-progress")
 
-    def test_unreadable_baseline_is_loud_not_a_silent_refusal(self):
+    # ── Непрочитанная база: ОТКАЗ со своей причиной, а не пропуск (ADR-1049) ──────
+    #
+    # НАМЕРЕННАЯ ПРАВКА ТЕСТА (инв. #16, запись в `docs/journal/2026-W47.md`).
+    # Здесь стоял `test_unreadable_baseline_is_loud_not_a_silent_refusal`: он звал
+    # `set_status` при `_base is None`, ждал УСПЕХА и проверял лишь, что в stderr есть
+    # слово «НЕ ИЗМЕРЕНО». Его имя называло выбор ложной парой — «громко» против
+    # «молчаливого отказа», — и под этой рамкой fail-OPEN выглядел верным. Отказ тоже
+    # бывает ГРОМКИМ, а база умеет только ОСВОБОЖДАТЬ: непрочитанная база означает
+    # «освобождена ли эта карточка — НЕ ИЗМЕРЕНО», и выдавать это за «проходи» запрещают
+    # инварианты #2 (fail-CLOSED при нехватке данных) и #17 (отсутствие наблюдения —
+    # ОТДЕЛЬНОЕ значение, не успех).
+    #
+    # Проверка НЕ ослаблена, а усилена: вместо одного утверждения («в stderr есть слово»)
+    # их теперь четыре узла — исход ОТКАЗ · причина НАЗВАНА · карточка НЕ ТРОНУТА ·
+    # исходы различимы ПО ТИПУ, а не по подстроке. Громкость сохранена: текст отказа
+    # по-прежнему обязан нести «НЕ ИЗМЕРЕНО».
+    def test_unreadable_baseline_is_a_refusal_with_its_own_named_cause(self):
         path = _card(self.tmp, "inbox-baza-propala")
-        import io
-        err = io.StringIO()
-        with mock.patch.object(q, "_inbox_acceptance_baseline", lambda: None), \
-                mock.patch("sys.stderr", err):
+        with mock.patch.object(q, "_inbox_acceptance_baseline", lambda: None):
+            with self.assertRaises(q.AcceptanceBaselineUnmeasured) as cm:
+                q.set_status(path, "in-progress")
+        self.assertIn("НЕ ИЗМЕРЕНО", str(cm.exception))
+        self.assertIn("НЕ ПРОЧИТАНА", str(cm.exception))
+        # Карточка не тронута: «не измерено» не двигает статус ни на шаг.
+        self.assertIn("status: new", open(path, encoding="utf-8").read())
+
+    def test_the_three_outcomes_of_the_door_are_distinguishable_by_type(self):
+        """Инв. #17 у ЭТОЙ двери: критерий есть · критерия нет · база НЕ ИЗМЕРЕНА.
+
+        Контроль в обе стороны и есть сама суть: пока «не измерено» возвращало тот же
+        исход, что «критерий есть», отличить их было нечем вовсе, а теперь нельзя
+        спутать и два ОТКАЗА между собой.
+        """
+        ok = _card(self.tmp, "inbox-tri-ishoda-s-proboi", probe="tier_promotion_loop_closed")
+        q.set_status(ok, "in-progress")                      # 1) критерий есть ⇒ проход
+
+        missing = _card(self.tmp, "inbox-tri-ishoda-bez-proby")
+        with mock.patch.object(q, "_inbox_acceptance_baseline", lambda: set()):
+            with self.assertRaises(q.AcceptanceCriterionMissing) as cm_missing:
+                q.set_status(missing, "in-progress")          # 2) критерия нет, база ЧИТАЕТСЯ
+        self.assertNotIsInstance(cm_missing.exception, q.AcceptanceBaselineUnmeasured,
+                                 "«критерия нет» доложилось как «база не измерена» — исходы слиты")
+
+        unmeasured = _card(self.tmp, "inbox-tri-ishoda-baza-nechitaema")
+        with mock.patch.object(q, "_inbox_acceptance_baseline", lambda: None):
+            with self.assertRaises(q.AcceptanceBaselineUnmeasured):
+                q.set_status(unmeasured, "in-progress")       # 3) база НЕ ПРОЧИТАНА
+
+    def test_an_unmeasured_baseline_does_not_refuse_a_card_that_carries_its_own_criterion(self):
+        """Ширина отказа ровно одна карточка — та, что без критерия.
+
+        Без этой стороны правка была бы не «fail-CLOSED», а глухой стеной: карточка со
+        своей пробой базы не спрашивает, и отказывать ей значило бы остановить очередь
+        на починке чужого файла.
+        """
+        path = _card(self.tmp, "inbox-svoi-kriterii", probe="tier_promotion_loop_closed")
+        with mock.patch.object(q, "_inbox_acceptance_baseline", lambda: None):
             q.set_status(path, "in-progress")
-        self.assertIn("НЕ ИЗМЕРЕНО", err.getvalue())
+        self.assertIn("status: in-progress", open(path, encoding="utf-8").read())
+
+    def test_the_unmeasured_refusal_is_caught_by_callers_of_the_old_exception(self):
+        """Наследование — часть контракта, а не деталь.
+
+        CLI и `intake`/`cockpit_loop`/`repair_phantom_intake_cards` ловят
+        `AcceptanceCriterionMissing`. Отдельный корень исключений превратил бы новый
+        отказ в НЕОБРАБОТАННОЕ падение у четырёх вызывающих — то есть лечение одного
+        fail-OPEN родило бы четыре аварии.
+        """
+        self.assertTrue(issubclass(q.AcceptanceBaselineUnmeasured, q.AcceptanceCriterionMissing))
+        path = _card(self.tmp, "inbox-lovitsya-roditelem")
+        with mock.patch.object(q, "_inbox_acceptance_baseline", lambda: None):
+            with self.assertRaises(q.AcceptanceCriterionMissing):
+                q.set_status(path, "in-progress")
 
     def test_cli_refuses_with_exit_2(self):
         path = _card(self.tmp, "inbox-cli")
