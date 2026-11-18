@@ -241,11 +241,11 @@ class AnUnreadableFileIsTheThirdOutcome(unittest.TestCase):
 class TheLiveTreeIsMeasuredAndKnownMembersAreShown(unittest.TestCase):
     """ЖИВОЕ дерево + ИЗВЕСТНЫЙ член по обе стороны (форма ADR-1041/1043).
 
-    Зов живого дерева стои́т в ТЕЛЕ теста намеренно: форма пробы ищет его только
-    в области `test_*` (урок замера #1195 — ровно та дверь, о которую споткнулся
-    перенос в `setUpClass`, см. ADR-1056 и `census_call_multiplier_baseline.json`).
-    Цена зова измерена и мала: разбор AST тест-каталогов, секунды, а не минуты, —
-    поэтому своего множителя этот класс не создаёт.
+    Зов живого дерева стои́т в ТЕЛЕ теста, и причина с ADR-1057 другая, чем была:
+    прежде форма пробы ИСКАЛА его только в области `test_*` (замер #1195, ADR-1056),
+    теперь метка живого ответа течёт и из классовой подготовки — значит выбор места
+    свободен. Оставлен в теле потому, что цена зова измерена и мала: разбор AST
+    тест-каталогов, секунды, а не минуты, — своего множителя этот класс не создаёт.
     """
 
     def test_the_live_census_names_the_known_member_on_each_side(self):
@@ -253,8 +253,13 @@ class TheLiveTreeIsMeasuredAndKnownMembersAreShown(unittest.TestCase):
         rows = {f"{r['file']}::{r['class']}": r for r in doc["rows"]}
         cheap = ("spa_core/tests/test_subscript_silencer.py"
                  "::TheRepoPopulationIsMeasured")
-        dear = ("spa_core/tests/test_known_member_probe_census.py"
-                "::TheLiveTreeIsMeasuredAndKnownMembersAreShown")
+        # ИЗВЕСТНЫЙ ДОРОГОЙ член сменился замером, а не вкусом: прежний
+        # (`test_known_member_probe_census.py::TheLiveTree…`) с ADR-1057 стал
+        # `once_per_class` — его зов перенесён в `setUpClass`, и база множителя
+        # уменьшилась 2 → 1. Новый взят из ОСТАВШЕЙСЯ строки объявления, у
+        # которой блокёр назван и НЕ устранён (`each_test_needs_its_own_scene`).
+        dear = ("spa_core/tests/test_run_identity_key_price.py"
+                "::BatteryHoleTests")
         self.assertIn(cheap, rows, "известный ДЕШЁВЫЙ член не найден — замер, не "
                                    "нашедший известного члена, мерой не является")
         self.assertEqual(rows[cheap]["outcome"], m.ONCE,
@@ -262,7 +267,7 @@ class TheLiveTreeIsMeasuredAndKnownMembersAreShown(unittest.TestCase):
         self.assertIn(dear, rows, "известный ДОРОГОЙ член не найден")
         self.assertEqual(rows[dear]["outcome"], m.MULTIPLIED,
                          "этот класс зовёт перепись из тела каждого теста — "
-                         "множитель 3, и он объявлен в базе")
+                         "множитель объявлен в базе")
         self.assertEqual(doc["files_unread"], 0,
                          "файлов не прочитано — ответ о дереве НЕ ПОЛОН")
 

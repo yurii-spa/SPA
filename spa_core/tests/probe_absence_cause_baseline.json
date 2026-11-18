@@ -12,27 +12,30 @@
   "Ось `distance` — о МАТЕРИАЛЕ батареи: `one_claim_away` значит, что живой",
   "зов прибора в тесте УЖЕ есть и не хватает только имени члена; это перечень",
   "КАНДИДАТОВ на «настоящая проба в неузнанном виде», и ВЕРНОСТЬ этой догадки",
-  "по каждому из них НЕ ИЗМЕРЕНА — следующий вопрос, не ответ."
+  "по каждому из них НЕ ИЗМЕРЕНА — следующий вопрос, не ответ.",
+  "СНЯТО циклом #1196 (ADR-1057) РОВНО ТЕ ЖЕ два имени, что у соседа: сторож",
+  "test_the_declared_population_is_the_siblings_membership требует ТОЖДЕСТВА",
+  "состава, и разойдись они — красным стал бы он, а не вопрос о классе."
  ],
- "measured_at": "2026-11-17",
+ "measured_at": "2026-11-18",
  "measured_in": "origin/main 449360a6f + файлы цикла #1181",
  "subjects_source": "spa_core/tests/known_member_probe_baseline.json (ADR-1041)",
- "population_at_measure": 46,
+ "population_at_measure": 44,
  "counts_at_measure": {
-  "probe_absent": 46,
+  "probe_absent": 44,
   "detector_blind": 0,
   "detector_loose": 0,
   "unmeasured": 0
  },
  "distances_at_measure": {
-  "one_claim_away": 26,
+  "one_claim_away": 24,
   "no_live_call": 20,
   "unmeasured": 0
  },
  "doors_at_measure": {
   "func+module": 1,
   "func+module+path": 1,
-  "module": 38,
+  "module": 36,
   "module+path": 4,
   "path": 2
  },
@@ -108,12 +111,6 @@
    "distance": "one_claim_away",
    "door": "module+path",
    "near_test": "test_the_rebalancer_publishes_numbers_of_a_rejected_allocation"
-  },
-  "spa_core/monitoring/cio_target_producers.py": {
-   "outcome": "probe_absent",
-   "distance": "one_claim_away",
-   "door": "module",
-   "near_test": "test_a_producer_rejecting_the_healthy_target_voids_the_tally"
   },
   "spa_core/monitoring/copy_independence_probe.py": {
    "outcome": "probe_absent",
@@ -252,12 +249,6 @@
    "distance": "one_claim_away",
    "door": "module",
    "near_test": "test_unmeasured_is_counted_apart_from_stable_in_the_doc"
-  },
-  "spa_core/monitoring/three_outcome_reader_census.py": {
-   "outcome": "probe_absent",
-   "distance": "one_claim_away",
-   "door": "module",
-   "near_test": "test_the_census_finds_its_own_cli_as_a_door"
   },
   "spa_core/monitoring/truncated_input_census.py": {
    "outcome": "probe_absent",

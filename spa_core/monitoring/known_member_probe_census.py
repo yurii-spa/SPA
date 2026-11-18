@@ -100,6 +100,7 @@ ADVISORY: прибор только ЧИТАЕТ дерево. Ни одного
 from __future__ import annotations
 
 import ast
+import copy
 import json
 import os
 import pathlib
@@ -165,6 +166,20 @@ _DISPOSABLE = re.compile(
 _ASSERT_METHODS = frozenset({
     "assertIn", "assertEqual", "assertTrue", "assertGreater", "assertGreaterEqual",
     "assertCountEqual", "assertSetEqual", "assertLess", "assertNotIn",
+})
+
+#: Методы-ПОДГОТОВКИ, чей вызов харнесс гарантирует ДО каждого теста того же
+#: класса (`unittest` — `setUp`/`setUpClass`/`asyncSetUp`, `pytest` —
+#: `setup_method`/`setup_class`). Перечень ЗАКРЫТ: имя вне него харнессом не
+#: гарантировано, и считать его подготовкой значило бы объявить пробой зов,
+#: который может не состояться вовсе.
+#:
+#: ОДНО ИМЯ — ОДИН ОБЪЕКТ (урок цикла #274). Этот же перечень читает
+#: `spa_core/monitoring/probe_candidate_root_census.py`, и расхождение двух
+#: копий означало бы, что два прибора одного семейства считают подготовкой
+#: РАЗНОЕ — то есть отвечают на разные вопросы под одним словом.
+FIXTURE_METHODS: frozenset[str] = frozenset({
+    "setUp", "setUpClass", "asyncSetUp", "setup_method", "setup_class",
 })
 
 
@@ -499,6 +514,106 @@ def _helpers_reaching_instrument(tree: ast.AST, mods: set[str], funcs: set[str],
     return frozenset(reach)
 
 
+class _ClsAsSelf(ast.NodeTransformer):
+    """`cls.<имя>` → `self.<имя>`: две формы одной привязки.
+
+    `setUpClass` ставит атрибут на `cls`, а тест читает его через `self` —
+    харнесс отдаёт ему ОДНО И ТО ЖЕ значение. Пока две формы считались разными
+    именами, засев подготовки не доходил до тела теста ни одним именем.
+    """
+
+    def visit_Attribute(self, node: ast.Attribute) -> ast.AST:
+        self.generic_visit(node)
+        if isinstance(node.value, ast.Name) and node.value.id == "cls":
+            node.value = ast.Name(id="self", ctx=node.value.ctx)
+        return node
+
+
+def _fixture_as_self(fn: ast.AST) -> ast.AST:
+    """КОПИЯ подготовки в форме `self.…`.
+
+    Копия, а не правка узла на месте: то же дерево разбирают ещё и другие оси
+    (живой корень, одноразовость, помощники), и правка на месте изменила бы их
+    ответ — ровно та ловушка «контейнер привязкой НЕ является» (#477), только с
+    другой стороны.
+    """
+    return _ClsAsSelf().visit(copy.deepcopy(fn))
+
+
+def _attr_forms(names: Iterable[str]) -> frozenset[str]:
+    """Имена тела класса — ВМЕСТЕ с их атрибутной формой.
+
+    Привязка, стоящая в теле класса (`box = tempfile.mkdtemp()`), доступна
+    методу ТОЛЬКО через атрибут (`cls.box` / `self.box`), а это ДРУГОЕ имя.
+    Пока две формы считались разными, одноразовость и живость, объявленные в
+    теле класса, до разбора подготовки НЕ ДОХОДИЛИ: зов
+    `tc.scan_repo(cls.box)` по tempfile-каталогу объявлялся живым через
+    умолчание прибора. Нашла это РАЗЛИЧАЮЩАЯ сцена собственной батареи ДО
+    доставки (`…disposable_bound_in_the_class_body…`), а не рассуждение.
+    """
+    bare = {name for name in names if "." not in name}
+    return frozenset(set(names) | {"self." + name for name in bare})
+
+
+def _class_fixture_seeds(tree: ast.AST, mods: set[str], funcs: set[str],
+                         path_strs: frozenset[str], mod_live: frozenset[str],
+                         mod_disposable: frozenset[str], makers: frozenset[str],
+                         helpers: frozenset[str],
+                         live_defaults: frozenset[str] = frozenset(),
+                         ) -> dict[ast.AST, frozenset[str]]:
+    """Для каждого теста — АТРИБУТЫ, помеченные живым ответом в подготовке.
+
+    Вопрос, который закрывает этот засев (G1044 п. 1, ADR-1057): «зовёт ли
+    батарея прибор на ЖИВОМ дереве» — свойство БАТАРЕИ, а не отдельного тела
+    `test_*`. Харнесс гарантирует, что `setUpClass` отработал до КАЖДОГО теста
+    класса, поэтому живой зов в ней есть такой же живой зов; ограничение
+    префиксом `test_` было артефактом засева, и из-за него форма требовала от
+    каждого теста СВОЕГО зова — то есть сама производила род обморока по стенным
+    часам (цена замерена ADR-1056: ×3 против ×1, 541.4 с против 181.2 с).
+
+    Вывозятся ТОЛЬКО имена вида `self.<имя>`: локальная переменная подготовки
+    телу теста не видна, и считать её привязкой значило бы объявить пробой то,
+    чего тест прочитать не может.
+
+    ГРАНИЦА, названная вслух: подготовка МОДУЛЯ (`setUpModule`) и помощник
+    класса, читающий атрибут подготовки, этим засевом не прослеживаются — ось
+    есть ПОВЕРХНОСТЬ, и ошибка её идёт в сторону БОЛЬШЕГО населения (та же
+    граница, что у засева помощников).
+    """
+    seeds: dict[ast.AST, frozenset[str]] = {}
+    for cls_node in ast.walk(tree):
+        if not isinstance(cls_node, ast.ClassDef):
+            continue
+        tests = [item for item in cls_node.body
+                 if isinstance(item, (ast.FunctionDef, ast.AsyncFunctionDef))
+                 and item.name.startswith("test_")]
+        if not tests:
+            continue
+        cls_disposable = disposable_names(cls_node, mod_disposable, makers)
+        cls_live = live_root_names(cls_node, mod_live, cls_disposable)
+        seed: set[str] = set()
+        for item in cls_node.body:
+            if not isinstance(item, (ast.FunctionDef, ast.AsyncFunctionDef)):
+                continue
+            if item.name not in FIXTURE_METHODS:
+                continue
+            fixture = _fixture_as_self(item)
+            fx_disposable = disposable_names(
+                fixture, _attr_forms(cls_disposable), makers)
+            fx_live = live_root_names(
+                fixture, _attr_forms(cls_live), fx_disposable)
+            tainted = _tainted_by_live_answer(
+                fixture, mods, funcs, path_strs, fx_live, helpers,
+                live_defaults, fx_disposable)
+            seed |= {name for name in tainted if name.startswith("self.")}
+        if not seed:
+            continue
+        frozen = frozenset(seed)
+        for item in tests:
+            seeds[item] = frozen
+    return seeds
+
+
 def _calls_name(call: ast.Call, names: Iterable[str]) -> bool:
     func = call.func
     names = set(names)
@@ -566,6 +681,8 @@ def probes_in_battery(source: str, battery_rel: str, subject_rel: str,
     live_defaults = subject_live_default_funcs(subject_source)
     helpers = _helpers_reaching_instrument(tree, mods, funcs, path_strs, mod_live,
                                            live_defaults, mod_disposable, makers)
+    seeds = _class_fixture_seeds(tree, mods, funcs, path_strs, mod_live,
+                                 mod_disposable, makers, helpers, live_defaults)
 
     found: list[Probe] = []
     for fn, outer_live, outer_disposable in _test_scopes(tree, mod_live,
@@ -573,7 +690,8 @@ def probes_in_battery(source: str, battery_rel: str, subject_rel: str,
         disposable = disposable_names(fn, outer_disposable, makers)
         live = live_root_names(fn, outer_live, disposable)
         tainted = _tainted_by_live_answer(fn, mods, funcs, path_strs, live, helpers,
-                                          live_defaults, disposable)
+                                          live_defaults, disposable,
+                                          seed=seeds.get(fn, frozenset()))
         if not tainted:
             continue
         declared_vars = declared_loop_vars(fn)
@@ -598,14 +716,20 @@ def _tainted_by_live_answer(fn: ast.AST, mods: set[str], funcs: set[str],
                             path_strs: frozenset[str], live: frozenset[str],
                             helpers: frozenset[str],
                             live_defaults: frozenset[str] = frozenset(),
-                            disposable: frozenset[str] = frozenset()
+                            disposable: frozenset[str] = frozenset(),
+                            seed: frozenset[str] = frozenset()
                             ) -> frozenset[str]:
     """Имена теста, чьё значение происходит от ЖИВОГО ответа прибора.
 
     Засев до неподвижной точки: ответ переливают через словарь, срез, помощника
     и распаковку, и мера «имя стои́т прямо в зове» теряла известных членов.
+
+    `seed` — имена, УЖЕ помеченные живым ответом ВНЕ тела теста: атрибуты,
+    поставленные классовой подготовкой (`_class_fixture_seeds`). Без них зов,
+    стоящий в `setUpClass`, пробой не считался, хотя харнесс гарантирует его
+    до каждого теста класса (ADR-1057).
     """
-    tainted: set[str] = set()
+    tainted: set[str] = set(seed)
     changed = True
     while changed:
         changed = False

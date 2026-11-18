@@ -255,6 +255,287 @@ class TheProbeFormIsMeasuredLinkByLink(unittest.TestCase):
             self.assertEqual(row.probes[0].test, "test_a_known_member_is_found")
 
 
+# ───────────────── подготовка класса — живой зов, а не его отсутствие ────────
+
+
+class APreparationOfTheClassIsALiveCallToo(unittest.TestCase):
+    """Зов в `setUpClass` — ТАКОЙ ЖЕ живой зов (G1044 п. 1, ADR-1057).
+
+    Контроль обязателен в ОБЕ стороны, и обе здесь: сцена, где зов стои́т в
+    подготовке и проба находится, и ЧЕТЫРЕ сцены, где подготовка есть, а пробы
+    по-прежнему нет. Без второй половины правка была бы не снятием ложного
+    отрицательного ответа, а ослаблением формы.
+
+    Почему вопрос вообще возник: прежняя форма искала живой зов ТОЛЬКО среди
+    функций с префиксом `test_`, поэтому каждый несущий пробу тест был обязан
+    сделать СВОЙ зов. Цена замерена ADR-1056 — три зова вместо одного, 541.4 с
+    против 181.2 с при пороге `pytest-timeout` 180 с НА ТЕСТ, то есть форма
+    сама производила род обморока по стенным часам.
+    """
+
+    def test_a_live_call_in_setUpClass_is_a_probe(self):
+        body = '''
+        import pathlib
+        import unittest
+        from spa_core.monitoring import thing_census as tc
+
+        _ROOT = pathlib.Path(__file__).resolve().parents[2]
+
+        class TheLiveTree(unittest.TestCase):
+
+            @classmethod
+            def setUpClass(cls):
+                cls.doc = tc.measure(_ROOT)
+
+            def test_a_known_member_is_found(self):
+                self.assertIn("spa_core/monitoring/watcher.py",
+                              self.doc["population"])
+        '''
+        with tempfile.TemporaryDirectory() as tmp:
+            row = _outcome(_scene(tmp, body))
+            self.assertEqual(row.outcome, km.HAS_PROBE, row)
+            self.assertEqual(row.probes[0].test, "test_a_known_member_is_found")
+            self.assertEqual(row.probes[0].item_form, km.ITEM_PATH)
+
+    def test_a_live_call_in_setUp_is_a_probe(self):
+        """`setUp` — та же гарантия харнесса, только на каждый тест."""
+        body = '''
+        import pathlib
+        import unittest
+        from spa_core.monitoring import thing_census as tc
+
+        _ROOT = pathlib.Path(__file__).resolve().parents[2]
+
+        class TheLiveTree(unittest.TestCase):
+
+            def setUp(self):
+                self.doc = tc.measure(_ROOT)
+
+            def test_a_known_member_is_found(self):
+                self.assertIn("spa_core/monitoring/watcher.py",
+                              self.doc["population"])
+        '''
+        with tempfile.TemporaryDirectory() as tmp:
+            row = _outcome(_scene(tmp, body))
+            self.assertEqual(row.outcome, km.HAS_PROBE, row)
+
+    def test_a_disposable_scene_built_in_setUpClass_is_still_not_a_probe(self):
+        """Одноразовость корня через подготовку не теряется: иначе правка
+        объявила бы пробой сцену в tempfile-каталоге, то есть СЛОМАЛА бы
+        несущее условие формы."""
+        body = '''
+        import pathlib
+        import tempfile
+        import unittest
+        from spa_core.monitoring import thing_census as tc
+
+        class TheDisposableTree(unittest.TestCase):
+
+            @classmethod
+            def setUpClass(cls):
+                cls.root = pathlib.Path(tempfile.mkdtemp())
+                cls.doc = tc.measure(cls.root)
+
+            def test_a_planted_member_is_found(self):
+                self.assertIn("spa_core/monitoring/watcher.py",
+                              self.doc["population"])
+        '''
+        with tempfile.TemporaryDirectory() as tmp:
+            row = _outcome(_scene(tmp, body))
+            self.assertEqual(row.outcome, km.NO_PROBE, row)
+
+    def test_a_preparation_the_harness_does_not_guarantee_is_not_a_probe(self):
+        """Перечень подготовок ЗАКРЫТ (`km.FIXTURE_METHODS`). Метод с любым
+        другим именем харнесс не зовёт, и считать его подготовкой значило бы
+        объявить пробой зов, который может не состояться вовсе."""
+        body = '''
+        import pathlib
+        import unittest
+        from spa_core.monitoring import thing_census as tc
+
+        _ROOT = pathlib.Path(__file__).resolve().parents[2]
+
+        class TheLiveTree(unittest.TestCase):
+
+            @classmethod
+            def prepare(cls):
+                cls.doc = tc.measure(_ROOT)
+
+            def test_a_known_member_is_found(self):
+                self.assertIn("spa_core/monitoring/watcher.py",
+                              self.doc["population"])
+        '''
+        with tempfile.TemporaryDirectory() as tmp:
+            row = _outcome(_scene(tmp, body))
+            self.assertEqual(row.outcome, km.NO_PROBE, row)
+
+    def test_a_local_name_of_the_preparation_is_not_visible_to_the_test(self):
+        """Вывозятся ТОЛЬКО атрибуты: локальная переменная подготовки телу теста
+        не видна, и привязкой она не является.
+
+        **Две формы обращения, и РАЗЛИЧАЮЩАЯ здесь вторая.** Первая редакция
+        сцены предъявляла тесту `self.doc` — и мутация «вывозить все имена, а не
+        только атрибуты» её ПЕРЕЖИЛА: засев `{'doc'}` с именем `self.doc` не
+        пересекается, ответ `no_probe` выходил по другой причине. Поэтому ниже
+        проверяются ОБА обращения, и второе ссылается на локальное имя
+        подготовки ДОСЛОВНО. Сцена не исполняется — её только разбирают, —
+        поэтому `NameError`, которым такой код кончился бы в прогоне, вопроса о
+        форме не меняет: предмет в том, считает ли прибор это привязкой.
+        """
+        shapes = {
+            "атрибут": 'self.doc["population"]',
+            "локальное имя подготовки": 'doc["population"]',
+        }
+        for shape, read in shapes.items():
+            body = '''
+            import pathlib
+            import unittest
+            from spa_core.monitoring import thing_census as tc
+
+            _ROOT = pathlib.Path(__file__).resolve().parents[2]
+
+            class TheLiveTree(unittest.TestCase):
+
+                @classmethod
+                def setUpClass(cls):
+                    doc = tc.measure(_ROOT)
+
+                def test_a_known_member_is_found(self):
+                    self.assertIn("spa_core/monitoring/watcher.py",
+                                  %s)
+            ''' % read
+            with self.subTest(shape=shape), tempfile.TemporaryDirectory() as tmp:
+                row = _outcome(_scene(tmp, body))
+                self.assertEqual(row.outcome, km.NO_PROBE, row)
+
+    def test_a_sibling_class_does_not_inherit_the_preparation_of_another(self):
+        """Гарантия харнесса — про тесты ТОГО ЖЕ класса. Засев, перелившийся в
+        соседний класс, был бы ровно тем отравлением соседа, которое уже
+        закрыто по области видимости (`scope_nodes`)."""
+        body = '''
+        import pathlib
+        import unittest
+        from spa_core.monitoring import thing_census as tc
+
+        _ROOT = pathlib.Path(__file__).resolve().parents[2]
+
+        class TheOneWithThePreparation(unittest.TestCase):
+
+            @classmethod
+            def setUpClass(cls):
+                cls.doc = tc.measure(_ROOT)
+
+            def test_the_reason_is_named(self):
+                self.assertEqual("НЕ ИЗМЕРЕНО", "НЕ ИЗМЕРЕНО")
+
+        class TheNeighbour(unittest.TestCase):
+
+            def test_a_known_member_is_found(self):
+                self.assertIn("spa_core/monitoring/watcher.py",
+                              self.doc["population"])
+        '''
+        with tempfile.TemporaryDirectory() as tmp:
+            row = _outcome(_scene(tmp, body))
+            self.assertEqual(row.outcome, km.NO_PROBE, row)
+
+    def test_a_disposable_bound_in_the_class_body_is_not_lost_by_the_preparation(self):
+        """Одноразовость ТЕЛА КЛАССА обязана доехать до разбора подготовки.
+
+        Сцена РАЗЛИЧАЮЩАЯ, и выбрана именно такой: у прибора здесь ЖИВОЕ
+        УМОЛЧАНИЕ корня (`scan_repo(root=None)`), поэтому стоит перестать
+        спрашивать об одноразовости — и зов по tempfile-каталогу объявится
+        живым через умолчание. Без такой сцены мутация «не спрашивать
+        одноразовость в подготовке» выживает: обычный прибор с ОБЯЗАТЕЛЬНЫМ
+        аргументом корня отвечает `no_probe` и так.
+        """
+        body = '''
+        import pathlib
+        import tempfile
+        import unittest
+        from spa_core.monitoring import thing_census as tc
+
+        class TheDisposableTree(unittest.TestCase):
+
+            box = tempfile.mkdtemp()
+
+            @classmethod
+            def setUpClass(cls):
+                cls.doc = tc.scan_repo(cls.box)
+
+            def test_a_planted_member_is_found(self):
+                self.assertIn("spa_core/monitoring/watcher.py",
+                              self.doc["population"])
+        '''
+        with tempfile.TemporaryDirectory() as tmp:
+            row = _outcome(_scene(tmp, body, instrument=_INSTRUMENT_LIVE_DEFAULT))
+            self.assertEqual(row.outcome, km.NO_PROBE, row)
+
+    def test_a_live_root_bound_inside_the_preparation_is_still_live(self):
+        """Живой корень, связанный В ТЕЛЕ подготовки, обязан быть виден.
+
+        Сцена РАЗЛИЧАЮЩАЯ для наследования наоборот: если считать живые имена
+        только по телу КЛАССА, имя `root` подготовки живым не станет, и проба
+        потеряется — то есть вернётся ровно тот ложный отрицательный ответ,
+        который закрывает ADR-1057, только на один уровень глубже.
+        """
+        body = '''
+        import pathlib
+        import unittest
+        from spa_core.monitoring import thing_census as tc
+
+        class TheLiveTree(unittest.TestCase):
+
+            @classmethod
+            def setUpClass(cls):
+                root = pathlib.Path(__file__).resolve().parents[2]
+                cls.doc = tc.measure(root)
+
+            def test_a_known_member_is_found(self):
+                self.assertIn("spa_core/monitoring/watcher.py",
+                              self.doc["population"])
+        '''
+        with tempfile.TemporaryDirectory() as tmp:
+            row = _outcome(_scene(tmp, body))
+            self.assertEqual(row.outcome, km.HAS_PROBE, row)
+
+    def test_a_live_root_bound_in_the_class_body_reaches_the_preparation(self):
+        """Та же привязка «тело класса → атрибут», но со стороны ЖИВОГО корня.
+
+        Контроль парный к сцене об одноразовости выше: обе стороны одной
+        привязки обязаны доезжать, иначе правка чинит одну и ломает другую.
+        """
+        body = '''
+        import pathlib
+        import unittest
+        from spa_core.monitoring import thing_census as tc
+
+        class TheLiveTree(unittest.TestCase):
+
+            root = pathlib.Path(__file__).resolve().parents[2]
+
+            @classmethod
+            def setUpClass(cls):
+                cls.doc = tc.measure(cls.root)
+
+            def test_a_known_member_is_found(self):
+                self.assertIn("spa_core/monitoring/watcher.py",
+                              self.doc["population"])
+        '''
+        with tempfile.TemporaryDirectory() as tmp:
+            row = _outcome(_scene(tmp, body))
+            self.assertEqual(row.outcome, km.HAS_PROBE, row)
+
+    def test_the_preparation_list_is_the_one_the_sibling_prober_reads(self):
+        """ОДНО ИМЯ — ОДИН ОБЪЕКТ (урок #274): два прибора одного семейства
+        закрывают дверь фикстуры с двух сторон и обязаны считать подготовкой
+        ОДНО И ТО ЖЕ. Своя копия перечня у соседа означала бы два ответа под
+        одним словом."""
+        from spa_core.monitoring import probe_candidate_root_census as pcr
+        self.assertIs(pcr.FIXTURE_METHODS, km.FIXTURE_METHODS)
+        self.assertIn("setUpClass", km.FIXTURE_METHODS)
+        self.assertNotIn("prepare", km.FIXTURE_METHODS)
+
+
 # ─────────────────────────── двери к прибору ─────────────────────────────────
 
 
@@ -445,22 +726,34 @@ class TheLiveTreeIsMeasuredAndKnownMembersAreShown(unittest.TestCase):
     класса — не вырасти против объявления.
     """
 
-    _census = None
-
     @classmethod
-    def _live(cls):
-        if cls._census is None:
-            cls._census = km.calibrated_measure(_REPO)
-        return cls._census
+    def setUpClass(cls):
+        """ЕДИНСТВЕННЫЙ живой зов на весь класс — и он остаётся ПРОБОЙ.
+
+        Цена переписи живого дерева: 121.7 с на хосте и **541.4 с у раннера**
+        при пороге `pytest-timeout` 180 с НА ТЕСТ (ADR-1056). Пока каждый тест
+        делал СВОЙ зов, класс платил её трижды и отдавал ТРИ имени в красный
+        набор БЕЗ вердикта. Ленивый классовый кэш множитель не снимал:
+        присваивание идёт ПОСЛЕ возврата, а по сроку возврата нет.
+
+        Дешёвая форма была ЗАПРЕЩЕНА формой пробы до ADR-1057: засев искал
+        живой зов только среди функций с префиксом `test_`, и зов в
+        `setUpClass` пробой не считался ВОВСЕ. Теперь метка живого ответа
+        течёт из классовой подготовки в тела тестов того же класса
+        (`_class_fixture_seeds`), и это закреплено контролем в ОБЕ стороны —
+        `APreparationOfTheClassIsALiveCallToo`. Порог НЕ поднят (инв. #16):
+        снята ПРИЧИНА множителя, а не проверка.
+        """
+        cls.census = km.calibrated_measure(_REPO)
 
     def test_the_live_census_does_not_refuse_on_this_tree(self):
-        census = self._live()
+        census = self.census
         self.assertGreater(census.population, 0)
         self.assertEqual(sum(census.counts[o] for o in km.OUTCOMES),
                          census.population)
 
     def test_every_known_member_comes_out_with_its_own_outcome(self):
-        rows = {row.rel: row for row in self._live().rows}
+        rows = {row.rel: row for row in self.census.rows}
         for rel in km.KNOWN_WITH_PROBE:
             if rel not in rows:
                 continue  # вне поверхности — сказано вслух в докстроке прибора
@@ -479,7 +772,7 @@ class TheLiveTreeIsMeasuredAndKnownMembersAreShown(unittest.TestCase):
             (_REPO / "spa_core/tests/known_member_probe_baseline.json")
             .read_text(encoding="utf-8"))
         declared = set(baseline["members"])
-        measured = {row.rel for row in self._live().rows
+        measured = {row.rel for row in self.census.rows
                     if row.outcome == km.NO_PROBE}
         new = sorted(measured - declared)
         self.assertEqual(

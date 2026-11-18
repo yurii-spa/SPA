@@ -1,0 +1,77 @@
+{
+ "title": "ADR-1057 FIXTURE — дельта цикла #1196: зов прибора в КЛАССОВОЙ ПОДГОТОВКЕ — такой же живой зов. Засев метки живого ответа из setUpClass/setUp в тела тестов ТОГО ЖЕ класса (`_class_fixture_seeds`), две формы одной привязки (`cls.X` ↔ `self.X`, `_ClsAsSelf`), привязка «тело класса → атрибут» (`_attr_forms`), перечень подготовок ЗАКРЫТ и ОДИН на два прибора (`FIXTURE_METHODS`), вывоз ТОЛЬКО атрибутов, граница класса; калибровка множителя сменила известного ДОРОГОГО члена замером",
+ "tests": [
+  "spa_core/tests/test_known_member_probe_census.py::APreparationOfTheClassIsALiveCallToo",
+  "spa_core/tests/test_known_member_probe_census.py::TheProbeFormIsMeasuredLinkByLink",
+  "spa_core/tests/test_known_member_probe_census.py::TheThreeOutcomesAreDistinguishable",
+  "spa_core/tests/test_census_call_multiplier.py"
+ ],
+ "mutations": [
+  {
+   "name": "M01 `cls.X` и `self.X` снова разные имена",
+   "file": "spa_core/monitoring/known_member_probe_census.py",
+   "old": "        if isinstance(node.value, ast.Name) and node.value.id == \"cls\":",
+   "new": "        if False:"
+  },
+  {
+   "name": "M02 перечень подготовок не фильтрует — подготовкой считается любой метод",
+   "file": "spa_core/monitoring/known_member_probe_census.py",
+   "old": "            if item.name not in FIXTURE_METHODS:",
+   "new": "            if False:"
+  },
+  {
+   "name": "M03 вывозятся не только атрибуты — локальное имя подготовки «видно» тесту",
+   "file": "spa_core/monitoring/known_member_probe_census.py",
+   "old": "            seed |= {name for name in tainted if name.startswith(\"self.\")}",
+   "new": "            seed |= set(tainted)"
+  },
+  {
+   "name": "M04 засев переливается в СОСЕДНИЙ класс (граница класса снята)",
+   "file": "spa_core/monitoring/known_member_probe_census.py",
+   "old": "        tests = [item for item in cls_node.body",
+   "new": "        tests = [item for item in ast.walk(tree)"
+  },
+  {
+   "name": "M05 одноразовость ТЕЛА КЛАССА не доезжает до подготовки",
+   "file": "spa_core/monitoring/known_member_probe_census.py",
+   "old": "            fx_disposable = disposable_names(\n                fixture, _attr_forms(cls_disposable), makers)",
+   "new": "            fx_disposable = disposable_names(\n                fixture, cls_disposable, makers)"
+  },
+  {
+   "name": "M06 живой корень ТЕЛА КЛАССА не доезжает до подготовки",
+   "file": "spa_core/monitoring/known_member_probe_census.py",
+   "old": "            fx_live = live_root_names(\n                fixture, _attr_forms(cls_live), fx_disposable)",
+   "new": "            fx_live = live_root_names(\n                fixture, cls_live, fx_disposable)"
+  },
+  {
+   "name": "M07 живой корень, связанный В ТЕЛЕ подготовки, не виден",
+   "file": "spa_core/monitoring/known_member_probe_census.py",
+   "old": "            fx_live = live_root_names(\n                fixture, _attr_forms(cls_live), fx_disposable)",
+   "new": "            fx_live = _attr_forms(cls_live)"
+  },
+  {
+   "name": "M08 засев не доезжает до тела теста (проводка в probes_in_battery)",
+   "file": "spa_core/monitoring/known_member_probe_census.py",
+   "old": "                                          seed=seeds.get(fn, frozenset()))",
+   "new": "                                          seed=frozenset())"
+  },
+  {
+   "name": "M09 засев не принимается самим счётчиком метки",
+   "file": "spa_core/monitoring/known_member_probe_census.py",
+   "old": "    tainted: set[str] = set(seed)",
+   "new": "    tainted: set[str] = set()"
+  },
+  {
+   "name": "M10 перечень подготовок у соседа — СВОЯ копия (одно имя, два объекта)",
+   "file": "spa_core/monitoring/probe_candidate_root_census.py",
+   "old": "FIXTURE_METHODS: frozenset[str] = kmp.FIXTURE_METHODS",
+   "new": "FIXTURE_METHODS: frozenset[str] = frozenset({\"setUp\", \"setUpClass\"})"
+  },
+  {
+   "name": "M11 калибровка множителя держит ПРЕЖНЕГО дорогого члена (он стал once_per_class)",
+   "file": "spa_core/tests/test_census_call_multiplier.py",
+   "old": "        dear = (\"spa_core/tests/test_run_identity_key_price.py\"\n                \"::BatteryHoleTests\")",
+   "new": "        dear = (\"spa_core/tests/test_known_member_probe_census.py\"\n                \"::TheLiveTreeIsMeasuredAndKnownMembersAreShown\")"
+  }
+ ]
+}
