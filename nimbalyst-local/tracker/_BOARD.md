@@ -2,11 +2,11 @@
 
 > Авто-генерится `scripts/build_tracker_board.py` из `nimbalyst-local/tracker/*.md`. НЕ править вручную — правь карточки. Источник правды — карточки, это индекс (bootstrap).
 >
-> Собрана: 2026-11-18T10:37:31Z · сверка с карточками: `python3 scripts/build_tracker_board.py --check` (сторож `spa_core/tests/test_tracker_board_matches_cards.py`).
+> Собрана: 2026-11-18T10:44:43Z · сверка с карточками: `python3 scripts/build_tracker_board.py --check` (сторож `spa_core/tests/test_tracker_board_matches_cards.py`).
 >
-> Сверено с `feeb072c8a8cb4a4826cffb972fc02cfeaf0da93` (feeb072c8) · у **3** своя правка, кто новее — не измерено.
+> Сверено с `0f1aa36badd3c7e2371c5b37a24f2b57629a88f2` (0f1aa36ba) · у **1** своя правка, кто новее — не измерено.
 >
-> Всего карточек: **1653** · ждёт владельца: **12** · занято сессиями: **14**.
+> Всего карточек: **1654** · ждёт владельца: **12** · занято сессиями: **14**.
 
 ## 🔴 ЖДЁТ ВЛАДЕЛЬЦА (needs-owner)
 
@@ -441,7 +441,7 @@
 ### · closed
 - Считать ли верный отказ по правилам допуска неисправностью флота  ·  `owner-decision-schitat-li-vernyi-otkaz-po-pravilam-dopu.md` · 2026-10-08
 
-## 📥 Inbox (задания: Telegram / заметки / голос)  (952)
+## 📥 Inbox (задания: Telegram / заметки / голос)  (953)
 
 ### · in-progress
 - а задача починить все-таки еще раз сообщение которым не пишет нужно твое решени…  ·  `inbox-a-zadacha-pochinit-vse-taki-esche-raz-so.md` · 2026-08-14 · 🔒 `pid43119`
@@ -1122,6 +1122,7 @@
 - Измерить население класса «умолчание связывает изменяемый объявленный дом»  ·  `inbox-izmerit-naselenie-klassa-umolchanie-svya.md` · 2026-11-15
 - Измерить население класса: усечённый клон отвечает о происхождении коммита молча и НЕВЕРНО  ·  `inbox-izmerit-naselenie-klassa-usechennyi-klon.md` · 2026-11-04
 - Измерить население рода «пол над величиной, которую законная операция уменьшает»  ·  `inbox-izmerit-naselenie-roda-pol-nad-velichino.md` · 2026-11-18
+- Карточка голодающего приказа выросла до 4,95 МБ — это 31,8 % трекера, и её велено открывать ПЕРВОЙ каждый цикл  ·  `inbox-kartochka-golodayuschego-prikaza-vyrosla.md` · 2026-11-18
 - Карточка, рождённая через 4 ч 54 мин ПОСЛЕ починки ADR-866, ключа близнеца не несёт — и три дешёвые гипотезы опровергнуты  ·  `inbox-kartochka-rozhdennaya-cherez-4-ch-54-min.md` · 2026-10-30
 - Карточку моста закрыли руками — живая находка осиротела: мост считает её открытой и новую не заведёт  ·  `inbox-kartochku-mosta-zakryli-rukami-zhivaya-n.md` · 2026-08-17
 - Каталог доставки берётся из окружения: 15 зовов git, включая checkout origin/main в прод-дерево  ·  `inbox-katalog-dostavki-beretsya-iz-okruzheniya.md` · 2026-09-12
