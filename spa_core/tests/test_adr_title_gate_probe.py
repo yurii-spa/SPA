@@ -38,6 +38,10 @@ _PROBE = PROBES["adr_title_gate_refuses_a_fat_register"]
 _PUSHER = "push_to_github.py"
 _BATCH = "push_to_github_batch.py"
 _REGISTER = Path("docs") / "decisions" / "INDEX.md"
+#: Архивная часть реестра (ADR-1046). Сцена обязана нести ОБЕ части: пол числа
+#: строк принадлежит их объединению, и дерево с одной частью есть «НЕ ИЗМЕРЕНО»,
+#: а не «чисто» (ADR-1048).
+_ARCHIVE = Path("docs") / "decisions" / "INDEX-ARCHIVE.md"
 
 #: Тот же блоб, что объявлен в самой пробе. Литерал здесь НАМЕРЕННО: сцена,
 #: взявшая его у проверяемого кода, сверяла бы его сам с собой.
@@ -64,7 +68,7 @@ class _Scene:
 
     def __init__(self, test: unittest.TestCase, *, swap=None, swap_batch=None,
                  drop_pusher=False, drop_parser=False, drop_blob=False,
-                 register_text=None):
+                 register_text=None, archive_text=None, drop_archive=False):
         self.root = Path(tempfile.mkdtemp(prefix="spa_c1004_title_gate_"))
         test.addCleanup(shutil.rmtree, self.root, ignore_errors=True)
 
@@ -97,6 +101,11 @@ class _Scene:
         if register_text is None:
             register_text = (_REPO / _REGISTER).read_text(encoding="utf-8")
         target.write_text(register_text, encoding="utf-8")
+
+        if not drop_archive:
+            if archive_text is None:
+                archive_text = (_REPO / _ARCHIVE).read_text(encoding="utf-8")
+            (self.root / _ARCHIVE).write_text(archive_text, encoding="utf-8")
 
     def _copy(self, rel: str, swap) -> None:
         src = (_REPO / rel).read_text(encoding="utf-8")
@@ -232,9 +241,57 @@ class TheThirdOutcomeIsItsOwnAnswer(unittest.TestCase):
         tiny = ("# ADR INDEX\n\n| ADR | Заголовок | Статус | Файл |\n"
                 "|---|---|---|---|\n"
                 "| ADR-001 | Короткий | Accepted | [ADR-001](ADR-001-x.md) |\n")
-        status, detail = _Scene(self, register_text=tiny).verdict()
+        status, detail = _Scene(self, register_text=tiny,
+                                archive_text=tiny).verdict()
         self.assertEqual(status, NOT_SATISFIED, detail)
         self.assertIn("столько не бывает", detail)
+        # Обе части названы числом: читатель не должен угадывать, какая пуста.
+        self.assertIn("INDEX-ARCHIVE.md", detail)
+
+    def test_asking_only_the_live_part_reddens_a_CORRECT_tree(self):
+        """Звено ОБЪЕДИНЕНИЯ — дословная авария цикла #1186 (ADR-1048).
+
+        Пол 500 был верен, пока реестр был ОДНИМ накапливающимся файлом: такая
+        величина монотонна. ADR-1046 перенёс 745 строк в архивную часть, живая
+        осталась со 152 — и пол, оставленный на НЕмонотонной величине, покраснел
+        на ВЕРНОМ состоянии: восемь имён этого файла приехали в красный набор
+        прогона `44199840467`, а потеряно не было НИ ОДНОЙ строки.
+
+        Сцена отнимает у гейта ВТОРУЮ часть объявления — ровно то, чем проба
+        была до этой правки, — и проба обязана покраснеть на НАСТОЯЩЕМ дереве.
+        Без этой сцены возврат пола на живую часть не изменил бы ни одного
+        вердикта.
+        """
+        status, detail = _Scene(self, swap=(
+            "ADR_REGISTER_PARTS = (ADR_REGISTER_REL, ADR_REGISTER_ARCHIVE_REL)",
+            "ADR_REGISTER_PARTS = (ADR_REGISTER_REL,)")).verdict()
+        self.assertEqual(status, NOT_SATISFIED, detail)
+        self.assertIn("столько не бывает", detail)
+
+    def test_a_missing_part_of_the_register_is_unmeasured_not_clean(self):
+        """Непрочитанная часть ⇒ про ОБЪЕДИНЕНИЕ не измерено ничего (инв. #17).
+
+        «Толстых нет» у половины реестра было бы утверждением о замере, которого
+        не было, и оно тише красного теста — поэтому опаснее.
+        """
+        status, detail = _Scene(self, drop_archive=True).verdict()
+        self.assertEqual(status, UNMEASURED, detail)
+        self.assertIn("INDEX-ARCHIVE.md", detail)
+        self.assertIn("НЕ ИЗМЕРЕНО", detail)
+
+    def test_a_fat_row_in_the_ARCHIVE_part_is_refused_too(self):
+        """Архивная часть судится ТЕМ ЖЕ пределом, а не хранится без вопросов.
+
+        Иначе «перенести строку в архив» стало бы способом увезти толстую
+        строку молча — то есть обходом гейта ADR-889 через дверь ADR-1046.
+        """
+        archive = (_REPO / _ARCHIVE).read_text(encoding="utf-8")
+        fat_row = (f"| ADR-998 | {'я' * 400} | Accepted | "
+                   f"[ADR-998](ADR-998-x.md) |\n")
+        status, detail = _Scene(self, archive_text=archive + fat_row).verdict()
+        self.assertEqual(status, NOT_SATISFIED, detail)
+        self.assertIn("не проходит свой же гейт", detail)
+        self.assertIn("INDEX-ARCHIVE.md", detail)
 
     def test_a_tree_without_the_single_parsing_door_is_unmeasured(self):
         """Прибора разбора нет ⇒ `unmeasured`, даже на ЧИСТОМ реестре.

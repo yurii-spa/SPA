@@ -16460,19 +16460,40 @@ def _probe_adr_title_gate_refuses_a_fat_register(arg: str | None = None,
                             f"НЕ ИЗМЕРЕНО")
     for need in ("enforce_delivery_adr_titles", "DeliveredAdrTitleIsFat",
                  "FAT_ADR_TITLE_EXIT", "pin_delivery_bytes",
-                 "reset_delivery_pin", "ADR_REGISTER_REL"):
+                 "reset_delivery_pin", "ADR_REGISTER_REL",
+                 "ADR_REGISTER_PARTS"):
         if not hasattr(ptg, need):
             return NOT_SATISFIED, (
                 f"у гейта нет `{need}` — доставка по-прежнему не спрашивает, "
                 f"является ли строка реестра заголовком")
 
     register_rel = ptg.ADR_REGISTER_REL
-    live_path = os.path.join(root, register_rel)
-    try:
-        with open(live_path, encoding="utf-8") as fh:
-            live_text = fh.read()
-    except OSError as exc:
-        return UNMEASURED, f"живой реестр не прочитан ({exc}) — НЕ ИЗМЕРЕНО"
+    #: ЧАСТЕЙ ДВЕ (ADR-1046), и пол числа строк принадлежит их ОБЪЕДИНЕНИЮ.
+    #: ЗАЧЕМ так, а не «живая часть» (находка цикла #1186, ADR-1048): пол 500
+    #: был верен, пока реестр был ОДНИМ накапливающимся файлом — такая величина
+    #: монотонна, и «строк меньше пола» могло означать только сломанный разбор.
+    #: ADR-1046 перенёс 745 строк ≤ ADR-900 в архивную часть, и живая часть
+    #: перестала быть монотонной: 897 → 152 строки БЕЗ единой потери. Пол,
+    #: оставленный на НЕмонотонной величине, покраснел на ВЕРНОМ состоянии и
+    #: увёз восемь имён в красный набор CI (прогон 44199840467). Объединение
+    #: монотонно по построению: архиватор сам сверяет ключи до/после и отказывает
+    #: ДО записи, то есть строка может только переехать между частями.
+    register_parts = tuple(ptg.ADR_REGISTER_PARTS)
+    if register_rel not in register_parts:
+        return NOT_SATISFIED, (
+            f"живая часть `{register_rel}` не названа среди частей реестра "
+            f"{list(register_parts)} — гейт судил бы не тот файл")
+    part_texts = []
+    for rel in register_parts:
+        try:
+            with open(os.path.join(root, rel), encoding="utf-8") as fh:
+                part_texts.append((rel, fh.read()))
+        except OSError as exc:
+            # Fail-CLOSED: непрочитанная часть означает, что про ОБЪЕДИНЕНИЕ не
+            # измерено ничего. «Толстых нет» у половины реестра — утверждение о
+            # замере, которого не было (инв. #17).
+            return UNMEASURED, (f"часть реестра `{rel}` не прочитана ({exc}) — "
+                                f"ОБЪЕДИНЕНИЕ частей НЕ ИЗМЕРЕНО")
 
     try:
         out = _sp.run(["git", "cat-file", "blob", incident_blob],
@@ -16486,8 +16507,8 @@ def _probe_adr_title_gate_refuses_a_fat_register(arg: str | None = None,
             f"предпосылка ХАРНЕССА (`fetch-depth: 0`), а не предмет пробы")
     incident_text = out.stdout.decode("utf-8", "replace")
 
-    def _scene(tmp: str, text: str) -> str:
-        p = os.path.join(tmp, *register_rel.split("/"))
+    def _scene(tmp: str, text: str, rel: str = register_rel) -> str:
+        p = os.path.join(tmp, *rel.split("/"))
         os.makedirs(os.path.dirname(p), exist_ok=True)
         with open(p, "w", encoding="utf-8") as fh:
             fh.write(text)
@@ -16500,14 +16521,17 @@ def _probe_adr_title_gate_refuses_a_fat_register(arg: str | None = None,
     # то есть её снятие не меняло ни одного вердикта. Копия, которую нельзя
     # проверить, и есть fail-OPEN на будущее: завтра в неё добавят условие, и
     # «не измерено» снова уедет под именем «не выполнено».
-    scenes = (
-        ("ЖИВОЙ реестр", live_text, "within_limit"),
-        (f"дословные байты аварии {incident_blob[:12]}", incident_text, "refused"),
-    )
+    scenes = [(f"ЖИВАЯ часть реестра `{rel}`", rel, text, "within_limit")
+              for rel, text in part_texts]
+    scenes.append((f"дословные байты аварии {incident_blob[:12]}",
+                   register_rel, incident_text, "refused"))
+    #: Строки СУММИРУЮТСЯ по частям: вопрос «не сломан ли разбор формы» задан
+    #: объединению, и ни одна часть по отдельности на него не отвечает.
     live_rows = 0
-    for label, text, expect in scenes:
+    part_rows = []
+    for label, scene_rel, text, expect in scenes:
         with _tf.TemporaryDirectory() as tmp:
-            target = _scene(tmp, text)
+            target = _scene(tmp, text, scene_rel)
             refusal = ""
             try:
                 ptg.pin_delivery_bytes([target])
@@ -16545,12 +16569,9 @@ def _probe_adr_title_gate_refuses_a_fat_register(arg: str | None = None,
                     f"бы на main молча, как 01.11")
 
             if expect == "within_limit":
-                live_rows = verdicts[0].get("rows", 0)
-                if live_rows < 500:
-                    return NOT_SATISFIED, (
-                        f"в живом реестре измерено всего {live_rows} строк — "
-                        f"столько не бывает, значит разбор формы сломан и "
-                        f"«толстых нет» ничего не значит")
+                rows = verdicts[0].get("rows", 0)
+                live_rows += rows
+                part_rows.append(f"{scene_rel} {rows}")
             else:
                 for key, chars in incident_fat.items():
                     if f"ADR-{key}" not in refusal or str(chars) not in refusal:
@@ -16562,6 +16583,17 @@ def _probe_adr_title_gate_refuses_a_fat_register(arg: str | None = None,
                     return NOT_SATISFIED, (
                         "отказ не назвал команду починки — сторож, не назвавший "
                         "выход, учит обходить себя, а не чинить предмет")
+
+    if live_rows < 500:
+        # Звено числа строк — дыра, найденная мутацией №21 своего же прибора:
+        # «толстых нет» у реестра из ОДНОЙ строки ничего не значит, так отвечал
+        # бы и сломанный разбор формы. Пол стоит над ОБЪЕДИНЕНИЕМ частей
+        # (ADR-1048): над живой частью он судил бы величину, которую архивация
+        # законно уменьшает, то есть краснел бы на верном состоянии.
+        return NOT_SATISFIED, (
+            f"во ВСЕХ частях реестра измерено всего {live_rows} строк "
+            f"({' · '.join(part_rows)}) — столько не бывает, значит разбор "
+            f"формы сломан и «толстых нет» ничего не значит")
 
     # 3. ПРОВОДКА — гейт зван в main() ОБЕИХ дверей и ПОСЛЕ пина байтов.
     for label, path in (("push_to_github.py", pusher),
@@ -16598,7 +16630,8 @@ def _probe_adr_title_gate_refuses_a_fat_register(arg: str | None = None,
             f"интерлока — читатель лечил бы не ту болезнь")
 
     return SATISFIED, (
-        f"живой реестр ({live_rows} строк) проходит гейт доставки; дословные байты "
+        f"реестр ({live_rows} строк в {len(part_texts)} част(ях): "
+        f"{' · '.join(part_rows)}) проходит гейт доставки; дословные байты "
         f"аварии {incident_blob[:12]} ОТКЛОНЕНЫ кодом {ptg.FAT_ADR_TITLE_EXIT} с "
         f"номером и длиной каждой толстой ячейки (ADR-886 · 201, ADR-887 · 283); "
         f"гейт зван в main() обеих дверей доставки после пина байтов")
