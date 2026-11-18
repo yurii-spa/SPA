@@ -6835,6 +6835,140 @@ def _probe_carried_release_is_one_condition(
                          f"освобождён, обещанный отклонён ({why[:60]}…), тавтологичный отклонён")
 
 
+#: ДЕСЯТЬ inbox-карточек, закрытых БЕЗ машинного критерия приёмки (замер цикла #1186,
+#: дифференциально на чистом `f5cab0fa4`: 1 failed / 5 passed). Перечень взят ДОСЛОВНО из
+#: карточки `inbox-desyat-kartochek-zakryty-dveryu-kotoraya`, написанной циклом #1187
+#: (ADR-1049), — то есть предмет назван НЕ той сессией, что его закрывает.
+#: Ни одно имя никогда не жило в `scripts/inbox_acceptance_baseline.json` (замер #1187).
+_TEN_CLOSED_WITHOUT_CRITERION = (
+    "inbox-dogonyayuschii-dnevnoi-tsikl-storozh-pro.md",
+    "inbox-hrapovik-zamorozhennyh-dat-krasen-na-chi.md",
+    "inbox-imena-upavshih-testov-na-main-zhivut-tol.md",
+    "inbox-kupit-zont-v-pyatnitsu-5.md",
+    "inbox-kupit-zont-v-pyatnitsu-6.md",
+    "inbox-neprimenennyi-otvet-vladeltsa-1-adresat-2.md",
+    "inbox-pribory-brosayut-odnorazovyi-stend-87-gb.md",
+    "inbox-shest-kartochek-zaperty-pustym-claimed-a.md",
+    "inbox-sto-tridtsat-devyat-broshennyh-derevev-t.md",
+    "inbox-strazh-provenansa-chitaet-pravku-stroki.md",
+)
+
+#: Причина выбранной дороги — ЗНАЧЕНИЕ поля, а не абзац прозы. Подстрокой проба не
+#: проходит (ADR-333): пустое поле и поле-заглушка причиной не являются.
+_FATE_REASON_RE = re.compile(r"^fate_reason:\s*(\S.*?)\s*$", re.M)
+#: Минимальная длина причины. Не «стиль»: односимвольное значение прошло бы проверку
+#: «поле непусто» и не сказало бы НИЧЕГО — это и был бы флаг вместо причины.
+_FATE_REASON_MIN = 20
+
+
+def _probe_closed_cards_fate_named(arg: str | None = None) -> tuple[str, str]:
+    """Критерий карточки `inbox-desyat-kartochek-zakryty-dveryu-kotoraya` (ADR-1051).
+
+    Критерий назван ДО работы и НЕ этой сессией — он стоит в теле карточки, написанном
+    циклом #1187: «храповик приёмки зелёный на чистом дереве БЕЗ правок базы и без новых
+    `acceptance_probe:` у этих десяти карточек, а у каждой из десяти в теле записана
+    причина выбранной дороги». Проба его лишь МЕХАНИЗИРУЕТ.
+
+    Меряется ИСХОД, а не структура: у сторожа спрашивают его СОБСТВЕННЫЙ вердикт
+    (`test_no_new_card_is_in_work_without_a_criterion`), а не повторяют его условие своей
+    редакцией. Все читатели ввозятся из сторожа и из исполнителя очереди — своей копии
+    `INTAKE_STATUSES`, `carried_release` и разбора frontmatter здесь НЕТ (ADR-501: две
+    копии условия расходятся молча и предсказуемо).
+
+    ТРИ ИСХОДА РАЗЛИЧИМЫ (инв. #17):
+
+    * сторож или исполнитель не импортируются / база освобождений НЕ ПРОЧИТАНА / ни одной
+      из десяти карточек нет в дереве ⇒ ``unmeasured`` с названной причиной. Пустое
+      множество карточек НЕ читается как «все разобраны» — это была бы вакуумная зелень;
+    * имя дописано в базу · проба объявлена задним числом · судьба не названа ни одной из
+      трёх дорог · дорога выбрана, а причина не названа · храповик КРАСЕН ⇒
+      ``not_satisfied`` с ИМЕНЕМ карточки и названным звеном;
+    * иначе ``satisfied`` с разбивкой по дорогам (возврат в приём / заработанное
+      освобождение).
+    """
+    try:
+        import spa_core.tests.test_inbox_acceptance_ratchet as _ratchet
+        from spa_core.owner_queue.queue import INTAKE_STATUSES, carried_release
+    except Exception as exc:  # noqa: BLE001 — отсутствие прибора это третий исход
+        return UNMEASURED, (f"сторож приёмки или исполнитель очереди не импортируются "
+                            f"({exc.__class__.__name__}: {exc}) — про судьбу десяти НЕ "
+                            f"ИЗМЕРЕНО ничего")
+
+    # Проводка, а не зелень: сторож обязан читать ТЕ ЖЕ объекты, что исполнитель.
+    # Разойдись они — проба судила бы о мире, которого сторож не видит.
+    if _ratchet.carried_release is not carried_release:
+        return NOT_SATISFIED, ("сторож читает НЕ ту функцию освобождения, что исполнитель "
+                               "очереди — снова две копии условия (ADR-501)")
+    if _ratchet.INTAKE_STATUSES is not INTAKE_STATUSES:
+        return NOT_SATISFIED, ("сторож читает НЕ то множество статусов приёма, что "
+                               "исполнитель очереди — снова две копии (заказ G42 п. 1)")
+
+    base = _ratchet._baseline()
+    if base is None:
+        return UNMEASURED, ("база освобождений НЕ ПРОЧИТАНА — освобождение этих карточек "
+                            "по базе не измерено (ADR-1049); это не «чисто»")
+
+    present = [n for n in _TEN_CLOSED_WITHOUT_CRITERION
+               if (_ratchet._TRACKER / n).is_file()]
+    if not present:
+        return UNMEASURED, ("ни одной из десяти названных карточек нет в дереве "
+                            f"{_ratchet._TRACKER} — предмет НЕ ИЗМЕРЕН, и пустое "
+                            f"множество за «все разобраны» не выдаётся")
+
+    broken: list[str] = []
+    returned: list[str] = []
+    carried: list[str] = []
+    for name in present:
+        fm = _ratchet._frontmatter(name)
+        if name in base:
+            broken.append(f"{name}: имя дописано в базу освобождений — инв. #16, "
+                          f"база только уменьшается")
+            continue
+        if _ratchet.has_criterion(name):
+            broken.append(f"{name}: у ЗАКРЫТОЙ карточки объявлена проба — это критерий "
+                          f"задним числом, самосертификация (.claude/rules/acceptance.md п. 2)")
+            continue
+        status = _ratchet.status_of(name)
+        home = _ratchet.carried_home(name)
+        if status in INTAKE_STATUSES:
+            road = f"возврат в приём (status: {status})"
+            returned.append(name)
+        elif home:
+            road = f"заработанное освобождение (carried_to: {home})"
+            carried.append(name)
+        else:
+            broken.append(f"{name}: судьба НЕ названа — статус `{status}` вне приёма, "
+                          f"заработанного `carried_to` нет")
+            continue
+        m = _FATE_REASON_RE.search(fm)
+        reason = (m.group(1).strip().strip('"\'') if m else "")
+        if len(reason) < _FATE_REASON_MIN:
+            broken.append(f"{name}: дорога выбрана ({road}), а причина НЕ названа "
+                          f"(`fate_reason` {'короче ' + str(_FATE_REASON_MIN) + ' символов' if m else 'отсутствует'})")
+
+    if broken:
+        return NOT_SATISFIED, ("судьба десяти разобрана НЕ до конца:\n  "
+                               + "\n  ".join(broken))
+
+    # Вердикт СТОРОЖА, а не пересказ его условия: он один знает про ВСЕ карточки дерева,
+    # а не только про названные десять, и новый нарушитель рядом тоже обязан покраснить.
+    try:
+        _ratchet.test_no_new_card_is_in_work_without_a_criterion()
+    except AssertionError as exc:
+        first = str(exc).strip().splitlines()
+        return NOT_SATISFIED, ("храповик приёмки КРАСЕН своим собственным вердиктом: "
+                               + " / ".join(first[:4]))
+    except Exception as exc:  # noqa: BLE001 — сторож не отработал это третий исход
+        return UNMEASURED, (f"вердикт сторожа НЕ ПОЛУЧЕН ({exc.__class__.__name__}: {exc}) — "
+                            f"это не «зелёный»")
+
+    missing = len(_TEN_CLOSED_WITHOUT_CRITERION) - len(present)
+    tail = f"; названных карточек нет в дереве: {missing}" if missing else ""
+    return SATISFIED, (f"судьба названа у {len(present)} карточек: возврат в приём "
+                       f"{len(returned)}, заработанное освобождение {len(carried)}; "
+                       f"храповик приёмки зелен своим вердиктом, база не тронута{tail}")
+
+
 def _probe_research_evidence_tail_closed(arg: str | None, *, now: "datetime | None" = None) -> tuple[str, str]:
     """Критерий карточки `inbox-hvost-adr-564-…`: пять дефектов фабрики исследований, названных
     повторным разбором ADR-564, закрыты — по ИСХОДУ, на настоящем коде, в одноразовом каталоге.
@@ -19957,6 +20091,7 @@ PROBES: dict[str, Callable[[str | None], "tuple[str, str]"]] = {
         _probe_queue_reader_names_uncompared_order,
     "card_copies_agree": _probe_card_copies_agree,
     "named_cards_closed_at_origin": _probe_named_cards_closed_at_origin,
+    "closed_cards_fate_named": _probe_closed_cards_fate_named,
     "forbidden_import_gate_single_instrument":
         _probe_forbidden_import_gate_single_instrument,
     "ci_main_verdict_green": _probe_ci_main_verdict_green,

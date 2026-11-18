@@ -2,10 +2,19 @@
 trackerStatus:
   type: inbox
 title: Десять карточек закрыты дверью, которая их пропустить не должна была — судьба десяти НЕ разобрана (ADR-1049)
-status: new
+status: done
 source: nimbalyst
 created: 2026-11-18
 twin_key: "sha256:cafbac5444a20b3d5fb1e83225f25d231516ce32f2bb1996aabfe581095caea6"
+acceptance_probe: closed_cards_fate_named
+claimed_by: cycle-60184
+claimed_at: 2026-11-18T05:20:52Z
+claimed_run_id: orchestrator-60184-32294AC39B3540A4A83CE4D2AE17A79D
+claimed_pid: 60184
+claimed_pid_start: Wed Nov 18 06:09:07 2026
+status_trail:
+  - "2026-11-18T05:20:52.014586+00:00 new -> in-progress · queue.set_status · cycle-60184"
+  - "2026-11-18T05:45:57.730375+00:00 in-progress -> done · queue.set_status/closed_by:agent:orchestrator cycle-60184 (цикл #1189, ADR-1051)/evidence:проба closed_cards_fate_named: satisfied — судьба названа у 10 карточек (возврат в приём 7, заработанное освобождение 3), храповик приёмки 6 passed своим вердиктом, scripts/inbox_acceptance_baseline.j · cycle-60184"
 ---
 
 ## Что случилось и почему это важно

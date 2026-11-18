@@ -5,8 +5,11 @@ title: Неприменённый ответ владельца «1» — адр
 status: done
 source: telegram
 created: 2026-09-17
+fate_reason: "заработанное освобождение: это след бота, предмет уехал в вопрос владельцу об этом же ответе"
+carried_to: nimbalyst-local/tracker/owner-decision-utochnenie-po-zametke-neprimenennyi-otve.md
 status_trail:
   - "2026-10-03T07:26:33.388652+00:00 new -> done · queue.set_status"
+  - "2026-11-18T05:23:07.047214+00:00 done -> done · queue.set_status/closed_by:agent:orchestrator cycle-60184 (цикл #1189, ADR-1051)/evidence:носитель: карточка написана ботом и сама называет себя следом, а не работой; предмет уехал в owner-decision-utochnenie-po-zametke-neprimenennyi-otve (17.09, ingested) · cycle-60184"
 ---
 
 ## Неприменённый ответ владельца — это НЕ задание
@@ -60,3 +63,16 @@ status_trail:
 
 ---
 _Карточку создал бот (`inbox_intake.save_unapplied_owner_answer`) — см. класс `inbox-golyi-otvet-vladeltsa-1-2-pri-voprose-be`._
+
+---
+
+## Судьба карточки разобрана — цикл #1189 (2026-11-18, ADR-1051)
+
+**Дорога — заработанное освобождение (`carried_to`), и выбрана она по ТЕЛУ самой
+карточки, а не по удобству.** Карточка написана ботом и прямо говорит: «Задачей это НЕ
+исполнять… здесь останется только закрыть этот след (`done`) со ссылкой». То есть это
+карточка-НОСИТЕЛЬ, а не работа.
+
+Цель измерена: `owner-decision-utochnenie-po-zametke-neprimenennyi-otve` (создана 17.09
+приёмом заданий, `source: intake`, цитирует ЭТОТ текст дословно, статус `ingested`).
+Предмет — «какому вопросу относился ответ „1“» — уехал туда и там закрыт.

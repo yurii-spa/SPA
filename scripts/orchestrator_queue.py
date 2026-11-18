@@ -1068,15 +1068,22 @@ def cmd_set_status(args) -> int:
         refused = _carry_answer_before_closing(args)
         if refused is not None:
             return refused
+    _carried = getattr(args, "carried_to", None)
     try:
         set_status(args.path, args.status, closed_by=getattr(args, "closed_by", None),
-                   evidence=getattr(args, "evidence", None))
+                   evidence=getattr(args, "evidence", None), carried_to=_carried)
     except (OwnerDoneForbidden, AcceptanceCriterionMissing, LifecycleRefused) as exc:
         print(f"REFUSED: {exc}", file=sys.stderr)
         return 2
     except Exception as exc:  # noqa: BLE001
         print(f"ERROR: {exc}", file=sys.stderr)
         return 1
+    # Освобождение ПЕЧАТАЕТСЯ: три исхода различимы (инв. #17) — заработано (эта ветка;
+    # отказ `carried_release` уходит выше как REFUSED) либо НЕ ЗАЯВЛЕНО вовсе (не
+    # печатается ничего). Молчание на заработанном сделало бы «освободили носителя»
+    # неотличимым от «просто поменяли статус».
+    if _carried:
+        print(f"OK: носитель освобождён — содержимое уехало в {_carried}")
     print(f"OK: {args.path} -> status: {args.status}")
     # `args.path` может указывать в СОСЕДНЕЕ дерево (worktree §3.4) — доску обязано
     # пересобрать то дерево, чью карточку только что поменяли, а не дерево этой копии
@@ -1439,6 +1446,19 @@ def build_parser() -> argparse.ArgumentParser:
                     help="каталог трекера, где искать след ответа владельца перед `ingested` "
                          "(повторяемый). По умолчанию — рабочие деревья этого репозитория, "
                          "главное первым: бот пишет ответ именно туда")
+    # ЗАРАБОТАННОЕ ОСВОБОЖДЕНИЕ НОСИТЕЛЯ — ДВЕРЬ CLI (ADR-1051).
+    #
+    # До этой правки `carried_to` был ПАРАМЕТРОМ БИБЛИОТЕЧНОГО вызова и только им: из
+    # CLI честная дорога «содержимое уехало ВОТ ТУДА» была НЕДОСТИЖИМА, и сессии,
+    # которым надо было погасить носителя, шли одноразовым `python3 -c`. Замер #1187:
+    # все ДЕСЯТЬ карточек, закрытых без критерия, записаны именно так (`argv: "-c"`,
+    # десять разных pid за 24 дня) — то есть единственная дверь, которую CLI предлагал,
+    # была НЕ та. Условие не ослаблено ни на байт: путь обязан СУЩЕСТВОВАТЬ и лежать в
+    # мире носителя, и судит его та же единственная копия `carried_release` (ADR-501).
+    ps.add_argument("--carried-to", dest="carried_to", default=None,
+                    help="путь, куда УЕХАЛО содержимое карточки-носителя (ADR-377/501/1051): "
+                         "карточка трекера или заметка docs/ideas/, которая ОБЯЗАНА существовать. "
+                         "Освобождение заработанное — обещание пути не освобождает ничего")
     ps.set_defaults(func=cmd_set_status)
 
     pc = sub.add_parser("create", help="create a new card (used by Telegram/Obsidian intake)")
