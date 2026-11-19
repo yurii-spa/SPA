@@ -47,6 +47,30 @@ from spa_core.backtesting.tier1 import pipeline_health as ph
 from spa_core.governance.kill_switch import KillSwitchChecker
 from spa_core.monitoring import self_heal
 from spa_core.monitoring import threat_reactor
+from spa_core.tests import _hermetic_launchd
+
+
+# ─── обещание шапки, ИСПОЛНЯЕМОЕ, а не написанное ────────────────────────────
+#
+# Шапка этого файла обещает «No launchctl is invoked», и до 19.11 обещание было
+# НЕВЕРНО в обе стороны:
+#
+#   * правило 3b (`self_heal` → `catchup_cycle.run`, ADR-1052) читало ЖИВОЕ
+#     состояние, и вердикт сцены становился свойством ЧАСА СУТОК: при отметке
+#     снимка дерева прогона `decide` отвечает `not_due` в 09:20 UTC и `launched`
+#     в 10:20 (`CATCHUP_HOUR_UTC = 10`). Прогон `44512922177` назвал красным
+#     `test_self_heal_healthy_when_all_present` при НЕИЗМЕННЫХ байтах;
+#   * `threat_reactor._kickstart_cycle` (`threat_reactor.py:277`) — прямой
+#     `subprocess`, и `dry_run=True` его не закрывает: до него доходит ветка
+#     `acted`, а `except Exception: pass` делает попадание МОЛЧАЛИВЫМ.
+#
+# Обещание шапки принадлежит ФАЙЛУ, поэтому дверь закрывается `autouse`: иначе
+# каждый НОВЫЙ тест здесь наследовал бы обещание, но не его исполнение. Перечень
+# дверей — ОДИН (`spa_core/tests/_hermetic_launchd.py`, ADR-1065).
+@pytest.fixture(autouse=True)
+def _no_real_launchd():
+    with _hermetic_launchd.closed() as door:
+        yield door
 
 
 # ─── helpers ──────────────────────────────────────────────────────────────────

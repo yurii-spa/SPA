@@ -32,6 +32,7 @@ from tempfile import TemporaryDirectory
 from unittest import mock
 
 from spa_core.telegram import push_policy
+from spa_core.tests import _hermetic_launchd
 
 
 # ── общая оснастка ───────────────────────────────────────────────────────────
@@ -65,6 +66,25 @@ class _PushHarness(unittest.TestCase):
         for p in self._patches:
             p.start()
         self.addCleanup(self._teardown)
+        # ADR-1065 — шапка файла обещает «живое состояние не трогается», и до
+        # 19.11 обещание было НЕВЕРНО: `_run()` ниже зовёт `run_reactor()` с
+        # УМОЛЧАНИЕМ `dry_run=False`, поэтому сцена со стоящей угрозой и снятым
+        # стоп-краном доходила до `threat_reactor._kickstart_cycle`
+        # (`threat_reactor.py:277`) — прямого `subprocess` с НАСТОЯЩИМ
+        # `launchctl kickstart -k gui/<uid>/com.spa.daily_cycle`. Тест при этом
+        # ПРОХОДИЛ: зов обёрнут `except Exception: pass`, то есть попадание было
+        # МОЛЧАЛИВЫМ — его не нашёл бы и дифференциальный замер по смене
+        # вердикта. Замерено прибором на единственной двери `subprocess`:
+        # argv `['launchctl','kickstart','-k','gui/501/com.spa.daily_cycle']` из
+        # `TestKillSwitchRecovery::test_no_recovery_while_a_threat_is_standing`.
+        #
+        # Дверь ставится на УРОВНЕ ОСНАСТКИ, потому что обещание принадлежит
+        # файлу: иначе каждый НОВЫЙ класс здесь наследовал бы обещание, но не
+        # его исполнение. Перехваченные действия ЗАПИСАНЫ (`self.launchd.calls`),
+        # а не отменены: сцена вправе утверждать об ИСХОДЕ.
+        _door = _hermetic_launchd.closed()
+        self.launchd = _door.__enter__()
+        self.addCleanup(_door.__exit__, None, None, None)
 
     def _teardown(self) -> None:
         for p in self._patches:

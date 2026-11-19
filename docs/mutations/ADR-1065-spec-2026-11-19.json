@@ -1,0 +1,72 @@
+{
+ "title": "ADR-1065 — дверь герметичного launchd ОДНА: второй сайт и МОЛЧАЩИЙ зов threat_reactor:277 (цикл #1208, заказ G1053 пп. 0+2)",
+ "tests": [
+  "spa_core/tests/test_hermetic_launchd_door.py",
+  "spa_core/tests/test_chaos_resilience.py",
+  "spa_core/tests/test_alert_recovery_stuck_events.py",
+  "spa_core/tests/test_self_heal.py"
+ ],
+ "mutations": [
+  {
+   "name": "M01 дверь снята со ВТОРОГО сайта — сцены chaos снова берут вердикт правила 3b у живого хоста",
+   "file": "spa_core/tests/test_chaos_resilience.py",
+   "old": "@pytest.fixture(autouse=True)\ndef _no_real_launchd():\n    with _hermetic_launchd.closed() as door:\n        yield door\n",
+   "new": "@pytest.fixture(autouse=True)\ndef _no_real_launchd():\n    yield None  # дверь снята мутацией\n"
+  },
+  {
+   "name": "M02 дверь снята с ТРЕТЬЕГО сайта — настоящий launchctl реактора снова достижим МОЛЧА",
+   "file": "spa_core/tests/test_alert_recovery_stuck_events.py",
+   "old": "        _door = _hermetic_launchd.closed()\n        self.launchd = _door.__enter__()\n        self.addCleanup(_door.__exit__, None, None, None)\n",
+   "new": "        self.launchd = None  # дверь снята мутацией\n"
+  },
+  {
+   "name": "M03 дверь ДЕЙСТВИЯ реактора выпала из единственного перечня — зов уходит в настоящий subprocess",
+   "file": "spa_core/tests/_hermetic_launchd.py",
+   "old": "        (threat_reactor, \"_kickstart_cycle\",\n         lambda *_a, **_k: door.record(\"threat_reactor._kickstart_cycle\",\n                                       threat_reactor_label())),\n",
+   "new": "        (threat_reactor, \"_kickstart_cycle_NOT_THE_REAL_NAME\",\n         lambda *_a, **_k: door.record(\"threat_reactor._kickstart_cycle\",\n                                       threat_reactor_label())),\n"
+  },
+  {
+   "name": "M04 громкая дверь становится безобидным успехом — третий исход слит с первым",
+   "file": "spa_core/tests/_hermetic_launchd.py",
+   "old": "    def _boom(*_a: Any, **_k: Any) -> Any:\n        raise AssertionError(",
+   "new": "    def _boom(*_a: Any, **_k: Any) -> Any:\n        return True\n        raise AssertionError("
+  },
+  {
+   "name": "M05 возврата нет — подмена ПЕРЕЖИВАЕТ сцену и глушит дверь у соседей в том же процессе",
+   "file": "spa_core/tests/_hermetic_launchd.py",
+   "old": "        for module, name, original, had in reversed(saved):\n            if had:\n                setattr(module, name, original)\n",
+   "new": "        for module, name, original, had in reversed(saved):\n            if False:\n                setattr(module, name, original)\n"
+  },
+  {
+   "name": "M06 объявленный вердикт игнорируется — дверь становится ГЛУШИТЕЛЕМ прод-контракта правила 3b",
+   "file": "spa_core/tests/_hermetic_launchd.py",
+   "old": "        door.record(\"catchup_cycle.run\", verdict)\n        return {\n            \"verdict\": verdict,",
+   "new": "        door.record(\"catchup_cycle.run\", verdict)\n        return {\n            \"verdict\": catchup_cycle.CYCLE_PRESENT,"
+  },
+  {
+   "name": "M07 перехваченное действие не ЗАПИСЫВАЕТСЯ — исход сцены становится неизмеримым",
+   "file": "spa_core/tests/_hermetic_launchd.py",
+   "old": "        self.calls.append(f\"{where}:{arg}\" if arg else where)\n",
+   "new": "        pass  # запись снята мутацией\n"
+  },
+  {
+   "name": "M08 наблюдение объявлено мутацией — launchctl list попадает под запрет",
+   "file": "spa_core/tests/_hermetic_launchd.py",
+   "old": "    \"kickstart\", \"bootstrap\", \"bootout\", \"load\", \"unload\", \"stop\", \"enable\", \"disable\",\n",
+   "new": "    \"kickstart\", \"bootstrap\", \"bootout\", \"load\", \"unload\", \"stop\", \"enable\", \"disable\", \"list\",\n"
+  },
+  {
+   "name": "M09 pytest-установщик закрывает только ПЕРВУЮ дверь — у двух установщиков расходятся перечни",
+   "file": "spa_core/tests/_hermetic_launchd.py",
+   "old": "    for module, name, replacement in _plan(door, catchup_verdict=catchup_verdict):\n        monkeypatch.setattr(module, name, replacement, raising=False)\n",
+   "new": "    for module, name, replacement in _plan(door, catchup_verdict=catchup_verdict)[:1]:\n        monkeypatch.setattr(module, name, replacement, raising=False)\n"
+  },
+  {
+   "name": "M10 прод-контракт сужен: NOT_MEASURED больше не делает флот нездоровым (инв. #16 наизнанку)",
+   "file": "spa_core/monitoring/self_heal.py",
+   "old": "        elif verdict in (\"launch_failed\", \"not_measured\"):\n",
+   "new": "        elif verdict in (\"launch_failed\",):\n"
+  }
+ ],
+ "note": "Предмет — ЕДИНСТВЕННОСТЬ двери и её три исхода, поэтому мутации стоят по обе стороны: M01/M02 рвут ПРОВОДКУ двух сайтов (обязаны убиваться контролями проводки), M03…M09 рвут саму дверь (обязаны убиваться контролями в прямую и обратную сторону), M10 рвёт прод-правило 3b (обязана убиваться обратным контролём ADR-1064). Мутации, снимающей сам `assert report['actions'] == []`, в наборе нет намеренно: это была бы проверка pytest, а не предмета. Прогон — в ОТДЕЛЬНОМ дереве (.claude/rules/deployment.md § БАЙТЫ, КОТОРЫЕ НЕ ЯВЛЯЮТСЯ КОДОМ, п. 1)."
+}

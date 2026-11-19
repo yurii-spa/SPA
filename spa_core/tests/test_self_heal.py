@@ -40,6 +40,7 @@ import time
 import pytest
 
 from spa_core.monitoring import catchup_cycle, self_heal
+from spa_core.tests import _hermetic_launchd
 
 
 # ---------------------------------------------------------------------------
@@ -55,6 +56,9 @@ class _Harness:
         self.revival_history_written = 0
         self.telegrams: list[str] = []
         self.resolves: list[str] = []          # own-28: recovered-pushes emitted
+        # ADR-1065: записи ПЕРЕХВАЧЕННЫХ мутирующих действий соседних модулей
+        # (правило 3b и дверь действия реактора). Ни одно не исполнено.
+        self.launchd: _hermetic_launchd.LaunchdDoor | None = None
 
 
 @pytest.fixture
@@ -123,34 +127,17 @@ def heal(monkeypatch):
     # same reason as the own-28 seams above.
     monkeypatch.setattr(self_heal, "_beacon_age_seconds", lambda: None, raising=False)
     # ── ЧЕТВЁРТАЯ дверь правила 3b (ADR-1052) — ЖИВАЯ, и до 19.11 её не закрывал
-    # никто. `run_self_heal` зовёт `catchup_cycle.run(write=not dry_run)` БЕЗ
-    # инъекции, то есть с настоящим `launchctl kickstart com.spa.daily_cycle` и
-    # настоящим журналом попытки в `data/`. Замер 2026-11-19: один зов `pytest`
-    # по ЭТОМУ файлу ВПРАВДУ запустил прод-цикл (`catchup_cycle_status.json`:
-    # `verdict: launched`, `dry_run: false`; `paper_trading_status.json` в проде
-    # получил `last_cycle_ts` секундой позже). `_guard_no_real_io` этого не видел
-    # ПО ПОСТРОЕНИЮ: он закрывает `self_heal._run`, а подпроцесс соседнего модуля
-    # — СВОЙ (урок «половина инъекции», `.claude/rules/deployment.md`).
+    # никто. Замер 2026-11-19: один зов `pytest` по ЭТОМУ файлу ВПРАВДУ запустил
+    # прод-цикл (ADR-1064). Перечень дверей и всё объяснение живут ОДНИМ местом —
+    # `spa_core/tests/_hermetic_launchd.py` (ADR-1065): копия фикстуры в каждом
+    # новом файле и есть «половина починки, оставляющая второй сайт», и ровно так
+    # в тот же день покраснел `test_chaos_resilience.py`.
     #
     # Ответ ОБЪЯВЛЕН, а не взят у хоста: правило «не чаще одного в сутки» делает
-    # живой вердикт ЗАВИСИМЫМ ОТ ТОГО, съел ли сегодняшнюю попытку кто-то другой,
-    # поэтому ПЕРВЫЙ дошедший сюда тест получал один ответ, а остальные — другой.
+    # живой вердикт ЗАВИСИМЫМ ОТ ТОГО, съел ли сегодняшнюю попытку кто-то другой.
     # `cycle_present` согласован с `_last_cycle_age_hours → 1.0` выше: цикл свежий
     # ⇒ догонять нечего. Красный вердикт сцена объявляет САМА (см. контроли ниже).
-    monkeypatch.setattr(catchup_cycle, "run",
-                        lambda write=False, **kw: {
-                            "verdict": catchup_cycle.CYCLE_PRESENT,
-                            "reason": "сцена объявила: цикл за сегодня есть",
-                            "dry_run": not write,
-                        })
-    # Дверь ДЕЙСТВИЯ соседа — ОТДЕЛЬНАЯ претензия, и закрыта она здесь, а не в
-    # `_guard_no_real_io`: шапка файла обещает «no real launchd» КАЖДОМУ тесту,
-    # а тот помощник зовётся не каждым. Снимут объявленный вердикт выше —
-    # тест упадёт ГРОМКО, вместо того чтобы двинуть прод-флот.
-    def _no_real_launchd(*a, **k):
-        raise AssertionError("real subprocess invoked in a mocked test")
-    monkeypatch.setattr(catchup_cycle, "_kickstart", _no_real_launchd, raising=False)
-    monkeypatch.setattr(catchup_cycle, "_alert", _no_real_launchd, raising=False)
+    h.launchd = _hermetic_launchd.close_with_monkeypatch(monkeypatch)
 
     return h
 
@@ -901,7 +888,7 @@ def test_the_catchup_door_is_closed_by_the_hermetic_fixture(heal):
     assert verdict["verdict"] == catchup_cycle.CYCLE_PRESENT
     # и дверь ДЕЙСТВИЯ соседа тоже заткнута — не «вердикт безобиден», а
     # «настоящего launchctl не достать» (две разные претензии).
-    with pytest.raises(AssertionError, match="real subprocess"):
+    with pytest.raises(AssertionError, match="НАСТОЯЩИЙ мутирующий launchd"):
         catchup_cycle._kickstart(catchup_cycle.DAILY_CYCLE_LABEL)
 
 
