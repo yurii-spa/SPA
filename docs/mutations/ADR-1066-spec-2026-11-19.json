@@ -1,0 +1,88 @@
+{
+ "title": "ADR-1066 — третий исход у записи цикла (ПЕРЕНЕСЕНА) + храповик веса карточки (цикл #1209, шаг 0a-ГОЛОД)",
+ "tests": [
+  "spa_core/tests/test_cycle_record_relocation.py",
+  "spa_core/tests/test_tracker_card_weight_ratchet.py",
+  "spa_core/tests/test_tracker_cycle_record_loss_guard.py"
+ ],
+ "mutations": [
+  {
+   "name": "M01 перенос зачитывается по ЗАГОЛОВКУ — сверка тела снята. Это дословно та подделка, ради которой дверь написана",
+   "file": "push_to_github.py",
+   "old": "            if body in cands:\n                hit = (i, body)\n                break",
+   "new": "            if cands:\n                hit = (i, body)\n                break"
+  },
+  {
+   "name": "M02 ПУСТОЕ тело в архиве гасит НЕПУСТУЮ запись remote — архив из одних заголовков снова становится доказательством (первая редакция M02 мерила обратный запрет, который замер на живом пуше опроверг: он давал 32 ложные потери из 2098)",
+   "file": "push_to_github.py",
+   "old": "            if body in cands:",
+   "new": "            if body in cands or b\"\" in cands:"
+  },
+  {
+   "name": "M03 кратность ДЕЛИТСЯ, а не расходуется — один двойник гасит две записи с одним номером",
+   "file": "push_to_github.py",
+   "old": "            i, body = hit\n            bodies.pop(i)\n            cands.remove(body)\n            moved.append(header)",
+   "new": "            i, body = hit\n            moved.append(header)"
+  },
+  {
+   "name": "M04 «слепок не снят» выдаётся за «переноса нет» — НЕ ИЗМЕРЕНО слито с измеренным нулём (инв. #17)",
+   "file": "push_to_github.py",
+   "old": "    if not _RELOCATION_PIN[\"taken\"]:\n        return None, [\"слепок переноса не снимался: `pin_relocated_records` не зван\"]",
+   "new": "    if not _RELOCATION_PIN[\"taken\"]:\n        return [], []"
+  },
+  {
+   "name": "M05 архивом считается ЛЮБОЙ markdown — в т.ч. под tracker/, где его подберёт генератор доски",
+   "file": "push_to_github.py",
+   "old": "    return (any(repo_path.startswith(p) for p in CHRONICLE_ARCHIVE_PREFIXES)\n            and repo_path.endswith(\".md\"))",
+   "new": "    return repo_path.endswith(\".md\")"
+  },
+  {
+   "name": "M06 архив читается из ДЕРЕВА (PROJECT_ROOT/docs/journal), а не из набора доставки — на origin он не попадёт, записи исчезнут насовсем. ПЕРВАЯ редакция этой мутации ВЫЖИЛА и была ДЕФЕКТНОЙ: её глоб смотрел в <root>/nimbalyst-local/journal, которого в сцене нет вовсе, то есть мутация не выражала дефект (урок #1202: выжившую записать, а не замазать)",
+   "file": "push_to_github.py",
+   "old": "        if not is_chronicle_archive(rel):\n            continue",
+   "new": "        if not is_chronicle_archive(rel):\n            for extra in sorted((PROJECT_ROOT / \"docs\" / \"journal\").glob(\"*.md\")):\n                try:\n                    blocks.extend(entry_blocks(extra.read_bytes(), CYCLE_RECORD_RE))\n                except OSError:\n                    pass\n            continue"
+  },
+  {
+   "name": "M07 batch-дверь не снимает слепок переноса — гейт у неё перестаёт существовать, оставшись в коде",
+   "file": "push_to_github_batch.py",
+   "old": "    pin_relocated_records(all_files)",
+   "new": "    pass  # слепок переноса снят мутацией"
+  },
+  {
+   "name": "M08 ось выпадает из ОБЪЯВЛЕННОГО перечня WEIGHT_AXES — дословный обход ADR-837: весь вес уходит в одну строку, и сторож этого не спросит",
+   "file": "spa_core/tests/test_tracker_card_weight_ratchet.py",
+   "old": "WEIGHT_AXES = (\"max_chars\", \"max_lines\", \"max_longest_line\")",
+   "new": "WEIGHT_AXES = (\"max_lines\",)"
+  },
+  {
+   "name": "M09 нечитаемая карточка считается ЛЁГКОЙ — «не измерено» выдано за «в пределе»",
+   "file": "spa_core/tests/test_tracker_card_weight_ratchet.py",
+   "old": "        except (OSError, UnicodeDecodeError) as e:\n            unreadable[p.name] = f\"{type(e).__name__}: {e}\"\n            continue",
+   "new": "        except (OSError, UnicodeDecodeError):\n            text = \"\""
+  },
+  {
+   "name": "M10 база может ВИСЕТЬ ВЫШЕ факта — храповик разрешает молча вернуть разницу; различающая сцена требует ИНЪЕКЦИИ (на живом дереве факт равен базе)",
+   "file": "spa_core/tests/test_tracker_card_weight_ratchet.py",
+   "old": "    return [k for k in WEIGHT_AXES if got[k] < base[k]]",
+   "new": "    return []"
+  },
+  {
+   "name": "M11 `_BOARD.md` перестаёт быть исключением — запрет роста поедет на производную проекцию",
+   "file": "spa_core/tests/test_tracker_card_weight_ratchet.py",
+   "old": "EXCLUDED = (\"_BOARD.md\",)",
+   "new": "EXCLUDED = ()"
+  },
+  {
+   "name": "M12 ноты СКЛАДЫВАТЬСЯ перестают — перенос затирает переименование, и одно наблюдение исчезает",
+   "file": "push_to_github.py",
+   "old": "    if not lost:\n        return \"\\n\".join(x for x in (renamed_note, moved_note) if x)",
+   "new": "    if not lost:\n        return moved_note"
+  },
+  {
+   "name": "M13 ось РАЗДЕЛ лишается двери переноса — ровно та ПОЛОВИНА починки, которую нашёл живой пуш (запись цикла прошла, 2098 разделов отказали)",
+   "file": "push_to_github.py",
+   "old": "        blocks, why = relocated_records(CARD_SECTION_RE)",
+   "new": "        blocks, why = (None, [\"дверь снята мутацией\"])"
+  }
+ ]
+}

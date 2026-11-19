@@ -2,11 +2,11 @@
 
 > Авто-генерится `scripts/build_tracker_board.py` из `nimbalyst-local/tracker/*.md`. НЕ править вручную — правь карточки. Источник правды — карточки, это индекс (bootstrap).
 >
-> Собрана: 2026-11-19T12:39:17Z · сверка с карточками: `python3 scripts/build_tracker_board.py --check` (сторож `spa_core/tests/test_tracker_board_matches_cards.py`).
+> Собрана: 2026-11-19T17:06:00Z · сверка с карточками: `python3 scripts/build_tracker_board.py --check` (сторож `spa_core/tests/test_tracker_board_matches_cards.py`).
 >
-> Сверено с `origin/main` (8190e6379) · у **1** своя правка, кто новее — не измерено.
+> Сверено с `origin/main` (a697ad9bd) · у **1** своя правка, кто новее — не измерено.
 >
-> Всего карточек: **1665** · ждёт владельца: **13** · занято сессиями: **14**.
+> Всего карточек: **1666** · ждёт владельца: **13** · занято сессиями: **14**.
 
 ## 🔴 ЖДЁТ ВЛАДЕЛЬЦА (needs-owner)
 
@@ -443,7 +443,7 @@
 ### · closed
 - Считать ли верный отказ по правилам допуска неисправностью флота  ·  `owner-decision-schitat-li-vernyi-otkaz-po-pravilam-dopu.md` · 2026-10-08
 
-## 📥 Inbox (задания: Telegram / заметки / голос)  (963)
+## 📥 Inbox (задания: Telegram / заметки / голос)  (964)
 
 ### · in-progress
 - а задача починить все-таки еще раз сообщение которым не пишет нужно твое решени…  ·  `inbox-a-zadacha-pochinit-vse-taki-esche-raz-so.md` · 2026-08-14 · 🔒 `pid43119`
@@ -1122,6 +1122,7 @@
 - Исчерпание лимитов Claude невидимо: цех молча стоит, владелец гадает «работает ли» — нужен явный сигнал «нет топлива»  ·  `inbox-ischerpanie-limitov-claude-nevidimo-tsehu.md` · 2026-08-22
 - Исполнить §29 приказа «Portfolio CIO»: аварийный выход капитала ВЫШЕ раннего выхода EmergencyBreakers — порядок Step 2b/2c/3 (money-path, ADR-973)  ·  `inbox-ispolnit-29-prikaza-portfolio-cio-avarii.md` · 2026-11-10
 - Исполнить Вариант 2 владельца: дописать 38 ставок и подключить их к hit_rate со СМЕШАННОЙ пробой  ·  `inbox-ispolnit-variant-2-vladeltsa-dopisat-38.md` · 2026-09-10
+- Измерить население класса «карточка-тетрадь»: долю хроники, а не вес  ·  `inbox-izmerit-naselenie-klassa-kartochka-tetra.md` · 2026-11-19
 - Измерить население класса «печать называет меньше, чем замер содержит»  ·  `inbox-izmerit-naselenie-klassa-pechat-nazyvaet.md` · 2026-11-15
 - Измерить население класса «умолчание связывает изменяемый объявленный дом»  ·  `inbox-izmerit-naselenie-klassa-umolchanie-svya.md` · 2026-11-15
 - Измерить население класса: усечённый клон отвечает о происхождении коммита молча и НЕВЕРНО  ·  `inbox-izmerit-naselenie-klassa-usechennyi-klon.md` · 2026-11-04

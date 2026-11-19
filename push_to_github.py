@@ -2192,10 +2192,214 @@ def is_tracker_card(repo_path: str) -> bool:
             and repo_path.endswith(".md"))
 
 
+# ══════════════════════════════════════════════════════════════════════════════
+# ТРЕТИЙ ИСХОД У ЗАПИСИ ЦИКЛА: ПЕРЕНЕСЕНА В НАЗВАННЫЙ АРХИВ (цикл #1209, ADR-1066)
+#
+# ЗАЧЕМ. `guard_cycle_record_loss` (#858, ADR-714) закрыл настоящую аварию: две
+# доставки принесли свою копию приказа владельца ПОВЕРХ устаревшей и молча унесли
+# 56 и 9 записей цикла. Сторож прав, и его мера верна.
+#
+# У этой меры есть ЦЕНА, и она измерена на том же файле, ради которого сторож
+# написан. Замер 2026-11-19 на `origin/main`:
+#
+#   | ось | приказ `inbox-task-portfolio-cio-dynamic-capital-alloc` |
+#   |---|---|
+#   | байт | 5 090 431 |
+#   | СИМВОЛОВ | 3 273 543 — это 109× предела `docs/STATE.md` (30 000, ADR-837) |
+#   | строк | 49 764 |
+#   | записей цикла | 266 |
+#   | ТЗ ВЛАДЕЛЬЦА (всё до первой записи) | 33 622 символа = **1.03 %** файла |
+#   | хроника циклов | **98.97 %** файла |
+#
+# Приказ `critical` простоял `in-progress` 2152 часа, и мимо прошло 488 циклов.
+# Причина механическая, а не ленивая: `CLAUDE.md` велит прочитать карточку ПЕРЕД
+# работой, а 3,27 млн символов не помещаются в окно сессии ВОВСЕ. То есть приказ
+# владельца нельзя было прочитать — его можно было только дописать, и каждый
+# цикл, который его «брал», дописывал ещё одну запись.
+#
+# ПОЧЕМУ СТОРОЖ ЭТОГО НЕ ВИДИТ. Он спрашивает «не исчезла ли запись», и это НЕ
+# вопрос «можно ли файл прочитать». Единственный выход, который он называет, —
+# `--allow-overwrite`, то есть снятие проверки ЦЕЛИКОМ: под ним «записи снял
+# сознательно и положил в архив» неотличимо от «принёс устаревшую копию и унёс
+# 56 записей». Ровно эта неразличимость и есть предмет инварианта #17.
+#
+# ЧТО ДЕЛАЕМ. Третий исход рядом с «на месте» и «потеряна»: запись ПЕРЕНЕСЕНА —
+# снята с карточки И доказанно лежит в архиве, который уезжает ЭТИМ ЖЕ пушем.
+#
+# ДОКАЗАТЕЛЬСТВО — ТЕЛО, А НЕ ЗАГОЛОВОК. Заголовок `## Цикл #716` подделывается
+# одной строкой, и дверь, верящая ему, разрешила бы ровно ту потерю, против
+# которой написана: достаточно было бы положить рядом файл из 266 строк-заголовков
+# без единой буквы содержимого. Поэтому тело каждой перенесённой записи сверяется
+# с remote ПОБАЙТОВО — той же мерой `entry_blocks`, которой сторож уже отличает
+# ПЕРЕИМЕНОВАНИЕ от исчезновения. Это не ослабление: отказ по-прежнему наступает
+# всегда, когда содержимое записи исчезает. Сужается ровно тот случай, где
+# содержимое доказанно на месте, — и он всё равно НАЗЫВАЕТСЯ (нота, не молчание).
+#
+# ВОПРОС ИМЕННО ПРО «УЕЗЖАЕТ ЭТИМ ПУШЕМ», как у `board_after_delivery` (ADR-1060):
+# архив, пересобранный в рабочем дереве и НЕ включённый в `--files`, на origin не
+# попадает, и записи, снятые с карточки, исчезли бы НАСОВСЕМ. Спроси дерево — и
+# дверь открывалась бы ровно в том случае, ради которого закрыта.
+#
+# АРХИВ — НЕ КАРТОЧКА. Под `nimbalyst-local/tracker/` его подобрал бы и генератор
+# доски, и сам `is_tracker_card`: архив стал бы тетрадью, которую надо охранять,
+# и класс воспроизвёлся бы на шаг в сторону. Поэтому архив живёт в `docs/journal/`
+# — там же, где по ADR-837 лежат снимки `docs/STATE.md`, снятые по той же причине
+# и тем же способом («ни одна строка не выброшена»).
+# ══════════════════════════════════════════════════════════════════════════════
+
+#: Куда разрешено переносить хронику. `docs/journal/` — тот же адрес, что у
+#: снимков `STATE.md` (ADR-837); он же файл ОБЩЕЙ ПАМЯТИ, поэтому неизмеримая
+#: база для него сама по себе отказ (`is_shared_memory_doc`).
+CHRONICLE_ARCHIVE_PREFIXES = ("docs/journal/",)
+
+#: Слепок записей, уезжающих в архив ЭТИМ пушем. `taken=False` ⇒ перенос НЕ
+#: ИЗМЕРЕН, и это НЕ «переноса нет»: библиотечный вызов `batch_push` минуя CLI
+#: пина не снимает, и отказ там был бы неверен, а молчание сделало бы «не
+#: измерено» неотличимым от «сверено».
+#: Хранятся БАЙТЫ архивов, а не предпосчитанные блоки: родов записи у карточки
+#: ДВА (запись цикла и раздел — `guard_content_loss` зовёт обе проверки), и пин,
+#: знающий только один род, закрыл бы одну ось и оставил вторую отказывать на
+#: той же самой правке. Замер этого цикла: дверь переноса по записи цикла
+#: прошла, а сторож РАЗДЕЛОВ отказал на 2098 разделах — половина починки.
+_RELOCATION_PIN: dict = {"taken": False, "archives": {}, "unmeasured": [], "sources": {}}
+
+
+def is_chronicle_archive(repo_path: str) -> bool:
+    """Файл-архив хроники (`docs/journal/*.md`). Строго по префиксу."""
+    return (any(repo_path.startswith(p) for p in CHRONICLE_ARCHIVE_PREFIXES)
+            and repo_path.endswith(".md"))
+
+
+def pin_relocated_records(file_args: list) -> dict:
+    """Снять слепок записей цикла, уезжающих в АРХИВ этим пушем. Печатает итог.
+
+    Зовётся из `main()` сразу за :func:`pin_delivery_bytes` — то есть байты
+    архива берутся ЕДИНСТВЕННОЙ дверью :func:`read_delivery_bytes` (ADR-774) и
+    сверены со слепком. Своего чтения здесь нет намеренно: оно вернуло бы
+    предмет ADR-774 на новом месте (сверить «тот же файл» с самим собой).
+
+    Повторный вызов слепок НЕ ПЕРЕСНИМАЕТ — по той же причине, что у пина байтов.
+    """
+    if _RELOCATION_PIN["taken"]:
+        print(f"  слепок переноса уже снят (записей "
+              f"{len(_RELOCATION_PIN['blocks'])}) — не переснимаю")
+        return dict(_RELOCATION_PIN)
+
+    archives, unmeasured, sources = {}, [], {}
+    for fa in file_args:
+        key = _delivery_abs(fa)
+        try:
+            rel = repo_relative_path(Path(key))
+        except Exception as e:
+            unmeasured.append(f"{key}: путь внутри репо не определён ({e})")
+            continue
+        if not is_chronicle_archive(rel):
+            continue
+        try:
+            raw = read_delivery_bytes(key)
+        except OSError as e:
+            unmeasured.append(f"{rel}: байты архива НЕ ПРОЧИТАНЫ "
+                              f"({type(e).__name__}: {e})")
+            continue
+        archives[rel] = raw
+        sources[rel] = len(entry_headers(raw, CYCLE_RECORD_RE))
+
+    _RELOCATION_PIN.update({"taken": True, "archives": archives,
+                            "unmeasured": unmeasured, "sources": sources})
+    if archives or unmeasured:
+        total = sum(sources.values())
+        print(f"  слепок переноса снят: архивов в наборе {len(archives)}, "
+              f"записей цикла в них {total}"
+              f"{f', НЕ ИЗМЕРЕНО {len(unmeasured)}' if unmeasured else ''}")
+        for rel in sorted(sources):
+            print(f"    {sources[rel]:5d} запис(ь/и)  {rel}")
+        for why in unmeasured:
+            print(f"    НЕ ИЗМЕРЕНО   {why}")
+    return dict(_RELOCATION_PIN)
+
+
+def relocated_records(pattern=CYCLE_RECORD_RE) -> tuple:
+    """ЕДИНСТВЕННАЯ дверь к слепку переноса → ``(блоки | None, причины)``.
+
+    ``pattern`` — чем опознаётся единица смысла У СПРАШИВАЮЩЕГО: запись цикла
+    (:data:`CYCLE_RECORD_RE`) у тетради, РАЗДЕЛ (:data:`CARD_SECTION_RE`) у
+    карточки. Родов два, потому что `guard_content_loss` зовёт обе проверки на
+    одном файле, и дверь, умеющая один род, починила бы ровно половину.
+
+    ``None`` — слепок не снимался, то есть перенос НЕ ИЗМЕРЕН; сторож в этом
+    случае ведёт себя РОВНО как до этой правки (fail-CLOSED по-прежнему).
+    """
+    if not _RELOCATION_PIN["taken"]:
+        return None, ["слепок переноса не снимался: `pin_relocated_records` не зван"]
+    blocks = []
+    for raw in _RELOCATION_PIN["archives"].values():
+        blocks.extend(entry_blocks(raw, pattern))
+    return blocks, list(_RELOCATION_PIN["unmeasured"])
+
+
+def classify_relocated_entries(remote_bytes: Optional[bytes], lost: list,
+                               relocated_blocks: list,
+                               pattern=CYCLE_RECORD_RE) -> tuple:
+    # `pattern` обязан совпадать с тем, которым получен `lost` И `relocated_blocks`:
+    # смешать рода значило бы искать раздел среди записей цикла и честно не найти.
+    """``(всё ещё потеряно, перенесено)`` — у перенесённой тело совпало ПОБАЙТОВО.
+
+    Кратность значима ровно так же, как в :func:`classify_missing_entries`: две
+    записи с одним номером и один архивный двойник — это перенос ОДНОЙ и потеря
+    ДРУГОЙ. Поэтому и пул remote, и пул архива РАСХОДУЮТСЯ.
+
+    **Пустое тело берётся — но ТОЛЬКО под тем же заголовком, и это измеренная
+    поправка, а не послабление.** У соседа (`classify_missing_entries`) пустота
+    исключена потому, что он ищет тело под ДРУГИМ заголовком: там «совпало»
+    означало бы «переименовано», и пустое тело совпало бы с чем угодно. Здесь
+    заголовок и есть тождество, и вопрос другой: «лежит ли ЭТА запись в архиве».
+
+    Замер цикла #1209 на живом пуше: при запрете на пустоту **32** раздела из
+    2098 остались «потерянными», хотя демонстрируемо лежат в архиве, — это
+    записи, у которых сразу за заголовком идёт ПОДзаголовок, то есть тело
+    раздела пусто ПО ПОСТРОЕНИЮ. Запрет давал ложную потерю на ровном месте.
+
+    Подделку при этом держит РАВЕНСТВО, а не запрет: архив из одних заголовков
+    несёт пустые тела, а настоящие записи — непустые, и пустое с непустым не
+    совпадает (сцена `test_archive_of_bare_headers_is_not_a_proof`). Запись,
+    чьё тело пусто и в remote, и в архиве, содержимого не несёт вовсе — терять
+    в ней нечего, и это сказано вслух.
+    """
+    pool: dict = {}
+    for header, body in entry_blocks(remote_bytes, pattern):
+        pool.setdefault(header, []).append(body)
+    archive: dict = {}
+    for header, body in relocated_blocks:
+        archive.setdefault(header, []).append(body)
+
+    still_lost, moved = [], []
+    for header in lost:
+        bodies = pool.get(header) or []
+        cands = archive.get(header) or []
+        hit = None
+        for i, body in enumerate(bodies):
+            if body in cands:
+                hit = (i, body)
+                break
+        if hit is None:
+            still_lost.append(header)
+        else:
+            i, body = hit
+            bodies.pop(i)
+            cands.remove(body)
+            moved.append(header)
+    return still_lost, moved
+
+
 def guard_cycle_record_loss(repo_path: str, remote_bytes: Optional[bytes],
                             content_bytes: bytes, remote_sha: Optional[str],
                             allow_overwrite: bool = False) -> str:
     """Отказать, если пуш стирает запись цикла с remote. Возвращает ноту.
+
+    Исходов ТРИ, и они различимы (инв. #17): запись на месте · запись ПЕРЕНЕСЕНА
+    в архив, уезжающий этим же пушем (тело сверено с remote ПОБАЙТОВО — см.
+    :func:`classify_relocated_entries`) · запись ПОТЕРЯНА, и это отказ. Слепок
+    переноса не снимался ⇒ перенос НЕ ИЗМЕРЕН, и поведение РОВНО как до ADR-1066.
 
     Порядок — тот же fail-CLOSED, что у :func:`guard_entry_loss` и
     :func:`guard_rules_section_loss`, с одним отличием, вытекающим из того, что
@@ -2225,6 +2429,26 @@ def guard_cycle_record_loss(repo_path: str, remote_bytes: Optional[bytes],
     lost, renamed = classify_missing_entries(remote_bytes, content_bytes,
                                              CYCLE_RECORD_RE)
 
+    # ТРЕТИЙ ИСХОД (ADR-1066): запись снята с карточки И доказанно уезжает в
+    # архив ЭТИМ ЖЕ пушем. Доказательство — ТЕЛО, а не заголовок.
+    moved_note, moved_unmeasured = "", []
+    if lost:
+        blocks, why = relocated_records()
+        moved_unmeasured = why
+        if blocks is not None:
+            lost, moved = classify_relocated_entries(remote_bytes, lost, blocks)
+            if moved:
+                nums_m = sorted(moved, key=lambda b: int(b))
+                shown_m = ", ".join(f"#{n.decode('ascii', 'replace')}"
+                                    for n in nums_m[:12])
+                more_m = (f" … и ещё {len(nums_m) - 12}"
+                          if len(nums_m) > 12 else "")
+                moved_note = (
+                    f"\U0001F4E6 {repo_path}: записей ПЕРЕНЕСЕНО в архив, "
+                    f"уезжающий этим же пушем — {len(nums_m)} (тело каждой "
+                    f"сверено с remote ПОБАЙТОВО, потери нет): "
+                    f"{shown_m}{more_m}")
+
     # Перенумерация записи НАЗЫВАЕТСЯ, а не молчит: тело совпало с remote
     # побайтово, терять нечего — но номер цикла у записи изменился, и это
     # ровно та улика, по которой потом ищут, кто что сделал.
@@ -2237,7 +2461,7 @@ def guard_cycle_record_loss(repo_path: str, remote_bytes: Optional[bytes],
                         f"(тело каждой совпало с remote побайтово, потери нет): "
                         f"{pairs}{more_r}")
     if not lost:
-        return renamed_note
+        return "\n".join(x for x in (renamed_note, moved_note) if x)
 
     nums = sorted(lost, key=lambda b: int(b))
     shown = ", ".join(f"#{n.decode('ascii', 'replace')}" for n in nums[:12])
@@ -2247,7 +2471,10 @@ def guard_cycle_record_loss(repo_path: str, remote_bytes: Optional[bytes],
     new_named = (", ".join(f"#{h.decode('ascii', 'replace')}" for h in appeared[:12])
                  or "(ни одной)")
     delta = content_bytes.count(b"\n") - remote_bytes.count(b"\n")
-    tail = f"\n{renamed_note}" if renamed_note else ""
+    tail = "".join(f"\n{x}" for x in (renamed_note, moved_note) if x)
+    if moved_unmeasured:
+        tail += ("\n\u26a0\ufe0f  перенос записей НЕ ИЗМЕРЕН полностью: "
+                 + "; ".join(moved_unmeasured))
     raise CycleRecordLossRefused(
         f"{repo_path}: пуш стёр бы {len(nums)} запис(ь/и) ЦИКЛА, которые есть на "
         f"remote (sha {remote_sha[:8]}) и которых нет в отправляемом содержимом:\n"
@@ -2825,6 +3052,36 @@ def guard_card_section_loss(repo_path: str, remote_bytes: Optional[bytes],
 
     lost, renamed = classify_missing_entries(remote_bytes, content_bytes,
                                              CARD_SECTION_RE)
+
+    # ТРЕТИЙ ИСХОД (ADR-1066), тот же и той же дверью, но по роду РАЗДЕЛ. Без
+    # этого починка была бы ПОЛОВИНОЙ: замер цикла #1209 — дверь по записи цикла
+    # пропустила сжатие приказа владельца, а эта проверка отказала на 2098
+    # разделах той же правки, потому что каждый `###` внутри снятой записи для
+    # неё тоже раздел.
+    moved_note, moved_unmeasured = "", []
+    if lost:
+        blocks, why = relocated_records(CARD_SECTION_RE)
+        moved_unmeasured = why
+        if blocks is not None:
+            lost, moved = classify_relocated_entries(remote_bytes, lost, blocks,
+                                                     CARD_SECTION_RE)
+            if moved:
+                shown_m = "; ".join(f"«{h.decode('utf-8', 'replace')}»"
+                                    for h in moved[:4])
+                more_m = f" … и ещё {len(moved) - 4}" if len(moved) > 4 else ""
+                moved_note = (f"\U0001F4E6 {repo_path}: разделов ПЕРЕНЕСЕНО в архив, "
+                              f"уезжающий этим же пушем — {len(moved)} (тело каждого "
+                              f"сверено с remote ПОБАЙТОВО, потери нет): "
+                              f"{shown_m}{more_m}")
+    # Ветка «терять нечего» СОХРАНЕНА ДОСЛОВНО: на её трёх строках стои́т якорь
+    # зарегистрированной пробы `delivery_door_refuses_card_section_loss`
+    # (`test_card_section_loss_probe.py`, звено «сторож говорит о потере, когда
+    # терять нечего»). Переписать её красивее значило бы снять контроль со
+    # ЗВЕНА, а не улучшить код, — поэтому перенос обрабатывается ВОКРУГ неё.
+    # Ноты при этом СКЛАДЫВАЮТСЯ: переименование и перенос — два РАЗНЫХ
+    # наблюдения, и потеря любого из них есть потеря улики.
+    if not lost and moved_note and not renamed:
+        return moved_note
     if not lost:
         if not renamed:
             return ""
@@ -2832,7 +3089,8 @@ def guard_card_section_loss(repo_path: str, remote_bytes: Optional[bytes],
                           f"«{b.decode('utf-8', 'replace')}»" for a, b in renamed[:4])
         more = f" … и ещё {len(renamed) - 4}" if len(renamed) > 4 else ""
         return (f"🔢 {repo_path}: разделов переименовано — {len(renamed)} (тело каждого "
-                f"совпало с remote побайтово, потери нет): {pairs}{more}")
+                f"совпало с remote побайтово, потери нет): {pairs}{more}"
+                + (f"\n{moved_note}" if moved_note else ""))
 
     delta = content_bytes.count(b"\n") - remote_bytes.count(b"\n")
     shown = "; ".join(f"«{h.decode('utf-8', 'replace')}»" for h in lost[:6])
@@ -2863,7 +3121,10 @@ def guard_card_section_loss(repo_path: str, remote_bytes: Optional[bytes],
         f"Что делать: перечитать {repo_path} со свежего origin, перенести свою правку "
         f"НА НЕГО (дописывать поверх origin-версии, а не подменять своей копией) и "
         f"запушить снова; осознанное сокращение — `--allow-overwrite`, и напиши в теле "
-        f"коммита, что именно и почему снято.")
+        f"коммита, что именно и почему снято."
+        + ("".join(f"\n{x}" for x in (moved_note,) if x))
+        + (("\n\u26a0\ufe0f  перенос разделов НЕ ИЗМЕРЕН полностью: "
+            + "; ".join(moved_unmeasured)) if moved_unmeasured else ""))
 
 
 def guard_content_loss(repo_path: str, remote_bytes: Optional[bytes],
@@ -4834,6 +5095,14 @@ def main():
     except AmbiguousDeliveryTree as e:
         print(f"\nОТКАЗ (дерево доставки не названо): {e}", file=sys.stderr)
         sys.exit(DELIVERY_TREE_EXIT)
+
+    # ── СЛЕПОК ПЕРЕНОСА (ADR-1066) — сразу за пином байтов ───────────────────
+    # Порядок не вкусовой: архив читается ЕДИНСТВЕННОЙ дверью
+    # `read_delivery_bytes`, а она сверяет прочитанное со слепком, то есть до
+    # пина отвечать ещё нечем. Зовётся ОБЕИМИ дверями доставки и в `--dry-run`:
+    # превью обязано показывать тот же перенос и тот же отказ, что настоящий
+    # пуш. Реализация одна, дверей две.
+    pin_relocated_records(all_files)
 
     # ── А ЭТИ БАЙТЫ ВООБЩЕ PYTHON? (ADR-886) — сразу за пином, до всех гейтов ─
     # Порядок здесь тоже не вкусовой. Вопрос «являются ли байты кодом» стоит

@@ -1,0 +1,14 @@
+{
+  "_why": "Вес САМОЙ тяжёлой карточки трекера по каждой оси. Замер 2026-11-19 (цикл #1209, ADR-1066) ПОСЛЕ сжатия стоячего приказа владельца. База может ТОЛЬКО уменьшаться; дописывать её, чтобы погасить падение, ЗАПРЕЩЕНО (инв. #16) — сжимать карточку, вынося хронику в архив `docs/journal/` дверью ADR-1066.",
+  "_measured_at": "2026-11-19",
+  "_measured_by": "spa_core/tests/test_tracker_card_weight_ratchet.py::measure_cards",
+  "_excluded": {
+    "nimbalyst-local/tracker/_BOARD.md": "производная проекция, пересобирается ЦЕЛИКОМ генератором scripts/build_tracker_board.py — её вес есть свойство населения карточек, а не её собственное, и запрет на рост заставлял бы править генератор вместо причины"
+  },
+  "max_chars": 174982,
+  "max_chars_holder": "agent-audit-2026-08-02-fix-tracks.md",
+  "max_lines": 3016,
+  "max_lines_holder": "agent-audit-2026-08-02-fix-tracks.md",
+  "max_longest_line": 4244,
+  "max_longest_line_holder": "inbox-nahodka-petli-com-spa-decision-loop-obya.md"
+}

@@ -171,6 +171,7 @@ MUTATION_WINDOW_EXIT = _root_push.MUTATION_WINDOW_EXIT
 # Своего store здесь нет намеренно: два store означали бы, что одна дверь
 # сверяет, а другая молчит, — дословно урок номеров ADR (26.08, второй ADR-145).
 pin_delivery_bytes = _root_push.pin_delivery_bytes
+pin_relocated_records = _root_push.pin_relocated_records
 read_delivery_bytes = _root_push.read_delivery_bytes
 read_delivery_mode = _root_push.read_delivery_mode
 delivery_pin_summary = _root_push.delivery_pin_summary
@@ -314,6 +315,14 @@ def main():
     except AmbiguousDeliveryTree as e:
         print(f"\nОТКАЗ (дерево доставки не названо): {e}", file=sys.stderr)
         sys.exit(DELIVERY_TREE_EXIT)
+
+    # ── СЛЕПОК ПЕРЕНОСА (ADR-1066) — сразу за пином байтов ───────────────────
+    # Порядок не вкусовой: архив читается ЕДИНСТВЕННОЙ дверью
+    # `read_delivery_bytes`, а она сверяет прочитанное со слепком, то есть до
+    # пина отвечать ещё нечем. Зовётся ОБЕИМИ дверями доставки и в `--dry-run`:
+    # превью обязано показывать тот же перенос и тот же отказ, что настоящий
+    # пуш. Реализация одна, дверей две.
+    pin_relocated_records(all_files)
 
     # ── А ЭТИ БАЙТЫ ВООБЩЕ PYTHON? (ADR-886) — тот же вызов и тот же порядок ──
     # Сразу за пином и ДО всех прочих гейтов: смысла у неразбираемых байтов нет,
