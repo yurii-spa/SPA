@@ -1,0 +1,45 @@
+{
+ "title": "ADR-1064 — юнит-тест ДВИГАЛ живой флот: дверь правила 3b закрыта фикстурой (цикл #1207, заказ G1052 п. 0)",
+ "tests": [
+  "spa_core/tests/test_self_heal.py"
+ ],
+ "mutations": [
+  {
+   "name": "M01 дверь ВЕРДИКТА снята из герметичной фикстуры — тест снова берёт ответ у живого хоста",
+   "file": "spa_core/tests/test_self_heal.py",
+   "old": "    monkeypatch.setattr(catchup_cycle, \"run\",\n                        lambda write=False, **kw: {\n                            \"verdict\": catchup_cycle.CYCLE_PRESENT,\n                            \"reason\": \"сцена объявила: цикл за сегодня есть\",\n                            \"dry_run\": not write,\n                        })\n",
+   "new": "    pass  # дверь вердикта снята мутацией\n"
+  },
+  {
+   "name": "M02 дверь ДЕЙСТВИЯ снята — настоящий launchctl снова достижим из теста",
+   "file": "spa_core/tests/test_self_heal.py",
+   "old": "    monkeypatch.setattr(catchup_cycle, \"_kickstart\", _no_real_launchd, raising=False)\n    monkeypatch.setattr(catchup_cycle, \"_alert\", _no_real_launchd, raising=False)\n",
+   "new": "    pass  # дверь действия снята мутацией\n"
+  },
+  {
+   "name": "M03 объявленный вердикт подменён на NOT_MEASURED — сцена перестаёт быть согласованной со свежим циклом",
+   "file": "spa_core/tests/test_self_heal.py",
+   "old": "                            \"verdict\": catchup_cycle.CYCLE_PRESENT,\n                            \"reason\": \"сцена объявила: цикл за сегодня есть\",\n",
+   "new": "                            \"verdict\": catchup_cycle.NOT_MEASURED,\n                            \"reason\": \"сцена объявила: цикл за сегодня есть\",\n"
+  },
+  {
+   "name": "M04 прод-контракт сужен: NOT_MEASURED больше не делает флот нездоровым (инв. #16 наизнанку)",
+   "file": "spa_core/monitoring/self_heal.py",
+   "old": "        elif verdict in (\"launch_failed\", \"not_measured\"):\n",
+   "new": "        elif verdict in (\"launch_failed\",):\n"
+  },
+  {
+   "name": "M05 починка объявлена аварией: launched уходит в failures вместо actions",
+   "file": "spa_core/monitoring/self_heal.py",
+   "old": "        if verdict == \"launched\":\n            actions.append(f\"catch-up daily cycle kickstarted ({catchup.get('reason')})\")\n",
+   "new": "        if verdict == \"launched\":\n            failures.append(f\"catch-up daily cycle kickstarted ({catchup.get('reason')})\")\n"
+  },
+  {
+   "name": "M06 причина отказа перестаёт быть НАЗВАННОЙ — строка пустеет",
+   "file": "spa_core/monitoring/self_heal.py",
+   "old": "            failures.append(f\"catch-up daily cycle: {catchup.get('reason')}\")\n",
+   "new": "            failures.append(\"\")\n"
+  }
+ ],
+ "note": "Предмет — ПРОВОДКА двери и прод-контракт правила 3b, поэтому мутации стоят по обе стороны: M01…M03 рвут сцену (и обязаны убиваться контролями проводки), M04…M06 рвут прод-правило (и обязаны убиваться контролями в обратную сторону). Мутации, снимающей сам `assert report[\"healthy\"] is True`, в наборе нет намеренно: это была бы проверка самого pytest, а не предмета. Прогон — в ОТДЕЛЬНОМ дереве (`.claude/rules/deployment.md` § БАЙТЫ, КОТОРЫЕ НЕ ЯВЛЯЮТСЯ КОДОМ, п. 1)."
+}

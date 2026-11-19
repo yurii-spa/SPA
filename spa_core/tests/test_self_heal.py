@@ -39,7 +39,7 @@ import time
 
 import pytest
 
-from spa_core.monitoring import self_heal
+from spa_core.monitoring import catchup_cycle, self_heal
 
 
 # ---------------------------------------------------------------------------
@@ -122,6 +122,35 @@ def heal(monkeypatch):
     # with a live pid never touch the real data/ beacon. raising=False for the
     # same reason as the own-28 seams above.
     monkeypatch.setattr(self_heal, "_beacon_age_seconds", lambda: None, raising=False)
+    # ── ЧЕТВЁРТАЯ дверь правила 3b (ADR-1052) — ЖИВАЯ, и до 19.11 её не закрывал
+    # никто. `run_self_heal` зовёт `catchup_cycle.run(write=not dry_run)` БЕЗ
+    # инъекции, то есть с настоящим `launchctl kickstart com.spa.daily_cycle` и
+    # настоящим журналом попытки в `data/`. Замер 2026-11-19: один зов `pytest`
+    # по ЭТОМУ файлу ВПРАВДУ запустил прод-цикл (`catchup_cycle_status.json`:
+    # `verdict: launched`, `dry_run: false`; `paper_trading_status.json` в проде
+    # получил `last_cycle_ts` секундой позже). `_guard_no_real_io` этого не видел
+    # ПО ПОСТРОЕНИЮ: он закрывает `self_heal._run`, а подпроцесс соседнего модуля
+    # — СВОЙ (урок «половина инъекции», `.claude/rules/deployment.md`).
+    #
+    # Ответ ОБЪЯВЛЕН, а не взят у хоста: правило «не чаще одного в сутки» делает
+    # живой вердикт ЗАВИСИМЫМ ОТ ТОГО, съел ли сегодняшнюю попытку кто-то другой,
+    # поэтому ПЕРВЫЙ дошедший сюда тест получал один ответ, а остальные — другой.
+    # `cycle_present` согласован с `_last_cycle_age_hours → 1.0` выше: цикл свежий
+    # ⇒ догонять нечего. Красный вердикт сцена объявляет САМА (см. контроли ниже).
+    monkeypatch.setattr(catchup_cycle, "run",
+                        lambda write=False, **kw: {
+                            "verdict": catchup_cycle.CYCLE_PRESENT,
+                            "reason": "сцена объявила: цикл за сегодня есть",
+                            "dry_run": not write,
+                        })
+    # Дверь ДЕЙСТВИЯ соседа — ОТДЕЛЬНАЯ претензия, и закрыта она здесь, а не в
+    # `_guard_no_real_io`: шапка файла обещает «no real launchd» КАЖДОМУ тесту,
+    # а тот помощник зовётся не каждым. Снимут объявленный вердикт выше —
+    # тест упадёт ГРОМКО, вместо того чтобы двинуть прод-флот.
+    def _no_real_launchd(*a, **k):
+        raise AssertionError("real subprocess invoked in a mocked test")
+    monkeypatch.setattr(catchup_cycle, "_kickstart", _no_real_launchd, raising=False)
+    monkeypatch.setattr(catchup_cycle, "_alert", _no_real_launchd, raising=False)
 
     return h
 
@@ -837,3 +866,100 @@ def test_r6_beacon_age_reader_units(tmp_path, monkeypatch):
     # нет файла → None
     p.unlink()
     assert self_heal._beacon_age_seconds() is None
+
+
+# ===========================================================================
+# ADR-1064 — ЧЕТВЁРТАЯ дверь правила 3b: живой `catchup_cycle` в юнит-тесте
+#
+# Предмет: 2026-11-19 прогон `44498847494` назвал КРАСНЫМ ровно одно имя этого
+# файла — `test_idle_calendar_agent_not_bootstrapped`, строка
+# `assert report["healthy"] is True`. На Маке оно ЗЕЛЕНО, и зелено ПО СЛУЧАЮ:
+# правило 3b зовёт `catchup_cycle.run(write=not dry_run)` без инъекции, а то
+# правило срабатывает НЕ ЧАЩЕ ОДНОГО РАЗА В СУТКИ. Поэтому ПЕРВЫЙ дошедший до
+# него тест получает живой вердикт (`launched` / `launch_failed` /
+# `not_measured`), а все следующие — безобидный `already_attempted`. Кто платит
+# — решает не код, а то, съел ли сегодняшнюю попытку кто-то другой.
+#
+# Сцена раннера (журнал попытки ПУСТ) воспроизведена замером: 1 failed /
+# 41 passed, и упавшее имя СОВПАЛО с названным прогоном. Подстановка одного
+# ответа на все зовы даёт 6 / 3 / 5 — то есть «красных» было бы больше, и
+# именно СОСТОЯНИЕ хоста, а не ответ двери, выбирало единственного плательщика.
+#
+# Это тот же род, что КАЛЕНДАРЬ · НОМЕР ПРОЦЕССА · GIT-ОКРУЖЕНИЕ
+# (`.claude/rules/deployment.md`), но якорь здесь — не литеральная дата и не
+# номер, а ЖУРНАЛ НА ЖИВОЙ МАШИНЕ. Храповик замороженных дат этого не видит ПО
+# ПОСТРОЕНИЮ: литеральной даты в файле нет вовсе.
+# ===========================================================================
+def test_the_catchup_door_is_closed_by_the_hermetic_fixture(heal):
+    """Положительный контроль ПРОВОДКИ: дверь закрыта САМОЙ фикстурой.
+
+    Снимут строку из `heal` — этот тест краснеет первым и называет причину,
+    вместо того чтобы прод-флот получил `launchctl kickstart` из юнит-теста.
+    """
+    verdict = catchup_cycle.run(write=True)
+
+    assert verdict["verdict"] == catchup_cycle.CYCLE_PRESENT
+    # и дверь ДЕЙСТВИЯ соседа тоже заткнута — не «вердикт безобиден», а
+    # «настоящего launchctl не достать» (две разные претензии).
+    with pytest.raises(AssertionError, match="real subprocess"):
+        catchup_cycle._kickstart(catchup_cycle.DAILY_CYCLE_LABEL)
+
+
+def test_idle_calendar_verdict_does_not_depend_on_the_hosts_daily_journal(heal, monkeypatch):
+    """Та САМАЯ сцена прогона — и теперь её исход объявлен, а не одолжен у хоста.
+
+    Повторяет `test_idle_calendar_agent_not_bootstrapped` при ПУСТОМ журнале
+    попытки, то есть ровно в том состоянии, в котором раннер красил имя.
+    """
+    _guard_no_real_io(monkeypatch)
+    monkeypatch.setattr(self_heal, "_expected_labels", lambda: ["com.spa.daily_cycle"])
+    monkeypatch.setattr(self_heal, "_loaded_labels", lambda: {})
+    monkeypatch.setattr(self_heal, "_must_be_resident", lambda label: False)
+
+    report = self_heal.run_self_heal(dry_run=False)
+
+    assert report["idle_calendar_skipped"] == 1
+    assert report["healthy"] is True
+    assert report["failures"] == []
+
+
+def test_a_catchup_rule_that_cannot_measure_still_makes_the_fleet_unhealthy(heal, monkeypatch):
+    """ОБРАТНАЯ половина: прод-контракт правила 3b НЕ ослаблен ни на байт.
+
+    Инъекция закрывает дверь, а не отменяет правило: объявит сцена
+    `not_measured` — `healthy` обязан стать `False`, и причина обязана быть
+    НАЗВАНА строкой. Без этого контроля правка выше была бы глушителем (инв. #16).
+    """
+    _guard_no_real_io(monkeypatch)
+    monkeypatch.setattr(self_heal, "_expected_labels", lambda: ["com.spa.daily_cycle"])
+    monkeypatch.setattr(self_heal, "_loaded_labels", lambda: {})
+    monkeypatch.setattr(self_heal, "_must_be_resident", lambda label: False)
+    monkeypatch.setattr(catchup_cycle, "run",
+                        lambda write=False, **kw: {
+                            "verdict": catchup_cycle.NOT_MEASURED,
+                            "reason": "сцена объявила: наблюдения нет",
+                        })
+
+    report = self_heal.run_self_heal(dry_run=False)
+
+    assert report["healthy"] is False
+    assert any("catch-up daily cycle" in f for f in report["failures"]), report["failures"]
+
+
+def test_a_launched_catchup_is_an_action_not_a_failure(heal, monkeypatch):
+    """Третий исход правила 3b различим от двух прочих (инв. #17).
+
+    `launched` — РАБОТА, а не поломка: она идёт в `actions`, и флот остаётся
+    здоровым. Слить её с `not_measured` значило бы объявить починку аварией.
+    """
+    _guard_no_real_io(monkeypatch)
+    monkeypatch.setattr(catchup_cycle, "run",
+                        lambda write=False, **kw: {
+                            "verdict": catchup_cycle.LAUNCHED,
+                            "reason": "сцена объявила: догоняющий запущен",
+                        })
+
+    report = self_heal.run_self_heal(dry_run=False)
+
+    assert report["failures"] == []
+    assert any("catch-up daily cycle kickstarted" in a for a in report["actions"]), report["actions"]
