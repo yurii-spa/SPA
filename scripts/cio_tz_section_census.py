@@ -252,6 +252,46 @@ def tree_basenames(root: str) -> set:
     return names
 
 
+def _import_deliverable_door():
+    """Ввоз прибора §6 ОТДЕЛЬНОЙ дверью — чтобы сцена могла его отнять.
+
+    Без этой двери исход «инструмента нет» не поставить ни одной пробой, и
+    мутация «не ввезён ⇒ объявить ИСПОЛНЕННЫМ» выживала (замер цикла #1211,
+    M16): fail-OPEN тише красного теста, поэтому опаснее.
+    """
+    here = os.path.dirname(os.path.abspath(__file__))
+    if here not in sys.path:
+        sys.path.insert(0, here)
+    import cio_as_is_deliverable as door
+    return door
+
+
+def deliverable_axis(root: str) -> dict:
+    """Ось ИСПОЛНЕНИЯ §6 — вопрос, на который эта перепись отвечать НЕ МОЖЕТ.
+
+    Перепись мерит РЕЕСТР решений и честно печатает свою слепоту («адрес назван» НЕ
+    ЕСТЬ «§ исполнен»). У §6 следующий вопрос задаёт отдельный прибор
+    `scripts/cio_as_is_deliverable.py` (ADR-1069): существует ли названный владельцем
+    документ, несёт ли он ВСЕ ШЕСТЬ названных разделов и есть ли у каждого якорь
+    замера, чей путь существует.
+
+    Прибор не ввезён ⇒ **НЕ ИЗМЕРЕНО** с названной причиной, а не «исполнен» и не
+    «не исполнен»: отсутствие инструмента есть самостоятельный третий исход
+    (`.claude/rules/deployment.md`, дословный урок `pyflakes`).
+    """
+    try:
+        door = _import_deliverable_door()
+    except Exception as exc:  # noqa: BLE001
+        return {"measured": False, "section": 6,
+                "reason": f"прибор исполнения §6 не ввезён: {exc}"}
+    try:
+        report = door.audit(root)
+    except door.NotMeasured as exc:
+        return {"measured": False, "section": 6, "reason": str(exc)}
+    return {"measured": True, "section": 6, "status": report["status"],
+            "doc": report.get("doc"), "why": report["why"]}
+
+
 def census(root: str) -> dict:
     """Перепись целиком. :class:`NotMeasured` — единственный путь к коду 2."""
     card_text = _read(root, CARD_REL)
@@ -290,6 +330,7 @@ def census(root: str) -> dict:
             for row in rows if row["named_artifacts_missing"]
         },
         "chronicle_axis": chronicle_ambiguity(root),
+        "deliverable_axis": deliverable_axis(root),
         "sections": rows,
         "blindness": (
             "«адрес назван» НЕ ЕСТЬ «§ исполнен»: прибор мерит реестр решений, "
@@ -336,6 +377,16 @@ def render(report: dict) -> str:
         by_number = {row["section"]: row for row in report["sections"]}
         for number in report["no_address_sections"]:
             lines.append(f"     §{number} — {by_number[number]['title']}")
+    axis = report.get("deliverable_axis") or {}
+    if not axis:
+        pass
+    elif not axis.get("measured"):
+        lines.append(f"  ось ИСПОЛНЕНИЯ §6: НЕ ИЗМЕРЕНО — {axis.get('reason')}")
+    elif axis.get("status") == "satisfied":
+        lines.append(f"  ось ИСПОЛНЕНИЯ §6: ✅ исполнен — {axis.get('doc')}")
+    else:
+        lines.append(f"  ось ИСПОЛНЕНИЯ §6: ❌ НЕ исполнен — "
+                     + "; ".join(axis.get("why") or ["причина не названа"]))
     lines.append(f"  ⚠️ {report['blindness']}")
     lines.append(
         "  ✅ у каждого § есть адрес" if not report["no_address_sections"]

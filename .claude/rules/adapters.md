@@ -14,7 +14,7 @@
   |---|---|---|---|
   | `ADAPTER_REGISTRY` | `spa_core/adapters/__init__.py` | список кортежей · 36 | `aave_v3` |
   | `ADAPTER_METADATA` | `spa_core/adapters/registry.py` | dict метаданных · 22 | `aave_usdc` (`aave_v3` там НЕТ) |
-  | `POLLED_ADAPTERS` | `spa_core/orchestrator/adapter_orchestrator.py` | список кортежей · 8 | что цикл реально опрашивает |
+  | `POLLED_ADAPTERS` | `spa_core/orchestrator/adapter_orchestrator.py` | список кортежей · **11** (замер 19.11; было 8) | что цикл реально опрашивает — и это НЕ весь набор наблюдаемого: живую ставку APY несут **17**, живой TVL — **10**, то есть 7 протоколов наблюдаются по доходности и не по размеру пула (ADR-1069) |
 
   Составы РАЗНЫЕ и совпадать не обязаны — но сверять «книга ↔ реестр» по `ADAPTER_METADATA`
   нельзя: она честно доложит, что 40 % книги не зарегистрировано. Держит храповик

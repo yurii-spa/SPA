@@ -20176,6 +20176,62 @@ def _probe_catchup_cycle_fires_once_after_the_hour(arg: str | None = None) -> tu
                        f"`run_self_heal` есть ({sites})")
 
 
+def _probe_cio_as_is_deliverable_is_whole(arg: str | None = None) -> tuple[str, str]:
+    """Критерий карточки `inbox-6-prikaza-trebuet-dokumenta-portfolio-ci` (ADR-1069).
+
+    Критерий назван ДО работы и НЕ этой пробой — он стоит в теле карточки, созданной
+    циклом #1210 по находке ADR-1067: «перепись не называет §6 в строке „§ НАЗВАЛ
+    ДОКУМЕНТ, которого в дереве НЕТ“, И у каждого из шести разделов §6 в документе
+    есть адрес замера … а не проза». Проба его лишь МЕХАНИЗИРУЕТ.
+
+    Меряется ИСХОД, а не структура: у настоящего документа спрашивают, назван ли КАЖДЫЙ
+    из шести разделов владельца ЗАГОЛОВКОМ и существует ли путь, названный его якорем
+    `Замер:`. **Подстрокой проба не проходит:** раздел, помянутый внутри абзаца, не
+    считается (ADR-333), а состав шести сверяется с §6 САМОЙ карточки приказа, не с
+    копией в коде прибора.
+
+    ТРИ ИСХОДА РАЗЛИЧИМЫ (инв. #17):
+
+    * прибор §6 не ввозится ⇒ ``unmeasured`` с причиной: отсутствие инструмента есть
+      самостоятельный исход, а не «чисто» (дословный урок `pyflakes`);
+    * раздела нет · раздел без якоря · якорь на несуществующий путь ⇒
+      ``not_satisfied`` с ИМЕНЕМ раздела;
+    * документа нет вовсе ⇒ ``not_satisfied`` — это ИЗМЕРЕНИЕ состояния «как было»
+      488 циклов, а не неспособность измерить;
+    * две копии одного имени ⇒ ``unmeasured``: какой из них читатель §6 обязан
+      читать, по дереву не видно.
+    """
+    import importlib.util as _ilu
+    from pathlib import Path as _P
+    # `arg` — дерево, которому задаётся вопрос. Умолчание (своё дерево) есть боевой
+    # путь; вход нужен, чтобы ТРИ исхода пробы можно было ПОСТАВИТЬ сценой, а не
+    # ждать, пока они случатся сами. Прибор-дверь берётся ВСЕГДА из своего дерева:
+    # спрашивать чужое дерево чужим же прибором значило бы не знать, что ответило.
+    own = _P(__file__).resolve().parents[2]
+    root = _P(arg).resolve() if arg else own
+    script = own / "scripts" / "cio_as_is_deliverable.py"
+    if not script.exists():
+        return UNMEASURED, f"прибора §6 нет в дереве: {script}"
+    try:
+        spec = _ilu.spec_from_file_location("cio_as_is_deliverable", script)
+        door = _ilu.module_from_spec(spec)
+        spec.loader.exec_module(door)
+    except Exception as exc:  # noqa: BLE001
+        return UNMEASURED, (f"прибор §6 не ввезён ({exc.__class__.__name__}: {exc}) — "
+                            f"исполнение §6 НЕ ИЗМЕРЕНО")
+    try:
+        report = door.audit(str(root))
+    except door.NotMeasured as exc:
+        return UNMEASURED, str(exc)
+    except Exception as exc:  # noqa: BLE001
+        return UNMEASURED, f"прибор §6 упал: {exc.__class__.__name__}: {exc}"
+    if report["status"] != door.SATISFIED:
+        return NOT_SATISFIED, "; ".join(report["why"]) or "§6 не исполнен без названной причины"
+    anchors = sum(len(r["anchors"]) for r in report["sections"].values())
+    return SATISFIED, (f"{report['doc']}: шесть разделов владельца названы заголовком, "
+                       f"якорей замера {anchors}, ни один путь не выдуман")
+
+
 PROBES: dict[str, Callable[[str | None], "tuple[str, str]"]] = {
     "module_limit_bites_a_busy_module":
         _probe_module_limit_bites_a_busy_module,
@@ -20420,6 +20476,7 @@ PROBES: dict[str, Callable[[str | None], "tuple[str, str]"]] = {
         _probe_tb_sanitizer_sees_the_report_excinfo,
     "catchup_cycle_fires_once_after_the_hour":
         _probe_catchup_cycle_fires_once_after_the_hour,
+    "cio_as_is_deliverable_is_whole": _probe_cio_as_is_deliverable_is_whole,
 }
 
 

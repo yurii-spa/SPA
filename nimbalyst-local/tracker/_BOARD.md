@@ -2,14 +2,15 @@
 
 > Авто-генерится `scripts/build_tracker_board.py` из `nimbalyst-local/tracker/*.md`. НЕ править вручную — правь карточки. Источник правды — карточки, это индекс (bootstrap).
 >
-> Собрана: 2026-11-19T19:42:45Z · сверка с карточками: `python3 scripts/build_tracker_board.py --check` (сторож `spa_core/tests/test_tracker_board_matches_cards.py`).
+> Собрана: 2026-11-19T22:46:55Z · сверка с карточками: `python3 scripts/build_tracker_board.py --check` (сторож `spa_core/tests/test_tracker_board_matches_cards.py`).
 >
-> Сверено с `origin/main` (569d3436d) · у **1** своя правка, кто новее — не измерено.
+> Сверено с `origin/main` (98e5d9565) · у **1** своя правка, кто новее — не измерено.
 >
-> Всего карточек: **1667** · ждёт владельца: **13** · занято сессиями: **14**.
+> Всего карточек: **1669** · ждёт владельца: **14** · занято сессиями: **14**.
 
 ## 🔴 ЖДЁТ ВЛАДЕЛЬЦА (needs-owner)
 
+- **Деньги стоят под низкой ставкой не по ошибке, а из-за наших потолков — нужен твой выбор из трёх**  ·  `owner-decision-dengi-stoyat-pod-nizkoi-stavkoi-ne-po-os.md`
 - **Граница актива не объявлена ни в одном месте: система может уйти из USDC в другой актив, и это никто не проверяет**  ·  `owner-decision-granitsa-aktiva-ne-obyavlena-ni-v-odnom.md`
 - **Кандидат может получить деньги: ни одна дверь его не останавливает (и три соседних вопроса про тиры)**  ·  `owner-decision-kandidat-mozhet-poluchit-dengi-dver-dopu.md`
 - **Новые деньги не отличаются от перекладки: пункт 20 задания CIO**  ·  `owner-decision-novye-dengi-ne-otlichayutsya-ot-pereklad.md`
@@ -43,9 +44,10 @@
 - **TASK — Portfolio CIO: Dynamic Capital Allocation & Rebalancing** — держит `cycle-4065` · с 2026-11-19T05:45:14Z  ·  `inbox-task-portfolio-cio-dynamic-capital-alloc.md`
 - **Замок цикла оркестратора доставлен, но в проде не работает: обёртка агента синкается раз в сутки, а голос о пропавшей защите живёт в самом пропавшем файле** — держит `cycle-81141` · с 2026-08-08T01:59:06Z  ·  `inbox-zamok-tsikla-orkestratora-dostavlen-no-v.md`
 
-## 🧑‍⚖️ Owner Decisions (что нужно от владельца)  (393)
+## 🧑‍⚖️ Owner Decisions (что нужно от владельца)  (394)
 
 ### · needs-owner
+- Деньги стоят под низкой ставкой не по ошибке, а из-за наших потолков — нужен твой выбор из трёх  ·  `owner-decision-dengi-stoyat-pod-nizkoi-stavkoi-ne-po-os.md` · 2026-11-19
 - Граница актива не объявлена ни в одном месте: система может уйти из USDC в другой актив, и это никто не проверяет  ·  `owner-decision-granitsa-aktiva-ne-obyavlena-ni-v-odnom.md` · 2026-11-09
 - Кандидат может получить деньги: ни одна дверь его не останавливает (и три соседних вопроса про тиры)  ·  `owner-decision-kandidat-mozhet-poluchit-dengi-dver-dopu.md` · 2026-11-09
 - Новые деньги не отличаются от перекладки: пункт 20 задания CIO  ·  `owner-decision-novye-dengi-ne-otlichayutsya-ot-pereklad.md` · 2026-11-09
@@ -443,7 +445,7 @@
 ### · closed
 - Считать ли верный отказ по правилам допуска неисправностью флота  ·  `owner-decision-schitat-li-vernyi-otkaz-po-pravilam-dopu.md` · 2026-10-08
 
-## 📥 Inbox (задания: Telegram / заметки / голос)  (965)
+## 📥 Inbox (задания: Telegram / заметки / голос)  (966)
 
 ### · in-progress
 - а задача починить все-таки еще раз сообщение которым не пишет нужно твое решени…  ·  `inbox-a-zadacha-pochinit-vse-taki-esche-raz-so.md` · 2026-08-14 · 🔒 `pid43119`
@@ -513,6 +515,7 @@
 - 25 модулей получили вечный вердикт «покрытие не измерено» — контекст-путь нечем мерить  ·  `inbox-25-modulei-poluchili-vechnyi-verdikt-pok.md` · 2026-08-06
 - 3 трека параллельно: Conservative + Balanced + Aggressive (мандат владельца)  ·  `inbox-3-treka-parallelno-conservative-balanced.md` · 2026-08-08
 - §41 приёмки ТЗ CIO (auto-execution limits): замеры сделаны, ловушка названа — мерить обе поверхности решения, не только гейт  ·  `inbox-41-priemki-tz-cio-auto-execution-limits.md` · 2026-09-07
+- §6 приказа требует документа PORTFOLIO_CIO_AS_IS.md — его нет ни одного  ·  `inbox-6-prikaza-trebuet-dokumenta-portfolio-ci.md` · 2026-11-19
 - 7-day checkpoint: gap_check считать от evidenced-якоря (решение владельца 09.08)  ·  `inbox-7-day-checkpoint-gap-check-schitat-ot-ev.md` · 2026-08-09
 - А еще я вижу по использованию модели, по лимитам, которые мне Клод выделяет, ви…  ·  `inbox-a-esche-ya-vizhu-po-ispolzovaniyu-modeli.md` · 2026-08-13
 - actual costs  ·  `inbox-actual-costs.md` · 2026-08-13
@@ -1015,7 +1018,6 @@
 - 307 карточек живут на origin, а в прод-дереве их файла нет — доска называет их числом, но не показывает  ·  `inbox-307-kartochek-nevidimy-prod-derevu.md` · 2026-08-30
 - 54 безголовых браузера держат три одноразовых дерева, старейший сутки с лишним  ·  `inbox-54-bezgolovyh-brauzera-derzhat-tri-odnor.md` · 2026-11-07
 - 56 записей приказа стёрли 08.10, и пять суток не заметил никто: у памяти приказа нет сторожа ПОСЛЕ доставки  ·  `inbox-56-zapisei-prikaza-sterli-08-10-i-pyat-s.md` · 2026-10-13
-- §6 приказа требует документа PORTFOLIO_CIO_AS_IS.md — его нет ни одного  ·  `inbox-6-prikaza-trebuet-dokumenta-portfolio-ci.md` · 2026-11-19
 - 60% отправок владельцу не помечены message_id — чем послано сообщение без кнопок, неизмеримо  ·  `inbox-60-otpravok-vladeltsu-ne-pomecheny-messa.md` · 2026-08-22
 - 72 файла агентов не попали в реестр — за ними не следит ни один сторож свежести  ·  `inbox-72-faila-agentov-ne-popali-v-reestr-za-n.md` · 2026-09-08
 - 92 пары оси статуса доски НЕ ИЗМЕРЕНЫ — причины не разведены, и 287 может быть нижней границей  ·  `inbox-92-pary-osi-statusa-doski-ne-izmereny-pr.md` · 2026-11-19
@@ -1297,6 +1299,7 @@
 - scripts/system_health_check.py заменён монитором два месяца назад, но остался в дереве  ·  `inbox-scripts-system-health-check-py-zamenen-m.md` · 2026-08-25
 - Секция §45 шага 0-офис десятый цикл подряд печатает опровергнутое CRITICAL — чинить ПРОИЗВОДИТЕЛЯ, не текст  ·  `inbox-sektsiya-45-shaga-0-ofis-desyatyi-tsikl.md` · 2026-11-09
 - Семь мутационных подмен в батареях не спрашивают, применились ли они  ·  `inbox-sem-mutatsionnyh-podmen-v-batareyah-ne-s.md` · 2026-10-04
+- Семь протоколов наблюдаются по доходности и НЕ по TVL — у R1 из ADR-1069 нет открытого носителя  ·  `inbox-sem-protokolov-nablyudayutsya-po-dohodno.md` · 2026-11-19
 - Семь скриптов, вскрытых строгим сканером: разобрать поштучно (подключить / списать / вывести класс правилом)  ·  `inbox-sem-skriptov-vskrytyh-strogim-skanerom-r.md` · 2026-08-16
 - Сессия теряет доступ на ЧТЕНИЕ прод-дерева, а запись продолжает работать — второй случай из двух аудитов  ·  `inbox-sessiya-teryaet-dostup-na-chtenie-prod-de.md` · 2026-08-26
 - Сетевая подрезка не должна быть приговором протоколу (решение владельца ADR-193, вариант 1)  ·  `inbox-setevaya-podrezka-ne-dolzhna-byt-prigovo.md` · 2026-08-31

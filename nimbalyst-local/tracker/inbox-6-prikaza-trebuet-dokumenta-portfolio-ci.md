@@ -2,10 +2,13 @@
 trackerStatus:
   type: inbox
 title: §6 приказа требует документа PORTFOLIO_CIO_AS_IS.md — его нет ни одного
-status: new
+status: done
 source: nimbalyst
 created: 2026-11-19
 twin_key: "sha256:cb3e8490570888f28f7e6c9881e27a26804e7ea01fbac91c1d04217cff9ec597"
+acceptance_probe: cio_as_is_deliverable_is_whole
+status_trail:
+  - "2026-11-19T21:17:41.783316+00:00 new -> done · queue.set_status/closed_by:cycle-19506/evidence:проба реестра cio_as_is_deliverable_is_whole = satisfied: docs/PORTFOLIO_CIO_AS_IS.md, шесть разделов §6 названы ЗАГОЛОВКОМ, 35 якорей Замер:, ни один путь не выдуман; перепись ADR-1067 больше не назы · cycle-19506"
 ---
 
 ## Что нашлось
