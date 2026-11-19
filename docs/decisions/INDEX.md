@@ -195,6 +195,8 @@
 | ADR-1064 | ADR-1064 — юнит-тест ДВИГАЛ живой флот: правило 3b зовёт catchup_cycle.run без инъекции, и зов дошёл до настоящего launchctl kickstart com.spa.daily_cycle — прод-цикл запущен тестом | Accepted | [ADR-1064](ADR-1064-unit-test-moved-the-live-fleet.md) |
 | ADR-1065 | ADR-1065 — дверь герметичного launchd ОДНА: ADR-1064 закрыл один файл, и в тот же день второй сайт ПОКРАСНЕЛ от часа суток, а третий поднимал настоящий launchctl МОЛЧА | Accepted | [ADR-1065](ADR-1065-one-door-for-hermetic-launchd.md) |
 | ADR-1066 | ADR-1066 — стоячий приказ владельца был НЕЧИТАЕМ по построению: 3 273 543 символа (109× предела STATE.md), ТЗ владельца 1.03 % файла, 488 циклов мимо — третий исход у записи цикла ПЕРЕНЕСЕНА | Accepted | [ADR-1066](ADR-1066-cycle-record-relocation-and-card-weight.md) |
+| ADR-1067 | ADR-1067 — у §-ов ТЗ приказа «Portfolio CIO» ИЗМЕРЕН адрес решения (52 цепью против 80 наивно; 42 названы, 10 нет), и §6 требовал документа PORTFOLIO_CIO_AS_IS.md, которого нет ни одного | Accepted | [ADR-1067](ADR-1067-cio-tz-section-address-census.md) |
+| ADR-1068 | ADR-1068 — население класса «карточка-тетрадь» ИЗМЕРЕНО: из 1667 карточек хронику несут 19, выше порога доли 8, членов класса 0 — а самая тяжёлая карточка записей не имеет вовсе | Accepted | [ADR-1068](ADR-1068-tracker-notebook-class-population.md) |
 
 ## Соглашения
 

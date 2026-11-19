@@ -2,11 +2,11 @@
 
 > Авто-генерится `scripts/build_tracker_board.py` из `nimbalyst-local/tracker/*.md`. НЕ править вручную — правь карточки. Источник правды — карточки, это индекс (bootstrap).
 >
-> Собрана: 2026-11-19T17:06:00Z · сверка с карточками: `python3 scripts/build_tracker_board.py --check` (сторож `spa_core/tests/test_tracker_board_matches_cards.py`).
+> Собрана: 2026-11-19T19:25:20Z · сверка с карточками: `python3 scripts/build_tracker_board.py --check` (сторож `spa_core/tests/test_tracker_board_matches_cards.py`).
 >
-> Сверено с `origin/main` (a697ad9bd) · у **1** своя правка, кто новее — не измерено.
+> Сверено с `origin/main` (4aaa48b3f) · у **1** своя правка, кто новее — не измерено.
 >
-> Всего карточек: **1666** · ждёт владельца: **13** · занято сессиями: **14**.
+> Всего карточек: **1667** · ждёт владельца: **13** · занято сессиями: **14**.
 
 ## 🔴 ЖДЁТ ВЛАДЕЛЬЦА (needs-owner)
 
@@ -443,7 +443,7 @@
 ### · closed
 - Считать ли верный отказ по правилам допуска неисправностью флота  ·  `owner-decision-schitat-li-vernyi-otkaz-po-pravilam-dopu.md` · 2026-10-08
 
-## 📥 Inbox (задания: Telegram / заметки / голос)  (964)
+## 📥 Inbox (задания: Telegram / заметки / голос)  (965)
 
 ### · in-progress
 - а задача починить все-таки еще раз сообщение которым не пишет нужно твое решени…  ·  `inbox-a-zadacha-pochinit-vse-taki-esche-raz-so.md` · 2026-08-14 · 🔒 `pid43119`
@@ -1015,6 +1015,7 @@
 - 307 карточек живут на origin, а в прод-дереве их файла нет — доска называет их числом, но не показывает  ·  `inbox-307-kartochek-nevidimy-prod-derevu.md` · 2026-08-30
 - 54 безголовых браузера держат три одноразовых дерева, старейший сутки с лишним  ·  `inbox-54-bezgolovyh-brauzera-derzhat-tri-odnor.md` · 2026-11-07
 - 56 записей приказа стёрли 08.10, и пять суток не заметил никто: у памяти приказа нет сторожа ПОСЛЕ доставки  ·  `inbox-56-zapisei-prikaza-sterli-08-10-i-pyat-s.md` · 2026-10-13
+- §6 приказа требует документа PORTFOLIO_CIO_AS_IS.md — его нет ни одного  ·  `inbox-6-prikaza-trebuet-dokumenta-portfolio-ci.md` · 2026-11-19
 - 60% отправок владельцу не помечены message_id — чем послано сообщение без кнопок, неизмеримо  ·  `inbox-60-otpravok-vladeltsu-ne-pomecheny-messa.md` · 2026-08-22
 - 72 файла агентов не попали в реестр — за ними не следит ни один сторож свежести  ·  `inbox-72-faila-agentov-ne-popali-v-reestr-za-n.md` · 2026-09-08
 - 92 пары оси статуса доски НЕ ИЗМЕРЕНЫ — причины не разведены, и 287 может быть нижней границей  ·  `inbox-92-pary-osi-statusa-doski-ne-izmereny-pr.md` · 2026-11-19

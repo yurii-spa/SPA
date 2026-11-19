@@ -1,0 +1,92 @@
+{
+  "title": "ADR-1068 TETRA — дельта цикла #1210: население класса «карточка-тетрадь» (дверь записи цикла ввезена и из дерева ПРИБОРА, «записей нет» ≠ 0 %, класс есть ПЕРЕСЕЧЕНИЕ двух осей, производный индекс не карточка, символы не байты, три исхода кодами возврата, область утверждения печатается)",
+  "tests": [
+    "spa_core/tests/test_tracker_chronicle_share_census.py"
+  ],
+  "mutations": [
+    {
+      "name": "M01 дверь не проверяется на объявленные имена (свой разбор молча)",
+      "file": "scripts/tracker_chronicle_share_census.py",
+      "old": "        if not hasattr(door, name):",
+      "new": "        if False:"
+    },
+    {
+      "name": "M02 дверь берётся из ИЗМЕРЯЕМОГО дерева, а не из дерева прибора",
+      "file": "scripts/tracker_chronicle_share_census.py",
+      "old": "        \"door_tree\": INSTRUMENT_ROOT,",
+      "new": "        \"door_tree\": root,"
+    },
+    {
+      "name": "M03 «записей цикла нет» становится вычисленным нулём",
+      "file": "scripts/tracker_chronicle_share_census.py",
+      "old": "        return {\"card\": name, \"outcome\": NOT_APPLICABLE, \"chars\": chars, \"records\": 0}",
+      "new": "        return {\"card\": name, \"outcome\": MEASURED, \"chars\": chars, \"records\": 0,\n                \"chronicle_chars\": 0, \"chronicle_bytes\": 0, \"share\": 0.0}"
+    },
+    {
+      "name": "M04 нечитаемая карточка молча выпадает из переписи",
+      "file": "scripts/tracker_chronicle_share_census.py",
+      "old": "        return {\"card\": name, \"outcome\": UNMEASURED, \"reason\": repr(exc)}",
+      "new": "        return {\"card\": name, \"outcome\": NOT_APPLICABLE, \"chars\": 0, \"records\": 0}"
+    },
+    {
+      "name": "M05 класс становится ОДНОЙ осью доли (честная длинная карточка покрашена)",
+      "file": "scripts/tracker_chronicle_share_census.py",
+      "old": "    members = [row for row in above_share if row[\"chars\"] > chars_ceiling]",
+      "new": "    members = list(above_share)"
+    },
+    {
+      "name": "M06 класс становится ОДНОЙ осью веса (вес без хроники объявлен тетрадью)",
+      "file": "scripts/tracker_chronicle_share_census.py",
+      "old": "    members = [row for row in above_share if row[\"chars\"] > chars_ceiling]",
+      "new": "    members = list(above_chars)"
+    },
+    {
+      "name": "M07 производный индекс числится карточкой",
+      "file": "scripts/tracker_chronicle_share_census.py",
+      "old": "    names = [name for name in names if not name.startswith(\"_\")]",
+      "new": "    names = list(names)"
+    },
+    {
+      "name": "M08 исключение из населения перестаёт печататься",
+      "file": "scripts/tracker_chronicle_share_census.py",
+      "old": "        \"excluded_not_cards\": excluded,",
+      "new": "        \"excluded_not_cards\": [],"
+    },
+    {
+      "name": "M09 пустой трекер читается как «тетрадей нет»",
+      "file": "scripts/tracker_chronicle_share_census.py",
+      "old": "    if not names:\n        raise NotMeasured(f\"в {TRACKER_REL} нет ни одной карточки — населения нет\")",
+      "new": "    if not names:\n        names = []"
+    },
+    {
+      "name": "M10 члены класса отдаются кодом 0",
+      "file": "scripts/tracker_chronicle_share_census.py",
+      "old": "    return 1 if report[\"members\"] else 0",
+      "new": "    return 0"
+    },
+    {
+      "name": "M11 НЕ ИЗМЕРЕНО отдаётся кодом 0",
+      "file": "scripts/tracker_chronicle_share_census.py",
+      "old": "            print(f\"❌ НЕ ИЗМЕРЕНО ({root}): {exc}\", file=sys.stderr)\n        return 2",
+      "new": "            print(f\"❌ НЕ ИЗМЕРЕНО ({root}): {exc}\", file=sys.stderr)\n        return 0"
+    },
+    {
+      "name": "M12 область утверждения («это дерево, эти пороги») перестаёт печататься",
+      "file": "scripts/tracker_chronicle_share_census.py",
+      "old": "    lines.append(\n        \"  ⚠️ «класс пуст» есть утверждение О ЭТОМ ДЕРЕВЕ и ОБ ЭТИХ ДВУХ ПОРОГАХ; \"\n        \"тетрадь ниже обоих порогов прибор не назовёт, и это сказано вслух\"\n    )",
+      "new": "    lines.append(\"  ⚠️\")"
+    },
+    {
+      "name": "M13 самая тяжёлая карточка выбирается среди НЕИЗМЕРЕННЫХ (ключа chars нет)",
+      "file": "scripts/tracker_chronicle_share_census.py",
+      "old": "    heaviest = max((row for row in rows if \"chars\" in row),",
+      "new": "    heaviest = max((row for row in rows if True),"
+    },
+    {
+      "name": "M14 доля считается в БАЙТАХ — ответ о кодировке, а не о содержании",
+      "file": "scripts/tracker_chronicle_share_census.py",
+      "old": "        \"share\": chronicle_chars / chars if chars else 0.0,",
+      "new": "        \"share\": chronicle_bytes / chars if chars else 0.0,"
+    }
+  ]
+}

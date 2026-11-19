@@ -1,0 +1,104 @@
+{
+  "title": "ADR-1067 CIOTZ — дельта цикла #1210: перепись §-ов ТЗ приказа «Portfolio CIO» (дверь ЦЕПИ против наивного грепа, составной реестр и fail-CLOSED непрочитанной части, ось ДИАПАЗОНА отдельно от точного адреса, раздел чужого документа §N.M не адрес, ось названных документов в обе стороны, ось хроники объявлена НЕ ИЗМЕРЕННОЙ с замером величины ошибки, три исхода кодами возврата, хвост последнего § кончается на заголовке, а не на EOF)",
+  "tests": [
+    "spa_core/tests/test_cio_tz_section_census.py"
+  ],
+  "mutations": [
+    {
+      "name": "M01 дверь населения становится наивным грепом",
+      "file": "scripts/cio_tz_section_census.py",
+      "old": "        if number == expected:",
+      "new": "        if True:"
+    },
+    {
+      "name": "M02 наивная дверь не измеряется — разницу нечем назвать",
+      "file": "scripts/cio_tz_section_census.py",
+      "old": "        naive += 1",
+      "new": "        naive += 0"
+    },
+    {
+      "name": "M03 реестр спрашивается ОДНОЙ частью (адрес в архиве не найден)",
+      "file": "scripts/cio_tz_section_census.py",
+      "old": "    for rel in REGISTER_PARTS:",
+      "new": "    for rel in REGISTER_PARTS[:1]:"
+    },
+    {
+      "name": "M04 непрочитанная часть реестра читается как «адреса нет» (fail-OPEN)",
+      "file": "scripts/cio_tz_section_census.py",
+      "old": "        text = _read(root, rel)  # NotMeasured пробрасывается наверх",
+      "new": "        try:\n            text = _read(root, rel)\n        except NotMeasured:\n            continue"
+    },
+    {
+      "name": "M05 ось ДИАПАЗОНА слита с точным адресом",
+      "file": "scripts/cio_tz_section_census.py",
+      "old": "        adrs_exact = sorted(exact.get(number, ()), key=int)",
+      "new": "        adrs_exact = sorted(set(exact.get(number, ())) | set(ranged.get(number, ())), key=int)"
+    },
+    {
+      "name": "M06 раздел ЧУЖОГО документа (§2.4) зачитывается адресом §2",
+      "file": "scripts/cio_tz_section_census.py",
+      "old": "SECTION_REF_RE = re.compile(r\"§\\s?(\\d{1,2})(?![\\d.])\")",
+      "new": "SECTION_REF_RE = re.compile(r\"§\\s?(\\d{1,2})\")"
+    },
+    {
+      "name": "M07 ось названных документов ослеплена",
+      "file": "scripts/cio_tz_section_census.py",
+      "old": "            \"named_artifacts_missing\": [name for name in named if name not in basenames],",
+      "new": "            \"named_artifacts_missing\": [],"
+    },
+    {
+      "name": "M08 ссылка на чужой документ читается как поручение владельца",
+      "file": "scripts/cio_tz_section_census.py",
+      "old": "NAMED_ARTIFACT_RE = re.compile(r\"\\b([A-Z][A-Z0-9]*(?:_[A-Z0-9]+)+\\.md)\\b\")",
+      "new": "NAMED_ARTIFACT_RE = re.compile(r\"\\b([A-Za-z][A-Za-z0-9_]*\\.md)\\b\")"
+    },
+    {
+      "name": "M09 ось хроники объявляется ИЗМЕРЕННОЙ",
+      "file": "scripts/cio_tz_section_census.py",
+      "old": "    return {\n        \"measured\": False,\n        \"reason\": (\n            \"символ «§» не называет документ",
+      "new": "    return {\n        \"measured\": True,\n        \"reason\": (\n            \"символ «§» не называет документ"
+    },
+    {
+      "name": "M10 отсутствие хроники печатается без причины",
+      "file": "scripts/cio_tz_section_census.py",
+      "old": "        return {\"measured\": False, \"reason\": str(exc)}",
+      "new": "        return {\"measured\": False, \"reason\": \"\"}"
+    },
+    {
+      "name": "M11 находка отдаётся кодом 0",
+      "file": "scripts/cio_tz_section_census.py",
+      "old": "    return 1 if report[\"no_address_sections\"] else 0",
+      "new": "    return 0"
+    },
+    {
+      "name": "M12 НЕ ИЗМЕРЕНО отдаётся кодом 0",
+      "file": "scripts/cio_tz_section_census.py",
+      "old": "            print(f\"❌ НЕ ИЗМЕРЕНО ({root}): {exc}\", file=sys.stderr)\n        return 2",
+      "new": "            print(f\"❌ НЕ ИЗМЕРЕНО ({root}): {exc}\", file=sys.stderr)\n        return 0"
+    },
+    {
+      "name": "M13 тело § тянется до конца карточки (чужое поручение зачтётся соседу)",
+      "file": "scripts/cio_tz_section_census.py",
+      "old": "            end = sections[position + 1][\"line\"] - 1",
+      "new": "            end = len(lines)"
+    },
+    {
+      "name": "M14 принадлежность § РАЗДЕЛУ решения не различается",
+      "file": "scripts/cio_tz_section_census.py",
+      "old": "        if ADR_OWNED_PREFIX_RE.search(text[max(0, match.start() - 16):match.start()]):",
+      "new": "        if False:"
+    },
+    {
+      "name": "M15 слепота прибора перестаёт печататься",
+      "file": "scripts/cio_tz_section_census.py",
+      "old": "    lines.append(f\"  ⚠️ {report['blindness']}\")",
+      "new": "    lines.append(\"  ⚠️\")"
+    },
+    {
+      "name": "M16 хвост последнего § идёт до EOF (заказ под ТЗ зачтётся владельцу)",
+      "file": "scripts/cio_tz_section_census.py",
+      "old": "            end = len(lines)\n            for offset in range(start, len(lines)):",
+      "new": "            end = len(lines)\n            for offset in range(start, 0):"
+    }
+  ]
+}
