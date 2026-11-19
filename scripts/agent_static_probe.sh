@@ -36,6 +36,9 @@
 # Usage:
 #   agent_static_probe.sh --is-long-lived <plist>      # 0 = long-lived, 1 = not
 #   agent_static_probe.sh --plist-bool <key> <plist>   # prints true|false|dict|""
+#   agent_static_probe.sh --plist-int  <key> <plist>   # prints the integer or ""
+#   agent_static_probe.sh --timeout-verdict <limit_s> <plist>
+#                                      # prints "hang<TAB>why" | "unmeasured<TAB>why"
 #   agent_static_probe.sh --targets <plist> <repo_root>  # what would be probed
 #   agent_static_probe.sh --probe   <plist> <repo_root>  # the actual probe
 #
@@ -56,6 +59,8 @@ info() { echo "   $*"; }
 usage() {
     echo "usage: agent_static_probe.sh --is-long-lived <plist>" >&2
     echo "       agent_static_probe.sh --plist-bool <key> <plist>" >&2
+    echo "       agent_static_probe.sh --plist-int <key> <plist>" >&2
+    echo "       agent_static_probe.sh --timeout-verdict <limit_s> <plist>" >&2
     echo "       agent_static_probe.sh --targets|--probe <plist> <repo_root>" >&2
     exit 64
 }
@@ -102,6 +107,62 @@ plist_bool() {
         grab && /<false\/>/ { print "false"; exit }
         grab && /<key>/     { print "";      exit }
     ' "$2"
+}
+
+# Reads an INTEGER value. Prints the digits, or NOTHING when the key is absent or
+# its value is not an integer. Absence must NEVER arrive as 0 (инв. #17): a budget
+# read as "0 seconds" would make every single run look like a hang — the exact
+# fail-OPEN-in-reverse the plist readers above were hardened against.
+plist_int() {
+    awk -v key="$1" '
+        $0 ~ "<key>"key"</key>.*<integer>" {
+          line=$0; sub(".*<key>"key"</key>[^<]*<integer>", "", line)
+          sub(/<\/integer>.*/, "", line); print line; exit
+        }
+        $0 ~ "<key>"key"</key>" { grab=1; next }
+        grab && /<integer>/ {
+          line=$0; sub(/.*<integer>/, "", line); sub(/<\/integer>.*/, "", line)
+          print line; exit
+        }
+        grab && /<key>/ { print ""; exit }
+    ' "$2"
+}
+
+# ── «прогон снят по сроку» — но ЧЕЙ это срок? (ADR-1061) ────────────────────
+# Снятие прогона СОБСТВЕННЫМ сроком гейта и ЗАВИСАНИЕ агента — ДВА РАЗНЫХ
+# наблюдения, и до ADR-1061 гейт печатал первое под именем второго. Замер
+# 2026-11-19: `com.spa.decision_loop` объявляет свой бюджет САМ — StartInterval
+# 21600с, — а последний ЗАВЕРШЁННЫЙ прогон его программы стоил 8937.8с
+# (`data/findings_bridge_report.json`, 29.10: run_started_at 07:49:13Z →
+# generated_at 10:18:11Z, ступень переписей пройдена ЦЕЛИКОМ, `skipped` пусто).
+# При умолчании RUN_TIMEOUT=180с — и при 7800с, как гейт звали 03.11, — прогон
+# снимался задолго до конца и объявлялся «hang»; служба осталась ВЫКЛЮЧЕННОЙ, и
+# мост находок 497ч стоял БЕЗ ПИСАТЕЛЯ, то есть CRITICAL шага 0-офис никому не
+# доставались.
+#
+# Сужение СТРОГОЕ: «hang» перестаёт печататься ТОЛЬКО там, где объявленное
+# самим агентом число это ОПРОВЕРГАЕТ. Бюджет не объявлен (календарное
+# расписание, нецелое значение) ⇒ вердикт ПРЕЖНИЙ, потому что опровержения нет.
+# Срок гейта сам не разобрался ⇒ тоже прежний: угадывать в сторону «не измерено»
+# значило бы гасить сторожа мусором в переменной окружения.
+timeout_verdict() {
+    local limit="$1" plist="$2" budget
+    case "$limit" in
+        ''|*[!0-9]*)
+            printf 'hang\t%s\n' "срок гейта '$limit' не разобран как целое — опровергнуть зависание нечем"
+            return 0 ;;
+    esac
+    budget="$(plist_int StartInterval "$plist")"
+    case "$budget" in
+        ''|*[!0-9]*)
+            printf 'hang\t%s\n' "собственный бюджет агента НЕ ОБЪЯВЛЕН (StartInterval отсутствует или не целое) — срок гейта ${limit}с остаётся единственной меркой"
+            return 0 ;;
+    esac
+    if [ "$limit" -ge "$budget" ]; then
+        printf 'hang\t%s\n' "прогон превысил И срок гейта ${limit}с, И собственный бюджет агента ${budget}с (StartInterval)"
+    else
+        printf 'unmeasured\t%s\n' "срок гейта ${limit}с НИЖЕ собственного бюджета агента ${budget}с (StartInterval) — о зависании НЕ ИЗМЕРЕНО ничего; поднять RUN_TIMEOUT до >= ${budget}"
+    fi
 }
 
 plist_string() {
@@ -311,6 +372,22 @@ case "$MODE" in
         [ -n "$KEY" ] && [ -n "$PLIST" ] || usage
         [ -f "$PLIST" ] || { echo "plist not readable: $PLIST" >&2; exit 2; }
         plist_bool "$KEY" "$PLIST"
+        exit 0
+        ;;
+    --plist-int)
+        KEY="${1:-}"; PLIST="${2:-}"
+        [ -n "$KEY" ] && [ -n "$PLIST" ] || usage
+        [ -f "$PLIST" ] || { echo "plist not readable: $PLIST" >&2; exit 2; }
+        plist_int "$KEY" "$PLIST"
+        exit 0
+        ;;
+    --timeout-verdict)
+        LIMIT="${1:-}"; PLIST="${2:-}"
+        [ -n "$LIMIT" ] && [ -n "$PLIST" ] || usage
+        # Плиста нет ⇒ бюджет НЕ ПРОЧИТАН, а не «равен нулю»: код 2 и ни одной
+        # строки вердикта, чтобы вызывающий не принял пустоту за ответ.
+        [ -f "$PLIST" ] || { echo "plist not readable: $PLIST" >&2; exit 2; }
+        timeout_verdict "$LIMIT" "$PLIST"
         exit 0
         ;;
     --targets|--probe)

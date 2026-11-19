@@ -189,6 +189,7 @@
 | ADR-1058 | ADR-1058 — ПРИЧИНА внутри «НЕ ИЗМЕРЕНО» назначалась умолчанием: идущий прогон докладывался умершим | Accepted | [ADR-1058](ADR-1058-the-cause-inside-not-measured-was-assigned-not-measured.md) |
 | ADR-1059 | ADR-1059 — ОБЪЯВЛЕННАЯ граница оси прибора держала МАКСИМУМ класса: 126.4 → 1462.6 с при неизменных байтах | Accepted | [ADR-1059](ADR-1059-the-declared-boundary-held-the-maximum.md) |
 | ADR-1060 | ADR-1060 — доставка не спрашивала, НАЗОВЁТ ли доска очереди уезжающую карточку: 47 вершин из 400 | Accepted | [ADR-1060](ADR-1060-delivery-does-not-ask-whether-the-board-names-the-card.md) |
+| ADR-1061 | ADR-1061 — гейт перед деплоем судил прогон СВОИМ сроком (180 с) и называл это зависанием агента с бюджетом 21600 с | Accepted | [ADR-1061](ADR-1061-gate-timeout-is-whose.md) |
 
 ## Соглашения
 

@@ -69,6 +69,10 @@ RUN_TIMEOUT="${RUN_TIMEOUT:-180}"
 KICKSTART_TIMEOUT="${KICKSTART_TIMEOUT:-20}"
 
 fail() { echo "❌ FAIL: $*" >&2; exit 1; }
+# НЕ ИЗМЕРЕНО — третий исход (инв. #17), и он НЕ «прошло»: гейт по-прежнему НИЧЕГО
+# не загружает. Свой код возврата (2) нужен, чтобы вызывающий не читал «мы не
+# измерили» как «агент сломан» и наоборот; оба кода НЕНУЛЕВЫЕ, fail-CLOSED цел.
+unmeasured() { echo "⚠️  UNMEASURED: $*" >&2; exit 2; }
 info() { echo "   $*"; }
 
 # ── VALIDATION-ONLY root override (SPA_GATE_REPO_ROOT) ──────────────────────
@@ -383,7 +387,31 @@ if [ "$RC" -eq 124 ]; then
         info "run-once stayed alive to the ${RUN_TIMEOUT}s timeout — expected for a KeepAlive server (started OK)"
         RC=0
     else
-        fail "manual run exceeded ${RUN_TIMEOUT}s and was killed (hang). NOT loading ${LABEL}."
+        # «Снято СОБСТВЕННЫМ сроком гейта» и «агент завис» — ДВА РАЗНЫХ
+        # наблюдения, и до ADR-1061 гейт печатал первое под именем второго.
+        # Цена названа замером: `com.spa.decision_loop` объявляет свой бюджет
+        # САМ (StartInterval 21600с), последний ЗАВЕРШЁННЫЙ прогон его программы
+        # стоил 8937.8с, а гейт снимал его на 180с (умолчание) и на 7800с (как
+        # его звали 03.11) и объявлял «hang». Служба осталась ВЫКЛЮЧЕННОЙ, мост
+        # находок 497ч стоял БЕЗ ПИСАТЕЛЯ — CRITICAL шага 0-офис не доставались
+        # никому.
+        #
+        # Вопрос задаёт ЕДИНСТВЕННАЯ дверь (`--timeout-verdict`): своей копии
+        # сравнения здесь нет намеренно — вторая копия правила «чей это срок»
+        # разошлась бы с первой молча. Бюджет берётся из плиста САМОГО АГЕНТА,
+        # а не из константы гейта.
+        _TV="$(bash "$STATIC_PROBE" --timeout-verdict "$RUN_TIMEOUT" "$PLIST" 2>/dev/null || echo "")"
+        _TV_VERDICT="${_TV%%$'\t'*}"
+        _TV_WHY="${_TV#*$'\t'}"
+        if [ "$_TV_VERDICT" = "unmeasured" ]; then
+            unmeasured "manual run was cut by the GATE's own limit, not by a hang: ${_TV_WHY}. NOT loading ${LABEL}."
+        fi
+        # Дверь не ответила вовсе ⇒ вердикт ПРЕЖНИЙ и причина НАЗВАНА вслух:
+        # молчание двери не есть опровержение зависания (fail-CLOSED).
+        if [ "$_TV_VERDICT" != "hang" ]; then
+            _TV_WHY="дверь вердикта срока не ответила — опровержения нет"
+        fi
+        fail "manual run exceeded ${RUN_TIMEOUT}s and was killed (hang; ${_TV_WHY}). NOT loading ${LABEL}."
     fi
 elif [ "$RC" -ne 0 ] && [ "$IS_KEEPALIVE" -eq 1 ]; then
     # A KeepAlive server that exits fast & non-zero is usually a RESOURCE

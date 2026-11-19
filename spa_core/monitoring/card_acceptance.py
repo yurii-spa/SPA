@@ -18536,6 +18536,73 @@ def _probe_tier_b_protocol_path_survives_a_disabled_log(
 APY_CENSUS_MAX_AGE_H = 24.0
 
 
+def _probe_findings_bridge_has_a_live_writer(arg: str | None, now=None) -> tuple[str, str]:
+    """У моста находок ЕСТЬ писатель: его отчёт свежее ОБЪЯВЛЕННОГО горизонта.
+
+    Предмет карточки `inbox-most-nahodok-decision-loop-ne-ukladyvaet` — не «есть
+    ли код ступени», а исход: **кто-то реально гоняет мост**. Карточки по
+    находкам шага 0-офис заводит не рука, а ступень `findings_bridge` (ADR-414),
+    и исполняет её агент `com.spa.decision_loop`. Писателя нет ⇒ CRITICAL офиса
+    не достаются никому, сколько бы их ни печаталось.
+
+    **Проба меряет ИСХОД, а не структуру.** «Модуль есть и тесты зелёные» здесь
+    негодно вдвойне: ровно это и было правдой все 497 ч, пока служба стояла
+    выключенной. Дверь одна — возраст `data/findings_bridge_report.json`.
+
+    **Горизонт НЕ выбирается этой пробой.** Он берётся той же дверью
+    (`artifact_absence.declared_horizon`), по которой шаг 0-офис судит возраст
+    этого же артефакта: вторая копия правила «сколько часов отчёт остаётся
+    свежим» разошлась бы с первой молча, и один файл считался бы просроченным по
+    одной мерке и свежим по другой.
+
+    Три исхода РАЗЛИЧИМЫ (инв. #17) и ни один не выдаётся за другой:
+
+    * ``satisfied`` — отчёт свежее объявленного горизонта: писатель ЖИВ;
+    * ``not_satisfied`` — отчёт старше горизонта: это и ЕСТЬ предмет карточки
+      («мост без писателя»), и число названо;
+    * ``unmeasured`` — судить нечем: горизонт не объявлен · файла нет · не
+      разобран · без `generated_at` · отметка не разобрана. Отсутствие отчёта
+      НЕ выдаётся за «писателя нет»: файл может не родиться и по причине, о
+      которой этот артефакт не свидетельствует.
+
+    Время — вход (`now`), а не окружение.
+    """
+    from spa_core.monitoring.artifact_absence import declared_horizon
+
+    rel = os.path.join("data", "findings_bridge_report.json")
+    hz = declared_horizon(rel, root=REPO_ROOT)
+    if hz.hours is None:
+        return UNMEASURED, (f"горизонт {rel} НЕ ОБЪЯВЛЕН ({hz.state}): {hz.detail} "
+                            f"— сравнивать возраст не с чем")
+    path = os.path.join(REPO_ROOT, rel)
+    try:
+        with open(path, encoding="utf-8") as fh:
+            doc = json.load(fh)
+    except FileNotFoundError:
+        return UNMEASURED, (f"{rel} нет в этом дереве — замера НЕ БЫЛО, и это не "
+                            f"«писателя нет»: мерить надо из дерева с живым data/")
+    except (OSError, ValueError) as exc:
+        return UNMEASURED, f"{rel} не разобран: {type(exc).__name__}: {exc}"
+    if not isinstance(doc, dict):
+        return UNMEASURED, f"форма {rel} не разобрана ({type(doc).__name__})"
+    stamp = observed(doc, "generated_at", kind=str)
+    if stamp is None:
+        return UNMEASURED, f"{rel} без generated_at — возраст не измерен, судить нечем"
+    try:
+        made = datetime.fromisoformat(str(stamp).replace("Z", "+00:00"))
+    except ValueError:
+        return UNMEASURED, f"{rel}: generated_at {stamp!r} не разобран — возраст не измерен"
+    if made.tzinfo is None:
+        made = made.replace(tzinfo=timezone.utc)
+    age_h = ((now or datetime.now(timezone.utc)) - made).total_seconds() / 3600.0
+    if age_h <= hz.hours:
+        return SATISFIED, (f"писатель моста ЖИВ: отчёт {age_h:.1f}ч при объявленном "
+                           f"горизонте {hz.hours:.4g}ч")
+    return NOT_SATISFIED, (f"у моста находок НЕТ ПИСАТЕЛЯ: {rel} возрастом {age_h:.1f}ч "
+                           f"при объявленном горизонте {hz.hours:.4g}ч — карточки по "
+                           f"находкам шага 0-офис не заводит никто")
+
+
 def _probe_apy_name_carries_one_kind(arg: str | None, now=None) -> tuple[str, str]:
     """Критерий §5 приказа владельца «Portfolio CIO»: у каждого числа, названного
     «APY», ОБЪЯВЛЕН род — и это проверил ЖИВОЙ ЦИКЛ, а не тест.
@@ -20113,6 +20180,7 @@ PROBES: dict[str, Callable[[str | None], "tuple[str, str]"]] = {
     "module_limit_bites_a_busy_module":
         _probe_module_limit_bites_a_busy_module,
     "apy_name_carries_one_kind": _probe_apy_name_carries_one_kind,
+    "findings_bridge_has_a_live_writer": _probe_findings_bridge_has_a_live_writer,
     "shadow_record_carries_the_system_action":
         _probe_shadow_record_carries_the_system_action,
     "snapshot_evidence_ages_out": _probe_snapshot_evidence_ages_out,
