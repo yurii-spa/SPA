@@ -1,0 +1,99 @@
+{
+ "title": "ADR-1060 BOARDROW — дельта цикла #1202: доставка спрашивает, НАЗОВЁТ ли доска очереди уезжающую карточку; вопрос про origin ПОСЛЕ доставки, а не про доску в дереве; три исхода различимы",
+ "tests": [
+  "spa_core/tests/test_delivery_board_row.py"
+ ],
+ "mutations": [
+  {
+   "name": "M01 отказ СНЯТ: «строки нет» возвращается молча (состояние main до ADR-1060)",
+   "file": "push_to_github.py",
+   "old": "    if offenders:\n        names = \"; \".join(v[\"card\"] for v in offenders)",
+   "new": "    if False:\n        names = \"; \".join(v[\"card\"] for v in offenders)"
+  },
+  {
+   "name": "M02 вопрос задан ДЕРЕВУ, а не origin: доска, пересобранная в дереве и НЕ доставленная, зеленит гейт",
+   "file": "push_to_github.py",
+   "old": "    ref = f\"origin/{branch}\"\n    sha = _git_out([\"rev-parse\", \"--verify\", ref], cwd)",
+   "new": "    ref = \"HEAD\"\n    sha = _git_out([\"rev-parse\", \"--verify\", ref], cwd)"
+  },
+  {
+   "name": "M02b доска берётся ПРЯМО из дерева (файл рядом), origin не спрашивается вовсе",
+   "file": "push_to_github.py",
+   "old": "    raw = _git_bytes([\"cat-file\", \"blob\", f\"{ref}:{BOARD_REL}\"], cwd)",
+   "new": "    raw = (cwd / \"_BOARD.md\").read_bytes() if (cwd / \"_BOARD.md\").exists() else None"
+  },
+  {
+   "name": "M03 ноль строк в объявленной форме идёт за ОТКАЗ — от одного непонятого файла отказал бы весь набор",
+   "file": "push_to_github.py",
+   "old": "        rows = mod.board_status_map(text)\n        if not rows:",
+   "new": "        rows = mod.board_status_map(text)\n        if False:"
+  },
+  {
+   "name": "M04 НЕ ИЗМЕРЕНО объявлено ОТКАЗОМ: сбой git остановил бы доставку кода, ничего не измерив",
+   "file": "push_to_github.py",
+   "old": "        if raw is None:\n            _BOARD_ROW_VERDICTS.append({\"path\": key, \"state\": \"unmeasured\",\n                                        \"reason\": why})\n            continue",
+   "new": "        if raw is None:\n            _BOARD_ROW_VERDICTS.append({\"path\": key, \"state\": \"absent\",\n                                        \"card\": os.path.basename(key),\n                                        \"whence\": \"?\", \"rows\": 0,\n                                        \"reason\": why})\n            continue"
+  },
+  {
+   "name": "M05 сама доска стала своим предметом — гейт отказывал бы каждой доставке доски",
+   "file": "push_to_github.py",
+   "old": "        if os.path.basename(rel) in GENERATED_TRACKER_DOCS:\n            continue                      # сама доска строки о себе не несёт",
+   "new": "        pass  # пропуск доски снят мутацией"
+  },
+  {
+   "name": "M06 осознанный обход ИГНОРИРУЕТСЯ: --allow-cardless-board больше не снимает отказ",
+   "file": "push_to_github.py",
+   "old": "    offenders = [v for v in _BOARD_ROW_VERDICTS if v[\"state\"] == \"absent\"]\n    if offenders and allow:\n        print(\"    ⚠️  --allow-cardless-board: доска уезжающую карточку не \"\n              \"называет, это НАЗВАНО, но доставку не остановит\")\n        return list(_BOARD_ROW_VERDICTS)",
+   "new": "    offenders = [v for v in _BOARD_ROW_VERDICTS if v[\"state\"] == \"absent\"]\n    if offenders and False:\n        print(\"    ⚠️  --allow-cardless-board: доска уезжающую карточку не \"\n              \"называет, это НАЗВАНО, но доставку не остановит\")\n        return list(_BOARD_ROW_VERDICTS)"
+  },
+  {
+   "name": "M07 обход МОЛЧИТ: находка перестаёт печататься, обход становится тишиной",
+   "file": "push_to_github.py",
+   "old": "        if v[\"state\"] == \"absent\":\n            print(f\"    НЕТ СТРОКИ НА ДОСКЕ  {v['card']} — доска ({v['whence']}) \"\n                  f\"называет {v['rows']} карточек, этой среди них нет\")",
+   "new": "        if v[\"state\"] == \"absent\":\n            pass",
+   "note": "обход печатает свою строку, но находка исчезает"
+  },
+  {
+   "name": "M08 байты уезжающей доски читаются СВОИМ open() мимо пина (возврат дефекта ADR-774)",
+   "file": "push_to_github.py",
+   "old": "                return read_delivery_bytes(key), f\"уезжает этим пушем\", None",
+   "new": "                return open(key, \"rb\").read(), f\"уезжает этим пушем\", None"
+  },
+  {
+   "name": "M09 batch-дверь гейта не зовёт — вторая дверь доставки везёт класс целиком",
+   "file": "push_to_github_batch.py",
+   "old": "        enforce_delivery_board_row(all_files, allow=allow_cardless_board,\n                                   runner_file=__file__)",
+   "new": "        pass  # зов гейта снят мутацией"
+  },
+  {
+   "name": "M10 «гейта не звали» склеено с «карточек не было» — два состояния под одной строкой",
+   "file": "push_to_github.py",
+   "old": "        if _BOARD_ROW_GATE[\"called\"]:\n            return \"строка доски: карточек трекера в наборе нет — судить нечего\"\n        return \"строка доски: гейт не зван НИ РАЗУ\"",
+   "new": "        return \"строка доски: карточек трекера в наборе нет — судить нечего\""
+  },
+  {
+   "name": "M11 недекодируемые байты доски идут за ОТКАЗ, а не за НЕ ИЗМЕРЕНО",
+   "file": "push_to_github.py",
+   "old": "        except UnicodeDecodeError as e:\n            _BOARD_ROW_VERDICTS.append({\n                \"path\": key, \"state\": \"unmeasured\",\n                \"reason\": f\"байты доски не декодируются как UTF-8 ({e})\"})\n            continue",
+   "new": "        except UnicodeDecodeError as e:\n            _BOARD_ROW_VERDICTS.append({\n                \"path\": key, \"state\": \"absent\", \"card\": os.path.basename(key),\n                \"whence\": \"?\", \"rows\": 0,\n                \"reason\": f\"байты доски не декодируются как UTF-8 ({e})\"})\n            continue"
+  },
+  {
+   "name": "M12 код возврата отказа отдан соседу — вызывающий не отличит находку от толстого заголовка",
+   "file": "push_to_github.py",
+   "old": "CARDLESS_BOARD_EXIT = 17",
+   "new": "CARDLESS_BOARD_EXIT = 16"
+  },
+  {
+   "name": "M13 отказ перестаёт называть карточку — читатель ищет её глазами среди 1660",
+   "file": "push_to_github.py",
+   "old": "            f\"доска, которую оставит этот пуш, уезжающую карточку НЕ называет: \"\n            f\"{names}.\\n\"",
+   "new": "            f\"доска, которую оставит этот пуш, уезжающую карточку НЕ называет.\\n\""
+  },
+  {
+   "name": "M14 разбор доски заменён СВОЕЙ копией (подстрокой) — разойдись с генератором, гейт пустит предмет класса",
+   "file": "push_to_github.py",
+   "old": "    if not hasattr(mod, \"board_status_map\"):\n        return None, (f\"{path} не несёт `board_status_map` — единственной двери \"\n                      f\"разбора нет, свою здесь заводить ЗАПРЕЩЕНО\")\n    return mod, None",
+   "new": "    return mod, None"
+  }
+ ]
+}

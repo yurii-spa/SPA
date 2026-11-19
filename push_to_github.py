@@ -2335,6 +2335,282 @@ def is_generated_tracker_doc(repo_path: str) -> bool:
             and os.path.basename(repo_path) in GENERATED_TRACKER_DOCS)
 
 
+# ══════════════════════════════════════════════════════════════════════════════
+# НАЗОВЁТ ЛИ ДОСКА УЕЗЖАЮЩУЮ КАРТОЧКУ — ДЕСЯТАЯ ДВЕРЬ ТОГО ЖЕ СЕМЕЙСТВА
+#
+# Девять дверей выше (`.claude/rules/deployment.md`): КАЛЕНДАРЬ · НОМЕР ПРОЦЕССА ·
+# GIT-ОКРУЖЕНИЕ · ОКНО МУТАЦИОННОГО ПРИБОРА · ОКНО ДОСТАВКИ · ДЕРЕВО, ИЗ КОТОРОГО
+# ЧИТАЮТСЯ БАЙТЫ · БАЙТЫ, КОТОРЫЕ НЕ ЯВЛЯЮТСЯ КОДОМ · СТРОКА РЕЕСТРА РЕШЕНИЙ ·
+# ИНЪЕКЦИЯ ЧАСОВ ЗА ГРАНИЦЕЙ ПОДПРОЦЕССА. Десятая стои́т там же, у доставки:
+# **уезжающая карточка может не иметь строки на доске очереди.**
+#
+# `nimbalyst-local/tracker/_BOARD.md` — тот файл, который `CLAUDE.md` велит КАЖДОЙ
+# сессии читать ПЕРВЫМ («ЕДИНЫЙ ОБЗОР всех карточек одним взглядом … Читать ЕГО
+# первым, не открывая 56 файлов»). Карточка без строки на доске для читателя не
+# существует: он открывает индекс, видит 1659 карточек и не узнаёт о 1660-й.
+#
+# ЗАМЕР, из-за которого гейт появился (цикл #1202, полный клон-зеркало, 400 вершин
+# `origin/main`, трогавших карточки; вопрос задан ЕДИНСТВЕННОЙ дверью разбора
+# `build_tracker_board.board_status_map`):
+#   * **47 вершин** несли карточку, которой на доске НЕТ строки (ось от origin
+#     не зависит), и текущая вершина `4d656a541` — одна из них;
+#   * 0 вершин несли строку доски без карточки;
+#   * расхождение СТАТУСА — НЕ ИЗМЕРЕНО (зависит от origin того дня, а временный
+#     каталог не репозиторий), затронуто 23 вершины.
+# Цена последней: `test_tracker_board_matches_cards::test_live_board_matches_live_cards`
+# покраснел на `main` и пришёл в красный набор CI прогона 44434382029 ОДНИМ именем —
+# единственным пришедшим, о котором прогон вынес вердикт.
+#
+# ПОЧЕМУ НИ ОДИН СОСЕД ЭТОГО НЕ ЛОВИТ:
+#   * слепок байтов (ADR-774) пинует байты ТОЙ ЖЕ карточки — он отвечает «байты не
+#     подменились», а не «доска её называет»;
+#   * гейт разбора (ADR-886) молчит ВЕРНО — карточка не объявляла себя Python;
+#   * гейт колонки реестра (ADR-889) спрашивает `docs/decisions/INDEX.md`, про
+#     трекер не знает ничего;
+#   * `guard_card_section_loss` рядом судит ПОТЕРЮ разделов карточки, а не её
+#     присутствие в индексе.
+#
+# ЧЕГО ЭТОТ ГЕЙТ НЕ ДЕЛАЕТ. Он спрашивает РОВНО ось 1 замера — «есть ли строка
+# вообще». Ось «строка есть, но статус на ней другой» он НЕ судит намеренно:
+# статус доски разрешается против origin (`resolve_against_origin`), и ответ на
+# него зависит от origin того дня — в замере выше эта ось честно осталась НЕ
+# ИЗМЕРЕННОЙ. Выдать её за измеренную значило бы ровно тот дефект, против
+# которого написано всё семейство.
+# ══════════════════════════════════════════════════════════════════════════════
+
+#: Доска очереди ОТНОСИТЕЛЬНО корня дерева. Вопрос задаётся только карточкам
+#: трекера: «строка индекса» есть свойство ЭТОЙ проекции, и спрашивать её у
+#: любого markdown значило бы выдумать индекс там, где его нет.
+BOARD_REL = "nimbalyst-local/tracker/_BOARD.md"
+
+CARDLESS_BOARD_EXIT = 17
+
+
+class DeliveredCardHasNoBoardRow(RuntimeError):
+    """Уезжающую карточку доска, которую оставит этот пуш, не называет.
+
+    Отдельный тип (а не общий ``RuntimeError``), чтобы `main()` отличил находку
+    от «пушер сломался» и вышел СВОИМ кодом: починка известна и стоит один
+    вызов прибора.
+    """
+
+
+#: Вердикты десятой оси. Список ОТДЕЛЬНЫЙ от соседних намеренно, по тому же
+#: доводу, что у них: смешай — и «сверено у N чтений» перестало бы отвечать на
+#: вопрос «а доску кто спрашивал».
+_BOARD_ROW_VERDICTS: list = []
+
+#: БЫЛ ЛИ ГЕЙТ ЗВАН — отдельное наблюдение; перечень вердиктов на этот вопрос не
+#: отвечает (библиотечный вызов `batch_push` минуя CLI против «звали, и карточек
+#: в наборе не было»).
+_BOARD_ROW_GATE: dict = {"called": False}
+
+
+def _board_parser(runner_file: Optional[str] = None):
+    """Ввозит ЕДИНСТВЕННУЮ дверь разбора доски (`board_status_map`).
+
+    Прибор берётся из дерева ЗАПУЩЕННОГО CLI, а не из `PROJECT_ROOT`: тот же
+    приём и тот же довод, что у :func:`_register_parser` — инструмент, судящий
+    байты, приходит оттуда же, откуда пришёл сам судья (ADR-796).
+
+    Своей копии разбора здесь нет НАМЕРЕННО: разойдись она с генератором — гейт
+    пускал бы через себя ровно те строки, из-за которых он и понадобился.
+
+    Возвращает ``(модуль, None)`` либо ``(None, причина)`` — третий исход у
+    ввоза СВОЙ, потому что «прибора нет» и «строка есть» это разные ответы.
+    """
+    import importlib.util as _ilu
+
+    base = Path(os.path.abspath(runner_file or __file__)).parent
+    path = base / "scripts" / "build_tracker_board.py"
+    try:
+        spec = _ilu.spec_from_file_location("_board_for_row_gate", path)
+        mod = _ilu.module_from_spec(spec)
+        spec.loader.exec_module(mod)
+    except Exception as exc:                                        # noqa: BLE001
+        return None, (f"{path} не ввезён ({type(exc).__name__}: {exc}) — "
+                      f"строка доски НЕ ИЗМЕРЕНА")
+    if not hasattr(mod, "board_status_map"):
+        return None, (f"{path} не несёт `board_status_map` — единственной двери "
+                      f"разбора нет, свою здесь заводить ЗАПРЕЩЕНО")
+    return mod, None
+
+
+def board_after_delivery(file_args: list, branch: str = "main") -> tuple:
+    """Доска, которую ЭТОТ пуш оставит на origin → ``(байты, откуда, причина)``.
+
+    Вопрос именно про ПОСЛЕ, а не про «доску в дереве»: доска, пересобранная в
+    рабочем дереве и НЕ включённая в `--files`, на origin не попадает, и строка
+    остаётся ненапечатанной. Спроси дерево — и гейт зеленел бы ровно в том
+    случае, ради которого написан.
+
+    Два источника, и они исчерпывающие:
+      * доска УЕЗЖАЕТ этим пушем ⇒ её уезжающие байты (дверь
+        :func:`read_delivery_bytes` — то же чтение, что сверено со слепком);
+      * доска НЕ уезжает ⇒ на origin останется та, что там лежит; читается
+        локальной ссылкой ``origin/<branch>``, и ВЫБОР ПЕЧАТАЕТСЯ (ADR-918:
+        молча подставить чужой граф хуже ошибки).
+    """
+    for fa in file_args:
+        key = _delivery_abs(fa)
+        if key.replace(os.sep, "/").endswith(BOARD_REL):
+            try:
+                return read_delivery_bytes(key), f"уезжает этим пушем", None
+            except OSError as e:
+                return None, None, (f"байты уезжающей доски не прочитаны "
+                                    f"({type(e).__name__}: {e})")
+    cwd = None
+    for fa in file_args:
+        parent = Path(_delivery_abs(fa)).parent
+        if parent.exists():
+            cwd = parent
+            break
+    if cwd is None:
+        return None, None, "ни у одного файла набора нет существующего каталога"
+    ref = f"origin/{branch}"
+    sha = _git_out(["rev-parse", "--verify", ref], cwd)
+    if sha is None:
+        return None, None, (f"ссылка `{ref}` не прочитана (git недоступен либо "
+                            f"это не рабочая копия) — доска origin НЕ ИЗМЕРЕНА")
+    raw = _git_bytes(["cat-file", "blob", f"{ref}:{BOARD_REL}"], cwd)
+    if raw is None:
+        return None, None, (f"доски `{BOARD_REL}` нет в `{ref}` ({sha[:9]}) либо "
+                            f"она не прочитана — строка НЕ ИЗМЕРЕНА")
+    return raw, f"лежит на `{ref}` ({sha[:9]}), этим пушем не меняется", None
+
+
+def enforce_delivery_board_row(file_args: list, allow: bool = False,
+                               runner_file: Optional[str] = None,
+                               branch: str = "main") -> list:
+    """Доска, которую оставит этот пуш, обязана НАЗЫВАТЬ каждую уезжающую карточку.
+
+    Возвращает перечень вердиктов. Отказ fail-CLOSED либо НАЗВАННЫЙ обход
+    ``--allow-cardless-board``: молчания нет ни в одной ветке.
+
+    Три исхода различимы (инв. #17): строка ЕСТЬ · строки НЕТ (отказ, с именем
+    карточки и командой починки) · НЕ ИЗМЕРЕНО с названной причиной. Последний
+    доставку НЕ останавливает, и это НАЗВАННЫЙ выбор: сбой git или нечитаемая
+    доска остановили бы доставку КОДА, ничего не измерив, а класс при этом
+    по-прежнему краснит `main` живым сторожем. Молчанием это не является —
+    причина печатается строкой.
+    """
+    _BOARD_ROW_VERDICTS.clear()
+    _BOARD_ROW_GATE["called"] = True
+    cards = []
+    for fa in file_args:
+        key = _delivery_abs(fa)
+        rel = key.replace(os.sep, "/")
+        if not any(f"/{p}" in rel or rel.startswith(p)
+                   for p in TRACKER_PREFIXES):
+            continue
+        if not rel.endswith(".md"):
+            continue
+        if os.path.basename(rel) in GENERATED_TRACKER_DOCS:
+            continue                      # сама доска строки о себе не несёт
+        cards.append(key)
+    if not cards:
+        print(f"  {delivery_board_row_summary()}")
+        return list(_BOARD_ROW_VERDICTS)
+
+    raw, whence, why = board_after_delivery(file_args, branch=branch)
+    mod, parser_why = _board_parser(runner_file)
+    for key in cards:
+        if raw is None:
+            _BOARD_ROW_VERDICTS.append({"path": key, "state": "unmeasured",
+                                        "reason": why})
+            continue
+        if mod is None:
+            _BOARD_ROW_VERDICTS.append({"path": key, "state": "unmeasured",
+                                        "reason": parser_why})
+            continue
+        try:
+            text = raw.decode("utf-8")
+        except UnicodeDecodeError as e:
+            _BOARD_ROW_VERDICTS.append({
+                "path": key, "state": "unmeasured",
+                "reason": f"байты доски не декодируются как UTF-8 ({e})"})
+            continue
+        rows = mod.board_status_map(text)
+        if not rows:
+            # Ни одной строки в объявленной форме ⇒ неизвестно, какая строка
+            # является строкой карточки. «Строки нет» здесь было бы утверждением
+            # о замере, которого не было, и дало бы отказ по КАЖДОЙ карточке
+            # набора от одного непонятого файла.
+            _BOARD_ROW_VERDICTS.append({
+                "path": key, "state": "unmeasured", "whence": whence,
+                "reason": "доска не несёт НИ ОДНОЙ строки в объявленной форме "
+                          "`### · <статус>` + `- … · \\`<файл>\\`` — индекс НЕ "
+                          "ИЗМЕРЕН"})
+            continue
+        name = os.path.basename(key)
+        _BOARD_ROW_VERDICTS.append({
+            "path": key, "state": "named" if name in rows else "absent",
+            "card": name, "whence": whence, "rows": len(rows),
+            "said": rows.get(name)})
+
+    print(f"  {delivery_board_row_summary()}")
+    for v in _BOARD_ROW_VERDICTS:
+        if v["state"] == "absent":
+            print(f"    НЕТ СТРОКИ НА ДОСКЕ  {v['card']} — доска ({v['whence']}) "
+                  f"называет {v['rows']} карточек, этой среди них нет")
+        elif v["state"] == "unmeasured":
+            print(f"    НЕ ИЗМЕРЕНО   {_display_path(v['path'])} — "
+                  f"{v['reason']}")
+
+    offenders = [v for v in _BOARD_ROW_VERDICTS if v["state"] == "absent"]
+    if offenders and allow:
+        print("    ⚠️  --allow-cardless-board: доска уезжающую карточку не "
+              "называет, это НАЗВАНО, но доставку не остановит")
+        return list(_BOARD_ROW_VERDICTS)
+    if offenders:
+        names = "; ".join(v["card"] for v in offenders)
+        raise DeliveredCardHasNoBoardRow(
+            f"доска, которую оставит этот пуш, уезжающую карточку НЕ называет: "
+            f"{names}.\n"
+            f"Доска взята оттуда, где она окажется после доставки: "
+            f"{offenders[0]['whence']}.\n"
+            f"Пин байтов при этом ЗЕЛЁН и правдив — он отвечает «байты карточки "
+            f"не подменились», а не «индекс её называет»; гейт разбора молчит "
+            f"верно (карточка не Python); гейт колонки реестра спрашивает "
+            f"`docs/decisions/INDEX.md` и про трекер не знает ничего.\n"
+            f"ЗАМЕР, из-за которого гейт появился: из 400 вершин `origin/main`, "
+            f"трогавших карточки, 47 несли карточку без строки на доске — и "
+            f"доска есть тот файл, который `CLAUDE.md` велит читать ПЕРВЫМ, то "
+            f"есть карточка без строки для читателя не существует.\n"
+            f"Что делать: `python3 scripts/build_tracker_board.py` — прибор "
+            f"пересоберёт доску из карточек; ДОБАВЬ `{BOARD_REL}` в набор "
+            f"доставки и повтори пуш. Правь доску прибором, а не руками, и НЕ "
+            f"правь статусы карточек под доску (инв. #14).\n"
+            f"Осознанно продолжить: --allow-cardless-board (или "
+            f"SPA_PUSH_ALLOW_CARDLESS_BOARD=1) — тогда отказ станет НАЗВАННЫМ "
+            f"предупреждением, а красный тест уедет на `main` вместе с карточкой.")
+    return list(_BOARD_ROW_VERDICTS)
+
+
+def delivery_board_row_summary() -> str:
+    """Одна строка итога по десятой оси. Своя строка, а не слагаемое чужой.
+
+    Пустой перечень НЕ ЕСТЬ один исход: он значит либо «гейта не звали»
+    (библиотечный вызов минуя CLI), либо «звали, и карточек в наборе не было».
+    Склеить их — тот же дефект, что склеить «не измерено» со «сверено».
+    """
+    if not _BOARD_ROW_VERDICTS:
+        if _BOARD_ROW_GATE["called"]:
+            return "строка доски: карточек трекера в наборе нет — судить нечего"
+        return "строка доски: гейт не зван НИ РАЗУ"
+    states: dict = {}
+    for v in _BOARD_ROW_VERDICTS:
+        states[v["state"]] = states.get(v["state"], 0) + 1
+    if states.get("absent"):
+        return (f"строка доски: НЕ НАЗВАНО карточек {states['absent']} — "
+                f"индекс очереди разошёлся бы с очередью")
+    if states.get("unmeasured"):
+        return (f"строка доски: НЕ ИЗМЕРЕНО у {states['unmeasured']} "
+                f"карточк(и/ах)")
+    return (f"строка доски: названы все {states.get('named', 0)} уезжающих "
+            f"карточк(и/ах)")
+
+
 def guard_card_section_loss(repo_path: str, remote_bytes: Optional[bytes],
                             content_bytes: bytes, remote_sha: Optional[str],
                             allow_overwrite: bool = False) -> str:
@@ -4294,6 +4570,12 @@ def main():
                              "отклоняется: толстая строка молча красит "
                              "test_adr_index_titles на main, а починка стои́т один "
                              "вызов `adr_number.py titles --write`)")
+    parser.add_argument("--allow-cardless-board", action="store_true",
+                        help="ОСОЗНАННО доставить карточку трекера, которую доска "
+                             "`_BOARD.md` не называет (по умолчанию такой пуш "
+                             "отклоняется: карточка без строки для читателя индекса "
+                             "не существует, а починка стои́т один вызов "
+                             "`build_tracker_board.py` + доска в наборе)")
     args = parser.parse_args()
 
     allow_overwrite = bool(args.allow_overwrite) or \
@@ -4314,6 +4596,8 @@ def main():
         os.environ.get("SPA_PUSH_ALLOW_NOT_PYTHON") == "1"
     allow_fat_title = bool(args.allow_fat_adr_title) or \
         os.environ.get("SPA_PUSH_ALLOW_FAT_ADR_TITLE") == "1"
+    allow_cardless_board = bool(args.allow_cardless_board) or \
+        os.environ.get("SPA_PUSH_ALLOW_CARDLESS_BOARD") == "1"
     allow_owner_choice = bool(args.allow_owner_choice_write) or \
         os.environ.get("SPA_PUSH_ALLOW_OWNER_CHOICE_WRITE") == "1"
     allow_ce_unmeasured = bool(args.allow_change_evidence_unmeasured) or \
@@ -4428,6 +4712,26 @@ def main():
     except DeliveryBytesDrifted as e:
         # Дверь байтов отказала внутри четвёртой оси: это ЕЁ отказ и её код, а не
         # «толстый заголовок». Подменить имя здесь значило бы потерять ответ ADR-774.
+        print(f"\nОТКАЗ (байты разошлись со слепком): {e}", file=sys.stderr)
+        sys.exit(BYTES_DRIFT_EXIT)
+
+    # ── НАЗОВЁТ ЛИ ДОСКА УЕЗЖАЮЩУЮ КАРТОЧКУ (ADR-1060) — за колонкой реестра ────
+    # Порядок не вкусовой: оба гейта судят ПРОИЗВОДНЫЙ ИНДЕКС, который читает
+    # человек, — реестр решений и доску очереди. Вопросы разные («вторая ячейка
+    # строки есть заголовок» против «строка о карточке вообще есть»), и сосед о
+    # трекере не знает ничего. Гейт идёт и в `--dry-run`: превью обязано
+    # показывать тот же отказ. Реализация ОДНА, её же зовёт batch-CLI — иначе
+    # вторая дверь доставки пропускала бы класс целиком.
+    try:
+        enforce_delivery_board_row(all_files, allow=allow_cardless_board)
+    except DeliveredCardHasNoBoardRow as e:
+        print(f"\nОТКАЗ (доска не называет уезжающую карточку): {e}",
+              file=sys.stderr)
+        sys.exit(CARDLESS_BOARD_EXIT)
+    except DeliveryBytesDrifted as e:
+        # Дверь байтов отказала внутри десятой оси: это ЕЁ отказ и её код, а не
+        # «нет строки на доске». Подменить имя здесь значило бы потерять ответ
+        # ADR-774.
         print(f"\nОТКАЗ (байты разошлись со слепком): {e}", file=sys.stderr)
         sys.exit(BYTES_DRIFT_EXIT)
 

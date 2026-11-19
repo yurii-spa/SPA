@@ -201,6 +201,19 @@ DeliveredAdrTitleIsFat = _root_push.DeliveredAdrTitleIsFat
 FAT_ADR_TITLE_EXIT = _root_push.FAT_ADR_TITLE_EXIT
 ADR_REGISTER_REL = _root_push.ADR_REGISTER_REL
 
+# Десятая дверь семейства (ADR-1060) — «назовёт ли доска очереди уезжающую
+# карточку». Та же ОДНА реализация и тот же один store, по той же причине, что у
+# соседей: своя копия означала бы, что одна дверь отказывает, а вторая молча
+# везёт карточку, которой на `_BOARD.md` нет строки, — то есть красит
+# `test_tracker_board_matches_cards` на `main`. Замер: из 400 вершин `origin/main`,
+# трогавших карточки, 47 несли карточку без строки на доске.
+enforce_delivery_board_row = _root_push.enforce_delivery_board_row
+delivery_board_row_summary = _root_push.delivery_board_row_summary
+board_after_delivery = _root_push.board_after_delivery
+DeliveredCardHasNoBoardRow = _root_push.DeliveredCardHasNoBoardRow
+CARDLESS_BOARD_EXIT = _root_push.CARDLESS_BOARD_EXIT
+BOARD_REL = _root_push.BOARD_REL
+
 # Дверь «дерево, из которого читаются байты, НАЗВАНО» (ADR-796) — та же ОДНА
 # реализация и то же согласие на модуле канона. Своей копии здесь нет по той же
 # причине, что у пина: две копии означали бы, что одна дверь отказывает, а
@@ -249,6 +262,11 @@ def main():
                         help="ОСОЗНАННО доставить реестр решений с колонкой "
                              "«Заголовок» длиннее предела (по умолчанию такой пуш "
                              "отклоняется; починка — `adr_number.py titles --write`)")
+    parser.add_argument("--allow-cardless-board", action="store_true",
+                        help="ОСОЗНАННО доставить карточку трекера, которую доска "
+                             "`_BOARD.md` не называет (по умолчанию такой пуш "
+                             "отклоняется; починка — `build_tracker_board.py` + "
+                             "доска в наборе)")
     parser.add_argument("--allow-prod-root-relative", action="store_true",
                         help="ОСОЗНАННО читать ОТНОСИТЕЛЬНЫЕ пути от ПРОД-дерева, даже "
                              "когда позвали из другого дерева; по умолчанию такой путь "
@@ -350,6 +368,22 @@ def main():
         print(f"\nОТКАЗ (заголовок строки реестра длиннее предела): {e}",
               file=sys.stderr)
         sys.exit(FAT_ADR_TITLE_EXIT)
+    except DeliveryBytesDrifted as e:
+        print(f"\nОТКАЗ (байты разошлись со слепком): {e}", file=sys.stderr)
+        sys.exit(BYTES_DRIFT_EXIT)
+
+    # ── СТРОКА ДОСКИ ОЧЕРЕДИ (ADR-1060) — тот же вызов и тот же порядок ───────
+    # Сразу за колонкой реестра: оба гейта судят ПРОИЗВОДНЫЙ ИНДЕКС, который
+    # читает человек, и вопросы у них разные. Реализация одна, дверей две.
+    allow_cardless_board = bool(getattr(args, "allow_cardless_board", False)) or \
+        os.environ.get("SPA_PUSH_ALLOW_CARDLESS_BOARD") == "1"
+    try:
+        enforce_delivery_board_row(all_files, allow=allow_cardless_board,
+                                   runner_file=__file__)
+    except DeliveredCardHasNoBoardRow as e:
+        print(f"\nОТКАЗ (доска не называет уезжающую карточку): {e}",
+              file=sys.stderr)
+        sys.exit(CARDLESS_BOARD_EXIT)
     except DeliveryBytesDrifted as e:
         print(f"\nОТКАЗ (байты разошлись со слепком): {e}", file=sys.stderr)
         sys.exit(BYTES_DRIFT_EXIT)
