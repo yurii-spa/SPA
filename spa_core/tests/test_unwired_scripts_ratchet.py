@@ -43,6 +43,7 @@ import json
 import unittest
 from pathlib import Path
 
+from spa_core.monitoring import orphan_script_debt as osd
 from spa_core.tests._unwired import entrypoint_scripts, unwired_scripts
 
 _BASELINE = Path(__file__).resolve().parent / "unwired_scripts_baseline.json"
@@ -78,13 +79,52 @@ class TestRatchet(unittest.TestCase):
     def test_the_baseline_does_not_list_scripts_that_are_now_wired(self):
         """Половина, без которой храповик не храповик.
 
-        Как только скрипт подключили, он обязан УЙТИ из базы. Иначе база
+        Как только скрипт УШЁЛ из долга, он обязан уйти и из базы. Иначе база
         превратится в мусорный список, и первая проверка перестанет что-либо
         значить.
+
+        **НАМЕРЕННОЕ изменение сообщения (инв. #16 требует обоснования; запись
+        есть в `docs/journal/2026-W47.md`, цикл #1206, ADR-1063).** Утверждение
+        проверки не ослаблено ни на байт — `stale` обязан остаться пустым. Но
+        прежнее сообщение говорило «эти скрипты УЖЕ ПОДКЛЮЧЕНЫ», и это было
+        неверно по построению: имя уходит из долга ЧЕТЫРЬМЯ разными способами,
+        и только ОДИН из них есть вызов. Замер 19.11 на трёх реально ушедших
+        именах: подключено **одно** (`worker_axis_census`), два (`edge_*`)
+        вызывающего не имеют ПО-ПРЕЖНЕМУ и ушли ЗАПИСЬЮ в реестре R&D. То есть
+        сторож своим же текстом внушал читателю «починено» там, где было
+        «объяснено», — и записи циклов #957…#1205 это повторяли. Причину теперь
+        НАЗЫВАЕТ прибор `spa_core.monitoring.orphan_script_debt`, единственной
+        дверью: своей копии классификации у сторожа нет.
         """
         stale = sorted(_baseline() - set(unwired_scripts()))
+        why = ""
+        if stale:
+            # Второй полный скан дерева стои́т ~150 с, поэтому он идёт ТОЛЬКО на
+            # красном пути: цена сторожа — его собственный предмет (ADR-1056),
+            # а на зелёном пути называть нечего.
+            got = osd.measure_root(_BASELINE.resolve().parents[2])
+            why = ("; ".join(f"{n} — {osd.departure_cause(n, got)[0]}" for n in stale)
+                   if got.get("measured")
+                   else f"{osd.UNMEASURED}: {got.get('cause', 'причина не названа')}")
         self.assertEqual(stale, [], (
-            f"эти скрипты уже подключены — удали их из базы: {stale}"))
+            f"эти имена ушли из долга — удали их из базы: {stale}. "
+            f"ПОЧЕМУ ушли (не всякий уход есть вызов): {why}"))
+
+    def test_the_departure_cause_is_named_by_the_single_door(self):
+        """Проводка починки ADR-1063 в ЖИВОГО читателя, а не в докстроку.
+
+        Тот же порядок, что у `test_the_fix_is_wired_into_the_real_reader`
+        ниже: без этой проверки прибор причин мог бы приехать и остаться
+        неназванным, а сообщение сторожа — прежним.
+        """
+        self.assertEqual(osd.DEPARTURE_CAUSES,
+                         (osd.WIRED, osd.FORGIVEN, osd.REMOVED, osd.BASELINED))
+        after = {"entrypoints": {"x"}, "no_caller": {"x"},
+                 "registry": {"x"}, "baseline": set()}
+        self.assertEqual(osd.departure_cause("x", after)[0], osd.FORGIVEN)
+        after["registry"] = set()
+        after["no_caller"] = set()
+        self.assertEqual(osd.departure_cause("x", after)[0], osd.WIRED)
 
     def test_the_baseline_only_names_real_scripts(self):
         """Опечатка в базе тихо ослабила бы проверку на один скрипт."""

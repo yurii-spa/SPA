@@ -2,11 +2,11 @@
 
 > Авто-генерится `scripts/build_tracker_board.py` из `nimbalyst-local/tracker/*.md`. НЕ править вручную — правь карточки. Источник правды — карточки, это индекс (bootstrap).
 >
-> Собрана: 2026-11-19T06:11:53Z · сверка с карточками: `python3 scripts/build_tracker_board.py --check` (сторож `spa_core/tests/test_tracker_board_matches_cards.py`).
+> Собрана: 2026-11-19T09:41:03Z · сверка с карточками: `python3 scripts/build_tracker_board.py --check` (сторож `spa_core/tests/test_tracker_board_matches_cards.py`).
 >
-> Сверено с `origin/main` (0c12f9fa7) · у **1** своя правка, кто новее — не измерено.
+> Сверено с `origin/main` (e0ab85716) · у **1** своя правка, кто новее — не измерено.
 >
-> Всего карточек: **1662** · ждёт владельца: **13** · занято сессиями: **14**.
+> Всего карточек: **1663** · ждёт владельца: **13** · занято сессиями: **14**.
 
 ## 🔴 ЖДЁТ ВЛАДЕЛЬЦА (needs-owner)
 
@@ -443,7 +443,7 @@
 ### · closed
 - Считать ли верный отказ по правилам допуска неисправностью флота  ·  `owner-decision-schitat-li-vernyi-otkaz-po-pravilam-dopu.md` · 2026-10-08
 
-## 📥 Inbox (задания: Telegram / заметки / голос)  (960)
+## 📥 Inbox (задания: Telegram / заметки / голос)  (961)
 
 ### · in-progress
 - а задача починить все-таки еще раз сообщение которым не пишет нужно твое решени…  ·  `inbox-a-zadacha-pochinit-vse-taki-esche-raz-so.md` · 2026-08-14 · 🔒 `pid43119`
@@ -1312,6 +1312,7 @@
 - Сканер мёртвого кода снова не укладывается в бюджет — рецидив класса, предсказанный закрытой карточкой  ·  `inbox-skaner-mertvogo-koda-snova-ne-ukladyvaet.md` · 2026-09-23
 - Сканер назвал 136 файлов работы, которой никто не объявлял, в 11 деревьях — разобрать по одному дереву  ·  `inbox-skaner-nazval-136-failov-raboty-kotoroi.md` · 2026-08-21
 - Сканер НЕобъявленного не видит, что тот же файл лежит на базе под другим путём — 41% списка это переезд каталога  ·  `inbox-skaner-neobyavlennogo-ne-vidit-chto-tot.md` · 2026-08-21
+- Сколько ещё долгов сторожатся по РАЗМЕРУ, а не по составу — перепись баз-храповиков  ·  `inbox-skolko-esche-dolgov-storozhatsya-po-razm.md` · 2026-11-19
 - Скрипт R&D #158 не запускается по пути: edge_risk_shape_adaptive_blend без бутстрапа sys.path красит храповик path-launch на main  ·  `inbox-skript-r-d-158-ne-zapuskaetsya-po-puti-e.md` · 2026-11-13
 - Слабая обмолвка с живой меткой работника поднимается до находки и запирает карточку  ·  `inbox-slabaya-obmolvka-s-zhivoi-metkoi-rabotni.md` · 2026-10-14
 - Слепок режимов меряет ОДИН бит: пути с режимом вне 100644/100755 не измерены ни разу  ·  `inbox-slepok-rezhimov-meryaet-odin-bit-puti-s.md` · 2026-10-17

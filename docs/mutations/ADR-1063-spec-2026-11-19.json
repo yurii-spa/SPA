@@ -1,0 +1,147 @@
+{
+  "title": "ADR-1063 — СОСТАВ долга сирот-скриптов: причина ухода и прихода НАЗВАНА (цикл #1206, заказ G1051 п. 1)",
+  "tests": [
+    "spa_core/tests/test_orphan_script_debt.py"
+  ],
+  "mutations": [
+    {
+      "name": "M01 порядок вопросов сломан: удаление объявляется ПОДКЛЮЧЕНИЕМ (у удалённого файла вызывающего тоже нет)",
+      "file": "spa_core/monitoring/orphan_script_debt.py",
+      "old": "    if name not in after[\"entrypoints\"]:\n        return REMOVED, f\"файла scripts/{name}.py в дереве ПОСЛЕ нет\"\n    if name not in after[\"no_caller\"]:\n        return WIRED, \"в дереве ПОСЛЕ у скрипта есть вызывающий\"\n",
+      "new": "    if name not in after[\"no_caller\"]:\n        return WIRED, \"в дереве ПОСЛЕ у скрипта есть вызывающий\"\n    if name not in after[\"entrypoints\"]:\n        return REMOVED, f\"файла scripts/{name}.py в дереве ПОСЛЕ нет\"\n"
+    },
+    {
+      "name": "M02 освобождение реестром выдаётся за ВЫЗОВ — ровно та ошибка 2 из 3, ради которой прибор написан",
+      "file": "spa_core/monitoring/orphan_script_debt.py",
+      "old": "    if name in after[\"registry\"]:\n        return FORGIVEN, (\"вызывающего ПО-ПРЕЖНЕМУ нет: имя снято с долга ЗАПИСЬЮ \"\n                          \"реестра-продукта, а не вызовом\")\n",
+      "new": "    if name in after[\"registry\"]:\n        return WIRED, \"в дереве ПОСЛЕ у скрипта есть вызывающий\"\n"
+    },
+    {
+      "name": "M03 запрещённое дописывание в базу переодевается в законное освобождение",
+      "file": "spa_core/monitoring/orphan_script_debt.py",
+      "old": "    if name in after[\"baseline\"]:\n        return BASELINED, (\"мир не изменился: скрипт мёртв ПО-ПРЕЖНЕМУ, а имя \"\n                           \"дописано в объявление долга — это ЗАПРЕЩЕНО (инв. #16)\")\n",
+      "new": "    if name in after[\"baseline\"]:\n        return FORGIVEN, (\"вызывающего ПО-ПРЕЖНЕМУ нет: имя снято с долга ЗАПИСЬЮ \"\n                          \"реестра-продукта, а не вызовом\")\n"
+    },
+    {
+      "name": "M04 противоречивое состояние получает ближайшую подходящую причину вместо отказа (уход)",
+      "file": "spa_core/monitoring/orphan_script_debt.py",
+      "old": "    return UNMEASURED, (\"ушёл из долга, но ни одна из причин в дереве ПОСЛЕ не \"\n                        \"наблюдена — состояние противоречиво\")\n",
+      "new": "    return REMOVED, \"ушёл из долга\"\n"
+    },
+    {
+      "name": "M05 рождение сироты объявляется потерей вызывающего (файла в дереве ДО не было вовсе)",
+      "file": "spa_core/monitoring/orphan_script_debt.py",
+      "old": "    if name not in before[\"entrypoints\"]:\n        return BORN, \"файла в дереве ДО не было — скрипт рождён сиротой\"\n",
+      "new": "    if False:\n        return BORN, \"файла в дереве ДО не было — скрипт рождён сиротой\"\n"
+    },
+    {
+      "name": "M06 исчезновение записи реестра переодевается в рождение сироты",
+      "file": "spa_core/monitoring/orphan_script_debt.py",
+      "old": "    if name in before[\"registry\"]:\n        return FORGIVENESS_GONE, (\"в дереве ДО имя прощал реестр-продукт; записи больше \"\n                                  \"нет, а вызывающего не было и нет\")\n",
+      "new": "    if name in before[\"registry\"]:\n        return BORN, \"файла в дереве ДО не было — скрипт рождён сиротой\"\n"
+    },
+    {
+      "name": "M07 удаление имени из базы переодевается в рождение сироты (разрешённое направление теряет имя)",
+      "file": "spa_core/monitoring/orphan_script_debt.py",
+      "old": "    if name in before[\"baseline\"]:\n        return UNBASELINED, (\"мир не изменился: скрипт мёртв и в дереве ДО, а имя \"\n                             \"УБРАНО из объявления долга — разрешённое направление\")\n",
+      "new": "    if name in before[\"baseline\"]:\n        return BORN, \"файла в дереве ДО не было — скрипт рождён сиротой\"\n"
+    },
+    {
+      "name": "M08 противоречивое состояние получает ближайшую причину вместо отказа (приход)",
+      "file": "spa_core/monitoring/orphan_script_debt.py",
+      "old": "    return UNMEASURED, (\"пришёл в долг, но ни одна из причин в дереве ДО не \"\n                        \"наблюдена — состояние противоречиво\")\n",
+      "new": "    return BORN, \"пришёл в долг\"\n"
+    },
+    {
+      "name": "M09 дерево без ни одной точки входа объявляется ПУСТЫМ долгом (fail-OPEN вместо отказа)",
+      "file": "spa_core/monitoring/orphan_script_debt.py",
+      "old": "    if not entrypoints:\n        return {\"measured\": False, \"root\": str(base),\n                \"cause\": (f\"{UNMEASURED}: в дереве {base} не найдено ни одной точки \"\n                          \"входа `scripts/*.py` — пустым долгом это не считается\")}\n",
+      "new": "    if not entrypoints:\n        return {\"measured\": True, \"root\": str(base), \"entrypoints\": set(),\n                \"no_caller\": set(), \"registry\": set(), \"dead\": set(),\n                \"baseline\": set(), \"baseline_cause\": None, \"red\": set(),\n                \"red_measured\": True}\n"
+    },
+    {
+      "name": "M10 непрочитанное объявление долга становится ПУСТОЙ базой — весь долг выдаётся за красный набор",
+      "file": "spa_core/monitoring/orphan_script_debt.py",
+      "old": "    except (OSError, ValueError) as exc:\n        return set(), f\"объявление долга {path} не прочитано: {exc}\"\n",
+      "new": "    except (OSError, ValueError):\n        return set(), None\n"
+    },
+    {
+      "name": "M11 выдуманная ось принимается молча вместо отказа",
+      "file": "spa_core/monitoring/orphan_script_debt.py",
+      "old": "    if axis not in AXES:\n        return {\"measured\": False,\n                \"cause\": f\"ось `{axis}` не объявлена; объявлены {AXES}\"}\n",
+      "new": "    if False:\n        return {\"measured\": False,\n                \"cause\": f\"ось `{axis}` не объявлена; объявлены {AXES}\"}\n"
+    },
+    {
+      "name": "M12 неизмеренная ось красного набора выдаётся за измеренную",
+      "file": "spa_core/monitoring/orphan_script_debt.py",
+      "old": "        if axis == \"red\" and not side.get(\"red_measured\"):\n",
+      "new": "        if False and not side.get(\"red_measured\"):\n"
+    },
+    {
+      "name": "M13 «размер не дрогнул» перестаёт быть полем отчёта — находка исчезает, оставаясь верной",
+      "file": "spa_core/monitoring/orphan_script_debt.py",
+      "old": "        \"size_equal_but_composition_changed\": (\n            moved and len(before[axis]) == len(after[axis])),\n",
+      "new": "        \"size_equal_but_composition_changed\": False,\n"
+    },
+    {
+      "name": "M14 «пересечение пусто» перестаёт считаться — полная смена состава становится обычной",
+      "file": "spa_core/monitoring/orphan_script_debt.py",
+      "old": "        \"composition_turned_over_whole\": moved and not held,\n",
+      "new": "        \"composition_turned_over_whole\": False,\n"
+    },
+    {
+      "name": "M15 запрещённое действие перестаёт попадать в отчёт",
+      "file": "spa_core/monitoring/orphan_script_debt.py",
+      "old": "        \"forbidden\": [r for r in departed + arrived\n                      if r[\"cause\"] in FORBIDDEN_CAUSES],\n",
+      "new": "        \"forbidden\": [],\n"
+    },
+    {
+      "name": "M16 остаток считается ОБЪЕДИНЕНИЕМ вместо пересечения — «осталось» перестаёт быть остатком",
+      "file": "spa_core/monitoring/orphan_script_debt.py",
+      "old": "    held = sorted(before[axis] & after[axis])\n",
+      "new": "    held = sorted(before[axis] | after[axis])\n"
+    },
+    {
+      "name": "M17 ось перестаёт влиять на набор: красный набор всегда равен всему долгу",
+      "file": "spa_core/monitoring/orphan_script_debt.py",
+      "old": "        \"red\": dead - baseline if baseline_cause is None else set(),\n",
+      "new": "        \"red\": dead,\n"
+    },
+    {
+      "name": "M18 НЕ ИЗМЕРЕНО выдаётся за «состав совпал»",
+      "file": "spa_core/monitoring/orphan_script_debt.py",
+      "old": "    if not report.get(\"measured\"):\n        return 2, f\"⛔ {UNMEASURED}: {report.get('cause', 'причина не названа')}\"\n",
+      "new": "    if not report.get(\"measured\"):\n        return 0, f\"✅ {UNMEASURED}: {report.get('cause', 'причина не названа')}\"\n"
+    },
+    {
+      "name": "M19 разошедшийся состав докладывается кодом 0",
+      "file": "spa_core/monitoring/orphan_script_debt.py",
+      "old": "    return 1, head\n",
+      "new": "    return 0, head\n"
+    },
+    {
+      "name": "M20 имена перестают печататься — остаётся число, то есть сам дефект",
+      "file": "spa_core/monitoring/orphan_script_debt.py",
+      "old": "        for row in rows:\n            lines.append(f\"     • {row['name']} — {row['cause']}: {row['why']}\")\n",
+      "new": "        lines.append(\"     (имена опущены)\")\n"
+    },
+    {
+      "name": "M21 неотвечающий клон (усечённая история) перестаёт давать третий исход",
+      "file": "spa_core/monitoring/orphan_script_debt.py",
+      "old": "    code, out = _git(repo, \"rev-parse\", \"--verify\", f\"{ref}^{{commit}}\")\n    if code != 0:\n",
+      "new": "    code, out = _git(repo, \"rev-parse\", \"--verify\", f\"{ref}^{{commit}}\")\n    if False:\n"
+    },
+    {
+      "name": "M22 пропавший сборщик дерева проглатывается — ответ выдаётся о НЕ ВЫГРУЖЕННОМ дереве",
+      "file": "spa_core/monitoring/orphan_script_debt.py",
+      "old": "    path = repo / _EXPORTER\n    if not path.exists():\n        raise FileNotFoundError(f\"сборщика дерева {path} в этом клоне нет\")\n",
+      "new": "    path = repo / _EXPORTER\n    if not path.exists():\n        return lambda *a, **k: None\n"
+    },
+    {
+      "name": "M23 причина ухода перестаёт называться живым храповиком — сообщение снова внушает «подключено»",
+      "file": "spa_core/monitoring/orphan_script_debt.py",
+      "old": "DEPARTURE_CAUSES: Tuple[str, ...] = (WIRED, FORGIVEN, REMOVED, BASELINED)",
+      "new": "DEPARTURE_CAUSES: Tuple[str, ...] = (WIRED, FORGIVEN, REMOVED)"
+    }
+  ],
+  "note": "Батарея мутаций — только быстрый предмет. Живой храповик `spa_core/tests/test_unwired_scripts_ratchet.py` в неё НЕ включён намеренно: он сканирует всё дерево (310 с на прогон), и 23 мутации стоили бы два часа — мера, которую никто не гоняет, есть украшение. Проводку причины в живого читателя держит его собственная проверка `test_the_departure_cause_is_named_by_the_single_door`, а мутация M23 (сужение закрытого списка причин) убивается и ею, и быстрой батареей."
+}
