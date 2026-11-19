@@ -36,11 +36,42 @@ ADR-1055). Класс, у которого тот же зов стои́т в ``
 перепись ОТКАЗЫВАЕТ сама (повторный вход). То есть форма ошибается в сторону
 НАХОДКИ, и это объявленное свойство, а не промах.
 
+**Граница «модульный помощник» ОТКРЫТА, и за ней лежал МАКСИМУМ класса
+(ADR-1059, цикл #1198).** Прежняя редакция этого абзаца гласила: «Он не ходит за
+пределы класса: достижимость считается по методам ТОГО ЖЕ класса до неподвижной
+точки, а зов через модульного помощника есть ОБЪЯВЛЕННАЯ граница оси, а не ноль».
+Названа граница была честно — а население за ней не мерил никто, и оно оказалось
+НЕ ПУСТО: там стоял самый дорогой файл всего контрольного прогона.
+
+Замер 2026-11-18 (прогоны `ci-control` 44325110478 → 44393343317, `report.json`
+артефакта, `file_wall_s`):
+
+================================================  ==========  ==========  ======
+файл                                              прежний     текущий     имён
+================================================  ==========  ==========  ======
+``test_reachability_of_the_rest_wiring.py``          126.4 с   **1462.6 с**     8
+================================================  ==========  ==========  ======
+
+Байты файла при этом НЕ МЕНЯЛИСЬ (последнее касание — `a32ababc6`, и в diff'е из
+21 файла между вершинами двух прогонов его нет). Цена выросла в **11.6 раза**
+оттого, что перепись под ним перешла срок 180 с: ``_live_doc()`` — МОДУЛЬНАЯ
+функция под ``functools.lru_cache(maxsize=1)``, которую зовут **8** тестов, и
+ленивый кэш множитель не снимает ровно так, как сказано выше. 1462.6 ≈ **8** ×
+180. Это не склон, а СТУПЕНЬ: файл на 126 с не «вчетверо ниже срока» — он на одну
+переписи-ширину от того, чтобы стоить 8 × 180.
+
+Отсюда второе следствие, важнее первого: **отбирать кандидатов по
+``file_wall_s`` ОДНОГО прогона — значит систематически не видеть тех, кто ближе
+всех к ступени.** В прогоне 44325110478 этот файл в топ-10 не входил вовсе; в
+следующем он стал ПЕРВЫМ, обойдя ``test_consume_office_reports.py``.
+
 **Чего модуль НЕ делает.** Он не мерит цену — цена ОБЪЯВЛЕНА в :data:`EXPENSIVE`
 вместе с прогоном, в котором снята, и база может только уменьшаться (инв. #16).
-Он не ходит за пределы класса: достижимость считается по методам ТОГО ЖЕ класса
-до неподвижной точки, а зов через модульного помощника есть ОБЪЯВЛЕННАЯ граница
-оси, а не ноль.
+Достижимость считается до неподвижной точки по методам того же класса (:data:`HOPS`)
+И по модульным помощникам (:data:`MODULE_HOPS`, дверь :func:`module_reach`);
+исчерпание любого из двух засевов — :data:`UNMEASURED` с названной причиной, а не
+«достигли всего». Остающаяся граница названа и УЖЕ: зов через ЧУЖОЙ модуль
+(помощник, ввезённый из другого файла) по-прежнему вне оси.
 """
 from __future__ import annotations
 
@@ -72,6 +103,11 @@ PER_TEST_SETUP = ("setUp", "asyncSetUp", "tearDown", "asyncTearDown")
 #: Сколько кругов засева достижимости внутри класса. Исчерпание — не «достигли
 #: всего», а :data:`UNMEASURED` с названной причиной.
 HOPS = 5
+
+#: Сколько кругов засева по МОДУЛЬНЫМ помощникам (ADR-1059). Отдельное число от
+#: :data:`HOPS` намеренно: это два разных графа, и общая константа означала бы,
+#: что исчерпание одного объясняется глубиной другого.
+MODULE_HOPS = 5
 
 #: Дорогие точки входа — ОБЪЯВЛЕНИЕ с ценой и прогоном, в котором она снята.
 #:
@@ -112,6 +148,28 @@ EXPENSIVE: Dict[str, Dict[str, Any]] = {
         "host_s": None,
         "measured_at": "2026-11-18",
         "cheap_when": {"kwarg": "sweep_readers", "value": False},
+    },
+    # ADR-1059: цена снята у РАННЕГО прогона 44393343317, где файл стал самым
+    # дорогим во всём прогоне (1462.6 с ≈ 8 × 180). В предшествующем прогоне
+    # 44325110478 тот же файл стои́л 126.4 с и в топ-10 не входил — ОДНО
+    # наблюдение цены на вопрос «дорого ли» не отвечает, поэтому названы ОБА.
+    "reachability_of_the_rest._walk": {
+        "runner_file_s": 1462.6,
+        "runner_run": "44393343317",
+        "runner_file_s_prior": 126.4,
+        "runner_run_prior": "44325110478",
+        "host_s": 36.1,
+        "measured_at": "2026-11-18",
+        "cheap_when": None,
+    },
+    "reachability_of_the_rest.run": {
+        "runner_file_s": 1462.6,
+        "runner_run": "44393343317",
+        "runner_file_s_prior": 126.4,
+        "runner_run_prior": "44325110478",
+        "host_s": 36.4,
+        "measured_at": "2026-11-18",
+        "cheap_when": None,
     },
 }
 
@@ -206,21 +264,88 @@ def _self_calls(func: ast.AST, known: Iterable[str]) -> List[str]:
     return out
 
 
-def class_payers(cls: ast.ClassDef,
+def _bare_calls(func: ast.AST, known: Iterable[str]) -> List[str]:
+    """Зовы МОДУЛЬНЫХ помощников — голым именем, без точки слева.
+
+    Именно так выглядит ленивый кэш ЗА ПРЕДЕЛАМИ класса:
+    ``@functools.lru_cache`` на модульной функции, которую зовёт каждый тест.
+    :func:`_call_label` голое имя меткой НЕ считает ПО ПОСТРОЕНИЮ (спрашивается
+    ``mod.func``), поэтому до ADR-1059 такой зов приборy не был виден ВОВСЕ и
+    класс выходил :data:`NOT_CALLED` — то есть fail-OPEN под честно названной
+    границей. Найдено не разбором, а раннером: 1462.6 с и 8 имён рода часов.
+    """
+    names = set(known)
+    return [c.func.id for c in _called_names(func)
+            if isinstance(c.func, ast.Name) and c.func.id in names]
+
+
+def module_reach(tree: ast.Module,
                  declared: Optional[Dict[str, Dict[str, Any]]] = None,
                  aliases: Optional[Dict[str, str]] = None) -> Dict[str, Any]:
+    """Дорогие точки, достижимые из КАЖДОЙ модульной функции файла (ADR-1059).
+
+    Возвращает ``{"reach": {имя функции: set точек}, "unmeasured": причина|None}``.
+    Исчерпание засева — НАЗВАННЫЙ третий исход, а не «достигли всего»: иначе
+    глубокая цепочка помощников читалась бы как «дорогого зова нет».
+
+    Дверь отдельная от :func:`class_payers` намеренно: граф модульных функций и
+    граф методов класса — РАЗНЫЕ графы, и считать их одним засевом значило бы
+    объявить достижимым то, чего `unittest` никогда не позовёт.
+    """
+    declared = EXPENSIVE if declared is None else declared
+    aliases = {} if aliases is None else aliases
+    funcs = {n.name: n for n in tree.body
+             if isinstance(n, (ast.FunctionDef, ast.AsyncFunctionDef))}
+    reach = {name: set(_expensive_calls(fn, declared, aliases))
+             for name, fn in funcs.items()}
+    for _ in range(MODULE_HOPS):
+        grew = False
+        for name, fn in funcs.items():
+            for callee in _bare_calls(fn, funcs):
+                before = len(reach[name])
+                reach[name] |= reach.get(callee, set())
+                grew = grew or len(reach[name]) != before
+        if not grew:
+            break
+    else:
+        return {"reach": reach,
+                "unmeasured": (f"засев по модульным помощникам не сошёлся за "
+                               f"{MODULE_HOPS} кругов — достижимость через них "
+                               f"НЕ ИЗМЕРЕНА, и нулём это не считается")}
+    return {"reach": reach, "unmeasured": None}
+
+
+def class_payers(cls: ast.ClassDef,
+                 declared: Optional[Dict[str, Dict[str, Any]]] = None,
+                 aliases: Optional[Dict[str, str]] = None,
+                 helpers: Optional[Dict[str, Any]] = None) -> Dict[str, Any]:
     """Кто платит за дорогой зов в ЭТОМ классе и сколько раз.
 
     Возвращает ``{"outcome", "payers", "entry_points", "via_class_setup", "why"}``.
     ``payers`` — имена тестов, КАЖДЫЙ из которых зовёт дорогую перепись сам.
+
+    ``helpers`` — достижимость по МОДУЛЬНЫМ помощникам (:func:`module_reach`,
+    ADR-1059). Не подан ⇒ граница закрыта и об этом сказано вслух: класс,
+    чей дорогой зов идёт через модульную функцию, выйдет :data:`NOT_CALLED`.
     """
     declared = EXPENSIVE if declared is None else declared
     aliases = {} if aliases is None else aliases
+    helper_reach: Dict[str, Any] = (helpers or {}).get("reach") or {}
+    helper_unmeasured = (helpers or {}).get("unmeasured")
+    if helper_unmeasured:
+        return {"outcome": UNMEASURED, "payers": [], "entry_points": [],
+                "via_class_setup": False, "why": helper_unmeasured}
     methods = _methods(cls)
 
-    # Засев достижимости внутри класса до неподвижной точки.
-    direct = {name: set(_expensive_calls(fn, declared, aliases))
-              for name, fn in methods.items()}
+    # Засев достижимости внутри класса до неподвижной точки. Зов модульного
+    # помощника вносит ЕГО дорогие точки — иначе ленивый кэш за пределами
+    # класса читался бы как «дорогого зова нет» (ADR-1059).
+    direct = {}
+    for name, fn in methods.items():
+        hits = set(_expensive_calls(fn, declared, aliases))
+        for callee in _bare_calls(fn, helper_reach):
+            hits |= helper_reach.get(callee, set())
+        direct[name] = hits
     reach = {name: set(hits) for name, hits in direct.items()}
     for _ in range(HOPS):
         grew = False
@@ -237,9 +362,18 @@ def class_payers(cls: ast.ClassDef,
                 "why": f"засев достижимости не сошёлся за {HOPS} кругов — "
                        "достижимость НЕ ИЗМЕРЕНА, и нулём это не считается"}
 
+    # `setUpModule` живёт на уровне МОДУЛЯ, а не в классе, поэтому до ADR-1059
+    # его имя в CLASS_SETUP было ОБЪЯВЛЕНО и НЕДОСТИЖИМО: `_methods(cls)`
+    # собирает только методы класса, и ни одно дерево не могло сделать эту
+    # половину кортежа истинной. Объявление без читателя есть ложное усиление.
     setup_hits: set = set()
+    setup_where: List[str] = []
     for name in CLASS_SETUP:
-        setup_hits |= reach.get(name, set())
+        for source in (reach.get(name, set()), helper_reach.get(name, set())):
+            if source:
+                setup_hits |= source
+                if name not in setup_where:
+                    setup_where.append(name)
 
     per_test_hits: set = set()
     for name in PER_TEST_SETUP:
@@ -252,9 +386,10 @@ def class_payers(cls: ast.ClassDef,
 
     if setup_hits:
         return {"outcome": ONCE, "payers": payers, "entry_points": points,
-                "via_class_setup": True,
-                "why": "дорогой зов стои́т в классовой подготовке — цена делится "
-                       "на весь класс, и её платят ОДИН раз"}
+                "via_class_setup": True, "setup_where": setup_where,
+                "why": f"дорогой зов стои́т в подготовке ({', '.join(setup_where)}) "
+                       "— цена делится на весь класс (а у `setUpModule` на весь "
+                       "модуль), и её платят ОДИН раз"}
     if not payers:
         return {"outcome": NOT_CALLED, "payers": [], "entry_points": [],
                 "via_class_setup": False,
@@ -302,8 +437,9 @@ def census(root: Optional[Path] = None,
                 tally[UNMEASURED] += 1
                 continue
             aliases = module_aliases(tree)
+            helpers = module_reach(tree, declared, aliases)
             for cls in [n for n in ast.walk(tree) if isinstance(n, ast.ClassDef)]:
-                verdict = class_payers(cls, declared, aliases)
+                verdict = class_payers(cls, declared, aliases, helpers)
                 if verdict["outcome"] == NOT_CALLED:
                     continue
                 rows.append({"file": str(path.relative_to(root)),

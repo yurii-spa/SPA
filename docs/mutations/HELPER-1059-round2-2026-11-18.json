@@ -1,0 +1,21 @@
+{
+ "title": "ADR-1059 HELPER round 2 — перемер выжившей M03 после починки СЦЕНЫ: дверь `_bare_calls` спрашивается НАПРЯМУ, потому что ниже стои́т `helper_reach.get(callee, set())` и фильтр двери сегодня НЕ НЕСУЩИЙ (исход от мутации не менялся ВОВСЕ)",
+ "tests": [
+  "spa_core/tests/test_census_call_multiplier.py::TheModuleHelperBoundaryIsMeasured::test_the_helper_door_returns_ONLY_declared_helper_names",
+  "spa_core/tests/test_census_call_multiplier.py::TheModuleHelperBoundaryIsMeasured"
+ ],
+ "mutations": [
+  {
+   "name": "M03 (перемер) голое имя считается зовом ЛЮБОГО имени — вернулось сравнение по подстроке",
+   "file": "spa_core/tests/_census_call_multiplier.py",
+   "old": "            if isinstance(c.func, ast.Name) and c.func.id in names]",
+   "new": "            if isinstance(c.func, ast.Name)]"
+  },
+  {
+   "name": "M14 дверь помощников отдаёт пустоту всегда — объявление двери становится ложным",
+   "file": "spa_core/tests/_census_call_multiplier.py",
+   "old": "    names = set(known)\n    return [c.func.id for c in _called_names(func)",
+   "new": "    names = set()\n    return [c.func.id for c in _called_names(func)"
+  }
+ ]
+}

@@ -212,6 +212,229 @@ class ThePrecisionOfTheAxisIsMeasured(unittest.TestCase):
         self.assertEqual(out["outcome"], m.NOT_CALLED, out["why"])
 
 
+def _verdict_mod(body: str, cls_name: str = "C", declared=None, door: bool = True):
+    """Разбор класса сцены ВМЕСТЕ с модульными помощниками (ADR-1059).
+
+    ``door=False`` закрывает дверь помощников — так прибор вёл себя ДО ADR-1059,
+    и это объявленная граница, а не поломка: см.
+    :meth:`TheModuleHelperBoundaryIsMeasured.test_without_the_helper_door_the_boundary_is_closed`.
+    """
+    tree = ast.parse(_IMPORT + body)
+    aliases = m.module_aliases(tree)
+    helpers = m.module_reach(tree, declared or _DECLARED, aliases) if door else None
+    classes = [n for n in ast.walk(tree)
+               if isinstance(n, ast.ClassDef) and n.name == cls_name]
+    assert len(classes) == 1, f"сцена обязана нести РОВНО один класс {cls_name}"
+    return m.class_payers(classes[0], declared or _DECLARED, aliases, helpers)
+
+
+class TheModuleHelperBoundaryIsMeasured(unittest.TestCase):
+    """Граница «зов через МОДУЛЬНОГО помощника» (ADR-1059).
+
+    До этого ADR граница была названа в докстроке модуля честно, а её население
+    не мерил никто — и оказалось, что за ней стои́т МАКСИМУМ класса: файл
+    ``test_reachability_of_the_rest_wiring.py``, 1462.6 с у раннера в прогоне
+    44393343317 (≈ 8 × 180) при 126.4 с в предшествующем прогоне и НЕИЗМЕННЫХ
+    байтах. Сцены ниже — положительный и отрицательный контроль ровно на эту форму.
+    """
+
+    _HELPER = ("@functools.lru_cache(maxsize=1)\n"
+               "def _live_doc():\n"
+               "    return thing_census.sweep()\n")
+
+    def test_a_lazy_MODULE_helper_does_NOT_remove_the_multiplier(self):
+        """ПОЛОЖИТЕЛЬНЫЙ контроль: ровно форма аварии 44393343317.
+
+        Кэш на модульной функции амортизирует всё, кроме того события, которое
+        обязан пережить замер: присваивание идёт ПОСЛЕ возврата, а по сроку зов
+        не возвращается. До ADR-1059 прибор отвечал об этой сцене `not_called`.
+        """
+        body = (self._HELPER +
+                "class C:\n"
+                "    def test_one(self):\n"
+                "        _live_doc()\n"
+                "    def test_two(self):\n"
+                "        _live_doc()\n")
+        out = _verdict_mod(body)
+        self.assertEqual(out["outcome"], m.MULTIPLIED, out["why"])
+        self.assertEqual(out["payers"], ["test_one", "test_two"])
+        self.assertIn("thing_census.sweep", out["entry_points"])
+
+    def test_the_same_helper_primed_in_setUpModule_is_paid_once(self):
+        """ОТРИЦАТЕЛЬНЫЙ контроль той же сцены — и ровно это есть выход.
+
+        `setUpModule` зовётся ОДИН раз до любого теста модуля, и `unittest`
+        запоминает его отказ: множитель 8 → 1 без правки ни одного утверждения.
+        """
+        body = (self._HELPER +
+                "def setUpModule():\n"
+                "    _live_doc()\n"
+                "class C:\n"
+                "    def test_one(self):\n"
+                "        _live_doc()\n"
+                "    def test_two(self):\n"
+                "        _live_doc()\n")
+        out = _verdict_mod(body)
+        self.assertEqual(out["outcome"], m.ONCE, out["why"])
+        self.assertEqual(out["setup_where"], ["setUpModule"])
+
+    def test_setUpModule_was_DECLARED_and_UNREACHABLE_before(self):
+        """`setUpModule` стоял в :data:`CLASS_SETUP` и НЕ МОГ быть достигнут.
+
+        `_methods(cls)` собирает только методы класса, а `setUpModule` живёт на
+        уровне модуля — значит ни одно дерево не могло сделать эту половину
+        кортежа истинной. Объявление без читателя есть ЛОЖНОЕ УСИЛЕНИЕ, и этот
+        тест — его положительный контроль: та же сцена с закрытой дверью
+        помощников обязана дать ДРУГОЙ исход.
+        """
+        self.assertIn("setUpModule", m.CLASS_SETUP)
+        body = (self._HELPER +
+                "def setUpModule():\n"
+                "    _live_doc()\n"
+                "class C:\n"
+                "    def test_one(self):\n"
+                "        _live_doc()\n"
+                "    def test_two(self):\n"
+                "        _live_doc()\n")
+        self.assertEqual(_verdict_mod(body)["outcome"], m.ONCE)
+        self.assertEqual(_verdict_mod(body, door=False)["outcome"], m.NOT_CALLED,
+                         "с закрытой дверью помощников исход обязан РАЗОЙТИСЬ — "
+                         "иначе сцена ничего не доказывает про дверь")
+
+    def test_without_the_helper_door_the_boundary_is_closed(self):
+        """Дверь не подана ⇒ прежнее поведение, и оно ОБЪЯВЛЕНО, а не случайно."""
+        body = (self._HELPER +
+                "class C:\n"
+                "    def test_one(self):\n"
+                "        _live_doc()\n"
+                "    def test_two(self):\n"
+                "        _live_doc()\n")
+        self.assertEqual(_verdict_mod(body, door=False)["outcome"], m.NOT_CALLED)
+
+    def test_a_chain_of_module_helpers_is_followed_to_the_fixed_point(self):
+        """Помощник помощника — та же форма, и обрыв цепочки был бы fail-OPEN."""
+        body = ("def _deep():\n"
+                "    return thing_census.sweep()\n"
+                "def _mid():\n"
+                "    return _deep()\n"
+                "def _live_doc():\n"
+                "    return _mid()\n"
+                "class C:\n"
+                "    def test_one(self):\n"
+                "        _live_doc()\n"
+                "    def test_two(self):\n"
+                "        _live_doc()\n")
+        out = _verdict_mod(body)
+        self.assertEqual(out["outcome"], m.MULTIPLIED, out["why"])
+
+    def test_an_exhausted_module_seed_is_unmeasured_not_zero(self):
+        """Засев не сошёлся ⇒ НАЗВАННЫЙ третий исход (инв. #17), а не «нет зова»."""
+        chain = "".join(f"def _h{i}():\n    return _h{i + 1}()\n"
+                        for i in range(1, m.MODULE_HOPS + 4))
+        chain += f"def _h{m.MODULE_HOPS + 4}():\n    return thing_census.sweep()\n"
+        body = (chain +
+                "class C:\n"
+                "    def test_one(self):\n"
+                "        _h1()\n"
+                "    def test_two(self):\n"
+                "        _h1()\n")
+        out = _verdict_mod(body)
+        self.assertEqual(out["outcome"], m.UNMEASURED, out["why"])
+        self.assertIn("НЕ ИЗМЕРЕНА", out["why"])
+        self.assertIn(str(m.MODULE_HOPS), out["why"],
+                      "причина обязана назвать ЧИСЛО кругов, а не «не вышло»")
+
+    def test_the_helper_door_returns_ONLY_declared_helper_names(self):
+        """Выжившая мутация M03 (этот цикл): «голое имя считается зовом ЛЮБОГО
+        имени» прошла все сцены, потому что ниже стои́т
+        `helper_reach.get(callee, set())` — чужое имя даёт ПУСТОЙ набор, и фильтр
+        двери сегодня НЕ НЕСУЩИЙ. Исход от мутации не менялся, то есть сцены её
+        не видели ВОВСЕ, и объявление двери («зовы МОДУЛЬНЫХ помощников»)
+        оставалось непроверяемым обещанием. Спрашивается сама дверь.
+        """
+        tree = ast.parse("def _live_doc():\n"
+                         "    pass\n"
+                         "class C:\n"
+                         "    def test_one(self):\n"
+                         "        _live_doc()\n"
+                         "        foreign()\n")
+        fn = [n for n in ast.walk(tree)
+              if isinstance(n, ast.FunctionDef) and n.name == "test_one"][0]
+        self.assertEqual(m._bare_calls(fn, {"_live_doc": set()}), ["_live_doc"],
+                         "дверь обязана отдать ТОЛЬКО объявленные имена "
+                         "помощников: `foreign` помощником не объявлен")
+
+    def test_a_bare_name_that_is_not_a_module_helper_stays_unseen(self):
+        """Точность оси не падает: голое имя, которого в модуле НЕТ, меткой не
+        становится — иначе вернулось бы сравнение по подстроке (ADR-333)."""
+        body = ("class C:\n"
+                "    def test_one(self):\n"
+                "        sweep()\n"
+                "    def test_two(self):\n"
+                "        sweep()\n")
+        self.assertEqual(_verdict_mod(body)["outcome"], m.NOT_CALLED)
+
+    def test_a_module_helper_that_calls_nothing_expensive_is_not_a_payer(self):
+        """Помощник сам по себе дорогим не делает — спрашивается, что ОН зовёт."""
+        body = ("def _cheap():\n"
+                "    return 1\n"
+                "class C:\n"
+                "    def test_one(self):\n"
+                "        _cheap()\n"
+                "    def test_two(self):\n"
+                "        _cheap()\n")
+        self.assertEqual(_verdict_mod(body)["outcome"], m.NOT_CALLED)
+
+    def test_the_cheap_door_is_honoured_through_a_helper_too(self):
+        """Дешёвая дверь прибора не теряется оттого, что зов ушёл в помощника."""
+        body = ("def _live_doc():\n"
+                "    return thing_census.sweep(sweep=False)\n"
+                "class C:\n"
+                "    def test_one(self):\n"
+                "        _live_doc()\n"
+                "    def test_two(self):\n"
+                "        _live_doc()\n")
+        self.assertEqual(_verdict_mod(body, declared=_CHEAP_DOOR)["outcome"],
+                         m.NOT_CALLED)
+
+
+class TheCliffMemberIsNamedWithBothObservations(unittest.TestCase):
+    """Один прогон на вопрос «дорого ли» не отвечает (ADR-1059).
+
+    Отбор кандидатов по `file_wall_s` ОДНОГО прогона систематически не видит тех,
+    кто ближе всех к ступени: предмет этого ADR в прогоне 44325110478 в топ-10 не
+    входил вовсе, а в следующем стал ПЕРВЫМ файлом всего прогона.
+    """
+
+    def test_the_cliff_entry_points_name_the_prior_observation_too(self):
+        cliff = [k for k in m.EXPENSIVE if k.startswith("reachability_of_the_rest.")]
+        self.assertEqual(len(cliff), 2, "обе двери предмета обязаны быть объявлены")
+        for key in cliff:
+            with self.subTest(entry=key):
+                spec = m.EXPENSIVE[key]
+                self.assertEqual(spec["runner_run"], "44393343317")
+                self.assertEqual(spec["runner_run_prior"], "44325110478")
+                self.assertGreater(spec["runner_file_s"],
+                                   spec["runner_file_s_prior"] * 5,
+                                   "ступень обязана быть видна В ОБЪЯВЛЕНИИ: "
+                                   "одно наблюдение цены её не показывает")
+
+    def test_the_live_tree_shows_the_subject_paid_once_per_module(self):
+        """ЖИВОЙ замер: предмет ADR-1059 платит ОДИН раз, и это видно прибором."""
+        rows = [r for r in m.census(root=_REPO)["rows"]
+                if r["file"] == "spa_core/tests/test_reachability_of_the_rest_wiring.py"]
+        self.assertTrue(rows, "предмет обязан быть ВИДЕН прибору — до ADR-1059 "
+                              "он был вне оси ВОВСЕ, и это главная находка")
+        paying = {r["class"]: len(r["payers"]) for r in rows if r["payers"]}
+        self.assertEqual(sum(paying.values()), 8,
+                         f"плательщиков обязано быть восемь — ровно столько имён "
+                         f"рода часов дал прогон 44393343317; измерено {paying}")
+        for row in rows:
+            with self.subTest(cls=row["class"]):
+                self.assertEqual(row["outcome"], m.ONCE, row["why"])
+                self.assertEqual(row.get("setup_where"), ["setUpModule"])
+
+
 class AnUnreadableFileIsTheThirdOutcome(unittest.TestCase):
 
     def test_a_broken_file_is_unmeasured_with_a_named_reason_not_zero(self):

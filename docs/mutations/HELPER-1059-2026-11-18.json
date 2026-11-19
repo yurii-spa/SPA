@@ -1,0 +1,86 @@
+{
+ "title": "ADR-1059 HELPER — дельта цикла #1198: ОБЪЯВЛЕННАЯ граница «зов через МОДУЛЬНОГО помощника» открыта (`module_reach`, `_bare_calls`, `MODULE_HOPS`), `setUpModule` в CLASS_SETUP получил читателя, достижимость методов вносит дорогие точки помощника, исчерпание засева — названный третий исход, цена объявлена ДВУМЯ наблюдениями (ступень видна в объявлении)",
+ "tests": [
+  "spa_core/tests/test_census_call_multiplier.py"
+ ],
+ "mutations": [
+  {
+   "name": "M01 дверь помощников не вносит их дорогие точки в достижимость метода",
+   "file": "spa_core/tests/_census_call_multiplier.py",
+   "old": "        for callee in _bare_calls(fn, helper_reach):\n            hits |= helper_reach.get(callee, set())",
+   "new": "        for callee in []:\n            hits |= helper_reach.get(callee, set())"
+  },
+  {
+   "name": "M02 голое имя снова не считается зовом помощника (дверь закрыта в корне)",
+   "file": "spa_core/tests/_census_call_multiplier.py",
+   "old": "    return [c.func.id for c in _called_names(func)\n            if isinstance(c.func, ast.Name) and c.func.id in names]",
+   "new": "    return []"
+  },
+  {
+   "name": "M03 голое имя считается зовом ЛЮБОГО имени — вернулось сравнение по подстроке",
+   "file": "spa_core/tests/_census_call_multiplier.py",
+   "old": "            if isinstance(c.func, ast.Name) and c.func.id in names]",
+   "new": "            if isinstance(c.func, ast.Name)]"
+  },
+  {
+   "name": "M04 `setUpModule` снова недостижим — подготовка читается только из класса",
+   "file": "spa_core/tests/_census_call_multiplier.py",
+   "old": "        for source in (reach.get(name, set()), helper_reach.get(name, set())):",
+   "new": "        for source in (reach.get(name, set()),):"
+  },
+  {
+   "name": "M05 засев по помощникам не идёт к неподвижной точке — ровно один круг",
+   "file": "spa_core/tests/_census_call_multiplier.py",
+   "old": "    for _ in range(MODULE_HOPS):\n        grew = False\n        for name, fn in funcs.items():\n            for callee in _bare_calls(fn, funcs):",
+   "new": "    for _ in range(1):\n        grew = False\n        for name, fn in funcs.items():\n            for callee in _bare_calls(fn, funcs):"
+  },
+  {
+   "name": "M06 исчерпание засева помощников объявляется НУЛЁМ, а не третьим исходом",
+   "file": "spa_core/tests/_census_call_multiplier.py",
+   "old": "        return {\"reach\": reach,\n                \"unmeasured\": (f\"засев по модульным помощникам не сошёлся за \"\n                               f\"{MODULE_HOPS} кругов — достижимость через них \"\n                               f\"НЕ ИЗМЕРЕНА, и нулём это не считается\")}",
+   "new": "        return {\"reach\": reach, \"unmeasured\": None}"
+  },
+  {
+   "name": "M07 причина исчерпания не называет ЧИСЛО кругов",
+   "file": "spa_core/tests/_census_call_multiplier.py",
+   "old": "                \"unmeasured\": (f\"засев по модульным помощникам не сошёлся за \"\n                               f\"{MODULE_HOPS} кругов — достижимость через них \"\n                               f\"НЕ ИЗМЕРЕНА, и нулём это не считается\")}",
+   "new": "                \"unmeasured\": \"достижимость через помощников НЕ ИЗМЕРЕНА\"}"
+  },
+  {
+   "name": "M08 непрочитанная достижимость помощников ПРОГЛАТЫВАЕТСЯ (fail-OPEN)",
+   "file": "spa_core/tests/_census_call_multiplier.py",
+   "old": "    if helper_unmeasured:\n        return {\"outcome\": UNMEASURED, \"payers\": [], \"entry_points\": [],\n                \"via_class_setup\": False, \"why\": helper_unmeasured}",
+   "new": "    if False:\n        return {\"outcome\": UNMEASURED, \"payers\": [], \"entry_points\": [],\n                \"via_class_setup\": False, \"why\": helper_unmeasured}"
+  },
+  {
+   "name": "M09 дешёвая дверь прибора теряется, когда зов ушёл в помощника",
+   "file": "spa_core/tests/_census_call_multiplier.py",
+   "old": "            if _is_cheap(call, spec.get(\"cheap_when\")):\n                continue",
+   "new": "            if False:\n                continue"
+  },
+  {
+   "name": "M10 перепись не подаёт дверь помощников классам — ось сузилась молча",
+   "file": "spa_core/tests/_census_call_multiplier.py",
+   "old": "                verdict = class_payers(cls, declared, aliases, helpers)",
+   "new": "                verdict = class_payers(cls, declared, aliases, None)"
+  },
+  {
+   "name": "M11 место подготовки не называется — ONCE перестаёт отличать класс от модуля",
+   "file": "spa_core/tests/_census_call_multiplier.py",
+   "old": "                \"via_class_setup\": True, \"setup_where\": setup_where,",
+   "new": "                \"via_class_setup\": True, \"setup_where\": [],"
+  },
+  {
+   "name": "M12 цена предмета объявлена ОДНИМ наблюдением — ступень из объявления исчезла",
+   "file": "spa_core/tests/_census_call_multiplier.py",
+   "old": "        \"runner_file_s_prior\": 126.4,\n        \"runner_run_prior\": \"44325110478\",\n        \"host_s\": 36.1,",
+   "new": "        \"runner_file_s_prior\": 1462.6,\n        \"runner_run_prior\": \"44325110478\",\n        \"host_s\": 36.1,"
+  },
+  {
+   "name": "M13 предмет снова платит множителем — setUpModule в предмете снят",
+   "file": "spa_core/tests/test_reachability_of_the_rest_wiring.py",
+   "old": "def setUpModule() -> None:",
+   "new": "def _setUpModule_disabled() -> None:"
+  }
+ ]
+}
