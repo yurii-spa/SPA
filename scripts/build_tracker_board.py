@@ -94,6 +94,24 @@ def parse_frontmatter(text: str) -> dict:
     return meta
 
 
+def card_status(text: str) -> str | None:
+    """Статус карточки по её ТЕКСТУ: строка либо `None` — поля `status:` нет вовсе.
+
+    ЕДИНСТВЕННАЯ дверь к этому вопросу, и зовут её трое: сборка доски
+    (`card_dict`), перепись оси статуса (`scripts/board_status_axis_census.py`) и
+    гейт доставки (`enforce_delivery_board_row`, ADR-1062). Своя копия правила
+    «как читается статус» у любого из троих означала бы, что гейт пускает через
+    себя ровно те расхождения, из-за которых он понадобился: доска собрана одним
+    чтением, а судится другим.
+
+    `None` — отдельный исход, а не пустая строка (инв. #17): «поля нет» и «поле
+    пусто» суть разные состояния карточки, и склеить их значило бы объявить
+    статусом ту пустоту, которой доска напечатает `?`.
+    """
+    val = parse_frontmatter(text).get("status")
+    return None if val is None else val.strip()
+
+
 def card_type(meta: dict, name: str) -> str:
     """Тип карточки — через ОБЩИЙ с CLI резолвер (см. `resolve_tracker_type`).
 
@@ -139,7 +157,11 @@ def card_dict(name: str, text: str, path: Path) -> dict:
     где эта копия и ломала доску прежде.
     """
     meta = parse_frontmatter(text)
-    status = meta.get("status", "?")
+    # Через ЕДИНСТВЕННУЮ дверь `card_status`: её же спрашивают перепись оси статуса и
+    # гейт доставки. «Поля нет» и «поле пусто» дверь различает, а доска печатает `?`
+    # обоим — печать есть её дело, чтение — дверино.
+    raw_status = card_status(text)
+    status = "?" if raw_status is None else raw_status
     holder = (meta.get("claimed_by") or "").strip()
     return {
         "file": name,

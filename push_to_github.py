@@ -2385,6 +2385,48 @@ BOARD_REL = "nimbalyst-local/tracker/_BOARD.md"
 
 CARDLESS_BOARD_EXIT = 17
 
+#: ОСЬ 2 той же проекции (ADR-1062). Свой код, а не слагаемое кода 17: «строки
+#: нет вовсе» и «строка есть, но статус на ней другой» — РАЗНЫЕ утверждения о
+#: индексе, и читатель кода возврата обязан их различать. Починка у обеих одна,
+#: но вердикт — нет.
+STALE_BOARD_STATUS_EXIT = 18
+
+#: Перепись оси 2 ОТНОСИТЕЛЬНО корня дерева. Своей копии замера у гейта НЕТ: числа
+#: читаются у ПРИБОРА, который их мерит (`POPULATION`), потому что число,
+#: перепечатанное рядом с прибором, перестаёт быть замером и становится
+#: константой — ровно тот дефект, за который проект уже платил
+#: («~3,3 % фактических» в шестнадцати местах при треке 5,3 %).
+BOARD_STATUS_CENSUS_REL = "scripts/board_status_axis_census.py"
+
+
+def board_status_population(runner_file: Optional[str] = None) -> tuple:
+    """Замер населения оси 2 → ``(словарь, None)`` либо ``(None, причина)``.
+
+    Прибор берётся из дерева ЗАПУЩЕННОГО CLI — тот же приём и тот же довод, что у
+    :func:`_board_parser` (ADR-796): число, которым судья объясняет свой отказ,
+    приходит оттуда же, откуда пришёл сам судья.
+
+    Третий исход СВОЙ (инв. #17): «прибора нет» и «население ноль» — разные
+    ответы, и отказ обязан сказать, что замер ему недоступен, а не промолчать
+    числом по умолчанию.
+    """
+    import importlib.util as _ilu
+
+    base = Path(os.path.abspath(runner_file or __file__)).parent
+    path = base / BOARD_STATUS_CENSUS_REL
+    try:
+        spec = _ilu.spec_from_file_location("_board_status_census_for_gate", path)
+        mod = _ilu.module_from_spec(spec)
+        spec.loader.exec_module(mod)
+    except Exception as exc:                                        # noqa: BLE001
+        return None, (f"{path} не ввезён ({type(exc).__name__}: {exc}) — замер "
+                      f"населения оси 2 НЕ ИЗМЕРЕН")
+    pop = getattr(mod, "POPULATION", None)
+    if not isinstance(pop, dict) or "disagree" not in pop:
+        return None, (f"{path} не несёт замера `POPULATION` — у отказа нет числа, "
+                      f"и выдумывать его здесь ЗАПРЕЩЕНО")
+    return pop, None
+
 
 class DeliveredCardHasNoBoardRow(RuntimeError):
     """Уезжающую карточку доска, которую оставит этот пуш, не называет.
@@ -2392,6 +2434,30 @@ class DeliveredCardHasNoBoardRow(RuntimeError):
     Отдельный тип (а не общий ``RuntimeError``), чтобы `main()` отличил находку
     от «пушер сломался» и вышел СВОИМ кодом: починка известна и стоит один
     вызов прибора.
+    """
+
+
+class DeliveredCardBoardStatusDiffers(RuntimeError):
+    """Строка на доске ЕСТЬ, но статус на ней не тот, что у уезжающей карточки.
+
+    Замер 2026-11-19 (цикл #1204, полное зеркало — прод-клон УСЕЧЁН и на вопрос
+    об истории пути отвечать не способен; ВСЯ история `origin/main`: 1925 вершин,
+    тронувших очередь, 3797 пар «вершина × карточка»): **287** пар в **141**
+    вершине против 2764 согласий. Направление однородно — доска говорила
+    `new`/`needs-owner`/`backlog` о карточке, которая сама объявляла
+    `done`/`ingested`. То есть индекс, который `CLAUDE.md` велит читать ПЕРВЫМ,
+    РАЗДУВАЛ очередь: читатель видел работу незакрытой, а **110 пар из 287**
+    числили её за ВЛАДЕЛЬЦЕМ, когда владелец уже ответил. Ровно тот же дефект,
+    что замер #436 (30.08) нашёл у `resolve_against_origin`: доска объявляла
+    «ждёт владельца: 25», из них 23 на origin уже `ingested`.
+
+    **Почему вопрос разрешим без угадывания.** `resolve_against_origin`
+    переписывает статус ТОЛЬКО у `stale` — карточки, чьи байты найдены в ИСТОРИИ
+    origin для её же пути. Байты, которые сессия доставляет, становятся вершиной
+    origin этим же пушем, то есть свежайшие по построению. Единственное
+    состояние, где доска несла бы статус origin законно, — возврат к дословно
+    прежним байтам; в замере он встретился **НОЛЬ** раз на всех 3797 парах
+    (`revert_shaped: 0`). Премиса ПРОВЕРЕНА, а не принята.
     """
 
 
@@ -2434,6 +2500,34 @@ def _board_parser(runner_file: Optional[str] = None):
         return None, (f"{path} не несёт `board_status_map` — единственной двери "
                       f"разбора нет, свою здесь заводить ЗАПРЕЩЕНО")
     return mod, None
+
+
+def _card_status_of(mod, raw: bytes) -> tuple:
+    """Статус УЕЗЖАЮЩЕЙ карточки её же дверью → ``(статус, причина)`` (ADR-1062).
+
+    Спрашивается ТА ЖЕ дверь `card_status`, которой сборка доски и читает статус
+    (`build_tracker_board.card_dict`). Своя копия правила «как читается статус»
+    означала бы, что гейт считает согласием то, что генератор считает
+    расхождением, — то есть пропускает ровно тот класс, ради которого написан.
+
+    Три исхода различимы (инв. #17): статус ПРОЧИТАН · двери нет (мерка не
+    ввезена) · байты не декодируются либо поля `status:` нет вовсе. Последние два
+    суть `unmeasured` с НАЗВАННОЙ причиной, а не «статус совпал».
+    """
+    if not hasattr(mod, "card_status"):
+        return None, ("прибор разбора не несёт двери `card_status` — чем "
+                      "карточка объявляет свой статус, спросить НЕЧЕМ; своя "
+                      "копия правила здесь ЗАПРЕЩЕНА (ADR-1062)")
+    try:
+        text = raw.decode("utf-8")
+    except UnicodeDecodeError as exc:
+        return None, f"байты уезжающей карточки не декодируются как UTF-8 ({exc})"
+    said = mod.card_status(text)
+    if said is None:
+        return None, ("у уезжающей карточки нет поля `status:` вовсе — доске "
+                      "нечего подтверждать, и «совпало» здесь было бы "
+                      "утверждением о замере, которого не было")
+    return said, None
 
 
 def board_after_delivery(file_args: list, branch: str = "main") -> tuple:
@@ -2481,7 +2575,8 @@ def board_after_delivery(file_args: list, branch: str = "main") -> tuple:
 
 def enforce_delivery_board_row(file_args: list, allow: bool = False,
                                runner_file: Optional[str] = None,
-                               branch: str = "main") -> list:
+                               branch: str = "main",
+                               allow_stale_status: bool = False) -> list:
     """Доска, которую оставит этот пуш, обязана НАЗЫВАТЬ каждую уезжающую карточку.
 
     Возвращает перечень вердиктов. Отказ fail-CLOSED либо НАЗВАННЫЙ обход
@@ -2543,20 +2638,58 @@ def enforce_delivery_board_row(file_args: list, allow: bool = False,
                           "ИЗМЕРЕН"})
             continue
         name = os.path.basename(key)
+        if name not in rows:
+            _BOARD_ROW_VERDICTS.append({
+                "path": key, "state": "absent", "card": name,
+                "whence": whence, "rows": len(rows), "said": None})
+            continue
+        # ── ОСЬ 2 (ADR-1062): строка ЕСТЬ — тот ли на ней СТАТУС ───────────────
+        # Вопрос разрешим без угадывания ровно потому, что байты карточки
+        # становятся вершиной origin ЭТИМ ЖЕ пушем: по сроку они свежайшие по
+        # построению, и `resolve_against_origin` (который переписывает статус
+        # ТОЛЬКО у `stale` — карточки, чьё содержимое найдено в ИСТОРИИ origin для
+        # её же пути) их бы не переписал. Премиса ПРОВЕРЕНА, а не принята: в
+        # замере случай «байты карточки дословно равны прежней версии того же
+        # пути» встретился НОЛЬ раз на ВСЕХ 3797 парах истории
+        # (`revert_shaped: 0`, scripts/board_status_axis_census.py).
+        said_by_board = rows[name]
+        try:
+            card_raw = read_delivery_bytes(key)
+        except OSError as e:
+            _BOARD_ROW_VERDICTS.append({
+                "path": key, "state": "unmeasured", "card": name,
+                "whence": whence,
+                "reason": (f"байты уезжающей карточки не прочитаны "
+                           f"({type(e).__name__}: {e}) — статус на доске "
+                           f"подтверждать НЕЧЕМ")})
+            continue
+        said_by_card, why_status = _card_status_of(mod, card_raw)
+        if said_by_card is None:
+            _BOARD_ROW_VERDICTS.append({
+                "path": key, "state": "unmeasured", "card": name,
+                "whence": whence, "rows": len(rows), "reason": why_status})
+            continue
         _BOARD_ROW_VERDICTS.append({
-            "path": key, "state": "named" if name in rows else "absent",
+            "path": key,
+            "state": "named" if said_by_board.strip() == said_by_card
+                     else "status_differs",
             "card": name, "whence": whence, "rows": len(rows),
-            "said": rows.get(name)})
+            "said": said_by_board, "card_says": said_by_card})
 
     print(f"  {delivery_board_row_summary()}")
     for v in _BOARD_ROW_VERDICTS:
         if v["state"] == "absent":
             print(f"    НЕТ СТРОКИ НА ДОСКЕ  {v['card']} — доска ({v['whence']}) "
                   f"называет {v['rows']} карточек, этой среди них нет")
+        elif v["state"] == "status_differs":
+            print(f"    СТАТУС НА ДОСКЕ ДРУГОЙ  {v['card']} — карточка говорит "
+                  f"`{v['card_says']}`, доска ({v['whence']}) говорит "
+                  f"`{v['said']}`")
         elif v["state"] == "unmeasured":
             print(f"    НЕ ИЗМЕРЕНО   {_display_path(v['path'])} — "
                   f"{v['reason']}")
 
+    stale = [v for v in _BOARD_ROW_VERDICTS if v["state"] == "status_differs"]
     offenders = [v for v in _BOARD_ROW_VERDICTS if v["state"] == "absent"]
     if offenders and allow:
         print("    ⚠️  --allow-cardless-board: доска уезжающую карточку не "
@@ -2584,7 +2717,59 @@ def enforce_delivery_board_row(file_args: list, allow: bool = False,
             f"Осознанно продолжить: --allow-cardless-board (или "
             f"SPA_PUSH_ALLOW_CARDLESS_BOARD=1) — тогда отказ станет НАЗВАННЫМ "
             f"предупреждением, а красный тест уедет на `main` вместе с карточкой.")
+    # ── ОСЬ 2 судится ПОСЛЕ оси 1 намеренно ───────────────────────────────────
+    # «Строки нет вовсе» — утверждение сильнее, чем «статус на ней другой», и
+    # сложись они в один вердикт, ответ ADR-1060 перестал бы быть различимым.
+    if stale and allow_stale_status:
+        print("    ⚠️  --allow-stale-board-status: доска несёт о уезжающей "
+              "карточке ДРУГОЙ статус, это НАЗВАНО, но доставку не остановит")
+        return list(_BOARD_ROW_VERDICTS)
+    if stale:
+        names = "; ".join(f"{v['card']} (карточка `{v['card_says']}` ← доска "
+                          f"`{v['said']}`)" for v in stale)
+        raise DeliveredCardBoardStatusDiffers(
+            f"доска, которую оставит этот пуш, несёт о уезжающей карточке "
+            f"ДРУГОЙ статус: {names}.\n"
+            f"Доска взята оттуда, где она окажется после доставки: "
+            f"{stale[0]['whence']}.\n"
+            f"Строка о карточке ЕСТЬ — ось ADR-1060 зелена и правдива, она "
+            f"отвечает «индекс её называет», а не «называет верно». Пин байтов "
+            f"тоже зелён: он сверил байты карточки с собой же.\n"
+            f"{_board_status_measurement_line(runner_file)}\n"
+            f"Что делать: `python3 scripts/build_tracker_board.py` — прибор "
+            f"пересоберёт доску из карточек; ДОБАВЬ `{BOARD_REL}` в набор "
+            f"доставки и повтори пуш. Правь доску прибором, а не руками, и НЕ "
+            f"правь статус карточки под доску (инв. #14): под доску правят "
+            f"доску.\n"
+            f"Осознанно продолжить: --allow-stale-board-status (или "
+            f"SPA_PUSH_ALLOW_STALE_BOARD_STATUS=1) — тогда отказ станет "
+            f"НАЗВАННЫМ предупреждением.")
     return list(_BOARD_ROW_VERDICTS)
+
+
+def _board_status_measurement_line(runner_file: Optional[str] = None) -> str:
+    """Строка отказа с ЗАМЕРОМ оси 2 — либо честное «замер недоступен».
+
+    Числа берутся у прибора (:func:`board_status_population`). Недоступен ⇒ так и
+    печатаем: отказ остаётся в силе (он про ЭТУ доставку, а не про историю), но
+    выдуманного числа в нём не будет.
+    """
+    pop, why = board_status_population(runner_file)
+    if pop is None:
+        return (f"ЗАМЕР, из-за которого ось появилась, СЕЙЧАС НЕ ПРОЧИТАН: {why}. "
+                f"Отказ это не отменяет — он про ЭТУ доставку, а не про историю.")
+    return (
+        f"ЗАМЕР, из-за которого ось появилась ({pop.get('measured_at')}, "
+        f"{pop.get('window')}: {pop.get('vertices_scanned')} вершин, "
+        f"{pop.get('pairs_measured')} пар): {pop.get('disagree')} пар(ы) в "
+        f"{pop.get('disagree_vertices')} вершинах против {pop.get('agree')} "
+        f"согласий, и направление однородно — доска говорила `new`/`needs-owner`/"
+        f"`backlog` о карточке, которая сама объявляла `done`/`ingested`. Индекс "
+        f"РАЗДУВАЛ очередь тому читателю, которого `CLAUDE.md` посылает к нему "
+        f"первым; у {pop.get('claimed_for_owner')} пар он при этом числил за "
+        f"ВЛАДЕЛЬЦЕМ работу, на которую владелец уже ответил — тот же дефект, "
+        f"что замер #436. Перемерить: "
+        f"`python3 {BOARD_STATUS_CENSUS_REL} --limit 0`.")
 
 
 def delivery_board_row_summary() -> str:
@@ -2604,6 +2789,9 @@ def delivery_board_row_summary() -> str:
     if states.get("absent"):
         return (f"строка доски: НЕ НАЗВАНО карточек {states['absent']} — "
                 f"индекс очереди разошёлся бы с очередью")
+    if states.get("status_differs"):
+        return (f"строка доски: СТАТУС ДРУГОЙ у {states['status_differs']} "
+                f"карточк(и/ах) — индекс назвал бы их, но соврал бы о состоянии")
     if states.get("unmeasured"):
         return (f"строка доски: НЕ ИЗМЕРЕНО у {states['unmeasured']} "
                 f"карточк(и/ах)")
@@ -4570,6 +4758,12 @@ def main():
                              "отклоняется: толстая строка молча красит "
                              "test_adr_index_titles на main, а починка стои́т один "
                              "вызов `adr_number.py titles --write`)")
+    parser.add_argument("--allow-stale-board-status", action="store_true",
+                        help="ОСОЗНАННО доставить карточку трекера, о которой доска "
+                             "`_BOARD.md` несёт ДРУГОЙ статус (ось 2, ADR-1062; по "
+                             "умолчанию такой пуш отклоняется: замер 400 вершин дал "
+                             "59 пар, и доска РАЗДУВАЛА очередь — говорила `new`/"
+                             "`needs-owner` о карточке, объявлявшей `done`)")
     parser.add_argument("--allow-cardless-board", action="store_true",
                         help="ОСОЗНАННО доставить карточку трекера, которую доска "
                              "`_BOARD.md` не называет (по умолчанию такой пуш "
@@ -4598,6 +4792,8 @@ def main():
         os.environ.get("SPA_PUSH_ALLOW_FAT_ADR_TITLE") == "1"
     allow_cardless_board = bool(args.allow_cardless_board) or \
         os.environ.get("SPA_PUSH_ALLOW_CARDLESS_BOARD") == "1"
+    allow_stale_board_status = bool(args.allow_stale_board_status) or \
+        os.environ.get("SPA_PUSH_ALLOW_STALE_BOARD_STATUS") == "1"
     allow_owner_choice = bool(args.allow_owner_choice_write) or \
         os.environ.get("SPA_PUSH_ALLOW_OWNER_CHOICE_WRITE") == "1"
     allow_ce_unmeasured = bool(args.allow_change_evidence_unmeasured) or \
@@ -4723,11 +4919,19 @@ def main():
     # показывать тот же отказ. Реализация ОДНА, её же зовёт batch-CLI — иначе
     # вторая дверь доставки пропускала бы класс целиком.
     try:
-        enforce_delivery_board_row(all_files, allow=allow_cardless_board)
+        enforce_delivery_board_row(
+            all_files, allow=allow_cardless_board,
+            allow_stale_status=allow_stale_board_status)
     except DeliveredCardHasNoBoardRow as e:
         print(f"\nОТКАЗ (доска не называет уезжающую карточку): {e}",
               file=sys.stderr)
         sys.exit(CARDLESS_BOARD_EXIT)
+    except DeliveredCardBoardStatusDiffers as e:
+        # Свой код, а не 17: читатель обязан отличить «строки нет» от «статус
+        # на ней другой» — это РАЗНЫЕ утверждения об индексе (ADR-1062).
+        print(f"\nОТКАЗ (доска несёт о уезжающей карточке другой статус): {e}",
+              file=sys.stderr)
+        sys.exit(STALE_BOARD_STATUS_EXIT)
     except DeliveryBytesDrifted as e:
         # Дверь байтов отказала внутри десятой оси: это ЕЁ отказ и её код, а не
         # «нет строки на доске». Подменить имя здесь значило бы потерять ответ

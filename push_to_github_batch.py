@@ -262,6 +262,10 @@ def main():
                         help="ОСОЗНАННО доставить реестр решений с колонкой "
                              "«Заголовок» длиннее предела (по умолчанию такой пуш "
                              "отклоняется; починка — `adr_number.py titles --write`)")
+    parser.add_argument("--allow-stale-board-status", action="store_true",
+                        help="ОСОЗНАННО доставить карточку трекера, о которой доска "
+                             "`_BOARD.md` несёт ДРУГОЙ статус (ось 2, ADR-1062; "
+                             "починка — `build_tracker_board.py` + доска в наборе)")
     parser.add_argument("--allow-cardless-board", action="store_true",
                         help="ОСОЗНАННО доставить карточку трекера, которую доска "
                              "`_BOARD.md` не называет (по умолчанию такой пуш "
@@ -377,13 +381,21 @@ def main():
     # читает человек, и вопросы у них разные. Реализация одна, дверей две.
     allow_cardless_board = bool(getattr(args, "allow_cardless_board", False)) or \
         os.environ.get("SPA_PUSH_ALLOW_CARDLESS_BOARD") == "1"
+    allow_stale_board_status = bool(
+        getattr(args, "allow_stale_board_status", False)) or \
+        os.environ.get("SPA_PUSH_ALLOW_STALE_BOARD_STATUS") == "1"
     try:
         enforce_delivery_board_row(all_files, allow=allow_cardless_board,
-                                   runner_file=__file__)
+                                   runner_file=__file__,
+                                   allow_stale_status=allow_stale_board_status)
     except DeliveredCardHasNoBoardRow as e:
         print(f"\nОТКАЗ (доска не называет уезжающую карточку): {e}",
               file=sys.stderr)
         sys.exit(CARDLESS_BOARD_EXIT)
+    except DeliveredCardBoardStatusDiffers as e:
+        print(f"\nОТКАЗ (доска несёт о уезжающей карточке другой статус): {e}",
+              file=sys.stderr)
+        sys.exit(STALE_BOARD_STATUS_EXIT)
     except DeliveryBytesDrifted as e:
         print(f"\nОТКАЗ (байты разошлись со слепком): {e}", file=sys.stderr)
         sys.exit(BYTES_DRIFT_EXIT)

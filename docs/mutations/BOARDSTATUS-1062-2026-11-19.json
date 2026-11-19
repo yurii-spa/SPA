@@ -1,0 +1,138 @@
+{
+ "title": "ADR-1062 BOARDSTATUS — дельта цикла #1204: ОСЬ 2 производного индекса очереди (строка ЕСТЬ, а статус на ней ДРУГОЙ). Замер всей истории: 287 пар в 141 вершине против 2764 согласий, revert_shaped 0 ⇒ вопрос разрешим без угадывания. Дверь разбора статуса ОДНА и общая с генератором; оси 1 и 2 различимы кодом возврата; число отказа — ЗАМЕР у прибора, а не копия у судьи",
+ "tests": [
+  "spa_core/tests/test_delivery_board_row.py"
+ ],
+ "mutations": [
+  {
+   "name": "M01 отказ оси 2 СНЯТ: статус разошёлся, пуш идёт молча (состояние main до ADR-1062)",
+   "file": "push_to_github.py",
+   "old": "    if stale:\n        names = \"; \".join(f\"{v['card']} (карточка `{v['card_says']}` ← доска \"",
+   "new": "    if False:\n        names = \"; \".join(f\"{v['card']} (карточка `{v['card_says']}` ← доска \""
+  },
+  {
+   "name": "M02 сравнение ПОДСТРОКОЙ вместо равенства: пара `done` ⊂ `owner-done` прошла бы (ADR-333)",
+   "file": "push_to_github.py",
+   "old": "            \"state\": \"named\" if said_by_board.strip() == said_by_card\n                     else \"status_differs\",",
+   "new": "            \"state\": \"named\" if said_by_card in said_by_board.strip()\n                     else \"status_differs\",",
+   "note": "`done` ВХОДИТ в `owner-done`. Прежняя редакция этой записки называла парой (`new`, `needs-owner`) и была НЕВЕРНА — `new` в `needs-owner` не входит вовсе (n-e-e-d-s-o-w-n-e-r), из-за чего первая сцена мерила согласие двух НЕ пересекающихся строк, а мутация выживала"
+  },
+  {
+   "name": "M03 статус читается СВОЕЙ копией разбора, а не дверью генератора — две копии правила",
+   "file": "push_to_github.py",
+   "old": "    said = mod.card_status(text)",
+   "new": "    said = mod.parse_frontmatter(text).get(\"status\")",
+   "note": "гейт считал бы согласием то, что сборка доски считает расхождением"
+  },
+  {
+   "name": "M04 «поля status: нет вовсе» идёт за СОГЛАСИЕ, а не НЕ ИЗМЕРЕНО (инв. #17)",
+   "file": "push_to_github.py",
+   "old": "    if said is None:\n        return None, (\"у уезжающей карточки нет поля `status:` вовсе — доске \"",
+   "new": "    if said is None:\n        return \"\", (\"у уезжающей карточки нет поля `status:` вовсе — доске \"",
+   "note": "пустота стала бы статусом, и `?` на доске читался бы как подтверждённый"
+  },
+  {
+   "name": "M05 отсутствие двери `card_status` идёт за согласие: мерки нет, а гейт зелен",
+   "file": "push_to_github.py",
+   "old": "    if not hasattr(mod, \"card_status\"):\n        return None, (\"прибор разбора не несёт двери `card_status` — чем \"",
+   "new": "    if False:\n        return None, (\"прибор разбора не несёт двери `card_status` — чем \"",
+   "note": "fail-OPEN: «не измерено» стало бы неотличимо от «сверено»"
+  },
+  {
+   "name": "M06 обход ОСИ 1 гасит ОСЬ 2: один флаг снимает два разных вопроса",
+   "file": "push_to_github.py",
+   "old": "    if stale and allow_stale_status:",
+   "new": "    if stale and (allow_stale_status or allow):",
+   "note": "«я разрешил отсутствие строки» молча означало бы «и соврать о статусе можно»"
+  },
+  {
+   "name": "M07 обход оси 2 ИГНОРИРУЕТСЯ: осознанное решение перестаёт действовать",
+   "file": "push_to_github.py",
+   "old": "    if stale and allow_stale_status:\n        print(\"    ⚠️  --allow-stale-board-status: доска несёт о уезжающей \"",
+   "new": "    if stale and False:\n        print(\"    ⚠️  --allow-stale-board-status: доска несёт о уезжающей \""
+  },
+  {
+   "name": "M08 вердикт оси 2 НЕ ПЕЧАТАЕТСЯ: обход становится тишиной, а не названным решением",
+   "file": "push_to_github.py",
+   "old": "        elif v[\"state\"] == \"status_differs\":\n            print(f\"    СТАТУС НА ДОСКЕ ДРУГОЙ  {v['card']} — карточка говорит \"",
+   "new": "        elif v[\"state\"] == \"status_differs\" and False:\n            print(f\"    СТАТУС НА ДОСКЕ ДРУГОЙ  {v['card']} — карточка говорит \""
+  },
+  {
+   "name": "M09 ось 2 судится и у карточки, которой на доске НЕТ ВОВСЕ — вердикты склеены",
+   "file": "push_to_github.py",
+   "old": "        if name not in rows:\n            _BOARD_ROW_VERDICTS.append({\n                \"path\": key, \"state\": \"absent\", \"card\": name,\n                \"whence\": whence, \"rows\": len(rows), \"said\": None})\n            continue",
+   "new": "        if name not in rows:\n            _BOARD_ROW_VERDICTS.append({\n                \"path\": key, \"state\": \"status_differs\", \"card\": name,\n                \"whence\": whence, \"rows\": len(rows), \"said\": \"?\",\n                \"card_says\": \"?\"})\n            continue",
+   "note": "ответ ADR-1060 перестал бы быть различимым у кода возврата"
+  },
+  {
+   "name": "M10 код возврата оси 2 сравнялся с осью 1: «строки нет» неотличимо от «статус другой»",
+   "file": "push_to_github.py",
+   "old": "STALE_BOARD_STATUS_EXIT = 18",
+   "new": "STALE_BOARD_STATUS_EXIT = 17"
+  },
+  {
+   "name": "M11 байты карточки читаются СВОИМ open() мимо пина (возврат дефекта ADR-774)",
+   "file": "push_to_github.py",
+   "old": "            card_raw = read_delivery_bytes(key)",
+   "new": "            card_raw = open(key, \"rb\").read()"
+  },
+  {
+   "name": "M12 batch-дверь флаг объявила, но до гейта НЕ ДОВЕЛА — половина проводки",
+   "file": "push_to_github_batch.py",
+   "old": "                                   allow_stale_status=allow_stale_board_status)",
+   "new": "                                   allow_stale_status=False)"
+  },
+  {
+   "name": "M13 генератор читает статус МИМО своей двери — у правила снова две копии",
+   "file": "scripts/build_tracker_board.py",
+   "old": "    raw_status = card_status(text)",
+   "new": "    raw_status = meta.get(\"status\")"
+  },
+  {
+   "name": "M14 перепись НЕ спрашивает про возврат: законное поведение доски идёт в находки",
+   "file": "scripts/board_status_axis_census.py",
+   "old": "            if _looks_like_revert(repo, sha, rel, card_raw):",
+   "new": "            if False and _looks_like_revert(repo, sha, rel, card_raw):",
+   "note": "исход `revert_shaped` объявлен и становится НЕДОСТИЖИМ — ложное усиление"
+  },
+  {
+   "name": "M15 усечённый клон идёт за ОТВЕТ, а не за третий исход (поправка #1031)",
+   "file": "scripts/board_status_axis_census.py",
+   "old": "    if out == \"true\":\n        return {\"state\": \"shallow\", \"reachable\": reachable,",
+   "new": "    if False:\n        return {\"state\": \"shallow\", \"reachable\": reachable,",
+   "note": "усечение РОЖДАЕТ находку, которой нет — ошибка в опасную сторону"
+  },
+  {
+   "name": "M16 перепись берёт мерку у ГРАФА, а не у своего дерева — судит доставляемый код чужой копией",
+   "file": "scripts/board_status_axis_census.py",
+   "old": "    scripts = str(Path(__file__).resolve().parent)",
+   "new": "    scripts = str(Path(\"/Users/yuriikulieshov/Documents/SPA_mirror\") / \"scripts\")"
+  },
+  {
+   "name": "M17 итоговая строка не различает ось 2: «статус другой» печатается как «названы все»",
+   "file": "push_to_github.py",
+   "old": "    if states.get(\"status_differs\"):\n        return (f\"строка доски: СТАТУС ДРУГОЙ у {states['status_differs']} \"",
+   "new": "    if False:\n        return (f\"строка доски: СТАТУС ДРУГОЙ у {states['status_differs']} \""
+  },
+  {
+   "name": "M18 гейт держит СВОЮ копию населения вместо замера прибора — число стало константой",
+   "file": "push_to_github.py",
+   "old": "    pop, why = board_status_population(runner_file)\n    if pop is None:",
+   "new": "    pop, why = {\"measured_at\": \"2026-11-19\", \"window\": \"w\",\n                \"vertices_scanned\": 1925, \"pairs_measured\": 3797,\n                \"agree\": 2764, \"disagree\": 287, \"disagree_vertices\": 141,\n                \"claimed_for_owner\": 110}, None\n    if pop is None:",
+   "note": "перемер прибором такую копию уже не поправит"
+  },
+  {
+   "name": "M19 недоступный прибор переписи даёт ЧИСЛО, а не третий исход (инв. #17)",
+   "file": "push_to_github.py",
+   "old": "    pop = getattr(mod, \"POPULATION\", None)\n    if not isinstance(pop, dict) or \"disagree\" not in pop:",
+   "new": "    pop = getattr(mod, \"POPULATION\", {\"disagree\": 0, \"disagree_vertices\": 0})\n    if False:",
+   "note": "«замер недоступен» стало бы неотличимо от «население ноль»"
+  },
+  {
+   "name": "M20 исходы переписи больше не складываются в измеренное население — пары теряются молча",
+   "file": "scripts/board_status_axis_census.py",
+   "old": "    measured = sum(tally[k] for k in OUTCOMES)",
+   "new": "    measured = sum(tally[k] for k in OUTCOMES if k != \"unmeasured\")"
+  }
+ ]
+}
