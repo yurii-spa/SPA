@@ -284,3 +284,121 @@ class ThreeOutcomesAreDistinguishableByExitCode(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class TheDodAxisAnswersAboutTheSECONDAcceptance(unittest.TestCase):
+    """Ось §50 (ADR-1070): население ВТОРОЙ приёмки и адрес мерки у её членов.
+
+    Положительные контроли — на три настоящих способа соврать, и все три уже
+    случались рядом: прибор не ввезён и это объявлено измеренным (fail-OPEN,
+    M16 цикла #1211); отрицательная преамбула владельца зачтена в приёмку
+    (разбор «тело целиком»); объявление указывает мимо населения и критерий
+    тихо числится измеренным.
+    """
+
+    _S50 = ("Не считать задачу завершенной после:\ncode implemented\n"
+            "tests green\nagent exists\nDefinition of Done:\n"
+            "Сделано А.\nСделано Б.")
+
+    def _scene_with_s50(self, tmp, body=None):
+        return _scene(tmp, _card([(50, "Definition of Done",
+                                   body if body is not None else self._S50)]))
+
+    def test_the_population_excludes_the_owners_NEGATIVE_preamble(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            axis = census.dod_axis(self._scene_with_s50(tmp))
+        self.assertTrue(axis["measured"])
+        # Зачти преамбулу — и в приёмке оказались бы «code implemented»,
+        # «tests green», «agent exists», то есть РОВНО те признаки, которые
+        # владелец назвал НЕдостаточными.
+        self.assertEqual(axis["population"], 2)
+        self.assertEqual(axis["rejected_preamble"], 4)
+
+    def test_a_section_without_the_anchor_is_UNMEASURED_not_zero_criteria(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            axis = census.dod_axis(self._scene_with_s50(
+                tmp, body="Не считать задачу завершенной после:\ncode implemented"))
+        self.assertFalse(axis["measured"])
+        self.assertIn("анкера", axis["reason"])
+
+    def test_a_card_without_section_50_is_UNMEASURED_with_the_cause_NAMED(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = _scene(tmp, _card([(1, "Цель задачи", "тело")]))
+            axis = census.dod_axis(root)
+        self.assertFalse(axis["measured"])
+        self.assertIn("не найден", axis["reason"])
+
+    def test_the_instrument_being_ABSENT_is_the_third_outcome_not_measured(self):
+        # Тот самый fail-OPEN: «не ввезён ⇒ объявить измеренным» тише красного
+        # теста, поэтому опаснее. Дверь ввоза отдельная ровно затем, чтобы эту
+        # мутацию можно было поставить пробой.
+        real = census._import_dod_door
+
+        def broken():
+            raise ImportError("прибора нет в дереве")
+
+        census._import_dod_door = broken
+        try:
+            with tempfile.TemporaryDirectory() as tmp:
+                axis = census.dod_axis(self._scene_with_s50(tmp))
+        finally:
+            census._import_dod_door = real
+        self.assertFalse(axis["measured"])
+        self.assertIn("не ввезён", axis["reason"])
+
+    def test_a_declaration_pointing_PAST_the_population_is_NAMED(self):
+        door = census._import_dod_door()
+        real = door.probes_by_s50_criterion
+        door.probes_by_s50_criterion = lambda: {"Сделано А.": ["p"],
+                                                "Такого критерия в §50 нет.": ["q"]}
+        try:
+            with tempfile.TemporaryDirectory() as tmp:
+                axis = census.dod_axis(self._scene_with_s50(tmp))
+        finally:
+            door.probes_by_s50_criterion = real
+        self.assertEqual(axis["with_measure"], 1)
+        self.assertEqual(axis["without_measure"], 1)
+        self.assertEqual(axis["orphan_declarations"], ["Такого критерия в §50 нет."])
+
+    def test_the_axis_does_NOT_run_the_probes(self):
+        # Вердикт критерия стои́т дорого (одна проба §50 обходит 747 артефактов),
+        # а перепись зовут часто и ради другого вопроса. Контроль прямой: ось
+        # отвечает, даже когда мерка, будучи позванной, упала бы.
+        door = census._import_dod_door()
+        real = door.run_probe
+
+        def exploding(*a, **kw):
+            raise AssertionError("ось позвала пробу — это не её вопрос")
+
+        door.run_probe = exploding
+        try:
+            with tempfile.TemporaryDirectory() as tmp:
+                axis = census.dod_axis(self._scene_with_s50(tmp))
+        finally:
+            door.run_probe = real
+        self.assertTrue(axis["measured"])
+
+    def test_the_axis_reaches_the_report_and_the_rendered_text(self):
+        # Ось, не доехавшая до читателя, измеряет в никуда — ровно класс, на
+        # котором три месяца писался в пустоту отчёт тир-куратора.
+        #
+        # Сцена здесь ПОЛНАЯ переписи: её население — ЦЕПЬ от §1, и без первого
+        # звена перепись честно отказывает ещё до оси. Поэтому §50 лежит хвостом
+        # за §1 — своим заголовком, который дверь §50 и ищет.
+        with tempfile.TemporaryDirectory() as tmp:
+            root = _scene(tmp, _card(
+                [(1, "Цель задачи", "тело")],
+                tail=f"50. Definition of Done\n{self._S50}\n\n⸻\n\n"))
+            report = census.census(root)
+        self.assertIn("dod_axis", report)
+        text = census.render(report)
+        self.assertIn("ось §50", text)
+        self.assertIn("ВТОРАЯ приёмка", text)
+
+    def test_the_LIVE_card_carries_the_axis_and_its_blindness(self):
+        # Живой ответ: предмет пробы — настоящая карточка приказа.
+        axis = census.dod_axis(str(REPO_ROOT))
+        self.assertTrue(axis["measured"], axis.get("reason"))
+        self.assertGreater(axis["population"], 0)
+        self.assertEqual(axis["orphan_declarations"], [])
+        self.assertIn("НЕ «критерий выполнен»", axis["blindness"])

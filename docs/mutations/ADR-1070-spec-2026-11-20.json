@@ -1,0 +1,117 @@
+{
+  "title": "ADR-1070 — ВТОРАЯ приёмка приказа «Portfolio CIO» (§50 Definition of Done) измерена прибором: население канонической дверью, мерка — объявлением пробы, критерий без мерки — ТРЕТИЙ исход (цикл #1213, заказ G1056 п. 2)",
+  "tests": [
+    "spa_core/tests/test_cio_dod_rollup.py",
+    "spa_core/tests/test_cio_tz_section_census.py"
+  ],
+  "mutations": [
+    {
+      "name": "M01 анкер снят: население берётся телом раздела ЦЕЛИКОМ — отрицательная преамбула владельца («code implemented · tests green · agent exists») становится критерием приёмки",
+      "file": "scripts/cio_dod_rollup.py",
+      "old": "    cut = anchors[0]\n    rejected = [{\"line\": lineno, \"text\": line,",
+      "new": "    cut = -1  # мутация: границы нет, тело идёт в население целиком\n    rejected = [{\"line\": lineno, \"text\": line,"
+    },
+    {
+      "name": "M02 отсутствие анкера объявлено пустой преамбулой вместо НЕ ИЗМЕРЕНО — границу назвать нечем, а прибор отвечает",
+      "file": "scripts/cio_dod_rollup.py",
+      "old": "        raise Unmeasured(\n            f\"в теле раздела {SECTION_HEAD!r} (строки {body[0][0]}–{body[-1][0]}) нет \"\n            f\"строки-анкера {POPULATION_ANCHOR!r}",
+      "new": "        anchors = [-1]\n        _unused_reason = (\n            f\"в теле раздела {SECTION_HEAD!r} (строки {body[0][0]}–{body[-1][0]}) нет \"\n            f\"строки-анкера {POPULATION_ANCHOR!r}"
+    },
+    {
+      "name": "M03 два анкера разрешены молча — берётся первый, и где начинается население, остаётся неизвестным",
+      "file": "scripts/cio_dod_rollup.py",
+      "old": "    if len(anchors) > 1:\n        raise Unmeasured(\n            f\"строка-анкер {POPULATION_ANCHOR!r} встречается в разделе \"",
+      "new": "    if False:\n        raise Unmeasured(\n            f\"строка-анкер {POPULATION_ANCHOR!r} встречается в разделе \""
+    },
+    {
+      "name": "M04 два раздела с номером 50 разрешены молча — у приказа становится две разные приёмки, выбор делает прибор",
+      "file": "scripts/cio_dod_rollup.py",
+      "old": "    if len(starts) > 1:\n        # Два раздела с одним номером — это не «возьмём первый»: у приказа стало\n        # бы две разные приёмки, и выбор между ними сделал бы прибор молча.\n        raise Unmeasured(",
+      "new": "    if False:\n        # мутация: выбор между двумя приёмками сделан молча\n        raise Unmeasured("
+    },
+    {
+      "name": "M05 пустое население после анкера объявлено измеренным — ноль критериев зелен ПО ПОСТРОЕНИЮ",
+      "file": "scripts/cio_dod_rollup.py",
+      "old": "    tail = body[cut + 1:]\n    if not tail:\n        raise Unmeasured(",
+      "new": "    tail = body[cut + 1:]\n    if False:\n        raise Unmeasured("
+    },
+    {
+      "name": "M06 повтор критерия сводится молча — население неоднозначно, а сводка отвечает числом",
+      "file": "scripts/cio_dod_rollup.py",
+      "old": "        if line in names:\n            raise Unmeasured(f\"строка {lineno}: критерий {line!r} объявлен в §50 \"\n                             f\"дважды — население неоднозначно\")\n        names.append(line)",
+      "new": "        if line in names:\n            continue  # мутация: повтор проглочен\n        names.append(line)"
+    },
+    {
+      "name": "M07 критерий без мерки объявлен ВЫПОЛНЕННЫМ — третий исход схлопнут в зелёный (инв. #17 наизнанку)",
+      "file": "scripts/cio_dod_rollup.py",
+      "old": "            rows.append({\"criterion\": name, \"probe\": None, \"verdict\": UNMEASURED,\n                         \"detail\": \"машинной пробы, объявившей себя мерой этого \"\n                                   \"критерия §50, в реестре НЕТ",
+      "new": "            rows.append({\"criterion\": name, \"probe\": None, \"verdict\": SATISFIED,\n                         \"detail\": \"машинной пробы, объявившей себя мерой этого \"\n                                   \"критерия §50, в реестре НЕТ"
+    },
+    {
+      "name": "M08 столкновение объявлений разрешается молча — из двух проб берётся первая, и столкновение спрятано",
+      "file": "scripts/cio_dod_rollup.py",
+      "old": "        if len(probes) > 1:\n            rows.append({\"criterion\": name, \"probe\": None, \"verdict\": UNMEASURED,\n                         \"detail\": f\"критерий объявлен мерой сразу у {len(probes)} проб \"",
+      "new": "        if False:\n            rows.append({\"criterion\": name, \"probe\": None, \"verdict\": UNMEASURED,\n                         \"detail\": f\"критерий объявлен мерой сразу у {len(probes)} проб \""
+    },
+    {
+      "name": "M09 объявление мимо населения больше не находка — проба претендует мерить критерий, которого у §50 нет, и это молчание",
+      "file": "scripts/cio_dod_rollup.py",
+      "old": "    orphan = {c: p for c, p in declared.items() if c not in names}",
+      "new": "    orphan = {}  # мутация: сироты объявлений спрятаны"
+    },
+    {
+      "name": "M10 сборный замер больше не называет себя — вердикт НИ ОБ ОДНОМ дереве читается как вердикт о названном",
+      "file": "scripts/cio_dod_rollup.py",
+      "old": "            \"split_tree\": bool(data_dir and os.path.abspath(data_dir)\n                               != os.path.abspath(os.path.join(\n                                   measure_tree or repo_root, \"data\")))}",
+      "new": "            \"split_tree\": bool(data_dir and measure_tree and os.path.abspath(data_dir)\n                               != os.path.abspath(os.path.join(\n                                   measure_tree, \"data\")))}"
+    },
+    {
+      "name": "M11 код возврата 1 схлопнут в 0 — «мерок нет ни у кого» становится неотличимо от «всё выполнено»",
+      "file": "scripts/cio_dod_rollup.py",
+      "old": "    return 0 if counts[SATISFIED] == len(report[\"criteria\"]) else 1",
+      "new": "    return 0  # мутация: коды 1 и 0 слиты"
+    },
+    {
+      "name": "M12 нечитаемая карточка даёт код 1 вместо 2 — «сводки нет вовсе» становится неотличимо от «сводка снята и не всё выполнено»",
+      "file": "scripts/cio_dod_rollup.py",
+      "old": "            print(\"сводки §50 нет вовсе — про критерии ВТОРОЙ приёмки приказа НЕ \"\n                  \"СКАЗАНО НИЧЕГО\")\n        return 2",
+      "new": "            print(\"сводки §50 нет вовсе — про критерии ВТОРОЙ приёмки приказа НЕ \"\n                  \"СКАЗАНО НИЧЕГО\")\n        return 1  # мутация: третий исход слит со вторым"
+    },
+    {
+      "name": "M13 дверь объявления читает МОДУЛЬ вместо реестра — объявление мёртвой, незарегистрированной пробы считается действующим",
+      "file": "spa_core/monitoring/card_acceptance.py",
+      "old": "    out: dict = {}\n    for name, fn in PROBES.items():\n        crit = getattr(fn, attr, None)\n        if isinstance(crit, str) and crit.strip():\n            out.setdefault(crit.strip(), []).append(name)\n    return {k: sorted(v) for k, v in sorted(out.items())}",
+      "new": "    out: dict = {}\n    for name, fn in list(PROBES.items()) + [\n            (n, o) for n, o in list(globals().items()) if callable(o)]:\n        crit = getattr(fn, attr, None)\n        if isinstance(crit, str) and crit.strip():\n            out.setdefault(crit.strip(), []).append(name)\n    return {k: sorted(v) for k, v in sorted(out.items())}"
+    },
+    {
+      "name": "M14 дверь §50 читает атрибут §49 — тринадцать критериев чужой приёмки появляются у §50 из ниоткуда",
+      "file": "spa_core/monitoring/card_acceptance.py",
+      "old": "    return _probes_by_declared_criterion(\"s50_criterion\")",
+      "new": "    return _probes_by_declared_criterion(\"s49_criterion\")"
+    },
+    {
+      "name": "M15 ось §50 переписи объявляет ИЗМЕРЕННЫМ состояние «прибор не ввезён» — fail-OPEN тише красного теста",
+      "file": "scripts/cio_tz_section_census.py",
+      "old": "    except Exception as exc:  # noqa: BLE001\n        return {\"measured\": False, \"section\": 50,\n                \"reason\": f\"прибор сводки §50 не ввезён: {exc}\"}",
+      "new": "    except Exception as exc:  # noqa: BLE001\n        return {\"measured\": True, \"section\": 50, \"population\": 0,\n                \"rejected_preamble\": 0, \"with_measure\": 0, \"without_measure\": 0,\n                \"orphan_declarations\": [], \"blindness\": str(exc)}"
+    },
+    {
+      "name": "M16 ось §50 не доезжает до отчёта переписи — замер есть, читателя нет (класс отчёта тир-куратора)",
+      "file": "scripts/cio_tz_section_census.py",
+      "old": "        \"dod_axis\": dod_axis(root),",
+      "new": "\"dod_axis_NOT_READ_BY_ANYONE\": dod_axis(root),"
+    },
+    {
+      "name": "M17 ось §50 не доезжает до напечатанного текста — в JSON есть, глазами не видно",
+      "file": "scripts/cio_tz_section_census.py",
+      "old": "    dod = report.get(\"dod_axis\") or {}",
+      "new": "    dod = {}  # мутация: ось до читателя-человека не доезжает"
+    },
+    {
+      "name": "M18 сироты объявлений §50 выпали из оси переписи — критерий тихо числится измеренным мимо населения",
+      "file": "scripts/cio_tz_section_census.py",
+      "old": "    orphan = sorted(set(declared) - set(population))",
+      "new": "    orphan = []  # мутация: сироты спрятаны"
+    }
+  ]
+}

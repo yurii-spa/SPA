@@ -292,6 +292,70 @@ def deliverable_axis(root: str) -> dict:
             "doc": report.get("doc"), "why": report["why"]}
 
 
+def _import_dod_door():
+    """Ввоз прибора §50 ОТДЕЛЬНОЙ дверью — чтобы сцена могла его отнять.
+
+    Та же форма и та же причина, что у двери §6 выше: без отдельной двери исход
+    «инструмента нет» не поставить ни одной пробой, и мутация «не ввезён ⇒
+    объявить измеренным» выживала бы молча — fail-OPEN тише красного теста.
+    """
+    here = os.path.dirname(os.path.abspath(__file__))
+    if here not in sys.path:
+        sys.path.insert(0, here)
+    import cio_dod_rollup as door
+    return door
+
+
+def dod_axis(root: str) -> dict:
+    """Ось §50 — ВТОРОЙ приёмки приказа, у которой до ADR-1070 не было двери.
+
+    Перепись мерит РЕЕСТР решений («назван ли адрес»), и у §50 этот вопрос
+    отвечается так же, как у остальных §-ов. Но у §50 есть следующий вопрос,
+    своего рода: его население — это СПИСОК КРИТЕРИЕВ, и у каждого критерия
+    может быть (или не быть) МЕРКА. Поэтому ось печатает две величины:
+    население §50 и сколько его членов несут объявленную мерку.
+
+    **Пробы здесь НЕ гоняются намеренно.** Вердикт критерия стои́т дорого (одна
+    проба §50 обходит 747 артефактов), а перепись §-ов зовут часто и ради
+    другого вопроса. Сводку вердиктов снимает `scripts/cio_dod_rollup.py` своим
+    зовом; эта ось отвечает ровно на то, что дёшево и что принадлежит переписи:
+    **есть ли у критерия адрес мерки**. Смешать два вопроса значило бы сделать
+    дешёвый ответ дорогим, а дорогой — незаметным.
+
+    Прибор не ввезён ⇒ **НЕ ИЗМЕРЕНО** с названной причиной, а не ноль
+    критериев и не «мерок нет»: отсутствие инструмента есть самостоятельный
+    третий исход (`.claude/rules/deployment.md`, дословный урок `pyflakes`).
+    """
+    try:
+        door = _import_dod_door()
+    except Exception as exc:  # noqa: BLE001
+        return {"measured": False, "section": 50,
+                "reason": f"прибор сводки §50 не ввезён: {exc}"}
+    try:
+        card_text = _read(root, CARD_REL)
+        parsed = door.parse_s50_criteria(card_text)
+    except NotMeasured as exc:
+        return {"measured": False, "section": 50,
+                "reason": f"карточка приказа не прочитана: {exc}"}
+    except door.Unmeasured as exc:
+        return {"measured": False, "section": 50, "reason": str(exc)}
+    try:
+        declared = door.probes_by_s50_criterion()
+    except Exception as exc:  # noqa: BLE001
+        return {"measured": False, "section": 50,
+                "reason": f"реестр объявлений §50 не прочитан: {exc}"}
+    population = parsed["criteria"]
+    with_measure = [c for c in population if declared.get(c)]
+    orphan = sorted(set(declared) - set(population))
+    return {"measured": True, "section": 50, "population": len(population),
+            "rejected_preamble": len(parsed["rejected"]),
+            "with_measure": len(with_measure),
+            "without_measure": len(population) - len(with_measure),
+            "orphan_declarations": orphan,
+            "blindness": "ось отвечает «назван ли адрес мерки», а НЕ «критерий "
+                         "выполнен»: вердикты снимает scripts/cio_dod_rollup.py"}
+
+
 def census(root: str) -> dict:
     """Перепись целиком. :class:`NotMeasured` — единственный путь к коду 2."""
     card_text = _read(root, CARD_REL)
@@ -331,6 +395,7 @@ def census(root: str) -> dict:
         },
         "chronicle_axis": chronicle_ambiguity(root),
         "deliverable_axis": deliverable_axis(root),
+        "dod_axis": dod_axis(root),
         "sections": rows,
         "blindness": (
             "«адрес назван» НЕ ЕСТЬ «§ исполнен»: прибор мерит реестр решений, "
@@ -387,6 +452,20 @@ def render(report: dict) -> str:
     else:
         lines.append(f"  ось ИСПОЛНЕНИЯ §6: ❌ НЕ исполнен — "
                      + "; ".join(axis.get("why") or ["причина не названа"]))
+    dod = report.get("dod_axis") or {}
+    if not dod:
+        pass
+    elif not dod.get("measured"):
+        lines.append(f"  ось §50 (ВТОРАЯ приёмка): НЕ ИЗМЕРЕНО — {dod.get('reason')}")
+    else:
+        lines.append(
+            f"  ось §50 (ВТОРАЯ приёмка): критериев {dod['population']} "
+            f"(отброшено преамбулой {dod['rejected_preamble']})  ·  мерка объявлена "
+            f"у {dod['with_measure']}  ·  мерки НЕТ у {dod['without_measure']}")
+        if dod.get("orphan_declarations"):
+            lines.append("     ❗ОБЪЯВЛЕНИЕ МИМО НАСЕЛЕНИЯ §50: "
+                         + "; ".join(dod["orphan_declarations"]))
+        lines.append(f"     ⚠️ {dod['blindness']}")
     lines.append(f"  ⚠️ {report['blindness']}")
     lines.append(
         "  ✅ у каждого § есть адрес" if not report["no_address_sections"]
