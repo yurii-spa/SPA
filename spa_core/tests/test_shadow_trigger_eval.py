@@ -534,3 +534,229 @@ def test_load_history_for_a_book_with_no_ledger_yet_is_empty_not_an_error(
         book_id="balanced")
     records, bad = load_history(tmp_path, book_id="aggressive")
     assert records == [] and bad == 0
+
+
+# ═════════════ §31 приказа «Portfolio CIO»: ПЯТЬ горизонтов (ADR-1071) ═════════
+#
+# Владелец объявил горизонты дословно (1h · 6h · 24h · 3d · 7d) и четыре
+# величины, которые на каждом надо пересчитать. До цикла #1214 судья считал на
+# ОДНОМ горизонте. Сцена ниже — ручной счёт, и она же показывает, зачем
+# короткий горизонт нужен: разовая цена хода одна и та же, а выгода набегает
+# со временем, поэтому ОДИН И ТОТ ЖЕ совет меняет исход между 24h и 3d.
+
+_H0 = "2026-07-01T00:00:00+00:00"
+_HAPY = {"A": 2.0, "B": 8.0}          # спред 6 пп в пользу B
+
+
+def _hrec(stamp: str, **kw) -> dict:
+    r = {"schema": "shadow-hist-v2", "cycle_date": stamp[:10], "verdict": "HOLD",
+         "generated_at": stamp, "reasons": [], "capital_usd": CAPITAL,
+         "current_positions": {}, "target_positions": {},
+         "apy_evidenced_pct": dict(_HAPY), "cost_usd": 0.0}
+    r.update(kw)
+    return r
+
+
+def _hscene() -> list[dict]:
+    """T0 с материальным HOLD и форвардные наблюдения в +2ч, +30ч, +80ч.
+
+    Ручной счёт: Δ_A = −50 000, Δ_B = +50 000 ⇒ выгода за СУТКИ
+    ``(−50 000·2 + 50 000·8)/100/365 = 8.219178`` $/день; цена записана $10.
+    """
+    return [
+        _hrec(_H0, cost_usd=10.0,
+              current_positions={"A": 100_000.0},
+              target_positions={"A": 50_000.0, "B": 50_000.0}),
+        _hrec("2026-07-01T02:00:00+00:00"),
+        _hrec("2026-07-02T06:00:00+00:00"),   # +30 ч
+        _hrec("2026-07-04T08:00:00+00:00"),   # +80 ч
+    ]
+
+
+def test_horizon_1h_without_a_forward_observation_is_unchecked_not_zero() -> None:
+    """Внутри часа наблюдений нет ⇒ UNCHECKED с НАЗВАННОЙ причиной, не ноль."""
+    scene = _hscene()
+    row = ste._evaluate_over_hours(scene[0], ste._forward_within(
+        [(ste._run_time(r), r) for r in scene], ste._run_time(scene[0]), 1.0), 1.0)
+    assert row["outcome"] == "UNCHECKED"
+    assert row["unchecked_reason"] == "no_forward_observation"
+    assert "net_usd" not in row and "benefit_usd" not in row
+
+
+def test_horizon_6h_counts_only_the_observed_slice_and_names_the_tail() -> None:
+    """Выгода считается по НАБЛЮДЁННОЙ доле окна, остаток назван, не домыслен."""
+    scene = _hscene()
+    timed = [(ste._run_time(r), r) for r in scene]
+    row = ste._evaluate_over_hours(scene[0],
+                                   ste._forward_within(timed, ste._run_time(scene[0]), 6.0),
+                                   6.0)
+    # Один ломоть 2 ч = 2/24 дня: 8.219178 · 0.0833333 = 0.684932
+    assert row["benefit_usd"] == 0.68
+    assert row["net_usd"] == -9.32              # 0.684932 − 10
+    assert row["outcome"] == "hit"              # HOLD верен: ход не окупился
+    assert row["observed_hours"] == 2.0 and row["uncovered_hours"] == 4.0
+    assert row["coverage_pct"] == 33.33
+    # Годовой спред, наблюдённый на перемещённом объёме, — РОВНО 6 пп.
+    assert row["opportunity_apy_pct"] == 6.0
+
+
+def test_the_same_advice_flips_between_24h_and_3d_which_is_why_horizons_exist() -> None:
+    """Разовая цена одна, выгода набегает: до суток HOLD верен, к трём дням — нет."""
+    scene = _hscene()
+    timed = [(ste._run_time(r), r) for r in scene]
+    t0 = ste._run_time(scene[0])
+    day = ste._evaluate_over_hours(scene[0], ste._forward_within(timed, t0, 24.0), 24.0)
+    three = ste._evaluate_over_hours(scene[0], ste._forward_within(timed, t0, 72.0), 72.0)
+    week = ste._evaluate_over_hours(scene[0], ste._forward_within(timed, t0, 168.0), 168.0)
+    assert day["net_usd"] == -9.32 and day["outcome"] == "hit"
+    assert three["net_usd"] == 0.27 and three["outcome"] == "miss"
+    assert three["missed_usd"] == 0.27
+    assert week["net_usd"] == 17.4 and week["outcome"] == "miss"
+    # Цена РАЗОВАЯ и одинакова на всех горизонтах — иначе короткий горизонт
+    # выглядел бы дешевле, и «когда ход окупается» было бы не измерить.
+    assert day["cost_usd_used"] == three["cost_usd_used"] == week["cost_usd_used"] == 10.0
+
+
+def test_an_observation_beyond_the_window_does_not_close_its_tail() -> None:
+    """Наблюдение ЗА границей окна хвост НЕ закрывает (вторая редакция #1214).
+
+    Иначе часовое окно без наблюдений внутри закрывалось бы ставкой, снятой
+    через тридцать часов, — интерполяция под видом замера.
+    """
+    scene = _hscene()
+    timed = [(ste._run_time(r), r) for r in scene]
+    t0 = ste._run_time(scene[0])
+    assert ste._forward_within(timed, t0, 1.0) == []
+    assert len(ste._forward_within(timed, t0, 6.0)) == 1
+    # Покрытие НИ НА ОДНОМ горизонте не выдаётся за полное.
+    for hours in (6.0, 24.0, 72.0, 168.0):
+        row = ste._evaluate_over_hours(scene[0], ste._forward_within(timed, t0, hours), hours)
+        assert row["coverage_pct"] < 100.0
+        assert row["counterfactual"] == "PARTIAL"
+
+
+def test_trivial_and_timeless_records_are_named_separately() -> None:
+    """Три разных исхода не схлопываются в один (инв. #17).
+
+    Проверяется НЕ только причина, но и ВЕРДИКТ: мутация, оставившая причину
+    «no_run_time» и назвавшая запись тривиально верным HOLD, выжила в прогоне
+    №1 (#1214) — причина без вердикта вердикта не держит.
+    """
+    timeless = _hrec(_H0, cost_usd=10.0,
+                     current_positions={"A": 100_000.0},
+                     target_positions={"A": 50_000.0, "B": 50_000.0})
+    timeless.pop("generated_at")
+    row = ste._evaluate_over_hours(timeless, [], 24.0)
+    assert row["unchecked_reason"] == "no_run_time"
+    assert row["outcome"] == "UNCHECKED" and row["counterfactual"] == "UNCHECKED"
+    assert row["trivial"] is False and "net_usd" not in row
+    trivial = _hrec(_H0, current_positions={"A": 100.0}, target_positions={"A": 100.0})
+    trow = ste._evaluate_over_hours(trivial, [], 24.0)
+    assert trow["counterfactual"] == "TRIVIAL" and trow["trivial"] is True
+    hole = _hrec(_H0, current_positions={"A": 100_000.0}, target_positions={})
+    hrow = ste._evaluate_over_hours(hole, [], 24.0)
+    assert hrow["unchecked_reason"] == "no_target_recorded"
+    assert hrow["outcome"] == "UNCHECKED" and hrow["trivial"] is False
+
+
+def test_a_recorded_zero_cost_is_a_price_not_a_missing_price() -> None:
+    """Дверь цены (ADR-392/393) держит оба плеча в СВОЁМ файле.
+
+    Контроль этого правила в наборе был — но у ЧУЖОГО читателя
+    (`test_criterion_sign_price.py`), поэтому мутация `if cost_rec:` выжила в
+    прогоне №1 (#1214): правило переехало в дверь `_cost_used`, а контроль
+    остался у соседа. Дверь и её контроль живут вместе.
+    """
+    zero = _hrec(_H0, cost_usd=0.0)
+    rec, used, source = ste._cost_used(zero, 50_000.0)
+    assert (rec, used, source) == (0.0, 0.0, "recorded")   # ноль ЗАПИСАН ⇒ он и есть цена
+    absent = _hrec(_H0)
+    absent.pop("cost_usd")
+    rec2, used2, source2 = ste._cost_used(absent, 50_000.0)
+    assert rec2 is None and source2.startswith("assumption:") and used2 > 0.0
+    junk = _hrec(_H0, cost_usd="дорого")
+    rec3, _, source3 = ste._cost_used(junk, 50_000.0)
+    assert rec3 is None and source3.startswith("assumption:")
+
+
+def test_horizon_rollups_judge_only_the_records_of_the_window() -> None:
+    """Свод горизонта судит ПОДДАННЫХ окна, а форварды берёт из ВСЕГО журнала.
+
+    Сцена РАЗЛИЧАЮЩАЯ: подданных меньше, чем записей журнала. Без неё мутация
+    «судить всех» не меняет ничего и выживает (прогон №1, #1214).
+    """
+    scene = _hscene()
+    keys = {ste._rec_key(scene[0])}
+    section, rows = ste.horizon_census(
+        scene, legacy_horizon_days=7, legacy_hit_rate=None, legacy_net_usd=None,
+        subject_keys=keys)
+    assert section["subjects"] == 1 and len(rows) == 1
+    assert section["horizons"]["7d"]["population_material"] == 1
+    # Форвардные наблюдения при этом НЕ обрезаны окном подданных.
+    assert section["horizons"]["7d"]["with_forward_observation"] == 1
+    whole, rows_all = ste.horizon_census(
+        scene, legacy_horizon_days=7, legacy_hit_rate=None, legacy_net_usd=None)
+    assert whole["subjects"] == 4 and len(rows_all) == 4
+
+
+def test_horizon_vocabulary_has_ONE_door_and_a_third_outcome(monkeypatch) -> None:
+    """Пять чисел владельца ВВОЗЯТСЯ; «не ввезены» — причина, не своя копия."""
+    from spa_core.analytics import counterfactual_tracking_census as ctc
+    hours, why = ste.declared_horizons()
+    assert why is None and hours == {k: int(v) for k, v in ctc.HORIZON_HOURS.items()}
+    import sys
+    import spa_core.analytics as analytics_pkg
+    monkeypatch.setitem(sys.modules,
+                        "spa_core.analytics.counterfactual_tracking_census", None)
+    monkeypatch.delattr(analytics_pkg, "counterfactual_tracking_census", raising=False)
+    hours2, why2 = ste.declared_horizons()
+    assert hours2 is None and "не ввезён" in why2
+    # Второй третий исход того же двери: словарь ввезён, но УСЕЧЁН — ответ
+    # «НЕ ИЗМЕРЕНО», а не счёт по неполному перечню требований владельца.
+    monkeypatch.undo()
+    monkeypatch.setattr(ctc, "HORIZON_HOURS", {"1h": 1}, raising=True)
+    hours3, why3 = ste.declared_horizons()
+    assert hours3 is None and "при объявленных 5" in why3
+
+
+def test_horizon_section_is_not_an_input_to_arming(tmp_path: Path) -> None:
+    """Секция горизонтов НЕ меняет мандат владельца (ADR-067) ни одним числом."""
+    _seed_timeline(tmp_path)
+    full = evaluate_window(tmp_path, write=False, now=NOW)
+    sec = full["counterfactual_horizons"]
+    assert sec["measured"] is True and len(sec["horizons"]) == 5
+    assert "НЕ входят в ready_to_arm" in sec["not_an_arming_input"]
+    # Тот же прогон с ОТНЯТОЙ секцией: ни одно число мандата не шевельнулось.
+    import spa_core.paper_trading.shadow_trigger_eval as mod
+    real = mod.horizon_census
+    monkey = lambda *a, **k: ({"measured": False, "reason": "сцена"}, {})  # noqa: E731
+    mod.horizon_census = monkey
+    try:
+        bare = evaluate_window(tmp_path, write=False, now=NOW)
+    finally:
+        mod.horizon_census = real
+    for key in ("ready_to_arm", "status", "hit_rate", "net_usd_if_followed",
+                "net_bps_if_followed", "criteria", "counts", "observation_days",
+                "hold_missed_usd_total"):
+        assert bare[key] == full[key], key
+    bare_rows = [{k: v for k, v in r.items() if k != "horizons"}
+                 for r in bare["per_verdict"]]
+    full_rows = [{k: v for k, v in r.items() if k != "horizons"}
+                 for r in full["per_verdict"]]
+    assert bare_rows == full_rows
+
+
+def test_horizon_rows_are_attached_by_run_identity_not_by_date(tmp_path: Path) -> None:
+    """Два прогона ОДНОГО дня получают РАЗНЫЕ строки горизонтов, не одну."""
+    for rec in (_hrec("2026-07-01T00:00:00+00:00", cost_usd=10.0,
+                      current_positions={"A": 100_000.0},
+                      target_positions={"A": 50_000.0, "B": 50_000.0}),
+                _hrec("2026-07-01T20:00:00+00:00", cost_usd=10.0,
+                      current_positions={"A": 100_000.0},
+                      target_positions={"A": 90_000.0, "B": 10_000.0}),
+                _hrec("2026-07-02T06:00:00+00:00")):
+        append_rationale_history(rec, tmp_path)
+    doc = evaluate_window(tmp_path, write=False, now=NOW)
+    rows = [r for r in doc["per_verdict"] if r["cycle_date"] == "2026-07-01"]
+    assert len(rows) == 2
+    assert rows[0]["horizons"] != rows[1]["horizons"]

@@ -1,0 +1,81 @@
+{
+  "label": "ADR-1071 — пять горизонтов §31 приказа «Portfolio CIO»",
+  "tests": ["spa_core/tests/test_shadow_trigger_eval.py",
+            "spa_core/tests/test_counterfactual_tracking_census.py"],
+  "mutations": [
+    {"name": "M01_unmeasured_becomes_unreachable",
+     "file": "spa_core/analytics/counterfactual_tracking_census.py",
+     "old": "    if in_window and not priced:\n        return None, len(stamped), (",
+     "new": "    if False and in_window and not priced:\n        return None, len(stamped), ("},
+
+    {"name": "M02_track_cadence_decides_reachability",
+     "file": "spa_core/analytics/counterfactual_tracking_census.py",
+     "old": "    cadence, why, cadence_detail = _pricing_cadence_hours(carriers.get(\"records\"))",
+     "new": "    cadence, why = _cadence_hours(carriers.get(\"daily\"))\n    cadence_detail = {}"},
+
+    {"name": "M03_half_declaration_counted_as_a_count",
+     "file": "spa_core/analytics/counterfactual_tracking_census.py",
+     "old": "                missing = [k for k in JUDGE_HORIZON_REQUIRED if k not in row]",
+     "new": "                missing = []"},
+
+    {"name": "M04_any_kind_counted_as_computed",
+     "file": "spa_core/analytics/counterfactual_tracking_census.py",
+     "old": "                if row.get(\"kind\") != \"computed\":",
+     "new": "                if False:"},
+
+    {"name": "M05_legacy_single_horizon_form_ignored",
+     "file": "spa_core/analytics/counterfactual_tracking_census.py",
+     "old": "            found.setdefault(float(hd) * 24.0, \"params.horizon_days\")",
+     "new": "            pass"},
+
+    {"name": "M06_observation_beyond_the_window_closes_the_tail",
+     "file": "spa_core/paper_trading/shadow_trigger_eval.py",
+     "old": "    limit = float(hours) * 3600.0\n    return [(t, r) for t, r in timed\n            if t > t0 and (t - t0).total_seconds() <= limit]",
+     "new": "    limit = float(hours) * 3600.0\n    inside = [(t, r) for t, r in timed\n              if t > t0 and (t - t0).total_seconds() <= limit]\n    beyond = next(((t, r) for t, r in timed if (t - t0).total_seconds() > limit), None)\n    return inside + ([beyond] if beyond is not None else [])"},
+
+    {"name": "M07_cost_prorated_by_horizon_instead_of_one_off",
+     "file": "spa_core/paper_trading/shadow_trigger_eval.py",
+     "old": "    _, cost_used, cost_source = _cost_used(rec, turnover)\n    out.update({\"cost_usd_used\": round(cost_used, 2), \"cost_source\": cost_source})",
+     "new": "    _, cost_used, cost_source = _cost_used(rec, turnover)\n    cost_used = cost_used * min(1.0, hours / 168.0)\n    out.update({\"cost_usd_used\": round(cost_used, 2), \"cost_source\": cost_source})"},
+
+    {"name": "M08_unchecked_horizon_becomes_a_zero_verdict",
+     "file": "spa_core/paper_trading/shadow_trigger_eval.py",
+     "old": "    if checked == 0:\n        out.update({\"counterfactual\": \"UNCHECKED\", \"outcome\": \"UNCHECKED\",",
+     "new": "    if checked == 0:\n        out.update({\"net_usd\": 0.0, \"outcome\": \"hit\",\n                    \"counterfactual\": \"UNCHECKED\", \"_outcome\": \"UNCHECKED\","},
+
+    {"name": "M09_rows_attached_by_date_not_by_run",
+     "file": "spa_core/paper_trading/shadow_trigger_eval.py",
+     "old": "    return f\"{rec.get('cycle_date')}|{rec.get('generated_at')}\"",
+     "new": "    return f\"{rec.get('cycle_date')}\""},
+
+    {"name": "M10_section_feeds_the_owners_arming_number",
+     "file": "spa_core/paper_trading/shadow_trigger_eval.py",
+     "old": "        \"hit_rate\": hit_rate,\n        \"net_usd_if_followed\": net_usd_if_followed,",
+     "new": "        \"hit_rate\": ((horizons_section.get(\"horizons\") or {}).get(\"24h\") or {}).get(\"hit_rate\", hit_rate),\n        \"net_usd_if_followed\": net_usd_if_followed,"},
+
+    {"name": "M11_vocabulary_becomes_a_local_second_copy",
+     "file": "spa_core/paper_trading/shadow_trigger_eval.py",
+     "old": "    try:\n        from spa_core.analytics import counterfactual_tracking_census as ctc\n    except Exception as exc:  # noqa: BLE001 — нечем мерить ≠ «мерим своим»\n        return None, f\"словарь горизонтов §31 не ввезён: {type(exc).__name__}: {exc}\"",
+     "new": "    class ctc:  # noqa: N801 — вторая копия словаря владельца\n        HORIZON_HOURS = {\"1h\": 1, \"6h\": 6, \"24h\": 24, \"3d\": 72, \"7d\": 168}\n        OWNER_HORIZONS_DECLARED = 5"},
+
+    {"name": "M12_record_without_a_timestamp_judged_as_trivial",
+     "file": "spa_core/paper_trading/shadow_trigger_eval.py",
+     "old": "    t0 = _run_time(rec)\n    if t0 is None:\n        out.update({\"outcome\": \"UNCHECKED\", \"counterfactual\": \"UNCHECKED\",\n                    \"unchecked_reason\": \"no_run_time\", \"trivial\": False})\n        return out",
+     "new": "    t0 = _run_time(rec)\n    if t0 is None:\n        out.update({\"outcome\": \"hit\", \"counterfactual\": \"TRIVIAL\",\n                    \"unchecked_reason\": \"no_run_time\", \"trivial\": True})\n        return out"},
+
+    {"name": "M13_recorded_zero_cost_read_as_absent_cost",
+     "file": "spa_core/paper_trading/shadow_trigger_eval.py",
+     "old": "    if cost_rec is not None:\n        return cost_rec, cost_rec, \"recorded\"",
+     "new": "    if cost_rec:\n        return cost_rec, cost_rec, \"recorded\""},
+
+    {"name": "M14_coverage_is_reported_as_full",
+     "file": "spa_core/paper_trading/shadow_trigger_eval.py",
+     "old": "                \"coverage_pct\": round(100.0 * observed_hours / hours, 2)\n                if hours > 0 else None,",
+     "new": "                \"coverage_pct\": 100.0,"},
+
+    {"name": "M15_subject_keys_ignored_rollups_cover_all_history",
+     "file": "spa_core/paper_trading/shadow_trigger_eval.py",
+     "old": "    subjects = [(t, r) for t, r in timed\n                if subject_keys is None or _rec_key(r) in subject_keys]",
+     "new": "    subjects = list(timed)"}
+  ]
+}

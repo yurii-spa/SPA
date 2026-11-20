@@ -20,27 +20,39 @@
   (`moved&HOLD`). После взвода 11.09 (ADR-324/328) пары совпадают ПО ПОСТРОЕНИЮ — предмета
   у §31 с того дня быть не может, и это печатается, а не подразумевается;
 * **(B) пять горизонтов** — у КАЖДОГО объявленного горизонта есть носитель, считающий
-  именно на нём. Горизонт короче шага наблюдения входов (трек и ставки — раз в сутки)
-  недостижим ПО ПОСТРОЕНИЮ, и это ОТДЕЛЬНЫЙ род, а не «пока не посчитали»;
+  именно на нём. Достижимость горизонта мерится НАСЕЛЕНИЕМ наблюдённых внутри него
+  записей (:func:`_horizon_reach`): горизонт, внутри которого не наблюдена НИ ОДНА
+  запись, недостижим на наблюдённых данных — ОТДЕЛЬНЫЙ род, а не «пока не посчитали»;
 * **(C) четыре величины** — у каждой есть носитель НА РЕКОМЕНДАЦИЮ, а не агрегат за окно; и
   «actual costs» означает стоимость, ПЕРЕСЧИТАННУЮ после, а не оценку T0, переписанную
   в строку судьи под другим именем (`cost_source = recorded`);
 * **(D) связь** — строка судьи привязана к записи решения её личностью (`decision_id`), а не
   датой: в 26 днях окна записей по нескольку, и дата не называет, о какой из них речь.
 
-🪤 ЛОВУШКА, ради которой прибор мерит ШАГ НАБЛЮДЕНИЯ, а не только наличие судьи
-==============================================================================
+🪤 ЛОВУШКА, ради которой прибор мерит ГОРИЗОНТЫ, а не только наличие судьи
+==========================================================================
 Судья тени (`shadow_trigger_eval`, Step 2g) и реплей §38 (`cio_shadow_replay`) честно
-считают исход рекомендации — но ОДИН горизонт (7 дней) на ДНЕВНОЙ сетке. Замер по
-наличию сказал бы «counterfactual есть»; замер по горизонтам говорит, что из пяти
-объявленных считается один, два недостижимы при суточном шаге входов, а два достижимы и
-не считаются никем. И стоимость судья не пересчитывает — он переносит записанную оценку.
+считают исход рекомендации. Замер по наличию сказал бы «counterfactual есть»; замер по
+горизонтам (#1094) сказал, что из пяти объявленных считается ОДИН. И стоимость судья не
+пересчитывает — он переносит записанную оценку.
+
+🪤 ЛОВУШКА ВТОРОГО СЛОЯ: род «недостижимо» был измерен на ЧУЖОМ НОСИТЕЛЕ (#1214)
+================================================================================
+До [ADR-1071] достижимость горизонта решал ОДИН скаляр — шаг ДНЕВНОГО ТРЕКА (24 ч), —
+и 1h/6h числились недостижимыми ПО ПОСТРОЕНИЮ. Но counterfactual счита́ется НЕ из трека:
+он счита́ется из ``apy_evidenced_pct`` ЖУРНАЛА РЕШЕНИЙ, а тот с [ADR-395] несёт по
+нескольку прогонов в сутки. И никакой скаляр на этот вопрос не отвечает: минимум зазоров
+0.006 ч (повторный прогон того же замера), медиана внутрисуточных 0.546 ч, медиана всех
+зазоров со сменившейся картой 16.4 ч — под первым достижимо всё, под третьим недостижимы
+1h и 6h. Поэтому достижимость мерится НАСЕЛЕНИЕМ: внутри часа наблюдены **53** записи из
+205, внутри шести часов — **79**, внутри суток — **172**. «Недостижимо» было неверно, и
+ошибка шла в УСПОКАИВАЮЩУЮ сторону: два горизонта требования владельца значились
+невозможными, а были просто непосчитанными.
 
 Что прибор НЕ делает
 ====================
 Только ЧИТАЕТ (``applied=False``): судью, реплей, запись решения и живой трек не правит ни
-байтом. Карточку владельцу не заводит: шаг наблюдения — свойство дневного цикла (решение
-владельца о такте, ADR-055), а не вопрос. Контрапункты ВВЕЗЕНЫ, не перемерены: §30 пары
+байтом. Карточку владельцу не заводит. Контрапункты ВВЕЗЕНЫ, не перемерены: §30 пары
 (ADR-974), судья (`DEFAULT_HORIZON_DAYS`), §38 реплей (ADR-220), §25 носители (ADR-968).
 """
 from __future__ import annotations
@@ -284,8 +296,136 @@ def measure_subject(carriers: Dict[str, Any], armed_at: Optional[str]) -> Dict[s
 
 # ───────────────────────────── (B) горизонты ─────────────────────────────────
 
+def _pricing_cadence_hours(record_rows: Optional[List[dict]]
+                           ) -> Tuple[Optional[float], Optional[str], Dict[str, Any]]:
+    """Шаг наблюдения ТОЙ величины, из которой счита́ется counterfactual.
+
+    🪤 Прежде на вопрос «достижим ли горизонт» отвечал :func:`_cadence_hours`,
+    то есть шаг ДНЕВНОГО ТРЕКА (24 ч), и 1h/6h числились недостижимыми ПО
+    ПОСТРОЕНИЮ. Это был ответ о ЧУЖОМ носителе: counterfactual считается не из
+    трека, а из ``apy_evidenced_pct`` ЖУРНАЛА РЕШЕНИЙ, а тот с ADR-395 несёт по
+    нескольку прогонов в сутки. Замер #1214 на живом журнале (205 прогонов):
+    внутрисуточных зазоров 99, медиана **0.546 ч**, карта ставок РЕАЛЬНО
+    менялась в 55 из 99 соседних пар, а форвардное наблюдение внутри часа есть
+    у 53 материальных предложений из 190. «Недостижимо» было неверно.
+
+    Шагом считается МЕДИАНА зазоров между соседними прогонами, у которых карта
+    ставок изменилась: минимум назвал бы шагом случайный повторный прогон
+    (0.006 ч), а зазор при НЕИЗМЕНИВШЕЙСЯ карте наблюдением не является вовсе —
+    это тот же замер, записанный дважды.
+
+    Возвращает ``(шаг_часы, причина_если_нет, подробности)``.
+    """
+    if record_rows is None:
+        return None, "журнал решений не прочитан", {}
+    stamped: List[Tuple[str, Any]] = []
+    for row in record_rows:
+        if not isinstance(row, dict):
+            continue
+        raw = row.get("generated_at")
+        if not raw:
+            continue
+        try:
+            moment = dt.datetime.fromisoformat(str(raw))
+        except ValueError:
+            continue
+        stamped.append((str(raw), moment))
+    if len(stamped) < 2:
+        return None, (f"прогонов с отметкой времени {len(stamped)} — шаг "
+                      "наблюдения не вычислим"), {}
+    order = sorted(range(len(stamped)), key=lambda i: stamped[i][1])
+    gaps: List[float] = []
+    unchanged = 0
+    for a, b in zip(order, order[1:]):
+        prev_map = record_rows[a].get("apy_evidenced_pct")
+        next_map = record_rows[b].get("apy_evidenced_pct")
+        if isinstance(prev_map, dict) and isinstance(next_map, dict) \
+                and prev_map == next_map:
+            unchanged += 1
+            continue
+        delta = (stamped[b][1] - stamped[a][1]).total_seconds() / 3600.0
+        if delta > 0:
+            gaps.append(delta)
+    detail: Dict[str, Any] = {"runs_timestamped": len(stamped),
+                              "gaps_with_changed_map": len(gaps),
+                              "gaps_with_unchanged_map": unchanged}
+    if not gaps:
+        return None, ("ни у одной пары соседних прогонов карта ставок не "
+                      "менялась — шаг наблюдения не вычислим"), detail
+    gaps.sort()
+    mid = len(gaps) // 2
+    median = gaps[mid] if len(gaps) % 2 else (gaps[mid - 1] + gaps[mid]) / 2.0
+    detail.update({"gap_min_hours": round(gaps[0], 4),
+                   "gap_max_hours": round(gaps[-1], 4)})
+    return round(median, 4), None, detail
+
+
+def _horizon_reach(record_rows: Optional[List[dict]], hours: float
+                   ) -> Tuple[Optional[int], Optional[int], Optional[str]]:
+    """Сколько записей НАБЛЮДЕНЫ внутри горизонта ``hours`` — населением, а не скаляром.
+
+    🪤 Достижимость горизонта считалась по ОДНОМУ числу — шагу наблюдения, — и
+    любой такой скаляр отвечает не на тот вопрос. Замер #1214: минимум зазоров
+    равен 0.006 ч (повторный прогон того же замера), медиана внутрисуточных —
+    0.546 ч, медиана ВСЕХ зазоров со сменившейся картой — 16.4 ч. Под первым
+    числом достижимо всё, под третьим недостижимы 1h и 6h, и ни одно из трёх не
+    есть ответ: наблюдения распределены неравномерно, и горизонт достижим на
+    СВОЁМ населении. Прямой замер: внутри часа форвардное наблюдение есть у 53
+    записей из 190, внутри шести часов — у 79, внутри суток — у 164.
+
+    Население — ВСЕ записи журнала с отметкой времени, и вопрос им задаётся
+    ровно один: наблюдали ли мы внутри окна хоть что-нибудь. Материальность
+    предложения здесь НЕ фильтруется намеренно — это вопрос судьи, а не
+    достижимости окна. И это НЕ население (A) §31 (неисполненные рекомендации):
+    оба числа печатаются своими именами (``observed_subjects``/``subjects``),
+    чтобы одно нельзя было прочесть за другое.
+
+    Возвращает ``(наблюдено, всего, причина_если_не_измерено)``.
+    """
+    if record_rows is None:
+        return None, None, "журнал решений не прочитан"
+    stamped: List[Tuple[dt.datetime, dict]] = []
+    for row in record_rows:
+        if not isinstance(row, dict):
+            continue
+        try:
+            moment = dt.datetime.fromisoformat(str(row.get("generated_at")))
+        except (TypeError, ValueError):
+            continue
+        stamped.append((moment, row))
+    if len(stamped) < 2:
+        return None, None, (f"прогонов с отметкой времени {len(stamped)} — "
+                            "достижимость не вычислима")
+    stamped.sort(key=lambda pair: pair[0])
+    limit = float(hours) * 3600.0
+    in_window = priced = 0
+    for t0, _ in stamped:
+        forward = [other for t, other in stamped
+                   if 0 < (t - t0).total_seconds() <= limit]
+        if not forward:
+            continue
+        in_window += 1
+        if any(isinstance(o.get("apy_evidenced_pct"), dict) and o.get("apy_evidenced_pct")
+               for o in forward):
+            priced += 1
+    # «Внутри окна записей нет» и «записи есть, но карты ставок у них нет» —
+    # РАЗНЫЕ факты (инв. #17). Первый есть свойство ГОРИЗОНТА (недостижим),
+    # второй — свойство НОСИТЕЛЯ (оценивать нечем), и слить их значило бы
+    # объявить горизонт невозможным из-за пустого поля.
+    if in_window and not priced:
+        return None, len(stamped), (
+            f"внутри горизонта записи есть ({in_window}), но ни одна не несёт карту "
+            "ставок — оценить нечем")
+    return priced, len(stamped), None
+
+
 def _cadence_hours(daily: Optional[List[dict]]) -> Tuple[Optional[float], Optional[str]]:
-    """Шаг наблюдения входов — минимальный зазор между датами трека (часы)."""
+    """Шаг наблюдения ТРЕКА — минимальный зазор между его датами (часы).
+
+    Это факт о ТРЕКЕ, и он остаётся в отчёте как факт. На вопрос «достижим ли
+    горизонт» он НЕ отвечает: трек не является носителем величины, из которой
+    счита́ется counterfactual (см. :func:`_pricing_cadence_hours`).
+    """
     if daily is None:
         return None, "трек не прочитан"
     dates = sorted({str(x.get("date")) for x in daily
@@ -304,50 +444,134 @@ def _cadence_hours(daily: Optional[List[dict]]) -> Tuple[Optional[float], Option
     return min(gaps), None
 
 
+#: Поля, которые ОБЯЗАНА нести строка горизонта судьи, чтобы счесться посчитанной.
+#: Полупустое объявление (`{"kind": "computed"}` и всё) есть ПРЕТЕНЗИЯ, а не счёт,
+#: и зачесть её значило бы поверить носителю на слово — fail-CLOSED (инв. #17).
+JUDGE_HORIZON_REQUIRED: Tuple[str, ...] = ("hours", "population_material", "scored",
+                                           "unchecked", "hit_rate")
+
+
+def _judge_horizon_hours(ev: Dict[str, Any]) -> Tuple[Dict[float, str], Dict[str, Any]]:
+    """Горизонты, на которых судья РЕАЛЬНО посчитал — НАБОРОМ, а не одним числом.
+
+    До цикла #1214 у судьи спрашивали ровно одно число (``params.horizon_days``),
+    и носитель с несколькими горизонтами был непредставим: добавь он четыре
+    горизонта — перепись всё равно увидела бы один. Набор читается из секции
+    ``counterfactual_horizons.horizons`` (ADR-1071), а старая форма остаётся
+    запасным ответом, чтобы прибор не ослеп на артефакте прежней редакции.
+
+    Возвращает ``({часы: источник}, подробности)``.
+    """
+    found: Dict[float, str] = {}
+    detail: Dict[str, Any] = {}
+    section = ev.get("counterfactual_horizons")
+    if isinstance(section, dict):
+        rows = section.get("horizons")
+        if isinstance(rows, dict):
+            rejected: Dict[str, str] = {}
+            for name, row in rows.items():
+                if not isinstance(row, dict):
+                    rejected[str(name)] = "строка горизонта не словарь"
+                    continue
+                if row.get("kind") != "computed":
+                    rejected[str(name)] = f"род {row.get('kind')!r}, а не 'computed'"
+                    continue
+                missing = [k for k in JUDGE_HORIZON_REQUIRED if k not in row]
+                if missing:
+                    rejected[str(name)] = f"в строке нет полей {missing} — претензия, не счёт"
+                    continue
+                try:
+                    found[float(row["hours"])] = f"counterfactual_horizons.horizons.{name}"
+                except (TypeError, ValueError):
+                    rejected[str(name)] = f"часы не число: {row.get('hours')!r}"
+            detail["section_rows"] = len(rows)
+            if rejected:
+                detail["section_rejected"] = rejected
+        else:
+            detail["section_reason"] = "в секции горизонтов нет словаря horizons"
+    params = ev.get("params")
+    hd = params.get("horizon_days") if isinstance(params, dict) else None
+    if hd is None:
+        try:
+            from spa_core.paper_trading import shadow_trigger_eval as ste
+            hd = ste.DEFAULT_HORIZON_DAYS
+            detail["legacy_source"] = "DEFAULT_HORIZON_DAYS"
+        except Exception as exc:  # noqa: BLE001
+            detail["legacy_reason"] = f"горизонт судьи не прочитан: {exc}"
+    else:
+        detail["legacy_source"] = "params.horizon_days"
+    if hd is not None:
+        try:
+            found.setdefault(float(hd) * 24.0, "params.horizon_days")
+        except (TypeError, ValueError):
+            detail["legacy_reason"] = f"params.horizon_days не число: {hd!r}"
+    return found, detail
+
+
 def measure_horizons(carriers: Dict[str, Any]) -> Dict[str, Any]:
     """Каждому объявленному горизонту — род: tracked · reachable_untracked ·
     unreachable_by_cadence · не измерено."""
     carrier_h: Dict[str, Any] = {}
     ev = carriers.get("eval")
     if isinstance(ev, dict):
-        hd = (ev.get("params") or {}).get("horizon_days") if isinstance(ev.get("params"), dict) else None
-        if hd is None:
-            try:
-                from spa_core.paper_trading import shadow_trigger_eval as ste
-                hd = ste.DEFAULT_HORIZON_DAYS
-            except Exception as exc:  # noqa: BLE001
-                carrier_h["judge"] = {"hours": None, "reason": f"горизонт судьи не прочитан: {exc}"}
-        if hd is not None:
-            carrier_h["judge"] = {"hours": float(hd) * 24.0, "source": "params.horizon_days"}
+        judge_hours, judge_detail = _judge_horizon_hours(ev)
+        if judge_hours:
+            carrier_h["judge"] = {"hours": sorted(judge_hours),
+                                  "source": judge_hours, "detail": judge_detail}
+        else:
+            carrier_h["judge"] = {"hours": [], "reason": (
+                judge_detail.get("legacy_reason")
+                or judge_detail.get("section_reason")
+                or "у судьи не прочитан ни один горизонт"), "detail": judge_detail}
     else:
-        carrier_h["judge"] = {"hours": None, "reason": f"судья не прочитан: {carriers.get('eval_reason')}"}
+        carrier_h["judge"] = {"hours": [], "reason": f"судья не прочитан: {carriers.get('eval_reason')}"}
     rp = carriers.get("replay")
     if isinstance(rp, dict):
         hd = (rp.get("population") or {}).get("horizon_days") if isinstance(rp.get("population"), dict) else None
-        carrier_h["replay"] = ({"hours": float(hd) * 24.0, "source": "population.horizon_days"}
+        carrier_h["replay"] = ({"hours": [float(hd) * 24.0], "source": "population.horizon_days"}
                                if hd is not None else
-                               {"hours": None, "reason": "у реплея нет population.horizon_days"})
+                               {"hours": [], "reason": "у реплея нет population.horizon_days"})
     else:
-        carrier_h["replay"] = {"hours": None, "reason": f"реплей не прочитан: {carriers.get('replay_reason')}"}
-    cadence, why = _cadence_hours(carriers.get("daily"))
-    tracked_hours = {c["hours"] for c in carrier_h.values() if c.get("hours") is not None}
+        carrier_h["replay"] = {"hours": [], "reason": f"реплей не прочитан: {carriers.get('replay_reason')}"}
+    # Шаг наблюдения, РЕШАЮЩИЙ достижимость, — у носителя величины, из которой
+    # счита́ется counterfactual (журнал решений), а не у дневного трека: см.
+    # :func:`_pricing_cadence_hours`. Шаг трека остаётся в отчёте как факт о треке.
+    cadence, why, cadence_detail = _pricing_cadence_hours(carriers.get("records"))
+    track_cadence, track_why = _cadence_hours(carriers.get("daily"))
+    tracked_hours = {h for c in carrier_h.values() for h in (c.get("hours") or [])}
     rows: Dict[str, Dict[str, Any]] = {}
     for h in OWNER_HORIZONS:
         hh = HORIZON_HOURS[h]
+        reached, total, reach_why = _horizon_reach(carriers.get("records"), float(hh))
         if hh in tracked_hours:
             rows[h] = {"kind": "tracked", "hours": hh,
-                       "carriers": sorted(k for k, c in carrier_h.items() if c.get("hours") == hh)}
-        elif cadence is None:
-            rows[h] = {"kind": UNMEASURED, "hours": hh, "reason": f"шаг наблюдения не измерен: {why}"}
-        elif hh < cadence:
-            rows[h] = {"kind": "unreachable_by_cadence", "hours": hh, "cadence_hours": cadence,
-                       "reason": f"горизонт {h} короче шага наблюдения входов ({cadence:g} ч)"}
+                       "observed_subjects": reached, "subjects": total,
+                       "carriers": sorted(k for k, c in carrier_h.items()
+                                          if hh in (c.get("hours") or []))}
+        elif reached is None:
+            rows[h] = {"kind": UNMEASURED, "hours": hh,
+                       "reason": f"достижимость не измерена: {reach_why}"}
+        elif reached == 0:
+            rows[h] = {"kind": "unreachable_by_cadence", "hours": hh,
+                       "observed_subjects": 0, "subjects": total,
+                       "cadence_hours": cadence,
+                       "reason": (f"внутри горизонта {h} не наблюдена НИ ОДНА из "
+                                  f"{total} записей — горизонт недостижим на "
+                                  f"наблюдённых данных")}
         else:
-            rows[h] = {"kind": "reachable_untracked", "hours": hh, "cadence_hours": cadence}
+            rows[h] = {"kind": "reachable_untracked", "hours": hh,
+                       "observed_subjects": reached, "subjects": total,
+                       "cadence_hours": cadence,
+                       "reason": (f"внутри горизонта {h} наблюдены {reached} из "
+                                  f"{total} записей, и не считает их никто")}
     tally = {k: sum(1 for r in rows.values() if r["kind"] == k) for k in HORIZON_KINDS}
     return {"measured": True, "declared": OWNER_HORIZONS_DECLARED, "horizons": rows,
             "tally": tally, "carriers": carrier_h, "cadence_hours": cadence,
-            "cadence_reason": why}
+            "cadence_reason": why, "cadence_source": "decision_journal.apy_evidenced_pct",
+            "cadence_detail": cadence_detail,
+            # Факт о ТРЕКЕ, не мерка достижимости. Прежде он ЕЮ был, и 1h/6h
+            # числились недостижимыми по чужому носителю (ADR-1071).
+            "track_cadence_hours": track_cadence, "track_cadence_reason": track_why}
 
 
 # ───────────────────────────── (C) величины ──────────────────────────────────

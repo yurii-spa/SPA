@@ -219,6 +219,60 @@ def _day_gain_usd(deltas: Dict[str, float],
     return gain, []
 
 
+def _cost_used(rec: dict, turnover: float) -> Tuple[Optional[float], float, str]:
+    """Цена хода: записанная моделью газа+слиппеджа, иначе КОНСЕРВАТИВНОЕ допущение.
+
+    Cost: recorded by the trigger's own gas+slippage model; if absent on a
+    material move, charge the conservative assumption — never zero.
+
+    "Цена измерена и равна нулю" и "цену не записали" — РАЗНЫЕ факты, и до
+    2026-09-15 они шли одной веткой (``cost_rec > 0.0``): записанный ноль уводил
+    день в допущение, и бесплатный ход оценивался ДОРОЖЕ дешёвого. Замер
+    ADR-390 (``swap_existence_price``, находка ``zero_price_is_read_as_absent_price``)
+    назвал цену этого слияния исходом: лучший счёт при нулевой цене $-183.66
+    против $80.75 при цене в ОДИН ЦЕНТ. Это инвариант #17 CLAUDE.md —
+    отсутствие наблюдения обязано иметь СВОЁ представление, и здесь оно у него
+    уже есть (``None``), поэтому различать надо по нему, а не по знаку.
+    Money-path, предмет №1 границы ADR-285: правка сделана по ЯВНОМУ ответу
+    владельца 2026-09-15 (ADR-392 решение 1, вариант 1; ADR-393). Разрешение
+    дано на ЭТУ ветку — соседние 19 координат того же класса (замер ADR-391)
+    не трогаются и лежат у владельца отдельной карточкой.
+
+    Дверь выделена циклом #1214 БЕЗ изменения правила: горизонты §31
+    (:func:`horizon_census`) судят те же ходы, и своя копия ветки у них
+    разошлась бы с этой молча (ADR-220). Возвращает
+    ``(записанная_или_None, использованная, источник)``.
+    """
+    cost_rec = rec.get("cost_usd")
+    try:
+        cost_rec = float(cost_rec) if cost_rec is not None else None
+    except (TypeError, ValueError):
+        cost_rec = None
+    if cost_rec is not None:
+        return cost_rec, cost_rec, "recorded"
+    return (None, turnover * ASSUMED_COST_BPS_OF_TURNOVER / 10_000.0,
+            f"assumption:{ASSUMED_COST_BPS_OF_TURNOVER:g}bps_of_turnover")
+
+
+def _outcome_of(verdict: str, net: float) -> dict:
+    """Был ли совет хорош — ЕДИНСТВЕННОЙ дверью (четвёртая величина §31).
+
+    ACT — **hit**, когда чистый результат положителен; материальный HOLD —
+    **hit**, когда придержать было верно (``net <= 0``), и **miss**, когда
+    загейченный ход окупил бы себя. Неизвестный вердикт не судится ни в ту, ни
+    в другую сторону (инв. #17).
+
+    Дверь выделена циклом #1214 без изменения правила — по той же причине, что
+    и :func:`_cost_used`.
+    """
+    if verdict == "ACT":
+        return {"outcome": "hit" if net > 0 else "miss"}
+    if verdict == "HOLD":
+        return {"outcome": "miss" if net > 0 else "hit",
+                "missed_usd": round(net, 2) if net > 0 else 0.0}
+    return {"outcome": "UNCHECKED", "unchecked_reason": f"unknown_verdict:{verdict}"}
+
+
 def _evaluate_verdict(rec: dict, forward: List[dict],
                       horizon_days: int) -> dict:
     """Judge one verdict against the live evidenced APYs of the following days."""
@@ -260,31 +314,10 @@ def _evaluate_verdict(rec: dict, forward: List[dict],
         return out
     out["trivial"] = False
 
-    # Cost: recorded by the trigger's own gas+slippage model; if absent on a
-    # material move, charge the conservative assumption — never zero.
-    #
-    # "Цена измерена и равна нулю" и "цену не записали" — РАЗНЫЕ факты, и до
-    # 2026-09-15 они шли одной веткой (`cost_rec > 0.0`): записанный ноль уводил
-    # день в допущение, и бесплатный ход оценивался ДОРОЖЕ дешёвого. Замер
-    # ADR-390 (`swap_existence_price`, находка `zero_price_is_read_as_absent_price`)
-    # назвал цену этого слияния исходом: лучший счёт при нулевой цене $-183.66
-    # против $80.75 при цене в ОДИН ЦЕНТ. Это инвариант #17 CLAUDE.md —
-    # отсутствие наблюдения обязано иметь СВОЁ представление, и здесь оно у него
-    # уже есть (`None`), поэтому различать надо по нему, а не по знаку.
-    # Money-path, предмет №1 границы ADR-285: правка сделана по ЯВНОМУ ответу
-    # владельца 2026-09-15 (ADR-392 решение 1, вариант 1; ADR-393). Разрешение
-    # дано на ЭТУ ветку — соседние 19 координат того же класса (замер ADR-391)
-    # не трогаются и лежат у владельца отдельной карточкой.
-    cost_rec = rec.get("cost_usd")
-    try:
-        cost_rec = float(cost_rec) if cost_rec is not None else None
-    except (TypeError, ValueError):
-        cost_rec = None
-    if cost_rec is not None:
-        cost_used, cost_source = cost_rec, "recorded"
-    else:
-        cost_used = turnover * ASSUMED_COST_BPS_OF_TURNOVER / 10_000.0
-        cost_source = f"assumption:{ASSUMED_COST_BPS_OF_TURNOVER:g}bps_of_turnover"
+    # Цена хода — ЕДИНСТВЕННОЙ дверью :func:`_cost_used` (правило и его причина
+    # живут там). Горизонты §31 зовут ту же дверь; вторая копия этой ветки
+    # разошлась бы молча — ровно класс ADR-220.
+    cost_rec, cost_used, cost_source = _cost_used(rec, turnover)
     out.update({"cost_usd_recorded": cost_rec, "cost_usd_used": round(cost_used, 2),
                 "cost_source": cost_source})
 
@@ -326,15 +359,9 @@ def _evaluate_verdict(rec: dict, forward: List[dict],
         "benefit_usd_over_checked_days": round(benefit, 2),
         "net_usd": round(net, 2),
     })
-    if verdict == "ACT":
-        out["outcome"] = "hit" if net > 0 else "miss"
-    elif verdict == "HOLD":
-        # Holding was right unless the gated move would have paid its own cost.
-        out["outcome"] = "miss" if net > 0 else "hit"
-        out["missed_usd"] = round(net, 2) if net > 0 else 0.0
-    else:
-        out["outcome"] = "UNCHECKED"
-        out["unchecked_reason"] = f"unknown_verdict:{verdict}"
+    # Holding was right unless the gated move would have paid its own cost —
+    # правило целиком живёт в :func:`_outcome_of`, одной дверью с горизонтами §31.
+    out.update(_outcome_of(verdict, net))
     return out
 
 
@@ -399,6 +426,338 @@ REACH_UNMEASURED = "UNMEASURED"
 # трёх проверяется исчерпывающе (≈130 сочетаний); живой замер 15.10 закрылся
 # ДВУМЯ гейтами, то есть запас есть.
 _COVER_EXACT_MAX_K = 3
+
+
+# ──────────────── §31 приказа «Portfolio CIO»: ПЯТЬ горизонтов ────────────────
+#
+# Владелец объявил горизонты дословно: «После: 1h · 6h · 24h · 3d · 7d
+# пересчитывать: actual opportunity APY · actual theoretical gain · actual costs ·
+# whether recommendation was good». До цикла #1214 судья считал на ОДНОМ горизонте
+# (7 дней), и перепись §31 (ADR-977) числила 1h/6h НЕДОСТИЖИМЫМИ «по шагу
+# наблюдения», а 24h/3d — достижимыми и не считаемыми никем.
+#
+# 🪤 Род `unreachable_by_cadence` был измерен на ЧУЖОМ носителе. Шаг наблюдения
+# перепись брала у ДНЕВНОГО трека (`equity_curve_daily.json`, 24 ч), а
+# counterfactual считается НЕ из трека: он считается из `apy_evidenced_pct`
+# журнала решений, а тот с ADR-395 несёт по нескольку прогонов в сутки. Замер
+# #1214 на живом журнале (205 прогонов, 190 материальных предложений): зазоров
+# внутри суток 99, медиана **0.546 ч**, и карта ставок РЕАЛЬНО менялась в 55 из
+# 99 соседних пар. Форвардное наблюдение внутри часа есть у **53** предложений из
+# 190, внутри шести часов — у **79**, и все они оценимы. То есть «недостижимо по
+# построению» было неверно: горизонт достижим на названном населении, просто
+# никто не считал.
+#
+# Поэтому окно горизонта отбирается по ВРЕМЕНИ (`generated_at`), а выгода
+# накапливается по ПРОШЕДШЕМУ времени: ставка, наблюдённая в момент t_i,
+# относится к интервалу, КОНЧАЮЩЕМУСЯ в t_i (правый конец наблюдён, левый — его
+# предшественник либо T0). Хвост окна, за которым наблюдения нет, не
+# домысливается: он НАЗВАН, и предложение становится PARTIAL.
+#
+# Секция НЕ ТРОГАЕТ прежний ответ: верхние `hit_rate` / `net_usd_if_followed` /
+# `ready_to_arm` считаются ровно по мандату владельца (ADR-067) на
+# `params.horizon_days` и этой секцией не меняются — доказано побайтовой
+# сверкой артефакта до и после (цикл #1214). Горизонт 7d здесь посчитан ВТОРЫМ
+# интегратором, и расхождение с прежним ответом НАЗВАНО числом
+# (`legacy_comparison`), а не спрятано: два интегратора одного вопроса обязаны
+# быть видны оба, иначе у числа появляется второе место молча.
+
+
+def declared_horizons() -> Tuple[Optional[Dict[str, int]], Optional[str]]:
+    """Словарь горизонтов владельца — ОДНОЙ дверью переписи §31 (ADR-977).
+
+    Своя копия пяти чисел здесь означала бы вторую мерку одного требования
+    владельца, и расходились бы они молча (ADR-220). Поэтому словарь ВВОЗИТСЯ,
+    а «не ввезён» есть третий исход с названной причиной, а не тихий откат к
+    локальной константе (инв. #17).
+    """
+    try:
+        from spa_core.analytics import counterfactual_tracking_census as ctc
+    except Exception as exc:  # noqa: BLE001 — нечем мерить ≠ «мерим своим»
+        return None, f"словарь горизонтов §31 не ввезён: {type(exc).__name__}: {exc}"
+    try:
+        hours = {str(k): int(v) for k, v in dict(ctc.HORIZON_HOURS).items()}
+        declared = int(ctc.OWNER_HORIZONS_DECLARED)
+    except Exception as exc:  # noqa: BLE001
+        return None, f"словарь горизонтов §31 не разобран: {type(exc).__name__}: {exc}"
+    if len(hours) != declared:
+        return None, (f"в словаре {len(hours)} горизонт(ов) при объявленных "
+                      f"{declared} — НЕ ИЗМЕРЕНО")
+    return hours, None
+
+
+def _run_time(rec: dict) -> Optional[datetime]:
+    """Момент прогона — горизонт в ЧАСАХ без него не отложить (третий исход)."""
+    raw = rec.get("generated_at")
+    if not raw:
+        return None
+    try:
+        moment = datetime.fromisoformat(str(raw))
+    except ValueError:
+        return None
+    return moment if moment.tzinfo else moment.replace(tzinfo=timezone.utc)
+
+
+def _evaluate_over_hours(rec: dict, forward: List[Tuple[datetime, dict]],
+                         hours: float) -> dict:
+    """Исход неисполненной рекомендации на горизонте, объявленном в ЧАСАХ.
+
+    Те же четыре величины §31, что у дневного судьи, и те же двери правил
+    (:func:`_day_gain_usd`, :func:`_cost_used`, :func:`_outcome_of`) — отличается
+    только ОТБОР окна и накопление по прошедшему времени.
+
+    Третьи исходы названы раздельно: у записи нет часов · целевая книга не
+    записана (дыра, а не «ликвидировать всё») · внутри окна наблюдений нет
+    вовсе · ни одна нога окна не оценена. Цена хода разовая и начисляется
+    целиком на любом горизонте — именно поэтому короткий горизонт показывает,
+    КОГДА ход окупается, а не «во сколько раз он хуже».
+
+    ``forward`` обязан несть ПЕРВОЕ наблюдение ЗА границей окна, когда оно есть
+    (:func:`_forward_within`): без него хвост ``(последнее наблюдение, t0+H]``
+    не закрывался бы никогда, и ``CHECKED`` оказывался бы недостижим ПО
+    ПОСТРОЕНИЮ — то есть ярлык «окно покрыто» молча не мог бы наступить ни на
+    одном горизонте. Замер первой редакции этой функции (#1214): `CHECKED` 0 из
+    190 на ВСЕХ пяти горизонтах. Последний ломоть обрезается границей горизонта,
+    а не моментом наблюдения.
+    """
+    verdict = str(rec.get("verdict") or "UNKNOWN").upper()
+    deltas = _deltas(rec)
+    turnover = _turnover_usd(rec, deltas)
+    material = bool(deltas) and turnover >= MATERIAL_TURNOVER_USD
+    out: dict = {"verdict": verdict, "material": material,
+                 "turnover_usd": round(turnover, 2)}
+    t0 = _run_time(rec)
+    if t0 is None:
+        out.update({"outcome": "UNCHECKED", "counterfactual": "UNCHECKED",
+                    "unchecked_reason": "no_run_time", "trivial": False})
+        return out
+    if (rec.get("current_positions") or {}) and not (rec.get("target_positions") or {}):
+        out.update({"outcome": "UNCHECKED", "counterfactual": "UNCHECKED",
+                    "unchecked_reason": "no_target_recorded", "trivial": False})
+        return out
+    if not material:
+        out.update({"outcome": "hit" if verdict == "HOLD" else "miss",
+                    "counterfactual": "TRIVIAL", "trivial": True, "net_usd": 0.0})
+        return out
+    out["trivial"] = False
+    _, cost_used, cost_source = _cost_used(rec, turnover)
+    out.update({"cost_usd_used": round(cost_used, 2), "cost_source": cost_source})
+
+    benefit = 0.0
+    checked = unchecked = 0
+    priced_days = 0.0
+    missing_all: set = set()
+    prev = t0
+    for moment, frec in forward:
+        # Обрезки по границе горизонта здесь НЕТ намеренно: окно несёт только
+        # свои наблюдения (:func:`_forward_within`), поэтому `moment` никогда не
+        # выходит за границу, и `min(moment, edge)` был бы мёртвой ветвью —
+        # кодом, который не может быть измерен ни одной мутацией.
+        slice_days = (moment - prev).total_seconds() / 86_400.0
+        prev = moment
+        if slice_days <= 0:
+            continue
+        gain, missing = _day_gain_usd(
+            deltas, observed(frec, "apy_evidenced_pct", kind=dict) or {})
+        if gain is None:
+            unchecked += 1
+            missing_all.update(m for m in missing if m)
+            continue
+        checked += 1
+        benefit += gain * slice_days
+        priced_days += slice_days
+    observed_hours = (prev - t0).total_seconds() / 3600.0
+    out.update({"forward_observations": len(forward),
+                "observations_priced": checked,
+                "observations_unpriced": unchecked,
+                "observed_hours": round(observed_hours, 4),
+                "uncovered_hours": round(max(0.0, hours - observed_hours), 4),
+                "coverage_pct": round(100.0 * observed_hours / hours, 2)
+                if hours > 0 else None,
+                "unpriced_protocols": sorted(missing_all)})
+    if checked == 0:
+        out.update({"counterfactual": "UNCHECKED", "outcome": "UNCHECKED",
+                    "unchecked_reason": ("no_forward_observation" if not forward
+                                         else "no_evidenced_apy_for_moved_legs")})
+        return out
+    net = benefit - cost_used
+    # Ярлыка «окно покрыто ЦЕЛИКОМ» у этого метода НЕТ намеренно: окно,
+    # ограниченное дискретными наблюдениями, полностью не покрывается почти
+    # никогда, и ярлык, который не может стать правдой, хуже отсутствия ярлыка
+    # (замер первой редакции: 0 из 190 на всех пяти горизонтах). Вместо него —
+    # НАЗВАННАЯ доля покрытия, и она видна у каждой строки.
+    out.update({"counterfactual": "PARTIAL",
+                "benefit_usd": round(benefit, 2),
+                "net_usd": round(net, 2),
+                # Пятая величина §31 «actual opportunity APY» — годовой спред,
+                # НАБЛЮДЁННЫЙ на перемещённом объёме за оценённое время.
+                # Знаменателя нет ⇒ None, а не ноль (инв. #17).
+                "opportunity_apy_pct": (
+                    round(benefit / turnover * 365.0 / priced_days * 100.0, 4)
+                    if turnover > 0 and priced_days > 0 else None)})
+    out.update(_outcome_of(verdict, net))
+    return out
+
+
+def _forward_within(timed: List[Tuple[datetime, dict]], t0: datetime,
+                    hours: float) -> List[Tuple[datetime, dict]]:
+    """Наблюдения ВНУТРИ окна ``(t0, t0+H]`` — и только они.
+
+    🪤 Вторая редакция этой функции (#1214) добавляла к окну ПЕРВОЕ наблюдение
+    за его границей, чтобы закрыть хвост и сделать достижимым ярлык «окно
+    покрыто». Это было неверно в ОПАСНУЮ сторону: у предложения без наблюдений
+    внутри часа весь часовой горизонт закрывался ставкой, снятой, бывало, через
+    двадцать часов, — то есть ИНТЕРПОЛЯЦИЯ под видом замера, и в сводке это
+    читалось как «179 из 190 часовых окон покрыты» при 53 реально наблюдённых.
+    Поэтому окно несёт только свои наблюдения, а недонаблюдённая доля
+    НАЗЫВАЕТСЯ (``coverage_pct``), а не домысливается.
+    """
+    limit = float(hours) * 3600.0
+    return [(t, r) for t, r in timed
+            if t > t0 and (t - t0).total_seconds() <= limit]
+
+
+def _median(values: List[float]) -> Optional[float]:
+    """Медиана или ``None`` — пустое население не есть ноль (инв. #17)."""
+    if not values:
+        return None
+    ordered = sorted(values)
+    mid = len(ordered) // 2
+    if len(ordered) % 2:
+        return round(ordered[mid], 2)
+    return round((ordered[mid - 1] + ordered[mid]) / 2.0, 2)
+
+
+def _horizon_rollup(hours: int, rows: List[dict]) -> dict:
+    """Свод одного горизонта: население, исходы, деньги, третьи исходы."""
+    material = [r for r in rows if r.get("material")]
+    scored = [r for r in material if r.get("outcome") in ("hit", "miss")]
+    hits = [r for r in scored if r["outcome"] == "hit"]
+    with_obs = [r for r in material if (r.get("forward_observations") or 0) > 0]
+    acts_scored = [r for r in scored if r["verdict"] == "ACT"]
+    return {
+        "kind": "computed",
+        "hours": hours,
+        "method": "elapsed_time",
+        "population_material": len(material),
+        "with_forward_observation": len(with_obs),
+        "scored": len(scored),
+        # Знаменатель `hit_rate` назван по вердикту: ставка 1.0, собранная из
+        # одних HOLD, и ставка 1.0 с исполнимыми ACT — РАЗНЫЕ утверждения.
+        "scored_act": len(acts_scored),
+        "scored_hold": len([r for r in scored if r["verdict"] == "HOLD"]),
+        "unchecked": len([r for r in material if r.get("outcome") == "UNCHECKED"]),
+        "partial": len([r for r in material
+                        if r.get("counterfactual") == "PARTIAL"]),
+        # Доля окна, реально закрытая наблюдениями, — по оценённым строкам.
+        # Это и есть ответ на «насколько горизонт НАБЛЮДЁН», и у короткого
+        # горизонта он честно мал, а не подтянут соседним наблюдением.
+        "coverage_pct_median": _median([r["coverage_pct"] for r in scored
+                                        if r.get("coverage_pct") is not None]),
+        "hit_rate": round(len(hits) / len(scored), 4) if scored else None,
+        "net_usd_if_followed": round(sum(r.get("net_usd", 0.0)
+                                         for r in acts_scored), 2),
+        "benefit_usd_total": round(sum(r.get("benefit_usd", 0.0)
+                                       for r in material), 2),
+        "hold_missed_usd_total": round(sum(r.get("missed_usd", 0.0)
+                                           for r in material
+                                           if r["verdict"] == "HOLD"), 2),
+    }
+
+
+def horizon_census(history: List[dict], *,
+                   legacy_horizon_days: int,
+                   legacy_hit_rate: Optional[float],
+                   legacy_net_usd: Optional[float],
+                   subject_keys: Optional[set] = None
+                   ) -> Tuple[dict, Dict[str, Dict[str, dict]]]:
+    """Все ПЯТЬ объявленных горизонтов §31 — по одному своду на горизонт.
+
+    Возвращает ``(секция, {ключ_записи: {горизонт: строка}})``: своды уезжают в
+    артефакт, построчные исходы цепляются к существующим строкам ``per_verdict``
+    (единица населения у владельца — РЕКОМЕНДАЦИЯ, и второй список тех же
+    личностей был бы вторым местом для одного числа).
+
+    Секция ничего не гейтит и в ``ready_to_arm`` не входит — как и семь
+    соседних переписей этого же артефакта.
+
+    ``subject_keys`` — личности записей, о которых выносится вердикт (строки,
+    дожившие до окна). Форвардные наблюдения при этом берутся из ВСЕГО
+    переданного журнала: иначе у последних дней окна горизонт обрезался бы
+    границей окна, а не отсутствием наблюдения, и «не наблюдали» стало бы
+    неотличимо от «окно кончилось». Не передан ⇒ судятся все записи.
+    """
+    hours_map, why = declared_horizons()
+    if hours_map is None:
+        return {"measured": False, "reason": why}, {}
+    timed: List[Tuple[datetime, dict]] = []
+    for rec in history:
+        moment = _run_time(rec)
+        if moment is not None:
+            timed.append((moment, rec))
+    timed.sort(key=lambda pair: pair[0])
+    subjects = [(t, r) for t, r in timed
+                if subject_keys is None or _rec_key(r) in subject_keys]
+    section: dict = {
+        "measured": True,
+        "declared": len(hours_map),
+        "subjects": len(subjects),
+        "no_run_time": len(history) - len(timed),
+        "method": "elapsed_time",
+        "method_note": (
+            "окно отбирается по generated_at; ставка наблюдения t_i относится к "
+            "интервалу, кончающемуся в t_i; необследованный хвост НАЗВАН "
+            "(uncovered_hours), а не домыслен"),
+        "not_an_arming_input": (
+            "ряды секции НЕ входят в ready_to_arm: критерии взвода считаются "
+            "ровно по мандату владельца (ADR-067) на params.horizon_days"),
+    }
+    rows_by_rec: Dict[str, Dict[str, dict]] = {}
+    horizons: Dict[str, dict] = {}
+    for name, hours in sorted(hours_map.items(), key=lambda kv: kv[1]):
+        per: List[dict] = []
+        for t0, rec in subjects:
+            row = _evaluate_over_hours(
+                rec, _forward_within(timed, t0, float(hours)), float(hours))
+            per.append(row)
+            rows_by_rec.setdefault(_rec_key(rec), {})[name] = {
+                k: row.get(k) for k in
+                ("outcome", "counterfactual", "net_usd", "benefit_usd",
+                 "opportunity_apy_pct", "coverage_pct", "unchecked_reason")
+                if row.get(k) is not None}
+        horizons[name] = _horizon_rollup(hours, per)
+    section["horizons"] = horizons
+    # Прежний ответ на том же горизонте — ДРУГИМ интегратором. Расхождение есть
+    # свойство двух методов, и оно НАЗВАНО числом; гейтом не является ни одно.
+    legacy_name = next((n for n, h in hours_map.items()
+                        if h == int(legacy_horizon_days) * 24), None)
+    section["legacy_comparison"] = {
+        "legacy_method": "observed_day_count",
+        "legacy_horizon_days": legacy_horizon_days,
+        "legacy_horizon_name": legacy_name,
+        "legacy_hit_rate": legacy_hit_rate,
+        "legacy_net_usd_if_followed": legacy_net_usd,
+        "elapsed_time_hit_rate": (horizons.get(legacy_name) or {}).get("hit_rate")
+        if legacy_name else None,
+        "elapsed_time_net_usd_if_followed": (
+            (horizons.get(legacy_name) or {}).get("net_usd_if_followed")
+            if legacy_name else None),
+        "note": ("горизонт владельца, которого прежний ответ не покрывает, в этой "
+                 "строке не назван: сравнивать можно только один горизонт"
+                 if legacy_name else
+                 f"горизонта {legacy_horizon_days} дн. в словаре владельца НЕТ — "
+                 "сравнение не производится"),
+    }
+    return section, rows_by_rec
+
+
+def _rec_key(rec: dict) -> str:
+    """Личность записи решения — дата И момент прогона.
+
+    Датой одной мало: с ADR-395 день несёт по нескольку прогонов, и ключ-дата
+    склеил бы разные рекомендации в одну (ровно та ловушка, которую §31 называет
+    требованием (D) — связь строки судьи с записью решения её ЛИЧНОСТЬЮ).
+    """
+    return f"{rec.get('cycle_date')}|{rec.get('generated_at')}"
 
 
 def gate_state(rec: dict) -> Tuple[Optional[Dict[str, bool]], str]:
@@ -968,12 +1327,17 @@ def evaluate_window(
         if eq is not None and eq.get("apy_today") is not None:
             row["book_apy_equity_pct"] = eq.get("apy_today")
         per_verdict.append(row)
+    # Личность записи едет РЯДОМ со строкой (а не датой): горизонты §31 цепляются
+    # к строке по личности, и склейка по дате схлопнула бы прогоны одного дня.
+    _row_keys = [_rec_key(rec) for rec in history]
     if window_days is not None and window_days > 0:
         _scored_dates = sorted({r.get("cycle_date") for r in per_verdict
                                 if r.get("cycle_date")})
         _window_keep = set(_scored_dates[-window_days:])
-        per_verdict = [r for r in per_verdict
-                       if r.get("cycle_date") in _window_keep]
+        _kept = [(k, r) for k, r in zip(_row_keys, per_verdict)
+                 if r.get("cycle_date") in _window_keep]
+        _row_keys = [k for k, _ in _kept]
+        per_verdict = [r for _, r in _kept]
 
     observed_days = len({r["cycle_date"] for r in per_verdict if r.get("cycle_date")})
     acts = [r for r in per_verdict if r["verdict"] == "ACT"]
@@ -1133,6 +1497,20 @@ def evaluate_window(
         chains=_chains_for_shape,
         chains_measured=_chains_measured)
 
+    # §31 приказа: все ПЯТЬ объявленных горизонтов владельца (цикл #1214).
+    # Строчные исходы цепляются к существующим строкам по ЛИЧНОСТИ записи;
+    # прежний ответ (верхние hit_rate / net_usd / ready_to_arm) не меняется.
+    horizons_section, horizon_rows = horizon_census(
+        history,
+        legacy_horizon_days=horizon_days,
+        legacy_hit_rate=hit_rate,
+        legacy_net_usd=net_usd_if_followed,
+        subject_keys=set(_row_keys))
+    for _key, _row in zip(_row_keys, per_verdict):
+        _attached = horizon_rows.get(_key)
+        if _attached:
+            _row["horizons"] = _attached
+
     doc = {
         "generated_at": None,  # filled below; kept out of the hash-relevant zone
         "version": EVAL_VERSION,
@@ -1186,6 +1564,12 @@ def evaluate_window(
         # меняется. Отвечает на вопрос, которого у семи блоков выше нет вовсе —
         # ОПТИМАЛЕН ли наибольший допустимый размер хода внутри подмножества.
         "trim_size_edge_census": trim_size_edge,
+        # ПЯТЬ горизонтов §31 приказа владельца (ADR-1071). Не критерий и не
+        # гейт: `ready_to_arm` считается ровно по мандату владельца (ADR-067) на
+        # `params.horizon_days` и этой секцией не меняется. Отвечает на вопрос,
+        # которого у восьми блоков выше нет вовсе — что было бы, если бы совет
+        # исполнили, НА КАЖДОМ из объявленных владельцем горизонтов.
+        "counterfactual_horizons": horizons_section,
         "params": {
             "horizon_days": horizon_days,
             "min_observation_days": min_days,

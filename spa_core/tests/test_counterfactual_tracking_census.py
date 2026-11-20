@@ -74,10 +74,23 @@ _BASE = dt.datetime.now(dt.timezone.utc).date()
 _D = [(_BASE + dt.timedelta(days=i)).isoformat() for i in range(9)]
 
 
+def _apy_map(date: str) -> dict:
+    """Карта наблюдённых ставок, РАЗНАЯ у разных моментов и детерминированная."""
+    seed = sum(ord(ch) for ch in str(date)) % 97
+    return {"a": round(5.0 + seed / 100.0, 4), "b": round(3.0 + seed / 50.0, 4)}
+
+
 def _rec(date: str, verdict: str = "HOLD", **over) -> dict:
+    # `apy_evidenced_pct` несёт КАЖДАЯ запись живого журнала, и достижимость
+    # горизонта (ADR-1071) мерится именно ею: сцена без карты ставок отвечала бы
+    # «оценить нечем» на любом горизонте, то есть проверяла бы не то.
     r = {"schema": "shadow-hist-v2", "cycle_date": date, "verdict": verdict,
          "generated_at": f"{date}T07:00:00+00:00", "reasons": ["scene"], "legs": [],
          "target_positions": {"a": 60.0}, "current_positions": {"a": 40.0, "b": 60.0},
+         # Карта МЕНЯЕТСЯ от записи к записи: зазор, у которого карта не
+         # изменилась, наблюдением не является (это тот же замер, записанный
+         # дважды), и сцена с неизменной картой мерила бы «шаг не вычислим».
+         "apy_evidenced_pct": _apy_map(date),
          "gain_pp": 0.1, "cost_usd": 1.0, "payback_days": 3.0}
     r.update(over)
     return r
@@ -275,20 +288,47 @@ def test_axis_b_judge_horizon_in_hours_is_read_from_params(tmp_path):
     assert kinds["7d"] == "reachable_untracked"
 
 
-def test_axis_b_hourly_track_makes_short_horizons_reachable(tmp_path):
-    # Шаг наблюдения выводится из дат трека: сутки → 24 ч. Трек с ОДНОЙ датой шаг не задаёт.
+def test_axis_b_single_record_cannot_decide_reachability(tmp_path):
+    # ОДНА запись: вперёд смотреть не на что, и достижимость горизонта не
+    # ВЫЧИСЛИМА — третий исход с названной причиной, а не «недостижимо»
+    # (ADR-1071: «недостижимо» есть утверждение о мире, и выдать за него
+    # отсутствие данных значило бы ответить наоборот).
     recs = [_rec(_D[0])]
     c = CT.load_carriers(_scene_dir(tmp_path, records=recs, days=[_day(_D[0])]))
     h = CT.measure_horizons(c)
     assert h["cadence_hours"] is None
     assert all(v["kind"] in ("tracked", UNMEASURED) for v in h["horizons"].values())
-    assert h["horizons"]["1h"]["kind"] == UNMEASURED and "шаг наблюдения" in h["horizons"]["1h"]["reason"]
+    assert h["horizons"]["1h"]["kind"] == UNMEASURED
+    assert "достижимость не измерена" in h["horizons"]["1h"]["reason"]
+    assert h["horizons"]["1h"].get("observed_subjects") is None
+
+
+def test_axis_b_forward_records_without_an_apy_map_are_unmeasured_not_unreachable(tmp_path):
+    # Записи внутри окна ЕСТЬ, карты ставок у них НЕТ. Это свойство НОСИТЕЛЯ
+    # («оценивать нечем»), а не горизонта, и слить его с «недостижим» значило
+    # бы объявить требование владельца невозможным из-за пустого поля.
+    recs = [_rec(_D[i], apy_evidenced_pct={}) for i in range(3)]
+    c = CT.load_carriers(_scene_dir(tmp_path, records=recs,
+                                    days=[_day(_D[i]) for i in range(3)]))
+    h = CT.measure_horizons(c)
+    assert h["horizons"]["3d"]["kind"] == UNMEASURED
+    assert "не несёт карту ставок" in h["horizons"]["3d"]["reason"]
+    assert h["horizons"]["24h"]["kind"] == UNMEASURED
+    # 1h/6h в этой же сцене недостижимы по ДРУГОЙ причине — вперёд внутри окна
+    # нет ни одной записи вовсе, и записи без карты тут не при чём. Два разных
+    # третьих исхода в одной сцене обязаны остаться РАЗНЫМИ.
+    assert h["horizons"]["1h"]["kind"] == "unreachable_by_cadence"
+    assert "не наблюдена НИ ОДНА" in h["horizons"]["1h"]["reason"]
+    assert h["tally"] == {"tracked": 1, "reachable_untracked": 0,
+                          "unreachable_by_cadence": 2, UNMEASURED: 2}
 
 
 def test_axis_b_without_judge_and_replay_horizons_are_named_unmeasured_or_untracked(tmp_path):
     c = CT.load_carriers(_plain(tmp_path, drop=("eval", "replay")))
     h = CT.measure_horizons(c)
-    assert h["carriers"]["judge"]["hours"] is None and h["carriers"]["replay"]["hours"] is None
+    # Горизонты носителя — НАБОР (ADR-1071); «ни одного» есть пустой набор, и
+    # отличать его от «носителя не прочитали» обязана причина, а не форма поля.
+    assert h["carriers"]["judge"]["hours"] == [] and h["carriers"]["replay"]["hours"] == []
     assert h["horizons"]["7d"]["kind"] == "reachable_untracked"
     assert h["tally"]["tracked"] == 0
 
@@ -480,7 +520,7 @@ def test_probe_unmeasured_horizon_is_unmeasured_not_a_verdict(tmp_path):
     recs = [_rec(_D[0])]
     d = _scene_dir(tmp_path, records=recs, days=[_day(_D[0])])
     status, why = CA.PROBES[PROBE](None, data_dir=d)
-    assert status == CA.UNMEASURED and "шаг наблюдения" in why
+    assert status == CA.UNMEASURED and "достижимость не измерена" in why
 
 
 def test_probe_without_judge_and_replay_is_unmeasured(tmp_path):
@@ -503,3 +543,115 @@ def test_probe_is_not_a_substring_check(tmp_path):
                     "note": "tracked tracked 1h 6h 24h 3d 7d satisfied"}), encoding="utf-8")
     status, _ = CA.PROBES[PROBE](None, data_dir=d)
     assert status == CA.NOT_SATISFIED
+
+
+# ═══ (B) достижимость мерится НАСЕЛЕНИЕМ, а не скаляром шага (ADR-1071) ═══════
+#
+# До цикла #1214 род «недостижимо» решал ОДИН скаляр — шаг ДНЕВНОГО ТРЕКА, —
+# и 1h/6h числились невозможными ПО ПОСТРОЕНИЮ. Трек не является носителем
+# величины, из которой счита́ется counterfactual: ею является `apy_evidenced_pct`
+# ЖУРНАЛА РЕШЕНИЙ, а он несёт по нескольку прогонов в сутки (ADR-395).
+
+def _intraday_records() -> list:
+    """Журнал с ВНУТРИСУТОЧНЫМИ прогонами — форма живого журнала после ADR-395."""
+    out = []
+    for day in range(3):
+        for hour in (7, 8, 13):          # зазоры 1 ч и 5 ч внутри суток
+            stamp = f"{_D[day]}T{hour:02d}:00:00+00:00"
+            out.append(_rec(_D[day], generated_at=stamp,
+                            apy_evidenced_pct=_apy_map(stamp)))
+    return out
+
+
+def test_axis_b_intraday_runs_make_1h_and_6h_REACHABLE_not_impossible(tmp_path):
+    """Находка #1214: «недостижимо по шагу» было ответом о ЧУЖОМ носителе.
+
+    Внутрисуточные прогоны есть ⇒ часовой горизонт наблюдён на СВОЁМ населении,
+    и верный род — «достижим, и не считает его никто», а не «невозможен».
+    Ошибка прежнего рода шла в УСПОКАИВАЮЩУЮ сторону: два горизонта требования
+    владельца значились невозможными, а были просто непосчитанными.
+    """
+    c = CT.load_carriers(_scene_dir(tmp_path, records=_intraday_records(),
+                                    days=[_day(_D[i]) for i in range(3)]))
+    h = CT.measure_horizons(c)
+    assert h["horizons"]["1h"]["kind"] == "reachable_untracked"
+    assert h["horizons"]["6h"]["kind"] == "reachable_untracked"
+    assert h["horizons"]["1h"]["observed_subjects"] > 0
+    assert h["horizons"]["1h"]["subjects"] == 9
+    assert h["tally"]["unreachable_by_cadence"] == 0
+    # Шаг ТРЕКА при этом по-прежнему сутки — факт о треке остался фактом, он
+    # просто перестал быть меркой достижимости. И ДВА шага обязаны РАЗОЙТИСЬ:
+    # мутация «спрашивать шаг у трека» вердикт горизонта уже не меняет (его
+    # решает население), поэтому держать её может только НАЗВАННАЯ причина —
+    # иначе отчёт назвал бы читателю чужое число молча (прогон №1, #1214).
+    assert h["track_cadence_hours"] == 24.0
+    assert h["cadence_source"] == "decision_journal.apy_evidenced_pct"
+    assert h["cadence_hours"] is not None and h["cadence_hours"] < 24.0
+    assert h["cadence_detail"]["gaps_with_changed_map"] > 0
+    assert h["horizons"]["1h"]["cadence_hours"] == h["cadence_hours"]
+
+
+def _judge_with_horizons(hours_by_name, **row_over) -> dict:
+    rows = {}
+    for name, hours in hours_by_name.items():
+        row = {"kind": "computed", "hours": hours, "population_material": 3,
+               "scored": 3, "unchecked": 0, "hit_rate": 1.0}
+        row.update(row_over.get(name, {}))
+        rows[name] = row
+    doc = _judge_doc([_judge_row(_D[0])])
+    doc["counterfactual_horizons"] = {"measured": True, "declared": 5, "horizons": rows}
+    return doc
+
+
+def test_axis_b_a_judge_computing_all_five_horizons_satisfies_the_criterion(tmp_path):
+    """Носитель, считающий на ПЯТИ горизонтах, закрывает критерий §50."""
+    judge = _judge_with_horizons(dict(CT.HORIZON_HOURS))
+    d = _scene_dir(tmp_path, records=_intraday_records(),
+                   days=[_day(_D[i]) for i in range(3)], judge=judge)
+    h = CT.measure_horizons(CT.load_carriers(d))
+    assert h["tally"]["tracked"] == 5
+    assert h["horizons"]["1h"]["carriers"] == ["judge"]
+    status, why = CA.PROBES[PROBE](None, data_dir=d)
+    assert status == CA.SATISFIED, why
+
+
+def test_axis_b_a_half_declared_horizon_row_is_a_claim_not_a_count(tmp_path):
+    """`{"kind": "computed"}` без величин — ПРЕТЕНЗИЯ, и она НЕ зачитывается.
+
+    Иначе носителю достаточно было бы объявить себя считающим, и перепись
+    поверила бы ему на слово — ровно то, против чего она написана.
+    """
+    judge = _judge_with_horizons(dict(CT.HORIZON_HOURS))
+    judge["counterfactual_horizons"]["horizons"]["1h"] = {"kind": "computed", "hours": 1}
+    d = _scene_dir(tmp_path, records=_intraday_records(),
+                   days=[_day(_D[i]) for i in range(3)], judge=judge)
+    h = CT.measure_horizons(CT.load_carriers(d))
+    assert h["horizons"]["1h"]["kind"] == "reachable_untracked"
+    rejected = h["carriers"]["judge"]["detail"]["section_rejected"]
+    assert "претензия, не счёт" in rejected["1h"]
+    status, _ = CA.PROBES[PROBE](None, data_dir=d)
+    assert status == CA.NOT_SATISFIED
+
+
+def test_axis_b_a_row_of_another_kind_is_not_counted_as_computed(tmp_path):
+    """Строка с родом «недостижимо» носителем счёта не является."""
+    judge = _judge_with_horizons(dict(CT.HORIZON_HOURS))
+    judge["counterfactual_horizons"]["horizons"]["6h"] = {
+        "kind": "unreachable_by_cadence", "hours": 6, "population_material": 3,
+        "scored": 0, "unchecked": 3, "hit_rate": None}
+    c = CT.load_carriers(_scene_dir(tmp_path, records=_intraday_records(),
+                                    days=[_day(_D[i]) for i in range(3)], judge=judge))
+    h = CT.measure_horizons(c)
+    assert h["horizons"]["6h"]["kind"] == "reachable_untracked"
+    assert "не 'computed'" in h["carriers"]["judge"]["detail"]["section_rejected"]["6h"]
+
+
+def test_axis_b_the_legacy_single_horizon_form_is_still_read(tmp_path):
+    """Артефакт ПРЕЖНЕЙ редакции (одно число) не делает прибор слепым."""
+    c = CT.load_carriers(_scene_dir(tmp_path, records=_intraday_records(),
+                                    days=[_day(_D[i]) for i in range(3)],
+                                    judge=_judge_doc([_judge_row(_D[0])], horizon_days=7)))
+    h = CT.measure_horizons(c)
+    assert h["horizons"]["7d"]["kind"] == "tracked"
+    assert "judge" in h["horizons"]["7d"]["carriers"]
+    assert h["tally"]["tracked"] == 1
