@@ -1,0 +1,118 @@
+{
+ "title": "ADR-1072 — класс «шаг ИЗМЕРЕН с одного носителя, а вердикт выносится о другом»: перепись населения (цикл #1215, заказ G1058 п. 2)",
+ "tests": [
+  "spa_core/tests/test_foreign_carrier_cadence_census.py"
+ ],
+ "mutations": [
+  {
+   "name": "M01 распаковка кортежа теряется — предмет ADR-1071 становится невидим ПО ПОСТРОЕНИЮ (шаг приходит ПЕРВЫМ членом, а не скаляром)",
+   "file": "spa_core/analytics/foreign_carrier_cadence_census.py",
+   "old": "        elif isinstance(target, (ast.Tuple, ast.List)):\n            # `cadence, why = _cadence_hours(x)` — распаковка связывает ОБА имени\n            for elt in target.elts:\n                bind(elt, toks)",
+   "new": "        elif isinstance(target, (ast.Tuple, ast.List)):\n            pass  # мутация: распаковка больше не связывает имён"
+  },
+  {
+   "name": "M02 зажим снова считается замером — знаменатель раздувается чужими (ложное срабатывание ПЕРВОЙ редакции)",
+   "file": "spa_core/analytics/foreign_carrier_cadence_census.py",
+   "old": "    if len(call.args) != 1 or call.keywords:\n        return None\n    if isinstance(call.args[0], ast.Starred):\n        return None\n    return name",
+   "new": "    return name  # мутация: число аргументов больше не различает замер и зажим"
+  },
+  {
+   "name": "M03 предмет класса объявляется при ЛЮБОМ числе носителей — «безопасно по построению» исчезает как род",
+   "file": "spa_core/analytics/foreign_carrier_cadence_census.py",
+   "old": "            elif len(fn_carriers) <= 1:",
+   "new": "            elif False:  # мутация: единственный носитель больше не щадится"
+  },
+  {
+   "name": "M04 объявленный порог числится предметом класса — порог есть РЕШЕНИЕ, и вопрос о носителе к нему не применим",
+   "file": "spa_core/analytics/foreign_carrier_cadence_census.py",
+   "old": "                    sites.append({**base, \"kind\": \"step_declared\",\n                                  \"reason\": \"шаг не ИЗМЕРЕН по носителю — это \"\n                                            \"объявленный порог (решение)\"})",
+   "new": "                    sites.append({**base, \"kind\": CLASS_SUBJECT,\n                                  \"reason\": \"мутация: объявленный порог выдан за предмет\"})"
+  },
+  {
+   "name": "M05 две мерки с РАЗНЫХ носителей перестают быть «не измерено» — первая выдаётся за ответ (инв. #17)",
+   "file": "spa_core/analytics/foreign_carrier_cadence_census.py",
+   "old": "    if len(seen) > 1:\n        return None, (f\"мерка {step_name}() зовётся с РАЗНЫХ носителей \"\n                      f\"({', '.join(sorted(seen))}) — какой дал число вердикту, \"\n                      f\"синтаксис не говорит\")",
+   "new": "    if len(seen) > 1:\n        return sorted(seen)[0], None  # мутация: первый носитель выдан за ответ"
+  },
+  {
+   "name": "M06 причина «не измерено» перестаёт называть носителей — её нечем разрешить",
+   "file": "spa_core/analytics/foreign_carrier_cadence_census.py",
+   "old": "        return None, (f\"мерка {step_name}() зовётся с РАЗНЫХ носителей \"\n                      f\"({', '.join(sorted(seen))}) — какой дал число вердикту, \"\n                      f\"синтаксис не говорит\")",
+   "new": "        return None, \"не измерено\"  # мутация: причина обезличена"
+  },
+  {
+   "name": "M07 любой `cfg.get(\"x\")` становится носителем — класс раздувается, мешок носителей перестаёт быть замкнутым",
+   "file": "spa_core/analytics/foreign_carrier_cadence_census.py",
+   "old": "        if (isinstance(fn, ast.Attribute) and fn.attr == \"get\"\n                and isinstance(fn.value, ast.Name) and fn.value.id in _CARRIER_BAGS\n                and node.args and isinstance(node.args[0], ast.Constant)\n                and isinstance(node.args[0].value, str)):\n            return f\"bag:{node.args[0].value}\"",
+   "new": "        if (isinstance(fn, ast.Attribute) and fn.attr == \"get\"\n                and isinstance(fn.value, ast.Name)\n                and node.args and isinstance(node.args[0], ast.Constant)\n                and isinstance(node.args[0].value, str)):\n            return f\"bag:{node.args[0].value}\"  # мутация: мешок больше не замкнут"
+  },
+  {
+   "name": "M08 отображение-литерал снова распространяет провенанс — «контейнер привязкой НЕ является» отменено (форма аварии 2026-08-04)",
+   "file": "spa_core/analytics/foreign_carrier_cadence_census.py",
+   "old": "        if isinstance(rhs, (ast.Dict, ast.List, ast.Set, ast.DictComp,\n                            ast.ListComp, ast.SetComp)):\n            return {\"container\"}",
+   "new": "        pass  # мутация: контейнер больше не обрывает цепь провенанса"
+  },
+  {
+   "name": "M09 чужой зов ищется ГРЕПОМ по сырому тексту — проза снова считается зовом (ложное срабатывание самого прибора)",
+   "file": "spa_core/analytics/foreign_carrier_cadence_census.py",
+   "old": "        for sub in ast.walk(tree):\n            if not isinstance(sub, ast.Call):\n                continue\n            fn = sub.func\n            name = (fn.id if isinstance(fn, ast.Name) else\n                    fn.attr if isinstance(fn, ast.Attribute) else None)\n            if name:\n                calls_by_name.setdefault(name, []).append(f\"{rel}:{sub.lineno}\")",
+   "new": "        raw = ast.unparse(tree) if False else path.read_text(encoding=\"utf-8\")\n        for m in re.finditer(r\"(?<![\\\\w.])(\\\\w+)\\\\s*\\\\(\", raw):\n            line = raw.count(\"\\\\n\", 0, m.start()) + 1\n            calls_by_name.setdefault(m.group(1), []).append(f\"{rel}:{line}\")"
+  },
+  {
+   "name": "M10 переход шага через контейнер перестаёт печататься — названная слепота становится молчанием",
+   "file": "spa_core/analytics/foreign_carrier_cadence_census.py",
+   "old": "            if reached:\n                out.append({\"module\": rel, \"line\": node.lineno,\n                            \"function\": func.name,\n                            \"steps\": sorted(reached),\n                            \"expression\": ast.unparse(node)[:160]})",
+   "new": "            if False:\n                out.append({})  # мутация: переходы больше не называются"
+  },
+  {
+   "name": "M11 пустое дерево отвечает «кандидатов нет» вместо «НЕ ИЗМЕРЕНО» — fail-OPEN тише красного",
+   "file": "spa_core/analytics/foreign_carrier_cadence_census.py",
+   "old": "    if not files:\n        return {\"measured\": False, \"repo_root\": str(repo_root),\n                \"reason\": (f\"ни одного модуля в {', '.join(scan_dirs)} — \"\n                           f\"нечитаемые каталоги: {missing or 'нет'}\")}",
+   "new": "    if not files:\n        return {\"measured\": True, \"repo_root\": str(repo_root),\n                \"scan_dirs\": list(scan_dirs), \"modules_read\": 0,\n                \"missing_dirs\": missing, \"unparsed\": [], \"sites\": [],\n                \"tally\": {k: 0 for k in KINDS}, \"measured_steps\": [],\n                \"container_crossings\": [], \"exported_steps\": [],\n                \"subjects\": []}"
+  },
+  {
+   "name": "M12 нечитаемое НАЗВАННОЕ дерево отвечает кодом 0 — отказ превращается в чистый ответ",
+   "file": "spa_core/analytics/foreign_carrier_cadence_census.py",
+   "old": "    if not doc.get(\"measured\"):\n        return 2\n    return 1 if doc[\"tally\"][CLASS_SUBJECT] else 0",
+   "new": "    return 1 if doc.get(\"tally\", {}).get(CLASS_SUBJECT) else 0"
+  },
+  {
+   "name": "M13 умолчание дерева больше НЕ ПЕЧАТАЕТСЯ — вердикт о дереве становится анонимным (ADR-933)",
+   "file": "spa_core/analytics/foreign_carrier_cadence_census.py",
+   "old": "        root = _REPO\n        if not ns.json:\n            print(f\"дерево НЕ НАЗВАНО входом --repo-root — отвечаю о своём: {root}\")",
+   "new": "        root = _REPO  # мутация: умолчание молчит"
+  },
+  {
+   "name": "M14 знаменатель исчезает из отчёта — «кандидатов 0» становится утверждением неизвестной силы",
+   "file": "spa_core/analytics/foreign_carrier_cadence_census.py",
+   "old": "        f\"  ЗНАМЕНАТЕЛЬ — мерок шага, ИЗМЕРЯЮЩИХ статистику по коллекции: \"\n        f\"{len(doc.get('measured_steps') or [])}\",",
+   "new": "        \"\",",
+   "note": "мутация оставляет пустую строку, чтобы литерал списка остался синтаксически целым"
+  },
+  {
+   "name": "M15 `==` снова считается вердиктом о свежести — сверка выдаётся за суждение",
+   "file": "spa_core/analytics/foreign_carrier_cadence_census.py",
+   "old": "_CMP_OPS = (ast.Gt, ast.GtE, ast.Lt, ast.LtE)",
+   "new": "_CMP_OPS = (ast.Gt, ast.GtE, ast.Lt, ast.LtE, ast.Eq, ast.NotEq)"
+  },
+  {
+   "name": "M16 имя-претензия перестаёт требоваться — меркой шага числится любая функция со статистикой",
+   "file": "spa_core/analytics/foreign_carrier_cadence_census.py",
+   "old": "        if not _STEP_NAME.search(node.name):\n            continue",
+   "new": "        pass  # мутация: имя больше не требуется"
+  },
+  {
+   "name": "M17 словарь родов перестаёт быть замкнутым — новый род не попадает в сводку",
+   "file": "spa_core/analytics/foreign_carrier_cadence_census.py",
+   "old": "KINDS: Tuple[str, ...] = (\"foreign_carrier_candidate\", \"single_carrier\",\n                          \"step_declared\", \"unmeasured\")",
+   "new": "KINDS: Tuple[str, ...] = (\"foreign_carrier_candidate\", \"single_carrier\",\n                          \"step_declared\")"
+  },
+  {
+   "name": "M18 сломанный синтаксисом модуль проглатывается молча — «не разобрали» неотличимо от «чисто»",
+   "file": "spa_core/analytics/foreign_carrier_cadence_census.py",
+   "old": "        got, why, steps = census_module_full(rel, text)\n        if why:\n            unparsed.append(why)",
+   "new": "        got, why, steps = census_module_full(rel, text)  # мутация: причина выброшена"
+  }
+ ],
+ "note": "Предмет — ЧЕТЫРЕ различимых рода и ДВЕ ИЗМЕРЕННЫЕ слепоты, поэтому мутации стоят по обе стороны каждой претензии: M01/M07/M08/M15/M16 рвут РАЗБОР (обязаны убиваться контролями провенанса), M02 возвращает ложное срабатывание первой редакции (зажим = замер), M09 возвращает второе (проза = зов), M03/M04/M05/M06 стирают границы родов, M10/M14 превращают названную слепоту и знаменатель в молчание, M11/M12/M13/M17/M18 рвут три исхода и названность дерева. Мутации, снимающей сам assert теста, в наборе НЕТ намеренно: это была бы проверка pytest, а не предмета. Прогон — в ОТДЕЛЬНОМ дереве (.claude/rules/deployment.md § БАЙТЫ, КОТОРЫЕ НЕ ЯВЛЯЮТСЯ КОДОМ, п. 1)."
+}
