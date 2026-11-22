@@ -9,12 +9,6 @@ priority: critical
 status_trail:
   - "2026-08-26T22:31:36.748790+00:00 new -> in-progress · queue.set_status · cycle-96657"
 acceptance_probe: apy_name_carries_one_kind
-claimed_by: cycle-17703
-claimed_at: 2026-11-22T21:19:36Z
-claimed_run_id: orchestrator-17703-C81C47F1665841D89481A423EBADB9D6
-claimed_pid: 17703
-claimed_pid_start: Sun Nov 22 22:04:57 2026
-claim_takeover_reason: шаг 0b: вердикт stale (199 захватов, свежего нет). Сверено руками: работа cycle-89644 (pid89644, старт 20:29 Madrid) НЕ доставлена — шаг 0a назвал её «ОСИРОТЕЛО, окно не истекло», байты лежат в 7 деревьях; батарея перемерена своим прогоном (34 passed до правки, 37 после), мутационный прогон №1 предшественника дал 17/18 с выжившим M16 — дыра покрытия закрыта различающей сценой, прогон №2 идёт на финальных байтах
 ---
 
 ## УКАЗАНИЕ ВЛАДЕЛЬЦА 2026-08-22 (cloud-сессия): ЗАПУСТИТЬ СЛЕДУЮЩИМ ЦИКЛОМ
