@@ -6460,7 +6460,14 @@ def main(argv=None, *, now: dt.datetime | None = None) -> int:
         try:
             from spa_core.monitoring import card_acceptance
             _tracker = os.path.join(receipt_root, "nimbalyst-local", "tracker")
-            for _ln in card_acceptance.report_lines(card_acceptance.audit(_tracker)):
+            # Дерево ЧИСЕЛ — ТО ЖЕ, из которого взяты статусы (ADR-1081). До этой
+            # правки вход `data_dir` не передавался ВООБЩЕ: статусы читались из
+            # `receipt_root`, а числа — из дерева МОДУЛЯ, и строка раздела молча
+            # склеивала два носителя. Замер #1227 на прод-трекере: из 54 открытых
+            # карточек с объявленной пробой 47 стояли ровно на этом расхождении.
+            _cards_ddir = data_dir or os.path.join(receipt_root, "data")
+            for _ln in card_acceptance.report_lines(
+                    card_acceptance.audit(_tracker, data_dir=_cards_ddir)):
                 print(_ln)
         except Exception as _exc:  # noqa: BLE001 — молчание здесь = fail-OPEN
             print("— критерии открытых карточек —")

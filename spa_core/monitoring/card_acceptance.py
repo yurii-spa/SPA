@@ -7214,6 +7214,122 @@ def _probe_problem_absent(arg: str | None, *, data_dir: str | None = None) -> tu
     return NOT_SATISFIED, f"проблема {arg!r} в статусе {status!r} — не закрыта"
 
 
+# ── проба: раздел офиса называет ОБА своих дерева (ADR-1081) ─────────────────
+def _probe_office_card_section_names_both_trees(arg: str | None) -> tuple[str, str]:
+    """Критерий карточки `inbox-shag-ofis-0-sudit-statusy-kartochek-po-p` (ADR-1081).
+
+    Меряет ИСХОД, а не структуру: на ОДНОРАЗОВЫХ деревьях гоняется настоящий
+    :func:`audit` и настоящий :func:`report_lines`, и спрашивается ровно то, что
+    обещает карточка — раздел НАЗЫВАЕТ оба своих носителя (дерево статусов и
+    дерево чисел) и НЕ выдаёт за находку вердикт, собранный из двух деревьев.
+
+    Контроль в обе стороны живёт ВНУТРИ пробы, тремя сценами с ПРОТИВОПОЛОЖНЫМИ
+    ответами на один и тот же критерий:
+
+    * **ОДНО дерево** — статусы и числа из одного корня ⇒ `trees.state == same`,
+      и выполненный критерий ЕСТЬ находка (🟩 печатается);
+    * **ДВА дерева** — числа из другого корня ⇒ `trees.state == split`, та же
+      карточка с тем же `satisfied` находкой НЕ объявляется, и в выводе названы
+      ОБА корня;
+    * **дерево чисел НЕ НАЗВАНО** — вызывающий промолчал ⇒ проба читает дерево
+      МОДУЛЯ, раздел говорит это вслух, и находки снова нет.
+
+    Сцена, где ответ одинаков во всех трёх, критерия не проверяет: именно на
+    неразличающей сцене выживает мутация (урок циклов #1202/#1217).
+
+    Исходы: `satisfied` — все три сцены ответили как обещано · `not_satisfied` —
+    порвано НАЗВАННОЕ звено (в том числе «`audit` не принимает вход `data_dir`»:
+    так отвечают байты до ADR-1081) · `unmeasured` — сцену собрать не удалось.
+    """
+    import shutil
+    import tempfile
+
+    def _scene(root: _pathlib.Path, pid: str) -> _pathlib.Path:
+        tracker = root / "nimbalyst-local" / "tracker"
+        tracker.mkdir(parents=True, exist_ok=True)
+        (root / "data").mkdir(parents=True, exist_ok=True)
+        (tracker / "inbox-scene.md").write_text(
+            "---\n"
+            "trackerStatus:\n  type: inbox\n"
+            "title: сцена ADR-1081\n"
+            "status: new\n"
+            f"acceptance_probe: problem_absent:{pid}\n"
+            "---\n\nсцена\n", encoding="utf-8")
+        (root / "data" / "problems.json").write_text(
+            json.dumps({"problems": {pid: {"problem_id": pid, "status": "CLOSED",
+                                           "consecutive_absences": 3,
+                                           "rca": "сцена"}}},
+                       ensure_ascii=False), encoding="utf-8")
+        return tracker
+
+    pid = "adr1081.scene.closed"
+    tmp = None
+    try:
+        tmp = _pathlib.Path(tempfile.mkdtemp(prefix="adr1081_"))
+        a, b = tmp / "treeA", tmp / "treeB"
+        tracker_a = _scene(a, pid)
+        _scene(b, pid)
+        try:
+            res_one = audit(str(tracker_a), data_dir=str(a / "data"),
+                            origin_readthrough=False)
+        except TypeError as exc:
+            return NOT_SATISFIED, (f"`audit` не принимает вход `data_dir` — дерево "
+                                   f"ЧИСЕЛ до пробы не доходит ВООБЩЕ ({exc})")
+        res_two = audit(str(tracker_a), data_dir=str(b / "data"),
+                        origin_readthrough=False)
+        res_mute = audit(str(tracker_a), origin_readthrough=False)
+
+        head = (report_lines(res_one) or [""])[0]
+        if "статусы:" not in head or "числа:" not in head:
+            return NOT_SATISFIED, (f"заголовок раздела не называет ОБА носителя: "
+                                   f"{head!r}")
+        if (res_one.get("trees") or {}).get("state") != TREES_SAME:
+            return NOT_SATISFIED, (f"сцена ОДНОГО дерева: раздел ответил "
+                                   f"{(res_one.get('trees') or {}).get('state')!r}, "
+                                   f"а деревья совпадают")
+        if res_one["counts"].get("satisfied_but_open_one_tree") != 1:
+            return NOT_SATISFIED, ("сцена ОДНОГО дерева: выполненный критерий НЕ "
+                                   "объявлен находкой — сторож ослаблен, а не усилен")
+        if not any("🟩" in ln for ln in report_lines(res_one)):
+            return NOT_SATISFIED, "сцена ОДНОГО дерева: находка не напечатана"
+
+        if (res_two.get("trees") or {}).get("state") != TREES_SPLIT:
+            return NOT_SATISFIED, (f"сцена ДВУХ деревьев: раздел ответил "
+                                   f"{(res_two.get('trees') or {}).get('state')!r} "
+                                   f"вместо {TREES_SPLIT!r}")
+        if res_two["counts"].get("satisfied_but_open_one_tree"):
+            return NOT_SATISFIED, ("сцена ДВУХ деревьев: вердикт, собранный из двух "
+                                   "деревьев, объявлен НАХОДКОЙ")
+        if res_two["counts"].get("satisfied_but_open_split") != 1:
+            return NOT_SATISFIED, ("сцена ДВУХ деревьев: расхождение не посчитано "
+                                   "отдельным слагаемым — итог потерян молча")
+        two_text = "\n".join(report_lines(res_two))
+        if "🟩" in two_text:
+            return NOT_SATISFIED, "сцена ДВУХ деревьев: находка всё равно напечатана"
+        for root in (str(a), str(b)):
+            if root not in two_text:
+                return NOT_SATISFIED, (f"сцена ДВУХ деревьев: корень {root} в выводе "
+                                       f"НЕ НАЗВАН — читатель не узнает, что их два")
+
+        if (res_mute.get("trees") or {}).get("state") != TREES_SPLIT:
+            return NOT_SATISFIED, (f"сцена БЕЗ входа: раздел ответил "
+                                   f"{(res_mute.get('trees') or {}).get('state')!r}, "
+                                   f"а числа читались из дерева МОДУЛЯ")
+        if res_mute["counts"].get("numbers_module") != 1:
+            return NOT_SATISFIED, ("сцена БЕЗ входа: строка не помечена как читающая "
+                                   "дерево МОДУЛЯ — молчание неотличимо от ответа")
+        if res_mute["counts"].get("satisfied_but_open_one_tree"):
+            return NOT_SATISFIED, ("сцена БЕЗ входа: вердикт из дерева модуля объявлен "
+                                   "находкой о карточке из другого дерева")
+        return SATISFIED, ("три сцены ответили как обещано: одно дерево — находка ЕСТЬ; "
+                           "два дерева и дерево модуля — находки НЕТ, оба корня названы")
+    except Exception as exc:  # noqa: BLE001 — сцену не собрали ≠ «критерий не выполнен»
+        return UNMEASURED, f"сцену собрать не удалось: {type(exc).__name__}: {exc}"
+    finally:
+        if tmp is not None:
+            shutil.rmtree(tmp, ignore_errors=True)
+
+
 # ── проба: знаменатель ряда G78…G98 ИЗМЕРЕН и доехал до читателя ─────────────
 def measure_series_denominator(root=None, artifact=None) -> dict:
     """Поправка к знаменателю ряда: ЖИВОЙ замер против того, что видит читатель.
@@ -21123,6 +21239,8 @@ PROBES: dict[str, Callable[[str | None], "tuple[str, str]"]] = {
     "research_evidence_tail_closed": _probe_research_evidence_tail_closed,
     "curated_facts_usable": _probe_curated_facts_usable,
     "problem_absent": _probe_problem_absent,
+    "office_card_section_names_both_trees":
+        _probe_office_card_section_names_both_trees,
     "decision_expiry_answer_executed": _probe_decision_expiry_answer_executed,
     "emergency_exit_outranks_the_breaker": _probe_emergency_exit_outranks_the_breaker,
     "owner_control_plane_reachable": _probe_owner_control_plane_reachable,
@@ -21513,13 +21631,24 @@ def cards_declaring_a_probe_on_ref(*, repo_root: str, ref: str = ORIGIN_REF):
     return out
 
 
-def audit(tracker_dir: str | None = None, *, origin_readthrough: bool = True,
+def audit(tracker_dir: str | None = None, *, data_dir: str | None = None,
+          origin_readthrough: bool = True,
           ref: str = ORIGIN_REF, repo_root: str | None = None) -> dict:
     """Пройти карточки трекера и вынести вердикт по объявленным критериям.
 
     Возврат: `{"tracker_dir", "scanned", "counts", "rows", "origin"}`. `rows` — только
     те карточки, у которых проба ОБЪЯВЛЕНА (остальные тут не предмет: у них критерия
     в машинной форме нет, и молчать о них честнее, чем считать их выполненными).
+
+    `data_dir` — дерево ЧИСЕЛ критерия, и это ВТОРОЙ носитель в одной строке
+    раздела (ADR-1081). Статусы карточек читаются из `tracker_dir`, числа — из
+    `data_dir`; не передать второй вход значило бы собрать один вердикт из двух
+    деревьев МОЛЧА, что и делала первая редакция: из трёх объявленных дверей
+    (:data:`PROBE_TREE_INPUTS`) она проводила `tracker_dir` и `repo_root` и не
+    проводила `data_dir`. Умолчание `None` остаётся и ничего не подставляет —
+    каждая строка несёт `numbers_tree` с одним из трёх исходов
+    (:func:`probe_numbers_tree`), а раздел целиком — блок `trees`
+    (:func:`section_trees`).
 
     `origin_readthrough` дочитывает с `ref` карточки, которых в этом дереве нет
     (см. :func:`cards_declaring_a_probe_on_ref`). Блок `origin` описывает исход
@@ -21607,7 +21736,8 @@ def audit(tracker_dir: str | None = None, *, origin_readthrough: bool = True,
                 # отрицательная «цена» выглядела бы как находка о проводке.
                 _t0 = time.monotonic()
                 verdict, detail = run_probe(spec, tracker_dir=tracker_dir,
-                                            repo_root=repo_root)
+                                            repo_root=repo_root,
+                                            data_dir=data_dir)
                 seconds = round(time.monotonic() - _t0, 1)
             else:
                 verdict, detail = NOT_PROBED, f"карточка закрыта ({status}) — вопрос снят"
@@ -21627,6 +21757,11 @@ def audit(tracker_dir: str | None = None, *, origin_readthrough: bool = True,
                 "from_origin": from_origin,
                 # Цена ЭТОЙ пробы в секундах, либо None — «не запускали».
                 "seconds": seconds,
+                # Дерево, из которого взяты ЧИСЛА критерия (ADR-1081). Три
+                # исхода, и ни один из них не «ноль»: строка, не назвавшая свой
+                # второй носитель, читается как собранная из одного дерева.
+                "numbers_tree": probe_numbers_tree(spec.split(":", 1)[0],
+                                                   data_dir=data_dir),
             })
     counts = {
         "declared": len(rows),
@@ -21637,8 +21772,34 @@ def audit(tracker_dir: str | None = None, *, origin_readthrough: bool = True,
         "unmeasured": sum(1 for r in rows if r["verdict"] == UNMEASURED),
     }
     counts["from_origin"] = sum(1 for r in rows if r.get("from_origin"))
-    return {"tracker_dir": tracker_dir, "scanned": scanned, "counts": counts,
-            "rows": rows, "origin": origin}
+    # Деревья СТРОК (ADR-1081). Знаменатель — ОТКРЫТЫЕ строки: у закрытой пробу не
+    # запускали, и её дерево чисел никто не читал.
+    _open_rows = [r for r in rows if r.get("open")]
+    for _state, _key in ((NUMBERS_NAMED, "numbers_named"),
+                         (NUMBERS_MODULE, "numbers_module"),
+                         (NUMBERS_UNMEASURED, "numbers_unmeasured")):
+        counts[_key] = sum(1 for r in _open_rows
+                           if (r.get("numbers_tree") or {}).get("state") == _state)
+    result = {"tracker_dir": tracker_dir, "data_dir": data_dir, "scanned": scanned,
+              "counts": counts, "rows": rows, "origin": origin}
+    result["trees"] = section_trees(result)
+    # Находка — только та, что собрана из ОДНОГО дерева. Остальные `satisfied`
+    # уходят в `unmeasured` с названной причиной: вердикт о числах из дерева A под
+    # статусом из дерева B находкой не является (ADR-1081). Счётчик
+    # `satisfied_but_open` остаётся ИТОГОМ и ничего не теряет — делится он, а не
+    # заменяется, иначе «находок стало меньше» читалось бы как улучшение.
+    _statuses_root = (result["trees"] or {}).get("statuses")
+    _tally = {ROW_SAME: 0, ROW_SPLIT: 0, ROW_UNMEASURED: 0}
+    for r in _open_rows:
+        if r.get("verdict") != SATISFIED:
+            continue
+        rt = row_trees(r, statuses_root=_statuses_root)
+        r["row_trees"] = rt
+        _tally[rt["state"]] = _tally.get(rt["state"], 0) + 1
+    counts["satisfied_but_open_one_tree"] = _tally[ROW_SAME]
+    counts["satisfied_but_open_split"] = _tally[ROW_SPLIT]
+    counts["satisfied_but_open_tree_unmeasured"] = _tally[ROW_UNMEASURED]
+    return result
 
 
 # Порог, выше которого проба НАЗЫВАЕТСЯ поимённо. Не вкус: шаг 0-офис печатает
@@ -21702,12 +21863,217 @@ def probe_price_lines(result: dict) -> list[str]:
     return out
 
 
+# ── ДВА ДЕРЕВА В ОДНОЙ СТРОКЕ РАЗДЕЛА (ADR-1081) ─────────────────────────────
+# Статусы карточек раздел берёт из `tracker_dir`, а ЧИСЛА критерия — из того
+# дерева, которое дошло до пробы входом `data_dir`. До ADR-1081 второй вход не
+# доходил ВООБЩЕ: `audit` передавал `tracker_dir` и `repo_root` и молчал про
+# `data_dir` — из трёх объявленных дверей (:data:`PROBE_TREE_INPUTS`) проведены
+# были ДВЕ. Это ровно «половина инъекции» из `.claude/rules/deployment.md`, только
+# не у часов, а у дерева.
+#
+# Замер 2026-11-23 (цикл #1227, прод-трекер, откуда и ходит шаг 0-офис): открытых
+# карточек с объявленной пробой **54**, и у **47** проба объявляет `data_dir`
+# входом — значит 47 строк раздела собирались из ДВУХ деревьев, и ни одна об этом
+# не говорила. В живом выводе это выглядело как «НЕ ИЗМЕРЕНО: проблема не найдена
+# в <worktree>/data/problems.json» — то есть «не измерено» было свойством НЕ
+# предмета, а проводки.
+#
+# Родня прямая: ADR-1080 («читатель не сказал, о КАКОМ трекере ответ»), только
+# здесь носителей ДВА в ОДНОЙ строке, и вопрос поэтому другой — не «о чьём
+# дереве вердикт», а «из скольких деревьев он собран».
+
+#: Из какого дерева проба возьмёт ЧИСЛА критерия.
+NUMBERS_NAMED = "named"            # вызывающий НАЗВАЛ дерево, и проба принимает его входом
+NUMBERS_MODULE = "module_tree"     # вход принимается, но не назван ⇒ читается дерево МОДУЛЯ
+NUMBERS_UNMEASURED = "unmeasured"  # двери `data_dir` у пробы НЕТ ⇒ какое дерево она прочтёт, НЕ ИЗМЕРЕНО
+
+#: Сколько деревьев участвует в разделе.
+TREES_SAME = "same"
+TREES_SPLIT = "split"
+TREES_UNMEASURED = "unmeasured"
+
+
+def _root_of(path: str | None) -> str | None:
+    """Дерево, которому принадлежит каталог `<дерево>/data`. `None` — назвать нечем."""
+    if not path or not str(path).strip():
+        return None
+    try:
+        return os.path.dirname(os.path.abspath(str(path)))
+    except (OSError, ValueError):
+        return None
+
+
+def probe_numbers_tree(name: str, *, data_dir: str | None = None) -> dict:
+    """Из какого дерева проба `name` возьмёт ЧИСЛА критерия. Три исхода (инв. #17).
+
+    Возврат — `{"state", "root", "reason"}`; `state` одно из :data:`NUMBERS_NAMED`,
+    :data:`NUMBERS_MODULE`, :data:`NUMBERS_UNMEASURED`.
+
+    Умолчание здесь НЕ подставляется догадкой: «вызывающий не назвал дерево» и
+    «у пробы нет двери к числам» — РАЗНЫЕ состояния, и склеить их значило бы
+    объявить измеренным то, чего никто не мерил. Урок мутации M10 цикла #1226
+    дословно об этом: подстановка дерева ПРИБОРА неотличима от правды, пока
+    дерево одно, и выживает именно на этом.
+    """
+    name = (name or "").strip()
+    accepted = probe_tree_inputs(name)
+    if "data_dir" not in accepted:
+        return {"state": NUMBERS_UNMEASURED, "root": None,
+                "reason": f"проба {name!r} не объявляет `data_dir` входом — какое "
+                          f"дерево она прочтёт, измерить нечем"}
+    if data_dir and str(data_dir).strip():
+        root = _root_of(data_dir)
+        if root is None:
+            return {"state": NUMBERS_UNMEASURED, "root": None,
+                    "reason": f"каталог чисел {data_dir!r} не резолвится — "
+                              f"дерево назвать нечем"}
+        return {"state": NUMBERS_NAMED, "root": root, "reason": ""}
+    return {"state": NUMBERS_MODULE, "root": REPO_ROOT,
+            "reason": "вызывающий дерево чисел НЕ НАЗВАЛ — проба читает дерево "
+                      "МОДУЛЯ (`REPO_ROOT`)"}
+
+
+#: Сколько деревьев участвует в ОДНОЙ строке раздела.
+ROW_SAME = "same"
+ROW_SPLIT = "split"
+ROW_UNMEASURED = "unmeasured"
+
+
+def row_trees(row: dict, *, statuses_root: str | None) -> dict:
+    """Из скольких деревьев собрана ЭТА строка раздела. Три исхода (инв. #17).
+
+    Возврат — `{"state", "reason"}`; `state` одно из :data:`ROW_SAME`,
+    :data:`ROW_SPLIT`, :data:`ROW_UNMEASURED`.
+
+    Вопрос задаётся КАЖДОЙ строке, а не разделу целиком, и это существенно: дверь
+    к числам объявляет ПРОБА, поэтому в одном и том же прогоне часть строк стои́т
+    на одном дереве, а часть — на двух. Вердикт раздела «о большинстве» здесь был
+    бы ответом ни о чём.
+
+    **Три исхода, а не два, и это НЕ придирка.** Первая редакция ADR-1081 склеила
+    `unmeasured` со `split` и глушила находку в обоих случаях — и ровно на этом
+    покраснели ДВА положительных контроля ADR-208
+    (`test_open_card_with_satisfied_criterion_is_the_finding`,
+    `test_exit_codes_are_fail_closed`): проба, не читающая НИКАКОГО дерева
+    (структурная сверка), по двум деревьям разойтись не может, и объявить её
+    находку несостоявшейся значило бы молча снять основной предмет модуля под
+    видом усиления. Поэтому:
+
+    * `same` — дерево чисел ИЗМЕРЕНО и совпало с деревом статусов ⇒ находка;
+    * `split` — ИЗМЕРЕНО и РАЗОШЛОСЬ ⇒ находки нет, печатается третий исход;
+    * `unmeasured` — дверь `data_dir` у пробы не объявлена, значит какое дерево
+      она прочла, не знает никто ⇒ находка остаётся, но НЕЗНАНИЕ НАЗВАНО прямо
+      в строке. Угадать здесь нельзя ни в одну сторону: «совпало» вернуло бы
+      молчаливую ложь, «разошлось» убило бы предмет ADR-208.
+    """
+    nt = row.get("numbers_tree") or {}
+    state, root = nt.get("state"), nt.get("root")
+    if not statuses_root:
+        return {"state": ROW_UNMEASURED,
+                "reason": "дерево СТАТУСОВ назвать нечем — сравнивать не с чем"}
+    if state == NUMBERS_UNMEASURED or not root:
+        return {"state": ROW_UNMEASURED,
+                "reason": nt.get("reason") or "дерево ЧИСЕЛ назвать нечем"}
+    try:
+        same = os.path.realpath(root) == os.path.realpath(statuses_root)
+    except (OSError, ValueError) as exc:
+        return {"state": ROW_UNMEASURED,
+                "reason": f"пути деревьев не резолвятся ({exc})"}
+    if same:
+        return {"state": ROW_SAME, "reason": ""}
+    tail = f" ({nt['reason']})" if nt.get("reason") else ""
+    return {"state": ROW_SPLIT,
+            "reason": (f"статусы из {statuses_root}, числа из {root}{tail} — "
+                       f"вердикт собран из ДВУХ деревьев")}
+
+
+def section_trees(result: dict) -> dict:
+    """Назвать деревья, из которых собран раздел «критерии открытых карточек».
+
+    Возврат — `{"state", "statuses", "numbers", "roots", "reason"}`. Три исхода
+    различимы (инв. #17):
+
+    * :data:`TREES_SAME` — все названные деревья совпали. Печатается ВСЛУХ, в том
+      числе на чистой сверке: молчание о совпадении неотличимо от молчания о том,
+      что никто не мерил (тот же порядок, что у ADR-1080 — строка печатается
+      всегда);
+    * :data:`TREES_SPLIT` — деревьев больше одного, и ВСЕ они названы поимённо;
+    * :data:`TREES_UNMEASURED` — дерево статусов не резолвится ЛИБО ни у одной
+      открытой строки дерево чисел не измерено. Второе — не «чисто»: это значит,
+      что о проводке раздела не известно ничего.
+
+    В набор деревьев входят только ИЗМЕРЕННЫЕ: дерево статусов и дерево чисел тех
+    строк, у которых дверь `data_dir` объявлена. Проба без такой двери в набор не
+    попадает ВОВСЕ — у неё дерево неизвестно, и записать его в набор значило бы
+    выдумать член множества.
+    """
+    tracker_dir = result.get("tracker_dir")
+    statuses = _repo_root_for(tracker_dir) if tracker_dir else None
+    rows = [r for r in (result.get("rows") or []) if r.get("open")]
+    known = []
+    for r in rows:
+        nt = r.get("numbers_tree") or {}
+        if nt.get("state") in (NUMBERS_NAMED, NUMBERS_MODULE) and nt.get("root"):
+            known.append(nt["root"])
+    if not statuses:
+        return {"state": TREES_UNMEASURED, "statuses": None, "numbers": None,
+                "roots": [], "reason": "каталог карточек не назван — дерево "
+                                       "статусов назвать нечем"}
+    if rows and not known:
+        return {"state": TREES_UNMEASURED, "statuses": statuses, "numbers": None,
+                "roots": [statuses],
+                "reason": f"ни у одной из {len(rows)} открытых строк дерево ЧИСЕЛ "
+                          f"не измерено (ни одна проба не объявляет `data_dir` "
+                          f"входом) — о проводке раздела НЕ ИЗВЕСТНО НИЧЕГО"}
+    roots = []
+    for cand in [statuses] + known:
+        try:
+            real = os.path.realpath(cand)
+        except (OSError, ValueError):
+            continue
+        if real not in roots:
+            roots.append(real)
+    numbers = known[0] if known else None
+    if len(roots) <= 1:
+        return {"state": TREES_SAME, "statuses": statuses, "numbers": numbers,
+                "roots": roots, "reason": ""}
+    return {"state": TREES_SPLIT, "statuses": statuses, "numbers": numbers,
+            "roots": roots,
+            "reason": f"деревьев в разделе {len(roots)}: " + " · ".join(roots)}
+
+
+def section_tree_lines(result: dict) -> list[str]:
+    """Строки раздела о ДЕРЕВЬЯХ. Печатаются ВСЕГДА — и на совпадении тоже."""
+    t = result.get("trees") or {}
+    state = t.get("state")
+    c = result.get("counts") or {}
+    tail = (f" · у строк: дерево НАЗВАНО {c.get('numbers_named', 0)} · "
+            f"дерево МОДУЛЯ {c.get('numbers_module', 0)} · "
+            f"НЕ ИЗМЕРЕНО {c.get('numbers_unmeasured', 0)}"
+            f" · находки: одно дерево {c.get('satisfied_but_open_one_tree', 0)} · "
+            f"ДВА дерева {c.get('satisfied_but_open_split', 0)} · "
+            f"дерево чисел не измерено {c.get('satisfied_but_open_tree_unmeasured', 0)}")
+    if state == TREES_SAME:
+        return [f"   деревья: статусы и числа из ОДНОГО дерева "
+                f"({t.get('statuses')}){tail}"]
+    if state == TREES_SPLIT:
+        return [f"   ⚠️ ДВА ДЕРЕВА: статусы из {t.get('statuses')}, "
+                f"числа из {t.get('numbers')}{tail}",
+                f"   вердикт, собранный из двух деревьев, находкой НЕ объявляется "
+                f"(ADR-1081) — позови `audit(tracker_dir, data_dir=<то же дерево>)`"]
+    why = t.get("reason") or (
+        "в отчёте нет блока `trees` — он произведён читателем СТАРОГО образца "
+        "(до ADR-1081); это НЕ «деревья совпали»")
+    return [f"   [НЕ ИЗМЕРЕНО] деревья раздела: {why}{tail}"]
+
+
 def report_lines(result: dict) -> list[str]:
     """Строки для шага 0-офис. Пустой ответ невозможен: «проб не объявлено» —
     тоже состояние, и молчание о нём неотличимо от «всё сошлось»."""
     c = result.get("counts") or {}
     where = result.get("tracker_dir")
-    out = [f"— критерии открытых карточек (трекер: {where}) —"]
+    out = [f"— критерии открытых карточек (статусы: {where} · "
+           f"числа: {result.get('data_dir') or 'НЕ НАЗВАНЫ вызывающим'}) —"]
     # ПОПУЛЯЦИЯ — ПЕРВОЙ строкой, до любых вердиктов. До #467 сторож читал только
     # своё дерево и называл число прочитанных как ПОЛНОЕ: из прод-дерева, откуда
     # ходит обязательный шаг 0-офис, он видел 599 карточек из 882 и о 283
@@ -21735,15 +22101,33 @@ def report_lines(result: dict) -> list[str]:
                f"на закрытых {c.get('declared_closed', 0)}) · "
                f"КРИТЕРИЙ ВЫПОЛНЕН при открытой карточке {c.get('satisfied_but_open', 0)} · "
                f"ещё не выполнен {c.get('not_satisfied', 0)} · не измерено {c.get('unmeasured', 0)}")
+    # ДЕРЕВЬЯ — до вердиктов и до цены: «из скольких деревьев собран раздел»
+    # решает, можно ли вообще читать строки ниже как находки (ADR-1081).
+    out.extend(section_tree_lines(result))
     # Цена — ДО перечисления вердиктов: такт шага 0-офис измеряется десятками
     # минут, и вопрос «куда они ушли» дороже любой отдельной строки вердикта.
     out.extend(probe_price_lines(result))
     for r in result["rows"]:
         where_from = " [дочитана с origin, файла в этом дереве нет]" if r.get("from_origin") else ""
         if r["open"] and r["verdict"] == SATISFIED:
-            out.append(f"   🟩 КРИТЕРИЙ ВЫПОЛНЕН, а карточка открыта ({r['status']}): "
-                       f"{r['card']}{where_from} — {r['detail']}. Перемерить и закрыть, "
-                       f"а не делать заново")
+            _rt = r.get("row_trees") or {}
+            if _rt.get("state") == ROW_SPLIT:
+                # Третий исход, а НЕ находка: критерий мерили в одном дереве, а
+                # «открыта» прочли в другом. Поверивший такой строке цикл идёт
+                # закрывать уже закрытую карточку — предмет ADR-1081.
+                out.append(f"   [НЕ ИЗМЕРЕНО] {r['card']}{where_from}: критерий ВЫПОЛНЕН, "
+                           f"но вердикт и статус взяты не из одного дерева — "
+                           f"{_rt.get('reason')}. Находкой это НЕ объявляется; "
+                           f"перемерить ОДНИМ деревом")
+            else:
+                # Находка остаётся. Если дерево чисел НЕ ИЗМЕРЕНО (проба не
+                # объявляет двери `data_dir`), незнание называется прямо в строке:
+                # глушить находку из-за него значило бы снять предмет ADR-208.
+                _caveat = ("" if _rt.get("state") == ROW_SAME
+                           else f" [дерево ЧИСЕЛ НЕ ИЗМЕРЕНО: {_rt.get('reason')}]")
+                out.append(f"   🟩 КРИТЕРИЙ ВЫПОЛНЕН, а карточка открыта ({r['status']}): "
+                           f"{r['card']}{where_from}{_caveat} — {r['detail']}. "
+                           f"Перемерить и закрыть, а не делать заново")
         elif r["verdict"] == UNMEASURED:
             out.append(f"   [НЕ ИЗМЕРЕНО] {r['card']}{where_from}: {r['detail']}")
     return out
@@ -21752,9 +22136,12 @@ def report_lines(result: dict) -> list[str]:
 def main(argv=None) -> int:
     ap = argparse.ArgumentParser(description=__doc__.splitlines()[0])
     ap.add_argument("--tracker-dir", default=None)
+    ap.add_argument("--data-dir", default=None,
+                    help="дерево ЧИСЕЛ критерия (ADR-1081). Не назван ⇒ пробы "
+                         "читают дерево МОДУЛЯ, и это печатается, а не молчится")
     ap.add_argument("--json", action="store_true")
     args = ap.parse_args(argv)
-    res = audit(args.tracker_dir)
+    res = audit(args.tracker_dir, data_dir=args.data_dir)
     if args.json:
         print(json.dumps(res, ensure_ascii=False, indent=2))
     else:
@@ -21763,9 +22150,15 @@ def main(argv=None) -> int:
     # Код возврата: 1 — есть открытая карточка с выполненным критерием (находка);
     # 2 — что-то не измерено и находок нет (fail-CLOSED: «нечем проверить» ≠ «чисто»).
     c = res["counts"]
-    if c["satisfied_but_open"]:
+    # Находкой считается только вердикт, собранный из ОДНОГО дерева (ADR-1081).
+    # Собранный из двух уходит в код 2 вместе с остальным «не измерено»: это
+    # fail-CLOSED, а не ослабление — прежний код 1 утверждал о находке, которой
+    # замер не видел.
+    if c.get("satisfied_but_open_one_tree") or c.get("satisfied_but_open_tree_unmeasured"):
         return 1
-    return 2 if c["unmeasured"] else 0
+    if c["unmeasured"] or c.get("satisfied_but_open_split"):
+        return 2
+    return 0
 
 
 if __name__ == "__main__":
