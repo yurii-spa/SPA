@@ -214,6 +214,28 @@ board_after_delivery = _root_push.board_after_delivery
 DeliveredCardHasNoBoardRow = _root_push.DeliveredCardHasNoBoardRow
 CARDLESS_BOARD_EXIT = _root_push.CARDLESS_BOARD_EXIT
 BOARD_REL = _root_push.BOARD_REL
+# ⚠️ ОСЬ 2 той же двери (ADR-1062) ввозилась НЕ ВСЯ, и это измерено на чистом
+# `origin/main` (цикл #1217): `except DeliveredCardBoardStatusDiffers` на строке
+# ниже ссылался на имя, которого в этом модуле НЕТ — звёздного импорта тут нет.
+# То есть ровно в тот миг, когда ось 2 отказывает, батч поднимал `NameError`
+# ВМЕСТО отказа: трассировка вместо названной причины и код возврата 1 вместо 18,
+# а читатель кода не узнавал о доске ничего. Половина починки, оставившая второй
+# сайт, — знакомый класс; соседнее имя (`DeliveredCardHasNoBoardRow`) ввезено было.
+DeliveredCardBoardStatusDiffers = _root_push.DeliveredCardBoardStatusDiffers
+STALE_BOARD_STATUS_EXIT = _root_push.STALE_BOARD_STATUS_EXIT
+
+# Одиннадцатая дверь семейства (ADR-1073) — «назовёт ли перепись аналитики
+# уезжающий НОВЫЙ модуль». Та же ОДНА реализация и по той же причине: своя копия
+# означала бы, что батч молча везёт модуль, которого `_untiered_census.py` не
+# называет, то есть красит `test_untiered_census` на `main`. Замер: из 31 вершины
+# `origin/main`, добавившей публичный модуль аналитики, перепись не называла
+# добавленный модуль у 31 — включая ВСЕ ТРИ, что генератор звали.
+enforce_delivery_census_names = _root_push.enforce_delivery_census_names
+delivery_census_name_summary = _root_push.delivery_census_name_summary
+census_after_delivery = _root_push.census_after_delivery
+DeliveredModuleIsNotInTheCensus = _root_push.DeliveredModuleIsNotInTheCensus
+UNCENSUSED_MODULE_EXIT = _root_push.UNCENSUSED_MODULE_EXIT
+CENSUS_REL = _root_push.CENSUS_REL
 
 # Дверь «дерево, из которого читаются байты, НАЗВАНО» (ADR-796) — та же ОДНА
 # реализация и то же согласие на модуле канона. Своей копии здесь нет по той же
@@ -272,6 +294,13 @@ def main():
                              "`_BOARD.md` не называет (по умолчанию такой пуш "
                              "отклоняется; починка — `build_tracker_board.py` + "
                              "доска в наборе)")
+    parser.add_argument("--allow-uncensused-module", action="store_true",
+                        help="ОСОЗНАННО доставить НОВЫЙ публичный модуль "
+                             "`spa_core/analytics/`, которого перепись "
+                             "`_untiered_census.py` не называет (по умолчанию "
+                             "такой пуш отклоняется; починка — "
+                             "`audit_untiered_analytics.py --emit-markup` + "
+                             "перепись в наборе)")
     parser.add_argument("--allow-prod-root-relative", action="store_true",
                         help="ОСОЗНАННО читать ОТНОСИТЕЛЬНЫЕ пути от ПРОД-дерева, даже "
                              "когда позвали из другого дерева; по умолчанию такой путь "
@@ -405,6 +434,23 @@ def main():
         print(f"\nОТКАЗ (доска несёт о уезжающей карточке другой статус): {e}",
               file=sys.stderr)
         sys.exit(STALE_BOARD_STATUS_EXIT)
+    except DeliveryBytesDrifted as e:
+        print(f"\nОТКАЗ (байты разошлись со слепком): {e}", file=sys.stderr)
+        sys.exit(BYTES_DRIFT_EXIT)
+
+    # ── ИМЯ В ПЕРЕПИСИ АНАЛИТИКИ (ADR-1073) — тот же вызов и тот же порядок ───
+    # Сразу за строкой доски: третий сосед того же рода, но спрашивает он
+    # производную ПЕРЕПИСЬ, а не индекс для человека. Реализация одна, дверей две.
+    allow_uncensused_module = bool(
+        getattr(args, "allow_uncensused_module", False)) or \
+        os.environ.get("SPA_PUSH_ALLOW_UNCENSUSED_MODULE") == "1"
+    try:
+        enforce_delivery_census_names(all_files, allow=allow_uncensused_module,
+                                      runner_file=__file__)
+    except DeliveredModuleIsNotInTheCensus as e:
+        print(f"\nОТКАЗ (перепись не называет уезжающий модуль): {e}",
+              file=sys.stderr)
+        sys.exit(UNCENSUSED_MODULE_EXIT)
     except DeliveryBytesDrifted as e:
         print(f"\nОТКАЗ (байты разошлись со слепком): {e}", file=sys.stderr)
         sys.exit(BYTES_DRIFT_EXIT)

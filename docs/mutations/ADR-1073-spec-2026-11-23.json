@@ -1,0 +1,117 @@
+{
+  "title": "ADR-1073 CENSUS — одиннадцатая дверь семейства доставки: перепись аналитики обязана НАЗЫВАТЬ уезжающий рядом с ней новый модуль. Каждая мутация — способ, которым гейт мог бы молча перестать работать, оставшись зелёным",
+  "tests": [
+    "spa_core/tests/test_delivery_census_names.py",
+    "spa_core/tests/test_untiered_census.py"
+  ],
+  "mutations": [
+    {
+      "name": "M1 гейт не ОТКАЗЫВАЕТ, а лишь печатает — класс уезжает молча (состояние main до ADR-1073)",
+      "file": "push_to_github.py",
+      "old": "        raise DeliveredModuleIsNotInTheCensus(\n            f\"перепись, которую оставит этот пуш, уезжающий НОВЫЙ модуль \"",
+      "new": "        print(\"мутация: отказа нет\")\n        return list(_CENSUS_NAME_VERDICTS)\n        raise DeliveredModuleIsNotInTheCensus(\n            f\"перепись, которую оставит этот пуш, уезжающий НОВЫЙ модуль \""
+    },
+    {
+      "name": "M2 перепись спрашивается у ДЕРЕВА, а не у origin-после-доставки — гейт зеленеет ровно в предмете замера (все три вершины, что генератор звали)",
+      "file": "push_to_github.py",
+      "old": "    for fa in file_args:\n        key = _delivery_abs(fa)\n        if key.replace(os.sep, \"/\").endswith(CENSUS_REL):\n            try:\n                return read_delivery_bytes(key), \"уезжает этим пушем\", None",
+      "new": "    for fa in file_args:\n        key = _delivery_abs(fa)\n        if True:\n            try:\n                p = Path(_delivery_abs(fa)).parent.parent.parent / CENSUS_REL\n                return p.read_bytes(), \"мутация: дерево\", None"
+    },
+    {
+      "name": "M3 отказ сняли у НОВОГО модуля и оставили только у давнего — предмет двери перевёрнут",
+      "file": "push_to_github.py",
+      "old": "            \"state\": \"absent\" if is_new else \"pre_existing\"})",
+      "new": "            \"state\": \"pre_existing\" if is_new else \"absent\"})"
+    },
+    {
+      "name": "M4 нечитаемая перепись объявлена ПУСТЫМ набором вместо НЕ ИЗМЕРЕНО — «не измерено» стало неотличимо от «ничего не названо» (инв. #17)",
+      "file": "scripts/audit_untiered_analytics.py",
+      "old": "    except SyntaxError as exc:\n        return None, (f\"текст переписи не разбирается как Python \"\n                      f\"({type(exc).__name__}: {exc}) — имена НЕ ИЗМЕРЕНЫ\")",
+      "new": "    except SyntaxError:\n        return set(), None"
+    },
+    {
+      "name": "M5 «ни одного набора в тексте» объявлено успехом с пустым набором — один непонятый файл запирал бы весь набор",
+      "file": "scripts/audit_untiered_analytics.py",
+      "old": "    if not seen_buckets:\n        return None, (f\"в тексте переписи нет ни одного объявленного набора \"\n                      f\"({', '.join(CENSUS_BUCKETS)}) — имена НЕ ИЗМЕРЕНЫ\")",
+      "new": "    if not seen_buckets:\n        return names, None"
+    },
+    {
+      "name": "M6 читатель заглядывает в ОДНУ корзину из пяти — целый класс имён становится невидимым",
+      "file": "scripts/audit_untiered_analytics.py",
+      "old": "CENSUS_BUCKETS = (\"DEPRECATED_TOMBSTONE\", \"IMPORT_FAILED\", \"NOT_A_SIGNAL_MODULE\",\n                  \"INHERITS_BASE_STUB\", \"WIRABLE\")",
+      "new": "CENSUS_BUCKETS = (\"NOT_A_SIGNAL_MODULE\",)"
+    },
+    {
+      "name": "M7 правило «путь → имя» потеряло вложенность — `gross_of/x.py` прочитается как `x` и 15 зарегистрированных ложно уйдут «вне тиров»",
+      "file": "scripts/audit_untiered_analytics.py",
+      "old": "    return inside[:-3].replace(\"/\", \".\")",
+      "new": "    return inside.rsplit(\"/\", 1)[-1][:-3]"
+    },
+    {
+      "name": "M8 приватные и тестовые файлы перестали отсеиваться — перепись потребовала бы назвать саму себя",
+      "file": "scripts/audit_untiered_analytics.py",
+      "old": "    if fname.startswith(\"test_\") or fname.startswith(\"_\"):\n        return None",
+      "new": "    pass"
+    },
+    {
+      "name": "M9 обход диска повторяет правило вместо зова ЕДИНСТВЕННОЙ двери — две копии разойдутся молча",
+      "file": "scripts/audit_untiered_analytics.py",
+      "old": "            full = Path(root) / fname\n            rel_repo = str(full.relative_to(REPO_ROOT))\n            key = census_key_for_path(rel_repo)\n            if key is None:\n                continue\n            out[key] = rel_repo",
+      "new": "            if not fname.endswith(\".py\"):\n                continue\n            if fname.startswith(\"test_\") or fname.startswith(\"_\"):\n                continue\n            full = Path(root) / fname\n            rel = full.relative_to(ANALYTICS_DIR)\n            out[str(rel)[:-3].replace(os.sep, \".\")] = str(full.relative_to(REPO_ROOT))"
+    },
+    {
+      "name": "M10 batch-дверь гейт больше не ЗОВЁТ — класс уезжает целиком через вторую дверь доставки",
+      "file": "push_to_github_batch.py",
+      "old": "        enforce_delivery_census_names(all_files, allow=allow_uncensused_module,\n                                      runner_file=__file__)",
+      "new": "        pass  # мутация: батч гейт не зовёт"
+    },
+    {
+      "name": "M11 batch-дверь снова не ввозит имена оси 2 — отказ ADR-1062 становится NameError с кодом 1 вместо 18 (ВТОРАЯ находка цикла #1217)",
+      "file": "push_to_github_batch.py",
+      "old": "DeliveredCardBoardStatusDiffers = _root_push.DeliveredCardBoardStatusDiffers\nSTALE_BOARD_STATUS_EXIT = _root_push.STALE_BOARD_STATUS_EXIT",
+      "new": "# мутация: имена оси 2 снова не ввезены"
+    },
+    {
+      "name": "M12 гейт судит ВСЁ, что уезжает, своей копией правила принадлежности — вторая мерка рядом с генераторской",
+      "file": "push_to_github.py",
+      "old": "        name = mod.census_key_for_path(rel[idx:])\n        if name is None:\n            continue",
+      "new": "        name = rel[idx:].split(\"/\")[-1][:-3] if rel.endswith(\".py\") else None\n        if name is None:\n            continue"
+    },
+    {
+      "name": "M13 ввоз прибора без проверки, что двери в нём ЕСТЬ — отсутствие двери читалось бы как успешный разбор",
+      "file": "push_to_github.py",
+      "old": "    for door in (\"census_key_for_path\", \"census_names_from_source\"):\n        if not hasattr(mod, door):\n            return None, (f\"{path} не несёт двери `{door}` — единственной двери \"\n                          f\"разбора нет, свою здесь заводить ЗАПРЕЩЕНО\")\n    return mod, None",
+      "new": "    return mod, None"
+    },
+    {
+      "name": "M14 «гейт не зван» и «судить нечего» склеены в один ответ — пустой перечень перестал быть двумя исходами",
+      "file": "push_to_github.py",
+      "old": "    if not _CENSUS_NAME_VERDICTS:\n        if _CENSUS_NAME_GATE[\"called\"]:\n            return \"имя в переписи: модулей аналитики в наборе нет — судить нечего\"\n        return \"имя в переписи: гейт не зван НИ РАЗУ\"",
+      "new": "    if not _CENSUS_NAME_VERDICTS:\n        return \"имя в переписи: модулей аналитики в наборе нет — судить нечего\""
+    },
+    {
+      "name": "M15 код одиннадцатой двери совпал с кодом десятой — читатель кода возврата не отличит один отказ от другого",
+      "file": "push_to_github.py",
+      "old": "UNCENSUSED_MODULE_EXIT = 19",
+      "new": "UNCENSUSED_MODULE_EXIT = 17"
+    },
+    {
+      "name": "M16 новизна пути на origin при недоступном git объявлена «не новый» — дверь молчала бы о своём предмете",
+      "file": "push_to_github.py",
+      "old": "    probe = _git_out([\"cat-file\", \"-t\", f\"{ref}:{rel}\"], cwd)\n    return (probe is None), None",
+      "new": "    probe = _git_out([\"cat-file\", \"-t\", f\"{ref}:{rel}\"], cwd)\n    return False, None"
+    },
+    {
+      "name": "M17 осознанный обход СТИРАЕТ вердикт вместо того, чтобы его сохранить — находка исчезает вместе с отказом",
+      "file": "push_to_github.py",
+      "old": "    if offenders and allow:\n        print(\"    ⚠️  --allow-uncensused-module: перепись уезжающий новый модуль \"\n              \"не называет, это НАЗВАНО, но доставку не остановит\")\n        return list(_CENSUS_NAME_VERDICTS)",
+      "new": "    if offenders and allow:\n        _CENSUS_NAME_VERDICTS.clear()\n        return list(_CENSUS_NAME_VERDICTS)"
+    },
+    {
+      "name": "M18 сама перепись попала в кандидаты — ЭКВИВАЛЕНТНЫЙ мутант по замеру: дверь пути отсеивает перепись и так (`_`-имя), поэтому вердикт не меняется. Оставлен в спецификации НАМЕРЕННО, чтобы эквивалентность доказывал прибор, а не рука",
+      "file": "push_to_github.py",
+      "old": "        if CENSUS_REL in rel:\n            # Сама перепись себя не называет.",
+      "new": "        if False:\n            # Сама перепись себя не называет."
+    }
+  ]
+}

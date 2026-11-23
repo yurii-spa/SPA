@@ -3026,6 +3026,315 @@ def delivery_board_row_summary() -> str:
             f"карточк(и/ах)")
 
 
+# ══════════════════════════════════════════════════════════════════════════════
+# ОДИННАДЦАТАЯ ДВЕРЬ СЕМЕЙСТВА (ADR-1073): ПРОИЗВОДНАЯ ПЕРЕПИСЬ, КОТОРАЯ НЕ
+# НАЗЫВАЕТ МОДУЛЬ, УЕЗЖАЮЩИЙ РЯДОМ С НЕЙ.
+#
+# Десятая дверь (ADR-1060) спрашивает доску очереди: называет ли индекс карточку,
+# уезжающую этим пушем. Одиннадцатая — ровно тот же вопрос, заданный ДРУГОЙ
+# производной проекции: перепись `spa_core/analytics/_untiered_census.py`
+# объявляет себя «СГЕНЕРИРОВАН ЗАМЕРОМ, руками не набран» и держит знаменатель
+# метрики «% работающего слоя». Модуль, которого нет ни в реестре тиров, ни в
+# переписи, для метрики НЕ СУЩЕСТВУЕТ — ровно исходный дефект ADR-165.
+#
+# ЗАМЕР, из-за которого дверь появилась (цикл #1217, полное зеркало — прод-клон
+# усечён и на этот вопрос отвечать не способен): с рождения переписи 29.08
+# (`a2c412ab3`) по 23.11 на `origin/main` **31** вершина добавила публичный
+# модуль аналитики, и **31 из 31** увезла перепись, которая добавленный модуль
+# НЕ НАЗЫВАЕТ. Каждая красила `main` живым сторожем
+# (`test_census_covers_every_untiered_module_on_disk`) до прихода цикла, который
+# перегенерирует перепись.
+#
+# ДЕШЁВАЯ ОСЬ ЗДЕСЬ ВРЁТ В СТОРОНУ «ЧИСТО», и это измерено: «тронул ли коммит
+# перепись» отвечает «да» у ТРЁХ вершин из 31 — а у ВСЕХ ТРЁХ перепись своего же
+# нового модуля не называет (`7de16e9c0`, `8d86a4663`, `ab1b92b05`). Генератор
+# был позван, но в дереве, где нового модуля ещё не было; «перепись в наборе» и
+# «перепись названа» — РАЗНЫЕ утверждения, и первое выдало бы безопасным ровно
+# тот случай, из-за которого дверь понадобилась.
+#
+# Соседи молчат, и молчат ВЕРНО: пин байтов (ADR-774) сверяет байты переписи с
+# ними же самими; гейт разбора (ADR-886) подтверждает, что перепись
+# КОМПИЛИРУЕТСЯ — она компилируется; колонка реестра (ADR-889) спрашивает
+# `docs/decisions/INDEX.md`; строка доски (ADR-1060) спрашивает трекер.
+# ══════════════════════════════════════════════════════════════════════════════
+
+#: Перепись ОТНОСИТЕЛЬНО корня дерева. Вопрос задаётся только публичным модулям
+#: пакета аналитики: «имя в переписи» есть свойство ЭТОЙ проекции.
+CENSUS_REL = "spa_core/analytics/_untiered_census.py"
+
+UNCENSUSED_MODULE_EXIT = 19
+
+_CENSUS_NAME_VERDICTS: list = []
+_CENSUS_NAME_GATE: dict = {"called": False}
+
+
+class DeliveredModuleIsNotInTheCensus(RuntimeError):
+    """Уезжающий НОВЫЙ модуль аналитики не назван переписью, которую оставит пуш."""
+
+
+def _census_parser(runner_file: Optional[str] = None):
+    """Ввозит ЕДИНСТВЕННЫЕ двери разбора переписи → ``(модуль, причина)``.
+
+    Прибор берётся из дерева ЗАПУЩЕННОГО CLI, а не из `PROJECT_ROOT`: тот же
+    приём и тот же довод, что у :func:`_board_parser` — инструмент, судящий
+    байты, приходит оттуда же, откуда пришёл сам судья (ADR-796).
+
+    Своей копии разбора здесь нет НАМЕРЕННО, и копий требовалось бы ДВЕ: «путь →
+    имя переписи» и «байты → названные имена». Разойдись любая с генератором —
+    гейт пускал бы через себя ровно те имена, из-за которых он и понадобился.
+    Обе двери живут в `scripts/audit_untiered_analytics.py`, рядом с писателем.
+    """
+    import importlib.util as _ilu
+
+    base = Path(os.path.abspath(runner_file or __file__)).parent
+    path = base / "scripts" / "audit_untiered_analytics.py"
+    try:
+        spec = _ilu.spec_from_file_location("_census_for_name_gate", path)
+        mod = _ilu.module_from_spec(spec)
+        spec.loader.exec_module(mod)
+    except Exception as exc:                                        # noqa: BLE001
+        return None, (f"{path} не ввезён ({type(exc).__name__}: {exc}) — имя в "
+                      f"переписи НЕ ИЗМЕРЕНО")
+    for door in ("census_key_for_path", "census_names_from_source"):
+        if not hasattr(mod, door):
+            return None, (f"{path} не несёт двери `{door}` — единственной двери "
+                          f"разбора нет, свою здесь заводить ЗАПРЕЩЕНО")
+    return mod, None
+
+
+def census_after_delivery(file_args: list, branch: str = "main") -> tuple:
+    """Перепись, которую ЭТОТ пуш оставит на origin → ``(байты, откуда, причина)``.
+
+    Вопрос именно про ПОСЛЕ, а не про «перепись в дереве»: перепись,
+    перегенерированная в рабочем дереве и НЕ включённая в `--files`, на origin не
+    попадает, и имя остаётся ненапечатанным. Спроси дерево — и гейт зеленел бы
+    ровно в том случае, ради которого написан (так и вышло у всех трёх вершин,
+    что генератор звали).
+
+    Два источника, и они исчерпывающие — те же, что у :func:`board_after_delivery`:
+    перепись УЕЗЖАЕТ этим пушем ⇒ её уезжающие байты единственной дверью
+    :func:`read_delivery_bytes`; не уезжает ⇒ локальная ссылка ``origin/<branch>``,
+    и ВЫБОР ПЕЧАТАЕТСЯ (ADR-918: молча подставить чужой граф хуже ошибки).
+    """
+    for fa in file_args:
+        key = _delivery_abs(fa)
+        if key.replace(os.sep, "/").endswith(CENSUS_REL):
+            try:
+                return read_delivery_bytes(key), "уезжает этим пушем", None
+            except OSError as e:
+                return None, None, (f"байты уезжающей переписи не прочитаны "
+                                    f"({type(e).__name__}: {e})")
+    cwd = None
+    for fa in file_args:
+        parent = Path(_delivery_abs(fa)).parent
+        if parent.exists():
+            cwd = parent
+            break
+    if cwd is None:
+        return None, None, "ни у одного файла набора нет существующего каталога"
+    ref = f"origin/{branch}"
+    sha = _git_out(["rev-parse", "--verify", ref], cwd)
+    if sha is None:
+        return None, None, (f"ссылка `{ref}` не прочитана (git недоступен либо "
+                            f"это не рабочая копия) — перепись origin НЕ ИЗМЕРЕНА")
+    raw = _git_bytes(["cat-file", "blob", f"{ref}:{CENSUS_REL}"], cwd)
+    if raw is None:
+        return None, None, (f"переписи `{CENSUS_REL}` нет в `{ref}` ({sha[:9]}) "
+                            f"либо она не прочитана — имя НЕ ИЗМЕРЕНО")
+    return raw, f"лежит на `{ref}` ({sha[:9]}), этим пушем не меняется", None
+
+
+def _module_is_new_on_origin(abs_path: str, rel: str,
+                             branch: str = "main") -> tuple:
+    """Добавляет ли доставка ЭТОТ путь впервые → ``(новый?, причина)``.
+
+    Почему вопрос вообще задаётся. Перепись, устаревшая про модуль, который на
+    origin лежит давно, — тоже правда, но НЕ ЭТОЙ доставки: отказать по ней
+    значило бы запереть чужую починку из-за долга, который этот пуш не создавал,
+    то есть покраснеть на ВЕРНОМ состоянии. Поэтому отказ — только за модуль,
+    который доставка ДОБАВЛЯЕТ; про давний долг гейт говорит вслух отдельным
+    вердиктом и доставку не держит.
+
+    Третий исход СВОЙ (инв. #17): git недоступен ⇒ `(None, причина)`, а не
+    «новый» и не «давний». Угадать здесь нельзя ни в одну сторону: «новый» дал бы
+    отказ по неизмеренному, «давний» — молчание о предмете двери.
+    """
+    cwd = Path(abs_path).parent
+    if not cwd.exists():
+        return None, f"каталога `{cwd}` нет — новизна пути НЕ ИЗМЕРЕНА"
+    ref = f"origin/{branch}"
+    if _git_out(["rev-parse", "--verify", ref], cwd) is None:
+        return None, (f"ссылка `{ref}` не прочитана — новизна пути "
+                      f"`{rel}` НЕ ИЗМЕРЕНА")
+    probe = _git_out(["cat-file", "-t", f"{ref}:{rel}"], cwd)
+    return (probe is None), None
+
+
+def enforce_delivery_census_names(file_args: list, allow: bool = False,
+                                  runner_file: Optional[str] = None,
+                                  branch: str = "main") -> list:
+    """Перепись, которую оставит этот пуш, обязана НАЗЫВАТЬ каждый новый модуль.
+
+    Возвращает перечень вердиктов. Отказ fail-CLOSED либо НАЗВАННЫЙ обход
+    ``--allow-uncensused-module``: молчания нет ни в одной ветке.
+
+    Исходы различимы (инв. #17): имя ЕСТЬ · имени НЕТ у НОВОГО модуля (отказ, с
+    именем, источником переписи и командой починки) · имени нет у ДАВНЕГО модуля
+    (названный долг, доставку не держит) · НЕ ИЗМЕРЕНО с названной причиной.
+    Последний доставку НЕ останавливает, и это НАЗВАННЫЙ выбор — тот же, что у
+    десятой двери: сбой git или нечитаемая перепись остановили бы доставку КОДА,
+    ничего не измерив, а класс при этом по-прежнему краснит `main` живым
+    сторожем. Молчанием это не является — причина печатается строкой.
+    """
+    _CENSUS_NAME_VERDICTS.clear()
+    _CENSUS_NAME_GATE["called"] = True
+    mod, parser_why = _census_parser(runner_file)
+
+    # Какие ИМЕНА переписи уезжают этим набором — спрашиваем у ЕДИНСТВЕННОЙ двери
+    # «путь → имя». Своя проверка «лежит ли путь в пакете» означала бы второе
+    # правило принадлежности рядом с генераторским.
+    candidates = []
+    for fa in file_args:
+        key = _delivery_abs(fa)
+        rel = key.replace(os.sep, "/")
+        if CENSUS_REL in rel:
+            # Сама перепись себя не называет. Ветка ИЗБЫТОЧНА по замеру, и это
+            # сказано вслух: `census_key_for_path` отсеивает её и так (имя
+            # начинается с `_`), поэтому мутация «снять этот отсев» поведения не
+            # меняет и ВЫЖИВАЕТ — мутант ЭКВИВАЛЕНТНЫЙ, а не дыра покрытия
+            # (проверено: дверь вернула `None` на этом пути). Оставлена
+            # намеренно: она объявляет намерение прямо здесь и удержит гейт,
+            # если правило приватных имён у двери однажды изменится.
+            continue
+        idx = rel.find("spa_core/analytics/")
+        if idx < 0:
+            continue
+        if mod is None:
+            candidates.append((key, rel[idx:], None))
+            continue
+        name = mod.census_key_for_path(rel[idx:])
+        if name is None:
+            continue
+        candidates.append((key, rel[idx:], name))
+
+    if not candidates:
+        print(f"  {delivery_census_name_summary()}")
+        return list(_CENSUS_NAME_VERDICTS)
+
+    if mod is None:
+        for key, rel, _ in candidates:
+            _CENSUS_NAME_VERDICTS.append({"path": key, "state": "unmeasured",
+                                          "reason": parser_why})
+        print(f"  {delivery_census_name_summary()}")
+        for v in _CENSUS_NAME_VERDICTS:
+            print(f"    НЕ ИЗМЕРЕНО   {_display_path(v['path'])} — {v['reason']}")
+        return list(_CENSUS_NAME_VERDICTS)
+
+    raw, whence, why = census_after_delivery(file_args, branch=branch)
+    names = None
+    names_why = why
+    if raw is not None:
+        try:
+            text = raw.decode("utf-8")
+        except UnicodeDecodeError as e:
+            names_why = f"байты переписи не декодируются как UTF-8 ({e})"
+        else:
+            names, names_why = mod.census_names_from_source(text)
+
+    for key, rel, name in candidates:
+        if names is None:
+            _CENSUS_NAME_VERDICTS.append({"path": key, "state": "unmeasured",
+                                          "module": name, "reason": names_why})
+            continue
+        if name in names:
+            _CENSUS_NAME_VERDICTS.append({"path": key, "state": "named",
+                                          "module": name, "whence": whence,
+                                          "names": len(names)})
+            continue
+        is_new, new_why = _module_is_new_on_origin(key, rel, branch=branch)
+        if is_new is None:
+            _CENSUS_NAME_VERDICTS.append({"path": key, "state": "unmeasured",
+                                          "module": name, "reason": new_why})
+            continue
+        _CENSUS_NAME_VERDICTS.append({
+            "path": key, "module": name, "whence": whence, "names": len(names),
+            "state": "absent" if is_new else "pre_existing"})
+
+    print(f"  {delivery_census_name_summary()}")
+    for v in _CENSUS_NAME_VERDICTS:
+        if v["state"] == "absent":
+            print(f"    НЕТ В ПЕРЕПИСИ  {v['module']} — перепись "
+                  f"({v['whence']}) называет {v['names']} модул(ей), этого среди "
+                  f"них нет, а путь доставка ДОБАВЛЯЕТ")
+        elif v["state"] == "pre_existing":
+            print(f"    ДАВНИЙ ДОЛГ     {v['module']} — перепись "
+                  f"({v['whence']}) его не называет, но путь на origin уже есть: "
+                  f"долг не этой доставки, отказа нет")
+        elif v["state"] == "unmeasured":
+            print(f"    НЕ ИЗМЕРЕНО   {_display_path(v['path'])} — {v['reason']}")
+
+    offenders = [v for v in _CENSUS_NAME_VERDICTS if v["state"] == "absent"]
+    if offenders and allow:
+        print("    ⚠️  --allow-uncensused-module: перепись уезжающий новый модуль "
+              "не называет, это НАЗВАНО, но доставку не остановит")
+        return list(_CENSUS_NAME_VERDICTS)
+    if offenders:
+        mods = "; ".join(v["module"] for v in offenders)
+        raise DeliveredModuleIsNotInTheCensus(
+            f"перепись, которую оставит этот пуш, уезжающий НОВЫЙ модуль "
+            f"аналитики НЕ называет: {mods}.\n"
+            f"Перепись взята оттуда, где она окажется после доставки: "
+            f"{offenders[0]['whence']}.\n"
+            f"Пин байтов при этом ЗЕЛЁН и правдив — он отвечает «байты переписи "
+            f"не подменились», а не «перепись называет модуль»; гейт разбора "
+            f"молчит верно (перепись компилируется); колонка реестра спрашивает "
+            f"`docs/decisions/INDEX.md`, строка доски — трекер.\n"
+            f"ЗАМЕР, из-за которого гейт появился: с рождения переписи 29.08 по "
+            f"23.11 из 31 вершины `origin/main`, добавившей публичный модуль "
+            f"аналитики, перепись не называла добавленный модуль у 31 — и у ВСЕХ "
+            f"ТРЁХ, что генератор ЗВАЛИ, тоже: его звали в дереве, где нового "
+            f"модуля ещё не было.\n"
+            f"Что делать: `python3 scripts/audit_untiered_analytics.py "
+            f"--emit-markup` — прибор перемерит перепись ИЗ ДЕРЕВА, где модуль "
+            f"уже лежит; ДОБАВЬ `{CENSUS_REL}` в набор доставки и повтори пуш. "
+            f"Правь перепись прибором, а не руками: она объявляет себя "
+            f"сгенерированной замером.\n"
+            f"Модуль вошёл в ТИР реестра, и потому переписи называть его НЕ "
+            f"должна (`test_every_censused_name_is_really_untiered`)? Тогда это "
+            f"осознанный обход.\n"
+            f"Осознанно продолжить: --allow-uncensused-module (или "
+            f"SPA_PUSH_ALLOW_UNCENSUSED_MODULE=1) — тогда отказ станет НАЗВАННЫМ "
+            f"предупреждением, а красный тест уедет на `main` вместе с модулем.")
+    return list(_CENSUS_NAME_VERDICTS)
+
+
+def delivery_census_name_summary() -> str:
+    """Одна строка итога по одиннадцатой оси. Своя строка, а не слагаемое чужой.
+
+    Пустой перечень НЕ ЕСТЬ один исход: он значит либо «гейта не звали»
+    (библиотечный вызов минуя CLI), либо «звали, и модулей аналитики в наборе не
+    было». Склеить их — тот же дефект, что склеить «не измерено» со «сверено».
+    """
+    if not _CENSUS_NAME_VERDICTS:
+        if _CENSUS_NAME_GATE["called"]:
+            return "имя в переписи: модулей аналитики в наборе нет — судить нечего"
+        return "имя в переписи: гейт не зван НИ РАЗУ"
+    states: dict = {}
+    for v in _CENSUS_NAME_VERDICTS:
+        states[v["state"]] = states.get(v["state"], 0) + 1
+    if states.get("absent"):
+        return (f"имя в переписи: НЕ НАЗВАНО новых модулей {states['absent']} — "
+                f"знаменатель метрики их не увидит")
+    if states.get("unmeasured"):
+        return (f"имя в переписи: НЕ ИЗМЕРЕНО у {states['unmeasured']} "
+                f"модул(я/ей)")
+    if states.get("pre_existing"):
+        return (f"имя в переписи: ДАВНИЙ ДОЛГ у {states['pre_existing']} "
+                f"модул(я/ей) — не этой доставки")
+    return (f"имя в переписи: названы все {states.get('named', 0)} уезжающих "
+            f"модул(ь/я/ей)")
+
+
 def guard_card_section_loss(repo_path: str, remote_bytes: Optional[bytes],
                             content_bytes: bytes, remote_sha: Optional[str],
                             allow_overwrite: bool = False) -> str:
@@ -5031,6 +5340,15 @@ def main():
                              "отклоняется: карточка без строки для читателя индекса "
                              "не существует, а починка стои́т один вызов "
                              "`build_tracker_board.py` + доска в наборе)")
+    parser.add_argument("--allow-uncensused-module", action="store_true",
+                        help="ОСОЗНАННО доставить НОВЫЙ публичный модуль "
+                             "`spa_core/analytics/`, которого перепись "
+                             "`_untiered_census.py` не называет (по умолчанию "
+                             "такой пуш отклоняется: для знаменателя метрики "
+                             "модуль вне реестра И вне переписи не существует, а "
+                             "починка стои́т один вызов "
+                             "`audit_untiered_analytics.py --emit-markup` + "
+                             "перепись в наборе)")
     args = parser.parse_args()
 
     allow_overwrite = bool(args.allow_overwrite) or \
@@ -5055,6 +5373,8 @@ def main():
         os.environ.get("SPA_PUSH_ALLOW_CARDLESS_BOARD") == "1"
     allow_stale_board_status = bool(args.allow_stale_board_status) or \
         os.environ.get("SPA_PUSH_ALLOW_STALE_BOARD_STATUS") == "1"
+    allow_uncensused_module = bool(args.allow_uncensused_module) or \
+        os.environ.get("SPA_PUSH_ALLOW_UNCENSUSED_MODULE") == "1"
     allow_owner_choice = bool(args.allow_owner_choice_write) or \
         os.environ.get("SPA_PUSH_ALLOW_OWNER_CHOICE_WRITE") == "1"
     allow_ce_unmeasured = bool(args.allow_change_evidence_unmeasured) or \
@@ -5205,6 +5525,26 @@ def main():
         # Дверь байтов отказала внутри десятой оси: это ЕЁ отказ и её код, а не
         # «нет строки на доске». Подменить имя здесь значило бы потерять ответ
         # ADR-774.
+        print(f"\nОТКАЗ (байты разошлись со слепком): {e}", file=sys.stderr)
+        sys.exit(BYTES_DRIFT_EXIT)
+
+    # ── НАЗОВЁТ ЛИ ПЕРЕПИСЬ УЕЗЖАЮЩИЙ МОДУЛЬ (ADR-1073) — за строкой доски ──────
+    # Третий сосед того же рода: оба гейта выше судят ПРОИЗВОДНЫЙ ИНДЕКС, который
+    # читает человек (реестр решений, доска очереди), этот — производную ПЕРЕПИСЬ,
+    # от которой считается знаменатель метрики. Вопрос другой («имя модуля в
+    # переписи» против «строка о карточке»), и ни один сосед о пакете аналитики не
+    # знает ничего. Гейт идёт и в `--dry-run`: превью обязано показывать тот же
+    # отказ. Реализация ОДНА, её же зовёт batch-CLI — иначе вторая дверь доставки
+    # пропускала бы класс целиком.
+    try:
+        enforce_delivery_census_names(all_files, allow=allow_uncensused_module,
+                                      runner_file=__file__)
+    except DeliveredModuleIsNotInTheCensus as e:
+        print(f"\nОТКАЗ (перепись не называет уезжающий модуль): {e}",
+              file=sys.stderr)
+        sys.exit(UNCENSUSED_MODULE_EXIT)
+    except DeliveryBytesDrifted as e:
+        # Дверь байтов отказала внутри одиннадцатой оси: это ЕЁ отказ и её код.
         print(f"\nОТКАЗ (байты разошлись со слепком): {e}", file=sys.stderr)
         sys.exit(BYTES_DRIFT_EXIT)
 

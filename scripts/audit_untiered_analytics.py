@@ -81,6 +81,15 @@ CENSUS_PATH = ANALYTICS_DIR / "_untiered_census.py"
 NOT_CALLABLE = ("deprecated_tombstone", "import_failed", "not_a_signal_module",
                 "inherits_base_stub")
 
+#: Наборы, из объединения которых перепись складывает `ALL_UNTIERED`. Перечень
+#: ОДИН: его пишет :func:`emit_markup` и по нему же читает
+#: :func:`census_names_from_source`. Разойдись они — читатель молча перестал бы
+#: видеть целую корзину, и «перепись имя не называет» стало бы неотличимо от
+#: «читатель в эту корзину не заглянул». Согласованность держит круговой тест
+#: (`test_delivery_census_names.py`), а не обещание.
+CENSUS_BUCKETS = ("DEPRECATED_TOMBSTONE", "IMPORT_FAILED", "NOT_A_SIGNAL_MODULE",
+                  "INHERITS_BASE_STUB", "WIRABLE")
+
 
 def _utc_now_iso() -> str:
     return datetime.now(timezone.utc).isoformat().replace("+00:00", "Z")
@@ -109,26 +118,107 @@ def registry_names() -> set:
     return {m["module"] for m in registry.ALL_MODULES}
 
 
+#: Префикс пакета аналитики в путях репозитория (POSIX-форма, как в git).
+ANALYTICS_PREFIX = "spa_core/analytics/"
+
+
+def census_key_for_path(repo_rel_path: str) -> Optional[str]:
+    """Имя, под которым перепись ОБЯЗАНА назвать этот файл, либо ``None``.
+
+    ЕДИНСТВЕННАЯ дверь «путь → имя переписи». До ADR-1073 правило жило только
+    внутри :func:`modules_on_disk`, то есть было доступно лишь тому, у кого на
+    руках ДЕРЕВО; гейту доставки на руки достаются ПУТИ и БАЙТЫ, и своя копия
+    правила разошлась бы с генератором молча — гейт пускал бы через себя ровно те
+    имена, из-за которых понадобился. Поэтому правило вынесено сюда, и
+    :func:`modules_on_disk` зовёт ЕГО, а не повторяет.
+
+    ``None`` означает «этот путь переписи не принадлежит», и это не отказ: файл
+    вне пакета, приватный (`_*`), тест (`test_*`) или не Python.
+    """
+    rel = str(repo_rel_path).replace(os.sep, "/")
+    if not rel.startswith(ANALYTICS_PREFIX) or not rel.endswith(".py"):
+        return None
+    inside = rel[len(ANALYTICS_PREFIX):]
+    fname = inside.rsplit("/", 1)[-1]
+    if fname.startswith("test_") or fname.startswith("_"):
+        return None
+    if "__pycache__" in inside.split("/"):
+        return None
+    return inside[:-3].replace("/", ".")
+
+
 def modules_on_disk() -> Dict[str, str]:
     """Публичные модули пакета аналитики: ключ — как в реестре (точки), значение — путь.
 
     Ключ строится ТОЧНО так же, как имя в реестре: путь относительно пакета, разделители
     в точки. Иначе `gross_of/x.py` прочитается как `x`, разойдётся с записью реестра
     `gross_of.x` и 15 зарегистрированных модулей ложно попадут в «вне тиров» — так и
-    вышло на первом прогоне (83 против ложных 98)."""
+    вышло на первом прогоне (83 против ложных 98).
+
+    Само правило живёт в :func:`census_key_for_path` — одна дверь на обоих
+    читателей (здесь и в гейте доставки, ADR-1073)."""
     out: Dict[str, str] = {}
     for root, dirs, files in os.walk(ANALYTICS_DIR):
         dirs[:] = [d for d in dirs if d != "__pycache__"]
         for fname in files:
-            if not fname.endswith(".py"):
-                continue
-            if fname.startswith("test_") or fname.startswith("_"):
-                continue
             full = Path(root) / fname
-            rel = full.relative_to(ANALYTICS_DIR)
-            key = str(rel)[:-3].replace(os.sep, ".")
-            out[key] = str(full.relative_to(REPO_ROOT))
+            rel_repo = str(full.relative_to(REPO_ROOT))
+            key = census_key_for_path(rel_repo)
+            if key is None:
+                continue
+            out[key] = rel_repo
     return out
+
+
+def census_names_from_source(text: str) -> Tuple[Optional[set], Optional[str]]:
+    """Имена, которые НАЗЫВАЕТ переданный текст переписи → ``(имена, причина)``.
+
+    ЕДИНСТВЕННАЯ дверь чтения переписи ПО БАЙТАМ. Нужна гейту доставки: у него на
+    руках байты файла, которого в дереве может не быть вовсе, поэтому
+    `ALL_UNTIERED` импортом не спросишь.
+
+    Разбор идёт по AST, а не исполнением: исполнять уезжающие байты, чтобы
+    узнать, что они про себя говорят, значило бы поверить им на слово. Читаются
+    те же пять наборов, из объединения которых сам файл складывает
+    ``ALL_UNTIERED``; перечень имён наборов — ОДИН (:data:`CENSUS_BUCKETS`), и
+    тест круговой сверки держит его согласованным с :func:`emit_markup`.
+
+    Три исхода различимы (инв. #17): имена ПРОЧИТАНЫ · текст не разбирается как
+    Python · ни одного объявленного набора в тексте нет. Последние два — причина
+    строкой, а НЕ пустое множество: пустое множество означало бы «перепись не
+    называет ничего», то есть отказ по каждому модулю набора от одного
+    непонятого файла.
+    """
+    import ast as _ast
+
+    try:
+        tree = _ast.parse(text)
+    except SyntaxError as exc:
+        return None, (f"текст переписи не разбирается как Python "
+                      f"({type(exc).__name__}: {exc}) — имена НЕ ИЗМЕРЕНЫ")
+    names: set = set()
+    seen_buckets: List[str] = []
+    for node in _ast.walk(tree):
+        targets: List[Any] = []
+        if isinstance(node, _ast.Assign):
+            targets = list(node.targets)
+        elif isinstance(node, _ast.AnnAssign):
+            targets = [node.target]
+        else:
+            continue
+        for t in targets:
+            if not isinstance(t, _ast.Name) or t.id not in CENSUS_BUCKETS:
+                continue
+            if not isinstance(node.value, _ast.Dict):
+                continue
+            seen_buckets.append(t.id)
+            for k in node.value.keys:
+                if isinstance(k, _ast.Constant) and isinstance(k.value, str):
+                    names.add(k.value)
+    if not seen_buckets:
+        return None, (f"в тексте переписи нет ни одного объявленного набора "
+                      f"({', '.join(CENSUS_BUCKETS)}) — имена НЕ ИЗМЕРЕНЫ")
+    return names, None
 
 
 def untiered_modules() -> Dict[str, str]:
