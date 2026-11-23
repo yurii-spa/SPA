@@ -2,11 +2,11 @@
 
 > Авто-генерится `scripts/build_tracker_board.py` из `nimbalyst-local/tracker/*.md`. НЕ править вручную — правь карточки. Источник правды — карточки, это индекс (bootstrap).
 >
-> Собрана: 2026-11-23T19:52:26Z · сверка с карточками: `python3 scripts/build_tracker_board.py --check` (сторож `spa_core/tests/test_tracker_board_matches_cards.py`).
+> Собрана: 2026-11-23T20:14:20Z · сверка с карточками: `python3 scripts/build_tracker_board.py --check` (сторож `spa_core/tests/test_tracker_board_matches_cards.py`).
 >
-> Сверено с `origin/main` (40d2ec30b).
+> Сверено с `origin/main` (40c815599).
 >
-> Всего карточек: **1680** · ждёт владельца: **16** · занято сессиями: **13**.
+> Всего карточек: **1681** · ждёт владельца: **16** · занято сессиями: **13**.
 
 ## 🔴 ЖДЁТ ВЛАДЕЛЬЦА (needs-owner)
 
@@ -448,7 +448,7 @@
 ### · closed
 - Считать ли верный отказ по правилам допуска неисправностью флота  ·  `owner-decision-schitat-li-vernyi-otkaz-po-pravilam-dopu.md` · 2026-10-08
 
-## 📥 Inbox (задания: Telegram / заметки / голос)  (975)
+## 📥 Inbox (задания: Telegram / заметки / голос)  (976)
 
 ### · in-progress
 - а задача починить все-таки еще раз сообщение которым не пишет нужно твое решени…  ·  `inbox-a-zadacha-pochinit-vse-taki-esche-raz-so.md` · 2026-08-14 · 🔒 `pid43119`
@@ -1088,6 +1088,7 @@
 - Два сторожа никто не зовёт, а вычет сторожа сторожей перевалил половину — оба красные на чистом origin/main  ·  `inbox-dva-storozha-nikto-ne-zovet-a-vychet-sto.md` · 2026-10-11
 - Два теста краснеют оттого, что владелец ОТВЕТИЛ: очередь CLI судит о главном дереве  ·  `inbox-dva-testa-krasneyut-ottogo-chto-vladelet.md` · 2026-08-19
 - Два теста падают на чистой главной ветке: перепись кодов возврата и три исхода выполнимости сроков  ·  `inbox-dva-testa-padayut-na-chistoi-glavnoi-vet.md` · 2026-10-09
+- Два живых TVL по одному пулу спорят в 3,78 раза — и допуск к порогу $5 млн решает порядок чтения  ·  `inbox-dva-zhivyh-tvl-po-odnomu-pulu-sporyat-v.md` · 2026-11-23
 - Две сироты храповика сторожей: shared_read_door_leverage (живой читатель ВОЗМОЖЕН, 1.17 с) и edition_cause (ступенью моста — но бегун мёртв)  ·  `inbox-dve-siroty-hrapovika-storozhei-shared-re.md` · 2026-11-18
 - Две записи о деньгах расходятся каждый день — найти и починить ПРИЧИНУ (решение владельца 10.08, вариант 1)  ·  `inbox-dve-zapisi-o-dengah-rashodyatsya-kazhdyi.md` · 2026-08-10
 - Движок отказа работает каждый день, а его вывод не читает никто — оборванная проводка или мёртвая ветка  ·  `inbox-dvizhok-otkaza-rabotaet-kazhdyi-den-a-eg.md` · 2026-08-29
