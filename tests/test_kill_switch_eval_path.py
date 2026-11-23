@@ -52,6 +52,7 @@ from spa_core.governance.kill_switch import (  # noqa: E402
     run_kill_switch_check,
 )
 from spa_core.paper_trading.track_evidence import PAPER_REAL_START  # noqa: E402
+from spa_core.tests import _hermetic_launchd  # noqa: E402
 
 
 def _write_json(path: Path, obj: object) -> None:
@@ -237,6 +238,20 @@ class TestThreatReactorHeldScoping(unittest.TestCase):
         tr._send_telegram = (  # type: ignore[assignment]
             lambda msg, dedup_key=None: self.sent_alerts.append(msg)
         )
+        # Мутирующий `launchctl` берётся из ЕДИНСТВЕННОЙ двери (ADR-1065), а не
+        # прямым присваиванием атрибута модуля: такая подмена ПЕРЕЖИВАЛА тест
+        # (здешний `tearDown` возвращал `_DATA`, `_STATUS` и `_send_telegram` и
+        # про четвёртый атрибут молчал) и глушила дверь у соседей в том же
+        # процессе. 23.11 перетасовка шардов свела этот файл с положительным
+        # контролем двери на шард 11, и тест
+        # `test_the_prod_code_really_does_call_a_mutating_launchctl` получил
+        # ПУСТОЙ список зовов — сторож, доказывающий, что прод-код вправду зовёт
+        # мутирующий `launchctl`, был заглушён соседом. Дверь возвращает всё в
+        # `finally`, а перехваченное действие ЗАПИСАНО, и сцены ниже утверждают
+        # о записи: побочный эффект стал ИЗМЕРЯЕМЫМ, а не «избегнутым».
+        _door = _hermetic_launchd.closed()
+        self._door = _door.__enter__()
+        self.addCleanup(_door.__exit__, None, None, None)
 
     def tearDown(self) -> None:
         self._tr._DATA = self._orig_data
@@ -284,11 +299,14 @@ class TestThreatReactorHeldScoping(unittest.TestCase):
         """End-to-end intraday: held CRITICAL flag → reactor ACTIVATES the switch."""
         self._hold("aave_v3")
         self._critical_flag("aave_v3")
-        # Avoid the launchctl kickstart side-effect in CI/sandbox.
-        self._tr._kickstart_cycle = lambda: None  # type: ignore[assignment]
         report = self._tr.run_reactor(dry_run=False)
         self.assertTrue(report["acted"], f"reactor must act: {report}")
         self.assertFalse(report["activation_failed"])
+        # Действие ПЕРЕХВАЧЕНО и записано, а не исполнено и не «избегнуто».
+        self.assertEqual(
+            [f"threat_reactor._kickstart_cycle:"
+             f"{_hermetic_launchd.threat_reactor_label()}"],
+            self._door.calls, self._door.calls)
         # The authoritative kill-switch API now reads ACTIVE.
         active, _ = KillSwitchChecker(data_dir=self.data_dir).is_kill_switch_active(
             equity_curve=[]
@@ -306,9 +324,9 @@ class TestThreatReactorHeldScoping(unittest.TestCase):
         """
         self._hold("aave_v3")
         self._critical_flag("aave_v3")
-        self._tr._kickstart_cycle = lambda: None  # type: ignore[assignment]
         report = self._tr.run_reactor(dry_run=False)
         self.assertTrue(report["acted"], f"reactor must act: {report}")
+        self.assertEqual(1, len(self._door.calls), self._door.calls)
         self.assertEqual(
             len(self.sent_alerts), 1,
             f"activation must notify exactly once, got: {self.sent_alerts}",
@@ -319,9 +337,10 @@ class TestThreatReactorHeldScoping(unittest.TestCase):
         """External CRITICAL flag → reactor does NOT activate the switch."""
         self._hold("aave_v3")
         self._critical_flag("pendle_pt")
-        self._tr._kickstart_cycle = lambda: None  # type: ignore[assignment]
         report = self._tr.run_reactor(dry_run=False)
         self.assertFalse(report["acted"], f"reactor must not act on external flag: {report}")
+        # Не действовал ⇒ и будить цикл было незачем: запись ПУСТА.
+        self.assertEqual([], self._door.calls, self._door.calls)
         active, _ = KillSwitchChecker(data_dir=self.data_dir).is_kill_switch_active(
             equity_curve=[]
         )
@@ -333,10 +352,10 @@ class TestThreatReactorHeldScoping(unittest.TestCase):
         self._critical_flag("aave_v3")
         _write_json(self.data_dir / "kill_switch_active.json",
                     {"active": True, "reason": "already on"})
-        self._tr._kickstart_cycle = lambda: None  # type: ignore[assignment]
         report = self._tr.run_reactor(dry_run=False)
         self.assertTrue(report["kill_switch_already_active"])
         self.assertFalse(report["acted"], "must not re-fire while already active")
+        self.assertEqual([], self._door.calls, self._door.calls)
 
 
 # ── (4) evidenced-bar drawdown (warmup can't fabricate a kill) ─────────────────

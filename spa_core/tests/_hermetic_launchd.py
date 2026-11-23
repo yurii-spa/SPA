@@ -154,3 +154,189 @@ def closed(*, catchup_verdict: str = catchup_cycle.CYCLE_PRESENT) -> Iterator[La
             else:  # атрибута не было — не выдумывать его существование
                 with contextlib.suppress(AttributeError):
                     delattr(module, name)
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# ПЕРЕПИСЬ ВТОРОГО САЙТА: кто ставит дверь ПРЯМЫМ присваиванием, без возврата
+#
+# ADR-1065 НАЗВАЛ этот сайт дважды (докстринги `closed()` и теста двери) и не
+# закрыл его — а 23.11 перетасовка шардов цикла #1218 свела полюттера и
+# положительный контроль двери в ОДИН процесс, и `main` покраснел:
+# `tests/test_kill_switch_eval_path.py` держит `threat_reactor._kickstart_cycle
+# = lambda: None` ПОСЛЕ своего `tearDown` (он возвращает `_DATA`, `_STATUS` и
+# `_send_telegram` — и забывает четвёртый атрибут), поэтому сосед, проверяющий
+# «прод-код ВПРАВДУ зовёт мутирующий launchctl», видел ПУСТОЙ список зовов.
+#
+# Мера отвечает на вопрос «есть ли в наборе ВТОРАЯ дверь», а не «красен ли
+# кто-то сегодня»: вердикт прямого присваивания зависит от того, попал ли сосед
+# на тот же шард, то есть дифференциальным методом класс НЕ ловится (тот же
+# урок, что и у молчащего зова выше).
+# ─────────────────────────────────────────────────────────────────────────────
+
+#: Имена атрибутов двери берутся ИЗ САМОГО перечня, а не перепечатываются:
+#: разойдись они — перепись искала бы не ту дверь, которую закрывает `closed()`.
+def door_attrs() -> frozenset[str]:
+    plan = _plan(LaunchdDoor(), catchup_verdict=catchup_cycle.CYCLE_PRESENT)
+    return frozenset(name for _module, name, _replacement in plan)
+
+
+def door_module_names() -> frozenset[str]:
+    """Короткие имена модулей перечня (`threat_reactor`, `catchup_cycle`)."""
+    plan = _plan(LaunchdDoor(), catchup_verdict=catchup_cycle.CYCLE_PRESENT)
+    return frozenset(module.__name__.rsplit(".", 1)[-1]
+                     for module, _name, _replacement in plan)
+
+
+#: Каталоги, которые гоняет предписанный прогон (`CLAUDE.md`, «Команды»). Сайт
+#: второй двери может жить в любом из них, и ограничиться `spa_core/tests/`
+#: значило бы не увидеть РОВНО того файла, из-за которого перепись написана:
+#: он лежит в `tests/`.
+MEASURED_TEST_DIRS = (
+    "tests", "spa_core/tests", "scripts/tests", "studio_shell",
+    "spa_core/analytics/gross_of", "research/cards",
+)
+
+
+def _denoting_names(tree: Any, module_names: frozenset[str]) -> set[str]:
+    """Имена и атрибуты ЭТОГО файла, обозначающие модуль перечня.
+
+    Сайт пишет не `threat_reactor._kickstart_cycle = …`, а
+    `self._tr._kickstart_cycle = …`, потому что `setUp` сделал `self._tr = tr`.
+    Искать по короткому имени модуля значило бы не увидеть его вовсе; поэтому
+    псевдонимы прослеживаются — и по `import … as`, и по присваиванию.
+    """
+    import ast
+
+    denoting = set(module_names)
+    for node in ast.walk(tree):
+        if isinstance(node, ast.Import):
+            for alias in node.names:
+                if alias.name.rsplit(".", 1)[-1] in module_names:
+                    denoting.add((alias.asname or alias.name).rsplit(".", 1)[-1])
+        elif isinstance(node, ast.ImportFrom):
+            for alias in node.names:
+                if alias.name in module_names:
+                    denoting.add(alias.asname or alias.name)
+    # Второй проход: псевдоним-атрибут (`self._tr = tr`) виден только после
+    # того, как собраны имена — поэтому до неподвижной точки, а не одним шагом.
+    for _ in range(4):
+        grew = False
+        for node in ast.walk(tree):
+            if not isinstance(node, ast.Assign):
+                continue
+            value = node.value
+            source = None
+            if isinstance(value, ast.Name):
+                source = value.id
+            elif isinstance(value, ast.Attribute):
+                source = value.attr
+            if source not in denoting:
+                continue
+            for target in node.targets:
+                if isinstance(target, ast.Attribute) and target.attr not in denoting:
+                    denoting.add(target.attr)
+                    grew = True
+                elif isinstance(target, ast.Name) and target.id not in denoting:
+                    denoting.add(target.id)
+                    grew = True
+        if not grew:
+            break
+    return denoting
+
+
+def direct_door_assignments(repo_root: Any,
+                            dirs: tuple[str, ...] = MEASURED_TEST_DIRS,
+                            ) -> tuple[list[str], list[str], int]:
+    """Прямые присваивания атрибутов двери в тестах под `repo_root`.
+
+    Возвращает ``(находки, НЕ РАЗОБРАНО, сколько файлов просмотрено)``.
+    Находка — строка ``"<путь>:<строка> <база>.<атрибут>"``.
+
+    Третий исход (инв. #17) ОТДЕЛЬНЫЙ: файл, который не прочитан или не
+    разобран, попадает во второй список с НАЗВАННОЙ причиной, а не молча
+    считается чистым. Ноль находок при непустом втором списке — не «чисто».
+    """
+    import ast
+    import pathlib
+
+    root = pathlib.Path(repo_root)
+    attrs = door_attrs()
+    module_names = door_module_names()
+    hits: list[str] = []
+    unparsed: list[str] = []
+    seen = 0
+    here = pathlib.Path(__file__).resolve()
+    for rel in dirs:
+        base = root / rel
+        if not base.is_dir():
+            continue
+        for path in sorted(base.rglob("test_*.py")):
+            if path.resolve() == here:            # сама дверь — не второй сайт
+                continue
+            seen += 1
+            try:
+                tree = ast.parse(path.read_text(encoding="utf-8"))
+            except (OSError, UnicodeDecodeError, SyntaxError, ValueError) as exc:
+                unparsed.append(f"{path.relative_to(root)}: "
+                                f"{type(exc).__name__}: {exc}")
+                continue
+            denoting = _denoting_names(tree, module_names)
+            for node in ast.walk(tree):
+                # `AugAssign` сюда НЕ входит: `x.run += 1` дверь не ставит, а
+                # широта без сцены есть мутация, которую нечем убить.
+                if not isinstance(node, (ast.Assign, ast.AnnAssign)):
+                    continue
+                targets = (node.targets if isinstance(node, ast.Assign)
+                           else [node.target])
+                for target in targets:
+                    if not isinstance(target, ast.Attribute):
+                        continue
+                    if target.attr not in attrs:
+                        continue
+                    value = target.value
+                    owner = (value.id if isinstance(value, ast.Name)
+                             else value.attr if isinstance(value, ast.Attribute)
+                             else None)
+                    if owner in denoting:
+                        hits.append(f"{path.relative_to(root)}:{node.lineno} "
+                                    f"{owner}.{target.attr}")
+    return hits, unparsed, seen
+
+
+def door_importers(repo_root: Any,
+                   dirs: tuple[str, ...] = MEASURED_TEST_DIRS,
+                   ) -> tuple[list[str], list[str], int]:
+    """Тест-файлы, которые ВВОЗЯТ дверь. Форма та же: ``(кто, НЕ РАЗОБРАНО, сколько)``.
+
+    Нужна, чтобы замкнутый перечень проводки (`_WIRED`) не мог МОЛЧА укоротиться:
+    перечень обязан совпадать с ввозящими, а не быть короче на забытый файл.
+    """
+    import ast
+    import pathlib
+
+    root = pathlib.Path(repo_root)
+    importers: list[str] = []
+    unparsed: list[str] = []
+    seen = 0
+    for rel in dirs:
+        base = root / rel
+        if not base.is_dir():
+            continue
+        for path in sorted(base.rglob("test_*.py")):
+            seen += 1
+            try:
+                tree = ast.parse(path.read_text(encoding="utf-8"))
+            except (OSError, UnicodeDecodeError, SyntaxError, ValueError) as exc:
+                unparsed.append(f"{path.relative_to(root)}: "
+                                f"{type(exc).__name__}: {exc}")
+                continue
+            for node in ast.walk(tree):
+                names = ()
+                if isinstance(node, ast.ImportFrom):
+                    names = tuple(a.name for a in node.names)
+                elif isinstance(node, ast.Import):
+                    names = tuple(a.name.rsplit(".", 1)[-1] for a in node.names)
+                if "_hermetic_launchd" in names:
+                    importers.append(str(path.relative_to(root)))
+                    break
+    return importers, unparsed, seen

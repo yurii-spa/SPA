@@ -2,11 +2,11 @@
 
 > Авто-генерится `scripts/build_tracker_board.py` из `nimbalyst-local/tracker/*.md`. НЕ править вручную — правь карточки. Источник правды — карточки, это индекс (bootstrap).
 >
-> Собрана: 2026-11-23T03:49:23Z · сверка с карточками: `python3 scripts/build_tracker_board.py --check` (сторож `spa_core/tests/test_tracker_board_matches_cards.py`).
+> Собрана: 2026-11-23T07:13:28Z · сверка с карточками: `python3 scripts/build_tracker_board.py --check` (сторож `spa_core/tests/test_tracker_board_matches_cards.py`).
 >
-> Сверено с `origin/main` (0b4c3d35c) · у **1** своя правка, кто новее — не измерено.
+> Сверено с `origin/main` (b4014e258) · у **1** своя правка, кто новее — не измерено.
 >
-> Всего карточек: **1673** · ждёт владельца: **16** · занято сессиями: **13**.
+> Всего карточек: **1675** · ждёт владельца: **16** · занято сессиями: **13**.
 
 ## 🔴 ЖДЁТ ВЛАДЕЛЬЦА (needs-owner)
 
@@ -448,7 +448,7 @@
 ### · closed
 - Считать ли верный отказ по правилам допуска неисправностью флота  ·  `owner-decision-schitat-li-vernyi-otkaz-po-pravilam-dopu.md` · 2026-10-08
 
-## 📥 Inbox (задания: Telegram / заметки / голос)  (968)
+## 📥 Inbox (задания: Telegram / заметки / голос)  (970)
 
 ### · in-progress
 - а задача починить все-таки еще раз сообщение которым не пишет нужно твое решени…  ·  `inbox-a-zadacha-pochinit-vse-taki-esche-raz-so.md` · 2026-08-14 · 🔒 `pid43119`
@@ -967,6 +967,7 @@
 - Восемь вопросов владельцу живут только на origin — отправитель считает очередь по ПРОД-дереву и не видел их ни разу  ·  `inbox-vosem-voprosov-vladeltsu-zhivut-tolko-na.md` · 2026-08-21
 - Вот обе задачи, оформленные подробно и по отдельности — в стиле карточек проект…  ·  `inbox-vot-obe-zadachi-oformlennye-podrobno-i-p.md` · 2026-08-05
 - Все пять голосовых заданий владельца — одна просьба, повторённая 5 раз за 10 дней, и шаг 0a её не видит  ·  `inbox-vse-pyat-golosovyh-zadanii-vladeltsa-odn.md` · 2026-10-29
+- Вторая дверь герметичного launchd: прямое присваивание в tests/ глушит положительный контроль у соседей  ·  `inbox-vtoraya-dver-germetichnogo-launchd-pryam.md` · 2026-11-23
 - Вторая ветка с решением и карточками владельца: unreadable-description-ltyucb — измерить, жива ли, и разобрать  ·  `inbox-vtoraya-vetka-s-resheniem-i-kartochkami.md` · 2026-08-20
 - Второй артефакт несёт литералы TVL там, где наблюдение уже есть (47 % книги)  ·  `inbox-vtoroi-artefakt-neset-literaly-tvl-tam-g.md` · 2026-09-12
 - Второй исследовательский агент считает охваченным то, что оркестратор ОПРОСИЛ: 8 имён вместо 36, и пустой список платит +15 баллов дублям  ·  `inbox-vtoroi-issledovatelskii-agent-schitaet-o.md` · 2026-08-17
@@ -1276,6 +1277,7 @@
 - Проба приёмки мерит соседнюю дверь: прибор ввозится по имени, а не из измеряемого дерева (3 из 51)  ·  `inbox-proba-priemki-merit-sosednyuyu-dver-prib.md` · 2026-10-14
 - Проба приёмки объявляет карточку закрытой, не проверив, что подмена применилась  ·  `inbox-proba-priemki-obyavlyaet-kartochku-zakry.md` · 2026-10-04
 - Проба провенанса TVL отвечает «не измерено»: население 27 против потолка 26 (красное на origin/main, замер #973)  ·  `inbox-proba-provenansa-tvl-otvechaet-ne-izmere.md` · 2026-10-29
+- Проба санитара трассы на CI отвечает «контур цел» на СЛОМАННОЙ сцене — причина НЕ ИЗМЕРЕНА  ·  `inbox-proba-sanitara-trassy-na-ci-otvechaet-ko.md` · 2026-11-23
 - Прод-копии двух карточек-тетрадей беднее origin на 94 и 6 записей цикла — восстановить объединением  ·  `inbox-prod-kopii-dvuh-kartochek-tetradei-bedne.md` · 2026-10-13
 - Прогноз перекладки расходится с фактом ЗНАКОМ на 32 днях из 142, и завышение ×26.65 переворачивает гейт движения капитала  ·  `inbox-prognoz-perekladki-rashoditsya-s-faktom.md` · 2026-11-01
 - Прогон тестов переписывает СОРОК git-tracked файлов в data/ (карточка #225/#226 считает, что их три) — среди них журнал исполнения  ·  `inbox-progon-testov-perepisyvaet-sorok-otslezhivaemyh-failov-data.md` · 2026-08-20 · 🔒 `cycle-352`

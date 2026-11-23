@@ -20459,6 +20459,155 @@ def _probe_derived_artifact_class_population_named(
     )
 
 
+#: Дочерний замер переписи второго сайта. Выполняется В ИЗМЕРЯЕМОМ дереве: и
+#: перечень дверей, и обход каталогов обязаны приехать ОТТУДА, иначе проба
+#: судила бы чужую дверь своим списком (знакомый класс «сверить одно и то же с
+#: самим собой»).
+_LAUNCHD_SECOND_SITE_CENSUS = '''
+import json, sys
+from spa_core.tests import _hermetic_launchd as door
+hits, unparsed, seen = door.direct_door_assignments(sys.argv[1])
+print(json.dumps({"hits": hits, "unparsed": unparsed, "seen": seen,
+                  "attrs": sorted(door.door_attrs())}, ensure_ascii=False))
+'''
+
+
+def _wired_sites_declared_by(door_test: "_pathlib.Path") -> list[str] | None:
+    """Перечень закрытых сайтов берётся ИЗ теста двери, а не перепечатывается.
+
+    `None` ⇒ перечня в объявленной форме нет: это НЕ «сайтов ноль», а третий
+    исход, и проба обязана сказать это вслух.
+    """
+    import ast as _ast
+
+    try:
+        tree = _ast.parse(door_test.read_text(encoding="utf-8"))
+    except (OSError, UnicodeDecodeError, SyntaxError, ValueError):
+        return None
+    for node in _ast.walk(tree):
+        if not isinstance(node, _ast.Assign):
+            continue
+        for target in node.targets:
+            if isinstance(target, _ast.Name) and target.id == "_WIRED":
+                try:
+                    value = _ast.literal_eval(node.value)
+                except (ValueError, TypeError, SyntaxError):
+                    return None
+                rows = ([str(x) for x in value]
+                        if isinstance(value, (list, tuple)) else [])
+                return rows or None
+    return None
+
+
+def _probe_launchd_door_has_no_second_site(arg: str | None = None,
+                                           *, repo_root: str | None = None
+                                           ) -> tuple[str, str]:
+    """Критерий: у герметичного launchd ОДНА дверь, и она переживает соседа.
+
+    Предмет — красный `main` 23.11 (цикл #1219). ADR-1065 свёл мутирующий
+    `launchctl` сцены в единственную дверь `spa_core/tests/_hermetic_launchd.py`
+    и ДВАЖДЫ назвал второй сайт по имени файла: `tests/test_kill_switch_eval_path.py`
+    ставит `threat_reactor._kickstart_cycle = lambda: None` ПРЯМЫМ присваиванием
+    атрибута модуля, а его `tearDown` возвращает `_DATA`, `_STATUS` и
+    `_send_telegram` и про четвёртый атрибут молчит. Названо и не закрыто.
+
+    Через четыре дня перетасовка шардов (цикл #1218 добавил тест-файл, и 3012
+    файлов разложились по 12 шардам иначе) свела полюттера и ПОЛОЖИТЕЛЬНЫЙ
+    КОНТРОЛЬ двери в один процесс: тест
+    `test_the_prod_code_really_does_call_a_mutating_launchctl` получил ПУСТОЙ
+    список зовов (`AssertionError: []`) — то есть сторож, доказывающий, что
+    прод-код вправду зовёт мутирующий `launchctl`, был заглушён соседом.
+
+    **Почему проба мерит ИСХОД, а не структуру.** Вердикт прямого присваивания
+    есть свойство ШАРДА: на базовом прогоне 45091782823 полюттер жил на шарде 4,
+    дверь — на 8, и оба были зелены. Дифференциальный метод («предмет класса —
+    тот, у кого МЕНЯЕТСЯ вердикт») такой сайт не находит, пока тасовка не свела
+    их вместе. Поэтому мерятся ДВА исхода:
+
+    1. **перепись** — прямых присваиваний атрибутов двери в тестах НОЛЬ
+       (перечень атрибутов берётся из самой двери, псевдонимы прослеживаются:
+       сайт пишет `self._tr._kickstart_cycle`, а не имя модуля);
+    2. **со-прогон** — все закрытые сайты И тест двери в ОДНОМ процессе дают
+       зелёный. Это дословное воспроизведение красноты CI, а не её модель.
+
+    Третий исход СВОЙ (инв. #17): двери нет по пути · перечня сайтов нет в
+    объявленной форме · дочерний замер не поднялся · файл не разобран ⇒
+    `unmeasured` с НАЗВАННОЙ причиной, а не «не выполнено».
+    """
+    import json as _json
+    import subprocess as _subprocess
+    import sys as _sys
+
+    root = _pathlib.Path(repo_root or REPO_ROOT)
+    helper = root / "spa_core" / "tests" / "_hermetic_launchd.py"
+    door_test = root / "spa_core" / "tests" / "test_hermetic_launchd_door.py"
+    for path in (helper, door_test):
+        if not path.exists():
+            return UNMEASURED, f"НЕ ИЗМЕРЕНО: двери нет по пути {path}"
+
+    env = {k: v for k, v in os.environ.items()
+           if k not in ("SPA_PYTEST_STREAM", "SPA_PYTEST_RESUME_ONLY")}
+    env["PYTHONPATH"] = str(root)
+    env["SPA_ENV"] = "ci"
+    env["PYTHONHASHSEED"] = "0"
+
+    try:
+        census = _subprocess.run(
+            [_sys.executable, "-c", _LAUNCHD_SECOND_SITE_CENSUS, str(root)],
+            cwd=str(root), env=env, capture_output=True, text=True, timeout=600)
+    except Exception as exc:                                        # noqa: BLE001
+        return UNMEASURED, (f"НЕ ИЗМЕРЕНО: дочерний замер переписи не поднялся "
+                            f"({type(exc).__name__}: {exc})")
+    if census.returncode != 0:
+        return UNMEASURED, (f"НЕ ИЗМЕРЕНО: перепись отказала (код "
+                            f"{census.returncode}); хвост: "
+                            f"{(census.stderr or '')[-300:]!r}")
+    try:
+        measured = _json.loads((census.stdout or "").strip().splitlines()[-1])
+    except Exception as exc:                                        # noqa: BLE001
+        return UNMEASURED, f"НЕ ИЗМЕРЕНО: перепись не разобрана ({exc})"
+
+    if measured.get("unparsed"):
+        return UNMEASURED, ("НЕ ИЗМЕРЕНО: файлы набора не разобраны, и ноль находок "
+                            "при этом чистотой не является: "
+                            + "; ".join(measured["unparsed"][:3]))
+    if measured.get("hits"):
+        return NOT_SATISFIED, (
+            "ВТОРАЯ дверь: прямое присваивание атрибута модуля в тесте переживает "
+            "сцену и глушит дверь у соседей в том же процессе — "
+            + "; ".join(measured["hits"][:4])
+            + f" (всего {len(measured['hits'])}); лечение — "
+            "`_hermetic_launchd.closed()` либо `close_with_monkeypatch`")
+
+    sites = _wired_sites_declared_by(door_test)
+    if not sites:
+        return UNMEASURED, (f"НЕ ИЗМЕРЕНО: перечня закрытых сайтов (`_WIRED`) нет в "
+                            f"объявленной форме в {door_test}")
+    missing = [s for s in sites if not (root / s).exists()]
+    if missing:
+        return UNMEASURED, ("НЕ ИЗМЕРЕНО: объявленного сайта нет в дереве: "
+                            + ", ".join(missing))
+
+    try:
+        corun = _subprocess.run(
+            [_sys.executable, "-m", "pytest", *sites,
+             str(door_test.relative_to(root)), "-q", "-p", "no:randomly",
+             "-p", "no:cacheprovider", "--tb=line"],
+            cwd=str(root), env=env, capture_output=True, text=True, timeout=1800)
+    except Exception as exc:                                        # noqa: BLE001
+        return UNMEASURED, (f"НЕ ИЗМЕРЕНО: со-прогон не поднялся "
+                            f"({type(exc).__name__}: {exc})")
+    if corun.returncode != 0:
+        return NOT_SATISFIED, (
+            f"со-прогон закрытых сайтов и теста двери в ОДНОМ процессе НЕ зелён "
+            f"(код {corun.returncode}): дверь не переживает соседа; хвост: "
+            f"{(corun.stdout or '')[-400:]!r}")
+    return SATISFIED, (
+        f"дверь ОДНА и переживает соседа: прямых присваиваний атрибутов "
+        f"{sorted(measured.get('attrs') or [])} в {measured.get('seen')} тест-файлах "
+        f"НОЛЬ при нуле неразобранных, и со-прогон {len(sites)} закрытых сайтов "
+        f"вместе с тестом двери в одном процессе зелён")
+
 PROBES: dict[str, Callable[[str | None], "tuple[str, str]"]] = {
     "module_limit_bites_a_busy_module":
         _probe_module_limit_bites_a_busy_module,
@@ -20706,6 +20855,8 @@ PROBES: dict[str, Callable[[str | None], "tuple[str, str]"]] = {
     "catchup_cycle_fires_once_after_the_hour":
         _probe_catchup_cycle_fires_once_after_the_hour,
     "cio_as_is_deliverable_is_whole": _probe_cio_as_is_deliverable_is_whole,
+    "launchd_door_has_no_second_site":
+        _probe_launchd_door_has_no_second_site,
 }
 
 

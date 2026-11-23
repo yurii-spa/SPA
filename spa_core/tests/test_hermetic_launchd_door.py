@@ -27,14 +27,22 @@ from spa_core.monitoring import catchup_cycle, threat_reactor
 from spa_core.tests import _hermetic_launchd
 
 _TESTS = pathlib.Path(__file__).resolve().parent
+_REPO_ROOT = _TESTS.parents[1]
 
 #: Файлы, чьи сцены ОБЯЗАНЫ брать дверь из единственного места. Перечень ЗАМКНУТ
-#: намеренно: это контроль ПРОВОДКИ трёх названных сайтов, а не растущая база, в
-#: которую можно дописать файл, чтобы погасить падение.
+#: намеренно: это контроль ПРОВОДКИ названных сайтов, а не растущая база, в
+#: которую можно дописать файл, чтобы погасить падение (дописка сюда ДОБАВЛЯЕТ
+#: требование, а не снимает его).
+#:
+#: **Пути репо-относительные, а не внутри `spa_core/tests/` (ADR-1075).** Пока
+#: перечень разрешался от каталога этого файла, четвёртый сайт был ему
+#: НЕДОСТУПЕН по построению: он живёт в `tests/` — и ровно он 23.11 заглушил
+#: положительный контроль двери, когда тасовка шардов свела их в один процесс.
 _WIRED = (
-    "test_self_heal.py",
-    "test_chaos_resilience.py",
-    "test_alert_recovery_stuck_events.py",
+    "spa_core/tests/test_self_heal.py",
+    "spa_core/tests/test_chaos_resilience.py",
+    "spa_core/tests/test_alert_recovery_stuck_events.py",
+    "tests/test_kill_switch_eval_path.py",
 )
 
 
@@ -199,7 +207,129 @@ def test_each_wired_site_takes_the_door_from_the_single_place(name):
 
     Контроль именно на ввоз и зов: «похожий код рядом» дверью не является.
     """
-    source = (_TESTS / name).read_text(encoding="utf-8")
+    source = (_REPO_ROOT / name).read_text(encoding="utf-8")
     assert "from spa_core.tests import _hermetic_launchd" in source, name
     assert ("_hermetic_launchd.closed(" in source
             or "_hermetic_launchd.close_with_monkeypatch(" in source), name
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# 6. КЛАСС, а не экземпляр: второго сайта нет НИ У КОГО (ADR-1075)
+#
+# Пять разделов выше держат дверь и её проводку у НАЗВАННЫХ файлов. На вопрос
+# «а не завёл ли кто-то очередной сайт» они не отвечают, и до 23.11 не отвечал
+# никто: ADR-1065 назвал `tests/test_kill_switch_eval_path.py` в двух
+# докстрингах и оставил как есть, потому что вердикт такого сайта — свойство
+# ШАРДА. На базовом прогоне 45091782823 полюттер жил на шарде 4, а дверь на 8,
+# и оба были ЗЕЛЕНЫ; покраснело только когда цикл #1218 добавил один тест-файл
+# и 3012 файлов разложились по 12 шардам иначе.
+#
+# Отсюда мера: не «красен ли кто-то сегодня», а ЕСТЬ ЛИ в наборе прямое
+# присваивание атрибута двери. Перечень атрибутов берётся ИЗ двери, псевдонимы
+# прослеживаются — сайт пишет `self._tr._kickstart_cycle`, а не имя модуля.
+# ─────────────────────────────────────────────────────────────────────────────
+def test_no_test_in_the_repo_installs_the_door_by_direct_assignment():
+    hits, unparsed, seen = _hermetic_launchd.direct_door_assignments(_REPO_ROOT)
+
+    # Третий исход ПЕРВЫМ: ноль находок при нечитаемом файле чистотой не является.
+    assert not unparsed, f"НЕ ИЗМЕРЕНО: файлы набора не разобраны: {unparsed[:3]}"
+    assert seen > 0, (
+        "НЕ ИЗМЕРЕНО: ни одного тест-файла не просмотрено — перепись отвечает "
+        f"о пустоте, а не о наборе (корень {_REPO_ROOT}, каталоги "
+        f"{_hermetic_launchd.MEASURED_TEST_DIRS})")
+    assert hits == [], (
+        "ВТОРАЯ дверь: прямое присваивание атрибута модуля переживает сцену и "
+        f"глушит дверь у соседей в том же процессе — {hits}; лечение — "
+        "`_hermetic_launchd.closed()` либо `close_with_monkeypatch`")
+
+
+def test_the_census_names_the_doors_it_looks_for_INSTEAD_of_reprinting_them():
+    """Разойдись перечни — перепись искала бы не ту дверь, которую закрывают."""
+    plan = _hermetic_launchd._plan(
+        _hermetic_launchd.LaunchdDoor(),
+        catchup_verdict=catchup_cycle.CYCLE_PRESENT)
+
+    assert _hermetic_launchd.door_attrs() == frozenset(n for _m, n, _r in plan)
+    assert _hermetic_launchd.door_module_names() == frozenset(
+        m.__name__.rsplit(".", 1)[-1] for m, _n, _r in plan)
+
+
+def test_the_census_FINDS_a_planted_direct_assignment(tmp_path):
+    """Положительный контроль самой переписи: без него она украшение.
+
+    Сцена отличается от чистой РОВНО одним файлом, и в ней воспроизведена
+    подлинная форма сайта — присваивание через псевдоним-атрибут (`self._tr`),
+    а не через имя модуля: искать по имени модуля значило бы не увидеть его.
+    """
+    (tmp_path / "tests").mkdir()
+    (tmp_path / "tests" / "test_clean.py").write_text(
+        "from spa_core.monitoring import threat_reactor as tr\n"
+        "def test_ok():\n"
+        "    assert tr is not None\n", encoding="utf-8")
+
+    hits, unparsed, seen = _hermetic_launchd.direct_door_assignments(tmp_path)
+    assert (hits, unparsed) == ([], []), (hits, unparsed)
+    assert seen == 1
+
+    (tmp_path / "tests" / "test_planted.py").write_text(
+        "import unittest\n"
+        "from spa_core.monitoring import threat_reactor as tr\n"
+        "class C(unittest.TestCase):\n"
+        "    def setUp(self):\n"
+        "        self._tr = tr\n"
+        "    def test_x(self):\n"
+        "        self._tr._kickstart_cycle = lambda: None\n", encoding="utf-8")
+
+    hits, unparsed, seen = _hermetic_launchd.direct_door_assignments(tmp_path)
+    assert unparsed == []
+    assert len(hits) == 1, hits
+    assert "test_planted.py" in hits[0] and "_kickstart_cycle" in hits[0], hits
+
+    # Вторая ФОРМА присваивания (аннотированная) и ВТОРОЙ атрибут двери: без
+    # них мутация «смотреть только `Assign`» и мутация «искать только
+    # `_kickstart_cycle`» были бы неубиваемы, то есть перепись утверждала бы
+    # шире, чем проверено.
+    (tmp_path / "tests" / "test_annotated.py").write_text(
+        "from spa_core.monitoring import catchup_cycle as cc\n"
+        "def test_x():\n"
+        "    cc._alert: object = lambda *a: None\n", encoding="utf-8")
+
+    hits, unparsed, seen = _hermetic_launchd.direct_door_assignments(tmp_path)
+    assert unparsed == []
+    assert len(hits) == 2, hits
+    assert any("_alert" in h and "test_annotated.py" in h for h in hits), hits
+
+
+def test_an_unparsable_file_is_a_NAMED_third_outcome_not_a_clean_pass(tmp_path):
+    """«Не прочитано» обязано быть отличимо от «находок нет» (инв. #17)."""
+    (tmp_path / "tests").mkdir()
+    (tmp_path / "tests" / "test_broken.py").write_text(
+        "def test_x(:\n", encoding="utf-8")
+
+    hits, unparsed, seen = _hermetic_launchd.direct_door_assignments(tmp_path)
+    assert hits == []
+    assert len(unparsed) == 1, unparsed
+    assert "test_broken.py" in unparsed[0] and "SyntaxError" in unparsed[0], unparsed
+    assert seen == 1
+
+
+def test_the_wired_list_names_every_importer_of_the_door():
+    """Замкнутый перечень не вправе МОЛЧА укоротиться.
+
+    `_WIRED` — контроль проводки, и его сила держится на полноте: забудь файл —
+    и проводка у него не проверяется ничем, а перечень при этом зелён. Поэтому
+    перечень сверяется с ИЗМЕРЕННЫМ списком ввозящих дверь, а сам этот список
+    из перечня не выводится.
+
+    Два файла в правой части — не сайты, а МЕТА: сама приёмка двери и контроль
+    её пробы. Они ввозят дверь, чтобы судить о ней, и закрывать в них нечего.
+    """
+    importers, unparsed, seen = _hermetic_launchd.door_importers(_REPO_ROOT)
+
+    assert not unparsed, f"НЕ ИЗМЕРЕНО: файлы набора не разобраны: {unparsed[:3]}"
+    assert seen > 0, "НЕ ИЗМЕРЕНО: ни одного тест-файла не просмотрено"
+    meta = {"spa_core/tests/test_hermetic_launchd_door.py"}
+    assert set(importers) - meta == set(_WIRED), (
+        "перечень проводки разошёлся с ввозящими дверь: лишние "
+        f"{sorted(set(_WIRED) - set(importers))}, незакрытые "
+        f"{sorted(set(importers) - meta - set(_WIRED))}")
