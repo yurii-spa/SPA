@@ -123,6 +123,14 @@ def _report(verdict="GREEN", *, sha="01dcead102aa1fae9c0287e8c6cab788de0a88e6",
                        "shards_planned": shards, "shards_complete": shards}}
 
 
+def _zip(member: str, doc) -> bytes:
+    """Один zip с одним членом — ровно то, что отдаёт `actions/artifacts/<id>/zip`."""
+    buf = io.BytesIO()
+    with zipfile.ZipFile(buf, "w") as z:
+        z.writestr(member, json.dumps(doc))
+    return buf.getvalue()
+
+
 class _Net:
     """Сеть ВХОДОМ: обе двери (JSON и байты) отвечают сценой, а не живым GitHub.
 
@@ -131,8 +139,16 @@ class _Net:
     """
 
     def __init__(self, runs, artifacts=None, report=None, *, fetch_raises=None,
-                 grab_raises=None, zip_bytes=None, run_absent=None):
+                 grab_raises=None, zip_bytes=None, run_absent=None,
+                 manifest=None, reports=None, manifests=None):
         self.runs = runs
+        #: ПЛАН ШАРДОВ (ADR-1077) — второй артефакт того же прогона. Отдельный
+        #: вход, а не поле отчёта: артефакты разные и сроки хранения разные, и
+        #: сцена, подающая их одним куском, не умела бы изобразить главное
+        #: состояние — «отчёт есть, плана нет».
+        self.manifest = manifest
+        #: по НОМЕРУ прогона, когда сцена изображает ДВА прогона дельты
+        self.reports, self.manifests = reports or {}, manifests or {}
         #: Чем отвечает дверь строки прогона, когда номера в сцене НЕТ. Умолчание —
         #: документ без `status`: так ведёт себя ответ, из которого живость не выводится.
         self.run_absent = {} if run_absent is None else run_absent
@@ -149,7 +165,8 @@ class _Net:
         if self.fetch_raises is not None:
             raise self.fetch_raises
         if "/artifacts" in path:
-            return {"artifacts": self.artifacts}
+            run = path.split("/actions/runs/", 1)[1].split("/")[0]
+            return {"artifacts": self._artifacts_of(run)}
         # Дверь СТРОКИ ОДНОГО прогона (ADR-1058): живой API отдаёт здесь ровно ту же
         # строку, что и в списке, поэтому сцена берёт её из `self.runs` по номеру, а не
         # выдумывает вторую копию. Отдать сюда `{"workflow_runs": …}` значило бы
@@ -163,16 +180,46 @@ class _Net:
             return self.run_absent
         return {"workflow_runs": self.runs}
 
+    def _artifacts_of(self, run):
+        """Перечень артефактов ОДНОГО прогона: отчёт и — если сцена его дала — план.
+
+        Номер прогона входит в адрес артефакта: без этого дельта двух прогонов
+        получила бы ОДИН и тот же документ дважды, и «пришло 0» было бы
+        свойством сцены.
+        """
+        if run in self.reports or run in self.manifests:
+            rows = []
+            if run in self.reports:
+                rows.append({"id": f"r{run}", "name": "ci-control-report",
+                             "expired": False,
+                             "archive_download_url": f"https://api.example/{run}/report.zip"})
+            if run in self.manifests:
+                rows.append({"id": f"m{run}", "name": "ctl-manifest",
+                             "expired": False,
+                             "archive_download_url": f"https://api.example/{run}/manifest.zip"})
+            return rows
+        rows = list(self.artifacts)
+        if self.manifest is not None and not any(
+                a.get("name") == "ctl-manifest" for a in rows):
+            rows.append({"id": 2, "name": "ctl-manifest", "expired": False,
+                         "archive_download_url": "https://api.example/manifest.zip"})
+        return rows
+
     def grab(self, url):
         self.asked.append(url)
         if self.grab_raises is not None:
             raise self.grab_raises
         if self.zip_bytes is not None:
             return self.zip_bytes
-        buf = io.BytesIO()
-        with zipfile.ZipFile(buf, "w") as z:
-            z.writestr("report.json", json.dumps(self.report))
-        return buf.getvalue()
+        for run, doc in self.manifests.items():
+            if url.endswith(f"/{run}/manifest.zip"):
+                return _zip("manifest.json", doc)
+        for run, doc in self.reports.items():
+            if url.endswith(f"/{run}/report.zip"):
+                return _zip("report.json", doc)
+        if "manifest" in url:
+            return _zip("manifest.json", self.manifest)
+        return _zip("report.json", self.report)
 
     def doc(self):
         return ccv.run(root=_REPO, now=NOW, fetch=self.fetch, grab=self.grab)
@@ -1359,6 +1406,269 @@ class TheCauseAxisOfRedIsCarriedToTheReader(unittest.TestCase):
         self.assertNotIn("дефектов НЕ МЕНЬШЕ", src,
                          "вторая копия строки про вилку: разойдись она с первой — "
                          "два читателя сказали бы о причинах разное молча")
+
+
+# ───────── 14. ось ПЕРЕЕЗДА у дельты: план шардов (ADR-1077, #1222) ───────────
+
+def _reads_key(node, key: str) -> bool:
+    """Читает ли узел ключ ``key`` — подпиской либо ``.get(key)``.
+
+    Запись того же ключа в литерал словаря чтением НЕ является: меряется второй
+    РАЗБОР, а не упоминание имени.
+    """
+    for inner in ast.walk(node):
+        if (isinstance(inner, ast.Subscript)
+                and isinstance(inner.slice, ast.Constant)
+                and inner.slice.value == key):
+            return True
+        if (isinstance(inner, ast.Call)
+                and isinstance(inner.func, ast.Attribute)
+                and inner.func.attr == "get"
+                and inner.args
+                and isinstance(inner.args[0], ast.Constant)
+                and inner.args[0].value == key):
+            return True
+    return False
+
+
+def _plan_parsers(source: str) -> list:
+    """Функции, которые читают И ``files``, И ``shard`` — то есть РАЗБИРАЮТ план.
+
+    Один ключ мерой не является, и это ИЗМЕРЕНО: `files` в приборе читается
+    законно (`cen.get("files")` — счёт файлов переписи красного), `shard` тоже
+    (`r.get("shard")` — шард упавшего имени в ОТЧЁТЕ). Разбор плана отличается
+    от обоих тем, что ему нужны ОБА ключа одной записи — и в приборе таких
+    функций нет ни одной.
+    """
+    return [n.name for n in ast.walk(ast.parse(source))
+            if isinstance(n, (ast.FunctionDef, ast.AsyncFunctionDef))
+            and _reads_key(n, "files") and _reads_key(n, "shard")]
+
+
+#: Сцена плана шардов в ФОРМЕ ПРОИЗВОДИТЕЛЯ (`ci_control.cmd_plan`).
+def _plan(by_file: dict) -> dict:
+    buckets: dict[int, list] = {}
+    for path, shard in by_file.items():
+        buckets.setdefault(shard, []).append(path)
+    return {"schema": "spa-ci-control-manifest/1", "sha": "deadbeef",
+            "shards": [{"shard": k, "files": v} for k, v in sorted(buckets.items())]}
+
+
+class TheManifestArtifactIsNamedByTheWorkflowNotByMemory(unittest.TestCase):
+    """Звено: литерал имени/срока разошёлся бы с воркфлоу МОЛЧА.
+
+    Разойдись — прибор ответил бы «плана шардов нет» о живом артефакте, то есть
+    выдал бы НЕ ИЗМЕРЕНО на измеримом вопросе. Поэтому и имя, и срок читаются У
+    ВОРКФЛОУ, а не помнятся по тексту.
+    """
+
+    def setUp(self):
+        self.wf = (_REPO / ".github" / "workflows" / "ci-control.yml").read_text(
+            encoding="utf-8")
+
+    def test_the_artifact_name_matches_the_workflow(self):
+        self.assertIn(f"name: {ccv.MANIFEST_ARTIFACT}", self.wf)
+
+    def test_the_retention_of_the_plan_matches_the_workflow(self):
+        self.assertIn(f"retention-days: {ccv.MANIFEST_RETENTION_DAYS}", self.wf)
+
+    def test_the_plan_lives_SHORTER_than_the_report(self):
+        """Это НЕ украшение: на нём стои́т штатность состояния «отчёт есть, плана нет».
+
+        Срок отчёта читается у того же воркфлоу — равняй их, и прибор перестал
+        бы отличать «истёк» от «прогон умер раньше сводки».
+        """
+        self.assertIn("retention-days: 90", self.wf)
+        self.assertLess(ccv.MANIFEST_RETENTION_DAYS, 90)
+
+    def test_the_plan_is_parsed_by_ONE_door_and_it_is_not_here(self):
+        """Второй разбор манифеста разошёлся бы с генератором молча (ADR-220).
+
+        Мерка — AST, а не подстрока: `doc.get("shards")` в приборе ЕСТЬ и
+        законно (так читается перечень шардов ОТЧЁТА), и запрет по этой строке
+        покраснел бы на верном состоянии. Второй разбор ПЛАНА узнаётся по
+        чтению ОБОИХ ключей записи шарда — ``files`` и ``shard``; по одному
+        ключу запрет покраснел бы на верном состоянии (оба читаются в приборе
+        законно, но в РАЗНЫХ функциях и о РАЗНЫХ документах).
+        """
+        src = (_REPO / PRODUCER_REL).read_text(encoding="utf-8")
+        self.assertIn("red_set_delta.shard_map_of", src)
+        self.assertEqual(_plan_parsers(src), [],
+                         "в приборе появился свой разбор плана шардов")
+
+    def test_the_AST_measure_finds_a_second_parser_when_there_IS_one(self):
+        """ОБРАТНАЯ половина: без неё мерка прошла бы и у той, что не находит НИЧЕГО."""
+        fake = ('def parse(doc):\n'
+                '    out = {}\n'
+                '    for row in doc.get("shards") or []:\n'
+                '        for f in row["files"]:\n'
+                '            out[f] = row["shard"]\n'
+                '    return out\n')
+        self.assertEqual(_plan_parsers(fake), ["parse"])
+
+    def test_the_measure_does_not_fire_on_a_single_key(self):
+        """Мерка по ОДНОМУ ключу краснела бы на верном приборе — это ИЗМЕРЕНО."""
+        one = ('def a(cen):\n    return cen.get("files")\n'
+               'def b(rows):\n    return {r.get("shard") for r in rows}\n')
+        self.assertEqual(_plan_parsers(one), [])
+        self.assertTrue(_reads_key(ast.parse(one), "files"))
+        self.assertTrue(_reads_key(ast.parse(one), "shard"))
+
+    def test_the_single_door_is_the_module_function_itself(self):
+        """«Имя упомянуто» ≠ «зовётся ОНО»: сверяется объект, а не текст."""
+        from spa_core.monitoring import red_set_delta as rsd
+        net = _Net([_run_row("45108124169")],
+                   manifest=_plan({"spa_core/tests/test_a.py": 4}))
+        mine = ccv._shard_map_of_run("45108124169", fetch=net.fetch,
+                                     grab=net.grab, now=NOW)
+        theirs = rsd.shard_map_of(_plan({"spa_core/tests/test_a.py": 4}),
+                                  label=mine.reason or "план")
+        self.assertEqual(mine.by_file, theirs.by_file)
+        self.assertIs(type(mine), rsd.ShardMap)
+
+
+class TheManifestDoorRefusesByNAME(unittest.TestCase):
+    """Каждое порванное звено двери плана — названная причина, а не пустая карта."""
+
+    def _net(self, **kw):
+        return _Net([_run_row("45108124169")], **kw)
+
+    def test_no_plan_artifact_at_all_refuses(self):
+        net = self._net(artifacts=[{"id": 1, "name": "ci-control-report",
+                                    "expired": False,
+                                    "archive_download_url": "https://api.example/zip"}])
+        with self.assertRaises(ccv.NotMeasured) as box:
+            ccv.manifest_of_run("45108124169", fetch=net.fetch, grab=net.grab, now=NOW)
+        self.assertIn(ccv.MANIFEST_ARTIFACT, str(box.exception))
+
+    def test_an_expired_plan_names_the_retention_and_calls_it_NORMAL(self):
+        """«Отчёт есть, плана нет» штатно — сроки РАЗНЫЕ, и это сказано словами."""
+        net = self._net(artifacts=[{"id": 2, "name": "ctl-manifest", "expired": True}])
+        with self.assertRaises(ccv.NotMeasured) as box:
+            ccv.manifest_of_run("45108124169", fetch=net.fetch, grab=net.grab, now=NOW)
+        self.assertIn("истёк", str(box.exception))
+        self.assertIn(str(ccv.MANIFEST_RETENTION_DAYS), str(box.exception))
+
+    def test_a_broken_zip_refuses(self):
+        net = self._net(manifest=_plan({"a.py": 0}), zip_bytes=b"not a zip")
+        with self.assertRaises(ccv.NotMeasured) as box:
+            ccv.manifest_of_run("45108124169", fetch=net.fetch, grab=net.grab, now=NOW)
+        self.assertIn("не разобран", str(box.exception))
+
+    def test_a_zip_without_the_member_refuses(self):
+        net = self._net(manifest=_plan({"a.py": 0}),
+                        zip_bytes=_zip("collect.log", "пусто"))
+        with self.assertRaises(ccv.NotMeasured) as box:
+            ccv.manifest_of_run("45108124169", fetch=net.fetch, grab=net.grab, now=NOW)
+        self.assertIn("не разобран", str(box.exception))
+
+    def test_the_failure_does_NOT_escape_into_the_delta(self):
+        """Несущая половина: немочь ПЛАНА не вправе рушить дельту по родам.
+
+        Обратная сцена — ниже (`test_a_measured_plan_comes_back_as_a_map`): без
+        неё проверка проходила бы и у двери, которая НИКОГДА не измеряет.
+        """
+        net = self._net(artifacts=[])
+        chart = ccv._shard_map_of_run("45108124169", fetch=net.fetch,
+                                      grab=net.grab, now=NOW)
+        self.assertEqual(chart.status, "unmeasured")
+        self.assertIn(ccv.MANIFEST_ARTIFACT, chart.reason)
+        self.assertEqual(chart.run, "45108124169")
+
+    def test_a_measured_plan_comes_back_as_a_map(self):
+        net = self._net(manifest=_plan({"spa_core/tests/test_a.py": 4}))
+        chart = ccv._shard_map_of_run("45108124169", fetch=net.fetch,
+                                      grab=net.grab, now=NOW)
+        self.assertTrue(chart.measured, chart.reason)
+        self.assertEqual(chart.by_file, {"spa_core/tests/test_a.py": 4})
+
+
+class TheArrivalThatMovedShardGetsTheTHIRDCode(unittest.TestCase):
+    """Звено, ИЗМЕРЕННОЕ циклом #1219 и оставленное открытым заказом G1063 п. 2.
+
+    Прежняя редакция возвращала **1** («гнаться за N именами») независимо от
+    того, тасовались ли шарды. На живой паре 45091782823 → 45108124169 от ОДНОГО
+    добавленного тест-файла переехало 1570 файлов из 3011, и переехали ВСЕ ТРИ
+    настоящих пришедших имени. Код 0 соврал бы в сторону «чисто» (прямой запрет
+    заказа G1064 п. 2), код 1 отдал бы следующему циклу фантом.
+    """
+
+    PREV, CURR = "45091782823", "45108124169"
+    ARRIVAL = "spa_core/tests/test_new.py::test_it"
+
+    def _code(self, *, prev_plan, curr_plan):
+        rows_prev = [("spa_core/tests/test_old.py::test_x", "failed", 1)]
+        rows_curr = rows_prev + [(self.ARRIVAL, "failed", 1)]
+        nets = {}
+        manifests = {}
+        if prev_plan is not None:
+            manifests[self.PREV] = _plan(prev_plan)
+        if curr_plan is not None:
+            manifests[self.CURR] = _plan(curr_plan)
+        net = _Net([_run_row(self.PREV), _run_row(self.CURR)],
+                   reports={self.PREV: _red_report(rows_prev),
+                            self.CURR: _red_report(rows_curr)},
+                   manifests=manifests)
+        nets["net"] = net
+        saved = (ccv.github_fetch, ccv.artifact_grab, ccv._keychain_token)
+        ccv.github_fetch = lambda: net.fetch
+        ccv.artifact_grab = lambda token=None: net.grab
+        ccv._keychain_token = lambda: "сцена"
+        try:
+            return ccv.main(["--delta", self.PREV, self.CURR]), net
+        finally:
+            ccv.github_fetch, ccv.artifact_grab, ccv._keychain_token = saved
+
+    def test_an_arrival_that_did_NOT_move_is_a_finding_code_one(self):
+        code, _ = self._code(
+            prev_plan={"spa_core/tests/test_old.py": 1,
+                       "spa_core/tests/test_new.py": 7},
+            curr_plan={"spa_core/tests/test_old.py": 1,
+                       "spa_core/tests/test_new.py": 7})
+        self.assertEqual(code, 1, "измеренная регрессия потеряла свой код")
+
+    def test_an_arrival_that_MOVED_is_the_third_outcome_code_two(self):
+        code, _ = self._code(
+            prev_plan={"spa_core/tests/test_old.py": 1,
+                       "spa_core/tests/test_new.py": 7},
+            curr_plan={"spa_core/tests/test_old.py": 1,
+                       "spa_core/tests/test_new.py": 11})
+        self.assertEqual(code, 2, "«переехал» прочитан как вердикт, а не как "
+                                  "третий исход — ось врёт в сторону «чисто» "
+                                  "либо в сторону фантома")
+
+    def test_a_missing_plan_is_the_third_outcome_too(self):
+        code, _ = self._code(
+            prev_plan=None,
+            curr_plan={"spa_core/tests/test_old.py": 1,
+                       "spa_core/tests/test_new.py": 11})
+        self.assertEqual(code, 2)
+
+    def test_the_door_asks_the_plan_of_BOTH_runs(self):
+        """Иначе одна карта сравнивалась бы сама с собой, и переезд ИСЧЕЗ бы."""
+        _, net = self._code(
+            prev_plan={"spa_core/tests/test_old.py": 1,
+                       "spa_core/tests/test_new.py": 7},
+            curr_plan={"spa_core/tests/test_old.py": 1,
+                       "spa_core/tests/test_new.py": 11})
+        self.assertIn(f"https://api.example/{self.PREV}/manifest.zip", net.asked)
+        self.assertIn(f"https://api.example/{self.CURR}/manifest.zip", net.asked)
+
+    def test_no_arrival_at_all_stays_code_zero(self):
+        rows = [("spa_core/tests/test_old.py::test_x", "failed", 1)]
+        plan = _plan({"spa_core/tests/test_old.py": 1})
+        net = _Net([_run_row(self.PREV), _run_row(self.CURR)],
+                   reports={self.PREV: _red_report(rows),
+                            self.CURR: _red_report(rows)},
+                   manifests={self.PREV: plan, self.CURR: plan})
+        saved = (ccv.github_fetch, ccv.artifact_grab, ccv._keychain_token)
+        ccv.github_fetch = lambda: net.fetch
+        ccv.artifact_grab = lambda token=None: net.grab
+        ccv._keychain_token = lambda: "сцена"
+        try:
+            self.assertEqual(ccv.main(["--delta", self.PREV, self.CURR]), 0)
+        finally:
+            ccv.github_fetch, ccv.artifact_grab, ccv._keychain_token = saved
 
 
 if __name__ == "__main__":

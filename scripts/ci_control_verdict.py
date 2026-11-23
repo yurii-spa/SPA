@@ -50,6 +50,16 @@
 есть читатель — следующий цикл, выбирающий между «ждать» и «заказать новый прогон» (≈1–1.6 ч
 раннера и потерянный якорь дельты).
 
+РЕЖИМ `--delta` И ОСЬ ПЕРЕЕЗДА (ADR-1077, заказ G1064 п. 2). Дельта двух прогонов судит
+каждое имя по ДВУМ независимым осям: РОД (вынес ли прогон вердикт — ADR-1055) и ПЕРЕЕЗД
+(о том же ли соседстве этот вердикт). Контрольный прогон идёт по 12 шардам, и состав шарда
+пересчитывается каждый раз: замер #1222 на живой паре 45091782823 → 45108124169 — от ОДНОГО
+добавленного тест-файла переехало **1570 файлов из 3011**, и переехали ВСЕ ТРИ настоящих
+«пришедших» имени той дельты. Поэтому «пришло и переехало» — **третий исход, код 2**, а не 0
+(«чисто» соврало бы) и не 1 («гнаться» отдало бы фантом). План шардов берётся из артефакта
+`ctl-manifest`, у которого срок хранения **30 дней против 90** у отчёта: «вердикт есть, плана
+нет» штатно, и ось тогда слепа С НАЗВАННОЙ ПРИЧИНОЙ, а дельта по родам остаётся измеренной.
+
 ПРОВОДКА (ADR-845). Прибор только ЧИТАЕТ: ни одного файла он не пишет. Отчёт
 (``data/ci_control_verdict.json``) записывает ТОТ, КТО ПОЗВАЛ, — ступень
 `findings_bridge.ci_control_verdict_step`; прибор отдаёт документ на stdout (``--json``).
@@ -99,6 +109,16 @@ WORKFLOW_FILE = "ci-control.yml"
 REPORT_ARTIFACT = "ci-control-report"
 REPORT_MEMBER = "report.json"
 DEFAULT_BRANCH = "main"
+
+#: Артефакт ПЛАНА ШАРДОВ того же прогона (ADR-1077). Имя и срок хранения — у
+#: воркфлоу (`ci-control.yml`, джоба `manifest`), и ПАРИТЕТ с ним проверяет
+#: батарея: литерал, разошедшийся с воркфлоу, молча ответил бы «карты нет» о
+#: живом артефакте. Срок РАЗНЫЙ с отчётом — **30 дней против 90**, поэтому
+#: «отчёт есть, карты нет» штатно и ось переезда тогда НЕ ИЗМЕРЕНА, а дельта
+#: по родам остаётся измеренной.
+MANIFEST_ARTIFACT = "ctl-manifest"
+MANIFEST_MEMBER = "manifest.json"
+MANIFEST_RETENTION_DAYS = 30
 
 #: Что в отчёте считается КРАСНЫМ. `ci_control.aggregate` кладёт в `failures` И упавшие, И
 #: ошибочные (`outcomes.get(n) in (FAILED, ERROR)`), а в `totals` разводит их по ДВУМ
@@ -318,6 +338,61 @@ def report_of_run(run_id: str, *, fetch, grab, now=None) -> dict:
         raise NotMeasured(f"отчёт прогона {run_id} вердикта не несёт — "
                           f"это не «вердикт зелёный»")
     return doc
+
+
+def manifest_of_run(run_id: str, *, fetch, grab, now=None) -> dict:
+    """`manifest.json` артефакта `ctl-manifest` одного прогона (ADR-1077).
+
+    Отдельная дверь от :func:`report_of_run` по ПРЕДМЕТУ, а не ради симметрии:
+    артефакты РАЗНЫЕ (`ctl-manifest` против `ci-control-report`), сроки
+    хранения разные (30 против 90 дней), и вопросы разные — «какие имена
+    красны» против «о том же ли соседстве». Немочь — :class:`NotMeasured` с
+    причиной; РУШИТЬ дельту она не вправе, и зовущий её ловит
+    (:func:`_shard_map_of_run`).
+    """
+    try:
+        listing = fetch(f"/repos/{REPO}/actions/runs/{run_id}/artifacts?per_page=100")
+    except (urllib.error.URLError, urllib.error.HTTPError, OSError, ValueError) as exc:
+        raise NotMeasured(f"перечень артефактов прогона {run_id} не прочитан: "
+                          f"{type(exc).__name__}: {exc}") from exc
+    rows = (listing or {}).get("artifacts") or []
+    live = [a for a in rows
+            if a.get("name") == MANIFEST_ARTIFACT and a.get("expired") is False]
+    if not live:
+        expired = [a for a in rows if a.get("name") == MANIFEST_ARTIFACT]
+        why = (f"истёк ({MANIFEST_RETENTION_DAYS} дней — срок КОРОЧЕ, чем у "
+               f"отчёта, поэтому состояние «вердикт есть, плана шардов нет» "
+               f"штатно" if expired else
+               _absence_cause(run_id, fetch=fetch, now=now))
+        raise NotMeasured(f"у прогона {run_id} плана шардов "
+                          f"`{MANIFEST_ARTIFACT}` нет: {why}")
+    art = live[0]
+    url = art.get("archive_download_url") or (
+        f"https://api.github.com/repos/{REPO}/actions/artifacts/{art.get('id')}/zip")
+    try:
+        raw = grab(url)
+    except (urllib.error.URLError, urllib.error.HTTPError, OSError) as exc:
+        raise NotMeasured(f"план шардов прогона {run_id} не скачан: "
+                          f"{type(exc).__name__}: {exc}") from exc
+    try:
+        doc = json.loads(zipfile.ZipFile(io.BytesIO(raw)).read(MANIFEST_MEMBER))
+    except (zipfile.BadZipFile, KeyError, ValueError, TypeError) as exc:
+        raise NotMeasured(f"план шардов прогона {run_id} не разобран "
+                          f"({type(exc).__name__}: {exc})") from exc
+    return doc
+
+
+def _shard_map_of_run(run_id: str, *, fetch, grab, now=None):
+    """Карта шардов прогона либо НАЗВАННАЯ немочь — но НЕ исключение наружу.
+
+    Разбор манифеста живёт у `red_set_delta.shard_map_of` в ЕДИНСТВЕННОЙ копии:
+    второй разошёлся бы с первым молча. Здесь — только добыча байтов.
+    """
+    try:
+        doc = manifest_of_run(run_id, fetch=fetch, grab=grab, now=now)
+    except NotMeasured as exc:
+        return red_set_delta.unmeasured_shard_map(str(exc), run=run_id)
+    return red_set_delta.shard_map_of(doc, label=f"план шардов прогона {run_id}")
 
 
 def _load_cause_line():
@@ -830,15 +905,20 @@ def delta_run(prev_run: str, curr_run: str, *, fetch=None, grab=None, now=None):
         grab = artifact_grab(_keychain_token())
     prev = report_of_run(prev_run, fetch=fetch, grab=grab, now=now)
     curr = report_of_run(curr_run, fetch=fetch, grab=grab, now=now)
-    return red_set_delta.delta(prev, curr)
+    return red_set_delta.delta(
+        prev, curr,
+        prev_shards=_shard_map_of_run(prev_run, fetch=fetch, grab=grab, now=now),
+        curr_shards=_shard_map_of_run(curr_run, fetch=fetch, grab=grab, now=now))
 
 
 def main(argv=None) -> int:
     ap = argparse.ArgumentParser(description=(__doc__ or "").splitlines()[0])
     ap.add_argument("--delta", nargs=2, metavar=("ПРЕЖНИЙ", "ТЕКУЩИЙ"),
-                    help="дельта красного набора двух прогонов ПО РОДАМ: "
-                         "пришедшее имя рода `wallclock_timeout` регрессией не "
-                         "является, вердикта о нём нет вовсе (ADR-1055)")
+                    help="дельта красного набора двух прогонов ПО РОДАМ и ПО "
+                         "ОСИ ПЕРЕЕЗДА: пришедшее имя рода `wallclock_timeout` "
+                         "регрессией не является (ADR-1055), а пришедшее имя, "
+                         "СМЕНИВШЕЕ ШАРД, есть третий исход — код 2, не 0 "
+                         "(ADR-1077)")
     ap.add_argument("--json", action="store_true",
                     help="отдать документ на stdout (его записывает ПОЗВАВШИЙ)")
     ap.add_argument("--branch", default=DEFAULT_BRANCH,
@@ -869,15 +949,39 @@ def main(argv=None) -> int:
                 "arrived": [t._asdict() for t in d.arrived],
                 "departed": [t._asdict() for t in d.departed],
                 "defect_arrivals": [t.nodeid for t in d.defect_arrivals],
+                # ось ПЕРЕЕЗДА (ADR-1077): «гнаться» и «ось слепа» — РАЗНЫЕ
+                # ключи, и ни один не подставляется вместо другого.
+                "shard_axis": {
+                    "measured": d.shard_axis_measured,
+                    "prev": {"status": d.prev_shards.status,
+                             "reason": d.prev_shards.reason,
+                             "files": len(d.prev_shards.by_file)},
+                    "curr": {"status": d.curr_shards.status,
+                             "reason": d.curr_shards.reason,
+                             "files": len(d.curr_shards.by_file)},
+                },
+                "chase": [t.nodeid for t in d.chase],
+                "shard_blind_arrivals": [t.nodeid for t in d.shard_blind_arrivals],
+                "moved_departures": [t.nodeid for t in d.moved_departures],
             }, ensure_ascii=False))
         else:
             for line in red_set_delta.format_delta(d):
                 print(line)
-        # 2 — НЕ ИЗМЕРЕНО · 1 — пришло имя, о котором вердикт ЕСТЬ · 0 — чисто.
-        # Три исхода различимы кодом возврата (инв. #17).
+        # 2 — НЕ ИЗМЕРЕНО · 1 — пришло имя, о котором вердикт ЕСТЬ И шард тот
+        # же · 0 — чисто. Три исхода различимы кодом возврата (инв. #17).
+        #
+        # ОСЬ ПЕРЕЕЗДА (ADR-1077, заказ G1064 п. 2). Пришедшее имя, которое
+        # ПЕРЕЕХАЛО на другой шард, даёт **2**, а не 0 и не 1: вердикта о его
+        # содержании эта дельта не несёт. Ноль соврал бы в сторону «чисто» —
+        # ровно то, что заказ запрещает; единица отдала бы следующему циклу
+        # имя, которого он не воспроизведёт (замер #1222: 3 из 3 настоящих
+        # пришедших имён дельты 45091782823 → 45108124169 переехали).
+        # Одно «гнаться» перебивает любое число слепых: там есть что чинить.
         if d.status == red_set_delta.UNMEASURED:
             return 2
-        return 1 if d.defect_arrivals else 0
+        if d.chase:
+            return 1
+        return 2 if d.shard_blind_arrivals else 0
 
     try:
         doc = run(root=args.repo_root, branch=args.branch, runs=args.runs)

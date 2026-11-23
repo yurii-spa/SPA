@@ -47,6 +47,59 @@ def _runs() -> tuple[dict, dict]:
     return doc["44287563961"], doc["44302538342"]
 
 
+#: ЖИВАЯ ПАРА ДЛЯ ОСИ ПЕРЕЕЗДА (ADR-1077, цикл #1222) — ровно та, у которой
+#: цикл #1219 намерил переезд РУКАМИ по артефактам `ctl-manifest`
+#: (`.claude/rules/deployment.md`, § «СОСЕД ПО ПРОЦЕССУ»). Номера шардов ниже
+#: вычитаны из таблицы ТОГО замера, а НЕ из ответа прибора.
+_SHARD_FIXTURE = (Path(__file__).resolve().parent / "fixtures"
+                  / "red_set_delta_shards.json")
+SHARD_PREV_RUN, SHARD_CURR_RUN = "45091782823", "45108124169"
+
+#: пришло И переехало — род ДЕФЕКТА, то есть ровно то, за чем прежняя редакция
+#: прибора велела бы гнаться
+KNOWN_MOVED_ARRIVALS = {
+    ("spa_core/tests/test_hermetic_launchd_door.py"
+     "::test_the_prod_code_really_does_call_a_mutating_launchctl"): (8, 11),
+    ("spa_core/tests/test_tb_sanitizer_probe.py::TbSanitizerProbeDiscriminates"
+     "::test_a_sanitizer_that_is_never_called_is_unmeasured_not_refused"): (11, 6),
+    ("spa_core/tests/test_tb_sanitizer_probe.py::TbSanitizerProbeDiscriminates"
+     "::test_the_unittest_queue_cut_out_is_refused_and_not_by_substring"): (11, 6),
+}
+#: пришло и НЕ переезжало — без этого члена «все переехали» было бы свойством
+#: пары, а не ответом оси
+KNOWN_STAYED_ARRIVAL = (
+    "spa_core/tests/test_ledger_census_reader.py::LedgerCensusReaderWiring"
+    "::test_whole_contour_is_intact_on_the_real_tree")
+#: ушло, переехало И было починено СОДЕРЖАНИЕМ (цикл #1218) — два ответа у
+#: одной оси, предмет пункта 5 заказа G1064
+KNOWN_MOVED_DEPARTURE = (
+    "spa_core/tests/test_script_path_launch_imports.py"
+    "::TestPathLaunchImportRatchet::test_no_new_script_breaks_when_launched_by_path")
+
+
+def _shard_pair() -> tuple[dict, dict, rsd.ShardMap, rsd.ShardMap]:
+    raw = json.loads(_SHARD_FIXTURE.read_text(encoding="utf-8"))
+    return (raw["runs"][SHARD_PREV_RUN], raw["runs"][SHARD_CURR_RUN],
+            rsd.shard_map_of({"shards": _shards_from(raw, SHARD_PREV_RUN)},
+                             label="прежний план"),
+            rsd.shard_map_of({"shards": _shards_from(raw, SHARD_CURR_RUN)},
+                             label="текущий план"))
+
+
+def _shards_from(raw: dict, run: str) -> list:
+    """Карта фикстуры (файл → шард) в ФОРМУ ПРОИЗВОДИТЕЛЯ (`shards: [{…}]`).
+
+    Фикстура хранит карту плоской — так её читают глазами, — а прибор обязан
+    разбирать РОВНО ту форму, которую пишет `ci_control.cmd_plan`. Разворот
+    живёт здесь, а не в приборе: иначе у вопроса «какую форму мы читаем» стало
+    бы два ответа.
+    """
+    buckets: dict[int, list[str]] = {}
+    for path, shard in raw["shard_maps"][run].items():
+        buckets.setdefault(shard, []).append(path)
+    return [{"shard": k, "files": v} for k, v in sorted(buckets.items())]
+
+
 class TheIdentityTranslationIsClosed(unittest.TestCase):
     """Правило перевода pytest → junit: закрытое, и обе формы названы."""
 
@@ -285,6 +338,214 @@ class TheInstrumentOnlyReads(unittest.TestCase):
                           "os.getpid", "open(", "write_text"):
             with self.subTest(door=forbidden):
                 self.assertNotIn(forbidden, source)
+
+
+# ───────────────── ось ПЕРЕЕЗДА (шард) — ADR-1077, цикл #1222 ────────────────
+
+class TheShardAxisIsMeasuredOnTheLivePair(unittest.TestCase):
+    """Живая пара 45091782823 → 45108124169: та, что мерили РУКАМИ циклом #1219.
+
+    Известные члены по обе стороны вычитаны из таблицы ТОГО замера
+    (`.claude/rules/deployment.md`), а не из ответа прибора.
+    """
+
+    def setUp(self):
+        self.prev, self.curr, self.pm, self.cm = _shard_pair()
+        self.d = rsd.delta(self.prev, self.curr,
+                           prev_shards=self.pm, curr_shards=self.cm)
+
+    def test_both_shard_maps_are_measured(self):
+        self.assertTrue(self.pm.measured, self.pm.reason)
+        self.assertTrue(self.cm.measured, self.cm.reason)
+        self.assertTrue(self.d.shard_axis_measured)
+
+    def test_every_known_defect_arrival_MOVED_with_the_numbers_of_the_hand_measure(self):
+        got = {t.nodeid: (t.shard, t.shard_prev, t.shard_curr)
+               for t in self.d.defect_arrivals}
+        self.assertEqual(set(got), set(KNOWN_MOVED_ARRIVALS),
+                         "состав пришедших имён рода дефекта разошёлся с замером #1219")
+        for nodeid, (was, now_) in KNOWN_MOVED_ARRIVALS.items():
+            with self.subTest(name=nodeid):
+                self.assertEqual(got[nodeid], (rsd.SHARD_MOVED, was, now_))
+
+    def test_three_of_three_arrivals_to_chase_become_a_THIRD_outcome(self):
+        """Прежняя редакция велела бы гнаться за тремя именами. Все три переехали."""
+        self.assertEqual(len(self.d.defect_arrivals), 3)
+        self.assertEqual(self.d.chase, (),
+                         "«гнаться» обязано опустеть: вердикта о содержании нет")
+        self.assertEqual(len(self.d.shard_blind_arrivals), 3)
+
+    def test_an_arrival_that_did_NOT_move_exists_in_the_same_pair(self):
+        """Иначе «все переехали» было бы свойством ПАРЫ, а не ответом оси."""
+        stayed = [t for t in self.d.arrived if t.shard == rsd.SHARD_SAME]
+        self.assertEqual([t.nodeid for t in stayed], [KNOWN_STAYED_ARRIVAL])
+        self.assertEqual(stayed[0].shard_prev, stayed[0].shard_curr)
+        self.assertIsNone(stayed[0].shard_why)
+
+    def test_the_departure_that_moved_is_not_declared_fixed(self):
+        """Пункт 5 заказа G1064: «переехал» ≠ «не регрессия» и ≠ «починен»."""
+        moved = {t.nodeid: (t.shard_prev, t.shard_curr)
+                 for t in self.d.moved_departures}
+        self.assertIn(KNOWN_MOVED_DEPARTURE, moved)
+        self.assertEqual(moved[KNOWN_MOVED_DEPARTURE], (1, 11))
+        line = [ln for ln in rsd.format_delta(self.d) if "ПЕРЕЕХАЛО" in ln]
+        self.assertTrue(line, "отчёт о переехавших ушедших именах молчит")
+        self.assertIn("НЕ объявляет", line[0])
+
+    def test_the_sum_over_the_shard_axis_equals_the_number_of_transitions(self):
+        for title, rows in (("ПРИШЛО", self.d.arrived), ("УШЛО", self.d.departed)):
+            with self.subTest(side=title):
+                groups = self.d.by_shard(rows)
+                self.assertEqual(sum(len(v) for v in groups.values()), len(rows))
+
+    def test_the_report_names_the_third_outcome_not_a_regression(self):
+        lines = rsd.format_delta(self.d)
+        third = [ln for ln in lines if "ТРЕТИЙ исход" in ln]
+        self.assertTrue(third, "третий исход в отчёте не назван")
+        tail = [ln for ln in lines if ln.strip().startswith("→ гнаться")]
+        self.assertIn("за 0 именем", tail[0])
+
+    def test_every_row_of_the_report_carries_the_shard_axis(self):
+        # строка ИМЕНИ опознаётся ярлыком рода в квадратных скобках, а не
+        # значком в начале: значок стои́т и у сводных строк отчёта, и счёт по
+        # нему ответил бы о другом населении.
+        marks = tuple(f"[{rod}]" for rod in rsd.RODS)
+        rows = [ln for ln in rsd.format_delta(self.d)
+                if any(m in ln for m in marks)]
+        self.assertEqual(len(rows), len(self.d.arrived) + len(self.d.departed))
+        for ln in rows:
+            with self.subTest(line=ln[:60]):
+                self.assertIn("⟂", ln)
+
+
+class TheShardAxisRefusesByNAME(unittest.TestCase):
+    """Каждое порванное звено карты — НАЗВАННЫЙ отказ, а не «шард тот же»."""
+
+    def _ok_map(self):
+        return rsd.shard_map_of({"shards": [{"shard": 0, "files": ["a.py"]},
+                                            {"shard": 1, "files": ["b.py"]}]})
+
+    def test_a_map_that_is_not_a_mapping_refuses(self):
+        m = rsd.shard_map_of(["a.py"])
+        self.assertEqual(m.status, rsd.UNMEASURED)
+        self.assertIn("не словарь", m.reason)
+
+    def test_a_map_without_the_shards_list_refuses(self):
+        m = rsd.shard_map_of({"files": ["a.py"]})
+        self.assertEqual(m.status, rsd.UNMEASURED)
+        self.assertIn("`shards`", m.reason)
+
+    def test_a_row_without_a_shard_number_refuses(self):
+        m = rsd.shard_map_of({"shards": [{"files": ["a.py"]}]})
+        self.assertEqual(m.status, rsd.UNMEASURED)
+        self.assertIn("без номера шарда", m.reason)
+
+    def test_a_files_field_that_is_not_a_list_refuses(self):
+        m = rsd.shard_map_of({"shards": [{"shard": 3, "files": "a.py"}]})
+        self.assertEqual(m.status, rsd.UNMEASURED)
+        self.assertIn("`files`", m.reason)
+
+    def test_a_file_that_is_not_a_path_refuses(self):
+        m = rsd.shard_map_of({"shards": [{"shard": 3, "files": [None]}]})
+        self.assertEqual(m.status, rsd.UNMEASURED)
+        self.assertIn("это не путь", m.reason)
+
+    def test_one_file_in_two_shards_refuses_instead_of_choosing(self):
+        m = rsd.shard_map_of({"shards": [{"shard": 1, "files": ["a.py"]},
+                                         {"shard": 7, "files": ["a.py"]}]})
+        self.assertEqual(m.status, rsd.UNMEASURED)
+        self.assertIn("выбрать один из двух", m.reason)
+
+    def test_a_map_with_no_files_at_all_refuses(self):
+        """Иначе «файла нет в населении» сказалось бы о КАЖДОМ имени."""
+        m = rsd.shard_map_of({"shards": [{"shard": 0, "files": []}]})
+        self.assertEqual(m.status, rsd.UNMEASURED)
+        self.assertIn("ни одного файла", m.reason)
+
+    def test_a_raw_manifest_instead_of_a_ShardMap_refuses(self):
+        """Второй разбор манифеста разошёлся бы с первым молча (класс ADR-220)."""
+        prev, curr, pm, _ = _shard_pair()
+        d = rsd.delta(prev, curr, prev_shards={"shards": []}, curr_shards=pm)
+        self.assertEqual(d.status, rsd.MEASURED)
+        self.assertFalse(d.shard_axis_measured)
+        self.assertIn("`ShardMap`", d.prev_shards.reason)
+        self.assertTrue(all(t.shard == rsd.SHARD_UNMEASURED for t in d.arrived))
+
+    def test_no_map_at_all_is_UNMEASURED_at_every_transition_not_silence(self):
+        prev, curr = _runs()
+        d = rsd.delta(prev, curr)
+        self.assertEqual(d.status, rsd.MEASURED)
+        self.assertFalse(d.shard_axis_measured)
+        self.assertTrue(d.arrived, "сцена без переходов ничего бы не проверила")
+        for t in d.arrived + d.departed:
+            with self.subTest(name=t.nodeid):
+                self.assertEqual(t.shard, rsd.SHARD_UNMEASURED)
+                # причина НАЗЫВАЕТ и сторону («прежнего прогона»), и повод —
+                # поэтому проверяется вхождением, а не равенством: сторона есть
+                # часть ответа, без неё две слепые карты неразличимы.
+                self.assertIn(rsd.NO_SHARD_MAP_REASON, t.shard_why)
+        self.assertEqual(d.chase, ())
+
+    def test_a_blind_axis_does_NOT_ruin_the_rod_delta(self):
+        """Разница ПО ПРЕДМЕТУ: ростер отвечает о красноте, карта — о соседстве."""
+        prev, curr = _runs()
+        with_map = rsd.delta(prev, curr, prev_shards=self._ok_map(),
+                             curr_shards=self._ok_map())
+        without = rsd.delta(prev, curr)
+        self.assertEqual(without.status, rsd.MEASURED)
+        self.assertEqual([t.nodeid for t in without.arrived],
+                         [t.nodeid for t in with_map.arrived])
+        self.assertEqual([t.rod for t in without.arrived],
+                         [t.rod for t in with_map.arrived])
+
+    def test_a_file_missing_from_one_map_is_ABSENT_not_SAME(self):
+        prev, curr, pm, cm = _shard_pair()
+        thin = rsd.ShardMap(status=rsd.MEASURED, reason=None, run=pm.run,
+                            by_file={k: v for k, v in pm.by_file.items()
+                                     if "test_tb_sanitizer_probe" not in k})
+        d = rsd.delta(prev, curr, prev_shards=thin, curr_shards=cm)
+        absent = [t for t in d.arrived if t.shard == rsd.SHARD_ABSENT]
+        self.assertTrue(absent, "выпавший из карты файл не назван отсутствующим")
+        for t in absent:
+            with self.subTest(name=t.nodeid):
+                self.assertIn("нет в населении прежнего прогона", t.shard_why)
+                self.assertIsNone(t.shard_prev)
+        self.assertEqual(d.chase, (), "ABSENT «гнаться» не открывает")
+
+    def test_half_a_delta_still_carries_the_shard_maps_it_was_given(self):
+        """Ростер слеп, а карта прочитана — это РАЗНЫЕ немочи, и обе названы."""
+        _, curr, pm, cm = _shard_pair()
+        d = rsd.delta(None, curr, prev_shards=pm, curr_shards=cm)
+        self.assertEqual(d.status, rsd.UNMEASURED)
+        self.assertTrue(d.shard_axis_measured)
+
+
+class TheShardVocabularyIsClosedAndREACHABLE(unittest.TestCase):
+    """Род обязан быть ДОСТИЖИМ до того, как печатать его ноль (урок #1163)."""
+
+    def test_every_shard_verdict_has_a_human_label(self):
+        self.assertEqual(set(rsd.SHARD_LABEL), set(rsd.SHARD_VERDICTS))
+
+    def test_every_shard_verdict_is_actually_produced_by_the_reader(self):
+        prev, curr, pm, cm = _shard_pair()
+        thin = rsd.ShardMap(status=rsd.MEASURED, reason=None, run=pm.run,
+                            by_file={k: v for k, v in pm.by_file.items()
+                                     if "test_tb_sanitizer_probe" not in k})
+        seen = set()
+        for pair in ((pm, cm), (thin, cm), (None, None)):
+            d = rsd.delta(prev, curr, prev_shards=pair[0], curr_shards=pair[1])
+            seen.update(t.shard for t in d.arrived + d.departed)
+        self.assertEqual(seen, set(rsd.SHARD_VERDICTS),
+                         "исход объявлен и НЕДОСТИЖИМ — его ноль был бы "
+                         "свойством прибора, а не замером")
+
+    def test_every_shard_verdict_has_its_own_tag_in_the_report(self):
+        tags = {v: rsd.shard_tag(rsd.Transition(
+            nodeid="a.py::t", identity="a::t", rod=rsd.ROD_DEFECT,
+            rod_from="curr", shard=v, shard_prev=1, shard_curr=2))
+            for v in rsd.SHARD_VERDICTS}
+        self.assertEqual(len(set(tags.values())), len(rsd.SHARD_VERDICTS),
+                         f"два исхода печатаются одним словом: {tags}")
 
 
 if __name__ == "__main__":
