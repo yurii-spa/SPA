@@ -447,9 +447,11 @@ def _resolve_tails(node: ast.AST, binds: dict[str, list[ast.AST]],
                    rounds: int = DERIVE_ROUNDS) -> tuple[set[str], str]:
     """Хвосты пути цели + ИСХОД раскрытия.
 
-    Исход: "resolved" (наш артефакт) · "stand" (наш, но в одноразовом стенде) ·
-    "not_ours" (раскрыт КОНКРЕТНЫЙ путь, и он чужой) · "caller_supplied"
-    (ничего не раскрылось, и в цепочке параметр без умолчания) · "unresolved".
+    Исход: "resolved" (наш артефакт) · "stand" (одноразовый стенд — наш
+    артефакт в стенде ЛИБО, с ADR-1079, цель, чей КОРЕНЬ раскрыт как
+    одноразовый, а имя листа пришло извне) · "not_ours" (раскрыт КОНКРЕТНЫЙ
+    путь, и он чужой) · "caller_supplied" (ничего не раскрылось, и в цепочке
+    параметр без умолчания) · "unresolved".
 
     Порядок исходов существен: раскрытый конкретный хвост, который нашим именем
     не кончается, есть ОПРЕДЕЛЁННОЕ «не наш писатель», а не граница меры. Первая
@@ -464,6 +466,18 @@ def _resolve_tails(node: ast.AST, binds: dict[str, list[ast.AST]],
     frontier: list[ast.AST] = [node]
     saw_caller = False
     saw_stand = False
+    #: СТРУКТУРНОЕ свидетельство стенда — ТОЛЬКО зов фабрики
+    #: (`TemporaryDirectory()`, `mkdtemp()`). Отдельно от `saw_stand`
+    #: НАРОЧНО (ADR-1079): `saw_stand` ловит и ГОЛОЕ ИМЯ переменной
+    #: (`tmpdir`, `sandbox`, `tmp_path`), а это свидетельство ИМЕНИ, не
+    #: устройства. На ветке `_targets_artifact` разницы нет — там имя
+    #: артефакта уже раскрыто, и вопрос лишь «в стенде ли он». В падении
+    #: сквозь не раскрыто НИЧЕГО, и пустить туда имя значило бы отдать
+    #: отмычку: переменная, НАЗВАННАЯ `sandbox`, снимала бы обвинение с
+    #: нераскрытой записи. То же и об АТРИБУТЕ (`cfg.tmpdir`) — имя на чужом
+    #: объекте об устройстве корня не говорит ничего (контроль H, мутант M7).
+    #: Поэтому новый исход требует ЗОВА, а не имени в любой его форме.
+    saw_stand_rooted = False
     expanded = False
 
     for _ in range(rounds):
@@ -486,11 +500,16 @@ def _resolve_tails(node: ast.AST, binds: dict[str, list[ast.AST]],
                         nxt.append(cand)
                         expanded = True
                 elif isinstance(sub, ast.Attribute) and sub.attr in _STAND_MARKERS:
+                    # ИМЕНИ атрибута структурным свидетельством НЕ считаем
+                    # (ADR-1079, контроль H, найден выжившим мутантом M7):
+                    # `cfg.tmpdir` — такое же ИМЯ на чужом объекте, как и голое
+                    # имя переменной, и о устройстве корня не говорит ничего.
                     saw_stand = True
                 elif isinstance(sub, ast.Call):
                     fn = _callee_name(sub.func)
                     if any(m in fn for m in _STAND_MARKERS):
                         saw_stand = True
+                        saw_stand_rooted = True
         frontier = nxt
 
     if _targets_artifact(tails):
@@ -499,6 +518,29 @@ def _resolve_tails(node: ast.AST, binds: dict[str, list[ast.AST]],
         return tails, "not_ours"
     if saw_caller:
         return tails, "caller_supplied"
+    if saw_stand_rooted:
+        # ADR-1079. Корень цели раскрыт и ОДНОРАЗОВЕН — это ОПРЕДЕЛЁННОЕ
+        # наблюдение, а не граница меры: запись под `TemporaryDirectory()` не
+        # может быть записью в `data/adapter_status.json`, КАКИМ БЫ ни было
+        # имя листа. До ADR-1079 `saw_stand` читался только на ветке
+        # `_targets_artifact` выше, и наблюдение ВЫБРАСЫВАЛОСЬ: сцена пробы,
+        # берущая имя листа у соседнего модуля (`card_acceptance.py:20121`,
+        # `root2 / _cc.CYCLE_STATUS_NAME`), доезжала до `unresolved_named` и
+        # обвинялась как «цель записи не раскрыта». Обвинение стоило вердикта
+        # самой пробе: `writer_unmeasured` 2 > потолок 1 ⇒ UNMEASURED
+        # замыкал пробу ДО осей литерала и рода, и пять проверок набора
+        # краснели из одного корня.
+        #
+        # Ослаблением это не является, и граница узка ПО ПОСТРОЕНИЮ: ветка
+        # достигается только когда НИ ОДИН хвост не раскрылся — ни в наш
+        # артефакт (ветка выше), ни в чужой конкретный путь (`not_ours`), —
+        # а признак стенда ищется ТОЛЬКО в цепочке раскрытия САМОЙ цели.
+        # `mkdtemp()` рядом в той же функции, но вне цепочки цели, исход НЕ
+        # меняет (контроль D); ИМЯ стенда — ни голое (контроль E), ни в
+        # атрибуте (контроль H) — сюда не пускается вовсе, и класс
+        # обвинения остаётся достижимым (контроль C) —
+        # иначе правка опустошила бы меру, а не исправила.
+        return tails, "stand"
     return tails, ("unresolved_named" if expanded else "unresolved")
 
 

@@ -2,11 +2,11 @@
 
 > Авто-генерится `scripts/build_tracker_board.py` из `nimbalyst-local/tracker/*.md`. НЕ править вручную — правь карточки. Источник правды — карточки, это индекс (bootstrap).
 >
-> Собрана: 2026-11-23T16:33:55Z · сверка с карточками: `python3 scripts/build_tracker_board.py --check` (сторож `spa_core/tests/test_tracker_board_matches_cards.py`).
+> Собрана: 2026-11-23T19:52:26Z · сверка с карточками: `python3 scripts/build_tracker_board.py --check` (сторож `spa_core/tests/test_tracker_board_matches_cards.py`).
 >
-> Сверено с `origin/main` (b08347fc6) · у **1** своя правка, кто новее — не измерено.
+> Сверено с `origin/main` (40d2ec30b).
 >
-> Всего карточек: **1679** · ждёт владельца: **16** · занято сессиями: **13**.
+> Всего карточек: **1680** · ждёт владельца: **16** · занято сессиями: **13**.
 
 ## 🔴 ЖДЁТ ВЛАДЕЛЬЦА (needs-owner)
 
@@ -448,7 +448,7 @@
 ### · closed
 - Считать ли верный отказ по правилам допуска неисправностью флота  ·  `owner-decision-schitat-li-vernyi-otkaz-po-pravilam-dopu.md` · 2026-10-08
 
-## 📥 Inbox (задания: Telegram / заметки / голос)  (974)
+## 📥 Inbox (задания: Telegram / заметки / голос)  (975)
 
 ### · in-progress
 - а задача починить все-таки еще раз сообщение которым не пишет нужно твое решени…  ·  `inbox-a-zadacha-pochinit-vse-taki-esche-raz-so.md` · 2026-08-14 · 🔒 `pid43119`
@@ -1407,6 +1407,7 @@
 - Вердикт прогона 41197602899 ИЗМЕРЕН: починка #994 сняла 8 имён, вклад цикла ноль — но +1 против базы не из его диффа и локально зелен  ·  `inbox-verdikt-progona-41197602899-izmeren-poch.md` · 2026-10-31
 - Вердикт сторожа архитектуры относится к манифесту, которого больше нет — а 492 строки нового лежат в прод-дереве незакоммиченными  ·  `inbox-verdikt-storozha-arhitektury-otnositsya.md` · 2026-08-30
 - Вернуть разделы, потерянные доставкой 07.10 с шести карточек владельца  ·  `inbox-vernut-razdely-poteryannye-dostavkoi-07.md` · 2026-10-15
+- Ветка «голое имя стенда» в переписи писателей не закреплена ни одной сценой (мутант M5 выжил)  ·  `inbox-vetka-goloe-imya-stenda-v-perepisi-pisat.md` · 2026-11-23
 - Ветка сверки по mtime срабатывает на свежем worktree всегда — у неё СВОЙ дефект, тактом не лечится (остаток ADR-264)  ·  `inbox-vetka-sverki-po-mtime-srabatyvaet-na-sve.md` · 2026-09-08
 - Вето храповика замороженных дат держится ТЕКСТОМ, а не формой: 311 комментариев против 71 докстроки, случайная форма пуста ТОЛЬКО сегодня  ·  `inbox-veto-hrapovika-zamorozhennyh-dat-derzhit.md` · 2026-11-02
 - Внести артефакт в манифест «без срока» нельзя: B5 требует положительный slo_hours — предпосылка замера #426 верна только для B2  ·  `inbox-vnesti-artefakt-v-manifest-bez-sroka-nel.md` · 2026-08-30

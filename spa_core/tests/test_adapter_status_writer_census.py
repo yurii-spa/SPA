@@ -20,7 +20,12 @@
     постройке. Без этих контролей прибор молчал бы о главном писателе и обвинял
     невиновных, оставаясь зелёным;
   * `TestProbe` — проба зелена на целом контуре и красна на КАЖДОМ порванном
-    звене, причём «не измерено» съедает «не выполнено».
+    звене, причём «не измерено» съедает «не выполнено»;
+  * `StandRootedWriteIsANamedBoundary` (ADR-1079) — прибор ВЫБРАСЫВАЛ
+    определённое наблюдение «корень цели одноразов» и докладывал о нём «цель
+    НЕ РАСКРЫТА»; обвинение стоило пробе вердикта, и контроли C/D держат
+    границу от обратной беды — опустошённого класса и отмычки `mkdtemp()`
+    рядом с нераскрытой записью.
 
 Литеральных дат в файле нет: предмет — дерево кода, а не свежесть артефакта,
 поэтому часам здесь нечего инъектировать.
@@ -713,6 +718,260 @@ class TestProbe(unittest.TestCase):
         })
         verdict, detail = self._run()
         self.assertEqual(verdict, self.ca.SATISFIED, detail)
+
+
+# ───── 5. ADR-1079: КОРЕНЬ ОДНОРАЗОВ — это наблюдение, а не граница меры ─────
+
+
+class StandRootedWriteIsANamedBoundary(unittest.TestCase):
+    """Четыре сцены на НАСТОЯЩЕМ приборе, и ответы РАЗНЫЕ.
+
+    Предмет (замер цикла #1224 на `40d2ec30b`, контрольный прогон 45217734687):
+    `_resolve_tails` читал `saw_stand` ТОЛЬКО на ветке `_targets_artifact`.
+    Цель, чей КОРЕНЬ раскрыт как одноразовый (`TemporaryDirectory()`), а имя
+    листа пришло у соседнего модуля (`root2 / _cc.CYCLE_STATUS_NAME` —
+    `card_acceptance.py:20121`), падала сквозь в `unresolved_named` и
+    ОБВИНЯЛАСЬ: «модуль называет артефакт, цель записи не раскрыта». Прибор
+    ВЫБРАСЫВАЛ определённое наблюдение и докладывал о нём «не измерено».
+
+    Цена обвинения — вердикт самой пробы, а не одна строка отчёта:
+    `writer_unmeasured` 2 > потолок 1 ⇒ `UNMEASURED` замыкал
+    `adapter_status_number_has_a_writer` ДО осей литерала и рода, и
+    ПЯТЬ проверок набора краснели из одного корня (три из них — собственные
+    положительные контроли пробы в `test_shadow_tvl_provenance.py`, которые
+    проверяют ОТКАЗ и получали «не измерено» вместо него). Проба судит
+    money-path: `tvl_usd` ДОПУСКАЕТ пул к порогу $5 млн (ADR-053), и всё это
+    время у вопроса «может ли литерал выдать себя за наблюдение» вердикта не
+    было ВОВСЕ.
+
+    Контроли C, D, E и H — анти-ослабление, и они несущие: правка,
+    опустошившая бы класс обвинения (C), позволившая спрятать писателя
+    приписав `mkdtemp()` рядом (D) либо принявшая за устройство корня одно
+    лишь ИМЯ — голое (E) или в атрибуте (H), — прошла бы мимо A и B.
+    Контроли E и H найдены ВЫЖИВШИМИ МУТАНТАМИ (M5, M7), и каждый СУЗИЛ
+    решение: структурным свидетельством остался только ЗОВ фабрики.
+
+    Контроли G и I — про ПОРЯДОК исходов, и оба найдены мутантами: G (#1224)
+    закрыл «стенд ПЕРЕД `not_ours`», I (#1225, круг 3 на финальных байтах) —
+    «стенд ПЕРЕД `caller_supplied`», дыру той же формы у соседней границы.
+    Порядок здесь не вкусовщина: оба исхода суть ГРАНИЦЫ, у каждой свой
+    объявленный счёт, и подмена одной другою расходит объявление с деревом
+    МОЛЧА.
+    """
+
+    NAMES = '_READS = "data/adapter_status.json"\n'
+
+    @classmethod
+    def setUpClass(cls) -> None:
+        cls.c = _load_census("_g1079_census")
+
+    def _counts(self, body: str) -> dict:
+        rep = self.c.measure(_stand_with_module(self.NAMES + textwrap.dedent(body)))
+        return rep["counts"], rep
+
+    def test_A_disposable_root_with_a_leaf_name_from_elsewhere_is_a_stand(self):
+        """ПРЕДМЕТ: ровно форма `card_acceptance.py:20121`.
+
+        На байтах `origin/main` эта сцена даёт `writer_unmeasured=1`,
+        `stand=0` — замер цикла #1224.
+        """
+        counts, rep = self._counts("""
+            import tempfile, json
+            from pathlib import Path
+            from spa_core import other as _o
+            def scene():
+                with tempfile.TemporaryDirectory() as t:
+                    root = Path(t)
+                    (root / _o.SOME_NAME).write_text(json.dumps({}), encoding="utf-8")
+        """)
+        self.assertEqual(counts["stand"], 1, rep.get("writer_unmeasured"))
+        self.assertEqual(counts["writer_unmeasured"], 0,
+                         rep.get("writer_unmeasured"))
+
+    def test_B_a_real_writer_is_still_caught(self):
+        """Писатель прод-артефакта обязан остаться писателем."""
+        counts, rep = self._counts("""
+            import json
+            from pathlib import Path
+            _OUT = Path("data") / "adapter_status.json"
+            def w(doc):
+                with open(_OUT, "w", encoding="utf-8") as fh:
+                    fh.write(json.dumps(doc))
+        """)
+        self.assertEqual(counts["writers"], 1, rep)
+        self.assertEqual(counts["stand"], 0, rep)
+
+    def test_C_the_accusation_class_is_still_REACHABLE(self):
+        """АНТИ-ОСЛАБЛЕНИЕ: без признака стенда обвинение остаётся.
+
+        Опустевший класс — не починка, а опустошённая мера: сторож,
+        никогда не краснеющий, украшение (инв. #16).
+        """
+        counts, rep = self._counts("""
+            import json
+            from spa_core import other as _o
+            def w(doc):
+                tgt = _o.SOME_NAME
+                with open(tgt, "w", encoding="utf-8") as fh:
+                    fh.write(json.dumps(doc))
+        """)
+        self.assertEqual(counts["writer_unmeasured"], 1, rep)
+        self.assertEqual(counts["stand"], 0, rep)
+
+    def test_D_a_stand_marker_OUTSIDE_the_target_chain_does_not_excuse(self):
+        """АНТИ-ОСЛАБЛЕНИЕ, несущий контроль: признак ищется в цепочке ЦЕЛИ.
+
+        Иначе правку можно было бы употребить как отмычку — поставить
+        `tempfile.mkdtemp()` рядом в той же функции и снять обвинение с
+        настоящей нераскрытой записи. Признак стенда СЮДА не доезжает, и
+        исход обязан остаться обвинением.
+        """
+        counts, rep = self._counts("""
+            import json, tempfile
+            from spa_core import other as _o
+            def w(doc):
+                scratch = tempfile.mkdtemp()      # стенд ЕСТЬ, но НЕ в цепочке цели
+                tgt = _o.SOME_NAME
+                with open(tgt, "w", encoding="utf-8") as fh:
+                    fh.write(json.dumps(doc))
+        """)
+        self.assertEqual(counts["writer_unmeasured"], 1, rep)
+        self.assertEqual(counts["stand"], 0, rep)
+
+    def test_E_a_BARE_NAME_of_a_stand_is_not_evidence_of_one(self):
+        """АНТИ-ОСЛАБЛЕНИЕ, найден ВЫЖИВШИМ МУТАНТОМ (M5, цикл #1224).
+
+        `_STAND_MARKERS` ловит и ГОЛОЕ ИМЯ переменной (`tmpdir`, `sandbox`,
+        `tmp_path`), а это свидетельство ИМЕНИ, не устройства. На ветке
+        `_targets_artifact` разницы нет — там имя артефакта уже раскрыто, и
+        вопрос лишь «в стенде ли он». В падении сквозь не раскрыто НИЧЕГО, и
+        пустить туда имя значило бы отдать отмычку: переменную довольно
+        НАЗВАТЬ `sandbox`, чтобы снять обвинение с нераскрытой записи.
+
+        Поэтому новый исход требует СТРУКТУРЫ (`saw_stand_rooted`: зов
+        фабрики либо атрибут), и этот контроль держит ровно границу между
+        «назвали» и «устроили».
+        """
+        counts, rep = self._counts("""
+            import json
+            from spa_core import other as _o
+            sandbox = _o.ROOT          # ИМЯ из маркеров, устройства стенда НЕТ
+            def w(doc):
+                (sandbox / _o.SOME_NAME).write_text(json.dumps(doc), encoding="utf-8")
+        """)
+        self.assertEqual(counts["writer_unmeasured"], 1, rep)
+        self.assertEqual(counts["stand"], 0, rep)
+
+    def test_F_a_factory_CALL_alone_is_structural_evidence(self):
+        """Закрывает выжившего M6 (`any`→`all` в ветке зова).
+
+        До сужения ветка зова была ИЗБЫТОЧНА: `tempfile.TemporaryDirectory()`
+        ловится ещё и ветками атрибута И голого имени, поэтому её поломка
+        вердикта не меняла. После сужения структурным свидетельством остаются
+        только зов и атрибут — и зов фабрики БЕЗ атрибута
+        (`from tempfile import mkdtemp`) достаётся ровно ей одной.
+        """
+        counts, rep = self._counts("""
+            import json
+            from tempfile import mkdtemp
+            from pathlib import Path
+            from spa_core import other as _o
+            def w(doc):
+                root = Path(mkdtemp())
+                (root / _o.SOME_NAME).write_text(json.dumps(doc), encoding="utf-8")
+        """)
+        self.assertEqual(counts["stand"], 1, rep)
+        self.assertEqual(counts["writer_unmeasured"], 0, rep)
+
+    def test_G_a_concrete_FOREIGN_path_stays_not_ours_even_with_a_stand(self):
+        """Закрывает выжившего M8 (ветка стенда ПЕРЕД `not_ours`).
+
+        Порядок исходов существен, и `not_ours` — утверждение СИЛЬНЕЕ: мы
+        знаем, КУДА идёт запись, и это не наш артефакт. Переставь ветку
+        стенда выше — и определённое «не наш писатель» подменилось бы
+        границей «стенд», то есть замером более грубым, чем состоявшееся
+        наблюдение. Обвинения ни один из двух исходов не несёт, поэтому
+        цена ошибки — ЧЕСТНОСТЬ СЧЁТА, а не ложная находка.
+        """
+        counts, rep = self._counts("""
+            import json, tempfile
+            from pathlib import Path
+            _OTHER = Path(tempfile.gettempdir()) / "some_other_thing.json"
+            def w(doc):
+                with open(_OTHER, "w", encoding="utf-8") as fh:
+                    fh.write(json.dumps(doc))
+        """)
+        self.assertEqual(counts["stand"], 0, rep)
+        self.assertEqual(counts["writer_unmeasured"], 0, rep)
+
+    def test_H_an_ATTRIBUTE_named_like_a_stand_is_not_evidence_either(self):
+        """АНТИ-ОСЛАБЛЕНИЕ, найден ВЫЖИВШИМ МУТАНТОМ (M7, цикл #1224).
+
+        M5 научил, что ГОЛОЕ ИМЯ переменной свидетельством устройства не
+        является. M7 задал тот же вопрос на уровень выше и получил тот же
+        ответ: `cfg.tmpdir` — это ИМЯ на чужом объекте, и об устройстве
+        корня оно не говорит ничего. Два выживших подряд спрашивали
+        «а довольно ли НАЗВАТЬ?», и дважды ответ — НЕТ.
+
+        Поэтому структурным свидетельством остался ТОЛЬКО ЗОВ фабрики, а
+        исход `stand` на старой ветке `_targets_artifact` имя по-прежнему
+        принимает — там имя артефакта уже раскрыто, и вопрос другой.
+        """
+        counts, rep = self._counts("""
+            import json
+            from spa_core import other as _o
+            from spa_core import cfg
+            def w(doc):
+                root = cfg.tmpdir          # АТРИБУТ из маркеров, зова НЕТ
+                (root / _o.SOME_NAME).write_text(json.dumps(doc), encoding="utf-8")
+        """)
+        self.assertEqual(counts["writer_unmeasured"], 1, rep)
+        self.assertEqual(counts["stand"], 0, rep)
+
+    def test_I_a_caller_supplied_target_stays_caller_supplied_even_with_a_stand(self):
+        """Закрывает выжившего M13 (ветка стенда ПЕРЕД `caller_supplied`).
+
+        Найден МУТАЦИОННЫМ прогоном доставляющего цикла #1225, круг 3: порядок
+        «стенд против границы вызывающего» не был закреплён НИ ОДНОЙ сценой —
+        ровно та дыра, которую #1224 закрыл для `not_ours` (контроль G) и
+        оставил открытой у соседней границы. Мутант, переставляющий новую
+        ветку выше `saw_caller`, проходил все 30 проверок.
+
+        Расходятся исходы только тогда, когда цель ОДНОВРЕМЕННО приходит от
+        вызывающего и несёт зов фабрики в цепочке раскрытия. `caller_supplied`
+        — утверждение СИЛЬНЕЕ: оно называет, ЧЬЁ решение определяет цель, и у
+        него свой объявленный счёт (`caller_supplied_boundary`), который
+        сверяется с базой поимённо. Подмени его «стендом» — и запись ушла бы в
+        границу, где её никто не ждёт, а объявленная база границы вызывающего
+        молча разошлась бы со своим деревом. Обвинения ни один исход не несёт,
+        поэтому цена ошибки — ЧЕСТНОСТЬ СЧЁТА, как и у контроля G.
+        """
+        counts, rep = self._counts("""
+            import json, tempfile
+            from pathlib import Path
+            def w(doc, dest):
+                tmp = Path(tempfile.mkdtemp())
+                target = dest or tmp
+                with open(target, "w", encoding="utf-8") as fh:
+                    fh.write(json.dumps(doc))
+        """)
+        self.assertEqual(counts["caller_supplied"], 1, rep)
+        self.assertEqual(counts["stand"], 0, rep)
+        self.assertEqual(counts["writer_unmeasured"], 0, rep)
+
+    def test_the_two_flags_are_DISTINCT_not_an_alias(self):
+        """Один флаг на два разных свидетельства и есть предмет контроля E."""
+        src = Path(CENSUS_PATH).read_text(encoding="utf-8")
+        self.assertIn("saw_stand_rooted", src)
+        # новый исход читает СТРУКТУРНЫЙ флаг, а не общий
+        self.assertIn("if saw_stand_rooted:", src)
+
+    def test_the_outcome_is_NAMED_in_the_resolver_docstring(self):
+        """Перечень исходов, не называющий нового, врёт читателю прибора."""
+        doc = self.c._resolve_tails.__doc__ or ""
+        self.assertIn("ADR-1079", doc)
+        self.assertIn("stand", doc)
+
 
 
 if __name__ == "__main__":
