@@ -2,11 +2,11 @@
 
 > Авто-генерится `scripts/build_tracker_board.py` из `nimbalyst-local/tracker/*.md`. НЕ править вручную — правь карточки. Источник правды — карточки, это индекс (bootstrap).
 >
-> Собрана: 2026-11-23T16:04:46Z · сверка с карточками: `python3 scripts/build_tracker_board.py --check` (сторож `spa_core/tests/test_tracker_board_matches_cards.py`).
+> Собрана: 2026-11-23T16:30:27Z · сверка с карточками: `python3 scripts/build_tracker_board.py --check` (сторож `spa_core/tests/test_tracker_board_matches_cards.py`).
 >
-> Сверено с `origin/main` (f36581710) · у **1** своя правка, кто новее — не измерено.
+> Сверено с `origin/main` (5f887a515).
 >
-> Всего карточек: **1678** · ждёт владельца: **16** · занято сессиями: **13**.
+> Всего карточек: **1679** · ждёт владельца: **16** · занято сессиями: **13**.
 
 ## 🔴 ЖДЁТ ВЛАДЕЛЬЦА (needs-owner)
 
@@ -448,7 +448,7 @@
 ### · closed
 - Считать ли верный отказ по правилам допуска неисправностью флота  ·  `owner-decision-schitat-li-vernyi-otkaz-po-pravilam-dopu.md` · 2026-10-08
 
-## 📥 Inbox (задания: Telegram / заметки / голос)  (973)
+## 📥 Inbox (задания: Telegram / заметки / голос)  (974)
 
 ### · in-progress
 - а задача починить все-таки еще раз сообщение которым не пишет нужно твое решени…  ·  `inbox-a-zadacha-pochinit-vse-taki-esche-raz-so.md` · 2026-08-14 · 🔒 `pid43119`
@@ -1100,6 +1100,7 @@
 - Гейт go-live BTC-движка не спрашивает про лицензию на данные — решение владельца 09.09 описано прозой  ·  `inbox-geit-go-live-btc-dvizhka-ne-sprashivaet.md` · 2026-10-07
 - Гейт кнопок судит по ПОДСТРОКЕ, если умения в маячке окажутся строкой  ·  `inbox-geit-knopok-sudit-po-podstroke-esli-umen.md` · 2026-10-08
 - Гейт перед установкой агента КОМПИЛИРУЕТ скрипт вместо импорта — и сказал «PASSED» про агента, который умирает при каждом запуске  ·  `inbox-geit-pered-ustanovkoi-agenta-kompiliruet.md` · 2026-08-27
+- Гейты доставки спрашивают origin УСТАРЕВШЕЙ локальной ссылкой: интерлок ADR отказал на верной работе, когда строка реестра уже была на сервере (население НЕ ИЗМЕРЕНО)  ·  `inbox-geity-dostavki-sprashivayut-origin-ustar.md` · 2026-11-23
 - Генератор конституции флота и файл в git разошлись по формату — первая пересборка перепишет 10 402 строки и спрячет в них настоящую правку  ·  `inbox-generator-konstitutsii-flota-i-fail-v-gi.md` · 2026-10-16
 - Go-live: условием перехода — разнесение подписывающих адаптеров (решение владельца, вариант 2)  ·  `inbox-go-live-usloviem-perehoda-raznesenie-pod.md` · 2026-09-07
 - Голый ответ владельца («1», «2») при вопросе БЕЗ вариантов молча превращается в задачу — решение не применяется  ·  `inbox-golyi-otvet-vladeltsa-1-2-pri-voprose-be.md` · 2026-08-22
