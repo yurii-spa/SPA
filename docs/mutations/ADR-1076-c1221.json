@@ -1,0 +1,123 @@
+{
+ "adr": "ADR-1076",
+ "cycle": "#1221 (cycle-81416)",
+ "date": "2026-11-23",
+ "tree": "/Users/yuriikulieshov/Documents/SPA_worktrees/c1221mut",
+ "module": "spa_core/monitoring/card_acceptance.py",
+ "battery": "spa_core/tests/test_cio_kill_switch_controls.py",
+ "module_md5_under_test": "e91fa90555f4a883ad7dd362270918d9",
+ "battery_md5_under_test": "b5781e0663eb5105d66ae52648faaf25",
+ "note": "мутации мерки критерия §50 «Есть owner pause/kill switch» (ADR-1076). Прогон в ОТДЕЛЬНОМ дереве (не в дереве доставки, .claude/rules/deployment.md § «БАЙТЫ, КОТОРЫЕ НЕ ЯВЛЯЮТСЯ КОДОМ» п. 1); контроль шума — уже красных имён 0; после прогона --window-check: окна нет, байты сверены md5 и совпали с деревом доставки. Зелёного МИРА на настоящем пути решения нет (ни одна нагрузка двери не даёт HOLD_ONLY), поэтому положительный контроль «satisfied достижим» предъявляется ДВЕРИ ВЕРДИКТА замером той формы, что производит прибор, — M07/M14 убиты именно этими сценами.",
+ "summary": {
+  "applied": 14,
+  "killed": 14,
+  "survived": 0,
+  "not_applied": 0,
+  "broke_build": 0
+ },
+ "survivors": [],
+ "title": "ADR-1076 — мерка критерия §50 «Есть owner pause/kill switch» (цикл #1221)",
+ "tests": [
+  "spa_core/tests/test_cio_kill_switch_controls.py"
+ ],
+ "mutations": [
+  {
+   "name": "M01 неизмеренный орган не собирается — UNCHECKED читается как находка",
+   "file": "spa_core/monitoring/card_acceptance.py",
+   "old": "        for c in controls if c.get(\"outcome\") == \"UNCHECKED\"}",
+   "new": "        for c in controls if c.get(\"outcome\") == \"NEVER_MATCHES\"}",
+   "status": "KILLED"
+  },
+  {
+   "name": "M02 неизмеренная разделимость читается как измеренная",
+   "file": "spa_core/monitoring/card_acceptance.py",
+   "old": "    if sep.get(\"verdict\") in (None, \"UNCHECKED\"):",
+   "new": "    if sep.get(\"verdict\") in (None, \"NEVER_MATCHES\"):",
+   "status": "KILLED"
+  },
+  {
+   "name": "M03 свой контроль прибора не спрашивается",
+   "file": "spa_core/monitoring/card_acceptance.py",
+   "old": "    if not control.get(\"passed\"):",
+   "new": "    if False and not control.get(\"passed\"):",
+   "status": "KILLED"
+  },
+  {
+   "name": "M04 CONFLATED зачитывается как PRESENT (назван только ABSENT)",
+   "file": "spa_core/monitoring/card_acceptance.py",
+   "old": "        for c in controls if c.get(\"outcome\") != \"PRESENT\"}",
+   "new": "        for c in controls if c.get(\"outcome\") == \"ABSENT\"}",
+   "status": "KILLED"
+  },
+  {
+   "name": "M05 вторая половина §42 (разделимость) в вердикт не входит",
+   "file": "spa_core/monitoring/card_acceptance.py",
+   "old": "    if sep.get(\"verdict\") != \"SEPARABLE\":",
+   "new": "    if sep.get(\"verdict\") != \"SEPARABLE\" and False:",
+   "status": "KILLED"
+  },
+  {
+   "name": "M06 сломанный орган назван БЕЗ измеренного эффекта",
+   "file": "spa_core/monitoring/card_acceptance.py",
+   "old": "            (f\"{c.get('outcome')}: измеренный эффект {c.get('measured_effect')} \"\n             f\"вместо обещанного {c.get('promised_effect')}\"",
+   "new": "            (f\"{c.get('outcome')}: подробностей нет\"\n             f\"\"",
+   "status": "KILLED"
+  },
+  {
+   "name": "M07 сломанный орган не делает вердикт красным",
+   "file": "spa_core/monitoring/card_acceptance.py",
+   "old": "    if bad:\n        return NOT_SATISFIED, (\n            f\"органов §42 у владельца {len(controls) - len(organs)} из \"",
+   "new": "    if bad and False:\n        return NOT_SATISFIED, (\n            f\"органов §42 у владельца {len(controls) - len(organs)} из \"",
+   "status": "KILLED"
+  },
+  {
+   "name": "M08 форма замера не проверяется — чужой документ судится как замер",
+   "file": "spa_core/monitoring/card_acceptance.py",
+   "old": "    if not isinstance(doc, dict):\n        return UNMEASURED, (f\"замер §42 не разобран",
+   "new": "    if False and not isinstance(doc, dict):\n        return UNMEASURED, (f\"замер §42 не разобран",
+   "status": "KILLED"
+  },
+  {
+   "name": "M09 вход repo_root до прибора не доходит",
+   "file": "spa_core/monitoring/card_acceptance.py",
+   "old": "    root = repo_root or REPO_ROOT\n    try:\n        doc = ksc.run(root=root, write=False)",
+   "new": "    root = REPO_ROOT\n    try:\n        doc = ksc.run(root=root, write=False)",
+   "status": "KILLED"
+  },
+  {
+   "name": "M10 проба пишет отчёт в измеряемое дерево",
+   "file": "spa_core/monitoring/card_acceptance.py",
+   "old": "        doc = ksc.run(root=root, write=False)",
+   "new": "        doc = ksc.run(root=root, write=True)",
+   "status": "KILLED"
+  },
+  {
+   "name": "M11 проба принимает аргумент (критерий назван целиком — аргумента нет)",
+   "file": "spa_core/monitoring/card_acceptance.py",
+   "old": "    if arg:\n        return UNMEASURED, (f\"проба не принимает аргумента (дано {arg!r}): \"\n                            \"критерий назван целиком\")",
+   "new": "    if False:\n        return UNMEASURED, (f\"проба не принимает аргумента (дано {arg!r}): \"\n                            \"критерий назван целиком\")",
+   "status": "KILLED"
+  },
+  {
+   "name": "M12 объявление мерки расходится с карточкой владельца на байт",
+   "file": "spa_core/monitoring/card_acceptance.py",
+   "old": "_probe_owner_has_the_three_stop_organs.s50_criterion = \\\n    \"Есть owner pause/kill switch.\"",
+   "new": "_probe_owner_has_the_three_stop_organs.s50_criterion = \\\n    \"Есть owner pause/kill switch\"",
+   "status": "KILLED"
+  },
+  {
+   "name": "M13 проба зарегистрирована под другим именем",
+   "file": "spa_core/monitoring/card_acceptance.py",
+   "old": "    \"owner_has_the_three_stop_organs\":\n        _probe_owner_has_the_three_stop_organs,",
+   "new": "    \"owner_has_the_three_stop_organs_renamed\":\n        _probe_owner_has_the_three_stop_organs,",
+   "status": "KILLED"
+  },
+  {
+   "name": "M14 зелёный вердикт не называет измеренных эффектов",
+   "file": "spa_core/monitoring/card_acceptance.py",
+   "old": "        f\"({effects}), и остановка не гасит наблюдение: {sep.get('reason')}\")",
+   "new": "        f\"(органы не перечислены), и остановка не гасит: {sep.get('reason')}\")",
+   "status": "KILLED"
+  }
+ ]
+}

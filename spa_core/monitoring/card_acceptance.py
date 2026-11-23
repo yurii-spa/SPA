@@ -20608,9 +20608,124 @@ def _probe_launchd_door_has_no_second_site(arg: str | None = None,
         f"НОЛЬ при нуле неразобранных, и со-прогон {len(sites)} закрытых сайтов "
         f"вместе с тестом двери в одном процессе зелён")
 
+# ───── §42/§50 приказа «Portfolio CIO»: органы остановки у владельца (ADR-1076) ─────
+
+def owner_stop_organs_verdict(doc: dict) -> tuple[str, str]:
+    """Вердикт о §42 по ГОТОВОМУ замеру прибора — единственная дверь вывода.
+
+    Отделена от пробы ровно затем, чтобы у вердикта был положительный контроль:
+    зелёного МИРА на настоящем пути решения сегодня не существует (ни одна
+    нагрузка двери не даёт `HOLD_ONLY` — именно поэтому орган «PAUSE AUTO
+    EXECUTION» и числится `ABSENT`), и проба, у которой нельзя предъявить сцену
+    `satisfied`, неотличима от штампа «не исполнено». Сцены подаются сюда
+    замером той же формы, что производит прибор.
+
+    Порядок вопросов — fail-CLOSED, и он важен: сначала «измерено ли вообще»,
+    и только потом «исполнено ли». Три исхода различимы (инв. #17):
+
+    * `unmeasured` — свой контроль прибора не прошёл · исход органа `UNCHECKED` ·
+      разделимость `UNCHECKED` · форма замера не разобрана;
+    * `not_satisfied` — орган `ABSENT`/`CONFLATED` (каждый НАЗВАН вместе с
+      измеренным эффектом) либо дверь гасит наблюдение/отчёт;
+    * `satisfied` — все три органа `PRESENT` И остановка исполнения не гасит
+      наблюдение.
+
+    Обе половины §42 здесь нарочно: владелец записал их одним требованием
+    («обязательны три органа» И «остановить execution без остановки
+    monitoring/reporting»), и ответить только на первую значило бы ответить
+    не на его вопрос.
+    """
+    if not isinstance(doc, dict):
+        return UNMEASURED, (f"замер §42 не разобран: ожидался документ прибора, "
+                            f"дано {type(doc).__name__}")
+    controls = doc.get("controls")
+    if not isinstance(controls, list) or not controls:
+        return UNMEASURED, ("в замере §42 нет перечня органов — вердикт взять "
+                            "неоткуда")
+    control = doc.get("control") or {}
+    if not control.get("passed"):
+        return UNMEASURED, (
+            "свой контроль прибора §42 НЕ прошёл, то есть эффект двери не "
+            f"измерен ни у одной: {control.get('reason') or 'причина не названа'}"
+            " — НЕ ИЗМЕРЕНО")
+    sep = doc.get("separability") or {}
+    unchecked: dict[str, object] = {
+        str(c.get("owner_wording") or c.get("control")):
+            (c.get("unchecked_reason") or "причина не названа")
+        for c in controls if c.get("outcome") == "UNCHECKED"}
+    if sep.get("verdict") in (None, "UNCHECKED"):
+        unchecked["остановка без остановки наблюдения"] = (
+            sep.get("reason") or "разделимость не измерена")
+    if unchecked:
+        return UNMEASURED, f"не измерено: {unchecked} — НЕ ИЗМЕРЕНО"
+
+    organs = {
+        str(c.get("owner_wording") or c.get("control")):
+            (f"{c.get('outcome')}: измеренный эффект {c.get('measured_effect')} "
+             f"вместо обещанного {c.get('promised_effect')}"
+             + (f" — {c['detail']}" if c.get("detail") else ""))
+        for c in controls if c.get("outcome") != "PRESENT"}
+    bad: dict[str, object] = dict(organs)
+    if sep.get("verdict") != "SEPARABLE":
+        bad["остановка без остановки наблюдения"] = sep.get("reason")
+    if bad:
+        return NOT_SATISFIED, (
+            f"органов §42 у владельца {len(controls) - len(organs)} из "
+            f"{len(controls)}: {bad}")
+    effects = {str(c.get("owner_wording") or c.get("control")):
+               c.get("measured_effect") for c in controls}
+    return SATISFIED, (
+        f"все {len(controls)} органа §42 делают то, что обещают их имена "
+        f"({effects}), и остановка не гасит наблюдение: {sep.get('reason')}")
+
+
+def _probe_owner_has_the_three_stop_organs(
+        arg: str | None, *, repo_root: str | None = None) -> tuple[str, str]:
+    """Критерий §50 приказа владельца «Portfolio CIO»: «Есть owner pause/kill switch.»
+
+    Что здесь считается этим критерием — определил сам владелец, §42 «Kill
+    switch»: «Обязательно: PAUSE CIO · PAUSE AUTO EXECUTION · EMERGENCY STOP;
+    Owner должен иметь возможность остановить execution без остановки
+    monitoring/reporting». Поэтому охват пробы РОВНО этот, без добавленного и
+    без убранного: «кран где-то есть» на вопрос владельца не отвечает.
+
+    **Меряется ИСХОД, а не структура.** Своего разбора у пробы нет ни одной
+    строки: она зовёт ЕДИНСТВЕННУЮ дверь прибора §42
+    (`cio_kill_switch_controls.run`, ADR-712/850/988), который снимает ручки с
+    кнопочной карты канала владельца и подставляет их нагрузку НАСТОЯЩЕМУ пути
+    решения (`run_kill_switch_check` + обе ступени `cycle_gates`) над временным
+    каталогом состояния. Подстрокой проба не проходит (ADR-333): текст, в
+    котором слова «PAUSE AUTO EXECUTION» названы, но ни одна дверь состояния не
+    пишет, даёт `ABSENT`, а не зачёт.
+
+    Прибор только ЧИТАЕТ: `write=False`, живой `data/` им не читается и не
+    пишется ни разу, ни один орган остановки не строится и не двигается —
+    дать владельцу новую ручку есть money-path и его решение.
+
+    Вывод вердикта — `owner_stop_organs_verdict` (там же перечислены три исхода
+    и объяснено, почему дверь вывода отделена от зова прибора).
+    """
+    if arg:
+        return UNMEASURED, (f"проба не принимает аргумента (дано {arg!r}): "
+                            "критерий назван целиком")
+    try:
+        from spa_core.monitoring import cio_kill_switch_controls as ksc
+    except Exception as exc:  # noqa: BLE001 — нечем измерить ≠ «исполнено»
+        return UNMEASURED, f"прибор §42 не импортирован: {type(exc).__name__}: {exc}"
+    root = repo_root or REPO_ROOT
+    try:
+        doc = ksc.run(root=root, write=False)
+    except Exception as exc:  # noqa: BLE001
+        return UNMEASURED, (f"прибор §42 не ответил о дереве {root}: "
+                            f"{type(exc).__name__}: {exc}")
+    return owner_stop_organs_verdict(doc)
+
+
 PROBES: dict[str, Callable[[str | None], "tuple[str, str]"]] = {
     "module_limit_bites_a_busy_module":
         _probe_module_limit_bites_a_busy_module,
+    "owner_has_the_three_stop_organs":
+        _probe_owner_has_the_three_stop_organs,
     "apy_name_carries_one_kind": _probe_apy_name_carries_one_kind,
     "findings_bridge_has_a_live_writer": _probe_findings_bridge_has_a_live_writer,
     "shadow_record_carries_the_system_action":
@@ -20916,6 +21031,8 @@ _probe_auditability_decision_carries_snapshot_and_explanation.s50_criterion = \
     "Есть audit trail."
 _probe_release_stage_is_declared_and_matches_behaviour.s50_criterion = \
     "Нет автоматического real-money execution без прохождения release stages."
+_probe_owner_has_the_three_stop_organs.s50_criterion = \
+    "Есть owner pause/kill switch."
 
 
 def probes_by_s50_criterion() -> dict:

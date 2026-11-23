@@ -24,6 +24,7 @@ import tempfile
 import unittest
 from pathlib import Path
 
+from spa_core.monitoring import card_acceptance as CA
 from spa_core.monitoring import cio_kill_switch_controls as M
 
 REPO = Path(M.REPO_ROOT)
@@ -595,6 +596,317 @@ class TestWiring(unittest.TestCase):
                       "у артефакта нет ИМЕННОЙ печатающей ветки — он попадёт в "
                       "generic-разбор и вопрос §42 в контекст не приедет")
 
+
+# ── 9. §50: критерий «Есть owner pause/kill switch» получил мерку (ADR-1076) ──
+#
+# Пятьдесят циклов §50 приказа читали ОДНОЙ приёмкой меньше, а у этого критерия
+# не было мерки вовсе — при том, что прибор §42 выше мерит его дословно и с
+# 12.11 докладывает `CRITICAL`. Ниже — проба, объявившая себя этой меркой, и её
+# контроли в ОБЕ стороны (`.claude/rules/acceptance.md`, п. 3).
+#
+# Зелёного МИРА на настоящем пути решения сегодня нет: ни одна нагрузка двери не
+# даёт `HOLD_ONLY` (поэтому орган PAUSE AUTO EXECUTION и числится `ABSENT`), и
+# положительный контроль «проба УМЕЕТ сказать satisfied» предъявляется двери
+# вердикта замером той формы, что производит прибор. Сцены же самого прибора
+# идут по настоящим деревьям — там у пробы есть вход `repo_root`.
+
+S50_PROBE = "owner_has_the_three_stop_organs"
+S50_CRITERION = "Есть owner pause/kill switch."
+
+_BOT_TEMPLATE = '''from pathlib import Path
+
+DATA_DIR = Path("data")
+KILL_SWITCH_FILE = DATA_DIR / "kill_switch_active.json"
+
+
+class TelegramBot:
+    def _dispatch(self, command):
+        handlers = {
+%(handlers)s
+        }
+        return handlers.get(command)
+%(methods)s
+'''
+
+
+def _bot_tree(doors, *, claims=()) -> str:
+    """Одноразовое дерево с каналом владельца заданной формы.
+
+    `doors` — список `(команда, обработчик, причина)`; каждая ПИШЕТ файл
+    состояния настоящего стоп-крана. Форма файла — ровно та, которую разбирает
+    `_owner_doors` (константа-путь, карта «команда → self.метод»,
+    `_atomic_write_json` с литеральной нагрузкой).
+
+    `claims` — список `(команда, обработчик, текст)`: команда владельцу
+    ОПУБЛИКОВАНА и словами органа называется, но состояния не пишет НИЧЕГО.
+    Это материал контроля «подстрокой проба не проходит» (ADR-333).
+    """
+    handlers = "\n".join(f'            "{cmd}": self.{fn},'
+                         for cmd, fn, _ in list(doors) + list(claims))
+    methods = "".join(
+        f'''
+    def {fn}(self):
+        _atomic_write_json(KILL_SWITCH_FILE, {{"active": True, "reason": "{why}"}})
+''' for _, fn, why in doors)
+    methods += "".join(
+        f'''
+    def {fn}(self):
+        """{text}"""
+        return "{text}"
+''' for _, fn, text in claims)
+    root = Path(tempfile.mkdtemp(prefix="cio_ks_tree_"))
+    channel = root / M.OWNER_CHANNEL_REL
+    channel.parent.mkdir(parents=True, exist_ok=True)
+    channel.write_text(
+        _BOT_TEMPLATE % {"handlers": handlers, "methods": methods},
+        encoding="utf-8")
+    return str(root)
+
+
+def _measured(outcomes: dict | None = None, *, control_passed: bool = True,
+              separability: str = "SEPARABLE",
+              sep_reason: str = "все 3 производителя продолжают производить",
+              unchecked_reason: str = "сцена: орган не измерен") -> dict:
+    """Замер §42 той формы, которую производит `M.run` — сцена двери вердикта.
+
+    Органы берутся из `M.OWNER_CONTROLS`, а не из списка в тесте: перепиши
+    владелец свои три имени — сцены поедут за ним, а не разойдутся молча.
+    """
+    outcomes = outcomes or {}
+    controls = []
+    for key, wording, promise, promised, source, words in M.OWNER_CONTROLS:
+        outcome = outcomes.get(key, M.PRESENT)
+        effect = (promised if outcome == M.PRESENT
+                  else M.EFFECT_ALL_CASH if outcome == M.CONFLATED
+                  else M.EFFECT_UNMEASURED)
+        controls.append({
+            "control": key, "owner_wording": wording, "promise": promise,
+            "promised_effect": promised, "promise_source": source,
+            "claim_words": list(words), "outcome": outcome,
+            "door": None if outcome == M.ABSENT else "/kill",
+            "measured_effect": effect,
+            "detail": "" if outcome == M.PRESENT else f"сцена: {outcome}",
+            "unchecked_reason": (unchecked_reason if outcome == M.UNCHECKED else ""),
+        })
+    return {
+        "controls": controls,
+        "control": {"passed": control_passed,
+                    "reason": "" if control_passed
+                              else "ни одна дверь владельца не изменила путь решения"},
+        "separability": {"verdict": separability, "reason": sep_reason, "probes": []},
+        "tally": {o: sum(1 for c in controls if c["outcome"] == o)
+                  for o in (M.PRESENT, M.CONFLATED, M.ABSENT, M.UNCHECKED)},
+    }
+
+
+class TestTheMeasureIsDeclaredForTheOwnersCriterion(unittest.TestCase):
+    """Объявление мерки — и его паритет с КАРТОЧКОЙ владельца."""
+
+    def test_probe_is_registered_and_the_tree_reaches_it(self):
+        self.assertIn(S50_PROBE, CA.PROBES)
+        self.assertEqual(("repo_root",), CA.probe_tree_inputs(S50_PROBE),
+                         "без входа `repo_root` проба судила бы СВОЁ дерево, а "
+                         "читатель напечатал бы вердикт о чужом")
+
+    def test_declaration_is_byte_exact_with_the_owner_card(self):
+        import sys
+        sys.path.insert(0, str(REPO / "scripts"))
+        try:
+            import cio_dod_rollup as DOD
+        finally:
+            sys.path.pop(0)
+        card = Path(M.REPO_ROOT) / DOD.CARD_REL
+        self.assertTrue(card.exists(),
+                        f"карточки приказа нет в дереве ({card}) — паритет "
+                        "объявления с владельцем НЕ ИЗМЕРЕН")
+        population = DOD.parse_s50_criteria(card.read_text(encoding="utf-8"))
+        self.assertIn(S50_CRITERION, population["criteria"],
+                      "строка объявления разошлась с §50 карточки — объявление "
+                      "стало СИРОТОЙ, и сводка доложит критерий без мерки")
+
+    def test_the_criterion_has_exactly_one_measure(self):
+        self.assertEqual([S50_PROBE],
+                         CA.probes_by_s50_criterion().get(S50_CRITERION),
+                         "две пробы на один критерий — столкновение объявлений")
+
+    def test_probe_rejects_an_argument(self):
+        status, why = CA.run_probe(f"{S50_PROBE}:kill")
+        self.assertEqual(CA.UNMEASURED, status)
+        self.assertIn("не принимает аргумента", why)
+
+
+class TestTheVerdictDoorIsGreenOnAWholeContour(unittest.TestCase):
+    """Положительный контроль: `satisfied` ДОСТИЖИМ, иначе проба — штамп."""
+
+    def test_three_present_organs_and_a_separable_door_are_satisfied(self):
+        status, why = CA.owner_stop_organs_verdict(_measured())
+        self.assertEqual(CA.SATISFIED, status, why)
+        for _, wording, *_ in M.OWNER_CONTROLS:
+            self.assertIn(wording, why,
+                          "зелёный вердикт обязан называть ВСЕ три органа — "
+                          "иначе он не о требовании владельца")
+
+    def test_the_green_verdict_names_what_was_measured_not_what_was_promised(self):
+        status, why = CA.owner_stop_organs_verdict(_measured())
+        self.assertEqual(CA.SATISFIED, status)
+        self.assertIn(M.EFFECT_ALL_CASH, why)
+        self.assertIn(M.EFFECT_HOLD_ONLY, why)
+
+
+class TestTheVerdictDoorIsRedOnEveryBrokenLink(unittest.TestCase):
+    """Красное — на КАЖДОМ порванном звене, и звено НАЗВАНО."""
+
+    def test_every_absent_organ_is_named_one_at_a_time(self):
+        for key, wording, *_ in M.OWNER_CONTROLS:
+            with self.subTest(organ=key):
+                status, why = CA.owner_stop_organs_verdict(
+                    _measured({key: M.ABSENT}))
+                self.assertEqual(CA.NOT_SATISFIED, status, why)
+                self.assertIn(wording, why)
+                self.assertIn(M.ABSENT, why)
+
+    def test_every_conflated_organ_is_named_with_its_measured_effect(self):
+        for key, wording, _promise, promised, *_ in M.OWNER_CONTROLS:
+            if promised == M.EFFECT_ALL_CASH:
+                continue   # сцена CONFLATED строится подменой эффекта на ALL_CASH
+            with self.subTest(organ=key):
+                status, why = CA.owner_stop_organs_verdict(
+                    _measured({key: M.CONFLATED}))
+                self.assertEqual(CA.NOT_SATISFIED, status, why)
+                self.assertIn(wording, why)
+                self.assertIn(M.CONFLATED, why)
+                self.assertIn(M.EFFECT_ALL_CASH, why)
+
+    def test_a_door_that_silences_monitoring_is_not_satisfied(self):
+        status, why = CA.owner_stop_organs_verdict(
+            _measured(separability="NOT_SEPARABLE",
+                      sep_reason="дверь гасит: portfolio_health (monitoring)"))
+        self.assertEqual(CA.NOT_SATISFIED, status, why)
+        self.assertIn("portfolio_health", why,
+                      "вторая половина §42 обязана называть ПОГАШЕННОГО "
+                      "производителя, а не просто краснеть")
+
+    def test_a_present_organ_is_not_named_among_the_broken(self):
+        key, wording = M.OWNER_CONTROLS[0][0], M.OWNER_CONTROLS[0][1]
+        status, why = CA.owner_stop_organs_verdict(_measured({key: M.ABSENT}))
+        self.assertEqual(CA.NOT_SATISFIED, status)
+        for other_key, other_wording, *_ in M.OWNER_CONTROLS[1:]:
+            self.assertNotIn(other_wording, why,
+                             f"исправный орган {other_key} назван сломанным — "
+                             "владелец пойдёт починять работающую ручку")
+        self.assertIn(wording, why)
+
+
+class TestTheThirdOutcomeIsItsOwn(unittest.TestCase):
+    """«Не измерено» никогда не выдаётся ни за находку, ни за чистое (инв. #17)."""
+
+    def test_an_unchecked_organ_is_unmeasured_not_a_finding(self):
+        status, why = CA.owner_stop_organs_verdict(
+            _measured({"emergency_stop": M.UNCHECKED}))
+        self.assertEqual(CA.UNMEASURED, status, why)
+        self.assertIn("EMERGENCY STOP", why)
+        self.assertIn("НЕ ИЗМЕРЕНО", why)
+
+    def test_unchecked_separability_is_unmeasured(self):
+        status, why = CA.owner_stop_organs_verdict(
+            _measured(separability=M.UNCHECKED,
+                      sep_reason="не измерено: portfolio_health — ImportError"))
+        self.assertEqual(CA.UNMEASURED, status, why)
+        self.assertIn("portfolio_health", why)
+
+    def test_a_failed_self_control_is_unmeasured_and_names_the_reason(self):
+        status, why = CA.owner_stop_organs_verdict(_measured(control_passed=False))
+        self.assertEqual(CA.UNMEASURED, status, why)
+        self.assertIn("не измерен ни у одной", why)
+        self.assertIn("не изменила путь решения", why)
+
+    def test_a_document_that_is_not_the_instruments_is_unmeasured(self):
+        for scene in (None, [], {}, {"controls": []}, "ALL_CASH"):
+            with self.subTest(scene=repr(scene)[:20]):
+                status, _ = CA.owner_stop_organs_verdict(scene)
+                self.assertEqual(CA.UNMEASURED, status)
+
+
+class TestTheProbeMeasuresRealTrees(unittest.TestCase):
+    """Сквозь настоящий прибор — по деревьям, а не по пересказу его вывода."""
+
+    def setUp(self):
+        self._trees: list[str] = []
+
+    def tearDown(self):
+        for tree in self._trees:
+            shutil.rmtree(tree, ignore_errors=True)
+
+    def _tree(self, doors, **kw) -> str:
+        tree = _bot_tree(doors, **kw)
+        self._trees.append(tree)
+        return tree
+
+    def test_a_tree_without_the_owner_channel_is_unmeasured(self):
+        empty = tempfile.mkdtemp(prefix="cio_ks_empty_")
+        self._trees.append(empty)
+        status, why = CA.run_probe(S50_PROBE, repo_root=empty)
+        self.assertEqual(CA.UNMEASURED, status, why)
+        self.assertIn("канал владельца не разобран", why)
+
+    def test_a_channel_without_a_state_door_is_unmeasured_not_absent(self):
+        tree = self._tree([])
+        status, why = CA.run_probe(S50_PROBE, repo_root=tree)
+        self.assertEqual(CA.UNMEASURED, status, why)
+        self.assertIn("не измерен ни у одной", why)
+
+    def test_a_kill_only_tree_names_the_two_missing_organs(self):
+        tree = self._tree([("/kill", "cmd_kill", "manual_kill")])
+        status, why = CA.run_probe(S50_PROBE, repo_root=tree)
+        self.assertEqual(CA.NOT_SATISFIED, status, why)
+        self.assertIn("PAUSE CIO", why)
+        self.assertIn("PAUSE AUTO EXECUTION", why)
+        self.assertNotIn("EMERGENCY STOP", why,
+                         "аварийная остановка на этом дереве ЕСТЬ и измерена — "
+                         "называть её сломанной значит врать в обе стороны")
+
+    def test_a_live_shaped_tree_reports_pause_as_conflated(self):
+        tree = self._tree([("/kill", "cmd_kill", "manual_kill"),
+                           ("/pause", "cmd_pause", "manual_telegram")])
+        status, why = CA.run_probe(S50_PROBE, repo_root=tree)
+        self.assertEqual(CA.NOT_SATISFIED, status, why)
+        self.assertIn(M.CONFLATED, why)
+        self.assertIn("PAUSE CIO", why)
+
+    def test_words_in_a_docstring_are_not_an_organ(self):
+        """ADR-333: подстрокой проба не проходит."""
+        tree = self._tree(
+            [("/kill", "cmd_kill", "manual_kill")],
+            claims=[("/pause_execution", "cmd_pause_execution",
+                     "pause auto execution: ставит автоисполнение на паузу")])
+        status, why = CA.run_probe(S50_PROBE, repo_root=tree)
+        self.assertEqual(CA.NOT_SATISFIED, status, why)
+        self.assertIn("PAUSE AUTO EXECUTION", why)
+        self.assertIn(M.ABSENT, why,
+                      "команда названа словами органа, но состояния не пишет — "
+                      "это ABSENT; зачти её, и критерий закрывался бы текстом")
+        self.assertNotIn(M.PRESENT + ":", why)
+
+    def test_the_probe_writes_nothing_into_the_tree(self):
+        tree = self._tree([("/kill", "cmd_kill", "manual_kill")])
+        before = sorted(str(p.relative_to(tree))
+                        for p in Path(tree).rglob("*") if p.is_file())
+        CA.run_probe(S50_PROBE, repo_root=tree)
+        after = sorted(str(p.relative_to(tree))
+                       for p in Path(tree).rglob("*") if p.is_file())
+        self.assertEqual(before, after,
+                         "проба обязана только ЧИТАТЬ: отчёт прибора пишется "
+                         "лишь при `write=True`")
+
+    def test_the_repo_root_input_changes_the_verdict(self):
+        """Инъекция обязана доходить до прибора, а не быть параметром-украшением."""
+        kill_only = CA.run_probe(
+            S50_PROBE, repo_root=self._tree([("/kill", "cmd_kill", "manual_kill")]))
+        empty = tempfile.mkdtemp(prefix="cio_ks_empty2_")
+        self._trees.append(empty)
+        no_channel = CA.run_probe(S50_PROBE, repo_root=empty)
+        self.assertEqual(CA.NOT_SATISFIED, kill_only[0])
+        self.assertEqual(CA.UNMEASURED, no_channel[0])
 
 if __name__ == "__main__":  # pragma: no cover
     unittest.main()
