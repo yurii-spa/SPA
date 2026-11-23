@@ -1223,6 +1223,18 @@ def _research_universe_section(data: Path, now: datetime) -> dict:
     if doc.get("integrity") == "BROKEN":
         return {"_meta": _meta("CRITICAL", src, now, now, reason=safe_text(doc.get("reason"), 300)),
                 "integrity": "BROKEN", "banner": RESEARCH_UNIVERSE_BANNER, "sherlock": None}
+    # ADR-1078 (цикл #1223): «фабрика не отработала НИ РАЗУ» — это ТРЕТИЙ исход,
+    # а не свежесть и не протухание. До 23.11 читатель подставлял сюда СТЕННЫЕ
+    # ЧАСЫ (`read._derive_latest`, пустой журнал), и замер на пустом каталоге
+    # давал `HEALTHY · neutral-ok · age_min=-89119.5`: порог 1560 мин на
+    # отрицательном возрасте не срабатывает НИКОГДА, то есть вердикт был
+    # fail-OPEN по инв. #17. Теперь отметки нет вовсе, и `_meta` сам низвёл бы
+    # состояние до STALE — но «протухло» утверждает, что прогон БЫЛ, а его не
+    # было. Поэтому исход назван отдельно и своей причиной.
+    if doc.get("generated_at") is None:
+        return {**_nm(src, now, "ни одного прогона в журнале фабрики — она не "
+                                "отрабатывала на этом дереве (не «протухло»)"),
+                "banner": RESEARCH_UNIVERSE_BANNER, "sherlock": None}
     denom = doc.get("denominators") or {}
     candidates = [c for c in (doc.get("candidates") or []) if isinstance(c, dict)]
     top = sorted(candidates, key=_research_candidate_sort_key)[:10]

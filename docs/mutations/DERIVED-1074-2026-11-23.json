@@ -1,0 +1,128 @@
+{
+ "title": "ADR-1074 — прибор и проба класса «производный артефакт» (долг G1062 п. 7, закрыт циклом #1223)",
+ "tests": [
+  "spa_core/tests/test_derived_artifact_census.py"
+ ],
+ "mutations": [
+  {
+   "name": "ast.walk снова входит в поверхность (прямой ввоз)",
+   "file": "scripts/derived_artifact_census.py",
+   "old": "recv.id in NON_PATH_RECEIVERS",
+   "new": "False"
+  },
+  {
+   "name": "ast.walk под ПСЕВДОНИМОМ снова входит в поверхность",
+   "file": "scripts/derived_artifact_census.py",
+   "old": "or recv.id in resolver.aliases)",
+   "new": "or False)"
+  },
+  {
+   "name": "точечный не-путь (`os.path.walk`) снова входит",
+   "file": "scripts/derived_artifact_census.py",
+   "old": "and recv.value.id in NON_PATH_RECEIVERS)",
+   "new": "and False)"
+  },
+  {
+   "name": "настоящий обход каталога ПЕРЕСТАЁТ быть перечислением",
+   "file": "scripts/derived_artifact_census.py",
+   "old": "\"iterdir\", \"listdir\", \"walk\", \"scandir\"",
+   "new": "\"iterdir\", \"listdir\", \"scandir\""
+  },
+  {
+   "name": "маркер одноразовой сцены спрашивается ОДИН раз (дефект 1-й редакции)",
+   "file": "scripts/derived_artifact_census.py",
+   "old": "        for marker in SANDBOX_MARKERS:",
+   "new": "        for marker in (SANDBOX_MARKERS if depth == 0 else ()):"
+  },
+  {
+   "name": "фикстура pytest перестаёт быть одноразовым каталогом",
+   "file": "scripts/derived_artifact_census.py",
+   "old": "            if expr.id in PYTEST_TMP_FIXTURES:",
+   "new": "            if False:"
+  },
+  {
+   "name": "каталог состояния становится каталогом исходников",
+   "file": "scripts/derived_artifact_census.py",
+   "old": "STATE_PREFIXES = (\"data\",)",
+   "new": "STATE_PREFIXES = ()"
+  },
+  {
+   "name": "форма, потерявшая известного члена, всё равно печатает число",
+   "file": "scripts/derived_artifact_census.py",
+   "old": "        if self.lost_known_members:\n            return 2",
+   "new": "        if False:\n            return 2"
+  },
+  {
+   "name": "известные члены класса ОПУСТОШЕНЫ — контроля поверхности нет (первая редакция мутации `{} or {…}` была ТОЖДЕСТВЕННА коду: `or` возвращает непустой операнд — дефект мерки, не покрытия)",
+   "file": "scripts/derived_artifact_census.py",
+   "old": "KNOWN_MEMBERS = {\n    \"spa_core/tests/test_untiered_census.py\"",
+   "new": "KNOWN_MEMBERS = {} if True else {\n    \"spa_core/tests/test_untiered_census.py\""
+  },
+  {
+   "name": "третий исход (НЕ РАЗОБРАНО) даёт код 0",
+   "file": "scripts/derived_artifact_census.py",
+   "old": "        return 1 if self.counts[UNRESOLVED] else 0",
+   "new": "        return 0"
+  },
+  {
+   "name": "пустой каталог тестов становится чистым нулём, а не НЕ ИЗМЕРЕНО",
+   "file": "scripts/derived_artifact_census.py",
+   "old": "        raise NotMeasured(f\"ни одного `test_*.py` в {tests_dir} — пустота мерой не является\")",
+   "new": "        pass"
+  },
+  {
+   "name": "нечитаемое НАЗВАННОЕ дерево молча подменяется деревом прибора",
+   "file": "scripts/derived_artifact_census.py",
+   "old": "            raise NotMeasured(f\"названное дерево не похоже на репозиторий SPA: {root}\")",
+   "new": "            root = pathlib.Path(__file__).resolve().parents[1]"
+  },
+  {
+   "name": "умолчание дерева перестаёт ПЕЧАТАТЬСЯ",
+   "file": "scripts/derived_artifact_census.py",
+   "old": "    print(f\"[дерево] --repo-root НЕ НАЗВАН, беру дерево прибора: {root}\", file=sys.stderr)",
+   "new": "    pass"
+  },
+  {
+   "name": "хоп через помощника снят — форма теряет 2 известных члена из 3",
+   "file": "scripts/derived_artifact_census.py",
+   "old": "        calls += _helper_calls(root, tree, resolver, cache=helper_cache)",
+   "new": "        calls += []"
+  },
+  {
+   "name": "проба принимает аргумент, которого у предмета нет",
+   "file": "spa_core/monitoring/card_acceptance.py",
+   "old": "    git-окружение и сеть она не спрашивает, подпроцессов не поднимает.\n    \"\"\"\n    if (arg or \"\").strip():",
+   "new": "    git-окружение и сеть она не спрашивает, подпроцессов не поднимает.\n    \"\"\"\n    if False:"
+  },
+  {
+   "name": "проба не спрашивает у прибора ни одной двери",
+   "file": "spa_core/monitoring/card_acceptance.py",
+   "old": "    for door in (\"measure_surface\", \"SOURCE_DIR\", \"STATE_DIR\", \"SANDBOX\", \"UNRESOLVED\",\n                 \"KNOWN_MEMBERS\"):",
+   "new": "    for door in ():"
+  },
+  {
+   "name": "проба не замечает, что прибор считает ast.walk каталогом",
+   "file": "spa_core/monitoring/card_acceptance.py",
+   "old": "    if verdicts.get(\"ast_walk_is_not_a_directory\") != \"surface=0\":",
+   "new": "    if False:"
+  },
+  {
+   "name": "отсутствующий прибор проходит молча",
+   "file": "spa_core/monitoring/card_acceptance.py",
+   "old": "    census_path = root / \"scripts\" / \"derived_artifact_census.py\"\n    if not census_path.is_file():",
+   "new": "    census_path = root / \"scripts\" / \"derived_artifact_census.py\"\n    if False:"
+  },
+  {
+   "name": "объявление перестаёт сверяться с живым замером (дрейф молчит)",
+   "file": "spa_core/monitoring/card_acceptance.py",
+   "old": "    if drift:\n        return NOT_SATISFIED, (\"объявление РАЗОШЛОСЬ с живым замером поверхности: \"",
+   "new": "    if False:\n        return NOT_SATISFIED, (\"объявление РАЗОШЛОСЬ с живым замером поверхности: \""
+  },
+  {
+   "name": "`needs` вне замкнутого словаря проходит",
+   "file": "spa_core/monitoring/card_acceptance.py",
+   "old": "        if m.get(\"needs\") not in DERIVED_ARTIFACT_NEEDS:",
+   "new": "        if False:"
+  }
+ ]
+}

@@ -327,11 +327,36 @@ class ShardMap(NamedTuple):
     ``status`` — :data:`MEASURED` либо :data:`UNMEASURED`; третьего у КАРТЫ не
     бывает, потому что «карта пустая» производитель не выпускает вовсе
     (`ci_control.cmd_plan` отказывает на нулевом населении — инв. #17 у него).
+
+    ПОЧЕМУ ПОЛЕЙ ЛИЧНОСТИ ДВА, А НЕ ОДНО (заказ G1065 п. 13, цикл #1223)
+    -------------------------------------------------------------------
+    До 23.11 поле было ОДНО и звалось ``run``, а несло ДВА РАЗНЫХ рода —
+    смотря кто карту произвёл: :func:`shard_map_of` клала в него
+    ``str(doc["sha"])`` (вершину манифеста), а
+    ``ci_control_verdict._shard_map_of_run`` при немочи сети — номер прогона
+    (``run=run_id``). Различить их было нечем: ни один читатель не спрашивал,
+    что ему досталось, потому что читателей у поля не было вовсе.
+
+    Заказ просил ОДНУ правку имени (``run`` → ``sha``), и этого НЕ ДОСТАТОЧНО:
+    переименование оставило бы второго производителя кладущим НОМЕР ПРОГОНА в
+    поле с именем ``sha`` — тот же дефект со сменённым знаком. Поэтому рода
+    разделены, как у соседнего :class:`Roster`, у которого ``run`` и ``sha``
+    живут отдельными полями с самого начала: манифест знает ТОЛЬКО вершину
+    (`ci_control.cmd_plan` пишет ``sha`` и номера прогона не пишет вовсе), а
+    номер прогона знает ТОЛЬКО тот, кто качал артефакт.
+
+    Поле, которого производитель не знает, остаётся ``None`` — это «не
+    наблюдалось», а не «пусто» (инв. #17).
     """
 
     status: str
     reason: str | None
+    #: номер прогона CI — его знает ТОЛЬКО тот, кто качал манифест; сам
+    #: манифест номера не несёт, поэтому у :func:`shard_map_of` без входа
+    #: ``run`` здесь ``None``
     run: str | None
+    #: вершина, на которой составлен план шардов — из поля ``sha`` манифеста
+    sha: str | None
     #: путь файла, как его печатает ростер pytest → номер шарда
     by_file: dict[str, int]
 
@@ -340,12 +365,18 @@ class ShardMap(NamedTuple):
         return self.status == MEASURED
 
 
-def unmeasured_shard_map(reason: str, *, run=None) -> ShardMap:
-    """Карта, которой НЕТ, с НАЗВАННОЙ причиной. Пустой картой не притворяется."""
-    return ShardMap(status=UNMEASURED, reason=reason, run=run, by_file={})
+def unmeasured_shard_map(reason: str, *, run=None, sha=None) -> ShardMap:
+    """Карта, которой НЕТ, с НАЗВАННОЙ причиной. Пустой картой не притворяется.
+
+    Рода личности ДВА и они не взаимозаменяемы: ``run`` — номер прогона,
+    ``sha`` — вершина манифеста. Не знаешь которого-то — не подставляй
+    другой, оставь ``None``.
+    """
+    return ShardMap(status=UNMEASURED, reason=reason, run=run, sha=sha,
+                    by_file={})
 
 
-def shard_map_of(doc, *, label: str = "манифест") -> ShardMap:
+def shard_map_of(doc, *, label: str = "манифест", run=None) -> ShardMap:
     """Карта шардов ОДНОГО манифеста. Любая немочь — названная причина.
 
     Отказ fail-CLOSED по каждому поводу: документ не словарь · нет списка
@@ -361,43 +392,45 @@ def shard_map_of(doc, *, label: str = "манифест") -> ShardMap:
     """
     if not isinstance(doc, dict):
         return unmeasured_shard_map(
-            f"{label} не словарь, а {type(doc).__name__} — карты шардов в нём нет")
+            f"{label} не словарь, а {type(doc).__name__} — карты шардов в нём нет",
+            run=run)
     rows = doc.get("shards")
-    sha = doc.get("sha")
-    run = str(sha) if sha is not None else None
+    raw_sha = doc.get("sha")
+    sha = str(raw_sha) if raw_sha is not None else None
     if not isinstance(rows, list):
         return unmeasured_shard_map(
             f"{label} не несёт списка `shards` (там {type(rows).__name__}) — "
-            f"карта шардов не прочитана", run=run)
+            f"карта шардов не прочитана", run=run, sha=sha)
     by_file: dict[str, int] = {}
     for row in rows:
         if not isinstance(row, dict) or "shard" not in row:
             return unmeasured_shard_map(
                 f"{label}: запись `shards` без номера шарда — карта не прочитана",
-                run=run)
+                run=run, sha=sha)
         number = row["shard"]
         files = row.get("files")
         if not isinstance(files, list):
             return unmeasured_shard_map(
                 f"{label}: шард {number!r} не несёт списка `files` (там "
-                f"{type(files).__name__}) — карта не прочитана", run=run)
+                f"{type(files).__name__}) — карта не прочитана", run=run, sha=sha)
         for item in files:
             if not isinstance(item, str) or not item:
                 return unmeasured_shard_map(
                     f"{label}: шард {number!r} называет файл {item!r} — это не "
-                    f"путь, и карта не прочитана", run=run)
+                    f"путь, и карта не прочитана", run=run, sha=sha)
             if item in by_file and by_file[item] != number:
                 return unmeasured_shard_map(
                     f"{label}: файл `{item}` объявлен сразу в шардах "
                     f"{by_file[item]!r} и {number!r} — выбрать один из двух "
-                    f"прибор не вправе", run=run)
+                    f"прибор не вправе", run=run, sha=sha)
             by_file[item] = number
     if not by_file:
         return unmeasured_shard_map(
             f"{label} не называет ни одного файла — населения в нём нет, а "
             f"«файла нет в населении» о каждом имени было бы ответом о "
-            f"манифесте, а не о переезде", run=run)
-    return ShardMap(status=MEASURED, reason=None, run=run, by_file=by_file)
+            f"манифесте, а не о переезде", run=run, sha=sha)
+    return ShardMap(status=MEASURED, reason=None, run=run, sha=sha,
+                    by_file=by_file)
 
 
 def _as_shard_map(given, *, side: str) -> ShardMap:
@@ -484,9 +517,12 @@ class Delta(NamedTuple):
     curr: Roster
     arrived: tuple[Transition, ...]
     departed: tuple[Transition, ...]
-    #: карты шардов обоих прогонов — ВХОДЫ, а не добыча прибора
-    prev_shards: ShardMap = ShardMap(UNMEASURED, NO_SHARD_MAP_REASON, None, {})
-    curr_shards: ShardMap = ShardMap(UNMEASURED, NO_SHARD_MAP_REASON, None, {})
+    #: карты шардов обоих прогонов — ВХОДЫ, а не добыча прибора.
+    #: Умолчание строится ЕДИНСТВЕННОЙ дверью, а не позиционным литералом:
+    #: литерал молча пережил бы расширение словаря родов — именно на нём
+    #: разделение `run`/`sha` и уронило сборку (цикл #1223).
+    prev_shards: ShardMap = unmeasured_shard_map(NO_SHARD_MAP_REASON)
+    curr_shards: ShardMap = unmeasured_shard_map(NO_SHARD_MAP_REASON)
 
     @property
     def measured(self) -> bool:

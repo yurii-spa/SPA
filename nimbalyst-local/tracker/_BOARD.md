@@ -2,11 +2,11 @@
 
 > Авто-генерится `scripts/build_tracker_board.py` из `nimbalyst-local/tracker/*.md`. НЕ править вручную — правь карточки. Источник правды — карточки, это индекс (bootstrap).
 >
-> Собрана: 2026-11-23T13:37:14Z · сверка с карточками: `python3 scripts/build_tracker_board.py --check` (сторож `spa_core/tests/test_tracker_board_matches_cards.py`).
+> Собрана: 2026-11-23T16:04:46Z · сверка с карточками: `python3 scripts/build_tracker_board.py --check` (сторож `spa_core/tests/test_tracker_board_matches_cards.py`).
 >
-> Сверено с `origin/main` (f317721b3) · у **1** своя правка, кто новее — не измерено.
+> Сверено с `origin/main` (f36581710) · у **1** своя правка, кто новее — не измерено.
 >
-> Всего карточек: **1676** · ждёт владельца: **16** · занято сессиями: **13**.
+> Всего карточек: **1678** · ждёт владельца: **16** · занято сессиями: **13**.
 
 ## 🔴 ЖДЁТ ВЛАДЕЛЬЦА (needs-owner)
 
@@ -448,7 +448,7 @@
 ### · closed
 - Считать ли верный отказ по правилам допуска неисправностью флота  ·  `owner-decision-schitat-li-vernyi-otkaz-po-pravilam-dopu.md` · 2026-10-08
 
-## 📥 Inbox (задания: Telegram / заметки / голос)  (971)
+## 📥 Inbox (задания: Telegram / заметки / голос)  (973)
 
 ### · in-progress
 - а задача починить все-таки еще раз сообщение которым не пишет нужно твое решени…  ·  `inbox-a-zadacha-pochinit-vse-taki-esche-raz-so.md` · 2026-08-14 · 🔒 `pid43119`
@@ -1270,6 +1270,7 @@
 - Причина, которая возникает только в облаке, не доходит до учёта повторов  ·  `inbox-prichina-kotoraya-voznikaet-tolko-v-obla.md` · 2026-10-23
 - Причина недоизмеренности hit_rate названа не та: рычаг у писателя журнала, а не у фида  ·  `inbox-prichina-nedoizmerennosti-hit-rate-nazva.md` · 2026-09-11
 - Причина внутри «НЕ ИЗМЕРЕНО» бывает назначена умолчанием — население класса не измерено (ADR-1058)  ·  `inbox-prichina-vnutri-ne-izmereno-byvaet-nazna.md` · 2026-11-18
+- Притязание injected-clock подтверждается, когда дверь к часам достигается ВНУТРИ процесса через продукционный код (не подпроцесс): на этом покраснел CI, население 51 файла НЕ ИЗМЕРЕНО  ·  `inbox-prityazanie-injected-clock-podtverzhdaet.md` · 2026-11-23
 - Привязка читателя к блоку по ДОРОГЕ значения — ось «судит о населении „все“» осталась НЕ ИЗМЕРЕННОЙ (ADR-856)  ·  `inbox-privyazka-chitatelya-k-bloku-po-doroge-z.md` · 2026-10-29
 - Проба двери доставки считает ПОЛОМКУ сторожа его отказом (катч-олл в приёмке ADR-714)  ·  `inbox-proba-dveri-dostavki-schitaet-polomku-st.md` · 2026-10-15
 - Проба приёмки идёт 464 с при таймауте 180 с, и фитиль растёт вместе с журналом  ·  `inbox-proba-priemki-idet-464-s-pri-taimaute-18.md` · 2026-10-29
@@ -1413,6 +1414,7 @@
 - Восемнадцать ответов владельца 27.10: исполнителя не назвал никто  ·  `inbox-vosemnadtsat-otvetov-vladeltsa-27-10-isp.md` · 2026-10-28
 - Восемнадцать сторожей судят артефакты, которых конституция не знает — их пороги не способен проверить никто  ·  `inbox-vosemnadtsat-storozhei-sudyat-artefakty.md` · 2026-10-08
 - Воспроизводимость решения не спрошена у решателей двух третей капитала  ·  `inbox-vosproizvodimost-resheniya-ne-sproshena-u.md` · 2026-09-29
+- Возраст наблюдения бывает ОТРИЦАТЕЛЬНЫМ, и порог свежести на нём не срабатывает никогда (замер −89119.5 мин при пороге 1560; население НЕ ИЗМЕРЕНО)  ·  `inbox-vozrast-nablyudeniya-byvaet-otritsatelny.md` · 2026-11-23
 - Вторая запись о деньгах, позванная как предписано — из своего worktree, — не видит ту самую дыру, ради которой написана  ·  `inbox-vtoraya-zapis-o-dengah-iz-worktree-ne-vi.md` · 2026-10-22
 - Вторая запись о деньгах из worktree печатает ЛОЖНУЮ дыру: журнал обрезан до 7 ходов из 34, а вывод выглядит находкой  ·  `inbox-vtoraya-zapis-o-dengah-iz-worktree-pecha.md` · 2026-09-28
 - Вторая запись о деньгах из worktree судит о ЗАМОРОЖЕННОМ каноне git, и код возврата тот же  ·  `inbox-vtoraya-zapis-o-dengah-iz-worktree-sudit.md` · 2026-10-24

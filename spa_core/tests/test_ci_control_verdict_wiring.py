@@ -1527,6 +1527,52 @@ class TheManifestArtifactIsNamedByTheWorkflowNotByMemory(unittest.TestCase):
         self.assertIs(type(mine), rsd.ShardMap)
 
 
+class TheRunNumberReachesTheMapFromTHISDoorOnly(unittest.TestCase):
+    """ПРОВОДКА номера прогона: поле есть, дверь его принимает — доезжает ли он?
+
+    Найдено мутационным замером цикла #1223 (ADR-1078, заказ G1065 п. 13): после
+    разделения родов личности `ShardMap` мутация «снять `run=run_id` у зова
+    `shard_map_of`» ВЫЖИЛА — рода были проверены у РАЗБОРЩИКА, а проводку от
+    ЭТОЙ двери не спрашивал никто. Класс знакомый: «половина инъекции» того же
+    рода, что § «ЛИЧНОСТЬ ПРОЦЕССА» правила доставки («параметр у сторожа есть,
+    у проводки нет»).
+
+    Номер прогона знает ТОЛЬКО эта дверь: сам манифест его не несёт
+    (`ci_control.cmd_plan` пишет `sha` и номера не пишет вовсе), поэтому
+    потерять его здесь значит потерять навсегда.
+    """
+
+    def test_the_run_number_arrives_and_the_sha_comes_from_the_manifest(self):
+        net = _Net([_run_row("45108124169")],
+                   manifest=_plan({"spa_core/tests/test_a.py": 4}))
+        chart = ccv._shard_map_of_run("45108124169", fetch=net.fetch,
+                                      grab=net.grab, now=NOW)
+        self.assertEqual(chart.run, "45108124169",
+                         "номер прогона не доехал до карты, а знает его ТОЛЬКО "
+                         "эта дверь — в манифесте его нет вовсе")
+        self.assertEqual(chart.sha, "deadbeef",
+                         "вершина обязана приходить ИЗ МАНИФЕСТА, а не от "
+                         "вызывающего")
+        self.assertNotEqual(chart.run, chart.sha,
+                            "два рода личности слились в одно значение — это и "
+                            "был предмет п. 13 заказа G1065")
+
+    def test_the_run_number_arrives_even_when_the_plan_is_UNMEASURED(self):
+        """ОБРАТНАЯ половина: немочь сети тоже обязана сказать, О ЧЬЁМ прогоне она."""
+        net = _Net([_run_row("45108124169")],
+                   artifacts=[{"id": 1, "name": "ci-control-report",
+                               "expired": False,
+                               "archive_download_url": "https://api.example/zip"}])
+        chart = ccv._shard_map_of_run("45108124169", fetch=net.fetch,
+                                      grab=net.grab, now=NOW)
+        self.assertFalse(chart.measured, "сцена не обеспечена: карта измерена")
+        self.assertEqual(chart.run, "45108124169",
+                         "безымянный отказ: читатель не узнает, о чьём плане он")
+        self.assertIsNone(chart.sha,
+                          "вершины не наблюдалось — подставлять вместо неё "
+                          "номер прогона нельзя (инв. #17)")
+
+
 class TheManifestDoorRefusesByNAME(unittest.TestCase):
     """Каждое порванное звено двери плана — названная причина, а не пустая карта."""
 

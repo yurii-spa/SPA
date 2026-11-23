@@ -20358,9 +20358,41 @@ def _probe_derived_artifact_class_population_named(
                     return UNMEASURED, (f"сцена `{name}`: поверхность {len(census.entries)} "
                                         "вместо одного файла — спрашивать ярлык нечем")
                 verdicts[name] = census.entries[0].kind
-                if name == "unresolved" and census.code == 0:
-                    return UNMEASURED, ("сцена `unresolved` дала КОД 0: третий исход "
-                                        "неотличим от «чисто», а это и есть предмет инв. #17")
+
+            # ── третий исход НЕНУЛЕВЫМ кодом: вопрос обязан быть ДОСТИЖИМ ──
+            # ADR-1078 (цикл #1223, мутационный замер долга G1062 п. 7): здесь
+            # стояло `if name == "unresolved" and census.code == 0`, и мутация
+            # «`Surface.code` возвращает 0» ВЫЖИЛА. Причина — не дыра тестов, а
+            # НЕДОСТИЖИМОСТЬ самого вопроса: цикл сцен сносит все файлы перед
+            # каждой, поэтому известные члены класса теряются (замер: 3 из 3) и
+            # `code` коротко замыкается на 2 РАНЬШЕ ветки UNRESOLVED. Названная
+            # проверка, которая не может сработать, есть ложное усиление —
+            # опаснее её отсутствия. Спрашиваем на сцене, где известные члены
+            # НА МЕСТЕ, и ПРОВЕРЯЕМ эту предпосылку, а не надеемся на неё.
+            for stale in tests_dir.glob("test_*.py"):
+                stale.unlink()
+            (tests_dir / "test_unresolved.py").write_text(SCENES["unresolved"],
+                                                          encoding="utf-8")
+            for known in mod.KNOWN_MEMBERS:
+                dest = scene_root / known
+                dest.parent.mkdir(parents=True, exist_ok=True)
+                dest.write_text(SCENES["source"], encoding="utf-8")
+            third = mod.measure_surface(scene_root)
+            if third.lost_known_members:
+                return UNMEASURED, (
+                    "сцена третьего исхода не обеспечена: известные члены класса "
+                    "вне предмета ("
+                    + ", ".join(sorted(third.lost_known_members))
+                    + ") — `code` замкнулся бы на 2, и вопрос о НЕНУЛЕВОМ коде "
+                      "при неразобранном пути не был бы задан вовсе")
+            if third.counts[mod.UNRESOLVED] != 1:
+                return UNMEASURED, (
+                    f"сцена третьего исхода не обеспечена: неразобранных путей "
+                    f"{third.counts[mod.UNRESOLVED]} вместо одного — спрашивать "
+                    "про код нечем")
+            if third.code == 0:
+                return UNMEASURED, ("сцена `unresolved` дала КОД 0: третий исход "
+                                    "неотличим от «чисто», а это и есть предмет инв. #17")
     except BaseException as exc:  # noqa: BLE001
         return UNMEASURED, f"сцены не построены: {type(exc).__name__}: {exc}"
 

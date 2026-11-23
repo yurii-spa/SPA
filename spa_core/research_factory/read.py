@@ -234,7 +234,18 @@ def _derive_latest(data_dir: Path, *, verdict: Optional[dict] = None) -> dict:
         # back to the WALL CLOCK, so "today's decisions" emptied at midnight. The ledger's own newest entry
         # is the moment the data is from; the wall clock is used only for an empty ledger.
         entries = ledger.read_all()
-        generated_at = (entries[-1].get("at") if entries else None) or iso(datetime.now(timezone.utc))
+        # ADR-1078 (цикл #1223): у ПУСТОГО журнала здесь стояло
+        # `or iso(datetime.now(timezone.utc))`, то есть СТЕННЫЕ ЧАСЫ — прямо
+        # против комментария двумя строками выше («never the wall clock»).
+        # Замер 23.11, пустой каталог: фабрика, не отработавшая НИ РАЗУ,
+        # читалась как `state=HEALTHY · colour=neutral-ok · age_min=-89119.5`
+        # — отрицательный возраст, на котором порог 1560 мин не срабатывает
+        # НИКОГДА. Три дефекта у одной двери: «не наблюдалось» выдано за
+        # «свежо» (инв. #17), возраст отрицателен, и байты модели зависят от
+        # секунды чтения (красное имя CI
+        # `test_mission_rebuild_from_canon` прогона 45188707864).
+        # Отсутствие прогона есть ТРЕТИЙ ИСХОД: `None`, а не «сейчас».
+        generated_at = (entries[-1].get("at") if entries else None)
     # M5 leftover: every OTHER freshness judgement below (stale_feeds, basis_track) is also
     # judged against the RUN's own time, never the wall clock at read time.
     run_now = contract.parse_ts(generated_at) or datetime.now(timezone.utc)

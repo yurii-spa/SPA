@@ -170,6 +170,151 @@ class TheFourLabelsAreDistinguishable(unittest.TestCase):
         self.assertEqual(kind, mod.SANDBOX)
 
 
+class SurvivorsOfTheMutationRunOfCycle1223(unittest.TestCase):
+    """Сцены, которых НЕ БЫЛО: каждая убивает мутанта, пережившего замер #1223.
+
+    Долг G1062 п. 7 («мутационный прогон прибора ADR-1074 не запускался») был
+    закрыт циклом #1223: 20 мутаций, **убито 13, выжило 7**. Четверо выживших
+    были дырами покрытия, и четыре теста ниже — ровно они. Остальные трое
+    записаны там, где их место: двое — дефекты МЕРКИ (укреплены в
+    `test_an_instrument_without_the_surface_door_is_UNMEASURED` и в самой пробе
+    `card_acceptance`), один — ЭКВИВАЛЕНТНЫЙ мутант, доказанный замером
+    (см. `test_the_pytest_fixture_branch_is_UNREACHABLE_and_that_is_measured`).
+    """
+
+    def test_a_DOTTED_non_path_receiver_does_not_enter_the_surface(self):
+        """`ast.helpers.walk(tree)` — получатель точечный, корень его не путь.
+
+        Мутация «точечный не-путь снова входит» выжила: ни одна сцена не
+        подавала получателя вида `<не-путь>.<что-то>`. Ветка в приборе есть, а
+        свидетеля у неё не было.
+        """
+        mod = _load()
+        with tempfile.TemporaryDirectory(prefix="dac_dotted_") as d:
+            root = pathlib.Path(d)
+            _scene(root, "dotted_non_path",
+                   "import ast\n"
+                   "def test_x():\n"
+                   "    tree = ast.parse('x = 1')\n"
+                   "    assert list(ast.helpers.walk(tree))\n")
+            surface = mod.measure_surface(root)
+        self.assertEqual(surface.entries, [],
+                         "точечный получатель, чей корень — не путь, вошёл в "
+                         "поверхность: это снова мерка по ИМЕНИ МЕТОДА")
+
+    def test_a_form_that_loses_a_known_member_gives_CODE_2_not_a_number(self):
+        """Потеря известного члена обязана быть видна КОДОМ, а не только прозой.
+
+        Мутация «форма, потерявшая известного члена, всё равно печатает число»
+        выжила: вердикт `Surface.code` на этом состоянии не спрашивал никто —
+        проба читает `lost_known_members` своей отдельной веткой.
+        """
+        mod = _load()
+        with tempfile.TemporaryDirectory(prefix="dac_lost_") as d:
+            root = pathlib.Path(d)
+            _scene(root, "some_guard",
+                   "import pathlib\n"
+                   "def test_x():\n"
+                   "    r = pathlib.Path(__file__).resolve().parents[2]\n"
+                   "    assert list((r / 'spa_core' / 'analytics').glob('*.py'))\n")
+            surface = mod.measure_surface(root)
+            self.assertTrue(surface.lost_known_members,
+                            "сцена не обеспечена: известные члены обязаны быть ПОТЕРЯНЫ")
+            self.assertEqual(surface.code, 2,
+                             "форма ОПРОВЕРГНУТА, а код не 2 — число предмета "
+                             "выдавалось бы за население класса")
+
+    def test_the_known_members_are_anchored_OUTSIDE_the_instrument(self):
+        """Якорь известных членов обязан быть НЕЗАВИСИМ от самого прибора.
+
+        Мутация «`KNOWN_MEMBERS` опустошены» выжила, и это дефект КОНТРОЛЯ, а не
+        прибора: сцена пробы подкладывает членов, перечисляя `mod.KNOWN_MEMBERS`,
+        поэтому пустой словарь означает «подложить нечего и проверять нечего» —
+        сверка одного и того же с самим собой. Три пути названы ЗДЕСЬ, и
+        опустошение словаря в приборе краснит этот тест.
+        """
+        mod = _load()
+        self.assertEqual(set(mod.KNOWN_MEMBERS), {
+            "spa_core/tests/test_untiered_census.py",
+            "spa_core/tests/test_tracker_board_matches_cards.py",
+            "spa_core/tests/test_adr_index_titles.py",
+        }, "перечень известных членов класса разошёлся с независимым якорем: "
+           "каждый из трёх найден поимённо ПОСЛЕ того, как красное уехало на "
+           "`main` (ADR-1073 · ADR-1060 · ADR-889)")
+        for path, why in mod.KNOWN_MEMBERS.items():
+            with self.subTest(member=path):
+                self.assertTrue(str(why).strip(),
+                                "у известного члена обязана быть НАЗВАННАЯ причина")
+
+    def test_the_ONE_HOP_through_a_helper_is_what_finds_2_of_3_members(self):
+        """Хоп через помощника — центральное притязание ADR-1074, и свидетеля у него не было.
+
+        Мутация «хоп снят» выжила: форма «тест САМ перечисляет каталог» находит
+        1 известного члена из 3, остальные два перечисляют каталог ЧЕРЕЗ
+        ПОМОЩНИКА. Сцена ниже — ровно эта форма: тест не перечисляет ничего сам,
+        каталог перечисляет ввезённый помощник репозитория.
+        """
+        mod = _load()
+        with tempfile.TemporaryDirectory(prefix="dac_hop_") as d:
+            root = pathlib.Path(d)
+            helper = root / "scripts" / "zz_helper_of_the_scene.py"
+            helper.parent.mkdir(parents=True, exist_ok=True)
+            helper.write_text(
+                "import pathlib\n"
+                "def modules_on_disk():\n"
+                "    r = pathlib.Path(__file__).resolve().parents[1]\n"
+                "    return sorted((r / 'spa_core' / 'analytics').glob('*.py'))\n",
+                encoding="utf-8")
+            (root / "spa_core" / "analytics").mkdir(parents=True, exist_ok=True)
+            _scene(root, "guard_through_a_helper",
+                   "import importlib.util, pathlib\n"
+                   "HELPER = pathlib.Path(__file__).resolve().parents[2] / 'scripts' / "
+                   "'zz_helper_of_the_scene.py'\n"
+                   "def test_x():\n"
+                   "    spec = importlib.util.spec_from_file_location('h', HELPER)\n"
+                   "    mod = importlib.util.module_from_spec(spec)\n"
+                   "    spec.loader.exec_module(mod)\n"
+                   "    assert mod.modules_on_disk() is not None\n")
+            surface = mod.measure_surface(root)
+        paths = [e.path for e in surface.entries]
+        self.assertIn("spa_core/tests/test_guard_through_a_helper.py", paths,
+                      "тест, перечисляющий каталог ЧЕРЕЗ ПОМОЩНИКА, не вошёл в "
+                      "поверхность — именно эта форма теряет 2 известных члена из 3")
+
+    def test_the_pytest_fixture_branch_is_UNREACHABLE_and_that_is_measured(self):
+        """ЭКВИВАЛЕНТНЫЙ мутант записан как эквивалентный, а не замазан сценой.
+
+        Мутация «фикстура pytest перестаёт быть одноразовым каталогом»
+        (`if expr.id in PYTEST_TMP_FIXTURES` → `if False`) выжила, и дырой
+        покрытия это НЕ является: КАЖДОЕ имя из `PYTEST_TMP_FIXTURES` ловится
+        РАНЬШЕ циклом `SANDBOX_MARKERS` по тексту выражения (`tmp_path` и
+        `tmpdir` дословно, `tmp_path_factory` — подстрокой `tmp_path`). Ветка
+        недостижима, и её причина («фикстура pytest …») не произносится никогда.
+
+        Тест закрепляет ИМЕННО это: выдумывать эквивалентному мутанту сцену
+        значило бы получить зелёный тест, ничего не проверяющий (урок #1217).
+        Станет хоть одно имя фикстуры не-подстрокой маркеров — тест покраснеет,
+        и ветку надо будет либо снабдить сценой, либо снять.
+        """
+        mod = _load()
+        for name in sorted(mod.PYTEST_TMP_FIXTURES):
+            with self.subTest(fixture=name):
+                caught = [m for m in mod.SANDBOX_MARKERS if m in name]
+                self.assertTrue(caught, f"имя `{name}` маркерами НЕ ловится — "
+                                        "ветка PYTEST_TMP_FIXTURES стала достижима, "
+                                        "и ей нужна своя сцена")
+        with tempfile.TemporaryDirectory(prefix="dac_fixture_") as d:
+            root = pathlib.Path(d)
+            _scene(root, "tmp_path_receiver",
+                   "def test_x(tmp_path):\n"
+                   "    assert list(tmp_path.glob('*'))\n")
+            surface = _load().measure_surface(root)
+        self.assertEqual([e.kind for e in surface.entries], [mod.SANDBOX])
+        self.assertIn("в выражении", surface.entries[0].calls[0].reason,
+                      "ярлык пришёл НЕ от маркера — значит ветка фикстур всё же "
+                      "работает, и эквивалентность мутанта больше не доказана")
+
+
 class TheThirdOutcomeIsNotZero(unittest.TestCase):
     """Инв. #17: измерено · измерено и равно нулю · НЕ ИЗМЕРЕНО — три исхода."""
 
@@ -352,7 +497,16 @@ class TheProbeMeasuresTheOutcomeNotTheProse(unittest.TestCase):
                             encoding="utf-8")
             status, why = self._probe(root)
         self.assertEqual(status, ca.UNMEASURED, why)
-        self.assertIn("measure_surface", why)
+        # ADR-1078 (#1223): здесь стояло только `assertIn("measure_surface", why)`,
+        # и мутация «проба не спрашивает у прибора НИ ОДНОЙ двери»
+        # (`for door in ():`) ВЫЖИЛА: без переписи дверей проба падала ПОЗЖЕ, на
+        # `mod.measure_surface(...)`, ловила это своим `except BaseException` и
+        # возвращала текст, в котором то же слово есть СЛУЧАЙНО. Тест был зелен
+        # по другой причине — поэтому спрашивается именно ВЕРДИКТ переписи
+        # дверей, а не наличие слова.
+        self.assertIn("нет двери", why,
+                      "проба обязана назвать ОТСУТСТВИЕ ДВЕРИ, а не упасть позже "
+                      "на её использовании: второе зелено и при снятой переписи")
 
     def test_an_absent_instrument_is_not_satisfied_not_a_silent_pass(self):
         from spa_core.monitoring import card_acceptance as ca

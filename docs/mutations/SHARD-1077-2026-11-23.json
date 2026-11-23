@@ -1,5 +1,5 @@
 {
- "title": "ADR-1077 SHARD — ось ПЕРЕЕЗДА в читателе дельты красного набора: «переехал» становится ТРЕТЬИМ исходом (unmeasured), а не «не регрессия». Заказ G1064 п. 2, перенесённый из G1063 п. 2; замер #1219 сделан руками, ось в приборе не была проведена",
+ "title": "ADR-1077 SHARD — ось ПЕРЕЕЗДА в читателе дельты красного набора: «переехал» становится ТРЕТЬИМ исходом (unmeasured), а не «не регрессия». Заказ G1064 п. 2, перенесённый из G1063 п. 2; замер #1219 сделан руками, ось в приборе не была проведена · ПЕРЕГНАНА циклом #1223 после разделения родов личности ShardMap (заказ G1065 п. 13): три якоря следуют за байтами, два рода добавлены",
  "tests": [
   "spa_core/tests/test_red_set_delta.py",
   "spa_core/tests/test_ci_control_verdict_wiring.py"
@@ -44,14 +44,14 @@
   {
    "name": "столкновение номеров: берётся последний — ответ о соседстве, которого прибор не мерил",
    "file": "spa_core/monitoring/red_set_delta.py",
-   "old": "            if item in by_file and by_file[item] != number:\n                return unmeasured_shard_map(\n                    f\"{label}: файл `{item}` объявлен сразу в шардах \"\n                    f\"{by_file[item]!r} и {number!r} — выбрать один из двух \"\n                    f\"прибор не вправе\", run=run)",
+   "old": "            if item in by_file and by_file[item] != number:\n                return unmeasured_shard_map(\n                    f\"{label}: файл `{item}` объявлен сразу в шардах \"\n                    f\"{by_file[item]!r} и {number!r} — выбрать один из двух \"\n                    f\"прибор не вправе\", run=run, sha=sha)",
    "new": "            pass"
   },
   {
    "name": "карта без файлов объявлена ИЗМЕРЕННОЙ — «нет в населении» сказалось бы о КАЖДОМ имени",
    "file": "spa_core/monitoring/red_set_delta.py",
-   "old": "    if not by_file:\n        return unmeasured_shard_map(\n            f\"{label} не называет ни одного файла — населения в нём нет, а \"\n            f\"«файла нет в населении» о каждом имени было бы ответом о \"\n            f\"манифесте, а не о переезде\", run=run)",
-   "new": "    if False:\n        return unmeasured_shard_map(\"недостижимо\", run=run)"
+   "old": "    if not by_file:\n        return unmeasured_shard_map(\n            f\"{label} не называет ни одного файла — населения в нём нет, а \"\n            f\"«файла нет в населении» о каждом имени было бы ответом о \"\n            f\"манифесте, а не о переезде\", run=run, sha=sha)",
+   "new": "    if False:\n        return unmeasured_shard_map(\"недостижимо\", run=run, sha=sha)"
   },
   {
    "name": "немочь КАРТЫ рушит дельту по РОДАМ — половина вопроса гасит другую половину",
@@ -110,8 +110,8 @@
   {
    "name": "немочь плана ВЫЛЕТАЕТ наружу — отказ о плане рушит дельту о родах",
    "file": "scripts/ci_control_verdict.py",
-   "old": "    try:\n        doc = manifest_of_run(run_id, fetch=fetch, grab=grab, now=now)\n    except NotMeasured as exc:\n        return red_set_delta.unmeasured_shard_map(str(exc), run=run_id)\n    return red_set_delta.shard_map_of(doc, label=f\"план шардов прогона {run_id}\")",
-   "new": "    doc = manifest_of_run(run_id, fetch=fetch, grab=grab, now=now)\n    return red_set_delta.shard_map_of(doc, label=f\"план шардов прогона {run_id}\")"
+   "old": "    try:\n        doc = manifest_of_run(run_id, fetch=fetch, grab=grab, now=now)\n    except NotMeasured as exc:\n        return red_set_delta.unmeasured_shard_map(str(exc), run=run_id)\n    return red_set_delta.shard_map_of(\n        doc, label=f\"план шардов прогона {run_id}\", run=run_id)",
+   "new": "    doc = manifest_of_run(run_id, fetch=fetch, grab=grab, now=now)\n    return red_set_delta.shard_map_of(\n        doc, label=f\"план шардов прогона {run_id}\", run=run_id)"
   },
   {
    "name": "срок плана объявлен равным сроку отчёта — состояние «вердикт есть, плана нет» перестаёт быть штатным",
@@ -124,6 +124,18 @@
    "file": "scripts/ci_control_verdict.py",
    "old": "MANIFEST_ARTIFACT = \"ctl-manifest\"",
    "new": "MANIFEST_ARTIFACT = \"ci-control-manifest\""
+  },
+  {
+   "name": "вершина манифеста снова течёт в поле НОМЕРА ПРОГОНА (прежний дефект п. 13 заказа G1065)",
+   "file": "spa_core/monitoring/red_set_delta.py",
+   "old": "    return ShardMap(status=MEASURED, reason=None, run=run, sha=sha,\n                    by_file=by_file)",
+   "new": "    return ShardMap(status=MEASURED, reason=None, run=sha, sha=sha,\n                    by_file=by_file)"
+  },
+  {
+   "name": "НОМЕР ПРОГОНА не доезжает до карты — поле, которого знает только эта дверь, пусто",
+   "file": "scripts/ci_control_verdict.py",
+   "old": "    return red_set_delta.shard_map_of(\n        doc, label=f\"план шардов прогона {run_id}\", run=run_id)",
+   "new": "    return red_set_delta.shard_map_of(\n        doc, label=f\"план шардов прогона {run_id}\")"
   }
  ]
 }

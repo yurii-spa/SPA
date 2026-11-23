@@ -387,12 +387,20 @@ def _shard_map_of_run(run_id: str, *, fetch, grab, now=None):
 
     Разбор манифеста живёт у `red_set_delta.shard_map_of` в ЕДИНСТВЕННОЙ копии:
     второй разошёлся бы с первым молча. Здесь — только добыча байтов.
+
+    **Номер прогона знает ТОЛЬКО эта дверь** (заказ G1065 п. 13): в самом
+    манифесте его нет — `ci_control.cmd_plan` пишет `sha` и номера не пишет
+    вовсе. Поэтому `run_id` уезжает ВХОДОМ в оба исхода, а вершину карта
+    берёт из манифеста сама. До 23.11 у карты было одно поле `run`, и в него
+    попадал то номер прогона (здесь), то вершина (у разборщика), — два рода в
+    одном имени, неразличимые по построению.
     """
     try:
         doc = manifest_of_run(run_id, fetch=fetch, grab=grab, now=now)
     except NotMeasured as exc:
         return red_set_delta.unmeasured_shard_map(str(exc), run=run_id)
-    return red_set_delta.shard_map_of(doc, label=f"план шардов прогона {run_id}")
+    return red_set_delta.shard_map_of(
+        doc, label=f"план шардов прогона {run_id}", run=run_id)
 
 
 def _load_cause_line():

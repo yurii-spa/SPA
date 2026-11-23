@@ -501,6 +501,7 @@ class TheShardAxisRefusesByNAME(unittest.TestCase):
     def test_a_file_missing_from_one_map_is_ABSENT_not_SAME(self):
         prev, curr, pm, cm = _shard_pair()
         thin = rsd.ShardMap(status=rsd.MEASURED, reason=None, run=pm.run,
+                            sha=pm.sha,
                             by_file={k: v for k, v in pm.by_file.items()
                                      if "test_tb_sanitizer_probe" not in k})
         d = rsd.delta(prev, curr, prev_shards=thin, curr_shards=cm)
@@ -520,6 +521,91 @@ class TheShardAxisRefusesByNAME(unittest.TestCase):
         self.assertTrue(d.shard_axis_measured)
 
 
+class TheTwoIDENTITIESOfAShardMapAreSeparateFields(unittest.TestCase):
+    """НОМЕР ПРОГОНА и ВЕРШИНА — два рода, и одно поле их не несёт.
+
+    Заказ G1065 п. 13 (цикл #1223) просил ОДНУ правку имени: поле звалось
+    ``run``, а разборщик клал в него ``str(doc["sha"])``. Замер нашёл второго
+    производителя — `ci_control_verdict._shard_map_of_run` при немочи сети
+    кладёт в ТО ЖЕ поле НОМЕР ПРОГОНА (`run=run_id`), — поэтому чистое
+    переименование ``run`` → ``sha`` перенесло бы дефект, а не закрыло: номер
+    прогона поехал бы в поле с именем ``sha``.
+
+    Контроль стои́т в ОБЕ стороны: каждый род читается из своего поля, и ни
+    один не подставляется вместо другого, когда производитель его не знает.
+    """
+
+    MANIFEST = {"sha": "7bfc814950d36ec64a9afdccd7c97947b2789fc3",
+                "shards": [{"shard": 0, "files": ["a.py"]},
+                           {"shard": 1, "files": ["b.py"]}]}
+
+    def test_the_manifest_gives_the_sha_and_does_NOT_invent_a_run(self):
+        """Манифест вершину несёт, а номера прогона в нём нет вовсе."""
+        m = rsd.shard_map_of(self.MANIFEST)
+        self.assertEqual(m.status, rsd.MEASURED)
+        self.assertEqual(m.sha, self.MANIFEST["sha"])
+        self.assertIsNone(m.run, "номера прогона в манифесте нет — "
+                                 "подставлять вместо него вершину нельзя")
+
+    def test_the_caller_gives_the_run_and_the_two_do_not_collide(self):
+        """Номер знает ТОЛЬКО тот, кто качал артефакт, — он и подаёт его входом."""
+        m = rsd.shard_map_of(self.MANIFEST, run="45188707864")
+        self.assertEqual(m.run, "45188707864")
+        self.assertEqual(m.sha, self.MANIFEST["sha"])
+        self.assertNotEqual(m.run, m.sha)
+
+    def test_a_manifest_without_a_sha_leaves_the_sha_UNOBSERVED(self):
+        """«Вершины не наблюдалось» — это ``None``, а не номер прогона рядом."""
+        m = rsd.shard_map_of({"shards": [{"shard": 0, "files": ["a.py"]}]},
+                             run="45188707864")
+        self.assertEqual(m.status, rsd.MEASURED)
+        self.assertIsNone(m.sha)
+        self.assertEqual(m.run, "45188707864")
+
+    def test_every_named_refusal_keeps_BOTH_identities(self):
+        """Отказ обязан сказать, О ЧЬЁМ манифесте он, — иначе он безымянный."""
+        scenes = {
+            "`shards`": {"sha": "deadbeef"},
+            "без номера шарда": {"sha": "deadbeef", "shards": [{"files": []}]},
+            "`files`": {"sha": "deadbeef",
+                        "shards": [{"shard": 1, "files": "a.py"}]},
+            "это не путь": {"sha": "deadbeef",
+                            "shards": [{"shard": 1, "files": [None]}]},
+            "выбрать один из двух": {
+                "sha": "deadbeef",
+                "shards": [{"shard": 1, "files": ["a.py"]},
+                           {"shard": 7, "files": ["a.py"]}]},
+            "ни одного файла": {"sha": "deadbeef",
+                                "shards": [{"shard": 0, "files": []}]},
+        }
+        for needle, doc in scenes.items():
+            with self.subTest(refusal=needle):
+                m = rsd.shard_map_of(doc, run="45188707864")
+                self.assertEqual(m.status, rsd.UNMEASURED)
+                self.assertIn(needle, m.reason)
+                self.assertEqual(m.run, "45188707864")
+                self.assertEqual(m.sha, "deadbeef")
+
+    def test_the_unmeasured_door_does_not_substitute_one_kind_for_the_other(self):
+        """`unmeasured_shard_map` знает оба рода и ни одного не выдумывает."""
+        only_run = rsd.unmeasured_shard_map("сеть молчит", run="45188707864")
+        self.assertEqual(only_run.run, "45188707864")
+        self.assertIsNone(only_run.sha)
+        only_sha = rsd.unmeasured_shard_map("манифест битый", sha="deadbeef")
+        self.assertEqual(only_sha.sha, "deadbeef")
+        self.assertIsNone(only_sha.run)
+        neither = rsd.unmeasured_shard_map("плана нет")
+        self.assertIsNone(neither.run)
+        self.assertIsNone(neither.sha)
+
+    def test_the_SHARD_MAP_kinds_match_the_neighbouring_Roster(self):
+        """Словарь родов у карты и у ростера ОДИН — расхождение и было дефектом."""
+        self.assertEqual({"run", "sha"} & set(rsd.ShardMap._fields),
+                         {"run", "sha"})
+        self.assertEqual({"run", "sha"} & set(rsd.Roster._fields),
+                         {"run", "sha"})
+
+
 class TheShardVocabularyIsClosedAndREACHABLE(unittest.TestCase):
     """Род обязан быть ДОСТИЖИМ до того, как печатать его ноль (урок #1163)."""
 
@@ -529,6 +615,7 @@ class TheShardVocabularyIsClosedAndREACHABLE(unittest.TestCase):
     def test_every_shard_verdict_is_actually_produced_by_the_reader(self):
         prev, curr, pm, cm = _shard_pair()
         thin = rsd.ShardMap(status=rsd.MEASURED, reason=None, run=pm.run,
+                            sha=pm.sha,
                             by_file={k: v for k, v in pm.by_file.items()
                                      if "test_tb_sanitizer_probe" not in k})
         seen = set()
