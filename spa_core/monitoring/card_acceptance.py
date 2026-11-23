@@ -20232,6 +20232,233 @@ def _probe_cio_as_is_deliverable_is_whole(arg: str | None = None) -> tuple[str, 
                        f"якорей замера {anchors}, ни один путь не выдуман")
 
 
+# ─── ЗАМКНУТЫЙ СЛОВАРЬ: что нужно члену класса производных артефактов ───────
+# Словарь объявлен ЗДЕСЬ, а читается у объявления: проба сравнивает объявление
+# с НИМ, а не со своей прозой (урок мутации 5 замера #1027).
+DERIVED_ARTIFACT_NEEDS = ("delivery_gate", "live_guard")
+
+
+def _probe_derived_artifact_class_population_named(
+        arg: str | None, *, repo_root: str | None = None) -> tuple[str, str]:
+    """Критерий: население класса «производный артефакт уехал без перемера» НАЗВАНО.
+
+    Предмет — карточка `inbox-izmerit-naselenie-klassa-proizvodnyi-art`, заказ
+    G1061 п. 2 приказа владельца «Portfolio CIO». Правило —
+    `.claude/rules/deployment.md` § «ПРОИЗВОДНАЯ ПЕРЕПИСЬ, ОТ КОТОРОЙ СЧИТАЕТСЯ
+    ЗНАМЕНАТЕЛЬ», последний абзац: «население класса за пределами доски, реестра
+    решений и этой переписи НЕ ИЗМЕРЕНО — нулём это не считается».
+
+    **Меряется ИСХОД, а не структура.** Проба не ищет в приборе ни строки
+    `--surface`, ни слова «поверхность»: она зовёт
+    `scripts/derived_artifact_census.py` и спрашивает ВЕРДИКТ ЗНАЧЕНИЕМ на
+    одноразовых сценах. Подстрокой она не проходит (ADR-333) — сцена, где слова
+    лежат в комментарии, критерия не выполняет.
+
+    Контроль в обе стороны — внутри самой проверки, и нулевая проба
+    воспроизводит НАСТОЯЩУЮ находку цикла #1218:
+
+    * **`ast.walk` сценой класса не является.** Число «652» заказа G1061 было
+      снято наивным совпадением по ИМЕНИ МЕТОДА, и 547 файлов из 653 попали в
+      поверхность через `ast.walk(tree)` — обход синтаксического дерева, который
+      каталогов не перечисляет вовсе. Сцена с одним только `ast.walk` ОБЯЗАНА
+      дать поверхность 0; дала иное ⇒ `unmeasured`, потому что прибор, считающий
+      метод по имени, отвечает на вопрос «как называется метод»;
+    * **четыре ярлыка обязаны быть РАЗЛИЧИМЫ** на четырёх сценах: каталог
+      исходников → `source_dir`, `data/` → `state_dir`, `TemporaryDirectory()` →
+      `sandbox`, непривязанное имя → `unresolved`. Совпали любые два ⇒ прибор
+      мерит не то, что объявляет;
+    * **третий исход обязан быть НЕНУЛЕВЫМ кодом** (инв. #17): сцена с
+      неразобранным путём даёт код 1, а нечитаемое названное дерево — код 2.
+      Ноль на неизмеренном и есть тот дефект, против которого написан класс;
+    * **объявление несёт СВОЙ контракт и СВЕРЯЕТСЯ С ЖИВЫМ ЗАМЕРОМ.** Числа
+      лежат в `scripts/derived_artifact_baseline.json`, и проба перемеряет
+      поверхность живого дерева: разошлись ⇒ `not_satisfied`, а не молчание.
+      Объявление, которому нечем состариться вместе с деревом, есть проза;
+    * **у КАЖДОГО члена предмета назван `needs` из ЗАМКНУТОГО словаря** и
+      причина строкой. Член без этого — «перечислен», но не «сказано, что ему
+      нужно», то есть критерий карточки не выполнен.
+
+    Дерево — ВХОД (`repo_root`). Проба только ЧИТАЕТ: живое `data/`, часы, pid,
+    git-окружение и сеть она не спрашивает, подпроцессов не поднимает.
+    """
+    if (arg or "").strip():
+        return UNMEASURED, (f"проба не принимает аргумента (дано {arg!r}): предмет — "
+                            "население класса, пофайловой формы у него нет")
+
+    import importlib.util as _ilu
+    import json as _json
+    import sys as _sys
+    import tempfile as _tempfile
+
+    root = _pathlib.Path(repo_root or REPO_ROOT)
+    census_path = root / "scripts" / "derived_artifact_census.py"
+    if not census_path.is_file():
+        return NOT_SATISFIED, (f"переписи населения нет: {census_path} отсутствует — "
+                               "население класса НЕ ИЗМЕРЕНО")
+    try:
+        spec = _ilu.spec_from_file_location("spa_dac_probe", census_path)
+        mod = _ilu.module_from_spec(spec)          # type: ignore[arg-type]
+        _sys.modules["spa_dac_probe"] = mod
+        spec.loader.exec_module(mod)               # type: ignore[union-attr]
+    except BaseException as exc:  # noqa: BLE001 — причина обязана быть названа
+        return UNMEASURED, f"перепись не импортируется: {type(exc).__name__}: {exc}"
+
+    for door in ("measure_surface", "SOURCE_DIR", "STATE_DIR", "SANDBOX", "UNRESOLVED",
+                 "KNOWN_MEMBERS"):
+        if not hasattr(mod, door):
+            return UNMEASURED, (f"у переписи нет двери `{door}` — спрашивать вердикт "
+                                "значением нечем")
+
+    # ── сцены: один тест-файл на ярлык, и ответ спрашивается ЗНАЧЕНИЕМ ────────
+    SCENES = {
+        "ast_walk_is_not_a_directory": (
+            "import ast\n"
+            "def test_x():\n"
+            "    tree = ast.parse('x = 1')\n"
+            "    assert [n for n in ast.walk(tree)]\n"
+        ),
+        "source": (
+            "import pathlib\n"
+            "def test_x():\n"
+            "    root = pathlib.Path(__file__).resolve().parents[2]\n"
+            "    assert list((root / 'spa_core' / 'analytics').glob('*.py'))\n"
+        ),
+        "state": (
+            "import pathlib\n"
+            "def test_x():\n"
+            "    root = pathlib.Path(__file__).resolve().parents[2]\n"
+            "    assert list((root / 'data').glob('*.json'))\n"
+        ),
+        "sandbox": (
+            "import pathlib, tempfile\n"
+            "def test_x():\n"
+            "    with tempfile.TemporaryDirectory() as td:\n"
+            "        assert not list(pathlib.Path(td).glob('*'))\n"
+        ),
+        "unresolved": (
+            "def test_x(some_fixture_dir):\n"
+            "    assert list(some_fixture_dir.glob('*.py'))\n"
+        ),
+    }
+    try:
+        with _tempfile.TemporaryDirectory(prefix="dac_scenes_") as d:
+            scene_root = _pathlib.Path(d)
+            tests_dir = scene_root / "spa_core" / "tests"
+            tests_dir.mkdir(parents=True)
+            verdicts: dict[str, str] = {}
+            for name, body in SCENES.items():
+                for stale in tests_dir.glob("test_*.py"):
+                    stale.unlink()
+                (tests_dir / f"test_{name}.py").write_text(body, encoding="utf-8")
+                census = mod.measure_surface(scene_root)
+                if name == "ast_walk_is_not_a_directory":
+                    verdicts[name] = f"surface={len(census.entries)}"
+                    continue
+                if len(census.entries) != 1:
+                    return UNMEASURED, (f"сцена `{name}`: поверхность {len(census.entries)} "
+                                        "вместо одного файла — спрашивать ярлык нечем")
+                verdicts[name] = census.entries[0].kind
+                if name == "unresolved" and census.code == 0:
+                    return UNMEASURED, ("сцена `unresolved` дала КОД 0: третий исход "
+                                        "неотличим от «чисто», а это и есть предмет инв. #17")
+    except BaseException as exc:  # noqa: BLE001
+        return UNMEASURED, f"сцены не построены: {type(exc).__name__}: {exc}"
+
+    if verdicts.get("ast_walk_is_not_a_directory") != "surface=0":
+        return UNMEASURED, ("перепись считает `ast.walk(tree)` перечислением каталога "
+                            f"({verdicts.get('ast_walk_is_not_a_directory')}) — это НАСТОЯЩАЯ "
+                            "находка #1218 (547 из 653 файлов «652» заказа), и прибор, "
+                            "её не ловящий, мерит имя метода, а не зависимость от набора")
+    expected = {"source": mod.SOURCE_DIR, "state": mod.STATE_DIR,
+                "sandbox": mod.SANDBOX, "unresolved": mod.UNRESOLVED}
+    wrong = {k: verdicts.get(k) for k, v in expected.items() if verdicts.get(k) != v}
+    if wrong:
+        return UNMEASURED, ("ярлыки переписи НЕ различимы на сценах: "
+                            + ", ".join(f"{k}→{v} (ждали {expected[k]})" for k, v in wrong.items()))
+
+    # ── нечитаемое НАЗВАННОЕ дерево обязано быть отказом, а не возвратом к своему ──
+    import contextlib as _ctx
+    import io as _io
+    try:
+        # Вывод прибора глушится: отчёт приёмки читает ЧЕЛОВЕК, и чужая строка
+        # «НЕ ИЗМЕРЕНО» в нём читалась бы как находка о дереве, а не как контроль.
+        with _ctx.redirect_stdout(_io.StringIO()), _ctx.redirect_stderr(_io.StringIO()):
+            code_absent = mod.main(["--repo-root", str(root / "net-takogo-dereva-1218"), "--surface"])
+    except BaseException as exc:  # noqa: BLE001
+        return UNMEASURED, f"прибор не отвечает на нечитаемое дерево: {type(exc).__name__}: {exc}"
+    if code_absent != 2:
+        return UNMEASURED, (f"нечитаемое НАЗВАННОЕ дерево дало код {code_absent} вместо 2 — "
+                            "«не измерено» неотличимо от ответа")
+
+    # ── объявление: несёт СВОЙ контракт и сверяется с живым замером ───────────
+    decl_path = root / "scripts" / "derived_artifact_baseline.json"
+    if not decl_path.is_file():
+        return NOT_SATISFIED, (f"объявления нет: {decl_path} — население не названо ЧИСЛОМ, "
+                               "а прибор без объявления отвечает каждый раз заново")
+    try:
+        decl = _json.loads(decl_path.read_text(encoding="utf-8"))
+    except BaseException as exc:  # noqa: BLE001
+        return UNMEASURED, f"объявление не прочитано: {type(exc).__name__}: {exc}"
+    missing = [k for k in ("measured_at", "tree", "counts", "members", "unresolved_is_not_zero")
+               if k not in decl]
+    if missing:
+        return NOT_SATISFIED, f"в объявлении нет полей: {', '.join(missing)}"
+    if decl.get("unresolved_is_not_zero") is not True:
+        return NOT_SATISFIED, ("объявление не признаёт третий исход: `unresolved_is_not_zero` "
+                               "не True — вилка населения выдавалась бы за точку")
+
+    try:
+        live = mod.measure_surface(root)
+    except BaseException as exc:  # noqa: BLE001
+        return UNMEASURED, f"живой замер поверхности не состоялся: {type(exc).__name__}: {exc}"
+    # Форма, потерявшая известного члена, ОПРОВЕРГНУТА: при ней число предмета
+    # есть ответ о поверхности, которой перепись не видела. Замер #1218: форма
+    # «тест САМ перечисляет каталог» теряла 2 из 3 известных членов.
+    lost = live.lost_known_members
+    if lost:
+        return NOT_SATISFIED, ("форма поверхности ОПРОВЕРГНУТА — известный член класса вне "
+                               "предмета: "
+                               + "; ".join(f"{p} ({why})" for p, why in lost.items())
+                               + " — население класса НЕ ИЗМЕРЕНО, и число предмета им не является")
+
+    live_counts = live.counts
+    drift = {k: (decl["counts"].get(k), live_counts.get(k))
+             for k in live_counts if decl["counts"].get(k) != live_counts.get(k)}
+    if drift:
+        return NOT_SATISFIED, ("объявление РАЗОШЛОСЬ с живым замером поверхности: "
+                               + ", ".join(f"{k}: объявлено {a}, наблюдено {b}"
+                                           for k, (a, b) in drift.items())
+                               + f" — перемерить прибором ({census_path.name} --surface)")
+
+    members = decl["members"]
+    if not isinstance(members, list):
+        return NOT_SATISFIED, "`members` в объявлении не список — предмет не перечислен поимённо"
+    bad = []
+    for m in members:
+        if not isinstance(m, dict):
+            bad.append(f"{m!r}: не запись")
+            continue
+        if m.get("needs") not in DERIVED_ARTIFACT_NEEDS:
+            bad.append(f"{m.get('path')}: `needs`={m.get('needs')!r} вне словаря "
+                       f"{DERIVED_ARTIFACT_NEEDS}")
+        elif not str(m.get("reason", "")).strip():
+            bad.append(f"{m.get('path')}: `needs` назван, причина НЕТ")
+    if bad:
+        return NOT_SATISFIED, ("члены предмета названы без того, что им нужно: "
+                               + "; ".join(bad[:4]))
+
+    gates = sum(1 for m in members if m["needs"] == "delivery_gate")
+    guards = len(members) - gates
+    return SATISFIED, (
+        f"население НАЗВАНО: поверхность {len(live.entries)} из {live.tests_total}, "
+        f"предмет (каталог исходников) {live_counts[mod.SOURCE_DIR]}, НЕ РАЗОБРАНО "
+        f"{live_counts[mod.UNRESOLVED]} — вилка объявлена, а не замазана; членов класса "
+        f"{len(members)} поимённо, из них гейт доставки нужен {gates}, живого сторожа "
+        f"достаточно {guards}; четыре ярлыка различимы на сценах, `ast.walk` в поверхность "
+        "НЕ входит (находка #1218), нечитаемое дерево даёт код 2"
+    )
+
+
 PROBES: dict[str, Callable[[str | None], "tuple[str, str]"]] = {
     "module_limit_bites_a_busy_module":
         _probe_module_limit_bites_a_busy_module,
@@ -20411,6 +20638,8 @@ PROBES: dict[str, Callable[[str | None], "tuple[str, str]"]] = {
         _probe_reach_census_boundary_stops_at_nested_repos,
     "orphan_sweep_names_an_unregistered_copy":
         _probe_orphan_sweep_names_an_unregistered_copy,
+    "derived_artifact_class_population_named":
+        _probe_derived_artifact_class_population_named,
     "delivery_tree_input_class_population_named":
         _probe_delivery_tree_input_class_population_named,
     "ci_only_red_class_determinism_named":

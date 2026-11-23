@@ -1,0 +1,95 @@
+{
+  "_": "СГЕНЕРИРОВАНО ЗАМЕРОМ ЦИКЛА #1218 (ADR-1074). Правь прибором: python3 scripts/derived_artifact_census.py --repo-root <дерево> --surface --json",
+  "measured_at": "2026-11-23",
+  "tree": "origin/main 2fc564a0e (+ байты доставки #1218)",
+  "instrument": "scripts/derived_artifact_census.py",
+  "counts": {
+    "source_dir": 115,
+    "state_dir": 9,
+    "sandbox": 255,
+    "unresolved": 129
+  },
+  "fork": {
+    "low": 115,
+    "high": 244,
+    "why": "129 неразобранных путей — параметры функций, ключи словарей сцены и фикстуры, чей каталог назначает вызывающий; нулём это не считается (инв. #17)"
+  },
+  "unresolved_is_not_zero": true,
+  "known_members_in_subject": [
+    "spa_core/tests/test_adr_index_titles.py",
+    "spa_core/tests/test_tracker_board_matches_cards.py",
+    "spa_core/tests/test_untiered_census.py"
+  ],
+  "differential": {
+    "tree": "одноразовый worktree на 2fc564a0e (не дерево доставки)",
+    "full_sweep": {
+      "files": 114,
+      "probe_suffixes": [
+        ".py"
+      ],
+      "subject": 1,
+      "set_dependent_green": 3,
+      "already_red": 5,
+      "not_subject": 125,
+      "unmeasured": 2,
+      "note": "ПОЛНЫЙ обход прогонялся ТОЛЬКО зондом `.py` (45 мин). Зонды `.md`/`.json` по всем 114 файлам НЕ ПРОГОНЯЛИСЬ — это НЕ ИЗМЕРЕНО, а не ноль: цена ещё ~2 ч."
+    },
+    "known_members_sweep": {
+      "files": 3,
+      "probe_suffixes": [
+        ".py",
+        ".md",
+        ".json"
+      ],
+      "subject": 2,
+      "not_subject": 1,
+      "note": "`test_adr_index_titles` (ADR-889) верно НЕ предмет: его сторож судит ДЛИНУ ячейки реестра, то есть СОДЕРЖАНИЕ строки, а не НАБОР файлов каталога. Три артефакта, которые правило группирует вместе, по оси зависимости от набора одним классом НЕ являются — два да, один нет."
+    },
+    "unmeasured": [
+      {
+        "path": "spa_core/tests/test_memory_architecture.py",
+        "reason": "перечисляемый каталог docs/decisions/drafts в дереве не существует"
+      },
+      {
+        "path": "spa_core/tests/test_studio_os.py",
+        "reason": "перечисляемый каталог docs/decisions/drafts в дереве не существует"
+      }
+    ],
+    "already_red_on_clean_main": [
+      "spa_core/tests/test_decision_journal_coverage.py",
+      "spa_core/tests/test_edge_boundary_dataflow_census.py",
+      "spa_core/tests/test_script_path_launch_imports.py",
+      "spa_core/tests/test_tier_curator.py",
+      "spa_core/tests/test_unsynced_hard_imports.py"
+    ],
+    "set_dependent_but_green": [
+      "spa_core/tests/test_capital_shadow_guards.py",
+      "spa_core/tests/test_execution_guard_coverage.py",
+      "spa_core/tests/test_no_live_credentials_in_runtime_config.py"
+    ]
+  },
+  "members": [
+    {
+      "path": "spa_core/tests/test_untiered_census.py",
+      "enumerated_dir": "spa_core/analytics",
+      "verdict_before": "passed=14",
+      "verdict_after": "failed=1,passed=13",
+      "needs": "delivery_gate",
+      "reason": "гейт УЖЕ есть — enforce_delivery_census_names, код 19 (ADR-1073); дифференциал подтвердил, что сторож краснеет от роста набора"
+    },
+    {
+      "path": "spa_core/tests/test_tracker_board_matches_cards.py",
+      "enumerated_dir": "nimbalyst-local/tracker",
+      "verdict_before": "passed=11",
+      "verdict_after": "failed=1,passed=10",
+      "needs": "delivery_gate",
+      "reason": "гейт УЖЕ есть — enforce_delivery_board_row, код 17 (ADR-1060); найден только зондом `.md`: зонд `.py` его набор не растит, и «не предмет» был бы ответом про расширение зонда, а не про сторожа"
+    }
+  ],
+  "not_closed": [
+    "Население за границей ОДНОГО хопа через помощника НЕ ИЗМЕРЕНО (нужен граф зовов).",
+    "Зонды `.md`/`.json` по всем 114 файлам предмета НЕ ПРОГОНЯЛИСЬ.",
+    "Охват — spa_core/tests/test_*.py; tests/, scripts/tests/, studio_shell/ вне поверхности.",
+    "Ось «сторож покраснел, но причина не в наборе» не судится."
+  ]
+}

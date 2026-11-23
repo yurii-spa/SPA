@@ -2,11 +2,11 @@
 
 > Авто-генерится `scripts/build_tracker_board.py` из `nimbalyst-local/tracker/*.md`. НЕ править вручную — правь карточки. Источник правды — карточки, это индекс (bootstrap).
 >
-> Собрана: 2026-11-23T00:58:02Z · сверка с карточками: `python3 scripts/build_tracker_board.py --check` (сторож `spa_core/tests/test_tracker_board_matches_cards.py`).
+> Собрана: 2026-11-23T03:37:11Z · сверка с карточками: `python3 scripts/build_tracker_board.py --check` (сторож `spa_core/tests/test_tracker_board_matches_cards.py`).
 >
-> Сверено с `origin/main` (c18dd6bd5) · у **1** своя правка, кто новее — не измерено.
+> Сверено с `origin/main` (2fc564a0e) · у **2** своя правка, кто новее — не измерено.
 >
-> Всего карточек: **1671** · ждёт владельца: **15** · занято сессиями: **13**.
+> Всего карточек: **1673** · ждёт владельца: **16** · занято сессиями: **13**.
 
 ## 🔴 ЖДЁТ ВЛАДЕЛЬЦА (needs-owner)
 
@@ -16,6 +16,7 @@
 - **Новые деньги не отличаются от перекладки: пункт 20 задания CIO**  ·  `owner-decision-novye-dengi-ne-otlichayutsya-ot-pereklad.md`
 - **Пересчёт раскладки идёт раз в сутки, а ты просил раз в час — и подъём «стало лучше» не умеет никто**  ·  `owner-decision-pereschet-raskladki-idet-raz-v-sutki-a-t.md`
 - **Потолок «не больше 20 % в один протокол» сторожит не протокол, а отдельный рынок внутри него**  ·  `owner-decision-potolok-ne-bolshe-20-v-odin-protokol-sto.md`
+- **Рабочая копия приказа «Portfolio CIO» на маке в 31 раз больше, чем в GitHub — первый шаг каждого цикла читает её и видит приказ урезанным**  ·  `owner-decision-rabochaya-kopiya-prikaza-portfolio-cio-n.md`
 - **Решение о перекладке: «не знаю, когда был прошлый ход» система читает как «хода не было» и разрешает двигать деньги**  ·  `owner-decision-reshenie-o-perekladke-ne-znayu-kogda-byl.md`
 - **Сайт: site_numbers.json — автономная правка задела owner-gated область, нужно решение**  ·  `owner-decision-sait-site-numbers-json-avtonomnaya-pravk-2.md`
 - **Сайт: track_snapshot.json — автономная правка задела owner-gated область, нужно решение**  ·  `owner-decision-sait-track-snapshot-json-avtonomnaya-pra-4.md`
@@ -44,7 +45,7 @@
 - **Сторож ответа владельца зовёт человека на не-спор: 1 и "1" — одно решение, а сравниваются байты** — держит `cycle-84821` · с 2026-08-30T00:50:53Z  ·  `inbox-storozh-otveta-vladeltsa-zovet-cheloveka.md`
 - **Замок цикла оркестратора доставлен, но в проде не работает: обёртка агента синкается раз в сутки, а голос о пропавшей защите живёт в самом пропавшем файле** — держит `cycle-81141` · с 2026-08-08T01:59:06Z  ·  `inbox-zamok-tsikla-orkestratora-dostavlen-no-v.md`
 
-## 🧑‍⚖️ Owner Decisions (что нужно от владельца)  (395)
+## 🧑‍⚖️ Owner Decisions (что нужно от владельца)  (396)
 
 ### · needs-owner
 - Деньги стоят под низкой ставкой не по ошибке, а из-за наших потолков — нужен твой выбор из трёх  ·  `owner-decision-dengi-stoyat-pod-nizkoi-stavkoi-ne-po-os.md` · 2026-11-19
@@ -53,6 +54,7 @@
 - Новые деньги не отличаются от перекладки: пункт 20 задания CIO  ·  `owner-decision-novye-dengi-ne-otlichayutsya-ot-pereklad.md` · 2026-11-09
 - Пересчёт раскладки идёт раз в сутки, а ты просил раз в час — и подъём «стало лучше» не умеет никто  ·  `owner-decision-pereschet-raskladki-idet-raz-v-sutki-a-t.md` · 2026-11-09
 - Потолок «не больше 20 % в один протокол» сторожит не протокол, а отдельный рынок внутри него  ·  `owner-decision-potolok-ne-bolshe-20-v-odin-protokol-sto.md` · 2026-11-09
+- Рабочая копия приказа «Portfolio CIO» на маке в 31 раз больше, чем в GitHub — первый шаг каждого цикла читает её и видит приказ урезанным  ·  `owner-decision-rabochaya-kopiya-prikaza-portfolio-cio-n.md` · 2026-11-23
 - Решение о перекладке: «не знаю, когда был прошлый ход» система читает как «хода не было» и разрешает двигать деньги  ·  `owner-decision-reshenie-o-perekladke-ne-znayu-kogda-byl.md` · 2026-11-08
 - Сайт: site_numbers.json — автономная правка задела owner-gated область, нужно решение  ·  `owner-decision-sait-site-numbers-json-avtonomnaya-pravk-2.md` · 2026-11-03
 - Сайт: track_snapshot.json — автономная правка задела owner-gated область, нужно решение  ·  `owner-decision-sait-track-snapshot-json-avtonomnaya-pra-4.md` · 2026-11-08
@@ -446,7 +448,7 @@
 ### · closed
 - Считать ли верный отказ по правилам допуска неисправностью флота  ·  `owner-decision-schitat-li-vernyi-otkaz-po-pravilam-dopu.md` · 2026-10-08
 
-## 📥 Inbox (задания: Telegram / заметки / голос)  (967)
+## 📥 Inbox (задания: Telegram / заметки / голос)  (968)
 
 ### · in-progress
 - а задача починить все-таки еще раз сообщение которым не пишет нужно твое решени…  ·  `inbox-a-zadacha-pochinit-vse-taki-esche-raz-so.md` · 2026-08-14 · 🔒 `pid43119`
@@ -456,6 +458,7 @@
 - earn-defi: свой расчёт realized price вместо лицензии Coin Metrics (ADR-286 §6, решение 09.09 без задачи)  ·  `inbox-earn-defi-svoi-raschet-realized-price-vm.md` · 2026-09-16
 - Храповик считает упоминание в докстринге за проводку — и это лишь одна из трёх слепот  ·  `inbox-hrapovik-schitaet-upominanie-v-dokstring.md` · 2026-08-14 · 🔒 `pid66130`
 - Храповик STATE.md снова красный на main: 164 строки при собственном пределе 150 — разовое сокращение классом не лечится  ·  `inbox-hrapovik-state-md-snova-krasnyi-na-main.md` · 2026-08-28
+- Измерить население класса «производный артефакт уехал без перемера»  ·  `inbox-izmerit-naselenie-klassa-proizvodnyi-art.md` · 2026-11-23
 - Критерий §49 «Architecture»: существует ли владелец решения на уровне ВСЕГО портфеля — не мерил никто  ·  `inbox-kriterii-49-architecture-suschestvuet-li.md` · 2026-09-28
 - Перепись платит за вложенные worktree: 88,7 % прод-дерева — чужие клоны  ·  `inbox-perepis-platit-za-vlozhennye-worktree-88.md` · 2026-11-05
 - Полные прогоны мёртвой сессии продолжают жить и морят машину — третий случай за сутки, а сторож этого класса сам осиротел  ·  `inbox-polnye-progony-mertvoi-sessii-zhivut-i-morya.md` · 2026-08-28 · 🔒 `pid87687`
@@ -1047,6 +1050,7 @@
 - Бот на прямой вопрос владельца отрицает существующую needs-owner карточку (own-54) — ответ про очередь обязан читаться из доски, не из контекст-брифа  ·  `inbox-bot-otritsaet-suschestvuyuschuyu-own-kartochku.md` · 2026-08-19
 - Бриф владельцу называет ПРОГОНЫ сутками: один день, переигранный трижды, печатается как «3-й день подряд»  ·  `inbox-brif-vladeltsu-nazyvaet-progony-sutkami.md` · 2026-09-15
 - Четыре прибора написаны и не позваны: step_time_drift, worker_axis_census и две R&D-идеи без строки Скрипт в реестре  ·  `inbox-chetyre-pribora-napisany-i-ne-pozvany-st.md` · 2026-10-27
+- Четыре сторожа красны на чистом origin/main (замер #1218), пятый закрыт тем же циклом  ·  `inbox-chetyre-storozha-krasny-na-chistom-origi.md` · 2026-11-23
 - Четыре строки отчёта объявлены читателем шага 0-офис, а печатает их только лог моста  ·  `inbox-chetyre-stroki-otcheta-obyavleny-chitate.md` · 2026-10-26
 - Четыре теста краснеют на чистом main — измерено на двух пришпиленных sha, ни один не мой  ·  `inbox-chetyre-testa-krasneyut-na-chistom-main.md` · 2026-08-31
 - Четыре теста краснеют на чистом origin/main bbfcc9724 — храповик наблюдения отстал на три площадки + джоба CI без истории  ·  `inbox-chetyre-testa-krasneyut-na-chistom-origi.md` · 2026-10-08
@@ -1128,7 +1132,6 @@
 - Исполнить Вариант 2 владельца: дописать 38 ставок и подключить их к hit_rate со СМЕШАННОЙ пробой  ·  `inbox-ispolnit-variant-2-vladeltsa-dopisat-38.md` · 2026-09-10
 - Измерить население класса «карточка-тетрадь»: долю хроники, а не вес  ·  `inbox-izmerit-naselenie-klassa-kartochka-tetra.md` · 2026-11-19
 - Измерить население класса «печать называет меньше, чем замер содержит»  ·  `inbox-izmerit-naselenie-klassa-pechat-nazyvaet.md` · 2026-11-15
-- Измерить население класса «производный артефакт уехал без перемера»  ·  `inbox-izmerit-naselenie-klassa-proizvodnyi-art.md` · 2026-11-23
 - Измерить население класса «умолчание связывает изменяемый объявленный дом»  ·  `inbox-izmerit-naselenie-klassa-umolchanie-svya.md` · 2026-11-15
 - Измерить население класса: усечённый клон отвечает о происхождении коммита молча и НЕВЕРНО  ·  `inbox-izmerit-naselenie-klassa-usechennyi-klon.md` · 2026-11-04
 - Измерить население рода «пол над величиной, которую законная операция уменьшает»  ·  `inbox-izmerit-naselenie-roda-pol-nad-velichino.md` · 2026-11-18

@@ -36,11 +36,19 @@ from __future__ import annotations
 
 import json
 import datetime
+import sys
 from pathlib import Path
 from typing import Dict, List, Optional, Tuple
 
-from spa_core.strategy_lab.aggressive_lab.fixtures import strategy_jsonl, strategy_meta, roster, _SPEC
-from spa_core.strategy_lab.aggressive_lab import STRESS_WINDOWS
+# Бутстрап sys.path ВЫШЕ первого импорта пакета (ADR-347): при запуске ПО ПУТИ
+# (`python3 scripts/edge_risk_shape_adaptive_blend.py`) sys.path[0] — каталог
+# scripts/, а не корень репо, и `spa_core` не находится.
+_ROOT = Path(__file__).resolve().parent.parent
+if str(_ROOT) not in sys.path:
+    sys.path.insert(0, str(_ROOT))
+
+from spa_core.strategy_lab.aggressive_lab.fixtures import strategy_jsonl, strategy_meta, roster, _SPEC  # noqa: E402
+from spa_core.strategy_lab.aggressive_lab import STRESS_WINDOWS  # noqa: E402
 
 # ── константы ────────────────────────────────────────────────────────────────
 STRATEGIES = ["susde_dn", "lrt_carry", "leverage_loop", "points_farm", "variant_d"]

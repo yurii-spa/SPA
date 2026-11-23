@@ -2,11 +2,14 @@
 trackerStatus:
   type: inbox
 title: Измерить население класса «производный артефакт уехал без перемера»
-status: new
+status: in-progress
 created: 2026-11-23
 priority: medium
 kind: task
 twin_key: "sha256:d8df12a1969c3d2bf70b959b165a4cbf29a455ac83a5bfe6d069d330dcb546fa"
+acceptance_probe: derived_artifact_class_population_named
+status_trail:
+  - "2026-11-23T02:15:21.414418+00:00 new -> in-progress · queue.set_status · cycle-20314"
 ---
 
 ## Что случилось и почему это важно
