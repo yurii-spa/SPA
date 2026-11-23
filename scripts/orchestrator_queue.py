@@ -39,6 +39,13 @@ _SCRIPTS_DIR = os.path.dirname(os.path.abspath(__file__))
 if _SCRIPTS_DIR not in sys.path:
     sys.path.insert(0, _SCRIPTS_DIR)
 
+#: Трекер ДЕРЕВА ЭТОГО ФАЙЛА — тот, который читатель вправе назвать «своим» (ADR-1080).
+#: Выводится из `__file__`, а не из cwd и не из `spa_core.owner_queue.TRACKER_DIR`:
+#: второе по построению указывает в ЖИВОЕ дерево, и сравнивать его с самим собой
+#: значило бы всегда отвечать «это моё дерево» — ровно та подстановка, которую
+#: ADR-1080 и снимает.
+_CODE_TRACKER_DIR = os.path.join(_REPO_ROOT, "nimbalyst-local", "tracker")
+
 from spa_core.owner_queue.queue import (
     AcceptanceCriterionLocked,
     AcceptanceCriterionMissing,
@@ -508,6 +515,16 @@ def _origin_read_through(cards: list, tracker_dir=None,
               file=sys.stderr)
         return cards, _axes_unmeasured(cards, str(exc), drift,
                                        ref or drift.DEFAULT_REF), [], False
+    # ── ЧЬЁ дерево измерено — печатается ВСЕГДА, и до всякого вердикта ─────────────
+    #
+    # Умолчание читателя ведёт в ЖИВОЕ дерево, а не в дерево запущенного кода, и до
+    # ADR-1080 об этом не говорила ни одна строка: замер #1226 из worktree, байт в байт
+    # равного `origin/main`, получил «трекер ЭТОГО дерева РАСХОДИТСЯ … 752 карточки в
+    # дереве НЕТ» про ПРОД-копию. Строка стои́т ЗДЕСЬ, а не под находками: на чистой
+    # сверке молчание означало бы «ответ про моё дерево», и это ровно та подстановка,
+    # которую правило доставки запрещает («ВЫБОР ПЕЧАТАЕТСЯ»). Дверь ОДНА — у прибора.
+    print(drift.measured_tree(report, code_tracker=_CODE_TRACKER_DIR).line(),
+          file=sys.stderr)
     # Сверка состоялась ⇒ у всех карточек вердикт по умолчанию «совпало»; ниже он
     # уточняется поимённо для тех, у кого есть находка.
     verdicts = {c.id: {"origin_check": VERDICT_AGREES} for c in cards}
@@ -687,15 +704,28 @@ def _origin_read_through(cards: list, tracker_dir=None,
 
     stale = report.of_kind(drift.KIND_STALE)
     diverged, undelivered = report.of_kind(drift.KIND_DIVERGED), report.of_kind(drift.KIND_UNDELIVERED)
-    print(f"⚠️  трекер этого дерева РАСХОДИТСЯ с {report.ref} ({report.ref_sha[:9] or '?'}): "
-          f"в дереве {report.tree_count}, на {report.ref} {report.origin_count}", file=sys.stderr)
+    where = drift.measured_tree(report, code_tracker=_CODE_TRACKER_DIR)
+    # «этого дерева» здесь стояло до ADR-1080 и было ЛОЖНО всякий раз, когда умолчание
+    # уводило прибор в живое дерево: читатель узнавал о расхождении ЧУЖОЙ копии под
+    # словом «этого». Называем каталог, а не указательное местоимение.
+    print(f"⚠️  трекер {where.measured} РАСХОДИТСЯ с {report.ref} "
+          f"({report.ref_sha[:9] or '?'}): в нём {report.tree_count}, "
+          f"на {report.ref} {report.origin_count}", file=sys.stderr)
     if stale:
         print(f"    · устарели и прочитаны С ORIGIN ({len(stale)}): {_ids(drift.KIND_STALE)}",
               file=sys.stderr)
     if hidden_cards:
-        print(f"    · ЕСТЬ НА ORIGIN, В ДЕРЕВЕ НЕТ ({len(hidden_cards)}) — ПРОЧИТАНЫ С "
-              f"{report.ref} и ВОШЛИ в список ниже; файла в дереве нет, поэтому "
-              f"`set-status` по ним откажет — работайте из worktree от {report.ref}: "
+        # Рычаг зависит от ТОГО ЖЕ вопроса «чьё дерево измерено». Совет «работайте из
+        # worktree от origin/main» верен ТОЛЬКО когда измерено дерево запущенного кода;
+        # при умолчании в живое дерево он неисполним — перенос сессии ответа не меняет
+        # (замер #1226: я уже был в таком worktree). Тогда рычаг — флаг.
+        how = (f"работайте из worktree от {report.ref}" if where.kind == drift.TREE_CODE
+               else (f"перенос сессии ответа НЕ ИЗМЕНИТ — спросите дерево своего кода: "
+                     f"`{where.lever}`") if where.lever
+               else "чьё дерево измерено — НЕ ИЗМЕРЕНО, рычага назвать нечем")
+        print(f"    · ЕСТЬ НА ORIGIN, В ИЗМЕРЕННОМ ТРЕКЕРЕ НЕТ ({len(hidden_cards)}) — "
+              f"ПРОЧИТАНЫ С {report.ref} и ВОШЛИ в список ниже; файла там нет, поэтому "
+              f"`set-status` по ним откажет — {how}: "
               f"{', '.join(sorted(c.id for c in hidden_cards))}", file=sys.stderr)
     if hidden_unread:
         print(f"    · 🔴 ЕСТЬ НА ORIGIN, В ДЕРЕВЕ НЕТ и ПРОЧИТАТЬ НЕ УДАЛОСЬ "

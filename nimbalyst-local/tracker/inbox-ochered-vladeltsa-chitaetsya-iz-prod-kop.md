@@ -2,10 +2,14 @@
 trackerStatus:
   type: inbox
 title: "Очередь владельца читается из ПРОД-копии даже из worktree: owner-done 18 против 0 на origin/main"
-status: new
+status: done
 created: 2026-11-18
 kind: task
 twin_key: "sha256:1220b4f276dd969db8f9b6a8b035dd21e9cdbb838070d93137c2f5401e358987"
+acceptance_probe: queue_reader_names_the_measured_tracker
+status_trail:
+  - "2026-11-23T21:38:20.001718+00:00 new -> in-progress · queue.set_status · cycle-77488"
+  - "2026-11-23T21:40:01.174929+00:00 in-progress -> done · queue.set_status/closed_by:cycle-77488/evidence:проба queue_reader_names_the_measured_tracker = satisfied на моих байтах и not_satisfied на байтах origin/main (обе причины названы); сторож spa_core/tests/test_tracker_tree_is_named.py 13 passed + 3  · cycle-77488"
 ---
 
 ## Что случилось и почему это важно

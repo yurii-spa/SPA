@@ -9129,6 +9129,166 @@ def _probe_queue_reader_names_uncompared_order(
         f"`{other.get('origin_order')}` — отказ и замер различимы в обе стороны")
 
 
+def _probe_queue_reader_names_the_measured_tracker(
+    arg: str | None, *, repo_root: str | None = None,
+) -> tuple[str, str]:
+    """Критерий: ЧИТАТЕЛЬ ОЧЕРЕДИ называет ТРЕКЕР, о котором ответил, и рычаг к другому.
+
+    Предмет — карточка `inbox-ochered-vladeltsa-chitaetsya-iz-prod-kop` (ADR-1080).
+
+    ЗАМЕР ДО ПРАВКИ (2026-11-23, цикл #1226; воспроизводим двумя командами из worktree,
+    байт-идентичного `origin/main`): `orchestrator_queue.py list` БЕЗ флага напечатал
+    «трекер ЭТОГО дерева РАСХОДИТСЯ … 752 карточки ЕСТЬ НА ORIGIN, В ДЕРЕВЕ НЕТ» — про
+    ПРОД-копию (938 карточек против 1681). Оба утверждения о «этом дереве» ложны: в том
+    дереве 1681 карточка и расхождений НОЛЬ (та же команда с `--tracker-dir` даёт пустой
+    stderr и тот же список). Умолчание в живое дерево НАМЕРЕННО
+    (`owner_queue.queue._resolve_tracker_dir` → `live_root()`, карточка-призрак 22.08) —
+    предмет не в нём, а в МОЛЧАНИИ о нём и в совете «работайте из worktree от
+    origin/main», который ответа не меняет ни на карточку.
+
+    ПОЧЕМУ ИСХОД, А НЕ СТРУКТУРА. Проба не спрашивает, есть ли функция: она собирает
+    одноразовый репозиторий, зовёт НАСТОЯЩИЙ `cmd_list` и читает stderr. Подстрокой не
+    проходит (ADR-333): требуется ПОЛНЫЙ ПУТЬ измеренного трекера и рычаг с ПУТЁМ
+    дерева кода, а не слово «дерево».
+
+    КОНТРОЛЬ В ОБЕ СТОРОНЫ ВНУТРИ ПРОБЫ. Читатель, штампующий «ДРУГОГО дерева» на чём
+    угодно, бесполезен так же, как молчащий: на сцене, где измеренный трекер И ЕСТЬ
+    дерево кода, он обязан сказать «ДЕРЕВА ЗАПУЩЕННОГО КОДА» и рычага НЕ предлагать.
+    Обе сцены отличаются РОВНО тем, какое дерево читатель считает своим.
+
+    ПОДМЕНА ЗАКРЫВАЕТСЯ С ВОЗВРАТОМ (`.claude/rules/deployment.md` § СОСЕД ПО ПРОЦЕССУ):
+    `_CODE_TRACKER_DIR` возвращается в `finally`, иначе вред достался бы соседу по
+    процессу, а не автору.
+
+    ТРИ ИСХОДА РАЗЛИЧИМЫ (инв. #17): читателя нет / не ввезён / предпосылка сцены не
+    обеспечена (git, ветка, коммит) ⇒ `unmeasured` с причиной, а не `not_satisfied`.
+
+    Имя ветки сцены — ВХОД (`git init -b`): `init.defaultBranch` на `ubuntu-latest` даёт
+    `master`, и фикстура, назвавшая потом `main`, была бы зелена на Маке и красна в CI.
+    """
+    import contextlib as _ctx
+    import hashlib as _hl
+    import importlib.util as _ilu
+    import io as _io
+    import json as _json
+    import subprocess as _sp
+    import tempfile as _tf
+
+    root = repo_root or REPO_ROOT
+    reader_path = os.path.join(root, "scripts", "orchestrator_queue.py")
+    if not os.path.exists(reader_path):
+        return UNMEASURED, f"{reader_path} не найден — читателя очереди НЕ ИЗМЕРИТЬ"
+    for _p in (root, os.path.join(root, "scripts")):
+        if _p not in sys.path:
+            sys.path.insert(0, _p)
+    mod_name = "_probe_queue_tree_" + _hl.sha256(root.encode()).hexdigest()[:12]
+    try:
+        spec = _ilu.spec_from_file_location(mod_name, reader_path)
+        reader = _ilu.module_from_spec(spec)
+        sys.modules[mod_name] = reader
+        try:
+            spec.loader.exec_module(reader)
+        except BaseException:
+            sys.modules.pop(mod_name, None)
+            raise
+    except Exception as exc:                        # noqa: BLE001
+        return UNMEASURED, (f"читатель очереди не ввезён ({type(exc).__name__}: {exc}) — "
+                            f"НЕ ИЗМЕРЕНО")
+    try:
+        import check_tracker_drift as _drift
+    except Exception as exc:                        # noqa: BLE001
+        return UNMEASURED, f"прибор расхождения не ввезён ({exc}) — НЕ ИЗМЕРЕНО"
+    if not hasattr(_drift, "measured_tree"):
+        return NOT_SATISFIED, ("у прибора нет двери `measured_tree` — назвать измеренный "
+                               "трекер нечем, вторая копия мерки запрещена (ADR-220)")
+    if not hasattr(reader, "_CODE_TRACKER_DIR"):
+        return NOT_SATISFIED, ("читатель не объявил трекер своего дерева "
+                               "(`_CODE_TRACKER_DIR`) — вопрос «чьё дерево» он не задаёт")
+
+    ref = "scene-main"
+
+    def _git(cwd, *args):
+        return _sp.run(["git", "-C", str(cwd), *args], capture_output=True, text=True,
+                       timeout=60)
+
+    def _ask(tracker):
+        out, err = _io.StringIO(), _io.StringIO()
+        argv = ["list", "--tracker-dir", tracker, "--ref", ref, "--json"]
+        with _ctx.redirect_stdout(out), _ctx.redirect_stderr(err):
+            reader.cmd_list(reader.build_parser().parse_args(argv))
+        return _json.loads(out.getvalue() or "[]"), err.getvalue()
+
+    try:
+        with _tf.TemporaryDirectory() as tmp:
+            rroot = os.path.join(tmp, "repo")
+            tracker = os.path.join(rroot, _drift.TRACKER_REL)
+            os.makedirs(tracker)
+            r = _git(tmp, "init", "-q", "-b", ref, rroot)
+            if r.returncode != 0:
+                return UNMEASURED, (f"предпосылка сцены НЕ ОБЕСПЕЧЕНА: git init дал "
+                                    f"{r.returncode} ({r.stderr.strip()})")
+            body = ('---\ntype: inbox\nstatus: new\ntitle: "сцена"\n---\n\nтело\n')
+            with open(os.path.join(tracker, "inbox-scene-a.md"), "w",
+                      encoding="utf-8") as fh:
+                fh.write(body)
+            for args in (("add", "-A"),
+                         ("-c", "user.email=t@t", "-c", "user.name=t",
+                          "commit", "-q", "-m", "сцена")):
+                r = _git(rroot, *args)
+                if r.returncode != 0:
+                    return UNMEASURED, (f"предпосылка сцены НЕ ОБЕСПЕЧЕНА: git "
+                                        f"{args[0]} дал {r.returncode} "
+                                        f"({r.stderr.strip()})")
+            # Карточка, которой на ref нет ⇒ сверка НЕПУСТА и шапку печатает кто-то.
+            with open(os.path.join(tracker, "inbox-scene-b.md"), "w",
+                      encoding="utf-8") as fh:
+                fh.write(body)
+
+            cards, foreign = _ask(tracker)
+            if not cards:
+                return UNMEASURED, ("предпосылка НЕ ОБЕСПЕЧЕНА: сцена не дала ни одной "
+                                    "карточки — об исходе читателя судить нечем")
+            measured = os.path.realpath(tracker)
+            code = str(reader._CODE_TRACKER_DIR)
+            if measured not in foreign:
+                return NOT_SATISFIED, (
+                    f"читатель НЕ НАЗВАЛ путь измеренного трекера ({measured}); "
+                    f"напечатано: {foreign.strip()[:300] or '(ничего)'}")
+            if f"--tracker-dir {code}" not in foreign:
+                return NOT_SATISFIED, (
+                    f"измерен ЧУЖОЙ трекер, а исполнимый рычаг к дереву кода ({code}) не "
+                    f"назван — находка приглашает действие, которое ответа не меняет")
+            if "этого дерева" in foreign:
+                return NOT_SATISFIED, ("в ответе осталось указательное местоимение "
+                                       "«этого дерева» вместо пути")
+
+            was = reader._CODE_TRACKER_DIR
+            try:
+                reader._CODE_TRACKER_DIR = tracker
+                _, mine = _ask(tracker)
+            finally:
+                reader._CODE_TRACKER_DIR = was
+            if "ДЕРЕВА ЗАПУЩЕННОГО КОДА" not in mine:
+                return NOT_SATISFIED, (
+                    "на сцене, где измеренный трекер И ЕСТЬ дерево кода, читатель этого "
+                    f"не сказал; напечатано: {mine.strip()[:300] or '(ничего)'}")
+            if "--tracker-dir" in mine:
+                return NOT_SATISFIED, ("рычаг предложен и там, где он ничего не меняет — "
+                                       "штамп на чём угодно бесполезен так же, как "
+                                       "молчание")
+            if foreign == mine:
+                return NOT_SATISFIED, ("о своём и о чужом дереве читатель отвечает "
+                                       "ОДИНАКОВО — дискриминации нет")
+    except Exception as exc:                        # noqa: BLE001
+        return UNMEASURED, (f"сцена не достроилась ({type(exc).__name__}: {exc}) — "
+                            f"НЕ ИЗМЕРЕНО")
+    return SATISFIED, (
+        f"читатель очереди НАЗЫВАЕТ измеренный трекер ПУТЁМ ({measured}) и даёт "
+        f"исполнимый рычаг к дереву кода (`--tracker-dir {code}`); на сцене, где "
+        f"измеренный трекер и есть дерево кода, он говорит «ДЕРЕВА ЗАПУЩЕННОГО КОДА» и "
+        f"рычага НЕ предлагает — два ответа различимы в обе стороны")
+
+
 def _probe_queue_reader_names_which_order_axis_spoke(
     arg: str | None, *, repo_root: str | None = None,
 ) -> tuple[str, str]:
@@ -20915,6 +21075,8 @@ PROBES: dict[str, Callable[[str | None], "tuple[str, str]"]] = {
         _probe_queue_reader_names_unmeasured_memory,
     "queue_reader_names_uncompared_order":
         _probe_queue_reader_names_uncompared_order,
+    "queue_reader_names_the_measured_tracker":
+        _probe_queue_reader_names_the_measured_tracker,
     "card_copies_agree": _probe_card_copies_agree,
     "named_cards_closed_at_origin": _probe_named_cards_closed_at_origin,
     "closed_cards_fate_named": _probe_closed_cards_fate_named,

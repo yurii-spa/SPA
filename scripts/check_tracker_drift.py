@@ -613,6 +613,86 @@ class Report:
         }
 
 
+# ── «о КАКОМ дереве ответил прибор» — ОДНА дверь на всех читателей ────────────────
+#
+# Прибор мерит ТОТ каталог, который ему дали, и умолчание читателя очереди ведёт НЕ в
+# дерево запущенного кода, а в ЖИВОЕ (`spa_core.owner_queue.queue._resolve_tracker_dir`
+# → `live_root()`): так вопрос владельцу переживает worktree и живой бот может записать
+# в него ответ (карточка-призрак 22.08). Само решение верное, а МОЛЧАНИЕ о нём — нет.
+#
+# ЗАМЕР 2026-11-23 (цикл #1226, ADR-1080), из worktree, байт-идентичного `origin/main`:
+# читатель очереди напечатал «трекер ЭТОГО дерева РАСХОДИТСЯ … 752 карточки ЕСТЬ НА
+# ORIGIN, В ДЕРЕВЕ НЕТ» — про ПРОД-копию (939 карточек против 1681). Оба утверждения о
+# «этом дереве» ложны: в моём дереве карточек 1681, расхождений НОЛЬ. А совет «работайте
+# из worktree от origin/main» был НЕИСПОЛНИМ — я уже был в таком worktree, и ответ от
+# переноса сессии не меняется ни на карточку: меняет его `--tracker-dir`, которого совет
+# не называл. Тот же замер с флагом: stderr ПУСТ, находок 0, список тот же (16).
+#
+# Исходы РАЗЛИЧИМЫ (инв. #17): дерево кода · ДРУГОЕ дерево · чьё — НЕ ИЗМЕРЕНО.
+TREE_CODE = "tree_of_running_code"
+TREE_OTHER = "tree_other_than_running_code"
+TREE_UNMEASURED = "tree_unmeasured"
+
+
+@dataclass(frozen=True)
+class MeasuredTree:
+    """Чей трекер прибор ИЗМЕРИЛ — и каким рычагом спросить другой.
+
+    `lever` — часть ответа, а не украшение: находка без исполнимого рычага приглашает
+    действие, которое ответа не меняет (ровно то, что замер #1226 и нашёл).
+    """
+
+    kind: str
+    measured: str
+    code_tracker: str | None
+    reason: str = ""
+
+    @property
+    def lever(self) -> str:
+        return f"--tracker-dir {self.code_tracker}" if self.code_tracker else ""
+
+    def line(self) -> str:
+        if self.kind == TREE_CODE:
+            return f"\U0001f9ed измерен трекер ДЕРЕВА ЗАПУЩЕННОГО КОДА: {self.measured}"
+        if self.kind == TREE_OTHER:
+            return (f"\U0001f9ed измерен трекер ДРУГОГО дерева: {self.measured} — это "
+                    f"умолчание `owner_queue.TRACKER_DIR` (живое дерево, чтобы вопрос "
+                    f"владельцу пережил worktree). Трекер дерева запущенного кода — "
+                    f"{self.code_tracker}; спросить ЕГО: `{self.lever}`. Перенос сессии "
+                    f"в другой worktree ответ НЕ МЕНЯЕТ")
+        return f"\U0001f9ed чей трекер измерен — НЕ ИЗМЕРЕНО: {self.reason}"
+
+
+def measured_tree(report: "Report", *,
+                  code_tracker: str | Path | None = None) -> MeasuredTree:
+    """Назвать дерево, о котором прибор ответил. Не разрешилось ⇒ третий исход.
+
+    `code_tracker` передаёт ЧИТАТЕЛЬ — вопрос «моё ли это дерево» принадлежит ему, а не
+    этому модулю. Умолчания у него НЕТ намеренно, и это НЕ придирка: подставь здесь
+    `_REPO_ROOT` прибора — и дверь ответила бы о дереве ПРИБОРА под видом ответа о
+    дереве читателя. Мутация #1226 M10 (`_CODE_TRACKER_DIR = None` у читателя) ровно так
+    и ВЫЖИЛА: на одном дереве подстановка неотличима от правды. Не назвал своё дерево
+    ⇒ третий исход с причиной (инв. #17), а не догадка в любую из сторон.
+    """
+    if not str(report.tracker_dir or "").strip():
+        return MeasuredTree(TREE_UNMEASURED, "", None,
+                            "у отчёта нет каталога трекера — называть нечего")
+    if code_tracker is None or not str(code_tracker).strip():
+        return MeasuredTree(TREE_UNMEASURED, str(report.tracker_dir), None,
+                            "спрашивающий НЕ НАЗВАЛ трекер своего дерева — сравнивать "
+                            "измеренный каталог не с чем")
+    code = Path(code_tracker)
+    try:
+        measured_p = Path(report.tracker_dir).resolve()
+        code_p = Path(code).resolve()
+    except OSError as exc:
+        return MeasuredTree(TREE_UNMEASURED, str(report.tracker_dir), None,
+                            f"путь не резолвится ({exc})")
+    if measured_p == code_p:
+        return MeasuredTree(TREE_CODE, str(measured_p), str(code_p))
+    return MeasuredTree(TREE_OTHER, str(measured_p), str(code_p))
+
+
 def _git(root: Path, args: list[str], stdin_text: str | None = None) -> tuple[int, str]:
     try:
         res = subprocess.run(

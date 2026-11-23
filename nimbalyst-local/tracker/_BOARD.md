@@ -2,9 +2,9 @@
 
 > Авто-генерится `scripts/build_tracker_board.py` из `nimbalyst-local/tracker/*.md`. НЕ править вручную — правь карточки. Источник правды — карточки, это индекс (bootstrap).
 >
-> Собрана: 2026-11-23T20:14:20Z · сверка с карточками: `python3 scripts/build_tracker_board.py --check` (сторож `spa_core/tests/test_tracker_board_matches_cards.py`).
+> Собрана: 2026-11-23T21:44:08Z · сверка с карточками: `python3 scripts/build_tracker_board.py --check` (сторож `spa_core/tests/test_tracker_board_matches_cards.py`).
 >
-> Сверено с `origin/main` (40c815599).
+> Сверено с `origin/main` (0e8941222) · у **2** своя правка, кто новее — не измерено.
 >
 > Всего карточек: **1681** · ждёт владельца: **16** · занято сессиями: **13**.
 
@@ -750,6 +750,7 @@
 - Обязательное правило design-docs недостижимо по ссылкам — сторож связности красный на main  ·  `inbox-obyazatelnoe-pravilo-design-docs-nedostizhimo.md` · 2026-08-28
 - Обязательный шаг 1г поднимает долгий pytest В ДЕРЕВЕ ДОСТАВКИ: у прибора нет входа --repo-root, и правило ADR-886 нарушается по построению  ·  `inbox-obyazatelnyi-shag-1g-podnimaet-dolgii-py.md` · 2026-11-05
 - Очередь теряет карточки: читать обе формы frontmatter + сторож (решение владельца 09.08)  ·  `inbox-ochered-teryaet-kartochki-chitat-obe-for.md` · 2026-08-09
+- Очередь владельца читается из ПРОД-копии даже из worktree: owner-done 18 против 0 на origin/main  ·  `inbox-ochered-vladeltsa-chitaetsya-iz-prod-kop.md` · 2026-11-18
 - Офис знает о красном наборе ОДНО число: население 79 падений не разбирает никто  ·  `inbox-ofis-znaet-o-krasnom-nabore-odno-chislo.md` · 2026-11-01
 - Офис зовёт артефакт прочитанным ВХОЛОСТУЮ и тут же печатает его числа — счётчик перестал отвечать на свой вопрос  ·  `inbox-ofis-zovet-artefakt-prochitannym-vholost.md` · 2026-10-05
 - Операнд «сумма исходов двери» разошёлся с объявленным: 126 против 121, и сторож красен — +3 измерены по именам, остаток +2 нет  ·  `inbox-operand-summa-ishodov-dveri-razoshelsya.md` · 2026-10-24
@@ -1191,7 +1192,6 @@
 - Объявленный читатель отчёта экономики флота его не читает  ·  `inbox-obyavlennyi-chitatel-otcheta-ekonomiki-f.md` · 2026-10-08
 - Обязательный шаг цикла отвечает о деньгах по закоммиченному канону и молчит об этом — измерено дважды в один день  ·  `inbox-obyazatelnyi-shag-tsikla-otvechaet-o-den.md` · 2026-10-07
 - «Очередь полна» верна ровно настолько, насколько свеж локальный ref: в проде origin/main отстал, и отставание не мерит никто  ·  `inbox-ochered-polna-verna-rovno-nastolko-nasko.md` · 2026-08-31
-- Очередь владельца читается из ПРОД-копии даже из worktree: owner-done 18 против 0 на origin/main  ·  `inbox-ochered-vladeltsa-chitaetsya-iz-prod-kop.md` · 2026-11-18
 - Очередь владельца: в needs-owner 32 карточки, а циклы докладывают 6 — 26 с пометкой расхождения в отчёт не попадают  ·  `inbox-ochered-vladeltsa-v-needs-owner-32-karto.md` · 2026-09-16
 - Один агент пишет 123 ГиБ в сутки в свой журнал и в одиночку останавливает машину (ADR-858)  ·  `inbox-odin-agent-pishet-123-gib-v-sutki-v-svoi.md` · 2026-10-29
 - Один агент пишет 2 ГБ логов в сутки, 59 процентов — одна повторяющаяся строка: приёмка цикла не измерилась из-за диска  ·  `inbox-odin-agent-pishet-2-gb-logov-v-sutki-59.md` · 2026-10-07
