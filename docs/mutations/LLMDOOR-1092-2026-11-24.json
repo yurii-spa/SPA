@@ -1,0 +1,88 @@
+{
+ "title": "ADR-1092 — дельта цикла #1237: сторож инв. #3 берёт решение у ЕДИНСТВЕННОЙ двери на AST (текст против зова, ширина перечня модулей, вторая дверь-запуск, третий исход у неразбираемого файла, отказ неполной двери, имя решившего) + семь звеньев пробы",
+ "tests": [
+  "spa_core/tests/test_rules_watchdog_llm_door.py",
+  "spa_core/tests/test_rules_watchdog_honesty.py",
+  "tests/test_policy_enforcer.py"
+ ],
+ "mutations": [
+  {
+   "name": "M01 дверь-запуск не спрошена",
+   "file": "spa_core/monitoring/rules_watchdog.py",
+   "old": "                launches = door.find_llm_subprocess_launches(source, py_file.name)",
+   "new": "                launches = []"
+  },
+  {
+   "name": "M02 неразбираемый файл свёрнут в «чисто»",
+   "file": "spa_core/monitoring/rules_watchdog.py",
+   "old": "            except SyntaxError as exc:\n                # Неразбираемый файл — ТРЕТИЙ ИСХОД, а не чистый файл.\n                unscanned.append(\"{} does not parse (SyntaxError: {} line {})\".format(\n                    py_file.name, exc.msg, exc.lineno))\n                continue",
+   "new": "            except SyntaxError:\n                continue"
+  },
+  {
+   "name": "M03 неполная дверь принята за целую",
+   "file": "spa_core/monitoring/rules_watchdog.py",
+   "old": "    missing = [name for name in _LLM_DOOR_HALVES\n               if not callable(getattr(door, name, None))]",
+   "new": "    missing = []"
+  },
+  {
+   "name": "M04 «не измерено» свёрнуто в OK",
+   "file": "spa_core/monitoring/rules_watchdog.py",
+   "old": "    if unscanned:\n        detail[\"unchecked_reason\"] = (",
+   "new": "    if False:\n        detail[\"unchecked_reason\"] = ("
+  },
+  {
+   "name": "M05 область охраны молча расширена до канона",
+   "file": "spa_core/monitoring/rules_watchdog.py",
+   "old": "_LLM_FORBIDDEN_DOMAINS = (\n    \"spa_core/risk\",\n    \"spa_core/execution\",\n    \"spa_core/monitoring\",\n)",
+   "new": "_LLM_FORBIDDEN_DOMAINS = (\n    \"spa_core/risk\",\n    \"spa_core/execution\",\n    \"spa_core/allocator\",\n    \"spa_core/monitoring\",\n)"
+  },
+  {
+   "name": "M06 имя решившего подменено литералом",
+   "file": "spa_core/monitoring/rules_watchdog.py",
+   "old": "        \"decision_by\": getattr(door, \"__name__\", repr(door)),",
+   "new": "        \"decision_by\": \"spa_core.ci.llm_forbidden_lint\","
+  },
+  {
+   "name": "M07 звено пробы ТЕКСТ снято",
+   "file": "spa_core/monitoring/card_acceptance.py",
+   "old": "            if text.status != \"OK\":",
+   "new": "            if False:"
+  },
+  {
+   "name": "M08 звено пробы ЗОВ снято",
+   "file": "spa_core/monitoring/card_acceptance.py",
+   "old": "            if call.status != \"CRITICAL\":",
+   "new": "            if False:"
+  },
+  {
+   "name": "M09 звено пробы ШИРИНА ПЕРЕЧНЯ снято",
+   "file": "spa_core/monitoring/card_acceptance.py",
+   "old": "            if width.status != \"CRITICAL\":",
+   "new": "            if False:"
+  },
+  {
+   "name": "M10 звено пробы ВТОРАЯ ДВЕРЬ снято",
+   "file": "spa_core/monitoring/card_acceptance.py",
+   "old": "            if launch.status != \"CRITICAL\":",
+   "new": "            if False:"
+  },
+  {
+   "name": "M11 звено пробы ТРЕТИЙ ИСХОД снято",
+   "file": "spa_core/monitoring/card_acceptance.py",
+   "old": "            if unparsed.status != \"SKIPPED\":",
+   "new": "            if False:"
+  },
+  {
+   "name": "M12 звено пробы ДВЕРЬ НЕПОЛНА снято",
+   "file": "spa_core/monitoring/card_acceptance.py",
+   "old": "            if half.status != \"SKIPPED\":",
+   "new": "            if False:"
+  },
+  {
+   "name": "M13 звено пробы ДВЕРИ НЕТ снято",
+   "file": "spa_core/monitoring/card_acceptance.py",
+   "old": "            if none_door.status != \"SKIPPED\":",
+   "new": "            if False:"
+  }
+ ]
+}

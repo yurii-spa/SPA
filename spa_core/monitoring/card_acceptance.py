@@ -21731,6 +21731,198 @@ def _probe_every_declared_audit_rule_is_answerable(
         "дерево без двери запрета LLM даёт НЕ ИЗМЕРЕНО, а не «чисто»")
 
 
+def _probe_llm_watchdog_asks_one_ast_door(
+        arg: str | None = None, *, repo_root: str | None = None) -> tuple[str, str]:
+    """Критерий: сторож инварианта #3 отличает ТЕКСТ от ЗОВА и спрашивает ОДНУ дверь.
+
+    Предмет — регрессия цикла #1236, найденная дельтой красного набора
+    контрольного прогона `45450462551` (заказ G1076 п. 1). Сторож
+    `spa_core/monitoring/rules_watchdog.check_llm_forbidden_violations` держал
+    СВОЮ копию правила и сравнивал ПОДСТРОКИ в строках файла, хотя его
+    докстринг утверждал «token-level detection … not string literals».
+    Строковый литерал сцены соседней пробы
+    (`card_acceptance.py:21637`, `HINT = "import anthropic"`) дал
+    `overall: CRITICAL`, и с этой минуты НАСТОЯЩИЙ ввоз SDK в `monitoring` был
+    от строки сцены НЕОТЛИЧИМ: тревога горит всегда, то есть сторож перестал
+    отвечать на свой вопрос. Копия была слепа и в другую сторону — знала ДВА
+    запрещённых модуля из пяти канонических и про дверь-запуск не знала вовсе.
+
+    **Меряется ИСХОД, а не структура.** Проба не ищет в исходнике ни `ast`, ни
+    имени двери: она ЗОВЁТ настоящего сторожа на одноразовых деревьях (дерево —
+    ВХОД `repo_root`) и читает его вердикт ЗНАЧЕНИЕМ. Подстрокой она не
+    проходит (ADR-333): сцена «ТЕКСТ» оставляет в дереве ВСЕ слова, которые
+    подстрочная мера искала бы, и требует `OK`.
+
+    Контроль на КАЖДОМ порванном звене лежит внутри самой проверки:
+
+    * **ТЕКСТ** — файл домена, где `import anthropic` лежит ВНУТРИ строкового
+      литерала, обязан дать `OK`. Это и есть исходный дефект;
+    * **ЗОВ** — тот же ввоз по-настоящему обязан дать `CRITICAL`. Без этого
+      звена «всегда OK» прошло бы пробу наравне с починкой;
+    * **ШИРИНА ПЕРЕЧНЯ** — `import litellm` обязан дать `CRITICAL`: прежняя
+      копия знала только `anthropic`/`openai`, и три канонических модуля были
+      ей невидимы;
+    * **ВТОРАЯ ДВЕРЬ** — запуск бинаря `claude` подпроцессом обязан дать
+      `CRITICAL`: дверь-SDK этого не видит по построению, а владелец назвал
+      запрет именно обеих дверей (решение 2026-09-09);
+    * **ТРЕТИЙ ИСХОД** (инв. #17) — файл, который не разбирается, обязан дать
+      `SKIPPED` с НАЗВАННЫМ файлом, а не `OK` и не `CRITICAL`;
+    * **ДВЕРИ НЕТ / ДВЕРЬ НЕПОЛНА** — своей копии правила у сторожа нет,
+      поэтому «спросить было нечем» обязано быть громким `SKIPPED`, а не нулём
+      нарушений. Проверяется обеими формами: дверь без одной половины и дверь
+      без обеих;
+    * **КТО РЕШИЛ** — на целом контуре вердикт обязан нести имя двери
+      (`decision_by`) и ОБА спрошенных вопроса: читатель вердикта не должен
+      угадывать, спрошена дверь или чья-то копия.
+    """
+    import tempfile as _tf
+
+    root = (_pathlib.Path(repo_root) if repo_root
+            else _pathlib.Path(REPO_ROOT)).resolve()
+    watchdog_src = root / "spa_core" / "monitoring" / "rules_watchdog.py"
+    door_src = root / "spa_core" / "ci" / "llm_forbidden_lint.py"
+    for path in (watchdog_src, door_src):
+        if not path.is_file():
+            return UNMEASURED, f"НЕ ИЗМЕРЕНО: в дереве нет {path}"
+
+    try:
+        from spa_core.monitoring import rules_watchdog as _w
+    except Exception as exc:  # noqa: BLE001 — отказ ввоза есть ИСХОД
+        return UNMEASURED, ("НЕ ИЗМЕРЕНО: сторож не ввозится "
+                            f"({type(exc).__name__}: {exc})")
+    ask = getattr(_w, "check_llm_forbidden_violations", None)
+    if not callable(ask):
+        return UNMEASURED, ("НЕ ИЗМЕРЕНО: у сторожа нет "
+                            "check_llm_forbidden_violations")
+
+    _DOMAINS = ("spa_core/risk", "spa_core/execution", "spa_core/monitoring")
+
+    def _tree(base: "_pathlib.Path", files: "dict[str, str]") -> "_pathlib.Path":
+        for d in _DOMAINS:
+            (base / d).mkdir(parents=True, exist_ok=True)
+        for rel, body in files.items():
+            (base / rel).write_text(body, encoding="utf-8")
+        return base
+
+    # Сцены объявлены ЗНАЧЕНИЯМИ: имя · файлы дерева · ожидаемый статус ·
+    # что именно порвано, если ожидание не сошлось.
+    _TEXT_SCENE = {
+        "spa_core/monitoring/hint.py":
+            'HINT = "import anthropic  # это ТЕКСТ, а не зов"\n'
+            'OTHER = """from openai import Client"""\n'
+            'CALL = "openai.OpenAI(" + ")"\n',
+    }
+    _CALL_SCENE = {"spa_core/monitoring/real.py": "import anthropic\n"}
+    _WIDTH_SCENE = {"spa_core/risk/wide.py": "import litellm\n"}
+    _LAUNCH_SCENE = {
+        "spa_core/monitoring/launcher.py":
+            "import subprocess\n"
+            'def go():\n'
+            '    return subprocess.run(["claude", "-p", "hi"])\n',
+    }
+    _BROKEN_SCENE = {"spa_core/monitoring/broken.py": "def f(:\n"}
+
+    broken: list[str] = []
+    try:
+        with _tf.TemporaryDirectory(prefix="spa_llm_door_probe_") as tmp:
+            tmpp = _pathlib.Path(tmp)
+
+            text = ask(repo_root=_tree(tmpp / "text", _TEXT_SCENE))
+            if text.status != "OK":
+                broken.append(
+                    "ТЕКСТ: строковый литерал со словами запрета дал "
+                    f"{text.status!r}, а не OK — настоящий ввоз от строки "
+                    f"сцены неотличим ({text.detail.get('violations')})")
+
+            call = ask(repo_root=_tree(tmpp / "call", _CALL_SCENE))
+            if call.status != "CRITICAL":
+                broken.append(
+                    f"ЗОВ: настоящий `import anthropic` дал {call.status!r}, "
+                    "а не CRITICAL — мера, отвечающая «OK» всегда, прошла бы "
+                    "сцену ТЕКСТ наравне с починкой")
+
+            width = ask(repo_root=_tree(tmpp / "width", _WIDTH_SCENE))
+            if width.status != "CRITICAL":
+                broken.append(
+                    f"ШИРИНА ПЕРЕЧНЯ: `import litellm` дал {width.status!r}, "
+                    "а не CRITICAL — перечень запрещённых модулей взят не у "
+                    "канонической двери")
+
+            launch = ask(repo_root=_tree(tmpp / "launch", _LAUNCH_SCENE))
+            if launch.status != "CRITICAL":
+                broken.append(
+                    f"ВТОРАЯ ДВЕРЬ: запуск бинаря claude дал {launch.status!r}, "
+                    "а не CRITICAL — дверь-запуск не спрошена, и вставить "
+                    "вызов LLM подпроцессом можно незаметно")
+
+            unparsed = ask(repo_root=_tree(tmpp / "broken", _BROKEN_SCENE))
+            if unparsed.status != "SKIPPED":
+                broken.append(
+                    f"ТРЕТИЙ ИСХОД: неразбираемый файл дал {unparsed.status!r}, "
+                    "а не SKIPPED — «не измерено» неотличимо от «чисто»")
+            elif not any("broken.py" in u for u in (unparsed.detail.get("unscanned") or [])):
+                broken.append(
+                    "ТРЕТИЙ ИСХОД без ИМЕНИ: SKIPPED не называет файл, "
+                    f"который не разобрался ({unparsed.detail.get('unscanned')})")
+
+            clean = _tree(tmpp / "clean", {"spa_core/risk/ok.py": "VALUE = 1\n"})
+
+            class _HalfDoor:
+                """Дверь, у которой есть ОДНА половина из двух."""
+                @staticmethod
+                def find_forbidden_imports(source, filename="<string>"):
+                    return []
+
+            half = ask(repo_root=clean, door=_HalfDoor)
+            if half.status != "SKIPPED":
+                broken.append(
+                    f"ДВЕРЬ НЕПОЛНА: половина двери дала {half.status!r}, а не "
+                    "SKIPPED — «половина починки» прошла бы за целую")
+
+            none_door = ask(repo_root=clean, door=object())
+            if none_door.status != "SKIPPED":
+                broken.append(
+                    f"ДВЕРИ НЕТ: дверь без обеих половин дала {none_door.status!r}, "
+                    "а не SKIPPED — «спросить было нечем» выдано за ноль нарушений")
+
+            whole = ask(repo_root=clean)
+            if whole.status != "OK":
+                broken.append(
+                    f"ЦЕЛЫЙ КОНТУР: чистое дерево дало {whole.status!r}, а не OK "
+                    f"({whole.message})")
+            else:
+                decided_by = whole.detail.get("decision_by") or ""
+                if "llm_forbidden_lint" not in str(decided_by):
+                    broken.append(
+                        "КТО РЕШИЛ: вердикт не называет каноническую дверь "
+                        f"(decision_by={decided_by!r}) — читатель не отличит "
+                        "дверь от копии правила")
+                asked = list(whole.detail.get("doors_asked") or [])
+                if len(asked) != 2:
+                    broken.append(
+                        f"КТО РЕШИЛ: спрошенных дверей объявлено {len(asked)} "
+                        f"({asked}), а не две")
+                modules = list(whole.detail.get("modules_forbidden") or [])
+                if len(modules) < 5:
+                    broken.append(
+                        f"ШИРИНА В ВЕРДИКТЕ: перечень модулей {modules} короче "
+                        "канонического — вердикт объявляет область уже той, "
+                        "которую спросил")
+    except Exception as exc:  # noqa: BLE001
+        return UNMEASURED, (f"НЕ ИЗМЕРЕНО: сторож не ответил на сцене "
+                            f"({type(exc).__name__}: {exc})")
+
+    if broken:
+        return NOT_SATISFIED, "; ".join(broken)
+    return SATISFIED, (
+        "сторож инв. #3 различает ТЕКСТ (строковый литерал ⇒ OK) и ЗОВ "
+        "(настоящий ввоз ⇒ CRITICAL) на ОДНОМ дереве; перечень модулей взят у "
+        "канонической двери (litellm ⇒ CRITICAL); спрошены ОБЕ двери (запуск "
+        "бинаря claude ⇒ CRITICAL); неразбираемый файл даёт SKIPPED с НАЗВАННЫМ "
+        "именем; дверь неполная и дверь без половин обе дают SKIPPED, а не ноль "
+        "нарушений; на чистом дереве вердикт называет дверь, которая решила")
+
+
 PROBES: dict[str, Callable[[str | None], "tuple[str, str]"]] = {
     "module_limit_bites_a_busy_module":
         _probe_module_limit_bites_a_busy_module,
@@ -21741,6 +21933,8 @@ PROBES: dict[str, Callable[[str | None], "tuple[str, str]"]] = {
         _probe_test_membership_is_asked_about_place_not_name,
     "every_declared_audit_rule_is_answerable":
         _probe_every_declared_audit_rule_is_answerable,
+    "llm_watchdog_asks_one_ast_door":
+        _probe_llm_watchdog_asks_one_ast_door,
     "findings_bridge_has_a_live_writer": _probe_findings_bridge_has_a_live_writer,
     "shadow_record_carries_the_system_action":
         _probe_shadow_record_carries_the_system_action,

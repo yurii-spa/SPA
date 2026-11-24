@@ -2,11 +2,11 @@
 
 > Авто-генерится `scripts/build_tracker_board.py` из `nimbalyst-local/tracker/*.md`. НЕ править вручную — правь карточки. Источник правды — карточки, это индекс (bootstrap).
 >
-> Собрана: 2026-11-24T17:38:54Z · сверка с карточками: `python3 scripts/build_tracker_board.py --check` (сторож `spa_core/tests/test_tracker_board_matches_cards.py`).
+> Собрана: 2026-11-24T19:28:09Z · сверка с карточками: `python3 scripts/build_tracker_board.py --check` (сторож `spa_core/tests/test_tracker_board_matches_cards.py`).
 >
-> Сверено с `origin/main` (0d936f3fc) · у **1** своя правка, кто новее — не измерено.
+> Сверено с `origin/main` (b74fd8cbc) · у **1** своя правка, кто новее — не измерено.
 >
-> Всего карточек: **1684** · ждёт владельца: **15** · занято сессиями: **14**.
+> Всего карточек: **1685** · ждёт владельца: **15** · занято сессиями: **14**.
 
 ## 🔴 ЖДЁТ ВЛАДЕЛЬЦА (needs-owner)
 
@@ -448,7 +448,7 @@
 ### · closed
 - Считать ли верный отказ по правилам допуска неисправностью флота  ·  `owner-decision-schitat-li-vernyi-otkaz-po-pravilam-dopu.md` · 2026-10-08
 
-## 📥 Inbox (задания: Telegram / заметки / голос)  (979)
+## 📥 Inbox (задания: Telegram / заметки / голос)  (980)
 
 ### · in-progress
 - а задача починить все-таки еще раз сообщение которым не пишет нужно твое решени…  ·  `inbox-a-zadacha-pochinit-vse-taki-esche-raz-so.md` · 2026-08-14 · 🔒 `pid43119`
@@ -906,6 +906,7 @@
 - Сторож вопросов владельцу не измеряет, ЖИВ ЛИ ещё вопрос — и звал отправить команду, ставшую разрушительной  ·  `inbox-storozh-voprosov-vladeltsu-ne-izmeryaet.md` · 2026-08-29
 - Сторож «вопросы владельца на ветке» не знает слова «прочитано и осознанно не везём» — счёт не дойдёт до нуля никогда  ·  `inbox-storozh-voprosy-vladeltsa-na-vetke-ne-zn.md` · 2026-08-23
 - Сторож «вопросы владельцу» слеп к вопросу, который не отправляли — очередь 5, он говорит 3  ·  `inbox-storozh-voprosy-vladeltsu-slep-k-voprosu.md` · 2026-08-10
+- Сторож запрета LLM принял строку сцены за ввоз SDK — тревога горела всегда  ·  `inbox-storozh-zapreta-llm-prinyal-stroku-stsen.md` · 2026-11-24
 - Стоячий приказ Portfolio CIO закрыт ТОЛЬКО в прод-дереве: на origin он в работе и продолжает выдавать заказы  ·  `inbox-stoyachii-prikaz-portfolio-cio-zakryt-to.md` · 2026-09-14
 - Страж ADR-номеров ложно краснеет: не видит INDEX среди доставляемых файлов  ·  `inbox-strazh-adr-nomerov-lozhno-krasneet-ne-vi.md` · 2026-08-09
 - Страж перезаписи считает переименование заголовка потерей записи — и его список «что пропадёт» неполон  ·  `inbox-strazh-perezapisi-schitaet-pereimenovani.md` · 2026-08-07

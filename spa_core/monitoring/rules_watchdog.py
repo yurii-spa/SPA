@@ -672,107 +672,182 @@ def check_apy_coherence() -> CheckResult:
     )
 
 
-def check_llm_forbidden_violations() -> CheckResult:
-    """Check for LLM usage in forbidden modules (risk/execution/monitoring).
+# ── Инвариант #3 (LLM запрещён): решение принимает ОДНА дверь ───────────────
 
-    Scans Python source files for live imports of LLM libraries.
-    Uses token-level detection (function call patterns, not string literals)
-    to avoid false positives from comment/docstring references.
+# Домены, о которых ЭТОТ сторож объявляет вердикт. Перечень канонической двери
+# (`llm_forbidden_lint.FORBIDDEN_DIRS`) ШИРЕ — он называет ещё
+# `spa_core/allocator`. Расхождение не замазывается и не выравнивается наугад:
+# оба перечня ПЕЧАТАЮТСЯ в `detail`, потому что «какие каталоги охраняет
+# инвариант #3» — отдельный вопрос с отдельной мерой (заказ G1076 п. 3), а
+# молча расширить область значило бы вынести вердикт о домене, про который этот
+# сторож никогда не говорил.
+_LLM_FORBIDDEN_DOMAINS = (
+    "spa_core/risk",
+    "spa_core/execution",
+    "spa_core/monitoring",
+)
+
+# Обе половины канонической двери. Неполная дверь — ОТКАЗ, а не половина
+# ответа: «половина починки, оставившая второй сайт» — знакомый класс.
+_LLM_DOOR_HALVES = ("find_forbidden_imports", "find_llm_subprocess_launches")
+
+
+def _resolve_llm_door(door: Optional[Any] = None) -> "tuple[Any, Optional[str]]":
+    """Вернуть ``(дверь, причина-отказа)``; ровно одно из двух непусто.
+
+    Дверь ОДНА и живёт в `spa_core/ci/llm_forbidden_lint.py`. Своей копии
+    правила у сторожа НЕТ намеренно (см. докстринг
+    :func:`check_llm_forbidden_violations`), поэтому «спросить было нечем»
+    обязано быть громким третьим исходом, а не нулём нарушений.
     """
-    # Split patterns so this file's own scan-pattern strings don't self-trigger
-    _a = "anthropic"
-    _o = "openai"
-    _c = "ChatCompletion"
-    # Patterns that indicate actual LLM library usage (not just mentions)
-    forbidden_import_pairs = [
-        ("import", _a),
-        ("import", _o),
-        ("from", _a),
-        ("from", _o),
-    ]
-    forbidden_call_patterns = [_c, "anthropic.Anthropic(", "openai.OpenAI("]
+    if door is None:
+        try:
+            from spa_core.ci import llm_forbidden_lint as door  # noqa: PLC0415
+        except Exception as exc:  # noqa: BLE001 — любой отказ ввоза есть ИСХОД
+            return None, ("canonical door spa_core.ci.llm_forbidden_lint not "
+                          "importable ({}: {})".format(type(exc).__name__, exc))
+    missing = [name for name in _LLM_DOOR_HALVES
+               if not callable(getattr(door, name, None))]
+    if missing:
+        return None, ("canonical door is incomplete — missing {}".format(
+            ", ".join(missing)))
+    return door, None
 
-    violations_found = []
+
+def check_llm_forbidden_violations(
+    repo_root: Optional[Any] = None,
+    *,
+    door: Optional[Any] = None,
+) -> CheckResult:
+    """Инвариант #3: в risk / execution / monitoring нет ни LLM-SDK, ни запуска
+    бинаря LLM подпроцессом.
+
+    **Решение берёт ЕДИНСТВЕННАЯ дверь** — `spa_core/ci/llm_forbidden_lint`
+    (AST): :func:`find_forbidden_imports` (дверь-SDK) и
+    :func:`find_llm_subprocess_launches` (дверь-запуск). Своей копии правила у
+    сторожа нет.
+
+    Прежняя редакция держала СВОЮ копию и сравнивала ПОДСТРОКИ в строках файла.
+    Её докстринг утверждал «token-level detection … not string literals», и
+    утверждение было ложным: 24.11 (цикл #1237) строковый литерал сцены
+    `spa_core/monitoring/card_acceptance.py:21637` (`HINT = "import anthropic"`,
+    положенный туда НАМЕРЕННО, чтобы проверить «зов против текста» у соседнего
+    правила) дал `overall: CRITICAL`, и с этой минуты настоящий ввоз SDK в
+    monitoring был от строки сцены НЕОТЛИЧИМ — тревога горела постоянно, то
+    есть сторож перестал отвечать на свой вопрос. Копия была слепа и в другую
+    сторону: она знала ДВА запрещённых модуля из пяти, названных каноном
+    (`litellm`, `langchain`, `google.generativeai` ей невидимы), и про
+    дверь-запуск не знала вовсе.
+
+    Три исхода различимы (инв. #17):
+
+    * **CRITICAL** — хотя бы одно нарушение, названное файлом, строкой и
+      модулем (или бинарём и пускающим вызовом);
+    * **SKIPPED = НЕ ИЗМЕРЕНО** — домен не существует · файл не читается · файл
+      не разбирается · двери нет либо она неполна. Нулём нарушений это НЕ
+      считается: `run_watchdog` не вправе свернуть такой исход в `overall: OK`;
+    * **OK** — перечисленные домены обойдены целиком, спрошены ОБЕ двери, и
+      ответ пуст; `detail` называет, ЧТО именно покрыто.
+
+    Исключений по имени файла больше нет. Прежнее (`auto_fixer.py`) было
+    мёртвым: модуль перенесён из `spa_core/monitoring/` в `spa_core/devtools/`
+    ради этого же инварианта (коммит `324913abb`, AUD-02), то есть поблажка
+    много месяцев относилась к файлу, которого в охраняемых доменах нет, и при
+    этом молча прощала ЛЮБОЙ будущий файл с таким именем. Самоисключение
+    (`rules_watchdog.py`) тоже снято: оно существовало только из-за
+    подстрочных образцов в этом файле, а у меры на AST строка-образец
+    нарушением не является — зато настоящий ввоз в самом стороже прежде был
+    невидим.
+
+    Дерево и дверь — ВХОДЫ, а не окружение: `repo_root` по умолчанию `_REPO`,
+    `door` по умолчанию канон. Иначе исход «двери нет» нечем было бы
+    предъявить, а проба приёмки мерила бы прод-дерево вместо сцены.
+    """
+    root = Path(repo_root) if repo_root is not None else _REPO
+    door, door_refusal = _resolve_llm_door(door)
+    if door is None:
+        return CheckResult(
+            "llm_forbidden_violations", "SKIPPED",
+            "LLM-forbidden invariant NOT CHECKED: {}".format(door_refusal),
+            {"files_scanned": 0, "violations": [], "unscanned": [door_refusal],
+             "unchecked_reason": door_refusal, "decision_by": None,
+             "domains_declared_here": list(_LLM_FORBIDDEN_DOMAINS)},
+        )
+
+    violations_found: List[str] = []
     unscanned: List[str] = []
     scanned_files = 0
-    _self = Path(__file__).name  # skip this file (contains pattern strings)
 
-    # Explicit exclusions: files that intentionally use LLM under controlled conditions.
-    # These are NOT in the capital-path (risk/execution) and use LLM for advisory tasks only.
-    # Each exclusion must be justified here — do not add without ADR review.
-    _KNOWN_EXCEPTIONS = {
-        "auto_fixer.py",   # ADR-advisory: autonomous bug-fixer uses Claude for code repair,
-                           # NOT for risk/capital decisions. Rate-limited, sandboxed, never
-                           # touches risk/execution domains. Lazy import — stdlib-only at module level.
-    }
-
-    for module_dir in ["spa_core/risk", "spa_core/execution", "spa_core/monitoring"]:
-        full_path = _REPO / module_dir
-        if not full_path.exists():
-            # A domain we never opened cannot support the claim "no LLM usage in it".
+    for module_dir in _LLM_FORBIDDEN_DOMAINS:
+        full_path = root / module_dir
+        if not full_path.is_dir():
+            # Домен, который мы ни разу не открыли, не может подтвердить
+            # утверждение «в нём нет LLM».
             unscanned.append("{} does not exist".format(module_dir))
             continue
-        # rglob, not glob: the top-level-only scan silently skipped every subpackage of the
-        # three forbidden domains (spa_core/risk/versions, spa_core/execution/adapters,
-        # spa_core/monitoring/sensors — 20 files) while still reporting "No LLM usage in
-        # risk/execution/monitoring domains". The CI linter (scripts/lint_llm_forbidden.py)
-        # has always walked recursively; the runtime watchdog had not.
+        # rglob, а не glob: обход только верхнего уровня молча пропускал каждый
+        # подпакет охраняемых доменов, продолжая докладывать «чисто».
         for py_file in sorted(full_path.rglob("*.py")):
             if "__pycache__" in py_file.parts:
                 continue
-            if py_file.name == _self:
-                continue  # skip self to avoid false positive on pattern strings
-            if py_file.name in _KNOWN_EXCEPTIONS:
-                continue  # skip known-exception files (advisory LLM usage only)
-            scanned_files += 1
             try:
-                lines = py_file.read_text(encoding="utf-8", errors="ignore").splitlines()
-                for lineno, line in enumerate(lines, 1):
-                    stripped = line.strip()
-                    # Skip comments and docstrings
-                    if stripped.startswith("#") or stripped.startswith('"""') or stripped.startswith("'''"):
-                        continue
-                    # Check import patterns
-                    for kw, lib in forbidden_import_pairs:
-                        if stripped.startswith(kw + " " + lib) or (
-                            kw + " " + lib + " " in stripped
-                        ):
-                            violations_found.append(
-                                "{}:{}: {} {}".format(py_file.name, lineno, kw, lib)
-                            )
-                    # Check call patterns
-                    for pat in forbidden_call_patterns:
-                        if pat in stripped:
-                            violations_found.append(
-                                "{}:{}: contains '{}'".format(py_file.name, lineno, pat)
-                            )
-            except Exception as e:  # noqa: BLE001
-                # A file we could not read is a hole in the scan, not a clean file.
-                scanned_files -= 1
-                unscanned.append("{} unreadable ({})".format(py_file.name, e))
+                source = py_file.read_text(encoding="utf-8", errors="replace")
+            except OSError as exc:
+                unscanned.append("{} unreadable ({}: {})".format(
+                    py_file.name, type(exc).__name__, exc))
+                continue
+            try:
+                imports = door.find_forbidden_imports(source, py_file.name)
+                launches = door.find_llm_subprocess_launches(source, py_file.name)
+            except SyntaxError as exc:
+                # Неразбираемый файл — ТРЕТИЙ ИСХОД, а не чистый файл.
+                unscanned.append("{} does not parse (SyntaxError: {} line {})".format(
+                    py_file.name, exc.msg, exc.lineno))
+                continue
+            scanned_files += 1
+            for found in imports:
+                violations_found.append("{}:{}: imports {}".format(
+                    py_file.name, found.line, found.module))
+            for launch in launches:
+                violations_found.append("{}:{}: launches {} via {}".format(
+                    py_file.name, launch.line, launch.binary, launch.via))
+
+    detail: Dict[str, Any] = {
+        "files_scanned": scanned_files,
+        "violations": violations_found,
+        "unscanned": unscanned,
+        # КТО вынес решение — чтобы читатель вердикта не угадывал, спрошена
+        # дверь или чья-то копия правила.
+        "decision_by": getattr(door, "__name__", repr(door)),
+        "doors_asked": list(_LLM_DOOR_HALVES),
+        "modules_forbidden": sorted(getattr(door, "FORBIDDEN_IMPORTS", ()) or ()),
+        "domains_declared_here": list(_LLM_FORBIDDEN_DOMAINS),
+        "domains_of_the_canonical_door": list(
+            getattr(door, "FORBIDDEN_DIRS", ()) or ()),
+    }
 
     if violations_found:
         return CheckResult(
             "llm_forbidden_violations", "CRITICAL",
             "LLM usage detected in forbidden domains: {}".format(violations_found[:3]),
-            {"violations": violations_found, "files_scanned": scanned_files,
-             "unscanned": unscanned},
+            detail,
         )
 
     if unscanned:
+        detail["unchecked_reason"] = (
+            "not every file in the forbidden domains could be scanned")
         return CheckResult(
             "llm_forbidden_violations", "SKIPPED",
             "LLM-forbidden invariant NOT FULLY CHECKED ({} file(s) scanned): {}".format(
                 scanned_files, "; ".join(unscanned[:5])),
-            {"files_scanned": scanned_files, "unscanned": unscanned,
-             "unchecked_reason": "not every file in the forbidden domains could be scanned"},
+            detail,
         )
 
     return CheckResult(
         "llm_forbidden_violations", "OK",
-        "No LLM usage in risk/execution/monitoring domains ({} files scanned)".format(
-            scanned_files),
-        {"files_scanned": scanned_files},
+        "No LLM usage in risk/execution/monitoring domains ({} files scanned, "
+        "both doors asked)".format(scanned_files),
+        detail,
     )
 
 

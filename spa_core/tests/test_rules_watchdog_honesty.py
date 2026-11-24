@@ -438,10 +438,20 @@ class TestLlmForbiddenScan:
             if not base.exists():
                 pytest.skip("{} absent in this checkout".format(d))
             for p in base.rglob("*.py"):
-                if "__pycache__" in p.parts or p.name == Path(w.__file__).name:
+                if "__pycache__" in p.parts:
                     continue
-                if p.name == "auto_fixer.py":  # documented exception in the module
-                    continue
+                # ИЗМЕНЕНО НАМЕРЕННО, цикл #1237 (инв. #16, обоснование здесь).
+                # Прежде из ожидаемого набора вычитались ДВА файла, потому что
+                # сторож их пропускал: (1) сам `rules_watchdog.py` — у прежней
+                # подстрочной меры его собственные образцы были «нарушениями»;
+                # (2) `auto_fixer.py` — поблажка на ввоз SDK. Мера теперь на
+                # AST, поэтому строка-образец нарушением не является, и ОБА
+                # исключения сняты у писателя: самоисключение прятало бы
+                # настоящий ввоз в самом стороже, а поблажка была МЁРТВОЙ
+                # (модуль перенесён в `spa_core/devtools/` коммитом 324913abb и
+                # в охраняемых доменах не лежит — но прощалось ЛЮБОЕ будущее
+                # имя `auto_fixer.py`). Ожидание расширено, а не ослаблено:
+                # покрытие обязано равняться ВСЕМ файлам доменов.
                 expected.add(p)
                 if p.parent != base:
                     nested += 1
@@ -451,6 +461,10 @@ class TestLlmForbiddenScan:
         assert res.detail["files_scanned"] == len(expected), (
             "the top-level-only scan missed {} nested file(s); scanned={} expected={}".format(
                 nested, res.detail["files_scanned"], len(expected)))
+        assert Path(w.__file__).resolve() in expected, (
+            "положительный контроль на снятое самоисключение: сам сторож "
+            "обязан быть внутри населения, иначе ввоз SDK в нём самом "
+            "остался бы невидимым")
 
 
 # ── aggregation: overall OK means every rule actually ran ───────────────────
