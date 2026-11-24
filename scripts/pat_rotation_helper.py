@@ -163,6 +163,202 @@ def _fingerprint(secret: str) -> str:
     return hashlib.sha256(secret.encode("utf-8")).hexdigest()[:FINGERPRINT_CHARS]
 
 
+# ── СОСТОЯНИЕ ключа: наблюдение, которое спрашивают у GitHub (ADR-1094) ───────
+#
+# **Почему этот раздел появился 24.11 (цикл #1239, карточка
+# `inbox-strazh-sroka-klyucha-ne-sprashivaet-github`, авария ADR-1093).** Всё, что
+# стои́т выше, отвечает на ОДИН вопрос: «прошло ли 90 дней от даты, которую мы сами
+# записали». 24.11 ключ умер, доставка встала, и сторож в ту же сборку честно сказал
+# `WARNING "PAT rotation due soon: 2026-11-24 (0 days)"` — то есть ответил ВЕРНО на
+# свой вопрос и мимо нужного: записанный срок совпал со смертью СЛУЧАЙНО, настоящий
+# срок знает только GitHub, и за всю историю модуля его не спросили НИ РАЗУ (замер:
+# `grep api.github|urlopen|Authorization|expiration` — 0 попаданий).
+#
+# «Жив ли ключ» и «прошло ли 90 дней от нашей записи» — РАЗНЫЕ наблюдения
+# (инвариант #17), поэтому здесь не правится прежний вопрос, а добавляется второй, и
+# у него СВОИ три исхода: принят · отклонён · НЕ ИЗМЕРЕНО с названной причиной.
+# Ни один из трёх не похож на другой, и «не измерено» никогда не выдаётся за «принят».
+#
+# Связку ключей этот путь ЧИТАЕТ — в отличие от `--status`/`--check`, которые её не
+# трогают и не будут (тест `test_keychain_read_never_called_during_status` жив с
+# MP-071): читателю КАЛЕНДАРЯ секрет не нужен, а читателю СОСТОЯНИЯ без него нечего
+# спросить. Сам токен не печатается, не записывается и не попадает ни в одну строку
+# причины (инвариант #7) — наружу уходят только код ответа и объявленный сервисом срок.
+
+TOKEN_PROBE_URL = "https://api.github.com/user"
+TOKEN_EXPIRATION_HEADER = "github-authentication-token-expiration"
+TOKEN_PROBE_TIMEOUT_S = 10.0
+
+#: Три исхода наблюдения о СОСТОЯНИИ ключа. Значения — часть контракта с читателями
+#: (`system_health_monitor._check_pat_token_alive`, `problem_store`), а не ярлыки.
+TOKEN_ALIVE = "alive"
+TOKEN_REJECTED = "rejected"
+TOKEN_UNMEASURED = "unmeasured"
+
+# Порог, с которого КАЛЕНДАРНЫЙ вопрос становится аварией. До 24.11 его роль играл
+# `is_overdue = days_until < 0`, то есть CRITICAL приходил НА СЛЕДУЮЩИЙ день после
+# смерти ключа — когда доставка уже стои́т. Трое суток — запас на то, чтобы владелец
+# успел выпустить ключ, не останавливая доставку (решение ADR-1094).
+CRITICAL_THRESHOLD_DAYS = 3
+
+
+def _github_identity_probe(token: str, timeout: float = TOKEN_PROBE_TIMEOUT_S):
+    """ЕДИНСТВЕННАЯ дверь к GitHub. Возвращает ``(status|None, headers, reason|None)``.
+
+    Только stdlib (инвариант #4). Любой сбой сети, DNS, прокси или таймаут — это
+    ОДИН вид исхода: кода ответа нет, значит состояние ключа НЕ ИЗМЕРЕНО. Отказ
+    сервиса (401) кодом ответа ЯВЛЯЕТСЯ и возвращается как ответ, а не как сбой:
+    `HTTPError` для нас — не ошибка, а вердикт сервиса.
+    """
+    import urllib.error
+    import urllib.request
+
+    req = urllib.request.Request(
+        TOKEN_PROBE_URL,
+        headers={
+            "Authorization": "Bearer " + token,
+            "Accept": "application/vnd.github+json",
+            "User-Agent": "spa-pat-rotation-guard",
+        },
+        method="GET",
+    )
+    try:
+        with urllib.request.urlopen(req, timeout=timeout) as resp:
+            return int(resp.status), dict(resp.headers.items()), None
+    except urllib.error.HTTPError as exc:
+        headers = dict(exc.headers.items()) if exc.headers else {}
+        return int(exc.code), headers, None
+    except Exception as exc:  # noqa: BLE001 — вид один: наблюдения нет
+        return None, {}, (f"запрос к {TOKEN_PROBE_URL} не состоялся "
+                          f"({exc.__class__.__name__}) — состояние ключа НЕ ИЗМЕРЕНО")
+
+
+def _header(headers, name: str):
+    """Регистронезависимое чтение заголовка; нет такого — ``None``.
+
+    HTTP-заголовки регистронезависимы по RFC, и `dict` из `resp.headers.items()`
+    сохраняет тот регистр, который прислал сервер. Спросить по точному имени значило
+    бы отвечать «срок не объявлен» от того, что сервер написал имя иначе.
+    """
+    if not isinstance(headers, dict):
+        return None
+    for key, value in headers.items():
+        if str(key).lower() == name.lower():
+            return value
+    return None
+
+
+def declared_expiration_date(headers):
+    """Срок, ОБЪЯВЛЕННЫЙ сервисом. Возвращает ``(date|None, raw|None)``.
+
+    GitHub присылает его у fine-grained токена в виде
+    ``2026-11-24 19:48:26 UTC``. Разобрать не вышло ⇒ дата `None`, но СЫРАЯ строка
+    возвращается: «сервер прислал то, чего я не понял» и «сервер ничего не прислал»
+    — разные состояния, и читатель вправе их различить.
+    """
+    raw = _header(headers, TOKEN_EXPIRATION_HEADER)
+    if raw is None or not str(raw).strip():
+        return None, None
+    text = str(raw).strip()
+    try:
+        return date.fromisoformat(text[:10]), text
+    except ValueError:
+        return None, text
+
+
+def probe_token_liveness(service: str = KEYCHAIN_SERVICE, secret_reader=None,
+                         http_probe=None, recorded_next_rotation=None,
+                         timeout: float = TOKEN_PROBE_TIMEOUT_S) -> dict:
+    """Спрашивает у GitHub, принимает ли он наш ключ. Три исхода, инвариант #17.
+
+    Обе двери наружу — ВХОДЫ (`secret_reader=`, `http_probe=`), как часы в
+    `_compute_status`: сцена, которой нужен ответ «401», обязана его получить без
+    настоящей сети и без настоящего ключа, иначе проверку такого сторожа можно было
+    бы написать только с живым мёртвым ключом в руках.
+
+    Ключи результата:
+
+    · ``liveness`` — ``alive`` · ``rejected`` · ``unmeasured``;
+    · ``reason``   — названная причина у `rejected` и `unmeasured`, `None` у `alive`;
+    · ``http_status`` — код ответа либо `None` (не измерено);
+    · ``declared_expiration`` — срок, объявленный СЕРВИСОМ (ISO-дата) либо `None`;
+    · ``record_vs_declared`` — присутствует ТОЛЬКО когда сравнивать было с чем:
+      наша запись против объявленного срока. Расхождение — отдельная НАХОДКА, а не
+      повод тихо переписать запись: переписать значило бы потерять единственный
+      след того, что наш календарь не про этот ключ.
+    """
+    reader = secret_reader or _read_keychain_secret
+    secret, reason = reader(service)
+
+    result = {
+        "service": service,
+        "probe_url": TOKEN_PROBE_URL,
+        "http_status": None,
+        "declared_expiration": None,
+        "declared_expiration_raw": None,
+    }
+
+    if secret is None:
+        result["liveness"] = TOKEN_UNMEASURED
+        result["reason"] = f"состояние ключа НЕ ИЗМЕРЕНО — {reason}"
+        return result
+
+    probe = http_probe or _github_identity_probe
+    status, headers, failure = probe(secret, timeout)
+    del secret  # дальше токен не нужен ни одной строке (инвариант #7)
+
+    if failure is not None or status is None:
+        result["liveness"] = TOKEN_UNMEASURED
+        result["reason"] = failure or (
+            f"дверь к {TOKEN_PROBE_URL} не вернула кода ответа — "
+            f"состояние ключа НЕ ИЗМЕРЕНО")
+        return result
+
+    status = int(status)
+    result["http_status"] = status
+    exp_date, exp_raw = declared_expiration_date(headers)
+    result["declared_expiration"] = exp_date.isoformat() if exp_date else None
+    result["declared_expiration_raw"] = exp_raw
+
+    if status == 200:
+        result["liveness"] = TOKEN_ALIVE
+        result["reason"] = None
+    elif status == 401:
+        result["liveness"] = TOKEN_REJECTED
+        result["reason"] = (
+            f"GitHub ответил 401 на {TOKEN_PROBE_URL}: ключ `{service}` НЕ "
+            f"аутентифицируется — доставка на origin, пуш сайта и заказ прогона CI "
+            f"стоя́т до нового ключа")
+    else:
+        # Ни «принят», ни «отклонён»: 403 при лимите, 5xx у сервиса, 404 у чужого
+        # маршрута. Назвать это отказом значило бы поднять тревогу на исправном
+        # ключе, назвать принятием — проспать мёртвый.
+        result["liveness"] = TOKEN_UNMEASURED
+        result["reason"] = (
+            f"GitHub ответил {status} — это ни «ключ принят», ни «ключ отклонён»; "
+            f"состояние ключа НЕ ИЗМЕРЕНО")
+
+    if exp_date is not None and recorded_next_rotation:
+        try:
+            recorded = date.fromisoformat(str(recorded_next_rotation)[:10])
+        except (TypeError, ValueError):
+            recorded = None
+        if recorded is None:
+            result["record_vs_declared"] = TOKEN_UNMEASURED
+            result["record_vs_declared_detail"] = (
+                f"записанный срок {recorded_next_rotation!r} не разбирается как дата")
+        elif recorded == exp_date:
+            result["record_vs_declared"] = "agrees"
+        else:
+            result["record_vs_declared"] = "differs"
+            result["record_vs_declared_detail"] = (
+                f"наша запись next_rotation={recorded.isoformat()}, а GitHub объявляет "
+                f"срок {exp_date.isoformat()} — расхождение "
+                f"{abs((exp_date - recorded).days)} дн.: наш календарь считает НЕ ПРО "
+                f"ЭТОТ ключ")
+    return result
+
+
 def _load_state(state_file: Path = None):
     """Читает state-файл. НИЧЕГО не пишет. Нет файла / нечитаем ⇒ ``None``.
 
@@ -234,6 +430,11 @@ def _compute_status(state, now: date = None, state_file: Path = None) -> dict:
     days_until = (next_rotation - now).days
     is_overdue = days_until < 0
     needs_rotation = days_until < WARNING_THRESHOLD_DAYS
+    # Лестница сдвинута ADR-1094: до 24.11 авария начиналась ТОЛЬКО с `is_overdue`,
+    # то есть на следующий день после смерти ключа. `is_critical_window` включает и
+    # сам день срока, и трое суток до него — иначе читатель узнаёт об остановке
+    # доставки ПОСЛЕ остановки.
+    is_critical_window = days_until <= CRITICAL_THRESHOLD_DAYS
 
     status = {
         "today": now.isoformat(),
@@ -243,6 +444,7 @@ def _compute_status(state, now: date = None, state_file: Path = None) -> dict:
         "days_until_rotation": days_until,
         "is_overdue": is_overdue,
         "needs_rotation_soon": needs_rotation,
+        "is_critical_window": is_critical_window,
         "keychain_service": state.get("keychain_service", KEYCHAIN_SERVICE),
     }
     # Основание даты показывается ТОЛЬКО если оно записано: состояние, отмеченное до
@@ -353,20 +555,66 @@ def cmd_default(status: dict) -> int:
 
 
 def cmd_check(status: dict) -> int:
-    """--check: тихий режим, только exit code (0=ok, 1=нужна ротация ЛИБО дата не известна).
+    """--check: код возврата И названная ПРИЧИНА отказа в stderr (0=ок, 1=иначе).
 
     Проверка «известна ли дата» стоит ПЕРВОЙ и намеренно: пока её не было, отсутствие
     наблюдения давало 0 — тот самый зелёный ответ, которого никто не измерял.
+
+    До 24.11 режим был ПОЛНОСТЬЮ молчаливым: возвращал 1 и не печатал ни одной строки
+    (замер ADR-1093). Молчаливый ненулевой код неотличим от упавшего интерпретатора,
+    поэтому причина теперь печатается — в stderr, чтобы stdout у тихого режима остался
+    пустым для тех, кто его разбирает.
     """
     if not status.get("rotation_date_known"):
+        print(f"НЕ ИЗМЕРЕНО: {status.get('unknown_reason')}", file=sys.stderr)
         return 1
-    return 1 if status["needs_rotation_soon"] or status["is_overdue"] else 0
+    if status["is_overdue"]:
+        print(f"ПРОСРОЧЕНО: срок ротации был {status['next_rotation']} "
+              f"({abs(status['days_until_rotation'])} дн. назад)", file=sys.stderr)
+        return 1
+    if status["needs_rotation_soon"]:
+        print(f"СРОК БЛИЗКО: ротация до {status['next_rotation']} "
+              f"({status['days_until_rotation']} дн.)", file=sys.stderr)
+        return 1
+    return 0
 
 
 def cmd_status(status: dict) -> int:
     """--status: JSON вывод статуса. Код 2, если дата НЕ ИЗМЕРЕНА (конвенция репозитория)."""
     print(json.dumps(status, indent=2, ensure_ascii=False))
     return 0 if status.get("rotation_date_known") else 2
+
+
+def cmd_probe_token(result: dict) -> int:
+    """--probe-token: СОСТОЯНИЕ ключа по ответу GitHub. 0=принят · 1=отклонён · 2=НЕ ИЗМЕРЕНО.
+
+    Код 2 у «не измерено» — конвенция репозитория и здесь особенно важна: сеть
+    недоступна и ключ мёртв обязаны выглядеть РАЗНО, иначе первое молча закроет
+    тревогу о втором.
+    """
+    liveness = result.get("liveness")
+    service = result.get("service", KEYCHAIN_SERVICE)
+
+    if liveness == TOKEN_ALIVE:
+        declared = result.get("declared_expiration") or "сервисом не объявлен"
+        print(f"✅  ключ `{service}` ПРИНЯТ GitHub (HTTP {result.get('http_status')})")
+        print(f"    Срок, объявленный сервисом: {declared}")
+        if result.get("record_vs_declared") == "differs":
+            print(f"⚠️   {result.get('record_vs_declared_detail')}")
+        return 0
+
+    if liveness == TOKEN_REJECTED:
+        print("⛔️  ДОСТАВКА ОСТАНОВЛЕНА: GitHub не принимает ключ")
+        print()
+        print(f"    Причина: {result.get('reason')}")
+        print()
+        _print_checklist(KEYCHAIN_SERVICE)
+        return 1
+
+    print("❓  СОСТОЯНИЕ КЛЮЧА НЕ ИЗМЕРЕНО — это отказ, а не «ключ в порядке»")
+    print()
+    print(f"    Причина: {result.get('reason')}")
+    return 2
 
 
 def cmd_mark_rotated(now: date = None, state_file: Path = None,
@@ -487,6 +735,13 @@ Examples:
         help="Вывести JSON-статус",
     )
     group.add_argument(
+        "--probe-token",
+        action="store_true",
+        dest="probe_token",
+        help=("Спросить у GitHub СОСТОЯНИЕ ключа: 0=принят, 1=отклонён, "
+              "2=НЕ ИЗМЕРЕНО (это другой вопрос, чем календарь ротации)"),
+    )
+    group.add_argument(
         "--mark-rotated",
         action="store_true",
         dest="mark_rotated",
@@ -506,6 +761,12 @@ Examples:
 
     state = _load_state()
     status = _compute_status(state)
+
+    if args.probe_token:
+        # Записанный срок передаётся ТОЛЬКО как второй операнд сравнения: вердикт о
+        # состоянии ключа от него не зависит ни в одну сторону.
+        return cmd_probe_token(probe_token_liveness(
+            recorded_next_rotation=status.get("next_rotation")))
 
 
     if args.check:

@@ -986,6 +986,11 @@ class SystemHealthMonitor:
         # видно, что зелёный drift ничего не говорит о способности стартовать.
         out.append(self._probe_deployment_acceptance(D))
         out.append(self._check_pat_rotation(D))
+        # Соседство намеренное и оно же — урок 24.11 (ADR-1094): выше спрашивают
+        # КАЛЕНДАРЬ («прошло ли 90 дней от нашей записи»), ниже — СОСТОЯНИЕ («принимает
+        # ли GitHub наш ключ прямо сейчас»). Зелёный ответ на первый вопрос не говорит
+        # о втором ничего: 24.11 записанная дата совпала со смертью ключа случайно.
+        out.append(self._check_pat_token_alive(D))
         return out
 
     def _check_pat_rotation(self, D: str) -> CheckResult:
@@ -1000,19 +1005,16 @@ class SystemHealthMonitor:
         an unmeasured rotation date must never read as a healthy one.
         """
         name = "d5.security.pat_rotation"
-        try:
-            import importlib.util
-            spec = importlib.util.spec_from_file_location(
-                "_pat_rotation_helper_probe",
-                str(self.project_root / "scripts" / "pat_rotation_helper.py"),
-            )
-            prh = importlib.util.module_from_spec(spec)
-            spec.loader.exec_module(prh)
-        except Exception as exc:  # noqa: BLE001
+        # Дверь к стражу ОДНА на оба вопроса о ключе (`_load_pat_guard`): своя копия
+        # ввоза у каждого означала бы, что календарный и состоянческий вердикты могут
+        # прийти из РАЗНЫХ деревьев, и расхождение деревьев читалось бы как
+        # расхождение о ключе.
+        prh, load_err = self._load_pat_guard()
+        if prh is None:
             return CheckResult(name, D, WARNING,
                                "PAT rotation guard unavailable in this checkout — "
                                "rotation date is UNVERIFIED",
-                               error="{}: {}".format(type(exc).__name__, exc))
+                               error=load_err)
         try:
             status = prh._compute_status(prh._load_state())
         except Exception as exc:  # noqa: BLE001 — a probe never breaks the monitor
@@ -1028,6 +1030,24 @@ class SystemHealthMonitor:
         if status["is_overdue"]:
             return CheckResult(name, D, CRITICAL,
                                f"PAT rotation overdue since {status['next_rotation']}")
+        # Лестница сдвинута ADR-1094. До 24.11 CRITICAL начинался ТОЛЬКО с `is_overdue`,
+        # то есть на СЛЕДУЮЩИЙ день после срока: в день смерти ключа этот сторож сказал
+        # `WARNING … (0 days)` — девятым предупреждением из девяти, и доставка встала
+        # через 45 минут. Авария обязана наступать ДО остановки, а не после.
+        window = status.get("is_critical_window")
+        if window is None:
+            # Ключа нет ⇒ сдвиг лестницы НЕ ИЗМЕРЕН этим деревом; молча вернуться к
+            # прежнему порогу значило бы снять ADR-1094 без единой строки об этом.
+            if status["needs_rotation_soon"]:
+                return CheckResult(name, D, WARNING,
+                                   f"PAT rotation due soon: {status['next_rotation']} "
+                                   f"({status['days_until_rotation']} days)",
+                                   error="is_critical_window отсутствует: сторож в этом "
+                                         "дереве старше ADR-1094, порог аварии НЕ ИЗМЕРЕН")
+        elif window:
+            return CheckResult(name, D, CRITICAL,
+                               f"PAT rotation due in {status['days_until_rotation']} days "
+                               f"({status['next_rotation']}) — delivery stops when it lapses")
         if status["needs_rotation_soon"]:
             return CheckResult(name, D, WARNING,
                                f"PAT rotation due soon: {status['next_rotation']} "
@@ -1035,6 +1055,91 @@ class SystemHealthMonitor:
         return CheckResult(name, D, OK,
                            f"PAT rotation OK — next due {status['next_rotation']} "
                            f"({status['days_until_rotation']} days)")
+
+    def _check_pat_token_alive(self, D: str) -> CheckResult:
+        """Does GitHub still ACCEPT the key that pushes our code? (2026-11-24, ADR-1094)
+
+        A different question from ``_check_pat_rotation`` above, and the difference is
+        the whole point. On 2026-11-24 the single ``GITHUB_PAT_SPA`` died, every road to
+        origin closed, and the rotation guard — in the very build taken 45 minutes
+        earlier — said ``WARNING "PAT rotation due soon: 2026-11-24 (0 days)"``. It was
+        right about its own question and silent about this one: the recorded due date
+        matched the death by coincidence, and nothing in this repository had ever asked
+        GitHub for the token's actual state (ADR-1093).
+
+        Three outcomes, never collapsed (invariant #17):
+          · rejected  — the service refuses the key ⇒ CRITICAL, delivery is stopped;
+          · unmeasured — no key in the keychain, no network, or an answer that is
+            neither acceptance nor refusal ⇒ WARNING with the named reason. Never OK:
+            "not measured" must not read as "the key is fine";
+          · alive     — OK, and the expiration the SERVICE declares is reported, because
+            that is the real deadline; ours is a note we wrote ourselves.
+        """
+        name = "d5.security.pat_token_alive"
+        prh, err = self._load_pat_guard()
+        if prh is None:
+            return CheckResult(name, D, WARNING,
+                               "PAT guard unavailable in this checkout — whether GitHub "
+                               "still accepts the delivery key is UNMEASURED",
+                               error=err)
+        if not hasattr(prh, "probe_token_liveness"):
+            return CheckResult(name, D, WARNING,
+                               "PAT guard in this checkout cannot ask GitHub about the "
+                               "key (pre-ADR-1094) — token state is UNMEASURED",
+                               error="scripts/pat_rotation_helper.probe_token_liveness отсутствует")
+        try:
+            status = prh._compute_status(prh._load_state())
+            result = prh.probe_token_liveness(
+                recorded_next_rotation=status.get("next_rotation"))
+        except Exception as exc:  # noqa: BLE001 — a probe never breaks the monitor
+            return CheckResult(name, D, WARNING,
+                               "PAT token probe raised — token state is UNMEASURED",
+                               error="{}: {}".format(type(exc).__name__, exc))
+
+        liveness = result.get("liveness")
+        evidence = {k: v for k, v in result.items() if k != "reason"}
+
+        if liveness == getattr(prh, "TOKEN_REJECTED", "rejected"):
+            return CheckResult(name, D, CRITICAL,
+                               "GitHub REJECTS the delivery key — no push, no site "
+                               "publish, no CI run until it is replaced",
+                               value=liveness, expected="alive",
+                               evidence=evidence, error=result.get("reason"))
+        if liveness == getattr(prh, "TOKEN_ALIVE", "alive"):
+            declared = result.get("declared_expiration") or "not declared by the service"
+            title = f"GitHub accepts the delivery key — service-declared expiry {declared}"
+            if result.get("record_vs_declared") == "differs":
+                # Расхождение записи с объявленным сроком — САМОСТОЯТЕЛЬНАЯ находка:
+                # наш календарь считает не про этот ключ. Тихо переписать запись
+                # значило бы стереть единственный след этого.
+                return CheckResult(name, D, WARNING, title + " — but our recorded date "
+                                   "disagrees with it", value=liveness,
+                                   evidence=evidence,
+                                   error=result.get("record_vs_declared_detail"))
+            return CheckResult(name, D, OK, title, value=liveness, evidence=evidence)
+        return CheckResult(name, D, WARNING,
+                           "Whether GitHub accepts the delivery key is UNMEASURED",
+                           value=liveness, expected="alive",
+                           evidence=evidence, error=result.get("reason"))
+
+    def _load_pat_guard(self):
+        """Ввозит `scripts/pat_rotation_helper.py` ИЗ ТОГО ЖЕ дерева. ``(mod|None, err)``.
+
+        Одна дверь на оба вопроса о ключе: разойдись они — один сторож судил бы по
+        одному сторожу, второй по другому, и расхождение деревьев читалось бы как
+        расхождение вердиктов.
+        """
+        try:
+            import importlib.util
+            spec = importlib.util.spec_from_file_location(
+                "_pat_rotation_helper_probe",
+                str(self.project_root / "scripts" / "pat_rotation_helper.py"),
+            )
+            prh = importlib.util.module_from_spec(spec)
+            spec.loader.exec_module(prh)
+            return prh, None
+        except Exception as exc:  # noqa: BLE001
+            return None, "{}: {}".format(type(exc).__name__, exc)
 
     def _probe_deployment_drift(self, D: str) -> CheckResult:
         """Is the code running here the code that was delivered? (2026-08-03)

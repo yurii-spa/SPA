@@ -21923,7 +21923,245 @@ def _probe_llm_watchdog_asks_one_ast_door(
         "нарушений; на чистом дереве вердикт называет дверь, которая решила")
 
 
+def _probe_pat_token_state_is_asked_of_github(arg: str | None) -> tuple[str, str]:
+    """Критерий: сторож ключа доставки спрашивает о СОСТОЯНИИ ключа у GitHub, а не о
+    календаре у собственной записи, — и отклонённый ключ доезжает до АВАРИИ и до
+    карточки (ADR-1094, карточка `inbox-strazh-sroka-klyucha-ne-sprashivaet-github`,
+    авария ADR-1093 от 24.11).
+
+    Проба мерит ИСХОД живых функций, а не наличие имён, и у неё ПЯТЬ замеров:
+
+    1. **положительный контроль дословной аварии 24.11** — сцена «GitHub отвечает
+       401» обязана дать `rejected`. Это ровно то состояние, в котором 24.11
+       встала доставка, а сторож сказал `WARNING … (0 days)`;
+    2. **обратная сторона** — сцена «GitHub отвечает 200» обязана дать `alive`.
+       Без неё критерий был бы выполнен и у сторожа, который кричит ВСЕГДА;
+    3. **три исхода РАЗЛИЧИМЫ** (инв. #17) — «ключа в связке нет», «сеть не
+       ответила» и «ответ ни принятие, ни отказ» обязаны дать `unmeasured` с
+       РАЗНЫМИ названными причинами, и ни одна не похожа на вердикт из пп. 1–2.
+       Склеенные исходы и есть fail-OPEN, который тише красного теста;
+    4. **проводка в сторожа здоровья** — НАСТОЯЩИЙ `_check_pat_token_alive`,
+       поднятый на дереве-сцене, обязан дать `CRITICAL` на 401, `OK` на 200 и
+       `WARNING` на «не измерено». Двери к связке и к сети подменяются НА КРАЮ
+       (в самом файле стража внутри сцены), поэтому мерится настоящая цепочка;
+    5. **дорога до карточки** — НАСТОЯЩИЙ `problem_store` на документе с этой
+       проверкой в `CRITICAL` обязан дать СВОЮ запись `pat_token_rejected`
+       (а не растворить её в свёрнутой `domains_degraded`), и `update_store`
+       обязан довести её до `OPEN` с событием, по которому заводится карточка.
+
+    Подстрокой проба НЕ проходит (ADR-333): все пять замеров — исходы живых
+    вызовов. Третий исход СВОЙ: сторож/монитор/`problem_store` не ввозятся или
+    сцену не удалось собрать ⇒ `UNMEASURED`, а не «не выполнено».
+    """
+    import importlib.util as _ilu
+    import os as _os
+    import shutil as _shutil
+    import sys as _sys
+    import tempfile as _tf
+    from datetime import datetime as _dt
+    from datetime import timezone as _tz
+    from pathlib import Path as _Path
+
+    root = _Path(__file__).resolve().parents[2]
+    guard_src = root / "scripts" / "pat_rotation_helper.py"
+    if not guard_src.exists():
+        return UNMEASURED, f"стража нет по пути {guard_src} — мерить не на чем"
+
+    def _load(path: _Path, name: str):
+        spec = _ilu.spec_from_file_location(name, str(path))
+        mod = _ilu.module_from_spec(spec)
+        _sys.modules[name] = mod
+        spec.loader.exec_module(mod)
+        return mod
+
+    try:
+        prh = _load(guard_src, "_probe_prh_state")
+    except Exception as exc:  # noqa: BLE001
+        return UNMEASURED, f"страж не ввозится: {type(exc).__name__}: {exc}"
+    if not hasattr(prh, "probe_token_liveness"):
+        return NOT_SATISFIED, (
+            "у стража нет наблюдения о СОСТОЯНИИ ключа "
+            "(`probe_token_liveness`): он по-прежнему считает дни от даты, "
+            "которую мы сами записали, и GitHub не спрашивает ни разу")
+
+    # ── 1-3. исходы самого наблюдения ────────────────────────────────────────
+    def _reader_ok(_service):
+        return "ghp_scene_not_a_real_token", None
+
+    def _reader_absent(_service):
+        return None, "в связке ключей нет записи с именем сервиса"
+
+    def _door(status, headers=None):
+        def _probe(_token, _timeout=None):
+            return status, (headers or {}), None
+        return _probe
+
+    def _door_dead(_token, _timeout=None):
+        return None, {}, "сеть не ответила (URLError) — состояние ключа НЕ ИЗМЕРЕНО"
+
+    said: dict[str, dict] = {}
+    try:
+        said["rejected"] = prh.probe_token_liveness(
+            secret_reader=_reader_ok, http_probe=_door(401))
+        said["alive"] = prh.probe_token_liveness(
+            secret_reader=_reader_ok,
+            http_probe=_door(200, {"github-authentication-token-expiration":
+                                   "2027-02-22 19:48:26 UTC"}))
+        said["no_key"] = prh.probe_token_liveness(
+            secret_reader=_reader_absent, http_probe=_door(200))
+        said["no_net"] = prh.probe_token_liveness(
+            secret_reader=_reader_ok, http_probe=_door_dead)
+        said["odd"] = prh.probe_token_liveness(
+            secret_reader=_reader_ok, http_probe=_door(503))
+    except Exception as exc:  # noqa: BLE001
+        return UNMEASURED, f"сцену наблюдения собрать не удалось: {type(exc).__name__}: {exc}"
+
+    if said["rejected"].get("liveness") != "rejected":
+        return NOT_SATISFIED, (
+            "сцена дословной аварии 24.11 (GitHub отвечает 401) НЕ даёт `rejected`: "
+            f"{said['rejected'].get('liveness')!r} — мёртвый ключ снова неотличим "
+            "от живого")
+    if said["alive"].get("liveness") != "alive":
+        return NOT_SATISFIED, (
+            "обратная сторона порвана: GitHub отвечает 200, а сторож говорит "
+            f"{said['alive'].get('liveness')!r} — сторож, кричащий всегда, "
+            "наблюдением не является")
+    if said["alive"].get("declared_expiration") != "2027-02-22":
+        return NOT_SATISFIED, (
+            "срок, ОБЪЯВЛЕННЫЙ сервисом, не прочитан "
+            f"({said['alive'].get('declared_expiration')!r}): остаётся только наша "
+            "собственная запись, то есть прежний дефект")
+    for scene in ("no_key", "no_net", "odd"):
+        if said[scene].get("liveness") != "unmeasured":
+            return NOT_SATISFIED, (
+                f"сцена `{scene}` даёт {said[scene].get('liveness')!r} вместо "
+                "`unmeasured` — отсутствие наблюдения выдаётся за наблюдение "
+                "(инв. #17)")
+    reasons = {scene: (said[scene].get("reason") or "") for scene in ("no_key", "no_net", "odd")}
+    if len(set(reasons.values())) != 3 or any(not r for r in reasons.values()):
+        return NOT_SATISFIED, (
+            "три причины «не измерено» не различимы между собой: "
+            f"{reasons} — читатель не узнает, чего именно не хватило")
+
+    # ── 4. проводка в сторожа здоровья, на дереве-сцене ──────────────────────
+    try:
+        from spa_core.monitoring.system_health_monitor import SystemHealthMonitor
+    except Exception as exc:  # noqa: BLE001
+        return UNMEASURED, f"сторож здоровья не ввозится: {type(exc).__name__}: {exc}"
+
+    override = '''
+
+# ── подмена ДВЕРЕЙ наружу внутри сцены пробы ─────────────────────────────────
+import os as _probe_os
+
+
+def _read_keychain_secret(service, runner=None):  # noqa: F811
+    if _probe_os.environ.get("SPA_PROBE_PAT_SCENE") == "no_key":
+        return None, "в связке ключей нет записи с именем сервиса"
+    return "scene_token_not_a_real_secret", None
+
+
+def _github_identity_probe(token, timeout=None):  # noqa: F811
+    scene = _probe_os.environ.get("SPA_PROBE_PAT_SCENE")
+    if scene == "alive":
+        return 200, {"github-authentication-token-expiration": "2027-02-22 19:48:26 UTC"}, None
+    if scene == "rejected":
+        return 401, {}, None
+    return None, {}, "сеть не ответила (сцена пробы)"
+'''
+    verdicts: dict[str, str] = {}
+    previous = _os.environ.get("SPA_PROBE_PAT_SCENE")
+    try:
+        with _tf.TemporaryDirectory(prefix="probe_pat_state_") as td:
+            scene_root = _Path(td)
+            (scene_root / "scripts").mkdir(parents=True)
+            _shutil.copy2(guard_src, scene_root / "scripts" / "pat_rotation_helper.py")
+            with open(scene_root / "scripts" / "pat_rotation_helper.py", "a",
+                      encoding="utf-8") as fh:
+                fh.write(override)
+            (scene_root / "data").mkdir(parents=True)
+            monitor = SystemHealthMonitor(project_root=scene_root,
+                                          data_dir=str(scene_root / "data"))
+            for scene in ("rejected", "alive", "no_key"):
+                _os.environ["SPA_PROBE_PAT_SCENE"] = scene
+                verdicts[scene] = monitor._check_pat_token_alive("d5_code_integrity").status
+    except AttributeError as exc:
+        return NOT_SATISFIED, (
+            "у сторожа здоровья нет проверки состояния ключа "
+            f"(`_check_pat_token_alive`): {exc}")
+    except Exception as exc:  # noqa: BLE001
+        return UNMEASURED, f"дерево-сцену собрать не удалось: {type(exc).__name__}: {exc}"
+    finally:
+        if previous is None:
+            _os.environ.pop("SPA_PROBE_PAT_SCENE", None)
+        else:
+            _os.environ["SPA_PROBE_PAT_SCENE"] = previous
+
+    expected = {"rejected": "CRITICAL", "alive": "OK", "no_key": "WARNING"}
+    if verdicts != expected:
+        return NOT_SATISFIED, (
+            f"сторож здоровья отвечает {verdicts} вместо {expected}: отклонённый "
+            "ключ не становится аварией (либо исправный становится)")
+
+    # ── 5. дорога до карточки ────────────────────────────────────────────────
+    try:
+        from spa_core.monitoring import problem_store as _ps
+    except Exception as exc:  # noqa: BLE001
+        return UNMEASURED, f"problem_store не ввозится: {type(exc).__name__}: {exc}"
+
+    red = {"domains": {"d5_code_integrity": {"status": "CRITICAL"}},
+           "checks": [{"id": "d5.security.pat_token_alive", "status": "CRITICAL",
+                       "title": "GitHub REJECTS the delivery key",
+                       "error": "GitHub ответил 401"}]}
+    green = {"domains": {"d5_code_integrity": {"status": "WARNING"}},
+             "checks": [{"id": "d5.security.pat_token_alive", "status": "OK",
+                         "title": "GitHub accepts the delivery key"}]}
+    try:
+        red_causes = [c["cause_code"] for c in _ps._conditions_from_system_health(red)]
+        green_causes = [c["cause_code"] for c in _ps._conditions_from_system_health(green)]
+        conditions = [c for c in _ps._conditions_from_system_health(red)
+                      if c["cause_code"] == "pat_token_rejected"]
+    except Exception as exc:  # noqa: BLE001
+        return UNMEASURED, f"problem_store не ответил: {type(exc).__name__}: {exc}"
+
+    if "pat_token_rejected" not in red_causes:
+        return NOT_SATISFIED, (
+            "отклонённый ключ не рождает СВОЕЙ записи problem_store: причины "
+            f"{red_causes} — авария растворяется в свёрнутой `domains_degraded`, "
+            "которая открыта месяцами и новой карточки не заводит")
+    if "pat_token_rejected" in green_causes:
+        return NOT_SATISFIED, (
+            "запись `pat_token_rejected` появляется и при ПРИНЯТОМ ключе — "
+            "сторож, кричащий всегда, карточкой не управляет")
+
+    store: dict = {}
+    source_status = {_ps.SOURCE_SYSTEM_HEALTH: {"status": "measured"}}
+    try:
+        opened: list = []
+        for hour in (1, 2):
+            store, events = _ps.update_store(
+                store, conditions, source_status,
+                now=_dt(2026, 11, 24, hour, tzinfo=_tz.utc))
+            opened.extend(events)
+    except Exception as exc:  # noqa: BLE001
+        return UNMEASURED, f"update_store не ответил: {type(exc).__name__}: {exc}"
+
+    key = _ps.problem_key("system_health", "pat_token_rejected")
+    entry = (store.get("problems") or {}).get(key) or {}
+    if entry.get("status") != _ps.STATUS_OPEN or not any(e.key == key for e in opened):
+        return NOT_SATISFIED, (
+            f"запись `{key}` не доходит до OPEN с событием заведения карточки: "
+            f"статус {entry.get('status')!r}, событий {len(opened)}")
+
+    return SATISFIED, (
+        "состояние ключа СПРОШЕНО у GitHub: 401 ⇒ rejected ⇒ CRITICAL ⇒ своя Problem "
+        f"`{key}` ⇒ OPEN (карточка); 200 ⇒ alive ⇒ OK со сроком, объявленным сервисом "
+        "(2027-02-22); три причины «не измерено» различимы")
+
+
 PROBES: dict[str, Callable[[str | None], "tuple[str, str]"]] = {
+    "pat_token_state_is_asked_of_github":
+        _probe_pat_token_state_is_asked_of_github,
     "module_limit_bites_a_busy_module":
         _probe_module_limit_bites_a_busy_module,
     "owner_has_the_three_stop_organs":

@@ -311,8 +311,52 @@ def _conditions_from_system_health(doc: dict) -> list[dict]:
         return []
     sev = "CRITICAL" if any(st == "CRITICAL" for _, st in bad) else "WARNING"
     detail = "домены: " + ", ".join(f"{d} {st}" for d, st in sorted(bad))
-    return [{"agent": "system_health", "cause_code": "domains_degraded", "severity": sev,
-             "detail": detail, "source": SOURCE_SYSTEM_HEALTH}]
+    out = [{"agent": "system_health", "cause_code": "domains_degraded", "severity": sev,
+            "detail": detail, "source": SOURCE_SYSTEM_HEALTH}]
+    out.extend(_conditions_from_named_checks(doc))
+    return out
+
+
+#: Проверки, чей CRITICAL обязан стать СВОЕЙ Problem, а не растворяться в
+#: `domains_degraded`. Перечень ЗАМКНУТ и каждая строка в нём — названная авария, а не
+#: «на всякий случай»: поправка владельца к RM-TRUTH-01 («не создавать пятнадцать
+#: Problem, если семь — одна причина») остаётся в силе и именно поэтому исключение
+#: перечисляется поимённо.
+#:
+#: `d5.security.pat_token_alive` (ADR-1094) — ключ доставки отклонён сервисом. 24.11
+#: этот род уже стои́л дня: доставка встала, а голосом об этом было девятое
+#: предупреждение из девяти внутри ОДНОЙ свёрнутой записи `domains_degraded`, которая
+#: к тому моменту была открыта месяцами и ни одной новой карточки не рождала. Авария,
+#: которую нельзя отличить от соседа, действием не является.
+NAMED_CHECK_CAUSES: dict[str, str] = {
+    "d5.security.pat_token_alive": "pat_token_rejected",
+}
+
+
+def _conditions_from_named_checks(doc: dict) -> list[dict]:
+    """CRITICAL у поимённо названной проверки — ОТДЕЛЬНАЯ Problem со своим ключом.
+
+    Читается `checks[]` (список вердиктов по проверкам), а НЕ `domains{}`: домен несёт
+    худший статус из своих проверок, и по нему нельзя сказать, какая именно
+    покраснела. Нет `checks` / не список / проверки нет в списке ⇒ условия нет, и это
+    НЕ «ключ в порядке»: отсутствие условия означает лишь, что о нём не наблюдали, а
+    судит о состоянии ключа свой сторож.
+    """
+    checks = observed(doc, "checks", kind=list)
+    if not checks:
+        return []
+    out: list[dict] = []
+    for check in checks:
+        if not isinstance(check, dict):
+            continue
+        cause = NAMED_CHECK_CAUSES.get(str(check.get("id")))
+        if cause is None or check.get("status") != "CRITICAL":
+            continue
+        detail = str(check.get("error") or check.get("title") or check.get("id"))
+        out.append({"agent": "system_health", "cause_code": cause,
+                    "severity": "CRITICAL", "detail": detail,
+                    "source": SOURCE_SYSTEM_HEALTH})
+    return out
 
 
 #: Коды `site_freshness`, которые суть ОДИН корень — «публичная витрина отстала от канона».
