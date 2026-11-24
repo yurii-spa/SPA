@@ -1,0 +1,57 @@
+{
+ "title": "ADR-1086 HALFCLOCK — половина инъекции часов в контрактной сцене mission_control: `now` впрыснут, а отметка наблюдения из mtime файла осталась на стенных часах (G1071 п. 1, регрессия #1231/ADR-1085, прогон 45345362170). Оси: пин отметки существует · пин смотрит в прошлое от якоря · пин ставит ИМЕННО mtime · контроль читает ЗНАК разрыва · контроль читает ТО население, о котором судит · носитель класса назван по имени · независимость контроля от понижающей ветки продукции",
+ "tests": [
+  "spa_core/tests/test_mission_control_contract.py",
+  "spa_core/tests/test_mission_control_future_stamp.py"
+ ],
+ "mutations": [
+  {
+   "name": "M01 пин снят — отметка архива снова уезжает с календарём (дословно состояние 24.11)",
+   "file": "spa_core/tests/test_mission_control_contract.py",
+   "old": "    _stamp(arch, NOW - timedelta(minutes=10))",
+   "new": "    pass  # пин снят мутацией"
+  },
+  {
+   "name": "M02 пин смотрит В БУДУЩЕЕ дальше допуска — тот же класс, только нарочно",
+   "file": "spa_core/tests/test_mission_control_contract.py",
+   "old": "    _stamp(arch, NOW - timedelta(minutes=10))",
+   "new": "    _stamp(arch, NOW + timedelta(days=1))"
+  },
+  {
+   "name": "M03 `_stamp` ничего не ставит — пин есть на вид, а отметка прежняя",
+   "file": "spa_core/tests/test_mission_control_contract.py",
+   "old": "    os.utime(p, (at.timestamp(), at.timestamp()))",
+   "new": "    pass  # пин выпотрошен мутацией"
+  },
+  {
+   "name": "M04 `_stamp` ставит только atime — mtime (а его и читает модель) остаётся на стенных часах",
+   "file": "spa_core/tests/test_mission_control_contract.py",
+   "old": "    os.utime(p, (at.timestamp(), at.timestamp()))",
+   "new": "    os.utime(p, (at.timestamp(), os.stat(p).st_mtime))"
+  },
+  {
+   "name": "M05 контроль потерял ЗНАК разрыва — спрашивает давность вместо будущего",
+   "file": "spa_core/tests/test_mission_control_contract.py",
+   "old": "    ahead = [(path, age) for path, age in aged if -age > mc.FUTURE_SKEW_MINUTES]",
+   "new": "    ahead = [(path, age) for path, age in aged if age > mc.FUTURE_SKEW_MINUTES]"
+  },
+  {
+   "name": "M06 контроль судит НЕ ТО население — берёт секции БЕЗ возраста, то есть вердикт пуст по построению",
+   "file": "spa_core/tests/test_mission_control_contract.py",
+   "old": "    aged = [(path, meta[\"age_min\"]) for path, meta in _walk_metas(m) if meta[\"age_min\"] is not None]",
+   "new": "    aged = [(path, meta[\"age_min\"]) for path, meta in _walk_metas(m) if meta[\"age_min\"] is None]"
+  },
+  {
+   "name": "M07 носитель класса исчез из сцены — архив есть, но под именем, которого модель не ищет: контроль стал бы НЕМ",
+   "file": "spa_core/tests/test_mission_control_contract.py",
+   "old": "    arch = data / \"backups\" / \"spa_state_x.tar.gz\"",
+   "new": "    arch = data / \"backups\" / \"not_an_archive.bin\""
+  },
+  {
+   "name": "M08 понижающая ветка продукции вырвана — ловит её батарея ADR-1085, а НЕ этот контроль (он читает возраст, а не состояние)",
+   "file": "spa_core/studio_os/mission_control.py",
+   "old": "and age is not None and -age > FUTURE_SKEW_MINUTES",
+   "new": "and age is not None and False"
+  }
+ ]
+}

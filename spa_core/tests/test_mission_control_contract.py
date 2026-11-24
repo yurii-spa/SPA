@@ -54,6 +54,20 @@ def _w(p: Path, obj):
     p.write_text(json.dumps(obj), encoding="utf-8")
 
 
+def _stamp(p: Path, at: datetime) -> Path:
+    """Поставить файлу отметку времени ОТ ЯКОРЯ СЦЕНЫ, а не от стенных часов (ADR-1086).
+
+    Каждая текстовая отметка этой сцены пишется как `NOW - delta`, но одна сторона
+    сравнения в модель приходит НЕ текстом: возраст последнего резерва
+    `mission_control` берёт из `mtime` файла архива. Оставить его на календаре
+    машины значило бы оставить ПОЛОВИНУ инъекции — ровно тот класс, который
+    `.claude/rules/deployment.md` § «Время в тестах» (приём №1) и § «ЛИЧНОСТЬ
+    ПРОЦЕССА» («половина инъекции — та же бомба») называют по имени.
+    """
+    os.utime(p, (at.timestamp(), at.timestamp()))
+    return p
+
+
 def _scene(tmp_path: Path, *, resources="OK", res_age_min=4, kill=False, mode="read_only_simulation"):
     repo, mirror = tmp_path / "prod", tmp_path / "mirror"
     ptr, otr = repo / "nimbalyst-local" / "tracker", mirror / "nimbalyst-local" / "tracker"
@@ -102,7 +116,12 @@ def _scene(tmp_path: Path, *, resources="OK", res_age_min=4, kill=False, mode="r
     _w(data / "resilience_status.json", {"restore_drill": {"all_ok": True, "stale": False, "never_run": False,
                                                            "last_ts": NOW.strftime(ISO)}})
     (data / "backups").mkdir(parents=True, exist_ok=True)
-    (data / "backups" / "spa_state_x.tar.gz").write_bytes(b"x")
+    arch = data / "backups" / "spa_state_x.tar.gz"
+    arch.write_bytes(b"x")
+    # Отметка архива — ЕДИНСТВЕННОЕ наблюдение сцены, приходящее из файловой системы;
+    # 10 минут позади якоря держат её внутри и допуска «из будущего» (10 мин), и срока
+    # свежести резерва (1800 мин), то есть сцена остаётся здоровой по ОБЕИМ границам.
+    _stamp(arch, NOW - timedelta(minutes=10))
     return SimpleNamespace(repo=repo, mirror=mirror, data=data, kill=kill)
 
 
@@ -177,6 +196,33 @@ def test_colour_follows_health_only(tmp_path):
         assert meta["colour"] == mc.COLOUR[meta["state"]], path
     assert m["capital"]["packages"]["status_colour_is_not_a_risk_grade"] is True
     assert "never profit" in m["vocabulary"]["colour_rule"]
+
+
+def test_no_observation_of_the_scene_stands_ahead_of_the_injected_clock(tmp_path):
+    """Инъекция часов обязана доходить до КАЖДОЙ стороны сравнения (ADR-1086).
+
+    Положительный контроль класса «половина инъекции» внутри ЭТОЙ сцены. Пока
+    отрицательный возраст читался как свежесть (до ADR-1085), незакреплённая
+    отметка из файловой системы была НЕВИДИМА: сцена зеленела, а сравнение
+    «возраст > порога» на отрицательном возрасте ложно всегда. 24.11 исход стал
+    третьим — и девять проверок этого файла покраснели от КАЛЕНДАРЯ при
+    неизменном коде (прогон `45345362170`, чистая база `dbe455eca` — 81 passed).
+
+    Контроль спрашивает не «зелено ли сегодня», а «закреплены ли ОБЕ стороны»:
+    любая новая отметка сцены, уехавшая на стенные часы, встанет впереди якоря
+    на расстояние календаря и будет названа здесь по пути секции. И он
+    объявляет СВОЁ население: вердикт «впереди никого» без числа наблюдений
+    неотличим от «наблюдений не нашлось» (инв. #17).
+    """
+    m = _build(_scene(tmp_path))
+    aged = [(path, meta["age_min"]) for path, meta in _walk_metas(m) if meta["age_min"] is not None]
+    assert len(aged) >= 10, f"население вердикта слишком мало, чтобы вердикт что-то значил: {aged}"
+    ahead = [(path, age) for path, age in aged if -age > mc.FUTURE_SKEW_MINUTES]
+    assert not ahead, ("отметка наблюдения стои́т впереди ВПРЫСНУТЫХ часов дальше допуска "
+                       f"{mc.FUTURE_SKEW_MINUTES:g} мин — закреплён `now`, но не сама отметка: {ahead}")
+    assert m["system"]["backups"]["_meta"]["age_min"] is not None, (
+        "носитель класса в этой сцене — возраст последнего архива, и он берётся из `mtime` "
+        "файла; исчезни архив, контроль стал бы нем, поэтому носитель назван здесь по имени")
 
 
 def test_healthy_scene_is_healthy(tmp_path):
