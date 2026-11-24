@@ -102,7 +102,22 @@ if str(_REPO_ROOT) not in sys.path:
 AUDIT_MODULE_PATH = Path("spa_core/analytics/architecture_audit.py")
 
 #: Исходы классификации правила. Порядок — от нормы к находке.
-VERDICTS = ("DOOR_PLACE", "DOOR_NAME", "OWN_FORM", "NO_QUESTION", "UNMEASURED")
+#:
+#: ``DECLARED_ABSENT`` добавлен 2026-11-24 (ADR-1091) и это УСИЛЕНИЕ, а не
+#: послабление: прежде «правило объявлено и не реализовано» и «правило
+#: объявлено, не реализовано И долг НАЗВАН с причиной» давали один исход
+#: ``UNMEASURED``, то есть перепись не умела отличить молчаливую дыру от
+#: признанного долга. Молчаливая дыра по-прежнему даёт ``UNMEASURED`` и код 3;
+#: ``DECLARED_ABSENT`` требует ОБЪЯВЛЕНИЯ в ``RULE_NOT_IMPLEMENTED`` аудита И
+#: непустой причины при нём — объявление без причины остаётся ``UNMEASURED``.
+VERDICTS = (
+    "DOOR_PLACE",
+    "DOOR_NAME",
+    "OWN_FORM",
+    "NO_QUESTION",
+    "DECLARED_ABSENT",
+    "UNMEASURED",
+)
 
 #: Исходы вопроса «о чём отвечает дверь» — спрашиваются у ПОВЕДЕНИЯ.
 DOOR_FORMS = ("PLACE_AND_NAME", "PLACE_ONLY", "NAME_ONLY", "NEITHER", "UNMEASURED")
@@ -192,6 +207,46 @@ def rule_to_method(source: str) -> dict[str, str]:
             "ни одной пары «имя правила → метод» в модуле аудита не разобрано"
         )
     return pairs
+
+
+def declared_not_implemented(source: str) -> dict[str, str]:
+    """Правила, ОБЪЯВЛЕННЫЕ аудитом как не исполняемые, вместе с причиной.
+
+    Читается ``RULE_NOT_IMPLEMENTED`` по AST — объявление, а не догадка. Пункт
+    без причины (пустая строка, не-строковое значение) объявлением НЕ
+    считается: «названный долг» без имени причины неотличим от молчаливой
+    дыры, а именно их различение и есть предмет. Отсутствие самого словаря —
+    не ошибка: до ADR-1091 его не было вовсе, и тогда исход у правила без
+    метода остаётся ``UNMEASURED``.
+    """
+    tree = ast.parse(source)
+    for node in ast.walk(tree):
+        if not isinstance(node, (ast.Assign, ast.AnnAssign)):
+            continue
+        targets = node.targets if isinstance(node, ast.Assign) else [node.target]
+        names = {t.id for t in targets if isinstance(t, ast.Name)}
+        if "RULE_NOT_IMPLEMENTED" not in names:
+            continue
+        if not isinstance(node.value, ast.Dict):
+            raise NotMeasured(
+                "RULE_NOT_IMPLEMENTED объявлен не словарём — состав не разобран"
+            )
+        # Имя `found`, а не `out`: сцена пробы ломает перепись заменой
+        # УНИКАЛЬНОГО якоря `        return out\n` в `declared_rules`, и второе
+        # такое же место сделало бы якорь неоднозначным — то есть сцена
+        # перестала бы строиться (ГРОМКИЙ отказ, но на ровном месте).
+        found: dict[str, str] = {}
+        for key, value in zip(node.value.keys, node.value.values):
+            if not (isinstance(key, ast.Constant) and isinstance(key.value, str)):
+                raise NotMeasured("в RULE_NOT_IMPLEMENTED есть не-строковый ключ")
+            try:
+                reason = ast.literal_eval(value)
+            except (ValueError, SyntaxError, TypeError):
+                reason = None
+            if isinstance(reason, str) and reason.strip():
+                found[key.value] = reason
+        return found
+    return {}
 
 
 def skip_tests_calls_in(source: str, method: str) -> int:
@@ -426,6 +481,7 @@ def run(repo_root: Path) -> Census:
 
     rules = declared_rules(source)
     pairs = rule_to_method(source)
+    not_implemented = declared_not_implemented(source)
 
     import importlib
 
@@ -443,16 +499,33 @@ def run(repo_root: Path) -> Census:
     for rule in rules:
         method = pairs.get(rule)
         if method is None:
-            census.rows.append(
-                RuleRow(
-                    rule=rule,
-                    verdict="UNMEASURED",
-                    reason=(
-                        "правило ОБЪЯВЛЕНО в AUDIT_RULES и НЕ РЕАЛИЗОВАНО: пары "
-                        "«имя → метод» у аудита нет, нарушение найти нечем"
-                    ),
+            declared_reason = not_implemented.get(rule)
+            if declared_reason:
+                census.rows.append(
+                    RuleRow(
+                        rule=rule,
+                        verdict="DECLARED_ABSENT",
+                        reason=(
+                            "правило ОБЪЯВЛЕНО не исполняемым в "
+                            "RULE_NOT_IMPLEMENTED, причина НАЗВАНА — долг "
+                            "названный, а не молчаливая дыра; двери «это "
+                            f"тест?» не задаёт вовсе. Причина: {declared_reason}"
+                        ),
+                    )
                 )
-            )
+            else:
+                census.rows.append(
+                    RuleRow(
+                        rule=rule,
+                        verdict="UNMEASURED",
+                        reason=(
+                            "правило ОБЪЯВЛЕНО в AUDIT_RULES и НЕ РЕАЛИЗОВАНО: "
+                            "пары «имя → метод» у аудита нет, и в "
+                            "RULE_NOT_IMPLEMENTED причина не названа — "
+                            "нарушение найти нечем и долг не назван"
+                        ),
+                    )
+                )
             continue
         try:
             calls = skip_tests_calls_in(source, method)
@@ -546,7 +619,10 @@ def format_report(census: Census) -> str:
             continue
         out.append(f"  {verdict}: {len(rows)}")
         for row in rows:
-            mark = "⚠️" if verdict in {"DOOR_NAME", "UNMEASURED"} else "·"
+            mark = (
+                "⚠️" if verdict in {"DOOR_NAME", "UNMEASURED"}
+                else ("⬜" if verdict == "DECLARED_ABSENT" else "·")
+            )
             out.append(f"     {mark} {row.rule} — {row.reason}")
 
     out.append("  НАСЕЛЕНИЕ (обе стороны лжи, считается отдельно от вердикта):")
@@ -591,6 +667,13 @@ def format_report(census: Census) -> str:
             f"= {len(census.misplaced_files)}, и «красен сегодня» мерой класса не является"
         )
 
+    declared_absent = [r for r in census.rows if r.verdict == "DECLARED_ABSENT"]
+    if declared_absent:
+        out.append(
+            f"  ⬜ НАЗВАННЫЙ ДОЛГ: {len(declared_absent)} правил(о/а) объявлены "
+            "НЕ исполняемыми с причиной — это третий исход (инв. #17), а не ноль "
+            "и не молчаливая дыра"
+        )
     if census.unmeasured:
         out.append(
             f"  ⚠️ НЕ ИЗМЕРЕНО: {len(census.unmeasured)} правил(о/а) — причина у каждого названа выше"

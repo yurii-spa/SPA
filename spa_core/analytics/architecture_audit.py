@@ -59,6 +59,53 @@ AUDIT_RULES = [
     "no_print_in_modules",  # use logging instead
 ]
 
+#: Правило, ОБЪЯВЛЕННОЕ в :data:`AUDIT_RULES` и намеренно НЕ исполняемое, —
+#: вместе с причиной. Это ТРЕТИЙ ИСХОД инварианта #17, а не ноль: до ADR-1091
+#: такое правило печаталось в отчёте «0 violation(s)» наравне с правилом,
+#: которое по дереву действительно прошло и ничего не нашло, — то есть «не
+#: измерено» было неотличимо от «измерено и равно нулю» (карточка
+#: `inbox-audit-obyavlyaet-sem-pravil-a-ispolnyaet`, заказ G1075 п. 4).
+#:
+#: Имя из :data:`AUDIT_RULES` снимать ЗАПРЕЩЕНО вместо объявления здесь:
+#: снятие стирает ВОПРОС, а объявление делает долг названным и читаемым
+#: машиной (перепись `scripts/test_membership_door_census.py`).
+RULE_NOT_IMPLEMENTED: dict[str, str] = {
+    "no_print_in_modules": (
+        "НЕ РЕАЛИЗОВАНО намеренно: замер 2026-11-24 по этому же дереву — "
+        "5548 зовов print() в 1176 из 2237 НЕ-тестовых модулей spa_core/ "
+        "(52,6 % модулей). print() в этом проекте есть ШТАТНАЯ форма отчёта "
+        "CLI: протокол цикла судит каждый обязательный шаг по НАПЕЧАТАННОЙ "
+        "строке вердикта, а инвариант #17 требует от производителя числа "
+        "печатать три различимых исхода. Правило «вместо print — logging» "
+        "половиной дерева не исполняется и никогда не исполнялось; "
+        "потолок на 5548 мог бы только УБЫВАТЬ (инв. #16) и тем давил бы "
+        "следующие сессии переписывать отчёты CLI в логи — изменение, "
+        "которого никто не заказывал и на котором стои́т протокол. "
+        "Перевод правила в исполняемое — решение владельца, не сессии; "
+        "ни один другой сторож дерева на этот вопрос тоже не отвечает "
+        "(замер: ни одного упоминания no_print вне этого модуля и его проб)."
+    ),
+}
+
+#: Исходы, в которых аудит докладывает о правиле. ТРИ, а не два (инв. #17).
+SEVERITIES: tuple[str, ...] = ("ERROR", "WARNING", "UNMEASURED")
+
+#: Каталог, о котором спрашивает правило ``no_llm_in_analytics``.
+#:
+#: ЗАМЕР 2026-11-24, ради которого правило и реализовано: обе существующие
+#: двери запрета LLM — ``find_forbidden_imports`` (импорт SDK) и
+#: ``find_llm_subprocess_launches`` (запуск бинаря подпроцессом) — живут в
+#: ``spa_core/ci/llm_forbidden_lint`` ОДНОЙ копией каждая, но перечни
+#: каталогов, которые их ЗОВУТ (``FORBIDDEN_DIRS`` там же и
+#: ``SCAN_DIRS_DEFAULT`` в ``scripts/lint_llm_forbidden.py``), называют
+#: risk · execution · monitoring · allocator · adapters · governance · tuner —
+#: и НЕ называют ``spa_core/analytics``. То есть вопрос «нет ли LLM в
+#: аналитике» не задавал НИКТО, и правило — не дубль, а единственный читатель
+#: этого поддерева. Копии самого правила здесь нет: обе двери ввозятся
+#: (разойдись копия с оригиналом — охранялись бы разные вопросы, ровно так
+#: два сторожа инварианта #3 и разошлись до ADR-291 §2).
+_LLM_SCAN_SUBDIR = "analytics"
+
 # Known third-party packages that must NOT appear in SPA runtime code.
 # Only well-known offenders are listed; ambiguous short names are excluded
 # to avoid false positives on local same-name modules.
@@ -200,7 +247,10 @@ class AuditViolation:
     file: str
     line: int
     message: str
-    severity: str  # "ERROR" or "WARNING"
+    #: Один из :data:`SEVERITIES`. ``"UNMEASURED"`` — третий исход инв. #17:
+    #: правило о ЭТОМ файле вопрос задать НЕ СМОГЛО (источник не разобран),
+    #: и это не «нарушение» и не «чисто».
+    severity: str
 
     def to_dict(self) -> dict:
         return asdict(self)
@@ -554,6 +604,120 @@ class ArchitectureAudit:
 
         return violations
 
+    def check_no_llm_in_analytics(self) -> List[AuditViolation]:
+        """Инвариант #3 для поддерева ``spa_core/analytics``: ни SDK, ни бинаря.
+
+        **Спрашивается ЗОВ и ИМПОРТ, а не ТЕКСТ.** Оба вопроса задаются
+        ЕДИНСТВЕННЫМИ дверями из ``spa_core.ci.llm_forbidden_lint`` —
+        :func:`find_forbidden_imports` (``import anthropic`` и родня, по AST) и
+        :func:`find_llm_subprocess_launches` (запуск бинаря ``claude``/``llm``/
+        ``ollama`` подпроцессом, по AST с потоком значения). Своей копии
+        правила здесь НЕТ намеренно: разойдись копия с оригиналом — два
+        сторожа одного инварианта охраняли бы РАЗНЫЕ вопросы, и ровно так они
+        уже расходились до ADR-291 §2 (дверь-SDK ловилась, дверь-запуск не
+        охранялась никем). Урок ADR-1088 тем же исполнен по построению: AST не
+        видит содержимое строковых литералов как импорт или зов, поэтому три
+        из семи «нарушений» того замера родиться здесь не могут.
+
+        **Почему правило не дубль, а единственный читатель.** Замер
+        2026-11-24: перечни каталогов, ЗОВУЩИЕ обе двери
+        (``llm_forbidden_lint.FORBIDDEN_DIRS`` и
+        ``scripts/lint_llm_forbidden.SCAN_DIRS_DEFAULT``), называют risk ·
+        execution · monitoring · allocator · adapters · governance · tuner и
+        НЕ называют ``spa_core/analytics``. Население поддерева на день
+        реализации — **0** нарушений по обеим дверям из 798 не-тестовых
+        файлов, то есть правило закрывает ЛАТЕНТНУЮ слепоту, а не гасит живое
+        нарушение (тот же род усиления, что ADR-958; инв. #16 про ослабление и
+        к этому не относится).
+
+        **Три исхода различимы (инв. #17).** Нарушение ⇒ ``ERROR``. Чисто ⇒
+        пустой список, и это «измерено и равно нулю». Источник не разобран
+        (``SyntaxError``) либо ввоз двери не удался ⇒ ``UNMEASURED`` с
+        названной причиной — НЕ ноль и НЕ нарушение. Каталога нет в дереве ⇒
+        тоже ``UNMEASURED``: «нечего смотреть» и «смотреть не стали»
+        неразличимы иначе.
+
+        Returns:
+            Список :class:`AuditViolation` с severity ``ERROR`` либо
+            ``UNMEASURED``.
+        """
+        rule = "no_llm_in_analytics"
+        violations: List[AuditViolation] = []
+
+        try:
+            from spa_core.ci.llm_forbidden_lint import (
+                find_forbidden_imports,
+                find_llm_subprocess_launches,
+            )
+        except Exception as exc:  # noqa: BLE001 — любая причина = «нечем спросить»
+            return [AuditViolation(
+                rule=rule,
+                file=str(self._base_dir / _LLM_SCAN_SUBDIR),
+                line=0,
+                message=(
+                    f"НЕ ИЗМЕРЕНО: дверь запрета LLM не ввезена "
+                    f"({type(exc).__name__}: {exc}) — это не «чисто»"
+                ),
+                severity="UNMEASURED",
+            )]
+
+        scan_root = self._base_dir / _LLM_SCAN_SUBDIR
+        if not scan_root.is_dir():
+            return [AuditViolation(
+                rule=rule,
+                file=self._rel(scan_root),
+                line=0,
+                message=(
+                    "НЕ ИЗМЕРЕНО: каталога нет в дереве — «нечего смотреть» "
+                    "не есть «смотрели и чисто»"
+                ),
+                severity="UNMEASURED",
+            )]
+
+        for fpath, _lines in self._iter_py_files(scan_root, skip_tests=True):
+            rel = self._rel(fpath)
+            try:
+                source = fpath.read_text(encoding="utf-8", errors="replace")
+            except OSError as exc:
+                violations.append(AuditViolation(
+                    rule=rule, file=rel, line=0,
+                    message=f"НЕ ИЗМЕРЕНО: файл не прочитан ({exc})",
+                    severity="UNMEASURED",
+                ))
+                continue
+            try:
+                imports = find_forbidden_imports(source, filename=rel)
+                launches = find_llm_subprocess_launches(source, filename=rel)
+            except SyntaxError as exc:
+                violations.append(AuditViolation(
+                    rule=rule, file=rel, line=getattr(exc, "lineno", 0) or 0,
+                    message=f"НЕ ИЗМЕРЕНО: источник не разобран ({exc.msg})",
+                    severity="UNMEASURED",
+                ))
+                continue
+
+            for viol in imports:
+                violations.append(AuditViolation(
+                    rule=rule, file=rel, line=viol.line,
+                    message=(
+                        "LLM SDK imported in spa_core/analytics: "
+                        f"{viol.module} — инвариант #3"
+                    ),
+                    severity="ERROR",
+                ))
+            for launch in launches:
+                violations.append(AuditViolation(
+                    rule=rule, file=rel, line=launch.line,
+                    message=(
+                        "LLM binary launched as a subprocess in "
+                        f"spa_core/analytics: {launch.binary} "
+                        f"via {launch.via} — инвариант #3"
+                    ),
+                    severity="ERROR",
+                ))
+
+        return violations
+
     def check_tests_use_unittest(self) -> List[AuditViolation]:
         """Verify that test files in tests/ use a recognized test framework.
 
@@ -646,8 +810,69 @@ class ArchitectureAudit:
 
     # ── Aggregate API ─────────────────────────────────────────────────────────
 
+    def rule_checks(self) -> List[tuple]:
+        """Пара «имя правила → исполняющий метод» — ОДНА копия на весь модуль.
+
+        До ADR-1091 копий было ДВЕ: список зовов в :meth:`run_all` и список
+        кортежей в :func:`main`. Разойдись они — отчёт печатал бы про правила,
+        которых прогон не делал, или наоборот; и именно расхождение этих двух
+        мест пряталось за «семь объявлено, пять исполнено». Перепись
+        ``scripts/test_membership_door_census.py`` читает пару ИМЕННО отсюда
+        (кортеж ``("имя", <что-то>.check_xxx)``), а не по совпадению имени
+        метода — имя метода объявлением не является (урок #1218).
+        """
+        return [
+            ("no_third_party_imports", self.check_no_third_party),
+            ("atomic_writes", self.check_atomic_writes),
+            ("no_llm_in_analytics", self.check_no_llm_in_analytics),
+            ("no_hardcoded_secrets", self.check_no_hardcoded_secrets),
+            ("adapters_have_research_flag", self.check_adapters_research_flag),
+            ("tests_use_unittest", self.check_tests_use_unittest),
+        ]
+
+    def rule_status(self) -> "dict[str, dict]":
+        """Статус КАЖДОГО объявленного правила — три различимых исхода (инв. #17).
+
+        * ``ENFORCED``         — у правила есть исполняющий метод;
+        * ``NOT_IMPLEMENTED``  — правило объявлено и намеренно не исполняется,
+          причина названа в :data:`RULE_NOT_IMPLEMENTED`;
+        * ``UNMEASURED``       — имя объявлено, метода нет И причины нет: это
+          МОЛЧАЛИВАЯ дыра, ровно та, из-за которой ADR-1091 и написан.
+
+        Fail-CLOSED: третий исход никогда не сводится к первым двум и никогда
+        не печатается нулём.
+        """
+        methods = dict(self.rule_checks())
+        out: "dict[str, dict]" = {}
+        for rule in AUDIT_RULES:
+            if rule in methods:
+                out[rule] = {"status": "ENFORCED", "reason": None}
+            elif rule in RULE_NOT_IMPLEMENTED:
+                out[rule] = {
+                    "status": "NOT_IMPLEMENTED",
+                    "reason": RULE_NOT_IMPLEMENTED[rule],
+                }
+            else:
+                out[rule] = {
+                    "status": "UNMEASURED",
+                    "reason": (
+                        "правило объявлено в AUDIT_RULES, исполняющего метода "
+                        "нет и причина не названа — вопрос «реализовано ли "
+                        "оно» задать НЕЧЕМ"
+                    ),
+                }
+        return out
+
+    def unmeasured_rules(self) -> List[str]:
+        """Имена правил, у которых долг НЕ НАЗВАН. Пусто — норма."""
+        return [r for r, row in self.rule_status().items()
+                if row["status"] == "UNMEASURED"]
+
     def run_all(self) -> List[AuditViolation]:
         """Run all audit checks and return a flat list of violations.
+
+        Проходит по ЕДИНСТВЕННОЙ двери :meth:`rule_checks`, поэтому «правило
+        объявлено, но не прогнано» перестаёт быть возможным молча.
 
         Results are also cached in self._violations for use by
         violation_count() and other methods.
@@ -656,11 +881,20 @@ class ArchitectureAudit:
             Combined list of AuditViolation from all checks.
         """
         all_violations: List[AuditViolation] = []
-        all_violations.extend(self.check_no_third_party())
-        all_violations.extend(self.check_atomic_writes())
-        all_violations.extend(self.check_no_hardcoded_secrets())
-        all_violations.extend(self.check_adapters_research_flag())
-        all_violations.extend(self.check_tests_use_unittest())
+        for _rule, check in self.rule_checks():
+            all_violations.extend(check())
+        for rule in self.unmeasured_rules():
+            all_violations.append(AuditViolation(
+                rule=rule,
+                file=self._rel(self._base_dir),
+                line=0,
+                message=(
+                    "НЕ ИЗМЕРЕНО: правило объявлено в AUDIT_RULES, метода нет "
+                    "и причина не названа в RULE_NOT_IMPLEMENTED — ноль в "
+                    "отчёте был бы неотличим от «прошли и чисто» (инв. #17)"
+                ),
+                severity="UNMEASURED",
+            ))
         self._violations = all_violations
         return all_violations
 
@@ -703,12 +937,19 @@ class ArchitectureAudit:
         out_path.parent.mkdir(parents=True, exist_ok=True)
 
         from datetime import datetime, timezone
+        unmeasured = [v for v in violations if v.severity == "UNMEASURED"]
         payload = {
             "generated_at": datetime.now(timezone.utc).isoformat(),
             "base_dir": str(self._base_dir),
-            "total_violations": len(violations),
+            # «нарушений» столько, сколько ИЗМЕРЕНО; «не измерено» —
+            # ОТДЕЛЬНОЕ значение, а не часть нуля (инв. #17).
+            "total_violations": len(violations) - len(unmeasured),
             "error_count": sum(1 for v in violations if v.severity == "ERROR"),
             "warning_count": sum(1 for v in violations if v.severity == "WARNING"),
+            "unmeasured_count": len(unmeasured),
+            # Статус КАЖДОГО объявленного правила — чтобы читатель артефакта
+            # мог отличить «прошло и чисто» от «не исполнялось вовсе».
+            "rules": self.rule_status(),
             "violations": [v.to_dict() for v in violations],
         }
 
@@ -733,16 +974,29 @@ class ArchitectureAudit:
             lines += [
                 "✅ **No violations found.** Codebase is compliant with RULES.md.",
                 "",
+                # Заголовок ОБЯЗАТЕЛЕН и в этой ветке: «нарушений нет» само по
+                # себе не говорит, какие правила вообще исполнялись, — а это и
+                # есть вопрос, из-за которого ADR-1091 написан.
+                "## Статус объявленных правил",
+                "",
+                "| Rule | Статус | Причина |",
+                "|------|--------|---------|",
             ]
+            for rule, row in self.rule_status().items():
+                reason = (row["reason"] or "—").replace("\n", " ")
+                lines.append(f"| `{rule}` | {row['status']} | {reason} |")
+            lines.append("")
             return "\n".join(lines)
 
-        # Group by severity
+        # Group by severity — ТРИ исхода, не два (инв. #17)
         errors = [v for v in violations if v.severity == "ERROR"]
         warnings = [v for v in violations if v.severity == "WARNING"]
+        unmeasured = [v for v in violations if v.severity == "UNMEASURED"]
 
         lines += [
-            f"**Total violations:** {len(violations)}  "
-            f"(**{len(errors)} ERROR**, {len(warnings)} WARNING)",
+            f"**Total violations:** {len(violations) - len(unmeasured)}  "
+            f"(**{len(errors)} ERROR**, {len(warnings)} WARNING)  "
+            f"· **НЕ ИЗМЕРЕНО: {len(unmeasured)}**",
             "",
             "## Violations",
             "",
@@ -768,6 +1022,20 @@ class ArchitectureAudit:
         ]
         for rule, count in sorted(rule_counts.items()):
             lines.append(f"| `{rule}` | {count} |")
+
+        # Статус КАЖДОГО объявленного правила. Правило, которое не исполнялось,
+        # в таблице выше просто ОТСУТСТВУЕТ — ровно так же, как правило,
+        # прошедшее по дереву без находок. Эта таблица их различает.
+        lines += [
+            "",
+            "## Статус объявленных правил",
+            "",
+            "| Rule | Статус | Причина |",
+            "|------|--------|---------|",
+        ]
+        for rule, row in self.rule_status().items():
+            reason = (row["reason"] or "—").replace("\n", " ")
+            lines.append(f"| `{rule}` | {row['status']} | {reason} |")
 
         return "\n".join(lines) + "\n"
 
@@ -817,27 +1085,41 @@ def main() -> None:
         print("  SPA Architecture Audit Report")
         print("=" * 60)
 
-        # Per-rule summary
-        checks = [
-            ("no_third_party_imports", audit.check_no_third_party),
-            ("atomic_writes", audit.check_atomic_writes),
-            ("no_hardcoded_secrets", audit.check_no_hardcoded_secrets),
-            ("adapters_have_research_flag", audit.check_adapters_research_flag),
-            ("tests_use_unittest", audit.check_tests_use_unittest),
-        ]
-
-        for rule_name, _ in checks:
-            rule_viols = [v for v in violations if v.rule == rule_name]
-            count = len(rule_viols)
-            icon = "✅" if count == 0 else "⚠️ "
-            print(f"  {icon}  {rule_name:<35} {count} violation(s)")
+        # Per-rule summary — по ОБЪЯВЛЕНИЮ (AUDIT_RULES), не по списку зовов.
+        # Нереализованное правило печатается СВОИМ значением, а не нулём:
+        # «не проверяли» и «проверили, чисто» до ADR-1091 давали одну строку.
+        statuses = audit.rule_status()
+        for rule_name in AUDIT_RULES:
+            row = statuses[rule_name]
+            if row["status"] == "ENFORCED":
+                rule_viols = [
+                    v for v in violations
+                    if v.rule == rule_name and v.severity != "UNMEASURED"
+                ]
+                unmeasured_here = [
+                    v for v in violations
+                    if v.rule == rule_name and v.severity == "UNMEASURED"
+                ]
+                count = len(rule_viols)
+                icon = "✅" if count == 0 else "⚠️ "
+                tail = (f"  (+{len(unmeasured_here)} НЕ ИЗМЕРЕНО)"
+                        if unmeasured_here else "")
+                print(f"  {icon}  {rule_name:<35} {count} violation(s){tail}")
+            elif row["status"] == "NOT_IMPLEMENTED":
+                print(f"  ⬜  {rule_name:<35} НЕ РЕАЛИЗОВАНО (объявлено, "
+                      f"причина названа)")
+            else:
+                print(f"  🚫  {rule_name:<35} НЕ ИЗМЕРЕНО: метода нет и "
+                      f"причина не названа")
 
         print("-" * 60)
         errors = sum(1 for v in violations if v.severity == "ERROR")
         warnings = sum(1 for v in violations if v.severity == "WARNING")
+        unmeasured = sum(1 for v in violations if v.severity == "UNMEASURED")
         print(
-            f"  TOTAL: {len(violations)} violation(s)"
+            f"  TOTAL: {len(violations) - unmeasured} violation(s)"
             f"  [{errors} ERROR, {warnings} WARNING]"
+            f"  · НЕ ИЗМЕРЕНО: {unmeasured}"
         )
         print()
 
@@ -867,6 +1149,20 @@ def main() -> None:
             except OSError:
                 pass
         print(f"Saved → {md_path}", flush=True)
+
+    # Код возврата: МОЛЧАЛИВАЯ дыра (имя объявлено, ни метода, ни причины) —
+    # это «НЕ ИЗМЕРЕНО», и выдавать её за успех нельзя (инв. #17). Объявленный
+    # НЕ РЕАЛИЗОВАННЫМ пункт кодом не краснит: он есть названный долг, а
+    # постоянный ненулевой код был бы так же бесполезен, как постоянный ноль.
+    silent = audit.unmeasured_rules()
+    if silent:
+        print(
+            "НЕ ИЗМЕРЕНО: у правил "
+            + ", ".join(silent)
+            + " нет ни метода, ни причины в RULE_NOT_IMPLEMENTED",
+            file=sys.stderr,
+        )
+        raise SystemExit(2)
 
 
 if __name__ == "__main__":

@@ -2,12 +2,16 @@
 trackerStatus:
   type: inbox
 title: "Аудит объявляет семь правил, а исполняет пять: два объявлены и не реализованы ВОВСЕ"
-status: new
+status: done
 source: nimbalyst
 created: 2026-11-24
 priority: high
 intake_kind: task
 twin_key: "sha256:0e022776f8524d5d706a47f8cde2e3b0bcab20a1851023057b5956112fd3ae7e"
+acceptance_probe: every_declared_audit_rule_is_answerable
+status_trail:
+  - "2026-11-24T17:05:00.646094+00:00 new -> in-progress · queue.set_status · cycle-93227"
+  - "2026-11-24T17:06:52.806517+00:00 in-progress -> done · queue.set_status/closed_by:цикл #1236 (orchestrator-93227)/evidence:ADR-1091. Проба every_declared_audit_rule_is_answerable = satisfied (объявлена ДО закрытия, контроль на 6 порванных звеньях + 2 третьих исхода: spa_core/tests/test_audit_rule_implementation.py, 20 pas · cycle-93227"
 ---
 
 ## Что случилось и почему это важно

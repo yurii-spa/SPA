@@ -21320,8 +21320,24 @@ def _probe_test_membership_is_asked_about_place_not_name(
     * дерево БЕЗ модуля аудита ⇒ третий исход `НЕ ИЗМЕРЕНО` с названной причиной
       (код 2), а не ноль (инв. #17);
     * правило, ОБЪЯВЛЕННОЕ в `AUDIT_RULES` и не реализованное, обязано быть
-      НАЗВАНО (код 3 ≠ код 0): два таких правила — `no_llm_in_analytics` и
-      `no_print_in_modules` — печатаются находкой, а не тихим нулём.
+      НАЗВАНО — и у «названо» теперь ДВЕ различимые формы (ADR-1091):
+      объявленный с ПРИЧИНОЙ долг (`DECLARED_ABSENT`, код 0) и МОЛЧАЛИВАЯ
+      дыра без причины (`UNMEASURED`, код 3). Порви второе звено — и
+      перепись перестанет отличать признанный долг от забытого имени.
+
+    **НАМЕРЕННОЕ изменение пинов этой пробы (инв. #16, цикл #1236, ADR-1091).**
+    Прежняя редакция пинила состояние, измеренное 24.11: «код живой сцены 3» и
+    «нереализованных правил ровно два — `no_llm_in_analytics` и
+    `no_print_in_modules`». Оба пина были ВЕРНЫ в тот день и перестали быть
+    верны ПОЧИНКОЙ, а не правкой теста: `no_llm_in_analytics` РЕАЛИЗОВАНО
+    (двумя существующими дверями `spa_core.ci.llm_forbidden_lint`, замер — 0
+    нарушений на 798 файлах `spa_core/analytics`, которых не охранял ни один
+    перечень каталогов), а `no_print_in_modules` ОБЪЯВЛЕНО не исполняемым с
+    причиной и замером (5548 зовов `print()` в 1176 из 2237 модулей).
+    Притязание пробы не ослаблено, а усилено: вместо одного исхода «назвали»
+    она теперь требует ДВУХ различимых и добавляет ЧЕТВЁРТУЮ сцену — дерево,
+    где объявление долга СНЯТО, обязано вернуть код 3. Обоснование — в
+    `docs/journal/2026-W48.md`, запись цикла #1236.
     """
     import json as _json
     import subprocess as _sp
@@ -21351,7 +21367,20 @@ def _probe_test_membership_is_asked_about_place_not_name(
         "        fh.write(body)\n"
     )
 
-    def _build(tree: "_pathlib.Path", *, name_only: bool, with_audit: bool = True) -> None:
+    # Как снять ОБЪЯВЛЕНИЕ долга, не тронув ничего другого: переименовывается
+    # КЛЮЧ словаря, поэтому перепись его не находит и правило без метода снова
+    # становится МОЛЧАЛИВОЙ дырой. Сам словарь переименовывать нельзя — модуль
+    # стал бы нерабочим (`NameError` в `rule_status`), и сцена мерила бы
+    # падение вместо предмета.
+    debt_anchor = '    "no_print_in_modules": ('
+    if audit_text.count(debt_anchor) != 1:
+        return UNMEASURED, (
+            "НЕ ИЗМЕРЕНО: якорь объявления долга встречается "
+            f"{audit_text.count(debt_anchor)} раз(а), а не один — снять "
+            "объявление нечем, и «сцена не построена» не есть «предмет пуст»")
+
+    def _build(tree: "_pathlib.Path", *, name_only: bool, with_audit: bool = True,
+               drop_debt: bool = False) -> None:
         (tree / "scripts").mkdir(parents=True)
         (tree / "spa_core" / "analytics").mkdir(parents=True)
         (tree / "spa_core" / "tests").mkdir(parents=True)
@@ -21368,6 +21397,9 @@ def _probe_test_membership_is_asked_about_place_not_name(
             body = audit_text
             if name_only:
                 body = body.replace(anchor, "            in_tests_tree = False")
+            if drop_debt:
+                body = body.replace(
+                    debt_anchor, '    "no_print_in_modules_RENAMED": (')
             (tree / "spa_core" / "analytics" / "architecture_audit.py").write_text(
                 body, encoding="utf-8")
 
@@ -21384,14 +21416,17 @@ def _probe_test_membership_is_asked_about_place_not_name(
     broken: list[str] = []
     try:
         with _tf.TemporaryDirectory(prefix="spa_membership_probe_") as tmp:
-            live, mutated, headless = (_pathlib.Path(tmp) / n
-                                       for n in ("live", "mutated", "headless"))
+            live, mutated, headless, mute = (_pathlib.Path(tmp) / n
+                                             for n in ("live", "mutated",
+                                                       "headless", "mute"))
             _build(live, name_only=False)
             _build(mutated, name_only=True)
             _build(headless, name_only=False, with_audit=False)
+            _build(mute, name_only=False, drop_debt=True)
             rc_live, doc_live = _ask(live)
             rc_mut, doc_mut = _ask(mutated)
             rc_none, _doc_none = _ask(headless)
+            rc_mute, doc_mute = _ask(mute)
     except Exception as exc:  # noqa: BLE001
         return UNMEASURED, (f"НЕ ИЗМЕРЕНО: перепись не ответила на сцене "
                             f"({type(exc).__name__}: {exc})")
@@ -21415,14 +21450,25 @@ def _probe_test_membership_is_asked_about_place_not_name(
                       "вердикта не меняет, то есть ось расхождения СЛЕПА")
     elif "_helper.py" not in str(gone[0]):
         broken.append(f"исчезнувшее нарушение не про помощника: {gone[0]}")
-    if rc_live != 3:
-        broken.append(f"код живой сцены {rc_live}, а не 3 (предмет пуст, но два "
-                      "объявленных правила не реализованы и обязаны быть названы)")
+    if rc_live != 0:
+        broken.append(f"код живой сцены {rc_live}, а не 0 (предмет пуст, и у "
+                      "КАЖДОГО объявленного правила вопрос «реализовано ли "
+                      "оно» задать удалось)")
     live_unmeasured = sorted(r["rule"] for r in doc_live.get("rows", [])
                              if r["verdict"] == "UNMEASURED")
-    if live_unmeasured != ["no_llm_in_analytics", "no_print_in_modules"]:
-        broken.append("нереализованные объявленные правила названы не те: "
-                      f"{live_unmeasured}")
+    if live_unmeasured:
+        broken.append("на живой сцене остались МОЛЧАЛИВЫЕ дыры: "
+                      f"{live_unmeasured} — у правила нет ни метода, ни причины")
+    live_debt = sorted(r["rule"] for r in doc_live.get("rows", [])
+                       if r["verdict"] == "DECLARED_ABSENT")
+    if live_debt != ["no_print_in_modules"]:
+        broken.append("названный долг на живой сцене не тот: "
+                      f"{live_debt}, ожидалось ['no_print_in_modules']")
+    debt_rows = [r for r in doc_live.get("rows", [])
+                 if r["verdict"] == "DECLARED_ABSENT"]
+    if any(len((r.get("reason") or "")) < 40 for r in debt_rows):
+        broken.append("у названного долга причина пустая или односложная — "
+                      "«названный» без имени причины неотличим от забытого")
 
     # ── сломанная дверь: перепись обязана УВИДЕТЬ аварию ──
     if doc_mut.get("door_form") != "NAME_ONLY":
@@ -21430,9 +21476,13 @@ def _probe_test_membership_is_asked_about_place_not_name(
                       "а не NAME_ONLY — перепись не видит настоящей аварии")
     mut_subject = sorted(r["rule"] for r in doc_mut.get("rows", [])
                          if r["verdict"] == "DOOR_NAME")
-    if mut_subject != ["atomic_writes", "no_hardcoded_secrets"]:
-        broken.append(f"у сломанной двери предмет {mut_subject}, а не оба правила, "
-                      "зовущих дверь")
+    # Предмет сломанной двери ВЫРОС на `no_llm_in_analytics`: правило
+    # реализовано ЧЕРЕЗ ту же общую дверь, поэтому её поломка теперь задевает
+    # три правила, а не два. Это свидетельство усиления, а не ослабления.
+    if mut_subject != ["atomic_writes", "no_hardcoded_secrets",
+                       "no_llm_in_analytics"]:
+        broken.append(f"у сломанной двери предмет {mut_subject}, а не все три "
+                      "правила, зовущих дверь")
     if rc_mut != 1:
         broken.append(f"код сломанной сцены {rc_mut}, а не 1 (находка)")
 
@@ -21454,13 +21504,231 @@ def _probe_test_membership_is_asked_about_place_not_name(
         broken.append(f"дерево БЕЗ модуля аудита дало код {rc_none}, а не 2 — "
                       "«не измерено» неотличимо от «чисто»")
 
+    # ── четвёртое звено: СНЯТОЕ объявление долга обязано вернуть код 3 ──
+    # Без этой сцены перепись могла бы объявлять «вопрос задать удалось» о
+    # правиле, которое просто забыли, — то есть новый исход `DECLARED_ABSENT`
+    # стал бы способом ТИХО погасить код 3, ровно наоборот своему смыслу.
+    if rc_mute != 3:
+        broken.append(f"дерево со СНЯТЫМ объявлением долга дало код {rc_mute}, "
+                      "а не 3 — молчаливая дыра неотличима от названного долга")
+    mute_unmeasured = sorted(r["rule"] for r in doc_mute.get("rows", [])
+                             if r["verdict"] == "UNMEASURED")
+    if mute_unmeasured != ["no_print_in_modules"]:
+        broken.append("со снятым объявлением молчаливой дырой названо "
+                      f"{mute_unmeasured}, а не ['no_print_in_modules']")
+
     if broken:
         return NOT_SATISFIED, "; ".join(broken)
     return SATISFIED, (
         "перепись различает живую дверь (PLACE_AND_NAME, предмет пуст, расхождение 1) "
-        "и ту же дверь, спрашивающую ТОЛЬКО имя (NAME_ONLY, предмет 2 правила, "
+        "и ту же дверь, спрашивающую ТОЛЬКО имя (NAME_ONLY, предмет 3 правила, "
         "расхождение 0 при населении 1); дерево без модуля аудита даёт НЕ ИЗМЕРЕНО "
-        "кодом 2, а два объявленных и не реализованных правила названы кодом 3")
+        "кодом 2; названный с причиной долг (no_print_in_modules) даёт код 0, а то же "
+        "дерево со СНЯТЫМ объявлением — код 3, то есть признанный долг и забытое имя "
+        "различимы")
+
+
+
+def _probe_every_declared_audit_rule_is_answerable(
+        arg: str | None = None, *, repo_root: str | None = None) -> tuple[str, str]:
+    """Критерий: отчёт аудита НЕ печатает «не проверяли» и «чисто» одним нулём.
+
+    Предмет — карточка `inbox-audit-obyavlyaet-sem-pravil-a-ispolnyaet`
+    (заказ G1075 п. 4, ADR-1091). Аудит объявлял **семь** правил в
+    `AUDIT_RULES` и исполнял **пять**: `no_llm_in_analytics` и
+    `no_print_in_modules` существовали ТОЛЬКО строками в списке. Нереализованное
+    правило печаталось «0 violation(s)» наравне с правилом, которое по дереву
+    действительно прошло и ничего не нашло, — то есть «не измерено» было
+    неотличимо от «измерено и равно нулю» (инв. #17), и первое из двух вдобавок
+    называло инвариант #3 (запрет LLM).
+
+    **Меряется ИСХОД, а не структура.** Проба не ищет в исходнике ни слова
+    «status», ни имени словаря: она ЗАПУСКАЕТ настоящий аудит подпроцессом на
+    одноразовых деревьях и читает его `--json`-артефакт и человеческий отчёт
+    ЗНАЧЕНИЯМИ. Подстрокой она не проходит (ADR-333): сцена 2 оставляет в
+    дереве ВСЕ слова, которые проба могла бы искать, и обязана покраснеть.
+
+    Контроль на КАЖДОМ порванном звене лежит внутри самой проверки:
+
+    * **целый контур** — у каждого имени из `AUDIT_RULES` объявлен статус;
+      `no_llm_in_analytics` = `ENFORCED`; `no_print_in_modules` =
+      `NOT_IMPLEMENTED` с причиной длиннее лозунга; код CLI 0;
+    * **молчаливая дыра** — в `AUDIT_RULES` добавлено имя без метода и без
+      причины ⇒ `unmeasured_count` ненулевой, в отчёте строка «НЕ ИЗМЕРЕНО», код
+      CLI **2**. Порви это звено — и вернётся ровно исходный дефект;
+    * **ЗОВ, а не ТЕКСТ** (урок ADR-1088) — файл аналитики, где `import
+      anthropic` лежит ВНУТРИ строкового литерала, нарушением быть НЕ ДОЛЖЕН, а
+      тот же импорт по-настоящему — ДОЛЖЕН. Обе половины проверяются на одном
+      дереве: пройдёт только мера, спрашивающая AST;
+    * **третий исход у самого правила** — файл аналитики, который не
+      разбирается, даёт `UNMEASURED`, а не ноль и не `ERROR`;
+    * **дверь не ввезена** — дерево без `spa_core/ci` даёт `UNMEASURED` с
+      названной причиной, а не «чисто»: правило не имеет своей копии запрета
+      LLM и обязано сказать, что спросить было нечем.
+    """
+    import json as _json
+    import subprocess as _sp
+    import tempfile as _tf
+
+    root = (_pathlib.Path(repo_root) if repo_root
+            else _pathlib.Path(REPO_ROOT)).resolve()
+    audit_src = root / "spa_core" / "analytics" / "architecture_audit.py"
+    door_src = root / "spa_core" / "ci" / "llm_forbidden_lint.py"
+    for path in (audit_src, door_src):
+        if not path.is_file():
+            return UNMEASURED, f"НЕ ИЗМЕРЕНО: в дереве нет {path}"
+
+    audit_text = audit_src.read_text(encoding="utf-8", errors="replace")
+    rules_anchor = '    "no_print_in_modules",  # use logging instead'
+    if audit_text.count(rules_anchor) != 1:
+        return UNMEASURED, (
+            "НЕ ИЗМЕРЕНО: якорь списка правил встречается "
+            f"{audit_text.count(rules_anchor)} раз(а), а не один — молчаливую "
+            "дыру подсадить нечем, и «сцена не построена» не есть «предмет пуст»")
+
+    def _build(tree: "_pathlib.Path", *, silent_hole: bool = False,
+               with_door: bool = True, analytics: "dict[str, str] | None" = None) -> None:
+        (tree / "spa_core" / "analytics").mkdir(parents=True)
+        (tree / "spa_core" / "utils").mkdir(parents=True)
+        for pkg in ("spa_core", "spa_core/analytics", "spa_core/utils"):
+            (tree / pkg / "__init__.py").write_text("", encoding="utf-8")
+        (tree / "spa_core" / "utils" / "atomic.py").write_text(
+            "import json, os, tempfile\n"
+            "def atomic_save(payload, path):\n"
+            "    with open(str(path) + '.tmp', 'w') as fh:\n"
+            "        json.dump(payload, fh)\n"
+            "    os.replace(str(path) + '.tmp', str(path))\n",
+            encoding="utf-8")
+        if with_door:
+            (tree / "spa_core" / "ci").mkdir(parents=True)
+            (tree / "spa_core" / "ci" / "__init__.py").write_text("", encoding="utf-8")
+            (tree / "spa_core" / "ci" / "llm_forbidden_lint.py").write_text(
+                door_src.read_text(encoding="utf-8"), encoding="utf-8")
+        body = audit_text
+        if silent_hole:
+            body = body.replace(
+                rules_anchor,
+                rules_anchor + '\n    "a_rule_nobody_implemented",')
+        (tree / "spa_core" / "analytics" / "architecture_audit.py").write_text(
+            body, encoding="utf-8")
+        for name, src in (analytics or {}).items():
+            (tree / "spa_core" / "analytics" / name).write_text(src, encoding="utf-8")
+
+    def _ask(tree: "_pathlib.Path") -> tuple[int, str, dict]:
+        proc = _sp.run(
+            [sys.executable, "-m", "spa_core.analytics.architecture_audit",
+             "--base-dir", str(tree / "spa_core"), "--save"],
+            cwd=str(tree), capture_output=True, text=True, timeout=600)
+        saved = tree / "data" / "audit" / "architecture_audit.json"
+        try:
+            doc = _json.loads(saved.read_text(encoding="utf-8"))
+        except Exception:  # noqa: BLE001 — неразобранный артефакт есть ИСХОД
+            doc = {}
+        return proc.returncode, proc.stdout, doc
+
+    broken: list[str] = []
+    try:
+        with _tf.TemporaryDirectory(prefix="spa_audit_rules_probe_") as tmp:
+            live, hole, doorless = (_pathlib.Path(tmp) / n
+                                    for n in ("live", "hole", "doorless"))
+            # ЗОВ против ТЕКСТА — обе половины на ОДНОМ дереве.
+            _build(live, analytics={
+                "quoted_only.py": (
+                    'HINT = "import anthropic  # это ТЕКСТ, а не зов"\n'
+                    'OTHER = """from openai import Client"""\n'
+                ),
+                "real_import.py": "import anthropic\n",
+            })
+            _build(hole, silent_hole=True)
+            _build(doorless, with_door=False)
+            rc_live, out_live, doc_live = _ask(live)
+            rc_hole, out_hole, doc_hole = _ask(hole)
+            rc_door, _out_door, doc_door = _ask(doorless)
+    except Exception as exc:  # noqa: BLE001
+        return UNMEASURED, (f"НЕ ИЗМЕРЕНО: аудит не ответил на сцене "
+                            f"({type(exc).__name__}: {exc})")
+
+    if not doc_live or not doc_hole:
+        return UNMEASURED, ("НЕ ИЗМЕРЕНО: аудит не отдал разбираемый артефакт "
+                            f"(коды {rc_live}/{rc_hole})")
+
+    # ── целый контур ──
+    rules_live = doc_live.get("rules") or {}
+    if not rules_live:
+        broken.append("артефакт не несёт статусов правил вовсе — читатель не "
+                      "может отличить «прошло и чисто» от «не исполнялось»")
+    statuses = {r: row.get("status") for r, row in rules_live.items()}
+    if statuses.get("no_llm_in_analytics") != "ENFORCED":
+        broken.append("no_llm_in_analytics доложено как "
+                      f"{statuses.get('no_llm_in_analytics')!r}, а не ENFORCED")
+    if statuses.get("no_print_in_modules") != "NOT_IMPLEMENTED":
+        broken.append("no_print_in_modules доложено как "
+                      f"{statuses.get('no_print_in_modules')!r}, а не "
+                      "NOT_IMPLEMENTED")
+    else:
+        reason = (rules_live["no_print_in_modules"].get("reason") or "")
+        if len(reason) < 80:
+            broken.append("у НЕ РЕАЛИЗОВАННОГО правила причина пустая или "
+                          f"односложная ({len(reason)} символов) — «названный "
+                          "долг» без имени причины неотличим от забытого имени")
+    if "НЕ РЕАЛИЗОВАНО" not in out_live:
+        broken.append("человеческий отчёт не печатает «НЕ РЕАЛИЗОВАНО» — "
+                      "нереализованное правило снова неотличимо от нуля")
+    if rc_live != 0:
+        broken.append(f"код живой сцены {rc_live}, а не 0: у каждого "
+                      "объявленного правила вопрос задать удалось")
+    if doc_live.get("unmeasured_count") != 0:
+        broken.append("на живой сцене unmeasured_count "
+                      f"{doc_live.get('unmeasured_count')}, а не 0")
+
+    # ── ЗОВ против ТЕКСТА (урок ADR-1088), обе половины ──
+    llm_hits = [v for v in doc_live.get("violations", [])
+                if v.get("rule") == "no_llm_in_analytics"]
+    quoted = [v for v in llm_hits if "quoted_only" in (v.get("file") or "")]
+    real = [v for v in llm_hits if "real_import" in (v.get("file") or "")]
+    if quoted:
+        broken.append("импорт ВНУТРИ строкового литерала зачтён нарушением "
+                      f"({quoted[0].get('file')}:{quoted[0].get('line')}) — "
+                      "мера спрашивает ТЕКСТ, а не ЗОВ (урок ADR-1088)")
+    if not real:
+        broken.append("настоящий `import anthropic` в spa_core/analytics НЕ "
+                      "найден — правило слепо к предмету инварианта #3")
+    elif not any(v.get("severity") == "ERROR" for v in real):
+        broken.append("настоящий импорт SDK доложен не как ERROR: "
+                      f"{sorted({v.get('severity') for v in real})}")
+
+    # ── молчаливая дыра ──
+    hole_statuses = {r: row.get("status")
+                     for r, row in (doc_hole.get("rules") or {}).items()}
+    if hole_statuses.get("a_rule_nobody_implemented") != "UNMEASURED":
+        broken.append("подсаженное имя без метода и без причины доложено как "
+                      f"{hole_statuses.get('a_rule_nobody_implemented')!r}, а не "
+                      "UNMEASURED — молчаливая дыра снова неотличима от нуля")
+    if rc_hole != 2:
+        broken.append(f"код сцены с молчаливой дырой {rc_hole}, а не 2 — "
+                      "«не измерено» выдаётся за успех (инв. #17)")
+    if "НЕ ИЗМЕРЕНО" not in out_hole:
+        broken.append("отчёт сцены с молчаливой дырой не печатает «НЕ ИЗМЕРЕНО»")
+    if not doc_hole.get("unmeasured_count"):
+        broken.append("артефакт сцены с дырой не несёт unmeasured_count")
+
+    # ── дверь не ввезена ⇒ НЕ ИЗМЕРЕНО, а не «чисто» ──
+    door_rows = [v for v in (doc_door.get("violations") or [])
+                 if v.get("rule") == "no_llm_in_analytics"]
+    if not any(v.get("severity") == "UNMEASURED" for v in door_rows):
+        broken.append("дерево БЕЗ spa_core/ci не дало «НЕ ИЗМЕРЕНО» у "
+                      "no_llm_in_analytics — правило молча доложило бы «чисто» "
+                      "там, где спросить было нечем")
+
+    if broken:
+        return NOT_SATISFIED, "; ".join(broken)
+    return SATISFIED, (
+        "у каждого из AUDIT_RULES объявлен статус; no_llm_in_analytics ENFORCED и "
+        "ловит настоящий `import anthropic`, не считая нарушением тот же текст "
+        "внутри литерала; no_print_in_modules NOT_IMPLEMENTED с названной "
+        "причиной, отчёт печатает «НЕ РЕАЛИЗОВАНО», код 0; подсаженное имя без "
+        "метода и без причины даёт UNMEASURED, «НЕ ИЗМЕРЕНО» в отчёте и код 2; "
+        "дерево без двери запрета LLM даёт НЕ ИЗМЕРЕНО, а не «чисто»")
 
 
 PROBES: dict[str, Callable[[str | None], "tuple[str, str]"]] = {
@@ -21471,6 +21739,8 @@ PROBES: dict[str, Callable[[str | None], "tuple[str, str]"]] = {
     "apy_name_carries_one_kind": _probe_apy_name_carries_one_kind,
     "test_membership_is_asked_about_place_not_name":
         _probe_test_membership_is_asked_about_place_not_name,
+    "every_declared_audit_rule_is_answerable":
+        _probe_every_declared_audit_rule_is_answerable,
     "findings_bridge_has_a_live_writer": _probe_findings_bridge_has_a_live_writer,
     "shadow_record_carries_the_system_action":
         _probe_shadow_record_carries_the_system_action,

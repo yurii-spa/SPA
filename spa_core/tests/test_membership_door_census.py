@@ -41,6 +41,25 @@ BYPASS_THE_DOOR = (
     '                if skip_tests and fpath.name.startswith("test_"):',
 )
 
+#: Как СНЯТЬ объявление названного долга, не тронув ничего другого:
+#: переименовывается КЛЮЧ словаря, и правило без метода снова становится
+#: МОЛЧАЛИВОЙ дырой (код 3). Переименовать сам словарь нельзя — модуль стал бы
+#: нерабочим (`NameError` в `rule_status`), и сцена мерила бы падение.
+DROP_THE_DEBT = (
+    '    "no_print_in_modules": (',
+    '    "no_print_in_modules_RENAMED": (',
+)
+
+#: Все правила, которые зовут ОБЩУЮ дверь `_iter_py_files(skip_tests=...)`.
+#: Выросло с двух до трёх циклом #1236 (ADR-1091): `no_llm_in_analytics`
+#: реализовано через ту же дверь, поэтому её поломка теперь задевает три
+#: правила. Список — пин СОСТОЯНИЯ, и он обязан расти вместе с ним.
+RULES_THROUGH_THE_DOOR = [
+    "atomic_writes",
+    "no_hardcoded_secrets",
+    "no_llm_in_analytics",
+]
+
 #: Помощник в каталоге тестов, который ПРАВДА пишет файл прямым зовом: ни «tmp», ни
 #: «os.replace» в пяти строках вокруг, иначе правило простит его само и сцена ослепнет.
 HELPER = (
@@ -128,8 +147,13 @@ class TheCensusAnswersAboutBehaviourNotProse(unittest.TestCase):
         self.assertEqual(doc.get("door_form"), "PLACE_AND_NAME", doc.get("door_form_reason"))
         self.assertEqual(
             [r["rule"] for r in doc["rows"] if r["verdict"] == "DOOR_NAME"], [])
-        # Код 3, а не 0: предмет пуст, но два объявленных правила не реализованы.
-        self.assertEqual(code, 3)
+        # Код 0, а не 3 (цикл #1236, ADR-1091): предмет пуст И у КАЖДОГО
+        # объявленного правила вопрос «реализовано ли оно» задать удалось —
+        # `no_llm_in_analytics` реализовано, `no_print_in_modules` объявлено
+        # не исполняемым с причиной. Пин сменила ПОЧИНКА, а не правка теста;
+        # зубы прежнего пина сохранены отдельной сценой
+        # `test_a_dropped_declaration_is_a_silent_hole_again` ниже.
+        self.assertEqual(code, 0)
 
     def test_a_name_only_door_is_the_subject_and_the_census_sees_it(self):
         with tempfile.TemporaryDirectory() as tmp:
@@ -139,7 +163,7 @@ class TheCensusAnswersAboutBehaviourNotProse(unittest.TestCase):
         self.assertEqual(doc.get("door_form"), "NAME_ONLY", doc.get("door_form_reason"))
         self.assertEqual(
             sorted(r["rule"] for r in doc["rows"] if r["verdict"] == "DOOR_NAME"),
-            ["atomic_writes", "no_hardcoded_secrets"])
+            RULES_THROUGH_THE_DOOR)
         self.assertEqual(code, 1)
 
     def test_the_divergence_of_a_broken_door_is_zero_while_the_population_is_not(self):
@@ -168,7 +192,7 @@ class TheCensusAnswersAboutBehaviourNotProse(unittest.TestCase):
         self.assertEqual(doc.get("door_form"), "NEITHER", doc.get("door_form_reason"))
         self.assertEqual(
             sorted(r["rule"] for r in doc["rows"] if r["verdict"] == "DOOR_NAME"),
-            ["atomic_writes", "no_hardcoded_secrets"])
+            RULES_THROUGH_THE_DOOR)
 
     def test_the_second_direction_is_measured_zero_not_absent(self):
         """«Файлов test_*.py вне tests/ нет» — наблюдение, а не отсутствие поля."""
@@ -195,14 +219,77 @@ class TheCensusAnswersAboutBehaviourNotProse(unittest.TestCase):
         self.assertEqual(doc, {})
 
     def test_a_declared_rule_without_an_implementation_is_named_not_swallowed(self):
+        """Правило без метода НАЗВАНО — и у «названо» ДВЕ различимые формы.
+
+        Прежняя редакция требовала исхода `UNMEASURED` у ДВУХ правил; оба пина
+        сменила ПОЧИНКА цикла #1236 (ADR-1091), а не правка теста:
+        `no_llm_in_analytics` реализовано, `no_print_in_modules` объявлено не
+        исполняемым С ПРИЧИНОЙ. Притязание не ослаблено — требуется, чтобы
+        причина была НАЗВАНА и видна в человеческом отчёте, а соседняя сцена
+        проверяет, что СНЯТИЕ объявления возвращает молчаливую дыру.
+        """
         with tempfile.TemporaryDirectory() as tmp:
             tree = Path(tmp) / "live"
             build_tree(tree)
             _rc, doc, report = ask(tree)
         self.assertEqual(
             sorted(r["rule"] for r in doc["rows"] if r["verdict"] == "UNMEASURED"),
-            ["no_llm_in_analytics", "no_print_in_modules"])
+            [], "молчаливых дыр на живом дереве быть не должно")
+        debt = [r for r in doc["rows"] if r["verdict"] == "DECLARED_ABSENT"]
+        self.assertEqual([r["rule"] for r in debt], ["no_print_in_modules"])
+        self.assertGreater(
+            len(debt[0]["reason"]), 40,
+            "«названный долг» без имени причины неотличим от забытого имени")
         self.assertIn("НЕ РЕАЛИЗОВАНО", report)
+
+    def test_a_dropped_declaration_is_a_silent_hole_again(self):
+        """Зубы прежнего пина: СНЯТОЕ объявление обязано вернуть код 3.
+
+        Без этой сцены новый исход `DECLARED_ABSENT` стал бы способом ТИХО
+        погасить код 3 — ровно наоборот своему смыслу.
+        """
+        with tempfile.TemporaryDirectory() as tmp:
+            tree = Path(tmp) / "mute"
+            build_tree(tree, audit_patch=DROP_THE_DEBT)
+            code, doc, _ = ask(tree)
+        self.assertEqual(code, 3)
+        self.assertEqual(
+            sorted(r["rule"] for r in doc["rows"] if r["verdict"] == "UNMEASURED"),
+            ["no_print_in_modules"])
+        self.assertEqual(
+            [r["rule"] for r in doc["rows"] if r["verdict"] == "DECLARED_ABSENT"], [])
+
+    def test_a_declaration_without_a_reason_is_not_a_named_debt(self):
+        """Объявление с пустой причиной объявлением НЕ считается.
+
+        Мерится ЕДИНСТВЕННОЙ дверью разбора, а не прозой: «долг назван» без
+        имени причины — та же подмена «не измерено» на «измерено», только на
+        один слой выше.
+        """
+        sys.path.insert(0, str(_REPO_ROOT / "scripts"))
+        import test_membership_door_census as census  # noqa: PLC0415
+
+        with_reason = 'RULE_NOT_IMPLEMENTED = {"r": "потому что замер такой"}\n'
+        self.assertEqual(
+            census.declared_not_implemented(with_reason),
+            {"r": "потому что замер такой"})
+        for blank in ('RULE_NOT_IMPLEMENTED = {"r": ""}\n',
+                      'RULE_NOT_IMPLEMENTED = {"r": "   "}\n',
+                      'RULE_NOT_IMPLEMENTED = {"r": None}\n'):
+            self.assertEqual(census.declared_not_implemented(blank), {}, blank)
+        # Словаря нет вовсе — это не ошибка, а «объявления нет».
+        self.assertEqual(census.declared_not_implemented("x = 1\n"), {})
+
+        # Дыра покрытия, найденная мутацией M14: словарь, объявленный НЕ
+        # словарём, обязан дать ГРОМКИЙ отказ, а не молчаливое «объявления нет»
+        # — иначе «не разобрано» снова неотличимо от «нечего разбирать».
+        for bad in ("RULE_NOT_IMPLEMENTED = []\n",
+                    "RULE_NOT_IMPLEMENTED = 7\n",
+                    'RULE_NOT_IMPLEMENTED = "строка"\n'):
+            with self.assertRaises(census.NotMeasured, msg=bad):
+                census.declared_not_implemented(bad)
+        with self.assertRaises(census.NotMeasured):
+            census.declared_not_implemented('RULE_NOT_IMPLEMENTED = {1: "a"}\n')
 
     def test_the_own_form_measure_does_not_credit_a_docstring(self):
         """Дефект МОЕЙ ЖЕ первой мерки: докстринг про `test_*` зачитывался за форму.
@@ -330,12 +417,20 @@ class TheProbeIsRedOnEveryBrokenLink(unittest.TestCase):
         self.assertIn("расхождение", why.lower())
 
     def test_a_census_that_hides_unimplemented_rules_makes_the_probe_red(self):
+        """Перепись, не называющая правило без метода, обязана краснить пробу.
+
+        Формулировка жалобы сменилась вместе со словарём исходов (ADR-1091):
+        прежде проба говорила «не реализованы», теперь — про НАЗВАННЫЙ ДОЛГ и
+        про МОЛЧАЛИВУЮ ДЫРУ, потому что исходов стало два. Проверяется, что
+        жалоба указывает на ПРОПАВШЕЕ ИМЯ ПРАВИЛА, а не просто непуста.
+        """
         verdict, why = self._probe_on(instrument_patch=(
             "        return out\n",
             "        return [r for r in out if r in rule_to_method(source)]\n"))
         self.assertEqual(verdict, self.ca.NOT_SATISFIED, why)
+        self.assertIn("no_print_in_modules", why)
         self.assertTrue(
-            "не реализованы" in why or "названы не те" in why, why)
+            "названный долг" in why.lower() or "молчаливая дыра" in why.lower(), why)
 
     def test_a_tree_without_the_instrument_is_unmeasured(self):
         verdict, why = self._probe_on(with_instrument=False)

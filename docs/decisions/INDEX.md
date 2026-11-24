@@ -219,6 +219,7 @@
 | ADR-1088 | ADR-1088 — Правило `atomic_writes` считало ТЕКСТ, а не ЗОВ: три из семи нарушений лежали внутри строкового литерала | Accepted | [ADR-1088](ADR-1088-atomic-writes-rule-counts-text-not-calls.md) |
 | ADR-1089 | ADR-1089 — Решение владельца 24.11: снять блокировку earn-defi KC-1 (вариант 1); инжест ответа, действие за владельцем | Accepted | [ADR-1089](ADR-1089-owner-clears-earn-defi-kc1-incident.md) |
 | ADR-1090 | ADR-1090 — Правило объявляло, что ПРОПУСКАЕТ тесты, а спрашивало ИМЯ файла: дверь спрашивает МЕСТО, население 64, расхождение вердикта мерой класса НЕ является | Accepted | [ADR-1090](ADR-1090-the-door-asks-about-place-not-the-file-name.md) |
+| ADR-1091 | ADR-1091 — Объявленное правило аудита обязано быть ОТВЕЧАЕМЫМ: «не проверяли» перестаёт печататься нулём | Accepted | [ADR-1091](ADR-1091-declared-audit-rule-must-be-answerable.md) |
 
 ## Соглашения
 
